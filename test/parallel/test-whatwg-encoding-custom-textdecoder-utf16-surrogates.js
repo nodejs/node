@@ -8,8 +8,6 @@ const common = require('../common');
 if (!common.hasIntl)
   common.skip('missing Intl');
 
-const assert = require('assert');
-
 const bad = [
   {
     encoding: 'utf-16le',
@@ -44,11 +42,6 @@ const bad = [
 ];
 
 bad.forEach((t) => {
-  // TODO(joyeecheung): remove this when WPT is ported
-  assert.strictEqual(
-    new TextDecoder(t.encoding).decode(new Uint8Array(t.input)),
-    t.expected);
-
   common.expectsError(
     () => {
       new TextDecoder(t.encoding, { fatal: true })

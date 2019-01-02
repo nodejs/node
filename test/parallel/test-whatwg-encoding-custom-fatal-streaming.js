@@ -8,8 +8,6 @@ const common = require('../common');
 if (!common.hasIntl)
   common.skip('missing Intl');
 
-const assert = require('assert');
-
 {
   [
     { encoding: 'utf-8', sequence: [0xC0] },
@@ -28,12 +26,6 @@ const assert = require('assert');
           `The encoded data was not valid for encoding ${testCase.encoding}`
       }
     );
-
-    // TODO(joyeecheung): remove this when WPT is ported
-    assert.strictEqual(
-      new TextDecoder(testCase.encoding).decode(data),
-      '\uFFFD'
-    );
   });
 }
 
@@ -41,10 +33,6 @@ const assert = require('assert');
   const decoder = new TextDecoder('utf-16le', { fatal: true });
   const odd = new Uint8Array([0x00]);
   const even = new Uint8Array([0x00, 0x00]);
-
-  // TODO(joyeecheung): remove this when WPT is ported
-  assert.strictEqual(decoder.decode(odd, { stream: true }), '');
-  assert.strictEqual(decoder.decode(odd), '\u0000');
 
   common.expectsError(
     () => {
@@ -69,8 +57,4 @@ const assert = require('assert');
         'The encoded data was not valid for encoding utf-16le'
     }
   );
-
-  // TODO(joyeecheung): remove this when WPT is ported
-  assert.strictEqual(decoder.decode(even, { stream: true }), '\u0000');
-  assert.strictEqual(decoder.decode(even), '\u0000');
 }
