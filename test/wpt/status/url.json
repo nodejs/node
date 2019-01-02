@@ -1,10 +1,10 @@
 {
   "toascii.window.js": {
-    "requires": ["intl"],
+    "requires": ["small-icu"],
     "skip": "TODO: port from .window.js"
   },
   "historical.any.js": {
-    "requires": ["intl"]
+    "requires": ["small-icu"]
   },
   "urlencoded-parser.any.js": {
     "fail": "missing Request and Response"

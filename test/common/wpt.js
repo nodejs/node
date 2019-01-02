@@ -1,7 +1,7 @@
+/* eslint-disable node-core/required-modules */
 'use strict';
 
 const assert = require('assert');
-const common = require('../common');
 const fixtures = require('../common/fixtures');
 const fs = require('fs');
 const fsPromises = fs.promises;
@@ -160,11 +160,48 @@ class WPTTest {
   getContent() {
     return fs.readFileSync(this.getAbsolutePath(), 'utf8');
   }
+}
 
-  requireIntl() {
-    return this.requires.has('intl');
+const kIntlRequirement = {
+  none: 0,
+  small: 1,
+  full: 2,
+  // TODO(joyeecheung): we may need to deal with --with-intl=system-icu
+};
+
+class IntlRequirement {
+  constructor() {
+    this.currentIntl = kIntlRequirement.none;
+    if (process.config.variables.v8_enable_i18n_support === 0) {
+      this.currentIntl = kIntlRequirement.none;
+      return;
+    }
+    // i18n enabled
+    if (process.config.variables.icu_small) {
+      this.currentIntl = kIntlRequirement.small;
+    } else {
+      this.currentIntl = kIntlRequirement.full;
+    }
+  }
+
+  /**
+   * @param {Set} requires
+   * @returns {string|false} The config that the build is lacking, or false
+   */
+  isLacking(requires) {
+    const current = this.currentIntl;
+    if (requires.has('full-icu') && current !== kIntlRequirement.full) {
+      return 'full-icu';
+    }
+    if (requires.has('small-icu') && current < kIntlRequirement.small) {
+      return 'small-icu';
+    }
+    return false;
   }
 }
+
+const intlRequirements = new IntlRequirement();
+
 
 class StatusLoader {
   constructor(path) {
@@ -498,8 +535,9 @@ class WPTRunner {
         continue;
       }
 
-      if (!common.hasIntl && test.requireIntl()) {
-        this.skip(filename, [ 'missing Intl' ]);
+      const lackingIntl = intlRequirements.isLacking(test.requires);
+      if (lackingIntl) {
+        this.skip(filename, [ `requires ${lackingIntl}` ]);
         continue;
       }
 
