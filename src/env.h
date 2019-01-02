@@ -371,6 +371,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(script_data_constructor_function, v8::Function)                            \
   V(secure_context_constructor_template, v8::FunctionTemplate)                 \
   V(shutdown_wrap_template, v8::ObjectTemplate)                                \
+  V(start_execution_function, v8::Function)                                    \
   V(tcp_constructor_template, v8::FunctionTemplate)                            \
   V(tick_callback_function, v8::Function)                                      \
   V(timers_callback_function, v8::Function)                                    \
@@ -755,6 +756,9 @@ class Environment {
   inline bool can_call_into_js() const;
   inline void set_can_call_into_js(bool can_call_into_js);
 
+  inline bool has_run_bootstrapping_code() const;
+  inline void set_has_run_bootstrapping_code(bool has_run_bootstrapping_code);
+
   inline bool is_main_thread() const;
   inline uint64_t thread_id() const;
   inline void set_thread_id(uint64_t id);
@@ -980,6 +984,7 @@ class Environment {
   std::unique_ptr<performance::performance_state> performance_state_;
   std::unordered_map<std::string, uint64_t> performance_marks_;
 
+  bool has_run_bootstrapping_code_ = false;
   bool can_call_into_js_ = true;
   uint64_t thread_id_ = 0;
   std::unordered_set<worker::Worker*> sub_worker_contexts_;

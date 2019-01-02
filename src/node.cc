@@ -1085,6 +1085,14 @@ static MaybeLocal<Value> ExecuteBootstrapper(
 }
 
 void LoadEnvironment(Environment* env) {
+  RunBootstrapping(env);
+  StartExecution(env);
+}
+
+void RunBootstrapping(Environment* env) {
+  CHECK(!env->has_run_bootstrapping_code());
+  env->set_has_run_bootstrapping_code(true);
+
   HandleScope handle_scope(env->isolate());
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
@@ -1146,11 +1154,29 @@ void LoadEnvironment(Environment* env) {
       loader_exports.ToLocalChecked(),
       Boolean::New(isolate, env->is_main_thread())};
 
-  if (ExecuteBootstrapper(
+  Local<Value> start_execution;
+  if (!ExecuteBootstrapper(
           env, "internal/bootstrap/node", &node_params, &node_args)
-          .IsEmpty()) {
+          .ToLocal(&start_execution)) {
     return;
   }
+
+  if (start_execution->IsFunction())
+    env->set_start_execution_function(start_execution.As<Function>());
+}
+
+void StartExecution(Environment* env) {
+  HandleScope handle_scope(env->isolate());
+  // We have to use Local<>::New because of the optimized way in which we access
+  // the object in the env->...() getters, which does not play well with
+  // resetting the handle while we're accessing the object through the Local<>.
+  Local<Function> start_execution =
+      Local<Function>::New(env->isolate(), env->start_execution_function());
+  env->set_start_execution_function(Local<Function>());
+
+  if (start_execution.IsEmpty()) return;
+  USE(start_execution->Call(
+      env->context(), Undefined(env->isolate()), 0, nullptr));
 }
 
 static void StartInspector(Environment* env, const char* path) {
