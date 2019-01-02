@@ -8,8 +8,6 @@ const common = require('../common');
 if (!common.hasIntl)
   common.skip('missing Intl');
 
-const assert = require('assert');
-
 const bad = [
   { encoding: 'utf-8', input: [0xFF], name: 'invalid code' },
   { encoding: 'utf-8', input: [0xC0], name: 'ends early' },
@@ -82,11 +80,3 @@ bad.forEach((t) => {
     }
   );
 });
-
-// TODO(joyeecheung): remove this when WPT is ported
-{
-  assert('fatal' in new TextDecoder());
-  assert.strictEqual(typeof new TextDecoder().fatal, 'boolean');
-  assert(!new TextDecoder().fatal);
-  assert(new TextDecoder('utf-8', { fatal: true }).fatal);
-}
