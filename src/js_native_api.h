@@ -5,10 +5,11 @@
 #include <stdbool.h>
 #include "js_native_api_types.h"
 
+// Use INT_MAX, this should only be consumed by the pre-processor anyway.
+#define NAPI_VERSION_EXPERIMENTAL 2147483647
 #ifndef NAPI_VERSION
 #ifdef NAPI_EXPERIMENTAL
-// Use INT_MAX, this should only be consumed by the pre-processor anyway.
-#define NAPI_VERSION 2147483647
+#define NAPI_VERSION NAPI_VERSION_EXPERIMENTAL
 #else
 // The baseline version for N-API
 #define NAPI_VERSION 3
