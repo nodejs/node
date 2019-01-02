@@ -32,15 +32,23 @@ assert(buffer instanceof SharedArrayBuffer);
   // stopped when we exit.
   const worker = new Worker(`
   const { parentPort } = require('worker_threads');
+
+  // Compile the same WASM module from its source bytes.
   const wasmSource = new Uint8Array([${wasmSource.join(',')}]);
   const wasmModule = new WebAssembly.Module(wasmSource);
   const instance = new WebAssembly.Instance(wasmModule);
   parentPort.postMessage(instance.exports.memory);
+
+  // Do the same thing, except we receive the WASM module via transfer.
+  parentPort.once('message', ({ wasmModule }) => {
+    const instance = new WebAssembly.Instance(wasmModule);
+    parentPort.postMessage(instance.exports.memory);
+  });
   `, { eval: true });
-  worker.once('message', common.mustCall(({ buffer }) => {
+  worker.on('message', common.mustCall(({ buffer }) => {
     assert(buffer instanceof SharedArrayBuffer);
     worker.buf = buffer; // Basically just keep the reference to buffer alive.
-  }));
+  }, 2));
   worker.once('exit', common.mustCall());
   worker.postMessage({ wasmModule });
 }
