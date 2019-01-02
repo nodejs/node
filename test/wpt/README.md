@@ -151,7 +151,7 @@ expected failures.
 {
   "something.scope.js": {  // the file name
     // Optional: If the requirement is not met, this test will be skipped
-    "requires": ["intl"],  // currently only intl is supported
+    "requires": ["small-icu"],  // supports: "small-icu", "full-icu"
 
     // Optional: the test will be skipped with the reason printed
     "skip": "explain why we cannot run a test that's supposed to pass",
