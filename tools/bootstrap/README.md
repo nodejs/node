@@ -23,7 +23,7 @@ get-boxstarter -Force
 Install-BoxstarterPackage https://raw.githubusercontent.com/nodejs/node/master/tools/bootstrap/windows_boxstarter -DisableReboots
 ```
 
-Entire installation will take up about 8 GB of disk space.
+Entire installation will take up about 10 GB of disk space.
 
 ## Linux
 

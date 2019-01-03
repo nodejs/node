@@ -407,9 +407,19 @@ Prerequisites:
   and tools which can be included in the global `PATH`.
 * The [NetWide Assembler](http://www.nasm.us/), for OpenSSL assembler modules.
   If not installed in the default location, it needs to be manually added
-  to `PATH`. A build with the `openssl-no-asm` option does not need this.
+  to `PATH`. A build with the `openssl-no-asm` option does not need this, nor
+  does a build targeting ARM64 Windows.
 * **Optional** (to build the MSI): the [WiX Toolset v3.11](http://wixtoolset.org/releases/)
   and the [Wix Toolset Visual Studio 2017 Extension](https://marketplace.visualstudio.com/items?itemName=RobMensching.WixToolsetVisualStudio2017Extension).
+* **Optional** Requirements for compiling for Windows 10 on ARM (ARM64):
+    * ARM64 Windows build machine
+        * Due to a GYP limitation, this is required to run compiled code
+          generation tools (like V8's builtins and mksnapshot tools)
+    * Visual Studio 15.9.0 or newer
+    * Visual Studio optional components
+        * Visual C++ compilers and libraries for ARM64
+        * Visual C++ ATL for ARM64
+    * Windows 10 SDK 10.0.17763.0 or newer
 
 If the path to your build directory contains a space or a non-ASCII character,
 the build will likely fail.
