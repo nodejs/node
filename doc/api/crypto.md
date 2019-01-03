@@ -1370,7 +1370,7 @@ This can be called many times with new data as it is streamed.
 added: v0.1.92
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/???
+    pr-url: https://github.com/nodejs/node/pull/25217
     description: The key can now be a private key instead of a public key.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11705
@@ -1828,7 +1828,7 @@ added: v11.6.0
 added: REPLACEME
 changes:
   - version: REPLACEME
-    pr-url: TODO
+    pr-url: https://github.com/nodejs/node/pull/25217
     description: The `key` argument can now be a private key.
 -->
 * `key` {Object | string | Buffer}
