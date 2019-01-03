@@ -32,8 +32,7 @@ assert(buffer instanceof SharedArrayBuffer);
   // stopped when we exit.
   const worker = new Worker(`
   const { parentPort } = require('worker_threads');
-  const fixtures = require('${__dirname}/../common/fixtures');
-  const wasmSource = fixtures.readSync('wasm-threads-shared-memory.wasm');
+  const wasmSource = new Uint8Array([${wasmSource.join(',')}]);
   const wasmModule = new WebAssembly.Module(wasmSource);
   const instance = new WebAssembly.Instance(wasmModule);
   parentPort.postMessage(instance.exports.memory);
