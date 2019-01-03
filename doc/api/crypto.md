@@ -1941,18 +1941,8 @@ changes:
   - `publicExponent`: {number} Public exponent (RSA). **Default:** `0x10001`.
   - `divisorLength`: {number} Size of `q` in bits (DSA).
   - `namedCurve`: {string} Name of the curve to use (EC).
-  - `publicKeyEncoding`: {Object}
-    - `type`: {string} Must be one of `'pkcs1'` (RSA only) or `'spki'`.
-    - `format`: {string} Must be `'pem'` or `'der'`.
-  - `privateKeyEncoding`: {Object}
-    - `type`: {string} Must be one of `'pkcs1'` (RSA only), `'pkcs8'` or
-      `'sec1'` (EC only).
-    - `format`: {string} Must be `'pem'` or `'der'`.
-    - `cipher`: {string} If specified, the private key will be encrypted with
-      the given `cipher` and `passphrase` using PKCS#5 v2.0 password based
-      encryption.
-    - `passphrase`: {string | Buffer} The passphrase to use for encryption, see
-      `cipher`.
+  - `publicKeyEncoding`: {Object} See [`keyObject.export()`][].
+  - `privateKeyEncoding`: {Object} See [`keyObject.export()`][].
 * Returns: {Object}
   - `publicKey`: {string | Buffer | KeyObject}
   - `privateKey`: {string | Buffer | KeyObject}
@@ -1960,8 +1950,12 @@ changes:
 Generates a new asymmetric key pair of the given `type`. Only RSA, DSA and EC
 are currently supported.
 
+If a `publicKeyEncoding` or `privateKeyEncoding` was specified, this function
+behaves as if [`keyObject.export()`][] had been called on its result. Otherwise,
+the respective part of the key is returned as a [`KeyObject`].
+
 It is recommended to encode public keys as `'spki'` and private keys as
-`'pkcs8'` with encryption:
+`'pkcs8'` with encryption for long-term storage:
 
 ```js
 const { generateKeyPairSync } = require('crypto');
