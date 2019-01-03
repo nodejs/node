@@ -1825,7 +1825,6 @@ must be an object with the properties described above.
 ### crypto.createPublicKey(key)
 <!-- YAML
 added: v11.6.0
-added: REPLACEME
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/25217
