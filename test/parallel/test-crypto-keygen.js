@@ -96,6 +96,21 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
 }
 
 {
+  // Test sync key generation with key objects.
+  const { publicKey, privateKey } = generateKeyPairSync('rsa', {
+    modulusLength: 512
+  });
+
+  assert.strictEqual(typeof publicKey, 'object');
+  assert.strictEqual(publicKey.type, 'public');
+  assert.strictEqual(publicKey.asymmetricKeyType, 'rsa');
+
+  assert.strictEqual(typeof privateKey, 'object');
+  assert.strictEqual(privateKey.type, 'private');
+  assert.strictEqual(privateKey.asymmetricKeyType, 'rsa');
+}
+
+{
   const publicKeyEncoding = {
     type: 'pkcs1',
     format: 'der'
