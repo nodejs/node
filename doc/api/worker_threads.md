@@ -354,8 +354,8 @@ added: v10.5.0
 * `value` {any} The transmitted value
 
 The `'message'` event is emitted when the worker thread has invoked
-[`require('worker_threads').postMessage()`][]. See the [`port.on('message')`][]
-event for more details.
+[`require('worker_threads').parentPort.postMessage()`][].
+See the [`port.on('message')`][] event for more details.
 
 ### Event: 'online'
 <!-- YAML
@@ -482,7 +482,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`require('worker_threads').isMainThread`]: #worker_threads_worker_ismainthread
 [`require('worker_threads').parentPort.on('message')`]: #worker_threads_event_message
 [`require('worker_threads').parentPort`]: #worker_threads_worker_parentport
-[`require('worker_threads').postMessage()`]: #worker_threads_worker_postmessage_value_transferlist
+[`require('worker_threads').parentPort.postMessage()`]: #worker_threads_worker_postmessage_value_transferlist
 [`require('worker_threads').threadId`]: #worker_threads_worker_threadid
 [`require('worker_threads').workerData`]: #worker_threads_worker_workerdata
 [`trace_events`]: tracing.html
