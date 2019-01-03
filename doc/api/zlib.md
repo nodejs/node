@@ -318,7 +318,7 @@ The following values are valid flush operations for Brotli-based streams:
 * `zlib.constants.BROTLI_OPERATION_FLUSH` (default when calling `.flush()`)
 * `zlib.constants.BROTLI_OPERATION_FINISH` (default for the last chunk)
 * `zlib.constants.BROTLI_OPERATION_EMIT_METADATA`
-  ** This particular operation may be hard to use in a Node.js context,
+  * This particular operation may be hard to use in a Node.js context,
      as the streaming layer makes it hard to know which data will end up
      in this frame. Also, there is currently no way to consume this data through
      the Node.js API.
@@ -733,7 +733,7 @@ added: REPLACEME
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
 * `options` {brotli options}
 
-Compress a chunk of data with [`BrotliDecompress`][].
+Compress a chunk of data with [`BrotliCompress`][].
 
 ### zlib.brotliDecompress(buffer[, options], callback)
 <!-- YAML
@@ -1041,6 +1041,6 @@ Decompress a chunk of data with [`Unzip`][].
 [`zlib.bytesWritten`]: #zlib_zlib_byteswritten
 [Brotli parameters]: #zlib_brotli_constants
 [Memory Usage Tuning]: #zlib_memory_usage_tuning
+[RFC 7932]: https://www.rfc-editor.org/rfc/rfc7932.txt
 [pool size]: cli.html#cli_uv_threadpool_size_size
 [zlib documentation]: https://zlib.net/manual.html#Constants
-[RFC 7932]: https://www.rfc-editor.org/rfc/rfc7932.txt
