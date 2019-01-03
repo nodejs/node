@@ -1167,11 +1167,16 @@ void RunBootstrapping(Environment* env) {
 
 void StartExecution(Environment* env) {
   HandleScope handle_scope(env->isolate());
-  Local<Function> start_execution = env->start_execution_function();
-  if (start_execution.IsEmpty()) return;
-  start_execution->Call(
-      env->context(), Undefined(env->isolate()), 0, nullptr);
+  // We have to use Local<>::New because of the optimized way in which we access
+  // the object in the env->...() getters, which does not play well with
+  // resetting the handle while we're accessing the object through the Local<>.
+  Local<Function> start_execution =
+      Local<Function>::New(env->isolate(), env->start_execution_function());
   env->set_start_execution_function(Local<Function>());
+
+  if (start_execution.IsEmpty()) return;
+  USE(start_execution->Call(
+      env->context(), Undefined(env->isolate()), 0, nullptr));
 }
 
 static void StartInspector(Environment* env, const char* path) {
