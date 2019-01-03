@@ -29,9 +29,6 @@ class ContextifyContext {
       v8::Local<v8::Object> sandbox_obj, const ContextOptions& options);
   static void Init(Environment* env, v8::Local<v8::Object> target);
 
-  static bool AllowWasmCodeGeneration(
-      v8::Local<v8::Context> context, v8::Local<v8::String>);
-
   static ContextifyContext* ContextFromContextifiedSandbox(
       Environment* env,
       const v8::Local<v8::Object>& sandbox);
