@@ -6,7 +6,7 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const URL = require('url').URL;
+const { fileURLToPath, URL } = require('url');
 
 function pathToFileURL(p) {
   if (!path.isAbsolute(p))
@@ -29,6 +29,17 @@ fs.readFile(url, common.mustCall((err, data) => {
 
 // Check that using a non file:// URL reports an error
 const httpUrl = new URL('http://example.org');
+
+// Check that the fileURLToPath uses platform separator
+['file:///c:/tmp', 'file://tmp/tmp'].forEach((i) => {
+  assert(fileURLToPath(i).includes(path.sep));
+});
+
+// Check fileURLToPath examples from documentation
+if (common.isWindows) {
+  assert.strictEqual(fileURLToPath('file:///C:/path/'), 'C:\\path\\');
+  assert.strictEqual(fileURLToPath('file://nas/foo.txt'), '\\\\nas\\foo.txt');
+}
 
 common.expectsError(
   () => {
@@ -63,7 +74,7 @@ if (common.isWindows) {
       code: 'ERR_INVALID_ARG_VALUE',
       type: TypeError,
       message: 'The argument \'path\' must be a string or Uint8Array without ' +
-               'null bytes. Received \'c:/tmp/\\u0000test\''
+               'null bytes. Received \'c:\\\\tmp\\\\\\u0000test\''
     }
   );
 } else {
