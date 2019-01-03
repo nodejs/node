@@ -1,11 +1,9 @@
-// Flags: --experimental-worker
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const cp = require('child_process');
-const { Worker } = require('worker_threads');
 const { spawnSync } = require('child_process');
 
 // This is a sibling test to test/addons/uv-handle-leak.
@@ -18,6 +16,8 @@ if (!fs.existsSync(bindingPath))
   common.skip('binding not built yet');
 
 if (process.argv[2] === 'child') {
+
+  const { Worker } = require('worker_threads');
 
   // The worker thread loads and then unloads `bindingPath`. Because of this the
   // symbols in `bindingPath` are lost when the worker thread quits, but the
