@@ -1,19 +1,16 @@
 'use strict';
 
-// Flags: --expose-internals
+// Flags: --expose-internals --experimental-worker
 // This test verifies that if the binary is compiled with code cache,
 // and the cache is used when built in modules are compiled.
 // Otherwise, verifies that no cache is used when compiling builtins.
 
-require('../common');
+const { isMainThread } = require('../common');
 const assert = require('assert');
 const {
   cachableBuiltins,
   cannotUseCache
 } = require('internal/bootstrap/cache');
-const {
-  isMainThread
-} = require('worker_threads');
 
 const {
   internalBinding

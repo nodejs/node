@@ -56,11 +56,10 @@ class NativeModuleLoader {
 
  private:
   static void GetCacheUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
-  // Passing map of builtin module source code into JS land as
-  // internalBinding('native_module').source
-  static void SourceObjectGetter(
-      v8::Local<v8::Name> property,
-      const v8::PropertyCallbackInfo<v8::Value>& info);
+  // Passing ids of builtin module source code into JS land as
+  // internalBinding('native_module').moduleIds
+  static void ModuleIdsGetter(v8::Local<v8::Name> property,
+                              const v8::PropertyCallbackInfo<v8::Value>& info);
   // Passing config.gypi into JS land as internalBinding('native_module').config
   static void ConfigStringGetter(
       v8::Local<v8::Name> property,

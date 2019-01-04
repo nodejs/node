@@ -80,11 +80,21 @@ void NativeModuleLoader::GetCacheUsage(
   args.GetReturnValue().Set(result);
 }
 
-void NativeModuleLoader::SourceObjectGetter(
+void NativeModuleLoader::ModuleIdsGetter(
     Local<Name> property, const PropertyCallbackInfo<Value>& info) {
   Local<Context> context = info.GetIsolate()->GetCurrentContext();
-  info.GetReturnValue().Set(
-      per_process::native_module_loader.GetSourceObject(context));
+  Isolate* isolate = info.GetIsolate();
+
+  const NativeModuleRecordMap& source_ =
+      per_process::native_module_loader.source_;
+  std::vector<Local<Value>> ids;
+  ids.reserve(source_.size());
+
+  for (auto const& x : source_) {
+    ids.push_back(OneByteString(isolate, x.first.c_str(), x.first.size()));
+  }
+
+  info.GetReturnValue().Set(Array::New(isolate, ids.data(), ids.size()));
 }
 
 void NativeModuleLoader::ConfigStringGetter(
@@ -303,8 +313,8 @@ void NativeModuleLoader::Initialize(Local<Object> target,
             .FromJust());
   CHECK(target
             ->SetAccessor(env->context(),
-                          env->source_string(),
-                          SourceObjectGetter,
+                          FIXED_ONE_BYTE_STRING(env->isolate(), "moduleIds"),
+                          ModuleIdsGetter,
                           nullptr,
                           MaybeLocal<Value>(),
                           DEFAULT,
