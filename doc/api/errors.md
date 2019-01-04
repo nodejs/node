@@ -1909,6 +1909,12 @@ The fulfilled value of a linking promise is not a `vm.SourceTextModule` object.
 The current module's status does not allow for this operation. The specific
 meaning of the error depends on the specific function.
 
+<a id="ERR_WORKER_INVALID_EXEC_ARGV"></a>
+### ERR_WORKER_INVALID_EXEC_ARGV
+
+The `execArgv` option passed to the `Worker` constructor contains
+invalid flags.
+
 <a id="ERR_WORKER_PATH"></a>
 ### ERR_WORKER_PATH
 

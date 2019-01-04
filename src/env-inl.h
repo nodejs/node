@@ -595,6 +595,11 @@ inline std::shared_ptr<PerIsolateOptions> IsolateData::options() {
   return options_;
 }
 
+inline void IsolateData::set_options(
+    std::shared_ptr<PerIsolateOptions> options) {
+  options_ = options;
+}
+
 void Environment::CreateImmediate(native_immediate_callback cb,
                                   void* data,
                                   v8::Local<v8::Object> obj,

@@ -269,3 +269,13 @@ assert.strictEqual(
 
   restoreStdout();
 }
+
+{
+  const error = new errors.codes.ERR_WORKER_INVALID_EXEC_ARGV(
+    ['--foo, --bar']
+  );
+  assert.strictEqual(
+    error.message,
+    'Initiated Worker with invalid execArgv flags: --foo, --bar'
+  );
+}

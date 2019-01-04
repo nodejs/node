@@ -316,13 +316,16 @@ if (isMainThread) {
     occur as described in the [HTML structured clone algorithm][], and an error
     will be thrown if the object cannot be cloned (e.g. because it contains
     `function`s).
-  * stdin {boolean} If this is set to `true`, then `worker.stdin` will
+  * `stdin` {boolean} If this is set to `true`, then `worker.stdin` will
     provide a writable stream whose contents will appear as `process.stdin`
     inside the Worker. By default, no data is provided.
-  * stdout {boolean} If this is set to `true`, then `worker.stdout` will
+  * `stdout` {boolean} If this is set to `true`, then `worker.stdout` will
     not automatically be piped through to `process.stdout` in the parent.
-  * stderr {boolean} If this is set to `true`, then `worker.stderr` will
+  * `stderr` {boolean} If this is set to `true`, then `worker.stderr` will
     not automatically be piped through to `process.stderr` in the parent.
+  * `execArgv` {string[]} List of node CLI options passed to the worker.
+    V8 options (such as `--max-old-space-size`) and options that affect the
+    process (such as `--title`) are not supported.
 
 ### Event: 'error'
 <!-- YAML
