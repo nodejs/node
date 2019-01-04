@@ -84,19 +84,18 @@ class Metadata {
 #endif  // NODE_VERSION_IS_LTS
 
 #ifdef NODE_HAS_RELEASE_URLS
-    std::string sourceUrl;
-    std::string headersUrl;
+    std::string source_url;
+    std::string headers_url;
 #ifdef _WIN32
-    std::string libUrl;
+    std::string lib_url;
 #endif  // _WIN32
 #endif  // NODE_HAS_RELEASE_URLS
   };
 
   Versions versions;
-  Release release;
-
-  std::string arch;
-  std::string platform;
+  const Release release;
+  const std::string arch;
+  const std::string platform;
 };
 
 // Per-process global

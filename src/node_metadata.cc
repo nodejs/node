@@ -91,10 +91,10 @@ Metadata::Release::Release() : name(NODE_RELEASE) {
 #define NODE_RELEASE_URLPFX NODE_RELEASE_URLBASE "v" NODE_VERSION_STRING "/"
 #define NODE_RELEASE_URLFPFX NODE_RELEASE_URLPFX "node-v" NODE_VERSION_STRING
 
-  sourceUrl = NODE_RELEASE_URLFPFX ".tar.gz";
-  headersUrl = NODE_RELEASE_URLFPFX "-headers.tar.gz";
+  source_url = NODE_RELEASE_URLFPFX ".tar.gz";
+  headers_url = NODE_RELEASE_URLFPFX "-headers.tar.gz";
 #ifdef _WIN32
-  libUrl = strcmp(NODE_ARCH, "ia32") ? NODE_RELEASE_URLPFX "win-" NODE_ARCH
+  lib_url = strcmp(NODE_ARCH, "ia32") ? NODE_RELEASE_URLPFX "win-" NODE_ARCH
                                                            "/node.lib"
                                      : NODE_RELEASE_URLPFX "win-x86/node.lib";
 #endif  // _WIN32

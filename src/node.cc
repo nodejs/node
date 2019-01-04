@@ -858,12 +858,12 @@ void SetupProcessObject(Environment* env,
 
 #ifdef NODE_HAS_RELEASE_URLS
   READONLY_STRING_PROPERTY(
-      release, "sourceUrl", per_process::metadata.release.sourceUrl);
+      release, "sourceUrl", per_process::metadata.release.source_url);
   READONLY_STRING_PROPERTY(
-      release, "headersUrl", per_process::metadata.release.headersUrl);
+      release, "headersUrl", per_process::metadata.release.headers_url);
 #ifdef _WIN32
   READONLY_STRING_PROPERTY(
-      release, "libUrl", per_process::metadata.release.libUrl);
+      release, "libUrl", per_process::metadata.release.lib_url);
 #endif  // _WIN32
 #endif  // NODE_HAS_RELEASE_URLS
 
