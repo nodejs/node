@@ -141,9 +141,12 @@ using v8::Value;
 
 namespace per_process {
 // Tells whether --prof is passed.
-// TODO(joyeecheung): replace this with env->options()->prof_process
+// TODO(joyeecheung): move env->options()->prof_process to
+// per_process::cli_options.prof_process and use that instead.
 static bool v8_is_profiling = false;
 
+// TODO(joyeecheung): these are no longer necessary. Remove them.
+// See: https://github.com/nodejs/node/pull/25302#discussion_r244924196
 // Isolate on the main thread
 static Mutex main_isolate_mutex;
 static Isolate* main_isolate;
