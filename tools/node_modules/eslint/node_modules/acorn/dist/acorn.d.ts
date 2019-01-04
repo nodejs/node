@@ -19,6 +19,7 @@ declare namespace acorn {
     allowReserved?: boolean
     allowReturnOutsideFunction?: boolean
     allowImportExportEverywhere?: boolean
+    allowAwaitOutsideFunction?: boolean
     allowHashBang?: boolean
     locations?: boolean
     onToken?: ((token: Token) => any) | Token[]
@@ -42,7 +43,7 @@ declare namespace acorn {
       getToken(): Token
       [Symbol.iterator](): Iterator<Token>
     }
-    static extend(...plugins: (typeof Parser)[]): typeof Parser
+    static extend(...plugins: ((BaseParser: typeof Parser) => typeof Parser)[]): typeof Parser
   }
 
   interface Position { line: number; column: number; offset: number }

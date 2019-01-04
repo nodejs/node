@@ -32,7 +32,7 @@ module.exports = {
         ],
 
         messages: {
-            maximumExceeded: "Number of classes per file must not exceed {{ max }}"
+            maximumExceeded: "Number of classes per file must not exceed {{ max }}."
         }
     },
     create(context) {
