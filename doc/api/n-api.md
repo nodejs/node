@@ -527,6 +527,17 @@ exception is pending and no additional action is required. If the
 instead of simply returning immediately, [`napi_is_exception_pending`][]
 must be called in order to determine if an exception is pending or not.
 
+In many cases when an N-API function is called and an exception is
+already pending the function will return immediately with a
+`napi_status` of `napi_pending_exception`. However, this is not the case
+for all functions. N-API allows a subset of the functions to be
+called in order to allow for some minimal cleanup to be completed
+before returning to JavaScript. For those functions, `napi_status`
+will reflect the success/error/exception for that function, irrespective of
+whether an exception was pending when the function was called.
+In order to avoid confusion it is important to check the
+error status after every function call.
+
 When an exception is pending one of two approaches can be employed.
 
 The first approach is to do any appropriate cleanup and then return so that
