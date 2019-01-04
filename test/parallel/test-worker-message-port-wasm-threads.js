@@ -1,6 +1,6 @@
-// Flags: --experimental-worker --experimental-wasm-threads
 'use strict';
 const common = require('../common');
+common.requireFlags('--experimental-worker', '--experimental-wasm-threads');
 const assert = require('assert');
 const { MessageChannel, Worker } = require('worker_threads');
 
