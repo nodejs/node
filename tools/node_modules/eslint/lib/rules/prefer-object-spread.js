@@ -226,8 +226,8 @@ module.exports = {
         fixable: "code",
 
         messages: {
-            useSpreadMessage: "Use an object spread instead of `Object.assign` eg: `{ ...foo }`",
-            useLiteralMessage: "Use an object literal instead of `Object.assign`. eg: `{ foo: bar }`"
+            useSpreadMessage: "Use an object spread instead of `Object.assign` eg: `{ ...foo }`.",
+            useLiteralMessage: "Use an object literal instead of `Object.assign`. eg: `{ foo: bar }`."
         }
     },
 

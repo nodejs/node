@@ -107,6 +107,14 @@ module.exports = {
 
                         break;
 
+                    // EXCLUDES: e.g. (foo ? a : b).c = bar;
+                    case "ConditionalExpression":
+                        if (parent.test === node) {
+                            return false;
+                        }
+
+                        break;
+
                     // no default
                 }
 
