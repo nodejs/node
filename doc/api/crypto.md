@@ -1161,8 +1161,8 @@ PKCS#1, SEC1, and PKCS#8 type keys can be encrypted by using a combination of
 the `cipher` and `format` options. The PKCS#8 `type` can be used with any
 `format` to encrypt any key algorithm (RSA, EC, or DH) by specifying a
 `cipher`. PKCS#1 and SEC1 can only be encrypted by specifying a `cipher`
-when the PEM `format` is used. For maximum compatibility, it is recommended
-to use PKCS#8 for encrypted private keys. Since PKCS#8 defines its own
+when the PEM `format` is used. For maximum compatibility, use PKCS#8 for
+encrypted private keys. Since PKCS#8 defines its own
 encryption mechanism, PEM-level encryption is not supported when encrypting
 a PKCS#8 key. See [RFC 5208][] for PKCS#8 encryption and [RFC 1421][] for
 PKCS#1 and SEC1 encryption.
