@@ -2167,15 +2167,18 @@ release.
 ### DEP0114: crypto._toBuf()
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/???
+    description: End-of-Life.
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22501
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-Of-Life
 
 The `crypto._toBuf()` function was not designed to be used by modules outside
-of Node.js core and will be removed in the future.
+of Node.js core and was removed.
 
 <a id="DEP0115"></a>
 ### DEP0115: crypto.prng(), crypto.pseudoRandomBytes(), crypto.rng()

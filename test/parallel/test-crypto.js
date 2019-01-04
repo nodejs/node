@@ -27,8 +27,7 @@ if (!common.hasCrypto)
 
 common.expectWarning({
   DeprecationWarning: [
-    ['crypto.createCipher is deprecated.', 'DEP0106'],
-    ['crypto._toBuf is deprecated.', 'DEP0114']
+    ['crypto.createCipher is deprecated.', 'DEP0106']
   ]
 });
 
@@ -301,8 +300,3 @@ testEncoding({
 testEncoding({
   defaultEncoding: 'latin1'
 }, assertionHashLatin1);
-
-{
-  // Test that the exported _toBuf function is deprecated.
-  crypto._toBuf(Buffer.alloc(0));
-}
