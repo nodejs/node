@@ -1738,21 +1738,18 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
       CHECK_NULL(pub);
     }
 
-    if (EC_GROUP_get_asn1_flag(group) != 0) {
+    const int nid = EC_GROUP_get_curve_name(group);
+    if (nid != 0) {
       // Curve is well-known, get its OID and NIST nick-name (if it has one).
 
-      int nid = EC_GROUP_get_curve_name(group);
-      if (nid != 0) {
-        if (const char* sn = OBJ_nid2sn(nid)) {
-          info->Set(context, env->asn1curve_string(),
-                    OneByteString(env->isolate(), sn)).FromJust();
-        }
+      if (const char* sn = OBJ_nid2sn(nid)) {
+        info->Set(context, env->asn1curve_string(),
+                  OneByteString(env->isolate(), sn)).FromJust();
       }
-      if (nid != 0) {
-        if (const char* nist = EC_curve_nid2nist(nid)) {
-          info->Set(context, env->nistcurve_string(),
-                    OneByteString(env->isolate(), nist)).FromJust();
-        }
+
+      if (const char* nist = EC_curve_nid2nist(nid)) {
+        info->Set(context, env->nistcurve_string(),
+                  OneByteString(env->isolate(), nist)).FromJust();
       }
     } else {
       // Unnamed curves can be described by their mathematical properties,
