@@ -1,12 +1,12 @@
 # resolve-from [![Build Status](https://travis-ci.org/sindresorhus/resolve-from.svg?branch=master)](https://travis-ci.org/sindresorhus/resolve-from)
 
-> Resolve the path of a module like [`require.resolve()`](http://nodejs.org/api/globals.html#globals_require_resolve) but from a given path
+> Resolve the path of a module like [`require.resolve()`](https://nodejs.org/api/globals.html#globals_require_resolve) but from a given path
 
 
 ## Install
 
 ```
-$ npm install --save resolve-from
+$ npm install resolve-from
 ```
 
 
@@ -15,7 +15,7 @@ $ npm install --save resolve-from
 ```js
 const resolveFrom = require('resolve-from');
 
-// there's a file at `./foo/bar.js`
+// There is a file at `./foo/bar.js`
 
 resolveFrom('foo', './bar');
 //=> '/Users/sindresorhus/dev/test/foo/bar.js'
@@ -26,11 +26,17 @@ resolveFrom('foo', './bar');
 
 ### resolveFrom(fromDir, moduleId)
 
+Like `require()`, throws when the module can't be found.
+
+### resolveFrom.silent(fromDir, moduleId)
+
+Returns `null` instead of throwing when the module can't be found.
+
 #### fromDir
 
 Type: `string`
 
-The directory to resolve from.
+Directory to resolve from.
 
 #### moduleId
 
@@ -41,7 +47,7 @@ What you would use in `require()`.
 
 ## Tip
 
-Create a partial using a bound function if you want to require from the same `fromDir` multiple times:
+Create a partial using a bound function if you want to resolve from the same `fromDir` multiple times:
 
 ```js
 const resolveFromFoo = resolveFrom.bind(null, 'foo');
@@ -51,6 +57,16 @@ resolveFromFoo('./baz');
 ```
 
 
+## Related
+
+- [resolve-cwd](https://github.com/sindresorhus/resolve-cwd) - Resolve the path of a module from the current working directory
+- [import-from](https://github.com/sindresorhus/import-from) - Import a module from a given path
+- [import-cwd](https://github.com/sindresorhus/import-cwd) - Import a module from the current working directory
+- [resolve-pkg](https://github.com/sindresorhus/resolve-pkg) - Resolve the path of a package regardless of it having an entry point
+- [import-lazy](https://github.com/sindresorhus/import-lazy) - Import a module lazily
+- [resolve-global](https://github.com/sindresorhus/resolve-global) - Resolve the path of a globally installed module
+
+
 ## License
 
-MIT © [Sindre Sorhus](http://sindresorhus.com)
+MIT © [Sindre Sorhus](https://sindresorhus.com)
