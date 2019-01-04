@@ -666,11 +666,12 @@ added: v6.1.0
 -->
 
 If `true`,
+[`socket.connect(options[, connectListener])`][`socket.connect(options)`] was
+called and has not yet finished. It will stay `true` until the socket becomes
+connected, then it is set to `false` and the `'connect'` event is emitted.  Note
+that the
 [`socket.connect(options[, connectListener])`][`socket.connect(options)`]
-was called and has not yet finished. Will be set to `true` before emitting
-`'connect'` event and/or calling
-[`socket.connect(options[, connectListener])`][`socket.connect(options)`]'s
-callback.
+callback is a listener for the `'connect'` event.
 
 ### socket.destroy([exception])
 <!-- YAML
