@@ -29,8 +29,8 @@ module.exports = {
         ],
 
         messages: {
-            missing: "Requires a space {{location}} '{{token}}'",
-            extra: "Unexpected space(s) {{location}} '{{token}}'"
+            missing: "Requires a space {{location}} '{{token}}'.",
+            extra: "Unexpected space(s) {{location}} '{{token}}'."
         }
     },
 
