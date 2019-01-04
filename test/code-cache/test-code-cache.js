@@ -5,15 +5,12 @@
 // and the cache is used when built in modules are compiled.
 // Otherwise, verifies that no cache is used when compiling builtins.
 
-require('../common');
+const { isMainThread } = require('../common');
 const assert = require('assert');
 const {
   cachableBuiltins,
   cannotUseCache
 } = require('internal/bootstrap/cache');
-const {
-  isMainThread
-} = require('worker_threads');
 
 const {
   internalBinding
