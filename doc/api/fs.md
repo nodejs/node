@@ -2212,6 +2212,15 @@ fs.mkdir('/tmp/a/apple', { recursive: true }, (err) => {
 });
 ```
 
+On Windows, using `fs.mkdir()` on the root directory even with recursion will
+result in an error:
+
+```js
+fs.mkdir('/', { recursive: true }, (err) => {
+  // => [Error: EPERM: operation not permitted, mkdir 'C:\']
+});
+```
+
 See also: mkdir(2).
 
 ## fs.mkdirSync(path[, options])
