@@ -137,8 +137,8 @@ module.exports = {
         ],
 
         messages: {
-            unexpectedLowercaseComment: "Comments should not begin with a lowercase character",
-            unexpectedUppercaseComment: "Comments should not begin with an uppercase character"
+            unexpectedLowercaseComment: "Comments should not begin with a lowercase character.",
+            unexpectedUppercaseComment: "Comments should not begin with an uppercase character."
         }
     },
 

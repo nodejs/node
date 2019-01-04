@@ -92,10 +92,10 @@ module.exports = {
         },
 
         messages: {
-            matchProperty: "Function name `{{funcName}}` should match property name `{{name}}`",
-            matchVariable: "Function name `{{funcName}}` should match variable name `{{name}}`",
-            notMatchProperty: "Function name `{{funcName}}` should not match property name `{{name}}`",
-            notMatchVariable: "Function name `{{funcName}}` should not match variable name `{{name}}`"
+            matchProperty: "Function name `{{funcName}}` should match property name `{{name}}`.",
+            matchVariable: "Function name `{{funcName}}` should match variable name `{{name}}`.",
+            notMatchProperty: "Function name `{{funcName}}` should not match property name `{{name}}`.",
+            notMatchVariable: "Function name `{{funcName}}` should not match variable name `{{name}}`."
         }
     },
 

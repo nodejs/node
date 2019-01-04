@@ -18,7 +18,7 @@ const fs = require("fs"),
     pathIsInside = require("path-is-inside"),
     stripComments = require("strip-json-comments"),
     stringify = require("json-stable-stringify-without-jsonify"),
-    requireUncached = require("require-uncached");
+    importFresh = require("import-fresh");
 
 const debug = require("debug")("eslint:config-file");
 
@@ -156,7 +156,7 @@ function loadLegacyConfigFile(filePath) {
 function loadJSConfigFile(filePath) {
     debug(`Loading JS config file: ${filePath}`);
     try {
-        return requireUncached(filePath);
+        return importFresh(filePath);
     } catch (e) {
         debug(`Error reading JavaScript file: ${filePath}`);
         e.message = `Cannot read config file: ${filePath}\nError: ${e.message}`;
