@@ -394,6 +394,7 @@ class IsolateData {
   inline uint32_t* zero_fill_field() const;
   inline MultiIsolatePlatform* platform() const;
   inline std::shared_ptr<PerIsolateOptions> options();
+  inline void set_options(std::shared_ptr<PerIsolateOptions> options);
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
