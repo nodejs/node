@@ -1157,6 +1157,16 @@ For private keys, the following encoding options can be used:
 When PEM encoding was selected, the result will be a string, otherwise it will
 be a buffer containing the data encoded as DER.
 
+PKCS#1, SEC1, and PKCS#8 type keys can be encrypted by using a combination of
+the `cipher` and `format` options. The PKCS#8 `type` can be used with any
+`format` to encrypt any key algorithm (RSA, EC, or DH) by specifying a
+`cipher`. PKCS#1 and SEC1 can only be encrypted by specifying a `cipher`
+when the PEM `format` is used. For maximum compatibility, it is recommended
+to use PKCS#8 for encrypted private keys. Since PKCS#8 defines its own
+encryption mechanism, PEM-level encryption is not supported when encrypting
+a PKCS#8 key. See [RFC 5208][] for PKCS#8 encryption and [RFC 1421][] for
+PKCS#1 and SEC1 encryption.
+
 ### keyObject.symmetricSize
 <!-- YAML
 added: v11.6.0
@@ -1923,16 +1933,6 @@ generateKeyPair('rsa', {
 On completion, `callback` will be called with `err` set to `undefined` and
 `publicKey` / `privateKey` representing the generated key pair.
 
-PKCS#1, SEC1, and PKCS#8 type keys can be encrypted by using a combination of
-the `cipher` and `format` options. The PKCS#8 `type` can be used with any
-`format` to encrypt any key algorithm (RSA, EC, or DH) by specifying a
-`cipher`. PKCS#1 and SEC1 can only be encrypted by specifying a `cipher`
-when the PEM `format` is used. For maximum compatibility, it is recommended
-to use PKCS#8 for encrypted private keys. Since PKCS#8 defines its own
-encryption mechanism, PEM-level encryption is not supported when encrypting
-a PKCS#8 key. See [RFC 5208] for PKCS#8 encryption and [RFC 1421][] for
-PKCS#1 and SEC1 encryption.
-
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
 a `Promise` for an `Object` with `publicKey` and `privateKey` properties.
 
@@ -1993,15 +1993,6 @@ const { publicKey, privateKey } = generateKeyPairSync('rsa', {
 The return value `{ publicKey, privateKey }` represents the generated key pair.
 When PEM encoding was selected, the respective key will be a string, otherwise
 it will be a buffer containing the data encoded as DER.
-PKCS#1, SEC1, and PKCS#8 type keys can be encrypted by using a combination of
-the `cipher` and `format` options. The PKCS#8 `type` can be used with any
-`format` to encrypt any key algorithm (RSA, EC, or DH) by specifying a
-`cipher`. PKCS#1 and SEC1 can only be encrypted by specifying a `cipher`
-when the PEM `format` is used. For maximum compatibility, it is recommended
-to use PKCS#8 for encrypted private keys. Since PKCS#8 defines its own
-encryption mechanism, PEM-level encryption is not supported when encrypting
-a PKCS#8 key. See [RFC 5208] for PKCS#8 encryption and [RFC 1421][] for
-PKCS#1 and SEC1 encryption.
 
 ### crypto.getCiphers()
 <!-- YAML
