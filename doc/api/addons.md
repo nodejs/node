@@ -1377,5 +1377,5 @@ require('./build/Release/addon');
 [installation instructions]: https://github.com/nodejs/node-gyp#installation
 [libuv]: https://github.com/libuv/libuv
 [node-gyp]: https://github.com/nodejs/node-gyp
-[require]: modules.html#modules_require
+[require]: modules.html#modules_require_id
 [v8-docs]: https://v8docs.nodesource.com/

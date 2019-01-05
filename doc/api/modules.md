@@ -313,7 +313,7 @@ required filename with the added extensions: `.js`, `.json`, and finally
 
 `.js` files are interpreted as JavaScript text files, and `.json` files are
 parsed as JSON text files. `.node` files are interpreted as compiled addon
-modules loaded with `dlopen`.
+modules loaded with `process.dlopen()`.
 
 A required module prefixed with `'/'` is an absolute path to the file. For
 example, `require('/home/marco/foo.js')` will load the file at
@@ -527,6 +527,8 @@ added: v0.1.12
 
 <!-- type=var -->
 
+* {Object}
+
 A reference to the `module.exports` that is shorter to type.
 See the section about the [exports shortcut][] for details on when to use
 `exports` and when to use `module.exports`.
@@ -538,20 +540,21 @@ added: v0.1.16
 
 <!-- type=var -->
 
-* {Object}
+* {module}
 
 A reference to the current module, see the section about the
 [`module` object][]. In particular, `module.exports` is used for defining what
 a module exports and makes available through `require()`.
 
-### require()
+### require(id)
 <!-- YAML
 added: v0.1.13
 -->
 
 <!-- type=var -->
 
-* {Function}
+* `id` {string} module name or path
+* Returns: {any} exported module content
 
 Used to import modules, `JSON`, and local files. Modules can be imported
 from `node_modules`. Local modules and JSON files can be imported using
@@ -600,7 +603,7 @@ Process files with the extension `.sjs` as `.js`:
 require.extensions['.sjs'] = require.extensions['.js'];
 ```
 
-**Deprecated** In the past, this list has been used to load
+**Deprecated.** In the past, this list has been used to load
 non-JavaScript modules into Node.js by compiling them on-demand.
 However, in practice, there are much better ways to do this, such as
 loading modules via some other Node.js program, or compiling them to
@@ -622,7 +625,7 @@ should be discouraged.
 added: v0.1.17
 -->
 
-* {Object}
+* {module}
 
 The `Module` object representing the entry script loaded when the Node.js
 process launched.
@@ -676,7 +679,7 @@ changes:
 Use the internal `require()` machinery to look up the location of a module,
 but rather than loading the module, just return the resolved filename.
 
-#### require.resolve.paths(request)
+##### require.resolve.paths(request)
 <!-- YAML
 added: v8.9.0
 -->
@@ -820,7 +823,7 @@ added: v0.1.16
 
 * {string}
 
-The fully resolved filename to the module.
+The fully resolved filename of the module.
 
 ### module.id
 <!-- YAML
@@ -866,9 +869,9 @@ added: v0.5.1
 -->
 
 * `id` {string}
-* Returns: {Object} `module.exports` from the resolved module
+* Returns: {any} exported module content
 
-The `module.require` method provides a way to load a module as if
+The `module.require()` method provides a way to load a module as if
 `require()` was called from the original module.
 
 In order to do this, it is necessary to get a reference to the `module` object.
@@ -912,7 +915,7 @@ added: v10.12.0
 
 * `filename` {string} Filename to be used to construct the relative require
   function.
-* Returns: {[`require`][]} Require function
+* Returns: {require} Require function
 
 ```js
 const { createRequireFromPath } = require('module');
@@ -922,13 +925,12 @@ const requireUtil = createRequireFromPath('../src/utils');
 requireUtil('./some-tool');
 ```
 
+[GLOBAL_FOLDERS]: #modules_loading_from_the_global_folders
 [`Error`]: errors.html#errors_class_error
 [`__dirname`]: #modules_dirname
 [`__filename`]: #modules_filename
 [`module` object]: #modules_the_module_object
 [`path.dirname()`]: path.html#path_path_dirname_path
-[`require`]: #modules_require
-[GLOBAL_FOLDERS]: #modules_loading_from_the_global_folders
 [exports shortcut]: #modules_exports_shortcut
 [module resolution]: #modules_all_together
 [module wrapper]: #modules_the_module_wrapper
