@@ -242,7 +242,7 @@ The object that acts as the namespace for all W3C
 [`exports`]: modules.html#modules_exports
 [`module`]: modules.html#modules_module
 [`process` object]: process.html#process_process
-[`require()`]: modules.html#modules_require
+[`require()`]: modules.html#modules_require_id
 [`setImmediate`]: timers.html#timers_setimmediate_callback_args
 [`setInterval`]: timers.html#timers_setinterval_callback_delay_args
 [`setTimeout`]: timers.html#timers_settimeout_callback_delay_args
