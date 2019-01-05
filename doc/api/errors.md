@@ -2208,7 +2208,7 @@ such as `process.stdout.on('data')`.
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`readable._read()`]: stream.html#stream_readable_read_size_1
 [`require('crypto').setEngine()`]: crypto.html#crypto_crypto_setengine_engine_flags
-[`require()`]: modules.html#modules_require
+[`require()`]: modules.html#modules_require_id
 [`server.close()`]: net.html#net_server_close_callback
 [`server.listen()`]: net.html#net_server_listen
 [`sign.sign()`]: crypto.html#crypto_sign_sign_privatekey_outputencoding
