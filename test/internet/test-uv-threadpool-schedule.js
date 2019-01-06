@@ -15,7 +15,7 @@ const assert = require('assert');
 
 const start = Date.now();
 
-const slowIOmax = 100;
+const slowIOmax = 10;
 let slowIOcount = 0;
 let fastIOdone = false;
 let slowIOend, fastIOend;
@@ -37,7 +37,7 @@ function onResolve() {
     // highly load / platform dependent, so don't be very greedy.
     const fastIOtime = fastIOend - start;
     const slowIOtime = slowIOend - start;
-    const expectedMax = slowIOtime / 100;
+    const expectedMax = slowIOtime / 10;
     assert.ok(fastIOtime < expectedMax,
               'fast I/O took longer to complete, ' +
               `actual: ${fastIOtime}, expected: ${expectedMax}`);
