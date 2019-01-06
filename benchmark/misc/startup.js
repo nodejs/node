@@ -10,7 +10,7 @@ const bench = common.createBenchmark(main, {
   script: ['benchmark/fixtures/require-cachable', 'test/fixtures/semicolon'],
   mode: ['process', 'worker']
 }, {
-  flags: ['--expose-internals', '--experimental-worker']  // for workers
+  flags: ['--expose-internals']
 });
 
 function spawnProcess(script) {

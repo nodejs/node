@@ -1,4 +1,3 @@
-// Flags: --experimental-worker
 'use strict';
 require('../common');
 

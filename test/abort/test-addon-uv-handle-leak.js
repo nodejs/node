@@ -36,8 +36,7 @@ if (process.argv[2] === 'child') {
   binding.leakHandle(0x42);
   `, { eval: true });
 } else {
-  const child = cp.spawnSync(process.execPath,
-                             ['--experimental-worker', __filename, 'child']);
+  const child = cp.spawnSync(process.execPath, [__filename, 'child']);
   const stderr = child.stderr.toString();
 
   assert.strictEqual(child.stdout.toString(), '');

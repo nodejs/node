@@ -1,4 +1,4 @@
-// Flags: --experimental-worker --experimental-modules
+// Flags: --experimental-modules
 'use strict';
 const common = require('../common');
 const fixtures = require('../common/fixtures');
