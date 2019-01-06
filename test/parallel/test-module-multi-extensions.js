@@ -18,6 +18,8 @@ fs.writeFileSync(dotfile, 'console.log(__filename);', 'utf8');
 fs.writeFileSync(dotfileWithExtension, 'console.log(__filename);', 'utf8');
 
 {
+  // The Symbol should be ignored.
+  require.extensions[Symbol()] = common.mustNotCall();
   require.extensions['.bar'] = common.mustNotCall();
   require.extensions['.foo.bar'] = common.mustCall();
   const modulePath = path.join(tmpdir.path, 'test-extensions');
