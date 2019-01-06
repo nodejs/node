@@ -1,10 +1,14 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const { builtinModules } = require('module');
 const common = require('../common.js');
 
 const tmpdir = require('../../test/common/tmpdir');
 let benchmarkDirectory = path.join(tmpdir.path, 'nodejs-benchmark-module');
+
+// Filter all irregular modules.
+const otherModules = builtinModules.filter((name) => !/\/|^_|^sys/.test(name));
 
 const bench = common.createBenchmark(main, {
   name: ['', '/', '/index.js'],
@@ -48,6 +52,9 @@ function measureDir(n, cache, files, name) {
   for (i = 0; i <= files; i++) {
     for (var j = 0; j < n; j++)
       require(`${benchmarkDirectory}${i}${name}`);
+    // Pretend mixed input (otherwise the results are less representative due to
+    // highly specialized code).
+    require(otherModules[i % otherModules.length]);
   }
   bench.end(n * files);
 }
