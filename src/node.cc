@@ -283,7 +283,7 @@ static struct {
       tracing_file_writer_ = tracing_agent_->DefaultHandle();
     } else {
       std::vector<std::string> categories =
-          SplitString(per_process::cli_options->trace_event_categories);
+          SplitString(per_process::cli_options->trace_event_categories, ',');
 
       tracing_file_writer_ = tracing_agent_->AddClient(
           std::set<std::string>(std::make_move_iterator(categories.begin()),
