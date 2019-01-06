@@ -1151,42 +1151,23 @@ inline void PlatformInit() {
 #endif  // _WIN32
 }
 
-void ProcessArgv(std::vector<std::string>* args,
-                 std::vector<std::string>* exec_args,
-                 bool is_env) {
+int ProcessGlobalArgs(std::vector<std::string>* args,
+                      std::vector<std::string>* exec_args,
+                      std::vector<std::string>* errors,
+                      bool is_env) {
   // Parse a few arguments which are specific to Node.
   std::vector<std::string> v8_args;
-  std::vector<std::string> errors{};
 
-  {
-    // TODO(addaleax): The mutex here should ideally be held during the
-    // entire function, but that doesn't play well with the exit() calls below.
-    Mutex::ScopedLock lock(per_process::cli_options_mutex);
-    options_parser::PerProcessOptionsParser::instance.Parse(
-        args,
-        exec_args,
-        &v8_args,
-        per_process::cli_options.get(),
-        is_env ? kAllowedInEnvironment : kDisallowedInEnvironment,
-        &errors);
-  }
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+  options_parser::PerProcessOptionsParser::instance.Parse(
+      args,
+      exec_args,
+      &v8_args,
+      per_process::cli_options.get(),
+      is_env ? kAllowedInEnvironment : kDisallowedInEnvironment,
+      errors);
 
-  if (!errors.empty()) {
-    for (auto const& error : errors) {
-      fprintf(stderr, "%s: %s\n", args->at(0).c_str(), error.c_str());
-    }
-    exit(9);
-  }
-
-  if (per_process::cli_options->print_version) {
-    printf("%s\n", NODE_VERSION);
-    exit(0);
-  }
-
-  if (per_process::cli_options->print_v8_help) {
-    V8::SetFlagsFromString("--help", 6);
-    exit(0);
-  }
+  if (!errors->empty()) return 9;
 
   for (const std::string& cve : per_process::cli_options->security_reverts)
     Revert(cve.c_str());
@@ -1226,19 +1207,17 @@ void ProcessArgv(std::vector<std::string>* args,
   }
 
   // Anything that's still in v8_argv is not a V8 or a node option.
-  for (size_t i = 1; i < v8_args_as_char_ptr.size(); i++) {
-    fprintf(stderr, "%s: bad option: %s\n",
-            args->at(0).c_str(), v8_args_as_char_ptr[i]);
-  }
+  for (size_t i = 1; i < v8_args_as_char_ptr.size(); i++)
+    errors->push_back("bad option: " + std::string(v8_args_as_char_ptr[i]));
 
-  if (v8_args_as_char_ptr.size() > 1) {
-    exit(9);
-  }
+  if (v8_args_as_char_ptr.size() > 1) return 9;
+
+  return 0;
 }
 
-
-void Init(std::vector<std::string>* argv,
-          std::vector<std::string>* exec_argv) {
+int Init(std::vector<std::string>* argv,
+         std::vector<std::string>* exec_argv,
+         std::vector<std::string>* errors) {
   // Initialize prog_start_time to get relative uptime.
   per_process::prog_start_time = static_cast<double>(uv_now(uv_default_loop()));
 
@@ -1299,11 +1278,13 @@ void Init(std::vector<std::string>* argv,
     std::vector<std::string> env_argv = SplitString("x " + node_options, ' ');
     env_argv[0] = argv->at(0);
 
-    ProcessArgv(&env_argv, nullptr, true);
+    const int exit_code = ProcessGlobalArgs(&env_argv, nullptr, errors, true);
+    if (exit_code != 0) return exit_code;
   }
 #endif
 
-  ProcessArgv(argv, exec_argv, false);
+  const int exit_code = ProcessGlobalArgs(argv, exec_argv, errors, false);
+  if (exit_code != 0) return exit_code;
 
   // Set the process.title immediately after processing argv if --title is set.
   if (!per_process::cli_options->title.empty())
@@ -1317,11 +1298,9 @@ void Init(std::vector<std::string>* argv,
   // Initialize ICU.
   // If icu_data_dir is empty here, it will load the 'minimal' data.
   if (!i18n::InitializeICUDirectory(per_process::cli_options->icu_data_dir)) {
-    fprintf(stderr,
-            "%s: could not initialize ICU "
-            "(check NODE_ICU_DATA or --icu-data-dir parameters)\n",
-            argv->at(0).c_str());
-    exit(9);
+    errors->push_back("could not initialize ICU "
+                      "(check NODE_ICU_DATA or --icu-data-dir parameters)\n");
+    return 9;
   }
   per_process::metadata.versions.InitializeIntlVersions();
 #endif
@@ -1330,6 +1309,7 @@ void Init(std::vector<std::string>* argv,
   // otherwise embedders using node::Init to initialize everything will not be
   // able to set it and native modules will not load for them.
   node_is_initialized = true;
+  return 0;
 }
 
 // TODO(addaleax): Deprecate and eventually remove this.
@@ -1339,8 +1319,25 @@ void Init(int* argc,
           const char*** exec_argv) {
   std::vector<std::string> argv_(argv, argv + *argc);  // NOLINT
   std::vector<std::string> exec_argv_;
+  std::vector<std::string> errors;
 
-  Init(&argv_, &exec_argv_);
+  // This (approximately) duplicates some logic that has been moved to
+  // node::Start(), with the difference that here we explicitly call `exit()`.
+  int exit_code = Init(&argv_, &exec_argv_, &errors);
+
+  for (const std::string& error : errors)
+    fprintf(stderr, "%s: %s\n", argv_.at(0).c_str(), error.c_str());
+  if (exit_code != 0) exit(exit_code);
+
+  if (per_process::cli_options->print_version) {
+    printf("%s\n", NODE_VERSION);
+    exit(0);
+  }
+
+  if (per_process::cli_options->print_v8_help) {
+    V8::SetFlagsFromString("--help", 6);  // Doesn't return.
+    UNREACHABLE();
+  }
 
   *argc = argv_.size();
   *exec_argc = exec_argv_.size();
@@ -1657,6 +1654,16 @@ inline int Start(uv_loop_t* event_loop,
   if (isolate == nullptr)
     return 12;  // Signal internal error.
 
+  if (per_process::cli_options->print_version) {
+    printf("%s\n", NODE_VERSION);
+    return 0;
+  }
+
+  if (per_process::cli_options->print_v8_help) {
+    V8::SetFlagsFromString("--help", 6);  // Doesn't return.
+    UNREACHABLE();
+  }
+
   {
     Mutex::ScopedLock scoped_lock(per_process::main_isolate_mutex);
     CHECK_NULL(per_process::main_isolate);
@@ -1716,8 +1723,14 @@ int Start(int argc, char** argv) {
 
   std::vector<std::string> args(argv, argv + argc);
   std::vector<std::string> exec_args;
+  std::vector<std::string> errors;
   // This needs to run *before* V8::Initialize().
-  Init(&args, &exec_args);
+  {
+    const int exit_code = Init(&args, &exec_args, &errors);
+    for (const std::string& error : errors)
+      fprintf(stderr, "%s: %s\n", args.at(0).c_str(), error.c_str());
+    if (exit_code != 0) return exit_code;
+  }
 
 #if HAVE_OPENSSL
   {
