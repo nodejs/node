@@ -580,7 +580,7 @@ value from this object, the next `require` will reload the module. Note that
 this does not apply to [native addons][], for which reloading will result in an
 error.
 
-Adding ore replacing entries is also possible. This cache is checked before
+Adding or replacing entries is also possible. This cache is checked before
 native modules and if such a name is added to the cache, no require call is
 going to receive the native module anymore. Use with care!
 
