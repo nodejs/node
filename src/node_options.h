@@ -96,7 +96,6 @@ class EnvironmentOptions : public Options {
   bool experimental_modules = false;
   bool experimental_repl_await = false;
   bool experimental_vm_modules = false;
-  bool experimental_worker = true;
   bool expose_internals = false;
   std::string http_parser =
 #ifdef NODE_EXPERIMENTAL_HTTP_DEFAULT

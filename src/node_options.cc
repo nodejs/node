@@ -109,10 +109,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental ES Module support in vm module",
             &EnvironmentOptions::experimental_vm_modules,
             kAllowedInEnvironment);
-  AddOption("--experimental-worker",
-            "experimental threaded Worker support",
-            &EnvironmentOptions::experimental_worker,
-            kAllowedInEnvironment);
+  AddOption("--experimental-worker", "", NoOp{}, kAllowedInEnvironment);
   AddOption("--expose-internals", "", &EnvironmentOptions::expose_internals);
   AddOption("--http-parser",
             "Select which HTTP parser to use; either 'legacy' or 'llhttp' "

@@ -89,9 +89,6 @@ static void Initialize(Local<Object> target,
   if (env->options()->experimental_vm_modules)
     READONLY_TRUE_PROPERTY(target, "experimentalVMModules");
 
-  if (env->options()->experimental_worker)
-    READONLY_TRUE_PROPERTY(target, "experimentalWorker");
-
   if (env->options()->experimental_repl_await)
     READONLY_TRUE_PROPERTY(target, "experimentalREPLAwait");
 
