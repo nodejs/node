@@ -6,6 +6,7 @@ const runBenchmark = require('../common/benchmark');
 
 runBenchmark('zlib',
              [
+               'algorithm=brotli',
                'method=deflate',
                'n=1',
                'options=true',
