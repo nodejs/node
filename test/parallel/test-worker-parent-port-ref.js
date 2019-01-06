@@ -1,4 +1,3 @@
-// Flags: --experimental-worker
 'use strict';
 const assert = require('assert');
 const common = require('../common');

@@ -87,7 +87,6 @@ function nextdir() {
 {
   const coverageDirectory = path.join(tmpdir.path, nextdir());
   const output = spawnSync(process.execPath, [
-    '--experimental-worker',
     require.resolve('../fixtures/v8-coverage/worker')
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   assert.strictEqual(output.status, 0);

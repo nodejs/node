@@ -1588,7 +1588,6 @@ def Main():
 
   if options.worker:
     run_worker = join(workspace, "tools", "run-worker.js")
-    options.node_args.append('--experimental-worker')
     options.node_args.append(run_worker)
 
   shell = abspath(options.shell)

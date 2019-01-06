@@ -1,4 +1,3 @@
-// Flags: --experimental-worker
 'use strict';
 require('../common');
 const { Worker, MessageChannel } = require('worker_threads');

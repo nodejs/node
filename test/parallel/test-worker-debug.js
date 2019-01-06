@@ -1,4 +1,3 @@
-// Flags: --experimental-worker
 'use strict';
 const common = require('../common');
 
@@ -154,9 +153,9 @@ async function testBasicWorkerDebug(session, post) {
   await workerSession.post('Debugger.enable');
   await workerSession.post('Runtime.enable');
   await workerSession.waitForBreakAfterCommand(
-    'Runtime.runIfWaitingForDebugger', __filename, 2);
+    'Runtime.runIfWaitingForDebugger', __filename, 1);
   await workerSession.waitForBreakAfterCommand(
-    'Debugger.resume', __filename, 27);  // V8 line number is zero-based
+    'Debugger.resume', __filename, 26);  // V8 line number is zero-based
   assert.strictEqual(await consolePromise, workerMessage);
   workerSession.post('Debugger.resume');
   await Promise.all([worker, detached, contextEvents]);

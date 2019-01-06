@@ -1,4 +1,4 @@
-// Flags: --expose-internals --experimental-worker
+// Flags: --expose-internals
 'use strict';
 require('../common');
 const { validateSnapshotNodes } = require('../common/heap');

@@ -95,7 +95,6 @@ class EnvironmentOptions : public Options {
   bool experimental_modules = false;
   bool experimental_repl_await = false;
   bool experimental_vm_modules = false;
-  bool experimental_worker = false;
   bool expose_internals = false;
   std::string http_parser = "llhttp";
   bool no_deprecation = false;
