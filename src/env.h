@@ -950,11 +950,11 @@ class Environment {
   ImmediateInfo immediate_info_;
   TickInfo tick_info_;
   const uint64_t timer_base_;
-  bool printed_error_;
-  bool abort_on_uncaught_exception_;
-  bool emit_env_nonstring_warning_;
-  bool emit_err_name_warning_;
-  size_t makecallback_cntr_;
+  bool printed_error_ = false;
+  bool abort_on_uncaught_exception_ = false;
+  bool emit_env_nonstring_warning_ = true;
+  bool emit_err_name_warning_ = true;
+  size_t makecallback_cntr_ = 0;
   std::vector<double> destroy_async_id_list_;
 
   std::shared_ptr<EnvironmentOptions> options_;
@@ -1010,7 +1010,7 @@ class Environment {
   double* heap_statistics_buffer_ = nullptr;
   double* heap_space_statistics_buffer_ = nullptr;
 
-  char* http_parser_buffer_;
+  char* http_parser_buffer_ = nullptr;
   bool http_parser_buffer_in_use_ = false;
   std::unique_ptr<http2::Http2State> http2_state_;
 
