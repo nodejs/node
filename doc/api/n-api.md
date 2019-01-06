@@ -4118,7 +4118,7 @@ NAPI_EXTERN napi_status napi_open_callback_scope(napi_env env,
                                                  napi_callback_scope* result)
 ```
 - `[in] env`: The environment that the API is invoked under.
-- `[in] resource_object`: An optional object associated with the async work
+- `[in] resource_object`: An object associated with the async work
   that will be passed to possible `async_hooks` [`init` hooks][].
 - `[in] context`: Context for the async operation that is
 invoking the callback. This should be a value previously obtained
