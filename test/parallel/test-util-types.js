@@ -9,7 +9,7 @@ const { internalBinding } = require('internal/test/binding');
 const { JSStream } = internalBinding('js_stream');
 
 const external = (new JSStream())._externalStream;
-const wasmBuffer = fixtures.readSync('test.wasm');
+const wasmBuffer = fixtures.readSync('simple.wasm');
 
 for (const [ value, _method ] of [
   [ external, 'isExternal' ],

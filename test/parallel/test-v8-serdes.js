@@ -12,7 +12,7 @@ const os = require('os');
 const circular = {};
 circular.circular = circular;
 
-const wasmModule = new WebAssembly.Module(fixtures.readSync('test.wasm'));
+const wasmModule = new WebAssembly.Module(fixtures.readSync('simple.wasm'));
 
 const objects = [
   { foo: 'bar' },
@@ -238,5 +238,5 @@ const deserializerTypeError =
 {
   const deserializedWasmModule = v8.deserialize(v8.serialize(wasmModule));
   const instance = new WebAssembly.Instance(deserializedWasmModule);
-  assert.strictEqual(instance.exports.addTwo(10, 20), 30);
+  assert.strictEqual(instance.exports.add(10, 20), 30);
 }
