@@ -523,7 +523,7 @@ struct FunctionDeleter {
 template <typename T, void (*function)(T*)>
 using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
 
-std::set<std::string> ParseCommaSeparatedSet(const std::string& in);
+std::vector<std::string> SplitString(const std::string& in, char delim);
 
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                            const std::string& str,

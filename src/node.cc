@@ -282,9 +282,12 @@ static struct {
     if (per_process::cli_options->trace_event_categories.empty()) {
       tracing_file_writer_ = tracing_agent_->DefaultHandle();
     } else {
+      std::vector<std::string> categories =
+          SplitString(per_process::cli_options->trace_event_categories, ',');
+
       tracing_file_writer_ = tracing_agent_->AddClient(
-          ParseCommaSeparatedSet(
-              per_process::cli_options->trace_event_categories),
+          std::set<std::string>(std::make_move_iterator(categories.begin()),
+                                std::make_move_iterator(categories.end())),
           std::unique_ptr<tracing::AsyncTraceWriter>(
               new tracing::NodeTraceWriter(
                   per_process::cli_options->trace_event_file_pattern)),
@@ -1424,23 +1427,10 @@ void Init(std::vector<std::string>* argv,
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
   std::string node_options;
   if (credentials::SafeGetenv("NODE_OPTIONS", &node_options)) {
-    std::vector<std::string> env_argv;
-    // [0] is expected to be the program name, fill it in from the real argv.
-    env_argv.push_back(argv->at(0));
-
-    // Split NODE_OPTIONS at each ' ' character.
-    std::string::size_type index = std::string::npos;
-    do {
-      std::string::size_type prev_index = index;
-      index = node_options.find(' ', index + 1);
-      if (index - prev_index == 1) continue;
-
-      const std::string option = node_options.substr(
-          prev_index + 1, index - prev_index - 1);
-      if (!option.empty())
-        env_argv.emplace_back(std::move(option));
-    } while (index != std::string::npos);
-
+    // [0] is expected to be the program name, fill it in from the real argv
+    // and use 'x' as a placeholder while parsing.
+    std::vector<std::string> env_argv = SplitString("x " + node_options, ' ');
+    env_argv[0] = argv->at(0);
 
     ProcessArgv(&env_argv, nullptr, true);
   }

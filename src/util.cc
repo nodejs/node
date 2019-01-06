@@ -122,15 +122,15 @@ void GetHumanReadableProcessName(char (*name)[1024]) {
   snprintf(*name, sizeof(*name), "%s[%d]", title, uv_os_getpid());
 }
 
-std::set<std::string> ParseCommaSeparatedSet(const std::string& in) {
-  std::set<std::string> out;
+std::vector<std::string> SplitString(const std::string& in, char delim) {
+  std::vector<std::string> out;
   if (in.empty())
     return out;
   std::istringstream in_stream(in);
   while (in_stream.good()) {
     std::string item;
-    getline(in_stream, item, ',');
-    out.emplace(std::move(item));
+    std::getline(in_stream, item, delim);
+    out.emplace_back(std::move(item));
   }
   return out;
 }
