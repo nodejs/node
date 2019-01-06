@@ -90,7 +90,6 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
 static void SetPromiseRejectCallback(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
 
   CHECK(args[0]->IsFunction());
   env->set_promise_reject_callback(args[0].As<Function>());
