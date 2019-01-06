@@ -1,6 +1,6 @@
 'use strict';
 
-// Flags: --expose-internals --experimental-worker
+// Flags: --expose-internals
 
 require('../common');
 const { WPTRunner } = require('../common/wpt');

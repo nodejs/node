@@ -1,4 +1,4 @@
-// Flags: --experimental-worker --experimental-wasm-threads
+// Flags: --experimental-wasm-threads
 'use strict';
 const common = require('../common');
 const assert = require('assert');
