@@ -23,13 +23,6 @@ directory, see [the guide on benchmarks](../doc/guides/writing-and-running-bench
   </thead>
   <tbody>
     <tr>
-      <td>arrays</td>
-      <td>
-        Benchmarks for various operations on array-like objects,
-        including <code>Array</code>, <code>Buffer</code>, and typed arrays.
-      </td>
-    </tr>
-    <tr>
       <td>assert</td>
       <td>
         Benchmarks for the <code>assert</code> subsystem.
