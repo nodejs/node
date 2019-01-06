@@ -7,7 +7,7 @@ const bench = common.createBenchmark(main, {
   payload: ['string', 'object'],
   sendsPerBroadcast: [1, 10],
   n: [1e5]
-}, { flags: ['--experimental-worker'] });
+});
 
 const workerPath = path.resolve(__dirname, '..', 'fixtures', 'echo.worker.js');
 

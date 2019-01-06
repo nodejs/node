@@ -1,4 +1,3 @@
-// Flags: --experimental-worker
 'use strict';
 const path = require('path');
 const assert = require('assert');

@@ -1,4 +1,4 @@
-// Flags: --expose-gc --experimental-worker
+// Flags: --expose-gc
 'use strict';
 
 const common = require('../common');

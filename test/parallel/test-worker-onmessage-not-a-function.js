@@ -3,7 +3,6 @@
 // listener from holding the event loop open. This test confirms that
 // functionality.
 
-// Flags: --experimental-worker
 'use strict';
 const common = require('../common');
 const { Worker, parentPort } = require('worker_threads');

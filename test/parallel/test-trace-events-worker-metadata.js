@@ -1,4 +1,3 @@
-// Flags: --experimental-worker
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -15,8 +14,7 @@ if (isMainThread) {
   process.chdir(tmpdir.path);
 
   const proc = cp.spawn(process.execPath,
-                        [ '--experimental-worker',
-                          '--trace-event-categories', 'node',
+                        [ '--trace-event-categories', 'node',
                           '-e', CODE ]);
   proc.once('exit', common.mustCall(() => {
     assert(fs.existsSync(FILE_NAME));

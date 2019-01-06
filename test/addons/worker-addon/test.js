@@ -1,4 +1,3 @@
-// Flags: --experimental-worker
 'use strict';
 const common = require('../../common');
 const assert = require('assert');
@@ -11,7 +10,6 @@ if (process.argv[2] === 'child') {
   new Worker(`require(${JSON.stringify(binding)});`, { eval: true });
 } else {
   const proc = child_process.spawnSync(process.execPath, [
-    '--experimental-worker',
     __filename,
     'child'
   ]);
