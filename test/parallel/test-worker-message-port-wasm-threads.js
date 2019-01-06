@@ -8,7 +8,7 @@ const { MessageChannel, Worker } = require('worker_threads');
 // through MessageChannels (without crashing).
 
 const fixtures = require('../common/fixtures');
-const wasmSource = fixtures.readSync('wasm-threads-shared-memory.wasm');
+const wasmSource = fixtures.readSync('shared-memory.wasm');
 const wasmModule = new WebAssembly.Module(wasmSource);
 const instance = new WebAssembly.Instance(wasmModule);
 

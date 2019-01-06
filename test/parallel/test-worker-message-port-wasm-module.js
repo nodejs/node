@@ -5,13 +5,13 @@ const assert = require('assert');
 const fixtures = require('../common/fixtures');
 
 const { Worker } = require('worker_threads');
-const wasmModule = new WebAssembly.Module(fixtures.readSync('test.wasm'));
+const wasmModule = new WebAssembly.Module(fixtures.readSync('simple.wasm'));
 
 const worker = new Worker(`
 const { parentPort } = require('worker_threads');
 parentPort.once('message', ({ wasmModule }) => {
   const instance = new WebAssembly.Instance(wasmModule);
-  parentPort.postMessage(instance.exports.addTwo(10, 20));
+  parentPort.postMessage(instance.exports.add(10, 20));
 });
 `, { eval: true });
 
