@@ -15,7 +15,7 @@ const assert = require('assert');
 
 const start = Date.now();
 
-const slowIOmax = 10;
+const slowIOmax = 100;
 let slowIOcount = 0;
 let fastIOdone = false;
 let slowIOend, fastIOend;
@@ -31,13 +31,13 @@ function onResolve() {
               'fast I/O was throttled due to threadpool congestion.');
 
     // More realistic expectation: finish disc I/O at least within
-    // a time duration that is 1/100th of net I/O.
+    // a time duration that is half of net I/O.
     // Ideally the slow I/O should not affect the fast I/O as those
     // have two different thread-pool buckets. However, this could be
     // highly load / platform dependent, so don't be very greedy.
     const fastIOtime = fastIOend - start;
     const slowIOtime = slowIOend - start;
-    const expectedMax = slowIOtime / 10;
+    const expectedMax = slowIOtime / 2;
     assert.ok(fastIOtime < expectedMax,
               'fast I/O took longer to complete, ' +
               `actual: ${fastIOtime}, expected: ${expectedMax}`);
