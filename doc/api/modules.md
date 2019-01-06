@@ -607,10 +607,8 @@ modules into Node.js by compiling them on-demand. However, in practice, there
 are much better ways to do this, such as loading modules via some other Node.js
 program, or compiling them to JavaScript ahead of time.
 
-Using this could cause subtle bugs and adding extensions slows down the module
-loader and is therefore discouraged (the number of file system operations that
-the module system has to perform in order to resolve a `require(...)` statement
-to a filename scales linearly with the number of registered extensions).
+Avoid using `require.extensions`. Use could cause subtle bugs and resolving the
+extensions is becoming slower the more extensions you add.
 
 #### require.main
 <!-- YAML
