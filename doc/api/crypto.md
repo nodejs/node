@@ -200,9 +200,10 @@ const cipher = crypto.createCipheriv(algorithm, key, iv);
 
 let encrypted = '';
 cipher.on('readable', () => {
-  const data = cipher.read();
-  if (data)
-    encrypted += data.toString('hex');
+  let chunk;
+  while (null !== (chunk = cipher.read())) {
+    encrypted += chunk.toString('hex');
+  }
 });
 cipher.on('end', () => {
   console.log(encrypted);
@@ -383,9 +384,9 @@ const decipher = crypto.createDecipheriv(algorithm, key, iv);
 
 let decrypted = '';
 decipher.on('readable', () => {
-  const data = decipher.read();
-  if (data)
-    decrypted += data.toString('utf8');
+  while (null !== (chunk = decipher.read())) {
+    decrypted += chunk.toString('utf8');
+  }
 });
 decipher.on('end', () => {
   console.log(decrypted);
@@ -944,6 +945,8 @@ const crypto = require('crypto');
 const hash = crypto.createHash('sha256');
 
 hash.on('readable', () => {
+  // Only one element is going to be produced by the
+  // hash stream.
   const data = hash.read();
   if (data) {
     console.log(data.toString('hex'));
@@ -1036,6 +1039,8 @@ const crypto = require('crypto');
 const hmac = crypto.createHmac('sha256', 'a secret');
 
 hmac.on('readable', () => {
+  // Only one element is going to be produced by the
+  // hash stream.
   const data = hmac.read();
   if (data) {
     console.log(data.toString('hex'));
@@ -1678,6 +1683,8 @@ const hash = crypto.createHash('sha256');
 
 const input = fs.createReadStream(filename);
 input.on('readable', () => {
+  // Only one element is going to be produced by the
+  // hash stream.
   const data = input.read();
   if (data)
     hash.update(data);
@@ -1718,6 +1725,8 @@ const hmac = crypto.createHmac('sha256', 'a secret');
 
 const input = fs.createReadStream(filename);
 input.on('readable', () => {
+  // Only one element is going to be produced by the
+  // hash stream.
   const data = input.read();
   if (data)
     hmac.update(data);
