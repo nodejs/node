@@ -449,3 +449,9 @@ common.expectsError(
     assert.deepStrictEqual(h.digest('latin1'), '');
   }
 }
+
+{
+  assert.throws(
+    () => crypto.createHmac('sha7', 'key'),
+    /Unknown message digest/);
+}

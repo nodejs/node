@@ -205,3 +205,15 @@ for (let n = 1; n < 256; n += 1) {
   if (common.hasFipsCrypto && n < 12) continue;
   crypto.createCipheriv('aes-128-gcm', Buffer.alloc(16), Buffer.alloc(n));
 }
+
+{
+  // Passing an invalid cipher name should throw.
+  assert.throws(
+    () => crypto.createCipheriv('aes-127', Buffer.alloc(16), null),
+    /Unknown cipher/);
+
+  // Passing a key with an invalid length should throw.
+  assert.throws(
+    () => crypto.createCipheriv('aes-128-ecb', Buffer.alloc(17), null),
+    /Invalid key length/);
+}
