@@ -363,3 +363,9 @@ common.expectsError(
     assert.throws(() => verify.verify('test', input), errObj);
   });
 }
+
+{
+  assert.throws(
+    () => crypto.createSign('sha8'),
+    /Unknown message digest/);
+}
