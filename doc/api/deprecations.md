@@ -632,6 +632,9 @@ Type: End-of-Life
 ### DEP0029: util.error()
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/xxxxx
+    description: End-of-Life.
   - version:
     - v4.8.6
     - v6.12.0
@@ -642,10 +645,9 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-The [`util.error()`][] API is deprecated. Please use [`console.error()`][]
-instead.
+`util.error()` has been removed. Please use [`console.error()`][] instead.
 
 <a id="DEP0030"></a>
 ### DEP0030: SlowBuffer
@@ -2397,7 +2399,6 @@ Setting the TLS ServerName to an IP address is not permitted by
 [`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
 [`url.resolve()`]: url.html#url_url_resolve_from_to
 [`util._extend()`]: util.html#util_util_extend_target_source
-[`util.error()`]: util.html#util_util_error_strings
 [`util.getSystemErrorName()`]: util.html#util_util_getsystemerrorname_err
 [`util.inspect()`]: util.html#util_util_inspect_object_options
 [`util.inspect.custom`]: util.html#util_util_inspect_custom

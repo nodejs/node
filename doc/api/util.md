@@ -1714,18 +1714,6 @@ Node.js modules. The community found and used it anyway.
 It is deprecated and should not be used in new code. JavaScript comes with very
 similar built-in functionality through [`Object.assign()`].
 
-### util.error([...strings])
-<!-- YAML
-added: v0.3.0
-deprecated: v0.11.3
--->
-
-> Stability: 0 - Deprecated: Use [`console.error()`][] instead.
-
-* `...strings` {string} The message to print to `stderr`
-
-Deprecated predecessor of `console.error`.
-
 ### util.isArray(object)
 <!-- YAML
 added: v0.6.0

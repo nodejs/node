@@ -21,7 +21,7 @@
 
 'use strict';
 // Flags: --expose-internals
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const util = require('util');
 const errors = require('internal/errors');
@@ -143,12 +143,6 @@ assert.strictEqual(util.isFunction(() => {}), true);
 assert.strictEqual(util.isFunction(function() {}), true);
 assert.strictEqual(util.isFunction(), false);
 assert.strictEqual(util.isFunction('string'), false);
-
-common.expectWarning('DeprecationWarning', [
-  ['util.error is deprecated. Use console.error instead.', 'DEP0029']
-]);
-
-util.error('test');
 
 {
   assert.strictEqual(util.types.isNativeError(new Error()), true);
