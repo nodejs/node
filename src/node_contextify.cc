@@ -692,7 +692,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
   ScriptOrigin origin(filename,
                       line_offset,                          // line offset
                       column_offset,                        // column offset
-                      False(isolate),                       // is cross origin
+                      True(isolate),                        // is cross origin
                       Local<Integer>(),                     // script id
                       Local<Value>(),                       // source map URL
                       False(isolate),                       // is opaque (?)
@@ -1004,7 +1004,7 @@ void ContextifyContext::CompileFunction(
       data + cached_data_buf->ByteOffset(), cached_data_buf->ByteLength());
   }
 
-  ScriptOrigin origin(filename, line_offset, column_offset);
+  ScriptOrigin origin(filename, line_offset, column_offset, True(isolate));
   ScriptCompiler::Source source(code, origin, cached_data);
   ScriptCompiler::CompileOptions options;
   if (source.GetCachedData() == nullptr) {

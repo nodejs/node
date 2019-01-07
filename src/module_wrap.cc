@@ -148,7 +148,7 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
     ScriptOrigin origin(url,
                         line_offset,                          // line offset
                         column_offset,                        // column offset
-                        False(isolate),                       // is cross origin
+                        True(isolate),                        // is cross origin
                         Local<Integer>(),                     // script id
                         Local<Value>(),                       // source map URL
                         False(isolate),                       // is opaque (?)
