@@ -44,7 +44,7 @@ execFile(node, normal, function(er, stdout, stderr) {
   console.error('normal: show deprecation warning');
   assert.strictEqual(er, null);
   assert.strictEqual(stdout, '');
-  assert(/util\.debug is deprecated/.test(stderr));
+  assert(/this function is deprecated/.test(stderr));
   console.log('normal ok');
 });
 
@@ -52,7 +52,7 @@ execFile(node, noDep, function(er, stdout, stderr) {
   console.error('--no-deprecation: silence deprecations');
   assert.strictEqual(er, null);
   assert.strictEqual(stdout, '');
-  assert.strictEqual(stderr, 'DEBUG: This is deprecated\n');
+  assert.strictEqual(stderr.trim(), 'This is deprecated');
   console.log('silent ok');
 });
 
@@ -62,10 +62,8 @@ execFile(node, traceDep, function(er, stdout, stderr) {
   assert.strictEqual(stdout, '');
   const stack = stderr.trim().split('\n');
   // just check the top and bottom.
-  assert(
-    /util\.debug is deprecated\. Use console\.error instead\./.test(stack[1])
-  );
-  assert(/DEBUG: This is deprecated/.test(stack[0]));
+  assert(/this function is deprecated/.test(stack[1]));
+  assert(/This is deprecated/.test(stack[0]));
   console.log('trace ok');
 });
 
