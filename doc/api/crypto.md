@@ -1371,7 +1371,7 @@ added: v0.1.92
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/25217
-    description: The key can now be a private key instead of a public key.
+    description: The key can now be a private key.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11705
     description: Support for RSASSA-PSS and additional options was added.
