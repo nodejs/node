@@ -218,7 +218,7 @@ MaybeLocal<Function> NativeModuleLoader::LookupAndCompile(
       OneByteString(isolate, filename_s.c_str(), filename_s.size());
   Local<Integer> line_offset = Integer::New(isolate, 0);
   Local<Integer> column_offset = Integer::New(isolate, 0);
-  ScriptOrigin origin(filename, line_offset, column_offset);
+  ScriptOrigin origin(filename, line_offset, column_offset, True(isolate));
 
   Mutex::ScopedLock lock(code_cache_mutex_);
 
