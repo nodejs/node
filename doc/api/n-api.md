@@ -531,10 +531,10 @@ In many cases when an N-API function is called and an exception is
 already pending, the function will return immediately with a
 `napi_status` of `napi_pending_exception`. However, this is not the case
 for all functions. N-API allows a subset of the functions to be
-called to allow for some minimal cleanup
-before returning to JavaScript. In that case, `napi_status` will reflect
-the status for the function. It will not reflect previous pending exceptions.
-To avoid confusion, check the error status after every function call.
+called to allow for some minimal cleanup before returning to JavaScript.
+In that case, `napi_status` will reflect the status for the function. It
+will not reflect previous pending exceptions. To avoid confusion, check
+the error status after every function call.
 
 When an exception is pending one of two approaches can be employed.
 
