@@ -8,9 +8,11 @@ const {
   assert, connect, keys, tls
 } = require(fixtures.path('tls-connect'));
 const DEFAULT_MIN_VERSION = tls.DEFAULT_MIN_VERSION;
+const DEFAULT_MAX_VERSION = tls.DEFAULT_MAX_VERSION;
 
-function test(cmin, cmax, cprot, smin, smax, sprot, expect) {
-  assert(expect);
+
+function test(cmin, cmax, cprot, smin, smax, sprot, proto, cerr, serr) {
+  assert(proto || cerr || serr, 'test missing any expectations');
   connect({
     client: {
       checkServerIdentity: (servername, cert) => { },
@@ -27,8 +29,25 @@ function test(cmin, cmax, cprot, smin, smax, sprot, expect) {
       secureProtocol: sprot,
     },
   }, common.mustCall((err, pair, cleanup) => {
-    if (err) {
-      assert.strictEqual(err.code, expect, err + '.code !== ' + expect);
+    function u(_) { return _ === undefined ? 'U' : _; }
+    console.log('test:', u(cmin), u(cmax), u(cprot), u(smin), u(smax), u(sprot),
+                'expect', u(proto), u(cerr), u(serr));
+    if (!proto) {
+      console.log('client', pair.client.err ? pair.client.err.code : undefined);
+      console.log('server', pair.server.err ? pair.server.err.code : undefined);
+      if (cerr) {
+        assert(pair.client.err);
+        // Accept these codes as aliases, the one reported depends on the
+        // OpenSSL version.
+        if (cerr === 'ERR_SSL_UNSUPPORTED_PROTOCOL' &&
+            pair.client.err.code === 'ERR_SSL_VERSION_TOO_LOW')
+          cerr = 'ERR_SSL_VERSION_TOO_LOW';
+        assert.strictEqual(pair.client.err.code, cerr);
+      }
+      if (serr) {
+        assert(pair.server.err);
+        assert.strictEqual(pair.server.err.code, serr);
+      }
       return cleanup();
     }
 
@@ -37,8 +56,8 @@ function test(cmin, cmax, cprot, smin, smax, sprot, expect) {
     assert.ifError(pair.client.err);
     assert(pair.server.conn);
     assert(pair.client.conn);
-    assert.strictEqual(pair.client.conn.getProtocol(), expect);
-    assert.strictEqual(pair.server.conn.getProtocol(), expect);
+    assert.strictEqual(pair.client.conn.getProtocol(), proto);
+    assert.strictEqual(pair.server.conn.getProtocol(), proto);
     return cleanup();
   }));
 }
@@ -49,22 +68,28 @@ const U = undefined;
 test(U, U, U, U, U, U, 'TLSv1.2');
 
 // Insecure or invalid protocols cannot be enabled.
-test(U, U, U, U, U, 'SSLv2_method', 'ERR_TLS_INVALID_PROTOCOL_METHOD');
-test(U, U, U, U, U, 'SSLv3_method', 'ERR_TLS_INVALID_PROTOCOL_METHOD');
-test(U, U, 'SSLv2_method', U, U, U, 'ERR_TLS_INVALID_PROTOCOL_METHOD');
-test(U, U, 'SSLv3_method', U, U, U, 'ERR_TLS_INVALID_PROTOCOL_METHOD');
-test(U, U, 'hokey-pokey', U, U, U, 'ERR_TLS_INVALID_PROTOCOL_METHOD');
-test(U, U, U, U, U, 'hokey-pokey', 'ERR_TLS_INVALID_PROTOCOL_METHOD');
+test(U, U, U, U, U, 'SSLv2_method',
+     U, U, 'ERR_TLS_INVALID_PROTOCOL_METHOD');
+test(U, U, U, U, U, 'SSLv3_method',
+     U, U, 'ERR_TLS_INVALID_PROTOCOL_METHOD');
+test(U, U, 'SSLv2_method', U, U, U,
+     U, 'ERR_TLS_INVALID_PROTOCOL_METHOD');
+test(U, U, 'SSLv3_method', U, U, U,
+     U, 'ERR_TLS_INVALID_PROTOCOL_METHOD');
+test(U, U, 'hokey-pokey', U, U, U,
+     U, 'ERR_TLS_INVALID_PROTOCOL_METHOD');
+test(U, U, U, U, U, 'hokey-pokey',
+     U, U, 'ERR_TLS_INVALID_PROTOCOL_METHOD');
 
 // Cannot use secureProtocol and min/max versions simultaneously.
 test(U, U, U, U, 'TLSv1.2', 'TLS1_2_method',
-     'ERR_TLS_PROTOCOL_VERSION_CONFLICT');
+     U, U, 'ERR_TLS_PROTOCOL_VERSION_CONFLICT');
 test(U, U, U, 'TLSv1.2', U, 'TLS1_2_method',
-     'ERR_TLS_PROTOCOL_VERSION_CONFLICT');
+     U, U, 'ERR_TLS_PROTOCOL_VERSION_CONFLICT');
 test(U, 'TLSv1.2', 'TLS1_2_method', U, U, U,
-     'ERR_TLS_PROTOCOL_VERSION_CONFLICT');
+     U, 'ERR_TLS_PROTOCOL_VERSION_CONFLICT');
 test('TLSv1.2', U, 'TLS1_2_method', U, U, U,
-     'ERR_TLS_PROTOCOL_VERSION_CONFLICT');
+     U, 'ERR_TLS_PROTOCOL_VERSION_CONFLICT');
 
 // TLS_method means "any supported protocol".
 test(U, U, 'TLSv1_2_method', U, U, 'TLS_method', 'TLSv1.2');
@@ -79,18 +104,23 @@ test(U, U, 'TLS_method', U, U, 'TLSv1_method', 'TLSv1');
 test(U, U, 'TLSv1_2_method', U, U, 'SSLv23_method', 'TLSv1.2');
 
 if (DEFAULT_MIN_VERSION === 'TLSv1.2') {
-  test(U, U, 'TLSv1_1_method', U, U, 'SSLv23_method', 'ECONNRESET');
-  test(U, U, 'TLSv1_method', U, U, 'SSLv23_method', 'ECONNRESET');
+  test(U, U, 'TLSv1_1_method', U, U, 'SSLv23_method',
+       U, 'ECONNRESET', 'ERR_SSL_UNSUPPORTED_PROTOCOL');
+  test(U, U, 'TLSv1_method', U, U, 'SSLv23_method',
+       U, 'ECONNRESET', 'ERR_SSL_UNSUPPORTED_PROTOCOL');
   test(U, U, 'SSLv23_method', U, U, 'TLSv1_1_method',
-       'ERR_SSL_VERSION_TOO_LOW');
-  test(U, U, 'SSLv23_method', U, U, 'TLSv1_method', 'ERR_SSL_VERSION_TOO_LOW');
+       U, 'ERR_SSL_UNSUPPORTED_PROTOCOL', 'ERR_SSL_WRONG_VERSION_NUMBER');
+  test(U, U, 'SSLv23_method', U, U, 'TLSv1_method',
+       U, 'ERR_SSL_UNSUPPORTED_PROTOCOL', 'ERR_SSL_WRONG_VERSION_NUMBER');
 }
 
 if (DEFAULT_MIN_VERSION === 'TLSv1.1') {
   test(U, U, 'TLSv1_1_method', U, U, 'SSLv23_method', 'TLSv1.1');
-  test(U, U, 'TLSv1_method', U, U, 'SSLv23_method', 'ECONNRESET');
+  test(U, U, 'TLSv1_method', U, U, 'SSLv23_method',
+       U, 'ECONNRESET', 'ERR_SSL_UNSUPPORTED_PROTOCOL');
   test(U, U, 'SSLv23_method', U, U, 'TLSv1_1_method', 'TLSv1.1');
-  test(U, U, 'SSLv23_method', U, U, 'TLSv1_method', 'ERR_SSL_VERSION_TOO_LOW');
+  test(U, U, 'SSLv23_method', U, U, 'TLSv1_method',
+       U, 'ERR_SSL_UNSUPPORTED_PROTOCOL', 'ERR_SSL_WRONG_VERSION_NUMBER');
 }
 
 if (DEFAULT_MIN_VERSION === 'TLSv1') {
@@ -108,18 +138,34 @@ test(U, U, 'TLSv1_method', U, U, 'TLSv1_method', 'TLSv1');
 
 // The default default.
 if (DEFAULT_MIN_VERSION === 'TLSv1.2') {
-  test(U, U, 'TLSv1_1_method', U, U, U, 'ECONNRESET');
-  test(U, U, 'TLSv1_method', U, U, U, 'ECONNRESET');
-  test(U, U, U, U, U, 'TLSv1_1_method', 'ERR_SSL_VERSION_TOO_LOW');
-  test(U, U, U, U, U, 'TLSv1_method', 'ERR_SSL_VERSION_TOO_LOW');
+  test(U, U, 'TLSv1_1_method', U, U, U,
+       U, 'ECONNRESET', 'ERR_SSL_UNSUPPORTED_PROTOCOL');
+  test(U, U, 'TLSv1_method', U, U, U,
+       U, 'ECONNRESET', 'ERR_SSL_UNSUPPORTED_PROTOCOL');
+
+  if (DEFAULT_MAX_VERSION === 'TLSv1.2') {
+    test(U, U, U, U, U, 'TLSv1_1_method',
+         U, 'ERR_SSL_UNSUPPORTED_PROTOCOL', 'ERR_SSL_WRONG_VERSION_NUMBER');
+    test(U, U, U, U, U, 'TLSv1_method',
+         U, 'ERR_SSL_UNSUPPORTED_PROTOCOL', 'ERR_SSL_WRONG_VERSION_NUMBER');
+  } else {
+    assert(false, 'unreachable');
+  }
 }
 
 // The default with --tls-v1.1.
 if (DEFAULT_MIN_VERSION === 'TLSv1.1') {
   test(U, U, 'TLSv1_1_method', U, U, U, 'TLSv1.1');
-  test(U, U, 'TLSv1_method', U, U, U, 'ECONNRESET');
+  test(U, U, 'TLSv1_method', U, U, U,
+       U, 'ECONNRESET', 'ERR_SSL_UNSUPPORTED_PROTOCOL');
   test(U, U, U, U, U, 'TLSv1_1_method', 'TLSv1.1');
-  test(U, U, U, U, U, 'TLSv1_method', 'ERR_SSL_VERSION_TOO_LOW');
+
+  if (DEFAULT_MAX_VERSION === 'TLSv1.2') {
+    test(U, U, U, U, U, 'TLSv1_method',
+         U, 'ERR_SSL_UNSUPPORTED_PROTOCOL', 'ERR_SSL_WRONG_VERSION_NUMBER');
+  } else {
+    assert(false, 'unreachable');
+  }
 }
 
 // The default with --tls-v1.0.
