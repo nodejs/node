@@ -2167,16 +2167,6 @@ const util = require('util');
 util.log('Timestamped message.');
 ```
 
-### util.puts([...strings])
-<!-- YAML
-added: v0.3.0
-deprecated: v0.11.3
--->
-
-> Stability: 0 - Deprecated: Use [`console.log()`][] instead.
-
-Deprecated predecessor of `console.log`.
-
 [`'uncaughtException'`]: process.html#process_event_uncaughtexception
 [`'warning'`]: process.html#process_event_warning
 [`Array.isArray()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
@@ -2207,7 +2197,6 @@ Deprecated predecessor of `console.log`.
 [`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module
 [`assert.deepStrictEqual()`]: assert.html#assert_assert_deepstrictequal_actual_expected_message
 [`console.error()`]: console.html#console_console_error_data_args
-[`console.log()`]: console.html#console_console_log_data_args
 [`target` and `handler`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#Terminology
 [`util.format()`]: #util_util_format_format_args
 [`util.inspect()`]: #util_util_inspect_object_options
