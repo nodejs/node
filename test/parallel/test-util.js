@@ -145,13 +145,11 @@ assert.strictEqual(util.isFunction(), false);
 assert.strictEqual(util.isFunction('string'), false);
 
 common.expectWarning('DeprecationWarning', [
-  ['util.print is deprecated. Use console.log instead.', 'DEP0026'],
   ['util.puts is deprecated. Use console.log instead.', 'DEP0027'],
   ['util.debug is deprecated. Use console.error instead.', 'DEP0028'],
   ['util.error is deprecated. Use console.error instead.', 'DEP0029']
 ]);
 
-util.print('test');
 util.puts('test');
 util.debug('test');
 util.error('test');

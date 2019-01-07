@@ -569,6 +569,9 @@ The `sys` module is deprecated. Please use the [`util`][] module instead.
 ### DEP0026: util.print()
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/xxxxx
+    description: End-of-Life.
   - version:
     - v4.8.6
     - v6.12.0
@@ -579,10 +582,9 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-The [`util.print()`][] API is deprecated. Please use [`console.log()`][]
-instead.
+`util.print()` has been removed. Please use [`console.log()`][] instead.
 
 <a id="DEP0027"></a>
 ### DEP0027: util.puts()
@@ -2411,7 +2413,6 @@ Setting the TLS ServerName to an IP address is not permitted by
 [`util.isSymbol()`]: util.html#util_util_issymbol_object
 [`util.isUndefined()`]: util.html#util_util_isundefined_object
 [`util.log()`]: util.html#util_util_log_string
-[`util.print()`]: util.html#util_util_print_strings
 [`util.puts()`]: util.html#util_util_puts_strings
 [`util.types`]: util.html#util_util_types
 [`util`]: util.html
