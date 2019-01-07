@@ -16,7 +16,7 @@ const jsPrimitives = {
 const jsGlobalObjectsUrl = `${jsDocPrefix}Reference/Global_Objects/`;
 const jsGlobalTypes = [
   'Array', 'ArrayBuffer', 'DataView', 'Date', 'Error', 'EvalError', 'Function',
-  'Object', 'Promise', 'RangeError', 'ReferenceError', 'RegExp', 'Set',
+  'Map', 'Object', 'Promise', 'RangeError', 'ReferenceError', 'RegExp', 'Set',
   'SharedArrayBuffer', 'SyntaxError', 'TypeError', 'TypedArray', 'URIError',
   'Uint8Array',
 ];
@@ -74,6 +74,8 @@ const customTypesMap = {
   'fs.ReadStream': 'fs.html#fs_class_fs_readstream',
   'fs.Stats': 'fs.html#fs_class_fs_stats',
   'fs.WriteStream': 'fs.html#fs_class_fs_writestream',
+
+  'Histogram': 'perf_hooks.html#perf_hooks_class_histogram',
 
   'http.Agent': 'http.html#http_class_http_agent',
   'http.ClientRequest': 'http.html#http_class_http_clientrequest',

@@ -261,8 +261,9 @@
       ],
       'include_dirs': [
         'src',
-        'deps/v8/include',
+        'deps/v8/include'
       ],
+      'dependencies': [ 'deps/histogram/histogram.gyp:histogram' ],
 
       # - "C4244: conversion from 'type1' to 'type2', possible loss of data"
       #   Ususaly safe. Disable for `dep`, enable for `src`
@@ -360,6 +361,7 @@
         'src',
         '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
       ],
+      'dependencies': [ 'deps/histogram/histogram.gyp:histogram' ],
 
       'sources': [
         'src/api/callback.cc',
@@ -458,6 +460,8 @@
         'src/env.h',
         'src/env-inl.h',
         'src/handle_wrap.h',
+        'src/histogram.h',
+        'src/histogram-inl.h',
         'src/http_parser_adaptor.h',
         'src/js_stream.h',
         'src/memory_tracker.h',
@@ -966,6 +970,7 @@
         '<(node_lib_target_name)',
         'rename_node_bin_win',
         'deps/gtest/gtest.gyp:gtest',
+        'deps/histogram/histogram.gyp:histogram',
         'node_dtrace_header',
         'node_dtrace_ustack',
         'node_dtrace_provider',
