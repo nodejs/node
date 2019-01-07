@@ -535,7 +535,7 @@ called in order to allow for some minimal cleanup to be completed
 before returning to JavaScript. For those functions, `napi_status`
 will reflect the success/error/exception for that function, irrespective of
 whether an exception was pending when the function was called.
-In order to avoid confusion it is important to check the
+To avoid confusion, check the
 error status after every function call.
 
 When an exception is pending one of two approaches can be employed.
