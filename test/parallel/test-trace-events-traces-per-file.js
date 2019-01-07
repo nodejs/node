@@ -16,7 +16,7 @@ const spawn = common.mustCall((numTraces) => new Promise((resolve, reject) => {
     '--trace-events-enabled',
     '--trace-event-file-pattern',
     `trace-${numTraces}-\${pid}-\${rotation}.log`,
-    '--trace-event-traces-per-file', numTraces,
+    '--trace-event-file-trace-count', numTraces,
     '-e', CODE
   ], { cwd: tmpdir.path, stdio: 'inherit' });
 
@@ -32,10 +32,16 @@ const spawn = common.mustCall((numTraces) => new Promise((resolve, reject) => {
 }), 2);
 
 // spawn(x) creates a new process where the value for
-// --trace-event-traces-per-file is set to x.
+// --trace-event-file-trace-count is set to x.
 Promise.all([spawn(1 << 16), spawn(1 << 17)])
   .then(([numTraces16, numTraces17]) => {
-    assert.ok(numTraces16 >= (1 << 16));
-    assert.ok(numTraces16 < (1 << 17));
-    assert.ok(numTraces17 >= (1 << 17));
-  });
+    const prefix = (fileTraceCount) =>
+        `\`node --trace-event-file-trace-count=${fileTraceCount}\``;
+    assert.ok(numTraces16 >= (1 << 16), `Expected >= ${1 << 16} traces from ${
+              prefix(1 << 16)}, got ${numTraces16} instead`);
+    assert.ok(numTraces16 < (1 << 17), `Expected < ${1 << 17} traces from ${
+              prefix(1 << 16)}, got ${numTraces16} instead`);
+    assert.ok(numTraces17 >= (1 << 17), `Expected >= ${1 << 17} traces from ${
+              prefix(1 << 17)}, got ${numTraces17} instead`);
+  })
+  .then(common.mustCall());

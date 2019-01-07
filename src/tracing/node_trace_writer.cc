@@ -10,7 +10,7 @@ namespace node {
 namespace tracing {
 
 NodeTraceWriter::NodeTraceWriter(const std::string& log_file_pattern,
-                                 int64_t min_traces_per_file)
+                                 uint64_t min_traces_per_file)
     : log_file_pattern_(log_file_pattern),
       min_traces_per_file_(min_traces_per_file) {}
 
@@ -124,7 +124,7 @@ void NodeTraceWriter::FlushPrivate() {
   int highest_request_id;
   {
     Mutex::ScopedLock stream_scoped_lock(stream_mutex_);
-    if (min_traces_per_file_ > 0 && total_traces_ >= min_traces_per_file_) {
+    if (min_traces_per_file_ != 0 && total_traces_ >= min_traces_per_file_) {
       total_traces_ = 0;
       // Destroying the member JSONTraceWriter object appends "]}" to
       // stream_ - in other words, ending a JSON file.

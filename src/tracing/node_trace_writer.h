@@ -17,7 +17,7 @@ using v8::platform::tracing::TraceWriter;
 class NodeTraceWriter : public AsyncTraceWriter {
  public:
   explicit NodeTraceWriter(const std::string& log_file_pattern,
-                           int64_t min_traces_per_file);
+                           uint64_t min_traces_per_file);
   ~NodeTraceWriter();
 
   void InitializeOnThread(uv_loop_t* loop) override;
@@ -62,10 +62,10 @@ class NodeTraceWriter : public AsyncTraceWriter {
   std::string log_file_pattern_;
   // Keeps track of the total number of traces written to the currently open
   // file.
-  int64_t total_traces_ = 0;
+  uint64_t total_traces_ = 0;
   // The minimum number of traces to allow in a single file before closing it
   // and rotating to a new file.
-  int64_t min_traces_per_file_;
+  uint64_t min_traces_per_file_;
   std::ostringstream stream_;
   std::unique_ptr<TraceWriter> json_trace_writer_;
   bool exited_ = false;

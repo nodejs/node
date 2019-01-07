@@ -273,7 +273,7 @@ static struct {
           std::unique_ptr<tracing::AsyncTraceWriter>(
               new tracing::NodeTraceWriter(
                   per_process_opts->trace_event_file_pattern,
-                  per_process_opts->trace_event_traces_per_file)),
+                  per_process_opts->trace_event_file_trace_count)),
           tracing::Agent::kUseDefaultCategories);
     }
   }

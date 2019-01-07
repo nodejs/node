@@ -152,7 +152,7 @@ class PerProcessOptions : public Options {
   std::string trace_event_categories;
   std::string trace_event_file_pattern = "node_trace.${rotation}.log";
   uint64_t max_http_header_size = 8 * 1024;
-  int64_t trace_event_traces_per_file = 1 << 19;
+  uint64_t trace_event_file_trace_count = 1 << 19;
   int64_t v8_thread_pool_size = 4;
   bool zero_fill_all_buffers = false;
 
