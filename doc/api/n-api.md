@@ -528,7 +528,7 @@ instead of simply returning immediately, [`napi_is_exception_pending`][]
 must be called in order to determine if an exception is pending or not.
 
 In many cases when an N-API function is called and an exception is
-already pending the function will return immediately with a
+already pending, the function will return immediately with a
 `napi_status` of `napi_pending_exception`. However, this is not the case
 for all functions. N-API allows a subset of the functions to be
 called in order to allow for some minimal cleanup to be completed
