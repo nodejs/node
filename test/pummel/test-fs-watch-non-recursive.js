@@ -24,7 +24,7 @@ const common = require('../common');
 const path = require('path');
 const fs = require('fs');
 
-const tmpdir = require('tmpdir');
+const tmpdir = require('../common/tmpdir');
 
 const testDir = tmpdir.path;
 const testsubdir = path.join(testDir, 'testsubdir');
