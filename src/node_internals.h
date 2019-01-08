@@ -185,9 +185,10 @@ v8::Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,
                                               const char* warning,
                                               const char* deprecation_code);
 
-void SetupProcessObject(Environment* env,
-                        const std::vector<std::string>& args,
-                        const std::vector<std::string>& exec_args);
+v8::Local<v8::Object> CreateProcessObject(
+    Environment* env,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args);
 
 enum Endianness {
   kLittleEndian,  // _Not_ LITTLE_ENDIAN, clashes with endian.h.
