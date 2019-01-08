@@ -34,8 +34,6 @@ let reqs = 0;
 pummel();
 
 function pummel() {
-  console.log('Round', rounds, '/', ROUNDS);
-
   let pending;
   for (pending = 0; pending < ATTEMPTS_PER_ROUND; pending++) {
     net.createConnection(common.PORT).on('error', function(err) {
