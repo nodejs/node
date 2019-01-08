@@ -816,7 +816,7 @@ void Environment::CollectExceptionInfo(Local<Value> object,
     return;
 
   Local<Object> obj = object.As<Object>();
-  const char* err_string = node::errno_string(errorno);
+  const char* err_string = errors::errno_string(errorno);
 
   if (message == nullptr || message[0] == '\0') {
     message = strerror(errorno);
