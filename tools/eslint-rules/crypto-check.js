@@ -66,6 +66,22 @@ module.exports = function(context) {
 
   function reportIfMissingCheck() {
     if (hasSkipCall) {
+      // There is a skip, which is good, but verify that the require() calls
+      // in question come after at least one check.
+      if (missingCheckNodes.length > 0) {
+        requireNodes.forEach((requireNode) => {
+          const beforeAllChecks = missingCheckNodes.every((checkNode) => {
+            return requireNode.start < checkNode.start;
+          });
+
+          if (beforeAllChecks) {
+            context.report({
+              node: requireNode,
+              message: msg
+            });
+          }
+        });
+      }
       return;
     }
 
