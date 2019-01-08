@@ -33,14 +33,15 @@ module.exports.isCommonModule = function(node) {
 
 /**
  * Returns true if any of the passed in modules are used in
- * binding calls.
+ * process.binding() or internalBinding() calls.
  */
 module.exports.isBinding = function(node, modules) {
-  if (node.callee.object) {
-    return node.callee.object.name === 'process' &&
-           node.callee.property.name === 'binding' &&
-           modules.includes(node.arguments[0].value);
-  }
+  const isProcessBinding = node.callee.object &&
+                           node.callee.object.name === 'process' &&
+                           node.callee.property.name === 'binding';
+
+  return (isProcessBinding || node.callee.name === 'internalBinding') &&
+         modules.includes(node.arguments[0].value);
 };
 
 /**
