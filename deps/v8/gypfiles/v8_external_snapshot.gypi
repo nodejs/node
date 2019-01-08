@@ -2,6 +2,9 @@
 {
   'target_name': 'v8_external_snapshot',
   'type': 'static_library',
+  'variables': {
+    'libraries_extras_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-extras.bin',
+  },
   'conditions': [
     ['v8_use_external_startup_data==1', {
       'conditions': [
@@ -9,13 +12,10 @@
           'toolsets': ['host', 'target'],
           'dependencies': [
             'mksnapshot#host',
-            'js2c#host',
-            'natives_blob',
           ]}, {
            'toolsets': ['target'],
            'dependencies': [
              'mksnapshot',
-             'natives_blob',
            ],
          }],
         ['component=="shared_library"', {
@@ -44,6 +44,58 @@
         '<(embedded_builtins_snapshot_src)',
       ],
       'actions': [
+        {
+          'action_name': 'js2c_extras_bin',
+          'inputs': [
+            '../tools/js2c.py',
+            '<@(v8_extra_library_files)',
+          ],
+          'outputs': ['<@(libraries_extras_bin_file)'],
+          'action': [
+            'python',
+            '../tools/js2c.py',
+            '<(SHARED_INTERMEDIATE_DIR)/extras-libraries.cc',
+            'EXTRAS',
+            '<@(v8_extra_library_files)',
+            '--startup_blob', '<@(libraries_extras_bin_file)',
+            '--nojs',
+          ],
+        },
+        {
+          'action_name': 'concatenate_natives_blob',
+          'inputs': [
+            '../tools/concatenate-files.py',
+            '<(SHARED_INTERMEDIATE_DIR)/libraries-extras.bin',
+          ],
+          'conditions': [
+            ['want_separate_host_toolset==1', {
+              'target_conditions': [
+                ['_toolset=="host"', {
+                  'outputs': [
+                    '<(PRODUCT_DIR)/natives_blob_host.bin',
+                  ],
+                  'action': [
+                    'python', '<@(_inputs)', '<(PRODUCT_DIR)/natives_blob_host.bin'
+                  ],
+                }, {
+                   'outputs': [
+                     '<(PRODUCT_DIR)/natives_blob.bin',
+                   ],
+                   'action': [
+                     'python', '<@(_inputs)', '<(PRODUCT_DIR)/natives_blob.bin'
+                   ],
+                 }],
+              ],
+            }, {
+               'outputs': [
+                 '<(PRODUCT_DIR)/natives_blob.bin',
+               ],
+               'action': [
+                 'python', '<@(_inputs)', '<(PRODUCT_DIR)/natives_blob.bin'
+               ],
+             }],
+          ],
+        },
         {
           'action_name': 'run_mksnapshot (external)',
           'inputs': [

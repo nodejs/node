@@ -412,13 +412,9 @@
           'toolsets': ['host', 'target'],
           'dependencies': [
             'mksnapshot#host',
-            'js2c#host',
           ],
         }, {
           'toolsets': ['target'],
-          'dependencies': [
-            'mksnapshot',
-          ],
         }],
         ['component=="shared_library"', {
           'defines': [
@@ -440,6 +436,8 @@
       ],
       'dependencies': [
         'v8_base',
+        'js2c_extras',
+        'mksnapshot',
       ],
       'include_dirs': [
         '..',
@@ -519,6 +517,7 @@
       'type': 'static_library',
       'dependencies': [
         'v8_base',
+        'js2c_extras',
       ],
       'include_dirs': [
         '..',
@@ -532,7 +531,6 @@
       'conditions': [
         ['want_separate_host_toolset==1', {
           'toolsets': ['host', 'target'],
-          'dependencies': ['js2c#host'],
         }, {
           'toolsets': ['target'],
         }],
@@ -619,7 +617,6 @@
         '../src/asmjs/asm-scanner.h',
         '../src/asmjs/asm-types.cc',
         '../src/asmjs/asm-types.h',
-        '../src/assembler-arch-inl.h',
         '../src/assembler-arch.h',
         '../src/assembler-inl.h',
         '../src/assembler.cc',
@@ -2546,98 +2543,11 @@
       },
     }, # v8_libsampler
     {
-      'target_name': 'natives_blob',
+      'target_name': 'js2c_extras',
       'type': 'none',
-      'conditions': [
-        ['want_separate_host_toolset==1', {
-          'toolsets': ['host', 'target'],
-        }, {
-           'toolsets': ['target'],
-        }],
-        [ 'v8_use_external_startup_data==1', {
-          'conditions': [
-            ['want_separate_host_toolset==1', {
-              'dependencies': ['js2c#host'],
-            }],
-          ],
-          'actions': [
-            {
-              'action_name': 'js2c_extras_bin',
-              'inputs': [
-                '../tools/js2c.py',
-                '<@(v8_extra_library_files)',
-              ],
-              'outputs': ['<@(libraries_extras_bin_file)'],
-              'action': [
-                'python',
-                '../tools/js2c.py',
-                '<(SHARED_INTERMEDIATE_DIR)/extras-libraries.cc',
-                'EXTRAS',
-                '<@(v8_extra_library_files)',
-                '--startup_blob', '<@(libraries_extras_bin_file)',
-                '--nojs',
-              ],
-            },
-            {
-              'action_name': 'concatenate_natives_blob',
-              'inputs': [
-                '../tools/concatenate-files.py',
-                '<(SHARED_INTERMEDIATE_DIR)/libraries-extras.bin',
-              ],
-              'conditions': [
-                ['want_separate_host_toolset==1', {
-                  'target_conditions': [
-                    ['_toolset=="host"', {
-                      'outputs': [
-                        '<(PRODUCT_DIR)/natives_blob_host.bin',
-                      ],
-                      'action': [
-                        'python', '<@(_inputs)', '<(PRODUCT_DIR)/natives_blob_host.bin'
-                      ],
-                    }, {
-                      'outputs': [
-                        '<(PRODUCT_DIR)/natives_blob.bin',
-                      ],
-                      'action': [
-                        'python', '<@(_inputs)', '<(PRODUCT_DIR)/natives_blob.bin'
-                      ],
-                    }],
-                  ],
-                }, {
-                  'outputs': [
-                    '<(PRODUCT_DIR)/natives_blob.bin',
-                  ],
-                  'action': [
-                    'python', '<@(_inputs)', '<(PRODUCT_DIR)/natives_blob.bin'
-                  ],
-                }],
-              ],
-            },
-          ],
-        }],
-      ]
-    }, # natives_blob
-    {
-      'target_name': 'js2c',
-      'type': 'none',
-      'conditions': [
-        ['want_separate_host_toolset==1', {
-          'toolsets': ['host'],
-        }, {
-          'toolsets': ['target'],
-        }],
-      ],
-      'variables': {
-        'library_files': [
-          '../src/js/macros.py',
-          '../src/message-template.h',
-          '../src/js/prologue.js',
-        ],
-        'libraries_extras_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-extras.bin',
-      },
       'actions': [
        {
-          'action_name': 'js2c_extras',
+          'action_name': 'js2c_generate_extras',
           'inputs': [
             '../tools/js2c.py',
             '<@(v8_extra_library_files)',
@@ -2646,13 +2556,13 @@
           'action': [
             'python',
             '../tools/js2c.py',
-            '<(SHARED_INTERMEDIATE_DIR)/extras-libraries.cc',
+            '<@(_outputs)',
             'EXTRAS',
             '<@(v8_extra_library_files)',
           ],
         },
       ],
-    }, # js2c
+    }, # js2c_extras
     {
       'target_name': 'torque_base',
       'type': '<(component)',
