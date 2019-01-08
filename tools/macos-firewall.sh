@@ -18,6 +18,8 @@ NODE_DEBUG="$OUTDIR/Debug/node"
 NODE_LINK="$ROOTDIR/node"
 CCTEST_RELEASE="$OUTDIR/Release/cctest"
 CCTEST_DEBUG="$OUTDIR/Debug/cctest"
+OPENSSL_CLI_RELEASE="$OUTDIR/Release/openssl-cli"
+OPENSSL_CLI_DEBUG="$OUTDIR/Debug/openssl-cli"
 
 if [ -f $SFW ];
 then
@@ -31,18 +33,24 @@ then
   $SFW --remove "$NODE_LINK"
   $SFW --remove "$CCTEST_DEBUG"
   $SFW --remove "$CCTEST_RELEASE"
+  $SFW --remove "$OPENSSL_CLI_DEBUG"
+  $SFW --remove "$OPENSSL_CLI_RELEASE"
 
   $SFW --add "$NODE_DEBUG"
   $SFW --add "$NODE_RELEASE"
   $SFW --add "$NODE_LINK"
   $SFW --add "$CCTEST_DEBUG"
   $SFW --add "$CCTEST_RELEASE"
+  $SFW --add "$OPENSSL_CLI_DEBUG"
+  $SFW --add "$OPENSSL_CLI_RELEASE"
 
   $SFW --unblock "$NODE_DEBUG"
   $SFW --unblock "$NODE_RELEASE"
   $SFW --unblock "$NODE_LINK"
   $SFW --unblock "$CCTEST_DEBUG"
   $SFW --unblock "$CCTEST_RELEASE"
+  $SFW --unblock "$OPENSSL_CLI_DEBUG"
+  $SFW --unblock "$OPENSSL_CLI_RELEASE"
 else
   echo "SocketFirewall not found in location: $SFW"
 fi
