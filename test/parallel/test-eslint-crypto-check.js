@@ -24,6 +24,14 @@ new RuleTester().run('crypto-check', rule, {
   invalid: [
     {
       code: 'require("common")\n' +
+            'require("crypto")\n' +
+            'if (!common.hasCrypto) {\n' +
+            '  common.skip("missing crypto");\n' +
+            '}',
+      errors: [{ message }]
+    },
+    {
+      code: 'require("common")\n' +
             'require("crypto")',
       errors: [{ message }],
       output: 'require("common")\n' +
