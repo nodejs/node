@@ -45,12 +45,13 @@
     # Old time default, now explicitly stated.
     'v8_use_snapshot': 'true',
 
+    # These are more relevant for V8 internal development.
     # Refs: https://github.com/nodejs/node/issues/23122
     # Refs: https://github.com/nodejs/node/issues/23167
-    # Enable compiler warnings when using V8_DEPRECATED apis.
-    'v8_deprecation_warnings': 1,
-    # Enable compiler warnings when using V8_DEPRECATE_SOON apis.
-    'v8_imminent_deprecation_warnings': 1,
+    # Enable compiler warnings when using V8_DEPRECATED apis from V8 code.
+    'v8_deprecation_warnings': 0,
+    # Enable compiler warnings when using V8_DEPRECATE_SOON apis from V8 code.
+    'v8_imminent_deprecation_warnings': 0,
 
     # Enable disassembler for `--print-code` v8 options
     'v8_enable_disassembler': 1,
