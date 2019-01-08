@@ -60,12 +60,8 @@ process.on('exit', function() {
 fs.writeFileSync(filepathOne, 'hello');
 
 assert.throws(
-  function() {
-    fs.watchFile(filepathOne);
-  },
-  function(e) {
-    return e.message === '"watchFile()" requires a listener function';
-  }
+  () => { fs.watchFile(filepathOne); },
+  { code: 'ERR_INVALID_ARG_TYPE' }
 );
 
 // Does not throw.
@@ -84,12 +80,8 @@ process.chdir(testDir);
 fs.writeFileSync(filepathTwoAbs, 'howdy');
 
 assert.throws(
-  function() {
-    fs.watchFile(filepathTwo);
-  },
-  function(e) {
-    return e.message === '"watchFile()" requires a listener function';
-  }
+  () => { fs.watchFile(filepathTwo); },
+  { code: 'ERR_INVALID_ARG_TYPE' }
 );
 
 { // Does not throw.
@@ -114,9 +106,10 @@ setTimeout(function() {
     fs.unwatchFile(filenameThree, b);
     ++watchSeenThree;
   }
-  fs.watchFile(filenameThree, common.mustNotCall());
+  const uncalledListener = common.mustNotCall();
+  fs.watchFile(filenameThree, uncalledListener);
   fs.watchFile(filenameThree, b);
-  fs.unwatchFile(filenameThree, common.mustNotCall());
+  fs.unwatchFile(filenameThree, uncalledListener);
 }
 
 setTimeout(function() {
