@@ -9,7 +9,6 @@
     'v8_vector_stores%': 0,
     'v8_embed_script%': "",
     'v8_extra_library_files%': [],
-    'v8_experimental_extra_library_files%': [],
     'mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
     'v8_os_page_size%': 0,
     'generate_bytecode_builtins_list_output' : '<(SHARED_INTERMEDIATE_DIR)/builtins-generated/bytecodes-builtins-list.h',
@@ -29,6 +28,7 @@
       "../src/builtins/array-unshift.tq",
       "../src/builtins/collections.tq",
       "../src/builtins/data-view.tq",
+      "../src/builtins/extras-utils.tq",
       "../src/builtins/object.tq",
       "../src/builtins/object-fromentries.tq",
       "../src/builtins/iterator.tq",
@@ -44,6 +44,7 @@
       "object",
       "typed-array",
       "data-view",
+      "extras-utils",
     ],
     # Since there is no foreach in GYP we manualy unroll the following:
     # foreach(namespace, torque_namespaces) {
@@ -69,6 +70,8 @@
       '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-from-dsl-gen.h',
       '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-data-view-from-dsl-gen.cc',
       '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-data-view-from-dsl-gen.h',
+      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-extras-utils-from-dsl-gen.cc',
+      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-extras-utils-from-dsl-gen.h',
     ],
     'torque_generated_pure_headers': [
       '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtin-definitions-from-dsl.h',
@@ -414,7 +417,6 @@
           'toolsets': ['target'],
           'dependencies': [
             'mksnapshot',
-            'js2c',
           ],
         }],
         ['component=="shared_library"', {
@@ -443,9 +445,7 @@
         '<(DEPTH)',
       ],
       'sources': [
-        '<(SHARED_INTERMEDIATE_DIR)/experimental-extras-libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/extras-libraries.cc',
-        '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
         '../src/setup-isolate-deserialize.cc',
       ],
       'actions': [
@@ -524,9 +524,7 @@
         '<(DEPTH)',
       ],
       'sources': [
-        '<(SHARED_INTERMEDIATE_DIR)/experimental-extras-libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/extras-libraries.cc',
-        '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
         '../src/snapshot/embedded-empty.cc',
         '../src/snapshot/snapshot-empty.cc',
       ],
@@ -536,7 +534,6 @@
           'dependencies': ['js2c#host'],
         }, {
           'toolsets': ['target'],
-          'dependencies': ['js2c'],
         }],
         ['component=="shared_library"', {
           'defines': [
@@ -674,6 +671,7 @@
         '../src/builtins/builtins-definitions.h',
         '../src/builtins/builtins-descriptors.h',
         '../src/builtins/builtins-error.cc',
+        '../src/builtins/builtins-extras-utils.cc',
         '../src/builtins/builtins-function.cc',
         '../src/builtins/builtins-global.cc',
         '../src/builtins/builtins-internal.cc',
@@ -912,6 +910,8 @@
         '../src/compiler/scheduler.h',
         '../src/compiler/select-lowering.cc',
         '../src/compiler/select-lowering.h',
+        '../src/compiler/serializer-for-background-compilation.cc',
+        '../src/compiler/serializer-for-background-compilation.h',
         '../src/compiler/simd-scalar-lowering.cc',
         '../src/compiler/simd-scalar-lowering.h',
         '../src/compiler/simplified-lowering.cc',
@@ -1404,9 +1404,9 @@
         '../src/parsing/parsing.cc',
         '../src/parsing/parsing.h',
         '../src/parsing/pattern-rewriter.cc',
-        '../src/parsing/preparsed-scope-data-impl.h',
-        '../src/parsing/preparsed-scope-data.cc',
-        '../src/parsing/preparsed-scope-data.h',
+        '../src/parsing/preparse-data-impl.h',
+        '../src/parsing/preparse-data.cc',
+        '../src/parsing/preparse-data.h',
         '../src/parsing/preparser-logger.h',
         '../src/parsing/preparser.cc',
         '../src/parsing/preparser.h',
@@ -1950,7 +1950,6 @@
             '../src/ppc/assembler-ppc-inl.h',
             '../src/ppc/assembler-ppc.cc',
             '../src/ppc/assembler-ppc.h',
-            '../src/ppc/code-stubs-ppc.cc',
             '../src/ppc/codegen-ppc.cc',
             '../src/ppc/constants-ppc.h',
             '../src/ppc/constants-ppc.cc',
@@ -1982,7 +1981,6 @@
             '../src/s390/assembler-s390-inl.h',
             '../src/s390/assembler-s390.cc',
             '../src/s390/assembler-s390.h',
-            '../src/s390/code-stubs-s390.cc',
             '../src/s390/codegen-s390.cc',
             '../src/s390/constants-s390.cc',
             '../src/s390/constants-s390.h',
@@ -2559,28 +2557,9 @@
           'conditions': [
             ['want_separate_host_toolset==1', {
               'dependencies': ['js2c#host'],
-            }, {
-              'dependencies': ['js2c'],
             }],
           ],
           'actions': [
-            {
-              'action_name': 'js2c_bin',
-              'inputs': [
-                '../tools/js2c.py',
-                '<@(library_files)',
-              ],
-              'outputs': ['<@(libraries_bin_file)'],
-              'action': [
-                'python',
-                '../tools/js2c.py',
-                '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
-                'CORE',
-                '<@(library_files)',
-                '--startup_blob', '<@(libraries_bin_file)',
-                '--nojs',
-              ],
-            },
             {
               'action_name': 'js2c_extras_bin',
               'inputs': [
@@ -2599,29 +2578,10 @@
               ],
             },
             {
-              'action_name': 'js2c_experimental_extras_bin',
-              'inputs': [
-                '../tools/js2c.py',
-                '<@(v8_experimental_extra_library_files)',
-              ],
-              'outputs': ['<@(libraries_experimental_extras_bin_file)'],
-              'action': [
-                'python',
-                '../tools/js2c.py',
-                '<(SHARED_INTERMEDIATE_DIR)/experimental-extras-libraries.cc',
-                'EXPERIMENTAL_EXTRAS',
-                '<@(v8_experimental_extra_library_files)',
-                '--startup_blob', '<@(libraries_experimental_extras_bin_file)',
-                '--nojs',
-              ],
-            },
-            {
               'action_name': 'concatenate_natives_blob',
               'inputs': [
                 '../tools/concatenate-files.py',
-                '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',
                 '<(SHARED_INTERMEDIATE_DIR)/libraries-extras.bin',
-                '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental-extras.bin',
               ],
               'conditions': [
                 ['want_separate_host_toolset==1', {
@@ -2672,26 +2632,9 @@
           '../src/message-template.h',
           '../src/js/prologue.js',
         ],
-        'libraries_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',
         'libraries_extras_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-extras.bin',
-        'libraries_experimental_extras_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental-extras.bin',
       },
       'actions': [
-        {
-          'action_name': 'js2c',
-          'inputs': [
-            '../tools/js2c.py',
-            '<@(library_files)',
-          ],
-          'outputs': ['<(SHARED_INTERMEDIATE_DIR)/libraries.cc'],
-          'action': [
-            'python',
-            '../tools/js2c.py',
-            '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
-            'CORE',
-            '<@(library_files)',
-          ],
-        },
        {
           'action_name': 'js2c_extras',
           'inputs': [
@@ -2705,23 +2648,6 @@
             '<(SHARED_INTERMEDIATE_DIR)/extras-libraries.cc',
             'EXTRAS',
             '<@(v8_extra_library_files)',
-          ],
-        },
-        {
-          'action_name': 'js2c_experimental_extras',
-          'inputs': [
-            '../tools/js2c.py',
-            '<@(v8_experimental_extra_library_files)',
-          ],
-          'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/experimental-extras-libraries.cc',
-          ],
-          'action': [
-            'python',
-            '../tools/js2c.py',
-            '<(SHARED_INTERMEDIATE_DIR)/experimental-extras-libraries.cc',
-            'EXPERIMENTAL_EXTRAS',
-            '<@(v8_experimental_extra_library_files)',
           ],
         },
       ],
