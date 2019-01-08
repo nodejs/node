@@ -188,11 +188,12 @@ class TryCatchScope : public v8::TryCatch {
   CatchMode mode_;
 };
 
+const char* errno_string(int errorno);
+
 }  // namespace errors
 
 void DecorateErrorStack(Environment* env,
                         const errors::TryCatchScope& try_catch);
-
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

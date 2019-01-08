@@ -1,9 +1,11 @@
-#include "node.h"
-#include "node_internals.h"
+// This file contains implementation of error APIs exposed in node.h
+
 #include "env-inl.h"
+#include "node.h"
+#include "node_errors.h"
 #include "util-inl.h"
-#include "v8.h"
 #include "uv.h"
+#include "v8.h"
 
 #include <string.h>
 
@@ -27,7 +29,7 @@ Local<Value> ErrnoException(Isolate* isolate,
   Environment* env = Environment::GetCurrent(isolate);
 
   Local<Value> e;
-  Local<String> estring = OneByteString(isolate, errno_string(errorno));
+  Local<String> estring = OneByteString(isolate, errors::errno_string(errorno));
   if (msg == nullptr || msg[0] == '\0') {
     msg = strerror(errorno);
   }
