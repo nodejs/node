@@ -1,11 +1,10 @@
 'use strict';
 const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const https = require('https');
-
-if (!common.hasCrypto)
-  common.skip('missing crypto');
 
 // Disable strict server certificate validation by the client
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
