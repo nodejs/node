@@ -22,7 +22,6 @@ using v8::Context;
 using v8::EmbedderGraph;
 using v8::External;
 using v8::Function;
-using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
@@ -339,16 +338,8 @@ void Environment::Start(const std::vector<std::string>& args,
     StartProfilerIdleNotifier();
   }
 
-  auto process_template = FunctionTemplate::New(isolate());
-  process_template->SetClassName(FIXED_ONE_BYTE_STRING(isolate(), "process"));
-
-  auto process_object = process_template->GetFunction(context())
-                            .ToLocalChecked()
-                            ->NewInstance(context())
-                            .ToLocalChecked();
+  Local<Object> process_object = CreateProcessObject(this, args, exec_args);
   set_process_object(process_object);
-
-  SetupProcessObject(this, args, exec_args);
 
   static uv_once_t init_once = UV_ONCE_INIT;
   uv_once(&init_once, InitThreadLocalOnce);
