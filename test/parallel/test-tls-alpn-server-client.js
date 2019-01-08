@@ -23,9 +23,10 @@ function runTest(clientsOptions, serverOptions, cb) {
   serverOptions.key = loadPEM('agent2-key');
   serverOptions.cert = loadPEM('agent2-cert');
   const results = [];
-  let index = 0;
+  let clientIndex = 0;
+  let serverIndex = 0;
   const server = tls.createServer(serverOptions, function(c) {
-    results[index].server = { ALPN: c.alpnProtocol };
+    results[serverIndex++].server = { ALPN: c.alpnProtocol };
   });
 
   server.listen(0, serverIP, function() {
@@ -38,16 +39,18 @@ function runTest(clientsOptions, serverOptions, cb) {
     opt.host = serverIP;
     opt.rejectUnauthorized = false;
 
-    results[index] = {};
+    results[clientIndex] = {};
     const client = tls.connect(opt, function() {
-      results[index].client = { ALPN: client.alpnProtocol };
-      client.destroy();
+      results[clientIndex].client = { ALPN: client.alpnProtocol };
+      client.end();
       if (options.length) {
-        index++;
+        clientIndex++;
         connectClient(options);
       } else {
         server.close();
-        cb(results);
+        server.on('close', () => {
+          cb(results);
+        });
       }
     });
   }
