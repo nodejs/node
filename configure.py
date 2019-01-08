@@ -1238,7 +1238,7 @@ def configure_openssl(o):
   if options.openssl_no_asm and options.shared_openssl:
     error('--openssl-no-asm is incompatible with --shared-openssl')
 
-  if options.openssl_fips:
+  if options.openssl_fips or options.openssl_fips == '':
      error('FIPS is not supported in this version of Node.js')
 
   configure_library('openssl', o)
