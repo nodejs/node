@@ -5,7 +5,7 @@
 #ifndef V8_WASM_TRAP_HANDLER_WIN_H_
 #define V8_WASM_TRAP_HANDLER_WIN_H_
 
-#include <windows.h>
+#include "src/base/win32-headers.h"
 
 #include "v8config.h"  // NOLINT(build/include)
 

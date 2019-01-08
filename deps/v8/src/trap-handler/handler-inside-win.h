@@ -5,7 +5,7 @@
 #ifndef V8_TRAP_HANDLER_HANDLER_INSIDE_WIN_H_
 #define V8_TRAP_HANDLER_HANDLER_INSIDE_WIN_H_
 
-#include <windows.h>
+#include "src/base/win32-headers.h"
 
 #include "src/base/macros.h"
 

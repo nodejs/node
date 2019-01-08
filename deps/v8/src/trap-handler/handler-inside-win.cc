@@ -25,7 +25,7 @@
 
 #include "src/trap-handler/handler-inside-win.h"
 
-#include <windows.h>
+#include "src/base/win32-headers.h"
 
 #include "src/trap-handler/trap-handler-internal.h"
 #include "src/trap-handler/trap-handler.h"
