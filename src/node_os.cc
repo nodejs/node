@@ -213,28 +213,28 @@ static void GetLoadAvg(const FunctionCallbackInfo<Value>& args) {
 
 static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
   uv_interface_address_t* interfaces;
   int count, i;
   char ip[INET6_ADDRSTRLEN];
   char netmask[INET6_ADDRSTRLEN];
   std::array<char, 18> mac;
-  Local<Object> ret, o;
   Local<String> name, family;
-  Local<Array> ifarr;
 
   int err = uv_interface_addresses(&interfaces, &count);
 
-  ret = Object::New(env->isolate());
+  if (err == UV_ENOSYS)
+    return args.GetReturnValue().SetUndefined();
 
-  if (err == UV_ENOSYS) {
-    return args.GetReturnValue().Set(ret);
-  } else if (err) {
+  if (err) {
     CHECK_GE(args.Length(), 1);
     env->CollectUVExceptionInfo(args[args.Length() - 1], errno,
                                 "uv_interface_addresses");
     return args.GetReturnValue().SetUndefined();
   }
 
+  Local<Value> no_scope_id = Integer::New(isolate, -1);
+  std::vector<Local<Value>> result(count * 7);
   for (i = 0; i < count; i++) {
     const char* const raw_name = interfaces[i].name;
 
@@ -243,16 +243,8 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     // to assume UTF8 as the default as well. It’s what people will expect if
     // they name the interface from any input that uses UTF-8, which should be
     // the most frequent case by far these days.)
-    name = String::NewFromUtf8(env->isolate(), raw_name,
+    name = String::NewFromUtf8(isolate, raw_name,
         v8::NewStringType::kNormal).ToLocalChecked();
-
-    if (ret->Has(env->context(), name).FromJust()) {
-      ifarr = Local<Array>::Cast(ret->Get(env->context(),
-                                          name).ToLocalChecked());
-    } else {
-      ifarr = Array::New(env->isolate());
-      ret->Set(env->context(), name, ifarr).FromJust();
-    }
 
     snprintf(mac.data(),
              mac.size(),
@@ -277,34 +269,23 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
       family = env->unknown_string();
     }
 
-    o = Object::New(env->isolate());
-    o->Set(env->context(),
-           env->address_string(),
-           OneByteString(env->isolate(), ip)).FromJust();
-    o->Set(env->context(),
-           env->netmask_string(),
-           OneByteString(env->isolate(), netmask)).FromJust();
-    o->Set(env->context(),
-           env->family_string(), family).FromJust();
-    o->Set(env->context(),
-           env->mac_string(),
-           FIXED_ONE_BYTE_STRING(env->isolate(), mac)).FromJust();
-
+    result[i * 7] = name;
+    result[i * 7 + 1] = OneByteString(isolate, ip);
+    result[i * 7 + 2] = OneByteString(isolate, netmask);
+    result[i * 7 + 3] = family;
+    result[i * 7 + 4] = FIXED_ONE_BYTE_STRING(isolate, mac);
+    result[i * 7 + 5] =
+      interfaces[i].is_internal ? True(isolate) : False(isolate);
     if (interfaces[i].address.address4.sin_family == AF_INET6) {
       uint32_t scopeid = interfaces[i].address.address6.sin6_scope_id;
-      o->Set(env->context(), env->scopeid_string(),
-             Integer::NewFromUnsigned(env->isolate(), scopeid)).FromJust();
+      result[i * 7 + 6] = Integer::NewFromUnsigned(isolate, scopeid);
+    } else {
+      result[i * 7 + 6] = no_scope_id;
     }
-
-    const bool internal = interfaces[i].is_internal;
-    o->Set(env->context(), env->internal_string(),
-           internal ? True(env->isolate()) : False(env->isolate())).FromJust();
-
-    ifarr->Set(env->context(), ifarr->Length(), o).FromJust();
   }
 
   uv_free_interface_addresses(interfaces, count);
-  args.GetReturnValue().Set(ret);
+  args.GetReturnValue().Set(Array::New(isolate, result.data(), result.size()));
 }
 
 
