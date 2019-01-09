@@ -788,9 +788,8 @@ added: v0.9.4
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/17979
-    description: >
-      The `'readable'` is always emitted in the next tick after `.push()`
-      is called
+    description: The `'readable'` is always emitted in the next tick after
+                 `.push()` is called.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18994
     description: Using `'readable'` requires calling `.read()`.
@@ -1510,13 +1509,12 @@ constructor and implement the `writable._write()` method. The
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18438
-    description: >
-      Add `emitClose` option to specify if `'close'` is emitted on destroy
+    description: Add `emitClose` option to specify if `'close'` is emitted on
+                 destroy.
   - version: v11.2.0
     pr-url: https://github.com/nodejs/node/pull/22795
-    description: >
-      Add `autoDestroy` option to automatically `destroy()` the stream
-      when it emits `'finish'` or errors
+    description: Add `autoDestroy` option to automatically `destroy()` the
+                 stream when it emits `'finish'` or errors.
 -->
 
 * `options` {Object}
@@ -1782,9 +1780,8 @@ constructor and implement the `readable._read()` method.
 changes:
   - version: v11.2.0
     pr-url: https://github.com/nodejs/node/pull/22795
-    description: >
-      Add `autoDestroy` option to automatically `destroy()` the stream
-      when it emits `'end'` or errors
+    description: Add `autoDestroy` option to automatically `destroy()` the
+                 stream when it emits `'end'` or errors.
 -->
 
 * `options` {Object}
@@ -1848,7 +1845,7 @@ added: v0.9.4
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/17979
-    description: call `_read()` only once per microtick
+    description: Call `_read()` only once per microtick.
 -->
 
 * `size` {number} Number of bytes to read asynchronously
