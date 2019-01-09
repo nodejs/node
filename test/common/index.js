@@ -36,7 +36,11 @@ const {
 
 // Some tests assume a umask of 0o022 so set that up front. Tests that need a
 // different umask will set it themselves.
-process.umask(0o022);
+//
+// process.umask() is not available in workers so we need to check for its
+// existence.
+if (process.umask)
+  process.umask(0o022);
 
 const noop = () => {};
 
