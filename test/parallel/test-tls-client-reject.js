@@ -33,49 +33,57 @@ const options = {
   cert: fixtures.readSync('test_cert.pem')
 };
 
-const server = tls.createServer(options, common.mustCall(function(socket) {
-  socket.on('data', function(data) {
-    console.error(data.toString());
-    assert.strictEqual(data.toString(), 'ok');
-  });
-}, 3)).listen(0, function() {
+const server = tls.createServer(options, function(socket) {
+  socket.pipe(socket);
+  socket.on('end', () => socket.end());
+}).listen(0, common.mustCall(function() {
   unauthorized();
-});
+}));
 
 function unauthorized() {
+  console.log('connect unauthorized');
   const socket = tls.connect({
     port: server.address().port,
     servername: 'localhost',
     rejectUnauthorized: false
   }, common.mustCall(function() {
+    console.log('... unauthorized');
     assert(!socket.authorized);
-    socket.end();
-    rejectUnauthorized();
+    socket.on('data', common.mustCall((data) => {
+      assert.strictEqual(data.toString(), 'ok');
+    }));
+    socket.on('end', () => rejectUnauthorized());
   }));
   socket.on('error', common.mustNotCall());
-  socket.write('ok');
+  socket.end('ok');
 }
 
 function rejectUnauthorized() {
+  console.log('reject unauthorized');
   const socket = tls.connect(server.address().port, {
     servername: 'localhost'
   }, common.mustNotCall());
+  socket.on('data', common.mustNotCall());
   socket.on('error', common.mustCall(function(err) {
-    console.error(err);
+    console.log('... rejected:', err);
     authorized();
   }));
-  socket.write('ng');
+  socket.end('ng');
 }
 
 function authorized() {
+  console.log('connect authorized');
   const socket = tls.connect(server.address().port, {
     ca: [fixtures.readSync('test_cert.pem')],
     servername: 'localhost'
   }, common.mustCall(function() {
+    console.log('... authorized');
     assert(socket.authorized);
-    socket.end();
-    server.close();
+    socket.on('data', common.mustCall((data) => {
+      assert.strictEqual(data.toString(), 'ok');
+    }));
+    socket.on('end', () => server.close());
   }));
   socket.on('error', common.mustNotCall());
-  socket.write('ok');
+  socket.end('ok');
 }
