@@ -10,7 +10,7 @@
 const common = require('../common');
 
 if (!common.isMainThread) {
-  common.skip('Implicit changes to the builtin list from the test runner');
+  common.skip('Cannot test the existence of --expose-internals from worker');
 }
 
 const assert = require('assert');
@@ -69,6 +69,7 @@ const expectedPublicModules = new Set([
   'util',
   'v8',
   'vm',
+  'worker_threads',
   'zlib'
 ]);
 
