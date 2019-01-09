@@ -13,7 +13,7 @@ const fs = require('fs');
 const filename = fixtures.path('loop.js');  // Some small non-homogeneous file.
 const content = fs.readFileSync(filename);
 
-const N = 1000;
+const N = 2000;
 let started = 0;
 let done = 0;
 
@@ -26,10 +26,10 @@ function startRead() {
     .on('data', (chunk) => {
       chunks.push(chunk);
       arrayBuffers.add(chunk.buffer);
-      if (started < N)
-        startRead();
     })
     .on('end', common.mustCall(() => {
+      if (started < N)
+        startRead();
       assert.deepStrictEqual(Buffer.concat(chunks), content);
       if (++done === N) {
         const retainedMemory =
@@ -43,5 +43,5 @@ function startRead() {
 
 // Don’t start the reads all at once – that way we would have to allocate
 // a large amount of memory upfront.
-for (let i = 0; i < 4; ++i)
+for (let i = 0; i < 6; ++i)
   startRead();
