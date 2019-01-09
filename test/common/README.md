@@ -109,8 +109,8 @@ Indicates if there is more than 1gb of total memory.
   returned function has not been called exactly `exact` number of times when the
   test is complete, then the test will fail.
 
-### expectWarning(name, expected[, code])
-* `name` [&lt;string>]
+### expectWarning(name[, expected[, code]])
+* `name` [&lt;string>] | [&lt;Object>]
 * `expected` [&lt;string>] | [&lt;Array>] | [&lt;Object>]
 * `code` [&lt;string>]
 
