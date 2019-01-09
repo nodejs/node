@@ -30,7 +30,8 @@ const errorMessagesByPlatform = {
   sunos: ['unknown file type', 'not an ELF file'],
   darwin: ['file too short'],
   aix: ['Cannot load module',
-        'Cannot run a file that does not have a valid format.']
+        'Cannot run a file that does not have a valid format.',
+        'Exec format error']
 };
 // If we don't know a priori what the error would be, we accept anything.
 const errorMessages = errorMessagesByPlatform[process.platform] || [''];
