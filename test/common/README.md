@@ -133,7 +133,7 @@ expectWarning('DeprecationWarning', [
 
 expectWarning('DeprecationWarning', [
   ['Foobar is deprecated', 'DEP0XXX'],
-  ['Baz is also deprecated']
+  ['Baz is also deprecated', 'DEP0XX2']
 ]);
 
 expectWarning('DeprecationWarning', {
@@ -147,10 +147,10 @@ expectWarning({
     DEP0XX1: 'Baz is also deprecated'
   },
   Warning: [
-    ['Multiple array entries are fine', 'DEP0XXX'],
+    ['Multiple array entries are fine', 'SpecialWarningCode'],
     ['No code is also fine']
   ],
-  SingleEntry: ['This will also work', 'DEP0XXX'],
+  SingleEntry: ['This will also work', 'WarningCode'],
   SingleString: 'Single string entries without code will also work'
 });
 ```
