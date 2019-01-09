@@ -164,22 +164,22 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
   * `context` {Object} The [contextified][] object as returned by the
     `vm.createContext()` method, to compile and evaluate this `Module` in.
   * `lineOffset` {integer} Specifies the line number offset that is displayed
-    in stack traces produced by this `Module`.
+    in stack traces produced by this `Module`. **Default:** `0`.
   * `columnOffset` {integer} Specifies the column number offset that is
-    displayed in stack traces produced by this `Module`.
+    displayed in stack traces produced by this `Module`. **Default:** `0`.
   * `initializeImportMeta` {Function} Called during evaluation of this `Module`
-    to initialize the `import.meta`. This function has the signature `(meta,
-    module)`, where `meta` is the `import.meta` object in the `Module`, and
-    `module` is this `vm.SourceTextModule` object.
-  * `importModuleDynamically` {Function} Called during evaluation of this
-    module when `import()` is called. This function has the signature
-    `(specifier, module)` where `specifier` is the specifier passed to
-    `import()` and `module` is this `vm.SourceTextModule`. If this option is
-    not specified, calls to `import()` will reject with
-    [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][]. This method can return a
-    [Module Namespace Object][], but returning a `vm.SourceTextModule` is
-    recommended in order to take advantage of error tracking, and to avoid
-    issues with namespaces that contain `then` function exports.
+    to initialize the `import.meta`.
+    * `meta` {import.meta}
+    * `module` {vm.SourceTextModule}
+  * `importModuleDynamically` {Function} Called during evaluation of this module
+    when `import()` is called. If this option is not specified, calls to
+    `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
+     * `specifier` {string} specifier passed to `import()`
+     * `module` {vm.SourceTextModule}
+     * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
+       `vm.SourceTextModule` is recommended in order to take advantage of error
+       tracking, and to avoid issues with namespaces that contain `then`
+       function exports.
 
 Creates a new ES `Module` object.
 
@@ -253,7 +253,7 @@ in the ECMAScript specification.
     `SIGINT` (Ctrl+C) is received. Existing handlers for the event that have
     been attached via `process.on('SIGINT')` will be disabled during script
     execution, but will continue to work after that. If execution is
-    interrupted, an [`Error`][] will be thrown.
+    interrupted, an [`Error`][] will be thrown. **Default:** `false`.
 * Returns: {Promise}
 
 Evaluate the module.
@@ -293,20 +293,19 @@ Module Record][]s in the ECMAScript specification.
 ### module.link(linker)
 
 * `linker` {Function}
+  * `specifier` {string} The specifier of the requested module:
+    <!-- eslint-skip -->
+    ```js
+    import foo from 'foo';
+    //              ^^^^^ the module specifier
+    ```
+  * `referencingModule` {vm.SourceTextModule} The `Module` object `link()` is
+    called on.
+  * Returns: {vm.SourceTextModule|Promise}
 * Returns: {Promise}
 
 Link module dependencies. This method must be called before instantiation, and
 can only be called once per module.
-
-Two parameters will be passed to the `linker` function:
-
-- `specifier` The specifier of the requested module:
-  <!-- eslint-skip -->
-  ```js
-  import foo from 'foo';
-  //              ^^^^^ the module specifier
-  ```
-- `referencingModule` The `Module` object `link()` is called on.
 
 The function is expected to return a `Module` object or a `Promise` that
 eventually resolves to a `Module` object. The returned `Module` must satisfy the
@@ -412,7 +411,7 @@ added: v0.3.1
 Instances of the `vm.Script` class contain precompiled scripts that can be
 executed in specific sandboxes (or "contexts").
 
-### new vm.Script(code, options)
+### Constructor: new vm.Script(code[, options])
 <!-- YAML
 added: v0.3.1
 changes:
@@ -427,13 +426,13 @@ changes:
 -->
 
 * `code` {string} The JavaScript code to compile.
-* `options`
+* `options` {Object|string}
   * `filename` {string} Specifies the filename used in stack traces produced
-    by this script.
+    by this script. **Default:** `'evalmachine.<anonymous>'`.
   * `lineOffset` {number} Specifies the line number offset that is displayed
-    in stack traces produced by this script.
+    in stack traces produced by this script. **Default:** `0`.
   * `columnOffset` {number} Specifies the column number offset that is displayed
-    in stack traces produced by this script.
+    in stack traces produced by this script. **Default:** `0`.
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
      source. When supplied, the `cachedDataRejected` value will be set to
@@ -444,16 +443,21 @@ changes:
     `cachedData` property of the returned `vm.Script` instance.
     The `cachedDataProduced` value will be set to either `true` or `false`
     depending on whether code cache data is produced successfully.
-    This option is deprecated in favor of `script.createCachedData()`.
-  * `importModuleDynamically` {Function} Called during evaluation of this
-    module when `import()` is called. This function has the signature
-    `(specifier, module)` where `specifier` is the specifier passed to
-    `import()` and `module` is this `vm.SourceTextModule`. If this option is
-    not specified, calls to `import()` will reject with
-    [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][]. This method can return a
-    [Module Namespace Object][], but returning a `vm.SourceTextModule` is
-    recommended in order to take advantage of error tracking, and to avoid
-    issues with namespaces that contain `then` function exports.
+    This option is **deprecated** in favor of `script.createCachedData()`.
+    **Default:** `false`.
+  * `importModuleDynamically` {Function} Called during evaluation of this module
+    when `import()` is called. If this option is not specified, calls to
+    `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
+    This option is part of the experimental API for the `--experimental-modules`
+    flag, and should not be considered stable.
+     * `specifier` {string} specifier passed to `import()`
+     * `module` {vm.SourceTextModule}
+     * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
+       `vm.SourceTextModule` is recommended in order to take advantage of error
+       tracking, and to avoid issues with namespaces that contain `then`
+       function exports.
+
+If `options` is a string, then it specifies the filename.
 
 Creating a new `vm.Script` object compiles `code` but does not run it. The
 compiled `vm.Script` can be run later multiple times. The `code` is not bound to
@@ -498,23 +502,18 @@ changes:
 * `contextifiedSandbox` {Object} A [contextified][] object as returned by the
   `vm.createContext()` method.
 * `options` {Object}
-  * `filename` {string} Specifies the filename used in stack traces produced
-    by this script.
-  * `lineOffset` {number} Specifies the line number offset that is displayed
-    in stack traces produced by this script.
-  * `columnOffset` {number} Specifies the column number offset that is displayed
-    in stack traces produced by this script.
-  * `displayErrors` {boolean} When `true`, if an [`Error`][] error occurs
+  * `displayErrors` {boolean} When `true`, if an [`Error`][] occurs
     while compiling the `code`, the line of code causing the error is attached
-    to the stack trace.
+    to the stack trace. **Default:** `true`.
   * `timeout` {integer} Specifies the number of milliseconds to execute `code`
     before terminating execution. If execution is terminated, an [`Error`][]
     will be thrown. This value must be a strictly positive integer.
-  * `breakOnSigint`: if `true`, the execution will be terminated when
+  * `breakOnSigint` {boolean} If `true`, the execution will be terminated when
     `SIGINT` (Ctrl+C) is received. Existing handlers for the
     event that have been attached via `process.on('SIGINT')` will be disabled
-    during script execution, but will continue to work after that.
-    If execution is terminated, an [`Error`][] will be thrown.
+    during script execution, but will continue to work after that. If execution
+    is terminated, an [`Error`][] will be thrown. **Default:** `false`.
+* Returns: {any} the result of the very last statement executed in the script.
 
 Runs the compiled code contained by the `vm.Script` object within the given
 `contextifiedSandbox` and returns the result. Running code does not have access
@@ -556,23 +555,25 @@ changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19016
     description: The `contextCodeGeneration` option is supported now.
+  - version: v6.3.0
+    pr-url: https://github.com/nodejs/node/pull/6635
+    description: The `breakOnSigint` option is supported now.
 -->
 
 * `sandbox` {Object} An object that will be [contextified][]. If `undefined`, a
   new object will be created.
 * `options` {Object}
-  * `filename` {string} Specifies the filename used in stack traces produced
-    by this script.
-  * `lineOffset` {number} Specifies the line number offset that is displayed
-    in stack traces produced by this script.
-  * `columnOffset` {number} Specifies the column number offset that is displayed
-    in stack traces produced by this script.
-  * `displayErrors` {boolean} When `true`, if an [`Error`][] error occurs
+  * `displayErrors` {boolean} When `true`, if an [`Error`][] occurs
     while compiling the `code`, the line of code causing the error is attached
-    to the stack trace.
+    to the stack trace. **Default:** `true`.
   * `timeout` {integer} Specifies the number of milliseconds to execute `code`
     before terminating execution. If execution is terminated, an [`Error`][]
     will be thrown. This value must be a strictly positive integer.
+  * `breakOnSigint` {boolean} If `true`, the execution will be terminated when
+    `SIGINT` (Ctrl+C) is received. Existing handlers for the
+    event that have been attached via `process.on('SIGINT')` will be disabled
+    during script execution, but will continue to work after that. If execution
+    is terminated, an [`Error`][] will be thrown. **Default:** `false`.
   * `contextName` {string} Human-readable name of the newly created context.
     **Default:** `'VM Context i'`, where `i` is an ascending numerical index of
     the created context.
@@ -588,6 +589,7 @@ changes:
       `EvalError`. **Default:** `true`.
     * `wasm` {boolean} If set to false any attempt to compile a WebAssembly
       module will throw a `WebAssembly.CompileError`. **Default:** `true`.
+* Returns: {any} the result of the very last statement executed in the script.
 
 First contextifies the given `sandbox`, runs the compiled code contained by
 the `vm.Script` object within the created sandbox, and returns the result.
@@ -616,21 +618,25 @@ console.log(util.inspect(sandboxes));
 ### script.runInThisContext([options])
 <!-- YAML
 added: v0.3.1
+changes:
+  - version: v6.3.0
+    pr-url: https://github.com/nodejs/node/pull/6635
+    description: The `breakOnSigint` option is supported now.
 -->
 
 * `options` {Object}
-  * `filename` {string} Specifies the filename used in stack traces produced
-    by this script.
-  * `lineOffset` {number} Specifies the line number offset that is displayed
-    in stack traces produced by this script.
-  * `columnOffset` {number} Specifies the column number offset that is displayed
-    in stack traces produced by this script.
-  * `displayErrors` {boolean} When `true`, if an [`Error`][] error occurs
+  * `displayErrors` {boolean} When `true`, if an [`Error`][] occurs
     while compiling the `code`, the line of code causing the error is attached
-    to the stack trace.
+    to the stack trace. **Default:** `true`.
   * `timeout` {integer} Specifies the number of milliseconds to execute `code`
     before terminating execution. If execution is terminated, an [`Error`][]
     will be thrown. This value must be a strictly positive integer.
+  * `breakOnSigint` {boolean} If `true`, the execution will be terminated when
+    `SIGINT` (Ctrl+C) is received. Existing handlers for the
+    event that have been attached via `process.on('SIGINT')` will be disabled
+    during script execution, but will continue to work after that. If execution
+    is terminated, an [`Error`][] will be thrown. **Default:** `false`.
+* Returns: {any} the result of the very last statement executed in the script.
 
 Runs the compiled code contained by the `vm.Script` within the context of the
 current `global` object. Running code does not have access to local scope, but
@@ -679,6 +685,7 @@ added: v10.10.0
   * `contextExtensions` {Object[]} An array containing a collection of context
     extensions (objects wrapping the current scope) to be applied while
     compiling. **Default:** `[]`.
+* Returns: {Function}
 
 Compiles the given code into the provided context/sandbox (if no context is
 supplied, the current context is used), and returns it wrapped inside a
@@ -690,7 +697,7 @@ added: v0.3.1
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19398
-    description: The `sandbox` option can no longer be a function.
+    description: The `sandbox` object can no longer be a function.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19016
     description: The `codeGeneration` option is supported now.
@@ -713,6 +720,7 @@ changes:
       `EvalError`. **Default:** `true`.
     * `wasm` {boolean} If set to false any attempt to compile a WebAssembly
       module will throw a `WebAssembly.CompileError`. **Default:** `true`.
+* Returns: {Object} contextified sandbox.
 
 If given a `sandbox` object, the `vm.createContext()` method will [prepare
 that sandbox][contextified] so that it can be used in calls to
@@ -762,23 +770,59 @@ Returns `true` if the given `sandbox` object has been [contextified][] using
 [`vm.createContext()`][].
 
 ## vm.runInContext(code, contextifiedSandbox[, options])
+<!-- YAML
+added: v0.3.1
+changes:
+  - version: v6.3.0
+    pr-url: https://github.com/nodejs/node/pull/6635
+    description: The `breakOnSigint` option is supported now.
+-->
 
 * `code` {string} The JavaScript code to compile and run.
 * `contextifiedSandbox` {Object} The [contextified][] object that will be used
   as the `global` when the `code` is compiled and run.
 * `options` {Object|string}
   * `filename` {string} Specifies the filename used in stack traces produced
-    by this script.
+    by this script. **Default:** `'evalmachine.<anonymous>'`.
   * `lineOffset` {number} Specifies the line number offset that is displayed
-    in stack traces produced by this script.
+    in stack traces produced by this script. **Default:** `0`.
   * `columnOffset` {number} Specifies the column number offset that is displayed
-    in stack traces produced by this script.
-  * `displayErrors` {boolean} When `true`, if an [`Error`][] error occurs
+    in stack traces produced by this script. **Default:** `0`.
+  * `displayErrors` {boolean} When `true`, if an [`Error`][] occurs
     while compiling the `code`, the line of code causing the error is attached
-    to the stack trace.
+    to the stack trace. **Default:** `true`.
   * `timeout` {integer} Specifies the number of milliseconds to execute `code`
     before terminating execution. If execution is terminated, an [`Error`][]
     will be thrown. This value must be a strictly positive integer.
+  * `breakOnSigint` {boolean} If `true`, the execution will be terminated when
+    `SIGINT` (Ctrl+C) is received. Existing handlers for the
+    event that have been attached via `process.on('SIGINT')` will be disabled
+    during script execution, but will continue to work after that. If execution
+    is terminated, an [`Error`][] will be thrown. **Default:** `false`.
+  * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
+    `TypedArray`, or `DataView` with V8's code cache data for the supplied
+     source. When supplied, the `cachedDataRejected` value will be set to
+     either `true` or `false` depending on acceptance of the data by V8.
+  * `produceCachedData` {boolean} When `true` and no `cachedData` is present, V8
+    will attempt to produce code cache data for `code`. Upon success, a
+    `Buffer` with V8's code cache data will be produced and stored in the
+    `cachedData` property of the returned `vm.Script` instance.
+    The `cachedDataProduced` value will be set to either `true` or `false`
+    depending on whether code cache data is produced successfully.
+    This option is **deprecated** in favor of `script.createCachedData()`.
+    **Default:** `false`.
+  * `importModuleDynamically` {Function} Called during evaluation of this module
+    when `import()` is called. If this option is not specified, calls to
+    `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
+    This option is part of the experimental API for the `--experimental-modules`
+    flag, and should not be considered stable.
+     * `specifier` {string} specifier passed to `import()`
+     * `module` {vm.SourceTextModule}
+     * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
+       `vm.SourceTextModule` is recommended in order to take advantage of error
+       tracking, and to avoid issues with namespaces that contain `then`
+       function exports.
+* Returns: {any} the result of the very last statement executed in the script.
 
 The `vm.runInContext()` method compiles `code`, runs it within the context of
 the `contextifiedSandbox`, then returns the result. Running code does not have
@@ -808,6 +852,13 @@ console.log(util.inspect(sandbox));
 ## vm.runInNewContext(code[, sandbox[, options]])
 <!-- YAML
 added: v0.3.1
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/19016
+    description: The `contextCodeGeneration` option is supported now.
+  - version: v6.3.0
+    pr-url: https://github.com/nodejs/node/pull/6635
+    description: The `breakOnSigint` option is supported now.
 -->
 
 * `code` {string} The JavaScript code to compile and run.
@@ -815,17 +866,22 @@ added: v0.3.1
   new object will be created.
 * `options` {Object|string}
   * `filename` {string} Specifies the filename used in stack traces produced
-    by this script.
+    by this script. **Default:** `'evalmachine.<anonymous>'`.
   * `lineOffset` {number} Specifies the line number offset that is displayed
-    in stack traces produced by this script.
+    in stack traces produced by this script. **Default:** `0`.
   * `columnOffset` {number} Specifies the column number offset that is displayed
-    in stack traces produced by this script.
-  * `displayErrors` {boolean} When `true`, if an [`Error`][] error occurs
+    in stack traces produced by this script. **Default:** `0`.
+  * `displayErrors` {boolean} When `true`, if an [`Error`][] occurs
     while compiling the `code`, the line of code causing the error is attached
-    to the stack trace.
+    to the stack trace. **Default:** `true`.
   * `timeout` {integer} Specifies the number of milliseconds to execute `code`
     before terminating execution. If execution is terminated, an [`Error`][]
     will be thrown. This value must be a strictly positive integer.
+  * `breakOnSigint` {boolean} If `true`, the execution will be terminated when
+    `SIGINT` (Ctrl+C) is received. Existing handlers for the
+    event that have been attached via `process.on('SIGINT')` will be disabled
+    during script execution, but will continue to work after that. If execution
+    is terminated, an [`Error`][] will be thrown. **Default:** `false`.
   * `contextName` {string} Human-readable name of the newly created context.
     **Default:** `'VM Context i'`, where `i` is an ascending numerical index of
     the created context.
@@ -835,6 +891,36 @@ added: v0.3.1
     value of the [`url.origin`][] property of a [`URL`][] object. Most notably,
     this string should omit the trailing slash, as that denotes a path.
     **Default:** `''`.
+  * `contextCodeGeneration` {Object}
+    * `strings` {boolean} If set to false any calls to `eval` or function
+      constructors (`Function`, `GeneratorFunction`, etc) will throw an
+      `EvalError`. **Default:** `true`.
+    * `wasm` {boolean} If set to false any attempt to compile a WebAssembly
+      module will throw a `WebAssembly.CompileError`. **Default:** `true`.
+  * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
+    `TypedArray`, or `DataView` with V8's code cache data for the supplied
+     source. When supplied, the `cachedDataRejected` value will be set to
+     either `true` or `false` depending on acceptance of the data by V8.
+  * `produceCachedData` {boolean} When `true` and no `cachedData` is present, V8
+    will attempt to produce code cache data for `code`. Upon success, a
+    `Buffer` with V8's code cache data will be produced and stored in the
+    `cachedData` property of the returned `vm.Script` instance.
+    The `cachedDataProduced` value will be set to either `true` or `false`
+    depending on whether code cache data is produced successfully.
+    This option is **deprecated** in favor of `script.createCachedData()`.
+    **Default:** `false`.
+  * `importModuleDynamically` {Function} Called during evaluation of this module
+    when `import()` is called. If this option is not specified, calls to
+    `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
+    This option is part of the experimental API for the `--experimental-modules`
+    flag, and should not be considered stable.
+     * `specifier` {string} specifier passed to `import()`
+     * `module` {vm.SourceTextModule}
+     * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
+       `vm.SourceTextModule` is recommended in order to take advantage of error
+       tracking, and to avoid issues with namespaces that contain `then`
+       function exports.
+* Returns: {any} the result of the very last statement executed in the script.
 
 The `vm.runInNewContext()` first contextifies the given `sandbox` object (or
 creates a new `sandbox` if passed as `undefined`), compiles the `code`, runs it
@@ -864,22 +950,55 @@ console.log(util.inspect(sandbox));
 ## vm.runInThisContext(code[, options])
 <!-- YAML
 added: v0.3.1
+changes:
+  - version: v6.3.0
+    pr-url: https://github.com/nodejs/node/pull/6635
+    description: The `breakOnSigint` option is supported now.
 -->
 
 * `code` {string} The JavaScript code to compile and run.
 * `options` {Object|string}
   * `filename` {string} Specifies the filename used in stack traces produced
-    by this script.
+    by this script. **Default:** `'evalmachine.<anonymous>'`.
   * `lineOffset` {number} Specifies the line number offset that is displayed
-    in stack traces produced by this script.
+    in stack traces produced by this script. **Default:** `0`.
   * `columnOffset` {number} Specifies the column number offset that is displayed
-    in stack traces produced by this script.
-  * `displayErrors` {boolean} When `true`, if an [`Error`][] error occurs
+    in stack traces produced by this script. **Default:** `0`.
+  * `displayErrors` {boolean} When `true`, if an [`Error`][] occurs
     while compiling the `code`, the line of code causing the error is attached
-    to the stack trace.
+    to the stack trace. **Default:** `true`.
   * `timeout` {integer} Specifies the number of milliseconds to execute `code`
     before terminating execution. If execution is terminated, an [`Error`][]
     will be thrown. This value must be a strictly positive integer.
+  * `breakOnSigint` {boolean} If `true`, the execution will be terminated when
+    `SIGINT` (Ctrl+C) is received. Existing handlers for the
+    event that have been attached via `process.on('SIGINT')` will be disabled
+    during script execution, but will continue to work after that. If execution
+    is terminated, an [`Error`][] will be thrown. **Default:** `false`.
+  * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
+    `TypedArray`, or `DataView` with V8's code cache data for the supplied
+     source. When supplied, the `cachedDataRejected` value will be set to
+     either `true` or `false` depending on acceptance of the data by V8.
+  * `produceCachedData` {boolean} When `true` and no `cachedData` is present, V8
+    will attempt to produce code cache data for `code`. Upon success, a
+    `Buffer` with V8's code cache data will be produced and stored in the
+    `cachedData` property of the returned `vm.Script` instance.
+    The `cachedDataProduced` value will be set to either `true` or `false`
+    depending on whether code cache data is produced successfully.
+    This option is **deprecated** in favor of `script.createCachedData()`.
+    **Default:** `false`.
+  * `importModuleDynamically` {Function} Called during evaluation of this module
+    when `import()` is called. If this option is not specified, calls to
+    `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
+    This option is part of the experimental API for the `--experimental-modules`
+    flag, and should not be considered stable.
+     * `specifier` {string} specifier passed to `import()`
+     * `module` {vm.SourceTextModule}
+     * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
+       `vm.SourceTextModule` is recommended in order to take advantage of error
+       tracking, and to avoid issues with namespaces that contain `then`
+       function exports.
+* Returns: {any} the result of the very last statement executed in the script.
 
 `vm.runInThisContext()` compiles `code`, runs it within the context of the
 current `global` and returns the result. Running code does not have access to
@@ -1010,9 +1129,8 @@ queues.
 [GetModuleNamespace]: https://tc39.github.io/ecma262/#sec-getmodulenamespace
 [HostResolveImportedModule]: https://tc39.github.io/ecma262/#sec-hostresolveimportedmodule
 [Instantiate() concrete method]: https://tc39.github.io/ecma262/#sec-moduledeclarationinstantiation
-[Module Namespace Object]: https://tc39.github.io/ecma262/#sec-module-namespace-exotic-objects
 [Source Text Module Record]: https://tc39.github.io/ecma262/#sec-source-text-module-records
-[V8 Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide#contexts
+[V8 Embedder's Guide]: https://v8.dev/docs/embed#contexts
 [contextified]: #vm_what_does_it_mean_to_contextify_an_object
 [global object]: https://es5.github.io/#x15.1
 [indirect `eval()` call]: https://es5.github.io/#x10.4.2
