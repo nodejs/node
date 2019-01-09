@@ -26,11 +26,11 @@
         '<(SHARED_INTERMEDIATE_DIR)',
       ],
       'sources': [
-        '<(SHARED_INTERMEDIATE_DIR)/d8-js.cc',
         '../src/async-hooks-wrapper.cc',
         '../src/async-hooks-wrapper.h',
         '../src/d8-console.cc',
         '../src/d8-console.h',
+        '../src/d8-js.cc',
         '../src/d8-platforms.cc',
         '../src/d8-platforms.h',
         '../src/d8.cc',
@@ -41,10 +41,6 @@
           'toolsets': [ 'target', ],
           'dependencies': [
             'd8_js2c#host',
-          ],
-        }, {
-          'dependencies': [
-            'd8_js2c',
           ],
         }],
         ['(OS=="linux" or OS=="mac" or OS=="freebsd" or OS=="netbsd" \
@@ -82,42 +78,6 @@
             '<(icu_gyp_path):icudata',
           ],
         }],
-      ],
-    },
-    {
-      'target_name': 'd8_js2c',
-      'type': 'none',
-      'variables': {
-        'js_files': [
-          '../src/d8.js',
-          '../src/js/macros.py',
-        ],
-      },
-      'conditions': [
-        [ 'want_separate_host_toolset==1', {
-          'toolsets': ['host'],
-        }, {
-          'toolsets': ['target'],
-        }]
-      ],
-      'actions': [
-        {
-          'action_name': 'd8_js2c',
-          'inputs': [
-            '../tools/js2c.py',
-            '<@(js_files)',
-          ],
-          'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/d8-js.cc',
-          ],
-          'action': [
-            'python',
-            '../tools/js2c.py',
-            '<@(_outputs)',
-            'D8',
-            '<@(js_files)'
-          ],
-        },
       ],
     },
   ],

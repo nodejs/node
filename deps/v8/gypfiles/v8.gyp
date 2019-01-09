@@ -18,6 +18,7 @@
       "../src/builtins/arguments.tq",
       "../src/builtins/array.tq",
       "../src/builtins/array-copywithin.tq",
+      "../src/builtins/array-filter.tq",
       "../src/builtins/array-foreach.tq",
       "../src/builtins/array-join.tq",
       "../src/builtins/array-lastindexof.tq",
