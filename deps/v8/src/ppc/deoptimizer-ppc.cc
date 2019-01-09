@@ -4,6 +4,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/deoptimizer.h"
+#include "src/macro-assembler.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 
@@ -12,12 +13,15 @@ namespace internal {
 
 const int Deoptimizer::table_entry_size_ = 8;
 
-#define __ masm()->
+#define __ masm->
 
 // This code tries to be close to ia32 code so that any changes can be
 // easily ported.
-void Deoptimizer::TableEntryGenerator::Generate() {
-  GeneratePrologue();
+void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
+                                                Isolate* isolate, int count,
+                                                DeoptimizeKind deopt_kind) {
+  NoRootArrayScope no_root_array(masm);
+  GenerateDeoptimizationEntriesPrologue(masm, count);
 
   // Unlike on ARM we don't save all the registers, just the useful ones.
   // For the rest, there are gaps on the stack, so the offsets remain the same.
@@ -57,7 +61,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
 
   __ mov(ip, Operand(ExternalReference::Create(
-                 IsolateAddressId::kCEntryFPAddress, isolate())));
+                 IsolateAddressId::kCEntryFPAddress, isolate)));
   __ StoreP(fp, MemOperand(ip));
 
   const int kSavedRegistersAreaSize =
@@ -83,14 +87,14 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ JumpIfSmi(r4, &context_check);
   __ LoadP(r3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ bind(&context_check);
-  __ li(r4, Operand(static_cast<int>(deopt_kind())));
+  __ li(r4, Operand(static_cast<int>(deopt_kind)));
   // r5: bailout id already loaded.
   // r6: code address or 0 already loaded.
   // r7: Fp-to-sp delta.
-  __ mov(r8, Operand(ExternalReference::isolate_address(isolate())));
+  __ mov(r8, Operand(ExternalReference::isolate_address(isolate)));
   // Call Deoptimizer::New().
   {
-    AllowExternalCallThatCantCauseGC scope(masm());
+    AllowExternalCallThatCantCauseGC scope(masm);
     __ CallCFunction(ExternalReference::new_deoptimizer_function(), 6);
   }
 
@@ -156,7 +160,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ PrepareCallCFunction(1, r4);
   // Call Deoptimizer::ComputeOutputFrames().
   {
-    AllowExternalCallThatCantCauseGC scope(masm());
+    AllowExternalCallThatCantCauseGC scope(masm);
     __ CallCFunction(ExternalReference::compute_output_frames_function(), 1);
   }
   __ pop(r3);  // Restore deoptimizer object (class Deoptimizer).
@@ -218,8 +222,6 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     }
   }
 
-  __ InitializeRootRegister();
-
   __ pop(ip);  // get continuation, leave pc on stack
   __ pop(r0);
   __ mtlr(r0);
@@ -227,19 +229,19 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ stop("Unreachable.");
 }
 
-
-void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
-  Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
+void Deoptimizer::GenerateDeoptimizationEntriesPrologue(MacroAssembler* masm,
+                                                        int count) {
+  Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm);
 
   // Create a sequence of deoptimization entries.
   // Note that registers are still live when jumping to an entry.
   Label done;
-  for (int i = 0; i < count(); i++) {
-    int start = masm()->pc_offset();
+  for (int i = 0; i < count; i++) {
+    int start = masm->pc_offset();
     USE(start);
     __ li(ip, Operand(i));
     __ b(&done);
-    DCHECK(masm()->pc_offset() - start == table_entry_size_);
+    DCHECK(masm->pc_offset() - start == table_entry_size_);
   }
   __ bind(&done);
   __ push(ip);

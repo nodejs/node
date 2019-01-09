@@ -38,11 +38,11 @@ namespace internal {
 
 // TODO(ppc): Refine these signatures per test case, they can have arbitrary
 // return and argument types and arbitrary number of arguments.
-using F_iiiii = Object*(int x, int p1, int p2, int p3, int p4);
-using F_piiii = Object*(void* p0, int p1, int p2, int p3, int p4);
-using F_ppiii = Object*(void* p0, void* p1, int p2, int p3, int p4);
-using F_pppii = Object*(void* p0, void* p1, void* p2, int p3, int p4);
-using F_ippii = Object*(int p0, void* p1, void* p2, int p3, int p4);
+using F_iiiii = void*(int x, int p1, int p2, int p3, int p4);
+using F_piiii = void*(void* p0, int p1, int p2, int p3, int p4);
+using F_ppiii = void*(void* p0, void* p1, int p2, int p3, int p4);
+using F_pppii = void*(void* p0, void* p1, void* p2, int p3, int p4);
+using F_ippii = void*(int p0, void* p1, void* p2, int p3, int p4);
 
 #define __ assm.
 
@@ -333,7 +333,7 @@ TEST(4) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Object* code = isolate->heap()->CreateCode(
+    Object code = isolate->heap()->CreateCode(
         desc,
         Code::STUB,
         Handle<Code>())->ToObjectChecked();
@@ -393,7 +393,7 @@ TEST(5) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Object* code = isolate->heap()->CreateCode(
+    Object code = isolate->heap()->CreateCode(
         desc,
         Code::STUB,
         Handle<Code>())->ToObjectChecked();
@@ -428,7 +428,7 @@ TEST(6) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Object* code = isolate->heap()->CreateCode(
+    Object code = isolate->heap()->CreateCode(
         desc,
         Code::STUB,
         Handle<Code>())->ToObjectChecked();
@@ -503,7 +503,7 @@ static void TestRoundingMode(VCVTTypes types,
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Object* code = isolate->heap()->CreateCode(
+    Object code = isolate->heap()->CreateCode(
         desc,
         Code::STUB,
         Handle<Code>())->ToObjectChecked();
@@ -690,7 +690,7 @@ TEST(8) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Object* code = isolate->heap()->CreateCode(
+    Object code = isolate->heap()->CreateCode(
         desc,
         Code::STUB,
         Handle<Code>())->ToObjectChecked();
@@ -805,7 +805,7 @@ TEST(9) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Object* code = isolate->heap()->CreateCode(
+    Object code = isolate->heap()->CreateCode(
         desc,
         Code::STUB,
         Handle<Code>())->ToObjectChecked();
@@ -916,7 +916,7 @@ TEST(10) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Object* code = isolate->heap()->CreateCode(
+    Object code = isolate->heap()->CreateCode(
         desc,
         Code::STUB,
         Handle<Code>())->ToObjectChecked();
@@ -1013,7 +1013,7 @@ TEST(11) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Object* code = isolate->heap()->CreateCode(
+  Object code = isolate->heap()->CreateCode(
       desc,
       Code::STUB,
       Handle<Code>())->ToObjectChecked();

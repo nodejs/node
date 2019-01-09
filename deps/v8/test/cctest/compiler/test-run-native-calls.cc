@@ -1061,7 +1061,7 @@ void MixedParamTest(int start) {
       Handle<Code> wrapper = Handle<Code>::null();
       int32_t expected_ret;
       char bytes[kDoubleSize];
-      V8_ALIGNED(8) char output[kDoubleSize];
+      alignas(8) char output[kDoubleSize];
       int expected_size = 0;
       CSignatureOf<int32_t> csig;
       {

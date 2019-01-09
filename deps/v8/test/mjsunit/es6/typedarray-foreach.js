@@ -15,7 +15,7 @@ var typedArrayConstructors = [
   Float32Array,
   Float64Array];
 
-function CheckTypedArrayIsNeutered(array) {
+function CheckTypedArrayIsDetached(array) {
   assertEquals(0, array.byteLength);
   assertEquals(0, array.byteOffset);
   assertEquals(0, array.length);
@@ -84,7 +84,7 @@ function TestTypedArrayForEach(constructor) {
   assertEquals(43, a[0]);
   assertEquals(42, a[1]);
 
-  // Neutering the buffer backing the typed array mid-way should
+  // Detaching the buffer backing the typed array mid-way should
   // still make .forEach() finish, but exiting early due to the missing
   // elements, and the array should keep being empty after detaching it.
   // TODO(dehrenberg): According to the ES6 spec, accessing or testing
@@ -94,12 +94,12 @@ function TestTypedArrayForEach(constructor) {
   a = new constructor(3);
   count = 0;
   a.forEach(function (n, index, array) {
-    if (count > 0) %ArrayBufferNeuter(array.buffer);
+    if (count > 0) %ArrayBufferDetach(array.buffer);
     array[index] = n + 1;
     count++;
   });
   assertEquals(2, count);
-  CheckTypedArrayIsNeutered(a);
+  CheckTypedArrayIsDetached(a);
   assertEquals(undefined, a[0]);
 
   // The method must work for typed arrays created from ArrayBuffer.
@@ -150,7 +150,7 @@ function TestTypedArrayForEach(constructor) {
 
   // Detached Operation
   var array = new constructor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-  %ArrayBufferNeuter(array.buffer);
+  %ArrayBufferDetach(array.buffer);
   assertThrows(() => array.forEach(() => true), TypeError);
 }
 

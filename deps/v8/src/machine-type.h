@@ -94,6 +94,12 @@ class MachineType {
            representation() == MachineRepresentation::kTaggedSigned ||
            representation() == MachineRepresentation::kTagged;
   }
+  constexpr bool IsTaggedSigned() const {
+    return representation() == MachineRepresentation::kTaggedSigned;
+  }
+  constexpr bool IsTaggedPointer() const {
+    return representation() == MachineRepresentation::kTaggedPointer;
+  }
   constexpr static MachineRepresentation PointerRepresentation() {
     return (kPointerSize == 4) ? MachineRepresentation::kWord32
                                : MachineRepresentation::kWord64;
@@ -287,7 +293,7 @@ V8_EXPORT_PRIVATE inline int ElementSizeLog2Of(MachineRepresentation rep) {
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
-      return kPointerSizeLog2;
+      return kTaggedSizeLog2;
     default:
       break;
   }

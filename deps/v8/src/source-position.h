@@ -47,7 +47,7 @@ class SourcePosition final {
   std::vector<SourcePositionInfo> InliningStack(
       OptimizedCompilationInfo* cinfo) const;
 
-  void Print(std::ostream& out, Code* code) const;
+  void Print(std::ostream& out, Code code) const;
   void PrintJson(std::ostream& out) const;
 
   int ScriptOffset() const { return ScriptOffsetField::decode(value_) - 1; }
@@ -76,7 +76,7 @@ class SourcePosition final {
   }
 
  private:
-  void Print(std::ostream& out, SharedFunctionInfo* function) const;
+  void Print(std::ostream& out, SharedFunctionInfo function) const;
 
   // InliningId is in the high bits for better compression in
   // SourcePositionTable.
@@ -106,6 +106,7 @@ struct SourcePositionInfo {
   SourcePositionInfo(SourcePosition pos, Handle<SharedFunctionInfo> f);
 
   SourcePosition position;
+  Handle<SharedFunctionInfo> shared;
   Handle<Script> script;
   int line = -1;
   int column = -1;

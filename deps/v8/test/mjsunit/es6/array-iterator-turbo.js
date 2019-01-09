@@ -217,7 +217,7 @@ let tests = {
 
       // Throw when detached
       let clone = new array.constructor(array);
-      %ArrayBufferNeuter(clone.buffer);
+      %ArrayBufferDetach(clone.buffer);
       assertThrows(() => sum(clone), TypeError);
 
       // Clear the slate for the next iteration.

@@ -34,7 +34,6 @@
 #include "src/disassembler.h"
 #include "src/heap/factory.h"
 #include "src/macro-assembler.h"
-#include "src/mips64/macro-assembler-mips64.h"
 #include "src/simulator.h"
 
 #include "test/cctest/cctest.h"
@@ -44,11 +43,11 @@ namespace internal {
 
 // Define these function prototypes to match JSEntryFunction in execution.cc.
 // TODO(mips64): Refine these signatures per test case.
-typedef Object*(F1)(int x, int p1, int p2, int p3, int p4);
-typedef Object*(F2)(int x, int y, int p2, int p3, int p4);
-typedef Object*(F3)(void* p, int p1, int p2, int p3, int p4);
-typedef Object*(F4)(int64_t x, int64_t y, int64_t p2, int64_t p3, int64_t p4);
-typedef Object*(F5)(void* p0, void* p1, int p2, int p3, int p4);
+typedef void*(F1)(int x, int p1, int p2, int p3, int p4);
+typedef void*(F2)(int x, int y, int p2, int p3, int p4);
+typedef void*(F3)(void* p, int p1, int p2, int p3, int p4);
+typedef void*(F4)(int64_t x, int64_t y, int64_t p2, int64_t p3, int64_t p4);
+typedef void*(F5)(void* p0, void* p1, int p2, int p3, int p4);
 
 #define __ assm.
 
@@ -3422,7 +3421,7 @@ TEST(jump_tables3) {
     values[i] = isolate->factory()->NewHeapNumber(value, TENURED);
   }
   Label labels[kNumCases];
-  Object* obj;
+  Object obj;
   int64_t imm64;
 
   __ daddiu(sp, sp, -8);
@@ -3436,7 +3435,7 @@ TEST(jump_tables3) {
   for (int i = 0; i < kNumCases; ++i) {
     __ bind(&labels[i]);
     obj = *values[i];
-    imm64 = reinterpret_cast<intptr_t>(obj);
+    imm64 = obj->ptr();
     __ lui(v0, (imm64 >> 32) & kImm16Mask);
     __ ori(v0, v0, (imm64 >> 16) & kImm16Mask);
     __ dsll(v0, v0, 16);
@@ -3478,7 +3477,8 @@ TEST(jump_tables3) {
 #endif
   auto f = GeneratedCode<F1>::FromCode(*code);
   for (int i = 0; i < kNumCases; ++i) {
-    Handle<Object> result(f.Call(i, 0, 0, 0, 0), isolate);
+    Handle<Object> result(
+        Object(reinterpret_cast<Address>(f.Call(i, 0, 0, 0, 0))), isolate);
 #ifdef OBJECT_PRINT
     ::printf("f(%d) = ", i);
     result->Print(std::cout);

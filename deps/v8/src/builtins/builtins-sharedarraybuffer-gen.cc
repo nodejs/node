@@ -134,7 +134,7 @@ void SharedArrayBufferBuiltinsAssembler::DebugSanityCheckAtomicIndex(
     Node* array, Node* index_word, Node* context) {
   // In Debug mode, we re-validate the index as a sanity check because
   // ToInteger above calls out to JavaScript. A SharedArrayBuffer can't be
-  // neutered and the TypedArray length can't change either, so skipping this
+  // detached and the TypedArray length can't change either, so skipping this
   // check in Release mode is safe.
   CSA_ASSERT(this,
              Uint32LessThan(index_word,

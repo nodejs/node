@@ -10,15 +10,9 @@ tebbi@chromium.org
 neis@chromium.org
 mvstanton@chromium.org
 
-# For backend
-bbudge@chromium.org
-gdeepti@chromium.org
-
 per-file wasm-*=ahaas@chromium.org
 per-file wasm-*=binji@chromium.org
-per-file wasm-*=bradnelson@chromium.org
 per-file wasm-*=clemensh@chromium.org
-per-file wasm-*=kschimpf@chromium.org
 
 per-file int64-lowering.*=ahaas@chromium.org
 

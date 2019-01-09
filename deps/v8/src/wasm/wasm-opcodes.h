@@ -6,20 +6,17 @@
 #define V8_WASM_WASM_OPCODES_H_
 
 #include "src/globals.h"
+#include "src/message-template.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-constants.h"
 
 namespace v8 {
 namespace internal {
 
-template <typename T>
-class Signature;
-
 namespace wasm {
 
-using FunctionSig = Signature<ValueType>;
 std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
-bool IsJSCompatibleSignature(const FunctionSig* sig);
+bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
 
 // Control expressions and blocks.
 #define FOREACH_CONTROL_OPCODE(V)         \
@@ -89,7 +86,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig);
 // Miscellaneous memory expressions
 #define FOREACH_MISC_MEM_OPCODE(V) \
   V(MemorySize, 0x3f, i_v)         \
-  V(GrowMemory, 0x40, i_i)
+  V(MemoryGrow, 0x40, i_i)
 
 // Expressions with signatures.
 #define FOREACH_SIMPLE_OPCODE(V)  \
@@ -259,149 +256,149 @@ bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(I32AsmjsSConvertF64, 0xe5, i_d)    \
   V(I32AsmjsUConvertF64, 0xe6, i_d)
 
+#define FOREACH_SIMD_MEM_OPCODE(V) \
+  V(S128LoadMem, 0xfd00, s_i)      \
+  V(S128StoreMem, 0xfd01, v_is)
+
+#define FOREACH_SIMD_MASK_OPERAND_OPCODE(V) V(S8x16Shuffle, 0xfd03, s_ss)
+
 #define FOREACH_SIMD_0_OPERAND_OPCODE(V) \
-  V(F32x4Splat, 0xfd00, s_f)             \
-  V(F32x4Abs, 0xfd03, s_s)               \
-  V(F32x4Neg, 0xfd04, s_s)               \
-  V(F32x4RecipApprox, 0xfd06, s_s)       \
-  V(F32x4RecipSqrtApprox, 0xfd07, s_s)   \
-  V(F32x4Add, 0xfd08, s_ss)              \
-  V(F32x4AddHoriz, 0xfdb9, s_ss)         \
-  V(F32x4Sub, 0xfd09, s_ss)              \
-  V(F32x4Mul, 0xfd0a, s_ss)              \
-  V(F32x4Min, 0xfd0c, s_ss)              \
-  V(F32x4Max, 0xfd0d, s_ss)              \
-  V(F32x4Eq, 0xfd10, s_ss)               \
-  V(F32x4Ne, 0xfd11, s_ss)               \
-  V(F32x4Lt, 0xfd12, s_ss)               \
-  V(F32x4Le, 0xfd13, s_ss)               \
-  V(F32x4Gt, 0xfd14, s_ss)               \
-  V(F32x4Ge, 0xfd15, s_ss)               \
-  V(F32x4SConvertI32x4, 0xfd19, s_s)     \
-  V(F32x4UConvertI32x4, 0xfd1a, s_s)     \
-  V(I32x4Splat, 0xfd1b, s_i)             \
-  V(I32x4Neg, 0xfd1e, s_s)               \
-  V(I32x4Add, 0xfd1f, s_ss)              \
-  V(I32x4AddHoriz, 0xfdba, s_ss)         \
-  V(I32x4Sub, 0xfd20, s_ss)              \
-  V(I32x4Mul, 0xfd21, s_ss)              \
-  V(I32x4MinS, 0xfd22, s_ss)             \
-  V(I32x4MaxS, 0xfd23, s_ss)             \
-  V(I32x4Eq, 0xfd26, s_ss)               \
-  V(I32x4Ne, 0xfd27, s_ss)               \
-  V(I32x4LtS, 0xfd28, s_ss)              \
-  V(I32x4LeS, 0xfd29, s_ss)              \
-  V(I32x4GtS, 0xfd2a, s_ss)              \
-  V(I32x4GeS, 0xfd2b, s_ss)              \
-  V(I32x4SConvertF32x4, 0xfd2f, s_s)     \
-  V(I32x4UConvertF32x4, 0xfd37, s_s)     \
-  V(I32x4SConvertI16x8Low, 0xfd94, s_s)  \
-  V(I32x4SConvertI16x8High, 0xfd95, s_s) \
-  V(I32x4UConvertI16x8Low, 0xfd96, s_s)  \
-  V(I32x4UConvertI16x8High, 0xfd97, s_s) \
-  V(I32x4MinU, 0xfd30, s_ss)             \
-  V(I32x4MaxU, 0xfd31, s_ss)             \
-  V(I32x4LtU, 0xfd33, s_ss)              \
-  V(I32x4LeU, 0xfd34, s_ss)              \
-  V(I32x4GtU, 0xfd35, s_ss)              \
-  V(I32x4GeU, 0xfd36, s_ss)              \
-  V(I16x8Splat, 0xfd38, s_i)             \
-  V(I16x8Neg, 0xfd3b, s_s)               \
-  V(I16x8Add, 0xfd3c, s_ss)              \
-  V(I16x8AddSaturateS, 0xfd3d, s_ss)     \
-  V(I16x8AddHoriz, 0xfdbb, s_ss)         \
-  V(I16x8Sub, 0xfd3e, s_ss)              \
-  V(I16x8SubSaturateS, 0xfd3f, s_ss)     \
-  V(I16x8Mul, 0xfd40, s_ss)              \
-  V(I16x8MinS, 0xfd41, s_ss)             \
-  V(I16x8MaxS, 0xfd42, s_ss)             \
-  V(I16x8Eq, 0xfd45, s_ss)               \
-  V(I16x8Ne, 0xfd46, s_ss)               \
-  V(I16x8LtS, 0xfd47, s_ss)              \
-  V(I16x8LeS, 0xfd48, s_ss)              \
-  V(I16x8GtS, 0xfd49, s_ss)              \
-  V(I16x8GeS, 0xfd4a, s_ss)              \
-  V(I16x8AddSaturateU, 0xfd4e, s_ss)     \
-  V(I16x8SubSaturateU, 0xfd4f, s_ss)     \
-  V(I16x8MinU, 0xfd50, s_ss)             \
-  V(I16x8MaxU, 0xfd51, s_ss)             \
-  V(I16x8LtU, 0xfd53, s_ss)              \
-  V(I16x8LeU, 0xfd54, s_ss)              \
-  V(I16x8GtU, 0xfd55, s_ss)              \
-  V(I16x8GeU, 0xfd56, s_ss)              \
-  V(I16x8SConvertI32x4, 0xfd98, s_ss)    \
-  V(I16x8UConvertI32x4, 0xfd99, s_ss)    \
-  V(I16x8SConvertI8x16Low, 0xfd9a, s_s)  \
-  V(I16x8SConvertI8x16High, 0xfd9b, s_s) \
-  V(I16x8UConvertI8x16Low, 0xfd9c, s_s)  \
-  V(I16x8UConvertI8x16High, 0xfd9d, s_s) \
-  V(I8x16Splat, 0xfd57, s_i)             \
-  V(I8x16Neg, 0xfd5a, s_s)               \
-  V(I8x16Add, 0xfd5b, s_ss)              \
-  V(I8x16AddSaturateS, 0xfd5c, s_ss)     \
-  V(I8x16Sub, 0xfd5d, s_ss)              \
-  V(I8x16SubSaturateS, 0xfd5e, s_ss)     \
-  V(I8x16Mul, 0xfd5f, s_ss)              \
-  V(I8x16MinS, 0xfd60, s_ss)             \
-  V(I8x16MaxS, 0xfd61, s_ss)             \
-  V(I8x16Eq, 0xfd64, s_ss)               \
-  V(I8x16Ne, 0xfd65, s_ss)               \
-  V(I8x16LtS, 0xfd66, s_ss)              \
-  V(I8x16LeS, 0xfd67, s_ss)              \
-  V(I8x16GtS, 0xfd68, s_ss)              \
-  V(I8x16GeS, 0xfd69, s_ss)              \
-  V(I8x16AddSaturateU, 0xfd6d, s_ss)     \
-  V(I8x16SubSaturateU, 0xfd6e, s_ss)     \
-  V(I8x16MinU, 0xfd6f, s_ss)             \
-  V(I8x16MaxU, 0xfd70, s_ss)             \
-  V(I8x16LtU, 0xfd72, s_ss)              \
-  V(I8x16LeU, 0xfd73, s_ss)              \
-  V(I8x16GtU, 0xfd74, s_ss)              \
-  V(I8x16GeU, 0xfd75, s_ss)              \
-  V(I8x16SConvertI16x8, 0xfd9e, s_ss)    \
-  V(I8x16UConvertI16x8, 0xfd9f, s_ss)    \
-  V(S128And, 0xfd76, s_ss)               \
-  V(S128Or, 0xfd77, s_ss)                \
-  V(S128Xor, 0xfd78, s_ss)               \
-  V(S128Not, 0xfd79, s_s)                \
-  V(S128Select, 0xfd2c, s_sss)           \
-  V(S1x4AnyTrue, 0xfd84, i_s)            \
-  V(S1x4AllTrue, 0xfd85, i_s)            \
-  V(S1x8AnyTrue, 0xfd8a, i_s)            \
-  V(S1x8AllTrue, 0xfd8b, i_s)            \
-  V(S1x16AnyTrue, 0xfd90, i_s)           \
-  V(S1x16AllTrue, 0xfd91, i_s)
+  V(I8x16Splat, 0xfd04, s_i)             \
+  V(I16x8Splat, 0xfd08, s_i)             \
+  V(I32x4Splat, 0xfd0c, s_i)             \
+  V(F32x4Splat, 0xfd12, s_f)             \
+  V(I8x16Eq, 0xfd18, s_ss)               \
+  V(I8x16Ne, 0xfd19, s_ss)               \
+  V(I8x16LtS, 0xfd1a, s_ss)              \
+  V(I8x16LtU, 0xfd1b, s_ss)              \
+  V(I8x16GtS, 0xfd1c, s_ss)              \
+  V(I8x16GtU, 0xfd1d, s_ss)              \
+  V(I8x16LeS, 0xfd1e, s_ss)              \
+  V(I8x16LeU, 0xfd1f, s_ss)              \
+  V(I8x16GeS, 0xfd20, s_ss)              \
+  V(I8x16GeU, 0xfd21, s_ss)              \
+  V(I16x8Eq, 0xfd22, s_ss)               \
+  V(I16x8Ne, 0xfd23, s_ss)               \
+  V(I16x8LtS, 0xfd24, s_ss)              \
+  V(I16x8LtU, 0xfd25, s_ss)              \
+  V(I16x8GtS, 0xfd26, s_ss)              \
+  V(I16x8GtU, 0xfd27, s_ss)              \
+  V(I16x8LeS, 0xfd28, s_ss)              \
+  V(I16x8LeU, 0xfd29, s_ss)              \
+  V(I16x8GeS, 0xfd2a, s_ss)              \
+  V(I16x8GeU, 0xfd2b, s_ss)              \
+  V(I32x4Eq, 0xfd2c, s_ss)               \
+  V(I32x4Ne, 0xfd2d, s_ss)               \
+  V(I32x4LtS, 0xfd2e, s_ss)              \
+  V(I32x4LtU, 0xfd2f, s_ss)              \
+  V(I32x4GtS, 0xfd30, s_ss)              \
+  V(I32x4GtU, 0xfd31, s_ss)              \
+  V(I32x4LeS, 0xfd32, s_ss)              \
+  V(I32x4LeU, 0xfd33, s_ss)              \
+  V(I32x4GeS, 0xfd34, s_ss)              \
+  V(I32x4GeU, 0xfd35, s_ss)              \
+  V(F32x4Eq, 0xfd40, s_ss)               \
+  V(F32x4Ne, 0xfd41, s_ss)               \
+  V(F32x4Lt, 0xfd42, s_ss)               \
+  V(F32x4Gt, 0xfd43, s_ss)               \
+  V(F32x4Le, 0xfd44, s_ss)               \
+  V(F32x4Ge, 0xfd45, s_ss)               \
+  V(S128Not, 0xfd4c, s_s)                \
+  V(S128And, 0xfd4d, s_ss)               \
+  V(S128Or, 0xfd4e, s_ss)                \
+  V(S128Xor, 0xfd4f, s_ss)               \
+  V(S128Select, 0xfd50, s_sss)           \
+  V(I8x16Neg, 0xfd51, s_s)               \
+  V(S1x16AnyTrue, 0xfd52, i_s)           \
+  V(S1x16AllTrue, 0xfd53, i_s)           \
+  V(I8x16Add, 0xfd57, s_ss)              \
+  V(I8x16AddSaturateS, 0xfd58, s_ss)     \
+  V(I8x16AddSaturateU, 0xfd59, s_ss)     \
+  V(I8x16Sub, 0xfd5a, s_ss)              \
+  V(I8x16SubSaturateS, 0xfd5b, s_ss)     \
+  V(I8x16SubSaturateU, 0xfd5c, s_ss)     \
+  V(I8x16Mul, 0xfd5d, s_ss)              \
+  V(I8x16MinS, 0xfd5e, s_ss)             \
+  V(I8x16MinU, 0xfd5f, s_ss)             \
+  V(I8x16MaxS, 0xfd60, s_ss)             \
+  V(I8x16MaxU, 0xfd61, s_ss)             \
+  V(I16x8Neg, 0xfd62, s_s)               \
+  V(S1x8AnyTrue, 0xfd63, i_s)            \
+  V(S1x8AllTrue, 0xfd64, i_s)            \
+  V(I16x8Add, 0xfd68, s_ss)              \
+  V(I16x8AddSaturateS, 0xfd69, s_ss)     \
+  V(I16x8AddSaturateU, 0xfd6a, s_ss)     \
+  V(I16x8Sub, 0xfd6b, s_ss)              \
+  V(I16x8SubSaturateS, 0xfd6c, s_ss)     \
+  V(I16x8SubSaturateU, 0xfd6d, s_ss)     \
+  V(I16x8Mul, 0xfd6e, s_ss)              \
+  V(I16x8MinS, 0xfd6f, s_ss)             \
+  V(I16x8MinU, 0xfd70, s_ss)             \
+  V(I16x8MaxS, 0xfd71, s_ss)             \
+  V(I16x8MaxU, 0xfd72, s_ss)             \
+  V(I32x4Neg, 0xfd73, s_s)               \
+  V(S1x4AnyTrue, 0xfd74, i_s)            \
+  V(S1x4AllTrue, 0xfd75, i_s)            \
+  V(I32x4Add, 0xfd79, s_ss)              \
+  V(I32x4Sub, 0xfd7c, s_ss)              \
+  V(I32x4Mul, 0xfd7f, s_ss)              \
+  V(I32x4MinS, 0xfd80, s_ss)             \
+  V(I32x4MinU, 0xfd81, s_ss)             \
+  V(I32x4MaxS, 0xfd82, s_ss)             \
+  V(I32x4MaxU, 0xfd83, s_ss)             \
+  V(F32x4Abs, 0xfd95, s_s)               \
+  V(F32x4Neg, 0xfd96, s_s)               \
+  V(F32x4RecipApprox, 0xfd98, s_s)       \
+  V(F32x4RecipSqrtApprox, 0xfd99, s_s)   \
+  V(F32x4Add, 0xfd9a, s_ss)              \
+  V(F32x4Sub, 0xfd9b, s_ss)              \
+  V(F32x4Mul, 0xfd9c, s_ss)              \
+  V(F32x4Min, 0xfd9e, s_ss)              \
+  V(F32x4Max, 0xfd9f, s_ss)              \
+  V(I32x4SConvertF32x4, 0xfdab, s_s)     \
+  V(I32x4UConvertF32x4, 0xfdac, s_s)     \
+  V(F32x4SConvertI32x4, 0xfdaf, s_s)     \
+  V(F32x4UConvertI32x4, 0xfdb0, s_s)     \
+  V(I8x16SConvertI16x8, 0xfdb1, s_ss)    \
+  V(I8x16UConvertI16x8, 0xfdb2, s_ss)    \
+  V(I16x8SConvertI32x4, 0xfdb3, s_ss)    \
+  V(I16x8UConvertI32x4, 0xfdb4, s_ss)    \
+  V(I16x8SConvertI8x16Low, 0xfdb5, s_s)  \
+  V(I16x8SConvertI8x16High, 0xfdb6, s_s) \
+  V(I16x8UConvertI8x16Low, 0xfdb7, s_s)  \
+  V(I16x8UConvertI8x16High, 0xfdb8, s_s) \
+  V(I32x4SConvertI16x8Low, 0xfdb9, s_s)  \
+  V(I32x4SConvertI16x8High, 0xfdba, s_s) \
+  V(I32x4UConvertI16x8Low, 0xfdbb, s_s)  \
+  V(I32x4UConvertI16x8High, 0xfdbc, s_s) \
+  V(I16x8AddHoriz, 0xfdbd, s_ss)         \
+  V(I32x4AddHoriz, 0xfdbe, s_ss)         \
+  V(F32x4AddHoriz, 0xfdbf, s_ss)
 
 #define FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V) \
-  V(F32x4ExtractLane, 0xfd01, _)                 \
-  V(I32x4ExtractLane, 0xfd1c, _)                 \
-  V(I32x4Shl, 0xfd24, _)                         \
-  V(I32x4ShrS, 0xfd25, _)                        \
-  V(I32x4ShrU, 0xfd32, _)                        \
-  V(I16x8ExtractLane, 0xfd39, _)                 \
-  V(I16x8Shl, 0xfd43, _)                         \
-  V(I16x8ShrS, 0xfd44, _)                        \
-  V(I16x8ShrU, 0xfd52, _)                        \
-  V(I8x16ExtractLane, 0xfd58, _)                 \
-  V(I8x16Shl, 0xfd62, _)                         \
-  V(I8x16ShrS, 0xfd63, _)                        \
-  V(I8x16ShrU, 0xfd71, _)
+  V(I8x16ExtractLane, 0xfd05, _)                 \
+  V(I16x8ExtractLane, 0xfd09, _)                 \
+  V(I32x4ExtractLane, 0xfd0d, _)                 \
+  V(F32x4ExtractLane, 0xfd13, _)                 \
+  V(I8x16Shl, 0xfd54, _)                         \
+  V(I8x16ShrS, 0xfd55, _)                        \
+  V(I8x16ShrU, 0xfd56, _)                        \
+  V(I16x8Shl, 0xfd65, _)                         \
+  V(I16x8ShrS, 0xfd66, _)                        \
+  V(I16x8ShrU, 0xfd67, _)                        \
+  V(I32x4Shl, 0xfd76, _)                         \
+  V(I32x4ShrS, 0xfd77, _)                        \
+  V(I32x4ShrU, 0xfd78, _)
 
 #define FOREACH_SIMD_1_OPERAND_2_PARAM_OPCODE(V) \
-  V(F32x4ReplaceLane, 0xfd02, _)                 \
-  V(I32x4ReplaceLane, 0xfd1d, _)                 \
-  V(I16x8ReplaceLane, 0xfd3a, _)                 \
-  V(I8x16ReplaceLane, 0xfd59, _)
+  V(I8x16ReplaceLane, 0xfd07, _)                 \
+  V(I16x8ReplaceLane, 0xfd0b, _)                 \
+  V(I32x4ReplaceLane, 0xfd0e, _)                 \
+  V(F32x4ReplaceLane, 0xfd14, _)
 
 #define FOREACH_SIMD_1_OPERAND_OPCODE(V)   \
   FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V) \
   FOREACH_SIMD_1_OPERAND_2_PARAM_OPCODE(V)
-
-#define FOREACH_SIMD_MASK_OPERAND_OPCODE(V) V(S8x16Shuffle, 0xfd6b, s_ss)
-
-#define FOREACH_SIMD_MEM_OPCODE(V) \
-  V(S128LoadMem, 0xfd80, s_i)      \
-  V(S128StoreMem, 0xfd81, v_is)
 
 #define FOREACH_NUMERIC_OPCODE(V)   \
   V(I32SConvertSatF32, 0xfc00, i_f) \
@@ -411,9 +408,19 @@ bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(I64SConvertSatF32, 0xfc04, l_f) \
   V(I64UConvertSatF32, 0xfc05, l_f) \
   V(I64SConvertSatF64, 0xfc06, l_d) \
-  V(I64UConvertSatF64, 0xfc07, l_d)
+  V(I64UConvertSatF64, 0xfc07, l_d) \
+  V(MemoryInit, 0xfc08, v_iii)      \
+  V(MemoryDrop, 0xfc09, v_v)        \
+  V(MemoryCopy, 0xfc0a, v_iii)      \
+  V(MemoryFill, 0xfc0b, v_iii)      \
+  V(TableInit, 0xfc0c, v_iii)       \
+  V(TableDrop, 0xfc0d, v_v)         \
+  V(TableCopy, 0xfc0e, v_iii)
 
 #define FOREACH_ATOMIC_OPCODE(V)                \
+  V(AtomicWake, 0xfe00, i_ii)                   \
+  V(I32AtomicWait, 0xfe01, i_iil)               \
+  V(I64AtomicWait, 0xfe02, i_ill)               \
   V(I32AtomicLoad, 0xfe10, i_i)                 \
   V(I64AtomicLoad, 0xfe11, l_i)                 \
   V(I32AtomicLoad8U, 0xfe12, i_i)               \
@@ -496,41 +503,45 @@ bool IsJSCompatibleSignature(const FunctionSig* sig);
   FOREACH_NUMERIC_OPCODE(V)
 
 // All signatures.
-#define FOREACH_SIGNATURE(V)                       \
-  FOREACH_SIMD_SIGNATURE(V)                        \
-  V(i_ii, kWasmI32, kWasmI32, kWasmI32)            \
-  V(i_i, kWasmI32, kWasmI32)                       \
-  V(i_v, kWasmI32)                                 \
-  V(i_ff, kWasmI32, kWasmF32, kWasmF32)            \
-  V(i_f, kWasmI32, kWasmF32)                       \
-  V(i_dd, kWasmI32, kWasmF64, kWasmF64)            \
-  V(i_d, kWasmI32, kWasmF64)                       \
-  V(i_l, kWasmI32, kWasmI64)                       \
-  V(l_ll, kWasmI64, kWasmI64, kWasmI64)            \
-  V(i_ll, kWasmI32, kWasmI64, kWasmI64)            \
-  V(l_l, kWasmI64, kWasmI64)                       \
-  V(l_i, kWasmI64, kWasmI32)                       \
-  V(l_f, kWasmI64, kWasmF32)                       \
-  V(l_d, kWasmI64, kWasmF64)                       \
-  V(f_ff, kWasmF32, kWasmF32, kWasmF32)            \
-  V(f_f, kWasmF32, kWasmF32)                       \
-  V(f_d, kWasmF32, kWasmF64)                       \
-  V(f_i, kWasmF32, kWasmI32)                       \
-  V(f_l, kWasmF32, kWasmI64)                       \
-  V(d_dd, kWasmF64, kWasmF64, kWasmF64)            \
-  V(d_d, kWasmF64, kWasmF64)                       \
-  V(d_f, kWasmF64, kWasmF32)                       \
-  V(d_i, kWasmF64, kWasmI32)                       \
-  V(d_l, kWasmF64, kWasmI64)                       \
-  V(v_ii, kWasmStmt, kWasmI32, kWasmI32)           \
-  V(v_id, kWasmStmt, kWasmI32, kWasmF64)           \
-  V(d_id, kWasmF64, kWasmI32, kWasmF64)            \
-  V(v_if, kWasmStmt, kWasmI32, kWasmF32)           \
-  V(f_if, kWasmF32, kWasmI32, kWasmF32)            \
-  V(v_il, kWasmStmt, kWasmI32, kWasmI64)           \
-  V(l_il, kWasmI64, kWasmI32, kWasmI64)            \
-  V(i_iii, kWasmI32, kWasmI32, kWasmI32, kWasmI32) \
-  V(l_ill, kWasmI64, kWasmI32, kWasmI64, kWasmI64) \
+#define FOREACH_SIGNATURE(V)                        \
+  FOREACH_SIMD_SIGNATURE(V)                         \
+  V(v_v, kWasmStmt)                                 \
+  V(i_ii, kWasmI32, kWasmI32, kWasmI32)             \
+  V(i_i, kWasmI32, kWasmI32)                        \
+  V(i_v, kWasmI32)                                  \
+  V(i_ff, kWasmI32, kWasmF32, kWasmF32)             \
+  V(i_f, kWasmI32, kWasmF32)                        \
+  V(i_dd, kWasmI32, kWasmF64, kWasmF64)             \
+  V(i_d, kWasmI32, kWasmF64)                        \
+  V(i_l, kWasmI32, kWasmI64)                        \
+  V(l_ll, kWasmI64, kWasmI64, kWasmI64)             \
+  V(i_ll, kWasmI32, kWasmI64, kWasmI64)             \
+  V(l_l, kWasmI64, kWasmI64)                        \
+  V(l_i, kWasmI64, kWasmI32)                        \
+  V(l_f, kWasmI64, kWasmF32)                        \
+  V(l_d, kWasmI64, kWasmF64)                        \
+  V(f_ff, kWasmF32, kWasmF32, kWasmF32)             \
+  V(f_f, kWasmF32, kWasmF32)                        \
+  V(f_d, kWasmF32, kWasmF64)                        \
+  V(f_i, kWasmF32, kWasmI32)                        \
+  V(f_l, kWasmF32, kWasmI64)                        \
+  V(d_dd, kWasmF64, kWasmF64, kWasmF64)             \
+  V(d_d, kWasmF64, kWasmF64)                        \
+  V(d_f, kWasmF64, kWasmF32)                        \
+  V(d_i, kWasmF64, kWasmI32)                        \
+  V(d_l, kWasmF64, kWasmI64)                        \
+  V(v_ii, kWasmStmt, kWasmI32, kWasmI32)            \
+  V(v_id, kWasmStmt, kWasmI32, kWasmF64)            \
+  V(d_id, kWasmF64, kWasmI32, kWasmF64)             \
+  V(v_if, kWasmStmt, kWasmI32, kWasmF32)            \
+  V(f_if, kWasmF32, kWasmI32, kWasmF32)             \
+  V(v_il, kWasmStmt, kWasmI32, kWasmI64)            \
+  V(l_il, kWasmI64, kWasmI32, kWasmI64)             \
+  V(v_iii, kWasmStmt, kWasmI32, kWasmI32, kWasmI32) \
+  V(i_iii, kWasmI32, kWasmI32, kWasmI32, kWasmI32)  \
+  V(l_ill, kWasmI64, kWasmI32, kWasmI64, kWasmI64)  \
+  V(i_iil, kWasmI32, kWasmI32, kWasmI32, kWasmI64)  \
+  V(i_ill, kWasmI32, kWasmI32, kWasmI64, kWasmI64)  \
   V(i_r, kWasmI32, kWasmAnyRef)
 
 #define FOREACH_SIMD_SIGNATURE(V)          \
@@ -565,8 +576,6 @@ enum TrapReason {
 #undef DECLARE_ENUM
 };
 
-extern const std::array<const FunctionSig*, 256> kSimpleOpcodeSigs;
-
 // A collection of opcode-related static methods.
 class V8_EXPORT_PRIVATE WasmOpcodes {
  public:
@@ -581,7 +590,7 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
   // this one in the current block are dead. Returns false for |end|.
   static bool IsUnconditionalJump(WasmOpcode opcode);
 
-  static int TrapReasonToMessageId(TrapReason reason);
+  static MessageTemplate TrapReasonToMessageId(TrapReason reason);
   static const char* TrapReasonMessage(TrapReason reason);
 };
 

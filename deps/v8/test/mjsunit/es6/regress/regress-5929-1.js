@@ -8,7 +8,7 @@ var buf = new ArrayBuffer(0x10000);
 var arr = new Uint8Array(buf).fill(55);
 var tmp = {};
 tmp[Symbol.toPrimitive] = function () {
-  %ArrayBufferNeuter(arr.buffer);
+  %ArrayBufferDetach(arr.buffer);
   return 50;
 }
 arr.copyWithin(tmp);

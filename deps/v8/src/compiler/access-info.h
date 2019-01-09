@@ -143,8 +143,7 @@ class PropertyAccessInfo final {
 // Factory class for {ElementAccessInfo}s and {PropertyAccessInfo}s.
 class AccessInfoFactory final {
  public:
-  AccessInfoFactory(JSHeapBroker* js_heap_broker,
-                    CompilationDependencies* dependencies,
+  AccessInfoFactory(JSHeapBroker* broker, CompilationDependencies* dependencies,
 
                     Handle<Context> native_context, Zone* zone);
 
@@ -172,17 +171,17 @@ class AccessInfoFactory final {
                         PropertyAccessInfo* access_info);
 
   CompilationDependencies* dependencies() const { return dependencies_; }
-  JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
+  JSHeapBroker* broker() const { return broker_; }
   Factory* factory() const;
   Isolate* isolate() const { return isolate_; }
   Handle<Context> native_context() const { return native_context_; }
   Zone* zone() const { return zone_; }
 
-  JSHeapBroker* const js_heap_broker_;
+  JSHeapBroker* const broker_;
   CompilationDependencies* const dependencies_;
   Handle<Context> const native_context_;
   Isolate* const isolate_;
-  TypeCache const& type_cache_;
+  TypeCache const* type_cache_;
   Zone* const zone_;
 
   DISALLOW_COPY_AND_ASSIGN(AccessInfoFactory);

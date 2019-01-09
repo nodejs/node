@@ -4,6 +4,8 @@
 
 #include "src/interface-descriptors.h"
 
+#include "src/macro-assembler.h"
+
 namespace v8 {
 namespace internal {
 
@@ -12,6 +14,9 @@ void CallInterfaceDescriptorData::InitializePlatformSpecific(
   DCHECK(!IsInitializedPlatformIndependent());
 
   register_param_count_ = register_parameter_count;
+
+  // UBSan doesn't like creating zero-length arrays.
+  if (register_parameter_count == 0) return;
 
   // InterfaceDescriptor owns a copy of the registers array.
   register_params_ = NewArray<Register>(register_parameter_count, no_reg);
@@ -259,6 +264,11 @@ void TypeConversionStackParameterDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(0, nullptr);
 }
 
+void AsyncFunctionStackParameterDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  data->InitializePlatformSpecific(0, nullptr);
+}
+
 void LoadWithVectorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {ReceiverRegister(), NameRegister(), SlotRegister(),
@@ -339,7 +349,7 @@ void ArrayNArgumentsConstructorDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void WasmGrowMemoryDescriptor::InitializePlatformSpecific(
+void WasmMemoryGrowDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }
@@ -349,7 +359,32 @@ void WasmThrowDescriptor::InitializePlatformSpecific(
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }
 
+void WasmAtomicWakeDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
+
+void WasmI32AtomicWaitDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
+
+void WasmI64AtomicWaitDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
+
 void CloneObjectWithVectorDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
+
+void BigIntToWasmI64Descriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
+
+void BigIntToI64Descriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }

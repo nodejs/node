@@ -81,24 +81,24 @@ Node* ProxiesCodeStubAssembler::AllocateJSArrayForCodeStubArguments(
                                                   kAllowLargeObjectAllocation);
     elements.Bind(allocated_elements);
 
-    VARIABLE(index, MachineType::PointerRepresentation(),
-             IntPtrConstant(FixedArrayBase::kHeaderSize - kHeapObjectTag));
-    VariableList list({&index}, zone());
+    TVARIABLE(IntPtrT, offset,
+              IntPtrConstant(FixedArrayBase::kHeaderSize - kHeapObjectTag));
+    VariableList list({&offset}, zone());
 
     GotoIf(SmiGreaterThan(length, SmiConstant(FixedArray::kMaxRegularLength)),
            &if_large_object);
-    args.ForEach(list, [=, &index](Node* arg) {
+    args.ForEach(list, [=, &offset](Node* arg) {
       StoreNoWriteBarrier(MachineRepresentation::kTagged, allocated_elements,
-                          index.value(), arg);
-      Increment(&index, kPointerSize);
+                          offset.value(), arg);
+      Increment(&offset, kTaggedSize);
     });
     Goto(&allocate_js_array);
 
     BIND(&if_large_object);
     {
-      args.ForEach(list, [=, &index](Node* arg) {
-        Store(allocated_elements, index.value(), arg);
-        Increment(&index, kPointerSize);
+      args.ForEach(list, [=, &offset](Node* arg) {
+        Store(allocated_elements, offset.value(), arg);
+        Increment(&offset, kTaggedSize);
       });
       Goto(&allocate_js_array);
     }
@@ -113,8 +113,10 @@ Node* ProxiesCodeStubAssembler::AllocateJSArrayForCodeStubArguments(
   BIND(&allocate_js_array);
   // Allocate the result JSArray.
   Node* native_context = LoadNativeContext(context);
-  Node* array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
-  Node* array = AllocateUninitializedJSArrayWithoutElements(array_map, length);
+  TNode<Map> array_map =
+      LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
+  TNode<JSArray> array =
+      AllocateUninitializedJSArrayWithoutElements(array_map, length);
   StoreObjectFieldNoWriteBarrier(array, JSObject::kElementsOffset,
                                  elements.value());
 

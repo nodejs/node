@@ -46,11 +46,11 @@ SafepointTable::SafepointTable(Address instruction_start,
   pc_and_deoptimization_indexes_ = header + kHeaderSize;
   entries_ = pc_and_deoptimization_indexes_ + (length_ * kFixedEntrySize);
   DCHECK_GT(entry_size_, 0);
-  STATIC_ASSERT(SafepointEntry::DeoptimizationIndexField::kMax ==
+  STATIC_ASSERT(SafepointEntry::DeoptimizationIndexOrArgumentsField::kMax ==
                 Safepoint::kNoDeoptimizationIndex);
 }
 
-SafepointTable::SafepointTable(Code* code)
+SafepointTable::SafepointTable(Code code)
     : SafepointTable(code->InstructionStart(), code->safepoint_table_offset(),
                      code->stack_slots(), true) {}
 
@@ -182,11 +182,19 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
       RoundUp(bits_per_entry, kBitsPerByte) >> kBitsPerByteLog2;
 
   // Emit the table header.
+  STATIC_ASSERT(SafepointTable::kLengthOffset == 0 * kIntSize);
+  STATIC_ASSERT(SafepointTable::kEntrySizeOffset == 1 * kIntSize);
+  STATIC_ASSERT(SafepointTable::kHeaderSize == 2 * kIntSize);
   int length = static_cast<int>(deoptimization_info_.size());
   assembler->dd(length);
   assembler->dd(bytes_per_entry);
 
-  // Emit sorted table of pc offsets together with deoptimization indexes.
+  // Emit sorted table of pc offsets together with additional info (i.e. the
+  // deoptimization index or arguments count) and trampoline offsets.
+  STATIC_ASSERT(SafepointTable::kPcOffset == 0 * kIntSize);
+  STATIC_ASSERT(SafepointTable::kEncodedInfoOffset == 1 * kIntSize);
+  STATIC_ASSERT(SafepointTable::kTrampolinePcOffset == 2 * kIntSize);
+  STATIC_ASSERT(SafepointTable::kFixedEntrySize == 3 * kIntSize);
   for (const DeoptimizationInfo& info : deoptimization_info_) {
     assembler->dd(info.pc);
     assembler->dd(EncodeExceptPC(info));
@@ -233,8 +241,11 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
 }
 
 uint32_t SafepointTableBuilder::EncodeExceptPC(const DeoptimizationInfo& info) {
-  return SafepointEntry::DeoptimizationIndexField::encode(info.deopt_index) |
-         SafepointEntry::ArgumentsField::encode(info.arguments) |
+  bool has_argc = info.arguments != 0;
+  int argc = has_argc ? info.arguments : info.deopt_index;
+  DCHECK(info.deopt_index == Safepoint::kNoDeoptimizationIndex || !has_argc);
+  return SafepointEntry::DeoptimizationIndexOrArgumentsField::encode(argc) |
+         SafepointEntry::HasArgumentsField::encode(has_argc) |
          SafepointEntry::SaveDoublesField::encode(info.has_doubles);
 }
 

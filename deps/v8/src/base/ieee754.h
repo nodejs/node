@@ -36,6 +36,9 @@ V8_BASE_EXPORT double atan2(double y, double x);
 // Returns the cosine of |x|, where |x| is given in radians.
 V8_BASE_EXPORT double cos(double x);
 
+// Returns the quotient of x and y, avoiding C++ undefined behavior if y == 0.
+V8_BASE_EXPORT double divide(double x, double y);
+
 // Returns the base-e exponential of |x|.
 V8_BASE_EXPORT double exp(double x);
 

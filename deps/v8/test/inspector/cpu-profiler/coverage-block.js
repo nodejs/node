@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --no-always-opt --opt
+// Flags: --no-stress-flush-bytecode
 
 var source =
 `

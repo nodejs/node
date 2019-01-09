@@ -33,6 +33,7 @@
 #include "src/heap/factory.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/objects/smi.h"
 #include "src/simulator.h"
 #include "test/cctest/cctest.h"
 #include "test/common/assembler-tester.h"
@@ -76,9 +77,9 @@ TEST(Smi) {
     bool is_in_range = number >= Smi::kMinValue && number <= Smi::kMaxValue;
     CHECK_EQ(is_in_range, is_valid);
     if (is_valid) {
-      Smi* smi_from_intptr = Smi::FromIntptr(number);
+      Smi smi_from_intptr = Smi::FromIntptr(number);
       if (static_cast<int>(number) == number) {  // Is a 32-bit int.
-        Smi* smi_from_int = Smi::FromInt(static_cast<int32_t>(number));
+        Smi smi_from_int = Smi::FromInt(static_cast<int32_t>(number));
         CHECK_EQ(smi_from_int, smi_from_intptr);
       }
       int64_t smi_value = smi_from_intptr->value();
@@ -87,11 +88,10 @@ TEST(Smi) {
   }
 }
 
-
-static void TestMoveSmi(MacroAssembler* masm, Label* exit, int id, Smi* value) {
+static void TestMoveSmi(MacroAssembler* masm, Label* exit, int id, Smi value) {
   __ movl(rax, Immediate(id));
   __ Move(rcx, value);
-  __ Set(rdx, reinterpret_cast<intptr_t>(value));
+  __ Set(rdx, static_cast<intptr_t>(value.ptr()));
   __ cmpq(rcx, rdx);
   __ j(not_equal, exit);
 }
@@ -109,7 +109,7 @@ TEST(SmiMove) {
   EntryCode(masm);
   Label exit;
 
-  TestMoveSmi(masm, &exit, 1, Smi::kZero);
+  TestMoveSmi(masm, &exit, 1, Smi::zero());
   TestMoveSmi(masm, &exit, 2, Smi::FromInt(127));
   TestMoveSmi(masm, &exit, 3, Smi::FromInt(128));
   TestMoveSmi(masm, &exit, 4, Smi::FromInt(255));
@@ -245,35 +245,35 @@ TEST(SmiTag) {
   __ movq(rax, Immediate(1));  // Test number.
   __ movq(rcx, Immediate(0));
   __ SmiTag(rcx, rcx);
-  __ Set(rdx, reinterpret_cast<intptr_t>(Smi::kZero));
+  __ Set(rdx, Smi::kZero.ptr());
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(2));  // Test number.
   __ movq(rcx, Immediate(1024));
   __ SmiTag(rcx, rcx);
-  __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(1024)));
+  __ Set(rdx, Smi::FromInt(1024).ptr());
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(3));  // Test number.
   __ movq(rcx, Immediate(-1));
   __ SmiTag(rcx, rcx);
-  __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(-1)));
+  __ Set(rdx, Smi::FromInt(-1).ptr());
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(4));  // Test number.
   __ movq(rcx, Immediate(Smi::kMaxValue));
   __ SmiTag(rcx, rcx);
-  __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(Smi::kMaxValue)));
+  __ Set(rdx, Smi::FromInt(Smi::kMaxValue).ptr());
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(5));  // Test number.
   __ movq(rcx, Immediate(Smi::kMinValue));
   __ SmiTag(rcx, rcx);
-  __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(Smi::kMinValue)));
+  __ Set(rdx, Smi::FromInt(Smi::kMinValue).ptr());
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
@@ -282,35 +282,35 @@ TEST(SmiTag) {
   __ movq(rax, Immediate(6));  // Test number.
   __ movq(rcx, Immediate(0));
   __ SmiTag(r8, rcx);
-  __ Set(rdx, reinterpret_cast<intptr_t>(Smi::kZero));
+  __ Set(rdx, Smi::zero().ptr());
   __ cmpq(r8, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(7));  // Test number.
   __ movq(rcx, Immediate(1024));
   __ SmiTag(r8, rcx);
-  __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(1024)));
+  __ Set(rdx, Smi::FromInt(1024).ptr());
   __ cmpq(r8, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(8));  // Test number.
   __ movq(rcx, Immediate(-1));
   __ SmiTag(r8, rcx);
-  __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(-1)));
+  __ Set(rdx, Smi::FromInt(-1).ptr());
   __ cmpq(r8, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(9));  // Test number.
   __ movq(rcx, Immediate(Smi::kMaxValue));
   __ SmiTag(r8, rcx);
-  __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(Smi::kMaxValue)));
+  __ Set(rdx, Smi::FromInt(Smi::kMaxValue).ptr());
   __ cmpq(r8, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(10));  // Test number.
   __ movq(rcx, Immediate(Smi::kMinValue));
   __ SmiTag(r8, rcx);
-  __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(Smi::kMinValue)));
+  __ Set(rdx, Smi::FromInt(Smi::kMinValue).ptr());
   __ cmpq(r8, rdx);
   __ j(not_equal, &exit);
 
@@ -494,9 +494,9 @@ TEST(OperandOffset) {
   // r15 = rsp[3]
   // rbx = rsp[5]
   // r13 = rsp[7]
-  __ leaq(r14, Operand(rsp, 3 * kPointerSize));
-  __ leaq(r13, Operand(rbp, -3 * kPointerSize));
-  __ leaq(rbx, Operand(rbp, -5 * kPointerSize));
+  __ leaq(r14, Operand(rsp, 3 * kSystemPointerSize));
+  __ leaq(r13, Operand(rbp, -3 * kSystemPointerSize));
+  __ leaq(rbx, Operand(rbp, -5 * kSystemPointerSize));
   __ movl(rcx, Immediate(2));
   __ Move(r8, reinterpret_cast<Address>(&data[128]), RelocInfo::NONE);
   __ movl(rax, Immediate(1));
@@ -511,12 +511,12 @@ TEST(OperandOffset) {
 
   // Test 2.
   // Zero to non-zero displacement.
-  __ movl(rdx, Operand(sp0, 2 * kPointerSize));
+  __ movl(rdx, Operand(sp0, 2 * kSystemPointerSize));
   __ cmpl(rdx, Immediate(0x107));
   __ j(not_equal, &exit);
   __ incq(rax);
 
-  Operand sp2 = Operand(rsp, 2 * kPointerSize);
+  Operand sp2 = Operand(rsp, 2 * kSystemPointerSize);
 
   // Test 3.
   __ movl(rdx, sp2);  // Sanity check.
@@ -524,18 +524,18 @@ TEST(OperandOffset) {
   __ j(not_equal, &exit);
   __ incq(rax);
 
-  __ movl(rdx, Operand(sp2, 2 * kPointerSize));
+  __ movl(rdx, Operand(sp2, 2 * kSystemPointerSize));
   __ cmpl(rdx, Immediate(0x105));
   __ j(not_equal, &exit);
   __ incq(rax);
 
   // Non-zero to zero displacement.
-  __ movl(rdx, Operand(sp2, -2 * kPointerSize));
+  __ movl(rdx, Operand(sp2, -2 * kSystemPointerSize));
   __ cmpl(rdx, Immediate(0x109));
   __ j(not_equal, &exit);
   __ incq(rax);
 
-  Operand sp2c2 = Operand(rsp, rcx, times_pointer_size, 2 * kPointerSize);
+  Operand sp2c2 = Operand(rsp, rcx, times_pointer_size, 2 * kSystemPointerSize);
 
   // Test 6.
   __ movl(rdx, sp2c2);  // Sanity check.
@@ -543,13 +543,13 @@ TEST(OperandOffset) {
   __ j(not_equal, &exit);
   __ incq(rax);
 
-  __ movl(rdx, Operand(sp2c2, 2 * kPointerSize));
+  __ movl(rdx, Operand(sp2c2, 2 * kSystemPointerSize));
   __ cmpl(rdx, Immediate(0x103));
   __ j(not_equal, &exit);
   __ incq(rax);
 
   // Non-zero to zero displacement.
-  __ movl(rdx, Operand(sp2c2, -2 * kPointerSize));
+  __ movl(rdx, Operand(sp2c2, -2 * kSystemPointerSize));
   __ cmpl(rdx, Immediate(0x107));
   __ j(not_equal, &exit);
   __ incq(rax);
@@ -564,12 +564,12 @@ TEST(OperandOffset) {
   __ incq(rax);
 
   // Zero to non-zero displacement.
-  __ movl(rdx, Operand(bp0, -2 * kPointerSize));
+  __ movl(rdx, Operand(bp0, -2 * kSystemPointerSize));
   __ cmpl(rdx, Immediate(0x102));
   __ j(not_equal, &exit);
   __ incq(rax);
 
-  Operand bp2 = Operand(rbp, -2 * kPointerSize);
+  Operand bp2 = Operand(rbp, -2 * kSystemPointerSize);
 
   // Test 11.
   __ movl(rdx, bp2);  // Sanity check.
@@ -578,17 +578,18 @@ TEST(OperandOffset) {
   __ incq(rax);
 
   // Non-zero to zero displacement.
-  __ movl(rdx, Operand(bp2, 2 * kPointerSize));
+  __ movl(rdx, Operand(bp2, 2 * kSystemPointerSize));
   __ cmpl(rdx, Immediate(0x100));
   __ j(not_equal, &exit);
   __ incq(rax);
 
-  __ movl(rdx, Operand(bp2, -2 * kPointerSize));
+  __ movl(rdx, Operand(bp2, -2 * kSystemPointerSize));
   __ cmpl(rdx, Immediate(0x104));
   __ j(not_equal, &exit);
   __ incq(rax);
 
-  Operand bp2c4 = Operand(rbp, rcx, times_pointer_size, -4 * kPointerSize);
+  Operand bp2c4 =
+      Operand(rbp, rcx, times_pointer_size, -4 * kSystemPointerSize);
 
   // Test 14:
   __ movl(rdx, bp2c4);  // Sanity check.
@@ -596,12 +597,12 @@ TEST(OperandOffset) {
   __ j(not_equal, &exit);
   __ incq(rax);
 
-  __ movl(rdx, Operand(bp2c4, 2 * kPointerSize));
+  __ movl(rdx, Operand(bp2c4, 2 * kSystemPointerSize));
   __ cmpl(rdx, Immediate(0x100));
   __ j(not_equal, &exit);
   __ incq(rax);
 
-  __ movl(rdx, Operand(bp2c4, -2 * kPointerSize));
+  __ movl(rdx, Operand(bp2c4, -2 * kSystemPointerSize));
   __ cmpl(rdx, Immediate(0x104));
   __ j(not_equal, &exit);
   __ incq(rax);
@@ -614,17 +615,17 @@ TEST(OperandOffset) {
   __ j(not_equal, &exit);
   __ incq(rax);
 
-  __ movl(rdx, Operand(bx0, 5 * kPointerSize));
+  __ movl(rdx, Operand(bx0, 5 * kSystemPointerSize));
   __ cmpl(rdx, Immediate(0x100));
   __ j(not_equal, &exit);
   __ incq(rax);
 
-  __ movl(rdx, Operand(bx0, -4 * kPointerSize));
+  __ movl(rdx, Operand(bx0, -4 * kSystemPointerSize));
   __ cmpl(rdx, Immediate(0x109));
   __ j(not_equal, &exit);
   __ incq(rax);
 
-  Operand bx2 = Operand(rbx, 2 * kPointerSize);
+  Operand bx2 = Operand(rbx, 2 * kSystemPointerSize);
 
   // Test 20.
   __ movl(rdx, bx2);  // Sanity check.
@@ -632,18 +633,19 @@ TEST(OperandOffset) {
   __ j(not_equal, &exit);
   __ incq(rax);
 
-  __ movl(rdx, Operand(bx2, 2 * kPointerSize));
+  __ movl(rdx, Operand(bx2, 2 * kSystemPointerSize));
   __ cmpl(rdx, Immediate(0x101));
   __ j(not_equal, &exit);
   __ incq(rax);
 
   // Non-zero to zero displacement.
-  __ movl(rdx, Operand(bx2, -2 * kPointerSize));
+  __ movl(rdx, Operand(bx2, -2 * kSystemPointerSize));
   __ cmpl(rdx, Immediate(0x105));
   __ j(not_equal, &exit);
   __ incq(rax);
 
-  Operand bx2c2 = Operand(rbx, rcx, times_pointer_size, -2 * kPointerSize);
+  Operand bx2c2 =
+      Operand(rbx, rcx, times_pointer_size, -2 * kSystemPointerSize);
 
   // Test 23.
   __ movl(rdx, bx2c2);  // Sanity check.
@@ -651,12 +653,12 @@ TEST(OperandOffset) {
   __ j(not_equal, &exit);
   __ incq(rax);
 
-  __ movl(rdx, Operand(bx2c2, 2 * kPointerSize));
+  __ movl(rdx, Operand(bx2c2, 2 * kSystemPointerSize));
   __ cmpl(rdx, Immediate(0x103));
   __ j(not_equal, &exit);
   __ incq(rax);
 
-  __ movl(rdx, Operand(bx2c2, -2 * kPointerSize));
+  __ movl(rdx, Operand(bx2c2, -2 * kSystemPointerSize));
   __ cmpl(rdx, Immediate(0x107));
   __ j(not_equal, &exit);
   __ incq(rax);
@@ -794,7 +796,7 @@ TEST(OperandOffset) {
 
   __ movl(rax, Immediate(0));
   __ bind(&exit);
-  __ leaq(rsp, Operand(rbp, kPointerSize));
+  __ leaq(rsp, Operand(rbp, kSystemPointerSize));
   __ popq(rbp);
   __ popq(rbx);
   __ popq(r14);
@@ -823,131 +825,145 @@ TEST(LoadAndStoreWithRepresentation) {
 
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
   EntryCode(masm);
-  __ subq(rsp, Immediate(1 * kPointerSize));
+  __ subq(rsp, Immediate(1 * kSystemPointerSize));
   Label exit;
 
   // Test 1.
   __ movq(rax, Immediate(1));  // Test number.
-  __ movq(Operand(rsp, 0 * kPointerSize), Immediate(0));
+  __ movq(Operand(rsp, 0 * kSystemPointerSize), Immediate(0));
   __ movq(rcx, Immediate(-1));
-  __ Store(Operand(rsp, 0 * kPointerSize), rcx, Representation::UInteger8());
-  __ movq(rcx, Operand(rsp, 0 * kPointerSize));
+  __ Store(Operand(rsp, 0 * kSystemPointerSize), rcx,
+           Representation::UInteger8());
+  __ movq(rcx, Operand(rsp, 0 * kSystemPointerSize));
   __ movl(rdx, Immediate(255));
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
-  __ Load(rdx, Operand(rsp, 0 * kPointerSize), Representation::UInteger8());
+  __ Load(rdx, Operand(rsp, 0 * kSystemPointerSize),
+          Representation::UInteger8());
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
   // Test 2.
   __ movq(rax, Immediate(2));  // Test number.
-  __ movq(Operand(rsp, 0 * kPointerSize), Immediate(0));
+  __ movq(Operand(rsp, 0 * kSystemPointerSize), Immediate(0));
   __ Set(rcx, V8_2PART_UINT64_C(0xDEADBEAF, 12345678));
-  __ Store(Operand(rsp, 0 * kPointerSize), rcx, Representation::Smi());
-  __ movq(rcx, Operand(rsp, 0 * kPointerSize));
+  __ Store(Operand(rsp, 0 * kSystemPointerSize), rcx, Representation::Smi());
+  __ movq(rcx, Operand(rsp, 0 * kSystemPointerSize));
   __ Set(rdx, V8_2PART_UINT64_C(0xDEADBEAF, 12345678));
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
-  __ Load(rdx, Operand(rsp, 0 * kPointerSize), Representation::Smi());
+  __ Load(rdx, Operand(rsp, 0 * kSystemPointerSize), Representation::Smi());
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
   // Test 3.
   __ movq(rax, Immediate(3));  // Test number.
-  __ movq(Operand(rsp, 0 * kPointerSize), Immediate(0));
+  __ movq(Operand(rsp, 0 * kSystemPointerSize), Immediate(0));
   __ movq(rcx, Immediate(-1));
-  __ Store(Operand(rsp, 0 * kPointerSize), rcx, Representation::Integer32());
-  __ movq(rcx, Operand(rsp, 0 * kPointerSize));
+  __ Store(Operand(rsp, 0 * kSystemPointerSize), rcx,
+           Representation::Integer32());
+  __ movq(rcx, Operand(rsp, 0 * kSystemPointerSize));
   __ movl(rdx, Immediate(-1));
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
-  __ Load(rdx, Operand(rsp, 0 * kPointerSize), Representation::Integer32());
+  __ Load(rdx, Operand(rsp, 0 * kSystemPointerSize),
+          Representation::Integer32());
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
   // Test 4.
   __ movq(rax, Immediate(4));  // Test number.
-  __ movq(Operand(rsp, 0 * kPointerSize), Immediate(0));
+  __ movq(Operand(rsp, 0 * kSystemPointerSize), Immediate(0));
   __ movl(rcx, Immediate(0x44332211));
-  __ Store(Operand(rsp, 0 * kPointerSize), rcx, Representation::HeapObject());
-  __ movq(rcx, Operand(rsp, 0 * kPointerSize));
+  __ Store(Operand(rsp, 0 * kSystemPointerSize), rcx,
+           Representation::HeapObject());
+  __ movq(rcx, Operand(rsp, 0 * kSystemPointerSize));
   __ movl(rdx, Immediate(0x44332211));
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
-  __ Load(rdx, Operand(rsp, 0 * kPointerSize), Representation::HeapObject());
+  __ Load(rdx, Operand(rsp, 0 * kSystemPointerSize),
+          Representation::HeapObject());
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
   // Test 5.
   __ movq(rax, Immediate(5));  // Test number.
-  __ movq(Operand(rsp, 0 * kPointerSize), Immediate(0));
+  __ movq(Operand(rsp, 0 * kSystemPointerSize), Immediate(0));
   __ Set(rcx, V8_2PART_UINT64_C(0x12345678, DEADBEAF));
-  __ Store(Operand(rsp, 0 * kPointerSize), rcx, Representation::Tagged());
-  __ movq(rcx, Operand(rsp, 0 * kPointerSize));
+  __ Store(Operand(rsp, 0 * kSystemPointerSize), rcx, Representation::Tagged());
+  __ movq(rcx, Operand(rsp, 0 * kSystemPointerSize));
   __ Set(rdx, V8_2PART_UINT64_C(0x12345678, DEADBEAF));
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
-  __ Load(rdx, Operand(rsp, 0 * kPointerSize), Representation::Tagged());
+  __ Load(rdx, Operand(rsp, 0 * kSystemPointerSize), Representation::Tagged());
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
   // Test 6.
   __ movq(rax, Immediate(6));  // Test number.
-  __ movq(Operand(rsp, 0 * kPointerSize), Immediate(0));
+  __ movq(Operand(rsp, 0 * kSystemPointerSize), Immediate(0));
   __ Set(rcx, V8_2PART_UINT64_C(0x11223344, 55667788));
-  __ Store(Operand(rsp, 0 * kPointerSize), rcx, Representation::External());
-  __ movq(rcx, Operand(rsp, 0 * kPointerSize));
+  __ Store(Operand(rsp, 0 * kSystemPointerSize), rcx,
+           Representation::External());
+  __ movq(rcx, Operand(rsp, 0 * kSystemPointerSize));
   __ Set(rdx, V8_2PART_UINT64_C(0x11223344, 55667788));
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
-  __ Load(rdx, Operand(rsp, 0 * kPointerSize), Representation::External());
+  __ Load(rdx, Operand(rsp, 0 * kSystemPointerSize),
+          Representation::External());
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
   // Test 7.
   __ movq(rax, Immediate(7));  // Test number.
-  __ movq(Operand(rsp, 0 * kPointerSize), Immediate(0));
+  __ movq(Operand(rsp, 0 * kSystemPointerSize), Immediate(0));
   __ movq(rcx, Immediate(-1));
-  __ Store(Operand(rsp, 0 * kPointerSize), rcx, Representation::Integer8());
-  __ movq(rcx, Operand(rsp, 0 * kPointerSize));
+  __ Store(Operand(rsp, 0 * kSystemPointerSize), rcx,
+           Representation::Integer8());
+  __ movq(rcx, Operand(rsp, 0 * kSystemPointerSize));
   __ movl(rdx, Immediate(255));
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
-  __ Load(rdx, Operand(rsp, 0 * kPointerSize), Representation::Integer8());
+  __ Load(rdx, Operand(rsp, 0 * kSystemPointerSize),
+          Representation::Integer8());
   __ movq(rcx, Immediate(-1));
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
   // Test 8.
   __ movq(rax, Immediate(8));  // Test number.
-  __ movq(Operand(rsp, 0 * kPointerSize), Immediate(0));
+  __ movq(Operand(rsp, 0 * kSystemPointerSize), Immediate(0));
   __ movq(rcx, Immediate(-1));
-  __ Store(Operand(rsp, 0 * kPointerSize), rcx, Representation::Integer16());
-  __ movq(rcx, Operand(rsp, 0 * kPointerSize));
+  __ Store(Operand(rsp, 0 * kSystemPointerSize), rcx,
+           Representation::Integer16());
+  __ movq(rcx, Operand(rsp, 0 * kSystemPointerSize));
   __ movl(rdx, Immediate(65535));
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
-  __ Load(rdx, Operand(rsp, 0 * kPointerSize), Representation::Integer16());
+  __ Load(rdx, Operand(rsp, 0 * kSystemPointerSize),
+          Representation::Integer16());
   __ movq(rcx, Immediate(-1));
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
   // Test 9.
   __ movq(rax, Immediate(9));  // Test number.
-  __ movq(Operand(rsp, 0 * kPointerSize), Immediate(0));
+  __ movq(Operand(rsp, 0 * kSystemPointerSize), Immediate(0));
   __ movq(rcx, Immediate(-1));
-  __ Store(Operand(rsp, 0 * kPointerSize), rcx, Representation::UInteger16());
-  __ movq(rcx, Operand(rsp, 0 * kPointerSize));
+  __ Store(Operand(rsp, 0 * kSystemPointerSize), rcx,
+           Representation::UInteger16());
+  __ movq(rcx, Operand(rsp, 0 * kSystemPointerSize));
   __ movl(rdx, Immediate(65535));
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
-  __ Load(rdx, Operand(rsp, 0 * kPointerSize), Representation::UInteger16());
+  __ Load(rdx, Operand(rsp, 0 * kSystemPointerSize),
+          Representation::UInteger16());
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ xorq(rax, rax);  // Success.
   __ bind(&exit);
-  __ addq(rsp, Immediate(1 * kPointerSize));
+  __ addq(rsp, Immediate(1 * kSystemPointerSize));
   ExitCode(masm);
   __ ret(0);
 
@@ -1112,6 +1128,22 @@ TEST(SIMDMacros) {
   auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
   int result = f.Call();
   CHECK_EQ(0, result);
+}
+
+TEST(AreAliased) {
+  DCHECK(!AreAliased(rax));
+  DCHECK(!AreAliased(rax, no_reg));
+  DCHECK(!AreAliased(no_reg, rax, no_reg));
+
+  DCHECK(AreAliased(rax, rax));
+  DCHECK(!AreAliased(no_reg, no_reg));
+
+  DCHECK(!AreAliased(rax, rbx, rcx, rdx, no_reg));
+  DCHECK(AreAliased(rax, rbx, rcx, rdx, rax, no_reg));
+
+  // no_regs are allowed in
+  DCHECK(!AreAliased(rax, no_reg, rbx, no_reg, rcx, no_reg, rdx, no_reg));
+  DCHECK(AreAliased(rax, no_reg, rbx, no_reg, rcx, no_reg, rdx, rax, no_reg));
 }
 
 #undef __

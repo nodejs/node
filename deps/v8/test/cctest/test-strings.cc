@@ -35,6 +35,7 @@
 #include "src/v8.h"
 
 #include "src/api-inl.h"
+#include "src/base/platform/elapsed-timer.h"
 #include "src/heap/factory.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
@@ -277,7 +278,7 @@ class ConsStringGenerationData {
   int max_leaves_;
   // Cached data.
   Handle<String> building_blocks_[kNumberOfBuildingBlocks];
-  String* empty_string_;
+  String empty_string_;
   MyRandomNumberGenerator rng_;
   // Stats.
   ConsStringStats stats_;
@@ -318,8 +319,7 @@ void ConsStringGenerationData::Reset() {
   rng_.init();
 }
 
-
-void AccumulateStats(ConsString* cons_string, ConsStringStats* stats) {
+void AccumulateStats(ConsString cons_string, ConsStringStats* stats) {
   int left_length = cons_string->first()->length();
   int right_length = cons_string->second()->length();
   CHECK(cons_string->length() == left_length + right_length);
@@ -347,7 +347,6 @@ void AccumulateStats(ConsString* cons_string, ConsStringStats* stats) {
   }
 }
 
-
 void AccumulateStats(Handle<String> cons_string, ConsStringStats* stats) {
   DisallowHeapAllocation no_allocation;
   if (cons_string->IsConsString()) {
@@ -357,20 +356,18 @@ void AccumulateStats(Handle<String> cons_string, ConsStringStats* stats) {
   stats->chars_ += cons_string->length();
 }
 
-
-void AccumulateStatsWithOperator(
-    ConsString* cons_string, ConsStringStats* stats) {
+void AccumulateStatsWithOperator(ConsString cons_string,
+                                 ConsStringStats* stats) {
   ConsStringIterator iter(cons_string);
-  String* string;
   int offset;
-  while (nullptr != (string = iter.Next(&offset))) {
+  for (String string = iter.Next(&offset); !string.is_null();
+       string = iter.Next(&offset)) {
     // Accumulate stats.
     CHECK_EQ(0, offset);
     stats->leaves_++;
     stats->chars_ += string->length();
   }
 }
-
 
 void VerifyConsString(Handle<String> root, ConsStringGenerationData* data) {
   // Verify basic data.
@@ -640,8 +637,7 @@ TEST(ConsStringWithEmptyFirstFlatten) {
   CHECK_EQ(initial_length, flat->length());
 }
 
-static void VerifyCharacterStream(
-    String* flat_string, String* cons_string) {
+static void VerifyCharacterStream(String flat_string, String cons_string) {
   // Do not want to test ConString traversal on flat string.
   CHECK(flat_string->IsFlat() && !flat_string->IsConsString());
   CHECK(cons_string->IsConsString());
@@ -667,7 +663,6 @@ static void VerifyCharacterStream(
     CHECK(!cons_stream.HasMore());
   }
 }
-
 
 static inline void PrintStats(const ConsStringGenerationData& data) {
 #ifdef DEBUG
@@ -707,10 +702,9 @@ void TestStringCharacterStream(BuildString build, int test_cases) {
     cons_string_stats.VerifyEqual(flat_string_stats);
     cons_string_stats.VerifyEqual(data.stats_);
     VerifyConsString(cons_string, &data);
-    String* flat_string_ptr =
-        flat_string->IsConsString() ?
-        ConsString::cast(*flat_string)->first() :
-        *flat_string;
+    String flat_string_ptr = flat_string->IsConsString()
+                                 ? ConsString::cast(*flat_string)->first()
+                                 : *flat_string;
     VerifyCharacterStream(flat_string_ptr, *cons_string);
   }
 }
@@ -964,6 +958,109 @@ TEST(Utf8Conversion) {
   }
 }
 
+TEST(Utf8ConversionPerf) {
+  // Smoke test for converting strings to utf-8.
+  LocalContext context;
+  v8::HandleScope handle_scope(CcTest::isolate());
+  v8::Local<v8::String> ascii_string =
+      CompileRun("'abc'.repeat(1E6)").As<v8::String>();
+  v8::Local<v8::String> one_byte_string =
+      CompileRun("'\\u0255\\u0254\\u0253'.repeat(1E6)").As<v8::String>();
+  v8::Local<v8::String> two_byte_string =
+      CompileRun("'\\u2255\\u2254\\u2253'.repeat(1E6)").As<v8::String>();
+  v8::Local<v8::String> surrogate_string =
+      CompileRun("'\\u{12345}\\u2244'.repeat(1E6)").As<v8::String>();
+  int size = 1E7;
+  char* buffer = new char[4 * size];
+  {
+    v8::base::ElapsedTimer timer;
+    timer.Start();
+    ascii_string->WriteUtf8(CcTest::isolate(), buffer, size, nullptr);
+    printf("ascii string %0.3f\n", timer.Elapsed().InMillisecondsF());
+    timer.Stop();
+  }
+  {
+    v8::base::ElapsedTimer timer;
+    timer.Start();
+    ascii_string->WriteUtf8(CcTest::isolate(), buffer, size, nullptr);
+    printf("ascii string %0.3f\n", timer.Elapsed().InMillisecondsF());
+    timer.Stop();
+  }
+  {
+    v8::base::ElapsedTimer timer;
+    timer.Start();
+    ascii_string->WriteUtf8(CcTest::isolate(), buffer, 4 * size, nullptr);
+    printf("ascii string %0.3f\n", timer.Elapsed().InMillisecondsF());
+    timer.Stop();
+  }
+
+  {
+    v8::base::ElapsedTimer timer;
+    timer.Start();
+    one_byte_string->WriteUtf8(CcTest::isolate(), buffer, size, nullptr);
+    printf("one byte string %0.3f\n", timer.Elapsed().InMillisecondsF());
+    timer.Stop();
+  }
+  {
+    v8::base::ElapsedTimer timer;
+    timer.Start();
+    one_byte_string->WriteUtf8(CcTest::isolate(), buffer, size, nullptr);
+    printf("one byte string %0.3f\n", timer.Elapsed().InMillisecondsF());
+    timer.Stop();
+  }
+  {
+    v8::base::ElapsedTimer timer;
+    timer.Start();
+    one_byte_string->WriteUtf8(CcTest::isolate(), buffer, 4 * size, nullptr);
+    printf("one byte string %0.3f\n", timer.Elapsed().InMillisecondsF());
+    timer.Stop();
+  }
+
+  {
+    v8::base::ElapsedTimer timer;
+    timer.Start();
+    two_byte_string->WriteUtf8(CcTest::isolate(), buffer, size, nullptr);
+    printf("two byte string %0.3f\n", timer.Elapsed().InMillisecondsF());
+    timer.Stop();
+  }
+  {
+    v8::base::ElapsedTimer timer;
+    timer.Start();
+    two_byte_string->WriteUtf8(CcTest::isolate(), buffer, size, nullptr);
+    printf("two byte string %0.3f\n", timer.Elapsed().InMillisecondsF());
+    timer.Stop();
+  }
+  {
+    v8::base::ElapsedTimer timer;
+    timer.Start();
+    two_byte_string->WriteUtf8(CcTest::isolate(), buffer, 4 * size, nullptr);
+    printf("two byte string %0.3f\n", timer.Elapsed().InMillisecondsF());
+    timer.Stop();
+  }
+
+  {
+    v8::base::ElapsedTimer timer;
+    timer.Start();
+    surrogate_string->WriteUtf8(CcTest::isolate(), buffer, size, nullptr);
+    printf("surrogate string %0.3f\n", timer.Elapsed().InMillisecondsF());
+    timer.Stop();
+  }
+  {
+    v8::base::ElapsedTimer timer;
+    timer.Start();
+    surrogate_string->WriteUtf8(CcTest::isolate(), buffer, size, nullptr);
+    printf("surrogate string %0.3f\n", timer.Elapsed().InMillisecondsF());
+    timer.Stop();
+  }
+  {
+    v8::base::ElapsedTimer timer;
+    timer.Start();
+    surrogate_string->WriteUtf8(CcTest::isolate(), buffer, 4 * size, nullptr);
+    printf("surrogate string %0.3f\n", timer.Elapsed().InMillisecondsF());
+    timer.Stop();
+  }
+  delete[] buffer;
+}
 
 TEST(ExternalShortStringAdd) {
   LocalContext context;
@@ -1071,6 +1168,27 @@ TEST(ExternalShortStringAdd) {
   CHECK_EQ(0, CompileRun(source)->Int32Value(context.local()).FromJust());
 }
 
+TEST(ReplaceInvalidUtf8) {
+  LocalContext context;
+  v8::HandleScope handle_scope(CcTest::isolate());
+  v8::Local<v8::String> string = CompileRun("'ab\\ud800cd'").As<v8::String>();
+  char buffer[7];
+  memset(buffer, 0, 7);
+  int chars_written = 0;
+  int size = string->WriteUtf8(CcTest::isolate(), buffer, 7, &chars_written,
+                               v8::String::REPLACE_INVALID_UTF8);
+  CHECK_EQ(7, size);
+  CHECK_EQ(5, chars_written);
+  CHECK_EQ(0, memcmp("\x61\x62\xef\xbf\xbd\x63\x64", buffer, 7));
+
+  memset(buffer, 0, 7);
+  chars_written = 0;
+  size = string->WriteUtf8(CcTest::isolate(), buffer, 6, &chars_written,
+                           v8::String::REPLACE_INVALID_UTF8);
+  CHECK_EQ(6, size);
+  CHECK_EQ(4, chars_written);
+  CHECK_EQ(0, memcmp("\x61\x62\xef\xbf\xbd\x63", buffer, 6));
+}
 
 TEST(JSONStringifySliceMadeExternal) {
   if (!FLAG_string_slices) return;
@@ -1310,8 +1428,8 @@ TEST(InternalizeExternal) {
     CHECK(!i::Heap::InNewSpace(*string));
     CHECK_EQ(
         isolate->factory()->string_table()->LookupStringIfExists_NoAllocate(
-            isolate, *string),
-        Smi::FromInt(ResultSentinel::kNotFound));
+            isolate, string->ptr()),
+        Smi::FromInt(ResultSentinel::kNotFound).ptr());
     factory->InternalizeName(string);
     CHECK(string->IsExternalString());
     CHECK(string->IsInternalizedString());
@@ -1620,7 +1738,7 @@ TEST(FormatMessage) {
   Handle<String> arg1 = isolate->factory()->NewStringFromAsciiChecked("arg1");
   Handle<String> arg2 = isolate->factory()->NewStringFromAsciiChecked("arg2");
   Handle<String> result =
-      MessageTemplate::FormatMessage(
+      MessageFormatter::FormatMessage(
           isolate, MessageTemplate::kPropertyNotFunction, arg0, arg1, arg2)
           .ToHandleChecked();
   Handle<String> expected = isolate->factory()->NewStringFromAsciiChecked(
@@ -1819,7 +1937,8 @@ TEST(Regress876759) {
   {
     Handle<SeqTwoByteString> raw =
         factory->NewRawTwoByteString(kLength).ToHandleChecked();
-    CopyChars(raw->GetChars(), two_byte_buf, kLength);
+    DisallowHeapAllocation no_gc;
+    CopyChars(raw->GetChars(no_gc), two_byte_buf, kLength);
     parent = raw;
   }
   CHECK(parent->IsTwoByteRepresentation());
@@ -1838,9 +1957,8 @@ TEST(Regress876759) {
   CHECK(grandparent->IsOneByteRepresentation());
   CHECK(parent->IsTwoByteRepresentation());
   CHECK(sliced->IsTwoByteRepresentation());
-  // The *Underneath versions return the correct representation.
-  CHECK(sliced->IsOneByteRepresentationUnderneath());
-  CHECK(!sliced->IsTwoByteRepresentationUnderneath());
+  // The *Underneath version returns the correct representation.
+  CHECK(String::IsOneByteRepresentationUnderneath(*sliced));
 }
 
 }  // namespace test_strings

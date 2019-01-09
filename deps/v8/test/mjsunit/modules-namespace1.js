@@ -53,9 +53,9 @@ assertEquals(
     {value: "Module", configurable: false, writable: false, enumerable: false},
     Reflect.getOwnPropertyDescriptor(foo, Symbol.toStringTag));
 
-// Nonexistant properties.
-let nonexistant = ["gaga", 123, Symbol('')];
-for (let key of nonexistant) {
+// Nonexistent properties.
+let nonexistent = ["gaga", 123, Symbol('')];
+for (let key of nonexistent) {
   assertSame(undefined, Reflect.getOwnPropertyDescriptor(foo, key));
   assertTrue(Reflect.deleteProperty(foo, key));
   assertFalse(Reflect.set(foo, key, true));

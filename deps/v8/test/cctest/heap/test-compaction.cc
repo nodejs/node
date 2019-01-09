@@ -59,8 +59,10 @@ HEAP_TEST(CompactionFullAbortedPage) {
     {
       HandleScope scope2(isolate);
       CHECK(heap->old_space()->Expand());
-      auto compaction_page_handles =
-          heap::CreatePadding(heap, Page::kAllocatableMemory, TENURED);
+      auto compaction_page_handles = heap::CreatePadding(
+          heap,
+          static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()),
+          TENURED);
       Page* to_be_aborted_page =
           Page::FromAddress(compaction_page_handles.front()->address());
       to_be_aborted_page->SetFlag(
@@ -93,7 +95,9 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
   FLAG_manual_evacuation_candidates_selection = true;
 
   const int objects_per_page = 10;
-  const int object_size = Page::kAllocatableMemory / objects_per_page;
+  const int object_size =
+      static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()) /
+      objects_per_page;
 
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -109,7 +113,9 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
       // properly adjusted).
       CHECK(heap->old_space()->Expand());
       auto compaction_page_handles = heap::CreatePadding(
-          heap, Page::kAllocatableMemory, TENURED, object_size);
+          heap,
+          static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()),
+          TENURED, object_size);
       Page* to_be_aborted_page =
           Page::FromAddress(compaction_page_handles.front()->address());
       to_be_aborted_page->SetFlag(
@@ -168,7 +174,9 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
   FLAG_manual_evacuation_candidates_selection = true;
 
   const int objects_per_page = 10;
-  const int object_size = Page::kAllocatableMemory / objects_per_page;
+  const int object_size =
+      static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()) /
+      objects_per_page;
 
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -187,8 +195,11 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
       // properly adjusted).
       CHECK(heap->old_space()->Expand());
       std::vector<Handle<FixedArray>> compaction_page_handles =
-          heap::CreatePadding(heap, Page::kAllocatableMemory, TENURED,
-                              object_size);
+          heap::CreatePadding(
+              heap,
+              static_cast<int>(
+                  MemoryChunkLayout::AllocatableMemoryInDataPage()),
+              TENURED, object_size);
       to_be_aborted_page =
           Page::FromAddress(compaction_page_handles.front()->address());
       to_be_aborted_page->SetFlag(
@@ -257,7 +268,9 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithStoreBufferEntries) {
   FLAG_manual_evacuation_candidates_selection = true;
 
   const int objects_per_page = 10;
-  const int object_size = Page::kAllocatableMemory / objects_per_page;
+  const int object_size =
+      static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()) /
+      objects_per_page;
 
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -275,7 +288,9 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithStoreBufferEntries) {
       // properly adjusted).
       CHECK(heap->old_space()->Expand());
       auto compaction_page_handles = heap::CreatePadding(
-          heap, Page::kAllocatableMemory, TENURED, object_size);
+          heap,
+          static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()),
+          TENURED, object_size);
       // Sanity check that we have enough space for linking up arrays.
       CHECK_GE(compaction_page_handles.front()->length(), 2);
       to_be_aborted_page =
@@ -338,10 +353,10 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithStoreBufferEntries) {
           isolate->factory()->NewFixedArray(10, NOT_TENURED);
       // Create a broken address that looks like a tagged pointer to a new space
       // object.
-      Address broken_address = holder->address() + 2 * kPointerSize + 1;
+      Address broken_address = holder->address() + 2 * kTaggedSize + 1;
       // Convert it to a vector to create a string from it.
       Vector<const uint8_t> string_to_broken_addresss(
-          reinterpret_cast<const uint8_t*>(&broken_address), kPointerSize);
+          reinterpret_cast<const uint8_t*>(&broken_address), kTaggedSize);
 
       Handle<String> string;
       do {

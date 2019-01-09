@@ -44,8 +44,8 @@ void DateBuiltinsAssembler::Generate_DatePrototype_GetField(Node* context,
 
       Node* cache_stamp = LoadObjectField(receiver, JSDate::kCacheStampOffset);
       GotoIf(WordNotEqual(date_cache_stamp, cache_stamp), &stamp_mismatch);
-      Return(LoadObjectField(
-          receiver, JSDate::kValueOffset + field_index * kPointerSize));
+      Return(LoadObjectField(receiver,
+                             JSDate::kValueOffset + field_index * kTaggedSize));
 
       BIND(&stamp_mismatch);
     }

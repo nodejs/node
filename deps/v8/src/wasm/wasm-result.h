@@ -12,12 +12,13 @@
 #include "src/utils.h"
 
 #include "src/globals.h"
-#include "src/handles.h"
 
 namespace v8 {
 namespace internal {
 
 class Isolate;
+template <typename T>
+class Handle;
 
 namespace wasm {
 
@@ -33,30 +34,21 @@ class V8_EXPORT_PRIVATE ResultBase {
       : error_offset_(other.error_offset_),
         error_msg_(std::move(other.error_msg_)) {}
 
-  void error(uint32_t offset, std::string error_msg);
-
-  void PRINTF_FORMAT(2, 3) error(const char* format, ...) {
-    va_list args;
-    va_start(args, format);
-    verror(format, args);
-    va_end(args);
-  }
-
-  void PRINTF_FORMAT(2, 0) verror(const char* format, va_list args);
-
-  void MoveErrorFrom(ResultBase& that) {
-    error_offset_ = that.error_offset_;
-    // Use {swap()} + {clear()} instead of move assign, as {that} might still
-    // be used afterwards.
-    error_msg_.swap(that.error_msg_);
-    that.error_msg_.clear();
-  }
-
   bool ok() const { return error_msg_.empty(); }
   bool failed() const { return !ok(); }
 
   uint32_t error_offset() const { return error_offset_; }
-  const std::string& error_msg() const { return error_msg_; }
+  const std::string& error_msg() const & { return error_msg_; }
+  std::string&& error_msg() && { return std::move(error_msg_); }
+
+ protected:
+  ResultBase(uint32_t error_offset, std::string error_msg)
+      : error_offset_(error_offset), error_msg_(std::move(error_msg)) {
+    // The error message must not be empty, otherwise {failed()} will be false.
+    DCHECK(!error_msg_.empty());
+  }
+
+  static std::string FormatError(const char* format, va_list args);
 
  private:
   uint32_t error_offset_ = 0;
@@ -70,26 +62,56 @@ class Result : public ResultBase {
   Result() = default;
 
   template <typename S>
-  explicit Result(S&& value) : val(std::forward<S>(value)) {}
+  explicit Result(S&& value) : value_(std::forward<S>(value)) {}
 
   template <typename S>
   Result(Result<S>&& other) V8_NOEXCEPT : ResultBase(std::move(other)),
-                                          val(std::move(other.val)) {}
+                                          value_(std::move(other).value()) {}
 
   Result& operator=(Result&& other) V8_NOEXCEPT = default;
 
-  static Result<T> PRINTF_FORMAT(1, 2) Error(const char* format, ...) {
+  static Result<T> PRINTF_FORMAT(2, 3)
+      Error(uint32_t offset, const char* format, ...) {
     va_list args;
     va_start(args, format);
-    Result<T> result;
-    result.verror(format, args);
+    Result<T> error_result{offset, FormatError(format, args)};
     va_end(args);
-    return result;
+    return error_result;
   }
 
-  T val = T{};
+  static Result<T> Error(uint32_t error_offset, std::string error_msg) {
+    // Call private constructor.
+    return Result<T>{error_offset, std::move(error_msg)};
+  }
+
+  static Result<T> ErrorFrom(ResultBase&& error_result) {
+    return Error(error_result.error_offset(),
+                 std::move(error_result).error_msg());
+  }
+
+  static Result<T> ErrorFrom(const ResultBase& error_result) {
+    return Error(error_result.error_offset(), error_result.error_msg());
+  }
+
+  // Accessor for the value. Returns const reference if {this} is l-value or
+  // const, and returns r-value reference if {this} is r-value. This allows to
+  // extract non-copyable values like {std::unique_ptr} by using
+  // {std::move(result).value()}.
+  const T& value() const & {
+    DCHECK(ok());
+    return value_;
+  }
+  T&& value() && {
+    DCHECK(ok());
+    return std::move(value_);
+  }
 
  private:
+  T value_ = T{};
+
+  Result(uint32_t error_offset, std::string error_msg)
+      : ResultBase(error_offset, std::move(error_msg)) {}
+
   DISALLOW_COPY_AND_ASSIGN(Result);
 };
 
@@ -108,11 +130,15 @@ class V8_EXPORT_PRIVATE ErrorThrower {
   PRINTF_FORMAT(2, 3) void LinkError(const char* fmt, ...);
   PRINTF_FORMAT(2, 3) void RuntimeError(const char* fmt, ...);
 
-  template <typename T>
-  void CompileFailed(const char* error, Result<T>& result) {
+  void CompileFailed(const char* error, const ResultBase& result) {
     DCHECK(result.failed());
     CompileError("%s: %s @+%u", error, result.error_msg().c_str(),
                  result.error_offset());
+  }
+
+  void CompileFailed(const ResultBase& result) {
+    DCHECK(result.failed());
+    CompileError("%s @+%u", result.error_msg().c_str(), result.error_offset());
   }
 
   // Create and return exception object.
@@ -149,11 +175,16 @@ class V8_EXPORT_PRIVATE ErrorThrower {
   ErrorType error_type_ = kNone;
   std::string error_msg_;
 
-  DISALLOW_COPY_AND_ASSIGN(ErrorThrower);
   // ErrorThrower should always be stack-allocated, since it constitutes a scope
   // (things happen in the destructor).
   DISALLOW_NEW_AND_DELETE();
+  DISALLOW_COPY_AND_ASSIGN(ErrorThrower);
 };
+
+// Use {nullptr_t} as data value to indicate that this only stores the error,
+// but no result value (the only valid value is {nullptr}).
+// [Storing {void} would require template specialization.]
+using VoidResult = Result<std::nullptr_t>;
 
 }  // namespace wasm
 }  // namespace internal

@@ -9,6 +9,9 @@
 #ifndef V8_OBJECTS_JS_LIST_FORMAT_H_
 #define V8_OBJECTS_JS_LIST_FORMAT_H_
 
+#include <set>
+#include <string>
+
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects.h"
@@ -46,14 +49,16 @@ class JSListFormat : public JSObject {
       Isolate* isolate, Handle<JSListFormat> format_holder,
       Handle<JSArray> list);
 
+  static std::set<std::string> GetAvailableLocales();
+
   Handle<String> StyleAsString() const;
   Handle<String> TypeAsString() const;
 
-  DECL_CAST(JSListFormat)
+  DECL_CAST2(JSListFormat)
 
   // ListFormat accessors.
-  DECL_ACCESSORS(locale, String)
-  DECL_ACCESSORS(icu_formatter, Managed<icu::ListFormatter>)
+  DECL_ACCESSORS2(locale, String)
+  DECL_ACCESSORS2(icu_formatter, Managed<icu::ListFormatter>)
 
   // Style: identifying the relative time format style used.
   //
@@ -100,14 +105,18 @@ class JSListFormat : public JSObject {
   DECL_VERIFIER(JSListFormat)
 
   // Layout description.
-  static const int kJSListFormatOffset = JSObject::kHeaderSize;
-  static const int kLocaleOffset = kJSListFormatOffset + kPointerSize;
-  static const int kICUFormatterOffset = kLocaleOffset + kPointerSize;
-  static const int kFlagsOffset = kICUFormatterOffset + kPointerSize;
-  static const int kSize = kFlagsOffset + kPointerSize;
+#define JS_LIST_FORMAT_FIELDS(V)      \
+  V(kJSListFormatOffset, kTaggedSize) \
+  V(kLocaleOffset, kTaggedSize)       \
+  V(kICUFormatterOffset, kTaggedSize) \
+  V(kFlagsOffset, kTaggedSize)        \
+  /* Header size. */                  \
+  V(kSize, 0)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSListFormat);
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_LIST_FORMAT_FIELDS)
+#undef JS_LIST_FORMAT_FIELDS
+
+  OBJECT_CONSTRUCTORS(JSListFormat, JSObject);
 };
 
 }  // namespace internal

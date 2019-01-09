@@ -16,7 +16,7 @@ namespace {
 
 typedef i::LocalArrayBufferTracker LocalTracker;
 
-bool IsTracked(i::JSArrayBuffer* buf) {
+bool IsTracked(i::JSArrayBuffer buf) {
   return i::ArrayBufferTracker::IsTracked(buf);
 }
 
@@ -36,7 +36,7 @@ TEST(ArrayBuffer_OnlyMC) {
   v8::Isolate* isolate = env->GetIsolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
 
-  JSArrayBuffer* raw_ab = nullptr;
+  JSArrayBuffer raw_ab;
   {
     v8::HandleScope handle_scope(isolate);
     Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
@@ -64,7 +64,7 @@ TEST(ArrayBuffer_OnlyScavenge) {
   v8::Isolate* isolate = env->GetIsolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
 
-  JSArrayBuffer* raw_ab = nullptr;
+  JSArrayBuffer raw_ab;
   {
     v8::HandleScope handle_scope(isolate);
     Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
@@ -94,7 +94,7 @@ TEST(ArrayBuffer_ScavengeAndMC) {
   v8::Isolate* isolate = env->GetIsolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
 
-  JSArrayBuffer* raw_ab = nullptr;
+  JSArrayBuffer raw_ab;
   {
     v8::HandleScope handle_scope(isolate);
     Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
@@ -208,7 +208,7 @@ TEST(ArrayBuffer_NonLivePromotion) {
   v8::Isolate* isolate = env->GetIsolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
 
-  JSArrayBuffer* raw_ab = nullptr;
+  JSArrayBuffer raw_ab;
   {
     v8::HandleScope handle_scope(isolate);
     Handle<FixedArray> root =
@@ -245,7 +245,7 @@ TEST(ArrayBuffer_LivePromotion) {
   v8::Isolate* isolate = env->GetIsolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
 
-  JSArrayBuffer* raw_ab = nullptr;
+  JSArrayBuffer raw_ab;
   {
     v8::HandleScope handle_scope(isolate);
     Handle<FixedArray> root =

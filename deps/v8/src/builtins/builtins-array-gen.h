@@ -5,12 +5,12 @@
 #ifndef V8_BUILTINS_BUILTINS_ARRAY_GEN_H_
 #define V8_BUILTINS_BUILTINS_ARRAY_GEN_H_
 
-#include "torque-generated/builtins-base-from-dsl-gen.h"
+#include "src/code-stub-assembler.h"
 
 namespace v8 {
 namespace internal {
 
-class ArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
+class ArrayBuiltinsAssembler : public CodeStubAssembler {
  public:
   explicit ArrayBuiltinsAssembler(compiler::CodeAssemblerState* state);
 
@@ -71,6 +71,23 @@ class ArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
   // Uses memset to effectively initialize the given FixedArray with Smi zeroes.
   void FillFixedArrayWithSmiZero(TNode<FixedArray> array,
                                  TNode<Smi> smi_length);
+
+  TNode<String> CallJSArrayArrayJoinConcatToSequentialString(
+      TNode<FixedArray> fixed_array, TNode<IntPtrT> length, TNode<String> sep,
+      TNode<String> dest) {
+    TNode<ExternalReference> func = ExternalConstant(
+        ExternalReference::jsarray_array_join_concat_to_sequential_string());
+    TNode<ExternalReference> isolate_ptr =
+        ExternalConstant(ExternalReference::isolate_address(isolate()));
+    return UncheckedCast<String>(
+        CallCFunction5(MachineType::AnyTagged(),  // <return> String
+                       MachineType::Pointer(),    // Isolate*
+                       MachineType::AnyTagged(),  // FixedArray fixed_array
+                       MachineType::IntPtr(),     // intptr_t length
+                       MachineType::AnyTagged(),  // String sep
+                       MachineType::AnyTagged(),  // String dest
+                       func, isolate_ptr, fixed_array, length, sep, dest));
+  }
 
  protected:
   TNode<Context> context() { return context_; }
@@ -141,9 +158,6 @@ class ArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
       TNode<Context> context, TNode<JSFunction> target,
       TNode<Object> new_target, TNode<Int32T> argc,
       TNode<HeapObject> maybe_allocation_site);
-
-  void GenerateInternalArrayNoArgumentConstructor(ElementsKind kind);
-  void GenerateInternalArraySingleArgumentConstructor(ElementsKind kind);
 
  private:
   static ElementsKind ElementsKindForInstanceType(InstanceType type);

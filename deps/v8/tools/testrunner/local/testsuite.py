@@ -140,69 +140,6 @@ class TestSuite(object):
   def ReadTestCases(self):
     self.tests = self.ListTests()
 
-
-  def FilterTestCasesByStatus(self,
-                              slow_tests_mode=None,
-                              pass_fail_tests_mode=None):
-    """Filters tests by outcomes from status file.
-
-    Status file has to be loaded before using this function.
-
-    Args:
-      slow_tests_mode: What to do with slow tests.
-      pass_fail_tests_mode: What to do with pass or fail tests.
-
-    Mode options:
-      None (default) - don't skip
-      "skip" - skip if slow/pass_fail
-      "run" - skip if not slow/pass_fail
-    """
-    def _skip_slow(is_slow, mode):
-      return (
-        (mode == 'run' and not is_slow) or
-        (mode == 'skip' and is_slow))
-
-    def _skip_pass_fail(pass_fail, mode):
-      return (
-        (mode == 'run' and not pass_fail) or
-        (mode == 'skip' and pass_fail))
-
-    def _compliant(test):
-      if test.do_skip:
-        return False
-      if _skip_slow(test.is_slow, slow_tests_mode):
-        return False
-      if _skip_pass_fail(test.is_pass_or_fail, pass_fail_tests_mode):
-        return False
-      return True
-
-    self.tests = filter(_compliant, self.tests)
-
-  def FilterTestCasesByArgs(self, args):
-    """Filter test cases based on command-line arguments.
-
-    args can be a glob: asterisks in any position of the argument
-    represent zero or more characters. Without asterisks, only exact matches
-    will be used with the exeption of the test-suite name as argument.
-    """
-    filtered = []
-    globs = []
-    for a in args:
-      argpath = a.split('/')
-      if argpath[0] != self.name:
-        continue
-      if len(argpath) == 1 or (len(argpath) == 2 and argpath[1] == '*'):
-        return  # Don't filter, run all tests in this suite.
-      path = '/'.join(argpath[1:])
-      globs.append(path)
-
-    for t in self.tests:
-      for g in globs:
-        if fnmatch.fnmatch(t.path, g):
-          filtered.append(t)
-          break
-    self.tests = filtered
-
   def _create_test(self, path, **kwargs):
     if self.suppress_internals:
       test_class = self._suppressed_test_class()

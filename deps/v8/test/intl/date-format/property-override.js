@@ -53,10 +53,24 @@ for (var prop in options) {
   }
 }
 
+// In the order of Table 6 of
+// ecma402 #sec-intl.datetimeformat.prototype.resolvedoptions
 var expectedProperties = [
-  'calendar', 'day', 'era', 'hour12', 'hour', 'locale',
-  'minute', 'month', 'numberingSystem',
-  'second', 'timeZone', 'timeZoneName', 'weekday', 'year'
+  'locale',
+  'calendar',
+  'numberingSystem',
+  'timeZone',
+  'hourCycle',
+  'hour12',
+  'weekday',
+  'era',
+  'year',
+  'month',
+  'day',
+  'hour',
+  'minute',
+  'second',
+  'timeZoneName',
 ];
 
 assertEquals(expectedProperties.length, properties.length);

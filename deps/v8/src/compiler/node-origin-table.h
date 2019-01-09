@@ -33,7 +33,7 @@ class NodeOrigin {
         origin_kind_(origin_kind),
         created_from_(created_from) {}
 
-  NodeOrigin(const NodeOrigin& other) = default;
+  NodeOrigin(const NodeOrigin& other) V8_NOEXCEPT = default;
   static NodeOrigin Unknown() { return NodeOrigin(); }
 
   bool IsKnown() { return created_from_ >= 0; }

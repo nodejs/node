@@ -59,11 +59,11 @@ class CWasmEntryArgTester {
     WriteToBuffer(reinterpret_cast<Address>(arg_buffer.data()), args...);
 
     Handle<Object> receiver = isolate_->factory()->undefined_value();
-    Handle<Object> buffer_obj(reinterpret_cast<Object*>(arg_buffer.data()),
-                              isolate_);
+    Handle<Object> buffer_obj(
+        Object(reinterpret_cast<Address>(arg_buffer.data())), isolate_);
     CHECK(!buffer_obj->IsHeapObject());
-    Handle<Object> code_entry_obj(
-        reinterpret_cast<Object*>(wasm_code_->instruction_start()), isolate_);
+    Handle<Object> code_entry_obj(Object(wasm_code_->instruction_start()),
+                                  isolate_);
     CHECK(!code_entry_obj->IsHeapObject());
     Handle<Object> call_args[]{code_entry_obj,
                                runner_.builder().instance_object(), buffer_obj};

@@ -47,7 +47,6 @@
 
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
-#include "src/code-stubs.h"
 #include "src/deoptimizer.h"
 #include "src/macro-assembler.h"
 #include "src/s390/assembler-s390-inl.h"
@@ -63,10 +62,11 @@ static unsigned CpuFeaturesImpliedByCompiler() {
 }
 
 static bool supportsCPUFeature(const char* feature) {
-  static std::set<std::string> features;
-  static std::set<std::string> all_available_features = {
-      "iesan3", "zarch",  "stfle",    "msa", "ldisp", "eimm",
-      "dfp",    "etf3eh", "highgprs", "te",  "vx"};
+  static std::set<std::string>& features = *new std::set<std::string>();
+  static std::set<std::string>& all_available_features =
+      *new std::set<std::string>({"iesan3", "zarch", "stfle", "msa", "ldisp",
+                                  "eimm", "dfp", "etf3eh", "highgprs", "te",
+                                  "vx"});
   if (features.empty()) {
 #if V8_HOST_ARCH_S390
 
@@ -238,16 +238,16 @@ void CpuFeatures::PrintTarget() {
   s390_arch = "s390";
 #endif
 
-  printf("target %s\n", s390_arch);
+  PrintF("target %s\n", s390_arch);
 }
 
 void CpuFeatures::PrintFeatures() {
-  printf("FPU=%d\n", CpuFeatures::IsSupported(FPU));
-  printf("FPU_EXT=%d\n", CpuFeatures::IsSupported(FLOATING_POINT_EXT));
-  printf("GENERAL_INSTR=%d\n", CpuFeatures::IsSupported(GENERAL_INSTR_EXT));
-  printf("DISTINCT_OPS=%d\n", CpuFeatures::IsSupported(DISTINCT_OPS));
-  printf("VECTOR_FACILITY=%d\n", CpuFeatures::IsSupported(VECTOR_FACILITY));
-  printf("MISC_INSTR_EXT2=%d\n", CpuFeatures::IsSupported(MISC_INSTR_EXT2));
+  PrintF("FPU=%d\n", CpuFeatures::IsSupported(FPU));
+  PrintF("FPU_EXT=%d\n", CpuFeatures::IsSupported(FLOATING_POINT_EXT));
+  PrintF("GENERAL_INSTR=%d\n", CpuFeatures::IsSupported(GENERAL_INSTR_EXT));
+  PrintF("DISTINCT_OPS=%d\n", CpuFeatures::IsSupported(DISTINCT_OPS));
+  PrintF("VECTOR_FACILITY=%d\n", CpuFeatures::IsSupported(VECTOR_FACILITY));
+  PrintF("MISC_INSTR_EXT2=%d\n", CpuFeatures::IsSupported(MISC_INSTR_EXT2));
 }
 
 Register ToRegister(int num) {
@@ -277,18 +277,6 @@ bool RelocInfo::IsInConstantPool() { return false; }
 int RelocInfo::GetDeoptimizationId(Isolate* isolate, DeoptimizeKind kind) {
   DCHECK(IsRuntimeEntry(rmode_));
   return Deoptimizer::GetDeoptimizationId(isolate, target_address(), kind);
-}
-
-void RelocInfo::set_js_to_wasm_address(Address address,
-                                       ICacheFlushMode icache_flush_mode) {
-  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  Assembler::set_target_address_at(pc_, constant_pool_, address,
-                                   icache_flush_mode);
-}
-
-Address RelocInfo::js_to_wasm_address() const {
-  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  return Assembler::target_address_at(pc_, constant_pool_);
 }
 
 uint32_t RelocInfo::wasm_call_tag() const {
@@ -343,14 +331,6 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
                               SKIP_ICACHE_FLUSH);
         break;
       }
-      case HeapObjectRequest::kCodeStub: {
-        request.code_stub()->set_isolate(isolate);
-        SixByteInstr instr =
-            Instruction::InstructionBits(reinterpret_cast<const byte*>(pc));
-        int index = instr & 0xFFFFFFFF;
-        UpdateCodeTarget(index, request.code_stub()->GetCode());
-        break;
-      }
       case HeapObjectRequest::kStringConstant: {
         const StringConstantBase* str = request.string();
         CHECK_NOT_NULL(str);
@@ -377,6 +357,8 @@ Assembler::Assembler(const AssemblerOptions& options, void* buffer,
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   EmitRelocations();
 
+  int code_comments_size = WriteCodeComments();
+
   AllocateAndInstallRequestedHeapObjects(isolate);
 
   // Set up code descriptor.
@@ -388,6 +370,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   desc->origin = this;
   desc->unwinding_info_size = 0;
   desc->unwinding_info = nullptr;
+  desc->code_comments_size = code_comments_size;
 }
 
 void Assembler::Align(int m) {
@@ -499,7 +482,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
   } else if (LLILF == opcode) {
     DCHECK(target_pos == kEndOfChain || target_pos >= 0);
     // Emitted label constant, not part of a branch.
-    // Make label relative to Code* of generated Code object.
+    // Make label relative to Code pointer of generated Code object.
     int32_t imm32 = target_pos + (Code::kHeaderSize - kHeapObjectTag);
     instr &= (~static_cast<uint64_t>(0xFFFFFFFF));
     instr_at_put<SixByteInstr>(pos, instr | imm32);
@@ -693,17 +676,9 @@ void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode) {
   brasl(r14, Operand(target_index));
 }
 
-void Assembler::call(CodeStub* stub) {
-  EnsureSpace ensure_space(this);
-  RequestHeapObject(HeapObjectRequest(stub));
-  RecordRelocInfo(RelocInfo::CODE_TARGET);
-  int32_t target_index = AddCodeTarget(Handle<Code>());
-  brasl(r14, Operand(target_index));
-}
-
 void Assembler::jump(Handle<Code> target, RelocInfo::Mode rmode,
                      Condition cond) {
-  DCHECK(RelocInfo::IsCodeTarget(rmode));
+  DCHECK(RelocInfo::IsRelativeCodeTarget(rmode));
   EnsureSpace ensure_space(this);
 
   RecordRelocInfo(rmode);
@@ -833,7 +808,7 @@ void Assembler::EmitRelocations() {
        it != relocations_.end(); it++) {
     RelocInfo::Mode rmode = it->rmode();
     Address pc = reinterpret_cast<Address>(buffer_) + it->position();
-    RelocInfo rinfo(pc, rmode, it->data(), nullptr);
+    RelocInfo rinfo(pc, rmode, it->data(), Code());
 
     // Fix up internal references now that they are guaranteed to be bound.
     if (RelocInfo::IsInternalReference(rmode)) {

@@ -34,7 +34,7 @@
 
   # This test is so detailed in it's look at the literals array, I can't
   # maintain it until the CL is done.
-  'test-heap-profiler/AllocationSitesAreVisible': [FAIL],
+  'test-heap-profiler/AllocationSitesAreVisible': [FAIL, ['lite_mode == True', SKIP]],
 
   # These tests always fail.  They are here to test test.py.  If
   # they don't fail then test.py has failed.
@@ -75,7 +75,7 @@
   # BUG(5193). The cpu profiler tests are notoriously flaky.
   'test-profile-generator/RecordStackTraceAtStartProfiling': [SKIP],
   'test-cpu-profiler/CollectCpuProfile': [SKIP],
-  'test-cpu-profiler/CollectCpuProfileCallerLineNumbers': [FAIL, PASS],
+  'test-cpu-profiler/CollectCpuProfileCallerLineNumbers': [SKIP],
   'test-cpu-profiler/CollectCpuProfileSamples': [SKIP],
   'test-cpu-profiler/CollectDeoptEvents': [SKIP],
   'test-cpu-profiler/CpuProfileDeepStack': [SKIP],
@@ -93,12 +93,6 @@
   'test-cpu-profiler/TracingCpuProfiler': [SKIP],
   'test-sampler/LibSamplerCollectSample': [SKIP],
 
-  # BUG(v8:8209). Flaky
-  'test-cpu-profiler/Issue1398': [SKIP],
-
-  # BUG(7702). Flaky data race and other test failures.
-  'test-cpu-profiler/MultipleProfilers': [SKIP],
-
   # BUG(7202). The test is flaky.
   'test-cpu-profiler/NativeFrameStackTrace': [SKIP],
 
@@ -112,13 +106,6 @@
   'test-func-name-inference/UpperCaseClass': [FAIL],
   'test-func-name-inference/LowerCaseClass': [FAIL],
 
-  # Bug(5784). StubCache tests need to be redesigned, as a) they don't work
-  # in the new (ignition + turbofan) pipeline environment, and b) they are
-  # stymied by a move of code stubs into builtins.
-  'test-api/PrimaryStubCache': [SKIP],
-  'test-api/SecondaryStubCache': [SKIP],
-  'test-api/AccessCheckInIC': [SKIP],
-
   # BUG(3742).
   'test-mark-compact/MarkCompactCollector': [PASS, ['arch==arm', NO_VARIANTS]],
 
@@ -127,6 +114,9 @@
   'test-serialize/SnapshotCreatorUnknownHandles': [FAIL],
   'test-serialize/SnapshotCreatorNoExternalReferencesCustomFail1': [FAIL],
   'test-serialize/SnapshotCreatorNoExternalReferencesCustomFail2': [FAIL],
+
+  # BUG(v8:8296). Flaky OOM test.
+  'test-heap/OutOfMemorySmallObjects': [SKIP],
 
   ############################################################################
   # Slow tests.
@@ -167,7 +157,7 @@
   'test-api/Threading*': [SKIP],
 }],  # 'arch == arm64 and simulator_run'
 
-['arch == arm64 and mode == debug and simulator_run', {
+['arch == arm64 and (mode == debug) and simulator_run', {
 
   # Pass but take too long with the simulator in debug mode.
   'test-api/ExternalDoubleArray': [SKIP],
@@ -176,7 +166,22 @@
   'test-api/ExternalFloatArray': [SKIP],
   'test-api/Float32Array': [SKIP],
   'test-api/Float64Array': [SKIP],
-}],  # 'arch == arm64 and mode == debug and simulator_run'
+  'test-api/Uint8Array': [SKIP],
+}],  # 'arch == arm64 and (mode == debug) and simulator_run'
+
+##############################################################################
+['variant == nooptimization and (arch == arm or arch == arm64) and simulator_run', {
+  # Slow tests: https://crbug.com/v8/7783
+  'test-cpu-profiler/MultipleIsolates': [SKIP],
+
+  # Slow but tolarable tests.
+  'test-api/FixedFloat64Array': [PASS, SLOW],
+  'test-api/FixedUint16Array': [PASS, SLOW],
+  'test-api/Int8Array': [PASS, SLOW],
+  'test-api/SharedFloat64Array': [PASS, SLOW],
+  'test-api/SharedUint16Array': [PASS, SLOW],
+  'test-api/Uint16Array': [PASS, SLOW],
+}],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
 # TODO(ahaas): Port multiple return values to ARM, MIPS, S390 and PPC
@@ -187,9 +192,6 @@
 ['asan == True', {
   # Skip tests not suitable for ASAN.
   'test-assembler-x64/AssemblerX64XchglOperations': [SKIP],
-
-  # BUG(v8:5193): Flaky.
-  'test-cpu-profiler/TickEvents': [SKIP],
 
   # BUG(v8:7587): Strange breakage on Mac.
   'test-log-stack-tracer/PureJSStackTrace': [SKIP],
@@ -203,8 +205,6 @@
 
 ##############################################################################
 ['tsan == True', {
-  # BUG(v8:6133).
-  'test-cpu-profiler/TickEvents': [SKIP],
   # BUG(v8:6924). The test allocates a lot of memory.
   'test-api/NewStringRangeError': [PASS, NO_VARIANTS],
 }],  # 'tsan == True'
@@ -223,10 +223,6 @@
   # https://crbug.com/v8/7763
   'test-lockers/ExtensionsRegistration': [SKIP],
 }],  # 'no_snap == True'
-['no_snap == False', {
-  # FunctionEntryHooks require bootstrapping from scratch.
-  'test-api/SetFunctionEntryHook': [SKIP],
-}],  # 'no_snap == False'
 
 ##############################################################################
 # TODO(machenbach): Fix application of '*'. Nosnap windows needs a separate
@@ -259,9 +255,6 @@
 
   # BUG(5920): Flaky crash.
   'test-serialize/PartialSerializerContext': [PASS, ['arch == x64 and mode == debug', SKIP]],
-
-  # BUG(v8:8220). Flaky
-  'test-log/LogAll': [SKIP],
 }],  # 'system == windows'
 
 ##############################################################################
@@ -352,7 +345,7 @@
 }],  # '(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips'
 
 ##############################################################################
-['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {
+['arch == mips or arch == mips64', {
   # TODO(mips-team): Implement I64Atomic operations on MIPS
   'test-run-wasm-atomics64/*': [SKIP],
 }],  # 'arch == mipsel or arch == mips64el or arch == mips or arch == mips64'
@@ -382,6 +375,12 @@
   # Uses too much memory.
   'test-api/NewStringRangeError': [SKIP],
 }],  # 'system == android'
+
+##############################################################################
+['system != android and arch in [arm, arm64] and not simulator_run', {
+  # Consumes too much memory on ODROIDs in debug mode and optimize_for_size.
+  'test-code-generator/FuzzAssemble*': [PASS, ['(mode == debug) and optimize_for_size', SKIP]],
+}],  # 'system != android and arch in [arm, arm64] and not simulator_run'
 
 ##############################################################################
 ['system == aix and arch == ppc64', {
@@ -429,6 +428,12 @@
 }],  # variant == stress_incremental_marking
 
 ##############################################################################
+# The test relies on deterministic compilation.
+['variant == stress_background_compile', {
+  'test-compiler/DecideToPretenureDuringCompilation': [SKIP],
+}],  # variant == stress_background_compile
+
+##############################################################################
 ['variant == no_wasm_traps', {
   'test-accessors/*': [SKIP],
   'test-api-interceptors/*': [SKIP],
@@ -452,5 +457,59 @@
   'test-gap-resolver/*': [SKIP],
   'test-dtoa/*': [SKIP],
 }],  # variant == no_wasm_traps
+
+##############################################################################
+# The stack unwinder API is only supported on x64.
+['arch != x64', {
+  'test-unwinder/*': [SKIP]
+}],
+
+##############################################################################
+['lite_mode == True', {
+
+  # TODO(8394): First execution events don't work in lite_mode. Enable this after
+  # we fix the lite mode to track the first execution.
+  'test-log/LogFunctionEvents': [SKIP],
+
+  # Skip tests for weak references in feedback vector.
+  'test-weak-references/WeakReferencesBasic': [SKIP],
+  'test-weak-references/WeakReferencesOldToOld': [SKIP],
+  'test-weak-references/WeakReferencesOldToNew': [SKIP],
+  'test-weak-references/WeakReferencesOldToNewScavenged': [SKIP],
+  'test-weak-references/WeakReferencesOldToCleared': [SKIP],
+  'test-weak-references/ObjectMovesBeforeClearingWeakField': [SKIP],
+  'test-weak-references/ObjectWithWeakFieldDies': [SKIP],
+  'test-weak-references/ObjectWithWeakReferencePromoted': [SKIP],
+  'test-weak-references/ObjectWithClearedWeakReferencePromoted': [SKIP],
+  'test-weak-references/WeakReferenceWriteBarrier': [SKIP],
+  'test-heap-profiler/WeakReference': [SKIP],
+
+  # Skip compiler tests that need optimizer to be enabled.
+  'test-run-intrinsics/*': [SKIP],
+  'test-run-jsbranches/*': [SKIP],
+  'test-run-jscalls/*': [SKIP],
+  'test-run-jsexceptions/*': [SKIP],
+  'test-run-jsobjects/*': [SKIP],
+  'test-run-jsops/*': [SKIP],
+  'test-run-load-store/*': [SKIP],
+  'test-run-machops/*': [SKIP],
+  'test-run-native-calls/*': [SKIP],
+  'test-run-retpoline/*': [SKIP],
+  'test-run-stackcheck/*': [SKIP],
+  'test-run-tail-calls/*': [SKIP],
+  'test-run-unwinding-info/*': [SKIP],
+  'test-run-variables/*': [SKIP],
+  'test-run-bytecode-graph-builder/*': [SKIP],
+  'test-run-deopt/*': [SKIP],
+  'test-js-context-specialization/*': [SKIP],
+  'test-code-assembler/*': [SKIP],
+  'test-code-stub-assembler/*': [SKIP],
+  'test-accessor-assembler/*': [SKIP],
+  'test-torque/*': [SKIP],
+  'test-code-generator/*': [SKIP],
+
+  # Slow tests
+  'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [SKIP],
+}],
 
 ]

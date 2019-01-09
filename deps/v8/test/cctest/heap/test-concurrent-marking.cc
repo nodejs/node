@@ -19,7 +19,7 @@ namespace internal {
 namespace heap {
 
 void PublishSegment(ConcurrentMarking::MarkingWorklist* worklist,
-                    HeapObject* object) {
+                    HeapObject object) {
   for (size_t i = 0; i <= ConcurrentMarking::MarkingWorklist::kSegmentCapacity;
        i++) {
     worklist->Push(0, object);

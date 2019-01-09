@@ -9,6 +9,9 @@
 #ifndef V8_OBJECTS_JS_NUMBER_FORMAT_H_
 #define V8_OBJECTS_JS_NUMBER_FORMAT_H_
 
+#include <set>
+#include <string>
+
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects.h"
@@ -43,13 +46,27 @@ class JSNumberFormat : public JSObject {
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> FormatToParts(
       Isolate* isolate, Handle<JSNumberFormat> number_format, double number);
 
+  // A utility function used by the above JSNumberFormat::FormatToParts()
+  // and JSRelativeTimeFormat::FormatToParts().
+  // Format the number by using the icu::NumberFormat to get the field
+  // information. It add an object into the result array, starting from the
+  // start_index and return the total number of elements in the result array.
+  // For each object added as element, it set the substring of the field as
+  // "value", the field type as "type". If the unit is not null, it also set
+  // unit as "unit" to each added object.
+  V8_WARN_UNUSED_RESULT static Maybe<int> FormatToParts(
+      Isolate* isolate, Handle<JSArray> result, int start_index,
+      const icu::NumberFormat& fmt, double number, Handle<String> unit);
+
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatNumber(
-      Isolate* isolate, Handle<JSNumberFormat> number_format, double number);
+      Isolate* isolate, const icu::NumberFormat& number_format, double number);
+
+  static std::set<std::string> GetAvailableLocales();
 
   Handle<String> StyleAsString() const;
   Handle<String> CurrencyDisplayAsString() const;
 
-  DECL_CAST(JSNumberFormat)
+  DECL_CAST2(JSNumberFormat)
   DECL_PRINTER(JSNumberFormat)
   DECL_VERIFIER(JSNumberFormat)
 
@@ -78,12 +95,12 @@ class JSNumberFormat : public JSObject {
   inline CurrencyDisplay currency_display() const;
 
 // Layout description.
-#define JS_NUMBER_FORMAT_FIELDS(V)        \
-  V(kLocaleOffset, kPointerSize)          \
-  V(kICUNumberFormatOffset, kPointerSize) \
-  V(kBoundFormatOffset, kPointerSize)     \
-  V(kFlagsOffset, kPointerSize)           \
-  /* Total size. */                       \
+#define JS_NUMBER_FORMAT_FIELDS(V)       \
+  V(kLocaleOffset, kTaggedSize)          \
+  V(kICUNumberFormatOffset, kTaggedSize) \
+  V(kBoundFormatOffset, kTaggedSize)     \
+  V(kFlagsOffset, kTaggedSize)           \
+  /* Total size. */                      \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_NUMBER_FORMAT_FIELDS)
@@ -105,13 +122,12 @@ class JSNumberFormat : public JSObject {
   STATIC_ASSERT(CurrencyDisplay::SYMBOL <= CurrencyDisplayBits::kMax);
   STATIC_ASSERT(CurrencyDisplay::NAME <= CurrencyDisplayBits::kMax);
 
-  DECL_ACCESSORS(locale, String)
-  DECL_ACCESSORS(icu_number_format, Managed<icu::NumberFormat>)
+  DECL_ACCESSORS2(locale, String)
+  DECL_ACCESSORS2(icu_number_format, Managed<icu::NumberFormat>)
   DECL_ACCESSORS(bound_format, Object)
   DECL_INT_ACCESSORS(flags)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSNumberFormat);
+  OBJECT_CONSTRUCTORS(JSNumberFormat, JSObject);
 };
 
 struct NumberFormatSpan {

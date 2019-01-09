@@ -2,41 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef INCLUDED_FROM_MACRO_ASSEMBLER_H
+#error This header must be included via macro-assembler.h
+#endif
+
 #ifndef V8_MIPS_MACRO_ASSEMBLER_MIPS_H_
 #define V8_MIPS_MACRO_ASSEMBLER_MIPS_H_
 
 #include "src/assembler.h"
+#include "src/contexts.h"
 #include "src/globals.h"
 #include "src/mips/assembler-mips.h"
-#include "src/turbo-assembler.h"
 
 namespace v8 {
 namespace internal {
-
-// Give alias names to registers for calling conventions.
-constexpr Register kReturnRegister0 = v0;
-constexpr Register kReturnRegister1 = v1;
-constexpr Register kReturnRegister2 = a0;
-constexpr Register kJSFunctionRegister = a1;
-constexpr Register kContextRegister = s7;
-constexpr Register kAllocateSizeRegister = a0;
-constexpr Register kSpeculationPoisonRegister = t3;
-constexpr Register kInterpreterAccumulatorRegister = v0;
-constexpr Register kInterpreterBytecodeOffsetRegister = t4;
-constexpr Register kInterpreterBytecodeArrayRegister = t5;
-constexpr Register kInterpreterDispatchTableRegister = t6;
-
-constexpr Register kJavaScriptCallArgCountRegister = a0;
-constexpr Register kJavaScriptCallCodeStartRegister = a2;
-constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
-constexpr Register kJavaScriptCallNewTargetRegister = a3;
-constexpr Register kJavaScriptCallExtraArg1Register = a2;
-
-constexpr Register kOffHeapTrampolineRegister = at;
-constexpr Register kRuntimeCallFunctionRegister = a1;
-constexpr Register kRuntimeCallArgCountRegister = a0;
-constexpr Register kRuntimeCallArgvRegister = a2;
-constexpr Register kWasmInstanceRegister = a0;
 
 // Forward declarations
 enum class AbortReason : uint8_t;
@@ -58,12 +37,6 @@ enum class AbortReason : uint8_t;
 enum LeaveExitFrameMode {
   EMIT_RETURN = true,
   NO_EMIT_RETURN = false
-};
-
-// Allow programmer to use Branch Delay Slot of Branches, Jumps, Calls.
-enum BranchDelaySlot {
-  USE_DELAY_SLOT,
-  PROTECT
 };
 
 // Flags used for the li macro-assembler function.
@@ -140,10 +113,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Prologue();
 
   void InitializeRootRegister() {
-    ExternalReference roots_array_start =
-        ExternalReference::roots_array_start(isolate());
-    li(kRootRegister, Operand(roots_array_start));
-    Addu(kRootRegister, kRootRegister, kRootRegisterBias);
+    ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
+    li(kRootRegister, Operand(isolate_root));
   }
 
   // Jump unconditionally to given label.
@@ -165,8 +136,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Print a message to stdout and abort execution.
   void Abort(AbortReason msg);
-
-  inline bool AllowThisStubCall(CodeStub* stub);
 
   // Arguments macros.
 #define COND_TYPED_ARGS Condition cond, Register r1, const Operand& r2
@@ -262,6 +231,27 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
             COND_ARGS);
   void Call(Label* target);
 
+  void CallBuiltinPointer(Register builtin_pointer) override;
+
+  void LoadCodeObjectEntry(Register destination,
+                           Register code_object) override {
+    // TODO(mips): Implement.
+    UNIMPLEMENTED();
+  }
+  void CallCodeObject(Register code_object) override {
+    // TODO(mips): Implement.
+    UNIMPLEMENTED();
+  }
+  void JumpCodeObject(Register code_object) override {
+    // TODO(mips): Implement.
+    UNIMPLEMENTED();
+  }
+
+  // Generates an instruction sequence s.t. the return address points to the
+  // instruction following the call.
+  // The return address on the stack is used by frame iteration.
+  void StoreReturnAddressAndCall(Register target);
+
   void CallForDeoptimization(Address target, int deopt_id,
                              RelocInfo::Mode rmode) {
     USE(deopt_id);
@@ -297,7 +287,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void Push(Register src) { push(src); }
   void Push(Handle<HeapObject> handle);
-  void Push(Smi* smi);
+  void Push(Smi smi);
 
   // Push two registers. Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2) {
@@ -347,6 +337,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CallRecordWriteStub(Register object, Register address,
                            RememberedSetAction remembered_set_action,
                            SaveFPRegsMode fp_mode);
+  void CallRecordWriteStub(Register object, Register address,
+                           RememberedSetAction remembered_set_action,
+                           SaveFPRegsMode fp_mode, Address wasm_target);
 
   // Push multiple registers on the stack.
   // Registers are saved in numerical order, with higher numbered registers
@@ -532,22 +525,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met);
-
-  void CallStubDelayed(CodeStub* stub, COND_ARGS);
 #undef COND_ARGS
 
   // Call a runtime routine. This expects {centry} to contain a fitting CEntry
   // builtin for the target runtime function and uses an indirect call.
   void CallRuntimeWithCEntry(Runtime::FunctionId fid, Register centry);
-
-  // Performs a truncating conversion of a floating point number as used by
-  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
-  // succeeds, otherwise falls through if result is saturated. On return
-  // 'result' either holds answer, or is clobbered on fall through.
-  //
-  // Only public for the test code in test-code-stubs-arm.cc.
-  void TryInlineTruncateDoubleToI(Register result, DoubleRegister input,
-                                  Label* done);
 
   // Performs a truncating conversion of a floating point number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
@@ -728,7 +710,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void mov(Register rd, Register rt) { or_(rd, rt, zero_reg); }
 
   inline void Move(Register dst, Handle<HeapObject> handle) { li(dst, handle); }
-  inline void Move(Register dst, Smi* smi) { li(dst, Operand(smi)); }
+  inline void Move(Register dst, Smi smi) { li(dst, Operand(smi)); }
 
   inline void Move(Register dst, Register src) {
     if (dst != src) {
@@ -860,6 +842,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
  private:
   bool has_double_zero_reg_set_ = false;
 
+  // Performs a truncating conversion of a floating point number as used by
+  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
+  // succeeds, otherwise falls through if result is saturated. On return
+  // 'result' either holds answer, or is clobbered on fall through.
+  void TryInlineTruncateDoubleToI(Register result, DoubleRegister input,
+                                  Label* done);
+
   void CallCFunctionHelper(Register function_base, int16_t function_offset,
                            int num_reg_arguments, int num_double_arguments);
 
@@ -910,10 +899,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Push a fixed frame, consisting of ra, fp.
   void PushCommonFrame(Register marker_reg = no_reg);
+
+  void CallRecordWriteStub(Register object, Register address,
+                           RememberedSetAction remembered_set_action,
+                           SaveFPRegsMode fp_mode, Handle<Code> code_target,
+                           Address wasm_target);
 };
 
 // MacroAssembler implements a collection of frequently used macros.
-class MacroAssembler : public TurboAssembler {
+class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
  public:
   MacroAssembler(const AssemblerOptions& options, void* buffer, int size)
       : TurboAssembler(options, buffer, size) {}
@@ -1059,18 +1053,6 @@ class MacroAssembler : public TurboAssembler {
   // -------------------------------------------------------------------------
   // Runtime calls.
 
-#define COND_ARGS Condition cond = al, Register rs = zero_reg, \
-const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
-
-  // Call a code stub.
-  void CallStub(CodeStub* stub,
-                COND_ARGS);
-
-  // Tail call a code stub (jump).
-  void TailCallStub(CodeStub* stub, COND_ARGS);
-
-#undef COND_ARGS
-
   // Call a runtime routine.
   void CallRuntime(const Runtime::Function* f, int num_arguments,
                    SaveFPRegsMode save_doubles = kDontSaveFPRegs);
@@ -1169,10 +1151,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void DecodeField(Register reg) {
     DecodeField<Field>(reg, reg);
   }
-
-  void EnterBuiltinFrame(Register context, Register target, Register argc);
-  void LeaveBuiltinFrame(Register context, Register target, Register argc);
-
 
  private:
   // Helper functions for generating invokes.

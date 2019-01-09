@@ -12,11 +12,13 @@
 #ifndef V8_S390_SIMULATOR_S390_H_
 #define V8_S390_SIMULATOR_S390_H_
 
-#include "src/allocation.h"
+// globals.h defines USE_SIMULATOR.
+#include "src/globals.h"
 
 #if defined(USE_SIMULATOR)
 // Running with a simulator.
 
+#include "src/allocation.h"
 #include "src/assembler.h"
 #include "src/base/hashmap.h"
 #include "src/s390/constants-s390.h"

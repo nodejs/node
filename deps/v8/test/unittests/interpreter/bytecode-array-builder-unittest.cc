@@ -13,6 +13,7 @@
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-register-allocator.h"
 #include "src/objects-inl.h"
+#include "src/objects/smi.h"
 #include "test/unittests/interpreter/bytecode-utils.h"
 #include "test/unittests/test-utils.h"
 
@@ -54,7 +55,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CreateArguments(CreateArgumentsType::kRestParameter);
 
   // Emit constant loads.
-  builder.LoadLiteral(Smi::kZero)
+  builder.LoadLiteral(Smi::zero())
       .StoreAccumulatorInRegister(reg)
       .LoadLiteral(Smi::FromInt(8))
       .CompareOperation(Token::Value::EQ, reg,
@@ -179,7 +180,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit literal creation operations.
   builder.CreateRegExpLiteral(ast_factory.GetOneByteString("a"), 0, 0);
   builder.CreateArrayLiteral(0, 0, 0);
-  builder.CreateObjectLiteral(0, 0, 0, reg);
+  builder.CreateObjectLiteral(0, 0, 0);
 
   // Emit tagged template operations.
   builder.GetTemplateObject(0, 0);
@@ -380,7 +381,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CreateArrayLiteral(0, 0, 0)
       .CreateEmptyArrayLiteral(0)
       .CreateArrayFromIterable()
-      .CreateObjectLiteral(0, 0, 0, reg)
+      .CreateObjectLiteral(0, 0, 0)
       .CreateEmptyObjectLiteral()
       .CloneObject(reg, 0, 0);
 
@@ -488,12 +489,12 @@ TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
       BytecodeArrayBuilder builder(zone(), 1, locals);
       BytecodeRegisterAllocator* allocator(builder.register_allocator());
       for (int i = 0; i < locals; i++) {
-        builder.LoadLiteral(Smi::kZero);
+        builder.LoadLiteral(Smi::zero());
         builder.StoreAccumulatorInRegister(Register(i));
       }
       for (int i = 0; i < temps; i++) {
         Register temp = allocator->NewRegister();
-        builder.LoadLiteral(Smi::kZero);
+        builder.LoadLiteral(Smi::zero());
         builder.StoreAccumulatorInRegister(temp);
         // Ensure temporaries are used so not optimized away by the
         // register optimizer.

@@ -158,7 +158,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
       enabled_features, wire_bytes.start(), wire_bytes.end(), kVerifyFunctions,
       ModuleOrigin::kWasmOrigin, isolate->counters(), isolate->allocator());
   CHECK(module_res.ok());
-  WasmModule* module = module_res.val.get();
+  WasmModule* module = module_res.value().get();
   CHECK_NOT_NULL(module);
 
   StdoutStream os;
@@ -183,7 +183,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     }
     os << ", " << (module->mem_export ? "true" : "false");
     if (module->has_shared_memory) {
-      os << ", shared";
+      os << ", true";
     }
     os << ");\n";
   }
@@ -193,19 +193,46 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
        << glob.mutability << ");\n";
   }
 
+  for (const FunctionSig* sig : module->signatures) {
+    os << "  builder.addType(makeSig(" << PrintParameters(sig) << ", "
+       << PrintReturns(sig) << "));\n";
+  }
+
   Zone tmp_zone(isolate->allocator(), ZONE_NAME);
+
+  // There currently cannot be more than one table.
+  DCHECK_GE(1, module->tables.size());
+  for (const WasmTable& table : module->tables) {
+    os << "  builder.setTableBounds(" << table.initial_size << ", ";
+    if (table.has_maximum_size) {
+      os << table.maximum_size << ");\n";
+    } else {
+      os << "undefined);\n";
+    }
+  }
+  for (const WasmTableInit& table_init : module->table_inits) {
+    os << "  builder.addElementSegment(";
+    switch (table_init.offset.kind) {
+      case WasmInitExpr::kGlobalIndex:
+        os << table_init.offset.val.global_index << ", true";
+        break;
+      case WasmInitExpr::kI32Const:
+        os << table_init.offset.val.i32_const << ", false";
+        break;
+      default:
+        UNREACHABLE();
+    }
+    os << ", " << PrintCollection(table_init.entries) << ");\n";
+  }
 
   for (const WasmFunction& func : module->functions) {
     Vector<const uint8_t> func_code = wire_bytes.GetFunctionBytes(&func);
     os << "  // Generate function " << (func.func_index + 1) << " (out of "
        << module->functions.size() << ").\n";
-    // Generate signature.
-    os << "  sig" << (func.func_index + 1) << " = makeSig("
-       << PrintParameters(func.sig) << ", " << PrintReturns(func.sig) << ");\n";
 
     // Add function.
-    os << "  builder.addFunction(undefined, sig" << (func.func_index + 1)
-       << ")\n";
+    os << "  builder.addFunction(undefined, " << func.sig_index
+       << " /* sig */)\n";
 
     // Add locals.
     BodyLocalDecls decls(&tmp_zone);
@@ -249,8 +276,13 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   os << "})();\n";
 }
 
-int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
-                                        bool require_valid) {
+void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
+                                         bool require_valid) {
+  // Strictly enforce the input size limit. Note that setting "max_len" on the
+  // fuzzer target is not enough, since different fuzzers are used and not all
+  // respect that limit.
+  if (data.size() > max_input_size()) return;
+
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
@@ -277,7 +309,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
   if (!data.is_empty()) data += 1;
   if (!GenerateModule(i_isolate, &zone, data, buffer, num_args,
                       interpreter_args, compiler_args)) {
-    return 0;
+    return;
   }
 
   testing::SetupIsolateForWasmModule(i_isolate);
@@ -309,31 +341,24 @@ int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
   CHECK_EQ(compiles, validates);
   CHECK_IMPLIES(require_valid, validates);
 
-  if (!compiles) return 0;
+  if (!compiles) return;
 
-  int32_t result_interpreter;
-  bool possible_nondeterminism = false;
-  {
-    MaybeHandle<WasmInstanceObject> interpreter_instance =
-        i_isolate->wasm_engine()->SyncInstantiate(
-            i_isolate, &interpreter_thrower, compiled_module.ToHandleChecked(),
-            MaybeHandle<JSReceiver>(), MaybeHandle<JSArrayBuffer>());
+  MaybeHandle<WasmInstanceObject> interpreter_instance =
+      i_isolate->wasm_engine()->SyncInstantiate(
+          i_isolate, &interpreter_thrower, compiled_module.ToHandleChecked(),
+          MaybeHandle<JSReceiver>(), MaybeHandle<JSArrayBuffer>());
 
-    // Ignore instantiation failure.
-    if (interpreter_thrower.error()) {
-      return 0;
-    }
+  // Ignore instantiation failure.
+  if (interpreter_thrower.error()) return;
 
-    result_interpreter = testing::InterpretWasmModule(
-        i_isolate, interpreter_instance.ToHandleChecked(), &interpreter_thrower,
-        0, interpreter_args.get(), &possible_nondeterminism);
-  }
+  testing::WasmInterpretationResult interpreter_result =
+      testing::InterpretWasmModule(i_isolate,
+                                   interpreter_instance.ToHandleChecked(), 0,
+                                   interpreter_args.get());
 
   // Do not execute the generated code if the interpreter did not finished after
   // a bounded number of steps.
-  if (interpreter_thrower.error()) {
-    return 0;
-  }
+  if (interpreter_result.stopped()) return;
 
   // The WebAssembly spec allows the sign bit of NaN to be non-deterministic.
   // This sign bit can make the difference between an infinite loop and
@@ -341,12 +366,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
   // the generated code will not go into an infinite loop and cause a timeout in
   // Clusterfuzz. Therefore we do not execute the generated code if the result
   // may be non-deterministic.
-  if (possible_nondeterminism) {
-    return 0;
-  }
-
-  bool expect_exception =
-      result_interpreter == static_cast<int32_t>(0xDEADBEEF);
+  if (interpreter_result.possible_nondeterminism()) return;
 
   int32_t result_compiled;
   {
@@ -362,17 +382,19 @@ int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
         "main", num_args, compiler_args.get());
   }
 
-  if (expect_exception != i_isolate->has_pending_exception()) {
+  if (interpreter_result.trapped() != i_isolate->has_pending_exception()) {
     const char* exception_text[] = {"no exception", "exception"};
-    FATAL("interpreter: %s; compiled: %s", exception_text[expect_exception],
+    FATAL("interpreter: %s; compiled: %s",
+          exception_text[interpreter_result.trapped()],
           exception_text[i_isolate->has_pending_exception()]);
   }
 
-  if (!expect_exception) CHECK_EQ(result_interpreter, result_compiled);
+  if (!interpreter_result.trapped()) {
+    CHECK_EQ(interpreter_result.result(), result_compiled);
+  }
 
   // Cleanup any pending exception.
   i_isolate->clear_pending_exception();
-  return 0;
 }
 
 }  // namespace fuzzer

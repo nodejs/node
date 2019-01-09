@@ -6,10 +6,8 @@
 
 #include "src/conversions.h"
 #include "src/objects-inl.h"
-#include "src/objects.h"
-
 #ifdef V8_INTL_SUPPORT
-#include "src/intl.h"
+#include "src/objects/intl-objects.h"
 #endif
 
 namespace v8 {
@@ -27,11 +25,10 @@ static const char kDaysInMonths[] =
     {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 
 DateCache::DateCache()
-    : stamp_(nullptr),
+    : stamp_(kNullAddress),
       tz_cache_(
 #ifdef V8_INTL_SUPPORT
-          FLAG_icu_timezone_data ? new ICUTimezoneCache()
-                                 : base::OS::CreateTimezoneCache()
+          Intl::CreateTimeZoneCache()
 #else
           base::OS::CreateTimezoneCache()
 #endif
@@ -40,9 +37,8 @@ DateCache::DateCache()
 }
 
 void DateCache::ResetDateCache() {
-  static const int kMaxStamp = Smi::kMaxValue;
-  if (stamp_->value() >= kMaxStamp) {
-    stamp_ = Smi::kZero;
+  if (stamp_->value() >= Smi::kMaxValue) {
+    stamp_ = Smi::zero();
   } else {
     stamp_ = Smi::FromInt(stamp_->value() + 1);
   }

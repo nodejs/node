@@ -74,6 +74,7 @@ def GenerateCompileCommands(build_folder):
         line = line.replace('-Wno-ignored-pragma-optimize', '')
         line = line.replace('-Wno-null-pointer-arithmetic', '')
         line = line.replace('-Wno-unused-lambda-capture', '')
+        line = line.replace('-Wno-defaulted-function-deleted', '')
         cc_file.write(line)
 
 
@@ -179,7 +180,7 @@ def ClangTidyRunDiff(build_folder, diff_branch, auto_fix):
     """
     The script `clang-tidy-diff` does not provide support to add header-
     filters. To still analyze headers we use the build path option `-path` to
-    inject out header-filter option.  This works because the script just adds
+    inject our header-filter option. This works because the script just adds
     the passed path string to the commandline of clang-tidy.
     """
     modified_build_folder = build_folder

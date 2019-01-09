@@ -8,6 +8,7 @@
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
+#include "src/heap/spaces.h"
 #include "src/isolate.h"
 #include "src/v8.h"
 #include "src/vm-state-inl.h"

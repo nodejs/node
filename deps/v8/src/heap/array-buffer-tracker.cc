@@ -23,21 +23,21 @@ void LocalArrayBufferTracker::Process(Callback callback) {
   std::vector<JSArrayBuffer::Allocation> backing_stores_to_free;
   TrackingData kept_array_buffers;
 
-  JSArrayBuffer* new_buffer = nullptr;
-  JSArrayBuffer* old_buffer = nullptr;
+  JSArrayBuffer new_buffer;
+  JSArrayBuffer old_buffer;
   size_t freed_memory = 0;
   for (TrackingData::iterator it = array_buffers_.begin();
        it != array_buffers_.end(); ++it) {
     old_buffer = it->first;
-    DCHECK_EQ(page_, Page::FromAddress(old_buffer->address()));
+    DCHECK_EQ(page_, Page::FromHeapObject(old_buffer));
     const CallbackResult result = callback(old_buffer, &new_buffer);
     if (result == kKeepEntry) {
       kept_array_buffers.insert(*it);
     } else if (result == kUpdateEntry) {
-      DCHECK_NOT_NULL(new_buffer);
-      Page* target_page = Page::FromAddress(new_buffer->address());
+      DCHECK(!new_buffer.is_null());
+      Page* target_page = Page::FromHeapObject(new_buffer);
       {
-        base::LockGuard<base::Mutex> guard(target_page->mutex());
+        base::MutexGuard guard(target_page->mutex());
         LocalArrayBufferTracker* tracker = target_page->local_tracker();
         if (tracker == nullptr) {
           target_page->AllocateLocalTracker();
@@ -92,7 +92,7 @@ void ArrayBufferTracker::PrepareToFreeDeadInNewSpace(Heap* heap) {
 void ArrayBufferTracker::FreeAll(Page* page) {
   LocalArrayBufferTracker* tracker = page->local_tracker();
   if (tracker == nullptr) return;
-  tracker->Free([](JSArrayBuffer* buffer) { return true; });
+  tracker->Free([](JSArrayBuffer buffer) { return true; });
   if (tracker->IsEmpty()) {
     page->ReleaseLocalTracker();
   }
@@ -103,24 +103,23 @@ bool ArrayBufferTracker::ProcessBuffers(Page* page, ProcessingMode mode) {
   if (tracker == nullptr) return true;
 
   DCHECK(page->SweepingDone());
-  tracker->Process(
-      [mode](JSArrayBuffer* old_buffer, JSArrayBuffer** new_buffer) {
-        MapWord map_word = old_buffer->map_word();
-        if (map_word.IsForwardingAddress()) {
-          *new_buffer = JSArrayBuffer::cast(map_word.ToForwardingAddress());
-          return LocalArrayBufferTracker::kUpdateEntry;
-        }
-        return mode == kUpdateForwardedKeepOthers
-                   ? LocalArrayBufferTracker::kKeepEntry
-                   : LocalArrayBufferTracker::kRemoveEntry;
-      });
+  tracker->Process([mode](JSArrayBuffer old_buffer, JSArrayBuffer* new_buffer) {
+    MapWord map_word = old_buffer->map_word();
+    if (map_word.IsForwardingAddress()) {
+      *new_buffer = JSArrayBuffer::cast(map_word.ToForwardingAddress());
+      return LocalArrayBufferTracker::kUpdateEntry;
+    }
+    return mode == kUpdateForwardedKeepOthers
+               ? LocalArrayBufferTracker::kKeepEntry
+               : LocalArrayBufferTracker::kRemoveEntry;
+  });
   return tracker->IsEmpty();
 }
 
-bool ArrayBufferTracker::IsTracked(JSArrayBuffer* buffer) {
-  Page* page = Page::FromAddress(buffer->address());
+bool ArrayBufferTracker::IsTracked(JSArrayBuffer buffer) {
+  Page* page = Page::FromHeapObject(buffer);
   {
-    base::LockGuard<base::Mutex> guard(page->mutex());
+    base::MutexGuard guard(page->mutex());
     LocalArrayBufferTracker* tracker = page->local_tracker();
     if (tracker == nullptr) return false;
     return tracker->IsTracked(buffer);

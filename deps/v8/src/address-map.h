@@ -8,7 +8,8 @@
 #include "include/v8.h"
 #include "src/assert-scope.h"
 #include "src/base/hashmap.h"
-#include "src/objects.h"
+#include "src/objects/heap-object.h"
+#include "src/roots.h"
 
 namespace v8 {
 namespace internal {
@@ -44,20 +45,20 @@ inline uintptr_t PointerToIndexHashMap<Address>::Key(Address value) {
   return static_cast<uintptr_t>(value);
 }
 
-template <typename Type>
-inline uintptr_t PointerToIndexHashMap<Type>::Key(Type value) {
-  return reinterpret_cast<uintptr_t>(value);
+template <>
+inline uintptr_t PointerToIndexHashMap<HeapObject>::Key(HeapObject value) {
+  return value.ptr();
 }
 
 class AddressToIndexHashMap : public PointerToIndexHashMap<Address> {};
-class HeapObjectToIndexHashMap : public PointerToIndexHashMap<HeapObject*> {};
+class HeapObjectToIndexHashMap : public PointerToIndexHashMap<HeapObject> {};
 
 class RootIndexMap {
  public:
   explicit RootIndexMap(Isolate* isolate);
 
   // Returns true on successful lookup and sets *|out_root_list|.
-  bool Lookup(HeapObject* obj, RootIndex* out_root_list) {
+  bool Lookup(HeapObject obj, RootIndex* out_root_list) const {
     Maybe<uint32_t> maybe_index = map_->Get(obj);
     if (maybe_index.IsJust()) {
       *out_root_list = static_cast<RootIndex>(maybe_index.FromJust());
@@ -65,6 +66,7 @@ class RootIndexMap {
     }
     return false;
   }
+  bool Lookup(Address obj, RootIndex* out_root_list) const;
 
  private:
   HeapObjectToIndexHashMap* map_;

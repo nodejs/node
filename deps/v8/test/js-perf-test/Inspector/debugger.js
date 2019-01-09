@@ -69,7 +69,7 @@ function AsyncStacksInstrumentation() {
     p = p.then(nopCallback);
   }
   p = p.then(() => done = true);
-  while (!done) %RunMicrotasks();
+  while (!done) %PerformMicrotaskCheckpoint();
 }
 
 })();

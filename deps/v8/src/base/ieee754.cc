@@ -998,7 +998,7 @@ double acosh(double x) {
   uint32_t lx;
   EXTRACT_WORDS(hx, lx, x);
   if (hx < 0x3FF00000) { /* x < 1 */
-    return (x - x) / (x - x);
+    return divide(x - x, x - x);
   } else if (hx >= 0x41B00000) { /* x > 2**28 */
     if (hx >= 0x7FF00000) {      /* x is inf of NaN */
       return x + x;
@@ -1429,6 +1429,18 @@ double cos(double x) {
         return __kernel_sin(y[0], y[1], 1);
     }
   }
+}
+
+/* div(x, y)
+ * Returns the quotient x/y, avoiding C++ undefined behavior if y == 0.
+ */
+double divide(double x, double y) {
+  if (y != 0) return x / y;
+  if (x == 0) return std::numeric_limits<double>::quiet_NaN();
+  if ((x > 0) == (bit_cast<uint64_t>(y) == 0)) {
+    return std::numeric_limits<double>::infinity();
+  }
+  return -std::numeric_limits<double>::infinity();
 }
 
 /* exp(x)

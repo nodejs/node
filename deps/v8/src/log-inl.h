@@ -14,7 +14,7 @@ namespace v8 {
 namespace internal {
 
 CodeEventListener::LogEventsAndTags Logger::ToNativeByScript(
-    CodeEventListener::LogEventsAndTags tag, Script* script) {
+    CodeEventListener::LogEventsAndTags tag, Script script) {
   if (script->type() != Script::TYPE_NATIVE) return tag;
   switch (tag) {
     case CodeEventListener::FUNCTION_TAG:

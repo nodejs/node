@@ -33,14 +33,23 @@ var READ_ONLY   = 1;
 var DONT_ENUM   = 2;
 var DONT_DELETE = 4;
 
+function AddNamedProperty(object, name, value, attrs) {
+  Object.defineProperty(object, name, {
+      value,
+      configurable: (attrs & DONT_DELETE) === 0,
+      enumerable: (attrs & DONT_ENUM) === 0,
+      writable: (attrs & READ_ONLY) === 0
+  });
+}
+
 function func1(){}
 function func2(){}
 
 var object = {__proto__:{}};
-%AddNamedProperty(object, "foo", func1, DONT_ENUM | DONT_DELETE);
-%AddNamedProperty(object, "bar", func1, DONT_ENUM | READ_ONLY);
-%AddNamedProperty(object, "baz", func1, DONT_DELETE | READ_ONLY);
-%AddNamedProperty(object.__proto__, "bif", func1, DONT_ENUM | DONT_DELETE);
+AddNamedProperty(object, "foo", func1, DONT_ENUM | DONT_DELETE);
+AddNamedProperty(object, "bar", func1, DONT_ENUM | READ_ONLY);
+AddNamedProperty(object, "baz", func1, DONT_DELETE | READ_ONLY);
+AddNamedProperty(object.__proto__, "bif", func1, DONT_ENUM | DONT_DELETE);
 object.bif = func2;
 
 function enumerable(obj) {

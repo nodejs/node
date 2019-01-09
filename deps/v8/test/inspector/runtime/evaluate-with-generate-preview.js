@@ -61,6 +61,7 @@ Object.defineProperty(parentObj, 'propNotNamedProto', {
   get: deterministicNativeFunction,
   set: function() {}
 });
+inspector.allowAccessorFormatting(parentObj);
 var objInheritsGetterProperty = {__proto__: parentObj};
 inspector.allowAccessorFormatting(objInheritsGetterProperty);
 

@@ -14,7 +14,7 @@ namespace internal {
 
 TEST(Marking, TransitionWhiteBlackWhite) {
   Bitmap* bitmap = reinterpret_cast<Bitmap*>(
-      calloc(Bitmap::kSize / kPointerSize, kPointerSize));
+      calloc(Bitmap::kSize / kTaggedSize, kTaggedSize));
   const int kLocationsSize = 3;
   int position[kLocationsSize] = {
       Bitmap::kBitsPerCell - 2, Bitmap::kBitsPerCell - 1, Bitmap::kBitsPerCell};
@@ -34,7 +34,7 @@ TEST(Marking, TransitionWhiteBlackWhite) {
 
 TEST(Marking, TransitionWhiteGreyBlack) {
   Bitmap* bitmap = reinterpret_cast<Bitmap*>(
-      calloc(Bitmap::kSize / kPointerSize, kPointerSize));
+      calloc(Bitmap::kSize / kTaggedSize, kTaggedSize));
   const int kLocationsSize = 3;
   int position[kLocationsSize] = {
       Bitmap::kBitsPerCell - 2, Bitmap::kBitsPerCell - 1, Bitmap::kBitsPerCell};
@@ -60,7 +60,7 @@ TEST(Marking, TransitionWhiteGreyBlack) {
 
 TEST(Marking, SetAndClearRange) {
   Bitmap* bitmap = reinterpret_cast<Bitmap*>(
-      calloc(Bitmap::kSize / kPointerSize, kPointerSize));
+      calloc(Bitmap::kSize / kTaggedSize, kTaggedSize));
   for (int i = 0; i < 3; i++) {
     bitmap->SetRange(i, Bitmap::kBitsPerCell + i);
     CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[0], 0xFFFFFFFFu << i);
@@ -74,7 +74,7 @@ TEST(Marking, SetAndClearRange) {
 
 TEST(Marking, ClearMultipleRanges) {
   Bitmap* bitmap = reinterpret_cast<Bitmap*>(
-      calloc(Bitmap::kSize / kPointerSize, kPointerSize));
+      calloc(Bitmap::kSize / kTaggedSize, kTaggedSize));
   CHECK(bitmap->AllBitsClearInRange(0, Bitmap::kBitsPerCell * 3));
   bitmap->SetRange(0, Bitmap::kBitsPerCell * 3);
   CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[0], 0xFFFFFFFFu);

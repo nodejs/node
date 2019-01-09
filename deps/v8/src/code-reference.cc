@@ -49,5 +49,9 @@ int CodeReference::relocation_size() const {
                      : wasm_code_->reloc_info().length();
 }
 
+Address CodeReference::code_comments() const {
+  return kind_ == JS ? js_code_->code_comments() : wasm_code_->code_comments();
+}
+
 }  // namespace internal
 }  // namespace v8

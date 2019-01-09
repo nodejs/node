@@ -43,6 +43,10 @@ class DebugEvaluate : public AllStatic {
       Isolate* isolate, Handle<SharedFunctionInfo> info);
   static void ApplySideEffectChecks(Handle<BytecodeArray> bytecode_array);
 
+#ifdef DEBUG
+  static void VerifyTransitiveBuiltins(Isolate* isolate);
+#endif  // DEBUG
+
  private:
   // This class builds a context chain for evaluation of expressions
   // in debugger.

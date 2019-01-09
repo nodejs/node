@@ -66,12 +66,12 @@ const ConstantArrayBuilder::Entry& ConstantArrayBuilder::ConstantArraySlice::At(
 #if DEBUG
 void ConstantArrayBuilder::ConstantArraySlice::CheckAllElementsAreUnique(
     Isolate* isolate) const {
-  std::set<Smi*> smis;
+  std::set<Smi> smis;
   std::set<double> heap_numbers;
   std::set<const AstRawString*> strings;
   std::set<const char*> bigints;
   std::set<const Scope*> scopes;
-  std::set<Object*> deferred_objects;
+  std::set<Object, Object::Comparer> deferred_objects;
   for (const Entry& entry : constants_) {
     bool duplicate = false;
     switch (entry.tag_) {
@@ -207,7 +207,7 @@ Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(Isolate* isolate) {
   return fixed_array;
 }
 
-size_t ConstantArrayBuilder::Insert(Smi* smi) {
+size_t ConstantArrayBuilder::Insert(Smi smi) {
   auto entry = smi_map_.find(smi);
   if (entry == smi_map_.end()) {
     return AllocateReservedEntry(smi);
@@ -312,7 +312,7 @@ void ConstantArrayBuilder::SetDeferredAt(size_t index, Handle<Object> object) {
   return slice->At(index).SetDeferred(object);
 }
 
-void ConstantArrayBuilder::SetJumpTableSmi(size_t index, Smi* smi) {
+void ConstantArrayBuilder::SetJumpTableSmi(size_t index, Smi smi) {
   ConstantArraySlice* slice = IndexToSlice(index);
   // Allow others to reuse these Smis, but insert using emplace to avoid
   // overwriting existing values in the Smi map (which may have a smaller
@@ -332,14 +332,14 @@ OperandSize ConstantArrayBuilder::CreateReservedEntry() {
 }
 
 ConstantArrayBuilder::index_t ConstantArrayBuilder::AllocateReservedEntry(
-    Smi* value) {
+    Smi value) {
   index_t index = static_cast<index_t>(AllocateIndex(Entry(value)));
   smi_map_[value] = index;
   return index;
 }
 
 size_t ConstantArrayBuilder::CommitReservedEntry(OperandSize operand_size,
-                                                 Smi* value) {
+                                                 Smi value) {
   DiscardReservedEntry(operand_size);
   size_t index;
   auto entry = smi_map_.find(value);

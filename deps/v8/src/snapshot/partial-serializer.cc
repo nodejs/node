@@ -7,7 +7,9 @@
 
 #include "src/api-inl.h"
 #include "src/math-random.h"
+#include "src/microtask-queue.h"
 #include "src/objects-inl.h"
+#include "src/objects/slots.h"
 
 namespace v8 {
 namespace internal {
@@ -18,8 +20,7 @@ PartialSerializer::PartialSerializer(
     : Serializer(isolate),
       startup_serializer_(startup_serializer),
       serialize_embedder_fields_(callback),
-      can_be_rehashed_(true),
-      context_(nullptr) {
+      can_be_rehashed_(true) {
   InitializeCodeAddressMap();
   allocator()->UseCustomChunkSize(FLAG_serialization_chunk_size);
 }
@@ -28,10 +29,11 @@ PartialSerializer::~PartialSerializer() {
   OutputStatistics("PartialSerializer");
 }
 
-void PartialSerializer::Serialize(Context** o, bool include_global_proxy) {
+void PartialSerializer::Serialize(Context* o, bool include_global_proxy) {
   context_ = *o;
   DCHECK(context_->IsNativeContext());
-  reference_map()->AddAttachedReference(context_->global_proxy());
+  reference_map()->AddAttachedReference(
+      reinterpret_cast<void*>(context_->global_proxy()->ptr()));
   // The bootstrap snapshot has a code-stub context. When serializing the
   // partial snapshot, it is chained into the weak context list on the isolate
   // and it's next context pointer may point to the code-stub context.  Clear
@@ -43,37 +45,47 @@ void PartialSerializer::Serialize(Context** o, bool include_global_proxy) {
   // Reset math random cache to get fresh random numbers.
   MathRandom::ResetContext(context_);
 
-  VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
-                   reinterpret_cast<Object**>(o));
+#ifdef DEBUG
+  MicrotaskQueue* microtask_queue =
+      context_->native_context()->microtask_queue();
+  DCHECK_EQ(0, microtask_queue->size());
+  DCHECK(!microtask_queue->HasMicrotasksSuppressions());
+  DCHECK_EQ(0, microtask_queue->GetMicrotasksScopeDepth());
+  DCHECK(microtask_queue->DebugMicrotasksScopeDepthIsZero());
+#endif
+  context_->native_context()->set_microtask_queue(nullptr);
+
+  VisitRootPointer(Root::kPartialSnapshotCache, nullptr, FullObjectSlot(o));
   SerializeDeferredObjects();
-  SerializeEmbedderFields();
+
+  // Add section for embedder-serialized embedder fields.
+  if (!embedder_fields_sink_.data()->empty()) {
+    sink_.Put(kEmbedderFieldsData, "embedder fields data");
+    sink_.Append(embedder_fields_sink_);
+    sink_.Put(kSynchronize, "Finished with embedder fields data");
+  }
+
   Pad();
 }
 
-void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
+void PartialSerializer::SerializeObject(HeapObject obj, HowToCode how_to_code,
                                         WhereToPoint where_to_point, int skip) {
   DCHECK(!ObjectIsBytecodeHandler(obj));  // Only referenced in dispatch table.
 
-  if (SerializeBuiltinReference(obj, how_to_code, where_to_point, skip)) {
-    return;
-  }
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
 
-  RootIndex root_index;
-  if (root_index_map()->Lookup(obj, &root_index)) {
-    PutRoot(root_index, obj, how_to_code, where_to_point, skip);
-    return;
-  }
+  if (SerializeRoot(obj, how_to_code, where_to_point, skip)) return;
 
   if (SerializeBackReference(obj, how_to_code, where_to_point, skip)) return;
 
-  if (ShouldBeInThePartialSnapshotCache(obj)) {
-    FlushSkip(skip);
+  if (startup_serializer_->SerializeUsingReadOnlyObjectCache(
+          &sink_, obj, how_to_code, where_to_point, skip)) {
+    return;
+  }
 
-    int cache_index = startup_serializer_->PartialSnapshotCacheIndex(obj);
-    sink_.Put(kPartialSnapshotCache + how_to_code + where_to_point,
-              "PartialSnapshotCache");
-    sink_.PutInt(cache_index, "partial_snapshot_cache_index");
+  if (ShouldBeInThePartialSnapshotCache(obj)) {
+    startup_serializer_->SerializeUsingPartialSnapshotCache(
+        &sink_, obj, how_to_code, where_to_point, skip);
     return;
   }
 
@@ -94,18 +106,15 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   // Clear literal boilerplates and feedback.
   if (obj->IsFeedbackVector()) FeedbackVector::cast(obj)->ClearSlots(isolate());
 
-  if (obj->IsJSObject()) {
-    JSObject* jsobj = JSObject::cast(obj);
-    if (jsobj->GetEmbedderFieldCount() > 0) {
-      DCHECK_NOT_NULL(serialize_embedder_fields_.callback);
-      embedder_field_holders_.push_back(jsobj);
-    }
+  if (SerializeJSObjectWithEmbedderFields(obj, how_to_code, where_to_point)) {
+    return;
   }
 
   if (obj->IsJSFunction()) {
     // Unconditionally reset the JSFunction to its SFI's code, since we can't
     // serialize optimized code anyway.
-    JSFunction* closure = JSFunction::cast(obj);
+    JSFunction closure = JSFunction::cast(obj);
+    closure->ResetIfBytecodeFlushed();
     if (closure->is_compiled()) closure->set_code(closure->shared()->GetCode());
   }
 
@@ -116,7 +125,7 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   serializer.Serialize();
 }
 
-bool PartialSerializer::ShouldBeInThePartialSnapshotCache(HeapObject* o) {
+bool PartialSerializer::ShouldBeInThePartialSnapshotCache(HeapObject o) {
   // Scripts should be referred only through shared function infos.  We can't
   // allow them to be part of the partial snapshot because they contain a
   // unique ID, and deserializing several partial snapshots containing script
@@ -129,38 +138,97 @@ bool PartialSerializer::ShouldBeInThePartialSnapshotCache(HeapObject* o) {
                          .fixed_cow_array_map();
 }
 
-void PartialSerializer::SerializeEmbedderFields() {
-  if (embedder_field_holders_.empty()) return;
+namespace {
+bool DataIsEmpty(const StartupData& data) { return data.raw_size == 0; }
+}  // anonymous namespace
+
+bool PartialSerializer::SerializeJSObjectWithEmbedderFields(
+    Object obj, HowToCode how_to_code, WhereToPoint where_to_point) {
+  if (!obj->IsJSObject()) return false;
+  JSObject js_obj = JSObject::cast(obj);
+  int embedder_fields_count = js_obj->GetEmbedderFieldCount();
+  if (embedder_fields_count == 0) return false;
+  CHECK_GT(embedder_fields_count, 0);
+  DCHECK_NOT_NULL(serialize_embedder_fields_.callback);
+  DCHECK(!js_obj->NeedsRehashing());
+
   DisallowHeapAllocation no_gc;
   DisallowJavascriptExecution no_js(isolate());
   DisallowCompilation no_compile(isolate());
-  DCHECK_NOT_NULL(serialize_embedder_fields_.callback);
-  sink_.Put(kEmbedderFieldsData, "embedder fields data");
-  while (!embedder_field_holders_.empty()) {
-    HandleScope scope(isolate());
-    Handle<JSObject> obj(embedder_field_holders_.back(), isolate());
-    embedder_field_holders_.pop_back();
-    SerializerReference reference = reference_map()->LookupReference(*obj);
-    DCHECK(reference.is_back_reference());
-    int embedder_fields_count = obj->GetEmbedderFieldCount();
-    for (int i = 0; i < embedder_fields_count; i++) {
-      if (obj->GetEmbedderField(i)->IsHeapObject()) continue;
 
+  HandleScope scope(isolate());
+  Handle<JSObject> obj_handle(js_obj, isolate());
+  v8::Local<v8::Object> api_obj = v8::Utils::ToLocal(obj_handle);
+
+  std::vector<EmbedderDataSlot::RawData> original_embedder_values;
+  std::vector<StartupData> serialized_data;
+
+  // 1) Iterate embedder fields. Hold onto the original value of the fields.
+  //    Ignore references to heap objects since these are to be handled by the
+  //    serializer. For aligned pointers, call the serialize callback. Hold
+  //    onto the result.
+  for (int i = 0; i < embedder_fields_count; i++) {
+    EmbedderDataSlot embedder_data_slot(js_obj, i);
+    original_embedder_values.emplace_back(embedder_data_slot.load_raw(no_gc));
+    Object object = embedder_data_slot.load_tagged();
+    if (object->IsHeapObject()) {
+      DCHECK(isolate()->heap()->Contains(HeapObject::cast(object)));
+      serialized_data.push_back({nullptr, 0});
+    } else {
       StartupData data = serialize_embedder_fields_.callback(
-          v8::Utils::ToLocal(obj), i, serialize_embedder_fields_.data);
-      sink_.Put(kNewObject + reference.space(), "embedder field holder");
-      PutBackReference(*obj, reference);
-      sink_.PutInt(i, "embedder field index");
-      sink_.PutInt(data.raw_size, "embedder fields data size");
-      sink_.PutRaw(reinterpret_cast<const byte*>(data.data), data.raw_size,
-                   "embedder fields data");
-      delete[] data.data;
+          api_obj, i, serialize_embedder_fields_.data);
+      serialized_data.push_back(data);
     }
   }
-  sink_.Put(kSynchronize, "Finished with embedder fields data");
+
+  // 2) Embedder fields for which the embedder callback produced non-zero
+  //    serialized data should be considered aligned pointers to objects owned
+  //    by the embedder. Clear these memory addresses to avoid non-determism
+  //    in the snapshot. This is done separately to step 1 to no not interleave
+  //    with embedder callbacks.
+  for (int i = 0; i < embedder_fields_count; i++) {
+    if (!DataIsEmpty(serialized_data[i])) {
+      EmbedderDataSlot(js_obj, i).store_raw({kNullAddress}, no_gc);
+    }
+  }
+
+  // 3) Serialize the object. References from embedder fields to heap objects or
+  //    smis are serialized regularly.
+  ObjectSerializer(this, js_obj, &sink_, how_to_code, where_to_point)
+      .Serialize();
+
+  // 4) Obtain back reference for the serialized object.
+  SerializerReference reference =
+      reference_map()->LookupReference(reinterpret_cast<void*>(js_obj->ptr()));
+  DCHECK(reference.is_back_reference());
+
+  // 5) Write data returned by the embedder callbacks into a separate sink,
+  //    headed by the back reference. Restore the original embedder fields.
+  for (int i = 0; i < embedder_fields_count; i++) {
+    StartupData data = serialized_data[i];
+    if (DataIsEmpty(data)) continue;
+    // Restore original values from cleared fields.
+    EmbedderDataSlot(js_obj, i).store_raw(original_embedder_values[i], no_gc);
+    embedder_fields_sink_.Put(kNewObject + reference.space(),
+                              "embedder field holder");
+    embedder_fields_sink_.PutInt(reference.chunk_index(), "BackRefChunkIndex");
+    embedder_fields_sink_.PutInt(reference.chunk_offset(),
+                                 "BackRefChunkOffset");
+    embedder_fields_sink_.PutInt(i, "embedder field index");
+    embedder_fields_sink_.PutInt(data.raw_size, "embedder fields data size");
+    embedder_fields_sink_.PutRaw(reinterpret_cast<const byte*>(data.data),
+                                 data.raw_size, "embedder fields data");
+    delete[] data.data;
+  }
+
+  // 6) The content of the separate sink is appended eventually to the default
+  //    sink. The ensures that during deserialization, we call the deserializer
+  //    callback at the end, and can guarantee that the deserialized objects are
+  //    in a consistent state. See PartialSerializer::Serialize.
+  return true;
 }
 
-void PartialSerializer::CheckRehashability(HeapObject* obj) {
+void PartialSerializer::CheckRehashability(HeapObject obj) {
   if (!can_be_rehashed_) return;
   if (!obj->NeedsRehashing()) return;
   if (obj->CanBeRehashed()) return;

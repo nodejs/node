@@ -227,5 +227,49 @@ TEST(TransitionSlowToFastWithPropertyArray) {
   CheckFastObject(obj, hash);
 }
 
+void TestIntegerHashQuality(const int samples_log2, int num_buckets_log2,
+                            uint64_t seed, double max_var) {
+  int samples = 1 << samples_log2;
+  int num_buckets = 1 << num_buckets_log2;
+  int mean = samples / num_buckets;
+  int* buckets = new int[num_buckets];
+
+  for (int i = 0; i < num_buckets; i++) buckets[i] = 0;
+
+  for (int i = 0; i < samples; i++) {
+    uint32_t hash = ComputeSeededHash(i, seed);
+    buckets[hash % num_buckets]++;
+  }
+
+  int sum_deviation = 0;
+  for (int i = 0; i < num_buckets; i++) {
+    int deviation = abs(buckets[i] - mean);
+    sum_deviation += deviation * deviation;
+  }
+  delete[] buckets;
+
+  double variation_coefficient = sqrt(sum_deviation * 1.0 / num_buckets) / mean;
+
+  printf("samples: 1 << %2d, buckets: 1 << %2d, var_coeff: %0.3f\n",
+         samples_log2, num_buckets_log2, variation_coefficient);
+  CHECK_LT(variation_coefficient, max_var);
+}
+
+TEST(IntegerHashQuality) {
+  TestIntegerHashQuality(17, 13, 0x123456789ABCDEFU, 0.4);
+  TestIntegerHashQuality(16, 12, 0x123456789ABCDEFU, 0.4);
+  TestIntegerHashQuality(15, 11, 0xFEDCBA987654321U, 0.4);
+  TestIntegerHashQuality(14, 10, 0xFEDCBA987654321U, 0.4);
+  TestIntegerHashQuality(13, 9, 1, 0.4);
+  TestIntegerHashQuality(12, 8, 1, 0.4);
+
+  TestIntegerHashQuality(17, 10, 0x123456789ABCDEFU, 0.2);
+  TestIntegerHashQuality(16, 9, 0x123456789ABCDEFU, 0.2);
+  TestIntegerHashQuality(15, 8, 0xFEDCBA987654321U, 0.2);
+  TestIntegerHashQuality(14, 7, 0xFEDCBA987654321U, 0.2);
+  TestIntegerHashQuality(13, 6, 1, 0.2);
+  TestIntegerHashQuality(12, 5, 1, 0.2);
+}
+
 }  // namespace internal
 }  // namespace v8

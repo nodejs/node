@@ -20,7 +20,7 @@ function testFunction() {
   var b = obj1.|_|a;
   |_|(async function asyncF() {
     let r = |_|await Promise.|C|resolve(42);
-    |_|return r;
+    |_|return r;|R|
   |R|})|C|();
   |_|return promise;|R|
 }
@@ -148,37 +148,37 @@ asyncF (test.js:17:4)
     #return r;
   })();
 
-asyncF (test.js:18:2)
-    return r;
-  #})();
-  return promise;
+asyncF (test.js:17:13)
+    let r = await Promise.resolve(42);
+    return r;#
+  })();
 
-Promise.resolve.then.then.x (test.js:4:64)
+(anonymous) (test.js:4:64)
   var arr1 = [1];
   var promise = Promise.resolve(1).then(x => x * 2).then(x => x #/ 2);
   Promise.resolve(1).then(x => x * 2).then(x => x / 2);
 
-Promise.resolve.then.then.x (test.js:4:67)
+(anonymous) (test.js:4:67)
   var arr1 = [1];
   var promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2#);
   Promise.resolve(1).then(x => x * 2).then(x => x / 2);
 
-Promise.resolve.then.then.x (test.js:5:50)
+(anonymous) (test.js:5:50)
   var promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2);
   Promise.resolve(1).then(x => x * 2).then(x => x #/ 2);
   promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2);
 
-Promise.resolve.then.then.x (test.js:5:53)
+(anonymous) (test.js:5:53)
   var promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2);
   Promise.resolve(1).then(x => x * 2).then(x => x / 2#);
   promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2);
 
-Promise.resolve.then.then.x (test.js:6:60)
+(anonymous) (test.js:6:60)
   Promise.resolve(1).then(x => x * 2).then(x => x / 2);
   promise = Promise.resolve(1).then(x => x * 2).then(x => x #/ 2);
   var a = 1;
 
-Promise.resolve.then.then.x (test.js:6:63)
+(anonymous) (test.js:6:63)
   Promise.resolve(1).then(x => x * 2).then(x => x / 2);
   promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2#);
   var a = 1;

@@ -12,12 +12,19 @@
 namespace v8 {
 namespace internal {
 
+void AllocationSiteContext::InitializeTraversal(Handle<AllocationSite> site) {
+  top_ = site;
+  // {current_} is updated in place to not create unnecessary Handles, hence
+  // we initially need a separate handle.
+  current_ = Handle<AllocationSite>::New(*top_, isolate());
+}
+
 Handle<AllocationSite> AllocationSiteUsageContext::EnterNewScope() {
   if (top().is_null()) {
     InitializeTraversal(top_site_);
   } else {
     // Advance current site
-    Object* nested_site = current()->nested_site();
+    Object nested_site = current()->nested_site();
     // Something is wrong if we advance to the end of the list here.
     update_current_site(AllocationSite::cast(nested_site));
   }
@@ -38,7 +45,7 @@ bool AllocationSiteUsageContext::ShouldCreateMemento(Handle<JSObject> object) {
       if (FLAG_trace_creation_allocation_sites) {
         PrintF("*** Creating Memento for %s %p\n",
                object->IsJSArray() ? "JSArray" : "JSObject",
-               static_cast<void*>(*object));
+               reinterpret_cast<void*>(object->ptr()));
       }
       return true;
     }

@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {sortUnique, anyToString} from "./util.js"
+import { sortUnique, anyToString } from "../src/util"
+import { NodeLabel } from "./node-label";
 
 function sourcePositionLe(a, b) {
   if (a.inliningId == b.inliningId) {
@@ -16,9 +17,9 @@ function sourcePositionEq(a, b) {
     a.scriptOffset == b.scriptOffset;
 }
 
-export function sourcePositionToStringKey(sourcePosition): string {
+export function sourcePositionToStringKey(sourcePosition: AnyPosition): string {
   if (!sourcePosition) return "undefined";
-  if (sourcePosition.inliningId && sourcePosition.scriptOffset)
+  if ('inliningId' in sourcePosition && 'scriptOffset' in sourcePosition)
     return "SP:" + sourcePosition.inliningId + ":" + sourcePosition.scriptOffset;
   if (sourcePosition.bytecodePosition)
     return "BCP:" + sourcePosition.bytecodePosition;
@@ -48,9 +49,9 @@ interface BytecodePosition {
   bytecodePosition: number;
 }
 
-type Origin = NodeOrigin | BytecodePosition;
-type TurboFanNodeOrigin = NodeOrigin & TurboFanOrigin;
-type TurboFanBytecodeOrigin = BytecodePosition & TurboFanOrigin;
+export type Origin = NodeOrigin | BytecodePosition;
+export type TurboFanNodeOrigin = NodeOrigin & TurboFanOrigin;
+export type TurboFanBytecodeOrigin = BytecodePosition & TurboFanOrigin;
 
 type AnyPosition = SourcePosition | BytecodePosition;
 
@@ -61,16 +62,36 @@ export interface Source {
   sourceText: string;
   sourceId: number;
   startPosition?: number;
+  backwardsCompatibility: boolean;
 }
 interface Inlining {
   inliningPosition: SourcePosition;
   sourceId: number;
 }
-interface Phase {
-  type: string;
+interface OtherPhase {
+  type: "disassembly" | "sequence" | "schedule";
   name: string;
   data: any;
 }
+
+interface InstructionsPhase {
+  type: "instructions";
+  name: string;
+  data: any;
+  instructionOffsetToPCOffset?: any;
+  blockIdtoInstructionRange?: any;
+  nodeIdToInstructionRange?: any;
+}
+
+interface GraphPhase {
+  type: "graph";
+  name: string;
+  data: any;
+  highestNodeId: number;
+  nodeLabelMap: Array<NodeLabel>;
+}
+
+type Phase = GraphPhase | InstructionsPhase | OtherPhase;
 
 export interface Schedule {
   nodes: Array<any>;
@@ -94,6 +115,7 @@ export class SourceResolver {
   blockIdToInstructionRange: Array<[number, number]>;
   instructionToPCOffset: Array<number>;
   pcOffsetToInstructions: Map<number, Array<number>>;
+  pcOffsets: Array<number>;
 
 
   constructor() {
@@ -123,6 +145,7 @@ export class SourceResolver {
     this.instructionToPCOffset = [];
     // Maps PC offsets to instructions.
     this.pcOffsetToInstructions = new Map();
+    this.pcOffsets = [];
   }
 
   setSources(sources, mainBackup) {
@@ -178,7 +201,7 @@ export class SourceResolver {
       }
       this.positionToNodes.get(key).push(nodeId);
     }
-    for (const [sourceId, source] of Object.entries(this.sources)) {
+    for (const [, source] of Object.entries(this.sources)) {
       source.sourcePositions = sortUnique(source.sourcePositions,
         sourcePositionLe, sourcePositionEq);
     }
@@ -211,11 +234,11 @@ export class SourceResolver {
     return sourcePositionArray;
   }
 
-  forEachSource(f) {
+  forEachSource(f: (value: Source, index: number, array: Source[]) => void) {
     this.sources.forEach(f);
   }
 
-  translateToSourceId(sourceId, location) {
+  translateToSourceId(sourceId: number, location?: SourcePosition) {
     for (const position of this.getInlineStack(location)) {
       let inlining = this.inlinings[position.inliningId];
       if (!inlining) continue;
@@ -226,7 +249,7 @@ export class SourceResolver {
     return location;
   }
 
-  addInliningPositions(sourcePosition, locations) {
+  addInliningPositions(sourcePosition: AnyPosition, locations: Array<SourcePosition>) {
     let inlining = this.inliningsMap.get(sourcePositionToStringKey(sourcePosition));
     if (!inlining) return;
     let sourceId = inlining.sourceId
@@ -237,20 +260,20 @@ export class SourceResolver {
     }
   }
 
-  getInliningForPosition(sourcePosition) {
+  getInliningForPosition(sourcePosition: AnyPosition) {
     return this.inliningsMap.get(sourcePositionToStringKey(sourcePosition));
   }
 
-  getSource(sourceId) {
+  getSource(sourceId: number) {
     return this.sources[sourceId];
   }
 
-  getSourceName(sourceId) {
+  getSourceName(sourceId: number) {
     const source = this.sources[sourceId];
     return `${source.sourceName}:${source.functionName}`;
   }
 
-  sourcePositionFor(sourceId, scriptOffset) {
+  sourcePositionFor(sourceId: number, scriptOffset: number) {
     if (!this.sources[sourceId]) {
       return null;
     }
@@ -266,7 +289,7 @@ export class SourceResolver {
     return null;
   }
 
-  sourcePositionsInRange(sourceId, start, end) {
+  sourcePositionsInRange(sourceId: number, start: number, end: number) {
     if (!this.sources[sourceId]) return [];
     const res = [];
     const list = this.sources[sourceId].sourcePositions;
@@ -279,10 +302,9 @@ export class SourceResolver {
     return res;
   }
 
-  getInlineStack(sourcePosition) {
-    if (!sourcePosition) {
-      return [];
-    }
+  getInlineStack(sourcePosition?: SourcePosition) {
+    if (!sourcePosition) return [];
+
     let inliningStack = [];
     let cur = sourcePosition;
     while (cur && cur.inliningId != -1) {
@@ -299,9 +321,10 @@ export class SourceResolver {
     return inliningStack;
   }
 
-  recordOrigins(phase) {
+  recordOrigins(phase: GraphPhase) {
     if (phase.type != "graph") return;
     for (const node of phase.data.nodes) {
+      phase.highestNodeId = Math.max(phase.highestNodeId, node.id)
       if (node.origin != undefined &&
         node.origin.bytecodePosition != undefined) {
         const position = { bytecodePosition: node.origin.bytecodePosition };
@@ -311,7 +334,12 @@ export class SourceResolver {
           this.positionToNodes.set(key, []);
         }
         const A = this.positionToNodes.get(key);
-        if (!A.includes(node.id)) A.push("" + node.id);
+        if (!A.includes(node.id)) A.push(`${node.id}`);
+      }
+
+      // Backwards compatibility.
+      if (typeof node.pos === "number") {
+        node.sourcePosition = { scriptOffset: node.pos, inliningId: -1 };
       }
     }
   }
@@ -328,13 +356,13 @@ export class SourceResolver {
     }
   }
 
-  getInstruction(nodeId):[number, number] {
+  getInstruction(nodeId: number): [number, number] {
     const X = this.nodeIdToInstructionRange[nodeId];
     if (X === undefined) return [-1, -1];
     return X;
   }
 
-  getInstructionRangeForBlock(blockId):[number, number] {
+  getInstructionRangeForBlock(blockId: number): [number, number] {
     const X = this.blockIdToInstructionRange[blockId];
     if (X === undefined) return [-1, -1];
     return X;
@@ -346,20 +374,51 @@ export class SourceResolver {
       if (!this.pcOffsetToInstructions.has(offset)) {
         this.pcOffsetToInstructions.set(offset, []);
       }
-      this.pcOffsetToInstructions.get(offset).push(instruction);
+      this.pcOffsetToInstructions.get(offset).push(Number(instruction));
     }
-    console.log(this.pcOffsetToInstructions);
+    this.pcOffsets = Array.from(this.pcOffsetToInstructions.keys()).sort((a, b) => b - a);
   }
 
   hasPCOffsets() {
     return this.pcOffsetToInstructions.size > 0;
   }
 
+  getKeyPcOffset(offset: number): number {
+    if (this.pcOffsets.length === 0) return -1;
+    for (const key of this.pcOffsets) {
+      if (key <= offset) {
+        return key;
+      }
+    }
+    return -1;
+  }
 
-  nodesForPCOffset(offset): [Array<String>, Array<String>] {
-    const keys = Array.from(this.pcOffsetToInstructions.keys()).sort((a, b) => b - a);
-    if (keys.length === 0) return [[],[]];
-    for (const key of keys) {
+  instructionRangeToKeyPcOffsets([start, end]: [number, number]) {
+    if (start == end) return [this.instructionToPCOffset[start]];
+    return this.instructionToPCOffset.slice(start, end);
+  }
+
+  instructionsToKeyPcOffsets(instructionIds: Iterable<number>) {
+    const keyPcOffsets = [];
+    for (const instructionId of instructionIds) {
+      keyPcOffsets.push(this.instructionToPCOffset[instructionId]);
+    }
+    return keyPcOffsets;
+  }
+
+  nodesToKeyPcOffsets(nodes) {
+    let offsets = [];
+    for (const node of nodes) {
+      const range = this.nodeIdToInstructionRange[node];
+      if (!range) continue;
+      offsets = offsets.concat(this.instructionRangeToKeyPcOffsets(range))
+    }
+    return offsets;
+  }
+
+  nodesForPCOffset(offset: number): [Array<String>, Array<String>] {
+    if (this.pcOffsets.length === 0) return [[], []];
+    for (const key of this.pcOffsets) {
       if (key <= offset) {
         const instrs = this.pcOffsetToInstructions.get(key);
         const nodes = [];
@@ -379,50 +438,75 @@ export class SourceResolver {
         return [nodes, blocks];
       }
     }
-    return [[],[]];
+    return [[], []];
   }
 
   parsePhases(phases) {
-    for (const [phaseId, phase] of Object.entries<Phase>(phases)) {
-      if (phase.type == 'disassembly') {
-        this.disassemblyPhase = phase;
-      } else if (phase.type == 'schedule') {
-        this.phases.push(this.parseSchedule(phase));
-        this.phaseNames.set(phase.name, this.phases.length);
-      } else if (phase.type == 'sequence') {
-        this.phases.push(this.parseSequence(phase));
-        this.phaseNames.set(phase.name, this.phases.length);
-      } else if (phase.type == 'instructions') {
-        if (phase.nodeIdToInstructionRange) {
-          this.readNodeIdToInstructionRange(phase.nodeIdToInstructionRange);
-        }
-        if (phase.blockIdtoInstructionRange) {
-          this.readBlockIdToInstructionRange(phase.blockIdtoInstructionRange);
-        }
-        if (phase.instructionOffsetToPCOffset) {
-          this.readInstructionOffsetToPCOffset(phase.instructionOffsetToPCOffset);
-        }
-      } else {
-        this.phases.push(phase);
-        this.recordOrigins(phase);
-        this.phaseNames.set(phase.name, this.phases.length);
+    const nodeLabelMap = [];
+    for (const [, phase] of Object.entries<Phase>(phases)) {
+      switch (phase.type) {
+        case 'disassembly':
+          this.disassemblyPhase = phase;
+          break;
+        case 'schedule':
+          this.phases.push(this.parseSchedule(phase));
+          this.phaseNames.set(phase.name, this.phases.length);
+          break;
+        case 'sequence':
+          this.phases.push(this.parseSequence(phase));
+          this.phaseNames.set(phase.name, this.phases.length);
+          break;
+        case 'instructions':
+          if (phase.nodeIdToInstructionRange) {
+            this.readNodeIdToInstructionRange(phase.nodeIdToInstructionRange);
+          }
+          if (phase.blockIdtoInstructionRange) {
+            this.readBlockIdToInstructionRange(phase.blockIdtoInstructionRange);
+          }
+          if (phase.instructionOffsetToPCOffset) {
+            this.readInstructionOffsetToPCOffset(phase.instructionOffsetToPCOffset);
+          }
+          break;
+        case 'graph':
+          const graphPhase: GraphPhase = Object.assign(phase, { highestNodeId: 0 });
+          this.phases.push(graphPhase);
+          this.recordOrigins(graphPhase);
+          this.internNodeLabels(graphPhase, nodeLabelMap);
+          graphPhase.nodeLabelMap = nodeLabelMap.slice();
+          this.phaseNames.set(graphPhase.name, this.phases.length);
+          break;
+        default:
+          throw "Unsupported phase type";
       }
     }
   }
 
-  repairPhaseId(anyPhaseId) {
-    return Math.max(0, Math.min(anyPhaseId, this.phases.length - 1))
+  internNodeLabels(phase: GraphPhase, nodeLabelMap: Array<NodeLabel>) {
+    for (const n of phase.data.nodes) {
+      const label = new NodeLabel(n.id, n.label, n.title, n.live,
+        n.properties, n.sourcePosition, n.origin, n.opcode, n.control,
+        n.opinfo, n.type);
+      const previous = nodeLabelMap[label.id];
+      if (!label.equals(previous)) {
+        nodeLabelMap[label.id] = label;
+      }
+      n.nodeLabel = nodeLabelMap[label.id];
+    }
   }
 
-  getPhase(phaseId) {
+  repairPhaseId(anyPhaseId) {
+    return Math.max(0, Math.min(anyPhaseId | 0, this.phases.length - 1))
+  }
+
+  getPhase(phaseId: number) {
     return this.phases[phaseId];
   }
 
-  getPhaseIdByName(phaseName) {
+  getPhaseIdByName(phaseName: string) {
     return this.phaseNames.get(phaseName);
   }
 
-  forEachPhase(f) {
+  forEachPhase(f: (value: Phase, index: number, array: Phase[]) => void) {
     this.phases.forEach(f);
   }
 

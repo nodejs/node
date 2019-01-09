@@ -133,28 +133,29 @@
   V(JSIncrement)               \
   V(JSNegate)
 
-#define JS_CREATE_OP_LIST(V)    \
-  V(JSCreate)                   \
-  V(JSCreateArguments)          \
-  V(JSCreateArray)              \
-  V(JSCreateArrayIterator)      \
-  V(JSCreateBoundFunction)      \
-  V(JSCreateClosure)            \
-  V(JSCreateCollectionIterator) \
-  V(JSCreateGeneratorObject)    \
-  V(JSCreateIterResultObject)   \
-  V(JSCreateStringIterator)     \
-  V(JSCreateKeyValueArray)      \
-  V(JSCreateObject)             \
-  V(JSCreatePromise)            \
-  V(JSCreateTypedArray)         \
-  V(JSCreateLiteralArray)       \
-  V(JSCreateEmptyLiteralArray)  \
-  V(JSCreateArrayFromIterable)  \
-  V(JSCreateLiteralObject)      \
-  V(JSCreateEmptyLiteralObject) \
-  V(JSCloneObject)              \
-  V(JSCreateLiteralRegExp)
+#define JS_CREATE_OP_LIST(V)     \
+  V(JSCloneObject)               \
+  V(JSCreate)                    \
+  V(JSCreateArguments)           \
+  V(JSCreateArray)               \
+  V(JSCreateArrayFromIterable)   \
+  V(JSCreateArrayIterator)       \
+  V(JSCreateAsyncFunctionObject) \
+  V(JSCreateBoundFunction)       \
+  V(JSCreateClosure)             \
+  V(JSCreateCollectionIterator)  \
+  V(JSCreateEmptyLiteralArray)   \
+  V(JSCreateEmptyLiteralObject)  \
+  V(JSCreateGeneratorObject)     \
+  V(JSCreateIterResultObject)    \
+  V(JSCreateKeyValueArray)       \
+  V(JSCreateLiteralArray)        \
+  V(JSCreateLiteralObject)       \
+  V(JSCreateLiteralRegExp)       \
+  V(JSCreateObject)              \
+  V(JSCreatePromise)             \
+  V(JSCreateStringIterator)      \
+  V(JSCreateTypedArray)
 
 #define JS_OBJECT_OP_LIST(V)      \
   JS_CREATE_OP_LIST(V)            \
@@ -194,6 +195,9 @@
 #define JS_OTHER_OP_LIST(V)            \
   JS_CALL_OP_LIST(V)                   \
   JS_CONSTRUCT_OP_LIST(V)              \
+  V(JSAsyncFunctionEnter)              \
+  V(JSAsyncFunctionReject)             \
+  V(JSAsyncFunctionResolve)            \
   V(JSCallRuntime)                     \
   V(JSForInEnumerate)                  \
   V(JSForInNext)                       \
@@ -258,15 +262,19 @@
   V(CheckedInt32ToTaggedSigned)       \
   V(CheckedInt64ToInt32)              \
   V(CheckedInt64ToTaggedSigned)       \
+  V(CheckedUint32Bounds)              \
   V(CheckedUint32ToInt32)             \
   V(CheckedUint32ToTaggedSigned)      \
+  V(CheckedUint64Bounds)              \
   V(CheckedUint64ToInt32)             \
   V(CheckedUint64ToTaggedSigned)      \
   V(CheckedFloat64ToInt32)            \
+  V(CheckedFloat64ToInt64)            \
   V(CheckedTaggedSignedToInt32)       \
   V(CheckedTaggedToInt32)             \
   V(CheckedTruncateTaggedToWord32)    \
   V(CheckedTaggedToFloat64)           \
+  V(CheckedTaggedToInt64)             \
   V(CheckedTaggedToTaggedSigned)      \
   V(CheckedTaggedToTaggedPointer)
 
@@ -376,6 +384,7 @@
   V(CheckNumber)                        \
   V(CheckInternalizedString)            \
   V(CheckReceiver)                      \
+  V(CheckReceiverOrNullOrUndefined)     \
   V(CheckString)                        \
   V(CheckSymbol)                        \
   V(CheckSmi)                           \
@@ -620,6 +629,7 @@
   V(ChangeFloat64ToUint32)           \
   V(ChangeFloat64ToUint64)           \
   V(Float64SilenceNaN)               \
+  V(TruncateFloat64ToInt64)          \
   V(TruncateFloat64ToUint32)         \
   V(TruncateFloat32ToInt32)          \
   V(TruncateFloat32ToUint32)         \

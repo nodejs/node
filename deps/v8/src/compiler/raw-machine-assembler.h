@@ -14,6 +14,7 @@
 #include "src/compiler/operator.h"
 #include "src/globals.h"
 #include "src/heap/factory.h"
+#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -60,6 +61,10 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   // Finalizes the schedule and exports it to be used for code generation. Note
   // that this RawMachineAssembler becomes invalid after export.
   Schedule* Export();
+  // Finalizes the schedule and transforms it into a graph that's suitable for
+  // it to be used for Turbofan optimization and re-scheduling. Note that this
+  // RawMachineAssembler becomes invalid after export.
+  Graph* ExportForOptimization();
 
   // ===========================================================================
   // The following utility methods create new nodes with specific operators and
@@ -75,8 +80,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
   Node* IntPtrConstant(intptr_t value) {
     // TODO(dcarney): mark generated code as unserializable if value != 0.
-    return kPointerSize == 8 ? Int64Constant(value)
-                             : Int32Constant(static_cast<int>(value));
+    return kSystemPointerSize == 8 ? Int64Constant(value)
+                                   : Int32Constant(static_cast<int>(value));
   }
   Node* RelocatableIntPtrConstant(intptr_t value, RelocInfo::Mode rmode);
   Node* Int32Constant(int32_t value) {
@@ -99,10 +104,6 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
   Node* HeapConstant(Handle<HeapObject> object) {
     return AddNode(common()->HeapConstant(object));
-  }
-  Node* BooleanConstant(bool value) {
-    Handle<Object> object = isolate()->factory()->ToBoolean(value);
-    return HeapConstant(Handle<HeapObject>::cast(object));
   }
   Node* ExternalConstant(ExternalReference address) {
     return AddNode(common()->ExternalConstant(address));
@@ -473,10 +474,10 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     return AddNode(machine()->Word32PairSar(), low_word, high_word, shift);
   }
 
-#define INTPTR_BINOP(prefix, name)                     \
-  Node* IntPtr##name(Node* a, Node* b) {               \
-    return kPointerSize == 8 ? prefix##64##name(a, b)  \
-                             : prefix##32##name(a, b); \
+#define INTPTR_BINOP(prefix, name)                           \
+  Node* IntPtr##name(Node* a, Node* b) {                     \
+    return kSystemPointerSize == 8 ? prefix##64##name(a, b)  \
+                                   : prefix##32##name(a, b); \
   }
 
   INTPTR_BINOP(Int, Add);
@@ -494,10 +495,10 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
 #undef INTPTR_BINOP
 
-#define UINTPTR_BINOP(prefix, name)                    \
-  Node* UintPtr##name(Node* a, Node* b) {              \
-    return kPointerSize == 8 ? prefix##64##name(a, b)  \
-                             : prefix##32##name(a, b); \
+#define UINTPTR_BINOP(prefix, name)                          \
+  Node* UintPtr##name(Node* a, Node* b) {                    \
+    return kSystemPointerSize == 8 ? prefix##64##name(a, b)  \
+                                   : prefix##32##name(a, b); \
   }
 
   UINTPTR_BINOP(Uint, LessThan);
@@ -516,8 +517,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
 
   Node* IntPtrAbsWithOverflow(Node* a) {
-    return kPointerSize == 8 ? Int64AbsWithOverflow(a)
-                             : Int32AbsWithOverflow(a);
+    return kSystemPointerSize == 8 ? Int64AbsWithOverflow(a)
+                                   : Int32AbsWithOverflow(a);
   }
 
   Node* Float32Add(Node* a, Node* b) {
@@ -625,28 +626,16 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   // Conversions.
   Node* BitcastTaggedToWord(Node* a) {
-#ifdef ENABLE_VERIFY_CSA
-    return AddNode(machine()->BitcastTaggedToWord(), a);
-#else
-    return a;
-#endif
+      return AddNode(machine()->BitcastTaggedToWord(), a);
   }
   Node* BitcastMaybeObjectToWord(Node* a) {
-#ifdef ENABLE_VERIFY_CSA
-    return AddNode(machine()->BitcastMaybeObjectToWord(), a);
-#else
-    return a;
-#endif
+      return AddNode(machine()->BitcastMaybeObjectToWord(), a);
   }
   Node* BitcastWordToTagged(Node* a) {
     return AddNode(machine()->BitcastWordToTagged(), a);
   }
   Node* BitcastWordToTaggedSigned(Node* a) {
-#ifdef ENABLE_VERIFY_CSA
-    return AddNode(machine()->BitcastWordToTaggedSigned(), a);
-#else
-    return a;
-#endif
+      return AddNode(machine()->BitcastWordToTaggedSigned(), a);
   }
   Node* TruncateFloat64ToWord32(Node* a) {
     return AddNode(machine()->TruncateFloat64ToWord32(), a);
@@ -936,14 +925,14 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   void DebugAbort(Node* message);
   void DebugBreak();
   void Unreachable();
-  void Comment(const char* msg);
+  void Comment(std::string msg);
 
 #if DEBUG
   void Bind(RawMachineLabel* label, AssemblerDebugInfo info);
   void SetInitialDebugInformation(AssemblerDebugInfo info);
   void PrintCurrentBlock(std::ostream& os);
-  bool InsideBlock();
 #endif  // DEBUG
+  bool InsideBlock();
 
   // Add success / exception successor blocks and ends the current block ending
   // in a potentially throwing call node.
@@ -985,6 +974,18 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   BasicBlock* Use(RawMachineLabel* label);
   BasicBlock* EnsureBlock(RawMachineLabel* label);
   BasicBlock* CurrentBlock();
+
+  // A post-processing pass to add effect and control edges so that the graph
+  // can be optimized and re-scheduled.
+  // TODO(tebbi): Move this to a separate class.
+  void MakeReschedulable();
+  Node* CreateNodeFromPredecessors(const std::vector<BasicBlock*>& predecessors,
+                                   const std::vector<Node*>& sidetable,
+                                   const Operator* op,
+                                   const std::vector<Node*>& additional_inputs);
+  void MakePhiBinary(Node* phi, int split_point, Node* left_control,
+                     Node* right_control);
+  void MarkControlDeferred(Node* control_input);
 
   Schedule* schedule() { return schedule_; }
   size_t parameter_count() const { return call_descriptor_->ParameterCount(); }

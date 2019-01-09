@@ -98,10 +98,10 @@ class V8_EXPORT_PRIVATE Bitmap {
   static const uint32_t kBytesPerCell = kBitsPerCell / kBitsPerByte;
   static const uint32_t kBytesPerCellLog2 = kBitsPerCellLog2 - kBitsPerByteLog2;
 
-  static const size_t kLength = (1 << kPageSizeBits) >> (kPointerSizeLog2);
+  static const size_t kLength = (1 << kPageSizeBits) >> (kTaggedSizeLog2);
 
   static const size_t kSize = (1 << kPageSizeBits) >>
-                              (kPointerSizeLog2 + kBitsPerByteLog2);
+                              (kTaggedSizeLog2 + kBitsPerByteLog2);
 
   static int CellsForLength(int length) {
     return (length + kBitsPerCell - 1) >> kBitsPerCellLog2;
@@ -120,10 +120,6 @@ class V8_EXPORT_PRIVATE Bitmap {
   // Retrieves the cell containing the provided markbit index.
   V8_INLINE static uint32_t CellAlignIndex(uint32_t index) {
     return index & ~kBitIndexMask;
-  }
-
-  V8_INLINE static bool IsCellAligned(uint32_t index) {
-    return (index & kBitIndexMask) == 0;
   }
 
   V8_INLINE MarkBit::CellType* cells() {

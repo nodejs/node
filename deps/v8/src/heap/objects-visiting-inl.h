@@ -10,41 +10,41 @@
 #include "src/heap/array-buffer-tracker.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/mark-compact.h"
-#include "src/macro-assembler.h"
 #include "src/objects-body-descriptors-inl.h"
 #include "src/objects-inl.h"
+#include "src/objects/free-space-inl.h"
+#include "src/objects/js-weak-refs-inl.h"
+#include "src/objects/oddball.h"
+#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
 
 template <typename ResultType, typename ConcreteVisitor>
 template <typename T>
-T* HeapVisitor<ResultType, ConcreteVisitor>::Cast(HeapObject* object) {
+T HeapVisitor<ResultType, ConcreteVisitor>::Cast(HeapObject object) {
   return T::cast(object);
 }
 
 template <typename ResultType, typename ConcreteVisitor>
-ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(HeapObject* object) {
+ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(HeapObject object) {
   return Visit(object->map(), object);
 }
 
 template <typename ResultType, typename ConcreteVisitor>
-ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map* map,
-                                                           HeapObject* object) {
+ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map map,
+                                                           HeapObject object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   switch (map->visitor_id()) {
-#define CASE(type)                   \
-  case kVisit##type:                 \
-    return visitor->Visit##type(map, \
-                                ConcreteVisitor::template Cast<type>(object));
+#define CASE(TypeName, Type)         \
+  case kVisit##TypeName:             \
+    return visitor->Visit##TypeName( \
+        map, ConcreteVisitor::template Cast<TypeName>(object));
     TYPED_VISITOR_ID_LIST(CASE)
 #undef CASE
     case kVisitShortcutCandidate:
       return visitor->VisitShortcutCandidate(
           map, ConcreteVisitor::template Cast<ConsString>(object));
-    case kVisitNativeContext:
-      return visitor->VisitNativeContext(
-          map, ConcreteVisitor::template Cast<Context>(object));
     case kVisitDataObject:
       return visitor->VisitDataObject(map, object);
     case kVisitJSObjectFast:
@@ -69,15 +69,15 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map* map,
 
 template <typename ResultType, typename ConcreteVisitor>
 void HeapVisitor<ResultType, ConcreteVisitor>::VisitMapPointer(
-    HeapObject* host, HeapObject** map) {
-  static_cast<ConcreteVisitor*>(this)->VisitPointer(
-      host, reinterpret_cast<Object**>(map));
+    HeapObject host, MapWordSlot map_slot) {
+  DCHECK(!host->map_word().IsForwardingAddress());
+  static_cast<ConcreteVisitor*>(this)->VisitPointer(host, ObjectSlot(map_slot));
 }
 
-#define VISIT(type)                                                            \
+#define VISIT(TypeName, Type)                                                  \
   template <typename ResultType, typename ConcreteVisitor>                     \
-  ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit##type(            \
-      Map* map, type* object) {                                                \
+  ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit##TypeName(        \
+      Map map, Type object) {                                                  \
     ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);            \
     if (!visitor->ShouldVisit(object)) return ResultType();                    \
     if (!visitor->AllowDefaultJSObjectVisit()) {                               \
@@ -85,10 +85,10 @@ void HeapVisitor<ResultType, ConcreteVisitor>::VisitMapPointer(
                       "Implement custom visitor for new JSObject subclass in " \
                       "concurrent marker");                                    \
     }                                                                          \
-    int size = type::BodyDescriptor::SizeOf(map, object);                      \
+    int size = TypeName::BodyDescriptor::SizeOf(map, object);                  \
     if (visitor->ShouldVisitMapPointer())                                      \
       visitor->VisitMapPointer(object, object->map_slot());                    \
-    type::BodyDescriptor::IterateBody(map, object, size, visitor);             \
+    TypeName::BodyDescriptor::IterateBody(map, object, size, visitor);         \
     return static_cast<ResultType>(size);                                      \
   }
 TYPED_VISITOR_ID_LIST(VISIT)
@@ -96,36 +96,25 @@ TYPED_VISITOR_ID_LIST(VISIT)
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitShortcutCandidate(
-    Map* map, ConsString* object) {
+    Map map, ConsString object) {
   return static_cast<ConcreteVisitor*>(this)->VisitConsString(map, object);
 }
 
 template <typename ResultType, typename ConcreteVisitor>
-ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitNativeContext(
-    Map* map, Context* object) {
-  ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  if (!visitor->ShouldVisit(object)) return ResultType();
-  int size = Context::BodyDescriptor::SizeOf(map, object);
-  if (visitor->ShouldVisitMapPointer())
-    visitor->VisitMapPointer(object, object->map_slot());
-  Context::BodyDescriptor::IterateBody(map, object, size, visitor);
-  return static_cast<ResultType>(size);
-}
-
-template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitDataObject(
-    Map* map, HeapObject* object) {
+    Map map, HeapObject object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   if (!visitor->ShouldVisit(object)) return ResultType();
   int size = map->instance_size();
-  if (visitor->ShouldVisitMapPointer())
+  if (visitor->ShouldVisitMapPointer()) {
     visitor->VisitMapPointer(object, object->map_slot());
+  }
   return static_cast<ResultType>(size);
 }
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSObjectFast(
-    Map* map, JSObject* object) {
+    Map map, JSObject object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   if (!visitor->ShouldVisit(object)) return ResultType();
   int size = JSObject::FastBodyDescriptor::SizeOf(map, object);
@@ -137,7 +126,7 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSObjectFast(
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSApiObject(
-    Map* map, JSObject* object) {
+    Map map, JSObject object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   if (!visitor->ShouldVisit(object)) return ResultType();
   int size = JSObject::BodyDescriptor::SizeOf(map, object);
@@ -149,50 +138,67 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSApiObject(
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitStruct(
-    Map* map, HeapObject* object) {
+    Map map, HeapObject object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   if (!visitor->ShouldVisit(object)) return ResultType();
   int size = map->instance_size();
-  if (visitor->ShouldVisitMapPointer())
+  if (visitor->ShouldVisitMapPointer()) {
     visitor->VisitMapPointer(object, object->map_slot());
+  }
   StructBodyDescriptor::IterateBody(map, object, size, visitor);
   return static_cast<ResultType>(size);
 }
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitFreeSpace(
-    Map* map, FreeSpace* object) {
+    Map map, FreeSpace object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   if (!visitor->ShouldVisit(object)) return ResultType();
-  if (visitor->ShouldVisitMapPointer())
+  if (visitor->ShouldVisitMapPointer()) {
     visitor->VisitMapPointer(object, object->map_slot());
-  return static_cast<ResultType>(FreeSpace::cast(object)->size());
+  }
+  return static_cast<ResultType>(object->size());
 }
 
 template <typename ConcreteVisitor>
-int NewSpaceVisitor<ConcreteVisitor>::VisitNativeContext(Map* map,
-                                                         Context* object) {
+int NewSpaceVisitor<ConcreteVisitor>::VisitNativeContext(Map map,
+                                                         NativeContext object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  int size = Context::BodyDescriptor::SizeOf(map, object);
-  Context::BodyDescriptor::IterateBody(map, object, size, visitor);
+  int size = NativeContext::BodyDescriptor::SizeOf(map, object);
+  NativeContext::BodyDescriptor::IterateBody(map, object, size, visitor);
   return size;
 }
 
 template <typename ConcreteVisitor>
-int NewSpaceVisitor<ConcreteVisitor>::VisitJSApiObject(Map* map,
-                                                       JSObject* object) {
+int NewSpaceVisitor<ConcreteVisitor>::VisitJSApiObject(Map map,
+                                                       JSObject object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   return visitor->VisitJSObject(map, object);
 }
 
+template <typename ConcreteVisitor>
+int NewSpaceVisitor<ConcreteVisitor>::VisitSharedFunctionInfo(
+    Map map, SharedFunctionInfo object) {
+  UNREACHABLE();
+  return 0;
+}
+
+template <typename ConcreteVisitor>
+int NewSpaceVisitor<ConcreteVisitor>::VisitJSWeakCell(Map map,
+                                                      JSWeakCell js_weak_cell) {
+  UNREACHABLE();
+  return 0;
+}
+
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitWeakArray(
-    Map* map, HeapObject* object) {
+    Map map, HeapObject object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   if (!visitor->ShouldVisit(object)) return ResultType();
   int size = WeakArrayBodyDescriptor::SizeOf(map, object);
-  if (visitor->ShouldVisitMapPointer())
+  if (visitor->ShouldVisitMapPointer()) {
     visitor->VisitMapPointer(object, object->map_slot());
+  }
   WeakArrayBodyDescriptor::IterateBody(map, object, size, visitor);
   return size;
 }

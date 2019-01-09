@@ -18,12 +18,26 @@
 namespace v8 {
 namespace internal {
 
-ACCESSORS(JSDateTimeFormat, icu_locale, Managed<icu::Locale>, kICULocaleOffset);
-ACCESSORS(JSDateTimeFormat, icu_simple_date_format,
-          Managed<icu::SimpleDateFormat>, kICUSimpleDateFormatOffset)
-ACCESSORS(JSDateTimeFormat, bound_format, Object, kBoundFormatOffset);
+OBJECT_CONSTRUCTORS_IMPL(JSDateTimeFormat, JSObject)
 
-CAST_ACCESSOR(JSDateTimeFormat);
+ACCESSORS2(JSDateTimeFormat, icu_locale, Managed<icu::Locale>,
+           kICULocaleOffset);
+ACCESSORS2(JSDateTimeFormat, icu_simple_date_format,
+           Managed<icu::SimpleDateFormat>, kICUSimpleDateFormatOffset)
+ACCESSORS(JSDateTimeFormat, bound_format, Object, kBoundFormatOffset);
+SMI_ACCESSORS(JSDateTimeFormat, flags, kFlagsOffset)
+
+inline void JSDateTimeFormat::set_hour_cycle(Intl::HourCycle hour_cycle) {
+  int hints = flags();
+  hints = HourCycleBits::update(hints, hour_cycle);
+  set_flags(hints);
+}
+
+inline Intl::HourCycle JSDateTimeFormat::hour_cycle() const {
+  return HourCycleBits::decode(flags());
+}
+
+CAST_ACCESSOR2(JSDateTimeFormat);
 
 }  // namespace internal
 }  // namespace v8

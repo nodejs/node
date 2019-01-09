@@ -49,7 +49,7 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
   Heap* heap = CcTest::heap();
   int size = FixedArray::SizeFor(100);
   // New space.
-  HeapObject* obj = heap->AllocateRaw(size, NEW_SPACE).ToObjectChecked();
+  HeapObject obj = heap->AllocateRaw(size, NEW_SPACE).ToObjectChecked();
   // In order to pass heap verification on Isolate teardown, mark the
   // allocated area as a filler.
   heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
@@ -150,7 +150,7 @@ TEST(StressJS) {
 
   Descriptor d = Descriptor::AccessorConstant(
       Handle<Name>(Name::cast(foreign->name()), isolate), foreign, attrs);
-  map->AppendDescriptor(&d);
+  map->AppendDescriptor(isolate, &d);
 
   // Add the Foo constructor the global object.
   CHECK(env->Global()

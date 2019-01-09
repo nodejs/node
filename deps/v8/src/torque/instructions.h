@@ -19,8 +19,9 @@ namespace torque {
 class Block;
 class Builtin;
 class ControlFlowGraph;
+class Intrinsic;
 class Macro;
-class ModuleConstant;
+class NamespaceConstant;
 class RuntimeFunction;
 
 #define TORQUE_INSTRUCTION_LIST(V)    \
@@ -28,9 +29,10 @@ class RuntimeFunction;
   V(PokeInstruction)                  \
   V(DeleteRangeInstruction)           \
   V(PushUninitializedInstruction)     \
-  V(PushCodePointerInstruction)       \
+  V(PushBuiltinPointerInstruction)    \
   V(CallCsaMacroInstruction)          \
-  V(ModuleConstantInstruction)        \
+  V(CallIntrinsicInstruction)         \
+  V(NamespaceConstantInstruction)     \
   V(CallCsaMacroAndBranchInstruction) \
   V(CallBuiltinInstruction)           \
   V(CallRuntimeInstruction)           \
@@ -41,7 +43,7 @@ class RuntimeFunction;
   V(GotoExternalInstruction)          \
   V(ReturnInstruction)                \
   V(PrintConstantStringInstruction)   \
-  V(DebugBreakInstruction)            \
+  V(AbortInstruction)                 \
   V(UnsafeCastInstruction)
 
 #define TORQUE_INSTRUCTION_BOILERPLATE()                                 \
@@ -65,6 +67,7 @@ struct InstructionBase {
 
   virtual void TypeInstruction(Stack<const Type*>* stack,
                                ControlFlowGraph* cfg) const = 0;
+  void InvalidateTransientTypes(Stack<const Type*>* stack) const;
   virtual bool IsBlockTerminator() const { return false; }
   virtual void AppendSuccessorBlocks(std::vector<Block*>* block_list) const {}
 
@@ -167,33 +170,50 @@ struct PushUninitializedInstruction : InstructionBase {
   const Type* type;
 };
 
-struct PushCodePointerInstruction : InstructionBase {
+struct PushBuiltinPointerInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
-  PushCodePointerInstruction(std::string external_name, const Type* type)
+  PushBuiltinPointerInstruction(std::string external_name, const Type* type)
       : external_name(std::move(external_name)), type(type) {
-    DCHECK(type->IsFunctionPointerType());
+    DCHECK(type->IsBuiltinPointerType());
   }
 
   std::string external_name;
   const Type* type;
 };
 
-struct ModuleConstantInstruction : InstructionBase {
+struct NamespaceConstantInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
-  explicit ModuleConstantInstruction(ModuleConstant* constant)
+  explicit NamespaceConstantInstruction(NamespaceConstant* constant)
       : constant(constant) {}
 
-  ModuleConstant* constant;
+  NamespaceConstant* constant;
+};
+
+struct CallIntrinsicInstruction : InstructionBase {
+  TORQUE_INSTRUCTION_BOILERPLATE()
+  CallIntrinsicInstruction(Intrinsic* intrinsic,
+                           std::vector<std::string> constexpr_arguments)
+      : intrinsic(intrinsic), constexpr_arguments(constexpr_arguments) {}
+
+  Intrinsic* intrinsic;
+  std::vector<std::string> constexpr_arguments;
 };
 
 struct CallCsaMacroInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
   CallCsaMacroInstruction(Macro* macro,
-                          std::vector<std::string> constexpr_arguments)
-      : macro(macro), constexpr_arguments(constexpr_arguments) {}
+                          std::vector<std::string> constexpr_arguments,
+                          base::Optional<Block*> catch_block)
+      : macro(macro),
+        constexpr_arguments(constexpr_arguments),
+        catch_block(catch_block) {}
+  void AppendSuccessorBlocks(std::vector<Block*>* block_list) const override {
+    if (catch_block) block_list->push_back(*catch_block);
+  }
 
   Macro* macro;
   std::vector<std::string> constexpr_arguments;
+  base::Optional<Block*> catch_block;
 };
 
 struct CallCsaMacroAndBranchInstruction : InstructionBase {
@@ -201,13 +221,16 @@ struct CallCsaMacroAndBranchInstruction : InstructionBase {
   CallCsaMacroAndBranchInstruction(Macro* macro,
                                    std::vector<std::string> constexpr_arguments,
                                    base::Optional<Block*> return_continuation,
-                                   std::vector<Block*> label_blocks)
+                                   std::vector<Block*> label_blocks,
+                                   base::Optional<Block*> catch_block)
       : macro(macro),
         constexpr_arguments(constexpr_arguments),
         return_continuation(return_continuation),
-        label_blocks(label_blocks) {}
+        label_blocks(label_blocks),
+        catch_block(catch_block) {}
   bool IsBlockTerminator() const override { return true; }
   void AppendSuccessorBlocks(std::vector<Block*>* block_list) const override {
+    if (catch_block) block_list->push_back(*catch_block);
     if (return_continuation) block_list->push_back(*return_continuation);
     for (Block* block : label_blocks) block_list->push_back(block);
   }
@@ -216,46 +239,58 @@ struct CallCsaMacroAndBranchInstruction : InstructionBase {
   std::vector<std::string> constexpr_arguments;
   base::Optional<Block*> return_continuation;
   std::vector<Block*> label_blocks;
+  base::Optional<Block*> catch_block;
 };
 
 struct CallBuiltinInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
   bool IsBlockTerminator() const override { return is_tailcall; }
-  CallBuiltinInstruction(bool is_tailcall, Builtin* builtin, size_t argc)
-      : is_tailcall(is_tailcall), builtin(builtin), argc(argc) {}
+  CallBuiltinInstruction(bool is_tailcall, Builtin* builtin, size_t argc,
+                         base::Optional<Block*> catch_block)
+      : is_tailcall(is_tailcall),
+        builtin(builtin),
+        argc(argc),
+        catch_block(catch_block) {}
+  void AppendSuccessorBlocks(std::vector<Block*>* block_list) const override {
+    if (catch_block) block_list->push_back(*catch_block);
+  }
 
   bool is_tailcall;
   Builtin* builtin;
   size_t argc;
+  base::Optional<Block*> catch_block;
 };
 
 struct CallBuiltinPointerInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
   bool IsBlockTerminator() const override { return is_tailcall; }
-  CallBuiltinPointerInstruction(bool is_tailcall, Builtin* example_builtin,
-                                size_t argc)
-      : is_tailcall(is_tailcall),
-        example_builtin(example_builtin),
-        argc(argc) {}
+  CallBuiltinPointerInstruction(bool is_tailcall,
+                                const BuiltinPointerType* type, size_t argc)
+      : is_tailcall(is_tailcall), type(type), argc(argc) {}
 
   bool is_tailcall;
-  Builtin* example_builtin;
+  const BuiltinPointerType* type;
   size_t argc;
 };
 
 struct CallRuntimeInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
-  bool IsBlockTerminator() const override { return is_tailcall; }
+  bool IsBlockTerminator() const override;
 
   CallRuntimeInstruction(bool is_tailcall, RuntimeFunction* runtime_function,
-                         size_t argc)
+                         size_t argc, base::Optional<Block*> catch_block)
       : is_tailcall(is_tailcall),
         runtime_function(runtime_function),
-        argc(argc) {}
+        argc(argc),
+        catch_block(catch_block) {}
+  void AppendSuccessorBlocks(std::vector<Block*>* block_list) const override {
+    if (catch_block) block_list->push_back(*catch_block);
+  }
 
   bool is_tailcall;
   RuntimeFunction* runtime_function;
   size_t argc;
+  base::Optional<Block*> catch_block;
 };
 
 struct BranchInstruction : InstructionBase {
@@ -330,13 +365,17 @@ struct PrintConstantStringInstruction : InstructionBase {
   std::string message;
 };
 
-struct DebugBreakInstruction : InstructionBase {
+struct AbortInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
-  bool IsBlockTerminator() const override { return never_continues; }
-  explicit DebugBreakInstruction(bool never_continues)
-      : never_continues(never_continues) {}
+  enum class Kind { kDebugBreak, kUnreachable, kAssertionFailure };
+  bool IsBlockTerminator() const override { return kind != Kind::kDebugBreak; }
+  explicit AbortInstruction(Kind kind, std::string message = "") : kind(kind) {
+    // The normal way to write this triggers a bug in Clang on Windows.
+    this->message = std::move(message);
+  }
 
-  bool never_continues;
+  Kind kind;
+  std::string message;
 };
 
 struct UnsafeCastInstruction : InstructionBase {

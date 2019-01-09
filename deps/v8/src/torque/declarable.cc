@@ -11,53 +11,45 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-std::ostream& operator<<(std::ostream& os, const Callable& m) {
-  os << "callable " << m.name() << "(" << m.signature().parameter_types
-     << "): " << *m.signature().return_type;
-  return os;
+DEFINE_CONTEXTUAL_VARIABLE(CurrentScope);
+
+std::ostream& operator<<(std::ostream& os, const QualifiedName& name) {
+  for (const std::string& qualifier : name.namespace_qualification) {
+    os << qualifier << "::";
+  }
+  return os << name.name;
 }
 
-std::ostream& operator<<(std::ostream& os, const Variable& v) {
-  os << "variable " << v.name() << ": " << *v.type();
+std::ostream& operator<<(std::ostream& os, const Callable& m) {
+  os << "callable " << m.ReadableName() << "(";
+  if (m.signature().implicit_count != 0) {
+    os << "implicit ";
+    TypeVector implicit_parameter_types(
+        m.signature().parameter_types.types.begin(),
+        m.signature().parameter_types.types.begin() +
+            m.signature().implicit_count);
+    os << implicit_parameter_types << ")(";
+    TypeVector explicit_parameter_types(
+        m.signature().parameter_types.types.begin() +
+            m.signature().implicit_count,
+        m.signature().parameter_types.types.end());
+    os << explicit_parameter_types;
+  } else {
+    os << m.signature().parameter_types;
+  }
+  os << "): " << *m.signature().return_type;
   return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const Builtin& b) {
-  os << "builtin " << *b.signature().return_type << " " << b.name()
+  os << "builtin " << *b.signature().return_type << " " << b.ReadableName()
      << b.signature().parameter_types;
   return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const RuntimeFunction& b) {
-  os << "runtime function " << *b.signature().return_type << " " << b.name()
-     << b.signature().parameter_types;
-  return os;
-}
-
-void PrintLabel(std::ostream& os, const Label& l, bool with_names) {
-  os << l.name();
-  if (l.GetParameterCount() != 0) {
-    os << "(";
-    if (with_names) {
-      PrintCommaSeparatedList(os, l.GetParameters(),
-                              [](Variable* v) -> std::string {
-                                std::stringstream stream;
-                                stream << v->name();
-                                stream << ": ";
-                                stream << *(v->type());
-                                return stream.str();
-                              });
-    } else {
-      PrintCommaSeparatedList(
-          os, l.GetParameters(),
-          [](Variable* v) -> const Type& { return *(v->type()); });
-    }
-    os << ")";
-  }
-}
-
-std::ostream& operator<<(std::ostream& os, const Label& l) {
-  PrintLabel(os, l, true);
+  os << "runtime function " << *b.signature().return_type << " "
+     << b.ReadableName() << b.signature().parameter_types;
   return os;
 }
 
@@ -69,7 +61,39 @@ std::ostream& operator<<(std::ostream& os, const Generic& g) {
   return os;
 }
 
-size_t Label::next_id_ = 0;
+base::Optional<const Type*> Generic::InferTypeArgument(
+    size_t i, const TypeVector& arguments) {
+  const std::string type_name = declaration()->generic_parameters[i];
+  const std::vector<TypeExpression*>& parameters =
+      declaration()->callable->signature->parameters.types;
+  size_t j = declaration()->callable->signature->parameters.implicit_count;
+  for (size_t i = 0; i < arguments.size() && j < parameters.size(); ++i, ++j) {
+    BasicTypeExpression* basic =
+        BasicTypeExpression::DynamicCast(parameters[j]);
+    if (basic && basic->namespace_qualification.empty() &&
+        !basic->is_constexpr && basic->name == type_name) {
+      return arguments[i];
+    }
+  }
+  return base::nullopt;
+}
+
+base::Optional<TypeVector> Generic::InferSpecializationTypes(
+    const TypeVector& explicit_specialization_types,
+    const TypeVector& arguments) {
+  TypeVector result = explicit_specialization_types;
+  size_t type_parameter_count = declaration()->generic_parameters.size();
+  if (explicit_specialization_types.size() > type_parameter_count) {
+    return base::nullopt;
+  }
+  for (size_t i = explicit_specialization_types.size();
+       i < type_parameter_count; ++i) {
+    base::Optional<const Type*> inferred = InferTypeArgument(i, arguments);
+    if (!inferred) return base::nullopt;
+    result.push_back(*inferred);
+  }
+  return result;
+}
 
 }  // namespace torque
 }  // namespace internal

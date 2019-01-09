@@ -8,6 +8,8 @@
 #include "src/objects/api-callbacks.h"
 
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-write-barrier.h"
+#include "src/objects/foreign-inl.h"
 #include "src/objects/name.h"
 #include "src/objects/templates.h"
 
@@ -17,12 +19,17 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(AccessorInfo)
-CAST_ACCESSOR(AccessCheckInfo)
-CAST_ACCESSOR(InterceptorInfo)
-CAST_ACCESSOR(CallHandlerInfo)
+OBJECT_CONSTRUCTORS_IMPL(AccessCheckInfo, Struct)
+OBJECT_CONSTRUCTORS_IMPL(AccessorInfo, Struct)
+OBJECT_CONSTRUCTORS_IMPL(InterceptorInfo, Struct)
+OBJECT_CONSTRUCTORS_IMPL(CallHandlerInfo, Tuple3)
 
-ACCESSORS(AccessorInfo, name, Name, kNameOffset)
+CAST_ACCESSOR2(AccessorInfo)
+CAST_ACCESSOR2(AccessCheckInfo)
+CAST_ACCESSOR2(InterceptorInfo)
+CAST_ACCESSOR2(CallHandlerInfo)
+
+ACCESSORS2(AccessorInfo, name, Name, kNameOffset)
 SMI_ACCESSORS(AccessorInfo, flags, kFlagsOffset)
 ACCESSORS(AccessorInfo, expected_receiver_type, Object,
           kExpectedReceiverTypeOffset)
@@ -78,7 +85,7 @@ void AccessorInfo::set_setter_side_effect_type(SideEffectType value) {
 BIT_FIELD_ACCESSORS(AccessorInfo, flags, initial_property_attributes,
                     AccessorInfo::InitialAttributesBits)
 
-bool AccessorInfo::IsCompatibleReceiver(Object* receiver) {
+bool AccessorInfo::IsCompatibleReceiver(Object receiver) {
   if (!HasExpectedReceiverType()) return true;
   if (!receiver->IsJSObject()) return false;
   return FunctionTemplateInfo::cast(expected_receiver_type())

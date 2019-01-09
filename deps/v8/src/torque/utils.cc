@@ -49,7 +49,7 @@ std::string StringLiteralUnquote(const std::string& s) {
 std::string StringLiteralQuote(const std::string& s) {
   std::stringstream result;
   result << '"';
-  for (size_t i = 0; i < s.length() - 1; ++i) {
+  for (size_t i = 0; i < s.length(); ++i) {
     switch (s[i]) {
       case '\n':
         result << "\\n";
@@ -109,26 +109,27 @@ bool ContainsUpperCase(const std::string& s) {
   return std::any_of(s.begin(), s.end(), [](char c) { return isupper(c); });
 }
 
-// Torque has some module constants that are used like language level
+// Torque has some namespace constants that are used like language level
 // keywords, e.g.: 'True', 'Undefined', etc.
 // These do not need to follow the default naming convention for constants.
 bool IsKeywordLikeName(const std::string& s) {
-  static const std::vector<std::string> keyword_like_constants{
-      "True", "False", "Hole", "Null", "Undefined"};
+  static const char* const keyword_like_constants[]{"True", "False", "Hole",
+                                                    "Null", "Undefined"};
 
-  return std::find(keyword_like_constants.begin(), keyword_like_constants.end(),
-                   s) != keyword_like_constants.end();
+  return std::find(std::begin(keyword_like_constants),
+                   std::end(keyword_like_constants),
+                   s) != std::end(keyword_like_constants);
 }
 
 // Untagged/MachineTypes like 'int32', 'intptr' etc. follow a 'all-lowercase'
 // naming convention and are those exempt from the normal type convention.
 bool IsMachineType(const std::string& s) {
-  static const std::vector<std::string> machine_types{
-      "void",    "never",   "int32",   "uint32", "int64",  "intptr",
-      "uintptr", "float32", "float64", "bool",   "string", "int31"};
+  static const char* const machine_types[]{
+      "void",    "never",   "int32", "uint32", "int64", "intptr", "uintptr",
+      "float32", "float64", "bool",  "string", "bint",  "int31"};
 
-  return std::find(machine_types.begin(), machine_types.end(), s) !=
-         machine_types.end();
+  return std::find(std::begin(machine_types), std::end(machine_types), s) !=
+         std::end(machine_types);
 }
 
 }  // namespace
@@ -148,7 +149,7 @@ bool IsSnakeCase(const std::string& s) {
   return !ContainsUpperCase(s);
 }
 
-bool IsValidModuleConstName(const std::string& s) {
+bool IsValidNamespaceConstName(const std::string& s) {
   if (s.empty()) return false;
   if (IsKeywordLikeName(s)) return true;
 

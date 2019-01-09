@@ -65,7 +65,8 @@ Reduction DeadCodeElimination::Reduce(Node* node) {
     case IrOpcode::kDeoptimize:
     case IrOpcode::kReturn:
     case IrOpcode::kTerminate:
-      return ReduceDeoptimizeOrReturnOrTerminate(node);
+    case IrOpcode::kTailCall:
+      return ReduceDeoptimizeOrReturnOrTerminateOrTailCall(node);
     case IrOpcode::kThrow:
       return PropagateDeadControl(node);
     case IrOpcode::kBranch:
@@ -281,10 +282,12 @@ Reduction DeadCodeElimination::ReduceEffectNode(Node* node) {
   return NoChange();
 }
 
-Reduction DeadCodeElimination::ReduceDeoptimizeOrReturnOrTerminate(Node* node) {
+Reduction DeadCodeElimination::ReduceDeoptimizeOrReturnOrTerminateOrTailCall(
+    Node* node) {
   DCHECK(node->opcode() == IrOpcode::kDeoptimize ||
          node->opcode() == IrOpcode::kReturn ||
-         node->opcode() == IrOpcode::kTerminate);
+         node->opcode() == IrOpcode::kTerminate ||
+         node->opcode() == IrOpcode::kTailCall);
   Reduction reduction = PropagateDeadControl(node);
   if (reduction.Changed()) return reduction;
   if (FindDeadInput(node) != nullptr) {

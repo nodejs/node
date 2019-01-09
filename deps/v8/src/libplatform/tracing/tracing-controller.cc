@@ -47,7 +47,7 @@ TracingController::~TracingController() {
 
   {
     // Free memory for category group names allocated via strdup.
-    base::LockGuard<base::Mutex> lock(mutex_.get());
+    base::MutexGuard lock(mutex_.get());
     for (size_t i = g_category_index - 1; i >= g_num_builtin_categories; --i) {
       const char* group = g_category_groups[i];
       g_category_groups[i] = nullptr;
@@ -143,7 +143,7 @@ void TracingController::StartTracing(TraceConfig* trace_config) {
   trace_config_.reset(trace_config);
   std::unordered_set<v8::TracingController::TraceStateObserver*> observers_copy;
   {
-    base::LockGuard<base::Mutex> lock(mutex_.get());
+    base::MutexGuard lock(mutex_.get());
     mode_ = RECORDING_MODE;
     UpdateCategoryGroupEnabledFlags();
     observers_copy = observers_;
@@ -162,7 +162,7 @@ void TracingController::StopTracing() {
   UpdateCategoryGroupEnabledFlags();
   std::unordered_set<v8::TracingController::TraceStateObserver*> observers_copy;
   {
-    base::LockGuard<base::Mutex> lock(mutex_.get());
+    base::MutexGuard lock(mutex_.get());
     observers_copy = observers_;
   }
   for (auto o : observers_copy) {
@@ -213,7 +213,7 @@ const uint8_t* TracingController::GetCategoryGroupEnabledInternal(
   }
 
   // Slow path. Grab the lock.
-  base::LockGuard<base::Mutex> lock(mutex_.get());
+  base::MutexGuard lock(mutex_.get());
 
   // Check the list again with lock in hand.
   unsigned char* category_group_enabled = nullptr;
@@ -251,7 +251,7 @@ const uint8_t* TracingController::GetCategoryGroupEnabledInternal(
 void TracingController::AddTraceStateObserver(
     v8::TracingController::TraceStateObserver* observer) {
   {
-    base::LockGuard<base::Mutex> lock(mutex_.get());
+    base::MutexGuard lock(mutex_.get());
     observers_.insert(observer);
     if (mode_ != RECORDING_MODE) return;
   }
@@ -261,7 +261,7 @@ void TracingController::AddTraceStateObserver(
 
 void TracingController::RemoveTraceStateObserver(
     v8::TracingController::TraceStateObserver* observer) {
-  base::LockGuard<base::Mutex> lock(mutex_.get());
+  base::MutexGuard lock(mutex_.get());
   DCHECK(observers_.find(observer) != observers_.end());
   observers_.erase(observer);
 }

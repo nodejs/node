@@ -40,7 +40,7 @@ function assertArrayValues(expected, actual) {
 }
 
 function assertOrdering(expected) {
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
   assertArrayValues(expected, ordering);
 }
 

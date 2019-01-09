@@ -1,5 +1,5 @@
 Tests super long async stacks.
-callWithAsyncStack (expr.js:0:26)
+(anonymous) (expr.js:0:26)
 callWithAsyncStack (utils.js:3:4)
 call1 (wrapper.js:0:20)
 --Promise.then--

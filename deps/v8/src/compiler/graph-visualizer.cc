@@ -8,8 +8,8 @@
 #include <sstream>
 #include <string>
 
-#include "src/code-stubs.h"
 #include "src/compiler/all-nodes.h"
+#include "src/compiler/backend/register-allocator.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node-origin-table.h"
@@ -18,7 +18,6 @@
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/operator.h"
-#include "src/compiler/register-allocator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
 #include "src/interpreter/bytecodes.h"
@@ -76,7 +75,7 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
   int start = 0;
   int end = 0;
   if (!script.is_null() && !script->IsUndefined(isolate) && !shared.is_null()) {
-    Object* source_name = script->name();
+    Object source_name = script->name();
     os << ", \"sourceName\": \"";
     if (source_name->IsString()) {
       os << String::cast(source_name)->ToCString().get();
@@ -88,7 +87,8 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
       end = shared->EndPosition();
       os << ", \"sourceText\": \"";
       int len = shared->EndPosition() - start;
-      String::SubStringRange source(String::cast(script->source()), start, len);
+      SubStringRange source(String::cast(script->source()), no_allocation,
+                            start, len);
       for (const auto& c : source) {
         os << AsEscapedUC16ForJSON(c);
       }
@@ -139,7 +139,8 @@ void JsonPrintAllSourceWithPositions(std::ostream& os,
   AllowDeferredHandleDereference allow_deference_for_print_code;
   os << "\"sources\" : {";
   Handle<Script> script =
-      (info->shared_info().is_null() || !info->shared_info()->script())
+      (info->shared_info().is_null() ||
+       info->shared_info()->script() == Object())
           ? Handle<Script>()
           : handle(Script::cast(info->shared_info()->script()), isolate);
   JsonPrintFunctionSource(os, -1,
@@ -189,9 +190,9 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   bool source_available = false;
   if (FLAG_trace_file_names && info->has_shared_info() &&
       info->shared_info()->script()->IsScript()) {
-    Object* source_name = Script::cast(info->shared_info()->script())->name();
+    Object source_name = Script::cast(info->shared_info()->script())->name();
     if (source_name->IsString()) {
-      String* str = String::cast(source_name);
+      String str = String::cast(source_name);
       if (str->length() > 0) {
         SNPrintF(source_file, "%s", str->ToCString().get());
         std::replace(source_file.start(),
@@ -699,9 +700,7 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
       for (int j = instruction_block->first_instruction_index();
            j <= instruction_block->last_instruction_index(); j++) {
         PrintIndent();
-        PrintableInstruction printable = {RegisterConfiguration::Default(),
-                                          instructions->InstructionAt(j)};
-        os_ << j << " " << printable << " <|@\n";
+        os_ << j << " " << *instructions->InstructionAt(j) << " <|@\n";
       }
     }
   }
@@ -743,17 +742,13 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
     os_ << vreg << ":" << range->relative_id() << " " << type;
     if (range->HasRegisterAssigned()) {
       AllocatedOperand op = AllocatedOperand::cast(range->GetAssignedOperand());
-      const auto config = RegisterConfiguration::Default();
       if (op.IsRegister()) {
-        os_ << " \"" << config->GetGeneralRegisterName(op.register_code())
-            << "\"";
+        os_ << " \"" << Register::from_code(op.register_code()) << "\"";
       } else if (op.IsDoubleRegister()) {
-        os_ << " \"" << config->GetDoubleRegisterName(op.register_code())
-            << "\"";
+        os_ << " \"" << DoubleRegister::from_code(op.register_code()) << "\"";
       } else {
         DCHECK(op.IsFloatRegister());
-        os_ << " \"" << config->GetFloatRegisterName(op.register_code())
-            << "\"";
+        os_ << " \"" << FloatRegister::from_code(op.register_code()) << "\"";
       }
     } else if (range->spilled()) {
       const TopLevelLiveRange* top = range->TopLevel();
@@ -774,8 +769,11 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
       }
     }
 
-    // The toplevel range is always suffixed with :0. Use that as parent.
-    os_ << " " << vreg << ":0";
+    // The toplevel range might be a splinter. Pre-resolve those here so that
+    // they have a proper parent.
+    const TopLevelLiveRange* parent = range->TopLevel();
+    if (parent->IsSplinter()) parent = parent->splintered_from();
+    os_ << " " << parent->vreg() << ":" << parent->relative_id();
 
     // TODO(herhut) Find something useful to print for the hint field
     os_ << " unknown";
@@ -964,7 +962,6 @@ std::ostream& operator<<(std::ostream& os, const AsScheduledGraph& scheduled) {
 }
 
 std::ostream& operator<<(std::ostream& os, const InstructionOperandAsJSON& o) {
-  const RegisterConfiguration* conf = o.register_configuration_;
   const InstructionOperand* op = o.op_;
   const InstructionSequence* code = o.code_;
   os << "{";
@@ -983,13 +980,12 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperandAsJSON& o) {
           break;
         case UnallocatedOperand::FIXED_REGISTER: {
           os << ",\"tooltip\": \"FIXED_REGISTER: "
-             << conf->GetGeneralRegisterName(unalloc->fixed_register_index())
-             << "\"";
+             << Register::from_code(unalloc->fixed_register_index()) << "\"";
           break;
         }
         case UnallocatedOperand::FIXED_FP_REGISTER: {
           os << ",\"tooltip\": \"FIXED_FP_REGISTER: "
-             << conf->GetDoubleRegisterName(unalloc->fixed_register_index())
+             << DoubleRegister::from_code(unalloc->fixed_register_index())
              << "\"";
           break;
         }
@@ -1067,14 +1063,18 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperandAsJSON& o) {
       } else if (op->IsFPStackSlot()) {
         os << "fp_stack:" << allocated->index();
       } else if (op->IsRegister()) {
-        os << conf->GetGeneralOrSpecialRegisterName(allocated->register_code());
+        if (allocated->register_code() < Register::kNumRegisters) {
+          os << Register::from_code(allocated->register_code());
+        } else {
+          os << Register::GetSpecialRegisterName(allocated->register_code());
+        }
       } else if (op->IsDoubleRegister()) {
-        os << conf->GetDoubleRegisterName(allocated->register_code());
+        os << DoubleRegister::from_code(allocated->register_code());
       } else if (op->IsFloatRegister()) {
-        os << conf->GetFloatRegisterName(allocated->register_code());
+        os << FloatRegister::from_code(allocated->register_code());
       } else {
         DCHECK(op->IsSimd128Register());
-        os << conf->GetSimd128RegisterName(allocated->register_code());
+        os << Simd128Register::from_code(allocated->register_code());
       }
       os << "\",";
       os << "\"tooltip\": \""
@@ -1088,13 +1088,11 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperandAsJSON& o) {
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const InstructionAsJSON& i) {
-  const Instruction* instr = i.instr_;
-  InstructionOperandAsJSON json_op = {i.register_configuration_, nullptr,
-                                      i.code_};
+std::ostream& operator<<(std::ostream& os, const InstructionAsJSON& i_json) {
+  const Instruction* instr = i_json.instr_;
 
   os << "{";
-  os << "\"id\": " << i.index_ << ",";
+  os << "\"id\": " << i_json.index_ << ",";
   os << "\"opcode\": \"" << ArchOpcodeField::decode(instr->opcode()) << "\",";
   os << "\"flags\": \"";
   FlagsMode fm = FlagsModeField::decode(instr->opcode());
@@ -1123,10 +1121,9 @@ std::ostream& operator<<(std::ostream& os, const InstructionAsJSON& i) {
       if (move->IsEliminated()) continue;
       if (!first) os << ",";
       first = false;
-      json_op.op_ = &move->destination();
-      os << "[" << json_op << ",";
-      json_op.op_ = &move->source();
-      os << json_op << "]";
+      os << "[" << InstructionOperandAsJSON{&move->destination(), i_json.code_}
+         << "," << InstructionOperandAsJSON{&move->source(), i_json.code_}
+         << "]";
     }
     os << "]";
   }
@@ -1137,8 +1134,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionAsJSON& i) {
   for (size_t i = 0; i < instr->OutputCount(); i++) {
     if (need_comma) os << ",";
     need_comma = true;
-    json_op.op_ = instr->OutputAt(i);
-    os << json_op;
+    os << InstructionOperandAsJSON{instr->OutputAt(i), i_json.code_};
   }
   os << "],";
 
@@ -1147,8 +1143,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionAsJSON& i) {
   for (size_t i = 0; i < instr->InputCount(); i++) {
     if (need_comma) os << ",";
     need_comma = true;
-    json_op.op_ = instr->InputAt(i);
-    os << json_op;
+    os << InstructionOperandAsJSON{instr->InputAt(i), i_json.code_};
   }
   os << "],";
 
@@ -1157,8 +1152,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionAsJSON& i) {
   for (size_t i = 0; i < instr->TempCount(); i++) {
     if (need_comma) os << ",";
     need_comma = true;
-    json_op.op_ = instr->TempAt(i);
-    os << json_op;
+    os << InstructionOperandAsJSON{instr->TempAt(i), i_json.code_};
   }
   os << "]";
   os << "}";
@@ -1194,7 +1188,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionBlockAsJSON& b) {
   os << "],";
   os << "\"phis\": [";
   bool needs_comma = false;
-  InstructionOperandAsJSON json_op = {b.register_configuration_, nullptr, code};
+  InstructionOperandAsJSON json_op = {nullptr, code};
   for (const PhiInstruction* phi : block->phis()) {
     if (needs_comma) os << ",";
     needs_comma = true;
@@ -1212,7 +1206,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionBlockAsJSON& b) {
   os << "],";
 
   os << "\"instructions\": [";
-  InstructionAsJSON json_instr = {b.register_configuration_, -1, nullptr, code};
+  InstructionAsJSON json_instr = {-1, nullptr, code};
   need_comma = false;
   for (int j = block->first_instruction_index();
        j <= block->last_instruction_index(); j++) {
@@ -1232,15 +1226,13 @@ std::ostream& operator<<(std::ostream& os, const InstructionSequenceAsJSON& s) {
   const InstructionSequence* code = s.sequence_;
 
   os << "\"blocks\": [";
-  InstructionBlockAsJSON json_block = {s.register_configuration_, nullptr,
-                                       code};
 
   bool need_comma = false;
   for (int i = 0; i < code->InstructionBlockCount(); i++) {
     if (need_comma) os << ",";
     need_comma = true;
-    json_block.block_ = code->InstructionBlockAt(RpoNumber::FromInt(i));
-    os << json_block;
+    os << InstructionBlockAsJSON{
+        code->InstructionBlockAt(RpoNumber::FromInt(i)), code};
   }
   os << "]";
 

@@ -19,14 +19,27 @@
 namespace v8 {
 namespace internal {
 
-ACCESSORS(JSPluralRules, locale, String, kLocaleOffset)
-ACCESSORS(JSPluralRules, type, String, kTypeOffset)
-ACCESSORS(JSPluralRules, icu_plural_rules, Managed<icu::PluralRules>,
-          kICUPluralRulesOffset)
-ACCESSORS(JSPluralRules, icu_decimal_format, Managed<icu::DecimalFormat>,
-          kICUDecimalFormatOffset)
+OBJECT_CONSTRUCTORS_IMPL(JSPluralRules, JSObject)
 
-CAST_ACCESSOR(JSPluralRules);
+ACCESSORS2(JSPluralRules, locale, String, kLocaleOffset)
+SMI_ACCESSORS(JSPluralRules, flags, kFlagsOffset)
+ACCESSORS2(JSPluralRules, icu_plural_rules, Managed<icu::PluralRules>,
+           kICUPluralRulesOffset)
+ACCESSORS2(JSPluralRules, icu_decimal_format, Managed<icu::DecimalFormat>,
+           kICUDecimalFormatOffset)
+
+inline void JSPluralRules::set_type(Type type) {
+  DCHECK_LT(type, Type::COUNT);
+  int hints = flags();
+  hints = TypeBits::update(hints, type);
+  set_flags(hints);
+}
+
+inline JSPluralRules::Type JSPluralRules::type() const {
+  return TypeBits::decode(flags());
+}
+
+CAST_ACCESSOR2(JSPluralRules);
 
 }  // namespace internal
 }  // namespace v8

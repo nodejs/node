@@ -26,14 +26,20 @@ namespace compiler {
 class MachineOperatorReducerTest : public GraphTest {
  public:
   explicit MachineOperatorReducerTest(int num_parameters = 2)
-      : GraphTest(num_parameters), machine_(zone()) {}
+      : GraphTest(num_parameters),
+        machine_(zone()),
+        common_(zone()),
+        javascript_(zone()),
+        jsgraph_(isolate(), graph(), &common_, &javascript_, nullptr,
+                 &machine_),
+        graph_reducer_(zone(), graph(), jsgraph_.Dead()) {}
 
  protected:
   Reduction Reduce(Node* node) {
     JSOperatorBuilder javascript(zone());
     JSGraph jsgraph(isolate(), graph(), common(), &javascript, nullptr,
                     &machine_);
-    MachineOperatorReducer reducer(&jsgraph);
+    MachineOperatorReducer reducer(&graph_reducer_, &jsgraph);
     return reducer.Reduce(node);
   }
 
@@ -61,6 +67,10 @@ class MachineOperatorReducerTest : public GraphTest {
 
  private:
   MachineOperatorBuilder machine_;
+  CommonOperatorBuilder common_;
+  JSOperatorBuilder javascript_;
+  JSGraph jsgraph_;
+  GraphReducer graph_reducer_;
 };
 
 

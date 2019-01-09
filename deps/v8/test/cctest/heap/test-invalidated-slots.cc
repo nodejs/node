@@ -19,7 +19,7 @@ namespace internal {
 namespace heap {
 
 Page* HeapTester::AllocateByteArraysOnPage(
-    Heap* heap, std::vector<ByteArray*>* byte_arrays) {
+    Heap* heap, std::vector<ByteArray>* byte_arrays) {
   PauseAllocationObserversScope pause_observers(heap);
   const int kLength = 256 - ByteArray::kHeaderSize;
   const int kSize = ByteArray::SizeFor(kLength);
@@ -31,11 +31,10 @@ Page* HeapTester::AllocateByteArraysOnPage(
   {
     AlwaysAllocateScope always_allocate(isolate);
     heap::SimulateFullSpace(old_space);
-    ByteArray* byte_array;
+    ByteArray byte_array;
     CHECK(AllocateByteArrayForTest(heap, kLength, TENURED).To(&byte_array));
     byte_arrays->push_back(byte_array);
     page = Page::FromAddress(byte_array->address());
-    CHECK_EQ(page->area_size() % kSize, 0u);
     size_t n = page->area_size() / kSize;
     for (size_t i = 1; i < n; i++) {
       CHECK(AllocateByteArrayForTest(heap, kLength, TENURED).To(&byte_array));
@@ -50,13 +49,13 @@ Page* HeapTester::AllocateByteArraysOnPage(
 HEAP_TEST(InvalidatedSlotsNoInvalidatedRanges) {
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
-  std::vector<ByteArray*> byte_arrays;
+  std::vector<ByteArray> byte_arrays;
   Page* page = AllocateByteArraysOnPage(heap, &byte_arrays);
   InvalidatedSlotsFilter filter(page);
-  for (auto byte_array : byte_arrays) {
+  for (ByteArray byte_array : byte_arrays) {
     Address start = byte_array->address() + ByteArray::kHeaderSize;
     Address end = byte_array->address() + byte_array->Size();
-    for (Address addr = start; addr < end; addr += kPointerSize) {
+    for (Address addr = start; addr < end; addr += kTaggedSize) {
       CHECK(filter.IsValid(addr));
     }
   }
@@ -65,7 +64,7 @@ HEAP_TEST(InvalidatedSlotsNoInvalidatedRanges) {
 HEAP_TEST(InvalidatedSlotsSomeInvalidatedRanges) {
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
-  std::vector<ByteArray*> byte_arrays;
+  std::vector<ByteArray> byte_arrays;
   Page* page = AllocateByteArraysOnPage(heap, &byte_arrays);
   // Register every second byte arrays as invalidated.
   for (size_t i = 0; i < byte_arrays.size(); i += 2) {
@@ -74,10 +73,10 @@ HEAP_TEST(InvalidatedSlotsSomeInvalidatedRanges) {
   }
   InvalidatedSlotsFilter filter(page);
   for (size_t i = 0; i < byte_arrays.size(); i++) {
-    ByteArray* byte_array = byte_arrays[i];
+    ByteArray byte_array = byte_arrays[i];
     Address start = byte_array->address() + ByteArray::kHeaderSize;
     Address end = byte_array->address() + byte_array->Size();
-    for (Address addr = start; addr < end; addr += kPointerSize) {
+    for (Address addr = start; addr < end; addr += kTaggedSize) {
       if (i % 2 == 0) {
         CHECK(!filter.IsValid(addr));
       } else {
@@ -90,7 +89,7 @@ HEAP_TEST(InvalidatedSlotsSomeInvalidatedRanges) {
 HEAP_TEST(InvalidatedSlotsAllInvalidatedRanges) {
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
-  std::vector<ByteArray*> byte_arrays;
+  std::vector<ByteArray> byte_arrays;
   Page* page = AllocateByteArraysOnPage(heap, &byte_arrays);
   // Register the all byte arrays as invalidated.
   for (size_t i = 0; i < byte_arrays.size(); i++) {
@@ -99,10 +98,10 @@ HEAP_TEST(InvalidatedSlotsAllInvalidatedRanges) {
   }
   InvalidatedSlotsFilter filter(page);
   for (size_t i = 0; i < byte_arrays.size(); i++) {
-    ByteArray* byte_array = byte_arrays[i];
+    ByteArray byte_array = byte_arrays[i];
     Address start = byte_array->address() + ByteArray::kHeaderSize;
     Address end = byte_array->address() + byte_array->Size();
-    for (Address addr = start; addr < end; addr += kPointerSize) {
+    for (Address addr = start; addr < end; addr += kTaggedSize) {
       CHECK(!filter.IsValid(addr));
     }
   }
@@ -112,7 +111,7 @@ HEAP_TEST(InvalidatedSlotsAfterTrimming) {
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
-  std::vector<ByteArray*> byte_arrays;
+  std::vector<ByteArray> byte_arrays;
   Page* page = AllocateByteArraysOnPage(heap, &byte_arrays);
   // Register the all byte arrays as invalidated.
   for (size_t i = 0; i < byte_arrays.size(); i++) {
@@ -123,11 +122,11 @@ HEAP_TEST(InvalidatedSlotsAfterTrimming) {
   // considered invalid if the old space page was swept.
   InvalidatedSlotsFilter filter(page);
   for (size_t i = 0; i < byte_arrays.size(); i++) {
-    ByteArray* byte_array = byte_arrays[i];
+    ByteArray byte_array = byte_arrays[i];
     Address start = byte_array->address() + ByteArray::kHeaderSize;
     Address end = byte_array->address() + byte_array->Size();
     heap->RightTrimFixedArray(byte_array, byte_array->length());
-    for (Address addr = start; addr < end; addr += kPointerSize) {
+    for (Address addr = start; addr < end; addr += kTaggedSize) {
       CHECK_EQ(filter.IsValid(addr), page->SweepingDone());
     }
   }
@@ -137,7 +136,7 @@ HEAP_TEST(InvalidatedSlotsEvacuationCandidate) {
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
-  std::vector<ByteArray*> byte_arrays;
+  std::vector<ByteArray> byte_arrays;
   Page* page = AllocateByteArraysOnPage(heap, &byte_arrays);
   page->MarkEvacuationCandidate();
   // Register the all byte arrays as invalidated.
@@ -150,10 +149,10 @@ HEAP_TEST(InvalidatedSlotsEvacuationCandidate) {
   // All slots must still be valid.
   InvalidatedSlotsFilter filter(page);
   for (size_t i = 0; i < byte_arrays.size(); i++) {
-    ByteArray* byte_array = byte_arrays[i];
+    ByteArray byte_array = byte_arrays[i];
     Address start = byte_array->address() + ByteArray::kHeaderSize;
     Address end = byte_array->address() + byte_array->Size();
-    for (Address addr = start; addr < end; addr += kPointerSize) {
+    for (Address addr = start; addr < end; addr += kTaggedSize) {
       CHECK(filter.IsValid(addr));
     }
   }
@@ -162,7 +161,7 @@ HEAP_TEST(InvalidatedSlotsEvacuationCandidate) {
 HEAP_TEST(InvalidatedSlotsResetObjectRegression) {
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
-  std::vector<ByteArray*> byte_arrays;
+  std::vector<ByteArray> byte_arrays;
   Page* page = AllocateByteArraysOnPage(heap, &byte_arrays);
   // Ensure that the first array has smaller size then the rest.
   heap->RightTrimFixedArray(byte_arrays[0], byte_arrays[0]->length() - 8);
@@ -174,10 +173,10 @@ HEAP_TEST(InvalidatedSlotsResetObjectRegression) {
   // All slots must still be invalid.
   InvalidatedSlotsFilter filter(page);
   for (size_t i = 0; i < byte_arrays.size(); i++) {
-    ByteArray* byte_array = byte_arrays[i];
+    ByteArray byte_array = byte_arrays[i];
     Address start = byte_array->address() + ByteArray::kHeaderSize;
     Address end = byte_array->address() + byte_array->Size();
-    for (Address addr = start; addr < end; addr += kPointerSize) {
+    for (Address addr = start; addr < end; addr += kTaggedSize) {
       CHECK(!filter.IsValid(addr));
     }
   }
@@ -247,8 +246,8 @@ HEAP_TEST(InvalidatedSlotsRightTrimLargeFixedArray) {
   Handle<FixedArray> trimmed;
   {
     AlwaysAllocateScope always_allocate(isolate);
-    trimmed =
-        factory->NewFixedArray(kMaxRegularHeapObjectSize / kPointerSize + 100);
+    trimmed = factory->NewFixedArray(
+        kMaxRegularHeapObjectSize / kTaggedSize + 100, TENURED);
     DCHECK(MemoryChunk::FromHeapObject(*trimmed)->InLargeObjectSpace());
   }
   heap::SimulateIncrementalMarking(heap);
@@ -331,27 +330,24 @@ HEAP_TEST(InvalidatedSlotsFastToSlow) {
   // Start incremental marking.
   heap::SimulateIncrementalMarking(heap);
   // Set properties to point to the evacuation candidate.
-  JSReceiver::SetProperty(isolate, obj, prop_name1, evacuated,
-                          LanguageMode::kSloppy)
+  Object::SetProperty(isolate, obj, prop_name1, evacuated,
+                      LanguageMode::kSloppy)
       .Check();
-  JSReceiver::SetProperty(isolate, obj, prop_name2, evacuated,
-                          LanguageMode::kSloppy)
+  Object::SetProperty(isolate, obj, prop_name2, evacuated,
+                      LanguageMode::kSloppy)
       .Check();
-  JSReceiver::SetProperty(isolate, obj, prop_name3, evacuated,
-                          LanguageMode::kSloppy)
+  Object::SetProperty(isolate, obj, prop_name3, evacuated,
+                      LanguageMode::kSloppy)
       .Check();
 
   {
     HandleScope scope(isolate);
     Handle<HeapObject> dead = factory->NewFixedArray(1);
-    JSReceiver::SetProperty(isolate, obj, prop_name1, dead,
-                            LanguageMode::kSloppy)
+    Object::SetProperty(isolate, obj, prop_name1, dead, LanguageMode::kSloppy)
         .Check();
-    JSReceiver::SetProperty(isolate, obj, prop_name2, dead,
-                            LanguageMode::kSloppy)
+    Object::SetProperty(isolate, obj, prop_name2, dead, LanguageMode::kSloppy)
         .Check();
-    JSReceiver::SetProperty(isolate, obj, prop_name3, dead,
-                            LanguageMode::kSloppy)
+    Object::SetProperty(isolate, obj, prop_name3, dead, LanguageMode::kSloppy)
         .Check();
     Handle<Map> map(obj->map(), isolate);
     Handle<Map> normalized_map =

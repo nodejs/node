@@ -48,11 +48,11 @@ class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 static void DumpMaps(i::PagedSpace* space) {
   i::HeapObjectIterator it(space);
   i::ReadOnlyRoots roots(space->heap());
-  for (i::Object* o = it.Next(); o != nullptr; o = it.Next()) {
+  for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
     if (!o->IsMap()) continue;
-    i::Map* m = i::Map::cast(o);
+    i::Map m = i::Map::cast(o);
     const char* n = nullptr;
-    intptr_t p = reinterpret_cast<intptr_t>(m) & 0x7FFFF;
+    intptr_t p = static_cast<intptr_t>(m.ptr()) & 0x7FFFF;
     int t = m->instance_type();
     READ_ONLY_ROOT_LIST(RO_ROOT_LIST_CASE)
     MUTABLE_ROOT_LIST(MUTABLE_ROOT_LIST_CASE)
@@ -113,16 +113,16 @@ static int DumpHeapConstants(const char* argv0) {
       if (s->identity() == i::CODE_SPACE || s->identity() == i::MAP_SPACE)
         continue;
       const char* sname = s->name();
-      for (i::Object* o = it.Next(); o != nullptr; o = it.Next()) {
+      for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
         // Skip maps in RO_SPACE since they will be reported elsewhere.
         if (o->IsMap()) continue;
         const char* n = nullptr;
         i::RootIndex i = i::RootIndex::kFirstSmiRoot;
-        intptr_t p = reinterpret_cast<intptr_t>(o) & 0x7FFFF;
+        intptr_t p = o.ptr() & 0x7FFFF;
         STRONG_READ_ONLY_ROOT_LIST(RO_ROOT_LIST_CASE)
         MUTABLE_ROOT_LIST(ROOT_LIST_CASE)
         if (n == nullptr) continue;
-        if (!i::Heap::RootIsImmortalImmovable(i)) continue;
+        if (!i::RootsTable::IsImmortalImmovable(i)) continue;
         i::PrintF("  (\"%s\", 0x%05" V8PRIxPTR "): \"%s\",\n", sname, p, n);
       }
     }

@@ -61,6 +61,12 @@ class SimulatorBase {
     return reinterpret_cast<T>(ret);
   }
 
+  template <typename T>
+  static typename std::enable_if<std::is_base_of<Object, T>::value, T>::type
+  ConvertReturn(intptr_t ret) {
+    return Object(ret);
+  }
+
   // Convert back void return type (i.e. no return).
   template <typename T>
   static typename std::enable_if<std::is_void<T>::value, T>::type ConvertReturn(

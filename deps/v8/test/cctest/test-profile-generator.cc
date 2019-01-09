@@ -711,6 +711,7 @@ TEST(LineNumber) {
 }
 
 TEST(BailoutReason) {
+#ifndef V8_LITE_MODE
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_always_opt = false;
   i::FLAG_opt = true;
@@ -751,7 +752,9 @@ TEST(BailoutReason) {
 
   current = PickChild(current, "Debugger");
   CHECK(const_cast<v8::CpuProfileNode*>(current));
-  CHECK(!strcmp("Optimization disabled for test", current->GetBailoutReason()));
+  CHECK(
+      !strcmp("Optimization is always disabled", current->GetBailoutReason()));
+#endif  // V8_LITE_MODE
 }
 
 }  // namespace test_profile_generator

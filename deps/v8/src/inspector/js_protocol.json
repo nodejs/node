@@ -546,11 +546,6 @@
                     "description": "Resumes JavaScript execution."
                 },
                 {
-                    "name": "scheduleStepIntoAsync",
-                    "description": "This method is deprecated - use Debugger.stepInto with breakOnAsyncCall and\nDebugger.pauseOnAsyncTask instead. Steps into next scheduled async task if any is scheduled\nbefore next pause. Returns success when async task is actually scheduled, returns error if no\ntask were scheduled or another scheduleStepIntoAsync was called.",
-                    "experimental": true
-                },
-                {
                     "name": "searchInContent",
                     "description": "Searches for given string in script content.",
                     "parameters": [
@@ -1189,6 +1184,11 @@
                             "type": "number"
                         },
                         {
+                            "name": "id",
+                            "description": "Node id. Ids are unique across all profiles collected between startSampling and stopSampling.",
+                            "type": "integer"
+                        },
+                        {
                             "name": "children",
                             "description": "Child nodes.",
                             "type": "array",
@@ -1199,13 +1199,42 @@
                     ]
                 },
                 {
+                    "id": "SamplingHeapProfileSample",
+                    "description": "A single sample from a sampling profile.",
+                    "type": "object",
+                    "properties": [
+                        {
+                            "name": "size",
+                            "description": "Allocation size in bytes attributed to the sample.",
+                            "type": "number"
+                        },
+                        {
+                            "name": "nodeId",
+                            "description": "Id of the corresponding profile tree node.",
+                            "type": "integer"
+                        },
+                        {
+                            "name": "ordinal",
+                            "description": "Time-ordered sample ordinal number. It is unique across all profiles retrieved\nbetween startSampling and stopSampling.",
+                            "type": "number"
+                        }
+                    ]
+                },
+                {
                     "id": "SamplingHeapProfile",
-                    "description": "Profile.",
+                    "description": "Sampling profile.",
                     "type": "object",
                     "properties": [
                         {
                             "name": "head",
                             "$ref": "SamplingHeapProfileNode"
+                        },
+                        {
+                            "name": "samples",
+                            "type": "array",
+                            "items": {
+                                "$ref": "SamplingHeapProfileSample"
+                            }
                         }
                     ]
                 }
@@ -1856,7 +1885,9 @@
                                 "error",
                                 "proxy",
                                 "promise",
-                                "typedarray"
+                                "typedarray",
+                                "arraybuffer",
+                                "dataview"
                             ]
                         },
                         {
@@ -1911,22 +1942,12 @@
                     "properties": [
                         {
                             "name": "header",
+                            "description": "The JSON-stringified result of formatter.header(object, config) call.\nIt contains json ML array that represents RemoteObject.",
                             "type": "string"
                         },
                         {
-                            "name": "hasBody",
-                            "type": "boolean"
-                        },
-                        {
-                            "name": "formatterObjectId",
-                            "$ref": "RemoteObjectId"
-                        },
-                        {
-                            "name": "bindRemoteObjectFunctionId",
-                            "$ref": "RemoteObjectId"
-                        },
-                        {
-                            "name": "configObjectId",
+                            "name": "bodyGetterId",
+                            "description": "If formatter returns true as a result of formatter.hasBody call then bodyGetterId will\ncontain RemoteObjectId for the function that returns result of formatter.body(object, config) call.\nThe result value is json ML array.",
                             "optional": true,
                             "$ref": "RemoteObjectId"
                         }

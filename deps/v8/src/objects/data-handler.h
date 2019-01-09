@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_DATA_HANDLER_H_
 #define V8_OBJECTS_DATA_HANDLER_H_
 
-#include "src/objects.h"
+#include "src/objects/struct.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -31,30 +31,32 @@ class DataHandler : public Struct {
 
   // [data1-3]: These are optional general-purpose fields whose content and
   // presence depends on the handler kind.
-  DECL_ACCESSORS(data1, MaybeObject)
-  DECL_ACCESSORS(data2, MaybeObject)
-  DECL_ACCESSORS(data3, MaybeObject)
+  DECL_ACCESSORS2(data1, MaybeObject)
+  DECL_ACCESSORS2(data2, MaybeObject)
+  DECL_ACCESSORS2(data3, MaybeObject)
 
 // Layout description.
-#define DATA_HANDLER_FIELDS(V)         \
-  V(kSmiHandlerOffset, kPointerSize)   \
-  V(kValidityCellOffset, kPointerSize) \
-  V(kSizeWithData0, 0)                 \
-  V(kData1Offset, kPointerSize)        \
-  V(kSizeWithData1, 0)                 \
-  V(kData2Offset, kPointerSize)        \
-  V(kSizeWithData2, 0)                 \
-  V(kData3Offset, kPointerSize)        \
+#define DATA_HANDLER_FIELDS(V)        \
+  V(kSmiHandlerOffset, kTaggedSize)   \
+  V(kValidityCellOffset, kTaggedSize) \
+  V(kSizeWithData0, 0)                \
+  V(kData1Offset, kTaggedSize)        \
+  V(kSizeWithData1, 0)                \
+  V(kData2Offset, kTaggedSize)        \
+  V(kSizeWithData2, 0)                \
+  V(kData3Offset, kTaggedSize)        \
   V(kSizeWithData3, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, DATA_HANDLER_FIELDS)
 #undef DATA_HANDLER_FIELDS
 
-  DECL_CAST(DataHandler)
+  DECL_CAST2(DataHandler)
 
   DECL_VERIFIER(DataHandler)
 
   class BodyDescriptor;
+
+  OBJECT_CONSTRUCTORS(DataHandler, Struct)
 };
 
 }  // namespace internal

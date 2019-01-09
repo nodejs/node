@@ -92,13 +92,12 @@ class V8_BASE_EXPORT Mutex final {
   DISALLOW_COPY_AND_ASSIGN(Mutex);
 };
 
-
 // POD Mutex initialized lazily (i.e. the first time Pointer() is called).
 // Usage:
 //   static LazyMutex my_mutex = LAZY_MUTEX_INITIALIZER;
 //
 //   void my_function() {
-//     LockGuard<Mutex> guard(my_mutex.Pointer());
+//     MutexGuard guard(my_mutex.Pointer());
 //     // Do something.
 //   }
 //
@@ -224,6 +223,8 @@ class LockGuard final {
 
   DISALLOW_COPY_AND_ASSIGN(LockGuard);
 };
+
+using MutexGuard = LockGuard<Mutex>;
 
 }  // namespace base
 }  // namespace v8

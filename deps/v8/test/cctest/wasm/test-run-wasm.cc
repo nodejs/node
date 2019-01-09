@@ -2839,6 +2839,13 @@ WASM_EXEC_TEST(F32Min) {
   }
 }
 
+WASM_EXEC_TEST(F32MinSameValue) {
+  WasmRunner<float, float> r(execution_tier);
+  BUILD(r, WASM_F32_MIN(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
+  float result = r.Call(5.0f);
+  CHECK_FLOAT_EQ(5.0f, result);
+}
+
 WASM_EXEC_TEST(F64Min) {
   WasmRunner<double, double, double> r(execution_tier);
   BUILD(r, WASM_F64_MIN(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -2848,6 +2855,13 @@ WASM_EXEC_TEST(F64Min) {
   }
 }
 
+WASM_EXEC_TEST(F64MinSameValue) {
+  WasmRunner<double, double> r(execution_tier);
+  BUILD(r, WASM_F64_MIN(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
+  double result = r.Call(5.0);
+  CHECK_DOUBLE_EQ(5.0, result);
+}
+
 WASM_EXEC_TEST(F32Max) {
   WasmRunner<float, float, float> r(execution_tier);
   BUILD(r, WASM_F32_MAX(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -2855,6 +2869,13 @@ WASM_EXEC_TEST(F32Max) {
   FOR_FLOAT32_INPUTS(i) {
     FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ(JSMax(*i, *j), r.Call(*i, *j)); }
   }
+}
+
+WASM_EXEC_TEST(F32MaxSameValue) {
+  WasmRunner<float, float> r(execution_tier);
+  BUILD(r, WASM_F32_MAX(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
+  float result = r.Call(5.0f);
+  CHECK_FLOAT_EQ(5.0f, result);
 }
 
 WASM_EXEC_TEST(F64Max) {
@@ -2867,6 +2888,13 @@ WASM_EXEC_TEST(F64Max) {
       CHECK_DOUBLE_EQ(JSMax(*i, *j), result);
     }
   }
+}
+
+WASM_EXEC_TEST(F64MaxSameValue) {
+  WasmRunner<double, double> r(execution_tier);
+  BUILD(r, WASM_F64_MAX(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
+  double result = r.Call(5.0);
+  CHECK_DOUBLE_EQ(5.0, result);
 }
 
 WASM_EXEC_TEST(I32SConvertF32) {
@@ -3437,9 +3465,9 @@ TEST(Liftoff_tier_up) {
     memcpy(buffer.get(), sub_code->instructions().start(), sub_size);
     desc.buffer = buffer.get();
     desc.instr_size = static_cast<int>(sub_size);
-    WasmCode* code =
-        native_module->AddCode(add.function_index(), desc, 0, 0, 0, {},
-                               OwnedVector<byte>(), WasmCode::kOther);
+    WasmCode* code = native_module->AddCode(
+        add.function_index(), desc, 0, 0, 0, {}, OwnedVector<byte>(),
+        WasmCode::kFunction, WasmCode::kOther);
     native_module->PublishCode(code);
 
     // Second run should now execute {sub}.

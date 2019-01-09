@@ -27,7 +27,7 @@ class JSProxy : public JSReceiver {
 
   static MaybeHandle<Context> GetFunctionRealm(Handle<JSProxy> proxy);
 
-  DECL_CAST(JSProxy)
+  DECL_CAST2(JSProxy)
 
   V8_INLINE bool IsRevoked() const;
   static void Revoke(Handle<JSProxy> proxy);
@@ -106,15 +106,21 @@ class JSProxy : public JSReceiver {
   static const int kMaxIterationLimit = 100 * 1024;
 
   // Layout description.
-  static const int kTargetOffset = JSReceiver::kHeaderSize;
-  static const int kHandlerOffset = kTargetOffset + kPointerSize;
-  static const int kSize = kHandlerOffset + kPointerSize;
+#define JS_PROXY_FIELDS(V)       \
+  V(kTargetOffset, kTaggedSize)  \
+  V(kHandlerOffset, kTaggedSize) \
+  /* Total size. */              \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSReceiver::kHeaderSize, JS_PROXY_FIELDS)
+#undef JS_PROXY_FIELDS
 
   // kTargetOffset aliases with the elements of JSObject. The fact that
   // JSProxy::target is a Javascript value which cannot be confused with an
   // elements backing store is exploited by loading from this offset from an
   // unknown JSReceiver.
-  STATIC_ASSERT(JSObject::kElementsOffset == JSProxy::kTargetOffset);
+  STATIC_ASSERT(static_cast<int>(JSObject::kElementsOffset) ==
+                static_cast<int>(JSProxy::kTargetOffset));
 
   typedef FixedBodyDescriptor<JSReceiver::kPropertiesOrHashOffset, kSize, kSize>
       BodyDescriptor;
@@ -124,8 +130,7 @@ class JSProxy : public JSReceiver {
                                       PropertyDescriptor* desc,
                                       ShouldThrow should_throw);
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxy);
+  OBJECT_CONSTRUCTORS(JSProxy, JSReceiver);
 };
 
 // JSProxyRevocableResult is just a JSObject with a specific initial map.
@@ -133,10 +138,17 @@ class JSProxy : public JSReceiver {
 // See https://tc39.github.io/ecma262/#sec-proxy.revocable
 class JSProxyRevocableResult : public JSObject {
  public:
-  // Offsets of object fields.
-  static const int kProxyOffset = JSObject::kHeaderSize;
-  static const int kRevokeOffset = kProxyOffset + kPointerSize;
-  static const int kSize = kRevokeOffset + kPointerSize;
+  // Layout description.
+#define JS_PROXY_REVOCATABLE_RESULT_FIELDS(V) \
+  V(kProxyOffset, kTaggedSize)                \
+  V(kRevokeOffset, kTaggedSize)               \
+  /* Total size. */                           \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_PROXY_REVOCATABLE_RESULT_FIELDS)
+#undef JS_PROXY_REVOCATABLE_RESULT_FIELDS
+
   // Indices of in-object properties.
   static const int kProxyIndex = 0;
   static const int kRevokeIndex = 1;

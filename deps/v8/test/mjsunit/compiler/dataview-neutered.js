@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --noalways-opt
+// Flags: --allow-natives-syntax --opt --noalways-opt --no-stress-flush-bytecode
 
-// Invalidate the neutering protector.
-%ArrayBufferNeuter(new ArrayBuffer(1));
+// Invalidate the detaching protector.
+%ArrayBufferDetach(new ArrayBuffer(1));
 
 // Check DataView.prototype.getInt8() optimization.
 (function() {
@@ -21,7 +21,7 @@
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(0, foo(dv));
   assertOptimized(foo);
-  %ArrayBufferNeuter(ab);
+  %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv), TypeError);
   assertUnoptimized(foo);
   %OptimizeFunctionOnNextCall(foo);
@@ -43,7 +43,7 @@
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(0, foo(dv));
   assertOptimized(foo);
-  %ArrayBufferNeuter(ab);
+  %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv), TypeError);
   assertUnoptimized(foo);
   %OptimizeFunctionOnNextCall(foo);
@@ -65,7 +65,7 @@
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(0, foo(dv));
   assertOptimized(foo);
-  %ArrayBufferNeuter(ab);
+  %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv), TypeError);
   assertUnoptimized(foo);
   %OptimizeFunctionOnNextCall(foo);
@@ -87,7 +87,7 @@
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(0, foo(dv));
   assertOptimized(foo);
-  %ArrayBufferNeuter(ab);
+  %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv), TypeError);
   assertUnoptimized(foo);
   %OptimizeFunctionOnNextCall(foo);
@@ -109,7 +109,7 @@
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(0, foo(dv));
   assertOptimized(foo);
-  %ArrayBufferNeuter(ab);
+  %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv), TypeError);
   assertUnoptimized(foo);
   %OptimizeFunctionOnNextCall(foo);
@@ -131,7 +131,7 @@
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(0, foo(dv));
   assertOptimized(foo);
-  %ArrayBufferNeuter(ab);
+  %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv), TypeError);
   assertUnoptimized(foo);
   %OptimizeFunctionOnNextCall(foo);
@@ -153,7 +153,7 @@
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(0, foo(dv));
   assertOptimized(foo);
-  %ArrayBufferNeuter(ab);
+  %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv), TypeError);
   assertUnoptimized(foo);
   %OptimizeFunctionOnNextCall(foo);
@@ -175,7 +175,7 @@
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(0, foo(dv));
   assertOptimized(foo);
-  %ArrayBufferNeuter(ab);
+  %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv), TypeError);
   assertUnoptimized(foo);
   %OptimizeFunctionOnNextCall(foo);
@@ -199,7 +199,7 @@
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(undefined, foo(dv, 3));
   assertOptimized(foo);
-  %ArrayBufferNeuter(ab);
+  %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv, 4), TypeError);
   assertUnoptimized(foo);
   %OptimizeFunctionOnNextCall(foo);
@@ -223,7 +223,7 @@
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(undefined, foo(dv, 3));
   assertOptimized(foo);
-  %ArrayBufferNeuter(ab);
+  %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv, 4), TypeError);
   assertUnoptimized(foo);
   %OptimizeFunctionOnNextCall(foo);
@@ -247,7 +247,7 @@
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(undefined, foo(dv, 3));
   assertOptimized(foo);
-  %ArrayBufferNeuter(ab);
+  %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv, 4), TypeError);
   assertUnoptimized(foo);
   %OptimizeFunctionOnNextCall(foo);
@@ -271,7 +271,7 @@
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(undefined, foo(dv, 3));
   assertOptimized(foo);
-  %ArrayBufferNeuter(ab);
+  %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv, 4), TypeError);
   assertUnoptimized(foo);
   %OptimizeFunctionOnNextCall(foo);
@@ -295,7 +295,7 @@
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(undefined, foo(dv, 3));
   assertOptimized(foo);
-  %ArrayBufferNeuter(ab);
+  %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv, 4), TypeError);
   assertUnoptimized(foo);
   %OptimizeFunctionOnNextCall(foo);
@@ -319,7 +319,7 @@
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(undefined, foo(dv, 3));
   assertOptimized(foo);
-  %ArrayBufferNeuter(ab);
+  %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv, 4), TypeError);
   assertUnoptimized(foo);
   %OptimizeFunctionOnNextCall(foo);
@@ -343,7 +343,7 @@
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(undefined, foo(dv, 3));
   assertOptimized(foo);
-  %ArrayBufferNeuter(ab);
+  %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv, 4), TypeError);
   assertUnoptimized(foo);
   %OptimizeFunctionOnNextCall(foo);
@@ -367,7 +367,7 @@
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(undefined, foo(dv, 3));
   assertOptimized(foo);
-  %ArrayBufferNeuter(ab);
+  %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv, 4), TypeError);
   assertUnoptimized(foo);
   %OptimizeFunctionOnNextCall(foo);

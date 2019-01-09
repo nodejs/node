@@ -37,12 +37,24 @@ void LiftoffAssembler::LoadFromInstance(Register dst, uint32_t offset,
   BAILOUT("LoadFromInstance");
 }
 
+void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
+                                                     uint32_t offset) {
+  BAILOUT("LoadTaggedPointerFromInstance");
+}
+
 void LiftoffAssembler::SpillInstance(Register instance) {
   BAILOUT("SpillInstance");
 }
 
 void LiftoffAssembler::FillInstanceInto(Register dst) {
   BAILOUT("FillInstanceInto");
+}
+
+void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
+                                         Register offset_reg,
+                                         uint32_t offset_imm,
+                                         LiftoffRegList pinned) {
+  BAILOUT("LoadTaggedPointer");
 }
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
@@ -93,7 +105,7 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
   BAILOUT("Fill");
 }
 
-void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
+void LiftoffAssembler::FillI64Half(Register, uint32_t index, RegPairHalf) {
   BAILOUT("FillI64Half");
 }
 
@@ -169,10 +181,10 @@ UNIMPLEMENTED_FP_BINOP(f32_max)
 UNIMPLEMENTED_FP_BINOP(f32_copysign)
 UNIMPLEMENTED_FP_UNOP(f32_abs)
 UNIMPLEMENTED_FP_UNOP(f32_neg)
-UNIMPLEMENTED_FP_UNOP(f32_ceil)
-UNIMPLEMENTED_FP_UNOP(f32_floor)
-UNIMPLEMENTED_FP_UNOP(f32_trunc)
-UNIMPLEMENTED_FP_UNOP(f32_nearest_int)
+UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f32_ceil)
+UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f32_floor)
+UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f32_trunc)
+UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f32_nearest_int)
 UNIMPLEMENTED_FP_UNOP(f32_sqrt)
 UNIMPLEMENTED_FP_BINOP(f64_add)
 UNIMPLEMENTED_FP_BINOP(f64_sub)

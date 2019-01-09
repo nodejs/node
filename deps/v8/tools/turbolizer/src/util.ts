@@ -47,45 +47,6 @@ export class ViewElements {
   }
 }
 
-
-function lowerBound(a, value, compare, lookup) {
-  let first = 0;
-  let count = a.length;
-  while (count > 0) {
-    let step = Math.floor(count / 2);
-    let middle = first + step;
-    let middle_value = (lookup === undefined) ? a[middle] : lookup(a, middle);
-    let result = (compare === undefined) ? (middle_value < value) : compare(middle_value, value);
-    if (result) {
-      first = middle + 1;
-      count -= step + 1;
-    } else {
-      count = step;
-    }
-  }
-  return first;
-}
-
-
-function upperBound(a, value, compare, lookup) {
-  let first = 0;
-  let count = a.length;
-  while (count > 0) {
-    let step = Math.floor(count / 2);
-    let middle = first + step;
-    let middle_value = (lookup === undefined) ? a[middle] : lookup(a, middle);
-    let result = (compare === undefined) ? (value < middle_value) : compare(value, middle_value);
-    if (!result) {
-      first = middle + 1;
-      count -= step + 1;
-    } else {
-      count = step;
-    }
-  }
-  return first;
-}
-
-
 export function sortUnique<T>(arr: Array<T>, f: (a: T, b: T) => number, equal: (a: T, b: T) => boolean) {
   if (arr.length == 0) return arr;
   arr = arr.sort(f);
@@ -99,9 +60,8 @@ export function sortUnique<T>(arr: Array<T>, f: (a: T, b: T) => number, equal: (
 }
 
 // Partial application without binding the receiver
-export function partial(f, ...arguments1) {
-  return function (...arguments2) {
-    var arguments2 = Array.from(arguments);
+export function partial(f: any, ...arguments1: any[]) {
+  return function (this: any, ...arguments2: any[]) {
     f.apply(this, [...arguments1, ...arguments2]);
   }
 }
@@ -111,6 +71,23 @@ export function isIterable(obj: any): obj is Iterable<any> {
     && typeof obj != 'string' && typeof obj[Symbol.iterator] === 'function';
 }
 
-export function alignUp(raw:number, multiple:number):number {
+export function alignUp(raw: number, multiple: number): number {
   return Math.floor((raw + multiple - 1) / multiple) * multiple;
+}
+
+export function measureText(text: string) {
+  const textMeasure = document.getElementById('text-measure');
+  if (textMeasure instanceof SVGTSpanElement) {
+    textMeasure.textContent = text;
+    return {
+      width: textMeasure.getBBox().width,
+      height: textMeasure.getBBox().height,
+    };
+  }
+  return { width: 0, height: 0 };
+}
+
+// Interpolate between the given start and end values by a fraction of val/max.
+export function interpolate(val: number, max: number, start: number, end: number) {
+  return start + (end - start) * (val / max);
 }

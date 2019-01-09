@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {Source,SourceResolver,sourcePositionToStringKey} from "./source-resolver.js"
-import {SelectionBroker} from "./selection-broker.js"
-import {View} from "./view.js"
-import {MySelection} from "./selection.js"
-import {anyToString,ViewElements} from "./util.js"
+import { Source, SourceResolver, sourcePositionToStringKey } from "../src/source-resolver"
+import { SelectionBroker } from "../src/selection-broker"
+import { View } from "../src/view"
+import { MySelection } from "../src/selection"
+import { ViewElements } from "../src/util"
+import { SelectionHandler } from "./selection-handler";
 
 export enum CodeMode {
   MAIN_SOURCE = "main function",
@@ -29,11 +30,10 @@ export class CodeView extends View {
     return sourceContainer;
   }
 
-  constructor(parentId, broker, sourceResolver, sourceFunction, codeMode: CodeMode) {
-    super(parentId);
+  constructor(parent: HTMLElement, broker: SelectionBroker, sourceResolver: SourceResolver, sourceFunction: Source, codeMode: CodeMode) {
+    super(parent);
     let view = this;
     view.broker = broker;
-    view.source = null;
     view.sourceResolver = sourceResolver;
     view.source = sourceFunction;
     view.codeMode = codeMode;
@@ -62,7 +62,7 @@ export class CodeView extends View {
         for (const location of locations) {
           const translated = sourceResolver.translateToSourceId(view.source.sourceId, location);
           if (!translated) continue;
-          view.selection.select(translated, selected);
+          view.selection.select([translated], selected);
         }
         view.updateSelection(firstSelect);
       },
@@ -117,7 +117,6 @@ export class CodeView extends View {
   }
 
   onSelectLine(lineNumber: number, doClear: boolean) {
-    const key = anyToString(lineNumber);
     if (doClear) {
       this.selectionHandler.clear();
     }
@@ -182,8 +181,16 @@ export class CodeView extends View {
         console.log(e);
       }
 
-      view.divNode.onclick = function (e) {
-        view.selectionHandler.clear();
+      view.divNode.onclick = function (e: MouseEvent) {
+        if (e.target instanceof Element && e.target.tagName == "DIV") {
+          const targetDiv = e.target as HTMLDivElement;
+          if (targetDiv.classList.contains("line-number")) {
+            e.stopPropagation();
+            view.onSelectLine(Number(targetDiv.dataset.lineNumber), !e.shiftKey);
+          }
+        } else {
+          view.selectionHandler.clear();
+        }
       }
 
       const base: number = source.startPosition;
@@ -199,11 +206,13 @@ export class CodeView extends View {
         const spans = currentLineElement.childNodes;
         for (let j = 0; j < spans.length; ++j) {
           const currentSpan = spans[j];
-          const pos = base + current;
-          const end = pos + currentSpan.textContent.length;
-          current += currentSpan.textContent.length;
-          this.insertSourcePositions(currentSpan, lineNumber, pos, end, newlineAdjust);
-          newlineAdjust = 0;
+          if (currentSpan instanceof HTMLSpanElement) {
+            const pos = base + current;
+            const end = pos + currentSpan.textContent.length;
+            current += currentSpan.textContent.length;
+            this.insertSourcePositions(currentSpan, lineNumber, pos, end, newlineAdjust);
+            newlineAdjust = 0;
+          }
         }
 
         this.insertLineNumber(currentLineElement, lineNumber);
@@ -220,10 +229,14 @@ export class CodeView extends View {
   insertSourcePositions(currentSpan, lineNumber, pos, end, adjust) {
     const view = this;
     const sps = this.sourceResolver.sourcePositionsInRange(this.source.sourceId, pos - adjust, end);
+    let offset = 0;
     for (const sourcePosition of sps) {
       this.sourceResolver.addAnyPositionToLine(lineNumber, sourcePosition);
-      const textnode = currentSpan.tagName == 'SPAN' ? currentSpan.firstChild : currentSpan;
-      const replacementNode = textnode.splitText(Math.max(0, sourcePosition.scriptOffset - pos));
+      const textnode = currentSpan.tagName == 'SPAN' ? currentSpan.lastChild : currentSpan;
+      if (!(textnode instanceof Text)) continue;
+      const splitLength = Math.max(0, sourcePosition.scriptOffset - pos - offset);
+      offset += splitLength;
+      const replacementNode = textnode.splitText(splitLength);
       const span = document.createElement('span');
       span.setAttribute("scriptOffset", sourcePosition.scriptOffset);
       span.classList.add("source-position")
@@ -247,16 +260,12 @@ export class CodeView extends View {
     }
   }
 
-  insertLineNumber(lineElement, lineNumber) {
+  insertLineNumber(lineElement: HTMLElement, lineNumber: number) {
     const view = this;
     const lineNumberElement = document.createElement("div");
     lineNumberElement.classList.add("line-number");
-    lineNumberElement.dataset.lineNumber = lineNumber;
-    lineNumberElement.innerText = lineNumber;
-    lineNumberElement.onclick = function (e) {
-      e.stopPropagation();
-      view.onSelectLine(lineNumber, !e.shiftKey);
-    }
+    lineNumberElement.dataset.lineNumber = `${lineNumber}`;
+    lineNumberElement.innerText = `${lineNumber}`;
     lineElement.insertBefore(lineNumberElement, lineElement.firstChild)
     // Don't add lines to source positions of not in backwardsCompatibility mode.
     if (this.source.backwardsCompatibility === true) {

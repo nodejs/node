@@ -67,9 +67,7 @@ will reconnect..
             [0] : {
                 className : Object
                 customPreview : {
-                    bindRemoteObjectFunctionId : <bindRemoteObjectFunctionId>
-                    formatterObjectId : <formatterObjectId>
-                    hasBody : true
+                    bodyGetterId : <bodyGetterId>
                     header : ["span",{},"Header formatted ",42]
                 }
                 description : Object

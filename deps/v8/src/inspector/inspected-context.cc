@@ -109,18 +109,40 @@ InjectedScript* InspectedContext::getInjectedScript(int sessionId) {
   return it == m_injectedScripts.end() ? nullptr : it->second.get();
 }
 
-bool InspectedContext::createInjectedScript(int sessionId) {
+InjectedScript* InspectedContext::createInjectedScript(int sessionId) {
   std::unique_ptr<InjectedScript> injectedScript =
-      InjectedScript::create(this, sessionId);
-  // InjectedScript::create can destroy |this|.
-  if (!injectedScript) return false;
+      v8::base::make_unique<InjectedScript>(this, sessionId);
   CHECK(m_injectedScripts.find(sessionId) == m_injectedScripts.end());
   m_injectedScripts[sessionId] = std::move(injectedScript);
-  return true;
+  return getInjectedScript(sessionId);
 }
 
 void InspectedContext::discardInjectedScript(int sessionId) {
   m_injectedScripts.erase(sessionId);
+}
+
+bool InspectedContext::addInternalObject(v8::Local<v8::Object> object,
+                                         V8InternalValueType type) {
+  if (m_internalObjects.IsEmpty()) {
+    m_internalObjects.Reset(isolate(), v8::debug::WeakMap::New(isolate()));
+  }
+  return !m_internalObjects.Get(isolate())
+              ->Set(m_context.Get(isolate()), object,
+                    v8::Integer::New(isolate(), static_cast<int>(type)))
+              .IsEmpty();
+}
+
+V8InternalValueType InspectedContext::getInternalType(
+    v8::Local<v8::Object> object) {
+  if (m_internalObjects.IsEmpty()) return V8InternalValueType::kNone;
+  v8::Local<v8::Value> typeValue;
+  if (!m_internalObjects.Get(isolate())
+           ->Get(m_context.Get(isolate()), object)
+           .ToLocal(&typeValue) ||
+      !typeValue->IsUint32()) {
+    return V8InternalValueType::kNone;
+  }
+  return static_cast<V8InternalValueType>(typeValue.As<v8::Int32>()->Value());
 }
 
 }  // namespace v8_inspector

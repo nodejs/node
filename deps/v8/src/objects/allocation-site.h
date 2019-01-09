@@ -6,6 +6,7 @@
 #define V8_OBJECTS_ALLOCATION_SITE_H_
 
 #include "src/objects.h"
+#include "src/objects/struct.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -13,8 +14,11 @@
 namespace v8 {
 namespace internal {
 
-class AllocationSite : public Struct, public NeverReadOnlySpaceObject {
+enum InstanceType : uint16_t;
+
+class AllocationSite : public Struct {
  public:
+  NEVER_READ_ONLY_SPACE
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
   static const double kPretenureRatio;
   static const int kPretenureMinimumCreated = 100;
@@ -34,7 +38,7 @@ class AllocationSite : public Struct, public NeverReadOnlySpaceObject {
   // Contains either a Smi-encoded bitfield or a boilerplate. If it's a Smi the
   // AllocationSite is for a constructed Array.
   DECL_ACCESSORS(transition_info_or_boilerplate, Object)
-  DECL_ACCESSORS(boilerplate, JSObject)
+  DECL_ACCESSORS2(boilerplate, JSObject)
   DECL_INT_ACCESSORS(transition_info)
 
   // nested_site threads a list of sites that represent nested literals
@@ -46,7 +50,7 @@ class AllocationSite : public Struct, public NeverReadOnlySpaceObject {
   DECL_INT32_ACCESSORS(pretenure_data)
 
   DECL_INT32_ACCESSORS(pretenure_create_count)
-  DECL_ACCESSORS(dependent_code, DependentCode)
+  DECL_ACCESSORS2(dependent_code, DependentCode)
 
   // heap->allocation_site_list() points to the last AllocationSite which form
   // a linked list through the weak_next property. The GC might remove elements
@@ -125,7 +129,7 @@ class AllocationSite : public Struct, public NeverReadOnlySpaceObject {
   DECL_PRINTER(AllocationSite)
   DECL_VERIFIER(AllocationSite)
 
-  DECL_CAST(AllocationSite)
+  DECL_CAST2(AllocationSite)
   static inline bool ShouldTrack(ElementsKind boilerplate_elements_kind);
   static bool ShouldTrack(ElementsKind from, ElementsKind to);
   static inline bool CanTrack(InstanceType type);
@@ -134,48 +138,53 @@ class AllocationSite : public Struct, public NeverReadOnlySpaceObject {
 // AllocationSite has to start with TransitionInfoOrboilerPlateOffset
 // and end with WeakNext field.
 #define ALLOCATION_SITE_FIELDS(V)                     \
-  V(kTransitionInfoOrBoilerplateOffset, kPointerSize) \
-  V(kNestedSiteOffset, kPointerSize)                  \
-  V(kDependentCodeOffset, kPointerSize)               \
+  V(kStartOffset, 0)                                  \
+  V(kTransitionInfoOrBoilerplateOffset, kTaggedSize)  \
+  V(kNestedSiteOffset, kTaggedSize)                   \
+  V(kDependentCodeOffset, kTaggedSize)                \
   V(kCommonPointerFieldEndOffset, 0)                  \
   V(kPretenureDataOffset, kInt32Size)                 \
   V(kPretenureCreateCountOffset, kInt32Size)          \
   /* Size of AllocationSite without WeakNext field */ \
   V(kSizeWithoutWeakNext, 0)                          \
-  V(kWeakNextOffset, kPointerSize)                    \
+  V(kWeakNextOffset, kTaggedSize)                     \
   /* Size of AllocationSite with WeakNext field */    \
   V(kSizeWithWeakNext, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, ALLOCATION_SITE_FIELDS)
-
-  static const int kStartOffset = HeapObject::kHeaderSize;
+#undef ALLOCATION_SITE_FIELDS
 
   class BodyDescriptor;
 
  private:
   inline bool PretenuringDecisionMade() const;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationSite);
+  OBJECT_CONSTRUCTORS(AllocationSite, Struct);
 };
 
 class AllocationMemento : public Struct {
  public:
-  static const int kAllocationSiteOffset = HeapObject::kHeaderSize;
-  static const int kSize = kAllocationSiteOffset + kPointerSize;
+// Layout description.
+#define ALLOCATION_MEMENTO_FIELDS(V)    \
+  V(kAllocationSiteOffset, kTaggedSize) \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                ALLOCATION_MEMENTO_FIELDS)
+#undef ALLOCATION_MEMENTO_FIELDS
 
   DECL_ACCESSORS(allocation_site, Object)
 
   inline bool IsValid() const;
-  inline AllocationSite* GetAllocationSite() const;
+  inline AllocationSite GetAllocationSite() const;
   inline Address GetAllocationSiteUnchecked() const;
 
   DECL_PRINTER(AllocationMemento)
   DECL_VERIFIER(AllocationMemento)
 
-  DECL_CAST(AllocationMemento)
+  DECL_CAST2(AllocationMemento)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationMemento);
+  OBJECT_CONSTRUCTORS(AllocationMemento, Struct);
 };
 
 }  // namespace internal

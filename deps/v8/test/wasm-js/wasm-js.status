@@ -1,0 +1,25 @@
+# Copyright 2018 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+[
+[ALWAYS, {
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8319
+  'memory/grow': [FAIL],
+  'table/grow': [FAIL],
+  'table/get-set': [FAIL],
+  'module/customSections': [FAIL],
+  'global/value-get-set': [FAIL],
+}], # ALWAYS
+
+[ALWAYS, {
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8633
+  'limits': [SKIP],
+}], # ALWAYS
+
+['arch == s390 or arch == s390x or system == aix', {
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8402
+  'instance/constructor': [SKIP],
+}],  # 'arch == s390 or arch == s390x or system == aix'
+
+]

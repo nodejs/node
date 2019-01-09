@@ -42,9 +42,7 @@ namespace internal {
 
 #define __ assm.
 
-static void DummyStaticFunction(Object* result) {
-}
-
+static void DummyStaticFunction(Object result) {}
 
 TEST(DisasmIa320) {
   CcTest::InitializeVM();
@@ -52,7 +50,6 @@ TEST(DisasmIa320) {
   HandleScope scope(isolate);
   v8::internal::byte buffer[8192];
   Assembler assm(AssemblerOptions{}, buffer, sizeof buffer);
-  DummyStaticFunction(nullptr);  // just bloody use it (DELETE; debugging)
   // Short immediate instructions
   __ adc(eax, 12345678);
   __ add(eax, Immediate(12345678));

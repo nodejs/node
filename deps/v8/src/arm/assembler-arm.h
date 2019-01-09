@@ -44,330 +44,14 @@
 #include <vector>
 
 #include "src/arm/constants-arm.h"
+#include "src/arm/register-arm.h"
 #include "src/assembler.h"
 #include "src/boxed-float.h"
+#include "src/constant-pool.h"
 #include "src/double.h"
 
 namespace v8 {
 namespace internal {
-
-// clang-format off
-#define GENERAL_REGISTERS(V)                              \
-  V(r0)  V(r1)  V(r2)  V(r3)  V(r4)  V(r5)  V(r6)  V(r7)  \
-  V(r8)  V(r9)  V(r10) V(fp)  V(ip)  V(sp)  V(lr)  V(pc)
-
-#define ALLOCATABLE_GENERAL_REGISTERS(V)                  \
-  V(r0)  V(r1)  V(r2)  V(r3)  V(r4)  V(r5)  V(r6)  V(r7)  \
-  V(r8)  V(r9)
-
-#define FLOAT_REGISTERS(V)                                \
-  V(s0)  V(s1)  V(s2)  V(s3)  V(s4)  V(s5)  V(s6)  V(s7)  \
-  V(s8)  V(s9)  V(s10) V(s11) V(s12) V(s13) V(s14) V(s15) \
-  V(s16) V(s17) V(s18) V(s19) V(s20) V(s21) V(s22) V(s23) \
-  V(s24) V(s25) V(s26) V(s27) V(s28) V(s29) V(s30) V(s31)
-
-#define LOW_DOUBLE_REGISTERS(V)                           \
-  V(d0)  V(d1)  V(d2)  V(d3)  V(d4)  V(d5)  V(d6)  V(d7)  \
-  V(d8)  V(d9)  V(d10) V(d11) V(d12) V(d13) V(d14) V(d15)
-
-#define NON_LOW_DOUBLE_REGISTERS(V)                       \
-  V(d16) V(d17) V(d18) V(d19) V(d20) V(d21) V(d22) V(d23) \
-  V(d24) V(d25) V(d26) V(d27) V(d28) V(d29) V(d30) V(d31)
-
-#define DOUBLE_REGISTERS(V) \
-  LOW_DOUBLE_REGISTERS(V) NON_LOW_DOUBLE_REGISTERS(V)
-
-#define SIMD128_REGISTERS(V)                              \
-  V(q0)  V(q1)  V(q2)  V(q3)  V(q4)  V(q5)  V(q6)  V(q7)  \
-  V(q8)  V(q9)  V(q10) V(q11) V(q12) V(q13) V(q14) V(q15)
-
-#define ALLOCATABLE_DOUBLE_REGISTERS(V)                   \
-  V(d0)  V(d1)  V(d2)  V(d3)  V(d4)  V(d5)  V(d6)  V(d7)  \
-  V(d8)  V(d9)  V(d10) V(d11) V(d12)                      \
-  V(d16) V(d17) V(d18) V(d19) V(d20) V(d21) V(d22) V(d23) \
-  V(d24) V(d25) V(d26) V(d27) V(d28) V(d29) V(d30) V(d31)
-
-#define ALLOCATABLE_NO_VFP32_DOUBLE_REGISTERS(V)          \
-  V(d0)  V(d1)  V(d2)  V(d3)  V(d4)  V(d5)  V(d6)  V(d7)  \
-  V(d8)  V(d9)  V(d10) V(d11) V(d12) V(d15)
-
-#define C_REGISTERS(V)                                            \
-  V(cr0)  V(cr1)  V(cr2)  V(cr3)  V(cr4)  V(cr5)  V(cr6)  V(cr7)  \
-  V(cr8)  V(cr9)  V(cr10) V(cr11) V(cr12) V(cr15)
-// clang-format on
-
-// The ARM ABI does not specify the usage of register r9, which may be reserved
-// as the static base or thread register on some platforms, in which case we
-// leave it alone. Adjust the value of kR9Available accordingly:
-const int kR9Available = 1;  // 1 if available to us, 0 if reserved
-
-// Register list in load/store instructions
-// Note that the bit values must match those used in actual instruction encoding
-const int kNumRegs = 16;
-
-// Caller-saved/arguments registers
-const RegList kJSCallerSaved =
-  1 << 0 |  // r0 a1
-  1 << 1 |  // r1 a2
-  1 << 2 |  // r2 a3
-  1 << 3;   // r3 a4
-
-const int kNumJSCallerSaved = 4;
-
-// Callee-saved registers preserved when switching from C to JavaScript
-const RegList kCalleeSaved =
-  1 <<  4 |  //  r4 v1
-  1 <<  5 |  //  r5 v2
-  1 <<  6 |  //  r6 v3
-  1 <<  7 |  //  r7 v4 (cp in JavaScript code)
-  1 <<  8 |  //  r8 v5 (pp in JavaScript code)
-  kR9Available <<  9 |  //  r9 v6
-  1 << 10 |  // r10 v7
-  1 << 11;   // r11 v8 (fp in JavaScript code)
-
-// When calling into C++ (only for C++ calls that can't cause a GC).
-// The call code will take care of lr, fp, etc.
-const RegList kCallerSaved =
-  1 <<  0 |  // r0
-  1 <<  1 |  // r1
-  1 <<  2 |  // r2
-  1 <<  3 |  // r3
-  1 <<  9;   // r9
-
-const int kNumCalleeSaved = 7 + kR9Available;
-
-// Double registers d8 to d15 are callee-saved.
-const int kNumDoubleCalleeSaved = 8;
-
-// Number of registers for which space is reserved in safepoints. Must be a
-// multiple of 8.
-// TODO(regis): Only 8 registers may actually be sufficient. Revisit.
-const int kNumSafepointRegisters = 16;
-
-// Define the list of registers actually saved at safepoints.
-// Note that the number of saved registers may be smaller than the reserved
-// space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
-const RegList kSafepointSavedRegisters = kJSCallerSaved | kCalleeSaved;
-const int kNumSafepointSavedRegisters = kNumJSCallerSaved + kNumCalleeSaved;
-
-enum RegisterCode {
-#define REGISTER_CODE(R) kRegCode_##R,
-  GENERAL_REGISTERS(REGISTER_CODE)
-#undef REGISTER_CODE
-      kRegAfterLast
-};
-
-class Register : public RegisterBase<Register, kRegAfterLast> {
-  friend class RegisterBase;
-  explicit constexpr Register(int code) : RegisterBase(code) {}
-};
-
-ASSERT_TRIVIALLY_COPYABLE(Register);
-static_assert(sizeof(Register) == sizeof(int),
-              "Register can efficiently be passed by value");
-
-// r7: context register
-#define DECLARE_REGISTER(R) \
-  constexpr Register R = Register::from_code<kRegCode_##R>();
-GENERAL_REGISTERS(DECLARE_REGISTER)
-#undef DECLARE_REGISTER
-constexpr Register no_reg = Register::no_reg();
-
-constexpr bool kPadArguments = false;
-constexpr bool kSimpleFPAliasing = false;
-constexpr bool kSimdMaskRegisters = false;
-
-enum SwVfpRegisterCode {
-#define REGISTER_CODE(R) kSwVfpCode_##R,
-  FLOAT_REGISTERS(REGISTER_CODE)
-#undef REGISTER_CODE
-      kSwVfpAfterLast
-};
-
-// Representation of a list of non-overlapping VFP registers. This list
-// represents the data layout of VFP registers as a bitfield:
-//   S registers cover 1 bit
-//   D registers cover 2 bits
-//   Q registers cover 4 bits
-//
-// This way, we make sure no registers in the list ever overlap. However, a list
-// may represent multiple different sets of registers,
-// e.g. [d0 s2 s3] <=> [s0 s1 d1].
-typedef uint64_t VfpRegList;
-
-// Single word VFP register.
-class SwVfpRegister : public RegisterBase<SwVfpRegister, kSwVfpAfterLast> {
- public:
-  static constexpr int kSizeInBytes = 4;
-
-  static void split_code(int reg_code, int* vm, int* m) {
-    DCHECK(from_code(reg_code).is_valid());
-    *m = reg_code & 0x1;
-    *vm = reg_code >> 1;
-  }
-  void split_code(int* vm, int* m) const { split_code(code(), vm, m); }
-  VfpRegList ToVfpRegList() const {
-    DCHECK(is_valid());
-    // Each bit in the list corresponds to a S register.
-    return uint64_t{0x1} << code();
-  }
-
- private:
-  friend class RegisterBase;
-  explicit constexpr SwVfpRegister(int code) : RegisterBase(code) {}
-};
-
-ASSERT_TRIVIALLY_COPYABLE(SwVfpRegister);
-static_assert(sizeof(SwVfpRegister) == sizeof(int),
-              "SwVfpRegister can efficiently be passed by value");
-
-typedef SwVfpRegister FloatRegister;
-
-enum DoubleRegisterCode {
-#define REGISTER_CODE(R) kDoubleCode_##R,
-  DOUBLE_REGISTERS(REGISTER_CODE)
-#undef REGISTER_CODE
-      kDoubleAfterLast
-};
-
-// Double word VFP register.
-class DwVfpRegister : public RegisterBase<DwVfpRegister, kDoubleAfterLast> {
- public:
-  static constexpr int kSizeInBytes = 8;
-
-  inline static int NumRegisters();
-
-  static void split_code(int reg_code, int* vm, int* m) {
-    DCHECK(from_code(reg_code).is_valid());
-    *m = (reg_code & 0x10) >> 4;
-    *vm = reg_code & 0x0F;
-  }
-  void split_code(int* vm, int* m) const { split_code(code(), vm, m); }
-  VfpRegList ToVfpRegList() const {
-    DCHECK(is_valid());
-    // A D register overlaps two S registers.
-    return uint64_t{0x3} << (code() * 2);
-  }
-
- private:
-  friend class RegisterBase;
-  friend class LowDwVfpRegister;
-  explicit constexpr DwVfpRegister(int code) : RegisterBase(code) {}
-};
-
-ASSERT_TRIVIALLY_COPYABLE(DwVfpRegister);
-static_assert(sizeof(DwVfpRegister) == sizeof(int),
-              "DwVfpRegister can efficiently be passed by value");
-
-typedef DwVfpRegister DoubleRegister;
-
-
-// Double word VFP register d0-15.
-class LowDwVfpRegister
-    : public RegisterBase<LowDwVfpRegister, kDoubleCode_d16> {
- public:
-  constexpr operator DwVfpRegister() const { return DwVfpRegister(reg_code_); }
-
-  SwVfpRegister low() const { return SwVfpRegister::from_code(code() * 2); }
-  SwVfpRegister high() const {
-    return SwVfpRegister::from_code(code() * 2 + 1);
-  }
-  VfpRegList ToVfpRegList() const {
-    DCHECK(is_valid());
-    // A D register overlaps two S registers.
-    return uint64_t{0x3} << (code() * 2);
-  }
-
- private:
-  friend class RegisterBase;
-  explicit constexpr LowDwVfpRegister(int code) : RegisterBase(code) {}
-};
-
-enum Simd128RegisterCode {
-#define REGISTER_CODE(R) kSimd128Code_##R,
-  SIMD128_REGISTERS(REGISTER_CODE)
-#undef REGISTER_CODE
-      kSimd128AfterLast
-};
-
-// Quad word NEON register.
-class QwNeonRegister : public RegisterBase<QwNeonRegister, kSimd128AfterLast> {
- public:
-  static void split_code(int reg_code, int* vm, int* m) {
-    DCHECK(from_code(reg_code).is_valid());
-    int encoded_code = reg_code << 1;
-    *m = (encoded_code & 0x10) >> 4;
-    *vm = encoded_code & 0x0F;
-  }
-  void split_code(int* vm, int* m) const { split_code(code(), vm, m); }
-  DwVfpRegister low() const { return DwVfpRegister::from_code(code() * 2); }
-  DwVfpRegister high() const {
-    return DwVfpRegister::from_code(code() * 2 + 1);
-  }
-  VfpRegList ToVfpRegList() const {
-    DCHECK(is_valid());
-    // A Q register overlaps four S registers.
-    return uint64_t{0xf} << (code() * 4);
-  }
-
- private:
-  friend class RegisterBase;
-  explicit constexpr QwNeonRegister(int code) : RegisterBase(code) {}
-};
-
-
-typedef QwNeonRegister QuadRegister;
-
-typedef QwNeonRegister Simd128Register;
-
-enum CRegisterCode {
-#define REGISTER_CODE(R) kCCode_##R,
-  C_REGISTERS(REGISTER_CODE)
-#undef REGISTER_CODE
-      kCAfterLast
-};
-
-// Coprocessor register
-class CRegister : public RegisterBase<CRegister, kCAfterLast> {
-  friend class RegisterBase;
-  explicit constexpr CRegister(int code) : RegisterBase(code) {}
-};
-
-// Support for the VFP registers s0 to s31 (d0 to d15).
-// Note that "s(N):s(N+1)" is the same as "d(N/2)".
-#define DECLARE_FLOAT_REGISTER(R) \
-  constexpr SwVfpRegister R = SwVfpRegister::from_code<kSwVfpCode_##R>();
-FLOAT_REGISTERS(DECLARE_FLOAT_REGISTER)
-#undef DECLARE_FLOAT_REGISTER
-
-#define DECLARE_LOW_DOUBLE_REGISTER(R) \
-  constexpr LowDwVfpRegister R = LowDwVfpRegister::from_code<kDoubleCode_##R>();
-LOW_DOUBLE_REGISTERS(DECLARE_LOW_DOUBLE_REGISTER)
-#undef DECLARE_LOW_DOUBLE_REGISTER
-
-#define DECLARE_DOUBLE_REGISTER(R) \
-  constexpr DwVfpRegister R = DwVfpRegister::from_code<kDoubleCode_##R>();
-NON_LOW_DOUBLE_REGISTERS(DECLARE_DOUBLE_REGISTER)
-#undef DECLARE_DOUBLE_REGISTER
-
-constexpr DwVfpRegister no_dreg = DwVfpRegister::no_reg();
-
-#define DECLARE_SIMD128_REGISTER(R) \
-  constexpr Simd128Register R = Simd128Register::from_code<kSimd128Code_##R>();
-SIMD128_REGISTERS(DECLARE_SIMD128_REGISTER)
-#undef DECLARE_SIMD128_REGISTER
-
-// Aliases for double registers.
-constexpr LowDwVfpRegister kFirstCalleeSavedDoubleReg = d8;
-constexpr LowDwVfpRegister kLastCalleeSavedDoubleReg = d15;
-constexpr LowDwVfpRegister kDoubleRegZero  = d13;
-
-constexpr CRegister no_creg = CRegister::no_reg();
-
-#define DECLARE_C_REGISTER(R) \
-  constexpr CRegister R = CRegister::from_code<kCCode_##R>();
-C_REGISTERS(DECLARE_C_REGISTER)
-#undef DECLARE_C_REGISTER
 
 // Coprocessor number
 enum Coprocessor {
@@ -401,7 +85,7 @@ class Operand {
   V8_INLINE static Operand Zero();
   V8_INLINE explicit Operand(const ExternalReference& f);
   explicit Operand(Handle<HeapObject> handle);
-  V8_INLINE explicit Operand(Smi* value);
+  V8_INLINE explicit Operand(Smi value);
 
   // rm
   V8_INLINE explicit Operand(Register rm);
@@ -424,7 +108,6 @@ class Operand {
   explicit Operand(Register rm, ShiftOp shift_op, Register rs);
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
-  static Operand EmbeddedCode(CodeStub* stub);
   static Operand EmbeddedStringConstant(const StringConstantBase* str);
 
   // Return true if this is a register operand.
@@ -624,6 +307,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   Assembler(const AssemblerOptions& options, void* buffer, int buffer_size);
   virtual ~Assembler();
 
+  virtual void AbortedCodeGeneration() {
+    pending_32_bit_constants_.clear();
+  }
+
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
   // Assembler functions are invoked in between GetCode() calls.
@@ -678,7 +365,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // This sets the branch destination (which is in the constant pool on ARM).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Address constant_pool_entry, Code* code, Address target);
+      Address constant_pool_entry, Code code, Address target);
 
   // Get the size of the special target encoded at 'location'.
   inline static int deserialization_special_target_size(Address location);
@@ -736,6 +423,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void eor(Register dst, Register src1, const Operand& src2,
            SBit s = LeaveCC, Condition cond = al);
+  void eor(Register dst, Register src1, Register src2, SBit s = LeaveCC,
+           Condition cond = al);
 
   void sub(Register dst, Register src1, const Operand& src2,
            SBit s = LeaveCC, Condition cond = al);
@@ -1408,10 +1097,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockConstPoolScope);
   };
 
-  // Record a comment relocation entry that can be used by a disassembler.
-  // Use --code-comments to enable.
-  void RecordComment(const char* msg);
-
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
   void RecordDeoptReason(DeoptimizeReason reason, SourcePosition position,
@@ -1500,13 +1185,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // PC-relative loads, thereby defining a maximum distance between the
   // instruction and the accessed constant.
   static constexpr int kMaxDistToIntPool = 4 * KB;
-  static constexpr int kMaxDistToFPPool = 1 * KB;
   // All relocations could be integer, it therefore acts as the limit.
   static constexpr int kMinNumPendingConstants = 4;
   static constexpr int kMaxNumPending32Constants =
       kMaxDistToIntPool / kInstrSize;
-  static constexpr int kMaxNumPending64Constants =
-      kMaxDistToFPPool / kInstrSize;
 
   // Postpone the generation of the constant pool for the specified number of
   // instructions.
@@ -1519,13 +1201,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     if (pc_offset() >= next_buffer_check_) {
       CheckConstPool(false, true);
     }
-  }
-
-  void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
-                                          ConstantPoolEntry::Access access,
-                                          ConstantPoolEntry::Type type) {
-    // No embedded constant pool support.
-    UNREACHABLE();
   }
 
   // Move a 32-bit immediate into a register, potentially via the constant pool.
@@ -1564,11 +1239,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       int start = pc_offset() + kInstrSize + 2 * kPointerSize;
       // Check the constant pool hasn't been blocked for too long.
       DCHECK(pending_32_bit_constants_.empty() ||
-             (start + pending_64_bit_constants_.size() * kDoubleSize <
-              static_cast<size_t>(first_const_pool_32_use_ +
-                                  kMaxDistToIntPool)));
-      DCHECK(pending_64_bit_constants_.empty() ||
-             (start < (first_const_pool_64_use_ + kMaxDistToFPPool)));
+             (start < first_const_pool_32_use_ + kMaxDistToIntPool));
 #endif
       // Two cases:
       //  * no_const_pool_before_ >= next_buffer_check_ and the emission is
@@ -1619,7 +1290,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // The buffers of pending constant pool entries.
   std::vector<ConstantPoolEntry> pending_32_bit_constants_;
-  std::vector<ConstantPoolEntry> pending_64_bit_constants_;
 
   // Scratch registers available for use by the Assembler.
   RegList scratch_register_list_;
@@ -1655,7 +1325,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Keep track of the first instruction requiring a constant pool entry
   // since the previous constant pool was emitted.
   int first_const_pool_32_use_;
-  int first_const_pool_64_use_;
 
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
@@ -1688,6 +1357,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                             intptr_t value);
   void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
 
+  int WriteCodeComments();
+
   friend class RelocInfo;
   friend class BlockConstPoolScope;
   friend class EnsureSpace;
@@ -1706,6 +1377,7 @@ class PatchingAssembler : public Assembler {
   ~PatchingAssembler();
 
   void Emit(Address addr);
+  void PadWithNops();
 };
 
 // This scope utility allows scratch registers to be managed safely. The

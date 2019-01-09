@@ -6,6 +6,8 @@
 
 #include "src/interface-descriptors.h"
 
+#include "src/frames.h"
+
 namespace v8 {
 namespace internal {
 
@@ -67,12 +69,6 @@ const Register TypeConversionDescriptor::ArgumentRegister() { return a0; }
 void TypeofDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {a3};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-void CallFunctionDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {a1};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -208,10 +204,9 @@ void ArgumentsAdaptorDescriptor::InitializePlatformSpecific(
 void ApiCallbackDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
-      JavaScriptFrame::context_register(),  // callee context
-      t0,                                   // call_data
-      a2,                                   // holder
-      a1,                                   // api_function_address
+      JavaScriptFrame::context_register(),  // kTargetContext
+      a1,                                   // kApiFunctionAddress
+      a2,                                   // kArgc
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }

@@ -1,0 +1,44 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-iterator-gen.h'
+
+namespace iterator {
+  // Returned from IteratorBuiltinsAssembler::GetIterator().
+  struct IteratorRecord {
+    // iteratorRecord.[[Iterator]]
+    object: JSReceiver;
+
+    // iteratorRecord.[[NextMethod]]
+    next: Object;
+  }
+
+  extern macro IteratorBuiltinsAssembler::GetIteratorMethod(
+      implicit context: Context)(Object): Object;
+  extern macro IteratorBuiltinsAssembler::GetIterator(
+      implicit context: Context)(Object): IteratorRecord;
+
+  extern macro IteratorBuiltinsAssembler::IteratorStep(
+      implicit context: Context)(IteratorRecord): Object
+      labels Done;
+  extern macro IteratorBuiltinsAssembler::IteratorStep(
+      implicit context: Context)(IteratorRecord, Map): Object
+      labels Done;
+
+  extern macro IteratorBuiltinsAssembler::IteratorValue(
+      implicit context: Context)(Object): Object;
+  extern macro IteratorBuiltinsAssembler::IteratorValue(
+      implicit context: Context)(Object, Map): Object;
+
+  extern macro IteratorBuiltinsAssembler::IteratorCloseOnException(
+      implicit context: Context)(IteratorRecord, Object): never;
+
+  extern macro IteratorBuiltinsAssembler::IterableToList(
+      implicit context: Context)(Object, Object): JSArray;
+
+  extern builtin IterableToListMayPreserveHoles(implicit context:
+                                                    Context)(Object, Object);
+  extern builtin IterableToListWithSymbolLookup(implicit context:
+                                                    Context)(Object);
+}

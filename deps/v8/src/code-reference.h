@@ -31,6 +31,7 @@ class CodeReference {
   const byte* relocation_start() const;
   const byte* relocation_end() const;
   int relocation_size() const;
+  Address code_comments() const;
   bool is_null() const {
     return kind_ == JS ? js_code_.is_null() : wasm_code_ == nullptr;
   }

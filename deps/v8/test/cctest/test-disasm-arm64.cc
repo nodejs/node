@@ -28,19 +28,14 @@
 #include <stdio.h>
 #include <cstring>
 
-#include "src/v8.h"
-#include "test/cctest/cctest.h"
-
-#include "src/macro-assembler.h"
-
-#include "src/frames-inl.h"
-
 #include "src/arm64/assembler-arm64.h"
 #include "src/arm64/decoder-arm64-inl.h"
 #include "src/arm64/disasm-arm64.h"
-#include "src/arm64/macro-assembler-arm64-inl.h"
-#include "src/arm64/macro-assembler-arm64.h"
 #include "src/arm64/utils-arm64.h"
+#include "src/frames-inl.h"
+#include "src/macro-assembler-inl.h"
+#include "src/v8.h"
+#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
@@ -799,6 +794,13 @@ TEST_(dp_2_source) {
 TEST_(adr) {
   SET_UP_ASM();
 
+  char expected[100];
+  snprintf(expected, sizeof(expected), "adr x0, #+0x0 (addr %p)", buf);
+  COMPARE(adr(x0, 0), expected);
+  snprintf(expected, sizeof(expected), "adr x0, #+0x1 (addr %p)", buf + 1);
+  COMPARE(adr(x0, 1), expected);
+  snprintf(expected, sizeof(expected), "adr x0, #-0x1 (addr %p)", buf - 1);
+  COMPARE(adr(x0, -1), expected);
   COMPARE_PREFIX(adr(x0, 0), "adr x0, #+0x0");
   COMPARE_PREFIX(adr(x1, 1), "adr x1, #+0x1");
   COMPARE_PREFIX(adr(x2, -1), "adr x2, #-0x1");

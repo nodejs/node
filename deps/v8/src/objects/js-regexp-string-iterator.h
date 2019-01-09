@@ -19,7 +19,7 @@ class JSRegExpStringIterator : public JSObject {
   DECL_ACCESSORS(iterating_regexp, Object)
 
   // [string]: The [[IteratedString]] internal property.
-  DECL_ACCESSORS(iterating_string, String)
+  DECL_ACCESSORS2(iterating_string, String)
 
   DECL_INT_ACCESSORS(flags)
 
@@ -32,23 +32,27 @@ class JSRegExpStringIterator : public JSObject {
   // [boolean]: The [[Unicode]] internal property.
   DECL_BOOLEAN_ACCESSORS(unicode)
 
-  DECL_CAST(JSRegExpStringIterator)
+  DECL_CAST2(JSRegExpStringIterator)
   DECL_PRINTER(JSRegExpStringIterator)
   DECL_VERIFIER(JSRegExpStringIterator)
 
-  static const int kIteratingRegExpOffset = JSObject::kHeaderSize;
-  static const int kIteratedStringOffset =
-      kIteratingRegExpOffset + kPointerSize;
-  static const int kFlagsOffset = kIteratedStringOffset + kPointerSize;
+  // Layout description.
+#define JS_REGEXP_STRING_ITERATOR_FIELDS(V) \
+  V(kIteratingRegExpOffset, kTaggedSize)    \
+  V(kIteratedStringOffset, kTaggedSize)     \
+  V(kFlagsOffset, kTaggedSize)              \
+  /* Header size. */                        \
+  V(kSize, 0)
 
-  static const int kSize = kFlagsOffset + kPointerSize;
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_REGEXP_STRING_ITERATOR_FIELDS)
+#undef JS_REGEXP_STRING_ITERATOR_FIELDS
 
   static const int kDoneBit = 0;
   static const int kGlobalBit = 1;
   static const int kUnicodeBit = 2;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSRegExpStringIterator);
+  OBJECT_CONSTRUCTORS(JSRegExpStringIterator, JSObject);
 };
 
 }  // namespace internal

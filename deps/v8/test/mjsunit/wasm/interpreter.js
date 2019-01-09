@@ -530,7 +530,7 @@ function checkStack(stack, expected_lines) {
         kExprCallIndirect, sig_index, kTableZero
       ])  // --
       .exportAs('main');
-  builder0.setFunctionTableBounds(3, 3);
+  builder0.setTableBounds(3, 3);
   builder0.addExportOfKind('table', kExternalTable);
   const module0 = new WebAssembly.Module(builder0.toBuffer());
   const instance0 = new WebAssembly.Instance(module0);
@@ -538,10 +538,33 @@ function checkStack(stack, expected_lines) {
   const builder1 = new WasmModuleBuilder();
   builder1.addFunction('main', kSig_i_v).addBody([kExprUnreachable]);
   builder1.addImportedTable('z', 'table');
-  builder1.addFunctionTableInit(0, false, [0], true);
+  builder1.addElementSegment(0, false, [0], true);
   const module1 = new WebAssembly.Module(builder1.toBuffer());
   const instance1 =
       new WebAssembly.Instance(module1, {z: {table: instance0.exports.table}});
   assertThrows(
       () => instance0.exports.main(0), WebAssembly.RuntimeError, 'unreachable');
+})();
+
+(function testSerializeInterpreted() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  builder.addFunction('main', kSig_i_i)
+      .addBody([kExprGetLocal, 0, kExprI32Const, 7, kExprI32Add])
+      .exportFunc();
+
+  const wire_bytes = builder.toBuffer();
+  var module = new WebAssembly.Module(wire_bytes);
+  const i1 = new WebAssembly.Instance(module);
+
+  assertEquals(11, i1.exports.main(4));
+
+  const buff = %SerializeWasmModule(module);
+  module = null;
+  gc();
+
+  module = %DeserializeWasmModule(buff, wire_bytes);
+  const i2 = new WebAssembly.Instance(module);
+
+  assertEquals(11, i2.exports.main(4));
 })();

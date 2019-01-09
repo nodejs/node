@@ -57,7 +57,7 @@ async function foo() {
 
 foo();
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
 Debug.setListener(null);
 Debug.clearBreakOnException();

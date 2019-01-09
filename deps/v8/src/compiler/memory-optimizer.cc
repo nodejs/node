@@ -10,6 +10,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/interface-descriptors.h"
 
 namespace v8 {
 namespace internal {

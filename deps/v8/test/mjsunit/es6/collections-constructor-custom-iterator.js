@@ -4,6 +4,8 @@
 
 // Flags: --allow-natives-syntax --opt
 
+var global;
+
 function TestSetWithCustomIterator(ctor) {
   const k1 = {};
   const k2 = {};
@@ -19,6 +21,9 @@ function TestSetWithCustomIterator(ctor) {
   assertFalse(set.has(k1));
   assertTrue(set.has(k2));
   assertEquals(2, callCount);
+  // Keep entries alive to avoid collection of the weakly held map in optimized
+  // code which causes the code to deopt.
+  global = entries;
 }
 TestSetWithCustomIterator(Set);
 TestSetWithCustomIterator(Set);
@@ -49,6 +54,9 @@ function TestMapWithCustomIterator(ctor) {
   assertFalse(map.has(k1));
   assertEquals(2, map.get(k2));
   assertEquals(2, callCount);
+  // Keep entries alive to avoid collection of the weakly held map in optimized
+  // code which causes the code to deopt.
+  global = entries;
 }
 TestMapWithCustomIterator(Map);
 TestMapWithCustomIterator(Map);

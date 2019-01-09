@@ -12,11 +12,7 @@ namespace v8 {
 namespace base {
 namespace {
 
-enum TestFlag : base::AtomicWord {
-  kA,
-  kB,
-  kC,
-};
+enum TestFlag : base::AtomicWord { kA, kB, kC };
 
 }  // namespace
 
@@ -25,15 +21,6 @@ TEST(AtomicValue, Initial) {
   AtomicValue<TestFlag> a(kA);
   EXPECT_EQ(TestFlag::kA, a.Value());
 }
-
-
-TEST(AtomicValue, TrySetValue) {
-  AtomicValue<TestFlag> a(kA);
-  EXPECT_FALSE(a.TrySetValue(kB, kC));
-  EXPECT_TRUE(a.TrySetValue(kA, kC));
-  EXPECT_EQ(TestFlag::kC, a.Value());
-}
-
 
 TEST(AtomicValue, SetValue) {
   AtomicValue<TestFlag> a(kB);
@@ -48,9 +35,6 @@ TEST(AtomicValue, WithVoidStar) {
   EXPECT_EQ(nullptr, a.Value());
   a.SetValue(&a);
   EXPECT_EQ(&a, a.Value());
-  EXPECT_FALSE(a.TrySetValue(nullptr, &dummy));
-  EXPECT_TRUE(a.TrySetValue(&a, &dummy));
-  EXPECT_EQ(&dummy, a.Value());
 }
 
 TEST(AsAtomic8, CompareAndSwap_Sequential) {

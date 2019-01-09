@@ -166,7 +166,7 @@ bytecodes: [
                 B(JumpIfFalse), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(5), U8(1),
                 B(LdaNamedProperty), R(5), U8(3), U8(8),
-                B(JumpIfToBooleanTrue), U8(27),
+                B(JumpIfToBooleanTrue), U8(28),
                 B(LdaNamedProperty), R(5), U8(4), U8(10),
                 B(Star), R(7),
                 B(LdaSmi), I8(2),
@@ -174,10 +174,10 @@ bytecodes: [
                 B(Mov), R(7), R(1),
   /*   54 E> */ B(StackCheck),
                 B(Mov), R(1), R(2),
-  /*   73 S> */ B(LdaZero),
+  /*   73 S> */ B(LdaSmi), I8(1),
                 B(Star), R(10),
                 B(Mov), R(7), R(11),
-                B(Jump), U8(49),
+                B(Jump), U8(48),
                 B(Jump), U8(33),
                 B(Star), R(14),
                 B(CreateCatchContext), R(14), U8(5),
@@ -195,9 +195,9 @@ bytecodes: [
                 B(LdaSmi), I8(-1),
                 B(Star), R(11),
                 B(Star), R(10),
-                B(Jump), U8(8),
+                B(Jump), U8(7),
                 B(Star), R(11),
-                B(LdaSmi), I8(1),
+                B(LdaZero),
                 B(Star), R(10),
                 B(LdaTheHole),
                 B(SetPendingMessage),
@@ -246,9 +246,9 @@ bytecodes: [
                 B(SwitchOnSmiNoFeedback), U8(8), U8(2), I8(0),
                 B(Jump), U8(8),
                 B(Ldar), R(11),
-  /*   85 S> */ B(Return),
-                B(Ldar), R(11),
                 B(ReThrow),
+                B(Ldar), R(11),
+  /*   85 S> */ B(Return),
                 B(LdaUndefined),
   /*   85 S> */ B(Return),
 ]
@@ -265,8 +265,8 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [11, 124, 132],
-  [14, 91, 93],
+  [11, 125, 133],
+  [14, 92, 94],
   [193, 203, 205],
 ]
 
@@ -417,11 +417,11 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 265
+bytecode array length: 263
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(8),
-                B(Mov), R(8), R(0),
+  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
+                B(Star), R(0),
                 B(LdaZero),
                 B(Star), R(4),
                 B(Mov), R(context), R(10),
@@ -443,7 +443,7 @@ bytecodes: [
                 B(JumpIfFalse), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(3), U8(1),
                 B(LdaNamedProperty), R(3), U8(4), U8(10),
-                B(JumpIfToBooleanTrue), U8(30),
+                B(JumpIfToBooleanTrue), U8(31),
   /*   67 E> */ B(LdaNamedProperty), R(3), U8(5), U8(12),
                 B(Star), R(5),
                 B(LdaSmi), I8(2),
@@ -453,9 +453,9 @@ bytecodes: [
   /*   62 E> */ B(StackCheck),
   /*   96 S> */ B(LdaNamedProperty), R(0), U8(6), U8(16),
                 B(Star), R(9),
-                B(LdaZero),
+                B(LdaSmi), I8(1),
                 B(Star), R(8),
-                B(Jump), U8(49),
+                B(Jump), U8(48),
                 B(Jump), U8(33),
                 B(Star), R(12),
                 B(CreateCatchContext), R(12), U8(7),
@@ -473,9 +473,9 @@ bytecodes: [
                 B(LdaSmi), I8(-1),
                 B(Star), R(9),
                 B(Star), R(8),
-                B(Jump), U8(8),
+                B(Jump), U8(7),
                 B(Star), R(9),
-                B(LdaSmi), I8(1),
+                B(LdaZero),
                 B(Star), R(8),
                 B(LdaTheHole),
                 B(SetPendingMessage),
@@ -524,9 +524,9 @@ bytecodes: [
                 B(SwitchOnSmiNoFeedback), U8(10), U8(2), I8(0),
                 B(Jump), U8(8),
                 B(Ldar), R(9),
-  /*  105 S> */ B(Return),
-                B(Ldar), R(9),
                 B(ReThrow),
+                B(Ldar), R(9),
+  /*  105 S> */ B(Return),
                 B(LdaUndefined),
   /*  105 S> */ B(Return),
 ]
@@ -545,8 +545,8 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [15, 134, 142],
-  [18, 101, 103],
-  [203, 213, 215],
+  [13, 133, 141],
+  [16, 100, 102],
+  [201, 211, 213],
 ]
 

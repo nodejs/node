@@ -593,55 +593,58 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   return OpParameter<CompareOperationHint>(op);
 }
 
-#define CACHED_OP_LIST(V)                                              \
-  V(BitwiseOr, Operator::kNoProperties, 2, 1)                          \
-  V(BitwiseXor, Operator::kNoProperties, 2, 1)                         \
-  V(BitwiseAnd, Operator::kNoProperties, 2, 1)                         \
-  V(ShiftLeft, Operator::kNoProperties, 2, 1)                          \
-  V(ShiftRight, Operator::kNoProperties, 2, 1)                         \
-  V(ShiftRightLogical, Operator::kNoProperties, 2, 1)                  \
-  V(Subtract, Operator::kNoProperties, 2, 1)                           \
-  V(Multiply, Operator::kNoProperties, 2, 1)                           \
-  V(Divide, Operator::kNoProperties, 2, 1)                             \
-  V(Modulus, Operator::kNoProperties, 2, 1)                            \
-  V(Exponentiate, Operator::kNoProperties, 2, 1)                       \
-  V(BitwiseNot, Operator::kNoProperties, 1, 1)                         \
-  V(Decrement, Operator::kNoProperties, 1, 1)                          \
-  V(Increment, Operator::kNoProperties, 1, 1)                          \
-  V(Negate, Operator::kNoProperties, 1, 1)                             \
-  V(ToLength, Operator::kNoProperties, 1, 1)                           \
-  V(ToName, Operator::kNoProperties, 1, 1)                             \
-  V(ToNumber, Operator::kNoProperties, 1, 1)                           \
-  V(ToNumberConvertBigInt, Operator::kNoProperties, 1, 1)              \
-  V(ToNumeric, Operator::kNoProperties, 1, 1)                          \
-  V(ToObject, Operator::kFoldable, 1, 1)                               \
-  V(ToString, Operator::kNoProperties, 1, 1)                           \
-  V(Create, Operator::kNoProperties, 2, 1)                             \
-  V(CreateIterResultObject, Operator::kEliminatable, 2, 1)             \
-  V(CreateStringIterator, Operator::kEliminatable, 1, 1)               \
-  V(CreateKeyValueArray, Operator::kEliminatable, 2, 1)                \
-  V(CreatePromise, Operator::kEliminatable, 0, 1)                      \
-  V(CreateTypedArray, Operator::kNoProperties, 5, 1)                   \
-  V(CreateObject, Operator::kNoProperties, 1, 1)                       \
-  V(ObjectIsArray, Operator::kNoProperties, 1, 1)                      \
-  V(HasProperty, Operator::kNoProperties, 2, 1)                        \
-  V(HasInPrototypeChain, Operator::kNoProperties, 2, 1)                \
-  V(OrdinaryHasInstance, Operator::kNoProperties, 2, 1)                \
-  V(ForInEnumerate, Operator::kNoProperties, 1, 1)                     \
-  V(LoadMessage, Operator::kNoThrow | Operator::kNoWrite, 0, 1)        \
-  V(StoreMessage, Operator::kNoRead | Operator::kNoThrow, 1, 0)        \
-  V(GeneratorRestoreContinuation, Operator::kNoThrow, 1, 1)            \
-  V(GeneratorRestoreContext, Operator::kNoThrow, 1, 1)                 \
-  V(GeneratorRestoreInputOrDebugPos, Operator::kNoThrow, 1, 1)         \
-  V(StackCheck, Operator::kNoWrite, 0, 0)                              \
-  V(Debugger, Operator::kNoProperties, 0, 0)                           \
-  V(FulfillPromise, Operator::kNoDeopt | Operator::kNoThrow, 2, 1)     \
-  V(PerformPromiseThen, Operator::kNoDeopt | Operator::kNoThrow, 4, 1) \
-  V(PromiseResolve, Operator::kNoProperties, 2, 1)                     \
-  V(RejectPromise, Operator::kNoDeopt | Operator::kNoThrow, 3, 1)      \
-  V(ResolvePromise, Operator::kNoDeopt | Operator::kNoThrow, 2, 1)     \
-  V(GetSuperConstructor, Operator::kNoWrite, 1, 1)                     \
-  V(ParseInt, Operator::kNoProperties, 2, 1)                           \
+#define CACHED_OP_LIST(V)                                                \
+  V(BitwiseOr, Operator::kNoProperties, 2, 1)                            \
+  V(BitwiseXor, Operator::kNoProperties, 2, 1)                           \
+  V(BitwiseAnd, Operator::kNoProperties, 2, 1)                           \
+  V(ShiftLeft, Operator::kNoProperties, 2, 1)                            \
+  V(ShiftRight, Operator::kNoProperties, 2, 1)                           \
+  V(ShiftRightLogical, Operator::kNoProperties, 2, 1)                    \
+  V(Subtract, Operator::kNoProperties, 2, 1)                             \
+  V(Multiply, Operator::kNoProperties, 2, 1)                             \
+  V(Divide, Operator::kNoProperties, 2, 1)                               \
+  V(Modulus, Operator::kNoProperties, 2, 1)                              \
+  V(Exponentiate, Operator::kNoProperties, 2, 1)                         \
+  V(BitwiseNot, Operator::kNoProperties, 1, 1)                           \
+  V(Decrement, Operator::kNoProperties, 1, 1)                            \
+  V(Increment, Operator::kNoProperties, 1, 1)                            \
+  V(Negate, Operator::kNoProperties, 1, 1)                               \
+  V(ToLength, Operator::kNoProperties, 1, 1)                             \
+  V(ToName, Operator::kNoProperties, 1, 1)                               \
+  V(ToNumber, Operator::kNoProperties, 1, 1)                             \
+  V(ToNumberConvertBigInt, Operator::kNoProperties, 1, 1)                \
+  V(ToNumeric, Operator::kNoProperties, 1, 1)                            \
+  V(ToObject, Operator::kFoldable, 1, 1)                                 \
+  V(ToString, Operator::kNoProperties, 1, 1)                             \
+  V(Create, Operator::kNoProperties, 2, 1)                               \
+  V(CreateIterResultObject, Operator::kEliminatable, 2, 1)               \
+  V(CreateStringIterator, Operator::kEliminatable, 1, 1)                 \
+  V(CreateKeyValueArray, Operator::kEliminatable, 2, 1)                  \
+  V(CreatePromise, Operator::kEliminatable, 0, 1)                        \
+  V(CreateTypedArray, Operator::kNoProperties, 5, 1)                     \
+  V(CreateObject, Operator::kNoProperties, 1, 1)                         \
+  V(ObjectIsArray, Operator::kNoProperties, 1, 1)                        \
+  V(HasProperty, Operator::kNoProperties, 2, 1)                          \
+  V(HasInPrototypeChain, Operator::kNoProperties, 2, 1)                  \
+  V(OrdinaryHasInstance, Operator::kNoProperties, 2, 1)                  \
+  V(ForInEnumerate, Operator::kNoProperties, 1, 1)                       \
+  V(AsyncFunctionEnter, Operator::kNoProperties, 2, 1)                   \
+  V(AsyncFunctionReject, Operator::kNoDeopt | Operator::kNoThrow, 3, 1)  \
+  V(AsyncFunctionResolve, Operator::kNoDeopt | Operator::kNoThrow, 3, 1) \
+  V(LoadMessage, Operator::kNoThrow | Operator::kNoWrite, 0, 1)          \
+  V(StoreMessage, Operator::kNoRead | Operator::kNoThrow, 1, 0)          \
+  V(GeneratorRestoreContinuation, Operator::kNoThrow, 1, 1)              \
+  V(GeneratorRestoreContext, Operator::kNoThrow, 1, 1)                   \
+  V(GeneratorRestoreInputOrDebugPos, Operator::kNoThrow, 1, 1)           \
+  V(StackCheck, Operator::kNoWrite, 0, 0)                                \
+  V(Debugger, Operator::kNoProperties, 0, 0)                             \
+  V(FulfillPromise, Operator::kNoDeopt | Operator::kNoThrow, 2, 1)       \
+  V(PerformPromiseThen, Operator::kNoDeopt | Operator::kNoThrow, 4, 1)   \
+  V(PromiseResolve, Operator::kNoProperties, 2, 1)                       \
+  V(RejectPromise, Operator::kNoDeopt | Operator::kNoThrow, 3, 1)        \
+  V(ResolvePromise, Operator::kNoDeopt | Operator::kNoThrow, 2, 1)       \
+  V(GetSuperConstructor, Operator::kNoWrite, 1, 1)                       \
+  V(ParseInt, Operator::kNoProperties, 2, 1)                             \
   V(RegExpTest, Operator::kNoProperties, 2, 1)
 
 #define BINARY_OP_LIST(V) V(Add)
@@ -711,16 +714,20 @@ struct JSOperatorGlobalCache final {
   Name##Operator<CompareOperationHint::kSymbol> k##Name##SymbolOperator;     \
   Name##Operator<CompareOperationHint::kBigInt> k##Name##BigIntOperator;     \
   Name##Operator<CompareOperationHint::kReceiver> k##Name##ReceiverOperator; \
+  Name##Operator<CompareOperationHint::kReceiverOrNullOrUndefined>           \
+      k##Name##ReceiverOrNullOrUndefinedOperator;                            \
   Name##Operator<CompareOperationHint::kAny> k##Name##AnyOperator;
   COMPARE_OP_LIST(COMPARE_OP)
 #undef COMPARE_OP
 };
 
-static base::LazyInstance<JSOperatorGlobalCache>::type kJSOperatorGlobalCache =
-    LAZY_INSTANCE_INITIALIZER;
+namespace {
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(JSOperatorGlobalCache,
+                                GetJSOperatorGlobalCache);
+}
 
 JSOperatorBuilder::JSOperatorBuilder(Zone* zone)
-    : cache_(kJSOperatorGlobalCache.Get()), zone_(zone) {}
+    : cache_(*GetJSOperatorGlobalCache()), zone_(zone) {}
 
 #define CACHED_OP(Name, properties, value_input_count, value_output_count) \
   const Operator* JSOperatorBuilder::Name() {                              \
@@ -778,6 +785,8 @@ BINARY_OP_LIST(BINARY_OP)
         return &cache_.k##Name##BigIntOperator;                        \
       case CompareOperationHint::kReceiver:                            \
         return &cache_.k##Name##ReceiverOperator;                      \
+      case CompareOperationHint::kReceiverOrNullOrUndefined:           \
+        return &cache_.k##Name##ReceiverOrNullOrUndefinedOperator;     \
       case CompareOperationHint::kAny:                                 \
         return &cache_.k##Name##AnyOperator;                           \
     }                                                                  \
@@ -976,6 +985,11 @@ const Operator* JSOperatorBuilder::GeneratorStore(int register_count) {
       register_count);                                  // parameter
 }
 
+int RegisterCountOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kJSCreateAsyncFunctionObject, op->opcode());
+  return OpParameter<int>(op);
+}
+
 int GeneratorStoreValueCountOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kJSGeneratorStore, op->opcode());
   return OpParameter<int>(op);
@@ -1131,6 +1145,16 @@ const Operator* JSOperatorBuilder::CreateArrayIterator(IterationKind kind) {
       "JSCreateArrayIterator",                                    // name
       1, 1, 1, 1, 1, 0,                                           // counts
       parameters);                                                // parameter
+}
+
+const Operator* JSOperatorBuilder::CreateAsyncFunctionObject(
+    int register_count) {
+  return new (zone()) Operator1<int>(          // --
+      IrOpcode::kJSCreateAsyncFunctionObject,  // opcode
+      Operator::kEliminatable,                 // flags
+      "JSCreateAsyncFunctionObject",           // name
+      3, 1, 1, 1, 1, 0,                        // counts
+      register_count);                         // parameter
 }
 
 const Operator* JSOperatorBuilder::CreateCollectionIterator(

@@ -136,7 +136,9 @@ class Vector {
   }
 
   // Implicit conversion from Vector<T> to Vector<const T>.
-  inline operator Vector<const T>() { return Vector<const T>::cast(*this); }
+  inline operator Vector<const T>() const {
+    return Vector<const T>::cast(*this);
+  }
 
   // Factory method for creating empty vectors.
   static Vector<T> empty() { return Vector<T>(nullptr, 0); }
@@ -147,7 +149,7 @@ class Vector {
                      input.length() * sizeof(S) / sizeof(T));
   }
 
-  bool operator==(const Vector<T>& other) const {
+  bool operator==(const Vector<const T> other) const {
     if (length_ != other.length_) return false;
     if (start_ == other.start_) return true;
     for (size_t i = 0; i < length_; ++i) {
@@ -255,10 +257,10 @@ inline int StrLength(const char* string) {
   return static_cast<int>(length);
 }
 
-
-#define STATIC_CHAR_VECTOR(x)                                              \
-  v8::internal::Vector<const uint8_t>(reinterpret_cast<const uint8_t*>(x), \
-                                      arraysize(x) - 1)
+template <size_t N>
+constexpr Vector<const uint8_t> StaticCharVector(const char (&array)[N]) {
+  return Vector<const uint8_t>::cast(Vector<const char>(array, N - 1));
+}
 
 inline Vector<const char> CStrVector(const char* data) {
   return Vector<const char>(data, StrLength(data));
@@ -284,6 +286,19 @@ inline Vector<char> MutableCStrVector(char* data, int max) {
 template <typename T, int N>
 inline constexpr Vector<T> ArrayVector(T (&arr)[N]) {
   return Vector<T>(arr);
+}
+
+// Construct a Vector from a start pointer and a size.
+template <typename T>
+inline constexpr Vector<T> VectorOf(T* start, size_t size) {
+  return Vector<T>(start, size);
+}
+
+// Construct a Vector from anything providing a {data()} and {size()} accessor.
+template <typename Container>
+inline constexpr auto VectorOf(Container&& c)
+    -> decltype(VectorOf(c.data(), c.size())) {
+  return VectorOf(c.data(), c.size());
 }
 
 }  // namespace internal

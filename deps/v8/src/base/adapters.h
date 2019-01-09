@@ -23,7 +23,7 @@ class ReversedAdapter {
       std::reverse_iterator<decltype(std::begin(std::declval<T>()))>;
 
   explicit ReversedAdapter(T& t) : t_(t) {}
-  ReversedAdapter(const ReversedAdapter& ra) = default;
+  ReversedAdapter(const ReversedAdapter& ra) V8_NOEXCEPT = default;
 
   // TODO(clemensh): Use std::rbegin/std::rend once we have C++14 support.
   Iterator begin() const { return Iterator(std::end(t_)); }

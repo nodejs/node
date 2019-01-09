@@ -23,8 +23,7 @@ static base::LazyMutex external_startup_data_mutex = LAZY_MUTEX_INITIALIZER;
 static v8::StartupData external_startup_blob = {nullptr, 0};
 
 void SetSnapshotFromFile(StartupData* snapshot_blob) {
-  base::LockGuard<base::Mutex> lock_guard(
-      external_startup_data_mutex.Pointer());
+  base::MutexGuard lock_guard(external_startup_data_mutex.Pointer());
   DCHECK(snapshot_blob);
   DCHECK(snapshot_blob->data);
   DCHECK_GT(snapshot_blob->raw_size, 0);
@@ -35,8 +34,7 @@ void SetSnapshotFromFile(StartupData* snapshot_blob) {
 
 
 const v8::StartupData* Snapshot::DefaultSnapshotBlob() {
-  base::LockGuard<base::Mutex> lock_guard(
-      external_startup_data_mutex.Pointer());
+  base::MutexGuard lock_guard(external_startup_data_mutex.Pointer());
   return &external_startup_blob;
 }
 }  // namespace internal

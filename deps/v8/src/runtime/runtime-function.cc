@@ -5,8 +5,8 @@
 #include "src/accessors.h"
 #include "src/arguments-inl.h"
 #include "src/compiler.h"
+#include "src/counters.h"
 #include "src/isolate-inl.h"
-#include "src/messages.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {
@@ -83,7 +83,7 @@ RUNTIME_FUNCTION(Runtime_SetNativeFlag) {
   CONVERT_ARG_CHECKED(Object, object, 0);
 
   if (object->IsJSFunction()) {
-    JSFunction* func = JSFunction::cast(object);
+    JSFunction func = JSFunction::cast(object);
     func->shared()->set_native(true);
   }
   return ReadOnlyRoots(isolate).undefined_value();

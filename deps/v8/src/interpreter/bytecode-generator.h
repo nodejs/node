@@ -32,7 +32,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   explicit BytecodeGenerator(
       UnoptimizedCompilationInfo* info,
       const AstStringConstants* ast_string_constants,
-      ZoneVector<FunctionLiteral*>* eager_inner_literals);
+      std::vector<FunctionLiteral*>* eager_inner_literals);
 
   void GenerateBytecode(uintptr_t stack_limit);
   Handle<BytecodeArray> FinalizeBytecode(Isolate* isolate,
@@ -44,7 +44,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   // Visiting function for declarations list and statements are overridden.
   void VisitDeclarations(Declaration::List* declarations);
-  void VisitStatements(ZonePtrList<Statement>* statments);
+  void VisitStatements(const ZonePtrList<Statement>* statments);
 
  private:
   class ContextScope;
@@ -69,6 +69,79 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   enum class TestFallthrough { kThen, kElse, kNone };
   enum class TypeHint { kAny, kBoolean, kString };
+
+  // An assignment has to evaluate its LHS before its RHS, but has to assign to
+  // the LHS after both evaluations are done. This class stores the data
+  // computed in the LHS evaulation that has to live across the RHS evaluation,
+  // and is used in the actual LHS assignment.
+  class AssignmentLhsData {
+   public:
+    static AssignmentLhsData NonProperty(Expression* expr);
+    static AssignmentLhsData NamedProperty(Expression* object_expr,
+                                           Register object,
+                                           const AstRawString* name);
+    static AssignmentLhsData KeyedProperty(Register object, Register key);
+    static AssignmentLhsData NamedSuperProperty(
+        RegisterList super_property_args);
+    static AssignmentLhsData KeyedSuperProperty(
+        RegisterList super_property_args);
+
+    AssignType assign_type() const { return assign_type_; }
+    Expression* expr() const {
+      DCHECK_EQ(assign_type_, NON_PROPERTY);
+      return expr_;
+    }
+    Expression* object_expr() const {
+      DCHECK_EQ(assign_type_, NAMED_PROPERTY);
+      return object_expr_;
+    }
+    Register object() const {
+      DCHECK(assign_type_ == NAMED_PROPERTY || assign_type_ == KEYED_PROPERTY);
+      return object_;
+    }
+    Register key() const {
+      DCHECK_EQ(assign_type_, KEYED_PROPERTY);
+      return key_;
+    }
+    const AstRawString* name() const {
+      DCHECK_EQ(assign_type_, NAMED_PROPERTY);
+      return name_;
+    }
+    RegisterList super_property_args() const {
+      DCHECK(assign_type_ == NAMED_SUPER_PROPERTY ||
+             assign_type_ == KEYED_SUPER_PROPERTY);
+      return super_property_args_;
+    }
+
+   private:
+    AssignmentLhsData(AssignType assign_type, Expression* expr,
+                      RegisterList super_property_args, Register object,
+                      Register key, Expression* object_expr,
+                      const AstRawString* name)
+        : assign_type_(assign_type),
+          expr_(expr),
+          super_property_args_(super_property_args),
+          object_(object),
+          key_(key),
+          object_expr_(object_expr),
+          name_(name) {}
+
+    AssignType assign_type_;
+
+    // Different assignment types use different fields:
+    //
+    // NON_PROPERTY: expr
+    // NAMED_PROPERTY: object_expr, object, name
+    // KEYED_PROPERTY: object, key
+    // NAMED_SUPER_PROPERTY: super_property_args
+    // KEYED_SUPER_PROPERT:  super_property_args
+    Expression* expr_;
+    RegisterList super_property_args_;
+    Register object_;
+    Register key_;
+    Expression* object_expr_;
+    const AstRawString* name_;
+  };
 
   void GenerateBytecodeBody();
   void AllocateDeferredConstants(Isolate* isolate, Handle<Script> script);
@@ -101,7 +174,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   // Visit the arguments expressions in |args| and store them in |args_regs|,
   // growing |args_regs| for each argument visited.
-  void VisitArguments(ZonePtrList<Expression>* args, RegisterList* arg_regs);
+  void VisitArguments(const ZonePtrList<Expression>* args,
+                      RegisterList* arg_regs);
 
   // Visit a keyed super property load. The optional
   // |opt_receiver_out| register will have the receiver stored to it
@@ -121,9 +195,17 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitPropertyLoadForRegister(Register obj, Property* expr,
                                     Register destination);
 
-  void BuildLoadNamedProperty(Property* property, Register object,
+  AssignmentLhsData PrepareAssignmentLhs(Expression* lhs);
+  void BuildAssignment(const AssignmentLhsData& data, Token::Value op,
+                       LookupHoistingMode lookup_hoisting_mode);
+
+  Expression* GetDestructuringDefaultValue(Expression** target);
+  void BuildDestructuringArrayAssignment(ArrayLiteral* pattern);
+  void BuildDestructuringObjectAssignment(ObjectLiteral* pattern);
+
+  void BuildLoadNamedProperty(const Expression* object_expr, Register object,
                               const AstRawString* name);
-  void BuildStoreNamedProperty(Property* property, Register object,
+  void BuildStoreNamedProperty(const Expression* object_expr, Register object,
                                const AstRawString* name);
 
   void BuildVariableLoad(Variable* variable, HoleCheckMode hole_check_mode,
@@ -159,19 +241,20 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   void BuildAwait(Expression* await_expr);
 
-  void BuildGetIterator(Expression* iterable, IteratorType hint);
+  void BuildFinalizeIteration(IteratorRecord iterator, Register done,
+                              Register iteration_continuation_token);
+
+  void BuildGetIterator(IteratorType hint);
 
   // Create an IteratorRecord with pre-allocated registers holding the next
   // method and iterator object.
-  IteratorRecord BuildGetIteratorRecord(Expression* iterable,
-                                        Register iterator_next,
+  IteratorRecord BuildGetIteratorRecord(Register iterator_next,
                                         Register iterator_object,
                                         IteratorType hint);
 
   // Create an IteratorRecord allocating new registers to hold the next method
   // and iterator object.
-  IteratorRecord BuildGetIteratorRecord(Expression* iterable,
-                                        IteratorType hint);
+  IteratorRecord BuildGetIteratorRecord(IteratorType hint);
   void BuildIteratorNext(const IteratorRecord& iterator, Register next_result);
   void BuildIteratorClose(const IteratorRecord& iterator,
                           Expression* expr = nullptr);
@@ -180,24 +263,28 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                BytecodeLabel* if_called,
                                BytecodeLabels* if_notcalled);
 
-  void BuildArrayLiteralSpread(Spread* spread, Register array, Register index,
-                               FeedbackSlot index_slot,
-                               FeedbackSlot element_slot);
+  void BuildFillArrayWithIterator(IteratorRecord iterator, Register array,
+                                  Register index, Register value, Register done,
+                                  FeedbackSlot next_value_slot,
+                                  FeedbackSlot next_done_slot,
+                                  FeedbackSlot index_slot,
+                                  FeedbackSlot element_slot);
   // Create Array literals. |expr| can be nullptr, but if provided,
   // a boilerplate will be used to create an initial array for elements
   // before the first spread.
-  void BuildCreateArrayLiteral(ZonePtrList<Expression>* elements,
+  void BuildCreateArrayLiteral(const ZonePtrList<Expression>* elements,
                                ArrayLiteral* expr);
   void BuildCreateObjectLiteral(Register literal, uint8_t flags, size_t entry);
   void AllocateTopLevelRegisters();
   void VisitArgumentsObject(Variable* variable);
   void VisitRestArgumentsArray(Variable* rest);
   void VisitCallSuper(Call* call);
-  void BuildClassLiteral(ClassLiteral* expr);
+  void BuildClassLiteral(ClassLiteral* expr, Register name);
+  void VisitClassLiteral(ClassLiteral* expr, Register name);
   void VisitNewTargetVariable(Variable* variable);
   void VisitThisFunctionVariable(Variable* variable);
-  void BuildInstanceFieldInitialization(Register constructor,
-                                        Register instance);
+  void BuildInstanceMemberInitialization(Register constructor,
+                                         Register instance);
   void BuildGeneratorObjectVariableInitialization();
   void VisitBlockDeclarationsAndStatements(Block* stmt);
   void VisitSetHomeObject(Register value, Register home_object,
@@ -351,7 +438,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   Scope* current_scope_;
 
   // External vector of literals to be eagerly compiled.
-  ZoneVector<FunctionLiteral*>* eager_inner_literals_;
+  std::vector<FunctionLiteral*>* eager_inner_literals_;
 
   FeedbackSlotCache* feedback_slot_cache_;
 

@@ -15,6 +15,9 @@ namespace v8 {
 namespace internal {
 namespace heap {
 
+// Tests don't work when --optimize-for-size is set.
+#ifndef V8_LITE_MODE
+
 namespace {
 
 v8::Isolate* NewIsolateForPagePromotion(int min_semi_space_size = 8,
@@ -73,8 +76,9 @@ UNINITIALIZED_TEST(PagePromotion_NewToOld) {
     // To perform a sanity check on live bytes we need to mark the heap.
     heap::SimulateIncrementalMarking(heap, true);
     // Sanity check that the page meets the requirements for promotion.
-    const int threshold_bytes =
-        FLAG_page_promotion_threshold * Page::kAllocatableMemory / 100;
+    const int threshold_bytes = static_cast<int>(
+        FLAG_page_promotion_threshold *
+        MemoryChunkLayout::AllocatableMemoryInDataPage() / 100);
     CHECK_GE(heap->incremental_marking()->marking_state()->live_bytes(
                  to_be_promoted_page),
              threshold_bytes);
@@ -240,6 +244,8 @@ UNINITIALIZED_HEAP_TEST(Regress658718) {
   }
   isolate->Dispose();
 }
+
+#endif  // V8_LITE_MODE
 
 }  // namespace heap
 }  // namespace internal

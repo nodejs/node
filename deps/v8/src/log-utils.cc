@@ -88,9 +88,9 @@ Log::MessageBuilder::MessageBuilder(Log* log)
   DCHECK_NOT_NULL(log_->format_buffer_);
 }
 
-void Log::MessageBuilder::AppendString(String* str,
+void Log::MessageBuilder::AppendString(String str,
                                        base::Optional<int> length_limit) {
-  if (str == nullptr) return;
+  if (str.is_null()) return;
 
   DisallowHeapAllocation no_gc;  // Ensure string stays valid.
   int length = str->length();
@@ -155,8 +155,8 @@ void Log::MessageBuilder::AppendCharacter(char c) {
   }
 }
 
-void Log::MessageBuilder::AppendSymbolName(Symbol* symbol) {
-  DCHECK(symbol);
+void Log::MessageBuilder::AppendSymbolName(Symbol symbol) {
+  DCHECK(!symbol.is_null());
   OFStream& os = log_->os_;
   os << "symbol(";
   if (!symbol->name()->IsUndefined()) {
@@ -167,9 +167,9 @@ void Log::MessageBuilder::AppendSymbolName(Symbol* symbol) {
   os << "hash " << std::hex << symbol->Hash() << std::dec << ")";
 }
 
-void Log::MessageBuilder::AppendSymbolNameDetails(String* str,
+void Log::MessageBuilder::AppendSymbolNameDetails(String str,
                                                   bool show_impl_info) {
-  if (str == nullptr) return;
+  if (str.is_null()) return;
 
   DisallowHeapAllocation no_gc;  // Ensure string stays valid.
   OFStream& os = log_->os_;
@@ -233,19 +233,19 @@ Log::MessageBuilder& Log::MessageBuilder::operator<<<char>(char c) {
 }
 
 template <>
-Log::MessageBuilder& Log::MessageBuilder::operator<<<String*>(String* string) {
+Log::MessageBuilder& Log::MessageBuilder::operator<<<String>(String string) {
   this->AppendString(string);
   return *this;
 }
 
 template <>
-Log::MessageBuilder& Log::MessageBuilder::operator<<<Symbol*>(Symbol* symbol) {
+Log::MessageBuilder& Log::MessageBuilder::operator<<<Symbol>(Symbol symbol) {
   this->AppendSymbolName(symbol);
   return *this;
 }
 
 template <>
-Log::MessageBuilder& Log::MessageBuilder::operator<<<Name*>(Name* name) {
+Log::MessageBuilder& Log::MessageBuilder::operator<<<Name>(Name name) {
   if (name->IsString()) {
     this->AppendString(String::cast(name));
   } else {

@@ -33,8 +33,8 @@
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/macro-assembler.h"
-#include "src/mips64/macro-assembler-mips64.h"
 #include "src/objects-inl.h"
+#include "src/objects/heap-number.h"
 #include "src/simulator.h"
 
 namespace v8 {
@@ -42,9 +42,9 @@ namespace internal {
 
 // TODO(mips64): Refine these signatures per test case.
 using FV = void*(int64_t x, int64_t y, int p2, int p3, int p4);
-using F1 = Object*(int x, int p1, int p2, int p3, int p4);
-using F3 = Object*(void* p, int p1, int p2, int p3, int p4);
-using F4 = Object*(void* p0, void* p1, int p2, int p3, int p4);
+using F1 = void*(int x, int p1, int p2, int p3, int p4);
+using F3 = void*(void* p, int p1, int p2, int p3, int p4);
+using F4 = void*(void* p0, void* p1, int p2, int p3, int p4);
 
 #define __ masm->
 

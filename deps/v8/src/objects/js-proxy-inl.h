@@ -15,7 +15,9 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(JSProxy)
+OBJECT_CONSTRUCTORS_IMPL(JSProxy, JSReceiver)
+
+CAST_ACCESSOR2(JSProxy)
 
 ACCESSORS(JSProxy, target, Object, kTargetOffset)
 ACCESSORS(JSProxy, handler, Object, kHandlerOffset)

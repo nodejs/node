@@ -11,8 +11,8 @@ namespace base {
 
 TEST(Mutex, LockGuardMutex) {
   Mutex mutex;
-  { LockGuard<Mutex> lock_guard(&mutex); }
-  { LockGuard<Mutex> lock_guard(&mutex); }
+  { MutexGuard lock_guard(&mutex); }
+  { MutexGuard lock_guard(&mutex); }
 }
 
 
@@ -28,8 +28,8 @@ TEST(Mutex, LockGuardRecursiveMutex) {
 
 TEST(Mutex, LockGuardLazyMutex) {
   LazyMutex lazy_mutex = LAZY_MUTEX_INITIALIZER;
-  { LockGuard<Mutex> lock_guard(lazy_mutex.Pointer()); }
-  { LockGuard<Mutex> lock_guard(lazy_mutex.Pointer()); }
+  { MutexGuard lock_guard(lazy_mutex.Pointer()); }
+  { MutexGuard lock_guard(lazy_mutex.Pointer()); }
 }
 
 

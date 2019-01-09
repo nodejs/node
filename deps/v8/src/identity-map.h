@@ -7,6 +7,7 @@
 
 #include "src/base/functional.h"
 #include "src/handles.h"
+#include "src/objects/heap-object.h"
 
 namespace v8 {
 namespace internal {
@@ -41,12 +42,12 @@ class IdentityMapBase {
         is_iterable_(false) {}
   virtual ~IdentityMapBase();
 
-  RawEntry GetEntry(Object* key);
-  RawEntry FindEntry(Object* key) const;
-  bool DeleteEntry(Object* key, void** deleted_value);
+  RawEntry GetEntry(Address key);
+  RawEntry FindEntry(Address key) const;
+  bool DeleteEntry(Address key, void** deleted_value);
   void Clear();
 
-  Object* KeyAtIndex(int index) const;
+  Address KeyAtIndex(int index) const;
 
   V8_EXPORT_PRIVATE RawEntry EntryAtIndex(int index) const;
   V8_EXPORT_PRIVATE int NextIndex(int index) const;
@@ -59,14 +60,14 @@ class IdentityMapBase {
 
  private:
   // Internal implementation should not be called directly by subclasses.
-  int ScanKeysFor(Object* address) const;
-  int InsertKey(Object* address);
-  int Lookup(Object* key) const;
-  int LookupOrInsert(Object* key);
+  int ScanKeysFor(Address address) const;
+  int InsertKey(Address address);
+  int Lookup(Address key) const;
+  int LookupOrInsert(Address key);
   bool DeleteIndex(int index, void** deleted_value);
   void Rehash();
   void Resize(int new_capacity);
-  int Hash(Object* address) const;
+  int Hash(Address address) const;
 
   base::hash<uintptr_t> hasher_;
   Heap* heap_;
@@ -74,7 +75,7 @@ class IdentityMapBase {
   int size_;
   int capacity_;
   int mask_;
-  Object** keys_;
+  Address* keys_;
   void** values_;
   bool is_iterable_;
 
@@ -100,25 +101,29 @@ class IdentityMap : public IdentityMapBase {
   //    found => a pointer to the storage location for the value
   //    not found => a pointer to a new storage location for the value
   V* Get(Handle<Object> key) { return Get(*key); }
-  V* Get(Object* key) { return reinterpret_cast<V*>(GetEntry(key)); }
+  V* Get(Object key) { return reinterpret_cast<V*>(GetEntry(key.ptr())); }
 
   // Searches this map for the given key using the object's address
   // as the identity, returning:
   //    found => a pointer to the storage location for the value
   //    not found => {nullptr}
   V* Find(Handle<Object> key) const { return Find(*key); }
-  V* Find(Object* key) const { return reinterpret_cast<V*>(FindEntry(key)); }
+  V* Find(Object key) const {
+    return reinterpret_cast<V*>(FindEntry(key.ptr()));
+  }
 
   // Set the value for the given key.
   void Set(Handle<Object> key, V v) { Set(*key, v); }
-  void Set(Object* key, V v) { *(reinterpret_cast<V*>(GetEntry(key))) = v; }
+  void Set(Object key, V v) {
+    *(reinterpret_cast<V*>(GetEntry(key.ptr()))) = v;
+  }
 
   bool Delete(Handle<Object> key, V* deleted_value) {
     return Delete(*key, deleted_value);
   }
-  bool Delete(Object* key, V* deleted_value) {
+  bool Delete(Object key, V* deleted_value) {
     void* v = nullptr;
-    bool deleted_something = DeleteEntry(key, &v);
+    bool deleted_something = DeleteEntry(key.ptr(), &v);
     if (deleted_value != nullptr && deleted_something) {
       *deleted_value = *reinterpret_cast<V*>(&v);
     }
@@ -137,7 +142,7 @@ class IdentityMap : public IdentityMapBase {
       return *this;
     }
 
-    Object* key() const { return map_->KeyAtIndex(index_); }
+    Object key() const { return Object(map_->KeyAtIndex(index_)); }
     V* entry() const {
       return reinterpret_cast<V*>(map_->EntryAtIndex(index_));
     }

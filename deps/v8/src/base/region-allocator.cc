@@ -258,6 +258,16 @@ size_t RegionAllocator::CheckRegion(Address address) {
   return region->size();
 }
 
+bool RegionAllocator::IsFree(Address address, size_t size) {
+  CHECK(contains(address, size));
+  AllRegionsSet::iterator region_iter = FindRegion(address);
+  if (region_iter == all_regions_.end()) {
+    return true;
+  }
+  Region* region = *region_iter;
+  return !region->is_used() && region->contains(address, size);
+}
+
 void RegionAllocator::Region::Print(std::ostream& os) const {
   std::ios::fmtflags flags = os.flags(std::ios::hex | std::ios::showbase);
   os << "[" << begin() << ", " << end() << "), size: " << size();

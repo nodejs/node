@@ -5,6 +5,7 @@
 #include "src/arguments-inl.h"
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
+#include "src/counters.h"
 #include "src/isolate-inl.h"
 #include "src/runtime/runtime-utils.h"
 
@@ -62,8 +63,7 @@ RUNTIME_FUNCTION(Runtime_StringParseFloat) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
 
-  double value = StringToDouble(isolate, isolate->unicode_cache(), subject,
-                                ALLOW_TRAILING_JUNK,
+  double value = StringToDouble(isolate, subject, ALLOW_TRAILING_JUNK,
                                 std::numeric_limits<double>::quiet_NaN());
 
   return *isolate->factory()->NewNumber(value);
@@ -89,7 +89,7 @@ RUNTIME_FUNCTION(Runtime_SmiLexicographicCompare) {
   CONVERT_ARG_CHECKED(Smi, x_value, 0);
   CONVERT_ARG_CHECKED(Smi, y_value, 1);
 
-  return Smi::LexicographicCompare(isolate, x_value, y_value);
+  return Object(Smi::LexicographicCompare(isolate, x_value, y_value));
 }
 
 RUNTIME_FUNCTION(Runtime_MaxSmi) {

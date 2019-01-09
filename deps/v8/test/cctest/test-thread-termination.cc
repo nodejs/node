@@ -315,6 +315,7 @@ void ReenterAfterTermination(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK(try_catch.Exception()->IsNull());
   CHECK(try_catch.Message().IsEmpty());
   CHECK(!try_catch.CanContinue());
+  CHECK(try_catch.HasTerminated());
   CHECK(isolate->IsExecutionTerminating());
   script = v8::Local<v8::String>::New(isolate, reenter_script_2);
   v8::MaybeLocal<v8::Script> compiled_script =
@@ -357,6 +358,45 @@ TEST(TerminateAndReenterFromThreadItself) {
   reenter_script_2.Reset();
 }
 
+TEST(TerminateAndReenterFromThreadItselfWithOuterTryCatch) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::ObjectTemplate> global = CreateGlobalTemplate(
+      isolate, TerminateCurrentThread, ReenterAfterTermination);
+  v8::Local<v8::Context> context = v8::Context::New(isolate, nullptr, global);
+  v8::Context::Scope context_scope(context);
+  CHECK(!v8::Isolate::GetCurrent()->IsExecutionTerminating());
+  // Create script strings upfront as it won't work when terminating.
+  reenter_script_1.Reset(isolate, v8_str("function f() {"
+                                         "  var term = true;"
+                                         "  try {"
+                                         "    while(true) {"
+                                         "      if (term) terminate();"
+                                         "      term = false;"
+                                         "    }"
+                                         "    fail();"
+                                         "  } catch(e) {"
+                                         "    fail();"
+                                         "  }"
+                                         "}"
+                                         "f()"));
+  reenter_script_2.Reset(isolate, v8_str("function f() { fail(); } f()"));
+  {
+    v8::TryCatch try_catch(isolate);
+    CompileRun("try { loop(); fail(); } catch(e) { fail(); }");
+    CHECK(try_catch.HasCaught());
+    CHECK(try_catch.Exception()->IsNull());
+    CHECK(try_catch.Message().IsEmpty());
+    CHECK(!try_catch.CanContinue());
+    CHECK(try_catch.HasTerminated());
+    CHECK(isolate->IsExecutionTerminating());
+  }
+  CHECK(!isolate->IsExecutionTerminating());
+  // Check we can run JS again after termination.
+  CHECK(CompileRun("function f() { return true; } f()")->IsTrue());
+  reenter_script_1.Reset();
+  reenter_script_2.Reset();
+}
 
 void DoLoopCancelTerminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::TryCatch try_catch(args.GetIsolate());
@@ -746,21 +786,23 @@ TEST(TerminateAndTryCall) {
   v8::Local<v8::Context> context = v8::Context::New(isolate, nullptr, global);
   v8::Context::Scope context_scope(context);
   CHECK(!isolate->IsExecutionTerminating());
-  v8::TryCatch try_catch(isolate);
-  CHECK(!isolate->IsExecutionTerminating());
-  // Terminate execution has been triggered inside TryCall, but re-requested
-  // to trigger later.
-  CHECK(CompileRun("terminate(); reference_error();").IsEmpty());
-  CHECK(try_catch.HasCaught());
-  CHECK(!isolate->IsExecutionTerminating());
-  v8::Local<v8::Value> value =
-      CcTest::global()
-          ->Get(isolate->GetCurrentContext(), v8_str("terminate"))
-          .ToLocalChecked();
-  CHECK(value->IsFunction());
-  // The first stack check after terminate has been re-requested fails.
-  CHECK(CompileRun("1 + 1").IsEmpty());
-  CHECK(!isolate->IsExecutionTerminating());
+  {
+    v8::TryCatch try_catch(isolate);
+    CHECK(!isolate->IsExecutionTerminating());
+    // Terminate execution has been triggered inside TryCall, but re-requested
+    // to trigger later.
+    CHECK(CompileRun("terminate(); reference_error();").IsEmpty());
+    CHECK(try_catch.HasCaught());
+    CHECK(!isolate->IsExecutionTerminating());
+    v8::Local<v8::Value> value =
+        CcTest::global()
+            ->Get(isolate->GetCurrentContext(), v8_str("terminate"))
+            .ToLocalChecked();
+    CHECK(value->IsFunction());
+    // The first stack check after terminate has been re-requested fails.
+    CHECK(CompileRun("1 + 1").IsEmpty());
+    CHECK(isolate->IsExecutionTerminating());
+  }
   // V8 then recovers.
   v8::Maybe<int32_t> result = CompileRun("2 + 2")->Int32Value(
       v8::Isolate::GetCurrent()->GetCurrentContext());
@@ -791,7 +833,7 @@ TEST(TerminateConsole) {
   CHECK(!isolate->IsExecutionTerminating());
   CHECK(CompileRun("terminate(); console.log(); fail();").IsEmpty());
   CHECK(try_catch.HasCaught());
-  CHECK(!isolate->IsExecutionTerminating());
+  CHECK(isolate->IsExecutionTerminating());
 }
 
 class TerminatorSleeperThread : public v8::base::Thread {
@@ -830,7 +872,7 @@ TEST(TerminateRegExp) {
   CHECK(CompileRun("re.test('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'); fail();")
             .IsEmpty());
   CHECK(try_catch.HasCaught());
-  CHECK(!isolate->IsExecutionTerminating());
+  CHECK(isolate->IsExecutionTerminating());
 #endif  // V8_INTERPRETED_REGEXP
 }
 
@@ -855,11 +897,11 @@ TEST(TerminateInMicrotask) {
   {
     v8::Context::Scope context_scope(context2);
     CHECK(context2 == isolate->GetCurrentContext());
-    CHECK(context2 == isolate->GetEnteredContext());
+    CHECK(context2 == isolate->GetEnteredOrMicrotaskContext());
     CHECK(!isolate->IsExecutionTerminating());
     isolate->RunMicrotasks();
     CHECK(context2 == isolate->GetCurrentContext());
-    CHECK(context2 == isolate->GetEnteredContext());
+    CHECK(context2 == isolate->GetEnteredOrMicrotaskContext());
     CHECK(try_catch.HasCaught());
     CHECK(try_catch.HasTerminated());
   }

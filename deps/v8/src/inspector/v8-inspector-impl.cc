@@ -247,10 +247,15 @@ void V8InspectorImpl::contextCollected(int groupId, int contextId) {
 void V8InspectorImpl::resetContextGroup(int contextGroupId) {
   m_consoleStorageMap.erase(contextGroupId);
   m_muteExceptionsMap.erase(contextGroupId);
+  std::vector<int> contextIdsToClear;
+  forEachContext(contextGroupId,
+                 [&contextIdsToClear](InspectedContext* context) {
+                   contextIdsToClear.push_back(context->contextId());
+                 });
+  m_debugger->wasmTranslation()->Clear(m_isolate, contextIdsToClear);
   forEachSession(contextGroupId,
                  [](V8InspectorSessionImpl* session) { session->reset(); });
   m_contexts.erase(contextGroupId);
-  m_debugger->wasmTranslation()->Clear();
 }
 
 void V8InspectorImpl::idleStarted() { m_isolate->SetIdle(true); }
@@ -394,8 +399,11 @@ void V8InspectorImpl::forEachSession(
   }
 }
 
-V8InspectorImpl::EvaluateScope::EvaluateScope(v8::Isolate* isolate)
-    : m_isolate(isolate), m_safeForTerminationScope(isolate) {}
+V8InspectorImpl::EvaluateScope::EvaluateScope(
+    const InjectedScript::Scope& scope)
+    : m_scope(scope),
+      m_isolate(scope.inspector()->isolate()),
+      m_safeForTerminationScope(m_isolate) {}
 
 struct V8InspectorImpl::EvaluateScope::CancelToken {
   v8::base::Mutex m_mutex;
@@ -403,8 +411,11 @@ struct V8InspectorImpl::EvaluateScope::CancelToken {
 };
 
 V8InspectorImpl::EvaluateScope::~EvaluateScope() {
+  if (m_scope.tryCatch().HasTerminated()) {
+    m_scope.inspector()->debugger()->reportTermination();
+  }
   if (m_cancelToken) {
-    v8::base::LockGuard<v8::base::Mutex> lock(&m_cancelToken->m_mutex);
+    v8::base::MutexGuard lock(&m_cancelToken->m_mutex);
     m_cancelToken->m_canceled = true;
     m_isolate->CancelTerminateExecution();
   }
@@ -418,7 +429,7 @@ class V8InspectorImpl::EvaluateScope::TerminateTask : public v8::Task {
   void Run() override {
     // CancelToken contains m_canceled bool which may be changed from main
     // thread, so lock mutex first.
-    v8::base::LockGuard<v8::base::Mutex> lock(&m_token->m_mutex);
+    v8::base::MutexGuard lock(&m_token->m_mutex);
     if (m_token->m_canceled) return;
     m_isolate->TerminateExecution();
   }

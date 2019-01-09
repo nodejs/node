@@ -109,9 +109,11 @@ BUILTIN(StringFromCodePoint) {
       isolate->factory()->NewRawTwoByteString(
           static_cast<int>(one_byte_buffer.size() + two_byte_buffer.size())));
 
-  CopyChars(result->GetChars(), one_byte_buffer.data(), one_byte_buffer.size());
-  CopyChars(result->GetChars() + one_byte_buffer.size(), two_byte_buffer.data(),
-            two_byte_buffer.size());
+  DisallowHeapAllocation no_gc;
+  CopyChars(result->GetChars(no_gc), one_byte_buffer.data(),
+            one_byte_buffer.size());
+  CopyChars(result->GetChars(no_gc) + one_byte_buffer.size(),
+            two_byte_buffer.data(), two_byte_buffer.size());
 
   return *result;
 }
@@ -157,8 +159,8 @@ BUILTIN(StringPrototypeEndsWith) {
   search_string = String::Flatten(isolate, search_string);
 
   DisallowHeapAllocation no_gc;  // ensure vectors stay valid
-  String::FlatContent str_content = str->GetFlatContent();
-  String::FlatContent search_content = search_string->GetFlatContent();
+  String::FlatContent str_content = str->GetFlatContent(no_gc);
+  String::FlatContent search_content = search_string->GetFlatContent(no_gc);
 
   if (str_content.IsOneByte() && search_content.IsOneByte()) {
     Vector<const uint8_t> str_vector = str_content.ToOneByteVector();
@@ -239,8 +241,8 @@ BUILTIN(StringPrototypeLocaleCompare) {
   str2 = String::Flatten(isolate, str2);
 
   DisallowHeapAllocation no_gc;
-  String::FlatContent flat1 = str1->GetFlatContent();
-  String::FlatContent flat2 = str2->GetFlatContent();
+  String::FlatContent flat1 = str1->GetFlatContent(no_gc);
+  String::FlatContent flat2 = str2->GetFlatContent(no_gc);
 
   for (int i = 0; i < end; i++) {
     if (flat1.Get(i) != flat2.Get(i)) {
@@ -348,8 +350,8 @@ inline bool ToUpperOverflows(uc32 character) {
 }
 
 template <class Converter>
-V8_WARN_UNUSED_RESULT static Object* ConvertCaseHelper(
-    Isolate* isolate, String* string, SeqString* result, int result_length,
+V8_WARN_UNUSED_RESULT static Object ConvertCaseHelper(
+    Isolate* isolate, String string, SeqString result, int result_length,
     unibrow::Mapping<Converter, 128>* mapping) {
   DisallowHeapAllocation no_gc;
   // We try this twice, once with the assumption that the result is no longer
@@ -445,7 +447,7 @@ V8_WARN_UNUSED_RESULT static Object* ConvertCaseHelper(
 }
 
 template <class Converter>
-V8_WARN_UNUSED_RESULT static Object* ConvertCase(
+V8_WARN_UNUSED_RESULT static Object ConvertCase(
     Handle<String> s, Isolate* isolate,
     unibrow::Mapping<Converter, 128>* mapping) {
   s = String::Flatten(isolate, s);
@@ -459,16 +461,16 @@ V8_WARN_UNUSED_RESULT static Object* ConvertCase(
   // character is also ASCII.  This is currently the case, but it
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
-  if (s->IsOneByteRepresentationUnderneath()) {
+  if (String::IsOneByteRepresentationUnderneath(*s)) {
     // Same length as input.
     Handle<SeqOneByteString> result =
         isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
     DisallowHeapAllocation no_gc;
-    String::FlatContent flat_content = s->GetFlatContent();
+    String::FlatContent flat_content = s->GetFlatContent(no_gc);
     DCHECK(flat_content.IsFlat());
     bool has_changed_character = false;
     int index_to_first_unprocessed = FastAsciiConvert<Converter::kIsToLower>(
-        reinterpret_cast<char*>(result->GetChars()),
+        reinterpret_cast<char*>(result->GetChars(no_gc)),
         reinterpret_cast<const char*>(flat_content.ToOneByteVector().start()),
         length, &has_changed_character);
     // If not ASCII, we discard the result and take the 2 byte path.
@@ -483,7 +485,7 @@ V8_WARN_UNUSED_RESULT static Object* ConvertCase(
     result = isolate->factory()->NewRawTwoByteString(length).ToHandleChecked();
   }
 
-  Object* answer = ConvertCaseHelper(isolate, *s, *result, length, mapping);
+  Object answer = ConvertCaseHelper(isolate, *s, *result, length, mapping);
   if (answer->IsException(isolate) || answer->IsString()) return answer;
 
   DCHECK(answer->IsSmi());

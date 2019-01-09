@@ -52,7 +52,7 @@ BUILTIN(SymbolKeyFor) {
   }
   Handle<Symbol> symbol = Handle<Symbol>::cast(obj);
   DisallowHeapAllocation no_gc;
-  Object* result;
+  Object result;
   if (symbol->is_public()) {
     result = symbol->name();
     DCHECK(result->IsString());

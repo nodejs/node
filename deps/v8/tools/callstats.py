@@ -140,6 +140,8 @@ def get_chrome_flags(js_flags, user_data_dir, arg_delimiter=""):
       "--no-first-run",
       "--user-data-dir={}{}{}".format(arg_delimiter, user_data_dir,
                                       arg_delimiter),
+      "--data-path={}{}{}".format(arg_delimiter,
+          os.path.join(user_data_dir, 'content-shell-data'), arg_delimiter),
     ]
 
 def get_chrome_replay_flags(args, arg_delimiter=""):

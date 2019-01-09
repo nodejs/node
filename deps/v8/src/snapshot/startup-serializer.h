@@ -5,16 +5,20 @@
 #ifndef V8_SNAPSHOT_STARTUP_SERIALIZER_H_
 #define V8_SNAPSHOT_STARTUP_SERIALIZER_H_
 
-#include <bitset>
-#include "include/v8.h"
-#include "src/snapshot/serializer.h"
+#include <unordered_set>
+
+#include "src/snapshot/roots-serializer.h"
 
 namespace v8 {
 namespace internal {
 
-class StartupSerializer : public Serializer<> {
+class HeapObject;
+class SnapshotByteSink;
+class ReadOnlySerializer;
+
+class StartupSerializer : public RootsSerializer {
  public:
-  explicit StartupSerializer(Isolate* isolate);
+  StartupSerializer(Isolate* isolate, ReadOnlySerializer* read_only_serializer);
   ~StartupSerializer() override;
 
   // Serialize the current state of the heap.  The order is:
@@ -25,73 +29,44 @@ class StartupSerializer : public Serializer<> {
   void SerializeStrongReferences();
   void SerializeWeakReferencesAndDeferred();
 
-  int PartialSnapshotCacheIndex(HeapObject* o);
+  // If |obj| can be serialized in the read-only snapshot then add it to the
+  // read-only object cache if not already present and emits a
+  // ReadOnlyObjectCache bytecode into |sink|. Returns whether this was
+  // successful.
+  bool SerializeUsingReadOnlyObjectCache(SnapshotByteSink* sink, HeapObject obj,
+                                         HowToCode how_to_code,
+                                         WhereToPoint where_to_point, int skip);
 
-  bool can_be_rehashed() const { return can_be_rehashed_; }
-  bool root_has_been_serialized(RootIndex root_index) const {
-    return root_has_been_serialized_.test(static_cast<size_t>(root_index));
-  }
+  // Adds |obj| to the partial snapshot object cache if not already present and
+  // emits a PartialSnapshotCache bytecode into |sink|.
+  void SerializeUsingPartialSnapshotCache(SnapshotByteSink* sink,
+                                          HeapObject obj, HowToCode how_to_code,
+                                          WhereToPoint where_to_point,
+                                          int skip);
 
  private:
-  class PartialCacheIndexMap {
-   public:
-    PartialCacheIndexMap() : map_(), next_index_(0) {}
-
-    // Lookup object in the map. Return its index if found, or create
-    // a new entry with new_index as value, and return kInvalidIndex.
-    bool LookupOrInsert(HeapObject* obj, int* index_out) {
-      Maybe<uint32_t> maybe_index = map_.Get(obj);
-      if (maybe_index.IsJust()) {
-        *index_out = maybe_index.FromJust();
-        return true;
-      }
-      *index_out = next_index_;
-      map_.Set(obj, next_index_++);
-      return false;
-    }
-
-   private:
-    DisallowHeapAllocation no_allocation_;
-    HeapObjectToIndexHashMap map_;
-    int next_index_;
-
-    DISALLOW_COPY_AND_ASSIGN(PartialCacheIndexMap);
-  };
-
-  // The StartupSerializer has to serialize the root array, which is slightly
-  // different.
-  void VisitRootPointers(Root root, const char* description, Object** start,
-                         Object** end) override;
-  void SerializeObject(HeapObject* o, HowToCode how_to_code,
+  void SerializeObject(HeapObject o, HowToCode how_to_code,
                        WhereToPoint where_to_point, int skip) override;
-  void Synchronize(VisitorSynchronization::SyncTag tag) override;
-  bool MustBeDeferred(HeapObject* object) override;
 
-  void CheckRehashability(HeapObject* obj);
-
-  std::bitset<RootsTable::kEntriesCount> root_has_been_serialized_;
-  PartialCacheIndexMap partial_cache_index_map_;
-  std::vector<AccessorInfo*> accessor_infos_;
-  std::vector<CallHandlerInfo*> call_handler_infos_;
-  // Indicates whether we only serialized hash tables that we can rehash.
-  // TODO(yangguo): generalize rehashing, and remove this flag.
-  bool can_be_rehashed_;
+  ReadOnlySerializer* read_only_serializer_;
+  std::vector<AccessorInfo> accessor_infos_;
+  std::vector<CallHandlerInfo> call_handler_infos_;
 
   DISALLOW_COPY_AND_ASSIGN(StartupSerializer);
 };
 
 class SerializedHandleChecker : public RootVisitor {
  public:
-  SerializedHandleChecker(Isolate* isolate, std::vector<Context*>* contexts);
-  void VisitRootPointers(Root root, const char* description, Object** start,
-                         Object** end) override;
+  SerializedHandleChecker(Isolate* isolate, std::vector<Context>* contexts);
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override;
   bool CheckGlobalAndEternalHandles();
 
  private:
-  void AddToSet(FixedArray* serialized);
+  void AddToSet(FixedArray serialized);
 
   Isolate* isolate_;
-  std::unordered_set<Object*> serialized_;
+  std::unordered_set<Object, Object::Hasher> serialized_;
   bool ok_ = true;
 };
 

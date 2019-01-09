@@ -15,7 +15,7 @@ namespace internal {
 
 static void CheckObject(Isolate* isolate, Handle<Object> obj,
                         const char* string) {
-  Object* print_string = *Object::NoSideEffectsToString(isolate, obj);
+  Object print_string = *Object::NoSideEffectsToString(isolate, obj);
   CHECK(String::cast(print_string)->IsUtf8EqualTo(CStrVector(string)));
 }
 
@@ -123,13 +123,13 @@ TEST(EnumCache) {
   CHECK_EQ(cc->map()->EnumLength(), kInvalidEnumCacheSentinel);
 
   // Check that the EnumCache is empty.
-  CHECK_EQ(a->map()->instance_descriptors()->GetEnumCache(),
+  CHECK_EQ(a->map()->instance_descriptors()->enum_cache(),
            *factory->empty_enum_cache());
-  CHECK_EQ(b->map()->instance_descriptors()->GetEnumCache(),
+  CHECK_EQ(b->map()->instance_descriptors()->enum_cache(),
            *factory->empty_enum_cache());
-  CHECK_EQ(c->map()->instance_descriptors()->GetEnumCache(),
+  CHECK_EQ(c->map()->instance_descriptors()->enum_cache(),
            *factory->empty_enum_cache());
-  CHECK_EQ(cc->map()->instance_descriptors()->GetEnumCache(),
+  CHECK_EQ(cc->map()->instance_descriptors()->enum_cache(),
            *factory->empty_enum_cache());
 
   // The EnumCache is shared on the DescriptorArray, creating it on {cc} has no
@@ -141,14 +141,14 @@ TEST(EnumCache) {
     CHECK_EQ(c->map()->EnumLength(), kInvalidEnumCacheSentinel);
     CHECK_EQ(cc->map()->EnumLength(), 3);
 
-    CHECK_EQ(a->map()->instance_descriptors()->GetEnumCache(),
+    CHECK_EQ(a->map()->instance_descriptors()->enum_cache(),
              *factory->empty_enum_cache());
-    CHECK_EQ(b->map()->instance_descriptors()->GetEnumCache(),
+    CHECK_EQ(b->map()->instance_descriptors()->enum_cache(),
              *factory->empty_enum_cache());
-    CHECK_EQ(c->map()->instance_descriptors()->GetEnumCache(),
+    CHECK_EQ(c->map()->instance_descriptors()->enum_cache(),
              *factory->empty_enum_cache());
 
-    EnumCache* enum_cache = cc->map()->instance_descriptors()->GetEnumCache();
+    EnumCache enum_cache = cc->map()->instance_descriptors()->enum_cache();
     CHECK_NE(enum_cache, *factory->empty_enum_cache());
     CHECK_EQ(enum_cache->keys()->length(), 3);
     CHECK_EQ(enum_cache->indices()->length(), 3);
@@ -165,14 +165,14 @@ TEST(EnumCache) {
 
     // The enum cache is shared on the descriptor array of maps {a}, {b} and
     // {c} only.
-    EnumCache* enum_cache = a->map()->instance_descriptors()->GetEnumCache();
+    EnumCache enum_cache = a->map()->instance_descriptors()->enum_cache();
     CHECK_NE(enum_cache, *factory->empty_enum_cache());
-    CHECK_NE(cc->map()->instance_descriptors()->GetEnumCache(),
+    CHECK_NE(cc->map()->instance_descriptors()->enum_cache(),
              *factory->empty_enum_cache());
-    CHECK_NE(cc->map()->instance_descriptors()->GetEnumCache(), enum_cache);
-    CHECK_EQ(a->map()->instance_descriptors()->GetEnumCache(), enum_cache);
-    CHECK_EQ(b->map()->instance_descriptors()->GetEnumCache(), enum_cache);
-    CHECK_EQ(c->map()->instance_descriptors()->GetEnumCache(), enum_cache);
+    CHECK_NE(cc->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_EQ(a->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_EQ(b->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_EQ(c->map()->instance_descriptors()->enum_cache(), enum_cache);
 
     CHECK_EQ(enum_cache->keys()->length(), 1);
     CHECK_EQ(enum_cache->indices()->length(), 1);
@@ -181,7 +181,7 @@ TEST(EnumCache) {
   // Creating the EnumCache for {c} will create a new EnumCache on the shared
   // DescriptorArray.
   Handle<EnumCache> previous_enum_cache(
-      a->map()->instance_descriptors()->GetEnumCache(), a->GetIsolate());
+      a->map()->instance_descriptors()->enum_cache(), a->GetIsolate());
   Handle<FixedArray> previous_keys(previous_enum_cache->keys(),
                                    a->GetIsolate());
   Handle<FixedArray> previous_indices(previous_enum_cache->indices(),
@@ -193,7 +193,7 @@ TEST(EnumCache) {
     CHECK_EQ(c->map()->EnumLength(), 3);
     CHECK_EQ(cc->map()->EnumLength(), 3);
 
-    EnumCache* enum_cache = c->map()->instance_descriptors()->GetEnumCache();
+    EnumCache enum_cache = c->map()->instance_descriptors()->enum_cache();
     CHECK_NE(enum_cache, *factory->empty_enum_cache());
     // The keys and indices caches are updated.
     CHECK_EQ(enum_cache, *previous_enum_cache);
@@ -206,20 +206,20 @@ TEST(EnumCache) {
 
     // The enum cache is shared on the descriptor array of maps {a}, {b} and
     // {c} only.
-    CHECK_NE(cc->map()->instance_descriptors()->GetEnumCache(),
+    CHECK_NE(cc->map()->instance_descriptors()->enum_cache(),
              *factory->empty_enum_cache());
-    CHECK_NE(cc->map()->instance_descriptors()->GetEnumCache(), enum_cache);
-    CHECK_NE(cc->map()->instance_descriptors()->GetEnumCache(),
+    CHECK_NE(cc->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_NE(cc->map()->instance_descriptors()->enum_cache(),
              *previous_enum_cache);
-    CHECK_EQ(a->map()->instance_descriptors()->GetEnumCache(), enum_cache);
-    CHECK_EQ(b->map()->instance_descriptors()->GetEnumCache(), enum_cache);
-    CHECK_EQ(c->map()->instance_descriptors()->GetEnumCache(), enum_cache);
+    CHECK_EQ(a->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_EQ(b->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_EQ(c->map()->instance_descriptors()->enum_cache(), enum_cache);
   }
 
   // {b} can reuse the existing EnumCache, hence we only need to set the correct
   // EnumLength on the map without modifying the cache itself.
   previous_enum_cache =
-      handle(a->map()->instance_descriptors()->GetEnumCache(), a->GetIsolate());
+      handle(a->map()->instance_descriptors()->enum_cache(), a->GetIsolate());
   previous_keys = handle(previous_enum_cache->keys(), a->GetIsolate());
   previous_indices = handle(previous_enum_cache->indices(), a->GetIsolate());
   CompileRun("var s = 0; for (let key in b) { s += b[key] };");
@@ -229,7 +229,7 @@ TEST(EnumCache) {
     CHECK_EQ(c->map()->EnumLength(), 3);
     CHECK_EQ(cc->map()->EnumLength(), 3);
 
-    EnumCache* enum_cache = c->map()->instance_descriptors()->GetEnumCache();
+    EnumCache enum_cache = c->map()->instance_descriptors()->enum_cache();
     CHECK_NE(enum_cache, *factory->empty_enum_cache());
     // The keys and indices caches are not updated.
     CHECK_EQ(enum_cache, *previous_enum_cache);
@@ -240,14 +240,14 @@ TEST(EnumCache) {
 
     // The enum cache is shared on the descriptor array of maps {a}, {b} and
     // {c} only.
-    CHECK_NE(cc->map()->instance_descriptors()->GetEnumCache(),
+    CHECK_NE(cc->map()->instance_descriptors()->enum_cache(),
              *factory->empty_enum_cache());
-    CHECK_NE(cc->map()->instance_descriptors()->GetEnumCache(), enum_cache);
-    CHECK_NE(cc->map()->instance_descriptors()->GetEnumCache(),
+    CHECK_NE(cc->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_NE(cc->map()->instance_descriptors()->enum_cache(),
              *previous_enum_cache);
-    CHECK_EQ(a->map()->instance_descriptors()->GetEnumCache(), enum_cache);
-    CHECK_EQ(b->map()->instance_descriptors()->GetEnumCache(), enum_cache);
-    CHECK_EQ(c->map()->instance_descriptors()->GetEnumCache(), enum_cache);
+    CHECK_EQ(a->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_EQ(b->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_EQ(c->map()->instance_descriptors()->enum_cache(), enum_cache);
   }
 }
 

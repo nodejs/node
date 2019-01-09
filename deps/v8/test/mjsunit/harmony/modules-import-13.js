@@ -19,7 +19,7 @@ async function test1() {
 }
 
 test1();
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertTrue(ran);
 
 ran = false;
@@ -36,5 +36,5 @@ async function test2() {
 }
 
 test2();
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertTrue(ran);

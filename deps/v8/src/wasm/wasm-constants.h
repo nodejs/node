@@ -50,6 +50,13 @@ enum MemoryFlags : uint8_t {
   kSharedAndMaximum = 3
 };
 
+// Flags for data and element segments.
+enum SegmentFlags : uint8_t {
+  kActiveNoIndex = 0,    // Active segment with a memory/table index of zero.
+  kPassive = 1,          // Passive segment.
+  kActiveWithIndex = 2,  // Active segment with a given memory/table index.
+};
+
 // Binary encoding of sections identifiers.
 enum SectionCode : int8_t {
   kUnknownSectionCode = 0,     // code for unknown sections
@@ -64,14 +71,19 @@ enum SectionCode : int8_t {
   kElementSectionCode = 9,     // Elements section
   kCodeSectionCode = 10,       // Function code
   kDataSectionCode = 11,       // Data segments
-  kNameSectionCode = 12,       // Name section (encoded as a string)
-  kExceptionSectionCode = 13,  // Exception section
-  kSourceMappingURLSectionCode = 14,  // Source Map URL section
+  kExceptionSectionCode = 12,  // Exception section
+  kDataCountSectionCode = 13,  // Number of data segments
+
+  // The following sections are custom sections, and are identified using a
+  // string rather than an integer. Their enumeration values are not guaranteed
+  // to be consistent.
+  kNameSectionCode,              // Name section (encoded as a string)
+  kSourceMappingURLSectionCode,  // Source Map URL section
 
   // Helper values
   kFirstSectionInModule = kTypeSectionCode,
   kLastKnownModuleSection = kSourceMappingURLSectionCode,
-  kFirstUnorderedSection = kNameSectionCode,
+  kFirstUnorderedSection = kExceptionSectionCode,
 };
 
 // Binary encoding of name section kinds.
@@ -84,6 +96,8 @@ static_assert(kWasmPageSize == size_t{1} << kWasmPageSizeLog2, "consistency");
 // TODO(wasm): Wrap WasmCodePosition in a struct.
 using WasmCodePosition = int;
 constexpr WasmCodePosition kNoCodePosition = -1;
+
+constexpr uint32_t kExceptionAttribute = 0;
 
 }  // namespace wasm
 }  // namespace internal

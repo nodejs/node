@@ -11,6 +11,7 @@
 #include "src/base/once.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
+#include "src/cpu-features.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/elements.h"

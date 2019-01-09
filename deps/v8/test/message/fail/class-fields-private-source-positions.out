@@ -1,0 +1,5 @@
+*%(basename)s:11: TypeError: Read of private field #a from an object which did not contain the field
+    [o.#a](){}
+       ^
+TypeError: Read of private field #a from an object which did not contain the field
+    at *%(basename)s:11:8

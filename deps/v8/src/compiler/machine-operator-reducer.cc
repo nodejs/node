@@ -18,9 +18,12 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-MachineOperatorReducer::MachineOperatorReducer(MachineGraph* mcgraph,
+MachineOperatorReducer::MachineOperatorReducer(Editor* editor,
+                                               MachineGraph* mcgraph,
                                                bool allow_signalling_nan)
-    : mcgraph_(mcgraph), allow_signalling_nan_(allow_signalling_nan) {}
+    : AdvancedReducer(editor),
+      mcgraph_(mcgraph),
+      allow_signalling_nan_(allow_signalling_nan) {}
 
 MachineOperatorReducer::~MachineOperatorReducer() = default;
 
@@ -702,6 +705,14 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       return ReduceFloat64Compare(node);
     case IrOpcode::kFloat64RoundDown:
       return ReduceFloat64RoundDown(node);
+    case IrOpcode::kBitcastTaggedToWord: {
+      NodeMatcher m(node->InputAt(0));
+      if (m.IsBitcastWordToTaggedSigned()) {
+        RelaxEffectsAndControls(node);
+        return Replace(m.InputAt(0));
+      }
+      break;
+    }
     default:
       break;
   }

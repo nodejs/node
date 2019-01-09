@@ -7,7 +7,8 @@
 
 #include "src/objects/microtask.h"
 
-#include "src/objects-inl.h"  // Needed for write barriers
+#include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/foreign-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -15,15 +16,19 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(Microtask)
-CAST_ACCESSOR(CallbackTask)
-CAST_ACCESSOR(CallableTask)
+OBJECT_CONSTRUCTORS_IMPL(Microtask, Struct)
+OBJECT_CONSTRUCTORS_IMPL(CallbackTask, Microtask)
+OBJECT_CONSTRUCTORS_IMPL(CallableTask, Microtask)
 
-ACCESSORS(CallableTask, callable, JSReceiver, kCallableOffset)
-ACCESSORS(CallableTask, context, Context, kContextOffset)
+CAST_ACCESSOR2(Microtask)
+CAST_ACCESSOR2(CallbackTask)
+CAST_ACCESSOR2(CallableTask)
 
-ACCESSORS(CallbackTask, callback, Foreign, kCallbackOffset)
-ACCESSORS(CallbackTask, data, Foreign, kDataOffset)
+ACCESSORS2(CallableTask, callable, JSReceiver, kCallableOffset)
+ACCESSORS2(CallableTask, context, Context, kContextOffset)
+
+ACCESSORS2(CallbackTask, callback, Foreign, kCallbackOffset)
+ACCESSORS2(CallbackTask, data, Foreign, kDataOffset)
 
 }  // namespace internal
 }  // namespace v8

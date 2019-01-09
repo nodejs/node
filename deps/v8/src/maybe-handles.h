@@ -29,17 +29,16 @@ class MaybeHandle final {
   // Ex. Handle<JSArray> can be passed when MaybeHandle<Object> is expected.
   template <typename S, typename = typename std::enable_if<
                             std::is_convertible<S*, T*>::value>::type>
-  V8_INLINE MaybeHandle(Handle<S> handle)
-      : location_(reinterpret_cast<T**>(handle.location_)) {}
+  V8_INLINE MaybeHandle(Handle<S> handle) : location_(handle.location_) {}
 
   // Constructor for handling automatic up casting.
   // Ex. MaybeHandle<JSArray> can be passed when Handle<Object> is expected.
   template <typename S, typename = typename std::enable_if<
                             std::is_convertible<S*, T*>::value>::type>
   V8_INLINE MaybeHandle(MaybeHandle<S> maybe_handle)
-      : location_(reinterpret_cast<T**>(maybe_handle.location_)) {}
+      : location_(maybe_handle.location_) {}
 
-  V8_INLINE MaybeHandle(T* object, Isolate* isolate);
+  V8_INLINE MaybeHandle(T object, Isolate* isolate);
 
   V8_INLINE void Assert() const { DCHECK_NOT_NULL(location_); }
   V8_INLINE void Check() const { CHECK_NOT_NULL(location_); }
@@ -63,12 +62,14 @@ class MaybeHandle final {
 
   // Returns the raw address where this handle is stored. This should only be
   // used for hashing handles; do not ever try to dereference it.
-  V8_INLINE Address address() const { return bit_cast<Address>(location_); }
+  V8_INLINE Address address() const {
+    return reinterpret_cast<Address>(location_);
+  }
 
   bool is_null() const { return location_ == nullptr; }
 
  protected:
-  T** location_ = nullptr;
+  Address* location_ = nullptr;
 
   // MaybeHandles of different classes are allowed to access each
   // other's location_.
@@ -81,15 +82,15 @@ class MaybeHandle final {
 class MaybeObjectHandle {
  public:
   inline MaybeObjectHandle();
-  inline MaybeObjectHandle(MaybeObject* object, Isolate* isolate);
-  inline MaybeObjectHandle(Object* object, Isolate* isolate);
+  inline MaybeObjectHandle(MaybeObject object, Isolate* isolate);
+  inline MaybeObjectHandle(Object object, Isolate* isolate);
   inline explicit MaybeObjectHandle(Handle<Object> object);
 
-  static inline MaybeObjectHandle Weak(Object* object, Isolate* isolate);
+  static inline MaybeObjectHandle Weak(Object object, Isolate* isolate);
   static inline MaybeObjectHandle Weak(Handle<Object> object);
 
-  inline MaybeObject* operator*() const;
-  inline MaybeObject* operator->() const;
+  inline MaybeObject operator*() const;
+  inline MaybeObject operator->() const;
   inline Handle<Object> object() const;
 
   bool is_identical_to(const MaybeObjectHandle& other) const {
@@ -104,7 +105,7 @@ class MaybeObjectHandle {
   bool is_null() const { return handle_.is_null(); }
 
  private:
-  inline MaybeObjectHandle(Object* object,
+  inline MaybeObjectHandle(Object object,
                            HeapObjectReferenceType reference_type,
                            Isolate* isolate);
   inline MaybeObjectHandle(Handle<Object> object,

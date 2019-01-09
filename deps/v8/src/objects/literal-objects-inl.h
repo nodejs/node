@@ -5,8 +5,9 @@
 #ifndef V8_OBJECTS_LITERAL_OBJECTS_INL_H_
 #define V8_OBJECTS_LITERAL_OBJECTS_INL_H_
 
-#include "src/objects-inl.h"
 #include "src/objects/literal-objects.h"
+
+#include "src/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -14,10 +15,13 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(ObjectBoilerplateDescription, FixedArray)
+
 SMI_ACCESSORS(ObjectBoilerplateDescription, flags,
               FixedArray::OffsetOfElementAt(kLiteralTypeOffset));
 
-CAST_ACCESSOR(ClassBoilerplate)
+OBJECT_CONSTRUCTORS_IMPL(ClassBoilerplate, FixedArray)
+CAST_ACCESSOR2(ClassBoilerplate)
 
 BIT_FIELD_ACCESSORS(ClassBoilerplate, flags, install_class_name_accessor,
                     ClassBoilerplate::Flags::InstallClassNameAccessorBit)
@@ -34,8 +38,8 @@ ACCESSORS(ClassBoilerplate, static_properties_template, Object,
 ACCESSORS(ClassBoilerplate, static_elements_template, Object,
           FixedArray::OffsetOfElementAt(kClassElementsTemplateIndex));
 
-ACCESSORS(ClassBoilerplate, static_computed_properties, FixedArray,
-          FixedArray::OffsetOfElementAt(kClassComputedPropertiesIndex));
+ACCESSORS2(ClassBoilerplate, static_computed_properties, FixedArray,
+           FixedArray::OffsetOfElementAt(kClassComputedPropertiesIndex));
 
 ACCESSORS(ClassBoilerplate, instance_properties_template, Object,
           FixedArray::OffsetOfElementAt(kPrototypePropertiesTemplateIndex));
@@ -43,13 +47,17 @@ ACCESSORS(ClassBoilerplate, instance_properties_template, Object,
 ACCESSORS(ClassBoilerplate, instance_elements_template, Object,
           FixedArray::OffsetOfElementAt(kPrototypeElementsTemplateIndex));
 
-ACCESSORS(ClassBoilerplate, instance_computed_properties, FixedArray,
-          FixedArray::OffsetOfElementAt(kPrototypeComputedPropertiesIndex));
+ACCESSORS2(ClassBoilerplate, instance_computed_properties, FixedArray,
+           FixedArray::OffsetOfElementAt(kPrototypeComputedPropertiesIndex));
+
+OBJECT_CONSTRUCTORS_IMPL(ArrayBoilerplateDescription, Struct)
+
+CAST_ACCESSOR2(ArrayBoilerplateDescription)
 
 SMI_ACCESSORS(ArrayBoilerplateDescription, flags, kFlagsOffset);
 
-ACCESSORS(ArrayBoilerplateDescription, constant_elements, FixedArrayBase,
-          kConstantElementsOffset);
+ACCESSORS2(ArrayBoilerplateDescription, constant_elements, FixedArrayBase,
+           kConstantElementsOffset);
 
 ElementsKind ArrayBoilerplateDescription::elements_kind() const {
   return static_cast<ElementsKind>(flags());

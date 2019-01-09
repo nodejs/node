@@ -2,13 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {GNode, DEFAULT_NODE_BUBBLE_RADIUS} from "./node.js"
+import { GNode, DEFAULT_NODE_BUBBLE_RADIUS } from "../src/node"
+import { Graph } from "./graph";
 
 export const MINIMUM_EDGE_SEPARATION = 20;
-
-export function isEdgeInitiallyVisible(target, index, source, type) {
-  return type == "control" && (target.cfg || source.cfg);
-}
 
 export class Edge {
   target: GNode;
@@ -24,7 +21,7 @@ export class Edge {
     this.index = index;
     this.type = type;
     this.backEdgeNumber = 0;
-    this.visible = isEdgeInitiallyVisible(target, index, source, type);
+    this.visible = false;
   }
 
 
@@ -36,7 +33,7 @@ export class Edge {
     return this.visible && this.source.visible && this.target.visible;
   };
 
-  getInputHorizontalPosition(graph) {
+  getInputHorizontalPosition(graph: Graph, showTypes: boolean) {
     if (this.backEdgeNumber > 0) {
       return graph.maxGraphNodeX + this.backEdgeNumber * MINIMUM_EDGE_SEPARATION;
     }
@@ -45,7 +42,7 @@ export class Edge {
     var index = this.index;
     var input_x = target.x + target.getInputX(index);
     var inputApproach = target.getInputApproach(this.index);
-    var outputApproach = source.getOutputApproach(graph);
+    var outputApproach = source.getOutputApproach(showTypes);
     if (inputApproach > outputApproach) {
       return input_x;
     } else {
@@ -56,17 +53,17 @@ export class Edge {
     }
   }
 
-  generatePath(graph) {
+  generatePath(graph: Graph, showTypes: boolean) {
     var target = this.target;
     var source = this.source;
     var input_x = target.x + target.getInputX(this.index);
     var arrowheadHeight = 7;
     var input_y = target.y - 2 * DEFAULT_NODE_BUBBLE_RADIUS - arrowheadHeight;
     var output_x = source.x + source.getOutputX();
-    var output_y = source.y + graph.getNodeHeight(source) + DEFAULT_NODE_BUBBLE_RADIUS;
+    var output_y = source.y + source.getNodeHeight(showTypes) + DEFAULT_NODE_BUBBLE_RADIUS;
     var inputApproach = target.getInputApproach(this.index);
-    var outputApproach = source.getOutputApproach(graph);
-    var horizontalPos = this.getInputHorizontalPosition(graph);
+    var outputApproach = source.getOutputApproach(showTypes);
+    var horizontalPos = this.getInputHorizontalPosition(graph, showTypes);
 
     var result = "M" + output_x + "," + output_y +
       "L" + output_x + "," + outputApproach +

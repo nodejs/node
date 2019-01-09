@@ -121,7 +121,7 @@ class ParseResultIterator {
   size_t i_ = 0;
   MatchedInput matched_input_;
 
-  DISALLOW_COPY_AND_MOVE_AND_ASSIGN(ParseResultIterator);
+  DISALLOW_COPY_AND_ASSIGN(ParseResultIterator);
 };
 
 struct LexerResult {
@@ -196,7 +196,7 @@ class Symbol {
   std::vector<std::unique_ptr<Rule>> rules_;
 
   // Disallow copying and moving to ensure Symbol has a stable address.
-  DISALLOW_COPY_AND_MOVE_AND_ASSIGN(Symbol);
+  DISALLOW_COPY_AND_ASSIGN(Symbol);
 };
 
 // Items are the core datastructure of Earley's algorithm.

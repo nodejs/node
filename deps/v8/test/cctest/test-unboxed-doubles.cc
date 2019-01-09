@@ -18,9 +18,9 @@
 #include "src/heap/spaces.h"
 #include "src/ic/ic.h"
 #include "src/layout-descriptor.h"
-#include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/heap-number-inl.h"
 #include "src/property.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -36,14 +36,12 @@ namespace test_unboxed_doubles {
 // Helper functions.
 //
 
-
 static void InitializeVerifiedMapDescriptors(
-    Map* map, DescriptorArray* descriptors,
-    LayoutDescriptor* layout_descriptor) {
-  map->InitializeDescriptors(descriptors, layout_descriptor);
+    Isolate* isolate, Map map, DescriptorArray descriptors,
+    LayoutDescriptor layout_descriptor) {
+  map->InitializeDescriptors(isolate, descriptors, layout_descriptor);
   CHECK(layout_descriptor->IsConsistentWithMap(map, true));
 }
-
 
 static Handle<String> MakeString(const char* str) {
   Isolate* isolate = CcTest::i_isolate();
@@ -68,19 +66,18 @@ Handle<JSObject> GetObject(const char* name) {
               .ToLocalChecked())));
 }
 
-
-static double GetDoubleFieldValue(JSObject* obj, FieldIndex field_index) {
+static double GetDoubleFieldValue(JSObject obj, FieldIndex field_index) {
   if (obj->IsUnboxedDoubleField(field_index)) {
     return obj->RawFastDoublePropertyAt(field_index);
   } else {
-    Object* value = obj->RawFastPropertyAt(field_index);
+    Object value = obj->RawFastPropertyAt(field_index);
     CHECK(value->IsMutableHeapNumber());
     return MutableHeapNumber::cast(value)->value();
   }
 }
 
-void WriteToField(JSObject* object, int descriptor, Object* value) {
-  DescriptorArray* descriptors = object->map()->instance_descriptors();
+void WriteToField(JSObject object, int descriptor, Object value) {
+  DescriptorArray descriptors = object->map()->instance_descriptors();
   PropertyDetails details = descriptors->GetDetails(descriptor);
   object->WriteToField(descriptor, details, value);
 }
@@ -141,7 +138,7 @@ TEST(LayoutDescriptorBasicFast) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  LayoutDescriptor* layout_desc = LayoutDescriptor::FastPointerLayout();
+  LayoutDescriptor layout_desc = LayoutDescriptor::FastPointerLayout();
 
   CHECK(!layout_desc->IsSlowLayout());
   CHECK(layout_desc->IsFastPointerLayout());
@@ -196,7 +193,8 @@ TEST(LayoutDescriptorBasicSlow) {
         LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
     CHECK_EQ(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
     CHECK_EQ(kBitsInSmiLayout, layout_descriptor->capacity());
-    InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
+    InitializeVerifiedMapDescriptors(isolate, *map, *descriptors,
+                                     *layout_descriptor);
   }
 
   props[0] = PROP_DOUBLE;
@@ -220,7 +218,8 @@ TEST(LayoutDescriptorBasicSlow) {
     for (int i = 1; i < kPropsCount; i++) {
       CHECK(layout_descriptor->IsTagged(i));
     }
-    InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
+    InitializeVerifiedMapDescriptors(isolate, *map, *descriptors,
+                                     *layout_descriptor);
   }
 
   {
@@ -240,14 +239,15 @@ TEST(LayoutDescriptorBasicSlow) {
       CHECK(layout_descriptor->IsTagged(i));
     }
 
-    InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
+    InitializeVerifiedMapDescriptors(isolate, *map, *descriptors,
+                                     *layout_descriptor);
 
     // Here we have truly slow layout descriptor, so play with the bits.
     CHECK(layout_descriptor->IsTagged(-1));
     CHECK(layout_descriptor->IsTagged(-12347));
     CHECK(layout_descriptor->IsTagged(15635));
 
-    LayoutDescriptor* layout_desc = *layout_descriptor;
+    LayoutDescriptor layout_desc = *layout_descriptor;
     // Play with the bits but leave it in consistent state with map at the end.
     for (int i = 1; i < kPropsCount - 1; i++) {
       layout_desc = layout_desc->SetTaggedForTesting(i, false);
@@ -268,7 +268,7 @@ static void TestLayoutDescriptorQueries(int layout_descriptor_length,
   Handle<LayoutDescriptor> layout_descriptor = LayoutDescriptor::NewForTesting(
       CcTest::i_isolate(), layout_descriptor_length);
   layout_descriptor_length = layout_descriptor->capacity();
-  LayoutDescriptor* layout_desc = *layout_descriptor;
+  LayoutDescriptor layout_desc = *layout_descriptor;
 
   {
     // Fill in the layout descriptor.
@@ -328,7 +328,7 @@ static void TestLayoutDescriptorQueries(int layout_descriptor_length,
 
 static void TestLayoutDescriptorQueriesFast(int max_sequence_length) {
   {
-    LayoutDescriptor* layout_desc = LayoutDescriptor::FastPointerLayout();
+    LayoutDescriptor layout_desc = LayoutDescriptor::FastPointerLayout();
     int sequence_length;
     for (int i = 0; i < kNumberOfBits; i++) {
       CHECK_EQ(true,
@@ -520,7 +520,8 @@ TEST(LayoutDescriptorCreateNewFast) {
     layout_descriptor =
         LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
     CHECK_EQ(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
-    InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
+    InitializeVerifiedMapDescriptors(isolate, *map, *descriptors,
+                                     *layout_descriptor);
   }
 
   {
@@ -528,7 +529,8 @@ TEST(LayoutDescriptorCreateNewFast) {
     layout_descriptor =
         LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
     CHECK_EQ(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
-    InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
+    InitializeVerifiedMapDescriptors(isolate, *map, *descriptors,
+                                     *layout_descriptor);
   }
 
   {
@@ -541,7 +543,8 @@ TEST(LayoutDescriptorCreateNewFast) {
     CHECK(!layout_descriptor->IsTagged(1));
     CHECK(layout_descriptor->IsTagged(2));
     CHECK(layout_descriptor->IsTagged(125));
-    InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
+    InitializeVerifiedMapDescriptors(isolate, *map, *descriptors,
+                                     *layout_descriptor);
   }
 }
 
@@ -566,7 +569,8 @@ TEST(LayoutDescriptorCreateNewSlow) {
     layout_descriptor =
         LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
     CHECK_EQ(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
-    InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
+    InitializeVerifiedMapDescriptors(isolate, *map, *descriptors,
+                                     *layout_descriptor);
   }
 
   {
@@ -574,7 +578,8 @@ TEST(LayoutDescriptorCreateNewSlow) {
     layout_descriptor =
         LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
     CHECK_EQ(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
-    InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
+    InitializeVerifiedMapDescriptors(isolate, *map, *descriptors,
+                                     *layout_descriptor);
   }
 
   {
@@ -587,7 +592,8 @@ TEST(LayoutDescriptorCreateNewSlow) {
     CHECK(!layout_descriptor->IsTagged(1));
     CHECK(layout_descriptor->IsTagged(2));
     CHECK(layout_descriptor->IsTagged(125));
-    InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
+    InitializeVerifiedMapDescriptors(isolate, *map, *descriptors,
+                                     *layout_descriptor);
   }
 
   {
@@ -606,13 +612,14 @@ TEST(LayoutDescriptorCreateNewSlow) {
     for (int i = inobject_properties; i < kPropsCount; i++) {
       CHECK(layout_descriptor->IsTagged(i));
     }
-    InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
+    InitializeVerifiedMapDescriptors(isolate, *map, *descriptors,
+                                     *layout_descriptor);
 
     // Now test LayoutDescriptor::cast_gc_safe().
     Handle<LayoutDescriptor> layout_descriptor_copy =
         LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
 
-    LayoutDescriptor* layout_desc = *layout_descriptor;
+    LayoutDescriptor layout_desc = *layout_descriptor;
     CHECK_EQ(layout_desc, LayoutDescriptor::cast(layout_desc));
     CHECK_EQ(layout_desc, LayoutDescriptor::cast_gc_safe(layout_desc));
     CHECK(layout_desc->IsSlowLayout());
@@ -640,7 +647,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppend(
       DescriptorArray::Allocate(isolate, 0, kPropsCount);
 
   Handle<Map> map = Map::Create(isolate, inobject_properties);
-  map->InitializeDescriptors(*descriptors,
+  map->InitializeDescriptors(isolate, *descriptors,
                              LayoutDescriptor::FastPointerLayout());
 
   int next_field_offset = 0;
@@ -676,7 +683,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppend(
       }
       CHECK(layout_descriptor->IsTagged(next_field_offset));
     }
-    map->InitializeDescriptors(*descriptors, *layout_descriptor);
+    map->InitializeDescriptors(isolate, *descriptors, *layout_descriptor);
   }
   Handle<LayoutDescriptor> layout_descriptor(map->layout_descriptor(), isolate);
   CHECK(layout_descriptor->IsConsistentWithMap(*map, true));
@@ -789,10 +796,10 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppendIfFastOrUseFull(
   std::vector<Handle<Map>> maps(descriptors_length);
   {
     CHECK(last_map->is_stable());
-    Map* map = *last_map;
+    Map map = *last_map;
     for (int i = 0; i < descriptors_length; i++) {
       maps[descriptors_length - 1 - i] = handle(map, isolate);
-      Object* maybe_map = map->GetBackPointer();
+      Object maybe_map = map->GetBackPointer();
       CHECK(maybe_map->IsMap());
       map = Map::cast(maybe_map);
       CHECK(!map->is_stable());
@@ -805,7 +812,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppendIfFastOrUseFull(
   for (int i = 0; i < number_of_descriptors; i++) {
     PropertyDetails details = descriptors->GetDetails(i);
     map = maps[i];
-    LayoutDescriptor* layout_desc = map->layout_descriptor();
+    LayoutDescriptor layout_desc = map->layout_descriptor();
 
     if (layout_desc->IsSlowLayout()) {
       switched_to_slow_mode = true;
@@ -944,12 +951,12 @@ TEST(Regress436816) {
   Handle<Map> map = Map::Create(isolate, kPropsCount);
   Handle<LayoutDescriptor> layout_descriptor =
       LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
-  map->InitializeDescriptors(*descriptors, *layout_descriptor);
+  map->InitializeDescriptors(isolate, *descriptors, *layout_descriptor);
 
   Handle<JSObject> object = factory->NewJSObjectFromMap(map, TENURED);
 
   Address fake_address = static_cast<Address>(~kHeapObjectTagMask);
-  HeapObject* fake_object = HeapObject::FromAddress(fake_address);
+  HeapObject fake_object = HeapObject::FromAddress(fake_address);
   CHECK(fake_object->IsHeapObject());
 
   uint64_t boom_value = bit_cast<uint64_t>(fake_object);
@@ -1106,7 +1113,7 @@ TEST(DoScavenge) {
 
   // Construct a double value that looks like a pointer to the new space object
   // and store it into the obj.
-  Address fake_object = reinterpret_cast<Address>(*temp) + kPointerSize;
+  Address fake_object = temp->ptr() + kPointerSize;
   double boom_value = bit_cast<double>(fake_object);
 
   FieldIndex field_index = FieldIndex::ForDescriptor(obj->map(), 0);
@@ -1226,7 +1233,8 @@ static void TestLayoutDescriptorHelper(Isolate* isolate,
 
   Handle<LayoutDescriptor> layout_descriptor = LayoutDescriptor::New(
       isolate, map, descriptors, descriptors->number_of_descriptors());
-  InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
+  InitializeVerifiedMapDescriptors(isolate, *map, *descriptors,
+                                   *layout_descriptor);
 
   LayoutDescriptorHelper helper(*map);
   bool all_fields_tagged = true;
@@ -1459,7 +1467,7 @@ static void TestWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   // |boom_value| to the slot that was earlier recorded by write barrier.
   JSObject::MigrateToMap(obj, new_map);
 
-  Address fake_object = reinterpret_cast<Address>(*obj_value) + kPointerSize;
+  Address fake_object = obj_value->ptr() + kPointerSize;
   uint64_t boom_value = bit_cast<uint64_t>(fake_object);
 
   FieldIndex double_field_index =

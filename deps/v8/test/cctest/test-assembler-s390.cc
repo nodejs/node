@@ -39,10 +39,10 @@ namespace internal {
 
 // Define these function prototypes to match JSEntryFunction in execution.cc.
 // TODO(s390): Refine these signatures per test case.
-using F1 = Object*(int x, int p1, int p2, int p3, int p4);
-using F2 = Object*(int x, int y, int p2, int p3, int p4);
-using F3 = Object*(void* p0, int p1, int p2, int p3, int p4);
-using F4 = Object*(void* p0, void* p1, int p2, int p3, int p4);
+using F1 = void*(int x, int p1, int p2, int p3, int p4);
+using F2 = void*(int x, int y, int p2, int p3, int p4);
+using F3 = void*(void* p0, int p1, int p2, int p3, int p4);
+using F4 = void*(void* p0, void* p1, int p2, int p3, int p4);
 
 #define __ assm.
 

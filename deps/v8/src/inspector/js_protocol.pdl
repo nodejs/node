@@ -259,12 +259,6 @@ domain Debugger
   # Resumes JavaScript execution.
   command resume
 
-  # This method is deprecated - use Debugger.stepInto with breakOnAsyncCall and
-  # Debugger.pauseOnAsyncTask instead. Steps into next scheduled async task if any is scheduled
-  # before next pause. Returns success when async task is actually scheduled, returns error if no
-  # task were scheduled or another scheduleStepIntoAsync was called.
-  experimental command scheduleStepIntoAsync
-
   # Searches for given string in script content.
   command searchInContent
     parameters
@@ -556,13 +550,27 @@ experimental domain HeapProfiler
       Runtime.CallFrame callFrame
       # Allocations size in bytes for the node excluding children.
       number selfSize
+      # Node id. Ids are unique across all profiles collected between startSampling and stopSampling.
+      integer id
       # Child nodes.
       array of SamplingHeapProfileNode children
 
-  # Profile.
+  # A single sample from a sampling profile.
+  type SamplingHeapProfileSample extends object
+    properties
+      # Allocation size in bytes attributed to the sample.
+      number size
+      # Id of the corresponding profile tree node.
+      integer nodeId
+      # Time-ordered sample ordinal number. It is unique across all profiles retrieved
+      # between startSampling and stopSampling.
+      number ordinal
+
+  # Sampling profile.
   type SamplingHeapProfile extends object
     properties
       SamplingHeapProfileNode head
+      array of SamplingHeapProfileSample samples
 
   # Enables console to refer to the node with given id via $x (see Command Line API for more details
   # $x functions).
@@ -873,6 +881,8 @@ domain Runtime
         proxy
         promise
         typedarray
+        arraybuffer
+        dataview
       # Object class (constructor) name. Specified for `object` type values only.
       optional string className
       # Remote object value in case of primitive values or JSON values (if it was requested).
@@ -890,11 +900,13 @@ domain Runtime
 
   experimental type CustomPreview extends object
     properties
+      # The JSON-stringified result of formatter.header(object, config) call.
+      # It contains json ML array that represents RemoteObject.
       string header
-      boolean hasBody
-      RemoteObjectId formatterObjectId
-      RemoteObjectId bindRemoteObjectFunctionId
-      optional RemoteObjectId configObjectId
+      # If formatter returns true as a result of formatter.hasBody call then bodyGetterId will
+      # contain RemoteObjectId for the function that returns result of formatter.body(object, config) call.
+      # The result value is json ML array.
+      optional RemoteObjectId bodyGetterId
 
   # Object containing abbreviated remote object value.
   experimental type ObjectPreview extends object

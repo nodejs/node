@@ -9,6 +9,7 @@
 
 #include "src/api-inl.h"
 #include "src/assembler-inl.h"
+#include "src/objects/heap-number-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"

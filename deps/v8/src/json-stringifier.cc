@@ -5,11 +5,13 @@
 #include "src/json-stringifier.h"
 
 #include "src/conversions.h"
-#include "src/heap/heap-inl.h"
 #include "src/lookup.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/objects-inl.h"
+#include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/oddball-inl.h"
+#include "src/objects/smi.h"
 #include "src/string-builder-inl.h"
 #include "src/utils.h"
 
@@ -65,7 +67,7 @@ class JsonStringifier {
   V8_INLINE void SerializeDeferredKey(bool deferred_comma,
                                       Handle<Object> deferred_key);
 
-  Result SerializeSmi(Smi* object);
+  Result SerializeSmi(Smi object);
 
   Result SerializeDouble(double number);
   V8_INLINE Result SerializeHeapNumber(Handle<HeapNumber> object) {
@@ -351,7 +353,7 @@ Handle<JSReceiver> JsonStringifier::CurrentHolder(
                           initial_holder, NONE);
     return holder;
   } else {
-    FixedArray* elements = FixedArray::cast(stack_->elements());
+    FixedArray elements = FixedArray::cast(stack_->elements());
     return Handle<JSReceiver>(JSReceiver::cast(elements->get(length - 1)),
                               isolate_);
   }
@@ -367,7 +369,7 @@ JsonStringifier::Result JsonStringifier::StackPush(Handle<Object> object) {
   int length = Smi::ToInt(stack_->length());
   {
     DisallowHeapAllocation no_allocation;
-    FixedArray* elements = FixedArray::cast(stack_->elements());
+    FixedArray elements = FixedArray::cast(stack_->elements());
     for (int i = 0; i < length; i++) {
       if (elements->get(i) == *object) {
         AllowHeapAllocation allow_to_return_error;
@@ -469,7 +471,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
 
 JsonStringifier::Result JsonStringifier::SerializeJSValue(
     Handle<JSValue> object) {
-  Object* raw = object->value();
+  Object raw = object->value();
   if (raw->IsString()) {
     Handle<Object> value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -494,7 +496,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSValue(
   return SUCCESS;
 }
 
-JsonStringifier::Result JsonStringifier::SerializeSmi(Smi* object) {
+JsonStringifier::Result JsonStringifier::SerializeSmi(Smi object) {
   static const int kBufferSize = 100;
   char chars[kBufferSize];
   Vector<char> buffer(chars, kBufferSize);
@@ -637,14 +639,11 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
 
   if (property_list_.is_null() &&
       !object->map()->IsCustomElementsReceiverMap() &&
-      object->HasFastProperties() &&
-      Handle<JSObject>::cast(object)->elements()->length() == 0) {
-    DCHECK(object->IsJSObject());
+      object->HasFastProperties() && object->elements()->length() == 0) {
     DCHECK(!object->IsJSGlobalProxy());
-    Handle<JSObject> js_obj = Handle<JSObject>::cast(object);
-    DCHECK(!js_obj->HasIndexedInterceptor());
-    DCHECK(!js_obj->HasNamedInterceptor());
-    Handle<Map> map(js_obj->map(), isolate_);
+    DCHECK(!object->HasIndexedInterceptor());
+    DCHECK(!object->HasNamedInterceptor());
+    Handle<Map> map(object->map(), isolate_);
     builder_.AppendCharacter('{');
     Indent();
     bool comma = false;
@@ -656,15 +655,15 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
       PropertyDetails details = map->instance_descriptors()->GetDetails(i);
       if (details.IsDontEnum()) continue;
       Handle<Object> property;
-      if (details.location() == kField && *map == js_obj->map()) {
+      if (details.location() == kField && *map == object->map()) {
         DCHECK_EQ(kData, details.kind());
         FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
-        property = JSObject::FastPropertyAt(js_obj, details.representation(),
+        property = JSObject::FastPropertyAt(object, details.representation(),
                                             field_index);
       } else {
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate_, property,
-            Object::GetPropertyOrElement(isolate_, js_obj, key), EXCEPTION);
+            Object::GetPropertyOrElement(isolate_, object, key), EXCEPTION);
       }
       Result result = SerializeProperty(property, comma, key);
       if (!comma && result == SUCCESS) comma = true;
@@ -812,9 +811,9 @@ void JsonStringifier::SerializeString_(Handle<String> string) {
   // part, or we might need to allocate.
   if (int worst_case_length = builder_.EscapedLengthIfCurrentPartFits(length)) {
     DisallowHeapAllocation no_gc;
-    Vector<const SrcChar> vector = string->GetCharVector<SrcChar>();
+    Vector<const SrcChar> vector = string->GetCharVector<SrcChar>(no_gc);
     IncrementalStringBuilder::NoExtendBuilder<DestChar> no_extend(
-        &builder_, worst_case_length);
+        &builder_, worst_case_length, no_gc);
     SerializeStringUnchecked_(vector, &no_extend);
   } else {
     FlatStringReader reader(isolate_, string);
@@ -904,14 +903,14 @@ void JsonStringifier::SerializeDeferredKey(bool deferred_comma,
 void JsonStringifier::SerializeString(Handle<String> object) {
   object = String::Flatten(isolate_, object);
   if (builder_.CurrentEncoding() == String::ONE_BYTE_ENCODING) {
-    if (object->IsOneByteRepresentationUnderneath()) {
+    if (String::IsOneByteRepresentationUnderneath(*object)) {
       SerializeString_<uint8_t, uint8_t>(object);
     } else {
       builder_.ChangeEncoding();
       SerializeString(object);
     }
   } else {
-    if (object->IsOneByteRepresentationUnderneath()) {
+    if (String::IsOneByteRepresentationUnderneath(*object)) {
       SerializeString_<uint8_t, uc16>(object);
     } else {
       SerializeString_<uc16, uc16>(object);

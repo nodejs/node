@@ -43,15 +43,15 @@ RESOURCES_PATTERN = re.compile(r"//\s+Resources:(.*)")
 # Pattern to auto-detect files to push on Android for statements like:
 # load("path/to/file.js")
 LOAD_PATTERN = re.compile(
-    r"(?:load|readbuffer|read)\((?:'|\")([^'\"]*)(?:'|\")\)")
+    r"(?:load|readbuffer|read)\((?:'|\")([^'\"]+)(?:'|\")\)")
 # Pattern to auto-detect files to push on Android for statements like:
 # import "path/to/file.js"
 MODULE_RESOURCES_PATTERN_1 = re.compile(
-    r"(?:import|export)(?:\(| )(?:'|\")([^'\"]*)(?:'|\")")
+    r"(?:import|export)(?:\(| )(?:'|\")([^'\"]+)(?:'|\")")
 # Pattern to auto-detect files to push on Android for statements like:
 # import foobar from "path/to/file.js"
 MODULE_RESOURCES_PATTERN_2 = re.compile(
-    r"(?:import|export).*from (?:'|\")([^'\"]*)(?:'|\")")
+    r"(?:import|export).*from (?:'|\")([^'\"]+)(?:'|\")")
 
 
 class TestCase(object):
@@ -135,7 +135,8 @@ class TestCase(object):
 
   @property
   def do_skip(self):
-    return statusfile.SKIP in self._statusfile_outcomes
+    return (statusfile.SKIP in self._statusfile_outcomes and
+            not self.suite.test_config.run_skipped)
 
   @property
   def is_slow(self):

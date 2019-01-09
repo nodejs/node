@@ -20,52 +20,6 @@ namespace internal {
 typedef compiler::Node Node;
 
 std::tuple<Node*, Node*, Node*>
-ArgumentsBuiltinsAssembler::GetArgumentsFrameAndCount(Node* function,
-                                                      ParameterMode mode) {
-  CSA_ASSERT(this, HasInstanceType(function, JS_FUNCTION_TYPE));
-
-  VARIABLE(frame_ptr, MachineType::PointerRepresentation());
-  frame_ptr.Bind(LoadParentFramePointer());
-  CSA_ASSERT(this,
-             WordEqual(function,
-                       LoadBufferObject(frame_ptr.value(),
-                                        StandardFrameConstants::kFunctionOffset,
-                                        MachineType::Pointer())));
-  VARIABLE(argument_count, ParameterRepresentation(mode));
-  VariableList list({&frame_ptr, &argument_count}, zone());
-  Label done_argument_count(this, list);
-
-  // Determine the number of passed parameters, which is either the count stored
-  // in an arguments adapter frame or fetched from the shared function info.
-  Node* frame_ptr_above = LoadBufferObject(
-      frame_ptr.value(), StandardFrameConstants::kCallerFPOffset,
-      MachineType::Pointer());
-  Node* shared =
-      LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset);
-  CSA_SLOW_ASSERT(this, HasInstanceType(shared, SHARED_FUNCTION_INFO_TYPE));
-  Node* formal_parameter_count =
-      LoadObjectField(shared, SharedFunctionInfo::kFormalParameterCountOffset,
-                      MachineType::Uint16());
-  formal_parameter_count = Int32ToParameter(formal_parameter_count, mode);
-
-  argument_count.Bind(formal_parameter_count);
-  Node* marker_or_function = LoadBufferObject(
-      frame_ptr_above, CommonFrameConstants::kContextOrFrameTypeOffset);
-  GotoIf(
-      MarkerIsNotFrameType(marker_or_function, StackFrame::ARGUMENTS_ADAPTOR),
-      &done_argument_count);
-  Node* adapted_parameter_count = LoadBufferObject(
-      frame_ptr_above, ArgumentsAdaptorFrameConstants::kLengthOffset);
-  frame_ptr.Bind(frame_ptr_above);
-  argument_count.Bind(TaggedToParameter(adapted_parameter_count, mode));
-  Goto(&done_argument_count);
-
-  BIND(&done_argument_count);
-  return std::tuple<Node*, Node*, Node*>(
-      frame_ptr.value(), argument_count.value(), formal_parameter_count);
-}
-
-std::tuple<Node*, Node*, Node*>
 ArgumentsBuiltinsAssembler::AllocateArgumentsObject(Node* map,
                                                     Node* arguments_count,
                                                     Node* parameter_map_count,
@@ -82,11 +36,11 @@ ArgumentsBuiltinsAssembler::AllocateArgumentsObject(Node* map,
   }
   bool empty = IsIntPtrOrSmiConstantZero(arguments_count, mode);
   DCHECK_IMPLIES(empty, parameter_map_count == nullptr);
-  Node* size =
+  TNode<IntPtrT> size =
       empty ? IntPtrConstant(base_size)
             : ElementOffsetFromIndex(element_count, PACKED_ELEMENTS, mode,
                                      base_size + FixedArray::kHeaderSize);
-  Node* result = Allocate(size);
+  TNode<Object> result = Allocate(size);
   Comment("Initialize arguments object");
   StoreMapNoWriteBarrier(result, map);
   Node* empty_fixed_array = LoadRoot(RootIndex::kEmptyFixedArray);
@@ -96,7 +50,7 @@ ArgumentsBuiltinsAssembler::AllocateArgumentsObject(Node* map,
                                  smi_arguments_count);
   Node* arguments = nullptr;
   if (!empty) {
-    arguments = InnerAllocate(result, elements_offset);
+    arguments = InnerAllocate(CAST(result), elements_offset);
     StoreObjectFieldNoWriteBarrier(arguments, FixedArray::kLengthOffset,
                                    smi_arguments_count);
     Node* fixed_array_map = LoadRoot(RootIndex::kFixedArrayMap);
@@ -104,9 +58,9 @@ ArgumentsBuiltinsAssembler::AllocateArgumentsObject(Node* map,
   }
   Node* parameter_map = nullptr;
   if (parameter_map_count != nullptr) {
-    Node* parameter_map_offset = ElementOffsetFromIndex(
+    TNode<IntPtrT> parameter_map_offset = ElementOffsetFromIndex(
         arguments_count, PACKED_ELEMENTS, mode, FixedArray::kHeaderSize);
-    parameter_map = InnerAllocate(arguments, parameter_map_offset);
+    parameter_map = InnerAllocate(CAST(arguments), parameter_map_offset);
     StoreObjectFieldNoWriteBarrier(result, JSArray::kElementsOffset,
                                    parameter_map);
     Node* sloppy_elements_map =
@@ -147,7 +101,7 @@ Node* ArgumentsBuiltinsAssembler::ConstructParametersObjectFromArgs(
                     [this, elements, &offset](Node* arg) {
                       StoreNoWriteBarrier(MachineRepresentation::kTagged,
                                           elements, offset.value(), arg);
-                      Increment(&offset, kPointerSize);
+                      Increment(&offset, kSystemPointerSize);
                     },
                     first_arg, nullptr, param_mode);
   return result;
@@ -155,22 +109,19 @@ Node* ArgumentsBuiltinsAssembler::ConstructParametersObjectFromArgs(
 
 Node* ArgumentsBuiltinsAssembler::EmitFastNewRestParameter(Node* context,
                                                            Node* function) {
-  Node* frame_ptr;
-  Node* argument_count;
-  Node* formal_parameter_count;
-
   ParameterMode mode = OptimalParameterMode();
   Node* zero = IntPtrOrSmiConstant(0, mode);
 
-  std::tie(frame_ptr, argument_count, formal_parameter_count) =
-      GetArgumentsFrameAndCount(function, mode);
+  ArgumentsBuiltinsFromDSLAssembler::ArgumentsInfo info =
+      GetArgumentsFrameAndCount(CAST(context),
+                                UncheckedCast<JSFunction>(function));
 
   VARIABLE(result, MachineRepresentation::kTagged);
   Label no_rest_parameters(this), runtime(this, Label::kDeferred),
       done(this, &result);
 
   Node* rest_count =
-      IntPtrOrSmiSub(argument_count, formal_parameter_count, mode);
+      IntPtrOrSmiSub(info.argument_count, info.formal_parameter_count, mode);
   Node* const native_context = LoadNativeContext(context);
   Node* const array_map =
       LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
@@ -183,8 +134,8 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewRestParameter(Node* context,
   // Allocate the Rest JSArray and the elements together and fill in the
   // contents with the arguments above |formal_parameter_count|.
   result.Bind(ConstructParametersObjectFromArgs(
-      array_map, frame_ptr, argument_count, formal_parameter_count, rest_count,
-      mode, JSArray::kSize));
+      array_map, info.frame, info.argument_count, info.formal_parameter_count,
+      rest_count, mode, JSArray::kSize));
   Goto(&done);
 
   BIND(&no_rest_parameters);
@@ -213,27 +164,24 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewStrictArguments(Node* context,
   VARIABLE(result, MachineRepresentation::kTagged);
   Label done(this, &result), empty(this), runtime(this, Label::kDeferred);
 
-  Node* frame_ptr;
-  Node* argument_count;
-  Node* formal_parameter_count;
-
   ParameterMode mode = OptimalParameterMode();
   Node* zero = IntPtrOrSmiConstant(0, mode);
 
-  std::tie(frame_ptr, argument_count, formal_parameter_count) =
-      GetArgumentsFrameAndCount(function, mode);
+  ArgumentsBuiltinsFromDSLAssembler::ArgumentsInfo info =
+      GetArgumentsFrameAndCount(CAST(context),
+                                UncheckedCast<JSFunction>(function));
 
   GotoIfFixedArraySizeDoesntFitInNewSpace(
-      argument_count, &runtime,
+      info.argument_count, &runtime,
       JSStrictArgumentsObject::kSize + FixedArray::kHeaderSize, mode);
 
   Node* const native_context = LoadNativeContext(context);
   Node* const map =
       LoadContextElement(native_context, Context::STRICT_ARGUMENTS_MAP_INDEX);
-  GotoIf(WordEqual(argument_count, zero), &empty);
+  GotoIf(WordEqual(info.argument_count, zero), &empty);
 
   result.Bind(ConstructParametersObjectFromArgs(
-      map, frame_ptr, argument_count, zero, argument_count, mode,
+      map, info.frame, info.argument_count, zero, info.argument_count, mode,
       JSStrictArgumentsObject::kSize));
   Goto(&done);
 
@@ -260,9 +208,6 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewStrictArguments(Node* context,
 
 Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
                                                              Node* function) {
-  Node* frame_ptr;
-  Node* argument_count;
-  Node* formal_parameter_count;
   VARIABLE(result, MachineRepresentation::kTagged);
 
   ParameterMode mode = OptimalParameterMode();
@@ -271,25 +216,26 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
   Label done(this, &result), empty(this), no_parameters(this),
       runtime(this, Label::kDeferred);
 
-  std::tie(frame_ptr, argument_count, formal_parameter_count) =
-      GetArgumentsFrameAndCount(function, mode);
+  ArgumentsBuiltinsFromDSLAssembler::ArgumentsInfo info =
+      GetArgumentsFrameAndCount(CAST(context),
+                                UncheckedCast<JSFunction>(function));
 
-  GotoIf(WordEqual(argument_count, zero), &empty);
+  GotoIf(WordEqual(info.argument_count, zero), &empty);
 
-  GotoIf(WordEqual(formal_parameter_count, zero), &no_parameters);
+  GotoIf(WordEqual(info.formal_parameter_count, zero), &no_parameters);
 
   {
     Comment("Mapped parameter JSSloppyArgumentsObject");
 
     Node* mapped_count =
-        IntPtrOrSmiMin(argument_count, formal_parameter_count, mode);
+        IntPtrOrSmiMin(info.argument_count, info.formal_parameter_count, mode);
 
     Node* parameter_map_size =
         IntPtrOrSmiAdd(mapped_count, IntPtrOrSmiConstant(2, mode), mode);
 
     // Verify that the overall allocation will fit in new space.
     Node* elements_allocated =
-        IntPtrOrSmiAdd(argument_count, parameter_map_size, mode);
+        IntPtrOrSmiAdd(info.argument_count, parameter_map_size, mode);
     GotoIfFixedArraySizeDoesntFitInNewSpace(
         elements_allocated, &runtime,
         JSSloppyArgumentsObject::kSize + FixedArray::kHeaderSize * 2, mode);
@@ -301,8 +247,8 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
     Node* elements;
     Node* map_array;
     std::tie(argument_object, elements, map_array) =
-        AllocateArgumentsObject(map, argument_count, parameter_map_size, mode,
-                                JSSloppyArgumentsObject::kSize);
+        AllocateArgumentsObject(map, info.argument_count, parameter_map_size,
+                                mode, JSSloppyArgumentsObject::kSize);
     StoreObjectFieldNoWriteBarrier(
         argument_object, JSSloppyArgumentsObject::kCalleeOffset, function);
     StoreFixedArrayElement(CAST(map_array), 0, context, SKIP_WRITE_BARRIER);
@@ -310,24 +256,24 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
 
     Comment("Fill in non-mapped parameters");
     Node* argument_offset =
-        ElementOffsetFromIndex(argument_count, PACKED_ELEMENTS, mode,
+        ElementOffsetFromIndex(info.argument_count, PACKED_ELEMENTS, mode,
                                FixedArray::kHeaderSize - kHeapObjectTag);
     Node* mapped_offset =
         ElementOffsetFromIndex(mapped_count, PACKED_ELEMENTS, mode,
                                FixedArray::kHeaderSize - kHeapObjectTag);
-    CodeStubArguments arguments(this, argument_count, frame_ptr, mode);
+    CodeStubArguments arguments(this, info.argument_count, info.frame, mode);
     VARIABLE(current_argument, MachineType::PointerRepresentation());
-    current_argument.Bind(arguments.AtIndexPtr(argument_count, mode));
+    current_argument.Bind(arguments.AtIndexPtr(info.argument_count, mode));
     VariableList var_list1({&current_argument}, zone());
     mapped_offset = BuildFastLoop(
         var_list1, argument_offset, mapped_offset,
         [this, elements, &current_argument](Node* offset) {
-          Increment(&current_argument, kPointerSize);
+          Increment(&current_argument, kSystemPointerSize);
           Node* arg = LoadBufferObject(current_argument.value(), 0);
           StoreNoWriteBarrier(MachineRepresentation::kTagged, elements, offset,
                               arg);
         },
-        -kPointerSize, INTPTR_PARAMETERS);
+        -kTaggedSize, INTPTR_PARAMETERS);
 
     // Copy the parameter slots and the holes in the arguments.
     // We need to fill in mapped_count slots. They index the context,
@@ -341,28 +287,27 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
     VARIABLE(context_index, OptimalParameterRepresentation());
     context_index.Bind(IntPtrOrSmiSub(
         IntPtrOrSmiAdd(IntPtrOrSmiConstant(Context::MIN_CONTEXT_SLOTS, mode),
-                       formal_parameter_count, mode),
+                       info.formal_parameter_count, mode),
         mapped_count, mode));
     Node* the_hole = TheHoleConstant();
     VariableList var_list2({&context_index}, zone());
-    const int kParameterMapHeaderSize =
-        FixedArray::kHeaderSize + 2 * kPointerSize;
+    const int kParameterMapHeaderSize = FixedArray::OffsetOfElementAt(2);
     Node* adjusted_map_array = IntPtrAdd(
         BitcastTaggedToWord(map_array),
         IntPtrConstant(kParameterMapHeaderSize - FixedArray::kHeaderSize));
     Node* zero_offset = ElementOffsetFromIndex(
         zero, PACKED_ELEMENTS, mode, FixedArray::kHeaderSize - kHeapObjectTag);
-    BuildFastLoop(var_list2, mapped_offset, zero_offset,
-                  [this, the_hole, elements, adjusted_map_array, &context_index,
-                   mode](Node* offset) {
-                    StoreNoWriteBarrier(MachineRepresentation::kTagged,
-                                        elements, offset, the_hole);
-                    StoreNoWriteBarrier(
-                        MachineRepresentation::kTagged, adjusted_map_array,
-                        offset, ParameterToTagged(context_index.value(), mode));
-                    Increment(&context_index, 1, mode);
-                  },
-                  -kPointerSize, INTPTR_PARAMETERS);
+    BuildFastLoop(
+        var_list2, mapped_offset, zero_offset,
+        [=, &context_index](Node* offset) {
+          StoreNoWriteBarrier(MachineRepresentation::kTagged, elements, offset,
+                              the_hole);
+          StoreNoWriteBarrier(MachineRepresentation::kTagged,
+                              adjusted_map_array, offset,
+                              ParameterToTagged(context_index.value(), mode));
+          Increment(&context_index, 1, mode);
+        },
+        -kTaggedSize, INTPTR_PARAMETERS);
 
     result.Bind(argument_object);
     Goto(&done);
@@ -372,13 +317,13 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
   {
     Comment("No parameters JSSloppyArgumentsObject");
     GotoIfFixedArraySizeDoesntFitInNewSpace(
-        argument_count, &runtime,
+        info.argument_count, &runtime,
         JSSloppyArgumentsObject::kSize + FixedArray::kHeaderSize, mode);
     Node* const native_context = LoadNativeContext(context);
     Node* const map =
         LoadContextElement(native_context, Context::SLOPPY_ARGUMENTS_MAP_INDEX);
     result.Bind(ConstructParametersObjectFromArgs(
-        map, frame_ptr, argument_count, zero, argument_count, mode,
+        map, info.frame, info.argument_count, zero, info.argument_count, mode,
         JSSloppyArgumentsObject::kSize));
     StoreObjectFieldNoWriteBarrier(
         result.value(), JSSloppyArgumentsObject::kCalleeOffset, function);

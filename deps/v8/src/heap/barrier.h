@@ -7,12 +7,17 @@
 
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/platform/time.h"
 
 namespace v8 {
 namespace internal {
 
 // Barrier that can be used once to synchronize a dynamic number of tasks
 // working concurrently.
+//
+// The barrier takes a timeout which is used to avoid waiting for too long. If
+// any of the users ever reach the timeout they will disable the barrier and
+// signal others to fall through.
 //
 // Usage:
 //   void RunConcurrently(OneShotBarrier* shared_barrier) {
@@ -31,20 +36,20 @@ namespace internal {
 // immediately.
 class OneshotBarrier {
  public:
-  OneshotBarrier() : tasks_(0), waiting_(0), done_(false) {}
+  explicit OneshotBarrier(base::TimeDelta timeout) : timeout_(timeout) {}
 
   void Start() {
-    base::LockGuard<base::Mutex> guard(&mutex_);
+    base::MutexGuard guard(&mutex_);
     tasks_++;
   }
 
   void NotifyAll() {
-    base::LockGuard<base::Mutex> guard(&mutex_);
+    base::MutexGuard guard(&mutex_);
     if (waiting_ > 0) condition_.NotifyAll();
   }
 
   bool Wait() {
-    base::LockGuard<base::Mutex> guard(&mutex_);
+    base::MutexGuard guard(&mutex_);
     if (done_) return true;
 
     DCHECK_LE(waiting_, tasks_);
@@ -54,7 +59,11 @@ class OneshotBarrier {
       condition_.NotifyAll();
     } else {
       // Spurious wakeup is ok here.
-      condition_.Wait(&mutex_);
+      if (!condition_.WaitFor(&mutex_, timeout_)) {
+        // If predefined timeout was reached, Stop waiting and signal being done
+        // also to other tasks.
+        done_ = true;
+      }
     }
     waiting_--;
     return done_;
@@ -66,9 +75,10 @@ class OneshotBarrier {
  private:
   base::ConditionVariable condition_;
   base::Mutex mutex_;
-  int tasks_;
-  int waiting_;
-  bool done_;
+  base::TimeDelta timeout_;
+  int tasks_ = 0;
+  int waiting_ = 0;
+  bool done_ = false;
 };
 
 }  // namespace internal

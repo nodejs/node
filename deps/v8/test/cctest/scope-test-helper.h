@@ -24,7 +24,7 @@ class ScopeTestHelper {
                   baseline->AsDeclarationScope()->function_kind() ==
                       scope->AsDeclarationScope()->function_kind());
 
-    if (!PreParsedScopeDataBuilder::ScopeNeedsData(baseline)) {
+    if (!PreparseDataBuilder::ScopeNeedsData(baseline)) {
       return;
     }
 

@@ -2,21 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/assembler-inl.h"
 #include "src/deoptimizer.h"
+#include "src/macro-assembler.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 
 namespace v8 {
 namespace internal {
 
-#define __ masm()->
-
+#define __ masm->
 
 // This code tries to be close to ia32 code so that any changes can be
 // easily ported.
-void Deoptimizer::TableEntryGenerator::Generate() {
-  GeneratePrologue();
+void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
+                                                Isolate* isolate, int count,
+                                                DeoptimizeKind deopt_kind) {
+  NoRootArrayScope no_root_array(masm);
+  GenerateDeoptimizationEntriesPrologue(masm, count);
 
   // Unlike on ARM we don't save all the registers, just the useful ones.
   // For the rest, there are gaps on the stack, so the offsets remain the same.
@@ -57,7 +59,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
 
   __ li(a2, Operand(ExternalReference::Create(
-                IsolateAddressId::kCEntryFPAddress, isolate())));
+                IsolateAddressId::kCEntryFPAddress, isolate)));
   __ Sd(fp, MemOperand(a2));
 
   const int kSavedRegistersAreaSize =
@@ -84,15 +86,15 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ JumpIfSmi(a1, &context_check);
   __ Ld(a0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ bind(&context_check);
-  __ li(a1, Operand(static_cast<int>(deopt_kind())));
+  __ li(a1, Operand(static_cast<int>(deopt_kind)));
   // a2: bailout id already loaded.
   // a3: code address or 0 already loaded.
   // a4: already has fp-to-sp delta.
-  __ li(a5, Operand(ExternalReference::isolate_address(isolate())));
+  __ li(a5, Operand(ExternalReference::isolate_address(isolate)));
 
   // Call Deoptimizer::New().
   {
-    AllowExternalCallThatCantCauseGC scope(masm());
+    AllowExternalCallThatCantCauseGC scope(masm);
     __ CallCFunction(ExternalReference::new_deoptimizer_function(), 6);
   }
 
@@ -165,7 +167,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ PrepareCallCFunction(1, a1);
   // Call Deoptimizer::ComputeOutputFrames().
   {
-    AllowExternalCallThatCantCauseGC scope(masm());
+    AllowExternalCallThatCantCauseGC scope(masm);
     __ CallCFunction(ExternalReference::compute_output_frames_function(), 1);
   }
   __ pop(a0);  // Restore deoptimizer object (class Deoptimizer).
@@ -224,14 +226,11 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     }
   }
 
-  __ InitializeRootRegister();
-
   __ pop(at);  // Get continuation, leave pc on stack.
   __ pop(ra);
   __ Jump(at);
   __ stop("Unreachable.");
 }
-
 
 // Maximum size of a table entry generated below.
 #ifdef _MIPS_ARCH_MIPS64R6
@@ -240,8 +239,9 @@ const int Deoptimizer::table_entry_size_ = 2 * kInstrSize;
 const int Deoptimizer::table_entry_size_ = 3 * kInstrSize;
 #endif
 
-void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
-  Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
+void Deoptimizer::GenerateDeoptimizationEntriesPrologue(MacroAssembler* masm,
+                                                        int count) {
+  Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm);
 
   // Create a sequence of deoptimization entries.
   // Note that registers are still live when jumping to an entry.
@@ -255,9 +255,9 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
       (1 << (kImm16Bits - 2)) / (table_entry_size_ / kInstrSize);
 #endif
 
-  if (count() <= kMaxEntriesBranchReach) {
+  if (count <= kMaxEntriesBranchReach) {
     // Common case.
-    for (int i = 0; i < count(); i++) {
+    for (int i = 0; i < count; i++) {
       Label start;
       __ bind(&start);
       DCHECK(is_int16(i));
@@ -270,18 +270,18 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
         __ nop();
       }
 
-      DCHECK_EQ(table_entry_size_, masm()->SizeOfCodeGeneratedSince(&start));
+      DCHECK_EQ(table_entry_size_, masm->SizeOfCodeGeneratedSince(&start));
     }
 
-    DCHECK_EQ(masm()->SizeOfCodeGeneratedSince(&table_start),
-              count() * table_entry_size_);
+    DCHECK_EQ(masm->SizeOfCodeGeneratedSince(&table_start),
+              count * table_entry_size_);
     __ bind(&done);
     __ Push(kScratchReg);
   } else {
     DCHECK_NE(kArchVariant, kMips64r6);
     // Uncommon case, the branch cannot reach.
     // Create mini trampoline to reach the end of the table
-    for (int i = 0, j = 0; i < count(); i++, j++) {
+    for (int i = 0, j = 0; i < count; i++, j++) {
       Label start;
       __ bind(&start);
       DCHECK(is_int16(i));
@@ -297,11 +297,11 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
         __ li(kScratchReg, i);                             // In the delay slot.
         __ nop();
       }
-      DCHECK_EQ(table_entry_size_, masm()->SizeOfCodeGeneratedSince(&start));
+      DCHECK_EQ(table_entry_size_, masm->SizeOfCodeGeneratedSince(&start));
     }
 
-    DCHECK_EQ(masm()->SizeOfCodeGeneratedSince(&table_start),
-              count() * table_entry_size_);
+    DCHECK_EQ(masm->SizeOfCodeGeneratedSince(&table_start),
+              count * table_entry_size_);
     __ bind(&trampoline_jump);
     __ Push(kScratchReg);
   }

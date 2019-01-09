@@ -42,6 +42,6 @@ f();
 
 late_resolve(3);   // B2 Continue
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
 assertEquals(3, step_count);

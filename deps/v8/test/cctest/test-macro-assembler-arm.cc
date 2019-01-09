@@ -43,7 +43,7 @@ using F = void*(int x, int y, int p2, int p3, int p4);
 
 #define __ masm->
 
-using F3 = Object*(void* p0, int p1, int p2, int p3, int p4);
+using F3 = void*(void* p0, int p1, int p2, int p3, int p4);
 using F5 = int(void*, void*, void*, void*, void*);
 
 TEST(LoadAndStoreWithRepresentation) {

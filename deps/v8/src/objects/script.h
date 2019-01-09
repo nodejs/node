@@ -7,6 +7,7 @@
 
 #include "src/objects.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/struct.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -15,8 +16,9 @@ namespace v8 {
 namespace internal {
 
 // Script describes a script which has been added to the VM.
-class Script : public Struct, public NeverReadOnlySpaceObject {
+class Script : public Struct {
  public:
+  NEVER_READ_ONLY_SPACE
   // Script types.
   enum Type {
     TYPE_NATIVE = 0,
@@ -64,10 +66,10 @@ class Script : public Struct, public NeverReadOnlySpaceObject {
 
   // [eval_from_shared]: for eval scripts the shared function info for the
   // function from which eval was called.
-  DECL_ACCESSORS(eval_from_shared, SharedFunctionInfo)
+  DECL_ACCESSORS2(eval_from_shared, SharedFunctionInfo)
 
   // [wrapped_arguments]: for the list of arguments in a wrapped script.
-  DECL_ACCESSORS(wrapped_arguments, FixedArray)
+  DECL_ACCESSORS2(wrapped_arguments, FixedArray)
 
   // Whether the script is implicitly wrapped in a function.
   inline bool is_wrapped() const;
@@ -83,7 +85,7 @@ class Script : public Struct, public NeverReadOnlySpaceObject {
 
   // [shared_function_infos]: weak fixed array containing all shared
   // function infos created from this script.
-  DECL_ACCESSORS(shared_function_infos, WeakFixedArray)
+  DECL_ACCESSORS2(shared_function_infos, WeakFixedArray)
 
   // [flags]: Holds an exciting bitfield.
   DECL_INT_ACCESSORS(flags)
@@ -99,7 +101,7 @@ class Script : public Struct, public NeverReadOnlySpaceObject {
   DECL_ACCESSORS(wasm_module_object, Object)
 
   // [host_defined_options]: Options defined by the embedder.
-  DECL_ACCESSORS(host_defined_options, FixedArray)
+  DECL_ACCESSORS2(host_defined_options, FixedArray)
 
   // [compilation_type]: how the the script was compiled. Encoded in the
   // 'flags' field.
@@ -117,13 +119,13 @@ class Script : public Struct, public NeverReadOnlySpaceObject {
   inline v8::ScriptOriginOptions origin_options();
   inline void set_origin_options(ScriptOriginOptions origin_options);
 
-  DECL_CAST(Script)
+  DECL_CAST2(Script)
 
   // If script source is an external string, check that the underlying
   // resource is accessible. Otherwise, always return true.
   inline bool HasValidSource();
 
-  Object* GetNameOrSourceURL();
+  Object GetNameOrSourceURL();
 
   // Retrieve source position from where eval was called.
   int GetEvalPosition();
@@ -176,7 +178,7 @@ class Script : public Struct, public NeverReadOnlySpaceObject {
   class Iterator {
    public:
     explicit Iterator(Isolate* isolate);
-    Script* Next();
+    Script Next();
 
    private:
     WeakArrayList::Iterator iterator_;
@@ -187,26 +189,28 @@ class Script : public Struct, public NeverReadOnlySpaceObject {
   DECL_PRINTER(Script)
   DECL_VERIFIER(Script)
 
-  static const int kSourceOffset = HeapObject::kHeaderSize;
-  static const int kNameOffset = kSourceOffset + kPointerSize;
-  static const int kLineOffsetOffset = kNameOffset + kPointerSize;
-  static const int kColumnOffsetOffset = kLineOffsetOffset + kPointerSize;
-  static const int kContextOffset = kColumnOffsetOffset + kPointerSize;
-  static const int kTypeOffset = kContextOffset + kPointerSize;
-  static const int kLineEndsOffset = kTypeOffset + kPointerSize;
-  static const int kIdOffset = kLineEndsOffset + kPointerSize;
-  static const int kEvalFromSharedOrWrappedArgumentsOffset =
-      kIdOffset + kPointerSize;
-  static const int kEvalFromPositionOffset =
-      kEvalFromSharedOrWrappedArgumentsOffset + kPointerSize;
-  static const int kSharedFunctionInfosOffset =
-      kEvalFromPositionOffset + kPointerSize;
-  static const int kFlagsOffset = kSharedFunctionInfosOffset + kPointerSize;
-  static const int kSourceUrlOffset = kFlagsOffset + kPointerSize;
-  static const int kSourceMappingUrlOffset = kSourceUrlOffset + kPointerSize;
-  static const int kHostDefinedOptionsOffset =
-      kSourceMappingUrlOffset + kPointerSize;
-  static const int kSize = kHostDefinedOptionsOffset + kPointerSize;
+// Layout description.
+#define SCRIPTS_FIELDS(V)                                 \
+  V(kSourceOffset, kTaggedSize)                           \
+  V(kNameOffset, kTaggedSize)                             \
+  V(kLineOffsetOffset, kTaggedSize)                       \
+  V(kColumnOffsetOffset, kTaggedSize)                     \
+  V(kContextOffset, kTaggedSize)                          \
+  V(kTypeOffset, kTaggedSize)                             \
+  V(kLineEndsOffset, kTaggedSize)                         \
+  V(kIdOffset, kTaggedSize)                               \
+  V(kEvalFromSharedOrWrappedArgumentsOffset, kTaggedSize) \
+  V(kEvalFromPositionOffset, kTaggedSize)                 \
+  V(kSharedFunctionInfosOffset, kTaggedSize)              \
+  V(kFlagsOffset, kTaggedSize)                            \
+  V(kSourceUrlOffset, kTaggedSize)                        \
+  V(kSourceMappingUrlOffset, kTaggedSize)                 \
+  V(kHostDefinedOptionsOffset, kTaggedSize)               \
+  /* Total size. */                                       \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, SCRIPTS_FIELDS)
+#undef SCRIPTS_FIELDS
 
  private:
   // Bit positions in the flags field.
@@ -217,7 +221,7 @@ class Script : public Struct, public NeverReadOnlySpaceObject {
   static const int kOriginOptionsMask = ((1 << kOriginOptionsSize) - 1)
                                         << kOriginOptionsShift;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Script);
+  OBJECT_CONSTRUCTORS(Script, Struct);
 };
 
 }  // namespace internal

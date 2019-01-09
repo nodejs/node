@@ -23,13 +23,16 @@ namespace internal {
 // one is the end address of the invalid range or null if there is just one slot
 // that needs to be removed from the remembered set. On buffer overflow the
 // slots are moved to the remembered set.
+// Store buffer entries are always full pointers.
 class StoreBuffer {
  public:
   enum StoreBufferMode { IN_GC, NOT_IN_GC };
 
-  static const int kStoreBufferSize = 1 << (11 + kPointerSizeLog2);
-  static const int kStoreBufferMask = kStoreBufferSize - 1;
   static const int kStoreBuffers = 2;
+  static const int kStoreBufferSize =
+      Max(static_cast<int>(kMinExpectedOSPageSize / kStoreBuffers),
+          1 << (11 + kSystemPointerSizeLog2));
+  static const int kStoreBufferMask = kStoreBufferSize - 1;
   static const intptr_t kDeletionTag = 1;
 
   V8_EXPORT_PRIVATE static int StoreBufferOverflow(Isolate* isolate);

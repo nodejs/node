@@ -235,7 +235,7 @@ TEST(MemorySize) {
 
 TEST(Run_WasmModule_MemSize_GrowMem) {
   {
-    // Initial memory size = 16 + GrowMemory(10)
+    // Initial memory size = 16 + MemoryGrow(10)
     static const int kExpectedValue = 26;
     TestSignatures sigs;
     v8::internal::AccountingAllocator allocator;
@@ -252,7 +252,7 @@ TEST(Run_WasmModule_MemSize_GrowMem) {
   Cleanup();
 }
 
-TEST(GrowMemoryZero) {
+TEST(MemoryGrowZero) {
   {
     // Initial memory size is 16, see wasm-module-builder.cc
     static const int kExpectedValue = 16;
@@ -362,7 +362,7 @@ TEST(TestInterruptLoop) {
   Cleanup();
 }
 
-TEST(Run_WasmModule_GrowMemoryInIf) {
+TEST(Run_WasmModule_MemoryGrowInIf) {
   {
     TestSignatures sigs;
     v8::internal::AccountingAllocator allocator;
@@ -381,7 +381,7 @@ TEST(Run_WasmModule_GrowMemoryInIf) {
 TEST(Run_WasmModule_GrowMemOobOffset) {
   {
     static const int kPageSize = 0x10000;
-    // Initial memory size = 16 + GrowMemory(10)
+    // Initial memory size = 16 + MemoryGrow(10)
     static const int index = kPageSize * 17 + 4;
     int value = 0xACED;
     TestSignatures sigs;
@@ -403,7 +403,7 @@ TEST(Run_WasmModule_GrowMemOobOffset) {
 TEST(Run_WasmModule_GrowMemOobFixedIndex) {
   {
     static const int kPageSize = 0x10000;
-    // Initial memory size = 16 + GrowMemory(10)
+    // Initial memory size = 16 + MemoryGrow(10)
     static const int index = kPageSize * 26 + 4;
     int value = 0xACED;
     TestSignatures sigs;
@@ -720,7 +720,7 @@ struct ManuallyExternalizedBuffer {
   size_t allocation_length_;
   bool const should_free_;
 
-  ManuallyExternalizedBuffer(JSArrayBuffer* buffer, Isolate* isolate)
+  ManuallyExternalizedBuffer(JSArrayBuffer buffer, Isolate* isolate)
       : isolate_(isolate),
         buffer_(buffer, isolate),
         allocation_base_(buffer->allocation_base()),
@@ -770,7 +770,7 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
     // Grow using the API.
     uint32_t result = WasmMemoryObject::Grow(isolate, memory_object, 4);
     CHECK_EQ(16, result);
-    CHECK(buffer1.buffer_->was_neutered());  // growing always neuters
+    CHECK(buffer1.buffer_->was_detached());  // growing always detaches
     CHECK_EQ(0, buffer1.buffer_->byte_length());
 
     CHECK_NE(*buffer1.buffer_, memory_object->array_buffer());
@@ -781,7 +781,7 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
     // Grow using an internal WASM bytecode.
     result = testing::RunWasmModuleForTesting(isolate, instance, 0, nullptr);
     CHECK_EQ(26, result);
-    CHECK(buffer2.buffer_->was_neutered());  // growing always neuters
+    CHECK(buffer2.buffer_->was_detached());  // growing always detaches
     CHECK_EQ(0, buffer2.buffer_->byte_length());
     CHECK_NE(*buffer2.buffer_, memory_object->array_buffer());
   }

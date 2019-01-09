@@ -18,9 +18,6 @@ v8::Maybe<bool> createDataProperty(v8::Local<v8::Context>,
 v8::Maybe<bool> createDataProperty(v8::Local<v8::Context>, v8::Local<v8::Array>,
                                    int index, v8::Local<v8::Value>);
 
-protocol::Response toProtocolValue(v8::Local<v8::Context>, v8::Local<v8::Value>,
-                                   std::unique_ptr<protocol::Value>* result);
-
 }  // namespace v8_inspector
 
 #endif  // V8_INSPECTOR_V8_VALUE_UTILS_H_

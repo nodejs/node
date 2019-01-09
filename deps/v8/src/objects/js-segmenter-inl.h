@@ -18,10 +18,12 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(JSSegmenter, JSObject)
+
 // Base segmenter accessors.
-ACCESSORS(JSSegmenter, locale, String, kLocaleOffset)
-ACCESSORS(JSSegmenter, icu_break_iterator, Managed<icu::BreakIterator>,
-          kICUBreakIteratorOffset)
+ACCESSORS2(JSSegmenter, locale, String, kLocaleOffset)
+ACCESSORS2(JSSegmenter, icu_break_iterator, Managed<icu::BreakIterator>,
+           kICUBreakIteratorOffset)
 SMI_ACCESSORS(JSSegmenter, flags, kFlagsOffset)
 
 inline void JSSegmenter::set_line_break_style(LineBreakStyle line_break_style) {
@@ -46,7 +48,7 @@ inline JSSegmenter::Granularity JSSegmenter::granularity() const {
   return GranularityBits::decode(flags());
 }
 
-CAST_ACCESSOR(JSSegmenter);
+CAST_ACCESSOR2(JSSegmenter);
 
 }  // namespace internal
 }  // namespace v8

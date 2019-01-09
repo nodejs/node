@@ -9,6 +9,9 @@
 #ifndef V8_OBJECTS_JS_SEGMENTER_H_
 #define V8_OBJECTS_JS_SEGMENTER_H_
 
+#include <set>
+#include <string>
+
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects.h"
@@ -36,15 +39,18 @@ class JSSegmenter : public JSObject {
   V8_WARN_UNUSED_RESULT static Handle<JSObject> ResolvedOptions(
       Isolate* isolate, Handle<JSSegmenter> segmenter_holder);
 
+  static std::set<std::string> GetAvailableLocales();
+
   Handle<String> LineBreakStyleAsString() const;
+  const char* LineBreakStyleAsCString() const;
   Handle<String> GranularityAsString() const;
 
-  DECL_CAST(JSSegmenter)
+  DECL_CAST2(JSSegmenter)
 
   // Segmenter accessors.
-  DECL_ACCESSORS(locale, String)
+  DECL_ACCESSORS2(locale, String)
 
-  DECL_ACCESSORS(icu_break_iterator, Managed<icu::BreakIterator>)
+  DECL_ACCESSORS2(icu_break_iterator, Managed<icu::BreakIterator>)
 
   // LineBreakStyle: identifying the style used for line break.
   //
@@ -97,17 +103,22 @@ class JSSegmenter : public JSObject {
   DECL_VERIFIER(JSSegmenter)
 
   // Layout description.
-  static const int kJSSegmenterOffset = JSObject::kHeaderSize;
-  static const int kLocaleOffset = kJSSegmenterOffset + kPointerSize;
-  static const int kICUBreakIteratorOffset = kLocaleOffset + kPointerSize;
-  static const int kFlagsOffset = kICUBreakIteratorOffset + kPointerSize;
-  static const int kSize = kFlagsOffset + kPointerSize;
+#define JS_SEGMENTER_FIELDS(V)            \
+  V(kJSSegmenterOffset, kTaggedSize)      \
+  V(kLocaleOffset, kTaggedSize)           \
+  V(kICUBreakIteratorOffset, kTaggedSize) \
+  V(kFlagsOffset, kTaggedSize)            \
+  /* Header size. */                      \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_SEGMENTER_FIELDS)
+#undef JS_SEGMENTER_FIELDS
 
  private:
   static LineBreakStyle GetLineBreakStyle(const char* str);
   static Granularity GetGranularity(const char* str);
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSSegmenter);
+  OBJECT_CONSTRUCTORS(JSSegmenter, JSObject);
 };
 
 }  // namespace internal

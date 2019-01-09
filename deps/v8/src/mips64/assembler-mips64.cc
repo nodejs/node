@@ -37,9 +37,9 @@
 #if V8_TARGET_ARCH_MIPS64
 
 #include "src/base/cpu.h"
-#include "src/code-stubs.h"
 #include "src/deoptimizer.h"
 #include "src/mips64/assembler-mips64-inl.h"
+#include "src/objects/heap-number-inl.h"
 #include "src/string-constants.h"
 
 namespace v8 {
@@ -184,18 +184,6 @@ int RelocInfo::GetDeoptimizationId(Isolate* isolate, DeoptimizeKind kind) {
   return Deoptimizer::GetDeoptimizationId(isolate, target_address(), kind);
 }
 
-void RelocInfo::set_js_to_wasm_address(Address address,
-                                       ICacheFlushMode icache_flush_mode) {
-  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  Assembler::set_target_address_at(pc_, constant_pool_, address,
-                                   icache_flush_mode);
-}
-
-Address RelocInfo::js_to_wasm_address() const {
-  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  return Assembler::target_address_at(pc_, constant_pool_);
-}
-
 uint32_t RelocInfo::wasm_call_tag() const {
   DCHECK(rmode_ == WASM_CALL || rmode_ == WASM_STUB_CALL);
   return static_cast<uint32_t>(
@@ -217,13 +205,6 @@ Operand Operand::EmbeddedNumber(double value) {
   Operand result(0, RelocInfo::EMBEDDED_OBJECT);
   result.is_heap_object_request_ = true;
   result.value_.heap_object_request = HeapObjectRequest(value);
-  return result;
-}
-
-Operand Operand::EmbeddedCode(CodeStub* stub) {
-  Operand result(0, RelocInfo::CODE_TARGET);
-  result.is_heap_object_request_ = true;
-  result.value_.heap_object_request = HeapObjectRequest(stub);
   return result;
 }
 
@@ -253,10 +234,6 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
       case HeapObjectRequest::kHeapNumber:
         object =
             isolate->factory()->NewHeapNumber(request.heap_number(), TENURED);
-        break;
-      case HeapObjectRequest::kCodeStub:
-        request.code_stub()->set_isolate(isolate);
-        object = request.code_stub()->GetCode();
         break;
       case HeapObjectRequest::kStringConstant:
         const StringConstantBase* str = request.string();
@@ -328,6 +305,9 @@ Assembler::Assembler(const AssemblerOptions& options, void* buffer,
 
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   EmitForbiddenSlotInstruction();
+
+  int code_comments_size = WriteCodeComments();
+
   DCHECK(pc_ <= reloc_info_writer.pos());  // No overlap.
 
   AllocateAndInstallRequestedHeapObjects(isolate);
@@ -342,6 +322,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   desc->constant_pool_size = 0;
   desc->unwinding_info_size = 0;
   desc->unwinding_info = nullptr;
+  desc->code_comments_size = code_comments_size;
 }
 
 
@@ -899,7 +880,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
   if ((instr & ~kImm16Mask) == 0) {
     DCHECK(target_pos == kEndOfChain || target_pos >= 0);
     // Emitted label constant, not part of a branch.
-    // Make label relative to Code* of generated Code object.
+    // Make label relative to Code pointer of generated Code object.
     instr_at_put(pos, target_pos + (Code::kHeaderSize - kHeapObjectTag));
     return;
   }
@@ -4217,7 +4198,7 @@ void Assembler::dd(Label* label) {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (!ShouldRecordRelocInfo(rmode)) return;
   // We do not try to reuse pool constants.
-  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code());
   DCHECK_GE(buffer_space(), kMaxRelocSize);  // Too late to grow buffer here.
   reloc_info_writer.Write(&rinfo);
 }
@@ -4327,10 +4308,9 @@ Address Assembler::target_address_at(Address pc) {
 // qNaN is a MIPS sNaN, and ia32 sNaN is MIPS qNaN. If running from a heap
 // snapshot generated on ia32, the resulting MIPS sNaN must be quieted.
 // OS::nan_value() returns a qNaN.
-void Assembler::QuietNaN(HeapObject* object) {
+void Assembler::QuietNaN(HeapObject object) {
   HeapNumber::cast(object)->set_value(std::numeric_limits<double>::quiet_NaN());
 }
-
 
 // On Mips64, a target address is stored in a 4-instruction sequence:
 //    0: lui(rd, (j.imm64_ >> 32) & kImm16Mask);

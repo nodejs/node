@@ -32,7 +32,9 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 class WasmExecutionFuzzer {
  public:
   virtual ~WasmExecutionFuzzer() = default;
-  int FuzzWasmModule(Vector<const uint8_t> data, bool require_valid = false);
+  void FuzzWasmModule(Vector<const uint8_t> data, bool require_valid = false);
+
+  virtual size_t max_input_size() const { return 512; }
 
  protected:
   virtual bool GenerateModule(

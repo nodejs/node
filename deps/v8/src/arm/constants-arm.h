@@ -36,21 +36,23 @@ inline int DecodeConstantPoolLength(int instr) {
 }
 
 // Number of registers in normal ARM mode.
-const int kNumRegisters = 16;
+constexpr int kNumRegisters = 16;
+constexpr int kRegSizeInBitsLog2 = 5;
 
 // VFP support.
-const int kNumVFPSingleRegisters = 32;
-const int kNumVFPDoubleRegisters = 32;
-const int kNumVFPRegisters = kNumVFPSingleRegisters + kNumVFPDoubleRegisters;
+constexpr int kNumVFPSingleRegisters = 32;
+constexpr int kNumVFPDoubleRegisters = 32;
+constexpr int kNumVFPRegisters =
+    kNumVFPSingleRegisters + kNumVFPDoubleRegisters;
 
 // PC is register 15.
-const int kPCRegister = 15;
-const int kNoRegister = -1;
+constexpr int kPCRegister = 15;
+constexpr int kNoRegister = -1;
 
 // Used in embedded constant pool builder - max reach in bits for
 // various load instructions (unsigned)
-const int kLdrMaxReachBits = 12;
-const int kVldrMaxReachBits = 10;
+constexpr int kLdrMaxReachBits = 12;
+constexpr int kVldrMaxReachBits = 10;
 
 // Actual value of root register is offset from the root array's start
 // to take advantage of negative displacement values. Loads allow a uint12

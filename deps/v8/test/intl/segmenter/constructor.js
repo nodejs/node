@@ -190,27 +190,3 @@ assertThrows(
         }),
     TypeError
 );
-
-// Throws only once during construction.
-// Check for all getters to prevent regression.
-// Preserve the order of getter initialization.
-let getCount = 0;
-let localeMatcher = -1;
-let lineBreakStyle = -1;
-let granularity = -1;
-
-new Intl.Segmenter(["en-US"], {
-    get localeMatcher() {
-        localeMatcher = ++getCount;
-    },
-    get lineBreakStyle() {
-        lineBreakStyle = ++getCount;
-    },
-    get granularity() {
-        granularity = ++getCount;
-    }
-});
-
-assertEquals(1, localeMatcher);
-assertEquals(2, lineBreakStyle);
-assertEquals(3, granularity);

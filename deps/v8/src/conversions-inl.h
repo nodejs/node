@@ -19,6 +19,7 @@
 #include "src/conversions.h"
 #include "src/double.h"
 #include "src/objects-inl.h"
+#include "src/objects/heap-number-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -142,17 +143,17 @@ bool DoubleToUint32IfEqualToSelf(double value, uint32_t* uint32_value) {
   return false;
 }
 
-int32_t NumberToInt32(Object* number) {
+int32_t NumberToInt32(Object number) {
   if (number->IsSmi()) return Smi::ToInt(number);
   return DoubleToInt32(number->Number());
 }
 
-uint32_t NumberToUint32(Object* number) {
+uint32_t NumberToUint32(Object number) {
   if (number->IsSmi()) return Smi::ToInt(number);
   return DoubleToUint32(number->Number());
 }
 
-uint32_t PositiveNumberToUint32(Object* number) {
+uint32_t PositiveNumberToUint32(Object number) {
   if (number->IsSmi()) {
     int value = Smi::ToInt(number);
     if (value <= 0) return 0;
@@ -167,7 +168,7 @@ uint32_t PositiveNumberToUint32(Object* number) {
   return max;
 }
 
-int64_t NumberToInt64(Object* number) {
+int64_t NumberToInt64(Object number) {
   if (number->IsSmi()) return Smi::ToInt(number);
   double d = number->Number();
   if (std::isnan(d)) return 0;
@@ -180,7 +181,7 @@ int64_t NumberToInt64(Object* number) {
   return static_cast<int64_t>(d);
 }
 
-uint64_t PositiveNumberToUint64(Object* number) {
+uint64_t PositiveNumberToUint64(Object number) {
   if (number->IsSmi()) {
     int value = Smi::ToInt(number);
     if (value <= 0) return 0;
@@ -195,7 +196,7 @@ uint64_t PositiveNumberToUint64(Object* number) {
   return max;
 }
 
-bool TryNumberToSize(Object* number, size_t* result) {
+bool TryNumberToSize(Object number, size_t* result) {
   // Do not create handles in this function! Don't use SealHandleScope because
   // the function can be used concurrently.
   if (number->IsSmi()) {
@@ -224,13 +225,12 @@ bool TryNumberToSize(Object* number, size_t* result) {
   }
 }
 
-size_t NumberToSize(Object* number) {
+size_t NumberToSize(Object number) {
   size_t result = 0;
   bool is_valid = TryNumberToSize(number, &result);
   CHECK(is_valid);
   return result;
 }
-
 
 uint32_t DoubleToUint32(double x) {
   return static_cast<uint32_t>(DoubleToInt32(x));

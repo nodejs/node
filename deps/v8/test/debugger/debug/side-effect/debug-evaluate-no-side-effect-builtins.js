@@ -73,8 +73,8 @@ function listener(event, exec_state, event_data, data) {
       "flatMap", "forEach", "every", "some", "reduce", "reduceRight", "find",
       "filter", "map", "findIndex"
     ];
-    var fails = ["toString", "join", "toLocaleString", "pop", "push", "reverse",
-      "shift", "unshift", "splice", "sort", "copyWithin", "fill"];
+    var fails = ["toLocaleString", "pop", "push", "reverse", "shift", "unshift",
+      "splice", "sort", "copyWithin", "fill"];
     for (f of Object.getOwnPropertyNames(Array.prototype)) {
       if (typeof Array.prototype[f] === "function") {
         if (fails.includes(f)) {
@@ -182,6 +182,7 @@ function listener(event, exec_state, event_data, data) {
         }
         if (f == "normalize") continue;
         if (f == "match") continue;
+        if (f == "matchAll") continue;
         if (f == "search") continue;
         if (f == "split" || f == "replace") {
           fail(`'abcd'.${f}(2)`);
