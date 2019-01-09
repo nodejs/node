@@ -1,3 +1,5 @@
+#include <limits.h>  // PATH_MAX
+
 #include "env-inl.h"
 #include "node_internals.h"
 #include "node_metadata.h"
