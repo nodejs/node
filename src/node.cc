@@ -124,7 +124,6 @@ using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Message;
 using v8::MicrotasksPolicy;
-using v8::NewStringType;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Script;
