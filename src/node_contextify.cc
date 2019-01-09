@@ -1007,7 +1007,30 @@ void ContextifyContext::CompileFunction(
       data + cached_data_buf->ByteOffset(), cached_data_buf->ByteLength());
   }
 
-  ScriptOrigin origin(filename, line_offset, column_offset, True(isolate));
+  // Get the function id
+  uint32_t id = env->get_next_function_id();
+
+  // Set host_defined_options
+  Local<PrimitiveArray> host_defined_options =
+      PrimitiveArray::New(isolate, loader::HostDefinedOptions::kLength);
+  host_defined_options->Set(
+      isolate,
+      loader::HostDefinedOptions::kType,
+      Number::New(isolate, loader::ScriptType::kFunction));
+  host_defined_options->Set(
+      isolate, loader::HostDefinedOptions::kID, Number::New(isolate, id));
+
+  ScriptOrigin origin(filename,
+                      line_offset,       // line offset
+                      column_offset,     // column offset
+                      True(isolate),     // is cross origin
+                      Local<Integer>(),  // script id
+                      Local<Value>(),    // source map URL
+                      False(isolate),    // is opaque (?)
+                      False(isolate),    // is WASM
+                      False(isolate),    // is ES Module
+                      host_defined_options);
+
   ScriptCompiler::Source source(code, origin, cached_data);
   ScriptCompiler::CompileOptions options;
   if (source.GetCachedData() == nullptr) {
@@ -1051,6 +1074,8 @@ void ContextifyContext::CompileFunction(
     try_catch.ReThrow();
     return;
   }
+
+  env->id_to_function_map.emplace(id, fun);
 
   if (produce_cached_data) {
     const std::unique_ptr<ScriptCompiler::CachedData> cached_data(

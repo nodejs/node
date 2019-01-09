@@ -703,9 +703,11 @@ class Environment {
   std::unordered_map<uint32_t, loader::ModuleWrap*> id_to_module_map;
   std::unordered_map<uint32_t, contextify::ContextifyScript*>
       id_to_script_map;
+  std::unordered_map<uint32_t, v8::Local<v8::Function>> id_to_function_map;
 
   inline uint32_t get_next_module_id();
   inline uint32_t get_next_script_id();
+  inline uint32_t get_next_function_id();
 
   std::unordered_map<std::string, const loader::PackageConfig>
       package_json_cache;
@@ -972,6 +974,7 @@ class Environment {
 
   uint32_t module_id_counter_ = 0;
   uint32_t script_id_counter_ = 0;
+  uint32_t function_id_counter_ = 0;
 
   AliasedBuffer<uint32_t, v8::Uint32Array> should_abort_on_uncaught_toggle_;
   int should_not_abort_scope_counter_ = 0;
