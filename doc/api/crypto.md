@@ -384,7 +384,7 @@ const decipher = crypto.createDecipheriv(algorithm, key, iv);
 
 let decrypted = '';
 decipher.on('readable', () => {
-  while (null !== (chunk = readable.read())) {
+  while (null !== (chunk = decipher.read())) {
     decrypted += chunk.toString('utf8');
   }
 });
