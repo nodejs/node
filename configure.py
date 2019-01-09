@@ -173,6 +173,11 @@ parser.add_option('--openssl-fips',
     dest='openssl_fips',
     help='Build OpenSSL using FIPS canister .o file in supplied folder')
 
+parser.add_option('--openssl-is-fips',
+    action='store_true',
+    dest='openssl_is_fips',
+    help='specifies that the OpenSSL library is FIPS compatible')
+
 parser.add_option('--openssl-use-def-ca-store',
     action='store_true',
     dest='use_openssl_ca_store',
@@ -1187,6 +1192,7 @@ def configure_openssl(o):
   variables = o['variables']
   variables['node_use_openssl'] = b(not options.without_ssl)
   variables['node_shared_openssl'] = b(options.shared_openssl)
+  variables['openssl_is_fips'] = b(options.openssl_is_fips)
   variables['openssl_fips'] = ''
 
   if options.openssl_no_asm:
