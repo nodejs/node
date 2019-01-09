@@ -1013,7 +1013,7 @@ readable.on('readable', () => {
 ```
 
 Note that the `while` loop is necessary when processing data with
-`readable.read()`. Only after `readable.read()` returns null,
+`readable.read()`. Only after `readable.read()` returns `null`,
 [`'readable'`]() will be emitted.
 
 A `Readable` stream in object mode will always return a single item from
