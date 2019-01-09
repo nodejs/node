@@ -10,23 +10,12 @@ const tls = require('tls');
 const key = fixtures.readKey('agent2-key.pem');
 const cert = fixtures.readKey('agent2-cert.pem');
 
-let ntests = 0;
-let nsuccess = 0;
-
 function loadDHParam(n) {
   return fixtures.readKey(`dh${n}.pem`);
 }
 
-const cipherlist = {
-  'NOT_PFS': 'AES128-SHA256',
-  'DH': 'DHE-RSA-AES128-GCM-SHA256',
-  'ECDH': 'ECDHE-RSA-AES128-GCM-SHA256'
-};
-
-function test(size, type, name, next) {
-  const cipher = type ? cipherlist[type] : cipherlist.NOT_PFS;
-
-  if (name) tls.DEFAULT_ECDH_CURVE = name;
+function test(size, type, name, cipher) {
+  assert(cipher);
 
   const options = {
     key: key,
@@ -34,66 +23,36 @@ function test(size, type, name, next) {
     ciphers: cipher
   };
 
+  if (name) options.ecdhCurve = name;
+
   if (type === 'DH') options.dhparam = loadDHParam(size);
 
-  const server = tls.createServer(options, function(conn) {
+  const server = tls.createServer(options, common.mustCall((conn) => {
     assert.strictEqual(conn.getEphemeralKeyInfo(), null);
     conn.end();
-  });
-
-  server.on('close', common.mustCall(function(err) {
-    assert.ifError(err);
-    if (next) next();
   }));
 
-  server.listen(0, '127.0.0.1', common.mustCall(function() {
+  server.on('close', common.mustCall((err) => {
+    assert.ifError(err);
+  }));
+
+  server.listen(0, '127.0.0.1', common.mustCall(() => {
     const client = tls.connect({
-      port: this.address().port,
+      port: server.address().port,
       rejectUnauthorized: false
     }, function() {
       const ekeyinfo = client.getEphemeralKeyInfo();
       assert.strictEqual(ekeyinfo.type, type);
       assert.strictEqual(ekeyinfo.size, size);
       assert.strictEqual(ekeyinfo.name, name);
-      nsuccess++;
       server.close();
     });
   }));
 }
 
-function testNOT_PFS() {
-  test(undefined, undefined, undefined, testDHE1024);
-  ntests++;
-}
-
-function testDHE1024() {
-  test(1024, 'DH', undefined, testDHE2048);
-  ntests++;
-}
-
-function testDHE2048() {
-  test(2048, 'DH', undefined, testECDHE256);
-  ntests++;
-}
-
-function testECDHE256() {
-  test(256, 'ECDH', 'prime256v1', testECDHE512);
-  ntests++;
-}
-
-function testECDHE512() {
-  test(521, 'ECDH', 'secp521r1', testX25519);
-  ntests++;
-}
-
-function testX25519() {
-  test(253, 'ECDH', 'X25519', null);
-  ntests++;
-}
-
-testNOT_PFS();
-
-process.on('exit', function() {
-  assert.strictEqual(ntests, nsuccess);
-  assert.strictEqual(ntests, 6);
-});
+test(undefined, undefined, undefined, 'AES128-SHA256');
+test(1024, 'DH', undefined, 'DHE-RSA-AES128-GCM-SHA256');
+test(2048, 'DH', undefined, 'DHE-RSA-AES128-GCM-SHA256');
+test(256, 'ECDH', 'prime256v1', 'ECDHE-RSA-AES128-GCM-SHA256');
+test(521, 'ECDH', 'secp521r1', 'ECDHE-RSA-AES128-GCM-SHA256');
+test(253, 'ECDH', 'X25519', 'ECDHE-RSA-AES128-GCM-SHA256');
