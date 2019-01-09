@@ -22,6 +22,7 @@
 'use strict';
 const common = require('../common');
 const fixtures = require('../common/fixtures');
+const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const net = require('net');
 const repl = require('repl');
@@ -823,6 +824,8 @@ function startUnixRepl() {
     resolveReplServer(replServer);
   }));
 
+  tmpdir.refresh();
+
   server.listen(common.PIPE, common.mustCall(() => {
     const client = net.createConnection(common.PIPE);
 
@@ -852,7 +855,7 @@ function event(ee, expected) {
       const data = inspect(expected, { compact: false });
       const msg = `The REPL did not reply as expected for:\n\n${data}`;
       reject(new Error(msg));
-    }, 500);
+    }, common.platformTimeout(500));
     ee.once('data', common.mustCall((...args) => {
       clearTimeout(timeout);
       resolve(...args);
