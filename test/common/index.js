@@ -46,13 +46,7 @@ const noop = () => {};
 
 const hasCrypto = Boolean(process.versions.openssl);
 
-const isMainThread = (() => {
-  if (require('module').builtinModules.includes('worker_threads')) {
-    return require('worker_threads').isMainThread;
-  }
-  // Worker module not enabled → only a single main thread exists.
-  return true;
-})();
+const { isMainThread } = require('worker_threads');
 
 // Check for flags. Skip this for workers (both, the `cluster` module and
 // `worker_threads`) and child processes.
