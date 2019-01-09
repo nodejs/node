@@ -1,4 +1,5 @@
 #include "node_errors.h"
+#include "node_internals.h"
 #include "node_process.h"
 
 #ifdef __APPLE__
