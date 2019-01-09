@@ -201,7 +201,7 @@ const cipher = crypto.createCipheriv(algorithm, key, iv);
 let encrypted = '';
 cipher.on('readable', () => {
   let chunk;
-  while (null !== (chunk = readable.read())) {
+  while (null !== (chunk = cipher.read())) {
     encrypted += chunk.toString('hex');
   }
 });
