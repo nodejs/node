@@ -570,7 +570,7 @@ The `sys` module is deprecated. Please use the [`util`][] module instead.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/xxxxx
+    pr-url: https://github.com/nodejs/node/pull/25377
     description: End-of-Life.
   - version:
     - v4.8.6
@@ -591,7 +591,7 @@ Type: End-of-Life
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/xxxxx
+    pr-url: https://github.com/nodejs/node/pull/25377
     description: End-of-Life.
   - version:
     - v4.8.6
@@ -612,7 +612,7 @@ Type: End-of-Life
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/xxxxx
+    pr-url: https://github.com/nodejs/node/pull/25377
     description: End-of-Life.
   - version:
     - v4.8.6
@@ -633,7 +633,7 @@ Type: End-of-Life
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/xxxxx
+    pr-url: https://github.com/nodejs/node/pull/25377
     description: End-of-Life.
   - version:
     - v4.8.6
