@@ -7,6 +7,12 @@ if (!common.hasIntl)
 const icu = process.binding('icu');
 const assert = require('assert');
 
+// test hasConverter method
+assert(icu.hasConverter('utf-8'),
+       'hasConverter should report coverter exists for utf-8');
+assert(!icu.hasConverter('x'),
+       'hasConverter should report coverter does not exist for x');
+
 const tests = require('../fixtures/url-idna.js');
 const wptToASCIITests = require('../fixtures/url-toascii.js');
 
