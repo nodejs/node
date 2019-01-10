@@ -43,6 +43,9 @@ _EXCLUDED_PATHS = (
     r"^tools[\\\/].*",
 )
 
+_LICENSE_FILE = (
+    r"LICENSE"
+)
 
 # Regular expression that matches code which should not be run through cpplint.
 _NO_LINT_PATHS = (
@@ -301,8 +304,13 @@ def _CommonChecks(input_api, output_api):
   results.extend(_CheckCommitMessageBugEntry(input_api, output_api))
   results.extend(input_api.canned_checks.CheckPatchFormatted(
       input_api, output_api))
+
+  # License files are taken as is, even if they include gendered pronouns.
+  license_filter = lambda path: input_api.FilterSourceFile(
+      path, black_list=_LICENSE_FILE)
   results.extend(input_api.canned_checks.CheckGenderNeutral(
-      input_api, output_api))
+      input_api, output_api, source_file_filter=license_filter))
+
   results.extend(_V8PresubmitChecks(input_api, output_api))
   results.extend(_CheckUnwantedDependencies(input_api, output_api))
   results.extend(

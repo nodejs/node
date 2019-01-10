@@ -345,7 +345,7 @@ TEST(ComputeIntegerHash) {
     Handle<Object> result = ft.Call(key).ToHandleChecked();
 
     uint32_t hash = ComputeSeededHash(k, isolate->heap()->HashSeed());
-    Smi* expected = Smi::FromInt(hash & Smi::kMaxValue);
+    Smi* expected = Smi::FromInt(hash);
     CHECK_EQ(expected, Smi::cast(*result));
   }
 }

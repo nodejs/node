@@ -21,6 +21,7 @@
 #include "src/base/platform/platform.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/globals.h"
+#include "src/third_party/siphash/halfsiphash.h"
 #include "src/vector.h"
 
 #if defined(V8_OS_AIX)
@@ -500,7 +501,11 @@ inline uint32_t ComputeLongHash(uint64_t key) {
 }
 
 inline uint32_t ComputeSeededHash(uint32_t key, uint64_t seed) {
+#ifdef V8_USE_SIPHASH
+  return halfsiphash(key, seed);
+#else
   return ComputeLongHash(static_cast<uint64_t>(key) ^ seed);
+#endif  // V8_USE_SIPHASH
 }
 
 inline uint32_t ComputePointerHash(void* ptr) {
