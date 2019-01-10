@@ -593,6 +593,9 @@ for the [`'connect'`][] event **once**.
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/25436
+    description: Added `onread` option.
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/6021
     description: The `hints` option defaults to `0` in all cases now.
@@ -628,6 +631,39 @@ For [IPC][] connections, available `options` are:
 * `path` {string} Required. Path the client should connect to.
   See [Identifying paths for IPC connections][]. If provided, the TCP-specific
   options above are ignored.
+
+For both types, available `options` include:
+
+* `onread` {Object} - If specified, incoming data is stored in a single `buffer`
+  and passed to the supplied `callback` when data arrives on the socket.
+  Note: this will cause the streaming functionality to not provide any data,
+  however events like `'error'`, `'end'`, and `'close'` will still be emitted
+  as normal and methods like `pause()` and `resume()` will also behave as
+  expected.
+  * `buffer` {Buffer|Uint8Array|Function} - Either a reusable chunk of memory to
+    use for storing incoming data or a function that returns such.
+  * `callback` {Function} This function is called for every chunk of incoming
+    data. Two arguments are passed to it: the number of bytes written to
+    `buffer` and a reference to `buffer`. Return `false` from this function to
+    implicitly `pause()` the socket. This function will be executed in the
+    global context.
+
+Following is an example of a client using the `onread` option:
+
+```js
+const net = require('net');
+net.connect({
+  port: 80,
+  onread: {
+    // Reuses a 4KiB Buffer for every read from the socket
+    buffer: Buffer.alloc(4 * 1024),
+    callback: function(nread, buf) {
+      // Received data is available in `buf` from 0 to `nread`
+      console.log(buf.toString('utf8', 0, nread));
+    }
+  }
+});
+```
 
 #### socket.connect(path[, connectListener])
 

@@ -180,6 +180,21 @@ class EmitToJSStreamListener : public ReportWritesToJSStreamListener {
 };
 
 
+// An alternative listener that uses a custom, user-provided buffer
+// for reading data.
+class CustomBufferJSListener : public ReportWritesToJSStreamListener {
+ public:
+  uv_buf_t OnStreamAlloc(size_t suggested_size) override;
+  void OnStreamRead(ssize_t nread, const uv_buf_t& buf) override;
+  void OnStreamDestroy() override { delete this; }
+
+  explicit CustomBufferJSListener(uv_buf_t buffer) : buffer_(buffer) {}
+
+ private:
+  uv_buf_t buffer_;
+};
+
+
 // A generic stream, comparable to JS land’s `Duplex` streams.
 // A stream is always controlled through one `StreamListener` instance.
 class StreamResource {
@@ -273,9 +288,13 @@ class StreamBase : public StreamResource {
   virtual bool IsIPCPipe();
   virtual int GetFD();
 
-  void CallJSOnreadMethod(ssize_t nread,
-                          v8::Local<v8::ArrayBuffer> ab,
-                          size_t offset = 0);
+  enum StreamBaseJSChecks { DONT_SKIP_NREAD_CHECKS, SKIP_NREAD_CHECKS };
+
+  v8::MaybeLocal<v8::Value> CallJSOnreadMethod(
+      ssize_t nread,
+      v8::Local<v8::ArrayBuffer> ab,
+      size_t offset = 0,
+      StreamBaseJSChecks checks = DONT_SKIP_NREAD_CHECKS);
 
   // This is named `stream_env` to avoid name clashes, because a lot of
   // subclasses are also `BaseObject`s.
@@ -323,6 +342,7 @@ class StreamBase : public StreamResource {
   int WriteBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
   template <enum encoding enc>
   int WriteString(const v8::FunctionCallbackInfo<v8::Value>& args);
+  int UseUserBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void GetFD(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetExternal(const v8::FunctionCallbackInfo<v8::Value>& args);
