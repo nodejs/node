@@ -448,6 +448,8 @@ changes:
   * `importModuleDynamically` {Function} Called during evaluation of this module
     when `import()` is called. If this option is not specified, calls to
     `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
+    This option is part of the experimental API for the `--experimental-modules`
+    flag, and should not be considered stable.
      * `specifier` {string} specifier passed to `import()`
      * `module` {vm.SourceTextModule}
      * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
@@ -812,6 +814,8 @@ changes:
   * `importModuleDynamically` {Function} Called during evaluation of this module
     when `import()` is called. If this option is not specified, calls to
     `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
+    This option is part of the experimental API for the `--experimental-modules`
+    flag, and should not be considered stable.
      * `specifier` {string} specifier passed to `import()`
      * `module` {vm.SourceTextModule}
      * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
@@ -908,6 +912,8 @@ changes:
   * `importModuleDynamically` {Function} Called during evaluation of this module
     when `import()` is called. If this option is not specified, calls to
     `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
+    This option is part of the experimental API for the `--experimental-modules`
+    flag, and should not be considered stable.
      * `specifier` {string} specifier passed to `import()`
      * `module` {vm.SourceTextModule}
      * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
@@ -984,6 +990,8 @@ changes:
   * `importModuleDynamically` {Function} Called during evaluation of this module
     when `import()` is called. If this option is not specified, calls to
     `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
+    This option is part of the experimental API for the `--experimental-modules`
+    flag, and should not be considered stable.
      * `specifier` {string} specifier passed to `import()`
      * `module` {vm.SourceTextModule}
      * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
