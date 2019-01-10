@@ -26,6 +26,7 @@ using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::ReadOnly;
 using v8::String;
@@ -50,6 +51,13 @@ int StreamBase::ReadStopJS(const FunctionCallbackInfo<Value>& args) {
   return ReadStop();
 }
 
+int StreamBase::UseUserBuffer(const FunctionCallbackInfo<Value>& args) {
+  CHECK(Buffer::HasInstance(args[0]));
+
+  uv_buf_t buf = uv_buf_init(Buffer::Data(args[0]), Buffer::Length(args[0]));
+  PushStreamListener(new CustomBufferJSListener(buf));
+  return 0;
+}
 
 int StreamBase::Shutdown(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
@@ -291,19 +299,22 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void StreamBase::CallJSOnreadMethod(ssize_t nread,
-                                    Local<ArrayBuffer> ab,
-                                    size_t offset) {
+MaybeLocal<Value> StreamBase::CallJSOnreadMethod(ssize_t nread,
+                                                 Local<ArrayBuffer> ab,
+                                                 size_t offset,
+                                                 StreamBaseJSChecks checks) {
   Environment* env = env_;
 
   DCHECK_EQ(static_cast<int32_t>(nread), nread);
   DCHECK_LE(offset, INT32_MAX);
 
-  if (ab.IsEmpty()) {
-    DCHECK_EQ(offset, 0);
-    DCHECK_LE(nread, 0);
-  } else {
-    DCHECK_GE(nread, 0);
+  if (checks == DONT_SKIP_NREAD_CHECKS) {
+    if (ab.IsEmpty()) {
+      DCHECK_EQ(offset, 0);
+      DCHECK_LE(nread, 0);
+    } else {
+      DCHECK_GE(nread, 0);
+    }
   }
 
   env->stream_base_state()[kReadBytesOrError] = nread;
@@ -317,7 +328,7 @@ void StreamBase::CallJSOnreadMethod(ssize_t nread,
   CHECK_NOT_NULL(wrap);
   Local<Value> onread = wrap->object()->GetInternalField(kOnReadFunctionField);
   CHECK(onread->IsFunction());
-  wrap->MakeCallback(onread.As<Function>(), arraysize(argv), argv);
+  return wrap->MakeCallback(onread.As<Function>(), arraysize(argv), argv);
 }
 
 
@@ -366,6 +377,9 @@ void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   env->SetProtoMethod(t, "readStart", JSMethod<&StreamBase::ReadStartJS>);
   env->SetProtoMethod(t, "readStop", JSMethod<&StreamBase::ReadStopJS>);
   env->SetProtoMethod(t, "shutdown", JSMethod<&StreamBase::Shutdown>);
+  env->SetProtoMethod(t,
+                      "useUserBuffer",
+                      JSMethod<&StreamBase::UseUserBuffer>);
   env->SetProtoMethod(t, "writev", JSMethod<&StreamBase::Writev>);
   env->SetProtoMethod(t, "writeBuffer", JSMethod<&StreamBase::WriteBuffer>);
   env->SetProtoMethod(
@@ -445,6 +459,7 @@ void StreamResource::ClearError() {
   // No-op
 }
 
+
 uv_buf_t EmitToJSStreamListener::OnStreamAlloc(size_t suggested_size) {
   CHECK_NOT_NULL(stream_);
   Environment* env = static_cast<StreamBase*>(stream_)->stream_env();
@@ -469,6 +484,32 @@ void EmitToJSStreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
   buf.Resize(nread);
 
   stream->CallJSOnreadMethod(nread, buf.ToArrayBuffer());
+}
+
+
+uv_buf_t CustomBufferJSListener::OnStreamAlloc(size_t suggested_size) {
+  return buffer_;
+}
+
+
+void CustomBufferJSListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
+  CHECK_NOT_NULL(stream_);
+  CHECK_EQ(buf.base, buffer_.base);
+
+  StreamBase* stream = static_cast<StreamBase*>(stream_);
+  Environment* env = stream->stream_env();
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
+
+  MaybeLocal<Value> ret = stream->CallJSOnreadMethod(nread,
+                             Local<ArrayBuffer>(),
+                             0,
+                             StreamBase::SKIP_NREAD_CHECKS);
+  Local<Value> next_buf_v;
+  if (ret.ToLocal(&next_buf_v) && !next_buf_v->IsUndefined()) {
+    buffer_.base = Buffer::Data(next_buf_v);
+    buffer_.len = Buffer::Length(next_buf_v);
+  }
 }
 
 
