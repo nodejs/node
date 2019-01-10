@@ -980,7 +980,11 @@ if (typeof Symbol !== 'undefined') {
   const aSet = new Set([1, 3]);
   assert.strictEqual(util.inspect(aSet.keys()), '[Set Iterator] { 1, 3 }');
   assert.strictEqual(util.inspect(aSet.values()), '[Set Iterator] { 1, 3 }');
-  assert.strictEqual(util.inspect(aSet.entries()), '[Set Iterator] { 1, 3 }');
+  // TODO: This should be activated when the necessary V8 change landed.
+  // assert.strictEqual(
+  //   util.inspect(aSet.entries()),
+  //   '[Set Iterator] { [ 1, 1 ], [ 3, 3 ] }'
+  // );
   // Make sure the iterator doesn't get consumed.
   const keys = aSet.keys();
   assert.strictEqual(util.inspect(keys), '[Set Iterator] { 1, 3 }');
@@ -1610,7 +1614,8 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   [{ a: 5 }, '{ a: 5 }'],
   [new Set([1, 2]), 'Set { 1, 2 }'],
   [new Map([[1, 2]]), 'Map { 1 => 2 }'],
-  [new Set([1, 2]).entries(), '[Set Iterator] { 1, 2 }'],
+  // TODO: This should be activated when the necessary V8 change landed.
+  // [new Set([1, 2]).entries(), '[Set Iterator] { [ 1, 1 ], [ 2, 2 ] }'],
   [new Map([[1, 2]]).keys(), '[Map Iterator] { 1 }'],
   [new Date(2000), '1970-01-01T00:00:02.000Z'],
   [new Uint8Array(2), 'Uint8Array [ 0, 0 ]'],
