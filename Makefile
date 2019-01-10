@@ -227,7 +227,7 @@ coverage-test: coverage-build
 	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/gen/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/src/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/src/tracing/*.gcda
-	-$(MAKE) $(COVTESTS)
+	$(MAKE) $(COVTESTS)
 	mv lib lib__
 	mv lib_ lib
 	mkdir -p coverage .cov_tmp
