@@ -50,7 +50,7 @@ const server = http.Server(common.mustCall((req, res) => {
   }
 
   if (expectedRequests.length === 0)
-    this.close();
+    server.close();
 
   req.on('end', () => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -62,9 +62,9 @@ const server = http.Server(common.mustCall((req, res) => {
 server.listen(0);
 
 server.on('listening', () => {
-  const agent = new http.Agent({ port: this.address().port, maxSockets: 1 });
+  const agent = new http.Agent({ port: server.address().port, maxSockets: 1 });
   const req = http.get({
-    port: this.address().port,
+    port: server.address().port,
     path: '/hello',
     headers: {
       Accept: '*/*',
