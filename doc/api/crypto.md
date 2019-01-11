@@ -1018,7 +1018,7 @@ This can be called many times with new data as it is streamed.
 added: v0.1.94
 -->
 
-The `Hmac` Class is a utility for creating cryptographic HMAC digests. It can
+The `Hmac` class is a utility for creating cryptographic HMAC digests. It can
 be used in one of two ways:
 
 - As a [stream][] that is both readable and writable, where data is written
@@ -1196,7 +1196,7 @@ or `'private'` for private (asymmetric) keys.
 added: v0.1.92
 -->
 
-The `Sign` Class is a utility for generating signatures. It can be used in one
+The `Sign` class is a utility for generating signatures. It can be used in one
 of two ways:
 
 - As a writable [stream][], where data to be signed is written and the
@@ -1208,51 +1208,46 @@ The [`crypto.createSign()`][] method is used to create `Sign` instances. The
 argument is the string name of the hash function to use. `Sign` objects are not
 to be created directly using the `new` keyword.
 
-Example: Using `Sign` objects as streams:
+Example: Using `Sign` and [`Verify`][] objects as streams:
 
 ```js
 const crypto = require('crypto');
-const sign = crypto.createSign('SHA256');
 
+const { privateKey, publicKey } = crypto.generateKeyPairSync('ec', {
+  namedCurve: 'sect239k1'
+});
+
+const sign = crypto.createSign('SHA256');
 sign.write('some data to sign');
 sign.end();
+const signature = sign.sign(privateKey, 'hex');
 
-const privateKey = getPrivateKeySomehow();
-console.log(sign.sign(privateKey, 'hex'));
-// Prints: the calculated signature using the specified private key and
-// SHA-256. For RSA keys, the algorithm is RSASSA-PKCS1-v1_5 (see padding
-// parameter below for RSASSA-PSS). For EC keys, the algorithm is ECDSA.
+const verify = crypto.createVerify('SHA256');
+verify.write('some data to sign');
+verify.end();
+console.log(verify.verify(publicKey, signature));
+// Prints: true or false
 ```
 
-Example: Using the [`sign.update()`][] and [`sign.sign()`][] methods:
+Example: Using the [`sign.update()`][] and [`verify.update()`][] methods:
 
 ```js
 const crypto = require('crypto');
+
+const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
+  modulusLength: 2048,
+});
+
 const sign = crypto.createSign('SHA256');
-
 sign.update('some data to sign');
+sign.end();
+const signature = sign.sign(privateKey);
 
-const privateKey = getPrivateKeySomehow();
-console.log(sign.sign(privateKey, 'hex'));
-// Prints: the calculated signature
-```
-
-In some cases, a `Sign` instance can also be created by passing in a signature
-algorithm name, such as 'RSA-SHA256'. This will use the corresponding digest
-algorithm. This does not work for all signature algorithms, such as
-'ecdsa-with-SHA256'. Use digest names instead.
-
-Example: signing using legacy signature algorithm name
-
-```js
-const crypto = require('crypto');
-const sign = crypto.createSign('RSA-SHA256');
-
-sign.update('some data to sign');
-
-const privateKey = getPrivateKeySomehow();
-console.log(sign.sign(privateKey, 'hex'));
-// Prints: the calculated signature
+const verify = crypto.createVerify('SHA256');
+verify.update('some data to sign');
+verify.end();
+console.log(verify.verify(publicKey, signature));
+// Prints: true
 ```
 
 ### sign.sign(privateKey[, outputEncoding])
@@ -1332,34 +1327,7 @@ of two ways:
 The [`crypto.createVerify()`][] method is used to create `Verify` instances.
 `Verify` objects are not to be created directly using the `new` keyword.
 
-Example: Using `Verify` objects as streams:
-
-```js
-const crypto = require('crypto');
-const verify = crypto.createVerify('SHA256');
-
-verify.write('some data to sign');
-verify.end();
-
-const publicKey = getPublicKeySomehow();
-const signature = getSignatureToVerify();
-console.log(verify.verify(publicKey, signature));
-// Prints: true or false
-```
-
-Example: Using the [`verify.update()`][] and [`verify.verify()`][] methods:
-
-```js
-const crypto = require('crypto');
-const verify = crypto.createVerify('SHA256');
-
-verify.update('some data to sign');
-
-const publicKey = getPublicKeySomehow();
-const signature = getSignatureToVerify();
-console.log(verify.verify(publicKey, signature));
-// Prints: true or false
-```
+See [`Sign`][] for examples.
 
 ### verify.update(data[, inputEncoding])
 <!-- YAML
@@ -1886,10 +1854,15 @@ added: v0.1.92
 * `options` {Object} [`stream.Writable` options][]
 * Returns: {Sign}
 
-Creates and returns a `Sign` object that uses the given `algorithm`.
-Use [`crypto.getHashes()`][] to obtain an array of names of the available
-signing algorithms. Optional `options` argument controls the
-`stream.Writable` behavior.
+Creates and returns a `Sign` object that uses the given `algorithm`.  Use
+[`crypto.getHashes()`][] to obtain the names of the available digest algorithms.
+Optional `options` argument controls the `stream.Writable` behavior.
+
+In some cases, a `Sign` instance can be created using the name of a signature
+algorithm, such as `'RSA-SHA256'`, instead of a digest algorithm. This will use
+the corresponding digest algorithm. This does not work for all signature
+algorithms, such as `'ecdsa-with-SHA256'`, so it is best to always use digest
+algorithm names.
 
 ### crypto.createVerify(algorithm[, options])
 <!-- YAML
@@ -1903,6 +1876,12 @@ Creates and returns a `Verify` object that uses the given algorithm.
 Use [`crypto.getHashes()`][] to obtain an array of names of the available
 signing algorithms. Optional `options` argument controls the
 `stream.Writable` behavior.
+
+In some cases, a `Verify` instance can be created using the name of a signature
+algorithm, such as `'RSA-SHA256'`, instead of a digest algorithm. This will use
+the corresponding digest algorithm. This does not work for all signature
+algorithms, such as `'ecdsa-with-SHA256'`, so it is best to always use digest
+algorithm names.
 
 ### crypto.generateKeyPair(type, options, callback)
 <!-- YAML
@@ -2084,7 +2063,7 @@ added: v10.0.0
 added: v0.9.3
 -->
 * Returns: {string[]} An array of the names of the supported hash algorithms,
-  such as `'RSA-SHA256'`.
+  such as `'RSA-SHA256'`. Hash algorithms are also called "digest" algorithms.
 
 ```js
 const hashes = crypto.getHashes();
@@ -3103,7 +3082,9 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`Buffer`]: buffer.html
 [`EVP_BytesToKey`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_BytesToKey.html
 [`KeyObject`]: #crypto_class_keyobject
+[`Sign`]: #crypto_class_sign
 [`UV_THREADPOOL_SIZE`]: cli.html#cli_uv_threadpool_size_size
+[`Verify`]: #crypto_class_verify
 [`cipher.final()`]: #crypto_cipher_final_outputencoding
 [`cipher.update()`]: #crypto_cipher_update_data_inputencoding_outputencoding
 [`crypto.createCipher()`]: #crypto_crypto_createcipher_algorithm_password_options
