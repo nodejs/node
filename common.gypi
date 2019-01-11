@@ -88,6 +88,19 @@
           ['OS=="aix"', {
             'cflags': [ '-gxcoff' ],
             'ldflags': [ '-Wl,-bbigtoc' ],
+            'conditions': [
+              ['target_arch=="ppc64"', {
+                'ldflags': [
+                  '-Wl,-blibpath:/usr/lib:/lib:'
+                    '/opt/freeware/lib/pthread/ppc64'
+                ],
+              }],
+              ['target_arch=="ppc"', {
+                'ldflags': [
+                  '-Wl,-blibpath:/usr/lib:/lib:/opt/freeware/lib/pthread'
+                ],
+              }],
+            ],
           }],
           ['OS == "android"', {
             'cflags': [ '-fPIE' ],
@@ -337,11 +350,18 @@
           [ 'OS=="aix"', {
             'conditions': [
               [ 'target_arch=="ppc"', {
-                'ldflags': [ '-Wl,-bmaxdata:0x60000000/dsa' ],
+                'ldflags': [
+                  '-Wl,-bmaxdata:0x60000000/dsa',
+                  '-Wl,-blibpath:/usr/lib:/lib:/opt/freeware/lib/pthread',
+                 ],
               }],
               [ 'target_arch=="ppc64"', {
                 'cflags': [ '-maix64' ],
-                'ldflags': [ '-maix64' ],
+                'ldflags': [
+                  '-maix64',
+                  '-Wl,-blibpath:/usr/lib:/lib:'
+                    '/opt/freeware/lib/pthread/ppc64',
+                ],
               }],
             ],
             'ldflags': [ '-Wl,-bbigtoc' ],
