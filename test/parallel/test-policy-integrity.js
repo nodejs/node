@@ -57,7 +57,7 @@ function test({
     manifest.resources[url] = {
       integrity: `sha256-${hash('sha256', match ? body : body + '\n')}`
     };
-    fs.writeFileSync(new URL(url, pathToFileURL(tmpdir.path)), body);
+    fs.writeFileSync(new URL(url, pathToFileURL(tmpdir.path)+'/'), body);
   }
   fs.writeFileSync(policyFilepath, JSON.stringify(manifest, null, 2));
   const { status } = spawnSync(process.execPath, [
