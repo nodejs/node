@@ -1853,6 +1853,16 @@ assert.strictEqual(
     util.inspect(new StorageObject()),
     '<[Object: null prototype] {}> {}'
   );
+
+  obj = [1, 2, 3];
+  Object.setPrototypeOf(obj, Number.prototype);
+  assert.strictEqual(inspect(obj), "Number { '0': 1, '1': 2, '2': 3 }");
+
+  Object.setPrototypeOf(obj, Object.create(null));
+  assert.strictEqual(
+    inspect(obj),
+    "<[Object: null prototype] {}> { '0': 1, '1': 2, '2': 3 }"
+  );
 }
 
 // Check that the fallback always works.
