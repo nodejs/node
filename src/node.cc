@@ -240,6 +240,7 @@ static struct {
   }
 
   void Dispose() {
+    StopTracingAgent();
     platform_->Shutdown();
     delete platform_;
     platform_ = nullptr;
@@ -579,7 +580,6 @@ static void WaitForInspectorDisconnect(Environment* env) {
 void Exit(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   WaitForInspectorDisconnect(env);
-  v8_platform.StopTracingAgent();
   int code = args[0]->Int32Value(env->context()).FromMaybe(0);
   env->Exit(code);
 }
@@ -1477,7 +1477,6 @@ int Start(int argc, char** argv) {
   per_process::v8_initialized = true;
   const int exit_code =
       Start(uv_default_loop(), args, exec_args);
-  v8_platform.StopTracingAgent();
   per_process::v8_initialized = false;
   V8::Dispose();
 
