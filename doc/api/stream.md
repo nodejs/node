@@ -1537,10 +1537,12 @@ changes:
   * `highWaterMark` {number} Buffer level when
     [`stream.write()`][stream-write] starts returning `false`. **Default:**
     `16384` (16kb), or `16` for `objectMode` streams.
-  * `decodeStrings` {boolean} Whether or not to encode strings as
-    `Buffer`s before passing them to [`stream._write()`][stream-_write],
-    using the encoding specified in the [`stream.write()`][stream-write] call.
-    **Default:** `true`.
+  * `decodeStrings` {boolean} Whether to encode `string`s passed to
+    [`stream.write()`][stream-write] to `Buffer`s (with the encoding
+    specified in the [`stream.write()`][stream-write] call) before passing
+    them to [`stream._write()`][stream-_write]. Other types of data are not
+    converted (i.e. `Buffer`s are not decoded into `string`s). Setting to
+    false will prevent `string`s from being converted.  **Default:** `true`.
   * `defaultEncoding` {string} The default encoding that is used when no
     encoding is specified as an argument to [`stream.write()`][stream-write].
     **Default:** `'utf8'`.
@@ -1606,9 +1608,11 @@ const myWritable = new Writable({
 
 #### writable.\_write(chunk, encoding, callback)
 
-* `chunk` {Buffer|string|any} The chunk to be written. Will **always**
-  be a buffer unless the `decodeStrings` option was set to `false`
-  or the stream is operating in object mode.
+* `chunk` {Buffer|string|any} The `Buffer` to be written, converted from the
+  `string` passed to [`stream.write()`][stream-write]. If the stream's
+  `decodeStrings` option is `false` or the stream is operating in object mode,
+  the chunk will not be converted & will be whatever was passed to
+  [`stream.write()`][stream-write].
 * `encoding` {string} If the chunk is a string, then `encoding` is the
   character encoding of that string. If chunk is a `Buffer`, or if the
   stream is operating in object mode, `encoding` may be ignored.
@@ -2301,9 +2305,11 @@ user programs.
 
 #### transform.\_transform(chunk, encoding, callback)
 
-* `chunk` {Buffer|string|any} The chunk to be transformed. Will **always**
-  be a buffer unless the `decodeStrings` option was set to `false`
-  or the stream is operating in object mode.
+* `chunk` {Buffer|string|any} The `Buffer` to be transformed, converted from
+  the `string` passed to [`stream.write()`][stream-write]. If the stream's
+  `decodeStrings` option is `false` or the stream is operating in object mode,
+  the chunk will not be converted & will be whatever was passed to
+  [`stream.write()`][stream-write].
 * `encoding` {string} If the chunk is a string, then this is the
   encoding type. If chunk is a buffer, then this is the special
   value - 'buffer', ignore it in this case.
