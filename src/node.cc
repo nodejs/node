@@ -701,7 +701,12 @@ void RunBootstrapping(Environment* env) {
       FIXED_ONE_BYTE_STRING(isolate, "getBinding"),
       FIXED_ONE_BYTE_STRING(isolate, "getLinkedBinding"),
       FIXED_ONE_BYTE_STRING(isolate, "getInternalBinding"),
-      FIXED_ONE_BYTE_STRING(isolate, "debugBreak")};
+      // --inspect-brk-node
+      FIXED_ONE_BYTE_STRING(isolate, "debugBreak"),
+      // --experimental-modules
+      FIXED_ONE_BYTE_STRING(isolate, "experimentalModules"),
+      // --expose-internals
+      FIXED_ONE_BYTE_STRING(isolate, "exposeInternals")};
   std::vector<Local<Value>> loaders_args = {
       process,
       env->NewFunctionTemplate(binding::GetBinding)
@@ -714,7 +719,11 @@ void RunBootstrapping(Environment* env) {
           ->GetFunction(context)
           .ToLocalChecked(),
       Boolean::New(isolate,
-                   env->options()->debug_options().break_node_first_line)};
+                   env->options()->debug_options().break_node_first_line),
+      Boolean::New(isolate,
+                   env->options()->experimental_modules),
+      Boolean::New(isolate,
+                   env->options()->expose_internals)};
 
   MaybeLocal<Value> loader_exports;
   // Bootstrap internal loaders
