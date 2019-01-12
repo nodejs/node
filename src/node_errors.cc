@@ -324,7 +324,7 @@ TryCatchScope::~TryCatchScope() {
   if (HasCaught() && !HasTerminated() && mode_ == CatchMode::kFatal) {
     HandleScope scope(env_->isolate());
     ReportException(env_, Exception(), Message());
-    exit(7);
+    env_->Exit(7);
   }
 }
 
@@ -711,7 +711,7 @@ void FatalException(Isolate* isolate,
     // Failed before the process._fatalException function was added!
     // this is probably pretty bad.  Nothing to do but report and exit.
     ReportException(env, error, message);
-    exit(6);
+    env->Exit(6);
   } else {
     errors::TryCatchScope fatal_try_catch(env);
 
@@ -727,7 +727,7 @@ void FatalException(Isolate* isolate,
     if (fatal_try_catch.HasCaught()) {
       // The fatal exception function threw, so we must exit
       ReportException(env, fatal_try_catch);
-      exit(7);
+      env->Exit(7);
 
     } else if (caught.ToLocalChecked()->IsFalse()) {
       ReportException(env, error, message);
@@ -738,9 +738,9 @@ void FatalException(Isolate* isolate,
       Local<Value> code;
       if (!process_object->Get(env->context(), exit_code).ToLocal(&code) ||
           !code->IsInt32()) {
-        exit(1);
+        env->Exit(1);
       }
-      exit(code.As<Int32>()->Value());
+      env->Exit(code.As<Int32>()->Value());
     }
   }
 }
