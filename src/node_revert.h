@@ -43,13 +43,14 @@ inline void Revert(const reversion cve) {
   printf("SECURITY WARNING: Reverting %s\n", RevertMessage(cve));
 }
 
-inline void Revert(const char* cve) {
+inline void Revert(const char* cve, std::string* error) {
 #define V(code, label, _)                                                     \
   if (strcmp(cve, label) == 0) return Revert(SECURITY_REVERT_##code);
   SECURITY_REVERSIONS(V)
 #undef V
-  printf("Error: Attempt to revert an unknown CVE [%s]\n", cve);
-  exit(12);
+  *error = "Error: Attempt to revert an unknown CVE [";
+  *error += cve;
+  *error += ']';
 }
 
 inline bool IsReverted(const reversion cve) {

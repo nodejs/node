@@ -915,8 +915,14 @@ int ProcessGlobalArgs(std::vector<std::string>* args,
 
   if (!errors->empty()) return 9;
 
-  for (const std::string& cve : per_process::cli_options->security_reverts)
-    Revert(cve.c_str());
+  std::string revert_error;
+  for (const std::string& cve : per_process::cli_options->security_reverts) {
+    Revert(cve.c_str(), &revert_error);
+    if (!revert_error.empty()) {
+      errors->emplace_back(std::move(revert_error));
+      return 12;
+    }
+  }
 
   auto env_opts = per_process::cli_options->per_isolate->per_env;
   if (std::find(v8_args.begin(), v8_args.end(),
