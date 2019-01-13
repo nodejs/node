@@ -57,9 +57,9 @@ if (process.argv.length === 2 &&
   const bytesToRead = 1500;
   const buffer = Buffer.allocUnsafe(bytesToRead);
   const fd = fs.openSync(module.parent.filename, 'r');
-  fs.readSync(fd, buffer, 0, bytesToRead);
+  const bytesRead = fs.readSync(fd, buffer, 0, bytesToRead);
   fs.closeSync(fd);
-  const source = buffer.toString();
+  const source = buffer.toString('utf8', 0, bytesRead);
 
   const flagStart = source.indexOf('// Flags: --') + 10;
   if (flagStart !== 9) {
