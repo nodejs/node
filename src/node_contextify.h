@@ -6,7 +6,6 @@
 #include "base_object-inl.h"
 #include "node_context_data.h"
 #include "node_errors.h"
-#include "node_internals.h"
 
 namespace node {
 namespace contextify {

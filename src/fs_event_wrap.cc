@@ -23,7 +23,6 @@
 #include "env-inl.h"
 #include "util-inl.h"
 #include "node.h"
-#include "node_internals.h"
 #include "handle_wrap.h"
 #include "string_bytes.h"
 

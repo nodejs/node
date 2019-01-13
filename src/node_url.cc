@@ -2,7 +2,7 @@
 #include "base_object-inl.h"
 #include "node_errors.h"
 #include "node_i18n.h"
-#include "node_internals.h"
+#include "util.h"
 
 #include <string>
 #include <vector>

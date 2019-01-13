@@ -26,7 +26,6 @@
 #include "node_crypto_bio.h"  // NodeBIO
 // ClientHelloParser
 #include "node_crypto_clienthello-inl.h"
-#include "node_internals.h"
 #include "stream_base-inl.h"
 #include "util-inl.h"
 

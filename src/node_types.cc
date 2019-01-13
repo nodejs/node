@@ -1,4 +1,5 @@
-#include "node_internals.h"
+#include "env-inl.h"
+#include "node.h"
 
 using v8::Context;
 using v8::FunctionCallbackInfo;

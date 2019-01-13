@@ -1,5 +1,6 @@
 #include <errno.h>
-#include "node_internals.h"
+#include "env-inl.h"
+#include "node_binding.h"
 #include "node_options-inl.h"
 
 using v8::Boolean;

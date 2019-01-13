@@ -44,12 +44,13 @@
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 
+#include "base_object-inl.h"
+#include "env-inl.h"
 #include "node.h"
 #include "node_buffer.h"
 #include "node_errors.h"
-#include "env-inl.h"
+#include "node_internals.h"
 #include "util-inl.h"
-#include "base_object-inl.h"
 #include "v8.h"
 
 #include <unicode/utypes.h>

@@ -1,6 +1,5 @@
 #include "node_native_module.h"
 #include "node_errors.h"
-#include "node_internals.h"
 
 namespace node {
 

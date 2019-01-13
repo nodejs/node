@@ -22,9 +22,9 @@
 #include "node_file.h"
 #include "aliased_buffer.h"
 #include "node_buffer.h"
-#include "node_internals.h"
 #include "node_process.h"
 #include "node_stat_watcher.h"
+#include "util.h"
 
 #include "tracing/trace_event.h"
 

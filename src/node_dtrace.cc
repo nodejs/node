@@ -43,7 +43,6 @@
 #endif
 
 #include "node_errors.h"
-#include "node_internals.h"
 
 #include <string.h>
 

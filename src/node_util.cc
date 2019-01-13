@@ -1,6 +1,6 @@
-#include "node_internals.h"
 #include "node_errors.h"
 #include "node_watchdog.h"
+#include "util.h"
 
 namespace node {
 namespace util {
