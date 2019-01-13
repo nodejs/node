@@ -114,15 +114,13 @@ Worker::Worker(Environment* env,
     Isolate::Scope isolate_scope(isolate_);
     HandleScope handle_scope(isolate_);
 
-    IsolateData* isolate_data =
-        CreateIsolateData(isolate_,
-                          &loop_,
-                          env->isolate_data()->platform(),
-                          array_buffer_allocator_.get());
+    isolate_data_.reset(CreateIsolateData(isolate_,
+                                          &loop_,
+                                          env->isolate_data()->platform(),
+                                          array_buffer_allocator_.get()));
     if (per_isolate_opts != nullptr) {
-      isolate_data->set_options(per_isolate_opts);
+      isolate_data_->set_options(per_isolate_opts);
     }
-    isolate_data_.reset(isolate_data);
     CHECK(isolate_data_);
 
     Local<Context> context = NewContext(isolate_);
@@ -419,9 +417,14 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
         if (!array->Get(env->context(), i).ToLocal(&arg)) {
           return;
         }
+        v8::MaybeLocal<v8::String> arg_v8_string =
+            arg->ToString(env->context());
+        if (arg_v8_string.IsEmpty()) {
+          return;
+        }
         Utf8Value arg_utf8_value(
             args.GetIsolate(),
-            arg->ToString(env->context()).FromMaybe(v8::Local<v8::String>()));
+            arg_v8_string.FromMaybe(v8::Local<v8::String>()));
         std::string arg_string(arg_utf8_value.out(), arg_utf8_value.length());
         exec_argv.push_back(arg_string);
       }

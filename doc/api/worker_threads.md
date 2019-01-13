@@ -324,6 +324,7 @@ if (isMainThread) {
   * `stderr` {boolean} If this is set to `true`, then `worker.stderr` will
     not automatically be piped through to `process.stderr` in the parent.
   * `execArgv` {string[]} List of node CLI options passed to the worker.
+    V8 options and options that affect the process are not supported.
 
 ### Event: 'error'
 <!-- YAML
