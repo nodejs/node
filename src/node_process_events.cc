@@ -1,8 +1,8 @@
 #include <stdarg.h>
 
-#include "env.h"
-#include "node_internals.h"
+#include "env-inl.h"
 #include "node_process.h"
+#include "util.h"
 
 namespace node {
 using v8::Context;

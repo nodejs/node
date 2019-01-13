@@ -1,7 +1,6 @@
 #include "stream_pipe.h"
 #include "stream_base-inl.h"
 #include "node_buffer.h"
-#include "node_internals.h"
 
 using v8::Context;
 using v8::External;

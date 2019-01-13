@@ -1,5 +1,4 @@
 #include "debug_utils.h"
-#include "node_internals.h"
 
 #ifdef __POSIX__
 #if defined(__linux__)

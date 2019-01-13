@@ -44,38 +44,8 @@
 #define Z_MIN_WINDOWBITS 8
 #define Z_MAX_WINDOWBITS 15
 #define Z_DEFAULT_WINDOWBITS 15
-// Fewer than 64 bytes per chunk is not recommended.
-// Technically it could work with as few as 8, but even 64 bytes
-// is low.  Usually a MB or more is best.
-#define Z_MIN_CHUNK 64
-#define Z_MAX_CHUNK std::numeric_limits<double>::infinity()
-#define Z_DEFAULT_CHUNK (16 * 1024)
-#define Z_MIN_MEMLEVEL 1
-#define Z_MAX_MEMLEVEL 9
-#define Z_DEFAULT_MEMLEVEL 8
-#define Z_MIN_LEVEL -1
-#define Z_MAX_LEVEL 9
-#define Z_DEFAULT_LEVEL Z_DEFAULT_COMPRESSION
 
 struct sockaddr;
-
-// Variation on NODE_DEFINE_CONSTANT that sets a String value.
-#define NODE_DEFINE_STRING_CONSTANT(target, name, constant)                   \
-  do {                                                                        \
-    v8::Isolate* isolate = target->GetIsolate();                              \
-    v8::Local<v8::String> constant_name =                                     \
-        v8::String::NewFromUtf8(isolate, name, v8::NewStringType::kNormal)    \
-            .ToLocalChecked();                                                \
-    v8::Local<v8::String> constant_value =                                    \
-        v8::String::NewFromUtf8(isolate, constant, v8::NewStringType::kNormal)\
-            .ToLocalChecked();                                                \
-    v8::PropertyAttribute constant_attributes =                               \
-        static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);    \
-    target->DefineOwnProperty(isolate->GetCurrentContext(),                   \
-                              constant_name,                                  \
-                              constant_value,                                 \
-                              constant_attributes).FromJust();                \
-  } while (0)
 
 namespace node {
 
@@ -126,79 +96,9 @@ void RegisterSignalHandler(int signal,
 std::string GetHumanReadableProcessName();
 void GetHumanReadableProcessName(char (*name)[1024]);
 
-template <typename T, size_t N>
-constexpr size_t arraysize(const T(&)[N]) { return N; }
-
-#ifndef ROUND_UP
-# define ROUND_UP(a, b) ((a) % (b) ? ((a) + (b)) - ((a) % (b)) : (a))
-#endif
-
-#ifdef __GNUC__
-# define MUST_USE_RESULT __attribute__((warn_unused_result))
-#else
-# define MUST_USE_RESULT
-#endif
-
-class SlicedArguments {
- public:
-  inline explicit SlicedArguments(
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      size_t start = 0);
-  inline size_t size() const { return size_; }
-  inline v8::Local<v8::Value>* data() { return data_; }
-
- private:
-  size_t size_;
-  v8::Local<v8::Value>* data_;
-  v8::Local<v8::Value> fixed_[64];
-  std::vector<v8::Local<v8::Value>> dynamic_;
-};
-
-SlicedArguments::SlicedArguments(
-    const v8::FunctionCallbackInfo<v8::Value>& args,
-    size_t start) : size_(0), data_(fixed_) {
-  const size_t length = static_cast<size_t>(args.Length());
-  if (start >= length) return;
-  const size_t size = length - start;
-
-  if (size > arraysize(fixed_)) {
-    dynamic_.resize(size);
-    data_ = dynamic_.data();
-  }
-
-  for (size_t i = 0; i < size; ++i)
-    data_[i] = args[i + start];
-
-  size_ = size;
-}
-
 namespace task_queue {
 void PromiseRejectCallback(v8::PromiseRejectMessage message);
 }  // namespace task_queue
-
-enum Endianness {
-  kLittleEndian,  // _Not_ LITTLE_ENDIAN, clashes with endian.h.
-  kBigEndian
-};
-
-inline enum Endianness GetEndianness() {
-  // Constant-folded by the compiler.
-  const union {
-    uint8_t u8[2];
-    uint16_t u16;
-  } u = {
-    { 1, 0 }
-  };
-  return u.u16 == 1 ? kLittleEndian : kBigEndian;
-}
-
-inline bool IsLittleEndian() {
-  return GetEndianness() == kLittleEndian;
-}
-
-inline bool IsBigEndian() {
-  return GetEndianness() == kBigEndian;
-}
 
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:

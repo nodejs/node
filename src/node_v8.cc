@@ -20,7 +20,6 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node.h"
-#include "node_internals.h"
 #include "env-inl.h"
 #include "util-inl.h"
 #include "v8.h"

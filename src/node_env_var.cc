@@ -1,6 +1,6 @@
 #include "node_errors.h"
-#include "node_internals.h"
 #include "node_process.h"
+#include "util.h"
 
 #ifdef __APPLE__
 #include <crt_externs.h>

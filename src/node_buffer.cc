@@ -19,9 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "node.h"
 #include "node_buffer.h"
+#include "node.h"
 #include "node_errors.h"
+#include "node_internals.h"
 
 #include "env-inl.h"
 #include "string_bytes.h"
