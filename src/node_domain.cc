@@ -1,5 +1,5 @@
+#include "env-inl.h"
 #include "v8.h"
-#include "node_internals.h"
 
 namespace node {
 namespace domain {

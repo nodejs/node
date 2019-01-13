@@ -24,7 +24,6 @@
 #include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "node.h"
-#include "node_internals.h"
 #include "req_wrap-inl.h"
 #include "util-inl.h"
 #include "uv.h"

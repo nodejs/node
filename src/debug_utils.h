@@ -3,10 +3,10 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "async_wrap.h"
-#include "env.h"
-#include <string>
 #include <sstream>
+#include <string>
+#include "async_wrap.h"
+#include "env-inl.h"
 
 // Use FORCE_INLINE on functions that have a debug-category-enabled check first
 // and then ideally only a single function call following it, to maintain

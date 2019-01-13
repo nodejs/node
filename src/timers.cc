@@ -1,4 +1,6 @@
-#include "node_internals.h"
+#include "env-inl.h"
+#include "util.h"
+#include "v8.h"
 
 #include <stdint.h>
 

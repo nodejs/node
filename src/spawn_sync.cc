@@ -22,8 +22,8 @@
 #include "spawn_sync.h"
 #include "debug_utils.h"
 #include "env-inl.h"
+#include "node_internals.h"
 #include "string_bytes.h"
-#include "util.h"
 
 #include <string.h>
 

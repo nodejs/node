@@ -1,6 +1,7 @@
 #include "node_binding.h"
-#include "node_internals.h"
+#include "env-inl.h"
 #include "node_native_module.h"
+#include "util.h"
 
 #if HAVE_OPENSSL
 #define NODE_BUILTIN_OPENSSL_MODULES(V) V(crypto) V(tls_wrap)

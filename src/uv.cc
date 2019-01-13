@@ -22,8 +22,8 @@
 #include "uv.h"
 #include "env-inl.h"
 #include "node.h"
-#include "node_internals.h"
 #include "node_process.h"
+#include "util.h"
 
 namespace node {
 
