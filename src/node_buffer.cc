@@ -392,11 +392,6 @@ MaybeLocal<Object> New(Environment* env,
   }
 
   Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), data, length);
-  // `Neuter()`ing is required here to prevent materialization of the backing
-  // store in v8. `nullptr` buffers are not writable, so this is semantically
-  // correct.
-  if (data == nullptr)
-    ab->Neuter();
   MaybeLocal<Uint8Array> ui = Buffer::New(env, ab, 0, length);
 
   if (ui.IsEmpty()) {
