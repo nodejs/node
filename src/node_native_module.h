@@ -54,6 +54,8 @@ class NativeModuleLoader {
       std::vector<v8::Local<v8::Value>>* arguments,
       Environment* optional_env);
 
+  bool Exists(const char* id);
+
  private:
   static void GetCacheUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
   // Passing map of builtin module source code into JS land as
