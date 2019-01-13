@@ -61,6 +61,10 @@ Local<Set> ToJsSet(Local<Context> context,
   return out;
 }
 
+bool NativeModuleLoader::Exists(const char* id) {
+  return source_.find(id) != source_.end();
+}
+
 void NativeModuleLoader::GetCacheUsage(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);

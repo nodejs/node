@@ -647,7 +647,28 @@ static MaybeLocal<Value> ExecuteBootstrapper(
 
 void LoadEnvironment(Environment* env) {
   RunBootstrapping(env);
-  StartExecution(env);
+
+  // To allow people to extend Node in different ways, this hook allows
+  // one to drop a file lib/_third_party_main.js into the build
+  // directory which will be executed instead of Node's normal loading.
+  if (per_process::native_module_loader.Exists("_third_party_main")) {
+    StartExecution(env, "_third_party_main");
+  } else {
+    // TODO(joyeecheung): create different scripts for different
+    // execution modes:
+    // - `main_thread_main.js` when env->is_main_thread()
+    // - `worker_thread_main.js` when !env->is_main_thread()
+    // - `run_third_party_main.js` for `_third_party_main`
+    // - `inspect_main.js` for `node inspect`
+    // - `mkcodecache_main.js` for the code cache generator
+    // - `print_help_main.js` for --help
+    // - `bash_completion_main.js` for --completion-bash
+    // - `internal/v8_prof_processor` for --prof-process
+    // And leave bootstrap/node.js dedicated to the setup of the environment.
+    // We may want to move this switch out of LoadEnvironment, especially for
+    // the per-process options.
+    StartExecution(env, nullptr);
+  }
 }
 
 void RunBootstrapping(Environment* env) {
@@ -724,7 +745,7 @@ void RunBootstrapping(Environment* env) {
     env->set_start_execution_function(start_execution.As<Function>());
 }
 
-void StartExecution(Environment* env) {
+void StartExecution(Environment* env, const char* main_script_id) {
   HandleScope handle_scope(env->isolate());
   // We have to use Local<>::New because of the optimized way in which we access
   // the object in the env->...() getters, which does not play well with
@@ -734,8 +755,19 @@ void StartExecution(Environment* env) {
   env->set_start_execution_function(Local<Function>());
 
   if (start_execution.IsEmpty()) return;
+
+  Local<Value> main_script_v;
+  if (main_script_id == nullptr) {
+    // TODO(joyeecheung): make this mandatory - we may also create an overload
+    // for main_script that is a Local<Function>.
+    main_script_v = Undefined(env->isolate());
+  } else {
+    main_script_v = OneByteString(env->isolate(), main_script_id);
+  }
+
+  Local<Value> argv[] = {main_script_v};
   USE(start_execution->Call(
-      env->context(), Undefined(env->isolate()), 0, nullptr));
+      env->context(), Undefined(env->isolate()), arraysize(argv), argv));
 }
 
 static void StartInspector(Environment* env, const char* path) {

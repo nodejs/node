@@ -19,4 +19,4 @@ Emitted 'error' event at:
     at Module._compile (internal/modules/cjs/loader.js:*:*)
     [... lines matching original stack trace ...]
     at executeUserCode (internal/bootstrap/node.js:*:*)
-    at startExecution (internal/bootstrap/node.js:*:*)
+    at startMainThreadExecution (internal/bootstrap/node.js:*:*)
