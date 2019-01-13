@@ -11,9 +11,9 @@ Error
     at Function.Module._load (internal/modules/cjs/loader.js:*:*)
     at Function.Module.runMain (internal/modules/cjs/loader.js:*:*)
     at executeUserCode (internal/bootstrap/node.js:*:*)
-    at startExecution (internal/bootstrap/node.js:*:*)
+    at startMainThreadExecution (internal/bootstrap/node.js:*:*)
 Emitted 'error' event at:
     at Object.<anonymous> (*events_unhandled_error_sameline.js:*:*)
     at Module._compile (internal/modules/cjs/loader.js:*:*)
     [... lines matching original stack trace ...]
-    at startExecution (internal/bootstrap/node.js:*:*)
+    at startMainThreadExecution (internal/bootstrap/node.js:*:*)

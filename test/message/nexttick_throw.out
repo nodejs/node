@@ -8,4 +8,4 @@ ReferenceError: undefined_reference_error_maker is not defined
     at process.runNextTicks [as _tickCallback] (internal/process/next_tick.js:*:*)
     at Function.Module.runMain (internal/modules/cjs/loader.js:*:*)
     at executeUserCode (internal/bootstrap/node.js:*:*)
-    at startExecution (internal/bootstrap/node.js:*:*)
+    at startMainThreadExecution (internal/bootstrap/node.js:*:*)
