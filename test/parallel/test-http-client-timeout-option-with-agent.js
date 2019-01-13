@@ -1,58 +1,23 @@
 'use strict';
-const common = require('../common');
 
-// Test that when http request uses both timeout and agent,
-// timeout will work as expected.
+// Test that the request `timeout` option has precedence over the agent
+// `timeout` option.
 
-const assert = require('assert');
-const http = require('http');
+const { mustCall } = require('../common');
+const { Agent, get } = require('http');
+const { strictEqual } = require('assert');
 
-const HTTP_AGENT_TIMEOUT = 1000;
-const HTTP_CLIENT_TIMEOUT = 3000;
-
-const agent = new http.Agent({ timeout: HTTP_AGENT_TIMEOUT });
-const options = {
-  method: 'GET',
-  port: undefined,
-  host: '127.0.0.1',
-  path: '/',
-  timeout: HTTP_CLIENT_TIMEOUT,
-  agent,
-};
-
-const server = http.createServer(() => {
-  // Never respond.
+const request = get({
+  agent: new Agent({ timeout: 50 }),
+  lookup: () => {},
+  timeout: 100
 });
 
-server.listen(0, options.host, () => {
-  doRequest();
-});
+request.on('socket', mustCall((socket) => {
+  strictEqual(socket.timeout, 100);
 
-function doRequest() {
-  options.port = server.address().port;
-  const start = process.hrtime.bigint();
-  const req = http.request(options);
-  req.on('error', () => {
-    // This space is intentionally left blank.
-  });
-  req.on('close', common.mustCall(() => server.close()));
+  const listeners = socket.listeners('timeout');
 
-  let timeout_events = 0;
-  req.on('timeout', common.mustCall(() => {
-    timeout_events += 1;
-    const duration = process.hrtime.bigint() - start;
-    // The timeout event cannot be precisely timed. It will delay
-    // some number of milliseconds.
-    assert.ok(
-      duration >= BigInt(HTTP_CLIENT_TIMEOUT * 1e6),
-      `duration ${duration}ms less than timeout ${HTTP_CLIENT_TIMEOUT}ms`
-    );
-  }));
-  req.end();
-
-  setTimeout(() => {
-    req.destroy();
-    assert.strictEqual(timeout_events, 1);
-    // Ensure the `timeout` event fired only once.
-  }, common.platformTimeout(HTTP_CLIENT_TIMEOUT * 2));
-}
+  strictEqual(listeners.length, 1);
+  strictEqual(listeners[0], request.timeoutCb);
+}));
