@@ -185,24 +185,26 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 
 PACKAGE_RESOLVE(_packageSpecifier_, _parentURL_)
 > 1. Let _packageName_ be *undefined*.
-> 1. Let _packagePath_ be *undefined*.
+> 1. Let _packageSubpath_ be *undefined*.
 > 1. If _packageSpecifier_ is an empty string, then
->    1. Throw an _Invalid Package Name_ error.
+>    1. Throw an _Invalid Specifier_ error.
 > 1. If _packageSpecifier_ does not start with _"@"_, then
 >    1. Set _packageName_ to the substring of _packageSpecifier_ until the
 >       first _"/"_ separator or the end of the string.
 > 1. Otherwise,
 >    1. If _packageSpecifier_ does not contain a _"/"_ separator, then
->       1. Throw an _Invalid Package Name_ error.
+>       1. Throw an _Invalid Specifier_ error.
 >    1. Set _packageName_ to the substring of _packageSpecifier_
 >       until the second _"/"_ separator or the end of the string.
-> 1. Let _packagePath_ be the substring of _packageSpecifier_ from the
+> 1. Let _packageSubpath_ be the substring of _packageSpecifier_ from the
 >    position at the length of _packageName_ plus one, if any.
 > 1. Assert: _packageName_ is a valid package name or scoped package name.
-> 1. Assert: _packagePath_ is either empty, or a path without a leading
+> 1. Assert: _packageSubpath_ is either empty, or a path without a leading
 >    separator.
-> 1. Note: Further package name validations can be added here.
-> 1. If _packagePath_ is empty and _packageName_ is a Node.js builtin
+> 1. If _packageSubpath_ contains any _"."_ or _".."_ segments or percent
+>    encoded strings for _"/"_ or _"\"_ then,
+>    1. Throw an _Invalid Specifier_ error.
+> 1. If _packageSubpath_ is empty and _packageName_ is a Node.js builtin
 >    module, then
 >    1. Return the string _"node:"_ concatenated with _packageSpecifier_.
 > 1. While _parentURL_ is not the file system root,
@@ -210,23 +212,14 @@ PACKAGE_RESOLVE(_packageSpecifier_, _parentURL_)
 >    1. Let _packageURL_ be the URL resolution of the string concatenation of
 >       _parentURL_, _"/node_modules/"_ and _packageSpecifier_.
 >    1. If the folder at _packageURL_ does not exist, then
->       1. Note: This check can be optimized out where possible in
->          implementation.
 >       1. Set _parentURL_ to the parent URL path of _parentURL_.
 >       1. Continue the next loop iteration.
->    1. Let _pjsonURL_ be the URL of the file _"package.json"_ within the parent
->       path _packageURL_.
->    1. Let _pjson_ be **null**.
->    1. If the file at _pjsonURL_ exists, then
->       1. Set _pjson_ to the result of **READ_JSON_FILE**(_pjsonURL_).
->    1. If _packagePath_ is empty, then
->       1. Let _url_ be the result of
->          **PACKAGE_MAIN_RESOLVE**(_packageURL_, _pjson_).
->       1. If _url_ is **null**, then
->          1. Throw a _Module Not Found_ error.
->       1. Return _url_.
+>    1. Let _pjson_be the result of **READ_PACKAGE_JSON**(_packageURL_).
+>    1. If _packageSubpath_ is empty, then
+>       1. Return the result of **PACKAGE_MAIN_RESOLVE**(_packageURL_,
+>          _pjson_).
 >    1. Otherwise,
->       1. Return the URL resolution of _packagePath_ in _packageURL_.
+>       1. Return the URL resolution of _packageSubpath_ in _packageURL_.
 > 1. Throw a _Module Not Found_ error.
 
 PACKAGE_MAIN_RESOLVE(_packageURL_, _pjson_)
@@ -234,17 +227,16 @@ PACKAGE_MAIN_RESOLVE(_packageURL_, _pjson_)
 >    path _packageURL_.
 > 1. If **HAS_ESM_PROPERTIES**(_pjson_) is **false**, then
 >    1. Let _mainURL_ be the result applying the legacy
->       **LOAD_AS_DIRECTORY** CommonJS resolver to _packageURL_, returning
->       *undefined* for no resolution.
+>       **LOAD_AS_DIRECTORY** CommonJS resolver to _packageURL_, throwing a
+>       _Module Not Found_ error for no resolution.
 >    1. Return _mainURL_.
 > 1. TODO: ESM main handling.
-> 1. Return **null**.
+> 1. Throw a _Module Not Found_ error.
 
 **ESM_FORMAT(_url_, _isMain_)**
 > 1. Assert: _url_ corresponds to an existing file.
 > 1. Let _pjson_ be the result of **READ_PACKAGE_BOUNDARY**(_url_).
 > 1. If _pjson_ is **null** and _isMain_ is **true**, then
->    1. Note: This path is for backwards compatibility and may be deprecated.
 >    1. Return _"legacy"_.
 > 1. If **HAS_ESM_PROPERTIES**(_pjson_) is **true**, then
 >    1. If _url_ does not end in _".js"_ or _".mjs"_, then
@@ -257,21 +249,21 @@ PACKAGE_MAIN_RESOLVE(_packageURL_, _pjson_)
 >       1. Return _"legacy"_.
 
 READ_PACKAGE_BOUNDARY(_url_)
-> 1. Let _boundaryURL_ be the URL resolution of _"package.json"_ relative to
->    _url_.
+> 1. Let _boundaryURL_ be _url_.
 > 1. While _boundaryURL_ is not the file system root,
->    1. If the file at _boundaryURL_ exists, then
->       1. Let _pjson_ be the result of **READ_JSON_FILE**(_boundaryURL_).
+>    1. Let _pjson_ be the result of **READ_PACKAGE_JSON**(_boundaryURL_).
+>    1. If _pjson_ is not **null**, then
 >       1. Return _pjson_.
->    1. Set _boundaryURL_ to the URL resolution of _"../package.json"_ relative
->       to _boundaryURL_.
+>    1. Set _boundaryURL_ to the parent URL of _boundaryURL_.
 > 1. Return **null**.
 
-READ_JSON_FILE(_url_)
-> 1. If the file at _url_ does not parse as valid JSON, then
+READ_PACKAGE_JSON(_packageURL_)
+> 1. Let _pjsonURL_ be the resolution of _"package.json"_ within _packageURL_.
+> 1. If the file at _pjsonURL_ does not exist, then
+>    1. Return **null**.
+> 1. If the file at _packageURL_ does not parse as valid JSON, then
 >    1. Throw an _Invalid Package Configuration_ error.
-> 1. Let _pjson_ be the parsed JSON source of the file at _url_.
-> 1. Return _pjson_.
+> 1. Return the parsed JSON source of the file at _url_.
 
 HAS_ESM_PROPERTIES(_pjson_)
 > Note: To be specified.
