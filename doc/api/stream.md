@@ -1611,7 +1611,7 @@ const myWritable = new Writable({
 * `chunk` {Buffer|string|any} The `Buffer` to be written, converted from the
   `string` passed to [`stream.write()`][stream-write]. If the stream's
   `decodeStrings` option is `false` or the stream is operating in object mode,
-  chunk will not be converted & will be whatever was passed to
+  the chunk will not be converted & will be whatever was passed to
   [`stream.write()`][stream-write].
 * `encoding` {string} If the chunk is a string, then `encoding` is the
   character encoding of that string. If chunk is a `Buffer`, or if the
@@ -2314,7 +2314,7 @@ user programs.
 * `chunk` {Buffer|string|any} The `Buffer` to be transformed, converted from
   the `string` passed to [`stream.write()`][stream-write]. If the stream's
   `decodeStrings` option is `false` or the stream is operating in object mode,
-  chunk will not be converted & will be whatever was passed to
+  the chunk will not be converted & will be whatever was passed to
   [`stream.write()`][stream-write].
 * `encoding` {string} If the chunk is a string, then this is the
   encoding type. If chunk is a buffer, then this is the special
