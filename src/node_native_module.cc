@@ -86,7 +86,6 @@ void NativeModuleLoader::GetCacheUsage(
 
 void NativeModuleLoader::ModuleIdsGetter(
     Local<Name> property, const PropertyCallbackInfo<Value>& info) {
-  Local<Context> context = info.GetIsolate()->GetCurrentContext();
   Isolate* isolate = info.GetIsolate();
 
   const NativeModuleRecordMap& source_ =
