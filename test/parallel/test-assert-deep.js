@@ -163,13 +163,11 @@ assert.throws(
     date2,  // Date with this[0] = '1'
     re2,  // RegExp with this[0] = '1'
     new Int8Array([1]), // Int8Array
-    // TODO: Fix this check...
-    // new Uint8Array([1]), // Uint8Array
     new Int16Array([1]), // Int16Array
     new Uint16Array([1]), // Uint16Array
     new Int32Array([1]), // Int32Array
     new Uint32Array([1]), // Uint32Array
-    Buffer.from([1]),
+    Buffer.from([1]), // Uint8Array
     (function() { return arguments; })(1)
   ]);
 
