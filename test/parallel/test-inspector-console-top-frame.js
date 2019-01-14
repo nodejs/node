@@ -1,4 +1,10 @@
 'use strict';
+
+// Verify that the line containing console.log is reported as a top stack frame
+// of the consoleAPICalled notification.
+// Changing this will break many Inspector protocol clients, including
+// debuggers that use that value for navigating from console messages to code.
+
 const common = require('../common');
 common.skipIfInspectorDisabled();
 
@@ -22,4 +28,4 @@ logMessage();  // Triggers Inspector notification
 
 session.disconnect();
 assert.strictEqual(basename(topFrame.url), basename(__filename));
-assert.strictEqual(topFrame.lineNumber, 9);
+assert.strictEqual(topFrame.lineNumber, 15);
