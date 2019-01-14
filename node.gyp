@@ -859,6 +859,8 @@
           'action_name': 'node_js2c',
           'process_outputs_as_sources': 1,
           'inputs': [
+            # Put the code first so it's a dependency and can be used for invocation.
+            'tools/js2c.py',
             '<@(library_files)',
             'config.gypi',
             'tools/js2c_macros/check_macros.py'
@@ -878,9 +880,8 @@
             }]
           ],
           'action': [
-            'python', 'tools/js2c.py',
-            '<@(_outputs)',
-            '<@(_inputs)',
+            'python', '<@(_inputs)',
+            '--target', '<@(_outputs)',
           ],
         },
       ],
