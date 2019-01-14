@@ -20,14 +20,14 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-// verify that connect reqs are properly cleaned up
+// Verify that connect reqs are properly cleaned up.
 
 const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
-const ROUNDS = 10;
-const ATTEMPTS_PER_ROUND = 100;
+const ROUNDS = 5;
+const ATTEMPTS_PER_ROUND = 50;
 let rounds = 1;
 let reqs = 0;
 
