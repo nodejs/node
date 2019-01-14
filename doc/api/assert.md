@@ -165,8 +165,8 @@ added: v0.1.21
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/REPLACEME
-    description: The type tags are now properly compared and a couple minor
-                 comparison adjustments to make the check less surprising.
+    description: The type tags are now properly compared and there are a couple
+                 minor comparison adjustments to make the check less surprising.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
     description: The `Error` names and messages are now properly compared
@@ -200,7 +200,7 @@ using [`assert.deepStrictEqual()`][] instead. [`assert.deepEqual()`][] can have
 potentially surprising results.
 
 "Deep" equality means that the enumerable "own" properties of child objects
-are recursively evaluated also by the following rules.
+are also recursively evaluated by the following rules.
 
 ### Comparison details
 
