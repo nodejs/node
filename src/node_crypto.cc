@@ -1962,10 +1962,10 @@ void SSLWrap<Base>::GetCertificate(
 
   Local<Object> result;
 
-  X509Pointer cert(SSL_get_certificate(w->ssl_.get()));
+  X509* cert = SSL_get_certificate(w->ssl_.get());
 
-  if (cert)
-    result = X509ToObject(env, cert.get());
+  if (cert != nullptr)
+    result = X509ToObject(env, cert);
 
   args.GetReturnValue().Set(result);
 }
