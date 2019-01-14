@@ -127,7 +127,7 @@ added: v0.3.4
     in a free state. Only relevant if `keepAlive` is set to `true`.
     **Default:** `256`.
   * `timeout` {number} Socket timeout in milliseconds.
-    This will set the timeout after the socket is connected.
+    This will set the timeout when the socket is created.
 
 `options` in [`socket.connect()`][] are also supported.
 
