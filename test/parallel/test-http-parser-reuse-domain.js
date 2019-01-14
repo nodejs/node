@@ -50,7 +50,6 @@ function performHttpRequest(opts, cb) {
 
 function performHttpRequestInNewDomain(opts, cb) {
   const d = domain.create();
-  d._id = opts.id;
   d.run(() => {
     performHttpRequest(opts, cb);
   });
