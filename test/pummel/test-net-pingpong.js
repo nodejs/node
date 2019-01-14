@@ -26,7 +26,7 @@ const net = require('net');
 
 let tests_run = 0;
 
-function pingPongTest(port, host, on_complete) {
+function pingPongTest(host, on_complete) {
   const N = 1000;
   let count = 0;
   let sent_final_ping = false;
@@ -69,8 +69,8 @@ function pingPongTest(port, host, on_complete) {
     });
   });
 
-  server.listen(port, host, function() {
-    const client = net.createConnection(port, host);
+  server.listen(0, host, function() {
+    const client = net.createConnection(server.address().port, host);
 
     client.setEncoding('utf8');
 
@@ -110,12 +110,12 @@ function pingPongTest(port, host, on_complete) {
   });
 }
 
-/* All are run at once, so run on different ports */
-pingPongTest(common.PORT, 'localhost');
-pingPongTest(common.PORT + 1, null);
+// All are run at once and will run on different ports.
+pingPongTest('localhost');
+pingPongTest(null);
 
-// This IPv6 isn't working on Solaris
-if (!common.isSunOS) pingPongTest(common.PORT + 2, '::1');
+// This IPv6 isn't working on Solaris.
+if (!common.isSunOS) pingPongTest('::1');
 
 process.on('exit', function() {
   assert.strictEqual(tests_run, common.isSunOS ? 2 : 3);
