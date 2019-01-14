@@ -1183,6 +1183,10 @@ changes:
   - version: v9.3.0
     pr-url: https://github.com/nodejs/node/pull/14903
     description: The `options` parameter can now include `clientCertEngine`.
+  - version: v9.0.0
+    pr-url: https://github.com/nodejs/node/pull/15206
+    description: The `ecdhCurve` option can now be multiple `':'` separated
+                 curve names or `'auto'`.
   - version: v7.3.0
     pr-url: https://github.com/nodejs/node/pull/10294
     description: If the `key` option is an array, individual entries do not
@@ -1411,6 +1415,10 @@ console.log(tls.getCiphers()); // ['AES128-SHA', 'AES256-SHA', ...]
 ## tls.DEFAULT_ECDH_CURVE
 <!-- YAML
 added: v0.11.13
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/16853
+    description: Default value changed to `'auto'`.
 -->
 
 The default curve name to use for ECDH key agreement in a tls server. The
