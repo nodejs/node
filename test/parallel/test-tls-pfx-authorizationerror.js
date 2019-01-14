@@ -37,8 +37,13 @@ const server = tls
         rejectUnauthorized: false
       },
       function() {
-        assert.strictEqual(client.getCertificate().serialNumber,
-                           'ECC9B856270DA9A8');
+        for (let i = 0; i < 10; ++i) {
+          // Calling this repeatedly is a regression test that verifies
+          // that .getCertificate() does not accidentally decrease the
+          // reference count of the X509* certificate on the native side.
+          assert.strictEqual(client.getCertificate().serialNumber,
+                             'ECC9B856270DA9A8');
+        }
         client.end();
         server.close();
       }
