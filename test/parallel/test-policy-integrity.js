@@ -66,9 +66,7 @@ function test({
   fs.writeFileSync(policyFilepath, JSON.stringify(manifest, null, 2));
   const { status } = spawnSync(process.execPath, [
     '--experimental-policy', policyFilepath, entry
-  ], {
-    stdio: 'inherit'
-  });
+  ]);
   if (shouldFail) {
     assert.notStrictEqual(status, 0);
   } else {
