@@ -251,6 +251,74 @@ down. If necessary, such hooks can be removed using
 `RemoveEnvironmentCleanupHook()` before they are run, which has the same
 signature.
 
+#### ABI declaration
+
+Node.js is available from a number of sources besides the [official
+distribution][]. Since the various versions of Node.js are configured
+differently at build time, the resulting runtime ABI may be different. For
+example, version 10 of Node.js as shipped by Debian GNU/Linux may have a
+different ABI than version 10 of Node.js as available from the official
+distribution.
+
+The Node.js ABI consists of various different, independent parts, such as V8,
+openssl, libuv, and others. Native addons may use some, all, or even just one of
+these independent parts of the Node.js ABI. Thus, when Node.js is tasked with
+loading an addon, at which time it needs to determine whether the addon is ABI-
+compatible, it needs ABI information provided by the addon. The addon normally
+provides this information as a single number (`NODE_MODULE_VERSION`) which is
+stored inside the addon and which is compared against the value present in the
+running Node.js process at addon load time.
+
+Since `NODE_MODULE_VERSION` reflects only the Node.js major version against
+which the addon was built, it may match the running Node.js process even though
+some of the independent parts of the ABI are mismatched. To address this problem
+the addon may optionally declare which portions of the Node.js ABI it uses by
+invoking the `NODE_MODULE_DECLARE_ABI` macro. Any portions of the ABI included
+as a parameter to the macro will be checked during addon load in addition to
+`NODE_MODULE_VERSION` in order to ensure that all ABIs declared by the addon
+have the version as requested by the addon. Node.js assumes that ABIs not
+included in the invocation of the `NODE_MODULE_DECLARE_ABI` macro are not used
+by the addon.
+
+The `NODE_MODULE_DECLARE_ABI` macro may be invoked as follows:
+```C++
+NODE_MODULE_DECLARE_ABI(
+    NODE_MODULE_ABI_VENDOR_VERSION,
+    NODE_MODULE_ABI_ENGINE_VERSION,
+    NODE_MODULE_ABI_OPENSSL_VERSION)
+```
+Note that there must be no semicolon at the end of the declaration.
+
+The following parameters can be passed to `NODE_MODULE_DECLARE_ABI`:
+* `NODE_MODULE_ABI_VERSION_TERMINATOR` - this is a sentinel indicating the end
+of the list of ABI declarations. It need not normally be used by addons.
+
+* `NODE_MODULE_ABI_VENDOR_VERSION` - this declaration ties the addon to a
+specific vendor's version of Node.js. For example, if the addon is built against
+the official disitrbution of Node.js, it will not load on a version of Node.js
+provided by the Debian GNU/Linux project nor will it load on a version of
+Electron.
+
+* `NODE_MODULE_ABI_ENGINE_VERSION` - this declaration ties the addon to a
+specific JavaScript engine version. It will fail to load on a version of Node.js
+that provides a different JavaScript engine version.
+
+* `NODE_MODULE_ABI_OPENSSL_VERSION` - this declaration ties the addon to a
+specific version of the OpenSSL library. It will not load on a version of
+Node.js that provides a different version of the OpenSSL library.
+
+* `NODE_MODULE_ABI_LIBUV_VERSION` - this declaration ties the addon to a
+specific version of the libuv library. It will fail to load on a version of
+Node.js that provides a different version of libuv.
+
+* `NODE_MODULE_ABI_ICU_VERSION` - this declaration ties the addon to a
+specific version of the ICU library. It will fail to load on a version of
+Node.js that provides a different version of the ICU library.
+
+* `NODE_MODULE_ABI_CARES_VERSION` - this declaration ties the addon to a
+specific version of the c-ares library. It will fail to load on a version of
+Node.js that provides a different version of the c-ares library.
+
 ### Building
 
 Once the source code has been written, it must be compiled into the binary
@@ -1377,5 +1445,6 @@ require('./build/Release/addon');
 [installation instructions]: https://github.com/nodejs/node-gyp#installation
 [libuv]: https://github.com/libuv/libuv
 [node-gyp]: https://github.com/nodejs/node-gyp
+[official distribution]: https://nodejs.org/
 [require]: modules.html#modules_require_id
 [v8-docs]: https://v8docs.nodesource.com/

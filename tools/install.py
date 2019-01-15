@@ -169,6 +169,8 @@ def headers(action):
     'common.gypi',
     'config.gypi',
     'src/node.h',
+    'src/node_abi_versions.h',
+    'src/node_addon_macros.h',
     'src/node_api.h',
     'src/js_native_api.h',
     'src/js_native_api_types.h',

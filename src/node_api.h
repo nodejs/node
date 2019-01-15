@@ -12,11 +12,9 @@
 
 struct uv_loop_s;  // Forward declaration.
 
-#ifdef _WIN32
-# define NAPI_MODULE_EXPORT __declspec(dllexport)
-#else
-# define NAPI_MODULE_EXPORT __attribute__((visibility("default")))
-#endif
+#include "node_addon_macros.h"
+
+#define NAPI_MODULE_EXPORT NODE_MODULE_EXPORT
 
 #ifdef __GNUC__
 #define NAPI_NO_RETURN __attribute__((noreturn))
@@ -39,18 +37,7 @@ typedef struct {
 
 #define NAPI_MODULE_VERSION  1
 
-#if defined(_MSC_VER)
-#pragma section(".CRT$XCU", read)
-#define NAPI_C_CTOR(fn)                                                     \
-  static void __cdecl fn(void);                                             \
-  __declspec(dllexport, allocate(".CRT$XCU")) void(__cdecl * fn##_)(void) = \
-      fn;                                                                   \
-  static void __cdecl fn(void)
-#else
-#define NAPI_C_CTOR(fn)                              \
-  static void fn(void) __attribute__((constructor)); \
-  static void fn(void)
-#endif
+#define NAPI_C_CTOR(fn) NODE_C_CTOR(fn)
 
 #define NAPI_MODULE_X(modname, regfunc, priv, flags)                  \
   EXTERN_C_START                                                      \
@@ -74,12 +61,11 @@ typedef struct {
 
 #define NAPI_MODULE_INITIALIZER_BASE napi_register_module_v
 
-#define NAPI_MODULE_INITIALIZER_X(base, version)                      \
-    NAPI_MODULE_INITIALIZER_X_HELPER(base, version)
-#define NAPI_MODULE_INITIALIZER_X_HELPER(base, version) base##version
+#define NAPI_MODULE_INITIALIZER_X(base, version) \
+  NODE_MODULE_INITIALIZER_X(base, version)
 
 #define NAPI_MODULE_INITIALIZER                                       \
-  NAPI_MODULE_INITIALIZER_X(NAPI_MODULE_INITIALIZER_BASE,             \
+  NODE_MODULE_INITIALIZER_X(NAPI_MODULE_INITIALIZER_BASE,             \
       NAPI_MODULE_VERSION)
 
 #define NAPI_MODULE_INIT()                                            \

@@ -357,7 +357,8 @@ ADDONS_BINDING_SOURCES := \
 ADDONS_PREREQS := config.gypi \
 	deps/npm/node_modules/node-gyp/package.json tools/build-addons.js \
 	deps/uv/include/*.h deps/v8/include/*.h \
-	src/node.h src/node_buffer.h src/node_object_wrap.h src/node_version.h
+	src/node.h src/node_buffer.h src/node_object_wrap.h src/node_version.h \
+	src/node_addon_macros.h src/node_abi_versions.h
 
 define run_build_addons
 env npm_config_loglevel=$(LOGLEVEL) npm_config_nodedir="$$PWD" \

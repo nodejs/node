@@ -22,6 +22,8 @@
 #ifndef SRC_NODE_VERSION_H_
 #define SRC_NODE_VERSION_H_
 
+#include "node_abi_versions.h"
+
 #define NODE_MAJOR_VERSION 12
 #define NODE_MINOR_VERSION 0
 #define NODE_PATCH_VERSION 0

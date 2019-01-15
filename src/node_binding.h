@@ -92,7 +92,5 @@ void DLOpen(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 }  // namespace node
 
-#include "node_binding.h"
-
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_NODE_BINDING_H_

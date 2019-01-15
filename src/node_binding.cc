@@ -190,6 +190,52 @@ void InitModpendingOnce() {
   CHECK_EQ(0, uv_key_create(&thread_local_modpending));
 }
 
+#define ABI_VERSION_CASE(entry, key, KEY)                                     \
+  case node_abi_ ## key ## _version:                                          \
+    if ((entry)->version != NODE_ABI_ ## KEY ## _VERSION) {                   \
+      char int_str[32];                                                       \
+      result += std::string("\n") +                                           \
+        NODE_STRINGIFY(node_abi_ ## key ## _version) +                        \
+        ": module: ";                                                         \
+      snprintf(int_str, sizeof(int_str), "%d", (entry)->version);             \
+      result += int_str;                                                      \
+      result += " vs. Node.js: ";                                             \
+      snprintf(int_str, sizeof(int_str), "%d", NODE_ABI_ ## KEY ## _VERSION); \
+      result += int_str;                                                      \
+    }                                                                         \
+    break                                                                     \
+
+using ABICallback = const node_abi_version_entry* (*)();
+
+std::string ABICheck(DLib* dlib) {
+  std::string result;
+  const char* name = "node_module_declare_abi_v" STRINGIFY(NODE_MODULE_VERSION);
+  ABICallback abi_lister =
+      reinterpret_cast<ABICallback>(dlib->GetSymbolAddress(name));
+  if (abi_lister != nullptr) {
+    const node_abi_version_entry* abi_entry = abi_lister();
+    if (abi_entry != nullptr) {
+      for (; abi_entry->item != node_abi_version_terminator; abi_entry++) {
+        switch (abi_entry->item) {
+          ABI_VERSION_CASE(abi_entry, vendor, VENDOR);
+          ABI_VERSION_CASE(abi_entry, engine, ENGINE);
+          ABI_VERSION_CASE(abi_entry, openssl, OPENSSL);
+          ABI_VERSION_CASE(abi_entry, libuv, LIBUV);
+          ABI_VERSION_CASE(abi_entry, icu, ICU);
+          ABI_VERSION_CASE(abi_entry, cares, CARES);
+          default: {
+            char int_string[32];
+            snprintf(int_string, sizeof(int_string), "%d", abi_entry->item);
+            result += std::string("Unknown ABI: ") + int_string;
+            break;
+          }
+        }
+      }
+    }
+  }
+  return result;
+}
+
 // DLOpen is process.dlopen(module, filename, flags).
 // Used to load 'module.node' dynamically shared objects.
 //
@@ -243,6 +289,19 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
           env->isolate(), errmsg, args[1]->ToString(context).ToLocalChecked());
 #endif  // _WIN32
       env->isolate()->ThrowException(Exception::Error(errmsg));
+      return false;
+    }
+
+    std::string abi_result = ABICheck(dlib);
+    if (!abi_result.empty()) {
+      abi_result = std::string("The module '") + (*filename) + "'" +
+      "\nwas compiled against a different Node.js version. The following"
+      "\nABI mismatches were dectected:" +
+      abi_result +
+      "\nPlease try re-compiling or reinstalling the module (for instance,"
+      "\nusing `npm rebuild` or `npm install`).";
+      dlib->Close();
+      env->ThrowError(abi_result.c_str());
       return false;
     }
 
