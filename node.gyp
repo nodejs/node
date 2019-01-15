@@ -1043,7 +1043,6 @@
 
   'conditions': [
     [ 'OS=="aix" and node_shared=="true"', {
-      'variables': {'real_os_name': '<!(uname -s)',},
       'targets': [
         {
           'target_name': 'node_aix_shared',
@@ -1051,26 +1050,6 @@
           'product_name': '<(node_core_target_name)',
           'ldflags': [ '--shared' ],
           'product_extension': '<(shlib_suffix)',
-          'conditions': [
-            ['target_arch=="ppc64"', {
-              'ldflags': [
-                '-Wl,-blibpath:/usr/lib:/lib:'
-                  '/opt/freeware/lib/pthread/ppc64'
-              ],
-            }],
-            ['target_arch=="ppc"', {
-              'ldflags': [
-                '-Wl,-blibpath:/usr/lib:/lib:/opt/freeware/lib/pthread'
-              ],
-            }],
-            ['"<(real_os_name)"=="OS400"', {
-              'ldflags': [
-                '-Wl,-blibpath:/QOpenSys/pkgs/lib:/QOpenSys/usr/lib',
-                '-Wl,-bbigtoc',
-                '-Wl,-brtl',
-              ],
-            }],
-          ],
           'includes': [
             'node.gypi'
           ],
