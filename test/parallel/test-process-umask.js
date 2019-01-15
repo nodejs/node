@@ -22,8 +22,15 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-if (!common.isMainThread)
-  common.skip('process.umask is not available in Workers');
+
+if (!common.isMainThread) {
+  assert.strictEqual(typeof process.umask(), 'number');
+  assert.throws(() => {
+    process.umask('0664');
+  }, { code: 'ERR_WORKER_UNSUPPORTED_OPERATION' });
+
+  common.skip('Setting process.umask is not supported in Workers');
+}
 
 // Note in Windows one can only set the "user" bits.
 let mask;

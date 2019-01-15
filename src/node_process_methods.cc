@@ -50,6 +50,10 @@ using v8::Uint32;
 using v8::Uint32Array;
 using v8::Value;
 
+namespace per_process {
+Mutex umask_mutex;
+}   // namespace per_process
+
 // Microseconds in a second, as a float, used in CPUUsage() below
 #define MICROS_PER_SEC 1e6
 // used in Hrtime() below
@@ -220,6 +224,7 @@ static void Umask(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsUndefined() || args[0]->IsUint32());
+  Mutex::ScopedLock scoped_lock(per_process::umask_mutex);
 
   if (args[0]->IsUndefined()) {
     old = umask(0);
@@ -396,9 +401,9 @@ static void InitializeProcessMethods(Local<Object> target,
         target, "_stopProfilerIdleNotifier", StopProfilerIdleNotifier);
     env->SetMethod(target, "abort", Abort);
     env->SetMethod(target, "chdir", Chdir);
-    env->SetMethod(target, "umask", Umask);
   }
 
+  env->SetMethod(target, "umask", Umask);
   env->SetMethod(target, "_rawDebug", RawDebug);
   env->SetMethod(target, "memoryUsage", MemoryUsage);
   env->SetMethod(target, "cpuUsage", CPUUsage);
