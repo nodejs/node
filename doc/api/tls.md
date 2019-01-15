@@ -1023,6 +1023,9 @@ being issued by trusted CA (`options.ca`).
 <!-- YAML
 added: v0.11.3
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/25517
+    description: The `timeout` option is supported now.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12839
     description: The `lookup` option is supported now.
@@ -1088,6 +1091,9 @@ changes:
     `tls.createSecureContext()`.
   * `lookup`: {Function} Custom lookup function. **Default:**
     [`dns.lookup()`][].
+  * `timeout`: {number} If set and if a socket is created internally, will call
+    [`socket.setTimeout(timeout)`][] after the socket is created, but before it
+    starts the connection.
   * ...: [`tls.createSecureContext()`][] options that are used if the
     `secureContext` option is missing, otherwise they are ignored.
 * `callback` {Function}
@@ -1549,6 +1555,7 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [`server.getTicketKeys()`]: #tls_server_getticketkeys
 [`server.listen()`]: net.html#net_server_listen
 [`server.setTicketKeys()`]: #tls_server_setticketkeys_keys
+[`socket.setTimeout(timeout)`]: #net_socket_settimeout_timeout_callback
 [`tls.DEFAULT_ECDH_CURVE`]: #tls_tls_default_ecdh_curve
 [`tls.Server`]: #tls_class_tls_server
 [`tls.TLSSocket.getPeerCertificate()`]: #tls_tlssocket_getpeercertificate_detailed
