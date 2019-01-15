@@ -23,7 +23,7 @@
 const common = require('../common');
 
 if (!common.isMainThread)
-  common.skip('process.umask is not available in Workers');
+  common.skip('Setting process.umask is not supported in Workers');
 
 const assert = require('assert');
 const path = require('path');

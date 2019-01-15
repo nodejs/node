@@ -7,7 +7,7 @@ const common = require('../common');
 const assert = require('assert');
 
 if (!common.isMainThread)
-  common.skip('process.umask is not available in Workers');
+  common.skip('Setting process.umask is not supported in Workers');
 
 let mask;
 

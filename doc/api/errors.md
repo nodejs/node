@@ -1926,6 +1926,11 @@ All attempts at serializing an uncaught exception from a worker thread failed.
 The pathname used for the main script of a worker has an
 unknown file extension.
 
+<a id="ERR_WORKER_UNSUPPORTED_OPERATION"></a>
+### ERR_WORKER_UNSUPPORTED_OPERATION
+
+The requested functionality is not supported in worker threads.
+
 <a id="ERR_ZLIB_INITIALIZATION_FAILED"></a>
 ### ERR_ZLIB_INITIALIZATION_FAILED
 

@@ -2007,7 +2007,8 @@ console.log(
 );
 ```
 
-This feature is not available in [`Worker`][] threads.
+[`Worker`][] threads are able to read the umask, however attempting to set the
+umask will result in a thrown exception.
 
 ## process.uptime()
 <!-- YAML
