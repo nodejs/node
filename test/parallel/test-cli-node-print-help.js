@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -7,6 +8,8 @@ const common = require('../common');
 
 const assert = require('assert');
 const { exec } = require('child_process');
+const { internalBinding } = require('internal/test/binding');
+const { fipsMode } = internalBinding('config');
 let stdOut;
 
 
@@ -21,7 +24,7 @@ function startPrintHelpTest() {
 function validateNodePrintHelp() {
   const config = process.config;
   const HAVE_OPENSSL = common.hasCrypto;
-  const NODE_FIPS_MODE = common.hasFipsCrypto;
+  const NODE_FIPS_MODE = fipsMode;
   const NODE_HAVE_I18N_SUPPORT = common.hasIntl;
   const HAVE_INSPECTOR = config.variables.v8_enable_inspector === 1;
 
