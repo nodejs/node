@@ -23,11 +23,13 @@
 
 // This test requires the program 'wrk'.
 const common = require('../common');
-if (common.isWindows)
-  common.skip('no `wrk` on windows');
+
+const child_process = require('child_process');
+const result = child_process.spawnSync('wrk', ['-h']);
+if (result.error && result.error.code === 'ENOENT')
+  common.skip('test requires `wrk` to be installed first');
 
 const assert = require('assert');
-const spawn = require('child_process').spawn;
 const http = require('http');
 const url = require('url');
 
@@ -60,7 +62,7 @@ const runAb = (opts, callback) => {
   args.push(url.format({ hostname: '127.0.0.1',
                          port: opts.port, protocol: 'http' }));
 
-  const child = spawn('wrk', args);
+  const child = child_process.spawn('wrk', args);
   child.stderr.pipe(process.stderr);
   child.stdout.setEncoding('utf8');
 
