@@ -97,7 +97,6 @@
       'lib/internal/cluster/worker.js',
       'lib/internal/console/constructor.js',
       'lib/internal/console/global.js',
-      'lib/internal/console/inspector.js',
       'lib/internal/coverage-gen/with_profiler.js',
       'lib/internal/crypto/certificate.js',
       'lib/internal/crypto/cipher.js',
