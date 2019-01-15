@@ -17,4 +17,3 @@ AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
     at *
     at *
     at *
-    at *
