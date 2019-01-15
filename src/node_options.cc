@@ -205,11 +205,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--preserve-symlinks-main",
             "preserve symbolic links when resolving the main module",
             &EnvironmentOptions::preserve_symlinks_main);
-  AddOption("--prof-process",
-            "process V8 profiler output generated using --prof",
-            &EnvironmentOptions::prof_process);
-  // Options after --prof-process are passed through to the prof processor.
-  AddAlias("--prof-process", { "--prof-process", "--" });
   AddOption("--redirect-warnings",
             "write warnings to file instead of stderr",
             &EnvironmentOptions::redirect_warnings,
@@ -387,6 +382,11 @@ PerProcessOptionsParser::PerProcessOptionsParser() {
   AddOption("--v8-options",
             "print V8 command line options",
             &PerProcessOptions::print_v8_help);
+  AddOption("--prof-process",
+            "process V8 profiler output generated using --prof",
+            &PerProcessOptions::prof_process);
+  // Options after --prof-process are passed through to the prof processor.
+  AddAlias("--prof-process", {"--prof-process", "--"});
 
 #ifdef NODE_HAVE_I18N_SUPPORT
   AddOption("--icu-data-dir",

@@ -332,9 +332,20 @@ void Environment::Start(bool start_profiler_idle_notifier) {
   uv_key_set(&thread_local_env, this);
 }
 
-MaybeLocal<Object> Environment::CreateProcessObject(
+MaybeLocal<Object> Environment::ProcessCliArgs(
     const std::vector<std::string>& args,
     const std::vector<std::string>& exec_args) {
+  if (args.size() > 1) {
+    std::string first_arg = args[1];
+    if (first_arg == "inspect") {
+      execution_mode_ = ExecutionMode::kInspect;
+    } else if (first_arg == "debug") {
+      execution_mode_ = ExecutionMode::kDebug;
+    } else if (first_arg != "-") {
+      execution_mode_ = ExecutionMode::kRunMainModule;
+    }
+  }
+
   if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
           TRACING_CATEGORY_NODE1(environment)) != 0) {
     auto traced_value = tracing::TracedValue::Create();

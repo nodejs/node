@@ -175,26 +175,6 @@ void NativeModuleLoader::CompileFunction(
   }
 }
 
-// TODO(joyeecheung): it should be possible to generate the argument names
-// from some special comments for the bootstrapper case.
-MaybeLocal<Value> NativeModuleLoader::CompileAndCall(
-    Local<Context> context,
-    const char* id,
-    std::vector<Local<String>>* parameters,
-    std::vector<Local<Value>>* arguments,
-    Environment* optional_env) {
-  Isolate* isolate = context->GetIsolate();
-  MaybeLocal<Function> compiled =
-      per_process::native_module_loader.LookupAndCompile(
-          context, id, parameters, nullptr);
-  if (compiled.IsEmpty()) {
-    return MaybeLocal<Value>();
-  }
-  Local<Function> fn = compiled.ToLocalChecked().As<Function>();
-  return fn->Call(
-      context, v8::Null(isolate), arguments->size(), arguments->data());
-}
-
 MaybeLocal<Function> NativeModuleLoader::CompileAsModule(Environment* env,
                                                          const char* id) {
   std::vector<Local<String>> parameters = {env->exports_string(),
