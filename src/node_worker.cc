@@ -133,8 +133,8 @@ Worker::Worker(Environment* env,
     env_->set_thread_id(thread_id_);
 
     env_->Start(env->profiler_idle_notifier_started());
-    env_->CreateProcessObject(std::vector<std::string>{},
-                              std::vector<std::string>{});
+    env_->ProcessCliArgs(std::vector<std::string>{},
+                            std::vector<std::string>{});
     // Done while on the parent thread
     AddWorkerInspector(env, env_.get(), thread_id_, url_);
   }
@@ -192,10 +192,10 @@ void Worker::Run() {
         HandleScope handle_scope(isolate_);
         Environment::AsyncCallbackScope callback_scope(env_.get());
         env_->async_hooks()->push_async_ids(1, 0);
-        RunBootstrapping(env_.get());
-        // TODO(joyeecheung): create a main script for worker threads
-        // that starts listening on the message port.
-        StartExecution(env_.get(), nullptr);
+        if (!RunBootstrapping(env_.get()).IsEmpty()) {
+          USE(StartExecution(env_.get(), "internal/main/worker_thread"));
+        }
+
         env_->async_hooks()->pop_async_id(1);
 
         Debug(this, "Loaded environment for worker %llu", thread_id_);

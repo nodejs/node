@@ -100,6 +100,7 @@
 #if defined(_MSC_VER)
 #include <direct.h>
 #include <io.h>
+#define STDIN_FILENO 0
 #else
 #include <pthread.h>
 #include <sys/resource.h>  // getrlimit, setrlimit
@@ -114,6 +115,7 @@ using v8::Array;
 using v8::Boolean;
 using v8::Context;
 using v8::DEFAULT;
+using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -605,8 +607,20 @@ static MaybeLocal<Value> ExecuteBootstrapper(
     const char* id,
     std::vector<Local<String>>* parameters,
     std::vector<Local<Value>>* arguments) {
-  MaybeLocal<Value> ret = per_process::native_module_loader.CompileAndCall(
-      env->context(), id, parameters, arguments, env);
+  EscapableHandleScope scope(env->isolate());
+  MaybeLocal<Function> maybe_fn =
+      per_process::native_module_loader.LookupAndCompile(
+          env->context(), id, parameters, env);
+
+  if (maybe_fn.IsEmpty()) {
+    return MaybeLocal<Value>();
+  }
+
+  Local<Function> fn = maybe_fn.ToLocalChecked();
+  MaybeLocal<Value> result = fn->Call(env->context(),
+                                      Undefined(env->isolate()),
+                                      arguments->size(),
+                                      arguments->data());
 
   // If there was an error during bootstrap then it was either handled by the
   // FatalException handler or it's unrecoverable (e.g. max call stack
@@ -615,44 +629,17 @@ static MaybeLocal<Value> ExecuteBootstrapper(
   // There are only two ways to have a stack size > 1: 1) the user manually
   // called MakeCallback or 2) user awaited during bootstrap, which triggered
   // _tickCallback().
-  if (ret.IsEmpty()) {
+  if (result.IsEmpty()) {
     env->async_hooks()->clear_async_id_stack();
   }
 
-  return ret;
+  return scope.EscapeMaybe(result);
 }
 
-void LoadEnvironment(Environment* env) {
-  RunBootstrapping(env);
-
-  // To allow people to extend Node in different ways, this hook allows
-  // one to drop a file lib/_third_party_main.js into the build
-  // directory which will be executed instead of Node's normal loading.
-  if (per_process::native_module_loader.Exists("_third_party_main")) {
-    StartExecution(env, "_third_party_main");
-  } else {
-    // TODO(joyeecheung): create different scripts for different
-    // execution modes:
-    // - `main_thread_main.js` when env->is_main_thread()
-    // - `worker_thread_main.js` when !env->is_main_thread()
-    // - `run_third_party_main.js` for `_third_party_main`
-    // - `inspect_main.js` for `node inspect`
-    // - `mkcodecache_main.js` for the code cache generator
-    // - `print_help_main.js` for --help
-    // - `bash_completion_main.js` for --completion-bash
-    // - `internal/v8_prof_processor` for --prof-process
-    // And leave bootstrap/node.js dedicated to the setup of the environment.
-    // We may want to move this switch out of LoadEnvironment, especially for
-    // the per-process options.
-    StartExecution(env, nullptr);
-  }
-}
-
-void RunBootstrapping(Environment* env) {
+MaybeLocal<Value> RunBootstrapping(Environment* env) {
   CHECK(!env->has_run_bootstrapping_code());
-  env->set_has_run_bootstrapping_code(true);
 
-  HandleScope handle_scope(env->isolate());
+  EscapableHandleScope scope(env->isolate());
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
 
@@ -702,13 +689,23 @@ void RunBootstrapping(Environment* env) {
       Boolean::New(isolate,
                    env->options()->expose_internals)};
 
-  MaybeLocal<Value> loader_exports;
   // Bootstrap internal loaders
-  loader_exports = ExecuteBootstrapper(
+  MaybeLocal<Value> loader_exports = ExecuteBootstrapper(
       env, "internal/bootstrap/loaders", &loaders_params, &loaders_args);
   if (loader_exports.IsEmpty()) {
-    return;
+    return MaybeLocal<Value>();
   }
+
+  Local<Object> loader_exports_obj =
+      loader_exports.ToLocalChecked().As<Object>();
+  Local<Value> internal_binding_loader =
+      loader_exports_obj->Get(context, env->internal_binding_string())
+          .ToLocalChecked();
+  env->set_internal_binding_loader(internal_binding_loader.As<Function>());
+
+  Local<Value> require =
+      loader_exports_obj->Get(context, env->require_string()).ToLocalChecked();
+  env->set_native_module_require(require.As<Function>());
 
   // process, loaderExports, isMainThread
   std::vector<Local<String>> node_params = {
@@ -717,43 +714,107 @@ void RunBootstrapping(Environment* env) {
       FIXED_ONE_BYTE_STRING(isolate, "isMainThread")};
   std::vector<Local<Value>> node_args = {
       process,
-      loader_exports.ToLocalChecked(),
+      loader_exports_obj,
       Boolean::New(isolate, env->is_main_thread())};
 
-  Local<Value> start_execution;
-  if (!ExecuteBootstrapper(
-          env, "internal/bootstrap/node", &node_params, &node_args)
-          .ToLocal(&start_execution)) {
-    return;
-  }
+  MaybeLocal<Value> result = ExecuteBootstrapper(
+      env, "internal/bootstrap/node", &node_params, &node_args);
 
-  if (start_execution->IsFunction())
-    env->set_start_execution_function(start_execution.As<Function>());
+  env->set_has_run_bootstrapping_code(true);
+
+  return scope.EscapeMaybe(result);
 }
 
-void StartExecution(Environment* env, const char* main_script_id) {
-  HandleScope handle_scope(env->isolate());
-  // We have to use Local<>::New because of the optimized way in which we access
-  // the object in the env->...() getters, which does not play well with
-  // resetting the handle while we're accessing the object through the Local<>.
-  Local<Function> start_execution =
-      Local<Function>::New(env->isolate(), env->start_execution_function());
-  env->set_start_execution_function(Local<Function>());
+void MarkBootstrapComplete(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  env->performance_state()->Mark(
+      performance::NODE_PERFORMANCE_MILESTONE_BOOTSTRAP_COMPLETE);
+}
 
-  if (start_execution.IsEmpty()) return;
+MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
+  EscapableHandleScope scope(env->isolate());
+  CHECK_NE(main_script_id, nullptr);
 
-  Local<Value> main_script_v;
-  if (main_script_id == nullptr) {
-    // TODO(joyeecheung): make this mandatory - we may also create an overload
-    // for main_script that is a Local<Function>.
-    main_script_v = Undefined(env->isolate());
-  } else {
-    main_script_v = OneByteString(env->isolate(), main_script_id);
+  std::vector<Local<String>> parameters = {
+      env->process_string(),
+      env->require_string(),
+      env->internal_binding_string(),
+      FIXED_ONE_BYTE_STRING(env->isolate(), "markBootstrapComplete")};
+
+  std::vector<Local<Value>> arguments = {
+      env->process_object(),
+      env->native_module_require(),
+      env->internal_binding_loader(),
+      env->NewFunctionTemplate(MarkBootstrapComplete)
+          ->GetFunction(env->context())
+          .ToLocalChecked()};
+
+  MaybeLocal<Value> result =
+      ExecuteBootstrapper(env, main_script_id, &parameters, &arguments);
+  return scope.EscapeMaybe(result);
+}
+
+MaybeLocal<Value> StartMainThreadExecution(Environment* env) {
+  // To allow people to extend Node in different ways, this hook allows
+  // one to drop a file lib/_third_party_main.js into the build
+  // directory which will be executed instead of Node's normal loading.
+  if (per_process::native_module_loader.Exists("_third_party_main")) {
+    return StartExecution(env, "internal/main/run_third_party_main");
   }
 
-  Local<Value> argv[] = {main_script_v};
-  USE(start_execution->Call(
-      env->context(), Undefined(env->isolate()), arraysize(argv), argv));
+  if (env->execution_mode() == Environment::ExecutionMode::kInspect ||
+      env->execution_mode() == Environment::ExecutionMode::kDebug) {
+    return StartExecution(env, "internal/main/inspect");
+  }
+
+  if (per_process::cli_options->print_help) {
+    env->set_execution_mode(Environment::ExecutionMode::kPrintHelp);
+    return StartExecution(env, "internal/main/print_help");
+  }
+
+  if (per_process::cli_options->print_bash_completion) {
+    env->set_execution_mode(Environment::ExecutionMode::kPrintBashCompletion);
+    return StartExecution(env, "internal/main/print_bash_completion");
+  }
+
+  if (env->options()->prof_process) {
+    env->set_execution_mode(Environment::ExecutionMode::kPrintBashCompletion);
+    return StartExecution(env, "internal/main/prof_process");
+  }
+
+  // -e/--eval without -i/--interactive
+  if (env->options()->has_eval_string && !env->options()->force_repl) {
+    env->set_execution_mode(Environment::ExecutionMode::kEvalString);
+    return StartExecution(env, "internal/main/eval_string");
+  }
+
+  if (env->options()->syntax_check_only) {
+    env->set_execution_mode(Environment::ExecutionMode::kCheckSyntax);
+    return StartExecution(env, "internal/main/check_syntax");
+  }
+
+  if (env->execution_mode() == Environment::ExecutionMode::kRunMainModule) {
+    return StartExecution(env, "internal/main/run_main_module");
+  }
+
+  if (env->options()->force_repl || uv_guess_handle(STDIN_FILENO) == UV_TTY) {
+    env->set_execution_mode(Environment::ExecutionMode::kRepl);
+    return StartExecution(env, "internal/main/repl");
+  }
+
+  env->set_execution_mode(Environment::ExecutionMode::kEvalStdin);
+  return StartExecution(env, "internal/main/eval_stdin");
+}
+
+void LoadEnvironment(Environment* env) {
+  CHECK(env->is_main_thread());
+  // TODO(joyeecheung): Not all of the execution modes in
+  // StartMainThreadExecution() make sense for embedders. Pick the
+  // useful ones out, and allow embedders to customize the entry
+  // point more directly without using _third_party_main.js
+  if (!RunBootstrapping(env).IsEmpty()) {
+    USE(StartMainThreadExecution(env));
+  }
 }
 
 
@@ -1180,7 +1241,7 @@ Environment* CreateEnvironment(IsolateData* isolate_data,
   std::vector<std::string> exec_args(exec_argv, exec_argv + exec_argc);
   Environment* env = new Environment(isolate_data, context);
   env->Start(per_process::v8_is_profiling);
-  env->CreateProcessObject(args, exec_args);
+  env->ProcessCliArgs(args, exec_args);
   return env;
 }
 
@@ -1220,7 +1281,7 @@ void FreePlatform(MultiIsolatePlatform* platform) {
 
 Local<Context> NewContext(Isolate* isolate,
                           Local<ObjectTemplate> object_template) {
-  auto context = Context::New(isolate, nullptr, object_template);
+  Local<Context> context = Context::New(isolate, nullptr, object_template);
   if (context.IsEmpty()) return context;
   HandleScope handle_scope(isolate);
 
@@ -1233,12 +1294,19 @@ Local<Context> NewContext(Isolate* isolate,
 
     std::vector<Local<String>> parameters = {
         FIXED_ONE_BYTE_STRING(isolate, "global")};
-    std::vector<Local<Value>> arguments = {context->Global()};
-    MaybeLocal<Value> result = per_process::native_module_loader.CompileAndCall(
-        context, "internal/per_context", &parameters, &arguments, nullptr);
+    Local<Value> arguments[] = {context->Global()};
+    MaybeLocal<Function> maybe_fn =
+        per_process::native_module_loader.LookupAndCompile(
+            context, "internal/per_context", &parameters, nullptr);
+    if (maybe_fn.IsEmpty()) {
+      return Local<Context>();
+    }
+    Local<Function> fn = maybe_fn.ToLocalChecked();
+    MaybeLocal<Value> result =
+        fn->Call(context, Undefined(isolate), arraysize(arguments), arguments);
+    // Execution failed during context creation.
+    // TODO(joyeecheung): deprecate this signature and return a MaybeLocal.
     if (result.IsEmpty()) {
-      // Execution failed during context creation.
-      // TODO(joyeecheung): deprecate this signature and return a MaybeLocal.
       return Local<Context>();
     }
   }
@@ -1255,7 +1323,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   Context::Scope context_scope(context);
   Environment env(isolate_data, context);
   env.Start(per_process::v8_is_profiling);
-  env.CreateProcessObject(args, exec_args);
+  env.ProcessCliArgs(args, exec_args);
 
 #if HAVE_INSPECTOR && NODE_USE_V8_PLATFORM
   CHECK(!env.inspector_agent()->IsListening());
