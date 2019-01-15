@@ -43,6 +43,10 @@ const policyToDepRelativeURLString = `./${
 fs.writeFileSync(parentFilepath, parentBody);
 fs.writeFileSync(depFilepath, depBody);
 
+const tmpdirURL = pathToFileURL(tmpdir.path);
+if (!tmpdirURL.pathname.endsWith('/')) {
+  tmpdirURL.pathname += '/';
+}
 function test({
   shouldFail = false,
   entry,
@@ -57,13 +61,13 @@ function test({
     manifest.resources[url] = {
       integrity: `sha256-${hash('sha256', match ? body : body + '\n')}`
     };
-    fs.writeFileSync(new URL(url, pathToFileURL(tmpdir.path) + '/'), body);
+    fs.writeFileSync(new URL(url, tmpdirURL.href), body);
   }
   fs.writeFileSync(policyFilepath, JSON.stringify(manifest, null, 2));
   const { status } = spawnSync(process.execPath, [
     '--experimental-policy', policyFilepath, entry
   ], {
-    stdio: 'pipe'
+    stdio: 'inherit'
   });
   if (shouldFail) {
     assert.notStrictEqual(status, 0);
