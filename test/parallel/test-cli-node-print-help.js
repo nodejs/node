@@ -24,7 +24,6 @@ function startPrintHelpTest() {
 function validateNodePrintHelp() {
   const config = process.config;
   const HAVE_OPENSSL = common.hasCrypto;
-  const NODE_FIPS_MODE = fipsMode;
   const NODE_HAVE_I18N_SUPPORT = common.hasIntl;
   const HAVE_INSPECTOR = config.variables.v8_enable_inspector === 1;
 
@@ -32,7 +31,7 @@ function validateNodePrintHelp() {
     { compileConstant: HAVE_OPENSSL,
       flags: [ '--openssl-config=...', '--tls-cipher-list=...',
                '--use-bundled-ca', '--use-openssl-ca' ] },
-    { compileConstant: NODE_FIPS_MODE,
+    { compileConstant: fipsMode,
       flags: [ '--enable-fips', '--force-fips' ] },
     { compileConstant: NODE_HAVE_I18N_SUPPORT,
       flags: [ '--icu-data-dir=...', 'NODE_ICU_DATA' ] },
