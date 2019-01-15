@@ -122,16 +122,13 @@ static bool InspectorEnabled(Environment* env) {
   return agent->IsActive();
 }
 
-void AddCommandLineAPI(const FunctionCallbackInfo<Value>& info) {
+void SetConsoleExtensionInstaller(const FunctionCallbackInfo<Value>& info) {
   auto env = Environment::GetCurrent(info);
-  Local<Context> context = env->context();
 
-  // inspector.addCommandLineAPI takes 2 arguments: a string and a value.
-  CHECK_EQ(info.Length(), 2);
-  CHECK(info[0]->IsString());
+  CHECK_EQ(info.Length(), 1);
+  CHECK(info[0]->IsFunction());
 
-  Local<Object> console_api = env->inspector_console_api_object();
-  console_api->Set(context, info[0], info[1]).FromJust();
+  env->set_inspector_console_extension_installer(info[0].As<Function>());
 }
 
 void CallAndPauseOnStart(const FunctionCallbackInfo<v8::Value>& args) {
@@ -279,7 +276,8 @@ void Initialize(Local<Object> target, Local<Value> unused,
 
   Agent* agent = env->inspector_agent();
   env->SetMethod(target, "consoleCall", InspectorConsoleCall);
-  env->SetMethod(target, "addCommandLineAPI", AddCommandLineAPI);
+  env->SetMethod(
+      target, "setConsoleExtensionInstaller", SetConsoleExtensionInstaller);
   if (agent->WillWaitForConnect())
     env->SetMethod(target, "callAndPauseOnStart", CallAndPauseOnStart);
   env->SetMethod(target, "open", Open);

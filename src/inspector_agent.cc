@@ -32,7 +32,6 @@ namespace {
 
 using node::FatalError;
 
-using v8::Array;
 using v8::Context;
 using v8::Function;
 using v8::HandleScope;
@@ -493,16 +492,11 @@ class NodeInspectorClient : public V8InspectorClient {
 
   void installAdditionalCommandLineAPI(Local<Context> context,
                                        Local<Object> target) override {
-    Local<Object> console_api = env_->inspector_console_api_object();
-    CHECK(!console_api.IsEmpty());
-
-    Local<Array> properties =
-        console_api->GetOwnPropertyNames(context).ToLocalChecked();
-    for (uint32_t i = 0; i < properties->Length(); ++i) {
-      Local<Value> key = properties->Get(context, i).ToLocalChecked();
-      target->Set(context,
-                  key,
-                  console_api->Get(context, key).ToLocalChecked()).FromJust();
+    Local<Function> installer = env_->inspector_console_extension_installer();
+    if (!installer.IsEmpty()) {
+      Local<Value> argv[] = {target};
+      // If there is an exception, proceed in JS land
+      USE(installer->Call(context, target, arraysize(argv), argv));
     }
   }
 
