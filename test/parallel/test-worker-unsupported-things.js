@@ -1,9 +1,12 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const { Worker, isMainThread, parentPort } = require('worker_threads');
+const { Worker, parentPort } = require('worker_threads');
 
-if (isMainThread) {
+// Do not use isMainThread so that this test itself can be run inside a Worker.
+if (!process.env.HAS_STARTED_WORKER) {
+  process.env.HAS_STARTED_WORKER = 1;
+  process.env.NODE_CHANNEL_FD = 'foo'; // Make worker think it has IPC.
   const w = new Worker(__filename);
   w.on('message', common.mustCall((message) => {
     assert.strictEqual(message, true);
@@ -21,14 +24,25 @@ if (isMainThread) {
     assert.strictEqual(process.debugPort, before);
   }
 
-  assert.strictEqual('abort' in process, false);
-  assert.strictEqual('chdir' in process, false);
-  assert.strictEqual('setuid' in process, false);
-  assert.strictEqual('seteuid' in process, false);
-  assert.strictEqual('setgid' in process, false);
-  assert.strictEqual('setegid' in process, false);
-  assert.strictEqual('setgroups' in process, false);
-  assert.strictEqual('initgroups' in process, false);
+  const stubs = ['abort', 'chdir', 'send', 'disconnect'];
+
+  if (!common.isWindows) {
+    stubs.push('setuid', 'seteuid', 'setgid',
+               'setegid', 'setgroups', 'initgroups');
+  }
+
+  stubs.forEach((fn) => {
+    assert.strictEqual(process[fn].disabled, true);
+    assert.throws(() => {
+      process[fn]();
+    }, { code: 'ERR_WORKER_UNSUPPORTED_OPERATION' });
+  });
+
+  ['channel', 'connected'].forEach((fn) => {
+    assert.throws(() => {
+      process[fn];
+    }, { code: 'ERR_WORKER_UNSUPPORTED_OPERATION' });
+  });
 
   assert.strictEqual('_startProfilerIdleNotifier' in process, false);
   assert.strictEqual('_stopProfilerIdleNotifier' in process, false);
