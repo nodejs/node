@@ -368,7 +368,6 @@ class BytecodeGenerator::ControlScopeForBreakable final
  protected:
   bool Execute(Command command, Statement* statement,
                int source_position) override {
-    control_builder_->set_needs_continuation_counter();
     if (statement != statement_) return false;
     switch (command) {
       case CMD_BREAK:
