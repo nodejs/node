@@ -30,6 +30,9 @@
 namespace node {
 namespace crypto {
 
+// Parse the client hello so we can do async session resumption. OpenSSL's
+// session resumption uses synchronous callbacks, see SSL_CTX_sess_set_get_cb
+// and get_session_cb.
 class ClientHelloParser {
  public:
   inline ClientHelloParser();

@@ -1475,7 +1475,7 @@ int SSLWrap<Base>::NewSessionCallback(SSL* s, SSL_SESSION* sess) {
       reinterpret_cast<const char*>(session_id),
       session_id_length).ToLocalChecked();
   Local<Value> argv[] = { session, buff };
-  w->new_session_wait_ = true;
+  w->awaiting_new_session_ = true;
   w->MakeCallback(env->onnewsession_string(), arraysize(argv), argv);
 
   return 0;
@@ -2003,6 +2003,7 @@ void SSLWrap<Base>::Renegotiate(const FunctionCallbackInfo<Value>& args) {
 
   ClearErrorOnReturn clear_error_on_return;
 
+  // XXX(sam) Return/throw an error, don't discard the SSL error reason.
   bool yes = SSL_renegotiate(w->ssl_.get()) == 1;
   args.GetReturnValue().Set(yes);
 }
@@ -2036,7 +2037,7 @@ template <class Base>
 void SSLWrap<Base>::NewSessionDone(const FunctionCallbackInfo<Value>& args) {
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
-  w->new_session_wait_ = false;
+  w->awaiting_new_session_ = false;
   w->NewSessionDoneCb();
 }
 
