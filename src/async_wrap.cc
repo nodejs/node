@@ -39,7 +39,6 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
-using v8::NewStringType;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -686,70 +685,6 @@ MaybeLocal<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   EmitTraceEventAfter(provider, context.async_id);
 
   return ret;
-}
-
-
-/* Public C++ embedder API */
-
-
-async_id AsyncHooksGetExecutionAsyncId(Isolate* isolate) {
-  // Environment::GetCurrent() allocates a Local<> handle.
-  HandleScope handle_scope(isolate);
-  Environment* env = Environment::GetCurrent(isolate);
-  if (env == nullptr) return -1;
-  return env->execution_async_id();
-}
-
-
-async_id AsyncHooksGetTriggerAsyncId(Isolate* isolate) {
-  // Environment::GetCurrent() allocates a Local<> handle.
-  HandleScope handle_scope(isolate);
-  Environment* env = Environment::GetCurrent(isolate);
-  if (env == nullptr) return -1;
-  return env->trigger_async_id();
-}
-
-
-async_context EmitAsyncInit(Isolate* isolate,
-                            Local<Object> resource,
-                            const char* name,
-                            async_id trigger_async_id) {
-  HandleScope handle_scope(isolate);
-  Local<String> type =
-      String::NewFromUtf8(isolate, name, NewStringType::kInternalized)
-          .ToLocalChecked();
-  return EmitAsyncInit(isolate, resource, type, trigger_async_id);
-}
-
-async_context EmitAsyncInit(Isolate* isolate,
-                            Local<Object> resource,
-                            Local<String> name,
-                            async_id trigger_async_id) {
-  HandleScope handle_scope(isolate);
-  Environment* env = Environment::GetCurrent(isolate);
-  CHECK_NOT_NULL(env);
-
-  // Initialize async context struct
-  if (trigger_async_id == -1)
-    trigger_async_id = env->get_default_trigger_async_id();
-
-  async_context context = {
-    env->new_async_id(),  // async_id_
-    trigger_async_id  // trigger_async_id_
-  };
-
-  // Run init hooks
-  AsyncWrap::EmitAsyncInit(env, resource, name, context.async_id,
-                           context.trigger_async_id);
-
-  return context;
-}
-
-void EmitAsyncDestroy(Isolate* isolate, async_context asyncContext) {
-  // Environment::GetCurrent() allocates a Local<> handle.
-  HandleScope handle_scope(isolate);
-  AsyncWrap::EmitDestroy(
-      Environment::GetCurrent(isolate), asyncContext.async_id);
 }
 
 std::string AsyncWrap::MemoryInfoName() const {

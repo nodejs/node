@@ -763,19 +763,6 @@ void FatalException(Isolate* isolate,
   }
 }
 
-void FatalException(Isolate* isolate, const v8::TryCatch& try_catch) {
-  // If we try to print out a termination exception, we'd just get 'null',
-  // so just crashing here with that information seems like a better idea,
-  // and in particular it seems like we should handle terminations at the call
-  // site for this function rather than by printing them out somewhere.
-  CHECK(!try_catch.HasTerminated());
-
-  HandleScope scope(isolate);
-  if (!try_catch.IsVerbose()) {
-    FatalException(isolate, try_catch.Exception(), try_catch.Message());
-  }
-}
-
 void FatalException(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Environment* env = Environment::GetCurrent(isolate);

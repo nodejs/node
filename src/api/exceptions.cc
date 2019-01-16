@@ -12,6 +12,7 @@
 namespace node {
 
 using v8::Exception;
+using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
@@ -227,5 +228,18 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
   return e;
 }
 #endif
+
+void FatalException(Isolate* isolate, const v8::TryCatch& try_catch) {
+  // If we try to print out a termination exception, we'd just get 'null',
+  // so just crashing here with that information seems like a better idea,
+  // and in particular it seems like we should handle terminations at the call
+  // site for this function rather than by printing them out somewhere.
+  CHECK(!try_catch.HasTerminated());
+
+  HandleScope scope(isolate);
+  if (!try_catch.IsVerbose()) {
+    FatalException(isolate, try_catch.Exception(), try_catch.Message());
+  }
+}
 
 }  // namespace node
