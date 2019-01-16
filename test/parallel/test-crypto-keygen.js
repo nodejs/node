@@ -283,7 +283,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   // Test async elliptic curve key generation, e.g. for ECDSA, with an encrypted
   // private key.
   generateKeyPair('ec', {
-    namedCurve: 'P-192',
+    namedCurve: 'P-256',
     paramEncoding: 'named',
     publicKeyEncoding: {
       type: 'spki',
@@ -691,7 +691,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
 
   // It should recognize both NIST and standard curve names.
   generateKeyPair('ec', {
-    namedCurve: 'P-192',
+    namedCurve: 'P-256',
     publicKeyEncoding: { type: 'spki', format: 'pem' },
     privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
   }, common.mustCall((err, publicKey, privateKey) => {
@@ -699,7 +699,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }));
 
   generateKeyPair('ec', {
-    namedCurve: 'secp192k1',
+    namedCurve: 'secp256k1',
     publicKeyEncoding: { type: 'spki', format: 'pem' },
     privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
   }, common.mustCall((err, publicKey, privateKey) => {
