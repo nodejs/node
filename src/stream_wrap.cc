@@ -222,7 +222,7 @@ void LibuvStreamWrap::OnUvRead(ssize_t nread, const uv_buf_t* buf) {
     type = uv_pipe_pending_type(reinterpret_cast<uv_pipe_t*>(stream()));
   }
 
-  // We should not be getting this callback if someone as already called
+  // We should not be getting this callback if someone has already called
   // uv_close() on the handle.
   CHECK_EQ(persistent().IsEmpty(), false);
 

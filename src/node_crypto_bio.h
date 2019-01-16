@@ -34,8 +34,8 @@ namespace node {
 namespace crypto {
 
 // This class represents buffers for OpenSSL I/O, implemented as a singly-linked
-// list of chunks. It can be used both for writing data from Node to OpenSSL
-// and back, but only one direction per instance.
+// list of chunks. It can be used either for writing data from Node to OpenSSL,
+// or for reading data back, but not both.
 // The structure is only accessed, and owned by, the OpenSSL BIOPointer
 // (a.k.a. std::unique_ptr<BIO>).
 class NodeBIO : public MemoryRetainer {
@@ -80,11 +80,12 @@ class NodeBIO : public MemoryRetainer {
   // Put `len` bytes from `data` into buffer
   void Write(const char* data, size_t size);
 
-  // Return pointer to internal data and amount of
-  // contiguous data available for future writes
+  // Return pointer to contiguous block of reserved data and the size available
+  // for future writes. Call Commit() once the write is complete.
   char* PeekWritable(size_t* size);
 
-  // Commit reserved data
+  // Specify how much data was written into the block returned by
+  // PeekWritable().
   void Commit(size_t size);
 
 

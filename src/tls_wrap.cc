@@ -116,6 +116,11 @@ void TLSWrap::InitSSL() {
 #endif  // SSL_MODE_RELEASE_BUFFERS
 
   SSL_set_app_data(ssl_.get(), this);
+  // Using InfoCallback isn't how we are supposed to check handshake progress:
+  //   https://github.com/openssl/openssl/issues/7199#issuecomment-420915993
+  //
+  // Note on when this gets called on various openssl versions:
+  //   https://github.com/openssl/openssl/issues/7199#issuecomment-420670544
   SSL_set_info_callback(ssl_.get(), SSLInfoCallback);
 
   if (is_server()) {
@@ -194,6 +199,9 @@ void TLSWrap::Start(const FunctionCallbackInfo<Value>& args) {
 
   // Send ClientHello handshake
   CHECK(wrap->is_client());
+  // Seems odd to read when when we want to send, but SSL_read() triggers a
+  // handshake if a session isn't established, and handshake will cause
+  // encrypted data to become available for output.
   wrap->ClearOut();
   wrap->EncOut();
 }
@@ -243,7 +251,7 @@ void TLSWrap::EncOut() {
     return;
 
   // Wait for `newSession` callback to be invoked
-  if (is_waiting_new_session())
+  if (is_awaiting_new_session())
     return;
 
   // Split-off queue
@@ -253,7 +261,7 @@ void TLSWrap::EncOut() {
   if (ssl_ == nullptr)
     return;
 
-  // No data to write
+  // No encrypted output ready to write to the underlying stream.
   if (BIO_pending(enc_out_) == 0) {
     if (pending_cleartext_input_.empty())
       InvokeQueued(0);
@@ -442,13 +450,13 @@ void TLSWrap::ClearOut() {
 }
 
 
-bool TLSWrap::ClearIn() {
+void TLSWrap::ClearIn() {
   // Ignore cycling data if ClientHello wasn't yet parsed
   if (!hello_parser_.IsEnded())
-    return false;
+    return;
 
   if (ssl_ == nullptr)
-    return false;
+    return;
 
   std::vector<uv_buf_t> buffers;
   buffers.swap(pending_cleartext_input_);
@@ -468,8 +476,9 @@ bool TLSWrap::ClearIn() {
 
   // All written
   if (i == buffers.size()) {
+    // We wrote all the buffers, so no writes failed (written < 0 on failure).
     CHECK_GE(written, 0);
-    return true;
+    return;
   }
 
   // Error or partial write
@@ -481,6 +490,8 @@ bool TLSWrap::ClearIn() {
   Local<Value> arg = GetSSLError(written, &err, &error_str);
   if (!arg.IsEmpty()) {
     write_callback_scheduled_ = true;
+    // XXX(sam) Should forward an error object with .code/.function/.etc, if
+    // possible.
     InvokeQueued(UV_EPROTO, error_str.c_str());
   } else {
     // Push back the not-yet-written pending buffers into their queue.
@@ -491,7 +502,7 @@ bool TLSWrap::ClearIn() {
                                     buffers.end());
   }
 
-  return false;
+  return;
 }
 
 
@@ -547,6 +558,7 @@ void TLSWrap::ClearError() {
 }
 
 
+// Called by StreamBase::Write() to request async write of clear text into SSL.
 int TLSWrap::DoWrite(WriteWrap* w,
                      uv_buf_t* bufs,
                      size_t count,
@@ -560,18 +572,26 @@ int TLSWrap::DoWrite(WriteWrap* w,
   }
 
   bool empty = true;
-
-  // Empty writes should not go through encryption process
   size_t i;
-  for (i = 0; i < count; i++)
+  for (i = 0; i < count; i++) {
     if (bufs[i].len > 0) {
       empty = false;
       break;
     }
+  }
+
+  // We want to trigger a Write() on the underlying stream to drive the stream
+  // system, but don't want to encrypt empty buffers into a TLS frame, so see
+  // if we can find something to Write().
+  // First, call ClearOut(). It does an SSL_read(), which might cause handshake
+  // or other internal messages to be encrypted. If it does, write them later
+  // with EncOut().
+  // If there is still no encrypted output, call Write(bufs) on the underlying
+  // stream. Since the bufs are empty, it won't actually write non-TLS data
+  // onto the socket, we just want the side-effects. After, make sure the
+  // WriteWrap was accepted by the stream, or that we call Done() on it.
   if (empty) {
     ClearOut();
-    // However, if there is any data that should be written to the socket,
-    // the callback should not be invoked immediately
     if (BIO_pending(enc_out_) == 0) {
       CHECK_NULL(current_empty_write_);
       current_empty_write_ = w;
@@ -591,7 +611,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
   CHECK_NULL(current_write_);
   current_write_ = w;
 
-  // Write queued data
+  // Write encrypted data to underlying stream and call Done().
   if (empty) {
     EncOut();
     return 0;
@@ -610,17 +630,20 @@ int TLSWrap::DoWrite(WriteWrap* w,
   if (i != count) {
     int err;
     Local<Value> arg = GetSSLError(written, &err, &error_);
+
+    // If we stopped writing because of an error, it's fatal, discard the data.
     if (!arg.IsEmpty()) {
       current_write_ = nullptr;
       return UV_EPROTO;
     }
 
+    // Otherwise, save unwritten data so it can be written later by ClearIn().
     pending_cleartext_input_.insert(pending_cleartext_input_.end(),
                                     &bufs[i],
                                     &bufs[count]);
   }
 
-  // Try writing data immediately
+  // Write any encrypted/handshake output that may be ready.
   EncOut();
 
   return 0;
@@ -652,17 +675,20 @@ void TLSWrap::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
     return;
   }
 
-  // Only client connections can receive data
   if (ssl_ == nullptr) {
     EmitRead(UV_EPROTO);
     return;
   }
 
-  // Commit read data
+  // Commit the amount of data actually read into the peeked/allocated buffer
+  // from the underlying stream.
   crypto::NodeBIO* enc_in = crypto::NodeBIO::FromBIO(enc_in_);
   enc_in->Commit(nread);
 
-  // Parse ClientHello first
+  // Parse ClientHello first, if we need to. It's only parsed if session event
+  // listeners are used on the server side.  "ended" is the initial state, so
+  // can mean parsing was never started, or that parsing is finished. Either
+  // way, ended means we can give the buffered data to SSL.
   if (!hello_parser_.IsEnded()) {
     size_t avail = 0;
     uint8_t* data = reinterpret_cast<uint8_t*>(enc_in->Peek(&avail));
