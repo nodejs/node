@@ -1352,7 +1352,7 @@ This can be called many times with new data as it is streamed.
 <!-- YAML
 added: v0.1.92
 changes:
-  - version: REPLACEME
+  - version: v11.7.0
     pr-url: https://github.com/nodejs/node/pull/25217
     description: The key can now be a private key.
   - version: v8.0.0
@@ -1813,7 +1813,7 @@ must be an object with the properties described above.
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version: v11.7.0
     pr-url: https://github.com/nodejs/node/pull/25217
     description: The `key` argument can now be a private key.
 -->

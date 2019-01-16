@@ -88,7 +88,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/19372
     description: The `Console` constructor now supports an `options` argument,
                  and the `colorMode` option was introduced.
-  - version: REPLACEME
+  - version: v11.7.0
     pr-url: https://github.com/nodejs/node/pull/24978
     description: The `inspectOptions` option is introduced.
 -->

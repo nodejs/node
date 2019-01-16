@@ -2133,7 +2133,7 @@ binary itself.
 ### ERR_UNKNOWN_STDIN_TYPE
 <!-- YAML
 added: v8.0.0
-removed: REPLACEME
+removed: v11.7.0
 -->
 
 An attempt was made to launch a Node.js process with an unknown `stdin` file
@@ -2144,7 +2144,7 @@ although it is possible for user code to trigger it.
 ### ERR_UNKNOWN_STREAM_TYPE
 <!-- YAML
 added: v8.0.0
-removed: REPLACEME
+removed: v11.7.0
 -->
 
 An attempt was made to launch a Node.js process with an unknown `stdout` or
