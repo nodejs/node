@@ -212,7 +212,7 @@ are also recursively evaluated by the following rules.
   enumerable properties.
 * [Object wrappers][] are compared both as objects and unwrapped values.
 * `Object` properties are compared unordered.
-* `Map` keys and `Set` items are compared unordered.
+* [`Map`][] keys and [`Set`][] items are compared unordered.
 * Recursion stops when both sides differ or both sides encounter a circular
   reference.
 * Implementation does not test the [`[[Prototype]]`][prototype-spec] of
@@ -321,7 +321,7 @@ are recursively evaluated also by the following rules.
 * Enumerable own [`Symbol`][] properties are compared as well.
 * [Object wrappers][] are compared both as objects and unwrapped values.
 * `Object` properties are compared unordered.
-* `Map` keys and `Set` items are compared unordered.
+* [`Map`][] keys and [`Set`][] items are compared unordered.
 * Recursion stops when both sides differ or both sides encounter a circular
   reference.
 * [`WeakMap`][] and [`WeakSet`][] comparison does not rely on their values. See
@@ -1266,8 +1266,10 @@ second argument. This might lead to difficult-to-spot errors.
 [`ERR_INVALID_RETURN_VALUE`]: errors.html#errors_err_invalid_return_value
 [`Error.captureStackTrace`]: errors.html#errors_error_capturestacktrace_targetobject_constructoropt
 [`Error`]: errors.html#errors_class_error
+[`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
 [`Object.is()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is
 [`RegExp`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions
+[`Set`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set
 [`Symbol`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol
 [`TypeError`]: errors.html#errors_class_typeerror
 [`WeakMap`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakMap
