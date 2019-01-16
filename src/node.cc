@@ -119,32 +119,21 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Int32;
-using v8::Integer;
 using v8::Isolate;
 using v8::Just;
 using v8::Local;
 using v8::Locker;
 using v8::Maybe;
 using v8::MaybeLocal;
-using v8::Message;
-using v8::MicrotasksPolicy;
 using v8::Object;
-using v8::ObjectTemplate;
 using v8::Script;
-using v8::ScriptOrigin;
 using v8::SealHandleScope;
 using v8::String;
-using v8::TracingController;
 using v8::Undefined;
 using v8::V8;
 using v8::Value;
 
 namespace per_process {
-// Tells whether --prof is passed.
-// TODO(joyeecheung): move env->options()->prof_process to
-// per_process::cli_options.prof_process and use that instead.
-static bool v8_is_profiling = false;
-
 // TODO(joyeecheung): these are no longer necessary. Remove them.
 // See: https://github.com/nodejs/node/pull/25302#discussion_r244924196
 // Isolate on the main thread
@@ -163,6 +152,8 @@ bool v8_initialized = false;
 // node_internals.h
 // process-relative uptime base, initialized at start-up
 double prog_start_time;
+// Tells whether --prof is passed.
+bool v8_is_profiling = false;
 
 // node_v8_platform-inl.h
 struct V8Platform v8_platform;
@@ -171,209 +162,6 @@ struct V8Platform v8_platform;
 #ifdef __POSIX__
 static const unsigned kMaxSignal = 32;
 #endif
-
-const char* signo_string(int signo) {
-#define SIGNO_CASE(e)  case e: return #e;
-  switch (signo) {
-#ifdef SIGHUP
-  SIGNO_CASE(SIGHUP);
-#endif
-
-#ifdef SIGINT
-  SIGNO_CASE(SIGINT);
-#endif
-
-#ifdef SIGQUIT
-  SIGNO_CASE(SIGQUIT);
-#endif
-
-#ifdef SIGILL
-  SIGNO_CASE(SIGILL);
-#endif
-
-#ifdef SIGTRAP
-  SIGNO_CASE(SIGTRAP);
-#endif
-
-#ifdef SIGABRT
-  SIGNO_CASE(SIGABRT);
-#endif
-
-#ifdef SIGIOT
-# if SIGABRT != SIGIOT
-  SIGNO_CASE(SIGIOT);
-# endif
-#endif
-
-#ifdef SIGBUS
-  SIGNO_CASE(SIGBUS);
-#endif
-
-#ifdef SIGFPE
-  SIGNO_CASE(SIGFPE);
-#endif
-
-#ifdef SIGKILL
-  SIGNO_CASE(SIGKILL);
-#endif
-
-#ifdef SIGUSR1
-  SIGNO_CASE(SIGUSR1);
-#endif
-
-#ifdef SIGSEGV
-  SIGNO_CASE(SIGSEGV);
-#endif
-
-#ifdef SIGUSR2
-  SIGNO_CASE(SIGUSR2);
-#endif
-
-#ifdef SIGPIPE
-  SIGNO_CASE(SIGPIPE);
-#endif
-
-#ifdef SIGALRM
-  SIGNO_CASE(SIGALRM);
-#endif
-
-  SIGNO_CASE(SIGTERM);
-
-#ifdef SIGCHLD
-  SIGNO_CASE(SIGCHLD);
-#endif
-
-#ifdef SIGSTKFLT
-  SIGNO_CASE(SIGSTKFLT);
-#endif
-
-
-#ifdef SIGCONT
-  SIGNO_CASE(SIGCONT);
-#endif
-
-#ifdef SIGSTOP
-  SIGNO_CASE(SIGSTOP);
-#endif
-
-#ifdef SIGTSTP
-  SIGNO_CASE(SIGTSTP);
-#endif
-
-#ifdef SIGBREAK
-  SIGNO_CASE(SIGBREAK);
-#endif
-
-#ifdef SIGTTIN
-  SIGNO_CASE(SIGTTIN);
-#endif
-
-#ifdef SIGTTOU
-  SIGNO_CASE(SIGTTOU);
-#endif
-
-#ifdef SIGURG
-  SIGNO_CASE(SIGURG);
-#endif
-
-#ifdef SIGXCPU
-  SIGNO_CASE(SIGXCPU);
-#endif
-
-#ifdef SIGXFSZ
-  SIGNO_CASE(SIGXFSZ);
-#endif
-
-#ifdef SIGVTALRM
-  SIGNO_CASE(SIGVTALRM);
-#endif
-
-#ifdef SIGPROF
-  SIGNO_CASE(SIGPROF);
-#endif
-
-#ifdef SIGWINCH
-  SIGNO_CASE(SIGWINCH);
-#endif
-
-#ifdef SIGIO
-  SIGNO_CASE(SIGIO);
-#endif
-
-#ifdef SIGPOLL
-# if SIGPOLL != SIGIO
-  SIGNO_CASE(SIGPOLL);
-# endif
-#endif
-
-#ifdef SIGLOST
-# if SIGLOST != SIGABRT
-  SIGNO_CASE(SIGLOST);
-# endif
-#endif
-
-#ifdef SIGPWR
-# if SIGPWR != SIGLOST
-  SIGNO_CASE(SIGPWR);
-# endif
-#endif
-
-#ifdef SIGINFO
-# if !defined(SIGPWR) || SIGINFO != SIGPWR
-  SIGNO_CASE(SIGINFO);
-# endif
-#endif
-
-#ifdef SIGSYS
-  SIGNO_CASE(SIGSYS);
-#endif
-
-  default: return "";
-  }
-}
-
-void* ArrayBufferAllocator::Allocate(size_t size) {
-  if (zero_fill_field_ || per_process::cli_options->zero_fill_all_buffers)
-    return UncheckedCalloc(size);
-  else
-    return UncheckedMalloc(size);
-}
-
-namespace {
-
-bool ShouldAbortOnUncaughtException(Isolate* isolate) {
-  HandleScope scope(isolate);
-  Environment* env = Environment::GetCurrent(isolate);
-  return env != nullptr &&
-         env->should_abort_on_uncaught_toggle()[0] &&
-         !env->inside_should_not_abort_on_uncaught_scope();
-}
-
-}  // anonymous namespace
-
-
-void AddPromiseHook(Isolate* isolate, promise_hook_func fn, void* arg) {
-  Environment* env = Environment::GetCurrent(isolate);
-  CHECK_NOT_NULL(env);
-  env->AddPromiseHook(fn, arg);
-}
-
-void AddEnvironmentCleanupHook(Isolate* isolate,
-                               void (*fun)(void* arg),
-                               void* arg) {
-  Environment* env = Environment::GetCurrent(isolate);
-  CHECK_NOT_NULL(env);
-  env->AddCleanupHook(fun, arg);
-}
-
-
-void RemoveEnvironmentCleanupHook(Isolate* isolate,
-                                  void (*fun)(void* arg),
-                                  void* arg) {
-  Environment* env = Environment::GetCurrent(isolate);
-  CHECK_NOT_NULL(env);
-  env->RemoveCleanupHook(fun, arg);
-}
 
 static void WaitForInspectorDisconnect(Environment* env) {
 #if HAVE_INSPECTOR
@@ -400,33 +188,6 @@ void Exit(const FunctionCallbackInfo<Value>& args) {
   WaitForInspectorDisconnect(env);
   int code = args[0]->Int32Value(env->context()).FromMaybe(0);
   env->Exit(code);
-}
-
-static void OnMessage(Local<Message> message, Local<Value> error) {
-  Isolate* isolate = message->GetIsolate();
-  switch (message->ErrorLevel()) {
-    case Isolate::MessageErrorLevel::kMessageWarning: {
-      Environment* env = Environment::GetCurrent(isolate);
-      if (!env) {
-        break;
-      }
-      Utf8Value filename(isolate,
-          message->GetScriptOrigin().ResourceName());
-      // (filename):(line) (message)
-      std::stringstream warning;
-      warning << *filename;
-      warning << ":";
-      warning << message->GetLineNumber(env->context()).FromMaybe(-1);
-      warning << " ";
-      v8::String::Utf8Value msg(isolate, message->Get());
-      warning << *msg;
-      USE(ProcessEmitWarningGeneric(env, warning.str().c_str(), "V8"));
-      break;
-    }
-    case Isolate::MessageErrorLevel::kMessageError:
-      FatalException(isolate, error, message);
-      break;
-  }
 }
 
 void SignalExit(int signo) {
@@ -969,190 +730,12 @@ void Init(int* argc,
     argv[i] = strdup(argv_[i].c_str());
 }
 
-void RunAtExit(Environment* env) {
-  env->RunAtExitCallbacks();
-}
-
-
-uv_loop_t* GetCurrentEventLoop(Isolate* isolate) {
-  HandleScope handle_scope(isolate);
-  Local<Context> context = isolate->GetCurrentContext();
-  if (context.IsEmpty())
-    return nullptr;
-  Environment* env = Environment::GetCurrent(context);
-  if (env == nullptr)
-    return nullptr;
-  return env->event_loop();
-}
-
-
-void AtExit(void (*cb)(void* arg), void* arg) {
-  auto env = Environment::GetThreadLocalEnv();
-  AtExit(env, cb, arg);
-}
-
-
-void AtExit(Environment* env, void (*cb)(void* arg), void* arg) {
-  CHECK_NOT_NULL(env);
-  env->AtExit(cb, arg);
-}
-
-
 void RunBeforeExit(Environment* env) {
   env->RunBeforeExitCallbacks();
 
   if (!uv_loop_alive(env->event_loop()))
     EmitBeforeExit(env);
 }
-
-
-void EmitBeforeExit(Environment* env) {
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
-  Local<Value> exit_code = env->process_object()
-                               ->Get(env->context(), env->exit_code_string())
-                               .ToLocalChecked()
-                               ->ToInteger(env->context())
-                               .ToLocalChecked();
-  ProcessEmit(env, "beforeExit", exit_code).ToLocalChecked();
-}
-
-int EmitExit(Environment* env) {
-  // process.emit('exit')
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
-  Local<Object> process_object = env->process_object();
-  process_object->Set(env->context(),
-                      FIXED_ONE_BYTE_STRING(env->isolate(), "_exiting"),
-                      True(env->isolate())).FromJust();
-
-  Local<String> exit_code = env->exit_code_string();
-  int code = process_object->Get(env->context(), exit_code).ToLocalChecked()
-      ->Int32Value(env->context()).ToChecked();
-  ProcessEmit(env, "exit", Integer::New(env->isolate(), code));
-
-  // Reload exit code, it may be changed by `emit('exit')`
-  return process_object->Get(env->context(), exit_code).ToLocalChecked()
-      ->Int32Value(env->context()).ToChecked();
-}
-
-
-ArrayBufferAllocator* CreateArrayBufferAllocator() {
-  return new ArrayBufferAllocator();
-}
-
-
-void FreeArrayBufferAllocator(ArrayBufferAllocator* allocator) {
-  delete allocator;
-}
-
-
-IsolateData* CreateIsolateData(
-    Isolate* isolate,
-    uv_loop_t* loop,
-    MultiIsolatePlatform* platform,
-    ArrayBufferAllocator* allocator) {
-  return new IsolateData(
-        isolate,
-        loop,
-        platform,
-        allocator != nullptr ? allocator->zero_fill_field() : nullptr);
-}
-
-
-void FreeIsolateData(IsolateData* isolate_data) {
-  delete isolate_data;
-}
-
-
-Environment* CreateEnvironment(IsolateData* isolate_data,
-                               Local<Context> context,
-                               int argc,
-                               const char* const* argv,
-                               int exec_argc,
-                               const char* const* exec_argv) {
-  Isolate* isolate = context->GetIsolate();
-  HandleScope handle_scope(isolate);
-  Context::Scope context_scope(context);
-  // TODO(addaleax): This is a much better place for parsing per-Environment
-  // options than the global parse call.
-  std::vector<std::string> args(argv, argv + argc);
-  std::vector<std::string> exec_args(exec_argv, exec_argv + exec_argc);
-  Environment* env = new Environment(isolate_data, context);
-  env->Start(per_process::v8_is_profiling);
-  env->ProcessCliArgs(args, exec_args);
-  return env;
-}
-
-
-void FreeEnvironment(Environment* env) {
-  env->RunCleanup();
-  delete env;
-}
-
-
-Environment* GetCurrentEnvironment(Local<Context> context) {
-  return Environment::GetCurrent(context);
-}
-
-
-MultiIsolatePlatform* GetMainThreadMultiIsolatePlatform() {
-  return per_process::v8_platform.Platform();
-}
-
-
-MultiIsolatePlatform* CreatePlatform(
-    int thread_pool_size,
-    node::tracing::TracingController* tracing_controller) {
-  return new NodePlatform(thread_pool_size, tracing_controller);
-}
-
-
-MultiIsolatePlatform* InitializeV8Platform(int thread_pool_size) {
-  per_process::v8_platform.Initialize(thread_pool_size);
-  return per_process::v8_platform.Platform();
-}
-
-
-void FreePlatform(MultiIsolatePlatform* platform) {
-  delete platform;
-}
-
-Local<Context> NewContext(Isolate* isolate,
-                          Local<ObjectTemplate> object_template) {
-  Local<Context> context = Context::New(isolate, nullptr, object_template);
-  if (context.IsEmpty()) return context;
-  HandleScope handle_scope(isolate);
-
-  context->SetEmbedderData(
-      ContextEmbedderIndex::kAllowWasmCodeGeneration, True(isolate));
-
-  {
-    // Run lib/internal/per_context.js
-    Context::Scope context_scope(context);
-
-    std::vector<Local<String>> parameters = {
-        FIXED_ONE_BYTE_STRING(isolate, "global")};
-    Local<Value> arguments[] = {context->Global()};
-    MaybeLocal<Function> maybe_fn =
-        per_process::native_module_loader.LookupAndCompile(
-            context, "internal/per_context", &parameters, nullptr);
-    if (maybe_fn.IsEmpty()) {
-      return Local<Context>();
-    }
-    Local<Function> fn = maybe_fn.ToLocalChecked();
-    MaybeLocal<Value> result =
-        fn->Call(context, Undefined(isolate), arraysize(arguments), arguments);
-    // Execution failed during context creation.
-    // TODO(joyeecheung): deprecate this signature and return a MaybeLocal.
-    if (result.IsEmpty()) {
-      return Local<Context>();
-    }
-  }
-
-  return context;
-}
-
 
 inline int Start(Isolate* isolate, IsolateData* isolate_data,
                  const std::vector<std::string>& args,
@@ -1233,41 +816,6 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
 #endif
 
   return exit_code;
-}
-
-bool AllowWasmCodeGenerationCallback(
-    Local<Context> context, Local<String>) {
-  Local<Value> wasm_code_gen =
-    context->GetEmbedderData(ContextEmbedderIndex::kAllowWasmCodeGeneration);
-  return wasm_code_gen->IsUndefined() || wasm_code_gen->IsTrue();
-}
-
-Isolate* NewIsolate(ArrayBufferAllocator* allocator, uv_loop_t* event_loop) {
-  Isolate::CreateParams params;
-  params.array_buffer_allocator = allocator;
-#ifdef NODE_ENABLE_VTUNE_PROFILING
-  params.code_event_handler = vTune::GetVtuneCodeEventHandler();
-#endif
-
-  Isolate* isolate = Isolate::Allocate();
-  if (isolate == nullptr)
-    return nullptr;
-
-  // Register the isolate on the platform before the isolate gets initialized,
-  // so that the isolate can access the platform during initialization.
-  per_process::v8_platform.Platform()->RegisterIsolate(isolate, event_loop);
-  Isolate::Initialize(isolate, params);
-
-  isolate->AddMessageListenerWithErrorLevel(OnMessage,
-      Isolate::MessageErrorLevel::kMessageError |
-      Isolate::MessageErrorLevel::kMessageWarning);
-  isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
-  isolate->SetMicrotasksPolicy(MicrotasksPolicy::kExplicit);
-  isolate->SetFatalErrorHandler(OnFatalError);
-  isolate->SetAllowWasmCodeGenerationCallback(AllowWasmCodeGenerationCallback);
-  v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
-
-  return isolate;
 }
 
 inline int Start(uv_loop_t* event_loop,
