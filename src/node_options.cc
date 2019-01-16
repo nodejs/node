@@ -304,6 +304,10 @@ DebugOptionsParser::DebugOptionsParser() {
 }
 
 EnvironmentOptionsParser::EnvironmentOptionsParser() {
+  AddOption("--experimental-exports",
+            "experimental support for exports in package.json",
+            &EnvironmentOptions::experimental_exports,
+            kAllowedInEnvironment);
   AddOption("--experimental-modules",
             "experimental ES Module support and caching modules",
             &EnvironmentOptions::experimental_modules,
