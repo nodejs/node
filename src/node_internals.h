@@ -244,9 +244,6 @@ int ThreadPoolWork::CancelWork() {
   return uv_cancel(reinterpret_cast<uv_req_t*>(&work_req_));
 }
 
-tracing::AgentWriterHandle* GetTracingAgentWriter();
-void DisposePlatform();
-
 #define TRACING_CATEGORY_NODE "node"
 #define TRACING_CATEGORY_NODE1(one)                                           \
     TRACING_CATEGORY_NODE ","                                                 \

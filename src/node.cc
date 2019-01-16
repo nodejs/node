@@ -32,8 +32,8 @@
 #include "node_platform.h"
 #include "node_process.h"
 #include "node_revert.h"
+#include "node_v8_platform-inl.h"
 #include "node_version.h"
-#include "tracing/traced_value.h"
 
 #if HAVE_OPENSSL
 #include "node_crypto.h"
@@ -56,8 +56,6 @@
 #include "handle_wrap.h"
 #include "req_wrap-inl.h"
 #include "string_bytes.h"
-#include "tracing/agent.h"
-#include "tracing/node_trace_writer.h"
 #include "util.h"
 #include "uv.h"
 #if NODE_USE_V8_PLATFORM
@@ -165,169 +163,10 @@ bool v8_initialized = false;
 // node_internals.h
 // process-relative uptime base, initialized at start-up
 double prog_start_time;
+
+// node_v8_platform-inl.h
+struct V8Platform v8_platform;
 }  // namespace per_process
-
-// Ensures that __metadata trace events are only emitted
-// when tracing is enabled.
-class NodeTraceStateObserver :
-    public TracingController::TraceStateObserver {
- public:
-  void OnTraceEnabled() override {
-    char name_buffer[512];
-    if (uv_get_process_title(name_buffer, sizeof(name_buffer)) == 0) {
-      // Only emit the metadata event if the title can be retrieved
-      // successfully. Ignore it otherwise.
-      TRACE_EVENT_METADATA1("__metadata", "process_name",
-                            "name", TRACE_STR_COPY(name_buffer));
-    }
-    TRACE_EVENT_METADATA1("__metadata",
-                          "version",
-                          "node",
-                          per_process::metadata.versions.node.c_str());
-    TRACE_EVENT_METADATA1("__metadata", "thread_name",
-                          "name", "JavaScriptMainThread");
-
-    auto trace_process = tracing::TracedValue::Create();
-    trace_process->BeginDictionary("versions");
-
-#define V(key)                                                                 \
-  trace_process->SetString(#key, per_process::metadata.versions.key.c_str());
-
-    NODE_VERSIONS_KEYS(V)
-#undef V
-
-    trace_process->EndDictionary();
-
-    trace_process->SetString("arch", per_process::metadata.arch.c_str());
-    trace_process->SetString("platform",
-                             per_process::metadata.platform.c_str());
-
-    trace_process->BeginDictionary("release");
-    trace_process->SetString("name",
-                             per_process::metadata.release.name.c_str());
-#if NODE_VERSION_IS_LTS
-    trace_process->SetString("lts", per_process::metadata.release.lts.c_str());
-#endif
-    trace_process->EndDictionary();
-    TRACE_EVENT_METADATA1("__metadata", "node",
-                          "process", std::move(trace_process));
-
-    // This only runs the first time tracing is enabled
-    controller_->RemoveTraceStateObserver(this);
-  }
-
-  void OnTraceDisabled() override {
-    // Do nothing here. This should never be called because the
-    // observer removes itself when OnTraceEnabled() is called.
-    UNREACHABLE();
-  }
-
-  explicit NodeTraceStateObserver(TracingController* controller) :
-      controller_(controller) {}
-  ~NodeTraceStateObserver() override {}
-
- private:
-  TracingController* controller_;
-};
-
-static struct {
-#if NODE_USE_V8_PLATFORM
-  void Initialize(int thread_pool_size) {
-    tracing_agent_.reset(new tracing::Agent());
-    node::tracing::TraceEventHelper::SetAgent(tracing_agent_.get());
-    node::tracing::TracingController* controller =
-        tracing_agent_->GetTracingController();
-    trace_state_observer_.reset(new NodeTraceStateObserver(controller));
-    controller->AddTraceStateObserver(trace_state_observer_.get());
-    StartTracingAgent();
-    // Tracing must be initialized before platform threads are created.
-    platform_ = new NodePlatform(thread_pool_size, controller);
-    V8::InitializePlatform(platform_);
-  }
-
-  void Dispose() {
-    StopTracingAgent();
-    platform_->Shutdown();
-    delete platform_;
-    platform_ = nullptr;
-    // Destroy tracing after the platform (and platform threads) have been
-    // stopped.
-    tracing_agent_.reset(nullptr);
-    trace_state_observer_.reset(nullptr);
-  }
-
-  void DrainVMTasks(Isolate* isolate) {
-    platform_->DrainTasks(isolate);
-  }
-
-  void CancelVMTasks(Isolate* isolate) {
-    platform_->CancelPendingDelayedTasks(isolate);
-  }
-
-  void StartTracingAgent() {
-    if (per_process::cli_options->trace_event_categories.empty()) {
-      tracing_file_writer_ = tracing_agent_->DefaultHandle();
-    } else {
-      std::vector<std::string> categories =
-          SplitString(per_process::cli_options->trace_event_categories, ',');
-
-      tracing_file_writer_ = tracing_agent_->AddClient(
-          std::set<std::string>(std::make_move_iterator(categories.begin()),
-                                std::make_move_iterator(categories.end())),
-          std::unique_ptr<tracing::AsyncTraceWriter>(
-              new tracing::NodeTraceWriter(
-                  per_process::cli_options->trace_event_file_pattern)),
-          tracing::Agent::kUseDefaultCategories);
-    }
-  }
-
-  void StopTracingAgent() {
-    tracing_file_writer_.reset();
-  }
-
-  tracing::AgentWriterHandle* GetTracingAgentWriter() {
-    return &tracing_file_writer_;
-  }
-
-  NodePlatform* Platform() {
-    return platform_;
-  }
-
-  std::unique_ptr<NodeTraceStateObserver> trace_state_observer_;
-  std::unique_ptr<tracing::Agent> tracing_agent_;
-  tracing::AgentWriterHandle tracing_file_writer_;
-  NodePlatform* platform_;
-#else  // !NODE_USE_V8_PLATFORM
-  void Initialize(int thread_pool_size) {}
-  void Dispose() {}
-  void DrainVMTasks(Isolate* isolate) {}
-  void CancelVMTasks(Isolate* isolate) {}
-
-  void StartTracingAgent() {
-    if (!trace_enabled_categories.empty()) {
-      fprintf(stderr, "Node compiled with NODE_USE_V8_PLATFORM=0, "
-                      "so event tracing is not available.\n");
-    }
-  }
-  void StopTracingAgent() {}
-
-  tracing::AgentWriterHandle* GetTracingAgentWriter() {
-    return nullptr;
-  }
-
-  NodePlatform* Platform() {
-    return nullptr;
-  }
-#endif  // !NODE_USE_V8_PLATFORM
-} v8_platform;
-
-tracing::AgentWriterHandle* GetTracingAgentWriter() {
-  return v8_platform.GetTracingAgentWriter();
-}
-
-void DisposePlatform() {
-  v8_platform.Dispose();
-}
 
 #ifdef __POSIX__
 static const unsigned kMaxSignal = 32;
@@ -1258,7 +1097,7 @@ Environment* GetCurrentEnvironment(Local<Context> context) {
 
 
 MultiIsolatePlatform* GetMainThreadMultiIsolatePlatform() {
-  return v8_platform.Platform();
+  return per_process::v8_platform.Platform();
 }
 
 
@@ -1270,8 +1109,8 @@ MultiIsolatePlatform* CreatePlatform(
 
 
 MultiIsolatePlatform* InitializeV8Platform(int thread_pool_size) {
-  v8_platform.Initialize(thread_pool_size);
-  return v8_platform.Platform();
+  per_process::v8_platform.Initialize(thread_pool_size);
+  return per_process::v8_platform.Platform();
 }
 
 
@@ -1359,7 +1198,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
     do {
       uv_run(env.event_loop(), UV_RUN_DEFAULT);
 
-      v8_platform.DrainVMTasks(isolate);
+      per_process::v8_platform.DrainVMTasks(isolate);
 
       more = uv_loop_alive(env.event_loop());
       if (more)
@@ -1387,8 +1226,8 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   env.RunCleanup();
   RunAtExit(&env);
 
-  v8_platform.DrainVMTasks(isolate);
-  v8_platform.CancelVMTasks(isolate);
+  per_process::v8_platform.DrainVMTasks(isolate);
+  per_process::v8_platform.CancelVMTasks(isolate);
 #if defined(LEAK_SANITIZER)
   __lsan_do_leak_check();
 #endif
@@ -1416,7 +1255,7 @@ Isolate* NewIsolate(ArrayBufferAllocator* allocator, uv_loop_t* event_loop) {
 
   // Register the isolate on the platform before the isolate gets initialized,
   // so that the isolate can access the platform during initialization.
-  v8_platform.Platform()->RegisterIsolate(isolate, event_loop);
+  per_process::v8_platform.Platform()->RegisterIsolate(isolate, event_loop);
   Isolate::Initialize(isolate, params);
 
   isolate->AddMessageListenerWithErrorLevel(OnMessage,
@@ -1462,11 +1301,10 @@ inline int Start(uv_loop_t* event_loop,
     Isolate::Scope isolate_scope(isolate);
     HandleScope handle_scope(isolate);
     std::unique_ptr<IsolateData, decltype(&FreeIsolateData)> isolate_data(
-        CreateIsolateData(
-            isolate,
-            event_loop,
-            v8_platform.Platform(),
-            allocator.get()),
+        CreateIsolateData(isolate,
+                          event_loop,
+                          per_process::v8_platform.Platform(),
+                          allocator.get()),
         &FreeIsolateData);
     // TODO(addaleax): This should load a real per-Isolate option, currently
     // this is still effectively per-process.
@@ -1484,7 +1322,7 @@ inline int Start(uv_loop_t* event_loop,
   }
 
   isolate->Dispose();
-  v8_platform.Platform()->UnregisterIsolate(isolate);
+  per_process::v8_platform.Platform()->UnregisterIsolate(isolate);
 
   return exit_code;
 }
@@ -1549,7 +1387,7 @@ int Start(int argc, char** argv) {
   // that happen to terminate during shutdown from being run unsafely.
   // Since uv_run cannot be called, uv_async handles held by the platform
   // will never be fully cleaned up.
-  v8_platform.Dispose();
+  per_process::v8_platform.Dispose();
 
   return exit_code;
 }
