@@ -19,7 +19,7 @@ const server = tls.createServer({
   assert.throws(() => {
     tls.connect({
       port: this.address().port,
-      ciphers: 'RC4'
+      ciphers: 'no-such-cipher'
     }, common.mustNotCall());
   }, /no cipher match/i);
 
