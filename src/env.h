@@ -99,6 +99,8 @@ struct PackageConfig {
   const HasMain has_main;
   const std::string main;
   const PackageType type;
+
+  v8::Global<v8::Value> exports;
 };
 }  // namespace loader
 
