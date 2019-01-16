@@ -148,6 +148,13 @@ the ability to import a directory that has an index file.
 
 Please see [customizing esm specifier resolution][] for example usage.
 
+### `--experimental-exports`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable experimental resolution using the `exports` field in `package.json`.
+
 ### `--experimental-modules`
 <!-- YAML
 added: v8.5.0
@@ -946,6 +953,7 @@ Node.js options that are allowed are:
 <!-- node-options-node start -->
 - `--enable-fips`
 - `--es-module-specifier-resolution`
+- `--experimental-exports`
 - `--experimental-modules`
 - `--experimental-policy`
 - `--experimental-repl-await`
