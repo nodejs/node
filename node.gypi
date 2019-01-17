@@ -78,6 +78,9 @@
         '<(_msvs_precompiled_header)',
         '<(_msvs_precompiled_source)',
       ],
+      'include_dirs': [
+        'tools/msvs/pch',
+      ],
     }, { # POSIX
       'defines': [ '__POSIX__' ],
     }],

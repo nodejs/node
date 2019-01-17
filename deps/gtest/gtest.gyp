@@ -7,6 +7,7 @@
       'direct_dependent_settings': {
         'include_dirs': ['include'],
       },
+      'defines': [ 'GTEST_LANG_CXX11' ],
       'include_dirs': ['.', 'include'],
       'sources': [
         'src/gtest-death-test.cc',

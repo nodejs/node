@@ -29,7 +29,7 @@
 
 """
 This is a utility for converting JavaScript source code into uint16_t[],
-that are used for embeding JavaScript code into the Node.js binary.
+that are used for embedding JavaScript code into the Node.js binary.
 """
 import argparse
 import os
@@ -178,8 +178,10 @@ def ReadMacros(macro_files):
 
 
 TEMPLATE = """
-#include "node_native_module.h"
-#include "node_internals.h"
+#include "node_javascript.h"
+
+#include <string>
+using namespace std::string_literals;
 
 namespace node {{
 
@@ -187,12 +189,11 @@ namespace native_module {{
 
 {0}
 
-void NativeModuleLoader::LoadJavaScriptSource() {{
-  {1}
-}}
-
-UnionBytes NativeModuleLoader::GetConfig() {{
-  return UnionBytes(config_raw, {2});  // config.gypi
+JavascriptEmbeddedCode::JavascriptEmbeddedCode() :
+  config_{{config_raw}},
+  source_{{
+    {1}
+  }} {{
 }}
 
 }}  // namespace native_module
@@ -200,13 +201,14 @@ UnionBytes NativeModuleLoader::GetConfig() {{
 }}  // namespace node
 """
 
-TWO_BYTE_STRING = """
-static const uint16_t {0}[] = {{
+CHAR_STRING_AND_STRING_VIEW = """
+static const char {0}_arr[] = {{
 {1}
 }};
+static const string_view {0} = {{ {0}_arr }};
 """
 
-INITIALIZER = 'source_.emplace("{0}", UnionBytes{{{1}, {2}}});'
+INITIALIZER = '{{"{0}"s, {1}}}'
 
 CONFIG_GYPI_ID = 'config_raw'
 
@@ -215,15 +217,16 @@ SLUGGER_RE =re.compile('[.\-/]')
 is_verbose = False
 
 def GetDefinition(var, source, step=30):
-  encoded_source = bytearray(source, 'utf-16le')
-  code_points = [encoded_source[i] + (encoded_source[i+1] * 256) for i in range(0, len(encoded_source), 2)]
+  code_points = bytearray(source, 'utf-8')
   # For easier debugging, align to the common 3 char for code-points.
   elements_s = ['%3s' % x for x in code_points]
+  # Put a nul terminator.
+  elements_s.append('0')
   # Put no more then `step` code-points in a line.
   slices = [elements_s[i:i + step] for i in range(0, len(elements_s), step)]
   lines = [','.join(s) for s in slices]
   array_content = ',\n'.join(lines)
-  definition = TWO_BYTE_STRING.format(var, array_content)
+  definition = CHAR_STRING_AND_STRING_VIEW.format(var, array_content)
   return definition, len(code_points)
 
 
@@ -234,8 +237,8 @@ def AddModule(filename, consts, macros, definitions, initializers):
   name = NormalizeFileName(filename)
   slug = SLUGGER_RE.sub('_', name)
   var = slug + '_raw'
-  definition, size = GetDefinition(var, code)
-  initializer = INITIALIZER.format(name, var, size)
+  definition, _ = GetDefinition(var, code)
+  initializer = INITIALIZER.format(name, var)
   definitions.append(definition)
   initializers.append(initializer)
 
@@ -260,14 +263,14 @@ def JS2C(source_files, target):
   for filename in source_files['.js']:
     AddModule(filename, consts, macros, definitions, initializers)
 
-  config_def, config_size = handle_config_gypi(source_files['config.gypi'])
+  config_def, _ = handle_config_gypi(source_files['config.gypi'])
   definitions.append(config_def)
 
   # Emit result
   definitions = ''.join(definitions)
-  initializers = '\n  '.join(initializers)
-  out = TEMPLATE.format(definitions, initializers, config_size)
-  write_if_chaged(out, target)
+  initializers = ',\n    '.join(initializers)
+  out = TEMPLATE.format(definitions, initializers)
+  write_if_changed(out, target)
 
 
 def handle_config_gypi(config_filename):
@@ -290,7 +293,7 @@ def jsonify(config):
   return config
 
 
-def write_if_chaged(content, target):
+def write_if_changed(content, target):
   if os.path.exists(target):
     with open(target, 'rt') as existing:
       old_content = existing.read()

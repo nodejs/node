@@ -231,6 +231,8 @@
         'SuppressStartupBanner': 'true',
         'WarnAsError': 'false',
         'WarningLevel': 3,       # /W3
+        'AdditionalOptions': [ '/std:c++17' ],
+
       },
       'VCLinkerTool': {
         'conditions': [
@@ -334,7 +336,7 @@
       }],
       [ 'OS in "linux freebsd openbsd solaris android aix cloudabi"', {
         'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', ],
-        'cflags_cc': [ '-fno-rtti', '-fno-exceptions', '-std=gnu++1y' ],
+        'cflags_cc': [ '-fno-rtti', '-fno-exceptions', '-std=gnu++1z' ],
         'ldflags': [ '-rdynamic' ],
         'target_conditions': [
           # The 1990s toolchain on SmartOS can't handle thin archives.
@@ -461,7 +463,7 @@
           ['clang==1', {
             'xcode_settings': {
               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
-              'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++1y',  # -std=gnu++1y
+              'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++1z',  # -std=gnu++1z
               'CLANG_CXX_LIBRARY': 'libc++',
             },
           }],

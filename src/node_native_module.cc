@@ -1,5 +1,8 @@
 #include "node_native_module.h"
 #include "node_errors.h"
+#include "env.h"
+
+#include <set>
 
 namespace node {
 
@@ -16,18 +19,15 @@ using v8::DEFAULT;
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
-using v8::HandleScope;
 using v8::Integer;
 using v8::IntegrityLevel;
 using v8::Isolate;
 using v8::Local;
-using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Name;
 using v8::None;
 using v8::Object;
 using v8::PropertyCallbackInfo;
-using v8::Script;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
 using v8::Set;
@@ -35,6 +35,32 @@ using v8::SideEffectType;
 using v8::String;
 using v8::Uint8Array;
 using v8::Value;
+
+class UInt8SpanResource
+    : public String::ExternalOneByteStringResource {
+ public:
+  explicit UInt8SpanResource(string_view span) : span_(span) {}
+  UInt8SpanResource(const UInt8SpanResource&) = delete;
+  UInt8SpanResource(const UInt8SpanResource&&) = delete;
+  UInt8SpanResource& operator=(const UInt8SpanResource&) = delete;
+  UInt8SpanResource& operator=(const UInt8SpanResource&&) = delete;
+
+  ~UInt8SpanResource() override = default;
+  void Dispose() override { delete this; }
+
+  const char* data() const override { return span_.data(); }
+  size_t length() const override { return span_.size(); }
+
+  static v8::Local<v8::String> ToStringChecked(v8::Isolate* isolate,
+                                               string_view span) {
+    return
+        v8::String::NewExternalOneByte(isolate, new UInt8SpanResource{span})
+        .ToLocalChecked();
+  }
+
+ private:
+  const string_view span_;
+};
 
 void NativeModuleLoader::InitializeModuleCategories() {
   if (module_categories_.is_initialized) {
@@ -83,22 +109,18 @@ void NativeModuleLoader::InitializeModuleCategories() {
       "internal/v8_prof_processor",
   };
 
-  for (auto const& x : source_) {
+  for (const auto& x : source_) {
     const std::string& id = x.first;
     for (auto const& prefix : prefixes) {
       if (prefix.length() > id.length()) {
         continue;
       }
       if (id.find(prefix) == 0) {
-        module_categories_.cannot_be_required.emplace(id);
+        module_categories_.cannot_be_required.insert(id);
       }
     }
-  }
-
-  for (auto const& x : source_) {
-    const std::string& id = x.first;
     if (0 == module_categories_.cannot_be_required.count(id)) {
-      module_categories_.can_be_required.emplace(id);
+      module_categories_.can_be_required.insert(id);
     }
   }
 
@@ -111,8 +133,11 @@ Local<Object> MapToObject(Local<Context> context,
   Isolate* isolate = context->GetIsolate();
   Local<Object> out = Object::New(isolate);
   for (auto const& x : in) {
-    Local<String> key = OneByteString(isolate, x.first.c_str(), x.first.size());
-    out->Set(context, key, x.second.ToStringChecked(isolate)).FromJust();
+    const Local<String> key = OneByteString(
+      isolate, x.first.c_str(), x.first.size());
+    const Local<String> val = UInt8SpanResource::ToStringChecked(
+      isolate, x.second);
+    out->Set(context, key, val).Check();
   }
   return out;
 }
@@ -206,18 +231,14 @@ void NativeModuleLoader::ConfigStringGetter(
       per_process::native_module_loader.GetConfigString(info.GetIsolate()));
 }
 
-Local<Object> NativeModuleLoader::GetSourceObject(
-    Local<Context> context) const {
+Local<Object> NativeModuleLoader::GetSourceObject(Local<Context> context)
+  const {
   return MapToObject(context, source_);
 }
 
-Local<String> NativeModuleLoader::GetConfigString(Isolate* isolate) const {
-  return config_.ToStringChecked(isolate);
-}
-
-NativeModuleLoader::NativeModuleLoader() : config_(GetConfig()) {
-  LoadJavaScriptSource();
-  LoadCodeCache();
+Local<String> NativeModuleLoader::GetConfigString(Isolate* isolate)
+  const {
+  return UInt8SpanResource::ToStringChecked(isolate, config_);;
 }
 
 // This is supposed to be run only by the main thread in
@@ -294,9 +315,8 @@ MaybeLocal<Function> NativeModuleLoader::LookupAndCompile(
   Isolate* isolate = context->GetIsolate();
   EscapableHandleScope scope(isolate);
 
-  const auto source_it = source_.find(id);
-  CHECK_NE(source_it, source_.end());
-  Local<String> source = source_it->second.ToStringChecked(isolate);
+  const Local<String> source = UInt8SpanResource::ToStringChecked(
+    isolate, source_.at(id));
 
   std::string filename_s = id + std::string(".js");
   Local<String> filename =

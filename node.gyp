@@ -523,6 +523,7 @@
         'src/node_http2_state.h',
         'src/node_i18n.h',
         'src/node_internals.h',
+        'src/node_javascript.h',
         'src/node_messaging.h',
         'src/node_metadata.h',
         'src/node_mutex.h',
@@ -538,7 +539,6 @@
         'src/node_revert.h',
         'src/node_root_certs.h',
         'src/node_stat_watcher.h',
-        'src/node_union_bytes.h',
         'src/node_url.h',
         'src/node_version.h',
         'src/node_v8_platform-inl.h',
@@ -1031,7 +1031,10 @@
         '<(SHARED_INTERMEDIATE_DIR)', # for node_natives.h
       ],
 
-      'defines': [ 'NODE_WANT_INTERNALS=1' ],
+      'defines': [
+        'NODE_WANT_INTERNALS=1',
+        'GTEST_LANG_CXX11'
+      ],
 
       'sources': [
         'test/cctest/node_test_fixture.cc',
