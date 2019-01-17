@@ -221,7 +221,7 @@ elements, and not as a byte array of the target type. That is,
    `[0x1020304]` or `[0x4030201]`.
 
 It is possible to create a new `Buffer` that shares the same allocated memory as
-a [`TypedArray`] instance by using the `TypeArray` object's `.buffer` property.
+a [`TypedArray`] instance by using the `TypedArray` object's `.buffer` property.
 
 ```js
 const arr = new Uint16Array(2);
