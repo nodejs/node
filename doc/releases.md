@@ -473,6 +473,9 @@ following command:
 $ git push <remote> <vx.y.z>
 ```
 
+*Note*: Please do not push the tag unless you are ready to complete the
+remainder of the release steps.
+
 ### 12. Set Up For the Next Release
 
 On release proposal branch, edit `src/node_version.h` again and:
