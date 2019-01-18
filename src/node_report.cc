@@ -775,7 +775,7 @@ static void PrintSystemInformation(JSONWriter* writer) {
         snprintf(buf, sizeof(buf), "%lu", limit.rlim_max);
         hard = std::string(buf);
 #else
-        snprintf(buf, sizeof(buf), "%lu", limit.rlim_max);
+        snprintf(buf, sizeof(buf), "%llu", limit.rlim_max);
         hard = std::string(buf);
 #endif
       }
