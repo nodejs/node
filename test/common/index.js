@@ -239,9 +239,6 @@ function platformTimeout(ms) {
   if (process.features.debug)
     ms = multipliers.two * ms;
 
-  if (global.__coverage__)
-    ms = multipliers.four * ms;
-
   if (isAIX)
     return multipliers.two * ms; // default localhost speed is slower on AIX
 
@@ -300,11 +297,7 @@ function leakedGlobals() {
     }
   }
 
-  if (global.__coverage__) {
-    return leaked.filter((varname) => !/^(?:cov_|__cov)/.test(varname));
-  } else {
-    return leaked;
-  }
+  return leaked;
 }
 
 process.on('exit', function() {

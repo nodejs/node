@@ -99,7 +99,6 @@
       'lib/internal/console/global.js',
       'lib/internal/console/inspector.js',
       'lib/internal/coverage-gen/with_profiler.js',
-      'lib/internal/coverage-gen/with_instrumentation.js',
       'lib/internal/crypto/certificate.js',
       'lib/internal/crypto/cipher.js',
       'lib/internal/crypto/diffiehellman.js',
