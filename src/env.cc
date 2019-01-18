@@ -276,9 +276,16 @@ Environment::~Environment() {
   TRACE_EVENT_NESTABLE_ASYNC_END0(
     TRACING_CATEGORY_NODE1(environment), "Environment", this);
 
-  // Dereference all addons that were loaded into this environment.
-  for (binding::DLib& addon : loaded_addons_) {
-    addon.Close();
+  // Do not unload addons on the main thread. Some addons need to retain memory
+  // beyond the Environment's lifetime, and unloading them early would break
+  // them; with Worker threads, we have the opportunity to be stricter.
+  // Also, since the main thread usually stops just before the process exits,
+  // this is far less relevant here.
+  if (!is_main_thread()) {
+    // Dereference all addons that were loaded into this environment.
+    for (binding::DLib& addon : loaded_addons_) {
+      addon.Close();
+    }
   }
 }
 

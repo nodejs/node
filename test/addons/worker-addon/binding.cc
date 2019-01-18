@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <v8.h>
+#include <uv.h>
 
 using v8::Context;
 using v8::HandleScope;
@@ -41,6 +42,17 @@ void Initialize(Local<Object> exports,
       const_cast<void*>(static_cast<const void*>("cleanup")));
   node::AddEnvironmentCleanupHook(context->GetIsolate(), Dummy, nullptr);
   node::RemoveEnvironmentCleanupHook(context->GetIsolate(), Dummy, nullptr);
+
+  if (getenv("addExtraItemToEventLoop") != nullptr) {
+    // Add an item to the event loop that we do not clean up in order to make
+    // sure that for the main thread, this addon's memory persists even after
+    // the Environment instance has been destroyed.
+    static uv_async_t extra_async;
+    uv_loop_t* loop = node::GetCurrentEventLoop(context->GetIsolate());
+    int err = uv_async_init(loop, &extra_async, [](uv_async_t*) {});
+    assert(err == 0);
+    uv_unref(reinterpret_cast<uv_handle_t*>(&extra_async));
+  }
 }
 
 NODE_MODULE_CONTEXT_AWARE(NODE_GYP_MODULE_NAME, Initialize)
