@@ -64,11 +64,29 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
   };
   Local<FunctionTemplate> sw =
       FunctionTemplate::New(env->isolate(), is_construct_call_callback);
-  sw->InstanceTemplate()->SetInternalFieldCount(StreamReq::kStreamReqField + 1);
+  sw->InstanceTemplate()->SetInternalFieldCount(
+      StreamReq::kStreamReqField + 1 + 3);
   Local<String> wrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "ShutdownWrap");
   sw->SetClassName(wrapString);
+
+  // we need to set handle and callback to null,
+  // so that those fields are created and functions
+  // do not become megamorphic
+  // Fields:
+  // - oncomplete
+  // - callback
+  // - handle
+  sw->InstanceTemplate()->Set(
+      FIXED_ONE_BYTE_STRING(env->isolate(), "oncomplete"),
+      v8::Null(env->isolate()));
+  sw->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "callback"),
+      v8::Null(env->isolate()));
+  sw->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "handle"),
+      v8::Null(env->isolate()));
+
   sw->Inherit(AsyncWrap::GetConstructorTemplate(env));
+
   target->Set(env->context(),
               wrapString,
               sw->GetFunction(env->context()).ToLocalChecked()).FromJust();
