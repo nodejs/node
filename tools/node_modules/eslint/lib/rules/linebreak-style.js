@@ -32,14 +32,14 @@ module.exports = {
             {
                 enum: ["unix", "windows"]
             }
-        ]
+        ],
+        messages: {
+            expectedLF: "Expected linebreaks to be 'LF' but found 'CRLF'.",
+            expectedCRLF: "Expected linebreaks to be 'CRLF' but found 'LF'."
+        }
     },
 
     create(context) {
-
-        const EXPECTED_LF_MSG = "Expected linebreaks to be 'LF' but found 'CRLF'.",
-            EXPECTED_CRLF_MSG = "Expected linebreaks to be 'CRLF' but found 'LF'.";
-
         const sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
@@ -89,7 +89,7 @@ module.exports = {
                             line: i,
                             column: sourceCode.lines[i - 1].length
                         },
-                        message: expectedLF ? EXPECTED_LF_MSG : EXPECTED_CRLF_MSG,
+                        messageId: expectedLF ? "expectedLF" : "expectedCRLF",
                         fix: createFix(range, expectedLFChars)
                     });
                 }

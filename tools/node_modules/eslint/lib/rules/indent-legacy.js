@@ -169,7 +169,10 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+        messages: {
+            expected: "Expected indentation of {{expected}} but found {{actual}}."
+        }
     },
 
     create(context) {
@@ -268,7 +271,7 @@ module.exports = {
          * @param {int} actualTabs The actual number of indentation tabs that were found on this line
          * @returns {string} An error message for this line
          */
-        function createErrorMessage(expectedAmount, actualSpaces, actualTabs) {
+        function createErrorMessageData(expectedAmount, actualSpaces, actualTabs) {
             const expectedStatement = `${expectedAmount} ${indentType}${expectedAmount === 1 ? "" : "s"}`; // e.g. "2 tabs"
             const foundSpacesWord = `space${actualSpaces === 1 ? "" : "s"}`; // e.g. "space"
             const foundTabsWord = `tab${actualTabs === 1 ? "" : "s"}`; // e.g. "tabs"
@@ -288,8 +291,10 @@ module.exports = {
             } else {
                 foundStatement = "0";
             }
-
-            return `Expected indentation of ${expectedStatement} but found ${foundStatement}.`;
+            return {
+                expected: expectedStatement,
+                actual: foundStatement
+            };
         }
 
         /**
@@ -318,7 +323,8 @@ module.exports = {
             context.report({
                 node,
                 loc,
-                message: createErrorMessage(needed, gottenSpaces, gottenTabs),
+                messageId: "expected",
+                data: createErrorMessageData(needed, gottenSpaces, gottenTabs),
                 fix: fixer => fixer.replaceTextRange(textRange, desiredIndent)
             });
         }

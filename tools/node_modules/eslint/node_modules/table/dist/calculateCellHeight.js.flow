@@ -1,6 +1,5 @@
 import _ from 'lodash';
-import stringWidth from 'string-width';
-import wrapWord from './wrapWord';
+import wrapCell from './wrapCell';
 
 /**
  * @param {string} value
@@ -21,9 +20,5 @@ export default (value, columnWidth, useWrapWord = false) => {
     throw new Error('Column width must be greater than 0.');
   }
 
-  if (useWrapWord) {
-    return wrapWord(value, columnWidth).length;
-  }
-
-  return Math.ceil(stringWidth(value) / columnWidth);
+  return wrapCell(value, columnWidth, useWrapWord).length;
 };

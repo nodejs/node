@@ -65,6 +65,22 @@ module.exports = {
         ],
 
         fixable: "code",
+        messages: {
+            unexpectedTag: "Unexpected @{{title}} tag; function has no return statement.",
+            expected: "Expected JSDoc for '{{name}}' but found '{{jsdocName}}'.",
+            use: "Use @{{name}} instead.",
+            useType: "Use '{{expectedTypeName}}' instead of '{{currentTypeName}}'.",
+            syntaxError: "JSDoc syntax error.",
+            missingBrace: "JSDoc type missing brace.",
+            missingParamDesc: "Missing JSDoc parameter description for '{{name}}'.",
+            missingParamType: "Missing JSDoc parameter type for '{{name}}'.",
+            missingReturnType: "Missing JSDoc return type.",
+            missingReturnDesc: "Missing JSDoc return description.",
+            missingReturn: "Missing JSDoc @{{returns}} for function.",
+            missingParam: "Missing JSDoc for parameter '{{name}}'.",
+            duplicateParam: "Duplicate JSDoc parameter '{{name}}'.",
+            unsatisfiedDesc: "JSDoc description does not satisfy the regex pattern."
+        },
 
         deprecated: true,
         replacedBy: []
@@ -231,7 +247,7 @@ module.exports = {
                     typeToCheck.expectedTypeName !== typeToCheck.currentType.name) {
                     context.report({
                         node: jsdocNode,
-                        message: "Use '{{expectedTypeName}}' instead of '{{currentTypeName}}'.",
+                        messageId: "useType",
                         loc: getAbsoluteRange(jsdocNode, typeToCheck.currentType),
                         data: {
                             currentTypeName: typeToCheck.currentType.name,
@@ -280,9 +296,9 @@ module.exports = {
                 } catch (ex) {
 
                     if (/braces/i.test(ex.message)) {
-                        context.report({ node: jsdocNode, message: "JSDoc type missing brace." });
+                        context.report({ node: jsdocNode, messageId: "missingBrace" });
                     } else {
-                        context.report({ node: jsdocNode, message: "JSDoc syntax error." });
+                        context.report({ node: jsdocNode, messageId: "syntaxError" });
                     }
 
                     return;
@@ -332,7 +348,7 @@ module.exports = {
 
                         context.report({
                             node: jsdocNode,
-                            message: "Use @{{name}} instead.",
+                            messageId: "use",
                             loc: {
                                 start: entireTagRange.start,
                                 end: {
@@ -363,7 +379,7 @@ module.exports = {
                     if (requireParamType && !param.type) {
                         context.report({
                             node: jsdocNode,
-                            message: "Missing JSDoc parameter type for '{{name}}'.",
+                            messageId: "missingParamType",
                             loc: getAbsoluteRange(jsdocNode, param),
                             data: { name: param.name }
                         });
@@ -371,7 +387,7 @@ module.exports = {
                     if (!param.description && requireParamDescription) {
                         context.report({
                             node: jsdocNode,
-                            message: "Missing JSDoc parameter description for '{{name}}'.",
+                            messageId: "missingParamDesc",
                             loc: getAbsoluteRange(jsdocNode, param),
                             data: { name: param.name }
                         });
@@ -379,7 +395,7 @@ module.exports = {
                     if (paramTagsByName[param.name]) {
                         context.report({
                             node: jsdocNode,
-                            message: "Duplicate JSDoc parameter '{{name}}'.",
+                            messageId: "duplicateParam",
                             loc: getAbsoluteRange(jsdocNode, param),
                             data: { name: param.name }
                         });
@@ -392,7 +408,7 @@ module.exports = {
                     if (!requireReturn && !functionData.returnPresent && (returnsTag.type === null || !isValidReturnType(returnsTag)) && !isAbstract) {
                         context.report({
                             node: jsdocNode,
-                            message: "Unexpected @{{title}} tag; function has no return statement.",
+                            messageId: "unexpectedTag",
                             loc: getAbsoluteRange(jsdocNode, returnsTag),
                             data: {
                                 title: returnsTag.title
@@ -400,11 +416,11 @@ module.exports = {
                         });
                     } else {
                         if (requireReturnType && !returnsTag.type) {
-                            context.report({ node: jsdocNode, message: "Missing JSDoc return type." });
+                            context.report({ node: jsdocNode, messageId: "missingReturnType" });
                         }
 
                         if (!isValidReturnType(returnsTag) && !returnsTag.description && requireReturnDescription) {
-                            context.report({ node: jsdocNode, message: "Missing JSDoc return description." });
+                            context.report({ node: jsdocNode, messageId: "missingReturnDesc" });
                         }
                     }
                 }
@@ -416,7 +432,7 @@ module.exports = {
                     if (requireReturn || (functionData.returnPresent && !node.async)) {
                         context.report({
                             node: jsdocNode,
-                            message: "Missing JSDoc @{{returns}} for function.",
+                            messageId: "missingReturn",
                             data: {
                                 returns: prefer.returns || "returns"
                             }
@@ -440,7 +456,7 @@ module.exports = {
                             if (jsdocParamNames[paramsIndex] && (name !== jsdocParamNames[paramsIndex])) {
                                 context.report({
                                     node: jsdocNode,
-                                    message: "Expected JSDoc for '{{name}}' but found '{{jsdocName}}'.",
+                                    messageId: "expected",
                                     loc: getAbsoluteRange(jsdocNode, paramTagsByName[jsdocParamNames[paramsIndex]]),
                                     data: {
                                         name,
@@ -450,7 +466,7 @@ module.exports = {
                             } else if (!paramTagsByName[name] && !isOverride) {
                                 context.report({
                                     node: jsdocNode,
-                                    message: "Missing JSDoc for parameter '{{name}}'.",
+                                    messageId: "missingParam",
                                     data: {
                                         name
                                     }
@@ -464,7 +480,7 @@ module.exports = {
                     const regex = new RegExp(options.matchDescription);
 
                     if (!regex.test(jsdoc.description)) {
-                        context.report({ node: jsdocNode, message: "JSDoc description does not satisfy the regex pattern." });
+                        context.report({ node: jsdocNode, messageId: "unsatisfiedDesc" });
                     }
                 }
 

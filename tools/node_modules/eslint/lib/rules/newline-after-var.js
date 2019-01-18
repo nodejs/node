@@ -26,14 +26,16 @@ module.exports = {
             recommended: false,
             url: "https://eslint.org/docs/rules/newline-after-var"
         },
-
         schema: [
             {
                 enum: ["never", "always"]
             }
         ],
-
         fixable: "whitespace",
+        messages: {
+            expected: "Expected blank line after variable declarations.",
+            unexpected: "Unexpected blank line after variable declarations."
+        },
 
         deprecated: true,
 
@@ -41,10 +43,6 @@ module.exports = {
     },
 
     create(context) {
-
-        const ALWAYS_MESSAGE = "Expected blank line after variable declarations.",
-            NEVER_MESSAGE = "Unexpected blank line after variable declarations.";
-
         const sourceCode = context.getSourceCode();
 
         // Default `mode` to "always".
@@ -214,7 +212,7 @@ module.exports = {
             if (mode === "never" && noNextLineToken && !hasNextLineComment) {
                 context.report({
                     node,
-                    message: NEVER_MESSAGE,
+                    messageId: "unexpected",
                     data: { identifier: node.name },
                     fix(fixer) {
                         const linesBetween = sourceCode.getText().slice(lastToken.range[1], nextToken.range[0]).split(astUtils.LINEBREAK_MATCHER);
@@ -233,7 +231,7 @@ module.exports = {
             ) {
                 context.report({
                     node,
-                    message: ALWAYS_MESSAGE,
+                    messageId: "expected",
                     data: { identifier: node.name },
                     fix(fixer) {
                         if ((noNextLineToken ? getLastCommentLineOfBlock(nextLineNum) : lastToken.loc.end.line) === nextToken.loc.start.line) {

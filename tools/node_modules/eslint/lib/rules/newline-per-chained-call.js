@@ -35,7 +35,10 @@ module.exports = {
                 }
             },
             additionalProperties: false
-        }]
+        }],
+        messages: {
+            expected: "Expected line break before `{{callee}}`."
+        }
     },
 
     create(context) {
@@ -91,7 +94,7 @@ module.exports = {
                     context.report({
                         node: callee.property,
                         loc: callee.property.loc.start,
-                        message: "Expected line break before `{{callee}}`.",
+                        messageId: "expected",
                         data: {
                             callee: getPropertyText(callee)
                         },

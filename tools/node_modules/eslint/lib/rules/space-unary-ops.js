@@ -46,7 +46,15 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+        messages: {
+            unexpectedBefore: "Unexpected space before unary operator '{{operator}}'.",
+            unexpectedAfter: "Unexpected space after unary operator '{{operator}}'.",
+            unexpectedAfterWord: "Unexpected space after unary word operator '{{word}}'.",
+            wordOperator: "Unary word operator '{{word}}' must be followed by whitespace.",
+            operator: "Unary operator '{{operator}}' must be followed by whitespace.",
+            beforeUnaryExpressions: "Space is required before unary expressions '{{token}}'."
+        }
     },
 
     create(context) {
@@ -98,7 +106,7 @@ module.exports = {
             if (secondToken.range[0] === firstToken.range[1]) {
                 context.report({
                     node,
-                    message: "Unary word operator '{{word}}' must be followed by whitespace.",
+                    messageId: "wordOperator",
                     data: {
                         word
                     },
@@ -122,7 +130,7 @@ module.exports = {
                 if (secondToken.range[0] > firstToken.range[1]) {
                     context.report({
                         node,
-                        message: "Unexpected space after unary word operator '{{word}}'.",
+                        messageId: "unexpectedAfterWord",
                         data: {
                             word
                         },
@@ -198,7 +206,7 @@ module.exports = {
                 if (firstToken.range[1] === secondToken.range[0]) {
                     context.report({
                         node,
-                        message: "Unary operator '{{operator}}' must be followed by whitespace.",
+                        messageId: "operator",
                         data: {
                             operator: firstToken.value
                         },
@@ -211,7 +219,7 @@ module.exports = {
                 if (firstToken.range[1] === secondToken.range[0]) {
                     context.report({
                         node,
-                        message: "Space is required before unary expressions '{{token}}'.",
+                        messageId: "beforeUnaryExpressions",
                         data: {
                             token: secondToken.value
                         },
@@ -235,7 +243,7 @@ module.exports = {
                 if (secondToken.range[0] > firstToken.range[1]) {
                     context.report({
                         node,
-                        message: "Unexpected space after unary operator '{{operator}}'.",
+                        messageId: "unexpectedAfter",
                         data: {
                             operator: firstToken.value
                         },
@@ -251,7 +259,7 @@ module.exports = {
                 if (secondToken.range[0] > firstToken.range[1]) {
                     context.report({
                         node,
-                        message: "Unexpected space before unary operator '{{operator}}'.",
+                        messageId: "unexpectedBefore",
                         data: {
                             operator: secondToken.value
                         },

@@ -29,7 +29,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+        messages: {
+            invalidValue: "Invalid typeof comparison value.",
+            notString: "Typeof comparisons should be to string literals."
+        }
     },
 
     create(context) {
@@ -65,10 +69,10 @@ module.exports = {
                             const value = sibling.type === "Literal" ? sibling.value : sibling.quasis[0].value.cooked;
 
                             if (VALID_TYPES.indexOf(value) === -1) {
-                                context.report({ node: sibling, message: "Invalid typeof comparison value." });
+                                context.report({ node: sibling, messageId: "invalidValue" });
                             }
                         } else if (requireStringLiterals && !isTypeofExpression(sibling)) {
-                            context.report({ node: sibling, message: "Typeof comparisons should be to string literals." });
+                            context.report({ node: sibling, messageId: "notString" });
                         }
                     }
                 }

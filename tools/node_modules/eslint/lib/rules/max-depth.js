@@ -43,7 +43,10 @@ module.exports = {
                     }
                 ]
             }
-        ]
+        ],
+        messages: {
+            tooDeeply: "Blocks are nested too deeply ({{depth}})."
+        }
     },
 
     create(context) {
@@ -94,7 +97,7 @@ module.exports = {
             const len = ++functionStack[functionStack.length - 1];
 
             if (len > maxDepth) {
-                context.report({ node, message: "Blocks are nested too deeply ({{depth}}).", data: { depth: len } });
+                context.report({ node, messageId: "tooDeeply", data: { depth: len } });
             }
         }
 

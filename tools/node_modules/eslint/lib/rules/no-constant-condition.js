@@ -109,7 +109,10 @@ module.exports = {
                     const isLeftShortCircuit = (isLeftConstant && isLogicalIdentity(node.left, node.operator));
                     const isRightShortCircuit = (isRightConstant && isLogicalIdentity(node.right, node.operator));
 
-                    return (isLeftConstant && isRightConstant) || isLeftShortCircuit || isRightShortCircuit;
+                    return (isLeftConstant && isRightConstant) ||
+                        (node.operator === "||" && isRightConstant && node.right.value) || // in the case of an "OR", we need to know if the right constant value is truthy
+                        isLeftShortCircuit ||
+                        isRightShortCircuit;
                 }
 
                 case "AssignmentExpression":

@@ -112,7 +112,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+        messages: {
+            after: "Expected line after comment.",
+            before: "Expected line before comment."
+        }
     },
 
     create(context) {
@@ -350,7 +354,7 @@ module.exports = {
 
                 context.report({
                     node: token,
-                    message: "Expected line before comment.",
+                    messageId: "before",
                     fix(fixer) {
                         return fixer.insertTextBeforeRange(range, "\n");
                     }
@@ -362,7 +366,7 @@ module.exports = {
                     !(astUtils.isCommentToken(nextTokenOrComment) && astUtils.isTokenOnSameLine(token, nextTokenOrComment))) {
                 context.report({
                     node: token,
-                    message: "Expected line after comment.",
+                    messageId: "after",
                     fix(fixer) {
                         return fixer.insertTextAfter(token, "\n");
                     }

@@ -30,7 +30,11 @@ module.exports = {
             {
                 enum: ["beside", "below"]
             }
-        ]
+        ],
+        messages: {
+            expected: "Expected a linebreak before this expression.",
+            unexpected: "Expected no linebreak before this expression."
+        }
     },
 
     create(context) {
@@ -210,13 +214,13 @@ module.exports = {
             if (tokenBefore.loc.end.line === fixerTarget.loc.start.line && option === "below") {
                 context.report({
                     node: fixerTarget,
-                    message: "Expected a linebreak before this expression.",
+                    messageId: "expected",
                     fix: fixer => fixer.insertTextBefore(fixerTarget, "\n")
                 });
             } else if (tokenBefore.loc.end.line !== fixerTarget.loc.start.line && option === "beside") {
                 context.report({
                     node: fixerTarget,
-                    message: "Expected no linebreak before this expression.",
+                    messageId: "unexpected",
                     fix: autoFixBesides(tokenBefore, fixerTarget, node)
                 });
             }

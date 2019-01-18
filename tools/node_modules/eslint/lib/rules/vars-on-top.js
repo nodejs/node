@@ -20,11 +20,13 @@ module.exports = {
             url: "https://eslint.org/docs/rules/vars-on-top"
         },
 
-        schema: []
+        schema: [],
+        messages: {
+            top: "All 'var' declarations must be at the top of the function scope."
+        }
     },
 
     create(context) {
-        const errorMessage = "All 'var' declarations must be at the top of the function scope.";
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -103,7 +105,7 @@ module.exports = {
          */
         function globalVarCheck(node, parent) {
             if (!isVarOnTop(node, parent.body)) {
-                context.report({ node, message: errorMessage });
+                context.report({ node, messageId: "top" });
             }
         }
 
@@ -118,7 +120,7 @@ module.exports = {
             if (!(/Function/.test(grandParent.type) &&
                     parent.type === "BlockStatement" &&
                     isVarOnTop(node, parent.body))) {
-                context.report({ node, message: errorMessage });
+                context.report({ node, messageId: "top" });
             }
         }
 

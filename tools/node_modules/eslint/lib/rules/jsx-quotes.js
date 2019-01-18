@@ -53,7 +53,10 @@ module.exports = {
             {
                 enum: ["prefer-single", "prefer-double"]
             }
-        ]
+        ],
+        messages: {
+            unexpected: "Unexpected usage of {{description}}."
+        }
     },
 
     create(context) {
@@ -77,7 +80,7 @@ module.exports = {
                 if (attributeValue && astUtils.isStringLiteral(attributeValue) && !usesExpectedQuotes(attributeValue)) {
                     context.report({
                         node: attributeValue,
-                        message: "Unexpected usage of {{description}}.",
+                        messageId: "unexpected",
                         data: {
                             description: setting.description
                         },
