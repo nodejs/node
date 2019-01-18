@@ -12,7 +12,7 @@
 #define NAPI_VERSION NAPI_VERSION_EXPERIMENTAL
 #else
 // The baseline version for N-API
-#define NAPI_VERSION 3
+#define NAPI_VERSION 4
 #endif
 #endif
 
