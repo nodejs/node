@@ -6,12 +6,19 @@ const path = require('path');
 const { Worker } = require('worker_threads');
 const binding = path.resolve(__dirname, `./build/${common.buildType}/binding`);
 
-if (process.argv[2] === 'child') {
+if (process.argv[2] === 'worker') {
   new Worker(`require(${JSON.stringify(binding)});`, { eval: true });
-} else {
+  return;
+} else if (process.argv[2] === 'main-thread') {
+  process.env.addExtraItemToEventLoop = 'yes';
+  require(binding);
+  return;
+}
+
+for (const test of ['worker', 'main-thread']) {
   const proc = child_process.spawnSync(process.execPath, [
     __filename,
-    'child'
+    test
   ]);
   assert.strictEqual(proc.stderr.toString(), '');
   assert.strictEqual(proc.stdout.toString(), 'ctor cleanup dtor');
