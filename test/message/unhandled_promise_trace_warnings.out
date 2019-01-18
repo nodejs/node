@@ -35,5 +35,5 @@
     at promiseRejectHandler (internal/process/promises.js:*)
     at Promise.then *
     at Promise.catch *
-    at Immediate.setImmediate (*test*message*unhandled_promise_trace_warnings.js:*)
+    at Immediate.<anonymous> (*test*message*unhandled_promise_trace_warnings.js:*)
     at *
