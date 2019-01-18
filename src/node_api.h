@@ -192,7 +192,7 @@ NAPI_EXTERN napi_status napi_close_callback_scope(napi_env env,
 
 #endif  // NAPI_VERSION >= 3
 
-#ifdef NAPI_EXPERIMENTAL
+#if NAPI_VERSION >= 4
 
 // Calling into JS from other threads
 NAPI_EXTERN napi_status
@@ -230,7 +230,7 @@ napi_unref_threadsafe_function(napi_env env, napi_threadsafe_function func);
 NAPI_EXTERN napi_status
 napi_ref_threadsafe_function(napi_env env, napi_threadsafe_function func);
 
-#endif  // NAPI_EXPERIMENTAL
+#endif  // NAPI_VERSION >= 4
 
 EXTERN_C_END
 
