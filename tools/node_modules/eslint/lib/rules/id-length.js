@@ -44,7 +44,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+        messages: {
+            tooShort: "Identifier name '{{name}}' is too short (< {{min}}).",
+            tooLong: "Identifier name '{{name}}' is too long (> {{max}})."
+        }
     },
 
     create(context) {
@@ -107,9 +111,7 @@ module.exports = {
                 if (isValidExpression && (isValidExpression === true || isValidExpression(parent, node))) {
                     context.report({
                         node,
-                        message: isShort
-                            ? "Identifier name '{{name}}' is too short (< {{min}})."
-                            : "Identifier name '{{name}}' is too long (> {{max}}).",
+                        messageId: isShort ? "tooShort" : "tooLong",
                         data: { name, min: minLength, max: maxLength }
                     });
                 }

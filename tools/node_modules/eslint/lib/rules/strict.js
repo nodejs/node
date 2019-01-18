@@ -15,19 +15,6 @@ const astUtils = require("../util/ast-utils");
 // Helpers
 //------------------------------------------------------------------------------
 
-const messages = {
-    function: "Use the function form of 'use strict'.",
-    global: "Use the global form of 'use strict'.",
-    multiple: "Multiple 'use strict' directives.",
-    never: "Strict mode is not permitted.",
-    unnecessary: "Unnecessary 'use strict' directive.",
-    module: "'use strict' is unnecessary inside of modules.",
-    implied: "'use strict' is unnecessary when implied strict mode is enabled.",
-    unnecessaryInClasses: "'use strict' is unnecessary inside of classes.",
-    nonSimpleParameterList: "'use strict' directive inside a function with non-simple parameter list throws a syntax error since ES2016.",
-    wrap: "Wrap {{name}} in a function with 'use strict' directive."
-};
-
 /**
  * Gets all of the Use Strict Directives in the Directive Prologue of a group of
  * statements.
@@ -95,7 +82,19 @@ module.exports = {
             }
         ],
 
-        fixable: "code"
+        fixable: "code",
+        messages: {
+            function: "Use the function form of 'use strict'.",
+            global: "Use the global form of 'use strict'.",
+            multiple: "Multiple 'use strict' directives.",
+            never: "Strict mode is not permitted.",
+            unnecessary: "Unnecessary 'use strict' directive.",
+            module: "'use strict' is unnecessary inside of modules.",
+            implied: "'use strict' is unnecessary when implied strict mode is enabled.",
+            unnecessaryInClasses: "'use strict' is unnecessary inside of classes.",
+            nonSimpleParameterList: "'use strict' directive inside a function with non-simple parameter list throws a syntax error since ES2016.",
+            wrap: "Wrap {{name}} in a function with 'use strict' directive."
+        }
     },
 
     create(context) {
@@ -134,36 +133,36 @@ module.exports = {
          * @param {ASTNode[]} nodes Nodes.
          * @param {string} start Index to start from.
          * @param {string} end Index to end before.
-         * @param {string} message Message to display.
+         * @param {string} messageId Message to display.
          * @param {boolean} fix `true` if the directive should be fixed (i.e. removed)
          * @returns {void}
          */
-        function reportSlice(nodes, start, end, message, fix) {
+        function reportSlice(nodes, start, end, messageId, fix) {
             nodes.slice(start, end).forEach(node => {
-                context.report({ node, message, fix: fix ? getFixFunction(node) : null });
+                context.report({ node, messageId, fix: fix ? getFixFunction(node) : null });
             });
         }
 
         /**
          * Report all nodes in an array with a given message.
          * @param {ASTNode[]} nodes Nodes.
-         * @param {string} message Message to display.
+         * @param {string} messageId Message id to display.
          * @param {boolean} fix `true` if the directive should be fixed (i.e. removed)
          * @returns {void}
          */
-        function reportAll(nodes, message, fix) {
-            reportSlice(nodes, 0, nodes.length, message, fix);
+        function reportAll(nodes, messageId, fix) {
+            reportSlice(nodes, 0, nodes.length, messageId, fix);
         }
 
         /**
          * Report all nodes in an array, except the first, with a given message.
          * @param {ASTNode[]} nodes Nodes.
-         * @param {string} message Message to display.
+         * @param {string} messageId Message id to display.
          * @param {boolean} fix `true` if the directive should be fixed (i.e. removed)
          * @returns {void}
          */
-        function reportAllExceptFirst(nodes, message, fix) {
-            reportSlice(nodes, 1, nodes.length, message, fix);
+        function reportAllExceptFirst(nodes, messageId, fix) {
+            reportSlice(nodes, 1, nodes.length, messageId, fix);
         }
 
         /**
@@ -181,21 +180,21 @@ module.exports = {
 
             if (isStrict) {
                 if (!isSimpleParameterList(node.params)) {
-                    context.report({ node: useStrictDirectives[0], message: messages.nonSimpleParameterList });
+                    context.report({ node: useStrictDirectives[0], messageId: "nonSimpleParameterList" });
                 } else if (isParentStrict) {
-                    context.report({ node: useStrictDirectives[0], message: messages.unnecessary, fix: getFixFunction(useStrictDirectives[0]) });
+                    context.report({ node: useStrictDirectives[0], messageId: "unnecessary", fix: getFixFunction(useStrictDirectives[0]) });
                 } else if (isInClass) {
-                    context.report({ node: useStrictDirectives[0], message: messages.unnecessaryInClasses, fix: getFixFunction(useStrictDirectives[0]) });
+                    context.report({ node: useStrictDirectives[0], messageId: "unnecessaryInClasses", fix: getFixFunction(useStrictDirectives[0]) });
                 }
 
-                reportAllExceptFirst(useStrictDirectives, messages.multiple, true);
+                reportAllExceptFirst(useStrictDirectives, "multiple", true);
             } else if (isParentGlobal) {
                 if (isSimpleParameterList(node.params)) {
-                    context.report({ node, message: messages.function });
+                    context.report({ node, messageId: "function" });
                 } else {
                     context.report({
                         node,
-                        message: messages.wrap,
+                        messageId: "wrap",
                         data: { name: astUtils.getFunctionNameWithKind(node) }
                     });
                 }
@@ -228,10 +227,10 @@ module.exports = {
                 enterFunctionInFunctionMode(node, useStrictDirectives);
             } else if (useStrictDirectives.length > 0) {
                 if (isSimpleParameterList(node.params)) {
-                    reportAll(useStrictDirectives, messages[mode], shouldFix(mode));
+                    reportAll(useStrictDirectives, mode, shouldFix(mode));
                 } else {
-                    context.report({ node: useStrictDirectives[0], message: messages.nonSimpleParameterList });
-                    reportAllExceptFirst(useStrictDirectives, messages.multiple, true);
+                    context.report({ node: useStrictDirectives[0], messageId: "nonSimpleParameterList" });
+                    reportAllExceptFirst(useStrictDirectives, "multiple", true);
                 }
             }
         }
@@ -246,11 +245,11 @@ module.exports = {
 
                 if (mode === "global") {
                     if (node.body.length > 0 && useStrictDirectives.length === 0) {
-                        context.report({ node, message: messages.global });
+                        context.report({ node, messageId: "global" });
                     }
-                    reportAllExceptFirst(useStrictDirectives, messages.multiple, true);
+                    reportAllExceptFirst(useStrictDirectives, "multiple", true);
                 } else {
-                    reportAll(useStrictDirectives, messages[mode], shouldFix(mode));
+                    reportAll(useStrictDirectives, mode, shouldFix(mode));
                 }
             },
             FunctionDeclaration: enterFunction,

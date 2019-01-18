@@ -20,7 +20,6 @@ function getMessageType(message) {
         return "error";
     }
     return "warning";
-
 }
 
 /**
@@ -50,18 +49,22 @@ module.exports = function(results) {
         let diagnostics = {};
 
         if (messages.length > 0) {
-            testResult = "not ok";
-
             messages.forEach(message => {
+                const severity = getMessageType(message);
                 const diagnostic = {
                     message: message.message,
-                    severity: getMessageType(message),
+                    severity,
                     data: {
                         line: message.line || 0,
                         column: message.column || 0,
                         ruleId: message.ruleId || ""
                     }
                 };
+
+                // This ensures a warning message is not flagged as error
+                if (severity === "error") {
+                    testResult = "not ok";
+                }
 
                 /*
                  * If we have multiple messages place them under a messages key

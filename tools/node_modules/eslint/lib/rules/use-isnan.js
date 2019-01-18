@@ -20,7 +20,10 @@ module.exports = {
             url: "https://eslint.org/docs/rules/use-isnan"
         },
 
-        schema: []
+        schema: [],
+        messages: {
+            useIsNaN: "Use the isNaN function to compare with NaN."
+        }
     },
 
     create(context) {
@@ -28,7 +31,7 @@ module.exports = {
         return {
             BinaryExpression(node) {
                 if (/^(?:[<>]|[!=]=)=?$/.test(node.operator) && (node.left.name === "NaN" || node.right.name === "NaN")) {
-                    context.report({ node, message: "Use the isNaN function to compare with NaN." });
+                    context.report({ node, messageId: "useIsNaN" });
                 }
             }
         };

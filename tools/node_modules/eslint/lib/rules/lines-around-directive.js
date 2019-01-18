@@ -45,6 +45,10 @@ module.exports = {
         }],
 
         fixable: "whitespace",
+        messages: {
+            expected: "Expected newline {{location}} \"{{value}}\" directive.",
+            unexpected: "Unexpected newline {{location}} \"{{value}}\" directive."
+        },
         deprecated: true,
         replacedBy: ["padding-line-between-statements"]
     },
@@ -109,9 +113,8 @@ module.exports = {
         function reportError(node, location, expected) {
             context.report({
                 node,
-                message: "{{expected}} newline {{location}} \"{{value}}\" directive.",
+                messageId: expected ? "expected" : "unexpected",
                 data: {
-                    expected: expected ? "Expected" : "Unexpected",
                     value: node.expression.value,
                     location
                 },

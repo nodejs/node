@@ -80,7 +80,10 @@ module.exports = {
 
         schema: [
             OPTIONS_OR_INTEGER_SCHEMA
-        ]
+        ],
+        messages: {
+            exceed: "{{name}} has too many lines ({{lineCount}}). Maximum allowed is {{maxLines}}."
+        }
     },
 
     create(context) {
@@ -201,7 +204,7 @@ module.exports = {
 
                 context.report({
                     node,
-                    message: "{{name}} has too many lines ({{lineCount}}). Maximum allowed is {{maxLines}}.",
+                    messageId: "exceed",
                     data: { name, lineCount, maxLines }
                 });
             }

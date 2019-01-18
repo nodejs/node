@@ -22,19 +22,20 @@ module.exports = {
         },
 
         fixable: "whitespace",
-        schema: [{ enum: ["starred-block", "separate-lines", "bare-block"] }]
+        schema: [{ enum: ["starred-block", "separate-lines", "bare-block"] }],
+        messages: {
+            expectedBlock: "Expected a block comment instead of consecutive line comments.",
+            startNewline: "Expected a linebreak after '/*'.",
+            endNewline: "Expected a linebreak before '*/'.",
+            missingStar: "Expected a '*' at the start of this line.",
+            alignment: "Expected this line to be aligned with the start of the comment.",
+            expectedLines: "Expected multiple line comments instead of a block comment."
+        }
     },
 
     create(context) {
         const sourceCode = context.getSourceCode();
         const option = context.options[0] || "starred-block";
-
-        const EXPECTED_BLOCK_ERROR = "Expected a block comment instead of consecutive line comments.";
-        const START_NEWLINE_ERROR = "Expected a linebreak after '/*'.";
-        const END_NEWLINE_ERROR = "Expected a linebreak before '*/'.";
-        const MISSING_STAR_ERROR = "Expected a '*' at the start of this line.";
-        const ALIGNMENT_ERROR = "Expected this line to be aligned with the start of the comment.";
-        const EXPECTED_LINES_ERROR = "Expected multiple line comments instead of a block comment.";
 
         //----------------------------------------------------------------------
         // Helpers
@@ -127,7 +128,7 @@ module.exports = {
                             start: commentGroup[0].loc.start,
                             end: commentGroup[commentGroup.length - 1].loc.end
                         },
-                        message: EXPECTED_BLOCK_ERROR,
+                        messageId: "expectedBlock",
                         fix(fixer) {
                             const range = [commentGroup[0].range[0], commentGroup[commentGroup.length - 1].range[1]];
                             const starredBlock = `/*${convertToStarredBlock(commentGroup[0], commentLines)}*/`;
@@ -150,7 +151,7 @@ module.exports = {
                                 start: block.loc.start,
                                 end: { line: block.loc.start.line, column: block.loc.start.column + 2 }
                             },
-                            message: START_NEWLINE_ERROR,
+                            messageId: "startNewline",
                             fix: fixer => fixer.insertTextAfterRange([start, start + 2], `\n${expectedLinePrefix}`)
                         });
                     }
@@ -161,7 +162,7 @@ module.exports = {
                                 start: { line: block.loc.end.line, column: block.loc.end.column - 2 },
                                 end: block.loc.end
                             },
-                            message: END_NEWLINE_ERROR,
+                            messageId: "endNewline",
                             fix: fixer => fixer.replaceTextRange([block.range[1] - 2, block.range[1]], `\n${expectedLinePrefix}/`)
                         });
                     }
@@ -175,9 +176,9 @@ module.exports = {
                                     start: { line: lineNumber, column: 0 },
                                     end: { line: lineNumber, column: sourceCode.lines[lineNumber - 1].length }
                                 },
-                                message: /^\s*\*/.test(lineText)
-                                    ? ALIGNMENT_ERROR
-                                    : MISSING_STAR_ERROR,
+                                messageId: /^\s*\*/.test(lineText)
+                                    ? "alignment"
+                                    : "missingStar",
                                 fix(fixer) {
                                     const lineStartIndex = sourceCode.getIndexFromLoc({ line: lineNumber, column: 0 });
                                     const linePrefixLength = lineText.match(/^\s*\*? ?/)[0].length;
@@ -209,7 +210,7 @@ module.exports = {
                             start: block.loc.start,
                             end: { line: block.loc.start.line, column: block.loc.start.column + 2 }
                         },
-                        message: EXPECTED_LINES_ERROR,
+                        messageId: "expectedLines",
                         fix(fixer) {
                             return fixer.replaceText(block, convertToSeparateLines(block, commentLines.filter(line => line)));
                         }
@@ -228,7 +229,7 @@ module.exports = {
                                 start: commentGroup[0].loc.start,
                                 end: commentGroup[commentGroup.length - 1].loc.end
                             },
-                            message: EXPECTED_BLOCK_ERROR,
+                            messageId: "expectedBlock",
                             fix(fixer) {
                                 const range = [commentGroup[0].range[0], commentGroup[commentGroup.length - 1].range[1]];
                                 const block = convertToBlock(commentGroup[0], commentLines.filter(line => line));
@@ -249,7 +250,7 @@ module.exports = {
                                     start: block.loc.start,
                                     end: { line: block.loc.start.line, column: block.loc.start.column + 2 }
                                 },
-                                message: EXPECTED_BLOCK_ERROR,
+                                messageId: "expectedBlock",
                                 fix(fixer) {
                                     return fixer.replaceText(block, convertToBlock(block, commentLines.filter(line => line)));
                                 }

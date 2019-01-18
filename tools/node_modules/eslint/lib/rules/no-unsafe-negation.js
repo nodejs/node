@@ -51,7 +51,10 @@ module.exports = {
         },
 
         schema: [],
-        fixable: "code"
+        fixable: "code",
+        messages: {
+            unexpected: "Unexpected negating the left operand of '{{operator}}' operator."
+        }
     },
 
     create(context) {
@@ -66,8 +69,8 @@ module.exports = {
                     context.report({
                         node,
                         loc: node.left.loc,
-                        message: "Unexpected negating the left operand of '{{operator}}' operator.",
-                        data: node,
+                        messageId: "unexpected",
+                        data: { operator: node.operator },
 
                         fix(fixer) {
                             const negationToken = sourceCode.getFirstToken(node.left);

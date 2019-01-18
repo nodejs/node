@@ -36,7 +36,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+        messages: {
+            never: "Unexpected blank line between class members.",
+            always: "Expected blank line between class members."
+        }
     },
 
     create(context) {
@@ -45,9 +49,6 @@ module.exports = {
 
         options[0] = context.options[0] || "always";
         options[1] = context.options[1] || { exceptAfterSingleLine: false };
-
-        const ALWAYS_MESSAGE = "Expected blank line between class members.";
-        const NEVER_MESSAGE = "Unexpected blank line between class members.";
 
         const sourceCode = context.getSourceCode();
 
@@ -127,7 +128,7 @@ module.exports = {
                         (options[0] === "never" && isPadded)) {
                         context.report({
                             node: body[i + 1],
-                            message: isPadded ? NEVER_MESSAGE : ALWAYS_MESSAGE,
+                            messageId: isPadded ? "never" : "always",
                             fix(fixer) {
                                 return isPadded
                                     ? fixer.replaceTextRange([curLast.range[1], nextFirst.range[0]], "\n")

@@ -37,13 +37,19 @@ module.exports = {
 
         schema: [
             { enum: ["always", "never"] }
-        ]
+        ],
+        messages: {
+            expectedBefore: "Expected space(s) before '}'.",
+            expectedAfter: "Expected space(s) after '${'.",
+            unexpectedBefore: "Unexpected space(s) before '}'.",
+            unexpectedAfter: "Unexpected space(s) after '${'."
+        }
     },
 
     create(context) {
         const sourceCode = context.getSourceCode();
         const always = context.options[0] === "always";
-        const prefix = always ? "Expected" : "Unexpected";
+        const prefix = always ? "expected" : "unexpected";
 
         /**
          * Checks spacing before `}` of a given token.
@@ -60,10 +66,7 @@ module.exports = {
             ) {
                 context.report({
                     loc: token.loc.start,
-                    message: "{{prefix}} space(s) before '}'.",
-                    data: {
-                        prefix
-                    },
+                    messageId: `${prefix}Before`,
                     fix(fixer) {
                         if (always) {
                             return fixer.insertTextBefore(token, " ");
@@ -95,10 +98,7 @@ module.exports = {
                         line: token.loc.end.line,
                         column: token.loc.end.column - 2
                     },
-                    message: "{{prefix}} space(s) after '${'.",
-                    data: {
-                        prefix
-                    },
+                    messageId: `${prefix}After`,
                     fix(fixer) {
                         if (always) {
                             return fixer.insertTextAfter(token, " ");

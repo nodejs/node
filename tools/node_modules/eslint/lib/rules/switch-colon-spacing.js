@@ -36,8 +36,13 @@ module.exports = {
                 additionalProperties: false
             }
         ],
-
-        fixable: "whitespace"
+        fixable: "whitespace",
+        messages: {
+            expectedBefore: "Expected space(s) before this colon.",
+            expectedAfter: "Expected space(s) after this colon.",
+            unexpectedBefore: "Unexpected space(s) before this colon.",
+            unexpectedAfter: "Unexpected space(s) after this colon."
+        }
     },
 
     create(context) {
@@ -118,8 +123,7 @@ module.exports = {
                     context.report({
                         node,
                         loc: colonToken.loc,
-                        message: "{{verb}} space(s) before this colon.",
-                        data: { verb: beforeSpacing ? "Expected" : "Unexpected" },
+                        messageId: beforeSpacing ? "expectedBefore" : "unexpectedBefore",
                         fix: fixer => fix(fixer, beforeToken, colonToken, beforeSpacing)
                     });
                 }
@@ -127,8 +131,7 @@ module.exports = {
                     context.report({
                         node,
                         loc: colonToken.loc,
-                        message: "{{verb}} space(s) after this colon.",
-                        data: { verb: afterSpacing ? "Expected" : "Unexpected" },
+                        messageId: afterSpacing ? "expectedAfter" : "unexpectedAfter",
                         fix: fixer => fix(fixer, colonToken, afterToken, afterSpacing)
                     });
                 }
