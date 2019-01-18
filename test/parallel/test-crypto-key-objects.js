@@ -59,6 +59,17 @@ const privatePem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
 }
 
 {
+  // Passing an existing key object should throw.
+  const publicKey = createPublicKey(publicPem);
+  common.expectsError(() => createPublicKey(publicKey), {
+    type: TypeError,
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "key" argument must be one of type string, Buffer, ' +
+             'TypedArray, or DataView. Received type object'
+  });
+}
+
+{
   const publicKey = createPublicKey(publicPem);
   assert.strictEqual(publicKey.type, 'public');
   assert.strictEqual(publicKey.asymmetricKeyType, 'rsa');
