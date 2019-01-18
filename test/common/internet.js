@@ -39,7 +39,8 @@ const addresses = {
   // An accessible IPv4 DNS server
   DNS4_SERVER: '8.8.8.8',
   // An accessible IPv4 DNS server
-  DNS6_SERVER: '2001:4860:4860::8888'
+  DNS6_SERVER: '2001:4860:4860::8888',
+  IDNA_HOST: 'españa.icom.museum'
 };
 
 for (const key of Object.keys(addresses)) {

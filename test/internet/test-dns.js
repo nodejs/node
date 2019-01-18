@@ -213,6 +213,22 @@ TEST(function test_resolveNs_failure(done) {
   checkWrap(req);
 });
 
+TEST(async function test_resolve_idna(done) {
+  function validateResult(result) {
+    assert.ok(result.length > 0);
+  }
+
+  validateResult(await dnsPromises.resolve(addresses.IDNA_HOST));
+
+  const req = dns.resolve4(addresses.IDNA_HOST, function(err, result) {
+    assert.ifError(err);
+    validateResult(result);
+    done();
+  });
+
+  checkWrap(req);
+});
+
 TEST(async function test_resolveSrv(done) {
   function validateResult(result) {
     assert.ok(result.length > 0);
