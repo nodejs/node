@@ -571,6 +571,10 @@ An error will be thrown if an invalid address is provided.
 The `dns.setServers()` method must not be called while a DNS query is in
 progress.
 
+The [`dns.setServers()`][] method affects only [`dns.resolve()`][],
+[`dns.resolve*()`][] and [`dns.reverse()`][] (and specifically *not*
+[`dns.lookup()`][]).
+
 Note that this method works much like
 [resolve.conf](http://man7.org/linux/man-pages/man5/resolv.conf.5.html).
 That is, if attempting to resolve with the first server provided results in a
