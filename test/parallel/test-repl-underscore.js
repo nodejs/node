@@ -195,9 +195,6 @@ function testError() {
       // The message from the original throw
       'Thrown:',
       'Error: baz',
-      /setImmediate/,
-      /^    at/,
-      /^    at/,
     ];
     for (const line of lines) {
       const expected = expectedLines.shift();
