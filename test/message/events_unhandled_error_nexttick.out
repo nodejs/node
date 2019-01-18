@@ -12,7 +12,7 @@ Error
     at Function.Module.runMain (internal/modules/cjs/loader.js:*:*)
     at internal/main/run_main_module.js:*:*
 Emitted 'error' event at:
-    at process.nextTick (*events_unhandled_error_nexttick.js:*:*)
+    at *events_unhandled_error_nexttick.js:*:*
     at processTicksAndRejections (internal/process/next_tick.js:*:*)
     at process.runNextTicks [as _tickCallback] (internal/process/next_tick.js:*:*)
     at Function.Module.runMain (internal/modules/cjs/loader.js:*:*)

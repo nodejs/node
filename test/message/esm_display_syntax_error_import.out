@@ -4,3 +4,5 @@ file:///*/test/message/esm_display_syntax_error_import.mjs:6
   ^^^^^^^^
 SyntaxError: The requested module '../fixtures/es-module-loaders/module-named-exports' does not provide an export named 'notfound'
     at ModuleJob._instantiate (internal/modules/esm/module_job.js:*:*)
+    at async ModuleJob.run (internal/modules/esm/module_job.js:*:*)
+    at async Loader.import (internal/modules/esm/loader.js:*:*)

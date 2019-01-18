@@ -4,3 +4,5 @@ import { foo, notfound } from './module-named-exports';
               ^^^^^^^^
 SyntaxError: The requested module './module-named-exports' does not provide an export named 'notfound'
     at ModuleJob._instantiate (internal/modules/esm/module_job.js:*:*)
+    at async ModuleJob.run (internal/modules/esm/module_job.js:*:*)
+    at async Loader.import (internal/modules/esm/loader.js:*:*)
