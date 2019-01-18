@@ -230,8 +230,11 @@ int uv_fs_event_start(uv_fs_event_t* handle,
      */
 
     /* Convert to short path. */
-    short_path = short_path_buffer;
-    if (!GetShortPathNameW(pathw, short_path, ARRAY_SIZE(short_path))) {
+    if (GetShortPathNameW(pathw,
+                          short_path_buffer,
+                          ARRAY_SIZE(short_path_buffer))) {
+      short_path = short_path_buffer;
+    } else {
       short_path = NULL;
     }
 

@@ -145,6 +145,19 @@ Data types
             char* homedir;
         } uv_passwd_t;
 
+.. c:type:: uv_utsname_t
+
+    Data type for operating system name and version information.
+
+    ::
+
+        typedef struct uv_utsname_s {
+            char sysname[256];
+            char release[256];
+            char version[256];
+            char machine[256];
+        } uv_utsname_t;
+
 
 API
 ---
@@ -549,3 +562,12 @@ API
         for others it will be silently reduced to `PRIORITY_HIGH`.
 
     .. versionadded:: 1.23.0
+
+.. c:function:: int uv_os_uname(uv_utsname_t* buffer)
+
+    Retrieves system information in `buffer`. The populated data includes the
+    operating system name, release, version, and machine. On non-Windows
+    systems, `uv_os_uname()` is a thin wrapper around :man:`uname(3)`. Returns
+    zero on success, and a non-zero error value otherwise.
+
+    .. versionadded:: 1.25.0

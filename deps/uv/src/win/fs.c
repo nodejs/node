@@ -42,8 +42,6 @@
 #define UV_FS_FREE_PTR           0x0008
 #define UV_FS_CLEANEDUP          0x0010
 
-#define UV__RENAME_RETRIES       4
-#define UV__RENAME_WAIT          250
 
 #define INIT(subtype)                                                         \
   do {                                                                        \
@@ -1360,78 +1358,12 @@ static void fs__fstat(uv_fs_t* req) {
 
 
 static void fs__rename(uv_fs_t* req) {
-  int tries;
-  int sys_errno;
-  int result;
-  int try_rmdir;
-  WCHAR* src, *dst;
-  DWORD src_attrib, dst_attrib;
-
-  src = req->file.pathw;
-  dst = req->fs.info.new_pathw;
-  try_rmdir = 0;
-
-  /* Do some checks to fail early. */
-  src_attrib = GetFileAttributesW(src);
-  if (src_attrib == INVALID_FILE_ATTRIBUTES) {
+  if (!MoveFileExW(req->file.pathw, req->fs.info.new_pathw, MOVEFILE_REPLACE_EXISTING)) {
     SET_REQ_WIN32_ERROR(req, GetLastError());
     return;
   }
-  dst_attrib = GetFileAttributesW(dst);
-  if (dst_attrib != INVALID_FILE_ATTRIBUTES) {
-    if (dst_attrib & FILE_ATTRIBUTE_READONLY) {
-      req->result = UV_EPERM;
-      return;
-    }
-    /* Renaming folder to a folder name that already exist will fail on
-     * Windows. We will try to delete target folder first.
-     */
-    if (src_attrib & FILE_ATTRIBUTE_DIRECTORY &&
-        dst_attrib & FILE_ATTRIBUTE_DIRECTORY)
-        try_rmdir = 1;
-  }
 
-  /* Sometimes an antivirus or indexing software can lock the target or the
-   * source file/directory. This is annoying for users, in such cases we will
-   * retry couple of times with some delay before failing.
-   */
-  for (tries = 0; tries < UV__RENAME_RETRIES; ++tries) {
-    if (tries > 0)
-      Sleep(UV__RENAME_WAIT);
-
-    if (try_rmdir) {
-      result = _wrmdir(dst) == 0 ? 0 : uv_translate_sys_error(_doserrno);
-      switch (result)
-      {
-      case 0:
-      case UV_ENOENT:
-        /* Folder removed or did not exist at all. */
-        try_rmdir = 0;
-        break;
-      case UV_ENOTEMPTY:
-        /* Non-empty target folder, fail instantly. */
-        SET_REQ_RESULT(req, -1);
-        return;
-      default:
-        /* All other errors - try to move file anyway and handle the error
-         * there, retrying folder deletion next time around.
-         */
-        break;
-      }
-    }
-
-    if (MoveFileExW(src, dst, MOVEFILE_REPLACE_EXISTING) != 0) {
-      SET_REQ_RESULT(req, 0);
-      return;
-    }
-
-    sys_errno = GetLastError();
-    result = uv_translate_sys_error(sys_errno);
-    if (result != UV_EBUSY && result != UV_EPERM && result != UV_EACCES)
-      break;
-  }
-  req->sys_errno_ = sys_errno;
-  req->result = result;
+  SET_REQ_RESULT(req, 0);
 }
 
 

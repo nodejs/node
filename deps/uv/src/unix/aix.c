@@ -555,7 +555,7 @@ static int uv__setup_ahafs(const char* filename, int *fd) {
     sprintf(mon_file_write_string, "CHANGED=YES;WAIT_TYPE=WAIT_IN_SELECT;INFO_LVL=1");
 
   rc = write(*fd, mon_file_write_string, strlen(mon_file_write_string)+1);
-  if (rc < 0)
+  if (rc < 0 && errno != EBUSY)
     return UV__ERR(errno);
 
   return 0;
@@ -728,10 +728,16 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   char cwd[PATH_MAX];
   char absolute_path[PATH_MAX];
   char readlink_cwd[PATH_MAX];
+  struct timeval zt;
+  fd_set pollfd;
 
 
   /* Figure out whether filename is absolute or not */
-  if (filename[0] == '/') {
+  if (filename[0] == '\0') {
+    /* Missing a pathname */
+    return UV_ENOENT;
+  }
+  else if (filename[0] == '/') {
     /* We have absolute pathname */
     /* TODO(bnoordhuis) Check uv__strscpy() return value. */
     uv__strscpy(absolute_path, filename, sizeof(absolute_path));
@@ -768,6 +774,15 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 
   uv__io_start(handle->loop, &handle->event_watcher, POLLIN);
 
+  /* AHAFS wants someone to poll for it to start mointoring.
+   *  so kick-start it so that we don't miss an event in the
+   *  eventuality of an event that occurs in the current loop. */
+  do {
+    memset(&zt, 0, sizeof(zt));
+    FD_ZERO(&pollfd);
+    FD_SET(fd, &pollfd);
+    rc = select(fd + 1, &pollfd, NULL, NULL, &zt);
+  } while (rc == -1 && errno == EINTR);
   return 0;
 #else
   return UV_ENOSYS;

@@ -284,24 +284,6 @@ int uv__fsevents_init(uv_fs_event_t* handle);
 int uv__fsevents_close(uv_fs_event_t* handle);
 void uv__fsevents_loop_delete(uv_loop_t* loop);
 
-/* OSX < 10.7 has no file events, polyfill them */
-#ifndef MAC_OS_X_VERSION_10_7
-
-static const int kFSEventStreamCreateFlagFileEvents = 0x00000010;
-static const int kFSEventStreamEventFlagItemCreated = 0x00000100;
-static const int kFSEventStreamEventFlagItemRemoved = 0x00000200;
-static const int kFSEventStreamEventFlagItemInodeMetaMod = 0x00000400;
-static const int kFSEventStreamEventFlagItemRenamed = 0x00000800;
-static const int kFSEventStreamEventFlagItemModified = 0x00001000;
-static const int kFSEventStreamEventFlagItemFinderInfoMod = 0x00002000;
-static const int kFSEventStreamEventFlagItemChangeOwner = 0x00004000;
-static const int kFSEventStreamEventFlagItemXattrMod = 0x00008000;
-static const int kFSEventStreamEventFlagItemIsFile = 0x00010000;
-static const int kFSEventStreamEventFlagItemIsDir = 0x00020000;
-static const int kFSEventStreamEventFlagItemIsSymlink = 0x00040000;
-
-#endif /* __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1070 */
-
 #endif /* defined(__APPLE__) */
 
 UV_UNUSED(static void uv__update_time(uv_loop_t* loop)) {

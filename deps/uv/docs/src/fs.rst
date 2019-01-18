@@ -233,15 +233,6 @@ API
 
     Equivalent to :man:`rename(2)`.
 
-    .. note::
-        On Windows if this function fails with ``UV_EBUSY``, ``UV_EPERM`` or
-        ``UV_EACCES``, it will retry to rename the file up to four times with
-        250ms wait between attempts before giving up. If both `path` and
-        `new_path` are existing directories this function will work only if
-        target directory is empty.
-
-    .. versionchanged:: 1.24.0 Added retrying and directory move support on Windows.
-
 .. c:function:: int uv_fs_fsync(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb)
 
     Equivalent to :man:`fsync(2)`.

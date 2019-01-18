@@ -4519,6 +4519,9 @@ typedef VOID (NTAPI *PIO_APC_ROUTINE)
               PIO_STATUS_BLOCK IoStatusBlock,
               ULONG Reserved);
 
+typedef NTSTATUS (NTAPI *sRtlGetVersion)
+                 (PRTL_OSVERSIONINFOW lpVersionInformation);
+
 typedef ULONG (NTAPI *sRtlNtStatusToDosError)
               (NTSTATUS Status);
 
@@ -4707,6 +4710,7 @@ typedef HWINEVENTHOOK (WINAPI *sSetWinEventHook)
 
 
 /* Ntdll function pointers */
+extern sRtlGetVersion pRtlGetVersion;
 extern sRtlNtStatusToDosError pRtlNtStatusToDosError;
 extern sNtDeviceIoControlFile pNtDeviceIoControlFile;
 extern sNtQueryInformationFile pNtQueryInformationFile;
