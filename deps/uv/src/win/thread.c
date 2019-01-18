@@ -23,6 +23,12 @@
 #include <limits.h>
 #include <stdlib.h>
 
+#if defined(__MINGW64_VERSION_MAJOR)
+/* MemoryBarrier expands to __mm_mfence in some cases (x86+sse2), which may
+ * require this header in some versions of mingw64. */
+#include <intrin.h>
+#endif
+
 #include "uv.h"
 #include "internal.h"
 

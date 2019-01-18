@@ -35,6 +35,7 @@ TEST_IMPL(platform_output) {
   uv_cpu_info_t* cpus;
   uv_interface_address_t* interfaces;
   uv_passwd_t pwd;
+  uv_utsname_t uname;
   int count;
   int i;
   int err;
@@ -152,6 +153,14 @@ TEST_IMPL(platform_output) {
   ppid = uv_os_getppid();
   ASSERT(ppid > 0);
   printf("uv_os_getppid: %d\n", (int) ppid);
+
+  err = uv_os_uname(&uname);
+  ASSERT(err == 0);
+  printf("uv_os_uname:\n");
+  printf("  sysname: %s\n", uname.sysname);
+  printf("  release: %s\n", uname.release);
+  printf("  version: %s\n", uname.version);
+  printf("  machine: %s\n", uname.machine);
 
   return 0;
 }

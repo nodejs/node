@@ -480,6 +480,8 @@ TEST_IMPL(fs_event_watch_dir_recursive) {
 #ifdef _WIN32
 TEST_IMPL(fs_event_watch_dir_short_path) {
   uv_loop_t* loop;
+  uv_fs_t req;
+  int has_shortnames;
   int r;
 
   /* Setup */
@@ -489,26 +491,37 @@ TEST_IMPL(fs_event_watch_dir_short_path) {
   create_dir("watch_dir");
   create_file("watch_dir/file1");
 
-  r = uv_fs_event_init(loop, &fs_event);
-  ASSERT(r == 0);
-  r = uv_fs_event_start(&fs_event, fs_event_cb_dir, "watch_~1", 0);
-  ASSERT(r == 0);
-  r = uv_timer_init(loop, &timer);
-  ASSERT(r == 0);
-  r = uv_timer_start(&timer, timer_cb_file, 100, 0);
-  ASSERT(r == 0);
+  /* Newer version of Windows ship with
+     HKLM\SYSTEM\CurrentControlSet\Control\FileSystem\NtfsDisable8dot3NameCreation
+     not equal to 0. So we verify the files we created are addressable by a 8.3
+     short name */
+  has_shortnames = uv_fs_stat(NULL, &req, "watch_~1", NULL) != UV_ENOENT;
+  if (has_shortnames) {
+    r = uv_fs_event_init(loop, &fs_event);
+    ASSERT(r == 0);
+    r = uv_fs_event_start(&fs_event, fs_event_cb_dir, "watch_~1", 0);
+    ASSERT(r == 0);
+    r = uv_timer_init(loop, &timer);
+    ASSERT(r == 0);
+    r = uv_timer_start(&timer, timer_cb_file, 100, 0);
+    ASSERT(r == 0);
 
-  uv_run(loop, UV_RUN_DEFAULT);
+    uv_run(loop, UV_RUN_DEFAULT);
 
-  ASSERT(fs_event_cb_called == 1);
-  ASSERT(timer_cb_called == 1);
-  ASSERT(close_cb_called == 1);
+    ASSERT(fs_event_cb_called == 1);
+    ASSERT(timer_cb_called == 1);
+    ASSERT(close_cb_called == 1);
+  }
 
   /* Cleanup */
   remove("watch_dir/file1");
   remove("watch_dir/");
 
   MAKE_VALGRIND_HAPPY();
+
+  if (!has_shortnames)
+    RETURN_SKIP("Was not able to address files with 8.3 short name.");
+
   return 0;
 }
 #endif
@@ -576,6 +589,14 @@ TEST_IMPL(fs_event_watch_file_exact_path) {
   create_dir("watch_dir");
   create_file("watch_dir/file.js");
   create_file("watch_dir/file.jsx");
+#if defined(__APPLE__) && !defined(MAC_OS_X_VERSION_10_12)
+  /* Empirically, FSEvents seems to (reliably) report the preceeding
+   * create_file events prior to macOS 10.11.6 in the subsequent fs_watch
+   * creation, but that behavior hasn't been observed to occur on newer
+   * versions. Give a long delay here to let the system settle before running
+   * the test. */
+  uv_sleep(1100);
+#endif
 
   r = uv_fs_event_init(loop, &fs_event);
   ASSERT(r == 0);
@@ -648,7 +669,7 @@ TEST_IMPL(fs_event_watch_file_current_dir) {
   r = uv_timer_init(loop, &timer);
   ASSERT(r == 0);
 
-  r = uv_timer_start(&timer, timer_cb_touch, 100, 0);
+  r = uv_timer_start(&timer, timer_cb_touch, 1100, 0);
   ASSERT(r == 0);
 
   ASSERT(timer_cb_touch_called == 0);
@@ -936,32 +957,48 @@ TEST_IMPL(fs_event_getpath) {
   RETURN_SKIP(NO_FS_EVENTS);
 #endif
   uv_loop_t* loop = uv_default_loop();
+  unsigned i;
   int r;
   char buf[1024];
   size_t len;
+  const char* const watch_dir[] = {
+    "watch_dir",
+    "watch_dir/",
+    "watch_dir///",
+    "watch_dir/subfolder/..",
+    "watch_dir//subfolder//..//",
+  };
 
   create_dir("watch_dir");
+  create_dir("watch_dir/subfolder");
 
-  r = uv_fs_event_init(loop, &fs_event);
-  ASSERT(r == 0);
-  len = sizeof buf;
-  r = uv_fs_event_getpath(&fs_event, buf, &len);
-  ASSERT(r == UV_EINVAL);
-  r = uv_fs_event_start(&fs_event, fail_cb, "watch_dir", 0);
-  ASSERT(r == 0);
-  len = sizeof buf;
-  r = uv_fs_event_getpath(&fs_event, buf, &len);
-  ASSERT(r == 0);
-  ASSERT(buf[len - 1] != 0);
-  ASSERT(buf[len] == '\0');
-  ASSERT(memcmp(buf, "watch_dir", len) == 0);
-  r = uv_fs_event_stop(&fs_event);
-  ASSERT(r == 0);
-  uv_close((uv_handle_t*) &fs_event, close_cb);
 
-  uv_run(loop, UV_RUN_DEFAULT);
+  for (i = 0; i < ARRAY_SIZE(watch_dir); i++) {
+    r = uv_fs_event_init(loop, &fs_event);
+    ASSERT(r == 0);
+    len = sizeof buf;
+    r = uv_fs_event_getpath(&fs_event, buf, &len);
+    ASSERT(r == UV_EINVAL);
+    r = uv_fs_event_start(&fs_event, fail_cb, watch_dir[i], 0);
+    ASSERT(r == 0);
+    len = 0;
+    r = uv_fs_event_getpath(&fs_event, buf, &len);
+    ASSERT(r == UV_ENOBUFS);
+    ASSERT(len < sizeof buf); /* sanity check */
+    ASSERT(len == strlen(watch_dir[i]) + 1);
+    r = uv_fs_event_getpath(&fs_event, buf, &len);
+    ASSERT(r == 0);
+    ASSERT(len == strlen(watch_dir[i]));
+    ASSERT(strcmp(buf, watch_dir[i]) == 0);
+    r = uv_fs_event_stop(&fs_event);
+    ASSERT(r == 0);
+    uv_close((uv_handle_t*) &fs_event, close_cb);
 
-  ASSERT(close_cb_called == 1);
+    uv_run(loop, UV_RUN_DEFAULT);
+
+    ASSERT(close_cb_called == 1);
+    close_cb_called = 0;
+  }
 
   remove("watch_dir/");
   MAKE_VALGRIND_HAPPY();
@@ -1080,6 +1117,9 @@ TEST_IMPL(fs_event_watch_invalid_path) {
   r = uv_fs_event_init(loop, &fs_event);
   ASSERT(r == 0);
   r = uv_fs_event_start(&fs_event, fs_event_cb_file, "<:;", 0);
+  ASSERT(r != 0);
+  ASSERT(uv_is_active((uv_handle_t*) &fs_event) == 0);
+  r = uv_fs_event_start(&fs_event, fs_event_cb_file, "", 0);
   ASSERT(r != 0);
   ASSERT(uv_is_active((uv_handle_t*) &fs_event) == 0);
   MAKE_VALGRIND_HAPPY();

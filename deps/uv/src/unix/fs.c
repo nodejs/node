@@ -155,7 +155,7 @@ static ssize_t uv__fs_fsync(uv_fs_t* req) {
   int r;
 
   r = fcntl(req->file, F_FULLFSYNC);
-  if (r != 0 && errno == ENOTTY)
+  if (r != 0)
     r = fsync(req->file);
   return r;
 #else
@@ -316,6 +316,18 @@ done:
 
   req->bufs = NULL;
   req->nbufs = 0;
+
+#ifdef __PASE__
+  /* PASE returns EOPNOTSUPP when reading a directory, convert to EISDIR */
+  if (result == -1 && errno == EOPNOTSUPP) {
+    struct stat buf;
+    ssize_t rc;
+    rc = fstat(req->file, &buf);
+    if (rc == 0 && S_ISDIR(buf.st_mode)) {
+      errno = EISDIR;
+    }
+  }
+#endif
 
   return result;
 }

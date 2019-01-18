@@ -149,7 +149,6 @@ static void connect_cb(uv_connect_t* req, int status) {
                 &ctx.send.stream,
                 NULL);
   ASSERT(r == 0);
-  ASSERT(ctx.write_req.send_handle == &ctx.send.stream);
 
   /* Perform two writes to the same pipe to make sure that on Windows we are
    * not running into issue 505:
@@ -161,7 +160,6 @@ static void connect_cb(uv_connect_t* req, int status) {
                 &ctx.send2.stream,
                 NULL);
   ASSERT(r == 0);
-  ASSERT(ctx.write_req2.send_handle == &ctx.send2.stream);
 
   r = uv_read_start((uv_stream_t*)&ctx.channel, alloc_cb, recv_cb);
   ASSERT(r == 0);
@@ -346,7 +344,6 @@ static void read_cb(uv_stream_t* handle,
                   &recv->stream,
                   write2_cb);
     ASSERT(r == 0);
-    ASSERT(write_req->send_handle == &recv->stream);
   } while (uv_pipe_pending_count(pipe) > 0);
 }
 
