@@ -1,3 +1,54 @@
+2019.01.19, Version 1.25.0 (Stable), 4a10a9d425863330af199e4b74bd688e62d945f1
+
+Changes since version 1.24.1:
+
+* Revert "win,fs: retry if uv_fs_rename fails" (Ben Noordhuis)
+
+* aix: manually trigger fs event monitoring (Gireesh Punathil)
+
+* unix: rename WRITE_RETRY_ON_ERROR macro (Ben Noordhuis)
+
+* darwin: DRY platform-specific error check (Ben Noordhuis)
+
+* unix: refactor uv__write() (Ben Noordhuis)
+
+* unix: don't send handle twice on partial write (Ben Noordhuis)
+
+* tty,win: fix Alt+key under WSL (Bartosz Sosnowski)
+
+* build: support running tests in out-of-tree builds (Jameson Nash)
+
+* fsevents: really watch files with fsevents on macos 10.7+ (Jameson Nash)
+
+* thread,mingw64: need intrin.h header for SSE2 MemoryBarrier (Jameson Nash)
+
+* win: fix sizeof-pointer-div warning (cjihrig)
+
+* unix,win: add uv_os_uname() (cjihrig)
+
+* win, tty: fix CreateFileW() return value check (Bartosz Sosnowski)
+
+* unix: enable IPv6 tests on OpenBSD (ptlomholt)
+
+* test: fix test-ipc spawn_helper exit_cb (Santiago Gimeno)
+
+* test: fix test-ipc tests (Santiago Gimeno)
+
+* unix: better handling of unsupported F_FULLFSYNC (Victor Costan)
+
+* win,test: de-flake fs_event_watch_dir_short_path (Refael Ackermann)
+
+* win: fix msvc warning (sid)
+
+* openbsd: switch to libuv's barrier implementation (ptlomholt)
+
+* unix,stream: fix zero byte writes (Santiago Gimeno)
+
+* ibmi: return EISDIR on read from directory fd (Kevin Adler)
+
+* build: wrap long lines in Makefile.am (cjihrig)
+
+
 2018.12.17, Version 1.24.1 (Stable), 274f2bd3b70847cadd9a3965577a87e666ab9ac3
 
 Changes since version 1.24.0:

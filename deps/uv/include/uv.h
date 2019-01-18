@@ -234,6 +234,7 @@ typedef struct uv_cpu_info_s uv_cpu_info_t;
 typedef struct uv_interface_address_s uv_interface_address_t;
 typedef struct uv_dirent_s uv_dirent_t;
 typedef struct uv_passwd_s uv_passwd_t;
+typedef struct uv_utsname_s uv_utsname_t;
 
 typedef enum {
   UV_LOOP_BLOCK_SIGNAL
@@ -968,13 +969,13 @@ enum uv_process_flags {
    */
   UV_PROCESS_WINDOWS_HIDE = (1 << 4),
   /*
-   * Hide the subprocess console window that would normally be created. This 
+   * Hide the subprocess console window that would normally be created. This
    * option is only meaningful on Windows systems. On Unix it is silently
    * ignored.
    */
   UV_PROCESS_WINDOWS_HIDE_CONSOLE = (1 << 5),
   /*
-   * Hide the subprocess GUI window that would normally be created. This 
+   * Hide the subprocess GUI window that would normally be created. This
    * option is only meaningful on Windows systems. On Unix it is silently
    * ignored.
    */
@@ -1052,6 +1053,16 @@ struct uv_passwd_s {
   long gid;
   char* shell;
   char* homedir;
+};
+
+struct uv_utsname_s {
+  char sysname[256];
+  char release[256];
+  char version[256];
+  char machine[256];
+  /* This struct does not contain the nodename and domainname fields present in
+     the utsname type. domainname is a GNU extension. Both fields are referred
+     to as meaningless in the docs. */
 };
 
 typedef enum {
@@ -1134,6 +1145,8 @@ UV_EXTERN int uv_os_setenv(const char* name, const char* value);
 UV_EXTERN int uv_os_unsetenv(const char* name);
 
 UV_EXTERN int uv_os_gethostname(char* buffer, size_t* size);
+
+UV_EXTERN int uv_os_uname(uv_utsname_t* buffer);
 
 
 typedef enum {

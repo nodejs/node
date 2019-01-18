@@ -167,6 +167,7 @@ set(uv_test_sources
     test/test-udp-send-immediate.c
     test/test-udp-send-unreachable.c
     test/test-udp-try-send.c
+    test/test-uname.c
     test/test-walk-handles.c
     test/test-watcher-cross-stop.c)
 
@@ -211,7 +212,7 @@ if(WIN32)
 else()
   list(APPEND uv_defines _FILE_OFFSET_BITS=64 _LARGEFILE_SOURCE)
   if(NOT CMAKE_SYSTEM_NAME STREQUAL "Android")
-    # Android has pthread as part of its c library, not as a separate 
+    # Android has pthread as part of its c library, not as a separate
     # libpthread.so.
     list(APPEND uv_libraries pthread)
   endif()

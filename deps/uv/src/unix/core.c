@@ -40,6 +40,7 @@
 #include <sys/uio.h> /* writev */
 #include <sys/resource.h> /* getrusage */
 #include <pwd.h>
+#include <sys/utsname.h>
 
 #ifdef __sun
 # include <netdb.h> /* MAXHOSTNAMELEN on Solaris */
@@ -1356,4 +1357,60 @@ int uv_os_setpriority(uv_pid_t pid, int priority) {
     return UV__ERR(errno);
 
   return 0;
+}
+
+
+int uv_os_uname(uv_utsname_t* buffer) {
+  struct utsname buf;
+  int r;
+
+  if (buffer == NULL)
+    return UV_EINVAL;
+
+  if (uname(&buf) == -1) {
+    r = UV__ERR(errno);
+    goto error;
+  }
+
+  r = uv__strscpy(buffer->sysname, buf.sysname, sizeof(buffer->sysname));
+  if (r == UV_E2BIG)
+    goto error;
+
+#ifdef _AIX
+  r = snprintf(buffer->release,
+               sizeof(buffer->release),
+               "%s.%s",
+               buf.version,
+               buf.release);
+  if (r >= sizeof(buffer->release)) {
+    r = UV_E2BIG;
+    goto error;
+  }
+#else
+  r = uv__strscpy(buffer->release, buf.release, sizeof(buffer->release));
+  if (r == UV_E2BIG)
+    goto error;
+#endif
+
+  r = uv__strscpy(buffer->version, buf.version, sizeof(buffer->version));
+  if (r == UV_E2BIG)
+    goto error;
+
+#if defined(_AIX) || defined(__PASE__)
+  r = uv__strscpy(buffer->machine, "ppc64", sizeof(buffer->machine));
+#else
+  r = uv__strscpy(buffer->machine, buf.machine, sizeof(buffer->machine));
+#endif
+
+  if (r == UV_E2BIG)
+    goto error;
+
+  return 0;
+
+error:
+  buffer->sysname[0] = '\0';
+  buffer->release[0] = '\0';
+  buffer->version[0] = '\0';
+  buffer->machine[0] = '\0';
+  return r;
 }

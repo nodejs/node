@@ -69,6 +69,7 @@ TEST_DECLARE   (ipc_send_recv_pipe_inprocess)
 TEST_DECLARE   (ipc_send_recv_tcp)
 TEST_DECLARE   (ipc_send_recv_tcp_inprocess)
 TEST_DECLARE   (ipc_tcp_connection)
+TEST_DECLARE   (ipc_send_zero)
 #ifndef _WIN32
 TEST_DECLARE   (ipc_closed_handle)
 #endif
@@ -436,9 +437,13 @@ TEST_DECLARE  (fork_socketpair)
 TEST_DECLARE  (fork_socketpair_started)
 TEST_DECLARE  (fork_signal_to_child)
 TEST_DECLARE  (fork_signal_to_child_closed)
+#ifndef __APPLE__ /* This is forbidden in a fork child: The process has forked
+                     and you cannot use this CoreFoundation functionality
+                     safely. You MUST exec(). */
 TEST_DECLARE  (fork_fs_events_child)
 TEST_DECLARE  (fork_fs_events_child_dir)
 TEST_DECLARE  (fork_fs_events_file_parent_child)
+#endif
 #ifndef __MVS__
 TEST_DECLARE  (fork_threadpool_queue_work_simple)
 #endif
@@ -446,6 +451,7 @@ TEST_DECLARE  (fork_threadpool_queue_work_simple)
 
 TEST_DECLARE  (idna_toascii)
 TEST_DECLARE  (utf8_decode1)
+TEST_DECLARE  (uname)
 
 TASK_LIST_START
   TEST_ENTRY_CUSTOM (platform_output, 0, 1, 5000)
@@ -510,6 +516,7 @@ TASK_LIST_START
   TEST_ENTRY  (ipc_send_recv_tcp)
   TEST_ENTRY  (ipc_send_recv_tcp_inprocess)
   TEST_ENTRY  (ipc_tcp_connection)
+  TEST_ENTRY  (ipc_send_zero)
 #ifndef _WIN32
   TEST_ENTRY  (ipc_closed_handle)
 #endif
@@ -945,15 +952,18 @@ TASK_LIST_START
   TEST_ENTRY  (fork_socketpair_started)
   TEST_ENTRY  (fork_signal_to_child)
   TEST_ENTRY  (fork_signal_to_child_closed)
+#ifndef __APPLE__
   TEST_ENTRY  (fork_fs_events_child)
   TEST_ENTRY  (fork_fs_events_child_dir)
   TEST_ENTRY  (fork_fs_events_file_parent_child)
+#endif
 #ifndef __MVS__
   TEST_ENTRY  (fork_threadpool_queue_work_simple)
 #endif
 #endif
 
   TEST_ENTRY  (utf8_decode1)
+  TEST_ENTRY  (uname)
 
 /* Doesn't work on z/OS because that platform uses EBCDIC, not ASCII. */
 #ifndef __MVS__
