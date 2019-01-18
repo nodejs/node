@@ -218,7 +218,7 @@ TEST(async function test_resolve_idna(done) {
     assert.ok(result.length > 0);
   }
 
-  validateResult(await dnsPromises.resolve(addresses.IDNA_HOST));
+  validateResult(await dnsPromises.resolve4(addresses.IDNA_HOST));
 
   const req = dns.resolve4(addresses.IDNA_HOST, function(err, result) {
     assert.ifError(err);
@@ -226,6 +226,7 @@ TEST(async function test_resolve_idna(done) {
     done();
   });
 
+  assert.strictEqual(req.hostname, 'xn--espaa-rta.icom.museum');
   checkWrap(req);
 });
 
