@@ -179,7 +179,10 @@ module.exports = {
             }
         ],
 
-        fixable: "code"
+        fixable: "code",
+        messages: {
+            expected: "Expected literal to be on the {{expectedSide}} side of {{operator}}."
+        }
     },
 
     create(context) {
@@ -297,7 +300,7 @@ module.exports = {
                 ) {
                     context.report({
                         node,
-                        message: "Expected literal to be on the {{expectedSide}} side of {{operator}}.",
+                        messageId: "expected",
                         data: {
                             operator: node.operator,
                             expectedSide: always ? "left" : "right"

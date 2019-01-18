@@ -51,7 +51,10 @@ module.exports = {
                     }
                 ]
             }
-        ]
+        ],
+        messages: {
+            exceed: "{{name}} has too many parameters ({{count}}). Maximum allowed is {{max}}."
+        }
     },
 
     create(context) {
@@ -80,7 +83,7 @@ module.exports = {
                 context.report({
                     loc: astUtils.getFunctionHeadLoc(node, sourceCode),
                     node,
-                    message: "{{name}} has too many parameters ({{count}}). Maximum allowed is {{max}}.",
+                    messageId: "exceed",
                     data: {
                         name: lodash.upperFirst(astUtils.getFunctionNameWithKind(node)),
                         count: node.params.length,

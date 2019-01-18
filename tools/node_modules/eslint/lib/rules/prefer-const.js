@@ -350,7 +350,10 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+        messages: {
+            useConst: "'{{name}}' is never reassigned. Use 'const' instead."
+        }
     },
 
     create(context) {
@@ -445,7 +448,7 @@ module.exports = {
                 nodesToReport.forEach(node => {
                     context.report({
                         node,
-                        message: "'{{name}}' is never reassigned. Use 'const' instead.",
+                        messageId: "useConst",
                         data: node,
                         fix: shouldFix ? fixer => fixer.replaceText(sourceCode.getFirstToken(varDeclParent), "const") : null
                     });

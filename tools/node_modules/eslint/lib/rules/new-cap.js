@@ -117,7 +117,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+        messages: {
+            upper: "A function with a name starting with an uppercase letter should only be used as a constructor.",
+            lower: "A constructor name should not start with a lowercase letter."
+        }
     },
 
     create(context) {
@@ -219,19 +223,19 @@ module.exports = {
         }
 
         /**
-         * Reports the given message for the given node. The location will be the start of the property or the callee.
+         * Reports the given messageId for the given node. The location will be the start of the property or the callee.
          * @param {ASTNode} node CallExpression or NewExpression node.
-         * @param {string} message The message to report.
+         * @param {string} messageId The messageId to report.
          * @returns {void}
          */
-        function report(node, message) {
+        function report(node, messageId) {
             let callee = node.callee;
 
             if (callee.type === "MemberExpression") {
                 callee = callee.property;
             }
 
-            context.report({ node, loc: callee.loc.start, message });
+            context.report({ node, loc: callee.loc.start, messageId });
         }
 
         //--------------------------------------------------------------------------
@@ -248,7 +252,7 @@ module.exports = {
                     const isAllowed = capitalization !== "lower" || isCapAllowed(newIsCapExceptions, node, constructorName, newIsCapExceptionPattern);
 
                     if (!isAllowed) {
-                        report(node, "A constructor name should not start with a lowercase letter.");
+                        report(node, "lower");
                     }
                 }
             };
@@ -264,7 +268,7 @@ module.exports = {
                     const isAllowed = capitalization !== "upper" || isCapAllowed(capIsNewExceptions, node, calleeName, capIsNewExceptionPattern);
 
                     if (!isAllowed) {
-                        report(node, "A function with a name starting with an uppercase letter should only be used as a constructor.");
+                        report(node, "upper");
                     }
                 }
             };

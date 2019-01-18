@@ -38,7 +38,10 @@ module.exports = {
                     }
                 }
             }
-        ]
+        ],
+        messages: {
+            notMatch: "Identifier '{{name}}' does not match the pattern '{{pattern}}'."
+        }
     },
 
     create(context) {
@@ -116,7 +119,7 @@ module.exports = {
             if (!reported.has(node)) {
                 context.report({
                     node,
-                    message: "Identifier '{{name}}' does not match the pattern '{{pattern}}'.",
+                    messageId: "notMatch",
                     data: {
                         name: node.name,
                         pattern

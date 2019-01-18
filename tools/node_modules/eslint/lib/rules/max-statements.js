@@ -60,7 +60,10 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+        messages: {
+            exceed: "{{name}} has too many statements ({{count}}). Maximum allowed is {{max}}."
+        }
     },
 
     create(context) {
@@ -99,7 +102,7 @@ module.exports = {
 
                 context.report({
                     node,
-                    message: "{{name}} has too many statements ({{count}}). Maximum allowed is {{max}}.",
+                    messageId: "exceed",
                     data: { name, count, max }
                 });
             }
