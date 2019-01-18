@@ -44,6 +44,7 @@ if (!common.isWindows) {
 if (common.isLinux && ['arm', 'x64'].includes(process.arch)) {
   // PerfJitLogger is only implemented in Linux.
   expect('--perf-prof', 'B\n');
+  expect('--perf-prof-unwinding-info', 'B\n');
 }
 
 if (common.hasCrypto) {

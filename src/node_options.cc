@@ -322,6 +322,10 @@ PerIsolateOptionsParser::PerIsolateOptionsParser() {
             V8Option{},
             kAllowedInEnvironment);
   AddOption("--perf-prof", "", V8Option{}, kAllowedInEnvironment);
+  AddOption("--perf-prof-unwinding-info",
+            "",
+            V8Option{},
+            kAllowedInEnvironment);
   AddOption("--stack-trace-limit", "", V8Option{}, kAllowedInEnvironment);
 
 #ifdef NODE_REPORT

@@ -730,6 +730,7 @@ V8 options that are allowed are:
 - `--perf-basic-prof`
 - `--perf-basic-prof-only-functions`
 - `--perf-prof`
+- `--perf-prof-unwinding-info`
 - `--stack-trace-limit`
 
 ### `NODE_PATH=path[:…]`
