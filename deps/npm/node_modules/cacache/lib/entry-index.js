@@ -75,10 +75,36 @@ function insert (cache, key, integrity, opts) {
   })
 }
 
+module.exports.insert.sync = insertSync
+function insertSync (cache, key, integrity, opts) {
+  opts = IndexOpts(opts)
+  const bucket = bucketPath(cache, key)
+  const entry = {
+    key,
+    integrity: integrity && ssri.stringify(integrity),
+    time: Date.now(),
+    size: opts.size,
+    metadata: opts.metadata
+  }
+  fixOwner.mkdirfix.sync(path.dirname(bucket), opts.uid, opts.gid)
+  const stringified = JSON.stringify(entry)
+  fs.appendFileSync(
+    bucket, `\n${hashEntry(stringified)}\t${stringified}`
+  )
+  try {
+    fixOwner.chownr.sync(bucket, opts.uid, opts.gid)
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      throw err
+    }
+  }
+  return formatEntry(cache, entry)
+}
+
 module.exports.find = find
 function find (cache, key) {
   const bucket = bucketPath(cache, key)
-  return bucketEntries(cache, bucket).then(entries => {
+  return bucketEntries(bucket).then(entries => {
     return entries.reduce((latest, next) => {
       if (next && next.key === key) {
         return formatEntry(cache, next)
@@ -95,9 +121,34 @@ function find (cache, key) {
   })
 }
 
+module.exports.find.sync = findSync
+function findSync (cache, key) {
+  const bucket = bucketPath(cache, key)
+  try {
+    return bucketEntriesSync(bucket).reduce((latest, next) => {
+      if (next && next.key === key) {
+        return formatEntry(cache, next)
+      } else {
+        return latest
+      }
+    }, null)
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      return null
+    } else {
+      throw err
+    }
+  }
+}
+
 module.exports.delete = del
 function del (cache, key, opts) {
   return insert(cache, key, null, opts)
+}
+
+module.exports.delete.sync = delSync
+function delSync (cache, key, opts) {
+  return insertSync(cache, key, null, opts)
 }
 
 module.exports.lsStream = lsStream
@@ -116,7 +167,6 @@ function lsStream (cache) {
       // "/cachename/<bucket 0xFF>/<bucket 0xFF>/*"
       return readdirOrEmpty(subbucketPath).map(entry => {
         const getKeyToEntry = bucketEntries(
-          cache,
           path.join(subbucketPath, entry)
         ).reduce((acc, entry) => {
           acc.set(entry.key, entry)
@@ -152,32 +202,39 @@ function ls (cache) {
   })
 }
 
-function bucketEntries (cache, bucket, filter) {
+function bucketEntries (bucket, filter) {
   return readFileAsync(
     bucket, 'utf8'
-  ).then(data => {
-    let entries = []
-    data.split('\n').forEach(entry => {
-      if (!entry) { return }
-      const pieces = entry.split('\t')
-      if (!pieces[1] || hashEntry(pieces[1]) !== pieces[0]) {
-        // Hash is no good! Corruption or malice? Doesn't matter!
-        // EJECT EJECT
-        return
-      }
-      let obj
-      try {
-        obj = JSON.parse(pieces[1])
-      } catch (e) {
-        // Entry is corrupted!
-        return
-      }
-      if (obj) {
-        entries.push(obj)
-      }
-    })
-    return entries
+  ).then(data => _bucketEntries(data, filter))
+}
+
+function bucketEntriesSync (bucket, filter) {
+  const data = fs.readFileSync(bucket, 'utf8')
+  return _bucketEntries(data, filter)
+}
+
+function _bucketEntries (data, filter) {
+  let entries = []
+  data.split('\n').forEach(entry => {
+    if (!entry) { return }
+    const pieces = entry.split('\t')
+    if (!pieces[1] || hashEntry(pieces[1]) !== pieces[0]) {
+      // Hash is no good! Corruption or malice? Doesn't matter!
+      // EJECT EJECT
+      return
+    }
+    let obj
+    try {
+      obj = JSON.parse(pieces[1])
+    } catch (e) {
+      // Entry is corrupted!
+      return
+    }
+    if (obj) {
+      entries.push(obj)
+    }
   })
+  return entries
 }
 
 module.exports._bucketDir = bucketDir

@@ -103,8 +103,7 @@ function errorMessage (er) {
 
     case 'EOTP':
     case 'E401':
-      // the E401 message checking is a hack till we replace npm-registry-client with something
-      // OTP aware.
+      // E401 is for places where we accidentally neglect OTP stuff
       if (er.code === 'EOTP' || /one-time pass/.test(er.message)) {
         short.push(['', 'This operation requires a one-time password from your authenticator.'])
         detail.push([

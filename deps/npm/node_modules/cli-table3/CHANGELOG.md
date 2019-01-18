@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.5.1 (2018-07-19)
+
+#### :rocket: Enhancement
+* [#21](https://github.com/cli-table/cli-table3/pull/21) Import type definition from `@types/cli-table2` ([@Turbo87](https://github.com/Turbo87))
+
+#### Committers: 1
+- Tobias Bieniek ([Turbo87](https://github.com/Turbo87))
+
+
 ## v0.5.0 (2018-06-11)
 
 #### :boom: Breaking Change
@@ -18,10 +27,9 @@
 * [#3](https://github.com/cli-table/cli-table3/pull/3) Add `yarn.lock` file. ([@Turbo87](https://github.com/Turbo87))
 * [#1](https://github.com/cli-table/cli-table3/pull/1) Skip broken test. ([@Turbo87](https://github.com/Turbo87))
 
-#### Committers: 3
+#### Committers: 2
 - Daniel Ruf ([DanielRuf](https://github.com/DanielRuf))
 - Tobias Bieniek ([Turbo87](https://github.com/Turbo87))
-- [dependabot[bot]](https://github.com/apps/dependabot)
 
 
 ## v0.4.0 (2018-06-10)

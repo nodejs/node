@@ -74,3 +74,11 @@ The function will throw `ETARGET` if there was no matching manifest, and
 If `opts.defaultTag` is provided, it will be used instead of `latest`. That is,
 if that tag matches the selector, it will be used, even if a higher available
 version matches the range.
+
+If `opts.enjoyBy` is provided, it should be something that can be passed to `new
+Date(x)`, such as a `Date` object or a timestamp string. It will be used to
+filter the selected versions such that only versions less than or equal to
+`enjoyBy` are considered.
+
+If `opts.includeDeprecated` passed in as true, deprecated versions will be
+selected. By default, deprecated versions other than `defaultTag` are ignored.

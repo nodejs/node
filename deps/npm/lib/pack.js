@@ -18,9 +18,9 @@ const lifecycle = BB.promisify(require('./utils/lifecycle'))
 const log = require('npmlog')
 const move = require('move-concurrently')
 const npm = require('./npm')
+const npmConfig = require('./config/figgy-config.js')
 const output = require('./utils/output')
 const pacote = require('pacote')
-const pacoteOpts = require('./config/pacote')
 const path = require('path')
 const PassThrough = require('stream').PassThrough
 const pathIsInside = require('path-is-inside')
@@ -88,8 +88,8 @@ function pack_ (pkg, dir) {
 }
 
 function packFromPackage (arg, target, filename) {
-  const opts = pacoteOpts()
-  return pacote.tarball.toFile(arg, target, pacoteOpts())
+  const opts = npmConfig()
+  return pacote.tarball.toFile(arg, target, opts)
     .then(() => cacache.tmp.withTmp(npm.tmp, {tmpPrefix: 'unpacking'}, (tmp) => {
       const tmpTarget = path.join(tmp, filename)
       return pacote.extract(arg, tmpTarget, opts)

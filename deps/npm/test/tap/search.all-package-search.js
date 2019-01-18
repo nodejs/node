@@ -1,21 +1,25 @@
-var path = require('path')
-var mkdirp = require('mkdirp')
-var mr = require('npm-registry-mock')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
-var cacheFile = require('npm-cache-filename')
-var test = require('tap').test
-var Tacks = require('tacks')
-var File = Tacks.File
+'use strict'
 
-var common = require('../common-tap.js')
+const cacheFile = require('npm-cache-filename')
+const mkdirp = require('mkdirp')
+const mr = require('npm-registry-mock')
+const osenv = require('osenv')
+const path = require('path')
+const qs = require('querystring')
+const rimraf = require('rimraf')
+const Tacks = require('tacks')
+const test = require('tap').test
 
-var PKG_DIR = path.resolve(__dirname, 'search')
-var CACHE_DIR = path.resolve(PKG_DIR, 'cache')
-var cacheBase = cacheFile(CACHE_DIR)(common.registry + '/-/all')
-var cachePath = path.join(cacheBase, '.cache.json')
+const {File} = Tacks
 
-var server
+const common = require('../common-tap.js')
+
+const PKG_DIR = path.resolve(__dirname, 'search')
+const CACHE_DIR = path.resolve(PKG_DIR, 'cache')
+const cacheBase = cacheFile(CACHE_DIR)(common.registry + '/-/all')
+const cachePath = path.join(cacheBase, '.cache.json')
+
+let server
 
 test('setup', function (t) {
   mr({port: common.port, throwOnUnmatched: true}, function (err, s) {
@@ -26,7 +30,7 @@ test('setup', function (t) {
   })
 })
 
-var searches = [
+const searches = [
   {
     term: 'cool',
     description: 'non-regex search',
@@ -139,19 +143,26 @@ var searches = [
 searches.forEach(function (search) {
   test(search.description, function (t) {
     setup()
-    server.get('/-/v1/search?text=' + encodeURIComponent(search.term) + '&size=20').once().reply(404, {})
-    var now = Date.now()
-    var cacheContents = {
+    const query = qs.stringify({
+      text: search.term,
+      size: 20,
+      quality: 0.65,
+      popularity: 0.98,
+      maintenance: 0.5
+    })
+    server.get(`/-/v1/search?${query}`).once().reply(404, {})
+    const now = Date.now()
+    const cacheContents = {
       '_updated': now,
       bar: { name: 'bar', version: '1.0.0' },
       cool: { name: 'cool', version: '5.0.0' },
       foo: { name: 'foo', version: '2.0.0' },
       other: { name: 'other', version: '1.0.0' }
     }
-    for (var k in search.inject) {
+    for (let k in search.inject) {
       cacheContents[k] = search.inject[k]
     }
-    var fixture = new Tacks(File(cacheContents))
+    const fixture = new Tacks(File(cacheContents))
     fixture.create(cachePath)
     common.npm([
       'search', search.term,
@@ -167,12 +178,12 @@ searches.forEach(function (search) {
       t.equal(code, 0, 'search finished successfully')
       t.ifErr(err, 'search finished successfully')
       // \033 == \u001B
-      var markStart = '\u001B\\[[0-9][0-9]m'
-      var markEnd = '\u001B\\[0m'
+      const markStart = '\u001B\\[[0-9][0-9]m'
+      const markEnd = '\u001B\\[0m'
 
-      var re = new RegExp(markStart + '.*?' + markEnd)
+      const re = new RegExp(markStart + '.*?' + markEnd)
 
-      var cnt = stdout.search(re)
+      const cnt = stdout.search(re)
       t.equal(
         cnt,
         search.location,

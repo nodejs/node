@@ -26,6 +26,8 @@ Add, remove, and enumerate distribution tags on a package:
   Show all of the dist-tags for a package, defaulting to the package in
   the current prefix.
 
+  This is the default action if none is specified.
+
 A tag can be used when installing packages as a reference to a version instead
 of using a specific version number:
 
