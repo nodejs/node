@@ -437,7 +437,7 @@ install the new build. Make sure that the build appears correct. Check the
 version numbers, and perform some basic checks to confirm that all is well with
 the build before moving forward.
 
-### 11. Tag and Sign the Release Commit
+### 11.  Tag and Sign the Release Commit
 
 Once you have produced builds that you're happy with, create a new tag. By
 waiting until this stage to create tags, you can discard a proposed release if
@@ -472,6 +472,9 @@ following command:
 ```console
 $ git push <remote> <vx.y.z>
 ```
+
+*Note*: Please do not push the tag unless you are ready to complete the remainder of the release
+steps 12 - 19
 
 ### 12. Set Up For the Next Release
 
