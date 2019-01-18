@@ -7,9 +7,10 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "util.h"
+
 #include <string.h>
 #include <algorithm>
-#include "util.h"
 
 namespace node {
 namespace stringsearch {
