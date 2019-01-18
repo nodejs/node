@@ -190,20 +190,15 @@ void InitModpendingOnce() {
   CHECK_EQ(0, uv_key_create(&thread_local_modpending));
 }
 
-#define ABI_VERSION_CASE(entry, key, KEY)                                     \
-  case node_abi_ ## key ## _version:                                          \
-    if ((entry)->version != NODE_ABI_ ## KEY ## _VERSION) {                   \
-      char int_str[32];                                                       \
-      result += std::string("\n") +                                           \
-        NODE_STRINGIFY(node_abi_ ## key ## _version) +                        \
-        ": module: ";                                                         \
-      snprintf(int_str, sizeof(int_str), "%d", (entry)->version);             \
-      result += int_str;                                                      \
-      result += " vs. Node.js: ";                                             \
-      snprintf(int_str, sizeof(int_str), "%d", NODE_ABI_ ## KEY ## _VERSION); \
-      result += int_str;                                                      \
-    }                                                                         \
-    break                                                                     \
+#define ABI_VERSION_CASE(entry, key, KEY)                                  \
+  case node_abi_ ## key ## _version:                                       \
+    if ((entry)->version != NODE_ABI_ ## KEY ## _VERSION) {                \
+      result += std::string() +                                            \
+          "\n" NODE_STRINGIFY(node_abi_ ## key ## _version) ": " +         \
+          "module: " + std::to_string((entry)->version) +                  \
+          " vs. Node.js: " + std::to_string(NODE_ABI_ ## KEY ## _VERSION); \
+    }                                                                      \
+    break                                                                  \
 
 using ABICallback = const node_abi_version_entry* (*)();
 
