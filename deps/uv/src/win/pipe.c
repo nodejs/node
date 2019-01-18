@@ -1310,7 +1310,6 @@ static int uv__pipe_write_data(uv_loop_t* loop,
                                uv_pipe_t* handle,
                                const uv_buf_t bufs[],
                                size_t nbufs,
-                               uv_stream_t* send_handle,
                                uv_write_cb cb,
                                int copy_always) {
   int err;
@@ -1321,7 +1320,7 @@ static int uv__pipe_write_data(uv_loop_t* loop,
 
   UV_REQ_INIT(req, UV_WRITE);
   req->handle = (uv_stream_t*) handle;
-  req->send_handle = send_handle;
+  req->send_handle = NULL;
   req->cb = cb;
   /* Private fields. */
   req->coalesced = 0;
@@ -1558,8 +1557,7 @@ int uv__pipe_write_ipc(uv_loop_t* loop,
 
   /* Write buffers. We set the `always_copy` flag, so it is not a problem that
    * some of the written data lives on the stack. */
-  err = uv__pipe_write_data(
-      loop, req, handle, bufs, buf_count, send_handle, cb, 1);
+  err = uv__pipe_write_data(loop, req, handle, bufs, buf_count, cb, 1);
 
   /* If we had to heap-allocate the bufs array, free it now. */
   if (bufs != stack_bufs) {
@@ -1583,8 +1581,7 @@ int uv__pipe_write(uv_loop_t* loop,
   } else {
     /* Non-IPC pipe write: put data on the wire directly. */
     assert(send_handle == NULL);
-    return uv__pipe_write_data(
-        loop, req, handle, bufs, nbufs, NULL, cb, 0);
+    return uv__pipe_write_data(loop, req, handle, bufs, nbufs, cb, 0);
   }
 }
 

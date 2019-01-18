@@ -58,11 +58,19 @@ struct uv__stream_select_s {
   fd_set* swrite;
   size_t swrite_sz;
 };
-# define WRITE_RETRY_ON_ERROR(send_handle) \
+
+/* Due to a possible kernel bug at least in OS X 10.10 "Yosemite",
+ * EPROTOTYPE can be returned while trying to write to a socket that is
+ * shutting down. If we retry the write, we should get the expected EPIPE
+ * instead.
+ */
+# define RETRY_ON_WRITE_ERROR(errno) (errno == EINTR || errno == EPROTOTYPE)
+# define IS_TRANSIENT_WRITE_ERROR(errno, send_handle) \
     (errno == EAGAIN || errno == EWOULDBLOCK || errno == ENOBUFS || \
-     (errno == EMSGSIZE && send_handle))
+     (errno == EMSGSIZE && send_handle != NULL))
 #else
-# define WRITE_RETRY_ON_ERROR(send_handle) \
+# define RETRY_ON_WRITE_ERROR(errno) (errno == EINTR)
+# define IS_TRANSIENT_WRITE_ERROR(errno, send_handle) \
     (errno == EAGAIN || errno == EWOULDBLOCK || errno == ENOBUFS)
 #endif /* defined(__APPLE__) */
 
@@ -700,6 +708,14 @@ static void uv__drain(uv_stream_t* stream) {
 }
 
 
+static ssize_t uv__writev(int fd, struct iovec* vec, size_t n) {
+  if (n == 1)
+    return write(fd, vec->iov_base, vec->iov_len);
+  else
+    return writev(fd, vec, n);
+}
+
+
 static size_t uv__write_req_size(uv_write_t* req) {
   size_t size;
 
@@ -709,6 +725,37 @@ static size_t uv__write_req_size(uv_write_t* req) {
   assert(req->handle->write_queue_size >= size);
 
   return size;
+}
+
+
+/* Returns 1 if all write request data has been written, or 0 if there is still
+ * more data to write.
+ *
+ * Note: the return value only says something about the *current* request.
+ * There may still be other write requests sitting in the queue.
+ */
+static int uv__write_req_update(uv_stream_t* stream,
+                                uv_write_t* req,
+                                size_t n) {
+  uv_buf_t* buf;
+  size_t len;
+
+  assert(n <= stream->write_queue_size);
+  stream->write_queue_size -= n;
+
+  buf = req->bufs + req->write_index;
+
+  do {
+    len = n < buf->len ? n : buf->len;
+    buf->base += len;
+    buf->len -= len;
+    buf += (buf->len == 0);  /* Advance to next buffer if this one is empty. */
+    n -= len;
+  } while (n > 0);
+
+  req->write_index = buf - req->bufs;
+
+  return req->write_index == req->nbufs;
 }
 
 
@@ -832,102 +879,32 @@ start:
       *pi = fd_to_send;
     }
 
-    do {
+    do
       n = sendmsg(uv__stream_fd(stream), &msg, 0);
-    }
-#if defined(__APPLE__)
-    /*
-     * Due to a possible kernel bug at least in OS X 10.10 "Yosemite",
-     * EPROTOTYPE can be returned while trying to write to a socket that is
-     * shutting down. If we retry the write, we should get the expected EPIPE
-     * instead.
-     */
-    while (n == -1 && (errno == EINTR || errno == EPROTOTYPE));
-#else
-    while (n == -1 && errno == EINTR);
-#endif
+    while (n == -1 && RETRY_ON_WRITE_ERROR(errno));
+
+    /* Ensure the handle isn't sent again in case this is a partial write. */
+    if (n >= 0)
+      req->send_handle = NULL;
   } else {
-    do {
-      if (iovcnt == 1) {
-        n = write(uv__stream_fd(stream), iov[0].iov_base, iov[0].iov_len);
-      } else {
-        n = writev(uv__stream_fd(stream), iov, iovcnt);
-      }
-    }
-#if defined(__APPLE__)
-    /*
-     * Due to a possible kernel bug at least in OS X 10.10 "Yosemite",
-     * EPROTOTYPE can be returned while trying to write to a socket that is
-     * shutting down. If we retry the write, we should get the expected EPIPE
-     * instead.
-     */
-    while (n == -1 && (errno == EINTR || errno == EPROTOTYPE));
-#else
-    while (n == -1 && errno == EINTR);
-#endif
+    do
+      n = uv__writev(uv__stream_fd(stream), iov, iovcnt);
+    while (n == -1 && RETRY_ON_WRITE_ERROR(errno));
   }
 
-  if (n < 0) {
-    if (!WRITE_RETRY_ON_ERROR(req->send_handle)) {
-      err = UV__ERR(errno);
-      goto error;
-    } else if (stream->flags & UV_HANDLE_BLOCKING_WRITES) {
-      /* If this is a blocking stream, try again. */
-      goto start;
-    }
-  } else {
-    /* Successful write */
-
-    while (n >= 0) {
-      uv_buf_t* buf = &(req->bufs[req->write_index]);
-      size_t len = buf->len;
-
-      assert(req->write_index < req->nbufs);
-
-      if ((size_t)n < len) {
-        buf->base += n;
-        buf->len -= n;
-        stream->write_queue_size -= n;
-        n = 0;
-
-        /* There is more to write. */
-        if (stream->flags & UV_HANDLE_BLOCKING_WRITES) {
-          /*
-           * If we're blocking then we should not be enabling the write
-           * watcher - instead we need to try again.
-           */
-          goto start;
-        } else {
-          /* Break loop and ensure the watcher is pending. */
-          break;
-        }
-
-      } else {
-        /* Finished writing the buf at index req->write_index. */
-        req->write_index++;
-
-        assert((size_t)n >= len);
-        n -= len;
-
-        assert(stream->write_queue_size >= len);
-        stream->write_queue_size -= len;
-
-        if (req->write_index == req->nbufs) {
-          /* Then we're done! */
-          assert(n == 0);
-          uv__write_req_finish(req);
-          /* TODO: start trying to write the next request. */
-          return;
-        }
-      }
-    }
+  if (n == -1 && !IS_TRANSIENT_WRITE_ERROR(errno, req->send_handle)) {
+    err = UV__ERR(errno);
+    goto error;
   }
 
-  /* Either we've counted n down to zero or we've got EAGAIN. */
-  assert(n == 0 || n == -1);
+  if (n >= 0 && uv__write_req_update(stream, req, n)) {
+    uv__write_req_finish(req);
+    return;  /* TODO(bnoordhuis) Start trying to write the next request. */
+  }
 
-  /* Only non-blocking streams should use the write_watcher. */
-  assert(!(stream->flags & UV_HANDLE_BLOCKING_WRITES));
+  /* If this is a blocking stream, try again. */
+  if (stream->flags & UV_HANDLE_BLOCKING_WRITES)
+    goto start;
 
   /* We're not done. */
   uv__io_start(stream->loop, &stream->io_watcher, POLLOUT);

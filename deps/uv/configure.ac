@@ -13,7 +13,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 AC_PREREQ(2.57)
-AC_INIT([libuv], [1.24.1], [https://github.com/libuv/libuv/issues])
+AC_INIT([libuv], [1.25.0], [https://github.com/libuv/libuv/issues])
 AC_CONFIG_MACRO_DIR([m4])
 m4_include([m4/libuv-extra-automake-flags.m4])
 m4_include([m4/as_case.m4])
@@ -73,4 +73,6 @@ AS_CASE([$host_os], [kfreebsd*], [
 ])
 AC_CHECK_HEADERS([sys/ahafs_evProds.h])
 AC_CONFIG_FILES([Makefile libuv.pc])
+AC_CONFIG_LINKS([test/fixtures/empty_file:test/fixtures/empty_file])
+AC_CONFIG_LINKS([test/fixtures/load_error.node:test/fixtures/load_error.node])
 AC_OUTPUT

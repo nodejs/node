@@ -154,6 +154,7 @@
         'test-udp-multicast-interface.c',
         'test-udp-multicast-interface6.c',
         'test-udp-try-send.c',
+        'test-uname.c',
       ],
       'conditions': [
         [ 'OS=="win"', {
