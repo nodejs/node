@@ -11,6 +11,7 @@ STAGINGSERVER ?= node-www
 LOGLEVEL ?= silent
 OSTYPE := $(shell uname -s | tr '[A-Z]' '[a-z]')
 COVTESTS ?= test-cov
+COV_SKIP_TESTS ?= core_line_numbers.js,testFinalizer.js,test_function/test.js
 GTEST_FILTER ?= "*"
 GNUMAKEFLAGS += --no-print-directory
 GCOV ?= gcov
@@ -181,7 +182,6 @@ coverage-clean:
 	$(RM) -r node_modules
 	$(RM) -r gcovr build
 	$(RM) -r out/$(BUILDTYPE)/.coverage
-	$(RM) -r .cov_tmp
 	$(RM) out/$(BUILDTYPE)/obj.target/node/gen/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node/src/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node/src/tracing/*.gcda
@@ -201,9 +201,7 @@ coverage: coverage-test ## Run the tests and generate a coverage report.
 
 .PHONY: coverage-build
 coverage-build: all
-	mkdir -p node_modules
-	if [ ! -d node_modules/nyc ]; then \
-		$(NODE) ./deps/npm install nyc@13 --no-save --no-package-lock; fi
+	-$(MAKE) coverage-build-js
 	if [ ! -d gcovr ]; then git clone -b 3.4 --depth=1 \
 		--single-branch https://github.com/gcovr/gcovr.git; fi
 	if [ ! -d build ]; then git clone --depth=1 \
@@ -211,44 +209,42 @@ coverage-build: all
 	if [ ! -f gcovr/scripts/gcovr.orig ]; then \
 		(cd gcovr && patch -N -p1 < \
 		"$(CURDIR)/build/jenkins/scripts/coverage/gcovr-patches-3.4.diff"); fi
-	if [ -d lib_ ]; then $(RM) -r lib; mv lib_ lib; fi
-	mv lib lib_
-	NODE_DEBUG=nyc $(NODE) ./node_modules/.bin/nyc instrument --extension .js \
-		--extension .mjs --exit-on-error lib_/ lib/
 	$(MAKE)
+
+.PHONY: coverage-build-js
+coverage-build-js:
+	mkdir -p node_modules
+	if [ ! -d node_modules/c8 ]; then \
+		$(NODE) ./deps/npm install c8@next --no-save --no-package-lock;\
+	fi
 
 .PHONY: coverage-test
 coverage-test: coverage-build
-	$(RM) -r out/$(BUILDTYPE)/.coverage
-	$(RM) -r .cov_tmp
 	$(RM) out/$(BUILDTYPE)/obj.target/node/gen/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node/src/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node/src/tracing/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/gen/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/src/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/src/tracing/*.gcda
-	-$(MAKE) $(COVTESTS)
-	mv lib lib__
-	mv lib_ lib
-	mkdir -p coverage .cov_tmp
-	$(NODE) ./node_modules/.bin/nyc merge 'out/Release/.coverage' \
-		.cov_tmp/libcov.json
-	(cd lib && .$(NODE) ../node_modules/.bin/nyc report \
-		--temp-dir "$(CURDIR)/.cov_tmp" \
-		--report-dir "$(CURDIR)/coverage" \
-		--reporter html)
+	-NODE_V8_COVERAGE=out/$(BUILDTYPE)/.coverage $(MAKE) $(COVTESTS)
+	$(MAKE) coverage-report-js
 	-(cd out && "../gcovr/scripts/gcovr" --gcov-exclude='.*deps' \
 		--gcov-exclude='.*usr' -v -r Release/obj.target \
 		--html --html-detail -o ../coverage/cxxcoverage.html \
 		--gcov-executable="$(GCOV)")
-	mv lib lib_
-	mv lib__ lib
 	@echo -n "Javascript coverage %: "
 	@grep -B1 Lines coverage/index.html | head -n1 \
 		| sed 's/<[^>]*>//g'| sed 's/ //g'
 	@echo -n "C++ coverage %: "
 	@grep -A3 Lines coverage/cxxcoverage.html | grep style  \
 		| sed 's/<[^>]*>//g'| sed 's/ //g'
+
+.PHONY: coverage-report-js
+coverage-report-js:
+	$(NODE) ./node_modules/.bin/c8 report --reporter=html \
+		--temp-directory=out/$(BUILDTYPE)/.coverage --omit-relative=false \
+		--resolve=./lib --exclude="deps/" --exclude="test/" --exclude="tools/" \
+		--wrapper-length=0
 
 .PHONY: cctest
 # Runs the C++ tests using the built `cctest` executable.
@@ -276,6 +272,14 @@ jstest: build-addons build-js-native-api-tests build-node-api-tests ## Runs addo
 		$(CI_JS_SUITES) \
 		$(CI_NATIVE_SUITES)
 
+.PHONY: coverage-run-js
+coverage-run-js:
+	$(RM) -r out/$(BUILDTYPE)/.coverage
+	$(MAKE) coverage-build-js
+	-NODE_V8_COVERAGE=out/$(BUILDTYPE)/.coverage CI_SKIP_TESTS=$(COV_SKIP_TESTS) \
+	  $(MAKE) jstest
+	$(MAKE) coverage-report-js
+
 .PHONY: test
 # This does not run tests of third-party libraries inside deps.
 test: all ## Runs default tests, linters, and builds docs.
@@ -300,7 +304,7 @@ test-cov: all
 	$(MAKE) build-js-native-api-tests
 	$(MAKE) build-node-api-tests
 	# $(MAKE) cctest
-	CI_SKIP_TESTS=core_line_numbers.js $(MAKE) jstest
+	CI_SKIP_TESTS=$(COV_SKIP_TESTS) $(MAKE) jstest
 
 test-parallel: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) parallel

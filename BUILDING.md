@@ -290,9 +290,15 @@ $ CI_JS_SUITES=child-process CI_NATIVE_SUITES= make coverage
 The above command executes tests for the `child-process` subsystem and
 outputs the resulting coverage report.
 
-The `make coverage` command downloads some tools to the project root directory
-and overwrites the `lib/` directory. To clean up after generating the coverage
-reports:
+Alternatively, for the JavaScript test suite, you can use the `CI_JS_SUITES`
+variable to run tests in isolation, outputting reports:
+
+```text
+$ CI_JS_SUITES=fs CI_NATIVE_SUITES= make coverage-run-js
+```
+
+The `make coverage` command downloads some tools to the project root directory.
+To clean up after generating the coverage reports:
 
 ```console
 $ make coverage-clean
