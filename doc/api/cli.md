@@ -728,6 +728,7 @@ V8 options that are allowed are:
 - `--abort-on-uncaught-exception`
 - `--max-old-space-size`
 - `--perf-basic-prof`
+- `--perf-basic-prof-only-functions`
 - `--perf-prof`
 - `--stack-trace-limit`
 

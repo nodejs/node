@@ -317,6 +317,10 @@ PerIsolateOptionsParser::PerIsolateOptionsParser() {
             kAllowedInEnvironment);
   AddOption("--max-old-space-size", "", V8Option{}, kAllowedInEnvironment);
   AddOption("--perf-basic-prof", "", V8Option{}, kAllowedInEnvironment);
+  AddOption("--perf-basic-prof-only-functions",
+            "",
+            V8Option{},
+            kAllowedInEnvironment);
   AddOption("--perf-prof", "", V8Option{}, kAllowedInEnvironment);
   AddOption("--stack-trace-limit", "", V8Option{}, kAllowedInEnvironment);
 
