@@ -20,7 +20,10 @@ module.exports = {
         },
 
         fixable: null,
-        schema: []
+        schema: [],
+        messages: {
+            async: "Promise executor functions should not be async."
+        }
     },
 
     create(context) {
@@ -28,7 +31,7 @@ module.exports = {
             "NewExpression[callee.name='Promise'][arguments.0.async=true]"(node) {
                 context.report({
                     node: context.getSourceCode().getFirstToken(node.arguments[0], token => token.value === "async"),
-                    message: "Promise executor functions should not be async."
+                    messageId: "async"
                 });
             }
         };

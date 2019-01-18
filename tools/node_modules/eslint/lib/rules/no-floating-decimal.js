@@ -27,7 +27,11 @@ module.exports = {
         },
 
         schema: [],
-        fixable: "code"
+        fixable: "code",
+        messages: {
+            leading: "A leading decimal point can be confused with a dot.",
+            trailing: "A trailing decimal point can be confused with a dot."
+        }
     },
 
     create(context) {
@@ -40,7 +44,7 @@ module.exports = {
                     if (node.raw.startsWith(".")) {
                         context.report({
                             node,
-                            message: "A leading decimal point can be confused with a dot.",
+                            messageId: "leading",
                             fix(fixer) {
                                 const tokenBefore = sourceCode.getTokenBefore(node);
                                 const needsSpaceBefore = tokenBefore &&
@@ -54,7 +58,7 @@ module.exports = {
                     if (node.raw.indexOf(".") === node.raw.length - 1) {
                         context.report({
                             node,
-                            message: "A trailing decimal point can be confused with a dot.",
+                            messageId: "trailing",
                             fix: fixer => fixer.insertTextAfter(node, "0")
                         });
                     }

@@ -36,15 +36,17 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+        messages: {
+            exceed: "This line has {{numberOfStatementsOnThisLine}} {{statements}}. Maximum allowed is {{maxStatementsPerLine}}."
+        }
     },
 
     create(context) {
 
         const sourceCode = context.getSourceCode(),
             options = context.options[0] || {},
-            maxStatementsPerLine = typeof options.max !== "undefined" ? options.max : 1,
-            message = "This line has {{numberOfStatementsOnThisLine}} {{statements}}. Maximum allowed is {{maxStatementsPerLine}}.";
+            maxStatementsPerLine = typeof options.max !== "undefined" ? options.max : 1;
 
         let lastStatementLine = 0,
             numberOfStatementsOnThisLine = 0,
@@ -65,7 +67,7 @@ module.exports = {
             if (firstExtraStatement) {
                 context.report({
                     node: firstExtraStatement,
-                    message,
+                    messageId: "exceed",
                     data: {
                         numberOfStatementsOnThisLine,
                         maxStatementsPerLine,

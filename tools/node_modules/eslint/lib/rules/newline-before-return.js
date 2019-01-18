@@ -22,6 +22,10 @@ module.exports = {
 
         fixable: "whitespace",
         schema: [],
+        messages: {
+            expected: "Expected newline before return statement."
+        },
+
         deprecated: true,
         replacedBy: ["padding-line-between-statements"]
     },
@@ -196,7 +200,7 @@ module.exports = {
                 if (!isFirstNode(node) && !hasNewlineBefore(node)) {
                     context.report({
                         node,
-                        message: "Expected newline before return statement.",
+                        messageId: "expected",
                         fix(fixer) {
                             if (canFix(node)) {
                                 const tokenBefore = sourceCode.getTokenBefore(node);

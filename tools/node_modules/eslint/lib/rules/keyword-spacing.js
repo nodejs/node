@@ -100,7 +100,13 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+        messages: {
+            expectedBefore: "Expected space(s) before \"{{value}}\".",
+            expectedAfter: "Expected space(s) after \"{{value}}\".",
+            unexpectedBefore: "Unexpected space(s) before \"{{value}}\".",
+            unexpectedAfter: "Unexpected space(s) after \"{{value}}\"."
+        }
     },
 
     create(context) {
@@ -124,7 +130,7 @@ module.exports = {
             ) {
                 context.report({
                     loc: token.loc.start,
-                    message: "Expected space(s) before \"{{value}}\".",
+                    messageId: "expectedBefore",
                     data: token,
                     fix(fixer) {
                         return fixer.insertTextBefore(token, " ");
@@ -151,7 +157,7 @@ module.exports = {
             ) {
                 context.report({
                     loc: token.loc.start,
-                    message: "Unexpected space(s) before \"{{value}}\".",
+                    messageId: "unexpectedBefore",
                     data: token,
                     fix(fixer) {
                         return fixer.removeRange([prevToken.range[1], token.range[0]]);
@@ -178,7 +184,7 @@ module.exports = {
             ) {
                 context.report({
                     loc: token.loc.start,
-                    message: "Expected space(s) after \"{{value}}\".",
+                    messageId: "expectedAfter",
                     data: token,
                     fix(fixer) {
                         return fixer.insertTextAfter(token, " ");
@@ -205,7 +211,7 @@ module.exports = {
             ) {
                 context.report({
                     loc: token.loc.start,
-                    message: "Unexpected space(s) after \"{{value}}\".",
+                    messageId: "unexpectedAfter",
                     data: token,
                     fix(fixer) {
                         return fixer.removeRange([token.range[1], nextToken.range[0]]);

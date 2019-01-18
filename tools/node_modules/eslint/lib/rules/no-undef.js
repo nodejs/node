@@ -44,7 +44,10 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+        messages: {
+            undef: "'{{name}}' is not defined."
+        }
     },
 
     create(context) {
@@ -64,7 +67,7 @@ module.exports = {
 
                     context.report({
                         node: identifier,
-                        message: "'{{name}}' is not defined.",
+                        messageId: "undef",
                         data: identifier
                     });
                 });

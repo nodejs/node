@@ -26,8 +26,11 @@ module.exports = {
             recommended: false,
             url: "https://eslint.org/docs/rules/symbol-description"
         },
-
-        schema: []
+        fixable: null,
+        schema: [],
+        messages: {
+            expected: "Expected Symbol to have a description."
+        }
     },
 
     create(context) {
@@ -43,7 +46,7 @@ module.exports = {
             if (node.arguments.length === 0) {
                 context.report({
                     node,
-                    message: "Expected Symbol to have a description."
+                    messageId: "expected"
                 });
             }
         }

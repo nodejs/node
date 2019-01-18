@@ -41,7 +41,12 @@ module.exports = {
             }
         ],
 
-        fixable: "code"
+        fixable: "code",
+        messages: {
+            wrapInvocation: "Wrap an immediate function invocation in parentheses.",
+            wrapExpression: "Wrap only the function expression in parens.",
+            moveInvocation: "Move the invocation into the parens that contain the function."
+        }
     },
 
     create(context) {
@@ -99,7 +104,7 @@ module.exports = {
                 if (!callExpressionWrapped && !functionExpressionWrapped) {
                     context.report({
                         node,
-                        message: "Wrap an immediate function invocation in parentheses.",
+                        messageId: "wrapInvocation",
                         fix(fixer) {
                             const nodeToSurround = style === "inside" ? innerNode : node;
 
@@ -109,7 +114,7 @@ module.exports = {
                 } else if (style === "inside" && !functionExpressionWrapped) {
                     context.report({
                         node,
-                        message: "Wrap only the function expression in parens.",
+                        messageId: "wrapExpression",
                         fix(fixer) {
 
                             /*
@@ -129,7 +134,7 @@ module.exports = {
                 } else if (style === "outside" && !callExpressionWrapped) {
                     context.report({
                         node,
-                        message: "Move the invocation into the parens that contain the function.",
+                        messageId: "moveInvocation",
                         fix(fixer) {
 
                             /*

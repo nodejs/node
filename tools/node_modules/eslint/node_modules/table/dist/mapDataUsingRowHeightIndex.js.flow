@@ -1,6 +1,5 @@
 import _ from 'lodash';
-import wrapString from './wrapString';
-import wrapWord from './wrapWord';
+import wrapCell from './wrapCell';
 
 /**
  * @param {Array} unmappedRows
@@ -21,16 +20,10 @@ export default (unmappedRows, rowHeightIndex, config) => {
     //     [{cell index within a virtual row; index1}]
 
     cells.forEach((value, index1) => {
-      let chunkedValue;
+      const cellLines = wrapCell(value, config.columns[index1].width, config.columns[index1].wrapWord);
 
-      if (config.columns[index1].wrapWord) {
-        chunkedValue = wrapWord(value, config.columns[index1].width);
-      } else {
-        chunkedValue = wrapString(value, config.columns[index1].width);
-      }
-
-      chunkedValue.forEach((part, index2) => {
-        rowHeight[index2][index1] = part;
+      cellLines.forEach((cellLine, index2) => {
+        rowHeight[index2][index1] = cellLine;
       });
     });
 

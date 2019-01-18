@@ -47,7 +47,11 @@ module.exports = {
                     }
                 ]
             }
-        ]
+        ],
+        messages: {
+            above: "Expected comment to be above code.",
+            beside: "Expected comment to be beside code."
+        }
     },
 
     create(context) {
@@ -100,14 +104,14 @@ module.exports = {
                         if (isOnSameLine) {
                             context.report({
                                 node,
-                                message: "Expected comment to be above code."
+                                messageId: "above"
                             });
                         }
                     } else {
                         if (!isOnSameLine) {
                             context.report({
                                 node,
-                                message: "Expected comment to be beside code."
+                                messageId: "beside"
                             });
                         }
                     }
