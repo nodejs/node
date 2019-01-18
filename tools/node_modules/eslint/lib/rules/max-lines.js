@@ -51,7 +51,10 @@ module.exports = {
                     }
                 ]
             }
-        ]
+        ],
+        messages: {
+            exceed: "File must be at most {{max}} lines long. It's {{actual}} lines long."
+        }
     },
 
     create(context) {
@@ -134,7 +137,7 @@ module.exports = {
                 if (lines.length > max) {
                     context.report({
                         loc: { line: 1, column: 0 },
-                        message: "File must be at most {{max}} lines long. It's {{actual}} lines long.",
+                        messageId: "exceed",
                         data: {
                             max,
                             actual: lines.length

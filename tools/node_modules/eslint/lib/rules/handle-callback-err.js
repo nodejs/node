@@ -24,7 +24,10 @@ module.exports = {
             {
                 type: "string"
             }
-        ]
+        ],
+        messages: {
+            expected: "Expected error to be handled."
+        }
     },
 
     create(context) {
@@ -77,7 +80,7 @@ module.exports = {
 
             if (firstParameter && matchesConfiguredErrorName(firstParameter.name)) {
                 if (firstParameter.references.length === 0) {
-                    context.report({ node, message: "Expected error to be handled." });
+                    context.report({ node, messageId: "expected" });
                 }
             }
         }

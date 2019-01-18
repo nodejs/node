@@ -12,6 +12,7 @@
 const lodash = require("lodash");
 const loadRules = require("./load-rules");
 const ruleReplacements = require("../conf/replacements").rules;
+const builtInRules = require("./built-in-rules-index");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -59,8 +60,7 @@ function normalizeRule(rule) {
 class Rules {
     constructor() {
         this._rules = Object.create(null);
-
-        this.load();
+        this.defineAll(builtInRules);
     }
 
     /**
@@ -82,6 +82,15 @@ class Rules {
     load(rulesDir, cwd) {
         const newRules = loadRules(rulesDir, cwd);
 
+        this.defineAll(newRules);
+    }
+
+    /**
+     * Pulls a Map of new rules to the defined ones of this instance.
+     * @param {Object} newRules Expects to have an object here that maps the rule ID to the rule definition.
+     * @returns {void}
+     */
+    defineAll(newRules) {
         Object.keys(newRules).forEach(ruleId => {
             this.define(ruleId, newRules[ruleId]);
         });

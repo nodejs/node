@@ -104,7 +104,7 @@ options:
 - `filename` _(default: null)_ - string to be used as a file path in
   error/warning messages.
 - `onWarning` _(default: null)_ - function to call on warning messages.
-  Loader will throw on warnings if this function is not provided.
+  Loader will call this function with an instance of `YAMLException` for each warning.
 - `schema` _(default: `DEFAULT_SAFE_SCHEMA`)_ - specifies a schema to use.
   - `FAILSAFE_SCHEMA` - only strings, arrays and plain objects:
     http://www.yaml.org/spec/1.2/spec.html#id2802346
@@ -170,6 +170,7 @@ disable exceptions by setting the `skipInvalid` option to `true`.
 options:
 
 - `indent` _(default: 2)_ - indentation width to use (in spaces).
+- `noArrayIndent` _(default: false)_ - when true, will not add an indentation level to array elements
 - `skipInvalid` _(default: false)_ - do not throw on invalid types (like function
   in the safe schema) and skip pairs and single values with such types.
 - `flowLevel` (default: -1) - specifies level of nesting, when to switch from

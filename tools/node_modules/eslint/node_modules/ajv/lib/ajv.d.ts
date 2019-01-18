@@ -1,12 +1,36 @@
 declare var ajv: {
   (options?: ajv.Options): ajv.Ajv;
-  new (options?: ajv.Options): ajv.Ajv;
-  ValidationError: ValidationError;
-  MissingRefError: MissingRefError;
+  new(options?: ajv.Options): ajv.Ajv;
+  ValidationError: typeof AjvErrors.ValidationError;
+  MissingRefError: typeof AjvErrors.MissingRefError;
   $dataMetaSchema: object;
 }
 
+declare namespace AjvErrors {
+  class ValidationError extends Error {
+    constructor(errors: Array<ajv.ErrorObject>);
+
+    message: string;
+    errors: Array<ajv.ErrorObject>;
+    ajv: true;
+    validation: true;
+  }
+
+  class MissingRefError extends Error {
+    constructor(baseId: string, ref: string, message?: string);
+    static message: (baseId: string, ref: string) => string;
+
+    message: string;
+    missingRef: string;
+    missingSchema: string;
+  }
+}
+
 declare namespace ajv {
+  type ValidationError = AjvErrors.ValidationError;
+
+  type MissingRefError = AjvErrors.MissingRefError;
+
   interface Ajv {
     /**
     * Validate data using schema
@@ -268,11 +292,11 @@ declare namespace ajv {
   }
 
   type ErrorParameters = RefParams | LimitParams | AdditionalPropertiesParams |
-                          DependenciesParams | FormatParams | ComparisonParams |
-                          MultipleOfParams | PatternParams | RequiredParams |
-                          TypeParams | UniqueItemsParams | CustomParams |
-                          PatternRequiredParams | PropertyNamesParams |
-                          IfParams | SwitchParams | NoParams | EnumParams;
+    DependenciesParams | FormatParams | ComparisonParams |
+    MultipleOfParams | PatternParams | RequiredParams |
+    TypeParams | UniqueItemsParams | CustomParams |
+    PatternRequiredParams | PropertyNamesParams |
+    IfParams | SwitchParams | NoParams | EnumParams;
 
   interface RefParams {
     ref: string;
@@ -344,29 +368,11 @@ declare namespace ajv {
     caseIndex: number;
   }
 
-  interface NoParams {}
+  interface NoParams { }
 
   interface EnumParams {
     allowedValues: Array<any>;
   }
-}
-
-declare class ValidationError extends Error {
-  constructor(errors: Array<ajv.ErrorObject>);
-
-  message: string;
-  errors: Array<ajv.ErrorObject>;
-  ajv: true;
-  validation: true;
-}
-
-declare class MissingRefError extends Error {
-  constructor(baseId: string, ref: string, message?: string);
-  static message: (baseId: string, ref: string) => string;
-
-  message: string;
-  missingRef: string;
-  missingSchema: string;
 }
 
 export = ajv;

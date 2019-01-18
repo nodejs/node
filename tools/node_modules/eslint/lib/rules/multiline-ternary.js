@@ -26,7 +26,13 @@ module.exports = {
             {
                 enum: ["always", "always-multiline", "never"]
             }
-        ]
+        ],
+        messages: {
+            expectedTestCons: "Expected newline between test and consequent of ternary expression.",
+            expectedConsAlt: "Expected newline between consequent and alternate of ternary expression.",
+            unexpectedTestCons: "Unexpected newline between test and consequent of ternary expression.",
+            unexpectedConsAlt: "Unexpected newline between consequent and alternate of ternary expression."
+        }
     },
 
     create(context) {
@@ -49,11 +55,7 @@ module.exports = {
         function reportError(node, parentNode, expected) {
             context.report({
                 node,
-                message: "{{expected}} newline between {{typeOfError}} of ternary expression.",
-                data: {
-                    expected: expected ? "Expected" : "Unexpected",
-                    typeOfError: node === parentNode.test ? "test and consequent" : "consequent and alternate"
-                }
+                messageId: `${expected ? "expected" : "unexpected"}${node === parentNode.test ? "TestCons" : "ConsAlt"}`
             });
         }
 

@@ -85,6 +85,10 @@ module.exports = {
                     maxItems: 2
                 }
             ]
+        },
+        messages: {
+            initialized: "Variable '{{idName}}' should be initialized on declaration.",
+            notInitialized: "Variable '{{idName}}' should not be initialized on declaration."
         }
     },
 
@@ -111,23 +115,18 @@ module.exports = {
                         id = declaration.id,
                         initialized = isInitialized(declaration),
                         isIgnoredForLoop = params.ignoreForLoopInit && isForLoop(node.parent);
-
-                    if (id.type !== "Identifier") {
-                        continue;
-                    }
+                    let messageId = "";
 
                     if (mode === MODE_ALWAYS && !initialized) {
-                        context.report({
-                            node: declaration,
-                            message: "Variable '{{idName}}' should be initialized on declaration.",
-                            data: {
-                                idName: id.name
-                            }
-                        });
+                        messageId = "initialized";
                     } else if (mode === MODE_NEVER && kind !== "const" && initialized && !isIgnoredForLoop) {
+                        messageId = "notInitialized";
+                    }
+
+                    if (id.type === "Identifier" && messageId) {
                         context.report({
                             node: declaration,
-                            message: "Variable '{{idName}}' should not be initialized on declaration.",
+                            messageId,
                             data: {
                                 idName: id.name
                             }

@@ -1,5 +1,10 @@
 {{## def.assignDefault:
-  if ({{=$passData}} === undefined)
+  if ({{=$passData}} === undefined
+    {{? it.opts.useDefaults == 'empty' }}
+      || {{=$passData}} === null
+      || {{=$passData}} === ''
+    {{?}}
+  )
     {{=$passData}} = {{? it.opts.useDefaults == 'shared' }}
                        {{= it.useDefault($sch.default) }}
                      {{??}}

@@ -30,8 +30,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/new-parens"
         },
 
+        fixable: "code",
         schema: [],
-        fixable: "code"
+        messages: {
+            missing: "Missing '()' invoking a constructor."
+        }
     },
 
     create(context) {
@@ -50,7 +53,7 @@ module.exports = {
                 if (!hasParens) {
                     context.report({
                         node,
-                        message: "Missing '()' invoking a constructor.",
+                        messageId: "missing",
                         fix: fixer => fixer.insertTextAfter(node, "()")
                     });
                 }

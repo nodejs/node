@@ -121,11 +121,6 @@ function initOptions(toOptions, fromOptions) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-const messages = {
-    key: "{{error}} space after {{computed}}key '{{key}}'.",
-    value: "{{error}} space before value for {{computed}}key '{{key}}'."
-};
-
 module.exports = {
     meta: {
         type: "layout",
@@ -297,7 +292,13 @@ module.exports = {
                     additionalProperties: false
                 }
             ]
-        }]
+        }],
+        messages: {
+            extraKey: "Extra space after {{computed}}key '{{key}}'.",
+            extraValue: "Extra space before value for {{computed}}key '{{key}}'.",
+            missingKey: "Missing space after {{computed}}key '{{key}}'.",
+            missingValue: "Missing space before value for {{computed}}key '{{key}}'."
+        }
     },
 
     create(context) {
@@ -460,12 +461,19 @@ module.exports = {
                     }
                 }
 
+                let messageId = "";
+
+                if (isExtra) {
+                    messageId = side === "key" ? "extraKey" : "extraValue";
+                } else {
+                    messageId = side === "key" ? "missingKey" : "missingValue";
+                }
+
                 context.report({
                     node: property[side],
                     loc: locStart,
-                    message: messages[side],
+                    messageId,
                     data: {
-                        error: isExtra ? "Extra" : "Missing",
                         computed: property.computed ? "computed " : "",
                         key: getKey(property)
                     },

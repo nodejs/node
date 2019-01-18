@@ -38,7 +38,13 @@ module.exports = {
                     }
                 ]
             }
-        ]
+        ],
+        messages: {
+            missingBefore: "Missing space before *.",
+            missingAfter: "Missing space after *.",
+            unexpectedBefore: "Unexpected space before *.",
+            unexpectedAfter: "Unexpected space after *."
+        }
     },
 
     create(context) {
@@ -70,16 +76,17 @@ module.exports = {
                 const after = leftToken.value === "*";
                 const spaceRequired = mode[side];
                 const node = after ? leftToken : rightToken;
-                const type = spaceRequired ? "Missing" : "Unexpected";
-                const message = "{{type}} space {{side}} *.";
+                let messageId = "";
+
+                if (spaceRequired) {
+                    messageId = side === "before" ? "missingBefore" : "missingAfter";
+                } else {
+                    messageId = side === "before" ? "unexpectedBefore" : "unexpectedAfter";
+                }
 
                 context.report({
                     node,
-                    message,
-                    data: {
-                        type,
-                        side
-                    },
+                    messageId,
                     fix(fixer) {
                         if (spaceRequired) {
                             if (after) {

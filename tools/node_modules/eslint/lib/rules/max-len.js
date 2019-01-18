@@ -78,7 +78,11 @@ module.exports = {
             OPTIONS_OR_INTEGER_SCHEMA,
             OPTIONS_OR_INTEGER_SCHEMA,
             OPTIONS_SCHEMA
-        ]
+        ],
+        messages: {
+            max: "Line {{lineNumber}} exceeds the maximum line length of {{maxLength}}.",
+            maxComment: "Line {{lineNumber}} exceeds the maximum comment line length of {{maxCommentLength}}."
+        }
     },
 
     create(context) {
@@ -341,7 +345,7 @@ module.exports = {
                         context.report({
                             node,
                             loc: { line: lineNumber, column: 0 },
-                            message: "Line {{lineNumber}} exceeds the maximum comment line length of {{maxCommentLength}}.",
+                            messageId: "maxComment",
                             data: {
                                 lineNumber: i + 1,
                                 maxCommentLength
@@ -352,7 +356,7 @@ module.exports = {
                     context.report({
                         node,
                         loc: { line: lineNumber, column: 0 },
-                        message: "Line {{lineNumber}} exceeds the maximum line length of {{maxLength}}.",
+                        messageId: "max",
                         data: {
                             lineNumber: i + 1,
                             maxLength

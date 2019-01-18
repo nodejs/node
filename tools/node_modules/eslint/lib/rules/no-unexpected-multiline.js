@@ -25,15 +25,16 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-unexpected-multiline"
         },
 
-        schema: []
+        schema: [],
+        messages: {
+            function: "Unexpected newline between function and ( of function call.",
+            property: "Unexpected newline between object and [ of property access.",
+            taggedTemplate: "Unexpected newline between template tag and template literal.",
+            division: "Unexpected newline between numerator and division operator."
+        }
     },
 
     create(context) {
-
-        const FUNCTION_MESSAGE = "Unexpected newline between function and ( of function call.";
-        const PROPERTY_MESSAGE = "Unexpected newline between object and [ of property access.";
-        const TAGGED_TEMPLATE_MESSAGE = "Unexpected newline between template tag and template literal.";
-        const DIVISION_MESSAGE = "Unexpected newline between numerator and division operator.";
 
         const REGEX_FLAG_MATCHER = /^[gimsuy]+$/;
 
@@ -43,16 +44,16 @@ module.exports = {
          * Check to see if there is a newline between the node and the following open bracket
          * line's expression
          * @param {ASTNode} node The node to check.
-         * @param {string} msg The error message to use.
+         * @param {string} messageId The error messageId to use.
          * @returns {void}
          * @private
          */
-        function checkForBreakAfter(node, msg) {
+        function checkForBreakAfter(node, messageId) {
             const openParen = sourceCode.getTokenAfter(node, astUtils.isNotClosingParenToken);
             const nodeExpressionEnd = sourceCode.getTokenBefore(openParen);
 
             if (openParen.loc.start.line !== nodeExpressionEnd.loc.end.line) {
-                context.report({ node, loc: openParen.loc.start, message: msg, data: { char: openParen.value } });
+                context.report({ node, loc: openParen.loc.start, messageId, data: { char: openParen.value } });
             }
         }
 
@@ -66,21 +67,21 @@ module.exports = {
                 if (!node.computed) {
                     return;
                 }
-                checkForBreakAfter(node.object, PROPERTY_MESSAGE);
+                checkForBreakAfter(node.object, "property");
             },
 
             TaggedTemplateExpression(node) {
                 if (node.tag.loc.end.line === node.quasi.loc.start.line) {
                     return;
                 }
-                context.report({ node, loc: node.loc.start, message: TAGGED_TEMPLATE_MESSAGE });
+                context.report({ node, loc: node.loc.start, messageId: "taggedTemplate" });
             },
 
             CallExpression(node) {
                 if (node.arguments.length === 0) {
                     return;
                 }
-                checkForBreakAfter(node.callee, FUNCTION_MESSAGE);
+                checkForBreakAfter(node.callee, "function");
             },
 
             "BinaryExpression[operator='/'] > BinaryExpression[operator='/'].left"(node) {
@@ -92,7 +93,7 @@ module.exports = {
                     REGEX_FLAG_MATCHER.test(tokenAfterOperator.value) &&
                     secondSlash.range[1] === tokenAfterOperator.range[0]
                 ) {
-                    checkForBreakAfter(node.left, DIVISION_MESSAGE);
+                    checkForBreakAfter(node.left, "division");
                 }
             }
         };
