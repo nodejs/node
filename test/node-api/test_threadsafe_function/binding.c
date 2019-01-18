@@ -4,7 +4,6 @@
 // which, in turn, may affect the ABI stability of the project despite its use
 // of N-API.
 #include <uv.h>
-#define NAPI_EXPERIMENTAL
 #include <node_api.h>
 #include "../../js-native-api/common.h"
 
