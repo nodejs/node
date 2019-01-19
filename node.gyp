@@ -174,7 +174,7 @@
       'lib/internal/repl.js',
       'lib/internal/repl/await.js',
       'lib/internal/repl/history.js',
-      'lib/internal/repl/recoverable.js',
+      'lib/internal/repl/utils.js',
       'lib/internal/socket_list.js',
       'lib/internal/test/binding.js',
       'lib/internal/test/heap.js',
