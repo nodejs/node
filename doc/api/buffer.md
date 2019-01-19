@@ -1240,7 +1240,7 @@ console.log(b.toString());
 
 `value` is coerced to a `uint32` value if it is not a string, `Buffer`, or
 integer. If the resulting integer is greater than `255` (decimal), `buf` will be
-filled with `0`.
+filled with `value & 255`.
 
 If the final write of a `fill()` operation falls on a multi-byte character,
 then only the bytes of that character that fit into `buf` are written:
