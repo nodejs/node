@@ -12,7 +12,25 @@ const writeStream = new WriteStream(fd);
   const depth = writeStream.getColorDepth();
   assert.strictEqual(typeof depth, 'number');
   assert(depth >= 1 && depth <= 24);
+
+  const support = writeStream.hasColors();
+  assert.strictEqual(support, depth !== 1);
 }
+
+// Validate invalid input.
+[true, null, () => {}, Symbol(), 5n].forEach((input) => {
+  assert.throws(
+    () => writeStream.hasColors(input),
+    { code: 'ERR_INVALID_ARG_TYPE' }
+  );
+});
+
+[-1, 1].forEach((input) => {
+  assert.throws(
+    () => writeStream.hasColors(input),
+    { code: 'ERR_OUT_OF_RANGE' }
+  );
+});
 
 // Check different environment variables.
 [
@@ -54,6 +72,10 @@ const writeStream = new WriteStream(fd);
     `i: ${i}, expected: ${depth}, ` +
       `actual: ${actual}, env: ${inspect(env)}`
   );
+  const colors = 2 ** actual;
+  assert(writeStream.hasColors(colors, env));
+  assert(!writeStream.hasColors(colors + 1, env));
+  assert(depth >= 4 ? writeStream.hasColors(env) : !writeStream.hasColors(env));
 });
 
 // OS settings
