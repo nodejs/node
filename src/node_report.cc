@@ -748,36 +748,20 @@ static void PrintSystemInformation(JSONWriter* writer) {
 
   writer->json_objectstart("userLimits");
   struct rlimit limit;
-  char buf[64];
   std::string soft, hard;
 
   for (size_t i = 0; i < arraysize(rlimit_strings); i++) {
     if (getrlimit(rlimit_strings[i].id, &limit) == 0) {
-      if (limit.rlim_cur == RLIM_INFINITY) {
+      if (limit.rlim_cur == RLIM_INFINITY)
         soft = std::string("unlimited");
-      } else {
-#if defined(_AIX) || defined(__sun)
-        snprintf(buf, sizeof(buf), "%ld", limit.rlim_cur);
-        soft = std::string(buf);
-#elif defined(__linux__) && !defined(__GLIBC__)
-        snprintf(buf, sizeof(buf), "%ld", limit.rlim_cur);
-        soft = std::string(buf);
-#else
-        snprintf(buf, sizeof(buf), "%16" PRIu64, limit.rlim_cur);
-        soft = std::string(soft);
-#endif
-      }
-      if (limit.rlim_max == RLIM_INFINITY) {
+      else
+        soft = std::to_string(limit.rlim_cur);
+
+      if (limit.rlim_max == RLIM_INFINITY)
         hard = std::string("unlimited");
-      } else {
-#ifdef _AIX
-        snprintf(buf, sizeof(buf), "%lu", limit.rlim_max);
-        hard = std::string(buf);
-#else
-        snprintf(buf, sizeof(buf), "%llu", limit.rlim_max);
-        hard = std::string(buf);
-#endif
-      }
+      else
+        hard = std::to_string(limit.rlim_max);
+
       writer->json_objectstart(rlimit_strings[i].description);
       writer->json_keyvalue("soft", soft);
       writer->json_keyvalue("hard", hard);
