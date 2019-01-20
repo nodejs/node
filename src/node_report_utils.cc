@@ -1,10 +1,5 @@
-#include <v8.h>
-#include "env.h"
 #include "node_internals.h"
-#include "node_options.h"
 #include "node_report.h"
-#include "util.h"
-#include "v8.h"
 
 namespace report {
 
