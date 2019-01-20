@@ -232,8 +232,7 @@ void WalkHandle(uv_handle_t* h, void* arg) {
   if (h->type == UV_TCP || h->type == UV_NAMED_PIPE || h->type == UV_TTY ||
       h->type == UV_UDP || h->type == UV_POLL) {
     uv_os_fd_t fd_v;
-    uv_os_fd_t* fd = &fd_v;
-    int rc = uv_fileno(h, fd);
+    int rc = uv_fileno(h, &fd_v);
     // uv_os_fd_t is an int on Unix and HANDLE on Windows.
 #ifndef _WIN32
     if (rc == 0) {
