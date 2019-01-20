@@ -107,9 +107,8 @@ std::string TriggerNodeReport(Isolate* isolate,
 
   // Obtain the current time and the pid (platform dependent)
   TIME_TYPE tm_struct;
-  PID_TYPE pid;
   LocalTime(&tm_struct);
-  pid = uv_os_getpid();
+  uv_pid_t pid = uv_os_getpid();
   // Determine the required report filename. In order of priority:
   //   1) supplied on API 2) configured on startup 3) default generated
   if (!name.empty()) {
@@ -224,7 +223,7 @@ static void WriteNodeReport(Isolate* isolate,
                             Local<String> stackstr,
                             TIME_TYPE* tm_struct) {
   std::ostringstream buf;
-  PID_TYPE pid = uv_os_getpid();
+  uv_pid_t pid = uv_os_getpid();
 
   // Save formatting for output stream.
   std::ios old_state(nullptr);
