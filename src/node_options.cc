@@ -36,29 +36,45 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors) {
 void PerIsolateOptions::CheckOptions(std::vector<std::string>* errors) {
   per_env->CheckOptions(errors);
 #ifdef NODE_REPORT
-  if (!report_directory.empty() && !per_env->experimental_report)
+  if (per_env->experimental_report)
+    return;
+
+  if (!report_directory.empty()) {
     errors->push_back("--diagnostic-report-directory option is valid only when "
                       "--experimental-report is set");
-  if (!report_filename.empty() && !per_env->experimental_report)
+  }
+
+  if (!report_filename.empty()) {
     errors->push_back("--diagnostic-report-filename option is valid only when "
                       "--experimental-report is set");
-  if (!report_signal.empty() && !per_env->experimental_report)
+  }
+
+  if (!report_signal.empty()) {
     errors->push_back("--diagnostic-report-signal option is valid only when "
                       "--experimental-report is set");
-  if (report_on_fatalerror && !per_env->experimental_report)
+  }
+
+  if (report_on_fatalerror) {
     errors->push_back(
         "--diagnostic-report-on-fatalerror option is valid only when "
         "--experimental-report is set");
-  if (report_on_signal && !per_env->experimental_report)
+  }
+
+  if (report_on_signal) {
     errors->push_back("--diagnostic-report-on-signal option is valid only when "
                       "--experimental-report is set");
-  if (report_uncaught_exception && !per_env->experimental_report)
+  }
+
+  if (report_uncaught_exception) {
     errors->push_back(
         "--diagnostic-report-uncaught-exception option is valid only when "
         "--experimental-report is set");
-  if (report_verbose && !per_env->experimental_report)
+  }
+
+  if (report_verbose) {
     errors->push_back("--diagnostic-report-verbose option is valid only when "
                       "--experimental-report is set");
+  }
 #endif  // NODE_REPORT
 }
 
