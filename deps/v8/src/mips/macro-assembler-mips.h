@@ -2,13 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef INCLUDED_FROM_MACRO_ASSEMBLER_H
+#error This header must be included via macro-assembler.h
+#endif
+
 #ifndef V8_MIPS_MACRO_ASSEMBLER_MIPS_H_
 #define V8_MIPS_MACRO_ASSEMBLER_MIPS_H_
 
 #include "src/assembler.h"
+#include "src/contexts.h"
 #include "src/globals.h"
 #include "src/mips/assembler-mips.h"
-#include "src/turbo-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -37,6 +41,7 @@ constexpr Register kRuntimeCallFunctionRegister = a1;
 constexpr Register kRuntimeCallArgCountRegister = a0;
 constexpr Register kRuntimeCallArgvRegister = a2;
 constexpr Register kWasmInstanceRegister = a0;
+constexpr Register kWasmCompileLazyFuncIndexRegister = t0;
 
 // Forward declarations
 enum class AbortReason : uint8_t;
@@ -58,12 +63,6 @@ enum class AbortReason : uint8_t;
 enum LeaveExitFrameMode {
   EMIT_RETURN = true,
   NO_EMIT_RETURN = false
-};
-
-// Allow programmer to use Branch Delay Slot of Branches, Jumps, Calls.
-enum BranchDelaySlot {
-  USE_DELAY_SLOT,
-  PROTECT
 };
 
 // Flags used for the li macro-assembler function.
@@ -140,10 +139,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Prologue();
 
   void InitializeRootRegister() {
-    ExternalReference roots_array_start =
-        ExternalReference::roots_array_start(isolate());
-    li(kRootRegister, Operand(roots_array_start));
-    Addu(kRootRegister, kRootRegister, kRootRegisterBias);
+    ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
+    li(kRootRegister, Operand(isolate_root));
   }
 
   // Jump unconditionally to given label.
@@ -297,7 +294,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void Push(Register src) { push(src); }
   void Push(Handle<HeapObject> handle);
-  void Push(Smi* smi);
+  void Push(Smi smi);
 
   // Push two registers. Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2) {
@@ -347,6 +344,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CallRecordWriteStub(Register object, Register address,
                            RememberedSetAction remembered_set_action,
                            SaveFPRegsMode fp_mode);
+  void CallRecordWriteStub(Register object, Register address,
+                           RememberedSetAction remembered_set_action,
+                           SaveFPRegsMode fp_mode, Address wasm_target);
 
   // Push multiple registers on the stack.
   // Registers are saved in numerical order, with higher numbered registers
@@ -532,8 +532,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met);
-
-  void CallStubDelayed(CodeStub* stub, COND_ARGS);
 #undef COND_ARGS
 
   // Call a runtime routine. This expects {centry} to contain a fitting CEntry
@@ -728,7 +726,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void mov(Register rd, Register rt) { or_(rd, rt, zero_reg); }
 
   inline void Move(Register dst, Handle<HeapObject> handle) { li(dst, handle); }
-  inline void Move(Register dst, Smi* smi) { li(dst, Operand(smi)); }
+  inline void Move(Register dst, Smi smi) { li(dst, Operand(smi)); }
 
   inline void Move(Register dst, Register src) {
     if (dst != src) {
@@ -910,6 +908,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Push a fixed frame, consisting of ra, fp.
   void PushCommonFrame(Register marker_reg = no_reg);
+
+  void CallRecordWriteStub(Register object, Register address,
+                           RememberedSetAction remembered_set_action,
+                           SaveFPRegsMode fp_mode, Handle<Code> code_target,
+                           Address wasm_target);
 };
 
 // MacroAssembler implements a collection of frequently used macros.
@@ -1169,10 +1172,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void DecodeField(Register reg) {
     DecodeField<Field>(reg, reg);
   }
-
-  void EnterBuiltinFrame(Register context, Register target, Register argc);
-  void LeaveBuiltinFrame(Register context, Register target, Register argc);
-
 
  private:
   // Helper functions for generating invokes.

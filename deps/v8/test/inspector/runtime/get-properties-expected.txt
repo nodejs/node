@@ -5,7 +5,6 @@ Running test: testObject5
   foo own string cat
 Internal properties
   [[PrimitiveValue]] number 5
-  [[StableObjectId]]: <stableObjectId>
 
 Running test: testNotOwn
   __defineGetter__ inherited function undefined
@@ -24,8 +23,6 @@ Running test: testNotOwn
   toLocaleString inherited function undefined
   toString inherited function undefined
   valueOf inherited function undefined
-Internal properties
-  [[StableObjectId]]: <stableObjectId>
 
 Running test: testAccessorsOnly
   b own no value, getter, setter
@@ -37,8 +34,6 @@ Running test: testArray
   2 own string blue
   __proto__ own object undefined
   length own number 3
-Internal properties
-  [[StableObjectId]]: <stableObjectId>
 
 Running test: testBound
   __proto__ own function undefined
@@ -47,19 +42,14 @@ Running test: testBound
 Internal properties
   [[BoundArgs]] object undefined
   [[BoundThis]] object undefined
-  [[StableObjectId]]: <stableObjectId>
   [[TargetFunction]] function undefined
 
 Running test: testObjectThrowsLength
   __proto__ own object undefined
   length own no value, getter
-Internal properties
-  [[StableObjectId]]: <stableObjectId>
 
 Running test: testTypedArrayWithoutLength
   __proto__ own object undefined
-Internal properties
-  [[StableObjectId]]: <stableObjectId>
 
 Running test: testArrayBuffer
 [[Int8Array]]
@@ -72,8 +62,6 @@ Running test: testArrayBuffer
   6 own number 1
   7 own number 1
   __proto__ own object undefined
-Internal properties
-  [[StableObjectId]]: <stableObjectId>
 [[Uint8Array]]
   0 own number 1
   1 own number 1
@@ -84,26 +72,18 @@ Internal properties
   6 own number 1
   7 own number 1
   __proto__ own object undefined
-Internal properties
-  [[StableObjectId]]: <stableObjectId>
 [[Int16Array]]
   0 own number 257
   1 own number 257
   2 own number 257
   3 own number 257
   __proto__ own object undefined
-Internal properties
-  [[StableObjectId]]: <stableObjectId>
 [[Int32Array]]
   0 own number 16843009
   1 own number 16843009
   __proto__ own object undefined
-Internal properties
-  [[StableObjectId]]: <stableObjectId>
 
 Running test: testArrayBufferWithBrokenUintCtor
   [[Int8Array]] own object undefined
   [[Uint8Array]] own object undefined
   __proto__ own object undefined
-Internal properties
-  [[StableObjectId]]: <stableObjectId>

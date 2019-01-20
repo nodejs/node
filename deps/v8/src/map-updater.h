@@ -108,7 +108,7 @@ class MapUpdater {
   State CopyGeneralizeAllFields(const char* reason);
 
   // Returns name of a |descriptor| property.
-  inline Name* GetKey(int descriptor) const;
+  inline Name GetKey(int descriptor) const;
 
   // Returns property details of a |descriptor| in "updated" |old_descrtiptors_|
   // array.
@@ -120,7 +120,7 @@ class MapUpdater {
 
   // Returns field type for a |descriptor| with kField location in "updated"
   // |old_descrtiptors_| array.
-  inline FieldType* GetFieldType(int descriptor) const;
+  inline FieldType GetFieldType(int descriptor) const;
 
   // If a |descriptor| property in "updated" |old_descriptors_| has kField
   // location then returns it's field type otherwise computes optimal field

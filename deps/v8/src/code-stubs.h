@@ -5,6 +5,7 @@
 #ifndef V8_CODE_STUBS_H_
 #define V8_CODE_STUBS_H_
 
+#include "src/frames.h"
 #include "src/interface-descriptors.h"
 #include "src/type-hints.h"
 
@@ -14,26 +15,18 @@ namespace internal {
 // Forward declarations.
 class CodeStubDescriptor;
 class Isolate;
+class MacroAssembler;
+class TurboAssembler;
 namespace compiler {
 class CodeAssemblerState;
 }
 
 // List of code stubs used on all platforms.
-#define CODE_STUB_LIST_ALL_PLATFORMS(V)     \
-  /* --- PlatformCodeStubs --- */           \
-  V(CallApiCallback)                        \
-  V(CallApiGetter)                          \
-  V(JSEntry)                                \
-  V(ProfileEntryHook)                       \
-  /* --- TurboFanCodeStubs --- */           \
-  V(StoreSlowElement)                       \
-  V(StoreInArrayLiteralSlow)                \
-  V(ElementsTransitionAndStore)             \
-  V(KeyedLoadSloppyArguments)               \
-  V(KeyedStoreSloppyArguments)              \
-  V(StoreFastElement)                       \
-  V(StoreInterceptor)                       \
-  V(LoadIndexedInterceptor)
+#define CODE_STUB_LIST_ALL_PLATFORMS(V) \
+  /* --- PlatformCodeStubs --- */       \
+  V(CallApiCallback)                    \
+  V(CallApiGetter)                      \
+  V(JSEntry)
 
 // List of code stubs only used on ARM 32 bits platforms.
 #if V8_TARGET_ARCH_ARM
@@ -108,7 +101,7 @@ class CodeStub : public ZoneObject {
   }
 
   // Gets the major key from a code object that is a code stub or binary op IC.
-  static Major GetMajorKey(const Code* code_stub);
+  static Major GetMajorKey(const Code code_stub);
 
   static uint32_t NoCacheKey() { return MajorKeyBits::encode(NoCache); }
 
@@ -116,8 +109,6 @@ class CodeStub : public ZoneObject {
 
   explicit CodeStub(Isolate* isolate) : minor_key_(0), isolate_(isolate) {}
   virtual ~CodeStub() = default;
-
-  static void GenerateStubsAheadOfTime(Isolate* isolate);
 
   // Some stubs put untagged junk on the stack that cannot be scanned by the
   // GC.  This means that we must be statically sure that no GC can occur while
@@ -128,7 +119,7 @@ class CodeStub : public ZoneObject {
   virtual bool SometimesSetsUpAFrame() { return true; }
 
   // Lookup the code in the (possibly custom) cache.
-  bool FindCodeInCache(Code** code_out);
+  bool FindCodeInCache(Code* code_out);
 
   virtual CallInterfaceDescriptor GetCallInterfaceDescriptor() const = 0;
 
@@ -188,10 +179,6 @@ class CodeStub : public ZoneObject {
   // Perform bookkeeping required after code generation when stub code is
   // initially generated.
   void RecordCodeGeneration(Handle<Code> code);
-
-  // Activate newly generated stub. Is called after
-  // registering stub in the stub cache.
-  virtual void Activate(Code* code) { }
 
   // We use this dispatch to statically instantiate the correct code stub for
   // the given stub key and call the passed function with that code stub.
@@ -372,25 +359,6 @@ class CodeStubDescriptor {
   bool has_miss_handler_;
 };
 
-
-class TurboFanCodeStub : public CodeStub {
- public:
-  // Retrieve the code for the stub. Generate the code if needed.
-  Handle<Code> GenerateCode() override;
-
-  int GetStackParameterCount() const override {
-    return GetCallInterfaceDescriptor().GetStackParameterCount();
-  }
-
- protected:
-  explicit TurboFanCodeStub(Isolate* isolate) : CodeStub(isolate) {}
-
-  virtual void GenerateAssembly(compiler::CodeAssemblerState* state) const = 0;
-
- private:
-  DEFINE_CODE_STUB_BASE(TurboFanCodeStub, CodeStub);
-};
-
 }  // namespace internal
 }  // namespace v8
 
@@ -415,51 +383,7 @@ class TurboFanCodeStub : public CodeStub {
 namespace v8 {
 namespace internal {
 
-// TODO(jgruber): Convert this stub into a builtin.
-class StoreInterceptorStub : public TurboFanCodeStub {
- public:
-  explicit StoreInterceptorStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_TURBOFAN_CODE_STUB(StoreInterceptor, TurboFanCodeStub);
-};
-
-// TODO(jgruber): Convert this stub into a builtin.
-class LoadIndexedInterceptorStub : public TurboFanCodeStub {
- public:
-  explicit LoadIndexedInterceptorStub(Isolate* isolate)
-      : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_TURBOFAN_CODE_STUB(LoadIndexedInterceptor, TurboFanCodeStub);
-};
-
-// TODO(jgruber): Convert this stub into a builtin.
-class KeyedLoadSloppyArgumentsStub : public TurboFanCodeStub {
- public:
-  explicit KeyedLoadSloppyArgumentsStub(Isolate* isolate)
-      : TurboFanCodeStub(isolate) {}
-
- protected:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_TURBOFAN_CODE_STUB(KeyedLoadSloppyArguments, TurboFanCodeStub);
-};
-
-
 class CommonStoreModeBits : public BitField<KeyedAccessStoreMode, 0, 3> {};
-
-class KeyedStoreSloppyArgumentsStub : public TurboFanCodeStub {
- public:
-  explicit KeyedStoreSloppyArgumentsStub(Isolate* isolate,
-                                         KeyedAccessStoreMode mode)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = CommonStoreModeBits::encode(mode);
-  }
-
- protected:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_TURBOFAN_CODE_STUB(KeyedStoreSloppyArguments, TurboFanCodeStub);
-};
 
 class CallApiCallbackStub : public PlatformCodeStub {
  public:
@@ -551,113 +475,6 @@ class JSEntryStub : public PlatformCodeStub {
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(JSEntry, PlatformCodeStub);
 };
-
-class StoreFastElementStub : public TurboFanCodeStub {
- public:
-  StoreFastElementStub(Isolate* isolate, bool is_js_array,
-                       ElementsKind elements_kind, KeyedAccessStoreMode mode)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = CommonStoreModeBits::encode(mode) |
-                 ElementsKindBits::encode(elements_kind) |
-                 IsJSArrayBits::encode(is_js_array);
-  }
-
-  static void GenerateAheadOfTime(Isolate* isolate);
-
-  bool is_js_array() const { return IsJSArrayBits::decode(minor_key_); }
-
-  ElementsKind elements_kind() const {
-    return ElementsKindBits::decode(minor_key_);
-  }
-
-  KeyedAccessStoreMode store_mode() const {
-    return CommonStoreModeBits::decode(minor_key_);
-  }
-
- private:
-  class ElementsKindBits
-      : public BitField<ElementsKind, CommonStoreModeBits::kNext, 8> {};
-  class IsJSArrayBits : public BitField<bool, ElementsKindBits::kNext, 1> {};
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_TURBOFAN_CODE_STUB(StoreFastElement, TurboFanCodeStub);
-};
-
-class StoreSlowElementStub : public TurboFanCodeStub {
- public:
-  StoreSlowElementStub(Isolate* isolate, KeyedAccessStoreMode mode)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = CommonStoreModeBits::encode(mode);
-  }
-
- private:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_TURBOFAN_CODE_STUB(StoreSlowElement, TurboFanCodeStub);
-};
-
-class StoreInArrayLiteralSlowStub : public TurboFanCodeStub {
- public:
-  StoreInArrayLiteralSlowStub(Isolate* isolate, KeyedAccessStoreMode mode)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = CommonStoreModeBits::encode(mode);
-  }
-
- private:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_TURBOFAN_CODE_STUB(StoreInArrayLiteralSlow, TurboFanCodeStub);
-};
-
-class ElementsTransitionAndStoreStub : public TurboFanCodeStub {
- public:
-  ElementsTransitionAndStoreStub(Isolate* isolate, ElementsKind from_kind,
-                                 ElementsKind to_kind, bool is_jsarray,
-                                 KeyedAccessStoreMode store_mode)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = CommonStoreModeBits::encode(store_mode) |
-                 FromBits::encode(from_kind) | ToBits::encode(to_kind) |
-                 IsJSArrayBits::encode(is_jsarray);
-  }
-
-  ElementsKind from_kind() const { return FromBits::decode(minor_key_); }
-  ElementsKind to_kind() const { return ToBits::decode(minor_key_); }
-  bool is_jsarray() const { return IsJSArrayBits::decode(minor_key_); }
-  KeyedAccessStoreMode store_mode() const {
-    return CommonStoreModeBits::decode(minor_key_);
-  }
-
- private:
-  class FromBits
-      : public BitField<ElementsKind, CommonStoreModeBits::kNext, 8> {};
-  class ToBits : public BitField<ElementsKind, 11, 8> {};
-  class IsJSArrayBits : public BitField<bool, 19, 1> {};
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreTransition);
-  DEFINE_TURBOFAN_CODE_STUB(ElementsTransitionAndStore, TurboFanCodeStub);
-};
-
-// TODO(jgruber): Convert this stub into a builtin.
-class ProfileEntryHookStub : public PlatformCodeStub {
- public:
-  explicit ProfileEntryHookStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
-
-  // The profile entry hook function is not allowed to cause a GC.
-  bool SometimesSetsUpAFrame() override { return false; }
-
-  // Generates a call to the entry hook if it's enabled.
-  static void MaybeCallEntryHook(MacroAssembler* masm);
-  static void MaybeCallEntryHookDelayed(TurboAssembler* tasm, Zone* zone);
-
- private:
-  static void EntryHookTrampoline(intptr_t function,
-                                  intptr_t stack_pointer,
-                                  Isolate* isolate);
-
-  // ProfileEntryHookStub is called at the start of a function, so it has the
-  // same register set.
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(CallFunction)
-  DEFINE_PLATFORM_CODE_STUB(ProfileEntryHook, PlatformCodeStub);
-};
-
 
 #undef DEFINE_CALL_INTERFACE_DESCRIPTOR
 #undef DEFINE_PLATFORM_CODE_STUB

@@ -9,6 +9,7 @@
 #include "src/globals.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/property-array.h"
+#include "src/objects/smi.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -39,12 +40,12 @@ class Dictionary : public HashTable<Derived, Shape> {
 
   // Returns the property details for the property at entry.
   PropertyDetails DetailsAt(int entry) {
-    return Shape::DetailsAt(static_cast<Derived*>(this), entry);
+    return Shape::DetailsAt(Derived::cast(*this), entry);
   }
 
   // Set the details for entry.
   void DetailsAtPut(Isolate* isolate, int entry, PropertyDetails value) {
-    Shape::DetailsAtPut(isolate, static_cast<Derived*>(this), entry, value);
+    Shape::DetailsAtPut(isolate, Derived::cast(*this), entry, value);
   }
 
   // Delete a property from the dictionary.
@@ -84,6 +85,8 @@ class Dictionary : public HashTable<Derived, Shape> {
                                                      Key key,
                                                      Handle<Object> value,
                                                      PropertyDetails details);
+
+  OBJECT_CONSTRUCTORS(Dictionary, HashTable<Derived, Shape>)
 };
 
 template <typename Key>
@@ -91,7 +94,7 @@ class BaseDictionaryShape : public BaseShape<Key> {
  public:
   static const bool kHasDetails = true;
   template <typename Dictionary>
-  static inline PropertyDetails DetailsAt(Dictionary* dict, int entry) {
+  static inline PropertyDetails DetailsAt(Dictionary dict, int entry) {
     STATIC_ASSERT(Dictionary::kEntrySize == 3);
     DCHECK_GE(entry, 0);  // Not found is -1, which is not caught by get().
     return PropertyDetails(Smi::cast(dict->get(
@@ -99,7 +102,7 @@ class BaseDictionaryShape : public BaseShape<Key> {
   }
 
   template <typename Dictionary>
-  static inline void DetailsAtPut(Isolate* isolate, Dictionary* dict, int entry,
+  static inline void DetailsAtPut(Isolate* isolate, Dictionary dict, int entry,
                                   PropertyDetails value) {
     STATIC_ASSERT(Dictionary::kEntrySize == 3);
     dict->set(Dictionary::EntryToIndex(entry) + Dictionary::kEntryDetailsIndex,
@@ -184,19 +187,24 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
   V8_WARN_UNUSED_RESULT static Handle<Derived> Add(
       Isolate* isolate, Handle<Derived> dictionary, Key key,
       Handle<Object> value, PropertyDetails details, int* entry_out = nullptr);
+
+  OBJECT_CONSTRUCTORS(BaseNameDictionary, Dictionary<Derived, Shape>)
 };
 
 class NameDictionary
     : public BaseNameDictionary<NameDictionary, NameDictionaryShape> {
  public:
-  DECL_CAST(NameDictionary)
+  DECL_CAST2(NameDictionary)
 
   static const int kEntryDetailsIndex = 2;
   static const int kInitialCapacity = 2;
 
-  inline Name* NameAt(int entry);
+  inline Name NameAt(int entry);
   inline void set_hash(int hash);
   inline int hash() const;
+
+  OBJECT_CONSTRUCTORS(NameDictionary,
+                      BaseNameDictionary<NameDictionary, NameDictionaryShape>)
 };
 
 class GlobalDictionaryShape : public NameDictionaryShape {
@@ -207,10 +215,10 @@ class GlobalDictionaryShape : public NameDictionaryShape {
   static const int kEntrySize = 1;  // Overrides NameDictionaryShape::kEntrySize
 
   template <typename Dictionary>
-  static inline PropertyDetails DetailsAt(Dictionary* dict, int entry);
+  static inline PropertyDetails DetailsAt(Dictionary dict, int entry);
 
   template <typename Dictionary>
-  static inline void DetailsAtPut(Isolate* isolate, Dictionary* dict, int entry,
+  static inline void DetailsAtPut(Isolate* isolate, Dictionary dict, int entry,
                                   PropertyDetails value);
 
   static inline Object* Unwrap(Object* key);
@@ -222,14 +230,18 @@ class GlobalDictionaryShape : public NameDictionaryShape {
 class GlobalDictionary
     : public BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape> {
  public:
-  DECL_CAST(GlobalDictionary)
+  DECL_CAST2(GlobalDictionary)
 
   inline Object* ValueAt(int entry);
   inline PropertyCell* CellAt(int entry);
   inline void SetEntry(Isolate* isolate, int entry, Object* key, Object* value,
                        PropertyDetails details);
-  inline Name* NameAt(int entry);
+  inline Name NameAt(int entry);
   inline void ValueAtPut(int entry, Object* value);
+
+  OBJECT_CONSTRUCTORS(
+      GlobalDictionary,
+      BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>)
 };
 
 class NumberDictionaryBaseShape : public BaseDictionaryShape<uint32_t> {
@@ -256,12 +268,12 @@ class SimpleNumberDictionaryShape : public NumberDictionaryBaseShape {
   static const int kEntrySize = 2;
 
   template <typename Dictionary>
-  static inline PropertyDetails DetailsAt(Dictionary* dict, int entry) {
+  static inline PropertyDetails DetailsAt(Dictionary dict, int entry) {
     UNREACHABLE();
   }
 
   template <typename Dictionary>
-  static inline void DetailsAtPut(Isolate* isolate, Dictionary* dict, int entry,
+  static inline void DetailsAtPut(Isolate* isolate, Dictionary dict, int entry,
                                   PropertyDetails value) {
     UNREACHABLE();
   }
@@ -279,13 +291,17 @@ extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
 class SimpleNumberDictionary
     : public Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape> {
  public:
-  DECL_CAST(SimpleNumberDictionary)
+  DECL_CAST2(SimpleNumberDictionary)
   // Type specific at put (default NONE attributes is used when adding).
   V8_WARN_UNUSED_RESULT static Handle<SimpleNumberDictionary> Set(
       Isolate* isolate, Handle<SimpleNumberDictionary> dictionary, uint32_t key,
       Handle<Object> value);
 
   static const int kEntryValueIndex = 1;
+
+  OBJECT_CONSTRUCTORS(
+      SimpleNumberDictionary,
+      Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>)
 };
 
 extern template class EXPORT_TEMPLATE_DECLARE(
@@ -299,7 +315,7 @@ extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
 class NumberDictionary
     : public Dictionary<NumberDictionary, NumberDictionaryShape> {
  public:
-  DECL_CAST(NumberDictionary)
+  DECL_CAST2(NumberDictionary)
   DECL_PRINTER(NumberDictionary)
 
   // Type specific at put (default NONE attributes is used when adding).
@@ -317,7 +333,7 @@ class NumberDictionary
   bool HasComplexElements();
 
   // Sorting support
-  void CopyValuesTo(FixedArray* elements);
+  void CopyValuesTo(FixedArray elements);
 
   // If slow elements are required we will never go back to fast-case
   // for the elements kept in this dictionary.  We require slow
@@ -343,6 +359,9 @@ class NumberDictionary
   // JSObjects prefer dictionary elements if the dictionary saves this much
   // memory compared to a fast elements backing store.
   static const uint32_t kPreferFastElementsSizeFactor = 3;
+
+  OBJECT_CONSTRUCTORS(NumberDictionary,
+                      Dictionary<NumberDictionary, NumberDictionaryShape>)
 };
 
 }  // namespace internal

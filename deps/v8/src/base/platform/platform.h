@@ -273,6 +273,9 @@ class V8_BASE_EXPORT OS {
   V8_WARN_UNUSED_RESULT static bool SetPermissions(void* address, size_t size,
                                                    MemoryPermission access);
 
+  V8_WARN_UNUSED_RESULT static bool DiscardSystemPages(void* address,
+                                                       size_t size);
+
   static const int msPerSecond = 1000;
 
 #if V8_OS_POSIX

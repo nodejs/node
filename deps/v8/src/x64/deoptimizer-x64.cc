@@ -234,9 +234,6 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ popq(r);
   }
 
-  // Set up the roots register.
-  __ InitializeRootRegister();
-
   // Return to the continuation point.
   __ ret(0);
 }

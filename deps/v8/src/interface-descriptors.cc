@@ -4,6 +4,8 @@
 
 #include "src/interface-descriptors.h"
 
+#include "src/macro-assembler.h"
+
 namespace v8 {
 namespace internal {
 
@@ -259,6 +261,11 @@ void TypeConversionStackParameterDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(0, nullptr);
 }
 
+void AsyncFunctionStackParameterDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  data->InitializePlatformSpecific(0, nullptr);
+}
+
 void LoadWithVectorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {ReceiverRegister(), NameRegister(), SlotRegister(),
@@ -339,12 +346,22 @@ void ArrayNArgumentsConstructorDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void WasmGrowMemoryDescriptor::InitializePlatformSpecific(
+void WasmMemoryGrowDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }
 
 void WasmThrowDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
+
+void WasmAtomicWakeDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
+
+void WasmI32AtomicWaitDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }

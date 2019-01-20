@@ -5,9 +5,11 @@
 #ifndef V8_OBJECTS_CODE_H_
 #define V8_OBJECTS_CODE_H_
 
+#include "src/contexts.h"
 #include "src/handler-table.h"
 #include "src/objects.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/heap-object.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -25,8 +27,9 @@ class Register;
 }
 
 // Code describes objects with on-the-fly generated machine code.
-class Code : public HeapObject, public NeverReadOnlySpaceObject {
+class Code : public HeapObjectPtr {
  public:
+  NEVER_READ_ONLY_SPACE
   // Opaque data type for encapsulating code flags like kind, inline
   // cache state, and arguments count.
   typedef uint32_t Flags;
@@ -54,7 +57,6 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
 
 #ifdef ENABLE_DISASSEMBLER
   const char* GetName(Isolate* isolate) const;
-  void PrintBuiltinCode(Isolate* isolate, const char* name);
   void Disassemble(const char* name, std::ostream& os,
                    Address current_pc = kNullAddress);
 #endif
@@ -73,16 +75,18 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
   int OffHeapInstructionSize() const;
 
   // [relocation_info]: Code relocation information
-  DECL_ACCESSORS(relocation_info, ByteArray)
-  void InvalidateEmbeddedObjects(Heap* heap);
+  DECL_ACCESSORS2(relocation_info, ByteArray)
+
+  // This function should be called only from GC.
+  void ClearEmbeddedObjects(Heap* heap);
 
   // [deoptimization_data]: Array containing data for deopt.
-  DECL_ACCESSORS(deoptimization_data, FixedArray)
+  DECL_ACCESSORS2(deoptimization_data, FixedArray)
 
   // [source_position_table]: ByteArray for the source positions table or
   // SourcePositionTableWithFrameCache.
   DECL_ACCESSORS(source_position_table, Object)
-  inline ByteArray* SourcePositionTable() const;
+  inline ByteArray SourcePositionTable() const;
 
   // [code_data_container]: A container indirection for all mutable fields.
   DECL_ACCESSORS(code_data_container, CodeDataContainer)
@@ -102,7 +106,7 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
   inline void set_constant_pool_offset(int offset);
 
   // Unchecked accessors to be used during GC.
-  inline ByteArray* unchecked_relocation_info() const;
+  inline ByteArray unchecked_relocation_info() const;
 
   inline int relocation_size() const;
 
@@ -162,9 +166,15 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
   inline void set_handler_table_offset(int offset);
 
   // [marked_for_deoptimization]: For kind OPTIMIZED_FUNCTION tells whether
-  // the code is going to be deoptimized because of dead embedded maps.
+  // the code is going to be deoptimized.
   inline bool marked_for_deoptimization() const;
   inline void set_marked_for_deoptimization(bool flag);
+
+  // [embedded_objects_cleared]: For kind OPTIMIZED_FUNCTION tells whether
+  // the embedded objects in the code marked for deoptimization were cleared.
+  // Note that embedded_objects_cleared() implies marked_for_deoptimization().
+  inline bool embedded_objects_cleared() const;
+  inline void set_embedded_objects_cleared(bool flag);
 
   // [deopt_already_counted]: For kind OPTIMIZED_FUNCTION tells whether
   // the code was already deoptimized.
@@ -212,7 +222,7 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
                                bool is_off_heap_trampoline);
 
   // Convert a target address into a code object.
-  static inline Code* GetCodeFromTargetAddress(Address address);
+  static inline Code GetCodeFromTargetAddress(Address address);
 
   // Convert an entry address into an object.
   static inline Object* GetObjectFromEntryAddress(Address location_of_address);
@@ -308,8 +318,13 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
   // Migrate code from desc without flushing the instruction cache.
   void CopyFromNoFlush(Heap* heap, const CodeDesc& desc);
 
+  // Copy the RelocInfo portion of |desc| to |dest|. The ByteArray must be
+  // exactly the same size as the RelocInfo in |desc|.
+  static inline void CopyRelocInfoToByteArray(ByteArray dest,
+                                              const CodeDesc& desc);
+
   // Flushes the instruction cache for the executable instructions of this code
-  // object.
+  // object. Make sure to call this while the code is still writable.
   void FlushICache() const;
 
   // Returns the object size for a given body (used for allocation).
@@ -322,7 +337,7 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
   // the layout of the code object into account.
   inline int ExecutableSize() const;
 
-  DECL_CAST(Code)
+  DECL_CAST2(Code)
 
   // Dispatched behavior.
   inline int CodeSize() const;
@@ -347,59 +362,39 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
 
   inline bool CanContainWeakObjects();
 
-  inline bool IsWeakObject(Object* object);
+  inline bool IsWeakObject(HeapObject* object);
 
-  static inline bool IsWeakObjectInOptimizedCode(Object* object);
+  static inline bool IsWeakObjectInOptimizedCode(HeapObject* object);
 
   // Return true if the function is inlined in the code.
   bool Inlines(SharedFunctionInfo* sfi);
 
-  class OptimizedCodeIterator {
-   public:
-    explicit OptimizedCodeIterator(Isolate* isolate);
-    Code* Next();
-
-   private:
-    Context* next_context_;
-    Code* current_code_;
-    Isolate* isolate_;
-
-    DisallowHeapAllocation no_gc;
-    DISALLOW_COPY_AND_ASSIGN(OptimizedCodeIterator)
-  };
-
-  static const int kConstantPoolSize =
-      FLAG_enable_embedded_constant_pool ? kIntSize : 0;
+  class OptimizedCodeIterator;
 
   // Layout description.
-  static const int kRelocationInfoOffset = HeapObject::kHeaderSize;
-  static const int kDeoptimizationDataOffset =
-      kRelocationInfoOffset + kPointerSize;
-  static const int kSourcePositionTableOffset =
-      kDeoptimizationDataOffset + kPointerSize;
-  static const int kCodeDataContainerOffset =
-      kSourcePositionTableOffset + kPointerSize;
-  static const int kInstructionSizeOffset =
-      kCodeDataContainerOffset + kPointerSize;
-  static const int kFlagsOffset = kInstructionSizeOffset + kIntSize;
-  static const int kSafepointTableOffsetOffset = kFlagsOffset + kIntSize;
-  static const int kHandlerTableOffsetOffset =
-      kSafepointTableOffsetOffset + kIntSize;
-  static const int kStubKeyOffset = kHandlerTableOffsetOffset + kIntSize;
-  static const int kConstantPoolOffset = kStubKeyOffset + kIntSize;
-  static const int kBuiltinIndexOffset =
-      kConstantPoolOffset + kConstantPoolSize;
-  static const int kHeaderPaddingStart = kBuiltinIndexOffset + kIntSize;
+#define CODE_FIELDS(V)                                                      \
+  V(kRelocationInfoOffset, kTaggedSize)                                     \
+  V(kDeoptimizationDataOffset, kTaggedSize)                                 \
+  V(kSourcePositionTableOffset, kTaggedSize)                                \
+  V(kCodeDataContainerOffset, kTaggedSize)                                  \
+  /* Data or code not directly visited by GC directly starts here. */       \
+  /* The serializer needs to copy bytes starting from here verbatim. */     \
+  /* Objects embedded into code is visited via reloc info. */               \
+  V(kDataStart, 0)                                                          \
+  V(kInstructionSizeOffset, kIntSize)                                       \
+  V(kFlagsOffset, kIntSize)                                                 \
+  V(kSafepointTableOffsetOffset, kIntSize)                                  \
+  V(kHandlerTableOffsetOffset, kIntSize)                                    \
+  V(kStubKeyOffset, kIntSize)                                               \
+  V(kConstantPoolOffset, FLAG_enable_embedded_constant_pool ? kIntSize : 0) \
+  V(kBuiltinIndexOffset, kIntSize)                                          \
+  /* Add padding to align the instruction start following right after */    \
+  /* the Code object header. */                                             \
+  V(kHeaderPaddingStart, CODE_POINTER_PADDING(kHeaderPaddingStart))         \
+  V(kHeaderSize, 0)
 
-  // Add padding to align the instruction start following right after
-  // the Code object header.
-  static const int kHeaderSize =
-      (kHeaderPaddingStart + kCodeAlignmentMask) & ~kCodeAlignmentMask;
-
-  // Data or code not directly visited by GC directly starts here.
-  // The serializer needs to copy bytes starting from here verbatim.
-  // Objects embedded into code is visited via reloc info.
-  static const int kDataStart = kInstructionSizeOffset;
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CODE_FIELDS)
+#undef CODE_FIELDS
 
   inline int GetUnwindingInfoSizeOffset() const;
 
@@ -421,6 +416,7 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
   // KindSpecificFlags layout (STUB, BUILTIN and OPTIMIZED_FUNCTION)
 #define CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS(V, _) \
   V(MarkedForDeoptimizationField, bool, 1, _)     \
+  V(EmbeddedObjectsClearedField, bool, 1, _)      \
   V(DeoptAlreadyCountedField, bool, 1, _)         \
   V(CanHaveWeakObjectsField, bool, 1, _)          \
   V(IsConstructStubField, bool, 1, _)             \
@@ -444,7 +440,21 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
   bool is_promise_rejection() const;
   bool is_exception_caught() const;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Code);
+  OBJECT_CONSTRUCTORS(Code, HeapObjectPtr);
+};
+
+class Code::OptimizedCodeIterator {
+ public:
+  explicit OptimizedCodeIterator(Isolate* isolate);
+  Code Next();
+
+ private:
+  Context next_context_;
+  Code current_code_;
+  Isolate* isolate_;
+
+  DISALLOW_HEAP_ALLOCATION(no_gc);
+  DISALLOW_COPY_AND_ASSIGN(OptimizedCodeIterator)
 };
 
 // CodeDataContainer is a container for all mutable fields associated with its
@@ -467,15 +477,20 @@ class CodeDataContainer : public HeapObject, public NeverReadOnlySpaceObject {
   DECL_PRINTER(CodeDataContainer)
   DECL_VERIFIER(CodeDataContainer)
 
-  static const int kNextCodeLinkOffset = HeapObject::kHeaderSize;
-  static const int kKindSpecificFlagsOffset =
-      kNextCodeLinkOffset + kPointerSize;
-  static const int kUnalignedSize = kKindSpecificFlagsOffset + kIntSize;
-  static const int kSize = OBJECT_POINTER_ALIGN(kUnalignedSize);
+// Layout description.
+#define CODE_DATA_FIELDS(V)                                 \
+  /* Weak pointer fields. */                                \
+  V(kPointerFieldsStrongEndOffset, 0)                       \
+  V(kNextCodeLinkOffset, kTaggedSize)                       \
+  V(kPointerFieldsWeakEndOffset, 0)                         \
+  /* Raw data fields. */                                    \
+  V(kKindSpecificFlagsOffset, kIntSize)                     \
+  V(kUnalignedSize, OBJECT_POINTER_PADDING(kUnalignedSize)) \
+  /* Total size. */                                         \
+  V(kSize, 0)
 
-  // During mark compact we need to take special care for weak fields.
-  static const int kPointerFieldsStrongEndOffset = kNextCodeLinkOffset;
-  static const int kPointerFieldsWeakEndOffset = kKindSpecificFlagsOffset;
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CODE_DATA_FIELDS)
+#undef CODE_DATA_FIELDS
 
   class BodyDescriptor;
 
@@ -483,8 +498,9 @@ class CodeDataContainer : public HeapObject, public NeverReadOnlySpaceObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(CodeDataContainer);
 };
 
-class AbstractCode : public HeapObject, public NeverReadOnlySpaceObject {
+class AbstractCode : public HeapObjectPtr {
  public:
+  NEVER_READ_ONLY_SPACE
   // All code kinds and INTERPRETED_FUNCTION.
   enum Kind {
 #define DEFINE_CODE_KIND_ENUM(name) name,
@@ -526,7 +542,7 @@ class AbstractCode : public HeapObject, public NeverReadOnlySpaceObject {
   inline int InstructionSize();
 
   // Return the source position table.
-  inline ByteArray* source_position_table();
+  inline ByteArray source_position_table();
 
   inline Object* stack_frame_cache();
   static void SetStackFrameCache(Handle<AbstractCode> abstract_code,
@@ -546,13 +562,15 @@ class AbstractCode : public HeapObject, public NeverReadOnlySpaceObject {
   // the layout of the code object into account.
   inline int ExecutableSize();
 
-  DECL_CAST(AbstractCode)
-  inline Code* GetCode();
-  inline BytecodeArray* GetBytecodeArray();
+  DECL_CAST2(AbstractCode)
+  inline Code GetCode();
+  inline BytecodeArray GetBytecodeArray();
 
   // Max loop nesting marker used to postpose OSR. We don't take loop
   // nesting that is deeper than 5 levels into account.
   static const int kMaxLoopNestingMarker = 6;
+
+  OBJECT_CONSTRUCTORS(AbstractCode, HeapObjectPtr)
 };
 
 // Dependent code is a singly linked list of weak fixed arrays. Each array
@@ -615,7 +633,7 @@ class DependentCode : public WeakFixedArray {
 
   // The following low-level accessors are exposed only for tests.
   inline DependencyGroup group();
-  inline MaybeObject* object_at(int i);
+  inline MaybeObject object_at(int i);
   inline int count();
   inline DependentCode* next_link();
 
@@ -653,7 +671,7 @@ class DependentCode : public WeakFixedArray {
 
   inline void set_next_link(DependentCode* next);
   inline void set_count(int value);
-  inline void set_object_at(int i, MaybeObject* object);
+  inline void set_object_at(int i, MaybeObject object);
   inline void clear_at(int i);
   inline void copy(int from, int to);
 
@@ -723,19 +741,19 @@ class BytecodeArray : public FixedArrayBase {
   inline void set_bytecode_age(Age age);
 
   // Accessors for the constant pool.
-  DECL_ACCESSORS(constant_pool, FixedArray)
+  DECL_ACCESSORS2(constant_pool, FixedArray)
 
   // Accessors for handler table containing offsets of exception handlers.
-  DECL_ACCESSORS(handler_table, ByteArray)
+  DECL_ACCESSORS2(handler_table, ByteArray)
 
   // Accessors for source position table containing mappings between byte code
   // offset and source position or SourcePositionTableWithFrameCache.
   DECL_ACCESSORS(source_position_table, Object)
 
-  inline ByteArray* SourcePositionTable();
+  inline ByteArray SourcePositionTable();
   inline void ClearFrameCacheFromSourcePositionTable();
 
-  DECL_CAST(BytecodeArray)
+  DECL_CAST2(BytecodeArray)
 
   // Dispatched behavior.
   inline int BytecodeArraySize();
@@ -754,7 +772,7 @@ class BytecodeArray : public FixedArrayBase {
 
   void Disassemble(std::ostream& os);
 
-  void CopyBytecodesTo(BytecodeArray* to);
+  void CopyBytecodesTo(BytecodeArray to);
 
   // Bytecode aging
   bool IsOld() const;
@@ -767,9 +785,9 @@ class BytecodeArray : public FixedArrayBase {
 // Layout description.
 #define BYTECODE_ARRAY_FIELDS(V)                           \
   /* Pointer fields. */                                    \
-  V(kConstantPoolOffset, kPointerSize)                     \
-  V(kHandlerTableOffset, kPointerSize)                     \
-  V(kSourcePositionTableOffset, kPointerSize)              \
+  V(kConstantPoolOffset, kTaggedSize)                      \
+  V(kHandlerTableOffset, kTaggedSize)                      \
+  V(kSourcePositionTableOffset, kTaggedSize)               \
   V(kFrameSizeOffset, kIntSize)                            \
   V(kParameterSizeOffset, kIntSize)                        \
   V(kIncomingNewTargetOrGeneratorRegisterOffset, kIntSize) \
@@ -790,8 +808,7 @@ class BytecodeArray : public FixedArrayBase {
 
   class BodyDescriptor;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(BytecodeArray);
+  OBJECT_CONSTRUCTORS(BytecodeArray, FixedArrayBase);
 };
 
 // DeoptimizationData is a fixed array used to hold the deoptimization data for
@@ -821,8 +838,8 @@ class DeoptimizationData : public FixedArray {
 
 // Simple element accessors.
 #define DECL_ELEMENT_ACCESSORS(name, type) \
-  inline type* name();                     \
-  inline void Set##name(type* value);
+  inline type name() const;                \
+  inline void Set##name(type value);
 
   DECL_ELEMENT_ACCESSORS(TranslationByteArray, ByteArray)
   DECL_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
@@ -830,15 +847,15 @@ class DeoptimizationData : public FixedArray {
   DECL_ELEMENT_ACCESSORS(OsrBytecodeOffset, Smi)
   DECL_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
   DECL_ELEMENT_ACCESSORS(OptimizationId, Smi)
-  DECL_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
+  DECL_ELEMENT_ACCESSORS(SharedFunctionInfo, Object*)
   DECL_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
 
 #undef DECL_ELEMENT_ACCESSORS
 
 // Accessors for elements of the ith deoptimization entry.
 #define DECL_ENTRY_ACCESSORS(name, type) \
-  inline type* name(int i);              \
-  inline void Set##name(int i, type* value);
+  inline type name(int i) const;         \
+  inline void Set##name(int i, type value);
 
   DECL_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)
   DECL_ENTRY_ACCESSORS(TranslationIndex, Smi)
@@ -865,7 +882,7 @@ class DeoptimizationData : public FixedArray {
   // Return an empty DeoptimizationData.
   static Handle<DeoptimizationData> Empty(Isolate* isolate);
 
-  DECL_CAST(DeoptimizationData)
+  DECL_CAST2(DeoptimizationData)
 
 #ifdef ENABLE_DISASSEMBLER
   void DeoptimizationDataPrint(std::ostream& os);  // NOLINT
@@ -877,19 +894,27 @@ class DeoptimizationData : public FixedArray {
   }
 
   static int LengthFor(int entry_count) { return IndexForEntry(entry_count); }
+
+  OBJECT_CONSTRUCTORS(DeoptimizationData, FixedArray)
 };
 
 class SourcePositionTableWithFrameCache : public Tuple2 {
  public:
-  DECL_ACCESSORS(source_position_table, ByteArray)
-  DECL_ACCESSORS(stack_frame_cache, SimpleNumberDictionary)
+  DECL_ACCESSORS2(source_position_table, ByteArray)
+  DECL_ACCESSORS2(stack_frame_cache, SimpleNumberDictionary)
 
   DECL_CAST(SourcePositionTableWithFrameCache)
 
-  static const int kSourcePositionTableIndex = Struct::kHeaderSize;
-  static const int kStackFrameCacheIndex =
-      kSourcePositionTableIndex + kPointerSize;
-  static const int kSize = kStackFrameCacheIndex + kPointerSize;
+// Layout description.
+#define SOURCE_POSITION_TABLE_WITH_FRAME_FIELDS(V) \
+  V(kSourcePositionTableIndex, kTaggedSize)        \
+  V(kStackFrameCacheIndex, kTaggedSize)            \
+  /* Total size. */                                \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
+                                SOURCE_POSITION_TABLE_WITH_FRAME_FIELDS)
+#undef SOURCE_POSITION_TABLE_WITH_FRAME_FIELDS
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SourcePositionTableWithFrameCache);

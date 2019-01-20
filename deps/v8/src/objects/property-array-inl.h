@@ -8,6 +8,8 @@
 #include "src/objects/property-array.h"
 
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/heap-object-inl.h"
+#include "src/objects/smi-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -15,7 +17,8 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(PropertyArray)
+OBJECT_CONSTRUCTORS_IMPL(PropertyArray, HeapObjectPtr)
+CAST_ACCESSOR2(PropertyArray)
 
 Object* PropertyArray::get(int index) const {
   DCHECK_GE(index, 0);
@@ -40,9 +43,7 @@ void PropertyArray::set(int index, Object* value, WriteBarrierMode mode) {
   CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);
 }
 
-Object** PropertyArray::data_start() {
-  return HeapObject::RawField(this, kHeaderSize);
-}
+ObjectSlot PropertyArray::data_start() { return RawField(kHeaderSize); }
 
 int PropertyArray::length() const {
   Object* value_obj = READ_FIELD(this, kLengthAndHashOffset);

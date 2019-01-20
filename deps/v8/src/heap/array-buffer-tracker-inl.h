@@ -21,7 +21,7 @@ void ArrayBufferTracker::RegisterNew(Heap* heap, JSArrayBuffer* buffer) {
   const size_t length = buffer->byte_length();
   Page* page = Page::FromAddress(buffer->address());
   {
-    base::LockGuard<base::Mutex> guard(page->mutex());
+    base::MutexGuard guard(page->mutex());
     LocalArrayBufferTracker* tracker = page->local_tracker();
     if (tracker == nullptr) {
       page->AllocateLocalTracker();
@@ -44,7 +44,7 @@ void ArrayBufferTracker::Unregister(Heap* heap, JSArrayBuffer* buffer) {
   Page* page = Page::FromAddress(buffer->address());
   const size_t length = buffer->byte_length();
   {
-    base::LockGuard<base::Mutex> guard(page->mutex());
+    base::MutexGuard guard(page->mutex());
     LocalArrayBufferTracker* tracker = page->local_tracker();
     DCHECK_NOT_NULL(tracker);
     tracker->Remove(buffer, length);

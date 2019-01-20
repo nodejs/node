@@ -108,7 +108,7 @@ class LoadHandler final : public DataHandler {
                         kSmiValueSize - LookupOnReceiverBits::kNext> {};
 
   // Decodes kind from Smi-handler.
-  static inline Kind GetHandlerKind(Smi* smi_handler);
+  static inline Kind GetHandlerKind(Smi smi_handler);
 
   // Creates a Smi-handler for loading a property from a slow object.
   static inline Handle<Smi> LoadNormal(Isolate* isolate);
@@ -178,7 +178,7 @@ class LoadHandler final : public DataHandler {
                                               KeyedAccessLoadMode load_mode);
 
   // Decodes the KeyedAccessLoadMode from a {handler}.
-  static KeyedAccessLoadMode GetKeyedAccessLoadMode(MaybeObject* handler);
+  static KeyedAccessLoadMode GetKeyedAccessLoadMode(MaybeObject handler);
 };
 
 // A set of bit fields representing Smi handlers for stores and a HeapObject

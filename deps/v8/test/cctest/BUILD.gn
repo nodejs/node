@@ -192,11 +192,12 @@ v8_source_set("cctest_sources") {
     "test-hashcode.cc",
     "test-hashmap.cc",
     "test-heap-profiler.cc",
+    "test-icache.cc",
     "test-identity-map.cc",
     "test-inobject-slack-tracking.cc",
     "test-inspector.cc",
     "test-intl.cc",
-    "test-isolate-independent-builtins.cc",
+    "test-js-weak-refs.cc",
     "test-liveedit.cc",
     "test-lockers.cc",
     "test-log.cc",
@@ -229,6 +230,7 @@ v8_source_set("cctest_sources") {
     "test-unbound-queue.cc",
     "test-unboxed-doubles.cc",
     "test-unscopables-hidden-prototype.cc",
+    "test-unwinder.cc",
     "test-usecounters.cc",
     "test-utils.cc",
     "test-version.cc",
@@ -255,6 +257,7 @@ v8_source_set("cctest_sources") {
     "wasm/test-streaming-compilation.cc",
     "wasm/test-wasm-breakpoints.cc",
     "wasm/test-wasm-codegen.cc",
+    "wasm/test-wasm-import-wrapper-cache.cc",
     "wasm/test-wasm-interpreter-entry.cc",
     "wasm/test-wasm-serialization.cc",
     "wasm/test-wasm-shared-engine.cc",
@@ -270,10 +273,8 @@ v8_source_set("cctest_sources") {
       # TODO(mostynb@opera.com): figure out the jumbo issues with these source
       # files, and include them in jumbo compilation units.
       "interpreter/bytecode-expectations-printer.cc",
-      "interpreter/bytecode-expectations-printer.h",
       "interpreter/test-bytecode-generator.cc",
       "test-api.cc",
-      "test-api.h",
     ]
   }
 
@@ -418,7 +419,9 @@ v8_source_set("cctest_sources") {
       v8_current_cpu == "mipsel" || v8_current_cpu == "mipsel64") {
     # Disable fmadd/fmsub so that expected results match generated code in
     # RunFloat64MulAndFloat64Add1 and friends.
-    cflags += [ "-ffp-contract=off" ]
+    if (!is_win) {
+      cflags += [ "-ffp-contract=off" ]
+    }
   }
 
   if (is_win) {

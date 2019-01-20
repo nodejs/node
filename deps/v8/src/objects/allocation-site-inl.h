@@ -147,7 +147,7 @@ inline void AllocationSite::set_memento_found_count(int count) {
   // Verify that we can count more mementos than we can possibly find in one
   // new space collection.
   DCHECK((GetHeap()->MaxSemiSpaceSize() /
-          (Heap::kMinObjectSizeInWords * kPointerSize +
+          (Heap::kMinObjectSizeInTaggedWords * kTaggedSize +
            AllocationMemento::kSize)) < MementoFoundCountBits::kMax);
   DCHECK_LT(count, MementoFoundCountBits::kMax);
   set_pretenure_data(MementoFoundCountBits::update(value, count));

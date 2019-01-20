@@ -32,7 +32,7 @@ class PropertyDescriptorObject : public FixedArray {
 
   enum { kFlagsIndex, kValueIndex, kGetIndex, kSetIndex, kLength };
 
-  DECL_CAST(PropertyDescriptorObject)
+  DECL_CAST2(PropertyDescriptorObject)
 
   static const int kRegularAccessorPropertyBits =
       HasEnumerableBit::kMask | HasConfigurableBit::kMask | HasGetBit::kMask |
@@ -55,6 +55,8 @@ class PropertyDescriptorObject : public FixedArray {
       FixedArray::OffsetOfElementAt(PropertyDescriptorObject::kGetIndex);
   static const int kSetOffset =
       FixedArray::OffsetOfElementAt(PropertyDescriptorObject::kSetIndex);
+
+  OBJECT_CONSTRUCTORS(PropertyDescriptorObject, FixedArray)
 };
 
 }  // namespace internal

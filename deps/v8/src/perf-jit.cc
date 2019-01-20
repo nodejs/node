@@ -31,8 +31,8 @@
 
 #include "src/assembler.h"
 #include "src/eh-frame.h"
-#include "src/instruction-stream.h"
 #include "src/objects-inl.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/source-position-table.h"
 #include "src/wasm/wasm-code-manager.h"
 
@@ -195,7 +195,7 @@ uint64_t PerfJitLogger::GetTimestamp() {
   return (ts.tv_sec * kNsecPerSec) + ts.tv_nsec;
 }
 
-void PerfJitLogger::LogRecordedBuffer(AbstractCode* abstract_code,
+void PerfJitLogger::LogRecordedBuffer(AbstractCode abstract_code,
                                       SharedFunctionInfo* shared,
                                       const char* name, int length) {
   if (FLAG_perf_basic_prof_only_functions &&
@@ -210,7 +210,7 @@ void PerfJitLogger::LogRecordedBuffer(AbstractCode* abstract_code,
 
   // We only support non-interpreted functions.
   if (!abstract_code->IsCode()) return;
-  Code* code = abstract_code->GetCode();
+  Code code = abstract_code->GetCode();
   DCHECK(code->raw_instruction_start() == code->address() + Code::kHeaderSize);
 
   // Debug info has to be emitted first.
@@ -280,7 +280,7 @@ size_t GetScriptNameLength(const SourcePositionInfo& info) {
   if (!info.script.is_null()) {
     Object* name_or_url = info.script->GetNameOrSourceURL();
     if (name_or_url->IsString()) {
-      String* str = String::cast(name_or_url);
+      String str = String::cast(name_or_url);
       if (str->IsOneByteRepresentation()) return str->length();
       int length;
       str->ToCString(DISALLOW_NULLS, FAST_STRING_TRAVERSAL, &length);
@@ -295,7 +295,7 @@ Vector<const char> GetScriptName(const SourcePositionInfo& info,
   if (!info.script.is_null()) {
     Object* name_or_url = info.script->GetNameOrSourceURL();
     if (name_or_url->IsSeqOneByteString()) {
-      SeqOneByteString* str = SeqOneByteString::cast(name_or_url);
+      SeqOneByteString str = SeqOneByteString::cast(name_or_url);
       return {reinterpret_cast<char*>(str->GetChars()),
               static_cast<size_t>(str->length())};
     } else if (name_or_url->IsString()) {
@@ -322,7 +322,7 @@ SourcePositionInfo GetSourcePositionInfo(Handle<Code> code,
 
 }  // namespace
 
-void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
+void PerfJitLogger::LogWriteDebugInfo(Code code, SharedFunctionInfo* shared) {
   // Compute the entry count and get the name of the script.
   uint32_t entry_count = 0;
   for (SourcePositionTableIterator iterator(code->SourcePositionTable());
@@ -385,7 +385,7 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
   LogWriteBytes(padding_bytes, padding);
 }
 
-void PerfJitLogger::LogWriteUnwindingInfo(Code* code) {
+void PerfJitLogger::LogWriteUnwindingInfo(Code code) {
   PerfJitCodeUnwindingInfo unwinding_info_header;
   unwinding_info_header.event_ = PerfJitCodeLoad::kUnwindingInfo;
   unwinding_info_header.time_stamp_ = GetTimestamp();
@@ -420,7 +420,7 @@ void PerfJitLogger::LogWriteUnwindingInfo(Code* code) {
   LogWriteBytes(padding_bytes, static_cast<int>(padding_size));
 }
 
-void PerfJitLogger::CodeMoveEvent(AbstractCode* from, AbstractCode* to) {
+void PerfJitLogger::CodeMoveEvent(AbstractCode from, AbstractCode to) {
   // We may receive a CodeMove event if a BytecodeArray object moves. Otherwise
   // code relocation is not supported.
   CHECK(from->IsBytecodeArray());

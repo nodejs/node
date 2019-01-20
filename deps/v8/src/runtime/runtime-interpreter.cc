@@ -5,6 +5,7 @@
 #include <iomanip>
 
 #include "src/arguments-inl.h"
+#include "src/counters.h"
 #include "src/frames-inl.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-decoder.h"
@@ -19,25 +20,6 @@
 
 namespace v8 {
 namespace internal {
-
-RUNTIME_FUNCTION(Runtime_InterpreterDeserializeLazy) {
-  HandleScope scope(isolate);
-
-  DCHECK(FLAG_lazy_deserialization);
-  DCHECK_EQ(2, args.length());
-  CONVERT_SMI_ARG_CHECKED(bytecode_int, 0);
-  CONVERT_SMI_ARG_CHECKED(operand_scale_int, 1);
-
-  using interpreter::Bytecode;
-  using interpreter::Bytecodes;
-  using interpreter::OperandScale;
-
-  Bytecode bytecode = Bytecodes::FromByte(bytecode_int);
-  OperandScale operand_scale = static_cast<OperandScale>(operand_scale_int);
-
-  return isolate->interpreter()->GetAndMaybeDeserializeBytecodeHandler(
-      bytecode, operand_scale);
-}
 
 #ifdef V8_TRACE_IGNITION
 

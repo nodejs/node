@@ -19,7 +19,7 @@ namespace internal {
 
 CAST_ACCESSOR(PrototypeInfo)
 
-Map* PrototypeInfo::ObjectCreateMap() {
+Map PrototypeInfo::ObjectCreateMap() {
   return Map::cast(object_create_map()->GetHeapObjectAssumeWeak());
 }
 
@@ -30,7 +30,7 @@ void PrototypeInfo::SetObjectCreateMap(Handle<PrototypeInfo> info,
 }
 
 bool PrototypeInfo::HasObjectCreateMap() {
-  MaybeObject* cache = object_create_map();
+  MaybeObject cache = object_create_map();
   return cache->IsWeak();
 }
 
@@ -50,8 +50,8 @@ void PrototypeUsers::MarkSlotEmpty(WeakArrayList* array, int index) {
   set_empty_slot_index(array, index);
 }
 
-Smi* PrototypeUsers::empty_slot_index(WeakArrayList* array) {
-  return array->Get(kEmptySlotIndex)->cast<Smi>();
+Smi PrototypeUsers::empty_slot_index(WeakArrayList* array) {
+  return array->Get(kEmptySlotIndex).ToSmi();
 }
 
 void PrototypeUsers::set_empty_slot_index(WeakArrayList* array, int index) {

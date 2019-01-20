@@ -37,7 +37,7 @@ void LocalArrayBufferTracker::Process(Callback callback) {
       DCHECK_NOT_NULL(new_buffer);
       Page* target_page = Page::FromAddress(new_buffer->address());
       {
-        base::LockGuard<base::Mutex> guard(target_page->mutex());
+        base::MutexGuard guard(target_page->mutex());
         LocalArrayBufferTracker* tracker = target_page->local_tracker();
         if (tracker == nullptr) {
           target_page->AllocateLocalTracker();
@@ -120,7 +120,7 @@ bool ArrayBufferTracker::ProcessBuffers(Page* page, ProcessingMode mode) {
 bool ArrayBufferTracker::IsTracked(JSArrayBuffer* buffer) {
   Page* page = Page::FromAddress(buffer->address());
   {
-    base::LockGuard<base::Mutex> guard(page->mutex());
+    base::MutexGuard guard(page->mutex());
     LocalArrayBufferTracker* tracker = page->local_tracker();
     if (tracker == nullptr) return false;
     return tracker->IsTracked(buffer);

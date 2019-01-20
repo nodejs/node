@@ -7,10 +7,10 @@
 
 #include <memory>
 
-#include "src/assembler.h"
+#include "src/assembler-arch.h"
 #include "src/globals.h"
 #include "src/isolate.h"
-#include "src/macro-assembler.h"
+#include "src/machine-type.h"
 
 namespace v8 {
 namespace internal {
@@ -37,6 +37,7 @@ namespace internal {
   V(TypeConversion)                   \
   V(TypeConversionStackParameter)     \
   V(Typeof)                           \
+  V(AsyncFunctionStackParameter)      \
   V(CallFunction)                     \
   V(CallVarargs)                      \
   V(CallForwardVarargs)               \
@@ -73,8 +74,10 @@ namespace internal {
   V(ResumeGenerator)                  \
   V(FrameDropperTrampoline)           \
   V(RunMicrotasks)                    \
-  V(WasmGrowMemory)                   \
+  V(WasmMemoryGrow)                   \
   V(WasmThrow)                        \
+  V(WasmAtomicWake)                   \
+  V(WasmI32AtomicWait)                \
   V(CloneObjectWithVector)            \
   BUILTIN_LIST_TFS(V)
 
@@ -668,7 +671,7 @@ class FastNewObjectDescriptor : public CallInterfaceDescriptor {
 
 class RecordWriteDescriptor final : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kObject, kSlot, kRememberedSet, kFPMode)
+  DEFINE_PARAMETERS_NO_CONTEXT(kObject, kSlot, kRememberedSet, kFPMode)
   DEFINE_PARAMETER_TYPES(MachineType::TaggedPointer(),  // kObject
                          MachineType::Pointer(),        // kSlot
                          MachineType::TaggedSigned(),   // kRememberedSet
@@ -692,6 +695,15 @@ class TypeConversionStackParameterDescriptor final
   DEFINE_PARAMETERS(kArgument)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(TypeConversionStackParameterDescriptor,
+                     CallInterfaceDescriptor)
+};
+
+class AsyncFunctionStackParameterDescriptor final
+    : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kPromise, kResult)
+  DEFINE_PARAMETER_TYPES(MachineType::TaggedPointer(), MachineType::AnyTagged())
+  DECLARE_DESCRIPTOR(AsyncFunctionStackParameterDescriptor,
                      CallInterfaceDescriptor)
 };
 
@@ -1078,12 +1090,12 @@ class RunMicrotasksDescriptor final : public CallInterfaceDescriptor {
   DECLARE_DEFAULT_DESCRIPTOR(RunMicrotasksDescriptor, CallInterfaceDescriptor)
 };
 
-class WasmGrowMemoryDescriptor final : public CallInterfaceDescriptor {
+class WasmMemoryGrowDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS_NO_CONTEXT(kNumPages)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Int32(),  // result 1
                                     MachineType::Int32())  // kNumPages
-  DECLARE_DESCRIPTOR(WasmGrowMemoryDescriptor, CallInterfaceDescriptor)
+  DECLARE_DESCRIPTOR(WasmMemoryGrowDescriptor, CallInterfaceDescriptor)
 };
 
 class WasmThrowDescriptor final : public CallInterfaceDescriptor {
@@ -1092,6 +1104,25 @@ class WasmThrowDescriptor final : public CallInterfaceDescriptor {
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result 1
                                     MachineType::AnyTagged())  // kException
   DECLARE_DESCRIPTOR(WasmThrowDescriptor, CallInterfaceDescriptor)
+};
+
+class WasmAtomicWakeDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kAddress, kCount)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Uint32(),  // result 1
+                                    MachineType::Uint32(),  // kAddress
+                                    MachineType::Uint32())  // kCount
+  DECLARE_DESCRIPTOR(WasmAtomicWakeDescriptor, CallInterfaceDescriptor)
+};
+
+class WasmI32AtomicWaitDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kAddress, kExpectedValue, kTimeout)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Uint32(),   // result 1
+                                    MachineType::Uint32(),   // kAddress
+                                    MachineType::Int32(),    // kExpectedValue
+                                    MachineType::Float64())  // kTimeout
+  DECLARE_DESCRIPTOR(WasmI32AtomicWaitDescriptor, CallInterfaceDescriptor)
 };
 
 class CloneObjectWithVectorDescriptor final : public CallInterfaceDescriptor {

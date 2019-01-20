@@ -14,7 +14,6 @@
 #include "src/frames-inl.h"
 #include "src/frames.h"
 #include "src/global-handles.h"
-#include "src/messages.h"
 #include "src/objects.h"
 #include "src/ostreams.h"
 #include "src/snapshot/natives.h"
@@ -954,7 +953,7 @@ class CodeDescription {
   };
 #endif
 
-  CodeDescription(const char* name, Code* code, SharedFunctionInfo* shared,
+  CodeDescription(const char* name, Code code, SharedFunctionInfo* shared,
                   LineInfo* lineinfo)
       : name_(name), code_(code), shared_info_(shared), lineinfo_(lineinfo) {}
 
@@ -971,7 +970,7 @@ class CodeDescription {
 
   bool has_scope_info() const { return shared_info_ != nullptr; }
 
-  ScopeInfo* scope_info() const {
+  ScopeInfo scope_info() const {
     DCHECK(has_scope_info());
     return shared_info_->scope_info();
   }
@@ -1028,7 +1027,7 @@ class CodeDescription {
 
  private:
   const char* name_;
-  Code* code_;
+  Code code_;
   SharedFunctionInfo* shared_info_;
   LineInfo* lineinfo_;
 #if V8_TARGET_ARCH_X64
@@ -1131,7 +1130,7 @@ class DebugInfoSection : public DebugSection {
     w->WriteString("v8value");
 
     if (desc_->has_scope_info()) {
-      ScopeInfo* scope = desc_->scope_info();
+      ScopeInfo scope = desc_->scope_info();
       w->WriteULEB128(2);
       w->WriteString(desc_->name());
       w->Write<intptr_t>(desc_->CodeStart());
@@ -1333,7 +1332,7 @@ class DebugAbbrevSection : public DebugSection {
     w->WriteULEB128(0);
 
     if (extra_info) {
-      ScopeInfo* scope = desc_->scope_info();
+      ScopeInfo scope = desc_->scope_info();
       int params = scope->ParameterCount();
       int context_slots = scope->ContextLocalCount();
       // The real slot ID is internal_slots + context_slot_id.
@@ -2083,8 +2082,7 @@ static void AddJITCodeEntry(CodeMap* map, const AddressRange& range,
   RegisterCodeEntry(entry);
 }
 
-
-static void AddCode(const char* name, Code* code, SharedFunctionInfo* shared,
+static void AddCode(const char* name, Code code, SharedFunctionInfo* shared,
                     LineInfo* lineinfo) {
   DisallowHeapAllocation no_gc;
 
@@ -2125,11 +2123,12 @@ static void AddCode(const char* name, Code* code, SharedFunctionInfo* shared,
 void EventHandler(const v8::JitCodeEvent* event) {
   if (!FLAG_gdbjit) return;
   if (event->code_type != v8::JitCodeEvent::JIT_CODE) return;
-  base::LockGuard<base::Mutex> lock_guard(mutex.Pointer());
+  base::MutexGuard lock_guard(mutex.Pointer());
   switch (event->type) {
     case v8::JitCodeEvent::CODE_ADDED: {
       Address addr = reinterpret_cast<Address>(event->code_start);
-      Code* code = Code::GetCodeFromTargetAddress(addr);
+      Isolate* isolate = reinterpret_cast<Isolate*>(event->isolate);
+      Code code = isolate->heap()->GcSafeFindCodeForInnerPointer(addr);
       LineInfo* lineinfo = GetLineInfo(addr);
       EmbeddedVector<char, 256> buffer;
       StringBuilder builder(buffer.start(), buffer.length());

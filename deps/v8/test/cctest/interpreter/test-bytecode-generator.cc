@@ -690,6 +690,34 @@ TEST(IIFEWithOneshotOpt) {
         }
         f();
     )",
+      R"(
+        var f = function(l) {  l.a = 3; return l; };
+        f({});
+        f;
+    )",
+      // No one-shot opt for top-level functions enclosed in parentheses
+      R"(
+        var f = (function(l) {  l.a = 3; return l; });
+        f;
+    )",
+      R"(
+        var f = (function foo(l) {  l.a = 3; return l; });
+        f;
+    )",
+      R"(
+        var f = function foo(l) {  l.a = 3; return l; };
+        f({});
+        f;
+    )",
+      R"(
+        l = {};
+        var f = (function foo(l) {  l.a = 3; return arguments.callee; })(l);
+        f;
+    )",
+      R"(
+        var f = (function foo(l) {  l.a = 3; return arguments.callee; })({});
+        f;
+    )",
   };
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("IIFEWithOneshotOpt.golden")));
@@ -2474,26 +2502,6 @@ TEST(LetVariableContextSlot) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("LetVariableContextSlot.golden")));
-}
-
-TEST(DoExpression) {
-  bool old_flag = FLAG_harmony_do_expressions;
-  FLAG_harmony_do_expressions = true;
-
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
-      "var a = do { }; return a;\n",
-
-      "var a = do { var x = 100; }; return a;\n",
-
-      "while(true) { var a = 10; a = do { ++a; break; }; a = 20; }\n",
-  };
-
-  CHECK(CompareTexts(BuildActual(printer, snippets),
-                     LoadGolden("DoExpression.golden")));
-
-  FLAG_harmony_do_expressions = old_flag;
 }
 
 TEST(WithStatement) {

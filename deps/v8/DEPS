@@ -16,15 +16,15 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a7674eacc34947257c78fe6ba5cf0da17f60696c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'bbd67a350d745200e5798cace11a28edfd9fc3b2',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '71e3be7a50c21faeee91ed99a8d5addfb7594e7c',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '44d4b29082f0d8bacacd623f91c4d29637b4b901',
   'v8/third_party/icu':
-    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'c52a2a250d6c5f5cbdd015dff36af7c5d0ae1150',
+    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '407b39301e71006b68bd38e770f35d32398a7b14',
   'v8/third_party/instrumented_libraries':
-    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'a90cbf3b4216430a437991fb53ede8e048dea454',
+    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'a959e4f0cb643003f2d75d179cede449979e3e77',
   'v8/buildtools':
-    Var('chromium_url') + '/chromium/buildtools.git' + '@' + '2dff9c9c74e9d732e6fe57c84ef7fd044cc45d96',
+    Var('chromium_url') + '/chromium/buildtools.git' + '@' + '04161ec8d7c781e4498c699254c69ba0dd959fde',
   'v8/base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '211b3ed9d0481b4caddbee1322321b86a483ca1f',
   'v8/third_party/android_ndk': {
@@ -32,11 +32,11 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/android_tools': {
-    'url': Var('chromium_url') + '/android_tools.git' + '@' + '130499e25286f4d56acafa252fee09f3cc595c49',
+    'url': Var('chromium_url') + '/android_tools.git' + '@' + '6fecaa542f73dd5aeed170d9a4cf340159b42976',
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '9ec8468cfde0868ce5f3893e819087278c5af988',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '17079a5cc1f27a2dc57558a0897666cac4a5bc64',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -44,11 +44,11 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/fuchsia-sdk': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '6e1868c9083769d489d3fc25657339d50c22b1d8',
+    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + 'ac40df877fbffc53aa4513b9c5becab4b686fa70',
     'condition': 'checkout_fuchsia',
   },
   'v8/third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '2e68926a9d4929e9289373cd49e40ddcb9a628f7',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '879ac092fde0a19e1b3a61b2546b2a422b1528bc',
   'v8/third_party/jinja2':
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + 'b41863e42637544c2941b574c7877d3e1f663e25',
   'v8/third_party/markupsafe':
@@ -60,7 +60,7 @@ deps = {
   'v8/test/mozilla/data':
     Var('chromium_url') + '/v8/deps/third_party/mozilla-tests.git' + '@' + 'f6c578a10ea707b1a8ab0b88943fe5115ce2b9be',
   'v8/test/test262/data':
-    Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + '00cfe1628cc03164dcf03f01ba9c84376e9be735',
+    Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + '2726142bb97e4538703eda748c3b7300183bc66d',
   'v8/test/test262/harness':
     Var('chromium_url') + '/external/github.com/test262-utils/test262-harness-py.git' + '@' + '0f2acdd882c84cff43b9d60df7574a1901e2cdcd',
   'v8/third_party/qemu-linux-x64': {
@@ -84,7 +84,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '7792d28b069af6dd3a86d1ba83b7f5c4ede605dc',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '8a671fec4f3f0f503ebe74aeccd25639603f422b',
   'v8/tools/luci-go': {
       'packages': [
         {
@@ -103,8 +103,8 @@ deps = {
       'condition': 'host_cpu != "s390"',
       'dep_type': 'cipd',
   },
-  'v8/test/wasm-js':
-    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + 'db9cd40808a90ecc5f4a23e88fb375c8f60b8d52',
+  'v8/test/wasm-js/data':
+    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + '6028a965953e4e5e632ffb9b1831a5dbe074d1ac',
 }
 
 recursedeps = [
@@ -209,43 +209,6 @@ hooks = [
                 '--platform=linux*',
     ],
   },
-  # Pull luci-go binaries (isolate, swarming) using checked-in hashes.
-  {
-    'name': 'luci-go_win',
-    'pattern': '.',
-    'condition': 'host_os == "win"',
-    'action': [ 'download_from_google_storage',
-                '--no_resume',
-                '--platform=win32',
-                '--no_auth',
-                '--bucket', 'chromium-luci',
-                '-d', 'v8/tools/luci-go/win64',
-    ],
-  },
-  {
-    'name': 'luci-go_mac',
-    'pattern': '.',
-    'condition': 'host_os == "mac"',
-    'action': [ 'download_from_google_storage',
-                '--no_resume',
-                '--platform=darwin',
-                '--no_auth',
-                '--bucket', 'chromium-luci',
-                '-d', 'v8/tools/luci-go/mac64',
-    ],
-  },
-  {
-    'name': 'luci-go_linux',
-    'pattern': '.',
-    'condition': 'host_os == "linux"',
-    'action': [ 'download_from_google_storage',
-                '--no_resume',
-                '--platform=linux*',
-                '--no_auth',
-                '--bucket', 'chromium-luci',
-                '-d', 'v8/tools/luci-go/linux64',
-    ],
-  },
   # Pull GN using checked-in hashes.
   {
     'name': 'gn_win',
@@ -292,17 +255,6 @@ hooks = [
                 '-u',
                 '--bucket', 'v8-wasm-spec-tests',
                 '-s', 'v8/test/wasm-spec-tests/tests.tar.gz.sha1',
-    ],
-  },
-  {
-    'name': 'closure_compiler',
-    'pattern': '.',
-    'action': [ 'download_from_google_storage',
-                '--no_resume',
-                '--no_auth',
-                '-u',
-                '--bucket', 'chromium-v8-closure-compiler',
-                '-s', 'v8/src/inspector/build/closure-compiler.tar.gz.sha1',
     ],
   },
   {

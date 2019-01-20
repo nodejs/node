@@ -8,13 +8,12 @@
 #include "src/conversions.h"
 #include "src/debug/debug.h"
 #include "src/field-type.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/objects-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/property-descriptor.h"
 #include "src/string-hasher.h"
 #include "src/transitions.h"
-#include "src/unicode-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -35,8 +34,7 @@ class VectorSegment {
   ~VectorSegment() { container_.resize(begin_); }
 
   Vector<const value_type> GetVector() const {
-    return Vector<const value_type>(container_.data() + begin_,
-                                    container_.size() - begin_);
+    return VectorOf(container_) + begin_;
   }
 
   template <typename T>
@@ -164,7 +162,7 @@ MaybeHandle<Object> JsonParser<seq_one_byte>::ParseJson() {
 
     // Parse failed. Current character is the unexpected token.
     Factory* factory = this->factory();
-    MessageTemplate::Template message;
+    MessageTemplate message;
     Handle<Object> arg1 = Handle<Smi>(Smi::FromInt(position_), isolate());
     Handle<Object> arg2;
 
@@ -669,8 +667,9 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonNumber() {
   int length = position_ - beg_pos;
   double number;
   if (seq_one_byte) {
+    DisallowHeapAllocation no_gc;
     Vector<const uint8_t> chars(seq_source_->GetChars() + beg_pos, length);
-    number = StringToDouble(isolate()->unicode_cache(), chars,
+    number = StringToDouble(chars,
                             NO_FLAGS,  // Hex, octal or trailing junk.
                             std::numeric_limits<double>::quiet_NaN());
   } else {
@@ -678,7 +677,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonNumber() {
     String::WriteToFlat(*source_, buffer.start(), beg_pos, position_);
     Vector<const uint8_t> result =
         Vector<const uint8_t>(buffer.start(), length);
-    number = StringToDouble(isolate()->unicode_cache(), result,
+    number = StringToDouble(result,
                             NO_FLAGS,  // Hex, octal or trailing junk.
                             0.0);
     buffer.Dispose();
@@ -728,9 +727,13 @@ Handle<String> JsonParser<seq_one_byte>::SlowScanJsonString(
   int length = Min(max_length, Max(kInitialSpecialStringLength, 2 * count));
   Handle<StringType> seq_string =
       NewRawString<StringType>(factory(), length, pretenure_);
-  // Copy prefix into seq_str.
-  SinkChar* dest = seq_string->GetChars();
-  String::WriteToFlat(*prefix, dest, start, end);
+
+  {
+    DisallowHeapAllocation no_gc;
+    // Copy prefix into seq_str.
+    SinkChar* dest = seq_string->GetChars();
+    String::WriteToFlat(*prefix, dest, start, end);
+  }
 
   while (c0_ != '"') {
     // Check for control character (0x00-0x1F) or unterminated string (<0).
@@ -881,9 +884,7 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
     } else {
       hash = static_cast<uint32_t>(length);
     }
-    Vector<const uint8_t> string_vector(seq_source_->GetChars() + position_,
-                                        length);
-    StringTable* string_table = isolate()->heap()->string_table();
+    StringTable string_table = isolate()->heap()->string_table();
     uint32_t capacity = string_table->Capacity();
     uint32_t entry = StringTable::FirstProbe(hash, capacity);
     uint32_t count = 1;
@@ -896,12 +897,16 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
             factory()->InternalizeOneByteString(seq_source_, position_, length);
         break;
       }
-      if (!element->IsTheHole(isolate()) &&
-          String::cast(element)->IsOneByteEqualTo(string_vector)) {
-        result = Handle<String>(String::cast(element), isolate());
-        DCHECK_EQ(result->Hash(),
-                  (hash << String::kHashShift) >> String::kHashShift);
-        break;
+      if (!element->IsTheHole(isolate())) {
+        DisallowHeapAllocation no_gc;
+        Vector<const uint8_t> string_vector(seq_source_->GetChars() + position_,
+                                            length);
+        if (String::cast(element)->IsOneByteEqualTo(string_vector)) {
+          result = Handle<String>(String::cast(element), isolate());
+          DCHECK_EQ(result->Hash(),
+                    (hash << String::kHashShift) >> String::kHashShift);
+          break;
+        }
       }
       entry = StringTable::NextProbe(entry, count++, capacity);
     }
@@ -931,6 +936,7 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
   int length = position_ - beg_pos;
   Handle<String> result =
       factory()->NewRawOneByteString(length, pretenure_).ToHandleChecked();
+  DisallowHeapAllocation no_gc;
   uint8_t* dest = SeqOneByteString::cast(*result)->GetChars();
   String::WriteToFlat(*source_, dest, beg_pos, position_);
 

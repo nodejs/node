@@ -221,8 +221,6 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Restore the registers from the stack.
   __ ldm(ia_w, sp, restored_regs);  // all but pc registers.
 
-  __ InitializeRootRegister();
-
   // Remove sp, lr and pc.
   __ Drop(3);
   {

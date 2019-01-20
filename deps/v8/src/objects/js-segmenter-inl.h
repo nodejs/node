@@ -19,7 +19,7 @@ namespace v8 {
 namespace internal {
 
 // Base segmenter accessors.
-ACCESSORS(JSSegmenter, locale, String, kLocaleOffset)
+ACCESSORS2(JSSegmenter, locale, String, kLocaleOffset)
 ACCESSORS(JSSegmenter, icu_break_iterator, Managed<icu::BreakIterator>,
           kICUBreakIteratorOffset)
 SMI_ACCESSORS(JSSegmenter, flags, kFlagsOffset)

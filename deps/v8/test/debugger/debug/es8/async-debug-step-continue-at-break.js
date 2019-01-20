@@ -37,8 +37,8 @@ async function f() {
   a +=
        await         // B1 StepIn
              g();    // B2 StepIn
-  return a;          // B4 StepNext
-}                    // B5 Continue
+  return a;          // B4 Continue
+}
 
 f();
 
@@ -50,4 +50,4 @@ late_resolve(3);
 
 %RunMicrotasks();
 
-assertEquals(6, step_count);
+assertEquals(5, step_count);

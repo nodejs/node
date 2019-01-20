@@ -97,7 +97,7 @@ class GeneratedCode {
     return GeneratedCode(isolate, reinterpret_cast<Signature*>(buffer));
   }
 
-  static GeneratedCode FromCode(Code* code) {
+  static GeneratedCode FromCode(Code code) {
     return FromAddress(code->GetIsolate(), code->entry());
   }
 

@@ -194,6 +194,7 @@ MaybeHandle<String> Uri::Decode(Isolate* isolate, Handle<String> uri,
       isolate, result, isolate->factory()->NewRawTwoByteString(result_length),
       String);
 
+  DisallowHeapAllocation no_gc;
   CopyChars(result->GetChars(), one_byte_buffer.data(), one_byte_buffer.size());
   CopyChars(result->GetChars() + one_byte_buffer.size(), two_byte_buffer.data(),
             two_byte_buffer.size());
@@ -307,8 +308,7 @@ MaybeHandle<String> Uri::Encode(Isolate* isolate, Handle<String> uri,
     }
   }
 
-  return isolate->factory()->NewStringFromOneByte(
-      Vector<const uint8_t>(buffer.data(), static_cast<int>(buffer.size())));
+  return isolate->factory()->NewStringFromOneByte(VectorOf(buffer));
 }
 
 namespace {  // Anonymous namespace for Escape and Unescape

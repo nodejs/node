@@ -1898,8 +1898,7 @@ TEST(GetHeapValueForDeletedObject) {
   CHECK(heap_profiler->FindObjectById(prop->GetId()).IsEmpty());
 }
 
-
-static int StringCmp(const char* ref, i::String* act) {
+static int StringCmp(const char* ref, i::String act) {
   std::unique_ptr<char[]> s_act = act->ToCString();
   int result = strcmp(ref, s_act.get());
   if (result != 0)
@@ -2206,12 +2205,12 @@ TEST(AccessorInfo) {
       env->GetIsolate(), map, v8::HeapGraphEdge::kInternal, "descriptors");
   CHECK(descriptors);
   const v8::HeapGraphNode* length_name = GetProperty(
-      env->GetIsolate(), descriptors, v8::HeapGraphEdge::kInternal, "2");
+      env->GetIsolate(), descriptors, v8::HeapGraphEdge::kInternal, "0");
   CHECK(length_name);
   CHECK_EQ(0, strcmp("length", *v8::String::Utf8Value(env->GetIsolate(),
                                                       length_name->GetName())));
   const v8::HeapGraphNode* length_accessor = GetProperty(
-      env->GetIsolate(), descriptors, v8::HeapGraphEdge::kInternal, "4");
+      env->GetIsolate(), descriptors, v8::HeapGraphEdge::kInternal, "2");
   CHECK(length_accessor);
   CHECK_EQ(0, strcmp("system / AccessorInfo",
                      *v8::String::Utf8Value(env->GetIsolate(),
@@ -2397,6 +2396,11 @@ TEST(MapHasDescriptorsAndTransitions) {
 
 
 TEST(ManyLocalsInSharedContext) {
+  // This test gets very slow with slow asserts (18 minutes instead of 1:30,
+  // as of November 2018).
+#ifdef ENABLE_SLOW_DCHECKS
+  i::FLAG_enable_slow_asserts = false;
+#endif
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
@@ -2558,16 +2562,10 @@ TEST(CheckCodeNames) {
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
 
-  const char* stub_path[] = {"::(GC roots)", "::(Strong roots)",
-                             "code_stubs::", "::(StoreFastElementStub code)"};
-  const v8::HeapGraphNode* node = GetNodeByPath(
-      env->GetIsolate(), snapshot, stub_path, arraysize(stub_path));
-  CHECK(node);
-
   const char* builtin_path1[] = {"::(GC roots)", "::(Builtins)",
                                  "::(KeyedLoadIC_Slow builtin)"};
-  node = GetNodeByPath(env->GetIsolate(), snapshot, builtin_path1,
-                       arraysize(builtin_path1));
+  const v8::HeapGraphNode* node = GetNodeByPath(
+      env->GetIsolate(), snapshot, builtin_path1, arraysize(builtin_path1));
   CHECK(node);
 
   const char* builtin_path2[] = {"::(GC roots)", "::(Builtins)",
@@ -3653,6 +3651,51 @@ TEST(SamplingHeapProfilerApiAllocation) {
                                         ArrayVector(names));
   CHECK(node);
 
+  heap_profiler->StopSamplingHeapProfiler();
+}
+
+TEST(SamplingHeapProfilerApiSamples) {
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  LocalContext env;
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  // Suppress randomness to avoid flakiness in tests.
+  v8::internal::FLAG_sampling_heap_profiler_suppress_randomness = true;
+
+  heap_profiler->StartSamplingHeapProfiler(1024);
+
+  size_t count = 8 * 1024;
+  for (size_t i = 0; i < count; ++i) v8::Object::New(env->GetIsolate());
+
+  std::unique_ptr<v8::AllocationProfile> profile(
+      heap_profiler->GetAllocationProfile());
+  CHECK(profile);
+
+  std::vector<v8::AllocationProfile::Node*> nodes_to_visit;
+  std::unordered_set<uint32_t> node_ids;
+  nodes_to_visit.push_back(profile->GetRootNode());
+  while (!nodes_to_visit.empty()) {
+    v8::AllocationProfile::Node* node = nodes_to_visit.back();
+    nodes_to_visit.pop_back();
+    CHECK_LT(0, node->node_id);
+    CHECK_EQ(0, node_ids.count(node->node_id));
+    node_ids.insert(node->node_id);
+    nodes_to_visit.insert(nodes_to_visit.end(), node->children.begin(),
+                          node->children.end());
+  }
+
+  size_t total_size = 0;
+  std::unordered_set<uint64_t> samples_set;
+  for (auto& sample : profile->GetSamples()) {
+    total_size += sample.size * sample.count;
+    CHECK_EQ(0, samples_set.count(sample.sample_id));
+    CHECK_EQ(1, node_ids.count(sample.node_id));
+    CHECK_GT(sample.node_id, 0);
+    CHECK_GT(sample.sample_id, 0);
+    samples_set.insert(sample.sample_id);
+  }
+  size_t object_size = total_size / count;
+  CHECK_GE(object_size, sizeof(void*) * 2);
   heap_profiler->StopSamplingHeapProfiler();
 }
 

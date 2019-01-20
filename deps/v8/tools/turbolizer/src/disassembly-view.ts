@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {PROF_COLS, UNICODE_BLOCK} from "./constants.js"
-import {SelectionBroker} from "./selection-broker.js"
-import {TextView} from "./text-view.js"
+import { PROF_COLS, UNICODE_BLOCK } from "../src/constants"
+import { SelectionBroker } from "../src/selection-broker"
+import { TextView } from "../src/text-view"
 
 export class DisassemblyView extends TextView {
   SOURCE_POSITION_HEADER_REGEX: any;
@@ -31,17 +31,15 @@ export class DisassemblyView extends TextView {
     let ADDRESS_STYLE = {
       css: 'tag',
       linkHandler: function (text, fragment) {
-        const matches = text.match(/0x[0-9a-f]{8,16}\s*(?<offset>[0-9a-f]+)/);
+        const matches = text.match(/0?x?[0-9a-fA-F]{8,16}\s*(?<offset>[0-9a-f]+)/);
         const offset = Number.parseInt(matches.groups["offset"], 16);
         if (!Number.isNaN(offset)) {
           const [nodes, blockId] = sourceResolver.nodesForPCOffset(offset)
-          console.log("nodes for", offset, offset.toString(16), " are ", nodes);
           if (nodes.length > 0) {
             for (const nodeId of nodes) {
               view.addHtmlElementForNodeId(nodeId, fragment);
             }
             return (e) => {
-              console.log(offset, nodes);
               e.stopPropagation();
               if (!e.shiftKey) {
                 view.selectionHandler.clear();
@@ -99,7 +97,7 @@ export class DisassemblyView extends TextView {
     view.SOURCE_POSITION_HEADER_REGEX = /^\s*--[^<]*<.*(not inlined|inlined\((\d+)\)):(\d+)>\s*--/;
     let patterns = [
       [
-        [/^0x[0-9a-f]{8,16}\s*[0-9a-f]+\ /, ADDRESS_STYLE, 1],
+        [/^0?x?[0-9a-fA-F]{8,16}\s*[0-9a-f]+\ /, ADDRESS_STYLE, 1],
         [view.SOURCE_POSITION_HEADER_REGEX, SOURCE_POSITION_HEADER_STYLE, -1],
         [/^\s+-- B\d+ start.*/, BLOCK_HEADER_STYLE, -1],
         [/^.*/, UNCLASSIFIED_STYLE, -1]

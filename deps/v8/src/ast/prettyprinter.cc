@@ -205,8 +205,8 @@ void CallPrinter::VisitClassLiteral(ClassLiteral* node) {
   }
 }
 
-void CallPrinter::VisitInitializeClassFieldsStatement(
-    InitializeClassFieldsStatement* node) {
+void CallPrinter::VisitInitializeClassMembersStatement(
+    InitializeClassMembersStatement* node) {
   for (int i = 0; i < node->fields()->length(); i++) {
     Find(node->fields()->at(i)->value());
   }
@@ -501,14 +501,14 @@ void CallPrinter::VisitRewritableExpression(RewritableExpression* node) {
   Find(node->expression());
 }
 
-void CallPrinter::FindStatements(ZonePtrList<Statement>* statements) {
+void CallPrinter::FindStatements(const ZonePtrList<Statement>* statements) {
   if (statements == nullptr) return;
   for (int i = 0; i < statements->length(); i++) {
     Find(statements->at(i));
   }
 }
 
-void CallPrinter::FindArguments(ZonePtrList<Expression>* arguments) {
+void CallPrinter::FindArguments(const ZonePtrList<Expression>* arguments) {
   if (found_) return;
   for (int i = 0; i < arguments->length(); i++) {
     Find(arguments->at(i));
@@ -778,7 +778,7 @@ const char* AstPrinter::PrintProgram(FunctionLiteral* program) {
     if (program->raw_inferred_name()) {
       PrintLiteralIndented("INFERRED NAME", program->raw_inferred_name(), true);
     }
-    if (program->requires_instance_fields_initializer()) {
+    if (program->requires_instance_members_initializer()) {
       Print(" REQUIRES INSTANCE FIELDS INITIALIZER\n");
     }
     PrintParameters(program->scope());
@@ -813,13 +813,13 @@ void AstPrinter::PrintParameters(DeclarationScope* scope) {
   }
 }
 
-void AstPrinter::PrintStatements(ZonePtrList<Statement>* statements) {
+void AstPrinter::PrintStatements(const ZonePtrList<Statement>* statements) {
   for (int i = 0; i < statements->length(); i++) {
     Visit(statements->at(i));
   }
 }
 
-void AstPrinter::PrintArguments(ZonePtrList<Expression>* arguments) {
+void AstPrinter::PrintArguments(const ZonePtrList<Expression>* arguments) {
   for (int i = 0; i < arguments->length(); i++) {
     Visit(arguments->at(i));
   }
@@ -1036,21 +1036,21 @@ void AstPrinter::VisitClassLiteral(ClassLiteral* node) {
     PrintIndentedVisit("STATIC FIELDS INITIALIZER",
                        node->static_fields_initializer());
   }
-  if (node->instance_fields_initializer_function() != nullptr) {
-    PrintIndentedVisit("INSTANCE FIELDS INITIALIZER",
-                       node->instance_fields_initializer_function());
+  if (node->instance_members_initializer_function() != nullptr) {
+    PrintIndentedVisit("INSTANCE ELEMENTS INITIALIZER",
+                       node->instance_members_initializer_function());
   }
   PrintClassProperties(node->properties());
 }
 
-void AstPrinter::VisitInitializeClassFieldsStatement(
-    InitializeClassFieldsStatement* node) {
-  IndentedScope indent(this, "INITIALIZE CLASS FIELDS", node->position());
+void AstPrinter::VisitInitializeClassMembersStatement(
+    InitializeClassMembersStatement* node) {
+  IndentedScope indent(this, "INITIALIZE CLASS ELEMENTS", node->position());
   PrintClassProperties(node->fields());
 }
 
 void AstPrinter::PrintClassProperties(
-    ZonePtrList<ClassLiteral::Property>* properties) {
+    const ZonePtrList<ClassLiteral::Property>* properties) {
   for (int i = 0; i < properties->length(); i++) {
     ClassLiteral::Property* property = properties->at(i);
     const char* prop_kind = nullptr;
@@ -1064,16 +1064,13 @@ void AstPrinter::PrintClassProperties(
       case ClassLiteral::Property::SETTER:
         prop_kind = "SETTER";
         break;
-      case ClassLiteral::Property::PUBLIC_FIELD:
-        prop_kind = "PUBLIC FIELD";
-        break;
-      case ClassLiteral::Property::PRIVATE_FIELD:
-        prop_kind = "PRIVATE FIELD";
+      case ClassLiteral::Property::FIELD:
+        prop_kind = "FIELD";
         break;
     }
     EmbeddedVector<char, 128> buf;
-    SNPrintF(buf, "PROPERTY%s - %s", property->is_static() ? " - STATIC" : "",
-             prop_kind);
+    SNPrintF(buf, "PROPERTY%s%s - %s", property->is_static() ? " - STATIC" : "",
+             property->is_private() ? " - PRIVATE" : " - PUBLIC", prop_kind);
     IndentedScope prop(this, buf.start());
     PrintIndentedVisit("KEY", properties->at(i)->key());
     PrintIndentedVisit("VALUE", properties->at(i)->value());
@@ -1129,7 +1126,7 @@ void AstPrinter::VisitObjectLiteral(ObjectLiteral* node) {
 }
 
 void AstPrinter::PrintObjectProperties(
-    ZonePtrList<ObjectLiteral::Property>* properties) {
+    const ZonePtrList<ObjectLiteral::Property>* properties) {
   for (int i = 0; i < properties->length(); i++) {
     ObjectLiteral::Property* property = properties->at(i);
     const char* prop_kind = nullptr;

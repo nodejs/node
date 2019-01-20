@@ -274,7 +274,7 @@ try {
 function __f_16() {
     var __v_1 = new WasmModuleBuilder();
     __v_1.addFunction("grow_memory", kSig_i_i)
-        .addBody([kExprGetLocal, 0, kExprGrowMemory])
+        .addBody([kExprGetLocal, 0, kExprMemoryGrow])
         .exportFunc();
     __v_1.addFunction("load", kSig_i_i)
         .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])

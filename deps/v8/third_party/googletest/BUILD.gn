@@ -93,7 +93,10 @@ source_set("gtest") {
   deps = []
 
   if (is_fuchsia) {
-    deps += [ "//third_party/fuchsia-sdk:fdio" ]
+    deps += [
+      "//third_party/fuchsia-sdk/sdk:fdio",
+      "//third_party/fuchsia-sdk/sdk:zx",
+    ]
   }
 }
 

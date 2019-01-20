@@ -7,16 +7,21 @@
 
 #include "src/arm64/constants-arm64.h"
 #include "src/arm64/utils-arm64.h"
-#include "src/assembler.h"
 #include "src/globals.h"
 #include "src/utils.h"
 
 namespace v8 {
 namespace internal {
 
+struct AssemblerOptions;
+
 // ISA constants. --------------------------------------------------------------
 
 typedef uint32_t Instr;
+
+#if defined(V8_OS_WIN)
+extern "C" {
+#endif
 
 extern const float16 kFP16PositiveInfinity;
 extern const float16 kFP16NegativeInfinity;
@@ -38,6 +43,10 @@ extern const float kFP32QuietNaN;
 extern const double kFP64DefaultNaN;
 extern const float kFP32DefaultNaN;
 extern const float16 kFP16DefaultNaN;
+
+#if defined(V8_OS_WIN)
+}  // end of extern "C"
+#endif
 
 unsigned CalcLSDataSize(LoadStoreOp op);
 unsigned CalcLSPairDataSize(LoadStorePairOp op);

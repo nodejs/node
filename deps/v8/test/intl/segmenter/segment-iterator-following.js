@@ -10,6 +10,11 @@ const iter = segmenter.segment(text);
 
 assertEquals("function", typeof iter.following);
 
+assertThrows(() => iter.following("ABC"), RangeError);
+assertThrows(() => iter.following(null), RangeError);
+assertThrows(() => iter.following(1.4), RangeError);
+assertThrows(() => iter.following(-3), RangeError);
+
 // 1.5.3.2 %SegmentIteratorPrototype%.following( [ from ] )
 // 3.b If from >= iterator.[[SegmentIteratorString]], throw a RangeError exception.
 assertDoesNotThrow(() => iter.following(text.length - 1));

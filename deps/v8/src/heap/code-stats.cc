@@ -18,14 +18,14 @@ void CodeStatistics::RecordCodeAndMetadataStatistics(HeapObject* object,
     // Log the size of external source code.
     Object* source = script->source();
     if (source->IsExternalString()) {
-      ExternalString* external_source_string = ExternalString::cast(source);
+      ExternalString external_source_string = ExternalString::cast(source);
       int size = isolate->external_script_source_size();
       size += external_source_string->ExternalPayloadSize();
       isolate->set_external_script_source_size(size);
     }
   } else if (object->IsAbstractCode()) {
     // Record code+metadata statisitcs.
-    AbstractCode* abstract_code = AbstractCode::cast(object);
+    AbstractCode abstract_code = AbstractCode::cast(object);
     int size = abstract_code->SizeIncludingMetadata();
     if (abstract_code->IsCode()) {
       size += isolate->code_and_metadata_size();
@@ -207,7 +207,7 @@ void CodeStatistics::CollectCodeCommentStatistics(HeapObject* obj,
     return;
   }
 
-  Code* code = Code::cast(obj);
+  Code code = Code::cast(obj);
   RelocIterator it(code);
   int delta = 0;
   Address prev_pc = code->raw_instruction_start();

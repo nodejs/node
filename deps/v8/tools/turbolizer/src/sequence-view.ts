@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {Sequence} from "./source-resolver.js"
-import {isIterable} from "./util.js"
-import {PhaseView} from "./view.js"
-import {TextView} from "./text-view.js"
+import {Sequence} from "../src/source-resolver"
+import {isIterable} from "../src/util"
+import {PhaseView} from "../src/view"
+import {TextView} from "../src/text-view"
 
 export class SequenceView extends TextView implements PhaseView {
   sequence: Sequence;

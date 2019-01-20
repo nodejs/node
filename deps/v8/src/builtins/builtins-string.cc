@@ -109,6 +109,7 @@ BUILTIN(StringFromCodePoint) {
       isolate->factory()->NewRawTwoByteString(
           static_cast<int>(one_byte_buffer.size() + two_byte_buffer.size())));
 
+  DisallowHeapAllocation no_gc;
   CopyChars(result->GetChars(), one_byte_buffer.data(), one_byte_buffer.size());
   CopyChars(result->GetChars() + one_byte_buffer.size(), two_byte_buffer.data(),
             two_byte_buffer.size());
@@ -349,7 +350,7 @@ inline bool ToUpperOverflows(uc32 character) {
 
 template <class Converter>
 V8_WARN_UNUSED_RESULT static Object* ConvertCaseHelper(
-    Isolate* isolate, String* string, SeqString* result, int result_length,
+    Isolate* isolate, String string, SeqString result, int result_length,
     unibrow::Mapping<Converter, 128>* mapping) {
   DisallowHeapAllocation no_gc;
   // We try this twice, once with the assumption that the result is no longer

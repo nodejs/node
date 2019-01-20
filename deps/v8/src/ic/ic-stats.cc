@@ -60,7 +60,7 @@ const char* ICStats::GetOrCacheScriptName(Script* script) {
   }
   Object* script_name_raw = script->name();
   if (script_name_raw->IsString()) {
-    String* script_name = String::cast(script_name_raw);
+    String script_name = String::cast(script_name_raw);
     char* c_script_name =
         script_name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL)
             .release();

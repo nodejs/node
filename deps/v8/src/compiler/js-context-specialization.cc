@@ -135,7 +135,7 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
   Node* context = NodeProperties::GetOuterContext(node, &depth);
 
   base::Optional<ContextRef> maybe_concrete =
-      GetSpecializationContext(js_heap_broker(), context, &depth, outer());
+      GetSpecializationContext(broker(), context, &depth, outer());
   if (!maybe_concrete.has_value()) {
     // We do not have a concrete context object, so we can only partially reduce
     // the load by folding-in the outer context node.
@@ -197,7 +197,7 @@ Reduction JSContextSpecialization::ReduceJSStoreContext(Node* node) {
   Node* context = NodeProperties::GetOuterContext(node, &depth);
 
   base::Optional<ContextRef> maybe_concrete =
-      GetSpecializationContext(js_heap_broker(), context, &depth, outer());
+      GetSpecializationContext(broker(), context, &depth, outer());
   if (!maybe_concrete.has_value()) {
     // We do not have a concrete context object, so we can only partially reduce
     // the load by folding-in the outer context node.

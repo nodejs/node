@@ -63,7 +63,6 @@ TEST(InvalidLab) {
 TEST(UnusedLabImplicitClose) {
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
-  heap->root(RootIndex::kOnePointerFillerMap);
   const int kLabSize = 4 * KB;
   Address base = AllocateLabBackingStore(heap, kLabSize);
   Address limit = base + kLabSize;

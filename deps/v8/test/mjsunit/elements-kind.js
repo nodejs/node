@@ -241,12 +241,17 @@ for (var i = 0; i < 3; i++) {
 }
 convert_mixed(construct_smis(), "three", elements_kind.fast);
 convert_mixed(construct_doubles(), "three", elements_kind.fast);
+
+if (%ICsAreEnabled()) {
+  // Test that allocation sites allocate correct elements kind initially based
+  // on previous transitions.
   %OptimizeFunctionOnNextCall(convert_mixed);
-smis = construct_smis();
-doubles = construct_doubles();
-convert_mixed(smis, 1, elements_kind.fast);
-convert_mixed(doubles, 1, elements_kind.fast);
-assertTrue(%HaveSameMap(smis, doubles));
+  smis = construct_smis();
+  doubles = construct_doubles();
+  convert_mixed(smis, 1, elements_kind.fast);
+  convert_mixed(doubles, 1, elements_kind.fast);
+  assertTrue(%HaveSameMap(smis, doubles));
+}
 
 // Crankshaft support for smi-only elements in dynamic array literals.
 function get(foo) { return foo; }  // Used to generate dynamic values.

@@ -8,6 +8,7 @@
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/name-inl.h"
+#include "src/objects/smi.h"
 #include "src/ostreams.h"
 
 namespace v8 {
@@ -23,7 +24,7 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
-Descriptor::Descriptor() : details_(Smi::kZero) {}
+Descriptor::Descriptor() : details_(Smi::zero()) {}
 
 Descriptor::Descriptor(Handle<Name> key, const MaybeObjectHandle& value,
                        PropertyKind kind, PropertyAttributes attributes,

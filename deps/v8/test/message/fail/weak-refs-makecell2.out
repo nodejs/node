@@ -1,0 +1,6 @@
+*%(basename)s:9: TypeError: WeakFactory.prototype.makeCell: target and holdings must not be same
+wf.makeCell(o, o);
+   ^
+TypeError: WeakFactory.prototype.makeCell: target and holdings must not be same
+    at WeakFactory.makeCell (<anonymous>)
+    at *%(basename)s:9:4

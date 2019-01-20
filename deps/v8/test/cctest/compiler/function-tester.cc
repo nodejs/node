@@ -142,6 +142,9 @@ Handle<JSFunction> FunctionTester::ForMachineGraph(Graph* graph,
 
 Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+  CHECK(function->is_compiled() ||
+        Compiler::Compile(function, Compiler::CLEAR_EXCEPTION));
+
   Zone zone(isolate->allocator(), ZONE_NAME);
   OptimizedCompilationInfo info(&zone, isolate, shared, function);
 
@@ -149,14 +152,12 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
     info.MarkAsInliningEnabled();
   }
 
-  CHECK(function->is_compiled() ||
-        Compiler::Compile(function, Compiler::CLEAR_EXCEPTION));
   CHECK(info.shared_info()->HasBytecodeArray());
   JSFunction::EnsureFeedbackVector(function);
 
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, isolate).ToHandleChecked();
-  info.context()->native_context()->AddOptimizedCode(*code);
+  info.native_context()->AddOptimizedCode(*code);
   function->set_code(*code);
   return function;
 }

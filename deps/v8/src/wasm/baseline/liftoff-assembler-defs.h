@@ -15,23 +15,19 @@ namespace wasm {
 #if V8_TARGET_ARCH_IA32
 
 constexpr RegList kLiftoffAssemblerGpCacheRegs =
-    Register::ListOf<eax, ecx, edx, ebx, esi, edi>();
+    Register::ListOf<eax, ecx, edx, esi, edi>();
 
 // Omit xmm7, which is the kScratchDoubleReg.
 constexpr RegList kLiftoffAssemblerFpCacheRegs =
     DoubleRegister::ListOf<xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6>();
 
-constexpr Register kNoParamRegister = edi;
-
 #elif V8_TARGET_ARCH_X64
 
 constexpr RegList kLiftoffAssemblerGpCacheRegs =
-    Register::ListOf<rax, rcx, rdx, rbx, rsi, rdi>();
+    Register::ListOf<rax, rcx, rdx, rbx, rsi, rdi, r9>();
 
 constexpr RegList kLiftoffAssemblerFpCacheRegs =
     DoubleRegister::ListOf<xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7>();
-
-constexpr Register kNoParamRegister = r8;
 
 #elif V8_TARGET_ARCH_MIPS
 
@@ -42,8 +38,6 @@ constexpr RegList kLiftoffAssemblerFpCacheRegs =
     DoubleRegister::ListOf<f0, f2, f4, f6, f8, f10, f12, f14, f16, f18, f20,
                            f22, f24>();
 
-constexpr Register kNoParamRegister = t0;
-
 #elif V8_TARGET_ARCH_MIPS64
 
 constexpr RegList kLiftoffAssemblerGpCacheRegs =
@@ -53,7 +47,16 @@ constexpr RegList kLiftoffAssemblerFpCacheRegs =
     DoubleRegister::ListOf<f0, f2, f4, f6, f8, f10, f12, f14, f16, f18, f20,
                            f22, f24, f26>();
 
-constexpr Register kNoParamRegister = t0;
+#elif V8_TARGET_ARCH_ARM
+
+// r7: cp, r10: root, r11: fp, r12: ip, r13: sp, r14: lr, r15: pc.
+constexpr RegList kLiftoffAssemblerGpCacheRegs =
+    Register::ListOf<r0, r1, r2, r3, r4, r5, r6, r8, r9>();
+
+// d13: zero, d14-d15: scratch
+constexpr RegList kLiftoffAssemblerFpCacheRegs =
+    LowDwVfpRegister::ListOf<d0, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11,
+                             d12>();
 
 #elif V8_TARGET_ARCH_ARM64
 
@@ -69,17 +72,11 @@ constexpr RegList kLiftoffAssemblerFpCacheRegs =
                         d13, d14, d16, d17, d18, d19, d20, d21, d22, d23, d24,
                         d25, d26, d27, d28, d29>();
 
-constexpr Register kNoParamRegister = x28;
-
 #else
 
 constexpr RegList kLiftoffAssemblerGpCacheRegs = 0xff;
 
 constexpr RegList kLiftoffAssemblerFpCacheRegs = 0xff;
-
-// This should be an allocatable, general purpose register
-// that is not used for parameters, see {wasm-linkage.cc}.
-constexpr Register kNoParamRegister = Register::no_reg();
 
 #endif
 

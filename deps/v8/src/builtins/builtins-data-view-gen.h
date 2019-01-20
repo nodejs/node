@@ -5,17 +5,17 @@
 #ifndef V8_BUILTINS_BUILTINS_DATA_VIEW_GEN_H_
 #define V8_BUILTINS_BUILTINS_DATA_VIEW_GEN_H_
 
+#include "src/code-stub-assembler.h"
 #include "src/elements-kind.h"
 #include "src/objects/bigint.h"
-#include "torque-generated/builtins-base-from-dsl-gen.h"
 
 namespace v8 {
 namespace internal {
 
-class DataViewBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
+class DataViewBuiltinsAssembler : public CodeStubAssembler {
  public:
   explicit DataViewBuiltinsAssembler(compiler::CodeAssemblerState* state)
-      : BaseBuiltinsFromDSLAssembler(state) {}
+      : CodeStubAssembler(state) {}
 
   TNode<Int32T> LoadUint8(TNode<RawPtrT> data_pointer, TNode<UintPtrT> offset) {
     return UncheckedCast<Int32T>(

@@ -1,0 +1,5 @@
+*%(basename)s:6: RangeError: Maximum call stack size exceeded
+eval(code);
+     ^
+RangeError: Maximum call stack size exceeded
+    at *%(basename)s:6:6

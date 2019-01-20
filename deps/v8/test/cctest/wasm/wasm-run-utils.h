@@ -208,7 +208,7 @@ class TestingModuleBuilder {
     native_module_->SetExecutable(true);
   }
 
-  ModuleEnv CreateModuleEnv();
+  CompilationEnv CreateCompilationEnv();
 
   ExecutionTier execution_tier() const { return execution_tier_; }
 
@@ -239,7 +239,7 @@ class TestingModuleBuilder {
 };
 
 void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
-                       ModuleEnv* module, FunctionSig* sig,
+                       CompilationEnv* module, FunctionSig* sig,
                        compiler::SourcePositionTable* source_position_table,
                        const byte* start, const byte* end);
 
@@ -263,11 +263,7 @@ class WasmFunctionWrapper : private compiler::GraphAndBuilders {
     intptr_t address = static_cast<intptr_t>(code->instruction_start());
     compiler::NodeProperties::ChangeOp(
         inner_code_node_,
-        kPointerSize == 8
-            ? common()->RelocatableInt64Constant(address,
-                                                 RelocInfo::JS_TO_WASM_CALL)
-            : common()->RelocatableInt32Constant(static_cast<int>(address),
-                                                 RelocInfo::JS_TO_WASM_CALL));
+        common()->ExternalConstant(ExternalReference::FromRawAddress(address)));
   }
 
   const compiler::Operator* IntPtrConstant(intptr_t value) {

@@ -20,7 +20,7 @@ function testFunction() {
   var b = obj1.|_|a;
   |_|(async function asyncF() {
     let r = |_|await Promise.|C|resolve(42);
-    |_|return r;
+    |_|return r;|R|
   |R|})|C|();
   |_|return promise;|R|
 }
@@ -148,10 +148,10 @@ asyncF (test.js:17:4)
     #return r;
   })();
 
-asyncF (test.js:18:2)
-    return r;
-  #})();
-  return promise;
+asyncF (test.js:17:13)
+    let r = await Promise.resolve(42);
+    return r;#
+  })();
 
 
 Running test: testStepIntoAfterBreakpoint

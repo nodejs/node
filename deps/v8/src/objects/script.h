@@ -67,7 +67,7 @@ class Script : public Struct, public NeverReadOnlySpaceObject {
   DECL_ACCESSORS(eval_from_shared, SharedFunctionInfo)
 
   // [wrapped_arguments]: for the list of arguments in a wrapped script.
-  DECL_ACCESSORS(wrapped_arguments, FixedArray)
+  DECL_ACCESSORS2(wrapped_arguments, FixedArray)
 
   // Whether the script is implicitly wrapped in a function.
   inline bool is_wrapped() const;
@@ -99,7 +99,7 @@ class Script : public Struct, public NeverReadOnlySpaceObject {
   DECL_ACCESSORS(wasm_module_object, Object)
 
   // [host_defined_options]: Options defined by the embedder.
-  DECL_ACCESSORS(host_defined_options, FixedArray)
+  DECL_ACCESSORS2(host_defined_options, FixedArray)
 
   // [compilation_type]: how the the script was compiled. Encoded in the
   // 'flags' field.

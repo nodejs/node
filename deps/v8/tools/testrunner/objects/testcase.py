@@ -43,15 +43,15 @@ RESOURCES_PATTERN = re.compile(r"//\s+Resources:(.*)")
 # Pattern to auto-detect files to push on Android for statements like:
 # load("path/to/file.js")
 LOAD_PATTERN = re.compile(
-    r"(?:load|readbuffer|read)\((?:'|\")([^'\"]*)(?:'|\")\)")
+    r"(?:load|readbuffer|read)\((?:'|\")([^'\"]+)(?:'|\")\)")
 # Pattern to auto-detect files to push on Android for statements like:
 # import "path/to/file.js"
 MODULE_RESOURCES_PATTERN_1 = re.compile(
-    r"(?:import|export)(?:\(| )(?:'|\")([^'\"]*)(?:'|\")")
+    r"(?:import|export)(?:\(| )(?:'|\")([^'\"]+)(?:'|\")")
 # Pattern to auto-detect files to push on Android for statements like:
 # import foobar from "path/to/file.js"
 MODULE_RESOURCES_PATTERN_2 = re.compile(
-    r"(?:import|export).*from (?:'|\")([^'\"]*)(?:'|\")")
+    r"(?:import|export).*from (?:'|\")([^'\"]+)(?:'|\")")
 
 
 class TestCase(object):
@@ -112,6 +112,10 @@ class TestCase(object):
       self._parse_status_file_outcomes(self._statusfile_outcomes))
 
   def _parse_status_file_outcomes(self, outcomes):
+    # This flag does not affect the test execution or outcome parsing by
+    # default, but subclasses can implement custom logic when it is set.
+    self.fail_phase_only = statusfile.FAIL_PHASE_ONLY in outcomes
+
     if (statusfile.FAIL_SLOPPY in outcomes and
         '--use-strict' not in self.variant_flags):
       return outproc.OUTCOMES_FAIL
@@ -135,7 +139,8 @@ class TestCase(object):
 
   @property
   def do_skip(self):
-    return statusfile.SKIP in self._statusfile_outcomes
+    return (statusfile.SKIP in self._statusfile_outcomes and
+            not self.suite.test_config.run_skipped)
 
   @property
   def is_slow(self):

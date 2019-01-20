@@ -19,7 +19,6 @@ namespace v8 {
 namespace internal {
 
 class Isolate;
-class BuiltinDeserializerAllocator;
 class Callable;
 class UnoptimizedCompilationJob;
 class FunctionLiteral;
@@ -47,28 +46,27 @@ class Interpreter {
   static UnoptimizedCompilationJob* NewCompilationJob(
       ParseInfo* parse_info, FunctionLiteral* literal,
       AccountingAllocator* allocator,
-      ZoneVector<FunctionLiteral*>* eager_inner_literals);
+      std::vector<FunctionLiteral*>* eager_inner_literals);
 
   // If the bytecode handler for |bytecode| and |operand_scale| has not yet
   // been loaded, deserialize it. Then return the handler.
-  Code* GetAndMaybeDeserializeBytecodeHandler(Bytecode bytecode,
-                                              OperandScale operand_scale);
+  Code GetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale);
 
   // Set the bytecode handler for |bytecode| and |operand_scale|.
   void SetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale,
-                          Code* handler);
+                          Code handler);
 
   // GC support.
   void IterateDispatchTable(RootVisitor* v);
 
   // Disassembler support (only useful with ENABLE_DISASSEMBLER defined).
-  const char* LookupNameOfBytecodeHandler(const Code* code);
+  const char* LookupNameOfBytecodeHandler(const Code code);
 
   V8_EXPORT_PRIVATE Local<v8::Object> GetDispatchCountersObject();
 
   void ForEachBytecode(const std::function<void(Bytecode, OperandScale)>& f);
 
-  void InitializeDispatchTable();
+  void Initialize();
 
   bool IsDispatchTableInitialized() const;
 
@@ -80,10 +78,14 @@ class Interpreter {
     return reinterpret_cast<Address>(bytecode_dispatch_counters_table_.get());
   }
 
+  Address address_of_interpreter_entry_trampoline_instruction_start() const {
+    return reinterpret_cast<Address>(
+        &interpreter_entry_trampoline_instruction_start_);
+  }
+
  private:
   friend class SetupInterpreter;
   friend class v8::internal::SetupIsolateDelegate;
-  friend class v8::internal::BuiltinDeserializerAllocator;
 
   uintptr_t GetDispatchCounter(Bytecode from, Bytecode to) const;
 
@@ -98,6 +100,7 @@ class Interpreter {
   Isolate* isolate_;
   Address dispatch_table_[kDispatchTableSize];
   std::unique_ptr<uintptr_t[]> bytecode_dispatch_counters_table_;
+  Address interpreter_entry_trampoline_instruction_start_;
 
   DISALLOW_COPY_AND_ASSIGN(Interpreter);
 };

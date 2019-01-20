@@ -9,6 +9,9 @@
 #ifndef V8_OBJECTS_JS_COLLATOR_H_
 #define V8_OBJECTS_JS_COLLATOR_H_
 
+#include <set>
+#include <string>
+
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects.h"
@@ -36,15 +39,17 @@ class JSCollator : public JSObject {
   static Handle<JSObject> ResolvedOptions(Isolate* isolate,
                                           Handle<JSCollator> collator);
 
+  static std::set<std::string> GetAvailableLocales();
+
   DECL_CAST(JSCollator)
   DECL_PRINTER(JSCollator)
   DECL_VERIFIER(JSCollator)
 
 // Layout description.
-#define JS_COLLATOR_FIELDS(V)          \
-  V(kICUCollatorOffset, kPointerSize)  \
-  V(kBoundCompareOffset, kPointerSize) \
-  /* Total size. */                    \
+#define JS_COLLATOR_FIELDS(V)         \
+  V(kICUCollatorOffset, kTaggedSize)  \
+  V(kBoundCompareOffset, kTaggedSize) \
+  /* Total size. */                   \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_COLLATOR_FIELDS)

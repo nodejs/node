@@ -5,8 +5,8 @@
 #include "src/accessors.h"
 #include "src/arguments-inl.h"
 #include "src/compiler.h"
+#include "src/counters.h"
 #include "src/isolate-inl.h"
-#include "src/messages.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {

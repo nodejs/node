@@ -13,7 +13,6 @@ BOTS = {
   '--linux32': 'v8_linux32_perf_try',
   '--linux64': 'v8_linux64_perf_try',
   '--linux64_atom': 'v8_linux64_atom_perf_try',
-  '--linux64_haswell': 'v8_linux64_haswell_perf_try',
   '--nexus5': 'v8_nexus5_perf_try',
   '--nexus7': 'v8_nexus7_perf_try',
   '--nexus10': 'v8_nexus10_perf_try',
@@ -24,7 +23,9 @@ BOTS = {
 # This list will contain builder names that should be triggered on an internal
 # swarming bucket instead of internal Buildbot master.
 SWARMING_BOTS = [
+  'v8_linux32_perf_try',
   'v8_linux64_perf_try',
+  'v8_linux64_atom_perf_try',
   'v8_pixel2_perf_try',
   'v8_nokia1_perf_try',
 ]
@@ -32,7 +33,7 @@ SWARMING_BOTS = [
 DEFAULT_BOTS = [
   'v8_arm32_perf_try',
   'v8_linux32_perf_try',
-  'v8_linux64_haswell_perf_try',
+  'v8_linux64_perf_try',
   'v8_nexus10_perf_try',
 ]
 
@@ -69,6 +70,9 @@ def _trigger_bots(bucket, bots, options):
   cmd += ['-p \'testfilter=[%s]\'' % ','.join(benchmarks)]
   if options.extra_flags:
     cmd += ['-p \'extra_flags="%s"\'' % options.extra_flags]
+  if options.verbose:
+    cmd.append('-vv')
+    print 'Running %s' % ' '.join(cmd)
   subprocess.check_call(' '.join(cmd), shell=True, cwd=V8_BASE)
 
 def main():
@@ -80,6 +84,8 @@ def main():
                       help='Revision (use full hash!) to use for the try job; '
                            'default: the revision will be determined by the '
                            'try server; see its waterfall for more info')
+  parser.add_argument('-v', '--verbose', action='store_true',
+                      help='Print debug information')
   for option in sorted(BOTS):
     parser.add_argument(
         option, dest='bots', action='append_const', const=BOTS[option],

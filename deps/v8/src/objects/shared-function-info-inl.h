@@ -7,11 +7,13 @@
 
 #include "src/objects/shared-function-info.h"
 
+#include "src/feedback-vector-inl.h"
 #include "src/handles-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/templates.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -20,13 +22,13 @@ namespace v8 {
 namespace internal {
 
 CAST_ACCESSOR(PreParsedScopeData)
-ACCESSORS(PreParsedScopeData, scope_data, PodArray<uint8_t>, kScopeDataOffset)
+ACCESSORS2(PreParsedScopeData, scope_data, PodArray<uint8_t>, kScopeDataOffset)
 INT_ACCESSORS(PreParsedScopeData, length, kLengthOffset)
 
 Object* PreParsedScopeData::child_data(int index) const {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
-  int offset = kChildDataStartOffset + index * kPointerSize;
+  int offset = kChildDataStartOffset + index * kTaggedSize;
   return RELAXED_READ_FIELD(this, offset);
 }
 
@@ -34,36 +36,34 @@ void PreParsedScopeData::set_child_data(int index, Object* value,
                                         WriteBarrierMode mode) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
-  int offset = kChildDataStartOffset + index * kPointerSize;
+  int offset = kChildDataStartOffset + index * kTaggedSize;
   RELAXED_WRITE_FIELD(this, offset, value);
   CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);
 }
 
-Object** PreParsedScopeData::child_data_start() const {
+ObjectSlot PreParsedScopeData::child_data_start() const {
   return HeapObject::RawField(this, kChildDataStartOffset);
 }
 
 void PreParsedScopeData::clear_padding() {
-  // For archs where kIntSize < kPointerSize, there will be padding between the
-  // length field and the start of the child data.
-  if (kUnalignedChildDataStartOffset < kChildDataStartOffset) {
-    memset(reinterpret_cast<void*>(address() + kUnalignedChildDataStartOffset),
-           0, kChildDataStartOffset - kUnalignedChildDataStartOffset);
+  if (FIELD_SIZE(kOptionalPaddingOffset)) {
+    DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
+    memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
+           FIELD_SIZE(kOptionalPaddingOffset));
   }
 }
 
 CAST_ACCESSOR(UncompiledData)
-ACCESSORS(UncompiledData, inferred_name, String, kInferredNameOffset)
+ACCESSORS2(UncompiledData, inferred_name, String, kInferredNameOffset)
 INT32_ACCESSORS(UncompiledData, start_position, kStartPositionOffset)
 INT32_ACCESSORS(UncompiledData, end_position, kEndPositionOffset)
 INT32_ACCESSORS(UncompiledData, function_literal_id, kFunctionLiteralIdOffset)
 
 void UncompiledData::clear_padding() {
-  // For archs where kIntSize < kPointerSize, there will be padding at the end
-  // of the data.
-  if (kUnalignedSize < kSize) {
-    memset(reinterpret_cast<void*>(address() + kUnalignedSize), 0,
-           kSize - kUnalignedSize);
+  if (FIELD_SIZE(kOptionalPaddingOffset)) {
+    DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
+    memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
+           FIELD_SIZE(kOptionalPaddingOffset));
   }
 }
 
@@ -74,9 +74,9 @@ ACCESSORS(UncompiledDataWithPreParsedScope, pre_parsed_scope_data,
           PreParsedScopeData, kPreParsedScopeDataOffset)
 
 CAST_ACCESSOR(InterpreterData)
-ACCESSORS(InterpreterData, bytecode_array, BytecodeArray, kBytecodeArrayOffset)
-ACCESSORS(InterpreterData, interpreter_trampoline, Code,
-          kInterpreterTrampolineOffset)
+ACCESSORS2(InterpreterData, bytecode_array, BytecodeArray, kBytecodeArrayOffset)
+ACCESSORS2(InterpreterData, interpreter_trampoline, Code,
+           kInterpreterTrampolineOffset)
 
 CAST_ACCESSOR(SharedFunctionInfo)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
@@ -108,7 +108,7 @@ bool SharedFunctionInfo::HasSharedName() const {
   return value != kNoSharedNameSentinel;
 }
 
-String* SharedFunctionInfo::Name() const {
+String SharedFunctionInfo::Name() const {
   if (!HasSharedName()) return GetReadOnlyRoots().empty_string();
   Object* value = name_or_scope_info();
   if (value->IsScopeInfo()) {
@@ -120,7 +120,7 @@ String* SharedFunctionInfo::Name() const {
   return String::cast(value);
 }
 
-void SharedFunctionInfo::SetName(String* name) {
+void SharedFunctionInfo::SetName(String name) {
   Object* maybe_scope_info = name_or_scope_info();
   if (maybe_scope_info->IsScopeInfo()) {
     ScopeInfo::cast(maybe_scope_info)->SetFunctionName(name);
@@ -132,7 +132,7 @@ void SharedFunctionInfo::SetName(String* name) {
   UpdateFunctionMapIndex();
 }
 
-AbstractCode* SharedFunctionInfo::abstract_code() {
+AbstractCode SharedFunctionInfo::abstract_code() {
   if (HasBytecodeArray()) {
     return AbstractCode::cast(GetBytecodeArray());
   } else {
@@ -163,8 +163,8 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, native,
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_asm_wasm_broken,
                     SharedFunctionInfo::IsAsmWasmBrokenBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
-                    requires_instance_fields_initializer,
-                    SharedFunctionInfo::RequiresInstanceFieldsInitializer)
+                    requires_instance_members_initializer,
+                    SharedFunctionInfo::RequiresInstanceMembersInitializer)
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, name_should_print_as_anonymous,
                     SharedFunctionInfo::NameShouldPrintAsAnonymousBit)
@@ -284,7 +284,7 @@ void SharedFunctionInfo::DontAdaptArguments() {
 
 bool SharedFunctionInfo::IsInterpreted() const { return HasBytecodeArray(); }
 
-ScopeInfo* SharedFunctionInfo::scope_info() const {
+ScopeInfo SharedFunctionInfo::scope_info() const {
   Object* maybe_scope_info = name_or_scope_info();
   if (maybe_scope_info->IsScopeInfo()) {
     return ScopeInfo::cast(maybe_scope_info);
@@ -292,7 +292,7 @@ ScopeInfo* SharedFunctionInfo::scope_info() const {
   return ScopeInfo::Empty(GetIsolate());
 }
 
-void SharedFunctionInfo::set_scope_info(ScopeInfo* scope_info,
+void SharedFunctionInfo::set_scope_info(ScopeInfo scope_info,
                                         WriteBarrierMode mode) {
   // Move the existing name onto the ScopeInfo.
   Object* name = name_or_scope_info();
@@ -305,10 +305,8 @@ void SharedFunctionInfo::set_scope_info(ScopeInfo* scope_info,
   if (HasInferredName() && inferred_name()->length() != 0) {
     scope_info->SetInferredFunctionName(inferred_name());
   }
-  WRITE_FIELD(this, kNameOrScopeInfoOffset,
-              reinterpret_cast<Object*>(scope_info));
-  CONDITIONAL_WRITE_BARRIER(this, kNameOrScopeInfoOffset,
-                            reinterpret_cast<Object*>(scope_info), mode);
+  WRITE_FIELD(this, kNameOrScopeInfoOffset, scope_info);
+  CONDITIONAL_WRITE_BARRIER(this, kNameOrScopeInfoOffset, scope_info, mode);
 }
 
 ACCESSORS(SharedFunctionInfo, raw_outer_scope_info_or_feedback_metadata,
@@ -321,7 +319,7 @@ HeapObject* SharedFunctionInfo::outer_scope_info() const {
 }
 
 bool SharedFunctionInfo::HasOuterScopeInfo() const {
-  ScopeInfo* outer_info = nullptr;
+  ScopeInfo outer_info;
   if (!is_compiled()) {
     if (!outer_scope_info()->IsScopeInfo()) return false;
     outer_info = ScopeInfo::cast(outer_scope_info());
@@ -332,7 +330,7 @@ bool SharedFunctionInfo::HasOuterScopeInfo() const {
   return outer_info->length() > 0;
 }
 
-ScopeInfo* SharedFunctionInfo::GetOuterScopeInfo() const {
+ScopeInfo SharedFunctionInfo::GetOuterScopeInfo() const {
   DCHECK(HasOuterScopeInfo());
   if (!is_compiled()) return ScopeInfo::cast(outer_scope_info());
   return scope_info()->OuterScopeInfo();
@@ -396,7 +394,7 @@ bool SharedFunctionInfo::HasBytecodeArray() const {
          function_data()->IsInterpreterData();
 }
 
-BytecodeArray* SharedFunctionInfo::GetBytecodeArray() const {
+BytecodeArray SharedFunctionInfo::GetBytecodeArray() const {
   DCHECK(HasBytecodeArray());
   if (HasDebugInfo() && GetDebugInfo()->HasInstrumentedBytecodeArray()) {
     return GetDebugInfo()->OriginalBytecodeArray();
@@ -408,7 +406,7 @@ BytecodeArray* SharedFunctionInfo::GetBytecodeArray() const {
   }
 }
 
-BytecodeArray* SharedFunctionInfo::GetDebugBytecodeArray() const {
+BytecodeArray SharedFunctionInfo::GetDebugBytecodeArray() const {
   DCHECK(HasBytecodeArray());
   DCHECK(HasDebugInfo() && GetDebugInfo()->HasInstrumentedBytecodeArray());
   if (function_data()->IsBytecodeArray()) {
@@ -419,7 +417,7 @@ BytecodeArray* SharedFunctionInfo::GetDebugBytecodeArray() const {
   }
 }
 
-void SharedFunctionInfo::SetDebugBytecodeArray(BytecodeArray* bytecode) {
+void SharedFunctionInfo::SetDebugBytecodeArray(BytecodeArray bytecode) {
   DCHECK(HasBytecodeArray());
   if (function_data()->IsBytecodeArray()) {
     set_function_data(bytecode);
@@ -429,13 +427,13 @@ void SharedFunctionInfo::SetDebugBytecodeArray(BytecodeArray* bytecode) {
   }
 }
 
-void SharedFunctionInfo::set_bytecode_array(BytecodeArray* bytecode) {
+void SharedFunctionInfo::set_bytecode_array(BytecodeArray bytecode) {
   DCHECK(function_data() == Smi::FromEnum(Builtins::kCompileLazy) ||
          HasUncompiledData());
   set_function_data(bytecode);
 }
 
-Code* SharedFunctionInfo::InterpreterTrampoline() const {
+Code SharedFunctionInfo::InterpreterTrampoline() const {
   DCHECK(HasInterpreterData());
   return interpreter_data()->interpreter_trampoline();
 }
@@ -456,15 +454,15 @@ void SharedFunctionInfo::set_interpreter_data(
 }
 
 bool SharedFunctionInfo::HasAsmWasmData() const {
-  return function_data()->IsFixedArray();
+  return function_data()->IsAsmWasmData();
 }
 
-FixedArray* SharedFunctionInfo::asm_wasm_data() const {
+AsmWasmData* SharedFunctionInfo::asm_wasm_data() const {
   DCHECK(HasAsmWasmData());
-  return FixedArray::cast(function_data());
+  return AsmWasmData::cast(function_data());
 }
 
-void SharedFunctionInfo::set_asm_wasm_data(FixedArray* data) {
+void SharedFunctionInfo::set_asm_wasm_data(AsmWasmData* data) {
   DCHECK(function_data() == Smi::FromEnum(Builtins::kCompileLazy) ||
          HasUncompiledData() || HasAsmWasmData());
   set_function_data(data);
@@ -483,7 +481,6 @@ int SharedFunctionInfo::builtin_id() const {
 
 void SharedFunctionInfo::set_builtin_id(int builtin_id) {
   DCHECK(Builtins::IsBuiltinId(builtin_id));
-  DCHECK_NE(builtin_id, Builtins::kDeserializeLazy);
   set_function_data(Smi::FromInt(builtin_id), SKIP_WRITE_BARRIER);
 }
 
@@ -611,10 +608,10 @@ bool SharedFunctionInfo::HasInferredName() {
   return HasUncompiledData();
 }
 
-String* SharedFunctionInfo::inferred_name() {
+String SharedFunctionInfo::inferred_name() {
   Object* maybe_scope_info = name_or_scope_info();
   if (maybe_scope_info->IsScopeInfo()) {
-    ScopeInfo* scope_info = ScopeInfo::cast(maybe_scope_info);
+    ScopeInfo scope_info = ScopeInfo::cast(maybe_scope_info);
     if (scope_info->HasInferredFunctionName()) {
       Object* name = ScopeInfo::cast(maybe_scope_info)->InferredFunctionName();
       if (name->IsString()) return String::cast(name);

@@ -14,6 +14,7 @@
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/isolate.h"
+#include "src/macro-assembler.h"
 #include "src/objects/api-callbacks.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
@@ -37,7 +38,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
   {
     NoRootArrayScope no_root_array(masm);
-    ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
 // saving floating point registers
 #if V8_TARGET_ARCH_S390X
@@ -239,130 +239,6 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm, Register target) {
 #endif
 
   __ call(GetCode(), RelocInfo::CODE_TARGET);  // Call the stub.
-}
-
-void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,
-                                                     Zone* zone) {
-  if (tasm->isolate()->function_entry_hook() != nullptr) {
-    PredictableCodeSizeScope predictable(tasm,
-#if V8_TARGET_ARCH_S390X
-                                         40);
-#elif V8_HOST_ARCH_S390
-                                         36);
-#else
-                                         32);
-#endif
-    tasm->CleanseP(r14);
-    tasm->Push(r14, ip);
-    tasm->CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
-    tasm->Pop(r14, ip);
-  }
-}
-
-void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
-  if (masm->isolate()->function_entry_hook() != nullptr) {
-    PredictableCodeSizeScope predictable(masm,
-#if V8_TARGET_ARCH_S390X
-                                         40);
-#elif V8_HOST_ARCH_S390
-                                         36);
-#else
-                                         32);
-#endif
-    ProfileEntryHookStub stub(masm->isolate());
-    __ CleanseP(r14);
-    __ Push(r14, ip);
-    __ CallStub(&stub);  // BRASL
-    __ Pop(r14, ip);
-  }
-}
-
-void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
-// The entry hook is a "push lr" instruction (LAY+ST/STG), followed by a call.
-#if V8_TARGET_ARCH_S390X
-  const int32_t kReturnAddressDistanceFromFunctionStart =
-      Assembler::kCallTargetAddressOffset + 18;  // LAY + STG * 2
-#elif V8_HOST_ARCH_S390
-  const int32_t kReturnAddressDistanceFromFunctionStart =
-      Assembler::kCallTargetAddressOffset + 18;  // NILH + LAY + ST * 2
-#else
-  const int32_t kReturnAddressDistanceFromFunctionStart =
-      Assembler::kCallTargetAddressOffset + 14;  // LAY + ST * 2
-#endif
-
-  // This should contain all kJSCallerSaved registers.
-  const RegList kSavedRegs = kJSCallerSaved |  // Caller saved registers.
-                             r7.bit();         // Saved stack pointer.
-
-  // We also save r14+ip, so count here is one higher than the mask indicates.
-  const int32_t kNumSavedRegs = kNumJSCallerSaved + 3;
-
-  // Save all caller-save registers as this may be called from anywhere.
-  __ CleanseP(r14);
-  __ LoadRR(ip, r14);
-  __ MultiPush(kSavedRegs | ip.bit());
-
-  // Compute the function's address for the first argument.
-
-  __ SubP(r2, ip, Operand(kReturnAddressDistanceFromFunctionStart));
-
-  // The caller's return address is two slots above the saved temporaries.
-  // Grab that for the second argument to the hook.
-  __ lay(r3, MemOperand(sp, kNumSavedRegs * kPointerSize));
-
-  // Align the stack if necessary.
-  int frame_alignment = masm->ActivationFrameAlignment();
-  if (frame_alignment > kPointerSize) {
-    __ LoadRR(r7, sp);
-    DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
-    __ ClearRightImm(sp, sp, Operand(WhichPowerOf2(frame_alignment)));
-  }
-
-#if !defined(USE_SIMULATOR)
-  uintptr_t entry_hook =
-      reinterpret_cast<uintptr_t>(isolate()->function_entry_hook());
-  __ mov(ip, Operand(entry_hook));
-
-#if ABI_USES_FUNCTION_DESCRIPTORS
-  // Function descriptor
-  __ LoadP(ToRegister(ABI_TOC_REGISTER), MemOperand(ip, kPointerSize));
-  __ LoadP(ip, MemOperand(ip, 0));
-// ip already set.
-#endif
-#endif
-
-  // zLinux ABI requires caller's frame to have sufficient space for callee
-  // preserved regsiter save area.
-  __ LoadImmP(r0, Operand::Zero());
-  __ lay(sp, MemOperand(sp, -kCalleeRegisterSaveAreaSize -
-                                kNumRequiredStackFrameSlots * kPointerSize));
-  __ StoreP(r0, MemOperand(sp));
-#if defined(USE_SIMULATOR)
-  // Under the simulator we need to indirect the entry hook through a
-  // trampoline function at a known address.
-  // It additionally takes an isolate as a third parameter
-  __ mov(r4, Operand(ExternalReference::isolate_address(isolate())));
-
-  ApiFunction dispatcher(FUNCTION_ADDR(EntryHookTrampoline));
-  __ mov(ip, Operand(ExternalReference::Create(
-                 &dispatcher, ExternalReference::BUILTIN_CALL)));
-#endif
-  __ Call(ip);
-
-  // zLinux ABI requires caller's frame to have sufficient space for callee
-  // preserved regsiter save area.
-  __ la(sp, MemOperand(sp, kCalleeRegisterSaveAreaSize +
-                               kNumRequiredStackFrameSlots * kPointerSize));
-
-  // Restore the stack pointer if needed.
-  if (frame_alignment > kPointerSize) {
-    __ LoadRR(sp, r7);
-  }
-
-  // Also pop lr to get Ret(0).
-  __ MultiPop(kSavedRegs | ip.bit());
-  __ LoadRR(r14, ip);
-  __ Ret();
 }
 
 static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
@@ -613,7 +489,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   __ Push(scratch, scratch);
   __ Move(scratch, ExternalReference::isolate_address(isolate()));
   __ Push(scratch, holder);
-  __ Push(Smi::kZero);  // should_throw_on_error -> false
+  __ Push(Smi::zero());  // should_throw_on_error -> false
   __ LoadP(scratch, FieldMemOperand(callback, AccessorInfo::kNameOffset));
   __ push(scratch);
 

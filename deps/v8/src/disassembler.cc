@@ -15,9 +15,10 @@
 #include "src/deoptimizer.h"
 #include "src/disasm.h"
 #include "src/ic/ic.h"
-#include "src/instruction-stream.h"
+#include "src/isolate-data.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/string-stream.h"
 #include "src/wasm/wasm-code-manager.h"
@@ -55,18 +56,17 @@ class V8NameConverter: public disasm::NameConverter {
 
 void V8NameConverter::InitExternalRefsCache() const {
   ExternalReferenceTable* external_reference_table =
-      isolate_->heap()->external_reference_table();
+      isolate_->external_reference_table();
   if (!external_reference_table->is_initialized()) return;
 
   base::AddressRegion addressable_region =
       isolate_->root_register_addressable_region();
-  Address roots_start =
-      reinterpret_cast<Address>(isolate_->heap()->roots_array_start());
+  Address isolate_root = isolate_->isolate_root();
 
   for (uint32_t i = 0; i < external_reference_table->size(); i++) {
     Address address = external_reference_table->address(i);
     if (addressable_region.contains(address)) {
-      int offset = static_cast<int>(address - roots_start);
+      int offset = static_cast<int>(address - isolate_root);
       const char* name = external_reference_table->name(i);
       directly_accessed_external_refs_.insert({offset, name});
     }
@@ -116,16 +116,15 @@ const char* V8NameConverter::NameInCode(byte* addr) const {
 const char* V8NameConverter::RootRelativeName(int offset) const {
   if (isolate_ == nullptr) return nullptr;
 
-  const int kRootsStart = 0;
-  const int kRootsEnd = Heap::roots_to_external_reference_table_offset();
-  const int kExtRefsStart = kRootsEnd;
-  const int kExtRefsEnd = Heap::roots_to_builtins_offset();
-  const int kBuiltinsStart = kExtRefsEnd;
-  const int kBuiltinsEnd =
-      kBuiltinsStart + Builtins::builtin_count * kPointerSize;
+  const int kRootsTableStart = IsolateData::roots_table_offset();
+  const unsigned kRootsTableSize = sizeof(RootsTable);
+  const int kExtRefsTableStart = IsolateData::external_reference_table_offset();
+  const unsigned kExtRefsTableSize = ExternalReferenceTable::SizeInBytes();
+  const int kBuiltinsTableStart = IsolateData::builtins_table_offset();
+  const unsigned kBuiltinsTableSize = Builtins::builtin_count * kPointerSize;
 
-  if (kRootsStart <= offset && offset < kRootsEnd) {
-    uint32_t offset_in_roots_table = offset - kRootsStart;
+  if (static_cast<unsigned>(offset - kRootsTableStart) < kRootsTableSize) {
+    uint32_t offset_in_roots_table = offset - kRootsTableStart;
 
     // Fail safe in the unlikely case of an arbitrary root-relative offset.
     if (offset_in_roots_table % kPointerSize != 0) return nullptr;
@@ -133,16 +132,12 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
     RootIndex root_index =
         static_cast<RootIndex>(offset_in_roots_table / kPointerSize);
 
-    HeapStringAllocator allocator;
-    StringStream accumulator(&allocator);
-    isolate_->heap()->root(root_index)->ShortPrint(&accumulator);
-    std::unique_ptr<char[]> obj_name = accumulator.ToCString();
-
-    SNPrintF(v8_buffer_, "root (%s)", obj_name.get());
+    SNPrintF(v8_buffer_, "root (%s)", RootsTable::name(root_index));
     return v8_buffer_.start();
 
-  } else if (kExtRefsStart <= offset && offset < kExtRefsEnd) {
-    uint32_t offset_in_extref_table = offset - kExtRefsStart;
+  } else if (static_cast<unsigned>(offset - kExtRefsTableStart) <
+             kExtRefsTableSize) {
+    uint32_t offset_in_extref_table = offset - kExtRefsTableStart;
 
     // Fail safe in the unlikely case of an arbitrary root-relative offset.
     if (offset_in_extref_table % ExternalReferenceTable::EntrySize() != 0) {
@@ -150,17 +145,18 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
     }
 
     // Likewise if the external reference table is uninitialized.
-    if (!isolate_->heap()->external_reference_table()->is_initialized()) {
+    if (!isolate_->external_reference_table()->is_initialized()) {
       return nullptr;
     }
 
     SNPrintF(v8_buffer_, "external reference (%s)",
-             isolate_->heap()->external_reference_table()->NameFromOffset(
+             isolate_->external_reference_table()->NameFromOffset(
                  offset_in_extref_table));
     return v8_buffer_.start();
 
-  } else if (kBuiltinsStart <= offset && offset < kBuiltinsEnd) {
-    uint32_t offset_in_builtins_table = (offset - kBuiltinsStart);
+  } else if (static_cast<unsigned>(offset - kBuiltinsTableStart) <
+             kBuiltinsTableSize) {
+    uint32_t offset_in_builtins_table = (offset - kBuiltinsTableStart);
 
     Builtins::Name builtin_id =
         static_cast<Builtins::Name>(offset_in_builtins_table / kPointerSize);
@@ -235,7 +231,7 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
     out->AddFormatted("    ;; external reference (%s)", reference_name);
   } else if (RelocInfo::IsCodeTargetMode(rmode)) {
     out->AddFormatted("    ;; code:");
-    Code* code = isolate->heap()->GcSafeFindCodeForInnerPointer(
+    Code code = isolate->heap()->GcSafeFindCodeForInnerPointer(
         relocinfo->target_address());
     Code::Kind kind = code->kind();
     if (kind == Code::STUB) {
@@ -368,7 +364,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
       const CodeReference& host = code;
       Address constant_pool =
           host.is_null() ? kNullAddress : host.constant_pool();
-      RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], nullptr, constant_pool);
+      RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], Code(), constant_pool);
 
       bool first_reloc_info = (i == 0);
       PrintRelocInfo(&out, isolate, ref_encoder, os, code, &relocinfo,
@@ -380,7 +376,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
     // the constant pool.
     if (pcs.empty() && !code.is_null()) {
       RelocInfo dummy_rinfo(reinterpret_cast<Address>(prev_pc), RelocInfo::NONE,
-                            0, nullptr);
+                            0, Code());
       if (dummy_rinfo.IsInConstantPool()) {
         Address constant_pool_entry_address =
             dummy_rinfo.constant_pool_entry_address();

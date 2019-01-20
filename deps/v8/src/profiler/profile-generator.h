@@ -412,7 +412,7 @@ class CpuProfilesCollection {
   std::vector<std::unique_ptr<CpuProfile>>* profiles() {
     return &finished_profiles_;
   }
-  const char* GetName(Name* name) { return resource_names_.GetName(name); }
+  const char* GetName(Name name) { return resource_names_.GetName(name); }
   bool IsLastProfile(const char* title);
   void RemoveProfile(CpuProfile* profile);
 

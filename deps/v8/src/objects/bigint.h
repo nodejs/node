@@ -24,7 +24,13 @@ class ValueSerializer;
 class BigIntBase : public HeapObject {
  public:
   inline int length() const {
-    intptr_t bitfield = READ_INTPTR_FIELD(this, kBitfieldOffset);
+    intptr_t bitfield = RELAXED_READ_INTPTR_FIELD(this, kBitfieldOffset);
+    return LengthBits::decode(static_cast<uint32_t>(bitfield));
+  }
+
+  // For use by the GC.
+  inline int synchronized_length() const {
+    intptr_t bitfield = ACQUIRE_READ_INTPTR_FIELD(this, kBitfieldOffset);
     return LengthBits::decode(static_cast<uint32_t>(bitfield));
   }
 
@@ -32,6 +38,8 @@ class BigIntBase : public HeapObject {
   static const int kMaxLengthBits = kMaxInt - kPointerSize * kBitsPerByte - 1;
   static const int kMaxLength = kMaxLengthBits / (kPointerSize * kBitsPerByte);
 
+  // Sign and length are stored in the same bitfield.  Since the GC needs to be
+  // able to read the length concurrently, the getters and setters are atomic.
   static const int kLengthFieldBits = 30;
   STATIC_ASSERT(kMaxLength <= ((1 << kLengthFieldBits) - 1));
   class SignBits : public BitField<bool, 0, 1> {};
@@ -57,7 +65,7 @@ class BigIntBase : public HeapObject {
 
   // sign() == true means negative.
   inline bool sign() const {
-    intptr_t bitfield = READ_INTPTR_FIELD(this, kBitfieldOffset);
+    intptr_t bitfield = RELAXED_READ_INTPTR_FIELD(this, kBitfieldOffset);
     return SignBits::decode(static_cast<uint32_t>(bitfield));
   }
 

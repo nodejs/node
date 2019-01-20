@@ -6,7 +6,6 @@
 #define V8_REGEXP_JSREGEXP_H_
 
 #include "src/allocation.h"
-#include "src/assembler.h"
 #include "src/isolate.h"
 #include "src/objects/js-regexp.h"
 #include "src/regexp/regexp-ast.h"
@@ -169,14 +168,14 @@ class RegExpImpl {
   };
 
   // For acting on the JSRegExp data FixedArray.
-  static int IrregexpMaxRegisterCount(FixedArray* re);
-  static void SetIrregexpMaxRegisterCount(FixedArray* re, int value);
-  static void SetIrregexpCaptureNameMap(FixedArray* re,
+  static int IrregexpMaxRegisterCount(FixedArray re);
+  static void SetIrregexpMaxRegisterCount(FixedArray re, int value);
+  static void SetIrregexpCaptureNameMap(FixedArray re,
                                         Handle<FixedArray> value);
-  static int IrregexpNumberOfCaptures(FixedArray* re);
-  static int IrregexpNumberOfRegisters(FixedArray* re);
-  static ByteArray* IrregexpByteCode(FixedArray* re, bool is_one_byte);
-  static Code* IrregexpNativeCode(FixedArray* re, bool is_one_byte);
+  static int IrregexpNumberOfCaptures(FixedArray re);
+  static int IrregexpNumberOfRegisters(FixedArray re);
+  static ByteArray IrregexpByteCode(FixedArray re, bool is_one_byte);
+  static Code IrregexpNativeCode(FixedArray re, bool is_one_byte);
 
   // Limit the space regexps take up on the heap.  In order to limit this we
   // would like to keep track of the amount of regexp code on the heap.  This
@@ -1505,15 +1504,12 @@ struct RegExpCompileData {
 class RegExpEngine: public AllStatic {
  public:
   struct CompilationResult {
-    CompilationResult(Isolate* isolate, const char* error_message)
-        : error_message(error_message),
-          code(ReadOnlyRoots(isolate).the_hole_value()),
-          num_registers(0) {}
+    inline CompilationResult(Isolate* isolate, const char* error_message);
     CompilationResult(Object* code, int registers)
-        : error_message(nullptr), code(code), num_registers(registers) {}
-    const char* error_message;
-    Object* code;
-    int num_registers;
+        : code(code), num_registers(registers) {}
+    const char* const error_message = nullptr;
+    Object* const code;
+    int const num_registers = 0;
   };
 
   static CompilationResult Compile(Isolate* isolate, Zone* zone,
@@ -1535,14 +1531,14 @@ class RegExpResultsCache : public AllStatic {
 
   // Attempt to retrieve a cached result.  On failure, 0 is returned as a Smi.
   // On success, the returned result is guaranteed to be a COW-array.
-  static Object* Lookup(Heap* heap, String* key_string, Object* key_pattern,
-                        FixedArray** last_match_out, ResultsCacheType type);
+  static Object* Lookup(Heap* heap, String key_string, Object* key_pattern,
+                        FixedArray* last_match_out, ResultsCacheType type);
   // Attempt to add value_array to the cache specified by type.  On success,
   // value_array is turned into a COW-array.
   static void Enter(Isolate* isolate, Handle<String> key_string,
                     Handle<Object> key_pattern, Handle<FixedArray> value_array,
                     Handle<FixedArray> last_match_cache, ResultsCacheType type);
-  static void Clear(FixedArray* cache);
+  static void Clear(FixedArray cache);
   static const int kRegExpResultsCacheSize = 0x100;
 
  private:

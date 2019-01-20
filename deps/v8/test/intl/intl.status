@@ -29,13 +29,6 @@
 [ALWAYS, {
   # TODO(jochen): The following test is flaky.
   'overrides/caching': [PASS, FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6891
-  'segmenter/segment': [FAIL],
-  'segmenter/segment-iterator': [FAIL],
-  'segmenter/segment-iterator-following': [FAIL],
-  'segmenter/segment-iterator-next': [FAIL],
-  'segmenter/segment-iterator-preceding': [FAIL],
 }],  # ALWAYS
 
 ['variant == no_wasm_traps', {

@@ -44,7 +44,7 @@
   V(GLOBAL_ELEMENTS_TYPE)                        \
   V(GLOBAL_PROPERTIES_TYPE)                      \
   V(JS_ARRAY_BOILERPLATE_TYPE)                   \
-  V(JS_COLLETION_TABLE_TYPE)                     \
+  V(JS_COLLECTION_TABLE_TYPE)                    \
   V(JS_OBJECT_BOILERPLATE_TYPE)                  \
   V(NOSCRIPT_SHARED_FUNCTION_INFOS_TYPE)         \
   V(NUMBER_STRING_CACHE_TYPE)                    \

@@ -30,25 +30,26 @@
 
 #include "src/inspector/injected-script.h"
 
-#include "src/inspector/injected-script-source.h"
+#include <cmath>
+#include <unordered_set>
+
+#include "src/inspector/custom-preview.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Protocol.h"
 #include "src/inspector/remote-object-id.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-console.h"
-#include "src/inspector/v8-function-call.h"
-#include "src/inspector/v8-injected-script-host.h"
 #include "src/inspector/v8-inspector-impl.h"
 #include "src/inspector/v8-inspector-session-impl.h"
 #include "src/inspector/v8-stack-trace-impl.h"
 #include "src/inspector/v8-value-utils.h"
+#include "src/inspector/value-mirror.h"
 
 #include "include/v8-inspector.h"
 
 namespace v8_inspector {
 
 namespace {
-static const char privateKeyName[] = "v8-inspector#injectedScript";
 static const char kGlobalHandleLabel[] = "DevTools console";
 static bool isResolvableNumberLike(String16 query) {
   return query == "Infinity" || query == "-Infinity" || query == "NaN";
@@ -66,8 +67,7 @@ class InjectedScript::ProtocolPromiseHandler {
   static bool add(V8InspectorSessionImpl* session,
                   v8::Local<v8::Context> context, v8::Local<v8::Value> value,
                   int executionContextId, const String16& objectGroup,
-                  bool returnByValue, bool generatePreview,
-                  EvaluateCallback* callback) {
+                  WrapMode wrapMode, EvaluateCallback* callback) {
     v8::Local<v8::Promise::Resolver> resolver;
     if (!v8::Promise::Resolver::New(context).ToLocal(&resolver)) {
       callback->sendFailure(Response::InternalError());
@@ -80,9 +80,8 @@ class InjectedScript::ProtocolPromiseHandler {
 
     v8::Local<v8::Promise> promise = resolver->GetPromise();
     V8InspectorImpl* inspector = session->inspector();
-    ProtocolPromiseHandler* handler =
-        new ProtocolPromiseHandler(session, executionContextId, objectGroup,
-                                   returnByValue, generatePreview, callback);
+    ProtocolPromiseHandler* handler = new ProtocolPromiseHandler(
+        session, executionContextId, objectGroup, wrapMode, callback);
     v8::Local<v8::Value> wrapper = handler->m_wrapper.Get(inspector->isolate());
     v8::Local<v8::Function> thenCallbackFunction =
         v8::Function::New(context, thenCallback, wrapper, 0,
@@ -130,15 +129,13 @@ class InjectedScript::ProtocolPromiseHandler {
 
   ProtocolPromiseHandler(V8InspectorSessionImpl* session,
                          int executionContextId, const String16& objectGroup,
-                         bool returnByValue, bool generatePreview,
-                         EvaluateCallback* callback)
+                         WrapMode wrapMode, EvaluateCallback* callback)
       : m_inspector(session->inspector()),
         m_sessionId(session->sessionId()),
         m_contextGroupId(session->contextGroupId()),
         m_executionContextId(executionContextId),
         m_objectGroup(objectGroup),
-        m_returnByValue(returnByValue),
-        m_generatePreview(generatePreview),
+        m_wrapMode(wrapMode),
         m_callback(std::move(callback)),
         m_wrapper(m_inspector->isolate(),
                   v8::External::New(m_inspector->isolate(), this)) {
@@ -170,9 +167,8 @@ class InjectedScript::ProtocolPromiseHandler {
         scope.injectedScript()->takeEvaluateCallback(m_callback);
     if (!callback) return;
     std::unique_ptr<protocol::Runtime::RemoteObject> wrappedValue;
-    response = scope.injectedScript()->wrapObject(
-        result, m_objectGroup, m_returnByValue, m_generatePreview,
-        &wrappedValue);
+    response = scope.injectedScript()->wrapObject(result, m_objectGroup,
+                                                  m_wrapMode, &wrappedValue);
     if (!response.isSuccess()) {
       callback->sendFailure(response);
       return;
@@ -192,9 +188,8 @@ class InjectedScript::ProtocolPromiseHandler {
         scope.injectedScript()->takeEvaluateCallback(m_callback);
     if (!callback) return;
     std::unique_ptr<protocol::Runtime::RemoteObject> wrappedValue;
-    response = scope.injectedScript()->wrapObject(
-        result, m_objectGroup, m_returnByValue, m_generatePreview,
-        &wrappedValue);
+    response = scope.injectedScript()->wrapObject(result, m_objectGroup,
+                                                  m_wrapMode, &wrappedValue);
     if (!response.isSuccess()) {
       callback->sendFailure(response);
       return;
@@ -252,116 +247,139 @@ class InjectedScript::ProtocolPromiseHandler {
   int m_contextGroupId;
   int m_executionContextId;
   String16 m_objectGroup;
-  bool m_returnByValue;
-  bool m_generatePreview;
+  WrapMode m_wrapMode;
   EvaluateCallback* m_callback;
   v8::Global<v8::External> m_wrapper;
 };
 
-std::unique_ptr<InjectedScript> InjectedScript::create(
-    InspectedContext* inspectedContext, int sessionId) {
-  v8::Isolate* isolate = inspectedContext->isolate();
-  v8::HandleScope handles(isolate);
-  v8::TryCatch tryCatch(isolate);
-  v8::Local<v8::Context> context = inspectedContext->context();
-  v8::debug::PostponeInterruptsScope postponeInterrupts(isolate);
-  v8::Context::Scope scope(context);
-  v8::MicrotasksScope microtasksScope(isolate,
-                                      v8::MicrotasksScope::kDoNotRunMicrotasks);
-
-  // Inject javascript into the context. The compiled script is supposed to
-  // evaluate into
-  // a single anonymous function(it's anonymous to avoid cluttering the global
-  // object with
-  // inspector's stuff) the function is called a few lines below with
-  // InjectedScriptHost wrapper,
-  // injected script id and explicit reference to the inspected global object.
-  // The function is expected
-  // to create and configure InjectedScript instance that is going to be used by
-  // the inspector.
-  StringView injectedScriptSource(
-      reinterpret_cast<const uint8_t*>(InjectedScriptSource_js),
-      sizeof(InjectedScriptSource_js));
-  v8::Local<v8::Value> value;
-  if (!inspectedContext->inspector()
-           ->compileAndRunInternalScript(
-               context, toV8String(isolate, injectedScriptSource))
-           .ToLocal(&value)) {
-    return nullptr;
-  }
-  DCHECK(value->IsFunction());
-  v8::Local<v8::Object> scriptHostWrapper =
-      V8InjectedScriptHost::create(context, inspectedContext->inspector());
-  v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(value);
-  v8::Local<v8::Object> windowGlobal = context->Global();
-  v8::Local<v8::Value> info[] = {
-      scriptHostWrapper, windowGlobal,
-      v8::Number::New(isolate, inspectedContext->contextId())};
-
-  int contextGroupId = inspectedContext->contextGroupId();
-  int contextId = inspectedContext->contextId();
-  V8InspectorImpl* inspector = inspectedContext->inspector();
-  v8::Local<v8::Value> injectedScriptValue;
-  if (!function->Call(context, windowGlobal, arraysize(info), info)
-           .ToLocal(&injectedScriptValue))
-    return nullptr;
-  if (inspector->getContext(contextGroupId, contextId) != inspectedContext)
-    return nullptr;
-  if (!injectedScriptValue->IsObject()) return nullptr;
-
-  std::unique_ptr<InjectedScript> injectedScript(new InjectedScript(
-      inspectedContext, injectedScriptValue.As<v8::Object>(), sessionId));
-  v8::Local<v8::Private> privateKey = v8::Private::ForApi(
-      isolate, v8::String::NewFromUtf8(isolate, privateKeyName,
-                                       v8::NewStringType::kInternalized)
-                   .ToLocalChecked());
-  scriptHostWrapper->SetPrivate(
-      context, privateKey, v8::External::New(isolate, injectedScript.get()));
-  return injectedScript;
-}
-
-InjectedScript::InjectedScript(InspectedContext* context,
-                               v8::Local<v8::Object> object, int sessionId)
-    : m_context(context),
-      m_value(context->isolate(), object),
-      m_sessionId(sessionId) {}
+InjectedScript::InjectedScript(InspectedContext* context, int sessionId)
+    : m_context(context), m_sessionId(sessionId) {}
 
 InjectedScript::~InjectedScript() { discardEvaluateCallbacks(); }
 
+namespace {
+class PropertyAccumulator : public ValueMirror::PropertyAccumulator {
+ public:
+  explicit PropertyAccumulator(std::vector<PropertyMirror>* mirrors)
+      : m_mirrors(mirrors) {}
+  bool Add(PropertyMirror mirror) override {
+    m_mirrors->push_back(std::move(mirror));
+    return true;
+  }
+
+ private:
+  std::vector<PropertyMirror>* m_mirrors;
+};
+}  // anonymous namespace
+
 Response InjectedScript::getProperties(
     v8::Local<v8::Object> object, const String16& groupName, bool ownProperties,
-    bool accessorPropertiesOnly, bool generatePreview,
+    bool accessorPropertiesOnly, WrapMode wrapMode,
     std::unique_ptr<Array<PropertyDescriptor>>* properties,
     Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails) {
   v8::HandleScope handles(m_context->isolate());
   v8::Local<v8::Context> context = m_context->context();
-  V8FunctionCall function(m_context->inspector(), m_context->context(),
-                          v8Value(), "getProperties");
-  function.appendArgument(object);
-  function.appendArgument(groupName);
-  function.appendArgument(ownProperties);
-  function.appendArgument(accessorPropertiesOnly);
-  function.appendArgument(generatePreview);
+  v8::Isolate* isolate = m_context->isolate();
+  int sessionId = m_sessionId;
+  v8::TryCatch tryCatch(isolate);
 
-  v8::TryCatch tryCatch(m_context->isolate());
-  v8::Local<v8::Value> resultValue = function.callWithoutExceptionHandling();
-  if (tryCatch.HasCaught()) {
-    Response response = createExceptionDetails(
-        tryCatch, groupName, generatePreview, exceptionDetails);
-    if (!response.isSuccess()) return response;
-    // FIXME: make properties optional
-    *properties = Array<PropertyDescriptor>::create();
-    return Response::OK();
+  *properties = Array<PropertyDescriptor>::create();
+  std::vector<PropertyMirror> mirrors;
+  PropertyAccumulator accumulator(&mirrors);
+  if (!ValueMirror::getProperties(context, object, ownProperties,
+                                  accessorPropertiesOnly, &accumulator)) {
+    return createExceptionDetails(tryCatch, groupName, wrapMode,
+                                  exceptionDetails);
   }
-  if (resultValue.IsEmpty()) return Response::InternalError();
-  std::unique_ptr<protocol::Value> protocolValue;
-  Response response = toProtocolValue(context, resultValue, &protocolValue);
-  if (!response.isSuccess()) return response;
-  protocol::ErrorSupport errors;
-  std::unique_ptr<Array<PropertyDescriptor>> result =
-      Array<PropertyDescriptor>::fromValue(protocolValue.get(), &errors);
-  if (errors.hasErrors()) return Response::Error(errors.errors());
-  *properties = std::move(result);
+  for (const PropertyMirror& mirror : mirrors) {
+    std::unique_ptr<PropertyDescriptor> descriptor =
+        PropertyDescriptor::create()
+            .setName(mirror.name)
+            .setConfigurable(mirror.configurable)
+            .setEnumerable(mirror.enumerable)
+            .setIsOwn(mirror.isOwn)
+            .build();
+    Response response;
+    std::unique_ptr<RemoteObject> remoteObject;
+    if (mirror.value) {
+      response = wrapObjectMirror(*mirror.value, groupName, wrapMode,
+                                  v8::MaybeLocal<v8::Value>(),
+                                  kMaxCustomPreviewDepth, &remoteObject);
+      if (!response.isSuccess()) return response;
+      descriptor->setValue(std::move(remoteObject));
+      descriptor->setWritable(mirror.writable);
+    }
+    if (mirror.getter) {
+      response =
+          mirror.getter->buildRemoteObject(context, wrapMode, &remoteObject);
+      if (!response.isSuccess()) return response;
+      response =
+          bindRemoteObjectIfNeeded(sessionId, context, mirror.getter->v8Value(),
+                                   groupName, remoteObject.get());
+      if (!response.isSuccess()) return response;
+      descriptor->setGet(std::move(remoteObject));
+    }
+    if (mirror.setter) {
+      response =
+          mirror.setter->buildRemoteObject(context, wrapMode, &remoteObject);
+      if (!response.isSuccess()) return response;
+      response =
+          bindRemoteObjectIfNeeded(sessionId, context, mirror.setter->v8Value(),
+                                   groupName, remoteObject.get());
+      if (!response.isSuccess()) return response;
+      descriptor->setSet(std::move(remoteObject));
+    }
+    if (mirror.symbol) {
+      response =
+          mirror.symbol->buildRemoteObject(context, wrapMode, &remoteObject);
+      if (!response.isSuccess()) return response;
+      response =
+          bindRemoteObjectIfNeeded(sessionId, context, mirror.symbol->v8Value(),
+                                   groupName, remoteObject.get());
+      if (!response.isSuccess()) return response;
+      descriptor->setSymbol(std::move(remoteObject));
+    }
+    if (mirror.exception) {
+      response =
+          mirror.exception->buildRemoteObject(context, wrapMode, &remoteObject);
+      if (!response.isSuccess()) return response;
+      response = bindRemoteObjectIfNeeded(sessionId, context,
+                                          mirror.exception->v8Value(),
+                                          groupName, remoteObject.get());
+      if (!response.isSuccess()) return response;
+      descriptor->setValue(std::move(remoteObject));
+      descriptor->setWasThrown(true);
+    }
+    (*properties)->addItem(std::move(descriptor));
+  }
+  return Response::OK();
+}
+
+Response InjectedScript::getInternalProperties(
+    v8::Local<v8::Value> value, const String16& groupName,
+    std::unique_ptr<protocol::Array<InternalPropertyDescriptor>>* result) {
+  *result = protocol::Array<InternalPropertyDescriptor>::create();
+  v8::Local<v8::Context> context = m_context->context();
+  int sessionId = m_sessionId;
+  std::vector<InternalPropertyMirror> wrappers;
+  if (value->IsObject()) {
+    ValueMirror::getInternalProperties(m_context->context(),
+                                       value.As<v8::Object>(), &wrappers);
+  }
+  for (size_t i = 0; i < wrappers.size(); ++i) {
+    std::unique_ptr<RemoteObject> remoteObject;
+    Response response = wrappers[i].value->buildRemoteObject(
+        m_context->context(), WrapMode::kNoPreview, &remoteObject);
+    if (!response.isSuccess()) return response;
+    response = bindRemoteObjectIfNeeded(sessionId, context,
+                                        wrappers[i].value->v8Value(), groupName,
+                                        remoteObject.get());
+    if (!response.isSuccess()) return response;
+    (*result)->addItem(InternalPropertyDescriptor::create()
+                           .setName(wrappers[i].name)
+                           .setValue(std::move(remoteObject))
+                           .build());
+  }
   return Response::OK();
 }
 
@@ -378,67 +396,108 @@ void InjectedScript::releaseObject(const String16& objectId) {
 }
 
 Response InjectedScript::wrapObject(
-    v8::Local<v8::Value> value, const String16& groupName, bool forceValueType,
-    bool generatePreview,
-    std::unique_ptr<protocol::Runtime::RemoteObject>* result) const {
-  v8::HandleScope handles(m_context->isolate());
-  v8::Local<v8::Value> wrappedObject;
-  v8::Local<v8::Context> context = m_context->context();
-  Response response = wrapValue(value, groupName, forceValueType,
-                                generatePreview, &wrappedObject);
-  if (!response.isSuccess()) return response;
-  protocol::ErrorSupport errors;
-  std::unique_ptr<protocol::Value> protocolValue;
-  response = toProtocolValue(context, wrappedObject, &protocolValue);
-  if (!response.isSuccess()) return response;
-
-  *result =
-      protocol::Runtime::RemoteObject::fromValue(protocolValue.get(), &errors);
-  if (!result->get()) return Response::Error(errors.errors());
-  return Response::OK();
+    v8::Local<v8::Value> value, const String16& groupName, WrapMode wrapMode,
+    std::unique_ptr<protocol::Runtime::RemoteObject>* result) {
+  return wrapObject(value, groupName, wrapMode, v8::MaybeLocal<v8::Value>(),
+                    kMaxCustomPreviewDepth, result);
 }
 
-Response InjectedScript::wrapValue(v8::Local<v8::Value> value,
-                                   const String16& groupName,
-                                   bool forceValueType, bool generatePreview,
-                                   v8::Local<v8::Value>* result) const {
-  V8FunctionCall function(m_context->inspector(), m_context->context(),
-                          v8Value(), "wrapObject");
-  function.appendArgument(value);
-  function.appendArgument(groupName);
-  function.appendArgument(forceValueType);
-  function.appendArgument(generatePreview);
-  bool hadException = false;
-  *result = function.call(hadException);
-  if (hadException || result->IsEmpty()) return Response::InternalError();
+Response InjectedScript::wrapObject(
+    v8::Local<v8::Value> value, const String16& groupName, WrapMode wrapMode,
+    v8::MaybeLocal<v8::Value> customPreviewConfig, int maxCustomPreviewDepth,
+    std::unique_ptr<protocol::Runtime::RemoteObject>* result) {
+  v8::Local<v8::Context> context = m_context->context();
+  v8::Context::Scope contextScope(context);
+  std::unique_ptr<ValueMirror> mirror = ValueMirror::create(context, value);
+  if (!mirror) return Response::InternalError();
+  return wrapObjectMirror(*mirror, groupName, wrapMode, customPreviewConfig,
+                          maxCustomPreviewDepth, result);
+}
+
+Response InjectedScript::wrapObjectMirror(
+    const ValueMirror& mirror, const String16& groupName, WrapMode wrapMode,
+    v8::MaybeLocal<v8::Value> customPreviewConfig, int maxCustomPreviewDepth,
+    std::unique_ptr<protocol::Runtime::RemoteObject>* result) {
+  int customPreviewEnabled = m_customPreviewEnabled;
+  int sessionId = m_sessionId;
+  v8::Local<v8::Context> context = m_context->context();
+  v8::Context::Scope contextScope(context);
+  Response response = mirror.buildRemoteObject(context, wrapMode, result);
+  if (!response.isSuccess()) return response;
+  v8::Local<v8::Value> value = mirror.v8Value();
+  response = bindRemoteObjectIfNeeded(sessionId, context, value, groupName,
+                                      result->get());
+  if (!response.isSuccess()) return response;
+  if (customPreviewEnabled && value->IsObject()) {
+    std::unique_ptr<protocol::Runtime::CustomPreview> customPreview;
+    generateCustomPreview(sessionId, groupName, context, value.As<v8::Object>(),
+                          customPreviewConfig, maxCustomPreviewDepth,
+                          &customPreview);
+    if (customPreview) (*result)->setCustomPreview(std::move(customPreview));
+  }
   return Response::OK();
 }
 
 std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
-    v8::Local<v8::Value> table, v8::Local<v8::Value> columns) const {
-  v8::HandleScope handles(m_context->isolate());
+    v8::Local<v8::Object> table, v8::MaybeLocal<v8::Array> maybeColumns) {
+  using protocol::Runtime::RemoteObject;
+  using protocol::Runtime::ObjectPreview;
+  using protocol::Runtime::PropertyPreview;
+  using protocol::Array;
+
+  v8::Isolate* isolate = m_context->isolate();
+  v8::HandleScope handles(isolate);
   v8::Local<v8::Context> context = m_context->context();
-  V8FunctionCall function(m_context->inspector(), context, v8Value(),
-                          "wrapTable");
-  function.appendArgument(table);
-  if (columns.IsEmpty())
-    function.appendArgument(false);
-  else
-    function.appendArgument(columns);
-  bool hadException = false;
-  v8::Local<v8::Value> r = function.call(hadException);
-  if (hadException || r.IsEmpty()) return nullptr;
-  std::unique_ptr<protocol::Value> protocolValue;
-  Response response = toProtocolValue(context, r, &protocolValue);
-  if (!response.isSuccess()) return nullptr;
-  protocol::ErrorSupport errors;
-  return protocol::Runtime::RemoteObject::fromValue(protocolValue.get(),
-                                                    &errors);
+
+  std::unique_ptr<RemoteObject> remoteObject;
+  Response response =
+      wrapObject(table, "console", WrapMode::kNoPreview, &remoteObject);
+  if (!remoteObject || !response.isSuccess()) return nullptr;
+
+  auto mirror = ValueMirror::create(context, table);
+  std::unique_ptr<ObjectPreview> preview;
+  int limit = 1000;
+  mirror->buildObjectPreview(context, true /* generatePreviewForTable */,
+                             &limit, &limit, &preview);
+  if (!preview) return nullptr;
+
+  Array<PropertyPreview>* columns = preview->getProperties();
+  std::unordered_set<String16> selectedColumns;
+  v8::Local<v8::Array> v8Columns;
+  if (maybeColumns.ToLocal(&v8Columns)) {
+    for (uint32_t i = 0; i < v8Columns->Length(); ++i) {
+      v8::Local<v8::Value> column;
+      if (v8Columns->Get(context, i).ToLocal(&column) && column->IsString()) {
+        selectedColumns.insert(
+            toProtocolString(isolate, column.As<v8::String>()));
+      }
+    }
+  }
+  if (!selectedColumns.empty()) {
+    for (size_t i = 0; i < columns->length(); ++i) {
+      ObjectPreview* columnPreview = columns->get(i)->getValuePreview(nullptr);
+      if (!columnPreview) continue;
+
+      std::unique_ptr<Array<PropertyPreview>> filtered =
+          Array<PropertyPreview>::create();
+      Array<PropertyPreview>* columns = columnPreview->getProperties();
+      for (size_t j = 0; j < columns->length(); ++j) {
+        PropertyPreview* property = columns->get(j);
+        if (selectedColumns.find(property->getName()) !=
+            selectedColumns.end()) {
+          filtered->addItem(property->clone());
+        }
+      }
+      columnPreview->setProperties(std::move(filtered));
+    }
+  }
+  remoteObject->setPreview(std::move(preview));
+  return remoteObject;
 }
 
 void InjectedScript::addPromiseCallback(
     V8InspectorSessionImpl* session, v8::MaybeLocal<v8::Value> value,
-    const String16& objectGroup, bool returnByValue, bool generatePreview,
+    const String16& objectGroup, WrapMode wrapMode,
     std::unique_ptr<EvaluateCallback> callback) {
   if (value.IsEmpty()) {
     callback->sendFailure(Response::InternalError());
@@ -448,8 +507,7 @@ void InjectedScript::addPromiseCallback(
                                       v8::MicrotasksScope::kRunMicrotasks);
   if (ProtocolPromiseHandler::add(
           session, m_context->context(), value.ToLocalChecked(),
-          m_context->contextId(), objectGroup, returnByValue, generatePreview,
-          callback.get())) {
+          m_context->contextId(), objectGroup, wrapMode, callback.get())) {
     m_evaluateCallbacks.insert(callback.release());
   }
 }
@@ -496,17 +554,7 @@ void InjectedScript::releaseObjectGroup(const String16& objectGroup) {
 }
 
 void InjectedScript::setCustomObjectFormatterEnabled(bool enabled) {
-  v8::HandleScope handles(m_context->isolate());
-  V8FunctionCall function(m_context->inspector(), m_context->context(),
-                          v8Value(), "setCustomObjectFormatterEnabled");
-  function.appendArgument(enabled);
-  bool hadException = false;
-  function.call(hadException);
-  DCHECK(!hadException);
-}
-
-v8::Local<v8::Value> InjectedScript::v8Value() const {
-  return m_value.Get(m_context->isolate());
+  m_customPreviewEnabled = enabled;
 }
 
 v8::Local<v8::Value> InjectedScript::lastEvaluationResult() const {
@@ -560,7 +608,7 @@ Response InjectedScript::resolveCallArgument(
 
 Response InjectedScript::createExceptionDetails(
     const v8::TryCatch& tryCatch, const String16& objectGroup,
-    bool generatePreview, Maybe<protocol::Runtime::ExceptionDetails>* result) {
+    WrapMode wrapMode, Maybe<protocol::Runtime::ExceptionDetails>* result) {
   if (!tryCatch.HasCaught()) return Response::InternalError();
   v8::Local<v8::Message> message = tryCatch.Message();
   v8::Local<v8::Value> exception = tryCatch.Exception();
@@ -596,8 +644,10 @@ Response InjectedScript::createExceptionDetails(
   if (!exception.IsEmpty()) {
     std::unique_ptr<protocol::Runtime::RemoteObject> wrapped;
     Response response =
-        wrapObject(exception, objectGroup, false /* forceValueType */,
-                   generatePreview && !exception->IsNativeError(), &wrapped);
+        wrapObject(exception, objectGroup,
+                   exception->IsNativeError() ? WrapMode::kNoPreview
+                                              : WrapMode::kWithPreview,
+                   &wrapped);
     if (!response.isSuccess()) return response;
     exceptionDetails->setException(std::move(wrapped));
   }
@@ -607,15 +657,14 @@ Response InjectedScript::createExceptionDetails(
 
 Response InjectedScript::wrapEvaluateResult(
     v8::MaybeLocal<v8::Value> maybeResultValue, const v8::TryCatch& tryCatch,
-    const String16& objectGroup, bool returnByValue, bool generatePreview,
+    const String16& objectGroup, WrapMode wrapMode,
     std::unique_ptr<protocol::Runtime::RemoteObject>* result,
     Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails) {
   v8::Local<v8::Value> resultValue;
   if (!tryCatch.HasCaught()) {
     if (!maybeResultValue.ToLocal(&resultValue))
       return Response::InternalError();
-    Response response = wrapObject(resultValue, objectGroup, returnByValue,
-                                   generatePreview, result);
+    Response response = wrapObject(resultValue, objectGroup, wrapMode, result);
     if (!response.isSuccess()) return response;
     if (objectGroup == "console") {
       m_lastEvaluationResult.Reset(m_context->isolate(), resultValue);
@@ -627,12 +676,14 @@ Response InjectedScript::wrapEvaluateResult(
     }
     v8::Local<v8::Value> exception = tryCatch.Exception();
     Response response =
-        wrapObject(exception, objectGroup, false,
-                   generatePreview && !exception->IsNativeError(), result);
+        wrapObject(exception, objectGroup,
+                   exception->IsNativeError() ? WrapMode::kNoPreview
+                                              : WrapMode::kWithPreview,
+                   result);
     if (!response.isSuccess()) return response;
     // We send exception in result for compatibility reasons, even though it's
     // accessible through exceptionDetails.exception.
-    response = createExceptionDetails(tryCatch, objectGroup, generatePreview,
+    response = createExceptionDetails(tryCatch, objectGroup, wrapMode,
                                       exceptionDetails);
     if (!response.isSuccess()) return response;
   }
@@ -781,33 +832,44 @@ Response InjectedScript::CallFrameScope::findInjectedScript(
   return session->findInjectedScript(remoteId.get(), m_injectedScript);
 }
 
-InjectedScript* InjectedScript::fromInjectedScriptHost(
-    v8::Isolate* isolate, v8::Local<v8::Object> injectedScriptObject) {
-  v8::HandleScope handleScope(isolate);
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  v8::Local<v8::Private> privateKey = v8::Private::ForApi(
-      isolate, v8::String::NewFromUtf8(isolate, privateKeyName,
-                                       v8::NewStringType::kInternalized)
-                   .ToLocalChecked());
-  v8::Local<v8::Value> value =
-      injectedScriptObject->GetPrivate(context, privateKey).ToLocalChecked();
-  DCHECK(value->IsExternal());
-  v8::Local<v8::External> external = value.As<v8::External>();
-  return static_cast<InjectedScript*>(external->Value());
-}
-
-int InjectedScript::bindObject(v8::Local<v8::Value> value,
-                               const String16& groupName) {
+String16 InjectedScript::bindObject(v8::Local<v8::Value> value,
+                                    const String16& groupName) {
   if (m_lastBoundObjectId <= 0) m_lastBoundObjectId = 1;
   int id = m_lastBoundObjectId++;
   m_idToWrappedObject[id].Reset(m_context->isolate(), value);
   m_idToWrappedObject[id].AnnotateStrongRetainer(kGlobalHandleLabel);
-
   if (!groupName.isEmpty() && id > 0) {
     m_idToObjectGroupName[id] = groupName;
     m_nameToObjectGroup[groupName].push_back(id);
   }
-  return id;
+  // TODO(dgozman): get rid of "injectedScript" notion.
+  return String16::concat(
+      "{\"injectedScriptId\":", String16::fromInteger(m_context->contextId()),
+      ",\"id\":", String16::fromInteger(id), "}");
+}
+
+// static
+Response InjectedScript::bindRemoteObjectIfNeeded(
+    int sessionId, v8::Local<v8::Context> context, v8::Local<v8::Value> value,
+    const String16& groupName, protocol::Runtime::RemoteObject* remoteObject) {
+  if (!remoteObject) return Response::OK();
+  if (remoteObject->hasValue()) return Response::OK();
+  if (remoteObject->hasUnserializableValue()) return Response::OK();
+  if (remoteObject->getType() != RemoteObject::TypeEnum::Undefined) {
+    v8::Isolate* isolate = context->GetIsolate();
+    V8InspectorImpl* inspector =
+        static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
+    InspectedContext* inspectedContext =
+        inspector->getContext(InspectedContext::contextId(context));
+    InjectedScript* injectedScript =
+        inspectedContext ? inspectedContext->getInjectedScript(sessionId)
+                         : nullptr;
+    if (!injectedScript) {
+      return Response::Error("Cannot find context with specified id");
+    }
+    remoteObject->setObjectId(injectedScript->bindObject(value, groupName));
+  }
+  return Response::OK();
 }
 
 void InjectedScript::unbindObject(int id) {

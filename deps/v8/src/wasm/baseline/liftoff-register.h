@@ -185,12 +185,11 @@ ASSERT_TRIVIALLY_COPYABLE(LiftoffRegister);
 
 inline std::ostream& operator<<(std::ostream& os, LiftoffRegister reg) {
   if (reg.is_pair()) {
-    return os << "<gp" << reg.low_gp().code() << "+" << reg.high_gp().code()
-              << ">";
+    return os << "<" << reg.low_gp() << "+" << reg.high_gp() << ">";
   } else if (reg.is_gp()) {
-    return os << "gp" << reg.gp().code();
+    return os << reg.gp();
   } else {
-    return os << "fp" << reg.fp().code();
+    return os << reg.fp();
   }
 }
 
@@ -253,8 +252,8 @@ class LiftoffRegList {
     return LiftoffRegList(regs_ & other.regs_);
   }
 
-  constexpr LiftoffRegList operator~() const {
-    return LiftoffRegList(~regs_ & (kGpMask | kFpMask));
+  constexpr LiftoffRegList operator|(const LiftoffRegList other) const {
+    return LiftoffRegList(regs_ | other.regs_);
   }
 
   constexpr bool operator==(const LiftoffRegList other) const {

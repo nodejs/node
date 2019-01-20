@@ -288,8 +288,8 @@ class PropertyDetails {
   }
 
   // Conversion for storing details as Object*.
-  explicit inline PropertyDetails(Smi* smi);
-  inline Smi* AsSmi() const;
+  explicit inline PropertyDetails(Smi smi);
+  inline Smi AsSmi() const;
 
   static uint8_t EncodeRepresentation(Representation representation) {
     return representation.kind();

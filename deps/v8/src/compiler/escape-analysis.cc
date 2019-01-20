@@ -516,7 +516,7 @@ Maybe<int> OffsetOfElementsAccess(const Operator* op, Node* index_node) {
   double max = index_type.Max();
   double min = index_type.Min();
   int index = static_cast<int>(min);
-  if (!(index == min && index == max)) return Nothing<int>();
+  if (index < 0 || index != min || index != max) return Nothing<int>();
   return Just(OffsetOfElementAt(ElementAccessOf(op), index));
 }
 

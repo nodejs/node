@@ -68,13 +68,12 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 68
+bytecode array length: 65
 bytecodes: [
                 B(CreateMappedArguments),
                 B(Star), R(0),
   /*   16 E> */ B(StackCheck),
-  /*   29 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(1),
-                B(Ldar), R(1),
+  /*   29 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
   /*   31 E> */ B(StaGlobal), U8(1), U8(1),
   /*   93 S> */ B(LdaGlobal), U8(1), U8(3),
                 B(Star), R(1),

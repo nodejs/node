@@ -163,7 +163,7 @@ class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
 
   // [optimized_code_weak_or_smi]: weak reference to optimized code or a Smi
   // marker defining optimization behaviour.
-  DECL_ACCESSORS(optimized_code_weak_or_smi, MaybeObject)
+  DECL_ACCESSORS2(optimized_code_weak_or_smi, MaybeObject)
 
   // [length]: The length of the feedback vector (not including the header, i.e.
   // the number of feedback slots).
@@ -182,7 +182,7 @@ class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
   inline void clear_invocation_count();
   inline void increment_deopt_count();
 
-  inline Code* optimized_code() const;
+  inline Code optimized_code() const;
   inline OptimizationMarker optimization_marker() const;
   inline bool has_optimized_code() const;
   inline bool has_optimization_marker() const;
@@ -201,11 +201,11 @@ class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
 
   // Conversion from an integer index to the underlying array to a slot.
   static inline FeedbackSlot ToSlot(int index);
-  inline MaybeObject* Get(FeedbackSlot slot) const;
-  inline MaybeObject* get(int index) const;
-  inline void Set(FeedbackSlot slot, MaybeObject* value,
+  inline MaybeObject Get(FeedbackSlot slot) const;
+  inline MaybeObject get(int index) const;
+  inline void Set(FeedbackSlot slot, MaybeObject value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void set(int index, MaybeObject* value,
+  inline void set(int index, MaybeObject value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void Set(FeedbackSlot slot, Object* value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -213,7 +213,7 @@ class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Gives access to raw memory which stores the array's data.
-  inline MaybeObject** slots_start();
+  inline MaybeObjectSlot slots_start();
 
   // Returns slot kind for given slot.
   FeedbackSlotKind GetKind(FeedbackSlot slot) const;
@@ -248,7 +248,7 @@ class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
     return GetLanguageModeFromSlotKind(GetKind(slot));
   }
 
-  static void AssertNoLegacyTypes(MaybeObject* object);
+  static void AssertNoLegacyTypes(MaybeObject object);
 
   DECL_PRINTER(FeedbackVector)
   DECL_VERIFIER(FeedbackVector)
@@ -272,7 +272,7 @@ class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
 
   // A raw version of the uninitialized sentinel that's safe to read during
   // garbage collection (e.g., for patching the cache).
-  static inline Symbol* RawUninitializedSentinel(Isolate* isolate);
+  static inline Symbol RawUninitializedSentinel(Isolate* isolate);
 
 // Layout description.
 #define FEEDBACK_VECTOR_FIELDS(V)            \
@@ -289,7 +289,7 @@ class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
 #undef FEEDBACK_VECTOR_FIELDS
 
   static const int kHeaderSize =
-      RoundUp<kPointerAlignment>(int{kUnalignedHeaderSize});
+      RoundUp<kObjectAlignment>(int{kUnalignedHeaderSize});
   static const int kFeedbackSlotsOffset = kHeaderSize;
 
   class BodyDescriptor;
@@ -599,12 +599,7 @@ class FeedbackNexus final {
   void Print(std::ostream& os);  // NOLINT
 
   // For map-based ICs (load, keyed-load, store, keyed-store).
-  Map* FindFirstMap() const {
-    MapHandles maps;
-    ExtractMaps(&maps);
-    if (maps.size() > 0) return *maps.at(0);
-    return nullptr;
-  }
+  Map FindFirstMap() const;
 
   InlineCacheState StateFromFeedback() const;
   int ExtractMaps(MapHandles* maps) const;
@@ -625,8 +620,8 @@ class FeedbackNexus final {
   bool ConfigureMegamorphic();
   bool ConfigureMegamorphic(IcCheckType property_type);
 
-  inline MaybeObject* GetFeedback() const;
-  inline MaybeObject* GetFeedbackExtra() const;
+  inline MaybeObject GetFeedback() const;
+  inline MaybeObject GetFeedbackExtra() const;
 
   inline Isolate* GetIsolate() const;
 
@@ -648,7 +643,7 @@ class FeedbackNexus final {
 
   // For KeyedLoad and KeyedStore ICs.
   IcCheckType GetKeyType() const;
-  Name* FindFirstName() const;
+  Name FindFirstName() const;
 
   // For Call ICs.
   int GetCallCount();
@@ -703,11 +698,11 @@ class FeedbackNexus final {
 
   inline void SetFeedback(Object* feedback,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void SetFeedback(MaybeObject* feedback,
+  inline void SetFeedback(MaybeObject feedback,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void SetFeedbackExtra(Object* feedback_extra,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void SetFeedbackExtra(MaybeObject* feedback_extra,
+  inline void SetFeedbackExtra(MaybeObject feedback_extra,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   Handle<WeakFixedArray> EnsureArrayOfSize(int length);

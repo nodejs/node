@@ -44,7 +44,7 @@ class ElementsAccessor {
   // PropertyAttributes associated, hence the |filter| argument is ignored for
   // all but DICTIONARY_ELEMENTS and SLOW_SLOPPY_ARGUMENTS_ELEMENTS.
   virtual bool HasElement(JSObject* holder, uint32_t index,
-                          FixedArrayBase* backing_store,
+                          FixedArrayBase backing_store,
                           PropertyFilter filter = ALL_PROPERTIES) = 0;
 
   inline bool HasElement(JSObject* holder, uint32_t index,
@@ -142,7 +142,7 @@ class ElementsAccessor {
   virtual Handle<NumberDictionary> Normalize(Handle<JSObject> object) = 0;
 
   virtual uint32_t GetCapacity(JSObject* holder,
-                               FixedArrayBase* backing_store) = 0;
+                               FixedArrayBase backing_store) = 0;
 
   virtual Object* Fill(Handle<JSObject> receiver, Handle<Object> obj_value,
                        uint32_t start, uint32_t end) = 0;
@@ -194,7 +194,7 @@ class ElementsAccessor {
   // ElementsAccessor, entries are mapped to an index using the KeyAt method on
   // the NumberDictionary.
   virtual uint32_t GetEntryForIndex(Isolate* isolate, JSObject* holder,
-                                    FixedArrayBase* backing_store,
+                                    FixedArrayBase backing_store,
                                     uint32_t index) = 0;
 
   virtual PropertyDetails GetDetails(JSObject* holder, uint32_t entry) = 0;
@@ -229,7 +229,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> ArrayConstructInitializeElements(
     Handle<JSArray> array, Arguments* args);
 
 // Called directly from CSA.
-void CopyFastNumberJSArrayElementsToTypedArray(Context* context,
+void CopyFastNumberJSArrayElementsToTypedArray(Address raw_context,
                                                JSArray* source,
                                                JSTypedArray* destination,
                                                uintptr_t length,

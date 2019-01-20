@@ -138,7 +138,7 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithIdx8Reservations) {
       CHECK_EQ(operand_size, OperandSize::kByte);
     }
     for (size_t i = 0; i < duplicates_in_idx8_space; i++) {
-      Smi* value = Smi::FromInt(static_cast<int>(2 * k8BitCapacity + i));
+      Smi value = Smi::FromInt(static_cast<int>(2 * k8BitCapacity + i));
       size_t index = builder.CommitReservedEntry(OperandSize::kByte, value);
       CHECK_EQ(index, k8BitCapacity - reserved + i);
     }
@@ -156,12 +156,12 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithIdx8Reservations) {
     // Check all committed values match expected
     for (size_t i = 0; i < k8BitCapacity - reserved; i++) {
       Object* value = constant_array->get(static_cast<int>(i));
-      Smi* smi = Smi::FromInt(static_cast<int>(i));
+      Smi smi = Smi::FromInt(static_cast<int>(i));
       CHECK(value->SameValue(smi));
     }
     for (size_t i = k8BitCapacity; i < 2 * k8BitCapacity + reserved; i++) {
       Object* value = constant_array->get(static_cast<int>(i));
-      Smi* smi = Smi::FromInt(static_cast<int>(i - reserved));
+      Smi smi = Smi::FromInt(static_cast<int>(i - reserved));
       CHECK(value->SameValue(smi));
     }
   }

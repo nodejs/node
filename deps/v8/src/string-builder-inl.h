@@ -27,12 +27,12 @@ typedef BitField<int, kStringBuilderConcatHelperLengthBits,
     StringBuilderSubstringPosition;
 
 template <typename sinkchar>
-void StringBuilderConcatHelper(String* special, sinkchar* sink,
-                               FixedArray* fixed_array, int array_length);
+void StringBuilderConcatHelper(String special, sinkchar* sink,
+                               FixedArray fixed_array, int array_length);
 
 // Returns the result length of the concatenation.
 // On illegal argument, -1 is returned.
-int StringBuilderConcatLength(int special_length, FixedArray* fixed_array,
+int StringBuilderConcatLength(int special_length, FixedArray fixed_array,
                               int array_length, bool* one_byte);
 
 class FixedArrayBuilder {
@@ -44,7 +44,7 @@ class FixedArrayBuilder {
   void EnsureCapacity(Isolate* isolate, int elements);
 
   void Add(Object* value);
-  void Add(Smi* value);
+  void Add(Smi value);
 
   Handle<FixedArray> array() { return array_; }
 
@@ -205,7 +205,7 @@ class IncrementalStringBuilder {
    private:
     DestChar* start_;
     DestChar* cursor_;
-    DisallowHeapAllocation no_gc_;
+    DISALLOW_HEAP_ALLOCATION(no_gc_);
   };
 
   template <typename DestChar>
@@ -251,13 +251,13 @@ class IncrementalStringBuilder {
   V8_INLINE Handle<String> accumulator() { return accumulator_; }
 
   V8_INLINE void set_accumulator(Handle<String> string) {
-    *accumulator_.location() = *string;
+    *accumulator_.location() = string->ptr();
   }
 
   V8_INLINE Handle<String> current_part() { return current_part_; }
 
   V8_INLINE void set_current_part(Handle<String> string) {
-    *current_part_.location() = *string;
+    *current_part_.location() = string->ptr();
   }
 
   // Add the current part to the accumulator.

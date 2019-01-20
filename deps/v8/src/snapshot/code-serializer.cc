@@ -10,6 +10,7 @@
 #include "src/log.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/objects/slots.h"
 #include "src/snapshot/object-deserializer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/version.h"
@@ -85,8 +86,7 @@ ScriptData* CodeSerializer::SerializeSharedFunctionInfo(
     Handle<SharedFunctionInfo> info) {
   DisallowHeapAllocation no_gc;
 
-  VisitRootPointer(Root::kHandleScope, nullptr,
-                   Handle<Object>::cast(info).location());
+  VisitRootPointer(Root::kHandleScope, nullptr, ObjectSlot(info.location()));
   SerializeDeferredObjects();
   Pad();
 
@@ -124,11 +124,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                                      WhereToPoint where_to_point, int skip) {
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
 
-  RootIndex root_index;
-  if (root_index_map()->Lookup(obj, &root_index)) {
-    PutRoot(root_index, obj, how_to_code, where_to_point, skip);
-    return;
-  }
+  if (SerializeRoot(obj, how_to_code, where_to_point, skip)) return;
 
   if (SerializeBackReference(obj, how_to_code, where_to_point, skip)) return;
 
@@ -137,24 +133,20 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   FlushSkip(skip);
 
   if (obj->IsCode()) {
-    Code* code_object = Code::cast(obj);
+    Code code_object = Code::cast(obj);
     switch (code_object->kind()) {
       case Code::OPTIMIZED_FUNCTION:  // No optimized code compiled yet.
       case Code::REGEXP:              // No regexp literals initialized yet.
       case Code::NUMBER_OF_KINDS:     // Pseudo enum value.
       case Code::BYTECODE_HANDLER:    // No direct references to handlers.
         break;                        // hit UNREACHABLE below.
-      case Code::BUILTIN:
-        SerializeBuiltinReference(code_object, how_to_code, where_to_point, 0);
-        return;
       case Code::STUB:
         if (code_object->builtin_index() == -1) {
-          SerializeCodeStub(code_object, how_to_code, where_to_point);
+          return SerializeCodeStub(code_object, how_to_code, where_to_point);
         } else {
-          SerializeBuiltinReference(code_object, how_to_code, where_to_point,
-                                    0);
+          return SerializeCodeObject(code_object, how_to_code, where_to_point);
         }
-        return;
+      case Code::BUILTIN:
       default:
         return SerializeCodeObject(code_object, how_to_code, where_to_point);
     }
@@ -180,7 +172,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     }
     // We don't want to serialize host options to avoid serializing unnecessary
     // object graph.
-    FixedArray* host_options = script_obj->host_defined_options();
+    FixedArray host_options = script_obj->host_defined_options();
     script_obj->set_host_defined_options(roots.empty_fixed_array());
     SerializeGeneric(obj, how_to_code, where_to_point);
     script_obj->set_host_defined_options(host_options);
@@ -195,7 +187,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     DCHECK(!sfi->IsApiFunction() && !sfi->HasAsmWasmData());
 
     DebugInfo* debug_info = nullptr;
-    BytecodeArray* debug_bytecode_array = nullptr;
+    BytecodeArray debug_bytecode_array;
     if (sfi->HasDebugInfo()) {
       // Clear debug info.
       debug_info = sfi->GetDebugInfo();
@@ -216,7 +208,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     // Restore debug info
     if (debug_info != nullptr) {
       sfi->set_script_or_debug_info(debug_info);
-      if (debug_bytecode_array != nullptr) {
+      if (!debug_bytecode_array.is_null()) {
         sfi->SetDebugBytecodeArray(debug_bytecode_array);
       }
     }
@@ -249,7 +241,7 @@ void CodeSerializer::SerializeGeneric(HeapObject* heap_object,
   serializer.Serialize();
 }
 
-void CodeSerializer::SerializeCodeStub(Code* code_stub, HowToCode how_to_code,
+void CodeSerializer::SerializeCodeStub(Code code_stub, HowToCode how_to_code,
                                        WhereToPoint where_to_point) {
   // We only arrive here if we have not encountered this code stub before.
   DCHECK(!reference_map()->LookupReference(code_stub).is_valid());
@@ -310,7 +302,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   bool log_code_creation = isolate->logger()->is_listening_to_code_events() ||
                            isolate->is_profiling();
   if (log_code_creation || FLAG_log_function_events) {
-    String* name = ReadOnlyRoots(isolate).empty_string();
+    String name = ReadOnlyRoots(isolate).empty_string();
     if (result->script()->IsScript()) {
       Script* script = Script::cast(result->script());
       if (script->name()->IsString()) name = String::cast(script->name());

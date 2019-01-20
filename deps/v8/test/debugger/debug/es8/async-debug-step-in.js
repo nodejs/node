@@ -37,8 +37,8 @@ async function f() {
   a +=
        await           // B1 StepIn
              g();
-  return a;            // B6 StepIn
-}                      // B7 Continue
+  return a;            // B6 Continue
+}
 
 f().then(value => assertEquals(4, value));
 
@@ -46,4 +46,4 @@ late_resolve(3);
 
 %RunMicrotasks();
 
-assertEquals(8, step_count);
+assertEquals(7, step_count);

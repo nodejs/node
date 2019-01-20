@@ -23,14 +23,15 @@ static RandomNumberGenerator::EntropySource entropy_source = nullptr;
 
 // static
 void RandomNumberGenerator::SetEntropySource(EntropySource source) {
-  LockGuard<Mutex> lock_guard(entropy_mutex.Pointer());
+  MutexGuard lock_guard(entropy_mutex.Pointer());
   entropy_source = source;
 }
 
 
 RandomNumberGenerator::RandomNumberGenerator() {
   // Check if embedder supplied an entropy source.
-  { LockGuard<Mutex> lock_guard(entropy_mutex.Pointer());
+  {
+    MutexGuard lock_guard(entropy_mutex.Pointer());
     if (entropy_source != nullptr) {
       int64_t seed;
       if (entropy_source(reinterpret_cast<unsigned char*>(&seed),

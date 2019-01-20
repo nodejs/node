@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_OBJECTS_H_
 
 #include "src/objects.h"
+#include "src/objects/embedder-data-slot.h"
 #include "src/objects/property-array.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -14,6 +15,7 @@
 namespace v8 {
 namespace internal {
 
+enum InstanceType : uint16_t;
 class JSGlobalObject;
 class JSGlobalProxy;
 
@@ -28,10 +30,10 @@ class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
   // exists. Otherwise, returns an empty_property_array when there's a
   // Smi (hash code) or an empty_fixed_array for a fast properties
   // map.
-  inline PropertyArray* property_array() const;
+  inline PropertyArray property_array() const;
 
   // Gets slow properties for non-global objects.
-  inline NameDictionary* property_dictionary() const;
+  inline NameDictionary property_dictionary() const;
 
   // Sets the properties backing store and makes sure any existing hash is moved
   // to the new properties store. To clear out the properties store, pass in the
@@ -186,7 +188,7 @@ class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
       Handle<JSReceiver> object);
 
   // Returns the class name ([[Class]] property in the specification).
-  V8_EXPORT_PRIVATE String* class_name();
+  V8_EXPORT_PRIVATE String class_name();
 
   // Returns the constructor (the function that was used to instantiate the
   // object).
@@ -224,12 +226,12 @@ class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
 
   // Retrieves a permanent object identity hash code. The undefined value might
   // be returned in case no hash was created yet.
-  Object* GetIdentityHash(Isolate* isolate);
+  Object* GetIdentityHash();
 
   // Retrieves a permanent object identity hash code. May create and store a
   // hash code if needed and none exists.
-  static Smi* CreateIdentityHash(Isolate* isolate, JSReceiver* key);
-  Smi* GetOrCreateIdentityHash(Isolate* isolate);
+  static Smi CreateIdentityHash(Isolate* isolate, JSReceiver* key);
+  Smi GetOrCreateIdentityHash(Isolate* isolate);
 
   // Stores the hash code. The hash passed in must be masked with
   // JSReceiver::kHashMask.
@@ -270,7 +272,7 @@ class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
 // caching.
 class JSObject : public JSReceiver {
  public:
-  static bool IsUnmodifiedApiObject(Object** o);
+  static bool IsUnmodifiedApiObject(ObjectSlot o);
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> New(
       Handle<JSFunction> constructor, Handle<JSReceiver> new_target,
@@ -300,7 +302,7 @@ class JSObject : public JSReceiver {
   //
   // In the slow mode the elements is either a NumberDictionary, a
   // FixedArray parameter map for a (sloppy) arguments object.
-  DECL_ACCESSORS(elements, FixedArrayBase)
+  DECL_ACCESSORS2(elements, FixedArrayBase)
   inline void initialize_elements();
   static inline void SetMapAndElements(Handle<JSObject> object, Handle<Map> map,
                                        Handle<FixedArrayBase> elements);
@@ -350,7 +352,7 @@ class JSObject : public JSReceiver {
   inline bool HasSlowStringWrapperElements();
   bool HasEnumerableElements();
 
-  inline NumberDictionary* element_dictionary();  // Gets slow elements.
+  inline NumberDictionary element_dictionary();  // Gets slow elements.
 
   // Requires: HasFastElements().
   static void EnsureWritableFastElements(Handle<JSObject> object);
@@ -440,7 +442,7 @@ class JSObject : public JSReceiver {
                                               Handle<Map> new_map,
                                               Isolate* isolate);
   static bool UnregisterPrototypeUser(Handle<Map> user, Isolate* isolate);
-  static Map* InvalidatePrototypeChains(Map* map);
+  static Map InvalidatePrototypeChains(Map map);
   static void InvalidatePrototypeValidityCell(JSGlobalObject* global);
 
   // Updates prototype chain tracking information when an object changes its
@@ -495,7 +497,8 @@ class JSObject : public JSReceiver {
 
   // Makes sure that this object can contain the specified elements.
   static inline void EnsureCanContainElements(Handle<JSObject> object,
-                                              Object** elements, uint32_t count,
+                                              ObjectSlot elements,
+                                              uint32_t count,
                                               EnsureElementsMode mode);
   static inline void EnsureCanContainElements(Handle<JSObject> object,
                                               Handle<FixedArrayBase> elements,
@@ -543,15 +546,15 @@ class JSObject : public JSReceiver {
   // JSFunction objects.
   static int GetHeaderSize(InstanceType instance_type,
                            bool function_has_prototype_slot = false);
-  static inline int GetHeaderSize(const Map* map);
+  static inline int GetHeaderSize(const Map map);
   inline int GetHeaderSize() const;
 
-  static inline int GetEmbedderFieldCount(const Map* map);
+  static inline int GetEmbedderFieldCount(const Map map);
   inline int GetEmbedderFieldCount() const;
   inline int GetEmbedderFieldOffset(int index);
   inline Object* GetEmbedderField(int index);
   inline void SetEmbedderField(int index, Object* value);
-  inline void SetEmbedderField(int index, Smi* value);
+  inline void SetEmbedderField(int index, Smi value);
 
   // Returns true when the object is potentially a wrapper that gets special
   // garbage collection treatment.
@@ -592,7 +595,7 @@ class JSObject : public JSReceiver {
   // NumberDictionary dictionary.  Returns the backing after conversion.
   static Handle<NumberDictionary> NormalizeElements(Handle<JSObject> object);
 
-  void RequireSlowElements(NumberDictionary* dictionary);
+  void RequireSlowElements(NumberDictionary dictionary);
 
   // Transform slow named properties to fast variants.
   static void MigrateSlowToFast(Handle<JSObject> object,
@@ -634,7 +637,7 @@ class JSObject : public JSReceiver {
   // pre_allocated_value and the rest with filler_value.
   // Note: this call does not update write barrier, the caller is responsible
   // to ensure that |filler_value| can be collected without WB here.
-  inline void InitializeBody(Map* map, int start_offset,
+  inline void InitializeBody(Map map, int start_offset,
                              Object* pre_allocated_value, Object* filler_value);
 
   // Check whether this object references another object
@@ -668,7 +671,7 @@ class JSObject : public JSReceiver {
                                       ElementsKind to_kind,
                                       Handle<FixedArrayBase> to_elements);
 
-  void PrintInstanceMigration(FILE* file, Map* original_map, Map* new_map);
+  void PrintInstanceMigration(FILE* file, Map original_map, Map new_map);
 
 #ifdef DEBUG
   // Structure for collecting spill information about JSObjects.
@@ -743,8 +746,9 @@ class JSObject : public JSReceiver {
   STATIC_ASSERT(kMaxInObjectProperties <= kMaxNumberOfDescriptors);
   // TODO(cbruni): Revisit calculation of the max supported embedder fields.
   static const int kMaxEmbedderFields =
-      ((1 << kFirstInobjectPropertyOffsetBitCount) - 1 - kHeaderSize) >>
-      kPointerSizeLog2;
+      (((1 << kFirstInobjectPropertyOffsetBitCount) - 1 - kHeaderSize) >>
+       kPointerSizeLog2) /
+      kEmbedderDataSlotSizeInTaggedSlots;
   STATIC_ASSERT(kMaxEmbedderFields <= kMaxInObjectProperties);
 
   class BodyDescriptor;
@@ -771,7 +775,7 @@ class JSObject : public JSReceiver {
   V8_WARN_UNUSED_RESULT static Maybe<bool> DeletePropertyWithInterceptor(
       LookupIterator* it, ShouldThrow should_throw);
 
-  bool ReferencesObjectFromElements(FixedArray* elements, ElementsKind kind,
+  bool ReferencesObjectFromElements(FixedArray elements, ElementsKind kind,
                                     Object* object);
 
   // Helper for fast versions of preventExtensions, seal, and freeze.
@@ -861,7 +865,7 @@ class JSBoundFunction : public JSObject {
 
   // [bound_arguments]: A list of values whose elements are used as the first
   // arguments to any call to the wrapped function.
-  DECL_ACCESSORS(bound_arguments, FixedArray)
+  DECL_ACCESSORS2(bound_arguments, FixedArray)
 
   static MaybeHandle<String> GetName(Isolate* isolate,
                                      Handle<JSBoundFunction> function);
@@ -906,11 +910,11 @@ class JSFunction : public JSObject {
   static const int kMaybeHomeObjectDescriptorIndex = 2;
 
   // [context]: The context for this function.
-  inline Context* context();
+  inline Context context();
   inline bool has_context() const;
   inline void set_context(Object* context);
   inline JSGlobalProxy* global_proxy();
-  inline Context* native_context();
+  inline Context native_context();
 
   static Handle<Object> GetName(Isolate* isolate, Handle<JSFunction> function);
   static Maybe<int> GetLength(Isolate* isolate, Handle<JSFunction> function);
@@ -920,13 +924,13 @@ class JSFunction : public JSObject {
   // when the function is invoked, e.g. foo() or new foo(). See
   // [[Call]] and [[Construct]] description in ECMA-262, section
   // 8.6.2, page 27.
-  inline Code* code();
-  inline void set_code(Code* code);
-  inline void set_code_no_write_barrier(Code* code);
+  inline Code code();
+  inline void set_code(Code code);
+  inline void set_code_no_write_barrier(Code code);
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
-  inline AbstractCode* abstract_code();
+  inline AbstractCode abstract_code();
 
   // Tells whether or not this function is interpreted.
   //
@@ -996,7 +1000,7 @@ class JSFunction : public JSObject {
   inline bool has_prototype_slot() const;
 
   // The initial map for an object created by this constructor.
-  inline Map* initial_map();
+  inline Map initial_map();
   static void SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
                             Handle<Object> prototype);
   inline bool has_initial_map();
@@ -1130,14 +1134,14 @@ class JSGlobalProxy : public JSObject {
 class JSGlobalObject : public JSObject {
  public:
   // [native context]: the natives corresponding to this global object.
-  DECL_ACCESSORS(native_context, Context)
+  DECL_ACCESSORS2(native_context, Context)
 
   // [global proxy]: the global proxy object of the context
   DECL_ACCESSORS(global_proxy, JSObject)
 
   // Gets global object properties.
-  inline GlobalDictionary* global_dictionary();
-  inline void set_global_dictionary(GlobalDictionary* dictionary);
+  inline GlobalDictionary global_dictionary();
+  inline void set_global_dictionary(GlobalDictionary dictionary);
 
   static void InvalidatePropertyCell(Handle<JSGlobalObject> object,
                                      Handle<Name> name);
@@ -1220,7 +1224,8 @@ class JSDate : public JSObject {
 
   // Returns the date field with the specified index.
   // See FieldIndex for the list of date fields.
-  static Object* GetField(Object* date, Smi* index);
+  // {smi_index} is a raw Address because this is called via ExternalReference.
+  static Object* GetField(Object* date, Address smi_index);
 
   static Handle<Object> SetValue(Handle<JSDate> date, double v);
 
@@ -1291,8 +1296,8 @@ class JSDate : public JSObject {
 class JSMessageObject : public JSObject {
  public:
   // [type]: the type of error message.
-  inline int type() const;
-  inline void set_type(int value);
+  inline MessageTemplate type() const;
+  inline void set_type(MessageTemplate value);
 
   // [arguments]: the arguments for formatting the error message.
   DECL_ACCESSORS(argument, Object)
@@ -1386,7 +1391,7 @@ class JSStringIterator : public JSObject {
   DECL_CAST(JSStringIterator)
 
   // [string]: the [[IteratedString]] inobject property.
-  DECL_ACCESSORS(string, String)
+  DECL_ACCESSORS2(string, String)
 
   // [index]: The [[StringIteratorNextIndex]] inobject property.
   inline int index() const;

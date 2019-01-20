@@ -7,7 +7,7 @@
 
 #include "src/assembler-arch.h"
 #include "src/base/template-utils.h"
-#include "src/heap/heap.h"
+#include "src/builtins/builtins.h"
 
 namespace v8 {
 namespace internal {
@@ -48,19 +48,25 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   virtual void LoadFromConstantsTable(Register destination,
                                       int constant_index) = 0;
 
+  // Corresponds to: destination = kRootRegister + offset.
   virtual void LoadRootRegisterOffset(Register destination,
                                       intptr_t offset) = 0;
+
+  // Corresponds to: destination = [kRootRegister + offset].
   virtual void LoadRootRelative(Register destination, int32_t offset) = 0;
 
   virtual void LoadRoot(Register destination, RootIndex index) = 0;
 
-  static int32_t RootRegisterOffset(RootIndex root_index);
-  static int32_t RootRegisterOffsetForExternalReferenceIndex(
-      int reference_index);
-
+  static int32_t RootRegisterOffsetForRootIndex(RootIndex root_index);
   static int32_t RootRegisterOffsetForBuiltinIndex(int builtin_index);
 
+  // Returns the root-relative offset to reference.address().
   static intptr_t RootRegisterOffsetForExternalReference(
+      Isolate* isolate, const ExternalReference& reference);
+
+  // Returns the root-relative offset to the external reference table entry,
+  // which itself contains reference.address().
+  static int32_t RootRegisterOffsetForExternalReferenceTableEntry(
       Isolate* isolate, const ExternalReference& reference);
 
   // An address is addressable through kRootRegister if it is located within

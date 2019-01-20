@@ -13,7 +13,6 @@
 #include "src/code-events.h"
 #include "src/contexts.h"
 #include "src/isolate.h"
-#include "src/unicode-cache.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -316,13 +315,14 @@ class OptimizedCompilationJob : public CompilationJob {
   const char* compiler_name_;
 };
 
-class BackgroundCompileTask {
+class V8_EXPORT_PRIVATE BackgroundCompileTask {
  public:
   // Creates a new task that when run will parse and compile the streamed
   // script associated with |data| and can be finalized with
   // Compiler::GetSharedFunctionInfoForStreamedScript.
   // Note: does not take ownership of |data|.
   BackgroundCompileTask(ScriptStreamingData* data, Isolate* isolate);
+  ~BackgroundCompileTask();
 
   // Creates a new task that when run will parse and compile the
   // |function_literal| and can be finalized with
@@ -351,9 +351,6 @@ class BackgroundCompileTask {
   // compilation starts.
   std::unique_ptr<ParseInfo> info_;
   std::unique_ptr<Parser> parser_;
-  // TODO(rmcilroy): Consider having thread-local unicode-caches rather than
-  // creating a new one each time.
-  UnicodeCache unicode_cache_;
 
   // Data needed for finalizing compilation after background compilation.
   std::unique_ptr<UnoptimizedCompilationJob> outer_function_job_;

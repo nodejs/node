@@ -43,10 +43,7 @@ inline Operand GetHalfStackSlot(uint32_t half_index) {
 inline Operand GetInstanceOperand() { return Operand(ebp, -8); }
 
 static constexpr LiftoffRegList kByteRegs =
-    LiftoffRegList::FromBits<Register::ListOf<eax, ecx, edx, ebx>()>();
-static_assert(kByteRegs.GetNumRegsSet() == 4, "should have four byte regs");
-static_assert((kByteRegs & kGpCacheRegList) == kByteRegs,
-              "kByteRegs only contains gp cache registers");
+    LiftoffRegList::FromBits<Register::ListOf<eax, ecx, edx>()>();
 
 inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
                  int32_t offset, ValueType type) {
@@ -124,6 +121,15 @@ inline void SpillRegisters(LiftoffAssembler* assm, Regs... regs) {
 inline void SignExtendI32ToI64(Assembler* assm, LiftoffRegister reg) {
   assm->mov(reg.high_gp(), reg.low_gp());
   assm->sar(reg.high_gp(), 31);
+}
+
+// Get a temporary byte register, using {candidate} if possible.
+// Might spill, but always keeps status flags intact.
+inline Register GetTmpByteRegister(LiftoffAssembler* assm, Register candidate) {
+  if (candidate.is_byte_register()) return candidate;
+  // {GetUnusedRegister()} may insert move instructions to spill registers to
+  // the stack. This is OK because {mov} does not change the status flags.
+  return assm->GetUnusedRegister(liftoff::kByteRegs).gp();
 }
 
 constexpr DoubleRegister kScratchDoubleReg = xmm7;
@@ -324,7 +330,13 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       if (src.gp().is_byte_register()) {
         mov_b(dst_op, src.gp());
       } else {
-        Register byte_src = GetUnusedRegister(liftoff::kByteRegs, pinned).gp();
+        // We know that {src} is not a byte register, so the only pinned byte
+        // registers (beside the outer {pinned}) are {dst_addr} and potentially
+        // {offset_reg}.
+        LiftoffRegList pinned_byte = pinned | LiftoffRegList::ForRegs(dst_addr);
+        if (offset_reg != no_reg) pinned_byte.set(offset_reg);
+        Register byte_src =
+            GetUnusedRegister(liftoff::kByteRegs, pinned_byte).gp();
         mov(byte_src, src.gp());
         mov_b(dst_op, byte_src);
       }
@@ -768,15 +780,16 @@ void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
   Register lhs_hi = ecx;
   Register lhs_lo = dst_lo;
   Register rhs_hi = dst_hi;
-  Register rhs_lo = ebx;
+  Register rhs_lo = esi;
 
   // Spill all these registers if they are still holding other values.
   liftoff::SpillRegisters(this, dst_hi, dst_lo, lhs_hi, rhs_lo);
 
   // Move lhs and rhs into the respective registers.
-  ParallelRegisterMove(
-      {{LiftoffRegister::ForPair(lhs_lo, lhs_hi), lhs, kWasmI64},
-       {LiftoffRegister::ForPair(rhs_lo, rhs_hi), rhs, kWasmI64}});
+  ParallelRegisterMoveTuple reg_moves[]{
+      {LiftoffRegister::ForPair(lhs_lo, lhs_hi), lhs, kWasmI64},
+      {LiftoffRegister::ForPair(rhs_lo, rhs_hi), rhs, kWasmI64}};
+  ParallelRegisterMove(ArrayVector(reg_moves));
 
   // First mul: lhs_hi' = lhs_hi * rhs_lo.
   imul(lhs_hi, rhs_lo);
@@ -784,7 +797,7 @@ void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
   imul(rhs_hi, lhs_lo);
   // Add them: lhs_hi'' = lhs_hi' + rhs_hi' = lhs_hi * rhs_lo + rhs_hi * lhs_lo.
   add(lhs_hi, rhs_hi);
-  // Third mul: edx:eax (dst_hi:dst_lo) = eax * ebx (lhs_lo * rhs_lo).
+  // Third mul: edx:eax (dst_hi:dst_lo) = eax * esi (lhs_lo * rhs_lo).
   mul(rhs_lo);
   // Add lhs_hi'' to dst_hi.
   add(dst_hi, lhs_hi);
@@ -839,27 +852,30 @@ inline void Emit64BitShiftOperation(
     LiftoffAssembler* assm, LiftoffRegister dst, LiftoffRegister src,
     Register amount, void (TurboAssembler::*emit_shift)(Register, Register),
     LiftoffRegList pinned) {
+  // Temporary registers cannot overlap with {dst}.
   pinned.set(dst);
-  pinned.set(src);
-  pinned.set(amount);
+
+  std::vector<LiftoffAssembler::ParallelRegisterMoveTuple> reg_moves;
+
   // If {dst} contains {ecx}, replace it by an unused register, which is then
   // moved to {ecx} in the end.
   Register ecx_replace = no_reg;
   if (PairContains(dst, ecx)) {
-    ecx_replace = pinned.set(assm->GetUnusedRegister(kGpReg, pinned)).gp();
+    ecx_replace = assm->GetUnusedRegister(kGpReg, pinned).gp();
     dst = ReplaceInPair(dst, ecx, ecx_replace);
     // If {amount} needs to be moved to {ecx}, but {ecx} is in use (and not part
     // of {dst}, hence overwritten anyway), move {ecx} to a tmp register and
     // restore it at the end.
   } else if (amount != ecx &&
-             assm->cache_state()->is_used(LiftoffRegister(ecx))) {
+             (assm->cache_state()->is_used(LiftoffRegister(ecx)) ||
+              pinned.has(LiftoffRegister(ecx)))) {
     ecx_replace = assm->GetUnusedRegister(kGpReg, pinned).gp();
-    assm->mov(ecx_replace, ecx);
+    reg_moves.emplace_back(ecx_replace, ecx, kWasmI32);
   }
 
-  assm->ParallelRegisterMove(
-      {{dst, src, kWasmI64},
-       {LiftoffRegister{ecx}, LiftoffRegister{amount}, kWasmI32}});
+  reg_moves.emplace_back(dst, src, kWasmI64);
+  reg_moves.emplace_back(ecx, amount, kWasmI32);
+  assm->ParallelRegisterMove({reg_moves.data(), reg_moves.size()});
 
   // Do the actual shift.
   (assm->*emit_shift)(dst.high_gp(), dst.low_gp());
@@ -1063,25 +1079,41 @@ void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
   }
 }
 
-void LiftoffAssembler::emit_f32_ceil(DoubleRegister dst, DoubleRegister src) {
-  REQUIRE_CPU_FEATURE(SSE4_1);
-  roundss(dst, src, kRoundUp);
+bool LiftoffAssembler::emit_f32_ceil(DoubleRegister dst, DoubleRegister src) {
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatureScope feature(this, SSE4_1);
+    roundss(dst, src, kRoundUp);
+    return true;
+  }
+  return false;
 }
 
-void LiftoffAssembler::emit_f32_floor(DoubleRegister dst, DoubleRegister src) {
-  REQUIRE_CPU_FEATURE(SSE4_1);
-  roundss(dst, src, kRoundDown);
+bool LiftoffAssembler::emit_f32_floor(DoubleRegister dst, DoubleRegister src) {
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatureScope feature(this, SSE4_1);
+    roundss(dst, src, kRoundDown);
+    return true;
+  }
+  return false;
 }
 
-void LiftoffAssembler::emit_f32_trunc(DoubleRegister dst, DoubleRegister src) {
-  REQUIRE_CPU_FEATURE(SSE4_1);
-  roundss(dst, src, kRoundToZero);
+bool LiftoffAssembler::emit_f32_trunc(DoubleRegister dst, DoubleRegister src) {
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatureScope feature(this, SSE4_1);
+    roundss(dst, src, kRoundToZero);
+    return true;
+  }
+  return false;
 }
 
-void LiftoffAssembler::emit_f32_nearest_int(DoubleRegister dst,
+bool LiftoffAssembler::emit_f32_nearest_int(DoubleRegister dst,
                                             DoubleRegister src) {
-  REQUIRE_CPU_FEATURE(SSE4_1);
-  roundss(dst, src, kRoundToNearest);
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatureScope feature(this, SSE4_1);
+    roundss(dst, src, kRoundToNearest);
+    return true;
+  }
+  return false;
 }
 
 void LiftoffAssembler::emit_f32_sqrt(DoubleRegister dst, DoubleRegister src) {
@@ -1239,7 +1271,8 @@ inline void ConvertFloatToIntAndBack(LiftoffAssembler* assm, Register dst,
       assm->Cvtsi2sd(converted_back, dst);
     } else {  // f64 -> u32
       assm->Cvttsd2ui(dst, src, liftoff::kScratchDoubleReg);
-      assm->Cvtui2sd(converted_back, dst);
+      assm->Cvtui2sd(converted_back, dst,
+                     assm->GetUnusedRegister(kGpReg, pinned).gp());
     }
   } else {                                  // f32
     if (std::is_signed<dst_type>::value) {  // f32 -> i32
@@ -1346,9 +1379,12 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     case kExprF64SConvertI32:
       Cvtsi2sd(dst.fp(), src.gp());
       return true;
-    case kExprF64UConvertI32:
-      Cvtui2sd(dst.fp(), src.gp());
+    case kExprF64UConvertI32: {
+      LiftoffRegList pinned = LiftoffRegList::ForRegs(dst, src);
+      Register scratch = GetUnusedRegister(kGpReg, pinned).gp();
+      Cvtui2sd(dst.fp(), src.gp(), scratch);
       return true;
+    }
     case kExprF64ConvertF32:
       cvtss2sd(dst.fp(), src.fp());
       return true;
@@ -1366,7 +1402,9 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
 }
 
 void LiftoffAssembler::emit_i32_signextend_i8(Register dst, Register src) {
-  movsx_b(dst, src);
+  Register byte_reg = liftoff::GetTmpByteRegister(this, src);
+  if (byte_reg != src) mov(byte_reg, src);
+  movsx_b(dst, byte_reg);
 }
 
 void LiftoffAssembler::emit_i32_signextend_i16(Register dst, Register src) {
@@ -1415,16 +1453,6 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
 }
 
 namespace liftoff {
-
-// Get a temporary byte register, using {candidate} if possible.
-// Might spill, but always keeps status flags intact.
-inline Register GetTmpByteRegister(LiftoffAssembler* assm, Register candidate) {
-  if (candidate.is_byte_register()) return candidate;
-  LiftoffRegList pinned = LiftoffRegList::ForRegs(candidate);
-  // {GetUnusedRegister()} may insert move instructions to spill registers to
-  // the stack. This is OK because {mov} does not change the status flags.
-  return assm->GetUnusedRegister(liftoff::kByteRegs, pinned).gp();
-}
 
 // Setcc into dst register, given a scratch byte register (might be the same as
 // dst). Never spills.

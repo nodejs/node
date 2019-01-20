@@ -3744,7 +3744,7 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
             uint64_t imm8 = instr->ImmNEONabcdefgh();
             uint64_t imm = 0;
             for (int i = 0; i < 8; ++i) {
-              if (imm8 & (1 << i)) {
+              if (imm8 & (1ULL << i)) {
                 imm |= (UINT64_C(0xFF) << (8 * i));
               }
             }
@@ -3892,10 +3892,9 @@ int DisassemblingDecoder::SubstitutePCRelAddressField(Instruction* instr,
 
   char sign = '+';
   if (offset < 0) {
-    offset = -offset;
     sign = '-';
   }
-  AppendToOutput("#%c0x%x (addr %p)", sign, offset,
+  AppendToOutput("#%c0x%x (addr %p)", sign, Abs(offset),
                  instr->InstructionAtOffset(offset, Instruction::NO_CHECK));
   return 13;
 }

@@ -264,6 +264,11 @@ class TestModuleBuilder {
 
   void InitializeTable() { mod.tables.emplace_back(); }
 
+  byte AddPassiveElementSegment() {
+    mod.table_inits.emplace_back();
+    return static_cast<byte>(mod.table_inits.size() - 1);
+  }
+
   WasmModule* module() { return &mod; }
 
  private:
@@ -1798,22 +1803,22 @@ TEST_F(FunctionBodyDecoderTest, AllSetGlobalCombinations) {
   }
 }
 
-TEST_F(FunctionBodyDecoderTest, WasmGrowMemory) {
+TEST_F(FunctionBodyDecoderTest, WasmMemoryGrow) {
   TestModuleBuilder builder;
   module = builder.module();
   builder.InitializeMemory();
 
-  byte code[] = {WASM_GET_LOCAL(0), kExprGrowMemory, 0};
+  byte code[] = {WASM_GET_LOCAL(0), kExprMemoryGrow, 0};
   EXPECT_VERIFIES_C(i_i, code);
   EXPECT_FAILURE_C(i_d, code);
 }
 
-TEST_F(FunctionBodyDecoderTest, AsmJsGrowMemory) {
+TEST_F(FunctionBodyDecoderTest, AsmJsMemoryGrow) {
   TestModuleBuilder builder(kAsmJsOrigin);
   module = builder.module();
   builder.InitializeMemory();
 
-  byte code[] = {WASM_GET_LOCAL(0), kExprGrowMemory, 0};
+  byte code[] = {WASM_GET_LOCAL(0), kExprMemoryGrow, 0};
   EXPECT_FAILURE_C(i_i, code);
 }
 
@@ -2430,6 +2435,7 @@ TEST_F(FunctionBodyDecoderTest, ThrowUnreachable) {
 
 #define WASM_TRY_OP kExprTry, kLocalVoid
 #define WASM_CATCH(index) kExprCatch, static_cast<byte>(index)
+#define WASM_RETHROW(depth) kExprRethrow, static_cast<byte>(depth)
 
 TEST_F(FunctionBodyDecoderTest, TryCatch) {
   WASM_FEATURE_SCOPE(eh);
@@ -2438,12 +2444,10 @@ TEST_F(FunctionBodyDecoderTest, TryCatch) {
   byte ex1 = builder.AddException(sigs.v_v());
   byte ex2 = builder.AddException(sigs.v_v());
   EXPECT_VERIFIES(v_v, WASM_TRY_OP, WASM_CATCH(ex1), kExprEnd);
+  EXPECT_VERIFIES(v_v, WASM_TRY_OP, WASM_CATCH(ex1), WASM_CATCH(ex2), kExprEnd);
   EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprEnd);         // Missing catch.
   EXPECT_FAILURE(v_v, WASM_TRY_OP, WASM_CATCH(ex1));  // Missing end.
   EXPECT_FAILURE(v_v, WASM_CATCH(ex1), kExprEnd);     // Missing try.
-
-  // TODO(mstarzinger): Double catch. Fix this to verify.
-  EXPECT_FAILURE(v_v, WASM_TRY_OP, WASM_CATCH(ex1), WASM_CATCH(ex2), kExprEnd);
 }
 
 TEST_F(FunctionBodyDecoderTest, TryCatchAll) {
@@ -2451,16 +2455,37 @@ TEST_F(FunctionBodyDecoderTest, TryCatchAll) {
   TestModuleBuilder builder;
   module = builder.module();
   byte ex1 = builder.AddException(sigs.v_v());
+  byte ex2 = builder.AddException(sigs.v_v());
   EXPECT_VERIFIES(v_v, WASM_TRY_OP, kExprCatchAll, kExprEnd);
   EXPECT_VERIFIES(v_v, WASM_TRY_OP, WASM_CATCH(ex1), kExprCatchAll, kExprEnd);
+  EXPECT_VERIFIES(v_v, WASM_TRY_OP, WASM_CATCH(ex1), WASM_CATCH(ex2),
+                  kExprCatchAll, kExprEnd);
   EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatchAll, kExprCatchAll, kExprEnd);
   EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatchAll, WASM_CATCH(ex1), kExprEnd);
   EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatchAll);  // Missing end.
   EXPECT_FAILURE(v_v, kExprCatchAll, kExprEnd);     // Missing try.
 }
 
+TEST_F(FunctionBodyDecoderTest, Rethrow) {
+  WASM_FEATURE_SCOPE(eh);
+  TestModuleBuilder builder;
+  module = builder.module();
+  byte ex1 = builder.AddException(sigs.v_v());
+  EXPECT_VERIFIES(v_v, WASM_TRY_OP, WASM_CATCH(ex1), WASM_RETHROW(0), kExprEnd);
+  EXPECT_VERIFIES(v_v, WASM_TRY_OP, kExprCatchAll, WASM_RETHROW(0), kExprEnd);
+  EXPECT_VERIFIES(v_v, WASM_TRY_OP, kExprCatchAll, WASM_BLOCK(WASM_RETHROW(1)),
+                  kExprEnd);
+  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatchAll, WASM_BLOCK(WASM_RETHROW(0)),
+                 kExprEnd);
+  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatchAll, WASM_RETHROW(23), kExprEnd);
+  EXPECT_FAILURE(v_v, WASM_TRY_OP, WASM_RETHROW(0), kExprCatchAll, kExprEnd);
+  EXPECT_FAILURE(v_v, WASM_BLOCK(WASM_RETHROW(0)));
+  EXPECT_FAILURE(v_v, WASM_RETHROW(0));
+}
+
 #undef WASM_TRY_OP
 #undef WASM_CATCH
+#undef WASM_RETHROW
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlock1) {
   WASM_FEATURE_SCOPE(mv);
@@ -2708,6 +2733,122 @@ TEST_F(FunctionBodyDecoderTest, Regression709741) {
   }
 }
 
+TEST_F(FunctionBodyDecoderTest, MemoryInit) {
+  TestModuleBuilder builder;
+  builder.InitializeMemory();
+  module = builder.module();
+
+  EXPECT_FAILURE(v_v, WASM_MEMORY_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  WASM_FEATURE_SCOPE(bulk_memory);
+  EXPECT_VERIFIES(v_v, WASM_MEMORY_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  // TODO(binji): validate segment index.
+}
+
+TEST_F(FunctionBodyDecoderTest, MemoryInitInvalid) {
+  TestModuleBuilder builder;
+  builder.InitializeMemory();
+  module = builder.module();
+
+  WASM_FEATURE_SCOPE(bulk_memory);
+  byte code[] = {WASM_MEMORY_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO),
+                 WASM_END};
+  for (size_t i = 0; i <= arraysize(code); ++i) {
+    Verify(i == arraysize(code), sigs.v_v(), code, code + i, kOmitEnd);
+  }
+}
+
+TEST_F(FunctionBodyDecoderTest, MemoryDrop) {
+  EXPECT_FAILURE(v_v, WASM_MEMORY_DROP(0));
+  WASM_FEATURE_SCOPE(bulk_memory);
+  EXPECT_VERIFIES(v_v, WASM_MEMORY_DROP(0));
+  // TODO(binji): validate segment index.
+}
+
+TEST_F(FunctionBodyDecoderTest, MemoryCopy) {
+  TestModuleBuilder builder;
+  builder.InitializeMemory();
+  module = builder.module();
+
+  EXPECT_FAILURE(v_v, WASM_MEMORY_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  WASM_FEATURE_SCOPE(bulk_memory);
+  EXPECT_VERIFIES(v_v, WASM_MEMORY_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+}
+
+TEST_F(FunctionBodyDecoderTest, MemoryFill) {
+  TestModuleBuilder builder;
+  builder.InitializeMemory();
+  module = builder.module();
+
+  EXPECT_FAILURE(v_v, WASM_MEMORY_FILL(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  WASM_FEATURE_SCOPE(bulk_memory);
+  EXPECT_VERIFIES(v_v, WASM_MEMORY_FILL(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+}
+
+TEST_F(FunctionBodyDecoderTest, BulkMemoryOpsWithoutMemory) {
+  WASM_FEATURE_SCOPE(bulk_memory);
+  EXPECT_FAILURE(v_v, WASM_MEMORY_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  EXPECT_FAILURE(v_v, WASM_MEMORY_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  EXPECT_FAILURE(v_v, WASM_MEMORY_FILL(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+}
+
+TEST_F(FunctionBodyDecoderTest, TableInit) {
+  TestModuleBuilder builder;
+  builder.InitializeTable();
+  builder.AddPassiveElementSegment();
+  module = builder.module();
+
+  EXPECT_FAILURE(v_v, WASM_TABLE_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  WASM_FEATURE_SCOPE(bulk_memory);
+  EXPECT_VERIFIES(v_v, WASM_TABLE_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  EXPECT_FAILURE(v_v, WASM_TABLE_INIT(1, WASM_ZERO, WASM_ZERO, WASM_ZERO));
+}
+
+TEST_F(FunctionBodyDecoderTest, TableInitInvalid) {
+  TestModuleBuilder builder;
+  builder.InitializeTable();
+  builder.AddPassiveElementSegment();
+  module = builder.module();
+
+  WASM_FEATURE_SCOPE(bulk_memory);
+  byte code[] = {WASM_TABLE_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO), WASM_END};
+  for (size_t i = 0; i <= arraysize(code); ++i) {
+    Verify(i == arraysize(code), sigs.v_v(), code, code + i, kOmitEnd);
+  }
+}
+
+TEST_F(FunctionBodyDecoderTest, TableDrop) {
+  TestModuleBuilder builder;
+  builder.InitializeTable();
+  builder.AddPassiveElementSegment();
+  module = builder.module();
+
+  EXPECT_FAILURE(v_v, WASM_TABLE_DROP(0));
+  WASM_FEATURE_SCOPE(bulk_memory);
+  EXPECT_VERIFIES(v_v, WASM_TABLE_DROP(0));
+  EXPECT_FAILURE(v_v, WASM_TABLE_DROP(1));
+}
+
+TEST_F(FunctionBodyDecoderTest, TableCopy) {
+  TestModuleBuilder builder;
+  builder.InitializeTable();
+  module = builder.module();
+
+  EXPECT_FAILURE(v_v, WASM_TABLE_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  WASM_FEATURE_SCOPE(bulk_memory);
+  EXPECT_VERIFIES(v_v, WASM_TABLE_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+}
+
+TEST_F(FunctionBodyDecoderTest, BulkTableOpsWithoutTable) {
+  TestModuleBuilder builder;
+  builder.InitializeTable();
+  builder.AddPassiveElementSegment();
+
+  WASM_FEATURE_SCOPE(bulk_memory);
+  EXPECT_FAILURE(v_v, WASM_TABLE_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  EXPECT_FAILURE(v_v, WASM_TABLE_DROP(0));
+  EXPECT_FAILURE(v_v, WASM_TABLE_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+}
+
 class BranchTableIteratorTest : public TestWithZone {
  public:
   BranchTableIteratorTest() : TestWithZone() {}
@@ -2798,6 +2939,7 @@ TEST_F(WasmOpcodeLengthTest, Statements) {
   EXPECT_LENGTH(2, kExprBr);
   EXPECT_LENGTH(2, kExprBrIf);
   EXPECT_LENGTH(2, kExprThrow);
+  EXPECT_LENGTH(2, kExprRethrow);
   EXPECT_LENGTH(2, kExprCatch);
   EXPECT_LENGTH_N(2, kExprBlock, kLocalI32);
   EXPECT_LENGTH_N(2, kExprLoop, kLocalI32);
@@ -2874,7 +3016,7 @@ TEST_F(WasmOpcodeLengthTest, LoadsAndStores) {
 
 TEST_F(WasmOpcodeLengthTest, MiscMemExpressions) {
   EXPECT_LENGTH(2, kExprMemorySize);
-  EXPECT_LENGTH(2, kExprGrowMemory);
+  EXPECT_LENGTH(2, kExprMemoryGrow);
 }
 
 TEST_F(WasmOpcodeLengthTest, SimpleExpressions) {

@@ -27,9 +27,11 @@ class StoreBuffer {
  public:
   enum StoreBufferMode { IN_GC, NOT_IN_GC };
 
-  static const int kStoreBufferSize = 1 << (11 + kPointerSizeLog2);
-  static const int kStoreBufferMask = kStoreBufferSize - 1;
   static const int kStoreBuffers = 2;
+  static const int kStoreBufferSize =
+      Max(static_cast<int>(kMinExpectedOSPageSize / kStoreBuffers),
+          1 << (11 + kPointerSizeLog2));
+  static const int kStoreBufferMask = kStoreBufferSize - 1;
   static const intptr_t kDeletionTag = 1;
 
   V8_EXPORT_PRIVATE static int StoreBufferOverflow(Isolate* isolate);

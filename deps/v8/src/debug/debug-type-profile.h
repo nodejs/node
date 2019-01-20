@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "src/debug/debug-interface.h"
+#include "src/handles.h"
 #include "src/objects.h"
 
 namespace v8 {

@@ -166,8 +166,7 @@ class TypeCache final {
       Type::Union(Type::SignedSmall(), Type::NaN(), zone());
 
   // The valid number of arguments for JavaScript functions.
-  Type const kArgumentsLengthType =
-      Type::Range(0.0, Code::kMaxArguments, zone());
+  Type const kArgumentsLengthType = Type::Unsigned30();
 
   // The JSArrayIterator::kind property always contains an integer in the
   // range [0, 2], representing the possible IterationKinds.

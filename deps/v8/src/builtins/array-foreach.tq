@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-module array {
-  macro ArrayForEachTorqueContinuation(
+namespace array {
+  transitioning macro ArrayForEachTorqueContinuation(
       context: Context, o: JSReceiver, len: Number, callbackfn: Callable,
       thisArg: Object, initialK: Number): Object {
     // 5. Let k be 0.
@@ -14,12 +14,12 @@ module array {
       // side-effect free and HasProperty/GetProperty do the conversion inline.
 
       // 6b. Let kPresent be ? HasProperty(O, Pk).
-      const kPresent: Boolean = HasProperty_Inline(context, o, k);
+      const kPresent: Boolean = HasProperty_Inline(o, k);
 
       // 6c. If kPresent is true, then
       if (kPresent == True) {
         // 6c. i. Let kValue be ? Get(O, Pk).
-        const kValue: Object = GetProperty(context, o, k);
+        const kValue: Object = GetProperty(o, k);
 
         // 6c. ii. Perform ? Call(callbackfn, T, <kValue, k, O>).
         Call(context, callbackfn, thisArg, kValue, k, o);
@@ -30,7 +30,7 @@ module array {
     return Undefined;
   }
 
-  javascript builtin ArrayForEachLoopEagerDeoptContinuation(
+  transitioning javascript builtin ArrayForEachLoopEagerDeoptContinuation(
       context: Context, receiver: Object, callback: Object, thisArg: Object,
       initialK: Object, length: Object): Object {
     // The unsafe Cast is safe because all continuation points in forEach are
@@ -42,7 +42,7 @@ module array {
         length, Undefined);
   }
 
-  javascript builtin ArrayForEachLoopLazyDeoptContinuation(
+  transitioning javascript builtin ArrayForEachLoopLazyDeoptContinuation(
       context: Context, receiver: Object, callback: Object, thisArg: Object,
       initialK: Object, length: Object, result: Object): Object {
     // The unsafe Cast is safe because all continuation points in forEach are
@@ -54,7 +54,7 @@ module array {
         length, Undefined);
   }
 
-  builtin ArrayForEachLoopContinuation(
+  transitioning builtin ArrayForEachLoopContinuation(
       context: Context, receiver: JSReceiver, callback: Object, thisArg: Object,
       array: Object, object: Object, initialK: Object, length: Object,
       to: Object): Object {
@@ -72,10 +72,9 @@ module array {
     }
   }
 
-  macro VisitAllElements<FixedArrayType: type>(
+  transitioning macro VisitAllElements<FixedArrayType: type>(
       context: Context, a: JSArray, len: Smi, callbackfn: Callable,
-      thisArg: Object): void
-      labels Bailout(Smi) {
+      thisArg: Object): void labels Bailout(Smi) {
     let k: Smi = 0;
     const map: Map = a.map;
 
@@ -106,7 +105,7 @@ module array {
     }
   }
 
-  macro FastArrayForEach(
+  transitioning macro FastArrayForEach(
       context: Context, o: JSReceiver, len: Number, callbackfn: Callable,
       thisArg: Object): Object
       labels Bailout(Smi) {
@@ -116,7 +115,7 @@ module array {
       const a: JSArray = Cast<JSArray>(o) otherwise Slow;
       const map: Map = a.map;
 
-      if (!IsPrototypeInitialArrayPrototype(context, map)) goto Slow;
+      if (!IsPrototypeInitialArrayPrototype(map)) goto Slow;
       const elementsKind: ElementsKind = map.elements_kind;
       if (!IsFastElementsKind(elementsKind)) goto Slow;
 
@@ -136,8 +135,8 @@ module array {
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.foreach
-  javascript builtin ArrayForEach(
-      context: Context, receiver: Object, ...arguments): Object {
+  transitioning javascript builtin
+  ArrayForEach(context: Context, receiver: Object, ...arguments): Object {
     try {
       if (IsNullOrUndefined(receiver)) {
         goto NullOrUndefinedError;
@@ -147,7 +146,7 @@ module array {
       const o: JSReceiver = ToObject_Inline(context, receiver);
 
       // 2. Let len be ? ToLength(? Get(O, "length")).
-      const len: Number = GetLengthProperty(context, o);
+      const len: Number = GetLengthProperty(o);
 
       // 3. If IsCallable(callbackfn) is false, throw a TypeError exception.
       if (arguments.length == 0) {

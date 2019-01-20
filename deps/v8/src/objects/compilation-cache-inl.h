@@ -10,6 +10,7 @@
 #include "src/objects/name-inl.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/smi.h"
 #include "src/objects/string.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -18,13 +19,19 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(CompilationCacheTable)
+CompilationCacheTable::CompilationCacheTable(Address ptr)
+    : HashTable<CompilationCacheTable, CompilationCacheShape>(ptr) {
+  SLOW_DCHECK(IsCompilationCacheTable());
+}
 
-uint32_t CompilationCacheShape::RegExpHash(String* string, Smi* flags) {
+NEVER_READ_ONLY_SPACE_IMPL(CompilationCacheTable)
+CAST_ACCESSOR2(CompilationCacheTable)
+
+uint32_t CompilationCacheShape::RegExpHash(String string, Smi flags) {
   return string->Hash() + flags->value();
 }
 
-uint32_t CompilationCacheShape::StringSharedHash(String* source,
+uint32_t CompilationCacheShape::StringSharedHash(String source,
                                                  SharedFunctionInfo* shared,
                                                  LanguageMode language_mode,
                                                  int position) {
@@ -48,11 +55,11 @@ uint32_t CompilationCacheShape::HashForObject(Isolate* isolate,
                                               Object* object) {
   if (object->IsNumber()) return static_cast<uint32_t>(object->Number());
 
-  FixedArray* val = FixedArray::cast(object);
+  FixedArray val = FixedArray::cast(object);
   if (val->map() == val->GetReadOnlyRoots().fixed_cow_array_map()) {
     DCHECK_EQ(4, val->length());
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(val->get(0));
-    String* source = String::cast(val->get(1));
+    String source = String::cast(val->get(1));
     int language_unchecked = Smi::ToInt(val->get(2));
     DCHECK(is_valid_language_mode(language_unchecked));
     LanguageMode language_mode = static_cast<LanguageMode>(language_unchecked);

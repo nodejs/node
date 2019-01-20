@@ -71,12 +71,12 @@ enum ElementsKind : uint8_t {
   TERMINAL_FAST_ELEMENTS_KIND = HOLEY_ELEMENTS
 };
 
-const int kElementsKindCount = LAST_ELEMENTS_KIND - FIRST_ELEMENTS_KIND + 1;
-const int kFastElementsKindCount =
+constexpr int kElementsKindCount = LAST_ELEMENTS_KIND - FIRST_ELEMENTS_KIND + 1;
+constexpr int kFastElementsKindCount =
     LAST_FAST_ELEMENTS_KIND - FIRST_FAST_ELEMENTS_KIND + 1;
 
 // The number to add to a packed elements kind to reach a holey elements kind
-const int kFastElementsKindPackedToHoley =
+constexpr int kFastElementsKindPackedToHoley =
     HOLEY_SMI_ELEMENTS - PACKED_SMI_ELEMENTS;
 
 int ElementsKindToShiftSize(ElementsKind elements_kind);

@@ -36,16 +36,23 @@ std::vector<Handle<FixedArray>> FillOldSpacePageWithFixedArrays(Heap* heap,
   Isolate* isolate = heap->isolate();
   const int kArraySize = 128;
   const int kArrayLen = heap::FixedArrayLenFromSize(kArraySize);
-  CHECK_EQ(Page::kAllocatableMemory % kArraySize, 0);
   Handle<FixedArray> array;
-  for (int allocated = 0; allocated != (Page::kAllocatableMemory - remainder);
-       allocated += array->Size()) {
-    if (allocated == (Page::kAllocatableMemory - kArraySize)) {
-      array = isolate->factory()->NewFixedArray(
-          heap::FixedArrayLenFromSize(kArraySize - remainder), TENURED);
-      CHECK_EQ(kArraySize - remainder, array->Size());
+  int allocated = 0;
+  do {
+    if (allocated + kArraySize * 2 >
+        static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage())) {
+      int size =
+          kArraySize * 2 -
+          ((allocated + kArraySize * 2) -
+           static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage())) -
+          remainder;
+      int last_array_len = heap::FixedArrayLenFromSize(size);
+      array = isolate->factory()->NewFixedArray(last_array_len, TENURED);
+      CHECK_EQ(size, array->Size());
+      allocated += array->Size() + remainder;
     } else {
       array = isolate->factory()->NewFixedArray(kArrayLen, TENURED);
+      allocated += array->Size();
       CHECK_EQ(kArraySize, array->Size());
     }
     if (handles.empty()) {
@@ -54,7 +61,8 @@ std::vector<Handle<FixedArray>> FillOldSpacePageWithFixedArrays(Heap* heap,
                Page::FromAddress(array->address())->area_start());
     }
     handles.push_back(array);
-  }
+  } while (allocated <
+           static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()));
   return handles;
 }
 

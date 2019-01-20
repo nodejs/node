@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import * as C from "./constants.js"
-import {SourceResolver} from "./source-resolver.js"
-import {SelectionBroker} from "./selection-broker.js"
-import {DisassemblyView} from "./disassembly-view.js"
-import {GraphMultiView} from "./graphmultiview.js"
-import {CodeMode, CodeView} from "./code-view.js"
+import * as C from "../src/constants"
+import { SourceResolver } from "../src/source-resolver"
+import { SelectionBroker } from "../src/selection-broker"
+import { DisassemblyView } from "../src/disassembly-view"
+import { GraphMultiView } from "../src/graphmultiview"
+import { CodeMode, CodeView } from "../src/code-view"
+import { Tabs } from "../src/tabs"
 import * as d3 from "d3"
 
 class Snapper {
@@ -123,8 +124,8 @@ class Resizer {
     resizer.left = document.getElementById(C.SOURCE_PANE_ID);
     resizer.middle = document.getElementById(C.INTERMEDIATE_PANE_ID);
     resizer.right = document.getElementById(C.GENERATED_PANE_ID);
-    resizer.resizer_left = d3.select('.resizer-left');
-    resizer.resizer_right = d3.select('.resizer-right');
+    resizer.resizer_left = d3.select('#resizer-left');
+    resizer.resizer_right = d3.select('#resizer-right');
     resizer.sep_left = resizer.client_width / 3;
     resizer.sep_right = resizer.client_width / 3 * 2;
     resizer.sep_left_snap = 0;
@@ -244,17 +245,29 @@ window.onload = function () {
       sourceResolver.setNodePositionMap(jsonObj.nodePositions);
       sourceResolver.parsePhases(jsonObj.phases);
 
-      let sourceView = new CodeView(C.SOURCE_PANE_ID, selectionBroker, sourceResolver, fnc, CodeMode.MAIN_SOURCE);
+      const sourceTabsContainer = document.getElementById(C.SOURCE_PANE_ID);
+      const sourceTabs = new Tabs(sourceTabsContainer);
+      const [sourceTab, sourceContainer] = sourceTabs.addTabAndContent("Source")
+      sourceContainer.classList.add("viewpane", "scrollable");
+      sourceTabs.activateTab(sourceTab);
+      sourceTabs.addTab("&#x2b;").classList.add("open-tab");
+      let sourceView = new CodeView(sourceContainer, selectionBroker, sourceResolver, fnc, CodeMode.MAIN_SOURCE);
       sourceView.show(null, null);
       sourceViews.push(sourceView);
 
       sourceResolver.forEachSource((source) => {
-        let sourceView = new CodeView(C.SOURCE_PANE_ID, selectionBroker, sourceResolver, source, CodeMode.INLINED_SOURCE);
+        let sourceView = new CodeView(sourceContainer, selectionBroker, sourceResolver, source, CodeMode.INLINED_SOURCE);
         sourceView.show(null, null);
         sourceViews.push(sourceView);
       });
 
-      disassemblyView = new DisassemblyView(C.GENERATED_PANE_ID, selectionBroker);
+      const disassemblyTabsContainer = document.getElementById(C.GENERATED_PANE_ID);
+      const disassemblyTabs = new Tabs(disassemblyTabsContainer);
+      const [disassemblyTab, disassemblyContainer] = disassemblyTabs.addTabAndContent("Disassembly")
+      disassemblyContainer.classList.add("viewpane", "scrollable");
+      disassemblyTabs.activateTab(disassemblyTab);
+      disassemblyTabs.addTab("&#x2b;").classList.add("open-tab");
+      disassemblyView = new DisassemblyView(disassemblyContainer, selectionBroker);
       disassemblyView.initializeCode(fnc.sourceText);
       if (sourceResolver.disassemblyPhase) {
         disassemblyView.initializePerfProfile(jsonObj.eventCounts);
@@ -291,7 +304,6 @@ window.onload = function () {
   }
 
   initializeUploadHandlers();
-
 
   resizer.snapper.setSourceExpanded(resizer.snapper.getLastExpandedState("source", true));
   resizer.snapper.setDisassemblyExpanded(resizer.snapper.getLastExpandedState("disassembly", false));

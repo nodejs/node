@@ -24,7 +24,7 @@ namespace internal {
  * This assembler uses the following register assignment convention
  * - r6: Temporarily stores the index of capture start after a matching pass
  *        for a global regexp.
- * - r7: Pointer to current code object (Code*) including heap object tag.
+ * - r7: Pointer to current Code object including heap object tag.
  * - r8: Current position in input, as negative offset from end of string.
  *        Please notice that this is the byte offset, not the character offset!
  * - r9: Currently loaded character. Must be loaded using
@@ -78,7 +78,7 @@ namespace internal {
  * The data up to the return address must be placed there by the calling
  * code and the remaining arguments are passed in registers, e.g. by calling the
  * code entry as cast to a function with the signature:
- * int (*match)(String* input_string,
+ * int (*match)(String input_string,
  *              int start_index,
  *              Address start,
  *              Address end,
@@ -159,7 +159,7 @@ void RegExpMacroAssemblerS390::AdvanceRegister(int reg, int by) {
 
 void RegExpMacroAssemblerS390::Backtrack() {
   CheckPreemption();
-  // Pop Code* offset from backtrack stack, add Code* and jump to location.
+  // Pop Code offset from backtrack stack, add Code and jump to location.
   Pop(r2);
   __ AddP(r2, code_pointer());
   __ b(r2);
@@ -1075,7 +1075,7 @@ void RegExpMacroAssemblerS390::CallCheckStackGuardState(Register scratch) {
   __ PrepareCallCFunction(num_arguments, scratch);
   // RegExp code frame pointer.
   __ LoadRR(r4, frame_pointer());
-  // Code* of self.
+  // Code of self.
   __ mov(r3, Operand(masm_->CodeObject()));
   // r2 becomes return address pointer.
   __ lay(r2, MemOperand(sp, kStackFrameRASlot * kPointerSize));
@@ -1101,13 +1101,14 @@ static T* frame_entry_address(Address re_frame, int frame_offset) {
 }
 
 int RegExpMacroAssemblerS390::CheckStackGuardState(Address* return_address,
-                                                   Code* re_code,
+                                                   Address raw_code,
                                                    Address re_frame) {
+  Code re_code = Code::cast(ObjectPtr(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolate),
       frame_entry<intptr_t>(re_frame, kStartIndex),
       frame_entry<intptr_t>(re_frame, kDirectCall) == 1, return_address,
-      re_code, frame_entry_address<String*>(re_frame, kInputString),
+      re_code, frame_entry_address<Address>(re_frame, kInputString),
       frame_entry_address<const byte*>(re_frame, kInputStart),
       frame_entry_address<const byte*>(re_frame, kInputEnd));
 }

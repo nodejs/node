@@ -6,6 +6,7 @@
 #define V8_OBJECTS_NAME_H_
 
 #include "src/objects.h"
+#include "src/objects/heap-object.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -15,7 +16,7 @@ namespace internal {
 
 // The Name abstract class captures anything that can be used as a property
 // name, i.e., strings and symbols.  All names store a hash value.
-class Name : public HeapObject {
+class Name : public HeapObjectPtr {
  public:
   // Get and set the hash field of the name.
   inline uint32_t hash_field();
@@ -28,7 +29,7 @@ class Name : public HeapObject {
   inline uint32_t Hash();
 
   // Equality operations.
-  inline bool Equals(Name* other);
+  inline bool Equals(Name other);
   inline static bool Equals(Isolate* isolate, Handle<Name> one,
                             Handle<Name> two);
 
@@ -45,9 +46,9 @@ class Name : public HeapObject {
   // If the name is private, it can only name own properties.
   inline bool IsPrivate();
 
-  // If the name is a private field, it should behave like a private
+  // If the name is a private name, it should behave like a private
   // symbol but also throw on property access miss.
-  inline bool IsPrivateField();
+  inline bool IsPrivateName();
 
   inline bool IsUniqueName() const;
 
@@ -60,7 +61,7 @@ class Name : public HeapObject {
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToFunctionName(
       Isolate* isolate, Handle<Name> name, Handle<String> prefix);
 
-  DECL_CAST(Name)
+  DECL_CAST2(Name)
 
   DECL_PRINTER(Name)
   void NameShortPrint();
@@ -130,8 +131,7 @@ class Name : public HeapObject {
  protected:
   static inline bool IsHashFieldComputed(uint32_t field);
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Name);
+  OBJECT_CONSTRUCTORS(Name, HeapObjectPtr);
 };
 
 // ES6 symbols.
@@ -161,24 +161,29 @@ class Symbol : public Name {
   // Symbol.keyFor on such a symbol simply needs to return the attached name.
   DECL_BOOLEAN_ACCESSORS(is_public)
 
-  // [is_private_field]: Whether this is a private field.  Private fields
+  // [is_private_name]: Whether this is a private name.  Private names
   // are the same as private symbols except they throw on missing
   // property access.
   //
   // This also sets the is_private bit.
-  inline bool is_private_field() const;
-  inline void set_is_private_field();
+  inline bool is_private_name() const;
+  inline void set_is_private_name();
 
-  DECL_CAST(Symbol)
+  DECL_CAST2(Symbol)
 
   // Dispatched behavior.
   DECL_PRINTER(Symbol)
   DECL_VERIFIER(Symbol)
 
   // Layout description.
-  static const int kFlagsOffset = Name::kHeaderSize;
-  static const int kNameOffset = kFlagsOffset + kInt32Size;
-  static const int kSize = kNameOffset + kPointerSize;
+#define SYMBOL_FIELDS(V)      \
+  V(kFlagsOffset, kInt32Size) \
+  V(kNameOffset, kTaggedSize) \
+  /* Header size. */          \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Name::kHeaderSize, SYMBOL_FIELDS)
+#undef SYMBOL_FIELDS
 
 // Flags layout.
 #define FLAGS_BIT_FIELDS(V, _)          \
@@ -186,7 +191,7 @@ class Symbol : public Name {
   V(IsWellKnownSymbolBit, bool, 1, _)   \
   V(IsPublicBit, bool, 1, _)            \
   V(IsInterestingSymbolBit, bool, 1, _) \
-  V(IsPrivateFieldBit, bool, 1, _)
+  V(IsPrivateNameBit, bool, 1, _)
 
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS
@@ -201,7 +206,7 @@ class Symbol : public Name {
   // TODO(cbruni): remove once the new maptracer is in place.
   friend class Name;  // For PrivateSymbolToName.
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Symbol);
+  OBJECT_CONSTRUCTORS(Symbol, Name);
 };
 
 }  // namespace internal

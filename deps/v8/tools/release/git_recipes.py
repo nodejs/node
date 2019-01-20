@@ -205,12 +205,10 @@ class GitRecipesMixin(object):
     args.append(Quoted(patch_file))
     self.Git(MakeArgs(args), **kwargs)
 
-  def GitUpload(self, reviewer="", author="", force=False, cq=False,
+  def GitUpload(self, reviewer="", force=False, cq=False,
                 cq_dry_run=False, bypass_hooks=False, cc="", tbr_reviewer="",
                 no_autocc=False, **kwargs):
     args = ["cl upload --send-mail"]
-    if author:
-      args += ["--email", Quoted(author)]
     if reviewer:
       args += ["-r", Quoted(reviewer)]
     if tbr_reviewer:

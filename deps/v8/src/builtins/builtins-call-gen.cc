@@ -7,7 +7,6 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/globals.h"
-#include "src/heap/heap-inl.h"
 #include "src/isolate.h"
 #include "src/macro-assembler.h"
 #include "src/objects/arguments.h"
@@ -17,75 +16,45 @@ namespace internal {
 
 void Builtins::Generate_CallFunction_ReceiverIsNullOrUndefined(
     MacroAssembler* masm) {
-#ifdef V8_TARGET_ARCH_IA32
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-#endif
   Generate_CallFunction(masm, ConvertReceiverMode::kNullOrUndefined);
 }
 
 void Builtins::Generate_CallFunction_ReceiverIsNotNullOrUndefined(
     MacroAssembler* masm) {
-#ifdef V8_TARGET_ARCH_IA32
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-#endif
   Generate_CallFunction(masm, ConvertReceiverMode::kNotNullOrUndefined);
 }
 
 void Builtins::Generate_CallFunction_ReceiverIsAny(MacroAssembler* masm) {
-#ifdef V8_TARGET_ARCH_IA32
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-#endif
   Generate_CallFunction(masm, ConvertReceiverMode::kAny);
 }
 
 void Builtins::Generate_CallBoundFunction(MacroAssembler* masm) {
-#ifdef V8_TARGET_ARCH_IA32
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-#endif
   Generate_CallBoundFunctionImpl(masm);
 }
 
 void Builtins::Generate_Call_ReceiverIsNullOrUndefined(MacroAssembler* masm) {
-#ifdef V8_TARGET_ARCH_IA32
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-#endif
   Generate_Call(masm, ConvertReceiverMode::kNullOrUndefined);
 }
 
 void Builtins::Generate_Call_ReceiverIsNotNullOrUndefined(
     MacroAssembler* masm) {
-#ifdef V8_TARGET_ARCH_IA32
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-#endif
   Generate_Call(masm, ConvertReceiverMode::kNotNullOrUndefined);
 }
 
 void Builtins::Generate_Call_ReceiverIsAny(MacroAssembler* masm) {
-#ifdef V8_TARGET_ARCH_IA32
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-#endif
   Generate_Call(masm, ConvertReceiverMode::kAny);
 }
 
 void Builtins::Generate_CallVarargs(MacroAssembler* masm) {
-#ifdef V8_TARGET_ARCH_IA32
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-#endif
   Generate_CallOrConstructVarargs(masm, masm->isolate()->builtins()->Call());
 }
 
 void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm) {
-#ifdef V8_TARGET_ARCH_IA32
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-#endif
   Generate_CallOrConstructForwardVarargs(masm, CallOrConstructMode::kCall,
                                          masm->isolate()->builtins()->Call());
 }
 
 void Builtins::Generate_CallFunctionForwardVarargs(MacroAssembler* masm) {
-#ifdef V8_TARGET_ARCH_IA32
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-#endif
   Generate_CallOrConstructForwardVarargs(
       masm, CallOrConstructMode::kCall,
       masm->isolate()->builtins()->CallFunction());
@@ -267,8 +236,6 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
     TNode<Object> target, SloppyTNode<Object> new_target,
     TNode<FixedDoubleArray> elements, TNode<Int32T> length,
     TNode<Int32T> args_count, TNode<Context> context, TNode<Int32T> kind) {
-  Label if_done(this);
-
   const ElementsKind new_kind = PACKED_ELEMENTS;
   const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
   TNode<IntPtrT> intptr_length = ChangeInt32ToIntPtr(length);
@@ -277,31 +244,18 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
   // Allocate a new FixedArray of Objects.
   TNode<FixedArray> new_elements = CAST(AllocateFixedArray(
       new_kind, intptr_length, CodeStubAssembler::kAllowLargeObjectAllocation));
-  Branch(Word32Equal(kind, Int32Constant(HOLEY_DOUBLE_ELEMENTS)),
-         [&] {
-           // Fill the FixedArray with pointers to HeapObjects.
-           CopyFixedArrayElements(HOLEY_DOUBLE_ELEMENTS, elements, new_kind,
-                                  new_elements, intptr_length, intptr_length,
-                                  barrier_mode);
-           Goto(&if_done);
-         },
-         [&] {
-           CopyFixedArrayElements(PACKED_DOUBLE_ELEMENTS, elements, new_kind,
-                                  new_elements, intptr_length, intptr_length,
-                                  barrier_mode);
-           Goto(&if_done);
-         });
-
-  BIND(&if_done);
-  {
-    if (new_target == nullptr) {
-      Callable callable = CodeFactory::CallVarargs(isolate());
-      TailCallStub(callable, context, target, args_count, length, new_elements);
-    } else {
-      Callable callable = CodeFactory::ConstructVarargs(isolate());
-      TailCallStub(callable, context, target, new_target, args_count, length,
-                   new_elements);
-    }
+  // CopyFixedArrayElements does not distinguish between holey and packed for
+  // its first argument, so we don't need to dispatch on {kind} here.
+  CopyFixedArrayElements(PACKED_DOUBLE_ELEMENTS, elements, new_kind,
+                         new_elements, intptr_length, intptr_length,
+                         barrier_mode);
+  if (new_target == nullptr) {
+    Callable callable = CodeFactory::CallVarargs(isolate());
+    TailCallStub(callable, context, target, args_count, length, new_elements);
+  } else {
+    Callable callable = CodeFactory::ConstructVarargs(isolate());
+    TailCallStub(callable, context, target, new_target, args_count, length,
+                 new_elements);
   }
 }
 

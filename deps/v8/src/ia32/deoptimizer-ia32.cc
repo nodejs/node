@@ -18,8 +18,6 @@ const int Deoptimizer::table_entry_size_ = 10;
 #define __ masm()->
 
 void Deoptimizer::TableEntryGenerator::Generate() {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm());
-
   GeneratePrologue();
 
   // Save all general purpose registers before messing with them.
@@ -49,7 +47,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   ExternalReference c_entry_fp_address =
       ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate());
-  __ mov(masm()->StaticVariable(c_entry_fp_address), ebp);
+  __ mov(masm()->ExternalReferenceAsOperand(c_entry_fp_address, esi), ebp);
 
   const int kSavedRegistersAreaSize =
       kNumberOfRegisters * kPointerSize + kDoubleRegsSize + kFloatRegsSize;
@@ -197,8 +195,9 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
 
   // Restore the registers from the stack.
-  Assembler::AllowExplicitEbxAccessScope restoring_spilled_value(masm());
   __ popad();
+
+  __ InitializeRootRegister();
 
   // Return to the continuation point.
   __ ret(0);

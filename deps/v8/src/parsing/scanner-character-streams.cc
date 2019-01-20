@@ -20,8 +20,8 @@ namespace internal {
 
 class ScopedExternalStringLock {
  public:
-  explicit ScopedExternalStringLock(ExternalString* string) {
-    DCHECK(string);
+  explicit ScopedExternalStringLock(ExternalString string) {
+    DCHECK(!string.is_null());
     if (string->IsExternalOneByteString()) {
       resource_ = ExternalOneByteString::cast(string)->resource();
     } else {
@@ -109,7 +109,7 @@ class ExternalStringStream {
   typedef typename CharTraits<Char>::ExternalString ExternalString;
 
  public:
-  ExternalStringStream(ExternalString* string, size_t start_offset,
+  ExternalStringStream(ExternalString string, size_t start_offset,
                        size_t length)
       : lock_(string),
         data_(string->GetChars() + start_offset),
@@ -257,6 +257,7 @@ class BufferedCharacterStream : public Utf16CharacterStream {
     buffer_start_ = &buffer_[0];
     buffer_cursor_ = buffer_start_;
 
+    DisallowHeapAllocation no_gc;
     Range<uint8_t> range =
         byte_stream_.GetDataAt(position, runtime_call_stats());
     if (range.length() == 0) {
@@ -310,6 +311,7 @@ class UnbufferedCharacterStream : public Utf16CharacterStream {
   bool ReadBlock() final {
     size_t position = pos();
     buffer_pos_ = position;
+    DisallowHeapAllocation no_gc;
     Range<uint16_t> range =
         byte_stream_.GetDataAt(position, runtime_call_stats());
     buffer_start_ = range.start;
@@ -356,6 +358,7 @@ class RelocatingCharacterStream
   }
 
   void UpdateBufferPointers() {
+    DisallowHeapAllocation no_gc;
     Range<uint16_t> range = byte_stream_.GetDataAt(0, runtime_call_stats());
     if (range.start != buffer_start_) {
       buffer_cursor_ = (buffer_cursor_ - buffer_start_) + range.start;
@@ -707,9 +710,9 @@ Utf16CharacterStream* ScannerStream::For(Isolate* isolate, Handle<String> data,
   DCHECK_LE(end_pos, data->length());
   size_t start_offset = 0;
   if (data->IsSlicedString()) {
-    SlicedString* string = SlicedString::cast(*data);
+    SlicedString string = SlicedString::cast(*data);
     start_offset = string->offset();
-    String* parent = string->parent();
+    String parent = string->parent();
     if (parent->IsThinString()) parent = ThinString::cast(parent)->actual();
     data = handle(parent, isolate);
   } else {

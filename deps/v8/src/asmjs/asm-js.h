@@ -13,6 +13,7 @@ namespace v8 {
 namespace internal {
 
 class AccountingAllocator;
+class AsmWasmData;
 class FunctionLiteral;
 class JSArrayBuffer;
 class ParseInfo;
@@ -27,7 +28,7 @@ class AsmJs {
       AccountingAllocator* allocator);
   static MaybeHandle<Object> InstantiateAsmWasm(Isolate* isolate,
                                                 Handle<SharedFunctionInfo>,
-                                                Handle<FixedArray> wasm_data,
+                                                Handle<AsmWasmData> wasm_data,
                                                 Handle<JSReceiver> stdlib,
                                                 Handle<JSReceiver> foreign,
                                                 Handle<JSArrayBuffer> memory);

@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-module array {
+namespace array {
   macro ConvertToRelativeIndex(index: Number, length: Number): Number {
     return index < 0 ? Max(index + length, 0) : Min(index, length);
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.copyWithin
-  javascript builtin ArrayPrototypeCopyWithin(
+  transitioning javascript builtin ArrayPrototypeCopyWithin(
       context: Context, receiver: Object, ...arguments): Object {
     // 1. Let O be ? ToObject(this value).
     const object: JSReceiver = ToObject_Inline(context, receiver);
 
     // 2. Let len be ? ToLength(? Get(O, "length")).
-    const length: Number = GetLengthProperty(context, object);
+    const length: Number = GetLengthProperty(object);
 
     // 3. Let relativeTarget be ? ToInteger(target).
     const relativeTarget: Number = ToInteger_Inline(context, arguments[0]);
@@ -63,18 +63,18 @@ module array {
       // a. Let fromKey be ! ToString(from).
       // b. Let toKey be ! ToString(to).
       // c. Let fromPresent be ? HasProperty(O, fromKey).
-      const fromPresent: Boolean = HasProperty(context, object, from);
+      const fromPresent: Boolean = HasProperty(object, from);
 
       // d. If fromPresent is true, then.
       if (fromPresent == True) {
         // i. Let fromVal be ? Get(O, fromKey).
-        const fromVal: Object = GetProperty(context, object, from);
+        const fromVal: Object = GetProperty(object, from);
 
         // ii. Perform ? Set(O, toKey, fromVal, true).
-        SetProperty(context, object, to, fromVal);
+        SetProperty(object, to, fromVal);
       } else {
         // i. Perform ? DeletePropertyOrThrow(O, toKey).
-        DeleteProperty(context, object, to, kStrict);
+        DeleteProperty(object, to, kStrict);
       }
 
       // f. Let from be from + direction.

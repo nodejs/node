@@ -108,6 +108,7 @@ import os
 import re
 import subprocess
 import sys
+import traceback
 
 from testrunner.local import android
 from testrunner.local import command
@@ -125,6 +126,7 @@ GENERIC_RESULTS_RE = re.compile(r"^RESULT ([^:]+): ([^=]+)= ([^ ]+) ([^ ]*)$")
 RESULT_STDDEV_RE = re.compile(r"^\{([^\}]+)\}$")
 RESULT_LIST_RE = re.compile(r"^\[([^\]]+)\]$")
 TOOLS_BASE = os.path.abspath(os.path.dirname(__file__))
+INFRA_FAILURE_RETCODE = 87
 
 
 def GeometricMean(values):
@@ -134,6 +136,11 @@ def GeometricMean(values):
   """
   values = map(float, values)
   return str(math.exp(sum(map(math.log, values)) / len(values)))
+
+
+class TestFailedError(Exception):
+  """Error raised when a test has failed due to a non-infra issue."""
+  pass
 
 
 class Results(object):
@@ -690,7 +697,7 @@ class DesktopPlatform(Platform):
       output = cmd.execute()
     except OSError:  # pragma: no cover
       logging.exception(title % "OSError")
-      return ""
+      raise
 
     logging.info(title % "Stdout" + "\n%s", output.stdout)
     if output.stderr:  # pragma: no cover
@@ -698,6 +705,10 @@ class DesktopPlatform(Platform):
       logging.info(title % "Stderr" + "\n%s", output.stderr)
     if output.timed_out:
       logging.warning(">>> Test timed out after %ss.", runnable.timeout)
+      raise TestFailedError()
+    if output.exit_code != 0:
+      logging.warning(">>> Test crashed.")
+      raise TestFailedError()
     if '--prof' in self.extra_flags:
       os_prefix = {"linux": "linux", "macos": "mac"}.get(utils.GuessOS())
       if os_prefix:
@@ -779,12 +790,13 @@ class AndroidPlatform(Platform):  # pragma: no cover
       logging.info(title % "Stdout" + "\n%s", stdout)
     except android.CommandFailedException as e:
       logging.info(title % "Stdout" + "\n%s", e.output)
-      raise
+      logging.warning('>>> Test crashed.')
+      raise TestFailedError()
     except android.TimeoutException as e:
-      if e.output:
+      if e.output is not None:
         logging.info(title % "Stdout" + "\n%s", e.output)
       logging.warning(">>> Test timed out after %ss.", runnable.timeout)
-      stdout = ""
+      raise TestFailedError()
     if runnable.process_size:
       return stdout + "MaxMemory: Unsupported"
     return stdout
@@ -962,28 +974,24 @@ def Main(args):
 
   (options, args) = parser.parse_args(args)
 
-  if options.buildbot:
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-  else:
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
+  logging.basicConfig(level=logging.INFO, format="%(levelname)-8s  %(message)s")
 
   if len(args) == 0:  # pragma: no cover
     parser.print_help()
-    return 1
+    return INFRA_FAILURE_RETCODE
 
   if options.arch in ["auto", "native"]:  # pragma: no cover
     options.arch = ARCH_GUESS
 
   if not options.arch in SUPPORTED_ARCHS:  # pragma: no cover
     logging.error("Unknown architecture %s", options.arch)
-    return 1
+    return INFRA_FAILURE_RETCODE
 
   if (options.json_test_results_secondary and
       not options.outdir_secondary):  # pragma: no cover
     logging.error("For writing secondary json test results, a secondary outdir "
                   "patch must be specified.")
-    return 1
+    return INFRA_FAILURE_RETCODE
 
   workspace = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -998,10 +1006,10 @@ def Main(args):
   else:
     if not os.path.isfile(options.binary_override_path):
       logging.error("binary-override-path must be a file name")
-      return 1
+      return INFRA_FAILURE_RETCODE
     if options.outdir_secondary:
       logging.error("specify either binary-override-path or outdir-secondary")
-      return 1
+      return INFRA_FAILURE_RETCODE
     options.shell_dir = os.path.abspath(
         os.path.dirname(options.binary_override_path))
     default_binary_name = os.path.basename(options.binary_override_path)
@@ -1029,6 +1037,8 @@ def Main(args):
 
   results = Results()
   results_secondary = Results()
+  # We use list here to allow modification in nested function below.
+  have_failed_tests = [False]
   with CustomMachineConfiguration(governor = options.cpu_governor,
                                   disable_aslr = options.noaslr) as conf:
     for path in args:
@@ -1067,7 +1077,10 @@ def Main(args):
           for i in xrange(0, max(1, total_runs)):
             # TODO(machenbach): Allow timeout per arch like with run_count per
             # arch.
-            yield platform.Run(runnable, i)
+            try:
+              yield platform.Run(runnable, i)
+            except TestFailedError:
+              have_failed_tests[0] = True
 
         # Let runnable iterate over all runs and handle output.
         result, result_secondary = runnable.Run(
@@ -1086,7 +1099,20 @@ def Main(args):
   else:  # pragma: no cover
     print results_secondary
 
-  return min(1, len(results.errors))
+  if results.errors or have_failed_tests[0]:
+    return 1
+
+  return 0
+
+
+def MainWrapper():
+  try:
+    return Main(sys.argv[1:])
+  except:
+    # Log uncaptured exceptions and report infra failure to the caller.
+    traceback.print_exc()
+    return INFRA_FAILURE_RETCODE
+
 
 if __name__ == "__main__":  # pragma: no cover
-  sys.exit(Main(sys.argv[1:]))
+  sys.exit(MainWrapper())

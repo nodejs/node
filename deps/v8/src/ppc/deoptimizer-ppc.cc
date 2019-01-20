@@ -218,8 +218,6 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     }
   }
 
-  __ InitializeRootRegister();
-
   __ pop(ip);  // get continuation, leave pc on stack
   __ pop(r0);
   __ mtlr(r0);

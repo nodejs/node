@@ -24,7 +24,7 @@ ACCESSORS(JSLocale, language, Object, kLanguageOffset);
 ACCESSORS(JSLocale, script, Object, kScriptOffset);
 ACCESSORS(JSLocale, region, Object, kRegionOffset);
 ACCESSORS(JSLocale, base_name, Object, kBaseNameOffset);
-ACCESSORS(JSLocale, locale, String, kLocaleOffset);
+ACCESSORS2(JSLocale, locale, String, kLocaleOffset);
 
 // Unicode extension accessors.
 ACCESSORS(JSLocale, calendar, Object, kCalendarOffset);

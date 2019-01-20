@@ -87,6 +87,9 @@ REPLACE_STUB_CALL(ToName)
 REPLACE_STUB_CALL(ToObject)
 REPLACE_STUB_CALL(ToString)
 REPLACE_STUB_CALL(ForInEnumerate)
+REPLACE_STUB_CALL(AsyncFunctionEnter)
+REPLACE_STUB_CALL(AsyncFunctionReject)
+REPLACE_STUB_CALL(AsyncFunctionResolve)
 REPLACE_STUB_CALL(FulfillPromise)
 REPLACE_STUB_CALL(PerformPromiseThen)
 REPLACE_STUB_CALL(PromiseResolve)
@@ -398,6 +401,10 @@ void JSGenericLowering::LowerJSCreateArray(Node* node) {
 }
 
 void JSGenericLowering::LowerJSCreateArrayIterator(Node* node) {
+  UNREACHABLE();  // Eliminated in typed lowering.
+}
+
+void JSGenericLowering::LowerJSCreateAsyncFunctionObject(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 

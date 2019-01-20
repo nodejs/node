@@ -14,6 +14,7 @@
 #include "src/ic/stub-cache.h"
 #include "src/objects-inl.h"
 #include "src/objects/module.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
@@ -214,7 +215,8 @@ void AccessorAssembler::HandleLoadCallbackProperty(const LoadICParameters* p,
                                                    TNode<WordT> handler_word,
                                                    ExitPoint* exit_point) {
   Comment("native_data_property_load");
-  Node* descriptor = DecodeWord<LoadHandler::DescriptorBits>(handler_word);
+  TNode<IntPtrT> descriptor =
+      Signed(DecodeWord<LoadHandler::DescriptorBits>(handler_word));
 
   Label runtime(this, Label::kDeferred);
   Callable callable = CodeFactory::ApiGetter(isolate());
@@ -324,22 +326,15 @@ void AccessorAssembler::HandleLoadField(Node* holder, Node* handler_word,
   }
 }
 
-TNode<Object> AccessorAssembler::LoadDescriptorValue(TNode<Map> map,
-                                                     Node* descriptor) {
-  return CAST(LoadDescriptorValueOrFieldType(map, descriptor));
+TNode<Object> AccessorAssembler::LoadDescriptorValue(
+    TNode<Map> map, TNode<IntPtrT> descriptor_entry) {
+  return CAST(LoadDescriptorValueOrFieldType(map, descriptor_entry));
 }
 
 TNode<MaybeObject> AccessorAssembler::LoadDescriptorValueOrFieldType(
-    TNode<Map> map, SloppyTNode<IntPtrT> descriptor) {
+    TNode<Map> map, TNode<IntPtrT> descriptor_entry) {
   TNode<DescriptorArray> descriptors = LoadMapDescriptors(map);
-  TNode<IntPtrT> scaled_descriptor =
-      IntPtrMul(descriptor, IntPtrConstant(DescriptorArray::kEntrySize));
-  TNode<IntPtrT> value_index = IntPtrAdd(
-      scaled_descriptor, IntPtrConstant(DescriptorArray::kFirstIndex +
-                                        DescriptorArray::kEntryValueIndex));
-  CSA_ASSERT(this, UintPtrLessThan(descriptor, LoadAndUntagWeakFixedArrayLength(
-                                                   descriptors)));
-  return LoadWeakFixedArrayElement(descriptors, value_index);
+  return LoadFieldTypeByDescriptorEntry(descriptors, descriptor_entry);
 }
 
 void AccessorAssembler::HandleLoadICSmiHandlerCase(
@@ -496,7 +491,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
   BIND(&constant);
   {
     Comment("constant_load");
-    Node* descriptor = DecodeWord<LoadHandler::DescriptorBits>(handler_word);
+    TNode<IntPtrT> descriptor =
+        Signed(DecodeWord<LoadHandler::DescriptorBits>(handler_word));
     Node* value = LoadDescriptorValue(LoadMap(holder), descriptor);
 
     exit_point->Return(value);
@@ -525,7 +521,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
   BIND(&accessor);
   {
     Comment("accessor_load");
-    Node* descriptor = DecodeWord<LoadHandler::DescriptorBits>(handler_word);
+    TNode<IntPtrT> descriptor =
+        Signed(DecodeWord<LoadHandler::DescriptorBits>(handler_word));
     Node* accessor_pair = LoadDescriptorValue(LoadMap(holder), descriptor);
     CSA_ASSERT(this, IsAccessorPair(accessor_pair));
     Node* getter = LoadObjectField(accessor_pair, AccessorPair::kGetterOffset);
@@ -826,7 +823,8 @@ void AccessorAssembler::JumpIfDataProperty(Node* details, Label* writable,
 void AccessorAssembler::HandleStoreICNativeDataProperty(
     const StoreICParameters* p, Node* holder, Node* handler_word) {
   Comment("native_data_property_store");
-  Node* descriptor = DecodeWord<StoreHandler::DescriptorBits>(handler_word);
+  TNode<IntPtrT> descriptor =
+      Signed(DecodeWord<StoreHandler::DescriptorBits>(handler_word));
   Node* accessor_info = LoadDescriptorValue(LoadMap(holder), descriptor);
   CSA_CHECK(this, IsAccessorInfo(accessor_info));
 
@@ -985,13 +983,11 @@ void AccessorAssembler::HandleStoreICTransitionMapHandlerCase(
   TNode<IntPtrT> last_key_index = UncheckedCast<IntPtrT>(IntPtrAdd(
       IntPtrConstant(DescriptorArray::ToKeyIndex(-1)), IntPtrMul(nof, factor)));
   if (flags & kValidateTransitionHandler) {
-    Node* key = LoadWeakFixedArrayElement(descriptors, last_key_index);
+    TNode<Name> key = LoadKeyByKeyIndex(descriptors, last_key_index);
     GotoIf(WordNotEqual(key, p->name), miss);
   } else {
-    CSA_ASSERT(this,
-               WordEqual(BitcastMaybeObjectToWord(LoadWeakFixedArrayElement(
-                             descriptors, last_key_index)),
-                         p->name));
+    CSA_ASSERT(this, WordEqual(LoadKeyByKeyIndex(descriptors, last_key_index),
+                               p->name));
   }
   Node* details = LoadDetailsByKeyIndex(descriptors, last_key_index);
   if (flags & kValidateTransitionHandler) {
@@ -1062,10 +1058,10 @@ void AccessorAssembler::CheckFieldType(TNode<DescriptorArray> descriptors,
     GotoIf(TaggedIsSmi(value), bailout);
     TNode<MaybeObject> field_type = LoadFieldTypeByKeyIndex(
         descriptors, UncheckedCast<IntPtrT>(name_index));
-    intptr_t kNoneType = reinterpret_cast<intptr_t>(FieldType::None());
-    intptr_t kAnyType = reinterpret_cast<intptr_t>(FieldType::Any());
-    DCHECK_NE(kNoneType, kClearedWeakHeapObject);
-    DCHECK_NE(kAnyType, kClearedWeakHeapObject);
+    const Address kNoneType = FieldType::None().ptr();
+    const Address kAnyType = FieldType::Any().ptr();
+    DCHECK_NE(static_cast<uint32_t>(kNoneType), kClearedWeakHeapObjectLower32);
+    DCHECK_NE(static_cast<uint32_t>(kAnyType), kClearedWeakHeapObjectLower32);
     // FieldType::None can't hold any value.
     GotoIf(WordEqual(BitcastMaybeObjectToWord(field_type),
                      IntPtrConstant(kNoneType)),
@@ -1253,7 +1249,8 @@ void AccessorAssembler::CheckPrototypeValidityCell(Node* maybe_validity_cell,
 void AccessorAssembler::HandleStoreAccessor(const StoreICParameters* p,
                                             Node* holder, Node* handler_word) {
   Comment("accessor_store");
-  Node* descriptor = DecodeWord<StoreHandler::DescriptorBits>(handler_word);
+  TNode<IntPtrT> descriptor =
+      Signed(DecodeWord<StoreHandler::DescriptorBits>(handler_word));
   Node* accessor_pair = LoadDescriptorValue(LoadMap(holder), descriptor);
   CSA_ASSERT(this, IsAccessorPair(accessor_pair));
   Node* setter = LoadObjectField(accessor_pair, AccessorPair::kSetterOffset);
@@ -1584,7 +1581,8 @@ Node* AccessorAssembler::PrepareValueForStore(Node* handler_word, Node* holder,
                        IntPtrConstant(StoreHandler::kConstField)),
              &done);
     }
-    Node* descriptor = DecodeWord<StoreHandler::DescriptorBits>(handler_word);
+    TNode<IntPtrT> descriptor =
+        Signed(DecodeWord<StoreHandler::DescriptorBits>(handler_word));
     TNode<MaybeObject> maybe_field_type =
         LoadDescriptorValueOrFieldType(LoadMap(holder), descriptor);
 
@@ -2336,7 +2334,7 @@ void AccessorAssembler::TryProbeStubCacheTable(
   DCHECK_EQ(kPointerSize, stub_cache->value_reference(table).address() -
                               stub_cache->key_reference(table).address());
   TNode<MaybeObject> handler = ReinterpretCast<MaybeObject>(
-      Load(MachineType::TaggedPointer(), key_base,
+      Load(MachineType::AnyTagged(), key_base,
            IntPtrAdd(entry_offset, IntPtrConstant(kPointerSize))));
 
   // We found the handler.
@@ -3517,7 +3515,7 @@ void AccessorAssembler::GenerateCloneObjectIC_Slow() {
     Label did_set_proto_if_needed(this);
     TNode<BoolT> is_null_proto = SmiNotEqual(
         SmiAnd(flags, SmiConstant(ObjectLiteral::kHasNullPrototype)),
-        SmiConstant(Smi::kZero));
+        SmiConstant(Smi::zero()));
     GotoIfNot(is_null_proto, &did_set_proto_if_needed);
 
     CallRuntime(Runtime::kInternalSetPrototype, context, result,
@@ -3547,13 +3545,12 @@ void AccessorAssembler::GenerateCloneObjectIC_Slow() {
 
   GotoIfNot(IsEmptyFixedArray(LoadElements(CAST(source))), &call_runtime);
 
-  ForEachEnumerableOwnProperty(
-      context, map, CAST(source),
-      [=](TNode<Name> key, TNode<Object> value) {
-        KeyedStoreGenericGenerator::SetPropertyInLiteral(state(), context,
-                                                         result, key, value);
-      },
-      &call_runtime);
+  ForEachEnumerableOwnProperty(context, map, CAST(source),
+                               [=](TNode<Name> key, TNode<Object> value) {
+                                 SetPropertyInLiteral(context, result, key,
+                                                      value);
+                               },
+                               &call_runtime);
   Goto(&done);
 
   BIND(&call_runtime);
@@ -3619,6 +3616,8 @@ void AccessorAssembler::GenerateCloneObjectIC() {
 
       auto mode = INTPTR_PARAMETERS;
       var_properties = CAST(AllocatePropertyArray(length, mode));
+      FillPropertyArrayWithUndefined(var_properties.value(), IntPtrConstant(0),
+                                     length, mode);
       CopyPropertyArrayValues(source_properties, var_properties.value(), length,
                               SKIP_WRITE_BARRIER, mode, DestroySource::kNo);
     }
@@ -3661,13 +3660,11 @@ void AccessorAssembler::GenerateCloneObjectIC() {
             StoreObjectField(object, result_offset, field);
           } else {
             // Copy fields as raw data.
-            TNode<IntPtrT> field = UncheckedCast<IntPtrT>(
-                LoadObjectField(source, field_offset, MachineType::IntPtr()));
+            TNode<IntPtrT> field =
+                LoadObjectField<IntPtrT>(source, field_offset);
             TNode<IntPtrT> result_offset =
                 IntPtrAdd(field_offset, field_offset_difference);
-            StoreObjectFieldNoWriteBarrier(
-                object, result_offset, field,
-                MachineType::IntPtr().representation());
+            StoreObjectFieldNoWriteBarrier(object, result_offset, field);
           }
         },
         1, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);

@@ -20,7 +20,7 @@ MaybeObjectHandle::MaybeObjectHandle()
     : reference_type_(HeapObjectReferenceType::STRONG),
       handle_(Handle<Object>::null()) {}
 
-MaybeObjectHandle::MaybeObjectHandle(MaybeObject* object, Isolate* isolate) {
+MaybeObjectHandle::MaybeObjectHandle(MaybeObject object, Isolate* isolate) {
   HeapObject* heap_object;
   DCHECK(!object->IsCleared());
   if (object->GetHeapObjectIfWeak(&heap_object)) {
@@ -56,7 +56,7 @@ MaybeObjectHandle MaybeObjectHandle::Weak(Object* object, Isolate* isolate) {
   return MaybeObjectHandle(object, HeapObjectReferenceType::WEAK, isolate);
 }
 
-MaybeObject* MaybeObjectHandle::operator*() const {
+MaybeObject MaybeObjectHandle::operator*() const {
   if (reference_type_ == HeapObjectReferenceType::WEAK) {
     return HeapObjectReference::Weak(*handle_.ToHandleChecked());
   } else {
@@ -64,7 +64,7 @@ MaybeObject* MaybeObjectHandle::operator*() const {
   }
 }
 
-MaybeObject* MaybeObjectHandle::operator->() const {
+MaybeObject MaybeObjectHandle::operator->() const {
   if (reference_type_ == HeapObjectReferenceType::WEAK) {
     return HeapObjectReference::Weak(*handle_.ToHandleChecked());
   } else {
@@ -76,7 +76,7 @@ Handle<Object> MaybeObjectHandle::object() const {
   return handle_.ToHandleChecked();
 }
 
-inline MaybeObjectHandle handle(MaybeObject* object, Isolate* isolate) {
+inline MaybeObjectHandle handle(MaybeObject object, Isolate* isolate) {
   return MaybeObjectHandle(object, isolate);
 }
 

@@ -7,7 +7,14 @@
 #include "src/lookup.h"
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
+#include "src/objects/js-break-iterator.h"
+#include "src/objects/js-collator.h"
+#include "src/objects/js-date-time-format.h"
+#include "src/objects/js-list-format.h"
 #include "src/objects/js-number-format.h"
+#include "src/objects/js-plural-rules.h"
+#include "src/objects/js-relative-time-format.h"
+#include "src/objects/js-segmenter.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -211,65 +218,31 @@ TEST(GetBoolOption) {
 TEST(GetAvailableLocales) {
   std::set<std::string> locales;
 
-  locales = Intl::GetAvailableLocales(ICUService::kBreakIterator);
+  locales = JSV8BreakIterator::GetAvailableLocales();
   CHECK(locales.count("en-US"));
   CHECK(!locales.count("abcdefg"));
 
-  locales = Intl::GetAvailableLocales(ICUService::kCollator);
+  locales = JSCollator::GetAvailableLocales();
   CHECK(locales.count("en-US"));
 
-  locales = Intl::GetAvailableLocales(ICUService::kDateFormat);
+  locales = JSDateTimeFormat::GetAvailableLocales();
   CHECK(locales.count("en-US"));
 
-  locales = Intl::GetAvailableLocales(ICUService::kNumberFormat);
+  locales = JSListFormat::GetAvailableLocales();
   CHECK(locales.count("en-US"));
 
-  locales = Intl::GetAvailableLocales(ICUService::kPluralRules);
+  locales = JSNumberFormat::GetAvailableLocales();
   CHECK(locales.count("en-US"));
 
-  locales = Intl::GetAvailableLocales(ICUService::kRelativeDateTimeFormatter);
+  locales = JSPluralRules::GetAvailableLocales();
   CHECK(locales.count("en-US"));
-}
 
-TEST(IsObjectOfType) {
-  LocalContext env;
-  Isolate* isolate = CcTest::i_isolate();
-  v8::Isolate* v8_isolate = env->GetIsolate();
-  v8::HandleScope handle_scope(v8_isolate);
+  locales = JSRelativeTimeFormat::GetAvailableLocales();
+  CHECK(locales.count("en-US"));
 
-  Handle<JSObject> obj = isolate->factory()->NewJSObjectWithNullProto();
-  Handle<Symbol> marker = isolate->factory()->intl_initialized_marker_symbol();
-
-  STATIC_ASSERT(Intl::Type::kNumberFormat == 0);
-  Intl::Type types[] = {Intl::Type::kNumberFormat,   Intl::Type::kCollator,
-                        Intl::Type::kDateTimeFormat, Intl::Type::kPluralRules,
-                        Intl::Type::kBreakIterator,  Intl::Type::kLocale};
-
-  for (auto type : types) {
-    Handle<Smi> tag =
-        Handle<Smi>(Smi::FromInt(static_cast<int>(type)), isolate);
-    JSObject::SetProperty(isolate, obj, marker, tag, LanguageMode::kStrict)
-        .Assert();
-
-    CHECK(Intl::IsObjectOfType(isolate, obj, type));
-  }
-
-  Handle<Object> tag = isolate->factory()->NewStringFromAsciiChecked("foo");
-  JSObject::SetProperty(isolate, obj, marker, tag, LanguageMode::kStrict)
-      .Assert();
-  CHECK(!Intl::IsObjectOfType(isolate, obj, types[0]));
-
-  CHECK(!Intl::IsObjectOfType(isolate, tag, types[0]));
-  CHECK(!Intl::IsObjectOfType(isolate, Handle<Smi>(Smi::FromInt(0), isolate),
-                              types[0]));
-
-  // Proxy with target as an initialized object should fail.
-  tag = Handle<Smi>(Smi::FromInt(static_cast<int>(types[0])), isolate);
-  JSObject::SetProperty(isolate, obj, marker, tag, LanguageMode::kStrict)
-      .Assert();
-  Handle<JSReceiver> proxy = isolate->factory()->NewJSProxy(
-      obj, isolate->factory()->NewJSObjectWithNullProto());
-  CHECK(!Intl::IsObjectOfType(isolate, proxy, types[0]));
+  locales = JSSegmenter::GetAvailableLocales();
+  CHECK(locales.count("en-US"));
+  CHECK(!locales.count("abcdefg"));
 }
 
 }  // namespace internal

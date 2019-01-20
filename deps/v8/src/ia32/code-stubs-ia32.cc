@@ -11,10 +11,10 @@
 #include "src/code-stubs.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
-#include "src/heap/heap-inl.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/isolate.h"
+#include "src/macro-assembler.h"
 #include "src/objects/api-callbacks.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
@@ -29,37 +29,39 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   Label invoke, handler_entry, exit;
   Label not_outermost_js, not_outermost_js_2;
 
-  ProfileEntryHookStub::MaybeCallEntryHook(masm);
+  {  // NOLINT. Scope block confuses linter.
+    NoRootArrayScope uninitialized_root_register(masm);
 
-  // Set up frame.
-  __ push(ebp);
-  __ mov(ebp, esp);
+    // Set up frame.
+    __ push(ebp);
+    __ mov(ebp, esp);
 
-  // Push marker in two places.
-  StackFrame::Type marker = type();
-  __ push(Immediate(StackFrame::TypeToMarker(marker)));  // marker
-  ExternalReference context_address =
-      ExternalReference::Create(IsolateAddressId::kContextAddress, isolate());
-  __ push(__ StaticVariable(context_address));  // context
-  // Save callee-saved registers (C calling conventions).
-  __ push(edi);
-  __ push(esi);
-  __ push(ebx);
+    // Push marker in two places.
+    StackFrame::Type marker = type();
+    __ push(Immediate(StackFrame::TypeToMarker(marker)));  // marker
+    ExternalReference context_address =
+        ExternalReference::Create(IsolateAddressId::kContextAddress, isolate());
+    __ push(Operand(context_address.address(),
+                    RelocInfo::EXTERNAL_REFERENCE));  // context
+    // Save callee-saved registers (C calling conventions).
+    __ push(edi);
+    __ push(esi);
+    __ push(ebx);
 
-  __ InitializeRootRegister();
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+    __ InitializeRootRegister();
+  }
 
   // Save copies of the top frame descriptor on the stack.
   ExternalReference c_entry_fp =
       ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate());
-  __ push(__ StaticVariable(c_entry_fp));
+  __ push(__ ExternalReferenceAsOperand(c_entry_fp, edi));
 
   // If this is the outermost JS call, set js_entry_sp value.
   ExternalReference js_entry_sp =
       ExternalReference::Create(IsolateAddressId::kJSEntrySPAddress, isolate());
-  __ cmp(__ StaticVariable(js_entry_sp), Immediate(0));
+  __ cmp(__ ExternalReferenceAsOperand(js_entry_sp, edi), Immediate(0));
   __ j(not_equal, &not_outermost_js, Label::kNear);
-  __ mov(__ StaticVariable(js_entry_sp), ebp);
+  __ mov(__ ExternalReferenceAsOperand(js_entry_sp, edi), ebp);
   __ push(Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ jmp(&invoke, Label::kNear);
   __ bind(&not_outermost_js);
@@ -74,13 +76,13 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // field in the JSEnv and return a failure sentinel.
   ExternalReference pending_exception = ExternalReference::Create(
       IsolateAddressId::kPendingExceptionAddress, isolate());
-  __ mov(__ StaticVariable(pending_exception), eax);
+  __ mov(__ ExternalReferenceAsOperand(pending_exception, edi), eax);
   __ mov(eax, Immediate(isolate()->factory()->exception()));
   __ jmp(&exit);
 
   // Invoke: Link this frame into the handler chain.
   __ bind(&invoke);
-  __ PushStackHandler();
+  __ PushStackHandler(edi);
 
   // Invoke the function by calling through JS entry trampoline builtin and
   // pop the faked function when we return. Notice that we cannot store a
@@ -89,23 +91,19 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ Call(EntryTrampoline(), RelocInfo::CODE_TARGET);
 
   // Unlink this frame from the handler chain.
-  __ PopStackHandler();
+  __ PopStackHandler(edi);
 
   __ bind(&exit);
 
-  __ VerifyRootRegister();
-
   // Check if the current stack frame is marked as the outermost JS frame.
-  Assembler::AllowExplicitEbxAccessScope exiting_js(masm);
-  __ pop(ebx);
-  __ cmp(ebx, Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));
+  __ pop(edi);
+  __ cmp(edi, Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ j(not_equal, &not_outermost_js_2);
-  __ mov(__ StaticVariable(js_entry_sp), Immediate(0));
+  __ mov(__ ExternalReferenceAsOperand(js_entry_sp, edi), Immediate(0));
   __ bind(&not_outermost_js_2);
 
   // Restore the top frame descriptor from the stack.
-  __ pop(__ StaticVariable(ExternalReference::Create(
-      IsolateAddressId::kCEntryFPAddress, isolate())));
+  __ pop(__ ExternalReferenceAsOperand(c_entry_fp, edi));
 
   // Restore callee-saved registers (C calling conventions).
   __ pop(ebx);
@@ -115,54 +113,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
   // Restore frame pointer and return.
   __ pop(ebp);
-  __ ret(0);
-}
-
-void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,
-                                                     Zone* zone) {
-  if (tasm->isolate()->function_entry_hook() != nullptr) {
-    tasm->CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
-  }
-}
-
-void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
-  if (masm->isolate()->function_entry_hook() != nullptr) {
-    ProfileEntryHookStub stub(masm->isolate());
-    masm->CallStub(&stub);
-  }
-}
-
-
-void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-
-  // Save volatile registers.
-  const int kNumSavedRegisters = 3;
-  __ push(eax);
-  __ push(ecx);
-  __ push(edx);
-
-  // Calculate and push the original stack pointer.
-  __ lea(eax, Operand(esp, (kNumSavedRegisters + 1) * kPointerSize));
-  __ push(eax);
-
-  // Retrieve our return address and use it to calculate the calling
-  // function's address.
-  __ mov(eax, Operand(esp, (kNumSavedRegisters + 1) * kPointerSize));
-  __ sub(eax, Immediate(Assembler::kCallInstructionLength));
-  __ push(eax);
-
-  // Call the entry hook.
-  DCHECK_NOT_NULL(isolate()->function_entry_hook());
-  __ call(FUNCTION_ADDR(isolate()->function_entry_hook()),
-          RelocInfo::RUNTIME_ENTRY);
-  __ add(esp, Immediate(2 * kPointerSize));
-
-  // Restore ecx.
-  __ pop(edx);
-  __ pop(ecx);
-  __ pop(eax);
-
   __ ret(0);
 }
 
@@ -177,8 +127,9 @@ static Operand ApiParameterOperand(int index) {
 // Arguments must be stored in ApiParameterOperand(0), ApiParameterOperand(1)
 // etc. Saves context (esi). If space was reserved for return value then
 // stores the pointer to the reserved slot into esi.
-static void PrepareCallApiFunction(MacroAssembler* masm, int argc) {
-  __ EnterApiExitFrame(argc);
+static void PrepareCallApiFunction(MacroAssembler* masm, int argc,
+                                   Register scratch) {
+  __ EnterApiExitFrame(argc, scratch);
   if (__ emit_debug_code()) {
     __ mov(esi, Immediate(bit_cast<int32_t>(kZapValue)));
   }
@@ -194,7 +145,6 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
                                      Operand thunk_last_arg, int stack_space,
                                      Operand* stack_space_operand,
                                      Operand return_value_operand) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   Isolate* isolate = masm->isolate();
 
   ExternalReference next_address =
@@ -206,16 +156,16 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 
   DCHECK(edx == function_address);
   // Allocate HandleScope in callee-save registers.
-  __ mov(esi, __ StaticVariable(next_address));
-  __ mov(edi, __ StaticVariable(limit_address));
-  __ add(__ StaticVariable(level_address), Immediate(1));
+  __ add(__ ExternalReferenceAsOperand(level_address, esi), Immediate(1));
+  __ mov(esi, __ ExternalReferenceAsOperand(next_address, esi));
+  __ mov(edi, __ ExternalReferenceAsOperand(limit_address, edi));
 
   if (FLAG_log_timer_events) {
     FrameScope frame(masm, StackFrame::MANUAL);
     __ PushSafepointRegisters();
     __ PrepareCallCFunction(1, eax);
-    __ mov(Operand(esp, 0),
-           Immediate(ExternalReference::isolate_address(isolate)));
+    __ Move(Operand(esp, 0),
+            Immediate(ExternalReference::isolate_address(isolate)));
     __ CallCFunction(ExternalReference::log_enter_external_function(), 1);
     __ PopSafepointRegisters();
   }
@@ -223,14 +173,14 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 
   Label profiler_disabled;
   Label end_profiler_check;
-  __ mov(eax, Immediate(ExternalReference::is_profiling_address(isolate)));
+  __ Move(eax, Immediate(ExternalReference::is_profiling_address(isolate)));
   __ cmpb(Operand(eax, 0), Immediate(0));
   __ j(zero, &profiler_disabled);
 
   // Additional parameter is the address of the actual getter function.
   __ mov(thunk_last_arg, function_address);
   // Call the api function.
-  __ mov(eax, Immediate(thunk_ref));
+  __ Move(eax, Immediate(thunk_ref));
   __ call(eax);
   __ jmp(&end_profiler_check);
 
@@ -243,8 +193,8 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
     FrameScope frame(masm, StackFrame::MANUAL);
     __ PushSafepointRegisters();
     __ PrepareCallCFunction(1, eax);
-    __ mov(Operand(esp, 0),
-           Immediate(ExternalReference::isolate_address(isolate)));
+    __ mov(eax, Immediate(ExternalReference::isolate_address(isolate)));
+    __ mov(Operand(esp, 0), eax);
     __ CallCFunction(ExternalReference::log_leave_external_function(), 1);
     __ PopSafepointRegisters();
   }
@@ -260,10 +210,10 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ bind(&prologue);
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
-  __ mov(__ StaticVariable(next_address), esi);
-  __ sub(__ StaticVariable(level_address), Immediate(1));
+  __ mov(__ ExternalReferenceAsOperand(next_address, ecx), esi);
+  __ sub(__ ExternalReferenceAsOperand(level_address, ecx), Immediate(1));
   __ Assert(above_equal, AbortReason::kInvalidHandleScopeLevel);
-  __ cmp(edi, __ StaticVariable(limit_address));
+  __ cmp(edi, __ ExternalReferenceAsOperand(limit_address, ecx));
   __ j(not_equal, &delete_allocated_handles);
 
   // Leave the API exit frame.
@@ -276,8 +226,8 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   // Check if the function scheduled an exception.
   ExternalReference scheduled_exception_address =
       ExternalReference::scheduled_exception_address(isolate);
-  __ cmp(__ StaticVariable(scheduled_exception_address),
-         Immediate(isolate->factory()->the_hole_value()));
+  __ mov(ecx, __ ExternalReferenceAsOperand(scheduled_exception_address, ecx));
+  __ CompareRoot(ecx, RootIndex::kTheHoleValue);
   __ j(not_equal, &promote_scheduled_exception);
 
 #if DEBUG
@@ -295,19 +245,19 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ CmpInstanceType(map, FIRST_JS_RECEIVER_TYPE);
   __ j(above_equal, &ok, Label::kNear);
 
-  __ cmp(map, isolate->factory()->heap_number_map());
+  __ CompareRoot(map, RootIndex::kHeapNumberMap);
   __ j(equal, &ok, Label::kNear);
 
-  __ cmp(return_value, isolate->factory()->undefined_value());
+  __ CompareRoot(return_value, RootIndex::kUndefinedValue);
   __ j(equal, &ok, Label::kNear);
 
-  __ cmp(return_value, isolate->factory()->true_value());
+  __ CompareRoot(return_value, RootIndex::kTrueValue);
   __ j(equal, &ok, Label::kNear);
 
-  __ cmp(return_value, isolate->factory()->false_value());
+  __ CompareRoot(return_value, RootIndex::kFalseValue);
   __ j(equal, &ok, Label::kNear);
 
-  __ cmp(return_value, isolate->factory()->null_value());
+  __ CompareRoot(return_value, RootIndex::kNullValue);
   __ j(equal, &ok, Label::kNear);
 
   __ Abort(AbortReason::kAPICallReturnedInvalidObject);
@@ -332,19 +282,17 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   ExternalReference delete_extensions =
       ExternalReference::delete_handle_scope_extensions();
   __ bind(&delete_allocated_handles);
-  __ mov(__ StaticVariable(limit_address), edi);
+  __ mov(__ ExternalReferenceAsOperand(limit_address, ecx), edi);
   __ mov(edi, eax);
-  __ mov(Operand(esp, 0),
-         Immediate(ExternalReference::isolate_address(isolate)));
-  __ mov(eax, Immediate(delete_extensions));
+  __ Move(eax, Immediate(ExternalReference::isolate_address(isolate)));
+  __ mov(Operand(esp, 0), eax);
+  __ Move(eax, Immediate(delete_extensions));
   __ call(eax);
   __ mov(eax, edi);
   __ jmp(&leave_exit_frame);
 }
 
 void CallApiCallbackStub::Generate(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-
   // ----------- S t a t e -------------
   //  -- eax                 : call_data
   //  -- ecx                 : holder
@@ -386,7 +334,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // return value default
   __ PushRoot(RootIndex::kUndefinedValue);
   // isolate
-  __ push(Immediate(ExternalReference::isolate_address(isolate())));
+  __ Push(Immediate(ExternalReference::isolate_address(isolate())));
   // holder
   __ push(holder);
 
@@ -407,7 +355,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // it's not controlled by GC.
   const int kApiStackSpace = 3;
 
-  PrepareCallApiFunction(masm, kApiArgc + kApiStackSpace);
+  PrepareCallApiFunction(masm, kApiArgc + kApiStackSpace, edi);
 
   // FunctionCallbackInfo::implicit_args_.
   __ mov(ApiParameterOperand(2), scratch);
@@ -435,8 +383,6 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
 
 void CallApiGetterStub::Generate(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-
   // Build v8::PropertyCallbackInfo::args_ array on the stack and push property
   // name below the exit frame to make GC aware of them.
   STATIC_ASSERT(PropertyCallbackArguments::kShouldThrowOnErrorIndex == 0);
@@ -460,9 +406,9 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   __ PushRoot(RootIndex::kUndefinedValue);  // ReturnValue
   // ReturnValue default value
   __ PushRoot(RootIndex::kUndefinedValue);
-  __ push(Immediate(ExternalReference::isolate_address(isolate())));
+  __ Push(Immediate(ExternalReference::isolate_address(isolate())));
   __ push(holder);
-  __ push(Immediate(Smi::kZero));  // should_throw_on_error -> false
+  __ push(Immediate(Smi::zero()));  // should_throw_on_error -> false
   __ push(FieldOperand(callback, AccessorInfo::kNameOffset));
   __ push(scratch);  // Restore return address.
 
@@ -474,10 +420,11 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   // active) in non-GCed stack space.
   const int kApiArgc = 3 + 1;
 
-  // Load address of v8::PropertyAccessorInfo::args_ array.
-  __ lea(scratch, Operand(esp, 2 * kPointerSize));
+  PrepareCallApiFunction(masm, kApiArgc, scratch);
 
-  PrepareCallApiFunction(masm, kApiArgc);
+  // Load address of v8::PropertyAccessorInfo::args_ array. The value in ebp
+  // here corresponds to esp + kPointersize before PrepareCallApiFunction.
+  __ lea(scratch, Operand(ebp, kPointerSize + 2 * kPointerSize));
   // Create v8::PropertyCallbackInfo object on the stack and initialize
   // it's args_ field.
   Operand info_object = ApiParameterOperand(3);

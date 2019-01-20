@@ -103,7 +103,7 @@ std::string NaiveEscape(const std::string& input, char escaped_char) {
   }
   // Disallow trailing backslashes as they mess with our naive source string
   // concatenation.
-  if (out.back() == '\\') out.back() = '_';
+  if (!out.empty() && out.back() == '\\') out.back() = '_';
 
   return out;
 }

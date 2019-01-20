@@ -373,7 +373,7 @@ def IsMacroFile(filename):
   return filename.endswith("macros.py")
 
 def IsMessageTemplateFile(filename):
-  return filename.endswith("messages.h")
+  return filename.endswith("message-template.h")
 
 
 def PrepareSources(source_files, native_type, emit_js):

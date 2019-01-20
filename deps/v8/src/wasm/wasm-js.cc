@@ -22,6 +22,7 @@
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-objects-inl.h"
+#include "src/wasm/wasm-serialization.h"
 
 using v8::internal::wasm::ErrorThrower;
 
@@ -58,6 +59,24 @@ class WasmStreaming::WasmStreamingImpl {
         Utils::OpenHandle(*exception.ToLocalChecked()));
   }
 
+  void SetModuleCompiledCallback(ModuleCompiledCallback callback,
+                                 intptr_t data) {
+    // Wrap the embedder callback here so we can also wrap the result as a
+    // Local<WasmCompiledModule> here.
+    streaming_decoder_->SetModuleCompiledCallback(
+        [callback, data](i::Handle<i::WasmModuleObject> module_object) {
+          callback(data, Local<WasmCompiledModule>::Cast(Utils::ToLocal(
+                             i::Handle<i::JSObject>::cast(module_object))));
+        });
+  }
+
+  bool SetCompiledModuleBytes(const uint8_t* bytes, size_t size) {
+    if (!i::wasm::IsSupportedVersion(reinterpret_cast<i::Isolate*>(isolate_),
+                                     {bytes, size}))
+      return false;
+    return streaming_decoder_->SetCompiledModuleBytes({bytes, size});
+  }
+
  private:
   Isolate* isolate_ = nullptr;
   std::shared_ptr<internal::wasm::StreamingDecoder> streaming_decoder_;
@@ -79,6 +98,15 @@ void WasmStreaming::Finish() { impl_->Finish(); }
 
 void WasmStreaming::Abort(MaybeLocal<Value> exception) {
   impl_->Abort(exception);
+}
+
+void WasmStreaming::SetModuleCompiledCallback(ModuleCompiledCallback callback,
+                                              intptr_t data) {
+  impl_->SetModuleCompiledCallback(callback, data);
+}
+
+bool WasmStreaming::SetCompiledModuleBytes(const uint8_t* bytes, size_t size) {
+  return impl_->SetCompiledModuleBytes(bytes, size);
 }
 
 // static
@@ -213,7 +241,7 @@ class AsyncCompilationResolver : public i::wasm::CompilationResultResolver {
       : promise_(isolate->global_handles()->Create(*promise)) {}
 
   ~AsyncCompilationResolver() override {
-    i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
+    i::GlobalHandles::Destroy(promise_.location());
   }
 
   void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> result) override {
@@ -249,7 +277,7 @@ class InstantiateModuleResultResolver
       : promise_(isolate->global_handles()->Create(*promise)) {}
 
   ~InstantiateModuleResultResolver() override {
-    i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
+    i::GlobalHandles::Destroy(promise_.location());
   }
 
   void OnInstantiationSucceeded(
@@ -285,8 +313,8 @@ class InstantiateBytesResultResolver
         module_(isolate_->global_handles()->Create(*module)) {}
 
   ~InstantiateBytesResultResolver() override {
-    i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
-    i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(module_).location());
+    i::GlobalHandles::Destroy(promise_.location());
+    i::GlobalHandles::Destroy(module_.location());
   }
 
   void OnInstantiationSucceeded(
@@ -350,11 +378,9 @@ class AsyncInstantiateCompileResultResolver
                                  *maybe_imports.ToHandleChecked())) {}
 
   ~AsyncInstantiateCompileResultResolver() override {
-    i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
+    i::GlobalHandles::Destroy(promise_.location());
     if (!maybe_imports_.is_null()) {
-      i::GlobalHandles::Destroy(
-          i::Handle<i::Object>::cast(maybe_imports_.ToHandleChecked())
-              .location());
+      i::GlobalHandles::Destroy(maybe_imports_.ToHandleChecked().location());
     }
   }
 
@@ -389,7 +415,6 @@ class AsyncInstantiateCompileResultResolver
 void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
 
   HandleScope scope(isolate);
   ScheduledErrorThrower thrower(i_isolate, "WebAssembly.compile()");
@@ -424,7 +449,6 @@ void WebAssemblyCompileStreaming(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
   HandleScope scope(isolate);
   ScheduledErrorThrower thrower(i_isolate, "WebAssembly.compile()");
   Local<Context> context = isolate->GetCurrentContext();
@@ -643,8 +667,6 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i_isolate->CountUsage(
       v8::Isolate::UseCounterFeature::kWebAssemblyInstantiation);
-  MicrotasksScope does_not_run_microtasks(isolate,
-                                          MicrotasksScope::kDoNotRunMicrotasks);
 
   HandleScope scope(args.GetIsolate());
   if (i_isolate->wasm_instance_callback()(args)) return;
@@ -675,7 +697,6 @@ void WebAssemblyInstantiateStreaming(
   i_isolate->CountUsage(
       v8::Isolate::UseCounterFeature::kWebAssemblyInstantiation);
 
-  MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
   HandleScope scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
   ScheduledErrorThrower thrower(i_isolate,
@@ -754,7 +775,6 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i_isolate->CountUsage(
       v8::Isolate::UseCounterFeature::kWebAssemblyInstantiation);
-  MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
 
   ScheduledErrorThrower thrower(i_isolate, "WebAssembly Instantiation");
 
@@ -930,7 +950,7 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   int64_t initial = 0;
   if (!GetIntegerProperty(isolate, &thrower, context, descriptor,
                           v8_str(isolate, "initial"), &initial, 0,
-                          i::FLAG_wasm_max_mem_pages)) {
+                          i::wasm::max_mem_pages())) {
     return;
   }
   // The descriptor's 'maximum'.
@@ -1250,9 +1270,8 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (!args[0]->IntegerValue(context).To(&delta_size)) return;
 
   int64_t max_size64 = receiver->maximum_pages();
-  if (max_size64 < 0 ||
-      max_size64 > static_cast<int64_t>(i::FLAG_wasm_max_mem_pages)) {
-    max_size64 = i::FLAG_wasm_max_mem_pages;
+  if (max_size64 < 0 || max_size64 > int64_t{i::wasm::max_mem_pages()}) {
+    max_size64 = i::wasm::max_mem_pages();
   }
   i::Handle<i::JSArrayBuffer> old_buffer(receiver->array_buffer(), i_isolate);
   if (!old_buffer->is_growable()) {
@@ -1473,9 +1492,12 @@ void InstallGetterSetter(Isolate* isolate, Handle<JSObject> object,
 // object explicitly and ignore implicit receiver.
 void SetDummyInstanceTemplate(Isolate* isolate, Handle<JSFunction> fun) {
   Handle<ObjectTemplateInfo> instance_template = NewObjectTemplate(isolate);
-  fun->shared()->get_api_func_data()->set_instance_template(*instance_template);
+  FunctionTemplateInfo::SetInstanceTemplate(
+      isolate, handle(fun->shared()->get_api_func_data(), isolate),
+      instance_template);
 }
 
+// static
 void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   Handle<JSGlobalObject> global = isolate->global_object();
   Handle<Context> context(global->native_context(), isolate);

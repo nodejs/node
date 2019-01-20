@@ -27,7 +27,7 @@ constexpr size_t kV8MaxWasmGlobals = 1000000;
 constexpr size_t kV8MaxWasmExceptions = 1000000;
 constexpr size_t kV8MaxWasmExceptionTypes = 1000000;
 constexpr size_t kV8MaxWasmDataSegments = 100000;
-// Don't use this limit directly, but use the value of FLAG_wasm_max_mem_pages.
+// Don't use this limit directly, but use the value of {max_mem_pages()}.
 constexpr size_t kV8MaxWasmMemoryPages = 32767;  // = ~ 2 GiB
 constexpr size_t kV8MaxWasmStringSize = 100000;
 constexpr size_t kV8MaxWasmModuleSize = 1024 * 1024 * 1024;  // = 1 GiB
@@ -46,16 +46,19 @@ static_assert(kV8MaxWasmMemoryPages <= kSpecMaxWasmMemoryPages,
               "v8 should not be more permissive than the spec");
 constexpr size_t kSpecMaxWasmTableSize = 0xFFFFFFFFu;
 
-constexpr uint64_t kV8MaxWasmMemoryBytes =
-    kV8MaxWasmMemoryPages * uint64_t{kWasmPageSize};
-
-constexpr uint64_t kSpecMaxWasmMemoryBytes =
-    kSpecMaxWasmMemoryPages * uint64_t{kWasmPageSize};
-
 constexpr uint64_t kWasmMaxHeapOffset =
     static_cast<uint64_t>(
         std::numeric_limits<uint32_t>::max())  // maximum base value
     + std::numeric_limits<uint32_t>::max();    // maximum index value
+
+// Defined in wasm-engine.cc.
+// TODO(wasm): Make this size_t for wasm64. Currently the --wasm-max-mem-pages
+// flag is only uint32_t.
+uint32_t max_mem_pages();
+
+inline uint64_t max_mem_bytes() {
+  return uint64_t{max_mem_pages()} * kWasmPageSize;
+}
 
 }  // namespace wasm
 }  // namespace internal

@@ -8,46 +8,13 @@
 #include "src/globals.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/js-objects.h"
+#include "src/objects/smi.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
-
-// Non-templatized base class for {OrderedHashTable}s.
-// TODO(hash): Unify this with the HashTableBase above.
-class OrderedHashTableBase : public FixedArray {
- public:
-  static const int kNotFound = -1;
-  static const int kMinCapacity = 4;
-
-  static const int kNumberOfElementsIndex = 0;
-  // The next table is stored at the same index as the nof elements.
-  static const int kNextTableIndex = kNumberOfElementsIndex;
-  static const int kNumberOfDeletedElementsIndex = kNumberOfElementsIndex + 1;
-  static const int kNumberOfBucketsIndex = kNumberOfDeletedElementsIndex + 1;
-  static const int kHashTableStartIndex = kNumberOfBucketsIndex + 1;
-  static const int kRemovedHolesIndex = kHashTableStartIndex;
-
-  static constexpr const int kNumberOfElementsOffset =
-      FixedArray::OffsetOfElementAt(kNumberOfElementsIndex);
-  static constexpr const int kNextTableOffset =
-      FixedArray::OffsetOfElementAt(kNextTableIndex);
-  static constexpr const int kNumberOfDeletedElementsOffset =
-      FixedArray::OffsetOfElementAt(kNumberOfDeletedElementsIndex);
-  static constexpr const int kNumberOfBucketsOffset =
-      FixedArray::OffsetOfElementAt(kNumberOfBucketsIndex);
-  static constexpr const int kHashTableStartOffset =
-      FixedArray::OffsetOfElementAt(kHashTableStartIndex);
-
-  static const int kLoadFactor = 2;
-
-  // NumberOfDeletedElements is set to kClearedTableSentinel when
-  // the table is cleared, which allows iterator transitions to
-  // optimize that case.
-  static const int kClearedTableSentinel = -1;
-};
 
 // OrderedHashTable is a HashTable with Object keys that preserves
 // insertion order. There are Map and Set interfaces (OrderedHashMap
@@ -86,7 +53,7 @@ class OrderedHashTableBase : public FixedArray {
 //   [3 + NumberOfRemovedHoles()..length]: Not used
 //
 template <class Derived, int entrysize>
-class OrderedHashTable : public OrderedHashTableBase {
+class OrderedHashTable : public FixedArray {
  public:
   // Returns an OrderedHashTable with a capacity of at least |capacity|.
   static Handle<Derived> Allocate(Isolate* isolate, int capacity,
@@ -106,11 +73,13 @@ class OrderedHashTable : public OrderedHashTableBase {
   static Handle<Derived> Clear(Isolate* isolate, Handle<Derived> table);
 
   // Returns true if the OrderedHashTable contains the key
-  static bool HasKey(Isolate* isolate, Derived* table, Object* key);
+  static bool HasKey(Isolate* isolate, Derived table, Object* key);
 
   // Returns a true value if the OrderedHashTable contains the key and
   // the key has been deleted. This does not shrink the table.
-  static bool Delete(Isolate* isolate, Derived* table, Object* key);
+  static bool Delete(Isolate* isolate, Derived table, Object* key);
+
+  int FindEntry(Isolate* isolate, Object* key);
 
   int NumberOfElements() const {
     return Smi::ToInt(get(kNumberOfElementsIndex));
@@ -141,32 +110,6 @@ class OrderedHashTable : public OrderedHashTableBase {
     return Smi::ToInt(entry);
   }
 
-  int KeyToFirstEntry(Isolate* isolate, Object* key) {
-    // This special cases for Smi, so that we avoid the HandleScope
-    // creation below.
-    if (key->IsSmi()) {
-      uint32_t hash = ComputeUnseededHash(Smi::ToInt(key));
-      return HashToEntry(hash & Smi::kMaxValue);
-    }
-    HandleScope scope(isolate);
-    Object* hash = key->GetHash();
-    // If the object does not have an identity hash, it was never used as a key
-    if (hash->IsUndefined(isolate)) return kNotFound;
-    return HashToEntry(Smi::ToInt(hash));
-  }
-
-  int FindEntry(Isolate* isolate, Object* key) {
-    int entry = KeyToFirstEntry(isolate, key);
-    // Walk the chain in the bucket to find the key.
-    while (entry != kNotFound) {
-      Object* candidate_key = KeyAt(entry);
-      if (candidate_key->SameValueZero(key)) break;
-      entry = NextChainEntry(entry);
-    }
-
-    return entry;
-  }
-
   int NextChainEntry(int entry) {
     Object* next_entry = get(EntryToIndex(entry) + kChainOffset);
     return Smi::ToInt(next_entry);
@@ -181,7 +124,7 @@ class OrderedHashTable : public OrderedHashTableBase {
   bool IsObsolete() { return !get(kNextTableIndex)->IsSmi(); }
 
   // The next newer table. This is only valid if the table is obsolete.
-  Derived* NextTable() { return Derived::cast(get(kNextTableIndex)); }
+  Derived NextTable() { return Derived::cast(get(kNextTableIndex)); }
 
   // When the table is obsolete we store the indexes of the removed holes.
   int RemovedIndexAt(int index) {
@@ -191,6 +134,34 @@ class OrderedHashTable : public OrderedHashTableBase {
   static const int kEntrySize = entrysize + 1;
   static const int kChainOffset = entrysize;
 
+  static const int kNotFound = -1;
+  static const int kMinCapacity = 4;
+
+  static const int kNumberOfElementsIndex = 0;
+  // The next table is stored at the same index as the nof elements.
+  static const int kNextTableIndex = kNumberOfElementsIndex;
+  static const int kNumberOfDeletedElementsIndex = kNumberOfElementsIndex + 1;
+  static const int kNumberOfBucketsIndex = kNumberOfDeletedElementsIndex + 1;
+  static const int kHashTableStartIndex = kNumberOfBucketsIndex + 1;
+  static const int kRemovedHolesIndex = kHashTableStartIndex;
+
+  static constexpr const int kNumberOfElementsOffset =
+      FixedArray::OffsetOfElementAt(kNumberOfElementsIndex);
+  static constexpr const int kNextTableOffset =
+      FixedArray::OffsetOfElementAt(kNextTableIndex);
+  static constexpr const int kNumberOfDeletedElementsOffset =
+      FixedArray::OffsetOfElementAt(kNumberOfDeletedElementsIndex);
+  static constexpr const int kNumberOfBucketsOffset =
+      FixedArray::OffsetOfElementAt(kNumberOfBucketsIndex);
+  static constexpr const int kHashTableStartOffset =
+      FixedArray::OffsetOfElementAt(kHashTableStartIndex);
+
+  static const int kLoadFactor = 2;
+
+  // NumberOfDeletedElements is set to kClearedTableSentinel when
+  // the table is cleared, which allows iterator transitions to
+  // optimize that case.
+  static const int kClearedTableSentinel = -1;
   static const int kMaxCapacity =
       (FixedArray::kMaxLength - kHashTableStartIndex) /
       (1 + (kEntrySize * kLoadFactor));
@@ -214,16 +185,18 @@ class OrderedHashTable : public OrderedHashTableBase {
   // Returns the number elements that can fit into the allocated buffer.
   int Capacity() { return NumberOfBuckets() * kLoadFactor; }
 
-  void SetNextTable(Derived* next_table) { set(kNextTableIndex, next_table); }
+  void SetNextTable(Derived next_table) { set(kNextTableIndex, next_table); }
 
   void SetRemovedIndexAt(int index, int removed_index) {
     return set(kRemovedHolesIndex + index, Smi::FromInt(removed_index));
   }
+
+  OBJECT_CONSTRUCTORS(OrderedHashTable, FixedArray)
 };
 
 class OrderedHashSet : public OrderedHashTable<OrderedHashSet, 1> {
  public:
-  DECL_CAST(OrderedHashSet)
+  DECL_CAST2(OrderedHashSet)
 
   static Handle<OrderedHashSet> Add(Isolate* isolate,
                                     Handle<OrderedHashSet> table,
@@ -234,11 +207,13 @@ class OrderedHashSet : public OrderedHashTable<OrderedHashSet, 1> {
   static HeapObject* GetEmpty(ReadOnlyRoots ro_roots);
   static inline RootIndex GetMapRootIndex();
   static inline bool Is(Handle<HeapObject> table);
+
+  OBJECT_CONSTRUCTORS(OrderedHashSet, OrderedHashTable<OrderedHashSet, 1>)
 };
 
 class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
  public:
-  DECL_CAST(OrderedHashMap)
+  DECL_CAST2(OrderedHashMap)
 
   // Returns a value if the OrderedHashMap contains the key, otherwise
   // returns undefined.
@@ -254,6 +229,8 @@ class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
   static inline bool Is(Handle<HeapObject> table);
 
   static const int kValueOffset = 1;
+
+  OBJECT_CONSTRUCTORS(OrderedHashMap, OrderedHashTable<OrderedHashMap, 2>)
 };
 
 // This is similar to the OrderedHashTable, except for the memory
@@ -295,7 +272,7 @@ class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
 //    [45] : empty
 //
 template <class Derived>
-class SmallOrderedHashTable : public HeapObject {
+class SmallOrderedHashTable : public HeapObjectPtr {
  public:
   // Offset points to a relative location in the table
   typedef int Offset;
@@ -314,7 +291,7 @@ class SmallOrderedHashTable : public HeapObject {
 
   // Returns a true value if the table contains the key and
   // the key has been deleted. This does not shrink the table.
-  static bool Delete(Isolate* isolate, Derived* table, Object* key);
+  static bool Delete(Isolate* isolate, Derived table, Object* key);
 
   // Returns an SmallOrderedHashTable (possibly |table|) with enough
   // space to add at least one new element. Returns empty handle if
@@ -323,6 +300,8 @@ class SmallOrderedHashTable : public HeapObject {
 
   static Handle<Derived> Rehash(Isolate* isolate, Handle<Derived> table,
                                 int new_capacity);
+
+  int FindEntry(Isolate* isolate, Object* key);
 
   // Iterates only fields in the DataTable.
   class BodyDescriptor;
@@ -476,22 +455,6 @@ class SmallOrderedHashTable : public HeapObject {
     setByte(kNumberOfDeletedElementsOffset, 0, num);
   }
 
-  int FindEntry(Isolate* isolate, Object* key) {
-    DisallowHeapAllocation no_gc;
-    Object* hash = key->GetHash();
-
-    if (hash->IsUndefined(isolate)) return kNotFound;
-    int entry = HashToFirstEntry(Smi::ToInt(hash));
-
-    // Walk the chain in the bucket to find the key.
-    while (entry != kNotFound) {
-      Object* candidate_key = KeyAt(entry);
-      if (candidate_key->SameValueZero(key)) return entry;
-      entry = GetNextEntry(entry);
-    }
-    return kNotFound;
-  }
-
   static const Offset kNumberOfElementsOffset = kHeaderSize;
   static const Offset kNumberOfDeletedElementsOffset =
       kNumberOfElementsOffset + kOneByteSize;
@@ -534,11 +497,13 @@ class SmallOrderedHashTable : public HeapObject {
   friend class OrderedHashMapHandler;
   friend class OrderedHashSetHandler;
   friend class CodeStubAssembler;
+
+  OBJECT_CONSTRUCTORS(SmallOrderedHashTable, HeapObjectPtr)
 };
 
 class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
  public:
-  DECL_CAST(SmallOrderedHashSet)
+  DECL_CAST2(SmallOrderedHashSet)
 
   DECL_PRINTER(SmallOrderedHashSet)
 
@@ -553,11 +518,14 @@ class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
                                               Handle<Object> key);
   static inline bool Is(Handle<HeapObject> table);
   static inline RootIndex GetMapRootIndex();
+
+  OBJECT_CONSTRUCTORS(SmallOrderedHashSet,
+                      SmallOrderedHashTable<SmallOrderedHashSet>)
 };
 
 class SmallOrderedHashMap : public SmallOrderedHashTable<SmallOrderedHashMap> {
  public:
-  DECL_CAST(SmallOrderedHashMap)
+  DECL_CAST2(SmallOrderedHashMap)
 
   DECL_PRINTER(SmallOrderedHashMap)
 
@@ -574,6 +542,9 @@ class SmallOrderedHashMap : public SmallOrderedHashTable<SmallOrderedHashMap> {
                                               Handle<Object> value);
   static inline bool Is(Handle<HeapObject> table);
   static inline RootIndex GetMapRootIndex();
+
+  OBJECT_CONSTRUCTORS(SmallOrderedHashMap,
+                      SmallOrderedHashTable<SmallOrderedHashMap>)
 };
 
 // TODO(gsathya): Rename this to OrderedHashTable, after we rename
@@ -613,6 +584,75 @@ class OrderedHashSetHandler
       Isolate* isolate, Handle<SmallOrderedHashSet> table);
 };
 
+class OrderedNameDictionary
+    : public OrderedHashTable<OrderedNameDictionary, 3> {
+ public:
+  DECL_CAST2(OrderedNameDictionary)
+
+  static Handle<OrderedNameDictionary> Add(Isolate* isolate,
+                                           Handle<OrderedNameDictionary> table,
+                                           Handle<Name> key,
+                                           Handle<Object> value,
+                                           PropertyDetails details);
+
+  // Returns the value for entry.
+  inline Object* ValueAt(int entry);
+
+  // Set the value for entry.
+  inline void ValueAtPut(int entry, Object* value);
+
+  // Returns the property details for the property at entry.
+  inline PropertyDetails DetailsAt(int entry);
+
+  // Set the details for entry.
+  inline void DetailsAtPut(int entry, PropertyDetails value);
+
+  static HeapObject* GetEmpty(ReadOnlyRoots ro_roots);
+  static inline RootIndex GetMapRootIndex();
+
+  static const int kValueOffset = 1;
+  static const int kPropertyDetailsOffset = 2;
+
+  OBJECT_CONSTRUCTORS(OrderedNameDictionary,
+                      OrderedHashTable<OrderedNameDictionary, 3>)
+};
+
+class SmallOrderedNameDictionary
+    : public SmallOrderedHashTable<SmallOrderedNameDictionary> {
+ public:
+  DECL_CAST2(SmallOrderedNameDictionary)
+
+  DECL_PRINTER(SmallOrderedNameDictionary)
+
+  // Returns the value for entry.
+  inline Object* ValueAt(int entry);
+
+  // Set the value for entry.
+  inline void ValueAtPut(int entry, Object* value);
+
+  // Returns the property details for the property at entry.
+  inline PropertyDetails DetailsAt(int entry);
+
+  // Set the details for entry.
+  inline void DetailsAtPut(int entry, PropertyDetails value);
+
+  static const int kKeyIndex = 0;
+  static const int kValueIndex = 1;
+  static const int kPropertyDetailsIndex = 2;
+  static const int kEntrySize = 3;
+
+  // Adds |value| to |table|, if the capacity isn't enough, a new
+  // table is created. The original |table| is returned if there is
+  // capacity to store |value| otherwise the new table is returned.
+  static MaybeHandle<SmallOrderedNameDictionary> Add(
+      Isolate* isolate, Handle<SmallOrderedNameDictionary> table,
+      Handle<Name> key, Handle<Object> value, PropertyDetails details);
+  static inline RootIndex GetMapRootIndex();
+
+  OBJECT_CONSTRUCTORS(SmallOrderedNameDictionary,
+                      SmallOrderedHashTable<SmallOrderedNameDictionary>)
+};
+
 class JSCollectionIterator : public JSObject {
  public:
   // [table]: the backing hash table mapping keys to values.
@@ -621,8 +661,7 @@ class JSCollectionIterator : public JSObject {
   // [index]: The index into the data table.
   DECL_ACCESSORS(index, Object)
 
-  // Dispatched behavior.
-  DECL_PRINTER(JSCollectionIterator)
+  void JSCollectionIteratorPrint(std::ostream& os, const char* name);
 
   static const int kTableOffset = JSObject::kHeaderSize;
   static const int kIndexOffset = kTableOffset + kPointerSize;

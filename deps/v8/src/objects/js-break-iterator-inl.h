@@ -28,7 +28,7 @@ inline JSV8BreakIterator::Type JSV8BreakIterator::type() const {
   return static_cast<JSV8BreakIterator::Type>(Smi::ToInt(value));
 }
 
-ACCESSORS(JSV8BreakIterator, locale, String, kLocaleOffset)
+ACCESSORS2(JSV8BreakIterator, locale, String, kLocaleOffset)
 ACCESSORS(JSV8BreakIterator, break_iterator, Managed<icu::BreakIterator>,
           kBreakIteratorOffset)
 ACCESSORS(JSV8BreakIterator, unicode_string, Managed<icu::UnicodeString>,

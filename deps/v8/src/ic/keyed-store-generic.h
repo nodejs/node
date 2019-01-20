@@ -33,7 +33,7 @@ class KeyedStoreGenericGenerator {
 
   static void SetPropertyInLiteral(compiler::CodeAssemblerState* state,
                                    TNode<Context> context,
-                                   TNode<JSObject> receiver, TNode<Name> key,
+                                   TNode<JSObject> receiver, TNode<Object> key,
                                    TNode<Object> value);
 };
 

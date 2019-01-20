@@ -42,6 +42,10 @@ class JSArrayBuffer : public JSObject {
   // [bit_field]: boolean flags
   DECL_PRIMITIVE_ACCESSORS(bit_field, uint32_t)
 
+  // Clear uninitialized padding space. This ensures that the snapshot content
+  // is deterministic. Depending on the V8 build mode there could be no padding.
+  V8_INLINE void clear_padding();
+
 // Bit positions for [bit_field].
 #define JS_ARRAY_BUFFER_BIT_FIELD_FIELDS(V, _) \
   V(IsExternalBit, bool, 1, _)                 \
@@ -100,6 +104,11 @@ class JSArrayBuffer : public JSObject {
       SharedFlag shared_flag = SharedFlag::kNotShared,
       bool is_wasm_memory = false);
 
+  // Initialize the object as empty one to avoid confusing heap verifier if
+  // the failure happened in the middle of JSArrayBuffer construction.
+  V8_EXPORT_PRIVATE static void SetupAsEmpty(Handle<JSArrayBuffer> array_buffer,
+                                             Isolate* isolate);
+
   // Returns false if array buffer contents could not be allocated.
   // In this case, |array_buffer| will not be set up.
   static bool SetupAllocatingData(
@@ -111,23 +120,25 @@ class JSArrayBuffer : public JSObject {
   DECL_PRINTER(JSArrayBuffer)
   DECL_VERIFIER(JSArrayBuffer)
 
-  // The fields are not pointers into our heap, so they are not iterated over in
-  // objects-body-descriptors-inl.h.
-  static const int kByteLengthOffset = JSObject::kHeaderSize;
-  static const int kBackingStoreOffset = kByteLengthOffset + kUIntptrSize;
-  static const int kBitFieldSlot = kBackingStoreOffset + kPointerSize;
-#if V8_TARGET_LITTLE_ENDIAN || !V8_HOST_ARCH_64_BIT
-  static const int kBitFieldOffset = kBitFieldSlot;
-#else
-  static const int kBitFieldOffset = kBitFieldSlot + kInt32Size;
-#endif
-  static const int kSize = kBitFieldSlot + kPointerSize;
+// Layout description.
+#define JS_ARRAY_BUFFER_FIELDS(V)                                           \
+  V(kEndOfTaggedFieldsOffset, 0)                                            \
+  /* Raw data fields. */                                                    \
+  V(kByteLengthOffset, kUIntptrSize)                                        \
+  V(kBackingStoreOffset, kSystemPointerSize)                                \
+  V(kBitFieldOffset, kInt32Size)                                            \
+  /* Pads header size to be a multiple of kTaggedSize. */                   \
+  V(kOptionalPaddingOffset, OBJECT_POINTER_PADDING(kOptionalPaddingOffset)) \
+  /* Header size. */                                                        \
+  V(kHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_ARRAY_BUFFER_FIELDS)
+#undef JS_ARRAY_BUFFER_FIELDS
 
   static const int kSizeWithEmbedderFields =
-      kSize + v8::ArrayBuffer::kEmbedderFieldCount * kPointerSize;
+      kHeaderSize +
+      v8::ArrayBuffer::kEmbedderFieldCount * kEmbedderDataSlotSize;
 
-  // Iterates all fields in the object including internal ones except
-  // kBackingStoreOffset and kBitFieldSlot.
   class BodyDescriptor;
 
  private:
@@ -151,13 +162,20 @@ class JSArrayBufferView : public JSObject {
 
   inline bool WasNeutered() const;
 
-  static const int kBufferOffset = JSObject::kHeaderSize;
-  static const int kByteOffsetOffset = kBufferOffset + kPointerSize;
-  static const int kByteLengthOffset = kByteOffsetOffset + kUIntptrSize;
-  static const int kHeaderSize = kByteLengthOffset + kUIntptrSize;
+// Layout description.
+#define JS_ARRAY_BUFFER_VIEW_FIELDS(V) \
+  V(kBufferOffset, kTaggedSize)        \
+  V(kEndOfTaggedFieldsOffset, 0)       \
+  /* Raw data fields. */               \
+  V(kByteOffsetOffset, kUIntptrSize)   \
+  V(kByteLengthOffset, kUIntptrSize)   \
+  /* Header size. */                   \
+  V(kHeaderSize, 0)
 
-  // Iterates all fields in the object including internal ones except
-  // kByteOffset and kByteLengthOffset.
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_ARRAY_BUFFER_VIEW_FIELDS)
+#undef JS_ARRAY_BUFFER_VIEW_FIELDS
+
   class BodyDescriptor;
 
  private:
@@ -193,10 +211,20 @@ class JSTypedArray : public JSArrayBufferView {
   DECL_PRINTER(JSTypedArray)
   DECL_VERIFIER(JSTypedArray)
 
-  static const int kLengthOffset = JSArrayBufferView::kHeaderSize;
-  static const int kSize = kLengthOffset + kPointerSize;
+// Layout description.
+#define JS_TYPED_ARRAY_FIELDS(V)       \
+  /* Raw data fields. */               \
+  V(kLengthOffset, kSystemPointerSize) \
+  /* Header size. */                   \
+  V(kHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSArrayBufferView::kHeaderSize,
+                                JS_TYPED_ARRAY_FIELDS)
+#undef JS_TYPED_ARRAY_FIELDS
+
   static const int kSizeWithEmbedderFields =
-      kSize + v8::ArrayBufferView::kEmbedderFieldCount * kPointerSize;
+      kHeaderSize +
+      v8::ArrayBufferView::kEmbedderFieldCount * kEmbedderDataSlotSize;
 
  private:
   static Handle<JSArrayBuffer> MaterializeArrayBuffer(
@@ -216,9 +244,10 @@ class JSDataView : public JSArrayBufferView {
   DECL_PRINTER(JSDataView)
   DECL_VERIFIER(JSDataView)
 
-  static const int kSize = JSArrayBufferView::kHeaderSize;
+  // Layout description.
   static const int kSizeWithEmbedderFields =
-      kSize + v8::ArrayBufferView::kEmbedderFieldCount * kPointerSize;
+      kHeaderSize +
+      v8::ArrayBufferView::kEmbedderFieldCount * kEmbedderDataSlotSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSDataView);

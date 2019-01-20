@@ -19,6 +19,7 @@ InspectorTest.runTestSuite([
       .then(() => checkExpression('it = new Map([[1,2],[3,4]]).keys(); it.next(); it'))
       .then(() => checkExpression('it = new Map([[1,2],[3,4]]).values(); it.next(); it'))
       .then(() => checkExpression('it = new Map([[1,2],[3,4]]).entries(); it.next(); it.next(); it'))
+      .then(() => checkExpression('new Map([[1, undefined], [2, () => 42], [3, /abc/], [4, new Error()]]).entries()'))
       .then(next);
   },
 

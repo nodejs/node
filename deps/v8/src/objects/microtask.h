@@ -53,7 +53,7 @@ class CallbackTask : public Microtask {
 class CallableTask : public Microtask {
  public:
   DECL_ACCESSORS(callable, JSReceiver)
-  DECL_ACCESSORS(context, Context)
+  DECL_ACCESSORS2(context, Context)
 
   static const int kCallableOffset = Microtask::kHeaderSize;
   static const int kContextOffset = kCallableOffset + kPointerSize;

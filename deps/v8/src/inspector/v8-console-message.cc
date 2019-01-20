@@ -259,19 +259,33 @@ V8ConsoleMessage::wrapArguments(V8InspectorSessionImpl* session,
 
   std::unique_ptr<protocol::Array<protocol::Runtime::RemoteObject>> args =
       protocol::Array<protocol::Runtime::RemoteObject>::create();
-  if (m_type == ConsoleAPIType::kTable && generatePreview) {
-    v8::Local<v8::Value> table = m_arguments[0]->Get(isolate);
-    v8::Local<v8::Value> columns = m_arguments.size() > 1
-                                       ? m_arguments[1]->Get(isolate)
-                                       : v8::Local<v8::Value>();
+
+  v8::Local<v8::Value> value = m_arguments[0]->Get(isolate);
+  if (value->IsObject() && m_type == ConsoleAPIType::kTable &&
+      generatePreview) {
+    v8::MaybeLocal<v8::Array> columns;
+    if (m_arguments.size() > 1) {
+      v8::Local<v8::Value> secondArgument = m_arguments[1]->Get(isolate);
+      if (secondArgument->IsArray()) {
+        columns = v8::Local<v8::Array>::Cast(secondArgument);
+      } else if (secondArgument->IsString()) {
+        v8::TryCatch tryCatch(isolate);
+        v8::Local<v8::Array> array = v8::Array::New(isolate);
+        if (array->Set(context, 0, secondArgument).IsJust()) {
+          columns = array;
+        }
+      }
+    }
     std::unique_ptr<protocol::Runtime::RemoteObject> wrapped =
-        session->wrapTable(context, table, columns);
+        session->wrapTable(context, v8::Local<v8::Object>::Cast(value),
+                           columns);
     inspectedContext = inspector->getContext(contextGroupId, contextId);
     if (!inspectedContext) return nullptr;
-    if (wrapped)
+    if (wrapped) {
       args->addItem(std::move(wrapped));
-    else
+    } else {
       args = nullptr;
+    }
   } else {
     for (size_t i = 0; i < m_arguments.size(); ++i) {
       std::unique_ptr<protocol::Runtime::RemoteObject> wrapped =

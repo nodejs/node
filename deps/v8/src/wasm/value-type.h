@@ -10,6 +10,10 @@
 
 namespace v8 {
 namespace internal {
+
+template <typename T>
+class Signature;
+
 namespace wasm {
 
 enum ValueType : uint8_t {
@@ -24,6 +28,8 @@ enum ValueType : uint8_t {
   kWasmExceptRef,
   kWasmVar,
 };
+
+using FunctionSig = Signature<ValueType>;
 
 inline size_t hash_value(ValueType type) { return static_cast<size_t>(type); }
 

@@ -145,8 +145,7 @@ const uint32_t kLeastSignificantByteInInt32Offset = 3;
 namespace v8 {
 namespace internal {
 
-// TODO(sigurds): Change this value once we use relative jumps.
-constexpr size_t kMaxPCRelativeCodeRangeInMB = 0;
+constexpr size_t kMaxPCRelativeCodeRangeInMB = 4096;
 
 // -----------------------------------------------------------------------------
 // Registers and FPURegisters.

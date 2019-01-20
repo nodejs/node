@@ -13,10 +13,10 @@
 #include "src/double.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
-#include "src/heap/heap-inl.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/isolate.h"
+#include "src/macro-assembler.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/regexp/jsregexp.h"
@@ -41,8 +41,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
   {
     NoRootArrayScope no_root_array(masm);
-
-    ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
     // Called from C, so do not pop argc and args on exit (preserve sp)
     // No need to save register-passed args
@@ -221,96 +219,6 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
   __ blx(lr);  // Call the stub.
 }
 
-
-void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,
-                                                     Zone* zone) {
-  if (tasm->isolate()->function_entry_hook() != nullptr) {
-    tasm->MaybeCheckConstPool();
-    PredictableCodeSizeScope predictable(
-        tasm, TurboAssembler::kCallStubSize + 2 * kInstrSize);
-    tasm->push(lr);
-    tasm->CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
-    tasm->pop(lr);
-  }
-}
-
-void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
-  if (masm->isolate()->function_entry_hook() != nullptr) {
-    ProfileEntryHookStub stub(masm->isolate());
-    masm->MaybeCheckConstPool();
-    PredictableCodeSizeScope predictable(
-        masm, TurboAssembler::kCallStubSize + 2 * kInstrSize);
-    __ push(lr);
-    __ CallStub(&stub);
-    __ pop(lr);
-  }
-}
-
-
-void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
-  // The entry hook is a "push lr" instruction, followed by a call.
-  const int32_t kReturnAddressDistanceFromFunctionStart = 3 * kInstrSize;
-
-  // This should contain all kCallerSaved registers.
-  const RegList kSavedRegs =
-      1 <<  0 |  // r0
-      1 <<  1 |  // r1
-      1 <<  2 |  // r2
-      1 <<  3 |  // r3
-      1 <<  5 |  // r5
-      1 <<  9;   // r9
-  // We also save lr, so the count here is one higher than the mask indicates.
-  const int32_t kNumSavedRegs = 7;
-
-  DCHECK_EQ(kCallerSaved & kSavedRegs, kCallerSaved);
-
-  // Save all caller-save registers as this may be called from anywhere.
-  __ stm(db_w, sp, kSavedRegs | lr.bit());
-
-  // Compute the function's address for the first argument.
-  __ sub(r0, lr, Operand(kReturnAddressDistanceFromFunctionStart));
-
-  // The caller's return address is above the saved temporaries.
-  // Grab that for the second argument to the hook.
-  __ add(r1, sp, Operand(kNumSavedRegs * kPointerSize));
-
-  // Align the stack if necessary.
-  int frame_alignment = masm->ActivationFrameAlignment();
-  if (frame_alignment > kPointerSize) {
-    __ mov(r5, sp);
-    DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
-    __ and_(sp, sp, Operand(-frame_alignment));
-  }
-
-  {
-    UseScratchRegisterScope temps(masm);
-    Register scratch = temps.Acquire();
-
-#if V8_HOST_ARCH_ARM
-    int32_t entry_hook =
-        reinterpret_cast<int32_t>(isolate()->function_entry_hook());
-    __ mov(scratch, Operand(entry_hook));
-#else
-    // Under the simulator we need to indirect the entry hook through a
-    // trampoline function at a known address.
-    // It additionally takes an isolate as a third parameter
-    __ mov(r2, Operand(ExternalReference::isolate_address(isolate())));
-
-    ApiFunction dispatcher(FUNCTION_ADDR(EntryHookTrampoline));
-    __ mov(scratch, Operand(ExternalReference::Create(
-                        &dispatcher, ExternalReference::BUILTIN_CALL)));
-#endif
-    __ Call(scratch);
-  }
-
-  // Restore the stack pointer if needed.
-  if (frame_alignment > kPointerSize) {
-    __ mov(sp, r5);
-  }
-
-  // Also pop pc to get Ret(0).
-  __ ldm(ia_w, sp, kSavedRegs | pc.bit());
-}
 
 static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
   return ref0.address() - ref1.address();
@@ -553,7 +461,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   __ Push(scratch, scratch);
   __ Move(scratch, ExternalReference::isolate_address(isolate()));
   __ Push(scratch, holder);
-  __ Push(Smi::kZero);  // should_throw_on_error -> false
+  __ Push(Smi::zero());  // should_throw_on_error -> false
   __ ldr(scratch, FieldMemOperand(callback, AccessorInfo::kNameOffset));
   __ push(scratch);
   // v8::PropertyCallbackInfo::args_ array and name handle.

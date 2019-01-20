@@ -66,7 +66,7 @@ void BasicBlockProfiler::Data::ResetCounts() {
 }
 
 BasicBlockProfiler::Data* BasicBlockProfiler::NewData(size_t n_blocks) {
-  base::LockGuard<base::Mutex> lock(&data_list_mutex_);
+  base::MutexGuard lock(&data_list_mutex_);
   Data* data = new Data(n_blocks);
   data_list_.push_back(data);
   return data;

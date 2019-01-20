@@ -17,8 +17,8 @@ namespace internal {
 
 ACCESSORS(JSRegExpStringIterator, iterating_regexp, Object,
           kIteratingRegExpOffset)
-ACCESSORS(JSRegExpStringIterator, iterating_string, String,
-          kIteratedStringOffset)
+ACCESSORS2(JSRegExpStringIterator, iterating_string, String,
+           kIteratedStringOffset)
 
 SMI_ACCESSORS(JSRegExpStringIterator, flags, kFlagsOffset)
 BOOL_ACCESSORS(JSRegExpStringIterator, flags, done, kDoneBit)

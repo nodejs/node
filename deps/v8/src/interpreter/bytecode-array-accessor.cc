@@ -215,7 +215,7 @@ int BytecodeArrayAccessor::GetJumpTargetOffset() const {
     }
     return GetAbsoluteOffset(relative_offset);
   } else if (interpreter::Bytecodes::IsJumpConstant(bytecode)) {
-    Smi* smi = Smi::cast(GetConstantForIndexOperand(0));
+    Smi smi = Smi::cast(GetConstantForIndexOperand(0));
     return GetAbsoluteOffset(smi->value());
   } else {
     UNREACHABLE();
@@ -285,7 +285,7 @@ JumpTableTargetOffsets::iterator::iterator(
     int case_value, int table_offset, int table_end,
     const BytecodeArrayAccessor* accessor)
     : accessor_(accessor),
-      current_(Smi::kZero),
+      current_(Smi::zero()),
       index_(case_value),
       table_offset_(table_offset),
       table_end_(table_end) {

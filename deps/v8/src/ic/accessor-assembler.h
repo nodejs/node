@@ -148,9 +148,10 @@ class AccessorAssembler : public CodeStubAssembler {
                          TVariable<MaybeObject>* var_handler, Label* if_handler,
                          Label* miss, ExitPoint* exit_point);
 
-  TNode<Object> LoadDescriptorValue(TNode<Map> map, Node* descriptor);
+  TNode<Object> LoadDescriptorValue(TNode<Map> map,
+                                    TNode<IntPtrT> descriptor_entry);
   TNode<MaybeObject> LoadDescriptorValueOrFieldType(
-      TNode<Map> map, SloppyTNode<IntPtrT> descriptor);
+      TNode<Map> map, TNode<IntPtrT> descriptor_entry);
 
   void LoadIC_Uninitialized(const LoadICParameters* p);
 

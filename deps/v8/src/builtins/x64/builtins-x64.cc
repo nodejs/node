@@ -13,6 +13,8 @@
 #include "src/objects-inl.h"
 #include "src/objects/debug-objects.h"
 #include "src/objects/js-generator.h"
+#include "src/objects/smi.h"
+#include "src/register-configuration.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -353,8 +355,6 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
 
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
-  ProfileEntryHookStub::MaybeCallEntryHook(masm);
-
   // Expects five C++ function parameters.
   // - Object* new_target
   // - JSFunction* function
@@ -385,7 +385,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Setup the context (we need to use the caller context from the isolate).
     ExternalReference context_address = ExternalReference::Create(
         IsolateAddressId::kContextAddress, masm->isolate());
-    __ movp(rsi, masm->ExternalOperand(context_address));
+    __ movp(rsi, masm->ExternalReferenceAsOperand(context_address));
 
     // Push the function and the receiver onto the stack.
     __ Push(rdx);
@@ -422,7 +422,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Setup the context (we need to use the caller context from the isolate).
     ExternalReference context_address = ExternalReference::Create(
         IsolateAddressId::kContextAddress, masm->isolate());
-    __ movp(rsi, masm->ExternalOperand(context_address));
+    __ movp(rsi, masm->ExternalReferenceAsOperand(context_address));
 
     // Push the function and receiver onto the stack.
     __ Push(rdi);
@@ -532,7 +532,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   Label stepping_prepared;
   ExternalReference debug_hook =
       ExternalReference::debug_hook_on_function_call_address(masm->isolate());
-  Operand debug_hook_operand = masm->ExternalOperand(debug_hook);
+  Operand debug_hook_operand = masm->ExternalReferenceAsOperand(debug_hook);
   __ cmpb(debug_hook_operand, Immediate(0));
   __ j(not_equal, &prepare_step_in_if_stepping);
 
@@ -540,7 +540,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   ExternalReference debug_suspended_generator =
       ExternalReference::debug_suspended_generator_address(masm->isolate());
   Operand debug_suspended_generator_operand =
-      masm->ExternalOperand(debug_suspended_generator);
+      masm->ExternalReferenceAsOperand(debug_suspended_generator);
   __ cmpp(rdx, debug_suspended_generator_operand);
   __ j(equal, &prepare_step_in_suspended_generator);
   __ bind(&stepping_prepared);
@@ -721,6 +721,9 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
                   Smi::FromEnum(OptimizationMarker::kNone));
     __ j(equal, &fallthrough);
 
+    // TODO(v8:8394): The logging of first execution will break if
+    // feedback vectors are not allocated. We need to find a different way of
+    // logging these events if required.
     TailCallRuntimeIfMarkerEquals(masm, optimized_code_entry,
                                   OptimizationMarker::kLogFirstExecution,
                                   Runtime::kFunctionFirstExecution);
@@ -852,8 +855,6 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 // The function builds an interpreter frame.  See InterpreterFrameConstants in
 // frames.h for its layout.
 void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
-  ProfileEntryHookStub::MaybeCallEntryHook(masm);
-
   Register closure = rdi;
   Register feedback_vector = rbx;
 
@@ -861,13 +862,24 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ movp(feedback_vector,
           FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   __ movp(feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
+
+  Label push_stack_frame;
+  // Check if feedback vector is valid. If valid, check for optimized code
+  // and update invocation count. Otherwise, setup the stack frame.
+  __ JumpIfRoot(feedback_vector, RootIndex::kUndefinedValue, &push_stack_frame);
+
   // Read off the optimized code slot in the feedback vector, and if there
   // is optimized code or an optimization marker, call that instead.
   MaybeTailCallOptimizedCodeSlot(masm, feedback_vector, rcx, r14, r15);
 
+  // Increment invocation count for the function.
+  __ incl(
+      FieldOperand(feedback_vector, FeedbackVector::kInvocationCountOffset));
+
   // Open a frame scope to indicate that there is a frame on the stack.  The
   // MANUAL indicates that the scope shouldn't actually generate code to set up
   // the frame (that is done below).
+  __ bind(&push_stack_frame);
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ pushq(rbp);  // Caller's frame pointer.
   __ movp(rbp, rsp);
@@ -881,10 +893,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
           FieldOperand(rax, SharedFunctionInfo::kFunctionDataOffset));
   GetSharedFunctionInfoBytecode(masm, kInterpreterBytecodeArrayRegister,
                                 kScratchRegister);
-
-  // Increment invocation count for the function.
-  __ incl(
-      FieldOperand(feedback_vector, FeedbackVector::kInvocationCountOffset));
 
   // Check function data field is actually a BytecodeArray object.
   if (FLAG_debug_code) {
@@ -1141,12 +1149,14 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // Set the return address to the correct point in the interpreter entry
   // trampoline.
   Label builtin_trampoline, trampoline_loaded;
-  Smi* interpreter_entry_return_pc_offset(
+  Smi interpreter_entry_return_pc_offset(
       masm->isolate()->heap()->interpreter_entry_return_pc_offset());
   DCHECK_NE(interpreter_entry_return_pc_offset, Smi::kZero);
 
-  // If the SFI function_data is an InterpreterData, get the trampoline stored
-  // in it, otherwise get the trampoline from the builtins list.
+  // If the SFI function_data is an InterpreterData, the function will have a
+  // custom copy of the interpreter entry trampoline for profiling. If so,
+  // get the custom trampoline, otherwise grab the entry address of the global
+  // trampoline.
   __ movp(rbx, Operand(rbp, StandardFrameConstants::kFunctionOffset));
   __ movp(rbx, FieldOperand(rbx, JSFunction::kSharedFunctionInfoOffset));
   __ movp(rbx, FieldOperand(rbx, SharedFunctionInfo::kFunctionDataOffset));
@@ -1155,14 +1165,19 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 
   __ movp(rbx,
           FieldOperand(rbx, InterpreterData::kInterpreterTrampolineOffset));
+  __ addp(rbx, Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ jmp(&trampoline_loaded, Label::kNear);
 
   __ bind(&builtin_trampoline);
-  __ Move(rbx, BUILTIN_CODE(masm->isolate(), InterpreterEntryTrampoline));
+  __ movp(rbx,
+          __ ExternalReferenceAsOperand(
+              ExternalReference::
+                  address_of_interpreter_entry_trampoline_instruction_start(
+                      masm->isolate()),
+              kScratchRegister));
 
   __ bind(&trampoline_loaded);
-  __ addp(rbx, Immediate(interpreter_entry_return_pc_offset->value() +
-                         Code::kHeaderSize - kHeapObjectTag));
+  __ addp(rbx, Immediate(interpreter_entry_return_pc_offset->value()));
   __ Push(rbx);
 
   // Initialize dispatch table register.
@@ -1661,11 +1676,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   //  -- rdi : function (passed through to callee)
   // -----------------------------------
 
-  Label invoke, dont_adapt_arguments, stack_overflow;
-  Counters* counters = masm->isolate()->counters();
-  __ IncrementCounter(counters->arguments_adaptors(), 1);
-
-  Label enough, too_few;
+  Label invoke, dont_adapt_arguments, stack_overflow, enough, too_few;
   __ cmpp(rbx, Immediate(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
   __ j(equal, &dont_adapt_arguments);
   __ cmpp(rax, rbx);
@@ -2357,7 +2368,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
                               WasmInstanceObject::kCEntryStubOffset));
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
-    __ Move(kContextRegister, Smi::kZero);
+    __ Move(kContextRegister, Smi::zero());
     __ CallRuntimeWithCEntry(Runtime::kWasmCompileLazy, rcx);
     // The entrypoint address is the return value.
     __ movq(r11, kReturnRegister0);
@@ -2388,8 +2399,6 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   //
   // If argv_mode == kArgvInRegister:
   // r15: pointer to the first argument
-
-  ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
 #ifdef _WIN64
   // Windows 64-bit ABI passes arguments in rcx, rdx, r8, r9. It requires the
@@ -2483,7 +2492,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     ExternalReference pending_exception_address = ExternalReference::Create(
         IsolateAddressId::kPendingExceptionAddress, masm->isolate());
     Operand pending_exception_operand =
-        masm->ExternalOperand(pending_exception_address);
+        masm->ExternalReferenceAsOperand(pending_exception_address);
     __ cmpp(r14, pending_exception_operand);
     __ j(equal, &okay, Label::kNear);
     __ int3();
@@ -2520,9 +2529,10 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ CallCFunction(find_handler, 3);
   }
   // Retrieve the handler context, SP and FP.
-  __ movp(rsi, masm->ExternalOperand(pending_handler_context_address));
-  __ movp(rsp, masm->ExternalOperand(pending_handler_sp_address));
-  __ movp(rbp, masm->ExternalOperand(pending_handler_fp_address));
+  __ movp(rsi,
+          masm->ExternalReferenceAsOperand(pending_handler_context_address));
+  __ movp(rsp, masm->ExternalReferenceAsOperand(pending_handler_sp_address));
+  __ movp(rbp, masm->ExternalReferenceAsOperand(pending_handler_fp_address));
 
   // If the handler is a JS frame, restore the context to the frame. Note that
   // the context will be set to (rsi == 0) for non-JS frames.
@@ -2539,7 +2549,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ ResetSpeculationPoisonRegister();
 
   // Compute the handler entry address and jump to it.
-  __ movp(rdi, masm->ExternalOperand(pending_handler_entrypoint_address));
+  __ movp(rdi,
+          masm->ExternalReferenceAsOperand(pending_handler_entrypoint_address));
   __ jmp(rdi);
 }
 

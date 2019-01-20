@@ -45,7 +45,7 @@ namespace v8 {
 namespace internal {
 
 static bool IsAddressWithinFuncCode(JSFunction* function, void* addr) {
-  i::AbstractCode* code = function->abstract_code();
+  i::AbstractCode code = function->abstract_code();
   return code->contains(reinterpret_cast<Address>(addr));
 }
 

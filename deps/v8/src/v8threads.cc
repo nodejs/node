@@ -238,12 +238,13 @@ ThreadState* ThreadState::Next() {
 // Thread ids must start with 1, because in TLS having thread id 0 can't
 // be distinguished from not having a thread id at all (since NULL is
 // defined as 0.)
-ThreadManager::ThreadManager()
+ThreadManager::ThreadManager(Isolate* isolate)
     : mutex_owner_(ThreadId::Invalid()),
       lazily_archived_thread_(ThreadId::Invalid()),
       lazily_archived_thread_state_(nullptr),
       free_anchor_(nullptr),
-      in_use_anchor_(nullptr) {
+      in_use_anchor_(nullptr),
+      isolate_(isolate) {
   free_anchor_ = new ThreadState(this);
   in_use_anchor_ = new ThreadState(this);
 }

@@ -41,11 +41,9 @@ class V8_EXPORT_PRIVATE StringHasher {
   // Reusable parts of the hashing algorithm.
   V8_INLINE static uint32_t AddCharacterCore(uint32_t running_hash, uint16_t c);
   V8_INLINE static uint32_t GetHashCore(uint32_t running_hash);
+  template <typename Char>
   V8_INLINE static uint32_t ComputeRunningHash(uint32_t running_hash,
-                                               const uc16* chars, int length);
-  V8_INLINE static uint32_t ComputeRunningHashOneByte(uint32_t running_hash,
-                                                      const char* chars,
-                                                      int length);
+                                               const Char* chars, int length);
 
  protected:
   // Returns the value to store in the hash field of a string with
@@ -68,19 +66,18 @@ class V8_EXPORT_PRIVATE StringHasher {
   uint32_t raw_running_hash_;
   uint32_t array_index_;
   bool is_array_index_;
-  bool is_first_char_;
   DISALLOW_COPY_AND_ASSIGN(StringHasher);
 };
 
 class IteratingStringHasher : public StringHasher {
  public:
-  static inline uint32_t Hash(String* string, uint64_t seed);
+  static inline uint32_t Hash(String string, uint64_t seed);
   inline void VisitOneByteString(const uint8_t* chars, int length);
   inline void VisitTwoByteString(const uint16_t* chars, int length);
 
  private:
   inline IteratingStringHasher(int len, uint64_t seed);
-  void VisitConsString(ConsString* cons_string);
+  void VisitConsString(ConsString cons_string);
   DISALLOW_COPY_AND_ASSIGN(IteratingStringHasher);
 };
 

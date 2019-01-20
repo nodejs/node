@@ -6,22 +6,29 @@
 
 #if V8_TARGET_ARCH_MIPS64
 
+#include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/bootstrapper.h"
 #include "src/callable.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
-#include "src/instruction-stream.h"
-#include "src/mips64/assembler-mips64-inl.h"
-#include "src/mips64/macro-assembler-mips64.h"
+#include "src/macro-assembler.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-code-manager.h"
+
+// Satisfy cpplint check, but don't include platform-specific header. It is
+// included recursively via macro-assembler.h.
+#if 0
+#include "src/mips64/macro-assembler-mips64.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -128,14 +135,14 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 }
 
 void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
-  Ld(destination, MemOperand(s6, RootRegisterOffset(index)));
+  Ld(destination, MemOperand(s6, RootRegisterOffsetForRootIndex(index)));
 }
 
 void TurboAssembler::LoadRoot(Register destination, RootIndex index,
                               Condition cond, Register src1,
                               const Operand& src2) {
   Branch(2, NegateCondition(cond), src1, src2);
-  Ld(destination, MemOperand(s6, RootRegisterOffset(index)));
+  Ld(destination, MemOperand(s6, RootRegisterOffsetForRootIndex(index)));
 }
 
 
@@ -259,24 +266,42 @@ void TurboAssembler::RestoreRegisters(RegList registers) {
 void TurboAssembler::CallRecordWriteStub(
     Register object, Register address,
     RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode) {
+  CallRecordWriteStub(
+      object, address, remembered_set_action, fp_mode,
+      isolate()->builtins()->builtin_handle(Builtins::kRecordWrite),
+      kNullAddress);
+}
+
+void TurboAssembler::CallRecordWriteStub(
+    Register object, Register address,
+    RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
+    Address wasm_target) {
+  CallRecordWriteStub(object, address, remembered_set_action, fp_mode,
+                      Handle<Code>::null(), wasm_target);
+}
+
+void TurboAssembler::CallRecordWriteStub(
+    Register object, Register address,
+    RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
+    Handle<Code> code_target, Address wasm_target) {
+  DCHECK_NE(code_target.is_null(), wasm_target == kNullAddress);
   // TODO(albertnetymk): For now we ignore remembered_set_action and fp_mode,
   // i.e. always emit remember set and save FP registers in RecordWriteStub. If
   // large performance regression is observed, we should use these values to
   // avoid unnecessary work.
 
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtins::kRecordWrite);
-  RegList registers = callable.descriptor().allocatable_registers();
+  RecordWriteDescriptor descriptor;
+  RegList registers = descriptor.allocatable_registers();
 
   SaveRegisters(registers);
-  Register object_parameter(callable.descriptor().GetRegisterParameter(
-      RecordWriteDescriptor::kObject));
+  Register object_parameter(
+      descriptor.GetRegisterParameter(RecordWriteDescriptor::kObject));
   Register slot_parameter(
-      callable.descriptor().GetRegisterParameter(RecordWriteDescriptor::kSlot));
-  Register remembered_set_parameter(callable.descriptor().GetRegisterParameter(
-      RecordWriteDescriptor::kRememberedSet));
-  Register fp_mode_parameter(callable.descriptor().GetRegisterParameter(
-      RecordWriteDescriptor::kFPMode));
+      descriptor.GetRegisterParameter(RecordWriteDescriptor::kSlot));
+  Register remembered_set_parameter(
+      descriptor.GetRegisterParameter(RecordWriteDescriptor::kRememberedSet));
+  Register fp_mode_parameter(
+      descriptor.GetRegisterParameter(RecordWriteDescriptor::kFPMode));
 
   Push(object);
   Push(address);
@@ -286,7 +311,11 @@ void TurboAssembler::CallRecordWriteStub(
 
   Move(remembered_set_parameter, Smi::FromEnum(remembered_set_action));
   Move(fp_mode_parameter, Smi::FromEnum(fp_mode));
-  Call(callable.code(), RelocInfo::CODE_TARGET);
+  if (code_target.is_null()) {
+    Call(wasm_target, RelocInfo::WASM_STUB_CALL);
+  } else {
+    Call(code_target, RelocInfo::CODE_TARGET);
+  }
 
   RestoreRegisters(registers);
 }
@@ -2040,7 +2069,7 @@ void TurboAssembler::Dins(Register rt, Register rs, uint16_t pos,
 
 void TurboAssembler::ExtractBits(Register dest, Register source, Register pos,
                                  int size, bool sign_extend) {
-  srav(dest, source, pos);
+  dsrav(dest, source, pos);
   Dext(dest, dest, 0, size);
   if (sign_extend) {
     switch (size) {
@@ -2062,14 +2091,13 @@ void TurboAssembler::ExtractBits(Register dest, Register source, Register pos,
 
 void TurboAssembler::InsertBits(Register dest, Register source, Register pos,
                                 int size) {
-  Ror(dest, dest, pos);
+  Dror(dest, dest, pos);
   Dins(dest, source, 0, size);
   {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
-    Dsubu(scratch, pos, Operand(64));
-    Neg(scratch, Operand(scratch));
-    Ror(dest, dest, scratch);
+    Dsubu(scratch, zero_reg, pos);
+    Dror(dest, dest, scratch);
   }
 }
 
@@ -4125,8 +4153,7 @@ bool TurboAssembler::BranchAndLinkShortCheck(int32_t offset, Label* L,
 
 void TurboAssembler::LoadFromConstantsTable(Register destination,
                                             int constant_index) {
-  DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(
-      RootIndex::kBuiltinsConstantsTable));
+  DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kBuiltinsConstantsTable));
   LoadRoot(destination, RootIndex::kBuiltinsConstantsTable);
   Ld(destination,
      FieldMemOperand(destination,
@@ -4391,7 +4418,7 @@ void MacroAssembler::Swap(Register reg1,
 
 void TurboAssembler::Call(Label* target) { BranchAndLink(target); }
 
-void TurboAssembler::Push(Smi* smi) {
+void TurboAssembler::Push(Smi smi) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   li(scratch, Operand(smi));
@@ -4421,7 +4448,7 @@ void MacroAssembler::PushStackHandler() {
   STATIC_ASSERT(StackHandlerConstants::kSize == 2 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
 
-  Push(Smi::kZero);  // Padding.
+  Push(Smi::zero());  // Padding.
 
   // Link the current handler as the next handler.
   li(a6,
@@ -4796,19 +4823,6 @@ void MacroAssembler::CallStub(CodeStub* stub,
   Call(stub->GetCode(), RelocInfo::CODE_TARGET, cond, r1, r2, bd);
 }
 
-void TurboAssembler::CallStubDelayed(CodeStub* stub, Condition cond,
-                                     Register r1, const Operand& r2,
-                                     BranchDelaySlot bd) {
-  DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  li(scratch, Operand::EmbeddedCode(stub));
-  Call(scratch);
-}
-
 void MacroAssembler::TailCallStub(CodeStub* stub,
                                   Condition cond,
                                   Register r1,
@@ -4969,7 +4983,7 @@ void MacroAssembler::JumpToInstructionStream(Address entry) {
 
 void MacroAssembler::LoadWeakValue(Register out, Register in,
                                    Label* target_if_cleared) {
-  Branch(target_if_cleared, eq, in, Operand(kClearedWeakHeapObject));
+  Branch(target_if_cleared, eq, in, Operand(kClearedWeakHeapObjectLower32));
 
   And(out, in, Operand(~kWeakHeapObjectMask));
 }
@@ -5103,19 +5117,6 @@ void TurboAssembler::LeaveFrame(StackFrame::Type type) {
   daddiu(sp, fp, 2 * kPointerSize);
   Ld(ra, MemOperand(fp, 1 * kPointerSize));
   Ld(fp, MemOperand(fp, 0 * kPointerSize));
-}
-
-void MacroAssembler::EnterBuiltinFrame(Register context, Register target,
-                                       Register argc) {
-  Push(ra, fp);
-  Move(fp, sp);
-  Push(context, target, argc);
-}
-
-void MacroAssembler::LeaveBuiltinFrame(Register context, Register target,
-                                       Register argc) {
-  Pop(context, target, argc);
-  Pop(ra, fp);
 }
 
 void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
@@ -5422,6 +5423,9 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
 
   // Check if JSGeneratorObject
   Branch(&done, eq, t8, Operand(JS_GENERATOR_OBJECT_TYPE));
+
+  // Check if JSAsyncFunctionObject (See MacroAssembler::CompareInstanceType)
+  Branch(&done, eq, t8, Operand(JS_ASYNC_FUNCTION_OBJECT_TYPE));
 
   // Check if JSAsyncGeneratorObject
   Branch(&done, eq, t8, Operand(JS_ASYNC_GENERATOR_OBJECT_TYPE));

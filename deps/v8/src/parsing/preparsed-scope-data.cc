@@ -137,7 +137,7 @@ Handle<PodArray<uint8_t>> PreParsedScopeDataBuilder::ByteData::Serialize(
       isolate, static_cast<int>(backing_store_.size()), TENURED);
 
   DisallowHeapAllocation no_gc;
-  PodArray<uint8_t>* raw_array = *array;
+  PodArray<uint8_t> raw_array = *array;
 
   int i = 0;
   for (uint8_t item : backing_store_) {
@@ -152,7 +152,6 @@ PreParsedScopeDataBuilder::PreParsedScopeDataBuilder(
       byte_data_(new (zone) ByteData(zone)),
       data_for_inner_functions_(zone),
       bailed_out_(false) {
-  DCHECK(FLAG_preparser_scope_analysis);
   if (parent != nullptr) {
     parent->data_for_inner_functions_.push_back(this);
   }
@@ -164,33 +163,16 @@ PreParsedScopeDataBuilder::PreParsedScopeDataBuilder(
 
 PreParsedScopeDataBuilder::DataGatheringScope::DataGatheringScope(
     DeclarationScope* function_scope, PreParser* preparser)
-    : function_scope_(function_scope),
-      preparser_(preparser),
-      builder_(nullptr) {
-  if (FLAG_preparser_scope_analysis) {
-    PreParsedScopeDataBuilder* parent =
-        preparser->preparsed_scope_data_builder();
-    Zone* main_zone = preparser->main_zone();
-    builder_ = new (main_zone) PreParsedScopeDataBuilder(main_zone, parent);
-    preparser->set_preparsed_scope_data_builder(builder_);
-    function_scope->set_preparsed_scope_data_builder(builder_);
-  }
+    : preparser_(preparser), builder_(nullptr) {
+  PreParsedScopeDataBuilder* parent = preparser->preparsed_scope_data_builder();
+  Zone* main_zone = preparser->main_zone();
+  builder_ = new (main_zone) PreParsedScopeDataBuilder(main_zone, parent);
+  preparser->set_preparsed_scope_data_builder(builder_);
+  function_scope->set_preparsed_scope_data_builder(builder_);
 }
 
 PreParsedScopeDataBuilder::DataGatheringScope::~DataGatheringScope() {
-  if (builder_) {
-    preparser_->set_preparsed_scope_data_builder(builder_->parent_);
-  }
-}
-
-void PreParsedScopeDataBuilder::DataGatheringScope::MarkFunctionAsSkippable(
-    int end_position, int num_inner_functions) {
-  DCHECK_NOT_NULL(builder_);
-  DCHECK_NOT_NULL(builder_->parent_);
-  builder_->parent_->AddSkippableFunction(
-      function_scope_->start_position(), end_position,
-      function_scope_->num_parameters(), num_inner_functions,
-      function_scope_->language_mode(), function_scope_->NeedsHomeObject());
+  preparser_->set_preparsed_scope_data_builder(builder_->parent_);
 }
 
 void PreParsedScopeDataBuilder::AddSkippableFunction(int start_position,
@@ -644,7 +626,7 @@ void BaseConsumedPreParsedScopeData<Data>::VerifyDataStart() {
 }
 #endif
 
-PodArray<uint8_t>* OnHeapConsumedPreParsedScopeData::GetScopeData() {
+PodArray<uint8_t> OnHeapConsumedPreParsedScopeData::GetScopeData() {
   return data_->scope_data();
 }
 
@@ -707,8 +689,8 @@ ZoneConsumedPreParsedScopeData::ZoneConsumedPreParsedScopeData(
 #endif
 }
 
-ZoneVectorWrapper* ZoneConsumedPreParsedScopeData::GetScopeData() {
-  return &scope_data_wrapper_;
+ZoneVectorWrapper ZoneConsumedPreParsedScopeData::GetScopeData() {
+  return scope_data_wrapper_;
 }
 
 ProducedPreParsedScopeData* ZoneConsumedPreParsedScopeData::GetChildData(

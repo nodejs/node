@@ -23,6 +23,7 @@
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/slots-inl.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
@@ -567,7 +568,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
     }
     return AddEntry(object, HeapEntry::kObject, name);
   } else if (object->IsString()) {
-    String* string = String::cast(object);
+    String string = String::cast(object);
     if (string->IsConsString()) {
       return AddEntry(object, HeapEntry::kConsString, "(concatenated string)");
     } else if (string->IsSlicedString()) {
@@ -586,7 +587,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
   } else if (object->IsCode()) {
     return AddEntry(object, HeapEntry::kCode, "");
   } else if (object->IsSharedFunctionInfo()) {
-    String* name = SharedFunctionInfo::cast(object)->Name();
+    String name = SharedFunctionInfo::cast(object)->Name();
     return AddEntry(object, HeapEntry::kCode, names_->GetName(name));
   } else if (object->IsScript()) {
     Object* name = Script::cast(object)->name();
@@ -665,32 +666,34 @@ class IndexedReferencesExtractor : public ObjectVisitor {
                              HeapEntry* parent)
       : generator_(generator),
         parent_obj_(parent_obj),
-        parent_start_(HeapObject::RawField(parent_obj_, 0)),
-        parent_end_(HeapObject::RawField(parent_obj_, parent_obj_->Size())),
+        parent_start_(HeapObject::RawMaybeWeakField(parent_obj_, 0)),
+        parent_end_(
+            HeapObject::RawMaybeWeakField(parent_obj_, parent_obj_->Size())),
         parent_(parent) {}
-  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
-    VisitPointers(host, reinterpret_cast<MaybeObject**>(start),
-                  reinterpret_cast<MaybeObject**>(end));
+  void VisitPointers(HeapObject* host, ObjectSlot start,
+                     ObjectSlot end) override {
+    VisitPointers(host, MaybeObjectSlot(start), MaybeObjectSlot(end));
   }
-  void VisitPointers(HeapObject* host, MaybeObject** start,
-                     MaybeObject** end) override {
+  void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+                     MaybeObjectSlot end) override {
     int next_index = 0;
-    for (MaybeObject** p = start; p < end; p++) {
-      int index = static_cast<int>(reinterpret_cast<Object**>(p) -
-                                   HeapObject::RawField(parent_obj_, 0));
-      ++next_index;
+    for (MaybeObjectSlot p = start; p < end; ++p) {
+      int index = -1;
       // |p| could be outside of the object, e.g., while visiting RelocInfo of
       // code objects.
-      if (reinterpret_cast<Object**>(p) >= parent_start_ &&
-          reinterpret_cast<Object**>(p) < parent_end_ &&
-          generator_->visited_fields_[index]) {
-        generator_->visited_fields_[index] = false;
-        continue;
+      if (parent_start_ <= p && p < parent_end_) {
+        index = static_cast<int>(p - parent_start_);
+        if (generator_->visited_fields_[index]) {
+          generator_->visited_fields_[index] = false;
+          continue;
+        }
       }
       HeapObject* heap_object;
-      if ((*p)->GetHeapObjectIfWeak(&heap_object) ||
-          (*p)->GetHeapObjectIfStrong(&heap_object)) {
-        generator_->SetHiddenReference(parent_obj_, parent_, next_index,
+      if ((*p)->GetHeapObject(&heap_object)) {
+        // The last parameter {field_offset} is only used to check some
+        // well-known skipped references, so passing -1 * kPointerSize
+        // for out-of-object slots is fine.
+        generator_->SetHiddenReference(parent_obj_, parent_, next_index++,
                                        heap_object, index * kPointerSize);
       }
     }
@@ -699,8 +702,8 @@ class IndexedReferencesExtractor : public ObjectVisitor {
  private:
   V8HeapExplorer* generator_;
   HeapObject* parent_obj_;
-  Object** parent_start_;
-  Object** parent_end_;
+  MaybeObjectSlot parent_start_;
+  MaybeObjectSlot parent_end_;
   HeapEntry* parent_;
 };
 
@@ -753,6 +756,8 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry, HeapObject* obj) {
         entry, ArrayBoilerplateDescription::cast(obj));
   } else if (obj->IsFeedbackVector()) {
     ExtractFeedbackVectorReferences(entry, FeedbackVector::cast(obj));
+  } else if (obj->IsDescriptorArray()) {
+    ExtractDescriptorArrayReferences(entry, DescriptorArray::cast(obj));
   } else if (obj->IsWeakFixedArray()) {
     ExtractWeakArrayReferences(WeakFixedArray::kHeaderSize, entry,
                                WeakFixedArray::cast(obj));
@@ -793,7 +798,7 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
     SetInternalReference(entry, "bound_function",
                          js_fun->bound_target_function(),
                          JSBoundFunction::kBoundTargetFunctionOffset);
-    FixedArray* bindings = js_fun->bound_arguments();
+    FixedArray bindings = js_fun->bound_arguments();
     for (int i = 0; i < bindings->length(); i++) {
       const char* reference_name = names_->GetFormatted("bound_argument_%d", i);
       SetNativeBindReference(entry, reference_name, bindings->get(i));
@@ -851,24 +856,24 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
                        JSObject::kElementsOffset);
 }
 
-void V8HeapExplorer::ExtractStringReferences(HeapEntry* entry, String* string) {
+void V8HeapExplorer::ExtractStringReferences(HeapEntry* entry, String string) {
   if (string->IsConsString()) {
-    ConsString* cs = ConsString::cast(string);
+    ConsString cs = ConsString::cast(string);
     SetInternalReference(entry, "first", cs->first(), ConsString::kFirstOffset);
     SetInternalReference(entry, "second", cs->second(),
                          ConsString::kSecondOffset);
   } else if (string->IsSlicedString()) {
-    SlicedString* ss = SlicedString::cast(string);
+    SlicedString ss = SlicedString::cast(string);
     SetInternalReference(entry, "parent", ss->parent(),
                          SlicedString::kParentOffset);
   } else if (string->IsThinString()) {
-    ThinString* ts = ThinString::cast(string);
+    ThinString ts = ThinString::cast(string);
     SetInternalReference(entry, "actual", ts->actual(),
                          ThinString::kActualOffset);
   }
 }
 
-void V8HeapExplorer::ExtractSymbolReferences(HeapEntry* entry, Symbol* symbol) {
+void V8HeapExplorer::ExtractSymbolReferences(HeapEntry* entry, Symbol symbol) {
   SetInternalReference(entry, "name", symbol->name(), Symbol::kNameOffset);
 }
 
@@ -885,7 +890,7 @@ void V8HeapExplorer::ExtractJSWeakCollectionReferences(HeapEntry* entry,
 }
 
 void V8HeapExplorer::ExtractEphemeronHashTableReferences(
-    HeapEntry* entry, EphemeronHashTable* table) {
+    HeapEntry* entry, EphemeronHashTable table) {
   for (int i = 0, capacity = table->Capacity(); i < capacity; ++i) {
     int key_index = EphemeronHashTable::EntryToIndex(i) +
                     EphemeronHashTable::kEntryKeyIndex;
@@ -916,23 +921,23 @@ static const struct {
 } native_context_names[] = {
 #define CONTEXT_FIELD_INDEX_NAME(index, _, name) {Context::index, #name},
     NATIVE_CONTEXT_FIELDS(CONTEXT_FIELD_INDEX_NAME)
-#undef CONTEXT_FIELD_INDEX
+#undef CONTEXT_FIELD_INDEX_NAME
 };
 
 void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
-                                              Context* context) {
+                                              Context context) {
   if (!context->IsNativeContext() && context->is_declaration_context()) {
-    ScopeInfo* scope_info = context->scope_info();
+    ScopeInfo scope_info = context->scope_info();
     // Add context allocated locals.
     int context_locals = scope_info->ContextLocalCount();
     for (int i = 0; i < context_locals; ++i) {
-      String* local_name = scope_info->ContextLocalName(i);
+      String local_name = scope_info->ContextLocalName(i);
       int idx = Context::MIN_CONTEXT_SLOTS + i;
       SetContextReference(entry, local_name, context->get(idx),
                           Context::OffsetOfElementAt(idx));
     }
     if (scope_info->HasFunctionName()) {
-      String* name = String::cast(scope_info->FunctionName());
+      String name = String::cast(scope_info->FunctionName());
       int idx = scope_info->FunctionContextSlotIndex(name);
       if (idx >= 0) {
         SetContextReference(entry, name, context->get(idx),
@@ -979,8 +984,8 @@ void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
   }
 }
 
-void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map* map) {
-  MaybeObject* maybe_raw_transitions_or_prototype_info = map->raw_transitions();
+void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
+  MaybeObject maybe_raw_transitions_or_prototype_info = map->raw_transitions();
   HeapObject* raw_transitions_or_prototype_info;
   if (maybe_raw_transitions_or_prototype_info->GetHeapObjectIfWeak(
           &raw_transitions_or_prototype_info)) {
@@ -1043,7 +1048,7 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map* map) {
 
 void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
     HeapEntry* entry, SharedFunctionInfo* shared) {
-  String* shared_name = shared->DebugName();
+  String shared_name = shared->DebugName();
   const char* name = nullptr;
   if (shared_name != ReadOnlyRoots(heap_).empty_string()) {
     name = names_->GetName(shared_name);
@@ -1105,11 +1110,11 @@ void V8HeapExplorer::ExtractAccessorPairReferences(HeapEntry* entry,
                        AccessorPair::kSetterOffset);
 }
 
-void V8HeapExplorer::TagBuiltinCodeObject(Code* code, const char* name) {
+void V8HeapExplorer::TagBuiltinCodeObject(Code code, const char* name) {
   TagObject(code, names_->GetFormatted("(%s builtin)", name));
 }
 
-void V8HeapExplorer::TagCodeObject(Code* code) {
+void V8HeapExplorer::TagCodeObject(Code code) {
   if (code->kind() == Code::STUB) {
     TagObject(code, names_->GetFormatted(
                         "(%s code)",
@@ -1117,7 +1122,7 @@ void V8HeapExplorer::TagCodeObject(Code* code) {
   }
 }
 
-void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry, Code* code) {
+void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry, Code code) {
   TagCodeObject(code);
   TagObject(code->relocation_info(), "(code relocation info)");
   SetInternalReference(entry, "relocation_info", code->relocation_info(),
@@ -1220,7 +1225,7 @@ void V8HeapExplorer::ExtractJSGeneratorObjectReferences(
 }
 
 void V8HeapExplorer::ExtractFixedArrayReferences(HeapEntry* entry,
-                                                 FixedArray* array) {
+                                                 FixedArray array) {
   for (int i = 0, l = array->length(); i < l; ++i) {
     DCHECK(!HasWeakHeapObjectTag(array->get(i)));
     SetInternalReference(entry, i, array->get(i), array->OffsetOfElementAt(i));
@@ -1229,7 +1234,7 @@ void V8HeapExplorer::ExtractFixedArrayReferences(HeapEntry* entry,
 
 void V8HeapExplorer::ExtractFeedbackVectorReferences(
     HeapEntry* entry, FeedbackVector* feedback_vector) {
-  MaybeObject* code = feedback_vector->optimized_code_weak_or_smi();
+  MaybeObject code = feedback_vector->optimized_code_weak_or_smi();
   HeapObject* code_heap_object;
   if (code->GetHeapObjectIfWeak(&code_heap_object)) {
     SetWeakReference(entry, "optimized code", code_heap_object,
@@ -1237,11 +1242,31 @@ void V8HeapExplorer::ExtractFeedbackVectorReferences(
   }
 }
 
+void V8HeapExplorer::ExtractDescriptorArrayReferences(HeapEntry* entry,
+                                                      DescriptorArray* array) {
+  SetInternalReference(entry, "enum_cache", array->enum_cache(),
+                       DescriptorArray::kEnumCacheOffset);
+  MaybeObjectSlot start = MaybeObjectSlot(array->GetDescriptorSlot(0));
+  MaybeObjectSlot end = MaybeObjectSlot(
+      array->GetDescriptorSlot(array->number_of_all_descriptors()));
+  for (int i = 0; start + i < end; ++i) {
+    MaybeObjectSlot slot = start + i;
+    int offset = static_cast<int>(slot.address() - array->address());
+    MaybeObject object = *slot;
+    HeapObject* heap_object;
+    if (object->GetHeapObjectIfWeak(&heap_object)) {
+      SetWeakReference(entry, i, heap_object, offset);
+    } else if (object->GetHeapObjectIfStrong(&heap_object)) {
+      SetInternalReference(entry, i, heap_object, offset);
+    }
+  }
+}
+
 template <typename T>
 void V8HeapExplorer::ExtractWeakArrayReferences(int header_size,
                                                 HeapEntry* entry, T* array) {
   for (int i = 0; i < array->length(); ++i) {
-    MaybeObject* object = array->Get(i);
+    MaybeObject object = array->Get(i);
     HeapObject* heap_object;
     if (object->GetHeapObjectIfWeak(&heap_object)) {
       SetWeakReference(entry, i, heap_object, header_size + i * kPointerSize);
@@ -1265,7 +1290,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj,
           Representation r = details.representation();
           if (r.IsSmi() || r.IsDouble()) break;
 
-          Name* k = descs->GetKey(i);
+          Name k = descs->GetKey(i);
           FieldIndex field_index = FieldIndex::ForDescriptor(js_obj->map(), i);
           Object* value = js_obj->RawFastPropertyAt(field_index);
           int field_offset =
@@ -1284,20 +1309,20 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj,
     }
   } else if (js_obj->IsJSGlobalObject()) {
     // We assume that global objects can only have slow properties.
-    GlobalDictionary* dictionary =
+    GlobalDictionary dictionary =
         JSGlobalObject::cast(js_obj)->global_dictionary();
     int length = dictionary->Capacity();
     ReadOnlyRoots roots(isolate);
     for (int i = 0; i < length; ++i) {
       if (!dictionary->IsKey(roots, dictionary->KeyAt(i))) continue;
       PropertyCell* cell = dictionary->CellAt(i);
-      Name* name = cell->name();
+      Name name = cell->name();
       Object* value = cell->value();
       PropertyDetails details = cell->property_details();
       SetDataOrAccessorPropertyReference(details.kind(), entry, name, value);
     }
   } else {
-    NameDictionary* dictionary = js_obj->property_dictionary();
+    NameDictionary dictionary = js_obj->property_dictionary();
     int length = dictionary->Capacity();
     ReadOnlyRoots roots(isolate);
     for (int i = 0; i < length; ++i) {
@@ -1311,7 +1336,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj,
   }
 }
 
-void V8HeapExplorer::ExtractAccessorPairProperty(HeapEntry* entry, Name* key,
+void V8HeapExplorer::ExtractAccessorPairProperty(HeapEntry* entry, Name key,
                                                  Object* callback_obj,
                                                  int field_offset) {
   if (!callback_obj->IsAccessorPair()) return;
@@ -1331,7 +1356,7 @@ void V8HeapExplorer::ExtractElementReferences(JSObject* js_obj,
                                               HeapEntry* entry) {
   ReadOnlyRoots roots = js_obj->GetReadOnlyRoots();
   if (js_obj->HasObjectElements()) {
-    FixedArray* elements = FixedArray::cast(js_obj->elements());
+    FixedArray elements = FixedArray::cast(js_obj->elements());
     int length = js_obj->IsJSArray()
                      ? Smi::ToInt(JSArray::cast(js_obj)->length())
                      : elements->length();
@@ -1341,7 +1366,7 @@ void V8HeapExplorer::ExtractElementReferences(JSObject* js_obj,
       }
     }
   } else if (js_obj->HasDictionaryElements()) {
-    NumberDictionary* dictionary = js_obj->element_dictionary();
+    NumberDictionary dictionary = js_obj->element_dictionary();
     int length = dictionary->Capacity();
     for (int i = 0; i < length; ++i) {
       Object* k = dictionary->KeyAt(i);
@@ -1374,7 +1399,7 @@ JSFunction* V8HeapExplorer::GetConstructor(JSReceiver* receiver) {
   return *maybe_constructor.ToHandleChecked();
 }
 
-String* V8HeapExplorer::GetConstructorName(JSObject* object) {
+String V8HeapExplorer::GetConstructorName(JSObject* object) {
   Isolate* isolate = object->GetIsolate();
   if (object->IsJSFunction()) return ReadOnlyRoots(isolate).closure_string();
   DisallowHeapAllocation no_gc;
@@ -1394,7 +1419,7 @@ class RootsReferencesExtractor : public RootVisitor {
   void SetVisitingWeakRoots() { visiting_weak_roots_ = true; }
 
   void VisitRootPointer(Root root, const char* description,
-                        Object** object) override {
+                        ObjectSlot object) override {
     if (root == Root::kBuiltins) {
       explorer_->TagBuiltinCodeObject(Code::cast(*object), description);
     }
@@ -1402,9 +1427,9 @@ class RootsReferencesExtractor : public RootVisitor {
                                      *object);
   }
 
-  void VisitRootPointers(Root root, const char* description, Object** start,
-                         Object** end) override {
-    for (Object** p = start; p < end; p++)
+  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
+                         ObjectSlot end) override {
+    for (ObjectSlot p = start; p < end; ++p)
       VisitRootPointer(root, description, p);
   }
 
@@ -1427,7 +1452,8 @@ bool V8HeapExplorer::IterateAndExtractReferences(
   // first. Otherwise a particular JSFunction object could set
   // its custom name to a generic builtin.
   RootsReferencesExtractor extractor(this);
-  heap_->IterateRoots(&extractor, VISIT_ONLY_STRONG_FOR_SERIALIZATION);
+  ReadOnlyRoots(heap_).Iterate(&extractor);
+  heap_->IterateRoots(&extractor, VISIT_ONLY_STRONG);
   extractor.SetVisitingWeakRoots();
   heap_->IterateWeakGlobalHandles(&extractor);
 
@@ -1501,7 +1527,7 @@ bool V8HeapExplorer::IsEssentialHiddenReference(Object* parent,
 }
 
 void V8HeapExplorer::SetContextReference(HeapEntry* parent_entry,
-                                         String* reference_name,
+                                         String reference_name,
                                          Object* child_obj, int field_offset) {
   HeapEntry* child_entry = GetEntry(child_obj);
   if (child_entry == nullptr) return;
@@ -1593,7 +1619,7 @@ void V8HeapExplorer::SetWeakReference(HeapEntry* parent_entry, int index,
 }
 
 void V8HeapExplorer::SetDataOrAccessorPropertyReference(
-    PropertyKind kind, HeapEntry* parent_entry, Name* reference_name,
+    PropertyKind kind, HeapEntry* parent_entry, Name reference_name,
     Object* child_obj, const char* name_format_string, int field_offset) {
   if (kind == kAccessor) {
     ExtractAccessorPairProperty(parent_entry, reference_name, child_obj,
@@ -1605,7 +1631,7 @@ void V8HeapExplorer::SetDataOrAccessorPropertyReference(
 }
 
 void V8HeapExplorer::SetPropertyReference(HeapEntry* parent_entry,
-                                          Name* reference_name,
+                                          Name reference_name,
                                           Object* child_obj,
                                           const char* name_format_string,
                                           int field_offset) {
@@ -1673,24 +1699,13 @@ void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
   SetUserGlobalReference(global);
 }
 
-// This static array is used to prevent excessive code-size in
-// GetStrongGcSubrootName below, which would happen if we called emplace() for
-// every root in a macro.
-static const char* root_names[] = {
-#define ROOT_NAME(type, name, CamelName) #name,
-    READ_ONLY_ROOT_LIST(ROOT_NAME) MUTABLE_ROOT_LIST(ROOT_NAME)
-#undef ROOT_NAME
-};
-STATIC_ASSERT(static_cast<uint16_t>(RootIndex::kRootListLength) ==
-              arraysize(root_names));
-
 const char* V8HeapExplorer::GetStrongGcSubrootName(Object* object) {
   if (strong_gc_subroot_names_.empty()) {
-    for (uint16_t i = 0; i < static_cast<uint16_t>(RootIndex::kRootListLength);
-         i++) {
-      const char* name = root_names[i];
-      RootIndex index = static_cast<RootIndex>(i);
-      strong_gc_subroot_names_.emplace(heap_->root(index), name);
+    Isolate* isolate = heap_->isolate();
+    for (RootIndex root_index = RootIndex::kFirstStrongOrReadOnlyRoot;
+         root_index <= RootIndex::kLastStrongOrReadOnlyRoot; ++root_index) {
+      const char* name = RootsTable::name(root_index);
+      strong_gc_subroot_names_.emplace(isolate->root(root_index), name);
     }
     CHECK(!strong_gc_subroot_names_.empty());
   }
@@ -1709,9 +1724,9 @@ void V8HeapExplorer::TagObject(Object* obj, const char* tag) {
 
 class GlobalObjectsEnumerator : public RootVisitor {
  public:
-  void VisitRootPointers(Root root, const char* description, Object** start,
-                         Object** end) override {
-    for (Object** p = start; p < end; p++) {
+  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
+                         ObjectSlot end) override {
+    for (ObjectSlot p = start; p < end; ++p) {
       if (!(*p)->IsNativeContext()) continue;
       JSObject* proxy = Context::cast(*p)->global_proxy();
       if (!proxy->IsJSGlobalProxy()) continue;
@@ -1811,7 +1826,9 @@ class GlobalHandlesExtractor : public PersistentHandleVisitor {
   void VisitPersistentHandle(Persistent<Value>* value,
                              uint16_t class_id) override {
     Handle<Object> object = Utils::OpenPersistent(value);
-    explorer_->VisitSubtreeWrapper(object.location(), class_id);
+    // TODO(3770): Get rid of Object** here.
+    explorer_->VisitSubtreeWrapper(
+        reinterpret_cast<Object**>(object.location()), class_id);
   }
 
  private:
@@ -2171,13 +2188,13 @@ class NullContextScope {
  public:
   explicit NullContextScope(Isolate* isolate)
       : isolate_(isolate), prev_(isolate->context()) {
-    isolate_->set_context(nullptr);
+    isolate_->set_context(Context());
   }
   ~NullContextScope() { isolate_->set_context(prev_); }
 
  private:
   Isolate* isolate_;
-  Context* prev_;
+  Context prev_;
 };
 }  //  namespace
 

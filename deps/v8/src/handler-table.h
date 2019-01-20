@@ -46,9 +46,9 @@ class V8_EXPORT_PRIVATE HandlerTable {
   };
 
   // Constructors for the various encodings.
-  explicit HandlerTable(Code* code);
-  explicit HandlerTable(ByteArray* byte_array);
-  explicit HandlerTable(BytecodeArray* bytecode_array);
+  explicit HandlerTable(Code code);
+  explicit HandlerTable(ByteArray byte_array);
+  explicit HandlerTable(BytecodeArray bytecode_array);
   explicit HandlerTable(Address instruction_start, size_t handler_table_offset);
 
   // Getters for handler table based on ranges.
@@ -110,7 +110,7 @@ class V8_EXPORT_PRIVATE HandlerTable {
   // the GC heap (either {ByteArray} or {Code}) and hence would become stale
   // during a collection. Hence we disallow any allocation.
   Address raw_encoded_data_;
-  DisallowHeapAllocation no_gc_;
+  DISALLOW_HEAP_ALLOCATION(no_gc_);
 
   // Layout description for handler table based on ranges.
   static const int kRangeStartIndex = 0;

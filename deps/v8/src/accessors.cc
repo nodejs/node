@@ -6,6 +6,7 @@
 
 #include "src/api-inl.h"
 #include "src/contexts.h"
+#include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
 #include "src/frames-inl.h"
@@ -560,8 +561,7 @@ Handle<AccessorInfo> Accessors::MakeFunctionArgumentsInfo(Isolate* isolate) {
 // Accessors::FunctionCaller
 //
 
-
-static inline bool AllowAccessToFunction(Context* current_context,
+static inline bool AllowAccessToFunction(Context current_context,
                                          JSFunction* function) {
   return current_context->HasSameSecurityTokenAs(function->context());
 }

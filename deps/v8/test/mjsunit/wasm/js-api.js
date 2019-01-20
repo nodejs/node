@@ -265,7 +265,7 @@ let exportingModuleBinary2 = (() => {
   builder.addFunction('foo', kSig_v_v).addBody([]).exportAs('a');
   builder.addMemory(1, 1, false);
   builder.exportMemoryAs('b');
-  builder.setFunctionTableBounds(1, 1);
+  builder.setTableBounds(1, 1);
   builder.addExportOfKind('c', kExternalTable, 0);
   var o = builder.addGlobal(kWasmI32, false).exportAs('x');
   return new Int8Array(builder.toBuffer());

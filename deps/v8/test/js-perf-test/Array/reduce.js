@@ -6,7 +6,7 @@
 // Make sure we inline the callback, pick up all possible TurboFan
 // optimizations.
 function RunOptFastReduce(multiple) {
-  // Use of variable multiple in the callback function forces
+  // Use of multiple variables in the callback function forces
   // context creation without escape analysis.
   //
   // Also, the arrow function requires inlining based on

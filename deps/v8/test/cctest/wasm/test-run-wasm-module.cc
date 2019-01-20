@@ -235,7 +235,7 @@ TEST(MemorySize) {
 
 TEST(Run_WasmModule_MemSize_GrowMem) {
   {
-    // Initial memory size = 16 + GrowMemory(10)
+    // Initial memory size = 16 + MemoryGrow(10)
     static const int kExpectedValue = 26;
     TestSignatures sigs;
     v8::internal::AccountingAllocator allocator;
@@ -252,7 +252,7 @@ TEST(Run_WasmModule_MemSize_GrowMem) {
   Cleanup();
 }
 
-TEST(GrowMemoryZero) {
+TEST(MemoryGrowZero) {
   {
     // Initial memory size is 16, see wasm-module-builder.cc
     static const int kExpectedValue = 16;
@@ -362,7 +362,7 @@ TEST(TestInterruptLoop) {
   Cleanup();
 }
 
-TEST(Run_WasmModule_GrowMemoryInIf) {
+TEST(Run_WasmModule_MemoryGrowInIf) {
   {
     TestSignatures sigs;
     v8::internal::AccountingAllocator allocator;
@@ -381,7 +381,7 @@ TEST(Run_WasmModule_GrowMemoryInIf) {
 TEST(Run_WasmModule_GrowMemOobOffset) {
   {
     static const int kPageSize = 0x10000;
-    // Initial memory size = 16 + GrowMemory(10)
+    // Initial memory size = 16 + MemoryGrow(10)
     static const int index = kPageSize * 17 + 4;
     int value = 0xACED;
     TestSignatures sigs;
@@ -403,7 +403,7 @@ TEST(Run_WasmModule_GrowMemOobOffset) {
 TEST(Run_WasmModule_GrowMemOobFixedIndex) {
   {
     static const int kPageSize = 0x10000;
-    // Initial memory size = 16 + GrowMemory(10)
+    // Initial memory size = 16 + MemoryGrow(10)
     static const int index = kPageSize * 26 + 4;
     int value = 0xACED;
     TestSignatures sigs;

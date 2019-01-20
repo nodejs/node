@@ -193,13 +193,7 @@ void ResetBlackboxedStateCache(Isolate* isolate,
 
 int EstimatedValueSize(Isolate* isolate, v8::Local<v8::Value> value);
 
-enum Builtin {
-  kObjectKeys,
-  kObjectGetPrototypeOf,
-  kObjectGetOwnPropertyDescriptor,
-  kObjectGetOwnPropertyNames,
-  kObjectGetOwnPropertySymbols,
-};
+enum Builtin { kStringToLowerCase };
 
 Local<Function> GetBuiltin(Isolate* isolate, Builtin builtin);
 
@@ -474,13 +468,8 @@ void SetReturnValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
 enum class NativeAccessorType {
   None = 0,
   HasGetter = 1 << 0,
-  HasSetter = 1 << 1,
-  IsBuiltin = 1 << 2
+  HasSetter = 1 << 1
 };
-
-int GetNativeAccessorDescriptor(v8::Local<v8::Context> context,
-                                v8::Local<v8::Object> object,
-                                v8::Local<v8::Name> name);
 
 int64_t GetNextRandomInt64(v8::Isolate* isolate);
 
@@ -517,6 +506,39 @@ class WeakMap : public v8::Object {
 
  private:
   WeakMap();
+};
+
+struct PropertyDescriptor {
+  bool enumerable : 1;
+  bool has_enumerable : 1;
+  bool configurable : 1;
+  bool has_configurable : 1;
+  bool writable : 1;
+  bool has_writable : 1;
+  v8::Local<v8::Value> value;
+  v8::Local<v8::Value> get;
+  v8::Local<v8::Value> set;
+};
+
+class PropertyIterator {
+ public:
+  static std::unique_ptr<PropertyIterator> Create(v8::Local<v8::Object> object);
+
+  virtual ~PropertyIterator() = default;
+
+  virtual bool Done() const = 0;
+  virtual void Advance() = 0;
+
+  virtual v8::Local<v8::Name> name() const = 0;
+
+  virtual bool is_native_accessor() = 0;
+  virtual bool has_native_getter() = 0;
+  virtual bool has_native_setter() = 0;
+  virtual Maybe<PropertyAttribute> attributes() = 0;
+  virtual Maybe<PropertyDescriptor> descriptor() = 0;
+
+  virtual bool is_own() = 0;
+  virtual bool is_array_index() = 0;
 };
 }  // namespace debug
 }  // namespace v8

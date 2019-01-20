@@ -100,8 +100,8 @@ void SourcePosition::PrintJson(std::ostream& out) const {
       << "  \"inliningId\" : " << InliningId() << "}";
 }
 
-void SourcePosition::Print(std::ostream& out, Code* code) const {
-  DeoptimizationData* deopt_data =
+void SourcePosition::Print(std::ostream& out, Code code) const {
+  DeoptimizationData deopt_data =
       DeoptimizationData::cast(code->deoptimization_data());
   if (!isInlined()) {
     SharedFunctionInfo* function(

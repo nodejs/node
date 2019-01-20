@@ -75,7 +75,7 @@ void SortBlockData(std::vector<CoverageBlock>& v) {
 std::vector<CoverageBlock> GetSortedBlockData(SharedFunctionInfo* shared) {
   DCHECK(shared->HasCoverageInfo());
 
-  CoverageInfo* coverage_info =
+  CoverageInfo coverage_info =
       CoverageInfo::cast(shared->GetDebugInfo()->coverage_info());
 
   std::vector<CoverageBlock> result;
@@ -233,6 +233,25 @@ bool HaveSameSourceRange(const CoverageBlock& lhs, const CoverageBlock& rhs) {
   return lhs.start == rhs.start && lhs.end == rhs.end;
 }
 
+void MergeDuplicateSingletons(CoverageFunction* function) {
+  CoverageBlockIterator iter(function);
+
+  while (iter.Next() && iter.HasNext()) {
+    CoverageBlock& block = iter.GetBlock();
+    CoverageBlock& next_block = iter.GetNextBlock();
+
+    // Identical ranges should only occur through singleton ranges. Consider the
+    // ranges for `for (.) break;`: continuation ranges for both the `break` and
+    // `for` statements begin after the trailing semicolon.
+    // Such ranges are merged and keep the maximal execution count.
+    if (!HaveSameSourceRange(block, next_block)) continue;
+
+    DCHECK_EQ(kNoSourcePosition, block.end);  // Singleton range.
+    next_block.count = std::max(block.count, next_block.count);
+    iter.DeleteBlock();
+  }
+}
+
 void MergeDuplicateRanges(CoverageFunction* function) {
   CoverageBlockIterator iter(function);
 
@@ -367,7 +386,7 @@ void ClampToBinary(CoverageFunction* function) {
 void ResetAllBlockCounts(SharedFunctionInfo* shared) {
   DCHECK(shared->HasCoverageInfo());
 
-  CoverageInfo* coverage_info =
+  CoverageInfo coverage_info =
       CoverageInfo::cast(shared->GetDebugInfo()->coverage_info());
 
   for (int i = 0; i < coverage_info->SlotCount(); i++) {
@@ -404,6 +423,9 @@ void CollectBlockCoverage(CoverageFunction* function, SharedFunctionInfo* info,
 
   // If in binary mode, only report counts of 0/1.
   if (mode == debug::Coverage::kBlockBinary) ClampToBinary(function);
+
+  // Remove duplicate singleton ranges, keeping the max count.
+  MergeDuplicateSingletons(function);
 
   // Remove singleton ranges with the same start position as a full range and
   // throw away their counts.

@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef INCLUDED_FROM_MACRO_ASSEMBLER_H
+#error This header must be included via macro-assembler.h
+#endif
+
 #ifndef V8_ARM64_MACRO_ASSEMBLER_ARM64_H_
 #define V8_ARM64_MACRO_ASSEMBLER_ARM64_H_
 
@@ -11,7 +15,6 @@
 #include "src/bailout-reason.h"
 #include "src/base/bits.h"
 #include "src/globals.h"
-#include "src/turbo-assembler.h"
 
 // Simulator specific helpers.
 #if USE_SIMULATOR
@@ -48,7 +51,14 @@ constexpr Register kReturnRegister2 = x2;
 constexpr Register kJSFunctionRegister = x1;
 constexpr Register kContextRegister = cp;
 constexpr Register kAllocateSizeRegister = x1;
+
+#if defined(V8_OS_WIN)
+// x18 is reserved as platform register on Windows ARM64.
+constexpr Register kSpeculationPoisonRegister = x23;
+#else
 constexpr Register kSpeculationPoisonRegister = x18;
+#endif
+
 constexpr Register kInterpreterAccumulatorRegister = x0;
 constexpr Register kInterpreterBytecodeOffsetRegister = x19;
 constexpr Register kInterpreterBytecodeArrayRegister = x20;
@@ -65,6 +75,7 @@ constexpr Register kRuntimeCallFunctionRegister = x1;
 constexpr Register kRuntimeCallArgCountRegister = x0;
 constexpr Register kRuntimeCallArgvRegister = x11;
 constexpr Register kWasmInstanceRegister = x7;
+constexpr Register kWasmCompileLazyFuncIndexRegister = x8;
 
 #define LS_MACRO_LIST(V)                                     \
   V(Ldrb, Register&, rt, LDRB_w)                             \
@@ -196,13 +207,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   bool allow_macro_instructions() const { return allow_macro_instructions_; }
 #endif
 
-  // We should not use near calls or jumps for JS->WASM calls and calls to
-  // external references, since the code spaces are not guaranteed to be close
-  // to each other.
+  // We should not use near calls or jumps for calls to external references,
+  // since the code spaces are not guaranteed to be close to each other.
   bool CanUseNearCallOrJump(RelocInfo::Mode rmode) {
-    return rmode != RelocInfo::JS_TO_WASM_CALL &&
-           rmode != RelocInfo::EXTERNAL_REFERENCE;
+    return rmode != RelocInfo::EXTERNAL_REFERENCE;
   }
+
+  static bool IsNearCallOffset(int64_t offset);
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);
@@ -237,7 +248,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // This is required for compatibility with architecture independent code.
   // Remove if not needed.
-  void Move(Register dst, Smi* src);
+  void Move(Register dst, Smi src);
 
   // Register swap. Note that the register operands should be distinct.
   void Swap(Register lhs, Register rhs);
@@ -544,7 +555,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void Csdb();
 
   bool AllowThisStubCall(CodeStub* stub);
-  void CallStubDelayed(CodeStub* stub);
 
   // Call a runtime routine. This expects {centry} to contain a fitting CEntry
   // builtin for the target runtime function and uses an indirect call.
@@ -759,7 +769,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // This is a convenience method for pushing a single Handle<Object>.
   inline void Push(Handle<HeapObject> object);
-  inline void Push(Smi* smi);
+  inline void Push(Smi smi);
 
   // Aliases of Push and Pop, required for V8 compatibility.
   inline void push(Register src) { Push(src); }
@@ -771,6 +781,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CallRecordWriteStub(Register object, Register address,
                            RememberedSetAction remembered_set_action,
                            SaveFPRegsMode fp_mode);
+  void CallRecordWriteStub(Register object, Register address,
+                           RememberedSetAction remembered_set_action,
+                           SaveFPRegsMode fp_mode, Address wasm_target);
 
   // Alternative forms of Push and Pop, taking a RegList or CPURegList that
   // specifies the registers that are to be pushed or popped. Higher-numbered
@@ -1259,8 +1272,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadStorePairMacro(const CPURegister& rt, const CPURegister& rt2,
                           const MemOperand& addr, LoadStorePairOp op);
 
-  static bool IsNearCallOffset(int64_t offset);
   void JumpHelper(int64_t offset, RelocInfo::Mode rmode, Condition cond = al);
+
+  void CallRecordWriteStub(Register object, Register address,
+                           RememberedSetAction remembered_set_action,
+                           SaveFPRegsMode fp_mode, Handle<Code> code_target,
+                           Address wasm_target);
 };
 
 class MacroAssembler : public TurboAssembler {
@@ -1896,9 +1913,7 @@ class MacroAssembler : public TurboAssembler {
                       const Register& scratch2);
 
   // Load the global proxy from the current context.
-  void LoadGlobalProxy(Register dst) {
-    LoadNativeContextSlot(Context::GLOBAL_PROXY_INDEX, dst);
-  }
+  void LoadGlobalProxy(Register dst);
 
   // ---------------------------------------------------------------------------
   // In-place weak references.

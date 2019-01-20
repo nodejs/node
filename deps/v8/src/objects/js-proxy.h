@@ -106,9 +106,14 @@ class JSProxy : public JSReceiver {
   static const int kMaxIterationLimit = 100 * 1024;
 
   // Layout description.
-  static const int kTargetOffset = JSReceiver::kHeaderSize;
-  static const int kHandlerOffset = kTargetOffset + kPointerSize;
-  static const int kSize = kHandlerOffset + kPointerSize;
+#define JS_PROXY_FIELDS(V)       \
+  V(kTargetOffset, kTaggedSize)  \
+  V(kHandlerOffset, kTaggedSize) \
+  /* Total size. */              \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSReceiver::kHeaderSize, JS_PROXY_FIELDS)
+#undef JS_PROXY_FIELDS
 
   // kTargetOffset aliases with the elements of JSObject. The fact that
   // JSProxy::target is a Javascript value which cannot be confused with an
@@ -133,10 +138,17 @@ class JSProxy : public JSReceiver {
 // See https://tc39.github.io/ecma262/#sec-proxy.revocable
 class JSProxyRevocableResult : public JSObject {
  public:
-  // Offsets of object fields.
-  static const int kProxyOffset = JSObject::kHeaderSize;
-  static const int kRevokeOffset = kProxyOffset + kPointerSize;
-  static const int kSize = kRevokeOffset + kPointerSize;
+  // Layout description.
+#define JS_PROXY_REVOCATABLE_RESULT_FIELDS(V) \
+  V(kProxyOffset, kTaggedSize)                \
+  V(kRevokeOffset, kTaggedSize)               \
+  /* Total size. */                           \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_PROXY_REVOCATABLE_RESULT_FIELDS)
+#undef JS_PROXY_REVOCATABLE_RESULT_FIELDS
+
   // Indices of in-object properties.
   static const int kProxyIndex = 0;
   static const int kRevokeIndex = 1;

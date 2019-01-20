@@ -42,7 +42,7 @@ void NamingConventionError(const std::string& type, const std::string& name,
 bool IsLowerCamelCase(const std::string& s);
 bool IsUpperCamelCase(const std::string& s);
 bool IsSnakeCase(const std::string& s);
-bool IsValidModuleConstName(const std::string& s);
+bool IsValidNamespaceConstName(const std::string& s);
 bool IsValidTypeName(const std::string& s);
 
 [[noreturn]] void ReportErrorString(const std::string& error);
@@ -214,9 +214,9 @@ class Stack {
   // Delete the slots in {range}, moving higher slots to fill the gap.
   void DeleteRange(StackRange range) {
     DCHECK_LE(range.end(), AboveTop());
-    for (BottomOffset i = range.begin();
-         i < std::min(range.end(), AboveTop() - range.Size()); ++i) {
-      elements_[i.offset] = std::move(elements_[i.offset + range.Size()]);
+    if (range.Size() == 0) return;
+    for (BottomOffset i = range.end(); i < AboveTop(); ++i) {
+      elements_[i.offset - range.Size()] = std::move(elements_[i.offset]);
     }
     elements_.resize(elements_.size() - range.Size());
   }
@@ -243,6 +243,13 @@ T* CheckNotNull(T* x) {
   return x;
 }
 
+template <class T>
+inline std::ostream& operator<<(std::ostream& os, Stack<T>& t) {
+  os << "Stack{";
+  PrintCommaSeparatedList(os, t);
+  os << "}";
+  return os;
+}
 class ToString {
  public:
   template <class T>

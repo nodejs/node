@@ -20,15 +20,10 @@
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-locale-inl.h"
+#include "unicode/char16ptr.h"
 #include "unicode/locid.h"
 #include "unicode/uloc.h"
 #include "unicode/unistr.h"
-#include "unicode/uvernum.h"
-#include "unicode/uversion.h"
-
-#if U_ICU_VERSION_MAJOR_NUM >= 59
-#include "unicode/char16ptr.h"
-#endif
 
 namespace v8 {
 namespace internal {
@@ -318,7 +313,7 @@ MaybeHandle<JSLocale> JSLocale::Initialize(Isolate* isolate,
 
 namespace {
 
-Handle<String> MorphLocale(Isolate* isolate, String* language_tag,
+Handle<String> MorphLocale(Isolate* isolate, String language_tag,
                            int32_t (*morph_func)(const char*, char*, int32_t,
                                                  UErrorCode*)) {
   Factory* factory = isolate->factory();
@@ -353,11 +348,11 @@ Handle<String> MorphLocale(Isolate* isolate, String* language_tag,
 
 }  // namespace
 
-Handle<String> JSLocale::Maximize(Isolate* isolate, String* locale) {
+Handle<String> JSLocale::Maximize(Isolate* isolate, String locale) {
   return MorphLocale(isolate, locale, uloc_addLikelySubtags);
 }
 
-Handle<String> JSLocale::Minimize(Isolate* isolate, String* locale) {
+Handle<String> JSLocale::Minimize(Isolate* isolate, String locale) {
   return MorphLocale(isolate, locale, uloc_minimizeSubtags);
 }
 

@@ -16,26 +16,24 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-OperationTyper::OperationTyper(JSHeapBroker* js_heap_broker, Zone* zone)
+OperationTyper::OperationTyper(JSHeapBroker* broker, Zone* zone)
     : zone_(zone), cache_(TypeCache::Get()) {
-  Factory* factory = js_heap_broker->isolate()->factory();
+  Factory* factory = broker->isolate()->factory();
   infinity_ = Type::NewConstant(V8_INFINITY, zone);
   minus_infinity_ = Type::NewConstant(-V8_INFINITY, zone);
   Type truncating_to_zero = Type::MinusZeroOrNaN();
   DCHECK(!truncating_to_zero.Maybe(Type::Integral32()));
 
   singleton_empty_string_ =
-      Type::HeapConstant(js_heap_broker, factory->empty_string(), zone);
+      Type::HeapConstant(broker, factory->empty_string(), zone);
   singleton_NaN_string_ =
-      Type::HeapConstant(js_heap_broker, factory->NaN_string(), zone);
+      Type::HeapConstant(broker, factory->NaN_string(), zone);
   singleton_zero_string_ =
-      Type::HeapConstant(js_heap_broker, factory->zero_string(), zone);
-  singleton_false_ =
-      Type::HeapConstant(js_heap_broker, factory->false_value(), zone);
-  singleton_true_ =
-      Type::HeapConstant(js_heap_broker, factory->true_value(), zone);
+      Type::HeapConstant(broker, factory->zero_string(), zone);
+  singleton_false_ = Type::HeapConstant(broker, factory->false_value(), zone);
+  singleton_true_ = Type::HeapConstant(broker, factory->true_value(), zone);
   singleton_the_hole_ =
-      Type::HeapConstant(js_heap_broker, factory->the_hole_value(), zone);
+      Type::HeapConstant(broker, factory->the_hole_value(), zone);
   signed32ish_ = Type::Union(Type::Signed32(), truncating_to_zero, zone);
   unsigned32ish_ = Type::Union(Type::Unsigned32(), truncating_to_zero, zone);
 
@@ -223,31 +221,36 @@ Type OperationTyper::SubtractRanger(double lhs_min, double lhs_max,
   //   [m, +inf] - [-inf, n] = [-inf, +inf] \/ NaN
 }
 
-Type OperationTyper::MultiplyRanger(Type lhs, Type rhs) {
+Type OperationTyper::MultiplyRanger(double lhs_min, double lhs_max,
+                                    double rhs_min, double rhs_max) {
   double results[4];
-  double lmin = lhs.AsRange()->Min();
-  double lmax = lhs.AsRange()->Max();
-  double rmin = rhs.AsRange()->Min();
-  double rmax = rhs.AsRange()->Max();
-  results[0] = lmin * rmin;
-  results[1] = lmin * rmax;
-  results[2] = lmax * rmin;
-  results[3] = lmax * rmax;
-  // If the result may be nan, we give up on calculating a precise type, because
-  // the discontinuity makes it too complicated.  Note that even if none of the
-  // "results" above is nan, the actual result may still be, so we have to do a
-  // different check:
-  bool maybe_nan = (lhs.Maybe(cache_.kSingletonZero) &&
-                    (rmin == -V8_INFINITY || rmax == +V8_INFINITY)) ||
-                   (rhs.Maybe(cache_.kSingletonZero) &&
-                    (lmin == -V8_INFINITY || lmax == +V8_INFINITY));
-  if (maybe_nan) return cache_.kIntegerOrMinusZeroOrNaN;  // Giving up.
-  bool maybe_minuszero = (lhs.Maybe(cache_.kSingletonZero) && rmin < 0) ||
-                         (rhs.Maybe(cache_.kSingletonZero) && lmin < 0);
-  Type range =
-      Type::Range(array_min(results, 4), array_max(results, 4), zone());
-  return maybe_minuszero ? Type::Union(range, Type::MinusZero(), zone())
-                         : range;
+  results[0] = lhs_min * rhs_min;
+  results[1] = lhs_min * rhs_max;
+  results[2] = lhs_max * rhs_min;
+  results[3] = lhs_max * rhs_max;
+  // If the result may be nan, we give up on calculating a precise type,
+  // because the discontinuity makes it too complicated.  Note that even if
+  // none of the "results" above is nan, the actual result may still be, so we
+  // have to do a different check:
+  for (int i = 0; i < 4; ++i) {
+    if (std::isnan(results[i])) {
+      return cache_.kIntegerOrMinusZeroOrNaN;
+    }
+  }
+  double min = array_min(results, 4);
+  double max = array_max(results, 4);
+  Type type = Type::Range(min, max, zone());
+  if (min <= 0.0 && 0.0 <= max && (lhs_min < 0.0 || rhs_min < 0.0)) {
+    type = Type::Union(type, Type::MinusZero(), zone());
+  }
+  // 0 * V8_INFINITY is NaN, regardless of sign
+  if (((lhs_min == -V8_INFINITY || lhs_max == V8_INFINITY) &&
+       (rhs_min <= 0.0 && 0.0 <= rhs_max)) ||
+      ((rhs_min == -V8_INFINITY || rhs_max == V8_INFINITY) &&
+       (lhs_min <= 0.0 && 0.0 <= lhs_max))) {
+    type = Type::Union(type, Type::NaN(), zone());
+  }
+  return type;
 }
 
 Type OperationTyper::ConvertReceiver(Type type) {
@@ -679,7 +682,7 @@ Type OperationTyper::SpeculativeSafeIntegerSubtract(Type lhs, Type rhs) {
   // In either case the result will be in the safe integer range, so we
   // can bake in the type here. This needs to be in sync with
   // SimplifiedLowering::VisitSpeculativeAdditiveOp.
-  return result = Type::Intersect(result, cache_.kSafeInteger, zone());
+  return Type::Intersect(result, cache_.kSafeIntegerOrMinusZero, zone());
 }
 
 Type OperationTyper::NumberMultiply(Type lhs, Type rhs) {
@@ -687,14 +690,44 @@ Type OperationTyper::NumberMultiply(Type lhs, Type rhs) {
   DCHECK(rhs.Is(Type::Number()));
 
   if (lhs.IsNone() || rhs.IsNone()) return Type::None();
-
-  lhs = Rangify(lhs);
-  rhs = Rangify(rhs);
   if (lhs.Is(Type::NaN()) || rhs.Is(Type::NaN())) return Type::NaN();
-  if (lhs.IsRange() && rhs.IsRange()) {
-    return MultiplyRanger(lhs, rhs);
+
+  // Multiplication propagates NaN:
+  //   NaN * x = NaN         (regardless of sign of x)
+  //   0 * Infinity = NaN    (regardless of signs)
+  bool maybe_nan = lhs.Maybe(Type::NaN()) || rhs.Maybe(Type::NaN()) ||
+                   (lhs.Maybe(cache_.kZeroish) &&
+                    (rhs.Min() == -V8_INFINITY || rhs.Max() == V8_INFINITY)) ||
+                   (rhs.Maybe(cache_.kZeroish) &&
+                    (lhs.Min() == -V8_INFINITY || lhs.Max() == V8_INFINITY));
+  lhs = Type::Intersect(lhs, Type::OrderedNumber(), zone());
+  DCHECK(!lhs.IsNone());
+  rhs = Type::Intersect(rhs, Type::OrderedNumber(), zone());
+  DCHECK(!rhs.IsNone());
+
+  // Try to rule out -0.
+  bool maybe_minuszero = lhs.Maybe(Type::MinusZero()) ||
+                         rhs.Maybe(Type::MinusZero()) ||
+                         (lhs.Maybe(cache_.kZeroish) && rhs.Min() < 0.0) ||
+                         (rhs.Maybe(cache_.kZeroish) && lhs.Min() < 0.0);
+  if (lhs.Maybe(Type::MinusZero())) {
+    lhs = Type::Union(lhs, cache_.kSingletonZero, zone());
+    lhs = Type::Intersect(lhs, Type::PlainNumber(), zone());
   }
-  return Type::Number();
+  if (rhs.Maybe(Type::MinusZero())) {
+    rhs = Type::Union(rhs, cache_.kSingletonZero, zone());
+    rhs = Type::Intersect(rhs, Type::PlainNumber(), zone());
+  }
+
+  // Compute the effective type, utilizing range information if possible.
+  Type type = (lhs.Is(cache_.kInteger) && rhs.Is(cache_.kInteger))
+                  ? MultiplyRanger(lhs.Min(), lhs.Max(), rhs.Min(), rhs.Max())
+                  : Type::OrderedNumber();
+
+  // Take into account the -0 and NaN information computed earlier.
+  if (maybe_minuszero) type = Type::Union(type, Type::MinusZero(), zone());
+  if (maybe_nan) type = Type::Union(type, Type::NaN(), zone());
+  return type;
 }
 
 Type OperationTyper::NumberDivide(Type lhs, Type rhs) {
@@ -1173,16 +1206,13 @@ Type OperationTyper::StrictEqual(Type lhs, Type rhs) {
 }
 
 Type OperationTyper::CheckBounds(Type index, Type length) {
-  DCHECK(length.Is(Type::Unsigned31()));
+  DCHECK(length.Is(cache_.kPositiveSafeInteger));
+  if (length.Is(cache_.kSingletonZero)) return Type::None();
+  Type mask = Type::Range(0.0, length.Max() - 1, zone());
   if (index.Maybe(Type::MinusZero())) {
     index = Type::Union(index, cache_.kSingletonZero, zone());
   }
-  index = Type::Intersect(index, Type::Integral32(), zone());
-  if (index.IsNone() || length.IsNone()) return Type::None();
-  double min = std::max(index.Min(), 0.0);
-  double max = std::min(index.Max(), length.Max() - 1);
-  if (max < min) return Type::None();
-  return Type::Range(min, max, zone());
+  return Type::Intersect(index, mask, zone());
 }
 
 Type OperationTyper::CheckFloat64Hole(Type type) {

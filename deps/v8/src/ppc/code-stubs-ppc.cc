@@ -15,6 +15,7 @@
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/isolate.h"
+#include "src/macro-assembler.h"
 #include "src/objects/api-callbacks.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
@@ -41,7 +42,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
   {
     NoRootArrayScope no_root_array(masm);
-    ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
     // PPC LINUX ABI:
     // preserve LR in pre-reserved slot in caller's frame
@@ -214,114 +214,6 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm, Register target) {
   intptr_t code = reinterpret_cast<intptr_t>(GetCode().location());
   __ mov(r0, Operand(code, RelocInfo::CODE_TARGET));
   __ Call(r0);  // Call the stub.
-}
-
-
-void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,
-                                                     Zone* zone) {
-  if (tasm->isolate()->function_entry_hook() != nullptr) {
-    PredictableCodeSizeScope predictable(tasm,
-#if V8_TARGET_ARCH_PPC64
-                                         14 * kInstrSize);
-#else
-                                         11 * kInstrSize);
-#endif
-    tasm->mflr(r0);
-    tasm->Push(r0, ip);
-    tasm->CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
-    tasm->Pop(r0, ip);
-    tasm->mtlr(r0);
-  }
-}
-
-void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
-  if (masm->isolate()->function_entry_hook() != nullptr) {
-    PredictableCodeSizeScope predictable(masm,
-#if V8_TARGET_ARCH_PPC64
-                                         14 * kInstrSize);
-#else
-                                         11 * kInstrSize);
-#endif
-    ProfileEntryHookStub stub(masm->isolate());
-    __ mflr(r0);
-    __ Push(r0, ip);
-    __ CallStub(&stub);
-    __ Pop(r0, ip);
-    __ mtlr(r0);
-  }
-}
-
-
-void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
-  // The entry hook is a "push lr, ip" instruction, followed by a call.
-  const int32_t kReturnAddressDistanceFromFunctionStart =
-      Assembler::kCallTargetAddressOffset + 3 * kInstrSize;
-
-  // This should contain all kJSCallerSaved registers.
-  const RegList kSavedRegs = kJSCallerSaved |  // Caller saved registers.
-                             r15.bit();        // Saved stack pointer.
-
-  // We also save lr, so the count here is one higher than the mask indicates.
-  const int32_t kNumSavedRegs = kNumJSCallerSaved + 2;
-
-  // Save all caller-save registers as this may be called from anywhere.
-  __ mflr(ip);
-  __ MultiPush(kSavedRegs | ip.bit());
-
-  // Compute the function's address for the first argument.
-  __ subi(r3, ip, Operand(kReturnAddressDistanceFromFunctionStart));
-
-  // The caller's return address is two slots above the saved temporaries.
-  // Grab that for the second argument to the hook.
-  __ addi(r4, sp, Operand((kNumSavedRegs + 1) * kPointerSize));
-
-  // Align the stack if necessary.
-  int frame_alignment = masm->ActivationFrameAlignment();
-  if (frame_alignment > kPointerSize) {
-    __ mr(r15, sp);
-    DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
-    __ ClearRightImm(sp, sp, Operand(WhichPowerOf2(frame_alignment)));
-  }
-
-#if !defined(USE_SIMULATOR)
-  uintptr_t entry_hook =
-      reinterpret_cast<uintptr_t>(isolate()->function_entry_hook());
-#else
-  // Under the simulator we need to indirect the entry hook through a
-  // trampoline function at a known address.
-  ApiFunction dispatcher(FUNCTION_ADDR(EntryHookTrampoline));
-  ExternalReference entry_hook =
-      ExternalReference::Create(&dispatcher, ExternalReference::BUILTIN_CALL);
-
-  // It additionally takes an isolate as a third parameter
-  __ mov(r5, Operand(ExternalReference::isolate_address(isolate())));
-#endif
-
-  __ mov(ip, Operand(entry_hook));
-
-  if (ABI_USES_FUNCTION_DESCRIPTORS) {
-    __ LoadP(ToRegister(ABI_TOC_REGISTER), MemOperand(ip, kPointerSize));
-    __ LoadP(ip, MemOperand(ip, 0));
-  }
-  // ip set above, so nothing more to do for ABI_CALL_VIA_IP.
-
-  // PPC LINUX ABI:
-  __ li(r0, Operand::Zero());
-  __ StorePU(r0, MemOperand(sp, -kNumRequiredStackFrameSlots * kPointerSize));
-
-  __ Call(ip);
-
-  __ addi(sp, sp, Operand(kNumRequiredStackFrameSlots * kPointerSize));
-
-  // Restore the stack pointer if needed.
-  if (frame_alignment > kPointerSize) {
-    __ mr(sp, r15);
-  }
-
-  // Also pop lr to get Ret(0).
-  __ MultiPop(kSavedRegs | ip.bit());
-  __ mtlr(ip);
-  __ Ret();
 }
 
 static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
@@ -581,7 +473,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   __ Push(scratch, scratch);
   __ Move(scratch, ExternalReference::isolate_address(isolate()));
   __ Push(scratch, holder);
-  __ Push(Smi::kZero);  // should_throw_on_error -> false
+  __ Push(Smi::zero());  // should_throw_on_error -> false
   __ LoadP(scratch, FieldMemOperand(callback, AccessorInfo::kNameOffset));
   __ push(scratch);
 

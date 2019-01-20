@@ -4714,7 +4714,7 @@ TEST(RunRefDiamond) {
   const int magic = 99644;
   Handle<String> rexpected =
       CcTest::i_isolate()->factory()->InternalizeUtf8String("A");
-  String* buffer;
+  String buffer;
 
   RawMachineLabel blocka, blockb, end;
   Node* k1 = m.StringConstant("A");
@@ -4743,7 +4743,7 @@ TEST(RunDoubleRefDiamond) {
   double dconstant = 99.99;
   Handle<String> rexpected =
       CcTest::i_isolate()->factory()->InternalizeUtf8String("AX");
-  String* rbuffer;
+  String rbuffer;
 
   RawMachineLabel blocka, blockb, end;
   Node* d1 = m.Float64Constant(dconstant);
@@ -4778,7 +4778,7 @@ TEST(RunDoubleRefDoubleDiamond) {
   double dconstant = 99.997;
   Handle<String> rexpected =
       CcTest::i_isolate()->factory()->InternalizeUtf8String("AD");
-  String* rbuffer;
+  String rbuffer;
 
   RawMachineLabel blocka, blockb, mid, blockd, blocke, end;
   Node* d1 = m.Float64Constant(dconstant);

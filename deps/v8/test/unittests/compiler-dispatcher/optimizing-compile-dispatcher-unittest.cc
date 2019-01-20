@@ -73,6 +73,7 @@ TEST_F(OptimizingCompileDispatcherTest, Construct) {
 TEST_F(OptimizingCompileDispatcherTest, NonBlockingFlush) {
   Handle<JSFunction> fun =
       RunJS<JSFunction>("function f() { function g() {}; return g;}; f();");
+  ASSERT_TRUE(Compiler::Compile(fun, Compiler::CLEAR_EXCEPTION));
   BlockingCompilationJob* job = new BlockingCompilationJob(i_isolate(), fun);
 
   OptimizingCompileDispatcher dispatcher(i_isolate());
