@@ -114,8 +114,6 @@ added: v11.0.0
 
 <!-- type=global -->
 
-> Stability: 1 - Experimental
-
 * `callback` {Function} Function to be queued.
 
 The `queueMicrotask()` method queues a microtask to invoke `callback`. If

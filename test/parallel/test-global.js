@@ -43,6 +43,7 @@ builtinModules.forEach((moduleName) => {
 {
   const expected = [
     'global',
+    'queueMicrotask',
     'clearImmediate',
     'clearInterval',
     'clearTimeout',

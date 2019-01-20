@@ -258,7 +258,8 @@ let knownGlobals = [
   global,
   setImmediate,
   setInterval,
-  setTimeout
+  setTimeout,
+  queueMicrotask,
 ];
 
 if (global.gc) {
