@@ -319,17 +319,16 @@ void OnFatalError(const char* location, const char* message) {
   }
 #ifdef NODE_REPORT
   Isolate* isolate = Isolate::GetCurrent();
-  std::string filename;
   Environment* env = Environment::GetCurrent(isolate);
   if (env != nullptr) {
     std::shared_ptr<PerIsolateOptions> options = env->isolate_data()->options();
     if (options->report_on_fatalerror) {
       report::TriggerNodeReport(
-          isolate, env, message, __func__, filename, Local<String>());
+          isolate, env, message, __func__, "", Local<String>());
     }
   } else {
     report::TriggerNodeReport(
-        isolate, nullptr, message, __func__, filename, Local<String>());
+        isolate, nullptr, message, __func__, "", Local<String>());
   }
 #endif  // NODE_REPORT
   fflush(stderr);
