@@ -138,8 +138,10 @@ void NodeTraceWriter::FlushPrivate() {
 
 void NodeTraceWriter::Flush(bool blocking) {
   Mutex::ScopedLock scoped_lock(request_mutex_);
-  if (!json_trace_writer_) {
-    return;
+  {
+    Mutex::ScopedLock stream_mutex_lock(stream_mutex_);
+    if (!json_trace_writer_)
+      return;
   }
   int request_id = ++num_write_requests_;
   int err = uv_async_send(&flush_signal_);
