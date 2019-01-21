@@ -73,10 +73,6 @@ static void Initialize(Local<Object> target,
 
 #endif  // NODE_HAVE_I18N_SUPPORT
 
-#if defined(NODE_REPORT)
-  READONLY_TRUE_PROPERTY(target, "hasReport");
-#endif  //  NODE_REPORT
-
   if (env->options()->preserve_symlinks)
     READONLY_TRUE_PROPERTY(target, "preserveSymlinks");
   if (env->options()->preserve_symlinks_main)
