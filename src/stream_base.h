@@ -205,12 +205,16 @@ class StreamResource {
   // All of these methods may return an error code synchronously.
   // In that case, the finish callback should *not* be called.
 
-  // Perform a shutdown operation, and call req_wrap->Done() when finished.
+  // Perform a shutdown operation, and either call req_wrap->Done() when
+  // finished and return 0, return 1 for synchronous success, or
+  // a libuv error code for synchronous failures.
   virtual int DoShutdown(ShutdownWrap* req_wrap) = 0;
   // Try to write as much data as possible synchronously, and modify
   // `*bufs` and `*count` accordingly. This is a no-op by default.
+  // Return 0 for success and a libuv error code for failures.
   virtual int DoTryWrite(uv_buf_t** bufs, size_t* count);
-  // Perform a write of data, and call req_wrap->Done() when finished.
+  // Perform a write of data, and either call req_wrap->Done() when finished
+  // and return 0, or return a libuv error code for synchronous failures.
   virtual int DoWrite(WriteWrap* w,
                       uv_buf_t* bufs,
                       size_t count,
@@ -274,6 +278,8 @@ class StreamBase : public StreamResource {
 
   // Shut down the current stream. This request can use an existing
   // ShutdownWrap object (that was created in JS), or a new one will be created.
+  // Returns 1 in case of a synchronous completion, 0 in case of asynchronous
+  // completion, and a libuv error case in case of synchronous failure.
   int Shutdown(v8::Local<v8::Object> req_wrap_obj = v8::Local<v8::Object>());
 
   // Write data to the current stream. This request can use an existing
