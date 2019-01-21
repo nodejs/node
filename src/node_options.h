@@ -95,7 +95,6 @@ class EnvironmentOptions : public Options {
   bool abort_on_uncaught_exception = false;
   bool experimental_modules = false;
   std::string experimental_policy;
-  bool has_experimental_policy;
   bool experimental_repl_await = false;
   bool experimental_vm_modules = false;
   bool expose_internals = false;
