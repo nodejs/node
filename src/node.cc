@@ -19,6 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include "module_wrap.h"
 #include "node_binding.h"
 #include "node_buffer.h"
 #include "node_constants.h"
@@ -1380,7 +1381,19 @@ Isolate* NewIsolate(ArrayBufferAllocator* allocator, uv_loop_t* event_loop) {
   isolate->SetFatalErrorHandler(OnFatalError);
   isolate->SetAllowWasmCodeGenerationCallback(AllowWasmCodeGenerationCallback);
   v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
+  isolate->SetPromiseRejectCallback(task_queue::PromiseRejectCallback);
 
+  // NOTE: the following two callbacks currently CHECKs that the isolates
+  // have associated environments.
+  isolate->SetHostInitializeImportMetaObjectCallback(
+      loader::ModuleWrap::HostInitializeImportMetaObjectCallback);
+  isolate->SetHostImportModuleDynamicallyCallback(
+      loader::ModuleWrap::ImportModuleDynamically);
+
+#if defined HAVE_DTRACE || defined HAVE_ETW
+  isolate->AddGCPrologueCallback(DTraceGCStartCallback);
+  isolate->AddGCEpilogueCallback(DTraceGCEndCallback);
+#endif
   return isolate;
 }
 

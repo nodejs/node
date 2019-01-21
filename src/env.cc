@@ -6,6 +6,7 @@
 #include "node_internals.h"
 #include "node_native_module.h"
 #include "node_options-inl.h"
+#include "node_perf.h"
 #include "node_platform.h"
 #include "node_process.h"
 #include "node_worker.h"
@@ -236,10 +237,10 @@ Environment::Environment(IsolateData* isolate_data,
   if (options_->no_force_async_hooks_checks) {
     async_hooks_.no_force_checks();
   }
-
-  // TODO(addaleax): the per-isolate state should not be controlled by
-  // a single Environment.
-  isolate()->SetPromiseRejectCallback(task_queue::PromiseRejectCallback);
+  isolate()->AddGCPrologueCallback(performance::MarkGarbageCollectionStart,
+                                   static_cast<void*>(this));
+  isolate()->AddGCEpilogueCallback(performance::MarkGarbageCollectionEnd,
+                                   static_cast<void*>(this));
 }
 
 Environment::~Environment() {

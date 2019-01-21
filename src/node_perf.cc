@@ -290,14 +290,6 @@ void MarkGarbageCollectionEnd(Isolate* isolate,
                          entry);
 }
 
-
-inline void SetupGarbageCollectionTracking(Environment* env) {
-  env->isolate()->AddGCPrologueCallback(MarkGarbageCollectionStart,
-                                        static_cast<void*>(env));
-  env->isolate()->AddGCEpilogueCallback(MarkGarbageCollectionEnd,
-                                        static_cast<void*>(env));
-}
-
 // Gets the name of a function
 inline Local<Value> GetName(Local<Function> fn) {
   Local<Value> val = fn->GetDebugName();
@@ -440,8 +432,6 @@ void Initialize(Local<Object> target,
                             env->constants_string(),
                             constants,
                             attr).ToChecked();
-
-  SetupGarbageCollectionTracking(env);
 }
 
 }  // namespace performance

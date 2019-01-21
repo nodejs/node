@@ -78,6 +78,15 @@ namespace node {
 
 void InitDTrace(Environment* env, v8::Local<v8::Object> target);
 
+void DTraceGCStartCallback(v8::Isolate* isolate,
+                           v8::GCType type,
+                           v8::GCCallbackFlags flags,
+                           void* data);
+void DTraceGCEndCallback(v8::Isolate* isolate,
+                         v8::GCType type,
+                         v8::GCCallbackFlags flags,
+                         void* data);
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

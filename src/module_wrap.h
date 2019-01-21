@@ -44,7 +44,10 @@ class ModuleWrap : public BaseObject {
       v8::Local<v8::Context> context,
       v8::Local<v8::Module> module,
       v8::Local<v8::Object> meta);
-
+  static v8::MaybeLocal<v8::Promise> ImportModuleDynamically(
+      v8::Local<v8::Context> context,
+      v8::Local<v8::ScriptOrModule> referrer,
+      v8::Local<v8::String> specifier);
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackField("url", url_);
     tracker->TrackField("resolve_cache", resolve_cache_);

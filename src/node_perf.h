@@ -125,6 +125,15 @@ class GCPerformanceEntry : public PerformanceEntry {
   PerformanceGCKind gckind_;
 };
 
+void MarkGarbageCollectionStart(v8::Isolate* isolate,
+                                v8::GCType type,
+                                v8::GCCallbackFlags flags,
+                                void* data);
+void MarkGarbageCollectionEnd(v8::Isolate* isolate,
+                              v8::GCType type,
+                              v8::GCCallbackFlags flags,
+                              void* data);
+
 }  // namespace performance
 }  // namespace node
 

@@ -712,7 +712,7 @@ void ModuleWrap::Resolve(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(obj.ToLocalChecked());
 }
 
-static MaybeLocal<Promise> ImportModuleDynamically(
+MaybeLocal<Promise> ModuleWrap::ImportModuleDynamically(
     Local<Context> context,
     Local<v8::ScriptOrModule> referrer,
     Local<String> specifier) {
@@ -784,8 +784,6 @@ void ModuleWrap::SetImportModuleDynamicallyCallback(
   CHECK(args[0]->IsFunction());
   Local<Function> import_callback = args[0].As<Function>();
   env->set_host_import_module_dynamically_callback(import_callback);
-
-  iso->SetHostImportModuleDynamicallyCallback(ImportModuleDynamically);
 }
 
 void ModuleWrap::HostInitializeImportMetaObjectCallback(
@@ -809,15 +807,10 @@ void ModuleWrap::HostInitializeImportMetaObjectCallback(
 void ModuleWrap::SetInitializeImportMetaObjectCallback(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsFunction());
   Local<Function> import_meta_callback = args[0].As<Function>();
   env->set_host_initialize_import_meta_object_callback(import_meta_callback);
-
-  isolate->SetHostInitializeImportMetaObjectCallback(
-      HostInitializeImportMetaObjectCallback);
 }
 
 void ModuleWrap::Initialize(Local<Object> target,
