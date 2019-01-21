@@ -36,7 +36,6 @@
 # include <netdb.h>         // MAXHOSTNAMELEN on Solaris.
 # include <unistd.h>        // gethostname, sysconf
 # include <sys/param.h>     // MAXHOSTNAMELEN on Linux and the BSDs.
-# include <sys/utsname.h>
 #endif  // __POSIX__
 
 // Add Windows fallback.
@@ -84,21 +83,16 @@ static void GetHostname(const FunctionCallbackInfo<Value>& args) {
 
 static void GetOSType(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  const char* rval;
+  uv_utsname_t info;
+  int err = uv_os_uname(&info);
 
-#ifdef __POSIX__
-  struct utsname info;
-  if (uname(&info) < 0) {
+  if (err != 0) {
     CHECK_GE(args.Length(), 1);
-    env->CollectExceptionInfo(args[args.Length() - 1], errno, "uname");
+    env->CollectUVExceptionInfo(args[args.Length() - 1], err, "uv_os_uname");
     return args.GetReturnValue().SetUndefined();
   }
-  rval = info.sysname;
-#else  // __MINGW32__
-  rval = "Windows_NT";
-#endif  // __POSIX__
 
-  args.GetReturnValue().Set(OneByteString(env->isolate(), rval));
+  args.GetReturnValue().Set(OneByteString(env->isolate(), info.sysname));
 }
 
 
