@@ -500,17 +500,13 @@ static void PrintNativeStack(JSONWriter* writer) {
   writer->json_arraystart("nativeStack");
   int i;
   std::ostringstream buf;
-  for (i = 1; i < size - 1; i += 1) {
+  for (i = 1; i < size; i++) {
     void* frame = frames[i];
     buf.str("");
     buf << " [pc=" << frame << "] ";
     buf << sym_ctx->LookupSymbol(frame).Display().c_str();
     writer->json_element(buf.str());
   }
-  buf.str("");
-  buf << " [pc=" << frames[i] << "] ";
-  buf << sym_ctx->LookupSymbol(frames[i]).Display().c_str();
-  writer->json_element(buf.str());
   writer->json_arrayend();
 }
 
