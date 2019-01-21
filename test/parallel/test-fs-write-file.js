@@ -82,7 +82,7 @@ fs.writeFile(filename3, n, { mode: m }, common.mustCall(function(e) {
   }));
 }));
 
-// test that writeFile accepts file descriptors
+// Test that writeFile accepts file descriptors
 const filename4 = join(tmpdir.path, 'test4.txt');
 
 fs.open(filename4, 'w+', common.mustCall(function(e, fd) {

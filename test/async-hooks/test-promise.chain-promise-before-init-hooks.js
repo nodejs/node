@@ -17,7 +17,7 @@ p.then(function afterResolution(val) {
   return val;
 });
 
-// init hooks after chained promise is created
+// Init hooks after chained promise is created
 const hooks = initHooks();
 hooks._allowNoInit = true;
 hooks.enable();

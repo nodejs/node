@@ -50,7 +50,7 @@ if (process.argv[2] === 'pipe') {
   });
 
 } else {
-  // testcase | start parent && child IPC test
+  // Testcase | start parent && child IPC test
 
   // testing: is stderr and stdout piped to parent
   const args = [process.argv[1], 'parent'];

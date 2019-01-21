@@ -259,7 +259,7 @@ addTest('\x1b[H\x1b[5H\x1b[1;5H', [
   { name: 'home', sequence: '\x1b[1;5H', code: '[H', ctrl: true },
 ]);
 
-// escape sequences broken into multiple data chunks
+// Escape sequences broken into multiple data chunks
 addTest('\x1b[D\x1b[C\x1b[D\x1b[C'.split(''), [
   { name: 'left', sequence: '\x1b[D', code: '[D' },
   { name: 'right', sequence: '\x1b[C', code: '[C' },
@@ -267,7 +267,7 @@ addTest('\x1b[D\x1b[C\x1b[D\x1b[C'.split(''), [
   { name: 'right', sequence: '\x1b[C', code: '[C' },
 ]);
 
-// escape sequences mixed with regular ones
+// Escape sequences mixed with regular ones
 addTest('\x1b[DD\x1b[2DD\x1b[2^D', [
   { name: 'left', sequence: '\x1b[D', code: '[D' },
   { name: 'd', sequence: 'D', shift: true },
@@ -318,5 +318,5 @@ const runKeyIntervalTests = [
   ])
 ].reverse().reduce((acc, fn) => fn(acc), () => {});
 
-// run key interval tests one after another
+// Run key interval tests one after another
 runKeyIntervalTests();

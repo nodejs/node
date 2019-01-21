@@ -67,7 +67,7 @@ if (cluster.isWorker) {
   // start worker
   const worker = cluster.fork();
 
-  // when the worker is up and running, kill it
+  // When the worker is up and running, kill it
   worker.once('listening', common.mustCall(() => {
     worker.process.kill(KILL_SIGNAL);
   }));

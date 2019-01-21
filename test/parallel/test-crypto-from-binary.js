@@ -42,7 +42,7 @@ while (ucs2_control.length <= EXTERN_APEX) {
 }
 
 
-// check resultant buffer and output string
+// Check resultant buffer and output string
 const b = Buffer.from(ucs2_control + ucs2_control, 'ucs2');
 
 //

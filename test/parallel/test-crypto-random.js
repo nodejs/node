@@ -33,7 +33,7 @@ const { kMaxLength } = require('buffer');
 const kMaxUint32 = Math.pow(2, 32) - 1;
 const kMaxPossibleLength = Math.min(kMaxLength, kMaxUint32);
 
-// bump, we register a lot of exit listeners
+// Bump, we register a lot of exit listeners
 process.setMaxListeners(256);
 
 common.expectWarning('DeprecationWarning',

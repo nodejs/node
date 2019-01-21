@@ -27,7 +27,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const tls = require('tls');
-// import fixtures directly from its module
+// Import fixtures directly from its module
 const fixtures = require('../common/fixtures');
 
 const cipher_list = ['AES128-SHA256', 'AES256-SHA256'];

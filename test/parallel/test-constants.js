@@ -19,7 +19,7 @@ assert.ok(binding.crypto);
         assert.strictEqual(binding[l][k][j], constants[j]);
       });
     }
-    if (l !== 'os') { // top level os constant isn't currently copied
+    if (l !== 'os') { // Top level os constant isn't currently copied
       assert.strictEqual(binding[l][k], constants[k]);
     }
   });

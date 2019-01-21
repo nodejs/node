@@ -35,7 +35,7 @@ if (process.argv[2] === 'child') {
 
     console.error(`[${id}] got socket ${m}`);
 
-    // will call .end('end') or .write('write');
+    // Will call .end('end') or .write('write');
     socket[m](m);
 
     socket.resume();

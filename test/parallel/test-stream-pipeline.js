@@ -172,7 +172,7 @@ const { promisify } = require('util');
         rs.push('hello');
       },
       destroy: common.mustCall((err, cb) => {
-        // prevents fd leaks by destroying http pipelines
+        // Prevents fd leaks by destroying http pipelines
         cb();
       })
     });

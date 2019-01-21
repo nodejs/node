@@ -30,7 +30,7 @@ const server = http.createServer(function(req, res) {
 });
 
 server.on('upgrade', function(req, socket, upgradeHead) {
-  // test that throwing an error from upgrade gets
+  // Test that throwing an error from upgrade gets
   // is uncaught
   throw new Error('upgrade error');
 });

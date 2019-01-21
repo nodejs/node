@@ -423,7 +423,7 @@ const Transform = require('_stream_transform');
   });
 
   jp.end();
-  // read one more time to get the 'end' event
+  // Read one more time to get the 'end' event
   jp.read();
 
   process.nextTick(common.mustCall(function() {
@@ -464,7 +464,7 @@ const Transform = require('_stream_transform');
   });
 
   js.end();
-  // read one more time to get the 'end' event
+  // Read one more time to get the 'end' event
   js.read();
 
   process.nextTick(common.mustCall(function() {

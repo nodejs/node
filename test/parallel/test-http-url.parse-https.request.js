@@ -54,7 +54,7 @@ server.listen(0, function() {
 
   // make the request
   const clientRequest = https.request(testURL);
-  // since there is a little magic with the agent
+  // Since there is a little magic with the agent
   // make sure that the request uses the https.Agent
   assert.ok(clientRequest.agent instanceof https.Agent);
   clientRequest.end();

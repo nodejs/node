@@ -4,7 +4,7 @@ require('../common');
 const { DeflateRaw } = require('zlib');
 const { Readable } = require('stream');
 
-// validates that zlib.DeflateRaw can be inherited
+// Validates that zlib.DeflateRaw can be inherited
 // with Object.setPrototypeOf
 
 function NotInitialized(options) {

@@ -43,7 +43,7 @@ function testTerminalMode() {
   });
 
   r1.on('exit', function() {
-    // should be fired from the simulated ^D keypress
+    // Should be fired from the simulated ^D keypress
     terminalExit++;
     testRegularMode();
   });
@@ -61,7 +61,7 @@ function testRegularMode() {
   });
 
   r2.on('exit', function() {
-    // should be fired from the simulated 'end' event
+    // Should be fired from the simulated 'end' event
     regularExit++;
   });
 }

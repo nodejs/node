@@ -28,7 +28,7 @@ const stream = require('stream');
 class TestWriter extends stream.Writable {
   _write(buffer, encoding, callback) {
     console.log('write called');
-    // super slow write stream (callback never called)
+    // Super slow write stream (callback never called)
   }
 }
 

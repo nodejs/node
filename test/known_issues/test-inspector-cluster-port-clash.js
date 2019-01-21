@@ -29,7 +29,7 @@ function serialFork() {
   return new Promise((res) => {
     const worker = cluster.fork();
     worker.on('error', (err) => assert.fail(err));
-    // no common.mustCall since 1 out of 3 should fail
+    // No common.mustCall since 1 out of 3 should fail
     worker.on('online', () => {
       worker.on('message', common.mustCall((message) => {
         ports.push(message.debugPort);
@@ -50,7 +50,7 @@ function serialFork() {
 if (cluster.isMaster) {
   cluster.on('online', common.mustCall((worker) => worker.send('dbgport'), 2));
 
-  // block one of the ports with a listening socket
+  // Block one of the ports with a listening socket
   const server = net.createServer();
   server.listen(clashPort, common.localhostIPv4, common.mustCall(() => {
     // try to fork 3 workers No.2 should fail

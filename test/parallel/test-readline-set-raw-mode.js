@@ -42,7 +42,7 @@ stream.pause = function() {
   pauseCalled = true;
 };
 
-// when the "readline" starts in "terminal" mode,
+// When the "readline" starts in "terminal" mode,
 // then setRawMode(true) should be called
 const rli = readline.createInterface({
   input: stream,
@@ -86,5 +86,5 @@ assert(!resumeCalled);
 assert(pauseCalled);
 
 assert.deepStrictEqual(stream.listeners('keypress'), []);
-// one data listener for the keypress events.
+// One data listener for the keypress events.
 assert.strictEqual(stream.listeners('data').length, 1);

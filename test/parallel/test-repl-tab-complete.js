@@ -145,7 +145,7 @@ testMe.complete('inner.o', common.mustCall(function(error, data) {
 
 putIn.run(['.clear']);
 
-// def has the params and { on a separate line
+// The definition has the params and { on a separate line.
 putIn.run([
   'var top = function() {',
   'r = function test (',
@@ -173,7 +173,7 @@ testMe.complete('inner.o', getNoResultsFunction());
 
 putIn.run(['.clear']);
 
-// currently does not work, but should not break
+// Currently does not work, but should not break
 putIn.run([
   'var top = function() {',
   'r = function test (',
@@ -187,7 +187,7 @@ testMe.complete('inner.o', getNoResultsFunction());
 
 putIn.run(['.clear']);
 
-// make sure tab completion works on non-Objects
+// Make sure tab completion works on non-Objects
 putIn.run([
   'var str = "test";'
 ]);
@@ -197,7 +197,7 @@ testMe.complete('str.len', common.mustCall(function(error, data) {
 
 putIn.run(['.clear']);
 
-// tab completion should not break on spaces
+// Tab completion should not break on spaces
 const spaceTimeout = setTimeout(function() {
   throw new Error('timeout');
 }, 1000);
@@ -551,7 +551,7 @@ editor.completer('var log = console.l', common.mustCall((error, data) => {
 }));
 
 {
-  // tab completion of lexically scoped variables
+  // Tab completion of lexically scoped variables
   const stream = new ArrayStream();
   const testRepl = repl.start({ stream });
 

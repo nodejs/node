@@ -199,7 +199,7 @@ for (const test of TEST_CASES) {
   }
 
   {
-    // trying to get tag before inputting all data:
+    // Trying to get tag before inputting all data:
     const encrypt = crypto.createCipheriv(test.algo,
                                           Buffer.from(test.key, 'hex'),
                                           Buffer.from(test.iv, 'hex'),
@@ -209,7 +209,7 @@ for (const test of TEST_CASES) {
   }
 
   {
-    // trying to create cipher with incorrect IV length
+    // Trying to create cipher with incorrect IV length
     assert.throws(function() {
       crypto.createCipheriv(
         test.algo,

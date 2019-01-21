@@ -1070,7 +1070,7 @@ const subprocess = spawn(
 );
 
 setTimeout(() => {
-  subprocess.kill(); // does not terminate the node process in the shell
+  subprocess.kill(); // Does not terminate the node process in the shell
 }, 2000);
 ```
 

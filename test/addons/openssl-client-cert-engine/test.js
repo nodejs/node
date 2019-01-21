@@ -39,7 +39,7 @@ const server = https.createServer(serverOptions, (req, res) => {
     port: server.address().port,
     path: '/test',
     clientCertEngine: engine,  // engine will provide key+cert
-    rejectUnauthorized: false, // prevent failing on self-signed certificates
+    rejectUnauthorized: false, // Prevent failing on self-signed certificates
     headers: {}
   };
 

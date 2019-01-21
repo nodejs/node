@@ -38,7 +38,7 @@ assert.strictEqual(externalResult[0], 0);
 assert.strictEqual(externalResult[1], 1);
 assert.strictEqual(externalResult[2], 2);
 
-// validate creation of all kinds of TypedArrays
+// Validate creation of all kinds of TypedArrays
 const buffer = new ArrayBuffer(128);
 const arrayTypes = [ Int8Array, Uint8Array, Uint8ClampedArray, Int16Array,
                      Uint16Array, Int32Array, Uint32Array, Float32Array,

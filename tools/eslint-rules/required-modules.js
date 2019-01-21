@@ -48,7 +48,7 @@ module.exports = function(context) {
   function getRequiredModuleName(str) {
     var value = path.basename(str);
 
-    // check if value is in required modules array
+    // Check if value is in required modules array
     return requiredModules.indexOf(value) !== -1 ? value : undefined;
   }
 
@@ -59,7 +59,7 @@ module.exports = function(context) {
    * @returns {undefined|String} required module name or undefined
    */
   function getRequiredModuleNameFromCall(node) {
-    // node has arguments and first argument is string
+    // Node has arguments and first argument is string
     if (node.arguments.length && isString(node.arguments[0])) {
       return getRequiredModuleName(node.arguments[0].value.trim());
     }

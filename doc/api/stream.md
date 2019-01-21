@@ -135,7 +135,7 @@ const server = http.createServer((req, res) => {
   req.on('end', () => {
     try {
       const data = JSON.parse(body);
-      // write back something interesting to the user:
+      // Write back something interesting to the user:
       res.write(typeof data);
       res.end();
     } catch (er) {
@@ -413,7 +413,7 @@ Calling the [`stream.write()`][stream-write] method after calling
 [`stream.end()`][stream-end] will raise an error.
 
 ```js
-// write 'hello, ' and then end with 'world!'
+// Write 'hello, ' and then end with 'world!'
 const fs = require('fs');
 const file = fs.createWriteStream('example.txt');
 file.write('hello, ');
@@ -684,7 +684,7 @@ pass.unpipe(writable);
 
 pass.on('data', (chunk) => { console.log(chunk.toString()); });
 pass.write('ok');  // will not emit 'data'
-pass.resume();     // must be called to make stream emit 'data'
+pass.resume();     // Must be called to make stream emit 'data'
 ```
 
 While `readable.readableFlowing` is `false`, data may be accumulating
@@ -1211,7 +1211,7 @@ function parseHeader(stream, callback) {
         const remaining = split.join('\n\n');
         const buf = Buffer.from(remaining, 'utf8');
         stream.removeListener('error', callback);
-        // remove the 'readable' listener before unshifting
+        // Remove the 'readable' listener before unshifting
         stream.removeListener('readable', onReadable);
         if (buf.length)
           stream.unshift(buf);

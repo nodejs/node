@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-// see https://github.com/joyent/node/issues/3257
+// See https://github.com/joyent/node/issues/3257
 
 const common = require('../common');
 const http = require('http');

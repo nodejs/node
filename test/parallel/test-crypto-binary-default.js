@@ -465,7 +465,7 @@ function testCipher1(key) {
   const plaintext = 'Keep this a secret? No! Tell everyone about node.js!';
   const cipher = crypto.createCipher('aes192', key);
 
-  // encrypt plaintext which is in utf8 format
+  // Encrypt plaintext which is in utf8 format
   // to a ciphertext which will be in hex
   let ciph = cipher.update(plaintext, 'utf8', 'hex');
   // Only use binary or hex, not base64.
@@ -488,7 +488,7 @@ function testCipher2(key) {
       'jAfaFg**';
   const cipher = crypto.createCipher('aes256', key);
 
-  // encrypt plaintext which is in utf8 format
+  // Encrypt plaintext which is in utf8 format
   // to a ciphertext which will be in Base64
   let ciph = cipher.update(plaintext, 'utf8', 'base64');
   ciph += cipher.final('base64');

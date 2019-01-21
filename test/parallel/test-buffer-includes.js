@@ -287,7 +287,7 @@ for (let lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
   );
 });
 
-// test truncation of Number arguments to uint8
+// Test truncation of Number arguments to uint8
 {
   const buf = Buffer.from('this is a test');
   assert.ok(buf.includes(0x6973));

@@ -6,7 +6,7 @@ const { exec } = require('child_process');
 
 const node = process.execPath;
 
-// should throw if -c and -e flags are both passed
+// Should throw if -c and -e flags are both passed
 ['-c', '--check'].forEach(function(checkFlag) {
   ['-e', '--eval'].forEach(function(evalFlag) {
     const args = [checkFlag, evalFlag, 'foo'];

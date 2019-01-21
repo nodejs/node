@@ -69,7 +69,7 @@ const assert = require('assert');
   write.on('finish', common.mustNotCall('no finish event'));
   write.on('close', common.mustCall());
 
-  // error is swallowed by the custom _destroy
+  // Error is swallowed by the custom _destroy
   write.on('error', common.mustNotCall('no error event'));
 
   write.destroy(expected);

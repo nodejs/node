@@ -97,7 +97,7 @@ server.on('listening', function() {
   });
 });
 
-// now, see if the client sees the trailers.
+// Now, see if the client sees the trailers.
 server.on('listening', function() {
   http.get({
     port: this.address().port,
