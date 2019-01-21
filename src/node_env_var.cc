@@ -72,8 +72,12 @@ static void EnvSetter(Local<Name> property,
                       Local<Value> value,
                       const PropertyCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
-  if (env->options()->pending_deprecation && env->EmitProcessEnvWarning() &&
-      !value->IsString() && !value->IsNumber() && !value->IsBoolean()) {
+  // calling env->EmitProcessEnvWarning() sets a variable indicating that
+  // warnings have been emitted. It should be called last after other
+  // conditions leading to a warning have been met.
+  if (env->options()->pending_deprecation && !value->IsString() &&
+      !value->IsNumber() && !value->IsBoolean() &&
+      env->EmitProcessEnvWarning()) {
     if (ProcessEmitDeprecationWarning(
             env,
             "Assigning any value other than a string, number, or boolean to a "
