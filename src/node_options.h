@@ -88,6 +88,8 @@ class DebugOptions : public Options {
   bool wait_for_connect() const {
     return break_first_line || break_node_first_line;
   }
+
+  void CheckOptions(std::vector<std::string>* errors);
 };
 
 class EnvironmentOptions : public Options {
