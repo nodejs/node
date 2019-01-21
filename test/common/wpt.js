@@ -127,13 +127,15 @@ class StatusRuleSet {
 
 class WPTTest {
   /**
-   * @param {string} mod
-   * @param {string} filename
+   * @param {string} mod name of the WPT module, e.g.
+   *                     'html/webappapis/microtask-queuing'
+   * @param {string} filename path of the test, relative to mod, e.g.
+   *                          'test.any.js'
    * @param {StatusRule[]} rules
    */
   constructor(mod, filename, rules) {
-    this.module = mod; // name of the WPT module, e.g. 'url'
-    this.filename = filename;  // name of the test file
+    this.module = mod;
+    this.filename = filename;
 
     this.requires = new Set();
     this.failReasons = [];
@@ -204,6 +206,9 @@ const intlRequirements = new IntlRequirement();
 
 
 class StatusLoader {
+  /**
+   * @param {string} path relative path of the WPT subset
+   */
   constructor(path) {
     this.path = path;
     this.loaded = false;
