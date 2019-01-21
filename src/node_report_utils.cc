@@ -214,28 +214,41 @@ void WalkHandle(uv_handle_t* h, void* arg) {
   writer->json_end();
 }
 
-static std::string findAndReplace(const std::string& str,
-                                  const std::string& old,
-                                  const std::string& neu) {
-  std::string ret = str;
-  size_t pos = 0;
-  while ((pos = ret.find(old, pos)) != std::string::npos) {
-    ret.replace(pos, old.length(), neu);
-    pos += neu.length();
-  }
-  return ret;
-}
-
 std::string EscapeJsonChars(const std::string& str) {
-  std::string ret = str;
-  ret = findAndReplace(ret, "\\", "\\\\");
-  ret = findAndReplace(ret, "\\u", "\\u");
-  ret = findAndReplace(ret, "\n", "\\n");
-  ret = findAndReplace(ret, "\f", "\\f");
-  ret = findAndReplace(ret, "\r", "\\r");
-  ret = findAndReplace(ret, "\b", "\\b");
-  ret = findAndReplace(ret, "\t", "\\t");
-  ret = findAndReplace(ret, "\"", "\\\"");
+  const std::string control_symbols[0x20] = {
+      "\\u0000", "\\u0001", "\\u0002", "\\u0003", "\\u0004", "\\u0005",
+      "\\u0006", "\\u0007", "\\b", "\\t", "\\n", "\\v", "\\f", "\\r",
+      "\\u000e", "\\u000f", "\\u0010", "\\u0011", "\\u0012", "\\u0013",
+      "\\u0014", "\\u0015", "\\u0016", "\\u0017", "\\u0018", "\\u0019",
+      "\\u001a", "\\u001b", "\\u001c", "\\u001d", "\\u001e", "\\u001f"
+  };
+
+  std::string ret = "";
+  size_t last_pos = 0;
+  size_t pos = 0;
+  for (; pos < str.size(); ++pos) {
+    std::string replace;
+    char ch = str[pos];
+    if (ch == '\\') {
+      replace = "\\\\";
+    } else if (ch == '\"') {
+      replace = "\\\"";
+    } else {
+      size_t num = static_cast<size_t>(ch);
+      if (num < 0x20) replace = control_symbols[num];
+    }
+    if (!replace.empty()) {
+      if (pos > last_pos) {
+        ret += str.substr(last_pos, pos - last_pos);
+      }
+      last_pos = pos + 1;
+      ret += replace;
+    }
+  }
+  // Append any remaining symbols.
+  if (last_pos < str.size()) {
+    ret += str.substr(last_pos, pos - last_pos);
+  }
   return ret;
 }
 
