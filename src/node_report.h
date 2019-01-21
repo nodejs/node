@@ -38,8 +38,6 @@ typedef struct tm TIME_TYPE;
 #define PATHSEP "/"
 #endif
 
-void InitializeReport(v8::Isolate* isolate, node::Environment* env);
-
 // Function declarations - functions in src/node_report.cc
 std::string TriggerNodeReport(v8::Isolate* isolate,
                               node::Environment* env,
