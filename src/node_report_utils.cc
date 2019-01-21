@@ -105,65 +105,26 @@ void ReportPath(uv_handle_t* h, std::ostringstream& out) {
 
 // Utility function to walk libuv handles.
 void WalkHandle(uv_handle_t* h, void* arg) {
-  std::string type;
+  const char* type = uv_handle_type_name(h->type);
   std::ostringstream data;
   JSONWriter* writer = static_cast<JSONWriter*>(arg);
   uv_any_handle* handle = reinterpret_cast<uv_any_handle*>(h);
 
-  // List all the types so we get a compile warning if we've missed one,
-  // (using default: supresses the compiler warning).
   switch (h->type) {
-    case UV_UNKNOWN_HANDLE:
-      type = "unknown";
-      break;
-    case UV_ASYNC:
-      type = "async";
-      break;
-    case UV_CHECK:
-      type = "check";
-      break;
-    case UV_FS_EVENT: {
-      type = "fs_event";
+    case UV_FS_EVENT:
+    case UV_FS_POLL:
       ReportPath(h, data);
       break;
-    }
-    case UV_FS_POLL: {
-      type = "fs_poll";
-      ReportPath(h, data);
-      break;
-    }
-    case UV_HANDLE:
-      type = "handle";
-      break;
-    case UV_IDLE:
-      type = "idle";
-      break;
-    case UV_NAMED_PIPE:
-      type = "pipe";
-      break;
-    case UV_POLL:
-      type = "poll";
-      break;
-    case UV_PREPARE:
-      type = "prepare";
-      break;
-    case UV_PROCESS: {
-      type = "process";
+    case UV_PROCESS:
       data << "pid: " << handle->process.pid;
       break;
-    }
-    case UV_STREAM:
-      type = "stream";
-      break;
-    case UV_TCP: {
-      type = "tcp";
+    case UV_TCP:
+    case UV_UDP:
       ReportEndpoints(h, data);
       break;
-    }
     case UV_TIMER: {
       uint64_t due = handle->timer.timeout;
       uint64_t now = uv_now(handle->timer.loop);
-      type = "timer";
       data << "repeat: " << uv_timer_get_repeat(&(handle->timer));
       if (due > now) {
         data << ", timeout in: " << (due - now) << " ms";
@@ -174,22 +135,15 @@ void WalkHandle(uv_handle_t* h, void* arg) {
     }
     case UV_TTY: {
       int height, width, rc;
-      type = "tty";
       rc = uv_tty_get_winsize(&(handle->tty), &width, &height);
       if (rc == 0) {
         data << "width: " << width << ", height: " << height;
       }
       break;
     }
-    case UV_UDP: {
-      type = "udp";
-      ReportEndpoints(h, data);
-      break;
-    }
     case UV_SIGNAL: {
       // SIGWINCH is used by libuv so always appears.
       // See http://docs.libuv.org/en/v1.x/signal.html
-      type = "signal";
       data << "signum: " << handle->signal.signum
 #ifndef _WIN32
            << " (" << node::signo_string(handle->signal.signum) << ")"
@@ -197,12 +151,7 @@ void WalkHandle(uv_handle_t* h, void* arg) {
            << "";
       break;
     }
-    case UV_FILE:
-      type = "file";
-      break;
-    // We shouldn't see "max" type
-    case UV_HANDLE_TYPE_MAX:
-      type = "max";
+    default:
       break;
   }
 
