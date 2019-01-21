@@ -5,12 +5,8 @@ prefix parallel
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
-# https://github.com/nodejs/node/issues/25029
-test-child-process-execfile: PASS,FLAKY
 # https://github.com/nodejs/node/issues/23207
 test-net-connect-options-port: PASS,FLAKY
-# https://github.com/nodejs/node/issues/25033
-test-child-process-exit-code: PASS,FLAKY
 # https://github.com/nodejs/node/issues/24305
 test-trace-events-api-worker-disabled: PASS,FLAKY
 
@@ -34,7 +30,3 @@ test-cli-node-options: PASS,FLAKY
 [$system==freebsd]
 
 [$system==aix]
-# https://github.com/nodejs/node/issues/25029
-test-child-process-execfile: PASS,FLAKY
-# https://github.com/nodejs/node/issues/25068
-test-util-callbackify: PASS,FLAKY
