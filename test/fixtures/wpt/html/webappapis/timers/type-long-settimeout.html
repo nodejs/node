@@ -1,0 +1,8 @@
+<!doctype html>
+<title>Type long timeout for setTimeout</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+setTimeout(done, Math.pow(2, 32));
+setTimeout(assert_unreached, 100);
+</script>
