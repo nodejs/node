@@ -737,12 +737,6 @@ void RunBootstrapping(Environment* env) {
     return;
   }
 
-#ifdef NODE_REPORT
-  if (env->options()->experimental_report) {
-    report::InitializeReport(env->isolate(), env);
-  }
-#endif  // NODE_REPORT
-
   // process, loaderExports, isMainThread
   std::vector<Local<String>> node_params = {
       env->process_string(),
