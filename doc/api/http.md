@@ -829,6 +829,10 @@ changes:
     description: The `rawPacket` is the current buffer that just parsed. Adding
                  this buffer to the error object of `'clientError'` event is to
                  make it possible that developers can log the broken packet.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/25605
+    description: The default behavior will return a 431 Request Header
+                 Fields Too Large if a HPE_HEADER_OVERFLOW error occurs.
 -->
 
 * `exception` {Error}
@@ -839,8 +843,10 @@ Listener of this event is responsible for closing/destroying the underlying
 socket. For example, one may wish to more gracefully close the socket with a
 custom HTTP response instead of abruptly severing the connection.
 
-Default behavior is to close the socket with an HTTP '400 Bad Request' response
-if possible, otherwise the socket is immediately destroyed.
+Default behavior is to try close the socket with a HTTP '400 Bad Request',
+or a HTTP '431 Request Header Fields Too Large' in the case of a
+[`HPE_HEADER_OVERFLOW`][] error. If the socket is not writable it is
+immediately destroyed.
 
 `socket` is the [`net.Socket`][] object that the error originated from.
 
@@ -2171,3 +2177,4 @@ not abort the request or do anything besides add a `'timeout'` event.
 [`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
 [Readable Stream]: stream.html#stream_class_stream_readable
 [Stream]: stream.html#stream_stream
+[`HPE_HEADER_OVERFLOW`]: errors.html#errors_hpe_header_overflow
