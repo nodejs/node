@@ -107,7 +107,7 @@ void ReportPath(uv_handle_t* h, std::ostringstream& out) {
 void WalkHandle(uv_handle_t* h, void* arg) {
   std::string type;
   std::ostringstream data;
-  JSONWriter* writer = reinterpret_cast<JSONWriter*>(arg);
+  JSONWriter* writer = static_cast<JSONWriter*>(arg);
   uv_any_handle* handle = reinterpret_cast<uv_any_handle*>(h);
 
   // List all the types so we get a compile warning if we've missed one,
