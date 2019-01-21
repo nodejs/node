@@ -105,44 +105,16 @@ static void GetOSType(const FunctionCallbackInfo<Value>& args) {
 
 static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  const char* rval;
+  uv_utsname_t info;
+  int err = uv_os_uname(&info);
 
-#ifdef __POSIX__
-  struct utsname info;
-  if (uname(&info) < 0) {
+  if (err != 0) {
     CHECK_GE(args.Length(), 1);
-    env->CollectExceptionInfo(args[args.Length() - 1], errno, "uname");
+    env->CollectUVExceptionInfo(args[args.Length() - 1], err, "uv_os_uname");
     return args.GetReturnValue().SetUndefined();
   }
-# ifdef _AIX
-  char release[256];
-  snprintf(release, sizeof(release),
-           "%s.%s", info.version, info.release);
-  rval = release;
-# else
-  rval = info.release;
-# endif
-#else  // Windows
-  char release[256];
-  OSVERSIONINFOW info;
 
-  info.dwOSVersionInfoSize = sizeof(info);
-
-  // Don't complain that GetVersionEx is deprecated; there is no alternative.
-  #pragma warning(suppress : 4996)
-  if (GetVersionExW(&info) == 0)
-    return;
-
-  snprintf(release,
-           sizeof(release),
-           "%d.%d.%d",
-           static_cast<int>(info.dwMajorVersion),
-           static_cast<int>(info.dwMinorVersion),
-           static_cast<int>(info.dwBuildNumber));
-  rval = release;
-#endif  // __POSIX__
-
-  args.GetReturnValue().Set(OneByteString(env->isolate(), rval));
+  args.GetReturnValue().Set(OneByteString(env->isolate(), info.release));
 }
 
 
