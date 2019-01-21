@@ -1,0 +1,8 @@
+{
+  "queue-microtask-exceptions.any.js": {
+    "fail": "Node.js does not have a global addEventListener function"
+  },
+  "queue-microtask.window.js": {
+    "fail": "MutationObserver is not implemented"
+  }
+}
