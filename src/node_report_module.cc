@@ -108,15 +108,6 @@ void OnUserSignal(const FunctionCallbackInfo<Value>& info) {
       isolate, env, *value, __func__, filename, info[0].As<String>());
 }
 
-// Native module initializer function, called when the module is require'd
-void InitializeReport(Isolate* isolate, Environment* env) {
-  // Register the boot time of the process, for
-  // computing resource consumption average etc.
-  std::shared_ptr<PerIsolateOptions> options = env->isolate_data()->options();
-
-  if (options->report_signal == "") options->report_signal = "SIGUSR2";
-}
-
 // A method to sync up data elements in the JS land with its
 // corresponding elements in the C++ world. Required because
 // (i) the tunables are first intercepted through the CLI but
@@ -236,8 +227,9 @@ void SyncConfig(const FunctionCallbackInfo<Value>& info) {
     Local<Value> signal_value;
     Local<Value> file_value;
     Local<Value> path_value;
-    if (!node::ToV8Value(context, options->report_signal)
-             .ToLocal(&signal_value))
+    std::string signal = options->report_signal;
+    if (signal.empty()) signal = "SIGUSR2";
+    if (!node::ToV8Value(context, signal).ToLocal(&signal_value))
       return;
     if (!obj->Set(context, signalkey, signal_value).FromJust()) return;
 
@@ -264,8 +256,6 @@ static void Initialize(Local<Object> exports,
                        Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   std::shared_ptr<PerIsolateOptions> options = env->isolate_data()->options();
-  Isolate* isolate = env->isolate();
-  InitializeReport(isolate, env);
   env->SetMethod(exports, "triggerReport", TriggerReport);
   env->SetMethod(exports, "getReport", GetReport);
   env->SetMethod(exports, "onUnCaughtException", OnUncaughtException);
