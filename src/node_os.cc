@@ -52,7 +52,6 @@ using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
 using v8::Float64Array;
-using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::Int32;
 using v8::Integer;
