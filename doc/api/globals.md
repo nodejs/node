@@ -123,7 +123,7 @@ The `queueMicrotask()` method queues a microtask to invoke `callback`. If
 event will be emitted.
 
 The microtask queue is managed by V8 and may be used in a similar manner to
-the `process.nextTick()` queue, which is managed by Node.js. The
+the [`process.nextTick()`][] queue, which is managed by Node.js. The
 `process.nextTick()` queue is always processed before the microtask queue
 within each turn of the Node.js event loop.
 
@@ -241,6 +241,7 @@ The object that acts as the namespace for all W3C
 [`console`]: console.html
 [`exports`]: modules.html#modules_exports
 [`module`]: modules.html#modules_module
+[`process.nextTick()`]: process.html#process_process_nexttick_callback_args
 [`process` object]: process.html#process_process
 [`require()`]: modules.html#modules_require_id
 [`setImmediate`]: timers.html#timers_setimmediate_callback_args
