@@ -71,7 +71,7 @@ if (process.argv[2] === 'child') {
   let childFlag = false;
   let parentFlag = false;
 
-  // when calling .disconnect the event should emit
+  // When calling .disconnect the event should emit
   // and the disconnected flag should be true.
   child.on('disconnect', common.mustCall(function() {
     parentFlag = child.connected;

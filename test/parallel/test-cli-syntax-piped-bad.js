@@ -6,7 +6,7 @@ const { spawnSync } = require('child_process');
 
 const node = process.execPath;
 
-// test both sets of arguments that check syntax
+// Test both sets of arguments that check syntax
 const syntaxArgs = [
   ['-c'],
   ['--check']

@@ -39,7 +39,7 @@ try {
   assert.strictEqual(e.name, 'RangeError');
 }
 
-// should work with number-coercible values
+// Should work with number-coercible values
 assert.strictEqual(SlowBuffer('6').length, 6);
 assert.strictEqual(SlowBuffer(true).length, 1);
 

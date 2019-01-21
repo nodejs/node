@@ -65,7 +65,7 @@ test(function(parent, port) {
       s += c.toString();
     });
     res.on('end', function() {
-      // kill the worker before we start doing asserts.
+      // Kill the worker before we start doing asserts.
       // it's really annoying when tests leave orphans!
       parent.kill();
       parent.on('exit', function() {

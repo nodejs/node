@@ -85,7 +85,7 @@ if (process.argv[2] !== 'child') {
 
       // Handle the death of workers
       worker.on('exit', function(code, signal) {
-        // don't consider this the true death if the worker
+        // Don't consider this the true death if the worker
         // has finished successfully
         // or if the exit code is 0
         if (worker.isDone || code === 0) {
@@ -219,7 +219,7 @@ if (process.argv[2] === 'child') {
   });
 
   listenSocket.on('message', function(buf, rinfo) {
-    // receive udp messages only sent from parent
+    // Receive udp messages only sent from parent
     if (rinfo.address !== bindAddress) return;
 
     console.error('[CHILD] %s received %s from %j',

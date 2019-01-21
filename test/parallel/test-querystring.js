@@ -34,7 +34,7 @@ function createWithNoPrototype(properties) {
   });
   return noProto;
 }
-// folding block, commented to pass gjslint
+// Folding block, commented to pass gjslint
 // {{{
 // [ wonkyQS, canonicalQS, obj ]
 const qsTestCases = [
@@ -204,12 +204,12 @@ function check(actual, expected, input) {
   });
 }
 
-// test that the canonical qs is parsed properly.
+// Test that the canonical qs is parsed properly.
 qsTestCases.forEach((testCase) => {
   check(qs.parse(testCase[0]), testCase[2], testCase[0]);
 });
 
-// test that the colon test cases can do the same
+// Test that the colon test cases can do the same
 qsColonTestCases.forEach((testCase) => {
   check(qs.parse(testCase[0], ';', ':'), testCase[2], testCase[0]);
 });
@@ -445,5 +445,5 @@ qsUnescapeTestCases.forEach((testCase) => {
     createWithNoPrototype([{ key: 'f__', value: 'b_r' }]));
   qs.unescape = prevUnescape;
 }
-// test separator and "equals" parsing order
+// Test separator and "equals" parsing order
 check(qs.parse('foo&bar', '&', '&'), { foo: '', bar: '' });

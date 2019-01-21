@@ -41,7 +41,7 @@ const s = http.createServer(common.mustCall((req, res) => {
     }
   );
 
-  // undefined value should throw, via 979d0ca8
+  // Undefined value should throw, via 979d0ca8
   common.expectsError(
     () => res.setHeader('foo', undefined),
     {

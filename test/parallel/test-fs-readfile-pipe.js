@@ -22,7 +22,7 @@
 'use strict';
 const common = require('../common');
 
-// simulate `cat readfile.js | node readfile.js`
+// Simulate `cat readfile.js | node readfile.js`
 
 if (common.isWindows || common.isAIX)
   common.skip(`No /dev/stdin on ${process.platform}.`);

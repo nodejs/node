@@ -30,7 +30,7 @@ const assert = require('assert');
 
 const Readable = require('stream').Readable;
 
-// throw an error if we trigger a nextTick warning.
+// Throw an error if we trigger a nextTick warning.
 process.throwDeprecation = true;
 
 const stream = new Readable({ highWaterMark: 2 });

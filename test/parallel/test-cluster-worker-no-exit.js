@@ -50,7 +50,7 @@ if (cluster.isMaster) {
         destroyed = true;
       }, 1000);
     }).once('exit', function() {
-      // worker should not exit while it has a connection
+      // Worker should not exit while it has a connection
       assert(destroyed, 'worker exited before connection destroyed');
       success = true;
     });

@@ -16,7 +16,7 @@ const BYE = 'bye';
 if (cluster.isMaster) {
   const worker1 = cluster.fork();
 
-  // verify that Windows doesn't support this scenario
+  // Verify that Windows doesn't support this scenario
   worker1.on('error', (err) => {
     if (err.code === 'ENOTSUP') throw err;
   });

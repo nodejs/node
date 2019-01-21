@@ -253,7 +253,7 @@ const {
 }
 
 {
-  // finish should only trigger after 'end' is called
+  // Finish should only trigger after 'end' is called
   const server = createServer(mustCall((request, response) => {
     let finished = false;
     response.writeHead(HTTP_STATUS_OK, { foo: 'bar' });

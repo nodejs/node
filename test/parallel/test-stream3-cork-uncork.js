@@ -19,7 +19,7 @@ let seenEnd = false;
 const w = new Writable();
 // lets arrange to store the chunks
 w._write = function(chunk, encoding, cb) {
-  // default encoding given none was specified
+  // Default encoding given none was specified
   assert.strictEqual(encoding, 'buffer');
 
   seenChunks.push(chunk);
@@ -65,7 +65,7 @@ writeChunks(inputChunks, () => {
   // trigger writing out the buffer
   w.uncork();
 
-  // buffered bytes should be seen in current tick
+  // Buffered bytes should be seen in current tick
   assert.strictEqual(seenChunks.length, 4);
 
   // did the chunks match

@@ -45,7 +45,7 @@ if (process.argv[2] === 'child') {
 
   let state = 'initial';
 
-  // parse output that is formatted like this:
+  // Parse output that is formatted like this:
 
   // uv loop at [0x559b65ed5770] has active handles
   // [0x7f2de0018430] timer

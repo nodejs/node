@@ -7,7 +7,7 @@ const fixtures = require('../common/fixtures');
 
 const node = process.execPath;
 
-// test both sets of arguments that check syntax
+// Test both sets of arguments that check syntax
 const syntaxArgs = [
   ['-c'],
   ['--check']
@@ -22,7 +22,7 @@ const notFoundRE = /^Error: Cannot find module/m;
 ].forEach(function(file) {
   file = fixtures.path(file);
 
-  // loop each possible option, `-c` or `--check`
+  // Loop each possible option, `-c` or `--check`
   syntaxArgs.forEach(function(args) {
     const _args = args.concat(file);
     const cmd = [node, ..._args].join(' ');

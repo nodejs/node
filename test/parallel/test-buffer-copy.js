@@ -37,7 +37,7 @@ let cntr = 0;
 }
 
 {
-  // copy c into b, without specifying sourceEnd
+  // Copy c into b, without specifying sourceEnd
   b.fill(++cntr);
   c.fill(++cntr);
   const copied = c.copy(b, 0, 0);
@@ -48,7 +48,7 @@ let cntr = 0;
 }
 
 {
-  // copy c into b, without specifying sourceStart
+  // Copy c into b, without specifying sourceStart
   b.fill(++cntr);
   c.fill(++cntr);
   const copied = c.copy(b, 0);
@@ -135,7 +135,7 @@ common.expectsError(
 // When sourceStart is greater than sourceEnd, zero copied
 assert.strictEqual(b.copy(c, 0, 100, 10), 0);
 
-// when targetStart > targetLength, zero copied
+// When targetStart > targetLength, zero copied
 assert.strictEqual(b.copy(c, 512, 0, 10), 0);
 
 // Test that the `target` can be a Uint8Array.

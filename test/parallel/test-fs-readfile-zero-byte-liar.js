@@ -29,7 +29,7 @@ const fs = require('fs');
 
 const dataExpected = fs.readFileSync(__filename, 'utf8');
 
-// sometimes stat returns size=0, but it's a lie.
+// Sometimes stat returns size=0, but it's a lie.
 fs._fstat = fs.fstat;
 fs._fstatSync = fs.fstatSync;
 

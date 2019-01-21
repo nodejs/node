@@ -89,6 +89,6 @@ if (!process.argv[2]) {
   parent();
 } else {
   children[process.argv[2]]();
-  // immediate process.exit to kill any waiting stuff.
+  // Immediate process.exit to kill any waiting stuff.
   process.exit();
 }

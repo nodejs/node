@@ -33,7 +33,7 @@ function nextdir() {
   return `test${++dirc}`;
 }
 
-// mkdir creates directory using assigned path
+// fs.mkdir creates directory using assigned path
 {
   const pathname = path.join(tmpdir.path, nextdir());
 
@@ -43,7 +43,7 @@ function nextdir() {
   }));
 }
 
-// mkdir creates directory with assigned mode value
+// fs.mkdir creates directory with assigned mode value
 {
   const pathname = path.join(tmpdir.path, nextdir());
 

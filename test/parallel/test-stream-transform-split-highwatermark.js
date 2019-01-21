@@ -81,7 +81,7 @@ testTransform(0, 0, {
   });
 }
 
-// test non Duplex streams ignore the options
+// Test non Duplex streams ignore the options
 {
   const r = new Readable({ readableHighWaterMark: 666 });
   assert.strictEqual(r._readableState.highWaterMark, DEFAULT);

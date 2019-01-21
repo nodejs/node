@@ -14,7 +14,7 @@ const {
 const http2 = require('http2');
 const { NghttpError } = require('internal/http2/util');
 
-// tests error handling within requestOnConnect
+// Tests error handling within requestOnConnect
 // - NGHTTP2_ERR_STREAM_ID_NOT_AVAILABLE (should emit session error)
 // - NGHTTP2_ERR_INVALID_ARGUMENT (should emit stream error)
 // - every other NGHTTP2 error from binding (should emit session error)

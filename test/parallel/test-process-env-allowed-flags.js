@@ -48,7 +48,7 @@ require('../common');
   });
 }
 
-// assert all "canonical" flags begin with dash(es)
+// Assert all "canonical" flags begin with dash(es)
 {
   process.allowedNodeEnvironmentFlags.forEach((flag) => {
     assert(/^--?[a-z8_-]+$/.test(flag), `Unexpected format for flag ${flag}`);

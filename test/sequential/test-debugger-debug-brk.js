@@ -9,7 +9,7 @@ const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const spawn = require('child_process').spawn;
 
-// file name here doesn't actually matter since
+// File name here doesn't actually matter since
 // debugger will connect regardless of file name arg
 const script = fixtures.path('empty.js');
 

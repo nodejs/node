@@ -43,7 +43,7 @@ childProcess.exec(
   }
 );
 
-// test that preloading a throwing module aborts
+// Test that preloading a throwing module aborts
 childProcess.exec(
   `"${nodeBinary}" ${preloadOption([fixtureA, fixtureThrows])} "${fixtureB}"`,
   function(err, stdout, stderr) {
@@ -55,7 +55,7 @@ childProcess.exec(
   }
 );
 
-// test that preload can be used with --eval
+// Test that preload can be used with --eval
 childProcess.exec(
   `"${nodeBinary}" ${preloadOption([fixtureA])}-e "console.log('hello');"`,
   function(err, stdout, stderr) {
@@ -64,7 +64,7 @@ childProcess.exec(
   }
 );
 
-// test that preload can be used with stdin
+// Test that preload can be used with stdin
 const stdinProc = childProcess.spawn(
   nodeBinary,
   ['--require', fixtureA],
@@ -132,7 +132,7 @@ childProcess.exec(
   }
 );
 
-// test that preloading with a relative path works
+// Test that preloading with a relative path works
 process.chdir(fixtures.fixturesDir);
 childProcess.exec(
   `"${nodeBinary}" ${preloadOption(['./printA.js'])} "${fixtureB}"`,

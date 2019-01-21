@@ -17,7 +17,7 @@ tmpdir.refresh();
 const procEnabled = cp.spawn(
   process.execPath,
   [ '--trace-event-categories', 'custom',
-    // make test less noisy since internal/test/binding
+    // Make test less noisy since internal/test/binding
     // emits a warning.
     '--no-warnings',
     '--expose-internals',
@@ -35,7 +35,7 @@ procEnabled.once('close', common.mustCall(() => {
 const procDisabled = cp.spawn(
   process.execPath,
   [ '--trace-event-categories', 'other',
-    // make test less noisy since internal/test/binding
+    // Make test less noisy since internal/test/binding
     // emits a warning.
     '--no-warnings',
     '--expose-internals',

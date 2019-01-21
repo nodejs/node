@@ -48,7 +48,7 @@ if (cluster.isMaster) {
   });
 
   server2.on('error', function(err) {
-    // an error is expected on the second worker
+    // An error is expected on the second worker
     process.send(`server2:${err.code}`);
   });
 

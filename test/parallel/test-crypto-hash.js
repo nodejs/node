@@ -81,7 +81,7 @@ assert.deepStrictEqual(
   `${cryptoType} with ${digest} digest failed to evaluate to expected hash`
 );
 
-// stream interface should produce the same result.
+// Stream interface should produce the same result.
 assert.deepStrictEqual(a5, a3);
 assert.deepStrictEqual(a6, a3);
 assert.notStrictEqual(a7, undefined);

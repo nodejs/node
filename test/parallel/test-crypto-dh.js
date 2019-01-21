@@ -374,7 +374,7 @@ if (availableCurves.has('prime256v1') && availableHashes.has('sha256')) {
   crypto.createSign('SHA256').sign(ecPrivateKey);
 }
 
-// invalid test: curve argument is undefined
+// Invalid test: curve argument is undefined
 common.expectsError(
   () => crypto.createECDH(),
   {

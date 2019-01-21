@@ -2,7 +2,7 @@
 require('../common');
 const assert = require('assert');
 
-// ensure that the reallyExit hook is executed.
+// Ensure that the reallyExit hook is executed.
 // see: https://github.com/nodejs/node/issues/25650
 if (process.argv[2] === 'subprocess') {
   process.reallyExit = function() {

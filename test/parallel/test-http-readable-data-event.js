@@ -13,7 +13,7 @@ const server = http.createServer((req, res) => {
     'Content-Length': '' + (helloWorld.length + helloAgainLater.length)
   });
 
-  // we need to make sure the data is flushed
+  // We need to make sure the data is flushed
   // before writing again
   next = () => {
     res.end(helloAgainLater);

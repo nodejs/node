@@ -212,7 +212,7 @@ async function testCommandLineAPI(session) {
     });
   checkException(result);
   assert.strictEqual(result.result.value, true);
-  // after require the module appears in require.cache
+  // After require the module appears in require.cache
   result = await session.send(
     {
       'method': 'Runtime.evaluate', 'params': {
@@ -235,7 +235,7 @@ async function testCommandLineAPI(session) {
     });
   checkException(result);
   assert.strictEqual(result.result.value, true);
-  // require again, should get fresh (empty) exports
+  // Require again, should get fresh (empty) exports
   result = await session.send(
     {
       'method': 'Runtime.evaluate', 'params': {
@@ -255,7 +255,7 @@ async function testCommandLineAPI(session) {
     });
   checkException(result);
   assert.deepStrictEqual(JSON.parse(result.result.value), {});
-  // both modules end up with the same module.parent
+  // Both modules end up with the same module.parent
   result = await session.send(
     {
       'method': 'Runtime.evaluate', 'params': {

@@ -1,5 +1,5 @@
 'use strict';
-// throughput benchmark in signing and verifying
+// Throughput benchmark in signing and verifying
 const common = require('../common.js');
 const crypto = require('crypto');
 const fs = require('fs');

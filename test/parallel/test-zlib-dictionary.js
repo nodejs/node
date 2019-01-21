@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-// test compression/decompression with dictionary
+// Test compression/decompression with dictionary
 
 const common = require('../common');
 const assert = require('assert');

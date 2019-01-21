@@ -18,7 +18,7 @@ const {
 } = internalBinding('http2');
 const { NghttpError } = require('internal/http2/util');
 
-// tests error handling within processRespondWithFD
+// Tests error handling within processRespondWithFD
 // (called by respondWithFD & respondWithFile)
 // - every other NGHTTP2 error from binding (should emit stream error)
 

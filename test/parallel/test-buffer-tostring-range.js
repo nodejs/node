@@ -11,13 +11,13 @@ assert.strictEqual(rangeBuffer.toString('ascii', +Infinity), '');
 assert.strictEqual(rangeBuffer.toString('ascii', 3.14, 3), '');
 assert.strictEqual(rangeBuffer.toString('ascii', 'Infinity', 3), '');
 
-// if end <= 0, empty string will be returned
+// If end <= 0, empty string will be returned
 assert.strictEqual(rangeBuffer.toString('ascii', 1, 0), '');
 assert.strictEqual(rangeBuffer.toString('ascii', 1, -1.2), '');
 assert.strictEqual(rangeBuffer.toString('ascii', 1, -100), '');
 assert.strictEqual(rangeBuffer.toString('ascii', 1, -Infinity), '');
 
-// if start < 0, start will be taken as zero
+// If start < 0, start will be taken as zero
 assert.strictEqual(rangeBuffer.toString('ascii', -1, 3), 'abc');
 assert.strictEqual(rangeBuffer.toString('ascii', -1.99, 3), 'abc');
 assert.strictEqual(rangeBuffer.toString('ascii', -Infinity, 3), 'abc');
@@ -78,12 +78,12 @@ assert.strictEqual(rangeBuffer.toString('ascii', 0, '-1.99'), '');
 assert.strictEqual(rangeBuffer.toString('ascii', 0, 1.99), 'a');
 assert.strictEqual(rangeBuffer.toString('ascii', 0, true), 'a');
 
-// try toString() with a object as a encoding
+// Try toString() with an object as an encoding
 assert.strictEqual(rangeBuffer.toString({ toString: function() {
   return 'ascii';
 } }), 'abc');
 
-// try toString() with 0 and null as the encoding
+// Try toString() with 0 and null as the encoding
 common.expectsError(() => {
   rangeBuffer.toString(0, 1, 2);
 }, {

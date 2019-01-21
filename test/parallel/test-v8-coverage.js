@@ -113,7 +113,7 @@ function nextdir() {
   assert.strictEqual(fixtureCoverage, undefined);
 }
 
-// disables async hooks before writing coverage.
+// Disables async hooks before writing coverage.
 {
   const coverageDirectory = path.join(tmpdir.path, nextdir());
   const output = spawnSync(process.execPath, [

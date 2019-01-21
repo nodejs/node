@@ -17,7 +17,7 @@ const { OutgoingMessage } = require('http');
 }
 
 {
-  // tests for settimeout method without socket
+  // Tests for settimeout method without socket
   const expectedMsecs = 23;
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage.setTimeout(expectedMsecs);

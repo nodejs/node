@@ -74,7 +74,7 @@ const watcher =
       assert(prev.ino <= 0);
       // Stop watching the file
       fs.unwatchFile(enoentFile);
-      watcher.stop();  // stopping a stopped watcher should be a noop
+      watcher.stop();  // Stopping a stopped watcher should be a noop
     }
   }, 2));
 
@@ -82,7 +82,7 @@ const watcher =
 // not trigger a 'stop' event.
 watcher.on('stop', common.mustCall(function onStop() {}));
 
-watcher.start();  // starting a started watcher should be a noop
+watcher.start();  // Starting a started watcher should be a noop
 
 // Watch events should callback with a filename on supported systems.
 // Omitting AIX. It works but not reliably.
