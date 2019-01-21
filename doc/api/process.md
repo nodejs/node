@@ -1463,9 +1463,9 @@ changes:
 
 `process.nextTick()` adds `callback` to the "next tick queue". This queue is
 fully drained after the current operation on the JavaScript stack runs to
-completion and before the event loop is allowed to continue. As a result, it's
-possible to create an infinite loop if one were to recursively call
-`process.nextTick()`.
+completion and before the event loop is allowed to continue. It's possible to
+create an infinite loop if one were to recursively call `process.nextTick()`.
+See the [Event Loop] guide for more background.
 
 ```js
 console.log('start');
@@ -2265,6 +2265,7 @@ cases:
 [Child Process]: child_process.html
 [Cluster]: cluster.html
 [Duplex]: stream.html#stream_duplex_and_transform_streams
+[Event Loop]: https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/#process-nexttick
 [LTS]: https://github.com/nodejs/Release
 [Readable]: stream.html#stream_readable_streams
 [Signal Events]: #process_signal_events
