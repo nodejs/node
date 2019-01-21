@@ -128,6 +128,7 @@ using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Message;
 using v8::MicrotasksPolicy;
+using v8::Nothing;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Script;
@@ -650,13 +651,14 @@ static MaybeLocal<Value> ExecuteBootstrapper(
 }
 
 void LoadEnvironment(Environment* env) {
-  RunBootstrapping(env);
+  if (RunBootstrapping(env).IsNothing())
+    return;
 
   // To allow people to extend Node in different ways, this hook allows
   // one to drop a file lib/_third_party_main.js into the build
   // directory which will be executed instead of Node's normal loading.
   if (per_process::native_module_loader.Exists("_third_party_main")) {
-    StartExecution(env, "_third_party_main");
+    USE(StartExecution(env, "_third_party_main"));
   } else {
     // TODO(joyeecheung): create different scripts for different
     // execution modes:
@@ -671,11 +673,11 @@ void LoadEnvironment(Environment* env) {
     // And leave bootstrap/node.js dedicated to the setup of the environment.
     // We may want to move this switch out of LoadEnvironment, especially for
     // the per-process options.
-    StartExecution(env, nullptr);
+    USE(StartExecution(env, nullptr));
   }
 }
 
-void RunBootstrapping(Environment* env) {
+Maybe<bool> RunBootstrapping(Environment* env) {
   CHECK(!env->has_run_bootstrapping_code());
   env->set_has_run_bootstrapping_code(true);
 
@@ -734,7 +736,7 @@ void RunBootstrapping(Environment* env) {
   loader_exports = ExecuteBootstrapper(
       env, "internal/bootstrap/loaders", &loaders_params, &loaders_args);
   if (loader_exports.IsEmpty()) {
-    return;
+    return Nothing<bool>();
   }
 
 #ifdef NODE_REPORT
@@ -757,14 +759,16 @@ void RunBootstrapping(Environment* env) {
   if (!ExecuteBootstrapper(
           env, "internal/bootstrap/node", &node_params, &node_args)
           .ToLocal(&start_execution)) {
-    return;
+    return Nothing<bool>();
   }
 
   if (start_execution->IsFunction())
     env->set_start_execution_function(start_execution.As<Function>());
+
+  return Just(true);
 }
 
-void StartExecution(Environment* env, const char* main_script_id) {
+Maybe<bool> StartExecution(Environment* env, const char* main_script_id) {
   HandleScope handle_scope(env->isolate());
   // We have to use Local<>::New because of the optimized way in which we access
   // the object in the env->...() getters, which does not play well with
@@ -773,7 +777,7 @@ void StartExecution(Environment* env, const char* main_script_id) {
       Local<Function>::New(env->isolate(), env->start_execution_function());
   env->set_start_execution_function(Local<Function>());
 
-  if (start_execution.IsEmpty()) return;
+  if (start_execution.IsEmpty()) return Nothing<bool>();
 
   Local<Value> main_script_v;
   if (main_script_id == nullptr) {
@@ -785,8 +789,14 @@ void StartExecution(Environment* env, const char* main_script_id) {
   }
 
   Local<Value> argv[] = {main_script_v};
-  USE(start_execution->Call(
-      env->context(), Undefined(env->isolate()), arraysize(argv), argv));
+  if (start_execution->Call(env->context(),
+                            Undefined(env->isolate()),
+                            arraysize(argv),
+                            argv).IsEmpty()) {
+    return Nothing<bool>();
+  }
+
+  return Just(true);
 }
 
 static void StartInspector(Environment* env, const char* path) {

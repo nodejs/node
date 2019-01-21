@@ -268,8 +268,8 @@ bool SafeGetenv(const char* key, std::string* text);
 
 void DefineZlibConstants(v8::Local<v8::Object> target);
 
-void RunBootstrapping(Environment* env);
-void StartExecution(Environment* env, const char* main_script_id);
+v8::Maybe<bool> RunBootstrapping(Environment* env);
+v8::Maybe<bool> StartExecution(Environment* env, const char* main_script_id);
 
 }  // namespace node
 
