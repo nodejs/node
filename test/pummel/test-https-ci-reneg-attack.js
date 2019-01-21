@@ -79,7 +79,7 @@ function test(next) {
     child.stderr.on('data', function(data) {
       if (seenError) return;
       handshakes += ((String(data)).match(/verify return:1/g) || []).length;
-      if (handshakes === 2) spam();
+      if (handshakes > 1) spam();
       renegs += ((String(data)).match(/RENEGOTIATING/g) || []).length;
     });
 
@@ -109,7 +109,6 @@ function test(next) {
     function spam() {
       if (closed) return;
       child.stdin.write('R\n');
-      setTimeout(spam, 50);
     }
   });
 }
