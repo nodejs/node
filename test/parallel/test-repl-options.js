@@ -25,6 +25,12 @@ const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
 const repl = require('repl');
 
+common.expectWarning({
+  DeprecationWarning: {
+    DEP0XXX: 'REPLServer.rli is deprecated'
+  }
+});
+
 // Create a dummy stream that does nothing
 const stream = new ArrayStream();
 
