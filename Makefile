@@ -276,7 +276,7 @@ jstest: build-addons build-js-native-api-tests build-node-api-tests ## Runs addo
 coverage-run-js:
 	$(RM) -r out/$(BUILDTYPE)/.coverage
 	$(MAKE) coverage-build-js
-	-NODE_V8_COVERAGE=out/$(BUILDTYPE)/.coverage CI_SKIP_TESTS=$(COV_SKIP_TESTS) \
+	NODE_V8_COVERAGE=out/$(BUILDTYPE)/.coverage CI_SKIP_TESTS=$(COV_SKIP_TESTS) \
 	  $(MAKE) jstest
 	$(MAKE) coverage-report-js
 
