@@ -26,11 +26,11 @@ common.expectsError(
 common.expectsError(
   () => EE.emit('error', {
     message: 'Error!',
-    [util.inspect.custom]() { throw null; }
+    [util.inspect.custom]() { throw new Error(); }
   }),
   {
     code: 'ERR_UNHANDLED_ERROR',
     type: Error,
-    message: "Unhandled error. ([object Object])"
+    message: 'Unhandled error. ([object Object])'
   }
 );
