@@ -207,7 +207,7 @@ class StreamResource {
 
   // Perform a shutdown operation, and either call req_wrap->Done() when
   // finished and return 0, return 1 for synchronous success, or
-  // a libuv errr code for synchronous failures.
+  // a libuv error code for synchronous failures.
   virtual int DoShutdown(ShutdownWrap* req_wrap) = 0;
   // Try to write as much data as possible synchronously, and modify
   // `*bufs` and `*count` accordingly. This is a no-op by default.
