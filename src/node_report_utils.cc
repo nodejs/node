@@ -272,7 +272,7 @@ void WalkHandle(uv_handle_t* h, void* arg) {
 }
 
 std::string EscapeJsonChars(const std::string& str) {
-  std::string control_symbols[0x20] = {
+  const std::string control_symbols[0x20] = {
       "\\u0000", "\\u0001", "\\u0002", "\\u0003", "\\u0004", "\\u0005",
       "\\u0006", "\\u0007", "\\b", "\\t", "\\n", "\\v", "\\f", "\\r",
       "\\u000e", "\\u000f", "\\u0010", "\\u0011", "\\u0012", "\\u0013",
@@ -285,13 +285,13 @@ std::string EscapeJsonChars(const std::string& str) {
   size_t pos = 0;
   for (; pos < str.size(); ++pos) {
     std::string replace;
-    const char* ch = &str[pos];
-    if (*ch == '\\') {
+    char ch = str[pos];
+    if (ch == '\\') {
       replace = "\\\\";
-    } else if (*ch == '\"') {
+    } else if (ch == '\"') {
       replace = "\\\"";
     } else {
-      size_t num = static_cast<size_t>(*ch);
+      size_t num = static_cast<size_t>(ch);
       if (num < 0x20) replace = control_symbols[num];
     }
     if (!replace.empty()) {
