@@ -115,8 +115,6 @@ void WalkHandle(uv_handle_t* h, void* arg) {
   JSONWriter* writer = static_cast<JSONWriter*>(arg);
   uv_any_handle* handle = reinterpret_cast<uv_any_handle*>(h);
 
-  // List all the types so we get a compile warning if we've missed one,
-  // (using default: supresses the compiler warning).
   switch (h->type) {
     case UV_FS_EVENT:
     case UV_FS_POLL:
