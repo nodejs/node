@@ -65,8 +65,9 @@ function test(next) {
     res.end('ok');
   });
 
-  server.listen(common.PORT, function() {
-    const args = (`s_client -connect 127.0.0.1:${common.PORT}`).split(' ');
+  server.listen(0, function() {
+    const cmd = `s_client -connect 127.0.0.1:${server.address().port}`;
+    const args = cmd.split(' ');
     const child = spawn(common.opensslCli, args);
 
     child.stdout.resume();
