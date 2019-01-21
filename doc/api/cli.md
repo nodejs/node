@@ -150,7 +150,7 @@ Enable experimental ES module support and caching modules.
 
 ### `--experimental-policy`
 <!-- YAML
-added: TODO
+added: REPLACEME
 -->
 
 Use the specified file as a security policy.
