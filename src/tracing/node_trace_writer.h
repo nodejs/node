@@ -45,9 +45,11 @@ class NodeTraceWriter : public AsyncTraceWriter {
   // Triggers callback to close async objects, ending the tracing thread.
   uv_async_t exit_signal_;
   // Prevents concurrent R/W on state related to serialized trace data
-  // before it's written to disk, namely stream_ and total_traces_.
+  // before it's written to disk, namely stream_ and total_traces_
+  // as well as json_trace_writer_.
   Mutex stream_mutex_;
   // Prevents concurrent R/W on state related to write requests.
+  // If both mutexes are locked, request_mutex_ has to be locked first.
   Mutex request_mutex_;
   // Allows blocking calls to Flush() to wait on a condition for
   // trace events to be written to disk.
