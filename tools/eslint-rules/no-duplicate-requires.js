@@ -36,7 +36,7 @@ module.exports = (context) => {
   }
 
   function getRequiredModuleNameFromCall(node) {
-    // node has arguments and first argument is string
+    // Node has arguments and first argument is string
     if (node.arguments.length && isString(node.arguments[0])) {
       return node.arguments[0].value.trim();
     }

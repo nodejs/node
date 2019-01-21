@@ -21,7 +21,7 @@ read(buf, 'readDoubleLE', [1], -6.966010051009108e+144);
 read(buf, 'readFloatBE', [1], -1.6691549692541768e+37);
 read(buf, 'readFloatLE', [1], -7861303808);
 
-// testing basic functionality of readInt8()
+// Testing basic functionality of readInt8()
 read(buf, 'readInt8', [1], -3);
 
 // Testing basic functionality of readInt16BE() and readInt16LE()
@@ -36,7 +36,7 @@ read(buf, 'readInt32LE', [1], -806729475);
 read(buf, 'readIntBE', [1, 1], -3);
 read(buf, 'readIntLE', [2, 1], 0x48);
 
-// testing basic functionality of readUInt8()
+// Testing basic functionality of readUInt8()
 read(buf, 'readUInt8', [1], 0xfd);
 
 // Testing basic functionality of readUInt16BE() and readUInt16LE()

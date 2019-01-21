@@ -108,7 +108,7 @@ vm.runInContext('k = 2;', ctx);
 assert.strictEqual(ctx.k, 2);
 assert.strictEqual(vm.runInContext('k;', ctx), 2);
 
-// redefine properties on the global object
+// Redefine properties on the global object
 assert.strictEqual(typeof vm.runInContext('encodeURI;', ctx), 'function');
 assert.strictEqual(ctx.encodeURI, undefined);
 vm.runInContext(`

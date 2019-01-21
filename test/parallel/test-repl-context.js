@@ -51,7 +51,7 @@ const stream = new ArrayStream();
   // use the server to create a new context
   const context = server.createContext();
 
-  // ensure that creating a new context does not
+  // Ensure that creating a new context does not
   // have side effects on the server
   assert.ok(server.underscoreAssigned);
   assert.strictEqual(server.lines.length, 1);
@@ -63,7 +63,7 @@ const stream = new ArrayStream();
   assert.ok(!server.underscoreAssigned);
   assert.strictEqual(server.lines.length, 0);
 
-  // ensure that assigning to '_' in the new context
+  // Ensure that assigning to '_' in the new context
   // does not change the value in our server.
   assert.ok(!server.underscoreAssigned);
   vm.runInContext('_ = 1000;\n', context);

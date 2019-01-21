@@ -254,7 +254,7 @@ async function getHandle(dest) {
       await unlink(newLink);
     }
 
-    // testing readdir lists both files and directories
+    // Testing readdir lists both files and directories
     {
       const newDir = path.resolve(tmpDir, 'dir');
       const newFile = path.resolve(tmpDir, 'foo.js');
@@ -326,8 +326,8 @@ async function getHandle(dest) {
       assert(stats.isDirectory());
     }
 
-    // mkdirp require recursive option to be a boolean.
-    // Anything else generates an error.
+    // fs.mkdirp requires the recursive option to be of type boolean.
+    // Everything else generates an error.
     {
       const dir = path.join(tmpDir, nextdir(), nextdir());
       ['', 1, {}, [], null, Symbol('test'), () => {}].forEach((recursive) => {

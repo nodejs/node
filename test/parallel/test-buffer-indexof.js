@@ -175,7 +175,7 @@ assert.strictEqual(
 );
 
 
-// test optional offset with passed encoding
+// Test optional offset with passed encoding
 assert.strictEqual(Buffer.from('aaaa0').indexOf('30', 'hex'), 4);
 assert.strictEqual(Buffer.from('aaaa00a').indexOf('3030', 'hex'), 4);
 
@@ -581,7 +581,7 @@ assert.strictEqual(reallyLong.lastIndexOf(pattern), 3932160);
 pattern = reallyLong.slice(0, 2000000);  // first 2/5ths.
 assert.strictEqual(reallyLong.lastIndexOf(pattern), 0);
 
-// test truncation of Number arguments to uint8
+// Test truncation of Number arguments to uint8
 {
   const buf = Buffer.from('this is a test');
   assert.strictEqual(buf.indexOf(0x6973), 3);

@@ -15,7 +15,7 @@ function main({ api, cipher, type, len, writes }) {
     cipher = 'AES192';
   if (api === 'stream' && /^v0\.[0-8]\./.test(process.version)) {
     console.error('Crypto streams not available until v0.10');
-    // use the legacy, just so that we can compare them.
+    // Use the legacy, just so that we can compare them.
     api = 'legacy';
   }
 

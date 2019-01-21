@@ -7,7 +7,7 @@ const cp = require('child_process');
 if (process.argv[2] === 'child') {
   process.on('message', common.mustCall((msg) => {
     assert.strictEqual(msg, 'go');
-    // the following console.log is an integral part
+    // The following console.log is an integral part
     // of the test. If this regress, this call will
     // cause the process to exit with 1
     console.log('logging should not cause a crash');

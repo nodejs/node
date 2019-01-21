@@ -120,7 +120,7 @@ assert.throws(
 }
 
 console.error('test node_modules folders');
-// asserts are in the fixtures files themselves,
+// Asserts are in the fixtures files themselves,
 // since they depend on the folder structure.
 require('../fixtures/node_modules/foo');
 
@@ -129,7 +129,7 @@ require('../fixtures/node_modules/foo');
   // This one exists and should import the local module
   const my_path = require('../fixtures/path');
   assert.ok(my_path.path_func instanceof Function);
-  // this one does not exist and should throw
+  // This one does not exist and should throw
   assert.throws(function() { require('./utils'); },
                 /^Error: Cannot find module '\.\/utils'/);
 }
@@ -216,7 +216,7 @@ assert.throws(
 }
 
 {
-  // make sure that module.require() is the same as
+  // Make sure that module.require() is the same as
   // doing require() inside of that module.
   const parent = require('../fixtures/module-require/parent/');
   const child = require('../fixtures/module-require/child/');

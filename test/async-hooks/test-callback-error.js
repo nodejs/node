@@ -30,7 +30,7 @@ switch (arg) {
     return;
 }
 
-// this part should run only for the master test
+// This part should run only for the master test
 assert.ok(!arg);
 {
   // console.log should stay until this test's flakiness is solved

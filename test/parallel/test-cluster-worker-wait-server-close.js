@@ -24,7 +24,7 @@ if (cluster.isWorker) {
 
   // Check worker events and properties
   process.once('disconnect', function() {
-    // disconnect should occur after socket close
+    // Disconnect should occur after socket close
     assert(serverClosed);
     clearInterval(keepOpen);
   });

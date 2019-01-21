@@ -31,7 +31,7 @@ const dnsPromises = require('dns').promises;
   );
 }
 
-// rrtype is undefined, it's same as resolve4
+// Setting rrtype to undefined should work like resolve4.
 {
   (async function() {
     const rrtype = undefined;

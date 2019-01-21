@@ -64,7 +64,7 @@ if (cluster.isWorker) {
   let alive = true;
   master.on('exit', common.mustCall((code) => {
 
-    // make sure that the master died on purpose
+    // Make sure that the master died on purpose
     assert.strictEqual(code, 0);
 
     // check worker process status

@@ -33,7 +33,7 @@ source.unpipe(dest1);
 assert.strictEqual(source._readableState.pipes, null);
 
 {
-  // test `cleanup()` if we unpipe all streams.
+  // Test `cleanup()` if we unpipe all streams.
   const source = Readable({ read: () => {} });
   const dest1 = Writable({ write: () => {} });
   const dest2 = Writable({ write: () => {} });

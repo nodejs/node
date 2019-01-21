@@ -26,7 +26,7 @@ const http = require('http');
 const url = require('url');
 
 function check(request) {
-  // the correct authorization header is be passed
+  // The correct authorization header is be passed
   assert.strictEqual(request.headers.authorization, 'Basic dXNlcjpwYXNzOg==');
 }
 

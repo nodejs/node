@@ -27,7 +27,7 @@ const checkWeight = (actual, expect) => {
   }));
 };
 
-// when client weight is lower than 1, weight is 1
+// When client weight is lower than 1, weight is 1
 checkWeight(-1, 1);
 checkWeight(0, 1);
 

@@ -2598,7 +2598,7 @@ const server = createSecureServer(
 ).listen(4443);
 
 function onRequest(req, res) {
-  // detects if it is a HTTPS request or HTTP/2
+  // Detects if it is a HTTPS request or HTTP/2
   const { socket: { alpnProtocol } } = req.httpVersion === '2.0' ?
     req.stream.session : req;
   res.writeHead(200, { 'content-type': 'application/json' });
@@ -3371,9 +3371,9 @@ const obs = new PerformanceObserver((items) => {
   const entry = items.getEntries()[0];
   console.log(entry.entryType);  // prints 'http2'
   if (entry.name === 'Http2Session') {
-    // entry contains statistics about the Http2Session
+    // Entry contains statistics about the Http2Session
   } else if (entry.name === 'Http2Stream') {
-    // entry contains statistics about the Http2Stream
+    // Entry contains statistics about the Http2Stream
   }
 });
 obs.observe({ entryTypes: ['http2'] });

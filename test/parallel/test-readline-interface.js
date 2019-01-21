@@ -141,7 +141,7 @@ function isWarned(emitter) {
     assert.ok(called);
   }
 
-  // sending a single character with no newline
+  // Sending a single character with no newline
   {
     const fi = new FakeInput();
     const rli = new readline.Interface(fi, {});
@@ -399,7 +399,7 @@ function isWarned(emitter) {
     });
   }
 
-  // duplicate lines are removed from history when
+  // Duplicate lines are removed from history when
   // `options.removeHistoryDuplicates` is `true`
   {
     const fi = new FakeInput();
@@ -439,7 +439,7 @@ function isWarned(emitter) {
     rli.close();
   }
 
-  // duplicate lines are not removed from history when
+  // Duplicate lines are not removed from history when
   // `options.removeHistoryDuplicates` is `false`
   {
     const fi = new FakeInput();
@@ -921,7 +921,7 @@ function isWarned(emitter) {
     assert.strictEqual(internalReadline.isFullWidthCodePoint('あ'), false);
   });
 
-  // wide characters should be treated as two columns.
+  // Wide characters should be treated as two columns.
   assert.strictEqual(internalReadline.isFullWidthCodePoint('a'.charCodeAt(0)),
                      false);
   assert.strictEqual(internalReadline.isFullWidthCodePoint('あ'.charCodeAt(0)),

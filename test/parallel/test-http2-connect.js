@@ -6,7 +6,7 @@ if (!hasCrypto)
 const { createServer, connect } = require('http2');
 const { connect: netConnect } = require('net');
 
-// check for session connect callback and event
+// Check for session connect callback and event
 {
   const server = createServer();
   server.listen(0, mustCall(() => {

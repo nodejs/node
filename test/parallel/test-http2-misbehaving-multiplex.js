@@ -17,7 +17,7 @@ server.on('stream', common.mustCall((stream) => {
   stream.respond();
   stream.end('ok');
 
-  // the error will be emitted asynchronously
+  // The error will be emitted asynchronously
   stream.on('error', common.expectsError({
     type: NghttpError,
     code: 'ERR_HTTP2_ERROR',

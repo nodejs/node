@@ -43,7 +43,7 @@ server.listen(0, () => {
     pushStream.on('end', common.mustCall(() => {
       assert.strictEqual(pushData, 'a push stream');
 
-      // removing the setImmediate causes the test to pass
+      // Removing the setImmediate causes the test to pass
       setImmediate(function() {
         let data = '';
         req.setEncoding('utf8');

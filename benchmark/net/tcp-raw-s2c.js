@@ -122,7 +122,7 @@ function main({ dur, len, type }) {
 
       clientHandle.readStart();
 
-      // the meat of the benchmark is right here:
+      // The meat of the benchmark is right here:
       bench.start();
 
       setTimeout(() => {

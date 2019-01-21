@@ -48,7 +48,7 @@ function write(out) {
   let finishEvent = false;
   let endCb = false;
 
-  // first, write until it gets some backpressure
+  // First, write until it gets some backpressure
   while (out.write(buf)) {}
 
   // Now end, and make sure that we don't get the 'finish' event

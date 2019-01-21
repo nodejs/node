@@ -90,7 +90,7 @@ common.expectsError(() => b.write('', 2048), outOfBoundsError);
 // throw when writing to negative offset
 common.expectsError(() => b.write('a', -1), outOfBoundsError);
 
-// throw when writing past bounds from the pool
+// Throw when writing past bounds from the pool
 common.expectsError(() => b.write('a', 2048), outOfBoundsError);
 
 // throw when writing to negative offset
@@ -290,7 +290,7 @@ Buffer.alloc(1).write('', 1, 0);
 assert.strictEqual((Buffer.from('Man')).toString('base64'), 'TWFu');
 
 {
-  // test that regular and URL-safe base64 both work
+  // Test that regular and URL-safe base64 both work
   const expected = [0xff, 0xff, 0xbe, 0xff, 0xef, 0xbf, 0xfb, 0xef, 0xff];
   assert.deepStrictEqual(Buffer.from('//++/++/++//', 'base64'),
                          Buffer.from(expected));
@@ -319,7 +319,7 @@ assert.strictEqual((Buffer.from('Man')).toString('base64'), 'TWFu');
   assert.strictEqual(quote.length, bytesWritten);
   assert.strictEqual(quote, b.toString('ascii', 0, quote.length));
 
-  // check that the base64 decoder ignores whitespace
+  // Check that the base64 decoder ignores whitespace
   const expectedWhite = `${expected.slice(0, 60)} \n` +
                         `${expected.slice(60, 120)} \n` +
                         `${expected.slice(120, 180)} \n` +
@@ -418,7 +418,7 @@ assert.strictEqual(Buffer.from('KioqKioqKioqKioqKioqKioqKio',
                                'base64').toString(),
                    '*'.repeat(20));
 
-// handle padding graciously, multiple-of-4 or not
+// Handle padding graciously, multiple-of-4 or not
 assert.strictEqual(
   Buffer.from('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw==', 'base64').length,
   32
@@ -762,7 +762,7 @@ assert.strictEqual(x.inspect(), '<Buffer 81 a3 66 6f 6f a3 62 61 72>');
 
 // Call .fill() first, stops valgrind warning about uninitialized memory reads.
 Buffer.allocUnsafe(3.3).fill().toString();
-// throws bad argument error in commit 43cb4ec
+// Throws bad argument error in commit 43cb4ec
 Buffer.alloc(3.3).fill().toString();
 assert.strictEqual(Buffer.allocUnsafe(3.3).length, 3);
 assert.strictEqual(Buffer.from({ length: 3.3 }).length, 3);
@@ -808,7 +808,7 @@ common.expectsError(
   outOfRangeError
 );
 
-// ensure negative values can't get past offset
+// Ensure negative values can't get past offset
 common.expectsError(
   () => Buffer.allocUnsafe(8).writeFloatLE(0.0, -1),
   outOfRangeError

@@ -37,7 +37,7 @@ const Readable = require('stream').Readable;
     // after which everything is governed by the .read() call
     assert.strictEqual(state.readingMore, expectedReadingMore.shift());
 
-    // if the stream has ended, we shouldn't be reading
+    // If the stream has ended, we shouldn't be reading
     assert.strictEqual(state.ended, !state.reading);
 
     const data = readable.read();

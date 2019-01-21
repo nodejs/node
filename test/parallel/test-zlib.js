@@ -36,7 +36,7 @@ let zlibPairs = [
   [zlib.BrotliCompress, zlib.BrotliDecompress],
 ];
 
-// how fast to trickle through the slowstream
+// How fast to trickle through the slowstream
 let trickle = [128, 1024, 1024 * 1024];
 
 // tunable options for zlib classes.

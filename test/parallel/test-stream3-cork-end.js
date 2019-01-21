@@ -21,7 +21,7 @@ const w = new Writable();
 w._write = function(chunk, encoding, cb) {
   // Stream end event is not seen before the last write
   assert.ok(!seenEnd);
-  // default encoding given none was specified
+  // Default encoding given none was specified
   assert.strictEqual(encoding, 'buffer');
 
   seenChunks.push(chunk);
@@ -70,7 +70,7 @@ writeChunks(inputChunks, () => {
   // stream should not ended in current tick
   assert.ok(!seenEnd);
 
-  // buffered bytes should be seen in current tick
+  // Buffered bytes should be seen in current tick
   assert.strictEqual(seenChunks.length, 4);
 
   // did the chunks match

@@ -39,7 +39,7 @@ const server = http.createServer(common.mustCall((req, res) => {
     res.destroy();
     return;
   } else if (req.url === '/remote_close') {
-    // cache the socket, close it after a short delay
+    // Cache the socket, close it after a short delay
     const socket = res.connection;
     setImmediate(common.mustCall(() => socket.end()));
   }

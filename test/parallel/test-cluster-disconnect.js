@@ -52,7 +52,7 @@ if (cluster.isWorker) {
     });
   };
 
-  // test both servers created in the cluster
+  // Test both servers created in the cluster
   const testCluster = (cb) => {
     let done = 0;
     const portsArray = Array.from(serverPorts);

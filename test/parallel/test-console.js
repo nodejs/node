@@ -145,7 +145,7 @@ console.dirxml(
 // test console.trace()
 console.trace('This is a %j %d', { formatted: 'trace' }, 10, 'foo');
 
-// test console.time() and console.timeEnd() output
+// Test console.time() and console.timeEnd() output
 console.time('label');
 console.timeEnd('label');
 

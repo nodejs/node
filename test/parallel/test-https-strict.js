@@ -57,7 +57,7 @@ const cert3 = read('agent3-cert.pem');
 const ca1 = read('ca1-cert.pem');
 const ca2 = read('ca2-cert.pem');
 
-// different agents to use different CA lists.
+// Different agents to use different CA lists.
 // this api is beyond bad.
 const agent0 = new https.Agent();
 const agent1 = new https.Agent({ ca: [ca1] });

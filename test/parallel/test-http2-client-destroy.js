@@ -112,7 +112,7 @@ const Countdown = require('../common/countdown');
 
     client.on('close', () => {
       server.close();
-      // calling destroy in here should not matter
+      // Calling destroy in here should not matter
       client.destroy();
     });
 

@@ -64,7 +64,7 @@ function blockingCallback(retry, callback) {
     if (callback)
       return callback();
   } else {
-    // block by busy-looping to trigger the issue
+    // Block by busy-looping to trigger the issue
     common.busyLoop(TIMEOUT);
 
     timeCallbackScheduled = Date.now();

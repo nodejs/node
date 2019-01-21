@@ -7,13 +7,13 @@ const fixtures = require('../common/fixtures');
 
 const node = process.execPath;
 
-// test both sets of arguments that check syntax
+// Test both sets of arguments that check syntax
 const syntaxArgs = [
   ['-c'],
   ['--check']
 ];
 
-// test good syntax with and without shebang
+// Test good syntax with and without shebang
 [
   'syntax/good_syntax.js',
   'syntax/good_syntax',
@@ -23,7 +23,7 @@ const syntaxArgs = [
 ].forEach(function(file) {
   file = fixtures.path(file);
 
-  // loop each possible option, `-c` or `--check`
+  // Loop each possible option, `-c` or `--check`
   syntaxArgs.forEach(function(args) {
     const _args = args.concat(file);
 

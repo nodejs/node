@@ -116,11 +116,11 @@ const PriorityQueue = require('internal/priority_queue');
   queue.removeAt(5);
   assert.strictEqual(largest.position, 5);
 
-  // check that removing 2nd to last item works fine
+  // Check that removing 2nd to last item works fine
   queue.removeAt(6);
   assert.strictEqual(secondLargest.position, 6);
 
-  // check that removing the last item doesn't throw
+  // Check that removing the last item doesn't throw
   queue.removeAt(6);
 
   assert.strictEqual(queue.shift().value, 1);

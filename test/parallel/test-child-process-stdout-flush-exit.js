@@ -23,7 +23,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-// if child process output to console and exit
+// If child process output to console and exit
 if (process.argv[2] === 'child') {
   console.log('hello');
   for (let i = 0; i < 200; i++) {

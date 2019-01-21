@@ -59,7 +59,7 @@ const h2 = require('http2');
   }));
 
   server.on('stream', common.mustCall(function(stream) {
-    // there is no 'error'  handler, and this will crash
+    // There is no 'error'  handler, and this will crash
     stream.write('hello');
     stream.resume();
 
