@@ -49,7 +49,8 @@ void Initialize(Local<Object> exports,
     // the Environment instance has been destroyed.
     static uv_async_t extra_async;
     uv_loop_t* loop = node::GetCurrentEventLoop(context->GetIsolate());
-    uv_async_init(loop, &extra_async, [](uv_async_t*) {});
+    int err = uv_async_init(loop, &extra_async, [](uv_async_t*) {});
+    assert(err == 0);
     uv_unref(reinterpret_cast<uv_handle_t*>(&extra_async));
   }
 }
