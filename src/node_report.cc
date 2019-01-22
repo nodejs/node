@@ -307,8 +307,6 @@ static void WriteNodeReport(Isolate* isolate,
   writer.json_arraystart("libuv");
   if (env != nullptr)
     uv_walk(env->event_loop(), WalkHandle, static_cast<void*>(&writer));
-  else
-    uv_walk(uv_default_loop(), WalkHandle, static_cast<void*>(&writer));
 
   writer.json_arrayend();
 
