@@ -206,8 +206,8 @@ void WalkHandle(uv_handle_t* h, void* arg) {
 
   writer->json_start();
   writer->json_keyvalue("type", type);
-  writer->json_keyvalue("is_active", std::to_string(uv_is_active(h)));
-  writer->json_keyvalue("is_referenced", std::to_string(uv_has_ref(h)));
+  writer->json_keyvalue("is_active", static_cast<bool>(uv_is_active(h)));
+  writer->json_keyvalue("is_referenced", static_cast<bool>(uv_has_ref(h)));
   writer->json_keyvalue("address",
                         std::to_string(reinterpret_cast<int64_t>(h)));
   writer->json_keyvalue("details", data.str());
