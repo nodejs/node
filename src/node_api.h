@@ -3,9 +3,6 @@
 
 #include <stddef.h>
 #include <stdbool.h>
-#include "node_api_types.h"
-
-struct uv_loop_s;  // Forward declaration.
 
 #ifndef NAPI_VERSION
 #ifdef NAPI_EXPERIMENTAL
@@ -13,9 +10,13 @@ struct uv_loop_s;  // Forward declaration.
 #define NAPI_VERSION 2147483647
 #else
 // The baseline version for N-API
-#define NAPI_VERSION 3
+#define NAPI_VERSION 4
 #endif
 #endif
+
+#include "node_api_types.h"
+
+struct uv_loop_s;  // Forward declaration.
 
 #ifdef _WIN32
   #ifdef BUILDING_NODE_EXTENSION
@@ -633,7 +634,7 @@ NAPI_EXTERN napi_status napi_remove_env_cleanup_hook(napi_env env,
 
 #endif  // NAPI_VERSION >= 3
 
-#ifdef NAPI_EXPERIMENTAL
+#if NAPI_VERSION >= 4
 
 // Calling into JS from other threads
 NAPI_EXTERN napi_status
@@ -670,6 +671,10 @@ napi_unref_threadsafe_function(napi_env env, napi_threadsafe_function func);
 
 NAPI_EXTERN napi_status
 napi_ref_threadsafe_function(napi_env env, napi_threadsafe_function func);
+
+#endif  // NAPI_VERSION >= 4
+
+#ifdef NAPI_EXPERIMENTAL
 
 NAPI_EXTERN napi_status napi_create_bigint_int64(napi_env env,
                                                  int64_t value,

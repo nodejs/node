@@ -20,9 +20,9 @@ typedef struct napi_callback_info__* napi_callback_info;
 typedef struct napi_async_context__* napi_async_context;
 typedef struct napi_async_work__* napi_async_work;
 typedef struct napi_deferred__* napi_deferred;
-#ifdef NAPI_EXPERIMENTAL
+#if NAPI_VERSION >= 4
 typedef struct napi_threadsafe_function__* napi_threadsafe_function;
-#endif  // NAPI_EXPERIMENTAL
+#endif  // NAPI_VERSION >= 4
 
 typedef enum {
   napi_default = 0,
@@ -84,7 +84,7 @@ typedef enum {
   napi_bigint_expected,
 } napi_status;
 
-#ifdef NAPI_EXPERIMENTAL
+#if NAPI_VERSION >= 4
 typedef enum {
   napi_tsfn_release,
   napi_tsfn_abort
@@ -94,7 +94,7 @@ typedef enum {
   napi_tsfn_nonblocking,
   napi_tsfn_blocking
 } napi_threadsafe_function_call_mode;
-#endif  // NAPI_EXPERIMENTAL
+#endif  // NAPI_VERSION >= 4
 
 typedef napi_value (*napi_callback)(napi_env env,
                                     napi_callback_info info);
@@ -107,12 +107,12 @@ typedef void (*napi_async_complete_callback)(napi_env env,
                                              napi_status status,
                                              void* data);
 
-#ifdef NAPI_EXPERIMENTAL
+#if NAPI_VERSION >= 4
 typedef void (*napi_threadsafe_function_call_js)(napi_env env,
                                                  napi_value js_callback,
                                                  void* context,
                                                  void* data);
-#endif  // NAPI_EXPERIMENTAL
+#endif  // NAPI_VERSION >= 4
 
 typedef struct {
   // One of utf8name or name should be NULL.
