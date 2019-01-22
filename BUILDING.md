@@ -290,7 +290,8 @@ the first command `./configure --coverage`).
 _Generating a test coverage report can take several minutes._
 
 To collect coverage for a subset of tests you can set the `CI_JS_SUITES` and
-`CI_NATIVE_SUITES` variables:
+`CI_NATIVE_SUITES` variables (to run specific suites, e.g., `child-process`, in
+isolation, unset the opposing `_SUITES` variable):
 
 ```text
 $ CI_JS_SUITES=child-process CI_NATIVE_SUITES= make coverage
@@ -299,8 +300,8 @@ $ CI_JS_SUITES=child-process CI_NATIVE_SUITES= make coverage
 The above command executes tests for the `child-process` subsystem and
 outputs the resulting coverage report.
 
-Alternatively, for the JavaScript test suite, you can use the `CI_JS_SUITES`
-variable to run tests in isolation, outputting reports:
+Alternatively, you can run `make coverage-run-js`, to execute JavaScript tests
+independently of the C++ test suite:
 
 ```text
 $ CI_JS_SUITES=fs CI_NATIVE_SUITES= make coverage-run-js
