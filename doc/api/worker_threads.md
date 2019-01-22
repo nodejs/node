@@ -81,6 +81,7 @@ added: v10.5.0
 
 An integer identifier for the current thread. On the corresponding worker object
 (if there is any), it is available as [`worker.threadId`][].
+This value is unique for each [`Worker`][] instance inside a single process.
 
 ## worker.workerData
 <!-- YAML
@@ -453,6 +454,7 @@ added: v10.5.0
 
 An integer identifier for the referenced thread. Inside the worker thread,
 it is available as [`require('worker_threads').threadId`][].
+This value is unique for each `Worker` instance inside a single process.
 
 ### worker.unref()
 <!-- YAML
