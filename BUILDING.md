@@ -77,7 +77,7 @@ For production applications, run Node.js on supported platforms only.
 | GNU/Linux    | Tier 1       | kernel >= 2.6.32, glibc >= 2.12 | x64, arm         |                               |
 | GNU/Linux    | Tier 1       | kernel >= 3.10, glibc >= 2.17   | arm64            |                               |
 | macOS/OS X   | Tier 1       | >= 10.11                        | x64              |                               |
-| Windows      | Tier 1       | >= Windows 7/2008 R2/2012 R2    | x86, x64         | [2](#fn2),[3](#fn3),[4](#fn4) |
+| Windows      | Tier 1       | >= Windows 8.1/2012 R2          | x86, x64         | [2](#fn2),[3](#fn3),[4](#fn4) |
 | SmartOS      | Tier 2       | >= 15 < 16.4                    | x86, x64         | [1](#fn1)                     |
 | FreeBSD      | Tier 2       | >= 11                           | x64              |                               |
 | GNU/Linux    | Tier 2       | kernel >= 3.13.0, glibc >= 2.19 | ppc64le >=power8 |                               |
