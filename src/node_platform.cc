@@ -265,7 +265,8 @@ void PerIsolatePlatformData::Shutdown() {
   if (flush_tasks_ == nullptr)
     return;
 
-  while (FlushForegroundTasksInternal()) {}
+  CHECK_NULL(foreground_delayed_tasks_.Pop());
+  CHECK_NULL(foreground_tasks_.Pop());
   CancelPendingDelayedTasks();
 
   uv_close(reinterpret_cast<uv_handle_t*>(flush_tasks_),
