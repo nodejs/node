@@ -27,7 +27,7 @@ is provided below for reference.
     "filename": "report.20181221.005011.8974.001.json",
     "dumpEventTime": "2018-12-21T00:50:11Z",
     "dumpEventTimeStamp": "1545371411331",
-    "processId": "8974",
+    "processId": 8974,
     "commandLine": [
       "/home/nodeuser/project/node/out/Release/node",
       "--experimental-report",
@@ -81,133 +81,133 @@ is provided below for reference.
     " [pc=0x1930cae]  [/home/nodeuser/project/node/out/Release/node]"
   ],
   "javascriptHeap": {
-    "totalMemory": "6127616",
-    "totalCommittedMemory": "4357352",
-    "usedMemory": "3221136",
-    "availableMemory": "1521370240",
-    "memoryLimit": "1526909922",
+    "totalMemory": 6127616,
+    "totalCommittedMemory": 4357352,
+    "usedMemory": 3221136,
+    "availableMemory": 1521370240,
+    "memoryLimit": 1526909922,
     "heapSpaces": {
       "read_only_space": {
-        "memorySize": "524288",
-        "committedMemory": "39208",
-        "capacity": "515584",
-        "used": "30504",
-        "available": "485080"
+        "memorySize": 524288,
+        "committedMemory": 39208,
+        "capacity": 515584,
+        "used": 30504,
+        "available": 485080
       },
       "new_space": {
-        "memorySize": "2097152",
-        "committedMemory": "2019312",
-        "capacity": "1031168",
-        "used": "985496",
-        "available": "45672"
+        "memorySize": 2097152,
+        "committedMemory": 2019312,
+        "capacity": 1031168,
+        "used": 985496,
+        "available": 45672
       },
       "old_space": {
-        "memorySize": "2273280",
-        "committedMemory": "1769008",
-        "capacity": "1974640",
-        "used": "1725488",
-        "available": "249152"
+        "memorySize": 2273280,
+        "committedMemory": 1769008,
+        "capacity": 1974640,
+        "used": 1725488,
+        "available": 249152
       },
       "code_space": {
-        "memorySize": "696320",
-        "committedMemory": "184896",
-        "capacity": "152128",
-        "used": "152128",
-        "available": "0"
+        "memorySize": 696320,
+        "committedMemory": 184896,
+        "capacity": 152128,
+        "used": 152128,
+        "available": 0
       },
       "map_space": {
-        "memorySize": "536576",
-        "committedMemory": "344928",
-        "capacity": "327520",
-        "used": "327520",
-        "available": "0"
+        "memorySize": 536576,
+        "committedMemory": 344928,
+        "capacity": 327520,
+        "used": 327520,
+        "available": 0
       },
       "large_object_space": {
-        "memorySize": "0",
-        "committedMemory": "0",
-        "capacity": "1520590336",
-        "used": "0",
-        "available": "1520590336"
+        "memorySize": 0,
+        "committedMemory": 0,
+        "capacity": 1520590336,
+        "used": 0,
+        "available": 1520590336
       },
       "new_large_object_space": {
-        "memorySize": "0",
-        "committedMemory": "0",
-        "capacity": "0",
-        "used": "0",
-        "available": "0"
+        "memorySize": 0,
+        "committedMemory": 0,
+        "capacity": 0,
+        "used": 0,
+        "available": 0
       }
     }
   },
   "resourceUsage": {
-    "userCpuSeconds": "0.069595",
-    "kernelCpuSeconds": "0.019163",
-    "cpuConsumptionPercent": "0.000000",
-    "maxRss": "18079744",
+    "userCpuSeconds": 0.069595,
+    "kernelCpuSeconds": 0.019163,
+    "cpuConsumptionPercent": 0.000000,
+    "maxRss": 18079744,
     "pageFaults": {
-      "IORequired": "0",
-      "IONotRequired": "4610"
+      "IORequired": 0,
+      "IONotRequired": 4610
     },
     "fsActivity": {
-      "reads": "0",
-      "writes": "0"
+      "reads": 0,
+      "writes": 0
     }
   },
   "uvthreadResourceUsage": {
-    "userCpuSeconds": "0.068457",
-    "kernelCpuSeconds": "0.019127",
-    "cpuConsumptionPercent": "0.000000",
+    "userCpuSeconds": 0.068457,
+    "kernelCpuSeconds": 0.019127,
+    "cpuConsumptionPercent": 0.000000,
     "fsActivity": {
-      "reads": "0",
-      "writes": "0"
+      "reads": 0,
+      "writes": 0
     }
   },
   "libuv": [
     {
       "type": "async",
-      "is_active": "1",
-      "is_referenced": "0",
+      "is_active": true,
+      "is_referenced": false,
       "address": "68090592",
       "details": ""
     },
     {
       "type": "timer",
-      "is_active": "0",
-      "is_referenced": "0",
+      "is_active": false,
+      "is_referenced": false,
       "address": "140723513949920",
       "details": "repeat: 0, timeout expired: 18075165916 ms ago"
     },
     {
       "type": "check",
-      "is_active": "1",
-      "is_referenced": "0",
+      "is_active": true,
+      "is_referenced": false,
       "address": "140723513950072",
       "details": ""
     },
     {
       "type": "idle",
-      "is_active": "0",
-      "is_referenced": "1",
+      "is_active": false,
+      "is_referenced": true,
       "address": "140723513950192",
       "details": ""
     },
     {
       "type": "prepare",
-      "is_active": "0",
-      "is_referenced": "0",
+      "is_active": false,
+      "is_referenced": false,
       "address": "140723513950312",
       "details": ""
     },
     {
       "type": "check",
-      "is_active": "0",
-      "is_referenced": "0",
+      "is_active": false,
+      "is_referenced": false,
       "address": "140723513950432",
       "details": ""
     },
     {
       "type": "async",
-      "is_active": "1",
-      "is_referenced": "0",
+      "is_active": true,
+      "is_referenced": false,
       "address": "39353856",
       "details": ""
     }
@@ -264,7 +264,7 @@ is provided below for reference.
     },
     "max_locked_memory_bytes": {
       "soft": "unlimited",
-      "hard": "65536"
+      "hard": 65536
     },
     "max_memory_size_kbytes": {
       "soft": "unlimited",
@@ -272,7 +272,7 @@ is provided below for reference.
     },
     "open_files": {
       "soft": "unlimited",
-      "hard": "4096"
+      "hard": 4096
     },
     "stack_size_bytes": {
       "soft": "unlimited",
@@ -284,7 +284,7 @@ is provided below for reference.
     },
     "max_user_processes": {
       "soft": "unlimited",
-      "hard": "4127290"
+      "hard": 4127290
     },
     "virtual_memory_kbytes": {
       "soft": "unlimited",

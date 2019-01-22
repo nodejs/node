@@ -222,7 +222,6 @@ static void WriteNodeReport(Isolate* isolate,
                             std::ostream& out,
                             Local<String> stackstr,
                             TIME_TYPE* tm_struct) {
-  std::ostringstream buf;
   uv_pid_t pid = uv_os_getpid();
 
   // Save formatting for output stream.
@@ -241,7 +240,7 @@ static void WriteNodeReport(Isolate* isolate,
   if (!filename.empty())
     writer.json_keyvalue("filename", filename);
   else
-    writer.json_keyvalue("filename", std::string("''"));
+    writer.json_keyvalue("filename", "''");
 
   // Report dump event and module load date/time stamps
   char timebuf[64];
@@ -273,9 +272,7 @@ static void WriteNodeReport(Isolate* isolate,
                        std::to_string(ts.tv_sec * 1000 + ts.tv_usec / 1000));
 #endif
   // Report native process ID
-  buf << pid;
-  writer.json_keyvalue("processId", buf.str());
-  buf.flush();
+  writer.json_keyvalue("processId", pid);
 
   // Report out the command line.
   if (!node::per_process::cli_options->cmdline.empty()) {
@@ -332,9 +329,7 @@ static void PrintVersionInformation(JSONWriter* writer) {
   buf.str("");
 #endif
   // Report Process word size
-  buf << sizeof(void*) * 8 << " bit";
-  writer->json_keyvalue("wordSize", buf.str());
-  buf.str("");
+  writer->json_keyvalue("wordSize", sizeof(void*) * 8);
 
   // Report deps component versions
   PrintComponentVersions(writer);
@@ -468,7 +463,7 @@ static void PrintJavaScriptStack(JSONWriter* writer,
   }
   int line = ss.find("\n");
   if (line == -1) {
-    writer->json_keyvalue("message", ss.c_str());
+    writer->json_keyvalue("message", ss);
     writer->json_objectend();
   } else {
     std::string l = ss.substr(0, line);
@@ -518,16 +513,13 @@ static void PrintGCStatistics(JSONWriter* writer, Isolate* isolate) {
   HeapSpaceStatistics v8_heap_space_stats;
 
   writer->json_objectstart("javascriptHeap");
-  writer->json_keyvalue("totalMemory",
-                        std::to_string(v8_heap_stats.total_heap_size()));
+  writer->json_keyvalue("totalMemory", v8_heap_stats.total_heap_size());
   writer->json_keyvalue("totalCommittedMemory",
-                        std::to_string(v8_heap_stats.total_physical_size()));
-  writer->json_keyvalue("usedMemory",
-                        std::to_string(v8_heap_stats.used_heap_size()));
+                        v8_heap_stats.total_physical_size());
+  writer->json_keyvalue("usedMemory", v8_heap_stats.used_heap_size());
   writer->json_keyvalue("availableMemory",
-                        std::to_string(v8_heap_stats.total_available_size()));
-  writer->json_keyvalue("memoryLimit",
-                        std::to_string(v8_heap_stats.heap_size_limit()));
+                        v8_heap_stats.total_available_size());
+  writer->json_keyvalue("memoryLimit", v8_heap_stats.heap_size_limit());
 
   writer->json_objectstart("heapSpaces");
   // Loop through heap spaces
@@ -535,37 +527,31 @@ static void PrintGCStatistics(JSONWriter* writer, Isolate* isolate) {
   for (i = 0; i < isolate->NumberOfHeapSpaces() - 1; i++) {
     isolate->GetHeapSpaceStatistics(&v8_heap_space_stats, i);
     writer->json_objectstart(v8_heap_space_stats.space_name());
-    writer->json_keyvalue("memorySize",
-                          std::to_string(v8_heap_space_stats.space_size()));
+    writer->json_keyvalue("memorySize", v8_heap_space_stats.space_size());
     writer->json_keyvalue(
         "committedMemory",
-        std::to_string(v8_heap_space_stats.physical_space_size()));
+        v8_heap_space_stats.physical_space_size());
     writer->json_keyvalue(
         "capacity",
-        std::to_string(v8_heap_space_stats.space_used_size() +
-                       v8_heap_space_stats.space_available_size()));
+        v8_heap_space_stats.space_used_size() +
+            v8_heap_space_stats.space_available_size());
+    writer->json_keyvalue("used", v8_heap_space_stats.space_used_size());
     writer->json_keyvalue(
-        "used", std::to_string(v8_heap_space_stats.space_used_size()));
-    writer->json_keyvalue(
-        "available",
-        std::to_string(v8_heap_space_stats.space_available_size()));
+        "available", v8_heap_space_stats.space_available_size());
     writer->json_objectend();
   }
   isolate->GetHeapSpaceStatistics(&v8_heap_space_stats, i);
   writer->json_objectstart(v8_heap_space_stats.space_name());
-  writer->json_keyvalue("memorySize",
-                        std::to_string(v8_heap_space_stats.space_size()));
+  writer->json_keyvalue("memorySize", v8_heap_space_stats.space_size());
   writer->json_keyvalue(
-      "committedMemory",
-      std::to_string(v8_heap_space_stats.physical_space_size()));
+      "committedMemory", v8_heap_space_stats.physical_space_size());
   writer->json_keyvalue(
       "capacity",
-      std::to_string(v8_heap_space_stats.space_used_size() +
-                     v8_heap_space_stats.space_available_size()));
-  writer->json_keyvalue("used",
-                        std::to_string(v8_heap_space_stats.space_used_size()));
+      v8_heap_space_stats.space_used_size() +
+          v8_heap_space_stats.space_available_size());
+  writer->json_keyvalue("used", v8_heap_space_stats.space_used_size());
   writer->json_keyvalue(
-      "available", std::to_string(v8_heap_space_stats.space_available_size()));
+      "available", v8_heap_space_stats.space_available_size());
   writer->json_objectend();
   writer->json_objectend();
   writer->json_objectend();
@@ -574,9 +560,6 @@ static void PrintGCStatistics(JSONWriter* writer, Isolate* isolate) {
 #ifndef _WIN32
 // Report resource usage (Linux/OSX only).
 static void PrintResourceUsage(JSONWriter* writer) {
-  char buf[64];
-  double cpu_abs;
-  double cpu_percentage;
   time_t current_time;  // current time absolute
   time(&current_time);
   size_t boot_time = static_cast<time_t>(node::per_process::prog_start_time /
@@ -588,87 +571,39 @@ static void PrintResourceUsage(JSONWriter* writer) {
   struct rusage stats;
   writer->json_objectstart("resourceUsage");
   if (getrusage(RUSAGE_SELF, &stats) == 0) {
-#if defined(__APPLE__) || defined(_AIX)
-    snprintf(buf,
-             sizeof(buf),
-             "%ld.%06d",
-             stats.ru_utime.tv_sec,
-             stats.ru_utime.tv_usec);
-    writer->json_keyvalue("userCpuSeconds", buf);
-    snprintf(buf,
-             sizeof(buf),
-             "%ld.%06d",
-             stats.ru_stime.tv_sec,
-             stats.ru_stime.tv_usec);
-    writer->json_keyvalue("kernelCpuSeconds", buf);
-#else
-    snprintf(buf,
-             sizeof(buf),
-             "%ld.%06ld",
-             stats.ru_utime.tv_sec,
-             stats.ru_utime.tv_usec);
-    writer->json_keyvalue("userCpuSeconds", buf);
-    snprintf(buf,
-             sizeof(buf),
-             "%ld.%06ld",
-             stats.ru_stime.tv_sec,
-             stats.ru_stime.tv_usec);
-    writer->json_keyvalue("kernelCpuSeconds", buf);
-#endif
-    cpu_abs = stats.ru_utime.tv_sec + 0.000001 * stats.ru_utime.tv_usec +
-              stats.ru_stime.tv_sec + 0.000001 * stats.ru_stime.tv_usec;
-    cpu_percentage = (cpu_abs / uptime) * 100.0;
-    writer->json_keyvalue("cpuConsumptionPercent",
-                          std::to_string(cpu_percentage));
-    writer->json_keyvalue("maxRss", std::to_string(stats.ru_maxrss * 1024));
+    double user_cpu = stats.ru_utime.tv_sec + 0.000001 * stats.ru_utime.tv_usec;
+    double kernel_cpu =
+        stats.ru_utime.tv_sec + 0.000001 * stats.ru_utime.tv_usec;
+    writer->json_keyvalue("userCpuSeconds", user_cpu);
+    writer->json_keyvalue("kernelCpuSeconds", kernel_cpu);
+    double cpu_abs = user_cpu + kernel_cpu;
+    double cpu_percentage = (cpu_abs / uptime) * 100.0;
+    writer->json_keyvalue("cpuConsumptionPercent", cpu_percentage);
+    writer->json_keyvalue("maxRss", stats.ru_maxrss * 1024);
     writer->json_objectstart("pageFaults");
-    writer->json_keyvalue("IORequired", std::to_string(stats.ru_majflt));
-    writer->json_keyvalue("IONotRequired", std::to_string(stats.ru_minflt));
+    writer->json_keyvalue("IORequired", stats.ru_majflt);
+    writer->json_keyvalue("IONotRequired", stats.ru_minflt);
     writer->json_objectend();
     writer->json_objectstart("fsActivity");
-    writer->json_keyvalue("reads", std::to_string(stats.ru_inblock));
-    writer->json_keyvalue("writes", std::to_string(stats.ru_oublock));
+    writer->json_keyvalue("reads", stats.ru_inblock);
+    writer->json_keyvalue("writes", stats.ru_oublock);
     writer->json_objectend();
   }
   writer->json_objectend();
 #ifdef RUSAGE_THREAD
   if (getrusage(RUSAGE_THREAD, &stats) == 0) {
     writer->json_objectstart("uvthreadResourceUsage");
-#if defined(__APPLE__) || defined(_AIX)
-    snprintf(buf,
-             sizeof(buf),
-             "%ld.%06d",
-             stats.ru_utime.tv_sec,
-             stats.ru_utime.tv_usec);
-    writer->json_keyvalue("userCpuSeconds", buf);
-    snprintf(buf,
-             sizeof(buf),
-             "%ld.%06d",
-             stats.ru_stime.tv_sec,
-             stats.ru_stime.tv_usec);
-    writer->json_keyvalue("kernelCpuSeconds", buf);
-#else
-    snprintf(buf,
-             sizeof(buf),
-             "%ld.%06ld",
-             stats.ru_utime.tv_sec,
-             stats.ru_utime.tv_usec);
-    writer->json_keyvalue("userCpuSeconds", buf);
-    snprintf(buf,
-             sizeof(buf),
-             "%ld.%06ld",
-             stats.ru_stime.tv_sec,
-             stats.ru_stime.tv_usec);
-    writer->json_keyvalue("kernelCpuSeconds", buf);
-#endif
-    cpu_abs = stats.ru_utime.tv_sec + 0.000001 * stats.ru_utime.tv_usec +
-              stats.ru_stime.tv_sec + 0.000001 * stats.ru_stime.tv_usec;
-    cpu_percentage = (cpu_abs / uptime) * 100.0;
-    writer->json_keyvalue("cpuConsumptionPercent",
-                          std::to_string(cpu_percentage));
+    double user_cpu = stats.ru_utime.tv_sec + 0.000001 * stats.ru_utime.tv_usec;
+    double kernel_cpu =
+        stats.ru_utime.tv_sec + 0.000001 * stats.ru_utime.tv_usec;
+    writer->json_keyvalue("userCpuSeconds", user_cpu);
+    writer->json_keyvalue("kernelCpuSeconds", kernel_cpu);
+    double cpu_abs = user_cpu + kernel_cpu;
+    double cpu_percentage = (cpu_abs / uptime) * 100.0;
+    writer->json_keyvalue("cpuConsumptionPercent", cpu_percentage);
     writer->json_objectstart("fsActivity");
-    writer->json_keyvalue("reads", std::to_string(stats.ru_inblock));
-    writer->json_keyvalue("writes", std::to_string(stats.ru_oublock));
+    writer->json_keyvalue("reads", stats.ru_inblock);
+    writer->json_keyvalue("writes", stats.ru_oublock);
     writer->json_objectend();
     writer->json_objectend();
   }
@@ -746,19 +681,18 @@ static void PrintSystemInformation(JSONWriter* writer) {
 
   for (size_t i = 0; i < arraysize(rlimit_strings); i++) {
     if (getrlimit(rlimit_strings[i].id, &limit) == 0) {
+      writer->json_objectstart(rlimit_strings[i].description);
+
       if (limit.rlim_cur == RLIM_INFINITY)
-        soft = std::string("unlimited");
+        writer->json_keyvalue("soft", "unlimited");
       else
-        soft = std::to_string(limit.rlim_cur);
+        writer->json_keyvalue("soft", limit.rlim_cur);
 
       if (limit.rlim_max == RLIM_INFINITY)
-        hard = std::string("unlimited");
+        writer->json_keyvalue("hard", "unlimited");
       else
-        hard = std::to_string(limit.rlim_max);
+        writer->json_keyvalue("hard", limit.rlim_max);
 
-      writer->json_objectstart(rlimit_strings[i].description);
-      writer->json_keyvalue("soft", soft);
-      writer->json_keyvalue("hard", hard);
       writer->json_objectend();
     }
   }
@@ -784,7 +718,7 @@ static void PrintComponentVersions(JSONWriter* writer) {
   writer->json_objectstart("componentVersions");
 
 #define V(key)                                                                 \
-  writer->json_keyvalue(#key, node::per_process::metadata.versions.key.c_str());
+  writer->json_keyvalue(#key, node::per_process::metadata.versions.key);
   NODE_VERSIONS_KEYS(V)
 #undef V
 
