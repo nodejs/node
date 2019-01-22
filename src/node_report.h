@@ -19,6 +19,7 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <limits>
 
 #ifdef _WIN32
 #include <time.h>
@@ -67,93 +68,109 @@ extern double prog_start_time;
 // JSON compiler definitions.
 class JSONWriter {
  public:
-  explicit JSONWriter(std::ostream& out)
-      : out_(out), indent_(0), state_(JSONOBJECT) {}
+  explicit JSONWriter(std::ostream& out) : out_(out) {}
 
   inline void indent() { indent_ += 2; }
   inline void deindent() { indent_ -= 2; }
   inline void advance() {
-    for (int i = 0; i < indent_; i++) out_ << " ";
+    for (int i = 0; i < indent_; i++) out_ << ' ';
   }
 
   inline void json_start() {
-    if (state_ == JSONVALUE) out_ << ",";
-    out_ << "\n";
+    if (state_ == kAfterValue) out_ << ',';
+    out_ << '\n';
     advance();
-    out_ << "{";
+    out_ << '{';
     indent();
-    state_ = JSONOBJECT;
+    state_ = kObjectStart;
   }
 
   inline void json_end() {
-    out_ << "\n";
+    out_ << '\n';
     deindent();
     advance();
-    out_ << "}";
-    state_ = JSONVALUE;
+    out_ << '}';
+    state_ = kAfterValue;
   }
   template <typename T>
   inline void json_objectstart(T key) {
-    if (state_ == JSONVALUE) out_ << ",";
-    out_ << "\n";
+    if (state_ == kAfterValue) out_ << ',';
+    out_ << '\n';
     advance();
-    out_ << "\"" << key << "\""
-         << ": {";
+    write_string(key);
+    out_ << ": {";
     indent();
-    state_ = JSONOBJECT;
+    state_ = kObjectStart;
   }
 
   template <typename T>
   inline void json_arraystart(T key) {
-    if (state_ == JSONVALUE) out_ << ",";
-    out_ << "\n";
+    if (state_ == kAfterValue) out_ << ',';
+    out_ << '\n';
     advance();
-    out_ << "\"" << key << "\""
-         << ": [";
+    write_string(key);
+    out_ << ": [";
     indent();
-    state_ = JSONOBJECT;
+    state_ = kObjectStart;
   }
   inline void json_objectend() {
-    out_ << "\n";
+    out_ << '\n';
     deindent();
     advance();
-    out_ << "}";
-    state_ = JSONVALUE;
+    out_ << '}';
+    state_ = kAfterValue;
   }
 
   inline void json_arrayend() {
-    out_ << "\n";
+    out_ << '\n';
     deindent();
     advance();
-    out_ << "]";
-    state_ = JSONVALUE;
+    out_ << ']';
+    state_ = kAfterValue;
   }
   template <typename T, typename U>
-  inline void json_keyvalue(T key, U value) {
-    if (state_ == JSONVALUE) out_ << ",";
-    out_ << "\n";
+  inline void json_keyvalue(const T& key, const U& value) {
+    if (state_ == kAfterValue) out_ << ',';
+    out_ << '\n';
     advance();
-    out_ << "\"" << key << "\""
-         << ": "
-         << "\"";
-    out_ << EscapeJsonChars(value) << "\"";
-    state_ = JSONVALUE;
+    write_string(key);
+    out_ << ": ";
+    write_value(value);
+    state_ = kAfterValue;
   }
 
   template <typename U>
-  inline void json_element(U value) {
-    if (state_ == JSONVALUE) out_ << ",";
-    out_ << "\n";
+  inline void json_element(const U& value) {
+    if (state_ == kAfterValue) out_ << ',';
+    out_ << '\n';
     advance();
-    out_ << "\"" << EscapeJsonChars(value) << "\"";
-    state_ = JSONVALUE;
+    write_value(value);
+    state_ = kAfterValue;
   }
 
  private:
-  enum JSONState { JSONOBJECT, JSONVALUE };
+  template <typename T,
+            typename test_for_number = typename std::
+                enable_if<std::numeric_limits<T>::is_specialized, bool>::type>
+  inline void write_value(T number) {
+    if (std::is_same<T, bool>::value)
+      out_ << (number ? "true" : "false");
+    else
+      out_ << number;
+  }
+
+  inline void write_value(const char* str) { write_string(str); }
+  inline void write_value(const std::string& str) { write_string(str); }
+
+  inline void write_string(const std::string& str) {
+    out_ << '"' << EscapeJsonChars(str) << '"';
+  }
+  inline void write_string(const char* str) { write_string(std::string(str)); }
+
+  enum JSONState { kObjectStart, kAfterValue };
   std::ostream& out_;
-  int indent_;
-  int state_;
+  int indent_ = 0;
+  int state_ = kObjectStart;
 };
 
 }  // namespace report
