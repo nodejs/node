@@ -1,4 +1,4 @@
-#include "node_report_utils.cc"
+#include "node_report.h"
 
 #include "gtest/gtest.h"
 
