@@ -296,6 +296,11 @@ inline void SetupGarbageCollectionTracking(Environment* env) {
                                         static_cast<void*>(env));
   env->isolate()->AddGCEpilogueCallback(MarkGarbageCollectionEnd,
                                         static_cast<void*>(env));
+  env->AddCleanupHook([](void* data) {
+    Environment* env = static_cast<Environment*>(data);
+    env->isolate()->RemoveGCPrologueCallback(MarkGarbageCollectionStart, data);
+    env->isolate()->RemoveGCEpilogueCallback(MarkGarbageCollectionEnd, data);
+  }, env);
 }
 
 // Gets the name of a function
