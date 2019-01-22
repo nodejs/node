@@ -159,3 +159,7 @@ sequential/test-inspector-port-cluster: SLOW
 sequential/test-net-bytes-per-incoming-chunk-overhead: SLOW
 sequential/test-pipe: SLOW
 sequential/test-util-debug: SLOW
+
+[$type==coverage]
+js-native-api/test_function/test: PASS,FAIL,CRASH
+js-native-api/test_general/testFinalizer: PASS,FAIL,CRASH
