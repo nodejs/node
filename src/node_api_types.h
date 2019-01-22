@@ -10,7 +10,7 @@ typedef struct napi_async_work__* napi_async_work;
 typedef struct napi_threadsafe_function__* napi_threadsafe_function;
 #endif  // NAPI_VERSION >= 4
 
-#ifdef NAPI_VERSION >= 4
+#if NAPI_VERSION >= 4
 typedef enum {
   napi_tsfn_release,
   napi_tsfn_abort
@@ -27,7 +27,7 @@ typedef void (*napi_async_execute_callback)(napi_env env,
 typedef void (*napi_async_complete_callback)(napi_env env,
                                              napi_status status,
                                              void* data);
-#ifdef NAPI_VERSION >= 4
+#if NAPI_VERSION >= 4
 typedef void (*napi_threadsafe_function_call_js)(napi_env env,
                                                  napi_value js_callback,
                                                  void* context,
