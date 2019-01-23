@@ -2114,8 +2114,7 @@ changes:
 
 Type: Documentation-only
 
-The `process.binding()` API is intended for use by Node.js internal code
-only. Use of `process.binding()` by userland code is unsupported.
+`process.binding()` is for use by Node.js internal code only.
 
 <a id="DEP0112"></a>
 ### DEP0112: dgram private APIs
