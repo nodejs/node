@@ -226,7 +226,7 @@ coverage-test: coverage-build
 	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/gen/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/src/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/src/tracing/*.gcda
-	NODE_V8_COVERAGE=out/$(BUILDTYPE)/.coverage FLAKY_TESTS="dontcare" \
+	-NODE_V8_COVERAGE=out/$(BUILDTYPE)/.coverage FLAKY_TESTS="dontcare" \
                 TEST_CI_ARGS="$(TEST_CI_ARGS) --type=coverage" $(MAKE) $(COVTESTS)
 	$(MAKE) coverage-report-js
 	-(cd out && "../gcovr/scripts/gcovr" --gcov-exclude='.*deps' \
