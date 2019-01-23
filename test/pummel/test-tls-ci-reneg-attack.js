@@ -51,20 +51,18 @@ function test(next) {
     key: fixtures.readSync('test_key.pem')
   };
 
-  let seenError = false;
-
   const server = tls.createServer(options, function(conn) {
     conn.on('error', function(err) {
       console.error(`Caught exception: ${err}`);
       assert(/TLS session renegotiation attack/.test(err));
       conn.destroy();
-      seenError = true;
     });
     conn.pipe(conn);
   });
 
-  server.listen(common.PORT, function() {
-    const args = (`s_client -connect 127.0.0.1:${common.PORT}`).split(' ');
+  server.listen(0, function() {
+    const args =
+      `s_client -connect 127.0.0.1:${server.address().port}`.split(' ');
     const child = spawn(common.opensslCli, args);
 
     child.stdout.resume();
@@ -73,12 +71,13 @@ function test(next) {
     // Count handshakes, start the attack after the initial handshake is done
     let handshakes = 0;
     let renegs = 0;
+    let stderrStuff = '';
 
     child.stderr.on('data', function(data) {
-      if (seenError) return;
-      handshakes += ((String(data)).match(/verify return:1/g) || []).length;
+      stderrStuff += data.toString();
+      handshakes = (stderrStuff.match(/verify return:1/g) || []).length;
       if (handshakes === 2) spam();
-      renegs += ((String(data)).match(/RENEGOTIATING/g) || []).length;
+      renegs = (stderrStuff.match(/RENEGOTIATING/g) || []).length;
     });
 
     child.on('exit', function() {
