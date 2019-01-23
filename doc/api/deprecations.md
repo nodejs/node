@@ -2062,8 +2062,7 @@ changes:
 
 Type: Documentation-only
 
-The `process.binding()` API is intended for use by Node.js internal code
-only. Use of `process.binding()` by userland code is unsupported.
+`process.binding()` is for use by Node.js internal code only.
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
