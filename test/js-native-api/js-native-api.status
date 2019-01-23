@@ -21,5 +21,5 @@ prefix js-native-api
 [$system==aix]
 
 [$type==coverage]
-test_function/test: PASS,FLAKY
-test_general/testFinalizer: PASS,FLAKY
+test_function/test: PASS,FAIL,CRASH
+test_general/testFinalizer: PASS,FAIL,CRASH
