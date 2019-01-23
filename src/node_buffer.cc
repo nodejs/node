@@ -47,8 +47,8 @@
   } while (0)                                                               \
 
 #define SLICE_START_END(env, start_arg, end_arg, end_max)                   \
-  size_t start;                                                             \
-  size_t end;                                                               \
+  size_t start = 0;                                                         \
+  size_t end = 0;                                                           \
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, start_arg, 0, &start));      \
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, end_arg, end_max, &end));    \
   if (end < start) end = start;                                             \
@@ -498,9 +498,9 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
   SPREAD_BUFFER_ARG(buffer_obj, ts_obj);
   SPREAD_BUFFER_ARG(target_obj, target);
 
-  size_t target_start;
-  size_t source_start;
-  size_t source_end;
+  size_t target_start = 0;
+  size_t source_start = 0;
+  size_t source_end = 0;
 
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], 0, &target_start));
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[3], 0, &source_start));
@@ -692,10 +692,10 @@ void CompareOffset(const FunctionCallbackInfo<Value> &args) {
   SPREAD_BUFFER_ARG(args[0], ts_obj);
   SPREAD_BUFFER_ARG(args[1], target);
 
-  size_t target_start;
-  size_t source_start;
-  size_t source_end;
-  size_t target_end;
+  size_t target_start = 0;
+  size_t source_start = 0;
+  size_t source_end = 0;
+  size_t target_end = 0;
 
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], 0, &target_start));
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[3], 0, &source_start));
