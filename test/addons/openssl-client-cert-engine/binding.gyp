@@ -3,6 +3,7 @@
     {
       'target_name': 'testengine',
       'type': 'none',
+      'includes': ['../common.gypi'],
       'conditions': [
         ['OS=="mac" and '
          'node_use_openssl=="true" and '
@@ -17,7 +18,7 @@
               '../../../../out/<(PRODUCT_DIR)/<(openssl_product)'
             ]
           },
-        }]
+        }],
       ]
     }
   ]
