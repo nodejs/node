@@ -38,6 +38,10 @@ void PrintErrorString(const char* format, ...);
 
 void ReportException(Environment* env, const v8::TryCatch& try_catch);
 
+void ReportException(Environment* env,
+                     v8::Local<v8::Value> er,
+                     v8::Local<v8::Message> message);
+
 void FatalException(v8::Isolate* isolate,
                     v8::Local<v8::Value> error,
                     v8::Local<v8::Message> message);

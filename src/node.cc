@@ -518,12 +518,18 @@ void* ArrayBufferAllocator::Allocate(size_t size) {
 
 namespace {
 
-bool ShouldAbortOnUncaughtException(Isolate* isolate) {
+bool ShouldAbortOnUncaughtException(Isolate* isolate, Local<Message> message,
+                                    Local<Value> error) {
   HandleScope scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
-  return env != nullptr &&
-         env->should_abort_on_uncaught_toggle()[0] &&
-         !env->inside_should_not_abort_on_uncaught_scope();
+
+  if (env != nullptr && env->should_abort_on_uncaught_toggle()[0] &&
+      !env->inside_should_not_abort_on_uncaught_scope()) {
+    ReportException(env, error, message);
+    return true;
+  }
+
+  return false;
 }
 
 }  // anonymous namespace
