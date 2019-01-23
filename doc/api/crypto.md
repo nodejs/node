@@ -1172,7 +1172,7 @@ encryption mechanism, PEM-level encryption is not supported when encrypting
 a PKCS#8 key. See [RFC 5208][] for PKCS#8 encryption and [RFC 1421][] for
 PKCS#1 and SEC1 encryption.
 
-### keyObject.symmetricSize
+### keyObject.symmetricKeySize
 <!-- YAML
 added: v11.6.0
 -->
