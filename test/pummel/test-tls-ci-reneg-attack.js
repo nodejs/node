@@ -73,11 +73,15 @@ function test(next) {
     // Count handshakes, start the attack after the initial handshake is done
     let handshakes = 0;
     let renegs = 0;
+    let waitingToSpam = true;
 
     child.stderr.on('data', function(data) {
       if (seenError) return;
       handshakes += ((String(data)).match(/verify return:1/g) || []).length;
-      if (handshakes === 2) spam();
+      if (handshakes === 2 && waitingToSpam) {
+        waitingToSpam = false;
+        spam();
+      }
       renegs += ((String(data)).match(/RENEGOTIATING/g) || []).length;
     });
 
