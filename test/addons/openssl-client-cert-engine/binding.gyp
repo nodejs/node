@@ -3,6 +3,7 @@
     {
       'target_name': 'testengine',
       'type': 'none',
+      'cflags': ['-Wno-cast-function-type'],
       'conditions': [
         ['OS=="mac" and '
          'node_use_openssl=="true" and '

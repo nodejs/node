@@ -7,7 +7,8 @@
           'sources': ['binding.cc'],
           'include_dirs': ['../../../deps/openssl/openssl/include'],
         }]
-      ]
+      ],
+      'cflags': ['-Wno-cast-function-type'],
     },
   ]
 }
