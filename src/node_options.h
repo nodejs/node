@@ -100,6 +100,7 @@ class EnvironmentOptions : public Options {
   bool experimental_repl_await = false;
   bool experimental_vm_modules = false;
   bool expose_internals = false;
+  bool frozen_intrinsics = false;
   std::string http_parser =
 #ifdef NODE_EXPERIMENTAL_HTTP_DEFAULT
     "llhttp";

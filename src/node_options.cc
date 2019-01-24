@@ -187,6 +187,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvironment);
 #endif  // NODE_REPORT
   AddOption("--expose-internals", "", &EnvironmentOptions::expose_internals);
+  AddOption("--frozen-intrinsics",
+            "experimental frozen intrinsics support",
+            &EnvironmentOptions::frozen_intrinsics,
+            kAllowedInEnvironment);
   AddOption("--http-parser",
             "Select which HTTP parser to use; either 'legacy' or 'llhttp' "
 #ifdef NODE_EXPERIMENTAL_HTTP_DEFAULT
