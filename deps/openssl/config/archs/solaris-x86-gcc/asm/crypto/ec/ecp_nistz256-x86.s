@@ -1,4 +1,3 @@
-.file	"ecp_nistz256-x86.s"
 .text
 .globl	ecp_nistz256_precomputed
 .align	4096

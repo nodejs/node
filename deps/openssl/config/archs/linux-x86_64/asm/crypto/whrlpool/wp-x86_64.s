@@ -4,14 +4,22 @@
 .type	whirlpool_block,@function
 .align	16
 whirlpool_block:
+.cfi_startproc	
+	movq	%rsp,%rax
+.cfi_def_cfa_register	%rax
 	pushq	%rbx
+.cfi_offset	%rbx,-16
 	pushq	%rbp
+.cfi_offset	%rbp,-24
 	pushq	%r12
+.cfi_offset	%r12,-32
 	pushq	%r13
+.cfi_offset	%r13,-40
 	pushq	%r14
+.cfi_offset	%r14,-48
 	pushq	%r15
+.cfi_offset	%r15,-56
 
-	movq	%rsp,%r11
 	subq	$128+40,%rsp
 	andq	$-64,%rsp
 
@@ -19,7 +27,8 @@ whirlpool_block:
 	movq	%rdi,0(%r10)
 	movq	%rsi,8(%r10)
 	movq	%rdx,16(%r10)
-	movq	%r11,32(%r10)
+	movq	%rax,32(%r10)
+.cfi_escape	0x0f,0x06,0x77,0xa0,0x01,0x06,0x23,0x08
 .Lprologue:
 
 	movq	%r10,%rbx
@@ -579,15 +588,24 @@ whirlpool_block:
 	jmp	.Louterloop
 .Lalldone:
 	movq	32(%rbx),%rsi
-	movq	(%rsi),%r15
-	movq	8(%rsi),%r14
-	movq	16(%rsi),%r13
-	movq	24(%rsi),%r12
-	movq	32(%rsi),%rbp
-	movq	40(%rsi),%rbx
-	leaq	48(%rsi),%rsp
+.cfi_def_cfa	%rsi,8
+	movq	-48(%rsi),%r15
+.cfi_restore	%r15
+	movq	-40(%rsi),%r14
+.cfi_restore	%r14
+	movq	-32(%rsi),%r13
+.cfi_restore	%r13
+	movq	-24(%rsi),%r12
+.cfi_restore	%r12
+	movq	-16(%rsi),%rbp
+.cfi_restore	%rbp
+	movq	-8(%rsi),%rbx
+.cfi_restore	%rbx
+	leaq	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lepilogue:
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	whirlpool_block,.-whirlpool_block
 
 .align	64
