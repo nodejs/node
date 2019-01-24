@@ -286,6 +286,7 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
 
       w->Comment("The size of the embedded blob in bytes.");
       w->SectionRoData();
+      w->AlignToDataAlignment();
       w->DeclareUint32(embedded_blob_size_symbol, blob->size());
       w->Newline();
     }
