@@ -7,6 +7,8 @@
  * https://www.openssl.org/source/license.html
  */
 
+#include "internal/refcount.h"
+
 /* Internal X509 structures and functions: not for application use */
 
 /* Note: unless otherwise stated a field pointer is mandatory and should
@@ -35,6 +37,19 @@ struct X509_name_st {
     int canon_enclen;
 } /* X509_NAME */ ;
 
+/* Signature info structure */
+
+struct x509_sig_info_st {
+    /* NID of message digest */
+    int mdnid;
+    /* NID of public key algorithm */
+    int pknid;
+    /* Security bits */
+    int secbits;
+    /* Various flags */
+    uint32_t flags;
+};
+
 /* PKCS#10 certificate request */
 
 struct X509_req_info_st {
@@ -54,7 +69,7 @@ struct X509_req_st {
     X509_REQ_INFO req_info;     /* signed certificate request data */
     X509_ALGOR sig_alg;         /* signature algorithm */
     ASN1_BIT_STRING *signature; /* signature */
-    int references;
+    CRYPTO_REF_COUNT references;
     CRYPTO_RWLOCK *lock;
 };
 
@@ -73,7 +88,7 @@ struct X509_crl_st {
     X509_CRL_INFO crl;          /* signed CRL data */
     X509_ALGOR sig_alg;         /* CRL signature algorithm */
     ASN1_BIT_STRING signature;  /* CRL signature */
-    int references;
+    CRYPTO_REF_COUNT references;
     int flags;
     /*
      * Cached copies of decoded extension values, since extensions
@@ -144,7 +159,8 @@ struct x509_st {
     X509_CINF cert_info;
     X509_ALGOR sig_alg;
     ASN1_BIT_STRING signature;
-    int references;
+    X509_SIG_INFO siginf;
+    CRYPTO_REF_COUNT references;
     CRYPTO_EX_DATA ex_data;
     /* These contain copies of various extension values */
     long ex_pathlen;
@@ -266,3 +282,5 @@ struct x509_object_st {
 
 int a2i_ipadd(unsigned char *ipout, const char *ipasc);
 int x509_set1_time(ASN1_TIME **ptm, const ASN1_TIME *tm);
+
+void x509_init_sig_info(X509 *x);

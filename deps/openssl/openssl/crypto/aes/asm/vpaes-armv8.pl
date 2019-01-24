@@ -31,7 +31,7 @@
 # Apple A7(***)     22.7(**)    10.9/14.3        [8.45/10.0         ]
 # Mongoose(***)     26.3(**)    21.0/25.0(**)    [13.3/16.8         ]
 #
-# (*)	ECB denotes approximate result for parallelizeable modes
+# (*)	ECB denotes approximate result for parallelizable modes
 #	such as CBC decrypt, CTR, etc.;
 # (**)	these results are worse than scalar compiler-generated
 #	code, but it's constant-time and therefore preferred;
@@ -137,7 +137,7 @@ _vpaes_consts:
 	.quad	0x07E4A34047A4E300, 0x1DFEB95A5DBEF91A
 	.quad	0x5F36B5DC83EA6900, 0x2841C2ABF49D1E77
 
-.asciz  "Vector Permutaion AES for ARMv8, Mike Hamburg (Stanford University)"
+.asciz  "Vector Permutation AES for ARMv8, Mike Hamburg (Stanford University)"
 .size	_vpaes_consts,.-_vpaes_consts
 .align	6
 ___
@@ -769,7 +769,7 @@ _vpaes_schedule_core:
 	ld1	{v0.16b}, [$inp]		// vmovdqu	16(%rdi),%xmm0		# load key part 2 (unaligned)
 	bl	_vpaes_schedule_transform	// input transform
 	mov	$inp, #7			// mov	\$7, %esi
-	
+
 .Loop_schedule_256:
 	sub	$inp, $inp, #1			// dec	%esi
 	bl	_vpaes_schedule_mangle		// output low result
@@ -778,7 +778,7 @@ _vpaes_schedule_core:
 	// high round
 	bl	_vpaes_schedule_round
 	cbz 	$inp, .Lschedule_mangle_last
-	bl	_vpaes_schedule_mangle	
+	bl	_vpaes_schedule_mangle
 
 	// low round. swap xmm7 and xmm6
 	dup	v0.4s, v0.s[3]			// vpshufd	\$0xFF,	%xmm0,	%xmm0
@@ -787,7 +787,7 @@ _vpaes_schedule_core:
 	mov	v7.16b, v6.16b			// vmovdqa	%xmm6,	%xmm7
 	bl	_vpaes_schedule_low_round
 	mov	v7.16b, v5.16b			// vmovdqa	%xmm5,	%xmm7
-	
+
 	b	.Loop_schedule_256
 
 ##
@@ -814,7 +814,7 @@ _vpaes_schedule_core:
 
 .Lschedule_mangle_last_dec:
 	ld1	{v20.2d-v21.2d}, [x11]		// reload constants
-	sub	$out, $out, #16			// add	\$-16,	%rdx 
+	sub	$out, $out, #16			// add	\$-16,	%rdx
 	eor	v0.16b, v0.16b, v16.16b		// vpxor	.Lk_s63(%rip),	%xmm0,	%xmm0
 	bl	_vpaes_schedule_transform	// output transform
 	st1	{v0.2d}, [$out]			// vmovdqu	%xmm0,	(%rdx)		# save last key

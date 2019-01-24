@@ -29,6 +29,7 @@
 # Westmere	4.58/+100%	1.43
 # Sandy Bridge	3.90/+100%	1.36
 # Haswell	3.88/+70%	1.18		0.72
+# Skylake	3.10/+60%	1.14		0.62
 # Silvermont	11.0/+40%	4.80
 # Goldmont	4.10/+200%	2.10
 # VIA Nano	6.71/+90%	2.47
@@ -49,7 +50,7 @@ require "x86asm.pl";
 $output=pop;
 open STDOUT,">$output";
 
-&asm_init($ARGV[0],"poly1305-x86.pl",$ARGV[$#ARGV] eq "386");
+&asm_init($ARGV[0],$ARGV[$#ARGV] eq "386");
 
 $sse2=$avx=0;
 for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
@@ -729,7 +730,7 @@ my $extra = shift;
 
 	&movdqa		($T0,$T1);			# -> base 2^26 ...
 	&pand		($T1,$MASK);
-	&paddd		($D0,$T1);			# ... and accumuate
+	&paddd		($D0,$T1);			# ... and accumulate
 
 	&movdqa		($T1,$T0);
 	&psrlq		($T0,26);

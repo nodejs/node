@@ -24,7 +24,7 @@
 #	existence:platform:kind:algorithms
 #
 # - "existence" can be "EXIST" or "NOEXIST" depending on if the symbol is
-#   found somewhere in the source, 
+#   found somewhere in the source,
 # - "platforms" is empty if it exists on all platforms, otherwise it contains
 #   comma-separated list of the platform, just as they are if the symbol exists
 #   for those platforms, or prepended with a "!" if not.  This helps resolve
@@ -36,7 +36,7 @@
 #   The semantics for the platforms is that every item is checked against the
 #   environment.  For the negative items ("!FOO"), if any of them is false
 #   (i.e. "FOO" is true) in the environment, the corresponding symbol can't be
-#   used.  For the positive itms, if all of them are false in the environment,
+#   used.  For the positive items, if all of them are false in the environment,
 #   the corresponding symbol can't be used.  Any combination of positive and
 #   negative items are possible, and of course leave room for some redundancy.
 # - "kind" is "FUNCTION" or "VARIABLE".  The meaning of that is obvious.
@@ -126,6 +126,7 @@ my $W32=0;
 my $NT=0;
 my $UNIX=0;
 my $linux=0;
+my $aix=0;
 # Set this to make typesafe STACK definitions appear in DEF
 my $safe_stack_def = 0;
 
@@ -144,11 +145,20 @@ my @known_algorithms = ( # These are algorithms we know are guarded in relevant
 			 "DEPRECATEDIN_0_9_8",
 			 "DEPRECATEDIN_1_0_0",
 			 "DEPRECATEDIN_1_1_0",
+			 "DEPRECATEDIN_1_2_0",
                      );
 
 # %disabled comes from configdata.pm
 my %disabled_algorithms =
     map { (my $x = uc $_) =~ s|-|_|g; $x => 1; } keys %disabled;
+
+my $apiv = sprintf "%x%02x%02x", split(/\./, $config{api});
+foreach (@known_algorithms) {
+	if (/^DEPRECATEDIN_(\d+)_(\d+)_(\d+)$/) {
+		my $depv = sprintf "%x%02x%02x", $1, $2, $3;
+		$disabled_algorithms{$_} = 1 if $apiv ge $depv;
+	}
+}
 
 my $zlib;
 
@@ -162,59 +172,33 @@ foreach (@ARGV, split(/ /, $config{options}))
 	if($_ eq "NT") {
 		$W32 = 1;
 		$NT = 1;
-	}
-	if ($_ eq "linux") {
+	} elsif ($_ eq "linux") {
 		$linux=1;
 		$UNIX=1;
+	} elsif ($_ eq "aix") {
+		$aix=1;
+		$UNIX=1;
+	} elsif ($_ eq "VMS") {
+		$VMS=1;
 	}
-	$VMS=1 if $_ eq "VMS";
 	if ($_ eq "zlib" || $_ eq "enable-zlib" || $_ eq "zlib-dynamic"
 			 || $_ eq "enable-zlib-dynamic") {
 		$zlib = 1;
 	}
 
-	$do_ssl=1 if $_ eq "libssl";
-	if ($_ eq "ssl") {
-		$do_ssl=1; 
-		$libname=$_
-	}
-	$do_crypto=1 if $_ eq "libcrypto";
-	if ($_ eq "crypto") {
-		$do_crypto=1;
-		$libname=$_;
-	}
+	$do_crypto=1 if $_ eq "libcrypto" || $_ eq "crypto";
+	$do_ssl=1 if $_ eq "libssl" || $_ eq "ssl";
+
 	$do_update=1 if $_ eq "update";
 	$do_rewrite=1 if $_ eq "rewrite";
 	$do_ctest=1 if $_ eq "ctest";
 	$do_ctestall=1 if $_ eq "ctestall";
 	$do_checkexist=1 if $_ eq "exist";
-	if (/^--api=(\d+)\.(\d+)\.(\d+)$/) {
-		my $apiv = sprintf "%x%02x%02x", $1, $2, $3;
-		foreach (@known_algorithms) {
-			if (/^DEPRECATEDIN_(\d+)_(\d+)_(\d+)$/) {
-				my $depv = sprintf "%x%02x%02x", $1, $2, $3;
-				$disabled_algorithms{$_} = 1 if $apiv ge $depv;
-			}
-		}
 	}
-	if (/^no-deprecated$/) {
-		foreach (@known_algorithms) {
-			if (/^DEPRECATEDIN_/) {
-				$disabled_algorithms{$_} = 1;
-			}
-		}
-	}
-	elsif (/^(enable|disable|no)-(.*)$/) {
-		my $alg = uc $2;
-        $alg =~ tr/-/_/;
-		if (exists $disabled_algorithms{$alg}) {
-			$disabled_algorithms{$alg} = $1 eq "enable" ? 0 : 1;
-		}
-	}
+$libname = $unified_info{sharednames}->{libcrypto} if $do_crypto;
+$libname = $unified_info{sharednames}->{libssl} if $do_ssl;
 
-	}
-
-if (!$libname) { 
+if (!$libname) {
 	if ($do_ssl) {
 		$libname="LIBSSL";
 	}
@@ -224,11 +208,11 @@ if (!$libname) {
 }
 
 # If no platform is given, assume WIN32
-if ($W32 + $VMS + $linux == 0) {
+if ($W32 + $VMS + $linux + $aix == 0) {
 	$W32 = 1;
 }
 die "Please, only one platform at a time"
-    if ($W32 + $VMS + $linux > 1);
+    if ($W32 + $VMS + $linux + $aix > 1);
 
 if (!$do_ssl && !$do_crypto)
 	{
@@ -242,76 +226,30 @@ $max_ssl = $max_num;
 $max_crypto = $max_num;
 
 my $ssl="include/openssl/ssl.h";
+$ssl.=" include/openssl/sslerr.h";
 $ssl.=" include/openssl/tls1.h";
 $ssl.=" include/openssl/srtp.h";
 
+# When scanning include/openssl, skip all SSL files and some internal ones.
+my %skipthese;
+foreach my $f ( split(/\s+/, $ssl) ) {
+    $skipthese{$f} = 1;
+}
+$skipthese{'include/openssl/conf_api.h'} = 1;
+$skipthese{'include/openssl/ebcdic.h'} = 1;
+$skipthese{'include/openssl/opensslconf.h'} = 1;
+
 # We use headers found in include/openssl and include/internal only.
 # The latter is needed so libssl.so/.dll/.exe can link properly.
-my $crypto ="include/openssl/crypto.h";
+my $crypto ="include/internal/dso.h";
 $crypto.=" include/internal/o_dir.h";
 $crypto.=" include/internal/o_str.h";
 $crypto.=" include/internal/err.h";
-$crypto.=" include/internal/asn1t.h";
 $crypto.=" include/internal/sslconf.h";
-$crypto.=" include/openssl/des.h" ; # unless $no_des;
-$crypto.=" include/openssl/idea.h" ; # unless $no_idea;
-$crypto.=" include/openssl/rc4.h" ; # unless $no_rc4;
-$crypto.=" include/openssl/rc5.h" ; # unless $no_rc5;
-$crypto.=" include/openssl/rc2.h" ; # unless $no_rc2;
-$crypto.=" include/openssl/blowfish.h" ; # unless $no_bf;
-$crypto.=" include/openssl/cast.h" ; # unless $no_cast;
-$crypto.=" include/openssl/whrlpool.h" ;
-$crypto.=" include/openssl/md2.h" ; # unless $no_md2;
-$crypto.=" include/openssl/md4.h" ; # unless $no_md4;
-$crypto.=" include/openssl/md5.h" ; # unless $no_md5;
-$crypto.=" include/openssl/mdc2.h" ; # unless $no_mdc2;
-$crypto.=" include/openssl/sha.h" ; # unless $no_sha;
-$crypto.=" include/openssl/ripemd.h" ; # unless $no_ripemd;
-$crypto.=" include/openssl/aes.h" ; # unless $no_aes;
-$crypto.=" include/openssl/camellia.h" ; # unless $no_camellia;
-$crypto.=" include/openssl/seed.h"; # unless $no_seed;
-
-$crypto.=" include/openssl/bn.h";
-$crypto.=" include/openssl/rsa.h" ; # unless $no_rsa;
-$crypto.=" include/openssl/dsa.h" ; # unless $no_dsa;
-$crypto.=" include/openssl/dh.h" ; # unless $no_dh;
-$crypto.=" include/openssl/ec.h" ; # unless $no_ec;
-$crypto.=" include/openssl/hmac.h" ; # unless $no_hmac;
-$crypto.=" include/openssl/cmac.h" ;
-
-$crypto.=" include/openssl/engine.h"; # unless $no_engine;
-$crypto.=" include/openssl/stack.h" ; # unless $no_stack;
-$crypto.=" include/openssl/buffer.h" ; # unless $no_buffer;
-$crypto.=" include/openssl/bio.h" ; # unless $no_bio;
-$crypto.=" include/internal/dso.h" ; # unless $no_dso;
-$crypto.=" include/openssl/lhash.h" ; # unless $no_lhash;
-$crypto.=" include/openssl/conf.h";
-$crypto.=" include/openssl/txt_db.h";
-
-$crypto.=" include/openssl/evp.h" ; # unless $no_evp;
-$crypto.=" include/openssl/objects.h";
-$crypto.=" include/openssl/pem.h";
-#$crypto.=" include/openssl/meth.h";
-$crypto.=" include/openssl/asn1.h";
-$crypto.=" include/openssl/asn1t.h";
-$crypto.=" include/openssl/err.h" ; # unless $no_err;
-$crypto.=" include/openssl/pkcs7.h";
-$crypto.=" include/openssl/pkcs12.h";
-$crypto.=" include/openssl/x509.h";
-$crypto.=" include/openssl/x509_vfy.h";
-$crypto.=" include/openssl/x509v3.h";
-$crypto.=" include/openssl/ts.h";
-$crypto.=" include/openssl/rand.h";
-$crypto.=" include/openssl/comp.h" ; # unless $no_comp;
-$crypto.=" include/openssl/ocsp.h";
-$crypto.=" include/openssl/ui.h";
-#$crypto.=" include/openssl/store.h";
-$crypto.=" include/openssl/cms.h";
-$crypto.=" include/openssl/srp.h";
-$crypto.=" include/openssl/modes.h";
-$crypto.=" include/openssl/async.h";
-$crypto.=" include/openssl/ct.h";
-$crypto.=" include/openssl/kdf.h";
+foreach my $f ( glob(catfile($config{sourcedir},'include/openssl/*.h')) ) {
+    my $fn = "include/openssl/" . basename($f);
+    $crypto .= " $fn" if !defined $skipthese{$fn};
+}
 
 my $symhacks="include/openssl/symhacks.h";
 
@@ -344,7 +282,7 @@ if($do_crypto == 1) {
 	}
 	&update_numbers(*OUT,"LIBCRYPTO",*crypto_list,$max_crypto,@crypto_symbols);
 	close OUT;
-} 
+}
 
 } elsif ($do_checkexist) {
 	&check_existing(*ssl_list, @ssl_symbols)
@@ -400,14 +338,16 @@ sub do_defs
 	foreach $file (split(/\s+/,$symhacksfile." ".$files))
 		{
 		my $fn = catfile($config{sourcedir},$file);
+		print STDERR "DEBUG: starting on $fn:\n" if $debug;
 		print STDERR "TRACE: start reading $fn\n" if $trace;
-		open(IN,"<$fn") || die "unable to open $fn:$!\n";
+		open(IN,"<$fn") || die "Can't open $fn, $!,";
 		my $line = "", my $def= "";
 		my %tag = (
 			(map { $_ => 0 } @known_platforms),
 			(map { "OPENSSL_SYS_".$_ => 0 } @known_ossl_platforms),
 			(map { "OPENSSL_NO_".$_ => 0 } @known_algorithms),
 			(map { "OPENSSL_USE_".$_ => 0 } @known_algorithms),
+			(grep /^DEPRECATED_/, @known_algorithms),
 			NOPROTO		=> 0,
 			PERL5		=> 0,
 			_WINDLL		=> 0,
@@ -499,7 +439,7 @@ sub do_defs
 			}
 
 			if(/\/\*/) {
-				if (not /\*\//) {	# multiline comment...
+				if (not /\*\//) {	# multi-line comment...
 					$line = $_;	# ... just accumulate
 					next;
 				} else {
@@ -520,7 +460,22 @@ sub do_defs
 			s/{[^{}]*}//gs;                      # ignore {} blocks
 			print STDERR "DEBUG: \$def=\"$def\"\n" if $debug && $def ne "";
 			print STDERR "DEBUG: \$_=\"$_\"\n" if $debug;
-			if (/^\#\s*ifndef\s+(.*)/) {
+			if (/^\#\s*if\s+OPENSSL_API_COMPAT\s*(\S)\s*(0x[0-9a-fA-F]{8})L\s*$/) {
+				my $op = $1;
+				my $v = hex($2);
+				if ($op ne '<' && $op ne '>=') {
+				    die "$file unacceptable operator $op: $_\n";
+				}
+				my ($one, $major, $minor) =
+				    ( ($v >> 28) & 0xf,
+				      ($v >> 20) & 0xff,
+				      ($v >> 12) & 0xff );
+				my $t = "DEPRECATEDIN_${one}_${major}_${minor}";
+				push(@tag,"-");
+				push(@tag,$t);
+				$tag{$t}=($op eq '<' ? 1 : -1);
+				print STDERR "DEBUG: $file: found tag $t = $tag{$t}\n" if $debug;
+			} elsif (/^\#\s*ifndef\s+(.*)/) {
 				push(@tag,"-");
 				push(@tag,$1);
 				$tag{$1}=-1;
@@ -569,7 +524,7 @@ sub do_defs
 				while($tag[$tag_i] ne "-") {
 					if ($tag[$tag_i] eq "OPENSSL_NO_".$1) {
 						$tag{$tag[$tag_i]}=2;
-						print STDERR "DEBUG: $file: chaged tag $1 = 2\n" if $debug;
+						print STDERR "DEBUG: $file: changed tag $1 = 2\n" if $debug;
 					}
 					$tag_i--;
 				}
@@ -652,6 +607,9 @@ sub do_defs
 				    , grep(!/^$/,
 					 map { $tag{"OPENSSL_USE_".$_} == 1 ? $_ : "" }
 					 @known_algorithms);
+				push @current_algorithms,
+				    grep { /^DEPRECATEDIN_/ && $tag{$_} == 1 }
+				    @known_algorithms;
 				$def .=
 				    "#INFO:"
 					.join(',',@current_platforms).":"
@@ -666,7 +624,7 @@ sub do_defs
 					$def .= "int d2i_$3(void);";
 					$def .= "int i2d_$3(void);";
 					# Variant for platforms that do not
-					# have to access globale variables
+					# have to access global variables
 					# in shared libraries through functions
 					$def .=
 					    "#INFO:"
@@ -678,7 +636,7 @@ sub do_defs
 						.join(',',@current_platforms).":"
 						    .join(',',@current_algorithms).";";
 					# Variant for platforms that have to
-					# access globale variables in shared
+					# access global variables in shared
 					# libraries through functions
 					&$make_variant("$2_it","$2_it",
 						      "EXPORT_VAR_AS_FUNCTION",
@@ -690,7 +648,7 @@ sub do_defs
 					$def .= "int $3_free(void);";
 					$def .= "int $3_new(void);";
 					# Variant for platforms that do not
-					# have to access globale variables
+					# have to access global variables
 					# in shared libraries through functions
 					$def .=
 					    "#INFO:"
@@ -702,7 +660,7 @@ sub do_defs
 						.join(',',@current_platforms).":"
 						    .join(',',@current_algorithms).";";
 					# Variant for platforms that have to
-					# access globale variables in shared
+					# access global variables in shared
 					# libraries through functions
 					&$make_variant("$2_it","$2_it",
 						      "EXPORT_VAR_AS_FUNCTION",
@@ -715,7 +673,7 @@ sub do_defs
 					$def .= "int $1_free(void);";
 					$def .= "int $1_new(void);";
 					# Variant for platforms that do not
-					# have to access globale variables
+					# have to access global variables
 					# in shared libraries through functions
 					$def .=
 					    "#INFO:"
@@ -727,7 +685,7 @@ sub do_defs
 						.join(',',@current_platforms).":"
 						    .join(',',@current_algorithms).";";
 					# Variant for platforms that have to
-					# access globale variables in shared
+					# access global variables in shared
 					# libraries through functions
 					&$make_variant("$1_it","$1_it",
 						      "EXPORT_VAR_AS_FUNCTION",
@@ -737,7 +695,7 @@ sub do_defs
 					$def .= "int d2i_$2(void);";
 					$def .= "int i2d_$2(void);";
 					# Variant for platforms that do not
-					# have to access globale variables
+					# have to access global variables
 					# in shared libraries through functions
 					$def .=
 					    "#INFO:"
@@ -749,7 +707,7 @@ sub do_defs
 						.join(',',@current_platforms).":"
 						    .join(',',@current_algorithms).";";
 					# Variant for platforms that have to
-					# access globale variables in shared
+					# access global variables in shared
 					# libraries through functions
 					&$make_variant("$2_it","$2_it",
 						      "EXPORT_VAR_AS_FUNCTION",
@@ -765,7 +723,7 @@ sub do_defs
 					$def .= "int $2_free(void);";
 					$def .= "int $2_new(void);";
 					# Variant for platforms that do not
-					# have to access globale variables
+					# have to access global variables
 					# in shared libraries through functions
 					$def .=
 					    "#INFO:"
@@ -777,7 +735,7 @@ sub do_defs
 						.join(',',@current_platforms).":"
 						    .join(',',@current_algorithms).";";
 					# Variant for platforms that have to
-					# access globale variables in shared
+					# access global variables in shared
 					# libraries through functions
 					&$make_variant("$2_it","$2_it",
 						      "EXPORT_VAR_AS_FUNCTION",
@@ -785,7 +743,7 @@ sub do_defs
 					next;
 				} elsif (/^\s*DECLARE_ASN1_ITEM\s*\(\s*(\w*)\s*\)/) {
 					# Variant for platforms that do not
-					# have to access globale variables
+					# have to access global variables
 					# in shared libraries through functions
 					$def .=
 					    "#INFO:"
@@ -797,7 +755,7 @@ sub do_defs
 						.join(',',@current_platforms).":"
 						    .join(',',@current_algorithms).";";
 					# Variant for platforms that have to
-					# access globale variables in shared
+					# access global variables in shared
 					# libraries through functions
 					&$make_variant("$1_it","$1_it",
 						      "EXPORT_VAR_AS_FUNCTION",
@@ -863,7 +821,7 @@ sub do_defs
 					next;
 				} elsif (/^OPENSSL_DECLARE_GLOBAL\s*\(\s*(\w*)\s*,\s*(\w*)\s*\)/) {
 					# Variant for platforms that do not
-					# have to access globale variables
+					# have to access global variables
 					# in shared libraries through functions
 					$def .=
 					    "#INFO:"
@@ -875,7 +833,7 @@ sub do_defs
 						.join(',',@current_platforms).":"
 						    .join(',',@current_algorithms).";";
 					# Variant for platforms that have to
-					# access globale variables in shared
+					# access global variables in shared
 					# libraries through functions
 					&$make_variant("_shadow_$2","_shadow_$2",
 						      "EXPORT_VAR_AS_FUNCTION",
@@ -1116,7 +1074,7 @@ sub is_valid
 			return 0;
 		} else {
 			# algorithms
-			if ($disabled_algorithms{$keyword} == 1) { return 0;}
+			if ($disabled_algorithms{$keyword}) { return 0;}
 
 			# Nothing recognise as true
 			return 1;
@@ -1191,9 +1149,6 @@ sub print_def_file
         my $prevnum = 0;
         my $symvtextcount = 0;
 
-	if ($W32)
-		{ $libname.="32"; }
-
         if ($W32)
                 {
                 print OUT <<"EOF";
@@ -1210,6 +1165,7 @@ EOF
         elsif ($VMS)
                 {
                 print OUT <<"EOF";
+IDENTIFICATION=$version
 CASE_SENSITIVE=YES
 SYMBOL_VECTOR=(-
 EOF
@@ -1275,6 +1231,8 @@ EOF
 							$prevsymversion = $symversion;
 						}
 						print OUT "        $s2;\n";
+					} elsif ($aix) {
+						print OUT "$s2\n";
                                         } elsif ($VMS) {
                                             while(++$prevnum < $n) {
                                                 my $symline=" ,SPARE -\n  ,SPARE -\n";
@@ -1612,8 +1570,7 @@ sub check_version_lte()
 	if ($cvnums ne $tvnums) {
 		die "Invalid version number: $testversion "
 			."for current version $currversion\n"
-			if (substr($cvnums, -1) < substr($tvnums, -1)
-				|| substr($cvnums, 0, 4) ne substr($tvnums, 0, 4));
+			if (substr($cvnums, 0, 4) ne substr($tvnums, 0, 4));
 		return;
 	}
 	#If we get here then the base version (i.e. the numbers) are the same - they
@@ -1666,7 +1623,7 @@ sub do_deprecated()
 {
 	my ($decl, $plats, $algs) = @_;
 	$decl =~ /^\s*(DEPRECATEDIN_\d+_\d+_\d+)\s*\((.*)\)\s*$/
-            or die "Bad DEPRECTEDIN: $decl\n";
+            or die "Bad DEPRECATEDIN: $decl\n";
 	my $info1 .= "#INFO:";
 	$info1 .= join(',', @{$plats}) . ":";
 	my $info2 = $info1;

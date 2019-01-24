@@ -34,7 +34,6 @@
 # define ASYNC_WIN
 #endif
 
-#define DASYNC_LIB_NAME "DASYNC"
 #include "e_dasync_err.c"
 
 /* Engine Id and Name */
@@ -438,8 +437,8 @@ static void dummy_pause_job(void) {
 #endif
         *writefd = pipefds[1];
 
-        if(!ASYNC_WAIT_CTX_set_wait_fd(waitctx, engine_dasync_id, pipefds[0],
-                                       writefd, wait_cleanup)) {
+        if (!ASYNC_WAIT_CTX_set_wait_fd(waitctx, engine_dasync_id, pipefds[0],
+                                        writefd, wait_cleanup)) {
             wait_cleanup(waitctx, engine_dasync_id, pipefds[0], writefd);
             return;
         }

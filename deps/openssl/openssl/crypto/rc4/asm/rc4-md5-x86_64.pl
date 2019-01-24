@@ -51,7 +51,7 @@ my ($rc4,$md5)=(1,1);	# what to generate?
 my $D="#" if (!$md5);	# if set to "#", MD5 is stitched into RC4(),
 			# but its result is discarded. Idea here is
 			# to be able to use 'openssl speed rc4' for
-			# benchmarking the stitched subroutine... 
+			# benchmarking the stitched subroutine...
 
 my $flavour = shift;
 my $output  = shift;
@@ -124,15 +124,23 @@ $code.=<<___;
 .globl	$func
 .type	$func,\@function,$nargs
 $func:
+.cfi_startproc
 	cmp	\$0,$len
 	je	.Labort
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 	sub	\$40,%rsp
+.cfi_adjust_cfa_offset	40
 .Lbody:
 ___
 if ($rc4) {
@@ -419,7 +427,7 @@ $code.=<<___ if ($rc4 && (!$md5 || $D));
 	and	\$63,$len		# remaining bytes
 	jnz	.Loop1
 	jmp	.Ldone
-	
+
 .align	16
 .Loop1:
 	add	$TX[0]#b,$YY#b
@@ -444,15 +452,23 @@ $code.=<<___;
 #rc4#	movl	$YY#d,-4($dat)
 
 	mov	40(%rsp),%r15
+.cfi_restore	%r15
 	mov	48(%rsp),%r14
+.cfi_restore	%r14
 	mov	56(%rsp),%r13
+.cfi_restore	%r13
 	mov	64(%rsp),%r12
+.cfi_restore	%r12
 	mov	72(%rsp),%rbp
+.cfi_restore	%rbp
 	mov	80(%rsp),%rbx
+.cfi_restore	%rbx
 	lea	88(%rsp),%rsp
+.cfi_adjust_cfa_offset	-88
 .Lepilogue:
 .Labort:
 	ret
+.cfi_endproc
 .size $func,.-$func
 ___
 

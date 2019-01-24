@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "apps.h"
+#include "progs.h"
 #include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/x509.h>
@@ -27,11 +28,11 @@ typedef enum OPTION_choice {
     OPT_ERR = -1, OPT_EOF = 0, OPT_HELP,
     OPT_ENGINE, OPT_CAPATH, OPT_CAFILE, OPT_NOCAPATH, OPT_NOCAFILE,
     OPT_UNTRUSTED, OPT_TRUSTED, OPT_CRLFILE, OPT_CRL_DOWNLOAD, OPT_SHOW_CHAIN,
-    OPT_V_ENUM,
+    OPT_V_ENUM, OPT_NAMEOPT,
     OPT_VERBOSE
 } OPTION_CHOICE;
 
-OPTIONS verify_options[] = {
+const OPTIONS verify_options[] = {
     {OPT_HELP_STR, 1, '-', "Usage: %s [options] cert.pem...\n"},
     {OPT_HELP_STR, 1, '-', "Valid options are:\n"},
     {"help", OPT_HELP, '-', "Display this summary"},
@@ -51,6 +52,7 @@ OPTIONS verify_options[] = {
         "Attempt to download CRL information for this certificate"},
     {"show_chain", OPT_SHOW_CHAIN, '-',
         "Display information about the certificate chain"},
+    {"nameopt", OPT_NAMEOPT, 's', "Various certificate name options"},
     OPT_V_OPTIONS,
 #ifndef OPENSSL_NO_ENGINE
     {"engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device"},
@@ -149,6 +151,10 @@ int verify_main(int argc, char **argv)
         case OPT_SHOW_CHAIN:
             show_chain = 1;
             break;
+        case OPT_NAMEOPT:
+            if (!set_nameopt(opt_arg()))
+                goto end;
+            break;
         case OPT_VERBOSE:
             v_verbose = 1;
             break;
@@ -224,9 +230,9 @@ static int check(X509_STORE *ctx, const char *file,
                (file == NULL) ? "stdin" : file);
         goto end;
     }
-    if (tchain)
+    if (tchain != NULL)
         X509_STORE_CTX_set0_trusted_stack(csc, tchain);
-    if (crls)
+    if (crls != NULL)
         X509_STORE_CTX_set0_crls(csc, crls);
     i = X509_verify_cert(csc);
     if (i > 0 && X509_STORE_CTX_get_error(csc) == X509_V_OK) {
@@ -243,7 +249,7 @@ static int check(X509_STORE *ctx, const char *file,
                 printf("depth=%d: ", j);
                 X509_NAME_print_ex_fp(stdout,
                                       X509_get_subject_name(cert),
-                                      0, XN_FLAG_ONELINE);
+                                      0, get_nameopt());
                 if (j < num_untrusted)
                     printf(" (untrusted)");
                 printf("\n");
@@ -269,10 +275,10 @@ static int cb(int ok, X509_STORE_CTX *ctx)
     X509 *current_cert = X509_STORE_CTX_get_current_cert(ctx);
 
     if (!ok) {
-        if (current_cert) {
+        if (current_cert != NULL) {
             X509_NAME_print_ex(bio_err,
                             X509_get_subject_name(current_cert),
-                            0, XN_FLAG_ONELINE);
+                            0, get_nameopt());
             BIO_printf(bio_err, "\n");
         }
         BIO_printf(bio_err, "%serror %d at %d depth lookup: %s\n",
@@ -309,5 +315,5 @@ static int cb(int ok, X509_STORE_CTX *ctx)
         policies_print(ctx);
     if (!v_verbose)
         ERR_clear_error();
-    return (ok);
+    return ok;
 }

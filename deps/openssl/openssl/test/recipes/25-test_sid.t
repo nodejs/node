@@ -12,8 +12,12 @@ use warnings;
 
 use File::Spec;
 use OpenSSL::Test qw/:DEFAULT srctop_file/;
+use OpenSSL::Test::Utils;
 
 setup("test_sid");
+
+plan skip_all => 'test_sid needs EC to run'
+    if disabled('ec');
 
 plan tests => 2;
 

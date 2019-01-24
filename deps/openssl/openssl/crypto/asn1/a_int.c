@@ -396,7 +396,7 @@ ASN1_INTEGER *d2i_ASN1_UINTEGER(ASN1_INTEGER **a, const unsigned char **pp,
 
     if ((a == NULL) || ((*a) == NULL)) {
         if ((ret = ASN1_INTEGER_new()) == NULL)
-            return (NULL);
+            return NULL;
         ret->type = V_ASN1_INTEGER;
     } else
         ret = (*a);
@@ -438,12 +438,12 @@ ASN1_INTEGER *d2i_ASN1_UINTEGER(ASN1_INTEGER **a, const unsigned char **pp,
     if (a != NULL)
         (*a) = ret;
     *pp = p;
-    return (ret);
+    return ret;
  err:
     ASN1err(ASN1_F_D2I_ASN1_UINTEGER, i);
     if ((a == NULL) || (*a != ret))
         ASN1_INTEGER_free(ret);
-    return (NULL);
+    return NULL;
 }
 
 static ASN1_STRING *bn_to_asn1_string(const BIGNUM *bn, ASN1_STRING *ai,
@@ -487,7 +487,7 @@ static ASN1_STRING *bn_to_asn1_string(const BIGNUM *bn, ASN1_STRING *ai,
  err:
     if (ret != ai)
         ASN1_INTEGER_free(ret);
-    return (NULL);
+    return NULL;
 }
 
 static BIGNUM *asn1_string_to_bn(const ASN1_INTEGER *ai, BIGNUM *bn,

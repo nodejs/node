@@ -1,60 +1,44 @@
 #! /usr/bin/env perl
-# Copyright 2014-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2014-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright (c) 2014, Intel Corporation. All Rights Reserved.
+# Copyright (c) 2015 CloudFlare, Inc.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
-
-
-##############################################################################
-#                                                                            #
-# Copyright 2014 Intel Corporation                                           #
-#                                                                            #
-# Licensed under the Apache License, Version 2.0 (the "License");            #
-# you may not use this file except in compliance with the License.           #
-# You may obtain a copy of the License at                                    #
-#                                                                            #
-#    http://www.apache.org/licenses/LICENSE-2.0                              #
-#                                                                            #
-# Unless required by applicable law or agreed to in writing, software        #
-# distributed under the License is distributed on an "AS IS" BASIS,          #
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   #
-# See the License for the specific language governing permissions and        #
-# limitations under the License.                                             #
-#                                                                            #
-##############################################################################
-#                                                                            #
-#  Developers and authors:                                                   #
-#  Shay Gueron (1, 2), and Vlad Krasnov (1)                                  #
-#  (1) Intel Corporation, Israel Development Center                          #
-#  (2) University of Haifa                                                   #
-#  Reference:                                                                #
-#  S.Gueron and V.Krasnov, "Fast Prime Field Elliptic Curve Cryptography with#
-#                           256 Bit Primes"                                  #
-#                                                                            #
-##############################################################################
+#
+# Originally written by Shay Gueron (1, 2), and Vlad Krasnov (1, 3)
+# (1) Intel Corporation, Israel Development Center, Haifa, Israel
+# (2) University of Haifa, Israel
+# (3) CloudFlare, Inc.
+#
+# Reference:
+# S.Gueron and V.Krasnov, "Fast Prime Field Elliptic Curve Cryptography with
+#                          256 Bit Primes"
 
 # Further optimization by <appro@openssl.org>:
 #
 #		this/original	with/without -DECP_NISTZ256_ASM(*)
-# Opteron	+12-49%		+110-150%
-# Bulldozer	+14-45%		+175-210%
-# P4		+18-46%		n/a :-(
-# Westmere	+12-34%		+80-87%
-# Sandy Bridge	+9-35%		+110-120%
-# Ivy Bridge	+9-35%		+110-125%
-# Haswell	+8-37%		+140-160%
-# Broadwell	+18-58%		+145-210%
-# Atom		+15-50%		+130-180%
-# VIA Nano	+43-160%	+300-480%
+# Opteron	+15-49%		+150-195%
+# Bulldozer	+18-45%		+175-240%
+# P4		+24-46%		+100-150%
+# Westmere	+18-34%		+87-160%
+# Sandy Bridge	+14-35%		+120-185%
+# Ivy Bridge	+11-35%		+125-180%
+# Haswell	+10-37%		+160-200%
+# Broadwell	+24-58%		+210-270%
+# Atom		+20-50%		+180-240%
+# VIA Nano	+50-160%	+480-480%
 #
 # (*)	"without -DECP_NISTZ256_ASM" refers to build with
 #	"enable-ec_nistp_64_gcc_128";
 #
 # Ranges denote minimum and maximum improvement coefficients depending
-# on benchmark. Lower coefficients are for ECDSA sign, relatively fastest
-# server-side operation. Keep in mind that +100% means 2x improvement.
+# on benchmark. In "this/original" column lower coefficient is for
+# ECDSA sign, while in "with/without" - for ECDH key agreement, and
+# higher - for ECDSA sign, relatively fastest server-side operation.
+# Keep in mind that +100% means 2x improvement.
 
 $flavour = shift;
 $output  = shift;
@@ -115,6 +99,12 @@ $code.=<<___;
 .long 3,3,3,3,3,3,3,3
 .LONE_mont:
 .quad 0x0000000000000001, 0xffffffff00000000, 0xffffffffffffffff, 0x00000000fffffffe
+
+# Constants for computations modulo ord(p256)
+.Lord:
+.quad 0xf3b9cac2fc632551, 0xbce6faada7179e84, 0xffffffffffffffff, 0xffffffff00000000
+.LordK:
+.quad 0xccd1c8aaee00bc4f
 ___
 
 {
@@ -131,8 +121,12 @@ $code.=<<___;
 .type	ecp_nistz256_mul_by_2,\@function,2
 .align	64
 ecp_nistz256_mul_by_2:
+.cfi_startproc
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
+.Lmul_by_2_body:
 
 	mov	8*0($a_ptr), $a0
 	xor	$t4,$t4
@@ -165,9 +159,15 @@ ecp_nistz256_mul_by_2:
 	mov	$a2, 8*2($r_ptr)
 	mov	$a3, 8*3($r_ptr)
 
-	pop	%r13
-	pop	%r12
+	mov	0(%rsp),%r13
+.cfi_restore	%r13
+	mov	8(%rsp),%r12
+.cfi_restore	%r12
+	lea	16(%rsp),%rsp
+.cfi_adjust_cfa_offset	-16
+.Lmul_by_2_epilogue:
 	ret
+.cfi_endproc
 .size	ecp_nistz256_mul_by_2,.-ecp_nistz256_mul_by_2
 
 ################################################################################
@@ -176,8 +176,12 @@ ecp_nistz256_mul_by_2:
 .type	ecp_nistz256_div_by_2,\@function,2
 .align	32
 ecp_nistz256_div_by_2:
+.cfi_startproc
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
+.Ldiv_by_2_body:
 
 	mov	8*0($a_ptr), $a0
 	mov	8*1($a_ptr), $a1
@@ -225,9 +229,15 @@ ecp_nistz256_div_by_2:
 	mov	$a2, 8*2($r_ptr)
 	mov	$a3, 8*3($r_ptr)
 
-	pop	%r13
-	pop	%r12
+	mov	0(%rsp),%r13
+.cfi_restore	%r13
+	mov	8(%rsp),%r12
+.cfi_restore	%r12
+	lea	16(%rsp),%rsp
+.cfi_adjust_cfa_offset	-16
+.Ldiv_by_2_epilogue:
 	ret
+.cfi_endproc
 .size	ecp_nistz256_div_by_2,.-ecp_nistz256_div_by_2
 
 ################################################################################
@@ -236,8 +246,12 @@ ecp_nistz256_div_by_2:
 .type	ecp_nistz256_mul_by_3,\@function,2
 .align	32
 ecp_nistz256_mul_by_3:
+.cfi_startproc
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
+.Lmul_by_3_body:
 
 	mov	8*0($a_ptr), $a0
 	xor	$t4, $t4
@@ -291,9 +305,15 @@ ecp_nistz256_mul_by_3:
 	mov	$a2, 8*2($r_ptr)
 	mov	$a3, 8*3($r_ptr)
 
-	pop %r13
-	pop %r12
+	mov	0(%rsp),%r13
+.cfi_restore	%r13
+	mov	8(%rsp),%r12
+.cfi_restore	%r12
+	lea	16(%rsp),%rsp
+.cfi_adjust_cfa_offset	-16
+.Lmul_by_3_epilogue:
 	ret
+.cfi_endproc
 .size	ecp_nistz256_mul_by_3,.-ecp_nistz256_mul_by_3
 
 ################################################################################
@@ -302,8 +322,12 @@ ecp_nistz256_mul_by_3:
 .type	ecp_nistz256_add,\@function,3
 .align	32
 ecp_nistz256_add:
+.cfi_startproc
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
+.Ladd_body:
 
 	mov	8*0($a_ptr), $a0
 	xor	$t4, $t4
@@ -337,9 +361,15 @@ ecp_nistz256_add:
 	mov	$a2, 8*2($r_ptr)
 	mov	$a3, 8*3($r_ptr)
 
-	pop %r13
-	pop %r12
+	mov	0(%rsp),%r13
+.cfi_restore	%r13
+	mov	8(%rsp),%r12
+.cfi_restore	%r12
+	lea	16(%rsp),%rsp
+.cfi_adjust_cfa_offset	-16
+.Ladd_epilogue:
 	ret
+.cfi_endproc
 .size	ecp_nistz256_add,.-ecp_nistz256_add
 
 ################################################################################
@@ -348,8 +378,12 @@ ecp_nistz256_add:
 .type	ecp_nistz256_sub,\@function,3
 .align	32
 ecp_nistz256_sub:
+.cfi_startproc
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
+.Lsub_body:
 
 	mov	8*0($a_ptr), $a0
 	xor	$t4, $t4
@@ -383,9 +417,15 @@ ecp_nistz256_sub:
 	mov	$a2, 8*2($r_ptr)
 	mov	$a3, 8*3($r_ptr)
 
-	pop %r13
-	pop %r12
+	mov	0(%rsp),%r13
+.cfi_restore	%r13
+	mov	8(%rsp),%r12
+.cfi_restore	%r12
+	lea	16(%rsp),%rsp
+.cfi_adjust_cfa_offset	-16
+.Lsub_epilogue:
 	ret
+.cfi_endproc
 .size	ecp_nistz256_sub,.-ecp_nistz256_sub
 
 ################################################################################
@@ -394,8 +434,12 @@ ecp_nistz256_sub:
 .type	ecp_nistz256_neg,\@function,2
 .align	32
 ecp_nistz256_neg:
+.cfi_startproc
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
+.Lneg_body:
 
 	xor	$a0, $a0
 	xor	$a1, $a1
@@ -429,9 +473,15 @@ ecp_nistz256_neg:
 	mov	$a2, 8*2($r_ptr)
 	mov	$a3, 8*3($r_ptr)
 
-	pop %r13
-	pop %r12
+	mov	0(%rsp),%r13
+.cfi_restore	%r13
+	mov	8(%rsp),%r12
+.cfi_restore	%r12
+	lea	16(%rsp),%rsp
+.cfi_adjust_cfa_offset	-16
+.Lneg_epilogue:
 	ret
+.cfi_endproc
 .size	ecp_nistz256_neg,.-ecp_nistz256_neg
 ___
 }
@@ -440,6 +490,1085 @@ my ($r_ptr,$a_ptr,$b_org,$b_ptr)=("%rdi","%rsi","%rdx","%rbx");
 my ($acc0,$acc1,$acc2,$acc3,$acc4,$acc5,$acc6,$acc7)=map("%r$_",(8..15));
 my ($t0,$t1,$t2,$t3,$t4)=("%rcx","%rbp","%rbx","%rdx","%rax");
 my ($poly1,$poly3)=($acc6,$acc7);
+
+$code.=<<___;
+################################################################################
+# void ecp_nistz256_ord_mul_mont(
+#   uint64_t res[4],
+#   uint64_t a[4],
+#   uint64_t b[4]);
+
+.globl	ecp_nistz256_ord_mul_mont
+.type	ecp_nistz256_ord_mul_mont,\@function,3
+.align	32
+ecp_nistz256_ord_mul_mont:
+.cfi_startproc
+___
+$code.=<<___	if ($addx);
+	mov	\$0x80100, %ecx
+	and	OPENSSL_ia32cap_P+8(%rip), %ecx
+	cmp	\$0x80100, %ecx
+	je	.Lecp_nistz256_ord_mul_montx
+___
+$code.=<<___;
+	push	%rbp
+.cfi_push	%rbp
+	push	%rbx
+.cfi_push	%rbx
+	push	%r12
+.cfi_push	%r12
+	push	%r13
+.cfi_push	%r13
+	push	%r14
+.cfi_push	%r14
+	push	%r15
+.cfi_push	%r15
+.Lord_mul_body:
+
+	mov	8*0($b_org), %rax
+	mov	$b_org, $b_ptr
+	lea	.Lord(%rip), %r14
+	mov	.LordK(%rip), %r15
+
+	################################# * b[0]
+	mov	%rax, $t0
+	mulq	8*0($a_ptr)
+	mov	%rax, $acc0
+	mov	$t0, %rax
+	mov	%rdx, $acc1
+
+	mulq	8*1($a_ptr)
+	add	%rax, $acc1
+	mov	$t0, %rax
+	adc	\$0, %rdx
+	mov	%rdx, $acc2
+
+	mulq	8*2($a_ptr)
+	add	%rax, $acc2
+	mov	$t0, %rax
+	adc	\$0, %rdx
+
+	 mov	$acc0, $acc5
+	 imulq	%r15,$acc0
+
+	mov	%rdx, $acc3
+	mulq	8*3($a_ptr)
+	add	%rax, $acc3
+	 mov	$acc0, %rax
+	adc	\$0, %rdx
+	mov	%rdx, $acc4
+
+	################################# First reduction step
+	mulq	8*0(%r14)
+	mov	$acc0, $t1
+	add	%rax, $acc5		# guaranteed to be zero
+	mov	$acc0, %rax
+	adc	\$0, %rdx
+	mov	%rdx, $t0
+
+	sub	$acc0, $acc2
+	sbb	\$0, $acc0		# can't borrow
+
+	mulq	8*1(%r14)
+	add	$t0, $acc1
+	adc	\$0, %rdx
+	add	%rax, $acc1
+	mov	$t1, %rax
+	adc	%rdx, $acc2
+	mov	$t1, %rdx
+	adc	\$0, $acc0		# can't overflow
+
+	shl	\$32, %rax
+	shr	\$32, %rdx
+	sub	%rax, $acc3
+	 mov	8*1($b_ptr), %rax
+	sbb	%rdx, $t1		# can't borrow
+
+	add	$acc0, $acc3
+	adc	$t1, $acc4
+	adc	\$0, $acc5
+
+	################################# * b[1]
+	mov	%rax, $t0
+	mulq	8*0($a_ptr)
+	add	%rax, $acc1
+	mov	$t0, %rax
+	adc	\$0, %rdx
+	mov	%rdx, $t1
+
+	mulq	8*1($a_ptr)
+	add	$t1, $acc2
+	adc	\$0, %rdx
+	add	%rax, $acc2
+	mov	$t0, %rax
+	adc	\$0, %rdx
+	mov	%rdx, $t1
+
+	mulq	8*2($a_ptr)
+	add	$t1, $acc3
+	adc	\$0, %rdx
+	add	%rax, $acc3
+	mov	$t0, %rax
+	adc	\$0, %rdx
+
+	 mov	$acc1, $t0
+	 imulq	%r15, $acc1
+
+	mov	%rdx, $t1
+	mulq	8*3($a_ptr)
+	add	$t1, $acc4
+	adc	\$0, %rdx
+	xor	$acc0, $acc0
+	add	%rax, $acc4
+	 mov	$acc1, %rax
+	adc	%rdx, $acc5
+	adc	\$0, $acc0
+
+	################################# Second reduction step
+	mulq	8*0(%r14)
+	mov	$acc1, $t1
+	add	%rax, $t0		# guaranteed to be zero
+	mov	$acc1, %rax
+	adc	%rdx, $t0
+
+	sub	$acc1, $acc3
+	sbb	\$0, $acc1		# can't borrow
+
+	mulq	8*1(%r14)
+	add	$t0, $acc2
+	adc	\$0, %rdx
+	add	%rax, $acc2
+	mov	$t1, %rax
+	adc	%rdx, $acc3
+	mov	$t1, %rdx
+	adc	\$0, $acc1		# can't overflow
+
+	shl	\$32, %rax
+	shr	\$32, %rdx
+	sub	%rax, $acc4
+	 mov	8*2($b_ptr), %rax
+	sbb	%rdx, $t1		# can't borrow
+
+	add	$acc1, $acc4
+	adc	$t1, $acc5
+	adc	\$0, $acc0
+
+	################################## * b[2]
+	mov	%rax, $t0
+	mulq	8*0($a_ptr)
+	add	%rax, $acc2
+	mov	$t0, %rax
+	adc	\$0, %rdx
+	mov	%rdx, $t1
+
+	mulq	8*1($a_ptr)
+	add	$t1, $acc3
+	adc	\$0, %rdx
+	add	%rax, $acc3
+	mov	$t0, %rax
+	adc	\$0, %rdx
+	mov	%rdx, $t1
+
+	mulq	8*2($a_ptr)
+	add	$t1, $acc4
+	adc	\$0, %rdx
+	add	%rax, $acc4
+	mov	$t0, %rax
+	adc	\$0, %rdx
+
+	 mov	$acc2, $t0
+	 imulq	%r15, $acc2
+
+	mov	%rdx, $t1
+	mulq	8*3($a_ptr)
+	add	$t1, $acc5
+	adc	\$0, %rdx
+	xor	$acc1, $acc1
+	add	%rax, $acc5
+	 mov	$acc2, %rax
+	adc	%rdx, $acc0
+	adc	\$0, $acc1
+
+	################################# Third reduction step
+	mulq	8*0(%r14)
+	mov	$acc2, $t1
+	add	%rax, $t0		# guaranteed to be zero
+	mov	$acc2, %rax
+	adc	%rdx, $t0
+
+	sub	$acc2, $acc4
+	sbb	\$0, $acc2		# can't borrow
+
+	mulq	8*1(%r14)
+	add	$t0, $acc3
+	adc	\$0, %rdx
+	add	%rax, $acc3
+	mov	$t1, %rax
+	adc	%rdx, $acc4
+	mov	$t1, %rdx
+	adc	\$0, $acc2		# can't overflow
+
+	shl	\$32, %rax
+	shr	\$32, %rdx
+	sub	%rax, $acc5
+	 mov	8*3($b_ptr), %rax
+	sbb	%rdx, $t1		# can't borrow
+
+	add	$acc2, $acc5
+	adc	$t1, $acc0
+	adc	\$0, $acc1
+
+	################################# * b[3]
+	mov	%rax, $t0
+	mulq	8*0($a_ptr)
+	add	%rax, $acc3
+	mov	$t0, %rax
+	adc	\$0, %rdx
+	mov	%rdx, $t1
+
+	mulq	8*1($a_ptr)
+	add	$t1, $acc4
+	adc	\$0, %rdx
+	add	%rax, $acc4
+	mov	$t0, %rax
+	adc	\$0, %rdx
+	mov	%rdx, $t1
+
+	mulq	8*2($a_ptr)
+	add	$t1, $acc5
+	adc	\$0, %rdx
+	add	%rax, $acc5
+	mov	$t0, %rax
+	adc	\$0, %rdx
+
+	 mov	$acc3, $t0
+	 imulq	%r15, $acc3
+
+	mov	%rdx, $t1
+	mulq	8*3($a_ptr)
+	add	$t1, $acc0
+	adc	\$0, %rdx
+	xor	$acc2, $acc2
+	add	%rax, $acc0
+	 mov	$acc3, %rax
+	adc	%rdx, $acc1
+	adc	\$0, $acc2
+
+	################################# Last reduction step
+	mulq	8*0(%r14)
+	mov	$acc3, $t1
+	add	%rax, $t0		# guaranteed to be zero
+	mov	$acc3, %rax
+	adc	%rdx, $t0
+
+	sub	$acc3, $acc5
+	sbb	\$0, $acc3		# can't borrow
+
+	mulq	8*1(%r14)
+	add	$t0, $acc4
+	adc	\$0, %rdx
+	add	%rax, $acc4
+	mov	$t1, %rax
+	adc	%rdx, $acc5
+	mov	$t1, %rdx
+	adc	\$0, $acc3		# can't overflow
+
+	shl	\$32, %rax
+	shr	\$32, %rdx
+	sub	%rax, $acc0
+	sbb	%rdx, $t1		# can't borrow
+
+	add	$acc3, $acc0
+	adc	$t1, $acc1
+	adc	\$0, $acc2
+
+	################################# Subtract ord
+	 mov	$acc4, $a_ptr
+	sub	8*0(%r14), $acc4
+	 mov	$acc5, $acc3
+	sbb	8*1(%r14), $acc5
+	 mov	$acc0, $t0
+	sbb	8*2(%r14), $acc0
+	 mov	$acc1, $t1
+	sbb	8*3(%r14), $acc1
+	sbb	\$0, $acc2
+
+	cmovc	$a_ptr, $acc4
+	cmovc	$acc3, $acc5
+	cmovc	$t0, $acc0
+	cmovc	$t1, $acc1
+
+	mov	$acc4, 8*0($r_ptr)
+	mov	$acc5, 8*1($r_ptr)
+	mov	$acc0, 8*2($r_ptr)
+	mov	$acc1, 8*3($r_ptr)
+
+	mov	0(%rsp),%r15
+.cfi_restore	%r15
+	mov	8(%rsp),%r14
+.cfi_restore	%r14
+	mov	16(%rsp),%r13
+.cfi_restore	%r13
+	mov	24(%rsp),%r12
+.cfi_restore	%r12
+	mov	32(%rsp),%rbx
+.cfi_restore	%rbx
+	mov	40(%rsp),%rbp
+.cfi_restore	%rbp
+	lea	48(%rsp),%rsp
+.cfi_adjust_cfa_offset	-48
+.Lord_mul_epilogue:
+	ret
+.cfi_endproc
+.size	ecp_nistz256_ord_mul_mont,.-ecp_nistz256_ord_mul_mont
+
+################################################################################
+# void ecp_nistz256_ord_sqr_mont(
+#   uint64_t res[4],
+#   uint64_t a[4],
+#   int rep);
+
+.globl	ecp_nistz256_ord_sqr_mont
+.type	ecp_nistz256_ord_sqr_mont,\@function,3
+.align	32
+ecp_nistz256_ord_sqr_mont:
+.cfi_startproc
+___
+$code.=<<___	if ($addx);
+	mov	\$0x80100, %ecx
+	and	OPENSSL_ia32cap_P+8(%rip), %ecx
+	cmp	\$0x80100, %ecx
+	je	.Lecp_nistz256_ord_sqr_montx
+___
+$code.=<<___;
+	push	%rbp
+.cfi_push	%rbp
+	push	%rbx
+.cfi_push	%rbx
+	push	%r12
+.cfi_push	%r12
+	push	%r13
+.cfi_push	%r13
+	push	%r14
+.cfi_push	%r14
+	push	%r15
+.cfi_push	%r15
+.Lord_sqr_body:
+
+	mov	8*0($a_ptr), $acc0
+	mov	8*1($a_ptr), %rax
+	mov	8*2($a_ptr), $acc6
+	mov	8*3($a_ptr), $acc7
+	lea	.Lord(%rip), $a_ptr	# pointer to modulus
+	mov	$b_org, $b_ptr
+	jmp	.Loop_ord_sqr
+
+.align	32
+.Loop_ord_sqr:
+	################################# a[1:] * a[0]
+	mov	%rax, $t1		# put aside a[1]
+	mul	$acc0			# a[1] * a[0]
+	mov	%rax, $acc1
+	movq	$t1, %xmm1		# offload a[1]
+	mov	$acc6, %rax
+	mov	%rdx, $acc2
+
+	mul	$acc0			# a[2] * a[0]
+	add	%rax, $acc2
+	mov	$acc7, %rax
+	movq	$acc6, %xmm2		# offload a[2]
+	adc	\$0, %rdx
+	mov	%rdx, $acc3
+
+	mul	$acc0			# a[3] * a[0]
+	add	%rax, $acc3
+	mov	$acc7, %rax
+	movq	$acc7, %xmm3		# offload a[3]
+	adc	\$0, %rdx
+	mov	%rdx, $acc4
+
+	################################# a[3] * a[2]
+	mul	$acc6			# a[3] * a[2]
+	mov	%rax, $acc5
+	mov	$acc6, %rax
+	mov	%rdx, $acc6
+
+	################################# a[2:] * a[1]
+	mul	$t1			# a[2] * a[1]
+	add	%rax, $acc3
+	mov	$acc7, %rax
+	adc	\$0, %rdx
+	mov	%rdx, $acc7
+
+	mul	$t1			# a[3] * a[1]
+	add	%rax, $acc4
+	adc	\$0, %rdx
+
+	add	$acc7, $acc4
+	adc	%rdx, $acc5
+	adc	\$0, $acc6		# can't overflow
+
+	################################# *2
+	xor	$acc7, $acc7
+	mov	$acc0, %rax
+	add	$acc1, $acc1
+	adc	$acc2, $acc2
+	adc	$acc3, $acc3
+	adc	$acc4, $acc4
+	adc	$acc5, $acc5
+	adc	$acc6, $acc6
+	adc	\$0, $acc7
+
+	################################# Missing products
+	mul	%rax			# a[0] * a[0]
+	mov	%rax, $acc0
+	movq	%xmm1, %rax
+	mov	%rdx, $t1
+
+	mul	%rax			# a[1] * a[1]
+	add	$t1, $acc1
+	adc	%rax, $acc2
+	movq	%xmm2, %rax
+	adc	\$0, %rdx
+	mov	%rdx, $t1
+
+	mul	%rax			# a[2] * a[2]
+	add	$t1, $acc3
+	adc	%rax, $acc4
+	movq	%xmm3, %rax
+	adc	\$0, %rdx
+	mov	%rdx, $t1
+
+	 mov	$acc0, $t0
+	 imulq	8*4($a_ptr), $acc0	# *= .LordK
+
+	mul	%rax			# a[3] * a[3]
+	add	$t1, $acc5
+	adc	%rax, $acc6
+	 mov	8*0($a_ptr), %rax	# modulus[0]
+	adc	%rdx, $acc7		# can't overflow
+
+	################################# First reduction step
+	mul	$acc0
+	mov	$acc0, $t1
+	add	%rax, $t0		# guaranteed to be zero
+	mov	8*1($a_ptr), %rax	# modulus[1]
+	adc	%rdx, $t0
+
+	sub	$acc0, $acc2
+	sbb	\$0, $t1		# can't borrow
+
+	mul	$acc0
+	add	$t0, $acc1
+	adc	\$0, %rdx
+	add	%rax, $acc1
+	mov	$acc0, %rax
+	adc	%rdx, $acc2
+	mov	$acc0, %rdx
+	adc	\$0, $t1		# can't overflow
+
+	 mov	$acc1, $t0
+	 imulq	8*4($a_ptr), $acc1	# *= .LordK
+
+	shl	\$32, %rax
+	shr	\$32, %rdx
+	sub	%rax, $acc3
+	 mov	8*0($a_ptr), %rax
+	sbb	%rdx, $acc0		# can't borrow
+
+	add	$t1, $acc3
+	adc	\$0, $acc0		# can't overflow
+
+	################################# Second reduction step
+	mul	$acc1
+	mov	$acc1, $t1
+	add	%rax, $t0		# guaranteed to be zero
+	mov	8*1($a_ptr), %rax
+	adc	%rdx, $t0
+
+	sub	$acc1, $acc3
+	sbb	\$0, $t1		# can't borrow
+
+	mul	$acc1
+	add	$t0, $acc2
+	adc	\$0, %rdx
+	add	%rax, $acc2
+	mov	$acc1, %rax
+	adc	%rdx, $acc3
+	mov	$acc1, %rdx
+	adc	\$0, $t1		# can't overflow
+
+	 mov	$acc2, $t0
+	 imulq	8*4($a_ptr), $acc2	# *= .LordK
+
+	shl	\$32, %rax
+	shr	\$32, %rdx
+	sub	%rax, $acc0
+	 mov	8*0($a_ptr), %rax
+	sbb	%rdx, $acc1		# can't borrow
+
+	add	$t1, $acc0
+	adc	\$0, $acc1		# can't overflow
+
+	################################# Third reduction step
+	mul	$acc2
+	mov	$acc2, $t1
+	add	%rax, $t0		# guaranteed to be zero
+	mov	8*1($a_ptr), %rax
+	adc	%rdx, $t0
+
+	sub	$acc2, $acc0
+	sbb	\$0, $t1		# can't borrow
+
+	mul	$acc2
+	add	$t0, $acc3
+	adc	\$0, %rdx
+	add	%rax, $acc3
+	mov	$acc2, %rax
+	adc	%rdx, $acc0
+	mov	$acc2, %rdx
+	adc	\$0, $t1		# can't overflow
+
+	 mov	$acc3, $t0
+	 imulq	8*4($a_ptr), $acc3	# *= .LordK
+
+	shl	\$32, %rax
+	shr	\$32, %rdx
+	sub	%rax, $acc1
+	 mov	8*0($a_ptr), %rax
+	sbb	%rdx, $acc2		# can't borrow
+
+	add	$t1, $acc1
+	adc	\$0, $acc2		# can't overflow
+
+	################################# Last reduction step
+	mul	$acc3
+	mov	$acc3, $t1
+	add	%rax, $t0		# guaranteed to be zero
+	mov	8*1($a_ptr), %rax
+	adc	%rdx, $t0
+
+	sub	$acc3, $acc1
+	sbb	\$0, $t1		# can't borrow
+
+	mul	$acc3
+	add	$t0, $acc0
+	adc	\$0, %rdx
+	add	%rax, $acc0
+	mov	$acc3, %rax
+	adc	%rdx, $acc1
+	mov	$acc3, %rdx
+	adc	\$0, $t1		# can't overflow
+
+	shl	\$32, %rax
+	shr	\$32, %rdx
+	sub	%rax, $acc2
+	sbb	%rdx, $acc3		# can't borrow
+
+	add	$t1, $acc2
+	adc	\$0, $acc3		# can't overflow
+
+	################################# Add bits [511:256] of the sqr result
+	xor	%rdx, %rdx
+	add	$acc4, $acc0
+	adc	$acc5, $acc1
+	 mov	$acc0, $acc4
+	adc	$acc6, $acc2
+	adc	$acc7, $acc3
+	 mov	$acc1, %rax
+	adc	\$0, %rdx
+
+	################################# Compare to modulus
+	sub	8*0($a_ptr), $acc0
+	 mov	$acc2, $acc6
+	sbb	8*1($a_ptr), $acc1
+	sbb	8*2($a_ptr), $acc2
+	 mov	$acc3, $acc7
+	sbb	8*3($a_ptr), $acc3
+	sbb	\$0, %rdx
+
+	cmovc	$acc4, $acc0
+	cmovnc	$acc1, %rax
+	cmovnc	$acc2, $acc6
+	cmovnc	$acc3, $acc7
+
+	dec	$b_ptr
+	jnz	.Loop_ord_sqr
+
+	mov	$acc0, 8*0($r_ptr)
+	mov	%rax,  8*1($r_ptr)
+	pxor	%xmm1, %xmm1
+	mov	$acc6, 8*2($r_ptr)
+	pxor	%xmm2, %xmm2
+	mov	$acc7, 8*3($r_ptr)
+	pxor	%xmm3, %xmm3
+
+	mov	0(%rsp),%r15
+.cfi_restore	%r15
+	mov	8(%rsp),%r14
+.cfi_restore	%r14
+	mov	16(%rsp),%r13
+.cfi_restore	%r13
+	mov	24(%rsp),%r12
+.cfi_restore	%r12
+	mov	32(%rsp),%rbx
+.cfi_restore	%rbx
+	mov	40(%rsp),%rbp
+.cfi_restore	%rbp
+	lea	48(%rsp),%rsp
+.cfi_adjust_cfa_offset	-48
+.Lord_sqr_epilogue:
+	ret
+.cfi_endproc
+.size	ecp_nistz256_ord_sqr_mont,.-ecp_nistz256_ord_sqr_mont
+___
+
+$code.=<<___	if ($addx);
+################################################################################
+.type	ecp_nistz256_ord_mul_montx,\@function,3
+.align	32
+ecp_nistz256_ord_mul_montx:
+.cfi_startproc
+.Lecp_nistz256_ord_mul_montx:
+	push	%rbp
+.cfi_push	%rbp
+	push	%rbx
+.cfi_push	%rbx
+	push	%r12
+.cfi_push	%r12
+	push	%r13
+.cfi_push	%r13
+	push	%r14
+.cfi_push	%r14
+	push	%r15
+.cfi_push	%r15
+.Lord_mulx_body:
+
+	mov	$b_org, $b_ptr
+	mov	8*0($b_org), %rdx
+	mov	8*0($a_ptr), $acc1
+	mov	8*1($a_ptr), $acc2
+	mov	8*2($a_ptr), $acc3
+	mov	8*3($a_ptr), $acc4
+	lea	-128($a_ptr), $a_ptr	# control u-op density
+	lea	.Lord-128(%rip), %r14
+	mov	.LordK(%rip), %r15
+
+	################################# Multiply by b[0]
+	mulx	$acc1, $acc0, $acc1
+	mulx	$acc2, $t0, $acc2
+	mulx	$acc3, $t1, $acc3
+	add	$t0, $acc1
+	mulx	$acc4, $t0, $acc4
+	 mov	$acc0, %rdx
+	 mulx	%r15, %rdx, %rax
+	adc	$t1, $acc2
+	adc	$t0, $acc3
+	adc	\$0, $acc4
+
+	################################# reduction
+	xor	$acc5, $acc5		# $acc5=0, cf=0, of=0
+	mulx	8*0+128(%r14), $t0, $t1
+	adcx	$t0, $acc0		# guaranteed to be zero
+	adox	$t1, $acc1
+
+	mulx	8*1+128(%r14), $t0, $t1
+	adcx	$t0, $acc1
+	adox	$t1, $acc2
+
+	mulx	8*2+128(%r14), $t0, $t1
+	adcx	$t0, $acc2
+	adox	$t1, $acc3
+
+	mulx	8*3+128(%r14), $t0, $t1
+	 mov	8*1($b_ptr), %rdx
+	adcx	$t0, $acc3
+	adox	$t1, $acc4
+	adcx	$acc0, $acc4
+	adox	$acc0, $acc5
+	adc	\$0, $acc5		# cf=0, of=0
+
+	################################# Multiply by b[1]
+	mulx	8*0+128($a_ptr), $t0, $t1
+	adcx	$t0, $acc1
+	adox	$t1, $acc2
+
+	mulx	8*1+128($a_ptr), $t0, $t1
+	adcx	$t0, $acc2
+	adox	$t1, $acc3
+
+	mulx	8*2+128($a_ptr), $t0, $t1
+	adcx	$t0, $acc3
+	adox	$t1, $acc4
+
+	mulx	8*3+128($a_ptr), $t0, $t1
+	 mov	$acc1, %rdx
+	 mulx	%r15, %rdx, %rax
+	adcx	$t0, $acc4
+	adox	$t1, $acc5
+
+	adcx	$acc0, $acc5
+	adox	$acc0, $acc0
+	adc	\$0, $acc0		# cf=0, of=0
+
+	################################# reduction
+	mulx	8*0+128(%r14), $t0, $t1
+	adcx	$t0, $acc1		# guaranteed to be zero
+	adox	$t1, $acc2
+
+	mulx	8*1+128(%r14), $t0, $t1
+	adcx	$t0, $acc2
+	adox	$t1, $acc3
+
+	mulx	8*2+128(%r14), $t0, $t1
+	adcx	$t0, $acc3
+	adox	$t1, $acc4
+
+	mulx	8*3+128(%r14), $t0, $t1
+	 mov	8*2($b_ptr), %rdx
+	adcx	$t0, $acc4
+	adox	$t1, $acc5
+	adcx	$acc1, $acc5
+	adox	$acc1, $acc0
+	adc	\$0, $acc0		# cf=0, of=0
+
+	################################# Multiply by b[2]
+	mulx	8*0+128($a_ptr), $t0, $t1
+	adcx	$t0, $acc2
+	adox	$t1, $acc3
+
+	mulx	8*1+128($a_ptr), $t0, $t1
+	adcx	$t0, $acc3
+	adox	$t1, $acc4
+
+	mulx	8*2+128($a_ptr), $t0, $t1
+	adcx	$t0, $acc4
+	adox	$t1, $acc5
+
+	mulx	8*3+128($a_ptr), $t0, $t1
+	 mov	$acc2, %rdx
+	 mulx	%r15, %rdx, %rax
+	adcx	$t0, $acc5
+	adox	$t1, $acc0
+
+	adcx	$acc1, $acc0
+	adox	$acc1, $acc1
+	adc	\$0, $acc1		# cf=0, of=0
+
+	################################# reduction
+	mulx	8*0+128(%r14), $t0, $t1
+	adcx	$t0, $acc2		# guaranteed to be zero
+	adox	$t1, $acc3
+
+	mulx	8*1+128(%r14), $t0, $t1
+	adcx	$t0, $acc3
+	adox	$t1, $acc4
+
+	mulx	8*2+128(%r14), $t0, $t1
+	adcx	$t0, $acc4
+	adox	$t1, $acc5
+
+	mulx	8*3+128(%r14), $t0, $t1
+	 mov	8*3($b_ptr), %rdx
+	adcx	$t0, $acc5
+	adox	$t1, $acc0
+	adcx	$acc2, $acc0
+	adox	$acc2, $acc1
+	adc	\$0, $acc1		# cf=0, of=0
+
+	################################# Multiply by b[3]
+	mulx	8*0+128($a_ptr), $t0, $t1
+	adcx	$t0, $acc3
+	adox	$t1, $acc4
+
+	mulx	8*1+128($a_ptr), $t0, $t1
+	adcx	$t0, $acc4
+	adox	$t1, $acc5
+
+	mulx	8*2+128($a_ptr), $t0, $t1
+	adcx	$t0, $acc5
+	adox	$t1, $acc0
+
+	mulx	8*3+128($a_ptr), $t0, $t1
+	 mov	$acc3, %rdx
+	 mulx	%r15, %rdx, %rax
+	adcx	$t0, $acc0
+	adox	$t1, $acc1
+
+	adcx	$acc2, $acc1
+	adox	$acc2, $acc2
+	adc	\$0, $acc2		# cf=0, of=0
+
+	################################# reduction
+	mulx	8*0+128(%r14), $t0, $t1
+	adcx	$t0, $acc3		# guranteed to be zero
+	adox	$t1, $acc4
+
+	mulx	8*1+128(%r14), $t0, $t1
+	adcx	$t0, $acc4
+	adox	$t1, $acc5
+
+	mulx	8*2+128(%r14), $t0, $t1
+	adcx	$t0, $acc5
+	adox	$t1, $acc0
+
+	mulx	8*3+128(%r14), $t0, $t1
+	lea	128(%r14),%r14
+	 mov	$acc4, $t2
+	adcx	$t0, $acc0
+	adox	$t1, $acc1
+	 mov	$acc5, $t3
+	adcx	$acc3, $acc1
+	adox	$acc3, $acc2
+	adc	\$0, $acc2
+
+	#################################
+	# Branch-less conditional subtraction of P
+	 mov	$acc0, $t0
+	sub	8*0(%r14), $acc4
+	sbb	8*1(%r14), $acc5
+	sbb	8*2(%r14), $acc0
+	 mov	$acc1, $t1
+	sbb	8*3(%r14), $acc1
+	sbb	\$0, $acc2
+
+	cmovc	$t2, $acc4
+	cmovc	$t3, $acc5
+	cmovc	$t0, $acc0
+	cmovc	$t1, $acc1
+
+	mov	$acc4, 8*0($r_ptr)
+	mov	$acc5, 8*1($r_ptr)
+	mov	$acc0, 8*2($r_ptr)
+	mov	$acc1, 8*3($r_ptr)
+
+	mov	0(%rsp),%r15
+.cfi_restore	%r15
+	mov	8(%rsp),%r14
+.cfi_restore	%r14
+	mov	16(%rsp),%r13
+.cfi_restore	%r13
+	mov	24(%rsp),%r12
+.cfi_restore	%r12
+	mov	32(%rsp),%rbx
+.cfi_restore	%rbx
+	mov	40(%rsp),%rbp
+.cfi_restore	%rbp
+	lea	48(%rsp),%rsp
+.cfi_adjust_cfa_offset	-48
+.Lord_mulx_epilogue:
+	ret
+.cfi_endproc
+.size	ecp_nistz256_ord_mul_montx,.-ecp_nistz256_ord_mul_montx
+
+.type	ecp_nistz256_ord_sqr_montx,\@function,3
+.align	32
+ecp_nistz256_ord_sqr_montx:
+.cfi_startproc
+.Lecp_nistz256_ord_sqr_montx:
+	push	%rbp
+.cfi_push	%rbp
+	push	%rbx
+.cfi_push	%rbx
+	push	%r12
+.cfi_push	%r12
+	push	%r13
+.cfi_push	%r13
+	push	%r14
+.cfi_push	%r14
+	push	%r15
+.cfi_push	%r15
+.Lord_sqrx_body:
+
+	mov	$b_org, $b_ptr
+	mov	8*0($a_ptr), %rdx
+	mov	8*1($a_ptr), $acc6
+	mov	8*2($a_ptr), $acc7
+	mov	8*3($a_ptr), $acc0
+	lea	.Lord(%rip), $a_ptr
+	jmp	.Loop_ord_sqrx
+
+.align	32
+.Loop_ord_sqrx:
+	mulx	$acc6, $acc1, $acc2	# a[0]*a[1]
+	mulx	$acc7, $t0, $acc3	# a[0]*a[2]
+	 mov	%rdx, %rax		# offload a[0]
+	 movq	$acc6, %xmm1		# offload a[1]
+	mulx	$acc0, $t1, $acc4	# a[0]*a[3]
+	 mov	$acc6, %rdx
+	add	$t0, $acc2
+	 movq	$acc7, %xmm2		# offload a[2]
+	adc	$t1, $acc3
+	adc	\$0, $acc4
+	xor	$acc5, $acc5		# $acc5=0,cf=0,of=0
+	#################################
+	mulx	$acc7, $t0, $t1		# a[1]*a[2]
+	adcx	$t0, $acc3
+	adox	$t1, $acc4
+
+	mulx	$acc0, $t0, $t1		# a[1]*a[3]
+	 mov	$acc7, %rdx
+	adcx	$t0, $acc4
+	adox	$t1, $acc5
+	adc	\$0, $acc5
+	#################################
+	mulx	$acc0, $t0, $acc6	# a[2]*a[3]
+	mov	%rax, %rdx
+	 movq	$acc0, %xmm3		# offload a[3]
+	xor	$acc7, $acc7		# $acc7=0,cf=0,of=0
+	 adcx	$acc1, $acc1		# acc1:6<<1
+	adox	$t0, $acc5
+	 adcx	$acc2, $acc2
+	adox	$acc7, $acc6		# of=0
+
+	################################# a[i]*a[i]
+	mulx	%rdx, $acc0, $t1
+	movq	%xmm1, %rdx
+	 adcx	$acc3, $acc3
+	adox	$t1, $acc1
+	 adcx	$acc4, $acc4
+	mulx	%rdx, $t0, $t4
+	movq	%xmm2, %rdx
+	 adcx	$acc5, $acc5
+	adox	$t0, $acc2
+	 adcx	$acc6, $acc6
+	mulx	%rdx, $t0, $t1
+	.byte	0x67
+	movq	%xmm3, %rdx
+	adox	$t4, $acc3
+	 adcx	$acc7, $acc7
+	adox	$t0, $acc4
+	adox	$t1, $acc5
+	mulx	%rdx, $t0, $t4
+	adox	$t0, $acc6
+	adox	$t4, $acc7
+
+	################################# reduction
+	mov	$acc0, %rdx
+	mulx	8*4($a_ptr), %rdx, $t0
+
+	xor	%rax, %rax		# cf=0, of=0
+	mulx	8*0($a_ptr), $t0, $t1
+	adcx	$t0, $acc0		# guaranteed to be zero
+	adox	$t1, $acc1
+	mulx	8*1($a_ptr), $t0, $t1
+	adcx	$t0, $acc1
+	adox	$t1, $acc2
+	mulx	8*2($a_ptr), $t0, $t1
+	adcx	$t0, $acc2
+	adox	$t1, $acc3
+	mulx	8*3($a_ptr), $t0, $t1
+	adcx	$t0, $acc3
+	adox	$t1, $acc0		# of=0
+	adcx	%rax, $acc0		# cf=0
+
+	#################################
+	mov	$acc1, %rdx
+	mulx	8*4($a_ptr), %rdx, $t0
+
+	mulx	8*0($a_ptr), $t0, $t1
+	adox	$t0, $acc1		# guaranteed to be zero
+	adcx	$t1, $acc2
+	mulx	8*1($a_ptr), $t0, $t1
+	adox	$t0, $acc2
+	adcx	$t1, $acc3
+	mulx	8*2($a_ptr), $t0, $t1
+	adox	$t0, $acc3
+	adcx	$t1, $acc0
+	mulx	8*3($a_ptr), $t0, $t1
+	adox	$t0, $acc0
+	adcx	$t1, $acc1		# cf=0
+	adox	%rax, $acc1		# of=0
+
+	#################################
+	mov	$acc2, %rdx
+	mulx	8*4($a_ptr), %rdx, $t0
+
+	mulx	8*0($a_ptr), $t0, $t1
+	adcx	$t0, $acc2		# guaranteed to be zero
+	adox	$t1, $acc3
+	mulx	8*1($a_ptr), $t0, $t1
+	adcx	$t0, $acc3
+	adox	$t1, $acc0
+	mulx	8*2($a_ptr), $t0, $t1
+	adcx	$t0, $acc0
+	adox	$t1, $acc1
+	mulx	8*3($a_ptr), $t0, $t1
+	adcx	$t0, $acc1
+	adox	$t1, $acc2		# of=0
+	adcx	%rax, $acc2		# cf=0
+
+	#################################
+	mov	$acc3, %rdx
+	mulx	8*4($a_ptr), %rdx, $t0
+
+	mulx	8*0($a_ptr), $t0, $t1
+	adox	$t0, $acc3		# guaranteed to be zero
+	adcx	$t1, $acc0
+	mulx	8*1($a_ptr), $t0, $t1
+	adox	$t0, $acc0
+	adcx	$t1, $acc1
+	mulx	8*2($a_ptr), $t0, $t1
+	adox	$t0, $acc1
+	adcx	$t1, $acc2
+	mulx	8*3($a_ptr), $t0, $t1
+	adox	$t0, $acc2
+	adcx	$t1, $acc3
+	adox	%rax, $acc3
+
+	################################# accumulate upper half
+	add	$acc0, $acc4		# add	$acc4, $acc0
+	adc	$acc5, $acc1
+	 mov	$acc4, %rdx
+	adc	$acc6, $acc2
+	adc	$acc7, $acc3
+	 mov	$acc1, $acc6
+	adc	\$0, %rax
+
+	################################# compare to modulus
+	sub	8*0($a_ptr), $acc4
+	 mov	$acc2, $acc7
+	sbb	8*1($a_ptr), $acc1
+	sbb	8*2($a_ptr), $acc2
+	 mov	$acc3, $acc0
+	sbb	8*3($a_ptr), $acc3
+	sbb	\$0, %rax
+
+	cmovnc	$acc4, %rdx
+	cmovnc	$acc1, $acc6
+	cmovnc	$acc2, $acc7
+	cmovnc	$acc3, $acc0
+
+	dec	$b_ptr
+	jnz	.Loop_ord_sqrx
+
+	mov	%rdx, 8*0($r_ptr)
+	mov	$acc6, 8*1($r_ptr)
+	pxor	%xmm1, %xmm1
+	mov	$acc7, 8*2($r_ptr)
+	pxor	%xmm2, %xmm2
+	mov	$acc0, 8*3($r_ptr)
+	pxor	%xmm3, %xmm3
+
+	mov	0(%rsp),%r15
+.cfi_restore	%r15
+	mov	8(%rsp),%r14
+.cfi_restore	%r14
+	mov	16(%rsp),%r13
+.cfi_restore	%r13
+	mov	24(%rsp),%r12
+.cfi_restore	%r12
+	mov	32(%rsp),%rbx
+.cfi_restore	%rbx
+	mov	40(%rsp),%rbp
+.cfi_restore	%rbp
+	lea	48(%rsp),%rsp
+.cfi_adjust_cfa_offset	-48
+.Lord_sqrx_epilogue:
+	ret
+.cfi_endproc
+.size	ecp_nistz256_ord_sqr_montx,.-ecp_nistz256_ord_sqr_montx
+___
 
 $code.=<<___;
 ################################################################################
@@ -470,6 +1599,7 @@ $code.=<<___;
 .type	ecp_nistz256_mul_mont,\@function,3
 .align	32
 ecp_nistz256_mul_mont:
+.cfi_startproc
 ___
 $code.=<<___	if ($addx);
 	mov	\$0x80100, %ecx
@@ -478,11 +1608,18 @@ ___
 $code.=<<___;
 .Lmul_mont:
 	push	%rbp
+.cfi_push	%rbp
 	push	%rbx
+.cfi_push	%rbx
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
+.Lmul_body:
 ___
 $code.=<<___	if ($addx);
 	cmp	\$0x80100, %ecx
@@ -515,13 +1652,23 @@ $code.=<<___	if ($addx);
 ___
 $code.=<<___;
 .Lmul_mont_done:
-	pop	%r15
-	pop	%r14
-	pop	%r13
-	pop	%r12
-	pop	%rbx
-	pop	%rbp
+	mov	0(%rsp),%r15
+.cfi_restore	%r15
+	mov	8(%rsp),%r14
+.cfi_restore	%r14
+	mov	16(%rsp),%r13
+.cfi_restore	%r13
+	mov	24(%rsp),%r12
+.cfi_restore	%r12
+	mov	32(%rsp),%rbx
+.cfi_restore	%rbx
+	mov	40(%rsp),%rbp
+.cfi_restore	%rbp
+	lea	48(%rsp),%rsp
+.cfi_adjust_cfa_offset	-48
+.Lmul_epilogue:
 	ret
+.cfi_endproc
 .size	ecp_nistz256_mul_mont,.-ecp_nistz256_mul_mont
 
 .type	__ecp_nistz256_mul_montq,\@abi-omnipotent
@@ -611,7 +1758,7 @@ __ecp_nistz256_mul_montq:
 	adc	\$0, $acc0
 
 	########################################################################
-	# Second reduction step	
+	# Second reduction step
 	mov	$acc1, $t1
 	shl	\$32, $acc1
 	mulq	$poly3
@@ -658,7 +1805,7 @@ __ecp_nistz256_mul_montq:
 	adc	\$0, $acc1
 
 	########################################################################
-	# Third reduction step	
+	# Third reduction step
 	mov	$acc2, $t1
 	shl	\$32, $acc2
 	mulq	$poly3
@@ -705,7 +1852,7 @@ __ecp_nistz256_mul_montq:
 	adc	\$0, $acc2
 
 	########################################################################
-	# Final reduction step	
+	# Final reduction step
 	mov	$acc3, $t1
 	shl	\$32, $acc3
 	mulq	$poly3
@@ -718,7 +1865,7 @@ __ecp_nistz256_mul_montq:
 	 mov	$acc5, $t1
 	adc	\$0, $acc2
 
-	########################################################################	
+	########################################################################
 	# Branch-less conditional subtraction of P
 	sub	\$-1, $acc4		# .Lpoly[0]
 	 mov	$acc0, $t2
@@ -751,6 +1898,7 @@ __ecp_nistz256_mul_montq:
 .type	ecp_nistz256_sqr_mont,\@function,2
 .align	32
 ecp_nistz256_sqr_mont:
+.cfi_startproc
 ___
 $code.=<<___	if ($addx);
 	mov	\$0x80100, %ecx
@@ -758,11 +1906,18 @@ $code.=<<___	if ($addx);
 ___
 $code.=<<___;
 	push	%rbp
+.cfi_push	%rbp
 	push	%rbx
+.cfi_push	%rbx
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
+.Lsqr_body:
 ___
 $code.=<<___	if ($addx);
 	cmp	\$0x80100, %ecx
@@ -791,13 +1946,23 @@ $code.=<<___	if ($addx);
 ___
 $code.=<<___;
 .Lsqr_mont_done:
-	pop	%r15
-	pop	%r14
-	pop	%r13
-	pop	%r12
-	pop	%rbx
-	pop	%rbp
+	mov	0(%rsp),%r15
+.cfi_restore	%r15
+	mov	8(%rsp),%r14
+.cfi_restore	%r14
+	mov	16(%rsp),%r13
+.cfi_restore	%r13
+	mov	24(%rsp),%r12
+.cfi_restore	%r12
+	mov	32(%rsp),%rbx
+.cfi_restore	%rbx
+	mov	40(%rsp),%rbp
+.cfi_restore	%rbp
+	lea	48(%rsp),%rsp
+.cfi_adjust_cfa_offset	-48
+.Lsqr_epilogue:
 	ret
+.cfi_endproc
 .size	ecp_nistz256_sqr_mont,.-ecp_nistz256_sqr_mont
 
 .type	__ecp_nistz256_sqr_montq,\@abi-omnipotent
@@ -1278,8 +2443,12 @@ $code.=<<___;
 .type	ecp_nistz256_from_mont,\@function,2
 .align	32
 ecp_nistz256_from_mont:
+.cfi_startproc
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
+.Lfrom_body:
 
 	mov	8*0($in_ptr), %rax
 	mov	.Lpoly+8*3(%rip), $t2
@@ -1360,9 +2529,15 @@ ecp_nistz256_from_mont:
 	mov	$acc2, 8*2($r_ptr)
 	mov	$acc3, 8*3($r_ptr)
 
-	pop	%r13
-	pop	%r12
+	mov	0(%rsp),%r13
+.cfi_restore	%r13
+	mov	8(%rsp),%r12
+.cfi_restore	%r12
+	lea	16(%rsp),%rsp
+.cfi_adjust_cfa_offset	-16
+.Lfrom_epilogue:
 	ret
+.cfi_endproc
 .size	ecp_nistz256_from_mont,.-ecp_nistz256_from_mont
 ___
 }
@@ -1488,10 +2663,10 @@ $code.=<<___	if ($win64);
 	movaps	0x80(%rsp), %xmm14
 	movaps	0x90(%rsp), %xmm15
 	lea	0xa8(%rsp), %rsp
-.LSEH_end_ecp_nistz256_gather_w5:
 ___
 $code.=<<___;
 	ret
+.LSEH_end_ecp_nistz256_gather_w5:
 .size	ecp_nistz256_gather_w5,.-ecp_nistz256_gather_w5
 
 ################################################################################
@@ -1593,10 +2768,10 @@ $code.=<<___	if ($win64);
 	movaps	0x80(%rsp), %xmm14
 	movaps	0x90(%rsp), %xmm15
 	lea	0xa8(%rsp), %rsp
-.LSEH_end_ecp_nistz256_gather_w7:
 ___
 $code.=<<___;
 	ret
+.LSEH_end_ecp_nistz256_gather_w7:
 .size	ecp_nistz256_gather_w7,.-ecp_nistz256_gather_w7
 ___
 }
@@ -1617,18 +2792,19 @@ ecp_nistz256_avx2_gather_w5:
 ___
 $code.=<<___	if ($win64);
 	lea	-0x88(%rsp), %rax
+	mov	%rsp,%r11
 .LSEH_begin_ecp_nistz256_avx2_gather_w5:
-	.byte	0x48,0x8d,0x60,0xe0		#lea	-0x20(%rax), %rsp
-	.byte	0xc5,0xf8,0x29,0x70,0xe0	#vmovaps %xmm6, -0x20(%rax)
-	.byte	0xc5,0xf8,0x29,0x78,0xf0	#vmovaps %xmm7, -0x10(%rax)
-	.byte	0xc5,0x78,0x29,0x40,0x00	#vmovaps %xmm8, 8(%rax)
-	.byte	0xc5,0x78,0x29,0x48,0x10	#vmovaps %xmm9, 0x10(%rax)
-	.byte	0xc5,0x78,0x29,0x50,0x20	#vmovaps %xmm10, 0x20(%rax)
-	.byte	0xc5,0x78,0x29,0x58,0x30	#vmovaps %xmm11, 0x30(%rax)
-	.byte	0xc5,0x78,0x29,0x60,0x40	#vmovaps %xmm12, 0x40(%rax)
-	.byte	0xc5,0x78,0x29,0x68,0x50	#vmovaps %xmm13, 0x50(%rax)
-	.byte	0xc5,0x78,0x29,0x70,0x60	#vmovaps %xmm14, 0x60(%rax)
-	.byte	0xc5,0x78,0x29,0x78,0x70	#vmovaps %xmm15, 0x70(%rax)
+	.byte	0x48,0x8d,0x60,0xe0		# lea	-0x20(%rax), %rsp
+	.byte	0xc5,0xf8,0x29,0x70,0xe0	# vmovaps %xmm6, -0x20(%rax)
+	.byte	0xc5,0xf8,0x29,0x78,0xf0	# vmovaps %xmm7, -0x10(%rax)
+	.byte	0xc5,0x78,0x29,0x40,0x00	# vmovaps %xmm8, 8(%rax)
+	.byte	0xc5,0x78,0x29,0x48,0x10	# vmovaps %xmm9, 0x10(%rax)
+	.byte	0xc5,0x78,0x29,0x50,0x20	# vmovaps %xmm10, 0x20(%rax)
+	.byte	0xc5,0x78,0x29,0x58,0x30	# vmovaps %xmm11, 0x30(%rax)
+	.byte	0xc5,0x78,0x29,0x60,0x40	# vmovaps %xmm12, 0x40(%rax)
+	.byte	0xc5,0x78,0x29,0x68,0x50	# vmovaps %xmm13, 0x50(%rax)
+	.byte	0xc5,0x78,0x29,0x70,0x60	# vmovaps %xmm14, 0x60(%rax)
+	.byte	0xc5,0x78,0x29,0x78,0x70	# vmovaps %xmm15, 0x70(%rax)
 ___
 $code.=<<___;
 	vmovdqa	.LTwo(%rip), $TWO
@@ -1694,11 +2870,11 @@ $code.=<<___	if ($win64);
 	movaps	0x70(%rsp), %xmm13
 	movaps	0x80(%rsp), %xmm14
 	movaps	0x90(%rsp), %xmm15
-	lea	0xa8(%rsp), %rsp
-.LSEH_end_ecp_nistz256_avx2_gather_w5:
+	lea	(%r11), %rsp
 ___
 $code.=<<___;
 	ret
+.LSEH_end_ecp_nistz256_avx2_gather_w5:
 .size	ecp_nistz256_avx2_gather_w5,.-ecp_nistz256_avx2_gather_w5
 ___
 }
@@ -1721,19 +2897,20 @@ ecp_nistz256_avx2_gather_w7:
 	vzeroupper
 ___
 $code.=<<___	if ($win64);
+	mov	%rsp,%r11
 	lea	-0x88(%rsp), %rax
 .LSEH_begin_ecp_nistz256_avx2_gather_w7:
-	.byte	0x48,0x8d,0x60,0xe0		#lea	-0x20(%rax), %rsp
-	.byte	0xc5,0xf8,0x29,0x70,0xe0	#vmovaps %xmm6, -0x20(%rax)
-	.byte	0xc5,0xf8,0x29,0x78,0xf0	#vmovaps %xmm7, -0x10(%rax)
-	.byte	0xc5,0x78,0x29,0x40,0x00	#vmovaps %xmm8, 8(%rax)
-	.byte	0xc5,0x78,0x29,0x48,0x10	#vmovaps %xmm9, 0x10(%rax)
-	.byte	0xc5,0x78,0x29,0x50,0x20	#vmovaps %xmm10, 0x20(%rax)
-	.byte	0xc5,0x78,0x29,0x58,0x30	#vmovaps %xmm11, 0x30(%rax)
-	.byte	0xc5,0x78,0x29,0x60,0x40	#vmovaps %xmm12, 0x40(%rax)
-	.byte	0xc5,0x78,0x29,0x68,0x50	#vmovaps %xmm13, 0x50(%rax)
-	.byte	0xc5,0x78,0x29,0x70,0x60	#vmovaps %xmm14, 0x60(%rax)
-	.byte	0xc5,0x78,0x29,0x78,0x70	#vmovaps %xmm15, 0x70(%rax)
+	.byte	0x48,0x8d,0x60,0xe0		# lea	-0x20(%rax), %rsp
+	.byte	0xc5,0xf8,0x29,0x70,0xe0	# vmovaps %xmm6, -0x20(%rax)
+	.byte	0xc5,0xf8,0x29,0x78,0xf0	# vmovaps %xmm7, -0x10(%rax)
+	.byte	0xc5,0x78,0x29,0x40,0x00	# vmovaps %xmm8, 8(%rax)
+	.byte	0xc5,0x78,0x29,0x48,0x10	# vmovaps %xmm9, 0x10(%rax)
+	.byte	0xc5,0x78,0x29,0x50,0x20	# vmovaps %xmm10, 0x20(%rax)
+	.byte	0xc5,0x78,0x29,0x58,0x30	# vmovaps %xmm11, 0x30(%rax)
+	.byte	0xc5,0x78,0x29,0x60,0x40	# vmovaps %xmm12, 0x40(%rax)
+	.byte	0xc5,0x78,0x29,0x68,0x50	# vmovaps %xmm13, 0x50(%rax)
+	.byte	0xc5,0x78,0x29,0x70,0x60	# vmovaps %xmm14, 0x60(%rax)
+	.byte	0xc5,0x78,0x29,0x78,0x70	# vmovaps %xmm15, 0x70(%rax)
 ___
 $code.=<<___;
 	vmovdqa	.LThree(%rip), $THREE
@@ -1814,11 +2991,11 @@ $code.=<<___	if ($win64);
 	movaps	0x70(%rsp), %xmm13
 	movaps	0x80(%rsp), %xmm14
 	movaps	0x90(%rsp), %xmm15
-	lea	0xa8(%rsp), %rsp
-.LSEH_end_ecp_nistz256_avx2_gather_w7:
+	lea	(%r11), %rsp
 ___
 $code.=<<___;
 	ret
+.LSEH_end_ecp_nistz256_avx2_gather_w7:
 .size	ecp_nistz256_avx2_gather_w7,.-ecp_nistz256_avx2_gather_w7
 ___
 } else {
@@ -2022,6 +3199,7 @@ $code.=<<___;
 .type	ecp_nistz256_point_double,\@function,2
 .align	32
 ecp_nistz256_point_double:
+.cfi_startproc
 ___
 $code.=<<___	if ($addx);
 	mov	\$0x80100, %ecx
@@ -2038,17 +3216,26 @@ $code.=<<___;
 .type	ecp_nistz256_point_doublex,\@function,2
 .align	32
 ecp_nistz256_point_doublex:
+.cfi_startproc
 .Lpoint_doublex:
 ___
     }
 $code.=<<___;
 	push	%rbp
+.cfi_push	%rbp
 	push	%rbx
+.cfi_push	%rbx
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 	sub	\$32*5+8, %rsp
+.cfi_adjust_cfa_offset	32*5+8
+.Lpoint_double${x}_body:
 
 .Lpoint_double_shortcut$x:
 	movdqu	0x00($a_ptr), %xmm0		# copy	*(P256_POINT *)$a_ptr.x
@@ -2114,7 +3301,7 @@ $code.=<<___;
 	movq	%xmm1, $r_ptr
 	call	__ecp_nistz256_sqr_mont$x	# p256_sqr_mont(res_y, S);
 ___
-{	
+{
 ######## ecp_nistz256_div_by_2(res_y, res_y); ##########################
 # operate in 4-5-6-7 "name space" that matches squaring output
 #
@@ -2203,7 +3390,7 @@ $code.=<<___;
 	lea	$M(%rsp), $b_ptr
 	mov	$acc4, $acc6			# harmonize sub output and mul input
 	xor	%ecx, %ecx
-	mov	$acc4, $S+8*0(%rsp)		# have to save:-(	
+	mov	$acc4, $S+8*0(%rsp)		# have to save:-(
 	mov	$acc5, $acc2
 	mov	$acc5, $S+8*1(%rsp)
 	cmovz	$acc0, $acc3
@@ -2219,14 +3406,25 @@ $code.=<<___;
 	movq	%xmm1, $r_ptr
 	call	__ecp_nistz256_sub_from$x	# p256_sub(res_y, S, res_y);
 
-	add	\$32*5+8, %rsp
-	pop	%r15
-	pop	%r14
-	pop	%r13
-	pop	%r12
-	pop	%rbx
-	pop	%rbp
+	lea	32*5+56(%rsp), %rsi
+.cfi_def_cfa	%rsi,8
+	mov	-48(%rsi),%r15
+.cfi_restore	%r15
+	mov	-40(%rsi),%r14
+.cfi_restore	%r14
+	mov	-32(%rsi),%r13
+.cfi_restore	%r13
+	mov	-24(%rsi),%r12
+.cfi_restore	%r12
+	mov	-16(%rsi),%rbx
+.cfi_restore	%rbx
+	mov	-8(%rsi),%rbp
+.cfi_restore	%rbp
+	lea	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
+.Lpoint_double${x}_epilogue:
 	ret
+.cfi_endproc
 .size	ecp_nistz256_point_double$sfx,.-ecp_nistz256_point_double$sfx
 ___
 }
@@ -2252,6 +3450,7 @@ $code.=<<___;
 .type	ecp_nistz256_point_add,\@function,3
 .align	32
 ecp_nistz256_point_add:
+.cfi_startproc
 ___
 $code.=<<___	if ($addx);
 	mov	\$0x80100, %ecx
@@ -2268,17 +3467,26 @@ $code.=<<___;
 .type	ecp_nistz256_point_addx,\@function,3
 .align	32
 ecp_nistz256_point_addx:
+.cfi_startproc
 .Lpoint_addx:
 ___
     }
 $code.=<<___;
 	push	%rbp
+.cfi_push	%rbp
 	push	%rbx
+.cfi_push	%rbx
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 	sub	\$32*18+8, %rsp
+.cfi_adjust_cfa_offset	32*18+8
+.Lpoint_add${x}_body:
 
 	movdqu	0x00($a_ptr), %xmm0		# copy	*(P256_POINT *)$a_ptr
 	movdqu	0x10($a_ptr), %xmm1
@@ -2587,14 +3795,25 @@ $code.=<<___;
 	movdqu	%xmm3, 0x30($r_ptr)
 
 .Ladd_done$x:
-	add	\$32*18+8, %rsp
-	pop	%r15
-	pop	%r14
-	pop	%r13
-	pop	%r12
-	pop	%rbx
-	pop	%rbp
+	lea	32*18+56(%rsp), %rsi
+.cfi_def_cfa	%rsi,8
+	mov	-48(%rsi),%r15
+.cfi_restore	%r15
+	mov	-40(%rsi),%r14
+.cfi_restore	%r14
+	mov	-32(%rsi),%r13
+.cfi_restore	%r13
+	mov	-24(%rsi),%r12
+.cfi_restore	%r12
+	mov	-16(%rsi),%rbx
+.cfi_restore	%rbx
+	mov	-8(%rsi),%rbp
+.cfi_restore	%rbp
+	lea	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
+.Lpoint_add${x}_epilogue:
 	ret
+.cfi_endproc
 .size	ecp_nistz256_point_add$sfx,.-ecp_nistz256_point_add$sfx
 ___
 }
@@ -2619,6 +3838,7 @@ $code.=<<___;
 .type	ecp_nistz256_point_add_affine,\@function,3
 .align	32
 ecp_nistz256_point_add_affine:
+.cfi_startproc
 ___
 $code.=<<___	if ($addx);
 	mov	\$0x80100, %ecx
@@ -2635,17 +3855,26 @@ $code.=<<___;
 .type	ecp_nistz256_point_add_affinex,\@function,3
 .align	32
 ecp_nistz256_point_add_affinex:
+.cfi_startproc
 .Lpoint_add_affinex:
 ___
     }
 $code.=<<___;
 	push	%rbp
+.cfi_push	%rbp
 	push	%rbx
+.cfi_push	%rbx
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 	sub	\$32*15+8, %rsp
+.cfi_adjust_cfa_offset	32*15+8
+.Ladd_affine${x}_body:
 
 	movdqu	0x00($a_ptr), %xmm0	# copy	*(P256_POINT *)$a_ptr
 	mov	$b_org, $b_ptr		# reassign
@@ -2890,14 +4119,25 @@ $code.=<<___;
 	movdqu	%xmm2, 0x20($r_ptr)
 	movdqu	%xmm3, 0x30($r_ptr)
 
-	add	\$32*15+8, %rsp
-	pop	%r15
-	pop	%r14
-	pop	%r13
-	pop	%r12
-	pop	%rbx
-	pop	%rbp
+	lea	32*15+56(%rsp), %rsi
+.cfi_def_cfa	%rsi,8
+	mov	-48(%rsi),%r15
+.cfi_restore	%r15
+	mov	-40(%rsi),%r14
+.cfi_restore	%r14
+	mov	-32(%rsi),%r13
+.cfi_restore	%r13
+	mov	-24(%rsi),%r12
+.cfi_restore	%r12
+	mov	-16(%rsi),%rbx
+.cfi_restore	%rbx
+	mov	-8(%rsi),%rbp
+.cfi_restore	%rbp
+	lea	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
+.Ladd_affine${x}_epilogue:
 	ret
+.cfi_endproc
 .size	ecp_nistz256_point_add_affine$sfx,.-ecp_nistz256_point_add_affine$sfx
 ___
 }
@@ -3048,11 +4288,395 @@ ___
 }
 }}}
 
+# EXCEPTION_DISPOSITION handler (EXCEPTION_RECORD *rec,ULONG64 frame,
+#		CONTEXT *context,DISPATCHER_CONTEXT *disp)
+if ($win64) {
+$rec="%rcx";
+$frame="%rdx";
+$context="%r8";
+$disp="%r9";
+
+$code.=<<___;
+.extern	__imp_RtlVirtualUnwind
+
+.type	short_handler,\@abi-omnipotent
+.align	16
+short_handler:
+	push	%rsi
+	push	%rdi
+	push	%rbx
+	push	%rbp
+	push	%r12
+	push	%r13
+	push	%r14
+	push	%r15
+	pushfq
+	sub	\$64,%rsp
+
+	mov	120($context),%rax	# pull context->Rax
+	mov	248($context),%rbx	# pull context->Rip
+
+	mov	8($disp),%rsi		# disp->ImageBase
+	mov	56($disp),%r11		# disp->HandlerData
+
+	mov	0(%r11),%r10d		# HandlerData[0]
+	lea	(%rsi,%r10),%r10	# end of prologue label
+	cmp	%r10,%rbx		# context->Rip<end of prologue label
+	jb	.Lcommon_seh_tail
+
+	mov	152($context),%rax	# pull context->Rsp
+
+	mov	4(%r11),%r10d		# HandlerData[1]
+	lea	(%rsi,%r10),%r10	# epilogue label
+	cmp	%r10,%rbx		# context->Rip>=epilogue label
+	jae	.Lcommon_seh_tail
+
+	lea	16(%rax),%rax
+
+	mov	-8(%rax),%r12
+	mov	-16(%rax),%r13
+	mov	%r12,216($context)	# restore context->R12
+	mov	%r13,224($context)	# restore context->R13
+
+	jmp	.Lcommon_seh_tail
+.size	short_handler,.-short_handler
+
+.type	full_handler,\@abi-omnipotent
+.align	16
+full_handler:
+	push	%rsi
+	push	%rdi
+	push	%rbx
+	push	%rbp
+	push	%r12
+	push	%r13
+	push	%r14
+	push	%r15
+	pushfq
+	sub	\$64,%rsp
+
+	mov	120($context),%rax	# pull context->Rax
+	mov	248($context),%rbx	# pull context->Rip
+
+	mov	8($disp),%rsi		# disp->ImageBase
+	mov	56($disp),%r11		# disp->HandlerData
+
+	mov	0(%r11),%r10d		# HandlerData[0]
+	lea	(%rsi,%r10),%r10	# end of prologue label
+	cmp	%r10,%rbx		# context->Rip<end of prologue label
+	jb	.Lcommon_seh_tail
+
+	mov	152($context),%rax	# pull context->Rsp
+
+	mov	4(%r11),%r10d		# HandlerData[1]
+	lea	(%rsi,%r10),%r10	# epilogue label
+	cmp	%r10,%rbx		# context->Rip>=epilogue label
+	jae	.Lcommon_seh_tail
+
+	mov	8(%r11),%r10d		# HandlerData[2]
+	lea	(%rax,%r10),%rax
+
+	mov	-8(%rax),%rbp
+	mov	-16(%rax),%rbx
+	mov	-24(%rax),%r12
+	mov	-32(%rax),%r13
+	mov	-40(%rax),%r14
+	mov	-48(%rax),%r15
+	mov	%rbx,144($context)	# restore context->Rbx
+	mov	%rbp,160($context)	# restore context->Rbp
+	mov	%r12,216($context)	# restore context->R12
+	mov	%r13,224($context)	# restore context->R13
+	mov	%r14,232($context)	# restore context->R14
+	mov	%r15,240($context)	# restore context->R15
+
+.Lcommon_seh_tail:
+	mov	8(%rax),%rdi
+	mov	16(%rax),%rsi
+	mov	%rax,152($context)	# restore context->Rsp
+	mov	%rsi,168($context)	# restore context->Rsi
+	mov	%rdi,176($context)	# restore context->Rdi
+
+	mov	40($disp),%rdi		# disp->ContextRecord
+	mov	$context,%rsi		# context
+	mov	\$154,%ecx		# sizeof(CONTEXT)
+	.long	0xa548f3fc		# cld; rep movsq
+
+	mov	$disp,%rsi
+	xor	%rcx,%rcx		# arg1, UNW_FLAG_NHANDLER
+	mov	8(%rsi),%rdx		# arg2, disp->ImageBase
+	mov	0(%rsi),%r8		# arg3, disp->ControlPc
+	mov	16(%rsi),%r9		# arg4, disp->FunctionEntry
+	mov	40(%rsi),%r10		# disp->ContextRecord
+	lea	56(%rsi),%r11		# &disp->HandlerData
+	lea	24(%rsi),%r12		# &disp->EstablisherFrame
+	mov	%r10,32(%rsp)		# arg5
+	mov	%r11,40(%rsp)		# arg6
+	mov	%r12,48(%rsp)		# arg7
+	mov	%rcx,56(%rsp)		# arg8, (NULL)
+	call	*__imp_RtlVirtualUnwind(%rip)
+
+	mov	\$1,%eax		# ExceptionContinueSearch
+	add	\$64,%rsp
+	popfq
+	pop	%r15
+	pop	%r14
+	pop	%r13
+	pop	%r12
+	pop	%rbp
+	pop	%rbx
+	pop	%rdi
+	pop	%rsi
+	ret
+.size	full_handler,.-full_handler
+
+.section	.pdata
+.align	4
+	.rva	.LSEH_begin_ecp_nistz256_mul_by_2
+	.rva	.LSEH_end_ecp_nistz256_mul_by_2
+	.rva	.LSEH_info_ecp_nistz256_mul_by_2
+
+	.rva	.LSEH_begin_ecp_nistz256_div_by_2
+	.rva	.LSEH_end_ecp_nistz256_div_by_2
+	.rva	.LSEH_info_ecp_nistz256_div_by_2
+
+	.rva	.LSEH_begin_ecp_nistz256_mul_by_3
+	.rva	.LSEH_end_ecp_nistz256_mul_by_3
+	.rva	.LSEH_info_ecp_nistz256_mul_by_3
+
+	.rva	.LSEH_begin_ecp_nistz256_add
+	.rva	.LSEH_end_ecp_nistz256_add
+	.rva	.LSEH_info_ecp_nistz256_add
+
+	.rva	.LSEH_begin_ecp_nistz256_sub
+	.rva	.LSEH_end_ecp_nistz256_sub
+	.rva	.LSEH_info_ecp_nistz256_sub
+
+	.rva	.LSEH_begin_ecp_nistz256_neg
+	.rva	.LSEH_end_ecp_nistz256_neg
+	.rva	.LSEH_info_ecp_nistz256_neg
+
+	.rva	.LSEH_begin_ecp_nistz256_ord_mul_mont
+	.rva	.LSEH_end_ecp_nistz256_ord_mul_mont
+	.rva	.LSEH_info_ecp_nistz256_ord_mul_mont
+
+	.rva	.LSEH_begin_ecp_nistz256_ord_sqr_mont
+	.rva	.LSEH_end_ecp_nistz256_ord_sqr_mont
+	.rva	.LSEH_info_ecp_nistz256_ord_sqr_mont
+___
+$code.=<<___	if ($addx);
+	.rva	.LSEH_begin_ecp_nistz256_ord_mul_montx
+	.rva	.LSEH_end_ecp_nistz256_ord_mul_montx
+	.rva	.LSEH_info_ecp_nistz256_ord_mul_montx
+
+	.rva	.LSEH_begin_ecp_nistz256_ord_sqr_montx
+	.rva	.LSEH_end_ecp_nistz256_ord_sqr_montx
+	.rva	.LSEH_info_ecp_nistz256_ord_sqr_montx
+___
+$code.=<<___;
+	.rva	.LSEH_begin_ecp_nistz256_to_mont
+	.rva	.LSEH_end_ecp_nistz256_to_mont
+	.rva	.LSEH_info_ecp_nistz256_to_mont
+
+	.rva	.LSEH_begin_ecp_nistz256_mul_mont
+	.rva	.LSEH_end_ecp_nistz256_mul_mont
+	.rva	.LSEH_info_ecp_nistz256_mul_mont
+
+	.rva	.LSEH_begin_ecp_nistz256_sqr_mont
+	.rva	.LSEH_end_ecp_nistz256_sqr_mont
+	.rva	.LSEH_info_ecp_nistz256_sqr_mont
+
+	.rva	.LSEH_begin_ecp_nistz256_from_mont
+	.rva	.LSEH_end_ecp_nistz256_from_mont
+	.rva	.LSEH_info_ecp_nistz256_from_mont
+
+	.rva	.LSEH_begin_ecp_nistz256_gather_w5
+	.rva	.LSEH_end_ecp_nistz256_gather_w5
+	.rva	.LSEH_info_ecp_nistz256_gather_wX
+
+	.rva	.LSEH_begin_ecp_nistz256_gather_w7
+	.rva	.LSEH_end_ecp_nistz256_gather_w7
+	.rva	.LSEH_info_ecp_nistz256_gather_wX
+___
+$code.=<<___	if ($avx>1);
+	.rva	.LSEH_begin_ecp_nistz256_avx2_gather_w5
+	.rva	.LSEH_end_ecp_nistz256_avx2_gather_w5
+	.rva	.LSEH_info_ecp_nistz256_avx2_gather_wX
+
+	.rva	.LSEH_begin_ecp_nistz256_avx2_gather_w7
+	.rva	.LSEH_end_ecp_nistz256_avx2_gather_w7
+	.rva	.LSEH_info_ecp_nistz256_avx2_gather_wX
+___
+$code.=<<___;
+	.rva	.LSEH_begin_ecp_nistz256_point_double
+	.rva	.LSEH_end_ecp_nistz256_point_double
+	.rva	.LSEH_info_ecp_nistz256_point_double
+
+	.rva	.LSEH_begin_ecp_nistz256_point_add
+	.rva	.LSEH_end_ecp_nistz256_point_add
+	.rva	.LSEH_info_ecp_nistz256_point_add
+
+	.rva	.LSEH_begin_ecp_nistz256_point_add_affine
+	.rva	.LSEH_end_ecp_nistz256_point_add_affine
+	.rva	.LSEH_info_ecp_nistz256_point_add_affine
+___
+$code.=<<___ if ($addx);
+	.rva	.LSEH_begin_ecp_nistz256_point_doublex
+	.rva	.LSEH_end_ecp_nistz256_point_doublex
+	.rva	.LSEH_info_ecp_nistz256_point_doublex
+
+	.rva	.LSEH_begin_ecp_nistz256_point_addx
+	.rva	.LSEH_end_ecp_nistz256_point_addx
+	.rva	.LSEH_info_ecp_nistz256_point_addx
+
+	.rva	.LSEH_begin_ecp_nistz256_point_add_affinex
+	.rva	.LSEH_end_ecp_nistz256_point_add_affinex
+	.rva	.LSEH_info_ecp_nistz256_point_add_affinex
+___
+$code.=<<___;
+
+.section	.xdata
+.align	8
+.LSEH_info_ecp_nistz256_mul_by_2:
+	.byte	9,0,0,0
+	.rva	short_handler
+	.rva	.Lmul_by_2_body,.Lmul_by_2_epilogue	# HandlerData[]
+.LSEH_info_ecp_nistz256_div_by_2:
+	.byte	9,0,0,0
+	.rva	short_handler
+	.rva	.Ldiv_by_2_body,.Ldiv_by_2_epilogue	# HandlerData[]
+.LSEH_info_ecp_nistz256_mul_by_3:
+	.byte	9,0,0,0
+	.rva	short_handler
+	.rva	.Lmul_by_3_body,.Lmul_by_3_epilogue	# HandlerData[]
+.LSEH_info_ecp_nistz256_add:
+	.byte	9,0,0,0
+	.rva	short_handler
+	.rva	.Ladd_body,.Ladd_epilogue		# HandlerData[]
+.LSEH_info_ecp_nistz256_sub:
+	.byte	9,0,0,0
+	.rva	short_handler
+	.rva	.Lsub_body,.Lsub_epilogue		# HandlerData[]
+.LSEH_info_ecp_nistz256_neg:
+	.byte	9,0,0,0
+	.rva	short_handler
+	.rva	.Lneg_body,.Lneg_epilogue		# HandlerData[]
+.LSEH_info_ecp_nistz256_ord_mul_mont:
+	.byte	9,0,0,0
+	.rva	full_handler
+	.rva	.Lord_mul_body,.Lord_mul_epilogue	# HandlerData[]
+	.long	48,0
+.LSEH_info_ecp_nistz256_ord_sqr_mont:
+	.byte	9,0,0,0
+	.rva	full_handler
+	.rva	.Lord_sqr_body,.Lord_sqr_epilogue	# HandlerData[]
+	.long	48,0
+___
+$code.=<<___ if ($addx);
+.LSEH_info_ecp_nistz256_ord_mul_montx:
+	.byte	9,0,0,0
+	.rva	full_handler
+	.rva	.Lord_mulx_body,.Lord_mulx_epilogue	# HandlerData[]
+	.long	48,0
+.LSEH_info_ecp_nistz256_ord_sqr_montx:
+	.byte	9,0,0,0
+	.rva	full_handler
+	.rva	.Lord_sqrx_body,.Lord_sqrx_epilogue	# HandlerData[]
+	.long	48,0
+___
+$code.=<<___;
+.LSEH_info_ecp_nistz256_to_mont:
+	.byte	9,0,0,0
+	.rva	full_handler
+	.rva	.Lmul_body,.Lmul_epilogue		# HandlerData[]
+	.long	48,0
+.LSEH_info_ecp_nistz256_mul_mont:
+	.byte	9,0,0,0
+	.rva	full_handler
+	.rva	.Lmul_body,.Lmul_epilogue		# HandlerData[]
+	.long	48,0
+.LSEH_info_ecp_nistz256_sqr_mont:
+	.byte	9,0,0,0
+	.rva	full_handler
+	.rva	.Lsqr_body,.Lsqr_epilogue		# HandlerData[]
+	.long	48,0
+.LSEH_info_ecp_nistz256_from_mont:
+	.byte	9,0,0,0
+	.rva	short_handler
+	.rva	.Lfrom_body,.Lfrom_epilogue		# HandlerData[]
+.LSEH_info_ecp_nistz256_gather_wX:
+	.byte	0x01,0x33,0x16,0x00
+	.byte	0x33,0xf8,0x09,0x00	#movaps 0x90(rsp),xmm15
+	.byte	0x2e,0xe8,0x08,0x00	#movaps 0x80(rsp),xmm14
+	.byte	0x29,0xd8,0x07,0x00	#movaps 0x70(rsp),xmm13
+	.byte	0x24,0xc8,0x06,0x00	#movaps 0x60(rsp),xmm12
+	.byte	0x1f,0xb8,0x05,0x00	#movaps 0x50(rsp),xmm11
+	.byte	0x1a,0xa8,0x04,0x00	#movaps 0x40(rsp),xmm10
+	.byte	0x15,0x98,0x03,0x00	#movaps 0x30(rsp),xmm9
+	.byte	0x10,0x88,0x02,0x00	#movaps 0x20(rsp),xmm8
+	.byte	0x0c,0x78,0x01,0x00	#movaps 0x10(rsp),xmm7
+	.byte	0x08,0x68,0x00,0x00	#movaps 0x00(rsp),xmm6
+	.byte	0x04,0x01,0x15,0x00	#sub	rsp,0xa8
+	.align	8
+___
+$code.=<<___	if ($avx>1);
+.LSEH_info_ecp_nistz256_avx2_gather_wX:
+	.byte	0x01,0x36,0x17,0x0b
+	.byte	0x36,0xf8,0x09,0x00	# vmovaps 0x90(rsp),xmm15
+	.byte	0x31,0xe8,0x08,0x00	# vmovaps 0x80(rsp),xmm14
+	.byte	0x2c,0xd8,0x07,0x00	# vmovaps 0x70(rsp),xmm13
+	.byte	0x27,0xc8,0x06,0x00	# vmovaps 0x60(rsp),xmm12
+	.byte	0x22,0xb8,0x05,0x00	# vmovaps 0x50(rsp),xmm11
+	.byte	0x1d,0xa8,0x04,0x00	# vmovaps 0x40(rsp),xmm10
+	.byte	0x18,0x98,0x03,0x00	# vmovaps 0x30(rsp),xmm9
+	.byte	0x13,0x88,0x02,0x00	# vmovaps 0x20(rsp),xmm8
+	.byte	0x0e,0x78,0x01,0x00	# vmovaps 0x10(rsp),xmm7
+	.byte	0x09,0x68,0x00,0x00	# vmovaps 0x00(rsp),xmm6
+	.byte	0x04,0x01,0x15,0x00	# sub	  rsp,0xa8
+	.byte	0x00,0xb3,0x00,0x00	# set_frame r11
+	.align	8
+___
+$code.=<<___;
+.LSEH_info_ecp_nistz256_point_double:
+	.byte	9,0,0,0
+	.rva	full_handler
+	.rva	.Lpoint_doubleq_body,.Lpoint_doubleq_epilogue	# HandlerData[]
+	.long	32*5+56,0
+.LSEH_info_ecp_nistz256_point_add:
+	.byte	9,0,0,0
+	.rva	full_handler
+	.rva	.Lpoint_addq_body,.Lpoint_addq_epilogue		# HandlerData[]
+	.long	32*18+56,0
+.LSEH_info_ecp_nistz256_point_add_affine:
+	.byte	9,0,0,0
+	.rva	full_handler
+	.rva	.Ladd_affineq_body,.Ladd_affineq_epilogue	# HandlerData[]
+	.long	32*15+56,0
+___
+$code.=<<___ if ($addx);
+.align	8
+.LSEH_info_ecp_nistz256_point_doublex:
+	.byte	9,0,0,0
+	.rva	full_handler
+	.rva	.Lpoint_doublex_body,.Lpoint_doublex_epilogue	# HandlerData[]
+	.long	32*5+56,0
+.LSEH_info_ecp_nistz256_point_addx:
+	.byte	9,0,0,0
+	.rva	full_handler
+	.rva	.Lpoint_addx_body,.Lpoint_addx_epilogue		# HandlerData[]
+	.long	32*18+56,0
+.LSEH_info_ecp_nistz256_point_add_affinex:
+	.byte	9,0,0,0
+	.rva	full_handler
+	.rva	.Ladd_affinex_body,.Ladd_affinex_epilogue	# HandlerData[]
+	.long	32*15+56,0
+___
+}
+
 ########################################################################
 # Convert ecp_nistz256_table.c to layout expected by ecp_nistz_gather_w7
 #
-open TABLE,"<ecp_nistz256_table.c"		or 
-open TABLE,"<${dir}../ecp_nistz256_table.c"	or 
+open TABLE,"<ecp_nistz256_table.c"		or
+open TABLE,"<${dir}../ecp_nistz256_table.c"	or
 die "failed to open ecp_nistz256_table.c:",$!;
 
 use integer;

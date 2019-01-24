@@ -89,7 +89,7 @@ _RC4:
 ||	NOP	5
 	STB	$XX,*${KEYA}[-2]	; key->x
 ||	SUB4	$YY,$TX,$YY
-||	BNOP	B3	
+||	BNOP	B3
 	STB	$YY,*${KEYB}[-1]	; key->y
 ||	NOP	5
 	.endasmfunc

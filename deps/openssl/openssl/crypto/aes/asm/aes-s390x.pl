@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2007-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2007-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,7 +8,7 @@
 
 
 # ====================================================================
-# Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
+# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
 # details see http://www.openssl.org/~appro/cryptogams/.
@@ -44,7 +44,7 @@
 # minimize/avoid Address Generation Interlock hazard and to favour
 # dual-issue z10 pipeline. This gave ~25% improvement on z10 and
 # almost 50% on z9. The gain is smaller on z10, because being dual-
-# issue z10 makes it improssible to eliminate the interlock condition:
+# issue z10 makes it impossible to eliminate the interlock condition:
 # critial path is not long enough. Yet it spends ~24 cycles per byte
 # processed with 128-bit key.
 #
@@ -129,6 +129,8 @@ sub _data_word()
 }
 
 $code=<<___;
+#include "s390x_arch.h"
+
 .text
 
 .type	AES_Te,\@object
@@ -404,7 +406,7 @@ _s390x_AES_encrypt:
 	or	$s1,$t1
 	or	$t2,$i2
 	or	$t3,$i3
-	
+
 	srlg	$i1,$s2,`8-3`	# i0
 	srlg	$i2,$s2,`16-3`	# i1
 	nr	$i1,$mask
@@ -457,7 +459,7 @@ _s390x_AES_encrypt:
 	x	$s2,24($key)
 	x	$s3,28($key)
 
-	br	$ra	
+	br	$ra
 .size	_s390x_AES_encrypt,.-_s390x_AES_encrypt
 ___
 
@@ -779,7 +781,7 @@ _s390x_AES_decrypt:
 	x	$s2,24($key)
 	x	$s3,28($key)
 
-	br	$ra	
+	br	$ra
 .size	_s390x_AES_decrypt,.-_s390x_AES_decrypt
 ___
 
@@ -823,8 +825,8 @@ $code.=<<___ if (!$softonly);
 	larl	%r1,OPENSSL_s390xcap_P
 	llihh	%r0,0x8000
 	srlg	%r0,%r0,0(%r5)
-	ng	%r0,32(%r1)	# check availability of both km...
-	ng	%r0,48(%r1)	# ...and kmc support for given key length
+	ng	%r0,S390X_KM(%r1)  # check availability of both km...
+	ng	%r0,S390X_KMC(%r1) # ...and kmc support for given key length
 	jz	.Lekey_internal
 
 	lmg	%r0,%r1,0($inp)	# just copy 128 bits...
@@ -1084,7 +1086,7 @@ $code.=<<___ if (!$softonly);
 	lhi	$t1,16
 	cr	$t0,$t1
 	jl	.Lgo
-	oill	$t0,0x80	# set "decrypt" bit
+	oill	$t0,S390X_DECRYPT	# set "decrypt" bit
 	st	$t0,240($key)
 	br	$ra
 ___
@@ -1223,7 +1225,7 @@ $code.=<<___ if (!$softonly);
 .align	16
 .Lkmc_truncated:
 	ahi	$key,-1		# it's the way it's encoded in mvc
-	tmll	%r0,0x80
+	tmll	%r0,S390X_DECRYPT
 	jnz	.Lkmc_truncated_dec
 	lghi	%r1,0
 	stg	%r1,16*$SIZE_T($sp)
@@ -1294,7 +1296,7 @@ $code.=<<___;
 .Lcbc_enc_done:
 	l${g}	$ivp,6*$SIZE_T($sp)
 	st	$s0,0($ivp)
-	st	$s1,4($ivp)	
+	st	$s1,4($ivp)
 	st	$s2,8($ivp)
 	st	$s3,12($ivp)
 
@@ -1403,7 +1405,61 @@ $code.=<<___ if (!$softonly);
 	clr	%r0,%r1
 	jl	.Lctr32_software
 
-	stm${g}	%r6,$s3,6*$SIZE_T($sp)
+	st${g}	$s2,10*$SIZE_T($sp)
+	st${g}	$s3,11*$SIZE_T($sp)
+
+	clr	$len,%r1		# does work even in 64-bit mode
+	jle	.Lctr32_nokma		# kma is slower for <= 16 blocks
+
+	larl	%r1,OPENSSL_s390xcap_P
+	lr	$s2,%r0
+	llihh	$s3,0x8000
+	srlg	$s3,$s3,0($s2)
+	ng	$s3,S390X_KMA(%r1)		# check kma capability vector
+	jz	.Lctr32_nokma
+
+	l${g}hi	%r1,-$stdframe-112
+	l${g}r	$s3,$sp
+	la	$sp,0(%r1,$sp)			# prepare parameter block
+
+	lhi	%r1,0x0600
+	sllg	$len,$len,4
+	or	%r0,%r1				# set HS and LAAD flags
+
+	st${g}	$s3,0($sp)			# backchain
+	la	%r1,$stdframe($sp)
+
+	lmg	$s2,$s3,0($key)			# copy key
+	stg	$s2,$stdframe+80($sp)
+	stg	$s3,$stdframe+88($sp)
+	lmg	$s2,$s3,16($key)
+	stg	$s2,$stdframe+96($sp)
+	stg	$s3,$stdframe+104($sp)
+
+	lmg	$s2,$s3,0($ivp)			# copy iv
+	stg	$s2,$stdframe+64($sp)
+	ahi	$s3,-1				# kma requires counter-1
+	stg	$s3,$stdframe+72($sp)
+	st	$s3,$stdframe+12($sp)		# copy counter
+
+	lghi	$s2,0				# no AAD
+	lghi	$s3,0
+
+	.long	0xb929a042	# kma $out,$s2,$inp
+	brc	1,.-4		# pay attention to "partial completion"
+
+	stg	%r0,$stdframe+80($sp)		# wipe key
+	stg	%r0,$stdframe+88($sp)
+	stg	%r0,$stdframe+96($sp)
+	stg	%r0,$stdframe+104($sp)
+	la	$sp,$stdframe+112($sp)
+
+	lm${g}	$s2,$s3,10*$SIZE_T($sp)
+	br	$ra
+
+.align	16
+.Lctr32_nokma:
+	stm${g}	%r6,$s1,6*$SIZE_T($sp)
 
 	slgr	$out,$inp
 	la	%r1,0($key)	# %r1 is permanent copy of $key
@@ -1442,7 +1498,7 @@ $code.=<<___ if (!$softonly && 0);# kmctr code was measured to be ~12% slower
 	larl	%r1,OPENSSL_s390xcap_P
 	llihh	%r0,0x8000	# check if kmctr supports the function code
 	srlg	%r0,%r0,0($s0)
-	ng	%r0,64(%r1)	# check kmctr capability vector
+	ng	%r0,S390X_KMCTR(%r1)	# check kmctr capability vector
 	lgr	%r0,$s0
 	lgr	%r1,$s1
 	jz	.Lctr32_km_loop
@@ -1567,8 +1623,8 @@ ___
 }
 
 ########################################################################
-# void AES_xts_encrypt(const char *inp,char *out,size_t len,
-#	const AES_KEY *key1, const AES_KEY *key2,
+# void AES_xts_encrypt(const unsigned char *inp, unsigned char *out,
+#	size_t len, const AES_KEY *key1, const AES_KEY *key2,
 #	const unsigned char iv[16]);
 #
 {
@@ -1592,7 +1648,7 @@ $code.=<<___ if(1);
 	larl	%r1,OPENSSL_s390xcap_P
 	llihh	%r0,0x8000
 	srlg	%r0,%r0,32($s1)		# check for 32+function code
-	ng	%r0,32(%r1)		# check km capability vector
+	ng	%r0,S390X_KM(%r1)	# check km capability vector
 	lgr	%r0,$s0			# restore the function code
 	la	%r1,0($key1)		# restore $key1
 	jz	.Lxts_km_vanilla
@@ -1627,7 +1683,7 @@ $code.=<<___ if(1);
 	llgc	$len,2*$SIZE_T-1($sp)
 	nill	$len,0x0f		# $len%=16
 	br	$ra
-	
+
 .align	16
 .Lxts_km_vanilla:
 ___
@@ -1854,7 +1910,7 @@ $code.=<<___;
 	xgr	$s1,%r1
 	lrvgr	$s1,$s1			# flip byte order
 	lrvgr	$s3,$s3
-	srlg	$s0,$s1,32		# smash the tweak to 4x32-bits 
+	srlg	$s0,$s1,32		# smash the tweak to 4x32-bits
 	stg	$s1,$tweak+0($sp)	# save the tweak
 	llgfr	$s1,$s1
 	srlg	$s2,$s3,32
@@ -1905,7 +1961,7 @@ $code.=<<___;
 	xgr	$s1,%r1
 	lrvgr	$s1,$s1			# flip byte order
 	lrvgr	$s3,$s3
-	srlg	$s0,$s1,32		# smash the tweak to 4x32-bits 
+	srlg	$s0,$s1,32		# smash the tweak to 4x32-bits
 	stg	$s1,$tweak+0($sp)	# save the tweak
 	llgfr	$s1,$s1
 	srlg	$s2,$s3,32
@@ -1936,8 +1992,8 @@ $code.=<<___;
 	br	$ra
 .size	AES_xts_encrypt,.-AES_xts_encrypt
 ___
-# void AES_xts_decrypt(const char *inp,char *out,size_t len,
-#	const AES_KEY *key1, const AES_KEY *key2,
+# void AES_xts_decrypt(const unsigned char *inp, unsigned char *out,
+#	size_t len, const AES_KEY *key1, const AES_KEY *key2,
 #	const unsigned char iv[16]);
 #
 $code.=<<___;
@@ -2097,7 +2153,7 @@ $code.=<<___;
 	xgr	$s1,%r1
 	lrvgr	$s1,$s1			# flip byte order
 	lrvgr	$s3,$s3
-	srlg	$s0,$s1,32		# smash the tweak to 4x32-bits 
+	srlg	$s0,$s1,32		# smash the tweak to 4x32-bits
 	stg	$s1,$tweak+0($sp)	# save the tweak
 	llgfr	$s1,$s1
 	srlg	$s2,$s3,32

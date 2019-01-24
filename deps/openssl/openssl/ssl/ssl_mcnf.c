@@ -17,11 +17,10 @@
 
 void SSL_add_ssl_module(void)
 {
-    /* Just load all of the crypto builtin modules. This includes the SSL one */
-    OPENSSL_load_builtin_modules();
+    /* Do nothing. This will be added automatically by libcrypto */
 }
 
-static int ssl_do_config(SSL *s, SSL_CTX *ctx, const char *name)
+static int ssl_do_config(SSL *s, SSL_CTX *ctx, const char *name, int system)
 {
     SSL_CONF_CTX *cctx = NULL;
     size_t i, idx, cmd_count;
@@ -34,9 +33,14 @@ static int ssl_do_config(SSL *s, SSL_CTX *ctx, const char *name)
         SSLerr(SSL_F_SSL_DO_CONFIG, ERR_R_PASSED_NULL_PARAMETER);
         goto err;
     }
+
+    if (name == NULL && system)
+        name = "system_default";
     if (!conf_ssl_name_find(name, &idx)) {
-        SSLerr(SSL_F_SSL_DO_CONFIG, SSL_R_INVALID_CONFIGURATION_NAME);
-        ERR_add_error_data(2, "name=", name);
+        if (!system) {
+            SSLerr(SSL_F_SSL_DO_CONFIG, SSL_R_INVALID_CONFIGURATION_NAME);
+            ERR_add_error_data(2, "name=", name);
+        }
         goto err;
     }
     cmds = conf_ssl_get(idx, &name, &cmd_count);
@@ -44,7 +48,8 @@ static int ssl_do_config(SSL *s, SSL_CTX *ctx, const char *name)
     if (cctx == NULL)
         goto err;
     flags = SSL_CONF_FLAG_FILE;
-    flags |= SSL_CONF_FLAG_CERTIFICATE | SSL_CONF_FLAG_REQUIRE_PRIVATE;
+    if (!system)
+        flags |= SSL_CONF_FLAG_CERTIFICATE | SSL_CONF_FLAG_REQUIRE_PRIVATE;
     if (s != NULL) {
         meth = s->method;
         SSL_CONF_CTX_set_ssl(cctx, s);
@@ -80,10 +85,15 @@ static int ssl_do_config(SSL *s, SSL_CTX *ctx, const char *name)
 
 int SSL_config(SSL *s, const char *name)
 {
-    return ssl_do_config(s, NULL, name);
+    return ssl_do_config(s, NULL, name, 0);
 }
 
 int SSL_CTX_config(SSL_CTX *ctx, const char *name)
 {
-    return ssl_do_config(NULL, ctx, name);
+    return ssl_do_config(NULL, ctx, name, 0);
+}
+
+void ssl_ctx_system_config(SSL_CTX *ctx)
+{
+    ssl_do_config(NULL, ctx, NULL, 1);
 }

@@ -257,6 +257,6 @@ static EVP_CIPHER r4_hmac_md5_cipher = {
 
 const EVP_CIPHER *EVP_rc4_hmac_md5(void)
 {
-    return (&r4_hmac_md5_cipher);
+    return &r4_hmac_md5_cipher;
 }
 #endif

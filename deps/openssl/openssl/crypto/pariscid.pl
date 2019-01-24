@@ -255,9 +255,22 @@ L\$done2
 	.PROCEND
 ___
 }
-$code =~ s/cmpib,\*/comib,/gm	if ($SIZE_T==4);
-$code =~ s/,\*/,/gm		if ($SIZE_T==4);
-$code =~ s/\bbv\b/bve/gm	if ($SIZE_T==8);
-print $code;
+
+if (`$ENV{CC} -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`
+	=~ /GNU assembler/) {
+    $gnuas = 1;
+}
+
+foreach(split("\n",$code)) {
+
+	s/(\.LEVEL\s+2\.0)W/$1w/	if ($gnuas && $SIZE_T==8);
+	s/\.SPACE\s+\$TEXT\$/.text/	if ($gnuas && $SIZE_T==8);
+	s/\.SUBSPA.*//			if ($gnuas && $SIZE_T==8);
+	s/cmpib,\*/comib,/		if ($SIZE_T==4);
+	s/,\*/,/			if ($SIZE_T==4);
+	s/\bbv\b/bve/			if ($SIZE_T==8);
+
+	print $_,"\n";
+}
 close STDOUT;
 

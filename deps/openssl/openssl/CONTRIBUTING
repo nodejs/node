@@ -50,8 +50,9 @@ guidelines:
     test/README for information on the test framework.
 
     6.  New features or changed functionality must include
-    documentation. Please look at the "pod" files in doc for
-    examples of our style.
+    documentation. Please look at the "pod" files in doc/man[1357] for
+    examples of our style. Run "make doc-nits" to make sure that your
+    documentation changes are clean.
 
     7.  For user visible changes (API changes, behaviour changes, ...),
     consider adding a note in CHANGES.  This could be a summarising

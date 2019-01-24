@@ -11,10 +11,6 @@
 #include <stdlib.h>
 #include <errno.h>
 #include "bio_lcl.h"
-#if defined(NETWARE_CLIB)
-# include <sys/ioctl.h>
-NETDB_DEFINE_CONTEXT
-#endif
 #ifndef OPENSSL_NO_SOCK
 # define SOCKET_PROTOCOL IPPROTO_TCP
 # ifdef SO_MAXCONN
@@ -43,14 +39,13 @@ int BIO_get_host_ip(const char *str, unsigned char *ip)
         if (BIO_ADDRINFO_family(res) != AF_INET) {
             BIOerr(BIO_F_BIO_GET_HOST_IP,
                    BIO_R_GETHOSTBYNAME_ADDR_IS_NOT_AF_INET);
-        } else {
-            BIO_ADDR_rawaddress(BIO_ADDRINFO_address(res), NULL, &l);
-            /* Because only AF_INET addresses will reach this far,
-               we can assert that l should be 4 */
-            OPENSSL_assert(l == 4);
-
-            BIO_ADDR_rawaddress(BIO_ADDRINFO_address(res), ip, &l);
-            ret = 1;
+        } else if (BIO_ADDR_rawaddress(BIO_ADDRINFO_address(res), NULL, &l)) {
+            /*
+             * Because only AF_INET addresses will reach this far, we can assert
+             * that l should be 4
+             */
+            if (ossl_assert(l == 4))
+                ret = BIO_ADDR_rawaddress(BIO_ADDRINFO_address(res), ip, &l);
         }
         BIO_ADDRINFO_free(res);
     } else {
@@ -67,7 +62,7 @@ int BIO_get_port(const char *str, unsigned short *port_ptr)
 
     if (str == NULL) {
         BIOerr(BIO_F_BIO_GET_PORT, BIO_R_NO_PORT_DEFINED);
-        return (0);
+        return 0;
     }
 
     if (BIO_sock_init() != 1)
@@ -103,9 +98,9 @@ int BIO_sock_error(int sock)
      */
     i = getsockopt(sock, SOL_SOCKET, SO_ERROR, (void *)&j, &size);
     if (i < 0)
-        return (get_last_socket_error());
+        return get_last_socket_error();
     else
-        return (j);
+        return j;
 }
 
 # if OPENSSL_API_COMPAT < 0x10100000L
@@ -115,11 +110,7 @@ struct hostent *BIO_gethostbyname(const char *name)
      * Caching gethostbyname() results forever is wrong, so we have to let
      * the true gethostbyname() worry about this
      */
-#  if (defined(NETWARE_BSDSOCK) && !defined(__NOVELL_LIBC__))
-    return gethostbyname((char *)name);
-#  else
     return gethostbyname(name);
-#  endif
 }
 # endif
 
@@ -143,7 +134,7 @@ int BIO_sock_init(void)
             err = WSAGetLastError();
             SYSerr(SYS_F_WSASTARTUP, err);
             BIOerr(BIO_F_BIO_SOCK_INIT, BIO_R_WSASTARTUP);
-            return (-1);
+            return -1;
         }
     }
 # endif                         /* OPENSSL_SYS_WINDOWS */
@@ -151,10 +142,10 @@ int BIO_sock_init(void)
     extern int _watt_do_exit;
     _watt_do_exit = 0;          /* don't make sock_init() call exit() */
     if (sock_init())
-        return (-1);
+        return -1;
 # endif
 
-    return (1);
+    return 1;
 }
 
 void bio_sock_cleanup_int(void)
@@ -202,7 +193,7 @@ int BIO_socket_ioctl(int fd, long type, void *arg)
 #  endif                        /* __DJGPP__ */
     if (i < 0)
         SYSerr(SYS_F_IOCTLSOCKET, get_last_socket_error());
-    return (i);
+    return i;
 }
 
 # if OPENSSL_API_COMPAT < 0x10100000L

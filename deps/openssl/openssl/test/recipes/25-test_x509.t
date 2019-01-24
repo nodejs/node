@@ -15,9 +15,24 @@ use OpenSSL::Test qw/:DEFAULT srctop_file/;
 
 setup("test_x509");
 
-plan tests => 5;
+plan tests => 9;
 
 require_ok(srctop_file('test','recipes','tconversion.pl'));
+
+my $pem = srctop_file("test/certs", "cyrillic.pem");
+my $out = "cyrillic.out";
+my $msb = srctop_file("test/certs", "cyrillic.msb");
+my $utf = srctop_file("test/certs", "cyrillic.utf8");
+
+ok(run(app(["openssl", "x509", "-text", "-in", $pem, "-out", $out,
+            "-nameopt", "esc_msb"])));
+is(cmp_text($out, srctop_file("test/certs", "cyrillic.msb")),
+   0, 'Comparing esc_msb output');
+ok(run(app(["openssl", "x509", "-text", "-in", $pem, "-out", $out,
+            "-nameopt", "utf8"])));
+is(cmp_text($out, srctop_file("test/certs", "cyrillic.utf8")),
+   0, 'Comparing utf8 output');
+unlink $out;
 
 subtest 'x509 -- x.509 v1 certificate' => sub {
     tconversion("x509", srctop_file("test","testx509.pem"));

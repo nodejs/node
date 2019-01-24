@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2003-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,9 +7,8 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include <ctype.h>
+#include "e_os.h"
 #include <limits.h>
-#include <e_os.h>
 #include <openssl/crypto.h>
 #include "internal/cryptlib.h"
 #include "internal/o_str.h"
@@ -28,14 +27,12 @@ int OPENSSL_memcmp(const void *v1, const void *v2, size_t n)
 char *CRYPTO_strdup(const char *str, const char* file, int line)
 {
     char *ret;
-    size_t size;
 
     if (str == NULL)
         return NULL;
-    size = strlen(str) + 1;
-    ret = CRYPTO_malloc(size, file, line);
+    ret = CRYPTO_malloc(strlen(str) + 1, file, line);
     if (ret != NULL)
-        memcpy(ret, str, size);
+        strcpy(ret, str);
     return ret;
 }
 

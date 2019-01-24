@@ -15,6 +15,36 @@
 
 /* Simple PKCS#12 file reader */
 
+static char *find_friendly_name(PKCS12 *p12)
+{
+    STACK_OF(PKCS7) *safes = PKCS12_unpack_authsafes(p12);
+    int n, m;
+    char *name = NULL;
+    PKCS7 *safe;
+    STACK_OF(PKCS12_SAFEBAG) *bags;
+    PKCS12_SAFEBAG *bag;
+
+    if ((safes = PKCS12_unpack_authsafes(p12)) == NULL)
+        return NULL;
+
+    for (n = 0; n < sk_PKCS7_num(safes) && name == NULL; n++) {
+        safe = sk_PKCS7_value(safes, n);
+        if (OBJ_obj2nid(safe->type) != NID_pkcs7_data
+                || (bags = PKCS12_unpack_p7data(safe)) == NULL)
+            continue;
+
+        for (m = 0; m < sk_PKCS12_SAFEBAG_num(bags) && name == NULL; m++) {
+            bag = sk_PKCS12_SAFEBAG_value(bags, m);
+            name = PKCS12_get_friendlyname(bag);
+        }
+        sk_PKCS12_SAFEBAG_pop_free(bags, PKCS12_SAFEBAG_free);
+    }
+
+    sk_PKCS7_pop_free(safes, PKCS7_free);
+
+    return name;
+}
+
 int main(int argc, char **argv)
 {
     FILE *fp;
@@ -22,7 +52,9 @@ int main(int argc, char **argv)
     X509 *cert;
     STACK_OF(X509) *ca = NULL;
     PKCS12 *p12;
+    const char *name;
     int i;
+
     if (argc != 4) {
         fprintf(stderr, "Usage: pkread p12file password opfile\n");
         exit(1);
@@ -45,11 +77,14 @@ int main(int argc, char **argv)
         ERR_print_errors_fp(stderr);
         exit(1);
     }
+    name = find_friendly_name(p12);
     PKCS12_free(p12);
     if ((fp = fopen(argv[3], "w")) == NULL) {
         fprintf(stderr, "Error opening file %s\n", argv[1]);
         exit(1);
     }
+    if (name)
+        fprintf(fp, "***Friendly Name***\n%s\n", name);
     if (pkey) {
         fprintf(fp, "***Private Key***\n");
         PEM_write_PrivateKey(fp, pkey, NULL, NULL, 0, NULL, NULL);

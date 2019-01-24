@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2012-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,10 +7,17 @@
  * https://www.openssl.org/source/license.html
  */
 
+#include <string.h>
+
+#include <openssl/e_os2.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
-#include "../e_os.h"
-#include <string.h>
+#include "internal/nelem.h"
+#include "testutil.h"
+
+#ifdef OPENSSL_SYS_WINDOWS
+# define strcasecmp _stricmp
+#endif
 
 static const char *const names[] = {
     "a", "b", ".", "*", "@",
@@ -72,6 +79,7 @@ static const char *const exceptions[] = {
 static int is_exception(const char *msg)
 {
     const char *const *p;
+
     for (p = exceptions; *p; ++p)
         if (strcmp(msg, *p) == 0)
             return 1;
@@ -83,13 +91,16 @@ static int set_cn(X509 *crt, ...)
     int ret = 0;
     X509_NAME *n = NULL;
     va_list ap;
+
     va_start(ap, crt);
     n = X509_NAME_new();
     if (n == NULL)
         goto out;
+
     while (1) {
         int nid;
         const char *name;
+
         nid = va_arg(ap, int);
         if (nid == 0)
             break;
@@ -238,59 +249,55 @@ static const struct set_name_fn name_fns[] = {
     {set_email_and_cn, "set emailAddress", 0, 1},
     {set_altname_dns, "set dnsName", 1, 0},
     {set_altname_email, "set rfc822Name", 0, 1},
-    {NULL, NULL, 0}
 };
 
-static X509 *make_cert()
+static X509 *make_cert(void)
 {
-    X509 *ret = NULL;
     X509 *crt = NULL;
-    X509_NAME *issuer = NULL;
-    crt = X509_new();
-    if (crt == NULL)
-        goto out;
-    if (!X509_set_version(crt, 3))
-        goto out;
-    ret = crt;
-    crt = NULL;
- out:
-    X509_NAME_free(issuer);
-    return ret;
+
+    if (!TEST_ptr(crt = X509_new()))
+        return NULL;
+    if (!TEST_true(X509_set_version(crt, 2))) {
+        X509_free(crt);
+        return NULL;
+    }
+    return crt;
 }
 
-static int errors;
-
-static void check_message(const struct set_name_fn *fn, const char *op,
-                          const char *nameincert, int match, const char *name)
+static int check_message(const struct set_name_fn *fn, const char *op,
+                         const char *nameincert, int match, const char *name)
 {
     char msg[1024];
+
     if (match < 0)
-        return;
+        return 1;
     BIO_snprintf(msg, sizeof(msg), "%s: %s: [%s] %s [%s]",
                  fn->name, op, nameincert,
                  match ? "matches" : "does not match", name);
     if (is_exception(msg))
-        return;
-    puts(msg);
-    ++errors;
+        return 1;
+    TEST_error("%s", msg);
+    return 0;
 }
 
-static void run_cert(X509 *crt, const char *nameincert,
+static int run_cert(X509 *crt, const char *nameincert,
                      const struct set_name_fn *fn)
 {
     const char *const *pname = names;
-    while (*pname) {
+    int failed = 0;
+
+    for (; *pname != NULL; ++pname) {
         int samename = strcasecmp(nameincert, *pname) == 0;
         size_t namelen = strlen(*pname);
-        char *name = malloc(namelen);
+        char *name = OPENSSL_malloc(namelen);
         int match, ret;
+
         memcpy(name, *pname, namelen);
 
-        ret = X509_check_host(crt, name, namelen, 0, NULL);
         match = -1;
-        if (ret < 0) {
-            fprintf(stderr, "internal error in X509_check_host");
-            ++errors;
+        if (!TEST_int_ge(ret = X509_check_host(crt, name, namelen, 0, NULL),
+                         0)) {
+            failed = 1;
         } else if (fn->host) {
             if (ret == 1 && !samename)
                 match = 1;
@@ -298,14 +305,14 @@ static void run_cert(X509 *crt, const char *nameincert,
                 match = 0;
         } else if (ret == 1)
             match = 1;
-        check_message(fn, "host", nameincert, match, *pname);
+        if (!TEST_true(check_message(fn, "host", nameincert, match, *pname)))
+            failed = 1;
 
-        ret = X509_check_host(crt, name, namelen,
-                              X509_CHECK_FLAG_NO_WILDCARDS, NULL);
         match = -1;
-        if (ret < 0) {
-            fprintf(stderr, "internal error in X509_check_host");
-            ++errors;
+        if (!TEST_int_ge(ret = X509_check_host(crt, name, namelen,
+                                               X509_CHECK_FLAG_NO_WILDCARDS,
+                                               NULL), 0)) {
+            failed = 1;
         } else if (fn->host) {
             if (ret == 1 && !samename)
                 match = 1;
@@ -313,10 +320,12 @@ static void run_cert(X509 *crt, const char *nameincert,
                 match = 0;
         } else if (ret == 1)
             match = 1;
-        check_message(fn, "host-no-wildcards", nameincert, match, *pname);
+        if (!TEST_true(check_message(fn, "host-no-wildcards",
+                                     nameincert, match, *pname)))
+            failed = 1;
 
+        match = -1;
         ret = X509_check_email(crt, name, namelen, 0);
-        match = -1;
         if (fn->email) {
             if (ret && !samename)
                 match = 1;
@@ -324,32 +333,34 @@ static void run_cert(X509 *crt, const char *nameincert,
                 match = 0;
         } else if (ret)
             match = 1;
-        check_message(fn, "email", nameincert, match, *pname);
-        ++pname;
-        free(name);
+        if (!TEST_true(check_message(fn, "email", nameincert, match, *pname)))
+            failed = 1;
+        OPENSSL_free(name);
     }
+
+    return failed == 0;
 }
 
-int main(void)
+static int call_run_cert(int i)
 {
-    const struct set_name_fn *pfn = name_fns;
-    while (pfn->name) {
-        const char *const *pname = names;
-        while (*pname) {
-            X509 *crt = make_cert();
-            if (crt == NULL) {
-                fprintf(stderr, "make_cert failed\n");
-                return 1;
-            }
-            if (!pfn->fn(crt, *pname)) {
-                fprintf(stderr, "X509 name setting failed\n");
-                return 1;
-            }
-            run_cert(crt, *pname, pfn);
-            X509_free(crt);
-            ++pname;
-        }
-        ++pfn;
+    int failed = 0;
+    const struct set_name_fn *pfn = &name_fns[i];
+    X509 *crt;
+    const char *const *pname;
+
+    TEST_info("%s", pfn->name);
+    for (pname = names; *pname != NULL; pname++) {
+        if (!TEST_ptr(crt = make_cert())
+             || !TEST_true(pfn->fn(crt, *pname))
+             || !run_cert(crt, *pname, pfn))
+            failed = 1;
+        X509_free(crt);
     }
-    return errors > 0 ? 1 : 0;
+    return failed == 0;
+}
+
+int setup_tests(void)
+{
+    ADD_ALL_TESTS(call_run_cert, OSSL_NELEM(name_fns));
+    return 1;
 }

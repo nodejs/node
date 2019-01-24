@@ -108,7 +108,7 @@ sub structureData {
         if($inbrace) {
             if($item eq "}") {
                 $inbrace --;
-            
+
                 if(!$inbrace) {
                     $substruc = structureData($dataitem);
                     $dataitem = $substruc;

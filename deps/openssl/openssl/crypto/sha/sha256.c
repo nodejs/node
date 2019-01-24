@@ -57,7 +57,7 @@ unsigned char *SHA224(const unsigned char *d, size_t n, unsigned char *md)
     SHA256_Update(&c, d, n);
     SHA256_Final(md, &c);
     OPENSSL_cleanse(&c, sizeof(c));
-    return (md);
+    return md;
 }
 
 unsigned char *SHA256(const unsigned char *d, size_t n, unsigned char *md)
@@ -71,7 +71,7 @@ unsigned char *SHA256(const unsigned char *d, size_t n, unsigned char *md)
     SHA256_Update(&c, d, n);
     SHA256_Final(md, &c);
     OPENSSL_cleanse(&c, sizeof(c));
-    return (md);
+    return md;
 }
 
 int SHA224_Update(SHA256_CTX *c, const void *data, size_t len)

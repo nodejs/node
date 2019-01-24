@@ -7,7 +7,7 @@
 # https://www.openssl.org/source/license.html
 
 
-## Test ALPN negotiation
+## Test version negotiation
 
 use strict;
 use warnings;
@@ -314,7 +314,8 @@ our @tests = (
                 "ALPNProtocols" => "foo",
             },
         },
-        resume_client => { },
+        resume_client => {
+        },
         test => {
             "HandshakeMode" => "Resume",
             "ResumptionExpected" => "Yes",

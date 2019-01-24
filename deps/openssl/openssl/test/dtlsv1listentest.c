@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,10 +12,8 @@
 #include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/conf.h>
-#ifndef OPENSSL_NO_ENGINE
- #include <openssl/engine.h>
-#endif
-#include "e_os.h"
+#include "internal/nelem.h"
+#include "testutil.h"
 
 #ifndef OPENSSL_NO_SOCK
 
@@ -236,7 +234,7 @@ static const unsigned char verify[] = {
     0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13 /* Cookie */
 };
 
-static struct {
+typedef struct {
     const unsigned char *in;
     unsigned int inlen;
     /*
@@ -245,52 +243,18 @@ static struct {
      * DROP == 0 return value, no output
      */
     enum {GOOD, VERIFY, DROP} outtype;
-} testpackets[9] = {
-    {
-        clienthello_nocookie,
-        sizeof(clienthello_nocookie),
-        VERIFY
-    },
-    {
-        clienthello_nocookie_frag,
-        sizeof(clienthello_nocookie_frag),
-        VERIFY
-    },
-    {
-        clienthello_nocookie_short,
-        sizeof(clienthello_nocookie_short),
-        DROP
-    },
-    {
-        clienthello_2ndfrag,
-        sizeof(clienthello_2ndfrag),
-        DROP
-    },
-    {
-        clienthello_cookie,
-        sizeof(clienthello_cookie),
-        GOOD
-    },
-    {
-        clienthello_cookie_frag,
-        sizeof(clienthello_cookie_frag),
-        GOOD
-    },
-    {
-        clienthello_badcookie,
-        sizeof(clienthello_badcookie),
-        VERIFY
-    },
-    {
-        clienthello_cookie_short,
-        sizeof(clienthello_cookie_short),
-        DROP
-    },
-    {
-        record_short,
-        sizeof(record_short),
-        DROP
-    }
+} tests;
+
+static tests testpackets[9] = {
+    { clienthello_nocookie, sizeof(clienthello_nocookie), VERIFY },
+    { clienthello_nocookie_frag, sizeof(clienthello_nocookie_frag), VERIFY },
+    { clienthello_nocookie_short, sizeof(clienthello_nocookie_short), DROP },
+    { clienthello_2ndfrag, sizeof(clienthello_2ndfrag), DROP },
+    { clienthello_cookie, sizeof(clienthello_cookie), GOOD },
+    { clienthello_cookie_frag, sizeof(clienthello_cookie_frag), GOOD },
+    { clienthello_badcookie, sizeof(clienthello_badcookie), VERIFY },
+    { clienthello_cookie_short, sizeof(clienthello_cookie_short), DROP },
+    { record_short, sizeof(record_short), DROP }
 };
 
 # define COOKIE_LEN  20
@@ -299,9 +263,8 @@ static int cookie_gen(SSL *ssl, unsigned char *cookie, unsigned int *cookie_len)
 {
     unsigned int i;
 
-    for (i = 0; i < COOKIE_LEN; i++, cookie++) {
+    for (i = 0; i < COOKIE_LEN; i++, cookie++)
         *cookie = i;
-    }
     *cookie_len = COOKIE_LEN;
 
     return 1;
@@ -322,105 +285,73 @@ static int cookie_verify(SSL *ssl, const unsigned char *cookie,
 
     return 1;
 }
-#endif
 
-int main(void)
+static int dtls_listen_test(int i)
 {
-#ifndef OPENSSL_NO_SOCK
     SSL_CTX *ctx = NULL;
     SSL *ssl = NULL;
     BIO *outbio = NULL;
     BIO *inbio = NULL;
-    BIO_ADDR *peer = BIO_ADDR_new();
+    BIO_ADDR *peer = NULL;
+    tests *tp = &testpackets[i];
     char *data;
     long datalen;
     int ret, success = 0;
-    long i;
 
-    ctx = SSL_CTX_new(DTLS_server_method());
-    if (ctx == NULL || peer == NULL)
+    if (!TEST_ptr(ctx = SSL_CTX_new(DTLS_server_method()))
+            || !TEST_ptr(peer = BIO_ADDR_new()))
         goto err;
-
     SSL_CTX_set_cookie_generate_cb(ctx, cookie_gen);
     SSL_CTX_set_cookie_verify_cb(ctx, cookie_verify);
 
-    /* Create an SSL object for the connection */
-    ssl = SSL_new(ctx);
-    if (ssl == NULL)
-        goto err;
-
-    outbio = BIO_new(BIO_s_mem());
-    if (outbio == NULL)
+    /* Create an SSL object and set the BIO */
+    if (!TEST_ptr(ssl = SSL_new(ctx))
+            || !TEST_ptr(outbio = BIO_new(BIO_s_mem())))
         goto err;
     SSL_set0_wbio(ssl, outbio);
 
-    success = 1;
-    for (i = 0; i < (long)OSSL_NELEM(testpackets) && success; i++) {
-        inbio = BIO_new_mem_buf((char *)testpackets[i].in,
-                                testpackets[i].inlen);
-        if (inbio == NULL) {
-            success = 0;
+    /* Set Non-blocking IO behaviour */
+    if (!TEST_ptr(inbio = BIO_new_mem_buf((char *)tp->in, tp->inlen)))
+        goto err;
+    BIO_set_mem_eof_return(inbio, -1);
+    SSL_set0_rbio(ssl, inbio);
+
+    /* Process the incoming packet */
+    if (!TEST_int_ge(ret = DTLSv1_listen(ssl, peer), 0))
+        goto err;
+    datalen = BIO_get_mem_data(outbio, &data);
+
+    if (tp->outtype == VERIFY) {
+        if (!TEST_int_eq(ret, 0)
+                || !TEST_mem_eq(data, datalen, verify, sizeof(verify)))
             goto err;
-        }
-        /* Set Non-blocking IO behaviour */
-        BIO_set_mem_eof_return(inbio, -1);
-
-        SSL_set0_rbio(ssl, inbio);
-
-        /* Process the incoming packet */
-        ret = DTLSv1_listen(ssl, peer);
-        if (ret < 0) {
-            success = 0;
+    } else if (datalen == 0) {
+        if (!TEST_true((ret == 0 && tp->outtype == DROP)
+                || (ret == 1 && tp->outtype == GOOD)))
             goto err;
-        }
-
-        datalen = BIO_get_mem_data(outbio, &data);
-
-        if (testpackets[i].outtype == VERIFY) {
-            if (ret == 0) {
-                if (datalen != sizeof(verify)
-                        || (memcmp(data, verify, sizeof(verify)) != 0)) {
-                    printf("Test %ld failure: incorrect HelloVerifyRequest\n", i);
-                    success = 0;
-                } else {
-                    printf("Test %ld success\n", i);
-                }
-            } else {
-                printf ("Test %ld failure: should not have succeeded\n", i);
-                success = 0;
-            }
-        } else if (datalen == 0) {
-            if ((ret == 0 && testpackets[i].outtype == DROP)
-                    || (ret == 1 && testpackets[i].outtype == GOOD)) {
-                printf("Test %ld success\n", i);
-            } else {
-                printf("Test %ld failure: wrong return value\n", i);
-                success = 0;
-            }
-        } else {
-            printf("Test %ld failure: Unexpected data output\n", i);
-            success = 0;
-        }
-        (void)BIO_reset(outbio);
-        inbio = NULL;
-        /* Frees up inbio */
-        SSL_set0_rbio(ssl, NULL);
+    } else {
+        TEST_info("Test %d: unexpected data output", i);
+        goto err;
     }
+    (void)BIO_reset(outbio);
+    inbio = NULL;
+    SSL_set0_rbio(ssl, NULL);
+    success = 1;
 
  err:
-    if (!success)
-        ERR_print_errors_fp(stderr);
     /* Also frees up outbio */
     SSL_free(ssl);
     SSL_CTX_free(ctx);
     BIO_free(inbio);
     OPENSSL_free(peer);
-# ifndef OPENSSL_NO_CRYPTO_MDEBUG
-    CRYPTO_mem_leaks_fp(stderr);
-# endif
-    return success ? 0 : 1;
-#else
-    printf("DTLSv1_listen() is not supported by this build - skipping\n");
-    return 0;
+    return success;
+}
 #endif
+
+int setup_tests(void)
+{
+#ifndef OPENSSL_NO_SOCK
+    ADD_ALL_TESTS(dtls_listen_test, (int)OSSL_NELEM(testpackets));
+#endif
+    return 1;
 }

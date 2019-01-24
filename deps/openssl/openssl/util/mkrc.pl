@@ -6,37 +6,47 @@
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
 
+use strict;
+use warnings;
 use lib ".";
 use configdata;
 use File::Spec::Functions;
 
-my $versionfile = catfile($config{sourcedir},"include/openssl/opensslv.h");
+my $versionfile = catfile( $config{sourcedir}, "include/openssl/opensslv.h" );
+
+my ( $ver, $v1, $v2, $v3, $v4, $beta, $version );
 
 open FD, $versionfile or die "Couldn't open include/openssl/opensslv.h: $!\n";
-while(<FD>) {
+while (<FD>) {
     if (/OPENSSL_VERSION_NUMBER\s+(0x[0-9a-f]+)/i) {
-	$ver = hex($1);
-	$v1 = ($ver>>28);
-	$v2 = ($ver>>20)&0xff;
-	$v3 = ($ver>>12)&0xff;
-	$v4 = ($ver>> 4)&0xff;
-	$beta = $ver&0xf;
-	$version = "$v1.$v2.$v3";
-	if ($beta==0xf)	{ $version .= chr(ord('a')+$v4-1) if ($v4);	}
-	elsif ($beta==0){ $version .= "-dev";				}
-	else		{ $version .= "-beta$beta";			}
-	last;
+        $ver     = hex($1);
+        $v1      = ( $ver >> 28 );
+        $v2      = ( $ver >> 20 ) & 0xff;
+        $v3      = ( $ver >> 12 ) & 0xff;
+        $v4      = ( $ver >>  4 ) & 0xff;
+        $beta    = $ver & 0xf;
+        $version = "$v1.$v2.$v3";
+        if ( $beta == 0xf ) {
+            $version .= chr( ord('a') + $v4 - 1 ) if ($v4);
+        } elsif ( $beta == 0 ) {
+            $version .= "-dev";
+        } else {
+            $version .= "-beta$beta";
+        }
+        last;
     }
 }
 close(FD);
 
-$filename = $ARGV[0]; $filename =~ /(.*)\.([^.]+)$/;
-$basename = $1;
-$extname  = $2;
+my $filename = $ARGV[0];
+my $description = "OpenSSL library";
+my $vft = "VFT_DLL";
+if ( $filename =~ /openssl/i ) {
+    $description = "OpenSSL application";
+    $vft = "VFT_APP";
+}
 
-if ($extname =~ /dll/i)	{ $description = "OpenSSL shared library"; }
-else			{ $description = "OpenSSL application";    }
-
+my $YEAR = [localtime()]->[5] + 1900;
 print <<___;
 #include <winver.h>
 
@@ -52,7 +62,7 @@ LANGUAGE 0x09,0x01
   FILEFLAGS 0x00L
 #endif
   FILEOS VOS__WINDOWS32
-  FILETYPE VFT_DLL
+  FILETYPE $vft
   FILESUBTYPE 0x0L
 BEGIN
     BLOCK "StringFileInfo"
@@ -63,13 +73,13 @@ BEGIN
             VALUE "CompanyName", "The OpenSSL Project, https://www.openssl.org/\\0"
             VALUE "FileDescription", "$description\\0"
             VALUE "FileVersion", "$version\\0"
-            VALUE "InternalName", "$basename\\0"
+            VALUE "InternalName", "$filename\\0"
             VALUE "OriginalFilename", "$filename\\0"
             VALUE "ProductName", "The OpenSSL Toolkit\\0"
             VALUE "ProductVersion", "$version\\0"
             // Optional:
             //VALUE "Comments", "\\0"
-            VALUE "LegalCopyright", "Copyright 1998-2016 The OpenSSL Authors. All rights reserved.\\0"
+            VALUE "LegalCopyright", "Copyright 1998-$YEAR The OpenSSL Authors. All rights reserved.\\0"
             //VALUE "LegalTrademarks", "\\0"
             //VALUE "PrivateBuild", "\\0"
             //VALUE "SpecialBuild", "\\0"

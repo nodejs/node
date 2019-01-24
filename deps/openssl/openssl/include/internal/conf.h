@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,11 +12,6 @@
 
 #include <openssl/conf.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-
 struct ossl_init_settings_st {
     char *appname;
 };
@@ -24,9 +19,5 @@ struct ossl_init_settings_st {
 void openssl_config_int(const char *appname);
 void openssl_no_config_int(void);
 void conf_modules_free_int(void);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

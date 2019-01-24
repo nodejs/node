@@ -8,6 +8,7 @@
  */
 
 #include <openssl/dsa.h>
+#include "internal/refcount.h"
 
 struct dsa_st {
     /*
@@ -15,7 +16,7 @@ struct dsa_st {
      * instead of of a EVP_PKEY
      */
     int pad;
-    long version;
+    int32_t version;
     BIGNUM *p;
     BIGNUM *q;                  /* == 20 */
     BIGNUM *g;
@@ -24,7 +25,7 @@ struct dsa_st {
     int flags;
     /* Normally used to cache montgomery values */
     BN_MONT_CTX *method_mont_p;
-    int references;
+    CRYPTO_REF_COUNT references;
     CRYPTO_EX_DATA ex_data;
     const DSA_METHOD *meth;
     /* functional reference if 'meth' is ENGINE-provided */

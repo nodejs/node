@@ -78,10 +78,9 @@ int PKCS12_key_gen_uni(unsigned char *pass, int passlen, unsigned char *salt,
                        unsigned char *out, const EVP_MD *md_type)
 {
     unsigned char *B = NULL, *D = NULL, *I = NULL, *p = NULL, *Ai = NULL;
-    int Slen, Plen, Ilen, Ijlen;
+    int Slen, Plen, Ilen;
     int i, j, u, v;
     int ret = 0;
-    BIGNUM *Ij = NULL, *Bpl1 = NULL; /* These hold Ij and B + 1 */
     EVP_MD_CTX *ctx = NULL;
 #ifdef  OPENSSL_DEBUG_KEYGEN
     unsigned char *tmpout = out;
@@ -114,10 +113,7 @@ int PKCS12_key_gen_uni(unsigned char *pass, int passlen, unsigned char *salt,
         Plen = 0;
     Ilen = Slen + Plen;
     I = OPENSSL_malloc(Ilen);
-    Ij = BN_new();
-    Bpl1 = BN_new();
-    if (D == NULL || Ai == NULL || B == NULL || I == NULL || Ij == NULL
-            || Bpl1 == NULL)
+    if (D == NULL || Ai == NULL || B == NULL || I == NULL)
         goto err;
     for (i = 0; i < v; i++)
         D[i] = id;
@@ -151,33 +147,17 @@ int PKCS12_key_gen_uni(unsigned char *pass, int passlen, unsigned char *salt,
         out += u;
         for (j = 0; j < v; j++)
             B[j] = Ai[j % u];
-        /* Work out B + 1 first then can use B as tmp space */
-        if (!BN_bin2bn(B, v, Bpl1))
-            goto err;
-        if (!BN_add_word(Bpl1, 1))
-            goto err;
         for (j = 0; j < Ilen; j += v) {
-            if (!BN_bin2bn(I + j, v, Ij))
-                goto err;
-            if (!BN_add(Ij, Ij, Bpl1))
-                goto err;
-            if (!BN_bn2bin(Ij, B))
-                goto err;
-            Ijlen = BN_num_bytes(Ij);
-            /* If more than 2^(v*8) - 1 cut off MSB */
-            if (Ijlen > v) {
-                if (!BN_bn2bin(Ij, B))
-                    goto err;
-                memcpy(I + j, B + 1, v);
-#ifndef PKCS12_BROKEN_KEYGEN
-                /* If less than v bytes pad with zeroes */
-            } else if (Ijlen < v) {
-                memset(I + j, 0, v - Ijlen);
-                if (!BN_bn2bin(Ij, I + j + v - Ijlen))
-                    goto err;
-#endif
-            } else if (!BN_bn2bin(Ij, I + j))
-                goto err;
+            int k;
+            unsigned char *Ij = I + j;
+            uint16_t c = 1;
+
+            /* Work out Ij = Ij + B + 1 */
+            for (k = v - 1; k >= 0; k--) {
+                c += Ij[k] + B[k];
+                Ij[k] = (unsigned char)c;
+                c >>= 8;
+            }
         }
     }
 
@@ -189,8 +169,6 @@ int PKCS12_key_gen_uni(unsigned char *pass, int passlen, unsigned char *salt,
     OPENSSL_free(B);
     OPENSSL_free(D);
     OPENSSL_free(I);
-    BN_free(Ij);
-    BN_free(Bpl1);
     EVP_MD_CTX_free(ctx);
     return ret;
 }

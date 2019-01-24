@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -32,7 +32,12 @@ int EVP_MD_CTX_reset(EVP_MD_CTX *ctx)
         && !EVP_MD_CTX_test_flags(ctx, EVP_MD_CTX_FLAG_REUSE)) {
         OPENSSL_clear_free(ctx->md_data, ctx->digest->ctx_size);
     }
-    EVP_PKEY_CTX_free(ctx->pctx);
+    /*
+     * pctx should be freed by the user of EVP_MD_CTX
+     * if EVP_MD_CTX_FLAG_KEEP_PKEY_CTX is set
+     */
+    if (!EVP_MD_CTX_test_flags(ctx, EVP_MD_CTX_FLAG_KEEP_PKEY_CTX))
+        EVP_PKEY_CTX_free(ctx->pctx);
 #ifndef OPENSSL_NO_ENGINE
     ENGINE_finish(ctx->engine);
 #endif
@@ -174,6 +179,27 @@ int EVP_DigestFinal_ex(EVP_MD_CTX *ctx, unsigned char *md, unsigned int *size)
     return ret;
 }
 
+int EVP_DigestFinalXOF(EVP_MD_CTX *ctx, unsigned char *md, size_t size)
+{
+    int ret = 0;
+
+    if (ctx->digest->flags & EVP_MD_FLAG_XOF
+        && size <= INT_MAX
+        && ctx->digest->md_ctrl(ctx, EVP_MD_CTRL_XOF_LEN, (int)size, NULL)) {
+        ret = ctx->digest->final(ctx, md);
+
+        if (ctx->digest->cleanup != NULL) {
+            ctx->digest->cleanup(ctx);
+            EVP_MD_CTX_set_flags(ctx, EVP_MD_CTX_FLAG_CLEANED);
+        }
+        OPENSSL_cleanse(ctx->md_data, ctx->digest->ctx_size);
+    } else {
+        EVPerr(EVP_F_EVP_DIGESTFINALXOF, EVP_R_NOT_XOF_OR_INVALID_LENGTH);
+    }
+
+    return ret;
+}
+
 int EVP_MD_CTX_copy(EVP_MD_CTX *out, const EVP_MD_CTX *in)
 {
     EVP_MD_CTX_reset(out);
@@ -202,6 +228,9 @@ int EVP_MD_CTX_copy_ex(EVP_MD_CTX *out, const EVP_MD_CTX *in)
         tmp_buf = NULL;
     EVP_MD_CTX_reset(out);
     memcpy(out, in, sizeof(*out));
+
+    /* copied EVP_MD_CTX should free the copied EVP_PKEY_CTX */
+    EVP_MD_CTX_clear_flags(out, EVP_MD_CTX_FLAG_KEEP_PKEY_CTX);
 
     /* Null these variables, since they are getting fixed up
      * properly below.  Anything else may cause a memleak and/or

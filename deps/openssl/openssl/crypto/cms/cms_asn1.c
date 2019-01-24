@@ -56,7 +56,7 @@ static int cms_si_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
 }
 
 ASN1_SEQUENCE_cb(CMS_SignerInfo, cms_si_cb) = {
-        ASN1_SIMPLE(CMS_SignerInfo, version, LONG),
+        ASN1_EMBED(CMS_SignerInfo, version, INT32),
         ASN1_SIMPLE(CMS_SignerInfo, sid, CMS_SignerIdentifier),
         ASN1_SIMPLE(CMS_SignerInfo, digestAlgorithm, X509_ALGOR),
         ASN1_IMP_SET_OF_OPT(CMS_SignerInfo, signedAttrs, X509_ATTRIBUTE, 0),
@@ -76,7 +76,7 @@ ASN1_CHOICE(CMS_RevocationInfoChoice) = {
 } ASN1_CHOICE_END(CMS_RevocationInfoChoice)
 
 ASN1_NDEF_SEQUENCE(CMS_SignedData) = {
-        ASN1_SIMPLE(CMS_SignedData, version, LONG),
+        ASN1_EMBED(CMS_SignedData, version, INT32),
         ASN1_SET_OF(CMS_SignedData, digestAlgorithms, X509_ALGOR),
         ASN1_SIMPLE(CMS_SignedData, encapContentInfo, CMS_EncapsulatedContentInfo),
         ASN1_IMP_SET_OF_OPT(CMS_SignedData, certificates, CMS_CertificateChoices, 0),
@@ -96,7 +96,7 @@ ASN1_NDEF_SEQUENCE(CMS_EncryptedContentInfo) = {
 } static_ASN1_NDEF_SEQUENCE_END(CMS_EncryptedContentInfo)
 
 ASN1_SEQUENCE(CMS_KeyTransRecipientInfo) = {
-        ASN1_SIMPLE(CMS_KeyTransRecipientInfo, version, LONG),
+        ASN1_EMBED(CMS_KeyTransRecipientInfo, version, INT32),
         ASN1_SIMPLE(CMS_KeyTransRecipientInfo, rid, CMS_SignerIdentifier),
         ASN1_SIMPLE(CMS_KeyTransRecipientInfo, keyEncryptionAlgorithm, X509_ALGOR),
         ASN1_SIMPLE(CMS_KeyTransRecipientInfo, encryptedKey, ASN1_OCTET_STRING)
@@ -162,7 +162,7 @@ static int cms_kari_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
 }
 
 ASN1_SEQUENCE_cb(CMS_KeyAgreeRecipientInfo, cms_kari_cb) = {
-        ASN1_SIMPLE(CMS_KeyAgreeRecipientInfo, version, LONG),
+        ASN1_EMBED(CMS_KeyAgreeRecipientInfo, version, INT32),
         ASN1_EXP(CMS_KeyAgreeRecipientInfo, originator, CMS_OriginatorIdentifierOrKey, 0),
         ASN1_EXP_OPT(CMS_KeyAgreeRecipientInfo, ukm, ASN1_OCTET_STRING, 1),
         ASN1_SIMPLE(CMS_KeyAgreeRecipientInfo, keyEncryptionAlgorithm, X509_ALGOR),
@@ -176,14 +176,14 @@ ASN1_SEQUENCE(CMS_KEKIdentifier) = {
 } static_ASN1_SEQUENCE_END(CMS_KEKIdentifier)
 
 ASN1_SEQUENCE(CMS_KEKRecipientInfo) = {
-        ASN1_SIMPLE(CMS_KEKRecipientInfo, version, LONG),
+        ASN1_EMBED(CMS_KEKRecipientInfo, version, INT32),
         ASN1_SIMPLE(CMS_KEKRecipientInfo, kekid, CMS_KEKIdentifier),
         ASN1_SIMPLE(CMS_KEKRecipientInfo, keyEncryptionAlgorithm, X509_ALGOR),
         ASN1_SIMPLE(CMS_KEKRecipientInfo, encryptedKey, ASN1_OCTET_STRING)
 } ASN1_SEQUENCE_END(CMS_KEKRecipientInfo)
 
 ASN1_SEQUENCE(CMS_PasswordRecipientInfo) = {
-        ASN1_SIMPLE(CMS_PasswordRecipientInfo, version, LONG),
+        ASN1_EMBED(CMS_PasswordRecipientInfo, version, INT32),
         ASN1_IMP_OPT(CMS_PasswordRecipientInfo, keyDerivationAlgorithm, X509_ALGOR, 0),
         ASN1_SIMPLE(CMS_PasswordRecipientInfo, keyEncryptionAlgorithm, X509_ALGOR),
         ASN1_SIMPLE(CMS_PasswordRecipientInfo, encryptedKey, ASN1_OCTET_STRING)
@@ -225,7 +225,7 @@ ASN1_CHOICE_cb(CMS_RecipientInfo, cms_ri_cb) = {
 } ASN1_CHOICE_END_cb(CMS_RecipientInfo, CMS_RecipientInfo, type)
 
 ASN1_NDEF_SEQUENCE(CMS_EnvelopedData) = {
-        ASN1_SIMPLE(CMS_EnvelopedData, version, LONG),
+        ASN1_EMBED(CMS_EnvelopedData, version, INT32),
         ASN1_IMP_OPT(CMS_EnvelopedData, originatorInfo, CMS_OriginatorInfo, 0),
         ASN1_SET_OF(CMS_EnvelopedData, recipientInfos, CMS_RecipientInfo),
         ASN1_SIMPLE(CMS_EnvelopedData, encryptedContentInfo, CMS_EncryptedContentInfo),
@@ -233,20 +233,20 @@ ASN1_NDEF_SEQUENCE(CMS_EnvelopedData) = {
 } ASN1_NDEF_SEQUENCE_END(CMS_EnvelopedData)
 
 ASN1_NDEF_SEQUENCE(CMS_DigestedData) = {
-        ASN1_SIMPLE(CMS_DigestedData, version, LONG),
+        ASN1_EMBED(CMS_DigestedData, version, INT32),
         ASN1_SIMPLE(CMS_DigestedData, digestAlgorithm, X509_ALGOR),
         ASN1_SIMPLE(CMS_DigestedData, encapContentInfo, CMS_EncapsulatedContentInfo),
         ASN1_SIMPLE(CMS_DigestedData, digest, ASN1_OCTET_STRING)
 } ASN1_NDEF_SEQUENCE_END(CMS_DigestedData)
 
 ASN1_NDEF_SEQUENCE(CMS_EncryptedData) = {
-        ASN1_SIMPLE(CMS_EncryptedData, version, LONG),
+        ASN1_EMBED(CMS_EncryptedData, version, INT32),
         ASN1_SIMPLE(CMS_EncryptedData, encryptedContentInfo, CMS_EncryptedContentInfo),
         ASN1_IMP_SET_OF_OPT(CMS_EncryptedData, unprotectedAttrs, X509_ATTRIBUTE, 1)
 } ASN1_NDEF_SEQUENCE_END(CMS_EncryptedData)
 
 ASN1_NDEF_SEQUENCE(CMS_AuthenticatedData) = {
-        ASN1_SIMPLE(CMS_AuthenticatedData, version, LONG),
+        ASN1_EMBED(CMS_AuthenticatedData, version, INT32),
         ASN1_IMP_OPT(CMS_AuthenticatedData, originatorInfo, CMS_OriginatorInfo, 0),
         ASN1_SET_OF(CMS_AuthenticatedData, recipientInfos, CMS_RecipientInfo),
         ASN1_SIMPLE(CMS_AuthenticatedData, macAlgorithm, X509_ALGOR),
@@ -258,7 +258,7 @@ ASN1_NDEF_SEQUENCE(CMS_AuthenticatedData) = {
 } static_ASN1_NDEF_SEQUENCE_END(CMS_AuthenticatedData)
 
 ASN1_NDEF_SEQUENCE(CMS_CompressedData) = {
-        ASN1_SIMPLE(CMS_CompressedData, version, LONG),
+        ASN1_EMBED(CMS_CompressedData, version, INT32),
         ASN1_SIMPLE(CMS_CompressedData, compressionAlgorithm, X509_ALGOR),
         ASN1_SIMPLE(CMS_CompressedData, encapContentInfo, CMS_EncapsulatedContentInfo),
 } ASN1_NDEF_SEQUENCE_END(CMS_CompressedData)
@@ -338,7 +338,7 @@ ASN1_ITEM_TEMPLATE_END(CMS_Attributes_Verify)
 
 
 ASN1_CHOICE(CMS_ReceiptsFrom) = {
-  ASN1_IMP(CMS_ReceiptsFrom, d.allOrFirstTier, LONG, 0),
+  ASN1_IMP_EMBED(CMS_ReceiptsFrom, d.allOrFirstTier, INT32, 0),
   ASN1_IMP_SEQUENCE_OF(CMS_ReceiptsFrom, d.receiptList, GENERAL_NAMES, 1)
 } static_ASN1_CHOICE_END(CMS_ReceiptsFrom)
 
@@ -349,7 +349,7 @@ ASN1_SEQUENCE(CMS_ReceiptRequest) = {
 } ASN1_SEQUENCE_END(CMS_ReceiptRequest)
 
 ASN1_SEQUENCE(CMS_Receipt) = {
-  ASN1_SIMPLE(CMS_Receipt, version, LONG),
+  ASN1_EMBED(CMS_Receipt, version, INT32),
   ASN1_SIMPLE(CMS_Receipt, contentType, ASN1_OBJECT),
   ASN1_SIMPLE(CMS_Receipt, signedContentIdentifier, ASN1_OCTET_STRING),
   ASN1_SIMPLE(CMS_Receipt, originatorSignatureValue, ASN1_OCTET_STRING)
