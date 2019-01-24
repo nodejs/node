@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,6 +8,7 @@
  */
 
 #include <openssl/crypto.h>
+#include "internal/cryptlib.h"
 
 #if defined(OPENSSL_THREADS) && !defined(CRYPTO_TDEBUG) && !defined(OPENSSL_SYS_WINDOWS)
 
@@ -18,9 +19,12 @@
 CRYPTO_RWLOCK *CRYPTO_THREAD_lock_new(void)
 {
 # ifdef USE_RWLOCK
-    CRYPTO_RWLOCK *lock = OPENSSL_zalloc(sizeof(pthread_rwlock_t));
-    if (lock == NULL)
+    CRYPTO_RWLOCK *lock;
+
+    if ((lock = OPENSSL_zalloc(sizeof(pthread_rwlock_t))) == NULL) {
+        /* Don't set error, to avoid recursion blowup. */
         return NULL;
+    }
 
     if (pthread_rwlock_init(lock, NULL) != 0) {
         OPENSSL_free(lock);
@@ -28,9 +32,12 @@ CRYPTO_RWLOCK *CRYPTO_THREAD_lock_new(void)
     }
 # else
     pthread_mutexattr_t attr;
-    CRYPTO_RWLOCK *lock = OPENSSL_zalloc(sizeof(pthread_mutex_t));
-    if (lock == NULL)
+    CRYPTO_RWLOCK *lock;
+
+    if ((lock = OPENSSL_zalloc(sizeof(pthread_mutex_t))) == NULL) {
+        /* Don't set error, to avoid recursion blowup. */
         return NULL;
+    }
 
     pthread_mutexattr_init(&attr);
     pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
@@ -168,4 +175,22 @@ int CRYPTO_atomic_add(int *val, int amount, int *ret, CRYPTO_RWLOCK *lock)
     return 1;
 }
 
+# ifdef OPENSSL_SYS_UNIX
+static pthread_once_t fork_once_control = PTHREAD_ONCE_INIT;
+
+static void fork_once_func(void)
+{
+    pthread_atfork(OPENSSL_fork_prepare,
+                   OPENSSL_fork_parent, OPENSSL_fork_child);
+}
+# endif
+
+int openssl_init_fork_handlers(void)
+{
+# ifdef OPENSSL_SYS_UNIX
+    if (pthread_once(&fork_once_control, fork_once_func) == 0)
+        return 1;
+# endif
+    return 0;
+}
 #endif

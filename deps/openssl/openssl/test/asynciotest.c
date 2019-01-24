@@ -16,9 +16,13 @@
 #include "../ssl/packet_locl.h"
 
 #include "ssltestlib.h"
+#include "testutil.h"
 
 /* Should we fragment records or not? 0 = no, !0 = yes*/
 static int fragment = 0;
+
+static char *cert = NULL;
+static char *privkey = NULL;
 
 static int async_new(BIO *bi);
 static int async_free(BIO *a);
@@ -38,7 +42,7 @@ struct async_ctrs {
     unsigned int wctr;
 };
 
-static const BIO_METHOD *bio_f_async_filter()
+static const BIO_METHOD *bio_f_async_filter(void)
 {
     if (methods_async == NULL) {
         methods_async = BIO_meth_new(BIO_TYPE_ASYNC_FILTER, "Async filter");
@@ -85,7 +89,7 @@ static int async_free(BIO *bio)
 static int async_read(BIO *bio, char *out, int outl)
 {
     struct async_ctrs *ctrs;
-    int ret = -1;
+    int ret = 0;
     BIO *next = BIO_next(bio);
 
     if (outl <= 0)
@@ -120,7 +124,7 @@ static int async_read(BIO *bio, char *out, int outl)
 static int async_write(BIO *bio, const char *in, int inl)
 {
     struct async_ctrs *ctrs;
-    int ret = -1;
+    int ret = 0;
     size_t written = 0;
     BIO *next = BIO_next(bio);
 
@@ -139,20 +143,64 @@ static int async_write(BIO *bio, const char *in, int inl)
             PACKET pkt;
 
             if (!PACKET_buf_init(&pkt, (const unsigned char *)in, inl))
-                abort();
+                return -1;
 
             while (PACKET_remaining(&pkt) > 0) {
-                PACKET payload;
+                PACKET payload, wholebody, sessionid, extensions;
                 unsigned int contenttype, versionhi, versionlo, data;
+                unsigned int msgtype = 0, negversion = 0;
 
-                if (   !PACKET_get_1(&pkt, &contenttype)
-                    || !PACKET_get_1(&pkt, &versionhi)
-                    || !PACKET_get_1(&pkt, &versionlo)
-                    || !PACKET_get_length_prefixed_2(&pkt, &payload))
-                    abort();
+                if (!PACKET_get_1(&pkt, &contenttype)
+                        || !PACKET_get_1(&pkt, &versionhi)
+                        || !PACKET_get_1(&pkt, &versionlo)
+                        || !PACKET_get_length_prefixed_2(&pkt, &payload))
+                    return -1;
 
                 /* Pretend we wrote out the record header */
                 written += SSL3_RT_HEADER_LENGTH;
+
+                wholebody = payload;
+                if (contenttype == SSL3_RT_HANDSHAKE
+                        && !PACKET_get_1(&wholebody, &msgtype))
+                    return -1;
+
+                if (msgtype == SSL3_MT_SERVER_HELLO) {
+                    if (!PACKET_forward(&wholebody,
+                                            SSL3_HM_HEADER_LENGTH - 1)
+                            || !PACKET_get_net_2(&wholebody, &negversion)
+                               /* Skip random (32 bytes) */
+                            || !PACKET_forward(&wholebody, 32)
+                               /* Skip session id */
+                            || !PACKET_get_length_prefixed_1(&wholebody,
+                                                             &sessionid)
+                               /*
+                                * Skip ciphersuite (2 bytes) and compression
+                                * method (1 byte)
+                                */
+                            || !PACKET_forward(&wholebody, 2 + 1)
+                            || !PACKET_get_length_prefixed_2(&wholebody,
+                                                             &extensions))
+                        return -1;
+
+                    /*
+                     * Find the negotiated version in supported_versions
+                     * extension, if present.
+                     */
+                    while (PACKET_remaining(&extensions)) {
+                        unsigned int type;
+                        PACKET extbody;
+
+                        if (!PACKET_get_net_2(&extensions, &type)
+                                || !PACKET_get_length_prefixed_2(&extensions,
+                                &extbody))
+                            return -1;
+
+                        if (type == TLSEXT_TYPE_supported_versions
+                                && (!PACKET_get_net_2(&extbody, &negversion)
+                                    || PACKET_remaining(&extbody) != 0))
+                            return -1;
+                    }
+                }
 
                 while (PACKET_get_1(&payload, &data)) {
                     /* Create a new one byte long record for each byte in the
@@ -173,14 +221,16 @@ static int async_write(BIO *bio, const char *in, int inl)
                     smallrec[DATAPOS] = data;
                     ret = BIO_write(next, smallrec, MIN_RECORD_LEN);
                     if (ret <= 0)
-                        abort();
+                        return -1;
                     written++;
                 }
                 /*
-                 * We can't fragment anything after the CCS, otherwise we
-                 * get a bad record MAC
+                 * We can't fragment anything after the ServerHello (or CCS <=
+                 * TLS1.2), otherwise we get a bad record MAC
                  */
-                if (contenttype == SSL3_RT_CHANGE_CIPHER_SPEC) {
+                if (contenttype == SSL3_RT_CHANGE_CIPHER_SPEC
+                        || (negversion == TLS1_3_VERSION
+                            && msgtype == SSL3_MT_SERVER_HELLO)) {
                     fragment = 0;
                     break;
                 }
@@ -189,7 +239,7 @@ static int async_write(BIO *bio, const char *in, int inl)
         /* Write any data we have left after fragmenting */
         ret = 0;
         if ((int)written < inl) {
-            ret = BIO_write(next, in + written , inl - written);
+            ret = BIO_write(next, in + written, inl - written);
         }
 
         if (ret <= 0 && BIO_should_write(next))
@@ -236,30 +286,20 @@ static int async_puts(BIO *bio, const char *str)
 
 #define MAX_ATTEMPTS    100
 
-int main(int argc, char *argv[])
+static int test_asyncio(int test)
 {
     SSL_CTX *serverctx = NULL, *clientctx = NULL;
     SSL *serverssl = NULL, *clientssl = NULL;
     BIO *s_to_c_fbio = NULL, *c_to_s_fbio = NULL;
-    int test, err = 1, ret;
+    int testresult = 0, ret;
     size_t i, j;
     const char testdata[] = "Test data";
     char buf[sizeof(testdata)];
 
-    CRYPTO_set_mem_debug(1);
-    CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ON);
-
-    if (argc != 3) {
-        printf("Invalid argument count\n");
+    if (!TEST_true(create_ssl_ctx_pair(TLS_server_method(), TLS_client_method(),
+                                       TLS1_VERSION, TLS_MAX_VERSION,
+                                       &serverctx, &clientctx, cert, privkey)))
         goto end;
-    }
-
-    if (!create_ssl_ctx_pair(TLS_server_method(), TLS_client_method(),
-                             TLS1_VERSION, TLS_MAX_VERSION,
-                             &serverctx, &clientctx, argv[1], argv[2])) {
-        printf("Failed to create SSL_CTX pair\n");
-        goto end;
-    }
 
     /*
      * We do 2 test runs. The first time around we just do a normal handshake
@@ -267,116 +307,103 @@ int main(int argc, char *argv[])
      * all records so that the content is only one byte length (up until the
      * CCS)
      */
-    for (test = 1; test < 3; test++) {
-        if (test == 2)
-            fragment = 1;
+    if (test == 1)
+        fragment = 1;
 
 
-        s_to_c_fbio = BIO_new(bio_f_async_filter());
-        c_to_s_fbio = BIO_new(bio_f_async_filter());
-        if (s_to_c_fbio == NULL || c_to_s_fbio == NULL) {
-            printf("Failed to create filter BIOs\n");
-            BIO_free(s_to_c_fbio);
-            BIO_free(c_to_s_fbio);
-            goto end;
-        }
-
-        /* BIOs get freed on error */
-        if (!create_ssl_objects(serverctx, clientctx, &serverssl, &clientssl,
-                                s_to_c_fbio, c_to_s_fbio)) {
-            printf("Test %d failed: Create SSL objects failed\n", test);
-            goto end;
-        }
-
-        if (!create_ssl_connection(serverssl, clientssl)) {
-            printf("Test %d failed: Create SSL connection failed\n", test);
-            goto end;
-        }
-
-        /*
-         * Send and receive some test data. Do the whole thing twice to ensure
-         * we hit at least one async event in both reading and writing
-         */
-        for (j = 0; j < 2; j++) {
-            int len;
-
-            /*
-             * Write some test data. It should never take more than 2 attempts
-             * (the first one might be a retryable fail).
-             */
-            for (ret = -1, i = 0, len = 0; len != sizeof(testdata) && i < 2;
-                i++) {
-                ret = SSL_write(clientssl, testdata + len,
-                    sizeof(testdata) - len);
-                if (ret > 0) {
-                    len += ret;
-                } else {
-                    int ssl_error = SSL_get_error(clientssl, ret);
-
-                    if (ssl_error == SSL_ERROR_SYSCALL ||
-                        ssl_error == SSL_ERROR_SSL) {
-                        printf("Test %d failed: Failed to write app data\n", test);
-                        err = -1;
-                        goto end;
-                    }
-                }
-            }
-            if (len != sizeof(testdata)) {
-                err = -1;
-                printf("Test %d failed: Failed to write all app data\n", test);
-                goto end;
-            }
-            /*
-             * Now read the test data. It may take more attempts here because
-             * it could fail once for each byte read, including all overhead
-             * bytes from the record header/padding etc.
-             */
-            for (ret = -1, i = 0, len = 0; len != sizeof(testdata) &&
-                i < MAX_ATTEMPTS; i++)
-            {
-                ret = SSL_read(serverssl, buf + len, sizeof(buf) - len);
-                if (ret > 0) {
-                    len += ret;
-                } else {
-                    int ssl_error = SSL_get_error(serverssl, ret);
-
-                    if (ssl_error == SSL_ERROR_SYSCALL ||
-                        ssl_error == SSL_ERROR_SSL) {
-                        printf("Test %d failed: Failed to read app data\n", test);
-                        err = -1;
-                        goto end;
-                    }
-                }
-            }
-            if (len != sizeof(testdata)
-                    || memcmp(buf, testdata, sizeof(testdata)) != 0) {
-                err = -1;
-                printf("Test %d failed: Unexpected app data received\n", test);
-                goto end;
-            }
-        }
-
-        /* Also frees the BIOs */
-        SSL_free(clientssl);
-        SSL_free(serverssl);
-        clientssl = serverssl = NULL;
+    s_to_c_fbio = BIO_new(bio_f_async_filter());
+    c_to_s_fbio = BIO_new(bio_f_async_filter());
+    if (!TEST_ptr(s_to_c_fbio)
+            || !TEST_ptr(c_to_s_fbio)) {
+        BIO_free(s_to_c_fbio);
+        BIO_free(c_to_s_fbio);
+        goto end;
     }
 
-    printf("Test success\n");
+    /* BIOs get freed on error */
+    if (!TEST_true(create_ssl_objects(serverctx, clientctx, &serverssl,
+                                      &clientssl, s_to_c_fbio, c_to_s_fbio))
+            || !TEST_true(create_ssl_connection(serverssl, clientssl,
+                          SSL_ERROR_NONE)))
+        goto end;
 
-    err = 0;
+    /*
+     * Send and receive some test data. Do the whole thing twice to ensure
+     * we hit at least one async event in both reading and writing
+     */
+    for (j = 0; j < 2; j++) {
+        int len;
+
+        /*
+         * Write some test data. It should never take more than 2 attempts
+         * (the first one might be a retryable fail).
+         */
+        for (ret = -1, i = 0, len = 0; len != sizeof(testdata) && i < 2;
+            i++) {
+            ret = SSL_write(clientssl, testdata + len,
+                sizeof(testdata) - len);
+            if (ret > 0) {
+                len += ret;
+            } else {
+                int ssl_error = SSL_get_error(clientssl, ret);
+
+                if (!TEST_false(ssl_error == SSL_ERROR_SYSCALL ||
+                                ssl_error == SSL_ERROR_SSL))
+                    goto end;
+            }
+        }
+        if (!TEST_size_t_eq(len, sizeof(testdata)))
+            goto end;
+
+        /*
+         * Now read the test data. It may take more attempts here because
+         * it could fail once for each byte read, including all overhead
+         * bytes from the record header/padding etc.
+         */
+        for (ret = -1, i = 0, len = 0; len != sizeof(testdata) &&
+                i < MAX_ATTEMPTS; i++) {
+            ret = SSL_read(serverssl, buf + len, sizeof(buf) - len);
+            if (ret > 0) {
+                len += ret;
+            } else {
+                int ssl_error = SSL_get_error(serverssl, ret);
+
+                if (!TEST_false(ssl_error == SSL_ERROR_SYSCALL ||
+                                ssl_error == SSL_ERROR_SSL))
+                    goto end;
+            }
+        }
+        if (!TEST_mem_eq(testdata, sizeof(testdata), buf, len))
+            goto end;
+    }
+
+    /* Also frees the BIOs */
+    SSL_free(clientssl);
+    SSL_free(serverssl);
+    clientssl = serverssl = NULL;
+
+    testresult = 1;
+
  end:
-    if (err)
-        ERR_print_errors_fp(stderr);
-
     SSL_free(clientssl);
     SSL_free(serverssl);
     SSL_CTX_free(clientctx);
     SSL_CTX_free(serverctx);
 
-# ifndef OPENSSL_NO_CRYPTO_MDEBUG
-    CRYPTO_mem_leaks_fp(stderr);
-# endif
+    return testresult;
+}
 
-    return err;
+int setup_tests(void)
+{
+    if (!TEST_ptr(cert = test_get_argument(0))
+            || !TEST_ptr(privkey = test_get_argument(1)))
+        return 0;
+
+    ADD_ALL_TESTS(test_asyncio, 2);
+    return 1;
+}
+
+void cleanup_tests(void)
+{
+    BIO_meth_free(methods_async);
 }

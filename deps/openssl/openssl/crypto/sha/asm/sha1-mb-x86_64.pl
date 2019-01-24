@@ -95,7 +95,7 @@ $K="%xmm15";
 
 if (1) {
     # Atom-specific optimization aiming to eliminate pshufb with high
-    # registers [and thus get rid of 48 cycles accumulated penalty] 
+    # registers [and thus get rid of 48 cycles accumulated penalty]
     @Xi=map("%xmm$_",(0..4));
     ($tx,$t0,$t1,$t2,$t3)=map("%xmm$_",(5..9));
     @V=($A,$B,$C,$D,$E)=map("%xmm$_",(10..14));
@@ -126,7 +126,7 @@ my $k=$i+2;
 # ...
 # $i==13:	14,15,15,15,
 # $i==14:	15
-# 
+#
 # Then at $i==15 Xupdate is applied one iteration in advance...
 $code.=<<___ if ($i==0);
 	movd		(@ptr[0]),@Xi[0]
@@ -363,6 +363,7 @@ $code.=<<___;
 .type	sha1_multi_block,\@function,3
 .align	32
 sha1_multi_block:
+.cfi_startproc
 	mov	OPENSSL_ia32cap_P+4(%rip),%rcx
 	bt	\$61,%rcx			# check SHA bit
 	jc	_shaext_shortcut
@@ -373,8 +374,11 @@ $code.=<<___ if ($avx);
 ___
 $code.=<<___;
 	mov	%rsp,%rax
+.cfi_def_cfa_register	%rax
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbx
 ___
 $code.=<<___ if ($win64);
 	lea	-0xa8(%rsp),%rsp
@@ -393,6 +397,7 @@ $code.=<<___;
 	sub	\$`$REG_SZ*18`,%rsp
 	and	\$-256,%rsp
 	mov	%rax,`$REG_SZ*17`(%rsp)		# original %rsp
+.cfi_cfa_expression	%rsp+`$REG_SZ*17`,deref,+8
 .Lbody:
 	lea	K_XX_XX(%rip),$Tbl
 	lea	`$REG_SZ*16`(%rsp),%rbx
@@ -439,7 +444,7 @@ for(;$i<80;$i++)	{ &BODY_20_39($i,@V); unshift(@V,pop(@V)); }
 $code.=<<___;
 	movdqa	(%rbx),@Xi[0]			# pull counters
 	mov	\$1,%ecx
-	cmp	4*0(%rbx),%ecx			# examinte counters
+	cmp	4*0(%rbx),%ecx			# examine counters
 	pxor	$t2,$t2
 	cmovge	$Tbl,@ptr[0]			# cancel input
 	cmp	4*1(%rbx),%ecx
@@ -487,6 +492,7 @@ $code.=<<___;
 
 .Ldone:
 	mov	`$REG_SZ*17`(%rsp),%rax		# original %rsp
+.cfi_def_cfa	%rax,8
 ___
 $code.=<<___ if ($win64);
 	movaps	-0xb8(%rax),%xmm6
@@ -502,10 +508,14 @@ $code.=<<___ if ($win64);
 ___
 $code.=<<___;
 	mov	-16(%rax),%rbp
+.cfi_restore	%rbp
 	mov	-8(%rax),%rbx
+.cfi_restore	%rbx
 	lea	(%rax),%rsp
+.cfi_def_cfa_register	%rsp
 .Lepilogue:
 	ret
+.cfi_endproc
 .size	sha1_multi_block,.-sha1_multi_block
 ___
 						{{{
@@ -517,10 +527,14 @@ $code.=<<___;
 .type	sha1_multi_block_shaext,\@function,3
 .align	32
 sha1_multi_block_shaext:
+.cfi_startproc
 _shaext_shortcut:
 	mov	%rsp,%rax
+.cfi_def_cfa_register	%rax
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 ___
 $code.=<<___ if ($win64);
 	lea	-0xa8(%rsp),%rsp
@@ -756,10 +770,14 @@ $code.=<<___ if ($win64);
 ___
 $code.=<<___;
 	mov	-16(%rax),%rbp
+.cfi_restore	%rbp
 	mov	-8(%rax),%rbx
+.cfi_restore	%rbx
 	lea	(%rax),%rsp
+.cfi_def_cfa_register	%rsp
 .Lepilogue_shaext:
 	ret
+.cfi_endproc
 .size	sha1_multi_block_shaext,.-sha1_multi_block_shaext
 ___
 						}}}
@@ -1002,6 +1020,7 @@ $code.=<<___;
 .type	sha1_multi_block_avx,\@function,3
 .align	32
 sha1_multi_block_avx:
+.cfi_startproc
 _avx_shortcut:
 ___
 $code.=<<___ if ($avx>1);
@@ -1016,8 +1035,11 @@ $code.=<<___ if ($avx>1);
 ___
 $code.=<<___;
 	mov	%rsp,%rax
+.cfi_def_cfa_register	%rax
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 ___
 $code.=<<___ if ($win64);
 	lea	-0xa8(%rsp),%rsp
@@ -1036,6 +1058,7 @@ $code.=<<___;
 	sub	\$`$REG_SZ*18`, %rsp
 	and	\$-256,%rsp
 	mov	%rax,`$REG_SZ*17`(%rsp)		# original %rsp
+.cfi_cfa_expression	%rsp+`$REG_SZ*17`,deref,+8
 .Lbody_avx:
 	lea	K_XX_XX(%rip),$Tbl
 	lea	`$REG_SZ*16`(%rsp),%rbx
@@ -1125,6 +1148,7 @@ $code.=<<___;
 
 .Ldone_avx:
 	mov	`$REG_SZ*17`(%rsp),%rax		# original %rsp
+.cfi_def_cfa	%rax,8
 	vzeroupper
 ___
 $code.=<<___ if ($win64);
@@ -1141,10 +1165,14 @@ $code.=<<___ if ($win64);
 ___
 $code.=<<___;
 	mov	-16(%rax),%rbp
+.cfi_restore	%rbp
 	mov	-8(%rax),%rbx
+.cfi_restore	%rbx
 	lea	(%rax),%rsp
+.cfi_def_cfa_register	%rsp
 .Lepilogue_avx:
 	ret
+.cfi_endproc
 .size	sha1_multi_block_avx,.-sha1_multi_block_avx
 ___
 
@@ -1164,14 +1192,22 @@ $code.=<<___;
 .type	sha1_multi_block_avx2,\@function,3
 .align	32
 sha1_multi_block_avx2:
+.cfi_startproc
 _avx2_shortcut:
 	mov	%rsp,%rax
+.cfi_def_cfa_register	%rax
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 ___
 $code.=<<___ if ($win64);
 	lea	-0xa8(%rsp),%rsp
@@ -1190,6 +1226,7 @@ $code.=<<___;
 	sub	\$`$REG_SZ*18`, %rsp
 	and	\$-256,%rsp
 	mov	%rax,`$REG_SZ*17`(%rsp)		# original %rsp
+.cfi_cfa_expression	%rsp+`$REG_SZ*17`,deref,+8
 .Lbody_avx2:
 	lea	K_XX_XX(%rip),$Tbl
 	shr	\$1,$num
@@ -1280,6 +1317,7 @@ $code.=<<___;
 
 .Ldone_avx2:
 	mov	`$REG_SZ*17`(%rsp),%rax		# original %rsp
+.cfi_def_cfa	%rax,8
 	vzeroupper
 ___
 $code.=<<___ if ($win64);
@@ -1296,14 +1334,22 @@ $code.=<<___ if ($win64);
 ___
 $code.=<<___;
 	mov	-48(%rax),%r15
+.cfi_restore	%r15
 	mov	-40(%rax),%r14
+.cfi_restore	%r14
 	mov	-32(%rax),%r13
+.cfi_restore	%r13
 	mov	-24(%rax),%r12
+.cfi_restore	%r12
 	mov	-16(%rax),%rbp
+.cfi_restore	%rbp
 	mov	-8(%rax),%rbx
+.cfi_restore	%rbx
 	lea	(%rax),%rsp
+.cfi_def_cfa_register	%rsp
 .Lepilogue_avx2:
 	ret
+.cfi_endproc
 .size	sha1_multi_block_avx2,.-sha1_multi_block_avx2
 ___
 						}	}}}
@@ -1462,10 +1508,10 @@ avx2_handler:
 	mov	-48(%rax),%r15
 	mov	%rbx,144($context)	# restore context->Rbx
 	mov	%rbp,160($context)	# restore context->Rbp
-	mov	%r12,216($context)	# restore cotnext->R12
-	mov	%r13,224($context)	# restore cotnext->R13
-	mov	%r14,232($context)	# restore cotnext->R14
-	mov	%r15,240($context)	# restore cotnext->R15
+	mov	%r12,216($context)	# restore context->R12
+	mov	%r13,224($context)	# restore context->R13
+	mov	%r14,232($context)	# restore context->R14
+	mov	%r15,240($context)	# restore context->R15
 
 	lea	-56-10*16(%rax),%rsi
 	lea	512($context),%rdi	# &context.Xmm6

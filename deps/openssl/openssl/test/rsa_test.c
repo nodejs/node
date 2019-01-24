@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,17 +12,20 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "e_os.h"
+#include "internal/nelem.h"
 
 #include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
 #include <openssl/bn.h>
+
+#include "testutil.h"
+
 #ifdef OPENSSL_NO_RSA
-int main(int argc, char *argv[])
+int setup_tests(void)
 {
-    printf("No RSA support\n");
-    return (0);
+    /* No tests */
+    return 1;
 }
 #else
 # include <openssl/rsa.h>
@@ -40,7 +43,7 @@ int main(int argc, char *argv[])
                         BN_bin2bn(dmq1, sizeof(dmq1)-1, NULL),  \
                         BN_bin2bn(iqmp, sizeof(iqmp)-1, NULL)); \
     memcpy(c, ctext_ex, sizeof(ctext_ex) - 1);                  \
-    return (sizeof(ctext_ex) - 1);
+    return sizeof(ctext_ex) - 1;
 
 static int key1(RSA *key, unsigned char *c)
 {
@@ -213,17 +216,61 @@ static int pad_unknown(void)
     unsigned long l;
     while ((l = ERR_get_error()) != 0)
         if (ERR_GET_REASON(l) == RSA_R_UNKNOWN_PADDING_TYPE)
-            return (1);
-    return (0);
+            return 1;
+    return 0;
 }
 
-static const char rnd_seed[] =
-    "string to make the random number generator think it has entropy";
-
-int main(int argc, char *argv[])
+static int rsa_setkey(RSA** key, unsigned char* ctext, int idx)
 {
-    int err = 0;
-    int v;
+    int clen = 0;
+    *key = RSA_new();
+    switch (idx) {
+    case 0:
+        clen = key1(*key, ctext);
+        break;
+    case 1:
+        clen = key2(*key, ctext);
+        break;
+    case 2:
+        clen = key3(*key, ctext);
+        break;
+    }
+    return clen;
+}
+
+static int test_rsa_pkcs1(int idx)
+{
+    int ret = 0;
+    RSA *key;
+    unsigned char ptext[256];
+    unsigned char ctext[256];
+    static unsigned char ptext_ex[] = "\x54\x85\x9b\x34\x2c\x49\xea\x2a";
+    unsigned char ctext_ex[256];
+    int plen;
+    int clen = 0;
+    int num;
+
+    plen = sizeof(ptext_ex) - 1;
+    clen = rsa_setkey(&key, ctext_ex, idx);
+
+    num = RSA_public_encrypt(plen, ptext_ex, ctext, key,
+                             RSA_PKCS1_PADDING);
+    if (!TEST_int_eq(num, clen))
+        goto err;
+
+    num = RSA_private_decrypt(num, ctext, ptext, key, RSA_PKCS1_PADDING);
+    if (!TEST_mem_eq(ptext, num, ptext_ex, plen))
+        goto err;
+
+    ret = 1;
+err:
+    RSA_free(key);
+    return ret;
+}
+
+static int test_rsa_oaep(int idx)
+{
+    int ret = 0;
     RSA *key;
     unsigned char ptext[256];
     unsigned char ctext[256];
@@ -234,111 +281,58 @@ int main(int argc, char *argv[])
     int num;
     int n;
 
-    CRYPTO_set_mem_debug(1);
-    CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ON);
-
-    RAND_seed(rnd_seed, sizeof(rnd_seed)); /* or OAEP may fail */
-
     plen = sizeof(ptext_ex) - 1;
+    clen = rsa_setkey(&key, ctext_ex, idx);
 
-    for (v = 0; v < 3; v++) {
-        key = RSA_new();
-        switch (v) {
-        case 0:
-            clen = key1(key, ctext_ex);
-            break;
-        case 1:
-            clen = key2(key, ctext_ex);
-            break;
-        case 2:
-            clen = key3(key, ctext_ex);
-            break;
-        }
+    num = RSA_public_encrypt(plen, ptext_ex, ctext, key,
+                             RSA_PKCS1_OAEP_PADDING);
+    if (num == -1 && pad_unknown()) {
+        TEST_info("Skipping: No OAEP support");
+        ret = 1;
+        goto err;
+    }
+    if (!TEST_int_eq(num, clen))
+        goto err;
 
-        num = RSA_public_encrypt(plen, ptext_ex, ctext, key,
-                                 RSA_PKCS1_PADDING);
-        if (num != clen) {
-            printf("PKCS#1 v1.5 encryption failed!\n");
-            err = 1;
-            goto oaep;
-        }
+    num = RSA_private_decrypt(num, ctext, ptext, key,
+                              RSA_PKCS1_OAEP_PADDING);
+    if (!TEST_mem_eq(ptext, num, ptext_ex, plen))
+        goto err;
 
-        num = RSA_private_decrypt(num, ctext, ptext, key, RSA_PKCS1_PADDING);
-        if (num != plen || memcmp(ptext, ptext_ex, num) != 0) {
-            printf("PKCS#1 v1.5 decryption failed!\n");
-            err = 1;
-        } else
-            printf("PKCS #1 v1.5 encryption/decryption ok\n");
+    /* Different ciphertexts. Try decrypting ctext_ex */
+    num = RSA_private_decrypt(clen, ctext_ex, ptext, key,
+                              RSA_PKCS1_OAEP_PADDING);
+    if (!TEST_mem_eq(ptext, num, ptext_ex, plen))
+        goto err;
 
- oaep:
-        ERR_clear_error();
-        num = RSA_public_encrypt(plen, ptext_ex, ctext, key,
-                                 RSA_PKCS1_OAEP_PADDING);
-        if (num == -1 && pad_unknown()) {
-            printf("No OAEP support\n");
-            goto next;
-        }
-        if (num != clen) {
-            printf("OAEP encryption failed!\n");
-            err = 1;
-            goto next;
-        }
-
-        num = RSA_private_decrypt(num, ctext, ptext, key,
-                                  RSA_PKCS1_OAEP_PADDING);
-        if (num != plen || memcmp(ptext, ptext_ex, num) != 0) {
-            printf("OAEP decryption (encrypted data) failed!\n");
-            err = 1;
-        } else if (memcmp(ctext, ctext_ex, num) == 0)
-            printf("OAEP test vector %d passed!\n", v);
-
-        /*
-         * Different ciphertexts (rsa_oaep.c without -DPKCS_TESTVECT). Try
-         * decrypting ctext_ex
-         */
-
-        num = RSA_private_decrypt(clen, ctext_ex, ptext, key,
-                                  RSA_PKCS1_OAEP_PADDING);
-
-        if (num != plen || memcmp(ptext, ptext_ex, num) != 0) {
-            printf("OAEP decryption (test vector data) failed!\n");
-            err = 1;
-        } else
-            printf("OAEP encryption/decryption ok\n");
-
-        /* Try decrypting corrupted ciphertexts. */
-        for (n = 0; n < clen; ++n) {
-            ctext[n] ^= 1;
-            num = RSA_private_decrypt(clen, ctext, ptext, key,
-                                          RSA_PKCS1_OAEP_PADDING);
-            if (num > 0) {
-                printf("Corrupt data decrypted!\n");
-                err = 1;
-                break;
-            }
-            ctext[n] ^= 1;
-        }
-
-        /* Test truncated ciphertexts, as well as negative length. */
-        for (n = -1; n < clen; ++n) {
-            num = RSA_private_decrypt(n, ctext, ptext, key,
+    /* Try decrypting corrupted ciphertexts. */
+    for (n = 0; n < clen; ++n) {
+        ctext[n] ^= 1;
+        num = RSA_private_decrypt(clen, ctext, ptext, key,
                                       RSA_PKCS1_OAEP_PADDING);
-            if (num > 0) {
-                printf("Truncated data decrypted!\n");
-                err = 1;
-                break;
-            }
-        }
-
- next:
-        RSA_free(key);
+        if (!TEST_int_le(num, 0))
+            goto err;
+        ctext[n] ^= 1;
     }
 
-#ifndef OPENSSL_NO_CRYPTO_MDEBUG
-    if (CRYPTO_mem_leaks_fp(stderr) <= 0)
-        err = 1;
-#endif
+    /* Test truncated ciphertexts, as well as negative length. */
+    for (n = -1; n < clen; ++n) {
+        num = RSA_private_decrypt(n, ctext, ptext, key,
+                                  RSA_PKCS1_OAEP_PADDING);
+        if (!TEST_int_le(num, 0))
+            goto err;
+    }
 
-    return err;
+    ret = 1;
+err:
+    RSA_free(key);
+    return ret;
+}
+
+int setup_tests(void)
+{
+    ADD_ALL_TESTS(test_rsa_pkcs1, 3);
+    ADD_ALL_TESTS(test_rsa_oaep, 3);
+    return 1;
 }
 #endif

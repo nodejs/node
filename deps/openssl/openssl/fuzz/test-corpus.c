@@ -97,5 +97,8 @@ int main(int argc, char **argv) {
 
         free(pathname);
     }
+
+    FuzzerCleanup();
+
     return 0;
 }

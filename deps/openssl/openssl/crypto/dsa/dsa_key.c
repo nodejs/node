@@ -38,7 +38,7 @@ static int dsa_builtin_keygen(DSA *dsa)
         priv_key = dsa->priv_key;
 
     do
-        if (!BN_rand_range(priv_key, dsa->q))
+        if (!BN_priv_rand_range(priv_key, dsa->q))
             goto err;
     while (BN_is_zero(priv_key)) ;
 
@@ -73,5 +73,5 @@ static int dsa_builtin_keygen(DSA *dsa)
     if (priv_key != dsa->priv_key)
         BN_free(priv_key);
     BN_CTX_free(ctx);
-    return (ok);
+    return ok;
 }

@@ -8,6 +8,7 @@
  */
 
 #include <openssl/dh.h>
+#include "internal/refcount.h"
 
 struct dh_st {
     /*
@@ -18,7 +19,7 @@ struct dh_st {
     int version;
     BIGNUM *p;
     BIGNUM *g;
-    long length;                /* optional */
+    int32_t length;             /* optional */
     BIGNUM *pub_key;            /* g^x % p */
     BIGNUM *priv_key;           /* x */
     int flags;
@@ -29,7 +30,7 @@ struct dh_st {
     unsigned char *seed;
     int seedlen;
     BIGNUM *counter;
-    int references;
+    CRYPTO_REF_COUNT references;
     CRYPTO_EX_DATA ex_data;
     const DH_METHOD *meth;
     ENGINE *engine;

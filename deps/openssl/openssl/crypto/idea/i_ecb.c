@@ -13,7 +13,7 @@
 
 const char *IDEA_options(void)
 {
-    return ("idea(int)");
+    return "idea(int)";
 }
 
 void IDEA_ecb_encrypt(const unsigned char *in, unsigned char *out,

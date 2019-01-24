@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,7 +14,9 @@
 
 # include <openssl/evp.h>
 
-# define HMAC_MAX_MD_CBLOCK      128/* largest known is SHA512 */
+# if OPENSSL_API_COMPAT < 0x10200000L
+#  define HMAC_MAX_MD_CBLOCK      128    /* Deprecated */
+# endif
 
 #ifdef  __cplusplus
 extern "C" {

@@ -52,4 +52,3 @@ ok(run(app([ 'openssl', 'genrsa', '-f4', '-out', 'genrsatest.pem', $good ])),
    "genrsa -f4 $good");
 ok(run(app([ 'openssl', 'rsa', '-check', '-in', 'genrsatest.pem', '-noout' ])),
    "rsa -check");
-unlink 'genrsatest.pem';

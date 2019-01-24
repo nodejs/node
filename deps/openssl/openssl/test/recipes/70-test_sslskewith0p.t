@@ -41,6 +41,7 @@ my $proxy = TLSProxy::Proxy->new(
 $proxy->cipherc('ADH-AES128-SHA:@SECLEVEL=0');
 $proxy->ciphers('ADH-AES128-SHA:@SECLEVEL=0');
 
+$proxy->clientflags("-no_tls1_3");
 $proxy->start() or plan skip_all => "Unable to start up Proxy for tests";
 plan tests => 1;
 ok(TLSProxy::Message->fail, "ServerKeyExchange with 0 p");

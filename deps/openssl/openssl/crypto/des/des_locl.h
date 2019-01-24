@@ -26,10 +26,6 @@
 # define ITERATIONS 16
 # define HALF_ITERATIONS 8
 
-/* used in des_read and des_write */
-# define MAXWRITE        (1024*16)
-# define BSIZE           (MAXWRITE+4)
-
 # define c2l(c,l)        (l =((DES_LONG)(*((c)++)))    , \
                          l|=((DES_LONG)(*((c)++)))<< 8L, \
                          l|=((DES_LONG)(*((c)++)))<<16L, \
@@ -67,7 +63,6 @@
  * replacements for htonl and ntohl since I have no idea what to do when
  * faced with machines with 8 byte longs.
  */
-# define HDRSIZE 4
 
 # define n2l(c,l)        (l =((DES_LONG)(*((c)++)))<<24L, \
                          l|=((DES_LONG)(*((c)++)))<<16L, \
@@ -101,7 +96,7 @@
                                 } \
                         }
 
-# if (defined(OPENSSL_SYS_WIN32) && defined(_MSC_VER))
+# if defined(_MSC_VER)
 #  define ROTATE(a,n)     (_lrotr(a,n))
 # elif defined(__ICC)
 #  define ROTATE(a,n)     (_rotr(a,n))

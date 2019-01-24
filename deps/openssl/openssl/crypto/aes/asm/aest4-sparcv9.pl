@@ -8,9 +8,9 @@
 
 
 # ====================================================================
-# Written by David S. Miller <davem@devemloft.net> and Andy Polyakov
-# <appro@openssl.org>. The module is licensed under 2-clause BSD
-# license. October 2012. All rights reserved.
+# Written by David S. Miller and Andy Polyakov.
+# The module is licensed under 2-clause BSD license. October 2012.
+# All rights reserved.
 # ====================================================================
 
 ######################################################################
@@ -44,7 +44,7 @@
 # instructions with those on critical path. Amazing!
 #
 # As with Intel AES-NI, question is if it's possible to improve
-# performance of parallelizeable modes by interleaving round
+# performance of parallelizable modes by interleaving round
 # instructions. Provided round instruction latency and throughput
 # optimal interleave factor is 2. But can we expect 2x performance
 # improvement? Well, as round instructions can be issued one per

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,51 +10,69 @@
 #include "internal/cryptlib.h"
 #include "bn_lcl.h"
 
-/* r can == a or b */
+/* signed add of b to a. */
 int BN_add(BIGNUM *r, const BIGNUM *a, const BIGNUM *b)
 {
-    int a_neg = a->neg, ret;
+    int ret, r_neg, cmp_res;
 
     bn_check_top(a);
     bn_check_top(b);
 
-    /*-
-     *  a +  b      a+b
-     *  a + -b      a-b
-     * -a +  b      b-a
-     * -a + -b      -(a+b)
-     */
-    if (a_neg ^ b->neg) {
-        /* only one is negative */
-        if (a_neg) {
-            const BIGNUM *tmp;
-
-            tmp = a;
-            a = b;
-            b = tmp;
-        }
-
-        /* we are now a - b */
-
-        if (BN_ucmp(a, b) < 0) {
-            if (!BN_usub(r, b, a))
-                return 0;
-            r->neg = 1;
+    if (a->neg == b->neg) {
+        r_neg = a->neg;
+        ret = BN_uadd(r, a, b);
+    } else {
+        cmp_res = BN_ucmp(a, b);
+        if (cmp_res > 0) {
+            r_neg = a->neg;
+            ret = BN_usub(r, a, b);
+        } else if (cmp_res < 0) {
+            r_neg = b->neg;
+            ret = BN_usub(r, b, a);
         } else {
-            if (!BN_usub(r, a, b))
-                return 0;
-            r->neg = 0;
+            r_neg = 0;
+            BN_zero(r);
+            ret = 1;
         }
-        return 1;
     }
 
-    ret = BN_uadd(r, a, b);
-    r->neg = a_neg;
+    r->neg = r_neg;
     bn_check_top(r);
     return ret;
 }
 
-/* unsigned add of b to a */
+/* signed sub of b from a. */
+int BN_sub(BIGNUM *r, const BIGNUM *a, const BIGNUM *b)
+{
+    int ret, r_neg, cmp_res;
+
+    bn_check_top(a);
+    bn_check_top(b);
+
+    if (a->neg != b->neg) {
+        r_neg = a->neg;
+        ret = BN_uadd(r, a, b);
+    } else {
+        cmp_res = BN_ucmp(a, b);
+        if (cmp_res > 0) {
+            r_neg = a->neg;
+            ret = BN_usub(r, a, b);
+        } else if (cmp_res < 0) {
+            r_neg = !b->neg;
+            ret = BN_usub(r, b, a);
+        } else {
+            r_neg = 0;
+            BN_zero(r);
+            ret = 1;
+        }
+    }
+
+    r->neg = r_neg;
+    bn_check_top(r);
+    return ret;
+}
+
+/* unsigned add of b to a, r can be equal to a or b. */
 int BN_uadd(BIGNUM *r, const BIGNUM *a, const BIGNUM *b)
 {
     int max, min, dif;
@@ -151,59 +169,3 @@ int BN_usub(BIGNUM *r, const BIGNUM *a, const BIGNUM *b)
     return 1;
 }
 
-int BN_sub(BIGNUM *r, const BIGNUM *a, const BIGNUM *b)
-{
-    int max;
-    int add = 0, neg = 0;
-
-    bn_check_top(a);
-    bn_check_top(b);
-
-    /*-
-     *  a -  b      a-b
-     *  a - -b      a+b
-     * -a -  b      -(a+b)
-     * -a - -b      b-a
-     */
-    if (a->neg) {
-        if (b->neg) {
-            const BIGNUM *tmp;
-
-            tmp = a;
-            a = b;
-            b = tmp;
-        } else {
-            add = 1;
-            neg = 1;
-        }
-    } else {
-        if (b->neg) {
-            add = 1;
-            neg = 0;
-        }
-    }
-
-    if (add) {
-        if (!BN_uadd(r, a, b))
-            return 0;
-        r->neg = neg;
-        return 1;
-    }
-
-    /* We are actually doing a - b :-) */
-
-    max = (a->top > b->top) ? a->top : b->top;
-    if (bn_wexpand(r, max) == NULL)
-        return 0;
-    if (BN_ucmp(a, b) < 0) {
-        if (!BN_usub(r, b, a))
-            return 0;
-        r->neg = 1;
-    } else {
-        if (!BN_usub(r, a, b))
-            return 0;
-        r->neg = 0;
-    }
-    bn_check_top(r);
-    return 1;
-}

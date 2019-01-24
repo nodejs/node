@@ -161,7 +161,7 @@ actually qualitatively different depending on 'nid' (the "des_cbc" EVP_CIPHER is
 not an interoperable implementation of "aes_256_cbc"), RSA_METHODs are
 necessarily interoperable and don't have different flavours, only different
 implementations. In other words, the ENGINE_TABLE for RSA will either be empty,
-or will have a single ENGING_PILE hashed to by the 'nid' 1 and that pile
+or will have a single ENGINE_PILE hashed to by the 'nid' 1 and that pile
 represents ENGINEs that implement the single "type" of RSA there is.
 
 Cleanup - the registration and unregistration may pose questions about how
@@ -188,7 +188,7 @@ state will be unchanged. Thus, no cleanup is required unless registration takes
 place. ENGINE_cleanup() will simply iterate across a list of registered cleanup
 callbacks calling each in turn, and will then internally delete its own storage
 (a STACK). When a cleanup callback is next registered (eg. if the cleanup() is
-part of a gracefull restart and the application wants to cleanup all state then
+part of a graceful restart and the application wants to cleanup all state then
 start again), the internal STACK storage will be freshly allocated. This is much
 the same as the situation in the ENGINE_TABLE instantiations ... NULL is the
 initialised state, so only modification operations (not queries) will cause that
@@ -204,8 +204,8 @@ exists) - the idea of providing an ENGINE_cpy() function probably wasn't a good
 one and now certainly doesn't make sense in any generalised way. Some of the
 RSA, DSA, DH, and RAND functions that were fiddled during the original ENGINE
 changes have now, as a consequence, been reverted back. This is because the
-hooking of ENGINE is now automatic (and passive, it can interally use a NULL
+hooking of ENGINE is now automatic (and passive, it can internally use a NULL
 ENGINE pointer to simply ignore ENGINE from then on).
 
-Hell, that should be enough for now ... comments welcome: geoff@openssl.org
+Hell, that should be enough for now ... comments welcome.
 

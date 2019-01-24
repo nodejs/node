@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -15,23 +15,38 @@ use OpenSSL::Test qw/:DEFAULT srctop_file/;
 
 setup("test_req");
 
-plan tests => 4;
+plan tests => 9;
 
 require_ok(srctop_file('test','recipes','tconversion.pl'));
 
 open RND, ">>", ".rnd";
-print RND "string to make the random number generator think it has entropy";
+print RND "string to make the random number generator think it has randomness";
 close RND;
-subtest "generating certificate requests" => sub {
-    my @req_new;
-    if (disabled("rsa")) {
-	@req_new = ("-newkey", "dsa:".srctop_file("apps", "dsa512.pem"));
-    } else {
-	@req_new = ("-new");
-	note("There should be a 2 sequences of .'s and some +'s.");
-	note("There should not be more that at most 80 per line");
-    }
 
+# What type of key to generate?
+my @req_new;
+if (disabled("rsa")) {
+    @req_new = ("-newkey", "dsa:".srctop_file("apps", "dsa512.pem"));
+} else {
+    @req_new = ("-new");
+    note("There should be a 2 sequences of .'s and some +'s.");
+    note("There should not be more that at most 80 per line");
+}
+
+# Check for duplicate -addext parameters, and one "working" case.
+my @addext_args = ( "openssl", "req", "-new", "-out", "testreq.pem",
+    "-config", srctop_file("test", "test.cnf"), @req_new );
+my $val = "subjectAltName=DNS:example.com";
+my $val2 = " " . $val;
+my $val3 = $val;
+$val3 =~ s/=/    =/;
+ok( run(app([@addext_args, "-addext", $val])));
+ok(!run(app([@addext_args, "-addext", $val, "-addext", $val])));
+ok(!run(app([@addext_args, "-addext", $val, "-addext", $val2])));
+ok(!run(app([@addext_args, "-addext", $val, "-addext", $val3])));
+ok(!run(app([@addext_args, "-addext", $val2, "-addext", $val3])));
+
+subtest "generating certificate requests" => sub {
     plan tests => 2;
 
     ok(run(app(["openssl", "req", "-config", srctop_file("test", "test.cnf"),

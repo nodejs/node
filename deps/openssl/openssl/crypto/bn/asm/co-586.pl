@@ -13,7 +13,7 @@ require "x86asm.pl";
 $output = pop;
 open STDOUT,">$output";
 
-&asm_init($ARGV[0],$0);
+&asm_init($ARGV[0]);
 
 &bn_mul_comba("bn_mul_comba8",8);
 &bn_mul_comba("bn_mul_comba4",4);
@@ -47,7 +47,7 @@ sub mul_add_c
 	 &mov("edx",&DWP(($nb)*4,$b,"",0)) if $pos == 1;	# laod next b
 	 ###
 	&adc($c2,0);
-	 # is pos > 1, it means it is the last loop 
+	 # is pos > 1, it means it is the last loop
 	 &mov(&DWP($i*4,"eax","",0),$c0) if $pos > 0;		# save r[];
 	&mov("eax",&DWP(($na)*4,$a,"",0)) if $pos == 1;		# laod next a
 	}
@@ -76,7 +76,7 @@ sub sqr_add_c
 	 &mov("edx",&DWP(($nb)*4,$a,"",0)) if ($pos == 1) && ($na != $nb);
 	 ###
 	&adc($c2,0);
-	 # is pos > 1, it means it is the last loop 
+	 # is pos > 1, it means it is the last loop
 	 &mov(&DWP($i*4,$r,"",0),$c0) if $pos > 0;		# save r[];
 	&mov("eax",&DWP(($na)*4,$a,"",0)) if $pos == 1;		# load next b
 	}
@@ -127,7 +127,7 @@ sub bn_mul_comba
 	$c2="ebp";
 	$a="esi";
 	$b="edi";
-	
+
 	$as=0;
 	$ae=0;
 	$bs=0;
@@ -142,9 +142,9 @@ sub bn_mul_comba
 	 &push("ebx");
 
 	&xor($c0,$c0);
-	 &mov("eax",&DWP(0,$a,"",0));	# load the first word 
+	 &mov("eax",&DWP(0,$a,"",0));	# load the first word
 	&xor($c1,$c1);
-	 &mov("edx",&DWP(0,$b,"",0));	# load the first second 
+	 &mov("edx",&DWP(0,$b,"",0));	# load the first second
 
 	for ($i=0; $i<$tot; $i++)
 		{
@@ -152,7 +152,7 @@ sub bn_mul_comba
 		$bi=$bs;
 		$end=$be+1;
 
-		&comment("################## Calculate word $i"); 
+		&comment("################## Calculate word $i");
 
 		for ($j=$bs; $j<$end; $j++)
 			{

@@ -17,9 +17,12 @@
 
 CRYPTO_RWLOCK *CRYPTO_THREAD_lock_new(void)
 {
-    CRYPTO_RWLOCK *lock = OPENSSL_zalloc(sizeof(CRITICAL_SECTION));
-    if (lock == NULL)
+    CRYPTO_RWLOCK *lock;
+
+    if ((lock = OPENSSL_zalloc(sizeof(CRITICAL_SECTION))) == NULL) {
+        /* Don't set error, to avoid recursion blowup. */
         return NULL;
+    }
 
     /* 0x400 is the spin count value suggested in the documentation */
     if (!InitializeCriticalSectionAndSpinCount(lock, 0x400)) {
@@ -150,6 +153,11 @@ int CRYPTO_atomic_add(int *val, int amount, int *ret, CRYPTO_RWLOCK *lock)
 {
     *ret = InterlockedExchangeAdd(val, amount) + amount;
     return 1;
+}
+
+int openssl_init_fork_handlers(void)
+{
+    return 0;
 }
 
 #endif

@@ -6,8 +6,9 @@ SOURCE[../../libcrypto]=\
 
 INCLUDE[gcm128.o]=..
 
-GENERATE[ghash-ia64.s]=asm/ghash-ia64.pl $(CFLAGS) $(LIB_CFLAGS)
-GENERATE[ghash-x86.s]=asm/ghash-x86.pl $(PERLASM_SCHEME) $(CFLAGS) $(LIB_CFLAGS) $(PROCESSOR)
+GENERATE[ghash-ia64.s]=asm/ghash-ia64.pl $(LIB_CFLAGS) $(LIB_CPPFLAGS)
+GENERATE[ghash-x86.s]=asm/ghash-x86.pl \
+        $(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS) $(PROCESSOR)
 GENERATE[ghash-x86_64.s]=asm/ghash-x86_64.pl $(PERLASM_SCHEME)
 GENERATE[aesni-gcm-x86_64.s]=asm/aesni-gcm-x86_64.pl $(PERLASM_SCHEME)
 GENERATE[ghash-sparcv9.S]=asm/ghash-sparcv9.pl $(PERLASM_SCHEME)

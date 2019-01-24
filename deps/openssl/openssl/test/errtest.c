@@ -24,17 +24,16 @@ static int preserves_system_error(void)
 #if defined(OPENSSL_SYS_WINDOWS)
     SetLastError(ERROR_INVALID_FUNCTION);
     ERR_get_error();
-    return GetLastError() == ERROR_INVALID_FUNCTION;
+    return TEST_int_eq(GetLastError(), ERROR_INVALID_FUNCTION);
 #else
     errno = EINVAL;
     ERR_get_error();
-    return errno == EINVAL;
+    return TEST_int_eq(errno, EINVAL);
 #endif
 }
 
-int main(int argc, char **argv)
+int setup_tests(void)
 {
     ADD_TEST(preserves_system_error);
-
-    return run_tests(argv[0]);
+    return 1;
 }

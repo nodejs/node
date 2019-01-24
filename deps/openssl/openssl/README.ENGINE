@@ -13,7 +13,6 @@
   There are currently built-in ENGINE implementations for the following
   crypto devices:
 
-      o Cryptodev
       o Microsoft CryptoAPI
       o VIA Padlock
       o nCipher CHIL

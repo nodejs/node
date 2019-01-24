@@ -1,144 +1,176 @@
 /*
- * Copyright 2011-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2004-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright (c) 2004, EdelKey Project. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
+ *
+ * Originally written by Christophe Renou and Peter Sylvester,
+ * for the EdelKey project.
  */
 
 #ifndef OPENSSL_NO_SRP
 # include "internal/cryptlib.h"
+# include "internal/evp_int.h"
 # include <openssl/sha.h>
 # include <openssl/srp.h>
 # include <openssl/evp.h>
 # include <openssl/buffer.h>
 # include <openssl/rand.h>
 # include <openssl/txt_db.h>
+# include <openssl/err.h>
 
 # define SRP_RANDOM_SALT_LEN 20
 # define MAX_LEN 2500
 
-static char b64table[] =
-    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz./";
-
 /*
- * the following two conversion routines have been inspired by code from
- * Stanford
+ * Note that SRP uses its own variant of base 64 encoding. A different base64
+ * alphabet is used and no padding '=' characters are added. Instead we pad to
+ * the front with 0 bytes and subsequently strip off leading encoded padding.
+ * This variant is used for compatibility with other SRP implementations -
+ * notably libsrp, but also others. It is also required for backwards
+ * compatibility in order to load verifier files from other OpenSSL versions.
  */
 
 /*
  * Convert a base64 string into raw byte array representation.
+ * Returns the length of the decoded data, or -1 on error.
  */
 static int t_fromb64(unsigned char *a, size_t alen, const char *src)
 {
-    char *loc;
-    int i, j;
-    int size;
+    EVP_ENCODE_CTX *ctx;
+    int outl = 0, outl2 = 0;
+    size_t size, padsize;
+    const unsigned char *pad = (const unsigned char *)"00";
 
-    if (alen == 0 || alen > INT_MAX)
-        return -1;
-
-    while (*src && (*src == ' ' || *src == '\t' || *src == '\n'))
+    while (*src == ' ' || *src == '\t' || *src == '\n')
         ++src;
     size = strlen(src);
-    if (size < 0 || size >= (int)alen)
+    padsize = 4 - (size & 3);
+    padsize &= 3;
+
+    /* Four bytes in src become three bytes output. */
+    if (size > INT_MAX || ((size + padsize) / 4) * 3 > alen)
         return -1;
 
-    i = 0;
-    while (i < size) {
-        loc = strchr(b64table, src[i]);
-        if (loc == (char *)0)
-            break;
-        else
-            a[i] = loc - b64table;
-        ++i;
-    }
-    /* if nothing valid to process we have a zero length response */
-    if (i == 0)
-        return 0;
-    size = i;
-    i = size - 1;
-    j = size;
-    while (1) {
-        a[j] = a[i];
-        if (--i < 0)
-            break;
-        a[j] |= (a[i] & 3) << 6;
-        --j;
-        a[j] = (unsigned char)((a[i] & 0x3c) >> 2);
-        if (--i < 0)
-            break;
-        a[j] |= (a[i] & 0xf) << 4;
-        --j;
-        a[j] = (unsigned char)((a[i] & 0x30) >> 4);
-        if (--i < 0)
-            break;
-        a[j] |= (a[i] << 2);
+    ctx = EVP_ENCODE_CTX_new();
+    if (ctx == NULL)
+        return -1;
 
-        a[--j] = 0;
-        if (--i < 0)
-            break;
+    /*
+     * This should never occur because 1 byte of data always requires 2 bytes of
+     * encoding, i.e.
+     *  0 bytes unencoded = 0 bytes encoded
+     *  1 byte unencoded  = 2 bytes encoded
+     *  2 bytes unencoded = 3 bytes encoded
+     *  3 bytes unencoded = 4 bytes encoded
+     *  4 bytes unencoded = 6 bytes encoded
+     *  etc
+     */
+    if (padsize == 3) {
+        outl = -1;
+        goto err;
     }
-    while (j <= size && a[j] == 0)
-        ++j;
-    i = 0;
-    while (j <= size)
-        a[i++] = a[j++];
-    return i;
+
+    /* Valid padsize values are now 0, 1 or 2 */
+
+    EVP_DecodeInit(ctx);
+    evp_encode_ctx_set_flags(ctx, EVP_ENCODE_CTX_USE_SRP_ALPHABET);
+
+    /* Add any encoded padding that is required */
+    if (padsize != 0
+            && EVP_DecodeUpdate(ctx, a, &outl, pad, padsize) < 0) {
+        outl = -1;
+        goto err;
+    }
+    if (EVP_DecodeUpdate(ctx, a, &outl2, (const unsigned char *)src, size) < 0) {
+        outl = -1;
+        goto err;
+    }
+    outl += outl2;
+    EVP_DecodeFinal(ctx, a + outl, &outl2);
+    outl += outl2;
+
+    /* Strip off the leading padding */
+    if (padsize != 0) {
+        if ((int)padsize >= outl) {
+            outl = -1;
+            goto err;
+        }
+
+        /*
+         * If we added 1 byte of padding prior to encoding then we have 2 bytes
+         * of "real" data which gets spread across 4 encoded bytes like this:
+         *   (6 bits pad)(2 bits pad | 4 bits data)(6 bits data)(6 bits data)
+         * So 1 byte of pre-encoding padding results in 1 full byte of encoded
+         * padding.
+         * If we added 2 bytes of padding prior to encoding this gets encoded
+         * as:
+         *   (6 bits pad)(6 bits pad)(4 bits pad | 2 bits data)(6 bits data)
+         * So 2 bytes of pre-encoding padding results in 2 full bytes of encoded
+         * padding, i.e. we have to strip the same number of bytes of padding
+         * from the encoded data as we added to the pre-encoded data.
+         */
+        memmove(a, a + padsize, outl - padsize);
+        outl -= padsize;
+    }
+
+ err:
+    EVP_ENCODE_CTX_free(ctx);
+
+    return outl;
 }
 
 /*
  * Convert a raw byte string into a null-terminated base64 ASCII string.
+ * Returns 1 on success or 0 on error.
  */
-static char *t_tob64(char *dst, const unsigned char *src, int size)
+static int t_tob64(char *dst, const unsigned char *src, int size)
 {
-    int c, pos = size % 3;
-    unsigned char b0 = 0, b1 = 0, b2 = 0, notleading = 0;
-    char *olddst = dst;
+    EVP_ENCODE_CTX *ctx = EVP_ENCODE_CTX_new();
+    int outl = 0, outl2 = 0;
+    unsigned char pad[2] = {0, 0};
+    size_t leadz = 0;
 
-    switch (pos) {
-    case 1:
-        b2 = src[0];
-        break;
-    case 2:
-        b1 = src[0];
-        b2 = src[1];
-        break;
+    if (ctx == NULL)
+        return 0;
+
+    EVP_EncodeInit(ctx);
+    evp_encode_ctx_set_flags(ctx, EVP_ENCODE_CTX_NO_NEWLINES
+                                  | EVP_ENCODE_CTX_USE_SRP_ALPHABET);
+
+    /*
+     * We pad at the front with zero bytes until the length is a multiple of 3
+     * so that EVP_EncodeUpdate/EVP_EncodeFinal does not add any of its own "="
+     * padding
+     */
+    leadz = 3 - (size % 3);
+    if (leadz != 3
+            && !EVP_EncodeUpdate(ctx, (unsigned char *)dst, &outl, pad,
+                                 leadz)) {
+        EVP_ENCODE_CTX_free(ctx);
+        return 0;
     }
 
-    while (1) {
-        c = (b0 & 0xfc) >> 2;
-        if (notleading || c != 0) {
-            *dst++ = b64table[c];
-            notleading = 1;
-        }
-        c = ((b0 & 3) << 4) | ((b1 & 0xf0) >> 4);
-        if (notleading || c != 0) {
-            *dst++ = b64table[c];
-            notleading = 1;
-        }
-        c = ((b1 & 0xf) << 2) | ((b2 & 0xc0) >> 6);
-        if (notleading || c != 0) {
-            *dst++ = b64table[c];
-            notleading = 1;
-        }
-        c = b2 & 0x3f;
-        if (notleading || c != 0) {
-            *dst++ = b64table[c];
-            notleading = 1;
-        }
-        if (pos >= size)
-            break;
-        else {
-            b0 = src[pos++];
-            b1 = src[pos++];
-            b2 = src[pos++];
-        }
+    if (!EVP_EncodeUpdate(ctx, (unsigned char *)dst + outl, &outl2, src,
+                          size)) {
+        EVP_ENCODE_CTX_free(ctx);
+        return 0;
+    }
+    outl += outl2;
+    EVP_EncodeFinal(ctx, (unsigned char *)dst + outl, &outl2);
+    outl += outl2;
+
+    /* Strip the encoded padding at the front */
+    if (leadz != 3) {
+        memmove(dst, dst + leadz, outl - leadz);
+        dst[outl - leadz] = '\0';
     }
 
-    *dst++ = '\0';
-    return olddst;
+    EVP_ENCODE_CTX_free(ctx);
+    return 1;
 }
 
 void SRP_user_pwd_free(SRP_user_pwd *user_pwd)
@@ -154,9 +186,12 @@ void SRP_user_pwd_free(SRP_user_pwd *user_pwd)
 
 static SRP_user_pwd *SRP_user_pwd_new(void)
 {
-    SRP_user_pwd *ret = OPENSSL_malloc(sizeof(*ret));
-    if (ret == NULL)
+    SRP_user_pwd *ret;
+    
+    if ((ret = OPENSSL_malloc(sizeof(*ret))) == NULL) {
+        /* SRPerr(SRP_F_SRP_USER_PWD_NEW, ERR_R_MALLOC_FAILURE); */ /*ckerr_ignore*/
         return NULL;
+    }
     ret->N = NULL;
     ret->g = NULL;
     ret->s = NULL;
@@ -474,7 +509,7 @@ static SRP_user_pwd *find_user(SRP_VBASE *vb, char *username)
     return NULL;
 }
 
- #if OPENSSL_API_COMPAT < 0x10100000L
+# if OPENSSL_API_COMPAT < 0x10100000L
 /*
  * DEPRECATED: use SRP_VBASE_get1_by_user instead.
  * This method ignores the configured seed and fails for an unknown user.
@@ -485,7 +520,7 @@ SRP_user_pwd *SRP_VBASE_get_by_user(SRP_VBASE *vb, char *username)
 {
     return find_user(vb, username);
 }
-#endif
+# endif
 
 /*
  * Ownership of the returned pointer is released to the caller.
@@ -518,7 +553,7 @@ SRP_user_pwd *SRP_VBASE_get1_by_user(SRP_VBASE *vb, char *username)
     if (!SRP_user_pwd_set_ids(user, username, NULL))
         goto err;
 
-    if (RAND_bytes(digv, SHA_DIGEST_LENGTH) <= 0)
+    if (RAND_priv_bytes(digv, SHA_DIGEST_LENGTH) <= 0)
         goto err;
     ctxt = EVP_MD_CTX_new();
     if (ctxt == NULL

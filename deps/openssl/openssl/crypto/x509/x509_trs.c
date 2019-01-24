@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -98,13 +98,14 @@ int X509_TRUST_get_by_id(int id)
 {
     X509_TRUST tmp;
     int idx;
+
     if ((id >= X509_TRUST_MIN) && (id <= X509_TRUST_MAX))
         return id - X509_TRUST_MIN;
-    tmp.trust = id;
-    if (!trtable)
+    if (trtable == NULL)
         return -1;
+    tmp.trust = id;
     idx = sk_X509_TRUST_find(trtable, &tmp);
-    if (idx == -1)
+    if (idx < 0)
         return -1;
     return idx + X509_TRUST_COUNT;
 }

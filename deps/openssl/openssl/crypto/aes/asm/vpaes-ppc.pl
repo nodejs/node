@@ -1075,7 +1075,7 @@ Loop_schedule_256:
 	# high round
 	bl	_vpaes_schedule_round
 	bdz 	Lschedule_mangle_last	# dec	%esi
-	bl	_vpaes_schedule_mangle	
+	bl	_vpaes_schedule_mangle
 
 	# low round. swap xmm7 and xmm6
 	?vspltw	v0, v0, 3		# vpshufd	\$0xFF,	%xmm0,	%xmm0
@@ -1083,7 +1083,7 @@ Loop_schedule_256:
 	vmr	v7, v6			# vmovdqa	%xmm6,	%xmm7
 	bl	_vpaes_schedule_low_round
 	vmr	v7, v5			# vmovdqa	%xmm5,	%xmm7
-	
+
 	b	Loop_schedule_256
 ##
 ##  .aes_schedule_mangle_last
@@ -1131,7 +1131,7 @@ Lschedule_mangle_last:
 Lschedule_mangle_last_dec:
 	lvx	$iptlo, r11, r12	# reload $ipt
 	lvx	$ipthi, r9,  r12
-	addi	$out, $out, -16		# add	\$-16,	%rdx 
+	addi	$out, $out, -16		# add	\$-16,	%rdx
 	vxor	v0, v0, v26		# vpxor	.Lk_s63(%rip),	%xmm0,	%xmm0
 	bl	_vpaes_schedule_transform	# output transform
 
@@ -1566,7 +1566,7 @@ foreach  (split("\n",$code)) {
 	    if ($flavour =~ /le$/o) {
 		SWITCH: for($conv)  {
 		    /\?inv/ && do   { @bytes=map($_^0xf,@bytes); last; };
-		    /\?rev/ && do   { @bytes=reverse(@bytes);    last; }; 
+		    /\?rev/ && do   { @bytes=reverse(@bytes);    last; };
 		}
 	    }
 

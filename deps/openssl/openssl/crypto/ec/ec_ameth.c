@@ -521,6 +521,48 @@ static int ec_pkey_ctrl(EVP_PKEY *pkey, int op, long arg1, void *arg2)
 
 }
 
+static int ec_pkey_check(const EVP_PKEY *pkey)
+{
+    EC_KEY *eckey = pkey->pkey.ec;
+
+    /* stay consistent to what EVP_PKEY_check demands */
+    if (eckey->priv_key == NULL) {
+        ECerr(EC_F_EC_PKEY_CHECK, EC_R_MISSING_PRIVATE_KEY);
+        return 0;
+    }
+
+    return EC_KEY_check_key(eckey);
+}
+
+static int ec_pkey_public_check(const EVP_PKEY *pkey)
+{
+    EC_KEY *eckey = pkey->pkey.ec;
+
+    /*
+     * Note: it unnecessary to check eckey->pub_key here since
+     * it will be checked in EC_KEY_check_key(). In fact, the
+     * EC_KEY_check_key() mainly checks the public key, and checks
+     * the private key optionally (only if there is one). So if
+     * someone passes a whole EC key (public + private), this
+     * will also work...
+     */
+
+    return EC_KEY_check_key(eckey);
+}
+
+static int ec_pkey_param_check(const EVP_PKEY *pkey)
+{
+    EC_KEY *eckey = pkey->pkey.ec;
+
+    /* stay consistent to what EVP_PKEY_check demands */
+    if (eckey->group == NULL) {
+        ECerr(EC_F_EC_PKEY_PARAM_CHECK, EC_R_MISSING_PARAMETERS);
+        return 0;
+    }
+
+    return EC_GROUP_check(eckey->group, NULL);
+}
+
 const EVP_PKEY_ASN1_METHOD eckey_asn1_meth = {
     EVP_PKEY_EC,
     EVP_PKEY_EC,
@@ -552,8 +594,22 @@ const EVP_PKEY_ASN1_METHOD eckey_asn1_meth = {
     int_ec_free,
     ec_pkey_ctrl,
     old_ec_priv_decode,
-    old_ec_priv_encode
+    old_ec_priv_encode,
+
+    0, 0, 0,
+
+    ec_pkey_check,
+    ec_pkey_public_check,
+    ec_pkey_param_check
 };
+
+#if !defined(OPENSSL_NO_SM2)
+const EVP_PKEY_ASN1_METHOD sm2_asn1_meth = {
+   EVP_PKEY_SM2,
+   EVP_PKEY_EC,
+   ASN1_PKEY_ALIAS
+};
+#endif
 
 int EC_KEY_print(BIO *bp, const EC_KEY *x, int off)
 {
@@ -643,7 +699,7 @@ static int ecdh_cms_set_kdf_param(EVP_PKEY_CTX *pctx, int eckdf_nid)
     if (EVP_PKEY_CTX_set_ecdh_cofactor_mode(pctx, cofactor) <= 0)
         return 0;
 
-    if (EVP_PKEY_CTX_set_ecdh_kdf_type(pctx, EVP_PKEY_ECDH_KDF_X9_62) <= 0)
+    if (EVP_PKEY_CTX_set_ecdh_kdf_type(pctx, EVP_PKEY_ECDH_KDF_X9_63) <= 0)
         return 0;
 
     kdf_md = EVP_get_digestbynid(kdfmd_nid);
@@ -808,7 +864,7 @@ static int ecdh_cms_encrypt(CMS_RecipientInfo *ri)
         ecdh_nid = NID_dh_cofactor_kdf;
 
     if (kdf_type == EVP_PKEY_ECDH_KDF_NONE) {
-        kdf_type = EVP_PKEY_ECDH_KDF_X9_62;
+        kdf_type = EVP_PKEY_ECDH_KDF_X9_63;
         if (EVP_PKEY_CTX_set_ecdh_kdf_type(pctx, kdf_type) <= 0)
             goto err;
     } else

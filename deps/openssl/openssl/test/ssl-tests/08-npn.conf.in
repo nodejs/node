@@ -7,13 +7,12 @@
 # https://www.openssl.org/source/license.html
 
 
-## Test NPN negotiation
+## Test NPN. Note that NPN is only supported up to TLSv1.2
 
 use strict;
 use warnings;
 
 package ssltests;
-
 
 our @tests = (
     {
@@ -27,6 +26,7 @@ our @tests = (
             extra => {
                 "NPNProtocols" => "foo",
             },
+            "MaxProtocol" => "TLSv1.2"
         },
         test => {
             "ExpectedNPNProtocol" => "foo",
@@ -43,6 +43,7 @@ our @tests = (
             extra => {
                 "NPNProtocols" => "foo,bar",
             },
+            "MaxProtocol" => "TLSv1.2"
         },
         test => {
             "ExpectedNPNProtocol" => "bar",
@@ -59,6 +60,7 @@ our @tests = (
             extra => {
                 "NPNProtocols" => "foo,bar",
             },
+            "MaxProtocol" => "TLSv1.2"
         },
         test => {
             "ExpectedNPNProtocol" => "bar",
@@ -75,6 +77,7 @@ our @tests = (
             extra => {
                 "NPNProtocols" => "foo,bar",
             },
+            "MaxProtocol" => "TLSv1.2"
         },
         test => {
             "ExpectedNPNProtocol" => "foo",
@@ -82,11 +85,12 @@ our @tests = (
     },
     {
         name => "npn-no-server-support",
-        server => { },
+        server => {},
         client => {
             extra => {
                 "NPNProtocols" => "foo",
             },
+            "MaxProtocol" => "TLSv1.2"
         },
         test => {
             "ExpectedNPNProtocol" => undef,
@@ -99,7 +103,9 @@ our @tests = (
                 "NPNProtocols" => "foo",
             },
         },
-        client => { },
+        client => {
+            "MaxProtocol" => "TLSv1.2"
+        },
         test => {
             "ExpectedNPNProtocol" => undef,
         },
@@ -122,6 +128,7 @@ our @tests = (
                 "NPNProtocols" => "foo,bar",
                 "ServerName" => "server1",
             },
+            "MaxProtocol" => "TLSv1.2"
         },
         test => {
             "ExpectedServerName" => "server1",
@@ -146,6 +153,7 @@ our @tests = (
                 "NPNProtocols" => "foo,bar",
                 "ServerName" => "server2",
             },
+            "MaxProtocol" => "TLSv1.2"
         },
         test => {
             "ExpectedServerName" => "server2",
@@ -169,6 +177,7 @@ our @tests = (
                 "NPNProtocols" => "foo,bar",
                 "ServerName" => "server2",
             },
+            "MaxProtocol" => "TLSv1.2"
         },
         test => {
             "ExpectedServerName" => "server2",
@@ -189,6 +198,7 @@ our @tests = (
                 "NPNProtocols" => "foo,bar",
                 "ServerName" => "server2",
             },
+            "MaxProtocol" => "TLSv1.2"
         },
         test => {
              "ExpectedServerName" => "server2",
@@ -208,6 +218,7 @@ our @tests = (
                 "ALPNProtocols" => "foo",
                 "NPNProtocols" => "bar",
             },
+            "MaxProtocol" => "TLSv1.2"
         },
         test => {
             "ExpectedALPNProtocol" => "foo",
@@ -233,6 +244,7 @@ our @tests = (
                 "ALPNProtocols" => "foo",
                 "NPNProtocols" => "bar",
             },
+            "MaxProtocol" => "TLSv1.2"
         },
         test => {
             "ExpectedALPNProtocol" => undef,
@@ -251,6 +263,7 @@ our @tests = (
             extra => {
                 "NPNProtocols" => "foo",
             },
+            "MaxProtocol" => "TLSv1.2"
         },
         test => {
             "HandshakeMode" => "Resume",
@@ -274,6 +287,7 @@ our @tests = (
             extra => {
                 "NPNProtocols" => "foo,bar,baz",
             },
+            "MaxProtocol" => "TLSv1.2"
         },
         test => {
             "HandshakeMode" => "Resume",
@@ -292,11 +306,13 @@ our @tests = (
             extra => {
                 "NPNProtocols" => "foo,baz",
             },
+            "MaxProtocol" => "TLSv1.2"
         },
         resume_client => {
             extra => {
                 "NPNProtocols" => "bar,baz",
             },
+            "MaxProtocol" => "TLSv1.2"
         },
         test => {
             "HandshakeMode" => "Resume",
@@ -320,6 +336,7 @@ our @tests = (
             extra => {
                 "NPNProtocols" => "foo,bar",
             },
+            "MaxProtocol" => "TLSv1.2"
         },
         test => {
             "HandshakeMode" => "Resume",
@@ -339,6 +356,7 @@ our @tests = (
             extra => {
                 "NPNProtocols" => "foo",
             },
+            "MaxProtocol" => "TLSv1.2"
         },
         test => {
             "HandshakeMode" => "Resume",
@@ -357,8 +375,11 @@ our @tests = (
             extra => {
                 "NPNProtocols" => "foo",
             },
+            "MaxProtocol" => "TLSv1.2"
         },
-        resume_client => { },
+        resume_client => {
+            "MaxProtocol" => "TLSv1.2"
+        },
         test => {
             "HandshakeMode" => "Resume",
             "ResumptionExpected" => "Yes",
@@ -383,6 +404,7 @@ our @tests = (
                 "ALPNProtocols" => "foo",
                 "NPNProtocols" => "bar,baz",
             },
+            "MaxProtocol" => "TLSv1.2"
         },
         test => {
             "HandshakeMode" => "Resume",
@@ -409,6 +431,7 @@ our @tests = (
                 "ALPNProtocols" => "foo",
                 "NPNProtocols" => "bar,baz",
             },
+            "MaxProtocol" => "TLSv1.2"
         },
         test => {
             "HandshakeMode" => "Resume",

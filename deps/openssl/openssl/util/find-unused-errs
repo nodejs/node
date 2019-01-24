@@ -13,8 +13,27 @@
 export X1=/tmp/f.1.$$
 export X2=/tmp/f.2.$$
 
+case "$1" in
+    -f)
+        PAT='_F_'
+        echo Functions only
+        ;;
+    -[er])
+        PAT='_R_'
+        echo Reason codes only
+        ;;
+    "")
+        PAT='_[FR]_'
+        echo Function and reasons
+        ;;
+    *)
+        echo "Usage error; one of -[efr] required."
+        exit 1;
+        ;;
+esac
+
 cd include/openssl || exit 1
-grep '_[RF]_' * | awk '{print $3;}' | sort -u >$X1
+grep "$PAT" *  | grep -v ERR_FATAL_ERROR | awk '{print $3;}' | sort -u >$X1
 cd ../..
 
 for F in `cat $X1` ; do

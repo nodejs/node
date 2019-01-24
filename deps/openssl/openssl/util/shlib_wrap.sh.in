@@ -11,7 +11,7 @@
         $lib = $unified_info{sharednames}->{$lib}
             . ($target{shlib_variant} || "")
             . ($target{shared_extension} || ".so");
-        $lib =~ s|\.\$\(SHLIB_MAJOR\)\.\$\(SHLIB_MINOR\)
+        $lib =~ s|\.\$\(SHLIB_VERSION_NUMBER\)
                  |.$config{shlib_version_number}|x;
         return $lib;
     }
@@ -111,7 +111,7 @@ SunOS|IRIX*)
 	;;
 esac
 
-{- output_off() if $config{ex_libs} !~ /,-rpath,/; ""; -}
+{- output_off() unless grep (/-rpath\b/, @{$config{LDFLAGS}}); ""; -}
 if [ -f "$LIBCRYPTOSO" -a -z "$preload_var" ]; then
 	# Following three lines are major excuse for isolating them into
 	# this wrapper script. Original reason for setting LD_PRELOAD
@@ -120,14 +120,14 @@ if [ -f "$LIBCRYPTOSO" -a -z "$preload_var" ]; then
 	# it into a script makes it possible to do so on multi-ABI
 	# platforms.
 	case "$SYSNAME" in
-	*BSD|QNX)	LD_PRELOAD="$LIBCRYPTOSO:$LIBSSLSO" ;;	# *BSD, QNX
+	*BSD)	LD_PRELOAD="$LIBCRYPTOSO:$LIBSSLSO" ;;	# *BSD
 	*)	LD_PRELOAD="$LIBCRYPTOSO $LIBSSLSO" ;;	# SunOS, Linux, ELF HP-UX
 	esac
 	_RLD_LIST="$LIBCRYPTOSO:$LIBSSLSO:DEFAULT"	# Tru64, o32 IRIX
 	DYLD_INSERT_LIBRARIES="$LIBCRYPTOSO:$LIBSSLSO"	# MacOS X
 	export LD_PRELOAD _RLD_LIST DYLD_INSERT_LIBRARIES
 fi
-{- output_on() if $config{ex_libs} !~ /,-rpath,/; ""; -}
+{- output_on() unless grep (/-rpath\b/, @{$config{LDFLAGS}}); ""; -}
 
 cmd="$1"; [ -x "$cmd" ] || cmd="$cmd${EXE_EXT}"
 shift

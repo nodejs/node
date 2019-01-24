@@ -43,5 +43,5 @@ unsigned char *MD5(const unsigned char *d, size_t n, unsigned char *md)
 #endif
     MD5_Final(md, &c);
     OPENSSL_cleanse(&c, sizeof(c)); /* security consideration */
-    return (md);
+    return md;
 }

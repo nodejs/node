@@ -63,6 +63,8 @@ static int int_ctrl_helper(ENGINE *e, int cmd, long i, void *p,
 {
     int idx;
     char *s = (char *)p;
+    const ENGINE_CMD_DEFN *cdp;
+
     /* Take care of the easy one first (eg. it requires no searches) */
     if (cmd == ENGINE_CTRL_GET_FIRST_CMD_TYPE) {
         if ((e->cmd_defns == NULL) || int_ctrl_cmd_is_null(e->cmd_defns))
@@ -91,39 +93,29 @@ static int int_ctrl_helper(ENGINE *e, int cmd, long i, void *p,
      * For the rest of the commands, the 'long' argument must specify a valid
      * command number - so we need to conduct a search.
      */
-    if ((e->cmd_defns == NULL) || ((idx = int_ctrl_cmd_by_num(e->cmd_defns,
-                                                              (unsigned int)
-                                                              i)) < 0)) {
+    if ((e->cmd_defns == NULL)
+        || ((idx = int_ctrl_cmd_by_num(e->cmd_defns, (unsigned int)i)) < 0)) {
         ENGINEerr(ENGINE_F_INT_CTRL_HELPER, ENGINE_R_INVALID_CMD_NUMBER);
         return -1;
     }
     /* Now the logic splits depending on command type */
+    cdp = &e->cmd_defns[idx];
     switch (cmd) {
     case ENGINE_CTRL_GET_NEXT_CMD_TYPE:
-        idx++;
-        if (int_ctrl_cmd_is_null(e->cmd_defns + idx))
-            /* end-of-list */
-            return 0;
-        else
-            return e->cmd_defns[idx].cmd_num;
+        cdp++;
+        return int_ctrl_cmd_is_null(cdp) ? 0 : cdp->cmd_num;
     case ENGINE_CTRL_GET_NAME_LEN_FROM_CMD:
-        return strlen(e->cmd_defns[idx].cmd_name);
+        return strlen(cdp->cmd_name);
     case ENGINE_CTRL_GET_NAME_FROM_CMD:
-        return BIO_snprintf(s, strlen(e->cmd_defns[idx].cmd_name) + 1,
-                            "%s", e->cmd_defns[idx].cmd_name);
+        return strlen(strcpy(s, cdp->cmd_name));
     case ENGINE_CTRL_GET_DESC_LEN_FROM_CMD:
-        if (e->cmd_defns[idx].cmd_desc)
-            return strlen(e->cmd_defns[idx].cmd_desc);
-        return strlen(int_no_description);
+        return strlen(cdp->cmd_desc == NULL ? int_no_description
+                                            : cdp->cmd_desc);
     case ENGINE_CTRL_GET_DESC_FROM_CMD:
-        if (e->cmd_defns[idx].cmd_desc)
-            return BIO_snprintf(s,
-                                strlen(e->cmd_defns[idx].cmd_desc) + 1,
-                                "%s", e->cmd_defns[idx].cmd_desc);
-        return BIO_snprintf(s, strlen(int_no_description) + 1, "%s",
-                            int_no_description);
+        return strlen(strcpy(s, cdp->cmd_desc == NULL ? int_no_description
+                                                      : cdp->cmd_desc));
     case ENGINE_CTRL_GET_CMD_FLAGS:
-        return e->cmd_defns[idx].cmd_flags;
+        return cdp->cmd_flags;
     }
     /* Shouldn't really be here ... */
     ENGINEerr(ENGINE_F_INT_CTRL_HELPER, ENGINE_R_INTERNAL_LIST_ERROR);

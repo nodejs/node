@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "apps.h"
+#include "progs.h"
 #include <openssl/pem.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
@@ -24,10 +25,11 @@ typedef enum OPTION_choice {
     OPT_SCRYPT, OPT_SCRYPT_N, OPT_SCRYPT_R, OPT_SCRYPT_P,
 #endif
     OPT_V2, OPT_V1, OPT_V2PRF, OPT_ITER, OPT_PASSIN, OPT_PASSOUT,
-    OPT_TRADITIONAL
+    OPT_TRADITIONAL,
+    OPT_R_ENUM
 } OPTION_CHOICE;
 
-OPTIONS pkcs8_options[] = {
+const OPTIONS pkcs8_options[] = {
     {"help", OPT_HELP, '-', "Display this summary"},
     {"inform", OPT_INFORM, 'F', "Input format (DER or PEM)"},
     {"outform", OPT_OUTFORM, 'F', "Output format (DER or PEM)"},
@@ -36,6 +38,7 @@ OPTIONS pkcs8_options[] = {
     {"topk8", OPT_TOPK8, '-', "Output PKCS8 file"},
     {"noiter", OPT_NOITER, '-', "Use 1 as iteration count"},
     {"nocrypt", OPT_NOCRYPT, '-', "Use or expect unencrypted private key"},
+    OPT_R_OPTIONS,
     {"v2", OPT_V2, 's', "Use PKCS#5 v2.0 and cipher"},
     {"v1", OPT_V1, 's', "Use PKCS#5 v1.5 and cipher"},
     {"v2prf", OPT_V2PRF, 's', "Set the PRF algorithm to use with PKCS#5 v2.0"},
@@ -65,7 +68,7 @@ int pkcs8_main(int argc, char **argv)
     const EVP_CIPHER *cipher = NULL;
     char *infile = NULL, *outfile = NULL;
     char *passinarg = NULL, *passoutarg = NULL, *prog;
-#ifndef OPENSSL_NO_UI
+#ifndef OPENSSL_NO_UI_CONSOLE
     char pass[APP_PASS_LEN];
 #endif
     char *passin = NULL, *passout = NULL, *p8pass = NULL;
@@ -111,6 +114,10 @@ int pkcs8_main(int argc, char **argv)
             break;
         case OPT_NOCRYPT:
             nocrypt = 1;
+            break;
+        case OPT_R_CASES:
+            if (!opt_rand(o))
+                goto end;
             break;
         case OPT_TRADITIONAL:
             traditional = 1;
@@ -196,7 +203,7 @@ int pkcs8_main(int argc, char **argv)
 
     if (topk8) {
         pkey = load_key(infile, informat, 1, passin, e, "key");
-        if (!pkey)
+        if (pkey == NULL)
             goto end;
         if ((p8inf = EVP_PKEY2PKCS8(pkey)) == NULL) {
             BIO_printf(bio_err, "Error converting key\n");
@@ -205,11 +212,11 @@ int pkcs8_main(int argc, char **argv)
         }
         if (nocrypt) {
             assert(private);
-            if (outformat == FORMAT_PEM)
+            if (outformat == FORMAT_PEM) {
                 PEM_write_bio_PKCS8_PRIV_KEY_INFO(out, p8inf);
-            else if (outformat == FORMAT_ASN1)
+            } else if (outformat == FORMAT_ASN1) {
                 i2d_PKCS8_PRIV_KEY_INFO_bio(out, p8inf);
-            else {
+            } else {
                 BIO_printf(bio_err, "Bad format specified for key\n");
                 goto end;
             }
@@ -232,10 +239,11 @@ int pkcs8_main(int argc, char **argv)
                 ERR_print_errors(bio_err);
                 goto end;
             }
-            if (passout)
+            if (passout != NULL) {
                 p8pass = passout;
-            else if (1) {
-#ifndef OPENSSL_NO_UI
+            } else if (1) {
+                /* To avoid bit rot */
+#ifndef OPENSSL_NO_UI_CONSOLE
                 p8pass = pass;
                 if (EVP_read_pw_string
                     (pass, sizeof(pass), "Enter Encryption Password:", 1)) {
@@ -247,7 +255,6 @@ int pkcs8_main(int argc, char **argv)
                 BIO_printf(bio_err, "Password required\n");
                 goto end;
             }
-            app_RAND_load_file(NULL, 0);
             p8 = PKCS8_set0_pbe(p8pass, strlen(p8pass), p8inf, pbe);
             if (p8 == NULL) {
                 X509_ALGOR_free(pbe);
@@ -255,7 +262,6 @@ int pkcs8_main(int argc, char **argv)
                 ERR_print_errors(bio_err);
                 goto end;
             }
-            app_RAND_write_file(NULL);
             assert(private);
             if (outformat == FORMAT_PEM)
                 PEM_write_bio_PKCS8(out, p8);
@@ -272,33 +278,33 @@ int pkcs8_main(int argc, char **argv)
     }
 
     if (nocrypt) {
-        if (informat == FORMAT_PEM)
+        if (informat == FORMAT_PEM) {
             p8inf = PEM_read_bio_PKCS8_PRIV_KEY_INFO(in, NULL, NULL, NULL);
-        else if (informat == FORMAT_ASN1)
+        } else if (informat == FORMAT_ASN1) {
             p8inf = d2i_PKCS8_PRIV_KEY_INFO_bio(in, NULL);
-        else {
+        } else {
             BIO_printf(bio_err, "Bad format specified for key\n");
             goto end;
         }
     } else {
-        if (informat == FORMAT_PEM)
+        if (informat == FORMAT_PEM) {
             p8 = PEM_read_bio_PKCS8(in, NULL, NULL, NULL);
-        else if (informat == FORMAT_ASN1)
+        } else if (informat == FORMAT_ASN1) {
             p8 = d2i_PKCS8_bio(in, NULL);
-        else {
+        } else {
             BIO_printf(bio_err, "Bad format specified for key\n");
             goto end;
         }
 
-        if (!p8) {
+        if (p8 == NULL) {
             BIO_printf(bio_err, "Error reading key\n");
             ERR_print_errors(bio_err);
             goto end;
         }
-        if (passin)
+        if (passin != NULL) {
             p8pass = passin;
-        else if (1) {
-#ifndef OPENSSL_NO_UI
+        } else if (1) {
+#ifndef OPENSSL_NO_UI_CONSOLE
             p8pass = pass;
             if (EVP_read_pw_string(pass, sizeof(pass), "Enter Password:", 0)) {
                 BIO_printf(bio_err, "Can't read Password\n");
@@ -312,7 +318,7 @@ int pkcs8_main(int argc, char **argv)
         p8inf = PKCS8_decrypt(p8, p8pass, strlen(p8pass));
     }
 
-    if (!p8inf) {
+    if (p8inf == NULL) {
         BIO_printf(bio_err, "Error decrypting key\n");
         ERR_print_errors(bio_err);
         goto end;

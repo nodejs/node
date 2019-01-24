@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2011-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2011-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -57,11 +57,20 @@ padlock_capability:
 	cpuid
 	xor	%eax,%eax
 	cmp	\$`"0x".unpack("H*",'tneC')`,%ebx
-	jne	.Lnoluck
+	jne	.Lzhaoxin
 	cmp	\$`"0x".unpack("H*",'Hrua')`,%edx
 	jne	.Lnoluck
 	cmp	\$`"0x".unpack("H*",'slua')`,%ecx
 	jne	.Lnoluck
+	jmp	.LzhaoxinEnd
+.Lzhaoxin:
+	cmp	\$`"0x".unpack("H*",'hS  ')`,%ebx
+	jne	.Lnoluck
+	cmp	\$`"0x".unpack("H*",'hgna')`,%edx
+	jne	.Lnoluck
+	cmp	\$`"0x".unpack("H*",'  ia')`,%ecx
+	jne	.Lnoluck
+.LzhaoxinEnd:
 	mov	\$0xC0000000,%eax
 	cpuid
 	mov	%eax,%edx
@@ -535,7 +544,7 @@ $code.=<<___				if ($PADLOCK_PREFETCH{$mode});
 	sub	$len,%rsp
 	shr	\$3,$len
 	lea	(%rsp),$out
-	.byte	0xf3,0x48,0xa5		# rep movsq	
+	.byte	0xf3,0x48,0xa5		# rep movsq
 	lea	(%r8),$out
 	lea	(%rsp),$inp
 	mov	$chunk,$len

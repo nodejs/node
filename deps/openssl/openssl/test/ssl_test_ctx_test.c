@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "e_os.h"
+#include "internal/nelem.h"
 #include "ssl_test_ctx.h"
 #include "testutil.h"
 #include <openssl/e_os2.h>
@@ -33,181 +33,101 @@ typedef struct ssl_test_ctx_test_fixture {
 } SSL_TEST_CTX_TEST_FIXTURE;
 
 
-static int SSL_TEST_CLIENT_CONF_equal(SSL_TEST_CLIENT_CONF *client,
-                                      SSL_TEST_CLIENT_CONF *client2)
+static int clientconf_eq(SSL_TEST_CLIENT_CONF *conf1,
+                         SSL_TEST_CLIENT_CONF *conf2)
 {
-    if (client->verify_callback != client2->verify_callback) {
-        fprintf(stderr, "ClientVerifyCallback mismatch: %s vs %s.\n",
-                ssl_verify_callback_name(client->verify_callback),
-                ssl_verify_callback_name(client2->verify_callback));
+    if (!TEST_int_eq(conf1->verify_callback, conf2->verify_callback)
+            || !TEST_int_eq(conf1->servername, conf2->servername)
+            || !TEST_str_eq(conf1->npn_protocols, conf2->npn_protocols)
+            || !TEST_str_eq(conf1->alpn_protocols, conf2->alpn_protocols)
+            || !TEST_int_eq(conf1->ct_validation, conf2->ct_validation)
+            || !TEST_int_eq(conf1->max_fragment_len_mode,
+                            conf2->max_fragment_len_mode))
         return 0;
-    }
-    if (client->servername != client2->servername) {
-        fprintf(stderr, "ServerName mismatch: %s vs %s.\n",
-                ssl_servername_name(client->servername),
-                ssl_servername_name(client2->servername));
-        return 0;
-    }
-    if (!strings_equal("Client NPNProtocols", client->npn_protocols,
-                       client2->npn_protocols))
-        return 0;
-    if (!strings_equal("Client ALPNProtocols", client->alpn_protocols,
-                       client2->alpn_protocols))
-        return 0;
-    if (client->ct_validation != client2->ct_validation) {
-        fprintf(stderr, "CTValidation mismatch: %s vs %s.\n",
-                ssl_ct_validation_name(client->ct_validation),
-                ssl_ct_validation_name(client2->ct_validation));
-        return 0;
-    }
     return 1;
 }
 
-static int SSL_TEST_SERVER_CONF_equal(SSL_TEST_SERVER_CONF *server,
-                                      SSL_TEST_SERVER_CONF *server2)
+static int serverconf_eq(SSL_TEST_SERVER_CONF *serv,
+                         SSL_TEST_SERVER_CONF *serv2)
 {
-    if (server->servername_callback != server2->servername_callback) {
-        fprintf(stderr, "ServerNameCallback mismatch: %s vs %s.\n",
-                ssl_servername_callback_name(server->servername_callback),
-                ssl_servername_callback_name(server2->servername_callback));
+    if (!TEST_int_eq(serv->servername_callback, serv2->servername_callback)
+            || !TEST_str_eq(serv->npn_protocols, serv2->npn_protocols)
+            || !TEST_str_eq(serv->alpn_protocols, serv2->alpn_protocols)
+            || !TEST_int_eq(serv->broken_session_ticket,
+                            serv2->broken_session_ticket)
+            || !TEST_str_eq(serv->session_ticket_app_data,
+                            serv2->session_ticket_app_data)
+            || !TEST_int_eq(serv->cert_status, serv2->cert_status))
         return 0;
-    }
-    if (!strings_equal("Server NPNProtocols", server->npn_protocols,
-                       server2->npn_protocols))
-        return 0;
-    if (!strings_equal("Server ALPNProtocols", server->alpn_protocols,
-                       server2->alpn_protocols))
-        return 0;
-    if (server->broken_session_ticket != server2->broken_session_ticket) {
-        fprintf(stderr, "Broken session ticket mismatch: %d vs %d.\n",
-                server->broken_session_ticket, server2->broken_session_ticket);
-        return 0;
-    }
-    if (server->cert_status != server2->cert_status) {
-        fprintf(stderr, "CertStatus mismatch: %s vs %s.\n",
-                ssl_certstatus_name(server->cert_status),
-                ssl_certstatus_name(server2->cert_status));
-        return 0;
-    }
     return 1;
 }
 
-static int SSL_TEST_EXTRA_CONF_equal(SSL_TEST_EXTRA_CONF *extra,
-                                     SSL_TEST_EXTRA_CONF *extra2)
+static int extraconf_eq(SSL_TEST_EXTRA_CONF *extra,
+                        SSL_TEST_EXTRA_CONF *extra2)
 {
-    return SSL_TEST_CLIENT_CONF_equal(&extra->client, &extra2->client)
-        && SSL_TEST_SERVER_CONF_equal(&extra->server, &extra2->server)
-        && SSL_TEST_SERVER_CONF_equal(&extra->server2, &extra2->server2);
-}
-
-/* Returns 1 if the contexts are equal, 0 otherwise. */
-static int SSL_TEST_CTX_equal(SSL_TEST_CTX *ctx, SSL_TEST_CTX *ctx2)
-{
-    if (ctx->method != ctx2->method) {
-        fprintf(stderr, "Method mismatch: %s vs %s.\n",
-                ssl_test_method_name(ctx->method),
-                ssl_test_method_name(ctx2->method));
+    if (!TEST_true(clientconf_eq(&extra->client, &extra2->client))
+            || !TEST_true(serverconf_eq(&extra->server, &extra2->server))
+            || !TEST_true(serverconf_eq(&extra->server2, &extra2->server2)))
         return 0;
-    }
-    if (ctx->handshake_mode != ctx2->handshake_mode) {
-        fprintf(stderr, "HandshakeMode mismatch: %s vs %s.\n",
-                ssl_handshake_mode_name(ctx->handshake_mode),
-                ssl_handshake_mode_name(ctx2->handshake_mode));
-        return 0;
-    }
-    if (ctx->app_data_size != ctx2->app_data_size) {
-        fprintf(stderr, "ApplicationData mismatch: %d vs %d.\n",
-                ctx->app_data_size, ctx2->app_data_size);
-        return 0;
-    }
-
-    if (ctx->max_fragment_size != ctx2->max_fragment_size) {
-        fprintf(stderr, "MaxFragmentSize mismatch: %d vs %d.\n",
-                ctx->max_fragment_size, ctx2->max_fragment_size);
-        return 0;
-    }
-
-    if (!SSL_TEST_EXTRA_CONF_equal(&ctx->extra, &ctx2->extra)) {
-        fprintf(stderr, "Extra conf mismatch.\n");
-        return 0;
-    }
-    if (!SSL_TEST_EXTRA_CONF_equal(&ctx->resume_extra, &ctx2->resume_extra)) {
-        fprintf(stderr, "Resume extra conf mismatch.\n");
-        return 0;
-    }
-
-    if (ctx->expected_result != ctx2->expected_result) {
-        fprintf(stderr, "ExpectedResult mismatch: %s vs %s.\n",
-                ssl_test_result_name(ctx->expected_result),
-                ssl_test_result_name(ctx2->expected_result));
-        return 0;
-    }
-    if (ctx->expected_client_alert != ctx2->expected_client_alert) {
-        fprintf(stderr, "ClientAlert mismatch: %s vs %s.\n",
-                ssl_alert_name(ctx->expected_client_alert),
-                ssl_alert_name(ctx2->expected_client_alert));
-        return 0;
-    }
-    if (ctx->expected_server_alert != ctx2->expected_server_alert) {
-        fprintf(stderr, "ServerAlert mismatch: %s vs %s.\n",
-                ssl_alert_name(ctx->expected_server_alert),
-                ssl_alert_name(ctx2->expected_server_alert));
-        return 0;
-    }
-    if (ctx->expected_protocol != ctx2->expected_protocol) {
-        fprintf(stderr, "ClientAlert mismatch: %s vs %s.\n",
-                ssl_protocol_name(ctx->expected_protocol),
-                ssl_protocol_name(ctx2->expected_protocol));
-        return 0;
-    }
-    if (ctx->expected_servername != ctx2->expected_servername) {
-        fprintf(stderr, "ExpectedServerName mismatch: %s vs %s.\n",
-                ssl_servername_name(ctx->expected_servername),
-                ssl_servername_name(ctx2->expected_servername));
-        return 0;
-    }
-    if (ctx->session_ticket_expected != ctx2->session_ticket_expected) {
-        fprintf(stderr, "SessionTicketExpected mismatch: %s vs %s.\n",
-                ssl_session_ticket_name(ctx->session_ticket_expected),
-                ssl_session_ticket_name(ctx2->session_ticket_expected));
-        return 0;
-    }
-    if (!strings_equal("ExpectedNPNProtocol", ctx->expected_npn_protocol,
-                       ctx2->expected_npn_protocol))
-        return 0;
-    if (!strings_equal("ExpectedALPNProtocol", ctx->expected_alpn_protocol,
-                       ctx2->expected_alpn_protocol))
-        return 0;
-    if (ctx->resumption_expected != ctx2->resumption_expected) {
-        fprintf(stderr, "ResumptionExpected mismatch: %d vs %d.\n",
-                ctx->resumption_expected, ctx2->resumption_expected);
-        return 0;
-    }
     return 1;
 }
 
-static SSL_TEST_CTX_TEST_FIXTURE set_up(const char *const test_case_name)
+static int testctx_eq(SSL_TEST_CTX *ctx, SSL_TEST_CTX *ctx2)
 {
-    SSL_TEST_CTX_TEST_FIXTURE fixture;
-    fixture.test_case_name = test_case_name;
-    fixture.expected_ctx = SSL_TEST_CTX_new();
-    TEST_check(fixture.expected_ctx != NULL);
+    if (!TEST_int_eq(ctx->method, ctx2->method)
+            || !TEST_int_eq(ctx->handshake_mode, ctx2->handshake_mode)
+            || !TEST_int_eq(ctx->app_data_size, ctx2->app_data_size)
+            || !TEST_int_eq(ctx->max_fragment_size, ctx2->max_fragment_size)
+            || !extraconf_eq(&ctx->extra, &ctx2->extra)
+            || !extraconf_eq(&ctx->resume_extra, &ctx2->resume_extra)
+            || !TEST_int_eq(ctx->expected_result, ctx2->expected_result)
+            || !TEST_int_eq(ctx->expected_client_alert,
+                            ctx2->expected_client_alert)
+            || !TEST_int_eq(ctx->expected_server_alert,
+                            ctx2->expected_server_alert)
+            || !TEST_int_eq(ctx->expected_protocol, ctx2->expected_protocol)
+            || !TEST_int_eq(ctx->expected_servername, ctx2->expected_servername)
+            || !TEST_int_eq(ctx->session_ticket_expected,
+                            ctx2->session_ticket_expected)
+            || !TEST_int_eq(ctx->compression_expected,
+                            ctx2->compression_expected)
+            || !TEST_str_eq(ctx->expected_npn_protocol,
+                            ctx2->expected_npn_protocol)
+            || !TEST_str_eq(ctx->expected_alpn_protocol,
+                            ctx2->expected_alpn_protocol)
+            || !TEST_str_eq(ctx->expected_cipher,
+                            ctx2->expected_cipher)
+            || !TEST_str_eq(ctx->expected_session_ticket_app_data,
+                            ctx2->expected_session_ticket_app_data)
+            || !TEST_int_eq(ctx->resumption_expected,
+                            ctx2->resumption_expected)
+            || !TEST_int_eq(ctx->session_id_expected,
+                            ctx2->session_id_expected))
+        return 0;
+    return 1;
+}
+
+static SSL_TEST_CTX_TEST_FIXTURE *set_up(const char *const test_case_name)
+{
+    SSL_TEST_CTX_TEST_FIXTURE *fixture;
+
+    if (!TEST_ptr(fixture = OPENSSL_zalloc(sizeof(*fixture))))
+        return NULL;
+    fixture->test_case_name = test_case_name;
+    if (!TEST_ptr(fixture->expected_ctx = SSL_TEST_CTX_new())) {
+        OPENSSL_free(fixture);
+        return NULL;
+    }
     return fixture;
 }
 
-static int execute_test(SSL_TEST_CTX_TEST_FIXTURE fixture)
+static int execute_test(SSL_TEST_CTX_TEST_FIXTURE *fixture)
 {
     int success = 0;
+    SSL_TEST_CTX *ctx;
 
-    SSL_TEST_CTX *ctx = SSL_TEST_CTX_create(conf, fixture.test_section);
-
-    if (ctx == NULL) {
-        fprintf(stderr, "Failed to parse good configuration %s.\n",
-                fixture.test_section);
-        goto err;
-    }
-
-    if (!SSL_TEST_CTX_equal(ctx, fixture.expected_ctx))
+    if (!TEST_ptr(ctx = SSL_TEST_CTX_create(conf, fixture->test_section))
+            || !testctx_eq(ctx, fixture->expected_ctx))
         goto err;
 
     success = 1;
@@ -216,78 +136,76 @@ static int execute_test(SSL_TEST_CTX_TEST_FIXTURE fixture)
     return success;
 }
 
-static int execute_failure_test(SSL_TEST_CTX_TEST_FIXTURE fixture)
+static void tear_down(SSL_TEST_CTX_TEST_FIXTURE *fixture)
 {
-    SSL_TEST_CTX *ctx = SSL_TEST_CTX_create(conf, fixture.test_section);
-
-    if (ctx != NULL) {
-        fprintf(stderr, "Parsing bad configuration %s succeeded.\n",
-                fixture.test_section);
-        SSL_TEST_CTX_free(ctx);
-        return 0;
-    }
-
-    return 1;
+    SSL_TEST_CTX_free(fixture->expected_ctx);
+    OPENSSL_free(fixture);
 }
 
-static void tear_down(SSL_TEST_CTX_TEST_FIXTURE fixture)
-{
-    SSL_TEST_CTX_free(fixture.expected_ctx);
-    ERR_print_errors_fp(stderr);
-}
-
-#define SETUP_SSL_TEST_CTX_TEST_FIXTURE()                       \
-    SETUP_TEST_FIXTURE(SSL_TEST_CTX_TEST_FIXTURE, set_up)
-#define EXECUTE_SSL_TEST_CTX_TEST()             \
+#define SETUP_SSL_TEST_CTX_TEST_FIXTURE() \
+    SETUP_TEST_FIXTURE(SSL_TEST_CTX_TEST_FIXTURE, set_up);
+#define EXECUTE_SSL_TEST_CTX_TEST() \
     EXECUTE_TEST(execute_test, tear_down)
-#define EXECUTE_SSL_TEST_CTX_FAILURE_TEST()             \
-    EXECUTE_TEST(execute_failure_test, tear_down)
 
-static int test_empty_configuration()
+static int test_empty_configuration(void)
 {
     SETUP_SSL_TEST_CTX_TEST_FIXTURE();
-    fixture.test_section = "ssltest_default";
-    fixture.expected_ctx->expected_result = SSL_TEST_SUCCESS;
+    if (fixture == NULL)
+        return 0;
+    fixture->test_section = "ssltest_default";
+    fixture->expected_ctx->expected_result = SSL_TEST_SUCCESS;
     EXECUTE_SSL_TEST_CTX_TEST();
+    return result;
 }
 
-static int test_good_configuration()
+static int test_good_configuration(void)
 {
     SETUP_SSL_TEST_CTX_TEST_FIXTURE();
-    fixture.test_section = "ssltest_good";
-    fixture.expected_ctx->method = SSL_TEST_METHOD_DTLS;
-    fixture.expected_ctx->handshake_mode = SSL_TEST_HANDSHAKE_RESUME;
-    fixture.expected_ctx->app_data_size = 1024;
-    fixture.expected_ctx->max_fragment_size = 2048;
+    if (fixture == NULL)
+        return 0;
+    fixture->test_section = "ssltest_good";
+    fixture->expected_ctx->method = SSL_TEST_METHOD_DTLS;
+    fixture->expected_ctx->handshake_mode = SSL_TEST_HANDSHAKE_RESUME;
+    fixture->expected_ctx->app_data_size = 1024;
+    fixture->expected_ctx->max_fragment_size = 2048;
 
-    fixture.expected_ctx->expected_result = SSL_TEST_SERVER_FAIL;
-    fixture.expected_ctx->expected_client_alert = SSL_AD_UNKNOWN_CA;
-    fixture.expected_ctx->expected_server_alert = 0;  /* No alert. */
-    fixture.expected_ctx->expected_protocol = TLS1_1_VERSION;
-    fixture.expected_ctx->expected_servername = SSL_TEST_SERVERNAME_SERVER2;
-    fixture.expected_ctx->session_ticket_expected = SSL_TEST_SESSION_TICKET_YES;
-    fixture.expected_ctx->resumption_expected = 1;
+    fixture->expected_ctx->expected_result = SSL_TEST_SERVER_FAIL;
+    fixture->expected_ctx->expected_client_alert = SSL_AD_UNKNOWN_CA;
+    fixture->expected_ctx->expected_server_alert = 0;  /* No alert. */
+    fixture->expected_ctx->expected_protocol = TLS1_1_VERSION;
+    fixture->expected_ctx->expected_servername = SSL_TEST_SERVERNAME_SERVER2;
+    fixture->expected_ctx->session_ticket_expected = SSL_TEST_SESSION_TICKET_YES;
+    fixture->expected_ctx->compression_expected = SSL_TEST_COMPRESSION_NO;
+    fixture->expected_ctx->session_id_expected = SSL_TEST_SESSION_ID_IGNORE;
+    fixture->expected_ctx->resumption_expected = 1;
 
-    fixture.expected_ctx->extra.client.verify_callback =
+    fixture->expected_ctx->extra.client.verify_callback =
         SSL_TEST_VERIFY_REJECT_ALL;
-    fixture.expected_ctx->extra.client.servername = SSL_TEST_SERVERNAME_SERVER2;
-    fixture.expected_ctx->extra.client.npn_protocols =
+    fixture->expected_ctx->extra.client.servername = SSL_TEST_SERVERNAME_SERVER2;
+    fixture->expected_ctx->extra.client.npn_protocols =
         OPENSSL_strdup("foo,bar");
-    TEST_check(fixture.expected_ctx->extra.client.npn_protocols != NULL);
+    if (!TEST_ptr(fixture->expected_ctx->extra.client.npn_protocols))
+        goto err;
+    fixture->expected_ctx->extra.client.max_fragment_len_mode = 0;
 
-    fixture.expected_ctx->extra.server.servername_callback =
+    fixture->expected_ctx->extra.server.servername_callback =
         SSL_TEST_SERVERNAME_IGNORE_MISMATCH;
-    fixture.expected_ctx->extra.server.broken_session_ticket = 1;
+    fixture->expected_ctx->extra.server.broken_session_ticket = 1;
 
-    fixture.expected_ctx->resume_extra.server2.alpn_protocols =
+    fixture->expected_ctx->resume_extra.server2.alpn_protocols =
         OPENSSL_strdup("baz");
-    TEST_check(
-        fixture.expected_ctx->resume_extra.server2.alpn_protocols != NULL);
+    if (!TEST_ptr(fixture->expected_ctx->resume_extra.server2.alpn_protocols))
+        goto err;
 
-    fixture.expected_ctx->resume_extra.client.ct_validation =
+    fixture->expected_ctx->resume_extra.client.ct_validation =
         SSL_TEST_CT_VALIDATION_STRICT;
 
     EXECUTE_SSL_TEST_CTX_TEST();
+    return result;
+
+err:
+    tear_down(fixture);
+    return 0;
 }
 
 static const char *bad_configurations[] = {
@@ -300,39 +218,45 @@ static const char *bad_configurations[] = {
     "ssltest_unknown_servername",
     "ssltest_unknown_servername_callback",
     "ssltest_unknown_session_ticket_expected",
+    "ssltest_unknown_compression_expected",
+    "ssltest_unknown_session_id_expected",
     "ssltest_unknown_method",
     "ssltest_unknown_handshake_mode",
     "ssltest_unknown_resumption_expected",
     "ssltest_unknown_ct_validation",
+    "ssltest_invalid_max_fragment_len",
 };
 
 static int test_bad_configuration(int idx)
 {
-        SETUP_SSL_TEST_CTX_TEST_FIXTURE();
-        fixture.test_section = bad_configurations[idx];
-        EXECUTE_SSL_TEST_CTX_FAILURE_TEST();
+    SSL_TEST_CTX *ctx;
+
+    if (!TEST_ptr_null(ctx = SSL_TEST_CTX_create(conf,
+                                                 bad_configurations[idx]))) {
+        SSL_TEST_CTX_free(ctx);
+        return 0;
+    }
+
+    return 1;
 }
 
-int main(int argc, char **argv)
+int setup_tests(void)
 {
-    int result = 0;
-
-    if (argc != 2)
-        return 1;
-
-    conf = NCONF_new(NULL);
-    TEST_check(conf != NULL);
-
-    /* argv[1] should point to test/ssl_test_ctx_test.conf */
-    TEST_check(NCONF_load(conf, argv[1], NULL) > 0);
+    if (!TEST_ptr(conf = NCONF_new(NULL)))
+        return 0;
+    /* argument should point to test/ssl_test_ctx_test.conf */
+    if (!TEST_int_gt(NCONF_load(conf, test_get_argument(0), NULL), 0)) {
+        TEST_note("Missing file argument");
+        return 0;
+    }
 
     ADD_TEST(test_empty_configuration);
     ADD_TEST(test_good_configuration);
     ADD_ALL_TESTS(test_bad_configuration, OSSL_NELEM(bad_configurations));
+    return 1;
+}
 
-    result = run_tests(argv[0]);
-
+void cleanup_tests(void)
+{
     NCONF_free(conf);
-
-    return result;
 }
