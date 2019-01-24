@@ -118,7 +118,7 @@ Depending on the host platform, the selection of toolchains may vary.
 
 #### Unix
 
-* GCC 4.9.4 or newer
+* GCC 5.1 or newer
 * Clang 3.4.2 or newer
 
 #### AIX

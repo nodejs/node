@@ -148,13 +148,6 @@ class FSReqCallback : public FSReqBase {
   DISALLOW_COPY_AND_ASSIGN(FSReqCallback);
 };
 
-// Wordaround a GCC4.9 bug that C++14 N3652 was not implemented
-// Refs: https://www.gnu.org/software/gcc/projects/cxx-status.html#cxx14
-// Refs: https://isocpp.org/files/papers/N3652.html
-#if __cpp_constexpr < 201304
-#  define constexpr inline
-#endif
-
 template <typename NativeT,
           // SFINAE limit NativeT to arithmetic types
           typename = std::enable_if<std::is_arithmetic<NativeT>::value>>
