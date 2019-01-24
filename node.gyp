@@ -123,6 +123,7 @@
       'lib/internal/error-serdes.js',
       'lib/internal/fixed_queue.js',
       'lib/internal/freelist.js',
+      'lib/internal/freeze_intrinsics.js',
       'lib/internal/fs/promises.js',
       'lib/internal/fs/read_file_context.js',
       'lib/internal/fs/streams.js',

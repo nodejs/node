@@ -177,6 +177,25 @@ added: v6.0.0
 Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
 (Same requirements as `--enable-fips`.)
 
+### `--frozen-intrinsics`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Enable experimental frozen intrinsics like `Array` and `Object`.
+
+Support is currently only provided for the root context and no guarantees are
+currently provided that `global.Array` is indeed the default intrinsic
+reference.
+
+**Code breakage is highly likely with this flag**, especially since limited
+support for subclassing builtins is provided currently due to ECMA-262 bug
+https://github.com/tc39/ecma262/pull/1320.
+
+Both of the above may change in future updates, which will be breaking changes.
+
 ### `--http-parser=library`
 <!-- YAML
 added: v11.4.0
@@ -671,6 +690,7 @@ Node.js options that are allowed are:
 - `--experimental-report`
 - `--experimental-vm-modules`
 - `--force-fips`
+- `--frozen-intrinsics`
 - `--icu-data-dir`
 - `--inspect`
 - `--inspect-brk`
