@@ -1,4 +1,3 @@
-.file	"sha1-586.s"
 .text
 .globl	sha1_block_data_order
 .type	sha1_block_data_order,@function

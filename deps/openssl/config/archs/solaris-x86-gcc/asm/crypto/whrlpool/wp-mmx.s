@@ -1,4 +1,3 @@
-.file	"wp-mmx.s"
 .text
 .globl	whirlpool_block_mmx
 .type	whirlpool_block_mmx,@function

@@ -1,4 +1,3 @@
-.file	"crypto/aes/asm/aesni-x86.s"
 .text
 .globl	aesni_encrypt
 .type	aesni_encrypt,@function
