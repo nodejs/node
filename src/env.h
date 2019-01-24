@@ -646,7 +646,6 @@ class Environment {
 
   inline v8::Isolate* isolate() const;
   inline uv_loop_t* event_loop() const;
-  inline uint32_t watched_providers() const;
   inline void TryLoadAddon(const char* filename,
                            int flags,
                            std::function<bool(binding::DLib*)> was_loaded);
