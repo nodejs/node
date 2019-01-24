@@ -79,6 +79,8 @@ function test(next) {
       handshakes += ((String(data)).match(/verify return:1/g) || []).length;
       if (handshakes === 2 && waitingToSpam) {
         waitingToSpam = false;
+        // See long comment in spam() function.
+        child.stdin.write('GET / HTTP/1.1\n');
         spam();
       }
       renegs += ((String(data)).match(/RENEGOTIATING/g) || []).length;
@@ -109,7 +111,14 @@ function test(next) {
     // simulate renegotiation attack
     function spam() {
       if (closed) return;
-      child.stdin.write('R\n');
+      // `R` at the start of a line will cause renegotiation but may (in OpenSSL
+      // 1.1.1a, at least) also cause `s_client` to send `R` as a HTTP header,
+      // causing the server to send 400 Bad Request and close the connection.
+      // By sending a `Referer` header that starts with a capital `R`, OpenSSL
+      // 1.1.1.a s_client sends both a valid HTTP header *and* causes a
+      // renegotiation. ¯\(ツ)/¯ (But you need to send a valid HTTP verb first,
+      // hence the `GET` in the stderr data callback.)
+      child.stdin.write('Referer: fhqwhgads\n');
       setTimeout(spam, 50);
     }
   });
