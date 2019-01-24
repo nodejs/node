@@ -136,10 +136,6 @@ threshold is exceeded. The limits are configurable:
 The default renegotiation limits should not be modified without a full
 understanding of the implications and risks.
 
-To test the renegotiation limits on a server, connect to it using the OpenSSL
-command-line client (`openssl s_client -connect address:port`) then input
-`R<CR>` (i.e., the letter `R` followed by a carriage return) multiple times.
-
 ### Session Resumption
 
 Establishing a TLS session can be relatively slow. The process can be sped
