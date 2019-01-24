@@ -90,6 +90,7 @@ class EnvironmentOptions : public Options {
   bool experimental_repl_await = false;
   bool experimental_vm_modules = false;
   bool expose_internals = false;
+  bool frozen_intrinsics = false;
   std::string http_parser = "llhttp";
   bool no_deprecation = false;
   bool no_force_async_hooks_checks = false;
