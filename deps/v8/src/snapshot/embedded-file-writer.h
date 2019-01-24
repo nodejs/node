@@ -34,6 +34,7 @@ class PlatformDependentEmbeddedFileWriter final {
   void SectionRoData();
 
   void AlignToCodeAlignment();
+  void AlignToDataAlignment();
 
   void DeclareUint32(const char* name, uint32_t value);
   void DeclarePointerToSymbol(const char* name, const char* target);
@@ -182,6 +183,7 @@ class EmbeddedFileWriter {
 
       w->Comment("Pointer to the beginning of the embedded blob.");
       w->SectionData();
+      w->AlignToDataAlignment();
       w->DeclarePointerToSymbol(embedded_blob_symbol,
                                 embedded_blob_data_symbol);
       w->Newline();
