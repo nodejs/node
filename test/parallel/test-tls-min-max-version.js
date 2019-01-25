@@ -39,21 +39,21 @@ function test(cmin, cmax, cprot, smin, smax, sprot, proto, cerr, serr) {
       console.log('server', pair.server.err ? pair.server.err.code : undefined);
       // 11.x doesn't have https://github.com/nodejs/node/pull/24729
       if (cerr === 'ERR_TLS_INVALID_PROTOCOL_METHOD' &&
-         pair.client.err &&
-         pair.client.err.message.includes('methods disabled'))
-         pair.client.err.code = 'ERR_TLS_INVALID_PROTOCOL_METHOD';
+          pair.client.err &&
+          pair.client.err.message.includes('methods disabled'))
+        pair.client.err.code = 'ERR_TLS_INVALID_PROTOCOL_METHOD';
       if (serr === 'ERR_TLS_INVALID_PROTOCOL_METHOD' &&
-         pair.server.err &&
-         pair.server.err.message.includes('methods disabled'))
-         pair.server.err.code = 'ERR_TLS_INVALID_PROTOCOL_METHOD';
+          pair.server.err &&
+          pair.server.err.message.includes('methods disabled'))
+        pair.server.err.code = 'ERR_TLS_INVALID_PROTOCOL_METHOD';
       if (cerr === 'ERR_TLS_INVALID_PROTOCOL_METHOD' &&
-         pair.client.err &&
-         pair.client.err.message.includes('Unknown method'))
-         pair.client.err.code = 'ERR_TLS_INVALID_PROTOCOL_METHOD';
+          pair.client.err &&
+          pair.client.err.message.includes('Unknown method'))
+        pair.client.err.code = 'ERR_TLS_INVALID_PROTOCOL_METHOD';
       if (serr === 'ERR_TLS_INVALID_PROTOCOL_METHOD' &&
-         pair.server.err &&
-         pair.server.err.message.includes('Unknown method'))
-         pair.server.err.code = 'ERR_TLS_INVALID_PROTOCOL_METHOD';
+          pair.server.err &&
+          pair.server.err.message.includes('Unknown method'))
+        pair.server.err.code = 'ERR_TLS_INVALID_PROTOCOL_METHOD';
       if (cerr) {
         assert(pair.client.err);
         // Accept these codes as aliases, the one reported depends on the
