@@ -1,6 +1,6 @@
 # Policies
 
-<!--introduced_in=v11.7.0-->
+<!--introduced_in=v11.8.0-->
 <!-- type=misc -->
 
 > Stability: 1 - Experimental
