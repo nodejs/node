@@ -1,164 +1,164 @@
 [$mode==debug]
-async-hooks/test-callback-error: SLOW
-async-hooks/test-callback-error: SLOW
-async-hooks/test-emit-init: SLOW
-async-hooks/test-emit-init: SLOW
-async-hooks/test-querywrap: SLOW
-async-hooks/test-querywrap: SLOW
-async-hooks/test-tlswrap: SLOW
-async-hooks/test-tlswrap: SLOW
-message/eval_messages: SLOW
-message/stdin_messages: SLOW
-parallel/test-buffer-constructor-node-modules-paths: SLOW
-parallel/test-buffer-indexof: SLOW
-parallel/test-child-process-spawnsync-input: SLOW
-parallel/test-child-process-windows-hide: SLOW
-parallel/test-cli-eval: SLOW
-parallel/test-cli-eval-event: SLOW
-parallel/test-cli-node-options: SLOW
-parallel/test-cli-node-options-disallowed: SLOW
-parallel/test-cli-node-print-help: SLOW
-parallel/test-cli-syntax: SLOW
-parallel/test-cluster-basic: SLOW
-parallel/test-cluster-bind-privileged-port: SLOW
-parallel/test-cluster-bind-twice: SLOW
-parallel/test-cluster-disconnect: SLOW
-parallel/test-cluster-disconnect-idle-worker: SLOW
-parallel/test-crypto-fips: SLOW
-parallel/test-domain-abort-on-uncaught: SLOW
-parallel/test-domain-uncaught-exception: SLOW
-parallel/test-domain-with-abort-on-uncaught-exception: SLOW
-parallel/test-env-var-no-warnings: SLOW
-parallel/test-error-reporting: SLOW
-parallel/test-eslint-alphabetize-errors: SLOW
-parallel/test-eslint-crypto-check: SLOW
-parallel/test-eslint-documented-errors: SLOW
-parallel/test-eslint-duplicate-requires: SLOW
-parallel/test-eslint-eslint-check: SLOW
-parallel/test-eslint-inspector-check: SLOW
-parallel/test-eslint-lowercase-name-for-primitive: SLOW
-parallel/test-eslint-no-let-in-for-declaration: SLOW
-parallel/test-eslint-no-unescaped-regexp-dot: SLOW
-parallel/test-eslint-number-isnan: SLOW
-parallel/test-eslint-prefer-assert-iferror: SLOW
-parallel/test-eslint-prefer-assert-methods: SLOW
-parallel/test-eslint-prefer-common-expectserror: SLOW
-parallel/test-eslint-prefer-common-mustnotcall: SLOW
-parallel/test-eslint-prefer-util-format-errors: SLOW
-parallel/test-eslint-require-buffer: SLOW
-parallel/test-eslint-required-modules: SLOW
-parallel/test-fs-read-stream-concurrent-reads: SLOW
-parallel/test-gc-tls-external-memory: SLOW
-parallel/test-heapdump-dns: SLOW
-parallel/test-heapdump-fs-promise: SLOW
-parallel/test-heapdump-http2: SLOW
-parallel/test-heapdump-inspector: SLOW
-parallel/test-heapdump-tls: SLOW
-parallel/test-heapdump-worker: SLOW
-parallel/test-heapdump-zlib: SLOW
-parallel/test-http-client-timeout-option-with-agent: SLOW
-parallel/test-http-pipeline-flood: SLOW
-parallel/test-http-pipeline-requests-connection-leak: SLOW
-parallel/test-http2-forget-closed-streams: SLOW
-parallel/test-http2-multiplex: SLOW
-parallel/test-inspector-tracing-domain: SLOW
-parallel/test-listen-fd-cluster: SLOW
-parallel/test-module-loading-globalpaths: SLOW
-parallel/test-module-main-fail: SLOW
-parallel/test-module-main-preserve-symlinks-fail: SLOW
-parallel/test-net-pingpong: SLOW
-parallel/test-next-tick-fixed-queue-regression: SLOW
-parallel/test-npm-install: SLOW
-parallel/test-preload: SLOW
-parallel/test-repl: SLOW
-parallel/test-repl-tab-complete: SLOW
-parallel/test-repl-top-level-await: SLOW
-parallel/test-stdio-pipe-access: SLOW
-parallel/test-stream-pipeline: SLOW
-parallel/test-stream2-read-sync-stack: SLOW
-parallel/test-stringbytes-external: SLOW
-parallel/test-sync-io-option: SLOW
-parallel/test-tick-processor-arguments: SLOW
-parallel/test-tls-env-bad-extra-ca: SLOW
-parallel/test-tls-env-extra-ca: SLOW
-parallel/test-tls-handshake-exception: SLOW
-parallel/test-tls-securepair-leak: SLOW
-parallel/test-tls-server-verify: SLOW
-parallel/test-tls-session-cache: SLOW
-parallel/test-tls-ticket-cluster: SLOW
-parallel/test-tls-timeout-server: SLOW
-parallel/test-tls-timeout-server-2: SLOW
-parallel/test-tls-tlswrap-segfault: SLOW
-parallel/test-trace-events-all: SLOW
-parallel/test-trace-events-api: SLOW
-parallel/test-trace-events-async-hooks: SLOW
-parallel/test-trace-events-binding: SLOW
-parallel/test-trace-events-bootstrap: SLOW
-parallel/test-trace-events-category-used: SLOW
-parallel/test-trace-events-file-pattern: SLOW
-parallel/test-trace-events-fs-sync: SLOW
-parallel/test-trace-events-metadata: SLOW
-parallel/test-trace-events-none: SLOW
-parallel/test-trace-events-perf: SLOW
-parallel/test-trace-events-process-exit: SLOW
-parallel/test-trace-events-promises: SLOW
-parallel/test-trace-events-v8: SLOW
-parallel/test-trace-events-vm: SLOW
-parallel/test-trace-events-worker-metadata: SLOW
-parallel/test-tracing-no-crash: SLOW
-parallel/test-url-relative: SLOW
-parallel/test-util-callbackify: SLOW
-parallel/test-util-inspect: SLOW
-parallel/test-util-inspect-long-running: SLOW
-parallel/test-util-types: SLOW
-parallel/test-v8-coverage: SLOW
-parallel/test-vm-api-handles-getter-errors: SLOW
-parallel/test-vm-basic: SLOW
-parallel/test-vm-cached-data: SLOW
-parallel/test-vm-sigint: SLOW
-parallel/test-vm-sigint-existing-handler: SLOW
-parallel/test-vm-symbols: SLOW
-parallel/test-vm-syntax-error-message: SLOW
-parallel/test-vm-syntax-error-stderr: SLOW
-parallel/test-worker: SLOW
-parallel/test-worker-cleanup-handles: SLOW
-parallel/test-worker-debug: SLOW
-parallel/test-worker-esmodule: SLOW
-parallel/test-worker-exit-code: SLOW
-parallel/test-worker-memory: SLOW
-parallel/test-worker-message-channel: SLOW
-parallel/test-worker-message-channel-sharedarraybuffer: SLOW
-parallel/test-worker-nexttick-terminate: SLOW
-parallel/test-worker-onmessage: SLOW
-parallel/test-worker-onmessage-not-a-function: SLOW
-parallel/test-worker-parent-port-ref: SLOW
-parallel/test-worker-relative-path: SLOW
-parallel/test-worker-relative-path-double-dot: SLOW
-parallel/test-worker-stdio: SLOW
-parallel/test-worker-syntax-error: SLOW
-parallel/test-worker-syntax-error-file: SLOW
-parallel/test-worker-uncaught-exception: SLOW
-parallel/test-worker-uncaught-exception-async: SLOW
-parallel/test-worker-unsupported-things: SLOW
-parallel/test-worker-workerdata-sharedarraybuffer: SLOW
-parallel/test-zlib-bytes-read: SLOW
-parallel/test-zlib-convenience-methods: SLOW
-sequential/test-child-process-execsync: SLOW
-sequential/test-child-process-exit: SLOW
-sequential/test-child-process-pass-fd: SLOW
-sequential/test-fs-readfile-tostring-fail: SLOW
-sequential/test-fs-watch-system-limit: SLOW
-sequential/test-gc-http-client: SLOW
-sequential/test-gc-http-client-connaborted: SLOW
-sequential/test-gc-http-client-onerror: SLOW
-sequential/test-gc-http-client-timeout: SLOW
-sequential/test-gc-net-timeout: SLOW
-sequential/test-http2-ping-flood: SLOW
-sequential/test-http2-settings-flood: SLOW
-sequential/test-inspector-port-cluster: SLOW
-sequential/test-net-bytes-per-incoming-chunk-overhead: SLOW
-sequential/test-pipe: SLOW
-sequential/test-util-debug: SLOW
+async-hooks/test-callback-error: SLOW, PASS
+async-hooks/test-callback-error: SLOW, PASS
+async-hooks/test-emit-init: SLOW, PASS
+async-hooks/test-emit-init: SLOW, PASS
+async-hooks/test-querywrap: SLOW, PASS
+async-hooks/test-querywrap: SLOW, PASS
+async-hooks/test-tlswrap: SLOW, PASS
+async-hooks/test-tlswrap: SLOW, PASS
+message/eval_messages: SLOW, PASS
+message/stdin_messages: SLOW, PASS
+parallel/test-buffer-constructor-node-modules-paths: SLOW, PASS
+parallel/test-buffer-indexof: SLOW, PASS
+parallel/test-child-process-spawnsync-input: SLOW, PASS
+parallel/test-child-process-windows-hide: SLOW, PASS
+parallel/test-cli-eval: SLOW, PASS
+parallel/test-cli-eval-event: SLOW, PASS
+parallel/test-cli-node-options: SLOW, PASS
+parallel/test-cli-node-options-disallowed: SLOW, PASS
+parallel/test-cli-node-print-help: SLOW, PASS
+parallel/test-cli-syntax: SLOW, PASS
+parallel/test-cluster-basic: SLOW, PASS
+parallel/test-cluster-bind-privileged-port: SLOW, PASS
+parallel/test-cluster-bind-twice: SLOW, PASS
+parallel/test-cluster-disconnect: SLOW, PASS
+parallel/test-cluster-disconnect-idle-worker: SLOW, PASS
+parallel/test-crypto-fips: SLOW, PASS
+parallel/test-domain-abort-on-uncaught: SLOW, PASS
+parallel/test-domain-uncaught-exception: SLOW, PASS
+parallel/test-domain-with-abort-on-uncaught-exception: SLOW, PASS
+parallel/test-env-var-no-warnings: SLOW, PASS
+parallel/test-error-reporting: SLOW, PASS
+parallel/test-eslint-alphabetize-errors: SLOW, PASS
+parallel/test-eslint-crypto-check: SLOW, PASS
+parallel/test-eslint-documented-errors: SLOW, PASS
+parallel/test-eslint-duplicate-requires: SLOW, PASS
+parallel/test-eslint-eslint-check: SLOW, PASS
+parallel/test-eslint-inspector-check: SLOW, PASS
+parallel/test-eslint-lowercase-name-for-primitive: SLOW, PASS
+parallel/test-eslint-no-let-in-for-declaration: SLOW, PASS
+parallel/test-eslint-no-unescaped-regexp-dot: SLOW, PASS
+parallel/test-eslint-number-isnan: SLOW, PASS
+parallel/test-eslint-prefer-assert-iferror: SLOW, PASS
+parallel/test-eslint-prefer-assert-methods: SLOW, PASS
+parallel/test-eslint-prefer-common-expectserror: SLOW, PASS
+parallel/test-eslint-prefer-common-mustnotcall: SLOW, PASS
+parallel/test-eslint-prefer-util-format-errors: SLOW, PASS
+parallel/test-eslint-require-buffer: SLOW, PASS
+parallel/test-eslint-required-modules: SLOW, PASS
+parallel/test-fs-read-stream-concurrent-reads: SLOW, PASS
+parallel/test-gc-tls-external-memory: SLOW, PASS
+parallel/test-heapdump-dns: SLOW, PASS
+parallel/test-heapdump-fs-promise: SLOW, PASS
+parallel/test-heapdump-http2: SLOW, PASS
+parallel/test-heapdump-inspector: SLOW, PASS
+parallel/test-heapdump-tls: SLOW, PASS
+parallel/test-heapdump-worker: SLOW, PASS
+parallel/test-heapdump-zlib: SLOW, PASS
+parallel/test-http-client-timeout-option-with-agent: SLOW, PASS
+parallel/test-http-pipeline-flood: SLOW, PASS
+parallel/test-http-pipeline-requests-connection-leak: SLOW, PASS
+parallel/test-http2-forget-closed-streams: SLOW, PASS
+parallel/test-http2-multiplex: SLOW, PASS
+parallel/test-inspector-tracing-domain: SLOW, PASS, PASS
+parallel/test-listen-fd-cluster: SLOW, PASS
+parallel/test-module-loading-globalpaths: SLOW, PASS
+parallel/test-module-main-fail: SLOW, PASS
+parallel/test-module-main-preserve-symlinks-fail: SLOW, PASS
+parallel/test-net-pingpong: SLOW, PASS
+parallel/test-next-tick-fixed-queue-regression: SLOW, PASS
+parallel/test-npm-install: SLOW, PASS
+parallel/test-preload: SLOW, PASS
+parallel/test-repl: SLOW, PASS
+parallel/test-repl-tab-complete: SLOW, PASS
+parallel/test-repl-top-level-await: SLOW, PASS
+parallel/test-stdio-pipe-access: SLOW, PASS
+parallel/test-stream-pipeline: SLOW, PASS
+parallel/test-stream2-read-sync-stack: SLOW, PASS
+parallel/test-stringbytes-external: SLOW, PASS
+parallel/test-sync-io-option: SLOW, PASS
+parallel/test-tick-processor-arguments: SLOW, PASS
+parallel/test-tls-env-bad-extra-ca: SLOW, PASS
+parallel/test-tls-env-extra-ca: SLOW, PASS
+parallel/test-tls-handshake-exception: SLOW, PASS
+parallel/test-tls-securepair-leak: SLOW, PASS
+parallel/test-tls-server-verify: SLOW, PASS
+parallel/test-tls-session-cache: SLOW, PASS
+parallel/test-tls-ticket-cluster: SLOW, PASS
+parallel/test-tls-timeout-server: SLOW, PASS
+parallel/test-tls-timeout-server-2: SLOW, PASS
+parallel/test-tls-tlswrap-segfault: SLOW, PASS
+parallel/test-trace-events-all: SLOW, PASS
+parallel/test-trace-events-api: SLOW, PASS
+parallel/test-trace-events-async-hooks: SLOW, PASS
+parallel/test-trace-events-binding: SLOW, PASS
+parallel/test-trace-events-bootstrap: SLOW, PASS
+parallel/test-trace-events-category-used: SLOW, PASS
+parallel/test-trace-events-file-pattern: SLOW, PASS
+parallel/test-trace-events-fs-sync: SLOW, PASS
+parallel/test-trace-events-metadata: SLOW, PASS
+parallel/test-trace-events-none: SLOW, PASS
+parallel/test-trace-events-perf: SLOW, PASS
+parallel/test-trace-events-process-exit: SLOW, PASS
+parallel/test-trace-events-promises: SLOW, PASS
+parallel/test-trace-events-v8: SLOW, PASS
+parallel/test-trace-events-vm: SLOW, PASS
+parallel/test-trace-events-worker-metadata: SLOW, PASS
+parallel/test-tracing-no-crash: SLOW, PASS
+parallel/test-url-relative: SLOW, PASS
+parallel/test-util-callbackify: SLOW, PASS
+parallel/test-util-inspect: SLOW, PASS
+parallel/test-util-inspect-long-running: SLOW, PASS
+parallel/test-util-types: SLOW, PASS
+parallel/test-v8-coverage: SLOW, PASS
+parallel/test-vm-api-handles-getter-errors: SLOW, PASS
+parallel/test-vm-basic: SLOW, PASS
+parallel/test-vm-cached-data: SLOW, PASS
+parallel/test-vm-sigint: SLOW, PASS
+parallel/test-vm-sigint-existing-handler: SLOW, PASS
+parallel/test-vm-symbols: SLOW, PASS
+parallel/test-vm-syntax-error-message: SLOW, PASS
+parallel/test-vm-syntax-error-stderr: SLOW, PASS
+parallel/test-worker: SLOW, PASS
+parallel/test-worker-cleanup-handles: SLOW, PASS
+parallel/test-worker-debug: SLOW, PASS
+parallel/test-worker-esmodule: SLOW, PASS
+parallel/test-worker-exit-code: SLOW, PASS
+parallel/test-worker-memory: SLOW, PASS
+parallel/test-worker-message-channel: SLOW, PASS
+parallel/test-worker-message-channel-sharedarraybuffer: SLOW, PASS
+parallel/test-worker-nexttick-terminate: SLOW, PASS
+parallel/test-worker-onmessage: SLOW, PASS
+parallel/test-worker-onmessage-not-a-function: SLOW, PASS
+parallel/test-worker-parent-port-ref: SLOW, PASS
+parallel/test-worker-relative-path: SLOW, PASS
+parallel/test-worker-relative-path-double-dot: SLOW, PASS
+parallel/test-worker-stdio: SLOW, PASS
+parallel/test-worker-syntax-error: SLOW, PASS
+parallel/test-worker-syntax-error-file: SLOW, PASS
+parallel/test-worker-uncaught-exception: SLOW, PASS
+parallel/test-worker-uncaught-exception-async: SLOW, PASS
+parallel/test-worker-unsupported-things: SLOW, PASS
+parallel/test-worker-workerdata-sharedarraybuffer: SLOW, PASS
+parallel/test-zlib-bytes-read: SLOW, PASS
+parallel/test-zlib-convenience-methods: SLOW, PASS
+sequential/test-child-process-execsync: SLOW, PASS
+sequential/test-child-process-exit: SLOW, PASS
+sequential/test-child-process-pass-fd: SLOW, PASS
+sequential/test-fs-readfile-tostring-fail: SLOW, PASS
+sequential/test-fs-watch-system-limit: SLOW, PASS
+sequential/test-gc-http-client: SLOW, PASS
+sequential/test-gc-http-client-connaborted: SLOW, PASS
+sequential/test-gc-http-client-onerror: SLOW, PASS
+sequential/test-gc-http-client-timeout: SLOW, PASS
+sequential/test-gc-net-timeout: SLOW, PASS
+sequential/test-http2-ping-flood: SLOW, PASS
+sequential/test-http2-settings-flood: SLOW, PASS
+sequential/test-inspector-port-cluster: SLOW, PASS
+sequential/test-net-bytes-per-incoming-chunk-overhead: SLOW, PASS
+sequential/test-pipe: SLOW, PASS
+sequential/test-util-debug: SLOW, PASS
 
 [$type==coverage]
 js-native-api/test_function/test: PASS,FAIL,CRASH
