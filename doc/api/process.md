@@ -1662,7 +1662,7 @@ relied upon to exist.
 
 ### process.report.getReport([err])
 <!-- YAML
-added: v11.7.0
+added: v11.8.0
 -->
 
 * `err` {Object}
@@ -1682,7 +1682,7 @@ at [report documentation][].
 
 ### process.report.setDiagnosticReportOptions([options]);
 <!-- YAML
-added: v11.7.0
+added: v11.8.0
 -->
 
 Set the runtime configuration of diagnostic report data capture. Upon invocation
@@ -1731,7 +1731,7 @@ at [report documentation][].
 
 ### process.report.triggerReport([filename][, err])
 <!-- YAML
-added: v11.7.0
+added: v11.8.0
 -->
 
 * `filename` {string} The file to write into. The `filename` should be
