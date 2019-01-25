@@ -405,6 +405,7 @@ class IsolateData {
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
 #undef V
+#undef VY
 #undef VS
 #undef VP
 
@@ -421,6 +422,7 @@ class IsolateData {
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
 #undef V
+#undef VY
 #undef VS
 #undef VP
 
