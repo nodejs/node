@@ -1,0 +1,12 @@
+*test*message*process-exit-with-exception.js:*
+Promise.reject(new Error('uh oh'));
+               ^
+
+Error: uh oh
+    at Object.<anonymous> (*test*message*process-exit-with-exception.js:*:*)
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *

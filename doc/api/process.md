@@ -1177,6 +1177,44 @@ a code.
 Specifying a code to [`process.exit(code)`][`process.exit()`] will override any
 previous setting of `process.exitCode`.
 
+## process.exitWithException(error[, fromPromise])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `error` {any}
+* `fromPromise` {boolean}
+
+Exit with the provided error value as if it was thrown from its original
+context. This allows an error to re-enter Node.js's error logic unmodified,
+and will use the default formatted error printing.
+
+If an error stack is available on the value, this method of exiting does not add
+additional context, unlike re-throwing using [`throw`][].
+
+This method is particularly useful when listening to the
+[`'unhandledRejection'`][] process event.
+
+As an example:
+```js
+process.on('unhandledRejection', (err) => {
+  process.exitWithException(err);
+});
+
+Promise.reject(new Error('uh oh'));
+```
+
+Outputs something similar to the following, as is often desirable:
+```console
+throw.js:5
+Promise.reject(new Error('uh oh'));
+               ^
+
+Error: uh oh
+    at Object.<anonymous> (throw.js:5:16)
+    <more internal stack lines>
+```
+
 ## process.getegid()
 <!-- YAML
 added: v2.0.0
@@ -2291,6 +2329,7 @@ cases:
 [`'exit'`]: #process_event_exit
 [`'message'`]: child_process.html#child_process_event_message
 [`'uncaughtException'`]: #process_event_uncaughtexception
+[`'unhandledrejection'`]: #process_event_unhandledrejection
 [`ChildProcess.disconnect()`]: child_process.html#child_process_subprocess_disconnect
 [`ChildProcess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
 [`ChildProcess`]: child_process.html#child_process_class_childprocess
@@ -2318,6 +2357,7 @@ cases:
 [`require.main`]: modules.html#modules_accessing_the_main_module
 [`require.resolve()`]: modules.html#modules_require_resolve_request_options
 [`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal
+[`throw`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/throw
 [`v8.setFlagsFromString()`]: v8.html#v8_v8_setflagsfromstring_flags
 [Android building]: https://github.com/nodejs/node/blob/master/BUILDING.md#androidandroid-based-devices-eg-firefox-os
 [Child Process]: child_process.html

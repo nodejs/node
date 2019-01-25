@@ -34,6 +34,7 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::BigUint64Array;
 using v8::Context;
+using v8::Exception;
 using v8::Float64Array;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -401,6 +402,19 @@ static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
   env->Exit(code);
 }
 
+static void ExitWithException(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Environment* env = Environment::GetCurrent(isolate);
+  Local<Value> exception = args[0];
+  Local<Message> message = Exception::CreateMessage(isolate, exception);
+  if (env != nullptr && env->abort_on_uncaught_exception()) {
+    ReportException(env, exception, message);
+    Abort();
+  }
+  bool from_promise = args[1]->IsTrue();
+  FatalException(isolate, exception, message, from_promise);
+}
+
 static void InitializeProcessMethods(Local<Object> target,
                                      Local<Value> unused,
                                      Local<Context> context,
@@ -435,6 +449,7 @@ static void InitializeProcessMethods(Local<Object> target,
   env->SetMethod(target, "reallyExit", ReallyExit);
   env->SetMethodNoSideEffect(target, "uptime", Uptime);
   env->SetMethod(target, "patchProcessObject", PatchProcessObject);
+  env->SetMethod(target, "exitWithException", ExitWithException);
 }
 
 }  // namespace node
