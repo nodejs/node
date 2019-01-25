@@ -4,6 +4,7 @@
 
 using v8::Context;
 using v8::External;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Local;
@@ -77,8 +78,12 @@ void StreamPipe::Unpipe() {
     Context::Scope context_scope(env->context());
     Local<Object> object = pipe->object();
 
-    if (object->Has(env->context(), env->onunpipe_string()).FromJust()) {
-      pipe->MakeCallback(env->onunpipe_string(), 0, nullptr).ToLocalChecked();
+    Local<Value> onunpipe;
+    if (!object->Get(env->context(), env->onunpipe_string()).ToLocal(&onunpipe))
+      return;
+    if (onunpipe->IsFunction() &&
+        pipe->MakeCallback(onunpipe.As<Function>(), 0, nullptr).IsEmpty()) {
+      return;
     }
 
     // Set all the links established in the constructor to `null`.
@@ -86,21 +91,22 @@ void StreamPipe::Unpipe() {
 
     Local<Value> source_v;
     Local<Value> sink_v;
-    source_v = object->Get(env->context(), env->source_string())
-        .ToLocalChecked();
-    sink_v = object->Get(env->context(), env->sink_string())
-        .ToLocalChecked();
-    CHECK(source_v->IsObject());
-    CHECK(sink_v->IsObject());
+    if (!object->Get(env->context(), env->source_string()).ToLocal(&source_v) ||
+        !object->Get(env->context(), env->sink_string()).ToLocal(&sink_v) ||
+        !source_v->IsObject() || !sink_v->IsObject()) {
+      return;
+    }
 
-    object->Set(env->context(), env->source_string(), null).FromJust();
-    object->Set(env->context(), env->sink_string(), null).FromJust();
-    source_v.As<Object>()->Set(env->context(),
-                               env->pipe_target_string(),
-                               null).FromJust();
-    sink_v.As<Object>()->Set(env->context(),
-                             env->pipe_source_string(),
-                             null).FromJust();
+    if (object->Set(env->context(), env->source_string(), null).IsNothing() ||
+        object->Set(env->context(), env->sink_string(), null).IsNothing() ||
+        source_v.As<Object>()
+            ->Set(env->context(), env->pipe_target_string(), null)
+            .IsNothing() ||
+        sink_v.As<Object>()
+            ->Set(env->context(), env->pipe_source_string(), null)
+            .IsNothing()) {
+      return;
+    }
   }, static_cast<void*>(this), object());
 }
 
