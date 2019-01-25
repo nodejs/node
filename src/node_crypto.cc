@@ -326,6 +326,14 @@ bool EntropySource(unsigned char* buffer, size_t length) {
 }
 
 
+template <typename T>
+static T* MallocOpenSSL(size_t count) {
+  void* mem = OPENSSL_malloc(MultiplyWithOverflowCheck(count, sizeof(T)));
+  CHECK_IMPLIES(mem == nullptr, count == 0);
+  return static_cast<T*>(mem);
+}
+
+
 void SecureContext::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -2473,11 +2481,11 @@ int SSLWrap<Base>::TLSExtStatusCallback(SSL* s, void* arg) {
     size_t len = Buffer::Length(obj);
 
     // OpenSSL takes control of the pointer after accepting it
-    char* data = node::Malloc(len);
+    unsigned char* data = MallocOpenSSL<unsigned char>(len);
     memcpy(data, resp, len);
 
     if (!SSL_set_tlsext_status_ocsp_resp(s, data, len))
-      free(data);
+      OPENSSL_free(data);
     w->ocsp_response_.Reset();
 
     return SSL_TLSEXT_ERR_OK;
@@ -2697,13 +2705,6 @@ static bool IsSupportedAuthenticatedMode(const EVP_CIPHER* cipher) {
 static bool IsSupportedAuthenticatedMode(const EVP_CIPHER_CTX* ctx) {
   const EVP_CIPHER* cipher = EVP_CIPHER_CTX_cipher(ctx);
   return IsSupportedAuthenticatedMode(cipher);
-}
-
-template <typename T>
-static T* MallocOpenSSL(size_t count) {
-  void* mem = OPENSSL_malloc(MultiplyWithOverflowCheck(count, sizeof(T)));
-  CHECK_IMPLIES(mem == nullptr, count == 0);
-  return static_cast<T*>(mem);
 }
 
 enum class ParsePublicKeyResult {
