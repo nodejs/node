@@ -14,21 +14,25 @@ const inputString = 'ΩΩLorem ipsum dolor sit amet, consectetur adipiscing eli'
                     ' diam ipsum. Suspendisse nec ullamcorper odio. Vestibulu' +
                     'm arcu mi, sodales non suscipit id, ultrices ut massa. S' +
                     'ed ac sem sit amet arcu malesuada fermentum. Nunc sed. ';
-const expectedBase64Compress = 'G/gBQBwHdky2aHV5KK9Snf05//1pPdmNw/7232fnIm1IB' +
-                               'K1AA8RsN8OB8Nb7Lpgk3UWWUlzQXZyHQeBBbXMTQXC1j7' +
-                               'wg3LJs9LqOGHRH2bj/a2iCTLLx8hBOyTqgoVuD1e+Qqdn' +
-                               'f1rkUNyrWq6LtOhWgxP3QUwdhKGdZm3rJWaDDBV7+pDk1' +
-                               'MIkrmjp4ma2xVi5MsgJScA3tP1I7mXeby6MELozrwoBQD' +
-                               'mVTnEAicZNj4lkGqntJe2qSnGyeMmcFgraK94vCg/4iLu' +
-                               'Tw5RhKhnVY++dZ6niUBmRqIutsjf5TzwF5iAg8a9UkjF5' +
-                               '2eZ0tB2vo6v8SqVfNMkBmmhxr0NT9LkYF69aEjlYzj7IE' +
-                               'KmEUQf1HBogRYhFIt4ymRNEgHAIzOyNEsQM=';
+const compressedString = 'G/gBQBwHdky2aHV5KK9Snf05//1pPdmNw/7232fnIm1IB' +
+                         'K1AA8RsN8OB8Nb7Lpgk3UWWUlzQXZyHQeBBbXMTQXC1j7' +
+                         'wg3LJs9LqOGHRH2bj/a2iCTLLx8hBOyTqgoVuD1e+Qqdn' +
+                         'f1rkUNyrWq6LtOhWgxP3QUwdhKGdZm3rJWaDDBV7+pDk1' +
+                         'MIkrmjp4ma2xVi5MsgJScA3tP1I7mXeby6MELozrwoBQD' +
+                         'mVTnEAicZNj4lkGqntJe2qSnGyeMmcFgraK94vCg/4iLu' +
+                         'Tw5RhKhnVY++dZ6niUBmRqIutsjf5TzwF5iAg8a9UkjF5' +
+                         '2eZ0tB2vo6v8SqVfNMkBmmhxr0NT9LkYF69aEjlYzj7IE' +
+                         'KmEUQf1HBogRYhFIt4ymRNEgHAIzOyNEsQM=';
 
 zlib.brotliCompress(inputString, common.mustCall((err, buffer) => {
-  assert.strictEqual(buffer.toString('base64'), expectedBase64Compress);
+  assert(inputString.length > buffer.length);
+
+  zlib.brotliDecompress(buffer, common.mustCall((err, buffer) => {
+    assert.strictEqual(buffer.toString(), inputString);
+  }));
 }));
 
-const buffer = Buffer.from(expectedBase64Compress, 'base64');
+const buffer = Buffer.from(compressedString, 'base64');
 zlib.brotliDecompress(buffer, common.mustCall((err, buffer) => {
   assert.strictEqual(buffer.toString(), inputString);
 }));
