@@ -1,5 +1,12 @@
 # Diagnostic Report
 
+<!--introduced_in=v11.8.0-->
+<!-- type=misc -->
+
+> Stability: 1 - Experimental
+
+<!-- name=report -->
+
 Delivers a JSON-formatted diagnostic summary, written to a file.
 
 The report is intended for development, test and production use, to capture
