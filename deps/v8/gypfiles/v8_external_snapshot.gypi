@@ -64,7 +64,7 @@
                   ['v8_os_page_size!=0', {
                     'mksnapshot_flags': ['--v8_os_page_size', '<(v8_os_page_size)'],
                   }],
-                  ['v8_enable_embedded_builtins="true"', {
+                  ['v8_enable_embedded_builtins=1', {
                     # 'embedded_builtins_snapshot_src': [ "$target_gen_dir/embedded${suffix}.cc" ],
                     # 'mksnapshot_flags':  ["--embedded_src", "$target_gen_dir/embedded${suffix}.cc",],
                     # if (invoker.embedded_variant != "") {

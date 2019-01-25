@@ -138,7 +138,7 @@
     [ 'node_no_browser_globals=="true"', {
       'defines': [ 'NODE_NO_BROWSER_GLOBALS' ],
     } ],
-    [ 'node_use_bundled_v8=="true" and v8_postmortem_support=="true" and force_load=="true"', {
+    [ 'node_use_bundled_v8=="true" and v8_postmortem_support==1 and force_load=="true"', {
       'xcode_settings': {
         'OTHER_LDFLAGS': [
           '-Wl,-force_load,<(v8_base)',

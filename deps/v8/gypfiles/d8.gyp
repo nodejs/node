@@ -53,7 +53,7 @@
         }],
         [ 'component!="shared_library"', {
           'conditions': [
-            [ 'v8_postmortem_support=="true"', {
+            [ 'v8_postmortem_support==1', {
               'xcode_settings': {
                 'OTHER_LDFLAGS': [
                    '-Wl,-force_load,<(PRODUCT_DIR)/libv8_base.a'

@@ -42,7 +42,7 @@
     ##### V8 defaults for Node.js #####
 
     # Old time default, now explicitly stated.
-    'v8_use_snapshot': 'true',
+    'v8_use_snapshot': 1,
 
     # Turn on SipHash for hash seed generation, addresses HashWick
     'v8_use_siphash': 'true',
@@ -58,21 +58,12 @@
     # Enable disassembler for `--print-code` v8 options
     'v8_enable_disassembler': 1,
 
-    # Don't bake anything extra into the snapshot.
-    'v8_use_external_startup_data': 0,
-
     # https://github.com/nodejs/node/pull/22920/files#r222779926
     'v8_enable_handle_zapping': 0,
 
     # Disable V8 untrusted code mitigations.
     # See https://github.com/v8/v8/wiki/Untrusted-code-mitigations
-    'v8_untrusted_code_mitigations': 'false',
-
-    # Still WIP in V8 7.1
-    'v8_enable_pointer_compression': 'false',
-
-    # New in V8 7.1
-    'v8_enable_embedded_builtins': 'true',
+    'v8_untrusted_code_mitigations': 0,
 
     # This is more of a V8 dev setting
     # https://github.com/nodejs/node/pull/22920/files#r222779926
@@ -102,12 +93,12 @@
       }],
       ['OS == "win"', {
         'os_posix': 0,
-        'v8_postmortem_support%': 'false',
+        'v8_postmortem_support%': 0,
         'obj_dir': '<(PRODUCT_DIR)/obj',
         'v8_base': '<(PRODUCT_DIR)/lib/v8_libbase.lib',
       }, {
         'os_posix': 1,
-        'v8_postmortem_support%': 'true',
+        'v8_postmortem_support%': 1,
       }],
       ['OS == "mac"', {
         'obj_dir%': '<(PRODUCT_DIR)/obj.target',

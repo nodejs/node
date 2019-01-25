@@ -115,7 +115,7 @@
     {
       'action_name': 'concatenate_protocols',
       'inputs': [
-        '../../deps/v8/src/inspector/js_protocol.json',
+        '../../deps/v8/src/inspector/js_protocol.pdl',
         '<(SHARED_INTERMEDIATE_DIR)/node_protocol.json',
       ],
       'outputs': [

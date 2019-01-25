@@ -1124,8 +1124,8 @@ def configure_v8(o):
   o['variables']['v8_optimized_debug'] = 0 if options.v8_non_optimized_debug else 1
   o['variables']['v8_random_seed'] = 0  # Use a random seed for hash tables.
   o['variables']['v8_promise_internal_field_count'] = 1 # Add internal field to promises for async hooks.
-  o['variables']['v8_use_snapshot'] = 'false' if options.without_snapshot else 'true'
-  o['variables']['v8_use_siphash'] = 'false' if options.without_siphash else 'true'
+  o['variables']['v8_use_siphash'] = 0 if options.without_siphash else 1
+  o['variables']['v8_use_snapshot'] = 0 if options.without_snapshot else 1
   o['variables']['v8_trace_maps'] = 1 if options.trace_maps else 0
   o['variables']['node_use_v8_platform'] = b(not options.without_v8_platform)
   o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)

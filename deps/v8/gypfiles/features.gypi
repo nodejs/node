@@ -42,50 +42,24 @@
       }],
     ],
 
-    # Allows the embedder to add a custom suffix to the version string.
-    'v8_embedder_string%': '',
+    # Variables from BUILD.gn
 
-    'v8_enable_disassembler%': 0,
+    # Set to 1 to enable DCHECKs in release builds.
+    'dcheck_always_on%': 0,
 
-    'v8_promise_internal_field_count%': 0,
-
-    'v8_enable_gdbjit%': 0,
-
-    # Enable code-generation-time checking of types in the CodeStubAssembler.
-    'v8_enable_verify_csa%': 0,
-
-    'v8_object_print%': 0,
+    # Sets -DV8_ENABLE_FUTURE.
+    'v8_enable_future%': 0,
 
     # Lite mode disables a number of performance optimizations to reduce memory
     # at the cost of performance.
     # Sets --DV8_LITE_MODE.
     'v8_enable_lite_mode%': 0,
 
+    # Sets -DVERIFY_HEAP.
     'v8_enable_verify_heap%': 0,
 
-    'v8_trace_maps%': 0,
-
-    # Enable the snapshot feature, for fast context creation.
-    # http://v8project.blogspot.com/2015/09/custom-startup-snapshots.html
-    'v8_use_snapshot%': 'true',
-
+    # Sets -DVERIFY_PREDICTABLE
     'v8_enable_verify_predictable%': 0,
-
-    # With post mortem support enabled, metadata is embedded into libv8 that
-    # describes various parameters of the VM for use by debuggers. See
-    # tools/gen-postmortem-metadata.py for details.
-    'v8_postmortem_support%': 'false',
-
-    # Use Siphash as added protection against hash flooding attacks.
-    'v8_use_siphash%': 'false',
-
-    # Interpreted regexp engine exists as platform-independent alternative
-    # based where the regular expression is compiled to a bytecode.
-    'v8_interpreted_regexp%': 0,
-
-    # Enable ECMAScript Internationalization API. Enabling this feature will
-    # add a dependency on the ICU library.
-    'v8_enable_i18n_support%': 1,
 
     # Enable compiler warnings when using V8_DEPRECATED apis.
     'v8_deprecation_warnings%': 0,
@@ -93,40 +67,96 @@
     # Enable compiler warnings when using V8_DEPRECATE_SOON apis.
     'v8_imminent_deprecation_warnings%': 0,
 
-    # Set to 1 to enable DCHECKs in release builds.
-    'dcheck_always_on%': 0,
+    # Allows the embedder to add a custom suffix to the version string.
+    'v8_embedder_string%': '',
 
-    # Enable/disable JavaScript API accessors.
-    'v8_js_accessors%': 0,
+    # Sets -dENABLE_DISASSEMBLER.
+    'v8_enable_disassembler%': 0,
 
-    # Temporary flag to allow embedders to update their microtasks scopes.
-    'v8_check_microtasks_scopes_consistency%': 'false',
+    # Sets the number of internal fields on promise objects.
+    'v8_promise_internal_field_count%': 0,
 
-    # Enable concurrent marking.
-    'v8_enable_concurrent_marking%': 1,
+    # Sets -dENABLE_GDB_JIT_INTERFACE.
+    'v8_enable_gdbjit%': 0,
 
-    # Enables various testing features.
-    'v8_enable_test_features%': 0,
-
-    # Controls the threshold for on-heap/off-heap Typed Arrays.
-    'v8_typed_array_max_size_in_heap%': 64,
-
-    # Enable mitigations for executing untrusted code.
-    'v8_untrusted_code_mitigations%': 'true',
+    # Sets -dENABLE_VTUNE_JIT_INTERFACE.
+    'v8_enable_vtunejit%': 0,
 
     # Currently set for node by common.gypi, avoiding default because of gyp file bug.
     # Should be turned on only for debugging.
     #'v8_enable_handle_zapping%': 0,
 
-    'v8_enable_pointer_compression%': 'false',
-    'v8_enable_31bit_smis_on_64bit_arch%': 'false',
+    # Enable fast mksnapshot runs.
+    'v8_enable_fast_mksnapshot%': 0,
 
-    'v8_enable_embedded_builtins%': 'true',
+    # Enable embedded builtins.
+    'v8_enable_embedded_builtins%': 1,
 
     # Enable code comments for builtins in the snapshot (impacts performance).
-    'v8_enable_snapshot_code_comments%': 'false',
+    'v8_enable_snapshot_code_comments%': 0,
 
-    'v8_enable_fast_mksnapshot%': 0,
+    # Enable code-generation-time checking of types in the CodeStubAssembler.
+    'v8_enable_verify_csa%': 0,
+
+    # Enable pointer compression (sets -dV8_COMPRESS_POINTERS).
+    'v8_enable_pointer_compression%': 0,
+    'v8_enable_31bit_smis_on_64bit_arch%': 0,
+
+    # Sets -dOBJECT_PRINT.
+    'v8_enable_object_print%': 0,
+
+    # Sets -dV8_TRACE_MAPS.
+    'v8_enable_trace_maps%': 0,
+
+    # Sets -dV8_ENABLE_CHECKS.
+    'v8_enable_v8_checks%': 0,
+
+    # Sets -dV8_TRACE_IGNITION.
+    'v8_enable_trace_ignition%': 0,
+
+    # Sets -dV8_TRACE_FEEDBACK_UPDATES.
+    'v8_enable_trace_feedback_updates%': 0,
+
+    # Sets -dV8_CONCURRENT_MARKING
+    'v8_enable_concurrent_marking%': 1,
+
+    # Enables various testing features.
+    'v8_enable_test_features%': 0,
+
+    # With post mortem support enabled, metadata is embedded into libv8 that
+    # describes various parameters of the VM for use by debuggers. See
+    # tools/gen-postmortem-metadata.py for details.
+    'v8_postmortem_support%': 0,
+
+    # Use Siphash as added protection against hash flooding attacks.
+    'v8_use_siphash%': 0,
+
+    # Controls the threshold for on-heap/off-heap Typed Arrays.
+    'v8_typed_array_max_size_in_heap%': 64,
+
+    # Temporary flag to allow embedders to update their microtasks scopes
+    # while rolling in a new version of V8.
+    'v8_check_microtasks_scopes_consistency%': 0,
+
+    # Enable mitigations for executing untrusted code.
+    'v8_untrusted_code_mitigations%': 1,
+
+    # Enable minor mark compact.
+    'v8_enable_minor_mc%': 1,
+
+    # Variables from v8.gni
+
+    # Enable the snapshot feature, for fast context creation.
+    # http://v8project.blogspot.com/2015/09/custom-startup-snapshots.html
+    'v8_use_snapshot%': 1,
+
+    # Use external files for startup data blobs:
+    # the JS builtins sources and the start snapshot.
+    'v8_use_external_startup_data%': 0,
+
+    # Enable ECMAScript Internationalization API. Enabling this feature will
+    # add a dependency on the ICU library.
+    'v8_enable_i18n_support%': 1,
   },
 
   'target_defaults': {
@@ -140,37 +170,56 @@
       ['v8_promise_internal_field_count!=0', {
         'defines': ['V8_PROMISE_INTERNAL_FIELD_COUNT=<(v8_promise_internal_field_count)'],
       }],
+      ['v8_enable_future==1', {
+        'defines': ['V8_ENABLE_FUTURE',],
+      }],
       ['v8_enable_lite_mode==1', {
         'defines': [
           'V8_LITE_MODE',
-
-          # TODO(v8:7777): Remove the define once the --jitless runtime flag does everything we need.
           'V8_JITLESS_MODE',
         ],
       }],
       ['v8_enable_gdbjit==1', {
         'defines': ['ENABLE_GDB_JIT_INTERFACE',],
       }],
-      ['v8_enable_verify_csa==1', {
-        'defines': ['ENABLE_VERIFY_CSA',],
+      ['v8_enable_vtunejit==1', {
+        'defines': ['ENABLE_VTUNE_JIT_INTERFACE',],
       }],
-      ['v8_object_print==1', {
+      ['v8_enable_minor_mc==1', {
+        'defines': ['ENABLE_MINOR_MC',],
+      }],
+      ['v8_enable_pointer_compression==1', {
+        'defines': ['V8_COMPRESS_POINTERS',],
+      }],
+      ['v8_enable_pointer_compression==1 or v8_enable_31bit_smis_on_64bit_arch==1', {
+        'defines': ['V8_31BIT_SMIS_ON_64BIT_ARCH',],
+      }],
+      ['v8_enable_object_print==1', {
         'defines': ['OBJECT_PRINT',],
       }],
       ['v8_enable_verify_heap==1', {
         'defines': ['VERIFY_HEAP',],
       }],
-      ['v8_trace_maps==1', {
-        'defines': ['V8_TRACE_MAPS',],
-      }],
-      ['v8_enable_test_features==1', {
-        'defines': ['V8_ENABLE_ALLOCATION_TIMEOUT', 'V8_ENABLE_FORCE_SLOW_PATH'],
-      }],
       ['v8_enable_verify_predictable==1', {
         'defines': ['VERIFY_PREDICTABLE',],
       }],
-      ['v8_interpreted_regexp==1 or v8_enable_lite_mode==1', {
-        'defines': ['V8_INTERPRETED_REGEXP',],
+      ['v8_enable_trace_maps==1', {
+        'defines': ['V8_TRACE_MAPS',],
+      }],
+      ['v8_enable_trace_ignition==1', {
+        'defines': ['V8_TRACE_IGNITION',],
+      }],
+      ['v8_enable_trace_feedback_updates==1', {
+        'defines': ['V8_TRACE_FEEDBACK_UPDATES',],
+      }],
+      ['v8_enable_test_features==1', {
+        'defines': [
+          'V8_ENABLE_ALLOCATION_TIMEOUT',
+          'V8_ENABLE_FORCE_SLOW_PATH',
+        ],
+      }],
+      ['v8_enable_v8_checks==1', {
+        'defines': ['V8_ENABLE_CHECKS',],
       }],
       ['v8_deprecation_warnings==1', {
         'defines': ['V8_DEPRECATION_WARNINGS',],
@@ -185,38 +234,36 @@
       ['v8_enable_i18n_support==1', {
         'defines': ['V8_INTL_SUPPORT',],
       }],
-      ['v8_use_snapshot=="true" and v8_use_external_startup_data==1', {
+      # Refs: https://github.com/nodejs/node/pull/23801
+      # ['v8_enable_handle_zapping==1', {
+      #  'defines': ['ENABLE_HANDLE_ZAPPING',],
+      # }],
+      ['v8_use_snapshot==1', {
+        'defines': ['V8_USE_SNAPSHOT',],
+      }],
+      ['v8_use_external_startup_data==1', {
         'defines': ['V8_USE_EXTERNAL_STARTUP_DATA',],
       }],
-      ['v8_use_siphash=="true"', {
+      ['v8_enable_concurrent_marking==1', {
+        'defines': ['V8_CONCURRENT_MARKING',],
+      }],
+      ['v8_check_microtasks_scopes_consistency==1', {
+        'defines': ['V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY',],
+      }],
+      ['v8_enable_embedded_builtins==1', {
+        'defines': ['V8_EMBEDDED_BUILTINS',],
+      }],
+      ['v8_use_siphash==1', {
         'defines': ['V8_USE_SIPHASH',],
       }],
       ['dcheck_always_on!=0', {
         'defines': ['DEBUG',],
       }],
-      ['v8_check_microtasks_scopes_consistency=="true"', {
-        'defines': ['V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY',],
+      ['v8_enable_verify_csa==1', {
+        'defines': ['ENABLE_VERIFY_CSA',],
       }],
-      ['v8_enable_concurrent_marking==1', {
-        'defines': ['V8_CONCURRENT_MARKING',],
-      }],
-      ['v8_untrusted_code_mitigations=="false"', {
+      ['v8_untrusted_code_mitigations==0', {
         'defines': ['DISABLE_UNTRUSTED_CODE_MITIGATIONS',],
-      }],
-      # Refs: https://github.com/nodejs/node/pull/23801
-      # ['v8_enable_handle_zapping==1', {
-      #  'defines': ['ENABLE_HANDLE_ZAPPING',],
-      # }],
-      ['v8_enable_pointer_compression=="true"', {
-        'defines': ['V8_COMPRESS_POINTERS',],
-      }],
-      ['v8_enable_31bit_smis_on_64bit_arch=="true"', {
-        'defines': ['V8_31BIT_SMIS_ON_64BIT_ARCH',],
-      }],
-      ['v8_enable_embedded_builtins=="true"', {
-        'defines': [
-          'V8_EMBEDDED_BUILTINS',
-        ],
       }],
     ],  # conditions
     'defines': [

@@ -43,7 +43,7 @@
     'v8_enable_i18n_support%': 1,
     'v8_deprecation_warnings': 1,
     'v8_imminent_deprecation_warnings': 1,
-    'v8_check_microtasks_scopes_consistency': 'true',
+    'v8_check_microtasks_scopes_consistency': 1,
     'msvs_multi_core_compile%': '1',
     'mac_deployment_target%': '10.7',
     'release_extra_cflags%': '',
