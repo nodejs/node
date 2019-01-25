@@ -47,7 +47,10 @@ import copy
 
 from os.path import join, dirname, abspath, basename, isdir, exists
 from datetime import datetime
-from Queue import Queue, Empty
+try:
+    from queue import Queue, Empty  # Python 3
+except ImportError:
+    from Queue import Queue, Empty  # Python 2
 
 try:
     cmp             # Python 2
