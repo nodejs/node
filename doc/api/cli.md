@@ -77,21 +77,21 @@ $ source node_bash_completion
 
 ### `--diagnostic-report-directory=directory`
 <!-- YAML
-added: v11.7.0
+added: v11.8.0
 -->
 
 Location at which the report will be generated.
 
 ### `--diagnostic-report-filename=filename`
 <!-- YAML
-added: v11.7.0
+added: v11.8.0
 -->
 
 Name of the file to which the report will be written.
 
 ### `--diagnostic-report-on-fatalerror`
 <!-- YAML
-added: v11.7.0
+added: v11.8.0
 -->
 
 Enables the report to be triggered on fatal errors (internal errors within
@@ -102,7 +102,7 @@ consumption etc. to reason about the fatal error.
 
 ### `--diagnostic-report-on-signal`
 <!-- YAML
-added: v11.7.0
+added: v11.8.0
 -->
 
 Enables report to be generated upon receiving the specified (or predefined)
@@ -111,7 +111,7 @@ The signal to trigger the report is specified through `--diagnostic-report-signa
 
 ### `--diagnostic-report-signal=signal`
 <!-- YAML
-added: v11.7.0
+added: v11.8.0
 -->
 
 Sets or resets the signal for report generation (not supported on Windows).
@@ -119,7 +119,7 @@ Default signal is `SIGUSR2`.
 
 ### `--diagnostic-report-uncaught-exception`
 <!-- YAML
-added: v11.7.0
+added: v11.8.0
 -->
 
 Enables report to be generated on un-caught exceptions, if
@@ -128,7 +128,7 @@ conjunction with native stack and other runtime environment data.
 
 ### `--diagnostic-report-verbose`
 <!-- YAML
-added: v11.7.0
+added: v11.8.0
 -->
 
 Flag that enables additional information to be printed during report generation.
@@ -150,7 +150,7 @@ Enable experimental ES module support and caching modules.
 
 ### `--experimental-policy`
 <!-- YAML
-added: v11.7.0
+added: v11.8.0
 -->
 
 Use the specified file as a security policy.
@@ -164,7 +164,7 @@ Enable experimental top-level `await` keyword support in REPL.
 
 ### `--experimental-report`
 <!-- YAML
-added: v11.7.0
+added: v11.8.0
 -->
 
 Enable experimental diagnostic report feature.
