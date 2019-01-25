@@ -25,7 +25,7 @@ const {
 } = require('worker_threads');
 
 if (isMainThread) {
-  module.exports = async function parseJSAsync(script) {
+  module.exports = function parseJSAsync(script) {
     return new Promise((resolve, reject) => {
       const worker = new Worker(__filename, {
         workerData: script
