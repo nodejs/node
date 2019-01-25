@@ -56,31 +56,7 @@ assert(inited < 15000);
 assert.strictEqual(performance.nodeTiming.name, 'node');
 assert.strictEqual(performance.nodeTiming.entryType, 'node');
 
-let timeoutDelay = 111; // An extra of 111 ms for the first call.
-
-function checkDelay(cb) {
-  const defaultTimeout = 1;
-  const timer = setInterval(checkDelay, defaultTimeout);
-  const timeouts = 10;
-
-  const now = getTime();
-  let resolved = 0;
-
-  function checkDelay() {
-    resolved++;
-    if (resolved === timeouts) {
-      clearInterval(timer);
-      timeoutDelay = getTime() - now;
-      cb();
-    }
-  }
-}
-
-function getTime() {
-  const ts = process.hrtime();
-  return Math.ceil((ts[0] * 1e3) + (ts[1] / 1e6));
-}
-
+const delay = 250;
 function checkNodeTiming(props) {
   console.log(props);
 
@@ -88,10 +64,9 @@ function checkNodeTiming(props) {
     if (props[prop].around !== undefined) {
       assert.strictEqual(typeof performance.nodeTiming[prop], 'number');
       const delta = performance.nodeTiming[prop] - props[prop].around;
-      const delay = 1000 + timeoutDelay;
       assert(
-        Math.abs(delta) < delay,
-        `${prop}: ${Math.abs(delta)} >= ${delay}`
+        Math.abs(delta) < (props[prop].delay || delay),
+        `${prop}: ${Math.abs(delta)} >= ${props[prop].delay || delay}`
       );
     } else {
       assert.strictEqual(performance.nodeTiming[prop], props[prop],
@@ -108,28 +83,26 @@ checkNodeTiming({
   duration: { around: performance.now() },
   nodeStart: { around: 0 },
   v8Start: { around: 0 },
-  bootstrapComplete: { around: inited },
+  bootstrapComplete: { around: inited, delay: 2500 },
   environment: { around: 0 },
   loopStart: -1,
   loopExit: -1
 });
 
-checkDelay(() => {
-  setTimeout(() => {
-    checkNodeTiming({
-      name: 'node',
-      entryType: 'node',
-      startTime: 0,
-      duration: { around: performance.now() },
-      nodeStart: { around: 0 },
-      v8Start: { around: 0 },
-      bootstrapComplete: { around: inited },
-      environment: { around: 0 },
-      loopStart: { around: inited },
-      loopExit: -1
-    });
-  }, 1000);
-});
+setTimeout(() => {
+  checkNodeTiming({
+    name: 'node',
+    entryType: 'node',
+    startTime: 0,
+    duration: { around: performance.now() },
+    nodeStart: { around: 0 },
+    v8Start: { around: 0 },
+    bootstrapComplete: { around: inited, delay: 2500 },
+    environment: { around: 0 },
+    loopStart: { around: inited, delay: 2500 },
+    loopExit: -1
+  });
+}, 1000);
 
 process.on('exit', () => {
   checkNodeTiming({
@@ -139,9 +112,9 @@ process.on('exit', () => {
     duration: { around: performance.now() },
     nodeStart: { around: 0 },
     v8Start: { around: 0 },
-    bootstrapComplete: { around: inited },
+    bootstrapComplete: { around: inited, delay: 2500 },
     environment: { around: 0 },
-    loopStart: { around: inited },
+    loopStart: { around: inited, delay: 2500 },
     loopExit: { around: performance.now() }
   });
 });
