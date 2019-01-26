@@ -451,6 +451,8 @@ system. This differs from the result of `os.homedir()`, which queries several
 environment variables for the home directory before falling back to the
 operating system response.
 
+Throws a [`SystemError`][] if a user has no `username` or `homedir`.
+
 ## OS Constants
 
 The following constants are exported by `os.constants`.
@@ -1313,6 +1315,7 @@ The following process scheduling constants are exported by
   </tr>
 </table>
 
+[`SystemError`]: errors.html#errors_system_errors
 [`process.arch`]: process.html#process_process_arch
 [`process.platform`]: process.html#process_process_platform
 [Android building]: https://github.com/nodejs/node/blob/master/BUILDING.md#androidandroid-based-devices-eg-firefox-os
