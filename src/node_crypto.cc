@@ -3414,7 +3414,7 @@ void KeyObject::Init(const FunctionCallbackInfo<Value>& args) {
     CHECK_EQ(args.Length(), 3);
 
     offset = 0;
-    pkey = GetPublicOrPrivateKeyFromJs(args, &offset, false);
+    pkey = GetPublicOrPrivateKeyFromJs(args, &offset, true);
     if (!pkey)
       return;
     key->InitPublic(pkey);
