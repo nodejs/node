@@ -13,7 +13,7 @@ namespace interpreter {
 BreakableControlFlowBuilder::~BreakableControlFlowBuilder() {
   BindBreakTarget();
   DCHECK(break_labels_.empty() || break_labels_.is_bound());
-  if (block_coverage_builder_ != nullptr && needs_continuation_counter()) {
+  if (block_coverage_builder_ != nullptr) {
     block_coverage_builder_->IncrementBlockCounter(
         node_, SourceRangeKind::kContinuation);
   }
