@@ -144,9 +144,9 @@ function nextdir() {
                                              absoluteCoverageDirectory);
   assert.ok(fixtureCoverage);
   // first branch executed.
-  assert.strictEqual(fixtureCoverage.functions[1].ranges[0].count, 1);
+  assert.strictEqual(fixtureCoverage.functions[0].ranges[0].count, 1);
   // second branch did not execute.
-  assert.strictEqual(fixtureCoverage.functions[1].ranges[1].count, 0);
+  assert.strictEqual(fixtureCoverage.functions[0].ranges[1].count, 0);
 }
 
 // Extracts the coverage object for a given fixture name.

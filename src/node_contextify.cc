@@ -286,6 +286,14 @@ void ContextifyContext::WeakCallback(
   delete context;
 }
 
+void ContextifyContext::WeakCallbackCompileFn(
+    const WeakCallbackInfo<CompileFnEntry>& data) {
+  CompileFnEntry* entry = data.GetParameter();
+  entry->env->id_to_function_map[entry->id].Reset();
+  entry->env->id_to_function_map.erase(entry->id);
+  delete entry;
+}
+
 // static
 ContextifyContext* ContextifyContext::ContextFromContextifiedSandbox(
     Environment* env,
@@ -1064,40 +1072,43 @@ void ContextifyContext::CompileFunction(
     }
   }
 
-  MaybeLocal<Function> maybe_fun = ScriptCompiler::CompileFunctionInContext(
+  MaybeLocal<Function> maybe_fn = ScriptCompiler::CompileFunctionInContext(
       parsing_context, &source, params.size(), params.data(),
       context_extensions.size(), context_extensions.data(), options);
 
-  Local<Function> fun;
-  if (maybe_fun.IsEmpty() || !maybe_fun.ToLocal(&fun)) {
+  if (maybe_fn.IsEmpty()) {
     DecorateErrorStack(env, try_catch);
     try_catch.ReThrow();
     return;
   }
-
-  env->id_to_function_map.emplace(id, fun);
+  Local<Function> fn = maybe_fn.ToLocalChecked();
+  env->id_to_function_map[id].Reset(isolate, fn);
+  CompileFnEntry* gc_entry = new CompileFnEntry(env, id);
+  env->id_to_function_map[id].SetWeak(gc_entry,
+      WeakCallbackCompileFn,
+      v8::WeakCallbackType::kParameter);
 
   if (produce_cached_data) {
     const std::unique_ptr<ScriptCompiler::CachedData> cached_data(
-        ScriptCompiler::CreateCodeCacheForFunction(fun));
+        ScriptCompiler::CreateCodeCacheForFunction(fn));
     bool cached_data_produced = cached_data != nullptr;
     if (cached_data_produced) {
       MaybeLocal<Object> buf = Buffer::Copy(
           env,
           reinterpret_cast<const char*>(cached_data->data),
           cached_data->length);
-      if (fun->Set(
+      if (fn->Set(
           parsing_context,
           env->cached_data_string(),
           buf.ToLocalChecked()).IsNothing()) return;
     }
-    if (fun->Set(
+    if (fn->Set(
         parsing_context,
         env->cached_data_produced_string(),
         Boolean::New(isolate, cached_data_produced)).IsNothing()) return;
   }
 
-  args.GetReturnValue().Set(fun);
+  args.GetReturnValue().Set(fn);
 }
 
 
