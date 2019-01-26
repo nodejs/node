@@ -59,9 +59,27 @@ const privatePem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
 }
 
 {
-  // Passing an existing key object should throw.
+  // Passing an existing public key object to createPublicKey should throw.
   const publicKey = createPublicKey(publicPem);
   common.expectsError(() => createPublicKey(publicKey), {
+    type: TypeError,
+    code: 'ERR_CRYPTO_INVALID_KEY_OBJECT_TYPE',
+    message: 'Invalid key object type public, expected private.'
+  });
+
+  // Constructing a private key from a public key should be impossible, even
+  // if the public key was derived from a private key.
+  common.expectsError(() => createPrivateKey(createPublicKey(privatePem)), {
+    type: TypeError,
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "key" argument must be one of type string, Buffer, ' +
+             'TypedArray, or DataView. Received type object'
+  });
+
+  // Similarly, passing an existing private key object to createPrivateKey
+  // should throw.
+  const privateKey = createPrivateKey(privatePem);
+  common.expectsError(() => createPrivateKey(privateKey), {
     type: TypeError,
     code: 'ERR_INVALID_ARG_TYPE',
     message: 'The "key" argument must be one of type string, Buffer, ' +
@@ -80,6 +98,12 @@ const privatePem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
   assert.strictEqual(privateKey.asymmetricKeyType, 'rsa');
   assert.strictEqual(privateKey.symmetricKeySize, undefined);
 
+  // It should be possible to derive a public key from a private key.
+  const derivedPublicKey = createPublicKey(privateKey);
+  assert.strictEqual(derivedPublicKey.type, 'public');
+  assert.strictEqual(derivedPublicKey.asymmetricKeyType, 'rsa');
+  assert.strictEqual(derivedPublicKey.symmetricKeySize, undefined);
+
   const publicDER = publicKey.export({
     format: 'der',
     type: 'pkcs1'
@@ -95,8 +119,18 @@ const privatePem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
 
   const plaintext = Buffer.from('Hello world', 'utf8');
   const ciphertexts = [
+    // Encrypt using the public key.
     publicEncrypt(publicKey, plaintext),
     publicEncrypt({ key: publicKey }, plaintext),
+
+    // Encrypt using the private key.
+    publicEncrypt(privateKey, plaintext),
+    publicEncrypt({ key: privateKey }, plaintext),
+
+    // Encrypt using a public key derived from the private key.
+    publicEncrypt(derivedPublicKey, plaintext),
+    publicEncrypt({ key: derivedPublicKey }, plaintext),
+
     // Test distinguishing PKCS#1 public and private keys based on the
     // DER-encoded data only.
     publicEncrypt({ format: 'der', type: 'pkcs1', key: publicDER }, plaintext),
