@@ -10,6 +10,7 @@
 #include "src/ast/ast-function-literal-id-reindexer.h"
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/ast.h"
+#include "src/ast/source-range-ast-visitor.h"
 #include "src/bailout-reason.h"
 #include "src/base/platform/platform.h"
 #include "src/char-predicates-inl.h"
@@ -487,6 +488,15 @@ void MaybeResetCharacterStream(ParseInfo* info, FunctionLiteral* literal) {
   }
 }
 
+void MaybeProcessSourceRanges(ParseInfo* parse_info, Expression* root,
+                              uintptr_t stack_limit_) {
+  if (root != nullptr && parse_info->source_range_map() != nullptr) {
+    SourceRangeAstVisitor visitor(stack_limit_, root,
+                                  parse_info->source_range_map());
+    visitor.Run();
+  }
+}
+
 }  // namespace
 
 FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
@@ -511,6 +521,7 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   scanner_.Initialize();
   FunctionLiteral* result = DoParseProgram(isolate, info);
   MaybeResetCharacterStream(info, result);
+  MaybeProcessSourceRanges(info, result, stack_limit_);
 
   HandleSourceURLComments(isolate, info->script());
 
@@ -707,6 +718,7 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   FunctionLiteral* result =
       DoParseFunction(isolate, info, info->function_name());
   MaybeResetCharacterStream(info, result);
+  MaybeProcessSourceRanges(info, result, stack_limit_);
   if (result != nullptr) {
     Handle<String> inferred_name(shared_info->inferred_name(), isolate);
     result->set_inferred_name(inferred_name);

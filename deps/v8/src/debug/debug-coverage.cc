@@ -233,25 +233,6 @@ bool HaveSameSourceRange(const CoverageBlock& lhs, const CoverageBlock& rhs) {
   return lhs.start == rhs.start && lhs.end == rhs.end;
 }
 
-void MergeDuplicateSingletons(CoverageFunction* function) {
-  CoverageBlockIterator iter(function);
-
-  while (iter.Next() && iter.HasNext()) {
-    CoverageBlock& block = iter.GetBlock();
-    CoverageBlock& next_block = iter.GetNextBlock();
-
-    // Identical ranges should only occur through singleton ranges. Consider the
-    // ranges for `for (.) break;`: continuation ranges for both the `break` and
-    // `for` statements begin after the trailing semicolon.
-    // Such ranges are merged and keep the maximal execution count.
-    if (!HaveSameSourceRange(block, next_block)) continue;
-
-    DCHECK_EQ(kNoSourcePosition, block.end);  // Singleton range.
-    next_block.count = std::max(block.count, next_block.count);
-    iter.DeleteBlock();
-  }
-}
-
 void MergeDuplicateRanges(CoverageFunction* function) {
   CoverageBlockIterator iter(function);
 
@@ -424,8 +405,14 @@ void CollectBlockCoverage(CoverageFunction* function, SharedFunctionInfo* info,
   // If in binary mode, only report counts of 0/1.
   if (mode == debug::Coverage::kBlockBinary) ClampToBinary(function);
 
-  // Remove duplicate singleton ranges, keeping the max count.
-  MergeDuplicateSingletons(function);
+  // Remove singleton ranges with the same start position as a full range and
+  // throw away their counts.
+  // Singleton ranges are only intended to split existing full ranges and should
+  // never expand into a full range. Consider 'if (cond) { ... } else { ... }'
+  // as a problematic example; if the then-block produces a continuation
+  // singleton, it would incorrectly expand into the else range.
+  // For more context, see https://crbug.com/v8/8237.
+  FilterAliasedSingletons(function);
 
   // Remove singleton ranges with the same start position as a full range and
   // throw away their counts.

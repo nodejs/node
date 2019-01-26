@@ -548,6 +548,8 @@
         '../src/ast/prettyprinter.h',
         '../src/ast/scopes.cc',
         '../src/ast/scopes.h',
+        '../src/ast/source-range-ast-visitor.cc',
+        '../src/ast/source-range-ast-visitor.h',
         '../src/ast/variables.cc',
         '../src/ast/variables.h',
         '../src/bailout-reason.cc',
