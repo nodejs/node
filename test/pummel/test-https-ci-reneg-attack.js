@@ -28,7 +28,6 @@ if (!common.opensslCli)
   common.skip('node compiled without OpenSSL CLI.');
 
 const assert = require('assert');
-const spawn = require('child_process').spawn;
 const tls = require('tls');
 const https = require('https');
 const fixtures = require('../common/fixtures');
@@ -63,50 +62,47 @@ function test(next) {
   });
 
   server.listen(0, function() {
-    const cmd = `s_client -connect 127.0.0.1:${server.address().port}`;
-    const args = cmd.split(' ');
-    const child = spawn(common.opensslCli, args);
+    const agent = https.Agent({
+      keepAlive: true,
+    });
 
-    child.stdout.resume();
-    child.stderr.resume();
-
-    // Count handshakes, start the attack after the initial handshake is done
-    let handshakes = 0;
+    let client;
     let renegs = 0;
 
-    child.stderr.on('data', function(data) {
-      handshakes += ((String(data)).match(/verify return:1/g) || []).length;
-      if (handshakes === 2) spam();
-      renegs += ((String(data)).match(/RENEGOTIATING/g) || []).length;
-    });
+    const options = {
+      rejectUnauthorized: false,
+      agent
+    };
 
-    child.on('exit', function() {
-      assert.strictEqual(renegs, tls.CLIENT_RENEG_LIMIT + 1);
-      server.close();
-      process.nextTick(next);
-    });
+    const { port } = server.address();
 
-    let closed = false;
-    child.stdin.on('error', function(err) {
-      switch (err.code) {
-        case 'ECONNRESET':
-        case 'EPIPE':
-          break;
-        default:
-          assert.strictEqual(err.code, 'ECONNRESET');
-          break;
+    https.get(`https://localhost:${port}/`, options, (res) => {
+      client = res.socket;
+
+      client.on('close', function(hadErr) {
+        assert.strictEqual(hadErr, false);
+        assert.strictEqual(renegs, tls.CLIENT_RENEG_LIMIT + 1);
+        server.close();
+        process.nextTick(next);
+      });
+
+      client.on('error', function(err) {
+        console.log('CLIENT ERR', err);
+        throw err;
+      });
+
+      spam();
+
+      // simulate renegotiation attack
+      function spam() {
+        client.renegotiate({}, (err) => {
+          assert.ifError(err);
+          assert.ok(renegs <= tls.CLIENT_RENEG_LIMIT);
+          setImmediate(spam);
+        });
+        renegs++;
       }
-      closed = true;
-    });
-    child.stdin.on('close', function() {
-      closed = true;
     });
 
-    // simulate renegotiation attack
-    function spam() {
-      if (closed) return;
-      child.stdin.write('R\n');
-      setTimeout(spam, 50);
-    }
   });
 }
