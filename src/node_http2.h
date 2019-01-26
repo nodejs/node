@@ -343,9 +343,6 @@ enum session_state_flags {
   SESSION_STATE_SENDING = 0x10,
 };
 
-// This allows for 4 default-sized frames with their frame headers
-static const size_t kAllocBufferSize = 4 * (16384 + 9);
-
 typedef uint32_t(*get_setting)(nghttp2_session* session,
                                nghttp2_settings_id id);
 
