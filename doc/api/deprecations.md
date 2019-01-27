@@ -430,9 +430,12 @@ changes:
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/8217
     description: Runtime deprecation.
+  - version: REPLACEME
+    pr-url: REPLACEME
+    descripion: Deprecation revoked
 -->
 
-Type: Runtime
+Type: Deprecation revoked
 
 Unhandled promise rejections are deprecated. In the future, promise rejections
 that are not handled will terminate the Node.js process with a non-zero exit
