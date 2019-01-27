@@ -442,9 +442,9 @@ class KeyObject : public BaseObject {
   static v8::Local<v8::Function> Initialize(Environment* env,
                                             v8::Local<v8::Object> target);
 
-  static v8::Local<v8::Object> Create(Environment* env,
-                                      KeyType type,
-                                      const ManagedEVPPKey& pkey);
+  static v8::MaybeLocal<v8::Object> Create(Environment* env,
+                                           KeyType type,
+                                           const ManagedEVPPKey& pkey);
 
   // TODO(tniessen): track the memory used by OpenSSL types
   SET_NO_MEMORY_INFO()
