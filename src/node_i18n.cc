@@ -171,6 +171,11 @@ class ConverterObject : public BaseObject, Converter {
     Environment* env = Environment::GetCurrent(args);
     HandleScope scope(env->isolate());
 
+    Local<ObjectTemplate> t = ObjectTemplate::New(env->isolate());
+    t->SetInternalFieldCount(1);
+    Local<Object> obj;
+    if (!t->NewInstance(env->context()).ToLocal(&obj)) return;
+
     CHECK_GE(args.Length(), 2);
     Utf8Value label(env->isolate(), args[0]);
     int flags = args[1]->Uint32Value(env->context()).ToChecked();
@@ -190,9 +195,6 @@ class ConverterObject : public BaseObject, Converter {
                           nullptr, nullptr, nullptr, &status);
     }
 
-    Local<ObjectTemplate> t = ObjectTemplate::New(env->isolate());
-    t->SetInternalFieldCount(1);
-    Local<Object> obj = t->NewInstance(env->context()).ToLocalChecked();
     new ConverterObject(env, obj, conv, ignoreBOM);
     args.GetReturnValue().Set(obj);
   }
