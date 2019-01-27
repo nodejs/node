@@ -696,12 +696,9 @@ class Http2Session : public AsyncWrap, public StreamListener {
     return static_cast<StreamBase*>(stream_);
   }
 
-  void Start();
-  void Stop();
   void Close(uint32_t code = NGHTTP2_NO_ERROR,
              bool socket_closed = false);
   void Consume(Local<External> external);
-  void Unconsume();
   void Goaway(uint32_t code, int32_t lastStreamID, uint8_t* data, size_t len);
   void AltSvc(int32_t id,
               uint8_t* origin,
@@ -709,9 +706,6 @@ class Http2Session : public AsyncWrap, public StreamListener {
               uint8_t* value,
               size_t value_len);
   void Origin(nghttp2_origin_entry* ov, size_t count);
-
-
-  bool Ping(v8::Local<v8::Function> function);
 
   uint8_t SendPendingData();
 
@@ -795,8 +789,6 @@ class Http2Session : public AsyncWrap, public StreamListener {
   // The JavaScript API
   static void New(const FunctionCallbackInfo<Value>& args);
   static void Consume(const FunctionCallbackInfo<Value>& args);
-  static void Unconsume(const FunctionCallbackInfo<Value>& args);
-  static void Destroying(const FunctionCallbackInfo<Value>& args);
   static void Destroy(const FunctionCallbackInfo<Value>& args);
   static void Settings(const FunctionCallbackInfo<Value>& args);
   static void Request(const FunctionCallbackInfo<Value>& args);
@@ -810,9 +802,6 @@ class Http2Session : public AsyncWrap, public StreamListener {
 
   template <get_setting fn>
   static void RefreshSettings(const FunctionCallbackInfo<Value>& args);
-
-  template <get_setting fn>
-  static void GetSettings(const FunctionCallbackInfo<Value>& args);
 
   uv_loop_t* event_loop() const {
     return env()->event_loop();
