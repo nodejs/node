@@ -139,7 +139,7 @@ void CallAndPauseOnStart(const FunctionCallbackInfo<v8::Value>& args) {
   env->inspector_agent()->PauseOnNextJavascriptStatement("Break on start");
   v8::MaybeLocal<v8::Value> retval =
       args[0].As<v8::Function>()->Call(env->context(), args[1],
-                                       call_args.size(), call_args.data());
+                                       call_args.length(), call_args.out());
   if (!retval.IsEmpty()) {
     args.GetReturnValue().Set(retval.ToLocalChecked());
   }
@@ -164,8 +164,8 @@ void InspectorConsoleCall(const FunctionCallbackInfo<Value>& info) {
                                v8::True(isolate)).FromJust());
       CHECK(!inspector_method.As<Function>()->Call(context,
                                                    info.Holder(),
-                                                   call_args.size(),
-                                                   call_args.data()).IsEmpty());
+                                                   call_args.length(),
+                                                   call_args.out()).IsEmpty());
     }
     CHECK(config_object->Delete(context, in_call_key).FromJust());
   }
@@ -174,8 +174,8 @@ void InspectorConsoleCall(const FunctionCallbackInfo<Value>& info) {
   CHECK(node_method->IsFunction());
   node_method.As<Function>()->Call(context,
                                    info.Holder(),
-                                   call_args.size(),
-                                   call_args.data()).FromMaybe(Local<Value>());
+                                   call_args.length(),
+                                   call_args.out()).FromMaybe(Local<Value>());
 }
 
 static void* GetAsyncTask(int64_t asyncId) {
