@@ -104,12 +104,12 @@ Local<Name> Uint32ToName(Local<Context> context, uint32_t index) {
 ContextifyContext::ContextifyContext(
     Environment* env,
     Local<Object> sandbox_obj, const ContextOptions& options) : env_(env) {
-  Local<Context> v8_context = CreateV8Context(env, sandbox_obj, options);
-  context_.Reset(env->isolate(), v8_context);
+  MaybeLocal<Context> v8_context = CreateV8Context(env, sandbox_obj, options);
 
-  // Allocation failure or maximum call stack size reached
-  if (context_.IsEmpty())
-    return;
+  // Allocation failure, maximum call stack size reached, termination, etc.
+  if (v8_context.IsEmpty()) return;
+
+  context_.Reset(env->isolate(), v8_context.ToLocalChecked());
   context_.SetWeak(this, WeakCallback, WeakCallbackType::kParameter);
 }
 
@@ -119,20 +119,19 @@ ContextifyContext::ContextifyContext(
 // pass the main JavaScript context object we're embedded in, then the
 // NamedPropertyHandler will store a reference to it forever and keep it
 // from getting gc'd.
-Local<Value> ContextifyContext::CreateDataWrapper(Environment* env) {
-  EscapableHandleScope scope(env->isolate());
-  Local<Object> wrapper =
-      env->script_data_constructor_function()
-          ->NewInstance(env->context()).FromMaybe(Local<Object>());
-  if (wrapper.IsEmpty())
-    return scope.Escape(Local<Value>::New(env->isolate(), Local<Value>()));
+MaybeLocal<Object> ContextifyContext::CreateDataWrapper(Environment* env) {
+  Local<Object> wrapper;
+  if (!env->script_data_constructor_function()
+           ->NewInstance(env->context())
+           .ToLocal(&wrapper)) {
+    return MaybeLocal<Object>();
+  }
 
   wrapper->SetAlignedPointerInInternalField(0, this);
-  return scope.Escape(wrapper);
+  return wrapper;
 }
 
-
-Local<Context> ContextifyContext::CreateV8Context(
+MaybeLocal<Context> ContextifyContext::CreateV8Context(
     Environment* env,
     Local<Object> sandbox_obj,
     const ContextOptions& options) {
@@ -145,13 +144,17 @@ Local<Context> ContextifyContext::CreateV8Context(
   Local<ObjectTemplate> object_template =
       function_template->InstanceTemplate();
 
+  Local<Object> data_wrapper;
+  if (!CreateDataWrapper(env).ToLocal(&data_wrapper))
+    return MaybeLocal<Context>();
+
   NamedPropertyHandlerConfiguration config(PropertyGetterCallback,
                                            PropertySetterCallback,
                                            PropertyDescriptorCallback,
                                            PropertyDeleterCallback,
                                            PropertyEnumeratorCallback,
                                            PropertyDefinerCallback,
-                                           CreateDataWrapper(env));
+                                           data_wrapper);
 
   IndexedPropertyHandlerConfiguration indexed_config(
       IndexedPropertyGetterCallback,
@@ -160,7 +163,7 @@ Local<Context> ContextifyContext::CreateV8Context(
       IndexedPropertyDeleterCallback,
       PropertyEnumeratorCallback,
       IndexedPropertyDefinerCallback,
-      CreateDataWrapper(env));
+      data_wrapper);
 
   object_template->SetHandler(config);
   object_template->SetHandler(indexed_config);
@@ -169,7 +172,7 @@ Local<Context> ContextifyContext::CreateV8Context(
 
   if (ctx.IsEmpty()) {
     env->ThrowError("Could not instantiate context");
-    return Local<Context>();
+    return MaybeLocal<Context>();
   }
 
   ctx->SetSecurityToken(env->context()->GetSecurityToken());
