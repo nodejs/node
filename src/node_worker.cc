@@ -132,9 +132,9 @@ Worker::Worker(Environment* env,
     env_->set_worker_context(this);
     env_->set_thread_id(thread_id_);
 
-    env_->Start(std::vector<std::string>{},
-                std::vector<std::string>{},
-                env->profiler_idle_notifier_started());
+    env_->Start(env->profiler_idle_notifier_started());
+    env_->CreateProcessObject(std::vector<std::string>{},
+                              std::vector<std::string>{});
     // Done while on the parent thread
     AddWorkerInspector(env, env_.get(), thread_id_, url_);
   }

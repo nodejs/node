@@ -612,9 +612,10 @@ class Environment {
               v8::Local<v8::Context> context);
   ~Environment();
 
-  void Start(const std::vector<std::string>& args,
-             const std::vector<std::string>& exec_args,
-             bool start_profiler_idle_notifier);
+  void Start(bool start_profiler_idle_notifier);
+  v8::MaybeLocal<v8::Object> CreateProcessObject(
+      const std::vector<std::string>& args,
+      const std::vector<std::string>& exec_args);
 
   typedef void (*HandleCleanupCb)(Environment* env,
                                   uv_handle_t* handle,
