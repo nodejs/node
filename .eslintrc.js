@@ -64,11 +64,11 @@ module.exports = {
         // start with something that looks like a variable name or code.
         ignorePattern: '^.{0,50}$|^ [a-z]+ ?[0-9A-Z_.(/=:[#-]',
         ignoreInlineComments: true,
-        ignoreConsecutiveComments: true
+        ignoreConsecutiveComments: true,
       },
       block: {
-        ignorePattern: '.*'
-      }
+        ignorePattern: '.*',
+      },
     }],
     'comma-dangle': ['error', 'only-multiline'],
     'comma-spacing': 'error',
@@ -168,7 +168,7 @@ module.exports = {
       {
         property: '__defineSetter__',
         message: '__defineSetter__ is deprecated.',
-      }
+      },
     ],
     // If this list is modified, please copy the change to lib/.eslintrc.yaml
     // and test/.eslintrc.yaml.
@@ -176,11 +176,11 @@ module.exports = {
       'error',
       {
         selector: "CallExpression[callee.object.name='assert'][callee.property.name='deepStrictEqual'][arguments.2.type='Literal']",
-        message: 'Do not use a literal for the third argument of assert.deepStrictEqual()'
+        message: 'Do not use a literal for the third argument of assert.deepStrictEqual()',
       },
       {
         selector: "CallExpression[callee.object.name='assert'][callee.property.name='doesNotThrow']",
-        message: 'Please replace `assert.doesNotThrow()` and add a comment next to the code instead.'
+        message: 'Please replace `assert.doesNotThrow()` and add a comment next to the code instead.',
       },
       {
         selector: "CallExpression[callee.object.name='assert'][callee.property.name='rejects'][arguments.length<2]",
@@ -188,7 +188,7 @@ module.exports = {
       },
       {
         selector: "CallExpression[callee.object.name='assert'][callee.property.name='strictEqual'][arguments.2.type='Literal']",
-        message: 'Do not use a literal for the third argument of assert.strictEqual()'
+        message: 'Do not use a literal for the third argument of assert.strictEqual()',
       },
       {
         selector: "CallExpression[callee.object.name='assert'][callee.property.name='throws'][arguments.1.type='Literal']:not([arguments.1.regex])",
@@ -209,7 +209,7 @@ module.exports = {
       {
         selector: 'ThrowStatement > CallExpression[callee.name=/Error$/]',
         message: 'Use `new` keyword when throwing an `Error`.',
-      }
+      },
     ],
     /* eslint-enable max-len */
     'no-return-await': 'error',
@@ -263,7 +263,7 @@ module.exports = {
     'space-unary-ops': 'error',
     'spaced-comment': ['error', 'always', {
       'block': { 'balanced': true },
-      'exceptions': ['-']
+      'exceptions': ['-'],
     }],
     'strict': ['error', 'global'],
     'symbol-description': 'error',
