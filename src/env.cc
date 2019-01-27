@@ -289,28 +289,9 @@ Environment::~Environment() {
   }
 }
 
-void Environment::Start(const std::vector<std::string>& args,
-                        const std::vector<std::string>& exec_args,
-                        bool start_profiler_idle_notifier) {
+void Environment::Start(bool start_profiler_idle_notifier) {
   HandleScope handle_scope(isolate());
   Context::Scope context_scope(context());
-
-  if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
-      TRACING_CATEGORY_NODE1(environment)) != 0) {
-    auto traced_value = tracing::TracedValue::Create();
-    traced_value->BeginArray("args");
-    for (const std::string& arg : args)
-      traced_value->AppendString(arg);
-    traced_value->EndArray();
-    traced_value->BeginArray("exec_args");
-    for (const std::string& arg : exec_args)
-      traced_value->AppendString(arg);
-    traced_value->EndArray();
-    TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
-      TRACING_CATEGORY_NODE1(environment),
-      "Environment", this,
-      "args", std::move(traced_value));
-  }
 
   CHECK_EQ(0, uv_timer_init(event_loop(), timer_handle()));
   uv_unref(reinterpret_cast<uv_handle_t*>(timer_handle()));
@@ -346,12 +327,35 @@ void Environment::Start(const std::vector<std::string>& args,
     StartProfilerIdleNotifier();
   }
 
-  Local<Object> process_object = CreateProcessObject(this, args, exec_args);
-  set_process_object(process_object);
-
   static uv_once_t init_once = UV_ONCE_INIT;
   uv_once(&init_once, InitThreadLocalOnce);
   uv_key_set(&thread_local_env, this);
+}
+
+MaybeLocal<Object> Environment::CreateProcessObject(
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args) {
+  if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
+          TRACING_CATEGORY_NODE1(environment)) != 0) {
+    auto traced_value = tracing::TracedValue::Create();
+    traced_value->BeginArray("args");
+    for (const std::string& arg : args) traced_value->AppendString(arg);
+    traced_value->EndArray();
+    traced_value->BeginArray("exec_args");
+    for (const std::string& arg : exec_args) traced_value->AppendString(arg);
+    traced_value->EndArray();
+    TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(TRACING_CATEGORY_NODE1(environment),
+                                      "Environment",
+                                      this,
+                                      "args",
+                                      std::move(traced_value));
+  }
+
+  Local<Object> process_object =
+      node::CreateProcessObject(this, args, exec_args)
+          .FromMaybe(Local<Object>());
+  set_process_object(process_object);
+  return process_object;
 }
 
 void Environment::RegisterHandleCleanups() {

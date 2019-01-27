@@ -17,6 +17,7 @@ using v8::EscapableHandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Name;
 using v8::NamedPropertyHandlerConfiguration;
 using v8::NewStringType;
@@ -209,15 +210,13 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
   info.GetReturnValue().Set(envarr);
 }
 
-Local<Object> CreateEnvVarProxy(Local<Context> context,
-                                Isolate* isolate,
-                                Local<Value> data) {
+MaybeLocal<Object> CreateEnvVarProxy(Local<Context> context,
+                                     Isolate* isolate,
+                                     Local<Value> data) {
   EscapableHandleScope scope(isolate);
   Local<ObjectTemplate> env_proxy_template = ObjectTemplate::New(isolate);
   env_proxy_template->SetHandler(NamedPropertyHandlerConfiguration(
       EnvGetter, EnvSetter, EnvQuery, EnvDeleter, EnvEnumerator, data));
-  Local<Object> env_proxy =
-      env_proxy_template->NewInstance(context).ToLocalChecked();
-  return scope.Escape(env_proxy);
+  return scope.EscapeMaybe(env_proxy_template->NewInstance(context));
 }
 }  // namespace node

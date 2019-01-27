@@ -19,6 +19,7 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Just;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Name;
 using v8::NewStringType;
 using v8::None;
@@ -66,19 +67,22 @@ static void GetParentProcessId(Local<Name> property,
   info.GetReturnValue().Set(uv_os_getppid());
 }
 
-Local<Object> CreateProcessObject(Environment* env,
-                                  const std::vector<std::string>& args,
-                                  const std::vector<std::string>& exec_args) {
+MaybeLocal<Object> CreateProcessObject(
+    Environment* env,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args) {
   Isolate* isolate = env->isolate();
   EscapableHandleScope scope(isolate);
   Local<Context> context = env->context();
 
   Local<FunctionTemplate> process_template = FunctionTemplate::New(isolate);
   process_template->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "process"));
-  Local<Object> process = process_template->GetFunction(context)
-                              .ToLocalChecked()
-                              ->NewInstance(context)
-                              .ToLocalChecked();
+  Local<Function> process_ctor;
+  Local<Object> process;
+  if (!process_template->GetFunction(context).ToLocal(&process_ctor) ||
+      !process_ctor->NewInstance(context).ToLocal(&process)) {
+    return MaybeLocal<Object>();
+  }
 
   // process.title
   auto title_string = FIXED_ONE_BYTE_STRING(env->isolate(), "title");
@@ -145,11 +149,16 @@ Local<Object> CreateProcessObject(Environment* env,
                ToV8Value(env->context(), exec_args)
                    .ToLocalChecked()).FromJust();
 
+  Local<Object> env_var_proxy;
+  if (!CreateEnvVarProxy(context, isolate, env->as_external())
+           .ToLocal(&env_var_proxy))
+    return MaybeLocal<Object>();
+
   // process.env
   process
       ->Set(env->context(),
             FIXED_ONE_BYTE_STRING(env->isolate(), "env"),
-            CreateEnvVarProxy(context, isolate, env->as_external()))
+            env_var_proxy)
       .FromJust();
 
   READONLY_PROPERTY(process, "pid",

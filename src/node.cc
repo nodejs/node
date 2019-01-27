@@ -1213,7 +1213,8 @@ Environment* CreateEnvironment(IsolateData* isolate_data,
   std::vector<std::string> args(argv, argv + argc);
   std::vector<std::string> exec_args(exec_argv, exec_argv + exec_argc);
   Environment* env = new Environment(isolate_data, context);
-  env->Start(args, exec_args, per_process::v8_is_profiling);
+  env->Start(per_process::v8_is_profiling);
+  env->CreateProcessObject(args, exec_args);
   return env;
 }
 
@@ -1287,7 +1288,8 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   Local<Context> context = NewContext(isolate);
   Context::Scope context_scope(context);
   Environment env(isolate_data, context);
-  env.Start(args, exec_args, per_process::v8_is_profiling);
+  env.Start(per_process::v8_is_profiling);
+  env.CreateProcessObject(args, exec_args);
 
   const char* path = args.size() > 1 ? args[1].c_str() : nullptr;
   StartInspector(&env, path);
