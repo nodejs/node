@@ -617,9 +617,11 @@ constexpr size_t arraysize(const T (&)[N]) {
   return N;
 }
 
-#ifndef ROUND_UP
-#define ROUND_UP(a, b) ((a) % (b) ? ((a) + (b)) - ((a) % (b)) : (a))
-#endif
+// Round up a to the next highest multiple of b.
+template <typename T>
+constexpr T RoundUp(T a, T b) {
+  return a % b != 0 ? a + b - (a % b) : a;
+}
 
 #ifdef __GNUC__
 #define MUST_USE_RESULT __attribute__((warn_unused_result))
