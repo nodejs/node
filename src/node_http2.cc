@@ -697,7 +697,8 @@ void Http2Stream::EmitStatistics() {
     }
     buffer[IDX_STREAM_STATS_SENTBYTES] = entry->sent_bytes();
     buffer[IDX_STREAM_STATS_RECEIVEDBYTES] = entry->received_bytes();
-    entry->Notify(entry->ToObject());
+    Local<Object> obj;
+    if (entry->ToObject().ToLocal(&obj)) entry->Notify(obj);
   }, static_cast<void*>(entry));
 }
 
@@ -726,7 +727,8 @@ void Http2Session::EmitStatistics() {
     buffer[IDX_SESSION_STATS_DATA_RECEIVED] = entry->data_received();
     buffer[IDX_SESSION_STATS_MAX_CONCURRENT_STREAMS] =
         entry->max_concurrent_streams();
-    entry->Notify(entry->ToObject());
+    Local<Object> obj;
+    if (entry->ToObject().ToLocal(&obj)) entry->Notify(obj);
   }, static_cast<void*>(entry));
 }
 
