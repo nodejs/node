@@ -344,10 +344,10 @@ void TimerFunctionCall(const FunctionCallbackInfo<Value>& args) {
   v8::MaybeLocal<Value> ret;
 
   if (is_construct_call) {
-    ret = fn->NewInstance(context, call_args.size(), call_args.data())
+    ret = fn->NewInstance(context, call_args.length(), call_args.out())
         .FromMaybe(Local<Object>());
   } else {
-    ret = fn->Call(context, args.This(), call_args.size(), call_args.data());
+    ret = fn->Call(context, args.This(), call_args.length(), call_args.out());
   }
 
   uint64_t end = PERFORMANCE_NOW();
