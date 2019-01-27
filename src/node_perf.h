@@ -75,7 +75,7 @@ class PerformanceEntry {
 
   virtual ~PerformanceEntry() { }
 
-  virtual const Local<Object> ToObject() const;
+  virtual v8::MaybeLocal<Object> ToObject() const;
 
   Environment* env() const { return env_; }
 
