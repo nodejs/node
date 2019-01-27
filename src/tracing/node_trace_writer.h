@@ -49,6 +49,7 @@ class NodeTraceWriter : public AsyncTraceWriter {
   // as well as json_trace_writer_.
   Mutex stream_mutex_;
   // Prevents concurrent R/W on state related to write requests.
+  // If both mutexes are locked, request_mutex_ has to be locked first.
   Mutex request_mutex_;
   // Allows blocking calls to Flush() to wait on a condition for
   // trace events to be written to disk.
