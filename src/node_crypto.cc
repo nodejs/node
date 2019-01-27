@@ -3329,15 +3329,18 @@ Local<Function> KeyObject::Initialize(Environment* env, Local<Object> target) {
   return function;
 }
 
-Local<Object> KeyObject::Create(Environment* env,
-                                KeyType key_type,
-                                const ManagedEVPPKey& pkey) {
+MaybeLocal<Object> KeyObject::Create(Environment* env,
+                                     KeyType key_type,
+                                     const ManagedEVPPKey& pkey) {
   CHECK_NE(key_type, kKeyTypeSecret);
   Local<Value> type = Integer::New(env->isolate(), key_type);
-  Local<Object> obj =
-      env->crypto_key_object_constructor()->NewInstance(env->context(),
-                                                        1, &type)
-      .ToLocalChecked();
+  Local<Object> obj;
+  if (!env->crypto_key_object_constructor()
+           ->NewInstance(env->context(), 1, &type)
+           .ToLocal(&obj)) {
+    return MaybeLocal<Object>();
+  }
+
   KeyObject* key = Unwrap<KeyObject>(obj);
   CHECK(key);
   if (key_type == kKeyTypePublic)
@@ -5825,24 +5828,22 @@ class GenerateKeyPairJob : public CryptoJob {
     if (public_key_encoding_.output_key_object_) {
       // Note that this has the downside of containing sensitive data of the
       // private key.
-      *pubkey = KeyObject::Create(env, kKeyTypePublic, pkey_);
-    } else {
-      MaybeLocal<Value> maybe_pubkey =
-          WritePublicKey(env, pkey_.get(), public_key_encoding_);
-      if (maybe_pubkey.IsEmpty())
+      if (!KeyObject::Create(env, kKeyTypePublic, pkey_).ToLocal(pubkey))
         return false;
-      *pubkey = maybe_pubkey.ToLocalChecked();
+    } else {
+      if (!WritePublicKey(env, pkey_.get(), public_key_encoding_)
+               .ToLocal(pubkey))
+        return false;
     }
 
     // Now do the same for the private key.
     if (private_key_encoding_.output_key_object_) {
-      *privkey = KeyObject::Create(env, kKeyTypePrivate, pkey_);
-    } else {
-      MaybeLocal<Value> maybe_privkey =
-          WritePrivateKey(env, pkey_.get(), private_key_encoding_);
-      if (maybe_privkey.IsEmpty())
+      if (!KeyObject::Create(env, kKeyTypePrivate, pkey_).ToLocal(privkey))
         return false;
-      *privkey = maybe_privkey.ToLocalChecked();
+    } else {
+      if (!WritePrivateKey(env, pkey_.get(), private_key_encoding_)
+               .ToLocal(privkey))
+        return false;
     }
 
     return true;
