@@ -30,12 +30,12 @@ namespace node {
 
 using v8::Array;
 using v8::Context;
-using v8::EscapableHandleScope;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::PropertyAttribute;
 using v8::Signature;
@@ -518,18 +518,14 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
   wrap->MakeCallback(env->onmessage_string(), arraysize(argv), argv);
 }
 
-
-Local<Object> UDPWrap::Instantiate(Environment* env,
-                                   AsyncWrap* parent,
-                                   UDPWrap::SocketType type) {
-  EscapableHandleScope scope(env->isolate());
+MaybeLocal<Object> UDPWrap::Instantiate(Environment* env,
+                                        AsyncWrap* parent,
+                                        UDPWrap::SocketType type) {
   AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(parent);
 
   // If this assert fires then Initialize hasn't been called yet.
   CHECK_EQ(env->udp_constructor_function().IsEmpty(), false);
-  Local<Object> instance = env->udp_constructor_function()
-      ->NewInstance(env->context()).ToLocalChecked();
-  return scope.Escape(instance);
+  return env->udp_constructor_function()->NewInstance(env->context());
 }
 
 
