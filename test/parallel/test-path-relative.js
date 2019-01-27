@@ -56,12 +56,13 @@ relativeTests.forEach((test) => {
   test[1].forEach((test) => {
     const actual = relative(test[0], test[1]);
     const expected = test[2];
-    const os = relative === path.win32.relative ? 'win32' : 'posix';
-    const message = `path.${os}.relative(${
-      test.slice(0, 2).map(JSON.stringify).join(',')})\n  expect=${
-      JSON.stringify(expected)}\n  actual=${JSON.stringify(actual)}`;
-    if (actual !== expected)
+    if (actual !== expected) {
+      const os = relative === path.win32.relative ? 'win32' : 'posix';
+      const message = `path.${os}.relative(${
+        test.slice(0, 2).map(JSON.stringify).join(',')})\n  expect=${
+        JSON.stringify(expected)}\n  actual=${JSON.stringify(actual)}`;
       failures.push(`\n${message}`);
+    }
   });
 });
 assert.strictEqual(failures.length, 0, failures.join(''));
