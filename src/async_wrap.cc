@@ -204,16 +204,16 @@ PromiseWrap* PromiseWrap::New(Environment* env,
                               Local<Promise> promise,
                               PromiseWrap* parent_wrap,
                               bool silent) {
-  Local<Object> object = env->promise_wrap_template()
-                            ->NewInstance(env->context()).ToLocalChecked();
-  object->SetInternalField(PromiseWrap::kPromiseField, promise);
-  object->SetInternalField(PromiseWrap::kIsChainedPromiseField,
-                           parent_wrap != nullptr ?
-                              v8::True(env->isolate()) :
-                              v8::False(env->isolate()));
+  Local<Object> obj;
+  if (!env->promise_wrap_template()->NewInstance(env->context()).ToLocal(&obj))
+    return nullptr;
+  obj->SetInternalField(PromiseWrap::kPromiseField, promise);
+  obj->SetInternalField(PromiseWrap::kIsChainedPromiseField,
+                        parent_wrap != nullptr ? v8::True(env->isolate())
+                                               : v8::False(env->isolate()));
   CHECK_EQ(promise->GetAlignedPointerFromInternalField(0), nullptr);
-  promise->SetInternalField(0, object);
-  return new PromiseWrap(env, object, silent);
+  promise->SetInternalField(0, obj);
+  return new PromiseWrap(env, obj, silent);
 }
 
 void PromiseWrap::GetPromise(Local<String> property,
@@ -251,6 +251,7 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
       PromiseWrap* parent_wrap = extractPromiseWrap(parent_promise);
       if (parent_wrap == nullptr) {
         parent_wrap = PromiseWrap::New(env, parent_promise, nullptr, true);
+        if (parent_wrap == nullptr) return;
       }
 
       AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(parent_wrap);
@@ -260,7 +261,8 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
     }
   }
 
-  CHECK_NOT_NULL(wrap);
+  if (wrap == nullptr) return;
+
   if (type == PromiseHookType::kBefore) {
     env->async_hooks()->push_async_ids(
       wrap->get_async_id(), wrap->get_trigger_async_id());
