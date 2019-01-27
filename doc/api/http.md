@@ -914,6 +914,10 @@ also be accessed at `request.connection`.
 This event can also be explicitly emitted by users to inject connections
 into the HTTP server. In that case, any [`Duplex`][] stream can be passed.
 
+If `socket.setTimeout()` is called here, the timeout will be replaced with
+`server.keepAliveTimeout` when the socket has served a request (if
+`server.keepAliveTimeout` is non-zero).
+
 ### Event: 'request'
 <!-- YAML
 added: v0.1.0
