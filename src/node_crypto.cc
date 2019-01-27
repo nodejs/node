@@ -2748,7 +2748,7 @@ static ParsePublicKeyResult ParsePublicKeyPEM(EVPKeyPointer* pkey,
 
   ParsePublicKeyResult ret;
 
-  // Try PKCS#8 first.
+  // Try parsing as a SubjectPublicKeyInfo first.
   ret = TryParsePublicKey(pkey, bp, "PUBLIC KEY",
       [](const unsigned char** p, long l) {  // NOLINT(runtime/int)
         return d2i_PUBKEY(nullptr, p, l);
