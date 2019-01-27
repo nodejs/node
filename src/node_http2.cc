@@ -382,7 +382,7 @@ Headers::Headers(Isolate* isolate,
                                  header_string_len);
   // Make sure the start address is aligned appropriately for an nghttp2_nv*.
   char* start = reinterpret_cast<char*>(
-      ROUND_UP(reinterpret_cast<uintptr_t>(*buf_), alignof(nghttp2_nv)));
+      RoundUp(reinterpret_cast<uintptr_t>(*buf_), alignof(nghttp2_nv)));
   char* header_contents = start + (count_ * sizeof(nghttp2_nv));
   nghttp2_nv* const nva = reinterpret_cast<nghttp2_nv*>(start);
 
@@ -438,8 +438,8 @@ Origins::Origins(Isolate* isolate,
 
   // Make sure the start address is aligned appropriately for an nghttp2_nv*.
   char* start = reinterpret_cast<char*>(
-      ROUND_UP(reinterpret_cast<uintptr_t>(*buf_),
-               alignof(nghttp2_origin_entry)));
+      RoundUp(reinterpret_cast<uintptr_t>(*buf_),
+              alignof(nghttp2_origin_entry)));
   char* origin_contents = start + (count_ * sizeof(nghttp2_origin_entry));
   nghttp2_origin_entry* const nva =
       reinterpret_cast<nghttp2_origin_entry*>(start);
