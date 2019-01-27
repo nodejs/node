@@ -270,23 +270,13 @@ For more information, see [Deprecations](#deprecations).
 #### Breaking Changes to Internal Elements
 
 Breaking changes to internal elements may occur in semver-patch or semver-minor
-commits. Collaborators should take significant care when making and reviewing
-such changes. An effort must be made to determine the potential impact of the
-change in the ecosystem. Use
+commits. Take significant care when making and reviewing such changes. Make
+an effort to determine the potential impact of the change in the ecosystem. Use
 [Canary in the Goldmine](https://github.com/nodejs/citgm) to test such changes.
 If a change will cause ecosystem breakage, then it is semver-major. Consider
 providing a Public API in such cases.
 
 #### When Breaking Changes Actually Break Things
-
-Because breaking (semver-major) changes are permitted to land on the master
-branch at any time, at least some subset of the user ecosystem may be adversely
-affected in the short term when attempting to build and use Node.js directly
-from the master branch. This potential instability is why Node.js offers
-distinct Current and LTS release streams that offer explicit stability
-guarantees.
-
-Specifically:
 
 * Breaking changes should *never* land in Current or LTS except when:
   * Resolving critical security issues.
