@@ -131,11 +131,12 @@ joinTests.forEach((test) => {
       } else {
         os = 'posix';
       }
-      const message =
-        `path.${os}.join(${test[0].map(JSON.stringify).join(',')})\n  expect=${
+      if (actual !== expected && actualAlt !== expected) {
+        const delimiter = test[0].map(JSON.stringify).join(',');
+        const message = `path.${os}.join(${delimiter})\n  expect=${
           JSON.stringify(expected)}\n  actual=${JSON.stringify(actual)}`;
-      if (actual !== expected && actualAlt !== expected)
         failures.push(`\n${message}`);
+      }
     });
   });
 });
