@@ -1049,7 +1049,7 @@ Maybe<int> SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
     Maybe<size_t> maybe_size = StringBytes::StorageSize(isolate, value, UTF8);
     if (maybe_size.IsNothing()) return Nothing<int>();
     data_size += maybe_size.FromJust() + 1;
-    data_size = ROUND_UP(data_size, sizeof(void*));
+    data_size = RoundUp(data_size, sizeof(void*));
   }
 
   buffer = new char[list_size + data_size];
@@ -1066,7 +1066,7 @@ Maybe<int> SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
                                       value,
                                       UTF8);
     buffer[data_offset++] = '\0';
-    data_offset = ROUND_UP(data_offset, sizeof(void*));
+    data_offset = RoundUp(data_offset, sizeof(void*));
   }
 
   list[length] = nullptr;
