@@ -42,16 +42,16 @@ using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Int32;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
 using v8::Value;
 
 using AsyncHooks = Environment::AsyncHooks;
 
-
-Local<Object> PipeWrap::Instantiate(Environment* env,
-                                    AsyncWrap* parent,
-                                    PipeWrap::SocketType type) {
+MaybeLocal<Object> PipeWrap::Instantiate(Environment* env,
+                                         AsyncWrap* parent,
+                                         PipeWrap::SocketType type) {
   EscapableHandleScope handle_scope(env->isolate());
   AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(parent);
   CHECK_EQ(false, env->pipe_constructor_template().IsEmpty());
@@ -60,9 +60,8 @@ Local<Object> PipeWrap::Instantiate(Environment* env,
                                     .ToLocalChecked();
   CHECK_EQ(false, constructor.IsEmpty());
   Local<Value> type_value = Int32::New(env->isolate(), type);
-  Local<Object> instance =
-      constructor->NewInstance(env->context(), 1, &type_value).ToLocalChecked();
-  return handle_scope.Escape(instance);
+  return handle_scope.EscapeMaybe(
+      constructor->NewInstance(env->context(), 1, &type_value));
 }
 
 
