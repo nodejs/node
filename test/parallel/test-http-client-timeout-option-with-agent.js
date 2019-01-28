@@ -30,8 +30,8 @@ server.listen(0, options.host, () => {
 
 function doRequest() {
   options.port = server.address().port;
+  const start = process.hrtime.bigint();
   const req = http.request(options);
-  const start = Date.now();
   req.on('error', () => {
     // This space is intentionally left blank.
   });
@@ -40,11 +40,11 @@ function doRequest() {
   let timeout_events = 0;
   req.on('timeout', common.mustCall(() => {
     timeout_events += 1;
-    const duration = Date.now() - start;
+    const duration = process.hrtime.bigint() - start;
     // The timeout event cannot be precisely timed. It will delay
     // some number of milliseconds.
     assert.ok(
-      duration >= HTTP_CLIENT_TIMEOUT,
+      duration >= BigInt(HTTP_CLIENT_TIMEOUT * 1e6),
       `duration ${duration}ms less than timeout ${HTTP_CLIENT_TIMEOUT}ms`
     );
   }));
