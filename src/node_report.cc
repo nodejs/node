@@ -426,22 +426,20 @@ static void PrintVersionInformation(JSONWriter* writer) {
   if (uname(&os_info) >= 0) {
 #ifdef _AIX
     buf << os_info.sysname << " " << os_info.version << "." << os_info.release;
-    writer->json_keyvalue("osVersion", buf.str());
-    buf.flush();
 #else
     buf << os_info.sysname << " " << os_info.release << " " << os_info.version;
+#endif /* _AIX */
     writer->json_keyvalue("osVersion", buf.str());
-    buf.flush();
-#endif
+    buf.str("");
+    buf << os_info.nodename << " " << os_info.machine;
+    writer->json_keyvalue("machine", buf.str());
+
     const char* (*libc_version)();
     *(reinterpret_cast<void**>(&libc_version)) =
         dlsym(RTLD_DEFAULT, "gnu_get_libc_version");
     if (libc_version != nullptr) {
       writer->json_keyvalue("glibc", (*libc_version)());
     }
-    buf << os_info.nodename << " " << os_info.machine;
-    writer->json_keyvalue("machine", buf.str());
-    buf.flush();
   }
 #endif
 }
