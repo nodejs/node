@@ -236,11 +236,11 @@ struct nghttp2_header : public MemoryRetainer {
   V(PROXY_CONNECTION, "proxy-connection")
 
 enum http_known_headers {
-HTTP_KNOWN_HEADER_MIN,
+  HTTP_KNOWN_HEADER_MIN,
 #define V(name, value) HTTP_HEADER_##name,
-HTTP_KNOWN_HEADERS(V)
+  HTTP_KNOWN_HEADERS(V)
 #undef V
-HTTP_KNOWN_HEADER_MAX
+  HTTP_KNOWN_HEADER_MAX
 };
 
 // While some of these codes are used within the HTTP/2 implementation in
@@ -313,7 +313,7 @@ HTTP_KNOWN_HEADER_MAX
 
 enum http_status_codes {
 #define V(name, code) HTTP_STATUS_##name = code,
-HTTP_STATUS_CODES(V)
+  HTTP_STATUS_CODES(V)
 #undef V
 };
 
