@@ -166,8 +166,8 @@ explains how to install all prerequisites.
 * `clang` and `clang++` 3.4.2 or newer (macOS: latest Xcode Command Line Tools)
 * Python 2.6 or 2.7
     * Python 2.6 reached its end of life in 2013 so its use is discouraged.
-    * Python 2.7 reaches its end of life at the end of 2019 so a transition to Python 3 is underway
-    * Python 3.5, 3.6, and 3.7 are intended to be supported in the near future
+    * Python 2.7 end of life is in 2019 so a transition to Python 3 is underway.
+    * Python 3.5, 3.6, and 3.7 are intended to be supported in the near future.
 * GNU Make 3.81 or newer
 
 On macOS, install the `Xcode Command Line Tools` by running
@@ -196,7 +196,7 @@ may reduce build time. For more information, see the
 [GNU Make Documentation](https://www.gnu.org/software/make/manual/html_node/Parallel.html).
 
 Note that the above requires that `python` resolve to Python 2.6 or 2.7
-and not a newer version.  See the above notes on __Prerequisites__.
+and not a newer version.  See the above notes on **Prerequisites**.
 
 After building, setting up [firewall rules](tools/macos-firewall.sh) can avoid
 popups asking to accept incoming network connections when running tests.
