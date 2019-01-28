@@ -164,7 +164,9 @@ explains how to install all prerequisites.
 
 * `gcc` and `g++` 4.9.4 or newer, or
 * `clang` and `clang++` 3.4.2 or newer (macOS: latest Xcode Command Line Tools)
-* Python 2.6 or 2.7
+* Python 2.7
+    * Python 2.7 end of life is in 2019 so a transition to Python 3 is underway.
+    * Python 3.5, 3.6, and 3.7 are experimental.
 * GNU Make 3.81 or newer
 
 On macOS, install the `Xcode Command Line Tools` by running
@@ -192,8 +194,8 @@ The `-j4` option will cause `make` to run 4 simultaneous compilation jobs which
 may reduce build time. For more information, see the
 [GNU Make Documentation](https://www.gnu.org/software/make/manual/html_node/Parallel.html).
 
-Note that the above requires that `python` resolve to Python 2.6 or 2.7
-and not a newer version.
+Note that the above requires that `python` resolve to Python 2.7 and not a newer
+version.  See [Prerequisites](#prerequisites).
 
 After building, setting up [firewall rules](tools/macos-firewall.sh) can avoid
 popups asking to accept incoming network connections when running tests.
@@ -400,7 +402,7 @@ $ backtrace
 
 Prerequisites:
 
-* [Python 2.6 or 2.7](https://www.python.org/downloads/)
+* [Python 2.7](https://www.python.org/downloads/)
 * The "Desktop development with C++" workload from
   [Visual Studio 2017](https://www.visualstudio.com/downloads/) or the
   "Visual C++ build tools" workload from the
