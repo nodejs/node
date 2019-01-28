@@ -51,6 +51,9 @@ using v8_inspector::V8InspectorClient;
 
 static uv_sem_t start_io_thread_semaphore;
 static uv_async_t start_io_thread_async;
+// This is just an additional check to make sure start_io_thread_async
+// is not accidentally re-used or used when uninitialized.
+static std::atomic_bool start_io_thread_async_initialized { false };
 
 class StartIoTask : public Task {
  public:
@@ -88,6 +91,7 @@ static void StartIoThreadWakeup(int signo) {
 inline void* StartIoThreadMain(void* unused) {
   for (;;) {
     uv_sem_wait(&start_io_thread_semaphore);
+    CHECK(start_io_thread_async_initialized);
     Agent* agent = static_cast<Agent*>(start_io_thread_async.data);
     if (agent != nullptr)
       agent->RequestIoThreadStart();
@@ -141,6 +145,7 @@ static int StartDebugSignalHandler() {
 
 #ifdef _WIN32
 DWORD WINAPI StartIoThreadProc(void* arg) {
+  CHECK(start_io_thread_async_initialized);
   Agent* agent = static_cast<Agent*>(start_io_thread_async.data);
   if (agent != nullptr)
     agent->RequestIoThreadStart();
@@ -664,6 +669,7 @@ Agent::Agent(Environment* env)
 
 Agent::~Agent() {
   if (start_io_thread_async.data == this) {
+    CHECK(start_io_thread_async_initialized.exchange(false));
     start_io_thread_async.data = nullptr;
     // This is global, will never get freed
     uv_close(reinterpret_cast<uv_handle_t*>(&start_io_thread_async), nullptr);
@@ -681,6 +687,7 @@ bool Agent::Start(const std::string& path,
 
   client_ = std::make_shared<NodeInspectorClient>(parent_env_, is_main);
   if (parent_env_->is_main_thread()) {
+    CHECK_EQ(start_io_thread_async_initialized.exchange(true), false);
     CHECK_EQ(0, uv_async_init(parent_env_->event_loop(),
                               &start_io_thread_async,
                               StartIoThreadAsyncCallback));
@@ -847,6 +854,7 @@ void Agent::RequestIoThreadStart() {
   // We need to attempt to interrupt V8 flow (in case Node is running
   // continuous JS code) and to wake up libuv thread (in case Node is waiting
   // for IO events)
+  CHECK(start_io_thread_async_initialized);
   uv_async_send(&start_io_thread_async);
   Isolate* isolate = parent_env_->isolate();
   v8::Platform* platform = parent_env_->isolate_data()->platform();
@@ -854,6 +862,7 @@ void Agent::RequestIoThreadStart() {
     platform->GetForegroundTaskRunner(isolate);
   taskrunner->PostTask(std::make_unique<StartIoTask>(this));
   isolate->RequestInterrupt(StartIoInterrupt, this);
+  CHECK(start_io_thread_async_initialized);
   uv_async_send(&start_io_thread_async);
 }
 
