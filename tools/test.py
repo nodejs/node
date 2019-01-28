@@ -66,11 +66,9 @@ except NameError:
   xrange = range    # Python 3
 
 try:
-  import urllib.parse                      # Python 3
-  urllib_unquote = urllib.parse.unquote
+  from urllib.parse import unquote    # Python 3
 except ImportError:
-  import urllib                            # Python 2
-  urllib_unquote = urllib.unquote
+  from urllib import unquote          # Python 2
 
 
 logger = logging.getLogger('testrunner')
@@ -1485,8 +1483,8 @@ def GetSpecialCommandProcessor(value):
     return ExpandCommand
   else:
     pos = value.find('@')
-    prefix = urllib_unquote(value[:pos]).split()
-    suffix = urllib_unquote(value[pos+1:]).split()
+    prefix = unquote(value[:pos]).split()
+    suffix = unquote(value[pos+1:]).split()
     def ExpandCommand(args):
       return prefix + args + suffix
     return ExpandCommand
