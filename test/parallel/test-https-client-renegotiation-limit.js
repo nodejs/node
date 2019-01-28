@@ -29,6 +29,7 @@ if (!common.opensslCli)
 
 const assert = require('assert');
 const tls = require('tls');
+const https = require('https');
 const fixtures = require('../common/fixtures');
 
 // renegotiation limits to test
@@ -47,52 +48,61 @@ const LIMITS = [0, 1, 2, 3, 5, 10, 16];
 function test(next) {
   const options = {
     cert: fixtures.readSync('test_cert.pem'),
-    key: fixtures.readSync('test_key.pem')
+    key: fixtures.readSync('test_key.pem'),
   };
 
-  const server = tls.createServer(options, function(conn) {
-    conn.on('error', function(err) {
+  const server = https.createServer(options, (req, res) => {
+    const conn = req.connection;
+    conn.on('error', (err) => {
       console.error(`Caught exception: ${err}`);
       assert(/TLS session renegotiation attack/.test(err));
       conn.destroy();
     });
-    conn.pipe(conn);
+    res.end('ok');
   });
 
-  server.listen(0, function() {
-    const options = {
-      host: server.address().host,
-      port: server.address().port,
-      rejectUnauthorized: false
-    };
-    const client = tls.connect(options, spam);
+  server.listen(0, () => {
+    const agent = https.Agent({
+      keepAlive: true,
+    });
 
+    let client;
     let renegs = 0;
 
-    client.on('close', function() {
-      assert.strictEqual(renegs, tls.CLIENT_RENEG_LIMIT + 1);
-      server.close();
-      process.nextTick(next);
-    });
+    const options = {
+      rejectUnauthorized: false,
+      agent,
+    };
 
-    client.on('error', function(err) {
-      console.log('CLIENT ERR', err);
-      throw err;
-    });
+    const { port } = server.address();
 
-    client.on('close', function(hadErr) {
-      assert.strictEqual(hadErr, false);
-    });
+    https.get(`https://localhost:${port}/`, options, (res) => {
+      client = res.socket;
 
-    // simulate renegotiation attack
-    function spam() {
-      client.write('');
-      client.renegotiate({}, (err) => {
-        assert.ifError(err);
-        assert.ok(renegs <= tls.CLIENT_RENEG_LIMIT);
-        spam();
+      client.on('close', (hadErr) => {
+        assert.strictEqual(hadErr, false);
+        assert.strictEqual(renegs, tls.CLIENT_RENEG_LIMIT + 1);
+        server.close();
+        process.nextTick(next);
       });
-      renegs++;
-    }
+
+      client.on('error', (err) => {
+        console.log('CLIENT ERR', err);
+        throw err;
+      });
+
+      spam();
+
+      // simulate renegotiation attack
+      function spam() {
+        client.renegotiate({}, (err) => {
+          assert.ifError(err);
+          assert.ok(renegs <= tls.CLIENT_RENEG_LIMIT);
+          setImmediate(spam);
+        });
+        renegs++;
+      }
+    });
+
   });
 }
