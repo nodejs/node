@@ -45,7 +45,6 @@ import codecs
 import copy
 import getopt
 import glob
-import logging
 import itertools
 import math  # for log
 import os
@@ -56,10 +55,6 @@ import sys
 import unicodedata
 import xml.etree.ElementTree
 
-try:
-  xrange
-except NameError:
-  xrange = range
 # if empty, use defaults
 _header_extensions = set([])
 
@@ -73,7 +68,7 @@ _valid_extensions = set([])
 # option (also supported in CPPLINT.cfg)
 def GetHeaderExtensions():
   if not _header_extensions:
-    return set(['h', 'hpp', 'hxx', 'h++', 'cuh'])
+    return set(['h', 'hh', 'hpp', 'hxx', 'h++', 'cuh'])
   return _header_extensions
 
 # The allowed extensions for file names
@@ -85,7 +80,6 @@ def GetAllExtensions():
 
 def GetNonHeaderExtensions():
   return GetAllExtensions().difference(GetHeaderExtensions())
-logger = logging.getLogger('testrunner')
 
 
 _USAGE = """
@@ -95,7 +89,6 @@ Syntax: cpplint.py [--verbose=#] [--output=emacs|eclipse|vs7|junit]
                    [--root=subdir] [--linelength=digits] [--recursive]
                    [--exclude=path]
                    [--headers=ext1,ext2]
-                   [--logfile=filename]
                    [--extensions=hpp,cpp,...]
         <file> [file] ...
 
@@ -129,7 +122,7 @@ Syntax: cpplint.py [--verbose=#] [--output=emacs|eclipse|vs7|junit]
       likely to be false positives.
 
     quiet
-      Suppress output other than linting errors, such as information about
+      Supress output other than linting errors, such as information about
       which files have been processed and excluded.
 
     filter=-x,+y,...
@@ -289,6 +282,7 @@ _ERROR_CATEGORIES = [
     'build/forward_decl',
     'build/header_guard',
     'build/include',
+    'build/include_subdir',
     'build/include_alpha',
     'build/include_order',
     'build/include_what_you_use',
@@ -359,13 +353,7 @@ _LEGACY_ERROR_CATEGORIES = [
 # flag. By default all errors are on, so only add here categories that should be
 # off by default (i.e., categories that must be enabled by the --filter= flags).
 # All entries here should start with a '-' or '+', as in the --filter= flag.
-_DEFAULT_FILTERS = [
-    '-build/include',
-    '-build/include_alpha',
-    '-build/include_order',
-    '-build/include_subdir',
-    '-legal/copyright',
-    ]
+_DEFAULT_FILTERS = ['-build/include_alpha']
 
 # The default list of categories suppressed for C (not C++) files.
 _DEFAULT_C_SUPPRESSED_CATEGORIES = [
@@ -489,6 +477,18 @@ _CPP_HEADERS = frozenset([
     'utility',
     'valarray',
     'vector',
+    # 17.6.1.2 C++14 headers
+    'shared_mutex',
+    # 17.6.1.2 C++17 headers
+    'any',
+    'charconv',
+    'codecvt',
+    'execution',
+    'filesystem',
+    'memory_resource',
+    'optional',
+    'string_view',
+    'variant',
     # 17.6.1.2 C++ headers for C library facilities
     'cassert',
     'ccomplex',
@@ -626,12 +626,6 @@ _SEARCH_C_FILE = re.compile(r'\b(?:LINT_C_FILE|'
 # Match string that indicates we're working on a Linux Kernel file.
 _SEARCH_KERNEL_FILE = re.compile(r'\b(?:LINT_KERNEL_FILE)')
 
-_NULL_TOKEN_PATTERN = re.compile(r'\bNULL\b')
-
-_RIGHT_LEANING_POINTER_PATTERN = re.compile(r'[^=|(,\s><);&?:}]'
-                                            r'(?<!(sizeof|return))'
-                                            r'\s\*[a-zA-z_][0-9a-zA-z_]*')
-
 _regexp_compile_cache = {}
 
 # {str, set(int)}: a map from error categories to sets of linenumbers
@@ -650,7 +644,7 @@ _repository = None
 # Files to exclude from linting. This is set by the --exclude flag.
 _excludes = None
 
-# Whether to suppress PrintInfo messages
+# Whether to supress PrintInfo messages
 _quiet = False
 
 # The allowed line length of files.
@@ -694,6 +688,8 @@ def unicode_escape_decode(x):
 # {str, bool}: a map from error categories to booleans which indicate if the
 # category should be suppressed for every line.
 _global_error_suppressions = {}
+
+
 
 
 def ParseNolintSuppressions(filename, raw_line, linenum, error):
@@ -1278,7 +1274,7 @@ class FileInfo(object):
     return os.path.abspath(self._filename).replace('\\', '/')
 
   def RepositoryName(self):
-    """FullName after removing the local path to the repository.
+    r"""FullName after removing the local path to the repository.
 
     If we have a real absolute path name here we can try to do something smart:
     detecting the root of the checkout and truncating /path/to/checkout from
@@ -1288,11 +1284,54 @@ class FileInfo(object):
     locations won't see bogus errors.
     """
     fullname = self.FullName()
-    # XXX(bnoordhuis) Expects that cpplint.py lives in the tools/ directory.
-    toplevel = os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) \
-    .replace('\\', '/').decode('utf-8')
-    prefix = os.path.commonprefix([fullname, toplevel])
-    return fullname[len(prefix) + 1:]
+
+    if os.path.exists(fullname):
+      project_dir = os.path.dirname(fullname)
+
+      # If the user specified a repository path, it exists, and the file is
+      # contained in it, use the specified repository path
+      if _repository:
+        repo = FileInfo(_repository).FullName()
+        root_dir = project_dir
+        while os.path.exists(root_dir):
+          # allow case insensitive compare on Windows
+          if os.path.normcase(root_dir) == os.path.normcase(repo):
+            return os.path.relpath(fullname, root_dir).replace('\\', '/')
+          one_up_dir = os.path.dirname(root_dir)
+          if one_up_dir == root_dir:
+            break
+          root_dir = one_up_dir
+
+      if os.path.exists(os.path.join(project_dir, ".svn")):
+        # If there's a .svn file in the current directory, we recursively look
+        # up the directory tree for the top of the SVN checkout
+        root_dir = project_dir
+        one_up_dir = os.path.dirname(root_dir)
+        while os.path.exists(os.path.join(one_up_dir, ".svn")):
+          root_dir = os.path.dirname(root_dir)
+          one_up_dir = os.path.dirname(one_up_dir)
+
+        prefix = os.path.commonprefix([root_dir, project_dir])
+        return fullname[len(prefix) + 1:]
+
+      # Not SVN <= 1.6? Try to find a git, hg, or svn top level directory by
+      # searching up from the current path.
+      root_dir = current_dir = os.path.dirname(fullname)
+      while current_dir != os.path.dirname(current_dir):
+        if (os.path.exists(os.path.join(current_dir, ".git")) or
+            os.path.exists(os.path.join(current_dir, ".hg")) or
+            os.path.exists(os.path.join(current_dir, ".svn"))):
+          root_dir = current_dir
+        current_dir = os.path.dirname(current_dir)
+
+      if (os.path.exists(os.path.join(root_dir, ".git")) or
+          os.path.exists(os.path.join(root_dir, ".hg")) or
+          os.path.exists(os.path.join(root_dir, ".svn"))):
+        prefix = os.path.commonprefix([root_dir, project_dir])
+        return fullname[len(prefix) + 1:]
+
+    # Don't know what to do; header guard warnings may be wrong...
+    return fullname
 
   def Split(self):
     """Splits the file into the directory, basename, and extension.
@@ -1313,7 +1352,7 @@ class FileInfo(object):
     return self.Split()[1]
 
   def Extension(self):
-    """File extension - text following the final period."""
+    """File extension - text following the final period, includes that period."""
     return self.Split()[2]
 
   def NoExtension(self):
@@ -1383,15 +1422,9 @@ def Error(filename, linenum, category, confidence, message):
     elif _cpplint_state.output_format == 'eclipse':
       sys.stderr.write('%s:%s: warning: %s  [%s] [%d]\n' % (
           filename, linenum, message, category, confidence))
-    elif _cpplint_state.output_format == 'tap':
-      template = ('not ok %(filename)s\n'
-          '  ---\n'
-          '  message: %(message)s\n'
-          '  data:\n'
-          '    line: %(linenum)d\n'
-          '    ruleId: %(category)s\n'
-          '  ...')
-      logger.info(template % locals())
+    elif _cpplint_state.output_format == 'junit':
+        _cpplint_state.AddJUnitFailure(filename, linenum, message, category,
+            confidence)
     else:
       final_message = '%s:%s:  %s  [%s] [%d]\n' % (
           filename, linenum, message, category, confidence)
@@ -1907,7 +1940,7 @@ def CheckForCopyright(filename, lines, error):
 
   # We'll say it should occur by line 10. Don't forget there's a
   # dummy line at the front.
-  for line in xrange(1, min(len(lines), 11)):
+  for line in range(1, min(len(lines), 11)):
     if re.search(r'Copyright', lines[line], re.I): break
   else:                       # means no copyright line was found
     error(filename, 0, 'legal/copyright', 5,
@@ -1953,12 +1986,10 @@ def GetHeaderGuardCPPVariable(filename):
   fileinfo = FileInfo(filename)
   file_path_from_root = fileinfo.RepositoryName()
   if _root:
-    suffix = os.sep
-    # On Windows using directory separator will leave us with
-    # "bogus escape error" unless we properly escape regex.
-    if suffix == '\\':
-      suffix += '\\'
-    file_path_from_root = re.sub('^' + _root + suffix, '', file_path_from_root)
+    # Convert root path to unix format because file_path_from_root is also
+    # in that format and they wouldn't match otherwise on Windows machines
+    root = os.path.normpath(_root).replace('\\', '/')
+    file_path_from_root = re.sub('^' + root + '/', '', file_path_from_root)
   return re.sub(r'[^a-zA-Z0-9]', '_', file_path_from_root).upper() + '_'
 
 
@@ -2074,22 +2105,22 @@ def CheckHeaderFileIncluded(filename, include_state, error):
     return
 
   for ext in GetHeaderExtensions():
-    basefilename = filename[0:len(filename) - len(fileinfo.Extension())]
-    headerfile = basefilename + '.' + ext
-    if not os.path.exists(headerfile):
-      continue
-    headername = FileInfo(headerfile).RepositoryName()
-    first_include = None
-    for section_list in include_state.include_list:
-      for f in section_list:
-        if headername in f[0] or f[0] in headername:
-          return
-        if not first_include:
-          first_include = f[1]
+      basefilename = filename[0:len(filename) - len(fileinfo.Extension())]
+      headerfile = basefilename + '.' + ext
+      if not os.path.exists(headerfile):
+        continue
+      headername = FileInfo(headerfile).RepositoryName()
+      first_include = None
+      for section_list in include_state.include_list:
+        for f in section_list:
+          if headername in f[0] or f[0] in headername:
+            return
+          if not first_include:
+            first_include = f[1]
 
-    error(filename, first_include, 'build/include', 5,
-          '%s should include its header file %s' % (fileinfo.RepositoryName(),
-                                                    headername))
+      error(filename, first_include, 'build/include', 5,
+            '%s should include its header file %s' % (fileinfo.RepositoryName(),
+                                                      headername))
 
 
 def CheckForBadCharacters(filename, lines, error):
@@ -2115,21 +2146,6 @@ def CheckForBadCharacters(filename, lines, error):
             'Line contains invalid UTF-8 (or Unicode replacement character).')
     if '\0' in line:
       error(filename, linenum, 'readability/nul', 5, 'Line contains NUL byte.')
-
-
-def CheckInlineHeader(filename, include_state, error):
-  """Logs an error if both a header and its inline variant are included."""
-
-  all_headers = dict(item for sublist in include_state.include_list
-                     for item in sublist)
-  bad_headers = set('%s.h' % name[:-6] for name in all_headers.keys()
-                    if name.endswith('-inl.h'))
-  bad_headers &= set(all_headers.keys())
-
-  for name in bad_headers:
-    err =  '%s includes both %s and %s-inl.h' % (filename, name, name)
-    linenum = all_headers[name]
-    error(filename, linenum, 'build/include', 5, err)
 
 
 def CheckForNewlineAtEOF(filename, lines, error):
@@ -3188,7 +3204,7 @@ def CheckForFunctionLengths(filename, clean_lines, linenum,
 
   if starting_func:
     body_found = False
-    for start_linenum in xrange(linenum, clean_lines.NumLines()):
+    for start_linenum in range(linenum, clean_lines.NumLines()):
       start_line = lines[start_linenum]
       joined_line += ' ' + start_line.lstrip()
       if Search(r'(;|})', start_line):  # Declarations and trivial functions
@@ -4409,49 +4425,6 @@ def CheckAltTokens(filename, clean_lines, linenum, error):
           'Use operator %s instead of %s' % (
               _ALT_TOKEN_REPLACEMENT[match.group(1)], match.group(1)))
 
-def CheckNullTokens(filename, clean_lines, linenum, error):
-  """Check NULL usage.
-
-  Args:
-    filename: The name of the current file.
-    clean_lines: A CleansedLines instance containing the file.
-    linenum: The number of the line to check.
-    error: The function to call with any errors found.
-  """
-  line = clean_lines.elided[linenum]
-
-  # Avoid preprocessor lines
-  if Match(r'^\s*#', line):
-    return
-
-  if line.find('/*') >= 0 or line.find('*/') >= 0:
-    return
-
-  for match in _NULL_TOKEN_PATTERN.finditer(line):
-    error(filename, linenum, 'readability/null_usage', 2,
-          'Use nullptr instead of NULL')
-
-def CheckLeftLeaningPointer(filename, clean_lines, linenum, error):
-  """Check for left-leaning pointer placement.
-
-  Args:
-    filename: The name of the current file.
-    clean_lines: A CleansedLines instance containing the file.
-    linenum: The number of the line to check.
-    error: The function to call with any errors found.
-  """
-  line = clean_lines.elided[linenum]
-
-  # Avoid preprocessor lines
-  if Match(r'^\s*#', line):
-    return
-
-  if '/*' in line or '*/' in line:
-    return
-
-  for match in _RIGHT_LEANING_POINTER_PATTERN.finditer(line):
-    error(filename, linenum, 'readability/null_usage', 2,
-          'Use left leaning pointer instead of right leaning')
 
 def GetLineWidth(line):
   """Determines the width of the line in column positions.
@@ -4503,10 +4476,6 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state,
   if line.find('\t') != -1:
     error(filename, linenum, 'whitespace/tab', 1,
           'Tab found; better to use spaces')
-
-  if line.find('template<') != -1:
-    error(filename, linenum, 'whitespace/template', 1,
-          'Leave a single space after template, as in `template <...>`')
 
   # One or three blank spaces at the beginning of the line is weird; it's
   # hard to reconcile that with 2-space indents.
@@ -4601,8 +4570,6 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state,
   CheckSpacingForFunctionCall(filename, clean_lines, linenum, error)
   CheckCheck(filename, clean_lines, linenum, error)
   CheckAltTokens(filename, clean_lines, linenum, error)
-  CheckNullTokens(filename, clean_lines, linenum, error)
-  CheckLeftLeaningPointer(filename, clean_lines, linenum, error)
   classinfo = nesting_state.InnermostClass()
   if classinfo:
     CheckSectionSpacing(filename, clean_lines, classinfo, linenum, error)
@@ -4677,7 +4644,7 @@ def _ClassifyInclude(fileinfo, include, is_system):
 
   # Headers with C++ extensions shouldn't be considered C system headers
   if is_system and os.path.splitext(include)[1] in ['.hpp', '.hxx', '.h++']:
-    is_system = False
+      is_system = False
 
   if is_system:
     if is_cpp_h:
@@ -4911,8 +4878,6 @@ def CheckLanguage(filename, clean_lines, linenum, file_extension,
   if match:
     include_state.ResetSection(match.group(1))
 
-  # Make Windows paths like Unix.
-  fullname = os.path.abspath(filename).replace('\\', '/')
 
   # Perform other checks now that we are sure that this is not an include line
   CheckCasts(filename, clean_lines, linenum, error)
@@ -5565,12 +5530,15 @@ _HEADERS_CONTAINING_TEMPLATES = (
     ('<limits>', ('numeric_limits',)),
     ('<list>', ('list',)),
     ('<map>', ('map', 'multimap',)),
-    ('<memory>', ('allocator',)),
+    ('<memory>', ('allocator', 'make_shared', 'make_unique', 'shared_ptr',
+                  'unique_ptr', 'weak_ptr')),
     ('<queue>', ('queue', 'priority_queue',)),
     ('<set>', ('set', 'multiset',)),
     ('<stack>', ('stack',)),
     ('<string>', ('char_traits', 'basic_string',)),
     ('<tuple>', ('tuple',)),
+    ('<unordered_map>', ('unordered_map', 'unordered_multimap')),
+    ('<unordered_set>', ('unordered_set', 'unordered_multiset')),
     ('<utility>', ('pair',)),
     ('<vector>', ('vector',)),
 
@@ -5585,7 +5553,7 @@ _HEADERS_MAYBE_TEMPLATES = (
     ('<algorithm>', ('copy', 'max', 'min', 'min_element', 'sort',
                      'transform',
                     )),
-    ('<utility>', ('swap',)),
+    ('<utility>', ('forward', 'make_pair', 'move', 'swap')),
     )
 
 _RE_PATTERN_STRING = re.compile(r'\bstring\b')
@@ -5716,7 +5684,7 @@ def CheckForIncludeWhatYouUse(filename, clean_lines, include_state, error,
   required = {}  # A map of header name to linenumber and the template entity.
                  # Example of required: { '<functional>': (1219, 'less<>') }
 
-  for linenum in xrange(clean_lines.NumLines()):
+  for linenum in range(clean_lines.NumLines()):
     line = clean_lines.elided[linenum]
     if not line or line[0] == '#':
       continue
@@ -5739,8 +5707,13 @@ def CheckForIncludeWhatYouUse(filename, clean_lines, include_state, error,
       continue
 
     for pattern, template, header in _re_pattern_templates:
-      if pattern.search(line):
-        required[header] = (linenum, template)
+      matched = pattern.search(line)
+      if matched:
+        # Don't warn about IWYU in non-STL namespaces:
+        # (We check only the first match per line; good enough.)
+        prefix = line[:matched.start()]
+        if prefix.endswith('std::') or not prefix.endswith('::'):
+          required[header] = (linenum, template)
 
   # The policy is that if you #include something in foo.h you don't need to
   # include it again in foo.cc. Here, we will look at possible includes.
@@ -6120,7 +6093,7 @@ def ProcessFileData(filename, file_extension, lines, error,
   if file_extension in GetHeaderExtensions():
     CheckForHeaderGuard(filename, clean_lines, error)
 
-  for line in xrange(clean_lines.NumLines()):
+  for line in range(clean_lines.NumLines()):
     ProcessLine(filename, file_extension, clean_lines, line,
                 include_state, function_state, nesting_state, error,
                 extra_check_functions)
@@ -6138,8 +6111,6 @@ def ProcessFileData(filename, file_extension, lines, error,
   CheckForBadCharacters(filename, lines, error)
 
   CheckForNewlineAtEOF(filename, lines, error)
-
-  CheckInlineHeader(filename, include_state, error)
 
 def ProcessConfigOverrides(filename):
   """ Loads the configuration files and processes the config overrides.
@@ -6190,7 +6161,7 @@ def ProcessConfigOverrides(filename):
               if pattern.match(base_name):
                 _cpplint_state.PrintInfo('Ignoring "%s": file excluded by '
                     '"%s". File path component "%s" matches pattern "%s"\n' %
-                                 (filename, cfg_file, base_name, val))
+                    (filename, cfg_file, base_name, val))
                 return False
           elif name == 'linelength':
             global _line_length
@@ -6363,7 +6334,6 @@ def ParseArguments(args):
     (opts, filenames) = getopt.getopt(args, '', ['help', 'output=', 'verbose=',
                                                  'counting=',
                                                  'filter=',
-                                                 'logfile=',
                                                  'root=',
                                                  'repository=',
                                                  'linelength=',
@@ -6385,9 +6355,9 @@ def ParseArguments(args):
     if opt == '--help':
       PrintUsage(None)
     elif opt == '--output':
-      if val not in ('emacs', 'vs7', 'eclipse', 'junit', 'tap'):
-        PrintUsage(
-            'The only allowed output formats are emacs, vs7, eclipse, junit and tap.')
+      if val not in ('emacs', 'vs7', 'eclipse', 'junit'):
+        PrintUsage('The only allowed output formats are emacs, vs7, eclipse '
+                   'and junit.')
       output_format = val
     elif opt == '--verbose':
       verbosity = int(val)
@@ -6408,9 +6378,9 @@ def ParseArguments(args):
     elif opt == '--linelength':
       global _line_length
       try:
-          _line_length = int(val)
+        _line_length = int(val)
       except ValueError:
-          PrintUsage('Line length must be digits.')
+        PrintUsage('Line length must be digits.')
     elif opt == '--exclude':
       global _excludes
       if not _excludes:
@@ -6419,7 +6389,7 @@ def ParseArguments(args):
     elif opt == '--extensions':
       global _valid_extensions
       try:
-          _valid_extensions = set(val.split(','))
+        _valid_extensions = set(val.split(','))
       except ValueError:
           PrintUsage('Extensions must be comma seperated list.')
     elif opt == '--headers':
@@ -6430,8 +6400,6 @@ def ParseArguments(args):
         PrintUsage('Extensions must be comma seperated list.')
     elif opt == '--recursive':
       recursive = True
-    elif opt == '--logfile':
-      logger.addHandler(logging.FileHandler(val, mode='wb'))
     elif opt == '--quiet':
       global _quiet
       _quiet = True
@@ -6497,21 +6465,12 @@ def main():
   try:
     # Change stderr to write with replacement characters so we don't die
     # if we try to print something containing non-ASCII characters.
-    sys.stderr = codecs.StreamReaderWriter(sys.stderr,
-                                          codecs.getreader('utf8'),
-                                          codecs.getwriter('utf8'),
-                                          'replace')
-
-    logger.addHandler(logging.StreamHandler(sys.stdout))
-    logger.setLevel(logging.INFO)
+    sys.stderr = codecs.StreamReader(sys.stderr, 'replace')
 
     _cpplint_state.ResetErrorCounts()
     for filename in filenames:
-        ProcessFile(filename.decode('utf-8'), _cpplint_state.verbose_level)
+      ProcessFile(filename, _cpplint_state.verbose_level)
     _cpplint_state.PrintErrorCounts()
-
-    if _cpplint_state.output_format == 'tap':
-      logger.info('TAP version 13')
 
     if _cpplint_state.output_format == 'junit':
       sys.stderr.write(_cpplint_state.FormatJUnitXML())
