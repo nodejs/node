@@ -280,6 +280,7 @@ _ERROR_CATEGORIES = [
     'build/include',
     'build/include_subdir',
     'build/include_alpha',
+    'build/include_inline',
     'build/include_order',
     'build/include_what_you_use',
     'build/namespaces_literals',
@@ -294,11 +295,13 @@ _ERROR_CATEGORIES = [
     'readability/constructors',
     'readability/fn_size',
     'readability/inheritance',
+    'readability/pointer_notation',
     'readability/multiline_comment',
     'readability/multiline_string',
     'readability/namespace',
     'readability/nolint',
     'readability/nul',
+    'readability/null_usage',
     'readability/strings',
     'readability/todo',
     'readability/utf8',
@@ -622,6 +625,12 @@ _SEARCH_C_FILE = re.compile(r'\b(?:LINT_C_FILE|'
 # Match string that indicates we're working on a Linux Kernel file.
 _SEARCH_KERNEL_FILE = re.compile(r'\b(?:LINT_KERNEL_FILE)')
 
+_NULL_TOKEN_PATTERN = re.compile(r'\bNULL\b')
+
+_RIGHT_LEANING_POINTER_PATTERN = re.compile(r'[^=|(,\s><);&?:}]'
+                                            r'(?<!(sizeof|return))'
+                                            r'\s\*[a-zA-Z_][0-9a-zA-Z_]*')
+
 _regexp_compile_cache = {}
 
 # {str, set(int)}: a map from error categories to sets of linenumbers
@@ -641,7 +650,7 @@ _repository = None
 # Files to exclude from linting. This is set by the --exclude flag.
 _excludes = None
 
-# Whether to supress PrintInfo messages
+# Whether to suppress PrintInfo messages
 _quiet = False
 
 # The allowed line length of files.
@@ -841,9 +850,9 @@ class _IncludeState(object):
   # needs to move backwards, CheckNextIncludeOrder will raise an error.
   _INITIAL_SECTION = 0
   _MY_H_SECTION = 1
-  _C_SECTION = 2
-  _CPP_SECTION = 3
-  _OTHER_H_SECTION = 4
+  _OTHER_H_SECTION = 2
+  _C_SECTION = 3
+  _CPP_SECTION = 4
 
   _TYPE_NAMES = {
       _C_SYS_HEADER: 'C system header',
@@ -855,9 +864,9 @@ class _IncludeState(object):
   _SECTION_NAMES = {
       _INITIAL_SECTION: "... nothing. (This can't be an error.)",
       _MY_H_SECTION: 'a header this file implements',
+      _OTHER_H_SECTION: 'other header',
       _C_SECTION: 'C system header',
       _CPP_SECTION: 'C++ system header',
-      _OTHER_H_SECTION: 'other header',
       }
 
   def __init__(self):
@@ -2251,6 +2260,21 @@ def CheckForBadCharacters(filename, lines, error):
             'Line contains invalid UTF-8 (or Unicode replacement character).')
     if '\0' in line:
       error(filename, linenum, 'readability/nul', 5, 'Line contains NUL byte.')
+
+
+def CheckInlineHeader(filename, include_state, error):
+  """Logs an error if both a header and its inline variant are included."""
+
+  all_headers = dict(item for sublist in include_state.include_list
+                     for item in sublist)
+  bad_headers = set('%s.h' % name[:-6] for name in all_headers.keys()
+                    if name.endswith('-inl.h'))
+  bad_headers &= set(all_headers.keys())
+
+  for name in bad_headers:
+    err =  '%s includes both %s and %s-inl.h' % (filename, name, name)
+    linenum = all_headers[name]
+    error(filename, linenum, 'build/include_inline', 5, err)
 
 
 def CheckForNewlineAtEOF(filename, lines, error):
@@ -4501,6 +4525,49 @@ def CheckAltTokens(filename, clean_lines, linenum, error):
           'Use operator %s instead of %s' % (
               _ALT_TOKEN_REPLACEMENT[match.group(1)], match.group(1)))
 
+def CheckNullTokens(filename, clean_lines, linenum, error):
+  """Check NULL usage.
+
+  Args:
+    filename: The name of the current file.
+    clean_lines: A CleansedLines instance containing the file.
+    linenum: The number of the line to check.
+    error: The function to call with any errors found.
+  """
+  line = clean_lines.elided[linenum]
+
+  # Avoid preprocessor lines
+  if Match(r'^\s*#', line):
+    return
+
+  if line.find('/*') >= 0 or line.find('*/') >= 0:
+    return
+
+  for match in _NULL_TOKEN_PATTERN.finditer(line):
+    error(filename, linenum, 'readability/null_usage', 2,
+          'Use nullptr instead of NULL')
+
+def CheckLeftLeaningPointer(filename, clean_lines, linenum, error):
+  """Check for left-leaning pointer placement.
+
+  Args:
+    filename: The name of the current file.
+    clean_lines: A CleansedLines instance containing the file.
+    linenum: The number of the line to check.
+    error: The function to call with any errors found.
+  """
+  line = clean_lines.elided[linenum]
+
+  # Avoid preprocessor lines
+  if Match(r'^\s*#', line):
+    return
+
+  if '/*' in line or '*/' in line:
+    return
+
+  for match in _RIGHT_LEANING_POINTER_PATTERN.finditer(line):
+    error(filename, linenum, 'readability/pointer_notation', 2,
+          'Use left leaning pointer instead of right leaning')
 
 def GetLineWidth(line):
   """Determines the width of the line in column positions.
@@ -4655,6 +4722,8 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state,
   CheckSpacingForFunctionCall(filename, clean_lines, linenum, error)
   CheckCheck(filename, clean_lines, linenum, error)
   CheckAltTokens(filename, clean_lines, linenum, error)
+  CheckNullTokens(filename, clean_lines, linenum, error)
+  CheckLeftLeaningPointer(filename, clean_lines, linenum, error)
   classinfo = nesting_state.InnermostClass()
   if classinfo:
     CheckSectionSpacing(filename, clean_lines, classinfo, linenum, error)
@@ -4819,11 +4888,10 @@ def CheckIncludeLine(filename, clean_lines, linenum, include_state, error):
       include_state.include_list[-1].append((include, linenum))
 
       # We want to ensure that headers appear in the right order:
-      # 1) for foo.cc, foo.h  (preferred location)
-      # 2) c system files
-      # 3) cpp system files
-      # 4) for foo.cc, foo.h  (deprecated location)
-      # 5) other google headers
+      # 1) for foo.cc, foo.h
+      # 2) other project headers
+      # 3) c system files
+      # 4) cpp system files
       #
       # We classify each include statement as one of those 5 types
       # using a number of techniques. The include_state object keeps
@@ -6196,6 +6264,8 @@ def ProcessFileData(filename, file_extension, lines, error,
   CheckForBadCharacters(filename, lines, error)
 
   CheckForNewlineAtEOF(filename, lines, error)
+
+  CheckInlineHeader(filename, include_state, error)
 
 def ProcessConfigOverrides(filename):
   """ Loads the configuration files and processes the config overrides.
