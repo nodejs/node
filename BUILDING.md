@@ -196,7 +196,7 @@ may reduce build time. For more information, see the
 [GNU Make Documentation](https://www.gnu.org/software/make/manual/html_node/Parallel.html).
 
 Note that the above requires that `python` resolve to Python 2.6 or 2.7
-and not a newer version.  See the above notes on **Prerequisites**.
+and not a newer version.  See [Prerequisites](#prerequisites).
 
 After building, setting up [firewall rules](tools/macos-firewall.sh) can avoid
 popups asking to accept incoming network connections when running tests.
