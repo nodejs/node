@@ -10,14 +10,15 @@
   * A [plugin][] is available for some editors to automatically apply these
     rules.
 * Changes to documentation should be checked with `make lint-md`.
-* American English spelling is preferred. "Capitalize" vs. "Capitalise",
-  "color" vs. "colour", etc.
+* American English spelling is preferred.
+  * OK: _capitalize_, _color_
+  * NOT OK: _capitalise_, _colour_
 * Use [serial commas][].
-* Avoid personal pronouns in reference documentation ("I", "you", "we").
+* Avoid personal pronouns (_I_, _you_, _we_) in reference documentation.
   * Personal pronouns are acceptable in colloquial documentation such as guides.
   * Use gender-neutral pronouns and gender-neutral plural nouns.
-    * OK: "they", "their", "them", "folks", "people", "developers"
-    * NOT OK: "his", "hers", "him", "her", "guys", "dudes"
+    * OK: _they_, _their_, _them_, _folks_, _people_, _developers_
+    * NOT OK: _his_, _hers_, _him_, _her_, _guys_, _dudes_
 * When combining wrapping elements (parentheses and quotes), terminal
   punctuation should be placed:
   * Inside the wrapping element if the wrapping element contains a complete
