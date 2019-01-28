@@ -5,13 +5,9 @@ const { Worker } = require('worker_threads');
 
 const worker = new Worker('./does-not-exist.js', {
   execArgv: ['--experimental-modules'],
-  stderr: true
 });
 
-let stderr = '';
-worker.stderr.setEncoding('utf8');
-worker.stderr.on('data', (chunk) => stderr += chunk);
-worker.stderr.on('end', common.mustCall(() => {
+worker.on('error', common.mustCall((err) => {
   // eslint-disable-next-line node-core/no-unescaped-regexp-dot
-  assert(/Cannot find module .+does-not-exist.js/.test(stderr), stderr);
+  assert(/Cannot find module .+does-not-exist.js/.test(err.message), err);
 }));
