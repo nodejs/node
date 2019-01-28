@@ -1482,9 +1482,9 @@ def GetSpecialCommandProcessor(value):
       return args
     return ExpandCommand
   else:
-    pos = value.find('@')
-    prefix = unquote(value[:pos]).split()
-    suffix = unquote(value[pos+1:]).split()
+    prefix, _, suffix = value.partition('@')
+    prefix = unquote(prefix).split()
+    suffix = unquote(suffix).split()
     def ExpandCommand(args):
       return prefix + args + suffix
     return ExpandCommand
