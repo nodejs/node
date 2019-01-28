@@ -653,14 +653,14 @@ class NODE_EXTERN CallbackScope {
                 async_context asyncContext);
   ~CallbackScope();
 
- private:
-  InternalCallbackScope* private_;
-  v8::TryCatch try_catch_;
-
   void operator=(const CallbackScope&) = delete;
   void operator=(CallbackScope&&) = delete;
   CallbackScope(const CallbackScope&) = delete;
   CallbackScope(CallbackScope&&) = delete;
+
+ private:
+  InternalCallbackScope* private_;
+  v8::TryCatch try_catch_;
 };
 
 /* An API specific to emit before/after callbacks is unnecessary because
