@@ -18,7 +18,10 @@
               '../../../../out/<(PRODUCT_DIR)/<(openssl_product)'
             ]
           },
-        }]
+        }],
+        [ 'OS in "linux freebsd openbsd solaris android aix cloudabi"', {
+          'cflags': ['-Wno-cast-function-type'],
+        }],
       ]
     }
   ]

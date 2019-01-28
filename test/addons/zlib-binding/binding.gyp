@@ -4,7 +4,11 @@
       'target_name': 'binding',
       'sources': ['binding.cc'],
       'include_dirs': ['../../../deps/zlib'],
-      'cflags': ['-Wno-cast-function-type'],
+      'conditions': [
+        [ 'OS in "linux freebsd openbsd solaris android aix cloudabi"', {
+          'cflags': ['-Wno-cast-function-type'],
+        }],
+      ],
     },
   ]
 }
