@@ -68,6 +68,12 @@ try:
 except NameError:
   xrange = range    # Python 3
 
+try:
+  from urllib.parse import unquote    # Python 3
+except ImportError:
+  from urllib import unquote          # Python 2
+
+
 logger = logging.getLogger('testrunner')
 skip_regex = re.compile(r'# SKIP\S*\s+(.*)', re.IGNORECASE)
 
@@ -119,7 +125,7 @@ class ProgressIndicator(object):
     # Spawn N-1 threads and then use this thread as the last one.
     # That way -j1 avoids threading altogether which is a nice fallback
     # in case of threading problems.
-    for i in xrange(tasks - 1):
+    for i in range(tasks - 1):
       thread = threading.Thread(target=self.RunSingle, args=[True, i + 1])
       threads.append(thread)
       thread.start()
@@ -755,7 +761,7 @@ def Execute(args, context, timeout=None, env={}, faketty=False, disable_core_fil
     del env_copy["NODE_PATH"]
 
   # Extend environment
-  for key, value in env.iteritems():
+  for key, value in env.items():
     env_copy[key] = value
 
   preexec_fn = None
@@ -808,7 +814,7 @@ class TestConfiguration(object):
   def Contains(self, path, file):
     if len(path) > len(file):
       return False
-    for i in xrange(len(path)):
+    for i in range(len(path)):
       if not path[i].match(NormalizePath(file[i])):
         return False
     return True
@@ -1263,7 +1269,7 @@ class Rule(object):
   def Contains(self, path):
     if len(self.path) > len(path):
       return False
-    for i in xrange(len(self.path)):
+    for i in range(len(self.path)):
       if not self.path[i].match(path[i]):
         return False
     return True
@@ -1330,7 +1336,7 @@ def BuildOptions():
       help='write test output to file. NOTE: this only applies the tap progress indicator')
   result.add_option("-p", "--progress",
       help="The style of progress indicator (verbose, dots, color, mono, tap)",
-      choices=PROGRESS_INDICATORS.keys(), default="mono")
+      choices=list(PROGRESS_INDICATORS.keys()), default="mono")
   result.add_option("--report", help="Print a summary of the tests to be run",
       default=False, action="store_true")
   result.add_option("-s", "--suite", help="A test suite",
@@ -1403,7 +1409,7 @@ def ProcessOptions(options):
   options.mode = options.mode.split(',')
   options.run = options.run.split(',')
   # Split at commas and filter out all the empty strings.
-  options.skip_tests = filter(bool, options.skip_tests.split(','))
+  options.skip_tests = [test for test in options.skip_tests.split(',') if test]
   if options.run == [""]:
     options.run = None
   elif len(options.run) != 2:
@@ -1411,7 +1417,7 @@ def ProcessOptions(options):
     return False
   else:
     try:
-      options.run = map(int, options.run)
+      options.run = [int(level) for level in options.run]
     except ValueError:
       print("Could not parse the integers from the run argument.")
       return False
@@ -1479,10 +1485,9 @@ def GetSpecialCommandProcessor(value):
       return args
     return ExpandCommand
   else:
-    pos = value.find('@')
-    import urllib
-    prefix = urllib.unquote(value[:pos]).split()
-    suffix = urllib.unquote(value[pos+1:]).split()
+    prefix, _, suffix = value.partition('@')
+    prefix = unquote(prefix).split()
+    suffix = unquote(suffix).split()
     def ExpandCommand(args):
       return prefix + args + suffix
     return ExpandCommand
@@ -1531,8 +1536,8 @@ IGNORED_SUITES = [
 
 def ArgsToTestPaths(test_root, args, suites):
   if len(args) == 0 or 'default' in args:
-    def_suites = filter(lambda s: s not in IGNORED_SUITES, suites)
-    args = filter(lambda a: a != 'default', args) + def_suites
+    def_suites = [s for s in suites if s not in IGNORED_SUITES]
+    args = [a for a in args if a != 'default'] + def_suites
   subsystem_regex = re.compile(r'^[a-zA-Z-]*$')
   check = lambda arg: subsystem_regex.match(arg) and (arg not in suites)
   mapped_args = ["*/test*-%s-*" % arg if check(arg) else arg for arg in args]
@@ -1699,7 +1704,9 @@ def Main():
     else:
       return True
 
-  cases_to_run = filter(should_keep, all_cases)
+  cases_to_run = [
+    test_case for test_case in all_cases if should_keep(test_case)
+  ]
 
   if options.report:
     print(REPORT_TEMPLATE % {
@@ -1716,7 +1723,7 @@ def Main():
     # can be different in different machines
     cases_to_run.sort(key=lambda c: (c.arch, c.mode, c.file))
     cases_to_run = [ cases_to_run[i] for i
-                     in xrange(options.run[0],
+                     in range(options.run[0],
                                len(cases_to_run),
                                options.run[1]) ]
   if len(cases_to_run) == 0:
