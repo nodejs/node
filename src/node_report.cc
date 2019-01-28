@@ -247,7 +247,7 @@ static void WriteNodeReport(Isolate* isolate,
 #ifdef _WIN32
   snprintf(timebuf,
            sizeof(timebuf),
-           "%4d/%02d/%02d %02d:%02d:%02d",
+           "%4d-%02d-%02dT%02d:%02d:%02dZ",
            tm_struct->wYear,
            tm_struct->wMonth,
            tm_struct->wDay,
