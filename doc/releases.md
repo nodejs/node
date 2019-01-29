@@ -753,7 +753,7 @@ The commits in the generated changelog must then be organized:
 For a major release, all SEMVER-MAJOR commits that are not strictly internal,
 test, or doc-related are to be listed as notable changes. Some SEMVER-MINOR
 commits may be listed as notable changes on a case-by-case basis. Use your
-judgement there.
+judgment there.
 
 
 [CI lockdown procedure]: https://github.com/nodejs/build/blob/master/doc/jenkins-guide.md#restricting-access-for-security-releases
