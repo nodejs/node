@@ -1,27 +1,20 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
-import ast
 import errno
+import json
 import os
-import re
 import shutil
 import sys
-from getmoduleversion import get_version
 
 # set at init time
 node_prefix = '/usr/local' # PREFIX variable from Makefile
 install_path = None # base target directory (DESTDIR + PREFIX from Makefile)
-target_defaults = None
 variables = None
 
 def abspath(*args):
   path = os.path.join(*args)
   return os.path.abspath(path)
-
-def load_config():
-  s = open('config.gypi').read()
-  return ast.literal_eval(s)
 
 def try_unlink(path):
   try:
@@ -173,6 +166,7 @@ def headers(action):
   action([
     'common.gypi',
     'config.gypi',
+    'config.json',
     'src/node.h',
     'src/node_api.h',
     'src/js_native_api.h',
@@ -205,14 +199,12 @@ def headers(action):
     ], 'include/node/')
 
 def run(args):
-  global node_prefix, install_path, target_defaults, variables
+  global node_prefix, install_path, variables
 
   # chdir to the project's top-level directory
   os.chdir(abspath(os.path.dirname(__file__), '..'))
 
-  conf = load_config()
-  variables = conf['variables']
-  target_defaults = conf['target_defaults']
+  variables = json.load('config.json')
 
   # argv[2] is a custom install prefix for packagers (think DESTDIR)
   # argv[3] is a custom install prefix (think PREFIX)

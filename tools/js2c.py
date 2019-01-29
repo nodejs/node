@@ -193,6 +193,10 @@ UnionBytes NativeModuleLoader::GetConfig() {{
   return UnionBytes(config_raw, arraysize(config_raw));  // config.gypi
 }}
 
+UnionBytes NativeModuleLoader::GetBuildConfig() {{
+  return UnionBytes(build_config_raw, arraysize(build_config_raw));  // config.json
+}}
+
 }}  // namespace native_module
 
 }}  // namespace node
@@ -272,11 +276,18 @@ def JS2C(source, target):
     if name.endswith('.gypi'):
       # Currently only config.gypi is allowed
       assert name == 'config.gypi'
-      lines = re.sub(r'\'true\'', 'true', lines)
-      lines = re.sub(r'\'false\'', 'false', lines)
+      config_filename = str(name).replace('gypi', 'json')
+      config = ReadFile(config_filename)
+      config = re.sub('"true"', 'true', config)
+      config = re.sub('"false"', 'false', config)
+      print(config)
+      config_definition = GetDefinition('build_config_raw', config)
+      definitions.append(config_definition)
+      lines = lines.replace("{ 'includes': ['config.json']}", config)
       lines = re.sub(r'#.*?\n', '', lines)
-      lines = re.sub(r'\'', '"', lines)
+      lines = re.sub("'", '"', lines)
       definition = GetDefinition('config_raw', lines)
+      print(lines)
       definitions.append(definition)
     else:
       AddModule(name.split('.', 1)[0], lines)

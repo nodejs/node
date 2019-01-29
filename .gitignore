@@ -35,8 +35,6 @@ node
 node_g
 *.swp
 .benchmark_reports
-icu_config.gypi
-.eslintcache
 node_trace.*.log
 coverage/
 !**/node_modules/**/coverage
@@ -50,11 +48,11 @@ Release/
 !**/node_modules/**/release
 !doc/blog/**
 *.sln
-!nodemsi.sln
+!tools/msvs/msi/nodemsi.sln
 *.suo
 *.vcproj
 *.vcxproj
-!custom_actions.vcxproj
+!tools/msvs/msi/custom_actions.vcxproj
 *.vcxproj.user
 *.vcxproj.filters
 UpgradeLog*.XML
@@ -64,12 +62,12 @@ ipch/
 *.opensdf
 *.VC.db
 *.VC.opendb
-.vs/
-.vscode/
 /*.exe
 
 /config.mk
+/config.json
 /config.gypi
+/icu_config.gypi
 /config.status
 /config_fips.gypi
 *-nodegyp*
@@ -115,7 +113,6 @@ tools/doc/node_modules
 tools/clang-format/node_modules
 
 # test artifacts
-icu_config.gypi
 *.tap
 
 # Xcode workspaces and project folders

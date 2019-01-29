@@ -163,7 +163,7 @@ clean: ## Remove build artifacts.
 .PHONY: distclean
 distclean:
 	$(RM) -r out
-	$(RM) config.gypi icu_config.gypi config_fips.gypi
+	$(RM) config.gypi icu_config.gypi config_fips.gypi config.json
 	$(RM) config.mk
 	$(RM) -r $(NODE_EXE) $(NODE_G_EXE)
 	$(RM) -r node_modules
