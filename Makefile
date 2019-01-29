@@ -461,6 +461,10 @@ test-all: test-build ## Run everything in test/.
 test-all-valgrind: test-build
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=debug,release --valgrind
 
+.PHONY: test-all-suites
+test-all-suites: | bench-addons-build
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) test/*
+
 CI_NATIVE_SUITES ?= addons js-native-api node-api
 CI_JS_SUITES ?= default
 CI_DOC := doctool
