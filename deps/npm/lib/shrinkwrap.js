@@ -167,6 +167,8 @@ function childVersion (top, child, req) {
 function childRequested (top, child, requested) {
   if (requested.type === 'directory' || requested.type === 'file') {
     return 'file:' + unixFormatPath(path.relative(top.path, child.package._resolved || requested.fetchSpec))
+  } else if (requested.type === 'git' && child.package._from) {
+    return child.package._from
   } else if (!isRegistry(requested) && !child.fromBundle) {
     return child.package._resolved || requested.saveSpec || requested.rawSpec
   } else if (requested.type === 'tag') {

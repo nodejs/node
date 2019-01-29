@@ -1,51 +1,50 @@
 'use strict';
+const pump = require('pump');
 const bufferStream = require('./buffer-stream');
 
-function getStream(inputStream, opts) {
+class MaxBufferError extends Error {
+	constructor() {
+		super('maxBuffer exceeded');
+		this.name = 'MaxBufferError';
+	}
+}
+
+function getStream(inputStream, options) {
 	if (!inputStream) {
 		return Promise.reject(new Error('Expected a stream'));
 	}
 
-	opts = Object.assign({maxBuffer: Infinity}, opts);
+	options = Object.assign({maxBuffer: Infinity}, options);
 
-	const maxBuffer = opts.maxBuffer;
+	const {maxBuffer} = options;
+
 	let stream;
-	let clean;
-
-	const p = new Promise((resolve, reject) => {
-		const error = err => {
-			if (err) { // null check
-				err.bufferedData = stream.getBufferedValue();
+	return new Promise((resolve, reject) => {
+		const rejectPromise = error => {
+			if (error) { // A null check
+				error.bufferedData = stream.getBufferedValue();
 			}
-
-			reject(err);
+			reject(error);
 		};
 
-		stream = bufferStream(opts);
-		inputStream.once('error', error);
-		inputStream.pipe(stream);
+		stream = pump(inputStream, bufferStream(options), error => {
+			if (error) {
+				rejectPromise(error);
+				return;
+			}
+
+			resolve();
+		});
 
 		stream.on('data', () => {
 			if (stream.getBufferedLength() > maxBuffer) {
-				reject(new Error('maxBuffer exceeded'));
+				rejectPromise(new MaxBufferError());
 			}
 		});
-		stream.once('error', error);
-		stream.on('end', resolve);
-
-		clean = () => {
-			// some streams doesn't implement the `stream.Readable` interface correctly
-			if (inputStream.unpipe) {
-				inputStream.unpipe(stream);
-			}
-		};
-	});
-
-	p.then(clean, clean);
-
-	return p.then(() => stream.getBufferedValue());
+	}).then(() => stream.getBufferedValue());
 }
 
 module.exports = getStream;
-module.exports.buffer = (stream, opts) => getStream(stream, Object.assign({}, opts, {encoding: 'buffer'}));
-module.exports.array = (stream, opts) => getStream(stream, Object.assign({}, opts, {array: true}));
+module.exports.buffer = (stream, options) => getStream(stream, Object.assign({}, options, {encoding: 'buffer'}));
+module.exports.array = (stream, options) => getStream(stream, Object.assign({}, options, {array: true}));
+module.exports.MaxBufferError = MaxBufferError;

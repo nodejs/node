@@ -1,17 +1,16 @@
 'use strict'
 
-var common = require('../common-tap.js')
-var npm = require('../../')
-var test = require('tap').test
-var mkdirp = require('mkdirp')
-var rimraf = require('rimraf')
-var path = require('path')
-var mr = require('npm-registry-mock')
-var ms = require('mississippi')
+const common = require('../common-tap.js')
+const getStream = require('get-stream')
+const npm = require('../../')
+const test = require('tap').test
+const mkdirp = require('mkdirp')
+const rimraf = require('rimraf')
+const path = require('path')
+const mr = require('npm-registry-mock')
 
 var _createEntryUpdateStream = require('../../lib/search/all-package-metadata.js')._createEntryUpdateStream
 
-var ALL = common.registry + '/-/all'
 var PKG_DIR = path.resolve(__dirname, 'create-entry-update-stream')
 var CACHE_DIR = path.resolve(PKG_DIR, 'cache')
 
@@ -46,27 +45,25 @@ test('createEntryUpdateStream full request', function (t) {
   }, {
     date: Date.now() // should never be used.
   })
-  _createEntryUpdateStream(ALL, {}, 600, 0, function (err, stream, latest) {
-    if (err) throw err
+  return _createEntryUpdateStream(600, 0, {
+    registry: common.registry
+  }).then(({
+    updateStream: stream,
+    updatedLatest: latest
+  }) => {
     t.equals(latest, 1234, '`latest` correctly extracted')
     t.ok(stream, 'returned a stream')
-    var results = []
-    stream.on('data', function (pkg) {
-      results.push(pkg)
-    })
-    ms.finished(stream, function (err) {
-      if (err) throw err
-      t.deepEquals(results, [{
-        name: 'bar',
-        version: '1.0.0'
-      }, {
-        name: 'foo',
-        version: '1.0.0'
-      }])
-      server.done()
-      cleanup()
-      t.end()
-    })
+    return getStream.array(stream)
+  }).then(results => {
+    t.deepEquals(results, [{
+      name: 'bar',
+      version: '1.0.0'
+    }, {
+      name: 'foo',
+      version: '1.0.0'
+    }])
+    server.done()
+    cleanup()
   })
 })
 
@@ -79,27 +76,25 @@ test('createEntryUpdateStream partial update', function (t) {
   }, {
     date: (new Date(now)).toISOString()
   })
-  _createEntryUpdateStream(ALL, {}, 600, 1234, function (err, stream, latest) {
-    if (err) throw err
+  return _createEntryUpdateStream(600, 1234, {
+    registry: common.registry
+  }).then(({
+    updateStream: stream,
+    updatedLatest: latest
+  }) => {
     t.equals(latest, now, '`latest` correctly extracted from header')
     t.ok(stream, 'returned a stream')
-    var results = []
-    stream.on('data', function (pkg) {
-      results.push(pkg)
-    })
-    ms.finished(stream, function (err) {
-      if (err) throw err
-      t.deepEquals(results, [{
-        name: 'bar',
-        version: '1.0.0'
-      }, {
-        name: 'foo',
-        version: '1.0.0'
-      }])
-      server.done()
-      cleanup()
-      t.end()
-    })
+    return getStream.array(stream)
+  }).then(results => {
+    t.deepEquals(results, [{
+      name: 'bar',
+      version: '1.0.0'
+    }, {
+      name: 'foo',
+      version: '1.0.0'
+    }])
+    server.done()
+    cleanup()
   })
 })
 
@@ -113,27 +108,26 @@ test('createEntryUpdateStream authed request', function (t) {
   }, {
     date: Date.now() // should never be used.
   })
-  _createEntryUpdateStream(ALL, { token: token }, 600, 0, function (err, stream, latest) {
-    if (err) throw err
+  return _createEntryUpdateStream(600, 0, {
+    registry: common.registry,
+    token
+  }).then(({
+    updateStream: stream,
+    updatedLatest: latest
+  }) => {
     t.equals(latest, 1234, '`latest` correctly extracted')
     t.ok(stream, 'returned a stream')
-    var results = []
-    stream.on('data', function (pkg) {
-      results.push(pkg)
-    })
-    ms.finished(stream, function (err) {
-      if (err) throw err
-      t.deepEquals(results, [{
-        name: 'bar',
-        version: '1.0.0'
-      }, {
-        name: 'foo',
-        version: '1.0.0'
-      }])
-      server.done()
-      cleanup()
-      t.end()
-    })
+    return getStream.array(stream)
+  }).then(results => {
+    t.deepEquals(results, [{
+      name: 'bar',
+      version: '1.0.0'
+    }, {
+      name: 'foo',
+      version: '1.0.0'
+    }])
+    server.done()
+    cleanup()
   })
 })
 
@@ -143,14 +137,17 @@ test('createEntryUpdateStream bad auth', function (t) {
   server.get('/-/all', { authorization: 'Bearer ' + token }).once().reply(401, {
     error: 'unauthorized search request'
   })
-  _createEntryUpdateStream(ALL, { token: token }, 600, 0, function (err, stream, latest) {
+  return _createEntryUpdateStream(600, 0, {
+    registry: common.registry,
+    token
+  }).then(() => {
+    throw new Error('should not succeed')
+  }, err => {
     t.ok(err, 'got an error from auth failure')
-    t.notOk(stream, 'no stream returned')
-    t.notOk(latest, 'no latest returned')
     t.match(err, /unauthorized/, 'failure message from request used')
+  }).then(() => {
     server.done()
     cleanup()
-    t.end()
   })
 })
 
@@ -158,8 +155,12 @@ test('createEntryUpdateStream not stale', function (t) {
   setup()
   var now = Date.now()
   var staleness = 600
-  _createEntryUpdateStream(ALL, {}, staleness, now, function (err, stream, latest) {
-    t.ifError(err, 'completed successfully')
+  return _createEntryUpdateStream(staleness, now, {
+    registry: common.registry
+  }).then(({
+    updateStream: stream,
+    updatedLatest: latest
+  }) => {
     t.notOk(stream, 'no stream returned')
     t.notOk(latest, 'no latest returned')
     server.done()

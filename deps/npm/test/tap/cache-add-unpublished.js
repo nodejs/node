@@ -18,7 +18,7 @@ test('cache add', function (t) {
         if (er) throw er
         t.ok(c, 'got non-zero exit code')
         t.equal(so, '', 'nothing printed to stdout')
-        t.similar(se, /404 Not Found: superfoo/, 'got expected error')
+        t.similar(se, /404 Not Found.*superfoo/, 'got expected error')
         s.close()
         t.end()
       }

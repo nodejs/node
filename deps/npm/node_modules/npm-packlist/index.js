@@ -57,7 +57,11 @@ const npmWalker = Class => class Walker extends Class {
 
     opt.includeEmpty = false
     opt.path = opt.path || process.cwd()
-    opt.follow = path.basename(opt.path) === 'node_modules'
+    const dirName = path.basename(opt.path)
+    const parentName = path.basename(path.dirname(opt.path))
+    opt.follow =
+      dirName === 'node_modules' ||
+      (parentName === 'node_modules' && /^@/.test(dirName))
     super(opt)
 
     // ignore a bunch of things by default at the root level.

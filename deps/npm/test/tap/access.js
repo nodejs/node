@@ -1,16 +1,18 @@
-var fs = require('fs')
-var path = require('path')
-var mkdirp = require('mkdirp')
-var rimraf = require('rimraf')
-var mr = require('npm-registry-mock')
+'use strict'
 
-var test = require('tap').test
-var common = require('../common-tap.js')
+const fs = require('fs')
+const path = require('path')
+const mkdirp = require('mkdirp')
+const rimraf = require('rimraf')
+const mr = require('npm-registry-mock')
 
-var pkg = path.resolve(__dirname, 'access')
-var server
+const test = require('tap').test
+const common = require('../common-tap.js')
 
-var scoped = {
+const pkg = path.resolve(__dirname, 'access')
+let server
+
+const scoped = {
   name: '@scoped/pkg',
   version: '1.1.1'
 }
@@ -160,19 +162,22 @@ test('npm change access on unscoped package', function (t) {
     function (er, code, stdout, stderr) {
       t.ok(code, 'exited with Error')
       t.matches(
-        stderr, /access commands are only accessible for scoped packages/)
+        stderr, /only available for scoped packages/)
       t.end()
     }
   )
 })
 
 test('npm access grant read-only', function (t) {
-  server.put('/-/team/myorg/myteam/package', {
-    permissions: 'read-only',
-    package: '@scoped/another'
-  }).reply(201, {
-    accessChaged: true
+  server.filteringRequestBody((body) => {
+    const data = JSON.parse(body)
+    t.deepEqual(data, {
+      permissions: 'read-only',
+      package: '@scoped/another'
+    }, 'got the right body')
+    return true
   })
+  server.put('/-/team/myorg/myteam/package', true).reply(201)
   common.npm(
     [
       'access',
@@ -191,12 +196,15 @@ test('npm access grant read-only', function (t) {
 })
 
 test('npm access grant read-write', function (t) {
-  server.put('/-/team/myorg/myteam/package', {
-    permissions: 'read-write',
-    package: '@scoped/another'
-  }).reply(201, {
-    accessChaged: true
+  server.filteringRequestBody((body) => {
+    const data = JSON.parse(body)
+    t.deepEqual(data, {
+      permissions: 'read-write',
+      package: '@scoped/another'
+    }, 'got the right body')
+    return true
   })
+  server.put('/-/team/myorg/myteam/package', true).reply(201)
   common.npm(
     [
       'access',

@@ -3,6 +3,8 @@
 var Parser = require('jsonparse')
   , through = require('through')
 
+var bufferFrom = Buffer.from && Buffer.from !== Uint8Array.from
+
 /*
 
   the value of this.stack that creationix's jsonparse has is weird.
@@ -17,7 +19,7 @@ exports.parse = function (path, map) {
   var parser = new Parser()
   var stream = through(function (chunk) {
     if('string' === typeof chunk)
-      chunk = new Buffer(chunk)
+      chunk = bufferFrom ? Buffer.from(chunk) : new Buffer(chunk)
     parser.write(chunk)
   },
   function (data) {

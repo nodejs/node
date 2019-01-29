@@ -15,7 +15,7 @@ function prefetch (spec, opts) {
   const startTime = Date.now()
   if (!opts.cache) {
     opts.log.info('prefetch', 'skipping prefetch: no cache provided')
-    return BB.resolve({spec})
+    return BB.resolve({ spec })
   }
   if (opts.integrity && !opts.preferOnline) {
     opts.log.silly('prefetch', 'checking if', opts.integrity, 'is already cached')

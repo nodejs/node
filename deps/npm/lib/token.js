@@ -1,5 +1,5 @@
 'use strict'
-const profile = require('npm-profile')
+const profile = require('libnpm/profile')
 const npm = require('./npm.js')
 const output = require('./utils/output.js')
 const Table = require('cli-table3')

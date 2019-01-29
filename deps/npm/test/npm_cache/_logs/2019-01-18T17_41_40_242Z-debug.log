@@ -1,0 +1,34 @@
+0 info it worked if it ends with ok
+1 verbose cli [ '/usr/local/bin/node',
+1 verbose cli   '/Users/zkat/Documents/code/work/npm/bin/npm-cli.js',
+1 verbose cli   'ci',
+1 verbose cli   '--registry',
+1 verbose cli   'http://localhost:1337',
+1 verbose cli   '--loglevel',
+1 verbose cli   'warn' ]
+2 info using npm@6.6.0
+3 info using node@v11.6.0
+4 verbose npm-session 81dd68c6da560193
+5 info prepare initializing installer
+6 verbose prepare starting workers
+7 verbose prepare installation prefix: /Users/zkat/Documents/code/work/npm/test/tap/ci
+8 verbose prepare using package-lock.json
+9 verbose checkLock verifying package-lock data
+10 verbose teardown shutting down workers.
+11 info teardown Done in 0s
+12 verbose stack Error: cipm can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync. Please update your lock file with `npm install` before continuing.
+12 verbose stack
+12 verbose stack
+12 verbose stack Missing: optimist@0.6.0
+12 verbose stack
+12 verbose stack     at lockVerify.then.result (/Users/zkat/Documents/code/work/npm/node_modules/libcipm/index.js:191:15)
+13 verbose cwd /Users/zkat/Documents/code/work/npm/test/tap/ci
+14 verbose Darwin 18.0.0
+15 verbose argv "/usr/local/bin/node" "/Users/zkat/Documents/code/work/npm/bin/npm-cli.js" "ci" "--registry" "http://localhost:1337" "--loglevel" "warn"
+16 verbose node v11.6.0
+17 verbose npm  v6.6.0
+18 error cipm can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync. Please update your lock file with `npm install` before continuing.
+18 error
+18 error
+18 error Missing: optimist@0.6.0
+19 verbose exit [ 1, true ]

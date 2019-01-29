@@ -97,7 +97,7 @@ test('npm view . with no published package', function (t) {
   ], { cwd: t3dir }, function (err, code, stdout, stderr) {
     t.ifError(err, 'view command finished successfully')
     t.equal(code, 1, 'exit not ok')
-    t.similar(stderr, /version not found/m)
+    t.similar(stderr, /not in the npm registry/m)
     t.end()
   })
 })

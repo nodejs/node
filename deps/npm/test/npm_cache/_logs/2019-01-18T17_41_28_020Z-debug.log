@@ -1,0 +1,53 @@
+0 info it worked if it ends with ok
+1 verbose cli [ '/usr/local/bin/node',
+1 verbose cli   '/Users/zkat/Documents/code/work/npm/bin/npm-cli.js',
+1 verbose cli   'install',
+1 verbose cli   '/Users/zkat/Documents/code/work/npm/test/tap/check-os-reqs/from',
+1 verbose cli   '--loglevel',
+1 verbose cli   'silly' ]
+2 info using npm@6.6.0
+3 info using node@v11.6.0
+4 verbose npm-session 0d53651f554c2a7e
+5 silly install loadCurrentTree
+6 silly install readLocalPackageData
+7 silly pacote directory manifest for undefined@file:/Users/zkat/Documents/code/work/npm/test/tap/check-os-reqs/from fetched in 5ms
+8 timing stage:loadCurrentTree Completed in 20ms
+9 silly install loadIdealTree
+10 silly install cloneCurrentTreeToIdealTree
+11 timing stage:loadIdealTree:cloneCurrentTree Completed in 1ms
+12 silly install loadShrinkwrap
+13 timing stage:loadIdealTree:loadShrinkwrap Completed in 0ms
+14 silly install loadAllDepsIntoIdealTree
+15 timing stage:rollbackFailedOptional Completed in 1ms
+16 timing stage:runTopLevelLifecycles Completed in 23ms
+17 silly saveTree in
+18 verbose stack Error: Unsupported platform for check-os-reqs@0.0.1: wanted {"name":"check-os-reqs","version":"0.0.1","os":["fake-os"],"dependencies":{},"optionalDependencies":{},"devDependencies":{},"bundleDependencies":false,"peerDependencies":{},"deprecated":false,"_resolved":"/Users/zkat/Documents/code/work/npm/test/tap/check-os-reqs/from","_integrity":null,"_shasum":null,"_shrinkwrap":null,"bin":null,"_id":"check-os-reqs@0.0.1","_from":"file:/Users/zkat/Documents/code/work/npm/test/tap/check-os-reqs/from","_requested":{"type":"directory","where":"/Users/zkat/Documents/code/work/npm/test/tap/check-os-reqs/in","raw":"/Users/zkat/Documents/code/work/npm/test/tap/check-os-reqs/from","rawSpec":"/Users/zkat/Documents/code/work/npm/test/tap/check-os-reqs/from","saveSpec":"file:/Users/zkat/Documents/code/work/npm/test/tap/check-os-reqs/from","fetchSpec":"/Users/zkat/Documents/code/work/npm/test/tap/check-os-reqs/from"},"_spec":"/Users/zkat/Documents/code/work/npm/test/tap/check-os-reqs/from","_where":"/Users/zkat/Documents/code/work/npm/test/tap/check-os-reqs/in"} (current: {"os":"darwin","cpu":"x64"})
+18 verbose stack     at checkPlatform (/Users/zkat/Documents/code/work/npm/node_modules/npm-install-checks/index.js:45:14)
+18 verbose stack     at thenWarnEngineIssues (/Users/zkat/Documents/code/work/npm/lib/install/validate-args.js:52:5)
+18 verbose stack     at a (/Users/zkat/Documents/code/work/npm/node_modules/iferr/iferr.js:3:64)
+18 verbose stack     at checkEngine (/Users/zkat/Documents/code/work/npm/node_modules/npm-install-checks/index.js:10:20)
+18 verbose stack     at module.exports.isInstallable (/Users/zkat/Documents/code/work/npm/lib/install/validate-args.js:49:3)
+18 verbose stack     at Array.<anonymous> (/Users/zkat/Documents/code/work/npm/node_modules/slide/lib/bind-actor.js:15:8)
+18 verbose stack     at LOOP (/Users/zkat/Documents/code/work/npm/node_modules/slide/lib/chain.js:15:14)
+18 verbose stack     at /Users/zkat/Documents/code/work/npm/node_modules/slide/lib/chain.js:18:7
+18 verbose stack     at checkSelf (/Users/zkat/Documents/code/work/npm/lib/install/validate-args.js:57:72)
+18 verbose stack     at Array.<anonymous> (/Users/zkat/Documents/code/work/npm/node_modules/slide/lib/bind-actor.js:15:8)
+18 verbose stack     at LOOP (/Users/zkat/Documents/code/work/npm/node_modules/slide/lib/chain.js:15:14)
+18 verbose stack     at /Users/zkat/Documents/code/work/npm/node_modules/slide/lib/chain.js:18:7
+18 verbose stack     at hasMinimumFields (/Users/zkat/Documents/code/work/npm/lib/install/validate-args.js:30:12)
+18 verbose stack     at Array.<anonymous> (/Users/zkat/Documents/code/work/npm/node_modules/slide/lib/bind-actor.js:15:8)
+18 verbose stack     at LOOP (/Users/zkat/Documents/code/work/npm/node_modules/slide/lib/chain.js:15:14)
+18 verbose stack     at chain (/Users/zkat/Documents/code/work/npm/node_modules/slide/lib/chain.js:20:5)
+19 verbose pkgid check-os-reqs@0.0.1
+20 verbose cwd /Users/zkat/Documents/code/work/npm/test/tap/check-os-reqs/in
+21 verbose Darwin 18.0.0
+22 verbose argv "/usr/local/bin/node" "/Users/zkat/Documents/code/work/npm/bin/npm-cli.js" "install" "/Users/zkat/Documents/code/work/npm/test/tap/check-os-reqs/from" "--loglevel" "silly"
+23 verbose node v11.6.0
+24 verbose npm  v6.6.0
+25 error code EBADPLATFORM
+26 error notsup Unsupported platform for check-os-reqs@0.0.1: wanted {"os":"fake-os","arch":"any"} (current: {"os":"darwin","arch":"x64"})
+27 error notsup Valid OS:    fake-os
+27 error notsup Valid Arch:  any
+27 error notsup Actual OS:   darwin
+27 error notsup Actual Arch: x64
+28 verbose exit [ 1, true ]

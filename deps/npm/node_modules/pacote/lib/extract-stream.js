@@ -57,6 +57,7 @@ function extractStream (spec, dest, opts) {
     onwarn: msg => opts.log && opts.log.warn('tar', msg),
     uid: opts.uid,
     gid: opts.gid,
+    umask: opts.umask,
     transform: opts.resolved && pkgJsonTransform(spec, opts),
     onentry (entry) {
       if (entry.type.toLowerCase() === 'file') {
