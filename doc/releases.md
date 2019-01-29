@@ -686,7 +686,7 @@ announced immediately following the release of 12.0.0).
 
 ### Release Branch
 
-Approximately three months before the a major release, new `vN.x` and
+Approximately three months before a major release, new `vN.x` and
 `vN.x-staging` branches (where `N` indicates the major release) should be
 created as forks of the `master` branch. Up until one month before the release
 date, these must be kept in sync with `master` and *must not* be considered to
