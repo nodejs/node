@@ -35,7 +35,7 @@ would be to use its singleton.
 
 ```
 const common = require('../common-tap.js')
-const mr = common.mockRegistry
+const mr = common.fakeRegistry
 ```
 
 If you have need of multiple registries at the same time, you can construct
@@ -43,7 +43,7 @@ them by hand:
 
 ```
 const common = require('../common-tap.js')
-const FakeRegistry = common.mockRegistry.FakeRegistry
+const FakeRegistry = common.fakeRegistry.FakeRegistry
 const mr = new FakeRegistry(opts)
 ```
 
@@ -150,7 +150,7 @@ If no route can be found then a `404` response will be provided.
 ## Construction
 
 const common = require('../common-tap.js')
-const mr = common.mockRegistry.compat
+const mr = common.fakeRegistry.compat
 
 ### mr(options[, callback]) → Promise(server)
 

@@ -1,0 +1,1 @@
+{"objects":[{"id":"foo","type":"package","name":"@foo/pkg","endpoint":"foo.com"},{"id":"bar","type":"owner","name":"bar","endpoint":"bar.com"},{"id":"baz","type":"scope","name":"baz","endpoint":"baz.com"}]}

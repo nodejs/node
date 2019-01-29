@@ -1,0 +1,21 @@
+0 info it worked if it ends with ok
+1 verbose cli [ '/usr/local/bin/node',
+1 verbose cli   '/Users/zkat/Documents/code/work/npm/bin/npm-cli.js',
+1 verbose cli   'config',
+1 verbose cli   'get',
+1 verbose cli   '_auth' ]
+2 info using npm@6.6.0
+3 info using node@v11.6.0
+4 verbose stack Error: ---sekretz---
+4 verbose stack     at get (/Users/zkat/Documents/code/work/npm/lib/config.js:166:15)
+4 verbose stack     at EventEmitter.config (/Users/zkat/Documents/code/work/npm/lib/config.js:68:14)
+4 verbose stack     at Object.commandCache.(anonymous function) (/Users/zkat/Documents/code/work/npm/lib/npm.js:156:13)
+4 verbose stack     at EventEmitter.<anonymous> (/Users/zkat/Documents/code/work/npm/bin/npm-cli.js:131:30)
+4 verbose stack     at process.internalTickCallback (internal/process/next_tick.js:70:11)
+5 verbose cwd /Users/zkat/Documents/code/work/npm/test/tap/config-private
+6 verbose Darwin 18.0.0
+7 verbose argv "/usr/local/bin/node" "/Users/zkat/Documents/code/work/npm/bin/npm-cli.js" "config" "get" "_auth"
+8 verbose node v11.6.0
+9 verbose npm  v6.6.0
+10 error ---sekretz---
+11 verbose exit [ 1, true ]

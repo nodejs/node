@@ -40,14 +40,41 @@ test('npm ping', function (t) {
     common.npm([
       'ping',
       '--registry', common.registry,
-      '--loglevel', 'silent',
+      '--loglevel', 'notice',
       '--userconfig', outfile
-    ], opts, function (err, code, stdout) {
+    ], opts, function (err, code, stdout, stderr) {
       s.close()
-      t.ifError(err, 'no error output')
+      t.ifError(err, 'command completed')
       t.notOk(code, 'exited OK')
 
-      t.same(stdout, 'Ping success: ' + JSON.stringify(pingResponse) + '\n')
+      t.match(stderr, /PING/, 'ping notification output')
+      t.match(stderr, /PONG/, 'pong response output')
+      t.end()
+    })
+  })
+})
+
+test('npm ping --json', function (t) {
+  mr({ port: common.port, plugin: mocks }, function (err, s) {
+    if (err) throw err
+
+    common.npm([
+      'ping',
+      '--json',
+      '--registry', common.registry,
+      '--loglevel', 'notice',
+      '--userconfig', outfile
+    ], opts, function (err, code, stdout, stderr) {
+      s.close()
+      t.ifError(err, 'command completed')
+      t.notOk(code, 'exited OK')
+
+      const json = JSON.parse(stdout.trim())
+      t.similar(json, {
+        registry: common.registry,
+        details: pingResponse
+      }, 'JSON info returned')
+      t.equal(typeof json.time, 'number', 'got a timestamp')
       t.end()
     })
   })

@@ -1,40 +1,22 @@
 'use strict'
 
 const BB = require('bluebird')
-const lifecycleOpts = require('./lifecycle-opts.js')
-const pacoteOpts = require('./pacote-opts.js')
-const protoduck = require('protoduck')
+
+const fs = require('fs')
+const figgyPudding = require('figgy-pudding')
+const ini = require('ini')
+const path = require('path')
 const spawn = require('child_process').spawn
 
-class NpmConfig extends Map {}
+const readFileAsync = BB.promisify(fs.readFile)
 
-const CipmConfig = protoduck.define({
-  get: [],
-  set: [],
-  toPacote: [],
-  toLifecycle: []
-}, {
-  name: 'CipmConfig'
-})
-module.exports.CipmConfig = CipmConfig
-
-CipmConfig.impl(NpmConfig, {
-  get: Map.prototype.get,
-  set: Map.prototype.set,
-  toPacote (opts) {
-    return pacoteOpts(this, opts)
-  },
-  toLifecycle () {
-    return lifecycleOpts(this)
-  }
+const NpmConfig = figgyPudding({
+  cache: { default: '' },
+  then: {},
+  userconfig: {}
 })
 
-module.exports.fromObject = fromObj
-function fromObj (obj) {
-  const map = new NpmConfig()
-  Object.keys(obj).forEach(k => map.set(k, obj[k]))
-  return map
-}
+module.exports = NpmConfig
 
 module.exports.fromNpm = getNpmConfig
 function getNpmConfig (argv) {
@@ -62,11 +44,41 @@ function getNpmConfig (argv) {
         reject(new Error('`npm` command not found. Please ensure you have npm@5.4.0 or later installed.'))
       } else {
         try {
-          resolve(fromObj(JSON.parse(stdout)))
+          resolve(JSON.parse(stdout))
         } catch (e) {
           reject(new Error('`npm config ls --json` failed to output json. Please ensure you have npm@5.4.0 or later installed.'))
         }
       }
     })
+  }).then(opts => {
+    return BB.all(
+      process.cwd().split(path.sep).reduce((acc, next) => {
+        acc.path = path.join(acc.path, next)
+        acc.promises.push(maybeReadIni(path.join(acc.path, '.npmrc')))
+        acc.promises.push(maybeReadIni(path.join(acc.path, 'npmrc')))
+        return acc
+      }, {
+        path: '',
+        promises: []
+      }).promises.concat(
+        opts.userconfig ? maybeReadIni(opts.userconfig) : {}
+      )
+    ).then(configs => NpmConfig(...configs, opts))
+  }).then(opts => {
+    if (opts.cache) {
+      return opts.concat({ cache: path.join(opts.cache, '_cacache') })
+    } else {
+      return opts
+    }
   })
+}
+
+function maybeReadIni (f) {
+  return readFileAsync(f, 'utf8').catch(err => {
+    if (err.code === 'ENOENT') {
+      return ''
+    } else {
+      throw err
+    }
+  }).then(ini.parse)
 }
