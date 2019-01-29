@@ -13,6 +13,7 @@
 
 using node::options_parser::kDisallowedInEnvironment;
 using v8::ArrayBuffer;
+using v8::Boolean;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -32,9 +33,6 @@ namespace node {
 namespace worker {
 
 namespace {
-
-uint64_t next_thread_id = 1;
-Mutex next_thread_id_mutex;
 
 #if NODE_USE_V8_PLATFORM && HAVE_INSPECTOR
 void StartWorkerInspector(Environment* child, const std::string& url) {
@@ -74,17 +72,7 @@ Worker::Worker(Environment* env,
                const std::string& url,
                std::shared_ptr<PerIsolateOptions> per_isolate_opts)
     : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_WORKER), url_(url) {
-  // Generate a new thread id.
-  {
-    Mutex::ScopedLock next_thread_id_lock(next_thread_id_mutex);
-    thread_id_ = next_thread_id++;
-  }
-
-  Debug(this, "Creating worker with id %llu", thread_id_);
-  wrap->Set(env->context(),
-            env->thread_id_string(),
-            Number::New(env->isolate(),
-                        static_cast<double>(thread_id_))).FromJust();
+  Debug(this, "Creating new worker instance at %p", static_cast<void*>(this));
 
   // Set up everything that needs to be set up in the parent environment.
   parent_port_ = MessagePort::New(env, env->context());
@@ -130,7 +118,7 @@ Worker::Worker(Environment* env,
     CHECK_NE(env_, nullptr);
     env_->set_abort_on_uncaught_exception(false);
     env_->set_worker_context(this);
-    env_->set_thread_id(thread_id_);
+    thread_id_ = env_->thread_id();
 
     env_->Start(env->profiler_idle_notifier_started());
     env_->ProcessCliArgs(std::vector<std::string>{},
@@ -142,7 +130,15 @@ Worker::Worker(Environment* env,
   // The new isolate won't be bothered on this thread again.
   isolate_->DiscardThreadSpecificMetadata();
 
-  Debug(this, "Set up worker with id %llu", thread_id_);
+  wrap->Set(env->context(),
+            env->thread_id_string(),
+            Number::New(env->isolate(), static_cast<double>(thread_id_)))
+      .FromJust();
+
+  Debug(this,
+        "Set up worker at %p with id %llu",
+        static_cast<void*>(this),
+        thread_id_);
 }
 
 bool Worker::is_stopped() const {
@@ -562,11 +558,17 @@ void InitWorker(Local<Object> target,
 
   env->SetMethod(target, "getEnvMessagePort", GetEnvMessagePort);
 
-  auto thread_id_string = FIXED_ONE_BYTE_STRING(env->isolate(), "threadId");
-  target->Set(env->context(),
-              thread_id_string,
-              Number::New(env->isolate(),
-                          static_cast<double>(env->thread_id()))).FromJust();
+  target
+      ->Set(env->context(),
+            env->thread_id_string(),
+            Number::New(env->isolate(), static_cast<double>(env->thread_id())))
+      .FromJust();
+
+  target
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(env->isolate(), "isMainThread"),
+            Boolean::New(env->isolate(), env->is_main_thread()))
+      .FromJust();
 }
 
 }  // anonymous namespace

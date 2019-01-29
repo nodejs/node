@@ -133,7 +133,9 @@ Environment* CreateEnvironment(IsolateData* isolate_data,
   // options than the global parse call.
   std::vector<std::string> args(argv, argv + argc);
   std::vector<std::string> exec_args(exec_argv, exec_argv + exec_argc);
-  Environment* env = new Environment(isolate_data, context);
+  // TODO(addaleax): Provide more sensible flags, in an embedder-accessible way.
+  Environment* env =
+      new Environment(isolate_data, context, Environment::kIsMainThread);
   env->Start(per_process::v8_is_profiling);
   env->ProcessCliArgs(args, exec_args);
   return env;
