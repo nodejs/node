@@ -1,47 +1,63 @@
-var npm = require('./npm.js')
-var output = require('./utils/output.js')
+'use strict'
+
+const BB = require('bluebird')
+
+const npmConfig = require('./config/figgy-config.js')
+const fetch = require('libnpm/fetch')
+const figgyPudding = require('figgy-pudding')
+const npm = require('./npm.js')
+const output = require('./utils/output.js')
+
+const WhoamiConfig = figgyPudding({
+  json: {},
+  registry: {}
+})
 
 module.exports = whoami
 
 whoami.usage = 'npm whoami [--registry <registry>]\n(just prints username according to given registry)'
 
-function whoami (args, silent, cb) {
+function whoami ([spec], silent, cb) {
   // FIXME: need tighter checking on this, but is a breaking change
   if (typeof cb !== 'function') {
     cb = silent
     silent = false
   }
-
-  var registry = npm.config.get('registry')
-  if (!registry) return cb(new Error('no default registry set'))
-
-  var auth = npm.config.getCredentialsByURI(registry)
-  if (auth) {
-    if (auth.username) {
-      if (!silent) output(auth.username)
-      return process.nextTick(cb.bind(this, null, auth.username))
-    } else if (auth.token) {
-      return npm.registry.whoami(registry, { auth: auth }, function (er, username) {
-        if (er) return cb(er)
-        if (!username) {
-          var needNewSession = new Error(
+  const opts = WhoamiConfig(npmConfig())
+  return BB.try(() => {
+    // First, check if we have a user/pass-based auth
+    const registry = opts.registry
+    if (!registry) throw new Error('no default registry set')
+    return npm.config.getCredentialsByURI(registry)
+  }).then(({username, token}) => {
+    if (username) {
+      return username
+    } else if (token) {
+      return fetch.json('/-/whoami', opts.concat({
+        spec
+      })).then(({username}) => {
+        if (username) {
+          return username
+        } else {
+          throw Object.assign(new Error(
             'Your auth token is no longer valid. Please log in again.'
-          )
-          needNewSession.code = 'ENEEDAUTH'
-          return cb(needNewSession)
+          ), {code: 'ENEEDAUTH'})
         }
-
-        if (!silent) output(username)
-        cb(null, username)
       })
+    } else {
+      // At this point, if they have a credentials object, it doesn't have a
+      // token or auth in it.  Probably just the default registry.
+      throw Object.assign(new Error(
+        'This command requires you to be logged in.'
+      ), {code: 'ENEEDAUTH'})
     }
-  }
-
-  // At this point, if they have a credentials object, it doesn't have a token
-  // or auth in it.  Probably just the default registry.
-  var needAuth = new Error(
-    'this command requires you to be logged in.'
-  )
-  needAuth.code = 'ENEEDAUTH'
-  process.nextTick(cb.bind(this, needAuth))
+  }).then(username => {
+    if (silent) {
+    } else if (opts.json) {
+      output(JSON.stringify(username))
+    } else {
+      output(username)
+    }
+    return username
+  }).nodeify(cb)
 }

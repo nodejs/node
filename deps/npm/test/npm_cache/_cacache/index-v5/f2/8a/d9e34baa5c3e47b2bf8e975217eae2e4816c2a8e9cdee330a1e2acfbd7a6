@@ -1,0 +1,3 @@
+
+be8503a914b4a9eb05323f6589baa6e95ac1ace5	{"key":"pacote:packed-dir:git://localhost:1234/child.git#3c75176bfda09442604d2a1a23d56f3e73d4655d","integrity":"sha512-tIpFTFX5X6A1HMpHl2H1/3kvj3q0RI8rE5mjrDd4pgopP3H+7aKWeM4VtxcSsIA/mGbpLAy8RUm0gHQ13PenZw==","time":1547833228437,"size":143}
+db82585066c86ab6739fbbd6d29417c3bf41b0af	{"key":"pacote:packed-dir:git://localhost:1234/child.git#3c75176bfda09442604d2a1a23d56f3e73d4655d","integrity":"sha512-tIpFTFX5X6A1HMpHl2H1/3kvj3q0RI8rE5mjrDd4pgopP3H+7aKWeM4VtxcSsIA/mGbpLAy8RUm0gHQ13PenZw==","time":1547833228736,"size":143}

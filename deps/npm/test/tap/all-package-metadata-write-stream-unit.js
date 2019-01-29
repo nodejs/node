@@ -1,18 +1,19 @@
 'use strict'
 
-var common = require('../common-tap.js')
-var npm = require('../../')
-var test = require('tap').test
-var mkdirp = require('mkdirp')
-var rimraf = require('rimraf')
-var path = require('path')
-var fs = require('fs')
-var ms = require('mississippi')
+const common = require('../common-tap.js')
+const getStream = require('get-stream')
+const npm = require('../../')
+const test = require('tap').test
+const mkdirp = require('mkdirp')
+const rimraf = require('rimraf')
+const path = require('path')
+const fs = require('fs')
+const ms = require('mississippi')
 
-var _createCacheWriteStream = require('../../lib/search/all-package-metadata.js')._createCacheWriteStream
+const _createCacheWriteStream = require('../../lib/search/all-package-metadata.js')._createCacheWriteStream
 
-var PKG_DIR = path.resolve(__dirname, 'create-cache-write-stream')
-var CACHE_DIR = path.resolve(PKG_DIR, 'cache')
+const PKG_DIR = path.resolve(__dirname, 'create-cache-write-stream')
+const CACHE_DIR = path.resolve(PKG_DIR, 'cache')
 
 function setup () {
   mkdirp.sync(CACHE_DIR)
@@ -46,60 +47,54 @@ test('createCacheEntryStream basic', function (t) {
     { name: 'foo', version: '1.0.0' }
   ]
   var srcStream = fromArray(src)
-  _createCacheWriteStream(cachePath, latest, function (err, stream) {
-    if (err) throw err
+  return _createCacheWriteStream(cachePath, latest, {
+    cache: CACHE_DIR
+  }).then(stream => {
     t.ok(stream, 'returned a stream')
     stream = ms.pipeline.obj(srcStream, stream)
-    var results = []
-    stream.on('data', function (pkg) {
-      results.push(pkg)
-    })
-    ms.finished(stream, function (err) {
-      if (err) throw err
-      t.deepEquals(results, [{
+    return getStream.array(stream)
+  }).then(results => {
+    t.deepEquals(results, [{
+      name: 'bar',
+      version: '1.0.0'
+    }, {
+      name: 'foo',
+      version: '1.0.0'
+    }])
+    var fileData = JSON.parse(fs.readFileSync(cachePath))
+    t.ok(fileData, 'cache contents written to the right file')
+    t.deepEquals(fileData, {
+      '_updated': latest,
+      bar: {
         name: 'bar',
         version: '1.0.0'
-      }, {
+      },
+      foo: {
         name: 'foo',
         version: '1.0.0'
-      }])
-      var fileData = JSON.parse(fs.readFileSync(cachePath))
-      t.ok(fileData, 'cache contents written to the right file')
-      t.deepEquals(fileData, {
-        '_updated': latest,
-        bar: {
-          name: 'bar',
-          version: '1.0.0'
-        },
-        foo: {
-          name: 'foo',
-          version: '1.0.0'
-        }
-      }, 'cache contents based on what was written')
-      cleanup()
-      t.done()
-    })
+      }
+    }, 'cache contents based on what was written')
+    cleanup()
   })
 })
 
 test('createCacheEntryStream no entries', function (t) {
-  cleanup() // wipe out the cache dir
-  var cachePath = path.join(CACHE_DIR, '.cache.json')
+  setup()
+  const cachePath = path.join(CACHE_DIR, '.cache.json')
   var latest = 12345
-  var src = []
-  var srcStream = fromArray(src)
-  _createCacheWriteStream(cachePath, latest, function (err, stream) {
-    if (err) throw err
+  const src = []
+  const srcStream = fromArray(src)
+  return _createCacheWriteStream(cachePath, latest, {
+    cache: CACHE_DIR
+  }).then(stream => {
     t.ok(stream, 'returned a stream')
     stream = ms.pipeline.obj(srcStream, stream)
     stream.resume()
-    ms.finished(stream, function (err) {
-      if (err) throw err
-      var fileData = JSON.parse(fs.readFileSync(cachePath))
-      t.ok(fileData, 'cache file exists and has stuff in it')
-      cleanup()
-      t.done()
-    })
+    return getStream(stream)
+  }).then(() => {
+    const fileData = JSON.parse(fs.readFileSync(cachePath))
+    t.ok(fileData, 'cache file exists and has stuff in it')
+    cleanup()
   })
 })
 
@@ -109,22 +104,19 @@ test('createCacheEntryStream missing cache dir', function (t) {
   var latest = 12345
   var src = []
   var srcStream = fromArray(src)
-  _createCacheWriteStream(cachePath, latest, function (err, stream) {
-    if (err) throw err
+  return _createCacheWriteStream(cachePath, latest, {
+    cache: CACHE_DIR
+  }).then(stream => {
     t.ok(stream, 'returned a stream')
     stream = ms.pipeline.obj(srcStream, stream)
-    stream.on('data', function (pkg) {
-      t.notOk(pkg, 'stream should not have output any data')
-    })
-    ms.finished(stream, function (err) {
-      if (err) throw err
-      var fileData = JSON.parse(fs.readFileSync(cachePath))
-      t.ok(fileData, 'cache contents written to the right file')
-      t.deepEquals(fileData, {
-        '_updated': latest
-      }, 'cache still contains `_updated`')
-      cleanup()
-      t.done()
-    })
+    return getStream.array(stream)
+  }).then(res => {
+    t.deepEqual(res, [], 'no data returned')
+    var fileData = JSON.parse(fs.readFileSync(cachePath))
+    t.ok(fileData, 'cache contents written to the right file')
+    t.deepEquals(fileData, {
+      '_updated': latest
+    }, 'cache still contains `_updated`')
+    cleanup()
   })
 })

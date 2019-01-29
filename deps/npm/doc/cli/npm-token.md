@@ -9,7 +9,7 @@ npm-token(1) -- Manage your authentication tokens
 
 ## DESCRIPTION
 
-This list you list, create and revoke authentication tokens.
+This lets you list, create and revoke authentication tokens.
 
 * `npm token list`:
   Shows a table of all active authentication tokens. You can request this as

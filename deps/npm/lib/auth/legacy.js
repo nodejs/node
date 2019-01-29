@@ -1,11 +1,11 @@
 'use strict'
+
 const read = require('../utils/read-user-info.js')
-const profile = require('npm-profile')
+const profile = require('libnpm/profile')
 const log = require('npmlog')
-const npm = require('../npm.js')
+const figgyPudding = require('figgy-pudding')
+const npmConfig = require('../config/figgy-config.js')
 const output = require('../utils/output.js')
-const pacoteOpts = require('../config/pacote')
-const fetchOpts = require('../config/fetch-opts')
 const openUrl = require('../utils/open-url')
 
 const openerPromise = (url) => new Promise((resolve, reject) => {
@@ -26,54 +26,54 @@ const loginPrompter = (creds) => {
   })
 }
 
-module.exports.login = (creds, registry, scope, cb) => {
-  const conf = {
-    log: log,
-    creds: creds,
-    registry: registry,
-    auth: {
-      otp: npm.config.get('otp')
-    },
-    scope: scope,
-    opts: fetchOpts.fromPacote(pacoteOpts())
-  }
-  login(conf).then((newCreds) => cb(null, newCreds)).catch(cb)
+const LoginOpts = figgyPudding({
+  'always-auth': {},
+  creds: {},
+  log: {default: () => log},
+  registry: {},
+  scope: {}
+})
+
+module.exports.login = (creds = {}, registry, scope, cb) => {
+  const opts = LoginOpts(npmConfig()).concat({scope, registry, creds})
+  login(opts).then((newCreds) => cb(null, newCreds)).catch(cb)
 }
 
-function login (conf) {
-  return profile.login(openerPromise, loginPrompter, conf)
+function login (opts) {
+  return profile.login(openerPromise, loginPrompter, opts)
     .catch((err) => {
       if (err.code === 'EOTP') throw err
-      const u = conf.creds.username
-      const p = conf.creds.password
-      const e = conf.creds.email
+      const u = opts.creds.username
+      const p = opts.creds.password
+      const e = opts.creds.email
       if (!(u && p && e)) throw err
-      return profile.adduserCouch(u, e, p, conf)
+      return profile.adduserCouch(u, e, p, opts)
     })
     .catch((err) => {
       if (err.code !== 'EOTP') throw err
-      return read.otp('Enter one-time password from your authenticator app: ').then((otp) => {
-        conf.auth.otp = otp
-        const u = conf.creds.username
-        const p = conf.creds.password
-        return profile.loginCouch(u, p, conf)
+      return read.otp(
+        'Enter one-time password from your authenticator app: '
+      ).then(otp => {
+        const u = opts.creds.username
+        const p = opts.creds.password
+        return profile.loginCouch(u, p, opts.concat({otp}))
       })
     }).then((result) => {
       const newCreds = {}
       if (result && result.token) {
         newCreds.token = result.token
       } else {
-        newCreds.username = conf.creds.username
-        newCreds.password = conf.creds.password
-        newCreds.email = conf.creds.email
-        newCreds.alwaysAuth = npm.config.get('always-auth')
+        newCreds.username = opts.creds.username
+        newCreds.password = opts.creds.password
+        newCreds.email = opts.creds.email
+        newCreds.alwaysAuth = opts['always-auth']
       }
 
-      const usermsg = conf.creds.username ? ' user ' + conf.creds.username : ''
-      conf.log.info('login', 'Authorized' + usermsg)
-      const scopeMessage = conf.scope ? ' to scope ' + conf.scope : ''
-      const userout = conf.creds.username ? ' as ' + conf.creds.username : ''
-      output('Logged in%s%s on %s.', userout, scopeMessage, conf.registry)
+      const usermsg = opts.creds.username ? ' user ' + opts.creds.username : ''
+      opts.log.info('login', 'Authorized' + usermsg)
+      const scopeMessage = opts.scope ? ' to scope ' + opts.scope : ''
+      const userout = opts.creds.username ? ' as ' + opts.creds.username : ''
+      output('Logged in%s%s on %s.', userout, scopeMessage, opts.registry)
       return newCreds
     })
 }

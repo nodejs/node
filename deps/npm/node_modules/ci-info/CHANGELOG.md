@@ -1,5 +1,21 @@
 # Changelog
 
+## v2.0.0
+
+Breaking changes:
+
+* Drop support for Node.js end-of-life versions: 0.10, 0.12, 4, 5, 7,
+  and 9
+* Team Foundation Server will now be detected as Azure Pipelines. The
+  constant `ci.TFS` no longer exists - use `ci.AZURE_PIPELINES` instead
+* Remove deprecated `ci.TDDIUM` constant - use `ci.SOLANDO` instead
+
+New features:
+
+* feat: support Azure Pipelines ([#23](https://github.com/watson/ci-info/pull/23))
+* feat: support Netlify CI ([#26](https://github.com/watson/ci-info/pull/26))
+* feat: support Bitbucket pipelines PR detection ([#27](https://github.com/watson/ci-info/pull/27))
+
 ## v1.6.0
 
 * feat: add Sail CI support

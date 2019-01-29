@@ -33,7 +33,7 @@ function packDir (manifest, label, dir, target, opts) {
 }
 
 function mkPacker (dir) {
-  return packlist({path: dir}).then(files => {
+  return packlist({ path: dir }).then(files => {
     return tar.c({
       cwd: dir,
       gzip: true,

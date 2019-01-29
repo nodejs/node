@@ -9,9 +9,9 @@ const finished = BB.promisify(require('mississippi').finished)
 const log = require('npmlog')
 const npa = require('npm-package-arg')
 const npm = require('./npm.js')
+const npmConfig = require('./config/figgy-config.js')
 const output = require('./utils/output.js')
 const pacote = require('pacote')
-const pacoteOpts = require('./config/pacote')
 const path = require('path')
 const rm = BB.promisify(require('./utils/gently-rm.js'))
 const unbuild = BB.promisify(npm.commands.unbuild)
@@ -107,7 +107,7 @@ function add (args, where) {
   log.verbose('cache add', 'spec', spec)
   if (!spec) return BB.reject(new Error(usage))
   log.silly('cache add', 'parsed spec', spec)
-  return finished(pacote.tarball.stream(spec, pacoteOpts({where})).resume())
+  return finished(pacote.tarball.stream(spec, npmConfig({where})).resume())
 }
 
 cache.verify = verify
@@ -131,7 +131,7 @@ function verify () {
 cache.unpack = unpack
 function unpack (pkg, ver, unpackTarget, dmode, fmode, uid, gid) {
   return unbuild([unpackTarget], true).then(() => {
-    const opts = pacoteOpts({dmode, fmode, uid, gid, offline: true})
+    const opts = npmConfig({dmode, fmode, uid, gid, offline: true})
     return pacote.extract(npa.resolve(pkg, ver), unpackTarget, opts)
   })
 }

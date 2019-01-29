@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="5.0.1"></a>
+## [5.0.1](https://github.com/zkat/protoduck/compare/v5.0.0...v5.0.1) (2018-10-26)
+
+
+### Bug Fixes
+
+* **security:** npm audit fix ([55a2007](https://github.com/zkat/protoduck/commit/55a2007))
+* **standard:** standard --fix ([2dedbb8](https://github.com/zkat/protoduck/commit/2dedbb8))
+
+
+
 <a name="5.0.0"></a>
 # [5.0.0](https://github.com/zkat/protoduck/compare/v4.0.0...v5.0.0) (2017-12-12)
 

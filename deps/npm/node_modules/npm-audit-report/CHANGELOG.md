@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="1.3.2"></a>
+## [1.3.2](https://github.com/npm/npm-audit-report/compare/v1.3.1...v1.3.2) (2018-12-18)
+
+
+### Bug Fixes
+
+* **parseable:** add support for critical vulns and more resolves on update/install action ([#28](https://github.com/npm/npm-audit-report/issues/28)) ([5e27893](https://github.com/npm/npm-audit-report/commit/5e27893))
+* **security:** audit fix ([ff9faf3](https://github.com/npm/npm-audit-report/commit/ff9faf3))
+* **urls:** Replace hardcoded URL to advisory with a URL from audit response ([#34](https://github.com/npm/npm-audit-report/issues/34)) ([e2fe95b](https://github.com/npm/npm-audit-report/commit/e2fe95b))
+
+
+
 <a name="1.3.1"></a>
 ## [1.3.1](https://github.com/npm/npm-audit-report/compare/v1.3.0...v1.3.1) (2018-07-10)
 

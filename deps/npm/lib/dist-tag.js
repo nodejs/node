@@ -1,15 +1,22 @@
 /* eslint-disable standard/no-callback-literal */
 module.exports = distTag
 
-var log = require('npmlog')
-var npa = require('npm-package-arg')
-var semver = require('semver')
+const BB = require('bluebird')
 
-var npm = require('./npm.js')
-var mapToRegistry = require('./utils/map-to-registry.js')
-var readLocalPkg = require('./utils/read-local-package.js')
-var usage = require('./utils/usage')
-var output = require('./utils/output.js')
+const figgyPudding = require('figgy-pudding')
+const log = require('npmlog')
+const npa = require('libnpm/parse-arg')
+const npmConfig = require('./config/figgy-config.js')
+const output = require('./utils/output.js')
+const otplease = require('./utils/otplease.js')
+const readLocalPkg = BB.promisify(require('./utils/read-local-package.js'))
+const regFetch = require('libnpm/fetch')
+const semver = require('semver')
+const usage = require('./utils/usage')
+
+const DistTagOpts = figgyPudding({
+  tag: {}
+})
 
 distTag.usage = usage(
   'dist-tag',
@@ -30,130 +37,127 @@ distTag.completion = function (opts, cb) {
   }
 }
 
-function distTag (args, cb) {
-  var cmd = args.shift()
-  switch (cmd) {
-    case 'add': case 'a': case 'set': case 's':
-      return add(args[0], args[1], cb)
-    case 'rm': case 'r': case 'del': case 'd': case 'remove':
-      return remove(args[1], args[0], cb)
-    case 'ls': case 'l': case 'sl': case 'list':
-      return list(args[0], cb)
-    default:
-      return cb('Usage:\n' + distTag.usage)
-  }
+function UsageError () {
+  throw Object.assign(new Error('Usage:\n' + distTag.usage), {
+    code: 'EUSAGE'
+  })
 }
 
-function add (spec, tag, cb) {
-  var thing = npa(spec || '')
-  var pkg = thing.name
-  var version = thing.rawSpec
-  var t = (tag || npm.config.get('tag')).trim()
+function distTag ([cmd, pkg, tag], cb) {
+  const opts = DistTagOpts(npmConfig())
+  return BB.try(() => {
+    switch (cmd) {
+      case 'add': case 'a': case 'set': case 's':
+        return add(pkg, tag, opts)
+      case 'rm': case 'r': case 'del': case 'd': case 'remove':
+        return remove(pkg, tag, opts)
+      case 'ls': case 'l': case 'sl': case 'list':
+        return list(pkg, opts)
+      default:
+        if (!pkg) {
+          return list(cmd, opts)
+        } else {
+          UsageError()
+        }
+    }
+  }).then(
+    x => cb(null, x),
+    err => {
+      if (err.code === 'EUSAGE') {
+        cb(err.message)
+      } else {
+        cb(err)
+      }
+    }
+  )
+}
 
-  log.verbose('dist-tag add', t, 'to', pkg + '@' + version)
+function add (spec, tag, opts) {
+  spec = npa(spec || '')
+  const version = spec.rawSpec
+  const t = (tag || opts.tag).trim()
 
-  if (!pkg || !version || !t) return cb('Usage:\n' + distTag.usage)
+  log.verbose('dist-tag add', t, 'to', spec.name + '@' + version)
+
+  if (!spec || !version || !t) UsageError()
 
   if (semver.validRange(t)) {
-    var er = new Error('Tag name must not be a valid SemVer range: ' + t)
-    return cb(er)
+    throw new Error('Tag name must not be a valid SemVer range: ' + t)
   }
 
-  fetchTags(pkg, function (er, tags) {
-    if (er) return cb(er)
-
+  return fetchTags(spec, opts).then(tags => {
     if (tags[t] === version) {
       log.warn('dist-tag add', t, 'is already set to version', version)
-      return cb()
+      return
     }
     tags[t] = version
-
-    mapToRegistry(pkg, npm.config, function (er, uri, auth, base) {
-      var params = {
-        'package': pkg,
-        distTag: t,
-        version: version,
-        auth: auth
-      }
-
-      npm.registry.distTags.add(base, params, function (er) {
-        if (er) return cb(er)
-
-        output('+' + t + ': ' + pkg + '@' + version)
-        cb()
-      })
+    const url = `/-/package/${spec.escapedName}/dist-tags/${encodeURIComponent(t)}`
+    const reqOpts = opts.concat({
+      method: 'PUT',
+      body: JSON.stringify(version),
+      headers: {
+        'content-type': 'application/json'
+      },
+      spec
+    })
+    return otplease(reqOpts, reqOpts => regFetch(url, reqOpts)).then(() => {
+      output(`+${t}: ${spec.name}@${version}`)
     })
   })
 }
 
-function remove (tag, pkg, cb) {
-  log.verbose('dist-tag del', tag, 'from', pkg)
+function remove (spec, tag, opts) {
+  spec = npa(spec || '')
+  log.verbose('dist-tag del', tag, 'from', spec.name)
 
-  fetchTags(pkg, function (er, tags) {
-    if (er) return cb(er)
-
+  return fetchTags(spec, opts).then(tags => {
     if (!tags[tag]) {
-      log.info('dist-tag del', tag, 'is not a dist-tag on', pkg)
-      return cb(new Error(tag + ' is not a dist-tag on ' + pkg))
+      log.info('dist-tag del', tag, 'is not a dist-tag on', spec.name)
+      throw new Error(tag + ' is not a dist-tag on ' + spec.name)
     }
-
-    var version = tags[tag]
+    const version = tags[tag]
     delete tags[tag]
-
-    mapToRegistry(pkg, npm.config, function (er, uri, auth, base) {
-      var params = {
-        'package': pkg,
-        distTag: tag,
-        auth: auth
-      }
-
-      npm.registry.distTags.rm(base, params, function (er) {
-        if (er) return cb(er)
-
-        output('-' + tag + ': ' + pkg + '@' + version)
-        cb()
-      })
+    const url = `/-/package/${spec.escapedName}/dist-tags/${encodeURIComponent(tag)}`
+    const reqOpts = opts.concat({
+      method: 'DELETE'
+    })
+    return otplease(reqOpts, reqOpts => regFetch(url, reqOpts)).then(() => {
+      output(`-${tag}: ${spec.name}@${version}`)
     })
   })
 }
 
-function list (pkg, cb) {
-  if (!pkg) {
-    return readLocalPkg(function (er, pkg) {
-      if (er) return cb(er)
-      if (!pkg) return cb(distTag.usage)
-      list(pkg, cb)
+function list (spec, opts) {
+  if (!spec) {
+    return readLocalPkg().then(pkg => {
+      if (!pkg) { UsageError() }
+      return list(pkg, opts)
     })
   }
+  spec = npa(spec)
 
-  fetchTags(pkg, function (er, tags) {
-    if (er) {
-      log.error('dist-tag ls', "Couldn't get dist-tag data for", pkg)
-      return cb(er)
-    }
-    var msg = Object.keys(tags).map(function (k) {
-      return k + ': ' + tags[k]
-    }).sort().join('\n')
+  return fetchTags(spec, opts).then(tags => {
+    var msg = Object.keys(tags).map(k => `${k}: ${tags[k]}`).sort().join('\n')
     output(msg)
-    cb(er, tags)
+    return tags
+  }, err => {
+    log.error('dist-tag ls', "Couldn't get dist-tag data for", spec)
+    throw err
   })
 }
 
-function fetchTags (pkg, cb) {
-  mapToRegistry(pkg, npm.config, function (er, uri, auth, base) {
-    if (er) return cb(er)
-
-    var params = {
-      'package': pkg,
-      auth: auth
-    }
-    npm.registry.distTags.fetch(base, params, function (er, tags) {
-      if (er) return cb(er)
-      if (!tags || !Object.keys(tags).length) {
-        return cb(new Error('No dist-tags found for ' + pkg))
-      }
-
-      cb(null, tags)
+function fetchTags (spec, opts) {
+  return regFetch.json(
+    `/-/package/${spec.escapedName}/dist-tags`,
+    opts.concat({
+      'prefer-online': true,
+      spec
     })
+  ).then(data => {
+    if (data && typeof data === 'object') delete data._etag
+    if (!data || !Object.keys(data).length) {
+      throw new Error('No dist-tags found for ' + spec.name)
+    }
+    return data
   })
 }

@@ -125,6 +125,10 @@ Log out of the registry
 
 List installed packages
 
+### npm-org(1)
+
+Manage orgs
+
 ### npm-outdated(1)
 
 Check for outdated packages
