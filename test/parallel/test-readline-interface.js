@@ -680,6 +680,64 @@ function isWarned(emitter) {
       rli.close();
     }
 
+    // Two astral characters left
+    {
+      const fi = new FakeInput();
+      const rli = new readline.Interface({
+        input: fi,
+        output: fi,
+        prompt: '',
+        terminal: terminal
+      });
+      fi.emit('data', '💻');
+
+      // move left one character/code point
+      fi.emit('keypress', '.', { name: 'left' });
+      let cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 0);
+
+      fi.emit('data', '🐕');
+      cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 2);
+
+      rli.on('line', common.mustCall((line) => {
+        assert.strictEqual(line, '🐕💻');
+      }));
+      fi.emit('data', '\n');
+      rli.close();
+    }
+
+    // Two astral characters right
+    {
+      const fi = new FakeInput();
+      const rli = new readline.Interface({
+        input: fi,
+        output: fi,
+        prompt: '',
+        terminal: terminal
+      });
+      fi.emit('data', '💻');
+
+      // move left one character/code point
+      fi.emit('keypress', '.', { name: 'right' });
+      let cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 2);
+
+      fi.emit('data', '🐕');
+      cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 4);
+
+      rli.on('line', common.mustCall((line) => {
+        assert.strictEqual(line, '💻🐕');
+      }));
+      fi.emit('data', '\n');
+      rli.close();
+    }
+
     {
       // `wordLeft` and `wordRight`
       const fi = new FakeInput();
