@@ -675,7 +675,7 @@ New Node.js Major releases happen twice per year:
 * Even Numbered Releases are cut in April
 * Odd Numbered Releases are cut in October
 
-Major releases should be targeted for the *third tuesday* of the release month.
+Major releases should be targeted for the *third Tuesday* of the release month.
 
 A Major release *must not* slip beyond the release month (e.g. major releases
 must not slip into May or November).
