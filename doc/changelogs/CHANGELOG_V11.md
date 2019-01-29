@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#11.9.0">11.9.0</a><br/>
 <a href="#11.8.0">11.8.0</a><br/>
 <a href="#11.7.0">11.7.0</a><br/>
 <a href="#11.6.0">11.6.0</a><br/>
@@ -34,6 +35,97 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="11.9.0"></a>
+## 2019-01-30, Version 11.9.0 (Current), @targos
+
+### Notable Changes
+
+**deps**:
+  * OpenSSL has been updated to 1.1.1a, which is API/ABI compatible with the
+    previous OpenSSL 1.1.0j. Note that while OpenSSL 1.1.1a supports TLS1.3,
+    Node.js still does not. [#25381](https://github.com/nodejs/node/pull/25582))
+
+### Commits
+
+* [[`bc81a68f20`](https://github.com/nodejs/node/commit/bc81a68f20)] - **build**: make compress\_json python3 compatible (Sakthipriyan Vairamani (thefourtheye)) [#25582](https://github.com/nodejs/node/pull/25582)
+* [[`30949f8dba`](https://github.com/nodejs/node/commit/30949f8dba)] - **build**: make configure.py compatible with python 3 (Sakthipriyan Vairamani (thefourtheye)) [#25580](https://github.com/nodejs/node/pull/25580)
+* [[`d4ec110c65`](https://github.com/nodejs/node/commit/d4ec110c65)] - **(SEMVER-MINOR)** **deps**: update archs files for OpenSSL-1.1.1a (Sam Roberts) [#25381](https://github.com/nodejs/node/pull/25381)
+* [[`5225214d07`](https://github.com/nodejs/node/commit/5225214d07)] - **(SEMVER-MINOR)** **deps**: fix for non GNU assembler in AIX (Shigeki Ohtsu) [#25381](https://github.com/nodejs/node/pull/25381)
+* [[`ad04d7bea1`](https://github.com/nodejs/node/commit/ad04d7bea1)] - **(SEMVER-MINOR)** **deps**: add only avx2 configs for OpenSSL-1.1.1 (Shigeki Ohtsu) [#25381](https://github.com/nodejs/node/pull/25381)
+* [[`670f10053a`](https://github.com/nodejs/node/commit/670f10053a)] - **(SEMVER-MINOR)** **deps**: add s390 asm rules for OpenSSL-1.1.1 (Shigeki Ohtsu) [#25381](https://github.com/nodejs/node/pull/25381)
+* [[`0a0f15f768`](https://github.com/nodejs/node/commit/0a0f15f768)] - **(SEMVER-MINOR)** **deps**: fix MacOS and Win build for OpenSSL-1.1.1 (Shigeki Ohtsu) [#25381](https://github.com/nodejs/node/pull/25381)
+* [[`e2043999bd`](https://github.com/nodejs/node/commit/e2043999bd)] - **(SEMVER-MINOR)** **deps**: fix gyp/gypi for openssl-1.1.1 (Shigeki Ohtsu) [#25381](https://github.com/nodejs/node/pull/25381)
+* [[`c581b9a253`](https://github.com/nodejs/node/commit/c581b9a253)] - **(SEMVER-MINOR)** **deps**: upgrade openssl sources to 1.1.1a (Sam Roberts) [#25381](https://github.com/nodejs/node/pull/25381)
+* [[`c82f2445e5`](https://github.com/nodejs/node/commit/c82f2445e5)] - **dns**: use IDNA 2008 to encode non-ascii hostnames (Ben Noordhuis) [#25679](https://github.com/nodejs/node/pull/25679)
+* [[`c56ddc7736`](https://github.com/nodejs/node/commit/c56ddc7736)] - **doc**: document uniqueness of worker.threadId (Anna Henningsen) [#25644](https://github.com/nodejs/node/pull/25644)
+* [[`7c8d57d4a9`](https://github.com/nodejs/node/commit/7c8d57d4a9)] - **doc**: revise breaking changes material in COLLABORATOR\_GUIDE (Rich Trott) [#25730](https://github.com/nodejs/node/pull/25730)
+* [[`edc9ceb16e`](https://github.com/nodejs/node/commit/edc9ceb16e)] - **doc**: fix issue with worker\_threads docs (Lee Byron) [#25712](https://github.com/nodejs/node/pull/25712)
+* [[`1d6e18b128`](https://github.com/nodejs/node/commit/1d6e18b128)] - **doc**: fix http.Agent timeout option description (Luigi Pinca) [#25489](https://github.com/nodejs/node/pull/25489)
+* [[`5d5c528120`](https://github.com/nodejs/node/commit/5d5c528120)] - **(SEMVER-MINOR)** **doc**: fix assembler requirement for OpenSSL-1.1.1 (Shigeki Ohtsu) [#25381](https://github.com/nodejs/node/pull/25381)
+* [[`34bc69d376`](https://github.com/nodejs/node/commit/34bc69d376)] - **doc**: fix file extension on ESM file example (Eric Whitebloom) [#25692](https://github.com/nodejs/node/pull/25692)
+* [[`b218b1204a`](https://github.com/nodejs/node/commit/b218b1204a)] - **doc**: remove outdated s\_client information in tls.md (Rich Trott) [#25678](https://github.com/nodejs/node/pull/25678)
+* [[`1aa7f4d72d`](https://github.com/nodejs/node/commit/1aa7f4d72d)] - **doc**: fix metadata for v11.8.0 doc changes (Richard Lau) [#25709](https://github.com/nodejs/node/pull/25709)
+* [[`3c5a7a2f97`](https://github.com/nodejs/node/commit/3c5a7a2f97)] - **doc**: fix keyObject.symmetricSize to be keyObject.symmetricKeySize (Filip Skokan) [#25670](https://github.com/nodejs/node/pull/25670)
+* [[`e47511943b`](https://github.com/nodejs/node/commit/e47511943b)] - **doc**: add metadata to report docs (Richard Lau) [#25708](https://github.com/nodejs/node/pull/25708)
+* [[`237ec396d0`](https://github.com/nodejs/node/commit/237ec396d0)] - **doc**: fix 11.8.0 changelog (Myles Borins) [#25705](https://github.com/nodejs/node/pull/25705)
+* [[`48149cfa3a`](https://github.com/nodejs/node/commit/48149cfa3a)] - **doc**: clarify what dns.setResolvers() affects (Sam Roberts) [#25570](https://github.com/nodejs/node/pull/25570)
+* [[`3488f0df3b`](https://github.com/nodejs/node/commit/3488f0df3b)] - **doc**: link nextTick docs to the nextTick guide (Sam Roberts) [#25619](https://github.com/nodejs/node/pull/25619)
+* [[`c93e5e1f65`](https://github.com/nodejs/node/commit/c93e5e1f65)] - **doc**: simplify process.binding() deprecation message (Rich Trott) [#25654](https://github.com/nodejs/node/pull/25654)
+* [[`0640b09243`](https://github.com/nodejs/node/commit/0640b09243)] - **lib**: refactor policy code for readability (Anna Henningsen) [#25629](https://github.com/nodejs/node/pull/25629)
+* [[`634cf131f4`](https://github.com/nodejs/node/commit/634cf131f4)] - **module**: do not use `process.exit()` (Anna Henningsen) [#25769](https://github.com/nodejs/node/pull/25769)
+* [[`143274af38`](https://github.com/nodejs/node/commit/143274af38)] - **module**: silence ModuleJob unhandled rejection warnings (Anna Henningsen) [#25769](https://github.com/nodejs/node/pull/25769)
+* [[`fc38b20c7c`](https://github.com/nodejs/node/commit/fc38b20c7c)] - **perf_hooks**: clean up GC listeners (Anna Henningsen) [#25647](https://github.com/nodejs/node/pull/25647)
+* [[`f3179f7701`](https://github.com/nodejs/node/commit/f3179f7701)] - **policy**: ensure workers do not read fs for policy (Bradley Farias) [#25710](https://github.com/nodejs/node/pull/25710)
+* [[`ee61ab6894`](https://github.com/nodejs/node/commit/ee61ab6894)] - **repl**: improve doc for disabling REPL history on Windows (Samuel D. Leslie) [#25672](https://github.com/nodejs/node/pull/25672)
+* [[`ce28caf517`](https://github.com/nodejs/node/commit/ce28caf517)] - **report**: represent numbers as numbers (Anna Henningsen) [#25651](https://github.com/nodejs/node/pull/25651)
+* [[`1dfdbc6cf7`](https://github.com/nodejs/node/commit/1dfdbc6cf7)] - **report**: refactor JSON writer (Anna Henningsen) [#25651](https://github.com/nodejs/node/pull/25651)
+* [[`14bce1ea5a`](https://github.com/nodejs/node/commit/14bce1ea5a)] - **report**: do not use `uv\_default\_loop()` as fallback (Anna Henningsen) [#25652](https://github.com/nodejs/node/pull/25652)
+* [[`152d633366`](https://github.com/nodejs/node/commit/152d633366)] - **src**: remove unused env\_ field from env.h (Daniel Bevenius) [#25784](https://github.com/nodejs/node/pull/25784)
+* [[`c0951062b9`](https://github.com/nodejs/node/commit/c0951062b9)] - **src**: pass along errors from i18n converter instantiation (Anna Henningsen) [#25734](https://github.com/nodejs/node/pull/25734)
+* [[`deebf10bd5`](https://github.com/nodejs/node/commit/deebf10bd5)] - **src**: pass along errors from vm data wrapper creation (Anna Henningsen) [#25734](https://github.com/nodejs/node/pull/25734)
+* [[`8ee4810029`](https://github.com/nodejs/node/commit/8ee4810029)] - **src**: pass along errors from KeyObject instantiation (Anna Henningsen) [#25734](https://github.com/nodejs/node/pull/25734)
+* [[`ced4e71504`](https://github.com/nodejs/node/commit/ced4e71504)] - **src**: pass along errors from perf obj instantiation (Anna Henningsen) [#25734](https://github.com/nodejs/node/pull/25734)
+* [[`5add2b56ac`](https://github.com/nodejs/node/commit/5add2b56ac)] - **src**: pass along errors from process obj instantiation (Anna Henningsen) [#25734](https://github.com/nodejs/node/pull/25734)
+* [[`2928672679`](https://github.com/nodejs/node/commit/2928672679)] - **src**: pass along errors from stream obj instantiation (Anna Henningsen) [#25734](https://github.com/nodejs/node/pull/25734)
+* [[`ebcdbebcee`](https://github.com/nodejs/node/commit/ebcdbebcee)] - **src**: remove unused field in node\_http2.h (gengjiawen) [#25727](https://github.com/nodejs/node/pull/25727)
+* [[`6d9af41aef`](https://github.com/nodejs/node/commit/6d9af41aef)] - **src**: in-source comments and minor TLS cleanups (Sam Roberts) [#25713](https://github.com/nodejs/node/pull/25713)
+* [[`09a10858f7`](https://github.com/nodejs/node/commit/09a10858f7)] - **src**: remove unnecessary call to SSL\_get\_mode (Sam Roberts) [#25711](https://github.com/nodejs/node/pull/25711)
+* [[`86e79a521d`](https://github.com/nodejs/node/commit/86e79a521d)] - **src**: remove unused and unimplemented method in env.h (gengjiawen) [#25699](https://github.com/nodejs/node/pull/25699)
+* [[`021d1975ff`](https://github.com/nodejs/node/commit/021d1975ff)] - **src**: fix macro duplicate declaration in env.h (gengjiawen) [#25703](https://github.com/nodejs/node/pull/25703)
+* [[`845bcfa1ce`](https://github.com/nodejs/node/commit/845bcfa1ce)] - **src**: simplify inspector initialization in node::Start() (Joyee Cheung) [#25612](https://github.com/nodejs/node/pull/25612)
+* [[`797111a69b`](https://github.com/nodejs/node/commit/797111a69b)] - **src**: avoid race condition in tracing code (Anna Henningsen) [#25624](https://github.com/nodejs/node/pull/25624)
+* [[`b113332daf`](https://github.com/nodejs/node/commit/b113332daf)] - **src**: ensure no more platform foreground tasks after Deinit (Clemens Hammacher) [#25653](https://github.com/nodejs/node/pull/25653)
+* [[`7cc51531a7`](https://github.com/nodejs/node/commit/7cc51531a7)] - **src**: remove has\_experimental\_policy option (Anna Henningsen) [#25628](https://github.com/nodejs/node/pull/25628)
+* [[`4b43eeaf9a`](https://github.com/nodejs/node/commit/4b43eeaf9a)] - **src,test**: fix JSON escaping in node-report (Denys Otrishko) [#25626](https://github.com/nodejs/node/pull/25626)
+* [[`af9592d6b1`](https://github.com/nodejs/node/commit/af9592d6b1)] - **test**: refactor test/common/report.js (cjihrig) [#25754](https://github.com/nodejs/node/pull/25754)
+* [[`e2ee031060`](https://github.com/nodejs/node/commit/e2ee031060)] - **test**: move client renegotiation tests to parallel (Rich Trott) [#25757](https://github.com/nodejs/node/pull/25757)
+* [[`b174dd7280`](https://github.com/nodejs/node/commit/b174dd7280)] - **test**: use fipsMode in test-crypto-fips (Daniel Bevenius) [#25563](https://github.com/nodejs/node/pull/25563)
+* [[`fa2a857e6a`](https://github.com/nodejs/node/commit/fa2a857e6a)] - **test**: refactor test-http-client-timeout-option-with-agent (Rich Trott) [#25752](https://github.com/nodejs/node/pull/25752)
+* [[`15f6b8e25d`](https://github.com/nodejs/node/commit/15f6b8e25d)] - **test**: add test for `worker.terminate()` + timeout fns (Anna Henningsen) [#25735](https://github.com/nodejs/node/pull/25735)
+* [[`c2136348a1`](https://github.com/nodejs/node/commit/c2136348a1)] - **test**: move heapdump tests to pummel (Rich Trott) [#25181](https://github.com/nodejs/node/pull/25181)
+* [[`ae19f944f8`](https://github.com/nodejs/node/commit/ae19f944f8)] - **test**: exit sequence sanity tests (Gireesh Punathil) [#25083](https://github.com/nodejs/node/pull/25083)
+* [[`af6e439ad8`](https://github.com/nodejs/node/commit/af6e439ad8)] - **test**: enable marking of failing coverage tests (Michael Dawson) [#25671](https://github.com/nodejs/node/pull/25671)
+* [[`6203d05a3c`](https://github.com/nodejs/node/commit/6203d05a3c)] - **test**: fix zlib-brotli output assumptions (Adam Majer) [#25697](https://github.com/nodejs/node/pull/25697)
+* [[`77274d07d2`](https://github.com/nodejs/node/commit/77274d07d2)] - **test**: rewrite fs {f}utimes test file (Jeremiah Senkpiel) [#25656](https://github.com/nodejs/node/pull/25656)
+* [[`29002ceb4e`](https://github.com/nodejs/node/commit/29002ceb4e)] - **(SEMVER-MINOR)** **test**: assert on client and server side seperately (Sam Roberts) [#25381](https://github.com/nodejs/node/pull/25381)
+* [[`c7dbb72530`](https://github.com/nodejs/node/commit/c7dbb72530)] - **test**: remove pummel/test-exec (Rich Trott) [#25722](https://github.com/nodejs/node/pull/25722)
+* [[`4b2a1eadbd`](https://github.com/nodejs/node/commit/4b2a1eadbd)] - **test**: replace s\_client in test-https-ci-reneg-attack (Rich Trott) [#25720](https://github.com/nodejs/node/pull/25720)
+* [[`7d682234a6`](https://github.com/nodejs/node/commit/7d682234a6)] - **test**: remove unused uncaughtException handler (Anna Henningsen) [#25641](https://github.com/nodejs/node/pull/25641)
+* [[`271126ad3b`](https://github.com/nodejs/node/commit/271126ad3b)] - **test**: remove s\_client from test-tls-ci-reneg-attack (Rich Trott) [#25700](https://github.com/nodejs/node/pull/25700)
+* [[`190c063ecb`](https://github.com/nodejs/node/commit/190c063ecb)] - **test**: replace Google servers with localhost (Rich Trott) [#25694](https://github.com/nodejs/node/pull/25694)
+* [[`f33d705033`](https://github.com/nodejs/node/commit/f33d705033)] - **test**: fix sequential/test-performance delay (Anatoli Papirovski) [#25695](https://github.com/nodejs/node/pull/25695)
+* [[`1905f8ef55`](https://github.com/nodejs/node/commit/1905f8ef55)] - **test**: remove common.isOSXMojave (Rich Trott) [#25658](https://github.com/nodejs/node/pull/25658)
+* [[`9f1b5c6193`](https://github.com/nodejs/node/commit/9f1b5c6193)] - **test**: remove known\_issues/test-cluster-bind-privileged-port (Rich Trott) [#25649](https://github.com/nodejs/node/pull/25649)
+* [[`d0705bd24b`](https://github.com/nodejs/node/commit/d0705bd24b)] - **timers**: truncate decimal values (Jeremiah Senkpiel) [#24819](https://github.com/nodejs/node/pull/24819)
+* [[`d5b2135dde`](https://github.com/nodejs/node/commit/d5b2135dde)] - **tls**: fix malloc mismatch in SSL\_set\_tlsext\_status\_ocsp\_resp call (David Benjamin) [#25706](https://github.com/nodejs/node/pull/25706)
+* [[`6e80f6d9a1`](https://github.com/nodejs/node/commit/6e80f6d9a1)] - **(SEMVER-MINOR)** **tls**: workaround handshakedone in renegotiation (Shigeki Ohtsu) [#25381](https://github.com/nodejs/node/pull/25381)
+* [[`c34c5694eb`](https://github.com/nodejs/node/commit/c34c5694eb)] - **(SEMVER-MINOR)** **tls**: make ossl 1.1.1 cipher list throw error (Sam Roberts) [#25381](https://github.com/nodejs/node/pull/25381)
+* [[`8032969c69`](https://github.com/nodejs/node/commit/8032969c69)] - **tools**: make trailing commas consistent in .eslintrc (Rich Trott) [#25739](https://github.com/nodejs/node/pull/25739)
+* [[`7ba66505e3`](https://github.com/nodejs/node/commit/7ba66505e3)] - **tools**: make test.py Queue part Python 3 compatible (gengjiawen) [#25701](https://github.com/nodejs/node/pull/25701)
+* [[`e6ad7f4c9c`](https://github.com/nodejs/node/commit/e6ad7f4c9c)] - **tools**: make mkssldef.py Python 3 compatible (Sakthipriyan Vairamani (thefourtheye)) [#25584](https://github.com/nodejs/node/pull/25584)
+* [[`bc81fef988`](https://github.com/nodejs/node/commit/bc81fef988)] - **vm**: mark scripts as shareable cross-origin (Jeremy Apthorp) [#25380](https://github.com/nodejs/node/pull/25380)
+* [[`fb69b2bf14`](https://github.com/nodejs/node/commit/fb69b2bf14)] - **worker**: export workerData to ESM workers (Anna Henningsen) [#25768](https://github.com/nodejs/node/pull/25768)
 
 <a id="11.8.0"></a>
 ## 2019-01-24, Version 11.8.0 (Current), @MylesBorins
