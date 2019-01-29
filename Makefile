@@ -462,7 +462,7 @@ test-all-valgrind: test-build
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=debug,release --valgrind
 
 .PHONY: test-all-suites
-test-all-suites: | bench-addons-build ## Run all test suites.
+test-all-suites: test-build test-js-native-api test-node-api | bench-addons-build ## Run all test suites.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) test/*
 
 CI_NATIVE_SUITES ?= addons js-native-api node-api
