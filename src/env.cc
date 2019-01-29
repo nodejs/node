@@ -16,6 +16,7 @@
 
 #include <stdio.h>
 #include <algorithm>
+#include <atomic>
 
 namespace node {
 
@@ -166,8 +167,11 @@ void Environment::TrackingTraceStateObserver::UpdateTraceCategoryState() {
            0, nullptr).ToLocalChecked();
 }
 
+static std::atomic<uint64_t> next_thread_id{0};
+
 Environment::Environment(IsolateData* isolate_data,
-                         Local<Context> context)
+                         Local<Context> context,
+                         Flags flags)
     : isolate_(context->GetIsolate()),
       isolate_data_(isolate_data),
       immediate_info_(context->GetIsolate()),
@@ -176,6 +180,8 @@ Environment::Environment(IsolateData* isolate_data,
       should_abort_on_uncaught_toggle_(isolate_, 1),
       trace_category_state_(isolate_, kTraceCategoryCount),
       stream_base_state_(isolate_, StreamBase::kNumStreamBaseStateFields),
+      flags_(flags),
+      thread_id_(next_thread_id++),
       fs_stats_field_array_(isolate_, kFsStatsBufferLength),
       fs_stats_field_bigint_array_(isolate_, kFsStatsBufferLength),
       context_(context->GetIsolate(), context) {

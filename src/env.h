@@ -595,6 +595,11 @@ class Environment {
     DISALLOW_COPY_AND_ASSIGN(TickInfo);
   };
 
+  enum Flags {
+    kNoFlags = 0,
+    kIsMainThread = 1
+  };
+
   static inline Environment* GetCurrent(v8::Isolate* isolate);
   static inline Environment* GetCurrent(v8::Local<v8::Context> context);
   static inline Environment* GetCurrent(
@@ -608,7 +613,8 @@ class Environment {
   static inline Environment* GetThreadLocalEnv();
 
   Environment(IsolateData* isolate_data,
-              v8::Local<v8::Context> context);
+              v8::Local<v8::Context> context,
+              Flags flags = Flags());
   ~Environment();
 
   void Start(bool start_profiler_idle_notifier);
@@ -761,7 +767,6 @@ class Environment {
 
   inline bool is_main_thread() const;
   inline uint64_t thread_id() const;
-  inline void set_thread_id(uint64_t id);
   inline worker::Worker* worker_context() const;
   inline void set_worker_context(worker::Worker* context);
   inline void add_sub_worker_context(worker::Worker* context);
@@ -1005,7 +1010,8 @@ class Environment {
 
   bool has_run_bootstrapping_code_ = false;
   bool can_call_into_js_ = true;
-  uint64_t thread_id_ = 0;
+  Flags flags_;
+  uint64_t thread_id_;
   std::unordered_set<worker::Worker*> sub_worker_contexts_;
 
   static void* const kNodeContextTagPtr;
