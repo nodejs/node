@@ -3,7 +3,7 @@ var path = require('path')
 var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
 var common = require('../common-tap.js')
-var mr = require('npm-registry-mock')
+var mr = common.fakeRegistry.compat
 var server
 
 var packageName = path.basename(__filename, '.js')

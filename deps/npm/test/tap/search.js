@@ -1,21 +1,25 @@
-var path = require('path')
-var mkdirp = require('mkdirp')
-var mr = require('npm-registry-mock')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
-var cacheFile = require('npm-cache-filename')
-var test = require('tap').test
-var Tacks = require('tacks')
-var File = Tacks.File
+'use strict'
 
-var common = require('../common-tap.js')
+const cacheFile = require('npm-cache-filename')
+const mkdirp = require('mkdirp')
+const mr = require('npm-registry-mock')
+const osenv = require('osenv')
+const path = require('path')
+const qs = require('querystring')
+const rimraf = require('rimraf')
+const test = require('tap').test
 
-var PKG_DIR = path.resolve(__dirname, 'search')
-var CACHE_DIR = path.resolve(PKG_DIR, 'cache')
-var cacheBase = cacheFile(CACHE_DIR)(common.registry + '/-/all')
-var cachePath = path.join(cacheBase, '.cache.json')
+const Tacks = require('tacks')
+const File = Tacks.File
 
-var server
+const common = require('../common-tap.js')
+
+const PKG_DIR = path.resolve(__dirname, 'search')
+const CACHE_DIR = path.resolve(PKG_DIR, 'cache')
+const cacheBase = cacheFile(CACHE_DIR)(common.registry + '/-/all')
+const cachePath = path.join(cacheBase, '.cache.json')
+
+let server
 
 test('setup', function (t) {
   mr({port: common.port, throwOnUnmatched: true}, function (err, s) {
@@ -28,7 +32,14 @@ test('setup', function (t) {
 
 test('notifies when there are no results', function (t) {
   setup()
-  server.get('/-/v1/search?text=none&size=20').once().reply(200, {
+  const query = qs.stringify({
+    text: 'none',
+    size: 20,
+    quality: 0.65,
+    popularity: 0.98,
+    maintenance: 0.5
+  })
+  server.get(`/-/v1/search?${query}`).once().reply(200, {
     objects: []
   })
   common.npm([
@@ -46,10 +57,17 @@ test('notifies when there are no results', function (t) {
 
 test('spits out a useful error when no cache nor network', function (t) {
   setup()
-  server.get('/-/v1/search?text=foo&size=20').once().reply(404, {})
+  const query = qs.stringify({
+    text: 'foo',
+    size: 20,
+    quality: 0.65,
+    popularity: 0.98,
+    maintenance: 0.5
+  })
+  server.get(`/-/v1/search?${query}`).once().reply(404, {})
   server.get('/-/all').many().reply(404, {})
-  var cacheContents = {}
-  var fixture = new Tacks(File(cacheContents))
+  const cacheContents = {}
+  const fixture = new Tacks(File(cacheContents))
   fixture.create(cachePath)
   common.npm([
     'search', 'foo',
@@ -70,7 +88,14 @@ test('spits out a useful error when no cache nor network', function (t) {
 
 test('can switch to JSON mode', function (t) {
   setup()
-  server.get('/-/v1/search?text=oo&size=20').once().reply(200, {
+  const query = qs.stringify({
+    text: 'oo',
+    size: 20,
+    quality: 0.65,
+    popularity: 0.98,
+    maintenance: 0.5
+  })
+  server.get(`/-/v1/search?${query}`).once().reply(200, {
     objects: [
       { package: { name: 'cool', version: '1.0.0' } },
       { package: { name: 'foo', version: '2.0.0' } }
@@ -86,9 +111,15 @@ test('can switch to JSON mode', function (t) {
     if (err) throw err
     t.equal(stderr, '', 'no error output')
     t.equal(code, 0, 'search gives 0 error code even if no matches')
-    t.deepEquals(JSON.parse(stdout), [
-      { name: 'cool', version: '1.0.0', date: null },
-      { name: 'foo', version: '2.0.0', date: null }
+    t.similar(JSON.parse(stdout), [
+      {
+        name: 'cool',
+        version: '1.0.0'
+      },
+      {
+        name: 'foo',
+        version: '2.0.0'
+      }
     ], 'results returned as valid json')
     t.done()
   })
@@ -96,7 +127,14 @@ test('can switch to JSON mode', function (t) {
 
 test('JSON mode does not notify on empty', function (t) {
   setup()
-  server.get('/-/v1/search?text=oo&size=20').once().reply(200, {
+  const query = qs.stringify({
+    text: 'oo',
+    size: 20,
+    quality: 0.65,
+    popularity: 0.98,
+    maintenance: 0.5
+  })
+  server.get(`/-/v1/search?${query}`).once().reply(200, {
     objects: []
   })
   common.npm([
@@ -116,7 +154,14 @@ test('JSON mode does not notify on empty', function (t) {
 
 test('can switch to tab separated mode', function (t) {
   setup()
-  server.get('/-/v1/search?text=oo&size=20').once().reply(200, {
+  const query = qs.stringify({
+    text: 'oo',
+    size: 20,
+    quality: 0.65,
+    popularity: 0.98,
+    maintenance: 0.5
+  })
+  server.get(`/-/v1/search?${query}`).once().reply(200, {
     objects: [
       { package: { name: 'cool', version: '1.0.0' } },
       { package: { name: 'foo', description: 'this\thas\ttabs', version: '2.0.0' } }
@@ -139,7 +184,14 @@ test('can switch to tab separated mode', function (t) {
 
 test('tab mode does not notify on empty', function (t) {
   setup()
-  server.get('/-/v1/search?text=oo&size=20').once().reply(200, {
+  const query = qs.stringify({
+    text: 'oo',
+    size: 20,
+    quality: 0.65,
+    popularity: 0.98,
+    maintenance: 0.5
+  })
+  server.get(`/-/v1/search?${query}`).once().reply(200, {
     objects: []
   })
   common.npm([

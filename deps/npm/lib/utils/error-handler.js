@@ -202,7 +202,7 @@ function errorHandler (er) {
   msg.summary.concat(msg.detail).forEach(function (errline) {
     log.error.apply(log, errline)
   })
-  if (npm.config.get('json')) {
+  if (npm.config && npm.config.get('json')) {
     var error = {
       error: {
         code: er.code,

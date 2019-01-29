@@ -3,11 +3,16 @@
 const cacache = require('cacache')
 const Fetcher = require('../../fetch')
 const regManifest = require('./manifest')
+const regPackument = require('./packument')
 const regTarball = require('./tarball')
 
 const fetchRegistry = module.exports = Object.create(null)
 
 Fetcher.impl(fetchRegistry, {
+  packument (spec, opts) {
+    return regPackument(spec, opts)
+  },
+
   manifest (spec, opts) {
     return regManifest(spec, opts)
   },
@@ -22,6 +27,6 @@ Fetcher.impl(fetchRegistry, {
 
   clearMemoized () {
     cacache.clearMemoized()
-    regManifest.clearMemoized()
+    regPackument.clearMemoized()
   }
 })

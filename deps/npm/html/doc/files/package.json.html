@@ -54,7 +54,7 @@ plan to publish your package, the name and version fields are optional.</p>
 <a href="https://github.com/isaacs/node-semver">node-semver</a>, which is bundled
 with npm as a dependency.  (<code>npm install semver</code> to use it yourself.)</p>
 <p>More on version numbers and ranges at <a href="../misc/semver.html">semver(7)</a>.</p>
-<h2 id="description">description</h2>
+<h2 id="description-1">description</h2>
 <p>Put a description in it.  It&#39;s a string.  This helps people discover your
 package, as it&#39;s listed in <code>npm search</code>.</p>
 <h2 id="keywords">keywords</h2>
@@ -230,25 +230,25 @@ few ways that you can indicate the structure of your package using a <code>direc
 object. If you look at <a href="https://registry.npmjs.org/npm/latest">npm&#39;s package.json</a>,
 you&#39;ll see that it has directories for doc, lib, and man.</p>
 <p>In the future, this information may be used in other creative ways.</p>
-<h3 id="directories-lib">directories.lib</h3>
+<h3 id="directorieslib">directories.lib</h3>
 <p>Tell people where the bulk of your library is.  Nothing special is done
 with the lib folder in any way, but it&#39;s useful meta info.</p>
-<h3 id="directories-bin">directories.bin</h3>
+<h3 id="directoriesbin">directories.bin</h3>
 <p>If you specify a <code>bin</code> directory in <code>directories.bin</code>, all the files in
 that folder will be added.</p>
 <p>Because of the way the <code>bin</code> directive works, specifying both a
 <code>bin</code> path and setting <code>directories.bin</code> is an error. If you want to
 specify individual files, use <code>bin</code>, and for all the files in an
 existing <code>bin</code> directory, use <code>directories.bin</code>.</p>
-<h3 id="directories-man">directories.man</h3>
+<h3 id="directoriesman">directories.man</h3>
 <p>A folder that is full of man pages.  Sugar to generate a &quot;man&quot; array by
 walking the folder.</p>
-<h3 id="directories-doc">directories.doc</h3>
+<h3 id="directoriesdoc">directories.doc</h3>
 <p>Put markdown files in here.  Eventually, these will be displayed nicely,
 maybe, someday.</p>
-<h3 id="directories-example">directories.example</h3>
+<h3 id="directoriesexample">directories.example</h3>
 <p>Put example scripts in here.  Someday, it might be exposed in some clever way.</p>
-<h3 id="directories-test">directories.test</h3>
+<h3 id="directoriestest">directories.test</h3>
 <p>Put your tests in here. It is currently not exposed, but it might be in the
 future.</p>
 <h2 id="repository">repository</h2>
@@ -574,5 +574,5 @@ ignored.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">package.json &mdash; npm@6.5.0</p>
+<p id="footer">package.json &mdash; npm@6.7.0</p>
 
