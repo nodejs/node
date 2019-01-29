@@ -517,8 +517,6 @@ class Environment {
     inline AsyncHooks();
     // Keep a list of all Persistent strings used for Provider types.
     v8::Eternal<v8::String> providers_[AsyncWrap::PROVIDERS_LENGTH];
-    // Keep track of the environment copy itself.
-    Environment* env_;
     // Stores the ids of the current execution context stack.
     AliasedBuffer<double, v8::Float64Array> async_ids_stack_;
     // Attached to a Uint32Array that tracks the number of active hooks for
