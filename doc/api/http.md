@@ -633,6 +633,13 @@ const cookie = request.getHeader('Cookie');
 
 Limits maximum response headers count. If set to 0, no limit will be applied.
 
+### request.path
+<!-- YAML
+added: v0.4.0
+-->
+
+* {string} The request path. Read-only.
+
 ### request.removeHeader(name)
 <!-- YAML
 added: v1.6.0
