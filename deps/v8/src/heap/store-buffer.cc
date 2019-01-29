@@ -56,7 +56,7 @@ void StoreBuffer::SetUp() {
   }
 
   if (!reservation.SetPermissions(reinterpret_cast<Address>(start_[0]),
-                                  kStoreBufferSize * kStoreBuffers,
+				   RoundUp(kStoreBufferSize * kStoreBuffers, CommitPageSize()),                                  
                                   PageAllocator::kReadWrite)) {
     heap_->FatalProcessOutOfMemory("StoreBuffer::SetUp");
   }

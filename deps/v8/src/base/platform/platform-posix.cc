@@ -249,7 +249,7 @@ void* OS::GetRandomMmapAddr() {
   // Big-endian Linux: 42 bits of virtual addressing.
   raw_addr &= uint64_t{0x03FFFFFFF000};
 #else
-  // Little-endian Linux: 46 bits of virtual addressing.
+  // Little-endian Linux: 48 bits of virtual addressing.
   raw_addr &= uint64_t{0x3FFFFFFF0000};
 #endif
 #elif V8_TARGET_ARCH_MIPS64
