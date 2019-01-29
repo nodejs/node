@@ -23,7 +23,7 @@ All license IDs except for the currently deprecated ones.
 
 ```javascript
 const ids = require('spdx-license-ids');
-//=> ['0BSD', 'AAL', 'Abstyles', 'Adobe-2006', 'Adobe-Glyph', 'ADSL', 'AFL-1.1', ...]
+//=> ['0BSD', 'AAL', 'Abstyles', 'Adobe-2006', 'Adobe-Glyph', 'ADSL', 'AFL-1.1', 'AFL-1.2', ...]
 
 ids.includes('BSD-3-Clause'); //=> true
 ids.includes('CC-BY-1.0'); //=> true
@@ -39,7 +39,7 @@ Deprecated license IDs.
 
 ```javascript
 const deprecatedIds = require('spdx-license-ids/deprecated');
-//=> ['AGPL-3.0', 'eCos-2.0', 'GFDL-1.1', 'GFDL-1.2', 'GFDL-1.3', 'GPL-1.0', ...]
+//=> ['AGPL-1.0', 'AGPL-3.0', 'eCos-2.0', 'GFDL-1.1', 'GFDL-1.2', 'GFDL-1.3', 'GPL-1.0', ...]
 
 deprecatedIds.includes('BSD-3-Clause'); //=> false
 deprecatedIds.includes('CC-BY-1.0'); //=> false

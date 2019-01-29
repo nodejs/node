@@ -1,28 +1,50 @@
 'use strict'
 /* eslint-disable standard/no-callback-literal */
 
-var resolve = require('path').resolve
+const BB = require('bluebird')
 
-var readPackageJson = require('read-package-json')
-var mapToRegistry = require('./utils/map-to-registry.js')
-var npm = require('./npm.js')
-var output = require('./utils/output.js')
-
-var whoami = require('./whoami')
+const figgyPudding = require('figgy-pudding')
+const libaccess = require('libnpm/access')
+const npmConfig = require('./config/figgy-config.js')
+const output = require('./utils/output.js')
+const otplease = require('./utils/otplease.js')
+const path = require('path')
+const prefix = require('./npm.js').prefix
+const readPackageJson = BB.promisify(require('read-package-json'))
+const usage = require('./utils/usage.js')
+const whoami = require('./whoami.js')
 
 module.exports = access
 
-access.usage =
+access.usage = usage(
+  'npm access',
   'npm access public [<package>]\n' +
   'npm access restricted [<package>]\n' +
   'npm access grant <read-only|read-write> <scope:team> [<package>]\n' +
   'npm access revoke <scope:team> [<package>]\n' +
+  'npm access 2fa-required [<package>]\n' +
+  'npm access 2fa-not-required [<package>]\n' +
   'npm access ls-packages [<user>|<scope>|<scope:team>]\n' +
   'npm access ls-collaborators [<package> [<user>]]\n' +
   'npm access edit [<package>]'
+)
 
-access.subcommands = ['public', 'restricted', 'grant', 'revoke',
-  'ls-packages', 'ls-collaborators', 'edit']
+access.subcommands = [
+  'public', 'restricted', 'grant', 'revoke',
+  'ls-packages', 'ls-collaborators', 'edit',
+  '2fa-required', '2fa-not-required'
+]
+
+const AccessConfig = figgyPudding({
+  json: {}
+})
+
+function UsageError (msg = '') {
+  throw Object.assign(new Error(
+    (msg ? `\nUsage: ${msg}\n\n` : '') +
+    access.usage
+  ), {code: 'EUSAGE'})
+}
 
 access.completion = function (opts, cb) {
   var argv = opts.conf.argv.remain
@@ -42,6 +64,8 @@ access.completion = function (opts, cb) {
     case 'ls-packages':
     case 'ls-collaborators':
     case 'edit':
+    case '2fa-required':
+    case '2fa-not-required':
       return cb(null, [])
     case 'revoke':
       return cb(null, [])
@@ -50,81 +74,125 @@ access.completion = function (opts, cb) {
   }
 }
 
-function access (args, cb) {
-  var cmd = args.shift()
-  var params
-  return parseParams(cmd, args, function (err, p) {
-    if (err) { return cb(err) }
-    params = p
-    return mapToRegistry(params.package, npm.config, invokeCmd)
-  })
+function access ([cmd, ...args], cb) {
+  return BB.try(() => {
+    const fn = access.subcommands.includes(cmd) && access[cmd]
+    if (!cmd) { UsageError('Subcommand is required.') }
+    if (!fn) { UsageError(`${cmd} is not a recognized subcommand.`) }
 
-  function invokeCmd (err, uri, auth, base) {
-    if (err) { return cb(err) }
-    params.auth = auth
-    try {
-      return npm.registry.access(cmd, uri, params, function (err, data) {
-        if (!err && data) {
-          output(JSON.stringify(data, undefined, 2))
-        }
-        cb(err, data)
-      })
-    } catch (e) {
-      cb(e.message + '\n\nUsage:\n' + access.usage)
-    }
-  }
+    return fn(args, AccessConfig(npmConfig()))
+  }).then(
+    x => cb(null, x),
+    err => err.code === 'EUSAGE' ? cb(err.message) : cb(err)
+  )
 }
 
-function parseParams (cmd, args, cb) {
-  // mapToRegistry will complain if package is undefined,
-  // but it's not needed for ls-packages
-  var params = { 'package': '' }
-  if (cmd === 'grant') {
-    params.permissions = args.shift()
-  }
-  if (['grant', 'revoke', 'ls-packages'].indexOf(cmd) !== -1) {
-    var entity = (args.shift() || '').split(':')
-    params.scope = entity[0]
-    params.team = entity[1]
-  }
+access.public = ([pkg], opts) => {
+  return modifyPackage(pkg, opts, libaccess.public)
+}
 
-  if (cmd === 'ls-packages') {
-    if (!params.scope) {
-      whoami([], true, function (err, scope) {
-        params.scope = scope
-        cb(err, params)
-      })
-    } else {
-      cb(null, params)
+access.restricted = ([pkg], opts) => {
+  return modifyPackage(pkg, opts, libaccess.restricted)
+}
+
+access.grant = ([perms, scopeteam, pkg], opts) => {
+  return BB.try(() => {
+    if (!perms || (perms !== 'read-only' && perms !== 'read-write')) {
+      UsageError('First argument must be either `read-only` or `read-write.`')
     }
-  } else {
-    getPackage(args.shift(), function (err, pkg) {
-      if (err) return cb(err)
-      params.package = pkg
-
-      if (cmd === 'ls-collaborators') params.user = args.shift()
-      cb(null, params)
+    if (!scopeteam) {
+      UsageError('`<scope:team>` argument is required.')
+    }
+    const [, scope, team] = scopeteam.match(/^@?([^:]+):(.*)$/) || []
+    if (!scope && !team) {
+      UsageError(
+        'Second argument used incorrect format.\n' +
+        'Example: @example:developers'
+      )
+    }
+    return modifyPackage(pkg, opts, (pkgName, opts) => {
+      return libaccess.grant(pkgName, scopeteam, perms, opts)
     })
-  }
+  })
 }
 
-function getPackage (name, cb) {
-  if (name && name.trim()) {
-    cb(null, name.trim())
-  } else {
-    readPackageJson(
-      resolve(npm.prefix, 'package.json'),
-      function (err, data) {
-        if (err) {
+access.revoke = ([scopeteam, pkg], opts) => {
+  return BB.try(() => {
+    if (!scopeteam) {
+      UsageError('`<scope:team>` argument is required.')
+    }
+    const [, scope, team] = scopeteam.match(/^@?([^:]+):(.*)$/) || []
+    if (!scope || !team) {
+      UsageError(
+        'First argument used incorrect format.\n' +
+        'Example: @example:developers'
+      )
+    }
+    return modifyPackage(pkg, opts, (pkgName, opts) => {
+      return libaccess.revoke(pkgName, scopeteam, opts)
+    })
+  })
+}
+
+access['2fa-required'] = access.tfaRequired = ([pkg], opts) => {
+  return modifyPackage(pkg, opts, libaccess.tfaRequired, false)
+}
+
+access['2fa-not-required'] = access.tfaNotRequired = ([pkg], opts) => {
+  return modifyPackage(pkg, opts, libaccess.tfaNotRequired, false)
+}
+
+access['ls-packages'] = access.lsPackages = ([owner], opts) => {
+  return (
+    owner ? BB.resolve(owner) : BB.fromNode(cb => whoami([], true, cb))
+  ).then(owner => {
+    return libaccess.lsPackages(owner, opts)
+  }).then(pkgs => {
+    // TODO - print these out nicely (breaking change)
+    output(JSON.stringify(pkgs, null, 2))
+  })
+}
+
+access['ls-collaborators'] = access.lsCollaborators = ([pkg, usr], opts) => {
+  return getPackage(pkg).then(pkgName =>
+    libaccess.lsCollaborators(pkgName, usr, opts)
+  ).then(collabs => {
+    // TODO - print these out nicely (breaking change)
+    output(JSON.stringify(collabs, null, 2))
+  })
+}
+
+access['edit'] = () => BB.reject(new Error('edit subcommand is not implemented yet'))
+
+function modifyPackage (pkg, opts, fn, requireScope = true) {
+  return getPackage(pkg, requireScope).then(pkgName =>
+    otplease(opts, opts => fn(pkgName, opts))
+  )
+}
+
+function getPackage (name, requireScope = true) {
+  return BB.try(() => {
+    if (name && name.trim()) {
+      return name.trim()
+    } else {
+      return readPackageJson(
+        path.resolve(prefix, 'package.json')
+      ).then(
+        data => data.name,
+        err => {
           if (err.code === 'ENOENT') {
-            cb(new Error('no package name passed to command and no package.json found'))
+            throw new Error('no package name passed to command and no package.json found')
           } else {
-            cb(err)
+            throw err
           }
-        } else {
-          cb(null, data.name)
         }
-      }
-    )
-  }
+      )
+    }
+  }).then(name => {
+    if (requireScope && !name.match(/^@[^/]+\/.*$/)) {
+      UsageError('This command is only available for scoped packages.')
+    } else {
+      return name
+    }
+  })
 }

@@ -1,4 +1,4 @@
-.TH "SEMVER" "7" "December 2018" "" ""
+.TH "SEMVER" "7" "January 2019" "" ""
 .SH "NAME"
 \fBsemver\fR \- The semantic versioner for npm
 .SH Install
@@ -34,8 +34,6 @@ As a command\-line utility:
 .nf
 $ semver \-h
 
-SemVer 5\.3\.0
-
 A JavaScript implementation of the http://semver\.org/ specification
 Copyright Isaac Z\. Schlueter
 
@@ -58,6 +56,9 @@ Options:
 
 \-l \-\-loose
         Interpret versions and ranges loosely
+
+\-p \-\-include\-prerelease
+        Always include prerelease versions in range matching
 
 \-c \-\-coerce
         Coerce a string into SemVer if possible
@@ -344,9 +345,23 @@ part       ::= nr | [\-0\-9A\-Za\-z]+
 .RE
 .SH Functions
 .P
-All methods and classes take a final \fBloose\fP boolean argument that, if
-true, will be more forgiving about not\-quite\-valid semver strings\.
-The resulting output will always be 100% strict, of course\.
+All methods and classes take a final \fBoptions\fP object argument\.  All
+options in this object are \fBfalse\fP by default\.  The options supported
+are:
+.RS 0
+.IP \(bu 2
+\fBloose\fP  Be more forgiving about not\-quite\-valid semver strings\.
+(Any resulting output will always be 100% strict compliant, of
+course\.)  For backwards compatibility reasons, if the \fBoptions\fP
+argument is a boolean value instead of an object, it is interpreted
+to be the \fBloose\fP param\.
+.IP \(bu 2
+\fBincludePrerelease\fP  Set to suppress the default
+behavior \fIhttps://github\.com/npm/node\-semver#prerelease\-tags\fR of
+excluding prerelease tagged versions from ranges unless they are
+explicitly opted into\.
+
+.RE
 .P
 Strict\-mode Comparators and Ranges will be strict about the SemVer
 strings that they parse\.

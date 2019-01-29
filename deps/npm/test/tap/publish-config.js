@@ -47,9 +47,13 @@ test(function (t) {
     // itself functions normally.
     //
     // Make sure that we don't sit around waiting for lock files
-    child = common.npm(['publish', '--userconfig=' + pkg + '/fixture_npmrc', '--tag=beta'], {
+    child = common.npm([
+      'publish',
+      '--userconfig=' + pkg + '/fixture_npmrc',
+      '--tag=beta',
+      '--loglevel', 'error'
+    ], {
       cwd: pkg,
-      stdio: 'inherit',
       env: {
         'npm_config_cache_lock_stale': 1000,
         'npm_config_cache_lock_wait': 1000,
@@ -58,7 +62,9 @@ test(function (t) {
         PATH: process.env.PATH,
         USERPROFILE: osenv.home()
       }
-    }, function (err, code) {
+    }, function (err, code, stdout, stderr) {
+      t.comment(stdout)
+      t.comment(stderr)
       t.ifError(err, 'publish command finished successfully')
       t.notOk(code, 'npm install exited with code 0')
     })

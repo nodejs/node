@@ -40,9 +40,7 @@
   var which = require('which')
   var glob = require('glob')
   var rimraf = require('rimraf')
-  var lazyProperty = require('lazy-property')
   var parseJSON = require('./utils/parse-json.js')
-  var clientConfig = require('./config/reg-client.js')
   var aliases = require('./config/cmd-list').aliases
   var cmdList = require('./config/cmd-list').cmdList
   var plumbing = require('./config/cmd-list').plumbing
@@ -106,7 +104,6 @@
   })
 
   var registryRefer
-  var registryLoaded
 
   Object.keys(abbrevs).concat(plumbing).forEach(function addCommand (c) {
     Object.defineProperty(npm.commands, c, { get: function () {
@@ -153,7 +150,7 @@
           }).filter(function (arg) {
             return arg && arg.match
           }).join(' ')
-          if (registryLoaded) npm.registry.refer = registryRefer
+          npm.referer = registryRefer
         }
 
         cmd.apply(npm, args)
@@ -356,17 +353,6 @@
         config.set('scope', scopeifyScope(config.get('scope')))
         npm.projectScope = config.get('scope') ||
          scopeifyScope(getProjectScope(npm.prefix))
-
-        // at this point the configs are all set.
-        // go ahead and spin up the registry client.
-        lazyProperty(npm, 'registry', function () {
-          registryLoaded = true
-          var RegClient = require('npm-registry-client')
-          var registry = new RegClient(clientConfig(npm, log, npm.config))
-          registry.version = npm.version
-          registry.refer = registryRefer
-          return registry
-        })
 
         startMetrics()
 
