@@ -743,7 +743,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   HandleScope handle_scope(isolate);
   Local<Context> context = NewContext(isolate);
   Context::Scope context_scope(context);
-  Environment env(isolate_data, context);
+  Environment env(isolate_data, context, Environment::kIsMainThread);
   env.Start(per_process::v8_is_profiling);
   env.ProcessCliArgs(args, exec_args);
 

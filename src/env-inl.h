@@ -647,15 +647,11 @@ inline void Environment::set_has_run_bootstrapping_code(bool value) {
 }
 
 inline bool Environment::is_main_thread() const {
-  return thread_id_ == 0;
+  return flags_ & kIsMainThread;
 }
 
 inline uint64_t Environment::thread_id() const {
   return thread_id_;
-}
-
-inline void Environment::set_thread_id(uint64_t id) {
-  thread_id_ = id;
 }
 
 inline worker::Worker* Environment::worker_context() const {
