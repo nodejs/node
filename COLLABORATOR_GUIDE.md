@@ -282,7 +282,6 @@ providing a Public API in such cases.
   * Resolving critical security issues.
   * Fixing a critical bug (e.g. fixing a memory leak) requires a breaking
     change.
-  * There is TSC consensus that the change is required.
 * If a breaking commit does accidentally land in a Current or LTS branch, an
   attempt to fix the issue will be made before the next release; If no fix is
   provided then the commit will be reverted.
