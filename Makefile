@@ -460,11 +460,15 @@ test-build-js-native-api: all build-js-native-api-tests
 test-build-node-api: all build-node-api-tests
 
 .PHONY: test-all
-test-all: test-build ## Run everything in test/.
+test-all: test-build ## Run default tests with both Debug and Release builds.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=debug,release
 
 test-all-valgrind: test-build
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=debug,release --valgrind
+
+.PHONY: test-all-suites
+test-all-suites: test-build test-js-native-api test-node-api | bench-addons-build ## Run all test suites.
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) test/*
 
 CI_NATIVE_SUITES ?= addons js-native-api node-api
 CI_JS_SUITES ?= default
