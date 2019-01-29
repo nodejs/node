@@ -36,7 +36,8 @@ is provided below for reference.
       "child"
     ],
     "nodejsVersion": "v12.0.0-pre",
-    "glibcVersion": "2.17",
+    "glibcVersionRuntime": "2.17",
+    "glibcVersionCompiler": "2.17",
     "wordSize": "64 bit",
     "componentVersions": {
       "node": "12.0.0-pre",
@@ -55,7 +56,6 @@ is provided below for reference.
       "release": "node"
     },
     "osVersion": "Linux 3.10.0-862.el7.x86_64 #1 SMP Wed Mar 21 18:14:51 EDT 2018",
-    "glibc": "2.17",
     "machine": "Linux 3.10.0-862.el7.x86_64 #1 SMP Wed Mar 21 18:14:51 EDT 2018test_machine x86_64"
   },
   "javascriptStack": {
