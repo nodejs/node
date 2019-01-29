@@ -1640,23 +1640,26 @@ static void AddFingerprintDigest(const unsigned char* md,
   }
 }
 
+
 static MaybeLocal<Object> ECPointToBuffer(Environment* env,
                                           const EC_GROUP* group,
                                           const EC_POINT* point,
-                                          point_conversion_form_t form) {
+                                          point_conversion_form_t form,
+                                          const char** error) {
   size_t len = EC_POINT_point2oct(group, point, form, nullptr, 0, nullptr);
   if (len == 0) {
-    env->ThrowError("Failed to get public key length");
+    if (error != nullptr) *error = "Failed to get public key length";
     return MaybeLocal<Object>();
   }
   MallocedBuffer<unsigned char> buf(len);
   len = EC_POINT_point2oct(group, point, form, buf.data, buf.size, nullptr);
   if (len == 0) {
-    env->ThrowError("Failed to get public key");
+    if (error != nullptr) *error = "Failed to get public key";
     return MaybeLocal<Object>();
   }
   return Buffer::New(env, buf.release(), len);
 }
+
 
 static Local<Object> X509ToObject(Environment* env, X509* cert) {
   EscapableHandleScope scope(env->isolate());
@@ -1775,10 +1778,11 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     }
 
     const EC_POINT* pubkey = EC_KEY_get0_public_key(ec.get());
-    if (pubkey != nullptr) {
-      Local<Object> buf =
-          ECPointToBuffer(env, group, pubkey, EC_KEY_get_conv_form(ec.get()))
-              .ToLocalChecked();
+    Local<Object> buf;
+    if (pubkey != nullptr &&
+        ECPointToBuffer(
+            env, group, pubkey, EC_KEY_get_conv_form(ec.get()), nullptr)
+            .ToLocal(&buf)) {
       info->Set(context, env->pubkey_string(), buf).FromJust();
     }
 
@@ -5275,6 +5279,7 @@ void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
   ECDH* ecdh;
   ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.Holder());
 
+  const EC_GROUP* group = EC_KEY_get0_group(ecdh->key_.get());
   const EC_POINT* pub = EC_KEY_get0_public_key(ecdh->key_.get());
   if (pub == nullptr)
     return env->ThrowError("Failed to get ECDH public key");
@@ -5283,10 +5288,11 @@ void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
   uint32_t val = args[0].As<Uint32>()->Value();
   point_conversion_form_t form = static_cast<point_conversion_form_t>(val);
 
-  MaybeLocal<Object> buf =
-      ECPointToBuffer(env, EC_KEY_get0_group(ecdh->key_.get()), pub, form);
-  if (buf.IsEmpty()) return;
-  args.GetReturnValue().Set(buf.ToLocalChecked());
+  const char* error;
+  Local<Object> buf;
+  if (!ECPointToBuffer(env, group, pub, form, &error).ToLocal(&buf))
+    return env->ThrowError(error);
+  args.GetReturnValue().Set(buf);
 }
 
 
@@ -6174,9 +6180,11 @@ void ConvertKey(const FunctionCallbackInfo<Value>& args) {
   uint32_t val = args[2].As<Uint32>()->Value();
   point_conversion_form_t form = static_cast<point_conversion_form_t>(val);
 
-  MaybeLocal<Object> buf = ECPointToBuffer(env, group.get(), pub.get(), form);
-  if (buf.IsEmpty()) return;
-  args.GetReturnValue().Set(buf.ToLocalChecked());
+  const char* error;
+  Local<Object> buf;
+  if (!ECPointToBuffer(env, group.get(), pub.get(), form, &error).ToLocal(&buf))
+    return env->ThrowError(error);
+  args.GetReturnValue().Set(buf);
 }
 
 
