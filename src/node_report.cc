@@ -323,11 +323,22 @@ static void PrintVersionInformation(JSONWriter* writer) {
   buf << "v" << NODE_VERSION_STRING;
   writer->json_keyvalue("nodejsVersion", buf.str());
   buf.str("");
+
+#ifndef _WIN32
+  // Report compiler and runtime glibc versions where possible.
+  const char* (*libc_version)();
+  *(reinterpret_cast<void**>(&libc_version)) =
+      dlsym(RTLD_DEFAULT, "gnu_get_libc_version");
+  if (libc_version != nullptr)
+    writer->json_keyvalue("glibcVersionRuntime", (*libc_version)());
+#endif /* _WIN32 */
+
 #ifdef __GLIBC__
   buf << __GLIBC__ << "." << __GLIBC_MINOR__;
-  writer->json_keyvalue("glibcVersion", buf.str());
+  writer->json_keyvalue("glibcVersionCompiler", buf.str());
   buf.str("");
 #endif
+
   // Report Process word size
   writer->json_keyvalue("wordSize", sizeof(void*) * 8);
 
@@ -433,13 +444,6 @@ static void PrintVersionInformation(JSONWriter* writer) {
     buf.str("");
     buf << os_info.nodename << " " << os_info.machine;
     writer->json_keyvalue("machine", buf.str());
-
-    const char* (*libc_version)();
-    *(reinterpret_cast<void**>(&libc_version)) =
-        dlsym(RTLD_DEFAULT, "gnu_get_libc_version");
-    if (libc_version != nullptr) {
-      writer->json_keyvalue("glibc", (*libc_version)());
-    }
   }
 #endif
 }
