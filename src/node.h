@@ -710,16 +710,6 @@ class AsyncResource {
                                    trigger_async_id);
   }
 
-  AsyncResource(v8::Isolate* isolate,
-                v8::Local<v8::Object> resource,
-                v8::Local<v8::String> name,
-                async_id trigger_async_id = -1)
-      : isolate_(isolate),
-        resource_(isolate, resource) {
-    async_context_ = EmitAsyncInit(isolate, resource, name,
-                                   trigger_async_id);
-  }
-
   virtual ~AsyncResource() {
     EmitAsyncDestroy(isolate_, async_context_);
     resource_.Reset();
