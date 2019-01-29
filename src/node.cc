@@ -777,7 +777,7 @@ MaybeLocal<Value> StartMainThreadExecution(Environment* env) {
     return StartExecution(env, "internal/main/print_bash_completion");
   }
 
-  if (per_process::cli_options->prof_process) {
+  if (env->options()->prof_process) {
     env->set_execution_mode(Environment::ExecutionMode::kPrintBashCompletion);
     return StartExecution(env, "internal/main/prof_process");
   }
