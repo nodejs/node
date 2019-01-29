@@ -733,7 +733,7 @@ Note that the navigation headers in all of the `CHANGELOG_V*.md` files must be
 updated to account for the new `CHANGELOG_V{N}.md` file.
 
 Once the file is created, the root `CHANGELOG.md` file must be updated to
-reference the newly created major release `CHANLGELOV_V{N}.md`.
+reference the newly created major release `CHANGELOG_V{N}.md`.
 
 #### Generate the changelog
 
