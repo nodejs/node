@@ -1280,7 +1280,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/10970
     description: Runtime deprecation.
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/25828
     description: End-of-Life.
 -->
 

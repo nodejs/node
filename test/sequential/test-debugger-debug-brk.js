@@ -7,7 +7,7 @@ const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const { spawnSync } = require('child_process');
 
-// file name here doesn't actually matter the process will exit on start.
+// File name here doesn't actually matter the process will exit on start.
 const script = fixtures.path('empty.js');
 
 function test(arg) {
