@@ -75,12 +75,6 @@ class DebugOptions : public Options {
 
   HostPort host_port{"127.0.0.1", kDefaultInspectorPort};
 
-  bool deprecated_invocation() const {
-    return deprecated_debug &&
-      inspector_enabled &&
-      break_first_line;
-  }
-
   bool wait_for_connect() const {
     return break_first_line || break_node_first_line;
   }
