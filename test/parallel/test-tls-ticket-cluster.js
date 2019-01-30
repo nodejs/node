@@ -45,7 +45,6 @@ if (cluster.isMaster) {
       session: lastSession,
       rejectUnauthorized: false
     }, () => {
-      lastSession = c.getSession();
       c.end();
 
       if (++reqCount === expectedReqCount) {
@@ -55,6 +54,8 @@ if (cluster.isMaster) {
       } else {
         shoot();
       }
+    }).once('session', (session) => {
+      lastSession = session;
     });
   }
 

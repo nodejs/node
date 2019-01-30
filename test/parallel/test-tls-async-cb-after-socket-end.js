@@ -6,9 +6,15 @@ const fixtures = require('../common/fixtures');
 const SSL_OP_NO_TICKET = require('crypto').constants.SSL_OP_NO_TICKET;
 const tls = require('tls');
 
-// Check tls async callback after socket ends
+// Check that TLS1.2 session resumption callbacks don't explode when made after
+// the tls socket is destroyed. Disable TLS ticket support to force the legacy
+// session resumption mechanism to be used.
+
+// TLS1.2 is the last protocol version to support TLS sessions, after that the
+// new and resume session events will never be emitted on the server.
 
 const options = {
+  maxVersion: 'TLSv1.2',
   secureOptions: SSL_OP_NO_TICKET,
   key: fixtures.readSync('test_key.pem'),
   cert: fixtures.readSync('test_cert.pem')
@@ -25,6 +31,8 @@ server.on('newSession', common.mustCall((key, session, done) => {
 
 server.on('resumeSession', common.mustCall((id, cb) => {
   sessionCb = cb;
+  // Destroy the client and then call the session cb, to check that the cb
+  // doesn't explode when called after the handle has been destroyed.
   next();
 }));
 

@@ -81,6 +81,15 @@ const shared = net.createServer(function(c) {
   });
 });
 
+// 'session' events only occur for new sessions. The first connection is new.
+// After, for each set of 3 connections, the middle connection is made when the
+// server has random keys set, so the client's ticket is silently ignored, and a
+// new ticket is sent.
+const onNewSession = common.mustCall((s, session) => {
+  assert(session);
+  assert.strictEqual(session.compare(s.getSession()), 0);
+}, 4);
+
 function start(callback) {
   let sess = null;
   let left = servers.length;
@@ -99,6 +108,7 @@ function start(callback) {
       else
         connect();
     });
+    s.once('session', (session) => onNewSession(s, session));
   }
 
   connect();
