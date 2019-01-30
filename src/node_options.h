@@ -81,10 +81,6 @@ class DebugOptions : public Options {
       break_first_line;
   }
 
-  bool invalid_invocation() const {
-    return deprecated_debug && !inspector_enabled;
-  }
-
   bool wait_for_connect() const {
     return break_first_line || break_node_first_line;
   }
