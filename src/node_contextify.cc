@@ -795,7 +795,9 @@ void ContextifyScript::RunInThisContext(
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
       TRACING_CATEGORY_NODE2(vm, script), "RunInThisContext", wrapped_script);
 
-  CHECK_EQ(args.Length(), 3);
+  // TODO(addaleax): Use an options object or otherwise merge this with
+  // RunInContext().
+  CHECK_EQ(args.Length(), 4);
 
   CHECK(args[0]->IsNumber());
   int64_t timeout = args[0]->IntegerValue(env->context()).FromJust();
@@ -806,8 +808,16 @@ void ContextifyScript::RunInThisContext(
   CHECK(args[2]->IsBoolean());
   bool break_on_sigint = args[2]->IsTrue();
 
+  CHECK(args[3]->IsBoolean());
+  bool break_on_first_line = args[3]->IsTrue();
+
   // Do the eval within this context
-  EvalMachine(env, timeout, display_errors, break_on_sigint, args);
+  EvalMachine(env,
+              timeout,
+              display_errors,
+              break_on_sigint,
+              break_on_first_line,
+              args);
 
   TRACE_EVENT_NESTABLE_ASYNC_END0(
       TRACING_CATEGORY_NODE2(vm, script), "RunInThisContext", wrapped_script);
@@ -819,7 +829,7 @@ void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
   ContextifyScript* wrapped_script;
   ASSIGN_OR_RETURN_UNWRAP(&wrapped_script, args.Holder());
 
-  CHECK_EQ(args.Length(), 4);
+  CHECK_EQ(args.Length(), 5);
 
   CHECK(args[0]->IsObject());
   Local<Object> sandbox = args[0].As<Object>();
@@ -843,12 +853,16 @@ void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[3]->IsBoolean());
   bool break_on_sigint = args[3]->IsTrue();
 
+  CHECK(args[4]->IsBoolean());
+  bool break_on_first_line = args[4]->IsTrue();
+
   // Do the eval within the context
   Context::Scope context_scope(contextify_context->context());
   EvalMachine(contextify_context->env(),
               timeout,
               display_errors,
               break_on_sigint,
+              break_on_first_line,
               args);
 
   TRACE_EVENT_NESTABLE_ASYNC_END0(
@@ -859,6 +873,7 @@ bool ContextifyScript::EvalMachine(Environment* env,
                                    const int64_t timeout,
                                    const bool display_errors,
                                    const bool break_on_sigint,
+                                   const bool break_on_first_line,
                                    const FunctionCallbackInfo<Value>& args) {
   if (!env->can_call_into_js())
     return false;
@@ -873,6 +888,12 @@ bool ContextifyScript::EvalMachine(Environment* env,
   Local<UnboundScript> unbound_script =
       PersistentToLocal::Default(env->isolate(), wrapped_script->script_);
   Local<Script> script = unbound_script->BindToCurrentContext();
+
+#if HAVE_INSPECTOR
+  if (break_on_first_line) {
+    env->inspector_agent()->PauseOnNextJavascriptStatement("Break on start");
+  }
+#endif
 
   MaybeLocal<Value> result;
   bool timed_out = false;

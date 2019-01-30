@@ -10,13 +10,13 @@ const script = 'setInterval(() => { debugger; }, 50);';
 
 async function skipFirstBreakpoint(session) {
   console.log('[test]', 'Skipping the first breakpoint in the eval script');
-  await session.waitForBreakOnLine(2, '[eval]');
+  await session.waitForBreakOnLine(0, '[eval]');
   await session.send({ 'method': 'Debugger.resume' });
 }
 
 async function checkAsyncStackTrace(session) {
   console.error('[test]', 'Verify basic properties of asyncStackTrace');
-  const paused = await session.waitForBreakOnLine(2, '[eval]');
+  const paused = await session.waitForBreakOnLine(0, '[eval]');
   assert(paused.params.asyncStackTrace,
          `${Object.keys(paused.params)} contains "asyncStackTrace" property`);
   assert(paused.params.asyncStackTrace.description, 'Timeout');
