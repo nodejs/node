@@ -289,6 +289,15 @@ Maybe<bool> Message::Serialize(Environment* env,
         // take ownership of its memory, copying the buffer will have to do.
         if (!ab->IsNeuterable() || ab->IsExternal())
           continue;
+        if (std::find(array_buffers.begin(), array_buffers.end(), ab) !=
+            array_buffers.end()) {
+          ThrowDataCloneException(
+              env,
+              FIXED_ONE_BYTE_STRING(
+                  env->isolate(),
+                  "Transfer list contains duplicate ArrayBuffer"));
+          return Nothing<bool>();
+        }
         // We simply use the array index in the `array_buffers` list as the
         // ID that we write into the serialized buffer.
         uint32_t id = array_buffers.size();
@@ -312,6 +321,15 @@ Maybe<bool> Message::Serialize(Environment* env,
               FIXED_ONE_BYTE_STRING(
                   env->isolate(),
                   "MessagePort in transfer list is already detached"));
+          return Nothing<bool>();
+        }
+        if (std::find(delegate.ports_.begin(), delegate.ports_.end(), port) !=
+            delegate.ports_.end()) {
+          ThrowDataCloneException(
+              env,
+              FIXED_ONE_BYTE_STRING(
+                  env->isolate(),
+                  "Transfer list contains duplicate MessagePort"));
           return Nothing<bool>();
         }
         delegate.ports_.push_back(port);
@@ -601,6 +619,7 @@ void MessagePort::OnClose() {
 }
 
 std::unique_ptr<MessagePortData> MessagePort::Detach() {
+  CHECK(data_);
   Mutex::ScopedLock lock(data_->mutex_);
   data_->owner_ = nullptr;
   return std::move(data_);
