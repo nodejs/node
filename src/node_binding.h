@@ -15,7 +15,7 @@
 #include "v8.h"
 
 enum {
-  NM_F_BUILTIN = 1 << 0,
+  NM_F_BUILTIN = 1 << 0,  // Unused.
   NM_F_LINKED = 1 << 1,
   NM_F_INTERNAL = 1 << 2,
 };
@@ -32,9 +32,6 @@ enum {
       priv,                                                                    \
       nullptr};                                                                \
   void _register_##modname() { node_module_register(&_module); }
-
-#define NODE_BUILTIN_MODULE_CONTEXT_AWARE(modname, regfunc)                    \
-  NODE_MODULE_CONTEXT_AWARE_CPP(modname, regfunc, nullptr, NM_F_BUILTIN)
 
 void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
                                     v8::Local<v8::Value> module,
@@ -83,7 +80,6 @@ class DLib {
 // use the __attribute__((constructor)). Need to
 // explicitly call the _register* functions.
 void RegisterBuiltinModules();
-void GetBinding(const v8::FunctionCallbackInfo<v8::Value>& args);
 void GetInternalBinding(const v8::FunctionCallbackInfo<v8::Value>& args);
 void GetLinkedBinding(const v8::FunctionCallbackInfo<v8::Value>& args);
 void DLOpen(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -91,8 +87,6 @@ void DLOpen(const v8::FunctionCallbackInfo<v8::Value>& args);
 }  // namespace binding
 
 }  // namespace node
-
-#include "node_binding.h"
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_NODE_BINDING_H_

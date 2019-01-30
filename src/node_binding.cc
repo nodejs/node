@@ -84,7 +84,7 @@
 // function for each built-in modules explicitly in
 // binding::RegisterBuiltinModules(). This is only forward declaration.
 // The definitions are in each module's implementation when calling
-// the NODE_BUILTIN_MODULE_CONTEXT_AWARE.
+// the NODE_MODULE_CONTEXT_AWARE_INTERNAL.
 #define V(modname) void _register_##modname();
 NODE_BUILTIN_MODULES(V)
 #undef V
@@ -101,7 +101,6 @@ using v8::String;
 using v8::Value;
 
 // Globals per process
-static node_module* modlist_builtin;
 static node_module* modlist_internal;
 static node_module* modlist_linked;
 static node_module* modlist_addon;
@@ -114,10 +113,7 @@ bool node_is_initialized = false;
 extern "C" void node_module_register(void* m) {
   struct node_module* mp = reinterpret_cast<struct node_module*>(m);
 
-  if (mp->nm_flags & NM_F_BUILTIN) {
-    mp->nm_link = modlist_builtin;
-    modlist_builtin = mp;
-  } else if (mp->nm_flags & NM_F_INTERNAL) {
+  if (mp->nm_flags & NM_F_INTERNAL) {
     mp->nm_link = modlist_internal;
     modlist_internal = mp;
   } else if (!node_is_initialized) {
@@ -295,11 +291,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
       env->ThrowError(errmsg);
       return false;
     }
-    if (mp->nm_flags & NM_F_BUILTIN) {
-      dlib->Close();
-      env->ThrowError("Built-in module self-registered.");
-      return false;
-    }
+    CHECK_EQ(mp->nm_flags & NM_F_BUILTIN, 0);
 
     mp->nm_dso_handle = dlib->handle_;
     mp->nm_link = modlist_addon;
@@ -335,9 +327,6 @@ inline struct node_module* FindModule(struct node_module* list,
   return mp;
 }
 
-node_module* get_builtin_module(const char* name) {
-  return FindModule(modlist_builtin, name, NM_F_BUILTIN);
-}
 node_module* get_internal_module(const char* name) {
   return FindModule(modlist_internal, name, NM_F_INTERNAL);
 }
@@ -361,25 +350,6 @@ static void ThrowIfNoSuchModule(Environment* env, const char* module_v) {
   char errmsg[1024];
   snprintf(errmsg, sizeof(errmsg), "No such module: %s", module_v);
   env->ThrowError(errmsg);
-}
-
-void GetBinding(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK(args[0]->IsString());
-
-  Local<String> module = args[0].As<String>();
-  node::Utf8Value module_v(env->isolate(), module);
-
-  node_module* mod = get_builtin_module(*module_v);
-  Local<Object> exports;
-  if (mod != nullptr) {
-    exports = InitModule(env, mod, module);
-  } else {
-    return ThrowIfNoSuchModule(env, *module_v);
-  }
-
-  args.GetReturnValue().Set(exports);
 }
 
 void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
