@@ -1653,7 +1653,7 @@ def Main():
 
   # We want to skip the inspector tests if node was built without the inspector.
   has_inspector = Execute([vm,
-      '-p', 'process.config.variables.v8_enable_inspector'], context)
+      '-p', 'process.features.inspector'], context)
   if has_inspector.stdout.rstrip() == '0':
     context.v8_enable_inspector = False
 
