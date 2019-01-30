@@ -3,7 +3,9 @@
 
 const common = require('../common');
 
-common.skipIfInspectorEnabled();
+if (process.features.inspector) {
+  common.skip('V8 inspector is enabled');
+}
 
 const inspector = require('internal/util/inspector');
 

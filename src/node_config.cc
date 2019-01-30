@@ -57,17 +57,17 @@ static void Initialize(Local<Object> target,
   READONLY_TRUE_PROPERTY(target, "hasTracing");
 #endif
 
-#if HAVE_INSPECTOR
-  READONLY_TRUE_PROPERTY(target, "hasInspector");
-#else
-  READONLY_FALSE_PROPERTY(target, "hasInspector");
-#endif
-
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
   READONLY_TRUE_PROPERTY(target, "hasNodeOptions");
 #endif
 
 #endif  // NODE_HAVE_I18N_SUPPORT
+
+#if HAVE_INSPECTOR
+  READONLY_TRUE_PROPERTY(target, "hasInspector");
+#else
+  READONLY_FALSE_PROPERTY(target, "hasInspector");
+#endif
 
   if (env->abort_on_uncaught_exception())
     READONLY_TRUE_PROPERTY(target, "shouldAbortOnUncaughtException");
