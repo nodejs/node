@@ -1,0 +1,6 @@
+# Generated files.
+out*/
+
+# Third party files which are pulled with gclient (see DEPS).
+third_party/gtest/gtest
+third_party/mini_chromium/mini_chromium

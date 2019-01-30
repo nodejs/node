@@ -1,0 +1,25 @@
+# Copyright 2018 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# This provides the gtest / gmock main function which runs all gtest
+# based tests in the binary.
+static_library("gtest_main") {
+  testonly = true
+  sources = [
+    "gtest_main.cc",
+  ]
+  deps = [
+    "//third_party/gtest:gmock",
+    "//third_party/gtest:gtest",
+  ]
+}
+
+# This library simply delegates to the third party library; we're doing this
+# to be compatible with the Chromium tree.
+static_library("gtest") {
+  testonly = true
+  public_deps = [
+    "//third_party/gtest:gtest",
+  ]
+}

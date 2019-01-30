@@ -45,10 +45,13 @@
 #
 # Adding --show_changes to the command line prints out a list of valid public API changes.
 
+from __future__ import print_function
 import copy
 import os.path
 import optparse
 import sys
+
+import pdl
 
 try:
     import json
@@ -166,6 +169,11 @@ def compare_types(context, kind, type_1, type_2, types_map_1, types_map_2, depth
     base_type_1 = type_1["type"]
     base_type_2 = type_2["type"]
 
+    # Binary and string have the same wire representation in JSON.
+    if ((base_type_1 == "string" and base_type_2 == "binary") or
+        (base_type_2 == "string" and base_type_1 == "binary")):
+      return
+
     if base_type_1 != base_type_2:
         errors.append("%s: %s base type mismatch, '%s' vs '%s'" % (context, kind, base_type_1, base_type_2))
     elif base_type_1 == "object":
@@ -228,8 +236,8 @@ def load_schema(file_name, domains):
     if not os.path.isfile(file_name):
         return
     input_file = open(file_name, "r")
-    json_string = input_file.read()
-    parsed_json = json.loads(json_string)
+    parsed_json = pdl.loads(input_file.read(), file_name)
+    input_file.close()
     domains += parsed_json["domains"]
     return parsed_json["version"]
 
@@ -422,6 +430,7 @@ def load_domains_and_baselines(file_name, domains, baseline_domains):
     version = load_schema(os.path.normpath(file_name), domains)
     suffix = "-%s.%s.json" % (version["major"], version["minor"])
     baseline_file = file_name.replace(".json", suffix)
+    baseline_file = file_name.replace(".pdl", suffix)
     load_schema(os.path.normpath(baseline_file), baseline_domains)
     return version
 
@@ -467,9 +476,9 @@ def main():
     if arg_options.show_changes:
         changes = compare_schemas(domains, baseline_domains, True)
         if len(changes) > 0:
-            print "  Public changes since %s:" % version
+            print("  Public changes since %s:" % version)
             for change in changes:
-                print "    %s" % change
+                print("    %s" % change)
 
     if arg_options.stamp:
         with open(arg_options.stamp, 'a') as _:

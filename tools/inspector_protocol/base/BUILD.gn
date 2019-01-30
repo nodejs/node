@@ -1,0 +1,12 @@
+# Copyright 2019 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# This library simply delegates to the third party library; we're doing this
+# to be compatible with the Chromium tree.
+static_library("base") {
+  testonly = true  # This dependency is only allowed for tests.
+  public_deps = [
+    "//third_party/mini_chromium/mini_chromium/base",
+  ]
+}

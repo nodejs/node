@@ -1,0 +1,64 @@
+# Copyright 2018 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# The global configuration visible in all BUILD.gn files. See also
+# ".gn" in this directory.
+
+if (target_os == "") {
+  target_os = host_os
+}
+if (target_cpu == "") {
+  target_cpu = host_cpu
+}
+if (current_cpu == "") {
+  current_cpu = target_cpu
+}
+if (current_os == "") {
+  current_os = target_os
+}
+
+# This configures Clang as the C++ compiler. mini_chromium is an
+# external dependency we pull in via the DEPS file / gclient sync / fetch.
+set_default_toolchain(
+    "//third_party/mini_chromium/mini_chromium/build:gcc_like_toolchain")
+
+declare_args() {
+  # When true, enables the debug configuration, with additional run-time checks
+  # and logging. When false, enables the release configuration, with additional
+  # optimizations.
+  is_debug = false
+}
+
+_default_configs = [
+  "//third_party/mini_chromium/mini_chromium/build:default",
+  "//third_party/mini_chromium/mini_chromium/build:Wexit_time_destructors",
+]
+
+_default_executable_configs =
+    _default_configs +
+    [ "//third_party/mini_chromium/mini_chromium/build:executable" ]
+
+set_defaults("source_set") {
+  configs = _default_configs
+}
+
+set_defaults("static_library") {
+  configs = _default_configs
+}
+
+set_defaults("executable") {
+  configs = _default_executable_configs
+}
+
+set_defaults("loadable_module") {
+  configs = _default_configs
+}
+
+set_defaults("shared_library") {
+  configs = _default_configs
+}
+
+set_defaults("test") {
+  configs = _default_executable_configs
+}

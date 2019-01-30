@@ -11,6 +11,7 @@ try:
 except ImportError:
     import simplejson as json
 
+import pdl
 
 def main(argv):
     if len(argv) < 1:
@@ -25,8 +26,7 @@ def main(argv):
             sys.stderr.write("Cannot find %s\n" % file_name)
             return 1
         input_file = open(file_name, "r")
-        json_string = input_file.read()
-        parsed_json = json.loads(json_string)
+        parsed_json = pdl.loads(input_file.read(), file_name)
         domains += parsed_json["domains"]
         version = parsed_json["version"]
 

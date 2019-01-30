@@ -1,0 +1,55 @@
+{
+    "protocol": {
+        "path": "./relative/path/protocol/sample_protocol.json",
+        "package": "include/generated/files/like/this",
+        "output": "place/generated/files/here",
+        "namespace": ["sample_project", "protocol"],
+        "export_macro": "LIB_EXPORT",
+        "export_header": "lib/lib_export.h",
+        "options": [
+            {
+                "domain": "Domain1",
+                "include": ["command1", "command2"],
+                "async": ["command1"]
+            },
+            {
+                "domain": "Domain2",
+                "exclude": ["command3", "command4"],
+                "exclude_events": ["event1"],
+                "async": ["command10"]
+            },
+            {
+                "domain": "Domain3"
+            }
+        ],
+    },
+
+    "exported": {
+        "package": "include/exported/files/like/this",
+        "output": "place/exported/files/here",
+        "string_header": "include/exported/string.h",
+        "string_in": "String",
+        "string_out": "String",
+        "to_string_out": "toString(%s)",
+        "export_macro": "LIB_EXPORT",
+        "export_header": "lib/lib_export.h"
+    },
+
+    "imported": {
+        "path": "../relative/path/imported_protocol.json",
+        "package": "either/include/imported/files/from/here",
+        "header": "or/include/them/all/together/like/this/imported_protocol.h",
+        "to_imported_string": "toImportedString(%s)",
+        "from_imported_string": "fromImportedString(%s)",
+        "namespace": ["imported_project", "protocol"]
+    },
+
+    "lib": {
+        "package": "include/lib/files/like/this",
+        "output": "place/generated/lib/files/here",
+        "string_header": "string/implementation.h",
+        "platform_header": "platform/implementation.h",
+        "export_macro": "LIB_EXPORT",
+        "export_header": "lib/lib_export.h"
+    }
+}

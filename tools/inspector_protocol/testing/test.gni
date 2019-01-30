@@ -1,0 +1,19 @@
+# Copyright 2019 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+set_defaults("test") {
+  # These configs are duplicated from BUILDCONFIG.gn.
+  configs = [
+    "//third_party/mini_chromium/mini_chromium/build:default",
+    "//third_party/mini_chromium/mini_chromium/build:Wexit_time_destructors",
+    "//third_party/mini_chromium/mini_chromium/build:executable",
+  ]
+}
+
+template("test") {
+  executable(target_name) {
+    testonly = true
+    forward_variables_from(invoker, "*")
+  }
+}
