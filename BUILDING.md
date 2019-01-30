@@ -69,8 +69,10 @@ There are three support tiers:
 
 ### Supported platforms
 
-The community does not build or test against end-of-life distributions (EoL).
 For production applications, run Node.js on supported platforms only.
+
+Note that end-of-life (EoL) platforms are not supported even if listed below
+and can be removed at any moment.
 
 | System       | Support type | Version                         | Architectures    | Notes                         |
 | ------------ | ------------ | ------------------------------- | ---------------- | ----------------------------- |
