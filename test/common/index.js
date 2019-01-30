@@ -80,8 +80,7 @@ if (process.argv.length === 2 &&
           hasCrypto &&
           // If the binary is build without `intl` the inspect option is
           // invalid. The test itself should handle this case.
-          (process.config.variables.v8_enable_inspector !== 0 ||
-            !flag.startsWith('--inspect'))) {
+          (process.features.inspector || !flag.startsWith('--inspect'))) {
         throw new Error(`Test has to be started with the flag: '${flag}'`);
       }
     }
@@ -629,7 +628,7 @@ function expectsError(fn, settings, exact) {
 }
 
 function skipIfInspectorDisabled() {
-  if (process.config.variables.v8_enable_inspector === 0) {
+  if (!process.features.inspector) {
     skip('V8 inspector is disabled');
   }
 }

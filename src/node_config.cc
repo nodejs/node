@@ -57,12 +57,6 @@ static void Initialize(Local<Object> target,
   READONLY_TRUE_PROPERTY(target, "hasTracing");
 #endif
 
-#if HAVE_INSPECTOR
-  READONLY_TRUE_PROPERTY(target, "hasInspector");
-#else
-  READONLY_FALSE_PROPERTY(target, "hasInspector");
-#endif
-
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
   READONLY_TRUE_PROPERTY(target, "hasNodeOptions");
 #endif
@@ -72,6 +66,12 @@ static void Initialize(Local<Object> target,
       per_process::cli_options->icu_data_dir);
 
 #endif  // NODE_HAVE_I18N_SUPPORT
+
+#if HAVE_INSPECTOR
+  READONLY_TRUE_PROPERTY(target, "hasInspector");
+#else
+  READONLY_FALSE_PROPERTY(target, "hasInspector");
+#endif
 
   READONLY_PROPERTY(target,
                     "bits",
