@@ -152,9 +152,9 @@ will create a new session. See [RFC 2246][] for more information, page 23 and
 Resumption using session identifiers is supported by most web browsers when
 making HTTPS requests.
 
-For Node.js, clients must call [`tls.TLSSocket.getSession()`][] after the
-[`'secureConnect'`][] event to get the session data, and provide the data to the
-`session` option of [`tls.connect()`][] to reuse the session. Servers must
+For Node.js, clients wait for the [`'session'`][] event to get the session data,
+and provide the data to the `session` option of a subsequent [`tls.connect()`][]
+to reuse the session. Servers must
 implement handlers for the [`'newSession'`][] and [`'resumeSession'`][] events
 to save and restore the session data using the session ID as the lookup key to
 reuse sessions. To reuse sessions across load balancers or cluster workers,
@@ -614,6 +614,45 @@ determine if the server certificate was signed by one of the specified CAs. If
 `tlsSocket.alpnProtocol` property can be checked to determine the negotiated
 protocol.
 
+### Event: 'session'
+<!-- YAML
+added: REPLACEME
+-->
+
+* `session` {Buffer}
+
+The `'session'` event is emitted on a client `tls.TLSSocket` when a new session
+or TLS ticket is available. This may or may not be before the handshake is
+complete, depending on the TLS protocol version that was negotiated. The event
+is not emitted on the server, or if a new session was not created, for example,
+when the connection was resumed. For some TLS protocol versions the event may be
+emitted multiple times, in which case all the sessions can be used for
+resumption.
+
+On the client, the `session` can be provided to the `session` option of
+[`tls.connect()`][] to resume the connection.
+
+See [Session Resumption][] for more information.
+
+Note: For TLS1.2 and below, [`tls.TLSSocket.getSession()`][] can be called once
+the handshake is complete.  For TLS1.3, only ticket based resumption is allowed
+by the protocol, multiple tickets are sent, and the tickets aren't sent until
+later, after the handshake completes, so it is necessary to wait for the
+`'session'` event to get a resumable session.  Future-proof applications are
+recommended to use the `'session'` event instead of `getSession()` to ensure
+they will work for all TLS protocol versions.  Applications that only expect to
+get or use 1 session should listen for this event only once:
+
+```js
+tlsSocket.once('session', (session) => {
+  // The session can be used immediately or later.
+  tls.connect({
+    session: session,
+    // Other connect options...
+  });
+});
+```
+
 ### tlsSocket.address()
 <!-- YAML
 added: v0.11.4
@@ -879,6 +918,9 @@ negotiated. On the client, the data can be provided to the `session` option of
 for debugging.
 
 See [Session Resumption][] for more information.
+
+Note: `getSession()` works only for TLS1.2 and below. Future-proof applications
+should use the [`'session'`][] event.
 
 ### tlsSocket.getTLSTicket()
 <!-- YAML
@@ -1540,6 +1582,7 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [`'resumeSession'`]: #tls_event_resumesession
 [`'secureConnect'`]: #tls_event_secureconnect
 [`'secureConnection'`]: #tls_event_secureconnection
+[`'session'`]: #tls_event_session
 [`--tls-cipher-list`]: cli.html#cli_tls_cipher_list_list
 [`NODE_OPTIONS`]: cli.html#cli_node_options_options
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves

@@ -512,6 +512,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
 
   // SSL session cache configuration
   SSL_CTX_set_session_cache_mode(sc->ctx_.get(),
+                                 SSL_SESS_CACHE_CLIENT |
                                  SSL_SESS_CACHE_SERVER |
                                  SSL_SESS_CACHE_NO_INTERNAL |
                                  SSL_SESS_CACHE_NO_AUTO_CLEAR);
@@ -1540,7 +1541,10 @@ int SSLWrap<Base>::NewSessionCallback(SSL* s, SSL_SESSION* sess) {
       reinterpret_cast<const char*>(session_id_data),
       session_id_length).ToLocalChecked();
   Local<Value> argv[] = { session_id, session };
-  w->awaiting_new_session_ = true;
+  // On servers, we pause the handshake until callback of 'newSession', which
+  // calls NewSessionDoneCb(). On clients, there is no callback to wait for.
+  if (w->is_server())
+    w->awaiting_new_session_ = true;
   w->MakeCallback(env->onnewsession_string(), arraysize(argv), argv);
 
   return 0;
