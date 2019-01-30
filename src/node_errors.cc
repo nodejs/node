@@ -9,6 +9,7 @@
 
 namespace node {
 
+using errors::TryCatchScope;
 using v8::Context;
 using v8::Exception;
 using v8::Function;
@@ -201,8 +202,10 @@ void ReportException(Environment* env,
   } else {
     Local<Object> err_obj = er->ToObject(env->context()).ToLocalChecked();
 
-    trace_value = err_obj->Get(env->context(),
-                               env->stack_string()).ToLocalChecked();
+    if (!err_obj->Get(env->context(), env->stack_string())
+             .ToLocal(&trace_value)) {
+      trace_value = Undefined(env->isolate());
+    }
     arrow =
         err_obj->GetPrivate(env->context(), env->arrow_message_private_symbol())
             .ToLocalChecked();
@@ -222,27 +225,25 @@ void ReportException(Environment* env,
     // this really only happens for RangeErrors, since they're the only
     // kind that won't have all this info in the trace, or when non-Error
     // objects are thrown manually.
-    Local<Value> message;
-    Local<Value> name;
+    MaybeLocal<Value> message;
+    MaybeLocal<Value> name;
 
     if (er->IsObject()) {
       Local<Object> err_obj = er.As<Object>();
-      message = err_obj->Get(env->context(),
-                             env->message_string()).ToLocalChecked();
-      name = err_obj->Get(env->context(),
-          FIXED_ONE_BYTE_STRING(env->isolate(), "name")).ToLocalChecked();
+      message = err_obj->Get(env->context(), env->message_string());
+      name = err_obj->Get(env->context(), env->name_string());
     }
 
-    if (message.IsEmpty() || message->IsUndefined() || name.IsEmpty() ||
-        name->IsUndefined()) {
+    if (message.IsEmpty() || message.ToLocalChecked()->IsUndefined() ||
+        name.IsEmpty() || name.ToLocalChecked()->IsUndefined()) {
       // Not an error object. Just print as-is.
       String::Utf8Value message(env->isolate(), er);
 
       PrintErrorString("%s\n",
                        *message ? *message : "<toString() threw exception>");
     } else {
-      node::Utf8Value name_string(env->isolate(), name);
-      node::Utf8Value message_string(env->isolate(), message);
+      node::Utf8Value name_string(env->isolate(), name.ToLocalChecked());
+      node::Utf8Value message_string(env->isolate(), message.ToLocalChecked());
 
       if (arrow.IsEmpty() || !arrow->IsString() || decorated) {
         PrintErrorString("%s: %s\n", *name_string, *message_string);
@@ -681,8 +682,8 @@ void DecorateErrorStack(Environment* env,
   if (IsExceptionDecorated(env, err_obj)) return;
 
   AppendExceptionLine(env, exception, try_catch.Message(), CONTEXTIFY_ERROR);
-  Local<Value> stack =
-      err_obj->Get(env->context(), env->stack_string()).ToLocalChecked();
+  TryCatchScope try_catch_scope(env);  // Ignore exceptions below.
+  MaybeLocal<Value> stack = err_obj->Get(env->context(), env->stack_string());
   MaybeLocal<Value> maybe_value =
       err_obj->GetPrivate(env->context(), env->arrow_message_private_symbol());
 
@@ -691,7 +692,7 @@ void DecorateErrorStack(Environment* env,
     return;
   }
 
-  if (stack.IsEmpty() || !stack->IsString()) {
+  if (stack.IsEmpty() || !stack.ToLocalChecked()->IsString()) {
     return;
   }
 
@@ -700,8 +701,8 @@ void DecorateErrorStack(Environment* env,
       String::Concat(env->isolate(),
                      arrow.As<String>(),
                      FIXED_ONE_BYTE_STRING(env->isolate(), "\n")),
-      stack.As<String>());
-  err_obj->Set(env->context(), env->stack_string(), decorated_stack).FromJust();
+      stack.ToLocalChecked().As<String>());
+  USE(err_obj->Set(env->context(), env->stack_string(), decorated_stack));
   err_obj->SetPrivate(
       env->context(), env->decorated_private_symbol(), True(env->isolate()));
 }
