@@ -444,10 +444,11 @@ class Http2StreamListener : public StreamListener {
 class Http2Stream : public AsyncWrap,
                     public StreamBase {
  public:
-  Http2Stream(Http2Session* session,
-              int32_t id,
-              nghttp2_headers_category category = NGHTTP2_HCAT_HEADERS,
-              int options = 0);
+  static Http2Stream* New(
+      Http2Session* session,
+      int32_t id,
+      nghttp2_headers_category category = NGHTTP2_HCAT_HEADERS,
+      int options = 0);
   ~Http2Stream() override;
 
   nghttp2_stream* operator*();
@@ -604,6 +605,12 @@ class Http2Stream : public AsyncWrap,
   Statistics statistics_ = {};
 
  private:
+  Http2Stream(Http2Session* session,
+              v8::Local<v8::Object> obj,
+              int32_t id,
+              nghttp2_headers_category category,
+              int options);
+
   Http2Session* session_ = nullptr;             // The Parent HTTP/2 Session
   int32_t id_ = 0;                              // The Stream Identifier
   int32_t code_ = NGHTTP2_NO_ERROR;             // The RST_STREAM code (if any)
@@ -1080,7 +1087,7 @@ class Http2StreamPerformanceEntry : public PerformanceEntry {
 
 class Http2Session::Http2Ping : public AsyncWrap {
  public:
-  explicit Http2Ping(Http2Session* session);
+  explicit Http2Ping(Http2Session* session, v8::Local<v8::Object> obj);
 
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackField("session", session_);
@@ -1104,8 +1111,10 @@ class Http2Session::Http2Ping : public AsyncWrap {
 // structs.
 class Http2Session::Http2Settings : public AsyncWrap {
  public:
-  explicit Http2Settings(Environment* env);
-  explicit Http2Settings(Http2Session* session);
+  Http2Settings(Environment* env,
+                Http2Session* session,
+                v8::Local<v8::Object> obj,
+                uint64_t start_time = uv_hrtime());
 
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackField("session", session_);
@@ -1129,7 +1138,6 @@ class Http2Session::Http2Settings : public AsyncWrap {
                      get_setting fn);
 
  private:
-  Http2Settings(Environment* env, Http2Session* session, uint64_t start_time);
   void Init();
   Http2Session* session_;
   uint64_t startTime_;
