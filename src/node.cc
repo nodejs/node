@@ -134,11 +134,6 @@ using v8::V8;
 using v8::Value;
 
 namespace per_process {
-// TODO(joyeecheung): these are no longer necessary. Remove them.
-// See: https://github.com/nodejs/node/pull/25302#discussion_r244924196
-// Isolate on the main thread
-static Mutex main_isolate_mutex;
-static Isolate* main_isolate;
 
 // node_revert.h
 // Bit flag used to track security reverts.
@@ -851,12 +846,6 @@ inline int Start(uv_loop_t* event_loop,
     UNREACHABLE();
   }
 
-  {
-    Mutex::ScopedLock scoped_lock(per_process::main_isolate_mutex);
-    CHECK_NULL(per_process::main_isolate);
-    per_process::main_isolate = isolate;
-  }
-
   int exit_code;
   {
     Locker locker(isolate);
@@ -875,12 +864,6 @@ inline int Start(uv_loop_t* event_loop,
     }
     exit_code =
         Start(isolate, isolate_data.get(), args, exec_args);
-  }
-
-  {
-    Mutex::ScopedLock scoped_lock(per_process::main_isolate_mutex);
-    CHECK_EQ(per_process::main_isolate, isolate);
-    per_process::main_isolate = nullptr;
   }
 
   isolate->Dispose();
