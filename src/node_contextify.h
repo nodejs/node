@@ -121,6 +121,7 @@ class ContextifyScript : public BaseObject {
                           const int64_t timeout,
                           const bool display_errors,
                           const bool break_on_sigint,
+                          const bool break_on_first_line,
                           const v8::FunctionCallbackInfo<v8::Value>& args);
 
   inline uint32_t id() { return id_; }
