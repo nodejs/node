@@ -110,20 +110,29 @@ typedef void(*uv_fs_callback_t)(uv_fs_t*);
 // The FileHandle object wraps a file descriptor and will close it on garbage
 // collection if necessary. If that happens, a process warning will be
 // emitted (or a fatal exception will occur if the fd cannot be closed.)
-FileHandle::FileHandle(Environment* env, int fd, Local<Object> obj)
-    : AsyncWrap(env,
-                obj.IsEmpty() ? env->fd_constructor_template()
-                    ->NewInstance(env->context()).ToLocalChecked() : obj,
-                AsyncWrap::PROVIDER_FILEHANDLE),
+FileHandle::FileHandle(Environment* env, Local<Object> obj, int fd)
+    : AsyncWrap(env, obj, AsyncWrap::PROVIDER_FILEHANDLE),
       StreamBase(env),
       fd_(fd) {
   MakeWeak();
+}
+
+FileHandle* FileHandle::New(Environment* env, int fd, Local<Object> obj) {
+  if (obj.IsEmpty() && !env->fd_constructor_template()
+                            ->NewInstance(env->context())
+                            .ToLocal(&obj)) {
+    return nullptr;
+  }
   v8::PropertyAttribute attr =
       static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
-  object()->DefineOwnProperty(env->context(),
-                              FIXED_ONE_BYTE_STRING(env->isolate(), "fd"),
-                              Integer::New(env->isolate(), fd),
-                              attr).FromJust();
+  if (obj->DefineOwnProperty(env->context(),
+                             env->fd_string(),
+                             Integer::New(env->isolate(), fd),
+                             attr)
+          .IsNothing()) {
+    return nullptr;
+  }
+  return new FileHandle(env, obj, fd);
 }
 
 void FileHandle::New(const FunctionCallbackInfo<Value>& args) {
@@ -132,7 +141,8 @@ void FileHandle::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsInt32());
 
   FileHandle* handle =
-      new FileHandle(env, args[0].As<Int32>()->Value(), args.This());
+      FileHandle::New(env, args[0].As<Int32>()->Value(), args.This());
+  if (handle == nullptr) return;
   if (args[1]->IsNumber())
     handle->read_offset_ = args[1]->IntegerValue(env->context()).FromJust();
   if (args[2]->IsNumber())
@@ -232,7 +242,14 @@ inline MaybeLocal<Promise> FileHandle::ClosePromise() {
   CHECK(!reading_);
   if (!closed_ && !closing_) {
     closing_ = true;
-    CloseReq* req = new CloseReq(env(), promise, object());
+    Local<Object> close_req_obj;
+    if (!env()
+             ->fdclose_constructor_template()
+             ->NewInstance(env()->context())
+             .ToLocal(&close_req_obj)) {
+      return MaybeLocal<Promise>();
+    }
+    CloseReq* req = new CloseReq(env(), close_req_obj, promise, object());
     auto AfterClose = uv_fs_callback_t{[](uv_fs_t* req) {
       std::unique_ptr<CloseReq> close(CloseReq::from_req(req));
       CHECK_NOT_NULL(close);
@@ -260,7 +277,9 @@ inline MaybeLocal<Promise> FileHandle::ClosePromise() {
 void FileHandle::Close(const FunctionCallbackInfo<Value>& args) {
   FileHandle* fd;
   ASSIGN_OR_RETURN_UNWRAP(&fd, args.Holder());
-  args.GetReturnValue().Set(fd->ClosePromise().ToLocalChecked());
+  Local<Promise> ret;
+  if (!fd->ClosePromise().ToLocal(&ret)) return;
+  args.GetReturnValue().Set(ret);
 }
 
 
@@ -318,8 +337,13 @@ int FileHandle::ReadStart() {
       read_wrap->AsyncReset();
       read_wrap->file_handle_ = this;
     } else {
-      Local<Object> wrap_obj = env()->filehandlereadwrap_template()
-          ->NewInstance(env()->context()).ToLocalChecked();
+      Local<Object> wrap_obj;
+      if (!env()
+               ->filehandlereadwrap_template()
+               ->NewInstance(env()->context())
+               .ToLocal(&wrap_obj)) {
+        return UV_EBUSY;
+      }
       read_wrap.reset(new FileHandleReadWrap(this, wrap_obj));
     }
   }
@@ -520,7 +544,8 @@ void AfterOpenFileHandle(uv_fs_t* req) {
   FSReqAfterScope after(req_wrap, req);
 
   if (after.Proceed()) {
-    FileHandle* fd = new FileHandle(req_wrap->env(), req->result);
+    FileHandle* fd = FileHandle::New(req_wrap->env(), req->result);
+    if (fd == nullptr) return;
     req_wrap->Resolve(fd->object());
   }
 }
@@ -724,15 +749,18 @@ inline int SyncCall(Environment* env, Local<Value> ctx, FSReqWrapSync* req_wrap,
   return err;
 }
 
+// TODO(addaleax): Currently, callers check the return value and assume
+// that nullptr indicates a synchronous call, rather than a failure.
+// Failure conditions should be disambiguated and handled appropriately.
 inline FSReqBase* GetReqWrap(Environment* env, Local<Value> value,
                              bool use_bigint = false) {
   if (value->IsObject()) {
     return Unwrap<FSReqBase>(value.As<Object>());
   } else if (value->StrictEquals(env->fs_use_promises_symbol())) {
     if (use_bigint) {
-      return new FSReqPromise<uint64_t, BigUint64Array>(env, use_bigint);
+      return FSReqPromise<uint64_t, BigUint64Array>::New(env, use_bigint);
     } else {
-      return new FSReqPromise<double, Float64Array>(env, use_bigint);
+      return FSReqPromise<double, Float64Array>::New(env, use_bigint);
     }
   }
   return nullptr;
@@ -1562,8 +1590,8 @@ static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
     if (result < 0) {
       return;  // syscall failed, no need to continue, error info is in ctx
     }
-    HandleScope scope(isolate);
-    FileHandle* fd = new FileHandle(env, result);
+    FileHandle* fd = FileHandle::New(env, result);
+    if (fd == nullptr) return;
     args.GetReturnValue().Set(fd->object());
   }
 }
