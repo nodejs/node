@@ -43,37 +43,34 @@ const server = https.createServer(options, common.mustCall((req, res) => {
 }, 2));
 
 // start listening
-server.listen(0, function() {
-
-  let session1 = null;
+server.listen(0, common.mustCall(function() {
   const client1 = tls.connect({
     port: this.address().port,
     rejectUnauthorized: false
-  }, () => {
+  }, common.mustCall(() => {
     console.log('connect1');
-    assert.ok(!client1.isSessionReused(), 'Session *should not* be reused.');
-    session1 = client1.getSession();
+    assert.strictEqual(client1.isSessionReused(), false);
     client1.write('GET / HTTP/1.0\r\n' +
                   'Server: 127.0.0.1\r\n' +
                   '\r\n');
-  });
+  }));
 
-  client1.on('close', () => {
-    console.log('close1');
+  client1.on('session', common.mustCall((session) => {
+    console.log('session');
 
     const opts = {
       port: server.address().port,
       rejectUnauthorized: false,
-      session: session1
+      session,
     };
 
-    const client2 = tls.connect(opts, () => {
+    const client2 = tls.connect(opts, common.mustCall(() => {
       console.log('connect2');
-      assert.ok(client2.isSessionReused(), 'Session *should* be reused.');
+      assert.strictEqual(client2.isSessionReused(), true);
       client2.write('GET / HTTP/1.0\r\n' +
                     'Server: 127.0.0.1\r\n' +
                     '\r\n');
-    });
+    }));
 
     client2.on('close', () => {
       console.log('close2');
@@ -81,7 +78,7 @@ server.listen(0, function() {
     });
 
     client2.resume();
-  });
+  }));
 
   client1.resume();
-});
+}));
