@@ -86,6 +86,7 @@ static void PrintGCStatistics(JSONWriter* writer, Isolate* isolate);
 static void PrintSystemInformation(JSONWriter* writer);
 static void PrintLoadedLibraries(JSONWriter* writer);
 static void PrintComponentVersions(JSONWriter* writer);
+static void PrintRelease(JSONWriter* writer);
 static void LocalTime(TIME_TYPE* tm_struct);
 
 // Global variables
@@ -341,9 +342,14 @@ static void PrintVersionInformation(JSONWriter* writer) {
 
   // Report Process word size
   writer->json_keyvalue("wordSize", sizeof(void*) * 8);
+  writer->json_keyvalue("arch", node::per_process::metadata.arch);
+  writer->json_keyvalue("platform", node::per_process::metadata.platform);
 
   // Report deps component versions
   PrintComponentVersions(writer);
+
+  // Report release metadata.
+  PrintRelease(writer);
 
   // Report operating system and machine information (Windows)
 #ifdef _WIN32
@@ -724,12 +730,27 @@ static void PrintComponentVersions(JSONWriter* writer) {
   NODE_VERSIONS_KEYS(V)
 #undef V
 
-  // Some extra information that is not present in node_metadata.
-  writer->json_keyvalue("arch", NODE_ARCH);
-  writer->json_keyvalue("platform", NODE_PLATFORM);
-  writer->json_keyvalue("release", NODE_RELEASE);
-  if (NODE_VERSION_IS_LTS != 0)
-    writer->json_keyvalue("lts", NODE_VERSION_LTS_CODENAME);
+  writer->json_objectend();
+}
+
+// Report runtime release information.
+static void PrintRelease(JSONWriter* writer) {
+  writer->json_objectstart("release");
+  writer->json_keyvalue("name", node::per_process::metadata.release.name);
+#if NODE_VERSION_IS_LTS
+  writer->json_keyvalue("lts", node::per_process::metadata.release.lts);
+#endif
+
+#ifdef NODE_HAS_RELEASE_URLS
+  writer->json_keyvalue("headersUrl",
+                        node::per_process::metadata.release.headers_url);
+  writer->json_keyvalue("sourceUrl",
+                        node::per_process::metadata.release.source_url);
+#ifdef _WIN32
+  writer->json_keyvalue("libUrl", node::per_process::metadata.release.lib_url);
+#endif  // _WIN32
+#endif  // NODE_HAS_RELEASE_URLS
+
   writer->json_objectend();
 }
 

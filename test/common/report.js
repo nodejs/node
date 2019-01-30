@@ -34,6 +34,9 @@ function validateContent(data) {
    'libuv', 'environmentVariables', 'sharedObjects'].forEach((section) => {
     assert(report.hasOwnProperty(section));
   });
+
+  assert.deepStrictEqual(report.header.componentVersions, process.versions);
+  assert.deepStrictEqual(report.header.release, process.release);
 }
 
 module.exports = { findReports, validate, validateContent };

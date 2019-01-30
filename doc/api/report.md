@@ -39,6 +39,8 @@ is provided below for reference.
     "glibcVersionRuntime": "2.17",
     "glibcVersionCompiler": "2.17",
     "wordSize": "64 bit",
+    "arch": "x64",
+    "platform": "linux",
     "componentVersions": {
       "node": "12.0.0-pre",
       "v8": "7.1.302.28-node.5",
@@ -50,10 +52,10 @@ is provided below for reference.
       "napi": "3",
       "llhttp": "1.0.1",
       "http_parser": "2.8.0",
-      "openssl": "1.1.0j",
-      "arch": "x64",
-      "platform": "linux",
-      "release": "node"
+      "openssl": "1.1.0j"
+    },
+    "release": {
+      "name": "node"
     },
     "osVersion": "Linux 3.10.0-862.el7.x86_64 #1 SMP Wed Mar 21 18:14:51 EDT 2018",
     "machine": "Linux 3.10.0-862.el7.x86_64 #1 SMP Wed Mar 21 18:14:51 EDT 2018test_machine x86_64"
