@@ -49,13 +49,11 @@ using v8::String;
 using v8::Value;
 
 TLSWrap::TLSWrap(Environment* env,
+                 Local<Object> obj,
                  Kind kind,
                  StreamBase* stream,
                  SecureContext* sc)
-    : AsyncWrap(env,
-                env->tls_wrap_constructor_function()
-                    ->NewInstance(env->context()).ToLocalChecked(),
-                AsyncWrap::PROVIDER_TLSWRAP),
+    : AsyncWrap(env, obj, AsyncWrap::PROVIDER_TLSWRAP),
       SSLWrap<TLSWrap>(env, sc, kind),
       StreamBase(env),
       sc_(sc) {
@@ -160,7 +158,14 @@ void TLSWrap::Wrap(const FunctionCallbackInfo<Value>& args) {
   StreamBase* stream = static_cast<StreamBase*>(stream_obj->Value());
   CHECK_NOT_NULL(stream);
 
-  TLSWrap* res = new TLSWrap(env, kind, stream, Unwrap<SecureContext>(sc));
+  Local<Object> obj;
+  if (!env->tls_wrap_constructor_function()
+           ->NewInstance(env->context())
+           .ToLocal(&obj)) {
+    return;
+  }
+
+  TLSWrap* res = new TLSWrap(env, obj, kind, stream, Unwrap<SecureContext>(sc));
 
   args.GetReturnValue().Set(res->object());
 }
