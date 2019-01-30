@@ -259,18 +259,37 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
   global->Set(context, FIXED_ONE_BYTE_STRING(env->isolate(), "global"), global)
       .FromJust();
 
+  // Store primordials
+  env->set_primordials(Object::New(isolate));
+  std::vector<Local<String>> primordials_params = {
+    FIXED_ONE_BYTE_STRING(isolate, "breakAtBootstrap"),
+    env->primordials_string()
+  };
+  std::vector<Local<Value>> primordials_args = {
+    Boolean::New(isolate,
+                  env->options()->debug_options().break_node_first_line),
+    env->primordials()
+  };
+  MaybeLocal<Value> primordials_ret =
+      ExecuteBootstrapper(env,
+                          "internal/bootstrap/primordials",
+                          &primordials_params,
+                          &primordials_args);
+  if (primordials_ret.IsEmpty()) {
+    return MaybeLocal<Value>();
+  }
+
   // Create binding loaders
   std::vector<Local<String>> loaders_params = {
       env->process_string(),
       FIXED_ONE_BYTE_STRING(isolate, "getBinding"),
       FIXED_ONE_BYTE_STRING(isolate, "getLinkedBinding"),
       FIXED_ONE_BYTE_STRING(isolate, "getInternalBinding"),
-      // --inspect-brk-node
-      FIXED_ONE_BYTE_STRING(isolate, "debugBreak"),
       // --experimental-modules
       FIXED_ONE_BYTE_STRING(isolate, "experimentalModules"),
       // --expose-internals
-      FIXED_ONE_BYTE_STRING(isolate, "exposeInternals")};
+      FIXED_ONE_BYTE_STRING(isolate, "exposeInternals"),
+      env->primordials_string()};
   std::vector<Local<Value>> loaders_args = {
       process,
       env->NewFunctionTemplate(binding::GetBinding)
@@ -282,12 +301,9 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
       env->NewFunctionTemplate(binding::GetInternalBinding)
           ->GetFunction(context)
           .ToLocalChecked(),
-      Boolean::New(isolate,
-                   env->options()->debug_options().break_node_first_line),
-      Boolean::New(isolate,
-                   env->options()->experimental_modules),
-      Boolean::New(isolate,
-                   env->options()->expose_internals)};
+      Boolean::New(isolate, env->options()->experimental_modules),
+      Boolean::New(isolate, env->options()->expose_internals),
+      env->primordials()};
 
   // Bootstrap internal loaders
   MaybeLocal<Value> loader_exports = ExecuteBootstrapper(
@@ -311,11 +327,13 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
   std::vector<Local<String>> node_params = {
       env->process_string(),
       FIXED_ONE_BYTE_STRING(isolate, "loaderExports"),
-      FIXED_ONE_BYTE_STRING(isolate, "isMainThread")};
+      FIXED_ONE_BYTE_STRING(isolate, "isMainThread"),
+      env->primordials_string()};
   std::vector<Local<Value>> node_args = {
       process,
       loader_exports_obj,
-      Boolean::New(isolate, env->is_main_thread())};
+      Boolean::New(isolate, env->is_main_thread()),
+      env->primordials()};
 
   MaybeLocal<Value> result = ExecuteBootstrapper(
       env, "internal/bootstrap/node", &node_params, &node_args);

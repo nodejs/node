@@ -46,3 +46,4 @@ globals:
   DCHECK_LT: false
   DCHECK_NE: false
   internalBinding: false
+  primordials: false
