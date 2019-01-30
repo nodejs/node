@@ -36,6 +36,11 @@ void DebugOptions::CheckOptions(std::vector<std::string>* errors) {
                       "are invalid. Please use `node --inspect` or "
                       "`node --inspect-brk` instead.");
   }
+
+  if (deprecated_debug && inspector_enabled && break_first_line) {
+    errors->push_back("[DEP0062]: `node --inspect --debug-brk` is deprecated. "
+                      "Please use `node --inspect-brk` instead.");
+  }
 }
 
 void PerProcessOptions::CheckOptions(std::vector<std::string>* errors) {
