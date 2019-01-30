@@ -237,17 +237,19 @@ inline Local<Value> FillGlobalStatsArray(Environment* env,
 template <typename NativeT = double, typename V8T = v8::Float64Array>
 class FSReqPromise : public FSReqBase {
  public:
-  explicit FSReqPromise(Environment* env, bool use_bigint)
-      : FSReqBase(env,
-                  env->fsreqpromise_constructor_template()
-                      ->NewInstance(env->context()).ToLocalChecked(),
-                  AsyncWrap::PROVIDER_FSREQPROMISE,
-                  use_bigint),
-        stats_field_array_(env->isolate(), kFsStatsFieldsNumber) {
-    const auto resolver =
-      Promise::Resolver::New(env->context()).ToLocalChecked();
-    USE(object()->Set(env->context(), env->promise_string(),
-                      resolver).FromJust());
+  static FSReqPromise* New(Environment* env, bool use_bigint) {
+    v8::Local<Object> obj;
+    if (!env->fsreqpromise_constructor_template()
+             ->NewInstance(env->context())
+             .ToLocal(&obj)) {
+      return nullptr;
+    }
+    v8::Local<v8::Promise::Resolver> resolver;
+    if (!v8::Promise::Resolver::New(env->context()).ToLocal(&resolver) ||
+        obj->Set(env->context(), env->promise_string(), resolver).IsNothing()) {
+      return nullptr;
+    }
+    return new FSReqPromise(env, obj, use_bigint);
   }
 
   ~FSReqPromise() override {
@@ -304,6 +306,10 @@ class FSReqPromise : public FSReqBase {
   FSReqPromise& operator=(const FSReqPromise&&) = delete;
 
  private:
+  FSReqPromise(Environment* env, v8::Local<v8::Object> obj, bool use_bigint)
+      : FSReqBase(env, obj, AsyncWrap::PROVIDER_FSREQPROMISE, use_bigint),
+        stats_field_array_(env->isolate(), kFsStatsFieldsNumber) {}
+
   bool finished_ = false;
   AliasedBuffer<NativeT, V8T> stats_field_array_;
 };
@@ -356,9 +362,9 @@ class FileHandleReadWrap : public ReqWrap<uv_fs_t> {
 // the object is garbage collected
 class FileHandle : public AsyncWrap, public StreamBase {
  public:
-  FileHandle(Environment* env,
-             int fd,
-             v8::Local<v8::Object> obj = v8::Local<v8::Object>());
+  static FileHandle* New(Environment* env,
+                         int fd,
+                         v8::Local<v8::Object> obj = v8::Local<v8::Object>());
   virtual ~FileHandle();
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -404,6 +410,8 @@ class FileHandle : public AsyncWrap, public StreamBase {
   FileHandle& operator=(const FileHandle&&) = delete;
 
  private:
+  FileHandle(Environment* env, v8::Local<v8::Object> obj, int fd);
+
   // Synchronous close that emits a warning
   void Close();
   void AfterClose();
@@ -411,12 +419,10 @@ class FileHandle : public AsyncWrap, public StreamBase {
   class CloseReq : public ReqWrap<uv_fs_t> {
    public:
     CloseReq(Environment* env,
+             Local<Object> obj,
              Local<Promise> promise,
              Local<Value> ref)
-        : ReqWrap(env,
-                  env->fdclose_constructor_template()
-                      ->NewInstance(env->context()).ToLocalChecked(),
-                  AsyncWrap::PROVIDER_FILEHANDLECLOSEREQ) {
+        : ReqWrap(env, obj, AsyncWrap::PROVIDER_FILEHANDLECLOSEREQ) {
       promise_.Reset(env->isolate(), promise);
       ref_.Reset(env->isolate(), ref);
     }
