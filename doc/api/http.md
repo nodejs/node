@@ -635,7 +635,7 @@ Limits maximum response headers count. If set to 0, no limit will be applied.
 
 ### request.path
 <!-- YAML
-added: v0.3.6
+added: v0.4.0
 -->
 
 * {string} The request path. Read-only.
