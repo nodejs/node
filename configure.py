@@ -1181,6 +1181,8 @@ def configure_v8(o):
   o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
   o['variables']['force_dynamic_crt'] = 1 if options.shared else 0
   o['variables']['node_enable_d8'] = b(options.enable_d8)
+  o['variables']['v8_enable_pointer_compression'] = 0
+  o['variables']['v8_enable_31bit_smis_on_64bit_arch'] = 0
   # Unconditionally force typed arrays to allocate outside the v8 heap. This
   # is to prevent memory pointers from being moved around that are returned by
   # Buffer::Data().
