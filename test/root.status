@@ -163,3 +163,4 @@ sequential/test-util-debug: SLOW
 [$type==coverage]
 js-native-api/test_function/test: PASS,FAIL,CRASH
 js-native-api/test_general/testFinalizer: PASS,FAIL,CRASH
+async-hooks/test-callback-error: PASS,FAIL,CRASH
