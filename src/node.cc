@@ -269,7 +269,6 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
   // Create binding loaders
   std::vector<Local<String>> loaders_params = {
       env->process_string(),
-      FIXED_ONE_BYTE_STRING(isolate, "getBinding"),
       FIXED_ONE_BYTE_STRING(isolate, "getLinkedBinding"),
       FIXED_ONE_BYTE_STRING(isolate, "getInternalBinding"),
       // --experimental-modules
@@ -279,9 +278,6 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
       env->primordials_string()};
   std::vector<Local<Value>> loaders_args = {
       process,
-      env->NewFunctionTemplate(binding::GetBinding)
-          ->GetFunction(context)
-          .ToLocalChecked(),
       env->NewFunctionTemplate(binding::GetLinkedBinding)
           ->GetFunction(context)
           .ToLocalChecked(),
