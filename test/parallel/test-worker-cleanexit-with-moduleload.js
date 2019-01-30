@@ -1,5 +1,7 @@
 'use strict';
-require('../common');
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
 // Harden the thread interactions on the exit path.
 // Ensure workers are able to bail out safe at
