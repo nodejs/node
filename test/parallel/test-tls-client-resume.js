@@ -20,9 +20,9 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-// Create an ssl server.  First connection, validate that not resume.
-// Cache session and close connection.  Use session on second connection.
-// ASSERT resumption.
+
+// Check that the ticket from the first connection causes session resumption
+// when used to make a second connection.
 
 const common = require('../common');
 if (!common.hasCrypto)
@@ -43,20 +43,28 @@ const server = tls.Server(options, common.mustCall((socket) => {
 }, 2));
 
 // start listening
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
 
+  let sessionx = null;
   let session1 = null;
   const client1 = tls.connect({
     port: this.address().port,
     rejectUnauthorized: false
-  }, () => {
+  }, common.mustCall(() => {
     console.log('connect1');
-    assert.ok(!client1.isSessionReused(), 'Session *should not* be reused.');
-    session1 = client1.getSession();
-  });
+    assert.strictEqual(client1.isSessionReused(), false);
+    sessionx = client1.getSession();
+  }));
 
-  client1.on('close', () => {
-    console.log('close1');
+  client1.once('session', common.mustCall((session) => {
+    console.log('session1');
+    session1 = session;
+  }));
+
+  client1.on('close', common.mustCall(() => {
+    assert(sessionx);
+    assert(session1);
+    assert.strictEqual(sessionx.compare(session1), 0);
 
     const opts = {
       port: server.address().port,
@@ -64,18 +72,18 @@ server.listen(0, function() {
       session: session1
     };
 
-    const client2 = tls.connect(opts, () => {
+    const client2 = tls.connect(opts, common.mustCall(() => {
       console.log('connect2');
-      assert.ok(client2.isSessionReused(), 'Session *should* be reused.');
-    });
+      assert.strictEqual(client2.isSessionReused(), true);
+    }));
 
-    client2.on('close', () => {
+    client2.on('close', common.mustCall(() => {
       console.log('close2');
       server.close();
-    });
+    }));
 
     client2.resume();
-  });
+  }));
 
   client1.resume();
-});
+}));
