@@ -30,6 +30,12 @@ void DebugOptions::CheckOptions(std::vector<std::string>* errors) {
                       "--without-v8-platform");
   }
 #endif
+
+  if (deprecated_debug && !inspector_enabled) {
+    errors->push_back("[DEP0062]: `node --debug` and `node --debug-brk` "
+                      "are invalid. Please use `node --inspect` or "
+                      "`node --inspect-brk` instead.");
+  }
 }
 
 void PerProcessOptions::CheckOptions(std::vector<std::string>* errors) {
