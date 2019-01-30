@@ -215,7 +215,7 @@ coverage-build: all
 coverage-build-js:
 	mkdir -p node_modules
 	if [ ! -d node_modules/c8 ]; then \
-		$(NODE) ./deps/npm install c8@next --no-save --no-package-lock;\
+		$(NODE) ./deps/npm install c8 --no-save --no-package-lock;\
 	fi
 
 .PHONY: coverage-test
@@ -240,12 +240,17 @@ coverage-test: coverage-build
 	@grep -A3 Lines coverage/cxxcoverage.html | grep style  \
 		| sed 's/<[^>]*>//g'| sed 's/ //g'
 
+COV_REPORT_OPTIONS = --reporter=html \
+	--temp-directory=out/$(BUILDTYPE)/.coverage --omit-relative=false \
+	--resolve=./lib --exclude="deps/" --exclude="test/" --exclude="tools/" \
+	--wrapper-length=0
+ifdef COV_ENFORCE_THRESHOLD
+  COV_REPORT_OPTIONS += --check-coverage --lines=$(COV_ENFORCE_THRESHOLD)
+endif
+
 .PHONY: coverage-report-js
 coverage-report-js:
-	$(NODE) ./node_modules/.bin/c8 report --reporter=html \
-		--temp-directory=out/$(BUILDTYPE)/.coverage --omit-relative=false \
-		--resolve=./lib --exclude="deps/" --exclude="test/" --exclude="tools/" \
-		--wrapper-length=0
+	$(NODE) ./node_modules/.bin/c8 report $(COV_REPORT_OPTIONS)
 
 .PHONY: cctest
 # Runs the C++ tests using the built `cctest` executable.
