@@ -99,7 +99,7 @@ class CallbackInfo {
                                   Local<ArrayBuffer> object,
                                   FreeCallback callback,
                                   char* data,
-                                  void* hint = 0);
+                                  void* hint = nullptr);
  private:
   static void WeakCallback(const WeakCallbackInfo<CallbackInfo>&);
   inline void WeakCallback(Isolate* isolate);
