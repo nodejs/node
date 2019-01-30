@@ -1,0 +1,5 @@
+
+*:3
+throw {  // eslint-disable-line no-throw-literal
+^
+[object Object]
