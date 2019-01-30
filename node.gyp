@@ -26,6 +26,7 @@
     'node_intermediate_lib_type%': 'static_library',
     'library_files': [
       'lib/internal/per_context.js',
+      'lib/internal/bootstrap/primordials.js',
       'lib/internal/bootstrap/cache.js',
       'lib/internal/bootstrap/loaders.js',
       'lib/internal/bootstrap/node.js',
@@ -149,7 +150,6 @@
       'lib/internal/modules/esm/module_job.js',
       'lib/internal/modules/esm/module_map.js',
       'lib/internal/modules/esm/translators.js',
-      'lib/internal/safe_globals.js',
       'lib/internal/net.js',
       'lib/internal/options.js',
       'lib/internal/policy/manifest.js',

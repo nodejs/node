@@ -181,7 +181,8 @@ MaybeLocal<Function> NativeModuleLoader::CompileAsModule(Environment* env,
                                            env->require_string(),
                                            env->module_string(),
                                            env->process_string(),
-                                           env->internal_binding_string()};
+                                           env->internal_binding_string(),
+                                           env->primordials_string()};
   return per_process::native_module_loader.LookupAndCompile(
       env->context(), id, &parameters, env);
 }
