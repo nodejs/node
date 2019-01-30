@@ -30,22 +30,28 @@ StoreBuffer::StoreBuffer(Heap* heap)
 }
 
 void StoreBuffer::SetUp() {
-  // Allocate 3x the buffer size, so that we can start the new store buffer
-  // aligned to 2x the size.  This lets us use a bit test to detect the end of
-  // the area.
+  const size_t requested_size = kStoreBufferSize * kStoreBuffers;
+  // Allocate buffer memory aligned at least to kStoreBufferSize. This lets us
+  // use a bit test to detect the ends of the buffers.
+  const size_t alignment =
+      std::max<size_t>(kStoreBufferSize, AllocatePageSize());
+  void* hint = AlignedAddress(heap_->GetRandomMmapAddr(), alignment);
   VirtualMemory reservation;
-  if (!AllocVirtualMemory(kStoreBufferSize * 3, heap_->GetRandomMmapAddr(),
-                          &reservation)) {
+  if (!AlignedAllocVirtualMemory(requested_size, alignment, hint,
+                                 &reservation)) {
     heap_->FatalProcessOutOfMemory("StoreBuffer::SetUp");
   }
+
   Address start = reservation.address();
-  start_[0] = reinterpret_cast<Address*>(::RoundUp(start, kStoreBufferSize));
+  const size_t allocated_size = reservation.size();
+
+  start_[0] = reinterpret_cast<Address*>(start);
   limit_[0] = start_[0] + (kStoreBufferSize / kPointerSize);
   start_[1] = limit_[0];
   limit_[1] = start_[1] + (kStoreBufferSize / kPointerSize);
 
-  Address* vm_limit = reinterpret_cast<Address*>(start + reservation.size());
-
+  // Sanity check the buffers.
+  Address* vm_limit = reinterpret_cast<Address*>(start + allocated_size);
   USE(vm_limit);
   for (int i = 0; i < kStoreBuffers; i++) {
     DCHECK(reinterpret_cast<Address>(start_[i]) >= reservation.address());
@@ -55,8 +61,9 @@ void StoreBuffer::SetUp() {
     DCHECK_EQ(0, reinterpret_cast<Address>(limit_[i]) & kStoreBufferMask);
   }
 
-  if (!reservation.SetPermissions(reinterpret_cast<Address>(start_[0]),
-                                  kStoreBufferSize * kStoreBuffers,
+  // Set RW permissions only on the pages we use.
+  const size_t used_size = RoundUp(requested_size, CommitPageSize());
+  if (!reservation.SetPermissions(start, used_size,
                                   PageAllocator::kReadWrite)) {
     heap_->FatalProcessOutOfMemory("StoreBuffer::SetUp");
   }
@@ -64,7 +71,6 @@ void StoreBuffer::SetUp() {
   top_ = start_[current_];
   virtual_memory_.TakeControl(&reservation);
 }
-
 
 void StoreBuffer::TearDown() {
   if (virtual_memory_.IsReserved()) virtual_memory_.Free();
