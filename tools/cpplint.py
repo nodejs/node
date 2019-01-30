@@ -636,7 +636,7 @@ _NULL_TOKEN_PATTERN = re.compile(r'\bNULL\b')
 
 _RIGHT_LEANING_POINTER_PATTERN = re.compile(r'[^=|(,\s><);&?:}]'
                                             r'(?<!(sizeof|return))'
-                                            r'\s\*[a-zA-z_][0-9a-zA-z_]*')
+                                            r'\s\*[a-zA-Z_][0-9a-zA-Z_]*')
 
 _regexp_compile_cache = {}
 
