@@ -6,7 +6,7 @@ require('../common');
 const assert = require('assert');
 const spawn = require('child_process').spawnSync;
 
-if (process.config.variables.v8_enable_inspector === 1) {
+if (process.features.inspector) {
   requiresArgument('--inspect-port');
   requiresArgument('--inspect-port=');
   requiresArgument('--debug-port');

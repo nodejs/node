@@ -1,6 +1,6 @@
 'use strict';
 
-if (!process.config.variables.v8_enable_inspector) return;
+if (!process.features.inspector) return;
 
 const common = require('../common');
 const assert = require('assert');
