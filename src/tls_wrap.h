@@ -108,6 +108,7 @@ class TLSWrap : public AsyncWrap,
   static const int kSimultaneousBufferCount = 10;
 
   TLSWrap(Environment* env,
+          v8::Local<v8::Object> obj,
           Kind kind,
           StreamBase* stream,
           crypto::SecureContext* sc);
