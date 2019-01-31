@@ -330,6 +330,16 @@ parser.add_option('--enable-d8',
     dest='enable_d8',
     help=optparse.SUPPRESS_HELP)  # Unsupported, undocumented.
 
+parser.add_option('--enable-pointer-compression',
+    action='store_true',
+    dest='enable_pointer_compression',
+    help=optparse.SUPPRESS_HELP)  # Unsupported, undocumented.
+
+parser.add_option('--enable-31bit-smis',
+    action='store_true',
+    dest='enable_31bit_smis',
+    help=optparse.SUPPRESS_HELP)  # Unsupported, undocumented.
+
 parser.add_option('--enable-trace-maps',
     action='store_true',
     dest='trace_maps',
@@ -1181,8 +1191,9 @@ def configure_v8(o):
   o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
   o['variables']['force_dynamic_crt'] = 1 if options.shared else 0
   o['variables']['node_enable_d8'] = b(options.enable_d8)
-  o['variables']['v8_enable_pointer_compression'] = 0
-  o['variables']['v8_enable_31bit_smis_on_64bit_arch'] = 0
+  o['variables']['v8_enable_pointer_compression'] = b(options.enable_pointer_compression)
+  o['variables']['v8_enable_31bit_smis_on_64bit_arch'] = \
+    b(options.enable_pointer_compression or options.enable_31bit_smis)
   # Unconditionally force typed arrays to allocate outside the v8 heap. This
   # is to prevent memory pointers from being moved around that are returned by
   # Buffer::Data().
@@ -1214,6 +1225,10 @@ def configure_v8(o):
         os.environ.get('DEPOT_TOOLS_WIN_TOOLCHAIN_ROOT', ''))
     o['variables']['build_v8_with_gn_depot_tools'] = b(depot_tools)
   o['variables']['build_v8_with_gn'] = b(options.build_v8_with_gn)
+  if o['variables']['v8_enable_31bit_smis_on_64bit_arch'] == 'true':
+    o['defines'] += ['V8_31BIT_SMIS_ON_64BIT_ARCH']
+  if o['variables']['v8_enable_pointer_compression'] == 'true':
+    o['defines'] += ['V8_COMPRESS_POINTERS']
 
 
 def configure_openssl(o):

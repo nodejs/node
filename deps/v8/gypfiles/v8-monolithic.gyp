@@ -63,6 +63,8 @@
             '--flag', 'v8_enable_disassembler=<(v8_enable_disassembler)',
             '--flag', 'v8_postmortem_support=<(v8_postmortem_support)',
             '--flag', 'v8_untrusted_code_mitigations=<(v8_untrusted_code_mitigations)',
+            '--flag', 'v8_enable_31bit_smis_on_64bit_arch=<(v8_enable_31bit_smis_on_64bit_arch)',
+            '--flag', 'v8_enable_pointer_compression=<(v8_enable_pointer_compression)',
             '--bundled-win-toolchain', '<(build_v8_with_gn_bundled_win_toolchain)',
             '--depot-tools', '<(build_v8_with_gn_depot_tools)',
           ],
