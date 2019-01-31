@@ -242,7 +242,7 @@ coverage-test: coverage-build
 
 COV_REPORT_OPTIONS = --reporter=html \
 	--temp-directory=out/$(BUILDTYPE)/.coverage --omit-relative=false \
-	--resolve=./lib --exclude="deps/" --exclude="test/" --exclude="tools/" \
+	--resolve=./lib --exclude="benchmark/" --exclude="deps/" --exclude="test/" --exclude="tools/" \
 	--wrapper-length=0
 ifdef COV_ENFORCE_THRESHOLD
   COV_REPORT_OPTIONS += --check-coverage --lines=$(COV_ENFORCE_THRESHOLD)
