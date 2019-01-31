@@ -18,7 +18,7 @@
 //    `function X(...) {...}`). Over time, we expect to handle more
 //    cases (example: ES2015 class definitions).
 
-const acorn = require('../../deps/acorn');
+const acorn = require('../../deps/acorn/acorn');
 const fs = require('fs');
 const path = require('path');
 const child_process = require('child_process');

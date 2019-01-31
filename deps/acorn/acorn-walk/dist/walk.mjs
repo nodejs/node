@@ -1,9 +1,3 @@
-(function (global, factory) {
-	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
-	typeof define === 'function' && define.amd ? define(['exports'], factory) :
-	(factory((global.acorn = global.acorn || {}, global.acorn.walk = {})));
-}(this, (function (exports) { 'use strict';
-
 // AST walker module for Mozilla Parser API compatible trees
 
 // A simple walk is one where you simply specify callbacks to be
@@ -15,8 +9,8 @@
 //     });
 //
 // to do something with all expressions. All Parser API node types
-// can be used to identify node types, as well as Expression,
-// Statement, and ScopeBody, which denote categories of nodes.
+// can be used to identify node types, as well as Expression and
+// Statement, which denote categories of nodes.
 //
 // The base argument can be used to pass a custom (recursive)
 // walker, and state can be used to give this walked an initial
@@ -245,7 +239,7 @@ base.TryStatement = function (node, st, c) {
 };
 base.CatchClause = function (node, st, c) {
   if (node.param) { c(node.param, st, "Pattern"); }
-  c(node.body, st, "ScopeBody");
+  c(node.body, st, "Statement");
 };
 base.WhileStatement = base.DoWhileStatement = function (node, st, c) {
   c(node.test, st, "Expression");
@@ -290,12 +284,8 @@ base.Function = function (node, st, c) {
 
     c(param, st, "Pattern");
   }
-  c(node.body, st, node.expression ? "ScopeExpression" : "ScopeBody");
+  c(node.body, st, node.expression ? "Expression" : "Statement");
 };
-// FIXME drop these node types in next major version
-// (They are awkward, and in ES6 every block can be a scope.)
-base.ScopeBody = function (node, st, c) { return c(node, st, "Statement"); };
-base.ScopeExpression = function (node, st, c) { return c(node, st, "Expression"); };
 
 base.Pattern = function (node, st, c) {
   if (node.type === "Identifier")
@@ -346,7 +336,7 @@ base.ObjectExpression = function (node, st, c) {
   }
 };
 base.FunctionExpression = base.ArrowFunctionExpression = base.FunctionDeclaration;
-base.SequenceExpression = base.TemplateLiteral = function (node, st, c) {
+base.SequenceExpression = function (node, st, c) {
   for (var i = 0, list = node.expressions; i < list.length; i += 1)
     {
     var expr = list[i];
@@ -354,6 +344,22 @@ base.SequenceExpression = base.TemplateLiteral = function (node, st, c) {
     c(expr, st, "Expression");
   }
 };
+base.TemplateLiteral = function (node, st, c) {
+  for (var i = 0, list = node.quasis; i < list.length; i += 1)
+    {
+    var quasi = list[i];
+
+    c(quasi, st);
+  }
+
+  for (var i$1 = 0, list$1 = node.expressions; i$1 < list$1.length; i$1 += 1)
+    {
+    var expr = list$1[i$1];
+
+    c(expr, st, "Expression");
+  }
+};
+base.TemplateElement = ignore;
 base.UnaryExpression = base.UpdateExpression = function (node, st, c) {
   c(node.argument, st, "Expression");
 };
@@ -426,18 +432,5 @@ base.MethodDefinition = base.Property = function (node, st, c) {
   c(node.value, st, "Expression");
 };
 
-exports.simple = simple;
-exports.ancestor = ancestor;
-exports.recursive = recursive;
-exports.full = full;
-exports.fullAncestor = fullAncestor;
-exports.findNodeAt = findNodeAt;
-exports.findNodeAround = findNodeAround;
-exports.findNodeAfter = findNodeAfter;
-exports.findNodeBefore = findNodeBefore;
-exports.make = make;
-exports.base = base;
-
-Object.defineProperty(exports, '__esModule', { value: true });
-
-})));
+export { simple, ancestor, recursive, full, fullAncestor, findNodeAt, findNodeAround, findNodeAfter, findNodeBefore, make, base };
+//# sourceMappingURL=walk.mjs.map
