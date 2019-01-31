@@ -278,14 +278,6 @@ providing a Public API in such cases.
 
 #### When Breaking Changes Actually Break Things
 
-* Breaking changes should *never* land in Current or LTS except when:
-  * Resolving critical security issues.
-  * Fixing a critical bug (e.g. fixing a memory leak) requires a breaking
-    change.
-* If a breaking commit does accidentally land in a Current or LTS branch, an
-  attempt to fix the issue will be made before the next release; If no fix is
-  provided then the commit will be reverted.
-
 When any changes are landed on the master branch and it is determined that the
 changes *do* break existing code, a decision may be made to revert those
 changes either temporarily or permanently. However, the decision to revert or
