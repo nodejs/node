@@ -34,7 +34,6 @@ static inline const char* GetPerformanceMilestoneName(
 #undef V
     default:
       UNREACHABLE();
-      return 0;
   }
 }
 
