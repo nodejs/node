@@ -770,7 +770,7 @@ void TLSWrap::SetVerifyMode(const FunctionCallbackInfo<Value>& args) {
   if (wrap->is_server()) {
     bool request_cert = args[0]->IsTrue();
     if (!request_cert) {
-      // Note reject_unauthorized ignored.
+      // If no cert is requested, there will be none to reject as unauthorized.
       verify_mode = SSL_VERIFY_NONE;
     } else {
       bool reject_unauthorized = args[1]->IsTrue();
@@ -779,7 +779,9 @@ void TLSWrap::SetVerifyMode(const FunctionCallbackInfo<Value>& args) {
         verify_mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
     }
   } else {
-    // Note request_cert and reject_unauthorized are ignored for clients.
+    // Servers always send a cert if the cipher is not anonymous (anon is
+    // disabled by default), so use VERIFY_NONE and check the cert after the
+    // handshake has completed.
     verify_mode = SSL_VERIFY_NONE;
   }
 
