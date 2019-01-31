@@ -296,8 +296,10 @@ void MarkGarbageCollectionEnd(Isolate* isolate,
                          entry);
 }
 
+static void SetupGarbageCollectionTracking(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
 
-inline void SetupGarbageCollectionTracking(Environment* env) {
   env->isolate()->AddGCPrologueCallback(MarkGarbageCollectionStart,
                                         static_cast<void*>(env));
   env->isolate()->AddGCEpilogueCallback(MarkGarbageCollectionEnd,
@@ -416,6 +418,8 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "markMilestone", MarkMilestone);
   env->SetMethod(target, "setupObservers", SetupPerformanceObservers);
   env->SetMethod(target, "timerify", Timerify);
+  env->SetMethod(
+      target, "setupGarbageCollectionTracking", SetupGarbageCollectionTracking);
 
   Local<Object> constants = Object::New(isolate);
 
@@ -452,8 +456,6 @@ void Initialize(Local<Object> target,
                             env->constants_string(),
                             constants,
                             attr).ToChecked();
-
-  SetupGarbageCollectionTracking(env);
 }
 
 }  // namespace performance
