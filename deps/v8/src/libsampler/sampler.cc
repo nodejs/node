@@ -4,14 +4,13 @@
 
 #include "src/libsampler/sampler.h"
 
-#if V8_OS_POSIX && !V8_OS_CYGWIN && !V8_OS_FUCHSIA
-
-#define USE_SIGNALS
+#ifdef USE_SIGNALS
 
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <atomic>
 
 #if !V8_OS_QNX && !V8_OS_AIX
 #include <sys/syscall.h>  // NOLINT
@@ -57,10 +56,8 @@ typedef zx_arm64_general_regs_t zx_thread_state_general_regs_t;
 
 #include <algorithm>
 #include <vector>
-#include <map>
 
 #include "src/base/atomic-utils.h"
-#include "src/base/hashmap.h"
 #include "src/base/platform/platform.h"
 
 #if V8_OS_ANDROID && !defined(__BIONIC_HAVE_UCONTEXT_T)
@@ -170,55 +167,24 @@ enum { REG_RBP = 10, REG_RSP = 15, REG_RIP = 16 };
 namespace v8 {
 namespace sampler {
 
-namespace {
-
 #if defined(USE_SIGNALS)
-typedef std::vector<Sampler*> SamplerList;
-typedef SamplerList::iterator SamplerListIterator;
-typedef base::AtomicValue<bool> AtomicMutex;
 
-class AtomicGuard {
- public:
-  explicit AtomicGuard(AtomicMutex* atomic, bool is_blocking = true)
-      : atomic_(atomic), is_success_(false) {
-    do {
-      // Use Acquire_Load to gain mutual exclusion.
-      USE(atomic_->Value());
-      is_success_ = atomic_->TrySetValue(false, true);
-    } while (is_blocking && !is_success_);
-  }
-
-  bool is_success() const { return is_success_; }
-
-  ~AtomicGuard() {
-    if (!is_success_) return;
-    atomic_->SetValue(false);
-  }
-
- private:
-  AtomicMutex* const atomic_;
-  bool is_success_;
-};
-
-// Returns key for hash map.
-void* ThreadKey(pthread_t thread_id) {
-  return reinterpret_cast<void*>(thread_id);
+AtomicGuard::AtomicGuard(AtomicMutex* atomic, bool is_blocking)
+    : atomic_(atomic), is_success_(false) {
+  do {
+    bool expected = false;
+    // We have to use the strong version here for the case where is_blocking
+    // is false, and we will only attempt the exchange once.
+    is_success_ = atomic->compare_exchange_strong(expected, true);
+  } while (is_blocking && !is_success_);
 }
 
-// Returns hash value for hash map.
-uint32_t ThreadHash(pthread_t thread_id) {
-#if V8_OS_BSD
-  return static_cast<uint32_t>(reinterpret_cast<intptr_t>(thread_id));
-#else
-  return static_cast<uint32_t>(thread_id);
-#endif
+AtomicGuard::~AtomicGuard() {
+  if (!is_success_) return;
+  atomic_->store(false);
 }
 
-#endif  // USE_SIGNALS
-
-}  // namespace
-
-#if defined(USE_SIGNALS)
+bool AtomicGuard::is_success() const { return is_success_; }
 
 class Sampler::PlatformData {
  public:
@@ -229,94 +195,57 @@ class Sampler::PlatformData {
   pthread_t vm_tid_;
 };
 
-class SamplerManager {
- public:
-  SamplerManager() : sampler_map_() {}
-
-  void AddSampler(Sampler* sampler) {
-    AtomicGuard atomic_guard(&samplers_access_counter_);
-    DCHECK(sampler->IsActive() || !sampler->IsRegistered());
-    // Add sampler into map if needed.
-    pthread_t thread_id = sampler->platform_data()->vm_tid();
-    base::HashMap::Entry* entry =
-            sampler_map_.LookupOrInsert(ThreadKey(thread_id),
-                                        ThreadHash(thread_id));
-    DCHECK_NOT_NULL(entry);
-    if (entry->value == nullptr) {
-      SamplerList* samplers = new SamplerList();
-      samplers->push_back(sampler);
-      entry->value = samplers;
-    } else {
-      SamplerList* samplers = reinterpret_cast<SamplerList*>(entry->value);
-      bool exists = false;
-      for (SamplerListIterator iter = samplers->begin();
-           iter != samplers->end(); ++iter) {
-        if (*iter == sampler) {
-          exists = true;
-          break;
-        }
-      }
-      if (!exists) {
-        samplers->push_back(sampler);
-      }
-    }
+void SamplerManager::AddSampler(Sampler* sampler) {
+  AtomicGuard atomic_guard(&samplers_access_counter_);
+  DCHECK(sampler->IsActive());
+  pthread_t thread_id = sampler->platform_data()->vm_tid();
+  auto it = sampler_map_.find(thread_id);
+  if (it == sampler_map_.end()) {
+    SamplerList samplers;
+    samplers.push_back(sampler);
+    sampler_map_.emplace(thread_id, std::move(samplers));
+  } else {
+    SamplerList& samplers = it->second;
+    auto it = std::find(samplers.begin(), samplers.end(), sampler);
+    if (it == samplers.end()) samplers.push_back(sampler);
   }
+}
 
-  void RemoveSampler(Sampler* sampler) {
-    AtomicGuard atomic_guard(&samplers_access_counter_);
-    DCHECK(sampler->IsActive() || sampler->IsRegistered());
-    // Remove sampler from map.
-    pthread_t thread_id = sampler->platform_data()->vm_tid();
-    void* thread_key = ThreadKey(thread_id);
-    uint32_t thread_hash = ThreadHash(thread_id);
-    base::HashMap::Entry* entry = sampler_map_.Lookup(thread_key, thread_hash);
-    DCHECK_NOT_NULL(entry);
-    SamplerList* samplers = reinterpret_cast<SamplerList*>(entry->value);
-    for (SamplerListIterator iter = samplers->begin(); iter != samplers->end();
-         ++iter) {
-      if (*iter == sampler) {
-        samplers->erase(iter);
-        break;
-      }
-    }
-    if (samplers->empty()) {
-      sampler_map_.Remove(thread_key, thread_hash);
-      delete samplers;
-    }
+void SamplerManager::RemoveSampler(Sampler* sampler) {
+  AtomicGuard atomic_guard(&samplers_access_counter_);
+  DCHECK(sampler->IsActive());
+  pthread_t thread_id = sampler->platform_data()->vm_tid();
+  auto it = sampler_map_.find(thread_id);
+  DCHECK_NE(it, sampler_map_.end());
+  SamplerList& samplers = it->second;
+  samplers.erase(std::remove(samplers.begin(), samplers.end(), sampler),
+                 samplers.end());
+  if (samplers.empty()) {
+    sampler_map_.erase(it);
   }
+}
 
-#if defined(USE_SIGNALS)
-  void DoSample(const v8::RegisterState& state) {
-    AtomicGuard atomic_guard(&SamplerManager::samplers_access_counter_, false);
-    if (!atomic_guard.is_success()) return;
-    pthread_t thread_id = pthread_self();
-    base::HashMap::Entry* entry =
-        sampler_map_.Lookup(ThreadKey(thread_id), ThreadHash(thread_id));
-    if (!entry) return;
-    SamplerList& samplers = *static_cast<SamplerList*>(entry->value);
+void SamplerManager::DoSample(const v8::RegisterState& state) {
+  AtomicGuard atomic_guard(&samplers_access_counter_, false);
+  if (!atomic_guard.is_success()) return;
+  pthread_t thread_id = pthread_self();
+  auto it = sampler_map_.find(thread_id);
+  if (it == sampler_map_.end()) return;
+  SamplerList& samplers = it->second;
 
-    for (size_t i = 0; i < samplers.size(); ++i) {
-      Sampler* sampler = samplers[i];
-      Isolate* isolate = sampler->isolate();
-      // We require a fully initialized and entered isolate.
-      if (isolate == nullptr || !isolate->IsInUse()) continue;
-      if (v8::Locker::IsActive() && !Locker::IsLocked(isolate)) continue;
-      sampler->SampleStack(state);
-    }
+  for (Sampler* sampler : samplers) {
+    Isolate* isolate = sampler->isolate();
+    // We require a fully initialized and entered isolate.
+    if (isolate == nullptr || !isolate->IsInUse()) continue;
+    if (v8::Locker::IsActive() && !Locker::IsLocked(isolate)) continue;
+    sampler->SampleStack(state);
   }
-#endif
+}
 
-  static SamplerManager* instance() { return instance_.Pointer(); }
-
- private:
-  base::HashMap sampler_map_;
-  static AtomicMutex samplers_access_counter_;
-  static base::LazyInstance<SamplerManager>::type instance_;
-};
-
-AtomicMutex SamplerManager::samplers_access_counter_;
-base::LazyInstance<SamplerManager>::type SamplerManager::instance_ =
-    LAZY_INSTANCE_INITIALIZER;
+SamplerManager* SamplerManager::instance() {
+  static base::LeakyObject<SamplerManager> instance;
+  return instance.get();
+}
 
 #elif V8_OS_WIN || V8_OS_CYGWIN
 
@@ -378,24 +307,18 @@ class Sampler::PlatformData {
 #if defined(USE_SIGNALS)
 class SignalHandler {
  public:
-  static void SetUp() { if (!mutex_) mutex_ = new base::Mutex(); }
-  static void TearDown() {
-    delete mutex_;
-    mutex_ = nullptr;
-  }
-
   static void IncreaseSamplerCount() {
-    base::LockGuard<base::Mutex> lock_guard(mutex_);
+    base::MutexGuard lock_guard(mutex_.Pointer());
     if (++client_count_ == 1) Install();
   }
 
   static void DecreaseSamplerCount() {
-    base::LockGuard<base::Mutex> lock_guard(mutex_);
+    base::MutexGuard lock_guard(mutex_.Pointer());
     if (--client_count_ == 0) Restore();
   }
 
   static bool Installed() {
-    base::LockGuard<base::Mutex> lock_guard(mutex_);
+    base::MutexGuard lock_guard(mutex_.Pointer());
     return signal_handler_installed_;
   }
 
@@ -424,13 +347,13 @@ class SignalHandler {
   static void HandleProfilerSignal(int signal, siginfo_t* info, void* context);
 
   // Protects the process wide state below.
-  static base::Mutex* mutex_;
+  static base::LazyMutex mutex_;
   static int client_count_;
   static bool signal_handler_installed_;
   static struct sigaction old_signal_handler_;
 };
 
-base::Mutex* SignalHandler::mutex_ = nullptr;
+base::LazyMutex SignalHandler::mutex_ = LAZY_MUTEX_INITIALIZER;
 int SignalHandler::client_count_ = 0;
 struct sigaction SignalHandler::old_signal_handler_;
 bool SignalHandler::signal_handler_installed_ = false;
@@ -589,85 +512,36 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
 
 #endif  // USE_SIGNALS
 
-
-void Sampler::SetUp() {
-#if defined(USE_SIGNALS)
-  SignalHandler::SetUp();
-#endif
-}
-
-
-void Sampler::TearDown() {
-#if defined(USE_SIGNALS)
-  SignalHandler::TearDown();
-#endif
-}
-
 Sampler::Sampler(Isolate* isolate)
-    : is_counting_samples_(false),
-      js_sample_count_(0),
-      external_sample_count_(0),
-      isolate_(isolate),
-      profiling_(false),
-      has_processing_thread_(false),
-      active_(false),
-      registered_(false) {
-  data_ = new PlatformData;
-}
+    : isolate_(isolate), data_(base::make_unique<PlatformData>()) {}
 
 Sampler::~Sampler() {
   DCHECK(!IsActive());
-#if defined(USE_SIGNALS)
-  if (IsRegistered()) {
-    SamplerManager::instance()->RemoveSampler(this);
-  }
-#endif
-  delete data_;
 }
 
 void Sampler::Start() {
   DCHECK(!IsActive());
   SetActive(true);
 #if defined(USE_SIGNALS)
+  SignalHandler::IncreaseSamplerCount();
   SamplerManager::instance()->AddSampler(this);
 #endif
 }
 
-
 void Sampler::Stop() {
 #if defined(USE_SIGNALS)
   SamplerManager::instance()->RemoveSampler(this);
+  SignalHandler::DecreaseSamplerCount();
 #endif
   DCHECK(IsActive());
   SetActive(false);
-  SetRegistered(false);
 }
-
-
-void Sampler::IncreaseProfilingDepth() {
-  base::Relaxed_AtomicIncrement(&profiling_, 1);
-#if defined(USE_SIGNALS)
-  SignalHandler::IncreaseSamplerCount();
-#endif
-}
-
-
-void Sampler::DecreaseProfilingDepth() {
-#if defined(USE_SIGNALS)
-  SignalHandler::DecreaseSamplerCount();
-#endif
-  base::Relaxed_AtomicIncrement(&profiling_, -1);
-}
-
 
 #if defined(USE_SIGNALS)
 
 void Sampler::DoSample() {
   if (!SignalHandler::Installed()) return;
-  if (!IsActive() && !IsRegistered()) {
-    SamplerManager::instance()->AddSampler(this);
-    SetRegistered(true);
-  }
+  DCHECK(IsActive());
   pthread_kill(platform_data()->vm_tid(), SIGPROF);
 }
 
@@ -690,6 +564,10 @@ void Sampler::DoSample() {
     state.pc = reinterpret_cast<void*>(context.Rip);
     state.sp = reinterpret_cast<void*>(context.Rsp);
     state.fp = reinterpret_cast<void*>(context.Rbp);
+#elif V8_HOST_ARCH_ARM64
+    state.pc = reinterpret_cast<void*>(context.Pc);
+    state.sp = reinterpret_cast<void*>(context.Sp);
+    state.fp = reinterpret_cast<void*>(context.Fp);
 #else
     state.pc = reinterpret_cast<void*>(context.Eip);
     state.sp = reinterpret_cast<void*>(context.Esp);

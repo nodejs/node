@@ -11,8 +11,6 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-DECLARE_CONTEXTUAL_VARIABLE(CurrentAst, Ast);
-
 // Adds the parsed input to {CurrentAst}
 void ParseTorque(const std::string& input);
 

@@ -45,6 +45,12 @@
 }],  # variant == stress
 
 ##############################################################################
+['variant == stress and (arch == arm or arch == arm64) and simulator_run', {
+  # Slow tests: https://crbug.com/v8/7783
+  'debug/debug-stepout-scope-part*': [SKIP],
+}],  # variant == stress and (arch == arm or arch == arm64) and simulator_run
+
+##############################################################################
 ['variant == stress_incremental_marking', {
   # BUG(chromium:772010).
   'debug/debug-*': [PASS, ['system == windows', SKIP]],
@@ -54,14 +60,7 @@
 ['gc_stress == True', {
   # Skip tests not suitable for GC stress.
   # Tests taking too long
-  'debug/debug-stepout-scope-part1': [SKIP],
-  'debug/debug-stepout-scope-part2': [SKIP],
-  'debug/debug-stepout-scope-part3': [SKIP],
-  'debug/debug-stepout-scope-part4': [SKIP],
-  'debug/debug-stepout-scope-part5': [SKIP],
-  'debug/debug-stepout-scope-part6': [SKIP],
-  'debug/debug-stepout-scope-part7': [SKIP],
-  'debug/debug-stepout-scope-part8': [SKIP],
+  'debug/debug-stepout-scope-part*': [SKIP],
 
   # Async function tests taking too long
   # https://bugs.chromium.org/p/v8/issues/detail?id=5411
@@ -123,5 +122,12 @@
   'debug/debug-liveedit-double-call': [SKIP],
   'debug/debug-liveedit-restart-frame': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
+
+##############################################################################
+['lite_mode', {
+  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+  'debug/wasm/*': [SKIP],
+  'wasm-*': [SKIP],
+}], # lite_mode
 
 ]

@@ -22,15 +22,6 @@ def print_failure_header(test):
   }
 
 
-class TestsCounter(base.TestProcObserver):
-  def __init__(self):
-    super(TestsCounter, self).__init__()
-    self.total = 0
-
-  def _on_next_test(self, test):
-    self.total += 1
-
-
 class ResultsTracker(base.TestProcObserver):
   """Tracks number of results and stops to run tests if max_failures reached."""
   def __init__(self, max_failures):
@@ -66,10 +57,6 @@ class SimpleProgressIndicator(ProgressIndicator):
     self._requirement = base.DROP_PASS_OUTPUT
 
     self._failed = []
-    self._total = 0
-
-  def _on_next_test(self, test):
-    self._total += 1
 
   def _on_result_for(self, test, result):
     # TODO(majeski): Support for dummy/grouped results
@@ -170,12 +157,8 @@ class CompactProgressIndicator(ProgressIndicator):
     self._last_status_length = 0
     self._start_time = time.time()
 
-    self._total = 0
     self._passed = 0
     self._failed = 0
-
-  def _on_next_test(self, test):
-    self._total += 1
 
   def _on_result_for(self, test, result):
     # TODO(majeski): Support for dummy/grouped results
@@ -210,13 +193,8 @@ class CompactProgressIndicator(ProgressIndicator):
   def _print_progress(self, name):
     self._clear_line(self._last_status_length)
     elapsed = time.time() - self._start_time
-    if not self._total:
-      progress = 0
-    else:
-      progress = (self._passed + self._failed) * 100 // self._total
     status = self._templates['status_line'] % {
       'passed': self._passed,
-      'progress': progress,
       'failed': self._failed,
       'test': name,
       'mins': int(elapsed) / 60,
@@ -241,7 +219,6 @@ class ColorProgressIndicator(CompactProgressIndicator):
   def __init__(self):
     templates = {
       'status_line': ("[%(mins)02i:%(secs)02i|"
-                      "\033[34m%%%(progress) 4d\033[0m|"
                       "\033[32m+%(passed) 4d\033[0m|"
                       "\033[31m-%(failed) 4d\033[0m]: %(test)s"),
       'stdout': "\033[1m%s\033[0m",
@@ -256,7 +233,7 @@ class ColorProgressIndicator(CompactProgressIndicator):
 class MonochromeProgressIndicator(CompactProgressIndicator):
   def __init__(self):
     templates = {
-      'status_line': ("[%(mins)02i:%(secs)02i|%%%(progress) 4d|"
+      'status_line': ("[%(mins)02i:%(secs)02i|"
                       "+%(passed) 4d|-%(failed) 4d]: %(test)s"),
       'stdout': '%s',
       'stderr': '%s',

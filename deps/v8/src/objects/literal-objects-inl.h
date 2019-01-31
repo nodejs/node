@@ -5,8 +5,9 @@
 #ifndef V8_OBJECTS_LITERAL_OBJECTS_INL_H_
 #define V8_OBJECTS_LITERAL_OBJECTS_INL_H_
 
-#include "src/objects-inl.h"
 #include "src/objects/literal-objects.h"
+
+#include "src/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -14,9 +15,12 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(ObjectBoilerplateDescription, FixedArray)
+
 SMI_ACCESSORS(ObjectBoilerplateDescription, flags,
               FixedArray::OffsetOfElementAt(kLiteralTypeOffset));
 
+OBJECT_CONSTRUCTORS_IMPL(ClassBoilerplate, FixedArray)
 CAST_ACCESSOR(ClassBoilerplate)
 
 BIT_FIELD_ACCESSORS(ClassBoilerplate, flags, install_class_name_accessor,
@@ -45,6 +49,10 @@ ACCESSORS(ClassBoilerplate, instance_elements_template, Object,
 
 ACCESSORS(ClassBoilerplate, instance_computed_properties, FixedArray,
           FixedArray::OffsetOfElementAt(kPrototypeComputedPropertiesIndex));
+
+OBJECT_CONSTRUCTORS_IMPL(ArrayBoilerplateDescription, Struct)
+
+CAST_ACCESSOR(ArrayBoilerplateDescription)
 
 SMI_ACCESSORS(ArrayBoilerplateDescription, flags, kFlagsOffset);
 

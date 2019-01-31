@@ -4,6 +4,7 @@
 
 #include "test/unittests/test-utils.h"
 
+#include "src/base/overflowing-math.h"
 #include "src/objects-inl.h"
 #include "src/wasm/decoder.h"
 #include "test/common/wasm/wasm-macro-gen.h"
@@ -475,7 +476,8 @@ TEST_F(DecoderTest, ReadU32v_Bits) {
     // foreach length 1...32
     for (int i = 1; i <= 32; i++) {
       uint32_t val = kVals[v];
-      if (i < 32) val &= ((1 << i) - 1);
+      if (i < 32)
+        val &= base::SubWithWraparound(base::ShlWithWraparound(1, i), 1);
 
       unsigned length = 1 + i / 7;
       for (unsigned j = 0; j < kMaxSize; j++) {

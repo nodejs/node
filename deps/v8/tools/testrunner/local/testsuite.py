@@ -29,6 +29,7 @@
 import fnmatch
 import imp
 import os
+from contextlib import contextmanager
 
 from . import command
 from . import statusfile
@@ -77,19 +78,22 @@ class TestCombiner(object):
   def _combined_test_class(self):
     raise NotImplementedError()
 
+@contextmanager
+def _load_testsuite_module(name, root):
+  f = None
+  try:
+    (f, pathname, description) = imp.find_module("testcfg", [root])
+    yield imp.load_module(name + "_testcfg", f, pathname, description)
+  finally:
+    if f:
+      f.close()
 
 class TestSuite(object):
   @staticmethod
-  def LoadTestSuite(root, test_config):
+  def Load(root, test_config):
     name = root.split(os.path.sep)[-1]
-    f = None
-    try:
-      (f, pathname, description) = imp.find_module("testcfg", [root])
-      module = imp.load_module(name + "_testcfg", f, pathname, description)
+    with _load_testsuite_module(name, root) as module:
       return module.GetSuite(name, root, test_config)
-    finally:
-      if f:
-        f.close()
 
   def __init__(self, name, root, test_config):
     self.name = name  # string
@@ -97,21 +101,21 @@ class TestSuite(object):
     self.test_config = test_config
     self.tests = None  # list of TestCase objects
     self.statusfile = None
-    self.suppress_internals = False
 
   def status_file(self):
     return "%s/%s.status" % (self.root, self.name)
 
-  def do_suppress_internals(self):
-    """Specifies if this test suite should suppress asserts based on internals.
-
-    Internals are e.g. testing against the outcome of native runtime functions.
-    This is switched off on some fuzzers that violate these contracts.
-    """
-    self.suppress_internals = True
-
   def ListTests(self):
     raise NotImplementedError
+
+  def load_tests_from_disk(self, statusfile_variables):
+    self.statusfile = statusfile.StatusFile(
+      self.status_file(), statusfile_variables)
+
+    slow_tests = (test for test in self.ListTests() if test.is_slow)
+    fast_tests = (test for test in self.ListTests() if not test.is_slow)
+
+    return slow_tests, fast_tests
 
   def get_variants_gen(self, variants):
     return self._variants_gen_class()(variants)
@@ -134,89 +138,10 @@ class TestSuite(object):
     """
     return None
 
-  def ReadStatusFile(self, variables):
-    self.statusfile = statusfile.StatusFile(self.status_file(), variables)
-
-  def ReadTestCases(self):
-    self.tests = self.ListTests()
-
-
-  def FilterTestCasesByStatus(self,
-                              slow_tests_mode=None,
-                              pass_fail_tests_mode=None):
-    """Filters tests by outcomes from status file.
-
-    Status file has to be loaded before using this function.
-
-    Args:
-      slow_tests_mode: What to do with slow tests.
-      pass_fail_tests_mode: What to do with pass or fail tests.
-
-    Mode options:
-      None (default) - don't skip
-      "skip" - skip if slow/pass_fail
-      "run" - skip if not slow/pass_fail
-    """
-    def _skip_slow(is_slow, mode):
-      return (
-        (mode == 'run' and not is_slow) or
-        (mode == 'skip' and is_slow))
-
-    def _skip_pass_fail(pass_fail, mode):
-      return (
-        (mode == 'run' and not pass_fail) or
-        (mode == 'skip' and pass_fail))
-
-    def _compliant(test):
-      if test.do_skip:
-        return False
-      if _skip_slow(test.is_slow, slow_tests_mode):
-        return False
-      if _skip_pass_fail(test.is_pass_or_fail, pass_fail_tests_mode):
-        return False
-      return True
-
-    self.tests = filter(_compliant, self.tests)
-
-  def FilterTestCasesByArgs(self, args):
-    """Filter test cases based on command-line arguments.
-
-    args can be a glob: asterisks in any position of the argument
-    represent zero or more characters. Without asterisks, only exact matches
-    will be used with the exeption of the test-suite name as argument.
-    """
-    filtered = []
-    globs = []
-    for a in args:
-      argpath = a.split('/')
-      if argpath[0] != self.name:
-        continue
-      if len(argpath) == 1 or (len(argpath) == 2 and argpath[1] == '*'):
-        return  # Don't filter, run all tests in this suite.
-      path = '/'.join(argpath[1:])
-      globs.append(path)
-
-    for t in self.tests:
-      for g in globs:
-        if fnmatch.fnmatch(t.path, g):
-          filtered.append(t)
-          break
-    self.tests = filtered
-
   def _create_test(self, path, **kwargs):
-    if self.suppress_internals:
-      test_class = self._suppressed_test_class()
-    else:
-      test_class = self._test_class()
+    test_class = self._test_class()
     return test_class(self, path, self._path_to_name(path), self.test_config,
                       **kwargs)
-
-  def _suppressed_test_class(self):
-    """Optional testcase that suppresses assertions. Used by fuzzers that are
-    only interested in dchecks or tsan and that might violate the assertions
-    through fuzzing.
-    """
-    return self._test_class()
 
   def _test_class(self):
     raise NotImplementedError

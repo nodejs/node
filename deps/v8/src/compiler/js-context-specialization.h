@@ -18,11 +18,12 @@ class JSOperatorBuilder;
 
 // Pair of a context and its distance from some point of reference.
 struct OuterContext {
-  OuterContext() : context(), distance() {}
+  OuterContext() = default;
   OuterContext(Handle<Context> context_, size_t distance_)
       : context(context_), distance(distance_) {}
+
   Handle<Context> context;
-  size_t distance;
+  size_t distance = 0;
 };
 
 // Specializes a given JSGraph to a given context, potentially constant folding
@@ -34,14 +35,13 @@ struct OuterContext {
 class JSContextSpecialization final : public AdvancedReducer {
  public:
   JSContextSpecialization(Editor* editor, JSGraph* jsgraph,
-                          JSHeapBroker* js_heap_broker,
-                          Maybe<OuterContext> outer,
+                          JSHeapBroker* broker, Maybe<OuterContext> outer,
                           MaybeHandle<JSFunction> closure)
       : AdvancedReducer(editor),
         jsgraph_(jsgraph),
         outer_(outer),
         closure_(closure),
-        js_heap_broker_(js_heap_broker) {}
+        broker_(broker) {}
 
   const char* reducer_name() const override {
     return "JSContextSpecialization";
@@ -63,12 +63,12 @@ class JSContextSpecialization final : public AdvancedReducer {
   JSGraph* jsgraph() const { return jsgraph_; }
   Maybe<OuterContext> outer() const { return outer_; }
   MaybeHandle<JSFunction> closure() const { return closure_; }
-  JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
+  JSHeapBroker* broker() const { return broker_; }
 
   JSGraph* const jsgraph_;
   Maybe<OuterContext> outer_;
   MaybeHandle<JSFunction> closure_;
-  JSHeapBroker* const js_heap_broker_;
+  JSHeapBroker* const broker_;
 
   DISALLOW_COPY_AND_ASSIGN(JSContextSpecialization);
 };

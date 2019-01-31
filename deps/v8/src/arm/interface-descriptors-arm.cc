@@ -6,6 +6,8 @@
 
 #include "src/interface-descriptors.h"
 
+#include "src/frames.h"
+
 namespace v8 {
 namespace internal {
 
@@ -67,12 +69,6 @@ const Register TypeConversionDescriptor::ArgumentRegister() { return r0; }
 void TypeofDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {r3};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-void CallFunctionDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {r1};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -207,10 +203,9 @@ void ArgumentsAdaptorDescriptor::InitializePlatformSpecific(
 void ApiCallbackDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
-      JavaScriptFrame::context_register(),  // callee context
-      r4,                                   // call_data
-      r2,                                   // holder
-      r1,                                   // api_function_address
+      JavaScriptFrame::context_register(),  // kTargetContext
+      r1,                                   // kApiFunctionAddress
+      r2,                                   // kArgc
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
@@ -259,6 +254,12 @@ void FrameDropperTrampolineDescriptor::InitializePlatformSpecific(
   Register registers[] = {
       r1,  // loaded new FP
   };
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void RunMicrotasksEntryDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {r0, r1};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 

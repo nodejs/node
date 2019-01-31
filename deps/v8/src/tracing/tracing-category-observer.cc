@@ -19,11 +19,6 @@ void TracingCategoryObserver::SetUp() {
   v8::internal::V8::GetCurrentPlatform()
       ->GetTracingController()
       ->AddTraceStateObserver(TracingCategoryObserver::instance_);
-  TRACE_EVENT_WARMUP_CATEGORY(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats"));
-  TRACE_EVENT_WARMUP_CATEGORY(
-      TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats_sampling"));
-  TRACE_EVENT_WARMUP_CATEGORY(TRACE_DISABLED_BY_DEFAULT("v8.gc_stats"));
-  TRACE_EVENT_WARMUP_CATEGORY(TRACE_DISABLED_BY_DEFAULT("v8.ic_stats"));
 }
 
 void TracingCategoryObserver::TearDown() {

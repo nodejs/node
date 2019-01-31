@@ -29,6 +29,7 @@ namespace compiler {
   V(ChangeFloat64ToUint32)               \
   V(TruncateInt64ToInt32)                \
   V(RoundFloat64ToInt32)                 \
+  V(TruncateFloat64ToInt64)              \
   V(TruncateFloat64ToWord32)             \
   V(Float64ExtractLowWord32)             \
   V(Float64ExtractHighWord32)            \
@@ -90,6 +91,7 @@ namespace compiler {
   V(TrueConstant)                          \
   V(FalseConstant)                         \
   V(NullConstant)                          \
+  V(BooleanMapConstant)                    \
   V(HeapNumberMapConstant)                 \
   V(NoContextConstant)                     \
   V(EmptyStringConstant)                   \
@@ -215,6 +217,7 @@ class GraphAssembler {
 
   Node* ToNumber(Node* value);
   Node* BitcastWordToTagged(Node* value);
+  Node* BitcastTaggedToWord(Node* value);
   Node* Allocate(PretenureFlag pretenure, Node* size);
   Node* LoadField(FieldAccess const&, Node* object);
   Node* LoadElement(ElementAccess const&, Node* object, Node* index);

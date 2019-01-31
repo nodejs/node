@@ -17,8 +17,6 @@ namespace internal {
 namespace wasm {
 namespace fuzzer {
 
-int FuzzWasmSection(SectionCode section, const uint8_t* data, size_t size);
-
 // First instantiates and interprets the "main" function within module_object if
 // possible. If the interpretation finishes within kMaxSteps steps,
 // module_object is instantiated again and the compiled "main" function is
@@ -32,7 +30,9 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 class WasmExecutionFuzzer {
  public:
   virtual ~WasmExecutionFuzzer() = default;
-  int FuzzWasmModule(Vector<const uint8_t> data, bool require_valid = false);
+  void FuzzWasmModule(Vector<const uint8_t> data, bool require_valid = false);
+
+  virtual size_t max_input_size() const { return 512; }
 
  protected:
   virtual bool GenerateModule(

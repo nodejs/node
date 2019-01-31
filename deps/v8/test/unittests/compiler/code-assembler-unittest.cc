@@ -126,6 +126,44 @@ TARGET_TEST_F(CodeAssemblerTest, IntPtrMul) {
   }
 }
 
+TARGET_TEST_F(CodeAssemblerTest, IntPtrDiv) {
+  CodeAssemblerTestState state(this);
+  CodeAssemblerForTest m(&state);
+  {
+    TNode<IntPtrT> a = m.UncheckedCast<IntPtrT>(m.Parameter(0));
+    TNode<IntPtrT> b = m.IntPtrConstant(100);
+    TNode<IntPtrT> div = m.IntPtrDiv(a, b);
+    EXPECT_THAT(div, IsIntPtrDiv(Matcher<Node*>(a), Matcher<Node*>(b)));
+  }
+  // x / 1  => x
+  {
+    TNode<IntPtrT> a = m.UncheckedCast<IntPtrT>(m.Parameter(0));
+    TNode<IntPtrT> b = m.IntPtrConstant(1);
+    TNode<IntPtrT> div = m.IntPtrDiv(a, b);
+    EXPECT_THAT(div, a);
+  }
+  // CONST_a / CONST_b  => CONST_c
+  {
+    TNode<IntPtrT> a = m.IntPtrConstant(100);
+    TNode<IntPtrT> b = m.IntPtrConstant(5);
+    TNode<IntPtrT> div = m.IntPtrDiv(a, b);
+    EXPECT_THAT(div, IsIntPtrConstant(20));
+  }
+  {
+    TNode<IntPtrT> a = m.IntPtrConstant(100);
+    TNode<IntPtrT> b = m.IntPtrConstant(5);
+    TNode<IntPtrT> div = m.IntPtrDiv(a, b);
+    EXPECT_THAT(div, IsIntPtrConstant(20));
+  }
+  // x / 2^CONST  => x >> CONST
+  {
+    TNode<IntPtrT> a = m.UncheckedCast<IntPtrT>(m.Parameter(0));
+    TNode<IntPtrT> b = m.IntPtrConstant(1 << 3);
+    TNode<IntPtrT> div = m.IntPtrDiv(a, b);
+    EXPECT_THAT(div, IsWordSar(Matcher<Node*>(a), IsIntPtrConstant(3)));
+  }
+}
+
 TARGET_TEST_F(CodeAssemblerTest, WordShl) {
   CodeAssemblerTestState state(this);
   CodeAssemblerForTest m(&state);

@@ -9,6 +9,9 @@
 #ifndef V8_OBJECTS_JS_LIST_FORMAT_H_
 #define V8_OBJECTS_JS_LIST_FORMAT_H_
 
+#include <set>
+#include <string>
+
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects.h"
@@ -45,6 +48,8 @@ class JSListFormat : public JSObject {
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> FormatListToParts(
       Isolate* isolate, Handle<JSListFormat> format_holder,
       Handle<JSArray> list);
+
+  static std::set<std::string> GetAvailableLocales();
 
   Handle<String> StyleAsString() const;
   Handle<String> TypeAsString() const;
@@ -100,14 +105,18 @@ class JSListFormat : public JSObject {
   DECL_VERIFIER(JSListFormat)
 
   // Layout description.
-  static const int kJSListFormatOffset = JSObject::kHeaderSize;
-  static const int kLocaleOffset = kJSListFormatOffset + kPointerSize;
-  static const int kICUFormatterOffset = kLocaleOffset + kPointerSize;
-  static const int kFlagsOffset = kICUFormatterOffset + kPointerSize;
-  static const int kSize = kFlagsOffset + kPointerSize;
+#define JS_LIST_FORMAT_FIELDS(V)      \
+  V(kJSListFormatOffset, kTaggedSize) \
+  V(kLocaleOffset, kTaggedSize)       \
+  V(kICUFormatterOffset, kTaggedSize) \
+  V(kFlagsOffset, kTaggedSize)        \
+  /* Header size. */                  \
+  V(kSize, 0)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSListFormat);
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_LIST_FORMAT_FIELDS)
+#undef JS_LIST_FORMAT_FIELDS
+
+  OBJECT_CONSTRUCTORS(JSListFormat, JSObject);
 };
 
 }  // namespace internal

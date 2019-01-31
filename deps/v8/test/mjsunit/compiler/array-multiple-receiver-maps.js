@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --opt --no-always-opt
-// Flags: --no-stress-background-compile
+// Flags: --no-stress-background-compile --trace-opt --trace-deopt
 
 let id = 0;
 

@@ -15,6 +15,8 @@ class EntryFrameConstants : public AllStatic {
  public:
   static constexpr int kCallerFPOffset =
       -(StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize);
+  // Stack offsets for arguments passed to JSEntry.
+  static constexpr int kArgvOffset = 20 * kSystemPointerSize;
 };
 
 class ExitFrameConstants : public TypedFrameConstants {
@@ -35,7 +37,7 @@ class ExitFrameConstants : public TypedFrameConstants {
 
 class WasmCompileLazyFrameConstants : public TypedFrameConstants {
  public:
-  static constexpr int kNumberOfSavedGpParamRegs = 5;
+  static constexpr int kNumberOfSavedGpParamRegs = 4;
 #ifdef V8_TARGET_ARCH_S390X
   static constexpr int kNumberOfSavedFpParamRegs = 4;
 #else

@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef INCLUDED_FROM_MACRO_ASSEMBLER_H
+#error This header must be included via macro-assembler.h
+#endif
+
 #ifndef V8_ARM64_MACRO_ASSEMBLER_ARM64_H_
 #define V8_ARM64_MACRO_ASSEMBLER_ARM64_H_
 
@@ -11,7 +15,6 @@
 #include "src/bailout-reason.h"
 #include "src/base/bits.h"
 #include "src/globals.h"
-#include "src/turbo-assembler.h"
 
 // Simulator specific helpers.
 #if USE_SIMULATOR
@@ -40,31 +43,6 @@
 
 namespace v8 {
 namespace internal {
-
-// Give alias names to registers for calling conventions.
-constexpr Register kReturnRegister0 = x0;
-constexpr Register kReturnRegister1 = x1;
-constexpr Register kReturnRegister2 = x2;
-constexpr Register kJSFunctionRegister = x1;
-constexpr Register kContextRegister = cp;
-constexpr Register kAllocateSizeRegister = x1;
-constexpr Register kSpeculationPoisonRegister = x18;
-constexpr Register kInterpreterAccumulatorRegister = x0;
-constexpr Register kInterpreterBytecodeOffsetRegister = x19;
-constexpr Register kInterpreterBytecodeArrayRegister = x20;
-constexpr Register kInterpreterDispatchTableRegister = x21;
-
-constexpr Register kJavaScriptCallArgCountRegister = x0;
-constexpr Register kJavaScriptCallCodeStartRegister = x2;
-constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
-constexpr Register kJavaScriptCallNewTargetRegister = x3;
-constexpr Register kJavaScriptCallExtraArg1Register = x2;
-
-constexpr Register kOffHeapTrampolineRegister = ip0;
-constexpr Register kRuntimeCallFunctionRegister = x1;
-constexpr Register kRuntimeCallArgCountRegister = x0;
-constexpr Register kRuntimeCallArgvRegister = x11;
-constexpr Register kWasmInstanceRegister = x7;
 
 #define LS_MACRO_LIST(V)                                     \
   V(Ldrb, Register&, rt, LDRB_w)                             \
@@ -180,14 +158,9 @@ enum PreShiftImmMode {
 
 class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
  public:
-  TurboAssembler(const AssemblerOptions& options, void* buffer, int buffer_size)
-      : TurboAssemblerBase(options, buffer, buffer_size) {}
-
-  TurboAssembler(Isolate* isolate, const AssemblerOptions& options,
-                 void* buffer, int buffer_size,
-                 CodeObjectRequired create_code_object)
-      : TurboAssemblerBase(isolate, options, buffer, buffer_size,
-                           create_code_object) {}
+  template <typename... Args>
+  explicit TurboAssembler(Args&&... args)
+      : TurboAssemblerBase(std::forward<Args>(args)...) {}
 
 #if DEBUG
   void set_allow_macro_instructions(bool value) {
@@ -196,13 +169,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   bool allow_macro_instructions() const { return allow_macro_instructions_; }
 #endif
 
-  // We should not use near calls or jumps for JS->WASM calls and calls to
-  // external references, since the code spaces are not guaranteed to be close
-  // to each other.
+  // We should not use near calls or jumps for calls to external references,
+  // since the code spaces are not guaranteed to be close to each other.
   bool CanUseNearCallOrJump(RelocInfo::Mode rmode) {
-    return rmode != RelocInfo::JS_TO_WASM_CALL &&
-           rmode != RelocInfo::EXTERNAL_REFERENCE;
+    return rmode != RelocInfo::EXTERNAL_REFERENCE;
   }
+
+  static bool IsNearCallOffset(int64_t offset);
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);
@@ -222,6 +195,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     DCHECK(allow_macro_instructions());
     mov(vd, vd_index, vn, vn_index);
   }
+  void Mov(const Register& rd, Smi smi);
   void Mov(const VRegister& vd, const VRegister& vn, int index) {
     DCHECK(allow_macro_instructions());
     mov(vd, vn, index);
@@ -237,7 +211,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // This is required for compatibility with architecture independent code.
   // Remove if not needed.
-  void Move(Register dst, Smi* src);
+  void Move(Register dst, Smi src);
 
   // Register swap. Note that the register operands should be distinct.
   void Swap(Register lhs, Register rhs);
@@ -543,9 +517,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void Isb();
   inline void Csdb();
 
-  bool AllowThisStubCall(CodeStub* stub);
-  void CallStubDelayed(CodeStub* stub);
-
   // Call a runtime routine. This expects {centry} to contain a fitting CEntry
   // builtin for the target runtime function and uses an indirect call.
   void CallRuntimeWithCEntry(Runtime::FunctionId fid, Register centry);
@@ -759,7 +730,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // This is a convenience method for pushing a single Handle<Object>.
   inline void Push(Handle<HeapObject> object);
-  inline void Push(Smi* smi);
+  inline void Push(Smi smi);
 
   // Aliases of Push and Pop, required for V8 compatibility.
   inline void push(Register src) { Push(src); }
@@ -771,6 +742,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CallRecordWriteStub(Register object, Register address,
                            RememberedSetAction remembered_set_action,
                            SaveFPRegsMode fp_mode);
+  void CallRecordWriteStub(Register object, Register address,
+                           RememberedSetAction remembered_set_action,
+                           SaveFPRegsMode fp_mode, Address wasm_target);
 
   // Alternative forms of Push and Pop, taking a RegList or CPURegList that
   // specifies the registers that are to be pushed or popped. Higher-numbered
@@ -867,8 +841,18 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Generate an indirect call (for when a direct call's range is not adequate).
   void IndirectCall(Address target, RelocInfo::Mode rmode);
 
-  void CallForDeoptimization(Address target, int deopt_id,
-                             RelocInfo::Mode rmode);
+  void CallBuiltinPointer(Register builtin_pointer) override;
+
+  void LoadCodeObjectEntry(Register destination, Register code_object) override;
+  void CallCodeObject(Register code_object) override;
+  void JumpCodeObject(Register code_object) override;
+
+  // Generates an instruction sequence s.t. the return address points to the
+  // instruction following the call.
+  // The return address on the stack is used by frame iteration.
+  void StoreReturnAddressAndCall(Register target);
+
+  void CallForDeoptimization(Address target, int deopt_id);
 
   // Calls a C function.
   // The called function is not allowed to trigger a
@@ -1140,8 +1124,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   //
   // On successful conversion, the least significant 32 bits of the result are
   // equivalent to the ECMA-262 operation "ToInt32".
-  //
-  // Only public for the test code in test-code-stubs-arm64.cc.
   void TryConvertDoubleToInt64(Register result, DoubleRegister input,
                                Label* done);
 
@@ -1233,7 +1215,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   bool allow_macro_instructions_ = true;
 #endif
 
-
   // Scratch registers available for use by the MacroAssembler.
   CPURegList tmp_list_ = DefaultTmpList();
   CPURegList fptmp_list_ = DefaultFPTmpList();
@@ -1259,22 +1240,19 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadStorePairMacro(const CPURegister& rt, const CPURegister& rt2,
                           const MemOperand& addr, LoadStorePairOp op);
 
-  static bool IsNearCallOffset(int64_t offset);
   void JumpHelper(int64_t offset, RelocInfo::Mode rmode, Condition cond = al);
+
+  void CallRecordWriteStub(Register object, Register address,
+                           RememberedSetAction remembered_set_action,
+                           SaveFPRegsMode fp_mode, Handle<Code> code_target,
+                           Address wasm_target);
 };
 
-class MacroAssembler : public TurboAssembler {
+class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
  public:
-  MacroAssembler(const AssemblerOptions& options, void* buffer, int size)
-      : TurboAssembler(options, buffer, size) {}
-
-  MacroAssembler(Isolate* isolate, void* buffer, int size,
-                 CodeObjectRequired create_code_object)
-      : MacroAssembler(isolate, AssemblerOptions::Default(isolate), buffer,
-                       size, create_code_object) {}
-
-  MacroAssembler(Isolate* isolate, const AssemblerOptions& options,
-                 void* buffer, int size, CodeObjectRequired create_code_object);
+  template <typename... Args>
+  explicit MacroAssembler(Args&&... args)
+      : TurboAssembler(std::forward<Args>(args)...) {}
 
   // Instruction set functions ------------------------------------------------
   // Logical macros.
@@ -1727,9 +1705,6 @@ class MacroAssembler : public TurboAssembler {
 
   // ---- Calling / Jumping helpers ----
 
-  void CallStub(CodeStub* stub);
-  void TailCallStub(CodeStub* stub);
-
   void CallRuntime(const Runtime::Function* f,
                    int num_arguments,
                    SaveFPRegsMode save_doubles = kDontSaveFPRegs);
@@ -1896,9 +1871,7 @@ class MacroAssembler : public TurboAssembler {
                       const Register& scratch2);
 
   // Load the global proxy from the current context.
-  void LoadGlobalProxy(Register dst) {
-    LoadNativeContextSlot(Context::GLOBAL_PROXY_INDEX, dst);
-  }
+  void LoadGlobalProxy(Register dst);
 
   // ---------------------------------------------------------------------------
   // In-place weak references.

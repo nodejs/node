@@ -90,7 +90,8 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   // Called from RegExp if the stack-guard is triggered.
   // If the code object is relocated, the return address is fixed before
   // returning.
-  static int64_t CheckStackGuardState(Address* return_address, Code* re_code,
+  // {raw_code} is an Address because this is called via ExternalReference.
+  static int64_t CheckStackGuardState(Address* return_address, Address raw_code,
                                       Address re_frame);
 
   void print_regexp_frame_constants();
@@ -130,7 +131,7 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   static const int kRegisterZero = kStringStartMinusOne - kPointerSize;
 
   // Initial size of code buffer.
-  static const size_t kRegExpCodeSize = 1024;
+  static const int kRegExpCodeSize = 1024;
 
   // Load a number of characters at the given offset from the
   // current position, into the current-character register.

@@ -42,12 +42,12 @@ class SimplifiedLoweringTest : public GraphTest {
     {
       // Simplified lowering needs to run w/o the typer decorator so make sure
       // the object is not live at the same time.
-      Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
+      Typer typer(broker(), Typer::kNoFlags, graph());
       typer.Run();
     }
 
-    SimplifiedLowering lowering(jsgraph(), js_heap_broker(), zone(),
-                                source_positions(), node_origins(),
+    SimplifiedLowering lowering(jsgraph(), broker(), zone(), source_positions(),
+                                node_origins(),
                                 PoisoningMitigationLevel::kDontPoison);
     lowering.LowerAllNodes();
   }

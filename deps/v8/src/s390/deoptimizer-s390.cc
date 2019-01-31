@@ -2,23 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/assembler-inl.h"
 #include "src/deoptimizer.h"
+#include "src/macro-assembler.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 
 namespace v8 {
 namespace internal {
 
-// LAY + LGHI/LHI + BRCL
-const int Deoptimizer::table_entry_size_ = 16;
-
-#define __ masm()->
+#define __ masm->
 
 // This code tries to be close to ia32 code so that any changes can be
 // easily ported.
-void Deoptimizer::TableEntryGenerator::Generate() {
-  GeneratePrologue();
+void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
+                                                Isolate* isolate,
+                                                DeoptimizeKind deopt_kind) {
+  NoRootArrayScope no_root_array(masm);
 
   // Save all the registers onto the stack
   const int kNumberOfRegisters = Register::kNumRegisters;
@@ -50,15 +49,15 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ lay(sp, MemOperand(sp, -kNumberOfRegisters * kPointerSize));
   __ StoreMultipleP(r0, sp, MemOperand(sp));  // Save all 16 registers
 
-  __ mov(ip, Operand(ExternalReference::Create(
-                 IsolateAddressId::kCEntryFPAddress, isolate())));
-  __ StoreP(fp, MemOperand(ip));
+  __ mov(r1, Operand(ExternalReference::Create(
+                 IsolateAddressId::kCEntryFPAddress, isolate)));
+  __ StoreP(fp, MemOperand(r1));
 
   const int kSavedRegistersAreaSize =
       (kNumberOfRegisters * kPointerSize) + kDoubleRegsSize + kFloatRegsSize;
 
-  // Get the bailout id from the stack.
-  __ LoadP(r4, MemOperand(sp, kSavedRegistersAreaSize));
+  // The bailout id is passed using r10
+  __ LoadRR(r4, r10);
 
   // Cleanse the Return address for 31-bit
   __ CleanseP(r14);
@@ -67,7 +66,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // address for lazy deoptimization) and compute the fp-to-sp delta in
   // register r6.
   __ LoadRR(r5, r14);
-  __ la(r6, MemOperand(sp, kSavedRegistersAreaSize + (1 * kPointerSize)));
+
+  __ la(r6, MemOperand(sp, kSavedRegistersAreaSize));
   __ SubP(r6, fp, r6);
 
   // Allocate a new deoptimizer object.
@@ -79,17 +79,17 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ JumpIfSmi(r3, &context_check);
   __ LoadP(r2, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ bind(&context_check);
-  __ LoadImmP(r3, Operand(static_cast<int>(deopt_kind())));
+  __ LoadImmP(r3, Operand(static_cast<int>(deopt_kind)));
   // r4: bailout id already loaded.
   // r5: code address or 0 already loaded.
   // r6: Fp-to-sp delta.
   // Parm6: isolate is passed on the stack.
-  __ mov(r7, Operand(ExternalReference::isolate_address(isolate())));
+  __ mov(r7, Operand(ExternalReference::isolate_address(isolate)));
   __ StoreP(r7, MemOperand(sp, kStackFrameExtraParamSlot * kPointerSize));
 
   // Call Deoptimizer::New().
   {
-    AllowExternalCallThatCantCauseGC scope(masm());
+    AllowExternalCallThatCantCauseGC scope(masm);
     __ CallCFunction(ExternalReference::new_deoptimizer_function(), 6);
   }
 
@@ -134,8 +134,9 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ LoadFloat32(d0, MemOperand(sp, src_offset));
     __ StoreFloat32(d0, MemOperand(r3, dst_offset));
   }
-  // Remove the bailout id and the saved registers from the stack.
-  __ la(sp, MemOperand(sp, kSavedRegistersAreaSize + (1 * kPointerSize)));
+
+  // Remove the saved registers from the stack.
+  __ la(sp, MemOperand(sp, kSavedRegistersAreaSize));
 
   // Compute a pointer to the unwinding limit in register r4; that is
   // the first stack slot not part of the input frame.
@@ -163,7 +164,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ PrepareCallCFunction(1, r3);
   // Call Deoptimizer::ComputeOutputFrames().
   {
-    AllowExternalCallThatCantCauseGC scope(masm());
+    AllowExternalCallThatCantCauseGC scope(masm);
     __ CallCFunction(ExternalReference::compute_output_frames_function(), 1);
   }
   __ pop(r2);  // Restore deoptimizer object (class Deoptimizer).
@@ -187,7 +188,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ b(&inner_loop_header, Label::kNear);
 
   __ bind(&inner_push_loop);
-  __ AddP(r5, Operand(-sizeof(intptr_t)));
+  __ SubP(r5, Operand(sizeof(intptr_t)));
   __ AddP(r8, r4, r5);
   __ LoadP(r8, MemOperand(r8, FrameDescription::frame_content_offset()));
   __ push(r8);
@@ -224,30 +225,10 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     }
   }
 
-  __ InitializeRootRegister();
-
   __ pop(ip);  // get continuation, leave pc on stack
   __ pop(r14);
   __ Jump(ip);
   __ stop("Unreachable.");
-}
-
-void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
-  // Create a sequence of deoptimization entries. Note that any
-  // registers may be still live.
-  Label done;
-  for (int i = 0; i < count(); i++) {
-    int start = masm()->pc_offset();
-    USE(start);
-    __ lay(sp, MemOperand(sp, -kPointerSize));
-    __ LoadImmP(ip, Operand(i));
-    __ b(&done);
-    int end = masm()->pc_offset();
-    USE(end);
-    DCHECK(masm()->pc_offset() - start == table_entry_size_);
-  }
-  __ bind(&done);
-  __ StoreP(ip, MemOperand(sp));
 }
 
 bool Deoptimizer::PadTopOfStackRegister() { return false; }

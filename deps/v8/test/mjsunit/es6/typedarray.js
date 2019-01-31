@@ -636,7 +636,7 @@ function TestTypedArraySet() {
   var detached = false;
   evilarr[1] = {
     [Symbol.toPrimitive]() {
-      %ArrayBufferNeuter(a111.buffer);
+      %ArrayBufferDetach(a111.buffer);
       detached = true;
       return 1;
     }
@@ -648,7 +648,7 @@ function TestTypedArraySet() {
   var tmp = {
     [Symbol.toPrimitive]() {
       assertUnreachable("Parameter should not be processed when " +
-                        "array.[[ViewedArrayBuffer]] is neutered.");
+                        "array.[[ViewedArrayBuffer]] is detached.");
       return 1;
     }
   };
@@ -662,7 +662,7 @@ function TestTypedArraySet() {
       let detached = false;
       const offset = {
         [Symbol.toPrimitive]() {
-          %ArrayBufferNeuter(xs.buffer);
+          %ArrayBufferDetach(xs.buffer);
           detached = true;
           return 0;
         }
@@ -677,7 +677,7 @@ function TestTypedArraySet() {
     for (const klass of typedArrayConstructors) {
       const a = new klass(2);
       for (let i = 0; i < a.length; i++) a[i] = i;
-      %ArrayBufferNeuter(a.buffer);
+      %ArrayBufferDetach(a.buffer);
 
       const b = new klass(2);
       assertThrows(() => b.set(a), TypeError);
@@ -1022,3 +1022,29 @@ assertThrows(function LargeSourceArray() {
 
   a.set(v0);
 });
+
+function TestMapCustomSpeciesConstructor(constructor) {
+  const sample = new constructor([40, 42, 42]);
+  let result, ctorThis;
+
+  sample.constructor = {};
+  sample.constructor[Symbol.species] = function(count) {
+    result = arguments;
+    ctorThis = this;
+    return new constructor(count);
+  };
+
+  sample.map(function(v) { return v; });
+
+  assertSame(result.length, 1, "called with 1 argument");
+  assertSame(result[0], 3, "[0] is the new captured length");
+
+  assertTrue(
+    ctorThis instanceof sample.constructor[Symbol.species],
+    "`this` value in the @@species fn is an instance of the function itself"
+  );
+};
+
+for(i = 0; i < typedArrayConstructors.length; i++) {
+  TestPropertyTypeChecks(typedArrayConstructors[i]);
+}

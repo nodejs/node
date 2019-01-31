@@ -35,6 +35,7 @@
 #include "src/disassembler.h"
 #include "src/frames-inl.h"
 #include "src/macro-assembler.h"
+#include "src/ostreams.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -42,17 +43,15 @@ namespace internal {
 
 #define __ assm.
 
-static void DummyStaticFunction(Object* result) {
-}
-
+static void DummyStaticFunction(Object result) {}
 
 TEST(DisasmIa320) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   v8::internal::byte buffer[8192];
-  Assembler assm(AssemblerOptions{}, buffer, sizeof buffer);
-  DummyStaticFunction(nullptr);  // just bloody use it (DELETE; debugging)
+  Assembler assm(AssemblerOptions{},
+                 ExternalAssemblerBuffer(buffer, sizeof buffer));
   // Short immediate instructions
   __ adc(eax, 12345678);
   __ add(eax, Immediate(12345678));

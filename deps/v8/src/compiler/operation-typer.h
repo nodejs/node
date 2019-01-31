@@ -27,7 +27,7 @@ class TypeCache;
 
 class V8_EXPORT_PRIVATE OperationTyper {
  public:
-  OperationTyper(JSHeapBroker* js_heap_broker, Zone* zone);
+  OperationTyper(JSHeapBroker* broker, Zone* zone);
 
   // Typing Phi.
   Type Merge(Type left, Type right);
@@ -87,12 +87,13 @@ class V8_EXPORT_PRIVATE OperationTyper {
                  double rhs_max);
   Type SubtractRanger(double lhs_min, double lhs_max, double rhs_min,
                       double rhs_max);
-  Type MultiplyRanger(Type lhs, Type rhs);
+  Type MultiplyRanger(double lhs_min, double lhs_max, double rhs_min,
+                      double rhs_max);
 
   Zone* zone() const { return zone_; }
 
   Zone* const zone_;
-  TypeCache const& cache_;
+  TypeCache const* cache_;
 
   Type infinity_;
   Type minus_infinity_;

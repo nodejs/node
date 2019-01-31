@@ -12,6 +12,7 @@ namespace v8 {
 namespace internal {
 
 class Code;
+struct CodeDesc;
 
 namespace wasm {
 class WasmCode;
@@ -19,9 +20,11 @@ class WasmCode;
 
 class CodeReference {
  public:
-  CodeReference() : kind_(JS), js_code_() {}
+  CodeReference() : kind_(NONE), null_(nullptr) {}
   explicit CodeReference(const wasm::WasmCode* wasm_code)
       : kind_(WASM), wasm_code_(wasm_code) {}
+  explicit CodeReference(const CodeDesc* code_desc)
+      : kind_(CODE_DESC), code_desc_(code_desc) {}
   explicit CodeReference(Handle<Code> js_code) : kind_(JS), js_code_(js_code) {}
 
   Address constant_pool() const;
@@ -31,9 +34,11 @@ class CodeReference {
   const byte* relocation_start() const;
   const byte* relocation_end() const;
   int relocation_size() const;
-  bool is_null() const {
-    return kind_ == JS ? js_code_.is_null() : wasm_code_ == nullptr;
-  }
+  Address code_comments() const;
+
+  bool is_null() const { return kind_ == NONE; }
+  bool is_js() const { return kind_ == JS; }
+  bool is_wasm_code() const { return kind_ == WASM; }
 
   Handle<Code> as_js_code() const {
     DCHECK_EQ(JS, kind_);
@@ -46,9 +51,11 @@ class CodeReference {
   }
 
  private:
-  enum { JS, WASM } kind_;
+  enum { NONE, JS, WASM, CODE_DESC } kind_;
   union {
+    std::nullptr_t null_;
     const wasm::WasmCode* wasm_code_;
+    const CodeDesc* code_desc_;
     Handle<Code> js_code_;
   };
 

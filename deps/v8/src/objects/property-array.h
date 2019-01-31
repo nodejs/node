@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_PROPERTY_ARRAY_H_
 #define V8_OBJECTS_PROPERTY_ARRAY_H_
 
-#include "src/objects.h"
+#include "src/objects/heap-object.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -28,27 +28,33 @@ class PropertyArray : public HeapObject {
   inline void SetHash(int hash);
   inline int Hash() const;
 
-  inline Object* get(int index) const;
+  inline Object get(int index) const;
 
-  inline void set(int index, Object* value);
+  inline void set(int index, Object value);
   // Setter with explicit barrier mode.
-  inline void set(int index, Object* value, WriteBarrierMode mode);
+  inline void set(int index, Object value, WriteBarrierMode mode);
 
   // Gives access to raw memory which stores the array's data.
-  inline Object** data_start();
+  inline ObjectSlot data_start();
 
   // Garbage collection support.
   static constexpr int SizeFor(int length) {
-    return kHeaderSize + length * kPointerSize;
+    return kHeaderSize + length * kTaggedSize;
   }
+  static constexpr int OffsetOfElementAt(int index) { return SizeFor(index); }
 
   DECL_CAST(PropertyArray)
   DECL_PRINTER(PropertyArray)
   DECL_VERIFIER(PropertyArray)
 
-  // Layout description.
-  static const int kLengthAndHashOffset = HeapObject::kHeaderSize;
-  static const int kHeaderSize = kLengthAndHashOffset + kPointerSize;
+// Layout description.
+#define PROPERTY_ARRAY_FIELDS(V)       \
+  V(kLengthAndHashOffset, kTaggedSize) \
+  /* Header size. */                   \
+  V(kHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, PROPERTY_ARRAY_FIELDS)
+#undef PROPERTY_ARRAY_FIELDS
 
   // Garbage collection support.
   typedef FlexibleBodyDescriptor<kHeaderSize> BodyDescriptor;
@@ -61,8 +67,7 @@ class PropertyArray : public HeapObject {
 
   static const int kNoHashSentinel = 0;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PropertyArray);
+  OBJECT_CONSTRUCTORS(PropertyArray, HeapObject);
 };
 
 }  // namespace internal

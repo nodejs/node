@@ -6,27 +6,83 @@
 
 #include "src/assembler-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
+#include "src/log.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/cell-inl.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/maybe-object.h"
+#include "src/objects/slots.h"
+#include "src/objects/smi.h"
 #include "src/objects/string.h"
-#include "src/snapshot/builtin-deserializer-allocator.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
 
 namespace v8 {
 namespace internal {
 
-template <class AllocatorT>
-void Deserializer<AllocatorT>::Initialize(Isolate* isolate) {
+// This is like a MaybeObjectSlot, except it doesn't enforce alignment.
+// Most slots used below are aligned, but when writing into Code objects,
+// they might not be, hence the use of UnalignedSlot and UnalignedCopy.
+class UnalignedSlot {
+ public:
+  explicit UnalignedSlot(ObjectSlot slot) : ptr_(slot.address()) {}
+  explicit UnalignedSlot(Address address) : ptr_(address) {}
+  explicit UnalignedSlot(MaybeObject* slot)
+      : ptr_(reinterpret_cast<Address>(slot)) {}
+  explicit UnalignedSlot(Object* slot)
+      : ptr_(reinterpret_cast<Address>(slot)) {}
+
+  inline bool operator<(const UnalignedSlot& other) const {
+    return ptr_ < other.ptr_;
+  }
+  inline bool operator==(const UnalignedSlot& other) const {
+    return ptr_ == other.ptr_;
+  }
+
+  inline void Advance(int bytes = kPointerSize) { ptr_ += bytes; }
+
+  MaybeObject Read() {
+    Address result;
+    memcpy(&result, reinterpret_cast<void*>(ptr_), sizeof(result));
+    return MaybeObject(result);
+  }
+  MaybeObject ReadPrevious() {
+    Address result;
+    memcpy(&result, reinterpret_cast<void*>(ptr_ - kPointerSize),
+           sizeof(result));
+    return MaybeObject(result);
+  }
+  inline void Write(Address value) {
+    memcpy(reinterpret_cast<void*>(ptr_), &value, sizeof(value));
+  }
+  MaybeObjectSlot Slot() { return MaybeObjectSlot(ptr_); }
+
+  Address address() { return ptr_; }
+
+ private:
+  Address ptr_;
+};
+
+void Deserializer::UnalignedCopy(UnalignedSlot dest, MaybeObject value) {
+  DCHECK(!allocator()->next_reference_is_weak());
+  dest.Write(value.ptr());
+}
+
+void Deserializer::UnalignedCopy(UnalignedSlot dest, Address value) {
+  DCHECK(!allocator()->next_reference_is_weak());
+  dest.Write(value);
+}
+
+void Deserializer::Initialize(Isolate* isolate) {
   DCHECK_NULL(isolate_);
   DCHECK_NOT_NULL(isolate);
   isolate_ = isolate;
   DCHECK_NULL(external_reference_table_);
-  external_reference_table_ = isolate->heap()->external_reference_table();
+  external_reference_table_ = isolate->external_reference_table();
 #ifdef DEBUG
   // Count the number of external references registered through the API.
   num_api_references_ = 0;
@@ -36,23 +92,15 @@ void Deserializer<AllocatorT>::Initialize(Isolate* isolate) {
     }
   }
 #endif  // DEBUG
-  CHECK_EQ(magic_number_,
-           SerializedData::ComputeMagicNumber(external_reference_table_));
+  CHECK_EQ(magic_number_, SerializedData::kMagicNumber);
 }
 
-template <class AllocatorT>
-bool Deserializer<AllocatorT>::IsLazyDeserializationEnabled() const {
-  return FLAG_lazy_deserialization && !isolate()->serializer_enabled();
-}
-
-template <class AllocatorT>
-void Deserializer<AllocatorT>::Rehash() {
+void Deserializer::Rehash() {
   DCHECK(can_rehash() || deserializing_user_code());
-  for (const auto& item : to_rehash_) item->RehashBasedOnMap(isolate());
+  for (HeapObject item : to_rehash_) item->RehashBasedOnMap(isolate());
 }
 
-template <class AllocatorT>
-Deserializer<AllocatorT>::~Deserializer() {
+Deserializer::~Deserializer() {
 #ifdef DEBUG
   // Do not perform checks if we aborted deserialization.
   if (source_.position() == 0) return;
@@ -65,28 +113,22 @@ Deserializer<AllocatorT>::~Deserializer() {
 
 // This is called on the roots.  It is the driver of the deserialization
 // process.  It is also called on the body of each function.
-template <class AllocatorT>
-void Deserializer<AllocatorT>::VisitRootPointers(Root root,
-                                                 const char* description,
-                                                 Object** start, Object** end) {
-  // Builtins are deserialized in a separate pass by the BuiltinDeserializer.
-  if (root == Root::kBuiltins || root == Root::kDispatchTable) return;
-
+void Deserializer::VisitRootPointers(Root root, const char* description,
+                                     FullObjectSlot start, FullObjectSlot end) {
   // The space must be new space.  Any other space would cause ReadChunk to try
   // to update the remembered using nullptr as the address.
-  ReadData(reinterpret_cast<MaybeObject**>(start),
-           reinterpret_cast<MaybeObject**>(end), NEW_SPACE, kNullAddress);
+  // TODO(ishell): this will not work once we actually compress pointers.
+  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
+  ReadData(UnalignedSlot(start.address()), UnalignedSlot(end.address()),
+           NEW_SPACE, kNullAddress);
 }
 
-template <class AllocatorT>
-void Deserializer<AllocatorT>::Synchronize(
-    VisitorSynchronization::SyncTag tag) {
+void Deserializer::Synchronize(VisitorSynchronization::SyncTag tag) {
   static const byte expected = kSynchronize;
   CHECK_EQ(expected, source_.Get());
 }
 
-template <class AllocatorT>
-void Deserializer<AllocatorT>::DeserializeDeferredObjects() {
+void Deserializer::DeserializeDeferredObjects() {
   for (int code = source_.Get(); code != kSynchronize; code = source_.Get()) {
     switch (code) {
       case kAlignmentPrefix:
@@ -100,12 +142,11 @@ void Deserializer<AllocatorT>::DeserializeDeferredObjects() {
         int space = code & kSpaceMask;
         DCHECK_LE(space, kNumberOfSpaces);
         DCHECK_EQ(code - space, kNewObject);
-        HeapObject* object = GetBackReferencedObject(space);
+        HeapObject object = GetBackReferencedObject(space);
         int size = source_.GetInt() << kPointerSizeLog2;
         Address obj_address = object->address();
-        MaybeObject** start =
-            reinterpret_cast<MaybeObject**>(obj_address + kPointerSize);
-        MaybeObject** end = reinterpret_cast<MaybeObject**>(obj_address + size);
+        UnalignedSlot start(obj_address + kPointerSize);
+        UnalignedSlot end(obj_address + size);
         bool filled = ReadData(start, end, space, obj_address);
         CHECK(filled);
         DCHECK(CanBeDeferred(object));
@@ -115,12 +156,40 @@ void Deserializer<AllocatorT>::DeserializeDeferredObjects() {
   }
 }
 
-StringTableInsertionKey::StringTableInsertionKey(String* string)
+void Deserializer::LogNewObjectEvents() {
+  {
+    // {new_maps_} and {new_code_objects_} are vectors containing raw
+    // pointers, hence there should be no GC happening.
+    DisallowHeapAllocation no_gc;
+    // Issue code events for newly deserialized code objects.
+    LOG_CODE_EVENT(isolate_, LogCodeObjects());
+  }
+  LOG_CODE_EVENT(isolate_, LogCompiledFunctions());
+  LogNewMapEvents();
+}
+
+void Deserializer::LogNewMapEvents() {
+  DisallowHeapAllocation no_gc;
+  for (Map map : new_maps()) {
+    DCHECK(FLAG_trace_maps);
+    LOG(isolate_, MapCreate(map));
+    LOG(isolate_, MapDetails(map));
+  }
+}
+
+void Deserializer::LogScriptEvents(Script script) {
+  DisallowHeapAllocation no_gc;
+  LOG(isolate_,
+      ScriptEvent(Logger::ScriptEventType::kDeserialize, script->id()));
+  LOG(isolate_, ScriptDetails(script));
+}
+
+StringTableInsertionKey::StringTableInsertionKey(String string)
     : StringTableKey(ComputeHashField(string)), string_(string) {
   DCHECK(string->IsInternalizedString());
 }
 
-bool StringTableInsertionKey::IsMatch(Object* string) {
+bool StringTableInsertionKey::IsMatch(Object string) {
   // We know that all entries in a hash table had their hash keys created.
   // Use that knowledge to have fast failure.
   if (Hash() != String::cast(string)->Hash()) return false;
@@ -132,19 +201,17 @@ Handle<String> StringTableInsertionKey::AsHandle(Isolate* isolate) {
   return handle(string_, isolate);
 }
 
-uint32_t StringTableInsertionKey::ComputeHashField(String* string) {
+uint32_t StringTableInsertionKey::ComputeHashField(String string) {
   // Make sure hash_field() is computed.
   string->Hash();
   return string->hash_field();
 }
 
-template <class AllocatorT>
-HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
-                                                           int space) {
+HeapObject Deserializer::PostProcessNewObject(HeapObject obj, int space) {
   if ((FLAG_rehash_snapshot && can_rehash_) || deserializing_user_code()) {
     if (obj->IsString()) {
       // Uninitialize hash field as we need to recompute the hash.
-      String* string = String::cast(obj);
+      String string = String::cast(obj);
       string->set_hash_field(String::kEmptyHashField);
     } else if (obj->NeedsRehashing()) {
       to_rehash_.push_back(obj);
@@ -153,43 +220,44 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
 
   if (deserializing_user_code()) {
     if (obj->IsString()) {
-      String* string = String::cast(obj);
+      String string = String::cast(obj);
       if (string->IsInternalizedString()) {
         // Canonicalize the internalized string. If it already exists in the
         // string table, set it to forward to the existing one.
         StringTableInsertionKey key(string);
-        String* canonical =
+        String canonical =
             StringTable::ForwardStringIfExists(isolate_, &key, string);
 
-        if (canonical != nullptr) return canonical;
+        if (!canonical.is_null()) return canonical;
 
         new_internalized_strings_.push_back(handle(string, isolate_));
         return string;
       }
     } else if (obj->IsScript()) {
       new_scripts_.push_back(handle(Script::cast(obj), isolate_));
+    } else if (obj->IsAllocationSite()) {
+      // We should link new allocation sites, but we can't do this immediately
+      // because |AllocationSite::HasWeakNext()| internally accesses
+      // |Heap::roots_| that may not have been initialized yet. So defer this to
+      // |ObjectDeserializer::CommitPostProcessedObjects()|.
+      new_allocation_sites_.push_back(AllocationSite::cast(obj));
     } else {
       DCHECK(CanBeDeferred(obj));
     }
-  } else if (obj->IsScript()) {
-    LOG(isolate_, ScriptEvent(Logger::ScriptEventType::kDeserialize,
-                              Script::cast(obj)->id()));
-    LOG(isolate_, ScriptDetails(Script::cast(obj)));
   }
-
-  if (obj->IsAllocationSite()) {
-    // We should link new allocation sites, but we can't do this immediately
-    // because |AllocationSite::HasWeakNext()| internally accesses
-    // |Heap::roots_| that may not have been initialized yet. So defer this to
-    // |ObjectDeserializer::CommitPostProcessedObjects()|.
-    new_allocation_sites_.push_back(AllocationSite::cast(obj));
+  if (obj->IsScript()) {
+    LogScriptEvents(Script::cast(obj));
   } else if (obj->IsCode()) {
-    // We flush all code pages after deserializing the startup snapshot. In that
-    // case, we only need to remember code objects in the large object space.
-    // When deserializing user code, remember each individual code object.
+    // We flush all code pages after deserializing the startup snapshot.
+    // Hence we only remember each individual code object when deserializing
+    // user code.
     if (deserializing_user_code() || space == LO_SPACE) {
       new_code_objects_.push_back(Code::cast(obj));
     }
+  } else if (FLAG_trace_maps && obj->IsMap()) {
+    // Keep track of all seen Maps to log them later since they might be only
+    // partially initialized at this point.
+    new_maps_.push_back(Map::cast(obj));
   } else if (obj->IsAccessorInfo()) {
 #ifdef USE_SIMULATOR
     accessor_infos_.push_back(AccessorInfo::cast(obj));
@@ -200,13 +268,13 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
 #endif
   } else if (obj->IsExternalString()) {
     if (obj->map() == ReadOnlyRoots(isolate_).native_source_string_map()) {
-      ExternalOneByteString* string = ExternalOneByteString::cast(obj);
+      ExternalOneByteString string = ExternalOneByteString::cast(obj);
       DCHECK(string->is_uncached());
       string->SetResource(
           isolate_, NativesExternalStringResource::DecodeForDeserialization(
                         string->resource()));
     } else {
-      ExternalString* string = ExternalString::cast(obj);
+      ExternalString string = ExternalString::cast(obj);
       uint32_t index = string->resource_as_uint32();
       Address address =
           static_cast<Address>(isolate_->api_external_references()[index]);
@@ -216,11 +284,11 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
     }
     isolate_->heap()->RegisterExternalString(String::cast(obj));
   } else if (obj->IsJSTypedArray()) {
-    JSTypedArray* typed_array = JSTypedArray::cast(obj);
+    JSTypedArray typed_array = JSTypedArray::cast(obj);
     CHECK_LE(typed_array->byte_offset(), Smi::kMaxValue);
     int32_t byte_offset = static_cast<int32_t>(typed_array->byte_offset());
     if (byte_offset > 0) {
-      FixedTypedArrayBase* elements =
+      FixedTypedArrayBase elements =
           FixedTypedArrayBase::cast(typed_array->elements());
       // Must be off-heap layout.
       DCHECK(!typed_array->is_on_heap());
@@ -231,30 +299,34 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
       elements->set_external_pointer(pointer_with_offset);
     }
   } else if (obj->IsJSArrayBuffer()) {
-    JSArrayBuffer* buffer = JSArrayBuffer::cast(obj);
+    JSArrayBuffer buffer = JSArrayBuffer::cast(obj);
     // Only fixup for the off-heap case.
     if (buffer->backing_store() != nullptr) {
-      Smi* store_index = reinterpret_cast<Smi*>(buffer->backing_store());
+      Smi store_index(reinterpret_cast<Address>(buffer->backing_store()));
       void* backing_store = off_heap_backing_stores_[store_index->value()];
 
       buffer->set_backing_store(backing_store);
       isolate_->heap()->RegisterNewArrayBuffer(buffer);
     }
   } else if (obj->IsFixedTypedArrayBase()) {
-    FixedTypedArrayBase* fta = FixedTypedArrayBase::cast(obj);
+    FixedTypedArrayBase fta = FixedTypedArrayBase::cast(obj);
     // Only fixup for the off-heap case.
-    if (fta->base_pointer() == nullptr) {
-      Smi* store_index = reinterpret_cast<Smi*>(fta->external_pointer());
+    if (fta->base_pointer() == Smi::kZero) {
+      Smi store_index(reinterpret_cast<Address>(fta->external_pointer()));
       void* backing_store = off_heap_backing_stores_[store_index->value()];
       fta->set_external_pointer(backing_store);
     }
   } else if (obj->IsBytecodeArray()) {
     // TODO(mythria): Remove these once we store the default values for these
     // fields in the serializer.
-    BytecodeArray* bytecode_array = BytecodeArray::cast(obj);
+    BytecodeArray bytecode_array = BytecodeArray::cast(obj);
     bytecode_array->set_interrupt_budget(
         interpreter::Interpreter::InterruptBudget());
     bytecode_array->set_osr_loop_nesting_level(0);
+  } else if (obj->IsDescriptorArray()) {
+    // Reset the marking state of the descriptor array.
+    DescriptorArray descriptor_array = DescriptorArray::cast(obj);
+    descriptor_array->set_raw_number_of_marked_descriptors(0);
   }
 
   // Check alignment.
@@ -263,17 +335,8 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
   return obj;
 }
 
-template <class AllocatorT>
-int Deserializer<AllocatorT>::MaybeReplaceWithDeserializeLazy(int builtin_id) {
-  DCHECK(Builtins::IsBuiltinId(builtin_id));
-  return IsLazyDeserializationEnabled() && Builtins::IsLazy(builtin_id)
-             ? Builtins::kDeserializeLazy
-             : builtin_id;
-}
-
-template <class AllocatorT>
-HeapObject* Deserializer<AllocatorT>::GetBackReferencedObject(int space) {
-  HeapObject* obj;
+HeapObject Deserializer::GetBackReferencedObject(int space) {
+  HeapObject obj;
   switch (space) {
     case LO_SPACE:
       obj = allocator()->GetLargeObject(source_.GetInt());
@@ -312,7 +375,7 @@ HeapObject* Deserializer<AllocatorT>::GetBackReferencedObject(int space) {
   }
 
   hot_objects_.Add(obj);
-  DCHECK(!HasWeakHeapObjectTag(obj));
+  DCHECK(!HasWeakHeapObjectTag(obj->ptr()));
   return obj;
 }
 
@@ -320,49 +383,34 @@ HeapObject* Deserializer<AllocatorT>::GetBackReferencedObject(int space) {
 // The reason for this strange interface is that otherwise the object is
 // written very late, which means the FreeSpace map is not set up by the
 // time we need to use it to mark the space at the end of a page free.
-template <class AllocatorT>
-void Deserializer<AllocatorT>::ReadObject(
-    int space_number, MaybeObject** write_back,
-    HeapObjectReferenceType reference_type) {
+void Deserializer::ReadObject(int space_number, UnalignedSlot write_back,
+                              HeapObjectReferenceType reference_type) {
   const int size = source_.GetInt() << kObjectAlignmentBits;
 
   Address address =
       allocator()->Allocate(static_cast<AllocationSpace>(space_number), size);
-  HeapObject* obj = HeapObject::FromAddress(address);
+  HeapObject obj = HeapObject::FromAddress(address);
 
   isolate_->heap()->OnAllocationEvent(obj, size);
-  MaybeObject** current = reinterpret_cast<MaybeObject**>(address);
-  MaybeObject** limit = current + (size >> kPointerSizeLog2);
+  UnalignedSlot current(address);
+  UnalignedSlot limit(address + size);
 
   if (ReadData(current, limit, space_number, address)) {
     // Only post process if object content has not been deferred.
     obj = PostProcessNewObject(obj, space_number);
   }
 
-  MaybeObject* write_back_obj =
-      reference_type == HeapObjectReferenceType::STRONG
-          ? HeapObjectReference::Strong(obj)
-          : HeapObjectReference::Weak(obj);
-  UnalignedCopy(write_back, &write_back_obj);
+  MaybeObject write_back_obj = reference_type == HeapObjectReferenceType::STRONG
+                                   ? HeapObjectReference::Strong(obj)
+                                   : HeapObjectReference::Weak(obj);
+  UnalignedCopy(write_back, write_back_obj);
 #ifdef DEBUG
   if (obj->IsCode()) {
-    DCHECK(space_number == CODE_SPACE || space_number == LO_SPACE);
+    DCHECK(space_number == CODE_SPACE || space_number == CODE_LO_SPACE);
   } else {
-    DCHECK(space_number != CODE_SPACE);
+    DCHECK(space_number != CODE_SPACE && space_number != CODE_LO_SPACE);
   }
 #endif  // DEBUG
-}
-
-template <class AllocatorT>
-Object* Deserializer<AllocatorT>::ReadDataSingle() {
-  MaybeObject* o;
-  MaybeObject** start = &o;
-  MaybeObject** end = start + 1;
-  int source_space = NEW_SPACE;
-  Address current_object = kNullAddress;
-
-  CHECK(ReadData(start, end, source_space, current_object));
-  return o->GetHeapObjectAssumeStrong();
 }
 
 static void NoExternalReferencesCallback() {
@@ -373,10 +421,8 @@ static void NoExternalReferencesCallback() {
   CHECK_WITH_MSG(false, "No external references provided via API");
 }
 
-template <class AllocatorT>
-bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
-                                        MaybeObject** limit, int source_space,
-                                        Address current_object_address) {
+bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
+                            int source_space, Address current_object_address) {
   Isolate* const isolate = isolate_;
   // Write barrier support costs around 1% in startup time.  In fact there
   // are no new space objects in current boot snapshots, so it's not needed,
@@ -473,15 +519,16 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
       SINGLE_CASE(kPartialSnapshotCache, kPlain, kStartOfObject, 0)
       SINGLE_CASE(kPartialSnapshotCache, kFromCode, kStartOfObject, 0)
       SINGLE_CASE(kPartialSnapshotCache, kFromCode, kInnerPointer, 0)
+      // Find an object in the partial snapshots cache and write a pointer to it
+      // to the current object.
+      SINGLE_CASE(kReadOnlyObjectCache, kPlain, kStartOfObject, 0)
+      SINGLE_CASE(kReadOnlyObjectCache, kFromCode, kStartOfObject, 0)
+      SINGLE_CASE(kReadOnlyObjectCache, kFromCode, kInnerPointer, 0)
       // Find an object in the attached references and write a pointer to it to
       // the current object.
       SINGLE_CASE(kAttachedReference, kPlain, kStartOfObject, 0)
       SINGLE_CASE(kAttachedReference, kFromCode, kStartOfObject, 0)
       SINGLE_CASE(kAttachedReference, kFromCode, kInnerPointer, 0)
-      // Find a builtin and write a pointer to it to the current object.
-      SINGLE_CASE(kBuiltin, kPlain, kStartOfObject, 0)
-      SINGLE_CASE(kBuiltin, kFromCode, kStartOfObject, 0)
-      SINGLE_CASE(kBuiltin, kFromCode, kInnerPointer, 0)
 
 #undef CASE_STATEMENT
 #undef CASE_BODY
@@ -489,23 +536,21 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
 
       case kSkip: {
         int size = source_.GetInt();
-        current = reinterpret_cast<MaybeObject**>(
-            reinterpret_cast<Address>(current) + size);
+        current.Advance(size);
         break;
       }
 
       // Find an external reference and write a pointer to it to the current
       // object.
       case kExternalReference + kPlain + kStartOfObject:
-        current = reinterpret_cast<MaybeObject**>(ReadExternalReferenceCase(
-            kPlain, reinterpret_cast<void**>(current), current_object_address));
+        current =
+            ReadExternalReferenceCase(kPlain, current, current_object_address);
         break;
       // Find an external reference and write a pointer to it in the current
       // code object.
       case kExternalReference + kFromCode + kStartOfObject:
-        current = reinterpret_cast<MaybeObject**>(ReadExternalReferenceCase(
-            kFromCode, reinterpret_cast<void**>(current),
-            current_object_address));
+        current = ReadExternalReferenceCase(kFromCode, current,
+                                            current_object_address);
         break;
 
       case kInternalReferenceEncoded:
@@ -514,8 +559,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
         // from code entry.
         int pc_offset = source_.GetInt();
         int target_offset = source_.GetInt();
-        Code* code =
-            Code::cast(HeapObject::FromAddress(current_object_address));
+        Code code = Code::cast(HeapObject::FromAddress(current_object_address));
         DCHECK(0 <= pc_offset && pc_offset <= code->raw_instruction_size());
         DCHECK(0 <= target_offset &&
                target_offset <= code->raw_instruction_size());
@@ -534,8 +578,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
         int builtin_index = source_.GetInt();
         DCHECK(Builtins::IsBuiltinId(builtin_index));
 
-        current = reinterpret_cast<MaybeObject**>(
-            reinterpret_cast<Address>(current) + skip);
+        current.Advance(skip);
 
         CHECK_NOT_NULL(isolate->embedded_blob());
         EmbeddedData d = EmbeddedData::FromBlob();
@@ -543,19 +586,17 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
         CHECK_NE(kNullAddress, address);
 
         if (RelocInfo::OffHeapTargetIsCodedSpecially()) {
-          Address location_of_branch_data = reinterpret_cast<Address>(current);
+          Address location_of_branch_data = current.address();
           int skip = Assembler::deserialization_special_target_size(
               location_of_branch_data);
           Assembler::deserialization_set_special_target_at(
               location_of_branch_data,
               Code::cast(HeapObject::FromAddress(current_object_address)),
               address);
-          location_of_branch_data += skip;
-          current = reinterpret_cast<MaybeObject**>(location_of_branch_data);
+          current.Advance(skip);
         } else {
-          MaybeObject* o = reinterpret_cast<MaybeObject*>(address);
-          UnalignedCopy(current, &o);
-          current++;
+          UnalignedCopy(current, address);
+          current.Advance();
         }
         break;
       }
@@ -571,9 +612,8 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
 
       case kDeferred: {
         // Deferred can only occur right after the heap object header.
-        DCHECK_EQ(current, reinterpret_cast<MaybeObject**>(
-                               current_object_address + kPointerSize));
-        HeapObject* obj = HeapObject::FromAddress(current_object_address);
+        DCHECK_EQ(current.address(), current_object_address + kPointerSize);
+        HeapObject obj = HeapObject::FromAddress(current_object_address);
         // If the deferred object is a map, its instance type may be used
         // during deserialization. Initialize it with a temporary value.
         if (obj->IsMap()) Map::cast(obj)->set_instance_type(FILLER_TYPE);
@@ -589,10 +629,9 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
       // Deserialize raw data of variable length.
       case kVariableRawData: {
         int size_in_bytes = source_.GetInt();
-        byte* raw_data_out = reinterpret_cast<byte*>(current);
+        byte* raw_data_out = reinterpret_cast<byte*>(current.address());
         source_.CopyRaw(raw_data_out, size_in_bytes);
-        current = reinterpret_cast<MaybeObject**>(
-            reinterpret_cast<intptr_t>(current) + size_in_bytes);
+        current.Advance(size_in_bytes);
         break;
       }
 
@@ -608,10 +647,12 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
 
       case kVariableRepeat: {
         int repeats = source_.GetInt();
-        MaybeObject* object = current[-1];
+        MaybeObject object = current.ReadPrevious();
         DCHECK(!Heap::InNewSpace(object));
-        DCHECK(!allocator()->next_reference_is_weak());
-        for (int i = 0; i < repeats; i++) UnalignedCopy(current++, &object);
+        for (int i = 0; i < repeats; i++) {
+          UnalignedCopy(current, object);
+          current.Advance();
+        }
         break;
       }
 
@@ -628,8 +669,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
 
       case kApiReference: {
         int skip = source_.GetInt();
-        current = reinterpret_cast<MaybeObject**>(
-            reinterpret_cast<Address>(current) + skip);
+        current.Advance(skip);
         uint32_t reference_id = static_cast<uint32_t>(source_.GetInt());
         Address address;
         if (isolate->api_external_references()) {
@@ -641,10 +681,15 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
         } else {
           address = reinterpret_cast<Address>(NoExternalReferencesCallback);
         }
-        memcpy(current, &address, kPointerSize);
-        current++;
+        UnalignedCopy(current, address);
+        current.Advance();
         break;
       }
+
+      case kClearedWeakReference:
+        UnalignedCopy(current, HeapObjectReference::ClearedValue(isolate_));
+        current.Advance();
+        break;
 
       case kWeakPrefix:
         DCHECK(!allocator()->next_reference_is_weak());
@@ -659,13 +704,17 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
         break;
       }
 
-      STATIC_ASSERT(kNumberOfRootArrayConstants == Heap::kOldSpaceRoots);
+      // First kNumberOfRootArrayConstants roots are guaranteed to be in
+      // the old space.
+      STATIC_ASSERT(
+          static_cast<int>(RootIndex::kFirstImmortalImmovableRoot) == 0);
+      STATIC_ASSERT(kNumberOfRootArrayConstants <=
+                    static_cast<int>(RootIndex::kLastImmortalImmovableRoot));
       STATIC_ASSERT(kNumberOfRootArrayConstants == 32);
       SIXTEEN_CASES(kRootArrayConstantsWithSkip)
       SIXTEEN_CASES(kRootArrayConstantsWithSkip + 16) {
         int skip = source_.GetInt();
-        current = reinterpret_cast<MaybeObject**>(
-            reinterpret_cast<intptr_t>(current) + skip);
+        current.Advance(skip);
         V8_FALLTHROUGH;
       }
 
@@ -673,11 +722,10 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
       SIXTEEN_CASES(kRootArrayConstants + 16) {
         int id = data & kRootArrayConstantsMask;
         RootIndex root_index = static_cast<RootIndex>(id);
-        MaybeObject* object =
-            MaybeObject::FromObject(isolate->heap()->root(root_index));
+        MaybeObject object = MaybeObject::FromObject(isolate->root(root_index));
         DCHECK(!Heap::InNewSpace(object));
-        DCHECK(!allocator()->next_reference_is_weak());
-        UnalignedCopy(current++, &object);
+        UnalignedCopy(current, object);
+        current.Advance();
         break;
       }
 
@@ -685,28 +733,26 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
       FOUR_CASES(kHotObjectWithSkip)
       FOUR_CASES(kHotObjectWithSkip + 4) {
         int skip = source_.GetInt();
-        current = reinterpret_cast<MaybeObject**>(
-            reinterpret_cast<Address>(current) + skip);
+        current.Advance(skip);
         V8_FALLTHROUGH;
       }
 
       FOUR_CASES(kHotObject)
       FOUR_CASES(kHotObject + 4) {
         int index = data & kHotObjectMask;
-        Object* hot_object = hot_objects_.Get(index);
-        MaybeObject* hot_maybe_object = MaybeObject::FromObject(hot_object);
+        Object hot_object = hot_objects_.Get(index);
+        MaybeObject hot_maybe_object = MaybeObject::FromObject(hot_object);
         if (allocator()->GetAndClearNextReferenceIsWeak()) {
           hot_maybe_object = MaybeObject::MakeWeak(hot_maybe_object);
         }
 
-        UnalignedCopy(current, &hot_maybe_object);
+        UnalignedCopy(current, hot_maybe_object);
         if (write_barrier_needed && Heap::InNewSpace(hot_object)) {
-          Address current_address = reinterpret_cast<Address>(current);
-          GenerationalBarrier(HeapObject::FromAddress(current_object_address),
-                              reinterpret_cast<MaybeObject**>(current_address),
-                              hot_maybe_object);
+          HeapObject current_object =
+              HeapObject::FromAddress(current_object_address);
+          GenerationalBarrier(current_object, current.Slot(), hot_maybe_object);
         }
-        current++;
+        current.Advance();
         break;
       }
 
@@ -714,21 +760,22 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
       STATIC_ASSERT(kNumberOfFixedRawData == 32);
       SIXTEEN_CASES(kFixedRawData)
       SIXTEEN_CASES(kFixedRawData + 16) {
-        byte* raw_data_out = reinterpret_cast<byte*>(current);
+        byte* raw_data_out = reinterpret_cast<byte*>(current.address());
         int size_in_bytes = (data - kFixedRawDataStart) << kPointerSizeLog2;
         source_.CopyRaw(raw_data_out, size_in_bytes);
-        current = reinterpret_cast<MaybeObject**>(raw_data_out + size_in_bytes);
+        current.Advance(size_in_bytes);
         break;
       }
 
       STATIC_ASSERT(kNumberOfFixedRepeat == 16);
       SIXTEEN_CASES(kFixedRepeat) {
         int repeats = data - kFixedRepeatStart;
-        MaybeObject* object;
-        DCHECK(!allocator()->next_reference_is_weak());
-        UnalignedCopy(&object, current - 1);
+        MaybeObject object = current.ReadPrevious();
         DCHECK(!Heap::InNewSpace(object));
-        for (int i = 0; i < repeats; i++) UnalignedCopy(current++, &object);
+        for (int i = 0; i < repeats; i++) {
+          UnalignedCopy(current, object);
+          current.Advance();
+        }
         break;
       }
 
@@ -749,36 +796,33 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
   return true;
 }
 
-template <class AllocatorT>
-void** Deserializer<AllocatorT>::ReadExternalReferenceCase(
-    HowToCode how, void** current, Address current_object_address) {
+UnalignedSlot Deserializer::ReadExternalReferenceCase(
+    HowToCode how, UnalignedSlot current, Address current_object_address) {
   int skip = source_.GetInt();
-  current = reinterpret_cast<void**>(reinterpret_cast<Address>(current) + skip);
+  current.Advance(skip);
   uint32_t reference_id = static_cast<uint32_t>(source_.GetInt());
   Address address = external_reference_table_->address(reference_id);
 
   if (how == kFromCode) {
-    Address location_of_branch_data = reinterpret_cast<Address>(current);
+    Address location_of_branch_data = current.address();
     int skip =
         Assembler::deserialization_special_target_size(location_of_branch_data);
     Assembler::deserialization_set_special_target_at(
         location_of_branch_data,
         Code::cast(HeapObject::FromAddress(current_object_address)), address);
-    location_of_branch_data += skip;
-    current = reinterpret_cast<void**>(location_of_branch_data);
+    current.Advance(skip);
   } else {
-    void* new_current = reinterpret_cast<void**>(address);
-    UnalignedCopy(current, &new_current);
-    ++current;
+    UnalignedCopy(current, address);
+    current.Advance();
   }
   return current;
 }
 
-template <class AllocatorT>
 template <int where, int how, int within, int space_number_if_any>
-MaybeObject** Deserializer<AllocatorT>::ReadDataCase(
-    Isolate* isolate, MaybeObject** current, Address current_object_address,
-    byte data, bool write_barrier_needed) {
+UnalignedSlot Deserializer::ReadDataCase(Isolate* isolate,
+                                         UnalignedSlot current,
+                                         Address current_object_address,
+                                         byte data, bool write_barrier_needed) {
   bool emit_write_barrier = false;
   bool current_was_incremented = false;
   int space_number = space_number_if_any == kAnyOldSpace ? (data & kSpaceMask)
@@ -791,91 +835,78 @@ MaybeObject** Deserializer<AllocatorT>::ReadDataCase(
     ReadObject(space_number, current, reference_type);
     emit_write_barrier = (space_number == NEW_SPACE);
   } else {
-    Object* new_object = nullptr; /* May not be a real Object pointer. */
+    Object new_object; /* May not be a real Object pointer. */
     if (where == kNewObject) {
-      ReadObject(space_number, reinterpret_cast<MaybeObject**>(&new_object),
+      ReadObject(space_number, UnalignedSlot(&new_object),
                  HeapObjectReferenceType::STRONG);
     } else if (where == kBackref) {
       emit_write_barrier = (space_number == NEW_SPACE);
       new_object = GetBackReferencedObject(data & kSpaceMask);
     } else if (where == kBackrefWithSkip) {
       int skip = source_.GetInt();
-      current = reinterpret_cast<MaybeObject**>(
-          reinterpret_cast<Address>(current) + skip);
+      current.Advance(skip);
       emit_write_barrier = (space_number == NEW_SPACE);
       new_object = GetBackReferencedObject(data & kSpaceMask);
     } else if (where == kRootArray) {
       int id = source_.GetInt();
       RootIndex root_index = static_cast<RootIndex>(id);
-      new_object = isolate->heap()->root(root_index);
+      new_object = isolate->root(root_index);
       emit_write_barrier = Heap::InNewSpace(new_object);
       hot_objects_.Add(HeapObject::cast(new_object));
+    } else if (where == kReadOnlyObjectCache) {
+      int cache_index = source_.GetInt();
+      new_object = isolate->read_only_object_cache()->at(cache_index);
+      DCHECK(!Heap::InNewSpace(new_object));
+      emit_write_barrier = false;
     } else if (where == kPartialSnapshotCache) {
       int cache_index = source_.GetInt();
       new_object = isolate->partial_snapshot_cache()->at(cache_index);
       emit_write_barrier = Heap::InNewSpace(new_object);
-    } else if (where == kAttachedReference) {
+    } else {
+      DCHECK_EQ(where, kAttachedReference);
       int index = source_.GetInt();
       new_object = *attached_objects_[index];
       emit_write_barrier = Heap::InNewSpace(new_object);
-    } else {
-      DCHECK_EQ(where, kBuiltin);
-      int builtin_id = MaybeReplaceWithDeserializeLazy(source_.GetInt());
-      new_object = isolate->builtins()->builtin(builtin_id);
-      emit_write_barrier = false;
     }
     if (within == kInnerPointer) {
       DCHECK_EQ(how, kFromCode);
-      if (where == kBuiltin) {
-        // At this point, new_object may still be uninitialized, thus the
-        // unchecked Code cast.
-        new_object = reinterpret_cast<Object*>(
-            reinterpret_cast<Code*>(new_object)->raw_instruction_start());
-      } else if (new_object->IsCode()) {
-        new_object = reinterpret_cast<Object*>(
-            Code::cast(new_object)->raw_instruction_start());
+      if (new_object->IsCode()) {
+        new_object = Object(Code::cast(new_object)->raw_instruction_start());
       } else {
-        Cell* cell = Cell::cast(new_object);
-        new_object = reinterpret_cast<Object*>(cell->ValueAddress());
+        Cell cell = Cell::cast(new_object);
+        new_object = Object(cell->ValueAddress());
       }
     }
     if (how == kFromCode) {
       DCHECK(!allocator()->next_reference_is_weak());
-      Address location_of_branch_data = reinterpret_cast<Address>(current);
+      Address location_of_branch_data = current.address();
       int skip = Assembler::deserialization_special_target_size(
           location_of_branch_data);
       Assembler::deserialization_set_special_target_at(
           location_of_branch_data,
           Code::cast(HeapObject::FromAddress(current_object_address)),
-          reinterpret_cast<Address>(new_object));
-      location_of_branch_data += skip;
-      current = reinterpret_cast<MaybeObject**>(location_of_branch_data);
+          new_object->ptr());
+      current.Advance(skip);
       current_was_incremented = true;
     } else {
-      MaybeObject* new_maybe_object = MaybeObject::FromObject(new_object);
+      MaybeObject new_maybe_object = MaybeObject::FromObject(new_object);
       if (allocator()->GetAndClearNextReferenceIsWeak()) {
         new_maybe_object = MaybeObject::MakeWeak(new_maybe_object);
       }
-      UnalignedCopy(current, &new_maybe_object);
+      UnalignedCopy(current, new_maybe_object);
     }
   }
   if (emit_write_barrier && write_barrier_needed) {
-    Address current_address = reinterpret_cast<Address>(current);
-    SLOW_DCHECK(isolate->heap()->ContainsSlow(current_object_address));
-    GenerationalBarrier(HeapObject::FromAddress(current_object_address),
-                        reinterpret_cast<MaybeObject**>(current_address),
-                        *reinterpret_cast<MaybeObject**>(current_address));
+    HeapObject object = HeapObject::FromAddress(current_object_address);
+    SLOW_DCHECK(isolate->heap()->Contains(object));
+    GenerationalBarrier(object, current.Slot(), current.Read());
   }
   if (!current_was_incremented) {
-    current++;
+    current.Advance();
   }
 
   return current;
 }
-
-// Explicit instantiation.
-template class Deserializer<BuiltinDeserializerAllocator>;
-template class Deserializer<DefaultDeserializerAllocator>;
 
 }  // namespace internal
 }  // namespace v8

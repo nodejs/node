@@ -37,15 +37,22 @@ async function instantiateWasm() {
 
   builder.addFunction('func', kSig_v_i)
       .addLocals(
-          {i32_count: 1, f64_count: 1}, ['i32Arg', undefined, 'unicode☼f64'])
+          {i32_count: 1, i64_count: 1, f64_count: 1},
+          ['i32Arg', undefined, 'i64_local', 'unicode☼f64'])
       .addBody([
         // Set param 0 to 11.
         kExprI32Const, 11, kExprSetLocal, 0,
         // Set local 1 to 47.
         kExprI32Const, 47, kExprSetLocal, 1,
-        // Set local 2 to 1/7.
+        // Set local 2 to 0x7FFFFFFFFFFFFFFF (max i64).
+        kExprI64Const, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0,
+        kExprSetLocal, 2,
+        // Set local 2 to 0x8000000000000000 (min i64).
+        kExprI64Const, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x7f,
+        kExprSetLocal, 2,
+        // Set local 3 to 1/7.
         kExprI32Const, 1, kExprF64UConvertI32, kExprI32Const, 7,
-        kExprF64UConvertI32, kExprF64Div, kExprSetLocal, 2
+        kExprF64UConvertI32, kExprF64Div, kExprSetLocal, 3
       ])
       .exportAs('main');
 
@@ -98,26 +105,30 @@ async function waitForWasmScript() {
   }
 }
 
-async function getValueString(value) {
-  if (value.type == 'object') {
-    var msg = await Protocol.Runtime.getProperties({objectId: value.objectId});
-    printFailure(msg);
-    let printProperty = elem => '"' + elem.name + '"' +
-        ': ' + elem.value.description + ' (' + elem.value.type + ')';
-    return msg.result.result.map(printProperty).join(', ');
+async function getScopeValues(value) {
+  if (value.type != 'object') {
+    InspectorTest.log('Expected object. Found:');
+    InspectorTest.logObject(value);
+    return;
   }
-  return JSON.stringify(value.value) + ' (' + value.type + ')';
+
+  let msg = await Protocol.Runtime.getProperties({objectId: value.objectId});
+  printFailure(msg);
+  let printProperty = elem => '"' + elem.name + '"' +
+      ': ' + elem.value.value + ' (' + elem.value.type + ')';
+  return msg.result.result.map(printProperty).join(', ');
 }
 
-async function dumpProperties(message) {
+async function dumpScopeProperties(message) {
   printFailure(message);
   for (var value of message.result.result) {
-    var value_str = await getValueString(value.value);
+    var value_str = await getScopeValues(value.value);
     InspectorTest.log('   ' + value.name + ': ' + value_str);
   }
 }
 
 async function dumpScopeChainsOnPause(message) {
+  InspectorTest.log(`Scope:`);
   for (var frame of message.params.callFrames) {
     var functionName = frame.functionName || '(anonymous)';
     var lineNumber = frame.location ? frame.location.lineNumber : frame.lineNumber;
@@ -126,12 +137,13 @@ async function dumpScopeChainsOnPause(message) {
     for (var scope of frame.scopeChain) {
       InspectorTest.logObject(' - scope (' + scope.type + '):');
       if (scope.type == 'global') {
-        InspectorTest.logObject('   -- skipped');
-      } else {
-        var properties = await Protocol.Runtime.getProperties(
-            {'objectId': scope.object.objectId});
-        await dumpProperties(properties);
+        InspectorTest.logObject('   -- skipped globals');
+        continue;
       }
+      var properties = await Protocol.Runtime.getProperties(
+          {'objectId': scope.object.objectId});
+      await dumpScopeProperties(properties);
     }
   }
+  InspectorTest.log();
 }

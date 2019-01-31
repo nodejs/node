@@ -18,7 +18,6 @@
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
-#include "src/code-stubs.h"
 #include "src/deoptimizer.h"
 #include "src/macro-assembler.h"
 #include "src/string-constants.h"
@@ -32,9 +31,10 @@ namespace internal {
 
 namespace {
 
-#if !V8_LIBC_MSVCRT
-
-V8_INLINE uint64_t _xgetbv(unsigned int xcr) {
+V8_INLINE uint64_t xgetbv(unsigned int xcr) {
+#if V8_LIBC_MSVCRT
+  return _xgetbv(xcr);
+#else
   unsigned eax, edx;
   // Check xgetbv; this uses a .byte sequence instead of the instruction
   // directly because older assemblers do not include support for xgetbv and
@@ -42,12 +42,8 @@ V8_INLINE uint64_t _xgetbv(unsigned int xcr) {
   // used.
   __asm__ volatile(".byte 0x0F, 0x01, 0xD0" : "=a"(eax), "=d"(edx) : "c"(xcr));
   return static_cast<uint64_t>(eax) | (static_cast<uint64_t>(edx) << 32);
+#endif
 }
-
-#define _XCR_XFEATURE_ENABLED_MASK 0
-
-#endif  // !V8_LIBC_MSVCRT
-
 
 bool OSHasAVXSupport() {
 #if V8_OS_MACOSX
@@ -68,7 +64,7 @@ bool OSHasAVXSupport() {
   if (kernel_version_major <= 13) return false;
 #endif  // V8_OS_MACOSX
   // Check whether OS claims to support AVX.
-  uint64_t feature_mask = _xgetbv(_XCR_XFEATURE_ENABLED_MASK);
+  uint64_t feature_mask = xgetbv(0);  // XCR_XFEATURE_ENABLED_MASK
   return (feature_mask & 0x6) == 0x6;
 }
 
@@ -127,20 +123,6 @@ void CpuFeatures::PrintFeatures() {
 
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
-
-void RelocInfo::set_js_to_wasm_address(Address address,
-                                       ICacheFlushMode icache_flush_mode) {
-  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  Memory<Address>(pc_) = address;
-  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(pc_, sizeof(Address));
-  }
-}
-
-Address RelocInfo::js_to_wasm_address() const {
-  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  return Memory<Address>(pc_);
-}
 
 uint32_t RelocInfo::wasm_call_tag() const {
   DCHECK(rmode_ == WASM_CALL || rmode_ == WASM_STUB_CALL);
@@ -341,17 +323,12 @@ bool Operand::AddressUsesRegister(Register reg) const {
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
   DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
   for (auto& request : heap_object_requests_) {
-    Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
+    Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
     switch (request.kind()) {
       case HeapObjectRequest::kHeapNumber: {
         Handle<HeapNumber> object =
             isolate->factory()->NewHeapNumber(request.heap_number(), TENURED);
         Memory<Handle<Object>>(pc) = object;
-        break;
-      }
-      case HeapObjectRequest::kCodeStub: {
-        request.code_stub()->set_isolate(isolate);
-        UpdateCodeTarget(Memory<int32_t>(pc), request.code_stub()->GetCode());
         break;
       }
       case HeapObjectRequest::kStringConstant: {
@@ -449,18 +426,11 @@ bool Assembler::UseConstPoolFor(RelocInfo::Mode rmode) {
 // -----------------------------------------------------------------------------
 // Implementation of Assembler.
 
-Assembler::Assembler(const AssemblerOptions& options, void* buffer,
-                     int buffer_size)
-    : AssemblerBase(options, buffer, buffer_size), constpool_(this) {
-// Clear the buffer in debug mode unless it was provided by the
-// caller in which case we can't be sure it's okay to overwrite
-// existing code in it.
-#ifdef DEBUG
-  if (own_buffer_) ZapCode(reinterpret_cast<Address>(buffer_), buffer_size_);
-#endif
-
+Assembler::Assembler(const AssemblerOptions& options,
+                     std::unique_ptr<AssemblerBuffer> buffer)
+    : AssemblerBase(options, std::move(buffer)), constpool_(this) {
   ReserveCodeTargetSpace(100);
-  reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
+  reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
   if (CpuFeatures::IsSupported(SSE4_1)) {
     EnableCpuFeature(SSSE3);
   }
@@ -470,6 +440,8 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   PatchConstPool();
   DCHECK(constpool_.IsEmpty());
 
+  int code_comments_size = WriteCodeComments();
+
   // At this point overflow() may be true, but the gap ensures
   // that we are still not overlapping instructions and relocation info.
   DCHECK(pc_ <= reloc_info_writer.pos());  // No overlap.
@@ -477,17 +449,20 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   AllocateAndInstallRequestedHeapObjects(isolate);
 
   // Set up code descriptor.
-  desc->buffer = buffer_;
-  desc->buffer_size = buffer_size_;
+  desc->buffer = buffer_start_;
+  desc->buffer_size = buffer_->size();
   desc->instr_size = pc_offset();
   DCHECK_GT(desc->instr_size, 0);  // Zero-size code objects upset the system.
-  desc->reloc_size =
-      static_cast<int>((buffer_ + buffer_size_) - reloc_info_writer.pos());
+  desc->reloc_size = static_cast<int>((buffer_start_ + desc->buffer_size) -
+                                      reloc_info_writer.pos());
   desc->origin = this;
   desc->constant_pool_size = 0;
   desc->unwinding_info_size = 0;
   desc->unwinding_info = nullptr;
+  desc->code_comments_size = code_comments_size;
+}
 
+void Assembler::FinalizeJumpOptimizationInfo() {
   // Collection stage
   auto jump_opt = jump_optimization_info();
   if (jump_opt && jump_opt->is_collecting()) {
@@ -511,7 +486,6 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
     }
   }
 }
-
 
 void Assembler::Align(int m) {
   DCHECK(base::bits::IsPowerOfTwo(m));
@@ -543,7 +517,7 @@ void Assembler::bind_to(Label* L, int pos) {
     while (next != current) {
       if (current >= 4 && long_at(current - 4) == 0) {
         // Absolute address.
-        intptr_t imm64 = reinterpret_cast<intptr_t>(buffer_ + pos);
+        intptr_t imm64 = reinterpret_cast<intptr_t>(buffer_start_ + pos);
         *reinterpret_cast<intptr_t*>(addr_at(current - 4)) = imm64;
         internal_reference_positions_.push_back(current - 4);
       } else {
@@ -557,7 +531,7 @@ void Assembler::bind_to(Label* L, int pos) {
     // Fix up last fixup on linked list.
     if (current >= 4 && long_at(current - 4) == 0) {
       // Absolute address.
-      intptr_t imm64 = reinterpret_cast<intptr_t>(buffer_ + pos);
+      intptr_t imm64 = reinterpret_cast<intptr_t>(buffer_start_ + pos);
       *reinterpret_cast<intptr_t*>(addr_at(current - 4)) = imm64;
       internal_reference_positions_.push_back(current - 4);
     } else {
@@ -621,50 +595,41 @@ bool Assembler::is_optimizable_farjmp(int idx) {
 
 void Assembler::GrowBuffer() {
   DCHECK(buffer_overflow());
-  if (!own_buffer_) FATAL("external code buffer is too small");
 
   // Compute new buffer size.
-  CodeDesc desc;  // the new buffer
-  desc.buffer_size = 2 * buffer_size_;
+  DCHECK_EQ(buffer_start_, buffer_->start());
+  int old_size = buffer_->size();
+  int new_size = 2 * old_size;
 
   // Some internal data structures overflow for very large buffers,
   // they must ensure that kMaximalBufferSize is not too large.
-  if (desc.buffer_size > kMaximalBufferSize) {
+  if (new_size > kMaximalBufferSize) {
     V8::FatalProcessOutOfMemory(nullptr, "Assembler::GrowBuffer");
   }
 
   // Set up new buffer.
-  desc.buffer = NewArray<byte>(desc.buffer_size);
-  desc.origin = this;
-  desc.instr_size = pc_offset();
-  desc.reloc_size =
-      static_cast<int>((buffer_ + buffer_size_) - (reloc_info_writer.pos()));
-
-  // Clear the buffer in debug mode. Use 'int3' instructions to make
-  // sure to get into problems if we ever run uninitialized code.
-#ifdef DEBUG
-  ZapCode(reinterpret_cast<Address>(desc.buffer), desc.buffer_size);
-#endif
+  std::unique_ptr<AssemblerBuffer> new_buffer = buffer_->Grow(new_size);
+  DCHECK_EQ(new_size, new_buffer->size());
+  byte* new_start = new_buffer->start();
 
   // Copy the data.
-  intptr_t pc_delta = desc.buffer - buffer_;
-  intptr_t rc_delta = (desc.buffer + desc.buffer_size) -
-      (buffer_ + buffer_size_);
-  MemMove(desc.buffer, buffer_, desc.instr_size);
+  intptr_t pc_delta = new_start - buffer_start_;
+  intptr_t rc_delta = (new_start + new_size) - (buffer_start_ + old_size);
+  size_t reloc_size = (buffer_start_ + old_size) - reloc_info_writer.pos();
+  MemMove(new_start, buffer_start_, pc_offset());
   MemMove(rc_delta + reloc_info_writer.pos(), reloc_info_writer.pos(),
-          desc.reloc_size);
+          reloc_size);
 
   // Switch buffers.
-  DeleteArray(buffer_);
-  buffer_ = desc.buffer;
-  buffer_size_ = desc.buffer_size;
+  buffer_ = std::move(new_buffer);
+  buffer_start_ = new_start;
   pc_ += pc_delta;
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
 
   // Relocate internal references.
   for (auto pos : internal_reference_positions_) {
-    intptr_t* p = reinterpret_cast<intptr_t*>(buffer_ + pos);
+    intptr_t* p = reinterpret_cast<intptr_t*>(buffer_start_ + pos);
     *p += pc_delta;
   }
 
@@ -1123,16 +1088,6 @@ void Assembler::call(Address entry, RelocInfo::Mode rmode) {
   // 1110 1000 #32-bit disp.
   emit(0xE8);
   emit_runtime_entry(entry, rmode);
-}
-
-void Assembler::call(CodeStub* stub) {
-  EnsureSpace ensure_space(this);
-  // 1110 1000 #32-bit disp.
-  emit(0xE8);
-  RequestHeapObject(HeapObjectRequest(stub));
-  RecordRelocInfo(RelocInfo::CODE_TARGET);
-  int code_target_index = AddCodeTarget(Handle<Code>());
-  emitl(code_target_index);
 }
 
 void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode) {
@@ -1683,12 +1638,12 @@ void Assembler::emit_lea(Register dst, Operand src, int size) {
 
 void Assembler::load_rax(Address value, RelocInfo::Mode mode) {
   EnsureSpace ensure_space(this);
-  if (kPointerSize == kInt64Size) {
+  if (kSystemPointerSize == kInt64Size) {
     emit(0x48);  // REX.W
     emit(0xA1);
     emitp(value, mode);
   } else {
-    DCHECK_EQ(kPointerSize, kInt32Size);
+    DCHECK_EQ(kSystemPointerSize, kInt32Size);
     emit(0xA1);
     emitp(value, mode);
     // In 64-bit mode, need to zero extend the operand to 8 bytes.
@@ -1832,11 +1787,11 @@ void Assembler::movp(Register dst, Address value, RelocInfo::Mode rmode) {
   if (constpool_.TryRecordEntry(value, rmode)) {
     // Emit rip-relative move with offset = 0
     Label label;
-    emit_mov(dst, Operand(&label, 0), kPointerSize);
+    emit_mov(dst, Operand(&label, 0), kSystemPointerSize);
     bind(&label);
   } else {
     EnsureSpace ensure_space(this);
-    emit_rex(dst, kPointerSize);
+    emit_rex(dst, kSystemPointerSize);
     emit(0xB8 | dst.low_bits());
     emitp(value, rmode);
   }
@@ -1844,7 +1799,7 @@ void Assembler::movp(Register dst, Address value, RelocInfo::Mode rmode) {
 
 void Assembler::movp_heap_number(Register dst, double value) {
   EnsureSpace ensure_space(this);
-  emit_rex(dst, kPointerSize);
+  emit_rex(dst, kSystemPointerSize);
   emit(0xB8 | dst.low_bits());
   RequestHeapObject(HeapObjectRequest(value));
   emitp(0, RelocInfo::EMBEDDED_OBJECT);
@@ -1852,7 +1807,7 @@ void Assembler::movp_heap_number(Register dst, double value) {
 
 void Assembler::movp_string(Register dst, const StringConstantBase* str) {
   EnsureSpace ensure_space(this);
-  emit_rex(dst, kPointerSize);
+  emit_rex(dst, kSystemPointerSize);
   emit(0xB8 | dst.low_bits());
   RequestHeapObject(HeapObjectRequest(str));
   emitp(0, RelocInfo::EMBEDDED_OBJECT);
@@ -1862,7 +1817,7 @@ void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
   if (constpool_.TryRecordEntry(value, rmode)) {
     // Emit rip-relative move with offset = 0
     Label label;
-    emit_mov(dst, Operand(&label, 0), kPointerSize);
+    emit_mov(dst, Operand(&label, 0), kInt64Size);
     bind(&label);
   } else {
     EnsureSpace ensure_space(this);
@@ -2356,12 +2311,12 @@ void Assembler::emit_xchg(Register dst, Operand src, int size) {
 
 void Assembler::store_rax(Address dst, RelocInfo::Mode mode) {
   EnsureSpace ensure_space(this);
-  if (kPointerSize == kInt64Size) {
+  if (kSystemPointerSize == kInt64Size) {
     emit(0x48);  // REX.W
     emit(0xA3);
     emitp(dst, mode);
   } else {
-    DCHECK_EQ(kPointerSize, kInt32Size);
+    DCHECK_EQ(kSystemPointerSize, kInt32Size);
     emit(0xA3);
     emitp(dst, mode);
     // In 64-bit mode, need to zero extend the operand to 8 bytes.
@@ -4901,7 +4856,27 @@ void Assembler::pshufhw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
   emit(shuffle);
 }
 
+void Assembler::pshufhw(XMMRegister dst, Operand src, uint8_t shuffle) {
+  EnsureSpace ensure_space(this);
+  emit(0xF3);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x70);
+  emit_sse_operand(dst, src);
+  emit(shuffle);
+}
+
 void Assembler::pshuflw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+  EnsureSpace ensure_space(this);
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x70);
+  emit_sse_operand(dst, src);
+  emit(shuffle);
+}
+
+void Assembler::pshuflw(XMMRegister dst, Operand src, uint8_t shuffle) {
   EnsureSpace ensure_space(this);
   emit(0xF2);
   emit_optional_rex_32(dst, src);
@@ -4981,7 +4956,7 @@ void Assembler::dq(Label* label) {
   EnsureSpace ensure_space(this);
   if (label->is_bound()) {
     internal_reference_positions_.push_back(pc_offset());
-    emitp(reinterpret_cast<Address>(buffer_) + label->pos(),
+    emitp(reinterpret_cast<Address>(buffer_start_) + label->pos(),
           RelocInfo::INTERNAL_REFERENCE);
   } else {
     RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
@@ -5003,7 +4978,7 @@ void Assembler::dq(Label* label) {
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (!ShouldRecordRelocInfo(rmode)) return;
-  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code());
   reloc_info_writer.Write(&rinfo);
 }
 
@@ -5020,14 +4995,8 @@ bool RelocInfo::IsCodedSpecially() {
   return (1 << rmode_) & kApplyMask;
 }
 
-
 bool RelocInfo::IsInConstantPool() {
   return false;
-}
-
-int RelocInfo::GetDeoptimizationId(Isolate* isolate, DeoptimizeKind kind) {
-  DCHECK(IsRuntimeEntry(rmode_));
-  return Deoptimizer::GetDeoptimizationId(isolate, target_address(), kind);
 }
 
 }  // namespace internal

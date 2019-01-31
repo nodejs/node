@@ -54,7 +54,7 @@ v8_source_set("unittests_sources") {
     "api/v8-object-unittest.cc",
     "asmjs/asm-scanner-unittest.cc",
     "asmjs/asm-types-unittest.cc",
-    "asmjs/switch-logic-unittest.cc",
+    "background-compile-task-unittest.cc",
     "base/address-region-unittest.cc",
     "base/atomic-utils-unittest.cc",
     "base/bits-unittest.cc",
@@ -83,10 +83,13 @@ v8_source_set("unittests_sources") {
     "char-predicates-unittest.cc",
     "code-stub-assembler-unittest.cc",
     "code-stub-assembler-unittest.h",
-    "compiler-dispatcher/compiler-dispatcher-tracer-unittest.cc",
     "compiler-dispatcher/compiler-dispatcher-unittest.cc",
     "compiler-dispatcher/optimizing-compile-dispatcher-unittest.cc",
-    "compiler-dispatcher/unoptimized-compile-job-unittest.cc",
+    "compiler/backend/instruction-selector-unittest.cc",
+    "compiler/backend/instruction-selector-unittest.h",
+    "compiler/backend/instruction-sequence-unittest.cc",
+    "compiler/backend/instruction-sequence-unittest.h",
+    "compiler/backend/instruction-unittest.cc",
     "compiler/branch-elimination-unittest.cc",
     "compiler/bytecode-analysis-unittest.cc",
     "compiler/checkpoint-elimination-unittest.cc",
@@ -106,11 +109,6 @@ v8_source_set("unittests_sources") {
     "compiler/graph-trimmer-unittest.cc",
     "compiler/graph-unittest.cc",
     "compiler/graph-unittest.h",
-    "compiler/instruction-selector-unittest.cc",
-    "compiler/instruction-selector-unittest.h",
-    "compiler/instruction-sequence-unittest.cc",
-    "compiler/instruction-sequence-unittest.h",
-    "compiler/instruction-unittest.cc",
     "compiler/int64-lowering-unittest.cc",
     "compiler/js-call-reducer-unittest.cc",
     "compiler/js-create-lowering-unittest.cc",
@@ -119,7 +117,6 @@ v8_source_set("unittests_sources") {
     "compiler/js-operator-unittest.cc",
     "compiler/js-typed-lowering-unittest.cc",
     "compiler/linkage-tail-call-unittest.cc",
-    "compiler/live-range-builder.h",
     "compiler/load-elimination-unittest.cc",
     "compiler/loop-peeling-unittest.cc",
     "compiler/machine-operator-reducer-unittest.cc",
@@ -147,6 +144,7 @@ v8_source_set("unittests_sources") {
     "compiler/typer-unittest.cc",
     "compiler/value-numbering-reducer-unittest.cc",
     "compiler/zone-stats-unittest.cc",
+    "conversions-unittest.cc",
     "counters-unittest.cc",
     "detachable-vector-unittest.cc",
     "eh-frame-iterator-unittest.cc",
@@ -186,8 +184,8 @@ v8_source_set("unittests_sources") {
     "libplatform/task-queue-unittest.cc",
     "libplatform/worker-thread-unittest.cc",
     "locked-queue-unittest.cc",
+    "microtask-queue-unittest.cc",
     "object-unittest.cc",
-    "objects/microtask-queue-unittest.cc",
     "parser/ast-value-unittest.cc",
     "parser/preparser-unittest.cc",
     "register-configuration-unittest.cc",
@@ -199,6 +197,7 @@ v8_source_set("unittests_sources") {
     "test-utils.cc",
     "test-utils.h",
     "torque/earley-parser-unittest.cc",
+    "torque/torque-unittest.cc",
     "unicode-unittest.cc",
     "utils-unittest.cc",
     "value-serializer-unittest.cc",
@@ -209,8 +208,8 @@ v8_source_set("unittests_sources") {
     "wasm/loop-assignment-analysis-unittest.cc",
     "wasm/module-decoder-unittest.cc",
     "wasm/streaming-decoder-unittest.cc",
-    "wasm/trap-handler-unittest.cc",
     "wasm/wasm-code-manager-unittest.cc",
+    "wasm/wasm-compiler-unittest.cc",
     "wasm/wasm-macro-gen-unittest.cc",
     "wasm/wasm-module-builder-unittest.cc",
     "wasm/wasm-opcodes-unittest.cc",
@@ -258,6 +257,7 @@ v8_source_set("unittests_sources") {
     sources += [
       "assembler/turbo-assembler-x64-unittest.cc",
       "compiler/x64/instruction-selector-x64-unittest.cc",
+      "wasm/trap-handler-x64-unittest.cc",
     ]
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
     sources += [
@@ -269,6 +269,14 @@ v8_source_set("unittests_sources") {
       "assembler/turbo-assembler-s390-unittest.cc",
       "compiler/s390/instruction-selector-s390-unittest.cc",
     ]
+  }
+
+  if (is_posix) {
+    sources += [ "wasm/trap-handler-posix-unittest.cc" ]
+  }
+
+  if (is_win) {
+    sources += [ "wasm/trap-handler-win-unittest.cc" ]
   }
 
   configs = [

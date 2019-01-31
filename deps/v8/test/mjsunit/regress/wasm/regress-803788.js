@@ -12,7 +12,7 @@ let q_table = builder.addImportedTable("q", "table")
 let q_base = builder.addImportedGlobal("q", "base", kWasmI32);
 let q_fun = builder.addImport("q", "fun", kSig_v_v);
 builder.addType(kSig_i_ii);
-builder.addFunctionTableInit(q_base, true, [ q_fun ])
+builder.addElementSegment(q_base, true, [ q_fun ])
 let module = new WebAssembly.Module(builder.toBuffer());
 let table = new WebAssembly.Table({
   element: "anyfunc",

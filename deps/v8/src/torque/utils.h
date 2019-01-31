@@ -42,7 +42,7 @@ void NamingConventionError(const std::string& type, const std::string& name,
 bool IsLowerCamelCase(const std::string& s);
 bool IsUpperCamelCase(const std::string& s);
 bool IsSnakeCase(const std::string& s);
-bool IsValidModuleConstName(const std::string& s);
+bool IsValidNamespaceConstName(const std::string& s);
 bool IsValidTypeName(const std::string& s);
 
 [[noreturn]] void ReportErrorString(const std::string& error);
@@ -53,6 +53,7 @@ template <class... Args>
   ReportErrorString(s.str());
 }
 
+std::string CapifyStringWithUnderscores(const std::string& camellified_string);
 std::string CamelifyString(const std::string& underscore_string);
 std::string DashifyString(const std::string& underscore_string);
 
@@ -167,6 +168,10 @@ class StackRange {
   BottomOffset end_;
 };
 
+inline std::ostream& operator<<(std::ostream& out, StackRange range) {
+  return out << "StackRange{" << range.begin() << ", " << range.end() << "}";
+}
+
 template <class T>
 class Stack {
  public:
@@ -214,9 +219,9 @@ class Stack {
   // Delete the slots in {range}, moving higher slots to fill the gap.
   void DeleteRange(StackRange range) {
     DCHECK_LE(range.end(), AboveTop());
-    for (BottomOffset i = range.begin();
-         i < std::min(range.end(), AboveTop() - range.Size()); ++i) {
-      elements_[i.offset] = std::move(elements_[i.offset + range.Size()]);
+    if (range.Size() == 0) return;
+    for (BottomOffset i = range.end(); i < AboveTop(); ++i) {
+      elements_[i.offset - range.Size()] = std::move(elements_[i.offset]);
     }
     elements_.resize(elements_.size() - range.Size());
   }
@@ -243,6 +248,13 @@ T* CheckNotNull(T* x) {
   return x;
 }
 
+template <class T>
+inline std::ostream& operator<<(std::ostream& os, Stack<T>& t) {
+  os << "Stack{";
+  PrintCommaSeparatedList(os, t);
+  os << "}";
+  return os;
+}
 class ToString {
  public:
   template <class T>
@@ -255,6 +267,27 @@ class ToString {
  private:
   std::stringstream s_;
 };
+
+constexpr int kTaggedSize = sizeof(void*);
+
+static const char* const kConstructMethodName = "constructor";
+static const char* const kSuperMethodName = "super";
+static const char* const kConstructorStructSuperFieldName = "_super";
+static const char* const kClassConstructorThisStructPrefix = "_ThisStruct";
+
+// Erase elements of a container that has a constant-time erase function, like
+// std::set or std::list. Calling this on std::vector would have quadratic
+// complexity.
+template <class Container, class F>
+void EraseIf(Container* container, F f) {
+  for (auto it = container->begin(); it != container->end();) {
+    if (f(*it)) {
+      it = container->erase(it);
+    } else {
+      ++it;
+    }
+  }
+}
 
 }  // namespace torque
 }  // namespace internal

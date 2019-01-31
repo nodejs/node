@@ -23,108 +23,72 @@
 namespace v8 {
 namespace internal {
 
-JSSegmenter::LineBreakStyle JSSegmenter::GetLineBreakStyle(const char* str) {
-  if (strcmp(str, "strict") == 0) return JSSegmenter::LineBreakStyle::STRICT;
-  if (strcmp(str, "normal") == 0) return JSSegmenter::LineBreakStyle::NORMAL;
-  if (strcmp(str, "loose") == 0) return JSSegmenter::LineBreakStyle::LOOSE;
-  UNREACHABLE();
-}
-
 JSSegmenter::Granularity JSSegmenter::GetGranularity(const char* str) {
   if (strcmp(str, "grapheme") == 0) return JSSegmenter::Granularity::GRAPHEME;
   if (strcmp(str, "word") == 0) return JSSegmenter::Granularity::WORD;
   if (strcmp(str, "sentence") == 0) return JSSegmenter::Granularity::SENTENCE;
-  if (strcmp(str, "line") == 0) return JSSegmenter::Granularity::LINE;
   UNREACHABLE();
 }
 
 MaybeHandle<JSSegmenter> JSSegmenter::Initialize(
     Isolate* isolate, Handle<JSSegmenter> segmenter_holder,
-    Handle<Object> input_locales, Handle<Object> input_options) {
-  Factory* factory = isolate->factory();
+    Handle<Object> locales, Handle<Object> input_options) {
   segmenter_holder->set_flags(0);
+
   // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
-  Handle<JSObject> requested_locales;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, requested_locales,
-      Intl::CanonicalizeLocaleListJS(isolate, input_locales), JSSegmenter);
+  Maybe<std::vector<std::string>> maybe_requested_locales =
+      Intl::CanonicalizeLocaleList(isolate, locales);
+  MAYBE_RETURN(maybe_requested_locales, Handle<JSSegmenter>());
+  std::vector<std::string> requested_locales =
+      maybe_requested_locales.FromJust();
 
   // 11. If options is undefined, then
   Handle<JSReceiver> options;
   if (input_options->IsUndefined(isolate)) {
-    // a. Let options be ObjectCreate(null).
+    // 11. a. Let options be ObjectCreate(null).
     options = isolate->factory()->NewJSObjectWithNullProto();
     // 12. Else
   } else {
-    // a. Let options be ? ToObject(options).
+    // 23. a. Let options be ? ToObject(options).
     ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
                                Object::ToObject(isolate, input_options),
                                JSSegmenter);
   }
 
-  // 8. Set opt.[[lb]] to lineBreakStyle.
+  // 4. Let opt be a new Record.
+  // 5. Let matcher be ? GetOption(options, "localeMatcher", "string",
+  // « "lookup", "best fit" », "best fit").
+  // 6. Set opt.[[localeMatcher]] to matcher.
+  Maybe<Intl::MatcherOption> maybe_locale_matcher =
+      Intl::GetLocaleMatcher(isolate, options, "Intl.Segmenter");
+  MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSSegmenter>());
+  Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
-  // Because currently we access localeMatcher inside ResolveLocale, we have to
-  // move ResolveLocale before get lineBreakStyle
   // 9. Let r be ResolveLocale(%Segmenter%.[[AvailableLocales]],
   // requestedLocales, opt, %Segmenter%.[[RelevantExtensionKeys]]).
-  Handle<JSObject> r;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, r,
-      Intl::ResolveLocale(isolate, "segmenter", requested_locales, options),
-      JSSegmenter);
-  Handle<Object> locale_obj =
-      JSObject::GetDataProperty(r, factory->locale_string());
-  Handle<String> locale;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, locale, Object::ToString(isolate, locale_obj), JSSegmenter);
-
-  // 7. Let lineBreakStyle be ? GetOption(options, "lineBreakStyle", "string", «
-  // "strict", "normal", "loose" », "normal").
-  std::unique_ptr<char[]> line_break_style_str = nullptr;
-  const std::vector<const char*> line_break_style_values = {"strict", "normal",
-                                                            "loose"};
-  Maybe<bool> maybe_found_line_break_style = Intl::GetStringOption(
-      isolate, options, "lineBreakStyle", line_break_style_values,
-      "Intl.Segmenter", &line_break_style_str);
-  LineBreakStyle line_break_style_enum = LineBreakStyle::NORMAL;
-  MAYBE_RETURN(maybe_found_line_break_style, MaybeHandle<JSSegmenter>());
-  if (maybe_found_line_break_style.FromJust()) {
-    DCHECK_NOT_NULL(line_break_style_str.get());
-    line_break_style_enum = GetLineBreakStyle(line_break_style_str.get());
-  }
+  Intl::ResolvedLocale r =
+      Intl::ResolveLocale(isolate, JSSegmenter::GetAvailableLocales(),
+                          requested_locales, matcher, {});
 
   // 10. Set segmenter.[[Locale]] to the value of r.[[Locale]].
-  segmenter_holder->set_locale(*locale);
+  Handle<String> locale_str =
+      isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
+  segmenter_holder->set_locale(*locale_str);
 
   // 13. Let granularity be ? GetOption(options, "granularity", "string", «
-  // "grapheme", "word", "sentence", "line" », "grapheme").
-
-  std::unique_ptr<char[]> granularity_str = nullptr;
-  const std::vector<const char*> granularity_values = {"grapheme", "word",
-                                                       "sentence", "line"};
-  Maybe<bool> maybe_found_granularity =
-      Intl::GetStringOption(isolate, options, "granularity", granularity_values,
-                            "Intl.Segmenter", &granularity_str);
-  Granularity granularity_enum = Granularity::GRAPHEME;
-  MAYBE_RETURN(maybe_found_granularity, MaybeHandle<JSSegmenter>());
-  if (maybe_found_granularity.FromJust()) {
-    DCHECK_NOT_NULL(granularity_str.get());
-    granularity_enum = GetGranularity(granularity_str.get());
-  }
+  // "grapheme", "word", "sentence" », "grapheme").
+  Maybe<Granularity> maybe_granularity = Intl::GetStringOption<Granularity>(
+      isolate, options, "granularity", "Intl.Segmenter",
+      {"grapheme", "word", "sentence"},
+      {Granularity::GRAPHEME, Granularity::WORD, Granularity::SENTENCE},
+      Granularity::GRAPHEME);
+  MAYBE_RETURN(maybe_granularity, MaybeHandle<JSSegmenter>());
+  Granularity granularity_enum = maybe_granularity.FromJust();
 
   // 14. Set segmenter.[[SegmenterGranularity]] to granularity.
   segmenter_holder->set_granularity(granularity_enum);
 
-  // 15. If granularity is "line",
-  if (granularity_enum == Granularity::LINE) {
-    // a. Set segmenter.[[SegmenterLineBreakStyle]] to r.[[lb]].
-    segmenter_holder->set_line_break_style(line_break_style_enum);
-  } else {
-    segmenter_holder->set_line_break_style(LineBreakStyle::NOTSET);
-  }
-
-  icu::Locale icu_locale = Intl::CreateICULocale(isolate, locale);
+  icu::Locale icu_locale = r.icu_locale;
   DCHECK(!icu_locale.isBogus());
 
   UErrorCode status = U_ZERO_ERROR;
@@ -143,13 +107,6 @@ MaybeHandle<JSSegmenter> JSSegmenter::Initialize(
       icu_break_iterator.reset(
           icu::BreakIterator::createSentenceInstance(icu_locale, status));
       break;
-    case Granularity::LINE:
-      icu_break_iterator.reset(
-          icu::BreakIterator::createLineInstance(icu_locale, status));
-      // 15. If granularity is "line",
-      // a. Set segmenter.[[SegmenterLineBreakStyle]] to r.[[lb]].
-      // TBW
-      break;
     case Granularity::COUNT:
       UNREACHABLE();
   }
@@ -165,34 +122,31 @@ MaybeHandle<JSSegmenter> JSSegmenter::Initialize(
   return segmenter_holder;
 }
 
+// ecma402 #sec-Intl.Segmenter.prototype.resolvedOptions
 Handle<JSObject> JSSegmenter::ResolvedOptions(
     Isolate* isolate, Handle<JSSegmenter> segmenter_holder) {
   Factory* factory = isolate->factory();
+  // 3. Let options be ! ObjectCreate(%ObjectPrototype%).
   Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
+  // 4. For each row of Table 1, except the header row, do
+  // a. Let p be the Property value of the current row.
+  // b. Let v be the value of pr's internal slot whose name is the Internal Slot
+  //    value of the current row.
+  //
+  // c. If v is not undefined, then
+  //  i. Perform ! CreateDataPropertyOrThrow(options, p, v).
+  //    Table 1: Resolved Options of Segmenter Instances
+  //     Internal Slot                 Property
+  //     [[Locale]]                    "locale"
+  //     [[SegmenterGranularity]]      "granularity"
+
   Handle<String> locale(segmenter_holder->locale(), isolate);
   JSObject::AddProperty(isolate, result, factory->locale_string(), locale,
                         NONE);
-  if (segmenter_holder->line_break_style() != LineBreakStyle::NOTSET) {
-    JSObject::AddProperty(isolate, result, factory->lineBreakStyle_string(),
-                          segmenter_holder->LineBreakStyleAsString(), NONE);
-  }
   JSObject::AddProperty(isolate, result, factory->granularity_string(),
                         segmenter_holder->GranularityAsString(), NONE);
+  // 5. Return options.
   return result;
-}
-
-Handle<String> JSSegmenter::LineBreakStyleAsString() const {
-  switch (line_break_style()) {
-    case LineBreakStyle::STRICT:
-      return GetReadOnlyRoots().strict_string_handle();
-    case LineBreakStyle::NORMAL:
-      return GetReadOnlyRoots().normal_string_handle();
-    case LineBreakStyle::LOOSE:
-      return GetReadOnlyRoots().loose_string_handle();
-    case LineBreakStyle::COUNT:
-    case LineBreakStyle::NOTSET:
-      UNREACHABLE();
-  }
 }
 
 Handle<String> JSSegmenter::GranularityAsString() const {
@@ -203,11 +157,16 @@ Handle<String> JSSegmenter::GranularityAsString() const {
       return GetReadOnlyRoots().word_string_handle();
     case Granularity::SENTENCE:
       return GetReadOnlyRoots().sentence_string_handle();
-    case Granularity::LINE:
-      return GetReadOnlyRoots().line_string_handle();
     case Granularity::COUNT:
       UNREACHABLE();
   }
+}
+
+std::set<std::string> JSSegmenter::GetAvailableLocales() {
+  int32_t num_locales = 0;
+  const icu::Locale* icu_available_locales =
+      icu::BreakIterator::getAvailableLocales(num_locales);
+  return Intl::BuildLocaleSet(icu_available_locales, num_locales);
 }
 
 }  // namespace internal

@@ -32,11 +32,10 @@ Decision DecideObjectIsSmi(Node* const input) {
 
 }  // namespace
 
-SimplifiedOperatorReducer::SimplifiedOperatorReducer(
-    Editor* editor, JSGraph* jsgraph, JSHeapBroker* js_heap_broker)
-    : AdvancedReducer(editor),
-      jsgraph_(jsgraph),
-      js_heap_broker_(js_heap_broker) {}
+SimplifiedOperatorReducer::SimplifiedOperatorReducer(Editor* editor,
+                                                     JSGraph* jsgraph,
+                                                     JSHeapBroker* broker)
+    : AdvancedReducer(editor), jsgraph_(jsgraph), broker_(broker) {}
 
 SimplifiedOperatorReducer::~SimplifiedOperatorReducer() = default;
 
@@ -62,7 +61,7 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kChangeTaggedToBit: {
       HeapObjectMatcher m(node->InputAt(0));
       if (m.HasValue()) {
-        return ReplaceInt32(m.Ref(js_heap_broker()).BooleanValue());
+        return ReplaceInt32(m.Ref(broker()).BooleanValue());
       }
       if (m.IsChangeBitToTagged()) return Replace(m.InputAt(0));
       break;
@@ -259,14 +258,10 @@ Reduction SimplifiedOperatorReducer::ReplaceNumber(int32_t value) {
 }
 
 Factory* SimplifiedOperatorReducer::factory() const {
-  return isolate()->factory();
+  return jsgraph()->isolate()->factory();
 }
 
 Graph* SimplifiedOperatorReducer::graph() const { return jsgraph()->graph(); }
-
-Isolate* SimplifiedOperatorReducer::isolate() const {
-  return jsgraph()->isolate();
-}
 
 MachineOperatorBuilder* SimplifiedOperatorReducer::machine() const {
   return jsgraph()->machine();

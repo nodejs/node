@@ -45,6 +45,12 @@ function IcProcessor() {
           processor: this.processCodeDelete },
       'sfi-move': { parsers: [parseInt, parseInt],
           processor: this.processFunctionMove },
+      'LoadGlobalIC': {
+        parsers : propertyICParser,
+        processor: this.processPropertyIC.bind(this, "LoadGlobalIC") },
+      'StoreGlobalIC': {
+        parsers : propertyICParser,
+        processor: this.processPropertyIC.bind(this, "StoreGlobalIC") },
       'LoadIC': {
         parsers : propertyICParser,
         processor: this.processPropertyIC.bind(this, "LoadIC") },
@@ -63,6 +69,8 @@ function IcProcessor() {
       });
   this.profile_ = new Profile();
 
+  this.LoadGlobalIC = 0;
+  this.StoreGlobalIC = 0;
   this.LoadIC = 0;
   this.StoreIC = 0;
   this.KeyedLoadIC = 0;
@@ -104,6 +112,8 @@ IcProcessor.prototype.processLogFile = function(fileName) {
   }
   print();
   print("=====================");
+  print("LoadGlobal: " + this.LoadGlobalIC);
+  print("StoreGlobal: " + this.StoreGlobalIC);
   print("Load: " + this.LoadIC);
   print("Store: " + this.StoreIC);
   print("KeyedLoad: " + this.KeyedLoadIC);

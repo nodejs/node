@@ -63,7 +63,7 @@ class KeyAccumulator final {
   static Handle<FixedArray> GetOwnEnumPropertyKeys(Isolate* isolate,
                                                    Handle<JSObject> object);
 
-  void AddKey(Object* key, AddKeyConversion convert = DO_NOT_CONVERT);
+  void AddKey(Object key, AddKeyConversion convert = DO_NOT_CONVERT);
   void AddKey(Handle<Object> key, AddKeyConversion convert = DO_NOT_CONVERT);
   void AddKeys(Handle<FixedArray> array, AddKeyConversion convert);
   void AddKeys(Handle<JSObject> array_like, AddKeyConversion convert);
@@ -89,7 +89,7 @@ class KeyAccumulator final {
   }
   // Shadowing keys are used to filter keys. This happens when non-enumerable
   // keys appear again on the prototype chain.
-  void AddShadowingKey(Object* key);
+  void AddShadowingKey(Object key);
   void AddShadowingKey(Handle<Object> key);
 
  private:

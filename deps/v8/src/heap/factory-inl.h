@@ -11,15 +11,16 @@
 // Do not include anything from src/heap here!
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
+#include "src/objects/heap-number-inl.h"
+#include "src/objects/oddball.h"
 #include "src/string-hasher.h"
 
 namespace v8 {
 namespace internal {
 
-#define ROOT_ACCESSOR(type, name, CamelName)                   \
-  Handle<type> Factory::name() {                               \
-    return Handle<type>(bit_cast<type**>(                      \
-        &isolate()->heap()->roots_[RootIndex::k##CamelName])); \
+#define ROOT_ACCESSOR(Type, name, CamelName)                                 \
+  Handle<Type> Factory::name() {                                             \
+    return Handle<Type>(&isolate()->roots_table()[RootIndex::k##CamelName]); \
   }
 ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR

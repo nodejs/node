@@ -4,6 +4,7 @@
 
 #include "src/heap/code-stats.h"
 
+#include "src/code-comments.h"
 #include "src/objects-inl.h"
 #include "src/reloc-info.h"
 
@@ -11,21 +12,21 @@ namespace v8 {
 namespace internal {
 
 // Record code statisitcs.
-void CodeStatistics::RecordCodeAndMetadataStatistics(HeapObject* object,
+void CodeStatistics::RecordCodeAndMetadataStatistics(HeapObject object,
                                                      Isolate* isolate) {
   if (object->IsScript()) {
-    Script* script = Script::cast(object);
+    Script script = Script::cast(object);
     // Log the size of external source code.
-    Object* source = script->source();
+    Object source = script->source();
     if (source->IsExternalString()) {
-      ExternalString* external_source_string = ExternalString::cast(source);
+      ExternalString external_source_string = ExternalString::cast(source);
       int size = isolate->external_script_source_size();
       size += external_source_string->ExternalPayloadSize();
       isolate->set_external_script_source_size(size);
     }
   } else if (object->IsAbstractCode()) {
     // Record code+metadata statisitcs.
-    AbstractCode* abstract_code = AbstractCode::cast(object);
+    AbstractCode abstract_code = AbstractCode::cast(object);
     int size = abstract_code->SizeIncludingMetadata();
     if (abstract_code->IsCode()) {
       size += isolate->code_and_metadata_size();
@@ -60,7 +61,7 @@ void CodeStatistics::ResetCodeAndMetadataStatistics(Isolate* isolate) {
 void CodeStatistics::CollectCodeStatistics(PagedSpace* space,
                                            Isolate* isolate) {
   HeapObjectIterator obj_it(space);
-  for (HeapObject* obj = obj_it.Next(); obj != nullptr; obj = obj_it.Next()) {
+  for (HeapObject obj = obj_it.Next(); !obj.is_null(); obj = obj_it.Next()) {
     RecordCodeAndMetadataStatistics(obj, isolate);
   }
 }
@@ -72,7 +73,7 @@ void CodeStatistics::CollectCodeStatistics(PagedSpace* space,
 void CodeStatistics::CollectCodeStatistics(LargeObjectSpace* space,
                                            Isolate* isolate) {
   LargeObjectIterator obj_it(space);
-  for (HeapObject* obj = obj_it.Next(); obj != nullptr; obj = obj_it.Next()) {
+  for (HeapObject obj = obj_it.Next(); !obj.is_null(); obj = obj_it.Next()) {
     RecordCodeAndMetadataStatistics(obj, isolate);
   }
 }
@@ -164,42 +165,34 @@ void CodeStatistics::EnterComment(Isolate* isolate, const char* comment,
 // Call for each nested comment start (start marked with '[ xxx', end marked
 // with ']'.  RelocIterator 'it' must point to a comment reloc info.
 void CodeStatistics::CollectCommentStatistics(Isolate* isolate,
-                                              RelocIterator* it) {
-  DCHECK(!it->done());
-  DCHECK(it->rinfo()->rmode() == RelocInfo::COMMENT);
-  const char* tmp = reinterpret_cast<const char*>(it->rinfo()->data());
-  if (tmp[0] != '[') {
+                                              CodeCommentsIterator* cit) {
+  DCHECK(cit->HasCurrent());
+  const char* comment_txt = cit->GetComment();
+  if (comment_txt[0] != '[') {
     // Not a nested comment; skip
     return;
   }
 
   // Search for end of nested comment or a new nested comment
-  const char* const comment_txt =
-      reinterpret_cast<const char*>(it->rinfo()->data());
-  Address prev_pc = it->rinfo()->pc();
+  int prev_pc_offset = cit->GetPCOffset();
   int flat_delta = 0;
-  it->next();
-  while (true) {
+  cit->Next();
+  for (; cit->HasCurrent(); cit->Next()) {
     // All nested comments must be terminated properly, and therefore exit
     // from loop.
-    DCHECK(!it->done());
-    if (it->rinfo()->rmode() == RelocInfo::COMMENT) {
-      const char* const txt =
-          reinterpret_cast<const char*>(it->rinfo()->data());
-      flat_delta += static_cast<int>(it->rinfo()->pc() - prev_pc);
-      if (txt[0] == ']') break;  // End of nested  comment
-      // A new comment
-      CollectCommentStatistics(isolate, it);
-      // Skip code that was covered with previous comment
-      prev_pc = it->rinfo()->pc();
-    }
-    it->next();
+    const char* const txt = cit->GetComment();
+    flat_delta += cit->GetPCOffset() - prev_pc_offset;
+    if (txt[0] == ']') break;  // End of nested  comment
+    // A new comment
+    CollectCommentStatistics(isolate, cit);
+    // Skip code that was covered with previous comment
+    prev_pc_offset = cit->GetPCOffset();
   }
   EnterComment(isolate, comment_txt, flat_delta);
 }
 
 // Collects code comment statistics
-void CodeStatistics::CollectCodeCommentStatistics(HeapObject* obj,
+void CodeStatistics::CollectCodeCommentStatistics(HeapObject obj,
                                                   Isolate* isolate) {
   // Bytecode objects do not contain RelocInfo. Only process code objects
   // for code comment statistics.
@@ -207,22 +200,19 @@ void CodeStatistics::CollectCodeCommentStatistics(HeapObject* obj,
     return;
   }
 
-  Code* code = Code::cast(obj);
-  RelocIterator it(code);
+  Code code = Code::cast(obj);
+  CodeCommentsIterator cit(code->code_comments());
   int delta = 0;
-  Address prev_pc = code->raw_instruction_start();
-  while (!it.done()) {
-    if (it.rinfo()->rmode() == RelocInfo::COMMENT) {
-      delta += static_cast<int>(it.rinfo()->pc() - prev_pc);
-      CollectCommentStatistics(isolate, &it);
-      prev_pc = it.rinfo()->pc();
-    }
-    it.next();
+  int prev_pc_offset = 0;
+  while (cit.HasCurrent()) {
+    delta += static_cast<int>(cit.GetPCOffset() - prev_pc_offset);
+    CollectCommentStatistics(isolate, &cit);
+    prev_pc_offset = cit.GetPCOffset();
+    cit.Next();
   }
 
-  DCHECK(code->raw_instruction_start() <= prev_pc &&
-         prev_pc <= code->raw_instruction_end());
-  delta += static_cast<int>(code->raw_instruction_end() - prev_pc);
+  DCHECK(0 <= prev_pc_offset && prev_pc_offset <= code->raw_instruction_size());
+  delta += static_cast<int>(code->raw_instruction_size() - prev_pc_offset);
   EnterComment(isolate, "NoComment", delta);
 }
 #endif

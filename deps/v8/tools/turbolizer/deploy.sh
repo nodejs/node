@@ -7,12 +7,18 @@ if [ ! -d "$DEST" ]; then
   exit 1
 fi
 
-echo "Deploying..."
+function copy() {
+  echo -n "."
+  cp "$@"
+}
 
-cp *.jpg $DEST/
-cp *.png $DEST/
-cp *.css $DEST/
-cp index.html $DEST/
-cp -R build $DEST/
+echo -n "Deploying..."
+copy *.jpg $DEST/
+copy *.png $DEST/
+copy *.css $DEST/
+copy index.html $DEST/
+copy info-view.html $DEST/
+copy -R build $DEST/
+echo "done!"
 
 echo "Deployed to $DEST/."

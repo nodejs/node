@@ -240,7 +240,7 @@ static void FillFractionals(uint64_t fractionals, int exponent,
       fractionals -= static_cast<uint64_t>(digit) << point;
     }
     // If the first bit after the point is set we have to round up.
-    if (((fractionals >> (point - 1)) & 1) == 1) {
+    if (point > 0 && ((fractionals >> (point - 1)) & 1) == 1) {
       DtoaRoundUp(buffer, length, decimal_point);
     }
   } else {  // We need 128 bits.

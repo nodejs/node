@@ -4,6 +4,7 @@
 
 #include "src/code-reference.h"
 
+#include "src/globals.h"
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
 #include "src/wasm/wasm-code-manager.h"
@@ -11,43 +12,91 @@
 namespace v8 {
 namespace internal {
 
-Address CodeReference::constant_pool() const {
-  return kind_ == JS ? js_code_->constant_pool() : wasm_code_->constant_pool();
-}
+namespace {
+struct JSOps {
+  Handle<Code> code;
 
-Address CodeReference::instruction_start() const {
-  return kind_ == JS
-             ? js_code_->InstructionStart()
-             : reinterpret_cast<Address>(wasm_code_->instructions().start());
-}
+  Address constant_pool() const { return code->constant_pool(); }
+  Address instruction_start() const { return code->InstructionStart(); }
+  Address instruction_end() const { return code->InstructionEnd(); }
+  int instruction_size() const { return code->InstructionSize(); }
+  const byte* relocation_start() const { return code->relocation_start(); }
+  const byte* relocation_end() const { return code->relocation_end(); }
+  int relocation_size() const { return code->relocation_size(); }
+  Address code_comments() const { return code->code_comments(); }
+};
 
-Address CodeReference::instruction_end() const {
-  return kind_ == JS
-             ? js_code_->InstructionEnd()
-             : reinterpret_cast<Address>(wasm_code_->instructions().start() +
-                                         wasm_code_->instructions().size());
-}
+struct WasmOps {
+  const wasm::WasmCode* code;
 
-int CodeReference::instruction_size() const {
-  return kind_ == JS ? js_code_->InstructionSize()
-                     : wasm_code_->instructions().length();
-}
+  Address constant_pool() const { return code->constant_pool(); }
+  Address instruction_start() const {
+    return reinterpret_cast<Address>(code->instructions().start());
+  }
+  Address instruction_end() const {
+    return reinterpret_cast<Address>(code->instructions().start() +
+                                     code->instructions().size());
+  }
+  int instruction_size() const { return code->instructions().length(); }
+  const byte* relocation_start() const { return code->reloc_info().start(); }
+  const byte* relocation_end() const {
+    return code->reloc_info().start() + code->reloc_info().length();
+  }
+  int relocation_size() const { return code->reloc_info().length(); }
+  Address code_comments() const { return code->code_comments(); }
+};
 
-const byte* CodeReference::relocation_start() const {
-  return kind_ == JS ? js_code_->relocation_start()
-                     : wasm_code_->reloc_info().start();
-}
+struct CodeDescOps {
+  const CodeDesc* code_desc;
 
-const byte* CodeReference::relocation_end() const {
-  return kind_ == JS ? js_code_->relocation_end()
-                     : wasm_code_->reloc_info().start() +
-                           wasm_code_->reloc_info().length();
-}
+  Address constant_pool() const {
+    return instruction_start() + code_desc->constant_pool_offset();
+  }
+  Address instruction_start() const {
+    return reinterpret_cast<Address>(code_desc->buffer);
+  }
+  Address instruction_end() const {
+    return instruction_start() + code_desc->instr_size;
+  }
+  int instruction_size() const { return code_desc->instr_size; }
+  const byte* relocation_start() const {
+    return code_desc->buffer + code_desc->buffer_size - code_desc->reloc_size;
+  }
+  const byte* relocation_end() const {
+    return code_desc->buffer + code_desc->buffer_size;
+  }
+  int relocation_size() const { return code_desc->reloc_size; }
+  Address code_comments() const {
+    return instruction_start() + code_desc->code_comments_size;
+  }
+};
+}  // namespace
 
-int CodeReference::relocation_size() const {
-  return kind_ == JS ? js_code_->relocation_size()
-                     : wasm_code_->reloc_info().length();
-}
+#define DISPATCH(ret, method)                    \
+  ret CodeReference::method() const {            \
+    DCHECK(!is_null());                          \
+    switch (kind_) {                             \
+      case JS:                                   \
+        return JSOps{js_code_}.method();         \
+      case WASM:                                 \
+        return WasmOps{wasm_code_}.method();     \
+      case CODE_DESC:                            \
+        return CodeDescOps{code_desc_}.method(); \
+      default:                                   \
+        UNREACHABLE();                           \
+    }                                            \
+  }
+
+DISPATCH(Address, constant_pool);
+DISPATCH(Address, instruction_start);
+DISPATCH(Address, instruction_end);
+DISPATCH(int, instruction_size);
+DISPATCH(const byte*, relocation_start);
+DISPATCH(const byte*, relocation_end);
+DISPATCH(int, relocation_size);
+DISPATCH(Address, code_comments);
+
+#undef DISPATCH
 
 }  // namespace internal
 }  // namespace v8

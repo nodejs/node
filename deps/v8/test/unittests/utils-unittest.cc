@@ -132,5 +132,73 @@ TYPED_TEST(UtilsTest, PassesFilterTest) {
   EXPECT_FALSE(PassesFilter(CStrVector(""), CStrVector("a")));
 }
 
+TEST(UtilsTest, IsInBounds) {
+// for column consistency and terseness
+#define INB(x, y, z) EXPECT_TRUE(IsInBounds(x, y, z))
+#define OOB(x, y, z) EXPECT_FALSE(IsInBounds(x, y, z))
+  INB(0, 0, 1);
+  INB(0, 1, 1);
+  INB(1, 0, 1);
+
+  OOB(0, 2, 1);
+  OOB(2, 0, 1);
+
+  INB(0, 0, 2);
+  INB(0, 1, 2);
+  INB(0, 2, 2);
+
+  INB(0, 0, 2);
+  INB(1, 0, 2);
+  INB(2, 0, 2);
+
+  OOB(0, 3, 2);
+  OOB(3, 0, 2);
+
+  INB(0, 1, 2);
+  INB(1, 1, 2);
+
+  OOB(1, 2, 2);
+  OOB(2, 1, 2);
+
+  const size_t max = std::numeric_limits<size_t>::max();
+  const size_t half = max / 2;
+
+  // limit cases.
+  INB(0, 0, max);
+  INB(0, 1, max);
+  INB(1, 0, max);
+  INB(max, 0, max);
+  INB(0, max, max);
+  INB(max - 1, 0, max);
+  INB(0, max - 1, max);
+  INB(max - 1, 1, max);
+  INB(1, max - 1, max);
+
+  INB(half, half, max);
+  INB(half + 1, half, max);
+  INB(half, half + 1, max);
+
+  OOB(max, 0, 0);
+  OOB(0, max, 0);
+  OOB(max, 0, 1);
+  OOB(0, max, 1);
+  OOB(max, 0, 2);
+  OOB(0, max, 2);
+
+  OOB(max, 0, max - 1);
+  OOB(0, max, max - 1);
+
+  // wraparound cases.
+  OOB(max, 1, max);
+  OOB(1, max, max);
+  OOB(max - 1, 2, max);
+  OOB(2, max - 1, max);
+  OOB(half + 1, half + 1, max);
+  OOB(half + 1, half + 1, max);
+
+#undef INB
+#undef OOB
+}
+
 }  // namespace internal
 }  // namespace v8

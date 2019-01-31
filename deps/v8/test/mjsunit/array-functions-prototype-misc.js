@@ -170,20 +170,6 @@ for (var use_real_arrays = 0; use_real_arrays <= 1; use_real_arrays++) {
       assertEquals("concat", join);
       join = ba.join('');
       assertEquals("catcon", join);
-
-      var sparse = [];
-      sparse[pos + 1000] = 'is ';
-      sparse[pos + 271828] = 'time ';
-      sparse[pos + 31415] = 'the ';
-      sparse[pos + 012260199] = 'all ';
-      sparse[-1] = 'foo';
-      sparse[pos + 22591927] = 'good ';
-      sparse[pos + 1618033] = 'for ';
-      sparse[pos + 91] = ': Now ';
-      sparse[pos + 86720199] = 'men.';
-      sparse.hest = 'fisk';
-
-      assertEquals("baz: Now is the time for all good men.", sparse.join(''));
     }
 
     a = new_function(pos);

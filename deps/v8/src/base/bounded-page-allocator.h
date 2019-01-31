@@ -53,15 +53,19 @@ class V8_BASE_EXPORT BoundedPageAllocator : public v8::PageAllocator {
     return page_allocator_->GetRandomMmapAddr();
   }
 
-  void* AllocatePages(void* address, size_t size, size_t alignment,
-                      PageAllocator::Permission access) override;
+  void* AllocatePages(void* hint, size_t size, size_t alignment,
+                      Permission access) override;
+
+  // Allocates pages at given address, returns true on success.
+  bool AllocatePagesAt(Address address, size_t size, Permission access);
 
   bool FreePages(void* address, size_t size) override;
 
   bool ReleasePages(void* address, size_t size, size_t new_size) override;
 
-  bool SetPermissions(void* address, size_t size,
-                      PageAllocator::Permission access) override;
+  bool SetPermissions(void* address, size_t size, Permission access) override;
+
+  bool DiscardSystemPages(void* address, size_t size) override;
 
  private:
   v8::base::Mutex mutex_;

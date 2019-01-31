@@ -567,6 +567,27 @@ function TestPrototypeHoles() {
 }
 TestPrototypeHoles();
 
+// The following test ensures that elements on the prototype are also copied
+// for JSArrays and not only JSObjects.
+function TestArrayPrototypeHasElements() {
+  let array = [1, 2, 3, 4, 5];
+  for (let i = 0; i < array.length; i++) {
+    delete array[i];
+    Object.prototype[i] = 42;
+  }
+
+  let comparator_called = false;
+  array.sort(function (a, b) {
+    if (a === 42 || b === 42) {
+      comparator_called = true;
+    }
+    return a - b;
+  });
+
+  assertTrue(comparator_called);
+}
+TestArrayPrototypeHasElements();
+
 // The following Tests make sure that there is no crash when the element kind
 // or the array length changes. Since comparison functions like this are not
 // consistent, we do not have to make sure that the array is actually sorted

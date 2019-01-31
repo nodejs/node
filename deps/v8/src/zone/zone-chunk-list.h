@@ -6,7 +6,7 @@
 
 #include "src/base/iterator.h"
 #include "src/globals.h"
-#include "src/utils.h"
+#include "src/memcopy.h"
 #include "src/zone/zone.h"
 
 #ifndef V8_ZONE_ZONE_CHUNK_LIST_H_

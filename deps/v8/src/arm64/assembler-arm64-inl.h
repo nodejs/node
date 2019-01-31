@@ -9,6 +9,7 @@
 #include "src/assembler.h"
 #include "src/debug/debug.h"
 #include "src/objects-inl.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
@@ -89,14 +90,14 @@ inline void CPURegList::Remove(const CPURegister& other1,
 inline void CPURegList::Combine(int code) {
   DCHECK(IsValid());
   DCHECK(CPURegister::Create(code, size_, type_).IsValid());
-  list_ |= (1UL << code);
+  list_ |= (1ULL << code);
 }
 
 
 inline void CPURegList::Remove(int code) {
   DCHECK(IsValid());
   DCHECK(CPURegister::Create(code, size_, type_).IsValid());
-  list_ &= ~(1UL << code);
+  list_ &= ~(1ULL << code);
 }
 
 
@@ -212,13 +213,12 @@ struct ImmediateInitializer {
   }
 };
 
-
-template<>
-struct ImmediateInitializer<Smi*> {
+template <>
+struct ImmediateInitializer<Smi> {
   static const bool kIsIntType = false;
-  static inline RelocInfo::Mode rmode_for(Smi* t) { return RelocInfo::NONE; }
-  static inline int64_t immediate_for(Smi* t) {;
-    return reinterpret_cast<int64_t>(t);
+  static inline RelocInfo::Mode rmode_for(Smi t) { return RelocInfo::NONE; }
+  static inline int64_t immediate_for(Smi t) {
+    return static_cast<int64_t>(t.ptr());
   }
 };
 
@@ -340,8 +340,6 @@ Operand Operand::ToExtendedRegister() const {
 Immediate Operand::immediate_for_heap_object_request() const {
   DCHECK((heap_object_request().kind() == HeapObjectRequest::kHeapNumber &&
           immediate_.rmode() == RelocInfo::EMBEDDED_OBJECT) ||
-         (heap_object_request().kind() == HeapObjectRequest::kCodeStub &&
-          immediate_.rmode() == RelocInfo::CODE_TARGET) ||
          (heap_object_request().kind() == HeapObjectRequest::kStringConstant &&
           immediate_.rmode() == RelocInfo::EMBEDDED_OBJECT));
   return immediate_;
@@ -547,7 +545,7 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
 Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
   Instruction* instr = reinterpret_cast<Instruction*>(pc);
   if (instr->IsLdrLiteralX()) {
-    return Handle<Code>(reinterpret_cast<Code**>(
+    return Handle<Code>(reinterpret_cast<Address*>(
         Assembler::target_address_at(pc, 0 /* unused */)));
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
@@ -590,7 +588,7 @@ int Assembler::deserialization_special_target_size(Address location) {
 }
 
 void Assembler::deserialization_set_special_target_at(Address location,
-                                                      Code* code,
+                                                      Code code,
                                                       Address target) {
   Instruction* instr = reinterpret_cast<Instruction*>(location);
   if (instr->IsBranchAndLink() || instr->IsUnconditionalBranch()) {
@@ -658,9 +656,7 @@ Address RelocInfo::target_address() {
 }
 
 Address RelocInfo::target_address_address() {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_) ||
-         IsEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
-         IsOffHeapTarget(rmode_));
+  DCHECK(HasTargetAddressAddress());
   Instruction* instr = reinterpret_cast<Instruction*>(pc_);
   // Read the address of the word containing the target_address in an
   // instruction stream.
@@ -679,7 +675,7 @@ Address RelocInfo::target_address_address() {
     return constant_pool_entry_address();
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
-    return reinterpret_cast<Address>(pc_);
+    return pc_;
   }
 }
 
@@ -689,15 +685,15 @@ Address RelocInfo::constant_pool_entry_address() {
   return Assembler::target_pointer_address_at(pc_);
 }
 
-HeapObject* RelocInfo::target_object() {
+HeapObject RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return HeapObject::cast(reinterpret_cast<Object*>(
-      Assembler::target_address_at(pc_, constant_pool_)));
+  return HeapObject::cast(
+      Object(Assembler::target_address_at(pc_, constant_pool_)));
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   if (rmode_ == EMBEDDED_OBJECT) {
-    return Handle<HeapObject>(reinterpret_cast<HeapObject**>(
+    return Handle<HeapObject>(reinterpret_cast<Address*>(
         Assembler::target_address_at(pc_, constant_pool_)));
   } else {
     DCHECK(IsCodeTarget(rmode_));
@@ -705,18 +701,16 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   }
 }
 
-void RelocInfo::set_target_object(Heap* heap, HeapObject* target,
+void RelocInfo::set_target_object(Heap* heap, HeapObject target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  Assembler::set_target_address_at(pc_, constant_pool_,
-                                   reinterpret_cast<Address>(target),
+  Assembler::set_target_address_at(pc_, constant_pool_, target->ptr(),
                                    icache_flush_mode);
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr) {
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null()) {
     WriteBarrierForCode(host(), this, target);
   }
 }
-
 
 Address RelocInfo::target_external_reference() {
   DCHECK(rmode_ == EXTERNAL_REFERENCE);
@@ -1131,7 +1125,7 @@ const Register& Assembler::AppropriateZeroRegFor(const CPURegister& reg) const {
 
 
 inline void Assembler::CheckBufferSpace() {
-  DCHECK(pc_ < (buffer_ + buffer_size_));
+  DCHECK_LT(pc_, buffer_start_ + buffer_->size());
   if (buffer_space() < kGap) {
     GrowBuffer();
   }

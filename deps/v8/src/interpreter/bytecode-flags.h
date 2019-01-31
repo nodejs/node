@@ -43,7 +43,8 @@ class CreateClosureFlags {
   class PretenuredBit : public BitField8<bool, 0, 1> {};
   class FastNewClosureBit : public BitField8<bool, PretenuredBit::kNext, 1> {};
 
-  static uint8_t Encode(bool pretenure, bool is_function_scope);
+  static uint8_t Encode(bool pretenure, bool is_function_scope,
+                        bool might_always_opt);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CreateClosureFlags);

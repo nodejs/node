@@ -20,4 +20,11 @@
   # Uses too much memory.
   'Parameterized/WasmCodeManagerTest.GrowingVsFixedModule/Fixed': [SKIP]
 }],  # '(arch == arm or arch == mips) and not simulator_run'
+
+##############################################################################
+['lite_mode', {
+  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+  'ValueSerializerTestWithWasm.*': [SKIP],
+}], # lite_mode
+
 ]

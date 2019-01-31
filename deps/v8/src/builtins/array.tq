@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-module array {
+#include 'src/builtins/builtins-array-gen.h'
+
+namespace array {
   // Naming convention from elements.cc. We have a similar intent but implement
   // fastpaths using generics instead of using a class hierarchy for elements
   // kinds specific implementations.
@@ -14,7 +16,7 @@ module array {
   type FastDoubleElements;
   type DictionaryElements;
 
-  macro EnsureWriteableFastElements(array: JSArray) {
+  macro EnsureWriteableFastElements(implicit context: Context)(array: JSArray) {
     assert(IsFastElementsKind(array.map.elements_kind));
 
     const elements: FixedArrayBase = array.elements;
@@ -24,13 +26,13 @@ module array {
     // extract FixedArrays and don't have to worry about FixedDoubleArrays.
     assert(IsFastSmiOrTaggedElementsKind(array.map.elements_kind));
 
-    const length: Smi = array.length_fast;
+    const length: Smi = Cast<Smi>(array.length) otherwise unreachable;
     array.elements =
         ExtractFixedArray(elements, 0, length, length, kFixedArrays);
     assert(array.elements.map != kCOWMap);
   }
 
-  macro IsJSArray(o: Object): bool {
+  macro IsJSArray(implicit context: Context)(o: Object): bool {
     try {
       const array: JSArray = Cast<JSArray>(o) otherwise NotArray;
       return true;
@@ -38,6 +40,46 @@ module array {
     label NotArray {
       return false;
     }
+  }
+
+  macro LoadElementOrUndefined(a: FixedArray, i: Smi): Object {
+    const e: Object = a[i];
+    return e == Hole ? Undefined : e;
+  }
+
+  macro LoadElementOrUndefined(a: FixedArray, i: intptr): Object {
+    const e: Object = a[i];
+    return e == Hole ? Undefined : e;
+  }
+
+  macro LoadElementOrUndefined(a: FixedArray, i: constexpr int31): Object {
+    return LoadElementOrUndefined(a, Convert<intptr>(i));
+  }
+
+  macro LoadElementOrUndefined(a: FixedDoubleArray, i: Smi): NumberOrUndefined {
+    try {
+      const f: float64 = LoadDoubleWithHoleCheck(a, i) otherwise IfHole;
+      return AllocateHeapNumberWithValue(f);
+    }
+    label IfHole {
+      return Undefined;
+    }
+  }
+
+  macro LoadElementOrUndefined(a: FixedDoubleArray, i: intptr):
+      NumberOrUndefined {
+    try {
+      const f: float64 = LoadDoubleWithHoleCheck(a, i) otherwise IfHole;
+      return AllocateHeapNumberWithValue(f);
+    }
+    label IfHole {
+      return Undefined;
+    }
+  }
+
+  macro LoadElementOrUndefined(a: FixedDoubleArray, i: constexpr int31):
+      NumberOrUndefined {
+    return LoadElementOrUndefined(a, Convert<intptr>(i));
   }
 
   macro StoreArrayHole(elements: FixedDoubleArray, k: Smi): void {
@@ -66,4 +108,6 @@ module array {
       StoreArrayHole(newElements, to);
     }
   }
+
+  extern macro SetPropertyLength(implicit context: Context)(Object, Number);
 }

@@ -100,6 +100,28 @@ struct ValueConversions<String> {
 };
 
 template<>
+struct ValueConversions<Binary> {
+    static Binary fromValue(protocol::Value* value, ErrorSupport* errors)
+    {
+        String result;
+        bool success = value ? value->asString(&result) : false;
+        if (!success) {
+            errors->addError("string value expected");
+            return Binary();
+        }
+        Binary out = Binary::fromBase64(result, &success);
+        if (!success)
+          errors->addError("base64 decoding error");
+        return out;
+    }
+
+    static std::unique_ptr<protocol::Value> toValue(const Binary& value)
+    {
+        return StringValue::create(value.toBase64());
+    }
+};
+
+template<>
 struct ValueConversions<Value> {
     static std::unique_ptr<Value> fromValue(protocol::Value* value, ErrorSupport* errors)
     {

@@ -217,17 +217,16 @@ class CompactionFuzzer(Fuzzer):
       yield ['--stress-compaction-random']
 
 
+class TaskDelayFuzzer(Fuzzer):
+  def create_flags_generator(self, rng, test, analysis_value):
+    while True:
+      yield ['--stress-delay-tasks']
+
+
 class ThreadPoolSizeFuzzer(Fuzzer):
   def create_flags_generator(self, rng, test, analysis_value):
     while True:
       yield ['--thread-pool-size=%d' % rng.randint(1, 8)]
-
-
-class InterruptBudgetFuzzer(Fuzzer):
-  def create_flags_generator(self, rng, test, analysis_value):
-    while True:
-      limit = 1 + int(rng.random() * 144)
-      yield ['--interrupt-budget=%d' % rng.randint(1, limit * 1024)]
 
 
 class DeoptAnalyzer(Analyzer):
@@ -269,9 +268,9 @@ class DeoptFuzzer(Fuzzer):
 
 FUZZERS = {
   'compaction': (None, CompactionFuzzer),
+  'delay': (None, TaskDelayFuzzer),
   'deopt': (DeoptAnalyzer, DeoptFuzzer),
   'gc_interval': (GcIntervalAnalyzer, GcIntervalFuzzer),
-  'interrupt_budget': (None, InterruptBudgetFuzzer),
   'marking': (MarkingAnalyzer, MarkingFuzzer),
   'scavenge': (ScavengeAnalyzer, ScavengeFuzzer),
   'threads': (None, ThreadPoolSizeFuzzer),

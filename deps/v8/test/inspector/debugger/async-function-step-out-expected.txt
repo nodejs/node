@@ -200,6 +200,11 @@ test (testStepIntoAtReturn.js:144:14)
 test (testStepIntoAtReturn.js:143:14)
 (anonymous) (:0:0)
 
+test (testStepIntoAtReturn.js:145:8)
+-- async function --
+test (testStepIntoAtReturn.js:143:14)
+(anonymous) (:0:0)
+
 floodWithTimeouts (testStepIntoAtReturn.js:136:15)
 -- setTimeout --
 floodWithTimeouts (testStepIntoAtReturn.js:137:10)
@@ -207,3 +212,4 @@ floodWithTimeouts (testStepIntoAtReturn.js:137:10)
 floodWithTimeouts (testStepIntoAtReturn.js:137:10)
 test (testStepIntoAtReturn.js:142:8)
 (anonymous) (:0:0)
+

@@ -503,7 +503,7 @@ int OffsetOfFieldAccess(const Operator* op) {
 int OffsetOfElementAt(ElementAccess const& access, int index) {
   DCHECK_GE(index, 0);
   DCHECK_GE(ElementSizeLog2Of(access.machine_type.representation()),
-            kPointerSizeLog2);
+            kTaggedSizeLog2);
   return access.header_size +
          (index << ElementSizeLog2Of(access.machine_type.representation()));
 }
@@ -516,7 +516,7 @@ Maybe<int> OffsetOfElementsAccess(const Operator* op, Node* index_node) {
   double max = index_type.Max();
   double min = index_type.Min();
   int index = static_cast<int>(min);
-  if (!(index == min && index == max)) return Nothing<int>();
+  if (index < 0 || index != min || index != max) return Nothing<int>();
   return Just(OffsetOfElementAt(ElementAccessOf(op), index));
 }
 
@@ -846,9 +846,9 @@ const VirtualObject* EscapeAnalysisResult::GetVirtualObject(Node* node) {
 VirtualObject::VirtualObject(VariableTracker* var_states, VirtualObject::Id id,
                              int size)
     : Dependable(var_states->zone()), id_(id), fields_(var_states->zone()) {
-  DCHECK_EQ(0, size % kPointerSize);
+  DCHECK(IsAligned(size, kTaggedSize));
   TRACE("Creating VirtualObject id:%d size:%d\n", id, size);
-  int num_fields = size / kPointerSize;
+  int num_fields = size / kTaggedSize;
   fields_.reserve(num_fields);
   for (int i = 0; i < num_fields; ++i) {
     fields_.push_back(var_states->NewVariable());

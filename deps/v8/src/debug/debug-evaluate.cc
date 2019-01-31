@@ -279,6 +279,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ThrowInvalidStringLength)                 \
   V(ThrowIteratorError)                       \
   V(ThrowIteratorResultNotAnObject)           \
+  V(ThrowPatternAssignmentNonCoercible)       \
   V(ThrowReferenceError)                      \
   V(ThrowSymbolIteratorInvalid)               \
   /* Strings */                               \
@@ -337,6 +338,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(Call)                                     \
   V(CompleteInobjectSlackTrackingForMap)      \
   V(HasInPrototypeChain)                      \
+  V(IncrementUseCounter)                      \
   V(MaxSmi)                                   \
   V(NewObject)                                \
   V(SmiLexicographicCompare)                  \
@@ -372,43 +374,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
 #undef INTRINSIC_WHITELIST
 #undef INLINE_INTRINSIC_WHITELIST
 }
-
-#ifdef DEBUG
-bool BuiltinToIntrinsicHasNoSideEffect(Builtins::Name builtin_id,
-                                       Runtime::FunctionId intrinsic_id) {
-  // First check the intrinsic whitelist.
-  if (IntrinsicHasNoSideEffect(intrinsic_id)) return true;
-
-// Whitelist intrinsics called from specific builtins.
-#define BUILTIN_INTRINSIC_WHITELIST(V, W)                            \
-  /* Arrays */                                                       \
-  V(Builtins::kArrayFilter, W(CreateDataProperty))                   \
-  V(Builtins::kArrayMap, W(CreateDataProperty))                      \
-  V(Builtins::kArrayPrototypeSlice,                                  \
-    W(CreateDataProperty) W(SetKeyedProperty) W(SetNamedProperty))   \
-  /* TypedArrays */                                                  \
-  V(Builtins::kTypedArrayConstructor,                                \
-    W(TypedArrayCopyElements) W(ThrowInvalidTypedArrayAlignment))    \
-  V(Builtins::kTypedArrayPrototypeFilter, W(TypedArrayCopyElements)) \
-  V(Builtins::kTypedArrayPrototypeMap, W(SetKeyedProperty) W(SetNamedProperty))
-
-#define CASE(Builtin, ...) \
-  case Builtin:            \
-    return (__VA_ARGS__ false);
-
-#define MATCH(Intrinsic) intrinsic_id == Runtime::k##Intrinsic ||
-
-  switch (builtin_id) {
-    BUILTIN_INTRINSIC_WHITELIST(CASE, MATCH)
-    default:
-      return false;
-  }
-
-#undef MATCH
-#undef CASE
-#undef BUILTIN_INTRINSIC_WHITELIST
-}
-#endif  // DEBUG
 
 bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
   typedef interpreter::Bytecode Bytecode;
@@ -552,10 +517,13 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kArrayPrototypeFindIndex:
     case Builtins::kArrayPrototypeFlat:
     case Builtins::kArrayPrototypeFlatMap:
+    case Builtins::kArrayPrototypeJoin:
     case Builtins::kArrayPrototypeKeys:
     case Builtins::kArrayPrototypeLastIndexOf:
     case Builtins::kArrayPrototypeSlice:
     case Builtins::kArrayPrototypeSort:
+    case Builtins::kArrayPrototypeToLocaleString:
+    case Builtins::kArrayPrototypeToString:
     case Builtins::kArrayForEach:
     case Builtins::kArrayEvery:
     case Builtins::kArraySome:
@@ -745,6 +713,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kStringPrototypeItalics:
     case Builtins::kStringPrototypeLastIndexOf:
     case Builtins::kStringPrototypeLink:
+    case Builtins::kStringPrototypeMatchAll:
     case Builtins::kStringPrototypePadEnd:
     case Builtins::kStringPrototypePadStart:
     case Builtins::kStringPrototypeRepeat:
@@ -802,6 +771,8 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kRegExpConstructor:
     // Internal.
     case Builtins::kStrictPoisonPillThrower:
+    case Builtins::kAllocateInNewSpace:
+    case Builtins::kAllocateInOldSpace:
       return DebugInfo::kHasNoSideEffect;
 
     // Set builtins.
@@ -816,7 +787,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kArrayPrototypeReverse:
     case Builtins::kArrayPrototypeShift:
     case Builtins::kArrayPrototypeUnshift:
-    case Builtins::kArraySplice:
+    case Builtins::kArrayPrototypeSplice:
     case Builtins::kArrayUnshift:
     // Map builtins.
     case Builtins::kMapIteratorPrototypeNext:
@@ -830,6 +801,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kRegExpPrototypeFlagsGetter:
     case Builtins::kRegExpPrototypeGlobalGetter:
     case Builtins::kRegExpPrototypeIgnoreCaseGetter:
+    case Builtins::kRegExpPrototypeMatchAll:
     case Builtins::kRegExpPrototypeMultilineGetter:
     case Builtins::kRegExpPrototypeDotAllGetter:
     case Builtins::kRegExpPrototypeUnicodeGetter:
@@ -917,47 +889,158 @@ DebugInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
     // Check built-ins against whitelist.
     int builtin_index =
         info->HasBuiltinId() ? info->builtin_id() : Builtins::kNoBuiltinId;
-    DCHECK_NE(Builtins::kDeserializeLazy, builtin_index);
     if (!Builtins::IsBuiltinId(builtin_index))
       return DebugInfo::kHasSideEffects;
     DebugInfo::SideEffectState state =
         BuiltinGetSideEffectState(static_cast<Builtins::Name>(builtin_index));
-#ifdef DEBUG
-    if (state == DebugInfo::kHasNoSideEffect) {
-      Code* code = isolate->builtins()->builtin(builtin_index);
-      if (code->builtin_index() == Builtins::kDeserializeLazy) {
-        // Target builtin is not yet deserialized. Deserialize it now.
-
-        DCHECK(Builtins::IsLazy(builtin_index));
-        DCHECK_EQ(Builtins::TFJ, Builtins::KindOf(builtin_index));
-
-        code = Snapshot::DeserializeBuiltin(isolate, builtin_index);
-        DCHECK_NE(Builtins::kDeserializeLazy, code->builtin_index());
-      }
-      // TODO(yangguo): Check builtin-to-builtin calls too.
-      int mode = RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE);
-      bool failed = false;
-      for (RelocIterator it(code, mode); !it.done(); it.next()) {
-        RelocInfo* rinfo = it.rinfo();
-        Address address = rinfo->target_external_reference();
-        const Runtime::Function* function = Runtime::FunctionForEntry(address);
-        if (function == nullptr) continue;
-        if (!BuiltinToIntrinsicHasNoSideEffect(
-                static_cast<Builtins::Name>(builtin_index),
-                function->function_id)) {
-          PrintF("Whitelisted builtin %s calls non-whitelisted intrinsic %s\n",
-                 Builtins::name(builtin_index), function->name);
-          failed = true;
-        }
-        DCHECK(!failed);
-      }
-    }
-#endif  // DEBUG
     return state;
   }
 
   return DebugInfo::kHasSideEffects;
 }
+
+#ifdef DEBUG
+static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtins::Name caller,
+                                                     Builtins::Name callee) {
+  switch (callee) {
+      // Transitively called Builtins:
+    case Builtins::kAbort:
+    case Builtins::kAbortJS:
+    case Builtins::kAdaptorWithBuiltinExitFrame:
+    case Builtins::kArrayConstructorImpl:
+    case Builtins::kArrayEveryLoopContinuation:
+    case Builtins::kArrayFilterLoopContinuation:
+    case Builtins::kArrayFindIndexLoopContinuation:
+    case Builtins::kArrayFindLoopContinuation:
+    case Builtins::kArrayForEachLoopContinuation:
+    case Builtins::kArrayIncludesHoleyDoubles:
+    case Builtins::kArrayIncludesPackedDoubles:
+    case Builtins::kArrayIncludesSmiOrObject:
+    case Builtins::kArrayIndexOfHoleyDoubles:
+    case Builtins::kArrayIndexOfPackedDoubles:
+    case Builtins::kArrayIndexOfSmiOrObject:
+    case Builtins::kArrayMapLoopContinuation:
+    case Builtins::kArrayReduceLoopContinuation:
+    case Builtins::kArrayReduceRightLoopContinuation:
+    case Builtins::kArraySomeLoopContinuation:
+    case Builtins::kArrayTimSort:
+    case Builtins::kCall_ReceiverIsAny:
+    case Builtins::kCallWithArrayLike:
+    case Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
+    case Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit:
+    case Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit:
+    case Builtins::kCEntry_Return1_SaveFPRegs_ArgvOnStack_NoBuiltinExit:
+    case Builtins::kCEntry_Return1_SaveFPRegs_ArgvOnStack_BuiltinExit:
+    case Builtins::kCEntry_Return2_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
+    case Builtins::kCEntry_Return2_DontSaveFPRegs_ArgvOnStack_BuiltinExit:
+    case Builtins::kCEntry_Return2_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit:
+    case Builtins::kCEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit:
+    case Builtins::kCEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit:
+    case Builtins::kCloneFastJSArray:
+    case Builtins::kConstruct:
+    case Builtins::kConvertToLocaleString:
+    case Builtins::kCreateTypedArray:
+    case Builtins::kDirectCEntry:
+    case Builtins::kDoubleToI:
+    case Builtins::kExtractFastJSArray:
+    case Builtins::kFastNewObject:
+    case Builtins::kFindOrderedHashMapEntry:
+    case Builtins::kFlatMapIntoArray:
+    case Builtins::kFlattenIntoArray:
+    case Builtins::kGetProperty:
+    case Builtins::kHasProperty:
+    case Builtins::kMathPowInternal:
+    case Builtins::kNonNumberToNumber:
+    case Builtins::kNonPrimitiveToPrimitive_Number:
+    case Builtins::kNumberToString:
+    case Builtins::kObjectToString:
+    case Builtins::kOrderedHashTableHealIndex:
+    case Builtins::kOrdinaryToPrimitive_Number:
+    case Builtins::kOrdinaryToPrimitive_String:
+    case Builtins::kParseInt:
+    case Builtins::kProxyHasProperty:
+    case Builtins::kRecordWrite:
+    case Builtins::kStringAdd_CheckNone:
+    case Builtins::kStringEqual:
+    case Builtins::kStringIndexOf:
+    case Builtins::kStringRepeat:
+    case Builtins::kToInteger:
+    case Builtins::kToInteger_TruncateMinusZero:
+    case Builtins::kToLength:
+    case Builtins::kToName:
+    case Builtins::kToObject:
+    case Builtins::kToString:
+    case Builtins::kWeakMapLookupHashIndex:
+      return true;
+    case Builtins::kJoinStackPop:
+    case Builtins::kJoinStackPush:
+      switch (caller) {
+        case Builtins::kArrayPrototypeJoin:
+        case Builtins::kArrayPrototypeToLocaleString:
+          return true;
+        default:
+          return false;
+      }
+    case Builtins::kSetProperty:
+      switch (caller) {
+        case Builtins::kArrayPrototypeSlice:
+        case Builtins::kTypedArrayPrototypeMap:
+        case Builtins::kStringPrototypeMatchAll:
+          return true;
+        default:
+          return false;
+      }
+    default:
+      return false;
+  }
+}
+
+// static
+void DebugEvaluate::VerifyTransitiveBuiltins(Isolate* isolate) {
+  // TODO(yangguo): also check runtime calls.
+  bool failed = false;
+  bool sanity_check = false;
+  for (int i = 0; i < Builtins::builtin_count; i++) {
+    Builtins::Name caller = static_cast<Builtins::Name>(i);
+    DebugInfo::SideEffectState state = BuiltinGetSideEffectState(caller);
+    if (state != DebugInfo::kHasNoSideEffect) continue;
+    Code code = isolate->builtins()->builtin(caller);
+    int mode = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+               RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET);
+
+    for (RelocIterator it(code, mode); !it.done(); it.next()) {
+      RelocInfo* rinfo = it.rinfo();
+      DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
+      Code callee_code = isolate->heap()->GcSafeFindCodeForInnerPointer(
+          rinfo->target_address());
+      if (!callee_code->is_builtin()) continue;
+      Builtins::Name callee =
+          static_cast<Builtins::Name>(callee_code->builtin_index());
+      if (BuiltinGetSideEffectState(callee) == DebugInfo::kHasNoSideEffect) {
+        continue;
+      }
+      if (TransitivelyCalledBuiltinHasNoSideEffect(caller, callee)) {
+        sanity_check = true;
+        continue;
+      }
+      PrintF("Whitelisted builtin %s calls non-whitelisted builtin %s\n",
+             Builtins::name(caller), Builtins::name(callee));
+      failed = true;
+    }
+  }
+  CHECK(!failed);
+#if defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_MIPS64)
+  // Isolate-independent builtin calls and jumps do not emit reloc infos
+  // on PPC. We try to avoid using PC relative code due to performance
+  // issue with especially older hardwares.
+  // MIPS64 doesn't have PC relative code currently.
+  // TODO(mips): Add PC relative code to MIPS64.
+  USE(sanity_check);
+#else
+  CHECK(sanity_check);
+#endif
+}
+#endif  // DEBUG
 
 // static
 void DebugEvaluate::ApplySideEffectChecks(

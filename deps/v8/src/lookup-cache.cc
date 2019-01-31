@@ -4,13 +4,11 @@
 
 #include "src/lookup-cache.h"
 
-#include "src/objects-inl.h"
-
 namespace v8 {
 namespace internal {
 
 void DescriptorLookupCache::Clear() {
-  for (int index = 0; index < kLength; index++) keys_[index].source = nullptr;
+  for (int index = 0; index < kLength; index++) keys_[index].source = Map();
 }
 
 }  // namespace internal

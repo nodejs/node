@@ -53,7 +53,7 @@ bool SourceRangeAstVisitor::VisitNode(AstNode* node) {
 
 void SourceRangeAstVisitor::MaybeRemoveLastContinuationRange(
     ZonePtrList<Statement>* statements) {
-  if (statements == nullptr || statements->is_empty()) return;
+  if (statements->is_empty()) return;
 
   Statement* last_statement = statements->last();
   AstNodeSourceRanges* last_range = source_range_map_->Find(last_statement);

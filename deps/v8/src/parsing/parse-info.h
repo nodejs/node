@@ -13,7 +13,7 @@
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/objects/script.h"
-#include "src/parsing/preparsed-scope-data.h"
+#include "src/parsing/preparse-data.h"
 #include "src/pending-compilation-error-handler.h"
 
 namespace v8 {
@@ -26,12 +26,12 @@ class AccountingAllocator;
 class AstRawString;
 class AstStringConstants;
 class AstValueFactory;
+class CompilerDispatcher;
 class DeclarationScope;
 class FunctionLiteral;
 class RuntimeCallStats;
 class Logger;
 class SourceRangeMap;
-class UnicodeCache;
 class Utf16CharacterStream;
 class Zone;
 
@@ -81,6 +81,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FLAG_ACCESSOR(kCollectTypeProfile, collect_type_profile,
                 set_collect_type_profile)
   FLAG_ACCESSOR(kIsAsmWasmBroken, is_asm_wasm_broken, set_asm_wasm_broken)
+  FLAG_ACCESSOR(kContainsAsmModule, contains_asm_module,
+                set_contains_asm_module)
   FLAG_ACCESSOR(kBlockCoverageEnabled, block_coverage_enabled,
                 set_block_coverage_enabled)
   FLAG_ACCESSOR(kOnBackgroundThread, on_background_thread,
@@ -89,9 +91,30 @@ class V8_EXPORT_PRIVATE ParseInfo {
                 set_wrapped_as_function)
   FLAG_ACCESSOR(kAllowEvalCache, allow_eval_cache, set_allow_eval_cache)
   FLAG_ACCESSOR(kIsDeclaration, is_declaration, set_declaration)
-  FLAG_ACCESSOR(kRequiresInstanceFieldsInitializer,
-                requires_instance_fields_initializer,
-                set_requires_instance_fields_initializer);
+  FLAG_ACCESSOR(kRequiresInstanceMembersInitializer,
+                requires_instance_members_initializer,
+                set_requires_instance_members_initializer);
+  FLAG_ACCESSOR(kMightAlwaysOpt, might_always_opt, set_might_always_opt)
+  FLAG_ACCESSOR(kAllowNativeSyntax, allow_natives_syntax,
+                set_allow_natives_syntax)
+  FLAG_ACCESSOR(kAllowLazyCompile, allow_lazy_compile, set_allow_lazy_compile)
+  FLAG_ACCESSOR(kAllowNativeSyntax, allow_native_syntax,
+                set_allow_native_syntax);
+  FLAG_ACCESSOR(kAllowHarmonyPublicFields, allow_harmony_public_fields,
+                set_allow_harmony_public_fields);
+  FLAG_ACCESSOR(kAllowHarmonyStaticFields, allow_harmony_static_fields,
+                set_allow_harmony_static_fields);
+  FLAG_ACCESSOR(kAllowHarmonyDynamicImport, allow_harmony_dynamic_import,
+                set_allow_harmony_dynamic_import);
+  FLAG_ACCESSOR(kAllowHarmonyImportMeta, allow_harmony_import_meta,
+                set_allow_harmony_import_meta);
+  FLAG_ACCESSOR(kAllowHarmonyNumericSeparator, allow_harmony_numeric_separator,
+                set_allow_harmony_numeric_separator);
+  FLAG_ACCESSOR(kAllowHarmonyPrivateFields, allow_harmony_private_fields,
+                set_allow_harmony_private_fields);
+  FLAG_ACCESSOR(kAllowHarmonyPrivateMethods, allow_harmony_private_methods,
+                set_allow_harmony_private_methods);
+  FLAG_ACCESSOR(kIsOneshotIIFE, is_oneshot_iife, set_is_oneshot_iife);
 #undef FLAG_ACCESSOR
 
   void set_parse_restriction(ParseRestriction restriction) {
@@ -113,12 +136,11 @@ class V8_EXPORT_PRIVATE ParseInfo {
   v8::Extension* extension() const { return extension_; }
   void set_extension(v8::Extension* extension) { extension_ = extension; }
 
-  void set_consumed_preparsed_scope_data(
-      std::unique_ptr<ConsumedPreParsedScopeData> data) {
-    consumed_preparsed_scope_data_.swap(data);
+  void set_consumed_preparse_data(std::unique_ptr<ConsumedPreparseData> data) {
+    consumed_preparse_data_.swap(data);
   }
-  ConsumedPreParsedScopeData* consumed_preparsed_scope_data() {
-    return consumed_preparsed_scope_data_.get();
+  ConsumedPreparseData* consumed_preparse_data() {
+    return consumed_preparse_data_.get();
   }
 
   DeclarationScope* script_scope() const { return script_scope_; }
@@ -140,11 +162,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
   void set_literal(FunctionLiteral* literal) { literal_ = literal; }
 
   DeclarationScope* scope() const;
-
-  UnicodeCache* unicode_cache() const { return unicode_cache_; }
-  void set_unicode_cache(UnicodeCache* unicode_cache) {
-    unicode_cache_ = unicode_cache;
-  }
 
   uintptr_t stack_limit() const { return stack_limit_; }
   void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
@@ -205,6 +222,31 @@ class V8_EXPORT_PRIVATE ParseInfo {
     return &pending_error_handler_;
   }
 
+  class ParallelTasks {
+   public:
+    explicit ParallelTasks(CompilerDispatcher* compiler_dispatcher)
+        : dispatcher_(compiler_dispatcher) {
+      DCHECK(dispatcher_);
+    }
+
+    void Enqueue(ParseInfo* outer_parse_info, const AstRawString* function_name,
+                 FunctionLiteral* literal);
+
+    typedef std::forward_list<std::pair<FunctionLiteral*, uintptr_t>>::iterator
+        EnqueuedJobsIterator;
+
+    EnqueuedJobsIterator begin() { return enqueued_jobs_.begin(); }
+    EnqueuedJobsIterator end() { return enqueued_jobs_.end(); }
+
+    CompilerDispatcher* dispatcher() { return dispatcher_; }
+
+   private:
+    CompilerDispatcher* dispatcher_;
+    std::forward_list<std::pair<FunctionLiteral*, uintptr_t>> enqueued_jobs_;
+  };
+
+  ParallelTasks* parallel_tasks() { return parallel_tasks_.get(); }
+
   //--------------------------------------------------------------------------
   // TODO(titzer): these should not be part of ParseInfo.
   //--------------------------------------------------------------------------
@@ -257,7 +299,19 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kWrappedAsFunction = 1 << 14,  // Implicitly wrapped as function.
     kAllowEvalCache = 1 << 15,
     kIsDeclaration = 1 << 16,
-    kRequiresInstanceFieldsInitializer = 1 << 17,
+    kRequiresInstanceMembersInitializer = 1 << 17,
+    kContainsAsmModule = 1 << 18,
+    kMightAlwaysOpt = 1 << 19,
+    kAllowLazyCompile = 1 << 20,
+    kAllowNativeSyntax = 1 << 21,
+    kAllowHarmonyPublicFields = 1 << 22,
+    kAllowHarmonyStaticFields = 1 << 23,
+    kAllowHarmonyDynamicImport = 1 << 24,
+    kAllowHarmonyImportMeta = 1 << 25,
+    kAllowHarmonyNumericSeparator = 1 << 26,
+    kAllowHarmonyPrivateFields = 1 << 27,
+    kAllowHarmonyPrivateMethods = 1 << 28,
+    kIsOneshotIIFE = 1 << 29
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
@@ -265,7 +319,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
   unsigned flags_;
   v8::Extension* extension_;
   DeclarationScope* script_scope_;
-  UnicodeCache* unicode_cache_;
   uintptr_t stack_limit_;
   uint64_t hash_seed_;
   FunctionKind function_kind_;
@@ -282,13 +335,14 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   //----------- Inputs+Outputs of parsing and scope analysis -----------------
   std::unique_ptr<Utf16CharacterStream> character_stream_;
-  std::unique_ptr<ConsumedPreParsedScopeData> consumed_preparsed_scope_data_;
+  std::unique_ptr<ConsumedPreparseData> consumed_preparse_data_;
   std::unique_ptr<AstValueFactory> ast_value_factory_;
   const class AstStringConstants* ast_string_constants_;
   const AstRawString* function_name_;
   RuntimeCallStats* runtime_call_stats_;
   Logger* logger_;
   SourceRangeMap* source_range_map_;  // Used when block coverage is enabled.
+  std::unique_ptr<ParallelTasks> parallel_tasks_;
 
   //----------- Output of parsing and scope analysis ------------------------
   FunctionLiteral* literal_;

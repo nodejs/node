@@ -12,6 +12,7 @@
 #include "src/handles.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/interpreter.h"
+#include "src/objects/feedback-cell.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-feedback-vector.h"
 
@@ -42,7 +43,7 @@ class InterpreterCallable {
     return CallInterpreter(isolate_, function_, args...);
   }
 
-  FeedbackVector* vector() const { return function_->feedback_vector(); }
+  FeedbackVector vector() const { return function_->feedback_vector(); }
 
  private:
   Isolate* isolate_;
@@ -88,6 +89,8 @@ class InterpreterTester {
     return RegisterList(first_reg_index, register_count);
   }
 
+  inline bool HasFeedbackMetadata() { return !feedback_metadata_.is_null(); }
+
  private:
   Isolate* isolate_;
   const char* source_;
@@ -121,8 +124,8 @@ class InterpreterTester {
     if (!bytecode_.is_null()) {
       function->shared()->set_function_data(*bytecode_.ToHandleChecked());
     }
-    if (!feedback_metadata_.is_null()) {
-      function->set_feedback_cell(isolate_->heap()->many_closures_cell());
+    if (HasFeedbackMetadata()) {
+      function->set_raw_feedback_cell(isolate_->heap()->many_closures_cell());
       // Set the raw feedback metadata to circumvent checks that we are not
       // overwriting existing metadata.
       function->shared()->set_raw_outer_scope_info_or_feedback_metadata(

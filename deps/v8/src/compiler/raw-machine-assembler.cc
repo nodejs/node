@@ -4,6 +4,7 @@
 
 #include "src/compiler/raw-machine-assembler.h"
 
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/scheduler.h"
@@ -21,8 +22,10 @@ RawMachineAssembler::RawMachineAssembler(
     : isolate_(isolate),
       graph_(graph),
       schedule_(new (zone()) Schedule(zone())),
+      source_positions_(new (zone()) SourcePositionTable(graph)),
       machine_(zone(), word, flags, alignment_requirements),
       common_(zone()),
+      simplified_(zone()),
       call_descriptor_(call_descriptor),
       target_parameter_(nullptr),
       parameters_(parameter_count(), zone()),
@@ -40,6 +43,14 @@ RawMachineAssembler::RawMachineAssembler(
         AddNode(common()->Parameter(static_cast<int>(i)), graph->start());
   }
   graph->SetEnd(graph->NewNode(common_.End(0)));
+  source_positions_->AddDecorator();
+}
+
+void RawMachineAssembler::SetSourcePosition(const char* file, int line) {
+  int file_id = isolate()->LookupOrAddExternallyCompiledFilename(file);
+  SourcePosition p = SourcePosition::External(line, file_id);
+  DCHECK(p.ExternalLine() == line);
+  source_positions()->SetCurrentPosition(p);
 }
 
 Node* RawMachineAssembler::NullConstant() {
@@ -52,9 +63,14 @@ Node* RawMachineAssembler::UndefinedConstant() {
 
 Node* RawMachineAssembler::RelocatableIntPtrConstant(intptr_t value,
                                                      RelocInfo::Mode rmode) {
-  return kPointerSize == 8
+  return kSystemPointerSize == 8
              ? RelocatableInt64Constant(value, rmode)
              : RelocatableInt32Constant(static_cast<int>(value), rmode);
+}
+
+Node* RawMachineAssembler::OptimizedAllocate(Node* size,
+                                             PretenureFlag pretenure) {
+  return AddNode(simplified()->AllocateRaw(Type::Any(), pretenure), size);
 }
 
 Schedule* RawMachineAssembler::Export() {
@@ -72,9 +88,328 @@ Schedule* RawMachineAssembler::Export() {
     StdoutStream{} << *schedule_;
   }
   // Invalidate RawMachineAssembler.
+  source_positions_->RemoveDecorator();
   Schedule* schedule = schedule_;
   schedule_ = nullptr;
   return schedule;
+}
+
+Graph* RawMachineAssembler::ExportForOptimization() {
+  // Compute the correct codegen order.
+  DCHECK(schedule_->rpo_order()->empty());
+  if (FLAG_trace_turbo_scheduler) {
+    PrintF("--- RAW SCHEDULE -------------------------------------------\n");
+    StdoutStream{} << *schedule_;
+  }
+  schedule_->EnsureCFGWellFormedness();
+  Scheduler::ComputeSpecialRPO(zone(), schedule_);
+  if (FLAG_trace_turbo_scheduler) {
+    PrintF("--- SCHEDULE BEFORE GRAPH CREATION -------------------------\n");
+    StdoutStream{} << *schedule_;
+  }
+  MakeReschedulable();
+  // Invalidate RawMachineAssembler.
+  schedule_ = nullptr;
+  return graph();
+}
+
+void RawMachineAssembler::MakeReschedulable() {
+  std::vector<Node*> block_final_control(schedule_->all_blocks_.size());
+  std::vector<Node*> block_final_effect(schedule_->all_blocks_.size());
+
+  struct LoopHeader {
+    BasicBlock* block;
+    Node* loop_node;
+    Node* effect_phi;
+  };
+  std::vector<LoopHeader> loop_headers;
+
+  // These are hoisted outside of the loop to avoid re-allocation.
+  std::vector<Node*> merge_inputs;
+  std::vector<Node*> effect_phi_inputs;
+
+  for (BasicBlock* block : *schedule_->rpo_order()) {
+    Node* current_control;
+    Node* current_effect;
+    if (block == schedule_->start()) {
+      current_control = current_effect = graph()->start();
+    } else if (block == schedule_->end()) {
+      for (size_t i = 0; i < block->PredecessorCount(); ++i) {
+        NodeProperties::MergeControlToEnd(
+            graph(), common(), block->PredecessorAt(i)->control_input());
+      }
+    } else if (block->IsLoopHeader()) {
+      // The graph()->start() inputs are just placeholders until we computed the
+      // real back-edges and re-structure the control flow so the loop has
+      // exactly two predecessors.
+      current_control = graph()->NewNode(common()->Loop(2), graph()->start(),
+                                         graph()->start());
+      current_effect =
+          graph()->NewNode(common()->EffectPhi(2), graph()->start(),
+                           graph()->start(), current_control);
+
+      Node* terminate = graph()->NewNode(common()->Terminate(), current_effect,
+                                         current_control);
+      NodeProperties::MergeControlToEnd(graph(), common(), terminate);
+      loop_headers.push_back(
+          LoopHeader{block, current_control, current_effect});
+    } else if (block->PredecessorCount() == 1) {
+      BasicBlock* predecessor = block->PredecessorAt(0);
+      DCHECK_LT(predecessor->rpo_number(), block->rpo_number());
+      current_effect = block_final_effect[predecessor->id().ToSize()];
+      current_control = block_final_control[predecessor->id().ToSize()];
+    } else {
+      // Create control merge nodes and effect phis for all predecessor blocks.
+      merge_inputs.clear();
+      effect_phi_inputs.clear();
+      int predecessor_count = static_cast<int>(block->PredecessorCount());
+      for (int i = 0; i < predecessor_count; ++i) {
+        BasicBlock* predecessor = block->PredecessorAt(i);
+        DCHECK_LT(predecessor->rpo_number(), block->rpo_number());
+        merge_inputs.push_back(block_final_control[predecessor->id().ToSize()]);
+        effect_phi_inputs.push_back(
+            block_final_effect[predecessor->id().ToSize()]);
+      }
+      current_control = graph()->NewNode(common()->Merge(predecessor_count),
+                                         static_cast<int>(merge_inputs.size()),
+                                         merge_inputs.data());
+      effect_phi_inputs.push_back(current_control);
+      current_effect = graph()->NewNode(
+          common()->EffectPhi(predecessor_count),
+          static_cast<int>(effect_phi_inputs.size()), effect_phi_inputs.data());
+    }
+
+    auto update_current_control_and_effect = [&](Node* node) {
+      bool existing_effect_and_control =
+          IrOpcode::IsIfProjectionOpcode(node->opcode()) ||
+          IrOpcode::IsPhiOpcode(node->opcode());
+      if (node->op()->EffectInputCount() > 0) {
+        DCHECK_EQ(1, node->op()->EffectInputCount());
+        if (existing_effect_and_control) {
+          NodeProperties::ReplaceEffectInput(node, current_effect);
+        } else {
+          node->AppendInput(graph()->zone(), current_effect);
+        }
+      }
+      if (node->op()->ControlInputCount() > 0) {
+        DCHECK_EQ(1, node->op()->ControlInputCount());
+        if (existing_effect_and_control) {
+          NodeProperties::ReplaceControlInput(node, current_control);
+        } else {
+          node->AppendInput(graph()->zone(), current_control);
+        }
+      }
+      if (node->op()->EffectOutputCount() > 0) {
+        DCHECK_EQ(1, node->op()->EffectOutputCount());
+        current_effect = node;
+      }
+      if (node->op()->ControlOutputCount() > 0) {
+        current_control = node;
+      }
+    };
+
+    for (Node* node : *block) {
+      update_current_control_and_effect(node);
+    }
+    if (block->deferred()) MarkControlDeferred(current_control);
+
+    if (Node* block_terminator = block->control_input()) {
+      update_current_control_and_effect(block_terminator);
+    }
+
+    block_final_effect[block->id().ToSize()] = current_effect;
+    block_final_control[block->id().ToSize()] = current_control;
+  }
+
+  // Fix-up loop backedges and re-structure control flow so that loop nodes have
+  // exactly two control predecessors.
+  for (const LoopHeader& loop_header : loop_headers) {
+    BasicBlock* block = loop_header.block;
+    std::vector<BasicBlock*> loop_entries;
+    std::vector<BasicBlock*> loop_backedges;
+    for (size_t i = 0; i < block->PredecessorCount(); ++i) {
+      BasicBlock* predecessor = block->PredecessorAt(i);
+      if (block->LoopContains(predecessor)) {
+        loop_backedges.push_back(predecessor);
+      } else {
+        DCHECK(loop_backedges.empty());
+        loop_entries.push_back(predecessor);
+      }
+    }
+    DCHECK(!loop_entries.empty());
+    DCHECK(!loop_backedges.empty());
+
+    int entrance_count = static_cast<int>(loop_entries.size());
+    int backedge_count = static_cast<int>(loop_backedges.size());
+    Node* control_loop_entry = CreateNodeFromPredecessors(
+        loop_entries, block_final_control, common()->Merge(entrance_count), {});
+    Node* control_backedge =
+        CreateNodeFromPredecessors(loop_backedges, block_final_control,
+                                   common()->Merge(backedge_count), {});
+    Node* effect_loop_entry = CreateNodeFromPredecessors(
+        loop_entries, block_final_effect, common()->EffectPhi(entrance_count),
+        {control_loop_entry});
+    Node* effect_backedge = CreateNodeFromPredecessors(
+        loop_backedges, block_final_effect, common()->EffectPhi(backedge_count),
+        {control_backedge});
+
+    loop_header.loop_node->ReplaceInput(0, control_loop_entry);
+    loop_header.loop_node->ReplaceInput(1, control_backedge);
+    loop_header.effect_phi->ReplaceInput(0, effect_loop_entry);
+    loop_header.effect_phi->ReplaceInput(1, effect_backedge);
+
+    for (Node* node : *block) {
+      if (node->opcode() == IrOpcode::kPhi) {
+        MakePhiBinary(node, static_cast<int>(loop_entries.size()),
+                      control_loop_entry, control_backedge);
+      }
+    }
+  }
+}
+
+Node* RawMachineAssembler::CreateNodeFromPredecessors(
+    const std::vector<BasicBlock*>& predecessors,
+    const std::vector<Node*>& sidetable, const Operator* op,
+    const std::vector<Node*>& additional_inputs) {
+  if (predecessors.size() == 1) {
+    return sidetable[predecessors.front()->id().ToSize()];
+  }
+  std::vector<Node*> inputs;
+  for (BasicBlock* predecessor : predecessors) {
+    inputs.push_back(sidetable[predecessor->id().ToSize()]);
+  }
+  for (Node* additional_input : additional_inputs) {
+    inputs.push_back(additional_input);
+  }
+  return graph()->NewNode(op, static_cast<int>(inputs.size()), inputs.data());
+}
+
+void RawMachineAssembler::MakePhiBinary(Node* phi, int split_point,
+                                        Node* left_control,
+                                        Node* right_control) {
+  int value_count = phi->op()->ValueInputCount();
+  if (value_count == 2) return;
+  DCHECK_LT(split_point, value_count);
+  DCHECK_GT(split_point, 0);
+
+  MachineRepresentation rep = PhiRepresentationOf(phi->op());
+  int left_input_count = split_point;
+  int right_input_count = value_count - split_point;
+
+  Node* left_input;
+  if (left_input_count == 1) {
+    left_input = NodeProperties::GetValueInput(phi, 0);
+  } else {
+    std::vector<Node*> inputs;
+    for (int i = 0; i < left_input_count; ++i) {
+      inputs.push_back(NodeProperties::GetValueInput(phi, i));
+    }
+    inputs.push_back(left_control);
+    left_input =
+        graph()->NewNode(common()->Phi(rep, static_cast<int>(left_input_count)),
+                         static_cast<int>(inputs.size()), inputs.data());
+  }
+
+  Node* right_input;
+  if (right_input_count == 1) {
+    right_input = NodeProperties::GetValueInput(phi, split_point);
+  } else {
+    std::vector<Node*> inputs;
+    for (int i = split_point; i < value_count; ++i) {
+      inputs.push_back(NodeProperties::GetValueInput(phi, i));
+    }
+    inputs.push_back(right_control);
+    right_input = graph()->NewNode(
+        common()->Phi(rep, static_cast<int>(right_input_count)),
+        static_cast<int>(inputs.size()), inputs.data());
+  }
+
+  Node* control = NodeProperties::GetControlInput(phi);
+  phi->TrimInputCount(3);
+  phi->ReplaceInput(0, left_input);
+  phi->ReplaceInput(1, right_input);
+  phi->ReplaceInput(2, control);
+  NodeProperties::ChangeOp(phi, common()->Phi(rep, 2));
+}
+
+void RawMachineAssembler::MarkControlDeferred(Node* control_node) {
+  BranchHint new_branch_hint;
+  Node* responsible_branch = nullptr;
+  while (responsible_branch == nullptr) {
+    switch (control_node->opcode()) {
+      case IrOpcode::kIfException:
+        // IfException projections are deferred by default.
+        return;
+      case IrOpcode::kIfSuccess:
+        control_node = NodeProperties::GetControlInput(control_node);
+        continue;
+      case IrOpcode::kIfValue: {
+        IfValueParameters parameters = IfValueParametersOf(control_node->op());
+        if (parameters.hint() != BranchHint::kFalse) {
+          NodeProperties::ChangeOp(
+              control_node, common()->IfValue(parameters.value(),
+                                              parameters.comparison_order(),
+                                              BranchHint::kFalse));
+        }
+        return;
+      }
+      case IrOpcode::kIfDefault:
+        if (BranchHintOf(control_node->op()) != BranchHint::kFalse) {
+          NodeProperties::ChangeOp(control_node,
+                                   common()->IfDefault(BranchHint::kFalse));
+        }
+        return;
+      case IrOpcode::kIfTrue: {
+        Node* branch = NodeProperties::GetControlInput(control_node);
+        BranchHint hint = BranchOperatorInfoOf(branch->op()).hint;
+        if (hint == BranchHint::kTrue) {
+          // The other possibility is also deferred, so the responsible branch
+          // has to be before.
+          control_node = NodeProperties::GetControlInput(branch);
+          continue;
+        }
+        new_branch_hint = BranchHint::kFalse;
+        responsible_branch = branch;
+        break;
+      }
+      case IrOpcode::kIfFalse: {
+        Node* branch = NodeProperties::GetControlInput(control_node);
+        BranchHint hint = BranchOperatorInfoOf(branch->op()).hint;
+        if (hint == BranchHint::kFalse) {
+          // The other possibility is also deferred, so the responsible branch
+          // has to be before.
+          control_node = NodeProperties::GetControlInput(branch);
+          continue;
+        }
+        new_branch_hint = BranchHint::kTrue;
+        responsible_branch = branch;
+        break;
+      }
+      case IrOpcode::kMerge:
+        for (int i = 0; i < control_node->op()->ControlInputCount(); ++i) {
+          MarkControlDeferred(NodeProperties::GetControlInput(control_node, i));
+        }
+        return;
+      case IrOpcode::kLoop:
+        control_node = NodeProperties::GetControlInput(control_node, 0);
+        continue;
+      case IrOpcode::kBranch:
+      case IrOpcode::kSwitch:
+        UNREACHABLE();
+      case IrOpcode::kStart:
+        return;
+      default:
+        DCHECK_EQ(1, control_node->op()->ControlInputCount());
+        control_node = NodeProperties::GetControlInput(control_node);
+        continue;
+    }
+  }
+
+  BranchOperatorInfo info = BranchOperatorInfoOf(responsible_branch->op());
+  if (info.hint == new_branch_hint) return;
+  NodeProperties::ChangeOp(
+      responsible_branch,
+      common()->Branch(new_branch_hint, info.is_safety_check));
 }
 
 Node* RawMachineAssembler::TargetParameter() {
@@ -83,7 +418,7 @@ Node* RawMachineAssembler::TargetParameter() {
 }
 
 Node* RawMachineAssembler::Parameter(size_t index) {
-  DCHECK(index < parameter_count());
+  DCHECK_LT(index, parameter_count());
   return parameters_[index];
 }
 
@@ -101,7 +436,16 @@ void RawMachineAssembler::Branch(Node* condition, RawMachineLabel* true_val,
   Node* branch = MakeNode(
       common()->Branch(BranchHint::kNone, IsSafetyCheck::kNoSafetyCheck), 1,
       &condition);
-  schedule()->AddBranch(CurrentBlock(), branch, Use(true_val), Use(false_val));
+  BasicBlock* true_block = schedule()->NewBasicBlock();
+  BasicBlock* false_block = schedule()->NewBasicBlock();
+  schedule()->AddBranch(CurrentBlock(), branch, true_block, false_block);
+
+  true_block->AddNode(MakeNode(common()->IfTrue(), 1, &branch));
+  schedule()->AddGoto(true_block, Use(true_val));
+
+  false_block->AddNode(MakeNode(common()->IfFalse(), 1, &branch));
+  schedule()->AddGoto(false_block, Use(false_val));
+
   current_block_ = nullptr;
 }
 
@@ -119,7 +463,7 @@ void RawMachineAssembler::Switch(Node* index, RawMachineLabel* default_label,
                                  size_t case_count) {
   DCHECK_NE(schedule()->end(), current_block_);
   size_t succ_count = case_count + 1;
-  Node* switch_node = AddNode(common()->Switch(succ_count), index);
+  Node* switch_node = MakeNode(common()->Switch(succ_count), 1, &index);
   BasicBlock** succ_blocks = zone()->NewArray<BasicBlock*>(succ_count);
   for (size_t index = 0; index < case_count; ++index) {
     int32_t case_value = case_values[index];
@@ -220,8 +564,11 @@ void RawMachineAssembler::Unreachable() {
   current_block_ = nullptr;
 }
 
-void RawMachineAssembler::Comment(const char* msg) {
-  AddNode(machine()->Comment(msg));
+void RawMachineAssembler::Comment(std::string msg) {
+  size_t length = msg.length() + 1;
+  char* zone_buffer = zone()->NewArray<char>(length);
+  MemCopy(zone_buffer, msg.c_str(), length);
+  AddNode(machine()->Comment(zone_buffer));
 }
 
 Node* RawMachineAssembler::CallN(CallDescriptor* call_descriptor,
@@ -478,13 +825,13 @@ void RawMachineAssembler::PrintCurrentBlock(std::ostream& os) {
   os << CurrentBlock();
 }
 
-bool RawMachineAssembler::InsideBlock() { return current_block_ != nullptr; }
-
 void RawMachineAssembler::SetInitialDebugInformation(
     AssemblerDebugInfo debug_info) {
   CurrentBlock()->set_debug_info(debug_info);
 }
 #endif  // DEBUG
+
+bool RawMachineAssembler::InsideBlock() { return current_block_ != nullptr; }
 
 BasicBlock* RawMachineAssembler::CurrentBlock() {
   DCHECK(current_block_);

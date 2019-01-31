@@ -20,16 +20,16 @@ CallOptimization::CallOptimization(Isolate* isolate, Handle<Object> function) {
   }
 }
 
-Context* CallOptimization::GetAccessorContext(Map* holder_map) const {
+Context CallOptimization::GetAccessorContext(Map holder_map) const {
   if (is_constant_call()) {
     return constant_function_->context()->native_context();
   }
-  JSFunction* constructor = JSFunction::cast(holder_map->GetConstructor());
+  JSFunction constructor = JSFunction::cast(holder_map->GetConstructor());
   return constructor->context()->native_context();
 }
 
-bool CallOptimization::IsCrossContextLazyAccessorPair(Context* native_context,
-                                                      Map* holder_map) const {
+bool CallOptimization::IsCrossContextLazyAccessorPair(Context native_context,
+                                                      Map holder_map) const {
   DCHECK(native_context->IsNativeContext());
   if (is_constant_call()) return false;
   return native_context != GetAccessorContext(holder_map);
@@ -48,7 +48,7 @@ Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
     return Handle<JSObject>::null();
   }
   if (object_map->has_hidden_prototype()) {
-    JSObject* raw_prototype = JSObject::cast(object_map->prototype());
+    JSObject raw_prototype = JSObject::cast(object_map->prototype());
     Handle<JSObject> prototype(raw_prototype, raw_prototype->GetIsolate());
     object_map = handle(prototype->map(), prototype->GetIsolate());
     if (expected_receiver_type_->IsTemplateFor(*object_map)) {
@@ -83,9 +83,9 @@ bool CallOptimization::IsCompatibleReceiverMap(Handle<Map> map,
       if (api_holder.is_identical_to(holder)) return true;
       // Check if holder is in prototype chain of api_holder.
       {
-        JSObject* object = *api_holder;
+        JSObject object = *api_holder;
         while (true) {
-          Object* prototype = object->map()->prototype();
+          Object prototype = object->map()->prototype();
           if (!prototype->IsJSObject()) return false;
           if (prototype == *holder) return true;
           object = JSObject::cast(prototype);

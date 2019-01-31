@@ -389,3 +389,7 @@ Object.seal(Sealed);
 assertDoesNotThrow(function() { return new Sealed(); });
 Sealed.prototype.prototypeExists = true;
 assertTrue((new Sealed()).prototypeExists);
+
+obj = new Int32Array(10)
+Object.seal(obj);
+assertTrue(Object.isSealed(obj));

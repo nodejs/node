@@ -19,7 +19,7 @@
 
 bool IsValidInput(const uint8_t* data, size_t size) {
   // Ignore too long inputs as they tend to find OOM or timeouts, not real bugs.
-  if (size > 8192) {
+  if (size > 2048) {
     return false;
   }
 

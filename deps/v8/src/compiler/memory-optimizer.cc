@@ -10,6 +10,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/interface-descriptors.h"
 
 namespace v8 {
 namespace internal {
@@ -96,21 +97,55 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
       return VisitStoreElement(node, state);
     case IrOpcode::kStoreField:
       return VisitStoreField(node, state);
+    case IrOpcode::kBitcastTaggedToWord:
+    case IrOpcode::kBitcastWordToTagged:
+    case IrOpcode::kComment:
+    case IrOpcode::kDebugAbort:
+    case IrOpcode::kDebugBreak:
     case IrOpcode::kDeoptimizeIf:
     case IrOpcode::kDeoptimizeUnless:
     case IrOpcode::kIfException:
     case IrOpcode::kLoad:
+    case IrOpcode::kPoisonedLoad:
     case IrOpcode::kProtectedLoad:
-    case IrOpcode::kUnalignedLoad:
-    case IrOpcode::kStore:
     case IrOpcode::kProtectedStore:
-    case IrOpcode::kUnalignedStore:
     case IrOpcode::kRetain:
+    case IrOpcode::kStore:
+    case IrOpcode::kTaggedPoisonOnSpeculation:
+    case IrOpcode::kUnalignedLoad:
+    case IrOpcode::kUnalignedStore:
     case IrOpcode::kUnsafePointerAdd:
-    case IrOpcode::kDebugBreak:
     case IrOpcode::kUnreachable:
+    case IrOpcode::kWord32AtomicAdd:
+    case IrOpcode::kWord32AtomicAnd:
+    case IrOpcode::kWord32AtomicCompareExchange:
+    case IrOpcode::kWord32AtomicExchange:
+    case IrOpcode::kWord32AtomicLoad:
+    case IrOpcode::kWord32AtomicOr:
+    case IrOpcode::kWord32AtomicPairAdd:
+    case IrOpcode::kWord32AtomicPairAnd:
+    case IrOpcode::kWord32AtomicPairCompareExchange:
+    case IrOpcode::kWord32AtomicPairExchange:
+    case IrOpcode::kWord32AtomicPairLoad:
+    case IrOpcode::kWord32AtomicPairOr:
+    case IrOpcode::kWord32AtomicPairStore:
+    case IrOpcode::kWord32AtomicPairSub:
+    case IrOpcode::kWord32AtomicPairXor:
+    case IrOpcode::kWord32AtomicStore:
+    case IrOpcode::kWord32AtomicSub:
+    case IrOpcode::kWord32AtomicXor:
     case IrOpcode::kWord32PoisonOnSpeculation:
+    case IrOpcode::kWord64AtomicAdd:
+    case IrOpcode::kWord64AtomicAnd:
+    case IrOpcode::kWord64AtomicCompareExchange:
+    case IrOpcode::kWord64AtomicExchange:
+    case IrOpcode::kWord64AtomicLoad:
+    case IrOpcode::kWord64AtomicOr:
+    case IrOpcode::kWord64AtomicStore:
+    case IrOpcode::kWord64AtomicSub:
+    case IrOpcode::kWord64AtomicXor:
     case IrOpcode::kWord64PoisonOnSpeculation:
+      // These operations cannot trigger GC.
       return VisitOtherEffect(node, state);
     default:
       break;
@@ -249,7 +284,8 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
               CallDescriptor::kCanUseRoots, Operator::kNoThrow);
           allocate_operator_.set(common()->Call(call_descriptor));
         }
-        Node* vfalse = __ Call(allocate_operator_.get(), target, size);
+        Node* vfalse = __ BitcastTaggedToWord(
+            __ Call(allocate_operator_.get(), target, size));
         vfalse = __ IntSub(vfalse, __ IntPtrConstant(kHeapObjectTag));
         __ Goto(&done, vfalse);
       }

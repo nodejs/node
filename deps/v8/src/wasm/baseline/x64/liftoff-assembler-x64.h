@@ -112,11 +112,11 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
       assm->pushq(reg.gp());
       break;
     case kWasmF32:
-      assm->subp(rsp, Immediate(kPointerSize));
+      assm->subp(rsp, Immediate(kSystemPointerSize));
       assm->Movss(Operand(rsp, 0), reg.fp());
       break;
     case kWasmF64:
-      assm->subp(rsp, Immediate(kPointerSize));
+      assm->subp(rsp, Immediate(kSystemPointerSize));
       assm->Movsd(Operand(rsp, 0), reg.fp());
       break;
     default:
@@ -146,8 +146,9 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset,
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.
   constexpr int kAvailableSpace = 64;
-  Assembler patching_assembler(AssemblerOptions{}, buffer_ + offset,
-                               kAvailableSpace);
+  Assembler patching_assembler(
+      AssemblerOptions{},
+      ExternalAssemblerBuffer(buffer_start_ + offset, kAvailableSpace));
   patching_assembler.sub_sp_32(bytes);
 }
 
@@ -195,12 +196,30 @@ void LiftoffAssembler::LoadFromInstance(Register dst, uint32_t offset,
   }
 }
 
+void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
+                                                     uint32_t offset) {
+  DCHECK_LE(offset, kMaxInt);
+  movp(dst, liftoff::GetInstanceOperand());
+  LoadTaggedPointerField(dst, Operand(dst, offset));
+}
+
 void LiftoffAssembler::SpillInstance(Register instance) {
   movp(liftoff::GetInstanceOperand(), instance);
 }
 
 void LiftoffAssembler::FillInstanceInto(Register dst) {
   movp(dst, liftoff::GetInstanceOperand());
+}
+
+void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
+                                         Register offset_reg,
+                                         uint32_t offset_imm,
+                                         LiftoffRegList pinned) {
+  if (emit_debug_code() && offset_reg != no_reg) {
+    AssertZeroExtended(offset_reg);
+  }
+  Operand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm);
+  LoadTaggedPointerField(dst, src_op);
 }
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
@@ -256,7 +275,7 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
 
 void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uint32_t offset_imm, LiftoffRegister src,
-                             StoreType type, LiftoffRegList pinned,
+                             StoreType type, LiftoffRegList /* pinned */,
                              uint32_t* protected_store_pc, bool is_store_mem) {
   if (emit_debug_code() && offset_reg != no_reg) {
     AssertZeroExtended(offset_reg);
@@ -293,19 +312,22 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueType type) {
-  Operand src(rbp, kPointerSize * (caller_slot_idx + 1));
+  Operand src(rbp, kSystemPointerSize * (caller_slot_idx + 1));
   liftoff::Load(this, dst, src, type);
 }
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
                                       ValueType type) {
   DCHECK_NE(dst_index, src_index);
-  if (cache_state_.has_unused_register(kGpReg)) {
-    Fill(LiftoffRegister{kScratchRegister}, src_index, type);
-    Spill(dst_index, LiftoffRegister{kScratchRegister}, type);
+  Operand src = liftoff::GetStackSlot(src_index);
+  Operand dst = liftoff::GetStackSlot(dst_index);
+  if (ValueTypes::ElementSizeLog2Of(type) == 2) {
+    movl(kScratchRegister, src);
+    movl(dst, kScratchRegister);
   } else {
-    pushq(liftoff::GetStackSlot(src_index));
-    popq(liftoff::GetStackSlot(dst_index));
+    DCHECK_EQ(3, ValueTypes::ElementSizeLog2Of(type));
+    movq(kScratchRegister, src);
+    movq(dst, kScratchRegister);
   }
 }
 
@@ -400,7 +422,7 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
   }
 }
 
-void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
+void LiftoffAssembler::FillI64Half(Register, uint32_t index, RegPairHalf) {
   UNREACHABLE();
 }
 
@@ -413,12 +435,17 @@ void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, Register rhs) {
 }
 
 void LiftoffAssembler::emit_i32_sub(Register dst, Register lhs, Register rhs) {
-  if (dst == rhs) {
-    negl(dst);
-    addl(dst, lhs);
-  } else {
+  if (dst != rhs) {
+    // Default path.
     if (dst != lhs) movl(dst, lhs);
     subl(dst, rhs);
+  } else if (lhs == rhs) {
+    // Degenerate case.
+    xorl(dst, dst);
+  } else {
+    // Emit {dst = lhs + -rhs} if dst == rhs.
+    negl(dst);
+    addl(dst, lhs);
   }
 }
 
@@ -933,25 +960,41 @@ void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
   }
 }
 
-void LiftoffAssembler::emit_f32_ceil(DoubleRegister dst, DoubleRegister src) {
-  REQUIRE_CPU_FEATURE(SSE4_1);
-  Roundss(dst, src, kRoundUp);
+bool LiftoffAssembler::emit_f32_ceil(DoubleRegister dst, DoubleRegister src) {
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatureScope feature(this, SSE4_1);
+    Roundss(dst, src, kRoundUp);
+    return true;
+  }
+  return false;
 }
 
-void LiftoffAssembler::emit_f32_floor(DoubleRegister dst, DoubleRegister src) {
-  REQUIRE_CPU_FEATURE(SSE4_1);
-  Roundss(dst, src, kRoundDown);
+bool LiftoffAssembler::emit_f32_floor(DoubleRegister dst, DoubleRegister src) {
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatureScope feature(this, SSE4_1);
+    Roundss(dst, src, kRoundDown);
+    return true;
+  }
+  return false;
 }
 
-void LiftoffAssembler::emit_f32_trunc(DoubleRegister dst, DoubleRegister src) {
-  REQUIRE_CPU_FEATURE(SSE4_1);
-  Roundss(dst, src, kRoundToZero);
+bool LiftoffAssembler::emit_f32_trunc(DoubleRegister dst, DoubleRegister src) {
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatureScope feature(this, SSE4_1);
+    Roundss(dst, src, kRoundToZero);
+    return true;
+  }
+  return false;
 }
 
-void LiftoffAssembler::emit_f32_nearest_int(DoubleRegister dst,
+bool LiftoffAssembler::emit_f32_nearest_int(DoubleRegister dst,
                                             DoubleRegister src) {
-  REQUIRE_CPU_FEATURE(SSE4_1);
-  Roundss(dst, src, kRoundToNearest);
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatureScope feature(this, SSE4_1);
+    Roundss(dst, src, kRoundToNearest);
+    return true;
+  }
+  return false;
 }
 
 void LiftoffAssembler::emit_f32_sqrt(DoubleRegister dst, DoubleRegister src) {
@@ -1423,8 +1466,9 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
 }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
-  DCHECK_LT(num_stack_slots, (1 << 16) / kPointerSize);  // 16 bit immediate
-  ret(static_cast<int>(num_stack_slots * kPointerSize));
+  DCHECK_LT(num_stack_slots,
+            (1 << 16) / kSystemPointerSize);  // 16 bit immediate
+  ret(static_cast<int>(num_stack_slots * kSystemPointerSize));
 }
 
 void LiftoffAssembler::CallC(wasm::FunctionSig* sig,

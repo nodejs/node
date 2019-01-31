@@ -2,4 +2,4 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-(new Int8Array((new WebAssembly.Memory({})).buffer)).buffer;
+(new Int8Array((new WebAssembly.Memory({initial: 0})).buffer)).buffer;

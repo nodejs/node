@@ -19,6 +19,6 @@ let locale = new Intl.Locale('sr-cyrl-rs-t-ja-u-ca-islamic-x-whatever', {
 });
 
 let expected =
-    'sr-Cyrl-RS-t-ja-u-ca-buddhist-co-phonebk-hc-h23-kf-upper-kn-true-nu-roman-x-whatever';
+    'sr-Cyrl-RS-t-ja-u-ca-buddhist-co-phonebk-hc-h23-kf-upper-kn-nu-roman-x-whatever';
 
 assertEquals(expected, locale.toString());

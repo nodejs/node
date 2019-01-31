@@ -16,6 +16,11 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(AllocationMemento, Struct)
+OBJECT_CONSTRUCTORS_IMPL(AllocationSite, Struct)
+
+NEVER_READ_ONLY_SPACE_IMPL(AllocationSite)
+
 CAST_ACCESSOR(AllocationMemento)
 CAST_ACCESSOR(AllocationSite)
 
@@ -30,12 +35,12 @@ ACCESSORS_CHECKED(AllocationSite, weak_next, Object, kWeakNextOffset,
                   HasWeakNext())
 ACCESSORS(AllocationMemento, allocation_site, Object, kAllocationSiteOffset)
 
-JSObject* AllocationSite::boilerplate() const {
+JSObject AllocationSite::boilerplate() const {
   DCHECK(PointsToLiteral());
   return JSObject::cast(transition_info_or_boilerplate());
 }
 
-void AllocationSite::set_boilerplate(JSObject* object, WriteBarrierMode mode) {
+void AllocationSite::set_boilerplate(JSObject object, WriteBarrierMode mode) {
   set_transition_info_or_boilerplate(object, mode);
 }
 
@@ -99,7 +104,7 @@ void AllocationSite::SetDoNotInlineCall() {
 }
 
 bool AllocationSite::PointsToLiteral() const {
-  Object* raw_value = transition_info_or_boilerplate();
+  Object raw_value = transition_info_or_boilerplate();
   DCHECK_EQ(!raw_value->IsSmi(),
             raw_value->IsJSArray() || raw_value->IsJSObject());
   return !raw_value->IsSmi();
@@ -147,7 +152,7 @@ inline void AllocationSite::set_memento_found_count(int count) {
   // Verify that we can count more mementos than we can possibly find in one
   // new space collection.
   DCHECK((GetHeap()->MaxSemiSpaceSize() /
-          (Heap::kMinObjectSizeInWords * kPointerSize +
+          (Heap::kMinObjectSizeInTaggedWords * kTaggedSize +
            AllocationMemento::kSize)) < MementoFoundCountBits::kMax);
   DCHECK_LT(count, MementoFoundCountBits::kMax);
   set_pretenure_data(MementoFoundCountBits::update(value, count));
@@ -180,13 +185,13 @@ bool AllocationMemento::IsValid() const {
          !AllocationSite::cast(allocation_site())->IsZombie();
 }
 
-AllocationSite* AllocationMemento::GetAllocationSite() const {
+AllocationSite AllocationMemento::GetAllocationSite() const {
   DCHECK(IsValid());
   return AllocationSite::cast(allocation_site());
 }
 
 Address AllocationMemento::GetAllocationSiteUnchecked() const {
-  return reinterpret_cast<Address>(allocation_site());
+  return allocation_site()->ptr();
 }
 
 }  // namespace internal

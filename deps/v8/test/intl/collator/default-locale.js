@@ -37,9 +37,6 @@ assertFalse(options.locale === 'und');
 assertFalse(options.locale === '');
 assertFalse(options.locale === undefined);
 
-// Then check for legitimacy.
-assertLanguageTag(%GetDefaultICULocale(), options.locale);
-
 var collatorNone = new Intl.Collator();
 assertEquals(options.locale, collatorNone.resolvedOptions().locale);
 
@@ -49,5 +46,4 @@ assertEquals(options.locale, collatorBraket.resolvedOptions().locale);
 
 var collatorWithOptions = new Intl.Collator(undefined, {usage: 'search'});
 var locale = collatorWithOptions.resolvedOptions().locale;
-assertLanguageTag(%GetDefaultICULocale(), locale);
 assertEquals(locale.indexOf('-co-search'), -1);

@@ -43,6 +43,9 @@ _EXCLUDED_PATHS = (
     r"^tools[\\\/].*",
 )
 
+_LICENSE_FILE = (
+    r"LICENSE"
+)
 
 # Regular expression that matches code which should not be run through cpplint.
 _NO_LINT_PATHS = (
@@ -74,7 +77,7 @@ def _V8PresubmitChecks(input_api, output_api):
   sys.path.append(input_api.os_path.join(
         input_api.PresubmitLocalPath(), 'tools'))
   from v8_presubmit import CppLintProcessor
-  from v8_presubmit import TorqueFormatProcessor
+  from v8_presubmit import TorqueLintProcessor
   from v8_presubmit import SourceProcessor
   from v8_presubmit import StatusFilesProcessor
 
@@ -93,7 +96,7 @@ def _V8PresubmitChecks(input_api, output_api):
   if not CppLintProcessor().RunOnFiles(
       input_api.AffectedFiles(file_filter=FilterFile, include_deletes=False)):
     results.append(output_api.PresubmitError("C++ lint check failed"))
-  if not TorqueFormatProcessor().RunOnFiles(
+  if not TorqueLintProcessor().RunOnFiles(
       input_api.AffectedFiles(file_filter=FilterTorqueFile,
                               include_deletes=False)):
     results.append(output_api.PresubmitError("Torque format check failed"))
@@ -311,8 +314,13 @@ def _CommonChecks(input_api, output_api):
   results.extend(_CheckCommitMessageBugEntry(input_api, output_api))
   results.extend(input_api.canned_checks.CheckPatchFormatted(
       input_api, output_api))
+
+  # License files are taken as is, even if they include gendered pronouns.
+  license_filter = lambda path: input_api.FilterSourceFile(
+      path, black_list=_LICENSE_FILE)
   results.extend(input_api.canned_checks.CheckGenderNeutral(
-      input_api, output_api))
+      input_api, output_api, source_file_filter=license_filter))
+
   results.extend(_V8PresubmitChecks(input_api, output_api))
   results.extend(_CheckUnwantedDependencies(input_api, output_api))
   results.extend(
@@ -322,6 +330,7 @@ def _CommonChecks(input_api, output_api):
       _CheckNoInlineHeaderIncludesInNormalHeaders(input_api, output_api))
   results.extend(_CheckJSONFiles(input_api, output_api))
   results.extend(_CheckMacroUndefs(input_api, output_api))
+  results.extend(_CheckNoexceptAnnotations(input_api, output_api))
   results.extend(input_api.RunTests(
     input_api.canned_checks.CheckVPythonSpec(input_api, output_api)))
   return results
@@ -442,6 +451,58 @@ def _CheckMacroUndefs(input_api, output_api):
   return []
 
 
+def _CheckNoexceptAnnotations(input_api, output_api):
+  """
+  Checks that all user-defined constructors and assignment operators are marked
+  V8_NOEXCEPT.
+
+  This is required for standard containers to pick the right constructors. Our
+  macros (like MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS) add this automatically.
+  Omitting it at some places can result in weird compiler errors if this is
+  mixed with other classes that have the annotation.
+
+  TODO(clemensh): This check should eventually be enabled for all files via
+  tools/presubmit.py (https://crbug.com/v8/8616).
+  """
+
+  def FilterFile(affected_file):
+    return input_api.FilterSourceFile(
+        affected_file,
+        white_list=(r'src/.*', r'test/.*'))
+
+
+  # matches any class name.
+  class_name = r'\b([A-Z][A-Za-z0-9_:]*)(?:::\1)?'
+  # initial class name is potentially followed by this to declare an assignment
+  # operator.
+  potential_assignment = r'(?:&\s+(?:\1::)?operator=)?\s*'
+  # matches an argument list that contains only a reference to a class named
+  # like the first capture group, potentially const.
+  single_class_ref_arg = r'\(\s*(?:const\s+)?\1(?:::\1)?&&?[^,;)]*\)'
+  # matches anything but a sequence of whitespaces followed by either
+  # V8_NOEXCEPT or "= delete".
+  not_followed_by_noexcept = r'(?!\s+(?:V8_NOEXCEPT|=\s+delete)\b)'
+  full_pattern = r'^.*?' + class_name + potential_assignment + \
+      single_class_ref_arg + not_followed_by_noexcept + '.*?$'
+  regexp = input_api.re.compile(full_pattern, re.MULTILINE)
+
+  errors = []
+  for f in input_api.AffectedFiles(file_filter=FilterFile,
+                                   include_deletes=False):
+    with open(f.LocalPath()) as fh:
+      for match in re.finditer(regexp, fh.read()):
+        errors.append('in {}: {}'.format(f.LocalPath(),
+                                         match.group().strip()))
+
+  if errors:
+    return [output_api.PresubmitPromptOrNotify(
+        'Copy constructors, move constructors, copy assignment operators and '
+        'move assignment operators should be marked V8_NOEXCEPT.\n'
+        'Please report false positives on https://crbug.com/v8/8616.',
+        errors)]
+  return []
+
+
 def CheckChangeOnUpload(input_api, output_api):
   results = []
   results.extend(_CommonChecks(input_api, output_api))
@@ -458,19 +519,3 @@ def CheckChangeOnCommit(input_api, output_api):
         input_api, output_api,
         json_url='http://v8-status.appspot.com/current?format=json'))
   return results
-
-def PostUploadHook(cl, change, output_api):
-  """git cl upload will call this hook after the issue is created/modified.
-
-  This hook adds a noi18n bot if the patch affects Intl.
-  """
-  def affects_intl(f):
-    return 'intl' in f.LocalPath() or 'test262' in f.LocalPath()
-  if not change.AffectedFiles(file_filter=affects_intl):
-    return []
-  return output_api.EnsureCQIncludeTrybotsAreAdded(
-      cl,
-      [
-        'luci.v8.try:v8_linux_noi18n_rel_ng'
-      ],
-      'Automatically added noi18n trybots to run tests on CQ.')

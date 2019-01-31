@@ -21,3 +21,17 @@
   assertEquals(0, foo(0));
   assertOptimized(foo);
 })();
+
+// Test that NumberMax properly handles 64-bit comparisons.
+(function() {
+  function foo(x) {
+    x = x|0;
+    return Math.max(x - 1, x + 1);
+  }
+
+  assertEquals(-Math.pow(2, 31) + 1, foo(-Math.pow(2, 31)));
+  assertEquals(Math.pow(2, 31), foo(Math.pow(2, 31) - 1));
+  %OptimizeFunctionOnNextCall(foo);
+  assertEquals(-Math.pow(2, 31) + 1, foo(-Math.pow(2, 31)));
+  assertEquals(Math.pow(2, 31), foo(Math.pow(2, 31) - 1));
+})();

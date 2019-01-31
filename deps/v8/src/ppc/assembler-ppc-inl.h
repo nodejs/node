@@ -90,9 +90,7 @@ Address RelocInfo::target_address() {
 }
 
 Address RelocInfo::target_address_address() {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_) ||
-         IsEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
-         IsOffHeapTarget(rmode_));
+  DCHECK(HasTargetAddressAddress());
 
   if (FLAG_enable_embedded_constant_pool &&
       Assembler::IsConstantPoolLoadStart(pc_)) {
@@ -161,30 +159,28 @@ Address Assembler::return_address_from_call_start(Address pc) {
   return pc + (len + 2) * kInstrSize;
 }
 
-HeapObject* RelocInfo::target_object() {
+HeapObject RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return HeapObject::cast(reinterpret_cast<Object*>(
-      Assembler::target_address_at(pc_, constant_pool_)));
+  return HeapObject::cast(
+      Object(Assembler::target_address_at(pc_, constant_pool_)));
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return Handle<HeapObject>(reinterpret_cast<HeapObject**>(
+  return Handle<HeapObject>(reinterpret_cast<Address*>(
       Assembler::target_address_at(pc_, constant_pool_)));
 }
 
-void RelocInfo::set_target_object(Heap* heap, HeapObject* target,
+void RelocInfo::set_target_object(Heap* heap, HeapObject target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  Assembler::set_target_address_at(pc_, constant_pool_,
-                                   reinterpret_cast<Address>(target),
+  Assembler::set_target_address_at(pc_, constant_pool_, target->ptr(),
                                    icache_flush_mode);
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr) {
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null()) {
     WriteBarrierForCode(host(), this, target);
   }
 }
-
 
 Address RelocInfo::target_external_reference() {
   DCHECK(rmode_ == EXTERNAL_REFERENCE);
@@ -380,7 +376,7 @@ int Assembler::GetConstantPoolOffset(Address pc,
 void Assembler::PatchConstantPoolAccessInstruction(
     int pc_offset, int offset, ConstantPoolEntry::Access access,
     ConstantPoolEntry::Type type) {
-  Address pc = reinterpret_cast<Address>(buffer_) + pc_offset;
+  Address pc = reinterpret_cast<Address>(buffer_start_) + pc_offset;
   bool overflowed = (access == ConstantPoolEntry::OVERFLOWED);
   CHECK(overflowed != is_int16(offset));
 #ifdef DEBUG
@@ -426,9 +422,10 @@ Address Assembler::target_constant_pool_address_at(
 // has already deserialized the mov instructions etc.
 // There is a FIXED_SEQUENCE assumption here
 void Assembler::deserialization_set_special_target_at(
-    Address instruction_payload, Code* code, Address target) {
+    Address instruction_payload, Code code, Address target) {
   set_target_address_at(instruction_payload,
-                        code ? code->constant_pool() : kNullAddress, target);
+                        !code.is_null() ? code->constant_pool() : kNullAddress,
+                        target);
 }
 
 int Assembler::deserialization_special_target_size(

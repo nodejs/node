@@ -36,7 +36,7 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
   const int kExpectedPages =
       (kNumObjects + kNumObjectsPerPage - 1) / kNumObjectsPerPage;
   for (int i = 0; i < kNumObjects; i++) {
-    HeapObject* object =
+    HeapObject object =
         compaction_space->AllocateRawUnaligned(kMaxRegularHeapObjectSize)
             .ToObjectChecked();
     heap->CreateFillerObjectAt(object->address(), kMaxRegularHeapObjectSize,
@@ -54,13 +54,13 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
 
 TEST_F(SpacesTest, WriteBarrierFromHeapObject) {
   constexpr Address address1 = Page::kPageSize;
-  HeapObject* object1 = reinterpret_cast<HeapObject*>(address1);
+  HeapObject object1 = HeapObject::unchecked_cast(Object(address1));
   MemoryChunk* chunk1 = MemoryChunk::FromHeapObject(object1);
   heap_internals::MemoryChunk* slim_chunk1 =
       heap_internals::MemoryChunk::FromHeapObject(object1);
   EXPECT_EQ(static_cast<void*>(chunk1), static_cast<void*>(slim_chunk1));
   constexpr Address address2 = 2 * Page::kPageSize - 1;
-  HeapObject* object2 = reinterpret_cast<HeapObject*>(address2);
+  HeapObject object2 = HeapObject::unchecked_cast(Object(address2));
   MemoryChunk* chunk2 = MemoryChunk::FromHeapObject(object2);
   heap_internals::MemoryChunk* slim_chunk2 =
       heap_internals::MemoryChunk::FromHeapObject(object2);
@@ -68,8 +68,9 @@ TEST_F(SpacesTest, WriteBarrierFromHeapObject) {
 }
 
 TEST_F(SpacesTest, WriteBarrierIsMarking) {
-  char memory[256];
-  memset(&memory, 0, sizeof(memory));
+  const size_t kSizeOfMemoryChunk = sizeof(MemoryChunk);
+  char memory[kSizeOfMemoryChunk];
+  memset(&memory, 0, kSizeOfMemoryChunk);
   MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
   heap_internals::MemoryChunk* slim_chunk =
       reinterpret_cast<heap_internals::MemoryChunk*>(&memory);
@@ -84,8 +85,9 @@ TEST_F(SpacesTest, WriteBarrierIsMarking) {
 }
 
 TEST_F(SpacesTest, WriteBarrierInNewSpaceToSpace) {
-  char memory[256];
-  memset(&memory, 0, sizeof(memory));
+  const size_t kSizeOfMemoryChunk = sizeof(MemoryChunk);
+  char memory[kSizeOfMemoryChunk];
+  memset(&memory, 0, kSizeOfMemoryChunk);
   MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
   heap_internals::MemoryChunk* slim_chunk =
       reinterpret_cast<heap_internals::MemoryChunk*>(&memory);
@@ -100,8 +102,9 @@ TEST_F(SpacesTest, WriteBarrierInNewSpaceToSpace) {
 }
 
 TEST_F(SpacesTest, WriteBarrierInNewSpaceFromSpace) {
-  char memory[256];
-  memset(&memory, 0, sizeof(memory));
+  const size_t kSizeOfMemoryChunk = sizeof(MemoryChunk);
+  char memory[kSizeOfMemoryChunk];
+  memset(&memory, 0, kSizeOfMemoryChunk);
   MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
   heap_internals::MemoryChunk* slim_chunk =
       reinterpret_cast<heap_internals::MemoryChunk*>(&memory);

@@ -107,6 +107,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSGeneratorObject::resume_mode() field.
   static FieldAccess ForJSGeneratorObjectResumeMode();
 
+  // Provides access to JSAsyncFunctionObject::promise() field.
+  static FieldAccess ForJSAsyncFunctionObjectPromise();
+
   // Provides access to JSAsyncGeneratorObject::queue() field.
   static FieldAccess ForJSAsyncGeneratorObjectQueue();
 
@@ -299,11 +302,11 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForHashTableBaseNumberOfDeletedElement();
   static FieldAccess ForHashTableBaseCapacity();
 
-  // Provides access to OrderedHashTableBase fields.
-  static FieldAccess ForOrderedHashTableBaseNextTable();
-  static FieldAccess ForOrderedHashTableBaseNumberOfBuckets();
-  static FieldAccess ForOrderedHashTableBaseNumberOfElements();
-  static FieldAccess ForOrderedHashTableBaseNumberOfDeletedElements();
+  // Provides access to OrderedHashMapOrSet fields.
+  static FieldAccess ForOrderedHashMapOrSetNextTable();
+  static FieldAccess ForOrderedHashMapOrSetNumberOfBuckets();
+  static FieldAccess ForOrderedHashMapOrSetNumberOfElements();
+  static FieldAccess ForOrderedHashMapOrSetNumberOfDeletedElements();
 
   // Provides access to OrderedHashMap elements.
   static ElementAccess ForOrderedHashMapEntryValue();

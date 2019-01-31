@@ -17,20 +17,32 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+struct MockStreamingResult {
+  size_t num_sections = 0;
+  size_t num_functions = 0;
+  bool ok = true;
+  OwnedVector<uint8_t> received_bytes;
+
+  MockStreamingResult() = default;
+};
+
 class MockStreamingProcessor : public StreamingProcessor {
  public:
+  explicit MockStreamingProcessor(MockStreamingResult* result)
+      : result_(result) {}
+
   bool ProcessModuleHeader(Vector<const uint8_t> bytes,
                            uint32_t offset) override {
     // TODO(ahaas): Share code with the module-decoder.
     Decoder decoder(bytes.begin(), bytes.end());
     uint32_t magic_word = decoder.consume_u32("wasm magic");
     if (decoder.failed() || magic_word != kWasmMagic) {
-      ok_ = false;
+      result_->ok = false;
       return false;
     }
     uint32_t magic_version = decoder.consume_u32("wasm version");
     if (decoder.failed() || magic_version != kWasmVersion) {
-      ok_ = false;
+      result_->ok = false;
       return false;
     }
     return true;
@@ -38,19 +50,19 @@ class MockStreamingProcessor : public StreamingProcessor {
   // Process all sections but the code section.
   bool ProcessSection(SectionCode section_code, Vector<const uint8_t> bytes,
                       uint32_t offset) override {
-    ++num_sections_;
+    ++result_->num_sections;
     return true;
   }
 
-  bool ProcessCodeSectionHeader(size_t num_functions,
-                                uint32_t offset) override {
+  bool ProcessCodeSectionHeader(size_t num_functions, uint32_t offset,
+                                std::shared_ptr<WireBytesStorage>) override {
     return true;
   }
 
   // Process a function body.
   bool ProcessFunctionBody(Vector<const uint8_t> bytes,
                            uint32_t offset) override {
-    ++num_functions_;
+    ++result_->num_functions;
     return true;
   }
 
@@ -58,26 +70,21 @@ class MockStreamingProcessor : public StreamingProcessor {
 
   // Finish the processing of the stream.
   void OnFinishedStream(OwnedVector<uint8_t> bytes) override {
-    received_bytes_ = std::move(bytes);
+    result_->received_bytes = std::move(bytes);
   }
 
   // Report an error detected in the StreamingDecoder.
-  void OnError(DecodeResult result) override { ok_ = false; }
+  void OnError(const WasmError&) override { result_->ok = false; }
 
   void OnAbort() override {}
 
-  size_t num_sections() const { return num_sections_; }
-  size_t num_functions() const { return num_functions_; }
-  bool ok() const { return ok_; }
-  Vector<const uint8_t> received_bytes() const {
-    return received_bytes_.as_vector();
-  }
+  bool Deserialize(Vector<const uint8_t> module_bytes,
+                   Vector<const uint8_t> wire_bytes) override {
+    return false;
+  };
 
  private:
-  size_t num_sections_ = 0;
-  size_t num_functions_ = 0;
-  bool ok_ = true;
-  OwnedVector<uint8_t> received_bytes_;
+  MockStreamingResult* const result_;
 };
 
 class WasmStreamingDecoderTest : public ::testing::Test {
@@ -85,50 +92,49 @@ class WasmStreamingDecoderTest : public ::testing::Test {
   void ExpectVerifies(Vector<const uint8_t> data, size_t expected_sections,
                       size_t expected_functions) {
     for (int split = 0; split <= data.length(); ++split) {
-      // Use a unique_ptr so that the StreamingDecoder can own the processor.
-      std::unique_ptr<MockStreamingProcessor> p(new MockStreamingProcessor());
-      MockStreamingProcessor* processor = p.get();
-      StreamingDecoder stream(std::move(p));
+      MockStreamingResult result;
+      StreamingDecoder stream(
+          base::make_unique<MockStreamingProcessor>(&result));
       stream.OnBytesReceived(data.SubVector(0, split));
       stream.OnBytesReceived(data.SubVector(split, data.length()));
       stream.Finish();
-      EXPECT_TRUE(processor->ok());
-      EXPECT_EQ(expected_sections, processor->num_sections());
-      EXPECT_EQ(expected_functions, processor->num_functions());
-      EXPECT_EQ(data, processor->received_bytes());
+      EXPECT_TRUE(result.ok);
+      EXPECT_EQ(expected_sections, result.num_sections);
+      EXPECT_EQ(expected_functions, result.num_functions);
+      EXPECT_EQ(data, result.received_bytes.as_vector());
     }
   }
 
   void ExpectFailure(Vector<const uint8_t> data) {
     for (int split = 0; split <= data.length(); ++split) {
-      std::unique_ptr<MockStreamingProcessor> p(new MockStreamingProcessor());
-      MockStreamingProcessor* processor = p.get();
-      StreamingDecoder stream(std::move(p));
+      MockStreamingResult result;
+      StreamingDecoder stream(
+          base::make_unique<MockStreamingProcessor>(&result));
       stream.OnBytesReceived(data.SubVector(0, split));
       stream.OnBytesReceived(data.SubVector(split, data.length()));
       stream.Finish();
-      EXPECT_FALSE(processor->ok());
+      EXPECT_FALSE(result.ok);
     }
   }
+
+  MockStreamingResult result;
 };
 
 TEST_F(WasmStreamingDecoderTest, EmptyStream) {
-  std::unique_ptr<MockStreamingProcessor> p(new MockStreamingProcessor());
-  MockStreamingProcessor* processor = p.get();
-  StreamingDecoder stream(std::move(p));
+  MockStreamingResult result;
+  StreamingDecoder stream(base::make_unique<MockStreamingProcessor>(&result));
   stream.Finish();
-  EXPECT_FALSE(processor->ok());
+  EXPECT_FALSE(result.ok);
 }
 
 TEST_F(WasmStreamingDecoderTest, IncompleteModuleHeader) {
   const uint8_t data[] = {U32_LE(kWasmMagic), U32_LE(kWasmVersion)};
   {
-    std::unique_ptr<MockStreamingProcessor> p(new MockStreamingProcessor());
-    MockStreamingProcessor* processor = p.get();
-    StreamingDecoder stream(std::move(p));
+    MockStreamingResult result;
+    StreamingDecoder stream(base::make_unique<MockStreamingProcessor>(&result));
     stream.OnBytesReceived(Vector<const uint8_t>(data, 1));
     stream.Finish();
-    EXPECT_FALSE(processor->ok());
+    EXPECT_FALSE(result.ok);
   }
   for (int length = 1; length < static_cast<int>(arraysize(data)); ++length) {
     ExpectFailure(Vector<const uint8_t>(data, length));

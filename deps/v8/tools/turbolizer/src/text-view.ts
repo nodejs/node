@@ -2,14 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {View} from "./view.js"
-import {anyToString, ViewElements, isIterable} from "./util.js"
-import {MySelection} from "./selection.js"
+import { PhaseView } from "../src/view";
+import { anyToString, ViewElements, isIterable } from "../src/util";
+import { MySelection } from "../src/selection";
+import { SourceResolver } from "./source-resolver";
+import { SelectionBroker } from "./selection-broker";
+import { NodeSelectionHandler, BlockSelectionHandler } from "./selection-handler";
 
-export abstract class TextView extends View {
+export abstract class TextView extends PhaseView {
   selectionHandler: NodeSelectionHandler;
   blockSelectionHandler: BlockSelectionHandler;
-  nodeSelectionHandler: NodeSelectionHandler;
   selection: MySelection;
   blockSelection: MySelection;
   textListNode: HTMLUListElement;
@@ -18,18 +20,22 @@ export abstract class TextView extends View {
   blockIdtoNodeIds: Map<string, Array<string>>;
   nodeIdToBlockId: Array<string>;
   patterns: any;
+  sourceResolver: SourceResolver;
+  broker: SelectionBroker;
 
-  constructor(id, broker, patterns) {
+  constructor(id, broker) {
     super(id);
-    let view = this;
+    const view = this;
     view.textListNode = view.divNode.getElementsByTagName('ul')[0];
-    view.patterns = patterns;
+    view.patterns = null;
     view.nodeIdToHtmlElementsMap = new Map();
     view.blockIdToHtmlElementsMap = new Map();
     view.blockIdtoNodeIds = new Map();
     view.nodeIdToBlockId = [];
     view.selection = new MySelection(anyToString);
     view.blockSelection = new MySelection(anyToString);
+    view.broker = broker;
+    view.sourceResolver = broker.sourceResolver;
     const selectionHandler = {
       clear: function () {
         view.selection.clear();
@@ -53,11 +59,12 @@ export abstract class TextView extends View {
     };
     this.selectionHandler = selectionHandler;
     broker.addNodeHandler(selectionHandler);
-    view.divNode.onmouseup = function (e) {
+    view.divNode.addEventListener('click', e => {
       if (!e.shiftKey) {
         view.selectionHandler.clear();
       }
-    }
+      e.stopPropagation();
+    });
     const blockSelectionHandler = {
       clear: function () {
         view.blockSelection.clear();
@@ -129,6 +136,10 @@ export abstract class TextView extends View {
         element.classList.toggle("selected", isSelected);
       }
     }
+    const elementsToSelect = view.divNode.querySelectorAll(`[data-pc-offset]`);
+    for (const el of elementsToSelect) {
+      el.classList.toggle("selected", false);
+    }
     for (const key of this.nodeIdToHtmlElementsMap.keys()) {
       for (const element of this.nodeIdToHtmlElementsMap.get(key)) {
         element.classList.toggle("selected", false);
@@ -146,82 +157,47 @@ export abstract class TextView extends View {
   }
 
   setPatterns(patterns) {
-    let view = this;
-    view.patterns = patterns;
+    this.patterns = patterns;
   }
 
   clearText() {
-    let view = this;
-    while (view.textListNode.firstChild) {
-      view.textListNode.removeChild(view.textListNode.firstChild);
+    while (this.textListNode.firstChild) {
+      this.textListNode.removeChild(this.textListNode.firstChild);
     }
   }
 
   createFragment(text, style) {
-    let view = this;
-    let fragment = document.createElement("SPAN");
+    const fragment = document.createElement("SPAN");
 
-    if (style.blockId != undefined) {
-      const blockId = style.blockId(text);
-      if (blockId != undefined) {
-        fragment.blockId = blockId;
-        this.addHtmlElementForBlockId(blockId, fragment);
+    if (typeof style.associateData == 'function') {
+      style.associateData(text, fragment);
+    } else {
+      if (style.css != undefined) {
+        const css = isIterable(style.css) ? style.css : [style.css];
+        for (const cls of css) {
+          fragment.classList.add(cls);
+        }
       }
+      fragment.innerText = text;
     }
 
-    if (typeof style.link == 'function') {
-      fragment.classList.add('linkable-text');
-      fragment.onmouseup = function (e) {
-        e.stopPropagation();
-        style.link(text)
-      };
-    }
-
-    if (typeof style.nodeId == 'function') {
-      const nodeId = style.nodeId(text);
-      if (nodeId != undefined) {
-        fragment.nodeId = nodeId;
-        this.addHtmlElementForNodeId(nodeId, fragment);
-      }
-    }
-
-    if (typeof style.assignBlockId === 'function') {
-      fragment.blockId = style.assignBlockId();
-      this.addNodeIdToBlockId(fragment.nodeId, fragment.blockId);
-    }
-
-    if (typeof style.linkHandler == 'function') {
-      const handler = style.linkHandler(text, fragment)
-      if (handler !== undefined) {
-        fragment.classList.add('linkable-text');
-        fragment.onmouseup = handler;
-      }
-    }
-
-    if (style.css != undefined) {
-      const css = isIterable(style.css) ? style.css : [style.css];
-      for (const cls of css) {
-        fragment.classList.add(cls);
-      }
-    }
-    fragment.innerHTML = text;
     return fragment;
   }
 
   processLine(line) {
-    let view = this;
-    let result = [];
+    const view = this;
+    const result = [];
     let patternSet = 0;
     while (true) {
-      let beforeLine = line;
-      for (let pattern of view.patterns[patternSet]) {
-        let matches = line.match(pattern[0]);
+      const beforeLine = line;
+      for (const pattern of view.patterns[patternSet]) {
+        const matches = line.match(pattern[0]);
         if (matches != null) {
           if (matches[0] != '') {
-            let style = pattern[1] != null ? pattern[1] : {};
-            let text = matches[0];
+            const style = pattern[1] != null ? pattern[1] : {};
+            const text = matches[0];
             if (text != '') {
-              let fragment = view.createFragment(matches[0], style);
+              const fragment = view.createFragment(matches[0], style);
               result.push(fragment);
             }
             line = line.substr(matches[0].length);
@@ -247,15 +223,15 @@ export abstract class TextView extends View {
   }
 
   processText(text) {
-    let view = this;
-    let textLines = text.split(/[\n]/);
+    const view = this;
+    const textLines = text.split(/[\n]/);
     let lineNo = 0;
-    for (let line of textLines) {
-      let li = document.createElement("LI");
+    for (const line of textLines) {
+      const li = document.createElement("LI");
       li.className = "nolinenums";
       li.dataset.lineNo = "" + lineNo++;
-      let fragments = view.processLine(line);
-      for (let fragment of fragments) {
+      const fragments = view.processLine(line);
+      for (const fragment of fragments) {
         li.appendChild(fragment);
       }
       view.textListNode.appendChild(li);
@@ -263,13 +239,12 @@ export abstract class TextView extends View {
   }
 
   initializeContent(data, rememberedSelection) {
-    let view = this;
-    view.clearText();
-    view.processText(data);
+    this.clearText();
+    this.processText(data);
+    this.show();
   }
 
-  deleteContent() {
-  }
+  public onresize(): void {}
 
   isScrollable() {
     return true;

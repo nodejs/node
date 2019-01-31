@@ -4,10 +4,12 @@
 
 // Flags: --harmony-intl-segmenter
 
-const segmenter = new Intl.Segmenter();
 const text = "Hello World, Test 123! Foo Bar. How are you?";
-const iter = segmenter.segment(text);
+for (const granularity of ["grapheme", "word", "sentence"]) {
+  const segmenter = new Intl.Segmenter("en", { granularity });
+  const iter = segmenter.segment(text);
 
-assertEquals("number", typeof iter.position);
-assertEquals(0, iter.position);
-assertEquals("strig", typeof iter.breakType);
+  assertEquals("number", typeof iter.index);
+  assertEquals(0, iter.index);
+  assertEquals(undefined, iter.breakType);
+}

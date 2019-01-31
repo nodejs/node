@@ -11,6 +11,7 @@
 #include "src/base/once.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
+#include "src/cpu-features.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/elements.h"
@@ -55,7 +56,6 @@ void V8::TearDown() {
   Bootstrapper::TearDownExtensions();
   ElementsAccessor::TearDown();
   RegisteredExtension::UnregisterAll();
-  sampler::Sampler::TearDown();
   FlagList::ResetAllFlags();  // Frees memory held by string arguments.
 }
 
@@ -89,7 +89,6 @@ void V8::InitializeOncePerProcessImpl() {
 #if defined(USE_SIMULATOR)
   Simulator::InitializeOncePerProcess();
 #endif
-  sampler::Sampler::SetUp();
   CpuFeatures::Probe(false);
   ElementsAccessor::InitializeOncePerProcess();
   Bootstrapper::InitializeOncePerProcess();

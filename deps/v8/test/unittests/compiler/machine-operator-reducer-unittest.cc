@@ -6,6 +6,7 @@
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/base/ieee754.h"
+#include "src/base/overflowing-math.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/typer.h"
 #include "src/conversions-inl.h"
@@ -26,14 +27,20 @@ namespace compiler {
 class MachineOperatorReducerTest : public GraphTest {
  public:
   explicit MachineOperatorReducerTest(int num_parameters = 2)
-      : GraphTest(num_parameters), machine_(zone()) {}
+      : GraphTest(num_parameters),
+        machine_(zone()),
+        common_(zone()),
+        javascript_(zone()),
+        jsgraph_(isolate(), graph(), &common_, &javascript_, nullptr,
+                 &machine_),
+        graph_reducer_(zone(), graph(), jsgraph_.Dead()) {}
 
  protected:
   Reduction Reduce(Node* node) {
     JSOperatorBuilder javascript(zone());
     JSGraph jsgraph(isolate(), graph(), common(), &javascript, nullptr,
                     &machine_);
-    MachineOperatorReducer reducer(&jsgraph);
+    MachineOperatorReducer reducer(&graph_reducer_, &jsgraph);
     return reducer.Reduce(node);
   }
 
@@ -61,6 +68,10 @@ class MachineOperatorReducerTest : public GraphTest {
 
  private:
   MachineOperatorBuilder machine_;
+  CommonOperatorBuilder common_;
+  JSOperatorBuilder javascript_;
+  JSGraph jsgraph_;
+  GraphReducer graph_reducer_;
 };
 
 
@@ -968,7 +979,8 @@ TEST_F(MachineOperatorReducerTest, Word32SarWithWord32ShlAndLoad) {
 TEST_F(MachineOperatorReducerTest, Word32ShrWithWord32And) {
   Node* const p0 = Parameter(0);
   TRACED_FORRANGE(int32_t, shift, 1, 31) {
-    uint32_t mask = (1 << shift) - 1;
+    uint32_t mask =
+        base::SubWithWraparound(base::ShlWithWraparound(1, shift), 1);
     Node* node = graph()->NewNode(
         machine()->Word32Shr(),
         graph()->NewNode(machine()->Word32And(), p0, Int32Constant(mask)),
@@ -1057,7 +1069,9 @@ TEST_F(MachineOperatorReducerTest, Int32SubWithConstant) {
     if (k == 0) {
       EXPECT_EQ(p0, r.replacement());
     } else {
-      EXPECT_THAT(r.replacement(), IsInt32Add(p0, IsInt32Constant(-k)));
+      EXPECT_THAT(
+          r.replacement(),
+          IsInt32Add(p0, IsInt32Constant(base::NegateWithWraparound(k))));
     }
   }
 }

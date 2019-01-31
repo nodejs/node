@@ -13,7 +13,7 @@
 #include "src/base/macros.h"
 #include "src/identity-map.h"
 #include "src/maybe-handles.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/vector.h"
 #include "src/zone/zone.h"
 
@@ -61,12 +61,6 @@ class ValueSerializer {
   Maybe<bool> WriteObject(Handle<Object> object) V8_WARN_UNUSED_RESULT;
 
   /*
-   * Returns the stored data. This serializer should not be used once the buffer
-   * is released. The contents are undefined if a previous write has failed.
-   */
-  std::vector<uint8_t> ReleaseBuffer();
-
-  /*
    * Returns the buffer, allocated via the delegate, and its size.
    * Caller assumes ownership of the buffer.
    */
@@ -110,29 +104,29 @@ class ValueSerializer {
   void WriteZigZag(T value);
   void WriteOneByteString(Vector<const uint8_t> chars);
   void WriteTwoByteString(Vector<const uc16> chars);
-  void WriteBigIntContents(BigInt* bigint);
+  void WriteBigIntContents(BigInt bigint);
   Maybe<uint8_t*> ReserveRawBytes(size_t bytes);
 
   // Writing V8 objects of various kinds.
-  void WriteOddball(Oddball* oddball);
-  void WriteSmi(Smi* smi);
-  void WriteHeapNumber(HeapNumber* number);
-  void WriteMutableHeapNumber(MutableHeapNumber* number);
-  void WriteBigInt(BigInt* bigint);
+  void WriteOddball(Oddball oddball);
+  void WriteSmi(Smi smi);
+  void WriteHeapNumber(HeapNumber number);
+  void WriteMutableHeapNumber(MutableHeapNumber number);
+  void WriteBigInt(BigInt bigint);
   void WriteString(Handle<String> string);
   Maybe<bool> WriteJSReceiver(Handle<JSReceiver> receiver)
       V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSObject(Handle<JSObject> object) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSObjectSlow(Handle<JSObject> object) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArray(Handle<JSArray> array) V8_WARN_UNUSED_RESULT;
-  void WriteJSDate(JSDate* date);
+  void WriteJSDate(JSDate date);
   Maybe<bool> WriteJSValue(Handle<JSValue> value) V8_WARN_UNUSED_RESULT;
-  void WriteJSRegExp(JSRegExp* regexp);
+  void WriteJSRegExp(JSRegExp regexp);
   Maybe<bool> WriteJSMap(Handle<JSMap> map) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSSet(Handle<JSSet> map) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArrayBuffer(Handle<JSArrayBuffer> array_buffer)
       V8_WARN_UNUSED_RESULT;
-  Maybe<bool> WriteJSArrayBufferView(JSArrayBufferView* array_buffer);
+  Maybe<bool> WriteJSArrayBufferView(JSArrayBufferView array_buffer);
   Maybe<bool> WriteWasmModule(Handle<WasmModuleObject> object)
       V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteWasmMemory(Handle<WasmMemoryObject> object)
@@ -151,18 +145,18 @@ class ValueSerializer {
    * Asks the delegate to handle an error that occurred during data cloning, by
    * throwing an exception appropriate for the host.
    */
-  void ThrowDataCloneError(MessageTemplate::Template template_index);
-  V8_NOINLINE void ThrowDataCloneError(MessageTemplate::Template template_index,
+  void ThrowDataCloneError(MessageTemplate template_index);
+  V8_NOINLINE void ThrowDataCloneError(MessageTemplate template_index,
                                        Handle<Object> arg0);
 
   Maybe<bool> ThrowIfOutOfMemory();
 
   Isolate* const isolate_;
   v8::ValueSerializer::Delegate* const delegate_;
-  bool treat_array_buffer_views_as_host_objects_ = false;
   uint8_t* buffer_ = nullptr;
   size_t buffer_size_ = 0;
   size_t buffer_capacity_ = 0;
+  bool treat_array_buffer_views_as_host_objects_ = false;
   bool out_of_memory_ = false;
   Zone zone_;
 

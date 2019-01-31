@@ -20,6 +20,7 @@ class WasmCode;
 class AbstractCode;
 class Debug;
 class ExternalCallbackScope;
+class InnerPointerToCodeCache;
 class Isolate;
 class ObjectVisitor;
 class RootVisitor;
@@ -30,41 +31,13 @@ class WasmDebugInfo;
 class WasmInstanceObject;
 class WasmModuleObject;
 
-class InnerPointerToCodeCache {
- public:
-  struct InnerPointerToCodeCacheEntry {
-    Address inner_pointer;
-    Code* code;
-    SafepointEntry safepoint_entry;
-  };
-
-  explicit InnerPointerToCodeCache(Isolate* isolate) : isolate_(isolate) {
-    Flush();
-  }
-
-  void Flush() { memset(static_cast<void*>(&cache_[0]), 0, sizeof(cache_)); }
-
-  InnerPointerToCodeCacheEntry* GetCacheEntry(Address inner_pointer);
-
- private:
-  InnerPointerToCodeCacheEntry* cache(int index) { return &cache_[index]; }
-
-  Isolate* isolate_;
-
-  static const int kInnerPointerToCodeCacheSize = 1024;
-  InnerPointerToCodeCacheEntry cache_[kInnerPointerToCodeCacheSize];
-
-  DISALLOW_COPY_AND_ASSIGN(InnerPointerToCodeCache);
-};
-
-
 class StackHandlerConstants : public AllStatic {
  public:
-  static const int kNextOffset = 0 * kPointerSize;
-  static const int kPaddingOffset = 1 * kPointerSize;
+  static const int kNextOffset = 0 * kSystemPointerSize;
+  static const int kPaddingOffset = 1 * kSystemPointerSize;
 
-  static const int kSize = kPaddingOffset + kPointerSize;
-  static const int kSlotCount = kSize >> kPointerSizeLog2;
+  static const int kSize = kPaddingOffset + kSystemPointerSize;
+  static const int kSlotCount = kSize >> kSystemPointerSizeLog2;
 };
 
 class StackHandler {
@@ -74,6 +47,10 @@ class StackHandler {
 
   // Get the next stack handler in the chain.
   inline StackHandler* next() const;
+
+  // Get the next stack handler, as an Address. This is safe to use even
+  // when the next handler is null.
+  inline Address next_address() const;
 
   // Conversion support.
   static inline StackHandler* FromAddress(Address address);
@@ -185,7 +162,7 @@ class StackFrame {
 
   // Copy constructor; it breaks the connection to host iterator
   // (as an iterator usually lives on stack).
-  StackFrame(const StackFrame& original) {
+  StackFrame(const StackFrame& original) V8_NOEXCEPT {
     this->state_ = original.state_;
     this->iterator_ = nullptr;
     this->isolate_ = original.isolate_;
@@ -269,14 +246,14 @@ class StackFrame {
 
   // Get the code associated with this frame.
   // This method could be called during marking phase of GC.
-  virtual Code* unchecked_code() const = 0;
+  virtual Code unchecked_code() const = 0;
 
   // Search for the code associated with this frame.
-  Code* LookupCode() const;
+  Code LookupCode() const;
 
   virtual void Iterate(RootVisitor* v) const = 0;
   static void IteratePc(RootVisitor* v, Address* pc_address,
-                        Address* constant_pool_address, Code* holder);
+                        Address* constant_pool_address, Code holder);
 
   // Sets a callback function for return-address rewriting profilers
   // to resolve the location of a return address to the location of the
@@ -335,7 +312,7 @@ class NativeFrame : public StackFrame {
  public:
   Type type() const override { return NATIVE; }
 
-  Code* unchecked_code() const override { return nullptr; }
+  Code unchecked_code() const override;
 
   // Garbage collection support.
   void Iterate(RootVisitor* v) const override {}
@@ -356,7 +333,7 @@ class EntryFrame: public StackFrame {
  public:
   Type type() const override { return ENTRY; }
 
-  Code* unchecked_code() const override;
+  Code unchecked_code() const override;
 
   // Garbage collection support.
   void Iterate(RootVisitor* v) const override;
@@ -385,7 +362,7 @@ class ConstructEntryFrame : public EntryFrame {
  public:
   Type type() const override { return CONSTRUCT_ENTRY; }
 
-  Code* unchecked_code() const override;
+  Code unchecked_code() const override;
 
   static ConstructEntryFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_construct_entry());
@@ -405,9 +382,9 @@ class ExitFrame: public StackFrame {
  public:
   Type type() const override { return EXIT; }
 
-  Code* unchecked_code() const override;
+  Code unchecked_code() const override;
 
-  Object*& code_slot() const;
+  Address& code_slot() const;
 
   // Garbage collection support.
   void Iterate(RootVisitor* v) const override;
@@ -448,8 +425,8 @@ class BuiltinExitFrame : public ExitFrame {
     return static_cast<BuiltinExitFrame*>(frame);
   }
 
-  JSFunction* function() const;
-  Object* receiver() const;
+  JSFunction function() const;
+  Object receiver() const;
 
   bool IsConstructor() const;
 
@@ -460,13 +437,13 @@ class BuiltinExitFrame : public ExitFrame {
   inline explicit BuiltinExitFrame(StackFrameIteratorBase* iterator);
 
  private:
-  Object* GetParameter(int i) const;
+  Object GetParameter(int i) const;
   int ComputeParametersCount() const;
 
-  inline Object* receiver_slot_object() const;
-  inline Object* argc_slot_object() const;
-  inline Object* target_slot_object() const;
-  inline Object* new_target_slot_object() const;
+  inline Object receiver_slot_object() const;
+  inline Object argc_slot_object() const;
+  inline Object target_slot_object() const;
+  inline Object new_target_slot_object() const;
 
   friend class StackFrameIteratorBase;
 };
@@ -501,8 +478,8 @@ class FrameSummary {
 
   class JavaScriptFrameSummary : public FrameSummaryBase {
    public:
-    JavaScriptFrameSummary(Isolate* isolate, Object* receiver,
-                           JSFunction* function, AbstractCode* abstract_code,
+    JavaScriptFrameSummary(Isolate* isolate, Object receiver,
+                           JSFunction function, AbstractCode abstract_code,
                            int code_offset, bool is_constructor);
 
     Handle<Object> receiver() const { return receiver_; }
@@ -631,18 +608,18 @@ class StandardFrame : public StackFrame {
   bool is_standard() const override { return true; }
 
   // Accessors.
-  virtual Object* receiver() const;
-  virtual Script* script() const;
-  virtual Object* context() const;
+  virtual Object receiver() const;
+  virtual Script script() const;
+  virtual Object context() const;
   virtual int position() const;
 
   // Access the expressions in the stack frame including locals.
-  inline Object* GetExpression(int index) const;
-  inline void SetExpression(int index, Object* value);
+  inline Object GetExpression(int index) const;
+  inline void SetExpression(int index, Object value);
   int ComputeExpressionsCount() const;
 
   // Access the parameters.
-  virtual Object* GetParameter(int index) const;
+  virtual Object GetParameter(int index) const;
   virtual int ComputeParametersCount() const;
 
   // Check if this frame is a constructor frame invoked through 'new'.
@@ -705,21 +682,21 @@ class JavaScriptFrame : public StandardFrame {
   void Summarize(std::vector<FrameSummary>* frames) const override;
 
   // Accessors.
-  virtual JSFunction* function() const;
-  Object* unchecked_function() const;
-  Object* receiver() const override;
-  Object* context() const override;
-  Script* script() const override;
+  virtual JSFunction function() const;
+  Object unchecked_function() const;
+  Object receiver() const override;
+  Object context() const override;
+  Script script() const override;
 
-  inline void set_receiver(Object* value);
+  inline void set_receiver(Object value);
 
   // Access the parameters.
   inline Address GetParameterSlot(int index) const;
-  Object* GetParameter(int index) const override;
+  Object GetParameter(int index) const override;
   int ComputeParametersCount() const override;
 
   // Debugger access.
-  void SetParameterValue(int index, Object* value) const;
+  void SetParameterValue(int index, Object value) const;
 
   // Check if this frame is a constructor frame invoked through 'new'.
   bool IsConstructor() const override;
@@ -741,10 +718,10 @@ class JavaScriptFrame : public StandardFrame {
              int index) const override;
 
   // Determine the code for the frame.
-  Code* unchecked_code() const override;
+  Code unchecked_code() const override;
 
   // Return a list with {SharedFunctionInfo} objects of this frame.
-  virtual void GetFunctions(std::vector<SharedFunctionInfo*>* functions) const;
+  virtual void GetFunctions(std::vector<SharedFunctionInfo>* functions) const;
 
   void GetFunctions(std::vector<Handle<SharedFunctionInfo>>* functions) const;
 
@@ -765,15 +742,15 @@ class JavaScriptFrame : public StandardFrame {
     return static_cast<JavaScriptFrame*>(frame);
   }
 
-  static void PrintFunctionAndOffset(JSFunction* function, AbstractCode* code,
+  static void PrintFunctionAndOffset(JSFunction function, AbstractCode code,
                                      int code_offset, FILE* file,
                                      bool print_line_number);
 
   static void PrintTop(Isolate* isolate, FILE* file, bool print_args,
                        bool print_line_number);
 
-  static void CollectFunctionAndOffsetForICStats(JSFunction* function,
-                                                 AbstractCode* code,
+  static void CollectFunctionAndOffsetForICStats(JSFunction function,
+                                                 AbstractCode code,
                                                  int code_offset);
   static void CollectTopFrameForICStats(Isolate* isolate);
 
@@ -787,7 +764,7 @@ class JavaScriptFrame : public StandardFrame {
   virtual void PrintFrameKind(StringStream* accumulator) const {}
 
  private:
-  inline Object* function_slot_object() const;
+  inline Object function_slot_object() const;
 
   friend class StackFrameIteratorBase;
 };
@@ -801,7 +778,7 @@ class StubFrame : public StandardFrame {
   void Iterate(RootVisitor* v) const override;
 
   // Determine the code for the frame.
-  Code* unchecked_code() const override;
+  Code unchecked_code() const override;
 
   // Lookup exception handler for current {pc}, returns -1 if none found. Only
   // TurboFan stub frames are supported. Also returns data associated with the
@@ -830,7 +807,7 @@ class OptimizedFrame : public JavaScriptFrame {
   // Return a list with {SharedFunctionInfo} objects of this frame.
   // The functions are ordered bottom-to-top (i.e. functions.last()
   // is the top-most activation)
-  void GetFunctions(std::vector<SharedFunctionInfo*>* functions) const override;
+  void GetFunctions(std::vector<SharedFunctionInfo>* functions) const override;
 
   void Summarize(std::vector<FrameSummary>* frames) const override;
 
@@ -838,9 +815,9 @@ class OptimizedFrame : public JavaScriptFrame {
   int LookupExceptionHandlerInTable(
       int* data, HandlerTable::CatchPrediction* prediction) override;
 
-  DeoptimizationData* GetDeoptimizationData(int* deopt_index) const;
+  DeoptimizationData GetDeoptimizationData(int* deopt_index) const;
 
-  Object* receiver() const override;
+  Object receiver() const override;
 
   static int StackSlotOffsetRelativeToFp(int slot_index);
 
@@ -852,7 +829,7 @@ class OptimizedFrame : public JavaScriptFrame {
  private:
   friend class StackFrameIteratorBase;
 
-  Object* StackSlotAt(int index) const;
+  Object StackSlotAt(int index) const;
 };
 
 
@@ -875,15 +852,15 @@ class InterpretedFrame : public JavaScriptFrame {
   void PatchBytecodeOffset(int new_offset);
 
   // Returns the frame's current bytecode array.
-  BytecodeArray* GetBytecodeArray() const;
+  BytecodeArray GetBytecodeArray() const;
 
   // Updates the frame's BytecodeArray with |bytecode_array|. Used by the
   // debugger to swap execution onto a BytecodeArray patched with breakpoints.
-  void PatchBytecodeArray(BytecodeArray* bytecode_array);
+  void PatchBytecodeArray(BytecodeArray bytecode_array);
 
   // Access to the interpreter register file for this frame.
-  Object* ReadInterpreterRegister(int register_index) const;
-  void WriteInterpreterRegister(int register_index, Object* value);
+  Object ReadInterpreterRegister(int register_index) const;
+  void WriteInterpreterRegister(int register_index, Object value);
 
   // Build a list with summaries for this frame including all inlined frames.
   void Summarize(std::vector<FrameSummary>* frames) const override;
@@ -913,7 +890,7 @@ class ArgumentsAdaptorFrame: public JavaScriptFrame {
   Type type() const override { return ARGUMENTS_ADAPTOR; }
 
   // Determine the code for the frame.
-  Code* unchecked_code() const override;
+  Code unchecked_code() const override;
 
   static ArgumentsAdaptorFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_arguments_adaptor());
@@ -970,13 +947,13 @@ class WasmCompiledFrame final : public StandardFrame {
   int LookupExceptionHandlerInTable(int* data);
 
   // Determine the code for the frame.
-  Code* unchecked_code() const override;
+  Code unchecked_code() const override;
 
   // Accessors.
-  WasmInstanceObject* wasm_instance() const;
+  WasmInstanceObject wasm_instance() const;
   wasm::WasmCode* wasm_code() const;
   uint32_t function_index() const;
-  Script* script() const override;
+  Script script() const override;
   int position() const override;
   bool at_to_number_conversion() const;
 
@@ -994,7 +971,7 @@ class WasmCompiledFrame final : public StandardFrame {
 
  private:
   friend class StackFrameIteratorBase;
-  WasmModuleObject* module_object() const;
+  WasmModuleObject module_object() const;
 };
 
 class WasmInterpreterEntryFrame final : public StandardFrame {
@@ -1011,15 +988,15 @@ class WasmInterpreterEntryFrame final : public StandardFrame {
   void Summarize(std::vector<FrameSummary>* frames) const override;
 
   // Determine the code for the frame.
-  Code* unchecked_code() const override;
+  Code unchecked_code() const override;
 
   // Accessors.
-  WasmDebugInfo* debug_info() const;
-  WasmInstanceObject* wasm_instance() const;
+  WasmDebugInfo debug_info() const;
+  WasmInstanceObject wasm_instance() const;
 
-  Script* script() const override;
+  Script script() const override;
   int position() const override;
-  Object* context() const override;
+  Object context() const override;
 
   static WasmInterpreterEntryFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_wasm_interpreter_entry());
@@ -1033,7 +1010,7 @@ class WasmInterpreterEntryFrame final : public StandardFrame {
 
  private:
   friend class StackFrameIteratorBase;
-  WasmModuleObject* module_object() const;
+  WasmModuleObject module_object() const;
 };
 
 class WasmToJsFrame : public StubFrame {
@@ -1073,9 +1050,9 @@ class WasmCompileLazyFrame : public StandardFrame {
  public:
   Type type() const override { return WASM_COMPILE_LAZY; }
 
-  Code* unchecked_code() const override { return nullptr; }
-  WasmInstanceObject* wasm_instance() const;
-  Object** wasm_instance_slot() const;
+  Code unchecked_code() const override;
+  WasmInstanceObject wasm_instance() const;
+  FullObjectSlot wasm_instance_slot() const;
 
   // Garbage collection support.
   void Iterate(RootVisitor* v) const override;
@@ -1102,7 +1079,7 @@ class InternalFrame: public StandardFrame {
   void Iterate(RootVisitor* v) const override;
 
   // Determine the code for the frame.
-  Code* unchecked_code() const override;
+  Code unchecked_code() const override;
 
   static InternalFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_internal());
@@ -1165,7 +1142,7 @@ class JavaScriptBuiltinContinuationFrame : public JavaScriptFrame {
   int ComputeParametersCount() const override;
   intptr_t GetSPToFPDelta() const;
 
-  Object* context() const override;
+  Object context() const override;
 
  protected:
   inline explicit JavaScriptBuiltinContinuationFrame(
@@ -1189,7 +1166,7 @@ class JavaScriptBuiltinContinuationWithCatchFrame
 
   // Patch in the exception object at the appropriate location into the stack
   // frame.
-  void SetException(Object* exception);
+  void SetException(Object exception);
 
  protected:
   inline explicit JavaScriptBuiltinContinuationWithCatchFrame(

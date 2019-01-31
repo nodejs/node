@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-always-opt
+// Flags: --allow-natives-syntax --no-always-opt --no-stress-flush-bytecode
 // Files: test/mjsunit/code-coverage-utils.js
 
 %DebugToggleBlockCoverage(true);
@@ -213,7 +213,7 @@ TestCoverage(
     nop();                                // 0100
   }                                       // 0150
 }();                                      // 0200
-%RunMicrotasks();                         // 0250
+%PerformMicrotaskCheckpoint();            // 0250
 `,
 [{"start":0,"end":299,"count":1},
  {"start":1,"end":201,"count":6},  // TODO(jgruber): Invocation count is off.
@@ -656,7 +656,7 @@ async function f() {                      // 0000
   await 42;                               // 0100
 };                                        // 0150
 f();                                      // 0200
-%RunMicrotasks();                         // 0250
+%PerformMicrotaskCheckpoint();            // 0250
 `,
 [{"start":0,"end":299,"count":1},
  {"start":0,"end":151,"count":3},

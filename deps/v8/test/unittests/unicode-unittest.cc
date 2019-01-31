@@ -29,8 +29,7 @@ template <size_t kBufferSize>
 void DecodeUtf16(unibrow::Utf8Decoder<kBufferSize>* decoder,
                  const std::vector<byte>& bytes,
                  std::vector<unibrow::uchar>* output) {
-  const char* bytes_begin = reinterpret_cast<const char*>(&(*bytes.begin()));
-  auto vector = Vector<const char>(bytes_begin, bytes.size());
+  auto vector = Vector<const char>::cast(VectorOf(bytes));
   decoder->Reset(vector);
 
   std::vector<uint16_t> utf16(decoder->Utf16Length());

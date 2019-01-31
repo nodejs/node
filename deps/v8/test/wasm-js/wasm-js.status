@@ -1,0 +1,27 @@
+# Copyright 2018 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+[
+[ALWAYS, {
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8319
+  'module/customSections': [FAIL],
+}], # ALWAYS
+
+[ALWAYS, {
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8633
+  'limits': [SKIP],
+}], # ALWAYS
+
+['arch == s390 or arch == s390x or system == aix', {
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8402
+  'instance/constructor': [SKIP],
+}],  # 'arch == s390 or arch == s390x or system == aix'
+
+##############################################################################
+['lite_mode', {
+  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+  '*': [SKIP],
+}], # lite_mode
+
+]

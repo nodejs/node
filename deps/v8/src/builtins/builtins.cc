@@ -8,10 +8,13 @@
 #include "src/assembler-inl.h"
 #include "src/builtins/builtins-descriptors.h"
 #include "src/callable.h"
-#include "src/instruction-stream.h"
+#include "src/code-tracer.h"
 #include "src/isolate.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/objects/fixed-array.h"
+#include "src/ostreams.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/visitors.h"
 
 namespace v8 {
@@ -19,7 +22,7 @@ namespace internal {
 
 // Forward declarations for C++ builtins.
 #define FORWARD_DECLARE(Name) \
-  Object* Builtin_##Name(int argc, Object** args, Isolate* isolate);
+  Address Builtin_##Name(int argc, Address* args, Isolate* isolate);
 BUILTIN_LIST_C(FORWARD_DECLARE)
 #undef FORWARD_DECLARE
 
@@ -29,34 +32,25 @@ namespace {
 struct BuiltinMetadata {
   const char* name;
   Builtins::Kind kind;
-  union {
-    Address cpp_entry;       // For CPP and API builtins.
-    int8_t parameter_count;  // For TFJ builtins.
-  } kind_specific_data;
+  // For CPP and API builtins it's cpp_entry address and for TFJ it's a
+  // parameter count.
+  Address cpp_entry_or_parameter_count;
 };
 
-// clang-format off
-#define DECL_CPP(Name, ...) { #Name, Builtins::CPP, \
-                              { FUNCTION_ADDR(Builtin_##Name) }},
-#define DECL_API(Name, ...) { #Name, Builtins::API, \
-                              { FUNCTION_ADDR(Builtin_##Name) }},
-#ifdef V8_TARGET_BIG_ENDIAN
-#define DECL_TFJ(Name, Count, ...) { #Name, Builtins::TFJ, \
-  { static_cast<Address>(static_cast<uintptr_t>(           \
-                              Count) << (kBitsPerByte * (kPointerSize - 1))) }},
-#else
-#define DECL_TFJ(Name, Count, ...) { #Name, Builtins::TFJ, \
-                              { static_cast<Address>(Count) }},
-#endif
-#define DECL_TFC(Name, ...) { #Name, Builtins::TFC, {} },
-#define DECL_TFS(Name, ...) { #Name, Builtins::TFS, {} },
-#define DECL_TFH(Name, ...) { #Name, Builtins::TFH, {} },
-#define DECL_BCH(Name, ...) { #Name, Builtins::BCH, {} },
-#define DECL_DLH(Name, ...) { #Name, Builtins::DLH, {} },
-#define DECL_ASM(Name, ...) { #Name, Builtins::ASM, {} },
+#define DECL_CPP(Name, ...) \
+  {#Name, Builtins::CPP, FUNCTION_ADDR(Builtin_##Name)},
+#define DECL_API(Name, ...) \
+  {#Name, Builtins::API, FUNCTION_ADDR(Builtin_##Name)},
+#define DECL_TFJ(Name, Count, ...) \
+  {#Name, Builtins::TFJ, static_cast<Address>(Count)},
+#define DECL_TFC(Name, ...) {#Name, Builtins::TFC, kNullAddress},
+#define DECL_TFS(Name, ...) {#Name, Builtins::TFS, kNullAddress},
+#define DECL_TFH(Name, ...) {#Name, Builtins::TFH, kNullAddress},
+#define DECL_BCH(Name, ...) {#Name, Builtins::BCH, kNullAddress},
+#define DECL_ASM(Name, ...) {#Name, Builtins::ASM, kNullAddress},
 const BuiltinMetadata builtin_metadata[] = {
   BUILTIN_LIST(DECL_CPP, DECL_API, DECL_TFJ, DECL_TFC, DECL_TFS, DECL_TFH,
-               DECL_BCH, DECL_DLH, DECL_ASM)
+               DECL_BCH, DECL_ASM)
 };
 #undef DECL_CPP
 #undef DECL_API
@@ -65,9 +59,7 @@ const BuiltinMetadata builtin_metadata[] = {
 #undef DECL_TFS
 #undef DECL_TFH
 #undef DECL_BCH
-#undef DECL_DLH
 #undef DECL_ASM
-// clang-format on
 
 }  // namespace
 
@@ -88,8 +80,8 @@ void Builtins::TearDown() { initialized_ = false; }
 const char* Builtins::Lookup(Address pc) {
   // Off-heap pc's can be looked up through binary search.
   if (FLAG_embedded_builtins) {
-    Code* maybe_builtin = InstructionStream::TryLookupCode(isolate_, pc);
-    if (maybe_builtin != nullptr) return name(maybe_builtin->builtin_index());
+    Code maybe_builtin = InstructionStream::TryLookupCode(isolate_, pc);
+    if (!maybe_builtin.is_null()) return name(maybe_builtin->builtin_index());
   }
 
   // May be called during initialization (disassembler).
@@ -99,18 +91,6 @@ const char* Builtins::Lookup(Address pc) {
     }
   }
   return nullptr;
-}
-
-Handle<Code> Builtins::NewFunctionContext(ScopeType scope_type) {
-  switch (scope_type) {
-    case ScopeType::EVAL_SCOPE:
-      return builtin_handle(kFastNewFunctionContextEval);
-    case ScopeType::FUNCTION_SCOPE:
-      return builtin_handle(kFastNewFunctionContextFunction);
-    default:
-      UNREACHABLE();
-  }
-  return Handle<Code>::null();
 }
 
 Handle<Code> Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
@@ -135,22 +115,22 @@ Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
   UNREACHABLE();
 }
 
-void Builtins::set_builtin(int index, HeapObject* builtin) {
+void Builtins::set_builtin(int index, Code builtin) {
   isolate_->heap()->set_builtin(index, builtin);
 }
 
-Code* Builtins::builtin(int index) { return isolate_->heap()->builtin(index); }
+Code Builtins::builtin(int index) { return isolate_->heap()->builtin(index); }
 
 Handle<Code> Builtins::builtin_handle(int index) {
   DCHECK(IsBuiltinId(index));
   return Handle<Code>(
-      reinterpret_cast<Code**>(isolate_->heap()->builtin_address(index)));
+      reinterpret_cast<Address*>(isolate_->heap()->builtin_address(index)));
 }
 
 // static
 int Builtins::GetStackParameterCount(Name name) {
   DCHECK(Builtins::KindOf(name) == TFJ);
-  return builtin_metadata[name].kind_specific_data.parameter_count;
+  return static_cast<int>(builtin_metadata[name].cpp_entry_or_parameter_count);
 }
 
 // static
@@ -166,12 +146,11 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
     break;                                             \
   }
     BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, CASE_OTHER,
-                 CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN, IGNORE_BUILTIN,
-                 IGNORE_BUILTIN)
+                 CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN, CASE_OTHER)
 #undef CASE_OTHER
     default:
       Builtins::Kind kind = Builtins::KindOf(name);
-      DCHECK(kind != BCH && kind != DLH);
+      DCHECK_NE(BCH, kind);
       if (kind == TFJ || kind == CPP) {
         return Callable(code, JSTrampolineDescriptor{});
       }
@@ -187,14 +166,42 @@ const char* Builtins::name(int index) {
   return builtin_metadata[index].name;
 }
 
-// static
-Address Builtins::CppEntryOf(int index) {
-  DCHECK(Builtins::HasCppImplementation(index));
-  return builtin_metadata[index].kind_specific_data.cpp_entry;
+void Builtins::PrintBuiltinCode() {
+  DCHECK(FLAG_print_builtin_code);
+#ifdef ENABLE_DISASSEMBLER
+  for (int i = 0; i < builtin_count; i++) {
+    const char* builtin_name = name(i);
+    Handle<Code> code = builtin_handle(i);
+    if (PassesFilter(CStrVector(builtin_name),
+                     CStrVector(FLAG_print_builtin_code_filter))) {
+      CodeTracer::Scope trace_scope(isolate_->GetCodeTracer());
+      OFStream os(trace_scope.file());
+      code->Disassemble(builtin_name, os);
+      os << "\n";
+    }
+  }
+#endif
+}
+
+void Builtins::PrintBuiltinSize() {
+  DCHECK(FLAG_print_builtin_size);
+  for (int i = 0; i < builtin_count; i++) {
+    const char* builtin_name = name(i);
+    const char* kind = KindNameOf(i);
+    Code code = builtin(i);
+    PrintF(stdout, "%s Builtin, %s, %d\n", kind, builtin_name,
+           code->InstructionSize());
+  }
 }
 
 // static
-bool Builtins::IsBuiltin(const Code* code) {
+Address Builtins::CppEntryOf(int index) {
+  DCHECK(Builtins::HasCppImplementation(index));
+  return builtin_metadata[index].cpp_entry_or_parameter_count;
+}
+
+// static
+bool Builtins::IsBuiltin(const Code code) {
   return Builtins::IsBuiltinId(code->builtin_index());
 }
 
@@ -206,13 +213,13 @@ bool Builtins::IsBuiltinHandle(Handle<HeapObject> maybe_code,
   Address end = heap->builtin_address(Builtins::builtin_count);
   if (handle_location >= end) return false;
   if (handle_location < start) return false;
-  *index = static_cast<int>(handle_location - start) >> kPointerSizeLog2;
+  *index = static_cast<int>(handle_location - start) >> kSystemPointerSizeLog2;
   DCHECK(Builtins::IsBuiltinId(*index));
   return true;
 }
 
 // static
-bool Builtins::IsIsolateIndependentBuiltin(const Code* code) {
+bool Builtins::IsIsolateIndependentBuiltin(const Code code) {
   if (FLAG_embedded_builtins) {
     const int builtin_index = code->builtin_index();
     return Builtins::IsBuiltinId(builtin_index) &&
@@ -220,151 +227,6 @@ bool Builtins::IsIsolateIndependentBuiltin(const Code* code) {
   } else {
     return false;
   }
-}
-
-// static
-bool Builtins::IsLazy(int index) {
-  DCHECK(IsBuiltinId(index));
-
-  if (FLAG_embedded_builtins) {
-    // We don't want to lazy-deserialize off-heap builtins.
-    if (Builtins::IsIsolateIndependent(index)) return false;
-  }
-
-  // There are a couple of reasons that builtins can require eager-loading,
-  // i.e. deserialization at isolate creation instead of on-demand. For
-  // instance:
-  // * DeserializeLazy implements lazy loading.
-  // * Immovability requirement. This can only conveniently be guaranteed at
-  //   isolate creation (at runtime, we'd have to allocate in LO space).
-  // * To avoid conflicts in SharedFunctionInfo::function_data (Illegal,
-  //   HandleApiCall, interpreter entry trampolines).
-  // * Frequent use makes lazy loading unnecessary (CompileLazy).
-  // TODO(wasm): Remove wasm builtins once immovability is no longer required.
-  switch (index) {
-    case kAbort:  // Required by wasm.
-    case kArrayEveryLoopEagerDeoptContinuation:
-    case kArrayEveryLoopLazyDeoptContinuation:
-    case kArrayFilterLoopEagerDeoptContinuation:
-    case kArrayFilterLoopLazyDeoptContinuation:
-    case kArrayFindIndexLoopAfterCallbackLazyDeoptContinuation:
-    case kArrayFindIndexLoopEagerDeoptContinuation:
-    case kArrayFindIndexLoopLazyDeoptContinuation:
-    case kArrayFindLoopAfterCallbackLazyDeoptContinuation:
-    case kArrayFindLoopEagerDeoptContinuation:
-    case kArrayFindLoopLazyDeoptContinuation:
-    case kArrayForEachLoopEagerDeoptContinuation:
-    case kArrayForEachLoopLazyDeoptContinuation:
-    case kArrayMapLoopEagerDeoptContinuation:
-    case kArrayMapLoopLazyDeoptContinuation:
-    case kArrayReduceLoopEagerDeoptContinuation:
-    case kArrayReduceLoopLazyDeoptContinuation:
-    case kArrayReducePreLoopEagerDeoptContinuation:
-    case kArrayReduceRightLoopEagerDeoptContinuation:
-    case kArrayReduceRightLoopLazyDeoptContinuation:
-    case kArrayReduceRightPreLoopEagerDeoptContinuation:
-    case kArraySomeLoopEagerDeoptContinuation:
-    case kArraySomeLoopLazyDeoptContinuation:
-    case kAsyncFunctionAwaitResolveClosure:   // https://crbug.com/v8/7522
-    case kAsyncGeneratorAwaitResolveClosure:  // https://crbug.com/v8/7522
-    case kAsyncGeneratorYieldResolveClosure:  // https://crbug.com/v8/7522
-    case kAsyncGeneratorAwaitCaught:          // https://crbug.com/v8/6786.
-    case kAsyncGeneratorAwaitUncaught:        // https://crbug.com/v8/6786.
-    // CEntry variants must be immovable, whereas lazy deserialization allocates
-    // movable code.
-    case kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit:
-    case kCEntry_Return1_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit:
-    case kCEntry_Return1_SaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case kCEntry_Return1_SaveFPRegs_ArgvOnStack_BuiltinExit:
-    case kCEntry_Return2_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case kCEntry_Return2_DontSaveFPRegs_ArgvOnStack_BuiltinExit:
-    case kCEntry_Return2_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit:
-    case kCEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case kCEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit:
-    case kCompileLazy:
-    case kDebugBreakTrampoline:
-    case kDeserializeLazy:
-    case kDeserializeLazyHandler:
-    case kDeserializeLazyWideHandler:
-    case kDeserializeLazyExtraWideHandler:
-    case kFunctionPrototypeHasInstance:  // https://crbug.com/v8/6786.
-    case kHandleApiCall:
-    case kIllegal:
-    case kIllegalHandler:
-    case kInstantiateAsmJs:
-    case kInterpreterEnterBytecodeAdvance:
-    case kInterpreterEnterBytecodeDispatch:
-    case kInterpreterEntryTrampoline:
-    case kPromiseConstructorLazyDeoptContinuation:
-    case kRecordWrite:  // https://crbug.com/chromium/765301.
-    case kThrowWasmTrapDivByZero:             // Required by wasm.
-    case kThrowWasmTrapDivUnrepresentable:    // Required by wasm.
-    case kThrowWasmTrapFloatUnrepresentable:  // Required by wasm.
-    case kThrowWasmTrapFuncInvalid:           // Required by wasm.
-    case kThrowWasmTrapFuncSigMismatch:       // Required by wasm.
-    case kThrowWasmTrapMemOutOfBounds:        // Required by wasm.
-    case kThrowWasmTrapRemByZero:             // Required by wasm.
-    case kThrowWasmTrapUnreachable:           // Required by wasm.
-    case kToBooleanLazyDeoptContinuation:
-    case kToNumber:                           // Required by wasm.
-    case kGenericConstructorLazyDeoptContinuation:
-    case kWasmCompileLazy:                    // Required by wasm.
-    case kWasmStackGuard:                     // Required by wasm.
-      return false;
-    default:
-      // TODO(6624): Extend to other kinds.
-      return KindOf(index) == TFJ || KindOf(index) == BCH;
-  }
-  UNREACHABLE();
-}
-
-// static
-bool Builtins::IsLazyDeserializer(Code* code) {
-  return IsLazyDeserializer(code->builtin_index());
-}
-
-// static
-bool Builtins::IsIsolateIndependent(int index) {
-  DCHECK(IsBuiltinId(index));
-#ifndef V8_TARGET_ARCH_IA32
-  switch (index) {
-    // TODO(jgruber): There's currently two blockers for moving
-    // InterpreterEntryTrampoline into the binary:
-    // 1. InterpreterEnterBytecode calculates a pointer into the middle of
-    //    InterpreterEntryTrampoline (see interpreter_entry_return_pc_offset).
-    //    When the builtin is embedded, the pointer would need to be calculated
-    //    at an offset from the embedded instruction stream (instead of the
-    //    trampoline code object).
-    // 2. We create distinct copies of the trampoline to make it possible to
-    //    attribute ticks in the interpreter to individual JS functions.
-    //    See https://crrev.com/c/959081 and InstallBytecodeArray. When the
-    //    trampoline is embedded, we need to ensure that CopyCode creates a copy
-    //    of the builtin itself (and not just the trampoline).
-    case kInterpreterEntryTrampoline:
-      return false;
-    default:
-      return true;
-  }
-#else   // V8_TARGET_ARCH_IA32
-  // TODO(jgruber, v8:6666): Implement support.
-  // ia32 is a work-in-progress. This will let us make builtins
-  // isolate-independent one-by-one.
-  switch (index) {
-    case kContinueToCodeStubBuiltin:
-    case kContinueToCodeStubBuiltinWithResult:
-    case kContinueToJavaScriptBuiltin:
-    case kContinueToJavaScriptBuiltinWithResult:
-    case kWasmAllocateHeapNumber:
-    case kWasmCallJavaScript:
-    case kWasmToNumber:
-    case kDoubleToI:
-      return true;
-    default:
-      return false;
-  }
-#endif  // V8_TARGET_ARCH_IA32
-  UNREACHABLE();
 }
 
 // static
@@ -384,27 +246,76 @@ bool Builtins::IsWasmRuntimeStub(int index) {
 }
 
 // static
+void Builtins::UpdateBuiltinEntryTable(Isolate* isolate) {
+  Heap* heap = isolate->heap();
+  Address* builtin_entry_table = isolate->builtin_entry_table();
+  for (int i = 0; i < builtin_count; i++) {
+    builtin_entry_table[i] = heap->builtin(i)->InstructionStart();
+  }
+}
+
+namespace {
+
+class OffHeapTrampolineGenerator {
+ public:
+  explicit OffHeapTrampolineGenerator(Isolate* isolate)
+      : isolate_(isolate),
+        masm_(isolate, CodeObjectRequired::kYes,
+              ExternalAssemblerBuffer(buffer_, kBufferSize)) {}
+
+  CodeDesc Generate(Address off_heap_entry) {
+    // Generate replacement code that simply tail-calls the off-heap code.
+    DCHECK(!masm_.has_frame());
+    {
+      FrameScope scope(&masm_, StackFrame::NONE);
+      masm_.JumpToInstructionStream(off_heap_entry);
+    }
+
+    CodeDesc desc;
+    masm_.GetCode(isolate_, &desc);
+    return desc;
+  }
+
+  Handle<HeapObject> CodeObject() { return masm_.CodeObject(); }
+
+ private:
+  Isolate* isolate_;
+  // Enough to fit the single jmp.
+  static constexpr int kBufferSize = 256;
+  byte buffer_[kBufferSize];
+  MacroAssembler masm_;
+};
+
+constexpr int OffHeapTrampolineGenerator::kBufferSize;
+
+}  // namespace
+
+// static
 Handle<Code> Builtins::GenerateOffHeapTrampolineFor(Isolate* isolate,
                                                     Address off_heap_entry) {
-  DCHECK(isolate->serializer_enabled());
   DCHECK_NOT_NULL(isolate->embedded_blob());
   DCHECK_NE(0, isolate->embedded_blob_size());
 
-  constexpr size_t buffer_size = 256;  // Enough to fit the single jmp.
-  byte buffer[buffer_size];            // NOLINT(runtime/arrays)
+  OffHeapTrampolineGenerator generator(isolate);
+  CodeDesc desc = generator.Generate(off_heap_entry);
 
-  // Generate replacement code that simply tail-calls the off-heap code.
-  MacroAssembler masm(isolate, buffer, buffer_size, CodeObjectRequired::kYes);
-  DCHECK(!masm.has_frame());
-  {
-    FrameScope scope(&masm, StackFrame::NONE);
-    masm.JumpToInstructionStream(off_heap_entry);
-  }
+  return isolate->factory()->NewCode(desc, Code::BUILTIN,
+                                     generator.CodeObject());
+}
 
-  CodeDesc desc;
-  masm.GetCode(isolate, &desc);
+// static
+Handle<ByteArray> Builtins::GenerateOffHeapTrampolineRelocInfo(
+    Isolate* isolate) {
+  OffHeapTrampolineGenerator generator(isolate);
+  // Generate a jump to a dummy address as we're not actually interested in the
+  // generated instruction stream.
+  CodeDesc desc = generator.Generate(kNullAddress);
 
-  return isolate->factory()->NewCode(desc, Code::BUILTIN, masm.CodeObject());
+  Handle<ByteArray> reloc_info =
+      isolate->factory()->NewByteArray(desc.reloc_size, TENURED_READ_ONLY);
+  Code::CopyRelocInfoToByteArray(*reloc_info, desc);
+
+  return reloc_info;
 }
 
 // static
@@ -425,7 +336,6 @@ const char* Builtins::KindNameOf(int index) {
     case TFS: return "TFS";
     case TFH: return "TFH";
     case BCH: return "BCH";
-    case DLH: return "DLH";
     case ASM: return "ASM";
   }
   // clang-format on
@@ -446,15 +356,26 @@ bool Builtins::AllowDynamicFunction(Isolate* isolate, Handle<JSFunction> target,
                                     Handle<JSObject> target_global_proxy) {
   if (FLAG_allow_unsafe_function_constructor) return true;
   HandleScopeImplementer* impl = isolate->handle_scope_implementer();
-  Handle<Context> responsible_context =
-      impl->MicrotaskContextIsLastEnteredContext() ? impl->MicrotaskContext()
-                                                   : impl->LastEnteredContext();
+  Handle<Context> responsible_context = impl->LastEnteredOrMicrotaskContext();
   // TODO(jochen): Remove this.
   if (responsible_context.is_null()) {
     return true;
   }
   if (*responsible_context == target->context()) return true;
   return isolate->MayAccess(responsible_context, target_global_proxy);
+}
+
+Builtins::Name ExampleBuiltinForTorqueFunctionPointerType(
+    size_t function_pointer_type_id) {
+  switch (function_pointer_type_id) {
+#define FUNCTION_POINTER_ID_CASE(id, name) \
+  case id:                                 \
+    return Builtins::k##name;
+    TORQUE_FUNCTION_POINTER_TYPE_TO_BUILTIN_MAP(FUNCTION_POINTER_ID_CASE)
+#undef FUNCTION_POINTER_ID_CASE
+    default:
+      UNREACHABLE();
+  }
 }
 
 }  // namespace internal

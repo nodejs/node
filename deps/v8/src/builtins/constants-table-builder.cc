@@ -5,6 +5,9 @@
 #include "src/builtins/constants-table-builder.h"
 
 #include "src/heap/heap-inl.h"
+#include "src/isolate.h"
+#include "src/objects/oddball-inl.h"
+#include "src/roots-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -18,8 +21,7 @@ BuiltinsConstantsTableBuilder::BuiltinsConstantsTableBuilder(Isolate* isolate)
   // And that the initial value of the builtins constants table can be treated
   // as a constant, which means that codegen will load it using the root
   // register.
-  DCHECK(isolate_->heap()->RootCanBeTreatedAsConstant(
-      RootIndex::kEmptyFixedArray));
+  DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kEmptyFixedArray));
 }
 
 uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
@@ -27,7 +29,7 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
   // Roots must not be inserted into the constants table as they are already
   // accessibly from the root list.
   RootIndex root_list_index;
-  DCHECK(!isolate_->heap()->IsRootHandle(object, &root_list_index));
+  DCHECK(!isolate_->roots_table().IsRootHandle(object, &root_list_index));
 
   // Not yet finalized.
   DCHECK_EQ(ReadOnlyRoots(isolate_).empty_fixed_array(),
@@ -36,8 +38,12 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
   // Must be on the main thread.
   DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
 
-  // Must be serializing.
-  DCHECK(isolate_->serializer_enabled());
+  // Must be generating embedded builtin code.
+  DCHECK(isolate_->ShouldLoadConstantsFromRootList());
+
+  // All code objects should be loaded through the root register or use
+  // pc-relative addressing.
+  DCHECK(!object->IsCode());
 #endif
 
   uint32_t* maybe_key = map_.Find(object);
@@ -57,22 +63,17 @@ void BuiltinsConstantsTableBuilder::PatchSelfReference(
   // Roots must not be inserted into the constants table as they are already
   // accessibly from the root list.
   RootIndex root_list_index;
-  DCHECK(!isolate_->heap()->IsRootHandle(code_object, &root_list_index));
+  DCHECK(!isolate_->roots_table().IsRootHandle(code_object, &root_list_index));
 
   // Not yet finalized.
   DCHECK_EQ(ReadOnlyRoots(isolate_).empty_fixed_array(),
             isolate_->heap()->builtins_constants_table());
 
-  DCHECK(isolate_->serializer_enabled());
+  DCHECK(isolate_->ShouldLoadConstantsFromRootList());
 
   DCHECK(self_reference->IsOddball());
   DCHECK(Oddball::cast(*self_reference)->kind() ==
          Oddball::kSelfReferenceMarker);
-
-  // During indirection generation, we always create a distinct marker for each
-  // macro assembler. The canonical marker is only used when not generating a
-  // snapshot.
-  DCHECK(*self_reference != ReadOnlyRoots(isolate_).self_reference_marker());
 #endif
 
   uint32_t key;
@@ -87,7 +88,7 @@ void BuiltinsConstantsTableBuilder::Finalize() {
 
   DCHECK_EQ(ReadOnlyRoots(isolate_).empty_fixed_array(),
             isolate_->heap()->builtins_constants_table());
-  DCHECK(isolate_->serializer_enabled());
+  DCHECK(isolate_->ShouldLoadConstantsFromRootList());
 
   // An empty map means there's nothing to do.
   if (map_.size() == 0) return;
@@ -99,7 +100,7 @@ void BuiltinsConstantsTableBuilder::Finalize() {
   ConstantsMap::IteratableScope it_scope(&map_);
   for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {
     uint32_t index = *it.entry();
-    Object* value = it.key();
+    Object value = it.key();
     if (value->IsCode() && Code::cast(value)->kind() == Code::BUILTIN) {
       // Replace placeholder code objects with the real builtin.
       // See also: SetupIsolateDelegate::PopulateWithPlaceholders.

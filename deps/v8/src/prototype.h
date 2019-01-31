@@ -31,11 +31,11 @@ class PrototypeIterator {
                            WhereToStart where_to_start = kStartAtPrototype,
                            WhereToEnd where_to_end = END_AT_NULL);
 
-  inline PrototypeIterator(Isolate* isolate, JSReceiver* receiver,
+  inline PrototypeIterator(Isolate* isolate, JSReceiver receiver,
                            WhereToStart where_to_start = kStartAtPrototype,
                            WhereToEnd where_to_end = END_AT_NULL);
 
-  inline explicit PrototypeIterator(Isolate* isolate, Map* receiver_map,
+  inline explicit PrototypeIterator(Isolate* isolate, Map receiver_map,
                                     WhereToEnd where_to_end = END_AT_NULL);
 
   inline explicit PrototypeIterator(Isolate* isolate, Handle<Map> receiver_map,
@@ -46,7 +46,7 @@ class PrototypeIterator {
   inline bool HasAccess() const;
 
   template <typename T = Object>
-  T* GetCurrent() const {
+  T GetCurrent() const {
     DCHECK(handle_.is_null());
     return T::cast(object_);
   }
@@ -54,7 +54,7 @@ class PrototypeIterator {
   template <typename T = Object>
   static Handle<T> GetCurrent(const PrototypeIterator& iterator) {
     DCHECK(!iterator.handle_.is_null());
-    DCHECK_NULL(iterator.object_);
+    DCHECK_EQ(iterator.object_, Object());
     return Handle<T>::cast(iterator.handle_);
   }
 
@@ -73,7 +73,7 @@ class PrototypeIterator {
 
  private:
   Isolate* isolate_;
-  Object* object_;
+  Object object_;
   Handle<Object> handle_;
   WhereToEnd where_to_end_;
   bool is_at_end_;

@@ -54,8 +54,7 @@ assertDoesNotThrow(
 assertDoesNotThrow(
     () => new Intl.ListFormat(['sr'], {style: 'short'}));
 
-assertDoesNotThrow(
-    () => new Intl.ListFormat(['sr'], {style: 'narrow'}));
+assertThrows(() => new Intl.ListFormat(['sr'], {style: 'narrow'}), RangeError);
 
 assertThrows(
     () => new Intl.ListFormat(['sr'], {style: 'giant'}),
@@ -67,8 +66,9 @@ assertDoesNotThrow(
 assertDoesNotThrow(
     () => new Intl.ListFormat(['sr'], {type: 'conjunction', style: 'short'}));
 
-assertDoesNotThrow(
-    () => new Intl.ListFormat(['sr'], {type: 'conjunction', style: 'narrow'}));
+assertThrows(
+    () => new Intl.ListFormat(['sr'], {type: 'conjunction', style: 'narrow'}),
+    RangeError);
 
 assertDoesNotThrow(
     () => new Intl.ListFormat(['sr'], {type: 'disjunction', style: 'long'}));
@@ -76,8 +76,9 @@ assertDoesNotThrow(
 assertDoesNotThrow(
     () => new Intl.ListFormat(['sr'], {type: 'disjunction', style: 'short'}));
 
-assertDoesNotThrow(
-    () => new Intl.ListFormat(['sr'], {type: 'disjunction', style: 'narrow'}));
+assertThrows(
+    () => new Intl.ListFormat(['sr'], {type: 'disjunction', style: 'narrow'}),
+    RangeError);
 
 assertDoesNotThrow(
     () => new Intl.ListFormat(['sr'], {type: 'unit', style: 'long'}));
@@ -87,22 +88,3 @@ assertDoesNotThrow(
 
 assertDoesNotThrow(
     () => new Intl.ListFormat(['sr'], {type: 'unit', style: 'narrow'}));
-
-// Throws only once during construction.
-// Check for all getters to prevent regression.
-// Preserve the order of getter initialization.
-let getCount = 0;
-let style = -1;
-let type = -1;
-
-new Intl.ListFormat(['en-US'], {
-  get style() {
-    style = ++getCount;
-  },
-  get type() {
-    type = ++getCount;
-  }
-});
-
-assertEquals(1, type);
-assertEquals(2, style);

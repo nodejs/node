@@ -7,9 +7,10 @@
 
 #include "src/accessors.h"
 #include "src/globals.h"
-#include "src/handles.h"
 #include "src/heap-symbols.h"
 #include "src/objects-definitions.h"
+#include "src/objects.h"
+#include "src/objects/slots.h"
 
 namespace v8 {
 namespace internal {
@@ -17,11 +18,15 @@ namespace internal {
 // Forward declarations.
 enum ElementsKind : uint8_t;
 class FixedTypedArrayBase;
+template <typename T>
+class Handle;
 class Heap;
 class Isolate;
 class Map;
+class PropertyCell;
 class String;
 class Symbol;
+class RootVisitor;
 
 // Defines all the read-only roots in Heap.
 #define STRONG_READ_ONLY_ROOT_LIST(V)                                          \
@@ -60,9 +65,6 @@ class Symbol;
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
   /* Entries beyond the first 32                                            */ \
-  /* The roots above this line should be boring from a GC point of view.    */ \
-  /* This means they are never in new space and never on a page that is     */ \
-  /* being compacted.*/                                                        \
   /* Oddballs */                                                               \
   V(Oddball, arguments_marker, ArgumentsMarker)                                \
   V(Oddball, exception, Exception)                                             \
@@ -95,11 +97,13 @@ class Symbol;
   V(Map, mutable_heap_number_map, MutableHeapNumberMap)                        \
   V(Map, name_dictionary_map, NameDictionaryMap)                               \
   V(Map, no_closures_cell_map, NoClosuresCellMap)                              \
+  V(Map, no_feedback_cell_map, NoFeedbackCellMap)                              \
   V(Map, number_dictionary_map, NumberDictionaryMap)                           \
   V(Map, one_closure_cell_map, OneClosureCellMap)                              \
   V(Map, ordered_hash_map_map, OrderedHashMapMap)                              \
   V(Map, ordered_hash_set_map, OrderedHashSetMap)                              \
-  V(Map, pre_parsed_scope_data_map, PreParsedScopeDataMap)                     \
+  V(Map, ordered_name_dictionary_map, OrderedNameDictionaryMap)                \
+  V(Map, preparse_data_map, PreparseDataMap)                                   \
   V(Map, property_array_map, PropertyArrayMap)                                 \
   V(Map, side_effect_call_handler_info_map, SideEffectCallHandlerInfoMap)      \
   V(Map, side_effect_free_call_handler_info_map,                               \
@@ -110,14 +114,16 @@ class Symbol;
   V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
   V(Map, small_ordered_hash_map_map, SmallOrderedHashMapMap)                   \
   V(Map, small_ordered_hash_set_map, SmallOrderedHashSetMap)                   \
+  V(Map, small_ordered_name_dictionary_map, SmallOrderedNameDictionaryMap)     \
   V(Map, string_table_map, StringTableMap)                                     \
-  V(Map, uncompiled_data_without_pre_parsed_scope_map,                         \
-    UncompiledDataWithoutPreParsedScopeMap)                                    \
-  V(Map, uncompiled_data_with_pre_parsed_scope_map,                            \
-    UncompiledDataWithPreParsedScopeMap)                                       \
+  V(Map, uncompiled_data_without_preparse_data_map,                            \
+    UncompiledDataWithoutPreparseDataMap)                                      \
+  V(Map, uncompiled_data_with_preparse_data_map,                               \
+    UncompiledDataWithPreparseDataMap)                                         \
   V(Map, weak_fixed_array_map, WeakFixedArrayMap)                              \
   V(Map, weak_array_list_map, WeakArrayListMap)                                \
   V(Map, ephemeron_hash_table_map, EphemeronHashTableMap)                      \
+  V(Map, embedder_data_array_map, EmbedderDataArrayMap)                        \
   /* String maps */                                                            \
   V(Map, native_source_string_map, NativeSourceStringMap)                      \
   V(Map, string_map, StringMap)                                                \
@@ -200,6 +206,7 @@ class Symbol;
   V(FixedArray, empty_ordered_hash_set, EmptyOrderedHashSet)                   \
   V(FeedbackMetadata, empty_feedback_metadata, EmptyFeedbackMetadata)          \
   V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
+  V(NameDictionary, empty_property_dictionary, EmptyPropertyDictionary)        \
   V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
   V(WeakFixedArray, empty_weak_fixed_array, EmptyWeakFixedArray)               \
   V(WeakArrayList, empty_weak_array_list, EmptyWeakArrayList)                  \
@@ -210,15 +217,24 @@ class Symbol;
   V(HeapNumber, minus_zero_value, MinusZeroValue)                              \
   V(HeapNumber, minus_infinity_value, MinusInfinityValue)                      \
   /* Marker for self-references during code-generation */                      \
-  V(HeapObject, self_reference_marker, SelfReferenceMarker)
+  V(HeapObject, self_reference_marker, SelfReferenceMarker)                    \
+  /* Canonical trampoline RelocInfo */                                         \
+  V(ByteArray, off_heap_trampoline_relocation_info,                            \
+    OffHeapTrampolineRelocationInfo)                                           \
+  /* Hash seed */                                                              \
+  V(ByteArray, hash_seed, HashSeed)
 
-#define STRONG_MUTABLE_ROOT_LIST(V)                                          \
+// Mutable roots that are known to be immortal immovable, for which we can
+// safely skip write barriers.
+#define STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(V)                                \
+  ACCESSOR_INFO_ROOT_LIST(V)                                                 \
   /* Maps */                                                                 \
   V(Map, external_map, ExternalMap)                                          \
   V(Map, message_object_map, JSMessageObjectMap)                             \
   /* Canonical empty values */                                               \
   V(Script, empty_script, EmptyScript)                                       \
   V(FeedbackCell, many_closures_cell, ManyClosuresCell)                      \
+  V(FeedbackCell, no_feedback_cell, NoFeedbackCell)                          \
   V(Cell, invalid_prototype_validity_cell, InvalidPrototypeValidityCell)     \
   /* Protectors */                                                           \
   V(Cell, array_constructor_protector, ArrayConstructorProtector)            \
@@ -226,48 +242,54 @@ class Symbol;
   V(Cell, is_concat_spreadable_protector, IsConcatSpreadableProtector)       \
   V(PropertyCell, array_species_protector, ArraySpeciesProtector)            \
   V(PropertyCell, typed_array_species_protector, TypedArraySpeciesProtector) \
+  V(PropertyCell, regexp_species_protector, RegExpSpeciesProtector)          \
   V(PropertyCell, promise_species_protector, PromiseSpeciesProtector)        \
   V(Cell, string_length_protector, StringLengthProtector)                    \
   V(PropertyCell, array_iterator_protector, ArrayIteratorProtector)          \
-  V(PropertyCell, array_buffer_neutering_protector,                          \
-    ArrayBufferNeuteringProtector)                                           \
+  V(PropertyCell, array_buffer_detaching_protector,                          \
+    ArrayBufferDetachingProtector)                                           \
   V(PropertyCell, promise_hook_protector, PromiseHookProtector)              \
   V(Cell, promise_resolve_protector, PromiseResolveProtector)                \
+  V(PropertyCell, map_iterator_protector, MapIteratorProtector)              \
   V(PropertyCell, promise_then_protector, PromiseThenProtector)              \
+  V(PropertyCell, set_iterator_protector, SetIteratorProtector)              \
   V(PropertyCell, string_iterator_protector, StringIteratorProtector)        \
   /* Caches */                                                               \
-  V(FixedArray, number_string_cache, NumberStringCache)                      \
   V(FixedArray, single_character_string_cache, SingleCharacterStringCache)   \
   V(FixedArray, string_split_cache, StringSplitCache)                        \
   V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                  \
-  /* Lists and dictionaries */                                               \
-  V(NameDictionary, empty_property_dictionary, EmptyPropertyDictionary)      \
-  V(NameDictionary, public_symbol_table, PublicSymbolTable)                  \
-  V(NameDictionary, api_symbol_table, ApiSymbolTable)                        \
-  V(NameDictionary, api_private_symbol_table, ApiPrivateSymbolTable)         \
-  V(WeakArrayList, script_list, ScriptList)                                  \
-  V(SimpleNumberDictionary, code_stubs, CodeStubs)                           \
-  V(FixedArray, materialized_objects, MaterializedObjects)                   \
-  V(MicrotaskQueue, default_microtask_queue, DefaultMicrotaskQueue)          \
-  V(WeakArrayList, detached_contexts, DetachedContexts)                      \
-  V(WeakArrayList, retaining_path_targets, RetainingPathTargets)             \
-  V(WeakArrayList, retained_maps, RetainedMaps)                              \
   /* Indirection lists for isolate-independent builtins */                   \
-  V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)            \
-  /* Feedback vectors that we need for code coverage or type profile */      \
-  V(Object, feedback_vectors_for_profiling_tools,                            \
-    FeedbackVectorsForProfilingTools)                                        \
-  V(WeakArrayList, noscript_shared_function_infos,                           \
-    NoScriptSharedFunctionInfos)                                             \
-  V(FixedArray, serialized_objects, SerializedObjects)                       \
-  V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes)   \
-  V(TemplateList, message_listeners, MessageListeners)                       \
-  /* Hash seed */                                                            \
-  V(ByteArray, hash_seed, HashSeed)                                          \
-  /* JS Entries */                                                           \
-  V(Code, js_entry_code, JsEntryCode)                                        \
-  V(Code, js_construct_entry_code, JsConstructEntryCode)                     \
-  V(Code, js_run_microtasks_entry_code, JsRunMicrotasksEntryCode)
+  V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)
+
+// These root references can be updated by the mutator.
+#define STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)                                \
+  /* Caches */                                                             \
+  V(FixedArray, number_string_cache, NumberStringCache)                    \
+  /* Lists and dictionaries */                                             \
+  V(NameDictionary, public_symbol_table, PublicSymbolTable)                \
+  V(NameDictionary, api_symbol_table, ApiSymbolTable)                      \
+  V(NameDictionary, api_private_symbol_table, ApiPrivateSymbolTable)       \
+  V(WeakArrayList, script_list, ScriptList)                                \
+  V(FixedArray, materialized_objects, MaterializedObjects)                 \
+  V(WeakArrayList, detached_contexts, DetachedContexts)                    \
+  V(WeakArrayList, retaining_path_targets, RetainingPathTargets)           \
+  V(WeakArrayList, retained_maps, RetainedMaps)                            \
+  /* Feedback vectors that we need for code coverage or type profile */    \
+  V(Object, feedback_vectors_for_profiling_tools,                          \
+    FeedbackVectorsForProfilingTools)                                      \
+  V(WeakArrayList, noscript_shared_function_infos,                         \
+    NoScriptSharedFunctionInfos)                                           \
+  V(FixedArray, serialized_objects, SerializedObjects)                     \
+  V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes) \
+  V(TemplateList, message_listeners, MessageListeners)                     \
+  /* Support for async stack traces */                                     \
+  V(HeapObject, current_microtask, CurrentMicrotask)                       \
+  /* JSWeakFactory objects which need cleanup */                           \
+  V(Object, dirty_js_weak_factories, DirtyJSWeakFactories)                 \
+  /* KeepDuringJob set for JS WeakRefs */                                  \
+  V(HeapObject, weak_refs_keep_during_job, WeakRefsKeepDuringJob)          \
+  V(HeapObject, interpreter_entry_trampoline_for_profiling,                \
+    InterpreterEntryTrampolineForProfiling)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                       \
@@ -324,8 +346,8 @@ class Symbol;
   DATA_HANDLER_MAPS_LIST(V)
 
 #define MUTABLE_ROOT_LIST(V)                \
-  STRONG_MUTABLE_ROOT_LIST(V)               \
-  ACCESSOR_INFO_ROOT_LIST(V)                \
+  STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(V)     \
+  STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)       \
   V(StringTable, string_table, StringTable) \
   SMI_ROOT_LIST(V)
 
@@ -346,9 +368,28 @@ enum class RootIndex : uint16_t {
   kFirstRoot = 0,
   kLastRoot = kRootListLength - 1,
 
-  // kStringTable is not a strong root.
-  kFirstStrongRoot = kFirstRoot,
+#define ROOT(...) +1
+  kReadOnlyRootsCount = 0 READ_ONLY_ROOT_LIST(ROOT),
+  kImmortalImmovableRootsCount =
+      kReadOnlyRootsCount STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(ROOT),
+#undef ROOT
+  kFirstReadOnlyRoot = kFirstRoot,
+  kLastReadOnlyRoot = kFirstReadOnlyRoot + kReadOnlyRootsCount - 1,
+
+  // The strong roots visited by the garbage collector (not including read-only
+  // roots).
+  kFirstStrongRoot = kLastReadOnlyRoot + 1,
+  // (kStringTable is not a strong root).
   kLastStrongRoot = kStringTable - 1,
+
+  // All of the strong roots plus the read-only roots.
+  kFirstStrongOrReadOnlyRoot = kFirstRoot,
+  kLastStrongOrReadOnlyRoot = kLastStrongRoot,
+
+  // All immortal immovable roots including read only ones.
+  kFirstImmortalImmovableRoot = kFirstReadOnlyRoot,
+  kLastImmortalImmovableRoot =
+      kFirstImmortalImmovableRoot + kImmortalImmovableRootsCount - 1,
 
   kFirstSmiRoot = kStringTable + 1,
   kLastSmiRoot = kLastRoot
@@ -363,60 +404,109 @@ class RootsTable {
 
   RootsTable() : roots_{} {}
 
-  bool IsRootHandleLocation(Object** handle_location, RootIndex* index) const {
-    if (handle_location >= &roots_[kEntriesCount]) return false;
-    if (handle_location < &roots_[0]) return false;
-    *index = static_cast<RootIndex>(handle_location - &roots_[0]);
-    return true;
-  }
+  inline bool IsRootHandleLocation(Address* handle_location,
+                                   RootIndex* index) const;
 
   template <typename T>
-  bool IsRootHandle(Handle<T> handle, RootIndex* index) const {
-    Object** handle_location = bit_cast<Object**>(handle.address());
-    return IsRootHandleLocation(handle_location, index);
-  }
+  bool IsRootHandle(Handle<T> handle, RootIndex* index) const;
 
-  Object* const& operator[](RootIndex root_index) const {
+  Address const& operator[](RootIndex root_index) const {
     size_t index = static_cast<size_t>(root_index);
     DCHECK_LT(index, kEntriesCount);
     return roots_[index];
+  }
+
+  static const char* name(RootIndex root_index) {
+    size_t index = static_cast<size_t>(root_index);
+    DCHECK_LT(index, kEntriesCount);
+    return root_names_[index];
+  }
+
+  static constexpr int offset_of(RootIndex root_index) {
+    return static_cast<int>(root_index) * kSystemPointerSize;
   }
 
   static RootIndex RootIndexForFixedTypedArray(ExternalArrayType array_type);
   static RootIndex RootIndexForFixedTypedArray(ElementsKind elements_kind);
   static RootIndex RootIndexForEmptyFixedTypedArray(ElementsKind elements_kind);
 
+  // Immortal immovable root objects are allocated in OLD space and GC never
+  // moves them and the root table entries are guaranteed to not be modified
+  // after initialization. Note, however, that contents of those root objects
+  // that are allocated in writable space can still be modified after
+  // initialization.
+  // Generated code can treat direct references to these roots as constants.
+  static constexpr bool IsImmortalImmovable(RootIndex root_index) {
+    STATIC_ASSERT(static_cast<int>(RootIndex::kFirstImmortalImmovableRoot) ==
+                  0);
+    return static_cast<unsigned>(root_index) <=
+           static_cast<unsigned>(RootIndex::kLastImmortalImmovableRoot);
+  }
+
  private:
-  Object** read_only_roots_begin() {
-    return &roots_[static_cast<size_t>(RootIndex::kFirstStrongRoot)];
+  FullObjectSlot begin() {
+    return FullObjectSlot(&roots_[static_cast<size_t>(RootIndex::kFirstRoot)]);
   }
-  inline Object** read_only_roots_end();
-
-  Object** strong_roots_begin() {
-    return &roots_[static_cast<size_t>(RootIndex::kFirstStrongRoot)];
-  }
-  Object** strong_roots_end() {
-    return &roots_[static_cast<size_t>(RootIndex::kLastStrongRoot) + 1];
+  FullObjectSlot end() {
+    return FullObjectSlot(
+        &roots_[static_cast<size_t>(RootIndex::kLastRoot) + 1]);
   }
 
-  Object** smi_roots_begin() {
-    return &roots_[static_cast<size_t>(RootIndex::kFirstSmiRoot)];
+  // Used for iterating over all of the read-only and mutable strong roots.
+  FullObjectSlot strong_or_read_only_roots_begin() {
+    STATIC_ASSERT(static_cast<size_t>(RootIndex::kLastReadOnlyRoot) ==
+                  static_cast<size_t>(RootIndex::kFirstStrongRoot) - 1);
+    return FullObjectSlot(
+        &roots_[static_cast<size_t>(RootIndex::kFirstStrongOrReadOnlyRoot)]);
   }
-  Object** smi_roots_end() {
-    return &roots_[static_cast<size_t>(RootIndex::kLastSmiRoot) + 1];
+  FullObjectSlot strong_or_read_only_roots_end() {
+    return FullObjectSlot(
+        &roots_[static_cast<size_t>(RootIndex::kLastStrongOrReadOnlyRoot) + 1]);
   }
 
-  Object*& operator[](RootIndex root_index) {
+  // The read-only, strong and Smi roots as defined by these accessors are all
+  // disjoint.
+  FullObjectSlot read_only_roots_begin() {
+    return FullObjectSlot(
+        &roots_[static_cast<size_t>(RootIndex::kFirstReadOnlyRoot)]);
+  }
+  FullObjectSlot read_only_roots_end() {
+    return FullObjectSlot(
+        &roots_[static_cast<size_t>(RootIndex::kLastReadOnlyRoot) + 1]);
+  }
+
+  FullObjectSlot strong_roots_begin() {
+    return FullObjectSlot(
+        &roots_[static_cast<size_t>(RootIndex::kFirstStrongRoot)]);
+  }
+  FullObjectSlot strong_roots_end() {
+    return FullObjectSlot(
+        &roots_[static_cast<size_t>(RootIndex::kLastStrongRoot) + 1]);
+  }
+
+  FullObjectSlot smi_roots_begin() {
+    return FullObjectSlot(
+        &roots_[static_cast<size_t>(RootIndex::kFirstSmiRoot)]);
+  }
+  FullObjectSlot smi_roots_end() {
+    return FullObjectSlot(
+        &roots_[static_cast<size_t>(RootIndex::kLastSmiRoot) + 1]);
+  }
+
+  Address& operator[](RootIndex root_index) {
     size_t index = static_cast<size_t>(root_index);
     DCHECK_LT(index, kEntriesCount);
     return roots_[index];
   }
 
-  Object* roots_[kEntriesCount];
+  Address roots_[kEntriesCount];
+  static const char* root_names_[kEntriesCount];
 
+  friend class Isolate;
   friend class Heap;
   friend class Factory;
   friend class ReadOnlyRoots;
+  friend class RootsSerializer;
 };
 
 class ReadOnlyRoots {
@@ -424,19 +514,24 @@ class ReadOnlyRoots {
   V8_INLINE explicit ReadOnlyRoots(Heap* heap);
   V8_INLINE explicit ReadOnlyRoots(Isolate* isolate);
 
-#define ROOT_ACCESSOR(type, name, CamelName) \
-  V8_INLINE class type* name();              \
-  V8_INLINE Handle<type> name##_handle();
+#define ROOT_ACCESSOR(Type, name, CamelName) \
+  V8_INLINE class Type name() const;         \
+  V8_INLINE Handle<Type> name##_handle() const;
 
   READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-  V8_INLINE Map* MapForFixedTypedArray(ExternalArrayType array_type);
-  V8_INLINE Map* MapForFixedTypedArray(ElementsKind elements_kind);
-  V8_INLINE FixedTypedArrayBase* EmptyFixedTypedArrayForMap(const Map* map);
+  V8_INLINE Map MapForFixedTypedArray(ExternalArrayType array_type);
+  V8_INLINE Map MapForFixedTypedArray(ElementsKind elements_kind);
+  V8_INLINE FixedTypedArrayBase EmptyFixedTypedArrayForMap(const Map map);
+
+  // Iterate over all the read-only roots. This is not necessary for garbage
+  // collection and is usually only performed as part of (de)serialization or
+  // heap verification.
+  void Iterate(RootVisitor* visitor);
 
  private:
-  const RootsTable& roots_table_;
+  RootsTable& roots_table_;
 };
 
 }  // namespace internal

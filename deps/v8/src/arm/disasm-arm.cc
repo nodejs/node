@@ -30,17 +30,14 @@
 
 #if V8_TARGET_ARCH_ARM
 
+#include "src/arm/assembler-arm.h"
 #include "src/arm/constants-arm.h"
 #include "src/base/bits.h"
 #include "src/base/platform/platform.h"
 #include "src/disasm.h"
-#include "src/macro-assembler.h"
-
 
 namespace v8 {
 namespace internal {
-
-const auto GetRegConfig = RegisterConfiguration::Default;
 
 //------------------------------------------------------------------------------
 
@@ -685,8 +682,9 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
           return -1;
         }
       }
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%p",
-                                  static_cast<void*>(addr));
+      out_buffer_pos_ +=
+          SNPrintF(out_buffer_ + out_buffer_pos_, "0x%08" PRIxPTR,
+                   reinterpret_cast<uintptr_t>(addr));
       return 1;
     }
     case 'S':
@@ -2677,7 +2675,7 @@ const char* NameConverter::NameOfConstant(byte* addr) const {
 
 
 const char* NameConverter::NameOfCPURegister(int reg) const {
-  return v8::internal::GetRegConfig()->GetGeneralRegisterName(reg);
+  return RegisterName(i::Register::from_code(reg));
 }
 
 

@@ -28,6 +28,14 @@ inline void SeqCst_MemoryFence() {
   std::atomic_thread_fence(std::memory_order_seq_cst);
 }
 
+inline Atomic16 Relaxed_CompareAndSwap(volatile Atomic16* ptr,
+                                       Atomic16 old_value, Atomic16 new_value) {
+  std::atomic_compare_exchange_strong_explicit(
+      helper::to_std_atomic(ptr), &old_value, new_value,
+      std::memory_order_relaxed, std::memory_order_relaxed);
+  return old_value;
+}
+
 inline Atomic32 Relaxed_CompareAndSwap(volatile Atomic32* ptr,
                                        Atomic32 old_value, Atomic32 new_value) {
   std::atomic_compare_exchange_strong_explicit(
@@ -86,6 +94,11 @@ inline void Relaxed_Store(volatile Atomic8* ptr, Atomic8 value) {
                              std::memory_order_relaxed);
 }
 
+inline void Relaxed_Store(volatile Atomic16* ptr, Atomic16 value) {
+  std::atomic_store_explicit(helper::to_std_atomic(ptr), value,
+                             std::memory_order_relaxed);
+}
+
 inline void Relaxed_Store(volatile Atomic32* ptr, Atomic32 value) {
   std::atomic_store_explicit(helper::to_std_atomic(ptr), value,
                              std::memory_order_relaxed);
@@ -97,6 +110,11 @@ inline void Release_Store(volatile Atomic32* ptr, Atomic32 value) {
 }
 
 inline Atomic8 Relaxed_Load(volatile const Atomic8* ptr) {
+  return std::atomic_load_explicit(helper::to_std_atomic_const(ptr),
+                                   std::memory_order_relaxed);
+}
+
+inline Atomic16 Relaxed_Load(volatile const Atomic16* ptr) {
   return std::atomic_load_explicit(helper::to_std_atomic_const(ptr),
                                    std::memory_order_relaxed);
 }

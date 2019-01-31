@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#if V8_TARGET_ARCH_ARM64
+#include "src/arm64/simulator-arm64.h"
+
+#if defined(USE_SIMULATOR)
 
 #include <cmath>
-#include "src/arm64/simulator-arm64.h"
 
 namespace v8 {
 namespace internal {
-
-#if defined(USE_SIMULATOR)
 
 namespace {
 
@@ -4183,9 +4182,7 @@ LogicVRegister Simulator::ucvtf(VectorFormat vform, LogicVRegister dst,
   return dst;
 }
 
-#endif  // USE_SIMULATOR
-
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TARGET_ARCH_ARM64
+#endif  // USE_SIMULATOR

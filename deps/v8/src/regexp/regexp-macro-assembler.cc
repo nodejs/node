@@ -29,8 +29,6 @@ int RegExpMacroAssembler::CaseInsensitiveCompareUC16(Address byte_offset1,
                                                      Address byte_offset2,
                                                      size_t byte_length,
                                                      Isolate* isolate) {
-  unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize =
-      isolate->regexp_macro_assembler_canonicalize();
   // This function is not allowed to cause a garbage collection.
   // A GC might move the calling generated code and invalidate the
   // return address on the stack.
@@ -67,6 +65,8 @@ int RegExpMacroAssembler::CaseInsensitiveCompareUC16(Address byte_offset1,
   }
 #endif  // V8_INTL_SUPPORT
   DCHECK_NOT_NULL(isolate);
+  unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize =
+      isolate->regexp_macro_assembler_canonicalize();
   for (size_t i = 0; i < length; i++) {
     unibrow::uchar c1 = substring1[i];
     unibrow::uchar c2 = substring2[i];
@@ -121,8 +121,7 @@ bool NativeRegExpMacroAssembler::CanReadUnaligned() {
 }
 
 const byte* NativeRegExpMacroAssembler::StringCharacterPosition(
-    String* subject,
-    int start_index) {
+    String subject, int start_index, const DisallowHeapAllocation& no_gc) {
   if (subject->IsConsString()) {
     subject = ConsString::cast(subject)->first();
   } else if (subject->IsSlicedString()) {
@@ -136,10 +135,10 @@ const byte* NativeRegExpMacroAssembler::StringCharacterPosition(
   DCHECK_LE(start_index, subject->length());
   if (subject->IsSeqOneByteString()) {
     return reinterpret_cast<const byte*>(
-        SeqOneByteString::cast(subject)->GetChars() + start_index);
+        SeqOneByteString::cast(subject)->GetChars(no_gc) + start_index);
   } else if (subject->IsSeqTwoByteString()) {
     return reinterpret_cast<const byte*>(
-        SeqTwoByteString::cast(subject)->GetChars() + start_index);
+        SeqTwoByteString::cast(subject)->GetChars(no_gc) + start_index);
   } else if (subject->IsExternalOneByteString()) {
     return reinterpret_cast<const byte*>(
         ExternalOneByteString::cast(subject)->GetChars() + start_index);
@@ -150,19 +149,19 @@ const byte* NativeRegExpMacroAssembler::StringCharacterPosition(
   }
 }
 
-
 int NativeRegExpMacroAssembler::CheckStackGuardState(
     Isolate* isolate, int start_index, bool is_direct_call,
-    Address* return_address, Code* re_code, String** subject,
+    Address* return_address, Code re_code, Address* subject,
     const byte** input_start, const byte** input_end) {
+  AllowHeapAllocation allow_allocation;
   DCHECK(re_code->raw_instruction_start() <= *return_address);
   DCHECK(*return_address <= re_code->raw_instruction_end());
   int return_value = 0;
   // Prepare for possible GC.
   HandleScope handles(isolate);
   Handle<Code> code_handle(re_code, isolate);
-  Handle<String> subject_handle(*subject, isolate);
-  bool is_one_byte = subject_handle->IsOneByteRepresentationUnderneath();
+  Handle<String> subject_handle(String::cast(Object(*subject)), isolate);
+  bool is_one_byte = String::IsOneByteRepresentationUnderneath(*subject_handle);
 
   StackLimitCheck check(isolate);
   bool js_has_overflowed = check.JsHasOverflowed();
@@ -178,7 +177,7 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
     isolate->StackOverflow();
     return_value = EXCEPTION;
   } else {
-    Object* result = isolate->stack_guard()->HandleInterrupts();
+    Object result = isolate->stack_guard()->HandleInterrupts();
     if (result->IsException(isolate)) return_value = EXCEPTION;
   }
 
@@ -193,21 +192,22 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
   // If we continue, we need to update the subject string addresses.
   if (return_value == 0) {
     // String encoding might have changed.
-    if (subject_handle->IsOneByteRepresentationUnderneath() != is_one_byte) {
+    if (String::IsOneByteRepresentationUnderneath(*subject_handle) !=
+        is_one_byte) {
       // If we changed between an LATIN1 and an UC16 string, the specialized
       // code cannot be used, and we need to restart regexp matching from
       // scratch (including, potentially, compiling a new version of the code).
       return_value = RETRY;
     } else {
-      *subject = *subject_handle;
+      *subject = subject_handle->ptr();
       intptr_t byte_length = *input_end - *input_start;
-      *input_start = StringCharacterPosition(*subject, start_index);
+      *input_start =
+          StringCharacterPosition(*subject_handle, start_index, no_gc);
       *input_end = *input_start + byte_length;
     }
   }
   return return_value;
 }
-
 
 NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
     Handle<Code> regexp_code,
@@ -225,7 +225,7 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
   // DisallowHeapAllocation, since regexps might be preempted, and another
   // thread might do allocation anyway.
 
-  String* subject_ptr = *subject;
+  String subject_ptr = *subject;
   // Character offsets into string.
   int start_offset = previous_index;
   int char_length = subject_ptr->length() - start_offset;
@@ -237,7 +237,7 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
     DCHECK_EQ(0, ConsString::cast(subject_ptr)->second()->length());
     subject_ptr = ConsString::cast(subject_ptr)->first();
   } else if (StringShape(subject_ptr).IsSliced()) {
-    SlicedString* slice = SlicedString::cast(subject_ptr);
+    SlicedString slice = SlicedString::cast(subject_ptr);
     subject_ptr = slice->parent();
     slice_offset = slice->offset();
   }
@@ -250,8 +250,9 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
   // String is now either Sequential or External
   int char_size_shift = is_one_byte ? 0 : 1;
 
+  DisallowHeapAllocation no_gc;
   const byte* input_start =
-      StringCharacterPosition(subject_ptr, start_offset + slice_offset);
+      StringCharacterPosition(subject_ptr, start_offset + slice_offset, no_gc);
   int byte_length = char_length << char_size_shift;
   const byte* input_end = input_start + byte_length;
   Result res = Execute(*regexp_code,
@@ -265,16 +266,11 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
   return res;
 }
 
-
 NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Execute(
-    Code* code,
-    String* input,  // This needs to be the unpacked (sliced, cons) string.
-    int start_offset,
-    const byte* input_start,
-    const byte* input_end,
-    int* output,
-    int output_size,
-    Isolate* isolate) {
+    Code code,
+    String input,  // This needs to be the unpacked (sliced, cons) string.
+    int start_offset, const byte* input_start, const byte* input_end,
+    int* output, int output_size, Isolate* isolate) {
   // Ensure that the minimum stack has been allocated.
   RegExpStackScope stack_scope(isolate);
   Address stack_base = stack_scope.stack()->stack_base();
@@ -282,18 +278,21 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Execute(
   int direct_call = 0;
 
   using RegexpMatcherSig = int(
-      String * input, int start_offset,  // NOLINT(readability/casting)
+      Address input_string, int start_offset,  // NOLINT(readability/casting)
       const byte* input_start, const byte* input_end, int* output,
       int output_size, Address stack_base, int direct_call, Isolate* isolate);
 
   auto fn = GeneratedCode<RegexpMatcherSig>::FromCode(code);
-  int result = fn.Call(input, start_offset, input_start, input_end, output,
-                       output_size, stack_base, direct_call, isolate);
+  int result = fn.Call(input.ptr(), start_offset, input_start, input_end,
+                       output, output_size, stack_base, direct_call, isolate);
   DCHECK(result >= RETRY);
 
   if (result == EXCEPTION && !isolate->has_pending_exception()) {
     // We detected a stack overflow (on the backtrack stack) in RegExp code,
-    // but haven't created the exception yet.
+    // but haven't created the exception yet. Additionally, we allow heap
+    // allocation because even though it invalidates {input_start} and
+    // {input_end}, we are about to return anyway.
+    AllowHeapAllocation allow_allocation;
     isolate->StackOverflow();
   }
   return static_cast<Result>(result);

@@ -32,7 +32,8 @@
 #include "src/heap/factory-inl.h"
 #include "src/isolate.h"
 #include "src/objects.h"
-#include "src/unicode-cache.h"
+#include "src/objects/heap-number-inl.h"
+#include "src/objects/smi.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
@@ -40,207 +41,211 @@ namespace v8 {
 namespace internal {
 
 TEST(Hex) {
-  UnicodeCache uc;
-  CHECK_EQ(0.0, StringToDouble(&uc, "0x0", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(0.0, StringToDouble(&uc, "0X0", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(1.0, StringToDouble(&uc, "0x1", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(16.0, StringToDouble(&uc, "0x10", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(255.0,
-           StringToDouble(&uc, "0xFF", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(175.0, StringToDouble(&uc, "0xAF",
-                                 ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(0.0, StringToDouble("0x0", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(0.0, StringToDouble("0X0", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(1.0, StringToDouble("0x1", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(16.0, StringToDouble("0x10", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(255.0, StringToDouble("0xFF", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(175.0, StringToDouble("0xAF", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
 
-  CHECK_EQ(0.0, StringToDouble(&uc, "0x0", ALLOW_HEX));
-  CHECK_EQ(0.0, StringToDouble(&uc, "0X0", ALLOW_HEX));
-  CHECK_EQ(1.0, StringToDouble(&uc, "0x1", ALLOW_HEX));
-  CHECK_EQ(16.0, StringToDouble(&uc, "0x10", ALLOW_HEX));
-  CHECK_EQ(255.0, StringToDouble(&uc, "0xFF", ALLOW_HEX));
-  CHECK_EQ(175.0, StringToDouble(&uc, "0xAF", ALLOW_HEX));
+  CHECK_EQ(0.0, StringToDouble("0x0", ALLOW_HEX));
+  CHECK_EQ(0.0, StringToDouble("0X0", ALLOW_HEX));
+  CHECK_EQ(1.0, StringToDouble("0x1", ALLOW_HEX));
+  CHECK_EQ(16.0, StringToDouble("0x10", ALLOW_HEX));
+  CHECK_EQ(255.0, StringToDouble("0xFF", ALLOW_HEX));
+  CHECK_EQ(175.0, StringToDouble("0xAF", ALLOW_HEX));
 }
 
 
 TEST(Octal) {
-  UnicodeCache uc;
-  CHECK_EQ(0.0, StringToDouble(&uc, "0o0", ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(0.0, StringToDouble(&uc, "0O0", ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(1.0, StringToDouble(&uc, "0o1", ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(7.0, StringToDouble(&uc, "0o7", ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(8.0, StringToDouble(&uc, "0o10",
-                               ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(63.0, StringToDouble(&uc, "0o77",
-                                ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(0.0, StringToDouble("0o0", ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(0.0, StringToDouble("0O0", ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(1.0, StringToDouble("0o1", ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(7.0, StringToDouble("0o7", ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(8.0, StringToDouble("0o10", ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(63.0, StringToDouble("0o77", ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL));
 
-  CHECK_EQ(0.0, StringToDouble(&uc, "0o0", ALLOW_OCTAL));
-  CHECK_EQ(0.0, StringToDouble(&uc, "0O0", ALLOW_OCTAL));
-  CHECK_EQ(1.0, StringToDouble(&uc, "0o1", ALLOW_OCTAL));
-  CHECK_EQ(7.0, StringToDouble(&uc, "0o7", ALLOW_OCTAL));
-  CHECK_EQ(8.0, StringToDouble(&uc, "0o10", ALLOW_OCTAL));
-  CHECK_EQ(63.0, StringToDouble(&uc, "0o77", ALLOW_OCTAL));
+  CHECK_EQ(0.0, StringToDouble("0o0", ALLOW_OCTAL));
+  CHECK_EQ(0.0, StringToDouble("0O0", ALLOW_OCTAL));
+  CHECK_EQ(1.0, StringToDouble("0o1", ALLOW_OCTAL));
+  CHECK_EQ(7.0, StringToDouble("0o7", ALLOW_OCTAL));
+  CHECK_EQ(8.0, StringToDouble("0o10", ALLOW_OCTAL));
+  CHECK_EQ(63.0, StringToDouble("0o77", ALLOW_OCTAL));
 }
 
 
 TEST(ImplicitOctal) {
-  UnicodeCache uc;
-  CHECK_EQ(0.0, StringToDouble(&uc, "0", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(0.0, StringToDouble(&uc, "00", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(1.0, StringToDouble(&uc, "01", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(7.0, StringToDouble(&uc, "07", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(8.0, StringToDouble(&uc, "010", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(63.0, StringToDouble(&uc, "077", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(0.0, StringToDouble("0", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(0.0, StringToDouble("00", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(1.0, StringToDouble("01", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(7.0, StringToDouble("07", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(8.0, StringToDouble("010", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(63.0, StringToDouble("077", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
 
-  CHECK_EQ(0.0, StringToDouble(&uc, "0", ALLOW_HEX));
-  CHECK_EQ(0.0, StringToDouble(&uc, "00", ALLOW_HEX));
-  CHECK_EQ(1.0, StringToDouble(&uc, "01", ALLOW_HEX));
-  CHECK_EQ(7.0, StringToDouble(&uc, "07", ALLOW_HEX));
-  CHECK_EQ(10.0, StringToDouble(&uc, "010", ALLOW_HEX));
-  CHECK_EQ(77.0, StringToDouble(&uc, "077", ALLOW_HEX));
+  CHECK_EQ(0.0, StringToDouble("0", ALLOW_HEX));
+  CHECK_EQ(0.0, StringToDouble("00", ALLOW_HEX));
+  CHECK_EQ(1.0, StringToDouble("01", ALLOW_HEX));
+  CHECK_EQ(7.0, StringToDouble("07", ALLOW_HEX));
+  CHECK_EQ(10.0, StringToDouble("010", ALLOW_HEX));
+  CHECK_EQ(77.0, StringToDouble("077", ALLOW_HEX));
 
   const double x = 010000000000;  // Power of 2, no rounding errors.
-  CHECK_EQ(x * x * x * x * x, StringToDouble(&uc, "01" "0000000000" "0000000000"
-      "0000000000" "0000000000" "0000000000", ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(x * x * x * x * x, StringToDouble("01"
+                                             "0000000000"
+                                             "0000000000"
+                                             "0000000000"
+                                             "0000000000"
+                                             "0000000000",
+                                             ALLOW_IMPLICIT_OCTAL));
 }
 
 
 TEST(Binary) {
-  UnicodeCache uc;
-  CHECK_EQ(0.0, StringToDouble(&uc, "0b0",
-                               ALLOW_BINARY | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(0.0, StringToDouble(&uc, "0B0",
-                               ALLOW_BINARY | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(1.0, StringToDouble(&uc, "0b1",
-                               ALLOW_BINARY | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(2.0, StringToDouble(&uc, "0b10",
-                               ALLOW_BINARY | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(3.0, StringToDouble(&uc, "0b11",
-                               ALLOW_BINARY | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(0.0, StringToDouble("0b0", ALLOW_BINARY | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(0.0, StringToDouble("0B0", ALLOW_BINARY | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(1.0, StringToDouble("0b1", ALLOW_BINARY | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(2.0, StringToDouble("0b10", ALLOW_BINARY | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(3.0, StringToDouble("0b11", ALLOW_BINARY | ALLOW_IMPLICIT_OCTAL));
 
-  CHECK_EQ(0.0, StringToDouble(&uc, "0b0", ALLOW_BINARY));
-  CHECK_EQ(0.0, StringToDouble(&uc, "0B0", ALLOW_BINARY));
-  CHECK_EQ(1.0, StringToDouble(&uc, "0b1", ALLOW_BINARY));
-  CHECK_EQ(2.0, StringToDouble(&uc, "0b10", ALLOW_BINARY));
-  CHECK_EQ(3.0, StringToDouble(&uc, "0b11", ALLOW_BINARY));
+  CHECK_EQ(0.0, StringToDouble("0b0", ALLOW_BINARY));
+  CHECK_EQ(0.0, StringToDouble("0B0", ALLOW_BINARY));
+  CHECK_EQ(1.0, StringToDouble("0b1", ALLOW_BINARY));
+  CHECK_EQ(2.0, StringToDouble("0b10", ALLOW_BINARY));
+  CHECK_EQ(3.0, StringToDouble("0b11", ALLOW_BINARY));
 }
 
 
 TEST(MalformedOctal) {
-  UnicodeCache uc;
-  CHECK_EQ(8.0, StringToDouble(&uc, "08", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(81.0, StringToDouble(&uc, "081", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(78.0, StringToDouble(&uc, "078", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(8.0, StringToDouble("08", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(81.0, StringToDouble("081", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(78.0, StringToDouble("078", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
 
-  CHECK(std::isnan(StringToDouble(&uc, "07.7",
-                                  ALLOW_HEX | ALLOW_IMPLICIT_OCTAL)));
-  CHECK(std::isnan(StringToDouble(&uc, "07.8",
-                                  ALLOW_HEX | ALLOW_IMPLICIT_OCTAL)));
-  CHECK(std::isnan(StringToDouble(&uc, "07e8",
-                                  ALLOW_HEX | ALLOW_IMPLICIT_OCTAL)));
-  CHECK(std::isnan(StringToDouble(&uc, "07e7",
-                                  ALLOW_HEX | ALLOW_IMPLICIT_OCTAL)));
+  CHECK(std::isnan(StringToDouble("07.7", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL)));
+  CHECK(std::isnan(StringToDouble("07.8", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL)));
+  CHECK(std::isnan(StringToDouble("07e8", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL)));
+  CHECK(std::isnan(StringToDouble("07e7", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL)));
 
-  CHECK_EQ(8.7, StringToDouble(&uc, "08.7", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(8e7, StringToDouble(&uc, "08e7", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(8.7, StringToDouble("08.7", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(8e7, StringToDouble("08e7", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
 
-  CHECK_EQ(0.001, StringToDouble(&uc, "0.001",
-                                 ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(0.713, StringToDouble(&uc, "0.713",
-                                 ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(0.001, StringToDouble("0.001", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(0.713, StringToDouble("0.713", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
 
-  CHECK_EQ(8.0, StringToDouble(&uc, "08", ALLOW_HEX));
-  CHECK_EQ(81.0, StringToDouble(&uc, "081", ALLOW_HEX));
-  CHECK_EQ(78.0, StringToDouble(&uc, "078", ALLOW_HEX));
+  CHECK_EQ(8.0, StringToDouble("08", ALLOW_HEX));
+  CHECK_EQ(81.0, StringToDouble("081", ALLOW_HEX));
+  CHECK_EQ(78.0, StringToDouble("078", ALLOW_HEX));
 
-  CHECK_EQ(7.7, StringToDouble(&uc, "07.7", ALLOW_HEX));
-  CHECK_EQ(7.8, StringToDouble(&uc, "07.8", ALLOW_HEX));
-  CHECK_EQ(7e8, StringToDouble(&uc, "07e8", ALLOW_HEX));
-  CHECK_EQ(7e7, StringToDouble(&uc, "07e7", ALLOW_HEX));
+  CHECK_EQ(7.7, StringToDouble("07.7", ALLOW_HEX));
+  CHECK_EQ(7.8, StringToDouble("07.8", ALLOW_HEX));
+  CHECK_EQ(7e8, StringToDouble("07e8", ALLOW_HEX));
+  CHECK_EQ(7e7, StringToDouble("07e7", ALLOW_HEX));
 
-  CHECK_EQ(8.7, StringToDouble(&uc, "08.7", ALLOW_HEX));
-  CHECK_EQ(8e7, StringToDouble(&uc, "08e7", ALLOW_HEX));
+  CHECK_EQ(8.7, StringToDouble("08.7", ALLOW_HEX));
+  CHECK_EQ(8e7, StringToDouble("08e7", ALLOW_HEX));
 
-  CHECK_EQ(0.001, StringToDouble(&uc, "0.001", ALLOW_HEX));
-  CHECK_EQ(0.713, StringToDouble(&uc, "0.713", ALLOW_HEX));
+  CHECK_EQ(0.001, StringToDouble("0.001", ALLOW_HEX));
+  CHECK_EQ(0.713, StringToDouble("0.713", ALLOW_HEX));
 }
 
 
 TEST(TrailingJunk) {
-  UnicodeCache uc;
-  CHECK_EQ(8.0, StringToDouble(&uc, "8q", ALLOW_TRAILING_JUNK));
-  CHECK_EQ(63.0, StringToDouble(&uc, "077qqq",
+  CHECK_EQ(8.0, StringToDouble("8q", ALLOW_TRAILING_JUNK));
+  CHECK_EQ(63.0, StringToDouble("077qqq",
                                 ALLOW_IMPLICIT_OCTAL | ALLOW_TRAILING_JUNK));
-  CHECK_EQ(10.0, StringToDouble(&uc, "10e",
-                                ALLOW_IMPLICIT_OCTAL | ALLOW_TRAILING_JUNK));
-  CHECK_EQ(10.0, StringToDouble(&uc, "10e-",
-                                ALLOW_IMPLICIT_OCTAL | ALLOW_TRAILING_JUNK));
+  CHECK_EQ(10.0,
+           StringToDouble("10e", ALLOW_IMPLICIT_OCTAL | ALLOW_TRAILING_JUNK));
+  CHECK_EQ(10.0,
+           StringToDouble("10e-", ALLOW_IMPLICIT_OCTAL | ALLOW_TRAILING_JUNK));
 }
 
 
 TEST(NonStrDecimalLiteral) {
-  UnicodeCache uc;
-  CHECK(std::isnan(StringToDouble(&uc, " ", NO_FLAGS,
-                                  std::numeric_limits<double>::quiet_NaN())));
-  CHECK(std::isnan(StringToDouble(&uc, "", NO_FLAGS,
-                                  std::numeric_limits<double>::quiet_NaN())));
-  CHECK(std::isnan(StringToDouble(&uc, " ", NO_FLAGS,
-                                  std::numeric_limits<double>::quiet_NaN())));
-  CHECK_EQ(0.0, StringToDouble(&uc, "", NO_FLAGS));
-  CHECK_EQ(0.0, StringToDouble(&uc, " ", NO_FLAGS));
+  CHECK(std::isnan(
+      StringToDouble(" ", NO_FLAGS, std::numeric_limits<double>::quiet_NaN())));
+  CHECK(std::isnan(
+      StringToDouble("", NO_FLAGS, std::numeric_limits<double>::quiet_NaN())));
+  CHECK(std::isnan(
+      StringToDouble(" ", NO_FLAGS, std::numeric_limits<double>::quiet_NaN())));
+  CHECK_EQ(0.0, StringToDouble("", NO_FLAGS));
+  CHECK_EQ(0.0, StringToDouble(" ", NO_FLAGS));
 }
 
 
 TEST(IntegerStrLiteral) {
-  UnicodeCache uc;
-  CHECK_EQ(0.0, StringToDouble(&uc, "0.0", NO_FLAGS));
-  CHECK_EQ(0.0, StringToDouble(&uc, "0", NO_FLAGS));
-  CHECK_EQ(0.0, StringToDouble(&uc, "00", NO_FLAGS));
-  CHECK_EQ(0.0, StringToDouble(&uc, "000", NO_FLAGS));
-  CHECK_EQ(1.0, StringToDouble(&uc, "1", NO_FLAGS));
-  CHECK_EQ(-1.0, StringToDouble(&uc, "-1", NO_FLAGS));
-  CHECK_EQ(-1.0, StringToDouble(&uc, "  -1  ", NO_FLAGS));
-  CHECK_EQ(1.0, StringToDouble(&uc, "  +1  ", NO_FLAGS));
-  CHECK(std::isnan(StringToDouble(&uc, "  -  1  ", NO_FLAGS)));
-  CHECK(std::isnan(StringToDouble(&uc, "  +  1  ", NO_FLAGS)));
+  CHECK_EQ(0.0, StringToDouble("0.0", NO_FLAGS));
+  CHECK_EQ(0.0, StringToDouble("0", NO_FLAGS));
+  CHECK_EQ(0.0, StringToDouble("00", NO_FLAGS));
+  CHECK_EQ(0.0, StringToDouble("000", NO_FLAGS));
+  CHECK_EQ(1.0, StringToDouble("1", NO_FLAGS));
+  CHECK_EQ(-1.0, StringToDouble("-1", NO_FLAGS));
+  CHECK_EQ(-1.0, StringToDouble("  -1  ", NO_FLAGS));
+  CHECK_EQ(1.0, StringToDouble("  +1  ", NO_FLAGS));
+  CHECK(std::isnan(StringToDouble("  -  1  ", NO_FLAGS)));
+  CHECK(std::isnan(StringToDouble("  +  1  ", NO_FLAGS)));
 
-  CHECK_EQ(0.0, StringToDouble(&uc, "0e0", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(0.0, StringToDouble(&uc, "0e1", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(0.0, StringToDouble(&uc, "0e-1", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(0.0, StringToDouble(&uc, "0e-100000",
-                               ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(0.0, StringToDouble(&uc, "0e+100000",
-                               ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(0.0, StringToDouble(&uc, "0.", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(0.0, StringToDouble("0e0", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(0.0, StringToDouble("0e1", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(0.0, StringToDouble("0e-1", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(0.0, StringToDouble("0e-100000", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(0.0, StringToDouble("0e+100000", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(0.0, StringToDouble("0.", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
 }
 
 
 TEST(LongNumberStr) {
-  UnicodeCache uc;
-  CHECK_EQ(1e10, StringToDouble(&uc, "1" "0000000000", NO_FLAGS));
-  CHECK_EQ(1e20, StringToDouble(&uc, "1" "0000000000" "0000000000", NO_FLAGS));
+  CHECK_EQ(1e10, StringToDouble("1"
+                                "0000000000",
+                                NO_FLAGS));
+  CHECK_EQ(1e20, StringToDouble("1"
+                                "0000000000"
+                                "0000000000",
+                                NO_FLAGS));
 
-  CHECK_EQ(1e60, StringToDouble(&uc, "1" "0000000000" "0000000000" "0000000000"
-      "0000000000" "0000000000" "0000000000", NO_FLAGS));
+  CHECK_EQ(1e60, StringToDouble("1"
+                                "0000000000"
+                                "0000000000"
+                                "0000000000"
+                                "0000000000"
+                                "0000000000"
+                                "0000000000",
+                                NO_FLAGS));
 
-  CHECK_EQ(1e-2, StringToDouble(&uc, "." "0" "1", NO_FLAGS));
-  CHECK_EQ(1e-11, StringToDouble(&uc, "." "0000000000" "1", NO_FLAGS));
-  CHECK_EQ(1e-21, StringToDouble(&uc, "." "0000000000" "0000000000" "1",
+  CHECK_EQ(1e-2, StringToDouble("."
+                                "0"
+                                "1",
+                                NO_FLAGS));
+  CHECK_EQ(1e-11, StringToDouble("."
+                                 "0000000000"
+                                 "1",
+                                 NO_FLAGS));
+  CHECK_EQ(1e-21, StringToDouble("."
+                                 "0000000000"
+                                 "0000000000"
+                                 "1",
                                  NO_FLAGS));
 
-  CHECK_EQ(1e-61, StringToDouble(&uc, "." "0000000000" "0000000000" "0000000000"
-      "0000000000" "0000000000" "0000000000" "1", NO_FLAGS));
-
+  CHECK_EQ(1e-61, StringToDouble("."
+                                 "0000000000"
+                                 "0000000000"
+                                 "0000000000"
+                                 "0000000000"
+                                 "0000000000"
+                                 "0000000000"
+                                 "1",
+                                 NO_FLAGS));
 
   // x = 24414062505131248.0 and y = 24414062505131252.0 are representable in
   // double. Check chat z = (x + y) / 2 is rounded to x...
   CHECK_EQ(24414062505131248.0,
-           StringToDouble(&uc, "24414062505131250.0", NO_FLAGS));
+           StringToDouble("24414062505131250.0", NO_FLAGS));
 
   // ... and z = (x + y) / 2 + delta is rounded to y.
   CHECK_EQ(24414062505131252.0,
-           StringToDouble(&uc, "24414062505131250.000000001", NO_FLAGS));
+           StringToDouble("24414062505131250.000000001", NO_FLAGS));
 }
 
 
 TEST(MaximumSignificantDigits) {
-  UnicodeCache uc;
   char num[] =
       "4.4501477170144020250819966727949918635852426585926051135169509"
       "122872622312493126406953054127118942431783801370080830523154578"
@@ -256,17 +261,16 @@ TEST(MaximumSignificantDigits) {
       "847003580761626016356864581135848683152156368691976240370422601"
       "6998291015625000000000000000000000000000000000e-308";
 
-  CHECK_EQ(4.4501477170144017780491e-308, StringToDouble(&uc, num, NO_FLAGS));
+  CHECK_EQ(4.4501477170144017780491e-308, StringToDouble(num, NO_FLAGS));
 
   // Changes the result of strtod (at least in glibc implementation).
   num[sizeof(num) - 8] = '1';
 
-  CHECK_EQ(4.4501477170144022721148e-308, StringToDouble(&uc, num, NO_FLAGS));
+  CHECK_EQ(4.4501477170144022721148e-308, StringToDouble(num, NO_FLAGS));
 }
 
 
 TEST(MinimumExponent) {
-  UnicodeCache uc;
   // Same test but with different point-position.
   char num[] =
   "445014771701440202508199667279499186358524265859260511351695091"
@@ -283,31 +287,29 @@ TEST(MinimumExponent) {
   "470035807616260163568645811358486831521563686919762403704226016"
   "998291015625000000000000000000000000000000000e-1108";
 
-  CHECK_EQ(4.4501477170144017780491e-308, StringToDouble(&uc, num, NO_FLAGS));
+  CHECK_EQ(4.4501477170144017780491e-308, StringToDouble(num, NO_FLAGS));
 
   // Changes the result of strtod (at least in glibc implementation).
   num[sizeof(num) - 8] = '1';
 
-  CHECK_EQ(4.4501477170144022721148e-308, StringToDouble(&uc, num, NO_FLAGS));
+  CHECK_EQ(4.4501477170144022721148e-308, StringToDouble(num, NO_FLAGS));
 }
 
 
 TEST(MaximumExponent) {
-  UnicodeCache uc;
   char num[] = "0.16e309";
 
-  CHECK_EQ(1.59999999999999997765e+308, StringToDouble(&uc, num, NO_FLAGS));
+  CHECK_EQ(1.59999999999999997765e+308, StringToDouble(num, NO_FLAGS));
 }
 
 
 TEST(ExponentNumberStr) {
-  UnicodeCache uc;
-  CHECK_EQ(1e1, StringToDouble(&uc, "1e1", NO_FLAGS));
-  CHECK_EQ(1e1, StringToDouble(&uc, "1e+1", NO_FLAGS));
-  CHECK_EQ(1e-1, StringToDouble(&uc, "1e-1", NO_FLAGS));
-  CHECK_EQ(1e100, StringToDouble(&uc, "1e+100", NO_FLAGS));
-  CHECK_EQ(1e-100, StringToDouble(&uc, "1e-100", NO_FLAGS));
-  CHECK_EQ(1e-106, StringToDouble(&uc, ".000001e-100", NO_FLAGS));
+  CHECK_EQ(1e1, StringToDouble("1e1", NO_FLAGS));
+  CHECK_EQ(1e1, StringToDouble("1e+1", NO_FLAGS));
+  CHECK_EQ(1e-1, StringToDouble("1e-1", NO_FLAGS));
+  CHECK_EQ(1e100, StringToDouble("1e+100", NO_FLAGS));
+  CHECK_EQ(1e-100, StringToDouble("1e-100", NO_FLAGS));
+  CHECK_EQ(1e-106, StringToDouble(".000001e-100", NO_FLAGS));
 }
 
 
@@ -371,7 +373,7 @@ TEST(BitField64) {
 static void CheckNonArrayIndex(bool expected, const char* chars) {
   auto isolate = CcTest::i_isolate();
   auto string = isolate->factory()->NewStringFromAsciiChecked(chars);
-  CHECK_EQ(expected, IsSpecialIndex(isolate->unicode_cache(), *string));
+  CHECK_EQ(expected, IsSpecialIndex(*string));
 }
 
 
@@ -416,7 +418,7 @@ TEST(NoHandlesForTryNumberToSize) {
   size_t result = 0;
   {
     SealHandleScope no_handles(isolate);
-    Smi* smi = Smi::FromInt(1);
+    Smi smi = Smi::FromInt(1);
     CHECK(TryNumberToSize(smi, &result));
     CHECK_EQ(result, 1u);
   }

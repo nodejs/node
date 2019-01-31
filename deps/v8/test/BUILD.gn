@@ -16,6 +16,7 @@ group("gn_all") {
     "mozilla:v8_mozilla",
     "preparser:v8_preparser",
     "test262:v8_test262",
+    "wasm-js:v8_wasm_js",
     "wasm-spec-tests:v8_wasm_spec_tests",
     "webkit:v8_webkit",
   ]
@@ -80,6 +81,7 @@ group("v8_bot_default") {
     "mkgrokdump:mkgrokdump",
     "preparser:v8_preparser",
     "unittests:unittests",
+    "wasm-js:v8_wasm_js",
     "wasm-spec-tests:v8_wasm_spec_tests",
     "webkit:v8_webkit",
   ]
@@ -99,6 +101,7 @@ group("v8_default") {
     "mkgrokdump:mkgrokdump",
     "preparser:v8_preparser",
     "unittests:unittests",
+    "wasm-js:v8_wasm_js",
     "wasm-spec-tests:v8_wasm_spec_tests",
   ]
 }

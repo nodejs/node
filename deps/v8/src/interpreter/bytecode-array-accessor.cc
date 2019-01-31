@@ -197,11 +197,11 @@ Runtime::FunctionId BytecodeArrayAccessor::GetIntrinsicIdOperand(
       static_cast<IntrinsicsHelper::IntrinsicId>(raw_id));
 }
 
-Object* BytecodeArrayAccessor::GetConstantAtIndex(int index) const {
+Object BytecodeArrayAccessor::GetConstantAtIndex(int index) const {
   return bytecode_array()->constant_pool()->get(index);
 }
 
-Object* BytecodeArrayAccessor::GetConstantForIndexOperand(
+Object BytecodeArrayAccessor::GetConstantForIndexOperand(
     int operand_index) const {
   return GetConstantAtIndex(GetIndexOperand(operand_index));
 }
@@ -215,7 +215,7 @@ int BytecodeArrayAccessor::GetJumpTargetOffset() const {
     }
     return GetAbsoluteOffset(relative_offset);
   } else if (interpreter::Bytecodes::IsJumpConstant(bytecode)) {
-    Smi* smi = Smi::cast(GetConstantForIndexOperand(0));
+    Smi smi = Smi::cast(GetConstantForIndexOperand(0));
     return GetAbsoluteOffset(smi->value());
   } else {
     UNREACHABLE();
@@ -285,7 +285,7 @@ JumpTableTargetOffsets::iterator::iterator(
     int case_value, int table_offset, int table_end,
     const BytecodeArrayAccessor* accessor)
     : accessor_(accessor),
-      current_(Smi::kZero),
+      current_(Smi::zero()),
       index_(case_value),
       table_offset_(table_offset),
       table_end_(table_end) {
@@ -317,7 +317,7 @@ bool JumpTableTargetOffsets::iterator::operator!=(
 void JumpTableTargetOffsets::iterator::UpdateAndAdvanceToValid() {
   if (table_offset_ >= table_end_) return;
 
-  Object* current = accessor_->GetConstantAtIndex(table_offset_);
+  Object current = accessor_->GetConstantAtIndex(table_offset_);
   while (!current->IsSmi()) {
     DCHECK(current->IsTheHole());
     ++table_offset_;

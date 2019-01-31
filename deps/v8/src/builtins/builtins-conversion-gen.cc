@@ -7,6 +7,7 @@
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/objects-inl.h"
+#include "src/objects/oddball.h"
 
 namespace v8 {
 namespace internal {
@@ -427,7 +428,7 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
 
   BIND(&if_wrapjsvalue);
   TNode<Context> native_context = LoadNativeContext(context);
-  Node* constructor = LoadFixedArrayElement(
+  Node* constructor = LoadContextElement(
       native_context, constructor_function_index_var.value());
   Node* initial_map =
       LoadObjectField(constructor, JSFunction::kPrototypeOrInitialMapOffset);

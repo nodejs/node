@@ -2,42 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef INCLUDED_FROM_MACRO_ASSEMBLER_H
+#error This header must be included via macro-assembler.h
+#endif
+
 #ifndef V8_S390_MACRO_ASSEMBLER_S390_H_
 #define V8_S390_MACRO_ASSEMBLER_S390_H_
 
-#include "src/assembler.h"
 #include "src/bailout-reason.h"
+#include "src/contexts.h"
 #include "src/globals.h"
 #include "src/s390/assembler-s390.h"
-#include "src/turbo-assembler.h"
 
 namespace v8 {
 namespace internal {
-
-// Give alias names to registers for calling conventions.
-constexpr Register kReturnRegister0 = r2;
-constexpr Register kReturnRegister1 = r3;
-constexpr Register kReturnRegister2 = r4;
-constexpr Register kJSFunctionRegister = r3;
-constexpr Register kContextRegister = r13;
-constexpr Register kAllocateSizeRegister = r3;
-constexpr Register kSpeculationPoisonRegister = r9;
-constexpr Register kInterpreterAccumulatorRegister = r2;
-constexpr Register kInterpreterBytecodeOffsetRegister = r6;
-constexpr Register kInterpreterBytecodeArrayRegister = r7;
-constexpr Register kInterpreterDispatchTableRegister = r8;
-
-constexpr Register kJavaScriptCallArgCountRegister = r2;
-constexpr Register kJavaScriptCallCodeStartRegister = r4;
-constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
-constexpr Register kJavaScriptCallNewTargetRegister = r5;
-constexpr Register kJavaScriptCallExtraArg1Register = r4;
-
-constexpr Register kOffHeapTrampolineRegister = ip;
-constexpr Register kRuntimeCallFunctionRegister = r3;
-constexpr Register kRuntimeCallArgCountRegister = r2;
-constexpr Register kRuntimeCallArgvRegister = r4;
-constexpr Register kWasmInstanceRegister = r6;
 
 // ----------------------------------------------------------------------------
 // Static helper functions
@@ -148,14 +126,9 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2 = no_reg,
 
 class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
  public:
-  TurboAssembler(const AssemblerOptions& options, void* buffer, int buffer_size)
-      : TurboAssemblerBase(options, buffer, buffer_size) {}
-
-  TurboAssembler(Isolate* isolate, const AssemblerOptions& options,
-                 void* buffer, int buffer_size,
-                 CodeObjectRequired create_code_object)
-      : TurboAssemblerBase(isolate, options, buffer, buffer_size,
-                           create_code_object) {}
+  template <typename... Args>
+  explicit TurboAssembler(Args&&... args)
+      : TurboAssemblerBase(std::forward<Args>(args)...) {}
 
   void LoadFromConstantsTable(Register destination,
                               int constant_index) override;
@@ -181,11 +154,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Ret() { b(r14); }
   void Ret(Condition cond) { b(cond, r14); }
 
-  void CallForDeoptimization(Address target, int deopt_id,
-                             RelocInfo::Mode rmode) {
-    USE(deopt_id);
-    Call(target, rmode);
-  }
+  void CallForDeoptimization(Address target, int deopt_id);
 
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the sp register.
@@ -199,8 +168,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void Call(Label* target);
 
+  void LoadCodeObjectEntry(Register destination, Register code_object) override;
+  void CallCodeObject(Register code_object) override;
+  void JumpCodeObject(Register code_object) override;
+
+  void CallBuiltinPointer(Register builtin_pointer) override;
+
   // Register move. May do nothing if the registers are identical.
-  void Move(Register dst, Smi* smi) { LoadSmiLiteral(dst, smi); }
+  void Move(Register dst, Smi smi) { LoadSmiLiteral(dst, smi); }
   void Move(Register dst, Handle<HeapObject> value);
   void Move(Register dst, ExternalReference reference);
   void Move(Register dst, Register src, Condition cond = al);
@@ -227,6 +202,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CallRecordWriteStub(Register object, Register address,
                            RememberedSetAction remembered_set_action,
                            SaveFPRegsMode fp_mode);
+  void CallRecordWriteStub(Register object, Register address,
+                           RememberedSetAction remembered_set_action,
+                           SaveFPRegsMode fp_mode, Address wasm_target);
 
   void MultiPush(RegList regs, Register location = sp);
   void MultiPop(RegList regs, Register location = sp);
@@ -547,7 +525,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Push a handle.
   void Push(Handle<HeapObject> handle);
-  void Push(Smi* smi);
+  void Push(Smi smi);
 
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2) {
@@ -646,10 +624,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void RestoreFrameStateForTailCall();
 
   void InitializeRootRegister() {
-    ExternalReference roots_array_start =
-        ExternalReference::roots_array_start(isolate());
-    mov(kRootRegister, Operand(roots_array_start));
-    AddP(kRootRegister, kRootRegister, Operand(kRootRegisterBias));
+    ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
+    mov(kRootRegister, Operand(isolate_root));
   }
 
   // If the value is a NaN, canonicalize the value else, do nothing.
@@ -747,7 +723,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadIntLiteral(Register dst, int value);
 
   // load an SMI value <value> to GPR <dst>
-  void LoadSmiLiteral(Register dst, Smi* smi);
+  void LoadSmiLiteral(Register dst, Smi smi);
 
   // load a literal double value <value> to FPR <result>
   void LoadDoubleLiteral(DoubleRegister result, double value, Register scratch);
@@ -766,14 +742,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void StoreHalfWord(Register src, const MemOperand& mem,
                      Register scratch = r0);
   void StoreByte(Register src, const MemOperand& mem, Register scratch = r0);
-
-  void AddSmiLiteral(Register dst, Register src, Smi* smi,
-                     Register scratch = r0);
-  void SubSmiLiteral(Register dst, Register src, Smi* smi,
-                     Register scratch = r0);
-  void CmpSmiLiteral(Register src1, Smi* smi, Register scratch);
-  void CmpLogicalSmiLiteral(Register src1, Smi* smi, Register scratch);
-  void AndSmiLiteral(Register dst, Register src, Smi* smi);
+  void CmpSmiLiteral(Register src1, Smi smi, Register scratch);
 
   // Set new rounding mode RN to FPSCR
   void SetRoundingMode(FPRoundingMode RN);
@@ -820,9 +789,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // ---------------------------------------------------------------------------
   // Runtime calls
-
-  // Call a code stub.
-  void CallStubDelayed(CodeStub* stub);
 
   // Call a runtime routine. This expects {centry} to contain a fitting CEntry
   // builtin for the target runtime function and uses an indirect call.
@@ -885,8 +851,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Print a message to stdout and abort execution.
   void Abort(AbortReason reason);
 
-  inline bool AllowThisStubCall(CodeStub* stub);
-
   // ---------------------------------------------------------------------------
   // Bit testing/extraction
   //
@@ -897,7 +861,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // and place them into the least significant bits of dst.
   inline void ExtractBitRange(Register dst, Register src, int rangeStart,
                               int rangeEnd) {
-    DCHECK(rangeStart >= rangeEnd && rangeStart < kBitsPerPointer);
+    DCHECK(rangeStart >= rangeEnd && rangeStart < kBitsPerSystemPointer);
 
     // Try to use RISBG if possible.
     if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
@@ -932,7 +896,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // into the least significant bits of dst.
   inline void ExtractBitMask(Register dst, Register src, uintptr_t mask,
                              RCBit rc = LeaveRC) {
-    int start = kBitsPerPointer - 1;
+    int start = kBitsPerSystemPointer - 1;
     int end;
     uintptr_t bit = (1L << start);
 
@@ -1011,6 +975,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void ResetSpeculationPoisonRegister();
   void ComputeCodeStartAddress(Register dst);
+  void LoadPC(Register dst);
+
+  // Generates an instruction sequence s.t. the return address points to the
+  // instruction following the call.
+  // The return address on the stack is used by frame iteration.
+  void StoreReturnAddressAndCall(Register target);
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
@@ -1018,29 +988,23 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CallCFunctionHelper(Register function, int num_reg_arguments,
                            int num_double_arguments);
 
+  void CallRecordWriteStub(Register object, Register address,
+                           RememberedSetAction remembered_set_action,
+                           SaveFPRegsMode fp_mode, Handle<Code> code_target,
+                           Address wasm_target);
+
   void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
   int CalculateStackPassedWords(int num_reg_arguments,
                                 int num_double_arguments);
 };
 
 // MacroAssembler implements a collection of frequently used macros.
-class MacroAssembler : public TurboAssembler {
+class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
  public:
-  MacroAssembler(const AssemblerOptions& options, void* buffer, int size)
-      : TurboAssembler(options, buffer, size) {}
+  template <typename... Args>
+  explicit MacroAssembler(Args&&... args)
+      : TurboAssembler(std::forward<Args>(args)...) {}
 
-  MacroAssembler(Isolate* isolate, void* buffer, int size,
-                 CodeObjectRequired create_code_object)
-      : MacroAssembler(isolate, AssemblerOptions::Default(isolate), buffer,
-                       size, create_code_object) {}
-
-  MacroAssembler(Isolate* isolate, const AssemblerOptions& options,
-                 void* buffer, int size, CodeObjectRequired create_code_object);
-
-  // Call a code stub.
-  void TailCallStub(CodeStub* stub, Condition cond = al);
-
-  void CallStub(CodeStub* stub, Condition cond = al);
   void CallRuntime(const Runtime::Function* f, int num_arguments,
                    SaveFPRegsMode save_doubles = kDontSaveFPRegs);
   void CallRuntimeSaveDoubles(Runtime::FunctionId fid) {

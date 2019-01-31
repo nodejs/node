@@ -169,7 +169,7 @@ We can then return two lists as output:
 * `compile_targets`, which is a list of pruned targets to be
   passed to Ninja to build. It is acceptable to replace a list of
   pruned targets by a meta target if it turns out that all of the
-  dependendencies of the target are affected by the patch (i.e.,
+  dependencies of the target are affected by the patch (i.e.,
   all ten binaries that blink_tests depends on), but doing so is
   not required.
 * `test_targets`, which is a list of unpruned targets to be mapped

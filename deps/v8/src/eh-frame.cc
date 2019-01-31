@@ -239,7 +239,7 @@ void EhFrameWriter::WritePaddingToAlignedSize(int unpadded_size) {
   DCHECK_EQ(writer_state_, InternalState::kInitialized);
   DCHECK_GE(unpadded_size, 0);
 
-  int padding_size = RoundUp(unpadded_size, kPointerSize) - unpadded_size;
+  int padding_size = RoundUp(unpadded_size, kSystemPointerSize) - unpadded_size;
 
   byte nop = static_cast<byte>(EhFrameConstants::DwarfOpcodes::kNop);
   static const byte kPadding[] = {nop, nop, nop, nop, nop, nop, nop, nop};

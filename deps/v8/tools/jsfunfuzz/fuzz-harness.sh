@@ -51,8 +51,17 @@ if [ "$3" == "--download" ]; then
     cat << EOF | patch -s -p0 -d "$v8_root"
 --- tools/jsfunfuzz/jsfunfuzz/multi_timed_run.py~
 +++ tools/jsfunfuzz/jsfunfuzz/multi_timed_run.py
-@@ -125,7 +125,7 @@
- 
+@@ -118,19 +118,19 @@
+-def showtail(logfilename):
++def showtail(logfilename, method="tail"):
+-   cmd = "tail -n 20 %s" % logfilename
++   cmd = "%s -n 20 %s" % (method, logfilename)
+    print cmd
+    print ""
+    os.system(cmd)
+    print ""
+    print ""
+
  def many_timed_runs():
      iteration = 0
 -    while True:
@@ -60,6 +69,12 @@ if [ "$3" == "--download" ]; then
          iteration += 1
          logfilename = "w%d" % iteration
          one_timed_run(logfilename)
+         if not succeeded(logfilename):
+             showtail(logfilename)
+-            showtail("err-" + logfilename)
++            showtail("err-" + logfilename, method="head")
+
+             many_timed_runs()
 EOF
   fi
 

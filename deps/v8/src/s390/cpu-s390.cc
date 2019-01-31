@@ -3,10 +3,9 @@
 // found in the LICENSE file.
 
 // CPU specific code for s390 independent of OS goes here.
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_S390
-#include "src/assembler.h"
+
+#include "src/cpu-features.h"
 
 namespace v8 {
 namespace internal {

@@ -10,6 +10,7 @@
 #include "src/api-inl.h"
 #include "src/debug/debug.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/slots-inl.h"
 #include "src/tracing/trace-event.h"
 #include "src/vm-state-inl.h"
 
@@ -20,27 +21,32 @@ CustomArgumentsBase::CustomArgumentsBase(Isolate* isolate)
     : Relocatable(isolate) {}
 
 template <typename T>
+CustomArguments<T>::~CustomArguments() {
+  slot_at(kReturnValueOffset).store(Object(kHandleZapValue));
+}
+
+template <typename T>
 template <typename V>
 Handle<V> CustomArguments<T>::GetReturnValue(Isolate* isolate) {
   // Check the ReturnValue.
-  Object** handle = &this->begin()[kReturnValueOffset];
+  FullObjectSlot slot = slot_at(kReturnValueOffset);
   // Nothing was set, return empty handle as per previous behaviour.
-  if ((*handle)->IsTheHole(isolate)) return Handle<V>();
-  Handle<V> result = Handle<V>::cast(Handle<Object>(handle));
+  if ((*slot)->IsTheHole(isolate)) return Handle<V>();
+  Handle<V> result = Handle<V>::cast(Handle<Object>(slot.location()));
   result->VerifyApiCallResultType();
   return result;
 }
 
-inline JSObject* PropertyCallbackArguments::holder() {
-  return JSObject::cast(this->begin()[T::kHolderIndex]);
+inline JSObject PropertyCallbackArguments::holder() {
+  return JSObject::cast(*slot_at(T::kHolderIndex));
 }
 
-inline Object* PropertyCallbackArguments::receiver() {
-  return Object::cast(this->begin()[T::kThisIndex]);
+inline Object PropertyCallbackArguments::receiver() {
+  return *slot_at(T::kThisIndex);
 }
 
-inline JSObject* FunctionCallbackArguments::holder() {
-  return JSObject::cast(this->begin()[T::kHolderIndex]);
+inline JSObject FunctionCallbackArguments::holder() {
+  return JSObject::cast(*slot_at(T::kHolderIndex));
 }
 
 #define FOR_EACH_CALLBACK(F)                        \
@@ -61,7 +67,7 @@ inline JSObject* FunctionCallbackArguments::holder() {
   }                                                                      \
   VMState<EXTERNAL> state(ISOLATE);                                      \
   ExternalCallbackScope call_scope(ISOLATE, FUNCTION_ADDR(F));           \
-  PropertyCallbackInfo<API_RETURN_TYPE> callback_info(begin());
+  PropertyCallbackInfo<API_RETURN_TYPE> callback_info(values_);
 
 #define PREPARE_CALLBACK_INFO_FAIL_SIDE_EFFECT_CHECK(ISOLATE, F, RETURN_VALUE, \
                                                      API_RETURN_TYPE)          \
@@ -70,7 +76,7 @@ inline JSObject* FunctionCallbackArguments::holder() {
   }                                                                            \
   VMState<EXTERNAL> state(ISOLATE);                                            \
   ExternalCallbackScope call_scope(ISOLATE, FUNCTION_ADDR(F));                 \
-  PropertyCallbackInfo<API_RETURN_TYPE> callback_info(begin());
+  PropertyCallbackInfo<API_RETURN_TYPE> callback_info(values_);
 
 #define CREATE_NAMED_CALLBACK(FUNCTION, TYPE, RETURN_TYPE, API_RETURN_TYPE,   \
                               INFO_FOR_SIDE_EFFECT)                           \
@@ -121,7 +127,7 @@ FOR_EACH_CALLBACK(CREATE_INDEXED_CALLBACK)
 #undef FOR_EACH_CALLBACK
 #undef CREATE_INDEXED_CALLBACK
 
-Handle<Object> FunctionCallbackArguments::Call(CallHandlerInfo* handler) {
+Handle<Object> FunctionCallbackArguments::Call(CallHandlerInfo handler) {
   Isolate* isolate = this->isolate();
   LOG(isolate, ApiObjectAccess("call", holder()));
   RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kFunctionCallback);
@@ -136,7 +142,7 @@ Handle<Object> FunctionCallbackArguments::Call(CallHandlerInfo* handler) {
   }
   VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
-  FunctionCallbackInfo<v8::Value> info(begin(), argv_, argc_);
+  FunctionCallbackInfo<v8::Value> info(values_, argv_, argc_);
   f(info);
   return GetReturnValue<Object>(isolate);
 }

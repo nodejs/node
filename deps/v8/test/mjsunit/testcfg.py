@@ -81,9 +81,6 @@ class TestSuite(testsuite.TestSuite):
   def _test_class(self):
     return TestCase
 
-  def _suppressed_test_class(self):
-    return SuppressedTestCase
-
 
 class TestCase(testcase.D8TestCase):
   def __init__(self, *args, **kwargs):
@@ -280,28 +277,6 @@ class CombinedTest(testcase.D8TestCase):
     # Combine flags from all status file entries.
     return self._get_combined_flags(
         test._get_statusfile_flags() for test in self._tests)
-
-
-class SuppressedTestCase(TestCase):
-  """The same as a standard mjsunit test case with all asserts as no-ops."""
-  def __init__(self, *args, **kwargs):
-    super(SuppressedTestCase, self).__init__(*args, **kwargs)
-    self._mjsunit_files.append(
-        os.path.join(self.suite.root, "mjsunit_suppressions.js"))
-
-  def _prepare_outcomes(self, *args, **kwargs):
-    super(SuppressedTestCase, self)._prepare_outcomes(*args, **kwargs)
-    # Skip tests expected to fail. We suppress all asserts anyways, but some
-    # tests are expected to fail with type errors or even dchecks, and we
-    # can't differentiate that.
-    if statusfile.FAIL in self._statusfile_outcomes:
-      self._statusfile_outcomes = [statusfile.SKIP]
-
-  def _get_extra_flags(self, *args, **kwargs):
-    return (
-        super(SuppressedTestCase, self)._get_extra_flags(*args, **kwargs) +
-        ['--disable-abortjs']
-    )
 
 
 def GetSuite(*args, **kwargs):

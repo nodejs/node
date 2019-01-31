@@ -12,6 +12,7 @@
 #include "include/v8-profiler.h"
 
 #include "src/handles.h"
+#include "src/objects.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -19,12 +20,6 @@ namespace internal {
 
 class HeapStats;
 class RootVisitor;
-
-// Structure for tracking global handles.
-// A single list keeps all the allocated global handles.
-// Destroyed handles stay in the list but is added to the free list.
-// At GC the destroyed global handles are removed from the free list
-// and deallocated.
 
 enum WeaknessType {
   // Embedder gets a handle to the dying object.
@@ -41,26 +36,15 @@ enum WeaknessType {
   PHANTOM_WEAK_RESET_HANDLE
 };
 
-class GlobalHandles {
+// Global handles hold handles that are independent of stack-state and can have
+// callbacks and finalizers attached to them.
+class GlobalHandles final {
  public:
-  ~GlobalHandles();
-
-  // Creates a new global handle that is alive until Destroy is called.
-  Handle<Object> Create(Object* value);
-
-  template <typename T>
-  Handle<T> Create(T* value) {
-    static_assert(std::is_base_of<Object, T>::value, "static type violation");
-    // The compiler should only pick this method if T is not Object.
-    static_assert(!std::is_same<Object, T>::value, "compiler error");
-    return Handle<T>::cast(Create(static_cast<Object*>(value)));
-  }
-
   // Copy a global handle
-  static Handle<Object> CopyGlobal(Object** location);
+  static Handle<Object> CopyGlobal(Address* location);
 
   // Destroy a global handle.
-  static void Destroy(Object** location);
+  static void Destroy(Address* location);
 
   // Make the global handle weak and set the callback parameter for the
   // handle.  When the garbage collector recognizes that only weak global
@@ -71,53 +55,53 @@ class GlobalHandles {
   // GC.  For a phantom weak handle the handle is cleared (set to a Smi)
   // before the callback is invoked, but the handle can still be identified
   // in the callback by using the location() of the handle.
-  static void MakeWeak(Object** location, void* parameter,
+  static void MakeWeak(Address* location, void* parameter,
                        WeakCallbackInfo<void>::Callback weak_callback,
                        v8::WeakCallbackType type);
 
-  static void MakeWeak(Object*** location_addr);
+  static void MakeWeak(Address** location_addr);
 
-  static void AnnotateStrongRetainer(Object** location, const char* label);
+  static void AnnotateStrongRetainer(Address* location, const char* label);
+
+  // Clear the weakness of a global handle.
+  static void* ClearWeakness(Address* location);
+
+  // Tells whether global handle is near death.
+  static bool IsNearDeath(Address* location);
+
+  // Tells whether global handle is weak.
+  static bool IsWeak(Address* location);
+
+  explicit GlobalHandles(Isolate* isolate);
+  ~GlobalHandles();
+
+  // Creates a new global handle that is alive until Destroy is called.
+  Handle<Object> Create(Object value);
+  Handle<Object> Create(Address value);
+
+  template <typename T>
+  Handle<T> Create(T value) {
+    static_assert(std::is_base_of<Object, T>::value, "static type violation");
+    // The compiler should only pick this method if T is not Object.
+    static_assert(!std::is_same<Object, T>::value, "compiler error");
+    return Handle<T>::cast(Create(Object(value)));
+  }
 
   void RecordStats(HeapStats* stats);
 
-  // Returns the current number of handles to global objects.
-  int global_handles_count() const {
-    return number_of_global_handles_;
-  }
-
-  size_t NumberOfPhantomHandleResets() {
-    return number_of_phantom_handle_resets_;
-  }
-
-  void ResetNumberOfPhantomHandleResets() {
-    number_of_phantom_handle_resets_ = 0;
-  }
-
-  size_t NumberOfNewSpaceNodes() { return new_space_nodes_.size(); }
-
-  // Clear the weakness of a global handle.
-  static void* ClearWeakness(Object** location);
-
-  // Tells whether global handle is near death.
-  static bool IsNearDeath(Object** location);
-
-  // Tells whether global handle is weak.
-  static bool IsWeak(Object** location);
+  size_t InvokeFirstPassWeakCallbacks();
+  void InvokeSecondPassPhantomCallbacks();
 
   // Process pending weak handles.
   // Returns the number of freed nodes.
-  int PostGarbageCollectionProcessing(
+  size_t PostGarbageCollectionProcessing(
       GarbageCollector collector, const v8::GCCallbackFlags gc_callback_flags);
 
   void IterateStrongRoots(RootVisitor* v);
-
   void IterateWeakRoots(RootVisitor* v);
-
   void IterateAllRoots(RootVisitor* v);
 
   void IterateAllNewSpaceRoots(RootVisitor* v);
-  void IterateNewSpaceRoots(RootVisitor* v, size_t start, size_t end);
 
   // Iterates over all handles that have embedder-assigned class ID.
   void IterateAllRootsWithClassIds(v8::PersistentHandleVisitor* v);
@@ -139,18 +123,13 @@ class GlobalHandles {
   // |should_reset_handle| as pending.
   void IdentifyWeakHandles(WeakSlotCallbackWithHeap should_reset_handle);
 
-  // NOTE: Five ...NewSpace... functions below are used during
-  // scavenge collections and iterate over sets of handles that are
-  // guaranteed to contain all handles holding new space objects (but
-  // may also include old space objects).
+  //  Note: The following *NewSpace* methods are used for the Scavenger to
+  //  identify and process handles in new space. The set of new space handles is
+  //  complete but the methods may encounter handles that are already in old
+  //  space.
 
   // Iterates over strong and dependent handles. See the note above.
   void IterateNewSpaceStrongAndDependentRoots(RootVisitor* v);
-
-  // Iterates over strong and dependent handles. See the note above.
-  // Also marks unmodified nodes in the same iteration.
-  void IterateNewSpaceStrongAndDependentRootsAndIdentifyUnmodified(
-      RootVisitor* v, size_t start, size_t end);
 
   // Marks weak unmodified handles satisfying |is_dead| as pending.
   void MarkNewSpaceWeakUnmodifiedObjectsPending(
@@ -166,68 +145,67 @@ class GlobalHandles {
   // unmodified
   void IdentifyWeakUnmodifiedObjects(WeakSlotCallback is_unmodified);
 
-  // Tear down the global handle structure.
-  void TearDown();
+  Isolate* isolate() const { return isolate_; }
 
-  Isolate* isolate() { return isolate_; }
+  // Number of global handles.
+  size_t handles_count() const { return handles_count_; }
+
+  size_t GetAndResetGlobalHandleResetCount() {
+    size_t old = number_of_phantom_handle_resets_;
+    number_of_phantom_handle_resets_ = 0;
+    return old;
+  }
 
 #ifdef DEBUG
   void PrintStats();
   void Print();
 #endif  // DEBUG
 
-  void InvokeSecondPassPhantomCallbacks();
-
  private:
   // Internal node structures.
   class Node;
+  template <class NodeType>
   class NodeBlock;
+  template <class BlockType>
   class NodeIterator;
+  template <class NodeType>
+  class NodeSpace;
   class PendingPhantomCallback;
 
-  explicit GlobalHandles(Isolate* isolate);
+  bool InRecursiveGC(unsigned gc_processing_counter);
 
   void InvokeSecondPassPhantomCallbacksFromTask();
-  int PostScavengeProcessing(int initial_post_gc_processing_count);
-  int PostMarkSweepProcessing(int initial_post_gc_processing_count);
-  int DispatchPendingPhantomCallbacks(bool synchronous_second_pass);
+  void InvokeOrScheduleSecondPassPhantomCallbacks(bool synchronous_second_pass);
+  size_t PostScavengeProcessing(unsigned post_processing_count);
+  size_t PostMarkSweepProcessing(unsigned post_processing_count);
+
   void UpdateListOfNewSpaceNodes();
+
   void ApplyPersistentHandleVisitor(v8::PersistentHandleVisitor* visitor,
                                     Node* node);
 
-  Isolate* isolate_;
+  Isolate* const isolate_;
 
-  // Field always containing the number of handles to global objects.
-  int number_of_global_handles_;
-
-  // List of all allocated node blocks.
-  NodeBlock* first_block_;
-
-  // List of node blocks with used nodes.
-  NodeBlock* first_used_block_;
-
-  // Free list of nodes.
-  Node* first_free_;
-
+  std::unique_ptr<NodeSpace<Node>> regular_nodes_;
   // Contains all nodes holding new space objects. Note: when the list
   // is accessed, some of the objects may have been promoted already.
   std::vector<Node*> new_space_nodes_;
 
-  int post_gc_processing_count_;
-
-  size_t number_of_phantom_handle_resets_;
+  // Field always containing the number of handles to global objects.
+  size_t handles_count_ = 0;
+  size_t number_of_phantom_handle_resets_ = 0;
 
   std::vector<PendingPhantomCallback> pending_phantom_callbacks_;
   std::vector<PendingPhantomCallback> second_pass_callbacks_;
   bool second_pass_callbacks_task_posted_ = false;
 
-  friend class Isolate;
+  // Counter for recursive garbage collections during callback processing.
+  unsigned post_gc_processing_count_ = 0;
 
   DISALLOW_COPY_AND_ASSIGN(GlobalHandles);
 };
 
-
-class GlobalHandles::PendingPhantomCallback {
+class GlobalHandles::PendingPhantomCallback final {
  public:
   typedef v8::WeakCallbackInfo<void> Data;
   PendingPhantomCallback(
@@ -241,8 +219,8 @@ class GlobalHandles::PendingPhantomCallback {
 
   void Invoke(Isolate* isolate);
 
-  Node* node() { return node_; }
-  Data::Callback callback() { return callback_; }
+  Node* node() const { return node_; }
+  Data::Callback callback() const { return callback_; }
 
  private:
   Node* node_;
@@ -251,45 +229,17 @@ class GlobalHandles::PendingPhantomCallback {
   void* embedder_fields_[v8::kEmbedderFieldsInWeakCallback];
 };
 
-
-class EternalHandles {
+class EternalHandles final {
  public:
-  enum SingletonHandle {
-    DATE_CACHE_VERSION,
-
-    NUMBER_OF_SINGLETON_HANDLES
-  };
-
-  EternalHandles();
+  EternalHandles() = default;
   ~EternalHandles();
 
-  int NumberOfHandles() { return size_; }
-
   // Create an EternalHandle, overwriting the index.
-  void Create(Isolate* isolate, Object* object, int* index);
+  void Create(Isolate* isolate, Object object, int* index);
 
   // Grab the handle for an existing EternalHandle.
   inline Handle<Object> Get(int index) {
     return Handle<Object>(GetLocation(index));
-  }
-
-  // Grab the handle for an existing SingletonHandle.
-  inline Handle<Object> GetSingleton(SingletonHandle singleton) {
-    DCHECK(Exists(singleton));
-    return Get(singleton_handles_[singleton]);
-  }
-
-  // Checks whether a SingletonHandle has been assigned.
-  inline bool Exists(SingletonHandle singleton) {
-    return singleton_handles_[singleton] != kInvalidIndex;
-  }
-
-  // Assign a SingletonHandle to an empty slot and returns the handle.
-  Handle<Object> CreateSingleton(Isolate* isolate,
-                                 Object* object,
-                                 SingletonHandle singleton) {
-    Create(isolate, object, &singleton_handles_[singleton]);
-    return Get(singleton_handles_[singleton]);
   }
 
   // Iterates over all handles.
@@ -299,26 +249,27 @@ class EternalHandles {
   // Rebuilds new space list.
   void PostGarbageCollectionProcessing();
 
+  size_t handles_count() const { return size_; }
+
  private:
   static const int kInvalidIndex = -1;
   static const int kShift = 8;
   static const int kSize = 1 << kShift;
   static const int kMask = 0xff;
 
-  // Gets the slot for an index
-  inline Object** GetLocation(int index) {
+  // Gets the slot for an index. This returns an Address* rather than an
+  // ObjectSlot in order to avoid #including slots.h in this header file.
+  inline Address* GetLocation(int index) {
     DCHECK(index >= 0 && index < size_);
     return &blocks_[index >> kShift][index & kMask];
   }
 
-  int size_;
-  std::vector<Object**> blocks_;
+  int size_ = 0;
+  std::vector<Address*> blocks_;
   std::vector<int> new_space_indices_;
-  int singleton_handles_[NUMBER_OF_SINGLETON_HANDLES];
 
   DISALLOW_COPY_AND_ASSIGN(EternalHandles);
 };
-
 
 }  // namespace internal
 }  // namespace v8

@@ -7,8 +7,10 @@
 #include "src/arguments-inl.h"
 #include "src/base/platform/time.h"
 #include "src/conversions-inl.h"
+#include "src/counters.h"
 #include "src/futex-emulation.h"
 #include "src/globals.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 
 // Implement Futex API for SharedArrayBuffers as defined in the
@@ -23,7 +25,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsNumWaitersForTesting) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
-  CHECK(!sta->WasNeutered());
+  CHECK(!sta->WasDetached());
   CHECK(sta->GetBuffer()->is_shared());
   CHECK_LT(index, NumberToSize(sta->length()));
   CHECK_EQ(sta->type(), kExternalInt32Array);

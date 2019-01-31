@@ -81,10 +81,10 @@ function foo2() { Promise.resolve().then(() => 42) }
 paused in foo1
 function foo1() { Promise.resolve().then(() => 42) ^}
 function foo2() { Promise.resolve().then(() => 42) }
-paused in Promise.resolve.then
+paused in 
 function foo1() { Promise.resolve().then(() => ^42) }
 function foo2() { Promise.resolve().then(() => 42) }
-paused in Promise.resolve.then
+paused in 
 function foo1() { Promise.resolve().then(() => 42^) }
 function foo2() { Promise.resolve().then(() => 42) }
 
@@ -148,22 +148,22 @@ debugger; function foo3() { Promise.resolve().then(() => 42) }
 function foo4() { Promise.resolve().then(() => 42) };
 foo3();
 foo4();^
-paused in Promise.resolve.then
+paused in 
 debugger; function foo3() { Promise.resolve().then(() => ^42) }
 function foo4() { Promise.resolve().then(() => 42) };
 foo3();
 foo4();
-paused in Promise.resolve.then
+paused in 
 debugger; function foo3() { Promise.resolve().then(() => 42^) }
 function foo4() { Promise.resolve().then(() => 42) };
 foo3();
 foo4();
-paused in Promise.resolve.then
+paused in 
 debugger; function foo3() { Promise.resolve().then(() => 42) }
 function foo4() { Promise.resolve().then(() => ^42) };
 foo3();
 foo4();
-paused in Promise.resolve.then
+paused in 
 debugger; function foo3() { Promise.resolve().then(() => 42) }
 function foo4() { Promise.resolve().then(() => 42^) };
 foo3();
@@ -247,19 +247,19 @@ paused in foo6
 function foo5() { Promise.resolve().then(() => 42) }
 function foo6() { Promise.resolve().then(() => 42) ^}
 
-paused in Promise.resolve.then
+paused in 
 function foo5() { Promise.resolve().then(() => ^42) }
 function foo6() { Promise.resolve().then(() => 42) }
 
-paused in Promise.resolve.then
+paused in 
 function foo5() { Promise.resolve().then(() => 42^) }
 function foo6() { Promise.resolve().then(() => 42) }
 
-paused in Promise.resolve.then
+paused in 
 function foo5() { Promise.resolve().then(() => 42) }
 function foo6() { Promise.resolve().then(() => ^42) }
 
-paused in Promise.resolve.then
+paused in 
 function foo5() { Promise.resolve().then(() => 42) }
 function foo6() { Promise.resolve().then(() => 42^) }
 

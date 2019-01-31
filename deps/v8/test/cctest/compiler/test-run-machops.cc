@@ -8,9 +8,9 @@
 
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
+#include "src/base/overflowing-math.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/boxed-float.h"
-#include "src/codegen.h"
 #include "src/objects-inl.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
@@ -848,7 +848,7 @@ TEST(RunDiamondPhiConst) {
 
 
 TEST(RunDiamondPhiNumber) {
-  RawMachineAssemblerTester<Object*> m(MachineType::Int32());
+  RawMachineAssemblerTester<Object> m(MachineType::Int32());
   double false_val = -11.1;
   double true_val = 200.1;
   Node* true_node = m.NumberConstant(true_val);
@@ -861,7 +861,7 @@ TEST(RunDiamondPhiNumber) {
 
 
 TEST(RunDiamondPhiString) {
-  RawMachineAssemblerTester<Object*> m(MachineType::Int32());
+  RawMachineAssemblerTester<Object> m(MachineType::Int32());
   const char* false_val = "false";
   const char* true_val = "true";
   Node* true_node = m.StringConstant(true_val);
@@ -2058,7 +2058,7 @@ TEST(RunInt32MulP) {
     bt.AddReturn(m.Int32Mul(bt.param0, bt.param1));
     FOR_INT32_INPUTS(i) {
       FOR_INT32_INPUTS(j) {
-        int expected = static_cast<int32_t>(*i * *j);
+        int expected = base::MulWithWraparound(*i, *j);
         CHECK_EQ(expected, bt.call(*i, *j));
       }
     }
@@ -2125,7 +2125,8 @@ TEST(RunInt32MulAndInt32AddP) {
                             m.Int32Mul(m.Parameter(0), m.Int32Constant(p1))));
         FOR_INT32_INPUTS(k) {
           int32_t p2 = *k;
-          int expected = p0 + static_cast<int32_t>(p1 * p2);
+          int expected =
+              base::AddWithWraparound(p0, base::MulWithWraparound(p1, p2));
           CHECK_EQ(expected, m.Call(p2));
         }
       }
@@ -2142,7 +2143,8 @@ TEST(RunInt32MulAndInt32AddP) {
           int32_t p0 = *i;
           int32_t p1 = *j;
           int32_t p2 = *k;
-          int expected = p0 + static_cast<int32_t>(p1 * p2);
+          int expected =
+              base::AddWithWraparound(p0, base::MulWithWraparound(p1, p2));
           CHECK_EQ(expected, m.Call(p0, p1, p2));
         }
       }
@@ -2159,7 +2161,8 @@ TEST(RunInt32MulAndInt32AddP) {
           int32_t p0 = *i;
           int32_t p1 = *j;
           int32_t p2 = *k;
-          int expected = static_cast<int32_t>(p0 * p1) + p2;
+          int expected =
+              base::AddWithWraparound(base::MulWithWraparound(p0, p1), p2);
           CHECK_EQ(expected, m.Call(p0, p1, p2));
         }
       }
@@ -2175,7 +2178,8 @@ TEST(RunInt32MulAndInt32AddP) {
         FOR_INT32_INPUTS(k) {
           int32_t p0 = *j;
           int32_t p1 = *k;
-          int expected = *i + static_cast<int32_t>(p0 * p1);
+          int expected =
+              base::AddWithWraparound(*i, base::MulWithWraparound(p0, p1));
           CHECK_EQ(expected, bt.call(p0, p1));
         }
       }
@@ -2187,24 +2191,24 @@ TEST(RunInt32MulAndInt32AddP) {
 TEST(RunInt32MulAndInt32SubP) {
   {
     RawMachineAssemblerTester<int32_t> m(
-        MachineType::Uint32(), MachineType::Int32(), MachineType::Int32());
+        MachineType::Int32(), MachineType::Int32(), MachineType::Int32());
     m.Return(
         m.Int32Sub(m.Parameter(0), m.Int32Mul(m.Parameter(1), m.Parameter(2))));
-    FOR_UINT32_INPUTS(i) {
+    FOR_INT32_INPUTS(i) {
       FOR_INT32_INPUTS(j) {
         FOR_INT32_INPUTS(k) {
-          uint32_t p0 = *i;
+          int32_t p0 = *i;
           int32_t p1 = *j;
           int32_t p2 = *k;
-          // Use uint32_t because signed overflow is UB in C.
-          int expected = p0 - static_cast<uint32_t>(p1 * p2);
+          int expected =
+              base::SubWithWraparound(p0, base::MulWithWraparound(p1, p2));
           CHECK_EQ(expected, m.Call(p0, p1, p2));
         }
       }
     }
   }
   {
-    FOR_UINT32_INPUTS(i) {
+    FOR_INT32_INPUTS(i) {
       RawMachineAssemblerTester<int32_t> m;
       Int32BinopTester bt(&m);
       bt.AddReturn(
@@ -2213,8 +2217,8 @@ TEST(RunInt32MulAndInt32SubP) {
         FOR_INT32_INPUTS(k) {
           int32_t p0 = *j;
           int32_t p1 = *k;
-          // Use uint32_t because signed overflow is UB in C.
-          int expected = *i - static_cast<uint32_t>(p0 * p1);
+          int expected =
+              base::SubWithWraparound(*i, base::MulWithWraparound(p0, p1));
           CHECK_EQ(expected, bt.call(p0, p1));
         }
       }
@@ -2262,7 +2266,8 @@ TEST(RunInt32DivP) {
         int p0 = *i;
         int p1 = *j;
         if (p1 != 0 && (static_cast<uint32_t>(p0) != 0x80000000 || p1 != -1)) {
-          int expected = static_cast<int32_t>(p0 + (p0 / p1));
+          int expected =
+              static_cast<int32_t>(base::AddWithWraparound(p0, (p0 / p1)));
           CHECK_EQ(expected, bt.call(p0, p1));
         }
       }
@@ -2330,7 +2335,8 @@ TEST(RunInt32ModP) {
         int p0 = *i;
         int p1 = *j;
         if (p1 != 0 && (static_cast<uint32_t>(p0) != 0x80000000 || p1 != -1)) {
-          int expected = static_cast<int32_t>(p0 + (p0 % p1));
+          int expected =
+              static_cast<int32_t>(base::AddWithWraparound(p0, (p0 % p1)));
           CHECK_EQ(expected, bt.call(p0, p1));
         }
       }
@@ -3463,7 +3469,7 @@ TEST(RunInt32NegP) {
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
   m.Return(m.Int32Neg(m.Parameter(0)));
   FOR_INT32_INPUTS(i) {
-    int expected = -*i;
+    int expected = base::NegateWithWraparound(*i);
     CHECK_EQ(expected, m.Call(*i));
   }
 }
@@ -3676,7 +3682,9 @@ TEST(RunFloat32Div) {
   m.Return(m.Float32Div(m.Parameter(0), m.Parameter(1)));
 
   FOR_FLOAT32_INPUTS(i) {
-    FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ(*i / *j, m.Call(*i, *j)); }
+    FOR_FLOAT32_INPUTS(j) {
+      CHECK_FLOAT_EQ(base::Divide(*i, *j), m.Call(*i, *j));
+    }
   }
 }
 
@@ -3725,7 +3733,9 @@ TEST(RunFloat64Div) {
   m.Return(m.Float64Div(m.Parameter(0), m.Parameter(1)));
 
   FOR_FLOAT64_INPUTS(i) {
-    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ(*i / *j, m.Call(*i, *j)); }
+    FOR_FLOAT64_INPUTS(j) {
+      CHECK_DOUBLE_EQ(base::Divide(*i, *j), m.Call(*i, *j));
+    }
   }
 }
 
@@ -4056,7 +4066,9 @@ TEST(RunFloat32DivP) {
   bt.AddReturn(m.Float32Div(bt.param0, bt.param1));
 
   FOR_FLOAT32_INPUTS(pl) {
-    FOR_FLOAT32_INPUTS(pr) { CHECK_FLOAT_EQ(*pl / *pr, bt.call(*pl, *pr)); }
+    FOR_FLOAT32_INPUTS(pr) {
+      CHECK_FLOAT_EQ(base::Divide(*pl, *pr), bt.call(*pl, *pr));
+    }
   }
 }
 
@@ -4068,7 +4080,9 @@ TEST(RunFloat64DivP) {
   bt.AddReturn(m.Float64Div(bt.param0, bt.param1));
 
   FOR_FLOAT64_INPUTS(pl) {
-    FOR_FLOAT64_INPUTS(pr) { CHECK_DOUBLE_EQ(*pl / *pr, bt.call(*pl, *pr)); }
+    FOR_FLOAT64_INPUTS(pr) {
+      CHECK_DOUBLE_EQ(base::Divide(*pl, *pr), bt.call(*pl, *pr));
+    }
   }
 }
 
@@ -4714,7 +4728,7 @@ TEST(RunRefDiamond) {
   const int magic = 99644;
   Handle<String> rexpected =
       CcTest::i_isolate()->factory()->InternalizeUtf8String("A");
-  String* buffer;
+  String buffer;
 
   RawMachineLabel blocka, blockb, end;
   Node* k1 = m.StringConstant("A");
@@ -4743,7 +4757,7 @@ TEST(RunDoubleRefDiamond) {
   double dconstant = 99.99;
   Handle<String> rexpected =
       CcTest::i_isolate()->factory()->InternalizeUtf8String("AX");
-  String* rbuffer;
+  String rbuffer;
 
   RawMachineLabel blocka, blockb, end;
   Node* d1 = m.Float64Constant(dconstant);
@@ -4778,7 +4792,7 @@ TEST(RunDoubleRefDoubleDiamond) {
   double dconstant = 99.997;
   Handle<String> rexpected =
       CcTest::i_isolate()->factory()->InternalizeUtf8String("AD");
-  String* rbuffer;
+  String rbuffer;
 
   RawMachineLabel blocka, blockb, mid, blockd, blocke, end;
   Node* d1 = m.Float64Constant(dconstant);
@@ -5250,7 +5264,7 @@ TEST(RunSpillConstantsAndParameters) {
   Node* accs[kInputSize];
   Node* acc = m.Int32Constant(0);
   for (int i = 0; i < kInputSize; i++) {
-    csts[i] = m.Int32Constant(static_cast<int32_t>(kBase + i));
+    csts[i] = m.Int32Constant(base::AddWithWraparound(kBase, i));
   }
   for (int i = 0; i < kInputSize; i++) {
     acc = m.Int32Add(acc, csts[i]);
@@ -5262,9 +5276,9 @@ TEST(RunSpillConstantsAndParameters) {
   m.Return(m.Int32Add(acc, m.Int32Add(m.Parameter(0), m.Parameter(1))));
   FOR_INT32_INPUTS(i) {
     FOR_INT32_INPUTS(j) {
-      int32_t expected = *i + *j;
+      int32_t expected = base::AddWithWraparound(*i, *j);
       for (int k = 0; k < kInputSize; k++) {
-        expected += kBase + k;
+        expected = base::AddWithWraparound(expected, kBase + k);
       }
       CHECK_EQ(expected, m.Call(*i, *j));
       expected = 0;
@@ -5278,7 +5292,7 @@ TEST(RunSpillConstantsAndParameters) {
 
 
 TEST(RunNewSpaceConstantsInPhi) {
-  RawMachineAssemblerTester<Object*> m(MachineType::Int32());
+  RawMachineAssemblerTester<Object> m(MachineType::Int32());
 
   Isolate* isolate = CcTest::i_isolate();
   Handle<HeapNumber> true_val = isolate->factory()->NewHeapNumber(11.2);
@@ -6238,17 +6252,15 @@ int32_t foo0() { return kMagicFoo0; }
 
 int32_t foo1(int32_t x) { return x; }
 
+int32_t foo2(int32_t x, int32_t y) { return base::SubWithWraparound(x, y); }
 
-int32_t foo2(int32_t x, int32_t y) { return x - y; }
-
-
-int32_t foo8(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f,
-             int32_t g, int32_t h) {
+uint32_t foo8(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e,
+              uint32_t f, uint32_t g, uint32_t h) {
   return a + b + c + d + e + f + g + h;
 }
 
-int32_t foo9(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f,
-             int32_t g, int32_t h, int32_t i) {
+uint32_t foo9(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e,
+              uint32_t f, uint32_t g, uint32_t h, uint32_t i) {
   return a + b + c + d + e + f + g + h + i;
 }
 
@@ -6289,7 +6301,7 @@ TEST(RunCallCFunction2) {
     int32_t const x = *i;
     FOR_INT32_INPUTS(j) {
       int32_t const y = *j;
-      CHECK_EQ(x - y, m.Call(x, y));
+      CHECK_EQ(base::SubWithWraparound(x, y), m.Call(x, y));
     }
   }
 }
@@ -6307,7 +6319,7 @@ TEST(RunCallCFunction8) {
       function, param, param, param, param, param, param, param, param));
   FOR_INT32_INPUTS(i) {
     int32_t const x = *i;
-    CHECK_EQ(x * 8, m.Call(x));
+    CHECK_EQ(base::MulWithWraparound(x, 8), m.Call(x));
   }
 }
 
@@ -6331,7 +6343,8 @@ TEST(RunCallCFunction9) {
       m.Int32Add(param, m.Int32Constant(8))));
   FOR_INT32_INPUTS(i) {
     int32_t const x = *i;
-    CHECK_EQ(x * 9 + 36, m.Call(x));
+    CHECK_EQ(base::AddWithWraparound(base::MulWithWraparound(x, 9), 36),
+             m.Call(x));
   }
 }
 #endif  // USE_SIMULATOR

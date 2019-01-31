@@ -106,7 +106,7 @@ void DecodeEntry(Vector<const byte> bytes, int* index,
   entry->source_position = DecodeInt<int64_t>(bytes, index);
 }
 
-Vector<const byte> VectorFromByteArray(ByteArray* byte_array) {
+Vector<const byte> VectorFromByteArray(ByteArray byte_array) {
   return Vector<const byte>(byte_array->GetDataStartAddress(),
                             byte_array->length());
 }
@@ -164,7 +164,7 @@ Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable(
 #ifdef ENABLE_SLOW_DCHECKS
   // Brute force testing: Record all positions and decode
   // the entire table to verify they are identical.
-  SourcePositionTableIterator it(*table);
+  SourcePositionTableIterator it(*table, SourcePositionTableIterator::kAll);
   CheckTableEquals(raw_entries_, it);
   // No additional source positions after creating the table.
   mode_ = OMIT_SOURCE_POSITIONS;
@@ -181,7 +181,8 @@ OwnedVector<byte> SourcePositionTableBuilder::ToSourcePositionTableVector() {
 #ifdef ENABLE_SLOW_DCHECKS
   // Brute force testing: Record all positions and decode
   // the entire table to verify they are identical.
-  SourcePositionTableIterator it(table.as_vector());
+  SourcePositionTableIterator it(table.as_vector(),
+                                 SourcePositionTableIterator::kAll);
   CheckTableEquals(raw_entries_, it);
   // No additional source positions after creating the table.
   mode_ = OMIT_SOURCE_POSITIONS;
@@ -189,25 +190,30 @@ OwnedVector<byte> SourcePositionTableBuilder::ToSourcePositionTableVector() {
   return table;
 }
 
-SourcePositionTableIterator::SourcePositionTableIterator(ByteArray* byte_array)
-    : raw_table_(VectorFromByteArray(byte_array)) {
+SourcePositionTableIterator::SourcePositionTableIterator(ByteArray byte_array,
+                                                         IterationFilter filter)
+    : raw_table_(VectorFromByteArray(byte_array)), filter_(filter) {
   Advance();
 }
 
 SourcePositionTableIterator::SourcePositionTableIterator(
-    Handle<ByteArray> byte_array)
-    : table_(byte_array) {
+    Handle<ByteArray> byte_array, IterationFilter filter)
+    : table_(byte_array), filter_(filter) {
   Advance();
+#ifdef DEBUG
   // We can enable allocation because we keep the table in a handle.
   no_gc.Release();
+#endif  // DEBUG
 }
 
 SourcePositionTableIterator::SourcePositionTableIterator(
-    Vector<const byte> bytes)
-    : raw_table_(bytes) {
+    Vector<const byte> bytes, IterationFilter filter)
+    : raw_table_(bytes), filter_(filter) {
   Advance();
+#ifdef DEBUG
   // We can enable allocation because the underlying vector does not move.
   no_gc.Release();
+#endif  // DEBUG
 }
 
 void SourcePositionTableIterator::Advance() {
@@ -215,12 +221,19 @@ void SourcePositionTableIterator::Advance() {
       table_.is_null() ? raw_table_ : VectorFromByteArray(*table_);
   DCHECK(!done());
   DCHECK(index_ >= 0 && index_ <= bytes.length());
-  if (index_ >= bytes.length()) {
-    index_ = kDone;
-  } else {
-    PositionTableEntry tmp;
-    DecodeEntry(bytes, &index_, &tmp);
-    AddAndSetEntry(current_, tmp);
+  bool filter_satisfied = false;
+  while (!done() && !filter_satisfied) {
+    if (index_ >= bytes.length()) {
+      index_ = kDone;
+    } else {
+      PositionTableEntry tmp;
+      DecodeEntry(bytes, &index_, &tmp);
+      AddAndSetEntry(current_, tmp);
+      SourcePosition p = source_position();
+      filter_satisfied = (filter_ == kAll) ||
+                         (filter_ == kJavaScriptOnly && p.IsJavaScript()) ||
+                         (filter_ == kExternalOnly && p.IsExternal());
+    }
   }
 }
 

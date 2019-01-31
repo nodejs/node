@@ -5,9 +5,9 @@
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
-#include "src/code-stub-assembler.h"
 #include "src/conversions.h"
 #include "src/counters.h"
+#include "src/date.h"
 #include "src/dateparser-inl.h"
 #include "src/objects-inl.h"
 #ifdef V8_INTL_SUPPORT
@@ -114,7 +114,7 @@ double ParseDateTimeString(Isolate* isolate, Handle<String> str) {
   Handle<FixedArray> tmp =
       isolate->factory()->NewFixedArray(DateParser::OUTPUT_SIZE);
   DisallowHeapAllocation no_gc;
-  String::FlatContent str_content = str->GetFlatContent();
+  String::FlatContent str_content = str->GetFlatContent(no_gc);
   bool result;
   if (str_content.IsOneByte()) {
     result = DateParser::Parse(isolate, str_content.ToOneByteVector(), *tmp);
@@ -128,13 +128,16 @@ double ParseDateTimeString(Isolate* isolate, Handle<String> str) {
                                tmp->get(5)->Number(), tmp->get(6)->Number());
   double date = MakeDate(day, time);
   if (tmp->get(7)->IsNull(isolate)) {
-    if (!std::isnan(date)) {
+    if (date >= -DateCache::kMaxTimeBeforeUTCInMs &&
+        date <= DateCache::kMaxTimeBeforeUTCInMs) {
       date = isolate->date_cache()->ToUTC(static_cast<int64_t>(date));
+    } else {
+      return std::numeric_limits<double>::quiet_NaN();
     }
   } else {
     date -= tmp->get(7)->Number() * 1000.0;
   }
-  return date;
+  return DateCache::TimeClip(date);
 }
 
 enum ToDateStringMode { kDateOnly, kTimeOnly, kDateAndTime };
@@ -177,8 +180,8 @@ void ToDateString(double time_val, Vector<char> str, DateCache* date_cache,
   UNREACHABLE();
 }
 
-Object* SetLocalDateValue(Isolate* isolate, Handle<JSDate> date,
-                          double time_val) {
+Object SetLocalDateValue(Isolate* isolate, Handle<JSDate> date,
+                         double time_val) {
   if (time_val >= -DateCache::kMaxTimeBeforeUTCInMs &&
       time_val <= DateCache::kMaxTimeBeforeUTCInMs) {
     time_val = isolate->date_cache()->ToUTC(static_cast<int64_t>(time_val));
@@ -851,12 +854,11 @@ BUILTIN(DatePrototypeToLocaleDateString) {
   RETURN_RESULT_OR_FAILURE(
       isolate, JSDateTimeFormat::ToLocaleDateTime(
                    isolate,
-                   date,                                     // date
-                   args.atOrUndefined(isolate, 1),           // locales
-                   args.atOrUndefined(isolate, 2),           // options
-                   JSDateTimeFormat::RequiredOption::kDate,  // required
-                   JSDateTimeFormat::DefaultsOption::kDate,  // defaults
-                   "dateformatdate"));                       // service
+                   date,                                       // date
+                   args.atOrUndefined(isolate, 1),             // locales
+                   args.atOrUndefined(isolate, 2),             // options
+                   JSDateTimeFormat::RequiredOption::kDate,    // required
+                   JSDateTimeFormat::DefaultsOption::kDate));  // defaults
 }
 
 // ecma402 #sup-date.prototype.tolocalestring
@@ -870,12 +872,11 @@ BUILTIN(DatePrototypeToLocaleString) {
   RETURN_RESULT_OR_FAILURE(
       isolate, JSDateTimeFormat::ToLocaleDateTime(
                    isolate,
-                   date,                                    // date
-                   args.atOrUndefined(isolate, 1),          // locales
-                   args.atOrUndefined(isolate, 2),          // options
-                   JSDateTimeFormat::RequiredOption::kAny,  // required
-                   JSDateTimeFormat::DefaultsOption::kAll,  // defaults
-                   "dateformatall"));                       // service
+                   date,                                      // date
+                   args.atOrUndefined(isolate, 1),            // locales
+                   args.atOrUndefined(isolate, 2),            // options
+                   JSDateTimeFormat::RequiredOption::kAny,    // required
+                   JSDateTimeFormat::DefaultsOption::kAll));  // defaults
 }
 
 // ecma402 #sup-date.prototype.tolocaletimestring
@@ -889,12 +890,11 @@ BUILTIN(DatePrototypeToLocaleTimeString) {
   RETURN_RESULT_OR_FAILURE(
       isolate, JSDateTimeFormat::ToLocaleDateTime(
                    isolate,
-                   date,                                     // date
-                   args.atOrUndefined(isolate, 1),           // locales
-                   args.atOrUndefined(isolate, 2),           // options
-                   JSDateTimeFormat::RequiredOption::kTime,  // required
-                   JSDateTimeFormat::DefaultsOption::kTime,  // defaults
-                   "dateformattime"));                       // service
+                   date,                                       // date
+                   args.atOrUndefined(isolate, 1),             // locales
+                   args.atOrUndefined(isolate, 2),             // options
+                   JSDateTimeFormat::RequiredOption::kTime,    // required
+                   JSDateTimeFormat::DefaultsOption::kTime));  // defaults
 }
 #endif  // V8_INTL_SUPPORT
 
@@ -939,8 +939,11 @@ BUILTIN(DatePrototypeSetYear) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, year,
                                      Object::ToNumber(isolate, year));
   double m = 0.0, dt = 1.0, y = year->Number();
-  if (0.0 <= y && y <= 99.0) {
-    y = 1900.0 + DoubleToInteger(y);
+  if (!std::isnan(y)) {
+    double y_int = DoubleToInteger(y);
+    if (0.0 <= y_int && y_int <= 99.0) {
+      y = 1900.0 + y_int;
+    }
   }
   int time_within_day = 0;
   if (!std::isnan(date->value()->Number())) {

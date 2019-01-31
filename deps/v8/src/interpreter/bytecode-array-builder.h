@@ -70,7 +70,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
   // Constant loads to accumulator.
   BytecodeArrayBuilder& LoadConstantPoolEntry(size_t entry);
-  BytecodeArrayBuilder& LoadLiteral(v8::internal::Smi* value);
+  BytecodeArrayBuilder& LoadLiteral(Smi value);
   BytecodeArrayBuilder& LoadLiteral(double value);
   BytecodeArrayBuilder& LoadLiteral(const AstRawString* raw_string);
   BytecodeArrayBuilder& LoadLiteral(const Scope* scope);
@@ -246,8 +246,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& CreateEmptyArrayLiteral(int literal_index);
   BytecodeArrayBuilder& CreateArrayFromIterable();
   BytecodeArrayBuilder& CreateObjectLiteral(size_t constant_properties_entry,
-                                            int literal_index, int flags,
-                                            Register output);
+                                            int literal_index, int flags);
   BytecodeArrayBuilder& CreateEmptyObjectLiteral();
   BytecodeArrayBuilder& CloneObject(Register source, int flags,
                                     int feedback_slot);
@@ -349,7 +348,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
                                         int feedback_slot);
   // Same as above, but lhs in the accumulator and rhs in |literal|.
   BytecodeArrayBuilder& BinaryOperationSmiLiteral(Token::Value binop,
-                                                  Smi* literal,
+                                                  Smi literal,
                                                   int feedback_slot);
 
   // Unary and Count Operators (value stored in accumulator).
@@ -408,7 +407,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
   BytecodeArrayBuilder& JumpIfTrue(ToBooleanMode mode, BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfFalse(ToBooleanMode mode, BytecodeLabel* label);
-  BytecodeArrayBuilder& JumpIfNotHole(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfJSReceiver(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfNull(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfNotNull(BytecodeLabel* label);
@@ -522,6 +520,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   }
 
   bool RequiresImplicitReturn() const { return !return_seen_in_block_; }
+  bool RemainderOfBlockIsDead() const {
+    return bytecode_array_writer_.RemainderOfBlockIsDead();
+  }
 
   // Returns the raw operand value for the given register or register list.
   uint32_t GetInputRegisterOperand(Register reg);

@@ -7,7 +7,6 @@
 #include "src/ast/ast.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/code-factory.h"
-#include "src/code-stubs.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator.h"
@@ -15,6 +14,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/feedback-vector.h"
+#include "src/objects/feedback-cell.h"
 #include "src/objects/scope-info.h"
 
 namespace v8 {
@@ -87,6 +87,9 @@ REPLACE_STUB_CALL(ToName)
 REPLACE_STUB_CALL(ToObject)
 REPLACE_STUB_CALL(ToString)
 REPLACE_STUB_CALL(ForInEnumerate)
+REPLACE_STUB_CALL(AsyncFunctionEnter)
+REPLACE_STUB_CALL(AsyncFunctionReject)
+REPLACE_STUB_CALL(AsyncFunctionResolve)
 REPLACE_STUB_CALL(FulfillPromise)
 REPLACE_STUB_CALL(PerformPromiseThen)
 REPLACE_STUB_CALL(PromiseResolve)
@@ -398,6 +401,10 @@ void JSGenericLowering::LowerJSCreateArray(Node* node) {
 }
 
 void JSGenericLowering::LowerJSCreateArrayIterator(Node* node) {
+  UNREACHABLE();  // Eliminated in typed lowering.
+}
+
+void JSGenericLowering::LowerJSCreateAsyncFunctionObject(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 

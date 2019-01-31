@@ -23,7 +23,7 @@ function assertThrowsAsync(run, errorType, message) {
 
   assertFalse(hadValue || hadError);
 
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
 
   if (!hadError) {
     throw new MjsUnitAssertionError(
@@ -57,7 +57,7 @@ function assertEqualsAsync(expected, run, msg) {
 
   assertFalse(hadValue || hadError);
 
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
 
   if (hadError) throw actual;
 
@@ -402,7 +402,7 @@ assertDoesNotThrow(gaga);
     }
   }
   foo().then(() => log.push("c"));
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
   assertEquals(["b", "a", "c"], log);
 }
 
@@ -416,7 +416,7 @@ assertDoesNotThrow(gaga);
     }
   }
   foo().then(() => log.push("c"));
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
   assertEquals(["b", "a", "c"], log);
 }
 
@@ -430,7 +430,7 @@ assertDoesNotThrow(gaga);
     }
   }
   foo().then(() => log.push("c"));
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
   assertEquals(["a", "b", "c"], log);
 }
 
@@ -445,7 +445,7 @@ assertDoesNotThrow(gaga);
     }
   }
   foo().then(() => log.push("c"));
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
   assertEquals(["b", "c", "a"], log);
 }
 
@@ -459,7 +459,7 @@ assertDoesNotThrow(gaga);
     }
   }
   foo().then(() => log.push("c"));
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
   assertEquals(["b", "a", "c"], log);
 }
 
@@ -473,7 +473,7 @@ assertDoesNotThrow(gaga);
     }
   }
   foo().then(() => log.push("c"));
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
   assertEquals(["a", "b", "c"], log);
 }
 
@@ -488,7 +488,7 @@ assertDoesNotThrow(gaga);
     }
   }
   foo().then(() => log.push("c"));
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
   assertEquals(["b", "a", "c"], log);
 }
 
@@ -502,7 +502,7 @@ assertDoesNotThrow(gaga);
     }
   }
   foo().then(() => log.push("c"));
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
   assertEquals(["b", "a", "c"], log);
 }
 
@@ -516,7 +516,7 @@ assertDoesNotThrow(gaga);
     }
   }
   foo().then(() => log.push("c"));
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
   assertEquals(["a", "b", "c"], log);
 }
 
@@ -531,7 +531,7 @@ assertDoesNotThrow(gaga);
     }
   }
   foo().then(() => log.push("c"));
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
   assertEquals(["b", "c", "a"], log);
 }
 
@@ -545,7 +545,7 @@ assertDoesNotThrow(gaga);
     }
   }
   foo().then(() => log.push("c"));
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
   assertEquals(["b", "c", "a"], log);
 }
 
@@ -559,7 +559,7 @@ assertDoesNotThrow(gaga);
     }
   }
   foo().then(() => log.push("c"));
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
   assertEquals(["a", "b", "c"], log);
 }
 
@@ -585,7 +585,7 @@ assertDoesNotThrow(gaga);
 
   var ans;
   f2().then(x => ans = x).catch(e => ans = e);
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
   assertEquals([0], ans);
 }
 

@@ -620,15 +620,12 @@ eval(`
       return 4;
     } }`);
 
-    // assertEquals(0, f);
-    assertEquals(4, f());
+    assertEquals(0, f);
   }
 
-  // assertEquals(4, f());
-  assertEquals(undefined, f);
+  assertEquals(4, f());
 })();
 
-// This test is incorrect BUG(v8:5168). The commented assertions are correct.
 (function evalHoistingThroughWith() {
   with ({f: 0}) {
     eval(`{ function f() {

@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-module data_view {
+#include 'src/builtins/builtins-data-view-gen.h'
+
+namespace data_view {
   extern operator '.buffer'
       macro LoadJSArrayBufferViewBuffer(JSArrayBufferView): JSArrayBuffer;
   extern operator '.byte_length'
@@ -68,8 +70,8 @@ module data_view {
     return IsDetachedBuffer(view.buffer);
   }
 
-  macro ValidateDataView(
-      context: Context, o: Object, method: String): JSDataView {
+  macro ValidateDataView(context: Context, o: Object, method: String):
+      JSDataView {
     try {
       return Cast<JSDataView>(o) otherwise CastError;
     }
@@ -119,8 +121,8 @@ module data_view {
   extern macro Float64InsertLowWord32(float64, uint32): float64;
   extern macro Float64InsertHighWord32(float64, uint32): float64;
 
-  extern macro LoadUint8(RawPtr, uintptr): uint32;
-  extern macro LoadInt8(RawPtr, uintptr): int32;
+  extern macro DataViewBuiltinsAssembler::LoadUint8(RawPtr, uintptr): uint32;
+  extern macro DataViewBuiltinsAssembler::LoadInt8(RawPtr, uintptr): int32;
 
   macro LoadDataView8(
       buffer: JSArrayBuffer, offset: uintptr, signed: constexpr bool): Smi {
@@ -219,10 +221,10 @@ module data_view {
   }
 
   extern macro AllocateBigInt(intptr): BigInt;
-  extern macro StoreBigIntBitfield(BigInt, intptr): void;
+  extern macro StoreBigIntBitfield(BigInt, uint32): void;
   extern macro StoreBigIntDigit(BigInt, constexpr int31, uintptr): void;
-  extern macro DataViewEncodeBigIntBits(
-      constexpr bool, constexpr int31): intptr;
+  extern macro DataViewBuiltinsAssembler::DataViewEncodeBigIntBits(
+      constexpr bool, constexpr int31): uint32;
 
   const kPositiveBigInt: constexpr bool = false;
   const kNegativeBigInt: constexpr bool = true;
@@ -345,8 +347,8 @@ module data_view {
     return result;
   }
 
-  macro MakeBigInt(
-      lowWord: uint32, highWord: uint32, signed: constexpr bool): BigInt {
+  macro MakeBigInt(lowWord: uint32, highWord: uint32, signed: constexpr bool):
+      BigInt {
     // A BigInt digit has the platform word size, so we only need one digit
     // on 64-bit platforms but may need two on 32-bit.
     if constexpr (Is64()) {
@@ -385,7 +387,8 @@ module data_view {
 
   extern macro ToSmiIndex(Object, Context): Smi
       labels RangeError;
-  extern macro DataViewElementSize(constexpr ElementsKind): constexpr int31;
+  extern macro DataViewBuiltinsAssembler::DataViewElementSize(
+      constexpr ElementsKind): constexpr int31;
 
   macro DataViewGet(
       context: Context, receiver: Object, offset: Object,
@@ -414,7 +417,7 @@ module data_view {
 
     let viewOffsetWord: uintptr = dataView.byte_offset;
     let viewSizeFloat: float64 = Convert<float64>(dataView.byte_length);
-    let elementSizeFloat: float64 = Convert<float64>(DataViewElementSize(kind));
+    let elementSizeFloat: float64 = DataViewElementSize(kind);
 
     if (getIndexFloat + elementSizeFloat > viewSizeFloat) {
       ThrowRangeError(context, kInvalidDataViewAccessorOffset);
@@ -536,7 +539,8 @@ module data_view {
   extern macro TruncateFloat64ToFloat32(float64): float32;
   extern macro TruncateFloat64ToWord32(float64): uint32;
 
-  extern macro StoreWord8(RawPtr, uintptr, uint32): void;
+  extern macro DataViewBuiltinsAssembler::StoreWord8(RawPtr, uintptr, uint32):
+      void;
 
   macro StoreDataView8(buffer: JSArrayBuffer, offset: uintptr, value: uint32) {
     StoreWord8(buffer.backing_store, offset, value & 0xFF);
@@ -618,8 +622,10 @@ module data_view {
     }
   }
 
-  extern macro DataViewDecodeBigIntLength(BigInt): uintptr;
-  extern macro DataViewDecodeBigIntSign(BigInt): uintptr;
+  extern macro DataViewBuiltinsAssembler::DataViewDecodeBigIntLength(BigInt):
+      uint32;
+  extern macro DataViewBuiltinsAssembler::DataViewDecodeBigIntSign(BigInt):
+      uint32;
   extern macro LoadBigIntDigit(BigInt, constexpr int31): uintptr;
 
   // We might get here a BigInt that is bigger than 64 bits, but we're only
@@ -628,8 +634,8 @@ module data_view {
   macro StoreDataViewBigInt(
       buffer: JSArrayBuffer, offset: uintptr, bigIntValue: BigInt,
       requestedLittleEndian: bool) {
-    let length: uintptr = DataViewDecodeBigIntLength(bigIntValue);
-    let sign: uintptr = DataViewDecodeBigIntSign(bigIntValue);
+    let length: uint32 = DataViewDecodeBigIntLength(bigIntValue);
+    let sign: uint32 = DataViewDecodeBigIntSign(bigIntValue);
 
     // The 32-bit words that will hold the BigInt's value in
     // two's complement representation.
@@ -679,37 +685,50 @@ module data_view {
     let littleEndian: bool = ToBoolean(requestedLittleEndian);
     let buffer: JSArrayBuffer = dataView.buffer;
 
-    let bigIntValue: BigInt;
-    let numValue: Number;
     // According to ES6 section 24.2.1.2 SetViewValue, we must perform
     // the conversion before doing the bounds check.
     if constexpr (kind == BIGUINT64_ELEMENTS || kind == BIGINT64_ELEMENTS) {
-      bigIntValue = ToBigInt(context, value);
-    } else {
-      numValue = ToNumber(context, value);
-    }
+      let bigIntValue: BigInt = ToBigInt(context, value);
 
-    if (IsDetachedBuffer(buffer)) {
-      ThrowTypeError(
-          context, kDetachedOperation, MakeDataViewSetterNameString(kind));
-    }
+      if (IsDetachedBuffer(buffer)) {
+        ThrowTypeError(
+            context, kDetachedOperation, MakeDataViewSetterNameString(kind));
+      }
 
-    let getIndexFloat: float64 = Convert<float64>(getIndex);
-    let getIndexWord: uintptr = Convert<uintptr>(getIndexFloat);
+      let getIndexFloat: float64 = Convert<float64>(getIndex);
+      let getIndexWord: uintptr = Convert<uintptr>(getIndexFloat);
 
-    let viewOffsetWord: uintptr = dataView.byte_offset;
-    let viewSizeFloat: float64 = Convert<float64>(dataView.byte_length);
-    let elementSizeFloat: float64 = Convert<float64>(DataViewElementSize(kind));
+      let viewOffsetWord: uintptr = dataView.byte_offset;
+      let viewSizeFloat: float64 = Convert<float64>(dataView.byte_length);
+      let elementSizeFloat: float64 = DataViewElementSize(kind);
 
-    if (getIndexFloat + elementSizeFloat > viewSizeFloat) {
-      ThrowRangeError(context, kInvalidDataViewAccessorOffset);
-    }
+      if (getIndexFloat + elementSizeFloat > viewSizeFloat) {
+        ThrowRangeError(context, kInvalidDataViewAccessorOffset);
+      }
 
-    let bufferIndex: uintptr = getIndexWord + viewOffsetWord;
-
-    if constexpr (kind == BIGUINT64_ELEMENTS || kind == BIGINT64_ELEMENTS) {
+      let bufferIndex: uintptr = getIndexWord + viewOffsetWord;
       StoreDataViewBigInt(buffer, bufferIndex, bigIntValue, littleEndian);
     } else {
+      let numValue: Number = ToNumber(context, value);
+
+      if (IsDetachedBuffer(buffer)) {
+        ThrowTypeError(
+            context, kDetachedOperation, MakeDataViewSetterNameString(kind));
+      }
+
+      let getIndexFloat: float64 = Convert<float64>(getIndex);
+      let getIndexWord: uintptr = Convert<uintptr>(getIndexFloat);
+
+      let viewOffsetWord: uintptr = dataView.byte_offset;
+      let viewSizeFloat: float64 = Convert<float64>(dataView.byte_length);
+      let elementSizeFloat: float64 = DataViewElementSize(kind);
+
+      if (getIndexFloat + elementSizeFloat > viewSizeFloat) {
+        ThrowRangeError(context, kInvalidDataViewAccessorOffset);
+      }
+
+      let bufferIndex: uintptr = getIndexWord + viewOffsetWord;
+
       let doubleValue: float64 = ChangeNumberToFloat64(numValue);
 
       if constexpr (kind == UINT8_ELEMENTS || kind == INT8_ELEMENTS) {

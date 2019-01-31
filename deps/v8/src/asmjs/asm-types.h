@@ -214,9 +214,9 @@ class V8_EXPORT_PRIVATE AsmType {
   static AsmType* MinMaxType(Zone* zone, AsmType* dest, AsmType* src);
 
   std::string Name();
-  // IsExactly returns true if this is the exact same type as that. For
-  // non-value types (e.g., callables), this returns this == that.
-  bool IsExactly(AsmType* that);
+  // IsExactly returns true if x is the exact same type as y. For
+  // non-value types (e.g., callables), this returns x == y.
+  static bool IsExactly(AsmType* x, AsmType* y);
   // IsA is used to query whether this is an instance of that (i.e., if this is
   // a type derived from that.) For non-value types (e.g., callables), this
   // returns this == that.

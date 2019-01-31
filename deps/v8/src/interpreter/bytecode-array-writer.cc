@@ -42,7 +42,7 @@ Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
   DCHECK_EQ(0, unbound_jumps_);
 
   int bytecode_size = static_cast<int>(bytecodes()->size());
-  int frame_size = register_count * kPointerSize;
+  int frame_size = register_count * kSystemPointerSize;
   Handle<FixedArray> constant_pool =
       constant_array_builder()->ToFixedArray(isolate);
   Handle<ByteArray> source_position_table =

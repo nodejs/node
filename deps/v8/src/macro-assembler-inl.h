@@ -5,6 +5,7 @@
 #ifndef V8_MACRO_ASSEMBLER_INL_H_
 #define V8_MACRO_ASSEMBLER_INL_H_
 
+#include "src/assembler-inl.h"
 #include "src/macro-assembler.h"
 
 #if V8_TARGET_ARCH_ARM64

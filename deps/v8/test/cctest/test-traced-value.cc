@@ -116,11 +116,27 @@ TEST(Escaping) {
   // Cannot use the expected value literal directly in CHECK_EQ
   // as it fails to process the # character on Windows.
   const char* expected =
-      "{\"a\":\"abc\\\"\'\\\\\\\\x\\\"y\'z\\n\\t\\u0017\",\"b\":"
-      "\"\\u0001\\u0002\\u0003\\u0004\\u0005\\u0006\\u0007\\u0008\\t\\n\\u000B"
-      "\\u000C\\u000D\\u000E\\u000F\\u0010\\u0011\\u0012\\u0013\\u0014\\u0015\\"
-      "u0016\\u0017\\u0018\\u0019\\u001A\\u001B\\u001C\\u001D\\u001E\\u001F "
-      "!\\\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\\\]^_`"
-      "abcdefghijklmnopqrstuvwxyz{|}~\x7F\"}";
+      R"({"a":"abc\"'\\\\x\"y'z\n\t\u0017","b":"\u0001\u0002\u0003\u0004\u0005)"
+      R"(\u0006\u0007\b\t\n\u000B\f\r\u000E\u000F\u0010\u0011\u0012\u0013)"
+      R"(\u0014\u0015\u0016\u0017\u0018\u0019\u001A\u001B\u001C\u001D\u001E)"
+      R"(\u001F !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ)"
+      R"([\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\u007F"})";
+  CHECK_EQ(expected, json);
+}
+
+TEST(Utf8) {
+  const char* string1 = "Люблю тебя, Петра творенье";
+  const char* string2 = "☀\u2600\u26FF";
+  auto value = TracedValue::Create();
+  value->SetString("a", string1);
+  value->SetString("b", string2);
+  // Surrogate pair test. Smile emoji === U+1F601 === \xf0\x9f\x98\x81
+  value->SetString("c", "\U0001F601");
+  std::string json;
+  value->AppendAsTraceFormat(&json);
+  const char* expected =
+      "{\"a\":\"\u041B\u044E\u0431\u043B\u044E \u0442\u0435\u0431\u044F, \u041F"
+      "\u0435\u0442\u0440\u0430 \u0442\u0432\u043E\u0440\u0435\u043D\u044C"
+      "\u0435\",\"b\":\"\u2600\u2600\u26FF\",\"c\":\"\xf0\x9f\x98\x81\"}";
   CHECK_EQ(expected, json);
 }

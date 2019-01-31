@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_API_CALLBACKS_H_
 #define V8_OBJECTS_API_CALLBACKS_H_
 
-#include "src/objects.h"
+#include "src/objects/struct.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -64,7 +64,7 @@ class AccessorInfo : public Struct {
   // Checks whether the given receiver is compatible with this accessor.
   static bool IsCompatibleReceiverMap(Handle<AccessorInfo> info,
                                       Handle<Map> map);
-  inline bool IsCompatibleReceiver(Object* receiver);
+  inline bool IsCompatibleReceiver(Object receiver);
 
   DECL_CAST(AccessorInfo)
 
@@ -77,14 +77,14 @@ class AccessorInfo : public Struct {
                           Handle<FixedArray> array, int valid_descriptors);
 
 // Layout description.
-#define ACCESSOR_INFO_FIELDS(V)                \
-  V(kNameOffset, kPointerSize)                 \
-  V(kFlagsOffset, kPointerSize)                \
-  V(kExpectedReceiverTypeOffset, kPointerSize) \
-  V(kSetterOffset, kPointerSize)               \
-  V(kGetterOffset, kPointerSize)               \
-  V(kJsGetterOffset, kPointerSize)             \
-  V(kDataOffset, kPointerSize)                 \
+#define ACCESSOR_INFO_FIELDS(V)               \
+  V(kNameOffset, kTaggedSize)                 \
+  V(kFlagsOffset, kTaggedSize)                \
+  V(kExpectedReceiverTypeOffset, kTaggedSize) \
+  V(kSetterOffset, kTaggedSize)               \
+  V(kGetterOffset, kTaggedSize)               \
+  V(kJsGetterOffset, kTaggedSize)             \
+  V(kDataOffset, kTaggedSize)                 \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, ACCESSOR_INFO_FIELDS)
@@ -108,7 +108,7 @@ class AccessorInfo : public Struct {
   DEFINE_BIT_FIELDS(ACCESSOR_INFO_FLAGS_BIT_FIELDS)
 #undef ACCESSOR_INFO_FLAGS_BIT_FIELDS
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(AccessorInfo);
+  OBJECT_CONSTRUCTORS(AccessorInfo, Struct);
 };
 
 class AccessCheckInfo : public Struct {
@@ -124,17 +124,21 @@ class AccessCheckInfo : public Struct {
   DECL_PRINTER(AccessCheckInfo)
   DECL_VERIFIER(AccessCheckInfo)
 
-  static AccessCheckInfo* Get(Isolate* isolate, Handle<JSObject> receiver);
+  static AccessCheckInfo Get(Isolate* isolate, Handle<JSObject> receiver);
 
-  static const int kCallbackOffset = HeapObject::kHeaderSize;
-  static const int kNamedInterceptorOffset = kCallbackOffset + kPointerSize;
-  static const int kIndexedInterceptorOffset =
-      kNamedInterceptorOffset + kPointerSize;
-  static const int kDataOffset = kIndexedInterceptorOffset + kPointerSize;
-  static const int kSize = kDataOffset + kPointerSize;
+// Layout description.
+#define ACCESS_CHECK_INFO_FIELDS(V)         \
+  V(kCallbackOffset, kTaggedSize)           \
+  V(kNamedInterceptorOffset, kTaggedSize)   \
+  V(kIndexedInterceptorOffset, kTaggedSize) \
+  V(kDataOffset, kTaggedSize)               \
+  V(kSize, 0)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(AccessCheckInfo);
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                ACCESS_CHECK_INFO_FIELDS)
+#undef ACCESS_CHECK_INFO_FIELDS
+
+  OBJECT_CONSTRUCTORS(AccessCheckInfo, Struct);
 };
 
 class InterceptorInfo : public Struct {
@@ -162,16 +166,22 @@ class InterceptorInfo : public Struct {
   DECL_PRINTER(InterceptorInfo)
   DECL_VERIFIER(InterceptorInfo)
 
-  static const int kGetterOffset = HeapObject::kHeaderSize;
-  static const int kSetterOffset = kGetterOffset + kPointerSize;
-  static const int kQueryOffset = kSetterOffset + kPointerSize;
-  static const int kDescriptorOffset = kQueryOffset + kPointerSize;
-  static const int kDeleterOffset = kDescriptorOffset + kPointerSize;
-  static const int kEnumeratorOffset = kDeleterOffset + kPointerSize;
-  static const int kDefinerOffset = kEnumeratorOffset + kPointerSize;
-  static const int kDataOffset = kDefinerOffset + kPointerSize;
-  static const int kFlagsOffset = kDataOffset + kPointerSize;
-  static const int kSize = kFlagsOffset + kPointerSize;
+// Layout description.
+#define INTERCEPTOR_INFO_FIELDS(V)  \
+  V(kGetterOffset, kTaggedSize)     \
+  V(kSetterOffset, kTaggedSize)     \
+  V(kQueryOffset, kTaggedSize)      \
+  V(kDescriptorOffset, kTaggedSize) \
+  V(kDeleterOffset, kTaggedSize)    \
+  V(kEnumeratorOffset, kTaggedSize) \
+  V(kDefinerOffset, kTaggedSize)    \
+  V(kDataOffset, kTaggedSize)       \
+  V(kFlagsOffset, kTaggedSize)      \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                INTERCEPTOR_INFO_FIELDS)
+#undef INTERCEPTOR_INFO_FIELDS
 
   static const int kCanInterceptSymbolsBit = 0;
   static const int kAllCanReadBit = 1;
@@ -179,8 +189,7 @@ class InterceptorInfo : public Struct {
   static const int kNamed = 3;
   static const int kHasNoSideEffect = 4;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(InterceptorInfo);
+  OBJECT_CONSTRUCTORS(InterceptorInfo, Struct);
 };
 
 class CallHandlerInfo : public Tuple3 {
@@ -208,8 +217,7 @@ class CallHandlerInfo : public Tuple3 {
   static const int kJsCallbackOffset = kValue2Offset;
   static const int kDataOffset = kValue3Offset;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CallHandlerInfo);
+  OBJECT_CONSTRUCTORS(CallHandlerInfo, Tuple3);
 };
 
 }  // namespace internal

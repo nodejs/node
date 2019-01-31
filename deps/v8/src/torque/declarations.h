@@ -8,7 +8,6 @@
 #include <string>
 
 #include "src/torque/declarable.h"
-#include "src/torque/scope.h"
 #include "src/torque/utils.h"
 
 namespace v8 {
@@ -19,214 +18,133 @@ static constexpr const char* const kFromConstexprMacroName = "FromConstexpr";
 static constexpr const char* kTrueLabelName = "_True";
 static constexpr const char* kFalseLabelName = "_False";
 
+template <class T>
+std::vector<T*> FilterDeclarables(const std::vector<Declarable*> list) {
+  std::vector<T*> result;
+  for (Declarable* declarable : list) {
+    if (T* t = T::DynamicCast(declarable)) {
+      result.push_back(t);
+    }
+  }
+  return result;
+}
+
 class Declarations {
  public:
-  Declarations()
-      : unique_declaration_number_(0),
-        current_generic_specialization_(nullptr) {}
+  static std::vector<Declarable*> TryLookup(const QualifiedName& name) {
+    return CurrentScope::Get()->Lookup(name);
+  }
 
-  Declarable* TryLookup(const std::string& name) { return chain_.Lookup(name); }
+  static std::vector<Declarable*> TryLookupShallow(const QualifiedName& name) {
+    return CurrentScope::Get()->LookupShallow(name);
+  }
 
-  Declarable* Lookup(const std::string& name) {
-    Declarable* d = TryLookup(name);
-    if (d == nullptr) {
-      std::stringstream s;
-      s << "cannot find \"" << name << "\"";
-      ReportError(s.str());
+  template <class T>
+  static std::vector<T*> TryLookup(const QualifiedName& name) {
+    return FilterDeclarables<T>(TryLookup(name));
+  }
+
+  static std::vector<Declarable*> Lookup(const QualifiedName& name) {
+    std::vector<Declarable*> d = TryLookup(name);
+    if (d.empty()) {
+      ReportError("cannot find \"", name, "\"");
     }
     return d;
   }
 
-  Declarable* LookupGlobalScope(const std::string& name) {
-    Declarable* d = chain_.LookupGlobalScope(name);
-    if (d == nullptr) {
-      std::stringstream s;
-      s << "cannot find \"" << name << "\" in global scope";
-      ReportError(s.str());
-    }
-    return d;
-  }
+  static std::vector<Declarable*> LookupGlobalScope(const std::string& name);
 
-  const Type* LookupType(const std::string& name);
-  const Type* LookupGlobalType(const std::string& name);
-  const Type* GetType(TypeExpression* type_expression);
+  static const Type* LookupType(const QualifiedName& name);
+  static const Type* LookupType(std::string name);
+  static const Type* LookupGlobalType(const std::string& name);
+  static const Type* GetType(TypeExpression* type_expression);
 
-  Builtin* FindSomeInternalBuiltinWithType(const FunctionPointerType* type);
+  static Builtin* FindSomeInternalBuiltinWithType(
+      const BuiltinPointerType* type);
 
-  Value* LookupValue(const std::string& name);
+  static Value* LookupValue(const QualifiedName& name);
 
-  Macro* TryLookupMacro(const std::string& name, const TypeVector& types);
-  Macro* LookupMacro(const std::string& name, const TypeVector& types);
+  static Macro* TryLookupMacro(const std::string& name,
+                               const TypeVector& types);
+  static base::Optional<Builtin*> TryLookupBuiltin(const QualifiedName& name);
 
-  Builtin* LookupBuiltin(const std::string& name);
+  static std::vector<Generic*> LookupGeneric(const std::string& name);
+  static Generic* LookupUniqueGeneric(const QualifiedName& name);
 
-  Label* TryLookupLabel(const std::string& name) {
-    Declarable* d = TryLookup(name);
-    return d && d->IsLabel() ? Label::cast(d) : nullptr;
-  }
-  Label* LookupLabel(const std::string& name);
+  static Namespace* DeclareNamespace(const std::string& name);
 
-  GenericList* LookupGeneric(const std::string& name);
-  ModuleConstant* LookupModuleConstant(const std::string& name);
-
-  const AbstractType* DeclareAbstractType(
-      const std::string& name, const std::string& generated,
+  static const AbstractType* DeclareAbstractType(
+      const std::string& name, bool transient, const std::string& generated,
       base::Optional<const AbstractType*> non_constexpr_version,
       const base::Optional<std::string>& parent = {});
 
-  void DeclareType(const std::string& name, const Type* type);
+  static void DeclareType(const std::string& name, const Type* type,
+                          bool redeclaration);
 
-  void DeclareStruct(Module* module, const std::string& name,
-                     const std::vector<NameAndType>& fields);
+  static StructType* DeclareStruct(const std::string& name,
+                                   const std::vector<Field>& fields);
 
-  Label* DeclareLabel(const std::string& name,
-                      base::Optional<Statement*> statement = {});
+  static ClassType* DeclareClass(const Type* super, const std::string& name,
+                                 bool transient, const std::string& generates,
+                                 std::vector<Field> fields, size_t size);
 
-  Macro* DeclareMacro(const std::string& name, const Signature& signature,
-                      base::Optional<std::string> op = {});
+  static Macro* CreateMacro(std::string external_name,
+                            std::string readable_name,
+                            base::Optional<std::string> external_assembler_name,
+                            Signature signature, bool transitioning,
+                            base::Optional<Statement*> body);
+  static Macro* DeclareMacro(
+      const std::string& name,
+      base::Optional<std::string> external_assembler_name,
+      const Signature& signature, bool transitioning,
+      base::Optional<Statement*> body, base::Optional<std::string> op = {});
 
-  Builtin* DeclareBuiltin(const std::string& name, Builtin::Kind kind,
-                          bool external, const Signature& signature);
+  static Method* CreateMethod(AggregateType* class_type,
+                              const std::string& name, Signature signature,
+                              bool transitioning, Statement* body);
 
-  RuntimeFunction* DeclareRuntimeFunction(const std::string& name,
-                                          const Signature& signature);
+  static Intrinsic* CreateIntrinsic(const std::string& name,
+                                    const Signature& signature);
 
-  Variable* CreateVariable(const std::string& var, const Type* type,
-                           bool is_const);
-  Variable* DeclareVariable(const std::string& var, const Type* type,
-                            bool is_const);
+  static Intrinsic* DeclareIntrinsic(const std::string& name,
+                                     const Signature& signature);
 
-  Parameter* DeclareParameter(const std::string& name,
-                              std::string external_name, const Type* type);
+  static Builtin* CreateBuiltin(std::string external_name,
+                                std::string readable_name, Builtin::Kind kind,
+                                Signature signature, bool transitioning,
+                                base::Optional<Statement*> body);
+  static Builtin* DeclareBuiltin(const std::string& name, Builtin::Kind kind,
+                                 const Signature& signature, bool transitioning,
+                                 base::Optional<Statement*> body);
 
-  void DeclareExternConstant(const std::string& name, const Type* type,
-                             std::string value);
-  ModuleConstant* DeclareModuleConstant(const std::string& name,
-                                        const Type* type);
+  static RuntimeFunction* DeclareRuntimeFunction(const std::string& name,
+                                                 const Signature& signature,
+                                                 bool transitioning);
 
-  Generic* DeclareGeneric(const std::string& name, Module* module,
-                          GenericDeclaration* generic);
+  static void DeclareExternConstant(const std::string& name, const Type* type,
+                                    std::string value);
+  static NamespaceConstant* DeclareNamespaceConstant(const std::string& name,
+                                                     const Type* type,
+                                                     Expression* body);
 
-  TypeVector GetCurrentSpecializationTypeNamesVector();
-  base::Optional<Generic*> GetCurrentGeneric();
-
-  ScopeChain::Snapshot GetScopeChainSnapshot() { return chain_.TaskSnapshot(); }
-
-  std::set<const Variable*> GetLiveVariables() {
-    return chain_.GetLiveVariables();
-  }
-
-  bool IsDeclaredInCurrentScope(const std::string& name);
-
-  Statement* next_body() const { return next_body_; }
-
-  void PrintScopeChain() { chain_.Print(); }
-
-  class ModuleScopeActivator;
-  class NodeScopeActivator;
-  class CleanNodeScopeActivator;
-  class GenericScopeActivator;
-  class ScopedGenericSpecializationKey;
-  class ScopedGenericScopeChainSnapshot;
-
- private:
-  Scope* GetModuleScope(const Module* module);
-  Scope* GetNodeScope(const AstNode* node, bool reset_scope = false);
-  Scope* GetGenericScope(Generic* generic, const TypeVector& types);
+  static Generic* DeclareGeneric(const std::string& name,
+                                 GenericDeclaration* generic);
 
   template <class T>
-  T* RegisterDeclarable(std::unique_ptr<T> d) {
-    T* ptr = d.get();
-    declarables_.push_back(std::move(d));
-    return ptr;
+  static T* Declare(const std::string& name, T* d) {
+    CurrentScope::Get()->AddDeclarable(name, d);
+    return d;
   }
-
-  MacroList* GetMacroListForName(const std::string& name,
-                                 const Signature& signature);
-
-  void Declare(const std::string& name, std::unique_ptr<Declarable> d) {
-    chain_.Declare(name, RegisterDeclarable(std::move(d)));
+  template <class T>
+  static T* Declare(const std::string& name, std::unique_ptr<T> d) {
+    return CurrentScope::Get()->AddDeclarable(name,
+                                              RegisterDeclarable(std::move(d)));
   }
+  static Macro* DeclareOperator(const std::string& name, Macro* m);
 
-  int GetNextUniqueDeclarationNumber() { return unique_declaration_number_++; }
-
-  void CheckAlreadyDeclared(const std::string& name, const char* new_type);
-
-  int unique_declaration_number_;
-  ScopeChain chain_;
-  const SpecializationKey* current_generic_specialization_;
-  Statement* next_body_;
-  std::vector<std::unique_ptr<Declarable>> declarables_;
-  std::map<const Module*, Scope*> module_scopes_;
-  std::map<std::pair<const AstNode*, TypeVector>, Scope*> scopes_;
-  std::map<Generic*, ScopeChain::Snapshot> generic_declaration_scopes_;
+  static std::string GetGeneratedCallableName(
+      const std::string& name, const TypeVector& specialized_types);
 };
-
-class Declarations::NodeScopeActivator {
- public:
-  NodeScopeActivator(Declarations* declarations, AstNode* node)
-      : activator_(declarations->GetNodeScope(node)) {}
-
- private:
-  Scope::Activator activator_;
-};
-
-class Declarations::ModuleScopeActivator {
- public:
-  ModuleScopeActivator(Declarations* declarations, const Module* module)
-      : activator_(declarations->GetModuleScope(module)) {}
-
- private:
-  Scope::Activator activator_;
-};
-
-class Declarations::CleanNodeScopeActivator {
- public:
-  CleanNodeScopeActivator(Declarations* declarations, AstNode* node)
-      : activator_(declarations->GetNodeScope(node, true)) {}
-
- private:
-  Scope::Activator activator_;
-};
-
-class Declarations::GenericScopeActivator {
- public:
-  GenericScopeActivator(Declarations* declarations,
-                        const SpecializationKey& key)
-      : activator_(declarations->GetGenericScope(key.first, key.second)) {}
-
- private:
-  Scope::Activator activator_;
-};
-
-class Declarations::ScopedGenericSpecializationKey {
- public:
-  ScopedGenericSpecializationKey(Declarations* declarations,
-                                 const SpecializationKey& key)
-      : declarations_(declarations) {
-    declarations->current_generic_specialization_ = &key;
-  }
-  ~ScopedGenericSpecializationKey() {
-    declarations_->current_generic_specialization_ = nullptr;
-  }
-
- private:
-  Declarations* declarations_;
-};
-
-class Declarations::ScopedGenericScopeChainSnapshot {
- public:
-  ScopedGenericScopeChainSnapshot(Declarations* declarations,
-                                  const SpecializationKey& key)
-      : restorer_(declarations->generic_declaration_scopes_[key.first]) {}
-  ~ScopedGenericScopeChainSnapshot() = default;
-
- private:
-  ScopeChain::ScopedSnapshotRestorer restorer_;
-};
-
-std::string GetGeneratedCallableName(const std::string& name,
-                                     const TypeVector& specialized_types);
 
 }  // namespace torque
 }  // namespace internal

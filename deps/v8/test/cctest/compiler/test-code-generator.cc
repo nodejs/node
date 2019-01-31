@@ -5,12 +5,13 @@
 #include "src/assembler-inl.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/code-stub-assembler.h"
-#include "src/codegen.h"
-#include "src/compiler/code-generator.h"
-#include "src/compiler/instruction.h"
+#include "src/compiler/backend/code-generator.h"
+#include "src/compiler/backend/instruction.h"
 #include "src/compiler/linkage.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/heap-number-inl.h"
+#include "src/objects/smi.h"
 #include "src/optimized-compilation-info.h"
 
 #include "test/cctest/cctest.h"
@@ -129,7 +130,7 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
             __ Int32Constant(0));
         for (int lane = 0; lane < 4; lane++) {
           TNode<Int32T> lane_value = __ LoadAndUntagToWord32FixedArrayElement(
-              element, __ IntPtrConstant(lane));
+              __ CAST(element), __ IntPtrConstant(lane));
           vector = tester.raw_assembler_for_testing()->AddNode(
               tester.raw_assembler_for_testing()->machine()->I32x4ReplaceLane(
                   lane),
@@ -156,11 +157,11 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
 // ~~~
 // FixedArray teardown(CodeObject* /* unused  */, FixedArray result,
 //                     // Tagged registers.
-//                     Object* r0, Object* r1, ...,
+//                     Object r0, Object r1, ...,
 //                     // FP registers.
 //                     Float32 s0, Float64 d1, ...,
 //                     // Mixed stack slots.
-//                     Float64 mem0, Object* mem1, Float32 mem2, ...) {
+//                     Float64 mem0, Object mem1, Float32 mem2, ...) {
 //   result[0] = r0;
 //   result[1] = r1;
 //   ...
@@ -256,7 +257,7 @@ void PrintStateValue(std::ostream& os, Isolate* isolate, Handle<Object> value,
       os << value->Number();
       break;
     case MachineRepresentation::kSimd128: {
-      FixedArray* vector = FixedArray::cast(*value);
+      FixedArray vector = FixedArray::cast(*value);
       os << "[";
       for (int lane = 0; lane < 4; lane++) {
         os << Smi::cast(*vector->GetValueChecked<Smi>(isolate, lane))->value();
@@ -361,7 +362,7 @@ class TestEnvironment : public HandleAndZoneScope {
  public:
   // These constants may be tuned to experiment with different environments.
 
-#if defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
+#ifdef V8_TARGET_ARCH_IA32
   static constexpr int kGeneralRegisterCount = 3;
 #else
   static constexpr int kGeneralRegisterCount = 4;
@@ -380,19 +381,12 @@ class TestEnvironment : public HandleAndZoneScope {
   static constexpr int kDoubleConstantCount = 4;
 
   TestEnvironment()
-      : blocks_(1, main_zone()),
+      : blocks_(1, NewBlock(main_zone(), RpoNumber::FromInt(0)), main_zone()),
         code_(main_isolate(), main_zone(), &blocks_),
         rng_(CcTest::random_number_generator()),
         supported_reps_({MachineRepresentation::kTagged,
                          MachineRepresentation::kFloat32,
                          MachineRepresentation::kFloat64}) {
-    // Create and initialize a single empty block in blocks_.
-    InstructionBlock* block = new (main_zone()) InstructionBlock(
-        main_zone(), RpoNumber::FromInt(0), RpoNumber::Invalid(),
-        RpoNumber::Invalid(), false, false);
-    block->set_ao_number(RpoNumber::FromInt(0));
-    blocks_[0] = block;
-
     stack_slot_count_ =
         kTaggedSlotCount + kFloat32SlotCount + kFloat64SlotCount;
     if (TestSimd128Moves()) {
@@ -404,11 +398,11 @@ class TestEnvironment : public HandleAndZoneScope {
     // ~~~
     // FixedArray f(CodeObject* teardown, FixedArray preallocated_result,
     //              // Tagged registers.
-    //              Object*, Object*, ...,
+    //              Object, Object, ...,
     //              // FP registers.
     //              Float32, Float64, Simd128, ...,
     //              // Mixed stack slots.
-    //              Float64, Object*, Float32, Simd128, ...);
+    //              Float64, Object, Float32, Simd128, ...);
     // ~~~
     LocationSignature::Builder test_signature(
         main_zone(), 1,
@@ -539,8 +533,8 @@ class TestEnvironment : public HandleAndZoneScope {
     // differentiate between a pointer to a HeapNumber and a integer. For this
     // reason, we make sure all integers are Smis, including constants.
     for (int i = 0; i < kSmiConstantCount; i++) {
-      intptr_t smi_value = reinterpret_cast<intptr_t>(
-          Smi::FromInt(rng_->NextInt(Smi::kMaxValue)));
+      intptr_t smi_value = static_cast<intptr_t>(
+          Smi::FromInt(rng_->NextInt(Smi::kMaxValue)).ptr());
       Constant constant = kPointerSize == 8
                               ? Constant(static_cast<int64_t>(smi_value))
                               : Constant(static_cast<int32_t>(smi_value));
@@ -733,15 +727,13 @@ class TestEnvironment : public HandleAndZoneScope {
         switch (constant.type()) {
           case Constant::kInt32:
             constant_value =
-                Handle<Smi>(reinterpret_cast<Smi*>(
-                                static_cast<intptr_t>(constant.ToInt32())),
+                Handle<Smi>(Smi(static_cast<Address>(
+                                static_cast<intptr_t>(constant.ToInt32()))),
                             main_isolate());
             break;
           case Constant::kInt64:
-            constant_value =
-                Handle<Smi>(reinterpret_cast<Smi*>(
-                                static_cast<intptr_t>(constant.ToInt64())),
-                            main_isolate());
+            constant_value = Handle<Smi>(
+                Smi(static_cast<Address>(constant.ToInt64())), main_isolate());
             break;
           case Constant::kFloat32:
             constant_value = main_isolate()->factory()->NewHeapNumber(
@@ -824,7 +816,7 @@ class TestEnvironment : public HandleAndZoneScope {
           Handle<Smi> expected_lane =
               FixedArray::cast(*expected)->GetValueChecked<Smi>(main_isolate(),
                                                                 lane);
-          if (!actual_lane->StrictEquals(*expected_lane)) {
+          if (*actual_lane != *expected_lane) {
             return false;
           }
         }
@@ -924,6 +916,11 @@ class TestEnvironment : public HandleAndZoneScope {
     int index =
         rng_->NextInt(static_cast<int>(allocated_constants_[rep].size()));
     return allocated_constants_[rep][index];
+  }
+
+  static InstructionBlock* NewBlock(Zone* zone, RpoNumber rpo) {
+    return new (zone) InstructionBlock(zone, rpo, RpoNumber::Invalid(),
+                                       RpoNumber::Invalid(), false, false);
   }
 
   v8::base::RandomNumberGenerator* rng() const { return rng_; }

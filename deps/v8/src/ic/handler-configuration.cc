@@ -4,7 +4,7 @@
 
 #include "src/ic/handler-configuration.h"
 
-#include "src/code-stubs.h"
+#include "src/code-factory.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/maybe-object.h"
@@ -165,10 +165,10 @@ Handle<Object> LoadHandler::LoadFullChain(Isolate* isolate,
 }
 
 // static
-KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(MaybeObject* handler) {
+KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(MaybeObject handler) {
   DisallowHeapAllocation no_gc;
   if (handler->IsSmi()) {
-    int const raw_handler = handler->cast<Smi>()->value();
+    int const raw_handler = handler.ToSmi().value();
     Kind const kind = KindBits::decode(raw_handler);
     if ((kind == kElement || kind == kIndexedString) &&
         AllowOutOfBoundsBits::decode(raw_handler)) {
@@ -182,12 +182,8 @@ KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(MaybeObject* handler) {
 Handle<Object> StoreHandler::StoreElementTransition(
     Isolate* isolate, Handle<Map> receiver_map, Handle<Map> transition,
     KeyedAccessStoreMode store_mode) {
-  bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
-  ElementsKind elements_kind = receiver_map->elements_kind();
-  Handle<Code> stub = ElementsTransitionAndStoreStub(
-                          isolate, elements_kind, transition->elements_kind(),
-                          is_js_array, store_mode)
-                          .GetCode();
+  Handle<Code> stub =
+      CodeFactory::ElementsTransitionAndStore(isolate, store_mode).code();
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
   Handle<StoreHandler> handler = isolate->factory()->NewStoreHandler(1);

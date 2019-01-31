@@ -21,89 +21,89 @@ function listener(event, exec_state, event_data, data) {
   } catch (e) {
     exception = e;
     print(e);
-  }
+  }                                               // B34
 };
 
 Debug.setListener(listener);
 
-var id = x => x;                                  // B9 B10 B36 B37
+var id = x => x;                                  // B11 B12 B42 B43
 
 function test() {
   debugger;                                       // B0
   function fx1([
-                a,                                // B2
-                b                                 // B3
-              ]) {
-    assertEquals([1, 2], [a, b]);                 // B4
-  }                                               // B5
+                a,                                // B3
+                b                                 // B4
+              ]) {                                // B2
+    assertEquals([1, 2], [a, b]);                 // B5
+  }                                               // B6
   fx1([1, 2, 3]);                                 // B1
 
   function f2([
-                a,                                // B7
-                b = id(3)                         // B8
-              ]) {
-    assertEquals([4, 3], [a, b]);                 // B11
-  }                                               // B12
-  f2([4]);                                        // B6
+                a,                                // B9
+                b = id(3)                         // B10
+              ]) {                                // B8
+    assertEquals([4, 3], [a, b]);                 // B13
+  }                                               // B14
+  f2([4]);                                        // B7
 
   function f3({
-                x: a,                             // B14
-                y: b                              // B15
-              }) {
-    assertEquals([5, 6], [a, b]);                 // B16
-  }                                               // B17
-  f3({y: 6, x: 5});                               // B13
+                x: a,                             // B17
+                y: b                              // B18
+              }) {                                // B16
+    assertEquals([5, 6], [a, b]);                 // B19
+  }                                               // B20
+  f3({y: 6, x: 5});                               // B15
 
   function f4([
-                a,                                // B19
+                a,                                // B23
                 {
-                  b,                              // B20
-                  c,                              // B21
+                  b,                              // B24
+                  c,                              // B25
                 }
-              ]) {
-    assertEquals([2, 4, 6], [a, b, c]);           // B22
-  }                                               // B23
-  f4([2, {c: 6, b: 4}]);                          // B18
+              ]) {                                // B22
+    assertEquals([2, 4, 6], [a, b, c]);           // B26
+  }                                               // B27
+  f4([2, {c: 6, b: 4}]);                          // B21
 
   function f5([
                 {
-                  a,                              // B25
-                  b = 7                           // B26
+                  a,                              // B30
+                  b = 7                           // B31
                 },
-                c = 3                             // B27
-              ] = [{a:1}]) {
-    assertEquals([1, 7, 3], [a, b, c]);           // B28
-  }                                               // B29
-  f5();                                           // B24
+                c = 3                             // B32
+              ] = [{a:1}]) {                      // B29
+    assertEquals([1, 7, 3], [a, b, c]);           // B33
+  }                                               // B34
+  f5();                                           // B28
 
-  var name = "x";                                 // B30
+  var name = "x";                                 // B35
   function f6({
-                [id(name)]: a,                    // B34 B35
-                b = a                             // B38
-              }) {
-    assertEquals([9, 9], [a, b]);                 // B39
-  }                                               // B40
-  var o6 = {};                                    // B31
-  o6[name] = 9;                                   // B32
-  f6(o6);                                         // B33
+                [id(name)]: a,                    // B40 B41
+                b = a                             // B44
+              }) {                                // B39
+    assertEquals([9, 9], [a, b]);                 // B45
+  }                                               // B46
+  var o6 = {};                                    // B36
+  o6[name] = 9;                                   // B37
+  f6(o6);                                         // B38
 
   try {
-    throw [3, 4];                                 // B41
+    throw [3, 4];                                 // B47
   } catch ([
-             a,                                   // B42
-             b,                                   // B43
-             c = 6                                // B44
-           ]) {
-    assertEquals([3, 4, 6], [a, b, c]);           // B45
+             a,                                   // B49
+             b,                                   // B50
+             c = 6                                // B51
+           ]) {                                   // B48
+    assertEquals([3, 4, 6], [a, b, c]);           // B52
   }
 
   var {
-    x: a,
-    y: b = 9
-  } = { x: 4 };                                   // B46
-  assertEquals([4, 9], [a, b]);                   // B47
-}                                                 // B48
+    x: a,                                         // B54
+    y: b = 9                                      // B55
+  } = { x: 4 };                                   // B53
+  assertEquals([4, 9], [a, b]);                   // B56
+}                                                 // B57
 
 test();
-Debug.setListener(null);                          // B49
+Debug.setListener(null);                          // B58
 assertNull(exception);

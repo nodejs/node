@@ -56,7 +56,7 @@ class V8_EXPORT_PRIVATE DeadCodeElimination final
   Reduction ReducePureNode(Node* node);
   Reduction ReduceUnreachableOrIfException(Node* node);
   Reduction ReduceEffectNode(Node* node);
-  Reduction ReduceDeoptimizeOrReturnOrTerminate(Node* node);
+  Reduction ReduceDeoptimizeOrReturnOrTerminateOrTailCall(Node* node);
   Reduction ReduceBranchOrSwitch(Node* node);
 
   Reduction RemoveLoopExit(Node* node);

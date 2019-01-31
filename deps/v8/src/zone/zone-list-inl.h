@@ -9,7 +9,7 @@
 
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
-#include "src/utils.h"
+#include "src/memcopy.h"
 
 namespace v8 {
 namespace internal {
@@ -126,14 +126,6 @@ template <typename T>
 template <class Visitor>
 void ZoneList<T>::Iterate(Visitor* visitor) {
   for (int i = 0; i < length_; i++) visitor->Apply(&data_[i]);
-}
-
-template <typename T>
-bool ZoneList<T>::Contains(const T& elm) const {
-  for (int i = 0; i < length_; i++) {
-    if (data_[i] == elm) return true;
-  }
-  return false;
 }
 
 template <typename T>

@@ -94,8 +94,6 @@ consts_misc = [
     { 'name': 'OddballOther',           'value': 'Oddball::kOther' },
     { 'name': 'OddballException',       'value': 'Oddball::kException' },
 
-    { 'name': 'prop_idx_first',
-        'value': 'DescriptorArray::kFirstIndex' },
     { 'name': 'prop_kind_Data',
         'value': 'kData' },
     { 'name': 'prop_kind_Accessor',
@@ -192,10 +190,10 @@ consts_misc = [
     { 'name': 'scopeinfo_idx_first_vars',
         'value': 'ScopeInfo::kVariablePartIndex' },
 
-    { 'name': 'jsarray_buffer_was_neutered_mask',
-        'value': 'JSArrayBuffer::WasNeuteredBit::kMask' },
-    { 'name': 'jsarray_buffer_was_neutered_shift',
-        'value': 'JSArrayBuffer::WasNeuteredBit::kShift' },
+    { 'name': 'jsarray_buffer_was_detached_mask',
+        'value': 'JSArrayBuffer::WasDetachedBit::kMask' },
+    { 'name': 'jsarray_buffer_was_detached_shift',
+        'value': 'JSArrayBuffer::WasDetachedBit::kShift' },
 
     { 'name': 'context_idx_scope_info',
         'value': 'Context::SCOPE_INFO_INDEX' },
@@ -207,8 +205,8 @@ consts_misc = [
         'value': 'Context::EXTENSION_INDEX' },
     { 'name': 'context_min_slots',
         'value': 'Context::MIN_CONTEXT_SLOTS' },
-    { 'name': 'context_idx_embedder_data',
-        'value': 'Internals::kContextEmbedderDataIndex' },
+    { 'name': 'native_context_embedder_data_offset',
+        'value': 'Internals::kNativeContextEmbedderDataOffset' },
 
 
     { 'name': 'namedictionaryshape_prefix_size',
@@ -232,6 +230,9 @@ consts_misc = [
         'value': 'SimpleNumberDictionaryShape::kEntrySize' },
 
     { 'name': 'type_JSError__JS_ERROR_TYPE', 'value': 'JS_ERROR_TYPE' },
+
+    { 'name': 'class_SharedFunctionInfo__function_data__Object',
+        'value': 'SharedFunctionInfo::kFunctionDataOffset' },
 ];
 
 #
@@ -288,7 +289,7 @@ extras_accessors = [
 expected_classes = [
     'ConsString', 'FixedArray', 'HeapNumber', 'JSArray', 'JSFunction',
     'JSObject', 'JSRegExp', 'JSValue', 'Map', 'Oddball', 'Script',
-    'SeqOneByteString', 'SharedFunctionInfo', 'ScopeInfo'
+    'SeqOneByteString', 'SharedFunctionInfo', 'ScopeInfo', 'JSPromise'
 ];
 
 
@@ -311,6 +312,7 @@ header = '''
 #include "src/frames-inl.h" /* for architecture-specific frame constants */
 #include "src/contexts.h"
 #include "src/objects.h"
+#include "src/objects/js-promise.h"
 #include "src/objects/js-regexp-string-iterator.h"
 
 using namespace v8::internal;
@@ -517,7 +519,8 @@ def parse_field(call):
 
         consts = [];
 
-        if (kind == 'ACCESSORS' or kind == 'ACCESSORS_GCSAFE'):
+        if (kind == 'ACCESSORS' or kind == 'ACCESSORS2' or
+            kind == 'ACCESSORS_GCSAFE'):
                 klass = args[0];
                 field = args[1];
                 dtype = args[2].replace('<', '_').replace('>', '_')
@@ -560,7 +563,7 @@ def load_fields_from_file(filename):
         # may span multiple lines and may contain nested parentheses.  We also
         # call parse_field() to pick apart the invocation.
         #
-        prefixes = [ 'ACCESSORS', 'ACCESSORS_GCSAFE',
+        prefixes = [ 'ACCESSORS', 'ACCESSORS2', 'ACCESSORS_GCSAFE',
                      'SMI_ACCESSORS', 'ACCESSORS_TO_SMI' ];
         current = '';
         opens = 0;

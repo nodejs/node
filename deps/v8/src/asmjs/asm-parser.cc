@@ -12,6 +12,7 @@
 #include "src/asmjs/asm-js.h"
 #include "src/asmjs/asm-types.h"
 #include "src/base/optional.h"
+#include "src/base/overflowing-math.h"
 #include "src/flags.h"
 #include "src/parsing/scanner.h"
 #include "src/wasm/wasm-limits.h"
@@ -343,7 +344,7 @@ void AsmJsParser::ValidateModule() {
   RECURSE(ValidateModuleParameters());
   EXPECT_TOKEN('{');
   EXPECT_TOKEN(TOK(UseAsm));
-  SkipSemicolon();
+  RECURSE(SkipSemicolon());
   RECURSE(ValidateModuleVars());
   while (Peek(TOK(function))) {
     RECURSE(ValidateFunction());
@@ -1498,9 +1499,14 @@ AsmType* AsmJsParser::AssignmentExpression() {
         FAILn("Illegal type stored to heap view");
       }
       if (heap_type->IsA(AsmType::Float32Array()) &&
-          value->IsA(AsmType::Double())) {
+          value->IsA(AsmType::DoubleQ())) {
         // Assignment to a float32 heap can be used to convert doubles.
         current_function_builder_->Emit(kExprF32ConvertF64);
+      }
+      if (heap_type->IsA(AsmType::Float64Array()) &&
+          value->IsA(AsmType::FloatQ())) {
+        // Assignment to a float64 heap can be used to convert floats.
+        current_function_builder_->Emit(kExprF64ConvertF32);
       }
       ret = value;
 #define V(array_type, wasmload, wasmstore, type)                         \
@@ -1559,7 +1565,8 @@ AsmType* AsmJsParser::UnaryExpression() {
     if (CheckForUnsigned(&uvalue)) {
       // TODO(bradnelson): was supposed to be 0x7FFFFFFF, check errata.
       if (uvalue <= 0x80000000) {
-        current_function_builder_->EmitI32Const(-static_cast<int32_t>(uvalue));
+        current_function_builder_->EmitI32Const(
+            base::NegateWithWraparound(static_cast<int32_t>(uvalue)));
       } else {
         FAILn("Integer numeric literal out of range.");
       }
@@ -1637,6 +1644,7 @@ AsmType* AsmJsParser::UnaryExpression() {
 
 // 6.8.8 MultiplicativeExpression
 AsmType* AsmJsParser::MultiplicativeExpression() {
+  AsmType* a;
   uint32_t uvalue;
   if (CheckForUnsignedBelow(0x100000, &uvalue)) {
     if (Check('*')) {
@@ -1649,8 +1657,10 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
       current_function_builder_->EmitI32Const(value);
       current_function_builder_->Emit(kExprI32Mul);
       return AsmType::Intish();
+    } else {
+      scanner_.Rewind();
+      RECURSEn(a = UnaryExpression());
     }
-    scanner_.Rewind();
   } else if (Check('-')) {
     if (CheckForUnsignedBelow(0x100000, &uvalue)) {
       int32_t value = -static_cast<int32_t>(uvalue);
@@ -1664,12 +1674,14 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
         current_function_builder_->Emit(kExprI32Mul);
         return AsmType::Intish();
       }
-      return AsmType::Signed();
+      a = AsmType::Signed();
+    } else {
+      scanner_.Rewind();
+      RECURSEn(a = UnaryExpression());
     }
-    scanner_.Rewind();
+  } else {
+    RECURSEn(a = UnaryExpression());
   }
-  AsmType* a;
-  RECURSEn(a = UnaryExpression());
   for (;;) {
     if (Check('*')) {
       uint32_t uvalue;
@@ -1987,7 +1999,8 @@ AsmType* AsmJsParser::BitwiseORExpression() {
     // Remember whether the first operand to this OR-expression has requested
     // deferred validation of the |0 annotation.
     // NOTE: This has to happen here to work recursively.
-    bool requires_zero = call_coercion_deferred_->IsExactly(AsmType::Signed());
+    bool requires_zero =
+        AsmType::IsExactly(call_coercion_deferred_, AsmType::Signed());
     call_coercion_deferred_ = nullptr;
     // TODO(bradnelson): Make it prettier.
     bool zero = false;

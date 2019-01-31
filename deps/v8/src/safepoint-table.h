@@ -7,7 +7,6 @@
 
 #include "src/allocation.h"
 #include "src/assert-scope.h"
-#include "src/utils.h"
 #include "src/v8memory.h"
 #include "src/zone/zone-chunk-list.h"
 #include "src/zone/zone.h"
@@ -37,34 +36,25 @@ class SafepointEntry {
     bits_ = nullptr;
   }
 
+  int trampoline_pc() { return trampoline_pc_; }
+
+  static const int kSaveDoublesFieldBits = 1;
+  static const int kDeoptIndexBits = 32 - kSaveDoublesFieldBits;
+
+  class DeoptimizationIndexField : public BitField<int, 0, kDeoptIndexBits> {};
+  class SaveDoublesField
+      : public BitField<bool, DeoptimizationIndexField::kNext,
+                        kSaveDoublesFieldBits> {};
+
   int deoptimization_index() const {
-    DCHECK(is_valid());
+    DCHECK(is_valid() && has_deoptimization_index());
     return DeoptimizationIndexField::decode(info_);
   }
 
-  int trampoline_pc() { return trampoline_pc_; }
-
-  void set_trampoline_pc(int trampoline_pc) { trampoline_pc_ = trampoline_pc; }
-
-  static const int kArgumentsFieldBits = 3;
-  static const int kSaveDoublesFieldBits = 1;
-  static const int kDeoptIndexBits =
-      32 - kArgumentsFieldBits - kSaveDoublesFieldBits;
-
-  class DeoptimizationIndexField:
-    public BitField<int, 0, kDeoptIndexBits> {};  // NOLINT
-  class ArgumentsField:
-    public BitField<unsigned,
-                    kDeoptIndexBits,
-                    kArgumentsFieldBits> {};  // NOLINT
-  class SaveDoublesField:
-    public BitField<bool,
-                    kDeoptIndexBits + kArgumentsFieldBits,
-                    kSaveDoublesFieldBits> { }; // NOLINT
-
-  int argument_count() const {
+  bool has_deoptimization_index() const {
     DCHECK(is_valid());
-    return ArgumentsField::decode(info_);
+    return DeoptimizationIndexField::decode(info_) !=
+           DeoptimizationIndexField::kMax;
   }
 
   bool has_doubles() const {
@@ -89,7 +79,7 @@ class SafepointEntry {
 
 class SafepointTable {
  public:
-  explicit SafepointTable(Code* code);
+  explicit SafepointTable(Code code);
   explicit SafepointTable(Address instruction_start,
                           size_t safepoint_table_offset, uint32_t stack_slots,
                           bool has_deopt = false);
@@ -114,7 +104,7 @@ class SafepointTable {
 
   SafepointEntry GetEntry(unsigned index) const {
     DCHECK(index < length_);
-    unsigned info = Memory<uint32_t>(GetInfoLocation(index));
+    unsigned info = Memory<uint32_t>(GetEncodedInfoLocation(index));
     uint8_t* bits = &Memory<uint8_t>(entries_ + (index * entry_size_));
     int trampoline_pc =
         has_deopt_ ? Memory<int>(GetTrampolineLocation(index)) : -1;
@@ -134,17 +124,16 @@ class SafepointTable {
   static const int kEntrySizeOffset = kLengthOffset + kIntSize;
   static const int kHeaderSize = kEntrySizeOffset + kIntSize;
   static const int kPcOffset = 0;
-  static const int kDeoptimizationIndexOffset = kPcOffset + kIntSize;
-  static const int kTrampolinePcOffset = kDeoptimizationIndexOffset + kIntSize;
+  static const int kEncodedInfoOffset = kPcOffset + kIntSize;
+  static const int kTrampolinePcOffset = kEncodedInfoOffset + kIntSize;
   static const int kFixedEntrySize = kTrampolinePcOffset + kIntSize;
 
   Address GetPcOffsetLocation(unsigned index) const {
     return pc_and_deoptimization_indexes_ + (index * kFixedEntrySize);
   }
 
-  // TODO(juliana): rename this to GetDeoptimizationIndexLocation
-  Address GetInfoLocation(unsigned index) const {
-    return GetPcOffsetLocation(index) + kDeoptimizationIndexOffset;
+  Address GetEncodedInfoLocation(unsigned index) const {
+    return GetPcOffsetLocation(index) + kEncodedInfoOffset;
   }
 
   Address GetTrampolineLocation(unsigned index) const {
@@ -154,7 +143,7 @@ class SafepointTable {
   static void PrintBits(std::ostream& os,  // NOLINT
                         uint8_t byte, int digits);
 
-  DisallowHeapAllocation no_allocation_;
+  DISALLOW_HEAP_ALLOCATION(no_allocation_);
   Address instruction_start_;
   uint32_t stack_slots_;
   unsigned length_;
@@ -185,7 +174,7 @@ class Safepoint {
   };
 
   static const int kNoDeoptimizationIndex =
-      (1 << (SafepointEntry::kDeoptIndexBits)) - 1;
+      SafepointEntry::DeoptimizationIndexField::kMax;
 
   void DefinePointerSlot(int index) { indexes_->push_back(index); }
   void DefinePointerRegister(Register reg);
@@ -213,7 +202,6 @@ class SafepointTableBuilder {
   // Define a new safepoint for the current position in the body.
   Safepoint DefineSafepoint(Assembler* assembler,
                             Safepoint::Kind kind,
-                            int arguments,
                             Safepoint::DeoptMode mode);
 
   // Record deoptimization index for lazy deoptimization for the last
@@ -229,23 +217,21 @@ class SafepointTableBuilder {
 
   // Find the Deoptimization Info with pc offset {pc} and update its
   // trampoline field. Calling this function ensures that the safepoint
-  // table contains the trampoline PC (trampoline} that replaced the
+  // table contains the trampoline PC {trampoline} that replaced the
   // return PC {pc} on the stack.
   int UpdateDeoptimizationInfo(int pc, int trampoline, int start);
 
  private:
   struct DeoptimizationInfo {
     unsigned pc;
-    unsigned arguments;
+    unsigned deopt_index;
     bool has_doubles;
     int trampoline;
     ZoneChunkList<int>* indexes;
     ZoneChunkList<int>* registers;
-    unsigned deopt_index;
-    DeoptimizationInfo(Zone* zone, unsigned pc, unsigned arguments,
-                       Safepoint::Kind kind)
+    DeoptimizationInfo(Zone* zone, unsigned pc, Safepoint::Kind kind)
         : pc(pc),
-          arguments(arguments),
+          deopt_index(Safepoint::kNoDeoptimizationIndex),
           has_doubles(kind & Safepoint::kWithDoubles),
           trampoline(-1),
           indexes(new (zone) ZoneChunkList<int>(
@@ -253,14 +239,16 @@ class SafepointTableBuilder {
           registers(kind & Safepoint::kWithRegisters
                         ? new (zone) ZoneChunkList<int>(
                               zone, ZoneChunkList<int>::StartMode::kSmall)
-                        : nullptr),
-          deopt_index(Safepoint::kNoDeoptimizationIndex) {}
+                        : nullptr) {}
   };
 
+  // Encodes all fields of a {DeoptimizationInfo} except {pc} and {trampoline}.
   uint32_t EncodeExceptPC(const DeoptimizationInfo&);
 
+  // Compares all fields of a {DeoptimizationInfo} except {pc} and {trampoline}.
   bool IsIdenticalExceptForPc(const DeoptimizationInfo&,
                               const DeoptimizationInfo&) const;
+
   // If all entries are identical, replace them by 1 entry with pc = kMaxUInt32.
   void RemoveDuplicates();
 

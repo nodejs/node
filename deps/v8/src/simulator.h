@@ -8,10 +8,12 @@
 #include "src/globals.h"
 #include "src/objects/code.h"
 
-#if V8_TARGET_ARCH_IA32
-#include "src/ia32/simulator-ia32.h"
-#elif V8_TARGET_ARCH_X64
-#include "src/x64/simulator-x64.h"
+#if !defined(USE_SIMULATOR)
+#include "src/utils.h"
+#endif
+
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+// No simulator for ia32 or x64.
 #elif V8_TARGET_ARCH_ARM64
 #include "src/arm64/simulator-arm64.h"
 #elif V8_TARGET_ARCH_ARM
@@ -45,12 +47,18 @@ class SimulatorStack : public v8::internal::AllStatic {
     return Simulator::current(isolate)->StackLimit(c_limit);
   }
 
-  static inline uintptr_t RegisterCTryCatch(v8::internal::Isolate* isolate,
-                                            uintptr_t try_catch_address) {
-    return Simulator::current(isolate)->PushAddress(try_catch_address);
+  // Returns the current stack address on the simulator stack frame.
+  // The returned address is comparable with JS stack address.
+  static inline uintptr_t RegisterJSStackComparableAddress(
+      v8::internal::Isolate* isolate) {
+    // The value of |kPlaceHolder| is actually not used.  It just occupies a
+    // single word on the stack frame of the simulator.
+    const uintptr_t kPlaceHolder = 0x4A535350u;  // "JSSP" in ASCII
+    return Simulator::current(isolate)->PushAddress(kPlaceHolder);
   }
 
-  static inline void UnregisterCTryCatch(v8::internal::Isolate* isolate) {
+  static inline void UnregisterJSStackComparableAddress(
+      v8::internal::Isolate* isolate) {
     Simulator::current(isolate)->PopAddress();
   }
 };
@@ -69,13 +77,16 @@ class SimulatorStack : public v8::internal::AllStatic {
     return c_limit;
   }
 
-  static inline uintptr_t RegisterCTryCatch(v8::internal::Isolate* isolate,
-                                            uintptr_t try_catch_address) {
+  // Returns the current stack address on the native stack frame.
+  // The returned address is comparable with JS stack address.
+  static inline uintptr_t RegisterJSStackComparableAddress(
+      v8::internal::Isolate* isolate) {
     USE(isolate);
-    return try_catch_address;
+    return internal::GetCurrentStackPosition();
   }
 
-  static inline void UnregisterCTryCatch(v8::internal::Isolate* isolate) {
+  static inline void UnregisterJSStackComparableAddress(
+      v8::internal::Isolate* isolate) {
     USE(isolate);
   }
 };
@@ -97,7 +108,7 @@ class GeneratedCode {
     return GeneratedCode(isolate, reinterpret_cast<Signature*>(buffer));
   }
 
-  static GeneratedCode FromCode(Code* code) {
+  static GeneratedCode FromCode(Code code) {
     return FromAddress(code->GetIsolate(), code->entry());
   }
 

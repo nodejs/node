@@ -85,7 +85,7 @@ V8_GENERIC_JSON = {
   "units": "ms",
 }
 
-Output = namedtuple("Output", "stdout, stderr, timed_out")
+Output = namedtuple("Output", "stdout, stderr, timed_out, exit_code")
 
 class PerfTest(unittest.TestCase):
   @classmethod
@@ -113,6 +113,7 @@ class PerfTest(unittest.TestCase):
     os.makedirs(TEST_WORKSPACE)
 
   def tearDown(self):
+    patch.stopall()
     if path.exists(TEST_WORKSPACE):
       shutil.rmtree(TEST_WORKSPACE)
 
@@ -125,7 +126,8 @@ class PerfTest(unittest.TestCase):
     # Fake output for each test run.
     test_outputs = [Output(stdout=arg,
                            stderr=None,
-                           timed_out=kwargs.get("timed_out", False))
+                           timed_out=kwargs.get("timed_out", False),
+                           exit_code=kwargs.get("exit_code", 0))
                     for arg in args[1]]
     def create_cmd(*args, **kwargs):
       cmd = MagicMock()
@@ -134,7 +136,9 @@ class PerfTest(unittest.TestCase):
       cmd.execute = MagicMock(side_effect=execute)
       return cmd
 
-    command.Command = MagicMock(side_effect=create_cmd)
+    patch.object(
+        run_perf.command, 'PosixCommand',
+        MagicMock(side_effect=create_cmd)).start()
 
     # Check that d8 is called from the correct cwd for each test run.
     dirs = [path.join(TEST_WORKSPACE, arg) for arg in args[0]]
@@ -402,6 +406,18 @@ class PerfTest(unittest.TestCase):
     self._VerifyErrors(["Found non-numeric in test/Infra/Constant4"])
     self._VerifyMock(path.join("out", "x64.release", "cc"), "--flag", "")
 
+  def testOneRunCrashed(self):
+    self._WriteTestInput(V8_JSON)
+    self._MockCommand(
+        ["."], ["x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n"], exit_code=1)
+    self.assertEquals(1, self._CallMain())
+    self._VerifyResults("test", "score", [
+      {"name": "Richards", "results": [], "stddev": ""},
+      {"name": "DeltaBlue", "results": [], "stddev": ""},
+    ])
+    self._VerifyErrors([])
+    self._VerifyMock(path.join("out", "x64.release", "d7"), "--flag", "run.js")
+
   def testOneRunTimingOut(self):
     test_input = dict(V8_JSON)
     test_input["timeout"] = 70
@@ -412,10 +428,7 @@ class PerfTest(unittest.TestCase):
       {"name": "Richards", "results": [], "stddev": ""},
       {"name": "DeltaBlue", "results": [], "stddev": ""},
     ])
-    self._VerifyErrors([
-      "Regexp \"^Richards: (.+)$\" didn't match for test test/Richards.",
-      "Regexp \"^DeltaBlue: (.+)$\" didn't match for test test/DeltaBlue.",
-    ])
+    self._VerifyErrors([])
     self._VerifyMock(
         path.join("out", "x64.release", "d7"), "--flag", "run.js", timeout=70)
 

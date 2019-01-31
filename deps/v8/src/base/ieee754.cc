@@ -20,6 +20,7 @@
 
 #include "src/base/build_config.h"
 #include "src/base/macros.h"
+#include "src/base/overflowing-math.h"
 
 namespace v8 {
 namespace base {
@@ -945,7 +946,7 @@ double acos(double x) {
       else
         return pi + 2.0 * pio2_lo; /* acos(-1)= pi */
     }
-    return (x - x) / (x - x); /* acos(|x|>1) is NaN */
+    return std::numeric_limits<double>::signaling_NaN();  // acos(|x|>1) is NaN
   }
   if (ix < 0x3FE00000) {                            /* |x| < 0.5 */
     if (ix <= 0x3C600000) return pio2_hi + pio2_lo; /*if|x|<2**-57*/
@@ -998,7 +999,7 @@ double acosh(double x) {
   uint32_t lx;
   EXTRACT_WORDS(hx, lx, x);
   if (hx < 0x3FF00000) { /* x < 1 */
-    return (x - x) / (x - x);
+    return std::numeric_limits<double>::signaling_NaN();
   } else if (hx >= 0x41B00000) { /* x > 2**28 */
     if (hx >= 0x7FF00000) {      /* x is inf of NaN */
       return x + x;
@@ -1072,9 +1073,10 @@ double asin(double x) {
   if (ix >= 0x3FF00000) { /* |x|>= 1 */
     uint32_t lx;
     GET_LOW_WORD(lx, x);
-    if (((ix - 0x3FF00000) | lx) == 0) /* asin(1)=+-pi/2 with inexact */
+    if (((ix - 0x3FF00000) | lx) == 0) { /* asin(1)=+-pi/2 with inexact */
       return x * pio2_hi + x * pio2_lo;
-    return (x - x) / (x - x);       /* asin(|x|>1) is NaN */
+    }
+    return std::numeric_limits<double>::signaling_NaN();  // asin(|x|>1) is NaN
   } else if (ix < 0x3FE00000) {     /* |x|<0.5 */
     if (ix < 0x3E400000) {          /* if |x| < 2**-27 */
       if (huge + x > one) return x; /* return x with inexact if x!=0*/
@@ -1298,11 +1300,13 @@ double atan2(double y, double x) {
   ix = hx & 0x7FFFFFFF;
   EXTRACT_WORDS(hy, ly, y);
   iy = hy & 0x7FFFFFFF;
-  if (((ix | ((lx | -static_cast<int32_t>(lx)) >> 31)) > 0x7FF00000) ||
-      ((iy | ((ly | -static_cast<int32_t>(ly)) >> 31)) > 0x7FF00000)) {
+  if (((ix | ((lx | NegateWithWraparound<int32_t>(lx)) >> 31)) > 0x7FF00000) ||
+      ((iy | ((ly | NegateWithWraparound<int32_t>(ly)) >> 31)) > 0x7FF00000)) {
     return x + y; /* x or y is NaN */
   }
-  if (((hx - 0x3FF00000) | lx) == 0) return atan(y); /* x=1.0 */
+  if ((SubWithWraparound(hx, 0x3FF00000) | lx) == 0) {
+    return atan(y); /* x=1.0 */
+  }
   m = ((hy >> 31) & 1) | ((hx >> 30) & 2);           /* 2*sign(x)+sign(y) */
 
   /* when y = 0 */
@@ -1609,9 +1613,14 @@ double atanh(double x) {
   uint32_t lx;
   EXTRACT_WORDS(hx, lx, x);
   ix = hx & 0x7FFFFFFF;
-  if ((ix | ((lx | -static_cast<int32_t>(lx)) >> 31)) > 0x3FF00000) /* |x|>1 */
-    return (x - x) / (x - x);
-  if (ix == 0x3FF00000) return x / zero;
+  if ((ix | ((lx | NegateWithWraparound<int32_t>(lx)) >> 31)) > 0x3FF00000) {
+    /* |x|>1 */
+    return std::numeric_limits<double>::signaling_NaN();
+  }
+  if (ix == 0x3FF00000) {
+    return x > 0 ? std::numeric_limits<double>::infinity()
+                 : -std::numeric_limits<double>::infinity();
+  }
   if (ix < 0x3E300000 && (huge + x) > zero) return x; /* x<2**-28 */
   SET_HIGH_WORD(x, ix);
   if (ix < 0x3FE00000) { /* x < 0.5 */
@@ -1690,7 +1699,6 @@ double log(double x) {
       Lg7 = 1.479819860511658591e-01;      /* 3FC2F112 DF3E5244 */
 
   static const double zero = 0.0;
-  static volatile double vzero = 0.0;
 
   double hfsq, f, s, z, R, w, t1, t2, dk;
   int32_t k, hx, i, j;
@@ -1700,9 +1708,12 @@ double log(double x) {
 
   k = 0;
   if (hx < 0x00100000) { /* x < 2**-1022  */
-    if (((hx & 0x7FFFFFFF) | lx) == 0)
-      return -two54 / vzero;           /* log(+-0)=-inf */
-    if (hx < 0) return (x - x) / zero; /* log(-#) = NaN */
+    if (((hx & 0x7FFFFFFF) | lx) == 0) {
+      return -std::numeric_limits<double>::infinity(); /* log(+-0)=-inf */
+    }
+    if (hx < 0) {
+      return std::numeric_limits<double>::signaling_NaN(); /* log(-#) = NaN */
+    }
     k -= 54;
     x *= two54; /* subnormal number, scale up x */
     GET_HIGH_WORD(hx, x);
@@ -1833,7 +1844,6 @@ double log1p(double x) {
       Lp7 = 1.479819860511658591e-01;      /* 3FC2F112 DF3E5244 */
 
   static const double zero = 0.0;
-  static volatile double vzero = 0.0;
 
   double hfsq, f, c, s, z, R, u;
   int32_t k, hx, hu, ax;
@@ -1845,9 +1855,9 @@ double log1p(double x) {
   if (hx < 0x3FDA827A) {    /* 1+x < sqrt(2)+ */
     if (ax >= 0x3FF00000) { /* x <= -1.0 */
       if (x == -1.0)
-        return -two54 / vzero; /* log1p(-1)=+inf */
+        return -std::numeric_limits<double>::infinity(); /* log1p(-1)=+inf */
       else
-        return (x - x) / (x - x); /* log1p(x<-1)=NaN */
+        return std::numeric_limits<double>::signaling_NaN();  // log1p(x<-1)=NaN
     }
     if (ax < 0x3E200000) {    /* |x| < 2**-29 */
       if (two54 + x > zero    /* raise inexact */
@@ -2016,9 +2026,6 @@ double log2(double x) {
       ivln2hi = 1.44269504072144627571e+00, /* 0x3FF71547, 0x65200000 */
       ivln2lo = 1.67517131648865118353e-10; /* 0x3DE705FC, 0x2EEFA200 */
 
-  static const double zero = 0.0;
-  static volatile double vzero = 0.0;
-
   double f, hfsq, hi, lo, r, val_hi, val_lo, w, y;
   int32_t i, k, hx;
   uint32_t lx;
@@ -2027,15 +2034,18 @@ double log2(double x) {
 
   k = 0;
   if (hx < 0x00100000) { /* x < 2**-1022  */
-    if (((hx & 0x7FFFFFFF) | lx) == 0)
-      return -two54 / vzero;           /* log(+-0)=-inf */
-    if (hx < 0) return (x - x) / zero; /* log(-#) = NaN */
+    if (((hx & 0x7FFFFFFF) | lx) == 0) {
+      return -std::numeric_limits<double>::infinity(); /* log(+-0)=-inf */
+    }
+    if (hx < 0) {
+      return std::numeric_limits<double>::signaling_NaN(); /* log(-#) = NaN */
+    }
     k -= 54;
     x *= two54; /* subnormal number, scale up x */
     GET_HIGH_WORD(hx, x);
   }
   if (hx >= 0x7FF00000) return x + x;
-  if (hx == 0x3FF00000 && lx == 0) return zero; /* log(1) = +0 */
+  if (hx == 0x3FF00000 && lx == 0) return 0.0; /* log(1) = +0 */
   k += (hx >> 20) - 1023;
   hx &= 0x000FFFFF;
   i = (hx + 0x95F64) & 0x100000;
@@ -2123,9 +2133,6 @@ double log10(double x) {
       log10_2hi = 3.01029995663611771306e-01, /* 0x3FD34413, 0x509F6000 */
       log10_2lo = 3.69423907715893078616e-13; /* 0x3D59FEF3, 0x11F12B36 */
 
-  static const double zero = 0.0;
-  static volatile double vzero = 0.0;
-
   double y;
   int32_t i, k, hx;
   uint32_t lx;
@@ -2134,16 +2141,19 @@ double log10(double x) {
 
   k = 0;
   if (hx < 0x00100000) { /* x < 2**-1022  */
-    if (((hx & 0x7FFFFFFF) | lx) == 0)
-      return -two54 / vzero;           /* log(+-0)=-inf */
-    if (hx < 0) return (x - x) / zero; /* log(-#) = NaN */
+    if (((hx & 0x7FFFFFFF) | lx) == 0) {
+      return -std::numeric_limits<double>::infinity(); /* log(+-0)=-inf */
+    }
+    if (hx < 0) {
+      return std::numeric_limits<double>::quiet_NaN(); /* log(-#) = NaN */
+    }
     k -= 54;
     x *= two54; /* subnormal number, scale up x */
     GET_HIGH_WORD(hx, x);
     GET_LOW_WORD(lx, x);
   }
   if (hx >= 0x7FF00000) return x + x;
-  if (hx == 0x3FF00000 && lx == 0) return zero; /* log(1) = +0 */
+  if (hx == 0x3FF00000 && lx == 0) return 0.0; /* log(1) = +0 */
   k += (hx >> 20) - 1023;
 
   i = (k & 0x80000000) >> 31;

@@ -12,7 +12,7 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 36
+bytecode array length: 37
 bytecodes: [
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
@@ -21,7 +21,8 @@ bytecodes: [
                 B(Mov), R(closure), R(3),
                 B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(3),
   /*    0 E> */ B(StackCheck),
-  /*    8 S> */ B(CreateObjectLiteral), U8(1), U8(2), U8(41), R(1),
+  /*    8 S> */ B(CreateObjectLiteral), U8(1), U8(2), U8(41),
+                B(Star), R(1),
   /*   16 E> */ B(CreateClosure), U8(2), U8(3), U8(0),
                 B(StaNamedOwnProperty), R(1), U8(3), U8(4),
                 B(Ldar), R(1),

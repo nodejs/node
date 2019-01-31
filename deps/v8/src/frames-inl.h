@@ -14,6 +14,33 @@
 namespace v8 {
 namespace internal {
 
+class InnerPointerToCodeCache {
+ public:
+  struct InnerPointerToCodeCacheEntry {
+    Address inner_pointer;
+    Code code;
+    SafepointEntry safepoint_entry;
+  };
+
+  explicit InnerPointerToCodeCache(Isolate* isolate) : isolate_(isolate) {
+    Flush();
+  }
+
+  void Flush() { memset(static_cast<void*>(&cache_[0]), 0, sizeof(cache_)); }
+
+  InnerPointerToCodeCacheEntry* GetCacheEntry(Address inner_pointer);
+
+ private:
+  InnerPointerToCodeCacheEntry* cache(int index) { return &cache_[index]; }
+
+  Isolate* isolate_;
+
+  static const int kInnerPointerToCodeCacheSize = 1024;
+  InnerPointerToCodeCacheEntry cache_[kInnerPointerToCodeCacheSize];
+
+  DISALLOW_COPY_AND_ASSIGN(InnerPointerToCodeCache);
+};
+
 inline Address StackHandler::address() const {
   return reinterpret_cast<Address>(const_cast<StackHandler*>(this));
 }
@@ -24,6 +51,9 @@ inline StackHandler* StackHandler::next() const {
   return FromAddress(Memory<Address>(address() + offset));
 }
 
+inline Address StackHandler::next_address() const {
+  return Memory<Address>(address() + StackHandlerConstants::kNextOffset);
+}
 
 inline StackHandler* StackHandler::FromAddress(Address address) {
   return reinterpret_cast<StackHandler*>(address);
@@ -70,47 +100,46 @@ inline ExitFrame::ExitFrame(StackFrameIteratorBase* iterator)
 inline BuiltinExitFrame::BuiltinExitFrame(StackFrameIteratorBase* iterator)
     : ExitFrame(iterator) {}
 
-inline Object* BuiltinExitFrame::receiver_slot_object() const {
+inline Object BuiltinExitFrame::receiver_slot_object() const {
   // The receiver is the first argument on the frame.
   // fp[1]: return address.
   // fp[2]: the last argument (new target).
   // fp[4]: argc.
   // fp[2 + argc - 1]: receiver.
-  Object* argc_slot = argc_slot_object();
+  Object argc_slot = argc_slot_object();
   DCHECK(argc_slot->IsSmi());
   int argc = Smi::ToInt(argc_slot);
 
-  const int receiverOffset =
-      BuiltinExitFrameConstants::kNewTargetOffset + (argc - 1) * kPointerSize;
-  return Memory<Object*>(fp() + receiverOffset);
+  const int receiverOffset = BuiltinExitFrameConstants::kNewTargetOffset +
+                             (argc - 1) * kSystemPointerSize;
+  return Object(Memory<Address>(fp() + receiverOffset));
 }
 
-inline Object* BuiltinExitFrame::argc_slot_object() const {
-  return Memory<Object*>(fp() + BuiltinExitFrameConstants::kArgcOffset);
+inline Object BuiltinExitFrame::argc_slot_object() const {
+  return Object(Memory<Address>(fp() + BuiltinExitFrameConstants::kArgcOffset));
 }
 
-inline Object* BuiltinExitFrame::target_slot_object() const {
-  return Memory<Object*>(fp() + BuiltinExitFrameConstants::kTargetOffset);
+inline Object BuiltinExitFrame::target_slot_object() const {
+  return Object(
+      Memory<Address>(fp() + BuiltinExitFrameConstants::kTargetOffset));
 }
 
-inline Object* BuiltinExitFrame::new_target_slot_object() const {
-  return Memory<Object*>(fp() + BuiltinExitFrameConstants::kNewTargetOffset);
+inline Object BuiltinExitFrame::new_target_slot_object() const {
+  return Object(
+      Memory<Address>(fp() + BuiltinExitFrameConstants::kNewTargetOffset));
 }
 
 inline StandardFrame::StandardFrame(StackFrameIteratorBase* iterator)
     : StackFrame(iterator) {
 }
 
-
-inline Object* StandardFrame::GetExpression(int index) const {
-  return Memory<Object*>(GetExpressionAddress(index));
+inline Object StandardFrame::GetExpression(int index) const {
+  return Object(Memory<Address>(GetExpressionAddress(index)));
 }
 
-
-inline void StandardFrame::SetExpression(int index, Object* value) {
-  Memory<Object*>(GetExpressionAddress(index)) = value;
+inline void StandardFrame::SetExpression(int index, Object value) {
+  Memory<Address>(GetExpressionAddress(index)) = value->ptr();
 }
-
 
 inline Address StandardFrame::caller_fp() const {
   return Memory<Address>(fp() + StandardFrameConstants::kCallerFPOffset);
@@ -153,23 +182,21 @@ Address JavaScriptFrame::GetParameterSlot(int index) const {
   DCHECK(-1 <= index &&
          (index < param_count ||
           param_count == SharedFunctionInfo::kDontAdaptArgumentsSentinel));
-  int parameter_offset = (param_count - index - 1) * kPointerSize;
+  int parameter_offset = (param_count - index - 1) * kSystemPointerSize;
   return caller_sp() + parameter_offset;
 }
 
-inline void JavaScriptFrame::set_receiver(Object* value) {
-  Memory<Object*>(GetParameterSlot(-1)) = value;
+inline void JavaScriptFrame::set_receiver(Object value) {
+  Memory<Address>(GetParameterSlot(-1)) = value->ptr();
 }
-
 
 inline bool JavaScriptFrame::has_adapted_arguments() const {
   return IsArgumentsAdaptorFrame(caller_fp());
 }
 
-
-inline Object* JavaScriptFrame::function_slot_object() const {
+inline Object JavaScriptFrame::function_slot_object() const {
   const int offset = JavaScriptFrameConstants::kFunctionOffset;
-  return Memory<Object*>(fp() + offset);
+  return Object(Memory<Address>(fp() + offset));
 }
 
 inline StubFrame::StubFrame(StackFrameIteratorBase* iterator)

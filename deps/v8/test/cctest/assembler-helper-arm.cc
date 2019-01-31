@@ -14,7 +14,7 @@ namespace internal {
 
 Handle<Code> AssembleCodeImpl(std::function<void(Assembler&)> assemble) {
   Isolate* isolate = CcTest::i_isolate();
-  Assembler assm(AssemblerOptions{}, nullptr, 0);
+  Assembler assm(AssemblerOptions{});
 
   assemble(assm);
   assm.bx(lr);

@@ -16,7 +16,7 @@ namespace {
 
 typedef i::LocalArrayBufferTracker LocalTracker;
 
-bool IsTracked(i::JSArrayBuffer* buf) {
+bool IsTracked(i::JSArrayBuffer buf) {
   return i::ArrayBufferTracker::IsTracked(buf);
 }
 
@@ -36,7 +36,7 @@ TEST(ArrayBuffer_OnlyMC) {
   v8::Isolate* isolate = env->GetIsolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
 
-  JSArrayBuffer* raw_ab = nullptr;
+  JSArrayBuffer raw_ab;
   {
     v8::HandleScope handle_scope(isolate);
     Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
@@ -48,7 +48,7 @@ TEST(ArrayBuffer_OnlyMC) {
     CHECK(IsTracked(*buf));
     raw_ab = *buf;
     // Prohibit page from being released.
-    Page::FromAddress(buf->address())->MarkNeverEvacuate();
+    Page::FromHeapObject(*buf)->MarkNeverEvacuate();
   }
   // 2 GCs are needed because we promote to old space as live, meaning that
   // we will survive one GC.
@@ -64,7 +64,7 @@ TEST(ArrayBuffer_OnlyScavenge) {
   v8::Isolate* isolate = env->GetIsolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
 
-  JSArrayBuffer* raw_ab = nullptr;
+  JSArrayBuffer raw_ab;
   {
     v8::HandleScope handle_scope(isolate);
     Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
@@ -78,7 +78,7 @@ TEST(ArrayBuffer_OnlyScavenge) {
     CHECK(IsTracked(*buf));
     raw_ab = *buf;
     // Prohibit page from being released.
-    Page::FromAddress(buf->address())->MarkNeverEvacuate();
+    Page::FromHeapObject(*buf)->MarkNeverEvacuate();
   }
   // 2 GCs are needed because we promote to old space as live, meaning that
   // we will survive one GC.
@@ -94,7 +94,7 @@ TEST(ArrayBuffer_ScavengeAndMC) {
   v8::Isolate* isolate = env->GetIsolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
 
-  JSArrayBuffer* raw_ab = nullptr;
+  JSArrayBuffer raw_ab;
   {
     v8::HandleScope handle_scope(isolate);
     Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
@@ -110,7 +110,7 @@ TEST(ArrayBuffer_ScavengeAndMC) {
     CHECK(IsTracked(*buf));
     raw_ab = *buf;
     // Prohibit page from being released.
-    Page::FromAddress(buf->address())->MarkNeverEvacuate();
+    Page::FromHeapObject(*buf)->MarkNeverEvacuate();
   }
   // 2 GCs are needed because we promote to old space as live, meaning that
   // we will survive one GC.
@@ -136,13 +136,13 @@ TEST(ArrayBuffer_Compaction) {
   heap::GcAndSweep(heap, NEW_SPACE);
   heap::GcAndSweep(heap, NEW_SPACE);
 
-  Page* page_before_gc = Page::FromAddress(buf1->address());
+  Page* page_before_gc = Page::FromHeapObject(*buf1);
   heap::ForceEvacuationCandidate(page_before_gc);
   CHECK(IsTracked(*buf1));
 
   CcTest::CollectAllGarbage();
 
-  Page* page_after_gc = Page::FromAddress(buf1->address());
+  Page* page_after_gc = Page::FromHeapObject(*buf1);
   CHECK(IsTracked(*buf1));
 
   CHECK_NE(page_before_gc, page_after_gc);
@@ -208,7 +208,7 @@ TEST(ArrayBuffer_NonLivePromotion) {
   v8::Isolate* isolate = env->GetIsolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
 
-  JSArrayBuffer* raw_ab = nullptr;
+  JSArrayBuffer raw_ab;
   {
     v8::HandleScope handle_scope(isolate);
     Handle<FixedArray> root =
@@ -229,7 +229,7 @@ TEST(ArrayBuffer_NonLivePromotion) {
     root->set(0, ReadOnlyRoots(heap).undefined_value());
     heap::SimulateIncrementalMarking(heap, true);
     // Prohibit page from being released.
-    Page::FromAddress(raw_ab->address())->MarkNeverEvacuate();
+    Page::FromHeapObject(raw_ab)->MarkNeverEvacuate();
     heap::GcAndSweep(heap, OLD_SPACE);
     CHECK(!IsTracked(raw_ab));
   }
@@ -245,7 +245,7 @@ TEST(ArrayBuffer_LivePromotion) {
   v8::Isolate* isolate = env->GetIsolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
 
-  JSArrayBuffer* raw_ab = nullptr;
+  JSArrayBuffer raw_ab;
   {
     v8::HandleScope handle_scope(isolate);
     Handle<FixedArray> root =
@@ -265,7 +265,7 @@ TEST(ArrayBuffer_LivePromotion) {
     raw_ab = JSArrayBuffer::cast(root->get(0));
     root->set(0, ReadOnlyRoots(heap).undefined_value());
     // Prohibit page from being released.
-    Page::FromAddress(raw_ab->address())->MarkNeverEvacuate();
+    Page::FromHeapObject(raw_ab)->MarkNeverEvacuate();
     heap::GcAndSweep(heap, OLD_SPACE);
     CHECK(IsTracked(raw_ab));
   }
@@ -291,7 +291,7 @@ TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
       Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
       Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
       root->set(0, *buf);  // Buffer that should be promoted as live.
-      Page::FromAddress(buf->address())->MarkNeverEvacuate();
+      Page::FromHeapObject(*buf)->MarkNeverEvacuate();
     }
     std::vector<Handle<FixedArray>> handles;
     // Make the whole page transition from new->old, getting the buffers
@@ -331,8 +331,7 @@ UNINITIALIZED_TEST(ArrayBuffer_SemiSpaceCopyMultipleTasks) {
     heap::FillCurrentPage(heap->new_space());
     Local<v8::ArrayBuffer> ab2 = v8::ArrayBuffer::New(isolate, 100);
     Handle<JSArrayBuffer> buf2 = v8::Utils::OpenHandle(*ab2);
-    CHECK_NE(Page::FromAddress(buf1->address()),
-             Page::FromAddress(buf2->address()));
+    CHECK_NE(Page::FromHeapObject(*buf1), Page::FromHeapObject(*buf2));
     heap::GcAndSweep(heap, OLD_SPACE);
   }
   isolate->Dispose();
@@ -403,7 +402,7 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact) {
     heap::GcAndSweep(heap, NEW_SPACE);
     heap::GcAndSweep(heap, NEW_SPACE);
 
-    Page* page_before_gc = Page::FromAddress(buf1->address());
+    Page* page_before_gc = Page::FromHeapObject(*buf1);
     heap::ForceEvacuationCandidate(page_before_gc);
     CHECK(IsTracked(*buf1));
 

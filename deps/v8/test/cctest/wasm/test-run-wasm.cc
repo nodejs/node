@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "src/assembler-inl.h"
+#include "src/base/overflowing-math.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
@@ -84,14 +85,14 @@ WASM_EXEC_TEST(Int32Add_P) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
   // p0 + 13
   BUILD(r, WASM_I32_ADD(WASM_I32V_1(13), WASM_GET_LOCAL(0)));
-  FOR_INT32_INPUTS(i) { CHECK_EQ(*i + 13, r.Call(*i)); }
+  FOR_INT32_INPUTS(i) { CHECK_EQ(base::AddWithWraparound(*i, 13), r.Call(*i)); }
 }
 
 WASM_EXEC_TEST(Int32Add_P_fallthru) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
   // p0 + 13
   BUILD(r, WASM_I32_ADD(WASM_I32V_1(13), WASM_GET_LOCAL(0)));
-  FOR_INT32_INPUTS(i) { CHECK_EQ(*i + 13, r.Call(*i)); }
+  FOR_INT32_INPUTS(i) { CHECK_EQ(base::AddWithWraparound(*i, 13), r.Call(*i)); }
 }
 
 static void RunInt32AddTest(ExecutionTier execution_tier, const byte* code,
@@ -190,9 +191,9 @@ static void TestInt32Binop(ExecutionTier execution_tier, WasmOpcode opcode,
                           [](ctype a, ctype b) -> ctype { return expected; }); \
   }
 
-WASM_I32_BINOP_TEST(Add, int32_t, a + b)
-WASM_I32_BINOP_TEST(Sub, int32_t, a - b)
-WASM_I32_BINOP_TEST(Mul, int32_t, a* b)
+WASM_I32_BINOP_TEST(Add, int32_t, base::AddWithWraparound(a, b))
+WASM_I32_BINOP_TEST(Sub, int32_t, base::SubWithWraparound(a, b))
+WASM_I32_BINOP_TEST(Mul, int32_t, base::MulWithWraparound(a, b))
 WASM_I32_BINOP_TEST(DivS, int32_t,
                     (a == kMinInt && b == -1) || b == 0
                         ? static_cast<int32_t>(0xDEADBEEF)
@@ -206,8 +207,8 @@ WASM_I32_BINOP_TEST(Xor, int32_t, a ^ b)
 WASM_I32_BINOP_TEST(Shl, int32_t, a << (b & 0x1F))
 WASM_I32_BINOP_TEST(ShrU, uint32_t, a >> (b & 0x1F))
 WASM_I32_BINOP_TEST(ShrS, int32_t, a >> (b & 0x1F))
-WASM_I32_BINOP_TEST(Ror, uint32_t, (a >> (b & 0x1F)) | (a << (32 - (b & 0x1F))))
-WASM_I32_BINOP_TEST(Rol, uint32_t, (a << (b & 0x1F)) | (a >> (32 - (b & 0x1F))))
+WASM_I32_BINOP_TEST(Ror, uint32_t, (a >> (b & 0x1F)) | (a << ((32 - b) & 0x1F)))
+WASM_I32_BINOP_TEST(Rol, uint32_t, (a << (b & 0x1F)) | (a >> ((32 - b) & 0x1F)))
 WASM_I32_BINOP_TEST(Eq, int32_t, a == b)
 WASM_I32_BINOP_TEST(Ne, int32_t, a != b)
 WASM_I32_BINOP_TEST(LtS, int32_t, a < b)
@@ -2839,6 +2840,13 @@ WASM_EXEC_TEST(F32Min) {
   }
 }
 
+WASM_EXEC_TEST(F32MinSameValue) {
+  WasmRunner<float, float> r(execution_tier);
+  BUILD(r, WASM_F32_MIN(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
+  float result = r.Call(5.0f);
+  CHECK_FLOAT_EQ(5.0f, result);
+}
+
 WASM_EXEC_TEST(F64Min) {
   WasmRunner<double, double, double> r(execution_tier);
   BUILD(r, WASM_F64_MIN(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -2848,6 +2856,13 @@ WASM_EXEC_TEST(F64Min) {
   }
 }
 
+WASM_EXEC_TEST(F64MinSameValue) {
+  WasmRunner<double, double> r(execution_tier);
+  BUILD(r, WASM_F64_MIN(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
+  double result = r.Call(5.0);
+  CHECK_DOUBLE_EQ(5.0, result);
+}
+
 WASM_EXEC_TEST(F32Max) {
   WasmRunner<float, float, float> r(execution_tier);
   BUILD(r, WASM_F32_MAX(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -2855,6 +2870,13 @@ WASM_EXEC_TEST(F32Max) {
   FOR_FLOAT32_INPUTS(i) {
     FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ(JSMax(*i, *j), r.Call(*i, *j)); }
   }
+}
+
+WASM_EXEC_TEST(F32MaxSameValue) {
+  WasmRunner<float, float> r(execution_tier);
+  BUILD(r, WASM_F32_MAX(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
+  float result = r.Call(5.0f);
+  CHECK_FLOAT_EQ(5.0f, result);
 }
 
 WASM_EXEC_TEST(F64Max) {
@@ -2867,6 +2889,13 @@ WASM_EXEC_TEST(F64Max) {
       CHECK_DOUBLE_EQ(JSMax(*i, *j), result);
     }
   }
+}
+
+WASM_EXEC_TEST(F64MaxSameValue) {
+  WasmRunner<double, double> r(execution_tier);
+  BUILD(r, WASM_F64_MAX(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
+  double result = r.Call(5.0);
+  CHECK_DOUBLE_EQ(5.0, result);
 }
 
 WASM_EXEC_TEST(I32SConvertF32) {
@@ -3270,9 +3299,11 @@ WASM_EXEC_TEST(I32SubOnDifferentRegisters) {
 }
 
 WASM_EXEC_TEST(I32MulOnDifferentRegisters) {
-  BinOpOnDifferentRegisters<int32_t>(
-      execution_tier, kWasmI32, ArrayVector(kSome32BitInputs), kExprI32Mul,
-      [](int32_t lhs, int32_t rhs, bool* trap) { return lhs * rhs; });
+  BinOpOnDifferentRegisters<int32_t>(execution_tier, kWasmI32,
+                                     ArrayVector(kSome32BitInputs), kExprI32Mul,
+                                     [](int32_t lhs, int32_t rhs, bool* trap) {
+                                       return base::MulWithWraparound(lhs, rhs);
+                                     });
 }
 
 WASM_EXEC_TEST(I32ShlOnDifferentRegisters) {
@@ -3344,9 +3375,11 @@ WASM_EXEC_TEST(I64SubOnDifferentRegisters) {
 }
 
 WASM_EXEC_TEST(I64MulOnDifferentRegisters) {
-  BinOpOnDifferentRegisters<int64_t>(
-      execution_tier, kWasmI64, ArrayVector(kSome64BitInputs), kExprI64Mul,
-      [](int64_t lhs, int64_t rhs, bool* trap) { return lhs * rhs; });
+  BinOpOnDifferentRegisters<int64_t>(execution_tier, kWasmI64,
+                                     ArrayVector(kSome64BitInputs), kExprI64Mul,
+                                     [](int64_t lhs, int64_t rhs, bool* trap) {
+                                       return base::MulWithWraparound(lhs, rhs);
+                                     });
 }
 
 WASM_EXEC_TEST(I64ShlOnDifferentRegisters) {
@@ -3437,9 +3470,9 @@ TEST(Liftoff_tier_up) {
     memcpy(buffer.get(), sub_code->instructions().start(), sub_size);
     desc.buffer = buffer.get();
     desc.instr_size = static_cast<int>(sub_size);
-    WasmCode* code =
-        native_module->AddCode(add.function_index(), desc, 0, 0, 0, {},
-                               OwnedVector<byte>(), WasmCode::kOther);
+    WasmCode* code = native_module->AddCode(
+        add.function_index(), desc, 0, 0, 0, {}, OwnedVector<byte>(),
+        WasmCode::kFunction, WasmCode::kOther);
     native_module->PublishCode(code);
 
     // Second run should now execute {sub}.

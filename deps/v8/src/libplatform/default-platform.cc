@@ -92,7 +92,7 @@ DefaultPlatform::DefaultPlatform(
 }
 
 DefaultPlatform::~DefaultPlatform() {
-  base::LockGuard<base::Mutex> guard(&lock_);
+  base::MutexGuard guard(&lock_);
   if (worker_threads_task_runner_) worker_threads_task_runner_->Terminate();
   for (auto it : foreground_task_runner_map_) {
     it.second->Terminate();
@@ -100,7 +100,7 @@ DefaultPlatform::~DefaultPlatform() {
 }
 
 void DefaultPlatform::SetThreadPoolSize(int thread_pool_size) {
-  base::LockGuard<base::Mutex> guard(&lock_);
+  base::MutexGuard guard(&lock_);
   DCHECK_GE(thread_pool_size, 0);
   if (thread_pool_size < 1) {
     thread_pool_size = base::SysInfo::NumberOfProcessors() - 1;
@@ -110,7 +110,7 @@ void DefaultPlatform::SetThreadPoolSize(int thread_pool_size) {
 }
 
 void DefaultPlatform::EnsureBackgroundTaskRunnerInitialized() {
-  base::LockGuard<base::Mutex> guard(&lock_);
+  base::MutexGuard guard(&lock_);
   if (!worker_threads_task_runner_) {
     worker_threads_task_runner_ =
         std::make_shared<DefaultWorkerThreadsTaskRunner>(thread_pool_size_);
@@ -128,7 +128,7 @@ double DefaultTimeFunction() {
 
 void DefaultPlatform::SetTimeFunctionForTesting(
     DefaultPlatform::TimeFunction time_function) {
-  base::LockGuard<base::Mutex> guard(&lock_);
+  base::MutexGuard guard(&lock_);
   time_function_for_testing_ = time_function;
   // The time function has to be right after the construction of the platform.
   DCHECK(foreground_task_runner_map_.empty());
@@ -139,7 +139,7 @@ bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate,
   bool failed_result = wait_for_work == MessageLoopBehavior::kWaitForWork;
   std::shared_ptr<DefaultForegroundTaskRunner> task_runner;
   {
-    base::LockGuard<base::Mutex> guard(&lock_);
+    base::MutexGuard guard(&lock_);
     auto it = foreground_task_runner_map_.find(isolate);
     if (it == foreground_task_runner_map_.end()) return failed_result;
     task_runner = it->second;
@@ -157,7 +157,7 @@ void DefaultPlatform::RunIdleTasks(v8::Isolate* isolate,
   DCHECK_EQ(IdleTaskSupport::kEnabled, idle_task_support_);
   std::shared_ptr<DefaultForegroundTaskRunner> task_runner;
   {
-    base::LockGuard<base::Mutex> guard(&lock_);
+    base::MutexGuard guard(&lock_);
     if (foreground_task_runner_map_.find(isolate) ==
         foreground_task_runner_map_.end()) {
       return;
@@ -176,7 +176,7 @@ void DefaultPlatform::RunIdleTasks(v8::Isolate* isolate,
 
 std::shared_ptr<TaskRunner> DefaultPlatform::GetForegroundTaskRunner(
     v8::Isolate* isolate) {
-  base::LockGuard<base::Mutex> guard(&lock_);
+  base::MutexGuard guard(&lock_);
   if (foreground_task_runner_map_.find(isolate) ==
       foreground_task_runner_map_.end()) {
     foreground_task_runner_map_.insert(std::make_pair(

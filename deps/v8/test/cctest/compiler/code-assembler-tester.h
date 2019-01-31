@@ -46,7 +46,7 @@ class CodeAssemblerTester {
       : zone_(isolate->allocator(), ZONE_NAME),
         scope_(isolate),
         state_(isolate, &zone_, call_descriptor, Code::STUB, name,
-               PoisoningMitigationLevel::kDontPoison, 0, -1) {}
+               PoisoningMitigationLevel::kDontPoison, Builtins::kNoBuiltinId) {}
 
   CodeAssemblerState* state() { return &state_; }
 
@@ -56,11 +56,13 @@ class CodeAssemblerTester {
   }
 
   Handle<Code> GenerateCode() {
-    return CodeAssembler::GenerateCode(
-        &state_, AssemblerOptions::Default(scope_.isolate()));
+    return GenerateCode(AssemblerOptions::Default(scope_.isolate()));
   }
 
   Handle<Code> GenerateCode(const AssemblerOptions& options) {
+    if (state_.InsideBlock()) {
+      CodeAssembler(&state_).Unreachable();
+    }
     return CodeAssembler::GenerateCode(&state_, options);
   }
 

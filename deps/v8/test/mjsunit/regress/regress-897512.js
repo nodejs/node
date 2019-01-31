@@ -20,5 +20,4 @@ assertEquals(o51.length, 39);
 // Sort triggers the bug.
 o51.sort();
 
-// TODO(chromium:897512): The length should be 39.
-assertEquals(o51.length, 101);
+assertEquals(o51.length, 39);

@@ -16,16 +16,19 @@
 namespace v8 {
 namespace internal {
 
+class AsmWasmData;
 class CodeTracer;
 class CompilationStatistics;
-class WasmModuleObject;
+class HeapNumber;
 class WasmInstanceObject;
+class WasmModuleObject;
 
 namespace wasm {
 
+class AsyncCompileJob;
 class ErrorThrower;
-struct WasmFeatures;
 struct ModuleWireBytes;
+struct WasmFeatures;
 
 class V8_EXPORT_PRIVATE CompilationResultResolver {
  public:
@@ -55,10 +58,13 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   // Synchronously compiles the given bytes that represent a translated
   // asm.js module.
-  MaybeHandle<WasmModuleObject> SyncCompileTranslatedAsmJs(
+  MaybeHandle<AsmWasmData> SyncCompileTranslatedAsmJs(
       Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
-      Handle<Script> asm_js_script,
-      Vector<const byte> asm_js_offset_table_bytes);
+      Vector<const byte> asm_js_offset_table_bytes,
+      Handle<HeapNumber> uses_bitset);
+  Handle<WasmModuleObject> FinalizeTranslatedAsmJs(
+      Isolate* isolate, Handle<AsmWasmData> asm_wasm_data,
+      Handle<Script> script);
 
   // Synchronously compiles the given bytes that represent an encoded WASM
   // module.
@@ -93,10 +99,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
       Isolate* isolate, const WasmFeatures& enabled, Handle<Context> context,
       std::shared_ptr<CompilationResultResolver> resolver);
 
-  // Compiles the function with the given index at a specific compilation tier
-  // and returns true on success, false (and pending exception) otherwise. This
-  // is mostly used for testing to force a function into a specific tier.
-  bool CompileFunction(Isolate* isolate, NativeModule* native_module,
+  // Compiles the function with the given index at a specific compilation tier.
+  // Errors are stored internally in the CompilationState.
+  // This is mostly used for testing to force a function into a specific tier.
+  void CompileFunction(Isolate* isolate, NativeModule* native_module,
                        uint32_t function_index, ExecutionTier tier);
 
   // Exports the sharable parts of the given module object so that they can be

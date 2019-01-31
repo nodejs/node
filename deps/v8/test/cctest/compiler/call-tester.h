@@ -40,6 +40,15 @@ class CallHelper {
   Isolate* isolate_;
 };
 
+template <>
+template <typename... Params>
+Object CallHelper<Object>::Call(Params... args) {
+  CSignature::VerifyParams<Params...>(csig_);
+  Address entry = Generate();
+  auto fn = GeneratedCode<Address, Params...>::FromAddress(isolate_, entry);
+  return Object(fn.Call(args...));
+}
+
 // A call helper that calls the given code object assuming C calling convention.
 template <typename T>
 class CodeRunner : public CallHelper<T> {

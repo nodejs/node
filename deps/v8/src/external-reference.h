@@ -27,12 +27,14 @@ class StatsCounter;
   V(builtins_address, "builtins")                                              \
   V(handle_scope_implementer_address,                                          \
     "Isolate::handle_scope_implementer_address")                               \
+  V(address_of_interpreter_entry_trampoline_instruction_start,                 \
+    "Address of the InterpreterEntryTrampoline instruction start")             \
   V(interpreter_dispatch_counters, "Interpreter::dispatch_counters")           \
   V(interpreter_dispatch_table_address, "Interpreter::dispatch_table_address") \
   V(date_cache_stamp, "date_cache_stamp")                                      \
   V(stress_deopt_count, "Isolate::stress_deopt_count_address()")               \
   V(force_slow_path, "Isolate::force_slow_path_address()")                     \
-  V(roots_array_start, "Heap::roots_array_start()")                            \
+  V(isolate_root, "Isolate::isolate_root()")                                   \
   V(allocation_sites_list_address, "Heap::allocation_sites_list_address()")    \
   V(address_of_stack_limit, "StackGuard::address_of_jslimit()")                \
   V(address_of_real_stack_limit, "StackGuard::address_of_real_jslimit()")      \
@@ -53,6 +55,9 @@ class StatsCounter;
   V(async_event_delegate_address, "Isolate::async_event_delegate_address()")   \
   V(promise_hook_or_async_event_delegate_address,                              \
     "Isolate::promise_hook_or_async_event_delegate_address()")                 \
+  V(promise_hook_or_debug_is_active_or_async_event_delegate_address,           \
+    "Isolate::promise_hook_or_debug_is_active_or_async_event_delegate_"        \
+    "address()")                                                               \
   V(debug_execution_mode_address, "Isolate::debug_execution_mode_address()")   \
   V(debug_is_active_address, "Debug::is_active_address()")                     \
   V(debug_hook_on_function_call_address,                                       \
@@ -63,8 +68,10 @@ class StatsCounter;
   V(debug_suspended_generator_address,                                         \
     "Debug::step_suspended_generator_address()")                               \
   V(debug_restart_fp_address, "Debug::restart_fp_address()")                   \
-  V(wasm_thread_in_wasm_flag_address_address,                                  \
-    "&Isolate::thread_in_wasm_flag_address")                                   \
+  V(fast_c_call_caller_fp_address,                                             \
+    "IsolateData::fast_c_call_caller_fp_address")                              \
+  V(fast_c_call_caller_pc_address,                                             \
+    "IsolateData::fast_c_call_caller_pc_address")                              \
   EXTERNAL_REFERENCE_LIST_NON_INTERPRETED_REGEXP(V)
 
 #define EXTERNAL_REFERENCE_LIST(V)                                            \
@@ -101,18 +108,18 @@ class StatsCounter;
   V(ieee754_acosh_function, "base::ieee754::acosh")                           \
   V(ieee754_asin_function, "base::ieee754::asin")                             \
   V(ieee754_asinh_function, "base::ieee754::asinh")                           \
-  V(ieee754_atan2_function, "base::ieee754::atan2")                           \
   V(ieee754_atan_function, "base::ieee754::atan")                             \
+  V(ieee754_atan2_function, "base::ieee754::atan2")                           \
   V(ieee754_atanh_function, "base::ieee754::atanh")                           \
   V(ieee754_cbrt_function, "base::ieee754::cbrt")                             \
   V(ieee754_cos_function, "base::ieee754::cos")                               \
   V(ieee754_cosh_function, "base::ieee754::cosh")                             \
   V(ieee754_exp_function, "base::ieee754::exp")                               \
   V(ieee754_expm1_function, "base::ieee754::expm1")                           \
+  V(ieee754_log_function, "base::ieee754::log")                               \
   V(ieee754_log10_function, "base::ieee754::log10")                           \
   V(ieee754_log1p_function, "base::ieee754::log1p")                           \
   V(ieee754_log2_function, "base::ieee754::log2")                             \
-  V(ieee754_log_function, "base::ieee754::log")                               \
   V(ieee754_sin_function, "base::ieee754::sin")                               \
   V(ieee754_sinh_function, "base::ieee754::sinh")                             \
   V(ieee754_tan_function, "base::ieee754::tan")                               \
@@ -123,6 +130,8 @@ class StatsCounter;
     "JSObject::InvalidatePrototypeChains()")                                  \
   V(invoke_accessor_getter_callback, "InvokeAccessorGetterCallback")          \
   V(invoke_function_callback, "InvokeFunctionCallback")                       \
+  V(jsarray_array_join_concat_to_sequential_string,                           \
+    "jsarray_array_join_concat_to_sequential_string")                         \
   V(jsreceiver_create_identity_hash, "jsreceiver_create_identity_hash")       \
   V(libc_memchr_function, "libc_memchr")                                      \
   V(libc_memcpy_function, "libc_memcpy")                                      \
@@ -136,13 +145,13 @@ class StatsCounter;
   V(power_double_double_function, "power_double_double_function")             \
   V(printf_function, "printf")                                                \
   V(refill_math_random, "MathRandom::RefillCache")                            \
-  V(store_buffer_overflow_function, "StoreBuffer::StoreBufferOverflow")       \
   V(search_string_raw_one_one, "search_string_raw_one_one")                   \
   V(search_string_raw_one_two, "search_string_raw_one_two")                   \
   V(search_string_raw_two_one, "search_string_raw_two_one")                   \
   V(search_string_raw_two_two, "search_string_raw_two_two")                   \
-  V(try_internalize_string_function, "try_internalize_string_function")       \
   V(smi_lexicographic_compare_function, "smi_lexicographic_compare_function") \
+  V(store_buffer_overflow_function, "StoreBuffer::StoreBufferOverflow")       \
+  V(try_internalize_string_function, "try_internalize_string_function")       \
   V(wasm_call_trap_callback_for_testing,                                      \
     "wasm::call_trap_callback_for_testing")                                   \
   V(wasm_f32_ceil, "wasm::f32_ceil_wrapper")                                  \
@@ -172,6 +181,18 @@ class StatsCounter;
   V(wasm_word32_ror, "wasm::word32_ror")                                      \
   V(wasm_word64_ctz, "wasm::word64_ctz")                                      \
   V(wasm_word64_popcnt, "wasm::word64_popcnt")                                \
+  V(wasm_memory_copy, "wasm::memory_copy")                                    \
+  V(wasm_memory_fill, "wasm::memory_fill")                                    \
+  V(call_enqueue_microtask_function, "MicrotaskQueue::CallEnqueueMicrotask")  \
+  V(call_enter_context_function, "call_enter_context_function")               \
+  V(atomic_pair_load_function, "atomic_pair_load_function")                   \
+  V(atomic_pair_store_function, "atomic_pair_store_function")                 \
+  V(atomic_pair_add_function, "atomic_pair_add_function")                     \
+  V(atomic_pair_sub_function, "atomic_pair_sub_function")                     \
+  V(atomic_pair_and_function, "atomic_pair_and_function")                     \
+  V(atomic_pair_or_function, "atomic_pair_or_function")                       \
+  V(atomic_pair_xor_function, "atomic_pair_xor_function")                     \
+  V(atomic_pair_exchange_function, "atomic_pair_exchange_function")           \
   V(atomic_pair_compare_exchange_function,                                    \
     "atomic_pair_compare_exchange_function")                                  \
   EXTERNAL_REFERENCE_LIST_INTL(V)
@@ -210,7 +231,7 @@ class ExternalReference {
   // Used in the simulator to support different native api calls.
   enum Type {
     // Builtin call.
-    // Object* f(v8::internal::Arguments).
+    // Address f(v8::internal::Arguments).
     BUILTIN_CALL,  // default
 
     // Builtin call returning object pair.
@@ -280,7 +301,7 @@ class ExternalReference {
 #undef DECL_EXTERNAL_REFERENCE
 
 #define DECL_EXTERNAL_REFERENCE(name, desc) \
-  static ExternalReference name(Isolate* isolate);
+  static V8_EXPORT_PRIVATE ExternalReference name(Isolate* isolate);
   EXTERNAL_REFERENCE_LIST_WITH_ISOLATE(DECL_EXTERNAL_REFERENCE)
 #undef DECL_EXTERNAL_REFERENCE
 
@@ -310,6 +331,9 @@ size_t hash_value(ExternalReference);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ExternalReference);
 
 void abort_with_reason(int reason);
+
+// Computes pow(x, y) with the special cases in the spec for Math.pow.
+double power_double_double(double x, double y);
 
 }  // namespace internal
 }  // namespace v8

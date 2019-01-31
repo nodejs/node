@@ -7,9 +7,9 @@
 
 #include "src/allocation.h"
 #include "src/callable.h"
-#include "src/code-stubs.h"
 #include "src/globals.h"
 #include "src/interface-descriptors.h"
+#include "src/type-hints.h"
 
 namespace v8 {
 namespace internal {
@@ -40,6 +40,17 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable StoreOwnIC(Isolate* isolate);
   static Callable StoreOwnICInOptimizedCode(Isolate* isolate);
 
+  static Callable KeyedStoreIC_SloppyArguments(Isolate* isolate,
+                                               KeyedAccessStoreMode mode);
+  static Callable KeyedStoreIC_Slow(Isolate* isolate,
+                                    KeyedAccessStoreMode mode);
+  static Callable StoreInArrayLiteralIC_Slow(Isolate* isolate,
+                                             KeyedAccessStoreMode mode);
+  static Callable ElementsTransitionAndStore(Isolate* isolate,
+                                             KeyedAccessStoreMode mode);
+  static Callable StoreFastElementIC(Isolate* isolate,
+                                     KeyedAccessStoreMode mode);
+
   static Callable ResumeGenerator(Isolate* isolate);
 
   static Callable FrameDropperTrampoline(Isolate* isolate);
@@ -48,10 +59,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable BinaryOperation(Isolate* isolate, Operation op);
 
   static Callable ApiGetter(Isolate* isolate);
-  static Callable CallApiCallback(Isolate* isolate, int argc);
-
-  // Code stubs. Add methods here as needed to reduce dependency on
-  // code-stubs.h.
+  static Callable CallApiCallback(Isolate* isolate);
 
   static Callable NonPrimitiveToPrimitive(
       Isolate* isolate, ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
@@ -95,11 +103,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable ArraySingleArgumentConstructor(
       Isolate* isolate, ElementsKind kind,
       AllocationSiteOverrideMode override_mode);
-
-  static Callable InternalArrayNoArgumentConstructor(Isolate* isolate,
-                                                     ElementsKind kind);
-  static Callable InternalArraySingleArgumentConstructor(Isolate* isolate,
-                                                         ElementsKind kind);
 };
 
 }  // namespace internal

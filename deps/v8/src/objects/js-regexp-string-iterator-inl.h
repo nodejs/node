@@ -15,6 +15,8 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(JSRegExpStringIterator, JSObject)
+
 ACCESSORS(JSRegExpStringIterator, iterating_regexp, Object,
           kIteratingRegExpOffset)
 ACCESSORS(JSRegExpStringIterator, iterating_string, String,

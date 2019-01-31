@@ -21,6 +21,15 @@
 #include "test/inspector/isolate-data.h"
 #include "test/inspector/task-runner.h"
 
+namespace v8 {
+namespace internal {
+
+extern void DisableEmbeddedBlobRefcounting();
+extern void FreeCurrentEmbeddedBlob();
+
+}  // namespace internal
+}  // namespace v8
+
 namespace {
 
 std::vector<TaskRunner*> task_runners;
@@ -312,6 +321,9 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
                v8::FunctionTemplate::New(isolate,
                                          &UtilsExtension::CreateContextGroup));
     utils->Set(
+        ToV8String(isolate, "resetContextGroup"),
+        v8::FunctionTemplate::New(isolate, &UtilsExtension::ResetContextGroup));
+    utils->Set(
         ToV8String(isolate, "connectSession"),
         v8::FunctionTemplate::New(isolate, &UtilsExtension::ConnectSession));
     utils->Set(
@@ -524,6 +536,18 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
     });
     args.GetReturnValue().Set(
         v8::Int32::New(args.GetIsolate(), context_group_id));
+  }
+
+  static void ResetContextGroup(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1 || !args[0]->IsInt32()) {
+      fprintf(stderr, "Internal error: resetContextGroup(context_group_id).");
+      Exit();
+    }
+    int context_group_id = args[0].As<v8::Int32>()->Value();
+    RunSyncTask(backend_runner_, [&context_group_id](IsolateData* data) {
+      data->ResetContextGroup(context_group_id);
+    });
   }
 
   static void ConnectSession(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -1059,6 +1083,7 @@ int main(int argc, char* argv[]) {
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::V8::InitializeExternalStartupData(argv[0]);
   v8::V8::Initialize();
+  i::DisableEmbeddedBlobRefcounting();
 
   v8::base::Semaphore ready_semaphore(0);
 
@@ -1072,49 +1097,56 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  IsolateData::SetupGlobalTasks frontend_extensions;
-  frontend_extensions.emplace_back(new UtilsExtension());
-  TaskRunner frontend_runner(std::move(frontend_extensions), true,
-                             &ready_semaphore, nullptr, false);
-  ready_semaphore.Wait();
+  {
+    IsolateData::SetupGlobalTasks frontend_extensions;
+    frontend_extensions.emplace_back(new UtilsExtension());
+    TaskRunner frontend_runner(std::move(frontend_extensions), true,
+                               &ready_semaphore, nullptr, false);
+    ready_semaphore.Wait();
 
-  int frontend_context_group_id = 0;
-  RunSyncTask(&frontend_runner,
-              [&frontend_context_group_id](IsolateData* data) {
-                frontend_context_group_id = data->CreateContextGroup();
-              });
+    int frontend_context_group_id = 0;
+    RunSyncTask(&frontend_runner,
+                [&frontend_context_group_id](IsolateData* data) {
+                  frontend_context_group_id = data->CreateContextGroup();
+                });
 
-  IsolateData::SetupGlobalTasks backend_extensions;
-  backend_extensions.emplace_back(new SetTimeoutExtension());
-  backend_extensions.emplace_back(new InspectorExtension());
-  TaskRunner backend_runner(std::move(backend_extensions), false,
-                            &ready_semaphore,
-                            startup_data.data ? &startup_data : nullptr, true);
-  ready_semaphore.Wait();
-  UtilsExtension::set_backend_task_runner(&backend_runner);
+    IsolateData::SetupGlobalTasks backend_extensions;
+    backend_extensions.emplace_back(new SetTimeoutExtension());
+    backend_extensions.emplace_back(new InspectorExtension());
+    TaskRunner backend_runner(
+        std::move(backend_extensions), false, &ready_semaphore,
+        startup_data.data ? &startup_data : nullptr, true);
+    ready_semaphore.Wait();
+    UtilsExtension::set_backend_task_runner(&backend_runner);
 
-  task_runners.push_back(&frontend_runner);
-  task_runners.push_back(&backend_runner);
+    task_runners.push_back(&frontend_runner);
+    task_runners.push_back(&backend_runner);
 
-  for (int i = 1; i < argc; ++i) {
-    // Ignore unknown flags.
-    if (argv[i] == nullptr || argv[i][0] == '-') continue;
+    for (int i = 1; i < argc; ++i) {
+      // Ignore unknown flags.
+      if (argv[i] == nullptr || argv[i][0] == '-') continue;
 
-    bool exists = false;
-    std::string chars = v8::internal::ReadFile(argv[i], &exists, true);
-    if (!exists) {
-      fprintf(stderr, "Internal error: script file doesn't exists: %s\n",
-              argv[i]);
-      Exit();
+      bool exists = false;
+      std::string chars = v8::internal::ReadFile(argv[i], &exists, true);
+      if (!exists) {
+        fprintf(stderr, "Internal error: script file doesn't exists: %s\n",
+                argv[i]);
+        Exit();
+      }
+      frontend_runner.Append(
+          new ExecuteStringTask(chars, frontend_context_group_id));
     }
-    frontend_runner.Append(
-        new ExecuteStringTask(chars, frontend_context_group_id));
+
+    frontend_runner.Join();
+    backend_runner.Join();
+
+    UtilsExtension::ClearAllSessions();
+    delete startup_data.data;
+
+    // TaskRunners go out of scope here, which causes Isolate teardown and all
+    // running background tasks to be properly joined.
   }
 
-  frontend_runner.Join();
-  backend_runner.Join();
-
-  delete startup_data.data;
-  UtilsExtension::ClearAllSessions();
+  i::FreeCurrentEmbeddedBlob();
   return 0;
 }

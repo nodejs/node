@@ -10,11 +10,10 @@
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 
-
 namespace v8 {
 namespace internal {
 
-#define __ masm()->
+#define __ masm->
 
 namespace {
 
@@ -69,11 +68,24 @@ void RestoreRegList(MacroAssembler* masm, const CPURegList& reg_list,
   Register src = temps.AcquireX();
   masm->Add(src, src_base, src_offset);
 
+#if defined(V8_OS_WIN)
+  // x18 is reserved as platform register on Windows.
+  restore_list.Remove(x18);
+#endif
+
   // Restore every register in restore_list from src.
   while (!restore_list.IsEmpty()) {
     CPURegister reg0 = restore_list.PopLowestIndex();
     CPURegister reg1 = restore_list.PopLowestIndex();
     int offset0 = reg0.code() * reg_size;
+
+#if defined(V8_OS_WIN)
+    if (reg1 == NoCPUReg) {
+      masm->Ldr(reg0, MemOperand(src, offset0));
+      break;
+    }
+#endif
+
     int offset1 = reg1.code() * reg_size;
 
     // Pair up adjacent loads, otherwise read them separately.
@@ -87,8 +99,10 @@ void RestoreRegList(MacroAssembler* masm, const CPURegList& reg_list,
 }
 }  // namespace
 
-void Deoptimizer::TableEntryGenerator::Generate() {
-  GeneratePrologue();
+void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
+                                                Isolate* isolate,
+                                                DeoptimizeKind deopt_kind) {
+  NoRootArrayScope no_root_array(masm);
 
   // TODO(all): This code needs to be revisited. We probably only need to save
   // caller-saved registers here. Callee-saved registers can be stored directly
@@ -116,7 +130,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ PushCPURegList(saved_registers);
 
   __ Mov(x3, Operand(ExternalReference::Create(
-                 IsolateAddressId::kCEntryFPAddress, isolate())));
+                 IsolateAddressId::kCEntryFPAddress, isolate)));
   __ Str(fp, MemOperand(x3));
 
   const int kSavedRegistersAreaSize =
@@ -129,18 +143,17 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   const int kDoubleRegistersOffset =
       kFloatRegistersOffset + saved_float_registers.Count() * kSRegSize;
 
-  // Get the bailout id from the stack.
+  // The bailout id was passed by the caller in x26.
   Register bailout_id = x2;
-  __ Peek(bailout_id, kSavedRegistersAreaSize);
+  __ Mov(bailout_id, x26);
 
   Register code_object = x3;
   Register fp_to_sp = x4;
   // Get the address of the location in the code object. This is the return
   // address for lazy deoptimization.
   __ Mov(code_object, lr);
-  // Compute the fp-to-sp delta, adding two words for alignment padding and
-  // bailout id.
-  __ Add(fp_to_sp, sp, kSavedRegistersAreaSize + (2 * kPointerSize));
+  // Compute the fp-to-sp delta.
+  __ Add(fp_to_sp, sp, kSavedRegistersAreaSize);
   __ Sub(fp_to_sp, fp, fp_to_sp);
 
   // Allocate a new deoptimizer object.
@@ -155,16 +168,16 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ Tst(x1, kSmiTagMask);
   __ CzeroX(x0, eq);
 
-  __ Mov(x1, static_cast<int>(deopt_kind()));
+  __ Mov(x1, static_cast<int>(deopt_kind));
   // Following arguments are already loaded:
   //  - x2: bailout id
   //  - x3: code object address
   //  - x4: fp-to-sp delta
-  __ Mov(x5, ExternalReference::isolate_address(isolate()));
+  __ Mov(x5, ExternalReference::isolate_address(isolate));
 
   {
     // Call Deoptimizer::New().
-    AllowExternalCallThatCantCauseGC scope(masm());
+    AllowExternalCallThatCantCauseGC scope(masm);
     __ CallCFunction(ExternalReference::new_deoptimizer_function(), 6);
   }
 
@@ -175,22 +188,22 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ Ldr(x1, MemOperand(deoptimizer, Deoptimizer::input_offset()));
 
   // Copy core registers into the input frame.
-  CopyRegListToFrame(masm(), x1, FrameDescription::registers_offset(),
+  CopyRegListToFrame(masm, x1, FrameDescription::registers_offset(),
                      saved_registers, x2, x3);
 
   // Copy double registers to the input frame.
-  CopyRegListToFrame(masm(), x1, FrameDescription::double_registers_offset(),
+  CopyRegListToFrame(masm, x1, FrameDescription::double_registers_offset(),
                      saved_double_registers, x2, x3, kDoubleRegistersOffset);
 
   // Copy float registers to the input frame.
   // TODO(arm): these are the lower 32-bits of the double registers stored
   // above, so we shouldn't need to store them again.
-  CopyRegListToFrame(masm(), x1, FrameDescription::float_registers_offset(),
+  CopyRegListToFrame(masm, x1, FrameDescription::float_registers_offset(),
                      saved_float_registers, w2, w3, kFloatRegistersOffset);
 
-  // Remove the padding, bailout id and the saved registers from the stack.
+  // Remove the saved registers from the stack.
   DCHECK_EQ(kSavedRegistersAreaSize % kXRegSize, 0);
-  __ Drop(2 + (kSavedRegistersAreaSize / kXRegSize));
+  __ Drop(kSavedRegistersAreaSize / kXRegSize);
 
   // Compute a pointer to the unwinding limit in register x2; that is
   // the first stack slot not part of the input frame.
@@ -211,13 +224,13 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ Push(padreg, x0);  // Preserve deoptimizer object across call.
   {
     // Call Deoptimizer::ComputeOutputFrames().
-    AllowExternalCallThatCantCauseGC scope(masm());
+    AllowExternalCallThatCantCauseGC scope(masm);
     __ CallCFunction(ExternalReference::compute_output_frames_function(), 1);
   }
   __ Pop(x4, padreg);  // Restore deoptimizer object (class Deoptimizer).
 
   {
-    UseScratchRegisterScope temps(masm());
+    UseScratchRegisterScope temps(masm);
     Register scratch = temps.AcquireX();
     __ Ldr(scratch, MemOperand(x4, Deoptimizer::caller_frame_top_offset()));
     __ Mov(sp, scratch);
@@ -248,7 +261,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ B(lt, &outer_push_loop);
 
   __ Ldr(x1, MemOperand(x4, Deoptimizer::input_offset()));
-  RestoreRegList(masm(), saved_double_registers, x1,
+  RestoreRegList(masm, saved_double_registers, x1,
                  FrameDescription::double_registers_offset());
 
   // TODO(all): ARM copies a lot (if not all) of the last output frame onto the
@@ -264,36 +277,14 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   Register last_output_frame = lr;
   __ Mov(last_output_frame, current_frame);
 
-  RestoreRegList(masm(), saved_registers, last_output_frame,
+  RestoreRegList(masm, saved_registers, last_output_frame,
                  FrameDescription::registers_offset());
 
   Register continuation = x7;
   __ Ldr(continuation, MemOperand(last_output_frame,
                                   FrameDescription::continuation_offset()));
   __ Ldr(lr, MemOperand(last_output_frame, FrameDescription::pc_offset()));
-  __ InitializeRootRegister();
   __ Br(continuation);
-}
-
-// Size of an entry of the second level deopt table. Since we do not generate
-// a table for ARM64, the size is zero.
-const int Deoptimizer::table_entry_size_ = 0 * kInstrSize;
-
-void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
-  UseScratchRegisterScope temps(masm());
-  // The MacroAssembler will have put the deoptimization id in x16, the first
-  // temp register allocated. We can't assert that the id is in there, but we
-  // can check that x16 the first allocated temp and that the value it contains
-  // is in the expected range.
-  Register entry_id = temps.AcquireX();
-  DCHECK(entry_id.Is(x16));
-  __ Push(padreg, entry_id);
-
-  if (__ emit_debug_code()) {
-    // Ensure the entry_id looks sensible, ie. 0 <= entry_id < count().
-    __ Cmp(entry_id, count());
-    __ Check(lo, AbortReason::kOffsetOutOfRange);
-  }
 }
 
 bool Deoptimizer::PadTopOfStackRegister() { return true; }

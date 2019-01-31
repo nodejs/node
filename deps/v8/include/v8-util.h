@@ -25,13 +25,11 @@ enum PersistentContainerCallbackType {
   kNotWeak,
   // These correspond to v8::WeakCallbackType
   kWeakWithParameter,
-  kWeakWithInternalFields,
-  kWeak = kWeakWithParameter  // For backwards compatibility.  Deprecate.
+  kWeakWithInternalFields
 };
 
-
 /**
- * A default trait implemenation for PersistentValueMap which uses std::map
+ * A default trait implementation for PersistentValueMap which uses std::map
  * as a backing map.
  *
  * Users will have to implement their own weak callbacks & dispose traits.
@@ -203,7 +201,7 @@ class PersistentValueMapBase {
   void RegisterExternallyReferencedObject(K& key) {
     assert(Contains(key));
     V8::RegisterExternallyReferencedObject(
-        reinterpret_cast<internal::Object**>(FromVal(Traits::Get(&impl_, key))),
+        reinterpret_cast<internal::Address*>(FromVal(Traits::Get(&impl_, key))),
         reinterpret_cast<internal::Isolate*>(GetIsolate()));
   }
 
@@ -289,7 +287,10 @@ class PersistentValueMapBase {
   }
 
  protected:
-  explicit PersistentValueMapBase(Isolate* isolate) : isolate_(isolate) {}
+  explicit PersistentValueMapBase(Isolate* isolate)
+      : isolate_(isolate), label_(nullptr) {}
+  PersistentValueMapBase(Isolate* isolate, const char* label)
+      : isolate_(isolate), label_(label) {}
 
   ~PersistentValueMapBase() { Clear(); }
 
@@ -331,6 +332,10 @@ class PersistentValueMapBase {
     p.Reset();
   }
 
+  void AnnotateStrongRetainer(Global<V>* persistent) {
+    persistent->AnnotateStrongRetainer(label_);
+  }
+
  private:
   PersistentValueMapBase(PersistentValueMapBase&);
   void operator=(PersistentValueMapBase&);
@@ -340,13 +345,14 @@ class PersistentValueMapBase {
     bool hasValue = value != kPersistentContainerNotFound;
     if (hasValue) {
       returnValue->SetInternal(
-          *reinterpret_cast<internal::Object**>(FromVal(value)));
+          *reinterpret_cast<internal::Address*>(FromVal(value)));
     }
     return hasValue;
   }
 
   Isolate* isolate_;
   typename Traits::Impl impl_;
+  const char* label_;
 };
 
 
@@ -355,6 +361,8 @@ class PersistentValueMap : public PersistentValueMapBase<K, V, Traits> {
  public:
   explicit PersistentValueMap(Isolate* isolate)
       : PersistentValueMapBase<K, V, Traits>(isolate) {}
+  PersistentValueMap(Isolate* isolate, const char* label)
+      : PersistentValueMapBase<K, V, Traits>(isolate, label) {}
 
   typedef
       typename PersistentValueMapBase<K, V, Traits>::PersistentValueReference
@@ -382,7 +390,9 @@ class PersistentValueMap : public PersistentValueMapBase<K, V, Traits> {
    * by the Traits class.
    */
   Global<V> SetUnique(const K& key, Global<V>* persistent) {
-    if (Traits::kCallbackType != kNotWeak) {
+    if (Traits::kCallbackType == kNotWeak) {
+      this->AnnotateStrongRetainer(persistent);
+    } else {
       WeakCallbackType callback_type =
           Traits::kCallbackType == kWeakWithInternalFields
               ? WeakCallbackType::kInternalFields
@@ -427,6 +437,8 @@ class GlobalValueMap : public PersistentValueMapBase<K, V, Traits> {
  public:
   explicit GlobalValueMap(Isolate* isolate)
       : PersistentValueMapBase<K, V, Traits>(isolate) {}
+  GlobalValueMap(Isolate* isolate, const char* label)
+      : PersistentValueMapBase<K, V, Traits>(isolate, label) {}
 
   typedef
       typename PersistentValueMapBase<K, V, Traits>::PersistentValueReference
@@ -454,7 +466,9 @@ class GlobalValueMap : public PersistentValueMapBase<K, V, Traits> {
    * by the Traits class.
    */
   Global<V> SetUnique(const K& key, Global<V>* persistent) {
-    if (Traits::kCallbackType != kNotWeak) {
+    if (Traits::kCallbackType == kNotWeak) {
+      this->AnnotateStrongRetainer(persistent);
+    } else {
       WeakCallbackType callback_type =
           Traits::kCallbackType == kWeakWithInternalFields
               ? WeakCallbackType::kInternalFields

@@ -19,7 +19,10 @@
 #include "src/ic/stub-cache.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/objects/heap-number-inl.h"
+#include "src/objects/struct-inl.h"
 #include "src/optimized-compilation-info.h"
+#include "src/ostreams.h"
 #include "src/property.h"
 #include "src/transitions.h"
 
@@ -78,6 +81,14 @@ static Handle<AccessorPair> CreateAccessorPair(bool with_getter,
   return pair;
 }
 
+// Check cached migration target map after Map::Update() and Map::TryUpdate()
+static void CheckMigrationTarget(Isolate* isolate, Map old_map, Map new_map) {
+  Map target = TransitionsAccessor(isolate, handle(old_map, isolate))
+                   .GetMigrationTarget();
+  if (target.is_null()) return;
+  CHECK_EQ(new_map, target);
+  CHECK_EQ(Map::TryUpdateSlow(isolate, old_map), target);
+}
 
 class Expectations {
   static const int MAX_PROPERTIES = 10;
@@ -256,7 +267,7 @@ class Expectations {
     }
   }
 
-  bool Check(DescriptorArray* descriptors, int descriptor) const {
+  bool Check(DescriptorArray descriptors, int descriptor) const {
     PropertyDetails details = descriptors->GetDetails(descriptor);
 
     if (details.kind() != kinds_[descriptor]) return false;
@@ -269,17 +280,17 @@ class Expectations {
     Representation expected_representation = representations_[descriptor];
     if (!details.representation().Equals(expected_representation)) return false;
 
-    Object* expected_value = *values_[descriptor];
+    Object expected_value = *values_[descriptor];
     if (details.location() == kField) {
       if (details.kind() == kData) {
-        FieldType* type = descriptors->GetFieldType(descriptor);
+        FieldType type = descriptors->GetFieldType(descriptor);
         return FieldType::cast(expected_value) == type;
       } else {
         // kAccessor
         UNREACHABLE();
       }
     } else {
-      Object* value = descriptors->GetStrongValue(descriptor);
+      Object value = descriptors->GetStrongValue(descriptor);
       // kDescriptor
       if (details.kind() == kData) {
         CHECK(!FLAG_track_constant_fields);
@@ -288,20 +299,20 @@ class Expectations {
         // kAccessor
         if (value == expected_value) return true;
         if (!value->IsAccessorPair()) return false;
-        AccessorPair* pair = AccessorPair::cast(value);
+        AccessorPair pair = AccessorPair::cast(value);
         return pair->Equals(expected_value, *setter_values_[descriptor]);
       }
     }
     UNREACHABLE();
   }
 
-  bool Check(Map* map, int expected_nof) const {
+  bool Check(Map map, int expected_nof) const {
     CHECK_EQ(elements_kind_, map->elements_kind());
     CHECK(number_of_properties_ <= MAX_PROPERTIES);
     CHECK_EQ(expected_nof, map->NumberOfOwnDescriptors());
     CHECK(!map->is_dictionary_map());
 
-    DescriptorArray* descriptors = map->instance_descriptors();
+    DescriptorArray descriptors = map->instance_descriptors();
     CHECK(expected_nof <= number_of_properties_);
     for (int i = 0; i < expected_nof; i++) {
       if (!Check(descriptors, i)) {
@@ -316,8 +327,7 @@ class Expectations {
     return true;
   }
 
-  bool Check(Map* map) const { return Check(map, number_of_properties_); }
-
+  bool Check(Map map) const { return Check(map, number_of_properties_); }
 
   //
   // Helper methods for initializing expectations and adding properties to
@@ -398,9 +408,9 @@ class Expectations {
                  heap_type);
 
     Handle<String> name = MakeName("prop", property_index);
-    Map* target = TransitionsAccessor(isolate_, map)
-                      .SearchTransition(*name, kData, attributes);
-    CHECK_NOT_NULL(target);
+    Map target = TransitionsAccessor(isolate_, map)
+                     .SearchTransition(*name, kData, attributes);
+    CHECK(!target.is_null());
     return handle(target, isolate_);
   }
 
@@ -573,7 +583,7 @@ TEST(ReconfigureAccessorToNonExistingDataFieldHeavy) {
   // Check that the property contains |value|.
   CHECK_EQ(1, obj->map()->NumberOfOwnDescriptors());
   FieldIndex index = FieldIndex::ForDescriptor(obj->map(), 0);
-  Object* the_value = obj->RawFastPropertyAt(index);
+  Object the_value = obj->RawFastPropertyAt(index);
   CHECK(the_value->IsSmi());
   CHECK_EQ(42, Smi::ToInt(the_value));
 }
@@ -695,9 +705,9 @@ static void TestGeneralizeField(int detach_property_at_index,
 
   {
     // Check that all previous maps are not stable.
-    Map* tmp = *new_map;
+    Map tmp = *new_map;
     while (true) {
-      Object* back = tmp->GetBackPointer();
+      Object back = tmp->GetBackPointer();
       if (back->IsUndefined(isolate)) break;
       tmp = Map::cast(back);
       CHECK(!tmp->is_stable());
@@ -707,6 +717,7 @@ static void TestGeneralizeField(int detach_property_at_index,
   // Update all deprecated maps and check that they are now the same.
   Handle<Map> updated_map = Map::Update(isolate, map);
   CHECK_EQ(*new_map, *updated_map);
+  CheckMigrationTarget(isolate, *map, *updated_map);
 }
 
 static void TestGeneralizeField(const CRFTData& from, const CRFTData& to,
@@ -967,9 +978,11 @@ TEST(GeneralizeFieldWithAccessorProperties) {
   // Update all deprecated maps and check that they are now the same.
   Handle<Map> updated_map = Map::Update(isolate, map);
   CHECK_EQ(*active_map, *updated_map);
+  CheckMigrationTarget(isolate, *map, *updated_map);
   for (int i = 0; i < kPropCount; i++) {
     updated_map = Map::Update(isolate, maps[i]);
     CHECK_EQ(*active_map, *updated_map);
+    CheckMigrationTarget(isolate, *maps[i], *updated_map);
   }
 }
 
@@ -1060,6 +1073,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeField(
   // Update deprecated |map|, it should become |new_map|.
   Handle<Map> updated_map = Map::Update(isolate, map);
   CHECK_EQ(*new_map, *updated_map);
+  CheckMigrationTarget(isolate, *map, *updated_map);
 }
 
 // This test ensures that trivial field generalization (from HeapObject to
@@ -1370,6 +1384,7 @@ struct CheckDeprecated {
     // Update deprecated |map|, it should become |new_map|.
     Handle<Map> updated_map = Map::Update(isolate, map);
     CHECK_EQ(*new_map, *updated_map);
+    CheckMigrationTarget(isolate, *map, *updated_map);
   }
 };
 
@@ -1828,13 +1843,14 @@ static void TestReconfigureElementsKind_GeneralizeField(
   // Update deprecated |map|, it should become |new_map|.
   Handle<Map> updated_map = Map::Update(isolate, map);
   CHECK_EQ(*new_map, *updated_map);
+  CheckMigrationTarget(isolate, *map, *updated_map);
 
   // Ensure Map::FindElementsKindTransitionedMap() is able to find the
   // transitioned map.
   {
     MapHandles map_list;
     map_list.push_back(updated_map);
-    Map* transitioned_map =
+    Map transitioned_map =
         map2->FindElementsKindTransitionedMap(isolate, map_list);
     CHECK_EQ(*updated_map, transitioned_map);
   }
@@ -1932,7 +1948,7 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
   {
     MapHandles map_list;
     map_list.push_back(updated_map);
-    Map* transitioned_map =
+    Map transitioned_map =
         map2->FindElementsKindTransitionedMap(isolate, map_list);
     CHECK_EQ(*updated_map, transitioned_map);
   }
@@ -2187,9 +2203,9 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
       }
 
       Handle<String> name = MakeName("prop", i);
-      Map* target = TransitionsAccessor(isolate, map2)
-                        .SearchTransition(*name, kData, NONE);
-      CHECK_NOT_NULL(target);
+      Map target = TransitionsAccessor(isolate, map2)
+                       .SearchTransition(*name, kData, NONE);
+      CHECK(!target.is_null());
       map2 = handle(target, isolate);
     }
 
@@ -2339,9 +2355,11 @@ static void TestGeneralizeFieldWithSpecialTransition(TestConfig& config,
   // Update all deprecated maps and check that they are now the same.
   Handle<Map> updated_map = Map::Update(isolate, map);
   CHECK_EQ(*active_map, *updated_map);
+  CheckMigrationTarget(isolate, *map, *updated_map);
   for (int i = 0; i < kPropCount; i++) {
     updated_map = Map::Update(isolate, maps[i]);
     CHECK_EQ(*active_map, *updated_map);
+    CheckMigrationTarget(isolate, *maps[i], *updated_map);
   }
 }
 
@@ -2623,6 +2641,7 @@ struct FieldGeneralizationChecker {
     CHECK_NE(*map1, *map2);
     Handle<Map> updated_map = Map::Update(isolate, map1);
     CHECK_EQ(*map2, *updated_map);
+    CheckMigrationTarget(isolate, *map1, *updated_map);
 
     expectations2.SetDataField(descriptor_, attributes_, constness_,
                                representation_, heap_type_);

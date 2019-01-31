@@ -292,7 +292,7 @@ class MemoryAccessThread : public v8::base::Thread {
     Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate_);
     {
       v8::Isolate::Scope scope(isolate_);
-      v8::base::LockGuard<v8::base::Mutex> lock_guard(&mutex_);
+      v8::base::MutexGuard lock_guard(&mutex_);
       while (!is_finished_) {
         while (!(has_request_ || is_finished_)) {
           has_request_cv_.Wait(&mutex_);
@@ -313,7 +313,7 @@ class MemoryAccessThread : public v8::base::Thread {
 
   void NextAndWait(TestData* test_data, MemoryAccess access) {
     DCHECK(!has_request_);
-    v8::base::LockGuard<v8::base::Mutex> lock_guard(&mutex_);
+    v8::base::MutexGuard lock_guard(&mutex_);
     test_data_ = test_data;
     access_ = access;
     has_request_ = true;
@@ -325,7 +325,7 @@ class MemoryAccessThread : public v8::base::Thread {
   }
 
   void Finish() {
-    v8::base::LockGuard<v8::base::Mutex> lock_guard(&mutex_);
+    v8::base::MutexGuard lock_guard(&mutex_);
     is_finished_ = true;
     has_request_cv_.NotifyOne();
   }

@@ -32,7 +32,7 @@ declare_args() {
   v8_enable_backtrace = ""
 
   # Enable the snapshot feature, for fast context creation.
-  # http://v8project.blogspot.com/2015/09/custom-startup-snapshots.html
+  # https://v8.dev/blog/custom-startup-snapshots
   # TODO(thakis): Make snapshots work in 64-bit win/cross builds,
   # https://803591
   v8_use_snapshot = !(is_win && host_os != "win" && target_cpu == "x64")

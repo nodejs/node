@@ -29,6 +29,7 @@
 
 #include "include/v8-profiler.h"
 #include "src/api-inl.h"
+#include "src/log.h"
 #include "src/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
@@ -538,7 +539,7 @@ TEST(RecordStackTraceAtStartProfiling) {
   i::FLAG_turbo_inlining = false;
 
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   std::unique_ptr<i::CpuProfiler> iprofiler(
       new i::CpuProfiler(CcTest::i_isolate()));
@@ -616,7 +617,7 @@ TEST(ProfileNodeScriptId) {
   i::FLAG_turbo_inlining = false;
 
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   std::unique_ptr<CpuProfiler> iprofiler(new CpuProfiler(CcTest::i_isolate()));
   i::ProfilerExtension::set_profiler(iprofiler.get());
@@ -711,11 +712,12 @@ TEST(LineNumber) {
 }
 
 TEST(BailoutReason) {
+#ifndef V8_LITE_MODE
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_always_opt = false;
   i::FLAG_opt = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   std::unique_ptr<CpuProfiler> iprofiler(new CpuProfiler(CcTest::i_isolate()));
   i::ProfilerExtension::set_profiler(iprofiler.get());
@@ -751,7 +753,9 @@ TEST(BailoutReason) {
 
   current = PickChild(current, "Debugger");
   CHECK(const_cast<v8::CpuProfileNode*>(current));
-  CHECK(!strcmp("Optimization disabled for test", current->GetBailoutReason()));
+  CHECK(
+      !strcmp("Optimization is always disabled", current->GetBailoutReason()));
+#endif  // V8_LITE_MODE
 }
 
 }  // namespace test_profile_generator

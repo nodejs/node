@@ -10,6 +10,7 @@
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/objects.h"
+#include "src/objects/smi.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -42,7 +43,7 @@ class V8_EXPORT_PRIVATE JumpTableTargetOffsets final {
     void UpdateAndAdvanceToValid();
 
     const BytecodeArrayAccessor* accessor_;
-    Smi* current_;
+    Smi current_;
     int index_;
     int table_offset_;
     int table_end_;
@@ -92,8 +93,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayAccessor {
   Runtime::FunctionId GetRuntimeIdOperand(int operand_index) const;
   Runtime::FunctionId GetIntrinsicIdOperand(int operand_index) const;
   uint32_t GetNativeContextIndexOperand(int operand_index) const;
-  Object* GetConstantAtIndex(int offset) const;
-  Object* GetConstantForIndexOperand(int operand_index) const;
+  Object GetConstantAtIndex(int offset) const;
+  Object GetConstantForIndexOperand(int operand_index) const;
 
   // Returns the absolute offset of the branch target at the current bytecode.
   // It is an error to call this method if the bytecode is not for a jump or

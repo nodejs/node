@@ -13,13 +13,23 @@ namespace internal {
 
 class EntryFrameConstants : public AllStatic {
  public:
+  // This is the offset to where JSEntry pushes the current value of
+  // Isolate::c_entry_fp onto the stack.
   static constexpr int kCallerFPOffset = -6 * kPointerSize;
 
-  static constexpr int kNewTargetArgOffset = +2 * kPointerSize;
-  static constexpr int kFunctionArgOffset = +3 * kPointerSize;
-  static constexpr int kReceiverArgOffset = +4 * kPointerSize;
-  static constexpr int kArgcOffset = +5 * kPointerSize;
-  static constexpr int kArgvOffset = +6 * kPointerSize;
+  // EntryFrame is used by JSEntry, JSConstructEntry and JSRunMicrotasksEntry.
+  // All of them take |root_register_value| as the first parameter.
+  static constexpr int kRootRegisterValueOffset = +2 * kPointerSize;
+
+  // Rest of parameters passed to JSEntry and JSConstructEntry.
+  static constexpr int kNewTargetArgOffset = +3 * kPointerSize;
+  static constexpr int kFunctionArgOffset = +4 * kPointerSize;
+  static constexpr int kReceiverArgOffset = +5 * kPointerSize;
+  static constexpr int kArgcOffset = +6 * kPointerSize;
+  static constexpr int kArgvOffset = +7 * kPointerSize;
+
+  // Rest of parameters passed to JSRunMicrotasksEntry.
+  static constexpr int kMicrotaskQueueArgOffset = +3 * kPointerSize;
 };
 
 class ExitFrameConstants : public TypedFrameConstants {
@@ -40,7 +50,7 @@ class ExitFrameConstants : public TypedFrameConstants {
 
 class WasmCompileLazyFrameConstants : public TypedFrameConstants {
  public:
-  static constexpr int kNumberOfSavedGpParamRegs = 5;
+  static constexpr int kNumberOfSavedGpParamRegs = 4;
   static constexpr int kNumberOfSavedFpParamRegs = 6;
 
   // FP-relative.

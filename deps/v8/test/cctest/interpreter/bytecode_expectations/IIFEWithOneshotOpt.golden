@@ -565,9 +565,9 @@ snippet: "
         }
   
 "
-frame size: 3
+frame size: 2
 parameter count: 1
-bytecode array length: 46
+bytecode array length: 43
 bytecodes: [
                 B(CreateMappedArguments),
                 B(Star), R(0),
@@ -577,17 +577,15 @@ bytecodes: [
   /*  111 S> */ B(LdaGlobal), U8(0), U8(2),
                 B(Star), R(1),
                 B(LdaSmi), I8(3),
-  /*  115 E> */ B(StaNamedPropertyNoFeedback), R(1), U8(1), U8(0),
+  /*  115 E> */ B(StaNamedProperty), R(1), U8(1), U8(4),
   /*  130 S> */ B(LdaGlobal), U8(0), U8(2),
                 B(Star), R(1),
                 B(LdaSmi), I8(4),
-  /*  134 E> */ B(StaNamedPropertyNoFeedback), R(1), U8(2), U8(0),
-  /*  149 S> */ B(LdaUndefined),
-                B(Star), R(2),
-                B(LdaGlobal), U8(3), U8(4),
+  /*  134 E> */ B(StaNamedProperty), R(1), U8(2), U8(6),
+  /*  149 S> */ B(LdaGlobal), U8(3), U8(8),
                 B(Star), R(1),
-  /*  149 E> */ B(CallNoFeedback), R(1), R(2), U8(1),
-  /*  182 S> */ B(LdaNamedPropertyNoFeedback), R(0), U8(4),
+  /*  149 E> */ B(CallUndefinedReceiver0), R(1), U8(10),
+  /*  182 S> */ B(LdaNamedProperty), R(0), U8(4), U8(12),
   /*  189 S> */ B(Return),
 ]
 constant pool: [
@@ -644,6 +642,167 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["b"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["f2"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["callee"],
+]
+handlers: [
+]
+
+---
+snippet: "
+  
+          var f = function(l) {  l.a = 3; return l; };
+          f({});
+          f;
+  
+"
+frame size: 0
+parameter count: 2
+bytecode array length: 10
+bytecodes: [
+  /*   25 E> */ B(StackCheck),
+  /*   32 S> */ B(LdaSmi), I8(3),
+  /*   36 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(0),
+  /*   41 S> */ B(Ldar), R(arg0),
+  /*   50 S> */ B(Return),
+]
+constant pool: [
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
+]
+handlers: [
+]
+
+---
+snippet: "
+  
+          var f = (function(l) {  l.a = 3; return l; });
+          f;
+  
+"
+frame size: 0
+parameter count: 2
+bytecode array length: 10
+bytecodes: [
+  /*   26 E> */ B(StackCheck),
+  /*   33 S> */ B(LdaSmi), I8(3),
+  /*   37 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(0),
+  /*   42 S> */ B(Ldar), R(arg0),
+  /*   51 S> */ B(Return),
+]
+constant pool: [
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
+]
+handlers: [
+]
+
+---
+snippet: "
+  
+          var f = (function foo(l) {  l.a = 3; return l; });
+          f;
+  
+"
+frame size: 0
+parameter count: 2
+bytecode array length: 10
+bytecodes: [
+  /*   30 E> */ B(StackCheck),
+  /*   37 S> */ B(LdaSmi), I8(3),
+  /*   41 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(0),
+  /*   46 S> */ B(Ldar), R(arg0),
+  /*   55 S> */ B(Return),
+]
+constant pool: [
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
+]
+handlers: [
+]
+
+---
+snippet: "
+  
+          var f = function foo(l) {  l.a = 3; return l; };
+          f({});
+          f;
+  
+"
+frame size: 0
+parameter count: 2
+bytecode array length: 10
+bytecodes: [
+  /*   29 E> */ B(StackCheck),
+  /*   36 S> */ B(LdaSmi), I8(3),
+  /*   40 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(0),
+  /*   45 S> */ B(Ldar), R(arg0),
+  /*   54 S> */ B(Return),
+]
+constant pool: [
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
+]
+handlers: [
+]
+
+---
+snippet: "
+  
+          l = {};
+          var f = (function foo(l) {  l.a = 3; return arguments.callee; })(l);
+          f;
+  
+"
+frame size: 3
+parameter count: 2
+bytecode array length: 27
+bytecodes: [
+                B(CreateFunctionContext), U8(0), U8(1),
+                B(PushContext), R(1),
+                B(Ldar), R(arg0),
+                B(StaCurrentContextSlot), U8(4),
+                B(CreateMappedArguments),
+                B(Star), R(0),
+  /*   46 E> */ B(StackCheck),
+  /*   53 S> */ B(LdaCurrentContextSlot), U8(4),
+                B(Star), R(2),
+                B(LdaSmi), I8(3),
+  /*   57 E> */ B(StaNamedPropertyNoFeedback), R(2), U8(1), U8(0),
+  /*   79 S> */ B(LdaNamedPropertyNoFeedback), R(0), U8(2),
+  /*   86 S> */ B(Return),
+]
+constant pool: [
+  SCOPE_INFO_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["callee"],
+]
+handlers: [
+]
+
+---
+snippet: "
+  
+          var f = (function foo(l) {  l.a = 3; return arguments.callee; })({});
+          f;
+  
+"
+frame size: 3
+parameter count: 2
+bytecode array length: 27
+bytecodes: [
+                B(CreateFunctionContext), U8(0), U8(1),
+                B(PushContext), R(1),
+                B(Ldar), R(arg0),
+                B(StaCurrentContextSlot), U8(4),
+                B(CreateMappedArguments),
+                B(Star), R(0),
+  /*   30 E> */ B(StackCheck),
+  /*   37 S> */ B(LdaCurrentContextSlot), U8(4),
+                B(Star), R(2),
+                B(LdaSmi), I8(3),
+  /*   41 E> */ B(StaNamedPropertyNoFeedback), R(2), U8(1), U8(0),
+  /*   63 S> */ B(LdaNamedPropertyNoFeedback), R(0), U8(2),
+  /*   70 S> */ B(Return),
+]
+constant pool: [
+  SCOPE_INFO_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["callee"],
 ]
 handlers: [

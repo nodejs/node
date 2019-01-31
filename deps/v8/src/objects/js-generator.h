@@ -6,12 +6,16 @@
 #define V8_OBJECTS_JS_GENERATOR_H_
 
 #include "src/objects/js-objects.h"
+#include "src/objects/struct.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class JSPromise;
 
 class JSGeneratorObject : public JSObject {
  public:
@@ -64,18 +68,44 @@ class JSGeneratorObject : public JSObject {
   static const int kGeneratorClosed = -1;
 
   // Layout description.
-  static const int kFunctionOffset = JSObject::kHeaderSize;
-  static const int kContextOffset = kFunctionOffset + kPointerSize;
-  static const int kReceiverOffset = kContextOffset + kPointerSize;
-  static const int kInputOrDebugPosOffset = kReceiverOffset + kPointerSize;
-  static const int kResumeModeOffset = kInputOrDebugPosOffset + kPointerSize;
-  static const int kContinuationOffset = kResumeModeOffset + kPointerSize;
-  static const int kParametersAndRegistersOffset =
-      kContinuationOffset + kPointerSize;
-  static const int kSize = kParametersAndRegistersOffset + kPointerSize;
+#define JS_GENERATOR_FIELDS(V)                  \
+  V(kFunctionOffset, kTaggedSize)               \
+  V(kContextOffset, kTaggedSize)                \
+  V(kReceiverOffset, kTaggedSize)               \
+  V(kInputOrDebugPosOffset, kTaggedSize)        \
+  V(kResumeModeOffset, kTaggedSize)             \
+  V(kContinuationOffset, kTaggedSize)           \
+  V(kParametersAndRegistersOffset, kTaggedSize) \
+  /* Header size. */                            \
+  V(kSize, 0)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSGeneratorObject);
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_GENERATOR_FIELDS)
+#undef JS_GENERATOR_FIELDS
+
+  OBJECT_CONSTRUCTORS(JSGeneratorObject, JSObject);
+};
+
+class JSAsyncFunctionObject : public JSGeneratorObject {
+ public:
+  DECL_CAST(JSAsyncFunctionObject)
+
+  // Dispatched behavior.
+  DECL_VERIFIER(JSAsyncFunctionObject)
+
+  // [promise]: The promise of the async function.
+  DECL_ACCESSORS(promise, JSPromise)
+
+  // Layout description.
+#define JS_ASYNC_FUNCTION_FIELDS(V) \
+  V(kPromiseOffset, kTaggedSize)    \
+  /* Header size. */                \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSGeneratorObject::kSize,
+                                JS_ASYNC_FUNCTION_FIELDS)
+#undef JS_ASYNC_FUNCTION_FIELDS
+
+  OBJECT_CONSTRUCTORS(JSAsyncFunctionObject, JSGeneratorObject);
 };
 
 class JSAsyncGeneratorObject : public JSGeneratorObject {
@@ -95,12 +125,45 @@ class JSAsyncGeneratorObject : public JSGeneratorObject {
   DECL_INT_ACCESSORS(is_awaiting)
 
   // Layout description.
-  static const int kQueueOffset = JSGeneratorObject::kSize;
-  static const int kIsAwaitingOffset = kQueueOffset + kPointerSize;
-  static const int kSize = kIsAwaitingOffset + kPointerSize;
+#define JS_ASYNC_GENERATOR_FIELDS(V) \
+  V(kQueueOffset, kTaggedSize)       \
+  V(kIsAwaitingOffset, kTaggedSize)  \
+  /* Header size. */                 \
+  V(kSize, 0)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSAsyncGeneratorObject);
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSGeneratorObject::kSize,
+                                JS_ASYNC_GENERATOR_FIELDS)
+#undef JS_ASYNC_GENERATOR_FIELDS
+
+  OBJECT_CONSTRUCTORS(JSAsyncGeneratorObject, JSGeneratorObject);
+};
+
+class AsyncGeneratorRequest : public Struct {
+ public:
+  // Holds an AsyncGeneratorRequest, or Undefined.
+  DECL_ACCESSORS(next, Object)
+  DECL_INT_ACCESSORS(resume_mode)
+  DECL_ACCESSORS(value, Object)
+  DECL_ACCESSORS(promise, Object)
+
+// Layout description.
+#define ASYNC_GENERATOR_REQUEST_FIELDS(V) \
+  V(kNextOffset, kTaggedSize)             \
+  V(kResumeModeOffset, kTaggedSize)       \
+  V(kValueOffset, kTaggedSize)            \
+  V(kPromiseOffset, kTaggedSize)          \
+  /* Total size. */                       \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
+                                ASYNC_GENERATOR_REQUEST_FIELDS)
+#undef ASYNC_GENERATOR_REQUEST_FIELDS
+
+  DECL_CAST(AsyncGeneratorRequest)
+  DECL_PRINTER(AsyncGeneratorRequest)
+  DECL_VERIFIER(AsyncGeneratorRequest)
+
+  OBJECT_CONSTRUCTORS(AsyncGeneratorRequest, Struct);
 };
 
 }  // namespace internal

@@ -55,6 +55,7 @@ function setCallTreeState(state, callTreeState) {
 
 let main = {
   currentState : emptyState(),
+  renderPending : false,
 
   setMode(mode) {
     if (mode !== main.currentState.mode) {
@@ -197,7 +198,11 @@ let main = {
   },
 
   delayRender()  {
-    Promise.resolve().then(() => {
+    if (main.renderPending) return;
+    main.renderPending = true;
+
+    window.requestAnimationFrame(() => {
+      main.renderPending = false;
       for (let c of components) {
         c.render(main.currentState);
       }
@@ -496,7 +501,9 @@ class CallTreeView {
       nameCell.appendChild(createTypeNode(node.type));
       nameCell.appendChild(createFunctionNode(node.name, node.codeId));
       if (main.currentState.sourceData &&
-          main.currentState.sourceData.hasSource(node.name)) {
+          node.codeId >= 0 &&
+          main.currentState.sourceData.hasSource(
+              this.currentState.file.code[node.codeId].func)) {
         nameCell.appendChild(createViewSourceNode(node.codeId));
       }
 
@@ -1369,7 +1376,7 @@ class SourceData {
     this.functions = new Map();
     for (let codeId = 0; codeId < file.code.length; ++codeId) {
       let codeBlock = file.code[codeId];
-      if (codeBlock.source) {
+      if (codeBlock.source && codeBlock.func !== undefined) {
         let data = this.functions.get(codeBlock.func);
         if (!data) {
           data = new FunctionSourceData(codeBlock.source.script,
@@ -1386,7 +1393,7 @@ class SourceData {
       for (let i = 0; i < stack.length; i += 2) {
         let codeId = stack[i];
         if (codeId < 0) continue;
-        let functionid = file.code[codeId].func;
+        let functionId = file.code[codeId].func;
         if (this.functions.has(functionId)) {
           let codeOffset = stack[i + 1];
           this.functions.get(functionId).addOffsetSample(codeId, codeOffset);

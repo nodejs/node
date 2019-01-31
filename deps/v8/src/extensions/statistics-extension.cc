@@ -5,7 +5,7 @@
 #include "src/extensions/statistics-extension.h"
 
 #include "src/counters.h"
-#include "src/heap/heap-inl.h"
+#include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/isolate.h"
 
 namespace v8 {
@@ -109,6 +109,10 @@ void StatisticsExtension::GetCounters(
       {heap->lo_space()->Size(), "lo_space_live_bytes"},
       {heap->lo_space()->Available(), "lo_space_available_bytes"},
       {heap->lo_space()->CommittedMemory(), "lo_space_commited_bytes"},
+      {heap->code_lo_space()->Size(), "code_lo_space_live_bytes"},
+      {heap->code_lo_space()->Available(), "code_lo_space_available_bytes"},
+      {heap->code_lo_space()->CommittedMemory(),
+       "code_lo_space_commited_bytes"},
   };
 
   for (size_t i = 0; i < arraysize(numbers); i++) {
@@ -120,14 +124,14 @@ void StatisticsExtension::GetCounters(
   args.GetReturnValue().Set(result);
 
   HeapIterator iterator(reinterpret_cast<Isolate*>(args.GetIsolate())->heap());
-  HeapObject* obj;
   int reloc_info_total = 0;
   int source_position_table_total = 0;
-  while ((obj = iterator.next()) != nullptr) {
+  for (HeapObject obj = iterator.next(); !obj.is_null();
+       obj = iterator.next()) {
     if (obj->IsCode()) {
-      Code* code = Code::cast(obj);
+      Code code = Code::cast(obj);
       reloc_info_total += code->relocation_info()->Size();
-      ByteArray* source_position_table = code->SourcePositionTable();
+      ByteArray source_position_table = code->SourcePositionTable();
       if (source_position_table->length() > 0) {
         source_position_table_total += code->SourcePositionTable()->Size();
       }

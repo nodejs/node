@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <!--
 Copyright 2016 the V8 project authors. All rights reserved.  Use of this source
@@ -5,7 +6,8 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 -->
 
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
+  <title>V8 Runtime Stats Komparator</title>
   <style>
     body {
       font-family: arial;
@@ -228,8 +230,8 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       display: none;
     }
   </style>
-  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-  <script type="text/javascript">
+  <script src="https://www.gstatic.com/charts/loader.js"></script>
+  <script>
     "use strict"
     google.charts.load('current', {packages: ['corechart']});
 
@@ -957,7 +959,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       }
     }
   </script>
-  <script type="text/javascript">
+  <script>
   "use strict"
     // =========================================================================
     // Helpers
@@ -1058,7 +1060,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     }
 
   </script>
-  <script type="text/javascript">
+  <script>
   "use strict"
     // =========================================================================
     // EventHandlers
@@ -1305,7 +1307,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       window.open(url,'_blank');
     }
   </script>
-  <script type="text/javascript">
+  <script>
   "use strict"
     // =========================================================================
     class Versions {

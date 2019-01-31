@@ -12,6 +12,7 @@
 #include <ostream>
 
 #include "include/v8-internal.h"
+#include "src/base/atomic-utils.h"
 #include "src/base/build_config.h"
 #include "src/base/flags.h"
 #include "src/base/logging.h"
@@ -96,8 +97,6 @@ class AllStatic {
 };
 
 typedef uint8_t byte;
-typedef uintptr_t Address;
-static const Address kNullAddress = 0;
 
 // -----------------------------------------------------------------------------
 // Constants
@@ -120,6 +119,7 @@ constexpr uint32_t kMaxUInt32 = 0xFFFFFFFFu;
 constexpr int kMinUInt32 = 0;
 
 constexpr int kUInt8Size = sizeof(uint8_t);
+constexpr int kByteSize = sizeof(byte);
 constexpr int kCharSize = sizeof(char);
 constexpr int kShortSize = sizeof(short);  // NOLINT
 constexpr int kUInt16Size = sizeof(uint16_t);
@@ -132,18 +132,18 @@ constexpr int kFloatSize = sizeof(float);
 constexpr int kDoubleSize = sizeof(double);
 constexpr int kIntptrSize = sizeof(intptr_t);
 constexpr int kUIntptrSize = sizeof(uintptr_t);
-constexpr int kPointerSize = sizeof(void*);
-constexpr int kPointerHexDigits = kPointerSize == 4 ? 8 : 12;
+constexpr int kSystemPointerSize = sizeof(void*);
+constexpr int kSystemPointerHexDigits = kSystemPointerSize == 4 ? 8 : 12;
 #if V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
-constexpr int kRegisterSize = kPointerSize + kPointerSize;
+constexpr int kRegisterSize = kSystemPointerSize + kSystemPointerSize;
 #else
-constexpr int kRegisterSize = kPointerSize;
+constexpr int kRegisterSize = kSystemPointerSize;
 #endif
 constexpr int kPCOnStackSize = kRegisterSize;
 constexpr int kFPOnStackSize = kRegisterSize;
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
-constexpr int kElidedFrameSlots = kPCOnStackSize / kPointerSize;
+constexpr int kElidedFrameSlots = kPCOnStackSize / kSystemPointerSize;
 #else
 constexpr int kElidedFrameSlots = 0;
 #endif
@@ -151,26 +151,27 @@ constexpr int kElidedFrameSlots = 0;
 constexpr int kDoubleSizeLog2 = 3;
 #if V8_TARGET_ARCH_ARM64
 // ARM64 only supports direct calls within a 128 MB range.
-constexpr size_t kMaxWasmCodeMemory = 128 * MB;
+constexpr size_t kMaxWasmCodeMB = 128;
 #else
-constexpr size_t kMaxWasmCodeMemory = 1024 * MB;
+constexpr size_t kMaxWasmCodeMB = 1024;
 #endif
+constexpr size_t kMaxWasmCodeMemory = kMaxWasmCodeMB * MB;
 
 #if V8_HOST_ARCH_64_BIT
-constexpr int kPointerSizeLog2 = 3;
+constexpr int kSystemPointerSizeLog2 = 3;
 constexpr intptr_t kIntptrSignBit =
     static_cast<intptr_t>(uintptr_t{0x8000000000000000});
 constexpr uintptr_t kUintptrAllBitsSet = uintptr_t{0xFFFFFFFFFFFFFFFF};
 constexpr bool kRequiresCodeRange = true;
 #if V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
 constexpr size_t kMaximalCodeRangeSize = 512 * MB;
-constexpr size_t kCodeRangeAreaAlignment = 64 * KB;  // OS page on PPC Linux
+constexpr size_t kMinExpectedOSPageSize = 64 * KB;  // OS page on PPC Linux
 #elif V8_TARGET_ARCH_ARM64
 constexpr size_t kMaximalCodeRangeSize = 128 * MB;
-constexpr size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
+constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // OS page.
 #else
 constexpr size_t kMaximalCodeRangeSize = 128 * MB;
-constexpr size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
+constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // OS page.
 #endif
 #if V8_OS_WIN
 constexpr size_t kMinimumCodeRangeSize = 4 * MB;
@@ -180,7 +181,7 @@ constexpr size_t kMinimumCodeRangeSize = 3 * MB;
 constexpr size_t kReservedCodeRangePages = 0;
 #endif
 #else
-constexpr int kPointerSizeLog2 = 2;
+constexpr int kSystemPointerSizeLog2 = 2;
 constexpr intptr_t kIntptrSignBit = 0x80000000;
 constexpr uintptr_t kUintptrAllBitsSet = 0xFFFFFFFFu;
 #if V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
@@ -188,20 +189,54 @@ constexpr uintptr_t kUintptrAllBitsSet = 0xFFFFFFFFu;
 constexpr bool kRequiresCodeRange = true;
 constexpr size_t kMaximalCodeRangeSize = 256 * MB;
 constexpr size_t kMinimumCodeRangeSize = 3 * MB;
-constexpr size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
+constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // OS page.
 #elif V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
 constexpr bool kRequiresCodeRange = false;
 constexpr size_t kMaximalCodeRangeSize = 0 * MB;
 constexpr size_t kMinimumCodeRangeSize = 0 * MB;
-constexpr size_t kCodeRangeAreaAlignment = 64 * KB;  // OS page on PPC Linux
+constexpr size_t kMinExpectedOSPageSize = 64 * KB;  // OS page on PPC Linux
+#elif V8_TARGET_ARCH_MIPS
+constexpr bool kRequiresCodeRange = false;
+constexpr size_t kMaximalCodeRangeSize = 2048LL * MB;
+constexpr size_t kMinimumCodeRangeSize = 0 * MB;
+constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // OS page.
 #else
 constexpr bool kRequiresCodeRange = false;
 constexpr size_t kMaximalCodeRangeSize = 0 * MB;
 constexpr size_t kMinimumCodeRangeSize = 0 * MB;
-constexpr size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
+constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // OS page.
 #endif
 constexpr size_t kReservedCodeRangePages = 0;
 #endif
+
+STATIC_ASSERT(kSystemPointerSize == (1 << kSystemPointerSizeLog2));
+
+constexpr int kTaggedSize = kSystemPointerSize;
+constexpr int kTaggedSizeLog2 = kSystemPointerSizeLog2;
+STATIC_ASSERT(kTaggedSize == (1 << kTaggedSizeLog2));
+
+// These types define raw and atomic storage types for tagged values stored
+// on V8 heap.
+using Tagged_t = Address;
+using AtomicTagged_t = base::AtomicWord;
+using AsAtomicTagged = base::AsAtomicPointerImpl<AtomicTagged_t>;
+STATIC_ASSERT(sizeof(Tagged_t) == kTaggedSize);
+STATIC_ASSERT(sizeof(AtomicTagged_t) == kTaggedSize);
+
+// TODO(ishell): use kTaggedSize or kSystemPointerSize instead.
+constexpr int kPointerSize = kSystemPointerSize;
+constexpr int kPointerSizeLog2 = kSystemPointerSizeLog2;
+STATIC_ASSERT(kPointerSize == (1 << kPointerSizeLog2));
+
+constexpr int kEmbedderDataSlotSize =
+#ifdef V8_COMPRESS_POINTERS
+    kTaggedSize +
+#endif
+    kTaggedSize;
+
+constexpr int kEmbedderDataSlotSizeInTaggedSlots =
+    kEmbedderDataSlotSize / kTaggedSize;
+STATIC_ASSERT(kEmbedderDataSlotSize >= kSystemPointerSize);
 
 constexpr int kExternalAllocationSoftLimit =
     internal::Internals::kExternalAllocationSoftLimit;
@@ -213,17 +248,16 @@ constexpr int kExternalAllocationSoftLimit =
 // account.
 //
 // Current value: Page::kAllocatableMemory (on 32-bit arch) - 512 (slack).
+#ifdef V8_HOST_ARCH_PPC
+// Reduced kMaxRegularHeapObjectSize due to larger page size(64k) on ppc64le
+constexpr int kMaxRegularHeapObjectSize = 327680;
+#else
 constexpr int kMaxRegularHeapObjectSize = 507136;
-
-// Objects smaller or equal kMaxNewSpaceHeapObjectSize are allocated in the
-// new large object space.
-constexpr int kMaxNewSpaceHeapObjectSize = 32 * KB;
-
-STATIC_ASSERT(kPointerSize == (1 << kPointerSizeLog2));
+#endif
 
 constexpr int kBitsPerByte = 8;
 constexpr int kBitsPerByteLog2 = 3;
-constexpr int kBitsPerPointer = kPointerSize * kBitsPerByte;
+constexpr int kBitsPerSystemPointer = kSystemPointerSize * kBitsPerByte;
 constexpr int kBitsPerInt = kIntSize * kBitsPerByte;
 
 // IEEE 754 single precision floating point number bit layout.
@@ -374,6 +408,20 @@ inline std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
   UNREACHABLE();
 }
 
+enum class IsolateAllocationMode {
+  // Allocate Isolate in C++ heap using default new/delete operators.
+  kInCppHeap,
+
+  // Allocate Isolate in a committed region inside V8 heap reservation.
+  kInV8Heap,
+
+#ifdef V8_COMPRESS_POINTERS
+  kDefault = kInV8Heap,
+#else
+  kDefault = kInCppHeap,
+#endif
+};
+
 // Indicates whether the lookup is related to sloppy-mode block-scoped
 // function hoisting, and is a synthetic assignment for that.
 enum class LookupHoistingMode { kNormal, kLegacySloppy };
@@ -410,12 +458,13 @@ static_assert(SmiValuesAre31Bits() == kIsSmiValueInLower32Bits,
 constexpr intptr_t kSmiSignMask = static_cast<intptr_t>(
     uintptr_t{1} << (kSmiValueSize + kSmiShiftSize + kSmiTagSize - 1));
 
-constexpr int kObjectAlignmentBits = kPointerSizeLog2;
+// Desired alignment for tagged pointers.
+constexpr int kObjectAlignmentBits = kTaggedSizeLog2;
 constexpr intptr_t kObjectAlignment = 1 << kObjectAlignmentBits;
 constexpr intptr_t kObjectAlignmentMask = kObjectAlignment - 1;
 
-// Desired alignment for pointers.
-constexpr intptr_t kPointerAlignment = (1 << kPointerSizeLog2);
+// Desired alignment for system pointers.
+constexpr intptr_t kPointerAlignment = (1 << kSystemPointerSizeLog2);
 constexpr intptr_t kPointerAlignmentMask = kPointerAlignment - 1;
 
 // Desired alignment for double values.
@@ -428,8 +477,21 @@ constexpr int kCodeAlignmentBits = 5;
 constexpr intptr_t kCodeAlignment = 1 << kCodeAlignmentBits;
 constexpr intptr_t kCodeAlignmentMask = kCodeAlignment - 1;
 
-const intptr_t kWeakHeapObjectMask = 1 << 1;
-const intptr_t kClearedWeakHeapObject = 3;
+const Address kWeakHeapObjectMask = 1 << 1;
+
+// The lower 32 bits of the cleared weak reference value is always equal to
+// the |kClearedWeakHeapObjectLower32| constant but on 64-bit architectures
+// the value of the upper 32 bits part may be
+// 1) zero when pointer compression is disabled,
+// 2) upper 32 bits of the isolate root value when pointer compression is
+//    enabled.
+// This is necessary to make pointer decompression computation also suitable
+// for cleared weak reference.
+// Note, that real heap objects can't have lower 32 bits equal to 3 because
+// this offset belongs to page header. So, in either case it's enough to
+// compare only the lower 32 bits of a MaybeObject value in order to figure
+// out if it's a cleared reference or not.
+const uint32_t kClearedWeakHeapObjectLower32 = 3;
 
 // Zap-value: The value used for zapping dead objects.
 // Should be a recognizable hex value tagged as a failure.
@@ -476,23 +538,20 @@ class Arguments;
 class Assembler;
 class Code;
 class CodeSpace;
-class CodeStub;
 class Context;
+class DeclarationScope;
 class Debug;
 class DebugInfo;
 class Descriptor;
 class DescriptorArray;
 class TransitionArray;
 class ExternalReference;
+class FeedbackVector;
 class FixedArray;
+class Foreign;
 class FreeStoreAllocationPolicy;
 class FunctionTemplateInfo;
-class MemoryChunk;
-class NumberDictionary;
-class SimpleNumberDictionary;
-class NameDictionary;
 class GlobalDictionary;
-template <typename T> class MaybeHandle;
 template <typename T> class Handle;
 class Heap;
 class HeapObject;
@@ -509,34 +568,92 @@ class MacroAssembler;
 class Map;
 class MapSpace;
 class MarkCompactCollector;
+template <typename T>
+class MaybeHandle;
 class MaybeObject;
+class MemoryChunk;
+class MessageLocation;
+class ModuleScope;
+class Name;
+class NameDictionary;
 class NewSpace;
 class NewLargeObjectSpace;
+class NumberDictionary;
 class Object;
+class CompressedObjectSlot;
+class CompressedMaybeObjectSlot;
+class CompressedMapWordSlot;
+class CompressedHeapObjectSlot;
+class FullObjectSlot;
+class FullMaybeObjectSlot;
+class FullHeapObjectSlot;
 class OldSpace;
 class ParameterCount;
 class ReadOnlySpace;
-class Foreign;
+class RelocInfo;
 class Scope;
-class DeclarationScope;
-class ModuleScope;
 class ScopeInfo;
 class Script;
+class SimpleNumberDictionary;
 class Smi;
 template <typename Config, class Allocator = FreeStoreAllocationPolicy>
 class SplayTree;
 class String;
-class Symbol;
-class Name;
 class Struct;
-class FeedbackVector;
+class Symbol;
 class Variable;
-class RelocInfo;
-class MessageLocation;
 
-typedef bool (*WeakSlotCallback)(Object** pointer);
+enum class SlotLocation { kOnHeap, kOffHeap };
 
-typedef bool (*WeakSlotCallbackWithHeap)(Heap* heap, Object** pointer);
+template <SlotLocation slot_location>
+struct SlotTraits;
+
+// Off-heap slots are always full-pointer slots.
+template <>
+struct SlotTraits<SlotLocation::kOffHeap> {
+  using TObjectSlot = FullObjectSlot;
+  using TMapWordSlot = FullObjectSlot;
+  using TMaybeObjectSlot = FullMaybeObjectSlot;
+  using THeapObjectSlot = FullHeapObjectSlot;
+};
+
+// On-heap slots are either full-pointer slots or compressed slots depending
+// on whether the pointer compression is enabled or not.
+template <>
+struct SlotTraits<SlotLocation::kOnHeap> {
+#ifdef V8_COMPRESS_POINTERS
+  using TObjectSlot = CompressedObjectSlot;
+  using TMapWordSlot = CompressedMapWordSlot;
+  using TMaybeObjectSlot = CompressedMaybeObjectSlot;
+  using THeapObjectSlot = CompressedHeapObjectSlot;
+#else
+  using TObjectSlot = FullObjectSlot;
+  using TMapWordSlot = FullObjectSlot;
+  using TMaybeObjectSlot = FullMaybeObjectSlot;
+  using THeapObjectSlot = FullHeapObjectSlot;
+#endif
+};
+
+// An ObjectSlot instance describes a kTaggedSize-sized on-heap field ("slot")
+// holding Object value (smi or strong heap object).
+using ObjectSlot = SlotTraits<SlotLocation::kOnHeap>::TObjectSlot;
+
+// An MapWordSlot instance describes a kTaggedSize-sized on-heap field ("slot")
+// holding HeapObject (strong heap object) value or a forwarding pointer.
+using MapWordSlot = SlotTraits<SlotLocation::kOnHeap>::TMapWordSlot;
+
+// A MaybeObjectSlot instance describes a kTaggedSize-sized on-heap field
+// ("slot") holding MaybeObject (smi or weak heap object or strong heap object).
+using MaybeObjectSlot = SlotTraits<SlotLocation::kOnHeap>::TMaybeObjectSlot;
+
+// A HeapObjectSlot instance describes a kTaggedSize-sized field ("slot")
+// holding a weak or strong pointer to a heap object (think:
+// HeapObjectReference).
+using HeapObjectSlot = SlotTraits<SlotLocation::kOnHeap>::THeapObjectSlot;
+
+typedef bool (*WeakSlotCallback)(FullObjectSlot pointer);
+
+typedef bool (*WeakSlotCallbackWithHeap)(Heap* heap, FullObjectSlot pointer);
 
 // -----------------------------------------------------------------------------
 // Miscellaneous
@@ -552,16 +669,18 @@ enum AllocationSpace {
   CODE_SPACE,  // Old generation code object space, marked executable.
   MAP_SPACE,   // Old generation map object space, non-movable.
   LO_SPACE,    // Old generation large object space.
-  NEW_LO_SPACE,  // Young generation large object space.
+  CODE_LO_SPACE,  // Old generation large code object space.
+  NEW_LO_SPACE,   // Young generation large object space.
 
   FIRST_SPACE = RO_SPACE,
   LAST_SPACE = NEW_LO_SPACE,
   FIRST_GROWABLE_PAGED_SPACE = OLD_SPACE,
   LAST_GROWABLE_PAGED_SPACE = MAP_SPACE
 };
-constexpr int kSpaceTagSize = 3;
+constexpr int kSpaceTagSize = 4;
 STATIC_ASSERT(FIRST_SPACE == 0);
 
+// TODO(ishell): review and rename kWordAligned to kTaggedAligned.
 enum AllocationAlignment { kWordAligned, kDoubleAligned, kDoubleUnaligned };
 
 enum class AccessMode { ATOMIC, NON_ATOMIC };
@@ -623,13 +742,11 @@ enum Movability { kMovable, kImmovable };
 
 enum VisitMode {
   VISIT_ALL,
-  VISIT_ALL_BUT_READ_ONLY,
   VISIT_ALL_IN_MINOR_MC_MARK,
   VISIT_ALL_IN_MINOR_MC_UPDATE,
   VISIT_ALL_IN_SCAVENGE,
   VISIT_ALL_IN_SWEEP_NEWSPACE,
   VISIT_ONLY_STRONG,
-  VISIT_ONLY_STRONG_FOR_SERIALIZATION,
   VISIT_FOR_SERIALIZATION,
 };
 
@@ -651,44 +768,38 @@ enum ParseRestriction {
 // A CodeDesc describes a buffer holding instructions and relocation
 // information. The instructions start at the beginning of the buffer
 // and grow forward, the relocation information starts at the end of
-// the buffer and grows backward.  A constant pool may exist at the
-// end of the instructions.
+// the buffer and grows backward.  A constant pool and a code comments
+// section may exist at the in this order at the end of the instructions.
 //
-//  |<--------------- buffer_size ----------------------------------->|
-//  |<------------- instr_size ---------->|        |<-- reloc_size -->|
-//  |               |<- const_pool_size ->|                           |
-//  +=====================================+========+==================+
-//  |  instructions |        data         |  free  |    reloc info    |
-//  +=====================================+========+==================+
-//  ^
-//  |
+//  │<--------------- buffer_size ----------------------------------->│
+//  │<---------------- instr_size ------------->│      │<-reloc_size->│
+//  │              │<-const pool->│             │      │              │
+//  │                             │<- comments->│      │              │
+//  ├───────────────────────────────────────────┼──────┼──────────────┤
+//  │ instructions │         data               │ free │  reloc info  │
+//  ├───────────────────────────────────────────┴──────┴──────────────┘
 //  buffer
 
 struct CodeDesc {
-  byte* buffer;
-  int buffer_size;
-  int instr_size;
-  int reloc_size;
-  int constant_pool_size;
-  byte* unwinding_info;
-  int unwinding_info_size;
-  Assembler* origin;
+  byte* buffer = nullptr;
+  int buffer_size = 0;
+  int instr_size = 0;
+  int reloc_size = 0;
+  int constant_pool_size = 0;
+  int code_comments_size = 0;
+  byte* unwinding_info = 0;
+  int unwinding_info_size = 0;
+  Assembler* origin = nullptr;
+  int constant_pool_offset() const {
+    return code_comments_offset() - constant_pool_size;
+  }
+  int code_comments_offset() const { return instr_size - code_comments_size; }
 };
-
-
-// Callback function used for checking constraints when copying/relocating
-// objects. Returns true if an object can be copied/relocated from its
-// old_addr to a new_addr.
-typedef bool (*ConstraintCallback)(Address new_addr, Address old_addr);
-
-
-// Callback function on inline caches, used for iterating over inline caches
-// in compiled code.
-typedef void (*InlineCacheCallback)(Code* code, Address ic);
-
 
 // State for inline cache call sites. Aliased as IC::State.
 enum InlineCacheState {
+  // No feedback will be collected.
+  NO_FEEDBACK,
   // Has never been executed.
   UNINITIALIZED,
   // Has been executed but monomorhic state has been delayed.
@@ -708,6 +819,8 @@ enum InlineCacheState {
 // Printing support.
 inline const char* InlineCacheState2String(InlineCacheState state) {
   switch (state) {
+    case NO_FEEDBACK:
+      return "NOFEEDBACK";
     case UNINITIALIZED:
       return "UNINITIALIZED";
     case PREMONOMORPHIC:
@@ -784,76 +897,40 @@ constexpr int kIeeeDoubleExponentWordOffset = 0;
 // Testers for test.
 
 #define HAS_SMI_TAG(value) \
-  ((reinterpret_cast<intptr_t>(value) & ::i::kSmiTagMask) == ::i::kSmiTag)
+  ((static_cast<intptr_t>(value) & ::i::kSmiTagMask) == ::i::kSmiTag)
 
-#define HAS_HEAP_OBJECT_TAG(value)                                   \
-  (((reinterpret_cast<intptr_t>(value) & ::i::kHeapObjectTagMask) == \
+#define HAS_HEAP_OBJECT_TAG(value)                              \
+  (((static_cast<intptr_t>(value) & ::i::kHeapObjectTagMask) == \
     ::i::kHeapObjectTag))
 
 // OBJECT_POINTER_ALIGN returns the value aligned as a HeapObject pointer
 #define OBJECT_POINTER_ALIGN(value)                             \
   (((value) + kObjectAlignmentMask) & ~kObjectAlignmentMask)
 
-// POINTER_SIZE_ALIGN returns the value aligned as a pointer.
+// OBJECT_POINTER_PADDING returns the padding size required to align value
+// as a HeapObject pointer
+#define OBJECT_POINTER_PADDING(value) (OBJECT_POINTER_ALIGN(value) - (value))
+
+// POINTER_SIZE_ALIGN returns the value aligned as a system pointer.
 #define POINTER_SIZE_ALIGN(value)                               \
   (((value) + kPointerAlignmentMask) & ~kPointerAlignmentMask)
+
+// POINTER_SIZE_PADDING returns the padding size required to align value
+// as a system pointer.
+#define POINTER_SIZE_PADDING(value) (POINTER_SIZE_ALIGN(value) - (value))
 
 // CODE_POINTER_ALIGN returns the value aligned as a generated code segment.
 #define CODE_POINTER_ALIGN(value)                               \
   (((value) + kCodeAlignmentMask) & ~kCodeAlignmentMask)
 
+// CODE_POINTER_PADDING returns the padding size required to align value
+// as a generated code segment.
+#define CODE_POINTER_PADDING(value) (CODE_POINTER_ALIGN(value) - (value))
+
 // DOUBLE_POINTER_ALIGN returns the value algined for double pointers.
 #define DOUBLE_POINTER_ALIGN(value) \
   (((value) + kDoubleAlignmentMask) & ~kDoubleAlignmentMask)
 
-
-// CPU feature flags.
-enum CpuFeature {
-  // x86
-  SSE4_1,
-  SSSE3,
-  SSE3,
-  SAHF,
-  AVX,
-  FMA3,
-  BMI1,
-  BMI2,
-  LZCNT,
-  POPCNT,
-  ATOM,
-  // ARM
-  // - Standard configurations. The baseline is ARMv6+VFPv2.
-  ARMv7,        // ARMv7-A + VFPv3-D32 + NEON
-  ARMv7_SUDIV,  // ARMv7-A + VFPv4-D32 + NEON + SUDIV
-  ARMv8,        // ARMv8-A (+ all of the above)
-  // MIPS, MIPS64
-  FPU,
-  FP64FPU,
-  MIPSr1,
-  MIPSr2,
-  MIPSr6,
-  MIPS_SIMD,  // MSA instructions
-  // PPC
-  FPR_GPR_MOV,
-  LWSYNC,
-  ISELECT,
-  VSX,
-  MODULO,
-  // S390
-  DISTINCT_OPS,
-  GENERAL_INSTR_EXT,
-  FLOATING_POINT_EXT,
-  VECTOR_FACILITY,
-  MISC_INSTR_EXT2,
-
-  NUMBER_OF_CPU_FEATURES,
-
-  // ARM feature aliases (based on the standard configurations above).
-  VFPv3 = ARMv7,
-  NEON = ARMv7,
-  VFP32DREGS = ARMv7,
-  SUDIV = ARMv7_SUDIV
-};
 
 // Defines hints about receiver values based on structural knowledge.
 enum class ConvertReceiverMode : unsigned {
@@ -987,10 +1064,12 @@ enum class VariableMode : uint8_t {
                    // variable is global unless it has been shadowed
                    // by an eval-introduced variable
 
-  kDynamicLocal  // requires dynamic lookup, but we know that the
-                 // variable is local and where it is unless it
-                 // has been shadowed by an eval-introduced
-                 // variable
+  kDynamicLocal,  // requires dynamic lookup, but we know that the
+                  // variable is local and where it is unless it
+                  // has been shadowed by an eval-introduced
+                  // variable
+
+  kLastLexicalVariableMode = kConst,
 };
 
 // Printing support
@@ -1018,7 +1097,7 @@ inline const char* VariableMode2String(VariableMode mode) {
 
 enum VariableKind : uint8_t {
   NORMAL_VARIABLE,
-  FUNCTION_VARIABLE,
+  PARAMETER_VARIABLE,
   THIS_VARIABLE,
   SLOPPY_FUNCTION_NAME_VARIABLE
 };
@@ -1036,7 +1115,7 @@ inline bool IsDeclaredVariableMode(VariableMode mode) {
 inline bool IsLexicalVariableMode(VariableMode mode) {
   STATIC_ASSERT(static_cast<uint8_t>(VariableMode::kLet) ==
                 0);  // Implies that mode >= VariableMode::kLet.
-  return mode <= VariableMode::kConst;
+  return mode <= VariableMode::kLastLexicalVariableMode;
 }
 
 enum VariableLocation : uint8_t {
@@ -1110,7 +1189,7 @@ enum FunctionKind : uint8_t {
   kSetterFunction,
   kAsyncFunction,
   kModule,
-  kClassFieldsInitializerFunction,
+  kClassMembersInitializerFunction,
 
   kDefaultBaseConstructor,
   kDefaultDerivedConstructor,
@@ -1159,7 +1238,7 @@ inline bool IsConciseMethod(FunctionKind kind) {
          kind == FunctionKind::kConciseGeneratorMethod ||
          kind == FunctionKind::kAsyncConciseMethod ||
          kind == FunctionKind::kAsyncConciseGeneratorMethod ||
-         kind == FunctionKind::kClassFieldsInitializerFunction;
+         kind == FunctionKind::kClassMembersInitializerFunction;
 }
 
 inline bool IsGetterFunction(FunctionKind kind) {
@@ -1195,8 +1274,8 @@ inline bool IsClassConstructor(FunctionKind kind) {
   return IsBaseConstructor(kind) || IsDerivedConstructor(kind);
 }
 
-inline bool IsClassFieldsInitializerFunction(FunctionKind kind) {
-  return kind == FunctionKind::kClassFieldsInitializerFunction;
+inline bool IsClassMembersInitializerFunction(FunctionKind kind) {
+  return kind == FunctionKind::kClassMembersInitializerFunction;
 }
 
 inline bool IsConstructable(FunctionKind kind) {
@@ -1230,8 +1309,8 @@ inline std::ostream& operator<<(std::ostream& os, FunctionKind kind) {
       return os << "AsyncFunction";
     case FunctionKind::kModule:
       return os << "Module";
-    case FunctionKind::kClassFieldsInitializerFunction:
-      return os << "ClassFieldsInitializerFunction";
+    case FunctionKind::kClassMembersInitializerFunction:
+      return os << "ClassMembersInitializerFunction";
     case FunctionKind::kDefaultBaseConstructor:
       return os << "DefaultBaseConstructor";
     case FunctionKind::kDefaultDerivedConstructor:
@@ -1276,7 +1355,7 @@ inline std::ostream& operator<<(std::ostream& os,
 inline uint32_t ObjectHash(Address address) {
   // All objects are at least pointer aligned, so we can remove the trailing
   // zeros.
-  return static_cast<uint32_t>(address >> kPointerSizeLog2);
+  return static_cast<uint32_t>(address >> kTaggedSizeLog2);
 }
 
 // Type feedback is encoded in such a way that, we can combine the feedback
@@ -1311,27 +1390,28 @@ class BinaryOperationFeedback {
 // at different points by performing an 'OR' operation. Type feedback moves
 // to a more generic type when we combine feedback.
 //
-//   kSignedSmall -> kNumber             -> kNumberOrOddball -> kAny
-//                   kInternalizedString -> kString          -> kAny
-//                                          kSymbol          -> kAny
-//                                          kBigInt          -> kAny
-//                                          kReceiver        -> kAny
+//   kSignedSmall -> kNumber             -> kNumberOrOddball           -> kAny
+//                   kReceiver           -> kReceiverOrNullOrUndefined -> kAny
+//                   kInternalizedString -> kString                    -> kAny
+//                                          kSymbol                    -> kAny
+//                                          kBigInt                    -> kAny
 //
 // This is distinct from BinaryOperationFeedback on purpose, because the
 // feedback that matters differs greatly as well as the way it is consumed.
 class CompareOperationFeedback {
  public:
   enum {
-    kNone = 0x00,
-    kSignedSmall = 0x01,
-    kNumber = 0x3,
-    kNumberOrOddball = 0x7,
-    kInternalizedString = 0x8,
-    kString = 0x18,
-    kSymbol = 0x20,
-    kBigInt = 0x30,
-    kReceiver = 0x40,
-    kAny = 0xff
+    kNone = 0x000,
+    kSignedSmall = 0x001,
+    kNumber = 0x003,
+    kNumberOrOddball = 0x007,
+    kInternalizedString = 0x008,
+    kString = 0x018,
+    kSymbol = 0x020,
+    kBigInt = 0x040,
+    kReceiver = 0x080,
+    kReceiverOrNullOrUndefined = 0x180,
+    kAny = 0x1ff
   };
 };
 
@@ -1534,36 +1614,10 @@ enum IsolateAddressId {
       kIsolateAddressCount
 };
 
-V8_INLINE static bool HasWeakHeapObjectTag(const internal::MaybeObject* value) {
-  return ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) ==
+V8_INLINE static bool HasWeakHeapObjectTag(Address value) {
+  // TODO(jkummerow): Consolidate integer types here.
+  return ((static_cast<intptr_t>(value) & kHeapObjectTagMask) ==
           kWeakHeapObjectTag);
-}
-
-// Object* should never have the weak tag; this variant is for overzealous
-// checking.
-V8_INLINE static bool HasWeakHeapObjectTag(const Object* value) {
-  return ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) ==
-          kWeakHeapObjectTag);
-}
-
-V8_INLINE static bool IsClearedWeakHeapObject(const MaybeObject* value) {
-  return reinterpret_cast<intptr_t>(value) == kClearedWeakHeapObject;
-}
-
-V8_INLINE static HeapObject* RemoveWeakHeapObjectMask(
-    HeapObjectReference* value) {
-  return reinterpret_cast<HeapObject*>(reinterpret_cast<intptr_t>(value) &
-                                       ~kWeakHeapObjectMask);
-}
-
-V8_INLINE static HeapObjectReference* AddWeakHeapObjectMask(Object* value) {
-  return reinterpret_cast<HeapObjectReference*>(
-      reinterpret_cast<intptr_t>(value) | kWeakHeapObjectMask);
-}
-
-V8_INLINE static MaybeObject* AddWeakHeapObjectMask(MaybeObject* value) {
-  return reinterpret_cast<MaybeObject*>(reinterpret_cast<intptr_t>(value) |
-                                        kWeakHeapObjectMask);
 }
 
 enum class HeapObjectReferenceType {
@@ -1595,7 +1649,10 @@ enum class LoadSensitivity {
   V(TrapRemByZero)                 \
   V(TrapFloatUnrepresentable)      \
   V(TrapFuncInvalid)               \
-  V(TrapFuncSigMismatch)
+  V(TrapFuncSigMismatch)           \
+  V(TrapDataSegmentDropped)        \
+  V(TrapElemSegmentDropped)        \
+  V(TrapTableOutOfBounds)
 
 enum KeyedAccessLoadMode {
   STANDARD_LOAD,
@@ -1656,6 +1713,21 @@ static inline bool IsGrowStoreMode(KeyedAccessStoreMode store_mode) {
 }
 
 enum IcCheckType { ELEMENT, PROPERTY };
+
+// Helper stubs can be called in different ways depending on where the target
+// code is located and how the call sequence is expected to look like:
+//  - CodeObject: Call on-heap {Code} object via {RelocInfo::CODE_TARGET}.
+//  - WasmRuntimeStub: Call native {WasmCode} stub via
+//    {RelocInfo::WASM_STUB_CALL}.
+//  - BuiltinPointer: Call a builtin based on a builtin pointer with dynamic
+//    contents. If builtins are embedded, we call directly into off-heap code
+//    without going through the on-heap Code trampoline.
+enum class StubCallMode {
+  kCallCodeObject,
+  kCallWasmRuntimeStub,
+  kCallBuiltinPointer,
+};
+
 }  // namespace internal
 }  // namespace v8
 

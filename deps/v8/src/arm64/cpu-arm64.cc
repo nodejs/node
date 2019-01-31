@@ -7,7 +7,7 @@
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/arm64/utils-arm64.h"
-#include "src/assembler.h"
+#include "src/cpu-features.h"
 
 namespace v8 {
 namespace internal {
@@ -15,7 +15,7 @@ namespace internal {
 class CacheLineSizes {
  public:
   CacheLineSizes() {
-#ifdef USE_SIMULATOR
+#if defined(USE_SIMULATOR) || defined(V8_OS_WIN)
     cache_type_register_ = 0;
 #else
     // Copy the content of the cache type register to a core register.
@@ -38,7 +38,9 @@ class CacheLineSizes {
 };
 
 void CpuFeatures::FlushICache(void* address, size_t length) {
-#ifdef V8_HOST_ARCH_ARM64
+#if defined(V8_OS_WIN)
+  FlushInstructionCache(GetCurrentProcess(), address, length);
+#elif defined(V8_HOST_ARCH_ARM64)
   // The code below assumes user space cache operations are allowed. The goal
   // of this routine is to make sure the code generated is visible to the I
   // side of the CPU.

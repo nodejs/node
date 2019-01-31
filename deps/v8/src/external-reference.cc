@@ -6,9 +6,10 @@
 
 #include "src/api.h"
 #include "src/base/ieee754.h"
-#include "src/codegen.h"
 #include "src/compiler/code-assembler.h"
 #include "src/counters.h"
+#include "src/cpu-features.h"
+#include "src/date.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/elements.h"
@@ -16,7 +17,9 @@
 #include "src/ic/stub-cache.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
+#include "src/log.h"
 #include "src/math-random.h"
+#include "src/microtask-queue.h"
 #include "src/objects-inl.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/simulator-base.h"
@@ -47,7 +50,7 @@
 #endif  // V8_INTERPRETED_REGEXP
 
 #ifdef V8_INTL_SUPPORT
-#include "src/intl.h"
+#include "src/objects/intl-objects.h"
 #endif  // V8_INTL_SUPPORT
 
 namespace v8 {
@@ -62,27 +65,27 @@ constexpr uint64_t double_the_hole_nan_constant = kHoleNanInt64;
 constexpr double double_uint32_bias_constant =
     static_cast<double>(kMaxUInt32) + 1;
 
-constexpr struct V8_ALIGNED(16) {
+constexpr struct alignas(16) {
   uint32_t a;
   uint32_t b;
   uint32_t c;
   uint32_t d;
 } float_absolute_constant = {0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF};
 
-constexpr struct V8_ALIGNED(16) {
+constexpr struct alignas(16) {
   uint32_t a;
   uint32_t b;
   uint32_t c;
   uint32_t d;
 } float_negate_constant = {0x80000000, 0x80000000, 0x80000000, 0x80000000};
 
-constexpr struct V8_ALIGNED(16) {
+constexpr struct alignas(16) {
   uint64_t a;
   uint64_t b;
 } double_absolute_constant = {uint64_t{0x7FFFFFFFFFFFFFFF},
                               uint64_t{0x7FFFFFFFFFFFFFFF}};
 
-constexpr struct V8_ALIGNED(16) {
+constexpr struct alignas(16) {
   uint64_t a;
   uint64_t b;
 } double_negate_constant = {uint64_t{0x8000000000000000},
@@ -146,6 +149,14 @@ ExternalReference ExternalReference::interpreter_dispatch_counters(
       isolate->interpreter()->bytecode_dispatch_counters_table());
 }
 
+ExternalReference
+ExternalReference::address_of_interpreter_entry_trampoline_instruction_start(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->interpreter()
+          ->address_of_interpreter_entry_trampoline_instruction_start());
+}
+
 ExternalReference ExternalReference::bytecode_size_table_address() {
   return ExternalReference(
       interpreter::Bytecodes::bytecode_size_table_address());
@@ -168,25 +179,70 @@ ExternalReference ExternalReference::Create(const SCTableReference& table_ref) {
   return ExternalReference(table_ref.address());
 }
 
-ExternalReference
-ExternalReference::incremental_marking_record_write_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(IncrementalMarking::RecordWriteFromCode)));
+namespace {
+
+// Helper function to verify that all types in a list of types are scalar.
+// This includes primitive types (int, Address) and pointer types. We also
+// allow void.
+template <typename T>
+constexpr bool AllScalar() {
+  return std::is_scalar<T>::value || std::is_void<T>::value;
 }
+
+template <typename T1, typename T2, typename... Rest>
+constexpr bool AllScalar() {
+  return AllScalar<T1>() && AllScalar<T2, Rest...>();
+}
+
+// Checks a function pointer's type for compatibility with the
+// ExternalReference calling mechanism. Specifically, all arguments
+// as well as the result type must pass the AllScalar check above,
+// because we expect each item to fit into one register or stack slot.
+template <typename T>
+struct IsValidExternalReferenceType;
+
+template <typename Result, typename... Args>
+struct IsValidExternalReferenceType<Result (*)(Args...)> {
+  static const bool value = AllScalar<Result, Args...>();
+};
+
+template <typename Result, typename Class, typename... Args>
+struct IsValidExternalReferenceType<Result (Class::*)(Args...)> {
+  static const bool value = AllScalar<Result, Args...>();
+};
+
+}  // namespace
+
+#define FUNCTION_REFERENCE(Name, Target)                                   \
+  ExternalReference ExternalReference::Name() {                            \
+    STATIC_ASSERT(IsValidExternalReferenceType<decltype(&Target)>::value); \
+    return ExternalReference(Redirect(FUNCTION_ADDR(Target)));             \
+  }
+
+#define FUNCTION_REFERENCE_WITH_ISOLATE(Name, Target)                      \
+  ExternalReference ExternalReference::Name(Isolate* isolate) {            \
+    STATIC_ASSERT(IsValidExternalReferenceType<decltype(&Target)>::value); \
+    return ExternalReference(Redirect(FUNCTION_ADDR(Target)));             \
+  }
+
+#define FUNCTION_REFERENCE_WITH_TYPE(Name, Target, Type)                   \
+  ExternalReference ExternalReference::Name() {                            \
+    STATIC_ASSERT(IsValidExternalReferenceType<decltype(&Target)>::value); \
+    return ExternalReference(Redirect(FUNCTION_ADDR(Target), Type));       \
+  }
+
+FUNCTION_REFERENCE(incremental_marking_record_write_function,
+                   IncrementalMarking::RecordWriteFromCode);
 
 ExternalReference ExternalReference::store_buffer_overflow_function() {
   return ExternalReference(
       Redirect(Heap::store_buffer_overflow_function_address()));
 }
 
-ExternalReference ExternalReference::delete_handle_scope_extensions() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(HandleScope::DeleteExtensions)));
-}
+FUNCTION_REFERENCE(delete_handle_scope_extensions,
+                   HandleScope::DeleteExtensions)
 
-ExternalReference ExternalReference::get_date_field_function() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(JSDate::GetField)));
-}
+FUNCTION_REFERENCE(get_date_field_function, JSDate::GetField)
 
 ExternalReference ExternalReference::date_cache_stamp(Isolate* isolate) {
   return ExternalReference(isolate->date_cache()->stamp_address());
@@ -216,149 +272,55 @@ ExternalReference ExternalReference::force_slow_path(Isolate* isolate) {
   return ExternalReference(isolate->force_slow_path_address());
 }
 
-ExternalReference ExternalReference::new_deoptimizer_function() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(Deoptimizer::New)));
-}
+FUNCTION_REFERENCE(new_deoptimizer_function, Deoptimizer::New)
 
-ExternalReference ExternalReference::compute_output_frames_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(Deoptimizer::ComputeOutputFrames)));
-}
+FUNCTION_REFERENCE(compute_output_frames_function,
+                   Deoptimizer::ComputeOutputFrames)
 
-ExternalReference ExternalReference::wasm_f32_trunc() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::f32_trunc_wrapper)));
-}
-ExternalReference ExternalReference::wasm_f32_floor() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::f32_floor_wrapper)));
-}
-ExternalReference ExternalReference::wasm_f32_ceil() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::f32_ceil_wrapper)));
-}
-ExternalReference ExternalReference::wasm_f32_nearest_int() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(wasm::f32_nearest_int_wrapper)));
-}
-
-ExternalReference ExternalReference::wasm_f64_trunc() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::f64_trunc_wrapper)));
-}
-
-ExternalReference ExternalReference::wasm_f64_floor() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::f64_floor_wrapper)));
-}
-
-ExternalReference ExternalReference::wasm_f64_ceil() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::f64_ceil_wrapper)));
-}
-
-ExternalReference ExternalReference::wasm_f64_nearest_int() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(wasm::f64_nearest_int_wrapper)));
-}
-
-ExternalReference ExternalReference::wasm_int64_to_float32() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(wasm::int64_to_float32_wrapper)));
-}
-
-ExternalReference ExternalReference::wasm_uint64_to_float32() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(wasm::uint64_to_float32_wrapper)));
-}
-
-ExternalReference ExternalReference::wasm_int64_to_float64() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(wasm::int64_to_float64_wrapper)));
-}
-
-ExternalReference ExternalReference::wasm_uint64_to_float64() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(wasm::uint64_to_float64_wrapper)));
-}
-
-ExternalReference ExternalReference::wasm_float32_to_int64() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(wasm::float32_to_int64_wrapper)));
-}
-
-ExternalReference ExternalReference::wasm_float32_to_uint64() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(wasm::float32_to_uint64_wrapper)));
-}
-
-ExternalReference ExternalReference::wasm_float64_to_int64() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(wasm::float64_to_int64_wrapper)));
-}
-
-ExternalReference ExternalReference::wasm_float64_to_uint64() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(wasm::float64_to_uint64_wrapper)));
-}
-
-ExternalReference ExternalReference::wasm_int64_div() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::int64_div_wrapper)));
-}
-
-ExternalReference ExternalReference::wasm_int64_mod() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::int64_mod_wrapper)));
-}
-
-ExternalReference ExternalReference::wasm_uint64_div() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::uint64_div_wrapper)));
-}
-
-ExternalReference ExternalReference::wasm_uint64_mod() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::uint64_mod_wrapper)));
-}
-
-ExternalReference ExternalReference::wasm_word32_ctz() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::word32_ctz_wrapper)));
-}
-
-ExternalReference ExternalReference::wasm_word64_ctz() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::word64_ctz_wrapper)));
-}
-
-ExternalReference ExternalReference::wasm_word32_popcnt() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(wasm::word32_popcnt_wrapper)));
-}
-
-ExternalReference ExternalReference::wasm_word64_popcnt() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(wasm::word64_popcnt_wrapper)));
-}
-
-ExternalReference ExternalReference::wasm_word32_rol() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::word32_rol_wrapper)));
-}
-
-ExternalReference ExternalReference::wasm_word32_ror() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::word32_ror_wrapper)));
-}
+FUNCTION_REFERENCE(wasm_f32_trunc, wasm::f32_trunc_wrapper)
+FUNCTION_REFERENCE(wasm_f32_floor, wasm::f32_floor_wrapper)
+FUNCTION_REFERENCE(wasm_f32_ceil, wasm::f32_ceil_wrapper)
+FUNCTION_REFERENCE(wasm_f32_nearest_int, wasm::f32_nearest_int_wrapper)
+FUNCTION_REFERENCE(wasm_f64_trunc, wasm::f64_trunc_wrapper)
+FUNCTION_REFERENCE(wasm_f64_floor, wasm::f64_floor_wrapper)
+FUNCTION_REFERENCE(wasm_f64_ceil, wasm::f64_ceil_wrapper)
+FUNCTION_REFERENCE(wasm_f64_nearest_int, wasm::f64_nearest_int_wrapper)
+FUNCTION_REFERENCE(wasm_int64_to_float32, wasm::int64_to_float32_wrapper)
+FUNCTION_REFERENCE(wasm_uint64_to_float32, wasm::uint64_to_float32_wrapper)
+FUNCTION_REFERENCE(wasm_int64_to_float64, wasm::int64_to_float64_wrapper)
+FUNCTION_REFERENCE(wasm_uint64_to_float64, wasm::uint64_to_float64_wrapper)
+FUNCTION_REFERENCE(wasm_float32_to_int64, wasm::float32_to_int64_wrapper)
+FUNCTION_REFERENCE(wasm_float32_to_uint64, wasm::float32_to_uint64_wrapper)
+FUNCTION_REFERENCE(wasm_float64_to_int64, wasm::float64_to_int64_wrapper)
+FUNCTION_REFERENCE(wasm_float64_to_uint64, wasm::float64_to_uint64_wrapper)
+FUNCTION_REFERENCE(wasm_int64_div, wasm::int64_div_wrapper)
+FUNCTION_REFERENCE(wasm_int64_mod, wasm::int64_mod_wrapper)
+FUNCTION_REFERENCE(wasm_uint64_div, wasm::uint64_div_wrapper)
+FUNCTION_REFERENCE(wasm_uint64_mod, wasm::uint64_mod_wrapper)
+FUNCTION_REFERENCE(wasm_word32_ctz, wasm::word32_ctz_wrapper)
+FUNCTION_REFERENCE(wasm_word64_ctz, wasm::word64_ctz_wrapper)
+FUNCTION_REFERENCE(wasm_word32_popcnt, wasm::word32_popcnt_wrapper)
+FUNCTION_REFERENCE(wasm_word64_popcnt, wasm::word64_popcnt_wrapper)
+FUNCTION_REFERENCE(wasm_word32_rol, wasm::word32_rol_wrapper)
+FUNCTION_REFERENCE(wasm_word32_ror, wasm::word32_ror_wrapper)
+FUNCTION_REFERENCE(wasm_memory_copy, wasm::memory_copy_wrapper)
+FUNCTION_REFERENCE(wasm_memory_fill, wasm::memory_fill_wrapper)
 
 static void f64_acos_wrapper(Address data) {
   double input = ReadUnalignedValue<double>(data);
   WriteUnalignedValue(data, base::ieee754::acos(input));
 }
 
-ExternalReference ExternalReference::f64_acos_wrapper_function() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(f64_acos_wrapper)));
-}
+FUNCTION_REFERENCE(f64_acos_wrapper_function, f64_acos_wrapper)
 
 static void f64_asin_wrapper(Address data) {
   double input = ReadUnalignedValue<double>(data);
   WriteUnalignedValue<double>(data, base::ieee754::asin(input));
 }
 
-ExternalReference ExternalReference::f64_asin_wrapper_function() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(f64_asin_wrapper)));
-}
+FUNCTION_REFERENCE(f64_asin_wrapper_function, f64_asin_wrapper)
 
-ExternalReference ExternalReference::wasm_float64_pow() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::float64_pow_wrapper)));
-}
+FUNCTION_REFERENCE(wasm_float64_pow, wasm::float64_pow_wrapper)
 
 static void f64_mod_wrapper(Address data) {
   double dividend = ReadUnalignedValue<double>(data);
@@ -366,25 +328,16 @@ static void f64_mod_wrapper(Address data) {
   WriteUnalignedValue<double>(data, Modulo(dividend, divisor));
 }
 
-ExternalReference ExternalReference::f64_mod_wrapper_function() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(f64_mod_wrapper)));
-}
+FUNCTION_REFERENCE(f64_mod_wrapper_function, f64_mod_wrapper)
 
-ExternalReference ExternalReference::wasm_call_trap_callback_for_testing() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(wasm::call_trap_callback_for_testing)));
-}
+FUNCTION_REFERENCE(wasm_call_trap_callback_for_testing,
+                   wasm::call_trap_callback_for_testing)
 
-ExternalReference ExternalReference::log_enter_external_function() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(Logger::EnterExternal)));
-}
+FUNCTION_REFERENCE(log_enter_external_function, Logger::EnterExternal)
+FUNCTION_REFERENCE(log_leave_external_function, Logger::LeaveExternal)
 
-ExternalReference ExternalReference::log_leave_external_function() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(Logger::LeaveExternal)));
-}
-
-ExternalReference ExternalReference::roots_array_start(Isolate* isolate) {
-  return ExternalReference(isolate->heap()->roots_array_start());
+ExternalReference ExternalReference::isolate_root(Isolate* isolate) {
+  return ExternalReference(isolate->isolate_root());
 }
 
 ExternalReference ExternalReference::allocation_sites_list_address(
@@ -455,9 +408,7 @@ ExternalReference ExternalReference::address_of_pending_message_obj(
   return ExternalReference(isolate->pending_message_obj_address());
 }
 
-ExternalReference ExternalReference::abort_with_reason() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(i::abort_with_reason)));
-}
+FUNCTION_REFERENCE(abort_with_reason, i::abort_with_reason)
 
 ExternalReference
 ExternalReference::address_of_harmony_await_optimization_flag() {
@@ -524,41 +475,35 @@ ExternalReference ExternalReference::invoke_accessor_getter_callback() {
 
 #ifndef V8_INTERPRETED_REGEXP
 
-ExternalReference ExternalReference::re_check_stack_guard_state(
-    Isolate* isolate) {
-  Address function;
 #if V8_TARGET_ARCH_X64
-  function = FUNCTION_ADDR(RegExpMacroAssemblerX64::CheckStackGuardState);
+#define re_stack_check_func RegExpMacroAssemblerX64::CheckStackGuardState
 #elif V8_TARGET_ARCH_IA32
-  function = FUNCTION_ADDR(RegExpMacroAssemblerIA32::CheckStackGuardState);
+#define re_stack_check_func RegExpMacroAssemblerIA32::CheckStackGuardState
 #elif V8_TARGET_ARCH_ARM64
-  function = FUNCTION_ADDR(RegExpMacroAssemblerARM64::CheckStackGuardState);
+#define re_stack_check_func RegExpMacroAssemblerARM64::CheckStackGuardState
 #elif V8_TARGET_ARCH_ARM
-  function = FUNCTION_ADDR(RegExpMacroAssemblerARM::CheckStackGuardState);
+#define re_stack_check_func RegExpMacroAssemblerARM::CheckStackGuardState
 #elif V8_TARGET_ARCH_PPC
-  function = FUNCTION_ADDR(RegExpMacroAssemblerPPC::CheckStackGuardState);
+#define re_stack_check_func RegExpMacroAssemblerPPC::CheckStackGuardState
 #elif V8_TARGET_ARCH_MIPS
-  function = FUNCTION_ADDR(RegExpMacroAssemblerMIPS::CheckStackGuardState);
+#define re_stack_check_func RegExpMacroAssemblerMIPS::CheckStackGuardState
 #elif V8_TARGET_ARCH_MIPS64
-  function = FUNCTION_ADDR(RegExpMacroAssemblerMIPS::CheckStackGuardState);
+#define re_stack_check_func RegExpMacroAssemblerMIPS::CheckStackGuardState
 #elif V8_TARGET_ARCH_S390
-  function = FUNCTION_ADDR(RegExpMacroAssemblerS390::CheckStackGuardState);
+#define re_stack_check_func RegExpMacroAssemblerS390::CheckStackGuardState
 #else
   UNREACHABLE();
 #endif
-  return ExternalReference(Redirect(function));
-}
 
-ExternalReference ExternalReference::re_grow_stack(Isolate* isolate) {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(NativeRegExpMacroAssembler::GrowStack)));
-}
+FUNCTION_REFERENCE_WITH_ISOLATE(re_check_stack_guard_state, re_stack_check_func)
+#undef re_stack_check_func
 
-ExternalReference ExternalReference::re_case_insensitive_compare_uc16(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(
-      FUNCTION_ADDR(NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16)));
-}
+FUNCTION_REFERENCE_WITH_ISOLATE(re_grow_stack,
+                                NativeRegExpMacroAssembler::GrowStack)
+
+FUNCTION_REFERENCE_WITH_ISOLATE(
+    re_case_insensitive_compare_uc16,
+    NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16)
 
 ExternalReference ExternalReference::re_word_character_map(Isolate* isolate) {
   return ExternalReference(
@@ -588,152 +533,86 @@ ExternalReference ExternalReference::address_of_regexp_stack_memory_size(
 
 #endif  // V8_INTERPRETED_REGEXP
 
-ExternalReference ExternalReference::ieee754_acos_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(base::ieee754::acos), BUILTIN_FP_CALL));
-}
-
-ExternalReference ExternalReference::ieee754_acosh_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(base::ieee754::acosh), BUILTIN_FP_FP_CALL));
-}
-
-ExternalReference ExternalReference::ieee754_asin_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(base::ieee754::asin), BUILTIN_FP_CALL));
-}
-
-ExternalReference ExternalReference::ieee754_asinh_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(base::ieee754::asinh), BUILTIN_FP_FP_CALL));
-}
-
-ExternalReference ExternalReference::ieee754_atan_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(base::ieee754::atan), BUILTIN_FP_CALL));
-}
-
-ExternalReference ExternalReference::ieee754_atanh_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(base::ieee754::atanh), BUILTIN_FP_FP_CALL));
-}
-
-ExternalReference ExternalReference::ieee754_atan2_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(base::ieee754::atan2), BUILTIN_FP_FP_CALL));
-}
-
-ExternalReference ExternalReference::ieee754_cbrt_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(base::ieee754::cbrt), BUILTIN_FP_FP_CALL));
-}
-
-ExternalReference ExternalReference::ieee754_cos_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(base::ieee754::cos), BUILTIN_FP_CALL));
-}
-
-ExternalReference ExternalReference::ieee754_cosh_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(base::ieee754::cosh), BUILTIN_FP_CALL));
-}
-
-ExternalReference ExternalReference::ieee754_exp_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(base::ieee754::exp), BUILTIN_FP_CALL));
-}
-
-ExternalReference ExternalReference::ieee754_expm1_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(base::ieee754::expm1), BUILTIN_FP_FP_CALL));
-}
-
-ExternalReference ExternalReference::ieee754_log_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(base::ieee754::log), BUILTIN_FP_CALL));
-}
-
-ExternalReference ExternalReference::ieee754_log1p_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(base::ieee754::log1p), BUILTIN_FP_CALL));
-}
-
-ExternalReference ExternalReference::ieee754_log10_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(base::ieee754::log10), BUILTIN_FP_CALL));
-}
-
-ExternalReference ExternalReference::ieee754_log2_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(base::ieee754::log2), BUILTIN_FP_CALL));
-}
-
-ExternalReference ExternalReference::ieee754_sin_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(base::ieee754::sin), BUILTIN_FP_CALL));
-}
-
-ExternalReference ExternalReference::ieee754_sinh_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(base::ieee754::sinh), BUILTIN_FP_CALL));
-}
-
-ExternalReference ExternalReference::ieee754_tan_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(base::ieee754::tan), BUILTIN_FP_CALL));
-}
-
-ExternalReference ExternalReference::ieee754_tanh_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(base::ieee754::tanh), BUILTIN_FP_CALL));
-}
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_acos_function, base::ieee754::acos,
+                             BUILTIN_FP_CALL)
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_acosh_function, base::ieee754::acosh,
+                             BUILTIN_FP_FP_CALL)
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_asin_function, base::ieee754::asin,
+                             BUILTIN_FP_CALL)
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_asinh_function, base::ieee754::asinh,
+                             BUILTIN_FP_FP_CALL)
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_atan_function, base::ieee754::atan,
+                             BUILTIN_FP_CALL)
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_atanh_function, base::ieee754::atanh,
+                             BUILTIN_FP_FP_CALL)
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_atan2_function, base::ieee754::atan2,
+                             BUILTIN_FP_FP_CALL)
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_cbrt_function, base::ieee754::cbrt,
+                             BUILTIN_FP_FP_CALL)
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_cos_function, base::ieee754::cos,
+                             BUILTIN_FP_CALL)
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_cosh_function, base::ieee754::cosh,
+                             BUILTIN_FP_CALL)
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_exp_function, base::ieee754::exp,
+                             BUILTIN_FP_CALL)
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_expm1_function, base::ieee754::expm1,
+                             BUILTIN_FP_FP_CALL)
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_log_function, base::ieee754::log,
+                             BUILTIN_FP_CALL)
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_log1p_function, base::ieee754::log1p,
+                             BUILTIN_FP_CALL)
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_log10_function, base::ieee754::log10,
+                             BUILTIN_FP_CALL)
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_log2_function, base::ieee754::log2,
+                             BUILTIN_FP_CALL)
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_sin_function, base::ieee754::sin,
+                             BUILTIN_FP_CALL)
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_sinh_function, base::ieee754::sinh,
+                             BUILTIN_FP_CALL)
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_tan_function, base::ieee754::tan,
+                             BUILTIN_FP_CALL)
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_tanh_function, base::ieee754::tanh,
+                             BUILTIN_FP_CALL)
 
 void* libc_memchr(void* string, int character, size_t search_length) {
   return memchr(string, character, search_length);
 }
 
-ExternalReference ExternalReference::libc_memchr_function() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(libc_memchr)));
-}
+FUNCTION_REFERENCE(libc_memchr_function, libc_memchr)
 
 void* libc_memcpy(void* dest, const void* src, size_t n) {
   return memcpy(dest, src, n);
 }
 
-ExternalReference ExternalReference::libc_memcpy_function() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(libc_memcpy)));
-}
+FUNCTION_REFERENCE(libc_memcpy_function, libc_memcpy)
 
 void* libc_memmove(void* dest, const void* src, size_t n) {
   return memmove(dest, src, n);
 }
 
-ExternalReference ExternalReference::libc_memmove_function() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(libc_memmove)));
-}
+FUNCTION_REFERENCE(libc_memmove_function, libc_memmove)
 
 void* libc_memset(void* dest, int value, size_t n) {
   DCHECK_EQ(static_cast<byte>(value), value);
   return memset(dest, value, n);
 }
 
-ExternalReference ExternalReference::libc_memset_function() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(libc_memset)));
-}
+FUNCTION_REFERENCE(libc_memset_function, libc_memset)
 
 ExternalReference ExternalReference::printf_function() {
   return ExternalReference(Redirect(FUNCTION_ADDR(std::printf)));
 }
 
-ExternalReference ExternalReference::refill_math_random() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(MathRandom::RefillCache)));
-}
+FUNCTION_REFERENCE(refill_math_random, MathRandom::RefillCache)
 
 template <typename SubjectChar, typename PatternChar>
 ExternalReference ExternalReference::search_string_raw() {
   auto f = SearchStringRaw<SubjectChar, PatternChar>;
   return ExternalReference(Redirect(FUNCTION_ADDR(f)));
 }
+
+FUNCTION_REFERENCE(jsarray_array_join_concat_to_sequential_string,
+                   JSArray::ArrayJoinConcatToSequentialString)
 
 ExternalReference ExternalReference::search_string_raw_one_one() {
   return search_string_raw<const uint8_t, const uint8_t>();
@@ -751,69 +630,60 @@ ExternalReference ExternalReference::search_string_raw_two_two() {
   return search_string_raw<const uc16, const uc16>();
 }
 
-ExternalReference ExternalReference::orderedhashmap_gethash_raw() {
-  auto f = OrderedHashMap::GetHash;
-  return ExternalReference(Redirect(FUNCTION_ADDR(f)));
+FUNCTION_REFERENCE(orderedhashmap_gethash_raw, OrderedHashMap::GetHash)
+
+Address GetOrCreateHash(Isolate* isolate, Address raw_key) {
+  DisallowHeapAllocation no_gc;
+  return Object(raw_key)->GetOrCreateHash(isolate).ptr();
 }
 
-ExternalReference ExternalReference::get_or_create_hash_raw() {
-  typedef Smi* (*GetOrCreateHash)(Isolate * isolate, Object * key);
-  GetOrCreateHash f = Object::GetOrCreateHash;
-  return ExternalReference(Redirect(FUNCTION_ADDR(f)));
+FUNCTION_REFERENCE(get_or_create_hash_raw, GetOrCreateHash)
+
+static Address JSReceiverCreateIdentityHash(Isolate* isolate, Address raw_key) {
+  JSReceiver key = JSReceiver::cast(Object(raw_key));
+  return JSReceiver::CreateIdentityHash(isolate, key).ptr();
 }
 
-ExternalReference ExternalReference::jsreceiver_create_identity_hash() {
-  typedef Smi* (*CreateIdentityHash)(Isolate * isolate, JSReceiver * key);
-  CreateIdentityHash f = JSReceiver::CreateIdentityHash;
-  return ExternalReference(Redirect(FUNCTION_ADDR(f)));
-}
+FUNCTION_REFERENCE(jsreceiver_create_identity_hash,
+                   JSReceiverCreateIdentityHash)
 
 static uint32_t ComputeSeededIntegerHash(Isolate* isolate, uint32_t key) {
   DisallowHeapAllocation no_gc;
   return ComputeSeededHash(key, isolate->heap()->HashSeed());
 }
 
-ExternalReference ExternalReference::compute_integer_hash() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(ComputeSeededIntegerHash)));
+FUNCTION_REFERENCE(compute_integer_hash, ComputeSeededIntegerHash)
+FUNCTION_REFERENCE(copy_fast_number_jsarray_elements_to_typed_array,
+                   CopyFastNumberJSArrayElementsToTypedArray)
+FUNCTION_REFERENCE(copy_typed_array_elements_to_typed_array,
+                   CopyTypedArrayElementsToTypedArray)
+FUNCTION_REFERENCE(copy_typed_array_elements_slice, CopyTypedArrayElementsSlice)
+FUNCTION_REFERENCE(try_internalize_string_function,
+                   StringTable::LookupStringIfExists_NoAllocate)
+
+static Address LexicographicCompareWrapper(Isolate* isolate, Address smi_x,
+                                           Address smi_y) {
+  Smi x(smi_x);
+  Smi y(smi_y);
+  return Smi::LexicographicCompare(isolate, x, y);
 }
 
-ExternalReference
-ExternalReference::copy_fast_number_jsarray_elements_to_typed_array() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(CopyFastNumberJSArrayElementsToTypedArray)));
-}
+FUNCTION_REFERENCE(smi_lexicographic_compare_function,
+                   LexicographicCompareWrapper)
 
-ExternalReference
-ExternalReference::copy_typed_array_elements_to_typed_array() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(CopyTypedArrayElementsToTypedArray)));
-}
-
-ExternalReference ExternalReference::copy_typed_array_elements_slice() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(CopyTypedArrayElementsSlice)));
-}
-
-ExternalReference ExternalReference::try_internalize_string_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(StringTable::LookupStringIfExists_NoAllocate)));
-}
-
-ExternalReference ExternalReference::smi_lexicographic_compare_function() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(Smi::LexicographicCompare)));
-}
-
-ExternalReference ExternalReference::check_object_type() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(CheckObjectType)));
-}
+FUNCTION_REFERENCE(check_object_type, CheckObjectType)
 
 #ifdef V8_INTL_SUPPORT
-ExternalReference ExternalReference::intl_convert_one_byte_to_lower() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(ConvertOneByteToLower)));
+
+static Address ConvertOneByteToLower(Address raw_src, Address raw_dst) {
+  String src = String::cast(Object(raw_src));
+  String dst = String::cast(Object(raw_dst));
+  return Intl::ConvertOneByteToLower(src, dst).ptr();
 }
+FUNCTION_REFERENCE(intl_convert_one_byte_to_lower, ConvertOneByteToLower)
 
 ExternalReference ExternalReference::intl_to_latin1_lower_table() {
-  uint8_t* ptr = const_cast<uint8_t*>(ToLatin1LowerTable());
+  uint8_t* ptr = const_cast<uint8_t*>(Intl::ToLatin1LowerTable());
   return ExternalReference(reinterpret_cast<Address>(ptr));
 }
 #endif  // V8_INTL_SUPPORT
@@ -858,6 +728,14 @@ ExternalReference::promise_hook_or_async_event_delegate_address(
       isolate->promise_hook_or_async_event_delegate_address());
 }
 
+ExternalReference ExternalReference::
+    promise_hook_or_debug_is_active_or_async_event_delegate_address(
+        Isolate* isolate) {
+  return ExternalReference(
+      isolate
+          ->promise_hook_or_debug_is_active_or_async_event_delegate_address());
+}
+
 ExternalReference ExternalReference::debug_execution_mode_address(
     Isolate* isolate) {
   return ExternalReference(isolate->debug_execution_mode_address());
@@ -878,45 +756,13 @@ ExternalReference ExternalReference::runtime_function_table_address(
       const_cast<Runtime::Function*>(Runtime::RuntimeFunctionTable(isolate)));
 }
 
-ExternalReference ExternalReference::invalidate_prototype_chains_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(JSObject::InvalidatePrototypeChains)));
+static Address InvalidatePrototypeChainsWrapper(Address raw_map) {
+  Map map = Map::cast(Object(raw_map));
+  return JSObject::InvalidatePrototypeChains(map).ptr();
 }
 
-double power_helper(double x, double y) {
-  int y_int = static_cast<int>(y);
-  if (y == y_int) {
-    return power_double_int(x, y_int);  // Returns 1 if exponent is 0.
-  }
-  if (y == 0.5) {
-    lazily_initialize_fast_sqrt();
-    return (std::isinf(x)) ? V8_INFINITY
-                           : fast_sqrt(x + 0.0);  // Convert -0 to +0.
-  }
-  if (y == -0.5) {
-    lazily_initialize_fast_sqrt();
-    return (std::isinf(x)) ? 0 : 1.0 / fast_sqrt(x + 0.0);  // Convert -0 to +0.
-  }
-  return power_double_double(x, y);
-}
-
-// Helper function to compute x^y, where y is known to be an
-// integer. Uses binary decomposition to limit the number of
-// multiplications; see the discussion in "Hacker's Delight" by Henry
-// S. Warren, Jr., figure 11-6, page 213.
-double power_double_int(double x, int y) {
-  double m = (y < 0) ? 1 / x : x;
-  unsigned n = (y < 0) ? -y : y;
-  double p = 1;
-  while (n != 0) {
-    if ((n & 1) != 0) p *= m;
-    m *= m;
-    if ((n & 2) != 0) p *= m;
-    m *= m;
-    n >>= 2;
-  }
-  return p;
-}
+FUNCTION_REFERENCE(invalidate_prototype_chains_function,
+                   InvalidatePrototypeChainsWrapper)
 
 double power_double_double(double x, double y) {
   // The checks for special cases can be dropped in ia32 because it has already
@@ -929,15 +775,10 @@ double power_double_double(double x, double y) {
 
 double modulo_double_double(double x, double y) { return Modulo(x, y); }
 
-ExternalReference ExternalReference::power_double_double_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(power_double_double), BUILTIN_FP_FP_CALL));
-}
-
-ExternalReference ExternalReference::mod_two_doubles_operation() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(modulo_double_double), BUILTIN_FP_FP_CALL));
-}
+FUNCTION_REFERENCE_WITH_TYPE(power_double_double_function, power_double_double,
+                             BUILTIN_FP_FP_CALL)
+FUNCTION_REFERENCE_WITH_TYPE(mod_two_doubles_operation, modulo_double_double,
+                             BUILTIN_FP_FP_CALL)
 
 ExternalReference ExternalReference::debug_suspended_generator_address(
     Isolate* isolate) {
@@ -949,15 +790,113 @@ ExternalReference ExternalReference::debug_restart_fp_address(
   return ExternalReference(isolate->debug()->restart_fp_address());
 }
 
-ExternalReference ExternalReference::wasm_thread_in_wasm_flag_address_address(
+ExternalReference ExternalReference::fast_c_call_caller_fp_address(
     Isolate* isolate) {
-  return ExternalReference(reinterpret_cast<Address>(
-      &isolate->thread_local_top()->thread_in_wasm_flag_address_));
+  return ExternalReference(
+      isolate->isolate_data()->fast_c_call_caller_fp_address());
+}
+
+ExternalReference ExternalReference::fast_c_call_caller_pc_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->isolate_data()->fast_c_call_caller_pc_address());
 }
 
 ExternalReference ExternalReference::fixed_typed_array_base_data_offset() {
   return ExternalReference(reinterpret_cast<void*>(
       FixedTypedArrayBase::kDataOffset - kHeapObjectTag));
+}
+
+FUNCTION_REFERENCE(call_enqueue_microtask_function,
+                   MicrotaskQueue::CallEnqueueMicrotask)
+
+static int64_t atomic_pair_load(intptr_t address) {
+  return std::atomic_load(reinterpret_cast<std::atomic<int64_t>*>(address));
+}
+
+ExternalReference ExternalReference::atomic_pair_load_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(atomic_pair_load)));
+}
+
+static void atomic_pair_store(intptr_t address, int value_low, int value_high) {
+  int64_t value =
+      static_cast<int64_t>(value_high) << 32 | (value_low & 0xFFFFFFFF);
+  std::atomic_store(reinterpret_cast<std::atomic<int64_t>*>(address), value);
+}
+
+ExternalReference ExternalReference::atomic_pair_store_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(atomic_pair_store)));
+}
+
+static int64_t atomic_pair_add(intptr_t address, int value_low,
+                               int value_high) {
+  int64_t value =
+      static_cast<int64_t>(value_high) << 32 | (value_low & 0xFFFFFFFF);
+  return std::atomic_fetch_add(reinterpret_cast<std::atomic<int64_t>*>(address),
+                               value);
+}
+
+ExternalReference ExternalReference::atomic_pair_add_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(atomic_pair_add)));
+}
+
+static int64_t atomic_pair_sub(intptr_t address, int value_low,
+                               int value_high) {
+  int64_t value =
+      static_cast<int64_t>(value_high) << 32 | (value_low & 0xFFFFFFFF);
+  return std::atomic_fetch_sub(reinterpret_cast<std::atomic<int64_t>*>(address),
+                               value);
+}
+
+ExternalReference ExternalReference::atomic_pair_sub_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(atomic_pair_sub)));
+}
+
+static int64_t atomic_pair_and(intptr_t address, int value_low,
+                               int value_high) {
+  int64_t value =
+      static_cast<int64_t>(value_high) << 32 | (value_low & 0xFFFFFFFF);
+  return std::atomic_fetch_and(reinterpret_cast<std::atomic<int64_t>*>(address),
+                               value);
+}
+
+ExternalReference ExternalReference::atomic_pair_and_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(atomic_pair_and)));
+}
+
+static int64_t atomic_pair_or(intptr_t address, int value_low, int value_high) {
+  int64_t value =
+      static_cast<int64_t>(value_high) << 32 | (value_low & 0xFFFFFFFF);
+  return std::atomic_fetch_or(reinterpret_cast<std::atomic<int64_t>*>(address),
+                              value);
+}
+
+ExternalReference ExternalReference::atomic_pair_or_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(atomic_pair_or)));
+}
+
+static int64_t atomic_pair_xor(intptr_t address, int value_low,
+                               int value_high) {
+  int64_t value =
+      static_cast<int64_t>(value_high) << 32 | (value_low & 0xFFFFFFFF);
+  return std::atomic_fetch_xor(reinterpret_cast<std::atomic<int64_t>*>(address),
+                               value);
+}
+
+ExternalReference ExternalReference::atomic_pair_xor_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(atomic_pair_xor)));
+}
+
+static int64_t atomic_pair_exchange(intptr_t address, int value_low,
+                                    int value_high) {
+  int64_t value =
+      static_cast<int64_t>(value_high) << 32 | (value_low & 0xFFFFFFFF);
+  return std::atomic_exchange(reinterpret_cast<std::atomic<int64_t>*>(address),
+                              value);
+}
+
+ExternalReference ExternalReference::atomic_pair_exchange_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(atomic_pair_exchange)));
 }
 
 static uint64_t atomic_pair_compare_exchange(intptr_t address,
@@ -974,10 +913,17 @@ static uint64_t atomic_pair_compare_exchange(intptr_t address,
   return old_value;
 }
 
-ExternalReference ExternalReference::atomic_pair_compare_exchange_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(atomic_pair_compare_exchange)));
+FUNCTION_REFERENCE(atomic_pair_compare_exchange_function,
+                   atomic_pair_compare_exchange)
+
+static int EnterMicrotaskContextWrapper(HandleScopeImplementer* hsi,
+                                        Address raw_context) {
+  Context context = Context::cast(Object(raw_context));
+  hsi->EnterMicrotaskContext(context);
+  return 0;
 }
+
+FUNCTION_REFERENCE(call_enter_context_function, EnterMicrotaskContextWrapper);
 
 bool operator==(ExternalReference lhs, ExternalReference rhs) {
   return lhs.address() == rhs.address();
@@ -1008,6 +954,10 @@ void abort_with_reason(int reason) {
   base::OS::Abort();
   UNREACHABLE();
 }
+
+#undef FUNCTION_REFERENCE
+#undef FUNCTION_REFERENCE_WITH_ISOLATE
+#undef FUNCTION_REFERENCE_WITH_TYPE
 
 }  // namespace internal
 }  // namespace v8

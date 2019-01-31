@@ -7,6 +7,7 @@
 
 #include "src/globals.h"
 #include "src/objects.h"
+#include "src/objects/heap-object.h"
 #include "src/utils.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -24,23 +25,46 @@ class ValueSerializer;
 class BigIntBase : public HeapObject {
  public:
   inline int length() const {
-    intptr_t bitfield = READ_INTPTR_FIELD(this, kBitfieldOffset);
+    int32_t bitfield = RELAXED_READ_INT32_FIELD(this, kBitfieldOffset);
     return LengthBits::decode(static_cast<uint32_t>(bitfield));
   }
 
-  // Increasing kMaxLength will require code changes.
-  static const int kMaxLengthBits = kMaxInt - kPointerSize * kBitsPerByte - 1;
-  static const int kMaxLength = kMaxLengthBits / (kPointerSize * kBitsPerByte);
+  // For use by the GC.
+  inline int synchronized_length() const {
+    int32_t bitfield = ACQUIRE_READ_INT32_FIELD(this, kBitfieldOffset);
+    return LengthBits::decode(static_cast<uint32_t>(bitfield));
+  }
 
+  static inline BigIntBase unchecked_cast(Object o) {
+    return bit_cast<BigIntBase>(o);
+  }
+
+  // The maximum kMaxLengthBits that the current implementation supports
+  // would be kMaxInt - kSystemPointerSize * kBitsPerByte - 1.
+  // Since we want a platform independent limit, choose a nice round number
+  // somewhere below that maximum.
+  static const int kMaxLengthBits = 1 << 30;  // ~1 billion.
+  static const int kMaxLength =
+      kMaxLengthBits / (kSystemPointerSize * kBitsPerByte);
+
+  // Sign and length are stored in the same bitfield.  Since the GC needs to be
+  // able to read the length concurrently, the getters and setters are atomic.
   static const int kLengthFieldBits = 30;
   STATIC_ASSERT(kMaxLength <= ((1 << kLengthFieldBits) - 1));
   class SignBits : public BitField<bool, 0, 1> {};
   class LengthBits : public BitField<int, SignBits::kNext, kLengthFieldBits> {};
   STATIC_ASSERT(LengthBits::kNext <= 32);
 
-  static const int kBitfieldOffset = HeapObject::kHeaderSize;
-  static const int kDigitsOffset = kBitfieldOffset + kPointerSize;
-  static const int kHeaderSize = kDigitsOffset;
+  // Layout description.
+#define BIGINT_FIELDS(V)                                                  \
+  V(kBitfieldOffset, kInt32Size)                                          \
+  V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
+  /* Header size. */                                                      \
+  V(kHeaderSize, 0)                                                       \
+  V(kDigitsOffset, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, BIGINT_FIELDS)
+#undef BIGINT_FIELDS
 
  private:
   friend class ::v8::internal::BigInt;  // MSVC wants full namespace.
@@ -49,7 +73,7 @@ class BigIntBase : public HeapObject {
   typedef uintptr_t digit_t;
   static const int kDigitSize = sizeof(digit_t);
   // kMaxLength definition assumes this:
-  STATIC_ASSERT(kDigitSize == kPointerSize);
+  STATIC_ASSERT(kDigitSize == kSystemPointerSize);
 
   static const int kDigitBits = kDigitSize * kBitsPerByte;
   static const int kHalfDigitBits = kDigitBits / 2;
@@ -57,7 +81,7 @@ class BigIntBase : public HeapObject {
 
   // sign() == true means negative.
   inline bool sign() const {
-    intptr_t bitfield = READ_INTPTR_FIELD(this, kBitfieldOffset);
+    int32_t bitfield = RELAXED_READ_INT32_FIELD(this, kBitfieldOffset);
     return SignBits::decode(static_cast<uint32_t>(bitfield));
   }
 
@@ -69,7 +93,10 @@ class BigIntBase : public HeapObject {
 
   bool is_zero() const { return length() == 0; }
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(BigIntBase);
+  // Only serves to make macros happy; other code should use IsBigInt.
+  bool IsBigIntBase() const { return true; }
+
+  OBJECT_CONSTRUCTORS(BigIntBase, HeapObject);
 };
 
 class FreshlyAllocatedBigInt : public BigIntBase {
@@ -85,13 +112,27 @@ class FreshlyAllocatedBigInt : public BigIntBase {
   //   (and no explicit operator is provided either).
 
  public:
-  inline static FreshlyAllocatedBigInt* cast(Object* object);
+  inline static FreshlyAllocatedBigInt cast(Object object);
+  inline static FreshlyAllocatedBigInt unchecked_cast(Object o) {
+    return bit_cast<FreshlyAllocatedBigInt>(o);
+  }
+
+  // Clear uninitialized padding space.
+  inline void clear_padding() {
+    if (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
+      DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
+      memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
+             FIELD_SIZE(kOptionalPaddingOffset));
+    }
+  }
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FreshlyAllocatedBigInt);
+  // Only serves to make macros happy; other code should use IsBigInt.
+  bool IsFreshlyAllocatedBigInt() const { return true; }
+
+  OBJECT_CONSTRUCTORS(FreshlyAllocatedBigInt, BigIntBase);
 };
 
-// UNDER CONSTRUCTION!
 // Arbitrary precision integers in JavaScript.
 class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
  public:
@@ -122,7 +163,7 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
                                                 Handle<BigInt> y);
   // More convenient version of "bool LessThan(x, y)".
   static ComparisonResult CompareToBigInt(Handle<BigInt> x, Handle<BigInt> y);
-  static bool EqualToBigInt(BigInt* x, BigInt* y);
+  static bool EqualToBigInt(BigInt x, BigInt y);
   static MaybeHandle<BigInt> BitwiseAnd(Isolate* isolate, Handle<BigInt> x,
                                         Handle<BigInt> y);
   static MaybeHandle<BigInt> BitwiseXor(Isolate* isolate, Handle<BigInt> x,
@@ -213,7 +254,7 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
       Isolate* isolate, uint32_t bitfield, Vector<const uint8_t> digits_storage,
       PretenureFlag pretenure);
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(BigInt);
+  OBJECT_CONSTRUCTORS(BigInt, BigIntBase);
 };
 
 }  // namespace internal

@@ -15,6 +15,7 @@ group("v8_test262") {
     "detachArrayBuffer.js",
     "harness/",
     "harness-adapt.js",
+    "harness-adapt-donotevaluate.js",
     "harness-agent.js",
     "test262.status",
     "testcfg.py",

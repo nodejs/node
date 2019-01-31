@@ -20,7 +20,7 @@ For more discussion of MB, see also [the design spec](design_spec.md).
 
 ### `mb analyze`
 
-`mb analyze` is reponsible for determining what targets are affected by
+`mb analyze` is responsible for determining what targets are affected by
 a list of files (e.g., the list of files in a patch on a trybot):
 
 ```
@@ -229,7 +229,7 @@ The `configs` key points to a dictionary of named build configurations.
 
 There should be an key in this dict for every supported configuration
 of Chromium, meaning every configuration we have a bot for, and every
-configuration commonly used by develpers but that we may not have a bot
+configuration commonly used by developers but that we may not have a bot
 for.
 
 The value of each key is a list of "mixins" that will define what that

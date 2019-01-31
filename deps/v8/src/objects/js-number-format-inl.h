@@ -18,6 +18,8 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(JSNumberFormat, JSObject)
+
 ACCESSORS(JSNumberFormat, locale, String, kLocaleOffset)
 ACCESSORS(JSNumberFormat, icu_number_format, Managed<icu::NumberFormat>,
           kICUNumberFormatOffset)

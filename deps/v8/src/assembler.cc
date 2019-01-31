@@ -35,16 +35,16 @@
 #include "src/assembler.h"
 
 #include "src/assembler-inl.h"
-#include "src/code-stubs.h"
 #include "src/deoptimizer.h"
 #include "src/disassembler.h"
-#include "src/instruction-stream.h"
 #include "src/isolate.h"
 #include "src/ostreams.h"
 #include "src/simulator.h"  // For flushing instruction cache.
+#include "src/snapshot/embedded-data.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/snapshot/snapshot.h"
 #include "src/string-constants.h"
+#include "src/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -65,17 +65,20 @@ AssemblerOptions AssemblerOptions::EnableV8AgnosticCode() const {
 AssemblerOptions AssemblerOptions::Default(
     Isolate* isolate, bool explicitly_support_serialization) {
   AssemblerOptions options;
-  bool serializer =
+  const bool serializer =
       isolate->serializer_enabled() || explicitly_support_serialization;
+  const bool generating_embedded_builtin =
+      isolate->ShouldLoadConstantsFromRootList();
   options.record_reloc_info_for_serialization = serializer;
-  options.enable_root_array_delta_access = !serializer;
+  options.enable_root_array_delta_access =
+      !serializer && !generating_embedded_builtin;
 #ifdef USE_SIMULATOR
   // Don't generate simulator specific code if we are building a snapshot, which
   // might be run on real hardware.
   options.enable_simulator_code = !serializer;
 #endif
-  options.inline_offheap_trampolines = !serializer;
-
+  options.inline_offheap_trampolines =
+      FLAG_embedded_builtins && !serializer && !generating_embedded_builtin;
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
   const base::AddressRegion& code_range =
       isolate->heap()->memory_allocator()->code_range();
@@ -85,35 +88,84 @@ AssemblerOptions AssemblerOptions::Default(
   return options;
 }
 
+namespace {
+
+class DefaultAssemblerBuffer : public AssemblerBuffer {
+ public:
+  explicit DefaultAssemblerBuffer(int size)
+      : buffer_(OwnedVector<uint8_t>::New(size)) {
+#ifdef DEBUG
+    ZapCode(reinterpret_cast<Address>(buffer_.start()), size);
+#endif
+  }
+
+  byte* start() const override { return buffer_.start(); }
+
+  int size() const override { return static_cast<int>(buffer_.size()); }
+
+  std::unique_ptr<AssemblerBuffer> Grow(int new_size) override {
+    DCHECK_LT(size(), new_size);
+    return base::make_unique<DefaultAssemblerBuffer>(new_size);
+  }
+
+ private:
+  OwnedVector<uint8_t> buffer_;
+};
+
+class ExternalAssemblerBufferImpl : public AssemblerBuffer {
+ public:
+  ExternalAssemblerBufferImpl(byte* start, int size)
+      : start_(start), size_(size) {}
+
+  byte* start() const override { return start_; }
+
+  int size() const override { return size_; }
+
+  std::unique_ptr<AssemblerBuffer> Grow(int new_size) override {
+    FATAL("Cannot grow external assembler buffer");
+  }
+
+ private:
+  byte* const start_;
+  const int size_;
+};
+
+}  // namespace
+
+std::unique_ptr<AssemblerBuffer> ExternalAssemblerBuffer(void* start,
+                                                         int size) {
+  return base::make_unique<ExternalAssemblerBufferImpl>(
+      reinterpret_cast<byte*>(start), size);
+}
+
+std::unique_ptr<AssemblerBuffer> NewAssemblerBuffer(int size) {
+  return base::make_unique<DefaultAssemblerBuffer>(size);
+}
+
 // -----------------------------------------------------------------------------
 // Implementation of AssemblerBase
 
-AssemblerBase::AssemblerBase(const AssemblerOptions& options, void* buffer,
-                             int buffer_size)
-    : options_(options),
+AssemblerBase::AssemblerBase(const AssemblerOptions& options,
+                             std::unique_ptr<AssemblerBuffer> buffer)
+    : buffer_(std::move(buffer)),
+      options_(options),
       enabled_cpu_features_(0),
       emit_debug_code_(FLAG_debug_code),
       predictable_code_size_(false),
       constant_pool_available_(false),
       jump_optimization_info_(nullptr) {
-  own_buffer_ = buffer == nullptr;
-  if (buffer_size == 0) buffer_size = kMinimalBufferSize;
-  DCHECK_GT(buffer_size, 0);
-  if (own_buffer_) buffer = NewArray<byte>(buffer_size);
-  buffer_ = static_cast<byte*>(buffer);
-  buffer_size_ = buffer_size;
-  pc_ = buffer_;
+  if (!buffer_) buffer_ = NewAssemblerBuffer(kMinimalBufferSize);
+  buffer_start_ = buffer_->start();
+  pc_ = buffer_start_;
 }
 
-AssemblerBase::~AssemblerBase() {
-  if (own_buffer_) DeleteArray(buffer_);
-}
+AssemblerBase::~AssemblerBase() = default;
 
 void AssemblerBase::FlushICache(void* start, size_t size) {
   if (size == 0) return;
 
 #if defined(USE_SIMULATOR)
-  base::LockGuard<base::Mutex> lock_guard(Simulator::i_cache_mutex());
+  base::MutexGuard lock_guard(Simulator::i_cache_mutex());
   Simulator::FlushICache(Simulator::i_cache(), start, size);
 #else
   CpuFeatures::FlushICache(start, size);
@@ -122,7 +174,7 @@ void AssemblerBase::FlushICache(void* start, size_t size) {
 
 void AssemblerBase::Print(Isolate* isolate) {
   StdoutStream os;
-  v8::internal::Disassembler::Decode(isolate, &os, buffer_, pc_);
+  v8::internal::Disassembler::Decode(isolate, &os, buffer_start_, pc_);
 }
 
 // -----------------------------------------------------------------------------
@@ -164,212 +216,10 @@ unsigned CpuFeatures::supported_ = 0;
 unsigned CpuFeatures::icache_line_size_ = 0;
 unsigned CpuFeatures::dcache_line_size_ = 0;
 
-ConstantPoolBuilder::ConstantPoolBuilder(int ptr_reach_bits,
-                                         int double_reach_bits) {
-  info_[ConstantPoolEntry::INTPTR].entries.reserve(64);
-  info_[ConstantPoolEntry::INTPTR].regular_reach_bits = ptr_reach_bits;
-  info_[ConstantPoolEntry::DOUBLE].regular_reach_bits = double_reach_bits;
-}
-
-ConstantPoolEntry::Access ConstantPoolBuilder::NextAccess(
-    ConstantPoolEntry::Type type) const {
-  const PerTypeEntryInfo& info = info_[type];
-
-  if (info.overflow()) return ConstantPoolEntry::OVERFLOWED;
-
-  int dbl_count = info_[ConstantPoolEntry::DOUBLE].regular_count;
-  int dbl_offset = dbl_count * kDoubleSize;
-  int ptr_count = info_[ConstantPoolEntry::INTPTR].regular_count;
-  int ptr_offset = ptr_count * kPointerSize + dbl_offset;
-
-  if (type == ConstantPoolEntry::DOUBLE) {
-    // Double overflow detection must take into account the reach for both types
-    int ptr_reach_bits = info_[ConstantPoolEntry::INTPTR].regular_reach_bits;
-    if (!is_uintn(dbl_offset, info.regular_reach_bits) ||
-        (ptr_count > 0 &&
-         !is_uintn(ptr_offset + kDoubleSize - kPointerSize, ptr_reach_bits))) {
-      return ConstantPoolEntry::OVERFLOWED;
-    }
-  } else {
-    DCHECK(type == ConstantPoolEntry::INTPTR);
-    if (!is_uintn(ptr_offset, info.regular_reach_bits)) {
-      return ConstantPoolEntry::OVERFLOWED;
-    }
-  }
-
-  return ConstantPoolEntry::REGULAR;
-}
-
-ConstantPoolEntry::Access ConstantPoolBuilder::AddEntry(
-    ConstantPoolEntry& entry, ConstantPoolEntry::Type type) {
-  DCHECK(!emitted_label_.is_bound());
-  PerTypeEntryInfo& info = info_[type];
-  const int entry_size = ConstantPoolEntry::size(type);
-  bool merged = false;
-
-  if (entry.sharing_ok()) {
-    // Try to merge entries
-    std::vector<ConstantPoolEntry>::iterator it = info.shared_entries.begin();
-    int end = static_cast<int>(info.shared_entries.size());
-    for (int i = 0; i < end; i++, it++) {
-      if ((entry_size == kPointerSize) ? entry.value() == it->value()
-                                       : entry.value64() == it->value64()) {
-        // Merge with found entry.
-        entry.set_merged_index(i);
-        merged = true;
-        break;
-      }
-    }
-  }
-
-  // By definition, merged entries have regular access.
-  DCHECK(!merged || entry.merged_index() < info.regular_count);
-  ConstantPoolEntry::Access access =
-      (merged ? ConstantPoolEntry::REGULAR : NextAccess(type));
-
-  // Enforce an upper bound on search time by limiting the search to
-  // unique sharable entries which fit in the regular section.
-  if (entry.sharing_ok() && !merged && access == ConstantPoolEntry::REGULAR) {
-    info.shared_entries.push_back(entry);
-  } else {
-    info.entries.push_back(entry);
-  }
-
-  // We're done if we found a match or have already triggered the
-  // overflow state.
-  if (merged || info.overflow()) return access;
-
-  if (access == ConstantPoolEntry::REGULAR) {
-    info.regular_count++;
-  } else {
-    info.overflow_start = static_cast<int>(info.entries.size()) - 1;
-  }
-
-  return access;
-}
-
-void ConstantPoolBuilder::EmitSharedEntries(Assembler* assm,
-                                            ConstantPoolEntry::Type type) {
-  PerTypeEntryInfo& info = info_[type];
-  std::vector<ConstantPoolEntry>& shared_entries = info.shared_entries;
-  const int entry_size = ConstantPoolEntry::size(type);
-  int base = emitted_label_.pos();
-  DCHECK_GT(base, 0);
-  int shared_end = static_cast<int>(shared_entries.size());
-  std::vector<ConstantPoolEntry>::iterator shared_it = shared_entries.begin();
-  for (int i = 0; i < shared_end; i++, shared_it++) {
-    int offset = assm->pc_offset() - base;
-    shared_it->set_offset(offset);  // Save offset for merged entries.
-    if (entry_size == kPointerSize) {
-      assm->dp(shared_it->value());
-    } else {
-      assm->dq(shared_it->value64());
-    }
-    DCHECK(is_uintn(offset, info.regular_reach_bits));
-
-    // Patch load sequence with correct offset.
-    assm->PatchConstantPoolAccessInstruction(shared_it->position(), offset,
-                                             ConstantPoolEntry::REGULAR, type);
-  }
-}
-
-void ConstantPoolBuilder::EmitGroup(Assembler* assm,
-                                    ConstantPoolEntry::Access access,
-                                    ConstantPoolEntry::Type type) {
-  PerTypeEntryInfo& info = info_[type];
-  const bool overflow = info.overflow();
-  std::vector<ConstantPoolEntry>& entries = info.entries;
-  std::vector<ConstantPoolEntry>& shared_entries = info.shared_entries;
-  const int entry_size = ConstantPoolEntry::size(type);
-  int base = emitted_label_.pos();
-  DCHECK_GT(base, 0);
-  int begin;
-  int end;
-
-  if (access == ConstantPoolEntry::REGULAR) {
-    // Emit any shared entries first
-    EmitSharedEntries(assm, type);
-  }
-
-  if (access == ConstantPoolEntry::REGULAR) {
-    begin = 0;
-    end = overflow ? info.overflow_start : static_cast<int>(entries.size());
-  } else {
-    DCHECK(access == ConstantPoolEntry::OVERFLOWED);
-    if (!overflow) return;
-    begin = info.overflow_start;
-    end = static_cast<int>(entries.size());
-  }
-
-  std::vector<ConstantPoolEntry>::iterator it = entries.begin();
-  if (begin > 0) std::advance(it, begin);
-  for (int i = begin; i < end; i++, it++) {
-    // Update constant pool if necessary and get the entry's offset.
-    int offset;
-    ConstantPoolEntry::Access entry_access;
-    if (!it->is_merged()) {
-      // Emit new entry
-      offset = assm->pc_offset() - base;
-      entry_access = access;
-      if (entry_size == kPointerSize) {
-        assm->dp(it->value());
-      } else {
-        assm->dq(it->value64());
-      }
-    } else {
-      // Retrieve offset from shared entry.
-      offset = shared_entries[it->merged_index()].offset();
-      entry_access = ConstantPoolEntry::REGULAR;
-    }
-
-    DCHECK(entry_access == ConstantPoolEntry::OVERFLOWED ||
-           is_uintn(offset, info.regular_reach_bits));
-
-    // Patch load sequence with correct offset.
-    assm->PatchConstantPoolAccessInstruction(it->position(), offset,
-                                             entry_access, type);
-  }
-}
-
-// Emit and return position of pool.  Zero implies no constant pool.
-int ConstantPoolBuilder::Emit(Assembler* assm) {
-  bool emitted = emitted_label_.is_bound();
-  bool empty = IsEmpty();
-
-  if (!emitted) {
-    // Mark start of constant pool.  Align if necessary.
-    if (!empty) assm->DataAlign(kDoubleSize);
-    assm->bind(&emitted_label_);
-    if (!empty) {
-      // Emit in groups based on access and type.
-      // Emit doubles first for alignment purposes.
-      EmitGroup(assm, ConstantPoolEntry::REGULAR, ConstantPoolEntry::DOUBLE);
-      EmitGroup(assm, ConstantPoolEntry::REGULAR, ConstantPoolEntry::INTPTR);
-      if (info_[ConstantPoolEntry::DOUBLE].overflow()) {
-        assm->DataAlign(kDoubleSize);
-        EmitGroup(assm, ConstantPoolEntry::OVERFLOWED,
-                  ConstantPoolEntry::DOUBLE);
-      }
-      if (info_[ConstantPoolEntry::INTPTR].overflow()) {
-        EmitGroup(assm, ConstantPoolEntry::OVERFLOWED,
-                  ConstantPoolEntry::INTPTR);
-      }
-    }
-  }
-
-  return !empty ? emitted_label_.pos() : 0;
-}
-
 HeapObjectRequest::HeapObjectRequest(double heap_number, int offset)
     : kind_(kHeapNumber), offset_(offset) {
   value_.heap_number = heap_number;
   DCHECK(!IsSmiDouble(value_.heap_number));
-}
-
-HeapObjectRequest::HeapObjectRequest(CodeStub* code_stub, int offset)
-    : kind_(kCodeStub), offset_(offset) {
-  value_.code_stub = code_stub;
-  DCHECK_NOT_NULL(value_.code_stub);
 }
 
 HeapObjectRequest::HeapObjectRequest(const StringConstantBase* string,
@@ -390,17 +240,13 @@ void Assembler::RecordDeoptReason(DeoptimizeReason reason,
   RecordRelocInfo(RelocInfo::DEOPT_ID, id);
 }
 
-void Assembler::RecordComment(const char* msg) {
-  if (FLAG_code_comments) {
-    EnsureSpace ensure_space(this);
-    RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
-  }
-}
-
 void Assembler::DataAlign(int m) {
   DCHECK(m >= 2 && base::bits::IsPowerOfTwo(m));
   while ((pc_offset() & (m - 1)) != 0) {
-    db(0);
+    // Pad with 0xcc (= int3 on ia32 and x64); the primary motivation is that
+    // the disassembler expects to find valid instructions, but this is also
+    // nice from a security point of view.
+    db(0xcc);
   }
 }
 
@@ -436,6 +282,19 @@ void AssemblerBase::UpdateCodeTarget(intptr_t code_target_index,
   DCHECK_LE(0, code_target_index);
   DCHECK_LT(code_target_index, code_targets_.size());
   code_targets_[code_target_index] = code;
+}
+
+void AssemblerBase::ReserveCodeTargetSpace(size_t num_of_code_targets) {
+  code_targets_.reserve(num_of_code_targets);
+}
+
+int Assembler::WriteCodeComments() {
+  if (!FLAG_code_comments || code_comments_writer_.entry_count() == 0) return 0;
+  int offset = pc_offset();
+  code_comments_writer_.Emit(this);
+  int size = pc_offset() - offset;
+  DCHECK_EQ(size, code_comments_writer_.section_size());
+  return size;
 }
 
 }  // namespace internal

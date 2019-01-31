@@ -17,27 +17,25 @@ namespace internal {
 // V8 library, create a context, or use any V8 objects.
 
 TEST(TurboAssemblerTest, TestHardAbort) {
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  TurboAssembler tasm(nullptr, AssemblerOptions{}, buffer,
-                      static_cast<int>(allocated), CodeObjectRequired::kNo);
+  auto buffer = AllocateAssemblerBuffer();
+  TurboAssembler tasm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
+                      buffer->CreateView());
   __ set_abort_hard(true);
 
   __ Abort(AbortReason::kNoReason);
 
   CodeDesc desc;
   tasm.GetCode(nullptr, &desc);
-  MakeAssemblerBufferExecutable(buffer, allocated);
-  auto f = GeneratedCode<void>::FromBuffer(nullptr, buffer);
+  buffer->MakeExecutable();
+  auto f = GeneratedCode<void>::FromBuffer(nullptr, buffer->start());
 
   ASSERT_DEATH_IF_SUPPORTED({ f.Call(); }, "abort: no reason");
 }
 
 TEST(TurboAssemblerTest, TestCheck) {
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  TurboAssembler tasm(nullptr, AssemblerOptions{}, buffer,
-                      static_cast<int>(allocated), CodeObjectRequired::kNo);
+  auto buffer = AllocateAssemblerBuffer();
+  TurboAssembler tasm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
+                      buffer->CreateView());
   __ set_abort_hard(true);
 
   // Fail if the first parameter is 17.
@@ -48,8 +46,8 @@ TEST(TurboAssemblerTest, TestCheck) {
 
   CodeDesc desc;
   tasm.GetCode(nullptr, &desc);
-  MakeAssemblerBufferExecutable(buffer, allocated);
-  auto f = GeneratedCode<void, int>::FromBuffer(nullptr, buffer);
+  buffer->MakeExecutable();
+  auto f = GeneratedCode<void, int>::FromBuffer(nullptr, buffer->start());
 
   f.Call(0);
   f.Call(18);

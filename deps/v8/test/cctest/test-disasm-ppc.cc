@@ -67,8 +67,9 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
   CcTest::InitializeVM();                                   \
   Isolate* isolate = CcTest::i_isolate();                   \
   HandleScope scope(isolate);                               \
-  byte* buffer = reinterpret_cast<byte*>(malloc(4 * 1024)); \
-  Assembler assm(AssemblerOptions{}, buffer, 4 * 1024);     \
+  byte* buffer = reinterpret_cast<byte*>(malloc(4 * 1024));  \
+  Assembler assm(AssemblerOptions{},                         \
+                 ExternalAssemblerBuffer(buffer, 4 * 1024)); \
   bool failure = false;
 
 // This macro assembles one instruction using the preallocated assembler and

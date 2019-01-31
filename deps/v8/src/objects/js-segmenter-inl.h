@@ -18,22 +18,13 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(JSSegmenter, JSObject)
+
 // Base segmenter accessors.
 ACCESSORS(JSSegmenter, locale, String, kLocaleOffset)
 ACCESSORS(JSSegmenter, icu_break_iterator, Managed<icu::BreakIterator>,
           kICUBreakIteratorOffset)
 SMI_ACCESSORS(JSSegmenter, flags, kFlagsOffset)
-
-inline void JSSegmenter::set_line_break_style(LineBreakStyle line_break_style) {
-  DCHECK_GT(LineBreakStyle::COUNT, line_break_style);
-  int hints = flags();
-  hints = LineBreakStyleBits::update(hints, line_break_style);
-  set_flags(hints);
-}
-
-inline JSSegmenter::LineBreakStyle JSSegmenter::line_break_style() const {
-  return LineBreakStyleBits::decode(flags());
-}
 
 inline void JSSegmenter::set_granularity(Granularity granularity) {
   DCHECK_GT(Granularity::COUNT, granularity);

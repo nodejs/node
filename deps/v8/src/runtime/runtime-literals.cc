@@ -5,8 +5,11 @@
 #include "src/allocation-site-scopes-inl.h"
 #include "src/arguments-inl.h"
 #include "src/ast/ast.h"
+#include "src/counters.h"
 #include "src/isolate-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/heap-number-inl.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/runtime/runtime-utils.h"
@@ -17,7 +20,7 @@ namespace internal {
 
 namespace {
 
-bool IsUninitializedLiteralSite(Object* literal_site) {
+bool IsUninitializedLiteralSite(Object literal_site) {
   return literal_site == Smi::kZero;
 }
 
@@ -118,7 +121,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         DCHECK_EQ(kData, descriptors->GetDetails(i).kind());
         FieldIndex index = FieldIndex::ForDescriptor(copy->map(), i);
         if (copy->IsUnboxedDoubleField(index)) continue;
-        Object* raw = copy->RawFastPropertyAt(index);
+        Object raw = copy->RawFastPropertyAt(index);
         if (raw->IsJSObject()) {
           Handle<JSObject> value(JSObject::cast(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(
@@ -135,7 +138,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     } else {
       Handle<NameDictionary> dict(copy->property_dictionary(), isolate);
       for (int i = 0; i < dict->Capacity(); i++) {
-        Object* raw = dict->ValueAt(i);
+        Object raw = dict->ValueAt(i);
         if (!raw->IsJSObject()) continue;
         DCHECK(dict->KeyAt(i)->IsName());
         Handle<JSObject> value(JSObject::cast(raw), isolate);
@@ -162,7 +165,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
 #endif
       } else {
         for (int i = 0; i < elements->length(); i++) {
-          Object* raw = elements->get(i);
+          Object raw = elements->get(i);
           if (!raw->IsJSObject()) continue;
           Handle<JSObject> value(JSObject::cast(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(
@@ -177,7 +180,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
                                                   isolate);
       int capacity = element_dictionary->Capacity();
       for (int i = 0; i < capacity; i++) {
-        Object* raw = element_dictionary->ValueAt(i);
+        Object raw = element_dictionary->ValueAt(i);
         if (!raw->IsJSObject()) continue;
         Handle<JSObject> value(JSObject::cast(raw), isolate);
         ASSIGN_RETURN_ON_EXCEPTION(
@@ -250,7 +253,7 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
       scope_site = Handle<AllocationSite>(*top(), isolate());
       if (FLAG_trace_creation_allocation_sites) {
         PrintF("*** Creating top level %s AllocationSite %p\n", "Fat",
-               static_cast<void*>(*scope_site));
+               reinterpret_cast<void*>(scope_site->ptr()));
       }
     } else {
       DCHECK(!current().is_null());
@@ -260,8 +263,9 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
             "*** Creating nested %s AllocationSite (top, current, new) (%p, "
             "%p, "
             "%p)\n",
-            "Slim", static_cast<void*>(*top()), static_cast<void*>(*current()),
-            static_cast<void*>(*scope_site));
+            "Slim", reinterpret_cast<void*>(top()->ptr()),
+            reinterpret_cast<void*>(current()->ptr()),
+            reinterpret_cast<void*>(scope_site->ptr()));
       }
       current()->set_nested_site(*scope_site);
       update_current_site(*scope_site);
@@ -277,11 +281,13 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
           !scope_site.is_null() && top().is_identical_to(scope_site);
       if (top_level) {
         PrintF("*** Setting AllocationSite %p transition_info %p\n",
-               static_cast<void*>(*scope_site), static_cast<void*>(*object));
+               reinterpret_cast<void*>(scope_site->ptr()),
+               reinterpret_cast<void*>(object->ptr()));
       } else {
         PrintF("*** Setting AllocationSite (%p, %p) transition_info %p\n",
-               static_cast<void*>(*top()), static_cast<void*>(*scope_site),
-               static_cast<void*>(*object));
+               reinterpret_cast<void*>(top()->ptr()),
+               reinterpret_cast<void*>(scope_site->ptr()),
+               reinterpret_cast<void*>(object->ptr()));
       }
     }
   }
@@ -492,9 +498,15 @@ MaybeHandle<JSObject> CreateLiteralWithoutAllocationSite(
 
 template <typename LiteralHelper>
 MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
-                                    Handle<FeedbackVector> vector,
+                                    MaybeHandle<FeedbackVector> maybe_vector,
                                     int literals_index,
                                     Handle<HeapObject> description, int flags) {
+  if (maybe_vector.is_null()) {
+    return CreateLiteralWithoutAllocationSite<LiteralHelper>(
+        isolate, description, flags);
+  }
+
+  Handle<FeedbackVector> vector = maybe_vector.ToHandleChecked();
   FeedbackSlot literals_slot(FeedbackVector::ToSlot(literals_index));
   CHECK(literals_slot.ToInt() < vector->length());
   Handle<Object> literal_site(vector->Get(literals_slot)->cast<Object>(),
@@ -546,10 +558,15 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
 RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 0);
+  CONVERT_ARG_HANDLE_CHECKED(HeapObject, maybe_vector, 0);
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(ObjectBoilerplateDescription, description, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
+  Handle<FeedbackVector> vector = Handle<FeedbackVector>();
+  if (!maybe_vector->IsUndefined()) {
+    DCHECK(maybe_vector->IsFeedbackVector());
+    vector = Handle<FeedbackVector>::cast(maybe_vector);
+  }
   RETURN_RESULT_OR_FAILURE(
       isolate, CreateLiteral<ObjectLiteralHelper>(
                    isolate, vector, literals_index, description, flags));
@@ -578,10 +595,15 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteralWithoutAllocationSite) {
 RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 0);
+  CONVERT_ARG_HANDLE_CHECKED(HeapObject, maybe_vector, 0);
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(ArrayBoilerplateDescription, elements, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
+  Handle<FeedbackVector> vector = Handle<FeedbackVector>();
+  if (!maybe_vector->IsUndefined()) {
+    DCHECK(maybe_vector->IsFeedbackVector());
+    vector = Handle<FeedbackVector>::cast(maybe_vector);
+  }
   RETURN_RESULT_OR_FAILURE(
       isolate, CreateLiteral<ArrayLiteralHelper>(
                    isolate, vector, literals_index, elements, flags));
@@ -590,17 +612,27 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
 RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 0);
+  CONVERT_ARG_HANDLE_CHECKED(HeapObject, maybe_vector, 0);
   CONVERT_SMI_ARG_CHECKED(index, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, pattern, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
-
   FeedbackSlot literal_slot(FeedbackVector::ToSlot(index));
+  Handle<FeedbackVector> vector = Handle<FeedbackVector>();
+  if (!maybe_vector->IsUndefined()) {
+    DCHECK(maybe_vector->IsFeedbackVector());
+    vector = Handle<FeedbackVector>::cast(maybe_vector);
+  }
+  Handle<Object> boilerplate;
+  if (vector.is_null()) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, boilerplate,
+        JSRegExp::New(isolate, pattern, JSRegExp::Flags(flags)));
+    return *JSRegExp::Copy(Handle<JSRegExp>::cast(boilerplate));
+  }
 
   // Check if boilerplate exists. If not, create it first.
   Handle<Object> literal_site(vector->Get(literal_slot)->cast<Object>(),
                               isolate);
-  Handle<Object> boilerplate;
   if (!HasBoilerplate(literal_site)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, boilerplate,

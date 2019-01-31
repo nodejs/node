@@ -206,6 +206,12 @@ Node* GraphAssembler::BitcastWordToTagged(Node* value) {
                               current_effect_, current_control_);
 }
 
+Node* GraphAssembler::BitcastTaggedToWord(Node* value) {
+  return current_effect_ =
+             graph()->NewNode(machine()->BitcastTaggedToWord(), value,
+                              current_effect_, current_control_);
+}
+
 Node* GraphAssembler::Word32PoisonOnSpeculation(Node* value) {
   return current_effect_ =
              graph()->NewNode(machine()->Word32PoisonOnSpeculation(), value,

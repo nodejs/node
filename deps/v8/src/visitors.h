@@ -6,6 +6,9 @@
 #define V8_VISITORS_H_
 
 #include "src/globals.h"
+#include "src/objects/code.h"
+#include "src/objects/foreign.h"
+#include "src/objects/slots.h"
 
 namespace v8 {
 namespace internal {
@@ -17,6 +20,7 @@ class Object;
 #define ROOT_ID_LIST(V)                                \
   V(kStringTable, "(Internalized strings)")            \
   V(kExternalStringsTable, "(External strings)")       \
+  V(kReadOnlyRootList, "(Read-only roots)")            \
   V(kStrongRootList, "(Strong roots)")                 \
   V(kSmiRootList, "(Smi roots)")                       \
   V(kBootstrapper, "(Bootstrapper)")                   \
@@ -34,6 +38,7 @@ class Object;
   V(kExtensions, "(Extensions)")                       \
   V(kCodeFlusher, "(Code flusher)")                    \
   V(kPartialSnapshotCache, "(Partial snapshot cache)") \
+  V(kReadOnlyObjectCache, "(Read-only object cache)")  \
   V(kWeakCollections, "(Weak collections)")            \
   V(kWrapperTracing, "(Wrapper tracing)")              \
   V(kUnknown, "(Unknown)")
@@ -61,11 +66,11 @@ class RootVisitor {
   // Visits a contiguous arrays of pointers in the half-open range
   // [start, end). Any or all of the values may be modified on return.
   virtual void VisitRootPointers(Root root, const char* description,
-                                 Object** start, Object** end) = 0;
+                                 FullObjectSlot start, FullObjectSlot end) = 0;
 
   // Handy shorthand for visiting a single pointer.
   virtual void VisitRootPointer(Root root, const char* description,
-                                Object** p) {
+                                FullObjectSlot p) {
     VisitRootPointers(root, description, p, p + 1);
   }
 
@@ -88,28 +93,28 @@ class ObjectVisitor {
 
   // Visits a contiguous arrays of pointers in the half-open range
   // [start, end). Any or all of the values may be modified on return.
-  virtual void VisitPointers(HeapObject* host, Object** start,
-                             Object** end) = 0;
-  virtual void VisitPointers(HeapObject* host, MaybeObject** start,
-                             MaybeObject** end) = 0;
+  virtual void VisitPointers(HeapObject host, ObjectSlot start,
+                             ObjectSlot end) = 0;
+  virtual void VisitPointers(HeapObject host, MaybeObjectSlot start,
+                             MaybeObjectSlot end) = 0;
 
   // Custom weak pointers must be ignored by the GC but not other
   // visitors. They're used for e.g., lists that are recreated after GC. The
   // default implementation treats them as strong pointers. Visitors who want to
   // ignore them must override this function with empty.
-  virtual void VisitCustomWeakPointers(HeapObject* host, Object** start,
-                                       Object** end) {
+  virtual void VisitCustomWeakPointers(HeapObject host, ObjectSlot start,
+                                       ObjectSlot end) {
     VisitPointers(host, start, end);
   }
 
   // Handy shorthand for visiting a single pointer.
-  virtual void VisitPointer(HeapObject* host, Object** p) {
+  virtual void VisitPointer(HeapObject host, ObjectSlot p) {
     VisitPointers(host, p, p + 1);
   }
-  virtual void VisitPointer(HeapObject* host, MaybeObject** p) {
+  virtual void VisitPointer(HeapObject host, MaybeObjectSlot p) {
     VisitPointers(host, p, p + 1);
   }
-  virtual void VisitCustomWeakPointer(HeapObject* host, Object** p) {
+  virtual void VisitCustomWeakPointer(HeapObject host, ObjectSlot p) {
     VisitCustomWeakPointers(host, p, p + 1);
   }
 
@@ -117,25 +122,25 @@ class ObjectVisitor {
   // a rich interface for iterating over Code objects ...
 
   // Visits a code target in the instruction stream.
-  virtual void VisitCodeTarget(Code* host, RelocInfo* rinfo);
-
-  // Visits a runtime entry in the instruction stream.
-  virtual void VisitRuntimeEntry(Code* host, RelocInfo* rinfo) {}
+  virtual void VisitCodeTarget(Code host, RelocInfo* rinfo) = 0;
 
   // Visit pointer embedded into a code object.
-  virtual void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo);
+  virtual void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) = 0;
+
+  // Visits a runtime entry in the instruction stream.
+  virtual void VisitRuntimeEntry(Code host, RelocInfo* rinfo) {}
 
   // Visits an external reference embedded into a code object.
-  virtual void VisitExternalReference(Code* host, RelocInfo* rinfo) {}
+  virtual void VisitExternalReference(Code host, RelocInfo* rinfo) {}
 
   // Visits an external reference.
-  virtual void VisitExternalReference(Foreign* host, Address* p) {}
+  virtual void VisitExternalReference(Foreign host, Address* p) {}
 
   // Visits an (encoded) internal reference.
-  virtual void VisitInternalReference(Code* host, RelocInfo* rinfo) {}
+  virtual void VisitInternalReference(Code host, RelocInfo* rinfo) {}
 
   // Visits an off-heap target in the instruction stream.
-  virtual void VisitOffHeapTarget(Code* host, RelocInfo* rinfo) {}
+  virtual void VisitOffHeapTarget(Code host, RelocInfo* rinfo) {}
 
   // Visits the relocation info using the given iterator.
   virtual void VisitRelocInfo(RelocIterator* it);

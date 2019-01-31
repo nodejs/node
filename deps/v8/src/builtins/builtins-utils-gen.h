@@ -26,27 +26,27 @@ class CodeAssemblerState;
 //
 // In the body of the builtin function the arguments can be accessed
 // as "Parameter(n)".
-#define TF_BUILTIN(Name, AssemblerBase)                                  \
-  class Name##Assembler : public AssemblerBase {                         \
-   public:                                                               \
-    typedef Builtin_##Name##_InterfaceDescriptor Descriptor;             \
-                                                                         \
-    explicit Name##Assembler(compiler::CodeAssemblerState* state)        \
-        : AssemblerBase(state) {}                                        \
-    void Generate##Name##Impl();                                         \
-                                                                         \
-    Node* Parameter(Descriptor::ParameterIndices index) {                \
-      return CodeAssembler::Parameter(static_cast<int>(index));          \
-    }                                                                    \
-  };                                                                     \
-  void Builtins::Generate_##Name(compiler::CodeAssemblerState* state) {  \
-    Name##Assembler assembler(state);                                    \
-    state->SetInitialDebugInformation(#Name, __FILE__, __LINE__);        \
-    if (Builtins::KindOf(Builtins::k##Name) == Builtins::TFJ) {          \
-      assembler.PerformStackCheck(assembler.GetJSContextParameter());    \
-    }                                                                    \
-    assembler.Generate##Name##Impl();                                    \
-  }                                                                      \
+#define TF_BUILTIN(Name, AssemblerBase)                                 \
+  class Name##Assembler : public AssemblerBase {                        \
+   public:                                                              \
+    typedef Builtin_##Name##_InterfaceDescriptor Descriptor;            \
+                                                                        \
+    explicit Name##Assembler(compiler::CodeAssemblerState* state)       \
+        : AssemblerBase(state) {}                                       \
+    void Generate##Name##Impl();                                        \
+                                                                        \
+    Node* Parameter(Descriptor::ParameterIndices index) {               \
+      return CodeAssembler::Parameter(static_cast<int>(index));         \
+    }                                                                   \
+  };                                                                    \
+  void Builtins::Generate_##Name(compiler::CodeAssemblerState* state) { \
+    Name##Assembler assembler(state);                                   \
+    state->SetInitialDebugInformation(#Name, __FILE__, __LINE__);       \
+    if (Builtins::KindOf(Builtins::k##Name) == Builtins::TFJ) {         \
+      assembler.PerformStackCheck(assembler.GetJSContextParameter());   \
+    }                                                                   \
+    assembler.Generate##Name##Impl();                                   \
+  }                                                                     \
   void Name##Assembler::Generate##Name##Impl()
 
 }  // namespace internal

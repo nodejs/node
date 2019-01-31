@@ -4,6 +4,8 @@
 
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/js-array-buffer-inl.h"
+
+#include "src/counters.h"
 #include "src/property-descriptor.h"
 
 namespace v8 {
@@ -36,18 +38,18 @@ inline int ConvertToMb(size_t size) {
 
 }  // anonymous namespace
 
-void JSArrayBuffer::Neuter() {
-  CHECK(is_neuterable());
-  CHECK(!was_neutered());
+void JSArrayBuffer::Detach() {
+  CHECK(is_detachable());
+  CHECK(!was_detached());
   CHECK(is_external());
   set_backing_store(nullptr);
   set_byte_length(0);
-  set_was_neutered(true);
-  set_is_neuterable(false);
-  // Invalidate the neutering protector.
+  set_was_detached(true);
+  set_is_detachable(false);
+  // Invalidate the detaching protector.
   Isolate* const isolate = GetIsolate();
-  if (isolate->IsArrayBufferNeuteringIntact()) {
-    isolate->InvalidateArrayBufferNeuteringProtector();
+  if (isolate->IsArrayBufferDetachingIntact()) {
+    isolate->InvalidateArrayBufferDetachingProtector();
   }
 }
 
@@ -89,8 +91,9 @@ void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
   }
   array_buffer->set_byte_length(byte_length);
   array_buffer->set_bit_field(0);
+  array_buffer->clear_padding();
   array_buffer->set_is_external(is_external);
-  array_buffer->set_is_neuterable(shared_flag == SharedFlag::kNotShared);
+  array_buffer->set_is_detachable(shared_flag == SharedFlag::kNotShared);
   array_buffer->set_is_shared(shared_flag == SharedFlag::kShared);
   array_buffer->set_is_wasm_memory(is_wasm_memory);
   // Initialize backing store at last to avoid handling of |JSArrayBuffers| that
@@ -102,6 +105,11 @@ void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
   if (data && !is_external) {
     isolate->heap()->RegisterNewArrayBuffer(*array_buffer);
   }
+}
+
+void JSArrayBuffer::SetupAsEmpty(Handle<JSArrayBuffer> array_buffer,
+                                 Isolate* isolate) {
+  Setup(array_buffer, isolate, false, nullptr, 0, SharedFlag::kNotShared);
 }
 
 bool JSArrayBuffer::SetupAllocatingData(Handle<JSArrayBuffer> array_buffer,
@@ -127,6 +135,7 @@ bool JSArrayBuffer::SetupAllocatingData(Handle<JSArrayBuffer> array_buffer,
     if (data == nullptr) {
       isolate->counters()->array_buffer_new_size_failures()->AddSample(
           ConvertToMb(allocated_length));
+      SetupAsEmpty(array_buffer, isolate);
       return false;
     }
   } else {
@@ -191,7 +200,7 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
                                        GetIsolate());
     return array_buffer;
   }
-  Handle<JSTypedArray> self(this, GetIsolate());
+  Handle<JSTypedArray> self(*this, GetIsolate());
   return MaterializeArrayBuffer(self);
 }
 
@@ -223,7 +232,7 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
       // 3b iv. Let length be O.[[ArrayLength]].
       size_t length = o->length_value();
       // 3b v. If numericIndex ≥ length, return false.
-      if (o->WasNeutered() || index >= length) {
+      if (o->WasDetached() || index >= length) {
         RETURN_FAILURE(isolate, should_throw,
                        NewTypeError(MessageTemplate::kInvalidTypedArrayIndex));
       }

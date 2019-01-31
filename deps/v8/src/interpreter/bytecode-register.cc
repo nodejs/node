@@ -11,27 +11,27 @@ namespace interpreter {
 static const int kLastParamRegisterIndex =
     (InterpreterFrameConstants::kRegisterFileFromFp -
      InterpreterFrameConstants::kLastParamFromFp) /
-    kPointerSize;
+    kSystemPointerSize;
 static const int kFunctionClosureRegisterIndex =
     (InterpreterFrameConstants::kRegisterFileFromFp -
      StandardFrameConstants::kFunctionOffset) /
-    kPointerSize;
+    kSystemPointerSize;
 static const int kCurrentContextRegisterIndex =
     (InterpreterFrameConstants::kRegisterFileFromFp -
      StandardFrameConstants::kContextOffset) /
-    kPointerSize;
+    kSystemPointerSize;
 static const int kBytecodeArrayRegisterIndex =
     (InterpreterFrameConstants::kRegisterFileFromFp -
      InterpreterFrameConstants::kBytecodeArrayFromFp) /
-    kPointerSize;
+    kSystemPointerSize;
 static const int kBytecodeOffsetRegisterIndex =
     (InterpreterFrameConstants::kRegisterFileFromFp -
      InterpreterFrameConstants::kBytecodeOffsetFromFp) /
-    kPointerSize;
+    kSystemPointerSize;
 static const int kCallerPCOffsetRegisterIndex =
     (InterpreterFrameConstants::kRegisterFileFromFp -
      InterpreterFrameConstants::kCallerPCOffsetFromFp) /
-    kPointerSize;
+    kSystemPointerSize;
 
 Register Register::FromParameterIndex(int index, int parameter_count) {
   DCHECK_GE(index, 0);

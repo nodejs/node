@@ -6,6 +6,7 @@
 
 #include "src/base/ieee754.h"
 #include "src/base/macros.h"
+#include "src/base/overflowing-math.h"
 #include "testing/gmock-support.h"
 #include "testing/gtest-support.h"
 
@@ -314,8 +315,8 @@ TEST(Ieee754, Sin) {
   EXPECT_THAT(sin(-kInfinity), IsNaN());
 
   // Tests for sin for |x| < pi/4
-  EXPECT_EQ(-kInfinity, 1 / sin(-0.0));
-  EXPECT_EQ(kInfinity, 1 / sin(0.0));
+  EXPECT_EQ(-kInfinity, Divide(1.0, sin(-0.0)));
+  EXPECT_EQ(kInfinity, Divide(1.0, sin(0.0)));
   // sin(x) = x for x < 2^-27
   EXPECT_EQ(2.3283064365386963e-10, sin(2.3283064365386963e-10));
   EXPECT_EQ(-2.3283064365386963e-10, sin(-2.3283064365386963e-10));
@@ -361,8 +362,8 @@ TEST(Ieee754, Tan) {
   EXPECT_THAT(tan(-kInfinity), IsNaN());
 
   // Tests for tan for |x| < pi/4
-  EXPECT_EQ(kInfinity, 1 / tan(0.0));
-  EXPECT_EQ(-kInfinity, 1 / tan(-0.0));
+  EXPECT_EQ(kInfinity, Divide(1.0, tan(0.0)));
+  EXPECT_EQ(-kInfinity, Divide(1.0, tan(-0.0)));
   // tan(x) = x for |x| < 2^-28
   EXPECT_EQ(2.3283064365386963e-10, tan(2.3283064365386963e-10));
   EXPECT_EQ(-2.3283064365386963e-10, tan(-2.3283064365386963e-10));

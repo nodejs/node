@@ -42,52 +42,34 @@ class ExternalReferenceTable {
       kBuiltinsReferenceCount + kRuntimeReferenceCount +
       kIsolateAddressReferenceCount + kAccessorReferenceCount +
       kStubCacheReferenceCount;
+  static constexpr uint32_t kEntrySize =
+      static_cast<uint32_t>(kSystemPointerSize);
+  static constexpr uint32_t kSizeInBytes = kSize * kEntrySize + 2 * kUInt32Size;
 
-  static constexpr uint32_t size() { return static_cast<uint32_t>(kSize); }
-  Address address(uint32_t i) { return refs_[i].address; }
-  const char* name(uint32_t i) { return refs_[i].name; }
+  Address address(uint32_t i) const { return ref_addr_[i]; }
+  const char* name(uint32_t i) const { return ref_name_[i]; }
 
   bool is_initialized() const { return is_initialized_ != 0; }
 
   static const char* ResolveSymbol(void* address);
 
-  static constexpr uint32_t EntrySize() {
-    return sizeof(ExternalReferenceEntry);
-  }
-
   static constexpr uint32_t OffsetOfEntry(uint32_t i) {
     // Used in CodeAssembler::LookupExternalReference.
-    STATIC_ASSERT(offsetof(ExternalReferenceEntry, address) == 0);
-    return i * EntrySize();
+    return i * kEntrySize;
   }
 
   const char* NameFromOffset(uint32_t offset) {
-    DCHECK_EQ(offset % EntrySize(), 0);
-    DCHECK_LT(offset, SizeInBytes());
-    int index = offset / EntrySize();
+    DCHECK_EQ(offset % kEntrySize, 0);
+    DCHECK_LT(offset, kSizeInBytes);
+    int index = offset / kEntrySize;
     return name(index);
-  }
-
-  static constexpr uint32_t SizeInBytes() {
-    STATIC_ASSERT(OffsetOfEntry(size()) + 2 * kUInt32Size ==
-                  sizeof(ExternalReferenceTable));
-    return OffsetOfEntry(size()) + 2 * kUInt32Size;
   }
 
   ExternalReferenceTable() = default;
   void Init(Isolate* isolate);
 
  private:
-  struct ExternalReferenceEntry {
-    Address address;
-    const char* name;
-
-    ExternalReferenceEntry() : address(kNullAddress), name(nullptr) {}
-    ExternalReferenceEntry(Address address, const char* name)
-        : address(address), name(name) {}
-  };
-
-  void Add(Address address, const char* name, int* index);
+  void Add(Address address, int* index);
 
   void AddReferences(Isolate* isolate, int* index);
   void AddBuiltins(int* index);
@@ -96,12 +78,18 @@ class ExternalReferenceTable {
   void AddAccessors(int* index);
   void AddStubCache(Isolate* isolate, int* index);
 
-  ExternalReferenceEntry refs_[kSize];
+  STATIC_ASSERT(sizeof(Address) == kEntrySize);
+  Address ref_addr_[kSize];
+  static const char* const ref_name_[kSize];
+
   uint32_t is_initialized_ = 0;  // Not bool to guarantee deterministic size.
   uint32_t unused_padding_ = 0;  // For alignment.
 
   DISALLOW_COPY_AND_ASSIGN(ExternalReferenceTable);
 };
+
+STATIC_ASSERT(ExternalReferenceTable::kSizeInBytes ==
+              sizeof(ExternalReferenceTable));
 
 }  // namespace internal
 }  // namespace v8

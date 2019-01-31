@@ -2,29 +2,28 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/s390/simulator-s390.h"
+
+// Only build the simulator if not compiling for real s390 hardware.
+#if defined(USE_SIMULATOR)
+
 #include <stdarg.h>
 #include <stdlib.h>
 #include <cmath>
 
-#if V8_TARGET_ARCH_S390
-
 #include "src/assembler.h"
 #include "src/base/bits.h"
 #include "src/base/once.h"
-#include "src/codegen.h"
 #include "src/disasm.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/ostreams.h"
+#include "src/register-configuration.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/s390/constants-s390.h"
-#include "src/s390/simulator-s390.h"
-#if defined(USE_SIMULATOR)
 
-// Only build the simulator if not compiling for real s390 hardware.
 namespace v8 {
 namespace internal {
-
-const auto GetRegConfig = RegisterConfiguration::Default;
 
 // This macro provides a platform independent use of sscanf. The reason for
 // SScanF not being implemented in a platform independent way through
@@ -290,7 +289,7 @@ void S390Debugger::Debug() {
             for (int i = 0; i < kNumRegisters; i++) {
               value = GetRegisterValue(i);
               PrintF("    %3s: %08" V8PRIxPTR,
-                     GetRegConfig()->GetGeneralRegisterName(i), value);
+                     RegisterName(Register::from_code(i)), value);
               if ((argc == 3 && strcmp(arg2, "fp") == 0) && i < 8 &&
                   (i % 2) == 0) {
                 dvalue = GetRegisterPairDoubleValue(i);
@@ -305,7 +304,7 @@ void S390Debugger::Debug() {
             for (int i = 0; i < kNumRegisters; i++) {
               value = GetRegisterValue(i);
               PrintF("     %3s: %08" V8PRIxPTR " %11" V8PRIdPTR,
-                     GetRegConfig()->GetGeneralRegisterName(i), value, value);
+                     RegisterName(Register::from_code(i)), value, value);
               if ((argc == 3 && strcmp(arg2, "fp") == 0) && i < 8 &&
                   (i % 2) == 0) {
                 dvalue = GetRegisterPairDoubleValue(i);
@@ -321,7 +320,7 @@ void S390Debugger::Debug() {
               float fvalue = GetFPFloatRegisterValue(i);
               uint32_t as_words = bit_cast<uint32_t>(fvalue);
               PrintF("%3s: %f 0x%08x\n",
-                     GetRegConfig()->GetDoubleRegisterName(i), fvalue,
+                     RegisterName(DoubleRegister::from_code(i)), fvalue,
                      as_words);
             }
           } else if (strcmp(arg1, "alld") == 0) {
@@ -329,7 +328,7 @@ void S390Debugger::Debug() {
               dvalue = GetFPDoubleRegisterValue(i);
               uint64_t as_words = bit_cast<uint64_t>(dvalue);
               PrintF("%3s: %f 0x%08x %08x\n",
-                     GetRegConfig()->GetDoubleRegisterName(i), dvalue,
+                     RegisterName(DoubleRegister::from_code(i)), dvalue,
                      static_cast<uint32_t>(as_words >> 32),
                      static_cast<uint32_t>(as_words & 0xFFFFFFFF));
             }
@@ -367,7 +366,7 @@ void S390Debugger::Debug() {
           intptr_t value;
           StdoutStream os;
           if (GetValue(arg1, &value)) {
-            Object* obj = reinterpret_cast<Object*>(value);
+            Object obj(value);
             os << arg1 << ": \n";
 #ifdef DEBUG
             obj->Print(os);
@@ -419,13 +418,11 @@ void S390Debugger::Debug() {
         while (cur < end) {
           PrintF("  0x%08" V8PRIxPTR ":  0x%08" V8PRIxPTR " %10" V8PRIdPTR,
                  reinterpret_cast<intptr_t>(cur), *cur, *cur);
-          HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
-          intptr_t value = *cur;
+          Object obj(*cur);
           Heap* current_heap = sim_->isolate_->heap();
-          if (((value & 1) == 0) ||
-              current_heap->ContainsSlow(obj->address())) {
-            PrintF("(smi %d)", PlatformSmiTagging::SmiToInt(obj));
-          } else if (current_heap->Contains(obj)) {
+          if (obj.IsSmi()) {
+            PrintF(" (smi %d)", Smi::ToInt(obj));
+          } else if (current_heap->Contains(HeapObject::cast(obj))) {
             PrintF(" (");
             obj->ShortPrint();
             PrintF(")");
@@ -1798,22 +1795,10 @@ bool Simulator::OverflowFromSigned(T1 alu_out, T1 left, T1 right,
   return overflow;
 }
 
-#if V8_TARGET_ARCH_S390X
 static void decodeObjectPair(ObjectPair* pair, intptr_t* x, intptr_t* y) {
-  *x = reinterpret_cast<intptr_t>(pair->x);
-  *y = reinterpret_cast<intptr_t>(pair->y);
+  *x = static_cast<intptr_t>(pair->x);
+  *y = static_cast<intptr_t>(pair->y);
 }
-#else
-static void decodeObjectPair(ObjectPair* pair, intptr_t* x, intptr_t* y) {
-#if V8_TARGET_BIG_ENDIAN
-  *x = static_cast<int32_t>(*pair >> 32);
-  *y = static_cast<int32_t>(*pair);
-#else
-  *x = static_cast<int32_t>(*pair);
-  *y = static_cast<int32_t>(*pair >> 32);
-#endif
-}
-#endif
 
 // Calls into the V8 runtime.
 typedef intptr_t (*SimulatorRuntimeCall)(intptr_t arg0, intptr_t arg1,
@@ -9773,4 +9758,3 @@ EVALUATE(CXZT) {
 }  // namespace v8
 
 #endif  // USE_SIMULATOR
-#endif  // V8_TARGET_ARCH_S390

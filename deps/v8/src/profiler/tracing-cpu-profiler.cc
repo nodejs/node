@@ -13,10 +13,6 @@ namespace internal {
 
 TracingCpuProfilerImpl::TracingCpuProfilerImpl(Isolate* isolate)
     : isolate_(isolate), profiling_enabled_(false) {
-  // Make sure tracing system notices profiler categories.
-  TRACE_EVENT_WARMUP_CATEGORY(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"));
-  TRACE_EVENT_WARMUP_CATEGORY(
-      TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler.hires"));
   V8::GetCurrentPlatform()->GetTracingController()->AddTraceStateObserver(this);
 }
 
@@ -40,7 +36,7 @@ void TracingCpuProfilerImpl::OnTraceEnabled() {
 }
 
 void TracingCpuProfilerImpl::OnTraceDisabled() {
-  base::LockGuard<base::Mutex> lock(&mutex_);
+  base::MutexGuard lock(&mutex_);
   if (!profiling_enabled_) return;
   profiling_enabled_ = false;
   isolate_->RequestInterrupt(
@@ -51,7 +47,7 @@ void TracingCpuProfilerImpl::OnTraceDisabled() {
 }
 
 void TracingCpuProfilerImpl::StartProfiling() {
-  base::LockGuard<base::Mutex> lock(&mutex_);
+  base::MutexGuard lock(&mutex_);
   if (!profiling_enabled_ || profiler_) return;
   bool enabled;
   TRACE_EVENT_CATEGORY_GROUP_ENABLED(
@@ -64,7 +60,7 @@ void TracingCpuProfilerImpl::StartProfiling() {
 }
 
 void TracingCpuProfilerImpl::StopProfiling() {
-  base::LockGuard<base::Mutex> lock(&mutex_);
+  base::MutexGuard lock(&mutex_);
   if (!profiler_) return;
   profiler_->StopProfiling("");
   profiler_.reset();

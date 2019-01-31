@@ -26,7 +26,7 @@ class TestSamplingThread : public base::Thread {
 
   // Implement Thread::Run().
   void Run() override {
-    while (sampler_->IsProfiling()) {
+    while (sampler_->IsActive()) {
       sampler_->DoSample();
       base::OS::Sleep(base::TimeDelta::FromMilliseconds(1));
     }
@@ -73,23 +73,17 @@ static void RunSampler(v8::Local<v8::Context> env,
                        v8::Local<v8::Value> argv[], int argc,
                        unsigned min_js_samples = 0,
                        unsigned min_external_samples = 0) {
-  Sampler::SetUp();
-  TestSampler* sampler = new TestSampler(env->GetIsolate());
-  TestSamplingThread* thread = new TestSamplingThread(sampler);
-  sampler->IncreaseProfilingDepth();
-  sampler->Start();
-  sampler->StartCountingSamples();
-  thread->StartSynchronously();
+  TestSampler sampler(env->GetIsolate());
+  TestSamplingThread thread(&sampler);
+  sampler.Start();
+  sampler.StartCountingSamples();
+  thread.StartSynchronously();
   do {
     function->Call(env, env->Global(), argc, argv).ToLocalChecked();
-  } while (sampler->js_sample_count() < min_js_samples ||
-           sampler->external_sample_count() < min_external_samples);
-  sampler->Stop();
-  sampler->DecreaseProfilingDepth();
-  thread->Join();
-  delete thread;
-  delete sampler;
-  Sampler::TearDown();
+  } while (sampler.js_sample_count() < min_js_samples ||
+           sampler.external_sample_count() < min_external_samples);
+  sampler.Stop();
+  thread.Join();
 }
 
 }  // namespace
@@ -136,6 +130,89 @@ TEST(LibSamplerCollectSample) {
   v8::Local<v8::Value> args[] = {v8::Integer::New(isolate, repeat_count)};
   RunSampler(env.local(), function, args, arraysize(args), 100, 100);
 }
+
+#ifdef USE_SIGNALS
+
+class CountingSampler : public Sampler {
+ public:
+  explicit CountingSampler(Isolate* isolate) : Sampler(isolate) {}
+
+  void SampleStack(const v8::RegisterState& regs) override { sample_count_++; }
+
+  int sample_count() { return sample_count_; }
+  void set_active(bool active) { SetActive(active); }
+
+ private:
+  int sample_count_ = 0;
+};
+
+TEST(SamplerManager_AddRemoveSampler) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+
+  SamplerManager* manager = SamplerManager::instance();
+  CountingSampler sampler1(isolate);
+  sampler1.set_active(true);
+  CHECK_EQ(0, sampler1.sample_count());
+
+  manager->AddSampler(&sampler1);
+
+  RegisterState state;
+  manager->DoSample(state);
+  CHECK_EQ(1, sampler1.sample_count());
+
+  sampler1.set_active(true);
+  manager->RemoveSampler(&sampler1);
+  sampler1.set_active(false);
+
+  manager->DoSample(state);
+  CHECK_EQ(1, sampler1.sample_count());
+}
+
+TEST(SamplerManager_DoesNotReAdd) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+
+  // Add the same sampler twice, but check we only get one sample for it.
+  SamplerManager* manager = SamplerManager::instance();
+  CountingSampler sampler1(isolate);
+  sampler1.set_active(true);
+  manager->AddSampler(&sampler1);
+  manager->AddSampler(&sampler1);
+
+  RegisterState state;
+  manager->DoSample(state);
+  CHECK_EQ(1, sampler1.sample_count());
+  sampler1.set_active(false);
+}
+
+TEST(AtomicGuard_GetNonBlockingSuccess) {
+  std::atomic_bool atomic{false};
+  {
+    AtomicGuard guard(&atomic, false);
+    CHECK(guard.is_success());
+
+    AtomicGuard guard2(&atomic, false);
+    CHECK(!guard2.is_success());
+  }
+  AtomicGuard guard(&atomic, false);
+  CHECK(guard.is_success());
+}
+
+TEST(AtomicGuard_GetBlockingSuccess) {
+  std::atomic_bool atomic{false};
+  {
+    AtomicGuard guard(&atomic);
+    CHECK(guard.is_success());
+
+    AtomicGuard guard2(&atomic, false);
+    CHECK(!guard2.is_success());
+  }
+  AtomicGuard guard(&atomic);
+  CHECK(guard.is_success());
+}
+
+#endif  // USE_SIGNALS
 
 }  // namespace sampler
 }  // namespace v8
