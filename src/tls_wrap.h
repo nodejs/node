@@ -80,6 +80,8 @@ class TLSWrap : public AsyncWrap,
   // Reset error_ string to empty. Not related to "clear text".
   void ClearError() override;
 
+
+  // Called by the done() callback of the 'newSession' event.
   void NewSessionDoneCb();
 
   // Implement MemoryRetainer:
@@ -88,6 +90,8 @@ class TLSWrap : public AsyncWrap,
   SET_SELF_SIZE(TLSWrap)
 
  protected:
+  // Alternative to StreamListener::stream(), that returns a StreamBase instead
+  // of a StreamResource.
   inline StreamBase* underlying_stream() {
     return static_cast<StreamBase*>(stream_);
   }
