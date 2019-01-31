@@ -94,13 +94,13 @@ int ares_create_query(const char *name, int dnsclass, int type,
   size_t buflen;
   unsigned char *buf;
 
-  /* Per RFC 7686, reject queries for ".onion" domain names with NXDOMAIN. */
-  if (ares__is_onion_domain(name))
-    return ARES_ENOTFOUND;
-
   /* Set our results early, in case we bail out early with an error. */
   *buflenp = 0;
   *bufp = NULL;
+
+  /* Per RFC 7686, reject queries for ".onion" domain names with NXDOMAIN. */
+  if (ares__is_onion_domain(name))
+    return ARES_ENOTFOUND;
 
   /* Allocate a memory area for the maximum size this packet might need. +2
    * is for the length byte and zero termination if no dots or ecscaping is
