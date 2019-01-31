@@ -275,7 +275,7 @@ def JS2C(source, target):
     # later on anyway, so get it out of the way now
     if name.endswith('.gypi'):
       # Currently only config.gypi is allowed
-      assert name == 'config.gypi'
+      assert name.endswith('config.gypi')
       config_filename = str(name).replace('gypi', 'json')
       config = ReadFile(config_filename)
       config = re.sub('"true"', 'true', config)
