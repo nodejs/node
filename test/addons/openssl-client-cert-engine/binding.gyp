@@ -3,7 +3,7 @@
     {
       'target_name': 'testengine',
       'type': 'none',
-      'cflags': ['-Wno-cast-function-type'],
+      'includes': ['../common.gypi'],
       'conditions': [
         ['OS=="mac" and '
          'node_use_openssl=="true" and '
@@ -18,9 +18,6 @@
               '../../../../out/<(PRODUCT_DIR)/<(openssl_product)'
             ]
           },
-        }],
-        [ 'OS in "linux freebsd openbsd solaris android aix cloudabi"', {
-          'cflags': ['-Wno-cast-function-type'],
         }],
       ]
     }
