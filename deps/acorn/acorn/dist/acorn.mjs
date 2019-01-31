@@ -248,7 +248,7 @@ function isNewLine(code, ecma2019String) {
   return code === 10 || code === 13 || (!ecma2019String && (code === 0x2028 || code === 0x2029))
 }
 
-var nonASCIIwhitespace = /[\u1680\u180e\u2000-\u200a\u202f\u205f\u3000\ufeff]/;
+var nonASCIIwhitespace = /[\u1680\u2000-\u200a\u202f\u205f\u3000\ufeff]/;
 
 var skipWhiteSpace = /(?:\s|\/\/.*|\/\*[^]*?\*\/)*/g;
 
@@ -265,6 +265,10 @@ function has(obj, propName) {
 var isArray = Array.isArray || (function (obj) { return (
   toString.call(obj) === "[object Array]"
 ); });
+
+function wordsRegexp(words) {
+  return new RegExp("^(?:" + words.replace(/ /g, "|") + ")$")
+}
 
 // These are used when `options.locations` is on, for the
 // `startLoc` and `endLoc` properties.
@@ -307,18 +311,19 @@ function getLineInfo(input, offset) {
 // the parser process. These options are recognized:
 
 var defaultOptions = {
-  // `ecmaVersion` indicates the ECMAScript version to parse. Must
-  // be either 3, 5, 6 (2015), 7 (2016), or 8 (2017). This influences support
-  // for strict mode, the set of reserved words, and support for
-  // new syntax features. The default is 7.
-  ecmaVersion: 7,
+  // `ecmaVersion` indicates the ECMAScript version to parse. Must be
+  // either 3, 5, 6 (2015), 7 (2016), 8 (2017), 9 (2018), or 10
+  // (2019). This influences support for strict mode, the set of
+  // reserved words, and support for new syntax features. The default
+  // is 9.
+  ecmaVersion: 9,
   // `sourceType` indicates the mode the code should be parsed in.
   // Can be either `"script"` or `"module"`. This influences global
   // strict mode and parsing of `import` and `export` declarations.
   sourceType: "script",
   // `onInsertedSemicolon` can be a callback that will be called
   // when a semicolon is automatically inserted. It will be passed
-  // th position of the comma as an offset, and if `locations` is
+  // the position of the comma as an offset, and if `locations` is
   // enabled, it is given the location as a `{line, column}` object
   // as second argument.
   onInsertedSemicolon: null,
@@ -387,8 +392,7 @@ var defaultOptions = {
   directSourceFile: null,
   // When enabled, parenthesized expressions are represented by
   // (non-standard) ParenthesizedExpression nodes
-  preserveParens: false,
-  plugins: {}
+  preserveParens: false
 };
 
 // Interpret and default an options object
@@ -431,36 +435,49 @@ function pushComment(options, array) {
   }
 }
 
-// Registered plugins
-var plugins = {};
+// Each scope gets a bitset that may contain these flags
+var SCOPE_TOP = 1;
+var SCOPE_FUNCTION = 2;
+var SCOPE_VAR = SCOPE_TOP | SCOPE_FUNCTION;
+var SCOPE_ASYNC = 4;
+var SCOPE_GENERATOR = 8;
+var SCOPE_ARROW = 16;
+var SCOPE_SIMPLE_CATCH = 32;
+var SCOPE_SUPER = 64;
+var SCOPE_DIRECT_SUPER = 128;
 
-function keywordRegexp(words) {
-  return new RegExp("^(?:" + words.replace(/ /g, "|") + ")$")
+function functionFlags(async, generator) {
+  return SCOPE_FUNCTION | (async ? SCOPE_ASYNC : 0) | (generator ? SCOPE_GENERATOR : 0)
 }
+
+// Used in checkLVal and declareName to determine the type of a binding
+var BIND_NONE = 0;
+var BIND_VAR = 1;
+var BIND_LEXICAL = 2;
+var BIND_FUNCTION = 3;
+var BIND_SIMPLE_CATCH = 4;
+var BIND_OUTSIDE = 5; // Special case for function names as bound inside the function
 
 var Parser = function Parser(options, input, startPos) {
   this.options = options = getOptions(options);
   this.sourceFile = options.sourceFile;
-  this.keywords = keywordRegexp(keywords[options.ecmaVersion >= 6 ? 6 : 5]);
+  this.keywords = wordsRegexp(keywords[options.ecmaVersion >= 6 ? 6 : 5]);
   var reserved = "";
   if (!options.allowReserved) {
     for (var v = options.ecmaVersion;; v--)
       { if (reserved = reservedWords[v]) { break } }
     if (options.sourceType === "module") { reserved += " await"; }
   }
-  this.reservedWords = keywordRegexp(reserved);
+  this.reservedWords = wordsRegexp(reserved);
   var reservedStrict = (reserved ? reserved + " " : "") + reservedWords.strict;
-  this.reservedWordsStrict = keywordRegexp(reservedStrict);
-  this.reservedWordsStrictBind = keywordRegexp(reservedStrict + " " + reservedWords.strictBind);
+  this.reservedWordsStrict = wordsRegexp(reservedStrict);
+  this.reservedWordsStrictBind = wordsRegexp(reservedStrict + " " + reservedWords.strictBind);
   this.input = String(input);
 
   // Used to signal to callers of `readWord1` whether the word
   // contained any escape sequences. This is needed because words with
   // escape sequences must not be interpreted as keywords.
   this.containsEsc = false;
-
-  // Load plugins
-  this.loadPlugins(options.plugins);
 
   // Set up token state
 
@@ -502,12 +519,12 @@ var Parser = function Parser(options, input, startPos) {
   // Used to signify the start of a potential arrow function
   this.potentialArrowAt = -1;
 
-  // Flags to track whether we are in a function, a generator, an async function.
-  this.inFunction = this.inGenerator = this.inAsync = false;
   // Positions to delayed-check that yield/await does not exist in default parameters.
-  this.yieldPos = this.awaitPos = 0;
+  this.yieldPos = this.awaitPos = this.awaitIdentPos = 0;
   // Labels in scope.
   this.labels = [];
+  // Thus-far undefined exports.
+  this.undefinedExports = {};
 
   // If enabled, skip leading hashbang line.
   if (this.pos === 0 && options.allowHashBang && this.input.slice(0, 2) === "#!")
@@ -515,29 +532,13 @@ var Parser = function Parser(options, input, startPos) {
 
   // Scope tracking for duplicate variable names (see scope.js)
   this.scopeStack = [];
-  this.enterFunctionScope();
+  this.enterScope(SCOPE_TOP);
 
   // For RegExp validation
   this.regexpState = null;
 };
 
-// DEPRECATED Kept for backwards compatibility until 3.0 in case a plugin uses them
-Parser.prototype.isKeyword = function isKeyword (word) { return this.keywords.test(word) };
-Parser.prototype.isReservedWord = function isReservedWord (word) { return this.reservedWords.test(word) };
-
-Parser.prototype.extend = function extend (name, f) {
-  this[name] = f(this[name]);
-};
-
-Parser.prototype.loadPlugins = function loadPlugins (pluginConfigs) {
-    var this$1 = this;
-
-  for (var name in pluginConfigs) {
-    var plugin = plugins[name];
-    if (!plugin) { throw new Error("Plugin '" + name + "' not found") }
-    plugin(this$1, pluginConfigs[name]);
-  }
-};
+var prototypeAccessors = { inFunction: { configurable: true },inGenerator: { configurable: true },inAsync: { configurable: true },allowSuper: { configurable: true },allowDirectSuper: { configurable: true },treatFunctionsAsVar: { configurable: true } };
 
 Parser.prototype.parse = function parse () {
   var node = this.options.program || this.startNode();
@@ -545,21 +546,63 @@ Parser.prototype.parse = function parse () {
   return this.parseTopLevel(node)
 };
 
+prototypeAccessors.inFunction.get = function () { return (this.currentVarScope().flags & SCOPE_FUNCTION) > 0 };
+prototypeAccessors.inGenerator.get = function () { return (this.currentVarScope().flags & SCOPE_GENERATOR) > 0 };
+prototypeAccessors.inAsync.get = function () { return (this.currentVarScope().flags & SCOPE_ASYNC) > 0 };
+prototypeAccessors.allowSuper.get = function () { return (this.currentThisScope().flags & SCOPE_SUPER) > 0 };
+prototypeAccessors.allowDirectSuper.get = function () { return (this.currentThisScope().flags & SCOPE_DIRECT_SUPER) > 0 };
+prototypeAccessors.treatFunctionsAsVar.get = function () { return this.treatFunctionsAsVarInScope(this.currentScope()) };
+
+// Switch to a getter for 7.0.0.
+Parser.prototype.inNonArrowFunction = function inNonArrowFunction () { return (this.currentThisScope().flags & SCOPE_FUNCTION) > 0 };
+
+Parser.extend = function extend () {
+    var plugins = [], len = arguments.length;
+    while ( len-- ) plugins[ len ] = arguments[ len ];
+
+  var cls = this;
+  for (var i = 0; i < plugins.length; i++) { cls = plugins[i](cls); }
+  return cls
+};
+
+Parser.parse = function parse (input, options) {
+  return new this(options, input).parse()
+};
+
+Parser.parseExpressionAt = function parseExpressionAt (input, pos, options) {
+  var parser = new this(options, input, pos);
+  parser.nextToken();
+  return parser.parseExpression()
+};
+
+Parser.tokenizer = function tokenizer (input, options) {
+  return new this(options, input)
+};
+
+Object.defineProperties( Parser.prototype, prototypeAccessors );
+
 var pp = Parser.prototype;
 
 // ## Parser utilities
 
-var literal = /^(?:'((?:\\.|[^'])*?)'|"((?:\\.|[^"])*?)"|;)/;
+var literal = /^(?:'((?:\\.|[^'])*?)'|"((?:\\.|[^"])*?)")/;
 pp.strictDirective = function(start) {
   var this$1 = this;
 
   for (;;) {
+    // Try to find string literal.
     skipWhiteSpace.lastIndex = start;
     start += skipWhiteSpace.exec(this$1.input)[0].length;
     var match = literal.exec(this$1.input.slice(start));
     if (!match) { return false }
     if ((match[1] || match[2]) === "use strict") { return true }
     start += match[0].length;
+
+    // Skip semicolon, if any.
+    skipWhiteSpace.lastIndex = start;
+    start += skipWhiteSpace.exec(this$1.input)[0].length;
+    if (this$1.input[start] === ';')
+      { start++; }
   }
 };
 
@@ -697,9 +740,16 @@ pp$1.parseTopLevel = function(node) {
   var exports = {};
   if (!node.body) { node.body = []; }
   while (this.type !== types.eof) {
-    var stmt = this$1.parseStatement(true, true, exports);
+    var stmt = this$1.parseStatement(null, true, exports);
     node.body.push(stmt);
   }
+  if (this.inModule)
+    { for (var i = 0, list = Object.keys(this$1.undefinedExports); i < list.length; i += 1)
+      {
+        var name = list[i];
+
+        this$1.raiseRecoverable(this$1.undefinedExports[name].start, ("Export '" + name + "' is not defined"));
+      } }
   this.adaptDirectivePrologue(node.body);
   this.next();
   if (this.options.ecmaVersion >= 6) {
@@ -711,12 +761,19 @@ pp$1.parseTopLevel = function(node) {
 var loopLabel = {kind: "loop"};
 var switchLabel = {kind: "switch"};
 
-pp$1.isLet = function() {
+pp$1.isLet = function(context) {
   if (this.options.ecmaVersion < 6 || !this.isContextual("let")) { return false }
   skipWhiteSpace.lastIndex = this.pos;
   var skip = skipWhiteSpace.exec(this.input);
   var next = this.pos + skip[0].length, nextCh = this.input.charCodeAt(next);
-  if (nextCh === 91 || nextCh === 123) { return true } // '{' and '['
+  // For ambiguous cases, determine if a LexicalDeclaration (or only a
+  // Statement) is allowed here. If context is not empty then only a Statement
+  // is allowed. However, `let [` is an explicit negative lookahead for
+  // ExpressionStatement, so special-case it first.
+  if (nextCh === 91) { return true } // '['
+  if (context) { return false }
+
+  if (nextCh === 123) { return true } // '{'
   if (isIdentifierStart(nextCh, true)) {
     var pos = next + 1;
     while (isIdentifierChar(this.input.charCodeAt(pos), true)) { ++pos; }
@@ -748,10 +805,10 @@ pp$1.isAsyncFunction = function() {
 // `if (foo) /blah/.exec(foo)`, where looking at the previous token
 // does not help.
 
-pp$1.parseStatement = function(declaration, topLevel, exports) {
+pp$1.parseStatement = function(context, topLevel, exports) {
   var starttype = this.type, node = this.startNode(), kind;
 
-  if (this.isLet()) {
+  if (this.isLet(context)) {
     starttype = types._var;
     kind = "let";
   }
@@ -766,10 +823,13 @@ pp$1.parseStatement = function(declaration, topLevel, exports) {
   case types._do: return this.parseDoStatement(node)
   case types._for: return this.parseForStatement(node)
   case types._function:
-    if (!declaration && this.options.ecmaVersion >= 6) { this.unexpected(); }
-    return this.parseFunctionStatement(node, false)
+    // Function as sole body of either an if statement or a labeled statement
+    // works, but not when it is part of a labeled statement that is the sole
+    // body of an if statement.
+    if ((context && (this.strict || context !== "if" && context !== "label")) && this.options.ecmaVersion >= 6) { this.unexpected(); }
+    return this.parseFunctionStatement(node, false, !context)
   case types._class:
-    if (!declaration) { this.unexpected(); }
+    if (context) { this.unexpected(); }
     return this.parseClass(node, true)
   case types._if: return this.parseIfStatement(node)
   case types._return: return this.parseReturnStatement(node)
@@ -778,11 +838,11 @@ pp$1.parseStatement = function(declaration, topLevel, exports) {
   case types._try: return this.parseTryStatement(node)
   case types._const: case types._var:
     kind = kind || this.value;
-    if (!declaration && kind !== "var") { this.unexpected(); }
+    if (context && kind !== "var") { this.unexpected(); }
     return this.parseVarStatement(node, kind)
   case types._while: return this.parseWhileStatement(node)
   case types._with: return this.parseWithStatement(node)
-  case types.braceL: return this.parseBlock()
+  case types.braceL: return this.parseBlock(true, node)
   case types.semi: return this.parseEmptyStatement(node)
   case types._export:
   case types._import:
@@ -801,14 +861,14 @@ pp$1.parseStatement = function(declaration, topLevel, exports) {
     // Identifier node, we switch to interpreting it as a label.
   default:
     if (this.isAsyncFunction()) {
-      if (!declaration) { this.unexpected(); }
+      if (context) { this.unexpected(); }
       this.next();
-      return this.parseFunctionStatement(node, true)
+      return this.parseFunctionStatement(node, true, !context)
     }
 
     var maybeName = this.value, expr = this.parseExpression();
     if (starttype === types.name && expr.type === "Identifier" && this.eat(types.colon))
-      { return this.parseLabeledStatement(node, maybeName, expr) }
+      { return this.parseLabeledStatement(node, maybeName, expr, context) }
     else { return this.parseExpressionStatement(node, expr) }
   }
 };
@@ -848,7 +908,7 @@ pp$1.parseDebuggerStatement = function(node) {
 pp$1.parseDoStatement = function(node) {
   this.next();
   this.labels.push(loopLabel);
-  node.body = this.parseStatement(false);
+  node.body = this.parseStatement("do");
   this.labels.pop();
   this.expect(types._while);
   node.test = this.parseParenExpression();
@@ -871,7 +931,7 @@ pp$1.parseForStatement = function(node) {
   this.next();
   var awaitAt = (this.options.ecmaVersion >= 9 && (this.inAsync || (!this.inFunction && this.options.allowAwaitOutsideFunction)) && this.eatContextual("await")) ? this.lastTokStart : -1;
   this.labels.push(loopLabel);
-  this.enterLexicalScope();
+  this.enterScope(0);
   this.expect(types.parenL);
   if (this.type === types.semi) {
     if (awaitAt > -1) { this.unexpected(awaitAt); }
@@ -913,17 +973,17 @@ pp$1.parseForStatement = function(node) {
   return this.parseFor(node, init)
 };
 
-pp$1.parseFunctionStatement = function(node, isAsync) {
+pp$1.parseFunctionStatement = function(node, isAsync, declarationPosition) {
   this.next();
-  return this.parseFunction(node, true, false, isAsync)
+  return this.parseFunction(node, FUNC_STATEMENT | (declarationPosition ? 0 : FUNC_HANGING_STATEMENT), false, isAsync)
 };
 
 pp$1.parseIfStatement = function(node) {
   this.next();
   node.test = this.parseParenExpression();
   // allow function declarations in branches, but only in non-strict mode
-  node.consequent = this.parseStatement(!this.strict && this.type === types._function);
-  node.alternate = this.eat(types._else) ? this.parseStatement(!this.strict && this.type === types._function) : null;
+  node.consequent = this.parseStatement("if");
+  node.alternate = this.eat(types._else) ? this.parseStatement("if") : null;
   return this.finishNode(node, "IfStatement")
 };
 
@@ -949,7 +1009,7 @@ pp$1.parseSwitchStatement = function(node) {
   node.cases = [];
   this.expect(types.braceL);
   this.labels.push(switchLabel);
-  this.enterLexicalScope();
+  this.enterScope(0);
 
   // Statements under must be grouped (by label) in SwitchCase
   // nodes. `cur` is used to keep the node that we are currently
@@ -973,10 +1033,10 @@ pp$1.parseSwitchStatement = function(node) {
       this$1.expect(types.colon);
     } else {
       if (!cur) { this$1.unexpected(); }
-      cur.consequent.push(this$1.parseStatement(true));
+      cur.consequent.push(this$1.parseStatement(null));
     }
   }
-  this.exitLexicalScope();
+  this.exitScope();
   if (cur) { this.finishNode(cur, "SwitchCase"); }
   this.next(); // Closing brace
   this.labels.pop();
@@ -1005,16 +1065,17 @@ pp$1.parseTryStatement = function(node) {
     this.next();
     if (this.eat(types.parenL)) {
       clause.param = this.parseBindingAtom();
-      this.enterLexicalScope();
-      this.checkLVal(clause.param, "let");
+      var simple = clause.param.type === "Identifier";
+      this.enterScope(simple ? SCOPE_SIMPLE_CATCH : 0);
+      this.checkLVal(clause.param, simple ? BIND_SIMPLE_CATCH : BIND_LEXICAL);
       this.expect(types.parenR);
     } else {
       if (this.options.ecmaVersion < 10) { this.unexpected(); }
       clause.param = null;
-      this.enterLexicalScope();
+      this.enterScope(0);
     }
     clause.body = this.parseBlock(false);
-    this.exitLexicalScope();
+    this.exitScope();
     node.handler = this.finishNode(clause, "CatchClause");
   }
   node.finalizer = this.eat(types._finally) ? this.parseBlock() : null;
@@ -1034,7 +1095,7 @@ pp$1.parseWhileStatement = function(node) {
   this.next();
   node.test = this.parseParenExpression();
   this.labels.push(loopLabel);
-  node.body = this.parseStatement(false);
+  node.body = this.parseStatement("while");
   this.labels.pop();
   return this.finishNode(node, "WhileStatement")
 };
@@ -1043,7 +1104,7 @@ pp$1.parseWithStatement = function(node) {
   if (this.strict) { this.raise(this.start, "'with' in strict mode"); }
   this.next();
   node.object = this.parseParenExpression();
-  node.body = this.parseStatement(false);
+  node.body = this.parseStatement("with");
   return this.finishNode(node, "WithStatement")
 };
 
@@ -1052,7 +1113,7 @@ pp$1.parseEmptyStatement = function(node) {
   return this.finishNode(node, "EmptyStatement")
 };
 
-pp$1.parseLabeledStatement = function(node, maybeName, expr) {
+pp$1.parseLabeledStatement = function(node, maybeName, expr, context) {
   var this$1 = this;
 
   for (var i$1 = 0, list = this$1.labels; i$1 < list.length; i$1 += 1)
@@ -1072,11 +1133,7 @@ pp$1.parseLabeledStatement = function(node, maybeName, expr) {
     } else { break }
   }
   this.labels.push({name: maybeName, kind: kind, statementStart: this.start});
-  node.body = this.parseStatement(true);
-  if (node.body.type === "ClassDeclaration" ||
-      node.body.type === "VariableDeclaration" && node.body.kind !== "var" ||
-      node.body.type === "FunctionDeclaration" && (this.strict || node.body.generator || node.body.async))
-    { this.raiseRecoverable(node.body.start, "Invalid labeled declaration"); }
+  node.body = this.parseStatement(context ? context.indexOf("label") === -1 ? context + "label" : context : "label");
   this.labels.pop();
   node.label = expr;
   return this.finishNode(node, "LabeledStatement")
@@ -1092,23 +1149,19 @@ pp$1.parseExpressionStatement = function(node, expr) {
 // strict"` declarations when `allowStrict` is true (used for
 // function bodies).
 
-pp$1.parseBlock = function(createNewLexicalScope) {
+pp$1.parseBlock = function(createNewLexicalScope, node) {
   var this$1 = this;
   if ( createNewLexicalScope === void 0 ) createNewLexicalScope = true;
+  if ( node === void 0 ) node = this.startNode();
 
-  var node = this.startNode();
   node.body = [];
   this.expect(types.braceL);
-  if (createNewLexicalScope) {
-    this.enterLexicalScope();
-  }
+  if (createNewLexicalScope) { this.enterScope(0); }
   while (!this.eat(types.braceR)) {
-    var stmt = this$1.parseStatement(true);
+    var stmt = this$1.parseStatement(null);
     node.body.push(stmt);
   }
-  if (createNewLexicalScope) {
-    this.exitLexicalScope();
-  }
+  if (createNewLexicalScope) { this.exitScope(); }
   return this.finishNode(node, "BlockStatement")
 };
 
@@ -1123,8 +1176,8 @@ pp$1.parseFor = function(node, init) {
   this.expect(types.semi);
   node.update = this.type === types.parenR ? null : this.parseExpression();
   this.expect(types.parenR);
-  this.exitLexicalScope();
-  node.body = this.parseStatement(false);
+  node.body = this.parseStatement("for");
+  this.exitScope();
   this.labels.pop();
   return this.finishNode(node, "ForStatement")
 };
@@ -1144,8 +1197,8 @@ pp$1.parseForIn = function(node, init) {
   node.left = init;
   node.right = type === "ForInStatement" ? this.parseExpression() : this.parseMaybeAssign();
   this.expect(types.parenR);
-  this.exitLexicalScope();
-  node.body = this.parseStatement(false);
+  node.body = this.parseStatement("for");
+  this.exitScope();
   this.labels.pop();
   return this.finishNode(node, type)
 };
@@ -1176,48 +1229,57 @@ pp$1.parseVar = function(node, isFor, kind) {
 };
 
 pp$1.parseVarId = function(decl, kind) {
-  decl.id = this.parseBindingAtom(kind);
-  this.checkLVal(decl.id, kind, false);
+  if ((kind === "const" || kind === "let") && this.isContextual("let")) {
+    this.raiseRecoverable(this.start, "let is disallowed as a lexically bound name");
+  }
+  decl.id = this.parseBindingAtom();
+  this.checkLVal(decl.id, kind === "var" ? BIND_VAR : BIND_LEXICAL, false);
 };
 
-// Parse a function declaration or literal (depending on the
-// `isStatement` parameter).
+var FUNC_STATEMENT = 1;
+var FUNC_HANGING_STATEMENT = 2;
+var FUNC_NULLABLE_ID = 4;
 
-pp$1.parseFunction = function(node, isStatement, allowExpressionBody, isAsync) {
+// Parse a function declaration or literal (depending on the
+// `statement & FUNC_STATEMENT`).
+
+// Remove `allowExpressionBody` for 7.0.0, as it is only called with false
+pp$1.parseFunction = function(node, statement, allowExpressionBody, isAsync) {
   this.initFunction(node);
-  if (this.options.ecmaVersion >= 9 || this.options.ecmaVersion >= 6 && !isAsync)
-    { node.generator = this.eat(types.star); }
+  if (this.options.ecmaVersion >= 9 || this.options.ecmaVersion >= 6 && !isAsync) {
+    if (this.type === types.star && (statement & FUNC_HANGING_STATEMENT))
+      { this.unexpected(); }
+    node.generator = this.eat(types.star);
+  }
   if (this.options.ecmaVersion >= 8)
     { node.async = !!isAsync; }
 
-  if (isStatement) {
-    node.id = isStatement === "nullableID" && this.type !== types.name ? null : this.parseIdent();
-    if (node.id) {
-      this.checkLVal(node.id, this.inModule && !this.inFunction ? "let" : "var");
-    }
+  if (statement & FUNC_STATEMENT) {
+    node.id = (statement & FUNC_NULLABLE_ID) && this.type !== types.name ? null : this.parseIdent();
+    if (node.id && !(statement & FUNC_HANGING_STATEMENT))
+      // If it is a regular function declaration in sloppy mode, then it is
+      // subject to Annex B semantics (BIND_FUNCTION). Otherwise, the binding
+      // mode depends on properties of the current scope (see
+      // treatFunctionsAsVar).
+      { this.checkLVal(node.id, (this.strict || node.generator || node.async) ? this.treatFunctionsAsVar ? BIND_VAR : BIND_LEXICAL : BIND_FUNCTION); }
   }
 
-  var oldInGen = this.inGenerator, oldInAsync = this.inAsync,
-      oldYieldPos = this.yieldPos, oldAwaitPos = this.awaitPos, oldInFunc = this.inFunction;
-  this.inGenerator = node.generator;
-  this.inAsync = node.async;
+  var oldYieldPos = this.yieldPos, oldAwaitPos = this.awaitPos, oldAwaitIdentPos = this.awaitIdentPos;
   this.yieldPos = 0;
   this.awaitPos = 0;
-  this.inFunction = true;
-  this.enterFunctionScope();
+  this.awaitIdentPos = 0;
+  this.enterScope(functionFlags(node.async, node.generator));
 
-  if (!isStatement)
+  if (!(statement & FUNC_STATEMENT))
     { node.id = this.type === types.name ? this.parseIdent() : null; }
 
   this.parseFunctionParams(node);
-  this.parseFunctionBody(node, allowExpressionBody);
+  this.parseFunctionBody(node, allowExpressionBody, false);
 
-  this.inGenerator = oldInGen;
-  this.inAsync = oldInAsync;
   this.yieldPos = oldYieldPos;
   this.awaitPos = oldAwaitPos;
-  this.inFunction = oldInFunc;
-  return this.finishNode(node, isStatement ? "FunctionDeclaration" : "FunctionExpression")
+  this.awaitIdentPos = oldAwaitIdentPos;
+  return this.finishNode(node, (statement & FUNC_STATEMENT) ? "FunctionDeclaration" : "FunctionExpression")
 };
 
 pp$1.parseFunctionParams = function(node) {
@@ -1234,6 +1296,11 @@ pp$1.parseClass = function(node, isStatement) {
 
   this.next();
 
+  // ecma-262 14.6 Class Definitions
+  // A class definition is always strict mode code.
+  var oldStrict = this.strict;
+  this.strict = true;
+
   this.parseClassId(node, isStatement);
   this.parseClassSuper(node);
   var classBody = this.startNode();
@@ -1241,17 +1308,21 @@ pp$1.parseClass = function(node, isStatement) {
   classBody.body = [];
   this.expect(types.braceL);
   while (!this.eat(types.braceR)) {
-    var member = this$1.parseClassMember(classBody);
-    if (member && member.type === "MethodDefinition" && member.kind === "constructor") {
-      if (hadConstructor) { this$1.raise(member.start, "Duplicate constructor in the same class"); }
-      hadConstructor = true;
+    var element = this$1.parseClassElement(node.superClass !== null);
+    if (element) {
+      classBody.body.push(element);
+      if (element.type === "MethodDefinition" && element.kind === "constructor") {
+        if (hadConstructor) { this$1.raise(element.start, "Duplicate constructor in the same class"); }
+        hadConstructor = true;
+      }
     }
   }
   node.body = this.finishNode(classBody, "ClassBody");
+  this.strict = oldStrict;
   return this.finishNode(node, isStatement ? "ClassDeclaration" : "ClassExpression")
 };
 
-pp$1.parseClassMember = function(classBody) {
+pp$1.parseClassElement = function(constructorAllowsSuper) {
   var this$1 = this;
 
   if (this.eat(types.semi)) { return null }
@@ -1287,16 +1358,18 @@ pp$1.parseClassMember = function(classBody) {
   }
   if (!method.key) { this.parsePropertyName(method); }
   var key = method.key;
+  var allowsDirectSuper = false;
   if (!method.computed && !method.static && (key.type === "Identifier" && key.name === "constructor" ||
       key.type === "Literal" && key.value === "constructor")) {
     if (method.kind !== "method") { this.raise(key.start, "Constructor can't have get/set modifier"); }
     if (isGenerator) { this.raise(key.start, "Constructor can't be a generator"); }
     if (isAsync) { this.raise(key.start, "Constructor can't be an async method"); }
     method.kind = "constructor";
+    allowsDirectSuper = constructorAllowsSuper;
   } else if (method.static && key.type === "Identifier" && key.name === "prototype") {
     this.raise(key.start, "Classes may not have a static property named prototype");
   }
-  this.parseClassMethod(classBody, method, isGenerator, isAsync);
+  this.parseClassMethod(method, isGenerator, isAsync, allowsDirectSuper);
   if (method.kind === "get" && method.value.params.length !== 0)
     { this.raiseRecoverable(method.value.start, "getter should have no params"); }
   if (method.kind === "set" && method.value.params.length !== 1)
@@ -1306,13 +1379,21 @@ pp$1.parseClassMember = function(classBody) {
   return method
 };
 
-pp$1.parseClassMethod = function(classBody, method, isGenerator, isAsync) {
-  method.value = this.parseMethod(isGenerator, isAsync);
-  classBody.body.push(this.finishNode(method, "MethodDefinition"));
+pp$1.parseClassMethod = function(method, isGenerator, isAsync, allowsDirectSuper) {
+  method.value = this.parseMethod(isGenerator, isAsync, allowsDirectSuper);
+  return this.finishNode(method, "MethodDefinition")
 };
 
 pp$1.parseClassId = function(node, isStatement) {
-  node.id = this.type === types.name ? this.parseIdent() : isStatement === true ? this.unexpected() : null;
+  if (this.type === types.name) {
+    node.id = this.parseIdent();
+    if (isStatement === true)
+      { this.checkLVal(node.id, BIND_LEXICAL, false); }
+  } else {
+    if (isStatement === true)
+      { this.unexpected(); }
+    node.id = null;
+  }
 };
 
 pp$1.parseClassSuper = function(node) {
@@ -1340,7 +1421,7 @@ pp$1.parseExport = function(node, exports) {
       var fNode = this.startNode();
       this.next();
       if (isAsync) { this.next(); }
-      node.declaration = this.parseFunction(fNode, "nullableID", false, isAsync);
+      node.declaration = this.parseFunction(fNode, FUNC_STATEMENT | FUNC_NULLABLE_ID, false, isAsync);
     } else if (this.type === types._class) {
       var cNode = this.startNode();
       node.declaration = this.parseClass(cNode, "nullableID");
@@ -1352,7 +1433,7 @@ pp$1.parseExport = function(node, exports) {
   }
   // export var|const|let|function|class ...
   if (this.shouldParseExportStatement()) {
-    node.declaration = this.parseStatement(true);
+    node.declaration = this.parseStatement(null);
     if (node.declaration.type === "VariableDeclaration")
       { this.checkVariableExport(exports, node.declaration.declarations); }
     else
@@ -1366,11 +1447,13 @@ pp$1.parseExport = function(node, exports) {
       if (this.type !== types.string) { this.unexpected(); }
       node.source = this.parseExprAtom();
     } else {
-      // check for keywords used as local names
       for (var i = 0, list = node.specifiers; i < list.length; i += 1) {
+        // check for keywords used as local names
         var spec = list[i];
 
         this$1.checkUnreserved(spec.local);
+        // check if export is defined
+        this$1.checkLocalExport(spec.local);
       }
 
       node.source = null;
@@ -1487,7 +1570,7 @@ pp$1.parseImportSpecifiers = function() {
     // import defaultObj, { x, y as z } from '...'
     var node = this.startNode();
     node.local = this.parseIdent();
-    this.checkLVal(node.local, "let");
+    this.checkLVal(node.local, BIND_LEXICAL);
     nodes.push(this.finishNode(node, "ImportDefaultSpecifier"));
     if (!this.eat(types.comma)) { return nodes }
   }
@@ -1496,7 +1579,7 @@ pp$1.parseImportSpecifiers = function() {
     this.next();
     this.expectContextual("as");
     node$1.local = this.parseIdent();
-    this.checkLVal(node$1.local, "let");
+    this.checkLVal(node$1.local, BIND_LEXICAL);
     nodes.push(this.finishNode(node$1, "ImportNamespaceSpecifier"));
     return nodes
   }
@@ -1515,7 +1598,7 @@ pp$1.parseImportSpecifiers = function() {
       this$1.checkUnreserved(node$2.imported);
       node$2.local = node$2.imported;
     }
-    this$1.checkLVal(node$2.local, "let");
+    this$1.checkLVal(node$2.local, BIND_LEXICAL);
     nodes.push(this$1.finishNode(node$2, "ImportSpecifier"));
   }
   return nodes
@@ -1549,7 +1632,7 @@ pp$2.toAssignable = function(node, isBinding, refDestructuringErrors) {
     switch (node.type) {
     case "Identifier":
       if (this.inAsync && node.name === "await")
-        { this.raise(node.start, "Can not use 'await' as identifier inside an async function"); }
+        { this.raise(node.start, "Cannot use 'await' as identifier inside an async function"); }
       break
 
     case "ObjectPattern":
@@ -1608,7 +1691,7 @@ pp$2.toAssignable = function(node, isBinding, refDestructuringErrors) {
       break
 
     case "ParenthesizedExpression":
-      this.toAssignable(node.expression, isBinding);
+      this.toAssignable(node.expression, isBinding, refDestructuringErrors);
       break
 
     case "MemberExpression":
@@ -1730,6 +1813,7 @@ pp$2.parseMaybeDefault = function(startPos, startLoc, left) {
 
 pp$2.checkLVal = function(expr, bindingType, checkClashes) {
   var this$1 = this;
+  if ( bindingType === void 0 ) bindingType = BIND_NONE;
 
   switch (expr.type) {
   case "Identifier":
@@ -1740,19 +1824,7 @@ pp$2.checkLVal = function(expr, bindingType, checkClashes) {
         { this.raiseRecoverable(expr.start, "Argument name clash"); }
       checkClashes[expr.name] = true;
     }
-    if (bindingType && bindingType !== "none") {
-      if (
-        bindingType === "var" && !this.canDeclareVarName(expr.name) ||
-        bindingType !== "var" && !this.canDeclareLexicalName(expr.name)
-      ) {
-        this.raiseRecoverable(expr.start, ("Identifier '" + (expr.name) + "' has already been declared"));
-      }
-      if (bindingType === "var") {
-        this.declareVarName(expr.name);
-      } else {
-        this.declareLexicalName(expr.name);
-      }
-    }
+    if (bindingType !== BIND_NONE && bindingType !== BIND_OUTSIDE) { this.declareName(expr.name, bindingType, expr.start); }
     break
 
   case "MemberExpression":
@@ -1901,13 +1973,19 @@ pp$3.parseExpression = function(noIn, refDestructuringErrors) {
 // operators like `+=`.
 
 pp$3.parseMaybeAssign = function(noIn, refDestructuringErrors, afterLeftParse) {
-  if (this.inGenerator && this.isContextual("yield")) { return this.parseYield() }
+  if (this.isContextual("yield")) {
+    if (this.inGenerator) { return this.parseYield(noIn) }
+    // The tokenizer will assume an expression is allowed after
+    // `yield`, but this isn't that kind of yield
+    else { this.exprAllowed = false; }
+  }
 
-  var ownDestructuringErrors = false, oldParenAssign = -1, oldTrailingComma = -1;
+  var ownDestructuringErrors = false, oldParenAssign = -1, oldTrailingComma = -1, oldShorthandAssign = -1;
   if (refDestructuringErrors) {
     oldParenAssign = refDestructuringErrors.parenthesizedAssign;
     oldTrailingComma = refDestructuringErrors.trailingComma;
-    refDestructuringErrors.parenthesizedAssign = refDestructuringErrors.trailingComma = -1;
+    oldShorthandAssign = refDestructuringErrors.shorthandAssign;
+    refDestructuringErrors.parenthesizedAssign = refDestructuringErrors.trailingComma = refDestructuringErrors.shorthandAssign = -1;
   } else {
     refDestructuringErrors = new DestructuringErrors;
     ownDestructuringErrors = true;
@@ -1933,6 +2011,7 @@ pp$3.parseMaybeAssign = function(noIn, refDestructuringErrors, afterLeftParse) {
   }
   if (oldParenAssign > -1) { refDestructuringErrors.parenthesizedAssign = oldParenAssign; }
   if (oldTrailingComma > -1) { refDestructuringErrors.trailingComma = oldTrailingComma; }
+  if (oldShorthandAssign > -1) { refDestructuringErrors.shorthandAssign = oldShorthandAssign; }
   return left
 };
 
@@ -2063,20 +2142,25 @@ pp$3.parseSubscripts = function(base, startPos, startLoc, noCalls) {
       if (computed) { this$1.expect(types.bracketR); }
       base = this$1.finishNode(node, "MemberExpression");
     } else if (!noCalls && this$1.eat(types.parenL)) {
-      var refDestructuringErrors = new DestructuringErrors, oldYieldPos = this$1.yieldPos, oldAwaitPos = this$1.awaitPos;
+      var refDestructuringErrors = new DestructuringErrors, oldYieldPos = this$1.yieldPos, oldAwaitPos = this$1.awaitPos, oldAwaitIdentPos = this$1.awaitIdentPos;
       this$1.yieldPos = 0;
       this$1.awaitPos = 0;
+      this$1.awaitIdentPos = 0;
       var exprList = this$1.parseExprList(types.parenR, this$1.options.ecmaVersion >= 8, false, refDestructuringErrors);
       if (maybeAsyncArrow && !this$1.canInsertSemicolon() && this$1.eat(types.arrow)) {
         this$1.checkPatternErrors(refDestructuringErrors, false);
         this$1.checkYieldAwaitInDefaultParams();
+        if (this$1.awaitIdentPos > 0)
+          { this$1.raise(this$1.awaitIdentPos, "Cannot use 'await' as identifier inside an async function"); }
         this$1.yieldPos = oldYieldPos;
         this$1.awaitPos = oldAwaitPos;
+        this$1.awaitIdentPos = oldAwaitIdentPos;
         return this$1.parseArrowExpression(this$1.startNodeAt(startPos, startLoc), exprList, true)
       }
       this$1.checkExpressionErrors(refDestructuringErrors, true);
       this$1.yieldPos = oldYieldPos || this$1.yieldPos;
       this$1.awaitPos = oldAwaitPos || this$1.awaitPos;
+      this$1.awaitIdentPos = oldAwaitIdentPos || this$1.awaitIdentPos;
       var node$1 = this$1.startNodeAt(startPos, startLoc);
       node$1.callee = base;
       node$1.arguments = exprList;
@@ -2098,13 +2182,19 @@ pp$3.parseSubscripts = function(base, startPos, startLoc, noCalls) {
 // or `{}`.
 
 pp$3.parseExprAtom = function(refDestructuringErrors) {
+  // If a division operator appears in an expression position, the
+  // tokenizer got confused, and we force it to read a regexp instead.
+  if (this.type === types.slash) { this.readRegexp(); }
+
   var node, canBeArrow = this.potentialArrowAt === this.start;
   switch (this.type) {
   case types._super:
-    if (!this.inFunction)
-      { this.raise(this.start, "'super' outside of function or class"); }
+    if (!this.allowSuper)
+      { this.raise(this.start, "'super' keyword outside a method"); }
     node = this.startNode();
     this.next();
+    if (this.type === types.parenL && !this.allowDirectSuper)
+      { this.raise(node.start, "super() call outside constructor of a subclass"); }
     // The `super` keyword can appear at below:
     // SuperProperty:
     //     super [ Expression ]
@@ -2122,14 +2212,14 @@ pp$3.parseExprAtom = function(refDestructuringErrors) {
 
   case types.name:
     var startPos = this.start, startLoc = this.startLoc, containsEsc = this.containsEsc;
-    var id = this.parseIdent(this.type !== types.name);
+    var id = this.parseIdent(false);
     if (this.options.ecmaVersion >= 8 && !containsEsc && id.name === "async" && !this.canInsertSemicolon() && this.eat(types._function))
-      { return this.parseFunction(this.startNodeAt(startPos, startLoc), false, false, true) }
+      { return this.parseFunction(this.startNodeAt(startPos, startLoc), 0, false, true) }
     if (canBeArrow && !this.canInsertSemicolon()) {
       if (this.eat(types.arrow))
         { return this.parseArrowExpression(this.startNodeAt(startPos, startLoc), [id], false) }
       if (this.options.ecmaVersion >= 8 && id.name === "async" && this.type === types.name && !containsEsc) {
-        id = this.parseIdent();
+        id = this.parseIdent(false);
         if (this.canInsertSemicolon() || !this.eat(types.arrow))
           { this.unexpected(); }
         return this.parseArrowExpression(this.startNodeAt(startPos, startLoc), [id], true)
@@ -2175,7 +2265,7 @@ pp$3.parseExprAtom = function(refDestructuringErrors) {
   case types._function:
     node = this.startNode();
     this.next();
-    return this.parseFunction(node, false)
+    return this.parseFunction(node, 0)
 
   case types._class:
     return this.parseClass(this.startNode(), false)
@@ -2218,6 +2308,7 @@ pp$3.parseParenAndDistinguishExpression = function(canBeArrow) {
     var refDestructuringErrors = new DestructuringErrors, oldYieldPos = this.yieldPos, oldAwaitPos = this.awaitPos, spreadStart;
     this.yieldPos = 0;
     this.awaitPos = 0;
+    // Do not save awaitIdentPos to allow checking awaits nested in parameters
     while (this.type !== types.parenR) {
       first ? first = false : this$1.expect(types.comma);
       if (allowTrailingComma && this$1.afterTrailingComma(types.parenR, true)) {
@@ -2294,7 +2385,7 @@ pp$3.parseNew = function() {
     node.property = this.parseIdent(true);
     if (node.property.name !== "target" || containsEsc)
       { this.raiseRecoverable(node.property.start, "The only valid meta property for new is new.target"); }
-    if (!this.inFunction)
+    if (!this.inNonArrowFunction())
       { this.raiseRecoverable(node.start, "new.target can only be used in functions"); }
     return this.finishNode(node, "MetaProperty")
   }
@@ -2341,6 +2432,7 @@ pp$3.parseTemplate = function(ref) {
   var curElt = this.parseTemplateElement({isTagged: isTagged});
   node.quasis = [curElt];
   while (!curElt.tail) {
+    if (this$1.type === types.eof) { this$1.raise(this$1.pos, "Unterminated template literal"); }
     this$1.expect(types.dollarBraceL);
     node.expressions.push(this$1.parseExpression());
     this$1.expect(types.braceR);
@@ -2460,7 +2552,10 @@ pp$3.parsePropertyValue = function(prop, isPattern, isGenerator, isAsync, startP
         { this.raiseRecoverable(prop.value.params[0].start, "Setter cannot use rest params"); }
     }
   } else if (this.options.ecmaVersion >= 6 && !prop.computed && prop.key.type === "Identifier") {
+    if (isGenerator || isAsync) { this.unexpected(); }
     this.checkUnreserved(prop.key);
+    if (prop.key.name === "await" && !this.awaitIdentPos)
+      { this.awaitIdentPos = startPos; }
     prop.kind = "init";
     if (isPattern) {
       prop.value = this.parseMaybeDefault(startPos, startLoc, prop.key);
@@ -2493,19 +2588,14 @@ pp$3.parsePropertyName = function(prop) {
 
 pp$3.initFunction = function(node) {
   node.id = null;
-  if (this.options.ecmaVersion >= 6) {
-    node.generator = false;
-    node.expression = false;
-  }
-  if (this.options.ecmaVersion >= 8)
-    { node.async = false; }
+  if (this.options.ecmaVersion >= 6) { node.generator = node.expression = false; }
+  if (this.options.ecmaVersion >= 8) { node.async = false; }
 };
 
 // Parse object or class method.
 
-pp$3.parseMethod = function(isGenerator, isAsync) {
-  var node = this.startNode(), oldInGen = this.inGenerator, oldInAsync = this.inAsync,
-      oldYieldPos = this.yieldPos, oldAwaitPos = this.awaitPos, oldInFunc = this.inFunction;
+pp$3.parseMethod = function(isGenerator, isAsync, allowDirectSuper) {
+  var node = this.startNode(), oldYieldPos = this.yieldPos, oldAwaitPos = this.awaitPos, oldAwaitIdentPos = this.awaitIdentPos;
 
   this.initFunction(node);
   if (this.options.ecmaVersion >= 6)
@@ -2513,57 +2603,47 @@ pp$3.parseMethod = function(isGenerator, isAsync) {
   if (this.options.ecmaVersion >= 8)
     { node.async = !!isAsync; }
 
-  this.inGenerator = node.generator;
-  this.inAsync = node.async;
   this.yieldPos = 0;
   this.awaitPos = 0;
-  this.inFunction = true;
-  this.enterFunctionScope();
+  this.awaitIdentPos = 0;
+  this.enterScope(functionFlags(isAsync, node.generator) | SCOPE_SUPER | (allowDirectSuper ? SCOPE_DIRECT_SUPER : 0));
 
   this.expect(types.parenL);
   node.params = this.parseBindingList(types.parenR, false, this.options.ecmaVersion >= 8);
   this.checkYieldAwaitInDefaultParams();
-  this.parseFunctionBody(node, false);
+  this.parseFunctionBody(node, false, true);
 
-  this.inGenerator = oldInGen;
-  this.inAsync = oldInAsync;
   this.yieldPos = oldYieldPos;
   this.awaitPos = oldAwaitPos;
-  this.inFunction = oldInFunc;
+  this.awaitIdentPos = oldAwaitIdentPos;
   return this.finishNode(node, "FunctionExpression")
 };
 
 // Parse arrow function expression with given parameters.
 
 pp$3.parseArrowExpression = function(node, params, isAsync) {
-  var oldInGen = this.inGenerator, oldInAsync = this.inAsync,
-      oldYieldPos = this.yieldPos, oldAwaitPos = this.awaitPos, oldInFunc = this.inFunction;
+  var oldYieldPos = this.yieldPos, oldAwaitPos = this.awaitPos, oldAwaitIdentPos = this.awaitIdentPos;
 
-  this.enterFunctionScope();
+  this.enterScope(functionFlags(isAsync, false) | SCOPE_ARROW);
   this.initFunction(node);
-  if (this.options.ecmaVersion >= 8)
-    { node.async = !!isAsync; }
+  if (this.options.ecmaVersion >= 8) { node.async = !!isAsync; }
 
-  this.inGenerator = false;
-  this.inAsync = node.async;
   this.yieldPos = 0;
   this.awaitPos = 0;
-  this.inFunction = true;
+  this.awaitIdentPos = 0;
 
   node.params = this.toAssignableList(params, true);
-  this.parseFunctionBody(node, true);
+  this.parseFunctionBody(node, true, false);
 
-  this.inGenerator = oldInGen;
-  this.inAsync = oldInAsync;
   this.yieldPos = oldYieldPos;
   this.awaitPos = oldAwaitPos;
-  this.inFunction = oldInFunc;
+  this.awaitIdentPos = oldAwaitIdentPos;
   return this.finishNode(node, "ArrowFunctionExpression")
 };
 
 // Parse function body and check parameters.
 
-pp$3.parseFunctionBody = function(node, isArrowFunction) {
+pp$3.parseFunctionBody = function(node, isArrowFunction, isMethod) {
   var isExpression = isArrowFunction && this.type !== types.braceL;
   var oldStrict = this.strict, useStrict = false;
 
@@ -2589,18 +2669,16 @@ pp$3.parseFunctionBody = function(node, isArrowFunction) {
 
     // Add the params to varDeclaredNames to ensure that an error is thrown
     // if a let/const declaration in the function clashes with one of the params.
-    this.checkParams(node, !oldStrict && !useStrict && !isArrowFunction && this.isSimpleParamList(node.params));
+    this.checkParams(node, !oldStrict && !useStrict && !isArrowFunction && !isMethod && this.isSimpleParamList(node.params));
     node.body = this.parseBlock(false);
     node.expression = false;
     this.adaptDirectivePrologue(node.body.body);
     this.labels = oldLabels;
   }
-  this.exitFunctionScope();
+  this.exitScope();
 
-  if (this.strict && node.id) {
-    // Ensure the function name isn't a forbidden identifier in strict mode, e.g. 'eval'
-    this.checkLVal(node.id, "none");
-  }
+  // Ensure the function name isn't a forbidden identifier in strict mode, e.g. 'eval'
+  if (this.strict && node.id) { this.checkLVal(node.id, BIND_OUTSIDE); }
   this.strict = oldStrict;
 };
 
@@ -2625,7 +2703,7 @@ pp$3.checkParams = function(node, allowDuplicates) {
     {
     var param = list[i];
 
-    this$1.checkLVal(param, "var", allowDuplicates ? null : nameHash);
+    this$1.checkLVal(param, BIND_VAR, allowDuplicates ? null : nameHash);
   }
 };
 
@@ -2666,17 +2744,17 @@ pp$3.checkUnreserved = function(ref) {
   var name = ref.name;
 
   if (this.inGenerator && name === "yield")
-    { this.raiseRecoverable(start, "Can not use 'yield' as identifier inside a generator"); }
+    { this.raiseRecoverable(start, "Cannot use 'yield' as identifier inside a generator"); }
   if (this.inAsync && name === "await")
-    { this.raiseRecoverable(start, "Can not use 'await' as identifier inside an async function"); }
-  if (this.isKeyword(name))
+    { this.raiseRecoverable(start, "Cannot use 'await' as identifier inside an async function"); }
+  if (this.keywords.test(name))
     { this.raise(start, ("Unexpected keyword '" + name + "'")); }
   if (this.options.ecmaVersion < 6 &&
     this.input.slice(start, end).indexOf("\\") !== -1) { return }
   var re = this.strict ? this.reservedWordsStrict : this.reservedWords;
   if (re.test(name)) {
     if (!this.inAsync && name === "await")
-      { this.raiseRecoverable(start, "Can not use keyword 'await' outside an async function"); }
+      { this.raiseRecoverable(start, "Cannot use keyword 'await' outside an async function"); }
     this.raiseRecoverable(start, ("The keyword '" + name + "' is reserved"));
   }
 };
@@ -2706,13 +2784,17 @@ pp$3.parseIdent = function(liberal, isBinding) {
   }
   this.next();
   this.finishNode(node, "Identifier");
-  if (!liberal) { this.checkUnreserved(node); }
+  if (!liberal) {
+    this.checkUnreserved(node);
+    if (node.name === "await" && !this.awaitIdentPos)
+      { this.awaitIdentPos = node.start; }
+  }
   return node
 };
 
 // Parses yield expression inside generator.
 
-pp$3.parseYield = function() {
+pp$3.parseYield = function(noIn) {
   if (!this.yieldPos) { this.yieldPos = this.start; }
 
   var node = this.startNode();
@@ -2722,7 +2804,7 @@ pp$3.parseYield = function() {
     node.argument = null;
   } else {
     node.delegate = this.eat(types.star);
-    node.argument = this.parseMaybeAssign();
+    node.argument = this.parseMaybeAssign(noIn);
   }
   return this.finishNode(node, "YieldExpression")
 };
@@ -2762,79 +2844,99 @@ pp$4.curPosition = function() {
 
 var pp$5 = Parser.prototype;
 
-// Object.assign polyfill
-var assign = Object.assign || function(target) {
-  var sources = [], len = arguments.length - 1;
-  while ( len-- > 0 ) sources[ len ] = arguments[ len + 1 ];
-
-  for (var i = 0, list = sources; i < list.length; i += 1) {
-    var source = list[i];
-
-    for (var key in source) {
-      if (has(source, key)) {
-        target[key] = source[key];
-      }
-    }
-  }
-  return target
+var Scope = function Scope(flags) {
+  this.flags = flags;
+  // A list of var-declared names in the current lexical scope
+  this.var = [];
+  // A list of lexically-declared names in the current lexical scope
+  this.lexical = [];
+  // A list of lexically-declared FunctionDeclaration names in the current lexical scope
+  this.functions = [];
 };
 
 // The functions in this module keep track of declared variables in the current scope in order to detect duplicate variable names.
 
-pp$5.enterFunctionScope = function() {
-  // var: a hash of var-declared names in the current lexical scope
-  // lexical: a hash of lexically-declared names in the current lexical scope
-  // childVar: a hash of var-declared names in all child lexical scopes of the current lexical scope (within the current function scope)
-  // parentLexical: a hash of lexically-declared names in all parent lexical scopes of the current lexical scope (within the current function scope)
-  this.scopeStack.push({var: {}, lexical: {}, childVar: {}, parentLexical: {}});
+pp$5.enterScope = function(flags) {
+  this.scopeStack.push(new Scope(flags));
 };
 
-pp$5.exitFunctionScope = function() {
+pp$5.exitScope = function() {
   this.scopeStack.pop();
 };
 
-pp$5.enterLexicalScope = function() {
-  var parentScope = this.scopeStack[this.scopeStack.length - 1];
-  var childScope = {var: {}, lexical: {}, childVar: {}, parentLexical: {}};
-
-  this.scopeStack.push(childScope);
-  assign(childScope.parentLexical, parentScope.lexical, parentScope.parentLexical);
+// The spec says:
+// > At the top level of a function, or script, function declarations are
+// > treated like var declarations rather than like lexical declarations.
+pp$5.treatFunctionsAsVarInScope = function(scope) {
+  return (scope.flags & SCOPE_FUNCTION) || !this.inModule && (scope.flags & SCOPE_TOP);
 };
 
-pp$5.exitLexicalScope = function() {
-  var childScope = this.scopeStack.pop();
-  var parentScope = this.scopeStack[this.scopeStack.length - 1];
+pp$5.declareName = function(name, bindingType, pos) {
+  var this$1 = this;
 
-  assign(parentScope.childVar, childScope.var, childScope.childVar);
+  var redeclared = false;
+  if (bindingType === BIND_LEXICAL) {
+    var scope = this.currentScope();
+    redeclared = scope.lexical.indexOf(name) > -1 || scope.functions.indexOf(name) > -1 || scope.var.indexOf(name) > -1;
+    scope.lexical.push(name);
+    if (this.inModule && (scope.flags & SCOPE_TOP))
+      { delete this.undefinedExports[name]; }
+  } else if (bindingType === BIND_SIMPLE_CATCH) {
+    var scope$1 = this.currentScope();
+    scope$1.lexical.push(name);
+  } else if (bindingType === BIND_FUNCTION) {
+    var scope$2 = this.currentScope();
+    if (this.treatFunctionsAsVar)
+      { redeclared = scope$2.lexical.indexOf(name) > -1; }
+    else
+      { redeclared = scope$2.lexical.indexOf(name) > -1 || scope$2.var.indexOf(name) > -1; }
+    scope$2.functions.push(name);
+  } else {
+    for (var i = this.scopeStack.length - 1; i >= 0; --i) {
+      var scope$3 = this$1.scopeStack[i];
+      if (scope$3.lexical.indexOf(name) > -1 && !(scope$3.flags & SCOPE_SIMPLE_CATCH) && scope$3.lexical[0] === name ||
+          !this$1.treatFunctionsAsVarInScope(scope$3) && scope$3.functions.indexOf(name) > -1) {
+        redeclared = true;
+        break
+      }
+      scope$3.var.push(name);
+      if (this$1.inModule && (scope$3.flags & SCOPE_TOP))
+        { delete this$1.undefinedExports[name]; }
+      if (scope$3.flags & SCOPE_VAR) { break }
+    }
+  }
+  if (redeclared) { this.raiseRecoverable(pos, ("Identifier '" + name + "' has already been declared")); }
 };
 
-/**
- * A name can be declared with `var` if there are no variables with the same name declared with `let`/`const`
- * in the current lexical scope or any of the parent lexical scopes in this function.
- */
-pp$5.canDeclareVarName = function(name) {
-  var currentScope = this.scopeStack[this.scopeStack.length - 1];
-
-  return !has(currentScope.lexical, name) && !has(currentScope.parentLexical, name)
+pp$5.checkLocalExport = function(id) {
+  // scope.functions must be empty as Module code is always strict.
+  if (this.scopeStack[0].lexical.indexOf(id.name) === -1 &&
+      this.scopeStack[0].var.indexOf(id.name) === -1) {
+    this.undefinedExports[id.name] = id;
+  }
 };
 
-/**
- * A name can be declared with `let`/`const` if there are no variables with the same name declared with `let`/`const`
- * in the current scope, and there are no variables with the same name declared with `var` in the current scope or in
- * any child lexical scopes in this function.
- */
-pp$5.canDeclareLexicalName = function(name) {
-  var currentScope = this.scopeStack[this.scopeStack.length - 1];
-
-  return !has(currentScope.lexical, name) && !has(currentScope.var, name) && !has(currentScope.childVar, name)
+pp$5.currentScope = function() {
+  return this.scopeStack[this.scopeStack.length - 1]
 };
 
-pp$5.declareVarName = function(name) {
-  this.scopeStack[this.scopeStack.length - 1].var[name] = true;
+pp$5.currentVarScope = function() {
+  var this$1 = this;
+
+  for (var i = this.scopeStack.length - 1;; i--) {
+    var scope = this$1.scopeStack[i];
+    if (scope.flags & SCOPE_VAR) { return scope }
+  }
 };
 
-pp$5.declareLexicalName = function(name) {
-  this.scopeStack[this.scopeStack.length - 1].lexical[name] = true;
+// Could be useful for `this`, `new.target`, `super()`, `super.property`, and `super[property]`.
+pp$5.currentThisScope = function() {
+  var this$1 = this;
+
+  for (var i = this.scopeStack.length - 1;; i--) {
+    var scope = this$1.scopeStack[i];
+    if (scope.flags & SCOPE_VAR && !(scope.flags & SCOPE_ARROW)) { return scope }
+  }
 };
 
 var Node = function Node(parser, pos, loc) {
@@ -2930,7 +3032,7 @@ pp$7.braceIsBlock = function(prevType) {
     { return true }
   if (prevType === types.braceL)
     { return parent === types$1.b_stat }
-  if (prevType === types._var || prevType === types.name)
+  if (prevType === types._var || prevType === types._const || prevType === types.name)
     { return false }
   return !this.exprAllowed
 };
@@ -2992,6 +3094,7 @@ types.incDec.updateContext = function() {
 
 types._function.updateContext = types._class.updateContext = function(prevType) {
   if (prevType.beforeExpr && prevType !== types.semi && prevType !== types._else &&
+      !(prevType === types._return && lineBreak.test(this.input.slice(this.lastTokEnd, this.start))) &&
       !((prevType === types.colon || prevType === types.braceL) && this.curContext() === types$1.b_stat))
     { this.context.push(types$1.f_expr); }
   else
@@ -3020,7 +3123,7 @@ types.star.updateContext = function(prevType) {
 
 types.name.updateContext = function(prevType) {
   var allowed = false;
-  if (this.options.ecmaVersion >= 6) {
+  if (this.options.ecmaVersion >= 6 && prevType !== types.dot) {
     if (this.value === "of" && !this.exprAllowed ||
         this.value === "yield" && this.inGeneratorContext())
       { allowed = true; }
@@ -3028,473 +3131,51 @@ types.name.updateContext = function(prevType) {
   this.exprAllowed = allowed;
 };
 
-var data = {
-  "$LONE": [
-    "ASCII",
-    "ASCII_Hex_Digit",
-    "AHex",
-    "Alphabetic",
-    "Alpha",
-    "Any",
-    "Assigned",
-    "Bidi_Control",
-    "Bidi_C",
-    "Bidi_Mirrored",
-    "Bidi_M",
-    "Case_Ignorable",
-    "CI",
-    "Cased",
-    "Changes_When_Casefolded",
-    "CWCF",
-    "Changes_When_Casemapped",
-    "CWCM",
-    "Changes_When_Lowercased",
-    "CWL",
-    "Changes_When_NFKC_Casefolded",
-    "CWKCF",
-    "Changes_When_Titlecased",
-    "CWT",
-    "Changes_When_Uppercased",
-    "CWU",
-    "Dash",
-    "Default_Ignorable_Code_Point",
-    "DI",
-    "Deprecated",
-    "Dep",
-    "Diacritic",
-    "Dia",
-    "Emoji",
-    "Emoji_Component",
-    "Emoji_Modifier",
-    "Emoji_Modifier_Base",
-    "Emoji_Presentation",
-    "Extender",
-    "Ext",
-    "Grapheme_Base",
-    "Gr_Base",
-    "Grapheme_Extend",
-    "Gr_Ext",
-    "Hex_Digit",
-    "Hex",
-    "IDS_Binary_Operator",
-    "IDSB",
-    "IDS_Trinary_Operator",
-    "IDST",
-    "ID_Continue",
-    "IDC",
-    "ID_Start",
-    "IDS",
-    "Ideographic",
-    "Ideo",
-    "Join_Control",
-    "Join_C",
-    "Logical_Order_Exception",
-    "LOE",
-    "Lowercase",
-    "Lower",
-    "Math",
-    "Noncharacter_Code_Point",
-    "NChar",
-    "Pattern_Syntax",
-    "Pat_Syn",
-    "Pattern_White_Space",
-    "Pat_WS",
-    "Quotation_Mark",
-    "QMark",
-    "Radical",
-    "Regional_Indicator",
-    "RI",
-    "Sentence_Terminal",
-    "STerm",
-    "Soft_Dotted",
-    "SD",
-    "Terminal_Punctuation",
-    "Term",
-    "Unified_Ideograph",
-    "UIdeo",
-    "Uppercase",
-    "Upper",
-    "Variation_Selector",
-    "VS",
-    "White_Space",
-    "space",
-    "XID_Continue",
-    "XIDC",
-    "XID_Start",
-    "XIDS"
-  ],
-  "General_Category": [
-    "Cased_Letter",
-    "LC",
-    "Close_Punctuation",
-    "Pe",
-    "Connector_Punctuation",
-    "Pc",
-    "Control",
-    "Cc",
-    "cntrl",
-    "Currency_Symbol",
-    "Sc",
-    "Dash_Punctuation",
-    "Pd",
-    "Decimal_Number",
-    "Nd",
-    "digit",
-    "Enclosing_Mark",
-    "Me",
-    "Final_Punctuation",
-    "Pf",
-    "Format",
-    "Cf",
-    "Initial_Punctuation",
-    "Pi",
-    "Letter",
-    "L",
-    "Letter_Number",
-    "Nl",
-    "Line_Separator",
-    "Zl",
-    "Lowercase_Letter",
-    "Ll",
-    "Mark",
-    "M",
-    "Combining_Mark",
-    "Math_Symbol",
-    "Sm",
-    "Modifier_Letter",
-    "Lm",
-    "Modifier_Symbol",
-    "Sk",
-    "Nonspacing_Mark",
-    "Mn",
-    "Number",
-    "N",
-    "Open_Punctuation",
-    "Ps",
-    "Other",
-    "C",
-    "Other_Letter",
-    "Lo",
-    "Other_Number",
-    "No",
-    "Other_Punctuation",
-    "Po",
-    "Other_Symbol",
-    "So",
-    "Paragraph_Separator",
-    "Zp",
-    "Private_Use",
-    "Co",
-    "Punctuation",
-    "P",
-    "punct",
-    "Separator",
-    "Z",
-    "Space_Separator",
-    "Zs",
-    "Spacing_Mark",
-    "Mc",
-    "Surrogate",
-    "Cs",
-    "Symbol",
-    "S",
-    "Titlecase_Letter",
-    "Lt",
-    "Unassigned",
-    "Cn",
-    "Uppercase_Letter",
-    "Lu"
-  ],
-  "Script": [
-    "Adlam",
-    "Adlm",
-    "Ahom",
-    "Anatolian_Hieroglyphs",
-    "Hluw",
-    "Arabic",
-    "Arab",
-    "Armenian",
-    "Armn",
-    "Avestan",
-    "Avst",
-    "Balinese",
-    "Bali",
-    "Bamum",
-    "Bamu",
-    "Bassa_Vah",
-    "Bass",
-    "Batak",
-    "Batk",
-    "Bengali",
-    "Beng",
-    "Bhaiksuki",
-    "Bhks",
-    "Bopomofo",
-    "Bopo",
-    "Brahmi",
-    "Brah",
-    "Braille",
-    "Brai",
-    "Buginese",
-    "Bugi",
-    "Buhid",
-    "Buhd",
-    "Canadian_Aboriginal",
-    "Cans",
-    "Carian",
-    "Cari",
-    "Caucasian_Albanian",
-    "Aghb",
-    "Chakma",
-    "Cakm",
-    "Cham",
-    "Cherokee",
-    "Cher",
-    "Common",
-    "Zyyy",
-    "Coptic",
-    "Copt",
-    "Qaac",
-    "Cuneiform",
-    "Xsux",
-    "Cypriot",
-    "Cprt",
-    "Cyrillic",
-    "Cyrl",
-    "Deseret",
-    "Dsrt",
-    "Devanagari",
-    "Deva",
-    "Duployan",
-    "Dupl",
-    "Egyptian_Hieroglyphs",
-    "Egyp",
-    "Elbasan",
-    "Elba",
-    "Ethiopic",
-    "Ethi",
-    "Georgian",
-    "Geor",
-    "Glagolitic",
-    "Glag",
-    "Gothic",
-    "Goth",
-    "Grantha",
-    "Gran",
-    "Greek",
-    "Grek",
-    "Gujarati",
-    "Gujr",
-    "Gurmukhi",
-    "Guru",
-    "Han",
-    "Hani",
-    "Hangul",
-    "Hang",
-    "Hanunoo",
-    "Hano",
-    "Hatran",
-    "Hatr",
-    "Hebrew",
-    "Hebr",
-    "Hiragana",
-    "Hira",
-    "Imperial_Aramaic",
-    "Armi",
-    "Inherited",
-    "Zinh",
-    "Qaai",
-    "Inscriptional_Pahlavi",
-    "Phli",
-    "Inscriptional_Parthian",
-    "Prti",
-    "Javanese",
-    "Java",
-    "Kaithi",
-    "Kthi",
-    "Kannada",
-    "Knda",
-    "Katakana",
-    "Kana",
-    "Kayah_Li",
-    "Kali",
-    "Kharoshthi",
-    "Khar",
-    "Khmer",
-    "Khmr",
-    "Khojki",
-    "Khoj",
-    "Khudawadi",
-    "Sind",
-    "Lao",
-    "Laoo",
-    "Latin",
-    "Latn",
-    "Lepcha",
-    "Lepc",
-    "Limbu",
-    "Limb",
-    "Linear_A",
-    "Lina",
-    "Linear_B",
-    "Linb",
-    "Lisu",
-    "Lycian",
-    "Lyci",
-    "Lydian",
-    "Lydi",
-    "Mahajani",
-    "Mahj",
-    "Malayalam",
-    "Mlym",
-    "Mandaic",
-    "Mand",
-    "Manichaean",
-    "Mani",
-    "Marchen",
-    "Marc",
-    "Masaram_Gondi",
-    "Gonm",
-    "Meetei_Mayek",
-    "Mtei",
-    "Mende_Kikakui",
-    "Mend",
-    "Meroitic_Cursive",
-    "Merc",
-    "Meroitic_Hieroglyphs",
-    "Mero",
-    "Miao",
-    "Plrd",
-    "Modi",
-    "Mongolian",
-    "Mong",
-    "Mro",
-    "Mroo",
-    "Multani",
-    "Mult",
-    "Myanmar",
-    "Mymr",
-    "Nabataean",
-    "Nbat",
-    "New_Tai_Lue",
-    "Talu",
-    "Newa",
-    "Nko",
-    "Nkoo",
-    "Nushu",
-    "Nshu",
-    "Ogham",
-    "Ogam",
-    "Ol_Chiki",
-    "Olck",
-    "Old_Hungarian",
-    "Hung",
-    "Old_Italic",
-    "Ital",
-    "Old_North_Arabian",
-    "Narb",
-    "Old_Permic",
-    "Perm",
-    "Old_Persian",
-    "Xpeo",
-    "Old_South_Arabian",
-    "Sarb",
-    "Old_Turkic",
-    "Orkh",
-    "Oriya",
-    "Orya",
-    "Osage",
-    "Osge",
-    "Osmanya",
-    "Osma",
-    "Pahawh_Hmong",
-    "Hmng",
-    "Palmyrene",
-    "Palm",
-    "Pau_Cin_Hau",
-    "Pauc",
-    "Phags_Pa",
-    "Phag",
-    "Phoenician",
-    "Phnx",
-    "Psalter_Pahlavi",
-    "Phlp",
-    "Rejang",
-    "Rjng",
-    "Runic",
-    "Runr",
-    "Samaritan",
-    "Samr",
-    "Saurashtra",
-    "Saur",
-    "Sharada",
-    "Shrd",
-    "Shavian",
-    "Shaw",
-    "Siddham",
-    "Sidd",
-    "SignWriting",
-    "Sgnw",
-    "Sinhala",
-    "Sinh",
-    "Sora_Sompeng",
-    "Sora",
-    "Soyombo",
-    "Soyo",
-    "Sundanese",
-    "Sund",
-    "Syloti_Nagri",
-    "Sylo",
-    "Syriac",
-    "Syrc",
-    "Tagalog",
-    "Tglg",
-    "Tagbanwa",
-    "Tagb",
-    "Tai_Le",
-    "Tale",
-    "Tai_Tham",
-    "Lana",
-    "Tai_Viet",
-    "Tavt",
-    "Takri",
-    "Takr",
-    "Tamil",
-    "Taml",
-    "Tangut",
-    "Tang",
-    "Telugu",
-    "Telu",
-    "Thaana",
-    "Thaa",
-    "Thai",
-    "Tibetan",
-    "Tibt",
-    "Tifinagh",
-    "Tfng",
-    "Tirhuta",
-    "Tirh",
-    "Ugaritic",
-    "Ugar",
-    "Vai",
-    "Vaii",
-    "Warang_Citi",
-    "Wara",
-    "Yi",
-    "Yiii",
-    "Zanabazar_Square",
-    "Zanb"
-  ]
+// This file contains Unicode properties extracted from the ECMAScript
+// specification. The lists are extracted like so:
+// $$('#table-binary-unicode-properties > figure > table > tbody > tr > td:nth-child(1) code').map(el => el.innerText)
+
+// #table-binary-unicode-properties
+var ecma9BinaryProperties = "ASCII ASCII_Hex_Digit AHex Alphabetic Alpha Any Assigned Bidi_Control Bidi_C Bidi_Mirrored Bidi_M Case_Ignorable CI Cased Changes_When_Casefolded CWCF Changes_When_Casemapped CWCM Changes_When_Lowercased CWL Changes_When_NFKC_Casefolded CWKCF Changes_When_Titlecased CWT Changes_When_Uppercased CWU Dash Default_Ignorable_Code_Point DI Deprecated Dep Diacritic Dia Emoji Emoji_Component Emoji_Modifier Emoji_Modifier_Base Emoji_Presentation Extender Ext Grapheme_Base Gr_Base Grapheme_Extend Gr_Ext Hex_Digit Hex IDS_Binary_Operator IDSB IDS_Trinary_Operator IDST ID_Continue IDC ID_Start IDS Ideographic Ideo Join_Control Join_C Logical_Order_Exception LOE Lowercase Lower Math Noncharacter_Code_Point NChar Pattern_Syntax Pat_Syn Pattern_White_Space Pat_WS Quotation_Mark QMark Radical Regional_Indicator RI Sentence_Terminal STerm Soft_Dotted SD Terminal_Punctuation Term Unified_Ideograph UIdeo Uppercase Upper Variation_Selector VS White_Space space XID_Continue XIDC XID_Start XIDS";
+var unicodeBinaryProperties = {
+  9: ecma9BinaryProperties,
+  10: ecma9BinaryProperties + " Extended_Pictographic"
 };
-Array.prototype.push.apply(data.$LONE, data.General_Category);
-data.gc = data.General_Category;
-data.sc = data.Script_Extensions = data.scx = data.Script;
+
+// #table-unicode-general-category-values
+var unicodeGeneralCategoryValues = "Cased_Letter LC Close_Punctuation Pe Connector_Punctuation Pc Control Cc cntrl Currency_Symbol Sc Dash_Punctuation Pd Decimal_Number Nd digit Enclosing_Mark Me Final_Punctuation Pf Format Cf Initial_Punctuation Pi Letter L Letter_Number Nl Line_Separator Zl Lowercase_Letter Ll Mark M Combining_Mark Math_Symbol Sm Modifier_Letter Lm Modifier_Symbol Sk Nonspacing_Mark Mn Number N Open_Punctuation Ps Other C Other_Letter Lo Other_Number No Other_Punctuation Po Other_Symbol So Paragraph_Separator Zp Private_Use Co Punctuation P punct Separator Z Space_Separator Zs Spacing_Mark Mc Surrogate Cs Symbol S Titlecase_Letter Lt Unassigned Cn Uppercase_Letter Lu";
+
+// #table-unicode-script-values
+var ecma9ScriptValues = "Adlam Adlm Ahom Ahom Anatolian_Hieroglyphs Hluw Arabic Arab Armenian Armn Avestan Avst Balinese Bali Bamum Bamu Bassa_Vah Bass Batak Batk Bengali Beng Bhaiksuki Bhks Bopomofo Bopo Brahmi Brah Braille Brai Buginese Bugi Buhid Buhd Canadian_Aboriginal Cans Carian Cari Caucasian_Albanian Aghb Chakma Cakm Cham Cham Cherokee Cher Common Zyyy Coptic Copt Qaac Cuneiform Xsux Cypriot Cprt Cyrillic Cyrl Deseret Dsrt Devanagari Deva Duployan Dupl Egyptian_Hieroglyphs Egyp Elbasan Elba Ethiopic Ethi Georgian Geor Glagolitic Glag Gothic Goth Grantha Gran Greek Grek Gujarati Gujr Gurmukhi Guru Han Hani Hangul Hang Hanunoo Hano Hatran Hatr Hebrew Hebr Hiragana Hira Imperial_Aramaic Armi Inherited Zinh Qaai Inscriptional_Pahlavi Phli Inscriptional_Parthian Prti Javanese Java Kaithi Kthi Kannada Knda Katakana Kana Kayah_Li Kali Kharoshthi Khar Khmer Khmr Khojki Khoj Khudawadi Sind Lao Laoo Latin Latn Lepcha Lepc Limbu Limb Linear_A Lina Linear_B Linb Lisu Lisu Lycian Lyci Lydian Lydi Mahajani Mahj Malayalam Mlym Mandaic Mand Manichaean Mani Marchen Marc Masaram_Gondi Gonm Meetei_Mayek Mtei Mende_Kikakui Mend Meroitic_Cursive Merc Meroitic_Hieroglyphs Mero Miao Plrd Modi Modi Mongolian Mong Mro Mroo Multani Mult Myanmar Mymr Nabataean Nbat New_Tai_Lue Talu Newa Newa Nko Nkoo Nushu Nshu Ogham Ogam Ol_Chiki Olck Old_Hungarian Hung Old_Italic Ital Old_North_Arabian Narb Old_Permic Perm Old_Persian Xpeo Old_South_Arabian Sarb Old_Turkic Orkh Oriya Orya Osage Osge Osmanya Osma Pahawh_Hmong Hmng Palmyrene Palm Pau_Cin_Hau Pauc Phags_Pa Phag Phoenician Phnx Psalter_Pahlavi Phlp Rejang Rjng Runic Runr Samaritan Samr Saurashtra Saur Sharada Shrd Shavian Shaw Siddham Sidd SignWriting Sgnw Sinhala Sinh Sora_Sompeng Sora Soyombo Soyo Sundanese Sund Syloti_Nagri Sylo Syriac Syrc Tagalog Tglg Tagbanwa Tagb Tai_Le Tale Tai_Tham Lana Tai_Viet Tavt Takri Takr Tamil Taml Tangut Tang Telugu Telu Thaana Thaa Thai Thai Tibetan Tibt Tifinagh Tfng Tirhuta Tirh Ugaritic Ugar Vai Vaii Warang_Citi Wara Yi Yiii Zanabazar_Square Zanb";
+var unicodeScriptValues = {
+  9: ecma9ScriptValues,
+  10: ecma9ScriptValues + " Dogra Dogr Gunjala_Gondi Gong Hanifi_Rohingya Rohg Makasar Maka Medefaidrin Medf Old_Sogdian Sogo Sogdian Sogd"
+};
+
+var data = {};
+function buildUnicodeData(ecmaVersion) {
+  var d = data[ecmaVersion] = {
+    binary: wordsRegexp(unicodeBinaryProperties[ecmaVersion] + " " + unicodeGeneralCategoryValues),
+    nonBinary: {
+      General_Category: wordsRegexp(unicodeGeneralCategoryValues),
+      Script: wordsRegexp(unicodeScriptValues[ecmaVersion])
+    }
+  };
+  d.nonBinary.Script_Extensions = d.nonBinary.Script;
+
+  d.nonBinary.gc = d.nonBinary.General_Category;
+  d.nonBinary.sc = d.nonBinary.Script;
+  d.nonBinary.scx = d.nonBinary.Script_Extensions;
+}
+buildUnicodeData(9);
+buildUnicodeData(10);
 
 var pp$9 = Parser.prototype;
 
 var RegExpValidationState = function RegExpValidationState(parser) {
   this.parser = parser;
   this.validFlags = "gim" + (parser.options.ecmaVersion >= 6 ? "uy" : "") + (parser.options.ecmaVersion >= 9 ? "s" : "");
+  this.unicodeProperties = data[parser.options.ecmaVersion >= 10 ? 10 : parser.options.ecmaVersion];
   this.source = "";
   this.flags = "";
   this.start = 0;
@@ -4278,14 +3959,14 @@ pp$9.regexp_eatUnicodePropertyValueExpression = function(state) {
   return false
 };
 pp$9.regexp_validateUnicodePropertyNameAndValue = function(state, name, value) {
-  if (!data.hasOwnProperty(name) || data[name].indexOf(value) === -1) {
-    state.raise("Invalid property name");
-  }
+  if (!has(state.unicodeProperties.nonBinary, name))
+    { state.raise("Invalid property name"); }
+  if (!state.unicodeProperties.nonBinary[name].test(value))
+    { state.raise("Invalid property value"); }
 };
 pp$9.regexp_validateUnicodePropertyNameOrValue = function(state, nameOrValue) {
-  if (data.$LONE.indexOf(nameOrValue) === -1) {
-    state.raise("Invalid property name");
-  }
+  if (!state.unicodeProperties.binary.test(nameOrValue))
+    { state.raise("Invalid property name"); }
 };
 
 // UnicodePropertyName ::
@@ -5185,6 +4866,11 @@ pp$8.readEscapedChar = function(inTemplate) {
       }
       return String.fromCharCode(octal)
     }
+    if (isNewLine(ch)) {
+      // Unicode new line characters after \ get removed from output in both
+      // template literals and strings
+      return ""
+    }
     return String.fromCharCode(ch)
   }
 };
@@ -5261,14 +4947,9 @@ pp$8.readWord = function() {
 //
 // [ghbt]: https://github.com/acornjs/acorn/issues
 //
-// This file defines the main parser interface. The library also comes
-// with a [error-tolerant parser][dammit] and an
-// [abstract syntax tree walker][walk], defined in other files.
-//
-// [dammit]: acorn_loose.js
 // [walk]: util/walk.js
 
-var version = "5.7.2";
+var version = "6.0.7";
 
 // The main exported interface (under `self.acorn` when in the
 // browser) is a `parse` function that takes a code string and
@@ -5278,7 +4959,7 @@ var version = "5.7.2";
 // [api]: https://developer.mozilla.org/en-US/docs/SpiderMonkey/Parser_API
 
 function parse(input, options) {
-  return new Parser(options, input).parse()
+  return Parser.parse(input, options)
 }
 
 // This function tries to parse a single expression at a given
@@ -5286,28 +4967,15 @@ function parse(input, options) {
 // that embed JavaScript expressions.
 
 function parseExpressionAt(input, pos, options) {
-  var p = new Parser(options, input, pos);
-  p.nextToken();
-  return p.parseExpression()
+  return Parser.parseExpressionAt(input, pos, options)
 }
 
 // Acorn is organized as a tokenizer and a recursive-descent parser.
 // The `tokenizer` export provides an interface to the tokenizer.
 
 function tokenizer(input, options) {
-  return new Parser(options, input)
+  return Parser.tokenizer(input, options)
 }
 
-// This is a terrible kludge to support the existing, pre-ES6
-// interface where the loose parser module retroactively adds exports
-// to this module.
-var parse_dammit;
-var LooseParser;
-var pluginsLoose; // eslint-disable-line camelcase
-function addLooseExports(parse, Parser$$1, plugins$$1) {
-  parse_dammit = parse; // eslint-disable-line camelcase
-  LooseParser = Parser$$1;
-  pluginsLoose = plugins$$1;
-}
-
-export { version, parse, parseExpressionAt, tokenizer, parse_dammit, LooseParser, pluginsLoose, addLooseExports, Parser, plugins, defaultOptions, Position, SourceLocation, getLineInfo, Node, TokenType, types as tokTypes, keywords$1 as keywordTypes, TokContext, types$1 as tokContexts, isIdentifierChar, isIdentifierStart, Token, isNewLine, lineBreak, lineBreakG, nonASCIIwhitespace };
+export { version, parse, parseExpressionAt, tokenizer, Parser, defaultOptions, Position, SourceLocation, getLineInfo, Node, TokenType, types as tokTypes, keywords$1 as keywordTypes, TokContext, types$1 as tokContexts, isIdentifierChar, isIdentifierStart, Token, isNewLine, lineBreak, lineBreakG, nonASCIIwhitespace };
+//# sourceMappingURL=acorn.mjs.map
