@@ -142,8 +142,13 @@ int RegExpMacroAssemblerPPC::stack_limit_slack() {
 
 void RegExpMacroAssemblerPPC::AdvanceCurrentPosition(int by) {
   if (by != 0) {
-    __ addi(current_input_offset(), current_input_offset(),
-            Operand(by * char_size()));
+    if (is_int16(by * char_size())) {
+      __ addi(current_input_offset(), current_input_offset(),
+              Operand(by * char_size()));
+    } else {
+      __ mov(r0, Operand(by * char_size()));
+      __ add(current_input_offset(), r0, current_input_offset());
+    }
   }
 }
 
@@ -1270,7 +1275,12 @@ void RegExpMacroAssemblerPPC::LoadCurrentCharacterUnchecked(int cp_offset,
   Register offset = current_input_offset();
   if (cp_offset != 0) {
     // r25 is not being used to store the capture start index at this point.
-    __ addi(r25, current_input_offset(), Operand(cp_offset * char_size()));
+    if (is_int16(cp_offset * char_size())) {
+      __ addi(r25, current_input_offset(), Operand(cp_offset * char_size()));
+    } else {
+      __ mov(r25, Operand(cp_offset * char_size()));
+      __ add(r25, r25, current_input_offset());
+    }
     offset = r25;
   }
   // The lwz, stw, lhz, sth instructions can do unaligned accesses, if the CPU
