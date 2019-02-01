@@ -4,6 +4,13 @@ import { Subscription } from '../Subscription';
 import { MonoTypeOperatorFunction, SchedulerLike } from '../types';
 import { Subscriber } from '../Subscriber';
 
+export interface ShareReplayConfig {
+  bufferSize?: number;
+  windowTime?: number;
+  refCount: boolean;
+  scheduler?: SchedulerLike;
+}
+
 /**
  * Share source and replay specified number of emissions on subscription.
  *
@@ -23,13 +30,16 @@ import { Subscriber } from '../Subscriber';
  *
  * ## Example
  * ```javascript
+ * import { interval } from 'rxjs';
+ * import { shareReplay, take } from 'rxjs/operators';
+ *
  * const obs$ = interval(1000);
- * const subscription = obs$.pipe(
+ * const shared$ = obs$.pipe(
  *   take(4),
  *   shareReplay(3)
  * );
- * subscription.subscribe(x => console.log('source A: ', x));
- * subscription.subscribe(y => console.log('source B: ', y));
+ * shared$.subscribe(x => console.log('source A: ', x));
+ * shared$.subscribe(y => console.log('source B: ', y));
  *
  * ```
  *
@@ -46,18 +56,36 @@ import { Subscriber } from '../Subscriber';
  * @method shareReplay
  * @owner Observable
  */
+export function shareReplay<T>(config: ShareReplayConfig): MonoTypeOperatorFunction<T>;
+export function shareReplay<T>(bufferSize?: number, windowTime?: number, scheduler?: SchedulerLike): MonoTypeOperatorFunction<T>;
 export function shareReplay<T>(
-  bufferSize: number = Number.POSITIVE_INFINITY,
-  windowTime: number = Number.POSITIVE_INFINITY,
+  configOrBufferSize?: ShareReplayConfig | number,
+  windowTime?: number,
   scheduler?: SchedulerLike
 ): MonoTypeOperatorFunction<T> {
-  return (source: Observable<T>) => source.lift(shareReplayOperator(bufferSize, windowTime, scheduler));
+  let config: ShareReplayConfig;
+  if (configOrBufferSize && typeof configOrBufferSize === 'object') {
+    config = configOrBufferSize as ShareReplayConfig;
+  } else {
+    config = {
+      bufferSize: configOrBufferSize as number | undefined,
+      windowTime,
+      refCount: false,
+      scheduler
+    };
+  }
+  return (source: Observable<T>) => source.lift(shareReplayOperator(config));
 }
 
-function shareReplayOperator<T>(bufferSize?: number, windowTime?: number, scheduler?: SchedulerLike) {
-  let subject: ReplaySubject<T>;
+function shareReplayOperator<T>({
+  bufferSize = Number.POSITIVE_INFINITY,
+  windowTime = Number.POSITIVE_INFINITY,
+  refCount: useRefCount,
+  scheduler
+}: ShareReplayConfig) {
+  let subject: ReplaySubject<T> | undefined;
   let refCount = 0;
-  let subscription: Subscription;
+  let subscription: Subscription | undefined;
   let hasError = false;
   let isComplete = false;
 
@@ -80,13 +108,14 @@ function shareReplayOperator<T>(bufferSize?: number, windowTime?: number, schedu
     }
 
     const innerSub = subject.subscribe(this);
-
-    return () => {
+    this.add(() => {
       refCount--;
       innerSub.unsubscribe();
-      if (subscription && refCount === 0 && isComplete) {
+      if (subscription && !isComplete && useRefCount && refCount === 0) {
         subscription.unsubscribe();
+        subscription = undefined;
+        subject = undefined;
       }
-    };
+    });
   };
 }

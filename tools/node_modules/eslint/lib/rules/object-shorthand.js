@@ -255,7 +255,7 @@ module.exports = {
                     keyPrefix + keyText + sourceCode.text.slice(tokenBeforeParams.range[1], node.value.range[1])
                 );
             }
-            const arrowToken = sourceCode.getTokens(node.value).find(token => token.value === "=>");
+            const arrowToken = sourceCode.getTokenBefore(node.value.body, { filter: token => token.value === "=>" });
             const tokenBeforeArrow = sourceCode.getTokenBefore(arrowToken);
             const hasParensAroundParameters = tokenBeforeArrow.type === "Punctuator" && tokenBeforeArrow.value === ")";
             const oldParamText = sourceCode.text.slice(sourceCode.getFirstToken(node.value, node.value.async ? 1 : 0).range[0], tokenBeforeArrow.range[1]);

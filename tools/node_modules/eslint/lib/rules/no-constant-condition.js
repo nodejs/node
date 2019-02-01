@@ -6,6 +6,13 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+const EQUALITY_OPERATORS = ["===", "!==", "==", "!="];
+const RELATIONAL_OPERATORS = [">", "<", ">=", "<=", "in", "instanceof"];
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -110,7 +117,18 @@ module.exports = {
                     const isRightShortCircuit = (isRightConstant && isLogicalIdentity(node.right, node.operator));
 
                     return (isLeftConstant && isRightConstant) ||
-                        (node.operator === "||" && isRightConstant && node.right.value) || // in the case of an "OR", we need to know if the right constant value is truthy
+                        (
+
+                            // in the case of an "OR", we need to know if the right constant value is truthy
+                            node.operator === "||" &&
+                            isRightConstant &&
+                            node.right.value &&
+                            (
+                                !node.parent ||
+                                node.parent.type !== "BinaryExpression" ||
+                                !(EQUALITY_OPERATORS.includes(node.parent.operator) || RELATIONAL_OPERATORS.includes(node.parent.operator))
+                            )
+                        ) ||
                         isLeftShortCircuit ||
                         isRightShortCircuit;
                 }

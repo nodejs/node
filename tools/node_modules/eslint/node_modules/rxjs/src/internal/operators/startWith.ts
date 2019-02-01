@@ -31,9 +31,12 @@ export function startWith<T, D = T>(...array: Array<D | SchedulerLike>): Operato
  * Start the chain of emissions with `"first"`, `"second"`
  *
  * ```javascript
- *   of("from source")
- *    .pipe(startWith("first", "second"))
- *    .subscribe(x => console.log(x));
+ * import { of } from 'rxjs';
+ * import { startWith } from 'rxjs/operators';
+ *
+ * of("from source")
+ *   .pipe(startWith("first", "second"))
+ *   .subscribe(x => console.log(x));
  *
  * // results:
  * //   "first"
@@ -64,7 +67,7 @@ export function startWith<T, D>(...array: Array<T | SchedulerLike>): OperatorFun
     } else if (len > 0) {
       return concatStatic(fromArray(array as T[], scheduler), source);
     } else {
-      return concatStatic<T>(empty(scheduler) as any, source);
+      return concatStatic(empty(scheduler), source);
     }
   };
 }

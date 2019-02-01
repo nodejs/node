@@ -1,23 +1,21 @@
 import { Subscriber } from '../Subscriber';
-import { tryCatch } from '../util/tryCatch';
-import { errorObject } from '../util/errorObject';
-export function sequenceEqual(compareTo, comparor) {
-    return (source) => source.lift(new SequenceEqualOperator(compareTo, comparor));
+export function sequenceEqual(compareTo, comparator) {
+    return (source) => source.lift(new SequenceEqualOperator(compareTo, comparator));
 }
 export class SequenceEqualOperator {
-    constructor(compareTo, comparor) {
+    constructor(compareTo, comparator) {
         this.compareTo = compareTo;
-        this.comparor = comparor;
+        this.comparator = comparator;
     }
     call(subscriber, source) {
-        return source.subscribe(new SequenceEqualSubscriber(subscriber, this.compareTo, this.comparor));
+        return source.subscribe(new SequenceEqualSubscriber(subscriber, this.compareTo, this.comparator));
     }
 }
 export class SequenceEqualSubscriber extends Subscriber {
-    constructor(destination, compareTo, comparor) {
+    constructor(destination, compareTo, comparator) {
         super(destination);
         this.compareTo = compareTo;
-        this.comparor = comparor;
+        this.comparator = comparator;
         this._a = [];
         this._b = [];
         this._oneComplete = false;
@@ -42,19 +40,16 @@ export class SequenceEqualSubscriber extends Subscriber {
         this.unsubscribe();
     }
     checkValues() {
-        const { _a, _b, comparor } = this;
+        const { _a, _b, comparator } = this;
         while (_a.length > 0 && _b.length > 0) {
             let a = _a.shift();
             let b = _b.shift();
             let areEqual = false;
-            if (comparor) {
-                areEqual = tryCatch(comparor)(a, b);
-                if (areEqual === errorObject) {
-                    this.destination.error(errorObject.e);
-                }
+            try {
+                areEqual = comparator ? comparator(a, b) : a === b;
             }
-            else {
-                areEqual = a === b;
+            catch (e) {
+                this.destination.error(e);
             }
             if (!areEqual) {
                 this.emit(false);

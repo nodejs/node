@@ -14,6 +14,7 @@ class UI {
     if (!this.rl) {
       this.rl = readline.createInterface(setupReadlineOptions(opt));
     }
+
     this.rl.resume();
 
     this.onForceClose = this.onForceClose.bind(this);

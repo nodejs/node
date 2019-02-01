@@ -95,6 +95,7 @@ class PromptUI extends Base {
     if (!this.prompts[question.type]) {
       question.type = 'input';
     }
+
     return defer(() => of(question));
   }
 

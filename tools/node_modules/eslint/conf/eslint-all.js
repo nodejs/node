@@ -9,16 +9,14 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const load = require("../lib/load-rules"),
-    Rules = require("../lib/rules");
-const rules = new Rules();
+const builtInRules = require("../lib/built-in-rules-index");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-const enabledRules = Object.keys(load()).reduce((result, ruleId) => {
-    if (!rules.get(ruleId).meta.deprecated) {
+const enabledRules = Object.keys(builtInRules).reduce((result, ruleId) => {
+    if (!builtInRules[ruleId].meta.deprecated) {
         result[ruleId] = "error";
     }
     return result;
