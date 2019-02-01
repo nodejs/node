@@ -1147,6 +1147,7 @@ class WasmDecoder : public Decoder {
       case kExprF64Const:
       case kExprRefNull:
       case kExprMemorySize:
+      case kExprDuplicate:
         return {0, 1};
       case kExprCallFunction: {
         CallFunctionImmediate<validate> imm(this, pc);
@@ -1764,6 +1765,35 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             auto* result = Push(value.type);
             CALL_INTERFACE_IF_REACHABLE(TeeLocal, value, result, imm);
             len = 1 + imm.length;
+            break;
+          }
+          case kExprDuplicate: {
+            Value* peek = stack_value(0);
+            auto* value = Push(peek->type);
+            switch(value->type) {
+              case kWasmI32: {
+                ImmI32Immediate<validate> imm(this, peek->pc);
+                CALL_INTERFACE_IF_REACHABLE(I32Const, value, imm.value);
+                break;
+              }
+              case kWasmI64: {
+                ImmI64Immediate<validate> imm(this, peek->pc);
+                CALL_INTERFACE_IF_REACHABLE(I64Const, value, imm.value);
+                break;
+              }
+              case kWasmF32: {
+                ImmF32Immediate<validate> imm(this, peek->pc);
+                CALL_INTERFACE_IF_REACHABLE(F32Const, value, imm.value);
+                break;
+              }
+              case kWasmF64: {
+                ImmF64Immediate<validate> imm(this, peek->pc);
+                CALL_INTERFACE_IF_REACHABLE(F64Const, value, imm.value);
+                break;
+              }
+              default:
+                V8_Fatal(__FILE__, __LINE__, "unimplemented duplicate type");
+            }
             break;
           }
           case kExprDrop: {
