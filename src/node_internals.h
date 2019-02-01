@@ -86,7 +86,7 @@ void GetSockOrPeerName(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
-void Exit(const v8::FunctionCallbackInfo<v8::Value>& args);
+void WaitForInspectorDisconnect(Environment* env);
 void SignalExit(int signo);
 #ifdef __POSIX__
 void RegisterSignalHandler(int signal,
