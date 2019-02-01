@@ -95,9 +95,6 @@ static void Initialize(Local<Object> target,
   if (env->options()->expose_internals)
     READONLY_TRUE_PROPERTY(target, "exposeInternals");
 
-  if (env->abort_on_uncaught_exception())
-    READONLY_TRUE_PROPERTY(target, "shouldAbortOnUncaughtException");
-
   READONLY_PROPERTY(target,
                     "bits",
                     Number::New(env->isolate(), 8 * sizeof(intptr_t)));
