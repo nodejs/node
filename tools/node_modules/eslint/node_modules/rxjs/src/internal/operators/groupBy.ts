@@ -33,7 +33,7 @@ export function groupBy<T, K, R>(keySelector: (value: T) => K, elementSelector?:
  * ## Examples
  * ### Group objects by id and return as array
  * ```javascript
- * import { mergeMap, groupBy } from 'rxjs/operators';
+ * import { mergeMap, groupBy, reduce } from 'rxjs/operators';
  * import { of } from 'rxjs/observable/of';
  *
  * interface Obj {
@@ -65,7 +65,7 @@ export function groupBy<T, K, R>(keySelector: (value: T) => K, elementSelector?:
  *
  * ### Pivot data on the id field
  * ```javascript
- * import { mergeMap, groupBy, map } from 'rxjs/operators';
+ * import { mergeMap, groupBy, map, reduce } from 'rxjs/operators';
  * import { of } from 'rxjs/observable/of';
  *
  * of<Obj>(

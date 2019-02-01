@@ -26,6 +26,9 @@ import { OperatorFunction, SubscribableOrPromise } from '../types';
  * Every other second, emit the click events from the next 500ms
  *
  * ```javascript
+ * import { fromEvent, interval, empty } from 'rxjs';
+ * import { bufferToggle } from 'rxjs/operators';
+ *
  * const clicks = fromEvent(document, 'click');
  * const openings = interval(1000);
  * const buffered = clicks.pipe(bufferToggle(openings, i =>

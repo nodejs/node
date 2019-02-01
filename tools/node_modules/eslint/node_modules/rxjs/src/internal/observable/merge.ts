@@ -38,6 +38,8 @@ export function merge<T, R>(...observables: (ObservableInput<any> | SchedulerLik
  * ## Examples
  * ### Merge together two Observables: 1s interval and clicks
  * ```javascript
+ * import { merge, fromEvent, interval } from 'rxjs';
+ *
  * const clicks = fromEvent(document, 'click');
  * const timer = interval(1000);
  * const clicksOrTimer = merge(clicks, timer);
@@ -52,6 +54,9 @@ export function merge<T, R>(...observables: (ObservableInput<any> | SchedulerLik
  *
  * ### Merge together 3 Observables, but only 2 run concurrently
  * ```javascript
+ * import { merge, interval } from 'rxjs';
+ * import { take } from 'rxjs/operators';
+ *
  * const timer1 = interval(1000).pipe(take(10));
  * const timer2 = interval(2000).pipe(take(6));
  * const timer3 = interval(500).pipe(take(10));

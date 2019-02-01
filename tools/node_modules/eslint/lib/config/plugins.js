@@ -24,12 +24,12 @@ class Plugins {
     /**
      * Creates the plugins context
      * @param {Environments} envContext - env context
-     * @param {Rules} rulesContext - rules context
+     * @param {function(string, Rule): void} defineRule - Callback for when a plugin is defined which introduces rules
      */
-    constructor(envContext, rulesContext) {
+    constructor(envContext, defineRule) {
         this._plugins = Object.create(null);
         this._environments = envContext;
-        this._rules = rulesContext;
+        this._defineRule = defineRule;
     }
 
     /**
@@ -45,7 +45,15 @@ class Plugins {
         // load up environments and rules
         this._plugins[shortName] = plugin;
         this._environments.importPlugin(plugin, shortName);
-        this._rules.importPlugin(plugin, shortName);
+
+        if (plugin.rules) {
+            Object.keys(plugin.rules).forEach(ruleId => {
+                const qualifiedRuleId = `${shortName}/${ruleId}`,
+                    rule = plugin.rules[ruleId];
+
+                this._defineRule(qualifiedRuleId, rule);
+            });
+        }
     }
 
     /**

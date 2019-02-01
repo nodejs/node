@@ -3,8 +3,6 @@ import { Subscriber } from '../Subscriber';
 import { Observable } from '../Observable';
 import { Subject } from '../Subject';
 import { Subscription } from '../Subscription';
-import { tryCatch } from '../util/tryCatch';
-import { errorObject } from '../util/errorObject';
 import { OuterSubscriber } from '../OuterSubscriber';
 import { InnerSubscriber } from '../InnerSubscriber';
 import { subscribeToResult } from '../util/subscribeToResult';
@@ -29,6 +27,9 @@ import { OperatorFunction } from '../types';
  * ## Example
  * Every other second, emit the click events from the next 500ms
  * ```javascript
+ * import { fromEvent, interval } from 'rxjs';
+ * import { windowToggle, mergeAll } from 'rxjs/operators';
+ *
  * const clicks = fromEvent(document, 'click');
  * const openings = interval(1000);
  * const result = clicks.pipe(
@@ -158,29 +159,28 @@ class WindowToggleSubscriber<T, O> extends OuterSubscriber<T, any> {
              innerSub: InnerSubscriber<T, any>): void {
 
     if (outerValue === this.openings) {
-
-      const { closingSelector } = this;
-      const closingNotifier = tryCatch(closingSelector)(innerValue);
-
-      if (closingNotifier === errorObject) {
-        return this.error(errorObject.e);
-      } else {
-        const window = new Subject<T>();
-        const subscription = new Subscription();
-        const context = { window, subscription };
-        this.contexts.push(context);
-        const innerSubscription = subscribeToResult(this, closingNotifier, context as any);
-
-        if (innerSubscription.closed) {
-          this.closeWindow(this.contexts.length - 1);
-        } else {
-          (<any> innerSubscription).context = context;
-          subscription.add(innerSubscription);
-        }
-
-        this.destination.next(window);
-
+      let closingNotifier;
+      try {
+        const { closingSelector } = this;
+        closingNotifier = closingSelector(innerValue);
+      } catch (e) {
+        return this.error(e);
       }
+
+      const window = new Subject<T>();
+      const subscription = new Subscription();
+      const context = { window, subscription };
+      this.contexts.push(context);
+      const innerSubscription = subscribeToResult(this, closingNotifier, context as any);
+
+      if (innerSubscription.closed) {
+        this.closeWindow(this.contexts.length - 1);
+      } else {
+        (<any>innerSubscription).context = context;
+        subscription.add(innerSubscription);
+      }
+
+      this.destination.next(window);
     } else {
       this.closeWindow(this.contexts.indexOf(outerValue));
     }

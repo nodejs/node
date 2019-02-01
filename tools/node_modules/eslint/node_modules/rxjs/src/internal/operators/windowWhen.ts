@@ -3,8 +3,6 @@ import { Subscriber } from '../Subscriber';
 import { Observable } from '../Observable';
 import { Subject } from '../Subject';
 import { Subscription } from '../Subscription';
-import { tryCatch } from '../util/tryCatch';
-import { errorObject } from '../util/errorObject';
 import { OuterSubscriber } from '../OuterSubscriber';
 import { InnerSubscriber } from '../InnerSubscriber';
 import { subscribeToResult } from '../util/subscribeToResult';
@@ -29,6 +27,9 @@ import { OperatorFunction } from '../types';
  * ## Example
  * Emit only the first two clicks events in every window of [1-5] random seconds
  * ```javascript
+ * import { fromEvent, interval } from 'rxjs';
+ * import { windowWhen, map, mergeAll } from 'rxjs/operators';
+ *
  * const clicks = fromEvent(document, 'click');
  * const result = clicks.pipe(
  *   windowWhen(() => interval(1000 + Math.random() * 4000)),
@@ -132,13 +133,15 @@ class WindowSubscriber<T> extends OuterSubscriber<T, any> {
     const window = this.window = new Subject<T>();
     this.destination.next(window);
 
-    const closingNotifier = tryCatch(this.closingSelector)();
-    if (closingNotifier === errorObject) {
-      const err = errorObject.e;
-      this.destination.error(err);
-      this.window.error(err);
-    } else {
-      this.add(this.closingNotification = subscribeToResult(this, closingNotifier));
+    let closingNotifier;
+    try {
+      const { closingSelector } = this;
+      closingNotifier = closingSelector();
+    } catch (e) {
+      this.destination.error(e);
+      this.window.error(e);
+      return;
     }
+    this.add(this.closingNotification = subscribeToResult(this, closingNotifier));
   }
 }

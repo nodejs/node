@@ -23,6 +23,9 @@ import { OperatorFunction, TeardownLogic } from '../types';
  * Emit the last two click events as an array
  *
  * ```javascript
+ * import { fromEvent } from 'rxjs';
+ * import { bufferCount } from 'rxjs/operators';
+ *
  * const clicks = fromEvent(document, 'click');
  * const buffered = clicks.pipe(bufferCount(2));
  * buffered.subscribe(x => console.log(x));
@@ -31,6 +34,9 @@ import { OperatorFunction, TeardownLogic } from '../types';
  * On every click, emit the last two click events as an array
  *
  * ```javascript
+ * import { fromEvent } from 'rxjs';
+ * import { bufferCount } from 'rxjs/operators';
+ *
  * const clicks = fromEvent(document, 'click');
  * const buffered = clicks.pipe(bufferCount(2, 1));
  * buffered.subscribe(x => console.log(x));

@@ -1,6 +1,4 @@
 import { root } from '../../util/root';
-import { tryCatch } from '../../util/tryCatch';
-import { errorObject } from '../../util/errorObject';
 import { Observable } from '../../Observable';
 import { Subscriber } from '../../Subscriber';
 import { TeardownLogic } from '../../types';
@@ -112,8 +110,10 @@ export class AjaxObservable<T> extends Observable<T> {
    *
    * ## Example
    * ```javascript
-   * source = Rx.Observable.ajax('/products');
-   * source = Rx.Observable.ajax({ url: 'products', method: 'GET' });
+   * import { ajax } from 'rxjs/ajax';
+ *
+   * const source1 = ajax('/products');
+   * const source2 = ajax({ url: 'products', method: 'GET' });
    * ```
    *
    * @param {string|Object} request Can be one of the following:
@@ -202,17 +202,18 @@ export class AjaxSubscriber<T> extends Subscriber<Event> {
     const headers = request.headers = request.headers || {};
 
     // force CORS if requested
-    if (!request.crossDomain && !headers['X-Requested-With']) {
+    if (!request.crossDomain && !this.getHeader(headers, 'X-Requested-With')) {
       headers['X-Requested-With'] = 'XMLHttpRequest';
     }
 
     // ensure content type is set
-    if (!('Content-Type' in headers) && !(root.FormData && request.body instanceof root.FormData) && typeof request.body !== 'undefined') {
+    let contentTypeHeader = this.getHeader(headers, 'Content-Type');
+    if (!contentTypeHeader && !(root.FormData && request.body instanceof root.FormData) && typeof request.body !== 'undefined') {
       headers['Content-Type'] = 'application/x-www-form-urlencoded; charset=UTF-8';
     }
 
     // properly serialize body
-    request.body = this.serializeBody(request.body, request.headers['Content-Type']);
+    request.body = this.serializeBody(request.body, this.getHeader(request.headers, 'Content-Type'));
 
     this.send();
   }
@@ -220,26 +221,22 @@ export class AjaxSubscriber<T> extends Subscriber<Event> {
   next(e: Event): void {
     this.done = true;
     const { xhr, request, destination } = this;
-    const response = new AjaxResponse(e, xhr, request);
-    if (response.response === errorObject) {
-      destination.error(errorObject.e);
-    } else {
-      destination.next(response);
+    let result;
+    try {
+      result = new AjaxResponse(e, xhr, request);
+    } catch (err) {
+      return destination.error(err);
     }
+    destination.next(result);
   }
 
-  private send(): XMLHttpRequest {
+  private send(): void {
     const {
       request,
       request: { user, method, url, async, password, headers, body }
     } = this;
-    const createXHR = request.createXHR;
-    const xhr: XMLHttpRequest = tryCatch(createXHR).call(request);
-
-    if (<any>xhr === errorObject) {
-      this.error(errorObject.e);
-    } else {
-      this.xhr = xhr;
+    try {
+      const xhr = this.xhr = request.createXHR();
 
       // set up the events before open XHR
       // https://developer.mozilla.org/en/docs/Web/API/XMLHttpRequest/Using_XMLHttpRequest
@@ -247,16 +244,10 @@ export class AjaxSubscriber<T> extends Subscriber<Event> {
       // Otherwise the progress events will not fire.
       this.setupEvents(xhr, request);
       // open XHR
-      let result: any;
       if (user) {
-        result = tryCatch(xhr.open).call(xhr, method, url, async, user, password);
+        xhr.open(method, url, async, user, password);
       } else {
-        result = tryCatch(xhr.open).call(xhr, method, url, async);
-      }
-
-      if (result === errorObject) {
-        this.error(errorObject.e);
-        return null;
+        xhr.open(method, url, async);
       }
 
       // timeout, responseType and withCredentials can be set once the XHR is open
@@ -273,14 +264,14 @@ export class AjaxSubscriber<T> extends Subscriber<Event> {
       this.setHeaders(xhr, headers);
 
       // finally send the request
-      result = body ? tryCatch(xhr.send).call(xhr, body) : tryCatch(xhr.send).call(xhr);
-      if (result === errorObject) {
-        this.error(errorObject.e);
-        return null;
+      if (body) {
+        xhr.send(body);
+      } else {
+        xhr.send();
       }
+    } catch (err) {
+      this.error(err);
     }
-
-    return xhr;
   }
 
   private serializeBody(body: any, contentType?: string) {
@@ -315,20 +306,31 @@ export class AjaxSubscriber<T> extends Subscriber<Event> {
     }
   }
 
+  private getHeader(headers: {}, headerName: string): any {
+    for (let key in headers) {
+      if (key.toLowerCase() === headerName.toLowerCase()) {
+        return headers[key];
+      }
+    }
+
+    return undefined;
+  }
+
   private setupEvents(xhr: XMLHttpRequest, request: AjaxRequest) {
     const progressSubscriber = request.progressSubscriber;
 
-    function xhrTimeout(this: XMLHttpRequest, e: ProgressEvent) {
+    function xhrTimeout(this: XMLHttpRequest, e: ProgressEvent): void {
       const {subscriber, progressSubscriber, request } = (<any>xhrTimeout);
       if (progressSubscriber) {
         progressSubscriber.error(e);
       }
-      const ajaxTimeoutError = new AjaxTimeoutError(this, request); //TODO: Make betterer.
-      if (ajaxTimeoutError.response === errorObject) {
-        subscriber.error(errorObject.e);
-      } else {
-        subscriber.error(ajaxTimeoutError);
+      let error;
+      try {
+        error = new AjaxTimeoutError(this, request); // TODO: Make betterer.
+      } catch (err) {
+        error = err;
       }
+      subscriber.error(error);
     }
     xhr.ontimeout = xhrTimeout;
     (<any>xhrTimeout).request = request;
@@ -354,12 +356,13 @@ export class AjaxSubscriber<T> extends Subscriber<Event> {
         if (progressSubscriber) {
           progressSubscriber.error(e);
         }
-        const ajaxError = new AjaxError('ajax error', this, request);
-        if (ajaxError.response === errorObject) {
-          subscriber.error(errorObject.e);
-        } else {
-          subscriber.error(ajaxError);
+        let error;
+        try {
+          error = new AjaxError('ajax error', this, request);
+        } catch (err) {
+          error = err;
         }
+        subscriber.error(error);
       };
       xhr.onerror = xhrError;
       (<any>xhrError).request = request;
@@ -401,12 +404,13 @@ export class AjaxSubscriber<T> extends Subscriber<Event> {
           if (progressSubscriber) {
             progressSubscriber.error(e);
           }
-          const ajaxError = new AjaxError('ajax error ' + status, this, request);
-          if (ajaxError.response === errorObject) {
-            subscriber.error(errorObject.e);
-          } else {
-            subscriber.error(ajaxError);
+          let error;
+          try {
+            error = new AjaxError('ajax error ' + status, this, request);
+          } catch (err) {
+            error = err;
           }
+          subscriber.error(error);
         }
       }
     }
@@ -512,7 +516,7 @@ function parseJson(xhr: XMLHttpRequest) {
 function parseXhrResponse(responseType: string, xhr: XMLHttpRequest) {
   switch (responseType) {
     case 'json':
-        return tryCatch(parseJson)(xhr);
+        return parseJson(xhr);
       case 'xml':
         return xhr.responseXML;
       case 'text':

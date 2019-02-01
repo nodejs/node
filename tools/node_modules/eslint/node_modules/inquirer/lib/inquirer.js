@@ -33,6 +33,7 @@ inquirer.createPromptModule = function(opt) {
 
     return promise;
   };
+
   promptModule.prompts = {};
 
   /**
@@ -81,6 +82,7 @@ inquirer.prompt = inquirer.createPromptModule();
 inquirer.registerPrompt = function(name, prompt) {
   inquirer.prompt.registerPrompt(name, prompt);
 };
+
 inquirer.restoreDefaultPrompts = function() {
   inquirer.prompt.restoreDefaultPrompts();
 };

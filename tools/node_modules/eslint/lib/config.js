@@ -71,7 +71,7 @@ class Config {
         const options = providedOptions || {};
 
         this.linterContext = linterContext;
-        this.plugins = new Plugins(linterContext.environments, linterContext.rules);
+        this.plugins = new Plugins(linterContext.environments, linterContext.defineRule.bind(linterContext));
 
         this.options = options;
         this.ignore = options.ignore;

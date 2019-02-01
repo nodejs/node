@@ -10,7 +10,7 @@
 //------------------------------------------------------------------------------
 
 const Rules = require("../rules"),
-    loadRules = require("../load-rules");
+    builtInRules = require("../built-in-rules-index");
 
 const rules = new Rules();
 
@@ -299,9 +299,7 @@ function generateConfigsFromSchema(schema) {
  * @returns {rulesConfig} Hash of rule names and arrays of possible configurations
  */
 function createCoreRuleConfigs() {
-    const ruleList = loadRules();
-
-    return Object.keys(ruleList).reduce((accumulator, id) => {
+    return Object.keys(builtInRules).reduce((accumulator, id) => {
         const rule = rules.get(id);
         const schema = (typeof rule === "function") ? rule.schema : rule.meta.schema;
 
