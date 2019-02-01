@@ -6,17 +6,14 @@ const primValues = {
   'string': 'a',
   'number': 1,
   'object': { 0: 'a' },
-  'array': [1, 2, 3]
+  'array': [1, 2, 3],
 };
 
 const bench = common.createBenchmark(main, {
   primitive: Object.keys(primValues),
   n: [2e4],
   strict: [0, 1],
-  method: [
-    'deepEqual',
-    'notDeepEqual',
-  ]
+  method: [ 'deepEqual', 'notDeepEqual' ],
 });
 
 function main({ n, primitive, method, strict }) {

@@ -5,11 +5,7 @@ const { throws, doesNotThrow } = require('assert');
 
 const bench = common.createBenchmark(main, {
   n: [1e4],
-  method: [
-    'doesNotThrow',
-    'throws_TypeError',
-    'throws_RegExp'
-  ]
+  method: [ 'doesNotThrow', 'throws_TypeError', 'throws_RegExp' ],
 });
 
 function main({ n, method }) {

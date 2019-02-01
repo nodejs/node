@@ -16,7 +16,7 @@ const bench = common.createBenchmark(main, {
     'deepEqual',
     'notDeepEqual',
   ],
-  len: [1e2, 5e3]
+  len: [1e2, 5e3],
 });
 
 function main({ type, n, len, method, strict }) {
