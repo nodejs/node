@@ -118,7 +118,6 @@ using v8::Exception;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
-using v8::Int32;
 using v8::Isolate;
 using v8::Just;
 using v8::Local;
@@ -158,7 +157,7 @@ struct V8Platform v8_platform;
 static const unsigned kMaxSignal = 32;
 #endif
 
-static void WaitForInspectorDisconnect(Environment* env) {
+void WaitForInspectorDisconnect(Environment* env) {
 #if HAVE_INSPECTOR
   if (env->inspector_agent()->IsActive()) {
     // Restore signal dispositions, the app is done and is no longer
@@ -176,13 +175,6 @@ static void WaitForInspectorDisconnect(Environment* env) {
     env->inspector_agent()->WaitForDisconnect();
   }
 #endif
-}
-
-void Exit(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  WaitForInspectorDisconnect(env);
-  int code = args[0]->Int32Value(env->context()).FromMaybe(0);
-  env->Exit(code);
 }
 
 void SignalExit(int signo) {
