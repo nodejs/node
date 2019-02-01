@@ -17,15 +17,15 @@ if (isMainThread) {
 
     // `postMessage` should not throw after termination
     // (this mimics the browser behavior).
-    assert.doesNotThrow(() => w.postMessage('foobar'));
-    assert.doesNotThrow(() => w.ref());
-    assert.doesNotThrow(() => w.unref());
+    w.postMessage('foobar');
+    w.ref();
+    w.unref();
 
     // Although not browser specific, probably wise to
     // make sure the stream getters don't throw either.
-    assert.doesNotThrow(() => w.stdin);
-    assert.doesNotThrow(() => w.stdout);
-    assert.doesNotThrow(() => w.stderr);
+    w.stdin;
+    w.stdout;
+    w.stderr;
 
     // Sanity check.
     assert.strictEqual(w.threadId, -1);
