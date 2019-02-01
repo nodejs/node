@@ -1,28 +1,34 @@
 #!/bin/sh
 
-# Locate python2 interpreter and re-execute the script.  Note that the
-# mix of single and double quotes is intentional, as is the fact that
-# the ] goes on a new line.
+# Locate an acceptable python interpreter and then re-execute the script.
+# Note that the mix of single and double quotes is intentional,
+# as is the fact that the ] goes on a new line.
+# When a 'which' call is made for a specific version of Python on Travis CI,
+# pyenv will alert which shims are available and then will fail the build.
 _=[ 'exec' '/bin/sh' '-c' '''
+test ${TRAVIS} && exec python "$0" "$@"  # workaround for pyenv on Travis CI
 which python2.7 >/dev/null && exec python2.7 "$0" "$@"
-which python2 >/dev/null && exec python2 "$0" "$@"
+which python3.7 >/dev/null && exec python3.7 "$0" "$@"
+which python3.6 >/dev/null && exec python3.6 "$0" "$@"
+which python3.5 >/dev/null && exec python3.5 "$0" "$@"
 exec python "$0" "$@"
 ''' "$0" "$@"
 ]
 del _
 
 import sys
-from distutils.spawn import find_executable as which
-if sys.version_info[:2] != (2, 7):
-  sys.stderr.write('Please use Python 2.7')
+from distutils.spawn import find_executable
 
-  python2 = which('python2') or which('python2.7')
-
-  if python2:
-    sys.stderr.write(':\n\n')
-    sys.stderr.write('  ' + python2 + ' ' + ' '.join(sys.argv))
-
-  sys.stderr.write('\n')
+print('Node configure: Found Python {0}.{1}.{2}...'.format(*sys.version_info))
+acceptable_pythons = ((2, 7), (3, 7), (3, 6), (3, 5))
+if sys.version_info[:2] in acceptable_pythons:
+  import configure
+else:
+  python_cmds = ['python{0}.{1}'.format(*vers) for vers in acceptable_pythons]
+  sys.stderr.write('Please use {0}.\n'.format(' or '.join(python_cmds)))
+  for python_cmd in python_cmds:
+      python_cmd_path = find_executable(python_cmd)
+      if python_cmd_path and 'pyenv/shims' not in python_cmd_path:
+        sys.stderr.write('\t{0} {1}\n'.format(python_cmd_path,
+                                              ' '.join(sys.argv[:1])))
   sys.exit(1)
-
-import configure
