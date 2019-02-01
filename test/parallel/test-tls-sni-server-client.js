@@ -86,6 +86,7 @@ const clientResults = [];
 
 const server = tls.createServer(serverOptions, function(c) {
   serverResults.push(c.servername);
+  c.end();
 });
 
 server.addContext('a.example.com', SNIContexts['a.example.com']);
@@ -107,7 +108,6 @@ function startTest() {
       clientResults.push(
         client.authorizationError &&
         (client.authorizationError === 'ERR_TLS_CERT_ALTNAME_INVALID'));
-      client.destroy();
 
       // Continue
       start();
