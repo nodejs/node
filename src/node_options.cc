@@ -540,7 +540,14 @@ void GetOptions(const FunctionCallbackInfo<Value>& args) {
     switch (option_info.type) {
       case kNoOp:
       case kV8Option:
-        value = Undefined(isolate);
+        // Special case for --abort-on-uncaught-exception which is also
+        // respected by Node.js internals
+        if (item.first == "--abort-on-uncaught-exception") {
+          value = Boolean::New(
+            isolate, original_per_env->abort_on_uncaught_exception);
+        } else {
+          value = Undefined(isolate);
+        }
         break;
       case kBoolean:
         value = Boolean::New(isolate, *parser.Lookup<bool>(field, opts));

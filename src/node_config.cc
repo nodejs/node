@@ -69,9 +69,6 @@ static void Initialize(Local<Object> target,
   READONLY_FALSE_PROPERTY(target, "hasInspector");
 #endif
 
-  if (env->abort_on_uncaught_exception())
-    READONLY_TRUE_PROPERTY(target, "shouldAbortOnUncaughtException");
-
   READONLY_PROPERTY(target,
                     "bits",
                     Number::New(env->isolate(), 8 * sizeof(intptr_t)));
