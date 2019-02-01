@@ -385,6 +385,13 @@ static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
 #endif
 }
 
+static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  WaitForInspectorDisconnect(env);
+  int code = args[0]->Int32Value(env->context()).FromMaybe(0);
+  env->Exit(code);
+}
+
 static void InitializeProcessMethods(Local<Object> target,
                                      Local<Value> unused,
                                      Local<Context> context,
@@ -416,7 +423,7 @@ static void InitializeProcessMethods(Local<Object> target,
 
   env->SetMethodNoSideEffect(target, "cwd", Cwd);
   env->SetMethod(target, "dlopen", binding::DLOpen);
-  env->SetMethod(target, "reallyExit", Exit);
+  env->SetMethod(target, "reallyExit", ReallyExit);
   env->SetMethodNoSideEffect(target, "uptime", Uptime);
 }
 
