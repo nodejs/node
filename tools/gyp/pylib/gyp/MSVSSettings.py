@@ -13,9 +13,11 @@ and Visual Studio 2010 for all available settings through the user interface.
 The MSBuild schemas were also considered.  They are typically found in the
 MSBuild install directory, e.g. c:\Program Files (x86)\MSBuild
 """
+from __future__ import print_function
 
 import sys
 import re
+from six import string_types
 
 # Dictionaries of settings validators. The key is the tool name, the value is
 # a dictionary mapping setting names to validation functions.
@@ -106,11 +108,11 @@ class _String(_Type):
   """A setting that's just a string."""
 
   def ValidateMSVS(self, value):
-    if not isinstance(value, basestring):
+    if not isinstance(value, string_types):
       raise ValueError('expected string; got %r' % value)
 
   def ValidateMSBuild(self, value):
-    if not isinstance(value, basestring):
+    if not isinstance(value, string_types):
       raise ValueError('expected string; got %r' % value)
 
   def ConvertToMSBuild(self, value):
@@ -122,11 +124,11 @@ class _StringList(_Type):
   """A settings that's a list of strings."""
 
   def ValidateMSVS(self, value):
-    if not isinstance(value, basestring) and not isinstance(value, list):
+    if not isinstance(value, string_types) and not isinstance(value, list):
       raise ValueError('expected string list; got %r' % value)
 
   def ValidateMSBuild(self, value):
-    if not isinstance(value, basestring) and not isinstance(value, list):
+    if not isinstance(value, string_types) and not isinstance(value, list):
       raise ValueError('expected string list; got %r' % value)
 
   def ConvertToMSBuild(self, value):
@@ -400,7 +402,7 @@ def _ValidateExclusionSetting(setting, settings, error_msg, stderr=sys.stderr):
 
   if unrecognized:
     # We don't know this setting. Give a warning.
-    print >> stderr, error_msg
+    print(error_msg, file=stderr)
 
 
 def FixVCMacroSlashes(s):
@@ -461,9 +463,9 @@ def ConvertToMSBuildSettings(msvs_settings, stderr=sys.stderr):
           # Invoke the translation function.
           try:
             msvs_tool[msvs_setting](msvs_value, msbuild_settings)
-          except ValueError, e:
-            print >> stderr, ('Warning: while converting %s/%s to MSBuild, '
-                              '%s' % (msvs_tool_name, msvs_setting, e))
+          except ValueError as e:
+            print(('Warning: while converting %s/%s to MSBuild, '
+                              '%s' % (msvs_tool_name, msvs_setting, e)), file=stderr)
         else:
           _ValidateExclusionSetting(msvs_setting,
                                     msvs_tool,
@@ -472,8 +474,8 @@ def ConvertToMSBuildSettings(msvs_settings, stderr=sys.stderr):
                                      (msvs_tool_name, msvs_setting)),
                                     stderr)
     else:
-      print >> stderr, ('Warning: unrecognized tool %s while converting to '
-                        'MSBuild.' % msvs_tool_name)
+      print(('Warning: unrecognized tool %s while converting to '
+                        'MSBuild.' % msvs_tool_name), file=stderr)
   return msbuild_settings
 
 
@@ -517,9 +519,9 @@ def _ValidateSettings(validators, settings, stderr):
         if setting in tool_validators:
           try:
             tool_validators[setting](value)
-          except ValueError, e:
-            print >> stderr, ('Warning: for %s/%s, %s' %
-                              (tool_name, setting, e))
+          except ValueError as e:
+            print(('Warning: for %s/%s, %s' %
+                              (tool_name, setting, e)), file=stderr)
         else:
           _ValidateExclusionSetting(setting,
                                     tool_validators,
@@ -528,7 +530,7 @@ def _ValidateSettings(validators, settings, stderr):
                                     stderr)
 
     else:
-      print >> stderr, ('Warning: unrecognized tool %s' % tool_name)
+      print(('Warning: unrecognized tool %s' % tool_name), file=stderr)
 
 
 # MSVS and MBuild names of the tools.

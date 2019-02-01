@@ -11,7 +11,6 @@ import re
 import shlex
 import subprocess
 import shutil
-import string
 from distutils.spawn import find_executable as which
 
 # If not run from node/, cd to node/.
@@ -675,8 +674,8 @@ def try_check_compiler(cc, lang):
   except OSError:
     return (False, False, '', '')
 
-  proc.stdin.write('__clang__ __GNUC__ __GNUC_MINOR__ __GNUC_PATCHLEVEL__ '
-                   '__clang_major__ __clang_minor__ __clang_patchlevel__')
+  proc.stdin.write(b'__clang__ __GNUC__ __GNUC_MINOR__ __GNUC_PATCHLEVEL__ '
+                   b'__clang_major__ __clang_minor__ __clang_patchlevel__')
 
   values = (proc.communicate()[0].split() + ['0'] * 7)[0:7]
   is_clang = values[0] == '1'
@@ -754,10 +753,10 @@ def get_gas_version(cc):
        it in a non-standard prefix.''')
 
   gas_ret = proc.communicate()[1]
-  match = re.match(r"GNU assembler version ([2-9]\.[0-9]+)", gas_ret)
+  match = re.match(b"GNU assembler version ([2-9]\.[0-9]+)", gas_ret)
 
   if match:
-    return match.group(1)
+    return str(float(match.group(1)))
   else:
     warn('Could not recognize `gas`: ' + gas_ret)
     return '0'
@@ -818,7 +817,7 @@ def cc_macros(cc=None):
        consider adjusting the CC environment variable if you installed
        it in a non-standard prefix.''')
 
-  p.stdin.write('\n')
+  p.stdin.write(b'\n')
   out = p.communicate()[0]
 
   out = str(out).split('\n')
@@ -1380,7 +1379,7 @@ def configure_intl(o):
     o['variables']['icu_small'] = b(True)
     locs = set(options.with_icu_locales.split(','))
     locs.add('root')  # must have root
-    o['variables']['icu_locales'] = string.join(locs,',')
+    o['variables']['icu_locales'] = ','.join(str(loc) for loc in locs)
     # We will check a bit later if we can use the canned deps/icu-small
   elif with_intl == 'full-icu':
     # full ICU

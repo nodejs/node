@@ -21,6 +21,8 @@ jobs:
       install: *ccache-setup-steps
       script:
         - pyenv global 2.7.15
+        - pip install --upgrade pip
+        - pip install six
         - ./configure
         - make -j2 -C out V=1 v8
 
@@ -35,6 +37,8 @@ jobs:
       install: *ccache-setup-steps
       script:
         - pyenv global 2.7.15
+        - pip install --upgrade pip
+        - pip install six
         - ./configure
         - make -j2 V=1
         - cp out/Release/node /home/travis/.ccache
@@ -48,6 +52,8 @@ jobs:
         - cp /home/travis/.ccache/node out/Release/node
       script:
         - pyenv global 2.7.15
+        - pip install --upgrade pip
+        - pip install six
         - python tools/test.py -j 2 -p dots --report --mode=release --flaky-tests=dontcare default
 
     - name: "Test C++ Suites"
@@ -64,6 +70,8 @@ jobs:
         - touch config.gypi
       script:
         - pyenv global 2.7.15
+        - pip install --upgrade pip
+        - pip install six
         - out/Release/cctest
         - make -j1 V=1 test/addons/.buildstamp test/js-native-api/.buildstamp test/node-api/.buildstamp
         - python tools/test.py -j 2 -p dots --report --mode=release --flaky-tests=dontcare addons js-native-api node-api
@@ -73,6 +81,8 @@ jobs:
       node_js: "node"
       install:
         - pyenv global 2.7.15
+        - pip install --upgrade pip
+        - pip install six
         - make lint-py-build || true
       script:
         - NODE=$(which node) make lint lint-py
