@@ -47,6 +47,22 @@ server.listen(0, common.mustCall(() => {
   };
   const client = tls.connect(options, common.mustCall(() => {
     client.write('');
+
+    common.expectsError(() => client.renegotiate(), {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+    });
+
+    common.expectsError(() => client.renegotiate(common.mustNotCall()), {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+    });
+
+    common.expectsError(() => client.renegotiate({}, false), {
+      code: 'ERR_INVALID_CALLBACK',
+      type: TypeError,
+    });
+
     // Negotiation is still permitted for this first
     // attempt. This should succeed.
     let ok = client.renegotiate(options, common.mustCall((err) => {
