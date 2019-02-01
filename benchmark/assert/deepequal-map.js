@@ -14,8 +14,8 @@ const bench = common.createBenchmark(main, {
     'deepEqual_mixed',
     'notDeepEqual_primitiveOnly',
     'notDeepEqual_objectOnly',
-    'notDeepEqual_mixed'
-  ]
+    'notDeepEqual_mixed',
+  ],
 });
 
 function benchmark(method, n, values, values2) {
