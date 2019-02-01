@@ -141,7 +141,7 @@ DispatchResponse TracingAgent::start(
     return DispatchResponse::Error(
         "Call NodeTracing::end to stop tracing before updating the config");
   }
-  if (!env_->is_main_thread()) {
+  if (!env_->owns_process_state()) {
     return DispatchResponse::Error(
         "Tracing properties can only be changed through main thread sessions");
   }

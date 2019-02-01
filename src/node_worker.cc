@@ -569,6 +569,12 @@ void InitWorker(Local<Object> target,
             FIXED_ONE_BYTE_STRING(env->isolate(), "isMainThread"),
             Boolean::New(env->isolate(), env->is_main_thread()))
       .FromJust();
+
+  target
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(env->isolate(), "ownsProcessState"),
+            Boolean::New(env->isolate(), env->owns_process_state()))
+      .FromJust();
 }
 
 }  // anonymous namespace
