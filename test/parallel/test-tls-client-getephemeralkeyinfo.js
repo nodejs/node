@@ -40,13 +40,14 @@ function test(size, type, name, cipher) {
     const client = tls.connect({
       port: server.address().port,
       rejectUnauthorized: false
-    }, function() {
+    }, common.mustCall(function() {
       const ekeyinfo = client.getEphemeralKeyInfo();
       assert.strictEqual(ekeyinfo.type, type);
       assert.strictEqual(ekeyinfo.size, size);
       assert.strictEqual(ekeyinfo.name, name);
       server.close();
-    });
+    }));
+    client.on('secureConnect', common.mustCall());
   }));
 }
 
