@@ -166,23 +166,17 @@ void AppendExceptionLine(Environment* env,
   ABORT_NO_BACKTRACE();
 }
 
-[[noreturn]] void Assert(const char* const (*args)[4]) {
-  auto filename = (*args)[0];
-  auto linenum = (*args)[1];
-  auto message = (*args)[2];
-  auto function = (*args)[3];
-
+[[noreturn]] void Assert(const AssertionInfo& info) {
   char name[1024];
   GetHumanReadableProcessName(&name);
 
   fprintf(stderr,
-          "%s: %s:%s:%s%s Assertion `%s' failed.\n",
+          "%s: %s:%s%s Assertion `%s' failed.\n",
           name,
-          filename,
-          linenum,
-          function,
-          *function ? ":" : "",
-          message);
+          info.file_line,
+          info.function,
+          *info.function ? ":" : "",
+          info.message);
   fflush(stderr);
 
   Abort();

@@ -85,10 +85,15 @@ extern bool v8_initialized;
 // whether V8 is initialized.
 void LowMemoryNotification();
 
-// The slightly odd function signature for Assert() is to ease
-// instruction cache pressure in calls from CHECK.
+// The reason that Assert() takes a struct argument instead of individual
+// const char*s is to ease instruction cache pressure in calls from CHECK.
+struct AssertionInfo {
+  const char* file_line;  // filename:line
+  const char* message;
+  const char* function;
+};
+[[noreturn]] void Assert(const AssertionInfo& info);
 [[noreturn]] void Abort();
-[[noreturn]] void Assert(const char* const (*args)[4]);
 void DumpBacktrace(FILE* fp);
 
 #define DISALLOW_COPY_AND_ASSIGN(TypeName)                                    \
@@ -120,9 +125,12 @@ void DumpBacktrace(FILE* fp);
 #define CHECK(expr)                                                           \
   do {                                                                        \
     if (UNLIKELY(!(expr))) {                                                  \
-      static const char* const args[] = { __FILE__, STRINGIFY(__LINE__),      \
-                                          #expr, PRETTY_FUNCTION_NAME };      \
-      node::Assert(&args);                                                    \
+      /* Make sure that this struct does not end up in inline code, but    */ \
+      /* rather in a read-only data section when modifying this code.      */ \
+      static const node::AssertionInfo args = {                               \
+        __FILE__ ":" STRINGIFY(__LINE__), #expr, PRETTY_FUNCTION_NAME         \
+      };                                                                      \
+      node::Assert(args);                                                     \
     }                                                                         \
   } while (0)
 
