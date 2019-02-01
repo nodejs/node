@@ -80,6 +80,15 @@ void FreeArrayBufferAllocator(ArrayBufferAllocator* allocator) {
 Isolate* NewIsolate(ArrayBufferAllocator* allocator, uv_loop_t* event_loop) {
   Isolate::CreateParams params;
   params.array_buffer_allocator = allocator;
+
+  double total_memory = uv_get_total_memory();
+  if (total_memory > 0) {
+    // V8 defaults to 700MB or 1.4GB on 32 and 64 bit platforms respectively.
+    // This default is based on browser use-cases. Tell V8 to configure the
+    // heap based on the actual physical memory.
+    params.constraints.ConfigureDefaults(total_memory, 0);
+  }
+
 #ifdef NODE_ENABLE_VTUNE_PROFILING
   params.code_event_handler = vTune::GetVtuneCodeEventHandler();
 #endif
