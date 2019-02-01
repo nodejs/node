@@ -1,6 +1,10 @@
 import { Observable } from '../Observable';
-export function range(start = 0, count = 0, scheduler) {
+export function range(start = 0, count, scheduler) {
     return new Observable(subscriber => {
+        if (count === undefined) {
+            count = start;
+            start = 0;
+        }
         let index = 0;
         let current = start;
         if (scheduler) {

@@ -34,6 +34,9 @@ export function bufferTime<T>(bufferTimeSpan: number, bufferCreationInterval: nu
  * Every second, emit an array of the recent click events
  *
  * ```javascript
+ * import { fromEvent } from 'rxjs';
+ * import { bufferTime } from 'rxjs/operators';
+ *
  * const clicks = fromEvent(document, 'click');
  * const buffered = clicks.pipe(bufferTime(1000));
  * buffered.subscribe(x => console.log(x));
@@ -42,6 +45,9 @@ export function bufferTime<T>(bufferTimeSpan: number, bufferCreationInterval: nu
  * Every 5 seconds, emit the click events from the next 2 seconds
  *
  * ```javascript
+ * import { fromEvent } from 'rxjs';
+ * import { bufferTime } from 'rxjs/operators';
+ *
  * const clicks = fromEvent(document, 'click');
  * const buffered = clicks.pipe(bufferTime(2000, 5000));
  * buffered.subscribe(x => console.log(x));

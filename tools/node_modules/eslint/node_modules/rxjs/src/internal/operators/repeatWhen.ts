@@ -3,8 +3,6 @@ import { Subscriber } from '../Subscriber';
 import { Observable } from '../Observable';
 import { Subject } from '../Subject';
 import { Subscription } from '../Subscription';
-import { tryCatch } from '../util/tryCatch';
-import { errorObject } from '../util/errorObject';
 
 import { OuterSubscriber } from '../OuterSubscriber';
 import { InnerSubscriber } from '../InnerSubscriber';
@@ -113,8 +111,11 @@ class RepeatWhenSubscriber<T, R> extends OuterSubscriber<T, R> {
 
   private subscribeToRetries() {
     this.notifications = new Subject();
-    const retries = tryCatch(this.notifier)(this.notifications);
-    if (retries === errorObject) {
+    let retries;
+    try {
+      const { notifier } = this;
+      retries = notifier(this.notifications);
+    } catch (e) {
       return super.complete();
     }
     this.retries = retries;

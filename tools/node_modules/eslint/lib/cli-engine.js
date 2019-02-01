@@ -29,7 +29,8 @@ const fs = require("fs"),
     hash = require("./util/hash"),
     ModuleResolver = require("./util/module-resolver"),
     naming = require("./util/naming"),
-    pkg = require("../package.json");
+    pkg = require("../package.json"),
+    loadRules = require("./load-rules");
 
 const debug = require("debug")("eslint:cli-engine");
 const resolver = new ModuleResolver();
@@ -447,7 +448,7 @@ class CLIEngine {
 
             this.options.rulePaths.forEach(rulesdir => {
                 debug(`Loading rules from ${rulesdir}`);
-                this.linter.rules.load(rulesdir, cwd);
+                this.linter.defineRules(loadRules(rulesdir, cwd));
             });
         }
 

@@ -1,9 +1,7 @@
-/** PURE_IMPORTS_START tslib,_Subject,_Subscription,_util_tryCatch,_util_errorObject,_OuterSubscriber,_util_subscribeToResult PURE_IMPORTS_END */
+/** PURE_IMPORTS_START tslib,_Subject,_Subscription,_OuterSubscriber,_util_subscribeToResult PURE_IMPORTS_END */
 import * as tslib_1 from "tslib";
 import { Subject } from '../Subject';
 import { Subscription } from '../Subscription';
-import { tryCatch } from '../util/tryCatch';
-import { errorObject } from '../util/errorObject';
 import { OuterSubscriber } from '../OuterSubscriber';
 import { subscribeToResult } from '../util/subscribeToResult';
 export function windowToggle(openings, closingSelector) {
@@ -81,26 +79,27 @@ var WindowToggleSubscriber = /*@__PURE__*/ (function (_super) {
     };
     WindowToggleSubscriber.prototype.notifyNext = function (outerValue, innerValue, outerIndex, innerIndex, innerSub) {
         if (outerValue === this.openings) {
-            var closingSelector = this.closingSelector;
-            var closingNotifier = tryCatch(closingSelector)(innerValue);
-            if (closingNotifier === errorObject) {
-                return this.error(errorObject.e);
+            var closingNotifier = void 0;
+            try {
+                var closingSelector = this.closingSelector;
+                closingNotifier = closingSelector(innerValue);
+            }
+            catch (e) {
+                return this.error(e);
+            }
+            var window_1 = new Subject();
+            var subscription = new Subscription();
+            var context_4 = { window: window_1, subscription: subscription };
+            this.contexts.push(context_4);
+            var innerSubscription = subscribeToResult(this, closingNotifier, context_4);
+            if (innerSubscription.closed) {
+                this.closeWindow(this.contexts.length - 1);
             }
             else {
-                var window_1 = new Subject();
-                var subscription = new Subscription();
-                var context_4 = { window: window_1, subscription: subscription };
-                this.contexts.push(context_4);
-                var innerSubscription = subscribeToResult(this, closingNotifier, context_4);
-                if (innerSubscription.closed) {
-                    this.closeWindow(this.contexts.length - 1);
-                }
-                else {
-                    innerSubscription.context = context_4;
-                    subscription.add(innerSubscription);
-                }
-                this.destination.next(window_1);
+                innerSubscription.context = context_4;
+                subscription.add(innerSubscription);
             }
+            this.destination.next(window_1);
         }
         else {
             this.closeWindow(this.contexts.indexOf(outerValue));

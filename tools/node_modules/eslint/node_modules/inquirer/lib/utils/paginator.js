@@ -39,6 +39,7 @@ class Paginator {
     ) {
       this.pointer = Math.min(middleOfList, this.pointer + active - this.lastIndex);
     }
+
     this.lastIndex = active;
 
     // Duplicate the lines so it give an infinite list look

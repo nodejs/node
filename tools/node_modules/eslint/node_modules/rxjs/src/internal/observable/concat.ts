@@ -1,19 +1,19 @@
 import { Observable } from '../Observable';
-import { ObservableInput, SchedulerLike } from '../types';
+import { ObservableInput, SchedulerLike, ObservedValueOf } from '../types';
 import { isScheduler } from '../util/isScheduler';
 import { of } from './of';
 import { from } from './from';
 import { concatAll } from '../operators/concatAll';
 
 /* tslint:disable:max-line-length */
-export function concat<T>(v1: ObservableInput<T>, scheduler?: SchedulerLike): Observable<T>;
-export function concat<T, T2>(v1: ObservableInput<T>, v2: ObservableInput<T2>, scheduler?: SchedulerLike): Observable<T | T2>;
-export function concat<T, T2, T3>(v1: ObservableInput<T>, v2: ObservableInput<T2>, v3: ObservableInput<T3>, scheduler?: SchedulerLike): Observable<T | T2 | T3>;
-export function concat<T, T2, T3, T4>(v1: ObservableInput<T>, v2: ObservableInput<T2>, v3: ObservableInput<T3>, v4: ObservableInput<T4>, scheduler?: SchedulerLike): Observable<T | T2 | T3 | T4>;
-export function concat<T, T2, T3, T4, T5>(v1: ObservableInput<T>, v2: ObservableInput<T2>, v3: ObservableInput<T3>, v4: ObservableInput<T4>, v5: ObservableInput<T5>, scheduler?: SchedulerLike): Observable<T | T2 | T3 | T4 | T5>;
-export function concat<T, T2, T3, T4, T5, T6>(v1: ObservableInput<T>, v2: ObservableInput<T2>, v3: ObservableInput<T3>, v4: ObservableInput<T4>, v5: ObservableInput<T5>, v6: ObservableInput<T6>, scheduler?: SchedulerLike): Observable<T | T2 | T3 | T4 | T5 | T6>;
-export function concat<T>(...observables: (ObservableInput<T> | SchedulerLike)[]): Observable<T>;
-export function concat<T, R>(...observables: (ObservableInput<any> | SchedulerLike)[]): Observable<R>;
+export function concat<O1 extends ObservableInput<any>>(v1: O1, scheduler?: SchedulerLike): Observable<ObservedValueOf<O1>>;
+export function concat<O1 extends ObservableInput<any>, O2 extends ObservableInput<any>>(v1: O1, v2: O2, scheduler?: SchedulerLike): Observable<ObservedValueOf<O1> | ObservedValueOf<O2>>;
+export function concat<O1 extends ObservableInput<any>, O2 extends ObservableInput<any>, O3 extends ObservableInput<any>>(v1: O1, v2: O2, v3: O3, scheduler?: SchedulerLike): Observable<ObservedValueOf<O1> | ObservedValueOf<O2> | ObservedValueOf<O3>>;
+export function concat<O1 extends ObservableInput<any>, O2 extends ObservableInput<any>, O3 extends ObservableInput<any>, O4 extends ObservableInput<any>>(v1: O1, v2: O2, v3: O3, v4: O4, scheduler?: SchedulerLike): Observable<ObservedValueOf<O1> | ObservedValueOf<O2> | ObservedValueOf<O3> | ObservedValueOf<O4>>;
+export function concat<O1 extends ObservableInput<any>, O2 extends ObservableInput<any>, O3 extends ObservableInput<any>, O4 extends ObservableInput<any>, O5 extends ObservableInput<any>>(v1: O1, v2: O2, v3: O3, v4: O4, v5: O5, scheduler?: SchedulerLike): Observable<ObservedValueOf<O1> | ObservedValueOf<O2> | ObservedValueOf<O3> | ObservedValueOf<O4> | ObservedValueOf<O5>>;
+export function concat<O1 extends ObservableInput<any>, O2 extends ObservableInput<any>, O3 extends ObservableInput<any>, O4 extends ObservableInput<any>, O5 extends ObservableInput<any>, O6 extends ObservableInput<any>>(v1: O1, v2: O2, v3: O3, v4: O4, v5: O5, v6: O6, scheduler?: SchedulerLike): Observable<ObservedValueOf<O1> | ObservedValueOf<O2> | ObservedValueOf<O3> | ObservedValueOf<O4> | ObservedValueOf<O5> | ObservedValueOf<O6>>;
+export function concat<O extends ObservableInput<any>>(...observables: (O | SchedulerLike)[]): Observable<ObservedValueOf<O>>;
+export function concat<R>(...observables: (ObservableInput<any> | SchedulerLike)[]): Observable<R>;
 /* tslint:enable:max-line-length */
 /**
  * Creates an output Observable which sequentially emits all values from given
@@ -55,6 +55,9 @@ export function concat<T, R>(...observables: (ObservableInput<any> | SchedulerLi
  * ## Examples
  * ### Concatenate a timer counting from 0 to 3 with a synchronous sequence from 1 to 10
  * ```javascript
+ * import { concat, interval, range } from 'rxjs';
+ * import { take } from 'rxjs/operators';
+ *
  * const timer = interval(1000).pipe(take(4));
  * const sequence = range(1, 10);
  * const result = concat(timer, sequence);
@@ -66,6 +69,9 @@ export function concat<T, R>(...observables: (ObservableInput<any> | SchedulerLi
  *
  * ### Concatenate an array of 3 Observables
  * ```javascript
+ * import { concat, interval } from 'rxjs';
+ * import { take } from 'rxjs/operators';
+ *
  * const timer1 = interval(1000).pipe(take(10));
  * const timer2 = interval(2000).pipe(take(6));
  * const timer3 = interval(500).pipe(take(10));
@@ -81,6 +87,9 @@ export function concat<T, R>(...observables: (ObservableInput<any> | SchedulerLi
  *
  * ### Concatenate the same Observable to repeat it
  * ```javascript
+ * import { concat, interval } from 'rxjs';
+ * import { take } from 'rxjs/operators';
+ *
  * const timer = interval(1000).pipe(take(2));
  * *
  * concat(timer, timer) // concatenating the same Observable!
@@ -113,9 +122,6 @@ export function concat<T, R>(...observables: (ObservableInput<any> | SchedulerLi
  * @name concat
  * @owner Observable
  */
-export function concat<T, R>(...observables: Array<ObservableInput<any> | SchedulerLike>): Observable<R> {
-  if (observables.length === 1 || (observables.length === 2 && isScheduler(observables[1]))) {
-    return from(<any>observables[0]);
-  }
+export function concat<O extends ObservableInput<any>, R>(...observables: Array<O | SchedulerLike>): Observable<ObservedValueOf<O> | R> {
   return concatAll<R>()(of(...observables));
 }

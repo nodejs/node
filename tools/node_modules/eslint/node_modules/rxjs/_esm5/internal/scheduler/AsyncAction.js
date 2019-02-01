@@ -42,6 +42,7 @@ var AsyncAction = /*@__PURE__*/ (function (_super) {
             return id;
         }
         clearInterval(id);
+        return undefined;
     };
     AsyncAction.prototype.execute = function (state, delay) {
         if (this.closed) {

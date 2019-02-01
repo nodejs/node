@@ -23,6 +23,9 @@ import { UnaryFunction } from '../types';
  * ## Example
  * Partition click events into those on DIV elements and those elsewhere
  * ```javascript
+ * import { fromEvent } from 'rxjs';
+ * import { partition } from 'rxjs/operators';
+ *
  * const clicks = fromEvent(document, 'click');
  * const parts = clicks.pipe(partition(ev => ev.target.tagName === 'DIV'));
  * const clicksOnDivs = parts[0];

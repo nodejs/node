@@ -14,24 +14,29 @@ var __extends = (this && this.__extends) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 var Subscriber_1 = require("../Subscriber");
-function takeWhile(predicate) {
-    return function (source) { return source.lift(new TakeWhileOperator(predicate)); };
+function takeWhile(predicate, inclusive) {
+    if (inclusive === void 0) { inclusive = false; }
+    return function (source) {
+        return source.lift(new TakeWhileOperator(predicate, inclusive));
+    };
 }
 exports.takeWhile = takeWhile;
 var TakeWhileOperator = (function () {
-    function TakeWhileOperator(predicate) {
+    function TakeWhileOperator(predicate, inclusive) {
         this.predicate = predicate;
+        this.inclusive = inclusive;
     }
     TakeWhileOperator.prototype.call = function (subscriber, source) {
-        return source.subscribe(new TakeWhileSubscriber(subscriber, this.predicate));
+        return source.subscribe(new TakeWhileSubscriber(subscriber, this.predicate, this.inclusive));
     };
     return TakeWhileOperator;
 }());
 var TakeWhileSubscriber = (function (_super) {
     __extends(TakeWhileSubscriber, _super);
-    function TakeWhileSubscriber(destination, predicate) {
+    function TakeWhileSubscriber(destination, predicate, inclusive) {
         var _this = _super.call(this, destination) || this;
         _this.predicate = predicate;
+        _this.inclusive = inclusive;
         _this.index = 0;
         return _this;
     }
@@ -53,6 +58,9 @@ var TakeWhileSubscriber = (function (_super) {
             destination.next(value);
         }
         else {
+            if (this.inclusive) {
+                destination.next(value);
+            }
             destination.complete();
         }
     };
