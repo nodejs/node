@@ -650,6 +650,14 @@ inline bool Environment::is_main_thread() const {
   return flags_ & kIsMainThread;
 }
 
+inline bool Environment::owns_process_state() const {
+  return flags_ & kOwnsProcessState;
+}
+
+inline bool Environment::owns_inspector() const {
+  return flags_ & kOwnsInspector;
+}
+
 inline uint64_t Environment::thread_id() const {
   return thread_id_;
 }

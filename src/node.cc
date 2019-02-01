@@ -314,16 +314,18 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
       loader_exports_obj->Get(context, env->require_string()).ToLocalChecked();
   env->set_native_module_require(require.As<Function>());
 
-  // process, loaderExports, isMainThread
+  // process, loaderExports, isMainThread, ownsProcessState, primordials
   std::vector<Local<String>> node_params = {
       env->process_string(),
       FIXED_ONE_BYTE_STRING(isolate, "loaderExports"),
       FIXED_ONE_BYTE_STRING(isolate, "isMainThread"),
+      FIXED_ONE_BYTE_STRING(isolate, "ownsProcessState"),
       env->primordials_string()};
   std::vector<Local<Value>> node_args = {
       process,
       loader_exports_obj,
       Boolean::New(isolate, env->is_main_thread()),
+      Boolean::New(isolate, env->owns_process_state()),
       env->primordials()};
 
   MaybeLocal<Value> result = ExecuteBootstrapper(
@@ -752,7 +754,12 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   HandleScope handle_scope(isolate);
   Local<Context> context = NewContext(isolate);
   Context::Scope context_scope(context);
-  Environment env(isolate_data, context, Environment::kIsMainThread);
+  Environment env(
+      isolate_data,
+      context,
+      static_cast<Environment::Flags>(Environment::kIsMainThread |
+                                      Environment::kOwnsProcessState |
+                                      Environment::kOwnsInspector));
   env.Start(per_process::v8_is_profiling);
   env.ProcessCliArgs(args, exec_args);
 

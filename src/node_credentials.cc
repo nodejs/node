@@ -175,7 +175,7 @@ static void GetEGid(const FunctionCallbackInfo<Value>& args) {
 
 static void SetGid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  CHECK(env->is_main_thread());
+  CHECK(env->owns_process_state());
 
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsUint32() || args[0]->IsString());
@@ -194,7 +194,7 @@ static void SetGid(const FunctionCallbackInfo<Value>& args) {
 
 static void SetEGid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  CHECK(env->is_main_thread());
+  CHECK(env->owns_process_state());
 
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsUint32() || args[0]->IsString());
@@ -213,7 +213,7 @@ static void SetEGid(const FunctionCallbackInfo<Value>& args) {
 
 static void SetUid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  CHECK(env->is_main_thread());
+  CHECK(env->owns_process_state());
 
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsUint32() || args[0]->IsString());
@@ -232,7 +232,7 @@ static void SetUid(const FunctionCallbackInfo<Value>& args) {
 
 static void SetEUid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  CHECK(env->is_main_thread());
+  CHECK(env->owns_process_state());
 
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsUint32() || args[0]->IsString());
@@ -363,7 +363,7 @@ static void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "getegid", GetEGid);
   env->SetMethodNoSideEffect(target, "getgroups", GetGroups);
 
-  if (env->is_main_thread()) {
+  if (env->owns_process_state()) {
     env->SetMethod(target, "initgroups", InitGroups);
     env->SetMethod(target, "setegid", SetEGid);
     env->SetMethod(target, "seteuid", SetEUid);

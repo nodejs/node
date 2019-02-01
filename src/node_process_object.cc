@@ -86,15 +86,17 @@ MaybeLocal<Object> CreateProcessObject(
 
   // process.title
   auto title_string = FIXED_ONE_BYTE_STRING(env->isolate(), "title");
-  CHECK(process->SetAccessor(
-      env->context(),
-      title_string,
-      ProcessTitleGetter,
-      env->is_main_thread() ? ProcessTitleSetter : nullptr,
-      env->as_external(),
-      DEFAULT,
-      None,
-      SideEffectType::kHasNoSideEffect).FromJust());
+  CHECK(process
+            ->SetAccessor(
+                env->context(),
+                title_string,
+                ProcessTitleGetter,
+                env->owns_process_state() ? ProcessTitleSetter : nullptr,
+                env->as_external(),
+                DEFAULT,
+                None,
+                SideEffectType::kHasNoSideEffect)
+            .FromJust());
 
   // process.version
   READONLY_PROPERTY(process,
@@ -290,11 +292,13 @@ MaybeLocal<Object> CreateProcessObject(
 
   // process.debugPort
   auto debug_port_string = FIXED_ONE_BYTE_STRING(env->isolate(), "debugPort");
-  CHECK(process->SetAccessor(env->context(),
-                             debug_port_string,
-                             DebugPortGetter,
-                             env->is_main_thread() ? DebugPortSetter : nullptr,
-                             env->as_external()).FromJust());
+  CHECK(process
+            ->SetAccessor(env->context(),
+                          debug_port_string,
+                          DebugPortGetter,
+                          env->owns_process_state() ? DebugPortSetter : nullptr,
+                          env->as_external())
+            .FromJust());
 
   // process._rawDebug: may be overwritten later in JS land, but should be
   // availbale from the begining for debugging purposes
