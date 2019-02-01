@@ -137,7 +137,7 @@ export { AsyncSubject } from './AsyncSubject';
 export { ReplaySubject } from './ReplaySubject';
 export { BehaviorSubject } from './BehaviorSubject';
 export { ConnectableObservable } from './observable/ConnectableObservable';
-export { Notification } from './Notification';
+export { Notification, NotificationKind } from './Notification';
 export { EmptyError } from './util/EmptyError';
 export { ArgumentOutOfRangeError } from './util/ArgumentOutOfRangeError';
 export { ObjectUnsubscribedError } from './util/ObjectUnsubscribedError';

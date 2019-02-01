@@ -15,6 +15,9 @@ import { noop } from '../util/noop';
  * ##  Example
  * ### Emit the number 7, then never emit anything else (not even complete)
  * ```javascript
+ * import { NEVER } from 'rxjs';
+ * import { startWith } from 'rxjs/operators';
+ *
  * function info() {
  *   console.log('Will not be called');
  * }

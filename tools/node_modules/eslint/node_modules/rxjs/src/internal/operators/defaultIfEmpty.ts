@@ -24,6 +24,9 @@ export function defaultIfEmpty<T, R>(defaultValue?: R): OperatorFunction<T, T | 
  * ## Example
  * If no clicks happen in 5 seconds, then emit "no clicks"
  * ```javascript
+ * import { fromEvent } from 'rxjs';
+ * import { defaultIfEmpty, takeUntil } from 'rxjs/operators';
+ *
  * const clicks = fromEvent(document, 'click');
  * const clicksBeforeFive = clicks.pipe(takeUntil(interval(5000)));
  * const result = clicksBeforeFive.pipe(defaultIfEmpty('no clicks'));

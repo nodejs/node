@@ -4,6 +4,12 @@ import { empty } from './observable/empty';
 import { of } from './observable/of';
 import { throwError } from './observable/throwError';
 
+export const enum NotificationKind {
+  NEXT = 'N',
+  ERROR = 'E',
+  COMPLETE = 'C',
+}
+
 /**
  * Represents a push-based event or value that an {@link Observable} can emit.
  * This class is particularly useful for operators that manage notifications,
@@ -21,8 +27,8 @@ import { throwError } from './observable/throwError';
 export class Notification<T> {
   hasValue: boolean;
 
-  constructor(public kind: string, public value?: T, public error?: any) {
-    this.hasValue = kind === 'N';
+  constructor(public kind: NotificationKind, public value?: T, public error?: any) {
+    this.hasValue = kind === NotificationKind.NEXT;
   }
 
   /**
@@ -32,11 +38,11 @@ export class Notification<T> {
    */
   observe(observer: PartialObserver<T>): any {
     switch (this.kind) {
-      case 'N':
+      case NotificationKind.NEXT:
         return observer.next && observer.next(this.value);
-      case 'E':
+      case NotificationKind.ERROR:
         return observer.error && observer.error(this.error);
-      case 'C':
+      case NotificationKind.COMPLETE:
         return observer.complete && observer.complete();
     }
   }
@@ -52,11 +58,11 @@ export class Notification<T> {
   do(next: (value: T) => void, error?: (err: any) => void, complete?: () => void): any {
     const kind = this.kind;
     switch (kind) {
-      case 'N':
+      case NotificationKind.NEXT:
         return next && next(this.value);
-      case 'E':
+      case NotificationKind.ERROR:
         return error && error(this.error);
-      case 'C':
+      case NotificationKind.COMPLETE:
         return complete && complete();
     }
   }
@@ -86,18 +92,18 @@ export class Notification<T> {
   toObservable(): Observable<T> {
     const kind = this.kind;
     switch (kind) {
-      case 'N':
+      case NotificationKind.NEXT:
         return of(this.value);
-      case 'E':
+      case NotificationKind.ERROR:
         return throwError(this.error);
-      case 'C':
+      case NotificationKind.COMPLETE:
         return empty();
     }
     throw new Error('unexpected notification kind value');
   }
 
-  private static completeNotification: Notification<any> = new Notification('C');
-  private static undefinedValueNotification: Notification<any> = new Notification('N', undefined);
+  private static completeNotification: Notification<any> = new Notification(NotificationKind.COMPLETE);
+  private static undefinedValueNotification: Notification<any> = new Notification(NotificationKind.NEXT, undefined);
 
   /**
    * A shortcut to create a Notification instance of the type `next` from a
@@ -109,7 +115,7 @@ export class Notification<T> {
    */
   static createNext<T>(value: T): Notification<T> {
     if (typeof value !== 'undefined') {
-      return new Notification('N', value);
+      return new Notification(NotificationKind.NEXT, value);
     }
     return Notification.undefinedValueNotification;
   }
@@ -123,7 +129,7 @@ export class Notification<T> {
    * @nocollapse
    */
   static createError<T>(err?: any): Notification<T> {
-    return new Notification('E', undefined, err);
+    return new Notification(NotificationKind.ERROR, undefined, err);
   }
 
   /**

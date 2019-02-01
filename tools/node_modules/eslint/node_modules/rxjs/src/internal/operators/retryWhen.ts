@@ -3,8 +3,6 @@ import { Subscriber } from '../Subscriber';
 import { Observable } from '../Observable';
 import { Subject } from '../Subject';
 import { Subscription } from '../Subscription';
-import { tryCatch } from '../util/tryCatch';
-import { errorObject } from '../util/errorObject';
 
 import { OuterSubscriber } from '../OuterSubscriber';
 import { InnerSubscriber } from '../InnerSubscriber';
@@ -66,9 +64,11 @@ class RetryWhenSubscriber<T, R> extends OuterSubscriber<T, R> {
 
       if (!retries) {
         errors = new Subject();
-        retries = tryCatch(this.notifier)(errors);
-        if (retries === errorObject) {
-          return super.error(errorObject.e);
+        try {
+          const { notifier } = this;
+          retries = notifier(errors);
+        } catch (e) {
+          return super.error(e);
         }
         retriesSubscription = subscribeToResult(this, retries);
       } else {

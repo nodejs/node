@@ -140,6 +140,7 @@ class ListPrompt extends Base {
     if (input <= this.opt.choices.realLength) {
       this.selected = input - 1;
     }
+
     this.render();
   }
 }
@@ -173,6 +174,7 @@ function listRender(choices, pointer) {
     if (isSelected) {
       line = chalk.cyan(line);
     }
+
     output += line + ' \n';
   });
 

@@ -18,9 +18,11 @@ import { AsyncScheduler } from './AsyncScheduler';
  * ## Examples
  * Use async scheduler to delay task
  * ```javascript
+ * import { asyncScheduler } from 'rxjs';
+ *
  * const task = () => console.log('it works!');
  *
- * Rx.Scheduler.async.schedule(task, 2000);
+ * asyncScheduler.schedule(task, 2000);
  *
  * // After 2 seconds logs:
  * // "it works!"
@@ -28,13 +30,15 @@ import { AsyncScheduler } from './AsyncScheduler';
  *
  * Use async scheduler to repeat task in intervals
  * ```javascript
+ * import { asyncScheduler } from 'rxjs';
+ *
  * function task(state) {
  *   console.log(state);
  *   this.schedule(state + 1, 1000); // `this` references currently executing Action,
  *                                   // which we reschedule with new state and delay
  * }
  *
- * Rx.Scheduler.async.schedule(task, 3000, 0);
+ * asyncScheduler.schedule(task, 3000, 0);
  *
  * // Logs:
  * // 0 after 3s

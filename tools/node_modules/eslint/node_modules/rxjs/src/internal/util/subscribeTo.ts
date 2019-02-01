@@ -22,13 +22,13 @@ export const subscribeTo = <T>(result: ObservableInput<T>) => {
         return result.subscribe(subscriber);
       }
     };
-  } else if (result && typeof result[Symbol_observable] === 'function') {
+  } else if (!!result && typeof result[Symbol_observable] === 'function') {
     return subscribeToObservable(result as any);
   } else if (isArrayLike(result)) {
     return subscribeToArray(result);
   } else if (isPromise(result)) {
     return subscribeToPromise(result as Promise<any>);
-  } else if (result && typeof result[Symbol_iterator] === 'function') {
+  } else if (!!result && typeof result[Symbol_iterator] === 'function') {
     return subscribeToIterable(result as any);
   } else {
     const value = isObject(result) ? 'an invalid object' : `'${result}'`;

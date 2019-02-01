@@ -5,8 +5,97 @@ import { Subscription } from '../../Subscription';
 import { Operator } from '../../Operator';
 import { ReplaySubject } from '../../ReplaySubject';
 import { Observer, NextObserver } from '../../types';
-import { tryCatch } from '../../util/tryCatch';
-import { errorObject } from '../../util/errorObject';
+
+/**
+ * WebSocketSubjectConfig is a plain Object that allows us to make our
+ * webSocket configurable.
+ *
+ * <span class="informal">Provides flexibility to {@link webSocket}</span>
+ *
+ * It defines a set of properties to provide custom behavior in specific
+ * moments of the socket's lifecycle. When the connection opens we can
+ * use `openObserver`, when the connection is closed `closeObserver`, if we
+ * are interested in listening for data comming from server: `deserializer`,
+ * which allows us to customize the deserialization strategy of data before passing it
+ * to the socket client. By default `deserializer` is going to apply `JSON.parse` to each message comming
+ * from the Server.
+ *
+ * ## Example
+ * **deserializer**, the default for this property is `JSON.parse` but since there are just two options
+ * for incomming data, either be text or binarydata. We can apply a custom deserialization strategy
+ * or just simply skip the default behaviour.
+ * ```ts
+ * import { webSocket } from 'rxjs/webSocket';
+ *
+ * const wsSubject = webSocket({
+ *     url: 'ws://localhost:8081',
+ * //Apply any transformation of your choice.
+ *     deserializer: ({data}) => data
+ * });
+ *
+ * wsSubject.subscribe(console.log);
+ *
+ * // Let's suppose we have this on the Server: ws.send("This is a msg from the server")
+ * //output
+ * //
+ * // This is a msg from the server
+ * ```
+ *
+ * **serializer** allows us tom apply custom serialization strategy but for the outgoing messages
+ * ```ts
+ * import { webSocket } from 'rxjs/webSocket';
+ *
+ * const wsSubject = webSocket({
+ *     url: 'ws://localhost:8081',
+ * //Apply any transformation of your choice.
+ *     serializer: msg => JSON.stringify({channel: "webDevelopment", msg: msg})
+ * });
+ *
+ * wsSubject.subscribe(() => subject.next("msg to the server"));
+ *
+ * // Let's suppose we have this on the Server: ws.send("This is a msg from the server")
+ * //output
+ * //
+ * // {"channel":"webDevelopment","msg":"msg to the server"}
+ * ```
+ *
+ * **closeObserver** allows us to set a custom error when an error raise up.
+ * ```ts
+ * import { webSocket } from 'rxjs/webSocket';
+ *
+ * const wsSubject = webSocket({
+ *     url: 'ws://localhost:8081',
+ *     closeObserver: {
+        next(closeEvent) {
+            const customError = { code: 6666, reason: "Custom evil reason" }
+            console.log(`code: ${customError.code}, reason: ${customError.reason}`);
+        }
+    }
+ * });
+ *
+ * //output
+ * // code: 6666, reason: Custom evil reason
+ * ```
+ *
+ * **openObserver**, Let's say we need to make some kind of init task before sending/receiving msgs to the
+ * webSocket or sending notification that the connection was successful, this is when
+ * openObserver is usefull for.
+ * ```ts
+ * import { webSocket } from 'rxjs/webSocket';
+ *
+ * const wsSubject = webSocket({
+ *     url: 'ws://localhost:8081',
+ *     openObserver: {
+ *         next: () => {
+ *             console.log('connetion ok');
+ *         }
+ *     },
+ * });
+ *
+ * //output
+ * // connetion ok`
+ * ```
+ * */
 
 export interface WebSocketSubjectConfig<T> {
   /** The url of the socket server to connect to */
@@ -59,11 +148,6 @@ const WEBSOCKETSUBJECT_INVALID_ERROR_OBJECT =
 
 export type WebSocketMessage = string | ArrayBuffer | Blob | ArrayBufferView;
 
-/**
- * We need this JSDoc comment for affecting ESDoc.
- * @extends {Ignored}
- * @hide true
- */
 export class WebSocketSubject<T> extends AnonymousSubject<T> {
 
   private _config: WebSocketSubjectConfig<T>;
@@ -136,30 +220,29 @@ export class WebSocketSubject<T> extends AnonymousSubject<T> {
   multiplex(subMsg: () => any, unsubMsg: () => any, messageFilter: (value: T) => boolean) {
     const self = this;
     return new Observable((observer: Observer<any>) => {
-      const result = tryCatch(subMsg)();
-      if (result === errorObject) {
-        observer.error(errorObject.e);
-      } else {
-        self.next(result);
+      try {
+        self.next(subMsg());
+      } catch (err) {
+        observer.error(err);
       }
 
-      let subscription = self.subscribe(x => {
-        const result = tryCatch(messageFilter)(x);
-        if (result === errorObject) {
-          observer.error(errorObject.e);
-        } else if (result) {
-          observer.next(x);
+      const subscription = self.subscribe(x => {
+        try {
+          if (messageFilter(x)) {
+            observer.next(x);
+          }
+        } catch (err) {
+          observer.error(err);
         }
       },
         err => observer.error(err),
         () => observer.complete());
 
       return () => {
-        const result = tryCatch(unsubMsg)();
-        if (result === errorObject) {
-          observer.error(errorObject.e);
-        } else {
-          self.next(result);
+        try {
+          self.next(unsubMsg());
+        } catch (err) {
+          observer.error(err);
         }
         subscription.unsubscribe();
       };
@@ -192,6 +275,12 @@ export class WebSocketSubject<T> extends AnonymousSubject<T> {
     });
 
     socket.onopen = (e: Event) => {
+      const { _socket } = this;
+      if (!_socket) {
+        socket.close();
+        this._resetState();
+        return;
+      }
       const { openObserver } = this._config;
       if (openObserver) {
         openObserver.next(e);
@@ -202,13 +291,12 @@ export class WebSocketSubject<T> extends AnonymousSubject<T> {
       this.destination = Subscriber.create<T>(
         (x) => {
           if (socket.readyState === 1) {
-            const { serializer } = this._config;
-            const msg = tryCatch(serializer)(x);
-            if (msg === errorObject) {
-              this.destination.error(errorObject.e);
-              return;
+            try {
+              const { serializer } = this._config;
+              socket.send(serializer(x));
+              } catch (e) {
+              this.destination.error(e);
             }
-            socket.send(msg);
           }
         },
         (e) => {
@@ -257,12 +345,11 @@ export class WebSocketSubject<T> extends AnonymousSubject<T> {
     };
 
     socket.onmessage = (e: MessageEvent) => {
-      const { deserializer } = this._config;
-      const result = tryCatch(deserializer)(e);
-      if (result === errorObject) {
-        observer.error(errorObject.e);
-      } else {
-        observer.next(result);
+      try {
+        const { deserializer } = this._config;
+        observer.next(deserializer(e));
+      } catch (err) {
+        observer.error(err);
       }
     };
   }
@@ -290,14 +377,11 @@ export class WebSocketSubject<T> extends AnonymousSubject<T> {
   }
 
   unsubscribe() {
-    const { source, _socket } = this;
+    const { _socket } = this;
     if (_socket && _socket.readyState === 1) {
       _socket.close();
-      this._resetState();
     }
+    this._resetState();
     super.unsubscribe();
-    if (!source) {
-      this.destination = new ReplaySubject();
-    }
   }
 }

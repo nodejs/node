@@ -78,6 +78,15 @@ x.scrollUp = ESC + 'S';
 x.scrollDown = ESC + 'T';
 
 x.clearScreen = '\u001Bc';
+
+x.clearTerminal = process.platform === 'win32' ?
+	`${x.eraseScreen}${ESC}0f` :
+	// 1. Erases the screen (Only done in case `2` is not supported)
+	// 2. Erases the whole screen including scrollback buffer
+	// 3. Moves cursor to the top-left position
+	// More info: https://www.real-world-systems.com/docs/ANSIcode.html
+	`${x.eraseScreen}${ESC}3J${ESC}H`;
+
 x.beep = BEL;
 
 x.link = (text, url) => {

@@ -21,6 +21,7 @@ class ConfirmPrompt extends Base {
         if (input != null && input !== '') {
           value = /^y(es)?/i.test(input);
         }
+
         return value;
       }
     });

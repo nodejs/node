@@ -43,6 +43,23 @@ module.exports = {
         }
 
         /**
+         * check the right side of the assignment
+         * @param {ASTNode} update UpdateExpression to check
+         * @param {int} dir expected direction that could either be turned around or invalidated
+         * @returns {int} return dir, the negated dir or zero if it's not clear for identifiers
+         */
+        function getRightDirection(update, dir) {
+            if (update.right.type === "UnaryExpression") {
+                if (update.right.operator === "-") {
+                    return -dir;
+                }
+            } else if (update.right.type === "Identifier") {
+                return 0;
+            }
+            return dir;
+        }
+
+        /**
          * check UpdateExpression add/sub the counter
          * @param {ASTNode} update UpdateExpression to check
          * @param {string} counter variable name to check
@@ -69,10 +86,10 @@ module.exports = {
         function getAssignmentDirection(update, counter) {
             if (update.left.name === counter) {
                 if (update.operator === "+=") {
-                    return 1;
+                    return getRightDirection(update, 1);
                 }
                 if (update.operator === "-=") {
-                    return -1;
+                    return getRightDirection(update, -1);
                 }
             }
             return 0;
@@ -85,26 +102,22 @@ module.exports = {
                     const operator = node.test.operator;
                     const update = node.update;
 
+                    let wrongDirection;
+
                     if (operator === "<" || operator === "<=") {
-
-                        // report error if update sub the counter (--, -=)
-                        if (update.type === "UpdateExpression" && getUpdateDirection(update, counter) < 0) {
-                            report(node);
-                        }
-
-                        if (update.type === "AssignmentExpression" && getAssignmentDirection(update, counter) < 0) {
-                            report(node);
-                        }
+                        wrongDirection = -1;
                     } else if (operator === ">" || operator === ">=") {
+                        wrongDirection = 1;
+                    } else {
+                        return;
+                    }
 
-                        // report error if update add the counter (++, +=)
-                        if (update.type === "UpdateExpression" && getUpdateDirection(update, counter) > 0) {
+                    if (update.type === "UpdateExpression") {
+                        if (getUpdateDirection(update, counter) === wrongDirection) {
                             report(node);
                         }
-
-                        if (update.type === "AssignmentExpression" && getAssignmentDirection(update, counter) > 0) {
-                            report(node);
-                        }
+                    } else if (update.type === "AssignmentExpression" && getAssignmentDirection(update, counter) === wrongDirection) {
+                        report(node);
                     }
                 }
             }
