@@ -1184,6 +1184,9 @@ class Configuration(object):
       outcomes = reduce(set.union, outcomes_list, set())
       unused_rules.difference_update(matches)
       case.outcomes = set(outcomes) or set([PASS])
+      # slow tests may also just pass.
+      if SLOW in case.outcomes:
+        case.outcomes.add(PASS)
       result.append(case)
     return result, unused_rules
 
