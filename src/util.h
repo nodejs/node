@@ -126,6 +126,8 @@ void DumpBacktrace(FILE* fp);
 #define CHECK(expr)                                                           \
   do {                                                                        \
     if (UNLIKELY(!(expr))) {                                                  \
+      /* Make sure that this struct does not end up in inline code, but    */ \
+      /* rather in a read-only data section when modifying this code.      */ \
       static const node::AssertionInfo args = {                               \
         __FILE__, __LINE__, #expr, PRETTY_FUNCTION_NAME                       \
       };                                                                      \
