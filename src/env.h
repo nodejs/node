@@ -599,7 +599,9 @@ class Environment {
 
   enum Flags {
     kNoFlags = 0,
-    kIsMainThread = 1
+    kIsMainThread = 1 << 0,
+    kOwnsProcessState = 1 << 1,
+    kOwnsInspector = 1 << 2,
   };
 
   static inline Environment* GetCurrent(v8::Isolate* isolate);
@@ -768,6 +770,8 @@ class Environment {
   inline void set_has_run_bootstrapping_code(bool has_run_bootstrapping_code);
 
   inline bool is_main_thread() const;
+  inline bool owns_process_state() const;
+  inline bool owns_inspector() const;
   inline uint64_t thread_id() const;
   inline worker::Worker* worker_context() const;
   inline void set_worker_context(worker::Worker* context);
