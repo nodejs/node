@@ -448,6 +448,22 @@ deprecated: v9.0.0
 An internal method used to parse and execute `REPLServer` keywords.
 Returns `true` if `keyword` is a valid keyword, otherwise `false`.
 
+### replServer.setupHistory(historyPath, callback)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `historyPath` {string} the path to the history file
+* `callback` {Function} called when history writes are ready or upon error
+  * `err` {Error}
+  * `repl` {repl.REPLServer}
+
+Initializes a history log file for the REPL instance. When executing the
+Node.js binary and using the command line REPL, a history file is initialized
+by default. However, this is not the case when creating a REPL
+programmatically. Use this method to initialize a history log file when working
+with REPL instances programmatically.
+
 ## repl.start([options])
 <!-- YAML
 added: v0.1.91
