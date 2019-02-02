@@ -24,21 +24,21 @@ original_argv = sys.argv[1:]
 CC = os.environ.get('CC', 'cc' if sys.platform == 'darwin' else 'gcc')
 CXX = os.environ.get('CXX', 'c++' if sys.platform == 'darwin' else 'g++')
 
-sys.path.insert(0, os.path.join('tools', 'gyp', 'pylib'))
-from gyp.common import GetFlavor
+# sys.path.insert(0, os.path.join('tools', 'gyp', 'pylib'))
+from node.tools.gyp.pylib.gyp.common import GetFlavor
 
 # imports in tools/configure.d
 sys.path.insert(0, os.path.join('tools', 'configure.d'))
 import nodedownload
 
 # imports in tools/
-sys.path.insert(0, 'tools')
-import getmoduleversion
-from gyp_node import run_gyp
+# sys.path.insert(0, 'tools')
+from node.tools import getmoduleversion
+from node.tools.gyp_node import run_gyp
 
 # imports in deps/v8/tools/node
-sys.path.insert(0, os.path.join('deps', 'v8', 'tools', 'node'))
-from fetch_deps import FetchDeps
+# sys.path.insert(0, os.path.join('deps', 'v8', 'tools', 'node'))
+from node.deps.v8.tools.node.fetch_deps import FetchDeps
 
 # parse our options
 parser = optparse.OptionParser()
