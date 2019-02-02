@@ -17,7 +17,7 @@
   - [Breaking Changes](#breaking-changes)
     - [Breaking Changes and Deprecations](#breaking-changes-and-deprecations)
     - [Breaking Changes to Internal Elements](#breaking-changes-to-internal-elements)
-    - [When Breaking Changes Actually Break Things](#when-breaking-changes-actually-break-things)
+    - [Unintended Breaking Changes](#unintended-breaking-changes)
       - [Reverting commits](#reverting-commits)
   - [Introducing New Modules](#introducing-new-modules)
   - [Additions to N-API](#additions-to-n-api)
@@ -276,14 +276,12 @@ an effort to determine the potential impact of the change in the ecosystem. Use
 If a change will cause ecosystem breakage, then it is semver-major. Consider
 providing a Public API in such cases.
 
-#### When Breaking Changes Actually Break Things
+#### Unintended Breaking Changes
 
-When any changes are landed on the master branch and it is determined that the
-changes *do* break existing code, a decision may be made to revert those
-changes either temporarily or permanently. However, the decision to revert or
-not can often be based on many complex factors that are not easily codified. It
-is also possible that the breaking commit can be labeled retroactively as a
-semver-major change that will not be backported to Current or LTS branches.
+Sometimes, a change intended to be non-breaking turns out to be a breaking
+change. If such a change lands on the master branch, a Collaborator may revert
+it. As an alternative to reverting, the TSC may apply the semver-major label
+after-the-fact.
 
 ##### Reverting commits
 
