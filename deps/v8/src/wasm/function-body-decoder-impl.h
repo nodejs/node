@@ -1126,6 +1126,8 @@ class WasmDecoder : public Decoder {
     switch (opcode) {
       case kExprSelect:
         return {3, 1};
+      case kExprSwap:
+        return {2, 2};
       FOREACH_STORE_MEM_OPCODE(DECLARE_OPCODE_CASE)
         return {2, 0};
       FOREACH_LOAD_MEM_OPCODE(DECLARE_OPCODE_CASE)
@@ -1796,6 +1798,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             }
             break;
           }
+          case kExprSwap: {
+            Swap(0, 1);
+            break;
+          }
           case kExprDrop: {
             auto value = Pop();
             CALL_INTERFACE_IF_REACHABLE(Drop, value);
@@ -2387,6 +2393,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     auto val = stack_.back();
     stack_.pop_back();
     return val;
+  }
+
+  inline void Swap(uint32_t iDepth, uint32_t jDepth) {
+    size_t size = stack_.size();
+    DCHECK_GT(size, iDepth);
+    DCHECK_GT(size, jDepth);
+    auto tmp = stack_[size - iDepth - 1];
+    stack_[size - iDepth - 1] = stack_[size - jDepth - 1];
+    stack_[size - jDepth - 1] = tmp;
   }
 
   int startrel(const byte* ptr) { return static_cast<int>(ptr - this->start_); }
