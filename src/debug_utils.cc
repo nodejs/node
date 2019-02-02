@@ -66,7 +66,8 @@ class PosixSymbolDebuggingContext final : public NativeSymbolDebuggingContext {
       return ret;
 
     if (info.dli_sname != nullptr) {
-      if (char* demangled = abi::__cxa_demangle(info.dli_sname, 0, 0, 0)) {
+      if (char* demangled =
+              abi::__cxa_demangle(info.dli_sname, nullptr, nullptr, nullptr)) {
         ret.name = demangled;
         free(demangled);
       } else {

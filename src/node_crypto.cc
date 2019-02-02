@@ -4817,7 +4817,7 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
 
 bool DiffieHellman::Init(int primeLength, int g) {
   dh_.reset(DH_new());
-  if (!DH_generate_parameters_ex(dh_.get(), primeLength, g, 0))
+  if (!DH_generate_parameters_ex(dh_.get(), primeLength, g, nullptr))
     return false;
   return VerifyContext();
 }
@@ -4840,8 +4840,10 @@ bool DiffieHellman::Init(const char* p, int p_len, int g) {
 
 bool DiffieHellman::Init(const char* p, int p_len, const char* g, int g_len) {
   dh_.reset(DH_new());
-  BIGNUM* bn_p = BN_bin2bn(reinterpret_cast<const unsigned char*>(p), p_len, 0);
-  BIGNUM* bn_g = BN_bin2bn(reinterpret_cast<const unsigned char*>(g), g_len, 0);
+  BIGNUM* bn_p =
+      BN_bin2bn(reinterpret_cast<const unsigned char*>(p), p_len, nullptr);
+  BIGNUM* bn_g =
+      BN_bin2bn(reinterpret_cast<const unsigned char*>(g), g_len, nullptr);
   if (!DH_set0_pqg(dh_.get(), bn_p, nullptr, bn_g)) {
     BN_free(bn_p);
     BN_free(bn_g);
@@ -5009,7 +5011,7 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   BignumPointer key(BN_bin2bn(
       reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
       Buffer::Length(args[0]),
-      0));
+      nullptr));
 
   MallocedBuffer<char> data(DH_size(diffieHellman->dh_.get()));
 
