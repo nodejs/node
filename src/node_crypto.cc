@@ -6245,7 +6245,7 @@ void SetEngine(const FunctionCallbackInfo<Value>& args) {
   ENGINE* engine = LoadEngineById(*engine_id, &errmsg);
 
   if (engine == nullptr) {
-    int err = ERR_get_error();
+    unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
     if (err == 0)
       return args.GetReturnValue().Set(false);
     return ThrowCryptoError(env, err);
