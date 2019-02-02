@@ -25,7 +25,6 @@ const cli = CLI(`usage: ./node compare.js [options] [--] <category> ...
 
 if (!cli.optional.new || !cli.optional.old) {
   cli.abort(cli.usage);
-  return;
 }
 
 const binaries = ['old', 'new'];
@@ -98,7 +97,6 @@ if (showProgress) {
   child.once('close', (code) => {
     if (code) {
       process.exit(code);
-      return;
     }
     if (showProgress) {
       progress.completeRun(job);

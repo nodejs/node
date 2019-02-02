@@ -67,7 +67,6 @@ if (format === 'csv') {
   child.once('close', (code) => {
     if (code) {
       process.exit(code);
-      return;
     }
 
     // If there are more benchmarks execute the next
