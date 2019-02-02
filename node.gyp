@@ -334,13 +334,11 @@
             ['OS=="win"', {
               'libraries': [
                 'dbghelp.lib',
-                'Netapi32.lib',
                 'PsApi.lib',
                 'Ws2_32.lib',
               ],
               'dll_files': [
                 'dbghelp.dll',
-                'Netapi32.dll',
                 'PsApi.dll',
                 'Ws2_32.dll',
               ],
@@ -676,13 +674,11 @@
             ['OS=="win"', {
               'libraries': [
                 'dbghelp.lib',
-                'Netapi32.lib',
                 'PsApi.lib',
                 'Ws2_32.lib',
               ],
               'dll_files': [
                 'dbghelp.dll',
-                'Netapi32.dll',
                 'PsApi.dll',
                 'Ws2_32.dll',
               ],
@@ -1041,13 +1037,11 @@
             ['OS=="win"', {
               'libraries': [
                 'dbghelp.lib',
-                'Netapi32.lib',
                 'PsApi.lib',
                 'Ws2_32.lib',
               ],
               'dll_files': [
                 'dbghelp.dll',
-                'Netapi32.dll',
                 'PsApi.dll',
                 'Ws2_32.dll',
               ],
