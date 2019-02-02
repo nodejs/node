@@ -88,8 +88,7 @@ void LowMemoryNotification();
 // The reason that Assert() takes a struct argument instead of individual
 // const char*s is to ease instruction cache pressure in calls from CHECK.
 struct AssertionInfo {
-  const char* filename;
-  unsigned int linenum;
+  const char* file_line;  // filename:line
   const char* message;
   const char* function;
 };
@@ -129,7 +128,7 @@ void DumpBacktrace(FILE* fp);
       /* Make sure that this struct does not end up in inline code, but    */ \
       /* rather in a read-only data section when modifying this code.      */ \
       static const node::AssertionInfo args = {                               \
-        __FILE__, __LINE__, #expr, PRETTY_FUNCTION_NAME                       \
+        __FILE__ ":" STRINGIFY(__LINE__), #expr, PRETTY_FUNCTION_NAME         \
       };                                                                      \
       node::Assert(args);                                                     \
     }                                                                         \

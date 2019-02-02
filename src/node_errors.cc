@@ -171,10 +171,9 @@ void AppendExceptionLine(Environment* env,
   GetHumanReadableProcessName(&name);
 
   fprintf(stderr,
-          "%s: %s:%u:%s%s Assertion `%s' failed.\n",
+          "%s: %s:%s%s Assertion `%s' failed.\n",
           name,
-          info.filename,
-          info.linenum,
+          info.file_line,
           info.function,
           *info.function ? ":" : "",
           info.message);
