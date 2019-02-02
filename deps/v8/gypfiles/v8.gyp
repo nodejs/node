@@ -520,6 +520,7 @@
       'type': 'static_library',
       'dependencies': [
         'v8_base',
+        'js2c#host',
       ],
       'include_dirs': [
         '..',
@@ -533,7 +534,6 @@
       'conditions': [
         ['want_separate_host_toolset==1', {
           'toolsets': ['host', 'target'],
-          'dependencies': ['js2c#host'],
         }, {
           'toolsets': ['target'],
         }],
@@ -620,7 +620,6 @@
         '../src/asmjs/asm-scanner.h',
         '../src/asmjs/asm-types.cc',
         '../src/asmjs/asm-types.h',
-        '../src/assembler-arch-inl.h',
         '../src/assembler-arch.h',
         '../src/assembler-inl.h',
         '../src/assembler.cc',

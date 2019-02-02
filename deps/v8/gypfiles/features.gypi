@@ -141,11 +141,12 @@
         'defines': ['V8_PROMISE_INTERNAL_FIELD_COUNT=<(v8_promise_internal_field_count)'],
       }],
       ['v8_enable_lite_mode==1', {
-        'defines': ['V8_LITE_MODE',],
+        'defines': [
+          'V8_LITE_MODE',
 
-        # TODO(v8:7777): Remove the define once the --jitless runtime flag does
-        # everything we need.
-        'defines': ['V8_JITLESS_MODE', ],
+          # TODO(v8:7777): Remove the define once the --jitless runtime flag does everything we need.
+          'V8_JITLESS_MODE',
+        ],
       }],
       ['v8_enable_gdbjit==1', {
         'defines': ['ENABLE_GDB_JIT_INTERFACE',],
