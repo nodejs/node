@@ -14,8 +14,12 @@ test-trace-events-api-worker-disabled: PASS,FLAKY
 test-http2-pipe: PASS,FLAKY
 test-worker-syntax-error: PASS,FLAKY
 test-worker-syntax-error-file: PASS,FLAKY
+
 # https://github.com/nodejs/node/issues/23277
 test-worker-memory: PASS,FLAKY
+
+# https://github.com/nodejs/node/issues/25512
+test-trace-events-fs-sync: PASS,FLAKY
 
 [$system==linux]
 
