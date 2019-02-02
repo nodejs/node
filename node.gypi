@@ -35,6 +35,13 @@
       '-Werror=undefined-inline',
     ],
   },
+  # Relevant only for x86.
+  # Refs: https://docs.microsoft.com/en-us/cpp/build/reference/safeseh-image-has-safe-exception-handlers
+  'msvs_settings': {
+    'VCLinkerTool': {
+      'ImageHasSafeExceptionHandlers': 'false',
+    },
+  },
   'conditions': [
     [ 'clang==1', {
       'cflags': [ '-Werror=undefined-inline', ]
