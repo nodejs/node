@@ -28,7 +28,7 @@ let procEnabledOutput = '';
 
 procEnabled.stdout.on('data', (data) => procEnabledOutput += data);
 procEnabled.stderr.pipe(process.stderr);
-procEnabled.once('exit', common.mustCall(() => {
+procEnabled.once('close', common.mustCall(() => {
   assert.strictEqual(procEnabledOutput, 'true\n');
 }));
 
@@ -46,6 +46,6 @@ let procDisabledOutput = '';
 
 procDisabled.stdout.on('data', (data) => procDisabledOutput += data);
 procDisabled.stderr.pipe(process.stderr);
-procDisabled.once('exit', common.mustCall(() => {
+procDisabled.once('close', common.mustCall(() => {
   assert.strictEqual(procDisabledOutput, 'false\n');
 }));
