@@ -17,7 +17,6 @@ const cli = CLI(`usage: ./node scatter.js [options] [--] <filename>
 
 if (cli.items.length !== 1) {
   cli.abort(cli.usage);
-  return;
 }
 
 // Create queue from the benchmarks list such both node versions are tested

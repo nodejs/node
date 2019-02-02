@@ -169,7 +169,6 @@ Benchmark.prototype._run = function() {
     child.on('close', (code) => {
       if (code) {
         process.exit(code);
-        return;
       }
 
       if (queueIndex + 1 < self.queue.length) {
