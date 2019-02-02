@@ -143,7 +143,7 @@ typename ListHead<T, M>::Iterator ListHead<T, M>::end() const {
 
 template <typename Inner, typename Outer>
 constexpr uintptr_t OffsetOf(Inner Outer::*field) {
-  return reinterpret_cast<uintptr_t>(&(static_cast<Outer*>(0)->*field));
+  return reinterpret_cast<uintptr_t>(&(static_cast<Outer*>(nullptr)->*field));
 }
 
 template <typename Inner, typename Outer>
