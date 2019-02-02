@@ -395,7 +395,7 @@ void safe_free_hostent(struct hostent* host) {
       free(host->h_addr_list[idx++]);
     }
     free(host->h_addr_list);
-    host->h_addr_list = 0;
+    host->h_addr_list = nullptr;
   }
 
   if (host->h_aliases != nullptr) {
@@ -404,7 +404,7 @@ void safe_free_hostent(struct hostent* host) {
       free(host->h_aliases[idx++]);
     }
     free(host->h_aliases);
-    host->h_aliases = 0;
+    host->h_aliases = nullptr;
   }
 
   if (host->h_name != nullptr) {
@@ -1914,7 +1914,8 @@ void AfterGetNameInfo(uv_getnameinfo_t* req,
   req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
 }
 
-using ParseIPResult = decltype(static_cast<ares_addr_port_node*>(0)->addr);
+using ParseIPResult =
+    decltype(static_cast<ares_addr_port_node*>(nullptr)->addr);
 
 int ParseIP(const char* ip, ParseIPResult* result = nullptr) {
   ParseIPResult tmp;
