@@ -57,8 +57,11 @@ is provided below for reference.
     "release": {
       "name": "node"
     },
-    "osVersion": "Linux 3.10.0-862.el7.x86_64 #1 SMP Wed Mar 21 18:14:51 EDT 2018",
-    "machine": "test_machine x86_64"
+    "osName": "Linux",
+    "osRelease": "3.10.0-862.el7.x86_64",
+    "osVersion": "#1 SMP Wed Mar 21 18:14:51 EDT 2018",
+    "osMachine": "x86_64",
+    "host": "test_machine"
   },
   "javascriptStack": {
     "message": "Error: *** test-exception.js: throwing uncaught Error",
