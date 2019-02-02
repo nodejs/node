@@ -430,6 +430,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 // MacroAssembler implements a collection of frequently used macros.
 class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
  public:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
   template <typename... Args>
   explicit MacroAssembler(Args&&... args)
       : TurboAssembler(std::forward<Args>(args)...) {}
