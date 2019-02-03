@@ -60,7 +60,8 @@ using WasmName = Vector<const char>;
   V(F64Const, 0x44, _)         \
   V(RefNull, 0xd0, _)          \
   V(Duplicate, 0xf0, _)        \
-  V(Swap, 0xf1, _)
+  V(Swap, 0xf1, _)             \
+  V(Offset, 0xf2, _)
 
 // Load memory expressions.
 #define FOREACH_LOAD_MEM_OPCODE(V) \

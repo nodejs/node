@@ -1124,6 +1124,7 @@ class WasmDecoder : public Decoder {
 #define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
     // clang-format off
     switch (opcode) {
+      case kExprOffset:
       case kExprSelect:
         return {3, 1};
       case kExprSwap:
@@ -1800,6 +1801,18 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           }
           case kExprSwap: {
             Swap(0, 1);
+            break;
+          }
+          case kExprOffset: {
+            auto size = Pop(2, kWasmI32);
+            auto index = Pop(1, kWasmI32);
+            auto base = Pop(0, kWasmI32);
+            ImmI32Immediate<validate> immBase(this, base.pc);
+            ImmI32Immediate<validate> immIndex(this, index.pc);
+            ImmI32Immediate<validate> immSize(this, size.pc);
+            auto* result = Push(kWasmI32);
+            int32_t value = immIndex.value * immSize.value + immBase.value;
+            CALL_INTERFACE_IF_REACHABLE(I32Const, result, value);
             break;
           }
           case kExprDrop: {
