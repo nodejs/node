@@ -1935,12 +1935,9 @@
           ],
         }],
         ['OS=="win"', {
-          'variables': {
-            'gyp_generators': '<!(echo $GYP_GENERATORS)',
-          },
           'msvs_disabled_warnings': [4351, 4355, 4800],
           'conditions': [
-            ['node_use_pch!="true"', {
+            ['node_use_pch != "true"', {
               # When building Official, the .lib is too large and exceeds the 2G
               # limit. This breaks it into multiple pieces to avoid the limit.
               # See http://crbug.com/485155.
@@ -2248,50 +2245,20 @@
           'defines': [
             '_CRT_RAND_S'  # for rand_s()
           ],
-          'variables': {
-            'gyp_generators': '<!(echo $GYP_GENERATORS)',
-          },
-          'conditions': [
-            ['gyp_generators=="make"', {
-              'variables': {
-                'build_env': '<!(uname -o)',
-              },
-              'conditions': [
-                ['build_env=="Cygwin"', {
-                  'sources': [
-                    '../src/base/debug/stack_trace_posix.cc',
-                    '../src/base/platform/platform-cygwin.cc',
-                    '../src/base/platform/platform-posix.cc',
-                    '../src/base/platform/platform-posix.h',
-                  ],
-                }, {
-                  'sources': [
-                    '../src/base/debug/stack_trace_win.cc',
-                    '../src/base/platform/platform-win32.cc',
-                    '../src/base/win32-headers.h',
-                  ],
-                }],
-              ],
-              'link_settings':  {
-                'libraries': [ '-lwinmm', '-lws2_32' ],
-              },
-            }, {
-              'sources': [
-                '../src/base/debug/stack_trace_win.cc',
-                '../src/base/platform/platform-win32.cc',
-                '../src/base/win32-headers.h',
-              ],
-              'msvs_disabled_warnings': [4351, 4355, 4800],
-              'link_settings':  {
-                'libraries': [
-                  '-ldbghelp.lib',
-                  '-lshlwapi.lib',
-                  '-lwinmm.lib',
-                  '-lws2_32.lib'
-                ],
-              },
-            }],
+          'sources': [
+            '../src/base/debug/stack_trace_win.cc',
+            '../src/base/platform/platform-win32.cc',
+            '../src/base/win32-headers.h',
           ],
+          'msvs_disabled_warnings': [4351, 4355, 4800],
+          'link_settings':  {
+            'libraries': [
+              '-ldbghelp.lib',
+              '-lshlwapi.lib',
+              '-lwinmm.lib',
+              '-lws2_32.lib'
+            ],
+          },
         }],
         ['OS=="qnx"', {
             'link_settings': {
