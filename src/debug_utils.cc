@@ -290,13 +290,20 @@ void CheckedUvLoopClose(uv_loop_t* loop) {
 }
 
 void PrintLibuvHandleInformation(uv_loop_t* loop, FILE* stream) {
-  auto sym_ctx = NativeSymbolDebuggingContext::New();
+  struct Info {
+    std::unique_ptr<NativeSymbolDebuggingContext> ctx;
+    FILE* stream;
+  };
+
+  Info info { NativeSymbolDebuggingContext::New(), stream };
 
   fprintf(stream, "uv loop at [%p] has %d active handles\n",
           loop, loop->active_handles);
 
   uv_walk(loop, [](uv_handle_t* handle, void* arg) {
-    auto sym_ctx = static_cast<NativeSymbolDebuggingContext*>(arg);
+    Info* info = static_cast<Info*>(arg);
+    NativeSymbolDebuggingContext* sym_ctx = info->ctx.get();
+    FILE* stream = info->stream;
 
     fprintf(stream, "[%p] %s\n", handle, uv_handle_type_name(handle->type));
 
@@ -321,7 +328,7 @@ void PrintLibuvHandleInformation(uv_loop_t* loop, FILE* stream) {
       fprintf(stream, "\t(First field): %p %s\n",
           first_field, sym_ctx->LookupSymbol(first_field).Display().c_str());
     }
-  }, sym_ctx.get());
+  }, &info);
 }
 
 std::vector<std::string> NativeSymbolDebuggingContext::GetLoadedLibraries() {
