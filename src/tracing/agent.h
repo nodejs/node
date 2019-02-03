@@ -63,11 +63,11 @@ class AgentWriterHandle {
 
   inline v8::TracingController* GetTracingController();
 
- private:
-  inline AgentWriterHandle(Agent* agent, int id) : agent_(agent), id_(id) {}
-
   AgentWriterHandle(const AgentWriterHandle& other) = delete;
   AgentWriterHandle& operator=(const AgentWriterHandle& other) = delete;
+
+ private:
+  inline AgentWriterHandle(Agent* agent, int id) : agent_(agent), id_(id) {}
 
   Agent* agent_ = nullptr;
   int id_;
