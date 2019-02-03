@@ -533,6 +533,11 @@ MessagePort* MessagePort::New(
   if (data) {
     port->Detach();
     port->data_ = std::move(data);
+
+    // This lock is here to avoid race conditions with the `owner_` read
+    // in AddToIncomingQueue(). (This would likely be unproblematic without it,
+    // but it's better to be safe than sorry.)
+    Mutex::ScopedLock lock(port->data_->mutex_);
     port->data_->owner_ = port;
     // If the existing MessagePortData object had pending messages, this is
     // the easiest way to run that queue.
