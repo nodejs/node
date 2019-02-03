@@ -137,13 +137,17 @@
       'Debug': {
         'variables': {
           'v8_enable_handle_zapping': 1,
+          'conditions': [
+            ['node_shared != "true"', {
+              'MSVC_runtimeType': 1,    # MultiThreadedDebug (/MTd)
+            }, {
+              'MSVC_runtimeType': 3,    # MultiThreadedDebugDLL (/MDd)
+            }],
+          ],
         },
         'defines': [ 'DEBUG', '_DEBUG', 'V8_ENABLE_CHECKS' ],
         'cflags': [ '-g', '-O0' ],
         'conditions': [
-          ['target_arch=="x64"', {
-            'msvs_configuration_platform': 'x64',
-          }],
           ['OS=="aix"', {
             'cflags': [ '-gxcoff' ],
             'ldflags': [ '-Wl,-bbigtoc' ],
@@ -152,31 +156,14 @@
             'cflags': [ '-fPIE' ],
             'ldflags': [ '-fPIE', '-pie' ]
           }],
-          ['node_shared=="true"', {
-            'msvs_settings': {
-             'VCCLCompilerTool': {
-               'RuntimeLibrary': 3, # MultiThreadedDebugDLL (/MDd)
-             }
-            }
-          }],
-          ['node_shared=="false"', {
-            'msvs_settings': {
-              'VCCLCompilerTool': {
-                'RuntimeLibrary': 1 # MultiThreadedDebug (/MTd)
-              }
-            }
-          }]
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
-            'Optimization': 0, # /Od, no optimization
+            'BasicRuntimeChecks': 3,        # /RTC1
             'MinimalRebuild': 'false',
             'OmitFramePointers': 'false',
-            'BasicRuntimeChecks': 3, # /RTC1
-            'MultiProcessorCompilation': 'true',
-            'AdditionalOptions': [
-              '/bigobj', # prevent error C1128 in VS2015
-            ],
+            'Optimization': 0,              # /Od, no optimization
+            'RuntimeLibrary': '<(MSVC_runtimeType)',
           },
           'VCLinkerTool': {
             'LinkIncremental': 2, # enable incremental linking
@@ -189,12 +176,19 @@
       'Release': {
         'variables': {
           'v8_enable_handle_zapping': 0,
+          'pgo_generate': ' -fprofile-generate ',
+          'pgo_use': ' -fprofile-use -fprofile-correction ',
+          'lto': ' -flto=4 -fuse-linker-plugin -ffat-lto-objects ',
+          'conditions': [
+            ['node_shared != "true"', {
+              'MSVC_runtimeType': 0    # MultiThreaded (/MT)
+            }, {
+              'MSVC_runtimeType': 2   # MultiThreadedDLL (/MD)
+            }],
+          ],
         },
         'cflags': [ '-O3' ],
         'conditions': [
-          ['target_arch=="x64"', {
-            'msvs_configuration_platform': 'x64',
-          }],
           ['OS=="solaris"', {
             # pull in V8's postmortem metadata
             'ldflags': [ '-Wl,-z,allextract' ]
@@ -203,11 +197,6 @@
             'cflags': [ '-fno-omit-frame-pointer' ],
           }],
           ['OS=="linux"', {
-            'variables': {
-              'pgo_generate': ' -fprofile-generate ',
-              'pgo_use': ' -fprofile-use -fprofile-correction ',
-              'lto': ' -flto=4 -fuse-linker-plugin -ffat-lto-objects ',
-            },
             'conditions': [
               ['enable_pgo_generate=="true"', {
                 'cflags': ['<(pgo_generate)'],
@@ -227,62 +216,17 @@
             'cflags': [ '-fPIE' ],
             'ldflags': [ '-fPIE', '-pie' ]
           }],
-          ['node_shared=="true"', {
-            'msvs_settings': {
-             'VCCLCompilerTool': {
-               'RuntimeLibrary': 2 # MultiThreadedDLL (/MD)
-             }
-            }
-          }],
-          ['node_shared=="false"', {
-            'msvs_settings': {
-              'VCCLCompilerTool': {
-                'RuntimeLibrary': 0 # MultiThreaded (/MT)
-              }
-            }
-          }],
-          ['node_with_ltcg=="true"', {
-            'msvs_settings': {
-              'VCCLCompilerTool': {
-                'WholeProgramOptimization': 'true' # /GL, whole program optimization, needed for LTCG
-              },
-              'VCLibrarianTool': {
-                'AdditionalOptions': [
-                  '/LTCG:INCREMENTAL', # link time code generation
-                ]
-              },
-              'VCLinkerTool': {
-                'OptimizeReferences': 2, # /OPT:REF
-                'EnableCOMDATFolding': 2, # /OPT:ICF
-                'LinkIncremental': 1, # disable incremental linking
-                'AdditionalOptions': [
-                  '/LTCG:INCREMENTAL', # incremental link-time code generation
-                ]
-              }
-            }
-          }, {
-            'msvs_settings': {
-              'VCCLCompilerTool': {
-                'WholeProgramOptimization': 'false'
-              },
-              'VCLinkerTool': {
-                'LinkIncremental': 2 # enable incremental linking
-              }
-            }
-          }]
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
-            'Optimization': 3, # /Ox, full optimization
-            'FavorSizeOrSpeed': 1, # /Ot, favor speed over size
-            'InlineFunctionExpansion': 2, # /Ob2, inline anything eligible
-            'OmitFramePointers': 'true',
             'EnableFunctionLevelLinking': 'true',
             'EnableIntrinsicFunctions': 'true',
+            'FavorSizeOrSpeed': 1,          # /Ot, favor speed over size
+            'InlineFunctionExpansion': 2,   # /Ob2, inline anything eligible
+            'OmitFramePointers': 'true',
+            'Optimization': 3,              # /Ox, full optimization
+            'RuntimeLibrary': '<(MSVC_runtimeType)',
             'RuntimeTypeInfo': 'false',
-            'MultiProcessorCompilation': 'true',
-            'AdditionalOptions': [
-            ],
           }
         }
       }
@@ -301,13 +245,14 @@
     'cflags!': ['-Werror'],
     'msvs_settings': {
       'VCCLCompilerTool': {
-        'StringPooling': 'true', # pool string literals
-        'DebugInformationFormat': 1, # /Z7 embed info in .obj files
-        'WarningLevel': 3,
         'BufferSecurityCheck': 'true',
+        'DebugInformationFormat': 1, # /Z7 embed info in .obj files
         'ExceptionHandling': 0, # /EHsc
+        'MultiProcessorCompilation': 'true',
+        'StringPooling': 'true', # pool string literals
         'SuppressStartupBanner': 'true',
         'WarnAsError': 'false',
+        'WarningLevel': 3,       # /W3
       },
       'VCLinkerTool': {
         'conditions': [
@@ -329,11 +274,6 @@
           }],
         ],
         'GenerateDebugInformation': 'true',
-        'GenerateMapFile': 'true', # /MAP
-        'MapExports': 'true', # /MAPINFO:EXPORTS
-        'RandomizedBaseAddress': 2, # enable ASLR
-        'DataExecutionPrevention': 2, # enable DEP
-        'AllowIsolation': 'true',
         'SuppressStartupBanner': 'true',
       },
     },
@@ -351,7 +291,12 @@
     # - "C4244: conversion from 'type1' to 'type2', possible loss of data"
     #   Ususaly safe. Disable for `dep`, enable for `src`
     'msvs_disabled_warnings': [4351, 4355, 4800, 4251, 4275, 4244, 4267],
+    'msvs_cygwin_shell': 0, # prevent actions from trying to use cygwin
+
     'conditions': [
+      [ 'target_arch=="x64"', {
+        'msvs_configuration_platform': 'x64',
+      }],
       ['asan == 1 and OS != "mac"', {
         'cflags+': [
           '-fno-omit-frame-pointer',
@@ -380,7 +325,6 @@
         ],
       }],
       ['OS == "win"', {
-        'msvs_cygwin_shell': 0, # prevent actions from trying to use cygwin
         'defines': [
           'WIN32',
           # we don't really want VC++ warning us about
