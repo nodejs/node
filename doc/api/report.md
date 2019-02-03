@@ -215,6 +215,11 @@ is provided below for reference.
       "is_referenced": false,
       "address": "0x000000010188f2e0",
       "details": ""
+    },
+    {
+      "type": "loop",
+      "is_active": true,
+      "address": "140696384399248"
     }
   ],
   "environmentVariables": {
