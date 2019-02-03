@@ -1804,9 +1804,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           }
           case kExprOffset: {
-            auto base = Pop(2, kWasmI32);
+            auto size = Pop(2, kWasmI32);
             auto index = Pop(1, kWasmI32);
-            auto size = Pop(0, kWasmI32);
+            auto base = Pop(0, kWasmI32);
             ImmI32Immediate<validate> immBase(this, base.pc);
             ImmI32Immediate<validate> immIndex(this, index.pc);
             ImmI32Immediate<validate> immSize(this, size.pc);
