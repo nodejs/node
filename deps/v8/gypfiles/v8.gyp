@@ -222,7 +222,7 @@
       'dependencies': [
         'v8_base',
       ],
-       'variables': {
+      'variables': {
         'optimize': 'max',
       },
       'include_dirs': [
@@ -359,16 +359,20 @@
         }],
         # Platforms that don't have Compare-And-Swap support need to link atomic
         # library to implement atomic memory access
-        [ 'v8_current_cpu == "mips" or v8_current_cpu == "mipsel" or '
-          'v8_current_cpu == "mips64" or v8_current_cpu == "mips64el" or '
-          'v8_current_cpu == "ppc" or v8_current_cpu == "ppc64" or '
-          'v8_current_cpu == "s390" or v8_current_cpu == "s390x"',
-          {
+        [ 'v8_current_cpu in ["mips", "mipsel", "mips64", "mips64el", "ppc", "ppc64", "s390", "s390x"]', {
             'link_settings': {
               'libraries': [ '-latomic', ],
             },
           },
         ],
+        ['OS=="win" and node_use_pch == "true"', {
+          'msvs_precompiled_header': '../../../tools/msvs/pch/v8_pch.h',
+          'msvs_precompiled_source': '../../../tools/msvs/pch/v8_pch.cc',
+          'sources': [
+            '<(_msvs_precompiled_header)',
+            '<(_msvs_precompiled_source)',
+           ],
+        }],
       ],
     }, # v8_initializers
     {
@@ -1942,10 +1946,11 @@
               # See http://crbug.com/485155.
               'msvs_shard': 4,
             }, {
-              'msvs_precompiled_header': 'tools/msvs/pch/pch_v8_base.h',
-              'msvs_precompiled_source': '../../../tools/msvs/pch/pch_v8_base.cc',
+              'msvs_precompiled_header': '../../../tools/msvs/pch/v8_pch.h',
+              'msvs_precompiled_source': '../../../tools/msvs/pch/v8_pch.cc',
               'sources': [
-                '../../../tools/msvs/pch/pch_v8_base.cc',
+                '<(_msvs_precompiled_header)',
+                '<(_msvs_precompiled_source)',
               ],
             }],
           ],
