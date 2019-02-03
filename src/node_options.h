@@ -254,6 +254,7 @@ namespace options_parser {
 HostPort SplitHostPort(const std::string& arg,
     std::vector<std::string>* errors);
 void GetOptions(const v8::FunctionCallbackInfo<v8::Value>& args);
+std::string GetBashCompletion();
 
 enum OptionType {
   kNoOp,
@@ -437,6 +438,7 @@ class OptionsParser {
   friend class OptionsParser;
 
   friend void GetOptions(const v8::FunctionCallbackInfo<v8::Value>& args);
+  friend std::string GetBashCompletion();
 };
 
 using StringVector = std::vector<std::string>;
