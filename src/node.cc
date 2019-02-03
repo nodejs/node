@@ -400,9 +400,6 @@ MaybeLocal<Value> StartMainThreadExecution(Environment* env) {
     return StartExecution(env, "internal/main/print_help");
   }
 
-  if (per_process::cli_options->print_bash_completion) {
-    return StartExecution(env, "internal/main/print_bash_completion");
-  }
 
   if (env->options()->prof_process) {
     return StartExecution(env, "internal/main/prof_process");
@@ -875,6 +872,12 @@ void Init(int* argc,
     exit(0);
   }
 
+  if (per_process::cli_options->print_bash_completion) {
+    std::string completion = options_parser::GetBashCompletion();
+    printf("%s\n", completion.c_str());
+    exit(0);
+  }
+
   if (per_process::cli_options->print_v8_help) {
     V8::SetFlagsFromString("--help", 6);  // Doesn't return.
     UNREACHABLE();
@@ -942,6 +945,12 @@ InitializationResult InitializeOncePerProcess(int argc, char** argv) {
     result.exit_code = 0;
     result.early_return = true;
     return result;
+  }
+
+  if (per_process::cli_options->print_bash_completion) {
+    std::string completion = options_parser::GetBashCompletion();
+    printf("%s\n", completion.c_str());
+    exit(0);
   }
 
   if (per_process::cli_options->print_v8_help) {
