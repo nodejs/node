@@ -209,9 +209,18 @@ void WalkHandle(uv_handle_t* h, void* arg) {
   writer->json_keyvalue("is_active", static_cast<bool>(uv_is_active(h)));
   writer->json_keyvalue("is_referenced", static_cast<bool>(uv_has_ref(h)));
   writer->json_keyvalue("address",
-                        std::to_string(reinterpret_cast<int64_t>(h)));
+                        ValueToHexString(reinterpret_cast<uint64_t>(h)));
   writer->json_keyvalue("details", data.str());
   writer->json_end();
+}
+
+template <typename T>
+std::string ValueToHexString(T value) {
+  std::stringstream hex;
+
+  hex << "0x" << std::setfill('0') << std::setw(sizeof(T) * 2) << std::hex <<
+    value;
+  return hex.str();
 }
 
 std::string EscapeJsonChars(const std::string& str) {
