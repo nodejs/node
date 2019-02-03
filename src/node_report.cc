@@ -311,8 +311,17 @@ static void WriteNodeReport(Isolate* isolate,
 #endif
 
   writer.json_arraystart("libuv");
-  if (env != nullptr)
+  if (env != nullptr) {
     uv_walk(env->event_loop(), WalkHandle, static_cast<void*>(&writer));
+
+    writer.json_start();
+    writer.json_keyvalue("type", "loop");
+    writer.json_keyvalue("is_active",
+        static_cast<bool>(uv_loop_alive(env->event_loop())));
+    writer.json_keyvalue("address",
+        ValueToHexString(reinterpret_cast<int64_t>(env->event_loop())));
+    writer.json_end();
+  }
 
   writer.json_arrayend();
 

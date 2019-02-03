@@ -57,8 +57,15 @@ void GetNodeReport(v8::Isolate* isolate,
 void ReportEndpoints(uv_handle_t* h, std::ostringstream& out);
 void WalkHandle(uv_handle_t* h, void* arg);
 std::string EscapeJsonChars(const std::string& str);
+
 template <typename T>
-std::string ValueToHexString(T value);
+std::string ValueToHexString(T value) {
+  std::stringstream hex;
+
+  hex << "0x" << std::setfill('0') << std::setw(sizeof(T) * 2) << std::hex <<
+    value;
+  return hex.str();
+}
 
 // Function declarations - export functions in src/node_report_module.cc
 void TriggerReport(const v8::FunctionCallbackInfo<v8::Value>& info);

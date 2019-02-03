@@ -214,15 +214,6 @@ void WalkHandle(uv_handle_t* h, void* arg) {
   writer->json_end();
 }
 
-template <typename T>
-std::string ValueToHexString(T value) {
-  std::stringstream hex;
-
-  hex << "0x" << std::setfill('0') << std::setw(sizeof(T) * 2) << std::hex <<
-    value;
-  return hex.str();
-}
-
 std::string EscapeJsonChars(const std::string& str) {
   const std::string control_symbols[0x20] = {
       "\\u0000", "\\u0001", "\\u0002", "\\u0003", "\\u0004", "\\u0005",
