@@ -171,49 +171,49 @@ is provided below for reference.
       "type": "async",
       "is_active": true,
       "is_referenced": false,
-      "address": "68090592",
+      "address": "0x0000000102910900",
       "details": ""
     },
     {
       "type": "timer",
       "is_active": false,
       "is_referenced": false,
-      "address": "140723513949920",
+      "address": "0x00007fff5fbfeab0",
       "details": "repeat: 0, timeout expired: 18075165916 ms ago"
     },
     {
       "type": "check",
       "is_active": true,
       "is_referenced": false,
-      "address": "140723513950072",
+      "address": "0x00007fff5fbfeb48",
       "details": ""
     },
     {
       "type": "idle",
       "is_active": false,
       "is_referenced": true,
-      "address": "140723513950192",
+      "address": "0x00007fff5fbfebc0",
       "details": ""
     },
     {
       "type": "prepare",
       "is_active": false,
       "is_referenced": false,
-      "address": "140723513950312",
+      "address": "0x00007fff5fbfec38",
       "details": ""
     },
     {
       "type": "check",
       "is_active": false,
       "is_referenced": false,
-      "address": "140723513950432",
+      "address": "0x00007fff5fbfecb0",
       "details": ""
     },
     {
       "type": "async",
       "is_active": true,
       "is_referenced": false,
-      "address": "39353856",
+      "address": "0x000000010188f2e0",
       "details": ""
     }
   ],
