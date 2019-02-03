@@ -113,7 +113,6 @@ class Agent {
  private:
   friend class AgentWriterHandle;
 
-  static void ThreadCb(void* arg);
   void InitializeWritersOnThread();
 
   void Start();
