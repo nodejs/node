@@ -139,7 +139,6 @@
       'lib/internal/main/eval_string.js',
       'lib/internal/main/eval_stdin.js',
       'lib/internal/main/inspect.js',
-      'lib/internal/main/print_bash_completion.js',
       'lib/internal/main/print_help.js',
       'lib/internal/main/prof_process.js',
       'lib/internal/main/repl.js',
