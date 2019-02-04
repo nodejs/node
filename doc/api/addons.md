@@ -69,7 +69,8 @@ using v8::Value;
 
 void Method(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
-  args.GetReturnValue().Set(String::NewFromUtf8(isolate, "world"));
+  args.GetReturnValue().Set(String::NewFromUtf8(isolate, "world",
+                            v8::NewStringType::kNormal).ToLocalChecked());
 }
 
 void Initialize(Local<Object> exports) {
@@ -225,7 +226,7 @@ NODE_MODULE_INIT(/* exports, module, context */) {
   // per-addon-instance data we created above by passing `external` as the
   // third parameter to the FunctionTemplate constructor.
   exports->Set(context,
-               String::NewFromUtf8(isolate, "method", NewStringType::kNormal)
+               String::NewFromUtf8(isolate, "method", v8::NewStringType::kNormal)
                   .ToLocalChecked(),
                FunctionTemplate::New(isolate, Method, external)
                   ->GetFunction(context).ToLocalChecked()).FromJust();
@@ -479,14 +480,16 @@ void Add(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() < 2) {
     // Throw an Error that is passed back to JavaScript
     isolate->ThrowException(Exception::TypeError(
-        String::NewFromUtf8(isolate, "Wrong number of arguments")));
+        String::NewFromUtf8(isolate, "Wrong number of arguments",
+        v8::NewStringType::kNormal).ToLocalChecked()));
     return;
   }
 
   // Check the argument types
   if (!args[0]->IsNumber() || !args[1]->IsNumber()) {
     isolate->ThrowException(Exception::TypeError(
-        String::NewFromUtf8(isolate, "Wrong arguments")));
+        String::NewFromUtf8(isolate, "Wrong arguments",
+        v8::NewStringType::kNormal).ToLocalChecked()));
     return;
   }
 
@@ -543,8 +546,10 @@ void RunCallback(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Function> cb = Local<Function>::Cast(args[0]);
   const unsigned argc = 1;
-  Local<Value> argv[argc] = { String::NewFromUtf8(isolate, "hello world") };
-  cb->Call(Null(isolate), argc, argv);
+  Local<Value> argv[argc] = { String::NewFromUtf8(
+      isolate, "hello world", v8::NewStringType::kNormal).ToLocalChecked() };
+  cb->Call(isolate->GetCurrentContext(), Null(isolate), argc, argv)
+      .FromMaybe(Local<Value>());
 }
 
 void Init(Local<Object> exports, Local<Object> module) {
@@ -600,8 +605,9 @@ void CreateObject(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = isolate->GetCurrentContext();
 
   Local<Object> obj = Object::New(isolate);
-  obj->Set(String::NewFromUtf8(isolate, "msg"),
-                               args[0]->ToString(context).ToLocalChecked());
+  obj->Set(String::NewFromUtf8(isolate, "msg", v8::NewStringType::kNormal)
+      .ToLocalChecked(),
+      args[0]->ToString(context).ToLocalChecked());
 
   args.GetReturnValue().Set(obj);
 }
@@ -650,7 +656,8 @@ using v8::Value;
 
 void MyFunction(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
-  args.GetReturnValue().Set(String::NewFromUtf8(isolate, "hello world"));
+  args.GetReturnValue().Set(String::NewFromUtf8(isolate, "hello world",
+      v8::NewStringType::kNormal).ToLocalChecked());
 }
 
 void CreateFunction(const FunctionCallbackInfo<Value>& args) {
@@ -661,7 +668,8 @@ void CreateFunction(const FunctionCallbackInfo<Value>& args) {
   Local<Function> fn = tpl->GetFunction(context).ToLocalChecked();
 
   // omit this to make it anonymous
-  fn->SetName(String::NewFromUtf8(isolate, "theFunction"));
+  fn->SetName(String::NewFromUtf8(isolate, "theFunction",
+      v8::NewStringType::kNormal).ToLocalChecked());
 
   args.GetReturnValue().Set(fn);
 }
@@ -776,7 +784,8 @@ void MyObject::Init(Local<Object> exports) {
 
   // Prepare constructor template
   Local<FunctionTemplate> tpl = FunctionTemplate::New(isolate, New);
-  tpl->SetClassName(String::NewFromUtf8(isolate, "MyObject"));
+  tpl->SetClassName(String::NewFromUtf8(isolate, "MyObject",
+                    v8::NewStringType::kNormal).ToLocalChecked());
   tpl->InstanceTemplate()->SetInternalFieldCount(1);
 
   // Prototype
@@ -784,7 +793,8 @@ void MyObject::Init(Local<Object> exports) {
 
   Local<Context> context = isolate->GetCurrentContext();
   constructor.Reset(isolate, tpl->GetFunction(context).ToLocalChecked());
-  exports->Set(String::NewFromUtf8(isolate, "MyObject"),
+  exports->Set(String::NewFromUtf8(isolate, "MyObject",
+               v8::NewStringType::kNormal).ToLocalChecked(),
                tpl->GetFunction(context).ToLocalChecked());
 }
 
@@ -969,7 +979,8 @@ MyObject::~MyObject() {
 void MyObject::Init(Isolate* isolate) {
   // Prepare constructor template
   Local<FunctionTemplate> tpl = FunctionTemplate::New(isolate, New);
-  tpl->SetClassName(String::NewFromUtf8(isolate, "MyObject"));
+  tpl->SetClassName(String::NewFromUtf8(isolate, "MyObject New",
+                    v8::NewStringType::kNormal).ToLocalChecked());
   tpl->InstanceTemplate()->SetInternalFieldCount(1);
 
   // Prototype
@@ -1183,7 +1194,8 @@ MyObject::~MyObject() {
 void MyObject::Init(Isolate* isolate) {
   // Prepare constructor template
   Local<FunctionTemplate> tpl = FunctionTemplate::New(isolate, New);
-  tpl->SetClassName(String::NewFromUtf8(isolate, "MyObject"));
+  tpl->SetClassName(String::NewFromUtf8(isolate, "MyObject",
+                    v8::NewStringType::kNormal).ToLocalChecked());
   tpl->InstanceTemplate()->SetInternalFieldCount(1);
 
   Local<Context> context = isolate->GetCurrentContext();

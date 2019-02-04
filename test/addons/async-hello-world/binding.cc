@@ -53,7 +53,9 @@ void AfterAsync(uv_work_t* r) {
     // This should be changed to an empty handle.
     assert(!ret.IsEmpty());
   } else {
-    callback->Call(global, 2, argv);
+    v8::Local<v8::Value> ret = callback
+        ->Call(isolate->GetCurrentContext(), global, 2, argv).ToLocalChecked();
+    assert(!ret.IsEmpty());
   }
 
   // cleanup

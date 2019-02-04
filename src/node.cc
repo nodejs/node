@@ -1383,7 +1383,8 @@ void FatalException(Isolate* isolate,
     // This will return true if the JS layer handled it, false otherwise
     Local<Value> caught =
         fatal_exception_function.As<Function>()
-            ->Call(process_object, 1, &error);
+            ->Call(env->context(), process_object, 1, &error)
+            .FromMaybe(Local<Value>());
 
     if (fatal_try_catch.HasTerminated())
       return;
@@ -1392,7 +1393,7 @@ void FatalException(Isolate* isolate,
       // The fatal exception function threw, so we must exit
       ReportException(env, fatal_try_catch);
       exit(7);
-    } else if (caught->IsFalse()) {
+    } else if (caught.IsEmpty() || caught->IsFalse()) {
       ReportException(env, error, message);
 
       // fatal_exception_function call before may have set a new exit code ->
