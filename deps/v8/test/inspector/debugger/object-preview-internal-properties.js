@@ -48,7 +48,7 @@ InspectorTest.runTestSuite([
   function iteratorObject(next)
   {
     checkExpression("(new Map([[1,2]])).entries()")
-      .then(() => checkExpression("(new Set([[1,2]])).entries()"))
+      .then(() => checkExpression("(new Set([1,2])).entries()"))
       .then(next);
   },
 

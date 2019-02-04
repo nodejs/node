@@ -7098,6 +7098,11 @@ enum class MapAsArrayKind {
   kValues = i::JS_MAP_VALUE_ITERATOR_TYPE
 };
 
+enum class SetAsArrayKind {
+  kEntries = i::JS_SET_KEY_VALUE_ITERATOR_TYPE,
+  kValues = i::JS_SET_VALUE_ITERATOR_TYPE
+};
+
 i::Handle<i::JSArray> MapAsArray(i::Isolate* isolate, i::Object* table_obj,
                                  int offset, MapAsArrayKind kind) {
   i::Factory* factory = isolate->factory();
@@ -7207,13 +7212,14 @@ Maybe<bool> Set::Delete(Local<Context> context, Local<Value> key) {
 
 namespace {
 i::Handle<i::JSArray> SetAsArray(i::Isolate* isolate, i::Object* table_obj,
-                                 int offset) {
+                                 int offset, SetAsArrayKind kind) {
   i::Factory* factory = isolate->factory();
   i::Handle<i::OrderedHashSet> table(i::OrderedHashSet::cast(table_obj),
                                      isolate);
   // Elements skipped by |offset| may already be deleted.
   int capacity = table->UsedCapacity();
-  int max_length = capacity - offset;
+  const bool collect_key_values = kind == SetAsArrayKind::kEntries;
+  int max_length = (capacity - offset) * (collect_key_values ? 2 : 1);
   if (max_length == 0) return factory->NewJSArray(0);
   i::Handle<i::FixedArray> result = factory->NewFixedArray(max_length);
   int result_index = 0;
@@ -7224,6 +7230,7 @@ i::Handle<i::JSArray> SetAsArray(i::Isolate* isolate, i::Object* table_obj,
       i::Object* key = table->KeyAt(i);
       if (key == the_hole) continue;
       result->set(result_index++, key);
+      if (collect_key_values) result->set(result_index++, key);
     }
   }
   DCHECK_GE(max_length, result_index);
@@ -7239,7 +7246,8 @@ Local<Array> Set::AsArray() const {
   i::Isolate* isolate = obj->GetIsolate();
   LOG_API(isolate, Set, AsArray);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  return Utils::ToLocal(SetAsArray(isolate, obj->table(), 0));
+  return Utils::ToLocal(
+      SetAsArray(isolate, obj->table(), 0, SetAsArrayKind::kValues));
 }
 
 
@@ -9585,21 +9593,22 @@ v8::MaybeLocal<v8::Array> v8::Object::PreviewEntries(bool* is_key_value) {
         i::Handle<i::JSWeakCollection>::cast(object), 0));
   }
   if (object->IsJSMapIterator()) {
-    i::Handle<i::JSMapIterator> iterator =
-        i::Handle<i::JSMapIterator>::cast(object);
+    i::Handle<i::JSMapIterator> it = i::Handle<i::JSMapIterator>::cast(object);
     MapAsArrayKind const kind =
-        static_cast<MapAsArrayKind>(iterator->map()->instance_type());
+        static_cast<MapAsArrayKind>(it->map()->instance_type());
     *is_key_value = kind == MapAsArrayKind::kEntries;
-    if (!iterator->HasMore()) return v8::Array::New(v8_isolate);
-    return Utils::ToLocal(MapAsArray(isolate, iterator->table(),
-                                     i::Smi::ToInt(iterator->index()), kind));
+    if (!it->HasMore()) return v8::Array::New(v8_isolate);
+    return Utils::ToLocal(
+        MapAsArray(isolate, it->table(), i::Smi::ToInt(it->index()), kind));
   }
   if (object->IsJSSetIterator()) {
     i::Handle<i::JSSetIterator> it = i::Handle<i::JSSetIterator>::cast(object);
-    *is_key_value = false;
+    SetAsArrayKind const kind =
+        static_cast<SetAsArrayKind>(it->map()->instance_type());
+    *is_key_value = kind == SetAsArrayKind::kEntries;
     if (!it->HasMore()) return v8::Array::New(v8_isolate);
     return Utils::ToLocal(
-        SetAsArray(isolate, it->table(), i::Smi::ToInt(it->index())));
+        SetAsArray(isolate, it->table(), i::Smi::ToInt(it->index()), kind));
   }
   return v8::MaybeLocal<v8::Array>();
 }
