@@ -9,7 +9,6 @@ const { isMainThread } = require('../common');
 const assert = require('assert');
 const {
   cachableBuiltins,
-  cannotBeRequired
 } = require('internal/bootstrap/cache');
 
 const {
@@ -60,7 +59,7 @@ if (process.config.variables.node_code_cache_path === undefined) {
   );
 
   for (const key of loadedModules) {
-    if (cannotBeRequired.includes(key)) {
+    if (!cachableBuiltins.includes(key)) {
       assert(compiledWithoutCache.has(key),
              `"${key}" should've been compiled without code cache`);
     } else {
