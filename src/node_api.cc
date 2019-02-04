@@ -1376,6 +1376,7 @@ const char* error_messages[] = {nullptr,
                                 "Thread-safe function queue is full",
                                 "Thread-safe function handle is closing",
                                 "A bigint was expected",
+                                "A date was expected",
 };
 
 static inline napi_status napi_clear_last_error(napi_env env) {
@@ -1407,7 +1408,7 @@ napi_status napi_get_last_error_info(napi_env env,
   // We don't have a napi_status_last as this would result in an ABI
   // change each time a message was added.
   static_assert(
-      node::arraysize(error_messages) == napi_bigint_expected + 1,
+      node::arraysize(error_messages) == napi_date_expected + 1,
       "Count of error messages must match count of error values");
   CHECK_LE(env->last_error.error_code, napi_callback_scope_mismatch);
 
@@ -4083,6 +4084,48 @@ napi_status napi_is_promise(napi_env env,
   *is_promise = v8impl::V8LocalValueFromJsValue(promise)->IsPromise();
 
   return napi_clear_last_error(env);
+}
+
+napi_status napi_create_date(napi_env env,
+                             double time,
+                             napi_value* result) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, result);
+
+  v8::MaybeLocal<v8::Value> maybe_date = v8::Date::New(env->context(), time);
+  CHECK_MAYBE_EMPTY(env, maybe_date, napi_generic_failure);
+
+  *result = v8impl::JsValueFromV8LocalValue(maybe_date.ToLocalChecked());
+
+  return GET_RETURN_STATUS(env);
+}
+
+napi_status napi_is_date(napi_env env,
+                         napi_value value,
+                         bool* is_date) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, value);
+  CHECK_ARG(env, is_date);
+
+  *is_date = v8impl::V8LocalValueFromJsValue(value)->IsDate();
+
+  return napi_clear_last_error(env);
+}
+
+napi_status napi_get_date_value(napi_env env,
+                                napi_value value,
+                                double* result) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, value);
+  CHECK_ARG(env, result);
+
+  v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
+  RETURN_STATUS_IF_FALSE(env, val->IsDate(), napi_date_expected);
+
+  v8::Local<v8::Date> date = val.As<v8::Date>();
+  *result = date->ValueOf();
+
+  return GET_RETURN_STATUS(env);
 }
 
 napi_status napi_run_script(napi_env env,
