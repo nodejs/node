@@ -63,6 +63,12 @@ server.listen(0, common.mustCall(() => {
       type: TypeError,
     });
 
+    common.expectsError(() => client.renegotiate({}, null), {
+      code: 'ERR_INVALID_CALLBACK',
+      type: TypeError,
+    });
+
+
     // Negotiation is still permitted for this first
     // attempt. This should succeed.
     let ok = client.renegotiate(options, common.mustCall((err) => {
