@@ -80,6 +80,10 @@ typedef enum {
   napi_queue_full,
   napi_closing,
 #endif  // NAPI_VERSION >= 4
+#ifdef NAPI_EXPERIMENTAL
+  napi_bigint_expected,
+  napi_date_expected,
+#endif  // NAPI_EXPERIMENTAL
 } napi_status;
 
 #if NAPI_VERSION >= 4

@@ -128,9 +128,13 @@ typedef enum {
   napi_escape_called_twice,
   napi_handle_scope_mismatch,
   napi_callback_scope_mismatch,
-#ifdef NAPI_EXPERIMENTAL
+#if NAPI_VERSION >= 4
   napi_queue_full,
   napi_closing,
+#endif  // NAPI_VERSION >= 4
+#define NAPI_EXPERIMENTAL
+  napi_bigint_expected,
+  napi_date_expected,
 #endif  // NAPI_EXPERIMENTAL
 } napi_status;
 ```
@@ -1375,6 +1379,31 @@ This API allocates a `node::Buffer` object and initializes it with data copied
 from the passed-in buffer. While this is still a fully-supported data
 structure, in most cases using a TypedArray will suffice.
 
+#### napi_create_date
+<!-- YAML
+added: REPLACEME
+napiVersion: 4
+-->
+
+> Stability: 1 - Experimental
+
+```C
+napi_status napi_create_date(napi_env env,
+                             double time,
+                             napi_value* result);
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] time`: ECMAScript time value in milliseconds since 01 January, 1970 UTC.
+- `[out] result`: A `napi_value` representing a JavaScript `Date`.
+
+Returns `napi_ok` if the API succeeded.
+
+This API allocates a JavaScript `Date` object.
+
+JavaScript `Date` objects are described in
+[Section 20.3][] of the ECMAScript Language Specification.
+
 #### napi_create_external
 <!-- YAML
 added: v8.0.0
@@ -1956,6 +1985,31 @@ Returns `napi_ok` if the API succeeded.
 
 This API returns various properties of a DataView.
 
+#### napi_get_date_value
+<!-- YAML
+added: REPLACEME
+napiVersion: 4
+-->
+
+> Stability: 1 - Experimental
+
+```C
+napi_status napi_get_date_value(napi_env env,
+                                napi_value value,
+                                double* result)
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] value`: `napi_value` representing a JavaScript `Date`.
+- `[out] result`: Time value as a `double` represented as milliseconds
+since midnight at the beginning of 01 January, 1970 UTC.
+
+Returns `napi_ok` if the API succeeded. If a non-date `napi_value` is passed
+in it returns `napi_date_expected`.
+
+This API returns the C double primitive of time value for the given JavaScript
+`Date`.
+
 #### napi_get_value_bool
 <!-- YAML
 added: v8.0.0
@@ -2451,6 +2505,27 @@ object.
 Returns `napi_ok` if the API succeeded.
 
 This API checks if the Object passed in is a buffer.
+
+### napi_is_date
+<!-- YAML
+added: REPLACEME
+napiVersion: 4
+-->
+
+> Stability: 1 - Experimental
+
+```C
+napi_status napi_is_date(napi_env env, napi_value value, bool* result)
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] value`: The JavaScript value to check.
+- `[out] result`: Whether the given `napi_value` represents a JavaScript `Date`
+object.
+
+Returns `napi_ok` if the API succeeded.
+
+This API checks if the `Object` passed in is a date.
 
 ### napi_is_error
 <!-- YAML
@@ -4374,6 +4449,7 @@ This API may only be called from the main thread.
 [Promises]: #n_api_promises
 [Script Execution]: #n_api_script_execution
 [Section 12.5.5]: https://tc39.github.io/ecma262/#sec-typeof-operator
+[Section 20.3]: https://tc39.github.io/ecma262/#sec-date-objects
 [Section 24.3]: https://tc39.github.io/ecma262/#sec-dataview-objects
 [Section 25.4]: https://tc39.github.io/ecma262/#sec-promise-objects
 [Section 9.1.6]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-defineownproperty-p-desc
