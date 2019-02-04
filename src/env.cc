@@ -827,25 +827,6 @@ void CollectExceptionInfo(Environment* env,
   }
 }
 
-void Environment::CollectExceptionInfo(Local<Value> object,
-                                       int errorno,
-                                       const char* syscall,
-                                       const char* message,
-                                       const char* path) {
-  if (!object->IsObject() || errorno == 0)
-    return;
-
-  Local<Object> obj = object.As<Object>();
-  const char* err_string = errors::errno_string(errorno);
-
-  if (message == nullptr || message[0] == '\0') {
-    message = strerror(errorno);
-  }
-
-  node::CollectExceptionInfo(this, obj, errorno, err_string,
-                             syscall, message, path, nullptr);
-}
-
 void Environment::CollectUVExceptionInfo(Local<Value> object,
                                          int errorno,
                                          const char* syscall,
