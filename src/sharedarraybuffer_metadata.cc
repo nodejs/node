@@ -75,7 +75,7 @@ SharedArrayBufferMetadata::ForSharedArrayBuffer(
     CHECK(source->IsExternal());
     SABLifetimePartner* partner =
         Unwrap<SABLifetimePartner>(lifetime_partner.As<Object>());
-    CHECK_NE(partner, nullptr);
+    CHECK_NOT_NULL(partner);
     return partner->reference;
   }
 

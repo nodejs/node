@@ -1043,8 +1043,8 @@ napi_create_threadsafe_function(napi_env env,
 napi_status
 napi_get_threadsafe_function_context(napi_threadsafe_function func,
                                      void** result) {
-  CHECK(func != nullptr);
-  CHECK(result != nullptr);
+  CHECK_NOT_NULL(func);
+  CHECK_NOT_NULL(result);
 
   *result = reinterpret_cast<v8impl::ThreadSafeFunction*>(func)->Context();
   return napi_ok;
@@ -1054,32 +1054,32 @@ napi_status
 napi_call_threadsafe_function(napi_threadsafe_function func,
                               void* data,
                               napi_threadsafe_function_call_mode is_blocking) {
-  CHECK(func != nullptr);
+  CHECK_NOT_NULL(func);
   return reinterpret_cast<v8impl::ThreadSafeFunction*>(func)->Push(data,
                                                                    is_blocking);
 }
 
 napi_status
 napi_acquire_threadsafe_function(napi_threadsafe_function func) {
-  CHECK(func != nullptr);
+  CHECK_NOT_NULL(func);
   return reinterpret_cast<v8impl::ThreadSafeFunction*>(func)->Acquire();
 }
 
 napi_status
 napi_release_threadsafe_function(napi_threadsafe_function func,
                                  napi_threadsafe_function_release_mode mode) {
-  CHECK(func != nullptr);
+  CHECK_NOT_NULL(func);
   return reinterpret_cast<v8impl::ThreadSafeFunction*>(func)->Release(mode);
 }
 
 napi_status
 napi_unref_threadsafe_function(napi_env env, napi_threadsafe_function func) {
-  CHECK(func != nullptr);
+  CHECK_NOT_NULL(func);
   return reinterpret_cast<v8impl::ThreadSafeFunction*>(func)->Unref();
 }
 
 napi_status
 napi_ref_threadsafe_function(napi_env env, napi_threadsafe_function func) {
-  CHECK(func != nullptr);
+  CHECK_NOT_NULL(func);
   return reinterpret_cast<v8impl::ThreadSafeFunction*>(func)->Ref();
 }

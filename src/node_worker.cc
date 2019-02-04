@@ -92,7 +92,7 @@ Worker::Worker(Environment* env,
 
   CHECK_EQ(uv_loop_init(&loop_), 0);
   isolate_ = NewIsolate(array_buffer_allocator_.get(), &loop_);
-  CHECK_NE(isolate_, nullptr);
+  CHECK_NOT_NULL(isolate_);
 
   {
     // Enter an environment capable of executing code in the child Isolate
@@ -115,7 +115,7 @@ Worker::Worker(Environment* env,
 
     // TODO(addaleax): Use CreateEnvironment(), or generally another public API.
     env_.reset(new Environment(isolate_data_.get(), context));
-    CHECK_NE(env_, nullptr);
+    CHECK_NOT_NULL(env_);
     env_->set_abort_on_uncaught_exception(false);
     env_->set_worker_context(this);
     thread_id_ = env_->thread_id();
@@ -153,7 +153,7 @@ void Worker::Run() {
       "__metadata", "thread_name", "name",
       TRACE_STR_COPY(name.c_str()));
   MultiIsolatePlatform* platform = isolate_data_->platform();
-  CHECK_NE(platform, nullptr);
+  CHECK_NOT_NULL(platform);
 
   Debug(this, "Starting worker with id %llu", thread_id_);
   {
@@ -339,7 +339,7 @@ void Worker::OnThreadStopped() {
       CHECK(stopped_);
     }
 
-    CHECK_EQ(child_port_, nullptr);
+    CHECK_NULL(child_port_);
     parent_port_ = nullptr;
   }
 
@@ -369,7 +369,7 @@ Worker::~Worker() {
 
   CHECK(stopped_);
   CHECK(thread_joined_);
-  CHECK_EQ(child_port_, nullptr);
+  CHECK_NULL(child_port_);
 
   // This has most likely already happened within the worker thread -- this
   // is just in case Worker creation failed early.
@@ -509,7 +509,7 @@ void Worker::Exit(int code) {
   Debug(this, "Worker %llu called Exit(%d)", thread_id_, code);
 
   if (!stopped_) {
-    CHECK_NE(env_, nullptr);
+    CHECK_NOT_NULL(env_);
     stopped_ = true;
     exit_code_ = code;
     if (child_port_ != nullptr)

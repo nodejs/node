@@ -206,7 +206,7 @@ PromiseWrap* PromiseWrap::New(Environment* env,
   obj->SetInternalField(PromiseWrap::kIsChainedPromiseField,
                         parent_wrap != nullptr ? v8::True(env->isolate())
                                                : v8::False(env->isolate()));
-  CHECK_EQ(promise->GetAlignedPointerFromInternalField(0), nullptr);
+  CHECK_NULL(promise->GetAlignedPointerFromInternalField(0));
   promise->SetInternalField(0, obj);
   return new PromiseWrap(env, obj, silent);
 }

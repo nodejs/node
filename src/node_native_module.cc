@@ -270,7 +270,7 @@ MaybeLocal<Function> NativeModuleLoader::LookupAndCompile(
   // Generate new cache for next compilation
   std::unique_ptr<ScriptCompiler::CachedData> new_cached_data(
       ScriptCompiler::CreateCodeCacheForFunction(fun));
-  CHECK_NE(new_cached_data, nullptr);
+  CHECK_NOT_NULL(new_cached_data);
 
   // The old entry should've been erased by now so we can just emplace
   code_cache_.emplace(id, std::move(new_cached_data));

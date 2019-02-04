@@ -5408,7 +5408,7 @@ void CryptoJob::AfterThreadPoolWork(int status) {
 
 void CryptoJob::Run(std::unique_ptr<CryptoJob> job, Local<Value> wrap) {
   CHECK(wrap->IsObject());
-  CHECK_EQ(nullptr, job->async_wrap);
+  CHECK_NULL(job->async_wrap);
   job->async_wrap.reset(Unwrap<AsyncWrap>(wrap.As<Object>()));
   CHECK_EQ(false, job->async_wrap->persistent().IsWeak());
   job->ScheduleWork();

@@ -376,7 +376,7 @@ void Message::MemoryInfo(MemoryTracker* tracker) const {
 MessagePortData::MessagePortData(MessagePort* owner) : owner_(owner) { }
 
 MessagePortData::~MessagePortData() {
-  CHECK_EQ(owner_, nullptr);
+  CHECK_NULL(owner_);
   Disentangle();
 }
 
@@ -402,8 +402,8 @@ bool MessagePortData::IsSiblingClosed() const {
 }
 
 void MessagePortData::Entangle(MessagePortData* a, MessagePortData* b) {
-  CHECK_EQ(a->sibling_, nullptr);
-  CHECK_EQ(b->sibling_, nullptr);
+  CHECK_NULL(a->sibling_);
+  CHECK_NULL(b->sibling_);
   a->sibling_ = b;
   b->sibling_ = a;
   a->sibling_mutex_ = b->sibling_mutex_;

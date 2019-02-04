@@ -336,7 +336,7 @@ void MarkBootstrapComplete(const FunctionCallbackInfo<Value>& args) {
 
 MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
   EscapableHandleScope scope(env->isolate());
-  CHECK_NE(main_script_id, nullptr);
+  CHECK_NOT_NULL(main_script_id);
 
   std::vector<Local<String>> parameters = {
       env->process_string(),
