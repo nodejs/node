@@ -352,7 +352,7 @@ std::string InspectorSocketServer::GetFrontendURL(bool is_compat,
 }
 
 bool InspectorSocketServer::Start() {
-  CHECK_NE(delegate_, nullptr);
+  CHECK_NOT_NULL(delegate_);
   CHECK_EQ(state_, ServerState::kNew);
   std::unique_ptr<SocketServerDelegate> delegate_holder;
   // We will return it if startup is successful

@@ -667,7 +667,7 @@ inline worker::Worker* Environment::worker_context() const {
 }
 
 inline void Environment::set_worker_context(worker::Worker* context) {
-  CHECK_EQ(worker_context_, nullptr);  // Should be set only once.
+  CHECK_NULL(worker_context_);  // Should be set only once.
   worker_context_ = context;
 }
 

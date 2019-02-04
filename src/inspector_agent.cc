@@ -682,7 +682,7 @@ bool Agent::Start(const std::string& path,
                   bool is_main) {
   path_ = path;
   debug_options_ = options;
-  CHECK_NE(host_port, nullptr);
+  CHECK_NOT_NULL(host_port);
   host_port_ = host_port;
 
   client_ = std::make_shared<NodeInspectorClient>(parent_env_, is_main);
