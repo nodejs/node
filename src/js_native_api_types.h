@@ -76,6 +76,7 @@ typedef enum {
   napi_queue_full,
   napi_closing,
   napi_bigint_expected,
+  napi_date_expected,
 } napi_status;
 
 typedef napi_value (*napi_callback)(napi_env env,

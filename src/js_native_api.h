@@ -449,6 +449,20 @@ NAPI_EXTERN napi_status napi_adjust_external_memory(napi_env env,
 
 #ifdef NAPI_EXPERIMENTAL
 
+// Dates
+NAPI_EXTERN napi_status napi_create_date(napi_env env,
+                                         double time,
+                                         napi_value* result);
+
+NAPI_EXTERN napi_status napi_is_date(napi_env env,
+                                     napi_value value,
+                                     bool* is_date);
+
+NAPI_EXTERN napi_status napi_get_date_value(napi_env env,
+                                            napi_value value,
+                                            double* result);
+
+// BigInt
 NAPI_EXTERN napi_status napi_create_bigint_int64(napi_env env,
                                                  int64_t value,
                                                  napi_value* result);
