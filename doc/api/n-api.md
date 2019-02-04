@@ -1527,6 +1527,31 @@ This API allocates a `node::Buffer` object and initializes it with data copied
 from the passed-in buffer. While this is still a fully-supported data
 structure, in most cases using a `TypedArray` will suffice.
 
+#### napi_create_date
+<!-- YAML
+added:
+napiVersion:
+-->
+
+> Stability: 1 - Experimental
+
+```C
+napi_status napi_create_date(napi_env env,
+                             double time,
+                             napi_value* result);
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] time`: ECMAScript time value in milliseconds since 01 January, 1970 UTC.
+- `[out] result`: A `napi_value` representing a `node::Date`.
+
+Returns `napi_ok` if the API succeeded.
+
+This API allocates a `node::Date` object.
+
+JavaScript `Date` objects are described in
+[Section 20.3][] of the ECMAScript Language Specification.
+
 #### napi_create_external
 <!-- YAML
 added: v8.0.0
@@ -2730,6 +2755,27 @@ object.
 Returns `napi_ok` if the API succeeded.
 
 This API checks if the `Object` passed in is a buffer.
+
+### napi_is_date
+<!-- YAML
+added:
+napiVersion:
+-->
+
+> Stability: 1 - Experimental
+
+```C
+napi_status napi_is_date(napi_env env, napi_value value, bool* result)
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] value`: The JavaScript value to check.
+- `[out] result`: Whether the given `napi_value` represents a `node::Date`
+object.
+
+Returns `napi_ok` if the API succeeded.
+
+This API checks if the `Object` passed in is a date.
 
 ### napi_is_error
 <!-- YAML
@@ -4712,6 +4758,7 @@ This API may only be called from the main thread.
 [Object Lifetime Management]: #n_api_object_lifetime_management
 [Object Wrap]: #n_api_object_wrap
 [Section 12.5.5]: https://tc39.github.io/ecma262/#sec-typeof-operator
+[Section 20.3]: https://tc39.github.io/ecma262/#sec-date-objects
 [Section 22.1]: https://tc39.github.io/ecma262/#sec-array-objects
 [Section 22.2]: https://tc39.github.io/ecma262/#sec-typedarray-objects
 [Section 24.1]: https://tc39.github.io/ecma262/#sec-arraybuffer-objects

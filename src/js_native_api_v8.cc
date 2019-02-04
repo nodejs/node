@@ -2886,6 +2886,33 @@ napi_status napi_is_promise(napi_env env,
   return napi_clear_last_error(env);
 }
 
+napi_status napi_create_date(napi_env env,
+                             double time,
+                             napi_value* result) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, result);
+
+  auto maybe_date = v8::Date::New(env->context(), time);
+  CHECK_MAYBE_EMPTY(env, maybe_date, napi_generic_failure);
+
+  auto v8_resolver = maybe_date.ToLocalChecked();
+  *result = v8impl::JsValueFromV8LocalValue(v8_resolver);
+
+  return GET_RETURN_STATUS(env);
+}
+
+napi_status napi_is_date(napi_env env,
+                         napi_value value,
+                         bool* is_date) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, value);
+  CHECK_ARG(env, is_date);
+
+  *is_date = v8impl::V8LocalValueFromJsValue(value)->IsDate();
+
+  return napi_clear_last_error(env);
+}
+
 napi_status napi_run_script(napi_env env,
                             napi_value script,
                             napi_value* result) {
