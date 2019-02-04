@@ -1,4 +1,5 @@
 #include "env.h"
+#include "node.h"
 #include "node_errors.h"
 #include "node_internals.h"
 #include "node_options.h"
@@ -261,6 +262,20 @@ static void Initialize(Local<Object> exports,
   env->SetMethod(exports, "onUnCaughtException", OnUncaughtException);
   env->SetMethod(exports, "onUserSignal", OnUserSignal);
   env->SetMethod(exports, "syncConfig", SyncConfig);
+
+  // Libuv based signal handling does not help internal segfaults,
+  // as synchronously delivered signals are handled asynchronously
+  // in libuv at present, which Node.js is unable to effectively
+  // consume. So install one of our own; make sure reset tty mode
+  // and exit; do not return gracefully that causes fault context
+  // to be invoked again.
+  // TODO(gireeshpunathil) decide what to do with asynchronous
+  // sigsegv handling - handle separately, or merge with this one.
+#ifndef _WIN32
+  if (options->report_on_fatalerror) {
+    node::RegisterSignalHandler(SIGSEGV, node::OnSIGSEGV, true);
+  }
+#endif  //  _WIN32
 
   // TODO(gireeshpunathil) if we are retaining this flag,
   // insert more verbose information at vital control flow

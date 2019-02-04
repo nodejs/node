@@ -22,6 +22,9 @@ void AppendExceptionLine(Environment* env,
 
 [[noreturn]] void FatalError(const char* location, const char* message);
 void OnFatalError(const char* location, const char* message);
+#ifndef _WIN32
+void OnSIGSEGV(int signo);
+#endif  //  _WIN32
 
 // Like a `TryCatch` but exits the process if an exception was caught.
 class FatalTryCatch : public v8::TryCatch {

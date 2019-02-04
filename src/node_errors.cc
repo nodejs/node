@@ -306,6 +306,21 @@ void PrintErrorString(const char* format, ...) {
   ABORT();
 }
 
+#ifndef _WIN32
+void OnSIGSEGV(int signo) {
+  uv_tty_reset_mode();
+#ifdef __FreeBSD__
+  // FreeBSD has a nasty bug, see RegisterSignalHandler for details
+  struct sigaction sa;
+  memset(&sa, 0, sizeof(sa));
+  sa.sa_handler = SIG_DFL;
+  CHECK_EQ(sigaction(signo, &sa, nullptr), 0);
+#endif
+  CHECK_EQ(signo, SIGSEGV);
+  OnFatalError(__func__, "caught internal error.");
+}
+#endif  //  _WIN32
+
 void OnFatalError(const char* location, const char* message) {
   if (location) {
     PrintErrorString("FATAL ERROR: %s %s\n", location, message);
