@@ -32,6 +32,7 @@ static int connect_cb_called = 0;
 
 static void alloc_cb(uv_handle_t* handle, size_t size, uv_buf_t* buf) {
   buf->base = malloc(size);
+  ASSERT(buf->base != NULL);
   buf->len = size;
 }
 
