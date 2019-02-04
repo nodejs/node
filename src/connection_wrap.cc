@@ -94,7 +94,7 @@ void ConnectionWrap<WrapType, UVType>::AfterConnect(uv_connect_t* req,
   bool readable, writable;
 
   if (status) {
-    readable = writable = 0;
+    readable = writable = false;
   } else {
     readable = uv_is_readable(req->handle) != 0;
     writable = uv_is_writable(req->handle) != 0;
