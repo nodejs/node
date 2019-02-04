@@ -447,6 +447,8 @@ assert.strictEqual(
   notUtilIsDeepStrict(boxedString, Object('test'));
   boxedSymbol.slow = true;
   notUtilIsDeepStrict(boxedSymbol, {});
+  utilIsDeepStrict(Object(BigInt(1)), Object(BigInt(1)));
+  notUtilIsDeepStrict(Object(BigInt(1)), Object(BigInt(2)));
 }
 
 // Minus zero
