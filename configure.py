@@ -448,11 +448,6 @@ parser.add_option('--with-ltcg',
     dest='with_ltcg',
     help='Use Link Time Code Generation. This feature is only available on Windows.')
 
-parser.add_option('--with-pch',
-    action='store_true',
-    dest='with_pch',
-    help='Use Precompiled Headers (only available on Windows).')
-
 intl_optgroup.add_option('--download',
     action='store',
     dest='download_list',
@@ -1069,11 +1064,6 @@ def configure_node(o):
   o['variables']['node_with_ltcg'] = b(options.with_ltcg)
   if flavor != 'win' and options.with_ltcg:
     raise Exception('Link Time Code Generation is only supported on Windows.')
-
-  if flavor == 'win':
-    o['variables']['node_use_pch'] = b(options.with_pch)
-  else:
-    o['variables']['node_use_pch'] = 'false'
 
   if options.tag:
     o['variables']['node_tag'] = '-' + options.tag
