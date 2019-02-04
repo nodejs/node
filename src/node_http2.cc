@@ -530,7 +530,7 @@ class Http2Session::MemoryAllocatorInfo {
   static void H2Free(void* ptr, void* user_data) {
     if (ptr == nullptr) return;  // free(null); happens quite often.
     void* result = H2Realloc(ptr, 0, user_data);
-    CHECK_EQ(result, nullptr);
+    CHECK_NULL(result);
   }
 
   static void* H2Realloc(void* ptr, size_t size, void* user_data) {

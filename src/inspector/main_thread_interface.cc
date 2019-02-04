@@ -307,7 +307,7 @@ std::shared_ptr<MainThreadHandle> MainThreadInterface::GetHandle() {
 
 void MainThreadInterface::AddObject(int id,
                                     std::unique_ptr<Deletable> object) {
-  CHECK_NE(nullptr, object);
+  CHECK_NOT_NULL(object);
   managed_objects_[id] = std::move(object);
 }
 
@@ -319,7 +319,7 @@ Deletable* MainThreadInterface::GetObject(int id) {
   Deletable* pointer = GetObjectIfExists(id);
   // This would mean the object is requested after it was disposed, which is
   // a coding error.
-  CHECK_NE(nullptr, pointer);
+  CHECK_NOT_NULL(pointer);
   return pointer;
 }
 
