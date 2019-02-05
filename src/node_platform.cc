@@ -459,6 +459,7 @@ double NodePlatform::CurrentClockTimeMillis() {
 }
 
 TracingController* NodePlatform::GetTracingController() {
+  CHECK_NOT_NULL(tracing_controller_);
   return tracing_controller_;
 }
 
