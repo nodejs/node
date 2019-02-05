@@ -80,6 +80,12 @@ class Worker : public AsyncWrap {
   bool thread_joined_ = true;
   int exit_code_ = 0;
   uint64_t thread_id_ = -1;
+  uintptr_t stack_base_;
+
+  // Full size of the thread's stack.
+  static constexpr size_t kStackSize = 4 * 1024 * 1024;
+  // Stack buffer size that is not available to the JS engine.
+  static constexpr size_t kStackBufferSize = 192 * 1024;
 
   std::unique_ptr<MessagePortData> child_port_data_;
 
