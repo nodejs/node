@@ -621,7 +621,28 @@ class Parser : public AsyncWrap {
     size_t nparsed =
       http_parser_execute(&parser_, &settings, data, len);
 
-    Save();
+    enum http_errno err = HTTP_PARSER_ERRNO(&parser_);
+
+    // Finish()
+    if (data == nullptr) {
+      // `http_parser_execute()` returns either `0` or `1` when `len` is 0
+      // (part of the finishing sequence).
+      CHECK_EQ(len, 0);
+      switch (nparsed) {
+        case 0:
+          err = HPE_OK;
+          break;
+        case 1:
+          nparsed = 0;
+          break;
+        default:
+          UNREACHABLE();
+      }
+
+    // Regular Execute()
+    } else {
+      Save();
+    }
 
     // Unassign the 'buffer_' variable
     current_buffer_.Clear();
@@ -635,7 +656,7 @@ class Parser : public AsyncWrap {
     Local<Integer> nparsed_obj = Integer::New(env()->isolate(), nparsed);
     // If there was a parse error in one of the callbacks
     // TODO(bnoordhuis) What if there is an error on EOF?
-    if (!parser_.upgrade && nparsed != len) {
+    if (!parser_.upgrade && err != HPE_OK) {
       enum http_errno err = HTTP_PARSER_ERRNO(&parser_);
 
       Local<Value> e = Exception::Error(env()->parse_error_string());
@@ -645,6 +666,11 @@ class Parser : public AsyncWrap {
                OneByteString(env()->isolate(), http_errno_name(err)));
 
       return scope.Escape(e);
+    }
+
+    // No return value is needed for `Finish()`
+    if (data == nullptr) {
+      return scope.Escape(Local<Value>());
     }
     return scope.Escape(nparsed_obj);
   }
