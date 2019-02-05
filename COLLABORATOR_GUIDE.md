@@ -285,10 +285,10 @@ after-the-fact.
 
 ##### Reverting commits
 
-Commits are reverted with `git revert <HASH>`, or `git revert <FROM>..<TO>` for
-multiple commits. Commit metadata and the reason for the revert should be
-appended. Commit message rules about line length and subsystem can be ignored.
-A Pull Request should be raised and approved like any other change.
+Revert commits with `git revert <HASH>` or `git revert <FROM>..<TO>`. The
+generated commit message will not have a subsystem and may violate line length
+rules. That is OK. Append the reason for the revert and any `Refs` or `Fixes`
+metadata. Raise a Pull Request like any other change.
 
 ### Introducing New Modules
 
