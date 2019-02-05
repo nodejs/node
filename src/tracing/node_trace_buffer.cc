@@ -177,18 +177,18 @@ void NodeTraceBuffer::ExitSignalCb(uv_async_t* signal) {
   // Close both flush_signal_ and exit_signal_.
   uv_close(reinterpret_cast<uv_handle_t*>(&buffer->flush_signal_),
            [](uv_handle_t* signal) {
-    NodeTraceBuffer* buffer =
+    NodeTraceBuffer* buffer_for_flush =
         ContainerOf(&NodeTraceBuffer::flush_signal_,
                     reinterpret_cast<uv_async_t*>(signal));
 
-    uv_close(reinterpret_cast<uv_handle_t*>(&buffer->exit_signal_),
+    uv_close(reinterpret_cast<uv_handle_t*>(&buffer_for_flush->exit_signal_),
              [](uv_handle_t* signal) {
-      NodeTraceBuffer* buffer =
+      NodeTraceBuffer* buffer_for_exit =
           ContainerOf(&NodeTraceBuffer::exit_signal_,
                       reinterpret_cast<uv_async_t*>(signal));
-        Mutex::ScopedLock scoped_lock(buffer->exit_mutex_);
-        buffer->exited_ = true;
-        buffer->exit_cond_.Signal(scoped_lock);
+        Mutex::ScopedLock scoped_lock(buffer_for_exit->exit_mutex_);
+        buffer_for_exit->exited_ = true;
+        buffer_for_exit->exit_cond_.Signal(scoped_lock);
     });
   });
 }
