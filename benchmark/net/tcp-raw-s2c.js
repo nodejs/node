@@ -78,7 +78,7 @@ function main({ dur, len, type }) {
       if (err) {
         fail(err, 'write');
       } else if (!writeReq.async) {
-        process.nextTick(function() {
+        process.nextTick(() => {
           afterWrite(0, clientHandle);
         });
       }
@@ -125,7 +125,7 @@ function main({ dur, len, type }) {
       // the meat of the benchmark is right here:
       bench.start();
 
-      setTimeout(function() {
+      setTimeout(() => {
         // report in Gb/sec
         bench.end((bytes * 8) / (1024 * 1024 * 1024));
         process.exit(0);

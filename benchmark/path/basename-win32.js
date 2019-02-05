@@ -13,7 +13,7 @@ const bench = common.createBenchmark(main, {
     'foo\\bar.',
     ['foo\\bar.', '.'].join('|'),
     '\\foo\\bar\\baz\\asdf\\quux.html',
-    ['\\foo\\bar\\baz\\asdf\\quux.html', '.html'].join('|')
+    ['\\foo\\bar\\baz\\asdf\\quux.html', '.html'].join('|'),
   ],
   n: [1e6]
 });

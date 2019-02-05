@@ -25,7 +25,7 @@ function main({ len, dur, concurrent }) {
   var reads = 0;
   var benchEnded = false;
   bench.start();
-  setTimeout(function() {
+  setTimeout(() => {
     benchEnded = true;
     bench.end(reads);
     try { fs.unlinkSync(filename); } catch {}

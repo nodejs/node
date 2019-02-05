@@ -60,7 +60,7 @@ function main({ dur, script, mode }) {
     throughput: 0
   };
 
-  setTimeout(function() {
+  setTimeout(() => {
     state.go = false;
   }, dur * 1000);
 

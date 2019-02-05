@@ -33,11 +33,11 @@ function main({ dur, len, num, type, chunks }) {
     }
   }
 
-  socket.on('listening', function() {
+  socket.on('listening', () => {
     bench.start();
     onsend();
 
-    setTimeout(function() {
+    setTimeout(() => {
       const bytes = (type === 'send' ? sent : received) * len;
       const gbits = (bytes * 8) / (1024 * 1024 * 1024);
       bench.end(gbits);
@@ -45,7 +45,7 @@ function main({ dur, len, num, type, chunks }) {
     }, dur * 1000);
   });
 
-  socket.on('message', function() {
+  socket.on('message', () => {
     received++;
   });
 
