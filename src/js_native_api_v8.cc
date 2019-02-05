@@ -2913,6 +2913,22 @@ napi_status napi_is_date(napi_env env,
   return napi_clear_last_error(env);
 }
 
+napi_status napi_get_date_value(napi_env env,
+                                napi_value value,
+                                double* result) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, value);
+  CHECK_ARG(env, result);
+
+  v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
+  RETURN_STATUS_IF_FALSE(env, val->IsDate(), napi_date_expected);
+
+  v8::Local<v8::Date> date = val.As<v8::Date>();
+  *result = date->ValueOf();
+
+  return GET_RETURN_STATUS(env);
+}
+
 napi_status napi_run_script(napi_env env,
                             napi_value script,
                             napi_value* result) {

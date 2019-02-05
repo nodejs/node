@@ -37,11 +37,24 @@ static napi_value isDate(napi_env env, napi_callback_info info) {
   return result;
 }
 
+static napi_value getDateValue(napi_env env, napi_callback_info info) {
+  napi_value date, result;
+  size_t argc = 1;
+  double value;
+
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &date, NULL, NULL));
+  NAPI_CALL(env, napi_get_date_value(env, date, &value));
+  NAPI_CALL(env, napi_create_double(env, value, &result));
+
+  return result;
+}
+
 EXTERN_C_START
 napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("createDate", createDate),
     DECLARE_NAPI_PROPERTY("isDate", isDate),
+    DECLARE_NAPI_PROPERTY("getDateValue", getDateValue),
   };
 
   NAPI_CALL(env, napi_define_properties(
