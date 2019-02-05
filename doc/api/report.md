@@ -219,7 +219,7 @@ is provided below for reference.
     {
       "type": "loop",
       "is_active": true,
-      "address": "140696384399248"
+      "address": "0x000055fc7b2cb180"
     }
   ],
   "environmentVariables": {

@@ -319,7 +319,7 @@ static void WriteNodeReport(Isolate* isolate,
     writer.json_keyvalue("is_active",
         static_cast<bool>(uv_loop_alive(env->event_loop())));
     writer.json_keyvalue("address",
-        std::to_string(reinterpret_cast<int64_t>(env->event_loop())));
+        ValueToHexString(reinterpret_cast<int64_t>(env->event_loop())));
     writer.json_end();
   }
 
