@@ -81,7 +81,9 @@ class Agent {
   ~Agent();
 
   TracingController* GetTracingController() {
-    return tracing_controller_.get();
+    TracingController* controller = tracing_controller_.get();
+    CHECK_NOT_NULL(controller);
+    return controller;
   }
 
   enum UseDefaultCategoryMode {
