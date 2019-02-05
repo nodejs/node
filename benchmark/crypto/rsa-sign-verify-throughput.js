@@ -9,7 +9,7 @@ const keylen_list = ['1024', '2048'];
 const RSA_PublicPem = {};
 const RSA_PrivatePem = {};
 
-keylen_list.forEach(function(key) {
+keylen_list.forEach((key) => {
   RSA_PublicPem[key] =
     fs.readFileSync(`${fixtures_keydir}/rsa_public_${key}.pem`);
   RSA_PrivatePem[key] =

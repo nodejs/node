@@ -39,7 +39,7 @@ function csvEncodeValue(value) {
 (function recursive(i) {
   const child = fork(path.resolve(__dirname, filepath), cli.optional.set);
 
-  child.on('message', function(data) {
+  child.on('message', (data) => {
     if (data.type !== 'report') {
       return;
     }
@@ -61,7 +61,7 @@ function csvEncodeValue(value) {
     console.log(`"${name}", ${confData}, ${data.rate}, ${data.time}`);
   });
 
-  child.once('close', function(code) {
+  child.once('close', (code) => {
     if (code) {
       process.exit(code);
       return;

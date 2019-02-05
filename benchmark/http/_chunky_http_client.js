@@ -54,11 +54,11 @@ function main({ len, n }) {
   const add = 11;
   var count = 0;
   const PIPE = process.env.PIPE_NAME;
-  var socket = net.connect(PIPE, function() {
+  var socket = net.connect(PIPE, () => {
     bench.start();
     WriteHTTPHeaders(socket, 1, len);
     socket.setEncoding('utf8');
-    socket.on('data', function(d) {
+    socket.on('data', (d) => {
       var did = false;
       var pattern = 'HTTP/1.1 200 OK\r\n';
       if ((d.length === pattern.length && d === pattern) ||
@@ -84,11 +84,11 @@ function main({ len, n }) {
         }
       }
     });
-    socket.on('close', function() {
+    socket.on('close', () => {
       console.log('Connection closed');
     });
 
-    socket.on('error', function() {
+    socket.on('error', () => {
       throw new Error('Connection error');
     });
   });

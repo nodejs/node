@@ -10,7 +10,7 @@ function main({ n }) {
 
   var k;
   for (k = 0; k < 10; k += 1)
-    listeners.push(function() {});
+    listeners.push(() => {});
 
   bench.start();
   for (var i = 0; i < n; i += 1) {

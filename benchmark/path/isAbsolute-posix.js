@@ -8,7 +8,7 @@ const bench = common.createBenchmark(main, {
     '.',
     '/foo/bar',
     '/baz/..',
-    'bar/baz'
+    'bar/baz',
   ],
   n: [1e6]
 });

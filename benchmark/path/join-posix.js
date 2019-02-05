@@ -4,7 +4,7 @@ const { posix } = require('path');
 
 const bench = common.createBenchmark(main, {
   paths: [
-    ['/foo', 'bar', '', 'baz/asdf', 'quux', '..'].join('|')
+    ['/foo', 'bar', '', 'baz/asdf', 'quux', '..'].join('|'),
   ],
   n: [1e6]
 });

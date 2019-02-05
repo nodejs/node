@@ -44,7 +44,7 @@ function main({ dur, len, type }) {
   reader.pipe(fakeSocket);
   fakeSocket.pipe(writer);
 
-  setTimeout(function() {
+  setTimeout(() => {
     const bytes = writer.received;
     const gbits = (bytes * 8) / (1024 * 1024 * 1024);
     bench.end(gbits);

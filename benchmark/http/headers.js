@@ -21,15 +21,15 @@ function main({ duplicates, n }) {
     }
   }
 
-  const server = http.createServer(function(req, res) {
+  const server = http.createServer((req, res) => {
     res.writeHead(200, headers);
     res.end();
   });
-  server.listen(common.PORT, function() {
+  server.listen(common.PORT, () => {
     bench.http({
       path: '/',
       connections: 10
-    }, function() {
+    }, () => {
       server.close();
     });
   });

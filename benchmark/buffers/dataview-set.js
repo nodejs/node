@@ -15,7 +15,7 @@ const types = [
   'Float32LE',
   'Float32BE',
   'Float64LE',
-  'Float64BE'
+  'Float64BE',
 ];
 
 const bench = common.createBenchmark(main, {
