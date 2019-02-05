@@ -118,6 +118,8 @@ class WorkerThreadData {
     {
       Locker locker(isolate);
       Isolate::Scope isolate_scope(isolate);
+      isolate->SetStackLimit(w_->stack_base_);
+
       HandleScope handle_scope(isolate);
       isolate_data_.reset(CreateIsolateData(isolate,
                                             &loop_,
@@ -488,8 +490,17 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
     static_cast<Worker*>(handle->data)->OnThreadStopped();
   }), 0);
 
-  CHECK_EQ(uv_thread_create(&w->tid_, [](void* arg) {
+  uv_thread_options_t thread_options;
+  thread_options.flags = UV_THREAD_HAS_STACK_SIZE;
+  thread_options.stack_size = kStackSize;
+  CHECK_EQ(uv_thread_create_ex(&w->tid_, &thread_options, [](void* arg) {
     Worker* w = static_cast<Worker*>(arg);
+    const uintptr_t stack_top = reinterpret_cast<uintptr_t>(&arg);
+
+    // Leave a few kilobytes just to make sure we're within limits and have
+    // some space to do work in C++ land.
+    w->stack_base_ = stack_top - (kStackSize - kStackBufferSize);
+
     w->Run();
 
     Mutex::ScopedLock lock(w->mutex_);
