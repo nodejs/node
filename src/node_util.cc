@@ -100,7 +100,7 @@ static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
   Local<Array> entries;
   if (!args[0].As<Object>()->PreviewEntries(&is_key_value).ToLocal(&entries))
     return;
-  // Fast path for WeakMap, WeakSet and Set iterators.
+  // Fast path for WeakMap and WeakSet.
   if (args.Length() == 1)
     return args.GetReturnValue().Set(entries);
 
