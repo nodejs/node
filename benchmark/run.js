@@ -41,7 +41,7 @@ if (format === 'csv') {
     console.log(filename);
   }
 
-  child.on('message', function(data) {
+  child.on('message', (data) => {
     if (data.type !== 'report') {
       return;
     }
@@ -64,7 +64,7 @@ if (format === 'csv') {
     }
   });
 
-  child.once('close', function(code) {
+  child.once('close', (code) => {
     if (code) {
       process.exit(code);
       return;

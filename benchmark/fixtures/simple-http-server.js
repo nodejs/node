@@ -13,14 +13,14 @@ const useDomains = process.env.NODE_USE_DOMAINS;
 if (useDomains) {
   var domain = require('domain');
   const gdom = domain.create();
-  gdom.on('error', function(er) {
+  gdom.on('error', (er) => {
     console.error('Error on global domain', er);
     throw er;
   });
   gdom.enter();
 }
 
-module.exports = http.createServer(function(req, res) {
+module.exports = http.createServer((req, res) => {
   if (useDomains) {
     const dom = domain.create();
     dom.add(req);

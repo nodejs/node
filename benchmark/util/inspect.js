@@ -23,7 +23,7 @@ const bench = common.createBenchmark(main, {
     'Array',
     'TypedArray',
     'TypedArray_extra',
-    'Number'
+    'Number',
   ],
   option: Object.keys(opts)
 });

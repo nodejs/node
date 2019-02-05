@@ -41,9 +41,9 @@ function main({ dur, type, size }) {
 
   server = tls.createServer(options, onConnection);
   var conn;
-  server.listen(common.PORT, function() {
+  server.listen(common.PORT, () => {
     const opt = { port: common.PORT, rejectUnauthorized: false };
-    conn = tls.connect(opt, function() {
+    conn = tls.connect(opt, () => {
       setTimeout(done, dur * 1000);
       bench.start();
       conn.on('drain', write);
@@ -57,7 +57,7 @@ function main({ dur, type, size }) {
 
   var received = 0;
   function onConnection(conn) {
-    conn.on('data', function(chunk) {
+    conn.on('data', (chunk) => {
       received += chunk.length;
     });
   }

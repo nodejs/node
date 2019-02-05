@@ -66,11 +66,11 @@ function main({ api, cipher, type, len, writes }) {
 
 function streamWrite(alice, bob, message, encoding, writes) {
   var written = 0;
-  bob.on('data', function(c) {
+  bob.on('data', (c) => {
     written += c.length;
   });
 
-  bob.on('end', function() {
+  bob.on('end', () => {
     // Gbits
     const bits = written * 8;
     const gbits = bits / (1024 * 1024 * 1024);

@@ -7,7 +7,7 @@ const bench = common.createBenchmark(main, {
 
 function main({ n }) {
 
-  process.on('exit', function() {
+  process.on('exit', () => {
     bench.end(n);
   });
 

@@ -54,7 +54,7 @@ function main({ encoding, inLen, chunkLen, n }) {
       }
       str = Buffer.concat([
         str,
-        buf.slice(start % buf.length, end % buf.length)
+        buf.slice(start % buf.length, end % buf.length),
       ]);
     }
   }

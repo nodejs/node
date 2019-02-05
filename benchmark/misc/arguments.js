@@ -7,7 +7,7 @@ const methods = [
   'restAndSpread',
   'argumentsAndApply',
   'restAndApply',
-  'predefined'
+  'predefined',
 ];
 
 const bench = createBenchmark(main, {

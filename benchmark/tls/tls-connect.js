@@ -46,9 +46,9 @@ function makeConnection() {
     port: common.PORT,
     rejectUnauthorized: false
   };
-  var conn = tls.connect(options, function() {
+  var conn = tls.connect(options, () => {
     clientConn++;
-    conn.on('error', function(er) {
+    conn.on('error', (er) => {
       console.error('client error', er);
       throw er;
     });
