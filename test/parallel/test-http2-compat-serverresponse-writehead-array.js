@@ -12,10 +12,11 @@ const server = h2.createServer();
 server.listen(0, common.mustCall(() => {
   const port = server.address().port;
   server.once('request', common.mustCall((request, response) => {
-    response.writeHead(200, [
+    const returnVal = response.writeHead(200, [
       ['foo', 'bar'],
       ['ABC', 123]
     ]);
+    assert.strictEqual(returnVal, response);
     response.end(common.mustCall(() => { server.close(); }));
   }));
 
