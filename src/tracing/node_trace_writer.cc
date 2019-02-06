@@ -15,7 +15,6 @@ void NodeTraceWriter::InitializeOnThread(uv_loop_t* loop) {
   CHECK_NULL(tracing_loop_);
   tracing_loop_ = loop;
 
-  flush_signal_.data = this;
   int err = uv_async_init(tracing_loop_, &flush_signal_,
                           [](uv_async_t* signal) {
     NodeTraceWriter* trace_writer =
@@ -24,7 +23,6 @@ void NodeTraceWriter::InitializeOnThread(uv_loop_t* loop) {
   });
   CHECK_EQ(err, 0);
 
-  exit_signal_.data = this;
   err = uv_async_init(tracing_loop_, &exit_signal_, ExitSignalCb);
   CHECK_EQ(err, 0);
 }

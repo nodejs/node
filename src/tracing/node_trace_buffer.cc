@@ -100,12 +100,10 @@ NodeTraceBuffer::NodeTraceBuffer(size_t max_chunks,
       buffer2_(max_chunks, 1, agent) {
   current_buf_.store(&buffer1_);
 
-  flush_signal_.data = this;
   int err = uv_async_init(tracing_loop_, &flush_signal_,
                           NonBlockingFlushSignalCb);
   CHECK_EQ(err, 0);
 
-  exit_signal_.data = this;
   err = uv_async_init(tracing_loop_, &exit_signal_, ExitSignalCb);
   CHECK_EQ(err, 0);
 }
