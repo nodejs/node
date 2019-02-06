@@ -163,12 +163,12 @@ void WalkHandle(uv_handle_t* h, void* arg) {
          << ", recv buffer size: " << recv_size;
   }
 
+#ifndef _WIN32
   if (h->type == UV_TCP || h->type == UV_NAMED_PIPE || h->type == UV_TTY ||
       h->type == UV_UDP || h->type == UV_POLL) {
     uv_os_fd_t fd_v;
     int rc = uv_fileno(h, &fd_v);
-    // uv_os_fd_t is an int on Unix and HANDLE on Windows.
-#ifndef _WIN32
+
     if (rc == 0) {
       switch (fd_v) {
         case 0:
@@ -185,8 +185,8 @@ void WalkHandle(uv_handle_t* h, void* arg) {
           break;
       }
     }
-#endif
   }
+#endif
 
   if (h->type == UV_TCP || h->type == UV_NAMED_PIPE || h->type == UV_TTY) {
     data << ", write queue size: " << handle->stream.write_queue_size;
