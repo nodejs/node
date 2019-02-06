@@ -85,6 +85,7 @@
       'lib/vm.js',
       'lib/worker_threads.js',
       'lib/zlib.js',
+      'lib/internal/assert.js',
       'lib/internal/assert/assertion_error.js',
       'lib/internal/async_hooks.js',
       'lib/internal/buffer.js',
