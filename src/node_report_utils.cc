@@ -9,8 +9,6 @@ using node::MallocedBuffer;
 void ReportEndpoints(uv_handle_t* h, std::ostringstream& out) {
   struct sockaddr_storage addr_storage;
   struct sockaddr* addr = reinterpret_cast<sockaddr*>(&addr_storage);
-  char hostbuf[NI_MAXHOST];
-  char portbuf[NI_MAXSERV];
   uv_any_handle* handle = reinterpret_cast<uv_any_handle*>(h);
   int addr_size = sizeof(addr_storage);
   int rc = -1;
@@ -26,33 +24,22 @@ void ReportEndpoints(uv_handle_t* h, std::ostringstream& out) {
       break;
   }
   if (rc == 0) {
-    // getnameinfo will format host and port and handle IPv4/IPv6.
-    rc = getnameinfo(addr,
-                     addr_size,
-                     hostbuf,
-                     sizeof(hostbuf),
-                     portbuf,
-                     sizeof(portbuf),
-                     NI_NUMERICSERV);
-    if (rc == 0) {
-      out << std::string(hostbuf) << ":" << std::string(portbuf);
-    }
+    // uv_getnameinfo will format host and port and handle IPv4/IPv6.
+    uv_getnameinfo_t local;
+    rc = uv_getnameinfo(h->loop, &local, nullptr, addr, NI_NUMERICSERV);
+
+    if (rc == 0)
+      out << local.host << ":" << local.service;
 
     if (h->type == UV_TCP) {
       // Get the remote end of the connection.
       rc = uv_tcp_getpeername(&(handle->tcp), addr, &addr_size);
       if (rc == 0) {
-        rc = getnameinfo(addr,
-                         addr_size,
-                         hostbuf,
-                         sizeof(hostbuf),
-                         portbuf,
-                         sizeof(portbuf),
-                         NI_NUMERICSERV);
-        if (rc == 0) {
-          out << " connected to ";
-          out << std::string(hostbuf) << ":" << std::string(portbuf);
-        }
+        uv_getnameinfo_t remote;
+        rc = uv_getnameinfo(h->loop, &remote, nullptr, addr, NI_NUMERICSERV);
+
+        if (rc == 0)
+          out << " connected to " << remote.host << ":" << remote.service;
       } else if (rc == UV_ENOTCONN) {
         out << " (not connected)";
       }
