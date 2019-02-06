@@ -16,14 +16,12 @@ void ReportEndpoints(uv_handle_t* h, std::ostringstream& out) {
   int rc = -1;
 
   switch (h->type) {
-    case UV_UDP: {
+    case UV_UDP:
       rc = uv_udp_getsockname(&(handle->udp), addr, &addr_size);
       break;
-    }
-    case UV_TCP: {
+    case UV_TCP:
       rc = uv_tcp_getsockname(&(handle->tcp), addr, &addr_size);
       break;
-    }
     default:
       break;
   }
@@ -70,28 +68,24 @@ void ReportPath(uv_handle_t* h, std::ostringstream& out) {
   uv_any_handle* handle = reinterpret_cast<uv_any_handle*>(h);
   // First call to get required buffer size.
   switch (h->type) {
-    case UV_FS_EVENT: {
+    case UV_FS_EVENT:
       rc = uv_fs_event_getpath(&(handle->fs_event), buffer.data, &size);
       break;
-    }
-    case UV_FS_POLL: {
+    case UV_FS_POLL:
       rc = uv_fs_poll_getpath(&(handle->fs_poll), buffer.data, &size);
       break;
-    }
     default:
       break;
   }
   if (rc == UV_ENOBUFS) {
     buffer = MallocedBuffer<char>(size);
     switch (h->type) {
-      case UV_FS_EVENT: {
+      case UV_FS_EVENT:
         rc = uv_fs_event_getpath(&(handle->fs_event), buffer.data, &size);
         break;
-      }
-      case UV_FS_POLL: {
+      case UV_FS_POLL:
         rc = uv_fs_poll_getpath(&(handle->fs_poll), buffer.data, &size);
         break;
-      }
       default:
         break;
     }
@@ -141,13 +135,12 @@ void WalkHandle(uv_handle_t* h, void* arg) {
       }
       break;
     }
-    case UV_SIGNAL: {
+    case UV_SIGNAL:
       // SIGWINCH is used by libuv so always appears.
       // See http://docs.libuv.org/en/v1.x/signal.html
       data << "signum: " << handle->signal.signum << " (" <<
               node::signo_string(handle->signal.signum) << ")";
       break;
-    }
     default:
       break;
   }
