@@ -144,11 +144,8 @@ void WalkHandle(uv_handle_t* h, void* arg) {
     case UV_SIGNAL: {
       // SIGWINCH is used by libuv so always appears.
       // See http://docs.libuv.org/en/v1.x/signal.html
-      data << "signum: " << handle->signal.signum
-#ifndef _WIN32
-           << " (" << node::signo_string(handle->signal.signum) << ")"
-#endif
-           << "";
+      data << "signum: " << handle->signal.signum << " (" <<
+              node::signo_string(handle->signal.signum) << ")";
       break;
     }
     default:
