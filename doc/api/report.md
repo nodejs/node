@@ -445,10 +445,10 @@ times for the same Node.js process.
 ## Configuration
 
 Additional runtime configuration that influences the report generation
-constraints are available using `setDiagnosticReportOptions()` API.
+constraints are available using `setOptions()` API.
 
 ```js
-process.report.setDiagnosticReportOptions({
+process.report.setOptions({
   events: ['exception', 'fatalerror', 'signal'],
   signal: 'SIGUSR2',
   filename: 'myreport.json',
@@ -481,13 +481,13 @@ pertinent to the report generation. Defaults to `false`.
 
 ```js
 // Trigger report only on uncaught exceptions.
-process.report.setDiagnosticReportOptions({ events: ['exception'] });
+process.report.setOptions({ events: ['exception'] });
 
 // Trigger report for both internal errors as well as external signal.
-process.report.setDiagnosticReportOptions({ events: ['fatalerror', 'signal'] });
+process.report.setOptions({ events: ['fatalerror', 'signal'] });
 
 // Change the default signal to `SIGQUIT` and enable it.
-process.report.setDiagnosticReportOptions(
+process.report.setOptions(
   { events: ['signal'], signal: 'SIGQUIT' });
 ```
 

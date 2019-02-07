@@ -1687,7 +1687,7 @@ console.log(data);
 
 Additional documentation is available in the [report documentation][].
 
-### process.report.setDiagnosticReportOptions([options]);
+### process.report.setOptions([options]);
 <!-- YAML
 added: v11.8.0
 -->
@@ -1712,23 +1712,18 @@ are shown below.
 
 ```js
 // Trigger a report on uncaught exceptions or fatal errors.
-process.report.setDiagnosticReportOptions({
-  events: ['exception', 'fatalerror']
-});
+process.report.setOptions({ events: ['exception', 'fatalerror'] });
 
 // Change the default path and filename of the report.
-process.report.setDiagnosticReportOptions({
-  filename: 'foo.json',
-  path: '/home'
-});
+process.report.setOptions({ filename: 'foo.json', path: '/home' });
 
 // Produce the report onto stdout, when generated. Special meaning is attached
 // to `stdout` and `stderr`. Usage of these will result in report being written
 // to the associated standard streams. URLs are not supported.
-process.report.setDiagnosticReportOptions({ filename: 'stdout' });
+process.report.setOptions({ filename: 'stdout' });
 
 // Enable verbose option on report generation.
-process.report.setDiagnosticReportOptions({ verbose: true });
+process.report.setOptions({ verbose: true });
 ```
 
 Signal based report generation is not supported on Windows.
@@ -1742,8 +1737,8 @@ added: v11.8.0
 
 * `filename` {string} Name of the file where the report is written. This
   should be a relative path, that will be appended to the directory specified in
-  `process.report.setDiagnosticReportOptions`, or the current working directory
-  of the Node.js process, if unspecified.
+  `process.report.setOptions`, or the current working directory of the Node.js
+  process, if unspecified.
 * `err` {Error} A custom error used for reporting the JavsScript stack.
 
 * Returns: {string} Returns the filename of the generated report.
