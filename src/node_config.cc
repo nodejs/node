@@ -6,9 +6,7 @@
 
 namespace node {
 
-using v8::Boolean;
 using v8::Context;
-using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Number;
@@ -72,19 +70,6 @@ static void Initialize(Local<Object> target,
   READONLY_PROPERTY(target,
                     "bits",
                     Number::New(env->isolate(), 8 * sizeof(intptr_t)));
-
-  Local<Object> debug_options_obj = Object::New(isolate);
-  READONLY_PROPERTY(target, "debugOptions", debug_options_obj);
-
-  const DebugOptions& debug_options = env->options()->debug_options();
-  READONLY_PROPERTY(debug_options_obj,
-                    "inspectorEnabled",
-                    Boolean::New(isolate, debug_options.inspector_enabled));
-  READONLY_STRING_PROPERTY(
-      debug_options_obj, "host", debug_options.host_port.host());
-  READONLY_PROPERTY(debug_options_obj,
-                    "port",
-                    Integer::New(isolate, debug_options.host_port.port()));
 }  // InitConfig
 
 }  // namespace node
