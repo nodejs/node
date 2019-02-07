@@ -405,6 +405,13 @@ int PlatformDependentEmbeddedFileWriter::IndentedDataDirective(
 
 #elif defined(V8_OS_WIN) && defined(V8_ASSEMBLER_IS_MARMASM)
 
+void PlatformDependentEmbeddedFileWriter::SourceInfo(int fileid, int line) {
+  // TODO(mvstanton): output source information for MSVC.
+  // It's syntax is #line <line> "<filename>"
+}
+void PlatformDependentEmbeddedFileWriter::DeclareExternalFilename(
+    int fileid, const char* filename) {}
+
 // The the AARCH64 ABI requires instructions be 4-byte-aligned and Windows does
 // not have a stricter alignment requirement (see the TEXTAREA macro of
 // kxarm64.h in the Windows SDK), so code is 4-byte-aligned.
