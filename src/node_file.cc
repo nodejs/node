@@ -608,8 +608,7 @@ void AfterScanDir(uv_fs_t* req) {
       break;
     if (r != 0) {
       return req_wrap->Reject(
-          UVException(r, nullptr, req_wrap->syscall(),
-            static_cast<const char*>(req->path)));
+          UVException(r, nullptr, req_wrap->syscall(), req->path));
     }
 
     MaybeLocal<Value> filename =
@@ -650,8 +649,7 @@ void AfterScanDirWithTypes(uv_fs_t* req) {
       break;
     if (r != 0) {
       return req_wrap->Reject(
-          UVException(r, nullptr, req_wrap->syscall(),
-            static_cast<const char*>(req->path)));
+          UVException(r, nullptr, req_wrap->syscall(), req->path));
     }
 
     MaybeLocal<Value> filename =
