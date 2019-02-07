@@ -1448,7 +1448,8 @@ added: v0.1.30
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/25974
-    description: Return `this` from `writeHead` to allow chaining with `end`.
+    description: Return `this` from `writeHead()` to allow chaining with
+                 `end()`.
   - version: v5.11.0, v4.4.5
     pr-url: https://github.com/nodejs/node/pull/6291
     description: A `RangeError` is thrown if `statusCode` is not a number in
