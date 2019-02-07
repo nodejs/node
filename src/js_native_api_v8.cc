@@ -2892,11 +2892,10 @@ napi_status napi_create_date(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
 
-  auto maybe_date = v8::Date::New(env->context(), time);
+  v8::MaybeLocal<v8::Value> maybe_date = v8::Date::New(env->context(), time);
   CHECK_MAYBE_EMPTY(env, maybe_date, napi_generic_failure);
 
-  auto v8_resolver = maybe_date.ToLocalChecked();
-  *result = v8impl::JsValueFromV8LocalValue(v8_resolver);
+  *result = v8impl::JsValueFromV8LocalValue(maybe_date.ToLocalChecked());
 
   return GET_RETURN_STATUS(env);
 }
