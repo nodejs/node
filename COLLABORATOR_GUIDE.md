@@ -292,25 +292,23 @@ metadata. Raise a Pull Request like any other change.
 
 ### Introducing New Modules
 
-Semver-minor commits that introduce new core modules should be treated with
-extra care.
+Treat commits that introduce new core modules with extra care.
 
-The name of the new core module should not conflict with any existing
-module in the ecosystem unless a written agreement with the owner of those
-modules is reached to transfer ownership.
+Check if the module's name conflicts with an existing ecosystem module. If it
+does, choose a different name unless the module owner has agreed in writing to
+transfer it.
 
-If the new module name is free, a Collaborator should register a placeholder
-in the module registry as soon as possible, linking to the pull request that
-introduces the new core module.
+If the new module name is free, register a placeholder in the module registry as
+soon as possible. Link to the pull request that introduces the new core module
+in the placeholder's `README`.
 
-Pull requests introducing new core modules:
+For pull requests introducing new core modules:
 
-* Must be left open for at least one week for review.
-* Must be labeled using the `tsc-review` label.
-* Must have signoff from at least two TSC members.
-
-New core modules must be landed with a [Stability Index][] of Experimental,
-and must remain Experimental until a semver-major release.
+* Allow at least one week for review.
+* Label with the `tsc-review` label.
+* Land only after sign-off from at least two TSC members.
+* Land with a [Stability Index][] of Experimental. The module must remain
+  Experimental until a semver-major release.
 
 ### Additions to N-API
 
