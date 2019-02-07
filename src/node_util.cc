@@ -1,5 +1,6 @@
 #include "node_internals.h"
 #include "node_watchdog.h"
+#include "base_object-inl.h"
 
 namespace node {
 namespace util {
@@ -9,8 +10,10 @@ using v8::Array;
 using v8::Boolean;
 using v8::Context;
 using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
 using v8::IndexFilter;
 using v8::Integer;
+using v8::Isolate;
 using v8::KeyCollectionMode;
 using v8::Local;
 using v8::NewStringType;
@@ -178,6 +181,37 @@ void SafeGetenv(const FunctionCallbackInfo<Value>& args) {
             NewStringType::kNormal).ToLocalChecked());
 }
 
+class WeakReference : public BaseObject {
+ public:
+  WeakReference(Environment* env, Local<Object> object, Local<Object> target)
+    : BaseObject(env, object) {
+    MakeWeak();
+    target_.Reset(env->isolate(), target);
+    target_.SetWeak();
+  }
+
+  static void New(const FunctionCallbackInfo<Value>& args) {
+    Environment* env = Environment::GetCurrent(args);
+    CHECK(args.IsConstructCall());
+    CHECK(args[0]->IsObject());
+    new WeakReference(env, args.This(), args[0].As<Object>());
+  }
+
+  static void Get(const FunctionCallbackInfo<Value>& args) {
+    WeakReference* weak_ref = Unwrap<WeakReference>(args.Holder());
+    Isolate* isolate = args.GetIsolate();
+    if (!weak_ref->target_.IsEmpty())
+      args.GetReturnValue().Set(weak_ref->target_.Get(isolate));
+  }
+
+  SET_MEMORY_INFO_NAME(WeakReference)
+  SET_SELF_SIZE(WeakReference)
+  SET_NO_MEMORY_INFO()
+
+ private:
+  Persistent<Object> target_;
+};
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context) {
@@ -235,6 +269,16 @@ void Initialize(Local<Object> target,
   target->Set(context,
               FIXED_ONE_BYTE_STRING(env->isolate(), "propertyFilter"),
               constants).FromJust();
+
+  Local<String> weak_ref_string =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "WeakReference");
+  Local<FunctionTemplate> weak_ref =
+      env->NewFunctionTemplate(WeakReference::New);
+  weak_ref->InstanceTemplate()->SetInternalFieldCount(1);
+  weak_ref->SetClassName(weak_ref_string);
+  env->SetProtoMethod(weak_ref, "get", WeakReference::Get);
+  target->Set(context, weak_ref_string,
+              weak_ref->GetFunction(context).ToLocalChecked()).FromJust();
 }
 
 }  // namespace util
