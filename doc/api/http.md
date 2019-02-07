@@ -1446,7 +1446,7 @@ the request body should be sent. See the [`'checkContinue'`][] event on
 <!-- YAML
 added: v0.1.30
 changes:
-  - version: ???
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/25974
     description: Return `this` from `writeHead` to allow chaining with `end`.
   - version: v5.11.0, v4.4.5
