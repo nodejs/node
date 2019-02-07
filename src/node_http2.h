@@ -465,10 +465,6 @@ class Http2Stream : public AsyncWrap,
 
   void EmitStatistics();
 
-  // Process a Data Chunk
-  void OnDataChunk(uv_buf_t* chunk);
-
-
   // Required for StreamBase
   int ReadStart() override;
 
