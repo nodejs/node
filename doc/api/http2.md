@@ -3286,7 +3286,8 @@ added: v8.4.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/25974
-    description: Return `this` from `writeHead` to allow chaining with `end`.
+    description: Return `this` from `writeHead()` to allow chaining with
+                 `end()`.
 -->
 
 * `statusCode` {number}
