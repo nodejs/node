@@ -21,8 +21,5 @@ if (process.argv[2] === 'child') {
     ' experimental feature. This feature could change at any time'), std_msg);
   const reportFiles = helper.findReports(child.pid, tmpdir.path);
   assert.deepStrictEqual(reportFiles, [], report_msg);
-  helper.validateContent(child.stdout, { pid: child.pid,
-                                         commandline: process.execPath +
-                                         ' ' + args.join(' ')
-  });
+  helper.validateContent(child.stdout);
 }
