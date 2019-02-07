@@ -388,7 +388,7 @@ class Http2Options {
   }
 
   void SetPaddingStrategy(padding_strategy_type val) {
-    padding_strategy_ = static_cast<padding_strategy_type>(val);
+    padding_strategy_ = val;
   }
 
   padding_strategy_type GetPaddingStrategy() const {
