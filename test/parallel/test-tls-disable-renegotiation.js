@@ -46,7 +46,6 @@ server.listen(0, common.mustCall(() => {
     port
   };
   const client = tls.connect(options, common.mustCall(() => {
-    client.write('');
     // Negotiation is still permitted for this first
     // attempt. This should succeed.
     let ok = client.renegotiate(options, common.mustCall((err) => {
@@ -56,7 +55,6 @@ server.listen(0, common.mustCall(() => {
       // data event on the server. After that data
       // is received, disableRenegotiation is called.
       client.write('data', common.mustCall(() => {
-        client.write('');
         // This second renegotiation attempt should fail
         // and the callback should never be invoked. The
         // server will simply drop the connection after
