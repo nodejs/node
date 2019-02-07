@@ -1659,107 +1659,104 @@ In custom builds from non-release versions of the source tree, only the
 relied upon to exist.
 
 ## process.report
+<!-- YAML
+added: v11.8.0
+-->
+
+* {Object}
+
+`process.report` is an object whose methods are used to generate diagnostic
+reports for the current process. Additional documentation is available in the
+[report documentation][].
 
 ### process.report.getReport([err])
 <!-- YAML
 added: v11.8.0
 -->
 
-* `err` {Object}
-* Returns: {Object} Returns the diagnostics report as an `Object`.
+* `err` {Error} A custom error used for reporting the JavsScript stack.
+* Returns: {string}
 
-Generates a JSON-formatted diagnostic report summary of the running process.
-The report includes JavaScript and native stack traces, heap statistics,
-platform information, resource usage etc.
+Returns a JSON-formatted diagnostic report for the running process. The report's
+JavaScript stack trace is taken from `err`, if present.
 
 ```js
 const data = process.report.getReport();
 console.log(data);
 ```
 
-Additional documentation on diagnostic report is available
-at [report documentation][].
+Additional documentation is available in the [report documentation][].
 
 ### process.report.setDiagnosticReportOptions([options]);
 <!-- YAML
 added: v11.8.0
 -->
 
-Set the runtime configuration of diagnostic report data capture. Upon invocation
-of this function, the runtime is reconfigured to generate report based on
-the new input.
-
 * `options` {Object}
   * `events` {string[]}
-    * `signal`: generate a report in response to a signal raised on the process.
-    * `exception`: generate a report on unhandled exceptions.
-    * `fatalerror`: generate a report on internal fault
+    * `signal`: Generate a report in response to a signal raised on the process.
+    * `exception`: Generate a report on unhandled exceptions.
+    * `fatalerror`: Generate a report on internal fault
       (such as out of memory errors or native assertions).
-  * `signal` {string} sets or resets the signal for report generation
+  * `signal` {string} Sets or resets the signal for report generation
     (not supported on Windows). **Default:** `'SIGUSR2'`.
-  * `filename` {string} name of the file to which the report will be written.
-  * `path` {string} drectory at which the report will be generated.
+  * `filename` {string} Name of the file where the report is written.
+  * `path` {string} Directory where the report is written.
     **Default:** the current working directory of the Node.js process.
-  * `verbose` {boolean} flag that controls additional verbose information on
+  * `verbose` {boolean} Flag that controls additional verbose information on
     report generation. **Default:** `false`.
 
+Configures the diagnostic reporting behavior. Upon invocation, the runtime
+is reconfigured to generate reports based on `options`. Several usage examples
+are shown below.
+
 ```js
-// Trigger a report upon uncaught exceptions or fatal erros.
-process.report.setDiagnosticReportOptions(
-  { events: ['exception', 'fatalerror'] });
+// Trigger a report on uncaught exceptions or fatal errors.
+process.report.setDiagnosticReportOptions({
+  events: ['exception', 'fatalerror']
+});
 
 // Change the default path and filename of the report.
-process.report.setDiagnosticReportOptions(
-  { filename: 'foo.json', path: '/home' });
+process.report.setDiagnosticReportOptions({
+  filename: 'foo.json',
+  path: '/home'
+});
 
 // Produce the report onto stdout, when generated. Special meaning is attached
 // to `stdout` and `stderr`. Usage of these will result in report being written
 // to the associated standard streams. URLs are not supported.
-process.report.setDiagnosticReportOptions(
-  { filename: 'stdout' });
+process.report.setDiagnosticReportOptions({ filename: 'stdout' });
 
 // Enable verbose option on report generation.
-process.report.setDiagnosticReportOptions(
-  { verbose: true });
-
+process.report.setDiagnosticReportOptions({ verbose: true });
 ```
 
 Signal based report generation is not supported on Windows.
 
-Additional documentation on diagnostic report is available
-at [report documentation][].
+Additional documentation is available in the [report documentation][].
 
 ### process.report.triggerReport([filename][, err])
 <!-- YAML
 added: v11.8.0
 -->
 
-* `filename` {string} The file to write into. The `filename` should be
-a relative path, that will be appended to the directory specified by
-`process.report.setDiagnosticReportOptions`, or current working directory
-of the Node.js process, if unspecified.
-* `err`  {Object} A custom object which will be used for reporting
-JavsScript stack.
+* `filename` {string} Name of the file where the report is written. This
+  should be a relative path, that will be appended to the directory specified in
+  `process.report.setDiagnosticReportOptions`, or the current working directory
+  of the Node.js process, if unspecified.
+* `err` {Error} A custom error used for reporting the JavsScript stack.
 
 * Returns: {string} Returns the filename of the generated report.
 
-If both `filename` and `err` object are passed to `triggerReport()` the
-`err` object must be the second parameter.
-
-Triggers and produces the report (a JSON-formatted file with the internal
-state of Node.js runtime) synchronously, and writes into a file.
+Writes a diagnostic report to a file. If `filename` is not provided, the default
+filename includes the date, time, PID, and a sequence number. The report's
+JavaScript stack trace is taken from `err`, if present.
 
 ```js
 process.report.triggerReport();
 ```
 
-When a report is triggered, start and end messages are issued to stderr and the
-filename of the report is returned to the caller. The default filename includes
-the date, time, PID and a sequence number. Alternatively, a filename and error
-object can be specified as parameters on the `triggerReport()` call.
-
-Additional documentation on diagnostic report is available
-at [report documentation][].
+Additional documentation is available in the [report documentation][].
 
 ## process.send(message[, sendHandle[, options]][, callback])
 <!-- YAML
