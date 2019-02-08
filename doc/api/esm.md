@@ -230,6 +230,20 @@ NODE_OPTIONS='--experimental-modules --loader ./custom-loader.mjs' node x.js
 would load the module `x.js` as an ES module with relative resolution support
 (with `node_modules` loading skipped in this example).
 
+### initializeImportMeta hook
+
+This hook is called to set custom `import.meta` metadata for each module:
+
+```js
+export function initializeImportMeta(meta) {
+  meta.customProp = 'value';
+  meta.url; // the existing import.meta.url value
+}
+```
+
+The default `import.meta` properties for Node.js will already be populated onto
+the `meta` object.
+
 ### Dynamic instantiate hook
 
 To create a custom dynamic module that doesn't correspond to one of the
