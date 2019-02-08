@@ -169,9 +169,14 @@ void Environment::TrackingTraceStateObserver::UpdateTraceCategoryState() {
 
 static std::atomic<uint64_t> next_thread_id{0};
 
+uint64_t Environment::AllocateThreadId() {
+  return next_thread_id++;
+}
+
 Environment::Environment(IsolateData* isolate_data,
                          Local<Context> context,
-                         Flags flags)
+                         Flags flags,
+                         uint64_t thread_id)
     : isolate_(context->GetIsolate()),
       isolate_data_(isolate_data),
       immediate_info_(context->GetIsolate()),
@@ -181,7 +186,7 @@ Environment::Environment(IsolateData* isolate_data,
       trace_category_state_(isolate_, kTraceCategoryCount),
       stream_base_state_(isolate_, StreamBase::kNumStreamBaseStateFields),
       flags_(flags),
-      thread_id_(next_thread_id++),
+      thread_id_(thread_id == kNoThreadId ? AllocateThreadId() : thread_id),
       fs_stats_field_array_(isolate_, kFsStatsBufferLength),
       fs_stats_field_bigint_array_(isolate_, kFsStatsBufferLength),
       context_(context->GetIsolate(), context) {

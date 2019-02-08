@@ -71,7 +71,8 @@ Worker::Worker(Environment* env,
                Local<Object> wrap,
                const std::string& url,
                std::shared_ptr<PerIsolateOptions> per_isolate_opts)
-    : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_WORKER), url_(url) {
+    : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_WORKER), url_(url),
+      thread_id_(Environment::AllocateThreadId()) {
   Debug(this, "Creating new worker instance at %p", static_cast<void*>(this));
 
   // Set up everything that needs to be set up in the parent environment.
@@ -114,11 +115,11 @@ Worker::Worker(Environment* env,
     Context::Scope context_scope(context);
 
     // TODO(addaleax): Use CreateEnvironment(), or generally another public API.
-    env_.reset(new Environment(isolate_data_.get(), context));
+    env_.reset(new Environment(
+        isolate_data_.get(), context, Flags::kNoFlags, thread_id_));
     CHECK_NOT_NULL(env_);
     env_->set_abort_on_uncaught_exception(false);
     env_->set_worker_context(this);
-    thread_id_ = env_->thread_id();
 
     env_->Start(env->profiler_idle_notifier_started());
     env_->ProcessCliArgs(std::vector<std::string>{},
