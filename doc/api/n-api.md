@@ -1530,8 +1530,8 @@ structure, in most cases using a `TypedArray` will suffice.
 
 #### napi_create_date
 <!-- YAML
-added:
-napiVersion:
+added: REPLACEME
+napiVersion: REPLACEME
 -->
 
 > Stability: 1 - Experimental
@@ -1544,11 +1544,11 @@ napi_status napi_create_date(napi_env env,
 
 - `[in] env`: The environment that the API is invoked under.
 - `[in] time`: ECMAScript time value in milliseconds since 01 January, 1970 UTC.
-- `[out] result`: A `napi_value` representing a `node::Date`.
+- `[out] result`: A `napi_value` representing a JavaScript `Date`.
 
 Returns `napi_ok` if the API succeeded.
 
-This API allocates a `node::Date` object.
+This API allocates a JavaScript `Date` object.
 
 JavaScript `Date` objects are described in
 [Section 20.3][] of the ECMAScript Language Specification.
@@ -2175,8 +2175,8 @@ This API returns various properties of a `DataView`.
 
 #### napi_get_date_value
 <!-- YAML
-added:
-napiVersion:
+added: REPLACEME
+napiVersion: REPLACEME
 -->
 
 > Stability: 1 - Experimental
@@ -2784,8 +2784,8 @@ This API checks if the `Object` passed in is a buffer.
 
 ### napi_is_date
 <!-- YAML
-added:
-napiVersion:
+added: REPLACEME
+napiVersion: REPLACEME
 -->
 
 > Stability: 1 - Experimental
@@ -2796,7 +2796,7 @@ napi_status napi_is_date(napi_env env, napi_value value, bool* result)
 
 - `[in] env`: The environment that the API is invoked under.
 - `[in] value`: The JavaScript value to check.
-- `[out] result`: Whether the given `napi_value` represents a `node::Date`
+- `[out] result`: Whether the given `napi_value` represents JavaScript `Date`
 object.
 
 Returns `napi_ok` if the API succeeded.
