@@ -618,7 +618,8 @@ class Environment {
 
   Environment(IsolateData* isolate_data,
               v8::Local<v8::Context> context,
-              Flags flags = Flags());
+              Flags flags = Flags(),
+              uint64_t thread_id = static_cast<uint64_t>(-1));
   ~Environment();
 
   void Start(bool start_profiler_idle_notifier);
@@ -768,6 +769,8 @@ class Environment {
 
   inline bool has_run_bootstrapping_code() const;
   inline void set_has_run_bootstrapping_code(bool has_run_bootstrapping_code);
+
+  static uint64_t AllocateThreadId();
 
   inline bool is_main_thread() const;
   inline bool owns_process_state() const;
