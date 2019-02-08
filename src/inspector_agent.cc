@@ -885,12 +885,14 @@ bool Agent::IsActive() {
   return io_ != nullptr || client_->IsActive();
 }
 
-void Agent::AddWorkerInspector(int thread_id,
-                               const std::string& url,
-                               Agent* agent) {
-  CHECK_NOT_NULL(client_);
-  agent->parent_handle_ =
-      client_->getWorkerManager()->NewParentHandle(thread_id, url);
+void Agent::SetParentHandle(
+    std::unique_ptr<ParentInspectorHandle> parent_handle) {
+  parent_handle_ = std::move(parent_handle);
+}
+
+std::unique_ptr<ParentInspectorHandle> Agent::GetParentHandle(
+    int thread_id, const std::string& url) {
+  return client_->getWorkerManager()->NewParentHandle(thread_id, url);
 }
 
 void Agent::WaitForConnect() {

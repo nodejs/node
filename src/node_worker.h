@@ -9,6 +9,8 @@
 namespace node {
 namespace worker {
 
+class WorkerThreadData;
+
 // A worker thread, as represented in its parent thread.
 class Worker : public AsyncWrap {
  public:
@@ -49,16 +51,18 @@ class Worker : public AsyncWrap {
 
  private:
   void OnThreadStopped();
-  void DisposeIsolate();
 
-  uv_loop_t loop_;
-  DeleteFnPtr<IsolateData, FreeIsolateData> isolate_data_;
-  DeleteFnPtr<Environment, FreeEnvironment> env_;
   const std::string url_;
+
+  std::shared_ptr<PerIsolateOptions> per_isolate_opts_;
+  MultiIsolatePlatform* platform_;
   v8::Isolate* isolate_ = nullptr;
-  DeleteFnPtr<ArrayBufferAllocator, FreeArrayBufferAllocator>
-      array_buffer_allocator_;
+  bool profiler_idle_notifier_started_;
   uv_thread_t tid_;
+
+#if NODE_USE_V8_PLATFORM && HAVE_INSPECTOR
+  std::unique_ptr<inspector::ParentInspectorHandle> inspector_parent_handle_;
+#endif
 
   // This mutex protects access to all variables listed below it.
   mutable Mutex mutex_;
@@ -79,12 +83,14 @@ class Worker : public AsyncWrap {
 
   std::unique_ptr<MessagePortData> child_port_data_;
 
-  // The child port is always kept alive by the child Environment's persistent
-  // handle to it.
+  // The child port is kept alive by the child Environment's persistent
+  // handle to it, as long as that child Environment exists.
   MessagePort* child_port_ = nullptr;
   // This is always kept alive because the JS object associated with the Worker
   // instance refers to it via its [kPort] property.
   MessagePort* parent_port_ = nullptr;
+
+  friend class WorkerThreadData;
 };
 
 }  // namespace worker
