@@ -269,7 +269,9 @@ void DefineZlibConstants(v8::Local<v8::Object> target);
 v8::MaybeLocal<v8::Value> RunBootstrapping(Environment* env);
 v8::MaybeLocal<v8::Value> StartExecution(Environment* env,
                                          const char* main_script_id);
-
+namespace coverage {
+bool StartCoverageCollection(Environment* env);
+}
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

@@ -33,6 +33,7 @@
   V(cares_wrap)                                                                \
   V(config)                                                                    \
   V(contextify)                                                                \
+  V(coverage)                                                                  \
   V(credentials)                                                               \
   V(domain)                                                                    \
   V(fs)                                                                        \
