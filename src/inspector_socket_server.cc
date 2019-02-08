@@ -93,22 +93,6 @@ const char* MatchPathSegment(const char* path, const char* expected) {
   return nullptr;
 }
 
-void PrintDebuggerReadyMessage(const std::string& host,
-                               int port,
-                               const std::vector<std::string>& ids,
-                               FILE* out) {
-  if (out == nullptr) {
-    return;
-  }
-  for (const std::string& id : ids) {
-    fprintf(out, "Debugger listening on %s\n",
-            FormatWsAddress(host, port, id, true).c_str());
-  }
-  fprintf(out, "For help, see: %s\n",
-          "https://nodejs.org/en/docs/inspector");
-  fflush(out);
-}
-
 void SendHttpResponse(InspectorSocket* socket, const std::string& response) {
   const char HEADERS[] = "HTTP/1.0 200 OK\r\n"
                          "Content-Type: application/json; charset=UTF-8\r\n"
@@ -235,6 +219,25 @@ class ServerSocket {
   int port_ = -1;
 };
 
+void PrintDebuggerReadyMessage(
+    const std::string& host,
+    const std::vector<InspectorSocketServer::ServerSocketPtr>& server_sockets,
+    const std::vector<std::string>& ids,
+    FILE* out) {
+  if (out == nullptr) {
+    return;
+  }
+  for (const auto& server_socket : server_sockets) {
+    for (const std::string& id : ids) {
+      fprintf(out, "Debugger listening on %s\n",
+              FormatWsAddress(host, server_socket->port(), id, true).c_str());
+    }
+  }
+  fprintf(out, "For help, see: %s\n",
+          "https://nodejs.org/en/docs/inspector");
+  fflush(out);
+}
+
 InspectorSocketServer::InspectorSocketServer(
     std::unique_ptr<SocketServerDelegate> delegate, uv_loop_t* loop,
     const std::string& host, int port, FILE* out)
@@ -276,7 +279,7 @@ void InspectorSocketServer::SessionTerminated(int session_id) {
   if (connected_sessions_.empty()) {
     if (was_attached && state_ == ServerState::kRunning
         && !server_sockets_.empty()) {
-      PrintDebuggerReadyMessage(host_, server_sockets_[0]->port(),
+      PrintDebuggerReadyMessage(host_, server_sockets_,
                                 delegate_->GetTargetIds(), out_);
     }
     if (state_ == ServerState::kStopped) {
@@ -393,8 +396,7 @@ bool InspectorSocketServer::Start() {
   }
   delegate_.swap(delegate_holder);
   state_ = ServerState::kRunning;
-  // getaddrinfo sorts the addresses, so the first port is most relevant.
-  PrintDebuggerReadyMessage(host_, server_sockets_[0]->port(),
+  PrintDebuggerReadyMessage(host_, server_sockets_,
                             delegate_->GetTargetIds(), out_);
   return true;
 }
