@@ -33,19 +33,17 @@ const MB = KB * KB;
   grep = spawn('grep', ['x'], { stdio: [cat.stdout, 'pipe', 'pipe'] });
   wc = spawn('wc', ['-c'], { stdio: [grep.stdout, 'pipe', 'pipe'] });
 
+  [cat, grep, wc].forEach((child, index) => {
+    child.stderr.on('data', (d) => {
+      // Don't want to assert here, as we might miss error code info.
+      console.error(`got unexpected data from child #${index}:\n${d}`);
+    });
+    child.on('exit', common.mustCall(function(code) {
+      assert.strictEqual(code, 0);
+    }));
+  });
+
   wc.stdout.on('data', common.mustCall(function(data) {
     assert.strictEqual(data.toString().trim(), MB.toString());
-  }));
-
-  cat.on('exit', common.mustCall(function(code) {
-    assert.strictEqual(code, 0);
-  }));
-
-  grep.on('exit', common.mustCall(function(code) {
-    assert.strictEqual(code, 0);
-  }));
-
-  wc.on('exit', common.mustCall(function(code) {
-    assert.strictEqual(code, 0);
   }));
 }
