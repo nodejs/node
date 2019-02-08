@@ -73,10 +73,10 @@ class InspectorSocketServer {
     return server_sockets_.empty() && connected_sessions_.empty();
   }
 
- private:
   static void CloseServerSocket(ServerSocket*);
   using ServerSocketPtr = DeleteFnPtr<ServerSocket, CloseServerSocket>;
 
+ private:
   void SendListResponse(InspectorSocket* socket, const std::string& host,
                         SocketSession* session);
   std::string GetFrontendURL(bool is_compat,
