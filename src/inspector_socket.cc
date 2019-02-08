@@ -365,7 +365,7 @@ class WsHandler : public ProtocolHandler {
   }
 
  private:
-  using Callback = void (WsHandler::*)(void);
+  using Callback = void (WsHandler::*)();
 
   static void OnCloseFrameWritten(uv_write_t* req, int status) {
     WriteRequest* wr = WriteRequest::from_write_req(req);
