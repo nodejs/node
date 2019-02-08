@@ -239,7 +239,7 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
       return MaybeLocal<Value>();
     }
 #else
-    fprintf(stderr, 'NODE_V8_COVERAGE cannot be used without inspector');
+    fprintf(stderr, "NODE_V8_COVERAGE cannot be used without inspector");
 #endif  // HAVE_INSPECTOR
   }
 
