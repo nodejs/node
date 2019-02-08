@@ -38,16 +38,17 @@ class V8CoverageConnection : public BaseObject {
 
     void SendMessageToFrontend(
         const v8_inspector::StringView& message) override {
-      Environment* env = connection_->env_;
+      Environment* env = connection_->env();
+      Local<Function> fn = connection_->env()->on_coverage_message_function();
+      bool ending = !fn.IsEmpty();
       Debug(env,
             DebugCategory::COVERAGE,
             "Sending message to frontend, ending = %s\n",
-            connection_->ending_ ? "true" : "false");
-      if (!connection_->ending_) {
+            ending ? "true" : "false");
+      if (!ending) {
         return;
       }
       Isolate* isolate = env->isolate();
-      Local<Context> context = env->context();
 
       HandleScope handle_scope(isolate);
       Context::Scope context_scope(env->context());
@@ -56,10 +57,13 @@ class V8CoverageConnection : public BaseObject {
                                  message.characters16(),
                                  NewStringType::kNormal,
                                  message.length());
-      Local<Value> result = v8string.ToLocalChecked().As<Value>();
-      Local<Function> fn = connection_->env_->on_coverage_message_function();
-      CHECK(!fn.IsEmpty());
-      USE(fn->Call(context, v8::Null(isolate), 1, &result));
+      Local<Value> args[] = {v8string.ToLocalChecked().As<Value>()};
+      USE(MakeCallback(isolate,
+                       connection_->object(),
+                       fn,
+                       arraysize(args),
+                       args,
+                       async_context{0, 0}));
     }
 
    private:
@@ -75,24 +79,19 @@ class V8CoverageConnection : public BaseObject {
   }
 
   explicit V8CoverageConnection(Environment* env)
-      : BaseObject(env, env->coverage_connection()),
-        env_(env),
-        session_(nullptr),
-        ending_(false) {
+      : BaseObject(env, env->coverage_connection()), session_(nullptr) {
     inspector::Agent* inspector = env->inspector_agent();
-    std::unique_ptr<inspector::InspectorSession> session =
-        inspector->Connect(std::unique_ptr<V8CoverageSessionDelegate>(
-                               new V8CoverageSessionDelegate(this)),
-                           false);
-    session_.reset(session.release());
+    std::unique_ptr<inspector::InspectorSession> session = inspector->Connect(
+        std::make_unique<V8CoverageSessionDelegate>(this), false);
+    session_ = std::move(session);
     MakeWeak();
   }
 
   void Start() {
-    Debug(env_,
+    Debug(this->env(),
           DebugCategory::COVERAGE,
           "Sending Profiler.startPreciseCoverage\n");
-    Isolate* isolate = env_->isolate();
+    Isolate* isolate = this->env()->isolate();
     Local<Value> enable = FIXED_ONE_BYTE_STRING(
         isolate, "{\"id\": 1, \"method\": \"Profiler.enable\"}");
     Local<Value> start = FIXED_ONE_BYTE_STRING(
@@ -107,26 +106,23 @@ class V8CoverageConnection : public BaseObject {
   }
 
   void End() {
-    Debug(env_,
+    Debug(this->env(),
           DebugCategory::COVERAGE,
           "Sending Profiler.takePreciseCoverage\n");
-    Isolate* isolate = env_->isolate();
+    Isolate* isolate = this->env()->isolate();
     Local<Value> end =
         FIXED_ONE_BYTE_STRING(isolate,
                               "{"
                               "\"id\": 3,"
                               "\"method\": \"Profiler.takePreciseCoverage\""
                               "}");
-    ending_ = true;
     session_->Dispatch(ToProtocolString(isolate, end)->string());
   }
 
   friend class V8CoverageSessionDelegate;
 
  private:
-  Environment* env_;
   std::unique_ptr<inspector::InspectorSession> session_;
-  bool ending_;
 };
 
 bool StartCoverageCollection(Environment* env) {
