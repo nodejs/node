@@ -19,6 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include "debug_utils.h"
 #include "node_binding.h"
 #include "node_buffer.h"
 #include "node_constants.h"
@@ -229,6 +230,18 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
   EscapableHandleScope scope(env->isolate());
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
+
+  std::string coverage;
+  bool rc = credentials::SafeGetenv("NODE_V8_COVERAGE", &coverage);
+  if (rc && !coverage.empty()) {
+#if HAVE_INSPECTOR
+    if (!coverage::StartCoverageCollection(env)) {
+      return MaybeLocal<Value>();
+    }
+#else
+    fprintf(stderr, "NODE_V8_COVERAGE cannot be used without inspector");
+#endif  // HAVE_INSPECTOR
+  }
 
   // Add a reference to the global object
   Local<Object> global = context->Global();

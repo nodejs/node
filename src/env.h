@@ -329,6 +329,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(async_wrap_ctor_template, v8::FunctionTemplate)                            \
   V(async_wrap_object_ctor_template, v8::FunctionTemplate)                     \
   V(buffer_prototype_object, v8::Object)                                       \
+  V(coverage_connection, v8::Object)                                           \
   V(context, v8::Context)                                                      \
   V(crypto_key_object_constructor, v8::Function)                               \
   V(domain_callback, v8::Function)                                             \
@@ -364,6 +365,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(message_event_object_template, v8::ObjectTemplate)                         \
   V(message_port_constructor_template, v8::FunctionTemplate)                   \
   V(native_module_require, v8::Function)                                       \
+  V(on_coverage_message_function, v8::Function)                                \
   V(performance_entry_callback, v8::Function)                                  \
   V(performance_entry_template, v8::Function)                                  \
   V(pipe_constructor_template, v8::FunctionTemplate)                           \
@@ -448,9 +450,10 @@ struct ContextInfo {
 
 // Listing the AsyncWrap provider types first enables us to cast directly
 // from a provider type to a debug category.
-#define DEBUG_CATEGORY_NAMES(V) \
-    NODE_ASYNC_PROVIDER_TYPES(V) \
-    V(INSPECTOR_SERVER)
+#define DEBUG_CATEGORY_NAMES(V)                                                \
+  NODE_ASYNC_PROVIDER_TYPES(V)                                                 \
+  V(INSPECTOR_SERVER)                                                          \
+  V(COVERAGE)
 
 enum class DebugCategory {
 #define V(name) name,
