@@ -354,38 +354,6 @@ static ssize_t syscall_random(void *buf, size_t buflen)
      * between size_t and ssize_t is safe even without a range check.
      */
 
-    /*
-     * Do runtime detection to find getentropy().
-     *
-     * Known OSs that should support this:
-     * - Darwin since 16 (OSX 10.12, IOS 10.0).
-     * - Solaris since 11.3
-     * - OpenBSD since 5.6
-     * - Linux since 3.17 with glibc 2.25
-     * - FreeBSD since 12.0 (1200061)
-     */
-#  if defined(__GNUC__) && __GNUC__>=2 && defined(__ELF__) && !defined(__hpux)
-    extern int getentropy(void *buffer, size_t length) __attribute__((weak));
-
-    if (getentropy != NULL)
-        return getentropy(buf, buflen) == 0 ? (ssize_t)buflen : -1;
-#  else
-    union {
-        void *p;
-        int (*f)(void *buffer, size_t length);
-    } p_getentropy;
-
-    /*
-     * We could cache the result of the lookup, but we normally don't
-     * call this function often.
-     */
-    ERR_set_mark();
-    p_getentropy.p = DSO_global_lookup("getentropy");
-    ERR_pop_to_mark();
-    if (p_getentropy.p != NULL)
-        return p_getentropy.f(buf, buflen) == 0 ? (ssize_t)buflen : -1;
-#  endif
-
     /* Linux supports this since version 3.17 */
 #  if defined(__linux) && defined(__NR_getrandom)
     return syscall(__NR_getrandom, buf, buflen, 0);
