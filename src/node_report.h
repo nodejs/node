@@ -54,7 +54,6 @@ void GetNodeReport(v8::Isolate* isolate,
                    std::ostream& out);
 
 // Function declarations - utility functions in src/node_report_utils.cc
-void ReportEndpoints(uv_handle_t* h, std::ostringstream& out);
 void WalkHandle(uv_handle_t* h, void* arg);
 std::string EscapeJsonChars(const std::string& str);
 
@@ -157,6 +156,8 @@ class JSONWriter {
     state_ = kAfterValue;
   }
 
+  struct Null {};  // Usable as a JSON value.
+
  private:
   template <typename T,
             typename test_for_number = typename std::
@@ -168,6 +169,7 @@ class JSONWriter {
       out_ << number;
   }
 
+  inline void write_value(Null null) { out_ << "null"; }
   inline void write_value(const char* str) { write_string(str); }
   inline void write_value(const std::string& str) { write_string(str); }
 

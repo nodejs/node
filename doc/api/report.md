@@ -78,12 +78,26 @@ is provided below for reference.
     ]
   },
   "nativeStack": [
-    " [pc=0xa7ef87]  [/home/nodeuser/project/node/out/Release/node]",
-    " [pc=0xa81adb] report::TriggerNodeReport(v8::Isolate*, node::Environment*, char const*, char const*, std::string, v8::Local<v8::String>) [/home/nodeuser/project/node/out/Release/node]",
-    " [pc=0xa834f2] report::OnUncaughtException(v8::FunctionCallbackInfo<v8::Value> const&) [/home/nodeuser/project/node/out/Release/node]",
-    " [pc=0xbe6b78]  [/home/nodeuser/project/node/out/Release/node]",
-    " [pc=0xbe7596] v8::internal::Builtin_HandleApiCall(int, v8::internal::Object**, v8::internal::Isolate*) [/home/nodeuser/project/node/out/Release/node]",
-    " [pc=0x1930cae]  [/home/nodeuser/project/node/out/Release/node]"
+    {
+      "pc": "0x000055b57f07a9ef",
+      "symbol": "report::GetNodeReport(v8::Isolate*, node::Environment*, char const*, char const*, v8::Local<v8::String>, std::ostream&) [./node]"
+    },
+    {
+      "pc": "0x000055b57f07cf03",
+      "symbol": "report::GetReport(v8::FunctionCallbackInfo<v8::Value> const&) [./node]"
+    },
+    {
+      "pc": "0x000055b57f1bccfd",
+      "symbol": " [./node]"
+    },
+    {
+      "pc": "0x000055b57f1be048",
+      "symbol": "v8::internal::Builtin_HandleApiCall(int, v8::internal::Object**, v8::internal::Isolate*) [./node]"
+    },
+    {
+      "pc": "0x000055b57feeda0e",
+      "symbol": " [./node]"
+    }
   ],
   "javascriptHeap": {
     "totalMemory": 6127616,
@@ -175,46 +189,75 @@ is provided below for reference.
       "details": ""
     },
     {
+      "repeat": 0,
+      "firesInMsFromNow": 94403548320796,
+      "expired": true,
       "type": "timer",
       "is_active": false,
       "is_referenced": false,
-      "address": "0x00007fff5fbfeab0",
-      "details": "repeat: 0, timeout expired: 18075165916 ms ago"
+      "address": "0x00007fff5fbfeab0"
     },
     {
       "type": "check",
       "is_active": true,
       "is_referenced": false,
-      "address": "0x00007fff5fbfeb48",
-      "details": ""
+      "address": "0x00007fff5fbfeb48"
     },
     {
       "type": "idle",
       "is_active": false,
       "is_referenced": true,
-      "address": "0x00007fff5fbfebc0",
-      "details": ""
+      "address": "0x00007fff5fbfebc0"
     },
     {
       "type": "prepare",
       "is_active": false,
       "is_referenced": false,
-      "address": "0x00007fff5fbfec38",
-      "details": ""
+      "address": "0x00007fff5fbfec38"
     },
     {
       "type": "check",
       "is_active": false,
       "is_referenced": false,
-      "address": "0x00007fff5fbfecb0",
-      "details": ""
+      "address": "0x00007fff5fbfecb0"
     },
     {
       "type": "async",
       "is_active": true,
       "is_referenced": false,
-      "address": "0x000000010188f2e0",
-      "details": ""
+      "address": "0x000000010188f2e0"
+    },
+    {
+      "width": 204,
+      "height": 55,
+      "fd": 17,
+      "writeQueueSize": 0,
+      "readable": true,
+      "writable": true,
+      "type": "tty",
+      "is_active": false,
+      "is_referenced": true,
+      "address": "0x000055b581db0e18"
+    },
+    {
+      "signum": 28,
+      "signal": "SIGWINCH",
+      "type": "signal",
+      "is_active": true,
+      "is_referenced": false,
+      "address": "0x000055b581d80010"
+    },
+    {
+      "width": 204,
+      "height": 55,
+      "fd": 19,
+      "writeQueueSize": 0,
+      "readable": true,
+      "writable": true,
+      "type": "tty",
+      "is_active": true,
+      "is_referenced": true,
+      "address": "0x000055b581df59f8"
     },
     {
       "type": "loop",
