@@ -228,9 +228,8 @@ Environment::Environment(IsolateData* isolate_data,
   performance_state_.reset(new performance::performance_state(isolate()));
   performance_state_->Mark(
       performance::NODE_PERFORMANCE_MILESTONE_ENVIRONMENT);
-  performance_state_->Mark(
-      performance::NODE_PERFORMANCE_MILESTONE_NODE_START,
-      performance::performance_node_start);
+  performance_state_->Mark(performance::NODE_PERFORMANCE_MILESTONE_NODE_START,
+                           per_process::node_start_time);
   performance_state_->Mark(
       performance::NODE_PERFORMANCE_MILESTONE_V8_START,
       performance::performance_v8_start);

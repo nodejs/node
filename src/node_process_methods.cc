@@ -44,6 +44,7 @@ using v8::Isolate;
 using v8::Local;
 using v8::Name;
 using v8::NewStringType;
+using v8::Number;
 using v8::Object;
 using v8::String;
 using v8::Uint32;
@@ -58,6 +59,8 @@ Mutex umask_mutex;
 #define MICROS_PER_SEC 1e6
 // used in Hrtime() below
 #define NANOS_PER_SEC 1000000000
+// Used in Uptime()
+#define NANOS_PER_MICROS 1e3
 
 #ifdef _WIN32
 /* MAX_PATH is in characters, not bytes. Make sure we have enough headroom. */
@@ -239,12 +242,12 @@ static void Umask(const FunctionCallbackInfo<Value>& args) {
 
 static void Uptime(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  double uptime;
 
   uv_update_time(env->event_loop());
-  uptime = uv_now(env->event_loop()) - per_process::prog_start_time;
-
-  args.GetReturnValue().Set(uptime / 1000);
+  double uptime =
+      static_cast<double>(uv_hrtime() - per_process::node_start_time);
+  Local<Number> result = Number::New(env->isolate(), uptime / NANOS_PER_MICROS);
+  args.GetReturnValue().Set(result);
 }
 
 static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {

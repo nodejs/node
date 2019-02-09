@@ -47,6 +47,9 @@
 extern char** environ;
 #endif
 
+constexpr int NANOS_PER_SEC = 1000 * 1000 * 1000;
+constexpr double SEC_PER_MICROS = 1e-6;
+
 namespace report {
 using node::arraysize;
 using node::Environment;
@@ -489,20 +492,19 @@ static void PrintGCStatistics(JSONWriter* writer, Isolate* isolate) {
 #ifndef _WIN32
 // Report resource usage (Linux/OSX only).
 static void PrintResourceUsage(JSONWriter* writer) {
-  time_t current_time;  // current time absolute
-  time(&current_time);
-  size_t boot_time = static_cast<time_t>(node::per_process::prog_start_time /
-                                         (1000 * 1000 * 1000));
-  auto uptime = difftime(current_time, boot_time);
+  // Get process uptime in seconds
+  uint64_t uptime =
+      (uv_hrtime() - node::per_process::node_start_time) / (NANOS_PER_SEC);
   if (uptime == 0) uptime = 1;  // avoid division by zero.
 
   // Process and current thread usage statistics
   struct rusage stats;
   writer->json_objectstart("resourceUsage");
   if (getrusage(RUSAGE_SELF, &stats) == 0) {
-    double user_cpu = stats.ru_utime.tv_sec + 0.000001 * stats.ru_utime.tv_usec;
+    double user_cpu =
+        stats.ru_utime.tv_sec + SEC_PER_MICROS * stats.ru_utime.tv_usec;
     double kernel_cpu =
-        stats.ru_utime.tv_sec + 0.000001 * stats.ru_utime.tv_usec;
+        stats.ru_utime.tv_sec + SEC_PER_MICROS * stats.ru_utime.tv_usec;
     writer->json_keyvalue("userCpuSeconds", user_cpu);
     writer->json_keyvalue("kernelCpuSeconds", kernel_cpu);
     double cpu_abs = user_cpu + kernel_cpu;
@@ -522,9 +524,10 @@ static void PrintResourceUsage(JSONWriter* writer) {
 #ifdef RUSAGE_THREAD
   if (getrusage(RUSAGE_THREAD, &stats) == 0) {
     writer->json_objectstart("uvthreadResourceUsage");
-    double user_cpu = stats.ru_utime.tv_sec + 0.000001 * stats.ru_utime.tv_usec;
+    double user_cpu =
+        stats.ru_utime.tv_sec + SEC_PER_MICROS * stats.ru_utime.tv_usec;
     double kernel_cpu =
-        stats.ru_utime.tv_sec + 0.000001 * stats.ru_utime.tv_usec;
+        stats.ru_utime.tv_sec + SEC_PER_MICROS * stats.ru_utime.tv_usec;
     writer->json_keyvalue("userCpuSeconds", user_cpu);
     writer->json_keyvalue("kernelCpuSeconds", kernel_cpu);
     double cpu_abs = user_cpu + kernel_cpu;

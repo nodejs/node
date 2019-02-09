@@ -145,8 +145,8 @@ unsigned int reverted_cve = 0;
 bool v8_initialized = false;
 
 // node_internals.h
-// process-relative uptime base, initialized at start-up
-double prog_start_time;
+// process-relative uptime base in nanoseconds, initialized in node::Start()
+uint64_t node_start_time;
 // Tells whether --prof is passed.
 bool v8_is_profiling = false;
 
@@ -611,9 +611,6 @@ int ProcessGlobalArgs(std::vector<std::string>* args,
 int Init(std::vector<std::string>* argv,
          std::vector<std::string>* exec_argv,
          std::vector<std::string>* errors) {
-  // Initialize prog_start_time to get relative uptime.
-  per_process::prog_start_time = static_cast<double>(uv_now(uv_default_loop()));
-
   // Register built-in modules
   binding::RegisterBuiltinModules();
 
@@ -891,7 +888,7 @@ inline int Start(uv_loop_t* event_loop,
 int Start(int argc, char** argv) {
   atexit([] () { uv_tty_reset_mode(); });
   PlatformInit();
-  performance::performance_node_start = PERFORMANCE_NOW();
+  per_process::node_start_time = uv_hrtime();
 
   CHECK_GT(argc, 0);
 
