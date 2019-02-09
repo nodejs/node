@@ -3,12 +3,16 @@
 // This tests that process.argv is the same in the preloaded module
 // and the user module.
 
-require('../common');
+const common = require('../common');
 
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
 const fs = require('fs');
+
+if (!common.isMainThread) {
+  common.skip('Cannot chdir to the tmp directory in workers');
+}
 
 tmpdir.refresh();
 
