@@ -186,8 +186,7 @@ Environment::Environment(IsolateData* isolate_data,
       trace_category_state_(isolate_, kTraceCategoryCount),
       stream_base_state_(isolate_, StreamBase::kNumStreamBaseStateFields),
       flags_(flags),
-      thread_id_(thread_id == static_cast<uint64_t>(-1) ?
-          AllocateThreadId() : thread_id),
+      thread_id_(thread_id == kNoThreadId ? AllocateThreadId() : thread_id),
       fs_stats_field_array_(isolate_, kFsStatsBufferLength),
       fs_stats_field_bigint_array_(isolate_, kFsStatsBufferLength),
       context_(context->GetIsolate(), context) {
