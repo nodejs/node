@@ -203,8 +203,8 @@ void Worker::Run() {
         env_->RunCleanup();
         RunAtExit(env_.get());
 #if NODE_USE_V8_PLATFORM && HAVE_INSPECTOR
-          if (inspector_started)
-              WaitForWorkerInspectorToStop(env_.get());
+        if (inspector_started)
+          WaitForWorkerInspectorToStop(env_.get());
 #endif
 
         {
