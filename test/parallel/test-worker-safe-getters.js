@@ -12,6 +12,8 @@ if (isMainThread) {
     stderr: true
   });
 
+  const { stdin, stdout, stderr } = w;
+
   w.on('exit', common.mustCall((code) => {
     assert.strictEqual(code, 0);
 
@@ -21,17 +23,11 @@ if (isMainThread) {
     w.ref();
     w.unref();
 
-    // Although not browser specific, probably wise to
-    // make sure the stream getters don't throw either.
-    w.stdin;
-    w.stdout;
-    w.stderr;
-
     // Sanity check.
     assert.strictEqual(w.threadId, -1);
-    assert.strictEqual(w.stdin, null);
-    assert.strictEqual(w.stdout, null);
-    assert.strictEqual(w.stderr, null);
+    assert.strictEqual(w.stdin, stdin);
+    assert.strictEqual(w.stdout, stdout);
+    assert.strictEqual(w.stderr, stderr);
   }));
 } else {
   process.exit(0);
