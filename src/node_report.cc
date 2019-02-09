@@ -216,9 +216,8 @@ void GetNodeReport(Isolate* isolate,
   // Obtain the current time and the pid (platform dependent)
   TIME_TYPE tm_struct;
   LocalTime(&tm_struct);
-  std::string str = "NA";
   WriteNodeReport(
-      isolate, env, message, location, str, out, stackstr, &tm_struct);
+      isolate, env, message, location, "", out, stackstr, &tm_struct);
 }
 
 // Internal function to coordinate and write the various
@@ -249,7 +248,7 @@ static void WriteNodeReport(Isolate* isolate,
   if (!filename.empty())
     writer.json_keyvalue("filename", filename);
   else
-    writer.json_keyvalue("filename", "''");
+    writer.json_keyvalue("filename", JSONWriter::Null{});
 
   // Report dump event and module load date/time stamps
   char timebuf[64];
@@ -431,13 +430,13 @@ static void PrintNativeStack(JSONWriter* writer) {
   const int size = sym_ctx->GetStackTrace(frames, arraysize(frames));
   writer->json_arraystart("nativeStack");
   int i;
-  std::ostringstream buf;
   for (i = 1; i < size; i++) {
     void* frame = frames[i];
-    buf.str("");
-    buf << " [pc=" << frame << "] ";
-    buf << sym_ctx->LookupSymbol(frame).Display().c_str();
-    writer->json_element(buf.str());
+    writer->json_start();
+    writer->json_keyvalue("pc",
+                          ValueToHexString(reinterpret_cast<uintptr_t>(frame)));
+    writer->json_keyvalue("symbol", sym_ctx->LookupSymbol(frame).Display());
+    writer->json_end();
   }
   writer->json_arrayend();
 }
