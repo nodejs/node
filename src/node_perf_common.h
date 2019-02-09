@@ -18,7 +18,6 @@ namespace performance {
 
 // These occur before the environment is created. Cache them
 // here and add them to the milestones when the env is init'd.
-extern uint64_t performance_node_start;
 extern uint64_t performance_v8_start;
 
 #define NODE_PERFORMANCE_MILESTONES(V)                                        \
