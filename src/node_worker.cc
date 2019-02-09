@@ -152,7 +152,7 @@ class WorkerThreadData {
   }
 
  private:
-  Worker* w_;
+  Worker* const w_;
   uv_loop_t loop_;
   DeleteFnPtr<ArrayBufferAllocator, FreeArrayBufferAllocator>
     array_buffer_allocator_;
@@ -181,7 +181,7 @@ void Worker::Run() {
     bool inspector_started = false;
 
     DeleteFnPtr<Environment, FreeEnvironment> env_;
-    OnScopeLeave cleanup_env([&]{
+    OnScopeLeave cleanup_env([&]() {
       if (!env_) return;
       env_->set_can_call_into_js(false);
       Isolate::DisallowJavascriptExecutionScope disallow_js(isolate_,
@@ -204,7 +204,7 @@ void Worker::Run() {
         RunAtExit(env_.get());
 #if NODE_USE_V8_PLATFORM && HAVE_INSPECTOR
           if (inspector_started)
-            WaitForWorkerInspectorToStop(env_.get());
+              WaitForWorkerInspectorToStop(env_.get());
 #endif
 
         {
