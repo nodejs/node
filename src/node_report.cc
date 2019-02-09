@@ -431,13 +431,13 @@ static void PrintNativeStack(JSONWriter* writer) {
   const int size = sym_ctx->GetStackTrace(frames, arraysize(frames));
   writer->json_arraystart("nativeStack");
   int i;
-  std::ostringstream buf;
   for (i = 1; i < size; i++) {
     void* frame = frames[i];
-    buf.str("");
-    buf << " [pc=" << frame << "] ";
-    buf << sym_ctx->LookupSymbol(frame).Display().c_str();
-    writer->json_element(buf.str());
+    writer->json_start();
+    writer->json_keyvalue("pc",
+                          ValueToHexString(reinterpret_cast<uintptr_t>(frame)));
+    writer->json_keyvalue("symbol", sym_ctx->LookupSymbol(frame).Display());
+    writer->json_end();
   }
   writer->json_arrayend();
 }
