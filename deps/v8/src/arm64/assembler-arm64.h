@@ -1089,10 +1089,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     LAST_NOP_MARKER = ADR_FAR_NOP
   };
 
-  void nop(NopMarkerTypes n) {
-    DCHECK((FIRST_NOP_MARKER <= n) && (n <= LAST_NOP_MARKER));
-    mov(Register::XRegFromCode(n), Register::XRegFromCode(n));
-  }
+  void nop(NopMarkerTypes n);
 
   // Add.
   void add(const VRegister& vd, const VRegister& vn, const VRegister& vm);

@@ -1097,6 +1097,12 @@ void Assembler::adr(const Register& rd, Label* label) {
 }
 
 
+void Assembler::nop(NopMarkerTypes n) {
+  DCHECK((FIRST_NOP_MARKER <= n) && (n <= LAST_NOP_MARKER));
+  mov(Register::XRegFromCode(n), Register::XRegFromCode(n));
+}
+
+
 void Assembler::add(const Register& rd,
                     const Register& rn,
                     const Operand& operand) {
