@@ -377,6 +377,9 @@ class LiftoffAssembler : public TurboAssembler {
   // corresponding to slot {index} are {2*index} and {2*index-1}.
   inline void FillI64Half(Register, uint32_t half_index);
 
+  // i32 triops.
+  inline void emit_offset32(Register dst, Register base, Register index, int32_t scale);
+
   // i32 binops.
   inline void emit_i32_add(Register dst, Register lhs, Register rhs);
   inline void emit_i32_sub(Register dst, Register lhs, Register rhs);

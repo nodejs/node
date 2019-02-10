@@ -402,6 +402,24 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
   UNREACHABLE();
 }
 
+void LiftoffAssembler::emit_offset32(Register dst, Register base, Register index, int32_t scale) {
+  // Scale factor must be valid
+  ScaleFactor times;
+  if(scale == 1) {
+    times = times_1;
+  } else if(scale == 2) {
+    times = times_2;
+  } else if(scale == 4) {
+    times = times_4;
+  } else if(scale == 8) {
+    times = times_8;
+  } else {
+    FATAL("Invalid scale factor");
+  }
+  // Emit lea dst, [base + index * scale]
+  leal(dst, Operand(base, index, times, 0));
+}
+
 void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, Register rhs) {
   if (lhs != dst) {
     leal(dst, Operand(lhs, rhs, times_1, 0));

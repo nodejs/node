@@ -634,6 +634,8 @@ struct ControlWithNamedConstructors : public ControlBase<Value> {
   F(Unreachable)                                                              \
   F(Select, const Value& cond, const Value& fval, const Value& tval,          \
     Value* result)                                                            \
+  F(Offset32, const Value& base, const Value& index, int32_t scale,           \
+    Value* result)                                                            \
   F(Br, Control* target)                                                      \
   F(BrIf, const Value& cond, Control* target)                                 \
   F(BrTable, const BranchTableImmediate<validate>& imm, const Value& key)     \
@@ -1124,11 +1126,12 @@ class WasmDecoder : public Decoder {
 #define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
     // clang-format off
     switch (opcode) {
-      case kExprOffset32:
       case kExprSelect:
         return {3, 1};
       case kExprSwap:
         return {2, 2};
+      case kExprOffset32:
+        return {2, 1};
       FOREACH_STORE_MEM_OPCODE(DECLARE_OPCODE_CASE)
         return {2, 0};
       FOREACH_LOAD_MEM_OPCODE(DECLARE_OPCODE_CASE)
@@ -1804,15 +1807,27 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           }
           case kExprOffset32: {
-            auto size = Pop(2, kWasmI32);
+            // Get scale factor
+            ImmI32Immediate<validate> immScale(this, this->pc_);
+            // Pop top 2 values from stack
             auto index = Pop(1, kWasmI32);
             auto base = Pop(0, kWasmI32);
-            ImmI32Immediate<validate> immBase(this, base.pc);
-            ImmI32Immediate<validate> immIndex(this, index.pc);
-            ImmI32Immediate<validate> immSize(this, size.pc);
+            // Push i32 to stack
             auto* result = Push(kWasmI32);
-            int32_t value = immIndex.value * immSize.value + immBase.value;
-            CALL_INTERFACE_IF_REACHABLE(I32Const, result, value);
+            // Verify the value of the scalar
+            switch(immScale.value) {
+              case 1:
+              case 2:
+              case 4:
+              case 8:
+                break;
+              default:
+                FATAL("Scale factor should be: 1, 2, 4 or 8");
+            }
+            // Call Offset32(...) function in Liftoff then TurboFan
+            CALL_INTERFACE_IF_REACHABLE(Offset32, base, index, immScale.value, result);
+            // Update pc jump length
+            len = 1 + immScale.length;
             break;
           }
           case kExprDrop: {

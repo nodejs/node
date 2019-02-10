@@ -281,6 +281,18 @@ class WasmGraphBuildingInterface {
     BUILD(Unreachable, decoder->position());
   }
 
+  void Offset32(FullDecoder* decoder, const Value& base, const Value& index, int32_t scale, Value* result) {
+    // TurboFan Graph Construction
+    //            +
+    //           / \
+    //        base  *
+    //             / \
+    //         index  scale
+    auto scaleNode = builder_->Int32Constant(scale);
+    auto mulNode = BUILD(Binop, kExprI32Mul, index.node, scaleNode, decoder->position());
+    result->node = BUILD(Binop, kExprI32Add, base.node, mulNode, decoder->position());
+  }
+
   void Select(FullDecoder* decoder, const Value& cond, const Value& fval,
               const Value& tval, Value* result) {
     TFNode* controls[2];

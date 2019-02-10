@@ -1185,6 +1185,20 @@ class LiftoffCompiler {
     __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
   }
 
+  void Offset32(FullDecoder* decoder, const Value& base, const Value& index, int32_t scale, Value* result) {
+    // Liftoff Code Generation
+    static constexpr RegClass result_rc = reg_class_for(kWasmI32);
+    // Pop 'index' into a register
+    LiftoffRegister indexr = __ PopToRegister();
+    // Pop 'base' into a register
+    LiftoffRegister baser = __ PopToRegister(LiftoffRegList::ForRegs(indexr));
+    // Get a register that is not used
+    LiftoffRegister dst = __ GetUnusedRegister(result_rc, {baser, indexr});
+    // Emit offset32
+    __ emit_offset32(dst.gp(), baser.gp(), indexr.gp(), scale);
+    // Push destination register
+    __ PushRegister(kWasmI32, dst);
+  }
   void Select(FullDecoder* decoder, const Value& cond, const Value& fval,
               const Value& tval, Value* result) {
     LiftoffRegList pinned;
