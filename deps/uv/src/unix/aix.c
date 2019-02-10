@@ -1041,6 +1041,7 @@ void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
   struct poll_ctl pc;
 
   assert(loop->watchers != NULL);
+  assert(fd >= 0);
 
   events = (struct pollfd*) loop->watchers[loop->nwatchers];
   nfds = (uintptr_t) loop->watchers[loop->nwatchers + 1];

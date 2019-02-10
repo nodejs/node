@@ -215,7 +215,7 @@ void uv_pipe_connect(uv_connect_t* req,
   }
 
   if (err == 0)
-    uv__io_start(handle->loop, &handle->io_watcher, POLLIN | POLLOUT);
+    uv__io_start(handle->loop, &handle->io_watcher, POLLOUT);
 
 out:
   handle->delayed_error = err;
