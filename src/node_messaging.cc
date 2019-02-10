@@ -59,7 +59,7 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
     // by the index in the message's MessagePort array is sufficient.
     uint32_t id;
     if (!deserializer->ReadUint32(&id))
-      return MaybeLocal<Object>();
+      return {};
     CHECK_LE(id, message_ports_.size());
     return message_ports_[id]->object(isolate);
   };
@@ -104,7 +104,7 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
         if (port != nullptr)
           port->Close();
       }
-      return MaybeLocal<Value>();
+      return {};
     }
   }
   message_ports_.clear();

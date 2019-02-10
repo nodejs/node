@@ -247,7 +247,7 @@ inline MaybeLocal<Promise> FileHandle::ClosePromise() {
              ->fdclose_constructor_template()
              ->NewInstance(env()->context())
              .ToLocal(&close_req_obj)) {
-      return MaybeLocal<Promise>();
+      return {};
     }
     CloseReq* req = new CloseReq(env(), close_req_obj, promise, object());
     auto AfterClose = uv_fs_callback_t{[](uv_fs_t* req) {

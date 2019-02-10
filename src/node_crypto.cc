@@ -1649,7 +1649,7 @@ static MaybeLocal<Object> ECPointToBuffer(Environment* env,
   size_t len = EC_POINT_point2oct(group, point, form, nullptr, 0, nullptr);
   if (len == 0) {
     if (error != nullptr) *error = "Failed to get public key length";
-    return MaybeLocal<Object>();
+    return {};
   }
   MallocedBuffer<unsigned char> buf(len);
   len = EC_POINT_point2oct(group, point, form, buf.data, buf.size, nullptr);
@@ -2843,7 +2843,7 @@ static MaybeLocal<Value> WritePublicKey(Environment* env,
 
   if (!WritePublicKeyInner(pkey, bio, config)) {
     ThrowCryptoError(env, ERR_get_error(), "Failed to encode public key");
-    return MaybeLocal<Value>();
+    return {};
   }
   return BIOToStringOrBuffer(env, bio.get(), config.format_);
 }
@@ -3261,7 +3261,7 @@ static MaybeLocal<Value> WritePrivateKey(
 
   if (err) {
     ThrowCryptoError(env, ERR_get_error(), "Failed to encode private key");
-    return MaybeLocal<Value>();
+    return {};
   }
   return BIOToStringOrBuffer(env, bio.get(), config.format_);
 }
@@ -3332,7 +3332,7 @@ MaybeLocal<Object> KeyObject::Create(Environment* env,
   if (!env->crypto_key_object_constructor()
            ->NewInstance(env->context(), 1, &type)
            .ToLocal(&obj)) {
-    return MaybeLocal<Object>();
+    return {};
   }
 
   KeyObject* key = Unwrap<KeyObject>(obj);

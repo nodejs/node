@@ -345,7 +345,7 @@ Local<Value> TLSWrap::GetSSLError(int status, int* err, std::string* msg) {
 
   // ssl_ is already destroyed in reading EOF by close notify alert.
   if (ssl_ == nullptr)
-    return Local<Value>();
+    return {};
 
   *err = SSL_get_error(ssl_.get(), status);
   switch (*err) {

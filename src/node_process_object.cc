@@ -81,7 +81,7 @@ MaybeLocal<Object> CreateProcessObject(
   Local<Object> process;
   if (!process_template->GetFunction(context).ToLocal(&process_ctor) ||
       !process_ctor->NewInstance(context).ToLocal(&process)) {
-    return MaybeLocal<Object>();
+    return {};
   }
 
   // process.title

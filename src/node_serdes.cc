@@ -304,7 +304,7 @@ MaybeLocal<Object> DeserializerContext::ReadHostObject(Isolate* isolate) {
                                             nullptr);
 
   if (ret.IsEmpty())
-    return MaybeLocal<Object>();
+    return {};
 
   Local<Value> return_value = ret.ToLocalChecked();
   if (!return_value->IsObject()) {

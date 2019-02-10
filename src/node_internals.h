@@ -138,7 +138,7 @@ v8::MaybeLocal<v8::Uint8Array> New(Environment* env,
   v8::Maybe<bool> mb =
       ui->SetPrototype(env->context(), env->buffer_prototype_object());
   if (mb.IsNothing())
-    return v8::MaybeLocal<v8::Uint8Array>();
+    return {};
   return ui;
 }
 

@@ -280,7 +280,7 @@ MaybeLocal<Object> New(Isolate* isolate, size_t length) {
   Environment* env = Environment::GetCurrent(isolate);
   if (env == nullptr) {
     THROW_ERR_BUFFER_CONTEXT_NOT_AVAILABLE(isolate);
-    return MaybeLocal<Object>();
+    return {};
   }
   if (Buffer::New(env, length).ToLocal(&obj))
     return handle_scope.Escape(obj);
@@ -325,7 +325,7 @@ MaybeLocal<Object> Copy(Isolate* isolate, const char* data, size_t length) {
   Environment* env = Environment::GetCurrent(isolate);
   if (env == nullptr) {
     THROW_ERR_BUFFER_CONTEXT_NOT_AVAILABLE(isolate);
-    return MaybeLocal<Object>();
+    return {};
   }
   Local<Object> obj;
   if (Buffer::Copy(env, data, length).ToLocal(&obj))
@@ -378,7 +378,7 @@ MaybeLocal<Object> New(Isolate* isolate,
   if (env == nullptr) {
     callback(data, hint);
     THROW_ERR_BUFFER_CONTEXT_NOT_AVAILABLE(isolate);
-    return MaybeLocal<Object>();
+    return {};
   }
   Local<Object> obj;
   if (Buffer::New(env, data, length, callback, hint).ToLocal(&obj))
@@ -406,7 +406,7 @@ MaybeLocal<Object> New(Environment* env,
   CallbackInfo::New(env->isolate(), ab, callback, data, hint);
 
   if (ui.IsEmpty())
-    return MaybeLocal<Object>();
+    return {};
 
   return scope.Escape(ui.ToLocalChecked());
 }
@@ -418,7 +418,7 @@ MaybeLocal<Object> New(Isolate* isolate, char* data, size_t length) {
   if (env == nullptr) {
     free(data);
     THROW_ERR_BUFFER_CONTEXT_NOT_AVAILABLE(isolate);
-    return MaybeLocal<Object>();
+    return {};
   }
   Local<Object> obj;
   if (Buffer::New(env, data, length).ToLocal(&obj))

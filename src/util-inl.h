@@ -384,7 +384,7 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
     // V8 only has a TODO comment about adding an exception when the maximum
     // string size is exceeded.
     ThrowErrStringTooLong(isolate);
-    return v8::MaybeLocal<v8::Value>();
+    return {};
   }
 
   return v8::String::NewFromUtf8(
@@ -403,7 +403,7 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
   arr.SetLength(vec.size());
   for (size_t i = 0; i < vec.size(); ++i) {
     if (!ToV8Value(context, vec[i], isolate).ToLocal(&arr[i]))
-      return v8::MaybeLocal<v8::Value>();
+      return {};
   }
 
   return handle_scope.Escape(v8::Array::New(isolate, arr.out(), arr.length()));
@@ -422,7 +422,7 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
     if (!ToV8Value(context, item.first, isolate).ToLocal(&first) ||
         !ToV8Value(context, item.second, isolate).ToLocal(&second) ||
         ret->Set(context, first, second).IsEmpty()) {
-      return v8::MaybeLocal<v8::Value>();
+      return {};
     }
   }
 

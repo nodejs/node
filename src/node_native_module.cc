@@ -148,7 +148,7 @@ MaybeLocal<Uint8Array> NativeModuleLoader::GetCodeCache(Isolate* isolate,
   const auto it = code_cache_.find(id);
   if (it == code_cache_.end()) {
     // The module has not been compiled before.
-    return MaybeLocal<Uint8Array>();
+    return {};
   }
 
   cached_data = it->second.get();
@@ -243,7 +243,7 @@ MaybeLocal<Function> NativeModuleLoader::LookupAndCompile(
     // In the case of early errors, v8 is already capable of
     // decorating the stack for us - note that we use CompileFunctionInContext
     // so there is no need to worry about wrappers.
-    return MaybeLocal<Function>();
+    return {};
   }
 
   Local<Function> fun = maybe_fun.ToLocalChecked();

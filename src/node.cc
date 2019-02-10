@@ -200,7 +200,7 @@ static MaybeLocal<Value> ExecuteBootstrapper(
           env->context(), id, parameters, env);
 
   if (maybe_fn.IsEmpty()) {
-    return MaybeLocal<Value>();
+    return {};
   }
 
   Local<Function> fn = maybe_fn.ToLocalChecked();
@@ -263,7 +263,7 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
                           &primordials_params,
                           &primordials_args);
   if (primordials_ret.IsEmpty()) {
-    return MaybeLocal<Value>();
+    return {};
   }
 
   // Create binding loaders

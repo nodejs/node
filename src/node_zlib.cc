@@ -1097,9 +1097,9 @@ CompressionError BrotliEncoderContext::Init(brotli_alloc_func alloc,
   alloc_opaque_ = opaque;
   state_.reset(BrotliEncoderCreateInstance(alloc, free, opaque));
   if (!state_) {
-    return CompressionError("Could not initialize Brotli instance",
-                            "ERR_ZLIB_INITIALIZATION_FAILED",
-                            -1);
+    return {"Could not initialize Brotli instance",
+            "ERR_ZLIB_INITIALIZATION_FAILED",
+            -1};
   } else {
     return CompressionError {};
   }
@@ -1113,9 +1113,9 @@ CompressionError BrotliEncoderContext::SetParams(int key, uint32_t value) {
   if (!BrotliEncoderSetParameter(state_.get(),
                                  static_cast<BrotliEncoderParameter>(key),
                                  value)) {
-    return CompressionError("Setting parameter failed",
-                            "ERR_BROTLI_PARAM_SET_FAILED",
-                            -1);
+    return {"Setting parameter failed",
+            "ERR_BROTLI_PARAM_SET_FAILED",
+            -1};
   } else {
     return CompressionError {};
   }
@@ -1123,9 +1123,9 @@ CompressionError BrotliEncoderContext::SetParams(int key, uint32_t value) {
 
 CompressionError BrotliEncoderContext::GetErrorInfo() const {
   if (!last_result_) {
-    return CompressionError("Compression failed",
-                            "ERR_BROTLI_COMPRESSION_FAILED",
-                            -1);
+    return {"Compression failed",
+            "ERR_BROTLI_COMPRESSION_FAILED",
+            -1};
   } else {
     return CompressionError {};
   }
@@ -1162,9 +1162,9 @@ CompressionError BrotliDecoderContext::Init(brotli_alloc_func alloc,
   alloc_opaque_ = opaque;
   state_.reset(BrotliDecoderCreateInstance(alloc, free, opaque));
   if (!state_) {
-    return CompressionError("Could not initialize Brotli instance",
-                            "ERR_ZLIB_INITIALIZATION_FAILED",
-                            -1);
+    return {"Could not initialize Brotli instance",
+            "ERR_ZLIB_INITIALIZATION_FAILED",
+            -1};
   } else {
     return CompressionError {};
   }
@@ -1178,9 +1178,9 @@ CompressionError BrotliDecoderContext::SetParams(int key, uint32_t value) {
   if (!BrotliDecoderSetParameter(state_.get(),
                                  static_cast<BrotliDecoderParameter>(key),
                                  value)) {
-    return CompressionError("Setting parameter failed",
-                            "ERR_BROTLI_PARAM_SET_FAILED",
-                            -1);
+    return {"Setting parameter failed",
+            "ERR_BROTLI_PARAM_SET_FAILED",
+            -1};
   } else {
     return CompressionError {};
   }
@@ -1188,15 +1188,15 @@ CompressionError BrotliDecoderContext::SetParams(int key, uint32_t value) {
 
 CompressionError BrotliDecoderContext::GetErrorInfo() const {
   if (error_ != BROTLI_DECODER_NO_ERROR) {
-    return CompressionError("Decompression failed",
+    return {"Decompression failed",
                             error_string_.c_str(),
-                            static_cast<int>(error_));
+                            static_cast<int>(error_)};
   } else if (flush_ == BROTLI_OPERATION_FINISH &&
              last_result_ == BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT) {
     // Match zlib's behaviour, as brotli doesn't have its own code for this.
-    return CompressionError("unexpected end of file",
-                            "Z_BUF_ERROR",
-                            Z_BUF_ERROR);
+    return {"unexpected end of file",
+            "Z_BUF_ERROR",
+            Z_BUF_ERROR};
   } else {
     return CompressionError {};
   }

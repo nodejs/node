@@ -202,7 +202,7 @@ Local<Context> NewContext(Isolate* isolate,
         per_process::native_module_loader.LookupAndCompile(
             context, "internal/per_context", &parameters, nullptr);
     if (maybe_fn.IsEmpty()) {
-      return Local<Context>();
+      return {};
     }
     Local<Function> fn = maybe_fn.ToLocalChecked();
     MaybeLocal<Value> result =

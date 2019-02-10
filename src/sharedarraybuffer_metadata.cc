@@ -128,7 +128,7 @@ MaybeLocal<SharedArrayBuffer> SharedArrayBufferMetadata::GetSharedArrayBuffer(
                              contents_.ByteLength());
 
   if (AssignToSharedArrayBuffer(env, context, obj).IsNothing())
-    return MaybeLocal<SharedArrayBuffer>();
+    return {};
 
   return obj;
 }

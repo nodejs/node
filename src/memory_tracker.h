@@ -106,7 +106,7 @@ class MemoryRetainer {
   virtual size_t SelfSize() const = 0;
 
   virtual v8::Local<v8::Object> WrappedObject() const {
-    return v8::Local<v8::Object>();
+    return {};
   }
 
   virtual bool IsRootNode() const { return false; }

@@ -274,7 +274,7 @@ class Reference : private Finalizer {
 
   v8::Local<v8::Value> Get() {
     if (_persistent.IsEmpty()) {
-      return v8::Local<v8::Value>();
+      return {};
     } else {
       return v8::Local<v8::Value>::New(_env->isolate, _persistent);
     }

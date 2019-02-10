@@ -141,7 +141,7 @@ MaybeLocal<Value> InternalMakeCallback(Environment* env,
   CHECK(!recv.IsEmpty());
   InternalCallbackScope scope(env, recv, asyncContext);
   if (scope.Failed()) {
-    return MaybeLocal<Value>();
+    return {};
   }
 
   Local<Function> domain_cb = env->domain_callback();

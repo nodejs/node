@@ -124,7 +124,7 @@ MaybeLocal<Object> ContextifyContext::CreateDataWrapper(Environment* env) {
   if (!env->script_data_constructor_function()
            ->NewInstance(env->context())
            .ToLocal(&wrapper)) {
-    return MaybeLocal<Object>();
+    return {};
   }
 
   wrapper->SetAlignedPointerInInternalField(0, this);
@@ -146,7 +146,7 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
 
   Local<Object> data_wrapper;
   if (!CreateDataWrapper(env).ToLocal(&data_wrapper))
-    return MaybeLocal<Context>();
+    return {};
 
   NamedPropertyHandlerConfiguration config(PropertyGetterCallback,
                                            PropertySetterCallback,

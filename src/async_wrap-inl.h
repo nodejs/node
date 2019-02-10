@@ -83,7 +83,7 @@ inline v8::MaybeLocal<v8::Value> AsyncWrap::MakeCallback(
     v8::Local<v8::Value>* argv) {
   v8::Local<v8::Value> cb_v;
   if (!object()->Get(env()->context(), symbol).ToLocal(&cb_v))
-    return v8::MaybeLocal<v8::Value>();
+    return {};
   if (!cb_v->IsFunction()) {
     // TODO(addaleax): We should throw an error here to fulfill the
     // `MaybeLocal<>` API contract.

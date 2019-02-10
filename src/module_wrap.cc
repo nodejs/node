@@ -389,7 +389,7 @@ MaybeLocal<Module> ModuleWrap::ResolveCallback(Local<Context> context,
   ModuleWrap* dependent = GetFromModule(env, referrer);
   if (dependent == nullptr) {
     env->ThrowError("linking error, null dep");
-    return MaybeLocal<Module>();
+    return {};
   }
 
   Utf8Value specifier_utf8(isolate, specifier);
@@ -771,7 +771,7 @@ static MaybeLocal<Promise> ImportModuleDynamically(
     return handle_scope.Escape(result.As<Promise>());
   }
 
-  return MaybeLocal<Promise>();
+  return {};
 }
 
 void ModuleWrap::SetImportModuleDynamicallyCallback(

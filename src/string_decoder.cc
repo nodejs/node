@@ -106,7 +106,7 @@ MaybeLocal<String> StringDecoder::DecodeData(Isolate* isolate,
                         IncompleteCharacterBuffer(),
                         BufferedBytes(),
                         Encoding()).ToLocal(&prepend)) {
-          return MaybeLocal<String>();
+          return {};
         }
 
         *nread_ptr += BufferedBytes();

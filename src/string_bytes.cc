@@ -175,7 +175,7 @@ MaybeLocal<Value> ExternOneByteString::NewSimpleFromCopy(Isolate* isolate,
                              length);
   if (str.IsEmpty()) {
     *error = node::ERR_STRING_TOO_LONG(isolate);
-    return MaybeLocal<Value>();
+    return {};
   }
   return str.ToLocalChecked();
 }
@@ -193,7 +193,7 @@ MaybeLocal<Value> ExternTwoByteString::NewSimpleFromCopy(Isolate* isolate,
                              length);
   if (str.IsEmpty()) {
     *error = node::ERR_STRING_TOO_LONG(isolate);
-    return MaybeLocal<Value>();
+    return {};
   }
   return str.ToLocalChecked();
 }

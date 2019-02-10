@@ -124,7 +124,7 @@ class JSGraph : public EmbedderGraph {
                      Number::New(isolate_, n->SizeInBytes()))
                 .IsNothing() ||
             obj->Set(context, edges_string, Array::New(isolate_)).IsNothing()) {
-          return MaybeLocal<Array>();
+          return {};
         }
         if (nodes->Set(context, i++, obj).IsNothing())
           return MaybeLocal<Array>();

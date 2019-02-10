@@ -441,7 +441,7 @@ MaybeLocal<Object> SyncProcessRunner::Run(Local<Value> options) {
 
   Maybe<bool> r = TryInitializeAndRunLoop(options);
   CloseHandlesAndDeleteLoop();
-  if (r.IsNothing()) return MaybeLocal<Object>();
+  if (r.IsNothing()) return {};
 
   Local<Object> result = BuildResultObject();
 

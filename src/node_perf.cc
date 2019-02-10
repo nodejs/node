@@ -114,7 +114,7 @@ MaybeLocal<Object> PerformanceEntry::ToObject() const {
   if (!env_->performance_entry_template()
            ->NewInstance(env_->context())
            .ToLocal(&obj)) {
-    return MaybeLocal<Object>();
+    return {};
   }
   InitObject(*this, obj);
   return obj;
