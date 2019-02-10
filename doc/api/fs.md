@@ -1470,9 +1470,11 @@ returned by this method has a default `highWaterMark` of 64 kb.
 
 `options` can include `start` and `end` values to read a range of bytes from
 the file instead of the entire file. Both `start` and `end` are inclusive and
-start counting at 0. If `fd` is specified and `start` is omitted or `undefined`,
-`fs.createReadStream()` reads sequentially from the current file position.
-The `encoding` can be any one of those accepted by [`Buffer`][].
+start counting at 0, allowed values are in the
+[0, [`Number.MAX_SAFE_INTEGER`][]] range. If `fd` is specified and `start` is
+omitted or `undefined`, `fs.createReadStream()` reads sequentially from the
+current file position. The `encoding` can be any one of those accepted by
+[`Buffer`][].
 
 If `fd` is specified, `ReadStream` will ignore the `path` argument and will use
 the specified file descriptor. This means that no `'open'` event will be
@@ -1548,7 +1550,8 @@ changes:
 * Returns: {fs.WriteStream} See [Writable Stream][].
 
 `options` may also include a `start` option to allow writing data at
-some position past the beginning of the file. Modifying a file rather
+some position past the beginning of the file, allowed values are in the
+[0, [`Number.MAX_SAFE_INTEGER`][]] range. Modifying a file rather
 than replacing it may require a `flags` mode of `r+` rather than the
 default mode `w`. The `encoding` can be any one of those accepted by
 [`Buffer`][].
@@ -4953,3 +4956,4 @@ the file contents.
 [chcp]: https://ss64.com/nt/chcp.html
 [inode]: https://en.wikipedia.org/wiki/Inode
 [support of file system `flags`]: #fs_file_system_flags
+[`Number.MAX_SAFE_INTEGER`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
