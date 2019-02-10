@@ -47,15 +47,6 @@
 extern char** environ;
 #endif
 
-#ifdef __POSIX__
-# include <netdb.h>         // MAXHOSTNAMELEN on Solaris.
-# include <sys/param.h>     // MAXHOSTNAMELEN on Linux and the BSDs.
-#endif  // __POSIX__
-
-#ifndef MAXHOSTNAMELEN
-# define MAXHOSTNAMELEN 256
-#endif  // MAXHOSTNAMELEN
-
 namespace report {
 using node::arraysize;
 using node::Environment;
@@ -377,7 +368,7 @@ static void PrintVersionInformation(JSONWriter* writer) {
     writer->json_keyvalue("osMachine", os_info.machine);
   }
 
-  char host[MAXHOSTNAMELEN + 1];
+  char host[UV_MAXHOSTNAMESIZE];
   size_t host_size = sizeof(host);
 
   if (uv_os_gethostname(host, &host_size) == 0)
