@@ -33,15 +33,8 @@
 
 #ifdef __POSIX__
 # include <limits.h>        // PATH_MAX on Solaris.
-# include <netdb.h>         // MAXHOSTNAMELEN on Solaris.
 # include <unistd.h>        // gethostname, sysconf
-# include <sys/param.h>     // MAXHOSTNAMELEN on Linux and the BSDs.
 #endif  // __POSIX__
-
-// Add Windows fallback.
-#ifndef MAXHOSTNAMELEN
-# define MAXHOSTNAMELEN 256
-#endif  // MAXHOSTNAMELEN
 
 namespace node {
 namespace os {
@@ -66,7 +59,7 @@ using v8::Value;
 
 static void GetHostname(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  char buf[MAXHOSTNAMELEN + 1];
+  char buf[UV_MAXHOSTNAMESIZE];
   size_t size = sizeof(buf);
   int r = uv_os_gethostname(buf, &size);
 
