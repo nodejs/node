@@ -192,7 +192,7 @@ Local<Context> NewContext(Isolate* isolate,
                            True(isolate));
 
   {
-    // Run lib/internal/per_context.js
+    // Run lib/internal/bootstrap/context.js
     Context::Scope context_scope(context);
 
     std::vector<Local<String>> parameters = {
@@ -200,7 +200,7 @@ Local<Context> NewContext(Isolate* isolate,
     Local<Value> arguments[] = {context->Global()};
     MaybeLocal<Function> maybe_fn =
         per_process::native_module_loader.LookupAndCompile(
-            context, "internal/per_context", &parameters, nullptr);
+            context, "internal/bootstrap/context", &parameters, nullptr);
     if (maybe_fn.IsEmpty()) {
       return Local<Context>();
     }
