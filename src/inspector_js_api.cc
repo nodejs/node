@@ -272,7 +272,17 @@ void Initialize(Local<Object> target, Local<Value> unused,
   Environment* env = Environment::GetCurrent(context);
 
   Agent* agent = env->inspector_agent();
-  env->SetMethod(target, "consoleCall", InspectorConsoleCall);
+
+  v8::Local<v8::Function> consoleCallFunc =
+      env->NewFunctionTemplate(InspectorConsoleCall, v8::Local<v8::Signature>(),
+                               v8::ConstructorBehavior::kThrow,
+                               v8::SideEffectType::kHasSideEffect)
+          ->GetFunction(context)
+          .ToLocalChecked();
+  auto name_string = FIXED_ONE_BYTE_STRING(env->isolate(), "consoleCall");
+  target->Set(context, name_string, consoleCallFunc).FromJust();
+  consoleCallFunc->SetName(name_string);
+
   env->SetMethod(
       target, "setConsoleExtensionInstaller", SetConsoleExtensionInstaller);
   if (agent->WillWaitForConnect())
