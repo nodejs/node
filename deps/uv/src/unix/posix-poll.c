@@ -298,6 +298,8 @@ update_timeout:
 void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
   size_t i;
 
+  assert(fd >= 0);
+
   if (loop->poll_fds_iterating) {
     /* uv__io_poll is currently iterating.  Just invalidate fd.  */
     for (i = 0; i < loop->poll_fds_used; i++)

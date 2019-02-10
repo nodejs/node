@@ -431,7 +431,10 @@ API
 
     .. versionadded:: 1.9.0
 
-.. uint64_t uv_get_free_memory(void)
+.. c:function:: uint64_t uv_get_free_memory(void)
+
+    Gets memory information (in bytes).
+
 .. c:function:: uint64_t uv_get_total_memory(void)
 
     Gets memory information (in bytes).
@@ -530,6 +533,10 @@ API
     storage required to hold the value.
 
     .. versionadded:: 1.12.0
+
+    .. versionchanged:: 1.26.0 `UV_MAXHOSTNAMESIZE` is available and represents
+                               the maximum `buffer` size required to store a
+                               hostname and terminating `nul` character.
 
 .. c:function:: int uv_os_getpriority(uv_pid_t pid, int* priority)
 
