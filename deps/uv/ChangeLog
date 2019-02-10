@@ -1,3 +1,26 @@
+2019.02.11, Version 1.26.0 (Stable), 8669d8d3e93cddb62611b267ef62a3ddb5ba3ca0
+
+Changes since version 1.25.0:
+
+* doc: fix uv_get_free_memory doc (Stephen Belanger)
+
+* unix: fix epoll cpu 100% issue (yeyuanfeng)
+
+* openbsd,tcp: special handling of EINVAL on connect (ptlomholt)
+
+* win: simplify registry closing in uv_cpu_info() (cjihrig)
+
+* src,include: define UV_MAXHOSTNAMESIZE (cjihrig)
+
+* win: return product name in uv_os_uname() version (cjihrig)
+
+* thread: allow specifying stack size for new thread (Anna Henningsen)
+
+* win: fix duplicate tty vt100 fn key (erw7)
+
+* unix: don't attempt to invalidate invalid fd (Ben Noordhuis)
+
+
 2019.01.19, Version 1.25.0 (Stable), 4a10a9d425863330af199e4b74bd688e62d945f1
 
 Changes since version 1.24.1:
