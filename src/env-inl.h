@@ -455,11 +455,6 @@ Environment::should_abort_on_uncaught_toggle() {
   return should_abort_on_uncaught_toggle_;
 }
 
-inline AliasedBuffer<uint8_t, v8::Uint8Array>&
-Environment::trace_category_state() {
-  return trace_category_state_;
-}
-
 inline AliasedBuffer<int32_t, v8::Int32Array>&
 Environment::stream_base_state() {
   return stream_base_state_;
