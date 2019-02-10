@@ -398,14 +398,14 @@ Returns a list of `PerformanceEntry` objects in chronological order
 with respect to `performanceEntry.startTime` whose `performanceEntry.entryType`
 is equal to `type`.
 
-## monitorEventLoopDelay([options])
+## perf_hooks.monitorEventLoopDelay([options])
 <!-- YAML
 added: REPLACEME
 -->
 
 * `options` {Object}
   * `resolution` {number} The sampling rate in milliseconds. Must be greater
-    than zero. Defaults to `10`.
+    than zero. **Default:** `10`.
 * Returns: {Histogram}
 
 Creates a `Histogram` object that samples and reports the event loop delay
@@ -421,7 +421,7 @@ detect.
 const { monitorEventLoopDelay } = require('perf_hooks');
 const h = monitorEventLoopDelay({ resolution: 20 });
 h.enable();
-// Do something
+// Do something.
 h.disable();
 console.log(h.min);
 console.log(h.max);
@@ -459,21 +459,30 @@ Enables the event loop delay sample timer. Returns `true` if the timer was
 started, `false` if it was already started.
 
 #### histogram.exceeds
+<!-- YAML
+added: REPLACEME
+-->
 
-* Value: {number}
+* {number}
 
 The number of times the event loop delay exceeded the maximum 1 hour event
 loop delay threshold.
 
 #### histogram.max
+<!-- YAML
+added: REPLACEME
+-->
 
-* Value: {number}
+* {number}
 
 The maximum recorded event loop delay.
 
 #### histogram.mean
+<!-- YAML
+added: REPLACEME
+-->
 
-* Value: {number}
+* {number}
 
 The mean of the recorded event loop delays.
 
@@ -482,19 +491,26 @@ The mean of the recorded event loop delays.
 added: REPLACEME
 -->
 
-* Value: {number}
+* {number}
 
 The minimum recorded event loop delay.
 
 #### histogram.percentile(percentile)
+<!-- YAML
+added: REPLACEME
+-->
 
 * `percentile` {number} A percentile value between 1 and 100.
+* Returns: {number}
 
 Returns the value at the given percentile.
 
 #### histogram.percentiles
+<!-- YAML
+added: REPLACEME
+-->
 
-* Value: {Map}
+* {Map}
 
 Returns a `Map` object detailing the accumulated percentile distribution.
 
@@ -506,8 +522,11 @@ added: REPLACEME
 Resets the collected histogram data.
 
 #### histogram.stddev
+<!-- YAML
+added: REPLACEME
+-->
 
-* Value: {number}
+* {number}
 
 The standard deviation of the recorded event loop delays.
 

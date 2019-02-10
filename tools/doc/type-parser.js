@@ -75,8 +75,6 @@ const customTypesMap = {
   'fs.Stats': 'fs.html#fs_class_fs_stats',
   'fs.WriteStream': 'fs.html#fs_class_fs_writestream',
 
-  'Histogram': 'perf_hooks.html#perf_hooks_class_histogram',
-
   'http.Agent': 'http.html#http_class_http_agent',
   'http.ClientRequest': 'http.html#http_class_http_clientrequest',
   'http.IncomingMessage': 'http.html#http_class_http_incomingmessage',
@@ -107,6 +105,7 @@ const customTypesMap = {
 
   'os.constants.dlopen': 'os.html#os_dlopen_constants',
 
+  'Histogram': 'perf_hooks.html#perf_hooks_class_histogram',
   'PerformanceEntry': 'perf_hooks.html#perf_hooks_class_performanceentry',
   'PerformanceNodeTiming':
     'perf_hooks.html#perf_hooks_class_performancenodetiming_extends_performanceentry', // eslint-disable-line max-len
