@@ -21,6 +21,7 @@
 namespace node {
 
 using errors::TryCatchScope;
+using v8::Boolean;
 using v8::Context;
 using v8::EmbedderGraph;
 using v8::External;
@@ -152,9 +153,8 @@ void Environment::TrackingTraceStateObserver::UpdateTraceCategoryState() {
     return;
   }
 
-  env_->trace_category_state()[0] =
-      *TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
-          TRACING_CATEGORY_NODE1(async_hooks));
+  bool async_hooks_enabled = (*(TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
+                                 TRACING_CATEGORY_NODE1(async_hooks)))) != 0;
 
   Isolate* isolate = env_->isolate();
   HandleScope handle_scope(isolate);
@@ -163,8 +163,9 @@ void Environment::TrackingTraceStateObserver::UpdateTraceCategoryState() {
     return;
   TryCatchScope try_catch(env_);
   try_catch.SetVerbose(true);
-  cb->Call(env_->context(), Undefined(isolate),
-           0, nullptr).ToLocalChecked();
+  Local<Value> args[] = {Boolean::New(isolate, async_hooks_enabled)};
+  cb->Call(env_->context(), Undefined(isolate), arraysize(args), args)
+      .ToLocalChecked();
 }
 
 static std::atomic<uint64_t> next_thread_id{0};
@@ -183,7 +184,6 @@ Environment::Environment(IsolateData* isolate_data,
       tick_info_(context->GetIsolate()),
       timer_base_(uv_now(isolate_data->event_loop())),
       should_abort_on_uncaught_toggle_(isolate_, 1),
-      trace_category_state_(isolate_, kTraceCategoryCount),
       stream_base_state_(isolate_, StreamBase::kNumStreamBaseStateFields),
       flags_(flags),
       thread_id_(thread_id == kNoThreadId ? AllocateThreadId() : thread_id),
