@@ -705,7 +705,6 @@ class Environment {
   inline AliasedBuffer<uint32_t, v8::Uint32Array>&
   should_abort_on_uncaught_toggle();
 
-  inline AliasedBuffer<uint8_t, v8::Uint8Array>& trace_category_state();
   inline AliasedBuffer<int32_t, v8::Int32Array>& stream_base_state();
 
   // The necessary API for async_hooks.
@@ -1026,8 +1025,6 @@ class Environment {
   AliasedBuffer<uint32_t, v8::Uint32Array> should_abort_on_uncaught_toggle_;
   int should_not_abort_scope_counter_ = 0;
 
-  // Attached to a Uint8Array that tracks the state of trace category
-  AliasedBuffer<uint8_t, v8::Uint8Array> trace_category_state_;
   std::unique_ptr<TrackingTraceStateObserver> trace_state_observer_;
 
   AliasedBuffer<int32_t, v8::Int32Array> stream_base_state_;

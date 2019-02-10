@@ -1,6 +1,7 @@
 #include "base_object-inl.h"
 #include "env.h"
 #include "node.h"
+#include "node_internals.h"
 #include "node_v8_platform-inl.h"
 #include "tracing/agent.h"
 
@@ -10,6 +11,7 @@
 namespace node {
 
 using v8::Array;
+using v8::Boolean;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -148,9 +150,14 @@ void NodeCategorySet::Initialize(Local<Object> target,
   target->Set(context, trace,
               binding->Get(context, trace).ToLocalChecked()).FromJust();
 
-  target->Set(context,
-              FIXED_ONE_BYTE_STRING(env->isolate(), "traceCategoryState"),
-              env->trace_category_state().GetJSArray()).FromJust();
+  // Initial value of async hook trace events
+  bool async_hooks_enabled = (*(TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
+                                 TRACING_CATEGORY_NODE1(async_hooks)))) != 0;
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(env->isolate(), "asyncHooksEnabledInitial"),
+            Boolean::New(env->isolate(), async_hooks_enabled))
+      .FromJust();
 }
 
 }  // namespace node
