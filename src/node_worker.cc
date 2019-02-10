@@ -102,6 +102,9 @@ bool Worker::is_stopped() const {
   return stopped_;
 }
 
+// This class contains data that is only relevant to the child thread itself,
+// and only while it is running.
+// (Eventually, the Environment instance should probably also be moved here.)
 class WorkerThreadData {
  public:
   explicit WorkerThreadData(Worker* w)
