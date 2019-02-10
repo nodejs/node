@@ -249,14 +249,18 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
   // Store primordials
   env->set_primordials(Object::New(isolate));
   std::vector<Local<String>> primordials_params = {
-    FIXED_ONE_BYTE_STRING(isolate, "breakAtBootstrap"),
     env->primordials_string()
   };
   std::vector<Local<Value>> primordials_args = {
-    Boolean::New(isolate,
-                  env->options()->debug_options().break_node_first_line),
     env->primordials()
   };
+
+#if HAVE_INSPECTOR
+  if (env->options()->debug_options().break_node_first_line) {
+    env->inspector_agent()->PauseOnNextJavascriptStatement(
+        "Break at bootstrap");
+  }
+#endif  // HAVE_INSPECTOR
   MaybeLocal<Value> primordials_ret =
       ExecuteBootstrapper(env,
                           "internal/bootstrap/primordials",
