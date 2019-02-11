@@ -71,7 +71,7 @@ static void WriteNodeReport(Isolate* isolate,
                             const std::string& filename,
                             std::ostream& out,
                             Local<String> stackstr,
-                            TIME_TYPE* time);
+                            TIME_TYPE* tm_struct);
 static void PrintVersionInformation(JSONWriter* writer);
 static void PrintJavaScriptStack(JSONWriter* writer,
                                  Isolate* isolate,
