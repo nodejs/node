@@ -92,7 +92,7 @@ class SocketWrapper {
                                             connected_(false),
                                             sending_(false) { }
 
-  void Connect(std::string host, int port, bool v6 = false) {
+  void Connect(const std::string& host, int port, bool v6 = false) {
     closed_ = false;
     connection_failed_ = false;
     connected_ = false;
@@ -114,7 +114,7 @@ class SocketWrapper {
                   ReadCallback);
   }
 
-  void ExpectFailureToConnect(std::string host, int port) {
+  void ExpectFailureToConnect(const std::string& host, int port) {
     connected_ = false;
     connection_failed_ = false;
     closed_ = false;
@@ -243,7 +243,7 @@ class ServerHolder {
                : ServerHolder(has_targets, loop, HOST, port, nullptr) { }
 
   ServerHolder(bool has_targets, uv_loop_t* loop,
-               const std::string host, int port, FILE* out);
+               const std::string& host, int port, FILE* out);
 
   InspectorSocketServer* operator->() {
     return server_.get();
@@ -350,7 +350,7 @@ class TestSocketServerDelegate : public SocketServerDelegate {
 };
 
 ServerHolder::ServerHolder(bool has_targets, uv_loop_t* loop,
-                           const std::string host, int port, FILE* out) {
+                           const std::string& host, int port, FILE* out) {
   std::vector<std::string> targets;
   if (has_targets)
     targets = { MAIN_TARGET_ID };

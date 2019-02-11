@@ -2685,7 +2685,7 @@ static ParsePublicKeyResult TryParsePublicKey(
     const BIOPointer& bp,
     const char* name,
     // NOLINTNEXTLINE(runtime/int)
-    std::function<EVP_PKEY*(const unsigned char** p, long l)> parse) {
+    const std::function<EVP_PKEY*(const unsigned char** p, long l)>& parse) {
   unsigned char* der_data;
   long der_len;  // NOLINT(runtime/int)
 

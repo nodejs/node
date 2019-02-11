@@ -661,9 +661,10 @@ class Environment {
 
   inline v8::Isolate* isolate() const;
   inline uv_loop_t* event_loop() const;
-  inline void TryLoadAddon(const char* filename,
-                           int flags,
-                           std::function<bool(binding::DLib*)> was_loaded);
+  inline void TryLoadAddon(
+      const char* filename,
+      int flags,
+      const std::function<bool(binding::DLib*)>& was_loaded);
 
   static inline Environment* from_timer_handle(uv_timer_t* handle);
   inline uv_timer_t* timer_handle();

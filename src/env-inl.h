@@ -37,6 +37,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <utility>
+
 namespace node {
 
 inline v8::Isolate* IsolateData::isolate() const {
@@ -395,7 +397,7 @@ inline uv_loop_t* Environment::event_loop() const {
 inline void Environment::TryLoadAddon(
     const char* filename,
     int flags,
-    std::function<bool(binding::DLib*)> was_loaded) {
+    const std::function<bool(binding::DLib*)>& was_loaded) {
   loaded_addons_.emplace_back(filename, flags);
   if (!was_loaded(&loaded_addons_.back())) {
     loaded_addons_.pop_back();
@@ -597,7 +599,7 @@ inline std::shared_ptr<PerIsolateOptions> IsolateData::options() {
 
 inline void IsolateData::set_options(
     std::shared_ptr<PerIsolateOptions> options) {
-  options_ = options;
+  options_ = std::move(options);
 }
 
 void Environment::CreateImmediate(native_immediate_callback cb,

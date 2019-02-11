@@ -40,6 +40,7 @@
 #include <string>
 #include <array>
 #include <unordered_map>
+#include <utility>
 
 namespace node {
 
@@ -450,7 +451,7 @@ template <typename T> inline void USE(T&&) {}
 struct OnScopeLeave {
   std::function<void()> fn_;
 
-  explicit OnScopeLeave(std::function<void()> fn) : fn_(fn) {}
+  explicit OnScopeLeave(std::function<void()> fn) : fn_(std::move(fn)) {}
   ~OnScopeLeave() { fn_(); }
 };
 

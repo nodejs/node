@@ -148,7 +148,7 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
 }
 
 void Message::AddSharedArrayBuffer(
-    SharedArrayBufferMetadataReference reference) {
+    const SharedArrayBufferMetadataReference& reference) {
   shared_array_buffers_.push_back(reference);
 }
 
