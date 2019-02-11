@@ -2651,6 +2651,20 @@ written twice. This introduces a race condition between threads, and is a
 potential security vulnerability. There is no safe, cross-platform alternative
 API.
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: elimination of `.break` command in the `REPL`
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/26076
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+The `.break` command will be eliminated from the `REPL` in a future
+version. Use `Ctrl-C` instead.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size

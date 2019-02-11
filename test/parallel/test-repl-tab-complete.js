@@ -49,7 +49,6 @@ function getNoResultsFunction() {
   });
 }
 
-const works = [['inner.one'], 'inner.o'];
 const putIn = new ArrayStream();
 const testMe = repl.start('', putIn);
 
@@ -70,10 +69,10 @@ testMe.complete('console.lo', common.mustCall(function(error, data) {
 // Tab Complete will return globally scoped variables
 putIn.run(['};']);
 testMe.complete('inner.o', common.mustCall(function(error, data) {
-  assert.deepStrictEqual(data, works);
+  assert.deepStrictEqual(data, [['inner.one'], 'inner.o']);
 }));
 
-putIn.run(['.clear']);
+putIn.run([';', '.clear']);
 
 // Tab Complete will not break in an ternary operator with ()
 putIn.run([
@@ -82,8 +81,7 @@ putIn.run([
   '{one: 1} : '
 ]);
 testMe.complete('inner.o', getNoResultsFunction());
-
-putIn.run(['.clear']);
+putIn.run(['undefined)', '.clear']);
 
 // Tab Complete will return a simple local variable
 putIn.run([
@@ -94,7 +92,7 @@ testMe.complete('inner.o', getNoResultsFunction());
 
 // When you close the function scope tab complete will not return the
 // locally scoped variable
-putIn.run(['};']);
+putIn.run(['ne', '};']);
 testMe.complete('inner.o', getNoResultsFunction());
 
 putIn.run(['.clear']);
@@ -108,7 +106,7 @@ putIn.run([
 ]);
 testMe.complete('inner.o', getNoResultsFunction());
 
-putIn.run(['.clear']);
+putIn.run(['}', '.clear']);
 
 // Tab Complete will return a complex local variable even if the function
 // has parameters
@@ -120,7 +118,7 @@ putIn.run([
 ]);
 testMe.complete('inner.o', getNoResultsFunction());
 
-putIn.run(['.clear']);
+putIn.run(['}', '.clear']);
 
 // Tab Complete will return a complex local variable even if the
 // scope is nested inside an immediately executed function
@@ -133,12 +131,12 @@ putIn.run([
 ]);
 testMe.complete('inner.o', getNoResultsFunction());
 
-putIn.run(['.clear']);
+putIn.run(['})}', '.clear']);
 
 // The definition has the params and { on a separate line.
 putIn.run([
   'var top = function() {',
-  'r = function test (',
+  'var r = function test (',
   ' one, two) {',
   'var inner = {',
   ' one:1',
@@ -146,12 +144,12 @@ putIn.run([
 ]);
 testMe.complete('inner.o', getNoResultsFunction());
 
-putIn.run(['.clear']);
+putIn.run(['}}', '.clear']);
 
 // Currently does not work, but should not break, not the {
 putIn.run([
   'var top = function() {',
-  'r = function test ()',
+  'var r = function test ()',
   '{',
   'var inner = {',
   ' one:1',
@@ -159,7 +157,7 @@ putIn.run([
 ]);
 testMe.complete('inner.o', getNoResultsFunction());
 
-putIn.run(['.clear']);
+putIn.run(['}', '}', '.clear']);
 
 // Currently does not work, but should not break
 putIn.run([
@@ -173,7 +171,7 @@ putIn.run([
 ]);
 testMe.complete('inner.o', getNoResultsFunction());
 
-putIn.run(['.clear']);
+putIn.run(['}', '}', '.clear']);
 
 // Make sure tab completion works on non-Objects
 putIn.run([
@@ -377,8 +375,8 @@ testMe.complete('var log = console.lo', common.mustCall((error, data) => {
 // Tab completion for defined commands
 putIn.run(['.clear']);
 
-testMe.complete('.b', common.mustCall((error, data) => {
-  assert.deepStrictEqual(data, [['break'], 'b']);
+testMe.complete('.h', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [['help'], 'h']);
 }));
 putIn.run(['.clear']);
 putIn.run(['var obj = {"hello, world!": "some string", "key": 123}']);

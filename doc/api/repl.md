@@ -32,11 +32,7 @@ feature set.
 
 The following special commands are supported by all REPL instances:
 
-* `.break`: When in the process of inputting a multi-line expression, entering
-  the `.break` command (or pressing the `<ctrl>-C` key combination) will abort
-  further input or processing of that expression.
-* `.clear`: Resets the REPL `context` to an empty object and clears any
-  multi-line expression currently being input.
+* `.clear`: Resets the REPL `context` to an empty object.
 * `.exit`: Close the I/O stream, causing the REPL to exit.
 * `.help`: Show this list of special commands.
 * `.save`: Save the current REPL session to a file:
@@ -61,16 +57,26 @@ welcome('Node.js User');
 
 The following key combinations in the REPL have these special effects:
 
-* `<ctrl>-C`: When pressed once, has the same effect as the `.break` command.
-  When pressed twice on a blank line, has the same effect as the `.exit`
-  command.
+* `<ctrl>-C`: When in the process of inputting a multi-line expression,
+  pressing the `<ctrl>-C` key combination will abort further input or
+  processing of that expression. When pressed twice on a blank line, has
+  the same effect as the `.exit` command.
 * `<ctrl>-D`: Has the same effect as the `.exit` command.
 * `<tab>`: When pressed on a blank line, displays global and local (scope)
   variables. When pressed while entering other input, displays relevant
   autocompletion options.
 
-For key bindings related to the reverse-i-search, see [`reverse-i-search`][].
-For all other key bindings, see [TTY keybindings][].
+### Deprecated Commands
+
+<!--
+deprecated: REPLACEME
+-->
+
+* `.break`: Deprecated. Use Ctrl-C instead. When in the process of inputting a
+  multi-line expression, the `.break` command will abort further input or
+  processing of that expression.
+
+> Stability: 0 - Deprecated.
 
 ### Default Evaluation
 
@@ -741,7 +747,5 @@ For an example of running a REPL instance over [curl(1)][], see:
 [`repl.ReplServer`]: #repl_class_replserver
 [`repl.start()`]: #repl_repl_start_options
 [`util.inspect()`]: util.html#util_util_inspect_object_options
-[`reverse-i-search`]: #repl_reverse_i_search
-[TTY keybindings]: readline.html#readline_tty_keybindings
 [curl(1)]: https://curl.haxx.se/docs/manpage.html
 [stream]: stream.html

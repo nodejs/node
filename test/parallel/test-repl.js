@@ -44,10 +44,10 @@ global.invoke_me = function(arg) {
 const kArrow = /^ *\^+ *$/;  // Arrow of ^ pointing to syntax error location
 const kSource = Symbol('kSource');  // Placeholder standing for input readback
 
-async function runReplTests(socket, prompt, tests) {
+async function runReplTests(replServer, socket, prompt, tests) {
   let lineBuffer = '';
 
-  for (const { send, expect } of tests) {
+  for (const { send, expect, event } of tests) {
     // Expect can be a single line or multiple lines
     const expectedLines = Array.isArray(expect) ? expect : [ expect ];
 
@@ -60,7 +60,7 @@ async function runReplTests(socket, prompt, tests) {
         expectedLine = send;
 
       while (!lineBuffer.includes('\n')) {
-        lineBuffer += await event(socket, expect);
+        lineBuffer += await dataEvent(socket, expect);
 
         // Cut away the initial prompt
         while (lineBuffer.startsWith(prompt))
@@ -93,6 +93,9 @@ async function runReplTests(socket, prompt, tests) {
         assert(expectedLine.test(actualLine),
                `${actualLine} match ${expectedLine}`);
       }
+    }
+    if (event) {
+      replServer._ttyWrite('', event);
     }
   }
 
@@ -143,32 +146,25 @@ const errorTests = [
   // Common syntax error is treated as multiline command
   {
     send: 'function test_func() {',
-    expect: '... '
-  },
-  // You can recover with the .break command
-  {
-    send: '.break',
-    expect: ''
+    expect: '... ',
+    // You can recover with cntl-c
+    event: { ctrl: true, name: 'c' }
   },
   // But passing the same string to eval() should throw
   {
     send: 'eval("function test_func() {")',
-    expect: [/^Uncaught SyntaxError: /]
+    expect: ['\r', /^Uncaught SyntaxError: /],
   },
   // Can handle multiline template literals
   {
     send: '`io.js',
-    expect: '... '
-  },
-  // Special REPL commands still available
-  {
-    send: '.break',
-    expect: ''
+    expect: '... ',
+    event: { ctrl: true, name: 'c' }
   },
   // Template expressions
   {
     send: '`io.js ${"1.0"',
-    expect: '... '
+    expect: ['\r', '... ']
   },
   {
     send: '+ ".2"}`',
@@ -424,7 +420,7 @@ const errorTests = [
   // This test is to make sure that we properly remove the whitespace
   // characters at the end of line, unlike the buggy `trimWhitespace` function
   {
-    send: '  \t    .break  \t  ',
+    send: '  \t    .clear  \t  ',
     expect: ''
   },
   // Multiline strings preserve whitespace characters in them
@@ -437,14 +433,18 @@ const errorTests = [
     send: '\'the \\\n   fourth\' +  \'\t\t\\\n  eye  \'',
     expect: '... ... \'the    fourth\\t\\t  eye  \''
   },
-  // using REPL commands within a string literal should still work
+  // Empty lines in the REPL should be allowed.
   {
-    send: '\'\\\n.break',
-    expect: '... ' + prompt_unix
+    send: '\n\r\n\r\n',
+    expect: '',
   },
-  // Using REPL command "help" within a string literal should still work
+  // Empty lines in the string literals should not affect the string
   {
-    send: '\'thefourth\\\n.help\neye\'',
+    send: '\'the\\\n\\\nfourtheye\'\n',
+    expect: '... ... \'thefourtheye\''
+  },
+  {
+    send: '.help\n',
     expect: [
       /\.break/,
       /\.clear/,
@@ -454,7 +454,6 @@ const errorTests = [
       /\.save/,
       '',
       'Press ^C to abort current expression, ^D to exit the repl',
-      /'thefourtheye'/
     ]
   },
   // Check for wrapped objects.
@@ -479,15 +478,10 @@ const errorTests = [
     send: '{ a: 1 }["a"] === 1;', // { a: 1 }; ['a'] === 1;
     expect: 'false'
   },
-  // Empty lines in the REPL should be allowed
+  // Empty lines in the REPL should be allowed.
   {
     send: '\n\r\n\r\n',
     expect: ''
-  },
-  // Empty lines in the string literals should not affect the string
-  {
-    send: '\'the\\\n\\\nfourtheye\'\n',
-    expect: '... ... \'thefourtheye\''
   },
   // Regression test for https://github.com/nodejs/node/issues/597
   {
@@ -707,7 +701,7 @@ const errorTests = [
   },
   // Bring back the repl to prompt
   {
-    send: '.break',
+    send: '.clear',
     expect: ''
   },
   {
@@ -779,17 +773,17 @@ const tcpTests = [
   {
     const [ socket, replServer ] = await startUnixRepl();
 
-    await runReplTests(socket, prompt_unix, unixTests);
-    await runReplTests(socket, prompt_unix, errorTests);
+    await runReplTests(replServer, socket, prompt_unix, unixTests);
+    await runReplTests(replServer, socket, prompt_unix, errorTests);
     replServer.replMode = repl.REPL_MODE_STRICT;
-    await runReplTests(socket, prompt_unix, strictModeTests);
+    await runReplTests(replServer, socket, prompt_unix, strictModeTests);
 
     socket.end();
   }
   {
-    const [ socket ] = await startTCPRepl();
+    const [ socket, replServer ] = await startTCPRepl();
 
-    await runReplTests(socket, prompt_tcp, tcpTests);
+    await runReplTests(replServer, socket, prompt_tcp, tcpTests);
 
     socket.end();
   }
@@ -877,7 +871,7 @@ function startUnixRepl() {
   ]);
 }
 
-function event(ee, expected) {
+function dataEvent(ee, expected) {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       const data = inspect(expected, { compact: false });
