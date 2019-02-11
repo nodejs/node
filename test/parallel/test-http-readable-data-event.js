@@ -29,7 +29,7 @@ const server = http.createServer((req, res) => {
   };
 
   const expectedData = [helloWorld, helloAgainLater];
-  const expectedRead = [helloWorld, null, helloAgainLater, null];
+  const expectedRead = [helloWorld, null, helloAgainLater, null, null];
 
   const req = http.request(opts, (res) => {
     res.on('error', common.mustNotCall());
@@ -42,7 +42,7 @@ const server = http.createServer((req, res) => {
         assert.strictEqual(data, expectedRead.shift());
         next();
       } while (data !== null);
-    }, 2));
+    }, 3));
 
     res.setEncoding('utf8');
     res.on('data', common.mustCall((data) => {

@@ -43,12 +43,23 @@ const noRead = new Readable({
   read: () => {}
 });
 
-noRead.on('readable', common.mustCall(() => {
+noRead.once('readable', common.mustCall(() => {
   // emittedReadable should be true when the readable event is emitted
   assert.strictEqual(noRead._readableState.emittedReadable, true);
   noRead.read(0);
   // emittedReadable is not reset during read(0)
   assert.strictEqual(noRead._readableState.emittedReadable, true);
+
+  noRead.on('readable', common.mustCall(() => {
+    // The second 'readable' is emitted because we are ending
+
+    // emittedReadable should be true when the readable event is emitted
+    assert.strictEqual(noRead._readableState.emittedReadable, false);
+    noRead.read(0);
+    // emittedReadable is not reset during read(0)
+    assert.strictEqual(noRead._readableState.emittedReadable, false);
+
+  }));
 }));
 
 noRead.push('foo');
