@@ -24,9 +24,12 @@ class AutocannonBenchmarker {
       '-d', options.duration,
       '-c', options.connections,
       '-j',
-      '-n',
-      `http://127.0.0.1:${options.port}${options.path}`,
+      '-n'
     ];
+    for (let field in options.headers) {
+      args.push('-H', `${field}=${options.headers[field]}`)
+    }
+    args.push(`http://127.0.0.1:${options.port}${options.path}`)
     const child = child_process.spawn(this.executable, args);
     return child;
   }
