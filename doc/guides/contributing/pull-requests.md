@@ -301,7 +301,7 @@ changes that have landed in `master` by using `git rebase`:
 
 ```text
 $ git fetch --all
-$ git rebase origin/master
+$ git rebase upstream/master
 $ git push --force-with-lease origin my-branch
 ```
 
