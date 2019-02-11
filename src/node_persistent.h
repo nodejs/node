@@ -9,7 +9,6 @@ namespace node {
 
 template <typename T>
 struct ResetInDestructorPersistentTraits {
-  static const bool kResetInDestructor = true;
   template <typename S, typename M>
   // Disallow copy semantics by leaving this unimplemented.
   inline static void Copy(
