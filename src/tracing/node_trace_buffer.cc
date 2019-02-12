@@ -160,7 +160,7 @@ bool NodeTraceBuffer::TryLoadAvailableBuffer() {
 
 // static
 void NodeTraceBuffer::NonBlockingFlushSignalCb(uv_async_t* signal) {
-  NodeTraceBuffer* buffer = reinterpret_cast<NodeTraceBuffer*>(signal->data);
+  NodeTraceBuffer* buffer = static_cast<NodeTraceBuffer*>(signal->data);
   if (buffer->buffer1_.IsFull() && !buffer->buffer1_.IsFlushing()) {
     buffer->buffer1_.Flush(false);
   }
