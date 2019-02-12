@@ -199,18 +199,10 @@ constexpr void FillStatsArray(AliasedBuffer<NativeT, V8T>* fields,
   fields->SetValue(offset + 3, s->st_uid);
   fields->SetValue(offset + 4, s->st_gid);
   fields->SetValue(offset + 5, s->st_rdev);
-#if defined(__POSIX__)
   fields->SetValue(offset + 6, s->st_blksize);
-#else
-  fields->SetValue(offset + 6, 0);
-#endif
   fields->SetValue(offset + 7, s->st_ino);
   fields->SetValue(offset + 8, s->st_size);
-#if defined(__POSIX__)
   fields->SetValue(offset + 9, s->st_blocks);
-#else
-  fields->SetValue(offset + 9, 0);
-#endif
 // Dates.
   fields->SetValue(offset + 10, ToNative<NativeT>(s->st_atim));
   fields->SetValue(offset + 11, ToNative<NativeT>(s->st_mtim));

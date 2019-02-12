@@ -38,10 +38,10 @@ const expectedStatObject = new fs.Stats(
   0,                                        // uid
   0,                                        // gid
   0,                                        // rdev
-  common.isWindows ? undefined : 0,         // blksize
+  0,                                        // blksize
   0,                                        // ino
   0,                                        // size
-  common.isWindows ? undefined : 0,         // blocks
+  0,                                        // blocks
   Date.UTC(1970, 0, 1, 0, 0, 0),            // atime
   Date.UTC(1970, 0, 1, 0, 0, 0),            // mtime
   Date.UTC(1970, 0, 1, 0, 0, 0),            // ctime

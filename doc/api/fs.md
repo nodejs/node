@@ -3414,8 +3414,7 @@ to compare `curr.mtime` and `prev.mtime`.
 
 When an `fs.watchFile` operation results in an `ENOENT` error, it
 will invoke the listener once, with all the fields zeroed (or, for dates, the
-Unix Epoch). In Windows, `blksize` and `blocks` fields will be `undefined`,
-instead of zero. If the file is created later on, the listener will be called
+Unix Epoch). If the file is created later on, the listener will be called
 again, with the latest stat objects. This is a change in functionality since
 v0.10.
 
