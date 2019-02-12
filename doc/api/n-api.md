@@ -1531,7 +1531,7 @@ structure, in most cases using a `TypedArray` will suffice.
 #### napi_create_date
 <!-- YAML
 added: REPLACEME
-napiVersion: REPLACEME
+napiVersion: 4
 -->
 
 > Stability: 1 - Experimental
@@ -2176,7 +2176,7 @@ This API returns various properties of a `DataView`.
 #### napi_get_date_value
 <!-- YAML
 added: REPLACEME
-napiVersion: REPLACEME
+napiVersion: 4
 -->
 
 > Stability: 1 - Experimental
@@ -2188,7 +2188,7 @@ napi_status napi_get_date_value(napi_env env,
 ```
 
 - `[in] env`: The environment that the API is invoked under.
-- `[in] value`: `napi_value` representing JavaScript `Date`.
+- `[in] value`: `napi_value` representing a JavaScript `Date`.
 - `[out] result`: Time value as a `double` represented as milliseconds
 since midnight at the beginning of 01 January, 1970 UTC.
 
@@ -2785,7 +2785,7 @@ This API checks if the `Object` passed in is a buffer.
 ### napi_is_date
 <!-- YAML
 added: REPLACEME
-napiVersion: REPLACEME
+napiVersion: 4
 -->
 
 > Stability: 1 - Experimental
@@ -2796,7 +2796,7 @@ napi_status napi_is_date(napi_env env, napi_value value, bool* result)
 
 - `[in] env`: The environment that the API is invoked under.
 - `[in] value`: The JavaScript value to check.
-- `[out] result`: Whether the given `napi_value` represents JavaScript `Date`
+- `[out] result`: Whether the given `napi_value` represents a JavaScript `Date`
 object.
 
 Returns `napi_ok` if the API succeeded.
