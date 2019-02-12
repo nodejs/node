@@ -147,6 +147,32 @@ const { inherits } = require('util');
 }
 
 {
+  const writable = new Writable({
+    destroy: common.mustCall(function(err, cb) {
+      process.nextTick(cb, new Error('kaboom 1'));
+    }),
+    write(chunk, enc, cb) {
+      cb();
+    }
+  });
+
+  writable.on('close', common.mustNotCall());
+  writable.on('error', common.expectsError({
+    type: Error,
+    message: 'kaboom 2'
+  }));
+
+  writable.destroy();
+  assert.strictEqual(writable.destroyed, true);
+  assert.strictEqual(writable._writableState.errorEmitted, false);
+
+  // Test case where `writable.destroy()` is called again with an error before
+  // the `_destroy()` callback is called.
+  writable.destroy(new Error('kaboom 2'));
+  assert.strictEqual(writable._writableState.errorEmitted, true);
+}
+
+{
   const write = new Writable({
     write(chunk, enc, cb) { cb(); }
   });
