@@ -59,9 +59,6 @@ function verifyStats(bigintStats, numStats) {
         bigintStats.isSymbolicLink(),
         numStats.isSymbolicLink()
       );
-    } else if (common.isWindows && (key === 'blksize' || key === 'blocks')) {
-      assert.strictEqual(bigintStats[key], undefined);
-      assert.strictEqual(numStats[key], undefined);
     } else if (Number.isSafeInteger(val)) {
       assert.strictEqual(
         bigintStats[key], BigInt(val),

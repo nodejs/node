@@ -94,16 +94,13 @@ fs.stat(__filename, common.mustCall(function(err, s) {
   assert.strictEqual(s.isSymbolicLink(), false);
   const keys = [
     'dev', 'mode', 'nlink', 'uid',
-    'gid', 'rdev', 'ino', 'size',
+    'gid', 'rdev', 'blksize', 'ino', 'size', 'blocks',
     'atime', 'mtime', 'ctime', 'birthtime',
     'atimeMs', 'mtimeMs', 'ctimeMs', 'birthtimeMs'
   ];
-  if (!common.isWindows) {
-    keys.push('blocks', 'blksize');
-  }
   const numberFields = [
-    'dev', 'mode', 'nlink', 'uid', 'gid', 'rdev', 'ino', 'size',
-    'atimeMs', 'mtimeMs', 'ctimeMs', 'birthtimeMs'
+    'dev', 'mode', 'nlink', 'uid', 'gid', 'rdev', 'blksize', 'ino', 'size',
+    'blocks', 'atimeMs', 'mtimeMs', 'ctimeMs', 'birthtimeMs'
   ];
   const dateFields = ['atime', 'mtime', 'ctime', 'birthtime'];
   keys.forEach(function(k) {
