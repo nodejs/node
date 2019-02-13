@@ -1393,6 +1393,8 @@ def BuildOptions():
       default="")
   result.add_option('--temp-dir',
       help='Optional path to change directory used for tests', default=False)
+  result.add_option('--test-root',
+      help='Optional path to change test directory', dest='test_root', default=None)
   result.add_option('--repeat',
       help='Number of times to repeat given tests',
       default=1, type="int")
@@ -1576,8 +1578,10 @@ def Main():
 
   workspace = abspath(join(dirname(sys.argv[0]), '..'))
   test_root = join(workspace, 'test')
+  if options.test_root is not None:
+    test_root = options.test_root
   suites = GetSuites(test_root)
-  repositories = [TestRepository(join(workspace, 'test', name)) for name in suites]
+  repositories = [TestRepository(join(test_root, name)) for name in suites]
   repositories += [TestRepository(a) for a in options.suite]
 
   root = LiteralTestSuite(repositories, test_root)
