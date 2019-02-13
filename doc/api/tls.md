@@ -725,6 +725,19 @@ added: v8.4.0
 Disables TLS renegotiation for this `TLSSocket` instance. Once called, attempts
 to renegotiate will trigger an `'error'` event on the `TLSSocket`.
 
+### tlsSocket.enableTrace()
+<!-- YAML
+added: REPLACEME
+-->
+
+When enabled, TLS packet trace information is written to `stderr`. This can be
+used to debug TLS connection problems.
+
+Note: The format of the output is identical to the output of `openssl s_client
+-trace` or `openssl s_server -trace`. While it is produced by OpenSSL's
+`SSL_trace()` function, the format is undocumented, can change without notice,
+and should not be relied on.
+
 ### tlsSocket.encrypted
 <!-- YAML
 added: v0.11.4
@@ -1438,6 +1451,10 @@ changes:
     `['hello', 'world']`. (Protocols should be ordered by their priority.)
   * `clientCertEngine` {string} Name of an OpenSSL engine which can provide the
     client certificate.
+  * `enableTrace` {boolean} If `true`, [`tls.TLSSocket.enableTrace()`][] will be
+    called on new connections. Tracing can be enabled after the secure
+    connection is established, but this option must be used to trace the secure
+    connection setup. **Default:** `false`.
   * `handshakeTimeout` {number} Abort the connection if the SSL/TLS handshake
     does not finish in the specified number of milliseconds.
     A `'tlsClientError'` is emitted on the `tls.Server` object whenever
@@ -1693,6 +1710,7 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [`tls.DEFAULT_MAX_VERSION`]: #tls_tls_default_max_version
 [`tls.DEFAULT_MIN_VERSION`]: #tls_tls_default_min_version
 [`tls.Server`]: #tls_class_tls_server
+[`tls.TLSSocket.enableTrace()`]: #tls_tlssocket_enabletrace
 [`tls.TLSSocket.getPeerCertificate()`]: #tls_tlssocket_getpeercertificate_detailed
 [`tls.TLSSocket.getSession()`]: #tls_tlssocket_getsession
 [`tls.TLSSocket.getTLSTicket()`]: #tls_tlssocket_gettlsticket
