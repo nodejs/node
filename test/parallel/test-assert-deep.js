@@ -659,14 +659,20 @@ assertDeepAndStrictEqual(-0, -0);
 
 assert.deepEqual(new Date(2000, 3, 14), new Date(2000, 3, 14));
 
-assert.throws(() => assert.deepEqual(new Date(), new Date(2000, 3, 14)),
+assert.throws(() => { assert.deepEqual(new Date(), new Date(2000, 3, 14)); },
               AssertionError,
               'deepEqual(new Date(), new Date(2000, 3, 14))');
 
 assert.throws(
-  () => assert.notDeepEqual(new Date(2000, 3, 14), new Date(2000, 3, 14)),
+  () => { assert.notDeepEqual(new Date(2000, 3, 14), new Date(2000, 3, 14)); },
   AssertionError,
   'notDeepEqual(new Date(2000, 3, 14), new Date(2000, 3, 14))'
+);
+
+assert.throws(
+  () => { assert.notDeepEqual('a'.repeat(1024), 'a'.repeat(1024)); },
+  AssertionError,
+  'notDeepEqual("a".repeat(1024), "a".repeat(1024))'
 );
 
 assert.notDeepEqual(new Date(), new Date(2000, 3, 14));
