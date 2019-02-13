@@ -14,6 +14,6 @@ if (!process.env.HAS_STARTED_WORKER) {
   w.postMessage(2);
 } else {
   parentPort.onmessage = common.mustCall((message) => {
-    parentPort.postMessage(message * 2);
+    parentPort.postMessage(message.data * 2);
   });
 }

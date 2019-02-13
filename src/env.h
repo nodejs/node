@@ -146,6 +146,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(crypto_ec_string, "ec")                                                    \
   V(crypto_rsa_string, "rsa")                                                  \
   V(cwd_string, "cwd")                                                         \
+  V(data_string, "data")                                                       \
   V(dest_string, "dest")                                                       \
   V(destroyed_string, "destroyed")                                             \
   V(detached_string, "detached")                                               \
@@ -291,6 +292,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(subject_string, "subject")                                                 \
   V(subjectaltname_string, "subjectaltname")                                   \
   V(syscall_string, "syscall")                                                 \
+  V(target_string, "target")                                                   \
   V(thread_id_string, "threadId")                                              \
   V(ticketkeycallback_string, "onticketkeycallback")                           \
   V(timeout_string, "timeout")                                                 \
@@ -359,6 +361,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(inspector_console_extension_installer, v8::Function)                       \
   V(libuv_stream_wrap_ctor_template, v8::FunctionTemplate)                     \
   V(message_port, v8::Object)                                                  \
+  V(message_event_object_template, v8::ObjectTemplate)                         \
   V(message_port_constructor_template, v8::FunctionTemplate)                   \
   V(native_module_require, v8::Function)                                       \
   V(performance_entry_callback, v8::Function)                                  \
