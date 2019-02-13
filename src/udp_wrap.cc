@@ -175,6 +175,20 @@ void UDPWrap::GetFD(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(fd);
 }
 
+int uv_sockaddr_for_family(int address_family,
+                           const char* address,
+                           const unsigned short port,
+                           struct sockaddr* addr) {
+  switch (address_family) {
+  case AF_INET:
+    return uv_ip4_addr(address, port, reinterpret_cast<sockaddr_in*>(addr));
+  case AF_INET6:
+    return uv_ip6_addr(address, port, reinterpret_cast<sockaddr_in6*>(addr));
+  default:
+    CHECK(0 && "unexpected address family");
+    ABORT();
+  }
+}
 
 void UDPWrap::DoBind(const FunctionCallbackInfo<Value>& args, int family) {
   UDPWrap* wrap;
@@ -191,21 +205,8 @@ void UDPWrap::DoBind(const FunctionCallbackInfo<Value>& args, int family) {
   if (!args[1]->Uint32Value(ctx).To(&port) ||
       !args[2]->Uint32Value(ctx).To(&flags))
     return;
-  char addr[sizeof(sockaddr_in6)];
-  int err;
-
-  switch (family) {
-  case AF_INET:
-    err = uv_ip4_addr(*address, port, reinterpret_cast<sockaddr_in*>(&addr));
-    break;
-  case AF_INET6:
-    err = uv_ip6_addr(*address, port, reinterpret_cast<sockaddr_in6*>(&addr));
-    break;
-  default:
-    CHECK(0 && "unexpected address family");
-    ABORT();
-  }
-
+  struct sockaddr addr;
+  int err = uv_sockaddr_for_family(family, address.out(), port, &addr);
   if (err == 0) {
     err = uv_udp_bind(&wrap->handle_,
                       reinterpret_cast<const sockaddr*>(&addr),
@@ -392,21 +393,8 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
 
   req_wrap->msg_size = msg_size;
 
-  char addr[sizeof(sockaddr_in6)];
-  int err;
-
-  switch (family) {
-  case AF_INET:
-    err = uv_ip4_addr(*address, port, reinterpret_cast<sockaddr_in*>(&addr));
-    break;
-  case AF_INET6:
-    err = uv_ip6_addr(*address, port, reinterpret_cast<sockaddr_in6*>(&addr));
-    break;
-  default:
-    CHECK(0 && "unexpected address family");
-    ABORT();
-  }
-
+  struct sockaddr addr;
+  int err = uv_sockaddr_for_family(family, address.out(), port, &addr);
   if (err == 0) {
     err = req_wrap->Dispatch(uv_udp_send,
                              &wrap->handle_,
