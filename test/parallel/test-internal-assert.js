@@ -13,3 +13,5 @@ internalAssert(true, 'fhqwhgads');
 assert.throws(() => { internalAssert(false); }, assert.AssertionError);
 assert.throws(() => { internalAssert(false, 'fhqwhgads'); },
               { code: 'ERR_ASSERTION', message: 'fhqwhgads' });
+assert.throws(() => { internalAssert.fail('fhqwhgads'); },
+              { code: 'ERR_ASSERTION', message: 'fhqwhgads' });
