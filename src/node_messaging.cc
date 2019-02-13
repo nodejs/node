@@ -25,6 +25,7 @@ using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::SharedArrayBuffer;
 using v8::String;
 using v8::Value;
@@ -589,12 +590,19 @@ void MessagePort::OnMessage() {
       // Call the JS .onmessage() callback.
       HandleScope handle_scope(env()->isolate());
       Context::Scope context_scope(context);
-      Local<Value> args[] = {
-        received.Deserialize(env(), context).FromMaybe(Local<Value>())
-      };
 
-      if (args[0].IsEmpty() ||
-          MakeCallback(env()->onmessage_string(), 1, args).IsEmpty()) {
+      Local<Object> event;
+      Local<Value> payload;
+      Local<Value> cb_args[1];
+      if (!received.Deserialize(env(), context).ToLocal(&payload) ||
+          !env()->message_event_object_template()->NewInstance(context)
+              .ToLocal(&event) ||
+          event->Set(context, env()->data_string(), payload).IsNothing() ||
+          event->Set(context, env()->target_string(), object()).IsNothing() ||
+          (cb_args[0] = event, false) ||
+          MakeCallback(env()->onmessage_string(),
+                       arraysize(cb_args),
+                       cb_args).IsEmpty()) {
         // Re-schedule OnMessage() execution in case of failure.
         if (data_)
           TriggerAsync();
@@ -763,6 +771,8 @@ MaybeLocal<Function> GetMessagePortConstructor(
   if (!templ.IsEmpty())
     return templ->GetFunction(context);
 
+  Isolate* isolate = env->isolate();
+
   {
     Local<FunctionTemplate> m = env->NewFunctionTemplate(MessagePort::New);
     m->SetClassName(env->message_port_constructor_string());
@@ -775,6 +785,13 @@ MaybeLocal<Function> GetMessagePortConstructor(
     env->SetProtoMethod(m, "drain", MessagePort::Drain);
 
     env->set_message_port_constructor_template(m);
+
+    Local<FunctionTemplate> event_ctor = FunctionTemplate::New(isolate);
+    event_ctor->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "MessageEvent"));
+    Local<ObjectTemplate> e = event_ctor->InstanceTemplate();
+    e->Set(env->data_string(), Null(isolate));
+    e->Set(env->target_string(), Null(isolate));
+    env->set_message_event_object_template(e);
   }
 
   return GetMessagePortConstructor(env, context);
