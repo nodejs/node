@@ -42,8 +42,7 @@ The following special commands are supported by all REPL instances:
   `> .load ./file/to/load.js`
 * `.editor` - Enter editor mode (`<ctrl>-D` to finish, `<ctrl>-C` to cancel).
 
-<!-- eslint-skip -->
-```js
+```console
 > .editor
 // Entering editor mode (^D to finish, ^C to cancel)
 function welcome(name) {
@@ -78,8 +77,7 @@ evaluation function when the [`repl.REPLServer`][] instance is created.
 
 The default evaluator supports direct evaluation of JavaScript expressions:
 
-<!-- eslint-skip -->
-```js
+```console
 > 1 + 1
 2
 > const m = 2
@@ -107,8 +105,7 @@ repl.start('> ').context.m = msg;
 
 Properties in the `context` object appear as local within the REPL:
 
-<!-- eslint-skip -->
-```js
+```console
 $ node repl_test.js
 > m
 'message'
@@ -136,8 +133,7 @@ REPL environment when used. For instance, unless otherwise declared as a
 global or scoped variable, the input `fs` will be evaluated on-demand as
 `global.fs = require('fs')`.
 
-<!-- eslint-skip -->
-```js
+```console
 > fs.createReadStream('./some/file');
 ```
 
@@ -164,8 +160,7 @@ The default evaluator will, by default, assign the result of the most recently
 evaluated expression to the special variable `_` (underscore).
 Explicitly setting `_` to a value will disable this behavior.
 
-<!-- eslint-skip -->
-```js
+```console
 > [ 'a', 'b', 'c' ]
 [ 'a', 'b', 'c' ]
 > _.length
@@ -182,8 +177,7 @@ Expression assignment to _ now disabled.
 Similarly, `_error` will refer to the last seen error, if there was any.
 Explicitly setting `_error` to a value will disable this behavior.
 
-<!-- eslint-skip -->
-```js
+```console
 > throw new Error('foo');
 Error: foo
 > _error.message
@@ -195,8 +189,7 @@ Error: foo
 With the [`--experimental-repl-await`][] command line option specified,
 experimental support for the `await` keyword is enabled.
 
-<!-- eslint-skip -->
-```js
+```console
 > await Promise.resolve(123)
 123
 > await Promise.reject(new Error('REPL await'))
@@ -341,8 +334,7 @@ r.on('reset', initializeContext);
 When this code is executed, the global `'m'` variable can be modified but then
 reset to its initial value using the `.clear` command:
 
-<!-- eslint-skip -->
-```js
+```console
 $ ./node example.js
 > m
 'test'
@@ -534,8 +526,7 @@ Node.js itself uses the `repl` module to provide its own interactive interface
 for executing JavaScript. This can be used by executing the Node.js binary
 without passing any arguments (or by passing the `-i` argument):
 
-<!-- eslint-skip -->
-```js
+```console
 $ node
 > const a = [1, 2, 3];
 undefined
