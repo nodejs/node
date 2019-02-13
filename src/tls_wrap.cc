@@ -912,6 +912,29 @@ void TLSWrap::EnableSessionCallbacks(
                             wrap);
 }
 
+// Check required capabilities were not excluded from the OpenSSL build:
+// - OPENSSL_NO_SSL_TRACE excludes SSL_trace()
+// - OPENSSL_NO_STDIO excludes BIO_new_fp()
+// HAVE_SSL_TRACE is available on the internal tcp_wrap binding for the tests.
+#if defined(OPENSSL_NO_SSL_TRACE) || defined(OPENSSL_NO_STDIO)
+# define HAVE_SSL_TRACE 0
+#else
+# define HAVE_SSL_TRACE 1
+#endif
+
+void TLSWrap::EnableTrace(
+    const FunctionCallbackInfo<Value>& args) {
+  TLSWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+
+#if HAVE_SSL_TRACE
+  if (wrap->ssl_) {
+    BIO* b = BIO_new_fp(stderr,  BIO_NOCLOSE | BIO_FP_TEXT);
+    SSL_set_msg_callback(wrap->ssl_.get(), SSL_trace);
+    SSL_set_msg_callback_arg(wrap->ssl_.get(), b);
+  }
+#endif
+}
 
 void TLSWrap::DestroySSL(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* wrap;
@@ -1057,6 +1080,8 @@ void TLSWrap::Initialize(Local<Object> target,
 
   env->SetMethod(target, "wrap", TLSWrap::Wrap);
 
+  NODE_DEFINE_CONSTANT(target, HAVE_SSL_TRACE);
+
   Local<FunctionTemplate> t = BaseObject::MakeLazilyInitializedJSTemplate(env);
   Local<String> tlsWrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "TLSWrap");
@@ -1080,6 +1105,7 @@ void TLSWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "start", Start);
   env->SetProtoMethod(t, "setVerifyMode", SetVerifyMode);
   env->SetProtoMethod(t, "enableSessionCallbacks", EnableSessionCallbacks);
+  env->SetProtoMethod(t, "enableTrace", EnableTrace);
   env->SetProtoMethod(t, "destroySSL", DestroySSL);
   env->SetProtoMethod(t, "enableCertCb", EnableCertCb);
 
