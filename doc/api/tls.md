@@ -616,7 +616,7 @@ protocol.
 
 ### Event: 'session'
 <!-- YAML
-added: REPLACEME
+added: v11.10.0
 -->
 
 * `session` {Buffer}

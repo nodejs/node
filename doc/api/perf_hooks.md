@@ -400,7 +400,7 @@ is equal to `type`.
 
 ## perf_hooks.monitorEventLoopDelay([options])
 <!-- YAML
-added: REPLACEME
+added: v11.10.0
 -->
 
 * `options` {Object}
@@ -434,13 +434,13 @@ console.log(h.percentile(99));
 
 ### Class: Histogram
 <!-- YAML
-added: REPLACEME
+added: v11.10.0
 -->
 Tracks the event loop delay at a given sampling rate.
 
 #### histogram.disable()
 <!-- YAML
-added: REPLACEME
+added: v11.10.0
 -->
 
 * Returns: {boolean}
@@ -450,7 +450,7 @@ stopped, `false` if it was already stopped.
 
 #### histogram.enable()
 <!-- YAML
-added: REPLACEME
+added: v11.10.0
 -->
 
 * Returns: {boolean}
@@ -460,7 +460,7 @@ started, `false` if it was already started.
 
 #### histogram.exceeds
 <!-- YAML
-added: REPLACEME
+added: v11.10.0
 -->
 
 * {number}
@@ -470,7 +470,7 @@ loop delay threshold.
 
 #### histogram.max
 <!-- YAML
-added: REPLACEME
+added: v11.10.0
 -->
 
 * {number}
@@ -479,7 +479,7 @@ The maximum recorded event loop delay.
 
 #### histogram.mean
 <!-- YAML
-added: REPLACEME
+added: v11.10.0
 -->
 
 * {number}
@@ -488,7 +488,7 @@ The mean of the recorded event loop delays.
 
 #### histogram.min
 <!-- YAML
-added: REPLACEME
+added: v11.10.0
 -->
 
 * {number}
@@ -497,7 +497,7 @@ The minimum recorded event loop delay.
 
 #### histogram.percentile(percentile)
 <!-- YAML
-added: REPLACEME
+added: v11.10.0
 -->
 
 * `percentile` {number} A percentile value between 1 and 100.
@@ -507,7 +507,7 @@ Returns the value at the given percentile.
 
 #### histogram.percentiles
 <!-- YAML
-added: REPLACEME
+added: v11.10.0
 -->
 
 * {Map}
@@ -516,14 +516,14 @@ Returns a `Map` object detailing the accumulated percentile distribution.
 
 #### histogram.reset()
 <!-- YAML
-added: REPLACEME
+added: v11.10.0
 -->
 
 Resets the collected histogram data.
 
 #### histogram.stddev
 <!-- YAML
-added: REPLACEME
+added: v11.10.0
 -->
 
 * {number}
