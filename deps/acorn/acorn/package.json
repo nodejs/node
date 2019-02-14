@@ -4,7 +4,7 @@
   "homepage": "https://github.com/acornjs/acorn",
   "main": "dist/acorn.js",
   "module": "dist/acorn.mjs",
-  "version": "6.0.7",
+  "version": "6.1.0",
   "engines": {"node": ">=0.4.0"},
   "maintainers": [
     {
