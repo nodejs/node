@@ -51,7 +51,7 @@ class InternalTraceBuffer {
 class NodeTraceBuffer : public TraceBuffer {
  public:
   NodeTraceBuffer(size_t max_chunks, Agent* agent, uv_loop_t* tracing_loop);
-  ~NodeTraceBuffer();
+  ~NodeTraceBuffer() override;
 
   TraceObject* AddTraceEvent(uint64_t* handle) override;
   TraceObject* GetEventByHandle(uint64_t handle) override;

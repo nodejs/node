@@ -16,7 +16,7 @@ static std::string cb_1_arg;  // NOLINT(runtime/string)
 
 class EnvironmentTest : public EnvironmentTestFixture {
  private:
-  virtual void TearDown() {
+  void TearDown() override {
     NodeTestFixture::TearDown();
     called_cb_1 = false;
     called_cb_2 = false;

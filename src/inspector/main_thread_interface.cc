@@ -42,7 +42,7 @@ class CreateObjectRequest : public Request {
   CreateObjectRequest(int object_id, Factory factory)
                       : object_id_(object_id), factory_(std::move(factory)) {}
 
-  void Call(MainThreadInterface* thread) {
+  void Call(MainThreadInterface* thread) override {
     thread->AddObject(object_id_, WrapInDeletable(factory_(thread)));
   }
 

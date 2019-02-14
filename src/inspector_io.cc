@@ -215,7 +215,7 @@ class InspectorIoDelegate: public node::inspector::SocketServerDelegate {
                       const std::string& target_id,
                       const std::string& script_path,
                       const std::string& script_name);
-  ~InspectorIoDelegate() {
+  ~InspectorIoDelegate() override {
   }
 
   void StartSession(int session_id, const std::string& target_id) override;

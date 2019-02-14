@@ -40,7 +40,7 @@ namespace crypto {
 // (a.k.a. std::unique_ptr<BIO>).
 class NodeBIO : public MemoryRetainer {
  public:
-  ~NodeBIO();
+  ~NodeBIO() override;
 
   static BIOPointer New(Environment* env = nullptr);
 

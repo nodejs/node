@@ -134,7 +134,7 @@ class ThreadSafeFunction : public node::AsyncResource {
     env->Ref();
   }
 
-  ~ThreadSafeFunction() {
+  ~ThreadSafeFunction() override {
     node::RemoveEnvironmentCleanupHook(env->isolate, Cleanup, this);
     env->Unref();
   }
@@ -839,7 +839,7 @@ class Work : public node::AsyncResource, public node::ThreadPoolWork {
       _complete(complete) {
   }
 
-  virtual ~Work() { }
+  ~Work() override { }
 
  public:
   static Work* New(node_napi_env env,
