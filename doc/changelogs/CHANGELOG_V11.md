@@ -50,7 +50,7 @@
 * **perf_hooks**
   * Implemented a histogram based API. [#25378](https://github.com/nodejs/node/pull/25378)
 * **process**
-  * Exposed `process.features.inspector`. [#25819](https://github.com/nodejs/node/pull/25378)
+  * Exposed `process.features.inspector`. [#25819](https://github.com/nodejs/node/pull/25819)
 * **repl**
   * Added `repl.setupHistory` for programmatic repl. [#25895](https://github.com/nodejs/node/pull/25895)
 * **tls**
