@@ -4,8 +4,8 @@
 
 > Stability: 1 - Experimental
 
-The `worker_threads` module enables the use of threads with message channels
-between them. To access it:
+The `worker_threads` module enables the use of threads that execute JS code
+in parallel. To access it:
 
 ```js
 const worker = require('worker_threads');
@@ -58,6 +58,18 @@ added: v10.5.0
 
 Is `true` if this code is not running inside of a [`Worker`][] thread.
 
+```js
+const { Worker, isMainThread } = require('worker_threads');
+
+if (isMainThread) {
+  // This re-loads the current file inside a Worker instance.
+  new Worker(__filename);
+} else {
+  console.log('Inside Worker!');
+  console.log(isMainThread);  // Prints 'false'.
+}
+```
+
 ## worker.parentPort
 <!-- YAML
 added: v10.5.0
@@ -71,6 +83,23 @@ allowing communication with the parent thread. Messages sent using
 using `worker.on('message')`, and messages sent from the parent thread
 using `worker.postMessage()` will be available in this thread using
 `parentPort.on('message')`.
+
+```js
+const { Worker, isMainThread, parentPort } = require('worker_threads');
+
+if (isMainThread) {
+  const worker = new Worker(__filename);
+  worker.once('message', (message) => {
+    console.log(message);  // Prints 'Hello, world!'.
+  });
+  worker.postMessage('Hello, world!');
+} else {
+  // When a message from the parent thread is received, send it back:
+  parentPort.once('message', (message) => {
+    parentPort.postMessage(message);
+  });
+}
+```
 
 ## worker.threadId
 <!-- YAML
@@ -90,6 +119,19 @@ added: v10.5.0
 
 An arbitrary JavaScript value that contains a clone of the data passed
 to this thread’s `Worker` constructor.
+
+The data is cloned as if using [`postMessage()`][`port.postMessage()`],
+according to the [HTML structured clone algorithm][].
+
+```js
+const { Worker, isMainThread, workerData } = require('worker_threads');
+
+if (isMainThread) {
+  const worker = new Worker(__filename, { workerData: 'Hello, world!' });
+} else {
+  console.log(workerData);  // Prints 'Hello, world!'.
+}
+```
 
 ## Class: MessageChannel
 <!-- YAML
@@ -134,6 +176,20 @@ added: v10.5.0
 The `'close'` event is emitted once either side of the channel has been
 disconnected.
 
+```js
+const { MessageChannel } = require('worker_threads');
+const { port1, port2 } = new MessageChannel();
+
+// Prints:
+//   foobar
+//   closed!
+port2.on('message', (message) => console.log(message));
+port2.on('close', () => console.log('closed!'));
+
+port1.postMessage('foobar');
+port1.close();
+```
+
 ### Event: 'message'
 <!-- YAML
 added: v10.5.0
@@ -156,6 +212,9 @@ Disables further sending of messages on either side of the connection.
 This method can be called when no further communication will happen over this
 `MessagePort`.
 
+The [`'close'` event][] will be emitted on both `MessagePort` instances that
+are part of the channel.
+
 ### port.postMessage(value[, transferList])
 <!-- YAML
 added: v10.5.0
@@ -166,9 +225,28 @@ added: v10.5.0
 
 Sends a JavaScript value to the receiving side of this channel.
 `value` will be transferred in a way which is compatible with
-the [HTML structured clone algorithm][]. In particular, it may contain circular
-references and objects like typed arrays that the `JSON` API is not able
-to stringify.
+the [HTML structured clone algorithm][].
+
+In particular, the significant differences to `JSON` are:
+- `value` may contain circular references.
+- `value` may contain instances of builtin JS types such as `RegExp`s,
+  `BigInt`s, `Map`s, `Set`s, etc.
+- `value` may contained typed arrays, both using `ArrayBuffer`s
+   and `SharedArrayBuffer`s.
+- `value` may contain [`WebAssembly.Module`][] instances.
+- `value` may not contain native (C++-backed) objects other than `MessagePort`s.
+
+```js
+const { MessageChannel } = require('worker_threads');
+const { port1, port2 } = new MessageChannel();
+
+port1.on('message', (message) => console.log(message));
+
+const circularData = {};
+circularData.foo = circularData;
+// Prints: { foo: [Circular] }
+port2.postMessage(circularData);
+```
 
 `transferList` may be a list of `ArrayBuffer` and `MessagePort` objects.
 After transferring, they will not be usable on the sending side of the channel
@@ -181,6 +259,30 @@ from either thread. They cannot be listed in `transferList`.
 
 `value` may still contain `ArrayBuffer` instances that are not in
 `transferList`; in that case, the underlying memory is copied rather than moved.
+
+```js
+const { MessageChannel } = require('worker_threads');
+const { port1, port2 } = new MessageChannel();
+
+port1.on('message', (message) => console.log(message));
+
+const uint8Array = new Uint8Array([ 1, 2, 3, 4 ]);
+// This posts a copy of `uint8Array`:
+port2.postMessage(uint8Array);
+// This does not copy data, but renders `uint8Array` unusable:
+port2.postMessage(uint8Array, [ uint8Array.buffer ]);
+
+// The memory for the `sharedUint8Array` will be accessible from both the
+// original and the copy received by `.on('message')`:
+const sharedUint8Array = new Uint8Array(new SharedArrayBuffer(4));
+port2.postMessage(sharedUint8Array);
+
+// This transfers a freshly created message port to the receiver.
+// This can be used, for example, to create communication channels between
+// multiple `Worker` threads that are children of the same parent thread.
+const otherChannel = new MessageChannel();
+port2.postMessage({ port: otherChannel.port1 }, [ otherChannel.port1 ]);
+```
 
 Because the object cloning uses the structured clone algorithm,
 non-enumerable properties, property accessors, and object prototypes are
@@ -214,6 +316,9 @@ added: v10.5.0
 Starts receiving messages on this `MessagePort`. When using this port
 as an event emitter, this will be called automatically once `'message'`
 listeners are attached.
+
+This method exists for parity with the Web `MessagePort` API. In Node.js,
+it is only useful for ignoring messages when no event listener is present.
 
 ### port.unref()
 <!-- YAML
@@ -465,12 +570,14 @@ Calling `unref()` on a worker will allow the thread to exit if this is the only
 active handle in the event system. If the worker is already `unref()`ed calling
 `unref()` again will have no effect.
 
+[`'close'` event]: #worker_threads_event_close
 [`Buffer`]: buffer.html
 [`EventEmitter`]: events.html
 [`EventTarget`]: https://developer.mozilla.org/en-US/docs/Web/API/EventTarget
 [`MessagePort`]: #worker_threads_class_messageport
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
+[`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module
 [`Worker`]: #worker_threads_class_worker
 [`cluster` module]: cluster.html
 [`inspector`]: inspector.html
