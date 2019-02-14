@@ -13,6 +13,20 @@ query strings. It can be accessed using:
 const querystring = require('querystring');
 ```
 
+## querystring.decode()
+<!-- YAML
+added: v0.1.99
+-->
+
+The `querystring.decode()` function is an alias for `querystring.parse()`.
+
+## querystring.encode()
+<!-- YAML
+added: v0.1.99
+-->
+
+The `querystring.encode()` function is an alias for `querystring.stringify()`.
+
 ## querystring.escape(str)
 <!-- YAML
 added: v0.1.25
