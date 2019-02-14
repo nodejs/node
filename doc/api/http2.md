@@ -3284,7 +3284,7 @@ should be sent. See the [`'checkContinue'`][] event on `Http2Server` and
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v11.10.0
     pr-url: https://github.com/nodejs/node/pull/25974
     description: Return `this` from `writeHead()` to allow chaining with
                  `end()`.

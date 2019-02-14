@@ -450,7 +450,7 @@ Returns `true` if `keyword` is a valid keyword, otherwise `false`.
 
 ### replServer.setupHistory(historyPath, callback)
 <!-- YAML
-added: REPLACEME
+added: v11.10.0
 -->
 
 * `historyPath` {string} the path to the history file
