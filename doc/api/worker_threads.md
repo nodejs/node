@@ -5,7 +5,7 @@
 > Stability: 1 - Experimental
 
 The `worker_threads` module enables the use of threads that execute JS code
-in parallel, with message channels between them. To access it:
+in parallel. To access it:
 
 ```js
 const worker = require('worker_threads');
