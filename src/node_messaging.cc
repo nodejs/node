@@ -741,7 +741,8 @@ void MessagePort::Start(const FunctionCallbackInfo<Value>& args) {
 void MessagePort::Stop(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   MessagePort* port;
-  ASSIGN_OR_RETURN_UNWRAP(&port, args.This());
+  CHECK(args[0]->IsObject());
+  ASSIGN_OR_RETURN_UNWRAP(&port, args[0].As<Object>());
   if (!port->data_) {
     THROW_ERR_CLOSED_MESSAGE_PORT(env);
     return;
@@ -751,7 +752,8 @@ void MessagePort::Stop(const FunctionCallbackInfo<Value>& args) {
 
 void MessagePort::Drain(const FunctionCallbackInfo<Value>& args) {
   MessagePort* port;
-  ASSIGN_OR_RETURN_UNWRAP(&port, args.This());
+  CHECK(args[0]->IsObject());
+  ASSIGN_OR_RETURN_UNWRAP(&port, args[0].As<Object>());
   port->OnMessage();
 }
 
@@ -781,8 +783,6 @@ MaybeLocal<Function> GetMessagePortConstructor(
 
     env->SetProtoMethod(m, "postMessage", MessagePort::PostMessage);
     env->SetProtoMethod(m, "start", MessagePort::Start);
-    env->SetProtoMethod(m, "stop", MessagePort::Stop);
-    env->SetProtoMethod(m, "drain", MessagePort::Drain);
 
     env->set_message_port_constructor_template(m);
 
@@ -848,6 +848,11 @@ static void InitMessaging(Local<Object> target,
                   .FromJust();
 
   env->SetMethod(target, "registerDOMException", RegisterDOMException);
+
+  // These are not methods on the MessagePort prototype, because
+  // the browser equivalents do not provide them.
+  env->SetMethod(target, "stopMessagePort", MessagePort::Stop);
+  env->SetMethod(target, "drainMessagePort", MessagePort::Drain);
 }
 
 }  // anonymous namespace
