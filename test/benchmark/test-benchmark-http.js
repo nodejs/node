@@ -29,7 +29,8 @@ runBenchmark('http',
                'n=1',
                'res=normal',
                'type=asc',
-               'value=X-Powered-By'
+               'value=X-Powered-By',
+               'headerDuplicates=1',
              ],
              {
                NODEJS_BENCHMARK_ZERO_ALLOWED: 1,
