@@ -1,3 +1,13 @@
+## 6.1.0 (2019-02-08)
+
+### Bug fixes
+
+Fix scope checking when redefining a `var` as a lexical binding.
+
+### New features
+
+Split up `parseSubscripts` to use an internal `parseSubscript` method to make it easier to extend with plugins.
+
 ## 6.0.7 (2019-02-04)
 
 ### Bug fixes

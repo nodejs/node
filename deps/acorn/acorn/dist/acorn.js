@@ -607,7 +607,7 @@ pp.strictDirective = function(start) {
     // Skip semicolon, if any.
     skipWhiteSpace.lastIndex = start;
     start += skipWhiteSpace.exec(this$1.input)[0].length;
-    if (this$1.input[start] === ';')
+    if (this$1.input[start] === ";")
       { start++; }
   }
 };
@@ -2139,47 +2139,53 @@ pp$3.parseSubscripts = function(base, startPos, startLoc, noCalls) {
 
   var maybeAsyncArrow = this.options.ecmaVersion >= 8 && base.type === "Identifier" && base.name === "async" &&
       this.lastTokEnd === base.end && !this.canInsertSemicolon() && this.input.slice(base.start, base.end) === "async";
-  for (var computed = (void 0);;) {
-    if ((computed = this$1.eat(types.bracketL)) || this$1.eat(types.dot)) {
-      var node = this$1.startNodeAt(startPos, startLoc);
-      node.object = base;
-      node.property = computed ? this$1.parseExpression() : this$1.parseIdent(true);
-      node.computed = !!computed;
-      if (computed) { this$1.expect(types.bracketR); }
-      base = this$1.finishNode(node, "MemberExpression");
-    } else if (!noCalls && this$1.eat(types.parenL)) {
-      var refDestructuringErrors = new DestructuringErrors, oldYieldPos = this$1.yieldPos, oldAwaitPos = this$1.awaitPos, oldAwaitIdentPos = this$1.awaitIdentPos;
-      this$1.yieldPos = 0;
-      this$1.awaitPos = 0;
-      this$1.awaitIdentPos = 0;
-      var exprList = this$1.parseExprList(types.parenR, this$1.options.ecmaVersion >= 8, false, refDestructuringErrors);
-      if (maybeAsyncArrow && !this$1.canInsertSemicolon() && this$1.eat(types.arrow)) {
-        this$1.checkPatternErrors(refDestructuringErrors, false);
-        this$1.checkYieldAwaitInDefaultParams();
-        if (this$1.awaitIdentPos > 0)
-          { this$1.raise(this$1.awaitIdentPos, "Cannot use 'await' as identifier inside an async function"); }
-        this$1.yieldPos = oldYieldPos;
-        this$1.awaitPos = oldAwaitPos;
-        this$1.awaitIdentPos = oldAwaitIdentPos;
-        return this$1.parseArrowExpression(this$1.startNodeAt(startPos, startLoc), exprList, true)
-      }
-      this$1.checkExpressionErrors(refDestructuringErrors, true);
-      this$1.yieldPos = oldYieldPos || this$1.yieldPos;
-      this$1.awaitPos = oldAwaitPos || this$1.awaitPos;
-      this$1.awaitIdentPos = oldAwaitIdentPos || this$1.awaitIdentPos;
-      var node$1 = this$1.startNodeAt(startPos, startLoc);
-      node$1.callee = base;
-      node$1.arguments = exprList;
-      base = this$1.finishNode(node$1, "CallExpression");
-    } else if (this$1.type === types.backQuote) {
-      var node$2 = this$1.startNodeAt(startPos, startLoc);
-      node$2.tag = base;
-      node$2.quasi = this$1.parseTemplate({isTagged: true});
-      base = this$1.finishNode(node$2, "TaggedTemplateExpression");
-    } else {
-      return base
-    }
+  while (true) {
+    var element = this$1.parseSubscript(base, startPos, startLoc, noCalls, maybeAsyncArrow);
+    if (element === base || element.type === "ArrowFunctionExpression") { return element }
+    base = element;
   }
+};
+
+pp$3.parseSubscript = function(base, startPos, startLoc, noCalls, maybeAsyncArrow) {
+  var computed = this.eat(types.bracketL);
+  if (computed || this.eat(types.dot)) {
+    var node = this.startNodeAt(startPos, startLoc);
+    node.object = base;
+    node.property = computed ? this.parseExpression() : this.parseIdent(true);
+    node.computed = !!computed;
+    if (computed) { this.expect(types.bracketR); }
+    base = this.finishNode(node, "MemberExpression");
+  } else if (!noCalls && this.eat(types.parenL)) {
+    var refDestructuringErrors = new DestructuringErrors, oldYieldPos = this.yieldPos, oldAwaitPos = this.awaitPos, oldAwaitIdentPos = this.awaitIdentPos;
+    this.yieldPos = 0;
+    this.awaitPos = 0;
+    this.awaitIdentPos = 0;
+    var exprList = this.parseExprList(types.parenR, this.options.ecmaVersion >= 8, false, refDestructuringErrors);
+    if (maybeAsyncArrow && !this.canInsertSemicolon() && this.eat(types.arrow)) {
+      this.checkPatternErrors(refDestructuringErrors, false);
+      this.checkYieldAwaitInDefaultParams();
+      if (this.awaitIdentPos > 0)
+        { this.raise(this.awaitIdentPos, "Cannot use 'await' as identifier inside an async function"); }
+      this.yieldPos = oldYieldPos;
+      this.awaitPos = oldAwaitPos;
+      this.awaitIdentPos = oldAwaitIdentPos;
+      return this.parseArrowExpression(this.startNodeAt(startPos, startLoc), exprList, true)
+    }
+    this.checkExpressionErrors(refDestructuringErrors, true);
+    this.yieldPos = oldYieldPos || this.yieldPos;
+    this.awaitPos = oldAwaitPos || this.awaitPos;
+    this.awaitIdentPos = oldAwaitIdentPos || this.awaitIdentPos;
+    var node$1 = this.startNodeAt(startPos, startLoc);
+    node$1.callee = base;
+    node$1.arguments = exprList;
+    base = this.finishNode(node$1, "CallExpression");
+  } else if (this.type === types.backQuote) {
+    var node$2 = this.startNodeAt(startPos, startLoc);
+    node$2.tag = base;
+    node$2.quasi = this.parseTemplate({isTagged: true});
+    base = this.finishNode(node$2, "TaggedTemplateExpression");
+  }
+  return base
 };
 
 // Parse an atomic expression — either a single token that is an
@@ -2874,7 +2880,7 @@ pp$5.exitScope = function() {
 // > At the top level of a function, or script, function declarations are
 // > treated like var declarations rather than like lexical declarations.
 pp$5.treatFunctionsAsVarInScope = function(scope) {
-  return (scope.flags & SCOPE_FUNCTION) || !this.inModule && (scope.flags & SCOPE_TOP);
+  return (scope.flags & SCOPE_FUNCTION) || !this.inModule && (scope.flags & SCOPE_TOP)
 };
 
 pp$5.declareName = function(name, bindingType, pos) {
@@ -2900,7 +2906,7 @@ pp$5.declareName = function(name, bindingType, pos) {
   } else {
     for (var i = this.scopeStack.length - 1; i >= 0; --i) {
       var scope$3 = this$1.scopeStack[i];
-      if (scope$3.lexical.indexOf(name) > -1 && !(scope$3.flags & SCOPE_SIMPLE_CATCH) && scope$3.lexical[0] === name ||
+      if (scope$3.lexical.indexOf(name) > -1 && !((scope$3.flags & SCOPE_SIMPLE_CATCH) && scope$3.lexical[0] === name) ||
           !this$1.treatFunctionsAsVarInScope(scope$3) && scope$3.functions.indexOf(name) > -1) {
         redeclared = true;
         break
@@ -4955,7 +4961,7 @@ pp$8.readWord = function() {
 //
 // [walk]: util/walk.js
 
-var version = "6.0.7";
+var version = "6.1.0";
 
 // The main exported interface (under `self.acorn` when in the
 // browser) is a `parse` function that takes a code string and

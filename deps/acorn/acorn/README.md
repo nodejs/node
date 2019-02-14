@@ -86,7 +86,7 @@ an object containing any of these fields:
 - **allowImportExportEverywhere**: By default, `import` and `export`
   declarations can only appear at a program's top level. Setting this
   option to `true` allows them anywhere where a statement is allowed.
-
+  
 - **allowAwaitOutsideFunction**: By default, `await` expressions can
   only appear inside `async` functions. Setting this option to
   `true` allows to have top-level `await` expressions. They are
@@ -256,9 +256,9 @@ The utility spits out the syntax tree as JSON data.
 ## Existing plugins
 
  - [`acorn-jsx`](https://github.com/RReverser/acorn-jsx): Parse [Facebook JSX syntax extensions](https://github.com/facebook/jsx)
-
+ 
 Plugins for ECMAScript proposals:
-
+ 
  - [`acorn-stage3`](https://github.com/acornjs/acorn-stage3): Parse most stage 3 proposals, bundling:
    - [`acorn-async-iteration`](https://github.com/acornjs/acorn-async-iteration): Parse [async iteration proposal](https://github.com/tc39/proposal-async-iteration)
    - [`acorn-bigint`](https://github.com/acornjs/acorn-bigint): Parse [BigInt proposal](https://github.com/tc39/proposal-bigint)
