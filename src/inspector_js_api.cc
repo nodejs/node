@@ -158,16 +158,22 @@ void InspectorConsoleCall(const FunctionCallbackInfo<Value>& info) {
     CHECK(config_value->IsObject());
     Local<Object> config_object = config_value.As<Object>();
     Local<String> in_call_key = FIXED_ONE_BYTE_STRING(isolate, "in_call");
-    if (!config_object->Has(context, in_call_key).FromMaybe(false)) {
-      CHECK(config_object->Set(context,
-                               in_call_key,
-                               v8::True(isolate)).FromJust());
-      CHECK(!inspector_method.As<Function>()->Call(context,
-                                                   info.Holder(),
-                                                   call_args.length(),
-                                                   call_args.out()).IsEmpty());
+    bool has_in_call;
+    if (!config_object->Has(context, in_call_key).To(&has_in_call))
+      return;
+    if (!has_in_call) {
+      if (config_object->Set(context,
+                             in_call_key,
+                             v8::True(isolate)).IsNothing() ||
+          inspector_method.As<Function>()->Call(context,
+                                                info.Holder(),
+                                                call_args.length(),
+                                                call_args.out()).IsEmpty()) {
+        return;
+      }
     }
-    CHECK(config_object->Delete(context, in_call_key).FromJust());
+    if (config_object->Delete(context, in_call_key).IsNothing())
+      return;
   }
 
   Local<Value> node_method = info[1];
