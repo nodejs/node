@@ -171,7 +171,6 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
   Local<Context> ctx = NewContext(env->isolate(), object_template);
 
   if (ctx.IsEmpty()) {
-    env->ThrowError("Could not instantiate context");
     return MaybeLocal<Context>();
   }
 
