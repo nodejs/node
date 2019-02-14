@@ -32,7 +32,9 @@ static bool AllowWasmCodeGenerationCallback(Local<Context> context,
 static bool ShouldAbortOnUncaughtException(Isolate* isolate) {
   HandleScope scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
-  return env != nullptr && env->should_abort_on_uncaught_toggle()[0] &&
+  return env != nullptr &&
+         (env->is_main_thread() || !env->is_stopping_worker()) &&
+         env->should_abort_on_uncaught_toggle()[0] &&
          !env->inside_should_not_abort_on_uncaught_scope();
 }
 
