@@ -149,7 +149,7 @@ using node_ares_task_list =
 class ChannelWrap : public AsyncWrap {
  public:
   ChannelWrap(Environment* env, Local<Object> object);
-  ~ChannelWrap();
+  ~ChannelWrap() override;
 
   static void New(const FunctionCallbackInfo<Value>& args);
 

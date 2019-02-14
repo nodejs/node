@@ -108,7 +108,7 @@ class ContextifyScript : public BaseObject {
   SET_SELF_SIZE(ContextifyScript)
 
   ContextifyScript(Environment* env, v8::Local<v8::Object> object);
-  ~ContextifyScript();
+  ~ContextifyScript() override;
 
   static void Init(Environment* env, v8::Local<v8::Object> target);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);

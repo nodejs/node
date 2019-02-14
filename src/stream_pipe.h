@@ -10,7 +10,7 @@ namespace node {
 class StreamPipe : public AsyncWrap {
  public:
   StreamPipe(StreamBase* source, StreamBase* sink, v8::Local<v8::Object> obj);
-  ~StreamPipe();
+  ~StreamPipe() override;
 
   void Unpipe();
 

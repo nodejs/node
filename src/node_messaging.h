@@ -78,7 +78,7 @@ class Message : public MemoryRetainer {
 class MessagePortData : public MemoryRetainer {
  public:
   explicit MessagePortData(MessagePort* owner);
-  ~MessagePortData();
+  ~MessagePortData() override;
 
   MessagePortData(MessagePortData&& other) = delete;
   MessagePortData& operator=(MessagePortData&& other) = delete;
@@ -138,7 +138,7 @@ class MessagePort : public HandleWrap {
   MessagePort(Environment* env,
               v8::Local<v8::Context> context,
               v8::Local<v8::Object> wrap);
-  ~MessagePort();
+  ~MessagePort() override;
 
   // Create a new message port instance, optionally over an existing
   // `MessagePortData` object.
