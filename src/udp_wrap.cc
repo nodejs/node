@@ -186,7 +186,6 @@ int uv_sockaddr_for_family(int address_family,
     return uv_ip6_addr(address, port, reinterpret_cast<sockaddr_in6*>(addr));
   default:
     CHECK(0 && "unexpected address family");
-    ABORT();
   }
 }
 
