@@ -312,15 +312,10 @@ For pull requests introducing new core modules:
 
 ### Additions to N-API
 
-N-API provides an ABI-stable API guaranteed for future Node.js versions.
-Existing N-API APIs cannot change or disappear, even in semver-major releases.
-Thus, N-API additions call for unusual care and scrutiny.
-
-This
-[guide](https://github.com/nodejs/node/blob/master/doc/guides/adding-new-napi-api.md)
-outlines the requirements and principles that we should follow when
-approving and landing new N-API APIs (any additions to `node_api.h` and
-`node_api_types.h`).
+N-API provides an ABI-stable API guaranteed for future Node.js versions. N-API
+additions call for unusual care and scrutiny. If a change adds to `node_api.h`
+or `node_api_types.h`, consult [the relevant
+guide](https://github.com/nodejs/node/blob/master/doc/guides/adding-new-napi-api.md).
 
 ### Deprecations
 
