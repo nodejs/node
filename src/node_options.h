@@ -89,7 +89,7 @@ class DebugOptions : public Options {
     return break_first_line || break_node_first_line;
   }
 
-  void CheckOptions(std::vector<std::string>* errors);
+  void CheckOptions(std::vector<std::string>* errors) override;
 };
 
 class EnvironmentOptions : public Options {
@@ -135,7 +135,7 @@ class EnvironmentOptions : public Options {
 
   inline DebugOptions* get_debug_options();
   inline const DebugOptions& debug_options() const;
-  void CheckOptions(std::vector<std::string>* errors);
+  void CheckOptions(std::vector<std::string>* errors) override;
 
  private:
   DebugOptions debug_options_;
@@ -156,7 +156,7 @@ class PerIsolateOptions : public Options {
   bool report_verbose;
 #endif  //  NODE_REPORT
   inline EnvironmentOptions* get_per_env_options();
-  void CheckOptions(std::vector<std::string>* errors);
+  void CheckOptions(std::vector<std::string>* errors) override;
 };
 
 class PerProcessOptions : public Options {
@@ -202,7 +202,7 @@ class PerProcessOptions : public Options {
 #endif  //  NODE_REPORT
 
   inline PerIsolateOptions* get_per_isolate_options();
-  void CheckOptions(std::vector<std::string>* errors);
+  void CheckOptions(std::vector<std::string>* errors) override;
 };
 
 // The actual options parser, as opposed to the structs containing them:

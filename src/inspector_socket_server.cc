@@ -184,7 +184,7 @@ class SocketSession {
    public:
     Delegate(InspectorSocketServer* server, int session_id)
              : server_(server), session_id_(session_id) { }
-    ~Delegate() {
+    ~Delegate() override {
       server_->SessionTerminated(session_id_);
     }
     void OnHttpGet(const std::string& host, const std::string& path) override;

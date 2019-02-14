@@ -18,7 +18,7 @@ class Worker : public AsyncWrap {
          v8::Local<v8::Object> wrap,
          const std::string& url,
          std::shared_ptr<PerIsolateOptions> per_isolate_opts);
-  ~Worker();
+  ~Worker() override;
 
   // Run the worker. This is only called from the worker thread.
   void Run();

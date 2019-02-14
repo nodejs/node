@@ -105,10 +105,10 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
   inline uint32_t* zero_fill_field() { return &zero_fill_field_; }
 
-  virtual void* Allocate(size_t size);  // Defined in src/node.cc
-  virtual void* AllocateUninitialized(size_t size)
+  void* Allocate(size_t size) override;  // Defined in src/node.cc
+  void* AllocateUninitialized(size_t size) override
     { return node::UncheckedMalloc(size); }
-  virtual void Free(void* data, size_t) { free(data); }
+  void Free(void* data, size_t) override { free(data); }
 
  private:
   uint32_t zero_fill_field_ = 1;  // Boolean but exposed as uint32 to JS land.

@@ -220,7 +220,7 @@ class Environment;
 
 class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
  public:
-  virtual ~MultiIsolatePlatform() { }
+  ~MultiIsolatePlatform() override { }
   // Returns true if work was dispatched or executed. New tasks that are
   // posted during flushing of the queue are postponed until the next
   // flushing.

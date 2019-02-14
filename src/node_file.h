@@ -357,7 +357,7 @@ class FileHandle : public AsyncWrap, public StreamBase {
   static FileHandle* New(Environment* env,
                          int fd,
                          v8::Local<v8::Object> obj = v8::Local<v8::Object>());
-  virtual ~FileHandle();
+  ~FileHandle() override;
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
 

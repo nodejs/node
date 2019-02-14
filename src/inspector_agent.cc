@@ -228,7 +228,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     worker_agent_->Wire(node_dispatcher_.get());
   }
 
-  virtual ~ChannelImpl() {
+  ~ChannelImpl() override {
     tracing_agent_->disable();
     tracing_agent_.reset();  // Dispose before the dispatchers
     worker_agent_->disable();

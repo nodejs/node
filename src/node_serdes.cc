@@ -33,7 +33,7 @@ class SerializerContext : public BaseObject,
   SerializerContext(Environment* env,
                     Local<Object> wrap);
 
-  ~SerializerContext() {}
+  ~SerializerContext() override {}
 
   void ThrowDataCloneError(Local<String> message) override;
   Maybe<bool> WriteHostObject(Isolate* isolate, Local<Object> object) override;
@@ -68,7 +68,7 @@ class DeserializerContext : public BaseObject,
                       Local<Object> wrap,
                       Local<Value> buffer);
 
-  ~DeserializerContext() {}
+  ~DeserializerContext() override {}
 
   MaybeLocal<Object> ReadHostObject(Isolate* isolate) override;
 

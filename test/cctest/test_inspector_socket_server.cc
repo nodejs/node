@@ -305,7 +305,7 @@ class TestSocketServerDelegate : public SocketServerDelegate {
         targets_(target_ids),
         session_id_(0) {}
 
-  ~TestSocketServerDelegate() {
+  ~TestSocketServerDelegate() override {
     harness_->Done();
   }
 
