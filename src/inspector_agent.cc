@@ -301,28 +301,40 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
 
 class InspectorTimer {
  public:
-  InspectorTimer(uv_loop_t* loop,
+  InspectorTimer(Environment* env,
                  double interval_s,
                  V8InspectorClient::TimerCallback callback,
-                 void* data) : timer_(),
+                 void* data) : env_(env),
                                callback_(callback),
                                data_(data) {
-    uv_timer_init(loop, &timer_);
+    uv_timer_init(env->event_loop(), &timer_);
     int64_t interval_ms = 1000 * interval_s;
     uv_timer_start(&timer_, OnTimer, interval_ms, interval_ms);
+    timer_.data = this;
+
+    env->AddCleanupHook(CleanupHook, this);
   }
 
   InspectorTimer(const InspectorTimer&) = delete;
 
   void Stop() {
-    uv_timer_stop(&timer_);
-    uv_close(reinterpret_cast<uv_handle_t*>(&timer_), TimerClosedCb);
+    env_->RemoveCleanupHook(CleanupHook, this);
+
+    if (timer_.data == this) {
+      timer_.data = nullptr;
+      uv_timer_stop(&timer_);
+      env_->CloseHandle(reinterpret_cast<uv_handle_t*>(&timer_), TimerClosedCb);
+    }
   }
 
  private:
   static void OnTimer(uv_timer_t* uvtimer) {
     InspectorTimer* timer = node::ContainerOf(&InspectorTimer::timer_, uvtimer);
     timer->callback_(timer->data_);
+  }
+
+  static void CleanupHook(void* data) {
+    static_cast<InspectorTimer*>(data)->Stop();
   }
 
   static void TimerClosedCb(uv_handle_t* uvtimer) {
@@ -334,6 +346,7 @@ class InspectorTimer {
 
   ~InspectorTimer() {}
 
+  Environment* env_;
   uv_timer_t timer_;
   V8InspectorClient::TimerCallback callback_;
   void* data_;
@@ -343,9 +356,9 @@ class InspectorTimer {
 
 class InspectorTimerHandle {
  public:
-  InspectorTimerHandle(uv_loop_t* loop, double interval_s,
+  InspectorTimerHandle(Environment* env, double interval_s,
                        V8InspectorClient::TimerCallback callback, void* data) {
-    timer_ = new InspectorTimer(loop, interval_s, callback, data);
+    timer_ = new InspectorTimer(env, interval_s, callback, data);
   }
 
   InspectorTimerHandle(const InspectorTimerHandle&) = delete;
@@ -540,7 +553,7 @@ class NodeInspectorClient : public V8InspectorClient {
                            TimerCallback callback,
                            void* data) override {
     timers_.emplace(std::piecewise_construct, std::make_tuple(data),
-                    std::make_tuple(env_->event_loop(), interval_s, callback,
+                    std::make_tuple(env_, interval_s, callback,
                                     data));
   }
 
