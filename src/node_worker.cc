@@ -217,8 +217,6 @@ void Worker::Run() {
           stopped_ = true;
         }
 
-        env_->RunCleanup();
-
         // This call needs to be made while the `Environment` is still alive
         // because we assume that it is available for async tracking in the
         // NodePlatform implementation.
