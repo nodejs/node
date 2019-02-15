@@ -7,6 +7,45 @@ using node::MallocedBuffer;
 
 static constexpr auto null = JSONWriter::Null{};
 
+// Utility function to format socket information.
+static void ReportEndpoint(uv_handle_t* h,
+                           struct sockaddr* addr,
+                           const char* name,
+                           JSONWriter* writer) {
+  if (addr == nullptr) {
+    writer->json_keyvalue(name, null);
+    return;
+  }
+
+  uv_getnameinfo_t endpoint;
+  char* host = nullptr;
+  char hostbuf[INET6_ADDRSTRLEN];
+  const int family = addr->sa_family;
+  const int port = ntohs(family == AF_INET ?
+                         reinterpret_cast<sockaddr_in*>(addr)->sin_port :
+                         reinterpret_cast<sockaddr_in6*>(addr)->sin6_port);
+
+  if (uv_getnameinfo(h->loop, &endpoint, nullptr, addr, NI_NUMERICSERV) == 0) {
+    host = endpoint.host;
+    DCHECK_EQ(port, std::stoi(endpoint.service));
+  } else {
+    const void* src = family == AF_INET ?
+                      static_cast<void*>(
+                        &(reinterpret_cast<sockaddr_in*>(addr)->sin_addr)) :
+                      static_cast<void*>(
+                        &(reinterpret_cast<sockaddr_in6*>(addr)->sin6_addr));
+    if (uv_inet_ntop(family, src, hostbuf, sizeof(hostbuf)) == 0) {
+      host = hostbuf;
+    }
+  }
+  writer->json_objectstart(name);
+  if (host != nullptr) {
+    writer->json_keyvalue("host", host);
+  }
+  writer->json_keyvalue("port", port);
+  writer->json_objectend();
+}
+
 // Utility function to format libuv socket information.
 static void ReportEndpoints(uv_handle_t* h, JSONWriter* writer) {
   struct sockaddr_storage addr_storage;
@@ -14,8 +53,6 @@ static void ReportEndpoints(uv_handle_t* h, JSONWriter* writer) {
   uv_any_handle* handle = reinterpret_cast<uv_any_handle*>(h);
   int addr_size = sizeof(addr_storage);
   int rc = -1;
-  bool wrote_local_endpoint = false;
-  bool wrote_remote_endpoint = false;
 
   switch (h->type) {
     case UV_UDP:
@@ -27,38 +64,13 @@ static void ReportEndpoints(uv_handle_t* h, JSONWriter* writer) {
     default:
       break;
   }
-  if (rc == 0) {
-    // uv_getnameinfo will format host and port and handle IPv4/IPv6.
-    uv_getnameinfo_t local;
-    rc = uv_getnameinfo(h->loop, &local, nullptr, addr, NI_NUMERICSERV);
-
-    if (rc == 0) {
-      writer->json_objectstart("localEndpoint");
-      writer->json_keyvalue("host", local.host);
-      writer->json_keyvalue("port", local.service);
-      writer->json_objectend();
-      wrote_local_endpoint = true;
-    }
-  }
-  if (!wrote_local_endpoint) writer->json_keyvalue("localEndpoint", null);
+  ReportEndpoint(h, rc == 0 ? addr : nullptr,  "localEndpoint", writer);
 
   if (h->type == UV_TCP) {
     // Get the remote end of the connection.
     rc = uv_tcp_getpeername(&handle->tcp, addr, &addr_size);
-    if (rc == 0) {
-      uv_getnameinfo_t remote;
-      rc = uv_getnameinfo(h->loop, &remote, nullptr, addr, NI_NUMERICSERV);
-
-      if (rc == 0) {
-        writer->json_objectstart("remoteEndpoint");
-        writer->json_keyvalue("host", remote.host);
-        writer->json_keyvalue("port", remote.service);
-        writer->json_objectend();
-        wrote_local_endpoint = true;
-      }
-    }
+    ReportEndpoint(h, rc == 0 ? addr : nullptr, "remoteEndpoint", writer);
   }
-  if (!wrote_remote_endpoint) writer->json_keyvalue("remoteEndpoint", null);
 }
 
 // Utility function to format libuv path information.
