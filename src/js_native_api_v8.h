@@ -113,23 +113,26 @@ napi_status napi_set_last_error(napi_env env, napi_status error_code,
     }                                                              \
   } while (0)
 
-#define NAPI_CALL_INTO_MODULE(env, call, handle_exception)                   \
-  do {                                                                       \
-    int open_handle_scopes = (env)->open_handle_scopes;                      \
-    int open_callback_scopes = (env)->open_callback_scopes;                  \
-    napi_clear_last_error((env));                                            \
-    call;                                                                    \
-    CHECK_EQ((env)->open_handle_scopes, open_handle_scopes);                 \
-    CHECK_EQ((env)->open_callback_scopes, open_callback_scopes);             \
-    if (!(env)->last_exception.IsEmpty()) {                                  \
-      handle_exception(                                                      \
-          v8::Local<v8::Value>::New((env)->isolate, (env)->last_exception)); \
-      (env)->last_exception.Reset();                                         \
-    }                                                                        \
-  } while (0)
+template <typename T, typename U>
+void NapiCallIntoModule(napi_env env, T&& call, U&& handle_exception) {
+  int open_handle_scopes = env->open_handle_scopes;
+  int open_callback_scopes = env->open_callback_scopes;
+  napi_clear_last_error(env);
+  call();
+  CHECK_EQ(env->open_handle_scopes, open_handle_scopes);
+  CHECK_EQ(env->open_callback_scopes, open_callback_scopes);
+  if (!env->last_exception.IsEmpty()) {
+    handle_exception(env->last_exception.Get(env->isolate));
+    env->last_exception.Reset();
+  }
+}
 
-#define NAPI_CALL_INTO_MODULE_THROW(env, call) \
-  NAPI_CALL_INTO_MODULE((env), call, (env)->isolate->ThrowException)
+template <typename T>
+void NapiCallIntoModuleThrow(napi_env env, T&& call) {
+  NapiCallIntoModule(env, call, [&](v8::Local<v8::Value> value) {
+    env->isolate->ThrowException(value);
+  });
+}
 
 namespace v8impl {
 
