@@ -34,11 +34,12 @@ class BufferFinalizer: private Finalizer {
   static void FinalizeBufferCallback(char* data, void* hint) {
     BufferFinalizer* finalizer = static_cast<BufferFinalizer*>(hint);
     if (finalizer->_finalize_callback != nullptr) {
-      NAPI_CALL_INTO_MODULE_THROW(finalizer->_env,
+      NapiCallIntoModuleThrow(finalizer->_env, [&]() {
         finalizer->_finalize_callback(
           finalizer->_env,
           data,
-          finalizer->_finalize_hint));
+          finalizer->_finalize_hint);
+      });
     }
 
     Delete(finalizer);
@@ -465,8 +466,9 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
   napi_env env = v8impl::GetEnv(context);
 
   napi_value _exports;
-  NAPI_CALL_INTO_MODULE_THROW(env,
-      _exports = init(env, v8impl::JsValueFromV8LocalValue(exports)));
+  NapiCallIntoModuleThrow(env, [&]() {
+    _exports = init(env, v8impl::JsValueFromV8LocalValue(exports));
+  });
 
   // If register function returned a non-null exports object different from
   // the exports object we passed it, set that as the "exports" property of
@@ -874,14 +876,14 @@ class Work : public node::AsyncResource, public node::ThreadPoolWork {
     // stored.
     napi_env env = _env;
 
-    NAPI_CALL_INTO_MODULE(env,
-        _complete(_env, ConvertUVErrorCode(status), _data),
-        [env] (v8::Local<v8::Value> local_err) {
-          // If there was an unhandled exception in the complete callback,
-          // report it as a fatal exception. (There is no JavaScript on the
-          // callstack that can possibly handle it.)
-          v8impl::trigger_fatal_exception(env, local_err);
-        });
+    NapiCallIntoModule(env, [&]() {
+      _complete(_env, ConvertUVErrorCode(status), _data);
+    }, [env](v8::Local<v8::Value> local_err) {
+      // If there was an unhandled exception in the complete callback,
+      // report it as a fatal exception. (There is no JavaScript on the
+      // callstack that can possibly handle it.)
+      v8impl::trigger_fatal_exception(env, local_err);
+    });
 
     // Note: Don't access `work` after this point because it was
     // likely deleted by the complete callback.
