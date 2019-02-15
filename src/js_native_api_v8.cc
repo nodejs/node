@@ -303,11 +303,12 @@ class Reference : private Finalizer {
     napi_env env = reference->_env;
 
     if (reference->_finalize_callback != nullptr) {
-      NAPI_CALL_INTO_MODULE_THROW(env,
+      NapiCallIntoModuleThrow(env, [&]() {
         reference->_finalize_callback(
             reference->_env,
             reference->_finalize_data,
-            reference->_finalize_hint));
+            reference->_finalize_hint);
+      });
     }
 
     // this is safe because if a request to delete the reference
@@ -448,7 +449,7 @@ class CallbackWrapperBase : public CallbackWrapper {
     napi_callback cb = _bundle->*FunctionField;
 
     napi_value result;
-    NAPI_CALL_INTO_MODULE_THROW(env, result = cb(env, cbinfo_wrapper));
+    NapiCallIntoModuleThrow(env, [&]() { result = cb(env, cbinfo_wrapper); });
 
     if (result != nullptr) {
       this->SetReturnValue(result);
