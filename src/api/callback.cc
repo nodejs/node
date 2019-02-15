@@ -139,6 +139,11 @@ MaybeLocal<Value> InternalMakeCallback(Environment* env,
                                        Local<Value> argv[],
                                        async_context asyncContext) {
   CHECK(!recv.IsEmpty());
+#ifdef DEBUG
+  for (int i = 0; i < argc; i++)
+    CHECK(!argv[i].IsEmpty());
+#endif
+
   InternalCallbackScope scope(env, recv, asyncContext);
   if (scope.Failed()) {
     return MaybeLocal<Value>();
