@@ -158,12 +158,13 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
     Context::Scope context_scope(context);
     ScriptCompiler::Source source(source_text, origin);
     if (!ScriptCompiler::CompileModule(isolate, &source).ToLocal(&module)) {
-      CHECK(try_catch.HasCaught());
-      CHECK(!try_catch.Message().IsEmpty());
-      CHECK(!try_catch.Exception().IsEmpty());
-      AppendExceptionLine(env, try_catch.Exception(), try_catch.Message(),
-                          ErrorHandlingMode::MODULE_ERROR);
-      try_catch.ReThrow();
+      if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+        CHECK(!try_catch.Message().IsEmpty());
+        CHECK(!try_catch.Exception().IsEmpty());
+        AppendExceptionLine(env, try_catch.Exception(), try_catch.Message(),
+                            ErrorHandlingMode::MODULE_ERROR);
+        try_catch.ReThrow();
+      }
       return;
     }
   }
@@ -245,13 +246,12 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = obj->context_.Get(isolate);
   Local<Module> module = obj->module_.Get(isolate);
   TryCatchScope try_catch(env);
-  Maybe<bool> ok = module->InstantiateModule(context, ResolveCallback);
+  USE(module->InstantiateModule(context, ResolveCallback));
 
   // clear resolve cache on instantiate
   obj->resolve_cache_.clear();
 
-  if (!ok.FromMaybe(false)) {
-    CHECK(try_catch.HasCaught());
+  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
     CHECK(!try_catch.Message().IsEmpty());
     CHECK(!try_catch.Exception().IsEmpty());
     AppendExceptionLine(env, try_catch.Exception(), try_catch.Message(),
@@ -300,6 +300,8 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
 
   // Convert the termination exception into a regular exception.
   if (timed_out || received_signal) {
+    if (!env->is_main_thread() && env->is_stopping_worker())
+      return;
     env->isolate()->CancelTerminateExecution();
     // It is possible that execution was terminated by another timeout in
     // which this timeout is nested, so check whether one of the watchdogs
@@ -312,7 +314,8 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (try_catch.HasCaught()) {
-    try_catch.ReThrow();
+    if (!try_catch.HasTerminated())
+      try_catch.ReThrow();
     return;
   }
 
@@ -375,7 +378,6 @@ void ModuleWrap::GetError(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
 
   Local<Module> module = obj->module_.Get(isolate);
-
   args.GetReturnValue().Set(module->GetException());
 }
 
