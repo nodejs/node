@@ -150,7 +150,10 @@ class WorkerThreadData {
 
     isolate->Dispose();
 
-    // Need to run the loop one more time to close the platform's uv_async_t
+    // Need to run the loop twice more to close the platform's uv_async_t
+    // TODO(addaleax): It would be better for the platform itself to provide
+    // some kind of notification when it has fully cleaned up.
+    uv_run(&loop_, UV_RUN_ONCE);
     uv_run(&loop_, UV_RUN_ONCE);
 
     CheckedUvLoopClose(&loop_);
