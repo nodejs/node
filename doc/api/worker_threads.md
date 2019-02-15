@@ -120,6 +120,9 @@ added: v10.5.0
 An arbitrary JavaScript value that contains a clone of the data passed
 to this thread’s `Worker` constructor.
 
+The data is cloned as if using [`postMessage()`][`port.postMessage()`],
+using the [HTML structured clone algorithm][].
+
 ```js
 const { Worker, isMainThread, workerData } = require('worker_threads');
 
@@ -222,10 +225,16 @@ added: v10.5.0
 
 Sends a JavaScript value to the receiving side of this channel.
 `value` will be transferred in a way which is compatible with
-the [HTML structured clone algorithm][]. In particular, it may contain circular
-references and objects like typed arrays that the `JSON` API is not able
-to stringify.
+the [HTML structured clone algorithm][].
 
+In particular, the significant differences to `JSON` are:
+- `value` may contain circular references.
+- `value` may contain instances of builtin JS types such as `RegExp`s,
+  `BigInt`s, `Map`s, `Set`s, etc.
+- `value` may contained typed arrays, both using `ArrayBuffer`s
+   and `SharedArrayBuffer`s. and
+- `value` may contain [`WebAssembly.Module`][] instances.
+- `value` may not contain native (C++-backed) objects other than `MessagePort`s.
 
 ```js
 const { MessageChannel } = require('worker_threads');
@@ -567,6 +576,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`MessagePort`]: #worker_threads_class_messageport
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
+[`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module
 [`Worker`]: #worker_threads_class_worker
 [`'close'` event]: #worker_threads_event_close
 [`cluster` module]: cluster.html
