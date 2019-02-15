@@ -6,13 +6,13 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const http2 = require('http2');
 const { Duplex } = require('stream');
-const { Worker, isMainThread, workerData } = require('worker_threads');
+const { Worker, workerData } = require('worker_threads');
 
 // Tests the interaction between terminating a Worker thread and running
 // the native SetImmediate queue, which may attempt to perform multiple
 // calls into JS even though one already terminates the Worker.
 
-if (isMainThread) {
+if (!workerData) {
   const counter = new Int32Array(new SharedArrayBuffer(4));
   const worker = new Worker(__filename, { workerData: { counter } });
   worker.on('exit', common.mustCall(() => {
