@@ -40,9 +40,8 @@ the event loop until the spawned process either exits or is terminated.
 
 For convenience, the `child_process` module provides a handful of synchronous
 and asynchronous alternatives to [`child_process.spawn()`][] and
-[`child_process.spawnSync()`][]. Note that each of these alternatives are
-implemented on top of [`child_process.spawn()`][] or
-[`child_process.spawnSync()`][].
+[`child_process.spawnSync()`][]. Each of these alternatives are implemented on
+top of [`child_process.spawn()`][] or [`child_process.spawnSync()`][].
 
   * [`child_process.exec()`][]: spawns a shell and runs a command within that
     shell, passing the `stdout` and `stderr` to a callback function when
@@ -532,9 +531,9 @@ its own console window. Once enabled for a child process, it cannot be
 disabled.
 
 On non-Windows platforms, if `options.detached` is set to `true`, the child
-process will be made the leader of a new process group and session. Note that
-child processes may continue running after the parent exits regardless of
-whether they are detached or not. See setsid(2) for more information.
+process will be made the leader of a new process group and session. Child
+processes may continue running after the parent exits regardless of whether
+they are detached or not. See setsid(2) for more information.
 
 By default, the parent will wait for the detached child to exit. To prevent the
 parent from waiting for a given `subprocess` to exit, use the
@@ -633,9 +632,9 @@ pipes between the parent and child. The value is one of the following:
 5. {Stream} object - Share a readable or writable stream that refers to a tty,
    file, socket, or a pipe with the child process. The stream's underlying
    file descriptor is duplicated in the child process to the fd that
-   corresponds to the index in the `stdio` array. Note that the stream must
-   have an underlying descriptor (file streams do not until the `'open'`
-   event has occurred).
+   corresponds to the index in the `stdio` array. The stream must have an
+   underlying descriptor (file streams do not until the `'open'` event has
+   occurred).
 6. Positive integer - The integer value is interpreted as a file descriptor
    that is currently open in the parent process. It is shared with the child
    process, similar to how {Stream} objects can be shared.
@@ -799,9 +798,9 @@ The `child_process.execSync()` method is generally identical to
 [`child_process.exec()`][] with the exception that the method will not return
 until the child process has fully closed. When a timeout has been encountered
 and `killSignal` is sent, the method won't return until the process has
-completely exited. Note that if the child process intercepts and handles the
-`SIGTERM` signal and doesn't exit, the parent process will wait until the child
-process has exited.
+completely exited. If the child process intercepts and handles the `SIGTERM`
+signal and doesn't exit, the parent process will wait until the child process
+has exited.
 
 If the process times out or has a non-zero exit code, this method will throw.
 The [`Error`][] object will contain the entire result from
@@ -877,9 +876,9 @@ The `child_process.spawnSync()` method is generally identical to
 [`child_process.spawn()`][] with the exception that the function will not return
 until the child process has fully closed. When a timeout has been encountered
 and `killSignal` is sent, the method won't return until the process has
-completely exited. Note that if the process intercepts and handles the
-`SIGTERM` signal and doesn't exit, the parent process will wait until the child
-process has exited.
+completely exited. If the process intercepts and handles the `SIGTERM` signal
+and doesn't exit, the parent process will wait until the child process has
+exited.
 
 **If the `shell` option is enabled, do not pass unsanitized user input to this
 function. Any input containing shell metacharacters may be used to trigger
@@ -950,13 +949,13 @@ exited, `code` is the final exit code of the process, otherwise `null`. If the
 process terminated due to receipt of a signal, `signal` is the string name of
 the signal, otherwise `null`. One of the two will always be non-null.
 
-Note that when the `'exit'` event is triggered, child process stdio streams
-might still be open.
+When the `'exit'` event is triggered, child process stdio streams might still be
+open.
 
-Also, note that Node.js establishes signal handlers for `SIGINT` and
-`SIGTERM` and Node.js processes will not terminate immediately due to receipt
-of those signals. Rather, Node.js will perform a sequence of cleanup actions
-and then will re-raise the handled signal.
+Node.js establishes signal handlers for `SIGINT` and `SIGTERM` and Node.js
+processes will not terminate immediately due to receipt of those signals.
+Rather, Node.js will perform a sequence of cleanup actions and then will
+re-raise the handled signal.
 
 See waitpid(2).
 
@@ -1011,7 +1010,7 @@ The `'disconnect'` event will be emitted when there are no messages in the
 process of being received. This will most often be triggered immediately after
 calling `subprocess.disconnect()`.
 
-Note that when the child process is a Node.js instance (e.g. spawned using
+When the child process is a Node.js instance (e.g. spawned using
 [`child_process.fork()`]), the `process.disconnect()` method can be invoked
 within the child process to close the IPC channel as well.
 
@@ -1045,8 +1044,8 @@ is not an error but may have unforeseen consequences. Specifically, if the
 process identifier (PID) has been reassigned to another process, the signal will
 be delivered to that process instead which can have unexpected results.
 
-Note that while the function is called `kill`, the signal delivered to the
-child process may not actually terminate the process.
+While the function is called `kill`, the signal delivered to the child process
+may not actually terminate the process.
 
 See kill(2) for reference.
 
@@ -1330,8 +1329,8 @@ added: v0.1.90
 
 A `Writable Stream` that represents the child process's `stdin`.
 
-Note that if a child process waits to read all of its input, the child will not
-continue until this stream has been closed via `end()`.
+If a child process waits to read all of its input, the child will not continue
+until this stream has been closed via `end()`.
 
 If the child was spawned with `stdio[0]` set to anything other than `'pipe'`,
 then this will be `null`.
@@ -1348,8 +1347,8 @@ added: v0.7.10
 
 A sparse array of pipes to the child process, corresponding with positions in
 the [`stdio`][] option passed to [`child_process.spawn()`][] that have been set
-to the value `'pipe'`. Note that `subprocess.stdio[0]`, `subprocess.stdio[1]`,
-and `subprocess.stdio[2]` are also available as `subprocess.stdin`,
+to the value `'pipe'`. `subprocess.stdio[0]`, `subprocess.stdio[1]`, and
+`subprocess.stdio[2]` are also available as `subprocess.stdin`,
 `subprocess.stdout`, and `subprocess.stderr`, respectively.
 
 In the following example, only the child's fd `1` (stdout) is configured as a
