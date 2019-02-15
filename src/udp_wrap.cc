@@ -175,10 +175,10 @@ void UDPWrap::GetFD(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(fd);
 }
 
-int uv_sockaddr_for_family(int address_family,
-                           const char* address,
-                           const unsigned short port,
-                           struct sockaddr_storage* addr) {
+int sockaddr_for_family(int address_family,
+                        const char* address,
+                        const unsigned short port,
+                        struct sockaddr_storage* addr) {
   switch (address_family) {
   case AF_INET:
     return uv_ip4_addr(address, port, reinterpret_cast<sockaddr_in*>(addr));
@@ -205,7 +205,7 @@ void UDPWrap::DoBind(const FunctionCallbackInfo<Value>& args, int family) {
       !args[2]->Uint32Value(ctx).To(&flags))
     return;
   struct sockaddr_storage addr_storage;
-  int err = uv_sockaddr_for_family(family, address.out(), port, &addr_storage);
+  int err = sockaddr_for_family(family, address.out(), port, &addr_storage);
   if (err == 0) {
     err = uv_udp_bind(&wrap->handle_,
                       reinterpret_cast<const sockaddr*>(&addr_storage),
@@ -393,7 +393,7 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   req_wrap->msg_size = msg_size;
 
   struct sockaddr_storage addr_storage;
-  int err = uv_sockaddr_for_family(family, address.out(), port, &addr_storage);
+  int err = sockaddr_for_family(family, address.out(), port, &addr_storage);
   if (err == 0) {
     err = req_wrap->Dispatch(uv_udp_send,
                              &wrap->handle_,
