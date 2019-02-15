@@ -40,8 +40,9 @@ the event loop until the spawned process either exits or is terminated.
 
 For convenience, the `child_process` module provides a handful of synchronous
 and asynchronous alternatives to [`child_process.spawn()`][] and
-[`child_process.spawnSync()`][]. *Note that each of these alternatives are
-implemented on top of [`child_process.spawn()`][] or [`child_process.spawnSync()`][].*
+[`child_process.spawnSync()`][]. Note that each of these alternatives are
+implemented on top of [`child_process.spawn()`][] or
+[`child_process.spawnSync()`][].
 
   * [`child_process.exec()`][]: spawns a shell and runs a command within that
     shell, passing the `stdout` and `stderr` to a callback function when
@@ -53,9 +54,9 @@ implemented on top of [`child_process.spawn()`][] or [`child_process.spawnSync()
     specified module with an IPC communication channel established that allows
     sending messages between parent and child.
   * [`child_process.execSync()`][]: a synchronous version of
-    [`child_process.exec()`][] that *will* block the Node.js event loop.
+    [`child_process.exec()`][] that will block the Node.js event loop.
   * [`child_process.execFileSync()`][]: a synchronous version of
-    [`child_process.execFile()`][] that *will* block the Node.js event loop.
+    [`child_process.execFile()`][] that will block the Node.js event loop.
 
 For certain use cases, such as automating shell scripts, the
 [synchronous counterparts][] may be more convenient. In many cases, however,
@@ -527,8 +528,8 @@ added: v0.7.10
 
 On Windows, setting `options.detached` to `true` makes it possible for the
 child process to continue running after the parent exits. The child will have
-its own console window. *Once enabled for a child process, it cannot be
-disabled*.
+its own console window. Once enabled for a child process, it cannot be
+disabled.
 
 On non-Windows platforms, if `options.detached` is set to `true`, the child
 process will be made the leader of a new process group and session. Note that
@@ -611,7 +612,7 @@ pipes between the parent and child. The value is one of the following:
    for fds 0 - 2 are also available as [`subprocess.stdin`][],
    [`subprocess.stdout`][] and [`subprocess.stderr`][], respectively.
 2. `'ipc'` - Create an IPC channel for passing messages/file descriptors
-   between parent and child. A [`ChildProcess`][] may have at most *one* IPC
+   between parent and child. A [`ChildProcess`][] may have at most one IPC
    stdio file descriptor. Setting this option enables the
    [`subprocess.send()`][] method. If the child is a Node.js process, the
    presence of an IPC channel will enable [`process.send()`][] and
@@ -798,9 +799,9 @@ The `child_process.execSync()` method is generally identical to
 [`child_process.exec()`][] with the exception that the method will not return
 until the child process has fully closed. When a timeout has been encountered
 and `killSignal` is sent, the method won't return until the process has
-completely exited. *Note that if the child process intercepts and handles the
+completely exited. Note that if the child process intercepts and handles the
 `SIGTERM` signal and doesn't exit, the parent process will wait until the child
-process has exited.*
+process has exited.
 
 If the process times out or has a non-zero exit code, this method will throw.
 The [`Error`][] object will contain the entire result from
@@ -1329,8 +1330,8 @@ added: v0.1.90
 
 A `Writable Stream` that represents the child process's `stdin`.
 
-*Note that if a child process waits to read all of its input, the child will not
-continue until this stream has been closed via `end()`.*
+Note that if a child process waits to read all of its input, the child will not
+continue until this stream has been closed via `end()`.
 
 If the child was spawned with `stdio[0]` set to anything other than `'pipe'`,
 then this will be `null`.
