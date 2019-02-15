@@ -158,23 +158,26 @@ struct napi_env__ {
     (out) = v8::type::New((buffer), (byte_offset), (length));                  \
   } while (0)
 
-#define NAPI_CALL_INTO_MODULE(env, call, handle_exception)                   \
-  do {                                                                       \
-    int open_handle_scopes = (env)->open_handle_scopes;                      \
-    int open_callback_scopes = (env)->open_callback_scopes;                  \
-    napi_clear_last_error((env));                                            \
-    call;                                                                    \
-    CHECK_EQ((env)->open_handle_scopes, open_handle_scopes);                 \
-    CHECK_EQ((env)->open_callback_scopes, open_callback_scopes);             \
-    if (!(env)->last_exception.IsEmpty()) {                                  \
-      handle_exception(                                                      \
-          v8::Local<v8::Value>::New((env)->isolate, (env)->last_exception)); \
-      (env)->last_exception.Reset();                                         \
-    }                                                                        \
-  } while (0)
+template <typename T, typename U>
+void NapiCallIntoModule(napi_env env, T&& call, U&& handle_exception) {
+  int open_handle_scopes = env->open_handle_scopes;
+  int open_callback_scopes = env->open_callback_scopes;
+  napi_clear_last_error(env);
+  call();
+  CHECK_EQ(env->open_handle_scopes, open_handle_scopes);
+  CHECK_EQ(env->open_callback_scopes, open_callback_scopes);
+  if (!env->last_exception.IsEmpty()) {
+    handle_exception(env->last_exception.Get(env->isolate));
+    env->last_exception.Reset();
+  }
+}
 
-#define NAPI_CALL_INTO_MODULE_THROW(env, call) \
-  NAPI_CALL_INTO_MODULE((env), call, (env)->isolate->ThrowException)
+template <typename T>
+void NapiCallIntoModuleThrow(napi_env env, T&& call) {
+  NapiCallIntoModule(env, call, [&](v8::Local<v8::Value> value) {
+    env->isolate->ThrowException(value);
+  });
+}
 
 namespace {
 namespace v8impl {
@@ -354,11 +357,12 @@ class Finalizer {
   static void FinalizeBufferCallback(char* data, void* hint) {
     Finalizer* finalizer = static_cast<Finalizer*>(hint);
     if (finalizer->_finalize_callback != nullptr) {
-      NAPI_CALL_INTO_MODULE_THROW(finalizer->_env,
+      NapiCallIntoModuleThrow(finalizer->_env, [&]() {
         finalizer->_finalize_callback(
           finalizer->_env,
           data,
-          finalizer->_finalize_hint));
+          finalizer->_finalize_hint);
+      });
     }
 
     Delete(finalizer);
@@ -493,11 +497,12 @@ class Reference : private Finalizer {
     napi_env env = reference->_env;
 
     if (reference->_finalize_callback != nullptr) {
-      NAPI_CALL_INTO_MODULE_THROW(env,
+      NapiCallIntoModuleThrow(env, [&]() {
         reference->_finalize_callback(
             reference->_env,
             reference->_finalize_data,
-            reference->_finalize_hint));
+            reference->_finalize_hint);
+      });
     }
 
     // this is safe because if a request to delete the reference
@@ -612,7 +617,7 @@ class CallbackWrapperBase : public CallbackWrapper {
     napi_callback cb = _bundle->*FunctionField;
 
     napi_value result;
-    NAPI_CALL_INTO_MODULE_THROW(env, result = cb(env, cbinfo_wrapper));
+    NapiCallIntoModuleThrow(env, [&]() { result = cb(env, cbinfo_wrapper); });
 
     if (result != nullptr) {
       this->SetReturnValue(result);
@@ -1309,8 +1314,9 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
   napi_env env = v8impl::GetEnv(context);
 
   napi_value _exports;
-  NAPI_CALL_INTO_MODULE_THROW(env,
-      _exports = init(env, v8impl::JsValueFromV8LocalValue(exports)));
+  NapiCallIntoModuleThrow(env, [&]() {
+    _exports = init(env, v8impl::JsValueFromV8LocalValue(exports));
+  });
 
   // If register function returned a non-null exports object different from
   // the exports object we passed it, set that as the "exports" property of
@@ -3941,14 +3947,14 @@ class Work : public node::AsyncResource, public node::ThreadPoolWork {
     // stored.
     napi_env env = _env;
 
-    NAPI_CALL_INTO_MODULE(env,
-        _complete(_env, ConvertUVErrorCode(status), _data),
-        [env] (v8::Local<v8::Value> local_err) {
-          // If there was an unhandled exception in the complete callback,
-          // report it as a fatal exception. (There is no JavaScript on the
-          // callstack that can possibly handle it.)
-          v8impl::trigger_fatal_exception(env, local_err);
-        });
+    NapiCallIntoModule(env, [&]() {
+      _complete(_env, ConvertUVErrorCode(status), _data);
+    }, [env](v8::Local<v8::Value> local_err) {
+      // If there was an unhandled exception in the complete callback,
+      // report it as a fatal exception. (There is no JavaScript on the
+      // callstack that can possibly handle it.)
+      v8impl::trigger_fatal_exception(env, local_err);
+    });
 
     // Note: Don't access `work` after this point because it was
     // likely deleted by the complete callback.
