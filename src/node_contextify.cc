@@ -252,7 +252,8 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
   ContextifyContext* context = new ContextifyContext(env, sandbox, options);
 
   if (try_catch.HasCaught()) {
-    try_catch.ReThrow();
+    if (!try_catch.HasTerminated())
+      try_catch.ReThrow();
     return;
   }
 
@@ -729,7 +730,8 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
   if (v8_script.IsEmpty()) {
     DecorateErrorStack(env, try_catch);
     no_abort_scope.Close();
-    try_catch.ReThrow();
+    if (!try_catch.HasTerminated())
+      try_catch.ReThrow();
     TRACE_EVENT_NESTABLE_ASYNC_END0(
         TRACING_CATEGORY_NODE2(vm, script),
         "ContextifyScript::New",
@@ -922,6 +924,8 @@ bool ContextifyScript::EvalMachine(Environment* env,
 
   // Convert the termination exception into a regular exception.
   if (timed_out || received_signal) {
+    if (!env->is_main_thread() && env->is_stopping_worker())
+      return false;
     env->isolate()->CancelTerminateExecution();
     // It is possible that execution was terminated by another timeout in
     // which this timeout is nested, so check whether one of the watchdogs
@@ -944,7 +948,8 @@ bool ContextifyScript::EvalMachine(Environment* env,
     // letting try_catch catch it.
     // If execution has been terminated, but not by one of the watchdogs from
     // this invocation, this will re-throw a `null` value.
-    try_catch.ReThrow();
+    if (!try_catch.HasTerminated())
+      try_catch.ReThrow();
 
     return false;
   }
@@ -1098,8 +1103,10 @@ void ContextifyContext::CompileFunction(
       context_extensions.size(), context_extensions.data(), options);
 
   if (maybe_fn.IsEmpty()) {
-    DecorateErrorStack(env, try_catch);
-    try_catch.ReThrow();
+    if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+      DecorateErrorStack(env, try_catch);
+      try_catch.ReThrow();
+    }
     return;
   }
   Local<Function> fn = maybe_fn.ToLocalChecked();
