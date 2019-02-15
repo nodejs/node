@@ -21,9 +21,9 @@ const ALLOWABLE_OPERATORS = ["~", "!!", "+", "*"];
  */
 function parseOptions(options) {
     return {
-        boolean: "boolean" in options ? Boolean(options.boolean) : true,
-        number: "number" in options ? Boolean(options.number) : true,
-        string: "string" in options ? Boolean(options.string) : true,
+        boolean: "boolean" in options ? options.boolean : true,
+        number: "number" in options ? options.number : true,
+        string: "string" in options ? options.string : true,
         allow: options.allow || []
     };
 }
@@ -167,13 +167,16 @@ module.exports = {
             type: "object",
             properties: {
                 boolean: {
-                    type: "boolean"
+                    type: "boolean",
+                    default: true
                 },
                 number: {
-                    type: "boolean"
+                    type: "boolean",
+                    default: true
                 },
                 string: {
-                    type: "boolean"
+                    type: "boolean",
+                    default: true
                 },
                 allow: {
                     type: "array",

@@ -38,7 +38,8 @@ module.exports = {
                 type: "object",
                 properties: {
                     defaultAssignment: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: true
                     }
                 },
                 additionalProperties: false

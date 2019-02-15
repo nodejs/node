@@ -43,7 +43,8 @@ module.exports = {
                         uniqueItems: true
                     },
                     int32Hint: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false

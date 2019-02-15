@@ -33,10 +33,12 @@ module.exports = {
                 type: "object",
                 properties: {
                     allowKeywords: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: true
                     },
                     allowPattern: {
-                        type: "string"
+                        type: "string",
+                        default: ""
                     }
                 },
                 additionalProperties: false
@@ -53,7 +55,7 @@ module.exports = {
 
     create(context) {
         const options = context.options[0] || {};
-        const allowKeywords = options.allowKeywords === void 0 || !!options.allowKeywords;
+        const allowKeywords = options.allowKeywords === void 0 || options.allowKeywords;
         const sourceCode = context.getSourceCode();
 
         let allowPattern;

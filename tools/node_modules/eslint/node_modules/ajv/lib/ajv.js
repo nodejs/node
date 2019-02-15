@@ -70,7 +70,7 @@ function Ajv(opts) {
   if (opts.formats) addInitialFormats(this);
   addDefaultMetaSchema(this);
   if (typeof opts.meta == 'object') this.addMetaSchema(opts.meta);
-  if (opts.nullable) this.addKeyword('nullable', {metaSchema: {const: true}});
+  if (opts.nullable) this.addKeyword('nullable', {metaSchema: {type: 'boolean'}});
   addInitialSchemas(this);
 }
 

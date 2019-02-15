@@ -31,7 +31,8 @@ module.exports = {
                 properties: {
                     max: {
                         type: "integer",
-                        minimum: 1
+                        minimum: 1,
+                        default: 1
                     }
                 },
                 additionalProperties: false

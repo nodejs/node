@@ -26,9 +26,9 @@ module.exports = {
             {
                 type: "object",
                 properties: {
-                    ignoreDestructuring: { type: "boolean" },
-                    ignoreImport: { type: "boolean" },
-                    ignoreExport: { type: "boolean" }
+                    ignoreDestructuring: { type: "boolean", default: false },
+                    ignoreImport: { type: "boolean", default: false },
+                    ignoreExport: { type: "boolean", default: false }
                 },
                 additionalProperties: false
             }

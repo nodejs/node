@@ -386,12 +386,14 @@ module.exports = {
             case true:
             case "true":
             case "writeable":
+            case "writable":
                 return "writeable";
 
             case null:
             case false:
             case "false":
             case "readable":
+            case "readonly":
                 return "readable";
 
             // Fallback to minimize compatibility impact

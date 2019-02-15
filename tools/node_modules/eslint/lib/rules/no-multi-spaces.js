@@ -38,7 +38,8 @@ module.exports = {
                         additionalProperties: false
                     },
                     ignoreEOLComments: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false

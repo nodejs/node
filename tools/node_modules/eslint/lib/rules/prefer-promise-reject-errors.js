@@ -27,7 +27,7 @@ module.exports = {
             {
                 type: "object",
                 properties: {
-                    allowEmptyReject: { type: "boolean" }
+                    allowEmptyReject: { type: "boolean", default: false }
                 },
                 additionalProperties: false
             }

@@ -28,10 +28,12 @@ module.exports = {
                 type: "object",
                 properties: {
                     before: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     after: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: true
                     }
                 },
                 additionalProperties: false
@@ -50,8 +52,8 @@ module.exports = {
         const tokensAndComments = sourceCode.tokensAndComments;
 
         const options = {
-            before: context.options[0] ? !!context.options[0].before : false,
-            after: context.options[0] ? !!context.options[0].after : true
+            before: context.options[0] ? context.options[0].before : false,
+            after: context.options[0] ? context.options[0].after : true
         };
 
         //--------------------------------------------------------------------------
@@ -116,6 +118,10 @@ module.exports = {
                     (options.before !== sourceCode.isSpaceBetweenTokens(tokens.left, tokens.comma))
             ) {
                 report(reportItem, "before", tokens.left);
+            }
+
+            if (tokens.right && astUtils.isClosingParenToken(tokens.right)) {
+                return;
             }
 
             if (tokens.right && !options.after && tokens.right.type === "Line") {

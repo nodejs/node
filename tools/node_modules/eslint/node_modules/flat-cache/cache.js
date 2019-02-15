@@ -1,5 +1,5 @@
 var path = require( 'path' );
-var fs = require( 'graceful-fs' );
+var fs = require( 'fs' );
 var utils = require( './utils' );
 var del = require( './del' );
 var writeJSON = utils.writeJSON;

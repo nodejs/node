@@ -32,10 +32,12 @@ module.exports = {
                 type: "object",
                 properties: {
                     before: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: true
                     },
                     after: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: true
                     }
                 },
                 additionalProperties: false
@@ -54,11 +56,10 @@ module.exports = {
     create(context) {
 
         // merge rules with default
-        const rule = { before: true, after: true },
-            option = context.options[0] || {};
+        const rule = Object.assign({}, context.options[0]);
 
-        rule.before = option.before !== false;
-        rule.after = option.after !== false;
+        rule.before = rule.before !== false;
+        rule.after = rule.after !== false;
 
         const sourceCode = context.getSourceCode();
 

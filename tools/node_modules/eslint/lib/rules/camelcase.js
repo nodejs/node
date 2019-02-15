@@ -25,7 +25,8 @@ module.exports = {
                 type: "object",
                 properties: {
                     ignoreDestructuring: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     properties: {
                         enum: ["always", "never"]
@@ -54,7 +55,7 @@ module.exports = {
 
         const options = context.options[0] || {};
         let properties = options.properties || "";
-        const ignoreDestructuring = options.ignoreDestructuring || false;
+        const ignoreDestructuring = options.ignoreDestructuring;
         const allow = options.allow || [];
 
         if (properties !== "always" && properties !== "never") {

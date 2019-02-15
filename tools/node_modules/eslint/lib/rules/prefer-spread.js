@@ -59,7 +59,7 @@ module.exports = {
         },
 
         schema: [],
-        fixable: "code"
+        fixable: null
     },
 
     create(context) {
@@ -78,18 +78,7 @@ module.exports = {
                 if (isValidThisArg(expectedThis, thisArg, sourceCode)) {
                     context.report({
                         node,
-                        message: "Use the spread operator instead of '.apply()'.",
-                        fix(fixer) {
-                            if (expectedThis && expectedThis.type !== "Identifier") {
-
-                                // Don't fix cases where the `this` value could be a computed expression.
-                                return null;
-                            }
-
-                            const propertyDot = sourceCode.getFirstTokenBetween(applied, node.callee.property, token => token.value === ".");
-
-                            return fixer.replaceTextRange([propertyDot.range[0], node.range[1]], `(...${sourceCode.getText(node.arguments[1])})`);
-                        }
+                        message: "Use the spread operator instead of '.apply()'."
                     });
                 }
             }

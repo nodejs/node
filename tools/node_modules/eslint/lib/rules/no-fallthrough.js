@@ -69,7 +69,8 @@ module.exports = {
                 type: "object",
                 properties: {
                     commentPattern: {
-                        type: "string"
+                        type: "string",
+                        default: ""
                     }
                 },
                 additionalProperties: false

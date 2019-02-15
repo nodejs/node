@@ -25,10 +25,12 @@ module.exports = {
                 type: "object",
                 properties: {
                     allowAllPropertiesOnSameLine: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     allowMultiplePropertiesPerLine: { // Deprecated
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false
@@ -40,7 +42,7 @@ module.exports = {
 
     create(context) {
         const allowSameLine = context.options[0] && (
-            (Boolean(context.options[0].allowAllPropertiesOnSameLine) || Boolean(context.options[0].allowMultiplePropertiesPerLine)) // Deprecated
+            (context.options[0].allowAllPropertiesOnSameLine || context.options[0].allowMultiplePropertiesPerLine /* Deprecated */)
         );
         const errorMessage = allowSameLine
             ? "Object properties must go on a new line if they aren't all on the same line."

@@ -42,22 +42,27 @@ module.exports = {
                         }
                     },
                     requireReturn: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: true
                     },
                     requireParamDescription: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: true
                     },
                     requireReturnDescription: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: true
                     },
                     matchDescription: {
                         type: "string"
                     },
                     requireReturnType: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: true
                     },
                     requireParamType: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: true
                     }
                 },
                 additionalProperties: false

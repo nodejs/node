@@ -32,7 +32,8 @@ module.exports = {
                 type: "object",
                 properties: {
                     checkLoops: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: true
                     }
                 },
                 additionalProperties: false

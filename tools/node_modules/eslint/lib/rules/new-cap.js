@@ -88,10 +88,12 @@ module.exports = {
                 type: "object",
                 properties: {
                     newIsCap: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: true
                     },
                     capIsNew: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: true
                     },
                     newIsCapExceptions: {
                         type: "array",
@@ -112,7 +114,8 @@ module.exports = {
                         type: "string"
                     },
                     properties: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: true
                     }
                 },
                 additionalProperties: false
@@ -126,7 +129,7 @@ module.exports = {
 
     create(context) {
 
-        const config = context.options[0] ? Object.assign({}, context.options[0]) : {};
+        const config = Object.assign({}, context.options[0]);
 
         config.newIsCap = config.newIsCap !== false;
         config.capIsNew = config.capIsNew !== false;

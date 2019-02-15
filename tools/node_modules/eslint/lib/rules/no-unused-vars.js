@@ -37,22 +37,26 @@ module.exports = {
                         type: "object",
                         properties: {
                             vars: {
-                                enum: ["all", "local"]
+                                enum: ["all", "local"],
+                                default: "all"
                             },
                             varsIgnorePattern: {
                                 type: "string"
                             },
                             args: {
-                                enum: ["all", "after-used", "none"]
+                                enum: ["all", "after-used", "none"],
+                                default: "after-used"
                             },
                             ignoreRestSiblings: {
-                                type: "boolean"
+                                type: "boolean",
+                                default: false
                             },
                             argsIgnorePattern: {
                                 type: "string"
                             },
                             caughtErrors: {
-                                enum: ["all", "none"]
+                                enum: ["all", "none"],
+                                default: "none"
                             },
                             caughtErrorsIgnorePattern: {
                                 type: "string"

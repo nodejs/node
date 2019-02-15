@@ -24,10 +24,12 @@ module.exports = {
             type: "object",
             properties: {
                 detectObjects: {
-                    type: "boolean"
+                    type: "boolean",
+                    default: false
                 },
                 enforceConst: {
-                    type: "boolean"
+                    type: "boolean",
+                    default: false
                 },
                 ignore: {
                     type: "array",
@@ -37,7 +39,8 @@ module.exports = {
                     uniqueItems: true
                 },
                 ignoreArrayIndexes: {
-                    type: "boolean"
+                    type: "boolean",
+                    default: false
                 }
             },
             additionalProperties: false

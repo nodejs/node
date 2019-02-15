@@ -32,10 +32,12 @@ module.exports = {
                 type: "object",
                 properties: {
                     words: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: true
                     },
                     nonwords: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     overrides: {
                         type: "object",
@@ -58,7 +60,7 @@ module.exports = {
     },
 
     create(context) {
-        const options = context.options && Array.isArray(context.options) && context.options[0] || { words: true, nonwords: false };
+        const options = context.options[0] || { words: true, nonwords: false };
 
         const sourceCode = context.getSourceCode();
 

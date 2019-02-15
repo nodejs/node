@@ -154,9 +154,9 @@ module.exports = {
                     {
                         type: "object",
                         properties: {
-                            functions: { type: "boolean" },
-                            classes: { type: "boolean" },
-                            variables: { type: "boolean" }
+                            functions: { type: "boolean", default: true },
+                            classes: { type: "boolean", default: true },
+                            variables: { type: "boolean", default: true }
                         },
                         additionalProperties: false
                     }

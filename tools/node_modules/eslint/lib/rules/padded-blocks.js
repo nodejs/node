@@ -6,6 +6,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../util/ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -45,30 +51,43 @@ module.exports = {
                         minProperties: 1
                     }
                 ]
+            },
+            {
+                type: "object",
+                properties: {
+                    allowSingleLineBlocks: {
+                        type: "boolean"
+                    }
+                }
             }
         ]
     },
 
     create(context) {
         const options = {};
-        const config = context.options[0] || "always";
+        const typeOptions = context.options[0] || "always";
+        const exceptOptions = context.options[1] || {};
 
-        if (typeof config === "string") {
-            const shouldHavePadding = config === "always";
+        if (typeof typeOptions === "string") {
+            const shouldHavePadding = typeOptions === "always";
 
             options.blocks = shouldHavePadding;
             options.switches = shouldHavePadding;
             options.classes = shouldHavePadding;
         } else {
-            if (Object.prototype.hasOwnProperty.call(config, "blocks")) {
-                options.blocks = config.blocks === "always";
+            if (Object.prototype.hasOwnProperty.call(typeOptions, "blocks")) {
+                options.blocks = typeOptions.blocks === "always";
             }
-            if (Object.prototype.hasOwnProperty.call(config, "switches")) {
-                options.switches = config.switches === "always";
+            if (Object.prototype.hasOwnProperty.call(typeOptions, "switches")) {
+                options.switches = typeOptions.switches === "always";
             }
-            if (Object.prototype.hasOwnProperty.call(config, "classes")) {
-                options.classes = config.classes === "always";
+            if (Object.prototype.hasOwnProperty.call(typeOptions, "classes")) {
+                options.classes = typeOptions.classes === "always";
             }
+        }
+
+        if (Object.prototype.hasOwnProperty.call(exceptOptions, "allowSingleLineBlocks")) {
+            options.allowSingleLineBlocks = exceptOptions.allowSingleLineBlocks === true;
         }
 
         const ALWAYS_MESSAGE = "Block must be padded by blank lines.",
@@ -176,6 +195,10 @@ module.exports = {
                 tokenAfterLast = sourceCode.getTokenAfter(lastBlockToken, { includeComments: true }),
                 blockHasTopPadding = isPaddingBetweenTokens(tokenBeforeFirst, firstBlockToken),
                 blockHasBottomPadding = isPaddingBetweenTokens(lastBlockToken, tokenAfterLast);
+
+            if (options.allowSingleLineBlocks && astUtils.isTokenOnSameLine(tokenBeforeFirst, tokenAfterLast)) {
+                return;
+            }
 
             if (requirePaddingFor(node)) {
                 if (!blockHasTopPadding) {

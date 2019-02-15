@@ -148,16 +148,20 @@ module.exports = {
                                     type: "object",
                                     properties: {
                                         mode: {
-                                            enum: ["strict", "minimum"]
+                                            enum: ["strict", "minimum"],
+                                            default: "strict"
                                         },
                                         on: {
-                                            enum: ["colon", "value"]
+                                            enum: ["colon", "value"],
+                                            default: "colon"
                                         },
                                         beforeColon: {
-                                            type: "boolean"
+                                            type: "boolean",
+                                            default: false
                                         },
                                         afterColon: {
-                                            type: "boolean"
+                                            type: "boolean",
+                                            default: true
                                         }
                                     },
                                     additionalProperties: false
@@ -165,13 +169,16 @@ module.exports = {
                             ]
                         },
                         mode: {
-                            enum: ["strict", "minimum"]
+                            enum: ["strict", "minimum"],
+                            default: "strict"
                         },
                         beforeColon: {
-                            type: "boolean"
+                            type: "boolean",
+                            default: false
                         },
                         afterColon: {
-                            type: "boolean"
+                            type: "boolean",
+                            default: true
                         }
                     },
                     additionalProperties: false
@@ -183,13 +190,16 @@ module.exports = {
                             type: "object",
                             properties: {
                                 mode: {
-                                    enum: ["strict", "minimum"]
+                                    enum: ["strict", "minimum"],
+                                    default: "strict"
                                 },
                                 beforeColon: {
-                                    type: "boolean"
+                                    type: "boolean",
+                                    default: false
                                 },
                                 afterColon: {
-                                    type: "boolean"
+                                    type: "boolean",
+                                    default: true
                                 }
                             },
                             additionalProperties: false
@@ -206,16 +216,20 @@ module.exports = {
                                             type: "object",
                                             properties: {
                                                 mode: {
-                                                    enum: ["strict", "minimum"]
+                                                    enum: ["strict", "minimum"],
+                                                    default: "strict"
                                                 },
                                                 on: {
-                                                    enum: ["colon", "value"]
+                                                    enum: ["colon", "value"],
+                                                    default: "colon"
                                                 },
                                                 beforeColon: {
-                                                    type: "boolean"
+                                                    type: "boolean",
+                                                    default: false
                                                 },
                                                 afterColon: {
-                                                    type: "boolean"
+                                                    type: "boolean",
+                                                    default: true
                                                 }
                                             },
                                             additionalProperties: false
@@ -223,13 +237,16 @@ module.exports = {
                                     ]
                                 },
                                 mode: {
-                                    enum: ["strict", "minimum"]
+                                    enum: ["strict", "minimum"],
+                                    default: "strict"
                                 },
                                 beforeColon: {
-                                    type: "boolean"
+                                    type: "boolean",
+                                    default: false
                                 },
                                 afterColon: {
-                                    type: "boolean"
+                                    type: "boolean",
+                                    default: true
                                 }
                             },
                             additionalProperties: false
@@ -244,13 +261,16 @@ module.exports = {
                             type: "object",
                             properties: {
                                 mode: {
-                                    enum: ["strict", "minimum"]
+                                    enum: ["strict", "minimum"],
+                                    default: "strict"
                                 },
                                 beforeColon: {
-                                    type: "boolean"
+                                    type: "boolean",
+                                    default: false
                                 },
                                 afterColon: {
-                                    type: "boolean"
+                                    type: "boolean",
+                                    default: true
                                 }
                             },
                             additionalProperties: false
@@ -259,13 +279,16 @@ module.exports = {
                             type: "object",
                             properties: {
                                 mode: {
-                                    enum: ["strict", "minimum"]
+                                    enum: ["strict", "minimum"],
+                                    default: "strict"
                                 },
                                 beforeColon: {
-                                    type: "boolean"
+                                    type: "boolean",
+                                    default: false
                                 },
                                 afterColon: {
-                                    type: "boolean"
+                                    type: "boolean",
+                                    default: true
                                 }
                             },
                             additionalProperties: false
@@ -274,16 +297,20 @@ module.exports = {
                             type: "object",
                             properties: {
                                 mode: {
-                                    enum: ["strict", "minimum"]
+                                    enum: ["strict", "minimum"],
+                                    default: "strict"
                                 },
                                 on: {
-                                    enum: ["colon", "value"]
+                                    enum: ["colon", "value"],
+                                    default: "colon"
                                 },
                                 beforeColon: {
-                                    type: "boolean"
+                                    type: "boolean",
+                                    default: false
                                 },
                                 afterColon: {
-                                    type: "boolean"
+                                    type: "boolean",
+                                    default: true
                                 }
                             },
                             additionalProperties: false

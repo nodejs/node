@@ -68,22 +68,28 @@ module.exports = {
                 type: "object",
                 properties: {
                     beforeBlockComment: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: true
                     },
                     afterBlockComment: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     beforeLineComment: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     afterLineComment: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     allowBlockStart: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     allowBlockEnd: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     allowClassStart: {
                         type: "boolean"
@@ -121,19 +127,13 @@ module.exports = {
 
     create(context) {
 
-        const options = context.options[0] ? Object.assign({}, context.options[0]) : {};
+        const options = Object.assign({}, context.options[0]);
         const ignorePattern = options.ignorePattern;
         const defaultIgnoreRegExp = astUtils.COMMENTS_IGNORE_PATTERN;
         const customIgnoreRegExp = new RegExp(ignorePattern);
         const applyDefaultIgnorePatterns = options.applyDefaultIgnorePatterns !== false;
 
-
-        options.beforeLineComment = options.beforeLineComment || false;
-        options.afterLineComment = options.afterLineComment || false;
         options.beforeBlockComment = typeof options.beforeBlockComment !== "undefined" ? options.beforeBlockComment : true;
-        options.afterBlockComment = options.afterBlockComment || false;
-        options.allowBlockStart = options.allowBlockStart || false;
-        options.allowBlockEnd = options.allowBlockEnd || false;
 
         const sourceCode = context.getSourceCode();
 

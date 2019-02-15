@@ -26,7 +26,8 @@ module.exports = {
                 type: "object",
                 properties: {
                     allowForLoopAfterthoughts: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false

@@ -41,16 +41,20 @@ module.exports = {
                 type: "object",
                 properties: {
                     skipComments: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     skipStrings: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: true
                     },
                     skipTemplates: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     skipRegExps: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false

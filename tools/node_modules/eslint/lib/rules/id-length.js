@@ -26,10 +26,11 @@ module.exports = {
                 type: "object",
                 properties: {
                     min: {
-                        type: "number"
+                        type: "integer",
+                        default: 2
                     },
                     max: {
-                        type: "number"
+                        type: "integer"
                     },
                     exceptions: {
                         type: "array",

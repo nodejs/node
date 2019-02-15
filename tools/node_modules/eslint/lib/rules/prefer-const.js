@@ -345,8 +345,8 @@ module.exports = {
             {
                 type: "object",
                 properties: {
-                    destructuring: { enum: ["any", "all"] },
-                    ignoreReadBeforeAssign: { type: "boolean" }
+                    destructuring: { enum: ["any", "all"], default: "any" },
+                    ignoreReadBeforeAssign: { type: "boolean", default: false }
                 },
                 additionalProperties: false
             }

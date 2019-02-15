@@ -8,6 +8,10 @@ import stringWidth from 'string-width';
  */
 export default (cells) => {
   return cells.map((value) => {
-    return stringWidth(value);
+    return Math.max(
+      ...value.split('\n').map((line) => {
+        return stringWidth(line);
+      })
+    );
   });
 };

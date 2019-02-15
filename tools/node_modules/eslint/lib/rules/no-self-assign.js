@@ -179,7 +179,8 @@ module.exports = {
                 type: "object",
                 properties: {
                     props: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: true
                     }
                 },
                 additionalProperties: false

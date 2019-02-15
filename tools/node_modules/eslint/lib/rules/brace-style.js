@@ -30,7 +30,8 @@ module.exports = {
                 type: "object",
                 properties: {
                     allowSingleLine: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false

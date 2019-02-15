@@ -34,7 +34,8 @@ module.exports = {
                 type: "object",
                 properties: {
                     functionPrototypeMethods: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false
@@ -52,7 +53,7 @@ module.exports = {
     create(context) {
 
         const style = context.options[0] || "outside";
-        const includeFunctionPrototypeMethods = (context.options[1] && context.options[1].functionPrototypeMethods) || false;
+        const includeFunctionPrototypeMethods = context.options[1] && context.options[1].functionPrototypeMethods;
 
         const sourceCode = context.getSourceCode();
 

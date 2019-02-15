@@ -60,7 +60,8 @@ module.exports = {
                 type: "object",
                 properties: {
                     allowImplicit: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false

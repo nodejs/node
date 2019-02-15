@@ -46,7 +46,7 @@ module.exports = {
                         {
                             type: "object",
                             properties: {
-                                requireReturnForObjectLiteral: { type: "boolean" }
+                                requireReturnForObjectLiteral: { type: "boolean", default: false }
                             },
                             additionalProperties: false
                         }

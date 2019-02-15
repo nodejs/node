@@ -27,7 +27,8 @@ module.exports = {
                 type: "object",
                 properties: {
                     allowArrowFunctions: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false
@@ -43,7 +44,7 @@ module.exports = {
     create(context) {
 
         const style = context.options[0],
-            allowArrowFunctions = context.options[1] && context.options[1].allowArrowFunctions === true,
+            allowArrowFunctions = context.options[1] && context.options[1].allowArrowFunctions,
             enforceDeclarations = (style === "declaration"),
             stack = [];
 
