@@ -9,6 +9,10 @@
 #include "node_v8_platform-inl.h"
 #include "uv.h"
 
+#ifdef NODE_ENABLE_VTUNE_PROFILING
+#include "../deps/v8/src/third_party/vtune/v8-vtune.h"
+#endif
+
 namespace node {
 using v8::Context;
 using v8::Function;
