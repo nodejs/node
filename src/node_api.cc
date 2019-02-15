@@ -12,8 +12,13 @@ struct node_napi_env__ : public napi_env__ {
       napi_env__(context) {
     CHECK_NOT_NULL(node_env());
   }
+
   inline node::Environment* node_env() const {
     return node::Environment::GetCurrent(context());
+  }
+
+  bool can_call_into_js() const override {
+    return node_env()->can_call_into_js();
   }
 };
 
