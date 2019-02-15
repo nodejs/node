@@ -224,11 +224,6 @@ MainThreadInterface::MainThreadInterface(Agent* agent, uv_loop_t* loop,
                                          v8::Platform* platform)
                                          : agent_(agent), isolate_(isolate),
                                            platform_(platform) {
-  main_thread_request_.reset(new AsyncAndInterface(uv_async_t(), this));
-  CHECK_EQ(0, uv_async_init(loop, &main_thread_request_->first,
-                            DispatchMessagesAsyncCallback));
-  // Inspector uv_async_t should not prevent main loop shutdown.
-  uv_unref(reinterpret_cast<uv_handle_t*>(&main_thread_request_->first));
 }
 
 MainThreadInterface::~MainThreadInterface() {
@@ -253,7 +248,6 @@ void MainThreadInterface::Post(std::unique_ptr<Request> request) {
   bool needs_notify = requests_.empty();
   requests_.push_back(std::move(request));
   if (needs_notify) {
-    CHECK_EQ(0, uv_async_send(&main_thread_request_->first));
     if (isolate_ != nullptr && platform_ != nullptr) {
       std::shared_ptr<v8::TaskRunner> taskrunner =
         platform_->GetForegroundTaskRunner(isolate_);
