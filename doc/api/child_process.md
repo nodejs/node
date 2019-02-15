@@ -1,7 +1,6 @@
 # Child Process
 
 <!--introduced_in=v0.10.0-->
-<!--lint disable maximum-line-length-->
 
 > Stability: 2 - Stable
 
@@ -44,10 +43,12 @@ and asynchronous alternatives to [`child_process.spawn()`][] and
 [`child_process.spawnSync()`][]. *Note that each of these alternatives are
 implemented on top of [`child_process.spawn()`][] or [`child_process.spawnSync()`][].*
 
-  * [`child_process.exec()`][]: spawns a shell and runs a command within that shell,
-    passing the `stdout` and `stderr` to a callback function when complete.
-  * [`child_process.execFile()`][]: similar to [`child_process.exec()`][] except that
-    it spawns the command directly without first spawning a shell by default.
+  * [`child_process.exec()`][]: spawns a shell and runs a command within that
+    shell, passing the `stdout` and `stderr` to a callback function when
+    complete.
+  * [`child_process.execFile()`][]: similar to [`child_process.exec()`][] except
+    that it spawns the command directly without first spawning a shell by
+    default.
   * [`child_process.fork()`][]: spawns a new Node.js process and invokes a
     specified module with an IPC communication channel established that allows
     sending messages between parent and child.
@@ -72,21 +73,22 @@ implement the Node.js [`EventEmitter`][] API, allowing the parent process to
 register listener functions that are called when certain events occur during
 the life cycle of the child process.
 
-The [`child_process.exec()`][] and [`child_process.execFile()`][] methods additionally
-allow for an optional `callback` function to be specified that is invoked
-when the child process terminates.
+The [`child_process.exec()`][] and [`child_process.execFile()`][] methods
+additionally allow for an optional `callback` function to be specified that is
+invoked when the child process terminates.
 
 ### Spawning `.bat` and `.cmd` files on Windows
 
 The importance of the distinction between [`child_process.exec()`][] and
-[`child_process.execFile()`][] can vary based on platform. On Unix-type operating
-systems (Unix, Linux, macOS) [`child_process.execFile()`][] can be more efficient
-because it does not spawn a shell by default. On Windows, however, `.bat` and `.cmd`
-files are not executable on their own without a terminal, and therefore cannot
-be launched using [`child_process.execFile()`][]. When running on Windows, `.bat`
-and `.cmd` files can be invoked using [`child_process.spawn()`][] with the `shell`
-option set, with [`child_process.exec()`][], or by spawning `cmd.exe` and passing
-the `.bat` or `.cmd` file as an argument (which is what the `shell` option and
+[`child_process.execFile()`][] can vary based on platform. On Unix-type
+operating systems (Unix, Linux, macOS) [`child_process.execFile()`][] can be
+more efficient because it does not spawn a shell by default. On Windows,
+however, `.bat` and `.cmd` files are not executable on their own without a
+terminal, and therefore cannot be launched using [`child_process.execFile()`][].
+When running on Windows, `.bat` and `.cmd` files can be invoked using
+[`child_process.spawn()`][] with the `shell` option set, with
+[`child_process.exec()`][], or by spawning `cmd.exe` and passing the `.bat` or
+`.cmd` file as an argument (which is what the `shell` option and
 [`child_process.exec()`][] do). In any case, if the script filename contains
 spaces it needs to be quoted.
 
@@ -267,12 +269,13 @@ changes:
 * Returns: {ChildProcess}
 
 The `child_process.execFile()` function is similar to [`child_process.exec()`][]
-except that it does not spawn a shell by default. Rather, the specified executable `file`
-is spawned directly as a new process making it slightly more efficient than
-[`child_process.exec()`][].
+except that it does not spawn a shell by default. Rather, the specified
+executable `file` is spawned directly as a new process making it slightly more
+efficient than [`child_process.exec()`][].
 
-The same options as [`child_process.exec()`][] are supported. Since a shell is not
-spawned, behaviors such as I/O redirection and file globbing are not supported.
+The same options as [`child_process.exec()`][] are supported. Since a shell is
+not spawned, behaviors such as I/O redirection and file globbing are not
+supported.
 
 ```js
 const { execFile } = require('child_process');
@@ -350,10 +353,10 @@ changes:
 
 The `child_process.fork()` method is a special case of
 [`child_process.spawn()`][] used specifically to spawn new Node.js processes.
-Like [`child_process.spawn()`][], a [`ChildProcess`][] object is returned. The returned
-[`ChildProcess`][] will have an additional communication channel built-in that
-allows messages to be passed back and forth between the parent and child. See
-[`subprocess.send()`][] for details.
+Like [`child_process.spawn()`][], a [`ChildProcess`][] object is returned. The
+returned [`ChildProcess`][] will have an additional communication channel
+built-in that allows messages to be passed back and forth between the parent and
+child. See [`subprocess.send()`][] for details.
 
 It is important to keep in mind that spawned Node.js child processes are
 independent of the parent with exception of the IPC communication channel
@@ -608,11 +611,12 @@ pipes between the parent and child. The value is one of the following:
    for fds 0 - 2 are also available as [`subprocess.stdin`][],
    [`subprocess.stdout`][] and [`subprocess.stderr`][], respectively.
 2. `'ipc'` - Create an IPC channel for passing messages/file descriptors
-   between parent and child. A [`ChildProcess`][] may have at most *one* IPC stdio
-   file descriptor. Setting this option enables the [`subprocess.send()`][]
-   method. If the child is a Node.js process, the presence of an IPC channel
-   will enable [`process.send()`][] and [`process.disconnect()`][] methods,
-   as well as [`'disconnect'`][] and [`'message'`][] events within the child.
+   between parent and child. A [`ChildProcess`][] may have at most *one* IPC
+   stdio file descriptor. Setting this option enables the
+   [`subprocess.send()`][] method. If the child is a Node.js process, the
+   presence of an IPC channel will enable [`process.send()`][] and
+   [`process.disconnect()`][] methods, as well as [`'disconnect'`][] and
+   [`'message'`][] events within the child.
 
    Accessing the IPC channel fd in any way other than [`process.send()`][]
    or using the IPC channel with a child process that is not a Node.js instance
@@ -670,8 +674,8 @@ See also: [`child_process.exec()`][] and [`child_process.fork()`][].
 ## Synchronous Process Creation
 
 The [`child_process.spawnSync()`][], [`child_process.execSync()`][], and
-[`child_process.execFileSync()`][] methods are **synchronous** and **WILL** block
-the Node.js event loop, pausing execution of any additional code until the
+[`child_process.execFileSync()`][] methods are **synchronous** and **WILL**
+block the Node.js event loop, pausing execution of any additional code until the
 spawned process exits.
 
 Blocking calls like these are mostly useful for simplifying general-purpose
@@ -728,10 +732,10 @@ changes:
 * Returns: {Buffer|string} The stdout from the command.
 
 The `child_process.execFileSync()` method is generally identical to
-[`child_process.execFile()`][] with the exception that the method will not return
-until the child process has fully closed. When a timeout has been encountered
-and `killSignal` is sent, the method won't return until the process has
-completely exited.
+[`child_process.execFile()`][] with the exception that the method will not
+return until the child process has fully closed. When a timeout has been
+encountered and `killSignal` is sent, the method won't return until the process
+has completely exited.
 
 If the child process intercepts and handles the `SIGTERM` signal and
 does not exit, the parent process will still wait until the child process has
@@ -791,11 +795,11 @@ changes:
 * Returns: {Buffer|string} The stdout from the command.
 
 The `child_process.execSync()` method is generally identical to
-[`child_process.exec()`][] with the exception that the method will not return until
-the child process has fully closed. When a timeout has been encountered and
-`killSignal` is sent, the method won't return until the process has completely
-exited. *Note that if the child process intercepts and handles the `SIGTERM`
-signal and doesn't exit, the parent process will wait until the child
+[`child_process.exec()`][] with the exception that the method will not return
+until the child process has fully closed. When a timeout has been encountered
+and `killSignal` is sent, the method won't return until the process has
+completely exited. *Note that if the child process intercepts and handles the
+`SIGTERM` signal and doesn't exit, the parent process will wait until the child
 process has exited.*
 
 If the process times out or has a non-zero exit code, this method ***will***
@@ -885,8 +889,8 @@ arbitrary command execution.**
 added: v2.2.0
 -->
 
-Instances of the `ChildProcess` class are [`EventEmitters`][`EventEmitter`] that represent
-spawned child processes.
+Instances of the `ChildProcess` class are [`EventEmitters`][`EventEmitter`] that
+represent spawned child processes.
 
 Instances of `ChildProcess` are not intended to be created directly. Rather,
 use the [`child_process.spawn()`][], [`child_process.exec()`][],
@@ -964,8 +968,8 @@ added: v0.5.9
 * `sendHandle` {Handle} A [`net.Socket`][] or [`net.Server`][] object, or
   undefined.
 
-The `'message'` event is triggered when a child process uses [`process.send()`][]
-to send messages.
+The `'message'` event is triggered when a child process uses
+[`process.send()`][] to send messages.
 
 The message goes through serialization and parsing. The resulting
 message might not be the same as what is originally sent.
@@ -1034,11 +1038,11 @@ grep.on('close', (code, signal) => {
 grep.kill('SIGHUP');
 ```
 
-The [`ChildProcess`][] object may emit an [`'error'`][] event if the signal cannot be
-delivered. Sending a signal to a child process that has already exited is not
-an error but may have unforeseen consequences. Specifically, if the process
-identifier (PID) has been reassigned to another process, the signal will be
-delivered to that process instead which can have unexpected results.
+The [`ChildProcess`][] object may emit an [`'error'`][] event if the signal
+cannot be delivered. Sending a signal to a child process that has already exited
+is not an error but may have unforeseen consequences. Specifically, if the
+process identifier (PID) has been reassigned to another process, the signal will
+be delivered to that process instead which can have unexpected results.
 
 Note that while the function is called `kill`, the signal delivered to the
 child process may not actually terminate the process.
@@ -1180,8 +1184,8 @@ process.on('message', (m) => {
 process.send({ foo: 'bar', baz: NaN });
 ```
 
-Child Node.js processes will have a [`process.send()`][] method of their own that
-allows the child to send messages back to the parent.
+Child Node.js processes will have a [`process.send()`][] method of their own
+that allows the child to send messages back to the parent.
 
 There is a special case when sending a `{cmd: 'NODE_foo'}` message. Messages
 containing a `NODE_` prefix in the `cmd` property are reserved for use within
@@ -1202,8 +1206,8 @@ sent but before the child may have received it. The function is called with a
 single argument: `null` on success, or an [`Error`][] object on failure.
 
 If no `callback` function is provided and the message cannot be sent, an
-`'error'` event will be emitted by the [`ChildProcess`][] object. This can happen,
-for instance, when the child process has already exited.
+`'error'` event will be emitted by the [`ChildProcess`][] object. This can
+happen, for instance, when the child process has already exited.
 
 `subprocess.send()` will return `false` if the channel has closed or when the
 backlog of unsent messages exceeds a threshold that makes it unwise to send
@@ -1245,8 +1249,9 @@ can be handled by the parent and some by the child.
 
 While the example above uses a server created using the `net` module, `dgram`
 module servers use exactly the same workflow with the exceptions of listening on
-a `'message'` event instead of `'connection'` and using `server.bind()` instead of
-`server.listen()`. This is, however, currently only supported on UNIX platforms.
+a `'message'` event instead of `'connection'` and using `server.bind()` instead
+of `server.listen()`. This is, however, currently only supported on UNIX
+platforms.
 
 #### Example: sending a socket object
 
