@@ -42,18 +42,18 @@
 
 ### Notable Changes
 
-* **deps**
+* **deps**:
   * Updated libuv to 1.26.0. [#26037](https://github.com/nodejs/node/pull/26037)
   * Updated npm to 6.7.0. [#25804](https://github.com/nodejs/node/pull/25804)
-* **http, http2**
+* **http, http2**:
   * `response.writeHead` now returns the response object. [#25974](https://github.com/nodejs/node/pull/25974)
-* **perf_hooks**
+* **perf_hooks**:
   * Implemented a histogram based API. [#25378](https://github.com/nodejs/node/pull/25378)
-* **process**
+* **process**:
   * Exposed `process.features.inspector`. [#25819](https://github.com/nodejs/node/pull/25819)
-* **repl**
+* **repl**:
   * Added `repl.setupHistory` for programmatic repl. [#25895](https://github.com/nodejs/node/pull/25895)
-* **tls**
+* **tls**:
   * Introduced client "session" event. [#25831](https://github.com/nodejs/node/pull/25831)
 
 ### Commits
@@ -289,7 +289,7 @@
 * **deps**:
   * OpenSSL has been updated to 1.1.1a, which is API/ABI compatible with the
     previous OpenSSL 1.1.0j. Note that while OpenSSL 1.1.1a supports TLS1.3,
-    Node.js still does not. [#25381](https://github.com/nodejs/node/pull/25582))
+    Node.js still does not. [#25381](https://github.com/nodejs/node/pull/25381)
 
 ### Commits
 
