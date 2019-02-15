@@ -148,7 +148,7 @@ void OptionsParser<Options>::Implies(const std::string& from,
   CHECK_NE(it, options_.end());
   CHECK_EQ(it->second.type, kBoolean);
   implications_.emplace(from, Implication {
-    std::static_pointer_cast<OptionField<bool>>(it->second.field), true
+    it->second.field, true
   });
 }
 
@@ -159,7 +159,7 @@ void OptionsParser<Options>::ImpliesNot(const std::string& from,
   CHECK_NE(it, options_.end());
   CHECK_EQ(it->second.type, kBoolean);
   implications_.emplace(from, Implication {
-    std::static_pointer_cast<OptionField<bool>>(it->second.field), false
+    it->second.field, false
   });
 }
 
@@ -205,8 +205,7 @@ auto OptionsParser<Options>::Convert(
     typename OptionsParser<ChildOptions>::Implication original,
     ChildOptions* (Options::* get_child)()) {
   return Implication {
-    std::static_pointer_cast<OptionField<bool>>(
-        Convert(original.target_field, get_child)),
+    Convert(original.target_field, get_child),
     original.target_value
   };
 }
@@ -378,8 +377,10 @@ void OptionsParser<Options>::Parse(
 
     {
       auto implications = implications_.equal_range(name);
-      for (auto it = implications.first; it != implications.second; ++it)
-        *it->second.target_field->Lookup(options) = it->second.target_value;
+      for (auto it = implications.first; it != implications.second; ++it) {
+        *it->second.target_field->template Lookup<bool>(options) =
+            it->second.target_value;
+      }
     }
 
     const OptionInfo& info = it->second;
