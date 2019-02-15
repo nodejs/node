@@ -5,10 +5,10 @@ const http = require('http');
 const bench = common.createBenchmark(main, {
   // unicode confuses ab on os x.
   c: [50, 500],
-  headerDuplicates: [0, 5, 20]
+  n: [0, 5, 20]
 });
 
-function main({ c, headerDuplicates }) {
+function main({ c, n }) {
   const server = http.createServer((req, res) => {
     res.end();
   });
@@ -21,7 +21,7 @@ function main({ c, headerDuplicates }) {
       'Date': new Date().toString(),
       'Cache-Control': 'no-cache'
     };
-    for (let i = 0; i < headerDuplicates; i++) {
+    for (let i = 0; i < n; i++) {
       headers[`foo${i}`] = `some header value ${i}`;
     }
     bench.http({
