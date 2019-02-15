@@ -40,7 +40,8 @@ module.exports = {
                             type: "object",
                             properties: {
                                 beforeStatementContinuationChars: {
-                                    enum: ["always", "any", "never"]
+                                    enum: ["always", "any", "never"],
+                                    default: "any"
                                 }
                             },
                             additionalProperties: false
@@ -58,7 +59,7 @@ module.exports = {
                         {
                             type: "object",
                             properties: {
-                                omitLastInOneLineBlock: { type: "boolean" }
+                                omitLastInOneLineBlock: { type: "boolean", default: false }
                             },
                             additionalProperties: false
                         }
@@ -75,8 +76,8 @@ module.exports = {
         const OPT_OUT_PATTERN = /^[-[(/+`]/; // One of [(/+-`
         const options = context.options[1];
         const never = context.options[0] === "never";
-        const exceptOneLine = Boolean(options && options.omitLastInOneLineBlock);
-        const beforeStatementContinuationChars = (options && options.beforeStatementContinuationChars) || "any";
+        const exceptOneLine = options && options.omitLastInOneLineBlock;
+        const beforeStatementContinuationChars = options && options.beforeStatementContinuationChars;
         const sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------

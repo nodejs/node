@@ -100,10 +100,12 @@ module.exports = {
                         type: "object",
                         properties: {
                             avoidEscape: {
-                                type: "boolean"
+                                type: "boolean",
+                                default: false
                             },
                             allowTemplateLiterals: {
-                                type: "boolean"
+                                type: "boolean",
+                                default: false
                             }
                         },
                         additionalProperties: false

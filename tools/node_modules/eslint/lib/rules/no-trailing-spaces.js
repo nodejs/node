@@ -32,10 +32,12 @@ module.exports = {
                 type: "object",
                 properties: {
                     skipBlankLines: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     ignoreComments: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false
@@ -52,7 +54,7 @@ module.exports = {
 
         const options = context.options[0] || {},
             skipBlankLines = options.skipBlankLines || false,
-            ignoreComments = typeof options.ignoreComments === "boolean" && options.ignoreComments;
+            ignoreComments = options.ignoreComments || false;
 
         /**
          * Report the error message

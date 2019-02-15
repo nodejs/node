@@ -44,11 +44,11 @@ module.exports = {
                         {
                             type: "object",
                             properties: {
-                                conditionalAssign: { type: "boolean" },
-                                nestedBinaryExpressions: { type: "boolean" },
-                                returnAssign: { type: "boolean" },
+                                conditionalAssign: { type: "boolean", default: true },
+                                nestedBinaryExpressions: { type: "boolean", default: true },
+                                returnAssign: { type: "boolean", default: true },
                                 ignoreJSX: { enum: ["none", "all", "single-line", "multi-line"] },
-                                enforceForArrowConditionals: { type: "boolean" }
+                                enforceForArrowConditionals: { type: "boolean", default: true }
                             },
                             additionalProperties: false
                         }

@@ -2,12 +2,48 @@
 
 var IDENTIFIER = /^[a-z_$][a-z0-9_$-]*$/i;
 var customRuleCode = require('./dotjs/custom');
+var metaSchema = require('./refs/json-schema-draft-07.json');
 
 module.exports = {
   add: addKeyword,
   get: getKeyword,
   remove: removeKeyword
 };
+
+var definitionSchema = {
+  definitions: {
+    simpleTypes: metaSchema.definitions.simpleTypes
+  },
+  type: 'object',
+  dependencies: {
+    schema: ['validate'],
+    $data: ['validate'],
+    statements: ['inline'],
+    valid: {not: {required: ['macro']}}
+  },
+  properties: {
+    type: metaSchema.properties.type,
+    schema: {type: 'boolean'},
+    statements: {type: 'boolean'},
+    dependencies: {
+      type: 'array',
+      items: {type: 'string'}
+    },
+    metaSchema: {type: 'object'},
+    modifying: {type: 'boolean'},
+    valid: {type: 'boolean'},
+    $data: {type: 'boolean'},
+    async: {type: 'boolean'},
+    errors: {
+      anyOf: [
+        {type: 'boolean'},
+        {const: 'full'}
+      ]
+    }
+  }
+};
+
+var validateDefinition;
 
 /**
  * Define custom keyword
@@ -28,26 +64,22 @@ function addKeyword(keyword, definition) {
     throw new Error('Keyword ' + keyword + ' is not a valid identifier');
 
   if (definition) {
-    if (definition.macro && definition.valid !== undefined)
-      throw new Error('"valid" option cannot be used with macro keywords');
+    validateDefinition = validateDefinition || this.compile(definitionSchema);
+
+    if (!validateDefinition(definition))
+      throw new Error('custom keyword definition is invalid: '  + this.errorsText(validateDefinition.errors));
 
     var dataType = definition.type;
     if (Array.isArray(dataType)) {
-      var i, len = dataType.length;
-      for (i=0; i<len; i++) checkDataType(dataType[i]);
-      for (i=0; i<len; i++) _addRule(keyword, dataType[i], definition);
+      for (var i=0; i<dataType.length; i++)
+        _addRule(keyword, dataType[i], definition);
     } else {
-      if (dataType) checkDataType(dataType);
       _addRule(keyword, dataType, definition);
     }
 
-    var $data = definition.$data === true && this._opts.$data;
-    if ($data && !definition.validate)
-      throw new Error('$data support: "validate" function is not defined');
-
     var metaSchema = definition.metaSchema;
     if (metaSchema) {
-      if ($data) {
+      if (definition.$data && this._opts.$data) {
         metaSchema = {
           anyOf: [
             metaSchema,
@@ -86,11 +118,6 @@ function addKeyword(keyword, definition) {
     };
     ruleGroup.rules.push(rule);
     RULES.custom[keyword] = rule;
-  }
-
-
-  function checkDataType(dataType) {
-    if (!RULES.types[dataType]) throw new Error('Unknown type ' + dataType);
   }
 
   return this;

@@ -38,13 +38,16 @@ module.exports = {
                         properties: {
                             max: {
                                 type: "integer",
-                                minimum: 0
+                                minimum: 0,
+                                default: 300
                             },
                             skipComments: {
-                                type: "boolean"
+                                type: "boolean",
+                                default: false
                             },
                             skipBlankLines: {
-                                type: "boolean"
+                                type: "boolean",
+                                default: false
                             }
                         },
                         additionalProperties: false
@@ -61,11 +64,9 @@ module.exports = {
         const option = context.options[0];
         let max = 300;
 
-        if (typeof option === "object" && Object.prototype.hasOwnProperty.call(option, "max") && typeof option.max === "number") {
+        if (typeof option === "object") {
             max = option.max;
-        }
-
-        if (typeof option === "number") {
+        } else if (typeof option === "number") {
             max = option;
         }
 
@@ -86,7 +87,7 @@ module.exports = {
         /**
          * Returns the line numbers of a comment that don't have any code on the same line
          * @param {Node} comment The comment node to check
-         * @returns {int[]} The line numbers
+         * @returns {number[]} The line numbers
          */
         function getLinesWithoutCode(comment) {
             let start = comment.loc.start.line;

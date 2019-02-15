@@ -28,13 +28,16 @@ module.exports = {
                 type: "object",
                 properties: {
                     properties: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     onlyDeclarations: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     ignoreDestructuring: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 }
             }

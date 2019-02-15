@@ -17,12 +17,7 @@ const astUtils = require("../util/ast-utils");
 
 const DEFAULT_IGNORE_PATTERN = astUtils.COMMENTS_IGNORE_PATTERN,
     WHITESPACE = /\s/g,
-    MAYBE_URL = /^\s*[^:/?#\s]+:\/\/[^?#]/, // TODO: Combine w/ max-len pattern?
-    DEFAULTS = {
-        ignorePattern: null,
-        ignoreInlineComments: false,
-        ignoreConsecutiveComments: false
-    };
+    MAYBE_URL = /^\s*[^:/?#\s]+:\/\/[^?#]/; // TODO: Combine w/ max-len pattern?
 
 /*
  * Base schema body for defining the basic capitalization rule, ignorePattern,
@@ -33,17 +28,27 @@ const SCHEMA_BODY = {
     type: "object",
     properties: {
         ignorePattern: {
-            type: "string"
+            type: "string",
+            default: ""
         },
         ignoreInlineComments: {
-            type: "boolean"
+            type: "boolean",
+            default: false
         },
         ignoreConsecutiveComments: {
-            type: "boolean"
+            type: "boolean",
+            default: false
         }
     },
     additionalProperties: false
 };
+const DEFAULTS = Object.keys(SCHEMA_BODY.properties).reduce(
+    (obj, current) => {
+        obj[current] = SCHEMA_BODY.properties[current].default;
+        return obj;
+    },
+    {}
+);
 
 /**
  * Get normalized options for either block or line comments from the given
@@ -59,11 +64,7 @@ const SCHEMA_BODY = {
  * @param {string} which Either "line" or "block".
  * @returns {Object} The normalized options.
  */
-function getNormalizedOptions(rawOptions, which) {
-    if (!rawOptions) {
-        return Object.assign({}, DEFAULTS);
-    }
-
+function getNormalizedOptions(rawOptions = {}, which) {
     return Object.assign({}, DEFAULTS, rawOptions[which] || rawOptions);
 }
 

@@ -455,6 +455,9 @@ class CLIEngine {
         if (this.options.rules && Object.keys(this.options.rules).length) {
             const loadedRules = this.linter.getRules();
 
+            // Ajv validator with default schema will mutate original object, so we must clone it recursively.
+            this.options.rules = lodash.cloneDeep(this.options.rules);
+
             Object.keys(this.options.rules).forEach(name => {
                 validator.validateRuleOptions(loadedRules.get(name), name, this.options.rules[name], "CLI");
             });

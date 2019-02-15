@@ -255,13 +255,21 @@ function compile(schema, root, localRefs, baseId) {
   }
 
   function useCustomRule(rule, schema, parentSchema, it) {
-    var validateSchema = rule.definition.validateSchema;
-    if (validateSchema && self._opts.validateSchema !== false) {
-      var valid = validateSchema(schema);
-      if (!valid) {
-        var message = 'keyword schema is invalid: ' + self.errorsText(validateSchema.errors);
-        if (self._opts.validateSchema == 'log') self.logger.error(message);
-        else throw new Error(message);
+    if (self._opts.validateSchema !== false) {
+      var deps = rule.definition.dependencies;
+      if (deps && !deps.every(function(keyword) {
+        return Object.prototype.hasOwnProperty.call(parentSchema, keyword);
+      }))
+        throw new Error('parent schema must have all required keywords: ' + deps.join(','));
+
+      var validateSchema = rule.definition.validateSchema;
+      if (validateSchema) {
+        var valid = validateSchema(schema);
+        if (!valid) {
+          var message = 'keyword schema is invalid: ' + self.errorsText(validateSchema.errors);
+          if (self._opts.validateSchema == 'log') self.logger.error(message);
+          else throw new Error(message);
+        }
       }
     }
 

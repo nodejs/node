@@ -38,7 +38,7 @@ module.exports = {
         }
     },
     create(context) {
-        const config = context.options[0] ? Object.assign({}, context.options[0]) : {};
+        const config = Object.assign({}, context.options[0]);
         const exceptMethods = new Set(config.exceptMethods || []);
 
         const stack = [];

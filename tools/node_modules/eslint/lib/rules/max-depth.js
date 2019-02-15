@@ -32,11 +32,13 @@ module.exports = {
                         properties: {
                             maximum: {
                                 type: "integer",
-                                minimum: 0
+                                minimum: 0,
+                                default: 4
                             },
                             max: {
                                 type: "integer",
-                                minimum: 0
+                                minimum: 0,
+                                default: 4
                             }
                         },
                         additionalProperties: false
@@ -59,11 +61,8 @@ module.exports = {
             option = context.options[0];
         let maxDepth = 4;
 
-        if (typeof option === "object" && Object.prototype.hasOwnProperty.call(option, "maximum") && typeof option.maximum === "number") {
-            maxDepth = option.maximum;
-        }
-        if (typeof option === "object" && Object.prototype.hasOwnProperty.call(option, "max") && typeof option.max === "number") {
-            maxDepth = option.max;
+        if (typeof option === "object") {
+            maxDepth = option.maximum || option.max;
         }
         if (typeof option === "number") {
             maxDepth = option;

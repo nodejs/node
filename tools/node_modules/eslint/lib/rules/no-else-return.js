@@ -31,7 +31,8 @@ module.exports = {
             type: "object",
             properties: {
                 allowElseIf: {
-                    type: "boolean"
+                    type: "boolean",
+                    default: true
                 }
             },
             additionalProperties: false

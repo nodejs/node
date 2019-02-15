@@ -41,7 +41,7 @@ module.exports = {
         schema: [{
             type: "object",
             properties: {
-                allowParens: { type: "boolean" }
+                allowParens: { type: "boolean", default: false }
             },
             additionalProperties: false
         }],

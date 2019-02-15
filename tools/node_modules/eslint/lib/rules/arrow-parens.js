@@ -35,7 +35,8 @@ module.exports = {
                 type: "object",
                 properties: {
                     requireForBlockBody: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false

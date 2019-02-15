@@ -3,6 +3,7 @@
  * @author Ilya Volodin
  */
 
+
 "use strict";
 
 //------------------------------------------------------------------------------
@@ -27,6 +28,8 @@ const debug = require("debug")("eslint:config-initializer");
 //------------------------------------------------------------------------------
 // Private
 //------------------------------------------------------------------------------
+
+const DEFAULT_ECMA_VERSION = 2018;
 
 /* istanbul ignore next: hard to test fs function */
 /**
@@ -239,43 +242,65 @@ function configureRules(answers, config) {
  * @returns {Object} config object
  */
 function processAnswers(answers) {
-    let config = { rules: {}, env: {}, parserOptions: {} };
+    let config = {
+        rules: {},
+        env: {},
+        parserOptions: {},
+        extends: []
+    };
 
-    config.parserOptions.ecmaVersion = answers.ecmaVersion;
-    if (answers.ecmaVersion >= 2015) {
-        if (answers.modules) {
-            config.parserOptions.sourceType = "module";
-        }
-        config.env.es6 = true;
-    }
+    // set the latest ECMAScript version
+    config.parserOptions.ecmaVersion = DEFAULT_ECMA_VERSION;
+    config.env.es6 = true;
+    config.globals = {
+        Atomics: "readonly",
+        SharedArrayBuffer: "readonly"
+    };
 
-    if (answers.commonjs) {
+    // set the module type
+    if (answers.moduleType === "esm") {
+        config.parserOptions.sourceType = "module";
+    } else if (answers.moduleType === "commonjs") {
         config.env.commonjs = true;
     }
+
+    // add in browser and node environments if necessary
     answers.env.forEach(env => {
         config.env[env] = true;
     });
-    if (answers.jsx) {
-        config.parserOptions = config.parserOptions || {};
-        config.parserOptions.ecmaFeatures = config.parserOptions.ecmaFeatures || {};
-        config.parserOptions.ecmaFeatures.jsx = true;
-        if (answers.react) {
-            config.plugins = ["react"];
-            config.parserOptions.ecmaVersion = 2018;
+
+    // add in library information
+    if (answers.framework === "react") {
+        config.parserOptions.ecmaFeatures = {
+            jsx: true
+        };
+        config.plugins = ["react"];
+    } else if (answers.framework === "vue") {
+        config.plugins = ["vue"];
+        config.extends.push("plugin:vue/essential");
+    }
+
+    // setup rules based on problems/style enforcement preferences
+    if (answers.purpose === "problems") {
+        config.extends.unshift("eslint:recommended");
+    } else if (answers.purpose === "style") {
+        if (answers.source === "prompt") {
+            config.extends.unshift("eslint:recommended");
+            config.rules.indent = ["error", answers.indent];
+            config.rules.quotes = ["error", answers.quotes];
+            config.rules["linebreak-style"] = ["error", answers.linebreak];
+            config.rules.semi = ["error", answers.semi ? "always" : "never"];
+        } else if (answers.source === "auto") {
+            config = configureRules(answers, config);
+            config = autoconfig.extendFromRecommended(config);
         }
     }
 
-    if (answers.source === "prompt") {
-        config.extends = "eslint:recommended";
-        config.rules.indent = ["error", answers.indent];
-        config.rules.quotes = ["error", answers.quotes];
-        config.rules["linebreak-style"] = ["error", answers.linebreak];
-        config.rules.semi = ["error", answers.semi ? "always" : "never"];
-    }
-
-    if (answers.source === "auto") {
-        config = configureRules(answers, config);
-        config = autoconfig.extendFromRecommended(config);
+    // normalize extends
+    if (config.extends.length === 0) {
+        delete config.extends;
+    } else if (config.extends.length === 1) {
+        config.extends = config.extends[0];
     }
 
     ConfigOps.normalizeToStrings(config);
@@ -324,7 +349,7 @@ function getLocalESLintVersion() {
  * @returns {string} The shareable config name.
  */
 function getStyleGuideName(answers) {
-    if (answers.styleguide === "airbnb" && !answers.airbnbReact) {
+    if (answers.styleguide === "airbnb" && answers.framework !== "react") {
         return "airbnb-base";
     }
     return answers.styleguide;
@@ -419,14 +444,60 @@ function promptUser() {
     return inquirer.prompt([
         {
             type: "list",
+            name: "purpose",
+            message: "How would you like to use ESLint?",
+            default: "problems",
+            choices: [
+                { name: "To check syntax only", value: "syntax" },
+                { name: "To check syntax and find problems", value: "problems" },
+                { name: "To check syntax, find problems, and enforce code style", value: "style" }
+            ]
+        },
+        {
+            type: "list",
+            name: "moduleType",
+            message: "What type of modules does your project use?",
+            default: "esm",
+            choices: [
+                { name: "JavaScript modules (import/export)", value: "esm" },
+                { name: "CommonJS (require/exports)", value: "commonjs" },
+                { name: "None of these", value: "none" }
+            ]
+        },
+        {
+            type: "list",
+            name: "framework",
+            message: "Which framework does your project use?",
+            default: "react",
+            choices: [
+                { name: "React", value: "react" },
+                { name: "Vue.js", value: "vue" },
+                { name: "None of these", value: "none" }
+            ]
+        },
+        {
+            type: "checkbox",
+            name: "env",
+            message: "Where does your code run?",
+            default: ["browser"],
+            choices: [
+                { name: "Browser", value: "browser" },
+                { name: "Node", value: "node" }
+            ]
+        },
+        {
+            type: "list",
             name: "source",
-            message: "How would you like to configure ESLint?",
-            default: "prompt",
+            message: "How would you like to define a style for your project?",
+            default: "guide",
             choices: [
                 { name: "Use a popular style guide", value: "guide" },
                 { name: "Answer questions about your style", value: "prompt" },
                 { name: "Inspect your JavaScript file(s)", value: "auto" }
-            ]
+            ],
+            when(answers) {
+                return answers.purpose === "style";
+            }
         },
         {
             type: "list",
@@ -440,15 +511,6 @@ function promptUser() {
             when(answers) {
                 answers.packageJsonExists = npmUtils.checkPackageJson();
                 return answers.source === "guide" && answers.packageJsonExists;
-            }
-        },
-        {
-            type: "confirm",
-            name: "airbnbReact",
-            message: "Do you use React?",
-            default: false,
-            when(answers) {
-                return answers.styleguide === "airbnb";
             }
         },
         {
@@ -470,10 +532,7 @@ function promptUser() {
             name: "format",
             message: "What format do you want your config file to be in?",
             default: "JavaScript",
-            choices: ["JavaScript", "YAML", "JSON"],
-            when(answers) {
-                return ((answers.source === "guide" && answers.packageJsonExists) || answers.source === "auto");
-            }
+            choices: ["JavaScript", "YAML", "JSON"]
         },
         {
             type: "confirm",
@@ -492,6 +551,15 @@ function promptUser() {
         }
     ]).then(earlyAnswers => {
 
+        // early exit if no style guide is necessary
+        if (earlyAnswers.purpose !== "style") {
+            const config = processAnswers(earlyAnswers);
+            const modules = getModulesList(config);
+
+            return askInstallModules(modules, earlyAnswers.packageJsonExists)
+                .then(() => writeFile(config, earlyAnswers.format));
+        }
+
         // early exit if you are using a style guide
         if (earlyAnswers.source === "guide") {
             if (!earlyAnswers.packageJsonExists) {
@@ -501,130 +569,69 @@ function promptUser() {
             if (earlyAnswers.installESLint === false && !semver.satisfies(earlyAnswers.localESLintVersion, earlyAnswers.requiredESLintVersionRange)) {
                 log.info(`Note: it might not work since ESLint's version is mismatched with the ${earlyAnswers.styleguide} config.`);
             }
-            if (earlyAnswers.styleguide === "airbnb" && !earlyAnswers.airbnbReact) {
+            if (earlyAnswers.styleguide === "airbnb" && earlyAnswers.framework !== "react") {
                 earlyAnswers.styleguide = "airbnb-base";
             }
 
-            const config = getConfigForStyleGuide(earlyAnswers.styleguide);
+            const config = ConfigOps.merge(processAnswers(earlyAnswers), getConfigForStyleGuide(earlyAnswers.styleguide));
             const modules = getModulesList(config);
 
             return askInstallModules(modules, earlyAnswers.packageJsonExists)
                 .then(() => writeFile(config, earlyAnswers.format));
+
         }
 
-        // continue with the questions otherwise...
+        if (earlyAnswers.source === "auto") {
+            const combinedAnswers = Object.assign({}, earlyAnswers);
+            const config = processAnswers(combinedAnswers);
+            const modules = getModulesList(config);
+
+            return askInstallModules(modules).then(() => writeFile(config, earlyAnswers.format));
+        }
+
+        // continue with the style questions otherwise...
         return inquirer.prompt([
             {
                 type: "list",
-                name: "ecmaVersion",
-                message: "Which version of ECMAScript do you use?",
-                choices: [
-                    { name: "ES3", value: 3 },
-                    { name: "ES5", value: 5 },
-                    { name: "ES2015", value: 2015 },
-                    { name: "ES2016", value: 2016 },
-                    { name: "ES2017", value: 2017 },
-                    { name: "ES2018", value: 2018 }
-                ],
-                default: 1 // This is the index in the choices list
+                name: "indent",
+                message: "What style of indentation do you use?",
+                default: "tab",
+                choices: [{ name: "Tabs", value: "tab" }, { name: "Spaces", value: 4 }]
+            },
+            {
+                type: "list",
+                name: "quotes",
+                message: "What quotes do you use for strings?",
+                default: "double",
+                choices: [{ name: "Double", value: "double" }, { name: "Single", value: "single" }]
+            },
+            {
+                type: "list",
+                name: "linebreak",
+                message: "What line endings do you use?",
+                default: "unix",
+                choices: [{ name: "Unix", value: "unix" }, { name: "Windows", value: "windows" }]
             },
             {
                 type: "confirm",
-                name: "modules",
-                message: "Are you using ES6 modules?",
-                default: false,
-                when(answers) {
-                    return answers.ecmaVersion >= 2015;
-                }
+                name: "semi",
+                message: "Do you require semicolons?",
+                default: true
             },
             {
-                type: "checkbox",
-                name: "env",
-                message: "Where will your code run?",
-                default: ["browser"],
-                choices: [{ name: "Browser", value: "browser" }, { name: "Node", value: "node" }]
-            },
-            {
-                type: "confirm",
-                name: "commonjs",
-                message: "Do you use CommonJS?",
-                default: false,
-                when(answers) {
-                    return answers.env.some(env => env === "browser");
-                }
-            },
-            {
-                type: "confirm",
-                name: "jsx",
-                message: "Do you use JSX?",
-                default: false
-            },
-            {
-                type: "confirm",
-                name: "react",
-                message: "Do you use React?",
-                default: false,
-                when(answers) {
-                    return answers.jsx;
-                }
+                type: "list",
+                name: "format",
+                message: "What format do you want your config file to be in?",
+                default: "JavaScript",
+                choices: ["JavaScript", "YAML", "JSON"]
             }
-        ]).then(secondAnswers => {
+        ]).then(answers => {
+            const totalAnswers = Object.assign({}, earlyAnswers, answers);
 
-            // early exit if you are using automatic style generation
-            if (earlyAnswers.source === "auto") {
-                const combinedAnswers = Object.assign({}, earlyAnswers, secondAnswers);
+            const config = processAnswers(totalAnswers);
+            const modules = getModulesList(config);
 
-                const config = processAnswers(combinedAnswers);
-
-                const modules = getModulesList(config);
-
-                return askInstallModules(modules).then(() => writeFile(config, earlyAnswers.format));
-            }
-
-            // continue with the style questions otherwise...
-            return inquirer.prompt([
-                {
-                    type: "list",
-                    name: "indent",
-                    message: "What style of indentation do you use?",
-                    default: "tab",
-                    choices: [{ name: "Tabs", value: "tab" }, { name: "Spaces", value: 4 }]
-                },
-                {
-                    type: "list",
-                    name: "quotes",
-                    message: "What quotes do you use for strings?",
-                    default: "double",
-                    choices: [{ name: "Double", value: "double" }, { name: "Single", value: "single" }]
-                },
-                {
-                    type: "list",
-                    name: "linebreak",
-                    message: "What line endings do you use?",
-                    default: "unix",
-                    choices: [{ name: "Unix", value: "unix" }, { name: "Windows", value: "windows" }]
-                },
-                {
-                    type: "confirm",
-                    name: "semi",
-                    message: "Do you require semicolons?",
-                    default: true
-                },
-                {
-                    type: "list",
-                    name: "format",
-                    message: "What format do you want your config file to be in?",
-                    default: "JavaScript",
-                    choices: ["JavaScript", "YAML", "JSON"]
-                }
-            ]).then(answers => {
-                const totalAnswers = Object.assign({}, earlyAnswers, secondAnswers, answers);
-
-                const config = processAnswers(totalAnswers);
-                const modules = getModulesList(config);
-
-                return askInstallModules(modules).then(() => writeFile(config, answers.format));
-            });
+            return askInstallModules(modules).then(() => writeFile(config, answers.format));
         });
     });
 }

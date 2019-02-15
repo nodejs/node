@@ -280,15 +280,38 @@ function writeYAMLConfigFile(config, filePath) {
  * Writes a configuration file in JavaScript format.
  * @param {Object} config The configuration object to write.
  * @param {string} filePath The filename to write to.
+ * @throws {Error} If an error occurs linting the config file contents.
  * @returns {void}
  * @private
  */
 function writeJSConfigFile(config, filePath) {
     debug(`Writing JS config file: ${filePath}`);
 
-    const content = `module.exports = ${stringify(config, { cmp: sortByKey, space: 4 })};`;
+    let contentToWrite;
+    const stringifiedContent = `module.exports = ${stringify(config, { cmp: sortByKey, space: 4 })};`;
 
-    fs.writeFileSync(filePath, content, "utf8");
+    try {
+        const CLIEngine = require("../cli-engine");
+        const linter = new CLIEngine({
+            baseConfig: config,
+            fix: true,
+            useEslintrc: false
+        });
+        const report = linter.executeOnText(stringifiedContent);
+
+        contentToWrite = report.results[0].output || stringifiedContent;
+    } catch (e) {
+        debug("Error linting JavaScript config file, writing unlinted version");
+        const errorMessage = e.message;
+
+        contentToWrite = stringifiedContent;
+        e.message = "An error occurred while generating your JavaScript config file. ";
+        e.message += "A config file was still generated, but the config file itself may not follow your linting rules.";
+        e.message += `\nError: ${errorMessage}`;
+        throw e;
+    } finally {
+        fs.writeFileSync(filePath, contentToWrite, "utf8");
+    }
 }
 
 /**

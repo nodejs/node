@@ -30,7 +30,8 @@ module.exports = {
                 type: "object",
                 properties: {
                     allowEmptyCatch: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false
