@@ -11,6 +11,7 @@ struct napi_env__ {
         context_persistent(isolate, context) {
     CHECK_EQ(isolate, context->GetIsolate());
   }
+  virtual ~napi_env__() {}
   v8::Isolate* const isolate;  // Shortcut for context()->GetIsolate()
   v8impl::Persistent<v8::Context> context_persistent;
 
@@ -20,6 +21,8 @@ struct napi_env__ {
 
   inline void Ref() { refs++; }
   inline void Unref() { if ( --refs == 0) delete this; }
+
+  virtual bool can_call_into_js() const { return true; }
 
   v8impl::Persistent<v8::Value> last_exception;
   napi_extended_error_info last_error;
@@ -68,11 +71,12 @@ napi_status napi_set_last_error(napi_env env, napi_status error_code,
   RETURN_STATUS_IF_FALSE((env), !((maybe).IsEmpty()), (status))
 
 // NAPI_PREAMBLE is not wrapped in do..while: try_catch must have function scope
-#define NAPI_PREAMBLE(env)                                       \
-  CHECK_ENV((env));                                              \
-  RETURN_STATUS_IF_FALSE((env), (env)->last_exception.IsEmpty(), \
-                         napi_pending_exception);                \
-  napi_clear_last_error((env));                                  \
+#define NAPI_PREAMBLE(env)                                          \
+  CHECK_ENV((env));                                                 \
+  RETURN_STATUS_IF_FALSE((env),                                     \
+      (env)->last_exception.IsEmpty() && (env)->can_call_into_js(), \
+      napi_pending_exception);                                      \
+  napi_clear_last_error((env));                                     \
   v8impl::TryCatch try_catch((env))
 
 #define CHECK_TO_TYPE(env, type, context, result, src, status)                \
