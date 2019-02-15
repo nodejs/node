@@ -710,6 +710,7 @@ void DecorateErrorStack(Environment* env,
 void FatalException(Isolate* isolate,
                     Local<Value> error,
                     Local<Message> message) {
+  CHECK(!error.IsEmpty());
   HandleScope scope(isolate);
 
   Environment* env = Environment::GetCurrent(isolate);
