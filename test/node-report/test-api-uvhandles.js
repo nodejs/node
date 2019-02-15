@@ -60,9 +60,7 @@ if (process.argv[2] === 'child') {
     const data = { pid: child_process.pid,
                    tcp_address: server.address(),
                    udp_address: udp_socket.address(),
-                   skip_fs_watch: (watcher === undefined ?
-                     'fs.watch() unavailable' :
-                     false) };
+                   skip_fs_watch: (watcher === undefined) };
     process.send(data);
     http.get({ port: server.address().port });
   });
@@ -74,6 +72,8 @@ if (process.argv[2] === 'child') {
   tmpdir.refresh();
   const options = { encoding: 'utf8', silent: true, cwd: tmpdir.path };
   const child = fork('--experimental-report', [__filename, 'child'], options);
+  let child_data;
+  child.on('message', (data) => { child_data = data; });
   let stderr = '';
   child.stderr.on('data', (chunk) => { stderr += chunk; });
   let stdout = '';
@@ -94,36 +94,61 @@ if (process.argv[2] === 'child') {
     assert.deepStrictEqual(reports, [], report_msg, reports);
 
     const report = JSON.parse(stdout);
-    let fs = 0;
-    let poll = 0;
-    let process = 0;
-    let timer = 0;
-    let pipe = 0;
-    let tcp = 0;
-    let udp = 0;
-    const fs_msg = 'fs_event not found';
-    const poll_msg = 'poll_event not found';
-    const process_msg = 'process event not found';
-    const timer_msg = 'timer event not found';
-    const pipe_msg = 'pipe event not found';
-    const tcp_msg = 'tcp event not found';
-    const udp_msg = 'udp event not found';
-    for (const entry in report.libuv) {
-      if (report.libuv[entry].type === 'fs_event') fs = 1;
-      else if (report.libuv[entry].type === 'fs_poll') poll = 1;
-      else if (report.libuv[entry].type === 'process') process = 1;
-      else if (report.libuv[entry].type === 'timer') timer = 1;
-      else if (report.libuv[entry].type === 'pipe') pipe = 1;
-      else if (report.libuv[entry].type === 'tcp') tcp = 1;
-      else if (report.libuv[entry].type === 'udp') udp = 1;
+    const prefix = common.isWindows ? '\\\\?\\' : '';
+    const expected_filename = `${prefix}${__filename}`;
+    const found_tcp = [];
+    // Functions are named to aid debugging when they are not called.
+    const validators = {
+      fs_event: common.mustCall(function fs_event_validator(handle) {
+        if (!child_data.skip_fs_watch) {
+          assert.strictEqual(handle.filename, expected_filename);
+          assert(handle.is_referenced);
+        }
+      }),
+      fs_poll: common.mustCall(function fs_poll_validator(handle) {
+        assert.strictEqual(handle.filename, expected_filename);
+        assert(handle.is_referenced);
+      }),
+      pipe: common.mustCallAtLeast(function pipe_validator(handle) {
+        assert(handle.is_referenced);
+      }),
+      process: common.mustCall(function process_validator(handle) {
+        assert.strictEqual(handle.pid, child_data.pid);
+        assert(handle.is_referenced);
+      }),
+      tcp: common.mustCall(function tcp_validator(handle) {
+        // TCP handles. The report should contain three sockets:
+        // 1. The server's listening socket.
+        // 2. The inbound socket making the request.
+        // 3. The outbound socket sending the response.
+        const port = child_data.tcp_address.port;
+        if (handle.localEndpoint.port === port) {
+          if (handle.remoteEndpoint === null) {
+            found_tcp.push('listening');
+          } else {
+            found_tcp.push('inbound');
+          }
+        } else if (handle.remoteEndpoint.port === port) {
+          found_tcp.push('outbound');
+        }
+        assert(handle.is_referenced);
+      }, 3),
+      timer: common.mustCall(function timer_validator(handle) {
+        assert(!handle.is_referenced);
+        assert.strictEqual(handle.repeat, 0);
+      }),
+      udp: common.mustCall(function udp_validator(handle) {
+        assert.strictEqual(handle.localEndpoint.port,
+                           child_data.udp_address.port);
+        assert(handle.is_referenced);
+      }),
+    };
+    for (const entry of report.libuv) {
+      if (validators[entry.type]) validators[entry.type](entry);
     }
-    assert.deepStrictEqual(fs, 1, fs_msg);
-    assert.deepStrictEqual(poll, 1, poll_msg);
-    assert.deepStrictEqual(process, 1, process_msg);
-    assert.deepStrictEqual(timer, 1, timer_msg);
-    assert.deepStrictEqual(pipe, 1, pipe_msg);
-    assert.deepStrictEqual(tcp, 1, tcp_msg);
-    assert.deepStrictEqual(udp, 1, udp_msg);
+    for (const socket of ['listening', 'inbound', 'outbound']) {
+      assert(found_tcp.includes(socket), `${socket} TCP socket was not found`);
+    }
 
     // Common report tests.
     helper.validateContent(stdout);
