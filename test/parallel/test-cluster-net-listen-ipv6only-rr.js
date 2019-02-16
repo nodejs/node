@@ -40,9 +40,7 @@ if (cluster.isMaster) {
       if (!address) {
         address = workerAddress;
       } else {
-        assert.strictEqual(address.addressType, workerAddress.addressType);
-        assert.strictEqual(address.host, workerAddress.host);
-        assert.strictEqual(address.port, workerAddress.port);
+        assert.deepStrictEqual(workerAddress, address);
       }
       countdown.dec();
     }));
