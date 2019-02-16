@@ -289,7 +289,7 @@
 * **deps**:
   * OpenSSL has been updated to 1.1.1a, which is API/ABI compatible with the
     previous OpenSSL 1.1.0j. Note that while OpenSSL 1.1.1a supports TLS1.3,
-    Node.js still does not. [#25381](https://github.com/nodejs/node/pull/25581)
+    Node.js still does not. [#25381](https://github.com/nodejs/node/pull/25381)
 
 ### Commits
 
