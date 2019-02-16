@@ -319,13 +319,7 @@ guide](https://github.com/nodejs/node/blob/master/doc/guides/adding-new-napi-api
 
 ### Deprecations
 
-[_Deprecation_][] is "the discouragement of use of some … feature … or practice,
-typically because it has been superseded or is no longer considered efficient or
-safe, without completely removing it or prohibiting its use. It can also imply
-that a feature, design, or practice will be removed or discontinued entirely in
-the future."
-
-Node.js uses three Deprecation levels:
+Node.js uses three [Deprecation][] levels:
 
 * *Documentation-Only Deprecation*: A deprecation notice is added to the API
   documentation but no functional changes are implemented in the code. By
@@ -795,9 +789,9 @@ When things need extra attention, are controversial, or `semver-major`:
 If you cannot find who to cc for a file, `git shortlog -n -s <file>` may help.
 
 ["Merge Pull Request"]: https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github
+[Deprecation]: https://en.wikipedia.org/wiki/Deprecation
 [Stability Index]: doc/api/documentation.md#stability-index
 [TSC]: https://github.com/nodejs/TSC
-[_Deprecation_]: https://en.wikipedia.org/wiki/Deprecation
 [`--pending-deprecation`]: doc/api/cli.md#--pending-deprecation
 [`--throw-deprecation`]: doc/api/cli.md#--throw-deprecation
 [`node-core-utils`]: https://github.com/nodejs/node-core-utils
