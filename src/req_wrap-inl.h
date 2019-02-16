@@ -11,16 +11,16 @@
 
 namespace node {
 
+ReqWrapBase::ReqWrapBase(Environment* env) {
+  env->req_wrap_queue()->PushBack(this);
+}
+
 template <typename T>
 ReqWrap<T>::ReqWrap(Environment* env,
                     v8::Local<v8::Object> object,
                     AsyncWrap::ProviderType provider)
-    : AsyncWrap(env, object, provider) {
-
-  // FIXME(bnoordhuis) The fact that a reinterpret_cast is needed is
-  // arguably a good indicator that there should be more than one queue.
-  env->req_wrap_queue()->PushBack(reinterpret_cast<ReqWrap<uv_req_t>*>(this));
-
+    : AsyncWrap(env, object, provider),
+      ReqWrapBase(env) {
   Reset();
 }
 
@@ -49,6 +49,11 @@ template <typename T>
 void ReqWrap<T>::Cancel() {
   if (req_.data == this)  // Only cancel if already dispatched.
     uv_cancel(reinterpret_cast<uv_req_t*>(&req_));
+}
+
+template <typename T>
+AsyncWrap* ReqWrap<T>::GetAsyncWrap() {
+  return this;
 }
 
 // Below is dark template magic designed to invoke libuv functions that
