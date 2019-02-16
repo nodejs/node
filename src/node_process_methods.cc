@@ -252,7 +252,8 @@ static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   std::vector<Local<Value>> request_v;
-  for (auto w : *env->req_wrap_queue()) {
+  for (ReqWrapBase* req_wrap : *env->req_wrap_queue()) {
+    AsyncWrap* w = req_wrap->GetAsyncWrap();
     if (w->persistent().IsEmpty())
       continue;
     request_v.push_back(w->GetOwner());
