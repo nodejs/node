@@ -1977,7 +1977,10 @@ changes:
   * `family` {number} IP address family to use when resolving `host` or
     `hostname`. Valid values are `4` or `6`. When unspecified, both IP v4 and
     v6 will be used.
-  * `port` {number} Port of remote server. **Default:** `80`.
+  * `defaultPort` {number} Default port for the protocol. **Default:**
+    `agent.defaultPort` if an `Agent` is used, else `undefined`.
+  * `port` {number} Port of remote server. **Default:** `defaultPort` if set,
+    else `80`.
   * `localAddress` {string} Local interface to bind for network connections.
   * `socketPath` {string} Unix Domain Socket (cannot be used if one of `host`
      or `port` is specified, those specify a TCP Socket).
