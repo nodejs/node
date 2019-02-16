@@ -1964,7 +1964,12 @@ an `Error` with this code will be emitted.
 
 <a id="MODULE_NOT_FOUND"></a>
 ### MODULE_NOT_FOUND
-
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/25690
+    description: Added `requireStack` property.
+-->
 A module file could not be resolved while attempting a [`require()`][] or
 `import` operation.
 

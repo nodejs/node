@@ -25,7 +25,7 @@ assert.throws(common.mustCall(() => {
 
 // The failed transfer should not affect the ports in anyway.
 port2.onmessage = common.mustCall((message) => {
-  assert.strictEqual(message, 2);
+  assert.strictEqual(message.data, 2);
 
   const inspectedPort1 = util.inspect(port1);
   const inspectedPort2 = util.inspect(port2);

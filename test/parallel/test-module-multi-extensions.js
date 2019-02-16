@@ -35,7 +35,7 @@ fs.writeFileSync(dotfileWithExtension, 'console.log(__filename);', 'utf8');
   require(modulePath);
   assert.throws(
     () => require(`${modulePath}.foo`),
-    new Error(`Cannot find module '${modulePath}.foo'`)
+    (err) => err.message.startsWith(`Cannot find module '${modulePath}.foo'`)
   );
   require(`${modulePath}.foo.bar`);
   delete require.cache[file];
@@ -47,7 +47,7 @@ fs.writeFileSync(dotfileWithExtension, 'console.log(__filename);', 'utf8');
   const modulePath = path.join(tmpdir.path, 'test-extensions');
   assert.throws(
     () => require(modulePath),
-    new Error(`Cannot find module '${modulePath}'`)
+    (err) => err.message.startsWith(`Cannot find module '${modulePath}'`)
   );
   delete require.cache[file];
   Module._pathCache = Object.create(null);
@@ -69,7 +69,7 @@ fs.writeFileSync(dotfileWithExtension, 'console.log(__filename);', 'utf8');
   const modulePath = path.join(tmpdir.path, 'test-extensions.foo');
   assert.throws(
     () => require(modulePath),
-    new Error(`Cannot find module '${modulePath}'`)
+    (err) => err.message.startsWith(`Cannot find module '${modulePath}'`)
   );
   delete require.extensions['.foo.bar'];
   Module._pathCache = Object.create(null);
