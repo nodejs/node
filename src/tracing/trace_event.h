@@ -8,6 +8,7 @@
 #include "node_platform.h"
 #include "v8-platform.h"
 #include "trace_event_common.h"
+#include <atomic>
 
 // This header file defines implementation details of how the trace macros in
 // trace_event_common.h collect and store trace events. Anything not
@@ -128,9 +129,10 @@ enum CategoryGroupEnabledFlags {
 #define TRACE_EVENT_API_ADD_METADATA_EVENT node::tracing::AddMetadataEvent
 
 // Defines atomic operations used internally by the tracing system.
-#define TRACE_EVENT_API_ATOMIC_WORD intptr_t
-#define TRACE_EVENT_API_ATOMIC_LOAD(var) (var)
-#define TRACE_EVENT_API_ATOMIC_STORE(var, value) (var) = (value)
+#define TRACE_EVENT_API_ATOMIC_WORD std::atomic<intptr_t>
+#define TRACE_EVENT_API_ATOMIC_WORD_VALUE intptr_t
+#define TRACE_EVENT_API_ATOMIC_LOAD(var) (var).load()
+#define TRACE_EVENT_API_ATOMIC_STORE(var, value) (var).store(value)
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -157,12 +159,12 @@ enum CategoryGroupEnabledFlags {
     category_group_enabled =                                                 \
         TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(category_group);          \
     TRACE_EVENT_API_ATOMIC_STORE(                                            \
-        atomic, reinterpret_cast<TRACE_EVENT_API_ATOMIC_WORD>(               \
+        atomic, reinterpret_cast<TRACE_EVENT_API_ATOMIC_WORD_VALUE>(         \
                     category_group_enabled));                                \
   }
 
 #define INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category_group)             \
-  static TRACE_EVENT_API_ATOMIC_WORD INTERNAL_TRACE_EVENT_UID(atomic) = 0; \
+  static TRACE_EVENT_API_ATOMIC_WORD INTERNAL_TRACE_EVENT_UID(atomic) {0}; \
   const uint8_t* INTERNAL_TRACE_EVENT_UID(category_group_enabled);         \
   INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO_CUSTOM_VARIABLES(                 \
       category_group, INTERNAL_TRACE_EVENT_UID(atomic),                    \
