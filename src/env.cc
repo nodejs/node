@@ -420,7 +420,7 @@ void Environment::RegisterHandleCleanups() {
 }
 
 void Environment::CleanupHandles() {
-  for (ReqWrap<uv_req_t>* request : req_wrap_queue_)
+  for (ReqWrapBase* request : req_wrap_queue_)
     request->Cancel();
 
   for (HandleWrap* handle : handle_wrap_queue_)
