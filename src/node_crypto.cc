@@ -6095,6 +6095,7 @@ void ExportChallenge(const FunctionCallbackInfo<Value>& args) {
 
 // Convert the input public key to compressed, uncompressed, or hybrid formats.
 void ConvertKey(const FunctionCallbackInfo<Value>& args) {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   Environment* env = Environment::GetCurrent(args);
 
   CHECK_EQ(args.Length(), 3);
