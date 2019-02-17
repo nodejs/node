@@ -52,9 +52,6 @@ class Worker : public AsyncWrap {
   void JoinThread();
 
   void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackFieldWithSize(
-        "isolate_data", sizeof(IsolateData), "IsolateData");
-    tracker->TrackFieldWithSize("env", sizeof(Environment), "Environment");
     tracker->TrackField("parent_port", parent_port_);
   }
 
