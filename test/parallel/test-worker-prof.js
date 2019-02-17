@@ -15,7 +15,7 @@ if (!common.isMainThread)
 if (process.argv[2] === 'child') {
   const spin = `
   const start = Date.now();
-  while (Date.now() - start < 200);
+  while (Date.now() - start < 1000);
   `;
   new Worker(spin, { eval: true });
   eval(spin);
@@ -32,10 +32,10 @@ for (const logfile of logfiles) {
   const lines = fs.readFileSync(logfile, 'utf8').split('\n');
   const ticks = lines.filter((line) => /^tick,/.test(line)).length;
 
-  // Test that at least 20 ticks have been recorded for both parent and child
+  // Test that at least 15 ticks have been recorded for both parent and child
   // threads. When not tracking Worker threads, only 1 or 2 ticks would
   // have been recorded.
-  // When running locally on x64 Linux, this number is usually at least 150
+  // When running locally on x64 Linux, this number is usually at least 700
   // for both threads, so 15 seems like a very safe threshold.
   assert(ticks >= 15, `${ticks} >= 15`);
 }
