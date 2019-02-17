@@ -404,6 +404,16 @@ inline void Environment::TryLoadAddon(
   }
 }
 
+#if HAVE_INSPECTOR
+inline bool Environment::is_in_inspector_console_call() const {
+  return is_in_inspector_console_call_;
+}
+
+inline void Environment::set_is_in_inspector_console_call(bool value) {
+  is_in_inspector_console_call_ = value;
+}
+#endif
+
 inline Environment::AsyncHooks* Environment::async_hooks() {
   return &async_hooks_;
 }
