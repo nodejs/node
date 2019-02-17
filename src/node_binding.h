@@ -63,6 +63,8 @@ class DLib {
   bool Open();
   void Close();
   void* GetSymbolAddress(const char* name);
+  void SaveInGlobalHandleMap(node_module* mp);
+  node_module* GetSavedModuleFromGlobalHandleMap();
 
   const std::string filename_;
   const int flags_;
@@ -71,6 +73,7 @@ class DLib {
 #ifndef __POSIX__
   uv_lib_t lib_;
 #endif
+  bool has_entry_in_global_handle_map_ = false;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(DLib);

@@ -141,7 +141,8 @@ static struct global_handle_map_t {
     CHECK_NE(handle, nullptr);
     Mutex::ScopedLock lock(mutex_);
 
-    map_[handle] = Entry { 1, mod };
+    map_[handle].module = mod;
+    map_[handle].refcount++;
   }
 
   node_module* get_and_increase_refcount(void* handle) {
@@ -190,7 +191,8 @@ bool DLib::Open() {
 
 void DLib::Close() {
   if (handle_ == nullptr) return;
-  global_handle_map.erase(handle_);
+  if (has_entry_in_global_handle_map_)
+    global_handle_map.erase(handle_);
   dlclose(handle_);
   handle_ = nullptr;
 }
@@ -212,6 +214,8 @@ bool DLib::Open() {
 
 void DLib::Close() {
   if (handle_ == nullptr) return;
+  if (has_entry_in_global_handle_map_)
+    global_handle_map.erase(handle_);
   uv_dlclose(&lib_);
   handle_ = nullptr;
 }
@@ -222,6 +226,16 @@ void* DLib::GetSymbolAddress(const char* name) {
   return nullptr;
 }
 #endif  // !__POSIX__
+
+void DLib::SaveInGlobalHandleMap(node_module* mp) {
+  has_entry_in_global_handle_map_ = true;
+  global_handle_map.set(handle_, mp);
+}
+
+node_module* DLib::GetSavedModuleFromGlobalHandleMap() {
+  has_entry_in_global_handle_map_ = true;
+  return global_handle_map.get_and_increase_refcount(handle_);
+}
 
 using InitializerCallback = void (*)(Local<Object> exports,
                                      Local<Value> module,
@@ -277,6 +291,9 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
 
   node::Utf8Value filename(env->isolate(), args[1]);  // Cast
   env->TryLoadAddon(*filename, flags, [&](DLib* dlib) {
+    static Mutex dlib_load_mutex;
+    Mutex::ScopedLock lock(dlib_load_mutex);
+
     const bool is_opened = dlib->Open();
 
     // Objects containing v14 or later modules will have registered themselves
@@ -301,7 +318,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
 
     if (mp != nullptr) {
       mp->nm_dso_handle = dlib->handle_;
-      global_handle_map.set(dlib->handle_, mp);
+      dlib->SaveInGlobalHandleMap(mp);
     } else {
       if (auto callback = GetInitializerCallback(dlib)) {
         callback(exports, module, context);
@@ -310,7 +327,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
         napi_module_register_by_symbol(exports, module, context, napi_callback);
         return true;
       } else {
-        mp = global_handle_map.get_and_increase_refcount(dlib->handle_);
+        mp = dlib->GetSavedModuleFromGlobalHandleMap();
         if (mp == nullptr || mp->nm_context_register_func == nullptr) {
           dlib->Close();
           env->ThrowError("Module did not self-register.");
@@ -349,6 +366,8 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
     }
     CHECK_EQ(mp->nm_flags & NM_F_BUILTIN, 0);
 
+    // Do not keep the lock while running userland addon loading code.
+    Mutex::ScopedUnlock unlock(lock);
     if (mp->nm_context_register_func != nullptr) {
       mp->nm_context_register_func(exports, module, context, mp->nm_priv);
     } else if (mp->nm_register_func != nullptr) {
