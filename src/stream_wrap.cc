@@ -31,8 +31,8 @@
 #include "udp_wrap.h"
 #include "util-inl.h"
 
-#include <string.h>  // memcpy()
-#include <limits.h>  // INT_MAX
+#include <cstring>  // memcpy()
+#include <climits>  // INT_MAX
 
 
 namespace node {

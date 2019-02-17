@@ -24,12 +24,12 @@
 
 #include "zlib.h"
 
-#include <errno.h>
+#include <cerrno>
 #if !defined(_MSC_VER)
 #include <unistd.h>
 #endif
 #include <fcntl.h>
-#include <signal.h>
+#include <csignal>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <limits>

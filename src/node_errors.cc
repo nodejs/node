@@ -1,5 +1,5 @@
-#include <errno.h>
-#include <stdarg.h>
+#include <cerrno>
+#include <cstdarg>
 
 #include "node_errors.h"
 #include "node_internals.h"

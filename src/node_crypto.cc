@@ -37,9 +37,9 @@
 #include "util-inl.h"
 #include "v8.h"
 
-#include <errno.h>
-#include <limits.h>  // INT_MAX
-#include <string.h>
+#include <cerrno>
+#include <climits>  // INT_MAX
+#include <cstring>
 
 #include <algorithm>
 #include <memory>

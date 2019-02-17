@@ -31,8 +31,8 @@
 #include "v8-profiler.h"
 #include "v8.h"
 
-#include <string.h>
-#include <limits.h>
+#include <cstring>
+#include <climits>
 
 #define THROW_AND_RETURN_UNLESS_BUFFER(env, obj)                            \
   THROW_AND_RETURN_IF_NOT_BUFFER(env, obj, "argument")                      \

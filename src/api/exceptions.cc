@@ -7,7 +7,7 @@
 #include "uv.h"
 #include "v8.h"
 
-#include <string.h>
+#include <cstring>
 
 namespace node {
 

@@ -22,8 +22,8 @@
 #include "node_crypto_bio.h"
 #include "openssl/bio.h"
 #include "util-inl.h"
-#include <limits.h>
-#include <string.h>
+#include <climits>
+#include <cstring>
 
 namespace node {
 namespace crypto {

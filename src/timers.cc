@@ -2,7 +2,7 @@
 #include "util.h"
 #include "v8.h"
 
-#include <stdint.h>
+#include <cstdint>
 
 namespace node {
 namespace {

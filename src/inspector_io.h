@@ -8,7 +8,7 @@
 #include "uv.h"
 
 #include <memory>
-#include <stddef.h>
+#include <cstddef>
 
 #if !HAVE_INSPECTOR
 #error("This header can only be used when inspector is enabled")

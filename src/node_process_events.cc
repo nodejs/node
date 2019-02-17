@@ -1,4 +1,4 @@
-#include <stdarg.h>
+#include <cstdarg>
 
 #include "env-inl.h"
 #include "node_process.h"

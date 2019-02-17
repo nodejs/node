@@ -1,7 +1,7 @@
 #include "node.h"
 #include "node_internals.h"
 
-#include <signal.h>
+#include <csignal>
 
 namespace node {
 

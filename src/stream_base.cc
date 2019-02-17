@@ -10,7 +10,7 @@
 #include "util-inl.h"
 #include "v8.h"
 
-#include <limits.h>  // INT_MAX
+#include <climits>  // INT_MAX
 
 namespace node {
 

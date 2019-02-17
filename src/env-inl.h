@@ -34,8 +34,8 @@
 #include "node_context_data.h"
 #include "node_worker.h"
 
-#include <stddef.h>
-#include <stdint.h>
+#include <cstddef>
+#include <cstdint>
 
 #include <utility>
 

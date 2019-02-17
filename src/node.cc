@@ -72,13 +72,13 @@
 #include "large_pages/node_large_page.h"
 #endif
 
-#include <errno.h>
+#include <cerrno>
 #include <fcntl.h>  // _O_RDWR
-#include <limits.h>  // PATH_MAX
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <climits>  // PATH_MAX
+#include <csignal>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <sys/types.h>
 
 #include <string>
