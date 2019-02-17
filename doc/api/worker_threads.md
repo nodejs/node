@@ -121,7 +121,7 @@ An arbitrary JavaScript value that contains a clone of the data passed
 to this thread’s `Worker` constructor.
 
 The data is cloned as if using [`postMessage()`][`port.postMessage()`],
-using the [HTML structured clone algorithm][].
+according to the [HTML structured clone algorithm][].
 
 ```js
 const { Worker, isMainThread, workerData } = require('worker_threads');
@@ -232,7 +232,7 @@ In particular, the significant differences to `JSON` are:
 - `value` may contain instances of builtin JS types such as `RegExp`s,
   `BigInt`s, `Map`s, `Set`s, etc.
 - `value` may contained typed arrays, both using `ArrayBuffer`s
-   and `SharedArrayBuffer`s. and
+   and `SharedArrayBuffer`s.
 - `value` may contain [`WebAssembly.Module`][] instances.
 - `value` may not contain native (C++-backed) objects other than `MessagePort`s.
 
@@ -267,12 +267,12 @@ const { port1, port2 } = new MessageChannel();
 port1.on('message', (message) => console.log(message));
 
 const uint8Array = new Uint8Array([ 1, 2, 3, 4 ]);
-// This posts a copy of 'uint8Array':
+// This posts a copy of `uint8Array`:
 port2.postMessage(uint8Array);
 // This does not copy data, but renders `uint8Array` unusable:
 port2.postMessage(uint8Array, [ uint8Array.buffer ]);
 
-// The memory for the sharedUint8Array will be accessible from both the
+// The memory for the `sharedUint8Array` will be accessible from both the
 // original and the copy received by `.on('message')`:
 const sharedUint8Array = new Uint8Array(new SharedArrayBuffer(4));
 port2.postMessage(sharedUint8Array);
@@ -570,6 +570,7 @@ Calling `unref()` on a worker will allow the thread to exit if this is the only
 active handle in the event system. If the worker is already `unref()`ed calling
 `unref()` again will have no effect.
 
+[`'close'` event]: #worker_threads_event_close
 [`Buffer`]: buffer.html
 [`EventEmitter`]: events.html
 [`EventTarget`]: https://developer.mozilla.org/en-US/docs/Web/API/EventTarget
@@ -578,7 +579,6 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module
 [`Worker`]: #worker_threads_class_worker
-[`'close'` event]: #worker_threads_event_close
 [`cluster` module]: cluster.html
 [`inspector`]: inspector.html
 [`port.on('message')`]: #worker_threads_event_message
