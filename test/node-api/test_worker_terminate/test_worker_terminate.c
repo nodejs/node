@@ -36,4 +36,6 @@ napi_value Init(napi_env env, napi_value exports) {
   return exports;
 }
 
+// Do not start using NAPI_MODULE_INIT() here, so that we can test
+// compatibility of Workers with NAPI_MODULE().
 NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)

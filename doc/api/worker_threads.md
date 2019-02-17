@@ -360,11 +360,8 @@ Notable differences inside a Worker environment are:
   being invoked.
 - IPC channels from parent processes are not accessible.
 - The [`trace_events`][] module is not supported.
-
-Currently, the following differences also exist until they are addressed:
-
-- The [`inspector`][] module is not available yet.
-- Native addons are not supported yet.
+- Native add-ons can only be loaded from multiple threads if they fulfill
+  [certain conditions][Addons worker support].
 
 Creating `Worker` instances inside of other `Worker`s is possible.
 
@@ -580,7 +577,6 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module
 [`Worker`]: #worker_threads_class_worker
 [`cluster` module]: cluster.html
-[`inspector`]: inspector.html
 [`port.on('message')`]: #worker_threads_event_message
 [`port.postMessage()`]: #worker_threads_port_postmessage_value_transferlist
 [`process.abort()`]: process.html#process_process_abort
@@ -602,6 +598,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`worker.postMessage()`]: #worker_threads_worker_postmessage_value_transferlist
 [`worker.terminate()`]: #worker_threads_worker_terminate_callback
 [`worker.threadId`]: #worker_threads_worker_threadid_1
+[Addons worker support]: addons.html#addons_worker_support
 [HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
 [Signals events]: process.html#process_signal_events
 [Web Workers]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API

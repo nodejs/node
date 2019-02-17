@@ -18,6 +18,7 @@ enum {
   NM_F_BUILTIN = 1 << 0,  // Unused.
   NM_F_LINKED = 1 << 1,
   NM_F_INTERNAL = 1 << 2,
+  NM_F_DELETEME = 1 << 3,
 };
 
 #define NODE_MODULE_CONTEXT_AWARE_CPP(modname, regfunc, priv, flags)           \
@@ -62,6 +63,8 @@ class DLib {
   bool Open();
   void Close();
   void* GetSymbolAddress(const char* name);
+  void SaveInGlobalHandleMap(node_module* mp);
+  node_module* GetSavedModuleFromGlobalHandleMap();
 
   const std::string filename_;
   const int flags_;
@@ -70,6 +73,7 @@ class DLib {
 #ifndef __POSIX__
   uv_lib_t lib_;
 #endif
+  bool has_entry_in_global_handle_map_ = false;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(DLib);
