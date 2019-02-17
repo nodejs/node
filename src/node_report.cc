@@ -111,7 +111,6 @@ std::string TriggerNodeReport(Isolate* isolate,
   // Obtain the current time and the pid (platform dependent)
   TIME_TYPE tm_struct;
   LocalTime(&tm_struct);
-  uv_pid_t pid = uv_os_getpid();
   // Determine the required report filename. In order of priority:
   //   1) supplied on API 2) configured on startup 3) default generated
   if (!name.empty()) {
@@ -123,7 +122,6 @@ std::string TriggerNodeReport(Isolate* isolate,
   } else {
     // Construct the report filename, with timestamp, pid and sequence number
     oss << "report";
-    seq++;
 #ifdef _WIN32
     oss << "." << std::setfill('0') << std::setw(4) << tm_struct.wYear;
     oss << std::setfill('0') << std::setw(2) << tm_struct.wMonth;
@@ -131,8 +129,6 @@ std::string TriggerNodeReport(Isolate* isolate,
     oss << "." << std::setfill('0') << std::setw(2) << tm_struct.wHour;
     oss << std::setfill('0') << std::setw(2) << tm_struct.wMinute;
     oss << std::setfill('0') << std::setw(2) << tm_struct.wSecond;
-    oss << "." << pid;
-    oss << "." << std::setfill('0') << std::setw(3) << seq.load();
 #else  // UNIX, OSX
     oss << "." << std::setfill('0') << std::setw(4) << tm_struct.tm_year + 1900;
     oss << std::setfill('0') << std::setw(2) << tm_struct.tm_mon + 1;
@@ -140,9 +136,9 @@ std::string TriggerNodeReport(Isolate* isolate,
     oss << "." << std::setfill('0') << std::setw(2) << tm_struct.tm_hour;
     oss << std::setfill('0') << std::setw(2) << tm_struct.tm_min;
     oss << std::setfill('0') << std::setw(2) << tm_struct.tm_sec;
-    oss << "." << pid;
-    oss << "." << std::setfill('0') << std::setw(3) << seq.load();
 #endif
+    oss << "." << uv_os_getpid();
+    oss << "." << std::setfill('0') << std::setw(3) << ++seq;
     oss << ".json";
   }
 
@@ -150,7 +146,7 @@ std::string TriggerNodeReport(Isolate* isolate,
   // Open the report file stream for writing. Supports stdout/err,
   // user-specified or (default) generated name
   std::ofstream outfile;
-  std::ostream* outstream = &std::cout;
+  std::ostream* outstream;
   if (filename == "stdout") {
     outstream = &std::cout;
   } else if (filename == "stderr") {
@@ -167,21 +163,18 @@ std::string TriggerNodeReport(Isolate* isolate,
     }
     // Check for errors on the file open
     if (!outfile.is_open()) {
-      if (env != nullptr && options->report_directory.length() > 0) {
-        std::cerr << std::endl
-                  << "Failed to open Node.js report file: " << filename
-                  << " directory: " << options->report_directory
-                  << " (errno: " << errno << ")" << std::endl;
-      } else {
-        std::cerr << std::endl
-                  << "Failed to open Node.js report file: " << filename
-                  << " (errno: " << errno << ")" << std::endl;
-      }
-      return "";
-    } else {
       std::cerr << std::endl
-                << "Writing Node.js report to file: " << filename << std::endl;
+                << "Failed to open Node.js report file: " << filename;
+
+      if (env != nullptr && options->report_directory.length() > 0)
+        std::cerr << " directory: " << options->report_directory;
+
+      std::cerr << " (errno: " << errno << ")" << std::endl;
+      return "";
     }
+
+    std::cerr << std::endl
+              << "Writing Node.js report to file: " << filename << std::endl;
   }
 
   // Pass our stream about by reference, not by copying it.
@@ -196,8 +189,7 @@ std::string TriggerNodeReport(Isolate* isolate,
   }
 
   std::cerr << "Node.js report completed" << std::endl;
-  if (name.empty()) return filename;
-  return name;
+  return filename;
 }
 
 // External function to trigger a report, writing to a supplied stream.
