@@ -37,6 +37,5 @@ for (const logfile of logfiles) {
   // have been recorded.
   // When running locally on x64 Linux, this number is usually at least 700
   // for both threads, so 15 seems like a very safe threshold.
-  console.log(ticks)
   assert(ticks >= 15, `${ticks} >= 15`);
 }
