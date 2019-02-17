@@ -874,6 +874,9 @@ class Environment {
   inline inspector::Agent* inspector_agent() const {
     return inspector_agent_.get();
   }
+
+  inline bool is_in_inspector_console_call() const;
+  inline void set_is_in_inspector_console_call(bool value);
 #endif
 
   typedef ListHead<HandleWrap, &HandleWrap::handle_wrap_queue_> HandleWrapQueue;
@@ -1043,6 +1046,7 @@ class Environment {
 
 #if HAVE_INSPECTOR
   std::unique_ptr<inspector::Agent> inspector_agent_;
+  bool is_in_inspector_console_call_ = false;
 #endif
 
   // handle_wrap_queue_ and req_wrap_queue_ needs to be at a fixed offset from
