@@ -234,6 +234,20 @@ size_t Length(Local<Object> obj) {
 }
 
 
+inline MaybeLocal<Uint8Array> New(Environment* env,
+                                  Local<ArrayBuffer> ab,
+                                  size_t byte_offset,
+                                  size_t length) {
+  CHECK(!env->buffer_prototype_object().IsEmpty());
+  Local<Uint8Array> ui = Uint8Array::New(ab, byte_offset, length);
+  Maybe<bool> mb =
+      ui->SetPrototype(env->context(), env->buffer_prototype_object());
+  if (mb.IsNothing())
+    return MaybeLocal<Uint8Array>();
+  return ui;
+}
+
+
 MaybeLocal<Object> New(Isolate* isolate,
                        Local<String> string,
                        enum encoding enc) {
