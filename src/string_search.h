@@ -9,7 +9,7 @@
 
 #include "util.h"
 
-#include <string.h>
+#include <cstring>
 #include <algorithm>
 
 namespace node {

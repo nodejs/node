@@ -16,13 +16,13 @@
 
 #include "libplatform/libplatform.h"
 
-#include <string.h>
+#include <cstring>
 #include <sstream>
 #include <unordered_map>
 #include <vector>
 
 #ifdef __POSIX__
-#include <limits.h>  // PTHREAD_STACK_MIN
+#include <climits>  // PTHREAD_STACK_MIN
 #include <pthread.h>
 #endif  // __POSIX__
 

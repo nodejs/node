@@ -24,8 +24,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include <stddef.h>  // size_t
-#include <stdint.h>
+#include <cstddef>  // size_t
+#include <cstdint>
 
 namespace node {
 namespace crypto {

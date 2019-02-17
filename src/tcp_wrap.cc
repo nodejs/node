@@ -31,7 +31,7 @@
 #include "stream_wrap.h"
 #include "util-inl.h"
 
-#include <stdlib.h>
+#include <cstdlib>
 
 
 namespace node {

@@ -1,6 +1,6 @@
 #include "tracing/node_trace_writer.h"
 
-#include <string.h>
+#include <cstring>
 #include <fcntl.h>
 
 #include "util-inl.h"

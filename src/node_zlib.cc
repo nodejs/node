@@ -32,9 +32,9 @@
 #include "brotli/decode.h"
 #include "zlib.h"
 
-#include <errno.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cerrno>
+#include <cstdlib>
+#include <cstring>
 #include <sys/types.h>
 #include <atomic>
 

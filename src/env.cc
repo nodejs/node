@@ -14,7 +14,7 @@
 #include "tracing/traced_value.h"
 #include "v8-profiler.h"
 
-#include <stdio.h>
+#include <cstdio>
 #include <algorithm>
 #include <atomic>
 

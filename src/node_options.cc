@@ -1,4 +1,4 @@
-#include <errno.h>
+#include <cerrno>
 #include "env-inl.h"
 #include "node_binding.h"
 #include "node_options-inl.h"

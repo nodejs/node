@@ -6,7 +6,7 @@
 
 #include <cmath>
 #include <sstream>
-#include <stdio.h>
+#include <cstdio>
 #include <string>
 
 #if defined(NODE_HAVE_I18N_SUPPORT)

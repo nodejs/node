@@ -35,8 +35,8 @@
 #include "util-inl.h"
 #include "v8.h"
 
-#include <stdlib.h>  // free()
-#include <string.h>  // strdup(), strchr()
+#include <cstdlib>  // free()
+#include <cstring>  // strdup(), strchr()
 
 #include "http_parser_adaptor.h"
 

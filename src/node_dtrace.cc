@@ -44,7 +44,7 @@
 
 #include "node_errors.h"
 
-#include <string.h>
+#include <cstring>
 
 namespace node {
 

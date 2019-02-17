@@ -27,12 +27,12 @@
 #include "node_persistent.h"
 #include "v8.h"
 
-#include <assert.h>
-#include <signal.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cassert>
+#include <csignal>
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #include <functional>  // std::function
 #include <limits>

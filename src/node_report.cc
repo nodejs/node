@@ -27,12 +27,12 @@
 #endif
 #include <cxxabi.h>
 #include <dlfcn.h>
-#include <inttypes.h>
+#include <cinttypes>
 #endif
 
 #include <fcntl.h>
-#include <string.h>
-#include <time.h>
+#include <cstring>
+#include <ctime>
 #include <iomanip>
 
 #ifndef _MSC_VER
