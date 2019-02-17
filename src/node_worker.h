@@ -14,12 +14,12 @@ class WorkerThreadData;
 
 class AsyncRequest : public MemoryRetainer {
  public:
-  AsyncRequest() : stop_(true) {}
+  AsyncRequest() {}
   void Install(Environment* env, void* data, uv_async_cb target);
   void Uninstall();
   void Stop();
   void SetStopped(bool flag);
-  bool IsStopped();
+  bool IsStopped() const;
   uv_async_t* GetHandle();
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(AsyncRequest)
@@ -61,7 +61,7 @@ class Worker : public AsyncWrap {
   SET_MEMORY_INFO_NAME(Worker)
   SET_SELF_SIZE(Worker)
 
-  bool is_stopped();
+  bool is_stopped() const;
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StartThread(const v8::FunctionCallbackInfo<v8::Value>& args);

@@ -83,7 +83,7 @@ void AsyncRequest::SetStopped(bool flag) {
   stop_ = flag;
 }
 
-bool AsyncRequest::IsStopped() {
+bool AsyncRequest::IsStopped() const {
   Mutex::ScopedLock lock(mutex_);
   return stop_;
 }
@@ -137,7 +137,7 @@ Worker::Worker(Environment* env,
   Debug(this, "Preparation for worker %llu finished", thread_id_);
 }
 
-bool Worker::is_stopped() {
+bool Worker::is_stopped() const {
   return thread_stopper_.IsStopped();
 }
 
@@ -255,8 +255,6 @@ void Worker::Run() {
         if (inspector_started)
           WaitForWorkerInspectorToStop(env_.get());
 #endif
-
-        env_->RunCleanup();
 
         // This call needs to be made while the `Environment` is still alive
         // because we assume that it is available for async tracking in the
