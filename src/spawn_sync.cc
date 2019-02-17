@@ -25,7 +25,7 @@
 #include "node_internals.h"
 #include "string_bytes.h"
 
-#include <string.h>
+#include <cstring>
 
 
 namespace node {

@@ -1,5 +1,5 @@
 #include <algorithm>
-#include <limits.h>  // PATH_MAX
+#include <climits>  // PATH_MAX
 #include <sys/stat.h>  // S_IFDIR
 #include "module_wrap.h"
 

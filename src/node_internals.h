@@ -34,8 +34,8 @@
 #include "uv.h"
 #include "v8.h"
 
-#include <stdint.h>
-#include <stdlib.h>
+#include <cstdint>
+#include <cstdlib>
 
 #include <string>
 #include <vector>

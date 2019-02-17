@@ -9,7 +9,7 @@
 #include "util.h"
 #include "v8.h"
 
-#include <stddef.h>
+#include <cstddef>
 #include <memory>
 #include <string>
 

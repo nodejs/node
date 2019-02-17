@@ -15,8 +15,8 @@
 #include "inspector_io.h"
 #endif
 
-#include <limits.h>  // PATH_MAX
-#include <stdio.h>
+#include <climits>  // PATH_MAX
+#include <cstdio>
 
 #if defined(_MSC_VER)
 #include <direct.h>

@@ -19,7 +19,7 @@
 #include <execinfo.h>
 #include <unistd.h>
 #include <sys/mman.h>
-#include <stdio.h>
+#include <cstdio>
 #endif
 
 #else  // __POSIX__

@@ -50,12 +50,12 @@ Japanese, it doesn't *claim* to have Japanese.
 
 */
 
-#include "string.h"
+#include <cstring>
 #include "charstr.h"  // ICU internal header
 #include <unicode/ures.h>
 #include <unicode/udata.h>
 #include <unicode/putil.h>
-#include <stdio.h>
+#include <cstdio>
 
 const char* PROG = "iculslocs";
 const char* NAME = U_ICUDATA_NAME;  // assume ICU data

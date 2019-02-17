@@ -14,8 +14,8 @@
 #include <vector>
 #include "v8.h"
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include <iomanip>
 #include <iostream>
 #include <sstream>

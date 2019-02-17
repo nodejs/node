@@ -27,7 +27,7 @@
 #include "base_object.h"
 #include "v8.h"
 
-#include <stdint.h>
+#include <cstdint>
 
 namespace node {
 

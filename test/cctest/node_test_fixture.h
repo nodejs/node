@@ -1,7 +1,7 @@
 #ifndef TEST_CCTEST_NODE_TEST_FIXTURE_H_
 #define TEST_CCTEST_NODE_TEST_FIXTURE_H_
 
-#include <stdlib.h>
+#include <cstdlib>
 #include "gtest/gtest.h"
 #include "node.h"
 #include "node_platform.h"

@@ -25,8 +25,8 @@
 #include "node_file.h"
 #include "util.h"
 
-#include <string.h>
-#include <stdlib.h>
+#include <cstring>
+#include <cstdlib>
 
 namespace node {
 

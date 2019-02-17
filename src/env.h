@@ -38,7 +38,7 @@
 #include "uv.h"
 #include "v8.h"
 
-#include <stdint.h>
+#include <cstdint>
 #include <functional>
 #include <list>
 #include <unordered_map>

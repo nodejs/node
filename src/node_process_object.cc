@@ -1,4 +1,4 @@
-#include <limits.h>  // PATH_MAX
+#include <climits>  // PATH_MAX
 
 #include "env-inl.h"
 #include "node_internals.h"

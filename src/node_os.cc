@@ -24,15 +24,15 @@
 #include "util.h"
 
 #include <array>
-#include <errno.h>
-#include <string.h>
+#include <cerrno>
+#include <cstring>
 
 #ifdef __MINGW32__
 # include <io.h>
 #endif  // __MINGW32__
 
 #ifdef __POSIX__
-# include <limits.h>        // PATH_MAX on Solaris.
+# include <climits>         // PATH_MAX on Solaris.
 # include <unistd.h>        // gethostname, sysconf
 #endif  // __POSIX__
 

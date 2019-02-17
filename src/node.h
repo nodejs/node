@@ -178,8 +178,8 @@ NODE_DEPRECATED("Use MakeCallback(..., async_context)",
 
 }  // namespace node
 
-#include <assert.h>
-#include <stdint.h>
+#include <cassert>
+#include <cstdint>
 
 #ifndef NODE_STRINGIFY
 #define NODE_STRINGIFY(n) NODE_STRINGIFY_HELPER(n)

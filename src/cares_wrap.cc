@@ -28,8 +28,8 @@
 #include "util-inl.h"
 #include "uv.h"
 
-#include <errno.h>
-#include <string.h>
+#include <cerrno>
+#include <cstring>
 #include <vector>
 #include <unordered_set>
 

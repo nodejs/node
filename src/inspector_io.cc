@@ -13,7 +13,7 @@
 #include "zlib.h"
 
 #include <deque>
-#include <string.h>
+#include <cstring>
 #include <vector>
 
 namespace node {

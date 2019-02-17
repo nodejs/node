@@ -6,7 +6,7 @@
 
 #include <string>
 #include <vector>
-#include <stdio.h>
+#include <cstdio>
 #include <cmath>
 
 namespace node {

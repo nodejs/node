@@ -1,8 +1,8 @@
 #include "tracing/traced_value.h"
 
-#include <math.h>
-#include <stddef.h>
-#include <string.h>
+#include <cmath>
+#include <cstddef>
+#include <cstring>
 
 #include "gtest/gtest.h"
 

@@ -24,8 +24,8 @@
 #include "stream_wrap.h"
 #include "util-inl.h"
 
-#include <string.h>
-#include <stdlib.h>
+#include <cstring>
+#include <cstdlib>
 
 namespace node {
 
