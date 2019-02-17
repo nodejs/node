@@ -9,8 +9,8 @@ const worker = new Worker('setInterval(() => {}, 100);', { eval: true });
 validateSnapshotNodes('Node / Worker', [
   {
     children: [
-      { node_name: 'Node / uv_async_t', edge_name: 'thread_exit_async' },
-      { node_name: 'Node / Environment', edge_name: 'env' },
+      { node_name: 'Node / AsyncRequest', edge_name: 'thread_stopper_' },
+      { node_name: 'Node / AsyncRequest', edge_name: 'on_thread_finished_' },
       { node_name: 'Node / MessagePort', edge_name: 'parent_port' },
       { node_name: 'Worker', edge_name: 'wrapped' }
     ]

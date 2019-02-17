@@ -3,13 +3,34 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node_messaging.h"
 #include <unordered_map>
+#include "node_messaging.h"
+#include "uv.h"
 
 namespace node {
 namespace worker {
 
 class WorkerThreadData;
+
+class AsyncRequest : public MemoryRetainer {
+ public:
+  AsyncRequest() {}
+  void Install(Environment* env, void* data, uv_async_cb target);
+  void Uninstall();
+  void Stop();
+  void SetStopped(bool flag);
+  bool IsStopped() const;
+  uv_async_t* GetHandle();
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(AsyncRequest)
+  SET_SELF_SIZE(AsyncRequest)
+
+ private:
+  Environment* env_;
+  uv_async_t* async_ = nullptr;
+  mutable Mutex mutex_;
+  bool stop_ = true;
+};
 
 // A worker thread, as represented in its parent thread.
 class Worker : public AsyncWrap {
@@ -31,11 +52,9 @@ class Worker : public AsyncWrap {
   void JoinThread();
 
   void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackFieldWithSize(
-        "isolate_data", sizeof(IsolateData), "IsolateData");
-    tracker->TrackFieldWithSize("env", sizeof(Environment), "Environment");
-    tracker->TrackField("thread_exit_async", *thread_exit_async_);
     tracker->TrackField("parent_port", parent_port_);
+    tracker->TrackInlineField(&thread_stopper_, "thread_stopper_");
+    tracker->TrackInlineField(&on_thread_finished_, "on_thread_finished_");
   }
 
   SET_MEMORY_INFO_NAME(Worker)
@@ -67,16 +86,6 @@ class Worker : public AsyncWrap {
   // This mutex protects access to all variables listed below it.
   mutable Mutex mutex_;
 
-  // Currently only used for telling the parent thread that the child
-  // thread exited.
-  std::unique_ptr<uv_async_t> thread_exit_async_;
-  bool scheduled_on_thread_stopped_ = false;
-
-  // This mutex only protects stopped_. If both locks are acquired, this needs
-  // to be the latter one.
-  mutable Mutex stopped_mutex_;
-  bool stopped_ = true;
-
   bool thread_joined_ = true;
   int exit_code_ = 0;
   uint64_t thread_id_ = -1;
@@ -95,6 +104,9 @@ class Worker : public AsyncWrap {
   // This is always kept alive because the JS object associated with the Worker
   // instance refers to it via its [kPort] property.
   MessagePort* parent_port_ = nullptr;
+
+  AsyncRequest thread_stopper_;
+  AsyncRequest on_thread_finished_;
 
   friend class WorkerThreadData;
 };
