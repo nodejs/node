@@ -251,6 +251,11 @@ down. If necessary, such hooks can be removed using
 `RemoveEnvironmentCleanupHook()` before they are run, which has the same
 signature.
 
+In order to be loaded from multiple Node.js environments,
+such as a main thread and a Worker thread, an add-on needs to either:
+- Be an N-API addon, or
+- Be declared as context-aware using `NODE_MODULE_INIT()` as described above
+
 ### Building
 
 Once the source code has been written, it must be compiled into the binary

@@ -21,7 +21,7 @@ struct statically_allocated {
   }
   ~statically_allocated() {
     assert(count == 0);
-    printf("dtor");
+    printf("dtor ");
   }
 } var;
 

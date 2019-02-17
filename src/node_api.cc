@@ -484,7 +484,7 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
 void napi_module_register(napi_module* mod) {
   node::node_module* nm = new node::node_module {
     -1,
-    mod->nm_flags,
+    mod->nm_flags | NM_F_DELETEME,
     nullptr,
     mod->nm_filename,
     nullptr,

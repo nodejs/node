@@ -2,6 +2,7 @@
 #include "env-inl.h"
 #include "node_native_module.h"
 #include "util.h"
+#include <atomic>
 
 #if HAVE_OPENSSL
 #define NODE_BUILTIN_OPENSSL_MODULES(V) V(crypto) V(tls_wrap)
@@ -96,6 +97,130 @@
 NODE_BUILTIN_MODULES(V)
 #undef V
 
+#ifdef _AIX
+// On AIX, dlopen() behaves differently from other operating systems, in that
+// it returns unique values from each call, rather than identical values, when
+// loading the same handle.
+// We try to work around that by providing wrappers for the dlopen() family of
+// functions, and using st_dev and st_ino for the file that is to be loaded
+// as keys for a cache.
+
+namespace node {
+namespace dlwrapper {
+
+struct dl_wrap {
+  uint64_t st_dev;
+  uint64_t st_ino;
+  uint64_t refcount;
+  void* real_handle;
+
+  struct hash {
+    size_t operator()(const dl_wrap* wrap) const {
+      return std::hash<uint64_t>()(wrap->st_dev) ^
+             std::hash<uint64_t>()(wrap->st_ino);
+    }
+  };
+
+  struct equal {
+    bool operator()(const dl_wrap* a,
+                    const dl_wrap* b) const {
+      return a->st_dev == b->st_dev && a->st_ino == b->st_ino;
+    }
+  };
+};
+
+static Mutex dlhandles_mutex;
+static std::unordered_set<dl_wrap*, dl_wrap::hash, dl_wrap::equal>
+    dlhandles;
+static thread_local std::string dlerror_storage;
+
+char* wrapped_dlerror() {
+  return &dlerror_storage[0];
+}
+
+void* wrapped_dlopen(const char* filename, int flags) {
+  CHECK_NOT_NULL(filename);  // This deviates from the 'real' dlopen().
+  Mutex::ScopedLock lock(dlhandles_mutex);
+
+  uv_fs_t req;
+  OnScopeLeave cleanup([&]() { uv_fs_req_cleanup(&req); });
+  int rc = uv_fs_stat(nullptr, &req, filename, nullptr);
+
+  if (rc != 0) {
+    dlerror_storage = uv_strerror(rc);
+    return nullptr;
+  }
+
+  dl_wrap search = {
+    req.statbuf.st_dev,
+    req.statbuf.st_ino,
+    0, nullptr
+  };
+
+  auto it = dlhandles.find(&search);
+  if (it != dlhandles.end()) {
+    (*it)->refcount++;
+    return *it;
+  }
+
+  void* real_handle = dlopen(filename, flags);
+  if (real_handle == nullptr) {
+    dlerror_storage = dlerror();
+    return nullptr;
+  }
+  dl_wrap* wrap = new dl_wrap();
+  wrap->st_dev = req.statbuf.st_dev;
+  wrap->st_ino = req.statbuf.st_ino;
+  wrap->refcount = 1;
+  wrap->real_handle = real_handle;
+  dlhandles.insert(wrap);
+  return wrap;
+}
+
+int wrapped_dlclose(void* handle) {
+  Mutex::ScopedLock lock(dlhandles_mutex);
+  dl_wrap* wrap = static_cast<dl_wrap*>(handle);
+  int ret = 0;
+  CHECK_GE(wrap->refcount, 1);
+  if (--wrap->refcount == 0) {
+    ret = dlclose(wrap->real_handle);
+    if (ret != 0) dlerror_storage = dlerror();
+    dlhandles.erase(wrap);
+    delete wrap;
+  }
+  return ret;
+}
+
+void* wrapped_dlsym(void* handle, const char* symbol) {
+  if (handle == RTLD_DEFAULT || handle == RTLD_NEXT)
+    return dlsym(handle, symbol);
+  dl_wrap* wrap = static_cast<dl_wrap*>(handle);
+  return dlsym(wrap->real_handle, symbol);
+}
+
+#define dlopen node::dlwrapper::wrapped_dlopen
+#define dlerror node::dlwrapper::wrapped_dlerror
+#define dlclose node::dlwrapper::wrapped_dlclose
+#define dlsym node::dlwrapper::wrapped_dlsym
+
+}  // namespace dlwrapper
+}  // namespace node
+
+#endif  // _AIX
+
+#ifdef __linux__
+static bool libc_may_be_musl() {
+  static std::atomic_bool retval;  // Cache the return value.
+  static std::atomic_bool has_cached_retval { false };
+  if (has_cached_retval) return retval;
+  retval = dlsym(RTLD_DEFAULT, "gnu_get_libc_version") == nullptr;
+  has_cached_retval = true;
+  return retval;
+}
+#else  // __linux__
+static bool libc_may_be_musl() { return false; }
+#endif  // __linux__
+
 namespace node {
 
 using v8::Context;
@@ -110,7 +235,6 @@ using v8::Value;
 // Globals per process
 static node_module* modlist_internal;
 static node_module* modlist_linked;
-static node_module* modlist_addon;
 static uv_once_t init_modpending_once = UV_ONCE_INIT;
 static uv_key_t thread_local_modpending;
 
@@ -136,6 +260,57 @@ extern "C" void node_module_register(void* m) {
 
 namespace binding {
 
+static struct global_handle_map_t {
+ public:
+  void set(void* handle, node_module* mod) {
+    CHECK_NE(handle, nullptr);
+    Mutex::ScopedLock lock(mutex_);
+
+    map_[handle].module = mod;
+    // We need to store this flag internally to avoid a chicken-and-egg problem
+    // during cleanup. By the time we actually use the flag's value,
+    // the shared object has been unloaded, and its memory would be gone,
+    // making it impossible to access fields of `mod` --
+    // unless `mod` *is* dynamically allocated, but we cannot know that
+    // without checking the flag.
+    map_[handle].wants_delete_module = mod->nm_flags & NM_F_DELETEME;
+    map_[handle].refcount++;
+  }
+
+  node_module* get_and_increase_refcount(void* handle) {
+    CHECK_NE(handle, nullptr);
+    Mutex::ScopedLock lock(mutex_);
+
+    auto it = map_.find(handle);
+    if (it == map_.end()) return nullptr;
+    it->second.refcount++;
+    return it->second.module;
+  }
+
+  void erase(void* handle) {
+    CHECK_NE(handle, nullptr);
+    Mutex::ScopedLock lock(mutex_);
+
+    auto it = map_.find(handle);
+    if (it == map_.end()) return;
+    CHECK_GE(it->second.refcount, 1);
+    if (--it->second.refcount == 0) {
+      if (it->second.wants_delete_module)
+        delete it->second.module;
+      map_.erase(handle);
+    }
+  }
+
+ private:
+  Mutex mutex_;
+  struct Entry {
+    unsigned int refcount;
+    bool wants_delete_module;
+    node_module* module;
+  };
+  std::unordered_map<void*, Entry> map_;
+} global_handle_map;
+
 DLib::DLib(const char* filename, int flags)
     : filename_(filename), flags_(flags), handle_(nullptr) {}
 
@@ -149,7 +324,21 @@ bool DLib::Open() {
 
 void DLib::Close() {
   if (handle_ == nullptr) return;
-  dlclose(handle_);
+
+  if (libc_may_be_musl()) {
+    // musl libc implements dlclose() as a no-op which returns 0.
+    // As a consequence, trying to re-load a previously closed addon at a later
+    // point will not call its static constructors, which Node.js uses.
+    // Therefore, when we may be using musl libc, we assume that the shared
+    // object exists indefinitely and keep it in our handle map.
+    return;
+  }
+
+  int err = dlclose(handle_);
+  if (err == 0) {
+    if (has_entry_in_global_handle_map_)
+      global_handle_map.erase(handle_);
+  }
   handle_ = nullptr;
 }
 
@@ -170,6 +359,8 @@ bool DLib::Open() {
 
 void DLib::Close() {
   if (handle_ == nullptr) return;
+  if (has_entry_in_global_handle_map_)
+    global_handle_map.erase(handle_);
   uv_dlclose(&lib_);
   handle_ = nullptr;
 }
@@ -180,6 +371,16 @@ void* DLib::GetSymbolAddress(const char* name) {
   return nullptr;
 }
 #endif  // !__POSIX__
+
+void DLib::SaveInGlobalHandleMap(node_module* mp) {
+  has_entry_in_global_handle_map_ = true;
+  global_handle_map.set(handle_, mp);
+}
+
+node_module* DLib::GetSavedModuleFromGlobalHandleMap() {
+  has_entry_in_global_handle_map_ = true;
+  return global_handle_map.get_and_increase_refcount(handle_);
+}
 
 using InitializerCallback = void (*)(Local<Object> exports,
                                      Local<Value> module,
@@ -235,12 +436,15 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
 
   node::Utf8Value filename(env->isolate(), args[1]);  // Cast
   env->TryLoadAddon(*filename, flags, [&](DLib* dlib) {
+    static Mutex dlib_load_mutex;
+    Mutex::ScopedLock lock(dlib_load_mutex);
+
     const bool is_opened = dlib->Open();
 
     // Objects containing v14 or later modules will have registered themselves
     // on the pending list.  Activate all of them now.  At present, only one
     // module per object is supported.
-    node_module* const mp =
+    node_module* mp =
         static_cast<node_module*>(uv_key_get(&thread_local_modpending));
     uv_key_set(&thread_local_modpending, nullptr);
 
@@ -257,17 +461,24 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
       return false;
     }
 
-    if (mp == nullptr) {
+    if (mp != nullptr) {
+      mp->nm_dso_handle = dlib->handle_;
+      dlib->SaveInGlobalHandleMap(mp);
+    } else {
       if (auto callback = GetInitializerCallback(dlib)) {
         callback(exports, module, context);
+        return true;
       } else if (auto napi_callback = GetNapiInitializerCallback(dlib)) {
         napi_module_register_by_symbol(exports, module, context, napi_callback);
+        return true;
       } else {
-        dlib->Close();
-        env->ThrowError("Module did not self-register.");
-        return false;
+        mp = dlib->GetSavedModuleFromGlobalHandleMap();
+        if (mp == nullptr || mp->nm_context_register_func == nullptr) {
+          dlib->Close();
+          env->ThrowError("Module did not self-register.");
+          return false;
+        }
       }
-      return true;
     }
 
     // -1 is used for N-API modules
@@ -300,10 +511,8 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
     }
     CHECK_EQ(mp->nm_flags & NM_F_BUILTIN, 0);
 
-    mp->nm_dso_handle = dlib->handle_;
-    mp->nm_link = modlist_addon;
-    modlist_addon = mp;
-
+    // Do not keep the lock while running userland addon loading code.
+    Mutex::ScopedUnlock unlock(lock);
     if (mp->nm_context_register_func != nullptr) {
       mp->nm_context_register_func(exports, module, context, mp->nm_priv);
     } else if (mp->nm_register_func != nullptr) {
