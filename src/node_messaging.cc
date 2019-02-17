@@ -584,13 +584,6 @@ void MessagePort::OnMessage() {
       // Get the head of the message queue.
       Mutex::ScopedLock lock(data_->mutex_);
 
-      if (stop_event_loop_) {
-        Debug(this, "MessagePort stops loop as requested");
-        CHECK(!data_->receiving_messages_);
-        uv_stop(env()->event_loop());
-        break;
-      }
-
       Debug(this, "MessagePort has message, receiving = %d",
             static_cast<int>(data_->receiving_messages_));
 
@@ -738,15 +731,6 @@ void MessagePort::Stop() {
   Mutex::ScopedLock lock(data_->mutex_);
   Debug(this, "Stop receiving messages");
   data_->receiving_messages_ = false;
-}
-
-void MessagePort::StopEventLoop() {
-  Mutex::ScopedLock lock(data_->mutex_);
-  data_->receiving_messages_ = false;
-  stop_event_loop_ = true;
-
-  Debug(this, "Received StopEventLoop request");
-  TriggerAsync();
 }
 
 void MessagePort::Start(const FunctionCallbackInfo<Value>& args) {

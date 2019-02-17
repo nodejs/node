@@ -159,9 +159,6 @@ class MessagePort : public HandleWrap {
   void Start();
   // Stop processing messages on this port as a receiving end.
   void Stop();
-  // Stop processing messages on this port as a receiving end,
-  // and stop the event loop that this port is associated with.
-  void StopEventLoop();
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PostMessage(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -206,7 +203,6 @@ class MessagePort : public HandleWrap {
   inline uv_async_t* async();
 
   std::unique_ptr<MessagePortData> data_ = nullptr;
-  bool stop_event_loop_ = false;
 
   friend class MessagePortData;
 };
