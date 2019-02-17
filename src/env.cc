@@ -257,8 +257,7 @@ Environment::~Environment() {
 
   // dispose the Persistent references to the compileFunction
   // wrappers used in the dynamic import callback
-  for (auto & entry : compile_fn_entries) {
-    id_to_function_map[entry->id].Reset();
+  for (auto& entry : compile_fn_entries) {
     delete entry;
   }
 

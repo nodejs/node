@@ -290,7 +290,6 @@ void ContextifyContext::WeakCallbackCompileFn(
     const WeakCallbackInfo<CompileFnEntry>& data) {
   CompileFnEntry* entry = data.GetParameter();
   if (entry->env->compile_fn_entries.erase(entry) != 0) {
-    entry->env->id_to_function_map[entry->id].Reset();
     entry->env->id_to_function_map.erase(entry->id);
     delete entry;
   }

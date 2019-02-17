@@ -709,7 +709,7 @@ class Environment {
   std::unordered_map<uint32_t, loader::ModuleWrap*> id_to_module_map;
   std::unordered_map<uint32_t, contextify::ContextifyScript*>
       id_to_script_map;
-  std::set<CompileFnEntry*> compile_fn_entries;
+  std::unordered_set<CompileFnEntry*> compile_fn_entries;
   std::unordered_map<uint32_t, Persistent<v8::Function>> id_to_function_map;
 
   inline uint32_t get_next_module_id();
