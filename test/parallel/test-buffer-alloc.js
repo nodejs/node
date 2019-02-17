@@ -764,7 +764,6 @@ assert.strictEqual(x.inspect(), '<Buffer 81 a3 66 6f 6f a3 62 61 72>');
 Buffer.allocUnsafe(3.3).fill().toString();
 // throws bad argument error in commit 43cb4ec
 Buffer.alloc(3.3).fill().toString();
-assert.strictEqual(Buffer.allocUnsafe(NaN).length, 0);
 assert.strictEqual(Buffer.allocUnsafe(3.3).length, 3);
 assert.strictEqual(Buffer.from({ length: 3.3 }).length, 3);
 assert.strictEqual(Buffer.from({ length: 'BAM' }).length, 0);
