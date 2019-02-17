@@ -23,12 +23,15 @@ function pruneTickObjects(activities) {
     data: null
   };
 
+  if (!Array.isArray(activities))
+    return activities;
+
   while (tickObject.found) {
     for (let i = 0; i < activities.length; i++) {
       if (activities[i].type === 'TickObject') {
         tickObject.index = i;
         break;
-      } else if (i + 1 === activities.length) {
+      } else if (i + 1 >= activities.length) {
         tickObject.found = false;
       }
     }
