@@ -17,29 +17,37 @@ function pruneTickObjects(activities) {
   // Remove one TickObject on each pass until none is left anymore
   // not super efficient, but simplest especially to handle
   // multiple TickObjects in a row
-  let foundTickObject = true;
+  const tickObject = {
+    found: true,
+    index: null,
+    data: null
+  };
 
-  while (foundTickObject) {
-    foundTickObject = false;
-    let tickObjectIdx = -1;
+  while (tickObject.found) {
     for (let i = 0; i < activities.length; i++) {
-      if (activities[i].type !== 'TickObject') continue;
-      tickObjectIdx = i;
-      break;
+      if (activities[i].type === 'TickObject') {
+        tickObject.index = i;
+        break;
+      } else if (i + 1 === activities.length) {
+        tickObject.found = false;
+      }
     }
 
-    if (tickObjectIdx >= 0) {
-      foundTickObject = true;
-
+    if (tickObject.found) {
       // Point all triggerAsyncIds that point to the tickObject
       // to its triggerAsyncId and finally remove it from the activities
-      const tickObject = activities[tickObjectIdx];
-      const newTriggerId = tickObject.triggerAsyncId;
-      const oldTriggerId = tickObject.uid;
+      tickObject.data = activities[tickObject.index];
+      const triggerId = {
+        new: tickObject.data.triggerAsyncId,
+        old: tickObject.data.uid
+      };
+
       activities.forEach(function repointTriggerId(x) {
-        if (x.triggerAsyncId === oldTriggerId) x.triggerAsyncId = newTriggerId;
+        if (x.triggerAsyncId === triggerId.old)
+          x.triggerAsyncId = triggerId.new;
       });
-      activities.splice(tickObjectIdx, 1);
+
+      activities.splice(tickObject.index, 1);
     }
   }
   return activities;
