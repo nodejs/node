@@ -18,6 +18,7 @@ enum {
   NM_F_BUILTIN = 1 << 0,  // Unused.
   NM_F_LINKED = 1 << 1,
   NM_F_INTERNAL = 1 << 2,
+  NM_F_DELETEME = 1 << 3,
 };
 
 #define NODE_MODULE_CONTEXT_AWARE_CPP(modname, regfunc, priv, flags)           \

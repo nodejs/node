@@ -110,7 +110,6 @@ using v8::Value;
 // Globals per process
 static node_module* modlist_internal;
 static node_module* modlist_linked;
-static node_module* modlist_addon;
 static uv_once_t init_modpending_once = UV_ONCE_INIT;
 static uv_key_t thread_local_modpending;
 
@@ -136,6 +135,48 @@ extern "C" void node_module_register(void* m) {
 
 namespace binding {
 
+static struct global_handle_map_t {
+ public:
+  void set(void* handle, node_module* mod) {
+    CHECK_NE(handle, nullptr);
+    Mutex::ScopedLock lock(mutex_);
+
+    map_[handle] = Entry { 1, mod };
+  }
+
+  node_module* get_and_increase_refcount(void* handle) {
+    CHECK_NE(handle, nullptr);
+    Mutex::ScopedLock lock(mutex_);
+
+    auto it = map_.find(handle);
+    if (it == map_.end()) return nullptr;
+    it->second.refcount++;
+    return it->second.module;
+  }
+
+  void erase(void* handle) {
+    CHECK_NE(handle, nullptr);
+    Mutex::ScopedLock lock(mutex_);
+
+    auto it = map_.find(handle);
+    if (it == map_.end()) return;
+    CHECK_GE(it->second.refcount, 1);
+    if (--it->second.refcount == 0) {
+      if (it->second.module->nm_flags & NM_F_DELETEME)
+        delete it->second.module;
+      map_.erase(handle);
+    }
+  }
+
+ private:
+  Mutex mutex_;
+  struct Entry {
+    unsigned int refcount;
+    node_module* module;
+  };
+  std::unordered_map<void*, Entry> map_;
+} global_handle_map;
+
 DLib::DLib(const char* filename, int flags)
     : filename_(filename), flags_(flags), handle_(nullptr) {}
 
@@ -149,6 +190,7 @@ bool DLib::Open() {
 
 void DLib::Close() {
   if (handle_ == nullptr) return;
+  global_handle_map.erase(handle_);
   dlclose(handle_);
   handle_ = nullptr;
 }
@@ -240,7 +282,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
     // Objects containing v14 or later modules will have registered themselves
     // on the pending list.  Activate all of them now.  At present, only one
     // module per object is supported.
-    node_module* const mp =
+    node_module* mp =
         static_cast<node_module*>(uv_key_get(&thread_local_modpending));
     uv_key_set(&thread_local_modpending, nullptr);
 
@@ -257,17 +299,24 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
       return false;
     }
 
-    if (mp == nullptr) {
+    if (mp != nullptr) {
+      mp->nm_dso_handle = dlib->handle_;
+      global_handle_map.set(dlib->handle_, mp);
+    } else {
       if (auto callback = GetInitializerCallback(dlib)) {
         callback(exports, module, context);
+        return true;
       } else if (auto napi_callback = GetNapiInitializerCallback(dlib)) {
         napi_module_register_by_symbol(exports, module, context, napi_callback);
+        return true;
       } else {
-        dlib->Close();
-        env->ThrowError("Module did not self-register.");
-        return false;
+        mp = global_handle_map.get_and_increase_refcount(dlib->handle_);
+        if (mp == nullptr || mp->nm_context_register_func == nullptr) {
+          dlib->Close();
+          env->ThrowError("Module did not self-register.");
+          return false;
+        }
       }
-      return true;
     }
 
     // -1 is used for N-API modules
@@ -299,10 +348,6 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
       return false;
     }
     CHECK_EQ(mp->nm_flags & NM_F_BUILTIN, 0);
-
-    mp->nm_dso_handle = dlib->handle_;
-    mp->nm_link = modlist_addon;
-    modlist_addon = mp;
 
     if (mp->nm_context_register_func != nullptr) {
       mp->nm_context_register_func(exports, module, context, mp->nm_priv);
