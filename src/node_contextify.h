@@ -55,11 +55,6 @@ class ContextifyContext {
   static ContextifyContext* Get(const v8::PropertyCallbackInfo<T>& args);
 
  private:
-  struct CompileFnEntry {
-    Environment* env;
-    uint32_t id;
-    CompileFnEntry(Environment* env, uint32_t id): env(env), id(id) {}
-  };
   static void MakeContext(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void IsContext(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CompileFunction(

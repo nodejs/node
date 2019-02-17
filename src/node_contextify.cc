@@ -289,9 +289,11 @@ void ContextifyContext::WeakCallback(
 void ContextifyContext::WeakCallbackCompileFn(
     const WeakCallbackInfo<CompileFnEntry>& data) {
   CompileFnEntry* entry = data.GetParameter();
-  entry->env->id_to_function_map[entry->id].Reset();
-  entry->env->id_to_function_map.erase(entry->id);
-  delete entry;
+  if (entry->env->compile_fn_entries.erase(entry) != 0) {
+    entry->env->id_to_function_map[entry->id].Reset();
+    entry->env->id_to_function_map.erase(entry->id);
+    delete entry;
+  }
 }
 
 // static
@@ -1082,7 +1084,9 @@ void ContextifyContext::CompileFunction(
     return;
   }
   Local<Function> fn = maybe_fn.ToLocalChecked();
-  env->id_to_function_map[id].Reset(isolate, fn);
+  env->id_to_function_map.emplace(std::piecewise_construct,
+                                  std::make_tuple(id),
+                                  std::make_tuple(isolate, fn));
   CompileFnEntry* gc_entry = new CompileFnEntry(env, id);
   env->id_to_function_map[id].SetWeak(gc_entry,
       WeakCallbackCompileFn,
