@@ -241,6 +241,13 @@ void MemoryTracker::Track(const MemoryRetainer* retainer,
   PopNode();
 }
 
+void MemoryTracker::TrackInlineField(const MemoryRetainer* retainer,
+                                     const char* edge_name) {
+  Track(retainer, edge_name);
+  CHECK(CurrentNode());
+  CurrentNode()->size_ -= retainer->SelfSize();
+}
+
 MemoryRetainerNode* MemoryTracker::CurrentNode() const {
   if (node_stack_.empty()) return nullptr;
   return node_stack_.top();
