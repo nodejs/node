@@ -30,19 +30,17 @@ class AliasedBuffer {
   AliasedBuffer(v8::Isolate* isolate, const size_t count)
       : isolate_(isolate),
         count_(count),
-        byte_offset_(0),
-        free_buffer_(true) {
+        byte_offset_(0) {
     CHECK_GT(count, 0);
     const v8::HandleScope handle_scope(isolate_);
 
-    const size_t size_in_bytes = sizeof(NativeT) * count;
-
-    // allocate native buffer
-    buffer_ = Calloc<NativeT>(count);
+    const size_t size_in_bytes =
+        MultiplyWithOverflowCheck(sizeof(NativeT), count);
 
     // allocate v8 ArrayBuffer
     v8::Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(
-        isolate_, buffer_, size_in_bytes);
+        isolate_, size_in_bytes);
+    buffer_ = static_cast<NativeT*>(ab->GetContents().Data());
 
     // allocate v8 TypedArray
     v8::Local<V8T> js_array = V8T::New(ab, byte_offset_, count);
@@ -65,8 +63,7 @@ class AliasedBuffer {
                 v8::Uint8Array>& backing_buffer)
       : isolate_(isolate),
         count_(count),
-        byte_offset_(byte_offset),
-        free_buffer_(false) {
+        byte_offset_(byte_offset) {
     const v8::HandleScope handle_scope(isolate_);
 
     v8::Local<v8::ArrayBuffer> ab = backing_buffer.GetArrayBuffer();
@@ -74,7 +71,8 @@ class AliasedBuffer {
     // validate that the byte_offset is aligned with sizeof(NativeT)
     CHECK_EQ(byte_offset & (sizeof(NativeT) - 1), 0);
     // validate this fits inside the backing buffer
-    CHECK_LE(sizeof(NativeT) * count,  ab->ByteLength() - byte_offset);
+    CHECK_LE(MultiplyWithOverflowCheck(sizeof(NativeT), count),
+             ab->ByteLength() - byte_offset);
 
     buffer_ = reinterpret_cast<NativeT*>(
         const_cast<uint8_t*>(backing_buffer.GetNativeBuffer() + byte_offset));
@@ -87,16 +85,8 @@ class AliasedBuffer {
       : isolate_(that.isolate_),
         count_(that.count_),
         byte_offset_(that.byte_offset_),
-        buffer_(that.buffer_),
-        free_buffer_(false) {
+        buffer_(that.buffer_) {
     js_array_ = v8::Global<V8T>(that.isolate_, that.GetJSArray());
-  }
-
-  ~AliasedBuffer() {
-    if (free_buffer_ && buffer_ != nullptr) {
-      free(buffer_);
-    }
-    js_array_.Reset();
   }
 
   AliasedBuffer& operator=(AliasedBuffer&& that) noexcept {
@@ -105,7 +95,6 @@ class AliasedBuffer {
     count_ = that.count_;
     byte_offset_ = that.byte_offset_;
     buffer_ = that.buffer_;
-    free_buffer_ = that.free_buffer_;
 
     js_array_.Reset(isolate_, that.js_array_.Get(isolate_));
 
@@ -231,20 +220,19 @@ class AliasedBuffer {
   void reserve(size_t new_capacity) {
     DCHECK_GE(new_capacity, count_);
     DCHECK_EQ(byte_offset_, 0);
-    DCHECK(free_buffer_);
     const v8::HandleScope handle_scope(isolate_);
 
     const size_t old_size_in_bytes = sizeof(NativeT) * count_;
     const size_t new_size_in_bytes = sizeof(NativeT) * new_capacity;
 
-    // allocate new native buffer
-    NativeT* new_buffer = Calloc<NativeT>(new_capacity);
-    // copy old content
-    memcpy(new_buffer, buffer_, old_size_in_bytes);
-
     // allocate v8 new ArrayBuffer
     v8::Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(
-        isolate_, new_buffer, new_size_in_bytes);
+        isolate_, new_size_in_bytes);
+
+    // allocate new native buffer
+    NativeT* new_buffer = static_cast<NativeT*>(ab->GetContents().Data());
+    // copy old content
+    memcpy(new_buffer, buffer_, old_size_in_bytes);
 
     // allocate v8 TypedArray
     v8::Local<V8T> js_array = V8T::New(ab, byte_offset_, new_capacity);
@@ -252,8 +240,6 @@ class AliasedBuffer {
     // move over old v8 TypedArray
     js_array_ = std::move(v8::Global<V8T>(isolate_, js_array));
 
-    // Free old buffer and set new values
-    free(buffer_);
     buffer_ = new_buffer;
     count_ = new_capacity;
   }
@@ -264,7 +250,6 @@ class AliasedBuffer {
   size_t byte_offset_;
   NativeT* buffer_;
   v8::Global<V8T> js_array_;
-  bool free_buffer_;
 };
 }  // namespace node
 
