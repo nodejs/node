@@ -75,8 +75,82 @@ void* ArrayBufferAllocator::Allocate(size_t size) {
     return UncheckedMalloc(size);
 }
 
+DebuggingArrayBufferAllocator::~DebuggingArrayBufferAllocator() {
+  CHECK(allocations_.empty());
+}
+
+void* DebuggingArrayBufferAllocator::Allocate(size_t size) {
+  Mutex::ScopedLock lock(mutex_);
+  void* data = ArrayBufferAllocator::Allocate(size);
+  RegisterPointerInternal(data, size);
+  return data;
+}
+
+void* DebuggingArrayBufferAllocator::AllocateUninitialized(size_t size) {
+  Mutex::ScopedLock lock(mutex_);
+  void* data = ArrayBufferAllocator::AllocateUninitialized(size);
+  RegisterPointerInternal(data, size);
+  return data;
+}
+
+void DebuggingArrayBufferAllocator::Free(void* data, size_t size) {
+  Mutex::ScopedLock lock(mutex_);
+  UnregisterPointerInternal(data, size);
+  ArrayBufferAllocator::Free(data, size);
+}
+
+void* DebuggingArrayBufferAllocator::Reallocate(void* data,
+                                                size_t old_size,
+                                                size_t size) {
+  Mutex::ScopedLock lock(mutex_);
+  void* ret = ArrayBufferAllocator::Reallocate(data, old_size, size);
+  if (ret == nullptr) {
+    if (size == 0)  // i.e. equivalent to free().
+      UnregisterPointerInternal(data, old_size);
+    return nullptr;
+  }
+
+  if (data != nullptr) {
+    auto it = allocations_.find(data);
+    CHECK_NE(it, allocations_.end());
+    allocations_.erase(it);
+  }
+
+  RegisterPointerInternal(ret, size);
+  return ret;
+}
+
+void DebuggingArrayBufferAllocator::RegisterPointer(void* data, size_t size) {
+  Mutex::ScopedLock lock(mutex_);
+  RegisterPointerInternal(data, size);
+}
+
+void DebuggingArrayBufferAllocator::UnregisterPointer(void* data, size_t size) {
+  Mutex::ScopedLock lock(mutex_);
+  UnregisterPointerInternal(data, size);
+}
+
+void DebuggingArrayBufferAllocator::UnregisterPointerInternal(void* data,
+                                                              size_t size) {
+  if (data == nullptr) return;
+  auto it = allocations_.find(data);
+  CHECK_NE(it, allocations_.end());
+  CHECK_EQ(it->second, size);
+  allocations_.erase(it);
+}
+
+void DebuggingArrayBufferAllocator::RegisterPointerInternal(void* data,
+                                                            size_t size) {
+  if (data == nullptr) return;
+  CHECK_EQ(allocations_.count(data), 0);
+  allocations_[data] = size;
+}
+
 ArrayBufferAllocator* CreateArrayBufferAllocator() {
-  return new ArrayBufferAllocator();
+  if (per_process::cli_options->debug_arraybuffer_allocations)
+    return new DebuggingArrayBufferAllocator();
+  else
+    return new ArrayBufferAllocator();
 }
 
 void FreeArrayBufferAllocator(ArrayBufferAllocator* allocator) {
