@@ -40,9 +40,6 @@ static void Initialize(Local<Object> target,
 
 #ifdef NODE_FIPS_MODE
   READONLY_TRUE_PROPERTY(target, "fipsMode");
-  // TODO(addaleax): Use options parser variable instead.
-  if (per_process::cli_options->force_fips_crypto)
-    READONLY_TRUE_PROPERTY(target, "fipsForced");
 #endif
 
 #ifdef NODE_HAVE_I18N_SUPPORT
