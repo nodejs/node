@@ -74,11 +74,14 @@ void* const Environment::kNodeContextTagPtr = const_cast<void*>(
 IsolateData::IsolateData(Isolate* isolate,
                          uv_loop_t* event_loop,
                          MultiIsolatePlatform* platform,
-                         uint32_t* zero_fill_field) :
-    isolate_(isolate),
-    event_loop_(event_loop),
-    zero_fill_field_(zero_fill_field),
-    platform_(platform) {
+                         ArrayBufferAllocator* node_allocator)
+    : isolate_(isolate),
+      event_loop_(event_loop),
+      allocator_(isolate->GetArrayBufferAllocator()),
+      node_allocator_(node_allocator),
+      uses_node_allocator_(allocator_ == node_allocator_),
+      platform_(platform) {
+  CHECK_NOT_NULL(allocator_);
   if (platform_ != nullptr)
     platform_->RegisterIsolate(isolate_, event_loop);
 
