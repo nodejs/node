@@ -129,8 +129,10 @@ module.exports = {
                 stack = stack.upper;
             },
 
-            SpreadElement() {
-                stack.prevName = null;
+            SpreadElement(node) {
+                if (node.parent.type === "ObjectExpression") {
+                    stack.prevName = null;
+                }
             },
 
             Property(node) {
