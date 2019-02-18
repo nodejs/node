@@ -363,10 +363,6 @@ Notable differences inside a Worker environment are:
 - Native add-ons can only be loaded from multiple threads if they fulfill
   [certain conditions][Addons worker support].
 
-Currently, the following differences also exist until they are addressed:
-
-- The [`inspector`][] module is not available yet.
-
 Creating `Worker` instances inside of other `Worker`s is possible.
 
 Like [Web Workers][] and the [`cluster` module][], two-way communication can be
