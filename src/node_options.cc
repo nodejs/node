@@ -387,6 +387,10 @@ PerProcessOptionsParser::PerProcessOptionsParser() {
             "SlowBuffer instances",
             &PerProcessOptions::zero_fill_all_buffers,
             kAllowedInEnvironment);
+  AddOption("--debug-arraybuffer-allocations",
+            "", /* undocumented, only for debugging */
+            &PerProcessOptions::debug_arraybuffer_allocations,
+            kAllowedInEnvironment);
 
   AddOption("--security-reverts", "", &PerProcessOptions::security_reverts);
   AddOption("--completion-bash",
