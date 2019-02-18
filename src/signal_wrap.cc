@@ -101,7 +101,17 @@ class SignalWrap : public HandleWrap {
       }
     }
 #endif
-    int err = uv_signal_start(&wrap->handle_, OnSignal, signum);
+    int err = uv_signal_start(
+        &wrap->handle_,
+        [](uv_signal_t* handle, int signum) {
+          SignalWrap* wrap = ContainerOf(&SignalWrap::handle_, handle);
+          Environment* env = wrap->env();
+          HandleScope handle_scope(env->isolate());
+          Context::Scope context_scope(env->context());
+          Local<Value> arg = Integer::New(env->isolate(), signum);
+          wrap->MakeCallback(env->onsignal_string(), 1, &arg);
+        },
+        signum);
     args.GetReturnValue().Set(err);
   }
 
@@ -110,16 +120,6 @@ class SignalWrap : public HandleWrap {
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
     int err = uv_signal_stop(&wrap->handle_);
     args.GetReturnValue().Set(err);
-  }
-
-  static void OnSignal(uv_signal_t* handle, int signum) {
-    SignalWrap* wrap = ContainerOf(&SignalWrap::handle_, handle);
-    Environment* env = wrap->env();
-    HandleScope handle_scope(env->isolate());
-    Context::Scope context_scope(env->context());
-
-    Local<Value> arg = Integer::New(env->isolate(), signum);
-    wrap->MakeCallback(env->onsignal_string(), 1, &arg);
   }
 
   uv_signal_t handle_;
