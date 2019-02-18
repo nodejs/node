@@ -594,10 +594,9 @@ class Parser : public AsyncWrap, public StreamListener {
   uv_buf_t OnStreamAlloc(size_t suggested_size) override {
     // For most types of streams, OnStreamRead will be immediately after
     // OnStreamAlloc, and will consume all data, so using a static buffer for
-    // reading is more efficient. For other streams, just use the default
-    // allocator, which uses Malloc().
+    // reading is more efficient. For other streams, just use Malloc() directly.
     if (env()->http_parser_buffer_in_use())
-      return StreamListener::OnStreamAlloc(suggested_size);
+      return uv_buf_init(Malloc(suggested_size), suggested_size);
     env()->set_http_parser_buffer_in_use(true);
 
     if (env()->http_parser_buffer() == nullptr)

@@ -200,10 +200,13 @@ void SerializerContext::ReleaseBuffer(const FunctionCallbackInfo<Value>& args) {
   SerializerContext* ctx;
   ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
 
+  // Note: Both ValueSerializer and this Buffer::New() variant use malloc()
+  // as the underlying allocator.
   std::pair<uint8_t*, size_t> ret = ctx->serializer_.Release();
   auto buf = Buffer::New(ctx->env(),
                          reinterpret_cast<char*>(ret.first),
-                         ret.second);
+                         ret.second,
+                         true /* uses_malloc */);
 
   if (!buf.IsEmpty()) {
     args.GetReturnValue().Set(buf.ToLocalChecked());

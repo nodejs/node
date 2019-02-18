@@ -462,24 +462,22 @@ void UDPWrap::OnSend(uv_udp_send_t* req, int status) {
 void UDPWrap::OnAlloc(uv_handle_t* handle,
                       size_t suggested_size,
                       uv_buf_t* buf) {
-  buf->base = node::Malloc(suggested_size);
-  buf->len = suggested_size;
+  UDPWrap* wrap = static_cast<UDPWrap*>(handle->data);
+  *buf = wrap->env()->AllocateManaged(suggested_size).release();
 }
-
 
 void UDPWrap::OnRecv(uv_udp_t* handle,
                      ssize_t nread,
-                     const uv_buf_t* buf,
+                     const uv_buf_t* buf_,
                      const struct sockaddr* addr,
                      unsigned int flags) {
-  if (nread == 0 && addr == nullptr) {
-    if (buf->base != nullptr)
-      free(buf->base);
-    return;
-  }
-
   UDPWrap* wrap = static_cast<UDPWrap*>(handle->data);
   Environment* env = wrap->env();
+
+  AllocatedBuffer buf(env, *buf_);
+  if (nread == 0 && addr == nullptr) {
+    return;
+  }
 
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
@@ -493,14 +491,12 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
   };
 
   if (nread < 0) {
-    if (buf->base != nullptr)
-      free(buf->base);
     wrap->MakeCallback(env->onmessage_string(), arraysize(argv), argv);
     return;
   }
 
-  char* base = node::UncheckedRealloc(buf->base, nread);
-  argv[2] = Buffer::New(env, base, nread).ToLocalChecked();
+  buf.Resize(nread);
+  argv[2] = buf.ToBuffer().ToLocalChecked();
   argv[3] = AddressToJS(env, addr);
   wrap->MakeCallback(env->onmessage_string(), arraysize(argv), argv);
 }
