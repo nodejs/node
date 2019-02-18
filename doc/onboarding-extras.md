@@ -81,5 +81,5 @@ need to be attached anymore, as only important bugfixes will be included.
   * `macos`, `windows`, `smartos`, `aix`
   * No linux, linux is the implied default
 * Architecture labels
-  * `arm`, `mips`, `s390`, `ppc`
+  * `arm`, `s390`, `ppc`
   * No x86{_64}, since that is the implied default
