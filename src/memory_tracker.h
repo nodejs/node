@@ -197,6 +197,17 @@ class MemoryTracker {
   inline void Track(const MemoryRetainer* retainer,
                     const char* edge_name = nullptr);
 
+  // Useful for parents that do not wish to perform manual
+  // adjustments to its `SelfSize()` when embedding retainer
+  // objects inline.
+  // Put a memory container into the graph, create an edge from
+  // the current node if there is one on the stack - there should
+  // be one, of the container object which the current field is part of.
+  // Reduce the size of memory from the container so as to avoid
+  // duplication in accounting.
+  inline void TrackInlineField(const MemoryRetainer* retainer,
+                               const char* edge_name = nullptr);
+
   inline v8::EmbedderGraph* graph() { return graph_; }
   inline v8::Isolate* isolate() { return isolate_; }
 
