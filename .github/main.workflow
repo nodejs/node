@@ -1,6 +1,11 @@
 workflow "on push" {
   on = "push"
-  resolves = ["Find Python 3 syntax errors and undefined names", "GitHub Action for Flake8", "GitHub Action for pylint"]
+  resolves = ["make lint-py", "Find Python 3 syntax errors and undefined names", "GitHub Action for Flake8", "GitHub Action for pylint"]
+}
+
+action "make lint-py" {
+  uses = "cclauss/GitHub-Action-for-Flake8@master"
+  args = "make lint-py"
 }
 
 action "Find Python 3 syntax errors and undefined names" {
