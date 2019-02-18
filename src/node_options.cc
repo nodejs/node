@@ -79,11 +79,6 @@ void PerIsolateOptions::CheckOptions(std::vector<std::string>* errors) {
         "--diagnostic-report-uncaught-exception option is valid only when "
         "--experimental-report is set");
   }
-
-  if (report_verbose) {
-    errors->push_back("--diagnostic-report-verbose option is valid only when "
-                      "--experimental-report is set");
-  }
 #endif  // NODE_REPORT
 }
 
@@ -338,11 +333,6 @@ PerIsolateOptionsParser::PerIsolateOptionsParser() {
             "define custom report pathname."
             " (default: current working directory of Node.js process)",
             &PerIsolateOptions::report_directory,
-            kAllowedInEnvironment);
-  AddOption("--diagnostic-report-verbose",
-            "verbose option for report generation(true|false)."
-            " (default: false)",
-            &PerIsolateOptions::report_verbose,
             kAllowedInEnvironment);
 #endif  // NODE_REPORT
 

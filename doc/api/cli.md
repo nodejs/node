@@ -126,13 +126,6 @@ Enables report to be generated on un-caught exceptions, if
 `--experimental-report` is enabled. Useful when inspecting JavaScript stack in
 conjunction with native stack and other runtime environment data.
 
-### `--diagnostic-report-verbose`
-<!-- YAML
-added: v11.8.0
--->
-
-Flag that enables additional information to be printed during report generation.
-
 ### `--enable-fips`
 <!-- YAML
 added: v6.0.0
@@ -672,7 +665,6 @@ Node.js options that are allowed are:
 - `--diagnostic-report-on-signal`
 - `--diagnostic-report-signal`
 - `--diagnostic-report-uncaught-exception`
-- `--diagnostic-report-verbose`
 - `--enable-fips`
 - `--experimental-modules`
 - `--experimental-repl-await`

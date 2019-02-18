@@ -167,17 +167,6 @@ void SyncConfig(const FunctionCallbackInfo<Value>& info) {
 
   Utf8Value pathstr(env->isolate(), path);
 
-  // Report verbosity
-  Local<String> verbosekey = FIXED_ONE_BYTE_STRING(env->isolate(), "verbose");
-  Local<Value> verbose_unchecked;
-  if (!obj->Get(context, verbosekey).ToLocal(&verbose_unchecked)) return;
-  Local<Boolean> verbose;
-  if (verbose_unchecked->IsUndefined() || verbose_unchecked->IsNull())
-    verbose_unchecked = Boolean::New(env->isolate(), "verbose");
-  verbose = verbose_unchecked.As<Boolean>();
-
-  bool verb = verbose->BooleanValue(context).FromJust();
-
   if (sync) {
     static const std::string e = "exception";
     static const std::string s = "signal";
@@ -202,7 +191,6 @@ void SyncConfig(const FunctionCallbackInfo<Value>& info) {
     options->report_filename = *filestr;
     CHECK_NOT_NULL(*pathstr);
     options->report_directory = *pathstr;
-    options->report_verbose = verb;
   } else {
     int i = 0;
     if (options->report_uncaught_exception &&
@@ -242,12 +230,6 @@ void SyncConfig(const FunctionCallbackInfo<Value>& info) {
              .ToLocal(&path_value))
       return;
     if (!obj->Set(context, pathkey, path_value).FromJust()) return;
-
-    if (!obj->Set(context,
-                  verbosekey,
-                  Boolean::New(env->isolate(), options->report_verbose))
-             .FromJust())
-      return;
   }
 }
 
@@ -261,22 +243,6 @@ static void Initialize(Local<Object> exports,
   env->SetMethod(exports, "onUnCaughtException", OnUncaughtException);
   env->SetMethod(exports, "onUserSignal", OnUserSignal);
   env->SetMethod(exports, "syncConfig", SyncConfig);
-
-  // TODO(gireeshpunathil) if we are retaining this flag,
-  // insert more verbose information at vital control flow
-  // points. Right now, it is only this one.
-  if (options->report_verbose) {
-    std::cerr << "report: initialization complete, event flags:" << std::endl;
-    std::cerr << "report_uncaught_exception: "
-              << options->report_uncaught_exception << std::endl;
-    std::cerr << "report_on_signal: " << options->report_on_signal << std::endl;
-    std::cerr << "report_on_fatalerror: " << options->report_on_fatalerror
-              << std::endl;
-    std::cerr << "report_signal: " << options->report_signal << std::endl;
-    std::cerr << "report_filename: " << options->report_filename << std::endl;
-    std::cerr << "report_directory: " << options->report_directory << std::endl;
-    std::cerr << "report_verbose: " << options->report_verbose << std::endl;
-  }
 }
 
 }  // namespace report

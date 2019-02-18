@@ -153,7 +153,6 @@ class PerIsolateOptions : public Options {
   std::string report_signal;
   std::string report_filename;
   std::string report_directory;
-  bool report_verbose;
 #endif  //  NODE_REPORT
   inline EnvironmentOptions* get_per_env_options();
   void CheckOptions(std::vector<std::string>* errors) override;

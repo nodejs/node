@@ -1703,8 +1703,6 @@ added: v11.8.0
   * `filename` {string} Name of the file where the report is written.
   * `path` {string} Directory where the report is written.
     **Default:** the current working directory of the Node.js process.
-  * `verbose` {boolean} Flag that controls additional verbose information on
-    report generation. **Default:** `false`.
 
 Configures the diagnostic reporting behavior. Upon invocation, the runtime
 is reconfigured to generate reports based on `options`. Several usage examples
@@ -1721,9 +1719,6 @@ process.report.setOptions({ filename: 'foo.json', path: '/home' });
 // to `stdout` and `stderr`. Usage of these will result in report being written
 // to the associated standard streams. URLs are not supported.
 process.report.setOptions({ filename: 'stdout' });
-
-// Enable verbose option on report generation.
-process.report.setOptions({ verbose: true });
 ```
 
 Signal based report generation is not supported on Windows.
