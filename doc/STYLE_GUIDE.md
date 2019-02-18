@@ -1,16 +1,15 @@
 # Style Guide
 
-* Documentation is written in markdown files with names formatted as
+* Documentation is in markdown files with names formatted as
   `lowercase-with-dashes.md`.
-  * Underscores in filenames are allowed only when they are present in the
-    topic the document will describe (e.g. `child_process`).
+  * Use an underscore in the filename only if the underscore is part of the
+    topic name (e.g., `child_process`).
   * Some files, such as top-level markdown files, are exceptions.
 * Documents should be word-wrapped at 80 characters.
-* The formatting described in `.editorconfig` is preferred.
-  * A [plugin][] is available for some editors to automatically apply these
-    rules.
-* Changes to documentation should be checked with `make lint-md`.
-* American English spelling is preferred.
+* `.editorconfig` describes the preferred formatting.
+  * A [plugin][] is available for some editors to apply these rules.
+* Check changes to documentation with `make lint-md`.
+* Use American English spelling.
   * OK: _capitalize_, _color_
   * NOT OK: _capitalise_, _colour_
 * Use [serial commas][].
@@ -19,39 +18,30 @@
   * Use gender-neutral pronouns and gender-neutral plural nouns.
     * OK: _they_, _their_, _them_, _folks_, _people_, _developers_
     * NOT OK: _his_, _hers_, _him_, _her_, _guys_, _dudes_
-* When combining wrapping elements (parentheses and quotes), terminal
-  punctuation should be placed:
+* When combining wrapping elements (parentheses and quotes), place terminal
+  punctuation:
   * Inside the wrapping element if the wrapping element contains a complete
-    clause — a subject, verb, and an object.
+    clause.
   * Outside of the wrapping element if the wrapping element contains only a
     fragment of a clause.
 * Documents must start with a level-one heading.
 * Prefer affixing links to inlining links — prefer `[a link][]` to
   `[a link](http://example.com)`.
-* When documenting APIs, note the version the API was introduced in at
-  the end of the section. If an API has been deprecated, also note the first
-  version that the API appeared deprecated in.
-* When using dashes, use [Em dashes][] ("—" or `Option+Shift+"-"` on macOS)
-  surrounded by spaces, as per [The New York Times Manual of Style and Usage][].
-* Including assets:
-  * If you wish to add an illustration or full program, add it to the
-    appropriate sub-directory in the `assets/` dir.
-  * Link to it like so: `[Asset](/assets/{subdir}/{filename})` for file-based
-    assets, and `![Asset](/assets/{subdir}/{filename})` for image-based assets.
-  * For illustrations, prefer SVG to other assets. When SVG is not feasible,
-    please keep a close eye on the filesize of the asset you're introducing.
+* When documenting APIs, update the YAML comment associated with the API as
+  appropriate. This is especially true when introducing or deprecating an API.
+* Use [Em dashes][] ("—" or `Option+Shift+"-"` on macOS) surrounded by spaces,
+  as per [The New York Times Manual of Style and Usage][].
 * For code blocks:
   * Use language aware fences. ("```js")
-  * Code need not be complete — treat code blocks as an illustration or aid to
+  * Code need not be complete. Treat code blocks as an illustration or aid to
     your point, not as complete running programs. If a complete running program
     is necessary, include it as an asset in `assets/code-examples` and link to
     it.
-* When using underscores, asterisks, and backticks, please use proper escaping
-  (`\_`, `\*` and ``\` `` instead of `_`, `*` and `` ` ``).
-* References to constructor functions should use PascalCase.
-* References to constructor instances should use camelCase.
-* References to methods should be used with parentheses: for example,
-  `socket.end()` instead of `socket.end`.
+* When using underscores, asterisks, and backticks, please use
+  backslash-escaping: `\_`, `\*`, and ``\` ``.
+* Constructors should use PascalCase.
+* Instances should use camelCase.
+* Denote methods with parentheses: `socket.end()` instead of `socket.end`.
 * Function arguments or object properties should use the following format:
   * ``` * `name` {type|type2} Optional description. **Default:** `value`. ```
   <!--lint disable maximum-line-length remark-lint-->
