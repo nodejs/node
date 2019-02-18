@@ -401,9 +401,6 @@ written.
 * `--diagnostic-report-signal` Sets or resets the signal for report generation
 (not supported on Windows). Default signal is `SIGUSR2`.
 
-* `--diagnostic-report-verbose` Flag that enables additional information to be
-printed during report generation.
-
 A report can also be triggered via an API call from a JavaScript application:
 
 ```js
@@ -495,8 +492,7 @@ process.report.setOptions({
   events: ['exception', 'fatalerror', 'signal'],
   signal: 'SIGUSR2',
   filename: 'myreport.json',
-  path: '/home/nodeuser',
-  verbose: true
+  path: '/home/nodeuser'
 });
 ```
 
@@ -519,9 +515,6 @@ timestamp, PID and sequence number.
 URLs are not supported. Defaults to the current working directory of the
 Node.js process.
 
-`verbose` specifies whether to print additional verbose messages
-pertinent to the report generation. Defaults to `false`.
-
 ```js
 // Trigger report only on uncaught exceptions.
 process.report.setOptions({ events: ['exception'] });
@@ -541,7 +534,7 @@ environment variables:
 NODE_OPTIONS="--experimental-report --diagnostic-report-uncaught-exception \
   --diagnostic-report-on-fatalerror --diagnostic-report-on-signal \
   --diagnostic-report-signal=SIGUSR2  --diagnostic-report-filename=./report.json \
-  --diagnostic-report-directory=/home/nodeuser --diagnostic-report-verbose"
+  --diagnostic-report-directory=/home/nodeuser"
 ```
 
 Specific API documentation can be found under
