@@ -144,6 +144,9 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
       continue;
     }
 
+    env->isolate_data()->node_allocator()->RegisterPointer(
+        array_buffer_contents_[i].data, array_buffer_contents_[i].size);
+
     Local<ArrayBuffer> ab =
         ArrayBuffer::New(env->isolate(),
                          array_buffer_contents_[i].release(),
@@ -367,6 +370,11 @@ Maybe<bool> Message::Serialize(Environment* env,
     // it inaccessible in this Isolate.
     ArrayBuffer::Contents contents = ab->Externalize();
     ab->Neuter();
+
+    CHECK(env->isolate_data()->uses_node_allocator());
+    env->isolate_data()->node_allocator()->UnregisterPointer(
+        contents.Data(), contents.ByteLength());
+
     array_buffer_contents_.push_back(
         MallocedBuffer<char> { static_cast<char*>(contents.Data()),
                                contents.ByteLength() });

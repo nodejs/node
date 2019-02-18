@@ -11,7 +11,6 @@ namespace native_module {
 
 using v8::Array;
 using v8::ArrayBuffer;
-using v8::ArrayBufferCreationMode;
 using v8::Context;
 using v8::DEFAULT;
 using v8::EscapableHandleScope;
@@ -153,13 +152,8 @@ MaybeLocal<Uint8Array> NativeModuleLoader::GetCodeCache(Isolate* isolate,
 
   cached_data = it->second.get();
 
-  MallocedBuffer<uint8_t> copied(cached_data->length);
-  memcpy(copied.data, cached_data->data, cached_data->length);
-  Local<ArrayBuffer> buf =
-      ArrayBuffer::New(isolate,
-                       copied.release(),
-                       cached_data->length,
-                       ArrayBufferCreationMode::kInternalized);
+  Local<ArrayBuffer> buf = ArrayBuffer::New(isolate, cached_data->length);
+  memcpy(buf->GetContents().Data(), cached_data->data, cached_data->length);
   return scope.Escape(Uint8Array::New(buf, 0, cached_data->length));
 }
 
