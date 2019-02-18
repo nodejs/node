@@ -14,5 +14,5 @@ workflow "pylint" {
 
 action "GitHub Action for pylint" {
   uses = "cclauss/pylint/github_actions@GitHub-Action"
-  args = "pylint"
+  args = "pylint ."
 }
