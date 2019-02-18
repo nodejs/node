@@ -12,7 +12,6 @@
 namespace node {
 
 using v8::ArrayBuffer;
-using v8::ArrayBufferCreationMode;
 using v8::Boolean;
 using v8::Context;
 using v8::Float64Array;
@@ -1767,18 +1766,22 @@ Http2Stream* Http2Session::SubmitRequest(
   return stream;
 }
 
+uv_buf_t Http2Session::OnStreamAlloc(size_t suggested_size) {
+  return env()->AllocateManaged(suggested_size).release();
+}
+
 // Callback used to receive inbound data from the i/o stream
-void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
+void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
   HandleScope handle_scope(env()->isolate());
   Context::Scope context_scope(env()->context());
   Http2Scope h2scope(this);
   CHECK_NOT_NULL(stream_);
   Debug(this, "receiving %d bytes", nread);
   CHECK(stream_buf_ab_.IsEmpty());
+  AllocatedBuffer buf(env(), buf_);
 
   // Only pass data on if nread > 0
   if (nread <= 0) {
-    free(buf.base);
     if (nread < 0) {
       PassReadErrorToPreviousListener(nread);
     }
@@ -1786,13 +1789,13 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
   }
 
   // Shrink to the actual amount of used data.
-  char* base = Realloc(buf.base, nread);
+  buf.Resize(nread);
 
-  IncrementCurrentSessionMemory(nread);
+  IncrementCurrentSessionMemory(buf.size());
   OnScopeLeave on_scope_leave([&]() {
     // Once finished handling this write, reset the stream buffer.
     // The memory has either been free()d or was handed over to V8.
-    DecrementCurrentSessionMemory(nread);
+    DecrementCurrentSessionMemory(buf.size());
     stream_buf_ab_ = Local<ArrayBuffer>();
     stream_buf_ = uv_buf_init(nullptr, 0);
   });
@@ -1803,17 +1806,13 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
 
   // Remember the current buffer, so that OnDataChunkReceived knows the
   // offset of a DATA frame's data into the socket read buffer.
-  stream_buf_ = uv_buf_init(base, nread);
+  stream_buf_ = uv_buf_init(buf.data(), nread);
 
   Isolate* isolate = env()->isolate();
 
   // Create an array buffer for the read data. DATA frames will be emitted
   // as slices of this array buffer to avoid having to copy memory.
-  stream_buf_ab_ =
-      ArrayBuffer::New(isolate,
-                       base,
-                       nread,
-                       ArrayBufferCreationMode::kInternalized);
+  stream_buf_ab_ = buf.ToArrayBuffer();
 
   statistics_.data_received += nread;
   ssize_t ret = Write(&stream_buf_, 1);

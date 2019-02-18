@@ -41,7 +41,7 @@ class StreamPipe : public AsyncWrap {
   // `OnStreamWantsWrite()` support.
   size_t wanted_data_ = 0;
 
-  void ProcessData(size_t nread, const uv_buf_t& buf);
+  void ProcessData(size_t nread, AllocatedBuffer&& buf);
 
   class ReadableListener : public StreamListener {
    public:

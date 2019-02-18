@@ -419,18 +419,9 @@ inline void ShutdownWrap::OnDone(int status) {
   Dispose();
 }
 
-inline void WriteWrap::SetAllocatedStorage(char* data, size_t size) {
-  CHECK_NULL(storage_);
-  storage_ = data;
-  storage_size_ = size;
-}
-
-inline char* WriteWrap::Storage() {
-  return storage_;
-}
-
-inline size_t WriteWrap::StorageSize() const {
-  return storage_size_;
+inline void WriteWrap::SetAllocatedStorage(AllocatedBuffer&& storage) {
+  CHECK_NULL(storage_.data());
+  storage_ = std::move(storage);
 }
 
 inline void WriteWrap::OnDone(int status) {

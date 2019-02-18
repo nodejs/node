@@ -114,17 +114,17 @@ uv_buf_t StreamPipe::ReadableListener::OnStreamAlloc(size_t suggested_size) {
   StreamPipe* pipe = ContainerOf(&StreamPipe::readable_listener_, this);
   size_t size = std::min(suggested_size, pipe->wanted_data_);
   CHECK_GT(size, 0);
-  return uv_buf_init(Malloc(size), size);
+  return pipe->env()->AllocateManaged(size).release();
 }
 
 void StreamPipe::ReadableListener::OnStreamRead(ssize_t nread,
-                                                const uv_buf_t& buf) {
+                                                const uv_buf_t& buf_) {
   StreamPipe* pipe = ContainerOf(&StreamPipe::readable_listener_, this);
+  AllocatedBuffer buf(pipe->env(), buf_);
   AsyncScope async_scope(pipe);
   if (nread < 0) {
     // EOF or error; stop reading and pass the error to the previous listener
     // (which might end up in JS).
-    free(buf.base);
     pipe->is_eof_ = true;
     stream()->ReadStop();
     CHECK_NOT_NULL(previous_listener_);
@@ -138,19 +138,18 @@ void StreamPipe::ReadableListener::OnStreamRead(ssize_t nread,
     return;
   }
 
-  pipe->ProcessData(nread, buf);
+  pipe->ProcessData(nread, std::move(buf));
 }
 
-void StreamPipe::ProcessData(size_t nread, const uv_buf_t& buf) {
-  uv_buf_t buffer = uv_buf_init(buf.base, nread);
+void StreamPipe::ProcessData(size_t nread, AllocatedBuffer&& buf) {
+  uv_buf_t buffer = uv_buf_init(buf.data(), nread);
   StreamWriteResult res = sink()->Write(&buffer, 1);
   if (!res.async) {
-    free(buf.base);
     writable_listener_.OnStreamAfterWrite(nullptr, res.err);
   } else {
     is_writing_ = true;
     is_reading_ = false;
-    res.wrap->SetAllocatedStorage(buf.base, buf.len);
+    res.wrap->SetAllocatedStorage(std::move(buf));
     if (source() != nullptr)
       source()->ReadStop();
   }
