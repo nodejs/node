@@ -476,6 +476,38 @@ enum class DebugCategory {
   CATEGORY_COUNT
 };
 
+// A unique-pointer-ish object that is compatible with the JS engine's
+// ArrayBuffer::Allocator.
+struct AllocatedBuffer {
+ public:
+  explicit inline AllocatedBuffer(Environment* env = nullptr);
+  inline AllocatedBuffer(Environment* env, uv_buf_t buf);
+  inline ~AllocatedBuffer();
+  inline void Resize(size_t len);
+
+  inline uv_buf_t release();
+  inline char* data();
+  inline const char* data() const;
+  inline size_t size() const;
+  inline void clear();
+
+  inline v8::MaybeLocal<v8::Object> ToBuffer();
+  inline v8::Local<v8::ArrayBuffer> ToArrayBuffer();
+
+  inline AllocatedBuffer(AllocatedBuffer&& other);
+  inline AllocatedBuffer& operator=(AllocatedBuffer&& other);
+  AllocatedBuffer(const AllocatedBuffer& other) = delete;
+  AllocatedBuffer& operator=(const AllocatedBuffer& other) = delete;
+
+ private:
+  Environment* env_;
+  // We do not pass this to libuv directly, but uv_buf_t is a convenient way
+  // to represent a chunk of memory, and plays nicely with other parts of core.
+  uv_buf_t buffer_;
+
+  friend class Environment;
+};
+
 class Environment {
  public:
   class AsyncHooks {
@@ -696,6 +728,15 @@ class Environment {
   inline uint64_t timer_base() const;
 
   inline IsolateData* isolate_data() const;
+
+  // Utilites that allocate memory using the Isolate's ArrayBuffer::Allocator.
+  // In particular, using AllocateManaged() will provide a RAII-style object
+  // with easy conversion to `Buffer` and `ArrayBuffer` objects.
+  inline AllocatedBuffer AllocateManaged(size_t size, bool checked = true);
+  inline char* Allocate(size_t size);
+  inline char* AllocateUnchecked(size_t size);
+  char* Reallocate(char* data, size_t old_size, size_t size);
+  inline void Free(char* data, size_t size);
 
   inline bool printed_error() const;
   inline void set_printed_error(bool value);
