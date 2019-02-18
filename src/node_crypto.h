@@ -544,9 +544,8 @@ class CipherBase : public BaseObject {
   bool InitAuthenticated(const char* cipher_type, int iv_len,
                          unsigned int auth_tag_len);
   bool CheckCCMMessageLength(int message_len);
-  UpdateResult Update(const char* data, int len, unsigned char** out,
-                      int* out_len);
-  bool Final(unsigned char** out, int* out_len);
+  UpdateResult Update(const char* data, int len, AllocatedBuffer* out);
+  bool Final(AllocatedBuffer* out);
   bool SetAutoPadding(bool auto_padding);
 
   bool IsAuthenticatedMode() const;
@@ -677,11 +676,11 @@ class Sign : public SignBase {
 
   struct SignResult {
     Error error;
-    MallocedBuffer<unsigned char> signature;
+    AllocatedBuffer signature;
 
     explicit SignResult(
         Error err,
-        MallocedBuffer<unsigned char>&& sig = MallocedBuffer<unsigned char>())
+        AllocatedBuffer&& sig = AllocatedBuffer())
       : error(err), signature(std::move(sig)) {}
   };
 
@@ -738,12 +737,12 @@ class PublicKeyCipher {
   template <Operation operation,
             EVP_PKEY_cipher_init_t EVP_PKEY_cipher_init,
             EVP_PKEY_cipher_t EVP_PKEY_cipher>
-  static bool Cipher(const ManagedEVPPKey& pkey,
+  static bool Cipher(Environment* env,
+                     const ManagedEVPPKey& pkey,
                      int padding,
                      const unsigned char* data,
                      int len,
-                     unsigned char** out,
-                     size_t* out_len);
+                     AllocatedBuffer* out);
 
   template <Operation operation,
             EVP_PKEY_cipher_init_t EVP_PKEY_cipher_init,

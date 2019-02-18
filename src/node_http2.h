@@ -783,6 +783,7 @@ class Http2Session : public AsyncWrap, public StreamListener {
   }
 
   // Handle reads/writes from the underlying network transport.
+  uv_buf_t OnStreamAlloc(size_t suggested_size) override;
   void OnStreamRead(ssize_t nread, const uv_buf_t& buf) override;
   void OnStreamAfterWrite(WriteWrap* w, int status) override;
 

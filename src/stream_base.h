@@ -74,24 +74,17 @@ class ShutdownWrap : public StreamReq {
 
 class WriteWrap : public StreamReq {
  public:
-  char* Storage();
-  size_t StorageSize() const;
-  void SetAllocatedStorage(char* data, size_t size);
+  void SetAllocatedStorage(AllocatedBuffer&& storage);
 
   WriteWrap(StreamBase* stream,
             v8::Local<v8::Object> req_wrap_obj)
     : StreamReq(stream, req_wrap_obj) { }
 
-  ~WriteWrap() override {
-    free(storage_);
-  }
-
   // Call stream()->EmitAfterWrite() and dispose of this request wrap.
   void OnDone(int status) override;
 
  private:
-  char* storage_ = nullptr;
-  size_t storage_size_ = 0;
+  AllocatedBuffer storage_;
 };
 
 
@@ -115,7 +108,7 @@ class StreamListener {
   // It is not valid to return a zero-length buffer from this method.
   // It is not guaranteed that the corresponding `OnStreamRead()` call
   // happens in the same event loop turn as this call.
-  virtual uv_buf_t OnStreamAlloc(size_t suggested_size);
+  virtual uv_buf_t OnStreamAlloc(size_t suggested_size) = 0;
 
   // `OnStreamRead()` is called when data is available on the socket and has
   // been read into the buffer provided by `OnStreamAlloc()`.
@@ -181,6 +174,7 @@ class ReportWritesToJSStreamListener : public StreamListener {
 // JS land via the handle’s .ondata method.
 class EmitToJSStreamListener : public ReportWritesToJSStreamListener {
  public:
+  uv_buf_t OnStreamAlloc(size_t suggested_size) override;
   void OnStreamRead(ssize_t nread, const uv_buf_t& buf) override;
 };
 
