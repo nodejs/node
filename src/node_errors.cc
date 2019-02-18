@@ -316,15 +316,9 @@ void OnFatalError(const char* location, const char* message) {
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope handle_scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
-  if (env != nullptr) {
-    std::shared_ptr<PerIsolateOptions> options = env->isolate_data()->options();
-    if (options->report_on_fatalerror) {
-      report::TriggerNodeReport(
-          isolate, env, message, __func__, "", Local<String>());
-    }
-  } else {
+  if (env == nullptr || env->isolate_data()->options()->report_on_fatalerror) {
     report::TriggerNodeReport(
-        isolate, nullptr, message, __func__, "", Local<String>());
+        isolate, env, message, __func__, "", Local<String>());
   }
 #endif  // NODE_REPORT
   fflush(stderr);
