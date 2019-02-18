@@ -49,8 +49,16 @@ inline uv_loop_t* IsolateData::event_loop() const {
   return event_loop_;
 }
 
-inline uint32_t* IsolateData::zero_fill_field() const {
-  return zero_fill_field_;
+inline bool IsolateData::uses_node_allocator() const {
+  return uses_node_allocator_;
+}
+
+inline v8::ArrayBuffer::Allocator* IsolateData::allocator() const {
+  return allocator_;
+}
+
+inline ArrayBufferAllocator* IsolateData::node_allocator() const {
+  return node_allocator_;
 }
 
 inline MultiIsolatePlatform* IsolateData::platform() const {

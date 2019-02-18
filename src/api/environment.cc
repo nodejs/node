@@ -124,11 +124,7 @@ IsolateData* CreateIsolateData(Isolate* isolate,
                                uv_loop_t* loop,
                                MultiIsolatePlatform* platform,
                                ArrayBufferAllocator* allocator) {
-  return new IsolateData(
-      isolate,
-      loop,
-      platform,
-      allocator != nullptr ? allocator->zero_fill_field() : nullptr);
+  return new IsolateData(isolate, loop, platform, allocator);
 }
 
 void FreeIsolateData(IsolateData* isolate_data) {
