@@ -158,6 +158,7 @@ class PerProcessOptions : public Options {
   uint64_t max_http_header_size = 8 * 1024;
   int64_t v8_thread_pool_size = 4;
   bool zero_fill_all_buffers = false;
+  bool debug_arraybuffer_allocations = false;
 
   std::vector<std::string> security_reverts;
   bool print_bash_completion = false;
