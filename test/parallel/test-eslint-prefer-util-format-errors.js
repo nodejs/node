@@ -3,6 +3,8 @@
 /* eslint-disable no-template-curly-in-string */
 
 const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
 common.skipIfEslintMissing();
 
