@@ -50,8 +50,6 @@ using performance::PerformanceEntry;
 #define MAX_MAX_HEADER_LIST_SIZE 16777215u
 #define DEFAULT_MAX_HEADER_LIST_PAIRS 128u
 
-#define MAX_BUFFER_COUNT 16
-
 enum nghttp2_session_type {
   NGHTTP2_SESSION_SERVER,
   NGHTTP2_SESSION_CLIENT
