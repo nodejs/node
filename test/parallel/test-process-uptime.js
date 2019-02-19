@@ -24,14 +24,14 @@ require('../common');
 const assert = require('assert');
 
 console.error(process.uptime());
-assert.ok(process.uptime() <= 2);
+// Add some wiggle room for different platforms.
+// Verify that the returned value is in seconds -
+// 15 seconds should be a good estimate.
+assert.ok(process.uptime() <= 15);
 
 const original = process.uptime();
 
 setTimeout(function() {
   const uptime = process.uptime();
-  // some wiggle room to account for timer
-  // granularity, processor speed, and scheduling
-  assert.ok(uptime >= original + 2);
-  assert.ok(uptime <= original + 3);
-}, 2000);
+  assert.ok(original < uptime);
+}, 10);
