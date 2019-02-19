@@ -20,10 +20,12 @@ switch (process.argv[2]) {
 }
 
 for (const test of ['worker', 'main-thread', 'both']) {
+  console.log('spawning test', test);
   const proc = child_process.spawnSync(process.execPath, [
     __filename,
     test
   ]);
+  process.stderr.write(proc.stderr.toString());
   assert.strictEqual(proc.stderr.toString(), '');
   // We always only have 1 instance of the shared object in memory, so
   // 1 ctor and 1 dtor call. If we attach the module to 2 Environments,

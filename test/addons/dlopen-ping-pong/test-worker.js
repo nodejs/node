@@ -1,5 +1,9 @@
 'use strict';
 const common = require('../../common');
+
+if (common.isWindows)
+  common.skip('dlopen global symbol loading is not supported on this os.');
+
 const assert = require('assert');
 const { Worker } = require('worker_threads');
 
