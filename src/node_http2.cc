@@ -1774,16 +1774,7 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
   Http2Scope h2scope(this);
   CHECK_NOT_NULL(stream_);
   Debug(this, "receiving %d bytes", nread);
-  IncrementCurrentSessionMemory(buf.len);
   CHECK(stream_buf_ab_.IsEmpty());
-
-  OnScopeLeave on_scope_leave([&]() {
-    // Once finished handling this write, reset the stream buffer.
-    // The memory has either been free()d or was handed over to V8.
-    DecrementCurrentSessionMemory(buf.len);
-    stream_buf_ab_ = Local<ArrayBuffer>();
-    stream_buf_ = uv_buf_init(nullptr, 0);
-  });
 
   // Only pass data on if nread > 0
   if (nread <= 0) {
@@ -1794,19 +1785,25 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
     return;
   }
 
+  // Shrink to the actual amount of used data.
+  char* base = Realloc(buf.base, nread);
+
+  IncrementCurrentSessionMemory(nread);
+  OnScopeLeave on_scope_leave([&]() {
+    // Once finished handling this write, reset the stream buffer.
+    // The memory has either been free()d or was handed over to V8.
+    DecrementCurrentSessionMemory(nread);
+    stream_buf_ab_ = Local<ArrayBuffer>();
+    stream_buf_ = uv_buf_init(nullptr, 0);
+  });
+
   // Make sure that there was no read previously active.
   CHECK_NULL(stream_buf_.base);
   CHECK_EQ(stream_buf_.len, 0);
 
   // Remember the current buffer, so that OnDataChunkReceived knows the
   // offset of a DATA frame's data into the socket read buffer.
-  stream_buf_ = uv_buf_init(buf.base, nread);
-
-  // Verify that currently: There is memory allocated into which
-  // the data has been read, and that memory buffer is at least as large
-  // as the amount of data we have read, but we have not yet made an
-  // ArrayBuffer out of it.
-  CHECK_LE(static_cast<size_t>(nread), stream_buf_.len);
+  stream_buf_ = uv_buf_init(base, nread);
 
   Isolate* isolate = env()->isolate();
 
@@ -1814,9 +1811,9 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
   // as slices of this array buffer to avoid having to copy memory.
   stream_buf_ab_ =
       ArrayBuffer::New(isolate,
-                        buf.base,
-                        nread,
-                        ArrayBufferCreationMode::kInternalized);
+                       base,
+                       nread,
+                       ArrayBufferCreationMode::kInternalized);
 
   statistics_.data_received += nread;
   ssize_t ret = Write(&stream_buf_, 1);

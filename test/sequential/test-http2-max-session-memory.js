@@ -8,7 +8,7 @@ const http2 = require('http2');
 
 // Test that maxSessionMemory Caps work
 
-const largeBuffer = Buffer.alloc(1e6);
+const largeBuffer = Buffer.alloc(2e6);
 
 const server = http2.createServer({ maxSessionMemory: 1 });
 
