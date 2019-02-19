@@ -132,6 +132,18 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
 
   // Attach all transferred ArrayBuffers to their new Isolate.
   for (uint32_t i = 0; i < array_buffer_contents_.size(); ++i) {
+    if (!env->isolate_data()->uses_node_allocator()) {
+      // We don't use Node's allocator on the receiving side, so we have
+      // to create the ArrayBuffer from a copy of the memory.
+      AllocatedBuffer buf =
+          env->AllocateManaged(array_buffer_contents_[i].size);
+      memcpy(buf.data(),
+             array_buffer_contents_[i].data,
+             array_buffer_contents_[i].size);
+      deserializer.TransferArrayBuffer(i, buf.ToArrayBuffer());
+      continue;
+    }
+
     Local<ArrayBuffer> ab =
         ArrayBuffer::New(env->isolate(),
                          array_buffer_contents_[i].release(),
@@ -288,8 +300,10 @@ Maybe<bool> Message::Serialize(Environment* env,
         Local<ArrayBuffer> ab = entry.As<ArrayBuffer>();
         // If we cannot render the ArrayBuffer unusable in this Isolate and
         // take ownership of its memory, copying the buffer will have to do.
-        if (!ab->IsNeuterable() || ab->IsExternal())
+        if (!ab->IsNeuterable() || ab->IsExternal() ||
+            !env->isolate_data()->uses_node_allocator()) {
           continue;
+        }
         if (std::find(array_buffers.begin(), array_buffers.end(), ab) !=
             array_buffers.end()) {
           ThrowDataCloneException(
