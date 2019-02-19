@@ -27,7 +27,6 @@ class StreamPipe : public AsyncWrap {
   inline StreamBase* sink();
 
   inline void ShutdownWritable();
-  inline void FlushToWritable();
 
   bool is_reading_ = false;
   bool is_writing_ = false;
