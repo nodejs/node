@@ -1803,7 +1803,7 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
 
   // Remember the current buffer, so that OnDataChunkReceived knows the
   // offset of a DATA frame's data into the socket read buffer.
-  stream_buf_ = uv_buf_init(buf.base, nread);
+  stream_buf_ = uv_buf_init(base, nread);
 
   Isolate* isolate = env()->isolate();
 
