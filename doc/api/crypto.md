@@ -1121,6 +1121,9 @@ exposes different functions.
 Most applications should consider using the new `KeyObject` API instead of
 passing keys as strings or `Buffer`s due to improved security features.
 
+See [`crypto.isKeyObject()`][] for checking whether a given input is
+a `KeyObject` instance.
+
 ### keyObject.asymmetricKeyType
 <!-- YAML
 added: v11.6.0
@@ -2068,6 +2071,23 @@ added: v0.9.3
 ```js
 const hashes = crypto.getHashes();
 console.log(hashes); // ['DSA', 'DSA-SHA', 'DSA-SHA1', ...]
+```
+
+### crypto.isKeyObject(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `value` {any}
+* Returns: {boolean}
+
+Returns `true` if the value is a [`KeyObject`] instance.
+
+```js
+const crypto = require('crypto');
+const keypair = crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' });
+
+crypto.isKeyObject(keypair.privateKey);  // Returns true
 ```
 
 ### crypto.pbkdf2(password, salt, iterations, keylen, digest, callback)

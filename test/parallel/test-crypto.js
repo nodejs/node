@@ -300,3 +300,12 @@ testEncoding({
 testEncoding({
   defaultEncoding: 'latin1'
 }, assertionHashLatin1);
+
+// isKeyObject checks
+assert(crypto.isKeyObject(crypto.createSecretKey(Buffer.from('foo'))));
+const keypair = crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' });
+assert(crypto.isKeyObject(keypair.privateKey));
+assert(crypto.isKeyObject(keypair.publicKey));
+[null, undefined, false, 5, 'foo', {}, Buffer].forEach((value) => {
+  assert(!crypto.isKeyObject(value));
+});
