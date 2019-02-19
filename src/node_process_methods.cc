@@ -57,10 +57,8 @@ Mutex umask_mutex;
 
 // Microseconds in a second, as a float, used in CPUUsage() below
 #define MICROS_PER_SEC 1e6
-// used in Hrtime() below
+// used in Hrtime() and Uptime() below
 #define NANOS_PER_SEC 1000000000
-// Used in Uptime()
-#define NANOS_PER_MICROS 1e3
 
 #ifdef _WIN32
 /* MAX_PATH is in characters, not bytes. Make sure we have enough headroom. */
@@ -246,7 +244,7 @@ static void Uptime(const FunctionCallbackInfo<Value>& args) {
   uv_update_time(env->event_loop());
   double uptime =
       static_cast<double>(uv_hrtime() - per_process::node_start_time);
-  Local<Number> result = Number::New(env->isolate(), uptime / NANOS_PER_MICROS);
+  Local<Number> result = Number::New(env->isolate(), uptime / NANOS_PER_SEC);
   args.GetReturnValue().Set(result);
 }
 
