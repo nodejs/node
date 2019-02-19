@@ -319,24 +319,25 @@ guide](https://github.com/nodejs/node/blob/master/doc/guides/adding-new-napi-api
 
 ### Deprecations
 
-Node.js uses three [Deprecation][] levels:
+Node.js uses three [Deprecation][] levels. For all deprecated APIs, the API
+documentation must state the deprecation status.
 
-* *Documentation-Only Deprecation*: A deprecation notice is added to the API
-  documentation but no functional changes are implemented in the code. By
-  default, there will be no warnings emitted for such deprecations at
-  runtime. Documentation-only deprecations may trigger a runtime warning when
-  Node.js is started with the [`--pending-deprecation`][] flag or the
-  `NODE_PENDING_DEPRECATION=1` environment variable is set.
+* Documentation-Only Deprecation
+  * A deprecation notice appears in the API documentation.
+  * There are no functional changes.
+  * By default, there will be no warnings emitted for such deprecations at
+    runtime.
+  * May cause a runtime warning with the [`--pending-deprecation`][] flag or
+    `NODE_PENDING_DEPRECATION` environment variable.
 
-* *Runtime Deprecation*: A warning is emitted at runtime the first time that a
-  deprecated API is used. The [`--throw-deprecation`][] flag can be used to
-  escalate such warnings into runtime errors that will cause the Node.js process
-  to exit. As with Documentation-Only Deprecation, the documentation for the API
-  must be updated to clearly indicate the deprecated status.
+* Runtime Deprecation
+  * Emits a warning at runtime on first use of the deprecated API.
+  * If used with the [`--throw-deprecation`][] flag, will throw a runtime error.
 
-* *End-of-life*: The API is no longer subject to the semantic versioning rules.
-  Backward-incompatible changes including complete removal of such APIs may
-  occur at any time.
+* End-of-life
+  * The API is no longer subject to the semantic versioning rules.
+  * Backward-incompatible changes including complete removal of such APIs may
+    occur at any time.
 
 Documentation-Only Deprecations may be handled as semver-minor or semver-major
 changes. Such deprecations have no impact on the successful operation of running
