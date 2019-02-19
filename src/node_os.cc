@@ -120,8 +120,7 @@ static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
   // The array is in the format
   // [model, speed, (5 entries of cpu_times), model2, speed2, ...]
   std::vector<Local<Value>> result(count * 7);
-  for (int i = 0; i < count; i++) {
-    int j = i * 7;
+  for (int i = 0, j = 0; i < count; i++, j = i * 7) {
     uv_cpu_info_t* ci = cpu_infos + i;
     result[j++] = OneByteString(isolate, ci->model);
     result[j++] = Number::New(isolate, ci->speed);
@@ -129,7 +128,7 @@ static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
     result[j++] = Number::New(isolate, ci->cpu_times.nice);
     result[j++] = Number::New(isolate, ci->cpu_times.sys);
     result[j++] = Number::New(isolate, ci->cpu_times.idle);
-    result[j] = Number::New(isolate, ci->cpu_times.irq);
+    result[j++] = Number::New(isolate, ci->cpu_times.irq);
   }
 
   uv_free_cpu_info(cpu_infos, count);
