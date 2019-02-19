@@ -94,7 +94,7 @@ If `version` field is given, the value of the version field must be a valid *sem
 
 ### Rules for license field
 
-The `license` field should be a valid *SPDX license expression* or one of the special values allowed by [validate-npm-package-license](https://npmjs.com/packages/validate-npm-package-license). See [documentation for the license field in package.json](https://docs.npmjs.com/files/package.json#license).
+The `license` field should be a valid *SPDX license expression* or one of the special values allowed by [validate-npm-package-license](https://npmjs.com/package/validate-npm-package-license). See [documentation for the license field in package.json](https://docs.npmjs.com/files/package.json#license).
 
 ## Credits
 

@@ -69,7 +69,7 @@ test('setup', t => {
 })
 
 test('example', t => {
-  return common.npm(['install'], conf).then((code, stdout, stderr) => {
+  return common.npm(['install'], conf).then(([code, stdout, stderr]) => {
     t.is(code, 0, 'command ran ok')
     t.comment(stdout.trim())
     t.comment(stderr.trim())

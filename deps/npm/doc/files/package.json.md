@@ -393,6 +393,15 @@ shortcut syntax you use for `npm install`:
 
     "repository": "gitlab:user/repo"
 
+If the `package.json` for your package is not in the root directory (for example
+if it is part of a monorepo), you can specify the directory in which it lives:
+
+    "repository": {
+      "type" : "git",
+      "url" : "https://github.com/facebook/react.git",
+      "directory": "packages/react-dom"
+    }
+
 ## scripts
 
 The "scripts" property is a dictionary containing script commands that are run

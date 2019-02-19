@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="9.4.1"></a>
+## [9.4.1](https://github.com/zkat/pacote/compare/v9.4.0...v9.4.1) (2019-01-24)
+
+
+### Bug Fixes
+
+* **directory, finalize-manifest:** strip byte order marker from JSON ([723ad63](https://github.com/zkat/pacote/commit/723ad63))
+
+
+
 <a name="9.4.0"></a>
 # [9.4.0](https://github.com/zkat/pacote/compare/v9.3.0...v9.4.0) (2019-01-14)
 

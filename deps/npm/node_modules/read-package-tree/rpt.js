@@ -47,9 +47,9 @@ function Node (pkg, logical, physical, er, cache, fromLink) {
 
   debug(node.constructor.name, dpath(physical), pkg && pkg._id)
 
-  const parent = path.dirname(logical)
+  const parent = path.basename(path.dirname(logical))
   if (parent[0] === '@') {
-    node.name = path.basename(parent) + '/' + path.basename(logical)
+    node.name = parent + '/' + path.basename(logical)
   } else {
     node.name = path.basename(logical)
   }
@@ -83,12 +83,11 @@ function Link (pkg, logical, physical, realpath, er, cache) {
 
   debug(this.constructor.name, dpath(physical), pkg && pkg._id)
 
-  const dir = path.dirname(logical)
-  const parent = path.dirname(dir)
+  const parent = path.basename(path.dirname(logical))
   if (parent[0] === '@') {
-    this.name = path.basename(parent) + '/' + path.basename(dir)
+    this.name = parent + '/' + path.basename(logical)
   } else {
-    this.name = path.basename(dir)
+    this.name = path.basename(logical)
   }
   this.id = ID++
   this.path = logical

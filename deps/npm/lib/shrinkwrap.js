@@ -110,11 +110,13 @@ function shrinkwrapDeps (deps, top, tree, seen) {
     var childIsOnlyDev = isOnlyDev(child)
     var pkginfo = deps[moduleName(child)] = {}
     var requested = getRequested(child) || child.package._requested || {}
+    var linked = child.isLink || child.isInLink
+    var linkedFromHere = linked && path.relative(top.realpath, child.realpath)[0] !== '.'
     pkginfo.version = childVersion(top, child, requested)
     if (requested.type === 'git' && child.package._from) {
       pkginfo.from = child.package._from
     }
-    if (child.fromBundle || child.isInLink) {
+    if (child.fromBundle && !linked) {
       pkginfo.bundled = true
     } else {
       if (isRegistry(requested)) {
@@ -139,7 +141,8 @@ function shrinkwrapDeps (deps, top, tree, seen) {
         pkginfo.requires[moduleName(required)] = childRequested(top, required, requested)
       })
     }
-    if (child.children.length) {
+    // iterate into children on non-links and links contained within the top level package
+    if (child.children.length && (!child.isLink || linkedFromHere)) {
       pkginfo.dependencies = {}
       shrinkwrapDeps(pkginfo.dependencies, top, child, seen)
     }

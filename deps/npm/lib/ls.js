@@ -305,7 +305,7 @@ function filterFound (root, args) {
     if (!markDeps) continue
     Object.keys(markDeps).forEach(function (depName) {
       var dep = markDeps[depName]
-      if (dep.peerMissing) return
+      if (dep.peerMissing && !dep._from) return
       dep._parent = markPkg
       for (var ii = 0; ii < args.length; ii++) {
         var argName = args[ii][0]

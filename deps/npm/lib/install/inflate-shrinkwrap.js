@@ -177,7 +177,7 @@ function makeFakeChild (name, topPath, tree, sw, requested) {
     realpath: requested.type === 'directory' ? requested.fetchSpec : childPath(tree.realpath, pkg),
     location: (tree.location === '/' ? '' : tree.location + '/') + pkg.name,
     isLink: requested.type === 'directory',
-    isInLink: tree.isLink,
+    isInLink: tree.isLink || tree.isInLink,
     swRequires: sw.requires
   })
   tree.children.push(child)

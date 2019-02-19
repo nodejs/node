@@ -1,7 +1,7 @@
 var semver = require("semver")
 var validateLicense = require('validate-npm-package-license');
 var hostedGitInfo = require("hosted-git-info")
-var isBuiltinModule = require("is-builtin-module")
+var isBuiltinModule = require("resolve").isCore
 var depTypes = ["dependencies","devDependencies","optionalDependencies"]
 var extractDescription = require("./extract_description")
 var url = require("url")
@@ -299,7 +299,8 @@ var fixer = module.exports = {
     } else{
       if (
         typeof(data.license) !== 'string' ||
-        data.license.length < 1
+        data.license.length < 1 ||
+        data.license.trim() === ''
       ) {
         this.warn("invalidLicense")
       } else {

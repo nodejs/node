@@ -1,3 +1,80 @@
+## v6.8.0 (2019-02-07):
+
+This release includes an implementation of [RFC #10](https://github.com/npm/rfcs/blob/latest/accepted/0010-monorepo-subdirectory-declaration.md), documenting an optional field that can be used to specify
+the directory path for a package within a monorepo.
+
+### NEW FEATURES
+
+* [`3663cdef2`](https://github.com/npm/cli/commit/3663cdef205fa9ba2c2830e5ef7ceeb31c30298c)
+  [#140](https://github.com/npm/cli/pull/140)
+  Update package.json docs to include repository.directory details.
+  ([@greysteil](https://github.com/greysteil))
+
+### BUGFIXES
+
+* [`550bf703a`](https://github.com/npm/cli/commit/550bf703ae3e31ba6a300658ae95b6937f67b68f)
+  Add @types to ignore list to fix git clean -fd.
+  ([@zkat](https://github.com/zkat))
+* [`cdb059293`](https://github.com/npm/cli/commit/cdb0592939d6256c80f7ec5a2b6251131a512a2a)
+  [#144](https://github.com/npm/cli/pull/144)
+  Fix common.npm callback arguments.
+  ([@larsgw](https://github.com/larsgw))
+* [`25573e9b9`](https://github.com/npm/cli/commit/25573e9b9d5d26261c68d453f06db5b3b1cd6789)
+  [npm.community#4770](https://npm.community/t/https://npm.community/t/4770)
+  Show installed but unmet peer deps.
+  ([@larsgw](https://github.com/larsgw))
+* [`ce2c4bd1a`](https://github.com/npm/cli/commit/ce2c4bd1a2ce7ac1727a4ca9a350b743a2e27b2a)
+  [#149](https://github.com/npm/cli/pull/149)
+  Use figgy-config to make sure extra opts are there.
+  ([@zkat](https://github.com/zkat))
+* [`3c22d1a35`](https://github.com/npm/cli/commit/3c22d1a35878f73c0af8ea5968b962a85a1a9b84)
+  [npm.community#5101](https://npm.community/t/npm-6-6-0-breaks-access-to-ls-collaborators/5101)
+  Fix `ls-collaborators` access error for non-scoped case.
+  ([@zkat](https://github.com/zkat))
+* [`d5137091d`](https://github.com/npm/cli/commit/d5137091dd695a2980f7ade85fdc56b2421ff677)
+  [npm.community#754](https://npm.community/t/npm-install-for-package-with-local-dependency-fails/754)
+  Fix issue with sub-folder local references.
+  ([@iarna](https://github.com/iarna))
+  ([@jhecking](https://github.com/jhecking))
+
+### DEPENDENCY BUMPS
+
+* [`d72141080`](https://github.com/npm/cli/commit/d72141080ec8fcf35bcc5650245efbe649de053e)
+  `npm-registry-couchapp@2.7.1`
+  ([@zkat](https://github.com/zkat))
+* [`671cad1b1`](https://github.com/npm/cli/commit/671cad1b18239d540da246d6f78de45d9f784396)
+  `npm-registry-fetch@3.9.0`:
+  Make sure publishing with legacy username:password `_auth` works again.
+  ([@zkat](https://github.com/zkat))
+* [`95ca1aef4`](https://github.com/npm/cli/commit/95ca1aef4077c8e68d9f4dce37f6ba49b591c4ca)
+  `pacote@9.4.1`
+  ([@aeschright](https://github.com/aeschright))
+* [`322fef403`](https://github.com/npm/cli/commit/322fef40376e71cd100159dc914e7ca89faae327)
+  `normalize-package-data@2.5.0`
+  ([@aeschright](https://github.com/aeschright))
+* [`32d34c0da`](https://github.com/npm/cli/commit/32d34c0da4f393a74697297667eb9226155ecc6b)
+  `npm-packlist@1.3.0`
+  ([@aeschright](https://github.com/aeschright))
+* [`338571cf0`](https://github.com/npm/cli/commit/338571cf0bd3a1e2ea800464d57581932ff0fb11)
+  `read-package-tree@5.2.2`
+  ([@zkat](https://github.com/zkat))
+
+### MISC
+
+* [`89b23a5f7`](https://github.com/npm/cli/commit/89b23a5f7b0ccdcdda1d7d4d3eafb6903156d186)
+  [#120](https://github.com/npm/cli/pull/120)
+  Use `const` in lib/fetch-package-metadata.md.
+  ([@watilde](https://github.com/watilde))
+* [`4970d553c`](https://github.com/npm/cli/commit/4970d553c0ea66128931d118469fd31c87cc7986)
+  [#126](https://github.com/npm/cli/pull/126)
+  Replace ronn with marked-man in `.npmignore`.
+  ([@watilde](https://github.com/watilde))
+* [`d9b6090dc`](https://github.com/npm/cli/commit/d9b6090dc26cd0fded18b4f80248cff3e51bb185)
+  [#138](https://github.com/npm/cli/pull/138)
+  Reduce work to test if executable ends with a 'g'.
+  ([@elidoran](https://github.com/elidoran))
+  ([@larsgw](https://github.com/larsgw))
+
 ## v6.7.0 (2019-01-23):
 
 Hey y'all! This is a quick hotfix release that includes some important fixes to
