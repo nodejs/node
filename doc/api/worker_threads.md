@@ -577,7 +577,6 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module
 [`Worker`]: #worker_threads_class_worker
 [`cluster` module]: cluster.html
-[`inspector`]: inspector.html
 [`port.on('message')`]: #worker_threads_event_message
 [`port.postMessage()`]: #worker_threads_port_postmessage_value_transferlist
 [`process.abort()`]: process.html#process_process_abort
