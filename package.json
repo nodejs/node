@@ -1,0 +1,17 @@
+{
+  "name": "node-core",
+  "author": "The Amazing Node.js Contributors",
+  "version": "1.0.0",
+  "description": "Base tools to help manage node core",
+  "license": "MIT",
+  "scripts": {
+    "lint": "eslint --cache --report-unused-disable-directives --ext=.js,.mjs,.md .eslintrc.js benchmark doc lib test tools"
+  },
+  "dependencies": {
+    "babel-eslint": "8.2.1",
+    "eslint": "5.14.1",
+    "eslint-plugin-markdown": "1.0.0",
+    "glob": "7.1.3",
+    "js-yaml": "3.12.1"
+  }
+}

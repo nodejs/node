@@ -8,9 +8,7 @@ NodePlugin.RULES_DIR = path.resolve(__dirname, 'tools', 'eslint-rules');
 
 const ModuleFindPath = Module._findPath;
 const hacks = [
-  'eslint-plugin-node-core',
-  'eslint-plugin-markdown',
-  'babel-eslint',
+  'eslint-plugin-node-core'
 ];
 Module._findPath = (request, paths, isMain) => {
   const r = ModuleFindPath(request, paths, isMain);

@@ -705,6 +705,7 @@ out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets
 
 
 run-npm-ci = $(PWD)/$(NPM) ci
+run-npm-task = $(PWD)/$(NPM) run
 
 LINK_DATA = out/doc/apilinks.json
 gen-api = tools/doc/generate.js --node-version=$(FULLVERSION) \
@@ -1172,8 +1173,7 @@ lint-md: | tools/.mdlintstamp
 
 LINT_JS_TARGETS = .eslintrc.js benchmark doc lib test tools
 
-run-lint-js = tools/node_modules/eslint/bin/eslint.js --cache \
-	--report-unused-disable-directives --ext=.js,.mjs,.md $(LINT_JS_TARGETS)
+run-lint-js = $(call available-node,$(run-npm-ci)) && $(call available-node,$(run-npm-task) lint)
 run-lint-js-fix = $(run-lint-js) --fix
 
 .PHONY: lint-js-fix

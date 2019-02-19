@@ -1,7 +1,6 @@
 'use strict';
 
-const yaml =
-  require(`${__dirname}/../node_modules/eslint/node_modules/js-yaml`);
+const yaml = require(`js-yaml`);
 
 function isYAMLBlock(text) {
   return /^<!-- YAML/.test(text);

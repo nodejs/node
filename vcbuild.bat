@@ -626,9 +626,9 @@ goto exit
 :lint-js
 if defined lint_js_ci goto lint-js-ci
 if not defined lint_js goto lint-md-build
-if not exist tools\node_modules\eslint goto no-lint
 echo running lint-js
-%config%\node tools\node_modules\eslint\bin\eslint.js --cache --report-unused-disable-directives --rule "linebreak-style: 0" --ext=.js,.mjs,.md .eslintrc.js benchmark doc lib test tools
+%npm_exe% install
+%npm_exe% run lint
 goto lint-md-build
 
 :lint-js-ci

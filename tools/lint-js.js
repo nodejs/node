@@ -11,7 +11,7 @@ const fs = require('fs');
 const totalCPUs = require('os').cpus().length;
 
 const CLIEngine = require('eslint').CLIEngine;
-const glob = require('eslint/node_modules/glob');
+const glob = require('glob');
 
 const cliOptions = {
   rulePaths: rulesDirs,
