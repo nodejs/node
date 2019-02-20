@@ -1,28 +1,19 @@
+// Flags: --experimental-report
 'use strict';
 
-// Testcase to produce report via API call, using the no-hooks/no-signal
-// interface - i.e. require('node-report/api')
+// Test producing a report via API call, using the no-hooks/no-signal interface.
 const common = require('../common');
 common.skipIfReportDisabled();
-if (process.argv[2] === 'child') {
-  process.report.triggerReport();
-} else {
-  const helper = require('../common/report.js');
-  const spawn = require('child_process').spawn;
-  const assert = require('assert');
-  const tmpdir = require('../common/tmpdir');
-  tmpdir.refresh();
+const assert = require('assert');
+const helper = require('../common/report');
+const tmpdir = require('../common/tmpdir');
 
-  const child = spawn(process.execPath, ['--experimental-report',
-                                         __filename, 'child'],
-                      { cwd: tmpdir.path });
-  child.on('exit', common.mustCall((code) => {
-    const report_msg = 'No reports found';
-    const process_msg = 'Process exited unexpectedly';
-    assert.strictEqual(code, 0, process_msg + ':' + code);
-    const reports = helper.findReports(child.pid, tmpdir.path);
-    assert.strictEqual(reports.length, 1, report_msg);
-    const report = reports[0];
-    helper.validate(report);
-  }));
-}
+common.expectWarning('ExperimentalWarning',
+                     'report is an experimental feature. This feature could ' +
+                     'change at any time');
+tmpdir.refresh();
+process.report.setOptions({ path: tmpdir.path });
+process.report.triggerReport();
+const reports = helper.findReports(process.pid, tmpdir.path);
+assert.strictEqual(reports.length, 1);
+helper.validate(reports[0]);
