@@ -2,6 +2,7 @@
 #include "env-inl.h"
 #include "node_native_module.h"
 #include "util.h"
+#include <atomic>
 
 #if HAVE_OPENSSL
 #define NODE_BUILTIN_OPENSSL_MODULES(V) V(crypto) V(tls_wrap)
@@ -207,6 +208,19 @@ void* wrapped_dlsym(void* handle, const char* symbol) {
 
 #endif  // _AIX
 
+#ifdef __linux__
+static bool libc_may_be_musl() {
+  static std::atomic_bool retval;  // Cache the return value.
+  static std::atomic_bool has_cached_retval { false };
+  if (has_cached_retval) return retval;
+  retval = dlsym(RTLD_DEFAULT, "gnu_get_libc_version") == nullptr;
+  has_cached_retval = true;
+  return retval;
+}
+#else  // __linux__
+static bool libc_may_be_musl() { return false; }
+#endif  // __linux__
+
 namespace node {
 
 using v8::Context;
@@ -310,14 +324,18 @@ bool DLib::Open() {
 
 void DLib::Close() {
   if (handle_ == nullptr) return;
-  int err = dlclose(handle_);
 
-  if (err == 0) {
-    // musl libc implements dlclose() as a no-op which returns 1.
+  if (libc_may_be_musl()) {
+    // musl libc implements dlclose() as a no-op which returns 0.
     // As a consequence, trying to re-load a previously closed addon at a later
     // point will not call its static constructors, which Node.js uses.
-    // Therefore, when dlclose() fails, we assume that the shared object
-    // still exists and keep it in our handle map.
+    // Therefore, when we may be using musl libc, we assume that the shared
+    // object exists indefinitely and keep it in our handle map.
+    return;
+  }
+
+  int err = dlclose(handle_);
+  if (err == 0) {
     if (has_entry_in_global_handle_map_)
       global_handle_map.erase(handle_);
   }
