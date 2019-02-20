@@ -180,6 +180,7 @@ int wrapped_dlclose(void* handle) {
   Mutex::ScopedLock lock(dlhandles_mutex);
   dl_wrap* wrap = static_cast<dl_wrap*>(handle);
   int ret = 0;
+  CHECK_GE(wrap->refcount, 1);
   if (--wrap->refcount == 0) {
     ret = dlclose(wrap->real_handle);
     if (ret != 0) dlerror_storage = dlerror();
@@ -190,6 +191,8 @@ int wrapped_dlclose(void* handle) {
 }
 
 void* wrapped_dlsym(void* handle, const char* symbol) {
+  if (handle == RTLD_DEFAULT || handle == RTLD_NEXT)
+    return dlsym(handle, symbol);
   dl_wrap* wrap = static_cast<dl_wrap*>(handle);
   return dlsym(wrap->real_handle, symbol);
 }
@@ -299,9 +302,17 @@ bool DLib::Open() {
 
 void DLib::Close() {
   if (handle_ == nullptr) return;
-  if (has_entry_in_global_handle_map_)
-    global_handle_map.erase(handle_);
-  dlclose(handle_);
+  int err = dlclose(handle_);
+
+  if (err == 0) {
+    // musl libc implements dlclose() as a no-op which returns 1.
+    // As a consequence, trying to re-load a previously closed addon at a later
+    // point will not call its static constructors, which Node.js uses.
+    // Therefore, when dlclose() fails, we assume that the shared object
+    // still exists and keep it in our handle map.
+    if (has_entry_in_global_handle_map_)
+      global_handle_map.erase(handle_);
+  }
   handle_ = nullptr;
 }
 
