@@ -555,7 +555,7 @@ void AfterStringPath(uv_fs_t* req) {
 
   if (after.Proceed()) {
     link = StringBytes::Encode(req_wrap->env()->isolate(),
-                               static_cast<const char*>(req->path),
+                               req->path,
                                req_wrap->encoding(),
                                &error);
     if (link.IsEmpty())
