@@ -1,3 +1,4 @@
+// Flags: --experimental-report
 'use strict';
 const common = require('../../common');
 const assert = require('assert');
@@ -29,15 +30,30 @@ switch (process.argv[2]) {
     return;
 }
 
+// Use process.report to figure out if we might be running under musl libc.
+const glibc = JSON.parse(process.report.getReport()).header.glibcVersionRuntime;
+assert(typeof glibc === 'string' || glibc === undefined, glibc);
+
+const libcMayBeMusl = common.isLinux && glibc === undefined;
+
 for (const { test, expected } of [
-  { test: 'worker', expected: 'ctor cleanup dtor ' },
-  { test: 'main-thread', expected: 'ctor cleanup dtor ' },
+  { test: 'worker', expected: [ 'ctor cleanup dtor ' ] },
+  { test: 'main-thread', expected: [ 'ctor cleanup dtor ' ] },
   // We always only have 1 instance of the shared object in memory, so
   // 1 ctor and 1 dtor call. If we attach the module to 2 Environments,
   // we expect 2 cleanup calls, otherwise one.
-  { test: 'both', expected: 'ctor cleanup cleanup dtor ' },
-  // In this case, we load and unload an addon, then load and unload again.
-  { test: 'worker-twice', expected: 'ctor cleanup dtor ctor cleanup dtor ' },
+  { test: 'both', expected: [ 'ctor cleanup cleanup dtor ' ] },
+  {
+    test: 'worker-twice',
+    // In this case, we load and unload an addon, then load and unload again.
+    // musl doesn't support unloading, so the output may be missing
+    // a dtor + ctor pair.
+    expected: [
+      'ctor cleanup dtor ctor cleanup dtor '
+    ].concat(libcMayBeMusl ? [
+      'ctor cleanup cleanup dtor ',
+    ] : [])
+  },
 ]) {
   console.log('spawning test', test);
   const proc = child_process.spawnSync(process.execPath, [
@@ -46,8 +62,7 @@ for (const { test, expected } of [
   ]);
   process.stderr.write(proc.stderr.toString());
   assert.strictEqual(proc.stderr.toString(), '');
-  assert.strictEqual(
-    proc.stdout.toString(),
-    expected);
+  assert(expected.includes(proc.stdout.toString()),
+         `${proc.stdout.toString()} is not included in ${expected}`);
   assert.strictEqual(proc.status, 0);
 }
