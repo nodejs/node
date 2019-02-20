@@ -96,6 +96,114 @@
 NODE_BUILTIN_MODULES(V)
 #undef V
 
+#ifdef _AIX
+// On AIX, dlopen() behaves differently from other operating systems, in that
+// it returns unique values from each call, rather than identical values, when
+// loading the same handle.
+// We try to work around that by providing wrappers for the dlopen() family of
+// functions, and using st_dev and st_ino for the file that is to be loaded
+// as keys for a cache.
+
+namespace node {
+namespace dlwrapper {
+
+struct dl_wrap {
+  uint64_t st_dev;
+  uint64_t st_ino;
+  uint64_t refcount;
+  void* real_handle;
+
+  struct hash {
+    size_t operator()(const dl_wrap* wrap) const {
+      return std::hash<uint64_t>()(wrap->st_dev) ^
+             std::hash<uint64_t>()(wrap->st_ino);
+    }
+  };
+
+  struct equal {
+    bool operator()(const dl_wrap* a,
+                    const dl_wrap* b) const {
+      return a->st_dev == b->st_dev && a->st_ino == b->st_ino;
+    }
+  };
+};
+
+static Mutex dlhandles_mutex;
+static std::unordered_set<dl_wrap*, dl_wrap::hash, dl_wrap::equal>
+    dlhandles;
+static thread_local std::string dlerror_storage;
+
+char* wrapped_dlerror() {
+  return &dlerror_storage[0];
+}
+
+void* wrapped_dlopen(const char* filename, int flags) {
+  CHECK_NOT_NULL(filename);  // This deviates from the 'real' dlopen().
+  Mutex::ScopedLock lock(dlhandles_mutex);
+
+  uv_fs_t req;
+  OnScopeLeave cleanup([&]() { uv_fs_req_cleanup(&req); });
+  int rc = uv_fs_stat(nullptr, &req, filename, nullptr);
+
+  if (rc != 0) {
+    dlerror_storage = uv_strerror(rc);
+    return nullptr;
+  }
+
+  dl_wrap search = {
+    req.statbuf.st_dev,
+    req.statbuf.st_ino,
+    0, nullptr
+  };
+
+  auto it = dlhandles.find(&search);
+  if (it != dlhandles.end()) {
+    (*it)->refcount++;
+    return *it;
+  }
+
+  void* real_handle = dlopen(filename, flags);
+  if (real_handle == nullptr) {
+    dlerror_storage = dlerror();
+    return nullptr;
+  }
+  dl_wrap* wrap = new dl_wrap();
+  wrap->st_dev = req.statbuf.st_dev;
+  wrap->st_ino = req.statbuf.st_ino;
+  wrap->refcount = 1;
+  wrap->real_handle = real_handle;
+  dlhandles.insert(wrap);
+  return wrap;
+}
+
+int wrapped_dlclose(void* handle) {
+  Mutex::ScopedLock lock(dlhandles_mutex);
+  dl_wrap* wrap = static_cast<dl_wrap*>(handle);
+  int ret = 0;
+  if (--wrap->refcount == 0) {
+    ret = dlclose(wrap->real_handle);
+    if (ret != 0) dlerror_storage = dlerror();
+    dlhandles.erase(wrap);
+    delete wrap;
+  }
+  return ret;
+}
+
+void* wrapped_dlsym(void* handle, const char* symbol) {
+  dl_wrap* wrap = static_cast<dl_wrap*>(handle);
+  return dlsym(wrap->real_handle, symbol);
+}
+
+#define dlopen node::dlwrapper::wrapped_dlopen
+#define dlerror node::dlwrapper::wrapped_dlerror
+#define dlclose node::dlwrapper::wrapped_dlclose
+#define dlsym node::dlwrapper::wrapped_dlsym
+
+}  // namespace dlwrapper
+}  // namespace node
+
+#endif  // _AIX
+
 namespace node {
 
 using v8::Context;
