@@ -3,6 +3,10 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
+assert.throws(() => {
+  http.request({ timeout: null });
+}, /The "timeout" argument must be of type number/);
+
 const options = {
   method: 'GET',
   port: undefined,
