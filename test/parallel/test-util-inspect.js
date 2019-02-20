@@ -976,10 +976,15 @@ if (typeof Symbol !== 'undefined') {
 {
   const map = new Map([['foo', 'bar']]);
   assert.strictEqual(util.inspect(map.keys()), '[Map Iterator] { \'foo\' }');
-  assert.strictEqual(util.inspect(map.values()), '[Map Iterator] { \'bar\' }');
+  const mapValues = map.values();
+  Object.defineProperty(mapValues, Symbol.toStringTag, { value: 'Foo' });
+  assert.strictEqual(
+    util.inspect(mapValues),
+    '[Foo] [Map Iterator] { \'bar\' }'
+  );
   map.set('A', 'B!');
   assert.strictEqual(util.inspect(map.entries(), { maxArrayLength: 1 }),
-                     "[Map Iterator] { [ 'foo', 'bar' ], ... 1 more item }");
+                     "[Map Entries] { [ 'foo', 'bar' ], ... 1 more item }");
   // Make sure the iterator doesn't get consumed.
   const keys = map.keys();
   assert.strictEqual(util.inspect(keys), "[Map Iterator] { 'foo', 'A' }");
@@ -995,10 +1000,13 @@ if (typeof Symbol !== 'undefined') {
   const aSet = new Set([1, 3]);
   assert.strictEqual(util.inspect(aSet.keys()), '[Set Iterator] { 1, 3 }');
   assert.strictEqual(util.inspect(aSet.values()), '[Set Iterator] { 1, 3 }');
-  assert.strictEqual(util.inspect(aSet.entries()),
-                     '[Set Iterator] { [ 1, 1 ], [ 3, 3 ] }');
+  const setEntries = aSet.entries();
+  Object.defineProperty(setEntries, Symbol.toStringTag, { value: 'Foo' });
+  assert.strictEqual(util.inspect(setEntries),
+                     '[Foo] [Set Entries] { [ 1, 1 ], [ 3, 3 ] }');
   // Make sure the iterator doesn't get consumed.
   const keys = aSet.keys();
+  Object.defineProperty(keys, Symbol.toStringTag, { value: null });
   assert.strictEqual(util.inspect(keys), '[Set Iterator] { 1, 3 }');
   assert.strictEqual(util.inspect(keys), '[Set Iterator] { 1, 3 }');
   keys.extra = true;
@@ -1610,7 +1618,7 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   [{ a: 5 }, '{ a: 5 }'],
   [new Set([1, 2]), 'Set { 1, 2 }'],
   [new Map([[1, 2]]), 'Map { 1 => 2 }'],
-  [new Set([1, 2]).entries(), '[Set Iterator] { [ 1, 1 ], [ 2, 2 ] }'],
+  [new Set([1, 2]).entries(), '[Set Entries] { [ 1, 1 ], [ 2, 2 ] }'],
   [new Map([[1, 2]]).keys(), '[Map Iterator] { 1 }'],
   [new Date(2000), '1970-01-01T00:00:02.000Z'],
   [new Uint8Array(2), 'Uint8Array [ 0, 0 ]'],
