@@ -253,6 +253,13 @@ static struct global_handle_map_t {
     Mutex::ScopedLock lock(mutex_);
 
     map_[handle].module = mod;
+    // We need to store this flag internally to avoid a chicken-and-egg problem
+    // during cleanup. By the time we actually use the flag's value,
+    // the shared object has been unloaded, and its memory would be gone,
+    // making it impossible to access fields of `mod` --
+    // unless `mod` *is* dynamically allocated, but we cannot know that
+    // without checking the flag.
+    map_[handle].wants_delete_module = mod->nm_flags & NM_F_DELETEME;
     map_[handle].refcount++;
   }
 
@@ -274,7 +281,7 @@ static struct global_handle_map_t {
     if (it == map_.end()) return;
     CHECK_GE(it->second.refcount, 1);
     if (--it->second.refcount == 0) {
-      if (it->second.module->nm_flags & NM_F_DELETEME)
+      if (it->second.wants_delete_module)
         delete it->second.module;
       map_.erase(handle);
     }
@@ -284,6 +291,7 @@ static struct global_handle_map_t {
   Mutex mutex_;
   struct Entry {
     unsigned int refcount;
+    bool wants_delete_module;
     node_module* module;
   };
   std::unordered_map<void*, Entry> map_;
