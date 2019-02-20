@@ -24,6 +24,7 @@ function runOneBenchmark(...args) {
 }
 
 function getTValue(compareFunc) {
+  console.log(compareFunc.name);
   const numTrials = 1e5;
   const bufSize = 10000;
   // Perform benchmarks to verify that timingSafeEqual is actually timing-safe.
@@ -32,6 +33,9 @@ function getTValue(compareFunc) {
   const rawUnequalBenches = Array(numTrials);
 
   for (let i = 0; i < numTrials; i++) {
+    if (i % 1000 === 0) {
+      console.log(i);
+    }
     if (Math.random() < 0.5) {
       // First benchmark: comparing two equal buffers
       rawEqualBenches[i] = runOneBenchmark(compareFunc, 'A', 'A', bufSize);
