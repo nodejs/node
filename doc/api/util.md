@@ -449,7 +449,7 @@ changes:
     [`[util.inspect.custom](depth, opts)`][util.inspect.custom] functions are
     not invoked. **Default:** `true`.
   * `showProxy` {boolean} If `true`, `Proxy` inspection includes
-    the [`target` and `handler`][] objects and
+    the [`target` and `handler`][] objects, and
     [custom inspect function][util.inspect.custom] on the target will not be
     triggered. **Default:** `false`.
   * `maxArrayLength` {integer} Specifies the maximum number of `Array`,
