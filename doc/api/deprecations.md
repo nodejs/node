@@ -2163,7 +2163,7 @@ accessed outside of Node.js core: `Socket.prototype._handle`,
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/???
+    pr-url: https://github.com/nodejs/node/pull/26249
     description: End-of-Life.
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22126
