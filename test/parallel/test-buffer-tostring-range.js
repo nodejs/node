@@ -78,7 +78,7 @@ assert.strictEqual(rangeBuffer.toString('ascii', 0, '-1.99'), '');
 assert.strictEqual(rangeBuffer.toString('ascii', 0, 1.99), 'a');
 assert.strictEqual(rangeBuffer.toString('ascii', 0, true), 'a');
 
-// Try toString() with a object as a encoding
+// Try toString() with an object as an encoding
 assert.strictEqual(rangeBuffer.toString({ toString: function() {
   return 'ascii';
 } }), 'abc');
