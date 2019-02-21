@@ -165,7 +165,7 @@ to pass in an object with different settings.
 Use the `NODE_DISABLE_COLORS` environment variable to enforce this function to
 always return 1.
 
-To enforce a specific color support it's possible to set either one of the
+To enforce a specific color support, it's possible to set either one of the
 following environment settings.
 This rule does not apply to Windows OS, CI environments, and some other rare
 cases.
