@@ -61,7 +61,7 @@ assert.strictEqual(fs.readFileSync(saveFileName, 'utf8'),
     '}'
   ];
   const putIn = new ArrayStream();
-  const replServer = repl.start('', putIn);
+  const replServer = repl.start({ terminal: true, stream: putIn });
 
   putIn.run(['.editor']);
   putIn.run(cmds);
