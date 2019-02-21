@@ -617,8 +617,7 @@ void Environment::CreateImmediate(native_immediate_callback cb,
   native_immediate_callbacks_.push_back({
     cb,
     data,
-    obj.IsEmpty() ? v8::Global<v8::Object>() :
-        v8::Global<v8::Object>(isolate_, obj),
+    v8::Global<v8::Object>(isolate_, obj),
     ref
   });
   immediate_info()->count_inc(1);
