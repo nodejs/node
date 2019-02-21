@@ -8,11 +8,35 @@ const { internalBinding } = require('internal/test/binding');
 const processUtil = internalBinding('util');
 const opts = { showProxy: true };
 
-const target = {};
-const handler = {
-  get: function() { throw new Error('Getter should not be called'); }
+let proxyObj;
+let called = false;
+const target = {
+  [util.inspect.custom](depth, { showProxy }) {
+    if (showProxy === false) {
+      called = true;
+      if (proxyObj !== this) {
+        throw new Error('Failed');
+      }
+    }
+    return [1, 2, 3];
+  }
 };
-const proxyObj = new Proxy(target, handler);
+const handler = {
+  getPrototypeOf() { throw new Error('getPrototypeOf'); },
+  setPrototypeOf() { throw new Error('setPrototypeOf'); },
+  isExtensible() { throw new Error('isExtensible'); },
+  preventExtensions() { throw new Error('preventExtensions'); },
+  getOwnPropertyDescriptor() { throw new Error('getOwnPropertyDescriptor'); },
+  defineProperty() { throw new Error('defineProperty'); },
+  has() { throw new Error('has'); },
+  get() { throw new Error('get'); },
+  set() { throw new Error('set'); },
+  deleteProperty() { throw new Error('deleteProperty'); },
+  ownKeys() { throw new Error('ownKeys'); },
+  apply() { throw new Error('apply'); },
+  construct() { throw new Error('construct'); }
+};
+proxyObj = new Proxy(target, handler);
 
 // Inspecting the proxy should not actually walk it's properties
 util.inspect(proxyObj, opts);
@@ -23,19 +47,31 @@ const details = processUtil.getProxyDetails(proxyObj);
 assert.strictEqual(target, details[0]);
 assert.strictEqual(handler, details[1]);
 
-assert.strictEqual(util.inspect(proxyObj, opts),
-                   'Proxy [ {}, { get: [Function: get] } ]');
+assert.strictEqual(
+  util.inspect(proxyObj, opts),
+  'Proxy [ [ 1, 2, 3 ],\n' +
+  '  { getPrototypeOf: [Function: getPrototypeOf],\n' +
+  '    setPrototypeOf: [Function: setPrototypeOf],\n' +
+  '    isExtensible: [Function: isExtensible],\n' +
+  '    preventExtensions: [Function: preventExtensions],\n' +
+  '    getOwnPropertyDescriptor: [Function: getOwnPropertyDescriptor],\n' +
+  '    defineProperty: [Function: defineProperty],\n' +
+  '    has: [Function: has],\n' +
+  '    get: [Function: get],\n' +
+  '    set: [Function: set],\n' +
+  '    deleteProperty: [Function: deleteProperty],\n' +
+  '    ownKeys: [Function: ownKeys],\n' +
+  '    apply: [Function: apply],\n' +
+  '    construct: [Function: construct] } ]'
+);
 
 // Using getProxyDetails with non-proxy returns undefined
 assert.strictEqual(processUtil.getProxyDetails({}), undefined);
 
-// This will throw because the showProxy option is not used
-// and the get function on the handler object defined above
-// is actually invoked.
-assert.throws(
-  () => util.inspect(proxyObj),
-  /^Error: Getter should not be called$/
-);
+// Inspecting a proxy without the showProxy option set to true should not
+// trigger any proxy handlers.
+assert.strictEqual(util.inspect(proxyObj), '[ 1, 2, 3 ]');
+assert(called);
 
 // Yo dawg, I heard you liked Proxy so I put a Proxy
 // inside your Proxy that proxies your Proxy's Proxy.
