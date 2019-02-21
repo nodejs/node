@@ -2821,6 +2821,59 @@ static MaybeLocal<Value> WritePublicKey(Environment* env,
   return BIOToStringOrBuffer(env, bio.get(), config.format_);
 }
 
+static bool IsASN1Sequence(const unsigned char* data, size_t size,
+                           size_t* data_offset, size_t* data_size) {
+  if (size < 2 || data[0] != 0x30)
+    return false;
+
+  if (data[1] & 0x80) {
+    // Long form.
+    size_t n_bytes = data[1] & ~0x80;
+    if (n_bytes + 2 > size || n_bytes > sizeof(size_t))
+      return false;
+    size_t length = 0;
+    for (size_t i = 0; i < n_bytes; i++)
+      length = (length << 8) | data[i + 2];
+    *data_offset = 2 + n_bytes;
+    *data_size = std::min(size - 2 - n_bytes, length);
+  } else {
+    // Short form.
+    *data_offset = 2;
+    *data_size = std::min<size_t>(size - 2, data[1]);
+  }
+
+  return true;
+}
+
+static bool IsRSAPrivateKey(const unsigned char* data, size_t size) {
+  // Both RSAPrivateKey and RSAPublicKey structures start with a SEQUENCE.
+  size_t offset, len;
+  if (!IsASN1Sequence(data, size, &offset, &len))
+    return false;
+
+  // An RSAPrivateKey sequence always starts with a single-byte integer whose
+  // value is either 0 or 1, whereas an RSAPublicKey starts with the modulus
+  // (which is the product of two primes and therefore at least 4), so we can
+  // decide the type of the structure based on the first three bytes of the
+  // sequence.
+  return len >= 3 &&
+         data[offset] == 2 &&
+         data[offset + 1] == 1 &&
+         !(data[offset + 2] & 0xfe);
+}
+
+static bool IsEncryptedPrivateKeyInfo(const unsigned char* data, size_t size) {
+  // Both PrivateKeyInfo and EncryptedPrivateKeyInfo start with a SEQUENCE.
+  size_t offset, len;
+  if (!IsASN1Sequence(data, size, &offset, &len))
+    return false;
+
+  // A PrivateKeyInfo sequence always starts with an integer whereas an
+  // EncryptedPrivateKeyInfo starts with an AlgorithmIdentifier.
+  return len >= 1 &&
+         data[offset] != 2;
+}
+
 static EVPKeyPointer ParsePrivateKey(const PrivateKeyEncodingConfig& config,
                                      const char* key,
                                      size_t key_len) {
@@ -2846,11 +2899,19 @@ static EVPKeyPointer ParsePrivateKey(const PrivateKeyEncodingConfig& config,
       BIOPointer bio(BIO_new_mem_buf(key, key_len));
       if (!bio)
         return pkey;
-      char* pass = const_cast<char*>(config.passphrase_.get());
-      pkey.reset(d2i_PKCS8PrivateKey_bio(bio.get(),
-                                         nullptr,
-                                         PasswordCallback,
-                                         pass));
+
+      if (IsEncryptedPrivateKeyInfo(
+              reinterpret_cast<const unsigned char*>(key), key_len)) {
+        char* pass = const_cast<char*>(config.passphrase_.get());
+        pkey.reset(d2i_PKCS8PrivateKey_bio(bio.get(),
+                                           nullptr,
+                                           PasswordCallback,
+                                           pass));
+      } else {
+        PKCS8Pointer p8inf(d2i_PKCS8_PRIV_KEY_INFO_bio(bio.get(), nullptr));
+        if (p8inf)
+          pkey.reset(EVP_PKCS82PKEY(p8inf.get()));
+      }
     } else {
       CHECK_EQ(config.type_.ToChecked(), kKeyEncodingSEC1);
       const unsigned char* p = reinterpret_cast<const unsigned char*>(key);
@@ -3064,40 +3125,6 @@ static ManagedEVPPKey GetPrivateKeyFromJs(
     (*offset) += 4;
     return key->GetAsymmetricKey();
   }
-}
-
-static bool IsRSAPrivateKey(const unsigned char* data, size_t size) {
-  // Both RSAPrivateKey and RSAPublicKey structures start with a SEQUENCE.
-  if (size >= 2 && data[0] == 0x30) {
-    size_t offset;
-    if (data[1] & 0x80) {
-      // Long form.
-      size_t n_bytes = data[1] & ~0x80;
-      if (n_bytes + 2 > size || n_bytes > sizeof(size_t))
-        return false;
-      size_t i, length = 0;
-      for (i = 0; i < n_bytes; i++)
-        length = (length << 8) | data[i + 2];
-      offset = 2 + n_bytes;
-      size = std::min(size, length + 2);
-    } else {
-      // Short form.
-      offset = 2;
-      size = std::min<size_t>(size, data[1] + 2);
-    }
-
-    // An RSAPrivateKey sequence always starts with a single-byte integer whose
-    // value is either 0 or 1, whereas an RSAPublicKey starts with the modulus
-    // (which is the product of two primes and therefore at least 4), so we can
-    // decide the type of the structure based on the first three bytes of the
-    // sequence.
-    return size - offset >= 3 &&
-           data[offset] == 2 &&
-           data[offset + 1] == 1 &&
-           !(data[offset + 2] & 0xfe);
-  }
-
-  return false;
 }
 
 static ManagedEVPPKey GetPublicOrPrivateKeyFromJs(
