@@ -2179,7 +2179,7 @@ release.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/???
+    pr-url: https://github.com/nodejs/node/pull/25338
     description: End-of-Life.
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22501
