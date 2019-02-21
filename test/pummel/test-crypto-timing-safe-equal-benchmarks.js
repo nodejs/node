@@ -18,8 +18,12 @@ function runOneBenchmark(...args) {
 
   // Don't let the comparison function get cached. This avoid a timing
   // inconsistency due to V8 optimization where the function would take
-  // less time when called with a specific set of parameters.
-  delete require.cache[require.resolve(BENCHMARK_FUNC_PATH)];
+  // less time when called with a specific set of parameters. This used to use
+  // `delete` instead of `Object.create(null)` but that resulted in many times
+  // worse performance, so compare the runtime for this test if you change it
+  // back or otherwise modify the `Object.create(null)` line below.
+  // Ref: https://github.com/nodejs/node/pull/26237
+  require.cache = Object.create(null);
   return result;
 }
 
