@@ -233,11 +233,6 @@ MaybeLocal<Object> CreateProcessObject(
     READONLY_PROPERTY(process, "throwDeprecation", True(env->isolate()));
   }
 
-#ifdef NODE_NO_BROWSER_GLOBALS
-  // configure --no-browser-globals
-  READONLY_PROPERTY(process, "_noBrowserGlobals", True(env->isolate()));
-#endif  // NODE_NO_BROWSER_GLOBALS
-
   // --prof-process
   // TODO(addaleax): Remove this.
   if (env->options()->prof_process) {
