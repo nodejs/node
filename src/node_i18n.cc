@@ -204,7 +204,6 @@ class ConverterObject : public BaseObject, Converter {
 
     CHECK_GE(args.Length(), 3);  // Converter, Buffer, Flags
 
-    Converter utf8("utf8");
     ConverterObject* converter;
     ASSIGN_OR_RETURN_UNWRAP(&converter, args[0].As<Object>());
     SPREAD_BUFFER_ARG(args[1], input_obj);
