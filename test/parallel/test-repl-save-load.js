@@ -70,7 +70,7 @@ assert.strictEqual(fs.readFileSync(saveFileName, 'utf8'),
   putIn.run([`.save ${saveFileName}`]);
   replServer.close();
   assert.strictEqual(fs.readFileSync(saveFileName, 'utf8'),
-                     `${cmds.join('\n')}\n`);
+                     `${cmds.join('\n')}\n\n`);
 }
 
 // make sure that the REPL data is "correct"
