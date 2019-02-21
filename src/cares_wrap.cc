@@ -407,14 +407,11 @@ void safe_free_hostent(struct hostent* host) {
     host->h_aliases = nullptr;
   }
 
-  if (host->h_name != nullptr) {
-    free(host->h_name);
-  }
-
-  host->h_addrtype = host->h_length = 0;
+  free(host->h_name);
+  free(host);
 }
 
-void cares_wrap_hostent_cpy(struct hostent* dest, struct hostent* src) {
+void cares_wrap_hostent_cpy(struct hostent* dest, const struct hostent* src) {
   dest->h_addr_list = nullptr;
   dest->h_addrtype = 0;
   dest->h_aliases = nullptr;
@@ -461,18 +458,6 @@ void cares_wrap_hostent_cpy(struct hostent* dest, struct hostent* src) {
 }
 
 class QueryWrap;
-struct CaresAsyncData {
-  QueryWrap* wrap;
-  int status;
-  bool is_host;
-  union {
-    hostent* host;
-    unsigned char* buf;
-  } data;
-  int len;
-
-  uv_async_t async_handle;
-};
 
 void ChannelWrap::Setup() {
   struct ares_options options;
@@ -525,20 +510,21 @@ void ChannelWrap::CloseTimer() {
 }
 
 ChannelWrap::~ChannelWrap() {
+  ares_destroy(channel_);
+
   if (library_inited_) {
     Mutex::ScopedLock lock(ares_library_mutex);
     // This decreases the reference counter increased by ares_library_init().
     ares_library_cleanup();
   }
 
-  ares_destroy(channel_);
   CloseTimer();
 }
 
 
 void ChannelWrap::ModifyActivityQueryCount(int count) {
   active_query_count_ += count;
-  if (active_query_count_ < 0) active_query_count_ = 0;
+  CHECK_GE(active_query_count_, 0);
 }
 
 
@@ -602,6 +588,10 @@ class QueryWrap : public AsyncWrap {
 
   ~QueryWrap() override {
     CHECK_EQ(false, persistent().IsEmpty());
+
+    // Let Callback() know that this object no longer exists.
+    if (callback_ptr_ != nullptr)
+      *callback_ptr_ = nullptr;
   }
 
   // Subclasses should implement the appropriate Send method.
@@ -624,40 +614,50 @@ class QueryWrap : public AsyncWrap {
       TRACING_CATEGORY_NODE2(dns, native), trace_name_, this,
       "name", TRACE_STR_COPY(name));
     ares_query(channel_->cares_channel(), name, dnsclass, type, Callback,
-               static_cast<void*>(this));
+               MakeCallbackPointer());
   }
 
-  static void CaresAsyncClose(uv_async_t* async) {
-    auto data = static_cast<struct CaresAsyncData*>(async->data);
-    delete data->wrap;
-    delete data;
-  }
+  struct ResponseData {
+    int status;
+    bool is_host;
+    DeleteFnPtr<hostent, safe_free_hostent> host;
+    MallocedBuffer<unsigned char> buf;
+  };
 
-  static void CaresAsyncCb(uv_async_t* handle) {
-    auto data = static_cast<struct CaresAsyncData*>(handle->data);
+  void AfterResponse() {
+    CHECK(response_data_);
 
-    QueryWrap* wrap = data->wrap;
-    int status = data->status;
+    const int status = response_data_->status;
 
     if (status != ARES_SUCCESS) {
-      wrap->ParseError(status);
-    } else if (!data->is_host) {
-      unsigned char* buf = data->data.buf;
-      wrap->Parse(buf, data->len);
-      free(buf);
+      ParseError(status);
+    } else if (!response_data_->is_host) {
+      Parse(response_data_->buf.data, response_data_->buf.size);
     } else {
-      hostent* host = data->data.host;
-      wrap->Parse(host);
-      safe_free_hostent(host);
-      free(host);
+      Parse(response_data_->host.get());
     }
 
-    wrap->env()->CloseHandle(handle, CaresAsyncClose);
+    delete this;
+  }
+
+  void* MakeCallbackPointer() {
+    CHECK_NULL(callback_ptr_);
+    callback_ptr_ = new QueryWrap*(this);
+    return callback_ptr_;
+  }
+
+  static QueryWrap* FromCallbackPointer(void* arg) {
+    std::unique_ptr<QueryWrap*> wrap_ptr { static_cast<QueryWrap**>(arg) };
+    QueryWrap* wrap = *wrap_ptr.get();
+    if (wrap == nullptr) return nullptr;
+    wrap->callback_ptr_ = nullptr;
+    return wrap;
   }
 
   static void Callback(void* arg, int status, int timeouts,
                        unsigned char* answer_buf, int answer_len) {
-    QueryWrap* wrap = static_cast<QueryWrap*>(arg);
+    QueryWrap* wrap = FromCallbackPointer(arg);
+    if (wrap == nullptr) return;
 
     unsigned char* buf_copy = nullptr;
     if (status == ARES_SUCCESS) {
@@ -665,27 +665,19 @@ class QueryWrap : public AsyncWrap {
       memcpy(buf_copy, answer_buf, answer_len);
     }
 
-    CaresAsyncData* data = new CaresAsyncData();
+    wrap->response_data_.reset(new ResponseData());
+    ResponseData* data = wrap->response_data_.get();
     data->status = status;
-    data->wrap = wrap;
     data->is_host = false;
-    data->data.buf = buf_copy;
-    data->len = answer_len;
+    data->buf = MallocedBuffer<unsigned char>(buf_copy, answer_len);
 
-    uv_async_t* async_handle = &data->async_handle;
-    CHECK_EQ(0, uv_async_init(wrap->env()->event_loop(),
-                              async_handle,
-                              CaresAsyncCb));
-
-    wrap->channel_->set_query_last_ok(status != ARES_ECONNREFUSED);
-    wrap->channel_->ModifyActivityQueryCount(-1);
-    async_handle->data = data;
-    uv_async_send(async_handle);
+    wrap->QueueResponseCallback(status);
   }
 
   static void Callback(void* arg, int status, int timeouts,
                        struct hostent* host) {
-    QueryWrap* wrap = static_cast<QueryWrap*>(arg);
+    QueryWrap* wrap = FromCallbackPointer(arg);
+    if (wrap == nullptr) return;
 
     struct hostent* host_copy = nullptr;
     if (status == ARES_SUCCESS) {
@@ -693,20 +685,22 @@ class QueryWrap : public AsyncWrap {
       cares_wrap_hostent_cpy(host_copy, host);
     }
 
-    CaresAsyncData* data = new CaresAsyncData();
+    wrap->response_data_.reset(new ResponseData());
+    ResponseData* data = wrap->response_data_.get();
     data->status = status;
-    data->data.host = host_copy;
-    data->wrap = wrap;
+    data->host.reset(host_copy);
     data->is_host = true;
 
-    uv_async_t* async_handle = &data->async_handle;
-    CHECK_EQ(0, uv_async_init(wrap->env()->event_loop(),
-                              async_handle,
-                              CaresAsyncCb));
+    wrap->QueueResponseCallback(status);
+  }
 
-    wrap->channel_->set_query_last_ok(status != ARES_ECONNREFUSED);
-    async_handle->data = data;
-    uv_async_send(async_handle);
+  void QueueResponseCallback(int status) {
+    env()->SetImmediate([](Environment*, void* data) {
+      static_cast<QueryWrap*>(data)->AfterResponse();
+    }, this, object());
+
+    channel_->set_query_last_ok(status != ARES_ECONNREFUSED);
+    channel_->ModifyActivityQueryCount(-1);
   }
 
   void CallOnComplete(Local<Value> answer,
@@ -749,7 +743,11 @@ class QueryWrap : public AsyncWrap {
   ChannelWrap* channel_;
 
  private:
+  std::unique_ptr<ResponseData> response_data_;
   const char* trace_name_;
+  // Pointer to pointer to 'this' that can be reset from the destructor,
+  // in order to let Callback() know that 'this' no longer exists.
+  QueryWrap** callback_ptr_ = nullptr;
 };
 
 
@@ -1768,7 +1766,7 @@ class GetHostByAddrWrap: public QueryWrap {
                        length,
                        family,
                        Callback,
-                       static_cast<void*>(static_cast<QueryWrap*>(this)));
+                       MakeCallbackPointer());
     return 0;
   }
 
