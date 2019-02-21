@@ -45,7 +45,7 @@ function run({ input, output, event, checkTerminalCodes = true }) {
 const tests = [
   {
     input: '',
-    output: '\n(To exit, press ^C again or type .exit)',
+    output: '\n(To exit, press ^C again or ^D or type .exit)',
     event: { ctrl: true, name: 'c' }
   },
   {
