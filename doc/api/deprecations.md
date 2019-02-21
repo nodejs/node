@@ -1284,7 +1284,7 @@ changes:
     description: End-of-Life.
 -->
 
-Type: End-Of-Life
+Type: End-of-Life
 
 `--debug` activates the legacy V8 debugger interface, which was removed as
 of V8 5.8. It is replaced by Inspector which is activated with `--inspect`
@@ -2186,7 +2186,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: End-Of-Life
+Type: End-of-Life
 
 The `crypto._toBuf()` function was not designed to be used by modules outside
 of Node.js core and was removed.
