@@ -167,7 +167,7 @@ always return 1.
 
 To enforce a specific color support it's possible to set either one of the
 following environment settings.
-This rule does not apply to Windows OS, CI environments and some other rare
+This rule does not apply to Windows OS, CI environments, and some other rare
 cases.
 
 * 2 colors: `NODE_DISABLE_COLORS = 1`
