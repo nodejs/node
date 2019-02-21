@@ -1159,6 +1159,11 @@ inspector was already connected.
 While using the `inspector` module, an attempt was made to use the inspector
 after the session had already closed.
 
+<a id="ERR_INSPECTOR_COMMAND"></a>
+### ERR_INSPECTOR_COMMAND
+
+An error occurred while issuing a command via the `inspector` module.
+
 <a id="ERR_INSPECTOR_NOT_AVAILABLE"></a>
 ### ERR_INSPECTOR_NOT_AVAILABLE
 
