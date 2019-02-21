@@ -439,7 +439,6 @@ const errorTests = [
     expect: [
       /\.break/,
       /\.clear/,
-      /\.editor/,
       /\.exit/,
       /\.help/,
       /\.load/,
