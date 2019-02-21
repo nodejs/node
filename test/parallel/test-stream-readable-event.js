@@ -85,7 +85,7 @@ const Readable = require('stream').Readable;
 }
 
 {
-  // Pushing a empty string in non-objectMode should
+  // Pushing an empty string in non-objectMode should
   // trigger next `read()`.
   const underlyingData = ['', 'x', 'y', '', 'z'];
   const expected = underlyingData.filter((data) => data);
