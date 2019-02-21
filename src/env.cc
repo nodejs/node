@@ -398,7 +398,11 @@ void Environment::RegisterHandleCleanups() {
                                         void* arg) {
     handle->data = env;
 
-    env->CloseHandle(handle, [](uv_handle_t* handle) {});
+    env->CloseHandle(handle, [](uv_handle_t* handle) {
+#ifdef DEBUG
+      memset(handle, 0xab, uv_handle_size(handle->type));
+#endif
+    });
   };
 
   RegisterHandleCleanup(
@@ -512,6 +516,7 @@ void Environment::PrintSyncTrace() const {
 }
 
 void Environment::RunCleanup() {
+  started_cleanup_ = true;
   TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
                               "RunCleanup", this);
   CleanupHandles();
@@ -660,10 +665,13 @@ void Environment::RunAndClearNativeImmediates() {
 
 
 void Environment::ScheduleTimer(int64_t duration_ms) {
+  if (started_cleanup_) return;
   uv_timer_start(timer_handle(), RunTimers, duration_ms, 0);
 }
 
 void Environment::ToggleTimerRef(bool ref) {
+  if (started_cleanup_) return;
+
   if (ref) {
     uv_ref(reinterpret_cast<uv_handle_t*>(timer_handle()));
   } else {
@@ -763,6 +771,8 @@ void Environment::CheckImmediate(uv_check_t* handle) {
 }
 
 void Environment::ToggleImmediateRef(bool ref) {
+  if (started_cleanup_) return;
+
   if (ref) {
     // Idle handle is needed only to stop the event loop from blocking in poll.
     uv_idle_start(immediate_idle_handle(), [](uv_idle_t*){ });

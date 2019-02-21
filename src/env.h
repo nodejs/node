@@ -1173,6 +1173,7 @@ class Environment {
                      CleanupHookCallback::Hash,
                      CleanupHookCallback::Equal> cleanup_hooks_;
   uint64_t cleanup_hook_counter_ = 0;
+  bool started_cleanup_ = false;
 
   static void EnvPromiseHook(v8::PromiseHookType type,
                              v8::Local<v8::Promise> promise,
