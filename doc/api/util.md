@@ -446,10 +446,12 @@ changes:
     codes. Colors are customizable. See [Customizing `util.inspect` colors][].
     **Default:** `false`.
   * `customInspect` {boolean} If `false`,
-    `[util.inspect.custom](depth, opts)` functions are not invoked.
-    **Default:** `true`.
+    [`[util.inspect.custom](depth, opts)`][util.inspect.custom] functions are
+    not invoked. **Default:** `true`.
   * `showProxy` {boolean} If `true`, `Proxy` inspection includes
-    the [`target` and `handler`][] objects. **Default:** `false`.
+    the [`target` and `handler`][] objects and
+    [custom inspect function][util.inspect.custom] on the target will not be
+    triggered. **Default:** `false`.
   * `maxArrayLength` {integer} Specifies the maximum number of `Array`,
     [`TypedArray`][], [`WeakMap`][] and [`WeakSet`][] elements to include when
     formatting. Set to `null` or `Infinity` to show all elements. Set to `0` or
