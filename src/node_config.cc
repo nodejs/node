@@ -64,6 +64,13 @@ static void Initialize(Local<Object> target,
   READONLY_FALSE_PROPERTY(target, "hasInspector");
 #endif
 
+// configure --no-browser-globals
+#ifdef NODE_NO_BROWSER_GLOBALS
+  READONLY_TRUE_PROPERTY(target, "noBrowserGlobals");
+#else
+  READONLY_FALSE_PROPERTY(target, "noBrowserGlobals");
+#endif  // NODE_NO_BROWSER_GLOBALS
+
   READONLY_PROPERTY(target,
                     "bits",
                     Number::New(env->isolate(), 8 * sizeof(intptr_t)));
