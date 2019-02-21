@@ -174,6 +174,73 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     testEncryptDecrypt(publicKey, key);
     testSignVerify(publicKey, key);
   }));
+
+  // Now do the same with an encrypted private key, but encoded as DER.
+  generateKeyPair('rsa', {
+    publicExponent: 0x10001,
+    modulusLength: 512,
+    publicKeyEncoding,
+    privateKeyEncoding: {
+      type: 'pkcs8',
+      format: 'der',
+      cipher: 'aes-256-cbc',
+      passphrase: 'secret'
+    }
+  }, common.mustCall((err, publicKeyDER, privateKeyDER) => {
+    assert.ifError(err);
+
+    assert(Buffer.isBuffer(publicKeyDER));
+    assertApproximateSize(publicKeyDER, 74);
+
+    assert(Buffer.isBuffer(privateKeyDER));
+
+    // Since the private key is encrypted, signing shouldn't work anymore.
+    const publicKey = { key: publicKeyDER, ...publicKeyEncoding };
+    assert.throws(() => {
+      testSignVerify(publicKey, {
+        key: privateKeyDER,
+        format: 'der',
+        type: 'pkcs8'
+      });
+    }, /bad decrypt|asn1 encoding routines/);
+
+    const privateKey = {
+      key: privateKeyDER,
+      format: 'der',
+      type: 'pkcs8',
+      passphrase: 'secret'
+    };
+    testEncryptDecrypt(publicKey, privateKey);
+    testSignVerify(publicKey, privateKey);
+  }));
+
+  // Now do the same with an encrypted private key, but encoded as DER.
+  generateKeyPair('rsa', {
+    publicExponent: 0x10001,
+    modulusLength: 512,
+    publicKeyEncoding,
+    privateKeyEncoding: {
+      type: 'pkcs8',
+      format: 'der'
+    }
+  }, common.mustCall((err, publicKeyDER, privateKeyDER) => {
+    assert.ifError(err);
+
+    assert(Buffer.isBuffer(publicKeyDER));
+    assertApproximateSize(publicKeyDER, 74);
+
+    assert(Buffer.isBuffer(privateKeyDER));
+
+    const publicKey = { key: publicKeyDER, ...publicKeyEncoding };
+    const privateKey = {
+      key: privateKeyDER,
+      format: 'der',
+      type: 'pkcs8',
+      passphrase: 'secret'
+    };
+    testEncryptDecrypt(publicKey, privateKey);
+    testSignVerify(publicKey, privateKey);
+  }));
 }
 
 {
