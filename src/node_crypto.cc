@@ -4648,6 +4648,8 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
 
   unsigned int offset = 0;
   ManagedEVPPKey pkey = GetPublicOrPrivateKeyFromJs(args, &offset, true);
+  if (!pkey)
+    return;
 
   char* hbuf = Buffer::Data(args[offset]);
   ssize_t hlen = Buffer::Length(args[offset]);
