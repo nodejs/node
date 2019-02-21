@@ -42,7 +42,7 @@ StreamPipe::StreamPipe(StreamBase* source,
 }
 
 StreamPipe::~StreamPipe() {
-  CHECK(is_closed_);
+  Unpipe();
 }
 
 StreamBase* StreamPipe::source() {
