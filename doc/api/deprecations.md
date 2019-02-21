@@ -2162,17 +2162,18 @@ accessed outside of Node.js core: `Socket.prototype._handle`,
 ### DEP0113: Cipher.setAuthTag(), Decipher.getAuthTag()
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/26249
+    description: End-of-Life.
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22126
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-With the current crypto API, having `Cipher.setAuthTag()` and
-`Decipher.getAuthTag()` is not helpful and both functions will throw an error
-when called. They have never been documented and will be removed in a future
-release.
+`Cipher.setAuthTag()` and `Decipher.getAuthTag()` are no longer available. They
+were never documented and would throw when called.
 
 <a id="DEP0114"></a>
 ### DEP0114: crypto._toBuf()
