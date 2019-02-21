@@ -501,6 +501,8 @@ struct AllocatedBuffer {
 
  private:
   Environment* env_;
+  // We do not pass this to libuv directly, but uv_buf_t is a convenient way
+  // to represent a chunk of memory, and plays nicely with other parts of core.
   uv_buf_t buffer_;
 
   friend class Environment;
