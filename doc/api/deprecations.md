@@ -2349,6 +2349,19 @@ Type: Runtime
 
 This property is a reference to the instance itself.
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: require('\_stream\_wrap')
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/26245
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+The `_stream_wrap` module is deprecated.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
