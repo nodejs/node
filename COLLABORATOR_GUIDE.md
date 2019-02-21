@@ -339,13 +339,13 @@ documentation must state the deprecation status.
   * Backward-incompatible changes including complete removal of such APIs may
     occur at any time.
 
-Documentation-Only Deprecations may be handled as semver-minor or semver-major
-changes. Such deprecations have no impact on the successful operation of running
-code and therefore should not be viewed as breaking changes.
+Apply the `notable change` label to all pull requests that introduce
+Documentation-Only Deprecations. Such deprecations have no impact on code
+execution. Thus, they are not breaking changes (`semver-major`).
 
-Runtime Deprecations and End-of-life APIs (internal or public) must be
-handled as semver-major changes unless there is TSC consensus to land the
-deprecation as a semver-minor.
+Runtime Deprecations and End-of-life APIs (internal or public) are breaking
+changes (`semver-major`). The TSC may make exceptions, deciding that one of
+these deprecations is not a breaking change.
 
 All Documentation-Only and Runtime deprecations will be assigned a unique
 identifier that can be used to persistently refer to the deprecation in
