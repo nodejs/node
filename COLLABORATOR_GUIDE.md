@@ -344,7 +344,7 @@ Documentation-Only Deprecations. Such deprecations have no impact on code
 execution. Thus, they are not breaking changes (`semver-major`).
 
 Runtime Deprecations and End-of-life APIs (internal or public) are breaking
-changes (`semver-major`) . The TSC may make exceptions, deciding that one of
+changes (`semver-major`). The TSC may make exceptions, deciding that one of
 these deprecations is not a breaking change.
 
 All Documentation-Only and Runtime deprecations will be assigned a unique
