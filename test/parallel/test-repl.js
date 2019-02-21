@@ -444,6 +444,8 @@ const errorTests = [
       /\.help/,
       /\.load/,
       /\.save/,
+      '',
+      'Press ^C to abort current expression, ^D to exit the repl',
       /'thefourtheye'/
     ]
   },
