@@ -2858,8 +2858,8 @@ static bool IsASN1Sequence(const unsigned char* data, size_t size,
     size_t n_bytes = data[1] & ~0x80;
     if (n_bytes + 2 > size || n_bytes > sizeof(size_t))
       return false;
-    size_t i, length = 0;
-    for (i = 0; i < n_bytes; i++)
+    size_t length = 0;
+    for (size_t i = 0; i < n_bytes; i++)
       length = (length << 8) | data[i + 2];
     *data_offset = 2 + n_bytes;
     *data_size = std::min(size - 2 - n_bytes, length);
