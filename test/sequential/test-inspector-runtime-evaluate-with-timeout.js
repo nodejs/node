@@ -5,17 +5,22 @@ const common = require('../common');
 common.skipIfInspectorDisabled();
 
 (async function test() {
-  const { strictEqual } = require('assert');
+  const assert = require('assert');
   const { Session } = require('inspector');
   const { promisify } = require('util');
 
   const session = new Session();
   session.connect();
   session.post = promisify(session.post);
-  const result = await session.post('Runtime.evaluate', {
-    expression: 'for(;;);',
-    timeout: 0
-  }).catch((e) => e);
-  strictEqual(result.message, 'Execution was terminated');
+  await assert.rejects(
+    session.post('Runtime.evaluate', {
+      expression: 'for(;;);',
+      timeout: 0
+    }),
+    {
+      code: 'ERR_INSPECTOR_COMMAND',
+      message: 'Inspector error -32000: Execution was terminated'
+    }
+  );
   session.disconnect();
 })();
