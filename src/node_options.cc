@@ -168,6 +168,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental ES Module support and caching modules",
             &EnvironmentOptions::experimental_modules,
             kAllowedInEnvironment);
+  AddAlias("-em","--experimental-modules");
   AddOption("--experimental-policy",
             "use the specified file as a "
             "security policy",
