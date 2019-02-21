@@ -444,7 +444,7 @@ void UDPWrap::RecvStop(const FunctionCallbackInfo<Value>& args) {
 
 
 void UDPWrap::OnSend(uv_udp_send_t* req, int status) {
-  SendWrap* req_wrap = static_cast<SendWrap*>(req->data);
+  std::unique_ptr<SendWrap> req_wrap{static_cast<SendWrap*>(req->data)};
   if (req_wrap->have_callback()) {
     Environment* env = req_wrap->env();
     HandleScope handle_scope(env->isolate());
@@ -455,7 +455,6 @@ void UDPWrap::OnSend(uv_udp_send_t* req, int status) {
     };
     req_wrap->MakeCallback(env->oncomplete_string(), 2, arg);
   }
-  delete req_wrap;
 }
 
 
