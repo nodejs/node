@@ -77,6 +77,7 @@ using BIOPointer = DeleteFnPtr<BIO, BIO_free_all>;
 using SSLCtxPointer = DeleteFnPtr<SSL_CTX, SSL_CTX_free>;
 using SSLSessionPointer = DeleteFnPtr<SSL_SESSION, SSL_SESSION_free>;
 using SSLPointer = DeleteFnPtr<SSL, SSL_free>;
+using PKCS8Pointer = DeleteFnPtr<PKCS8_PRIV_KEY_INFO, PKCS8_PRIV_KEY_INFO_free>;
 using EVPKeyPointer = DeleteFnPtr<EVP_PKEY, EVP_PKEY_free>;
 using EVPKeyCtxPointer = DeleteFnPtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free>;
 using EVPMDPointer = DeleteFnPtr<EVP_MD_CTX, EVP_MD_CTX_free>;
