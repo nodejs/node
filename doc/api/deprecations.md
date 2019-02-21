@@ -2172,8 +2172,8 @@ changes:
 
 Type: End-of-Life
 
-The functions `Cipher.setAuthTag()` and `Decipher.getAuthTag()` have been
-removed. They had never been documented would throw when called.
+`Cipher.setAuthTag()` and `Decipher.getAuthTag()` are no longer available. They
+were never documented and would throw when called.
 
 <a id="DEP0114"></a>
 ### DEP0114: crypto._toBuf()
