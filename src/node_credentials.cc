@@ -43,7 +43,7 @@ bool SafeGetenv(const char* key, std::string* text, Environment* env) {
   if (env != nullptr) {
     HandleScope handle_scope(env->isolate());
     TryCatch ignore_errors(env->isolate());
-    MaybeLocal<String> value = env->envvars()->Get(
+    MaybeLocal<String> value = env->env_vars()->Get(
         env->isolate(),
         String::NewFromUtf8(env->isolate(), key, NewStringType::kNormal)
             .ToLocalChecked());

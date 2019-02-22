@@ -954,6 +954,11 @@ emitMyWarning();
 <!-- YAML
 added: v0.1.27
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/26544
+    description: Worker threads will now use a copy of the parent thread’s
+                 `process.env` by default, configurable through the `env`
+                 option of the `Worker` constructor.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18990
     description: Implicit conversion of variable value to string is deprecated.
@@ -983,8 +988,9 @@ An example of this object looks like:
 ```
 
 It is possible to modify this object, but such modifications will not be
-reflected outside the Node.js process. In other words, the following example
-would not work:
+reflected outside the Node.js process, or (unless explicitly requested)
+to other [`Worker`][] threads.
+In other words, the following example would not work:
 
 ```console
 $ node -e 'process.env.foo = "bar"' && echo $foo
@@ -1027,7 +1033,12 @@ console.log(process.env.test);
 // => 1
 ```
 
-`process.env` is read-only in [`Worker`][] threads.
+Unless explicitly specified when creating a [`Worker`][] instance,
+each [`Worker`][] thread has its own copy of `process.env`, based on its
+parent thread’s `process.env`, or whatever was specified as the `env` option
+to the [`Worker`][] constructor. Changes to `process.env` will not be visible
+across [`Worker`][] threads, and only the main thread can make changes that
+are visible to the operating system or to native add-ons.
 
 ## process.execArgv
 <!-- YAML
