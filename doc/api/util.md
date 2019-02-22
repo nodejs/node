@@ -468,9 +468,9 @@ changes:
     to be displayed on a new line. It will also add new lines to text that is
     longer than `breakLength`. If set to a number, the most `n` inner elements
     are united on a single line as long as all properties fit into
-    `breakLength`. Note that no text will be reduced below 16 characters, no
-    matter the `breakLength` size. For more information, see the example below.
-    **Default:** `true`.
+    `breakLength`. Short array elements are also grouped together. Note that no
+    text will be reduced below 16 characters, no matter the `breakLength` size.
+    For more information, see the example below. **Default:** `true`.
   * `sorted` {boolean|Function} If set to `true` or a function, all properties
     of an object, and `Set` and `Map` entries are sorted in the resulting
     string. If set to `true` the [default sort][] is used. If set to a function,
