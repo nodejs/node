@@ -172,16 +172,14 @@ std::string TriggerNodeReport(Isolate* isolate,
       std::cerr << " (errno: " << errno << ")" << std::endl;
       return "";
     }
+    outstream = &outfile;
 
     std::cerr << std::endl
               << "Writing Node.js report to file: " << filename << std::endl;
   }
 
-  // Pass our stream about by reference, not by copying it.
-  std::ostream& out = outfile.is_open() ? outfile : *outstream;
-
-  WriteNodeReport(
-      isolate, env, message, location, filename, out, stackstr, &tm_struct);
+  WriteNodeReport(isolate, env, message, location, filename, *outstream,
+                  stackstr, &tm_struct);
 
   // Do not close stdout/stderr, only close files we opened.
   if (outfile.is_open()) {
