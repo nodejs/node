@@ -1,6 +1,12 @@
 workflow "on push" {
   on = "push"
-  resolves = ["Find Python 3 syntax errors and undefined names", "GitHub Action for Flake8", "GitHub Action for pylint"]
+  # resolves = ["Find Python 3 syntax errors and undefined names", "GitHub Action for Flake8", "GitHub Action for pylint"]
+  resolves = ["GitHub Action for cpplint"]
+}
+
+action "GitHub Action for cpplint" {
+  uses = "cclauss/GitHub-Action-for-cpplint@master"
+  args = "cpplint --recursive ."
 }
 
 action "Find Python 3 syntax errors and undefined names" {
