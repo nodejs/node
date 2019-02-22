@@ -1498,6 +1498,42 @@ util.inspect(process);
 
   assert.strict.equal(out, expected);
 
+  out = util.inspect(map, { compact: 2, showHidden: true, depth: 9 });
+
+  expected = [
+    'Map {',
+    '  Promise {',
+    '    [',
+    '      [',
+    '        1,',
+    '        Set { [ 1, 2, [length]: 2 ], [size]: 1 },',
+    '        [length]: 2',
+    '      ],',
+    '      [length]: 1',
+    '    ]',
+    '  } => Uint8Array [',
+    '    [BYTES_PER_ELEMENT]: 1,',
+    '    [length]: 0,',
+    '    [byteLength]: 0,',
+    '    [byteOffset]: 0,',
+    '    [buffer]: ArrayBuffer { byteLength: 0, foo: true }',
+    '  ],',
+    '  [Set Iterator] { [ 1, 2, [length]: 2 ] } => [Map Iterator] {',
+    '    Uint8Array [',
+    '      [BYTES_PER_ELEMENT]: 1,',
+    '      [length]: 0,',
+    '      [byteLength]: 0,',
+    '      [byteOffset]: 0,',
+    '      [buffer]: ArrayBuffer { byteLength: 0, foo: true }',
+    '    ],',
+    '    [Circular]',
+    '  },',
+    '  [size]: 2',
+    '}'
+  ].join('\n');
+
+  assert.strict.equal(out, expected);
+
   out = util.inspect(map, { showHidden: true, depth: 9, breakLength: 4 });
   expected = [
     'Map {',
