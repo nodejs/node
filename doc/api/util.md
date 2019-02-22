@@ -389,6 +389,9 @@ stream.write('With ES6');
 added: v0.3.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/26269
+    description: The `compact` option accepts numbers for a new output mode.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/24971
     description: Internal properties no longer appear in the context argument
                  of a custom inspection function.
@@ -461,11 +464,13 @@ changes:
   * `breakLength` {integer} The length at which an object's keys are split
     across multiple lines. Set to `Infinity` to format an object as a single
     line. **Default:** `60` for legacy compatibility.
-  * `compact` {boolean} Setting this to `false` causes each object key to
-    be displayed on a new line. It will also add new lines to text that is
-    longer than `breakLength`. Note that no text will be reduced below 16
-    characters, no matter the `breakLength` size. For more information, see the
-    example below. **Default:** `true`.
+  * `compact` {boolean|integer} Setting this to `false` causes each object key
+    to be displayed on a new line. It will also add new lines to text that is
+    longer than `breakLength`. If set to a number, the most `n` inner elements
+    are united on a single line as long as all properties fit into
+    `breakLength`. Note that no text will be reduced below 16 characters, no
+    matter the `breakLength` size. For more information, see the example below.
+    **Default:** `true`.
   * `sorted` {boolean|Function} If set to `true` or a function, all properties
     of an object, and `Set` and `Map` entries are sorted in the resulting
     string. If set to `true` the [default sort][] is used. If set to a function,
