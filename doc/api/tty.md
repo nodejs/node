@@ -162,12 +162,9 @@ may lie about what terminal is used.
 To enforce a specific behavior without relying on `process.env` it is possible
 to pass in an object with different settings.
 
-Use the `NODE_DISABLE_COLORS` environment variable to enforce this function to
-always return 1.
-
 To enforce a specific color support, use one of the below environment settings.
 This rule does not apply to Windows OS, CI environments, and some other rare
-cases.
+cases. Only disabling color support with `NODE_DISABLE_COLORS` will always work.
 
 * 2 colors: `NODE_DISABLE_COLORS = 1`
 * 16 colors: `TERM = 'console'`
