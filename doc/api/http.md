@@ -638,7 +638,7 @@ Limits maximum response headers count. If set to 0, no limit will be applied.
 added: v0.4.0
 -->
 
-* {string} The request path. Read-only.
+* {string} The request path.
 
 ### request.removeHeader(name)
 <!-- YAML
