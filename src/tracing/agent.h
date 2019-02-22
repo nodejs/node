@@ -59,15 +59,17 @@ class AgentWriterHandle {
   inline void Enable(const std::set<std::string>& categories);
   inline void Disable(const std::set<std::string>& categories);
 
+  inline bool IsDefaultHandle();
+
   inline Agent* agent() { return agent_; }
 
   inline v8::TracingController* GetTracingController();
 
- private:
-  inline AgentWriterHandle(Agent* agent, int id) : agent_(agent), id_(id) {}
-
   AgentWriterHandle(const AgentWriterHandle& other) = delete;
   AgentWriterHandle& operator=(const AgentWriterHandle& other) = delete;
+
+ private:
+  inline AgentWriterHandle(Agent* agent, int id) : agent_(agent), id_(id) {}
 
   Agent* agent_ = nullptr;
   int id_;
@@ -81,7 +83,9 @@ class Agent {
   ~Agent();
 
   TracingController* GetTracingController() {
-    return tracing_controller_.get();
+    TracingController* controller = tracing_controller_.get();
+    CHECK_NOT_NULL(controller);
+    return controller;
   }
 
   enum UseDefaultCategoryMode {
@@ -113,7 +117,6 @@ class Agent {
  private:
   friend class AgentWriterHandle;
 
-  static void ThreadCb(void* arg);
   void InitializeWritersOnThread();
 
   void Start();
@@ -172,6 +175,10 @@ void AgentWriterHandle::Enable(const std::set<std::string>& categories) {
 
 void AgentWriterHandle::Disable(const std::set<std::string>& categories) {
   if (agent_ != nullptr) agent_->Disable(id_, categories);
+}
+
+bool AgentWriterHandle::IsDefaultHandle() {
+  return agent_ != nullptr && id_ == Agent::kDefaultHandleId;
 }
 
 inline v8::TracingController* AgentWriterHandle::GetTracingController() {

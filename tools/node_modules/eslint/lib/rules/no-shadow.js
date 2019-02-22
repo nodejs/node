@@ -30,8 +30,8 @@ module.exports = {
             {
                 type: "object",
                 properties: {
-                    builtinGlobals: { type: "boolean" },
-                    hoist: { enum: ["all", "functions", "never"] },
+                    builtinGlobals: { type: "boolean", default: false },
+                    hoist: { enum: ["all", "functions", "never"], default: "functions" },
                     allow: {
                         type: "array",
                         items: {
@@ -47,7 +47,7 @@ module.exports = {
     create(context) {
 
         const options = {
-            builtinGlobals: Boolean(context.options[0] && context.options[0].builtinGlobals),
+            builtinGlobals: context.options[0] && context.options[0].builtinGlobals,
             hoist: (context.options[0] && context.options[0].hoist) || "functions",
             allow: (context.options[0] && context.options[0].allow) || []
         };

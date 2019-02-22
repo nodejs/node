@@ -1,0 +1,56 @@
+0 info it worked if it ends with ok
+1 verbose cli [ '/usr/local/bin/node',
+1 verbose cli   '/Users/zkat/Documents/code/work/npm/bin/npm-cli.js',
+1 verbose cli   'install',
+1 verbose cli   '/Users/zkat/Documents/code/work/npm/test/tap/check-install-self/from' ]
+2 info using npm@6.6.0
+3 info using node@v11.6.0
+4 verbose npm-session 61cb12d52a202aa0
+5 silly install loadCurrentTree
+6 silly install readLocalPackageData
+7 silly pacote directory manifest for undefined@file:/Users/zkat/Documents/code/work/npm/test/tap/check-install-self/from fetched in 5ms
+8 timing stage:loadCurrentTree Completed in 27ms
+9 silly install loadIdealTree
+10 silly install cloneCurrentTreeToIdealTree
+11 timing stage:loadIdealTree:cloneCurrentTree Completed in 1ms
+12 silly install loadShrinkwrap
+13 timing stage:loadIdealTree:loadShrinkwrap Completed in 0ms
+14 silly install loadAllDepsIntoIdealTree
+15 timing stage:rollbackFailedOptional Completed in 1ms
+16 timing stage:runTopLevelLifecycles Completed in 30ms
+17 silly saveTree check-install-self@0.0.1
+18 verbose stack Error: Refusing to install package with name "check-install-self" under a package
+18 verbose stack also called "check-install-self". Did you name your project the same
+18 verbose stack as the dependency you're installing?
+18 verbose stack
+18 verbose stack For more information, see:
+18 verbose stack     <https://docs.npmjs.com/cli/install#limitations-of-npms-install-algorithm>
+18 verbose stack     at checkSelf (/Users/zkat/Documents/code/work/npm/lib/install/validate-args.js:64:14)
+18 verbose stack     at Array.<anonymous> (/Users/zkat/Documents/code/work/npm/node_modules/slide/lib/bind-actor.js:15:8)
+18 verbose stack     at LOOP (/Users/zkat/Documents/code/work/npm/node_modules/slide/lib/chain.js:15:14)
+18 verbose stack     at /Users/zkat/Documents/code/work/npm/node_modules/slide/lib/chain.js:18:7
+18 verbose stack     at hasMinimumFields (/Users/zkat/Documents/code/work/npm/lib/install/validate-args.js:30:12)
+18 verbose stack     at Array.<anonymous> (/Users/zkat/Documents/code/work/npm/node_modules/slide/lib/bind-actor.js:15:8)
+18 verbose stack     at LOOP (/Users/zkat/Documents/code/work/npm/node_modules/slide/lib/chain.js:15:14)
+18 verbose stack     at chain (/Users/zkat/Documents/code/work/npm/node_modules/slide/lib/chain.js:20:5)
+18 verbose stack     at /Users/zkat/Documents/code/work/npm/lib/install/validate-args.js:16:5
+18 verbose stack     at /Users/zkat/Documents/code/work/npm/node_modules/slide/lib/async-map.js:52:35
+18 verbose stack     at Array.forEach (<anonymous>)
+18 verbose stack     at /Users/zkat/Documents/code/work/npm/node_modules/slide/lib/async-map.js:52:11
+18 verbose stack     at Array.forEach (<anonymous>)
+18 verbose stack     at asyncMap (/Users/zkat/Documents/code/work/npm/node_modules/slide/lib/async-map.js:51:8)
+18 verbose stack     at module.exports (/Users/zkat/Documents/code/work/npm/lib/install/validate-args.js:15:3)
+18 verbose stack     at Array.<anonymous> (/Users/zkat/Documents/code/work/npm/node_modules/slide/lib/bind-actor.js:15:8)
+19 verbose cwd /Users/zkat/Documents/code/work/npm/test/tap/check-install-self/in
+20 verbose Darwin 18.0.0
+21 verbose argv "/usr/local/bin/node" "/Users/zkat/Documents/code/work/npm/bin/npm-cli.js" "install" "/Users/zkat/Documents/code/work/npm/test/tap/check-install-self/from"
+22 verbose node v11.6.0
+23 verbose npm  v6.6.0
+24 error code ENOSELF
+25 error Refusing to install package with name "check-install-self" under a package
+25 error also called "check-install-self". Did you name your project the same
+25 error as the dependency you're installing?
+25 error
+25 error For more information, see:
+25 error     <https://docs.npmjs.com/cli/install#limitations-of-npms-install-algorithm>
+26 verbose exit [ 1, true ]

@@ -30,10 +30,12 @@ module.exports = {
                         type: "object",
                         properties: {
                             grouping: {
-                                type: "boolean"
+                                type: "boolean",
+                                default: false
                             },
                             allowCall: {
-                                type: "boolean"
+                                type: "boolean",
+                                default: false
                             }
                         },
                         additionalProperties: false

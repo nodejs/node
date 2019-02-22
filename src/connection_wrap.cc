@@ -48,9 +48,10 @@ void ConnectionWrap<WrapType, UVType>::OnConnection(uv_stream_t* handle,
 
   if (status == 0) {
     // Instantiate the client javascript object and handle.
-    Local<Object> client_obj = WrapType::Instantiate(env,
-                                                     wrap_data,
-                                                     WrapType::SOCKET);
+    Local<Object> client_obj;
+    if (!WrapType::Instantiate(env, wrap_data, WrapType::SOCKET)
+             .ToLocal(&client_obj))
+      return;
 
     // Unwrap the client javascript object.
     WrapType* wrap;
@@ -93,7 +94,7 @@ void ConnectionWrap<WrapType, UVType>::AfterConnect(uv_connect_t* req,
   bool readable, writable;
 
   if (status) {
-    readable = writable = 0;
+    readable = writable = false;
   } else {
     readable = uv_is_readable(req->handle) != 0;
     writable = uv_is_writable(req->handle) != 0;

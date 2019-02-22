@@ -7,7 +7,7 @@ const bench = common.createBenchmark(main, {
     '',
     ['', ''].join('|'),
     ['c:/ignore', 'd:\\a/b\\c/d', '\\e.exe'].join('|'),
-    ['c:/blah\\blah', 'd:/games', 'c:../a'].join('|')
+    ['c:/blah\\blah', 'd:/games', 'c:../a'].join('|'),
   ],
   n: [1e6]
 });

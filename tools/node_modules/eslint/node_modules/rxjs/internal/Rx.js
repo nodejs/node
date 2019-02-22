@@ -150,6 +150,7 @@ var ConnectableObservable_1 = require("./observable/ConnectableObservable");
 exports.ConnectableObservable = ConnectableObservable_1.ConnectableObservable;
 var Notification_1 = require("./Notification");
 exports.Notification = Notification_1.Notification;
+exports.NotificationKind = Notification_1.NotificationKind;
 var EmptyError_1 = require("./util/EmptyError");
 exports.EmptyError = EmptyError_1.EmptyError;
 var ArgumentOutOfRangeError_1 = require("./util/ArgumentOutOfRangeError");

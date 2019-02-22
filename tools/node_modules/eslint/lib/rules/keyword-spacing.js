@@ -80,16 +80,16 @@ module.exports = {
             {
                 type: "object",
                 properties: {
-                    before: { type: "boolean" },
-                    after: { type: "boolean" },
+                    before: { type: "boolean", default: true },
+                    after: { type: "boolean", default: true },
                     overrides: {
                         type: "object",
                         properties: KEYS.reduce((retv, key) => {
                             retv[key] = {
                                 type: "object",
                                 properties: {
-                                    before: { type: "boolean" },
-                                    after: { type: "boolean" }
+                                    before: { type: "boolean", default: true },
+                                    after: { type: "boolean", default: true }
                                 },
                                 additionalProperties: false
                             };
@@ -228,9 +228,9 @@ module.exports = {
          *      Keys are keywords (there are for every keyword).
          *      Values are instances of `{"before": function, "after": function}`.
          */
-        function parseOptions(options) {
-            const before = !options || options.before !== false;
-            const after = !options || options.after !== false;
+        function parseOptions(options = {}) {
+            const before = options.before !== false;
+            const after = options.after !== false;
             const defaultValue = {
                 before: before ? expectSpaceBefore : unexpectSpaceBefore,
                 after: after ? expectSpaceAfter : unexpectSpaceAfter

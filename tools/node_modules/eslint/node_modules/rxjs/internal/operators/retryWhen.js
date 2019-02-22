@@ -14,8 +14,6 @@ var __extends = (this && this.__extends) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 var Subject_1 = require("../Subject");
-var tryCatch_1 = require("../util/tryCatch");
-var errorObject_1 = require("../util/errorObject");
 var OuterSubscriber_1 = require("../OuterSubscriber");
 var subscribeToResult_1 = require("../util/subscribeToResult");
 function retryWhen(notifier) {
@@ -47,9 +45,12 @@ var RetryWhenSubscriber = (function (_super) {
             var retriesSubscription = this.retriesSubscription;
             if (!retries) {
                 errors = new Subject_1.Subject();
-                retries = tryCatch_1.tryCatch(this.notifier)(errors);
-                if (retries === errorObject_1.errorObject) {
-                    return _super.prototype.error.call(this, errorObject_1.errorObject.e);
+                try {
+                    var notifier = this.notifier;
+                    retries = notifier(errors);
+                }
+                catch (e) {
+                    return _super.prototype.error.call(this, e);
                 }
                 retriesSubscription = subscribeToResult_1.subscribeToResult(this, retries);
             }

@@ -50,7 +50,9 @@ var affordances = {
   'rm': 'uninstall',
   'r': 'uninstall',
   'rum': 'run-script',
-  'sit': 'cit'
+  'sit': 'cit',
+  'urn': 'run-script',
+  'ogr': 'org'
 }
 
 // these are filenames in .
@@ -89,6 +91,7 @@ var cmdList = [
   'token',
   'profile',
   'audit',
+  'org',
 
   'help',
   'help-search',

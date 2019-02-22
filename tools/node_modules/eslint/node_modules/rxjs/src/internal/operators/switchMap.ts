@@ -5,16 +5,16 @@ import { Subscription } from '../Subscription';
 import { OuterSubscriber } from '../OuterSubscriber';
 import { InnerSubscriber } from '../InnerSubscriber';
 import { subscribeToResult } from '../util/subscribeToResult';
-import { ObservableInput, OperatorFunction } from '../types';
+import { ObservableInput, OperatorFunction, ObservedValueOf } from '../types';
 import { map } from './map';
 import { from } from '../observable/from';
 
 /* tslint:disable:max-line-length */
-export function switchMap<T, R>(project: (value: T, index: number) => ObservableInput<R>): OperatorFunction<T, R>;
+export function switchMap<T, O extends ObservableInput<any>>(project: (value: T, index: number) => O): OperatorFunction<T, ObservedValueOf<O>>;
 /** @deprecated resultSelector is no longer supported, use inner map instead */
-export function switchMap<T, R>(project: (value: T, index: number) => ObservableInput<R>, resultSelector: undefined): OperatorFunction<T, R>;
+export function switchMap<T, O extends ObservableInput<any>>(project: (value: T, index: number) => O, resultSelector: undefined): OperatorFunction<T, ObservedValueOf<O>>;
 /** @deprecated resultSelector is no longer supported, use inner map instead */
-export function switchMap<T, I, R>(project: (value: T, index: number) => ObservableInput<I>, resultSelector: (outerValue: T, innerValue: I, outerIndex: number, innerIndex: number) => R): OperatorFunction<T, R>;
+export function switchMap<T, R, O extends ObservableInput<any>>(project: (value: T, index: number) => O, resultSelector: (outerValue: T, innerValue: ObservedValueOf<O>, outerIndex: number, innerIndex: number) => R): OperatorFunction<T, R>;
 /* tslint:enable:max-line-length */
 
 /**
@@ -38,6 +38,9 @@ export function switchMap<T, I, R>(project: (value: T, index: number) => Observa
  * ## Example
  * Rerun an interval Observable on every click event
  * ```javascript
+ * import { fromEvent, interval } from 'rxjs';
+ * import { switchMap } from 'rxjs/operators';
+ *
  * const clicks = fromEvent(document, 'click');
  * const result = clicks.pipe(switchMap((ev) => interval(1000)));
  * result.subscribe(x => console.log(x));
@@ -59,10 +62,10 @@ export function switchMap<T, I, R>(project: (value: T, index: number) => Observa
  * @method switchMap
  * @owner Observable
  */
-export function switchMap<T, I, R>(
-  project: (value: T, index: number) => ObservableInput<I>,
-  resultSelector?: (outerValue: T, innerValue: I, outerIndex: number, innerIndex: number) => R,
-): OperatorFunction<T, I|R> {
+export function switchMap<T, R, O extends ObservableInput<any>>(
+  project: (value: T, index: number) => O,
+  resultSelector?: (outerValue: T, innerValue: ObservedValueOf<O>, outerIndex: number, innerIndex: number) => R,
+): OperatorFunction<T, ObservedValueOf<O>|R> {
   if (typeof resultSelector === 'function') {
     return (source: Observable<T>) => source.pipe(
       switchMap((a, i) => from(project(a, i)).pipe(

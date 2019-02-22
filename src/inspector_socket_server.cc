@@ -184,7 +184,7 @@ class SocketSession {
    public:
     Delegate(InspectorSocketServer* server, int session_id)
              : server_(server), session_id_(session_id) { }
-    ~Delegate() {
+    ~Delegate() override {
       server_->SessionTerminated(session_id_);
     }
     void OnHttpGet(const std::string& host, const std::string& path) override;
@@ -352,7 +352,7 @@ std::string InspectorSocketServer::GetFrontendURL(bool is_compat,
 }
 
 bool InspectorSocketServer::Start() {
-  CHECK_NE(delegate_, nullptr);
+  CHECK_NOT_NULL(delegate_);
   CHECK_EQ(state_, ServerState::kNew);
   std::unique_ptr<SocketServerDelegate> delegate_holder;
   // We will return it if startup is successful

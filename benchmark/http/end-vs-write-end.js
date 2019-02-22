@@ -43,14 +43,14 @@ function main({ len, type, method, c }) {
 
   const fn = method === 'write' ? write : end;
 
-  const server = http.createServer(function(req, res) {
+  const server = http.createServer((req, res) => {
     fn(res);
   });
 
-  server.listen(common.PORT, function() {
+  server.listen(common.PORT, () => {
     bench.http({
       connections: c
-    }, function() {
+    }, () => {
       server.close();
     });
   });

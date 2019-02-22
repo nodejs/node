@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
   step = 20
   slices = (data[i:i+step] for i in xrange(0, len(data), step))
-  slices = map(lambda s: ','.join(str(ord(c)) for c in s), slices)
+  slices = [','.join(str(ord(c)) for c in s) for s in slices]
   text = ',\n'.join(slices)
 
   fp = open(sys.argv[2], 'w')

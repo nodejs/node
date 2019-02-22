@@ -1,0 +1,10 @@
+## Benchmark-specific linter rules
+
+rules:
+  comma-dangle:
+    - error
+    - arrays: 'always-multiline'
+      objects: 'only-multiline'
+      imports: 'only-multiline'
+      exports: 'only-multiline'
+  prefer-arrow-callback: error

@@ -22,7 +22,7 @@
   #ifdef _WIN32
     #define NAPI_EXTERN __declspec(dllexport)
   #else
-    #define NAPI_EXTERN /* nothing */
+    #define NAPI_EXTERN __attribute__((visibility("default")))
   #endif
 #endif
 

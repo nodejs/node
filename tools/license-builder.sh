@@ -29,7 +29,7 @@ fi
 
 
 # Dependencies bundled in distributions
-addlicense "Acorn" "deps/acorn" "$(cat ${rootdir}/deps/acorn/LICENSE)"
+addlicense "Acorn" "deps/acorn" "$(cat ${rootdir}/deps/acorn/acorn/LICENSE)"
 addlicense "c-ares" "deps/cares" "$(tail -n +3 ${rootdir}/deps/cares/LICENSE.md)"
 addlicense "HTTP Parser" "deps/http_parser" "$(cat deps/http_parser/LICENSE-MIT)"
 if [ -f "${rootdir}/deps/icu/LICENSE" ]; then
@@ -94,5 +94,7 @@ addlicense "large_pages" "src/large_pages" "$(sed -e '/SPDX-License-Identifier/,
 
 # brotli
 addlicense "brotli" "deps/brotli" "$(cat ${rootdir}/deps/brotli/LICENSE)"
+
+addlicense "HdrHistogram" "deps/histogram" "$(cat ${rootdir}/deps/histogram/LICENSE.txt)"
 
 mv $tmplicense $licensefile

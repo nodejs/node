@@ -85,10 +85,12 @@ module.exports = {
             type: "object",
             properties: {
                 getWithoutSet: {
-                    type: "boolean"
+                    type: "boolean",
+                    default: false
                 },
                 setWithoutGet: {
-                    type: "boolean"
+                    type: "boolean",
+                    default: true
                 }
             },
             additionalProperties: false

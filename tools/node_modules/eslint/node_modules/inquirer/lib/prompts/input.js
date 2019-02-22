@@ -75,6 +75,7 @@ class InputPrompt extends Base {
     if (!input) {
       return this.opt.default == null ? '' : this.opt.default;
     }
+
     return input;
   }
 

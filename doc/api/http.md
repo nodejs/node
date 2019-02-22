@@ -127,7 +127,7 @@ added: v0.3.4
     in a free state. Only relevant if `keepAlive` is set to `true`.
     **Default:** `256`.
   * `timeout` {number} Socket timeout in milliseconds.
-    This will set the timeout after the socket is connected.
+    This will set the timeout when the socket is created.
 
 `options` in [`socket.connect()`][] are also supported.
 
@@ -633,6 +633,13 @@ const cookie = request.getHeader('Cookie');
 
 Limits maximum response headers count. If set to 0, no limit will be applied.
 
+### request.path
+<!-- YAML
+added: v0.4.0
+-->
+
+* {string} The request path. Read-only.
+
 ### request.removeHeader(name)
 <!-- YAML
 added: v1.6.0
@@ -822,6 +829,10 @@ changes:
     description: The `rawPacket` is the current buffer that just parsed. Adding
                  this buffer to the error object of `'clientError'` event is to
                  make it possible that developers can log the broken packet.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/25605
+    description: The default behavior will return a 431 Request Header
+                 Fields Too Large if a HPE_HEADER_OVERFLOW error occurs.
 -->
 
 * `exception` {Error}
@@ -832,8 +843,10 @@ Listener of this event is responsible for closing/destroying the underlying
 socket. For example, one may wish to more gracefully close the socket with a
 custom HTTP response instead of abruptly severing the connection.
 
-Default behavior is to close the socket with an HTTP '400 Bad Request' response
-if possible, otherwise the socket is immediately destroyed.
+Default behavior is to try close the socket with a HTTP '400 Bad Request',
+or a HTTP '431 Request Header Fields Too Large' in the case of a
+[`HPE_HEADER_OVERFLOW`][] error. If the socket is not writable it is
+immediately destroyed.
 
 `socket` is the [`net.Socket`][] object that the error originated from.
 
@@ -900,6 +913,10 @@ also be accessed at `request.connection`.
 
 This event can also be explicitly emitted by users to inject connections
 into the HTTP server. In that case, any [`Duplex`][] stream can be passed.
+
+If `socket.setTimeout()` is called here, the timeout will be replaced with
+`server.keepAliveTimeout` when the socket has served a request (if
+`server.keepAliveTimeout` is non-zero).
 
 ### Event: 'request'
 <!-- YAML
@@ -1433,6 +1450,10 @@ the request body should be sent. See the [`'checkContinue'`][] event on
 <!-- YAML
 added: v0.1.30
 changes:
+  - version: v11.10.0
+    pr-url: https://github.com/nodejs/node/pull/25974
+    description: Return `this` from `writeHead()` to allow chaining with
+                 `end()`.
   - version: v5.11.0, v4.4.5
     pr-url: https://github.com/nodejs/node/pull/6291
     description: A `RangeError` is thrown if `statusCode` is not a number in
@@ -1442,17 +1463,23 @@ changes:
 * `statusCode` {number}
 * `statusMessage` {string}
 * `headers` {Object}
+* Returns: {http.ServerResponse}
 
 Sends a response header to the request. The status code is a 3-digit HTTP
 status code, like `404`. The last argument, `headers`, are the response headers.
 Optionally one can give a human-readable `statusMessage` as the second
 argument.
 
+Returns a reference to the `ServerResponse`, so that calls can be chained.
+
 ```js
 const body = 'hello world';
-response.writeHead(200, {
-  'Content-Length': Buffer.byteLength(body),
-  'Content-Type': 'text/plain' });
+response
+  .writeHead(200, {
+    'Content-Length': Buffer.byteLength(body),
+    'Content-Type': 'text/plain'
+  })
+  .end(body);
 ```
 
 This method must only be called once on a message and it must
@@ -2164,3 +2191,4 @@ not abort the request or do anything besides add a `'timeout'` event.
 [`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
 [Readable Stream]: stream.html#stream_class_stream_readable
 [Stream]: stream.html#stream_stream
+[`HPE_HEADER_OVERFLOW`]: errors.html#errors_hpe_header_overflow

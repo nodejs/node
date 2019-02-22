@@ -23,9 +23,10 @@ class ContextifyContext {
                     v8::Local<v8::Object> sandbox_obj,
                     const ContextOptions& options);
 
-  v8::Local<v8::Value> CreateDataWrapper(Environment* env);
-  v8::Local<v8::Context> CreateV8Context(Environment* env,
-      v8::Local<v8::Object> sandbox_obj, const ContextOptions& options);
+  v8::MaybeLocal<v8::Object> CreateDataWrapper(Environment* env);
+  v8::MaybeLocal<v8::Context> CreateV8Context(Environment* env,
+                                              v8::Local<v8::Object> sandbox_obj,
+                                              const ContextOptions& options);
   static void Init(Environment* env, v8::Local<v8::Object> target);
 
   static ContextifyContext* ContextFromContextifiedSandbox(
@@ -60,6 +61,8 @@ class ContextifyContext {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WeakCallback(
       const v8::WeakCallbackInfo<ContextifyContext>& data);
+  static void WeakCallbackCompileFn(
+      const v8::WeakCallbackInfo<CompileFnEntry>& data);
   static void PropertyGetterCallback(
       v8::Local<v8::Name> property,
       const v8::PropertyCallbackInfo<v8::Value>& args);
@@ -107,7 +110,7 @@ class ContextifyScript : public BaseObject {
   SET_SELF_SIZE(ContextifyScript)
 
   ContextifyScript(Environment* env, v8::Local<v8::Object> object);
-  ~ContextifyScript();
+  ~ContextifyScript() override;
 
   static void Init(Environment* env, v8::Local<v8::Object> target);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -120,6 +123,7 @@ class ContextifyScript : public BaseObject {
                           const int64_t timeout,
                           const bool display_errors,
                           const bool break_on_sigint,
+                          const bool break_on_first_line,
                           const v8::FunctionCallbackInfo<v8::Value>& args);
 
   inline uint32_t id() { return id_; }

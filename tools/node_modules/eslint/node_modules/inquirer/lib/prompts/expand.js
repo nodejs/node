@@ -102,6 +102,7 @@ class ExpandPrompt extends Base {
     if (!input) {
       input = this.rawDefault;
     }
+
     var selected = this.opt.choices.where({ key: input.toLowerCase().trim() })[0];
     if (!selected) {
       return null;
@@ -130,6 +131,7 @@ class ExpandPrompt extends Base {
       if (this.selectedKey === choice.key) {
         choiceStr = chalk.cyan(choiceStr);
       }
+
       output += choiceStr;
     });
 
@@ -143,6 +145,7 @@ class ExpandPrompt extends Base {
       this.render();
       return;
     }
+
     this.render(state.isValid);
   }
 
@@ -188,9 +191,11 @@ class ExpandPrompt extends Base {
       if (!choice.key || choice.key.length !== 1) {
         formatError = true;
       }
+
       if (keymap[choice.key]) {
         errors.push(choice.key);
       }
+
       keymap[choice.key] = true;
       choice.key = String(choice.key).toLowerCase();
     });
@@ -200,11 +205,13 @@ class ExpandPrompt extends Base {
         'Format error: `key` param must be a single letter and is required.'
       );
     }
+
     if (keymap.h) {
       throw new Error(
         'Reserved key error: `key` param cannot be `h` - this value is reserved.'
       );
     }
+
     if (errors.length) {
       throw new Error(
         'Duplicate key error: `key` param must be unique. Duplicates: ' +
@@ -230,6 +237,7 @@ class ExpandPrompt extends Base {
       );
       defIndex = index === -1 ? defIndex : index;
     }
+
     var defStr = this.opt.choices.pluck('key');
     this.rawDefault = defStr[defIndex];
     defStr[defIndex] = String(defStr[defIndex]).toUpperCase();
@@ -258,6 +266,7 @@ function renderChoices(choices, pointer) {
     if (pointer === choice.key) {
       choiceStr = chalk.cyan(choiceStr);
     }
+
     output += choiceStr;
   });
 

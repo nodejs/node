@@ -35,19 +35,19 @@ function main({ dur, len, type }) {
   const writer = new Writer();
 
   // the actual benchmark.
-  const server = net.createServer(function(socket) {
+  const server = net.createServer((socket) => {
     socket.pipe(socket);
   });
 
-  server.listen(PORT, function() {
+  server.listen(PORT, () => {
     const socket = net.connect(PORT);
-    socket.on('connect', function() {
+    socket.on('connect', () => {
       bench.start();
 
       reader.pipe(socket);
       socket.pipe(writer);
 
-      setTimeout(function() {
+      setTimeout(() => {
         // Multiply by 2 since we're sending it first one way
         // then then back again.
         const bytes = writer.received * 2;

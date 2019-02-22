@@ -43,7 +43,7 @@ class Message : public MemoryRetainer {
 
   // Internal method of Message that is called when a new SharedArrayBuffer
   // object is encountered in the incoming value's structure.
-  void AddSharedArrayBuffer(SharedArrayBufferMetadataReference ref);
+  void AddSharedArrayBuffer(const SharedArrayBufferMetadataReference& ref);
   // Internal method of Message that is called once serialization finishes
   // and that transfers ownership of `data` to this message.
   void AddMessagePort(std::unique_ptr<MessagePortData>&& data);
@@ -78,7 +78,7 @@ class Message : public MemoryRetainer {
 class MessagePortData : public MemoryRetainer {
  public:
   explicit MessagePortData(MessagePort* owner);
-  ~MessagePortData();
+  ~MessagePortData() override;
 
   MessagePortData(MessagePortData&& other) = delete;
   MessagePortData& operator=(MessagePortData&& other) = delete;
@@ -138,7 +138,7 @@ class MessagePort : public HandleWrap {
   MessagePort(Environment* env,
               v8::Local<v8::Context> context,
               v8::Local<v8::Object> wrap);
-  ~MessagePort();
+  ~MessagePort() override;
 
   // Create a new message port instance, optionally over an existing
   // `MessagePortData` object.

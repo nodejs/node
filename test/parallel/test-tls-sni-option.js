@@ -115,6 +115,7 @@ let clientError;
 
 const server = tls.createServer(serverOptions, function(c) {
   serverResults.push({ sni: c.servername, authorized: c.authorized });
+  c.end();
 });
 
 server.on('tlsClientError', function(err) {
@@ -135,7 +136,6 @@ function startTest() {
       clientResults.push(
         client.authorizationError &&
          (client.authorizationError === 'ERR_TLS_CERT_ALTNAME_INVALID'));
-      client.destroy();
 
       next();
     });

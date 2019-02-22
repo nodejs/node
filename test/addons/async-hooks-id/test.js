@@ -14,7 +14,7 @@ assert.strictEqual(
   async_hooks.triggerAsyncId()
 );
 
-process.nextTick(common.mustCall(function() {
+process.nextTick(common.mustCall(() => {
   assert.strictEqual(
     binding.getExecutionAsyncId(),
     async_hooks.executionAsyncId()

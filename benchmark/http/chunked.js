@@ -20,21 +20,21 @@ function main({ len, n, c }) {
   const http = require('http');
   const chunk = Buffer.alloc(len, '8');
 
-  const server = http.createServer(function(req, res) {
+  const server = http.createServer((req, res) => {
     function send(left) {
       if (left === 0) return res.end();
       res.write(chunk);
-      setTimeout(function() {
+      setTimeout(() => {
         send(left - 1);
       }, 0);
     }
     send(n);
   });
 
-  server.listen(common.PORT, function() {
+  server.listen(common.PORT, () => {
     bench.http({
       connections: c
-    }, function() {
+    }, () => {
       server.close();
     });
   });

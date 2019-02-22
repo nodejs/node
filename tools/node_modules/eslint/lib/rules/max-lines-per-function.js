@@ -19,16 +19,20 @@ const OPTIONS_SCHEMA = {
     properties: {
         max: {
             type: "integer",
-            minimum: 0
+            minimum: 0,
+            default: 50
         },
         skipComments: {
-            type: "boolean"
+            type: "boolean",
+            default: false
         },
         skipBlankLines: {
-            type: "boolean"
+            type: "boolean",
+            default: false
         },
         IIFEs: {
-            type: "boolean"
+            type: "boolean",
+            default: false
         }
     },
     additionalProperties: false
@@ -97,18 +101,10 @@ module.exports = {
         let IIFEs = false;
 
         if (typeof option === "object") {
-            if (typeof option.max === "number") {
-                maxLines = option.max;
-            }
-            if (typeof option.skipComments === "boolean") {
-                skipComments = option.skipComments;
-            }
-            if (typeof option.skipBlankLines === "boolean") {
-                skipBlankLines = option.skipBlankLines;
-            }
-            if (typeof option.IIFEs === "boolean") {
-                IIFEs = option.IIFEs;
-            }
+            maxLines = option.max;
+            skipComments = option.skipComments;
+            skipBlankLines = option.skipBlankLines;
+            IIFEs = option.IIFEs;
         } else if (typeof option === "number") {
             maxLines = option;
         }

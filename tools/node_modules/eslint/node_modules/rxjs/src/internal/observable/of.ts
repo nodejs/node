@@ -36,6 +36,8 @@ export function of<T>(...args: Array<T | SchedulerLike>): Observable<T>;
  * Emit the values `10, 20, 30`
  *
  * ```javascript
+ * import { of } from 'rxjs';
+ *
  * of(10, 20, 30)
  * .subscribe(
  *   next => console.log('next:', next),
@@ -52,6 +54,8 @@ export function of<T>(...args: Array<T | SchedulerLike>): Observable<T>;
  * Emit the array `[1,2,3]`
  *
  * ```javascript
+ * import { of } from 'rxjs';
+ *
  * of([1,2,3])
  * .subscribe(
  *   next => console.log('next:', next),

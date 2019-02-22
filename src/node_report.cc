@@ -28,7 +28,6 @@
 #include <cxxabi.h>
 #include <dlfcn.h>
 #include <inttypes.h>
-#include <sys/utsname.h>
 #endif
 
 #include <fcntl.h>
@@ -47,6 +46,9 @@
 #ifndef _WIN32
 extern char** environ;
 #endif
+
+constexpr int NANOS_PER_SEC = 1000 * 1000 * 1000;
+constexpr double SEC_PER_MICROS = 1e-6;
 
 namespace report {
 using node::arraysize;
@@ -72,7 +74,7 @@ static void WriteNodeReport(Isolate* isolate,
                             const std::string& filename,
                             std::ostream& out,
                             Local<String> stackstr,
-                            TIME_TYPE* time);
+                            TIME_TYPE* tm_struct);
 static void PrintVersionInformation(JSONWriter* writer);
 static void PrintJavaScriptStack(JSONWriter* writer,
                                  Isolate* isolate,
@@ -86,6 +88,7 @@ static void PrintGCStatistics(JSONWriter* writer, Isolate* isolate);
 static void PrintSystemInformation(JSONWriter* writer);
 static void PrintLoadedLibraries(JSONWriter* writer);
 static void PrintComponentVersions(JSONWriter* writer);
+static void PrintRelease(JSONWriter* writer);
 static void LocalTime(TIME_TYPE* tm_struct);
 
 // Global variables
@@ -108,7 +111,6 @@ std::string TriggerNodeReport(Isolate* isolate,
   // Obtain the current time and the pid (platform dependent)
   TIME_TYPE tm_struct;
   LocalTime(&tm_struct);
-  uv_pid_t pid = uv_os_getpid();
   // Determine the required report filename. In order of priority:
   //   1) supplied on API 2) configured on startup 3) default generated
   if (!name.empty()) {
@@ -120,7 +122,6 @@ std::string TriggerNodeReport(Isolate* isolate,
   } else {
     // Construct the report filename, with timestamp, pid and sequence number
     oss << "report";
-    seq++;
 #ifdef _WIN32
     oss << "." << std::setfill('0') << std::setw(4) << tm_struct.wYear;
     oss << std::setfill('0') << std::setw(2) << tm_struct.wMonth;
@@ -128,8 +129,6 @@ std::string TriggerNodeReport(Isolate* isolate,
     oss << "." << std::setfill('0') << std::setw(2) << tm_struct.wHour;
     oss << std::setfill('0') << std::setw(2) << tm_struct.wMinute;
     oss << std::setfill('0') << std::setw(2) << tm_struct.wSecond;
-    oss << "." << pid;
-    oss << "." << std::setfill('0') << std::setw(3) << seq.load();
 #else  // UNIX, OSX
     oss << "." << std::setfill('0') << std::setw(4) << tm_struct.tm_year + 1900;
     oss << std::setfill('0') << std::setw(2) << tm_struct.tm_mon + 1;
@@ -137,9 +136,9 @@ std::string TriggerNodeReport(Isolate* isolate,
     oss << "." << std::setfill('0') << std::setw(2) << tm_struct.tm_hour;
     oss << std::setfill('0') << std::setw(2) << tm_struct.tm_min;
     oss << std::setfill('0') << std::setw(2) << tm_struct.tm_sec;
-    oss << "." << pid;
-    oss << "." << std::setfill('0') << std::setw(3) << seq.load();
 #endif
+    oss << "." << uv_os_getpid();
+    oss << "." << std::setfill('0') << std::setw(3) << ++seq;
     oss << ".json";
   }
 
@@ -147,7 +146,7 @@ std::string TriggerNodeReport(Isolate* isolate,
   // Open the report file stream for writing. Supports stdout/err,
   // user-specified or (default) generated name
   std::ofstream outfile;
-  std::ostream* outstream = &std::cout;
+  std::ostream* outstream;
   if (filename == "stdout") {
     outstream = &std::cout;
   } else if (filename == "stderr") {
@@ -164,21 +163,18 @@ std::string TriggerNodeReport(Isolate* isolate,
     }
     // Check for errors on the file open
     if (!outfile.is_open()) {
-      if (env != nullptr && options->report_directory.length() > 0) {
-        std::cerr << std::endl
-                  << "Failed to open Node.js report file: " << filename
-                  << " directory: " << options->report_directory
-                  << " (errno: " << errno << ")" << std::endl;
-      } else {
-        std::cerr << std::endl
-                  << "Failed to open Node.js report file: " << filename
-                  << " (errno: " << errno << ")" << std::endl;
-      }
-      return "";
-    } else {
       std::cerr << std::endl
-                << "Writing Node.js report to file: " << filename << std::endl;
+                << "Failed to open Node.js report file: " << filename;
+
+      if (env != nullptr && options->report_directory.length() > 0)
+        std::cerr << " directory: " << options->report_directory;
+
+      std::cerr << " (errno: " << errno << ")" << std::endl;
+      return "";
     }
+
+    std::cerr << std::endl
+              << "Writing Node.js report to file: " << filename << std::endl;
   }
 
   // Pass our stream about by reference, not by copying it.
@@ -193,8 +189,7 @@ std::string TriggerNodeReport(Isolate* isolate,
   }
 
   std::cerr << "Node.js report completed" << std::endl;
-  if (name.empty()) return filename;
-  return name;
+  return filename;
 }
 
 // External function to trigger a report, writing to a supplied stream.
@@ -207,9 +202,8 @@ void GetNodeReport(Isolate* isolate,
   // Obtain the current time and the pid (platform dependent)
   TIME_TYPE tm_struct;
   LocalTime(&tm_struct);
-  std::string str = "NA";
   WriteNodeReport(
-      isolate, env, message, location, str, out, stackstr, &tm_struct);
+      isolate, env, message, location, "", out, stackstr, &tm_struct);
 }
 
 // Internal function to coordinate and write the various
@@ -240,14 +234,14 @@ static void WriteNodeReport(Isolate* isolate,
   if (!filename.empty())
     writer.json_keyvalue("filename", filename);
   else
-    writer.json_keyvalue("filename", "''");
+    writer.json_keyvalue("filename", JSONWriter::Null{});
 
   // Report dump event and module load date/time stamps
   char timebuf[64];
 #ifdef _WIN32
   snprintf(timebuf,
            sizeof(timebuf),
-           "%4d/%02d/%02d %02d:%02d:%02d",
+           "%4d-%02d-%02dT%02d:%02d:%02dZ",
            tm_struct->wYear,
            tm_struct->wMonth,
            tm_struct->wDay,
@@ -302,8 +296,17 @@ static void WriteNodeReport(Isolate* isolate,
 #endif
 
   writer.json_arraystart("libuv");
-  if (env != nullptr)
+  if (env != nullptr) {
     uv_walk(env->event_loop(), WalkHandle, static_cast<void*>(&writer));
+
+    writer.json_start();
+    writer.json_keyvalue("type", "loop");
+    writer.json_keyvalue("is_active",
+        static_cast<bool>(uv_loop_alive(env->event_loop())));
+    writer.json_keyvalue("address",
+        ValueToHexString(reinterpret_cast<int64_t>(env->event_loop())));
+    writer.json_end();
+  }
 
   writer.json_arrayend();
 
@@ -323,127 +326,48 @@ static void PrintVersionInformation(JSONWriter* writer) {
   buf << "v" << NODE_VERSION_STRING;
   writer->json_keyvalue("nodejsVersion", buf.str());
   buf.str("");
+
+#ifndef _WIN32
+  // Report compiler and runtime glibc versions where possible.
+  const char* (*libc_version)();
+  *(reinterpret_cast<void**>(&libc_version)) =
+      dlsym(RTLD_DEFAULT, "gnu_get_libc_version");
+  if (libc_version != nullptr)
+    writer->json_keyvalue("glibcVersionRuntime", (*libc_version)());
+#endif /* _WIN32 */
+
 #ifdef __GLIBC__
   buf << __GLIBC__ << "." << __GLIBC_MINOR__;
-  writer->json_keyvalue("glibcVersion", buf.str());
+  writer->json_keyvalue("glibcVersionCompiler", buf.str());
   buf.str("");
 #endif
+
   // Report Process word size
   writer->json_keyvalue("wordSize", sizeof(void*) * 8);
+  writer->json_keyvalue("arch", node::per_process::metadata.arch);
+  writer->json_keyvalue("platform", node::per_process::metadata.platform);
 
   // Report deps component versions
   PrintComponentVersions(writer);
 
-  // Report operating system and machine information (Windows)
-#ifdef _WIN32
-  {
-    // Level 101 to obtain the server name, type, and associated details.
-    // ref: https://docs.microsoft.com/en-us/windows/desktop/
-    // api/lmserver/nf-lmserver-netservergetinfo
-    const DWORD level = 101;
-    LPSERVER_INFO_101 os_info = nullptr;
-    NET_API_STATUS nStatus =
-        NetServerGetInfo(nullptr, level, reinterpret_cast<LPBYTE*>(&os_info));
-    if (nStatus == NERR_Success) {
-      LPSTR os_name = "Windows";
-      const DWORD major = os_info->sv101_version_major & MAJOR_VERSION_MASK;
-      const DWORD type = os_info->sv101_type;
-      const bool isServer = (type & SV_TYPE_DOMAIN_CTRL) ||
-                            (type & SV_TYPE_DOMAIN_BAKCTRL) ||
-                            (type & SV_TYPE_SERVER_NT);
-      switch (major) {
-        case 5:
-          switch (os_info->sv101_version_minor) {
-            case 0:
-              os_name = "Windows 2000";
-              break;
-            default:
-              os_name = (isServer ? "Windows Server 2003" : "Windows XP");
-          }
-          break;
-        case 6:
-          switch (os_info->sv101_version_minor) {
-            case 0:
-              os_name = (isServer ? "Windows Server 2008" : "Windows Vista");
-              break;
-            case 1:
-              os_name = (isServer ? "Windows Server 2008 R2" : "Windows 7");
-              break;
-            case 2:
-              os_name = (isServer ? "Windows Server 2012" : "Windows 8");
-              break;
-            case 3:
-              os_name = (isServer ? "Windows Server 2012 R2" : "Windows 8.1");
-              break;
-            default:
-              os_name = (isServer ? "Windows Server" : "Windows Client");
-          }
-          break;
-        case 10:
-          os_name = (isServer ? "Windows Server 2016" : "Windows 10");
-          break;
-        default:
-          os_name = (isServer ? "Windows Server" : "Windows Client");
-      }
-      writer->json_keyvalue("osVersion", os_name);
+  // Report release metadata.
+  PrintRelease(writer);
 
-      // Convert and report the machine name and comment fields
-      // (these are LPWSTR types)
-      size_t count;
-      char name_buf[256];
-      wcstombs_s(
-          &count, name_buf, sizeof(name_buf), os_info->sv101_name, _TRUNCATE);
-      if (os_info->sv101_comment != nullptr) {
-        char comment_buf[256];
-        wcstombs_s(&count,
-                   comment_buf,
-                   sizeof(comment_buf),
-                   os_info->sv101_comment,
-                   _TRUNCATE);
-        buf << name_buf << " " << comment_buf;
-        writer->json_keyvalue("machine", buf.str());
-        buf.flush();
-      } else {
-        writer->json_keyvalue("machine", name_buf);
-      }
+  // Report operating system and machine information
+  uv_utsname_t os_info;
 
-      if (os_info != nullptr) {
-        NetApiBufferFree(os_info);
-      }
-    } else {
-      // NetServerGetInfo() failed, fallback to use GetComputerName() instead
-      TCHAR machine_name[256];
-      DWORD machine_name_size = 256;
-      writer->json_keyvalue("osVersion", "Windows");
-      if (GetComputerName(machine_name, &machine_name_size)) {
-        writer->json_keyvalue("machine", machine_name);
-      }
-    }
+  if (uv_os_uname(&os_info) == 0) {
+    writer->json_keyvalue("osName", os_info.sysname);
+    writer->json_keyvalue("osRelease", os_info.release);
+    writer->json_keyvalue("osVersion", os_info.version);
+    writer->json_keyvalue("osMachine", os_info.machine);
   }
-#else
-  // Report operating system and machine information (Unix/OSX)
-  struct utsname os_info;
-  if (uname(&os_info) >= 0) {
-#ifdef _AIX
-    buf << os_info.sysname << " " << os_info.version << "." << os_info.release;
-    writer->json_keyvalue("osVersion", buf.str());
-    buf.flush();
-#else
-    buf << os_info.sysname << " " << os_info.release << " " << os_info.version;
-    writer->json_keyvalue("osVersion", buf.str());
-    buf.flush();
-#endif
-    const char* (*libc_version)();
-    *(reinterpret_cast<void**>(&libc_version)) =
-        dlsym(RTLD_DEFAULT, "gnu_get_libc_version");
-    if (libc_version != nullptr) {
-      writer->json_keyvalue("glibc", (*libc_version)());
-    }
-    buf << os_info.nodename << " " << os_info.machine;
-    writer->json_keyvalue("machine", buf.str());
-    buf.flush();
-  }
-#endif
+
+  char host[UV_MAXHOSTNAMESIZE];
+  size_t host_size = sizeof(host);
+
+  if (uv_os_gethostname(host, &host_size) == 0)
+    writer->json_keyvalue("host", host);
 }
 
 // Report the JavaScript stack.
@@ -492,13 +416,13 @@ static void PrintNativeStack(JSONWriter* writer) {
   const int size = sym_ctx->GetStackTrace(frames, arraysize(frames));
   writer->json_arraystart("nativeStack");
   int i;
-  std::ostringstream buf;
   for (i = 1; i < size; i++) {
     void* frame = frames[i];
-    buf.str("");
-    buf << " [pc=" << frame << "] ";
-    buf << sym_ctx->LookupSymbol(frame).Display().c_str();
-    writer->json_element(buf.str());
+    writer->json_start();
+    writer->json_keyvalue("pc",
+                          ValueToHexString(reinterpret_cast<uintptr_t>(frame)));
+    writer->json_keyvalue("symbol", sym_ctx->LookupSymbol(frame).Display());
+    writer->json_end();
   }
   writer->json_arrayend();
 }
@@ -560,20 +484,19 @@ static void PrintGCStatistics(JSONWriter* writer, Isolate* isolate) {
 #ifndef _WIN32
 // Report resource usage (Linux/OSX only).
 static void PrintResourceUsage(JSONWriter* writer) {
-  time_t current_time;  // current time absolute
-  time(&current_time);
-  size_t boot_time = static_cast<time_t>(node::per_process::prog_start_time /
-                                         (1000 * 1000 * 1000));
-  auto uptime = difftime(current_time, boot_time);
+  // Get process uptime in seconds
+  uint64_t uptime =
+      (uv_hrtime() - node::per_process::node_start_time) / (NANOS_PER_SEC);
   if (uptime == 0) uptime = 1;  // avoid division by zero.
 
   // Process and current thread usage statistics
   struct rusage stats;
   writer->json_objectstart("resourceUsage");
   if (getrusage(RUSAGE_SELF, &stats) == 0) {
-    double user_cpu = stats.ru_utime.tv_sec + 0.000001 * stats.ru_utime.tv_usec;
+    double user_cpu =
+        stats.ru_utime.tv_sec + SEC_PER_MICROS * stats.ru_utime.tv_usec;
     double kernel_cpu =
-        stats.ru_utime.tv_sec + 0.000001 * stats.ru_utime.tv_usec;
+        stats.ru_utime.tv_sec + SEC_PER_MICROS * stats.ru_utime.tv_usec;
     writer->json_keyvalue("userCpuSeconds", user_cpu);
     writer->json_keyvalue("kernelCpuSeconds", kernel_cpu);
     double cpu_abs = user_cpu + kernel_cpu;
@@ -593,9 +516,10 @@ static void PrintResourceUsage(JSONWriter* writer) {
 #ifdef RUSAGE_THREAD
   if (getrusage(RUSAGE_THREAD, &stats) == 0) {
     writer->json_objectstart("uvthreadResourceUsage");
-    double user_cpu = stats.ru_utime.tv_sec + 0.000001 * stats.ru_utime.tv_usec;
+    double user_cpu =
+        stats.ru_utime.tv_sec + SEC_PER_MICROS * stats.ru_utime.tv_usec;
     double kernel_cpu =
-        stats.ru_utime.tv_sec + 0.000001 * stats.ru_utime.tv_usec;
+        stats.ru_utime.tv_sec + SEC_PER_MICROS * stats.ru_utime.tv_usec;
     writer->json_keyvalue("userCpuSeconds", user_cpu);
     writer->json_keyvalue("kernelCpuSeconds", kernel_cpu);
     double cpu_abs = user_cpu + kernel_cpu;
@@ -722,12 +646,27 @@ static void PrintComponentVersions(JSONWriter* writer) {
   NODE_VERSIONS_KEYS(V)
 #undef V
 
-  // Some extra information that is not present in node_metadata.
-  writer->json_keyvalue("arch", NODE_ARCH);
-  writer->json_keyvalue("platform", NODE_PLATFORM);
-  writer->json_keyvalue("release", NODE_RELEASE);
-  if (NODE_VERSION_IS_LTS != 0)
-    writer->json_keyvalue("lts", NODE_VERSION_LTS_CODENAME);
+  writer->json_objectend();
+}
+
+// Report runtime release information.
+static void PrintRelease(JSONWriter* writer) {
+  writer->json_objectstart("release");
+  writer->json_keyvalue("name", node::per_process::metadata.release.name);
+#if NODE_VERSION_IS_LTS
+  writer->json_keyvalue("lts", node::per_process::metadata.release.lts);
+#endif
+
+#ifdef NODE_HAS_RELEASE_URLS
+  writer->json_keyvalue("headersUrl",
+                        node::per_process::metadata.release.headers_url);
+  writer->json_keyvalue("sourceUrl",
+                        node::per_process::metadata.release.source_url);
+#ifdef _WIN32
+  writer->json_keyvalue("libUrl", node::per_process::metadata.release.lib_url);
+#endif  // _WIN32
+#endif  // NODE_HAS_RELEASE_URLS
+
   writer->json_objectend();
 }
 

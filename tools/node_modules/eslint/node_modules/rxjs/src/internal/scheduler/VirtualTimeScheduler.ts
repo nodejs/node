@@ -25,7 +25,10 @@ export class VirtualTimeScheduler extends AsyncScheduler {
     const {actions, maxFrames} = this;
     let error: any, action: AsyncAction<any>;
 
-    while ((action = actions.shift()) && (this.frame = action.delay) <= maxFrames) {
+    while ((action = actions[0]) && action.delay <= maxFrames) {
+      actions.shift();
+      this.frame = action.delay;
+
       if (error = action.execute(action.state, action.delay)) {
         break;
       }

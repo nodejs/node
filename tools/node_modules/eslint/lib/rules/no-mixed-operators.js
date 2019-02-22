@@ -42,10 +42,10 @@ const TARGET_NODE_TYPE = /^(?:Binary|Logical)Expression$/;
  * @param {Object|undefined} options - A options object to normalize.
  * @returns {Object} Normalized option object.
  */
-function normalizeOptions(options) {
-    const hasGroups = (options && options.groups && options.groups.length > 0);
+function normalizeOptions(options = {}) {
+    const hasGroups = options.groups && options.groups.length > 0;
     const groups = hasGroups ? options.groups : DEFAULT_GROUPS;
-    const allowSamePrecedence = (options && options.allowSamePrecedence) !== false;
+    const allowSamePrecedence = options.allowSamePrecedence !== false;
 
     return {
         groups,
@@ -95,7 +95,8 @@ module.exports = {
                         uniqueItems: true
                     },
                     allowSamePrecedence: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: true
                     }
                 },
                 additionalProperties: false

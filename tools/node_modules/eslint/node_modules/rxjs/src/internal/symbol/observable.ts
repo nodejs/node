@@ -1,5 +1,3 @@
-import { root } from '../util/root';
-
 /** Symbol.observable addition */
 /* Note: This will add Symbol.observable globally for all TypeScript users,
   however, we are no longer polyfilling Symbol.observable */

@@ -15,10 +15,10 @@ const expectedStatObject = new fs.Stats(
   0n,                                        // uid
   0n,                                        // gid
   0n,                                        // rdev
-  common.isWindows ? undefined : 0n,         // blksize
+  0n,                                        // blksize
   0n,                                        // ino
   0n,                                        // size
-  common.isWindows ? undefined : 0n,         // blocks
+  0n,                                        // blocks
   0n,                                        // atim_msec
   0n,                                        // mtim_msec
   0n,                                        // ctim_msec

@@ -5,7 +5,7 @@ const types = [
   'IntBE',
   'IntLE',
   'UIntBE',
-  'UIntLE'
+  'UIntLE',
 ];
 
 const bench = common.createBenchmark(main, {

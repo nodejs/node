@@ -24,7 +24,7 @@ module.exports = {
             {
                 type: "object",
                 properties: {
-                    builtinGlobals: { type: "boolean" }
+                    builtinGlobals: { type: "boolean", default: false }
                 },
                 additionalProperties: false
             }
@@ -33,7 +33,7 @@ module.exports = {
 
     create(context) {
         const options = {
-            builtinGlobals: Boolean(context.options[0] && context.options[0].builtinGlobals)
+            builtinGlobals: context.options[0] && context.options[0].builtinGlobals
         };
 
         /**

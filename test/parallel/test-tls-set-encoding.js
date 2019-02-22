@@ -40,6 +40,7 @@ const messageUtf8 = 'x√ab c';
 const messageAscii = 'xb\b\u001aab c';
 
 const server = tls.Server(options, common.mustCall(function(socket) {
+  console.log('server: on secureConnection', socket.getProtocol());
   socket.end(messageUtf8);
 }));
 
@@ -55,12 +56,18 @@ server.listen(0, function() {
   client.setEncoding('ascii');
 
   client.on('data', function(d) {
+    console.log('client: on data', d);
     assert.ok(typeof d === 'string');
     buffer += d;
   });
 
+  client.on('secureConnect', common.mustCall(() => {
+    console.log('client: on secureConnect');
+  }));
 
-  client.on('close', function() {
+  client.on('close', common.mustCall(function() {
+    console.log('client: on close');
+
     // readyState is deprecated but we want to make
     // sure this isn't triggering an assert in lib/net.js
     // See https://github.com/nodejs/node-v0.x-archive/issues/1069.
@@ -75,5 +82,5 @@ server.listen(0, function() {
     assert.strictEqual(messageAscii, buffer);
 
     server.close();
-  });
+  }));
 });

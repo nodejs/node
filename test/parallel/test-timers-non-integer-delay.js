@@ -21,6 +21,7 @@
 
 'use strict';
 const common = require('../common');
+const assert = require('assert');
 
 /*
  * This test makes sure that non-integer timer delays do not make the process
@@ -47,3 +48,37 @@ const interval = setInterval(common.mustCall(() => {
     process.exit(0);
   }
 }, N), TIMEOUT_DELAY);
+
+// Test non-integer delay ordering
+{
+  const ordering = [];
+
+  setTimeout(common.mustCall(() => {
+    ordering.push(1);
+  }), 1);
+
+  setTimeout(common.mustCall(() => {
+    ordering.push(2);
+  }), 1.8);
+
+  setTimeout(common.mustCall(() => {
+    ordering.push(3);
+  }), 1.1);
+
+  setTimeout(common.mustCall(() => {
+    ordering.push(4);
+  }), 1);
+
+  setTimeout(common.mustCall(() => {
+    const expected = [1, 2, 3, 4];
+
+    assert.deepStrictEqual(
+      ordering,
+      expected,
+      `Non-integer delay ordering should be ${expected}, but got ${ordering}`
+    );
+
+    // 2 should always be last of these delays due to ordering guarentees by
+    // the implementation.
+  }), 2);
+}

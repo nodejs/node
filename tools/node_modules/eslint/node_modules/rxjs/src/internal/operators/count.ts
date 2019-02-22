@@ -24,6 +24,9 @@ import { Subscriber } from '../Subscriber';
  *
  * Counts how many seconds have passed before the first click happened
  * ```javascript
+ * import { fromEvent, interval } from 'rxjs';
+ * import { count, takeUntil } from 'rxjs/operators';
+ *
  * const seconds = interval(1000);
  * const clicks = fromEvent(document, 'click');
  * const secondsBeforeClick = seconds.pipe(takeUntil(clicks));
@@ -33,6 +36,9 @@ import { Subscriber } from '../Subscriber';
  *
  * Counts how many odd numbers are there between 1 and 7
  * ```javascript
+ * import { range } from 'rxjs';
+ * import { count } from 'rxjs/operators';
+ *
  * const numbers = range(1, 7);
  * const result = numbers.pipe(count(i => i % 2 === 1));
  * result.subscribe(x => console.log(x));

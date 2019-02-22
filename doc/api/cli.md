@@ -126,13 +126,6 @@ Enables report to be generated on un-caught exceptions, if
 `--experimental-report` is enabled. Useful when inspecting JavaScript stack in
 conjunction with native stack and other runtime environment data.
 
-### `--diagnostic-report-verbose`
-<!-- YAML
-added: v11.8.0
--->
-
-Flag that enables additional information to be printed during report generation.
-
 ### `--enable-fips`
 <!-- YAML
 added: v6.0.0
@@ -246,9 +239,10 @@ Binding the inspector to a public IP (including `0.0.0.0`) with an open port is
 insecure, as it allows external hosts to connect to the inspector and perform
 a [remote code execution][] attack.
 
-If you specify a host, make sure that at least one of the following is true:
-either the host is not public, or the port is properly firewalled to disallow
-unwanted connections.
+If specifying a host, make sure that either:
+
+* The host is not accessible from public networks.
+* A firewall disallows unwanted connections on the port.
 
 **More specifically, `--inspect=0.0.0.0` is insecure if the port (`9229` by
 default) is not firewall-protected.**
@@ -687,7 +681,6 @@ Node.js options that are allowed are:
 - `--diagnostic-report-on-signal`
 - `--diagnostic-report-signal`
 - `--diagnostic-report-uncaught-exception`
-- `--diagnostic-report-verbose`
 - `--enable-fips`
 - `--experimental-modules`
 - `--experimental-repl-await`
@@ -727,7 +720,9 @@ V8 options that are allowed are:
 - `--abort-on-uncaught-exception`
 - `--max-old-space-size`
 - `--perf-basic-prof`
+- `--perf-basic-prof-only-functions`
 - `--perf-prof`
+- `--perf-prof-unwinding-info`
 - `--stack-trace-limit`
 
 ### `NODE_PATH=path[:…]`

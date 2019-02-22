@@ -215,7 +215,7 @@ coverage-build: all
 coverage-build-js:
 	mkdir -p node_modules
 	if [ ! -d node_modules/c8 ]; then \
-		$(NODE) ./deps/npm install c8@next --no-save --no-package-lock;\
+		$(NODE) ./deps/npm install c8 --no-save --no-package-lock;\
 	fi
 
 .PHONY: coverage-test
@@ -226,7 +226,8 @@ coverage-test: coverage-build
 	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/gen/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/src/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/src/tracing/*.gcda
-	-NODE_V8_COVERAGE=out/$(BUILDTYPE)/.coverage $(MAKE) $(COVTESTS)
+	-NODE_V8_COVERAGE=out/$(BUILDTYPE)/.coverage \
+                TEST_CI_ARGS="$(TEST_CI_ARGS) --type=coverage" $(MAKE) $(COVTESTS)
 	$(MAKE) coverage-report-js
 	-(cd out && "../gcovr/scripts/gcovr" --gcov-exclude='.*deps' \
 		--gcov-exclude='.*usr' -v -r Release/obj.target \
@@ -239,12 +240,17 @@ coverage-test: coverage-build
 	@grep -A3 Lines coverage/cxxcoverage.html | grep style  \
 		| sed 's/<[^>]*>//g'| sed 's/ //g'
 
+COV_REPORT_OPTIONS = --reporter=html \
+	--temp-directory=out/$(BUILDTYPE)/.coverage --omit-relative=false \
+	--resolve=./lib --exclude="benchmark/" --exclude="deps/" --exclude="test/" --exclude="tools/" \
+	--wrapper-length=0
+ifdef COV_ENFORCE_THRESHOLD
+  COV_REPORT_OPTIONS += --check-coverage --lines=$(COV_ENFORCE_THRESHOLD)
+endif
+
 .PHONY: coverage-report-js
 coverage-report-js:
-	$(NODE) ./node_modules/.bin/c8 report --reporter=html \
-		--temp-directory=out/$(BUILDTYPE)/.coverage --omit-relative=false \
-		--resolve=./lib --exclude="deps/" --exclude="test/" --exclude="tools/" \
-		--wrapper-length=0
+	$(NODE) ./node_modules/.bin/c8 report $(COV_REPORT_OPTIONS)
 
 .PHONY: cctest
 # Runs the C++ tests using the built `cctest` executable.
@@ -277,7 +283,7 @@ coverage-run-js:
 	$(RM) -r out/$(BUILDTYPE)/.coverage
 	$(MAKE) coverage-build-js
 	-NODE_V8_COVERAGE=out/$(BUILDTYPE)/.coverage CI_SKIP_TESTS=$(COV_SKIP_TESTS) \
-	  $(MAKE) jstest
+	        TEST_CI_ARGS="$(TEST_CI_ARGS) --type=coverage" $(MAKE) jstest
 	$(MAKE) coverage-report-js
 
 .PHONY: test
@@ -454,11 +460,15 @@ test-build-js-native-api: all build-js-native-api-tests
 test-build-node-api: all build-node-api-tests
 
 .PHONY: test-all
-test-all: test-build ## Run everything in test/.
+test-all: test-build ## Run default tests with both Debug and Release builds.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=debug,release
 
 test-all-valgrind: test-build
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=debug,release --valgrind
+
+.PHONY: test-all-suites
+test-all-suites: | clear-stalled test-build bench-addons-build doc-only ## Run all test suites.
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) test/*
 
 CI_NATIVE_SUITES ?= addons js-native-api node-api
 CI_JS_SUITES ?= default
@@ -1174,8 +1184,12 @@ lint-js-fix:
 # Note that on the CI `lint-js-ci` is run instead.
 # Lints the JavaScript code with eslint.
 lint-js:
-	@echo "Running JS linter..."
-	@$(call available-node,$(run-lint-js))
+	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
+		echo "Skipping $@ (no crypto)"; \
+	else \
+		echo "Running JS linter..."; \
+		$(call available-node,$(run-lint-js)) \
+	fi
 
 jslint: lint-js
 	@echo "Please use lint-js instead of jslint"

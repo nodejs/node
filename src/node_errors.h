@@ -23,17 +23,6 @@ void AppendExceptionLine(Environment* env,
 [[noreturn]] void FatalError(const char* location, const char* message);
 void OnFatalError(const char* location, const char* message);
 
-// Like a `TryCatch` but exits the process if an exception was caught.
-class FatalTryCatch : public v8::TryCatch {
- public:
-  explicit FatalTryCatch(Environment* env)
-      : TryCatch(env->isolate()), env_(env) {}
-  ~FatalTryCatch();
-
- private:
-  Environment* env_;
-};
-
 void PrintErrorString(const char* format, ...);
 
 void ReportException(Environment* env, const v8::TryCatch& try_catch);

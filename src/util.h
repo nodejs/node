@@ -40,6 +40,7 @@
 #include <string>
 #include <array>
 #include <unordered_map>
+#include <utility>
 
 namespace node {
 
@@ -85,10 +86,15 @@ extern bool v8_initialized;
 // whether V8 is initialized.
 void LowMemoryNotification();
 
-// The slightly odd function signature for Assert() is to ease
-// instruction cache pressure in calls from CHECK.
+// The reason that Assert() takes a struct argument instead of individual
+// const char*s is to ease instruction cache pressure in calls from CHECK.
+struct AssertionInfo {
+  const char* file_line;  // filename:line
+  const char* message;
+  const char* function;
+};
+[[noreturn]] void Assert(const AssertionInfo& info);
 [[noreturn]] void Abort();
-[[noreturn]] void Assert(const char* const (*args)[4]);
 void DumpBacktrace(FILE* fp);
 
 #define DISALLOW_COPY_AND_ASSIGN(TypeName)                                    \
@@ -120,9 +126,12 @@ void DumpBacktrace(FILE* fp);
 #define CHECK(expr)                                                           \
   do {                                                                        \
     if (UNLIKELY(!(expr))) {                                                  \
-      static const char* const args[] = { __FILE__, STRINGIFY(__LINE__),      \
-                                          #expr, PRETTY_FUNCTION_NAME };      \
-      node::Assert(&args);                                                    \
+      /* Make sure that this struct does not end up in inline code, but    */ \
+      /* rather in a read-only data section when modifying this code.      */ \
+      static const node::AssertionInfo args = {                               \
+        __FILE__ ":" STRINGIFY(__LINE__), #expr, PRETTY_FUNCTION_NAME         \
+      };                                                                      \
+      node::Assert(args);                                                     \
     }                                                                         \
   } while (0)
 
@@ -442,7 +451,7 @@ template <typename T> inline void USE(T&&) {}
 struct OnScopeLeave {
   std::function<void()> fn_;
 
-  explicit OnScopeLeave(std::function<void()> fn) : fn_(fn) {}
+  explicit OnScopeLeave(std::function<void()> fn) : fn_(std::move(fn)) {}
   ~OnScopeLeave() { fn_(); }
 };
 
@@ -617,9 +626,11 @@ constexpr size_t arraysize(const T (&)[N]) {
   return N;
 }
 
-#ifndef ROUND_UP
-#define ROUND_UP(a, b) ((a) % (b) ? ((a) + (b)) - ((a) % (b)) : (a))
-#endif
+// Round up a to the next highest multiple of b.
+template <typename T>
+constexpr T RoundUp(T a, T b) {
+  return a % b != 0 ? a + b - (a % b) : a;
+}
 
 #ifdef __GNUC__
 #define MUST_USE_RESULT __attribute__((warn_unused_result))
@@ -627,36 +638,11 @@ constexpr size_t arraysize(const T (&)[N]) {
 #define MUST_USE_RESULT
 #endif
 
-class SlicedArguments {
+class SlicedArguments : public MaybeStackBuffer<v8::Local<v8::Value>> {
  public:
   inline explicit SlicedArguments(
       const v8::FunctionCallbackInfo<v8::Value>& args, size_t start = 0);
-  inline size_t size() const { return size_; }
-  inline v8::Local<v8::Value>* data() { return data_; }
-
- private:
-  size_t size_;
-  v8::Local<v8::Value>* data_;
-  v8::Local<v8::Value> fixed_[64];
-  std::vector<v8::Local<v8::Value>> dynamic_;
 };
-
-SlicedArguments::SlicedArguments(
-    const v8::FunctionCallbackInfo<v8::Value>& args, size_t start)
-    : size_(0), data_(fixed_) {
-  const size_t length = static_cast<size_t>(args.Length());
-  if (start >= length) return;
-  const size_t size = length - start;
-
-  if (size > arraysize(fixed_)) {
-    dynamic_.resize(size);
-    data_ = dynamic_.data();
-  }
-
-  for (size_t i = 0; i < size; ++i) data_[i] = args[i + start];
-
-  size_ = size;
-}
 
 }  // namespace node
 

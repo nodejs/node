@@ -534,6 +534,8 @@ const errorTests = [
     expect: [
       'Thrown:',
       /^{ Error: Cannot find module 'internal\/repl'/,
+      /^Require stack:/,
+      /^- <repl>/,
       /^    at .*/,
       /^    at .*/,
       /^    at .*/,

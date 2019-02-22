@@ -1,28 +1,26 @@
-/** PURE_IMPORTS_START tslib,_Subscriber,_util_tryCatch,_util_errorObject PURE_IMPORTS_END */
+/** PURE_IMPORTS_START tslib,_Subscriber PURE_IMPORTS_END */
 import * as tslib_1 from "tslib";
 import { Subscriber } from '../Subscriber';
-import { tryCatch } from '../util/tryCatch';
-import { errorObject } from '../util/errorObject';
-export function sequenceEqual(compareTo, comparor) {
-    return function (source) { return source.lift(new SequenceEqualOperator(compareTo, comparor)); };
+export function sequenceEqual(compareTo, comparator) {
+    return function (source) { return source.lift(new SequenceEqualOperator(compareTo, comparator)); };
 }
 var SequenceEqualOperator = /*@__PURE__*/ (function () {
-    function SequenceEqualOperator(compareTo, comparor) {
+    function SequenceEqualOperator(compareTo, comparator) {
         this.compareTo = compareTo;
-        this.comparor = comparor;
+        this.comparator = comparator;
     }
     SequenceEqualOperator.prototype.call = function (subscriber, source) {
-        return source.subscribe(new SequenceEqualSubscriber(subscriber, this.compareTo, this.comparor));
+        return source.subscribe(new SequenceEqualSubscriber(subscriber, this.compareTo, this.comparator));
     };
     return SequenceEqualOperator;
 }());
 export { SequenceEqualOperator };
 var SequenceEqualSubscriber = /*@__PURE__*/ (function (_super) {
     tslib_1.__extends(SequenceEqualSubscriber, _super);
-    function SequenceEqualSubscriber(destination, compareTo, comparor) {
+    function SequenceEqualSubscriber(destination, compareTo, comparator) {
         var _this = _super.call(this, destination) || this;
         _this.compareTo = compareTo;
-        _this.comparor = comparor;
+        _this.comparator = comparator;
         _this._a = [];
         _this._b = [];
         _this._oneComplete = false;
@@ -48,19 +46,16 @@ var SequenceEqualSubscriber = /*@__PURE__*/ (function (_super) {
         this.unsubscribe();
     };
     SequenceEqualSubscriber.prototype.checkValues = function () {
-        var _c = this, _a = _c._a, _b = _c._b, comparor = _c.comparor;
+        var _c = this, _a = _c._a, _b = _c._b, comparator = _c.comparator;
         while (_a.length > 0 && _b.length > 0) {
             var a = _a.shift();
             var b = _b.shift();
             var areEqual = false;
-            if (comparor) {
-                areEqual = tryCatch(comparor)(a, b);
-                if (areEqual === errorObject) {
-                    this.destination.error(errorObject.e);
-                }
+            try {
+                areEqual = comparator ? comparator(a, b) : a === b;
             }
-            else {
-                areEqual = a === b;
+            catch (e) {
+                this.destination.error(e);
             }
             if (!areEqual) {
                 this.emit(false);

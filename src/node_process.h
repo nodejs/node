@@ -7,9 +7,9 @@
 
 namespace node {
 
-v8::Local<v8::Object> CreateEnvVarProxy(v8::Local<v8::Context> context,
-                                        v8::Isolate* isolate,
-                                        v8::Local<v8::Value> data);
+v8::MaybeLocal<v8::Object> CreateEnvVarProxy(v8::Local<v8::Context> context,
+                                             v8::Isolate* isolate,
+                                             v8::Local<v8::Value> data);
 
 // Most of the time, it's best to use `console.error` to write
 // to the process.stderr stream.  However, in some cases, such as
@@ -31,7 +31,7 @@ v8::Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,
                                               const char* warning,
                                               const char* deprecation_code);
 
-v8::Local<v8::Object> CreateProcessObject(
+v8::MaybeLocal<v8::Object> CreateProcessObject(
     Environment* env,
     const std::vector<std::string>& args,
     const std::vector<std::string>& exec_args);

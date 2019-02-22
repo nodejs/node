@@ -31,16 +31,19 @@ module.exports = {
                         type: "object",
                         properties: {
                             position: {
-                                enum: ["above", "beside"]
+                                enum: ["above", "beside"],
+                                default: "above"
                             },
                             ignorePattern: {
                                 type: "string"
                             },
                             applyDefaultPatterns: {
-                                type: "boolean"
+                                type: "boolean",
+                                default: true
                             },
                             applyDefaultIgnorePatterns: {
-                                type: "boolean"
+                                type: "boolean",
+                                default: true
                             }
                         },
                         additionalProperties: false
@@ -69,9 +72,9 @@ module.exports = {
             ignorePattern = options.ignorePattern;
 
             if (Object.prototype.hasOwnProperty.call(options, "applyDefaultIgnorePatterns")) {
-                applyDefaultIgnorePatterns = options.applyDefaultIgnorePatterns !== false;
+                applyDefaultIgnorePatterns = options.applyDefaultIgnorePatterns;
             } else {
-                applyDefaultIgnorePatterns = options.applyDefaultPatterns !== false;
+                applyDefaultIgnorePatterns = options.applyDefaultPatterns;
             }
         }
 

@@ -8,6 +8,7 @@
 #include "node_options-inl.h"
 #include "node_platform.h"
 #include "node_process.h"
+#include "node_v8_platform-inl.h"
 #include "node_worker.h"
 #include "tracing/agent.h"
 #include "tracing/traced_value.h"
@@ -15,10 +16,12 @@
 
 #include <stdio.h>
 #include <algorithm>
+#include <atomic>
 
 namespace node {
 
 using errors::TryCatchScope;
+using v8::Boolean;
 using v8::Context;
 using v8::EmbedderGraph;
 using v8::External;
@@ -140,7 +143,7 @@ void InitThreadLocalOnce() {
 }
 
 void Environment::TrackingTraceStateObserver::UpdateTraceCategoryState() {
-  if (!env_->is_main_thread()) {
+  if (!env_->owns_process_state()) {
     // Ideally, we’d have a consistent story that treats all threads/Environment
     // instances equally here. However, tracing is essentially global, and this
     // callback is called from whichever thread calls `StartTracing()` or
@@ -150,9 +153,8 @@ void Environment::TrackingTraceStateObserver::UpdateTraceCategoryState() {
     return;
   }
 
-  env_->trace_category_state()[0] =
-      *TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
-          TRACING_CATEGORY_NODE1(async_hooks));
+  bool async_hooks_enabled = (*(TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
+                                 TRACING_CATEGORY_NODE1(async_hooks)))) != 0;
 
   Isolate* isolate = env_->isolate();
   HandleScope handle_scope(isolate);
@@ -161,20 +163,30 @@ void Environment::TrackingTraceStateObserver::UpdateTraceCategoryState() {
     return;
   TryCatchScope try_catch(env_);
   try_catch.SetVerbose(true);
-  cb->Call(env_->context(), Undefined(isolate),
-           0, nullptr).ToLocalChecked();
+  Local<Value> args[] = {Boolean::New(isolate, async_hooks_enabled)};
+  cb->Call(env_->context(), Undefined(isolate), arraysize(args), args)
+      .ToLocalChecked();
+}
+
+static std::atomic<uint64_t> next_thread_id{0};
+
+uint64_t Environment::AllocateThreadId() {
+  return next_thread_id++;
 }
 
 Environment::Environment(IsolateData* isolate_data,
-                         Local<Context> context)
+                         Local<Context> context,
+                         Flags flags,
+                         uint64_t thread_id)
     : isolate_(context->GetIsolate()),
       isolate_data_(isolate_data),
       immediate_info_(context->GetIsolate()),
       tick_info_(context->GetIsolate()),
       timer_base_(uv_now(isolate_data->event_loop())),
       should_abort_on_uncaught_toggle_(isolate_, 1),
-      trace_category_state_(isolate_, kTraceCategoryCount),
       stream_base_state_(isolate_, StreamBase::kNumStreamBaseStateFields),
+      flags_(flags),
+      thread_id_(thread_id == kNoThreadId ? AllocateThreadId() : thread_id),
       fs_stats_field_array_(isolate_, kFsStatsBufferLength),
       fs_stats_field_bigint_array_(isolate_, kFsStatsBufferLength),
       context_(context->GetIsolate(), context) {
@@ -201,8 +213,7 @@ Environment::Environment(IsolateData* isolate_data,
   if (tracing::AgentWriterHandle* writer = GetTracingAgentWriter()) {
     trace_state_observer_ = std::make_unique<TrackingTraceStateObserver>(this);
     TracingController* tracing_controller = writer->GetTracingController();
-    if (tracing_controller != nullptr)
-      tracing_controller->AddTraceStateObserver(trace_state_observer_.get());
+    tracing_controller->AddTraceStateObserver(trace_state_observer_.get());
   }
 
   destroy_async_id_list_.reserve(512);
@@ -217,9 +228,8 @@ Environment::Environment(IsolateData* isolate_data,
   performance_state_.reset(new performance::performance_state(isolate()));
   performance_state_->Mark(
       performance::NODE_PERFORMANCE_MILESTONE_ENVIRONMENT);
-  performance_state_->Mark(
-      performance::NODE_PERFORMANCE_MILESTONE_NODE_START,
-      performance::performance_node_start);
+  performance_state_->Mark(performance::NODE_PERFORMANCE_MILESTONE_NODE_START,
+                           per_process::node_start_time);
   performance_state_->Mark(
       performance::NODE_PERFORMANCE_MILESTONE_V8_START,
       performance::performance_v8_start);
@@ -242,6 +252,11 @@ Environment::Environment(IsolateData* isolate_data,
   isolate()->SetPromiseRejectCallback(task_queue::PromiseRejectCallback);
 }
 
+CompileFnEntry::CompileFnEntry(Environment* env, uint32_t id)
+    : env(env), id(id) {
+  env->compile_fn_entries.insert(this);
+}
+
 Environment::~Environment() {
   isolate()->GetHeapProfiler()->RemoveBuildEmbedderGraphCallback(
       BuildEmbedderGraph, this);
@@ -249,6 +264,12 @@ Environment::~Environment() {
   // Make sure there are no re-used libuv wrapper objects.
   // CleanupHandles() should have removed all of them.
   CHECK(file_handle_read_wrap_freelist_.empty());
+
+  // dispose the Persistent references to the compileFunction
+  // wrappers used in the dynamic import callback
+  for (auto& entry : compile_fn_entries) {
+    delete entry;
+  }
 
   HandleScope handle_scope(isolate());
 
@@ -265,8 +286,7 @@ Environment::~Environment() {
     tracing::AgentWriterHandle* writer = GetTracingAgentWriter();
     CHECK_NOT_NULL(writer);
     TracingController* tracing_controller = writer->GetTracingController();
-    if (tracing_controller != nullptr)
-      tracing_controller->RemoveTraceStateObserver(trace_state_observer_.get());
+    tracing_controller->RemoveTraceStateObserver(trace_state_observer_.get());
   }
 
   delete[] heap_statistics_buffer_;
@@ -289,28 +309,9 @@ Environment::~Environment() {
   }
 }
 
-void Environment::Start(const std::vector<std::string>& args,
-                        const std::vector<std::string>& exec_args,
-                        bool start_profiler_idle_notifier) {
+void Environment::Start(bool start_profiler_idle_notifier) {
   HandleScope handle_scope(isolate());
   Context::Scope context_scope(context());
-
-  if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
-      TRACING_CATEGORY_NODE1(environment)) != 0) {
-    auto traced_value = tracing::TracedValue::Create();
-    traced_value->BeginArray("args");
-    for (const std::string& arg : args)
-      traced_value->AppendString(arg);
-    traced_value->EndArray();
-    traced_value->BeginArray("exec_args");
-    for (const std::string& arg : exec_args)
-      traced_value->AppendString(arg);
-    traced_value->EndArray();
-    TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
-      TRACING_CATEGORY_NODE1(environment),
-      "Environment", this,
-      "args", std::move(traced_value));
-  }
 
   CHECK_EQ(0, uv_timer_init(event_loop(), timer_handle()));
   uv_unref(reinterpret_cast<uv_handle_t*>(timer_handle()));
@@ -346,12 +347,46 @@ void Environment::Start(const std::vector<std::string>& args,
     StartProfilerIdleNotifier();
   }
 
-  Local<Object> process_object = CreateProcessObject(this, args, exec_args);
-  set_process_object(process_object);
-
   static uv_once_t init_once = UV_ONCE_INIT;
   uv_once(&init_once, InitThreadLocalOnce);
   uv_key_set(&thread_local_env, this);
+}
+
+MaybeLocal<Object> Environment::ProcessCliArgs(
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args) {
+  if (args.size() > 1) {
+    std::string first_arg = args[1];
+    if (first_arg == "inspect") {
+      execution_mode_ = ExecutionMode::kInspect;
+    } else if (first_arg == "debug") {
+      execution_mode_ = ExecutionMode::kDebug;
+    } else if (first_arg != "-") {
+      execution_mode_ = ExecutionMode::kRunMainModule;
+    }
+  }
+
+  if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
+          TRACING_CATEGORY_NODE1(environment)) != 0) {
+    auto traced_value = tracing::TracedValue::Create();
+    traced_value->BeginArray("args");
+    for (const std::string& arg : args) traced_value->AppendString(arg);
+    traced_value->EndArray();
+    traced_value->BeginArray("exec_args");
+    for (const std::string& arg : exec_args) traced_value->AppendString(arg);
+    traced_value->EndArray();
+    TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(TRACING_CATEGORY_NODE1(environment),
+                                      "Environment",
+                                      this,
+                                      "args",
+                                      std::move(traced_value));
+  }
+
+  Local<Object> process_object =
+      node::CreateProcessObject(this, args, exec_args)
+          .FromMaybe(Local<Object>());
+  set_process_object(process_object);
+  return process_object;
 }
 
 void Environment::RegisterHandleCleanups() {
@@ -385,7 +420,7 @@ void Environment::RegisterHandleCleanups() {
 }
 
 void Environment::CleanupHandles() {
-  for (ReqWrap<uv_req_t>* request : req_wrap_queue_)
+  for (ReqWrapBase* request : req_wrap_queue_)
     request->Cancel();
 
   for (HandleWrap* handle : handle_wrap_queue_)
@@ -805,25 +840,6 @@ void CollectExceptionInfo(Environment* env,
     obj->Set(env->context(), env->syscall_string(),
              OneByteString(env->isolate(), syscall)).FromJust();
   }
-}
-
-void Environment::CollectExceptionInfo(Local<Value> object,
-                                       int errorno,
-                                       const char* syscall,
-                                       const char* message,
-                                       const char* path) {
-  if (!object->IsObject() || errorno == 0)
-    return;
-
-  Local<Object> obj = object.As<Object>();
-  const char* err_string = errors::errno_string(errorno);
-
-  if (message == nullptr || message[0] == '\0') {
-    message = strerror(errorno);
-  }
-
-  node::CollectExceptionInfo(this, obj, errorno, err_string,
-                             syscall, message, path, nullptr);
 }
 
 void Environment::CollectUVExceptionInfo(Local<Value> object,

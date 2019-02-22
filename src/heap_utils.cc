@@ -42,7 +42,7 @@ class JSGraphJSNode : public EmbedderGraph::Node {
 
   struct Hash {
     inline size_t operator()(JSGraphJSNode* n) const {
-      return n->IdentityHash();
+      return static_cast<size_t>(n->IdentityHash());
     }
   };
 

@@ -10,7 +10,7 @@ const bench = common.createBenchmark(main, {
     ['/var', '/bin'].join('|'),
     ['/foo/bar/baz/quux', '/'].join('|'),
     ['/foo/bar/baz/quux', '/foo/bar/baz/quux'].join('|'),
-    ['/foo/bar/baz/quux', '/var/log'].join('|')
+    ['/foo/bar/baz/quux', '/var/log'].join('|'),
   ],
   n: [1e6]
 });

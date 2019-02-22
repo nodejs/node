@@ -117,6 +117,7 @@ void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
   uintptr_t nfds;
 
   assert(loop->watchers != NULL);
+  assert(fd >= 0);
 
   events = (struct port_event*) loop->watchers[loop->nwatchers];
   nfds = (uintptr_t) loop->watchers[loop->nwatchers + 1];

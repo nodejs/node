@@ -48,7 +48,7 @@ static void MakeUtf8String(Isolate* isolate,
   const int flags =
       String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8;
   const int length =
-      string->WriteUtf8(isolate, target->out(), storage, 0, flags);
+      string->WriteUtf8(isolate, target->out(), storage, nullptr, flags);
   target->SetLengthAndZeroTerminate(length);
 }
 

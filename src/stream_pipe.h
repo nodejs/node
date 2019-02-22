@@ -10,7 +10,7 @@ namespace node {
 class StreamPipe : public AsyncWrap {
  public:
   StreamPipe(StreamBase* source, StreamBase* sink, v8::Local<v8::Object> obj);
-  ~StreamPipe();
+  ~StreamPipe() override;
 
   void Unpipe();
 
@@ -27,7 +27,6 @@ class StreamPipe : public AsyncWrap {
   inline StreamBase* sink();
 
   inline void ShutdownWritable();
-  inline void FlushToWritable();
 
   bool is_reading_ = false;
   bool is_writing_ = false;

@@ -29,6 +29,9 @@ export function exhaust<R>(): OperatorFunction<any, R>;
  * ## Example
  * Run a finite timer for each click, only if there is no currently active timer
  * ```javascript
+ * import { fromEvent, interval } from 'rxjs';
+ * import { exhaust, map, take } from 'rxjs/operators';
+ *
  * const clicks = fromEvent(document, 'click');
  * const higherOrder = clicks.pipe(
  *   map((ev) => interval(1000).pipe(take(5))),

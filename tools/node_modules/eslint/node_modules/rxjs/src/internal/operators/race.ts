@@ -23,14 +23,14 @@ export function race<T, R>(...observables: Array<Observable<any> | Array<Observa
  * @owner Observable
  * @deprecated Deprecated in favor of static {@link race}.
  */
-export function race<T>(...observables: Array<Observable<T> | Array<Observable<T>>>): MonoTypeOperatorFunction<T> {
+export function race<T>(...observables: (Observable<T> | Observable<T>[])[]): MonoTypeOperatorFunction<T> {
   return function raceOperatorFunction(source: Observable<T>) {
     // if the only argument is an array, it was most likely called with
     // `pair([obs1, obs2, ...])`
     if (observables.length === 1 && isArray(observables[0])) {
-      observables = <Array<Observable<T>>>observables[0];
+      observables = observables[0] as Observable<T>[];
     }
 
-    return source.lift.call(raceStatic<T>(source, ...observables));
+    return source.lift.call(raceStatic(source, ...(observables as Observable<T>[])));
   };
 }

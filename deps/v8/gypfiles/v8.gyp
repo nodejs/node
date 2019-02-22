@@ -222,7 +222,7 @@
       'dependencies': [
         'v8_base',
       ],
-       'variables': {
+      'variables': {
         'optimize': 'max',
       },
       'include_dirs': [
@@ -359,16 +359,20 @@
         }],
         # Platforms that don't have Compare-And-Swap support need to link atomic
         # library to implement atomic memory access
-        [ 'v8_current_cpu == "mips" or v8_current_cpu == "mipsel" or '
-          'v8_current_cpu == "mips64" or v8_current_cpu == "mips64el" or '
-          'v8_current_cpu == "ppc" or v8_current_cpu == "ppc64" or '
-          'v8_current_cpu == "s390" or v8_current_cpu == "s390x"',
-          {
+        [ 'v8_current_cpu in ["mips", "mipsel", "mips64", "mips64el", "ppc", "ppc64", "s390", "s390x"]', {
             'link_settings': {
               'libraries': [ '-latomic', ],
             },
           },
         ],
+        ['OS=="win"', {
+          'msvs_precompiled_header': '../../../tools/msvs/pch/v8_pch.h',
+          'msvs_precompiled_source': '../../../tools/msvs/pch/v8_pch.cc',
+          'sources': [
+            '<(_msvs_precompiled_header)',
+            '<(_msvs_precompiled_source)',
+           ],
+        }],
       ],
     }, # v8_initializers
     {
@@ -1931,23 +1935,12 @@
           ],
         }],
         ['OS=="win"', {
-          'variables': {
-            'gyp_generators': '<!(echo $GYP_GENERATORS)',
-          },
           'msvs_disabled_warnings': [4351, 4355, 4800],
-          'conditions': [
-            ['node_use_pch!="true"', {
-              # When building Official, the .lib is too large and exceeds the 2G
-              # limit. This breaks it into multiple pieces to avoid the limit.
-              # See http://crbug.com/485155.
-              'msvs_shard': 4,
-            }, {
-              'msvs_precompiled_header': 'tools/msvs/pch/pch_v8_base.h',
-              'msvs_precompiled_source': '../../../tools/msvs/pch/pch_v8_base.cc',
-              'sources': [
-                '../../../tools/msvs/pch/pch_v8_base.cc',
-              ],
-            }],
+              'msvs_precompiled_header': '../../../tools/msvs/pch/v8_pch.h',
+              'msvs_precompiled_source': '../../../tools/msvs/pch/v8_pch.cc',
+          'sources': [
+            '<(_msvs_precompiled_header)',
+            '<(_msvs_precompiled_source)',
           ],
           # This will prevent V8's .cc files conflicting with the inspector's
           # .cpp files in the same shard.
@@ -2243,50 +2236,20 @@
           'defines': [
             '_CRT_RAND_S'  # for rand_s()
           ],
-          'variables': {
-            'gyp_generators': '<!(echo $GYP_GENERATORS)',
-          },
-          'conditions': [
-            ['gyp_generators=="make"', {
-              'variables': {
-                'build_env': '<!(uname -o)',
-              },
-              'conditions': [
-                ['build_env=="Cygwin"', {
-                  'sources': [
-                    '../src/base/debug/stack_trace_posix.cc',
-                    '../src/base/platform/platform-cygwin.cc',
-                    '../src/base/platform/platform-posix.cc',
-                    '../src/base/platform/platform-posix.h',
-                  ],
-                }, {
-                  'sources': [
-                    '../src/base/debug/stack_trace_win.cc',
-                    '../src/base/platform/platform-win32.cc',
-                    '../src/base/win32-headers.h',
-                  ],
-                }],
-              ],
-              'link_settings':  {
-                'libraries': [ '-lwinmm', '-lws2_32' ],
-              },
-            }, {
-              'sources': [
-                '../src/base/debug/stack_trace_win.cc',
-                '../src/base/platform/platform-win32.cc',
-                '../src/base/win32-headers.h',
-              ],
-              'msvs_disabled_warnings': [4351, 4355, 4800],
-              'link_settings':  {
-                'libraries': [
-                  '-ldbghelp.lib',
-                  '-lshlwapi.lib',
-                  '-lwinmm.lib',
-                  '-lws2_32.lib'
-                ],
-              },
-            }],
+          'sources': [
+            '../src/base/debug/stack_trace_win.cc',
+            '../src/base/platform/platform-win32.cc',
+            '../src/base/win32-headers.h',
           ],
+          'msvs_disabled_warnings': [4351, 4355, 4800],
+          'link_settings':  {
+            'libraries': [
+              '-ldbghelp.lib',
+              '-lshlwapi.lib',
+              '-lwinmm.lib',
+              '-lws2_32.lib'
+            ],
+          },
         }],
         ['OS=="qnx"', {
             'link_settings': {

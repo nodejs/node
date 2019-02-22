@@ -12,7 +12,7 @@ const chars = [
   'hello brendan!!!', // 1 byte
   'ΰαβγδεζηθικλμνξο', // 2 bytes
   '挰挱挲挳挴挵挶挷挸挹挺挻挼挽挾挿', // 3 bytes
-  '𠜎𠜱𠝹𠱓𠱸𠲖𠳏𠳕𠴕𠵼𠵿𠸎𠸏𠹷𠺝𠺢' // 4 bytes
+  '𠜎𠜱𠝹𠱓𠱸𠲖𠳏𠳕𠴕𠵼𠵿𠸎𠸏𠹷𠺝𠺢', // 4 bytes
 ];
 
 function main({ n, len, encoding }) {
@@ -33,9 +33,7 @@ function main({ n, len, encoding }) {
     }
 
     // Check the result to ensure it is *properly* optimized
-    results = strings.map(function(val) {
-      return Buffer.byteLength(val, encoding);
-    });
+    results = strings.map((val) => Buffer.byteLength(val, encoding));
   }
 
   bench.start();

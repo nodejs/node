@@ -18,7 +18,10 @@ import { UnaryFunction } from '../types';
  *
  * ## Example
  *
- * ```js
+ * ```javascript
+ * import { interval } from 'rxjs';
+ * import { publishLast, tap, take } from 'rxjs/operators';
+ *
  * const connectable =
  *   interval(1000)
  *     .pipe(

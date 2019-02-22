@@ -112,6 +112,9 @@ export function bindCallback(callbackFunc: Function, scheduler?: SchedulerLike):
  *
  * ### Convert jQuery's getJSON to an Observable API
  * ```javascript
+ * import { bindCallback } from 'rxjs';
+ * import * as jQuery from 'jquery';
+ *
  * // Suppose we have jQuery.getJSON('/my/url', callback)
  * const getJSONAsObservable = bindCallback(jQuery.getJSON);
  * const result = getJSONAsObservable('/my/url');
@@ -120,6 +123,8 @@ export function bindCallback(callbackFunc: Function, scheduler?: SchedulerLike):
  *
  * ### Receive an array of arguments passed to a callback
  * ```javascript
+ * import { bindCallback } from 'rxjs';
+ *
  * someFunction((a, b, c) => {
  *   console.log(a); // 5
  *   console.log(b); // 'some string'
@@ -134,6 +139,8 @@ export function bindCallback(callbackFunc: Function, scheduler?: SchedulerLike):
  *
  * ### Compare behaviour with and without async Scheduler
  * ```javascript
+ * import { bindCallback } from 'rxjs';
+ *
  * function iCallMyCallbackSynchronously(cb) {
  *   cb();
  * }
@@ -153,6 +160,8 @@ export function bindCallback(callbackFunc: Function, scheduler?: SchedulerLike):
  *
  * ### Use bindCallback on an object method
  * ```javascript
+ * import { bindCallback } from 'rxjs';
+ *
  * const boundMethod = bindCallback(someObject.methodWithCallback);
  * boundMethod.call(someObject) // make sure methodWithCallback has access to someObject
  * .subscribe(subscriber);

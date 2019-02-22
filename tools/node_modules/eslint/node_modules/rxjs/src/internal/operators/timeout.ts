@@ -40,6 +40,9 @@ import { throwError } from '../observable/throwError';
  * ## Examples
  * Check if ticks are emitted within certain timespan
  * ```javascript
+ * import { interval } from 'rxjs';
+ * import { timeout } from 'rxjs/operators';
+ *
  * const seconds = interval(1000);
  *
  * seconds.pipe(timeout(1100))      // Let's use bigger timespan to be safe,
@@ -59,6 +62,9 @@ import { throwError } from '../observable/throwError';
  *
  * Use Date to check if Observable completed
  * ```javascript
+ * import { interval } from 'rxjs';
+ * import { timeout } from 'rxjs/operators';
+ *
  * const seconds = interval(1000);
  *
  * seconds.pipe(

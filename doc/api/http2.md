@@ -3283,14 +3283,22 @@ should be sent. See the [`'checkContinue'`][] event on `Http2Server` and
 #### response.writeHead(statusCode[, statusMessage][, headers])
 <!-- YAML
 added: v8.4.0
+changes:
+  - version: v11.10.0
+    pr-url: https://github.com/nodejs/node/pull/25974
+    description: Return `this` from `writeHead()` to allow chaining with
+                 `end()`.
 -->
 
 * `statusCode` {number}
 * `statusMessage` {string}
 * `headers` {Object}
+* Returns: {http2.Http2ServerResponse}
 
 Sends a response header to the request. The status code is a 3-digit HTTP
 status code, like `404`. The last argument, `headers`, are the response headers.
+
+Returns a reference to the `Http2ServerResponse`, so that calls can be chained.
 
 For compatibility with [HTTP/1][], a human-readable `statusMessage` may be
 passed as the second argument. However, because the `statusMessage` has no

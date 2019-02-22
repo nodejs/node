@@ -4,10 +4,11 @@ export function range(start, count, scheduler) {
     if (start === void 0) {
         start = 0;
     }
-    if (count === void 0) {
-        count = 0;
-    }
     return new Observable(function (subscriber) {
+        if (count === undefined) {
+            count = start;
+            start = 0;
+        }
         var index = 0;
         var current = start;
         if (scheduler) {

@@ -1,5 +1,10 @@
+#include "aliased_buffer.h"
 #include "node_internals.h"
 #include "node_perf.h"
+#include "node_buffer.h"
+#include "node_process.h"
+
+#include <cinttypes>
 
 #ifdef __POSIX__
 #include <sys/time.h>  // gettimeofday
@@ -20,6 +25,8 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::Map;
+using v8::MaybeLocal;
 using v8::Name;
 using v8::NewStringType;
 using v8::Number;
@@ -39,7 +46,6 @@ using v8::Value;
 const uint64_t timeOrigin = PERFORMANCE_NOW();
 // https://w3c.github.io/hr-time/#dfn-time-origin-timestamp
 const double timeOriginTimestamp = GetCurrentTimeInMicroseconds();
-uint64_t performance_node_start;
 uint64_t performance_v8_start;
 
 void performance_state::Mark(enum PerformanceMilestone milestone,
@@ -102,10 +108,13 @@ inline void InitObject(const PerformanceEntry& entry, Local<Object> obj) {
 }
 
 // Create a new PerformanceEntry object
-const Local<Object> PerformanceEntry::ToObject() const {
-  Local<Object> obj =
-      env_->performance_entry_template()
-          ->NewInstance(env_->context()).ToLocalChecked();
+MaybeLocal<Object> PerformanceEntry::ToObject() const {
+  Local<Object> obj;
+  if (!env_->performance_entry_template()
+           ->NewInstance(env_->context())
+           .ToLocal(&obj)) {
+    return MaybeLocal<Object>();
+  }
   InitObject(*this, obj);
   return obj;
 }
@@ -154,7 +163,8 @@ void Mark(const FunctionCallbackInfo<Value>& args) {
       *name, now / 1000);
 
   PerformanceEntry entry(env, *name, "mark", now, now);
-  Local<Object> obj = entry.ToObject();
+  Local<Object> obj;
+  if (!entry.ToObject().ToLocal(&obj)) return;
   PerformanceEntry::Notify(env, entry.kind(), obj);
   args.GetReturnValue().Set(obj);
 }
@@ -171,7 +181,7 @@ void ClearMark(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-inline uint64_t GetPerformanceMark(Environment* env, std::string name) {
+inline uint64_t GetPerformanceMark(Environment* env, const std::string& name) {
   auto marks = env->performance_marks();
   auto res = marks->find(name);
   return res != marks->end() ? res->second : 0;
@@ -217,7 +227,8 @@ void Measure(const FunctionCallbackInfo<Value>& args) {
       *name, *name, endTimestamp / 1000);
 
   PerformanceEntry entry(env, *name, "measure", startTimestamp, endTimestamp);
-  Local<Object> obj = entry.ToObject();
+  Local<Object> obj;
+  if (!entry.ToObject().ToLocal(&obj)) return;
   PerformanceEntry::Notify(env, entry.kind(), obj);
   args.GetReturnValue().Set(obj);
 }
@@ -242,14 +253,16 @@ void SetupPerformanceObservers(const FunctionCallbackInfo<Value>& args) {
 
 // Creates a GC Performance Entry and passes it to observers
 void PerformanceGCCallback(Environment* env, void* ptr) {
-  GCPerformanceEntry* entry = static_cast<GCPerformanceEntry*>(ptr);
+  std::unique_ptr<GCPerformanceEntry> entry{
+      static_cast<GCPerformanceEntry*>(ptr)};
   HandleScope scope(env->isolate());
   Local<Context> context = env->context();
 
   AliasedBuffer<uint32_t, Uint32Array>& observers =
       env->performance_state()->observers;
   if (observers[NODE_PERFORMANCE_ENTRY_TYPE_GC]) {
-    Local<Object> obj = entry->ToObject();
+    Local<Object> obj;
+    if (!entry->ToObject().ToLocal(&obj)) return;
     PropertyAttribute attr =
         static_cast<PropertyAttribute>(ReadOnly | DontDelete);
     obj->DefineOwnProperty(context,
@@ -258,8 +271,6 @@ void PerformanceGCCallback(Environment* env, void* ptr) {
                            attr).FromJust();
     PerformanceEntry::Notify(env, entry->kind(), obj);
   }
-
-  delete entry;
 }
 
 // Marks the start of a GC cycle
@@ -290,12 +301,19 @@ void MarkGarbageCollectionEnd(Isolate* isolate,
                          entry);
 }
 
+static void SetupGarbageCollectionTracking(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
 
-inline void SetupGarbageCollectionTracking(Environment* env) {
   env->isolate()->AddGCPrologueCallback(MarkGarbageCollectionStart,
                                         static_cast<void*>(env));
   env->isolate()->AddGCEpilogueCallback(MarkGarbageCollectionEnd,
                                         static_cast<void*>(env));
+  env->AddCleanupHook([](void* data) {
+    Environment* env = static_cast<Environment*>(data);
+    env->isolate()->RemoveGCPrologueCallback(MarkGarbageCollectionStart, data);
+    env->isolate()->RemoveGCEpilogueCallback(MarkGarbageCollectionEnd, data);
+  }, env);
 }
 
 // Gets the name of a function
@@ -333,10 +351,10 @@ void TimerFunctionCall(const FunctionCallbackInfo<Value>& args) {
   v8::MaybeLocal<Value> ret;
 
   if (is_construct_call) {
-    ret = fn->NewInstance(context, call_args.size(), call_args.data())
+    ret = fn->NewInstance(context, call_args.length(), call_args.out())
         .FromMaybe(Local<Object>());
   } else {
-    ret = fn->Call(context, args.This(), call_args.size(), call_args.data());
+    ret = fn->Call(context, args.This(), call_args.length(), call_args.out());
   }
 
   uint64_t end = PERFORMANCE_NOW();
@@ -354,7 +372,8 @@ void TimerFunctionCall(const FunctionCallbackInfo<Value>& args) {
     return;
 
   PerformanceEntry entry(env, *name, "function", start, end);
-  Local<Object> obj = entry.ToObject();
+  Local<Object> obj;
+  if (!entry.ToObject().ToLocal(&obj)) return;
   for (idx = 0; idx < count; idx++)
     obj->Set(context, idx, args[idx]).FromJust();
   PerformanceEntry::Notify(env, entry.kind(), obj);
@@ -373,6 +392,168 @@ void Timerify(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(wrap);
 }
 
+// Event Loop Timing Histogram
+namespace {
+static void ELDHistogramMin(const FunctionCallbackInfo<Value>& args) {
+  ELDHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  double value = static_cast<double>(histogram->Min());
+  args.GetReturnValue().Set(value);
+}
+
+static void ELDHistogramMax(const FunctionCallbackInfo<Value>& args) {
+  ELDHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  double value = static_cast<double>(histogram->Max());
+  args.GetReturnValue().Set(value);
+}
+
+static void ELDHistogramMean(const FunctionCallbackInfo<Value>& args) {
+  ELDHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  args.GetReturnValue().Set(histogram->Mean());
+}
+
+static void ELDHistogramExceeds(const FunctionCallbackInfo<Value>& args) {
+  ELDHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  double value = static_cast<double>(histogram->Exceeds());
+  args.GetReturnValue().Set(value);
+}
+
+static void ELDHistogramStddev(const FunctionCallbackInfo<Value>& args) {
+  ELDHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  args.GetReturnValue().Set(histogram->Stddev());
+}
+
+static void ELDHistogramPercentile(const FunctionCallbackInfo<Value>& args) {
+  ELDHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  CHECK(args[0]->IsNumber());
+  double percentile = args[0].As<Number>()->Value();
+  args.GetReturnValue().Set(histogram->Percentile(percentile));
+}
+
+static void ELDHistogramPercentiles(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  ELDHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  CHECK(args[0]->IsMap());
+  Local<Map> map = args[0].As<Map>();
+  histogram->Percentiles([&](double key, double value) {
+    map->Set(env->context(),
+             Number::New(env->isolate(), key),
+             Number::New(env->isolate(), value)).IsEmpty();
+  });
+}
+
+static void ELDHistogramEnable(const FunctionCallbackInfo<Value>& args) {
+  ELDHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  args.GetReturnValue().Set(histogram->Enable());
+}
+
+static void ELDHistogramDisable(const FunctionCallbackInfo<Value>& args) {
+  ELDHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  args.GetReturnValue().Set(histogram->Disable());
+}
+
+static void ELDHistogramReset(const FunctionCallbackInfo<Value>& args) {
+  ELDHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  histogram->ResetState();
+}
+
+static void ELDHistogramNew(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args.IsConstructCall());
+  int32_t resolution = args[0]->IntegerValue(env->context()).FromJust();
+  CHECK_GT(resolution, 0);
+  new ELDHistogram(env, args.This(), resolution);
+}
+}  // namespace
+
+ELDHistogram::ELDHistogram(
+    Environment* env,
+    Local<Object> wrap,
+    int32_t resolution) : BaseObject(env, wrap),
+                          Histogram(1, 3.6e12),
+                          resolution_(resolution) {
+  MakeWeak();
+  timer_ = new uv_timer_t();
+  uv_timer_init(env->event_loop(), timer_);
+  timer_->data = this;
+}
+
+void ELDHistogram::CloseTimer() {
+  if (timer_ == nullptr)
+    return;
+
+  env()->CloseHandle(timer_, [](uv_timer_t* handle) { delete handle; });
+  timer_ = nullptr;
+}
+
+ELDHistogram::~ELDHistogram() {
+  Disable();
+  CloseTimer();
+}
+
+void ELDHistogramDelayInterval(uv_timer_t* req) {
+  ELDHistogram* histogram =
+    reinterpret_cast<ELDHistogram*>(req->data);
+  histogram->RecordDelta();
+  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
+                 "min", histogram->Min());
+  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
+                 "max", histogram->Max());
+  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
+                 "mean", histogram->Mean());
+  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
+                 "stddev", histogram->Stddev());
+}
+
+bool ELDHistogram::RecordDelta() {
+  uint64_t time = uv_hrtime();
+  bool ret = true;
+  if (prev_ > 0) {
+    int64_t delta = time - prev_;
+    if (delta > 0) {
+      ret = Record(delta);
+      TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
+                     "delay", delta);
+      if (!ret) {
+        if (exceeds_ < 0xFFFFFFFF)
+          exceeds_++;
+        ProcessEmitWarning(
+            env(),
+            "Event loop delay exceeded 1 hour: %" PRId64 " nanoseconds",
+            delta);
+      }
+    }
+  }
+  prev_ = time;
+  return ret;
+}
+
+bool ELDHistogram::Enable() {
+  if (enabled_) return false;
+  enabled_ = true;
+  uv_timer_start(timer_,
+                 ELDHistogramDelayInterval,
+                 resolution_,
+                 resolution_);
+  uv_unref(reinterpret_cast<uv_handle_t*>(timer_));
+  return true;
+}
+
+bool ELDHistogram::Disable() {
+  if (!enabled_) return false;
+  enabled_ = false;
+  uv_timer_stop(timer_);
+  return true;
+}
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
@@ -404,6 +585,8 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "markMilestone", MarkMilestone);
   env->SetMethod(target, "setupObservers", SetupPerformanceObservers);
   env->SetMethod(target, "timerify", Timerify);
+  env->SetMethod(
+      target, "setupGarbageCollectionTracking", SetupGarbageCollectionTracking);
 
   Local<Object> constants = Object::New(isolate);
 
@@ -441,7 +624,23 @@ void Initialize(Local<Object> target,
                             constants,
                             attr).ToChecked();
 
-  SetupGarbageCollectionTracking(env);
+  Local<String> eldh_classname = FIXED_ONE_BYTE_STRING(isolate, "ELDHistogram");
+  Local<FunctionTemplate> eldh =
+      env->NewFunctionTemplate(ELDHistogramNew);
+  eldh->SetClassName(eldh_classname);
+  eldh->InstanceTemplate()->SetInternalFieldCount(1);
+  env->SetProtoMethod(eldh, "exceeds", ELDHistogramExceeds);
+  env->SetProtoMethod(eldh, "min", ELDHistogramMin);
+  env->SetProtoMethod(eldh, "max", ELDHistogramMax);
+  env->SetProtoMethod(eldh, "mean", ELDHistogramMean);
+  env->SetProtoMethod(eldh, "stddev", ELDHistogramStddev);
+  env->SetProtoMethod(eldh, "percentile", ELDHistogramPercentile);
+  env->SetProtoMethod(eldh, "percentiles", ELDHistogramPercentiles);
+  env->SetProtoMethod(eldh, "enable", ELDHistogramEnable);
+  env->SetProtoMethod(eldh, "disable", ELDHistogramDisable);
+  env->SetProtoMethod(eldh, "reset", ELDHistogramReset);
+  target->Set(context, eldh_classname,
+              eldh->GetFunction(env->context()).ToLocalChecked()).FromJust();
 }
 
 }  // namespace performance

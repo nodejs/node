@@ -25,7 +25,8 @@ module.exports = {
                 type: "object",
                 properties: {
                     ignoreCase: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     memberSyntaxSortOrder: {
                         type: "array",
@@ -37,10 +38,12 @@ module.exports = {
                         maxItems: 4
                     },
                     ignoreDeclarationSort: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     ignoreMemberSort: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false

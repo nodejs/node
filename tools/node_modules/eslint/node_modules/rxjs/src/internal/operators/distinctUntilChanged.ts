@@ -1,7 +1,5 @@
 import { Operator } from '../Operator';
 import { Subscriber } from '../Subscriber';
-import { tryCatch } from '../util/tryCatch';
-import { errorObject } from '../util/errorObject';
 import { Observable } from '../Observable';
 import { MonoTypeOperatorFunction, TeardownLogic } from '../types';
 
@@ -20,6 +18,9 @@ export function distinctUntilChanged<T, K>(compare: (x: K, y: K) => boolean, key
  * ## Example
  * A simple example with numbers
  * ```javascript
+ * import { of } from 'rxjs';
+ * import { distinctUntilChanged } from 'rxjs/operators';
+ *
  * of(1, 1, 2, 2, 2, 1, 1, 2, 3, 3, 4).pipe(
  *     distinctUntilChanged(),
  *   )
@@ -28,6 +29,9 @@ export function distinctUntilChanged<T, K>(compare: (x: K, y: K) => boolean, key
  *
  * An example using a compare function
  * ```typescript
+ * import { of } from 'rxjs';
+ * import { distinctUntilChanged } from 'rxjs/operators';
+ *
  * interface Person {
  *    age: number,
  *    name: string
@@ -94,29 +98,25 @@ class DistinctUntilChangedSubscriber<T, K> extends Subscriber<T> {
   }
 
   protected _next(value: T): void {
-
-    const keySelector = this.keySelector;
-    let key: any = value;
-
-    if (keySelector) {
-      key = tryCatch(this.keySelector)(value);
-      if (key === errorObject) {
-        return this.destination.error(errorObject.e);
-      }
+    let key: any;
+    try {
+      const { keySelector } = this;
+      key = keySelector ? keySelector(value) : value;
+    } catch (err) {
+      return this.destination.error(err);
     }
-
-    let result: any = false;
-
+    let result = false;
     if (this.hasKey) {
-      result = tryCatch(this.compare)(this.key, key);
-      if (result === errorObject) {
-        return this.destination.error(errorObject.e);
+      try {
+        const { compare } = this;
+        result = compare(this.key, key);
+      } catch (err) {
+        return this.destination.error(err);
       }
     } else {
       this.hasKey = true;
     }
-
-    if (Boolean(result) === false) {
+    if (!result) {
       this.key = key;
       this.destination.next(value);
     }

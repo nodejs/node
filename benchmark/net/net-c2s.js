@@ -35,18 +35,18 @@ function main({ dur, len, type }) {
   const writer = new Writer();
 
   // the actual benchmark.
-  const server = net.createServer(function(socket) {
+  const server = net.createServer((socket) => {
     socket.pipe(writer);
   });
 
-  server.listen(PORT, function() {
+  server.listen(PORT, () => {
     const socket = net.connect(PORT);
-    socket.on('connect', function() {
+    socket.on('connect', () => {
       bench.start();
 
       reader.pipe(socket);
 
-      setTimeout(function() {
+      setTimeout(() => {
         const bytes = writer.received;
         const gbits = (bytes * 8) / (1024 * 1024 * 1024);
         bench.end(gbits);

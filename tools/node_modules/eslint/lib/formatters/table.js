@@ -9,12 +9,21 @@
 //------------------------------------------------------------------------------
 
 const chalk = require("chalk"),
-    table = require("table").table,
-    pluralize = require("pluralize");
+    table = require("table").table;
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
+
+/**
+ * Given a word and a count, append an "s" if count is not one.
+ * @param {string} word A word.
+ * @param {number} count Quantity.
+ * @returns {string} The original word with an s on the end if count is not one.
+ */
+function pluralize(word, count) {
+    return (count === 1 ? word : `${word}s`);
+}
 
 /**
  * Draws text table.
@@ -129,10 +138,10 @@ module.exports = function(report) {
 
     result += `\n${table([
         [
-            chalk.red(pluralize("Error", errorCount, true))
+            chalk.red(pluralize(`${errorCount} Error`, errorCount))
         ],
         [
-            chalk.yellow(pluralize("Warning", warningCount, true))
+            chalk.yellow(pluralize(`${warningCount} Warning`, warningCount))
         ]
     ], {
         columns: {

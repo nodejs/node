@@ -112,9 +112,34 @@ static UINT __stdcall uv__thread_start(void* arg) {
 
 
 int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
+  uv_thread_options_t params;
+  params.flags = UV_THREAD_NO_FLAGS;
+  return uv_thread_create_ex(tid, &params, entry, arg);
+}
+
+int uv_thread_create_ex(uv_thread_t* tid,
+                        const uv_thread_options_t* params,
+                        void (*entry)(void *arg),
+                        void *arg) {
   struct thread_ctx* ctx;
   int err;
   HANDLE thread;
+  SYSTEM_INFO sysinfo;
+  size_t stack_size;
+  size_t pagesize;
+
+  stack_size =
+      params->flags & UV_THREAD_HAS_STACK_SIZE ? params->stack_size : 0;
+
+  if (stack_size != 0) {
+    GetNativeSystemInfo(&sysinfo);
+    pagesize = (size_t)sysinfo.dwPageSize;
+    /* Round up to the nearest page boundary. */
+    stack_size = (stack_size + pagesize - 1) &~ (pagesize - 1);
+
+    if ((unsigned)stack_size != stack_size)
+      return UV_EINVAL;
+  }
 
   ctx = uv__malloc(sizeof(*ctx));
   if (ctx == NULL)
@@ -126,7 +151,7 @@ int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
   /* Create the thread in suspended state so we have a chance to pass
    * its own creation handle to it */
   thread = (HANDLE) _beginthreadex(NULL,
-                                   0,
+                                   (unsigned)stack_size,
                                    uv__thread_start,
                                    ctx,
                                    CREATE_SUSPENDED,

@@ -44,6 +44,7 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::ReadOnly;
 using v8::Signature;
@@ -63,11 +64,29 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
   };
   Local<FunctionTemplate> sw =
       FunctionTemplate::New(env->isolate(), is_construct_call_callback);
-  sw->InstanceTemplate()->SetInternalFieldCount(StreamReq::kStreamReqField + 1);
+  sw->InstanceTemplate()->SetInternalFieldCount(
+      StreamReq::kStreamReqField + 1 + 3);
   Local<String> wrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "ShutdownWrap");
   sw->SetClassName(wrapString);
+
+  // we need to set handle and callback to null,
+  // so that those fields are created and functions
+  // do not become megamorphic
+  // Fields:
+  // - oncomplete
+  // - callback
+  // - handle
+  sw->InstanceTemplate()->Set(
+      FIXED_ONE_BYTE_STRING(env->isolate(), "oncomplete"),
+      v8::Null(env->isolate()));
+  sw->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "callback"),
+      v8::Null(env->isolate()));
+  sw->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "handle"),
+      v8::Null(env->isolate()));
+
   sw->Inherit(AsyncWrap::GetConstructorTemplate(env));
+
   target->Set(env->context(),
               wrapString,
               sw->GetFunction(env->context()).ToLocalChecked()).FromJust();
@@ -195,10 +214,9 @@ void LibuvStreamWrap::OnUvAlloc(size_t suggested_size, uv_buf_t* buf) {
   *buf = EmitAlloc(suggested_size);
 }
 
-
-
 template <class WrapType>
-static Local<Object> AcceptHandle(Environment* env, LibuvStreamWrap* parent) {
+static MaybeLocal<Object> AcceptHandle(Environment* env,
+                                       LibuvStreamWrap* parent) {
   static_assert(std::is_base_of<LibuvStreamWrap, WrapType>::value ||
                 std::is_base_of<UDPWrap, WrapType>::value,
                 "Can only accept stream handles");
@@ -206,8 +224,7 @@ static Local<Object> AcceptHandle(Environment* env, LibuvStreamWrap* parent) {
   EscapableHandleScope scope(env->isolate());
   Local<Object> wrap_obj;
 
-  wrap_obj = WrapType::Instantiate(env, parent, WrapType::SOCKET);
-  if (wrap_obj.IsEmpty())
+  if (!WrapType::Instantiate(env, parent, WrapType::SOCKET).ToLocal(&wrap_obj))
     return Local<Object>();
 
   HandleWrap* wrap = Unwrap<HandleWrap>(wrap_obj);
@@ -232,12 +249,12 @@ void LibuvStreamWrap::OnUvRead(ssize_t nread, const uv_buf_t* buf) {
     type = uv_pipe_pending_type(reinterpret_cast<uv_pipe_t*>(stream()));
   }
 
-  // We should not be getting this callback if someone as already called
+  // We should not be getting this callback if someone has already called
   // uv_close() on the handle.
   CHECK_EQ(persistent().IsEmpty(), false);
 
   if (nread > 0) {
-    Local<Object> pending_obj;
+    MaybeLocal<Object> pending_obj;
 
     if (type == UV_TCP) {
       pending_obj = AcceptHandle<TCPWrap>(env(), this);
@@ -250,9 +267,11 @@ void LibuvStreamWrap::OnUvRead(ssize_t nread, const uv_buf_t* buf) {
     }
 
     if (!pending_obj.IsEmpty()) {
-      object()->Set(env()->context(),
-                    env()->pending_handle_string(),
-                    pending_obj).FromJust();
+      object()
+          ->Set(env()->context(),
+                env()->pending_handle_string(),
+                pending_obj.ToLocalChecked())
+          .FromJust();
     }
   }
 

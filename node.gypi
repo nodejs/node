@@ -36,7 +36,7 @@
     ],
   },
   'conditions': [
-    ['clang==1', {
+    [ 'clang==1', {
       'cflags': [ '-Werror=undefined-inline', ]
     }],
     [ 'node_shared=="false"', {
@@ -65,10 +65,15 @@
         'NOMINMAX',
         '_UNICODE=1',
       ],
+      'msvs_precompiled_header': 'tools/msvs/pch/node_pch.h',
+      'msvs_precompiled_source': 'tools/msvs/pch/node_pch.cc',
+      'sources': [
+        '<(_msvs_precompiled_header)',
+        '<(_msvs_precompiled_source)',
+      ],
     }, { # POSIX
       'defines': [ '__POSIX__' ],
     }],
-
     [ 'node_enable_d8=="true"', {
       'dependencies': [ 'deps/v8/gypfiles/d8.gyp:d8' ],
     }],
@@ -233,6 +238,7 @@
     [ 'OS=="aix"', {
       'defines': [
         '_LINUX_SOURCE_COMPAT',
+        '__STDC_FORMAT_MACROS'
       ],
       'conditions': [
         [ 'force_load=="true"', {

@@ -80,6 +80,7 @@ export class AsyncAction<T> extends Action<T> {
     // Otherwise, if the action's delay time is different from the current delay,
     // or the action has been rescheduled before it's executed, clear the interval id
     clearInterval(id);
+    return undefined;
   }
 
   /**

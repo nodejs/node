@@ -17,7 +17,7 @@ function main({ n, dir, withFileTypes }) {
   (function r(cntr) {
     if (cntr-- <= 0)
       return bench.end(n);
-    fs.readdir(fullPath, { withFileTypes }, function() {
+    fs.readdir(fullPath, { withFileTypes }, () => {
       r(cntr);
     });
   }(n));

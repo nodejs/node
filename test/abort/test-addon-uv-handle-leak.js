@@ -89,7 +89,7 @@ if (process.argv[2] === 'child') {
 
     switch (state) {
       case 'initial':
-        assert(/^uv loop at \[.+\] has active handles$/.test(line), line);
+        assert(/^uv loop at \[.+\] has \d+ active handles$/.test(line), line);
         state = 'handle-start';
         break;
       case 'handle-start':

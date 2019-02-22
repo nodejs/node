@@ -228,27 +228,18 @@ void Http2Session::Http2Settings::Init() {
   count_ = n;
 }
 
-Http2Session::Http2Settings::Http2Settings(Environment* env,
-    Http2Session* session, uint64_t start_time)
-        : AsyncWrap(env,
-                    env->http2settings_constructor_template()
-                        ->NewInstance(env->context())
-                            .ToLocalChecked(),
-                    PROVIDER_HTTP2SETTINGS),
-          session_(session),
-          startTime_(start_time) {
-  Init();
-}
-
-
-Http2Session::Http2Settings::Http2Settings(Environment* env)
-  : Http2Settings(env, nullptr, 0) {}
-
 // The Http2Settings class is used to configure a SETTINGS frame that is
 // to be sent to the connected peer. The settings are set using a TypedArray
 // that is shared with the JavaScript side.
-Http2Session::Http2Settings::Http2Settings(Http2Session* session)
-  : Http2Settings(session->env(), session, uv_hrtime()) {}
+Http2Session::Http2Settings::Http2Settings(Environment* env,
+                                           Http2Session* session,
+                                           Local<Object> obj,
+                                           uint64_t start_time)
+    : AsyncWrap(env, obj, PROVIDER_HTTP2SETTINGS),
+      session_(session),
+      startTime_(start_time) {
+  Init();
+}
 
 // Generates a Buffer that contains the serialized payload of a SETTINGS
 // frame. This can be used, for instance, to create the Base64-encoded
@@ -382,7 +373,7 @@ Headers::Headers(Isolate* isolate,
                                  header_string_len);
   // Make sure the start address is aligned appropriately for an nghttp2_nv*.
   char* start = reinterpret_cast<char*>(
-      ROUND_UP(reinterpret_cast<uintptr_t>(*buf_), alignof(nghttp2_nv)));
+      RoundUp(reinterpret_cast<uintptr_t>(*buf_), alignof(nghttp2_nv)));
   char* header_contents = start + (count_ * sizeof(nghttp2_nv));
   nghttp2_nv* const nva = reinterpret_cast<nghttp2_nv*>(start);
 
@@ -438,8 +429,8 @@ Origins::Origins(Isolate* isolate,
 
   // Make sure the start address is aligned appropriately for an nghttp2_nv*.
   char* start = reinterpret_cast<char*>(
-      ROUND_UP(reinterpret_cast<uintptr_t>(*buf_),
-               alignof(nghttp2_origin_entry)));
+      RoundUp(reinterpret_cast<uintptr_t>(*buf_),
+              alignof(nghttp2_origin_entry)));
   char* origin_contents = start + (count_ * sizeof(nghttp2_origin_entry));
   nghttp2_origin_entry* const nva =
       reinterpret_cast<nghttp2_origin_entry*>(start);
@@ -530,7 +521,7 @@ class Http2Session::MemoryAllocatorInfo {
   static void H2Free(void* ptr, void* user_data) {
     if (ptr == nullptr) return;  // free(null); happens quite often.
     void* result = H2Realloc(ptr, 0, user_data);
-    CHECK_EQ(result, nullptr);
+    CHECK_NULL(result);
   }
 
   static void* H2Realloc(void* ptr, size_t size, void* user_data) {
@@ -697,7 +688,8 @@ void Http2Stream::EmitStatistics() {
     }
     buffer[IDX_STREAM_STATS_SENTBYTES] = entry->sent_bytes();
     buffer[IDX_STREAM_STATS_RECEIVEDBYTES] = entry->received_bytes();
-    entry->Notify(entry->ToObject());
+    Local<Object> obj;
+    if (entry->ToObject().ToLocal(&obj)) entry->Notify(obj);
   }, static_cast<void*>(entry));
 }
 
@@ -726,7 +718,8 @@ void Http2Session::EmitStatistics() {
     buffer[IDX_SESSION_STATS_DATA_RECEIVED] = entry->data_received();
     buffer[IDX_SESSION_STATS_MAX_CONCURRENT_STREAMS] =
         entry->max_concurrent_streams();
-    entry->Notify(entry->ToObject());
+    Local<Object> obj;
+    if (entry->ToObject().ToLocal(&obj)) entry->Notify(obj);
   }, static_cast<void*>(entry));
 }
 
@@ -916,13 +909,14 @@ int Http2Session::OnBeginHeadersCallback(nghttp2_session* handle,
   // The common case is that we're creating a new stream. The less likely
   // case is that we're receiving a set of trailers
   if (LIKELY(stream == nullptr)) {
-    if (UNLIKELY(!session->CanAddStream())) {
+    if (UNLIKELY(!session->CanAddStream() ||
+                 Http2Stream::New(session, id, frame->headers.cat) ==
+                     nullptr)) {
       // Too many concurrent streams being opened
       nghttp2_submit_rst_stream(**session, NGHTTP2_FLAG_NONE, id,
                                 NGHTTP2_ENHANCE_YOUR_CALM);
       return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
     }
-    new Http2Stream(session, id, frame->headers.cat);
   } else if (!stream->IsDestroyed()) {
     stream->StartHeaders(frame->headers.cat);
   }
@@ -1769,7 +1763,7 @@ Http2Stream* Http2Session::SubmitRequest(
   *ret = nghttp2_submit_request(session_, prispec, nva, len, *prov, nullptr);
   CHECK_NE(*ret, NGHTTP2_ERR_NOMEM);
   if (LIKELY(*ret > 0))
-    stream = new Http2Stream(this, *ret, NGHTTP2_HCAT_HEADERS, options);
+    stream = Http2Stream::New(this, *ret, NGHTTP2_HCAT_HEADERS, options);
   return stream;
 }
 
@@ -1780,16 +1774,7 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
   Http2Scope h2scope(this);
   CHECK_NOT_NULL(stream_);
   Debug(this, "receiving %d bytes", nread);
-  IncrementCurrentSessionMemory(buf.len);
   CHECK(stream_buf_ab_.IsEmpty());
-
-  OnScopeLeave on_scope_leave([&]() {
-    // Once finished handling this write, reset the stream buffer.
-    // The memory has either been free()d or was handed over to V8.
-    DecrementCurrentSessionMemory(buf.len);
-    stream_buf_ab_ = Local<ArrayBuffer>();
-    stream_buf_ = uv_buf_init(nullptr, 0);
-  });
 
   // Only pass data on if nread > 0
   if (nread <= 0) {
@@ -1800,19 +1785,25 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
     return;
   }
 
+  // Shrink to the actual amount of used data.
+  char* base = Realloc(buf.base, nread);
+
+  IncrementCurrentSessionMemory(nread);
+  OnScopeLeave on_scope_leave([&]() {
+    // Once finished handling this write, reset the stream buffer.
+    // The memory has either been free()d or was handed over to V8.
+    DecrementCurrentSessionMemory(nread);
+    stream_buf_ab_ = Local<ArrayBuffer>();
+    stream_buf_ = uv_buf_init(nullptr, 0);
+  });
+
   // Make sure that there was no read previously active.
   CHECK_NULL(stream_buf_.base);
   CHECK_EQ(stream_buf_.len, 0);
 
   // Remember the current buffer, so that OnDataChunkReceived knows the
   // offset of a DATA frame's data into the socket read buffer.
-  stream_buf_ = uv_buf_init(buf.base, nread);
-
-  // Verify that currently: There is memory allocated into which
-  // the data has been read, and that memory buffer is at least as large
-  // as the amount of data we have read, but we have not yet made an
-  // ArrayBuffer out of it.
-  CHECK_LE(static_cast<size_t>(nread), stream_buf_.len);
+  stream_buf_ = uv_buf_init(base, nread);
 
   Isolate* isolate = env()->isolate();
 
@@ -1820,9 +1811,9 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
   // as slices of this array buffer to avoid having to copy memory.
   stream_buf_ab_ =
       ArrayBuffer::New(isolate,
-                        buf.base,
-                        nread,
-                        ArrayBufferCreationMode::kInternalized);
+                       base,
+                       nread,
+                       ArrayBufferCreationMode::kInternalized);
 
   statistics_.data_received += nread;
   ssize_t ret = Write(&stream_buf_, 1);
@@ -1855,20 +1846,30 @@ void Http2Session::Consume(Local<External> external) {
   Debug(this, "i/o stream consumed");
 }
 
+Http2Stream* Http2Stream::New(Http2Session* session,
+                              int32_t id,
+                              nghttp2_headers_category category,
+                              int options) {
+  Local<Object> obj;
+  if (!session->env()
+           ->http2stream_constructor_template()
+           ->NewInstance(session->env()->context())
+           .ToLocal(&obj)) {
+    return nullptr;
+  }
+  return new Http2Stream(session, obj, id, category, options);
+}
 
-Http2Stream::Http2Stream(
-    Http2Session* session,
-    int32_t id,
-    nghttp2_headers_category category,
-    int options) : AsyncWrap(session->env(),
-                             session->env()->http2stream_constructor_template()
-                                 ->NewInstance(session->env()->context())
-                                     .ToLocalChecked(),
-                             AsyncWrap::PROVIDER_HTTP2STREAM),
-                   StreamBase(session->env()),
-                   session_(session),
-                   id_(id),
-                   current_headers_category_(category) {
+Http2Stream::Http2Stream(Http2Session* session,
+                         Local<Object> obj,
+                         int32_t id,
+                         nghttp2_headers_category category,
+                         int options)
+    : AsyncWrap(session->env(), obj, AsyncWrap::PROVIDER_HTTP2STREAM),
+      StreamBase(session->env()),
+      session_(session),
+      id_(id),
+      current_headers_category_(category) {
   MakeWeak();
   statistics_.start_time = uv_hrtime();
 
@@ -2111,7 +2112,7 @@ Http2Stream* Http2Stream::SubmitPushPromise(nghttp2_nv* nva,
   CHECK_NE(*ret, NGHTTP2_ERR_NOMEM);
   Http2Stream* stream = nullptr;
   if (*ret > 0)
-    stream = new Http2Stream(session_, *ret, NGHTTP2_HCAT_HEADERS, options);
+    stream = Http2Stream::New(session_, *ret, NGHTTP2_HCAT_HEADERS, options);
 
   return stream;
 }
@@ -2333,7 +2334,14 @@ void HttpErrorString(const FunctionCallbackInfo<Value>& args) {
 // output for an HTTP2-Settings header field.
 void PackSettings(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Http2Session::Http2Settings settings(env);
+  // TODO(addaleax): We should not be creating a full AsyncWrap for this.
+  Local<Object> obj;
+  if (!env->http2settings_constructor_template()
+           ->NewInstance(env->context())
+           .ToLocal(&obj)) {
+    return;
+  }
+  Http2Session::Http2Settings settings(env, nullptr, obj);
   args.GetReturnValue().Set(settings.Pack());
 }
 
@@ -2462,7 +2470,7 @@ void Http2Session::Request(const FunctionCallbackInfo<Value>& args) {
       session->Http2Session::SubmitRequest(*priority, *list, list.length(),
                                            &ret, options);
 
-  if (ret <= 0) {
+  if (ret <= 0 || stream == nullptr) {
     Debug(session, "could not submit request: %s", nghttp2_strerror(ret));
     return args.GetReturnValue().Set(ret);
   }
@@ -2635,7 +2643,7 @@ void Http2Stream::PushPromise(const FunctionCallbackInfo<Value>& args) {
   int32_t ret = 0;
   Http2Stream* stream = parent->SubmitPushPromise(*list, list.length(),
                                                   &ret, options);
-  if (ret <= 0) {
+  if (ret <= 0 || stream == nullptr) {
     Debug(parent, "failed to create push stream: %d", ret);
     return args.GetReturnValue().Set(ret);
   }
@@ -2770,9 +2778,15 @@ void Http2Session::Ping(const FunctionCallbackInfo<Value>& args) {
     CHECK_EQ(Buffer::Length(args[0]), 8);
   }
 
-  Http2Session::Http2Ping* ping = new Http2Ping(session);
-  Local<Object> obj = ping->object();
-  obj->Set(env->context(), env->ondone_string(), args[1]).FromJust();
+  Local<Object> obj;
+  if (!env->http2ping_constructor_template()
+           ->NewInstance(env->context())
+           .ToLocal(&obj)) {
+    return;
+  }
+  if (obj->Set(env->context(), env->ondone_string(), args[1]).IsNothing())
+    return;
+  Http2Session::Http2Ping* ping = new Http2Ping(session, obj);
 
   // To prevent abuse, we strictly limit the number of unacknowledged PING
   // frames that may be sent at any given time. This is configurable in the
@@ -2796,10 +2810,17 @@ void Http2Session::Settings(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
 
-  Http2Session::Http2Settings* settings = new Http2Settings(session);
-  Local<Object> obj = settings->object();
-  obj->Set(env->context(), env->ondone_string(), args[0]).FromJust();
+  Local<Object> obj;
+  if (!env->http2settings_constructor_template()
+           ->NewInstance(env->context())
+           .ToLocal(&obj)) {
+    return;
+  }
+  if (obj->Set(env->context(), env->ondone_string(), args[0]).IsNothing())
+    return;
 
+  Http2Session::Http2Settings* settings =
+      new Http2Settings(session->env(), session, obj, 0);
   if (!session->AddSettings(settings)) {
     settings->Done(false);
     return args.GetReturnValue().Set(false);
@@ -2846,15 +2867,10 @@ bool Http2Session::AddSettings(Http2Session::Http2Settings* settings) {
   return true;
 }
 
-Http2Session::Http2Ping::Http2Ping(
-    Http2Session* session)
-        : AsyncWrap(session->env(),
-                    session->env()->http2ping_constructor_template()
-                        ->NewInstance(session->env()->context())
-                            .ToLocalChecked(),
-                    AsyncWrap::PROVIDER_HTTP2PING),
-          session_(session),
-          startTime_(uv_hrtime()) { }
+Http2Session::Http2Ping::Http2Ping(Http2Session* session, Local<Object> obj)
+    : AsyncWrap(session->env(), obj, AsyncWrap::PROVIDER_HTTP2PING),
+      session_(session),
+      startTime_(uv_hrtime()) {}
 
 void Http2Session::Http2Ping::Send(uint8_t* payload) {
   uint8_t data[8];

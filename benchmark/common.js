@@ -118,18 +118,19 @@ Benchmark.prototype.http = function(options, cb) {
                              self.config.benchmarker ||
                              self.extra_options.benchmarker ||
                              exports.default_http_benchmarker;
-  http_benchmarkers.run(http_options, function(error, code, used_benchmarker,
-                                               result, elapsed) {
-    if (cb) {
-      cb(code);
+  http_benchmarkers.run(
+    http_options, (error, code, used_benchmarker, result, elapsed) => {
+      if (cb) {
+        cb(code);
+      }
+      if (error) {
+        console.error(error);
+        process.exit(code || 1);
+      }
+      self.config.benchmarker = used_benchmarker;
+      self.report(result, elapsed);
     }
-    if (error) {
-      console.error(error);
-      process.exit(code || 1);
-    }
-    self.config.benchmarker = used_benchmarker;
-    self.report(result, elapsed);
-  });
+  );
 };
 
 Benchmark.prototype._run = function() {
@@ -139,7 +140,7 @@ Benchmark.prototype._run = function() {
     process.send({
       type: 'config',
       name: this.name,
-      queueLength: this.queue.length
+      queueLength: this.queue.length,
     });
   }
 
@@ -162,13 +163,12 @@ Benchmark.prototype._run = function() {
 
     const child = child_process.fork(require.main.filename, childArgs, {
       env: childEnv,
-      execArgv: self.flags.concat(process.execArgv)
+      execArgv: self.flags.concat(process.execArgv),
     });
     child.on('message', sendResult);
-    child.on('close', function(code) {
+    child.on('close', (code) => {
       if (code) {
         process.exit(code);
-        return;
       }
 
       if (queueIndex + 1 < self.queue.length) {
@@ -241,7 +241,7 @@ Benchmark.prototype.report = function(rate, elapsed) {
     conf: this.config,
     rate: rate,
     time: elapsed[0] + elapsed[1] / 1e9,
-    type: 'report'
+    type: 'report',
   });
 };
 
@@ -267,7 +267,7 @@ const urls = {
   ws: 'ws://localhost:9229/f46db715-70df-43ad-a359-7f9949f39868',
   javascript: 'javascript:alert("node is awesome");',
   percent: 'https://%E4%BD%A0/foo',
-  dot: 'https://example.org/./a/../b/./c'
+  dot: 'https://example.org/./a/../b/./c',
 };
 exports.urls = urls;
 
@@ -282,7 +282,7 @@ const searchParams = {
                   'foo=ghi&foo=jkl&foo=mno&foo=pqr&foo=stu&foo=vwxyz',
   manypairs: 'a&b&c&d&e&f&g&h&i&j&k&l&m&n&o&p&q&r&s&t&u&v&w&x&y&z',
   manyblankpairs: '&&&&&&&&&&&&&&&&&&&&&&&&',
-  altspaces: 'foo+bar=baz+quux&xyzzy+thud=quuy+quuz&abc=def+ghi'
+  altspaces: 'foo+bar=baz+quux&xyzzy+thud=quuy+quuz&abc=def+ghi',
 };
 exports.searchParams = searchParams;
 

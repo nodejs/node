@@ -314,3 +314,13 @@ common.expectsError(() => {
   code: 'ERR_INVALID_CALLBACK',
   type: TypeError
 });
+
+{
+  dns.resolveMx('foo.onion', function(err) {
+    assert.deepStrictEqual(err.errno, 'ENOTFOUND');
+    assert.deepStrictEqual(err.code, 'ENOTFOUND');
+    assert.deepStrictEqual(err.syscall, 'queryMx');
+    assert.deepStrictEqual(err.hostname, 'foo.onion');
+    assert.deepStrictEqual(err.message, 'queryMx ENOTFOUND foo.onion');
+  });
+}

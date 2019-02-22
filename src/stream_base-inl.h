@@ -163,9 +163,11 @@ inline int StreamBase::Shutdown(v8::Local<v8::Object> req_wrap_obj) {
   HandleScope handle_scope(env->isolate());
 
   if (req_wrap_obj.IsEmpty()) {
-    req_wrap_obj =
-        env->shutdown_wrap_template()
-            ->NewInstance(env->context()).ToLocalChecked();
+    if (!env->shutdown_wrap_template()
+             ->NewInstance(env->context())
+             .ToLocal(&req_wrap_obj)) {
+      return UV_EBUSY;
+    }
     StreamReq::ResetObject(req_wrap_obj);
   }
 
@@ -211,9 +213,11 @@ inline StreamWriteResult StreamBase::Write(
   HandleScope handle_scope(env->isolate());
 
   if (req_wrap_obj.IsEmpty()) {
-    req_wrap_obj =
-        env->write_wrap_template()
-            ->NewInstance(env->context()).ToLocalChecked();
+    if (!env->write_wrap_template()
+             ->NewInstance(env->context())
+             .ToLocal(&req_wrap_obj)) {
+      return StreamWriteResult { false, UV_EBUSY, nullptr, 0 };
+    }
     StreamReq::ResetObject(req_wrap_obj);
   }
 

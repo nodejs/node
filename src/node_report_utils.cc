@@ -5,152 +5,147 @@ namespace report {
 
 using node::MallocedBuffer;
 
+static constexpr auto null = JSONWriter::Null{};
+
 // Utility function to format libuv socket information.
-void ReportEndpoints(uv_handle_t* h, std::ostringstream& out) {
+static void ReportEndpoints(uv_handle_t* h, JSONWriter* writer) {
   struct sockaddr_storage addr_storage;
   struct sockaddr* addr = reinterpret_cast<sockaddr*>(&addr_storage);
-  char hostbuf[NI_MAXHOST];
-  char portbuf[NI_MAXSERV];
   uv_any_handle* handle = reinterpret_cast<uv_any_handle*>(h);
   int addr_size = sizeof(addr_storage);
   int rc = -1;
+  bool wrote_local_endpoint = false;
+  bool wrote_remote_endpoint = false;
 
   switch (h->type) {
-    case UV_UDP: {
-      rc = uv_udp_getsockname(&(handle->udp), addr, &addr_size);
+    case UV_UDP:
+      rc = uv_udp_getsockname(&handle->udp, addr, &addr_size);
       break;
-    }
-    case UV_TCP: {
-      rc = uv_tcp_getsockname(&(handle->tcp), addr, &addr_size);
+    case UV_TCP:
+      rc = uv_tcp_getsockname(&handle->tcp, addr, &addr_size);
       break;
-    }
     default:
       break;
   }
   if (rc == 0) {
-    // getnameinfo will format host and port and handle IPv4/IPv6.
-    rc = getnameinfo(addr,
-                     addr_size,
-                     hostbuf,
-                     sizeof(hostbuf),
-                     portbuf,
-                     sizeof(portbuf),
-                     NI_NUMERICSERV);
-    if (rc == 0) {
-      out << std::string(hostbuf) << ":" << std::string(portbuf);
-    }
+    // uv_getnameinfo will format host and port and handle IPv4/IPv6.
+    uv_getnameinfo_t local;
+    rc = uv_getnameinfo(h->loop, &local, nullptr, addr, NI_NUMERICSERV);
 
-    if (h->type == UV_TCP) {
-      // Get the remote end of the connection.
-      rc = uv_tcp_getpeername(&(handle->tcp), addr, &addr_size);
+    if (rc == 0) {
+      writer->json_objectstart("localEndpoint");
+      writer->json_keyvalue("host", local.host);
+      writer->json_keyvalue("port", local.service);
+      writer->json_objectend();
+      wrote_local_endpoint = true;
+    }
+  }
+  if (!wrote_local_endpoint) writer->json_keyvalue("localEndpoint", null);
+
+  if (h->type == UV_TCP) {
+    // Get the remote end of the connection.
+    rc = uv_tcp_getpeername(&handle->tcp, addr, &addr_size);
+    if (rc == 0) {
+      uv_getnameinfo_t remote;
+      rc = uv_getnameinfo(h->loop, &remote, nullptr, addr, NI_NUMERICSERV);
+
       if (rc == 0) {
-        rc = getnameinfo(addr,
-                         addr_size,
-                         hostbuf,
-                         sizeof(hostbuf),
-                         portbuf,
-                         sizeof(portbuf),
-                         NI_NUMERICSERV);
-        if (rc == 0) {
-          out << " connected to ";
-          out << std::string(hostbuf) << ":" << std::string(portbuf);
-        }
-      } else if (rc == UV_ENOTCONN) {
-        out << " (not connected)";
+        writer->json_objectstart("remoteEndpoint");
+        writer->json_keyvalue("host", remote.host);
+        writer->json_keyvalue("port", remote.service);
+        writer->json_objectend();
+        wrote_local_endpoint = true;
       }
     }
   }
+  if (!wrote_remote_endpoint) writer->json_keyvalue("remoteEndpoint", null);
 }
 
 // Utility function to format libuv path information.
-void ReportPath(uv_handle_t* h, std::ostringstream& out) {
+static void ReportPath(uv_handle_t* h, JSONWriter* writer) {
   MallocedBuffer<char> buffer(0);
   int rc = -1;
   size_t size = 0;
   uv_any_handle* handle = reinterpret_cast<uv_any_handle*>(h);
+  bool wrote_filename = false;
   // First call to get required buffer size.
   switch (h->type) {
-    case UV_FS_EVENT: {
+    case UV_FS_EVENT:
       rc = uv_fs_event_getpath(&(handle->fs_event), buffer.data, &size);
       break;
-    }
-    case UV_FS_POLL: {
+    case UV_FS_POLL:
       rc = uv_fs_poll_getpath(&(handle->fs_poll), buffer.data, &size);
       break;
-    }
     default:
       break;
   }
   if (rc == UV_ENOBUFS) {
-    buffer = MallocedBuffer<char>(size);
+    buffer = MallocedBuffer<char>(size + 1);
     switch (h->type) {
-      case UV_FS_EVENT: {
+      case UV_FS_EVENT:
         rc = uv_fs_event_getpath(&(handle->fs_event), buffer.data, &size);
         break;
-      }
-      case UV_FS_POLL: {
+      case UV_FS_POLL:
         rc = uv_fs_poll_getpath(&(handle->fs_poll), buffer.data, &size);
         break;
-      }
       default:
         break;
     }
     if (rc == 0) {
       // buffer is not null terminated.
-      std::string name(buffer.data, size);
-      out << "filename: " << name;
+      buffer.data[size] = '\0';
+      writer->json_keyvalue("filename", buffer.data);
+      wrote_filename = true;
     }
   }
+  if (!wrote_filename) writer->json_keyvalue("filename", null);
 }
 
 // Utility function to walk libuv handles.
 void WalkHandle(uv_handle_t* h, void* arg) {
   const char* type = uv_handle_type_name(h->type);
-  std::ostringstream data;
   JSONWriter* writer = static_cast<JSONWriter*>(arg);
   uv_any_handle* handle = reinterpret_cast<uv_any_handle*>(h);
+
+  writer->json_start();
 
   switch (h->type) {
     case UV_FS_EVENT:
     case UV_FS_POLL:
-      ReportPath(h, data);
+      ReportPath(h, writer);
       break;
     case UV_PROCESS:
-      data << "pid: " << handle->process.pid;
+      writer->json_keyvalue("pid", handle->process.pid);
       break;
     case UV_TCP:
     case UV_UDP:
-      ReportEndpoints(h, data);
+      ReportEndpoints(h, writer);
       break;
     case UV_TIMER: {
       uint64_t due = handle->timer.timeout;
       uint64_t now = uv_now(handle->timer.loop);
-      data << "repeat: " << uv_timer_get_repeat(&(handle->timer));
-      if (due > now) {
-        data << ", timeout in: " << (due - now) << " ms";
-      } else {
-        data << ", timeout expired: " << (now - due) << " ms ago";
-      }
+      writer->json_keyvalue("repeat", uv_timer_get_repeat(&handle->timer));
+      writer->json_keyvalue("firesInMsFromNow",
+                            static_cast<int64_t>(due - now));
+      writer->json_keyvalue("expired", now >= due);
       break;
     }
     case UV_TTY: {
       int height, width, rc;
       rc = uv_tty_get_winsize(&(handle->tty), &width, &height);
       if (rc == 0) {
-        data << "width: " << width << ", height: " << height;
+        writer->json_keyvalue("width", width);
+        writer->json_keyvalue("height", height);
       }
       break;
     }
-    case UV_SIGNAL: {
+    case UV_SIGNAL:
       // SIGWINCH is used by libuv so always appears.
       // See http://docs.libuv.org/en/v1.x/signal.html
-      data << "signum: " << handle->signal.signum
-#ifndef _WIN32
-           << " (" << node::signo_string(handle->signal.signum) << ")"
-#endif
-           << "";
+      writer->json_keyvalue("signum", handle->signal.signum);
+      writer->json_keyvalue("signal",
+                            node::signo_string(handle->signal.signum));
       break;
-    }
     default:
       break;
   }
@@ -164,53 +159,48 @@ void WalkHandle(uv_handle_t* h, void* arg) {
     // values they contain.
     int send_size = 0;
     int recv_size = 0;
-    if (h->type == UV_TCP || h->type == UV_UDP) {
-      data << ", ";
-    }
     uv_send_buffer_size(h, &send_size);
     uv_recv_buffer_size(h, &recv_size);
-    data << "send buffer size: " << send_size
-         << ", recv buffer size: " << recv_size;
+    writer->json_keyvalue("sendBufferSize", send_size);
+    writer->json_keyvalue("recvBufferSize", recv_size);
   }
 
+#ifndef _WIN32
   if (h->type == UV_TCP || h->type == UV_NAMED_PIPE || h->type == UV_TTY ||
       h->type == UV_UDP || h->type == UV_POLL) {
     uv_os_fd_t fd_v;
     int rc = uv_fileno(h, &fd_v);
-    // uv_os_fd_t is an int on Unix and HANDLE on Windows.
-#ifndef _WIN32
+
     if (rc == 0) {
+      writer->json_keyvalue("fd", static_cast<int>(fd_v));
       switch (fd_v) {
         case 0:
-          data << ", stdin";
+          writer->json_keyvalue("stdio", "stdin");
           break;
         case 1:
-          data << ", stdout";
+          writer->json_keyvalue("stdio", "stdout");
           break;
         case 2:
-          data << ", stderr";
-          break;
-        default:
-          data << ", file descriptor: " << static_cast<int>(fd_v);
+          writer->json_keyvalue("stdio", "stderr");
           break;
       }
     }
-#endif
   }
+#endif
 
   if (h->type == UV_TCP || h->type == UV_NAMED_PIPE || h->type == UV_TTY) {
-    data << ", write queue size: " << handle->stream.write_queue_size;
-    data << (uv_is_readable(&handle->stream) ? ", readable" : "")
-         << (uv_is_writable(&handle->stream) ? ", writable" : "");
+    writer->json_keyvalue("writeQueueSize", handle->stream.write_queue_size);
+    writer->json_keyvalue("readable",
+                          static_cast<bool>(uv_is_readable(&handle->stream)));
+    writer->json_keyvalue("writable",
+                          static_cast<bool>(uv_is_writable(&handle->stream)));
   }
 
-  writer->json_start();
   writer->json_keyvalue("type", type);
   writer->json_keyvalue("is_active", static_cast<bool>(uv_is_active(h)));
   writer->json_keyvalue("is_referenced", static_cast<bool>(uv_has_ref(h)));
   writer->json_keyvalue("address",
-                        std::to_string(reinterpret_cast<int64_t>(h)));
-  writer->json_keyvalue("details", data.str());
+                        ValueToHexString(reinterpret_cast<uint64_t>(h)));
   writer->json_end();
 }
 

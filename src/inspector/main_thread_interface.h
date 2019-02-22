@@ -45,6 +45,7 @@ class MainThreadHandle : public std::enable_shared_from_this<MainThreadHandle> {
                             : main_thread_(main_thread) {
   }
   ~MainThreadHandle() {
+    Mutex::ScopedLock scoped_lock(block_lock_);
     CHECK_NULL(main_thread_);  // main_thread_ should have called Reset
   }
   std::unique_ptr<InspectorSession> Connect(
@@ -84,6 +85,7 @@ class MainThreadInterface {
   }
   void AddObject(int handle, std::unique_ptr<Deletable> object);
   Deletable* GetObject(int id);
+  Deletable* GetObjectIfExists(int id);
   void RemoveObject(int handle);
 
  private:
@@ -103,7 +105,6 @@ class MainThreadInterface {
   Agent* const agent_;
   v8::Isolate* const isolate_;
   v8::Platform* const platform_;
-  DeleteFnPtr<AsyncAndInterface, CloseAsync> main_thread_request_;
   std::shared_ptr<MainThreadHandle> handle_;
   std::unordered_map<int, std::unique_ptr<Deletable>> managed_objects_;
 };

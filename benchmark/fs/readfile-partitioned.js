@@ -35,7 +35,7 @@ function main(conf) {
   var zips = 0;
   var benchEnded = false;
   bench.start();
-  setTimeout(function() {
+  setTimeout(() => {
     const totalOps = reads + zips;
     benchEnded = true;
     bench.end(totalOps);

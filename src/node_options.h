@@ -75,21 +75,11 @@ class DebugOptions : public Options {
 
   HostPort host_port{"127.0.0.1", kDefaultInspectorPort};
 
-  bool deprecated_invocation() const {
-    return deprecated_debug &&
-      inspector_enabled &&
-      break_first_line;
-  }
-
-  bool invalid_invocation() const {
-    return deprecated_debug && !inspector_enabled;
-  }
-
   bool wait_for_connect() const {
     return break_first_line || break_node_first_line;
   }
 
-  void CheckOptions(std::vector<std::string>* errors);
+  void CheckOptions(std::vector<std::string>* errors) override;
 };
 
 class EnvironmentOptions : public Options {
@@ -135,7 +125,7 @@ class EnvironmentOptions : public Options {
 
   inline DebugOptions* get_debug_options();
   inline const DebugOptions& debug_options() const;
-  void CheckOptions(std::vector<std::string>* errors);
+  void CheckOptions(std::vector<std::string>* errors) override;
 
  private:
   DebugOptions debug_options_;
@@ -153,10 +143,9 @@ class PerIsolateOptions : public Options {
   std::string report_signal;
   std::string report_filename;
   std::string report_directory;
-  bool report_verbose;
 #endif  //  NODE_REPORT
   inline EnvironmentOptions* get_per_env_options();
-  void CheckOptions(std::vector<std::string>* errors);
+  void CheckOptions(std::vector<std::string>* errors) override;
 };
 
 class PerProcessOptions : public Options {
@@ -202,7 +191,7 @@ class PerProcessOptions : public Options {
 #endif  //  NODE_REPORT
 
   inline PerIsolateOptions* get_per_isolate_options();
-  void CheckOptions(std::vector<std::string>* errors);
+  void CheckOptions(std::vector<std::string>* errors) override;
 };
 
 // The actual options parser, as opposed to the structs containing them:
@@ -336,23 +325,17 @@ class OptionsParser {
    public:
     virtual ~BaseOptionField() {}
     virtual void* LookupImpl(Options* options) const = 0;
-  };
 
-  // Represents a field of type T within `Options`.
-  template <typename T>
-  class OptionField : public BaseOptionField {
-   public:
-    typedef T Type;
-
-    T* Lookup(Options* options) const {
-      return static_cast<T*>(this->LookupImpl(options));
+    template <typename T>
+    inline T* Lookup(Options* options) const {
+      return static_cast<T*>(LookupImpl(options));
     }
   };
 
   // Represents a field of type T within `Options` that can be looked up
   // as a C++ member field.
   template <typename T>
-  class SimpleOptionField : public OptionField<T> {
+  class SimpleOptionField : public BaseOptionField {
    public:
     explicit SimpleOptionField(T Options::* field) : field_(field) {}
     void* LookupImpl(Options* options) const override {
@@ -366,7 +349,7 @@ class OptionsParser {
   template <typename T>
   inline T* Lookup(std::shared_ptr<BaseOptionField> field,
                    Options* options) const {
-    return std::static_pointer_cast<OptionField<T>>(field)->Lookup(options);
+    return field->template Lookup<T>(options);
   }
 
   // An option consists of:
@@ -383,7 +366,7 @@ class OptionsParser {
   // An implied option is composed of the information on where to store a
   // specific boolean value (if another specific option is encountered).
   struct Implication {
-    std::shared_ptr<OptionField<bool>> target_field;
+    std::shared_ptr<BaseOptionField> target_field;
     bool target_value;
   };
 

@@ -40,7 +40,7 @@ function main({ dur, len, type }) {
     bench.start();
     var bytes = 0;
 
-    setTimeout(function() {
+    setTimeout(() => {
       // report in Gb/sec
       bench.end((bytes * 8) / (1024 * 1024 * 1024));
       process.exit(0);

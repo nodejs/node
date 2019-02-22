@@ -2,8 +2,6 @@ import { Operator } from '../Operator';
 import { Subscriber } from '../Subscriber';
 import { Observable } from '../Observable';
 import { Subscription } from '../Subscription';
-import { tryCatch } from '../util/tryCatch';
-import { errorObject } from '../util/errorObject';
 import { OuterSubscriber } from '../OuterSubscriber';
 import { InnerSubscriber } from '../InnerSubscriber';
 import { subscribeToResult } from '../util/subscribeToResult';
@@ -28,6 +26,9 @@ import { OperatorFunction } from '../types';
  * Emit an array of the last clicks every [1-5] random seconds
  *
  * ```javascript
+ * import { fromEvent, interval } from 'rxjs';
+ * import { bufferWhen } from 'rxjs/operators';
+ *
  * const clicks = fromEvent(document, 'click');
  * const buffered = clicks.pipe(bufferWhen(() =>
  *   interval(1000 + Math.random() * 4000)
@@ -112,7 +113,6 @@ class BufferWhenSubscriber<T> extends OuterSubscriber<T, any> {
   }
 
   openBuffer() {
-
     let { closingSubscription } = this;
 
     if (closingSubscription) {
@@ -127,17 +127,18 @@ class BufferWhenSubscriber<T> extends OuterSubscriber<T, any> {
 
     this.buffer = [];
 
-    const closingNotifier = tryCatch(this.closingSelector)();
-
-    if (closingNotifier === errorObject) {
-      this.error(errorObject.e);
-    } else {
-      closingSubscription = new Subscription();
-      this.closingSubscription = closingSubscription;
-      this.add(closingSubscription);
-      this.subscribing = true;
-      closingSubscription.add(subscribeToResult(this, closingNotifier));
-      this.subscribing = false;
+    let closingNotifier;
+    try {
+      const { closingSelector } = this;
+      closingNotifier = closingSelector();
+    } catch (err) {
+      return this.error(err);
     }
+    closingSubscription = new Subscription();
+    this.closingSubscription = closingSubscription;
+    this.add(closingSubscription);
+    this.subscribing = true;
+    closingSubscription.add(subscribeToResult(this, closingNotifier));
+    this.subscribing = false;
   }
 }

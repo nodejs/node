@@ -104,12 +104,12 @@ Local<Name> Uint32ToName(Local<Context> context, uint32_t index) {
 ContextifyContext::ContextifyContext(
     Environment* env,
     Local<Object> sandbox_obj, const ContextOptions& options) : env_(env) {
-  Local<Context> v8_context = CreateV8Context(env, sandbox_obj, options);
-  context_.Reset(env->isolate(), v8_context);
+  MaybeLocal<Context> v8_context = CreateV8Context(env, sandbox_obj, options);
 
-  // Allocation failure or maximum call stack size reached
-  if (context_.IsEmpty())
-    return;
+  // Allocation failure, maximum call stack size reached, termination, etc.
+  if (v8_context.IsEmpty()) return;
+
+  context_.Reset(env->isolate(), v8_context.ToLocalChecked());
   context_.SetWeak(this, WeakCallback, WeakCallbackType::kParameter);
 }
 
@@ -119,20 +119,19 @@ ContextifyContext::ContextifyContext(
 // pass the main JavaScript context object we're embedded in, then the
 // NamedPropertyHandler will store a reference to it forever and keep it
 // from getting gc'd.
-Local<Value> ContextifyContext::CreateDataWrapper(Environment* env) {
-  EscapableHandleScope scope(env->isolate());
-  Local<Object> wrapper =
-      env->script_data_constructor_function()
-          ->NewInstance(env->context()).FromMaybe(Local<Object>());
-  if (wrapper.IsEmpty())
-    return scope.Escape(Local<Value>::New(env->isolate(), Local<Value>()));
+MaybeLocal<Object> ContextifyContext::CreateDataWrapper(Environment* env) {
+  Local<Object> wrapper;
+  if (!env->script_data_constructor_function()
+           ->NewInstance(env->context())
+           .ToLocal(&wrapper)) {
+    return MaybeLocal<Object>();
+  }
 
   wrapper->SetAlignedPointerInInternalField(0, this);
-  return scope.Escape(wrapper);
+  return wrapper;
 }
 
-
-Local<Context> ContextifyContext::CreateV8Context(
+MaybeLocal<Context> ContextifyContext::CreateV8Context(
     Environment* env,
     Local<Object> sandbox_obj,
     const ContextOptions& options) {
@@ -145,13 +144,17 @@ Local<Context> ContextifyContext::CreateV8Context(
   Local<ObjectTemplate> object_template =
       function_template->InstanceTemplate();
 
+  Local<Object> data_wrapper;
+  if (!CreateDataWrapper(env).ToLocal(&data_wrapper))
+    return MaybeLocal<Context>();
+
   NamedPropertyHandlerConfiguration config(PropertyGetterCallback,
                                            PropertySetterCallback,
                                            PropertyDescriptorCallback,
                                            PropertyDeleterCallback,
                                            PropertyEnumeratorCallback,
                                            PropertyDefinerCallback,
-                                           CreateDataWrapper(env));
+                                           data_wrapper);
 
   IndexedPropertyHandlerConfiguration indexed_config(
       IndexedPropertyGetterCallback,
@@ -160,7 +163,7 @@ Local<Context> ContextifyContext::CreateV8Context(
       IndexedPropertyDeleterCallback,
       PropertyEnumeratorCallback,
       IndexedPropertyDefinerCallback,
-      CreateDataWrapper(env));
+      data_wrapper);
 
   object_template->SetHandler(config);
   object_template->SetHandler(indexed_config);
@@ -168,8 +171,7 @@ Local<Context> ContextifyContext::CreateV8Context(
   Local<Context> ctx = NewContext(env->isolate(), object_template);
 
   if (ctx.IsEmpty()) {
-    env->ThrowError("Could not instantiate context");
-    return Local<Context>();
+    return MaybeLocal<Context>();
   }
 
   ctx->SetSecurityToken(env->context()->GetSecurityToken());
@@ -250,7 +252,8 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
   ContextifyContext* context = new ContextifyContext(env, sandbox, options);
 
   if (try_catch.HasCaught()) {
-    try_catch.ReThrow();
+    if (!try_catch.HasTerminated())
+      try_catch.ReThrow();
     return;
   }
 
@@ -281,6 +284,15 @@ void ContextifyContext::WeakCallback(
     const WeakCallbackInfo<ContextifyContext>& data) {
   ContextifyContext* context = data.GetParameter();
   delete context;
+}
+
+void ContextifyContext::WeakCallbackCompileFn(
+    const WeakCallbackInfo<CompileFnEntry>& data) {
+  CompileFnEntry* entry = data.GetParameter();
+  if (entry->env->compile_fn_entries.erase(entry) != 0) {
+    entry->env->id_to_function_map.erase(entry->id);
+    delete entry;
+  }
 }
 
 // static
@@ -692,7 +704,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
   ScriptOrigin origin(filename,
                       line_offset,                          // line offset
                       column_offset,                        // column offset
-                      False(isolate),                       // is cross origin
+                      True(isolate),                        // is cross origin
                       Local<Integer>(),                     // script id
                       Local<Value>(),                       // source map URL
                       False(isolate),                       // is opaque (?)
@@ -718,7 +730,8 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
   if (v8_script.IsEmpty()) {
     DecorateErrorStack(env, try_catch);
     no_abort_scope.Close();
-    try_catch.ReThrow();
+    if (!try_catch.HasTerminated())
+      try_catch.ReThrow();
     TRACE_EVENT_NESTABLE_ASYNC_END0(
         TRACING_CATEGORY_NODE2(vm, script),
         "ContextifyScript::New",
@@ -792,7 +805,9 @@ void ContextifyScript::RunInThisContext(
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
       TRACING_CATEGORY_NODE2(vm, script), "RunInThisContext", wrapped_script);
 
-  CHECK_EQ(args.Length(), 3);
+  // TODO(addaleax): Use an options object or otherwise merge this with
+  // RunInContext().
+  CHECK_EQ(args.Length(), 4);
 
   CHECK(args[0]->IsNumber());
   int64_t timeout = args[0]->IntegerValue(env->context()).FromJust();
@@ -803,8 +818,16 @@ void ContextifyScript::RunInThisContext(
   CHECK(args[2]->IsBoolean());
   bool break_on_sigint = args[2]->IsTrue();
 
+  CHECK(args[3]->IsBoolean());
+  bool break_on_first_line = args[3]->IsTrue();
+
   // Do the eval within this context
-  EvalMachine(env, timeout, display_errors, break_on_sigint, args);
+  EvalMachine(env,
+              timeout,
+              display_errors,
+              break_on_sigint,
+              break_on_first_line,
+              args);
 
   TRACE_EVENT_NESTABLE_ASYNC_END0(
       TRACING_CATEGORY_NODE2(vm, script), "RunInThisContext", wrapped_script);
@@ -816,7 +839,7 @@ void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
   ContextifyScript* wrapped_script;
   ASSIGN_OR_RETURN_UNWRAP(&wrapped_script, args.Holder());
 
-  CHECK_EQ(args.Length(), 4);
+  CHECK_EQ(args.Length(), 5);
 
   CHECK(args[0]->IsObject());
   Local<Object> sandbox = args[0].As<Object>();
@@ -840,12 +863,16 @@ void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[3]->IsBoolean());
   bool break_on_sigint = args[3]->IsTrue();
 
+  CHECK(args[4]->IsBoolean());
+  bool break_on_first_line = args[4]->IsTrue();
+
   // Do the eval within the context
   Context::Scope context_scope(contextify_context->context());
   EvalMachine(contextify_context->env(),
               timeout,
               display_errors,
               break_on_sigint,
+              break_on_first_line,
               args);
 
   TRACE_EVENT_NESTABLE_ASYNC_END0(
@@ -856,6 +883,7 @@ bool ContextifyScript::EvalMachine(Environment* env,
                                    const int64_t timeout,
                                    const bool display_errors,
                                    const bool break_on_sigint,
+                                   const bool break_on_first_line,
                                    const FunctionCallbackInfo<Value>& args) {
   if (!env->can_call_into_js())
     return false;
@@ -870,6 +898,12 @@ bool ContextifyScript::EvalMachine(Environment* env,
   Local<UnboundScript> unbound_script =
       PersistentToLocal::Default(env->isolate(), wrapped_script->script_);
   Local<Script> script = unbound_script->BindToCurrentContext();
+
+#if HAVE_INSPECTOR
+  if (break_on_first_line) {
+    env->inspector_agent()->PauseOnNextJavascriptStatement("Break on start");
+  }
+#endif
 
   MaybeLocal<Value> result;
   bool timed_out = false;
@@ -890,6 +924,8 @@ bool ContextifyScript::EvalMachine(Environment* env,
 
   // Convert the termination exception into a regular exception.
   if (timed_out || received_signal) {
+    if (!env->is_main_thread() && env->is_stopping_worker())
+      return false;
     env->isolate()->CancelTerminateExecution();
     // It is possible that execution was terminated by another timeout in
     // which this timeout is nested, so check whether one of the watchdogs
@@ -912,7 +948,8 @@ bool ContextifyScript::EvalMachine(Environment* env,
     // letting try_catch catch it.
     // If execution has been terminated, but not by one of the watchdogs from
     // this invocation, this will re-throw a `null` value.
-    try_catch.ReThrow();
+    if (!try_catch.HasTerminated())
+      try_catch.ReThrow();
 
     return false;
   }
@@ -1004,7 +1041,30 @@ void ContextifyContext::CompileFunction(
       data + cached_data_buf->ByteOffset(), cached_data_buf->ByteLength());
   }
 
-  ScriptOrigin origin(filename, line_offset, column_offset);
+  // Get the function id
+  uint32_t id = env->get_next_function_id();
+
+  // Set host_defined_options
+  Local<PrimitiveArray> host_defined_options =
+      PrimitiveArray::New(isolate, loader::HostDefinedOptions::kLength);
+  host_defined_options->Set(
+      isolate,
+      loader::HostDefinedOptions::kType,
+      Number::New(isolate, loader::ScriptType::kFunction));
+  host_defined_options->Set(
+      isolate, loader::HostDefinedOptions::kID, Number::New(isolate, id));
+
+  ScriptOrigin origin(filename,
+                      line_offset,       // line offset
+                      column_offset,     // column offset
+                      True(isolate),     // is cross origin
+                      Local<Integer>(),  // script id
+                      Local<Value>(),    // source map URL
+                      False(isolate),    // is opaque (?)
+                      False(isolate),    // is WASM
+                      False(isolate),    // is ES Module
+                      host_defined_options);
+
   ScriptCompiler::Source source(code, origin, cached_data);
   ScriptCompiler::CompileOptions options;
   if (source.GetCachedData() == nullptr) {
@@ -1038,38 +1098,47 @@ void ContextifyContext::CompileFunction(
     }
   }
 
-  MaybeLocal<Function> maybe_fun = ScriptCompiler::CompileFunctionInContext(
+  MaybeLocal<Function> maybe_fn = ScriptCompiler::CompileFunctionInContext(
       parsing_context, &source, params.size(), params.data(),
       context_extensions.size(), context_extensions.data(), options);
 
-  Local<Function> fun;
-  if (maybe_fun.IsEmpty() || !maybe_fun.ToLocal(&fun)) {
-    DecorateErrorStack(env, try_catch);
-    try_catch.ReThrow();
+  if (maybe_fn.IsEmpty()) {
+    if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+      DecorateErrorStack(env, try_catch);
+      try_catch.ReThrow();
+    }
     return;
   }
+  Local<Function> fn = maybe_fn.ToLocalChecked();
+  env->id_to_function_map.emplace(std::piecewise_construct,
+                                  std::make_tuple(id),
+                                  std::make_tuple(isolate, fn));
+  CompileFnEntry* gc_entry = new CompileFnEntry(env, id);
+  env->id_to_function_map[id].SetWeak(gc_entry,
+      WeakCallbackCompileFn,
+      v8::WeakCallbackType::kParameter);
 
   if (produce_cached_data) {
     const std::unique_ptr<ScriptCompiler::CachedData> cached_data(
-        ScriptCompiler::CreateCodeCacheForFunction(fun));
+        ScriptCompiler::CreateCodeCacheForFunction(fn));
     bool cached_data_produced = cached_data != nullptr;
     if (cached_data_produced) {
       MaybeLocal<Object> buf = Buffer::Copy(
           env,
           reinterpret_cast<const char*>(cached_data->data),
           cached_data->length);
-      if (fun->Set(
+      if (fn->Set(
           parsing_context,
           env->cached_data_string(),
           buf.ToLocalChecked()).IsNothing()) return;
     }
-    if (fun->Set(
+    if (fn->Set(
         parsing_context,
         env->cached_data_produced_string(),
         Boolean::New(isolate, cached_data_produced)).IsNothing()) return;
   }
 
-  args.GetReturnValue().Set(fun);
+  args.GetReturnValue().Set(fn);
 }
 
 

@@ -5,7 +5,7 @@ A tiny, fast JavaScript parser written in JavaScript.
 ## Community
 
 Acorn is open source software released under an
-[MIT license](https://github.com/acornjs/acorn/blob/master/LICENSE).
+[MIT license](https://github.com/acornjs/acorn/blob/master/acorn/LICENSE).
 
 You are welcome to
 [report bugs](https://github.com/acornjs/acorn/issues) or create pull

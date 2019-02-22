@@ -23,6 +23,7 @@ export { SubscribeOnObservable } from '../internal/observable/SubscribeOnObserva
 export { Timestamp } from '../internal/operators/timestamp';
 export { TimeInterval } from '../internal/operators/timeInterval';
 export { GroupedObservable } from '../internal/operators/groupBy';
+export { ShareReplayConfig } from '../internal/operators/shareReplay';
 export { ThrottleConfig, defaultThrottleConfig } from '../internal/operators/throttle';
 
 export { rxSubscriber } from '../internal/symbol/rxSubscriber';

@@ -370,5 +370,35 @@ module.exports = {
 
         return patternList.some(pattern => minimatch(filePath, pattern, opts)) &&
             !excludedPatternList.some(excludedPattern => minimatch(filePath, excludedPattern, opts));
+    },
+
+    /**
+     * Normalizes a value for a global in a config
+     * @param {(boolean|string|null)} configuredValue The value given for a global in configuration or in
+     * a global directive comment
+     * @returns {("readable"|"writeable"|"off")} The value normalized as a string
+     */
+    normalizeConfigGlobal(configuredValue) {
+        switch (configuredValue) {
+            case "off":
+                return "off";
+
+            case true:
+            case "true":
+            case "writeable":
+            case "writable":
+                return "writeable";
+
+            case null:
+            case false:
+            case "false":
+            case "readable":
+            case "readonly":
+                return "readable";
+
+            // Fallback to minimize compatibility impact
+            default:
+                return "writeable";
+        }
     }
 };

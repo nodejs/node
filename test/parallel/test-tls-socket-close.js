@@ -8,6 +8,19 @@ const tls = require('tls');
 const net = require('net');
 const fixtures = require('../common/fixtures');
 
+// Regression test for https://github.com/nodejs/node/issues/8074
+//
+// This test has a dependency on the order in which the TCP connection is made,
+// and TLS server handshake completes. It assumes those server side events occur
+// before the client side write callback, which is not guaranteed by the TLS
+// API. It usally passes with TLS1.3, but TLS1.3 didn't exist at the time the
+// bug existed.
+//
+// Pin the test to TLS1.2, since the test shouldn't be changed in a way that
+// doesn't trigger a segfault in Node.js 7.7.3:
+//   https://github.com/nodejs/node/issues/13184#issuecomment-303700377
+tls.DEFAULT_MAX_VERSION = 'TLSv1.2';
+
 const key = fixtures.readKey('agent2-key.pem');
 const cert = fixtures.readKey('agent2-cert.pem');
 

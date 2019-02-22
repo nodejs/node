@@ -20,6 +20,7 @@ enum PackageMainCheck : bool {
 enum ScriptType : int {
   kScript,
   kModule,
+  kFunction,
 };
 
 enum HostDefinedOptions : int {
@@ -61,7 +62,7 @@ class ModuleWrap : public BaseObject {
              v8::Local<v8::Object> object,
              v8::Local<v8::Module> module,
              v8::Local<v8::String> url);
-  ~ModuleWrap();
+  ~ModuleWrap() override;
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Link(const v8::FunctionCallbackInfo<v8::Value>& args);

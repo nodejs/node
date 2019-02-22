@@ -288,7 +288,11 @@ void InitDTrace(Environment* env, Local<Object> target) {
   }
 
 #ifdef HAVE_ETW
-  init_etw();
+  // ETW is neither thread-safe nor does it clean up resources on exit,
+  // so we can use it only on the main thread.
+  if (env->is_main_thread()) {
+    init_etw();
+  }
 #endif
 
 #if defined HAVE_DTRACE || defined HAVE_ETW

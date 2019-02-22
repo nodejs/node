@@ -21,18 +21,18 @@ function main({ type, len, c }) {
   const w1 = cluster.fork();
   const w2 = cluster.fork();
 
-  cluster.on('listening', function() {
+  cluster.on('listening', () => {
     workers++;
     if (workers < 2)
       return;
 
-    setImmediate(function() {
+    setImmediate(() => {
       const path = `/${type}/${len}`;
 
       bench.http({
         path: path,
         connections: c
-      }, function() {
+      }, () => {
         w1.destroy();
         w2.destroy();
       });

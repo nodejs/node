@@ -24,7 +24,7 @@ function main({ n, statType }) {
         fs.closeSync(arg);
       return;
     }
-    fn(arg, function() {
+    fn(arg, () => {
       r(cntr, fn);
     });
   }(n, fs[statType]));

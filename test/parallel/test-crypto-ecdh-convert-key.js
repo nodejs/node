@@ -5,7 +5,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 
-const { ECDH, getCurves } = require('crypto');
+const { ECDH, createSign, getCurves } = require('crypto');
 
 // A valid private key for the secp256k1 curve.
 const cafebabeKey = 'cafebabe'.repeat(8);
@@ -98,4 +98,28 @@ if (getCurves().includes('secp256k1')) {
   assert.strictEqual(ecdh1.getPublicKey('hex', 'uncompressed'), uncompressed);
   assert.strictEqual(ecdh1.getPublicKey('hex', 'compressed'), compressed);
   assert.strictEqual(ecdh1.getPublicKey('hex', 'hybrid'), hybrid);
+}
+
+// See https://github.com/nodejs/node/issues/26133, failed ConvertKey
+// operations should not leave errors on OpenSSL's error stack because
+// that's observable by subsequent operations.
+{
+  const privateKey =
+    '-----BEGIN EC PRIVATE KEY-----\n' +
+    'MHcCAQEEIF+jnWY1D5kbVYDNvxxo/Y+ku2uJPDwS0r/VuPZQrjjVoAoGCCqGSM49\n' +
+    'AwEHoUQDQgAEurOxfSxmqIRYzJVagdZfMMSjRNNhB8i3mXyIMq704m2m52FdfKZ2\n' +
+    'pQhByd5eyj3lgZ7m7jbchtdgyOF8Io/1ng==\n' +
+    '-----END EC PRIVATE KEY-----';
+
+  const sign = createSign('sha256').update('plaintext');
+
+  // TODO(bnoordhuis) This should really bubble up the specific OpenSSL error
+  // rather than Node's generic error message.
+  const badKey = 'f'.repeat(128);
+  assert.throws(
+    () => ECDH.convertKey(badKey, 'secp256k1', 'hex', 'hex', 'compressed'),
+    /Failed to convert Buffer to EC_POINT/);
+
+  // Next statement should not throw an exception.
+  sign.sign(privateKey);
 }

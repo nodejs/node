@@ -14,8 +14,6 @@ var __extends = (this && this.__extends) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 var Subscription_1 = require("../Subscription");
-var tryCatch_1 = require("../util/tryCatch");
-var errorObject_1 = require("../util/errorObject");
 var OuterSubscriber_1 = require("../OuterSubscriber");
 var subscribeToResult_1 = require("../util/subscribeToResult");
 function bufferWhen(closingSelector) {
@@ -78,18 +76,20 @@ var BufferWhenSubscriber = (function (_super) {
             this.destination.next(buffer);
         }
         this.buffer = [];
-        var closingNotifier = tryCatch_1.tryCatch(this.closingSelector)();
-        if (closingNotifier === errorObject_1.errorObject) {
-            this.error(errorObject_1.errorObject.e);
+        var closingNotifier;
+        try {
+            var closingSelector = this.closingSelector;
+            closingNotifier = closingSelector();
         }
-        else {
-            closingSubscription = new Subscription_1.Subscription();
-            this.closingSubscription = closingSubscription;
-            this.add(closingSubscription);
-            this.subscribing = true;
-            closingSubscription.add(subscribeToResult_1.subscribeToResult(this, closingNotifier));
-            this.subscribing = false;
+        catch (err) {
+            return this.error(err);
         }
+        closingSubscription = new Subscription_1.Subscription();
+        this.closingSubscription = closingSubscription;
+        this.add(closingSubscription);
+        this.subscribing = true;
+        closingSubscription.add(subscribeToResult_1.subscribeToResult(this, closingNotifier));
+        this.subscribing = false;
     };
     return BufferWhenSubscriber;
 }(OuterSubscriber_1.OuterSubscriber));

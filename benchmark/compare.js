@@ -25,7 +25,6 @@ const cli = CLI(`usage: ./node compare.js [options] [--] <category> ...
 
 if (!cli.optional.new || !cli.optional.old) {
   cli.abort(cli.usage);
-  return;
 }
 
 const binaries = ['old', 'new'];
@@ -72,7 +71,7 @@ if (showProgress) {
     execPath: cli.optional[job.binary]
   });
 
-  child.on('message', function(data) {
+  child.on('message', (data) => {
     if (data.type === 'report') {
       // Construct configuration string, " A=a, B=b, ..."
       let conf = '';
@@ -95,10 +94,9 @@ if (showProgress) {
     }
   });
 
-  child.once('close', function(code) {
+  child.once('close', (code) => {
     if (code) {
       process.exit(code);
-      return;
     }
     if (showProgress) {
       progress.completeRun(job);

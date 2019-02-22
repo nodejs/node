@@ -25,9 +25,6 @@ if (process.argv[2] === 'child') {
     const reports = helper.findReports(child.pid, tmpdir.path);
     assert.strictEqual(reports.length, 1, report_msg);
     const report = reports[0];
-    helper.validate(report, { pid: child.pid,
-                              commandline: child.spawnargs.join(' '),
-                              expectedException: 'Testing error handling',
-    });
+    helper.validate(report);
   }));
 }

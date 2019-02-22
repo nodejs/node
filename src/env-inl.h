@@ -37,6 +37,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <utility>
+
 namespace node {
 
 inline v8::Isolate* IsolateData::isolate() const {
@@ -395,12 +397,22 @@ inline uv_loop_t* Environment::event_loop() const {
 inline void Environment::TryLoadAddon(
     const char* filename,
     int flags,
-    std::function<bool(binding::DLib*)> was_loaded) {
+    const std::function<bool(binding::DLib*)>& was_loaded) {
   loaded_addons_.emplace_back(filename, flags);
   if (!was_loaded(&loaded_addons_.back())) {
     loaded_addons_.pop_back();
   }
 }
+
+#if HAVE_INSPECTOR
+inline bool Environment::is_in_inspector_console_call() const {
+  return is_in_inspector_console_call_;
+}
+
+inline void Environment::set_is_in_inspector_console_call(bool value) {
+  is_in_inspector_console_call_ = value;
+}
+#endif
 
 inline Environment::AsyncHooks* Environment::async_hooks() {
   return &async_hooks_;
@@ -443,11 +455,6 @@ Environment::should_abort_on_uncaught_toggle() {
   return should_abort_on_uncaught_toggle_;
 }
 
-inline AliasedBuffer<uint8_t, v8::Uint8Array>&
-Environment::trace_category_state() {
-  return trace_category_state_;
-}
-
 inline AliasedBuffer<int32_t, v8::Int32Array>&
 Environment::stream_base_state() {
   return stream_base_state_;
@@ -458,6 +465,9 @@ inline uint32_t Environment::get_next_module_id() {
 }
 inline uint32_t Environment::get_next_script_id() {
   return script_id_counter_++;
+}
+inline uint32_t Environment::get_next_function_id() {
+  return function_id_counter_++;
 }
 
 Environment::ShouldNotAbortOnUncaughtScope::ShouldNotAbortOnUncaughtScope(
@@ -597,7 +607,7 @@ inline std::shared_ptr<PerIsolateOptions> IsolateData::options() {
 
 inline void IsolateData::set_options(
     std::shared_ptr<PerIsolateOptions> options) {
-  options_ = options;
+  options_ = std::move(options);
 }
 
 void Environment::CreateImmediate(native_immediate_callback cb,
@@ -647,15 +657,19 @@ inline void Environment::set_has_run_bootstrapping_code(bool value) {
 }
 
 inline bool Environment::is_main_thread() const {
-  return thread_id_ == 0;
+  return flags_ & kIsMainThread;
+}
+
+inline bool Environment::owns_process_state() const {
+  return flags_ & kOwnsProcessState;
+}
+
+inline bool Environment::owns_inspector() const {
+  return flags_ & kOwnsInspector;
 }
 
 inline uint64_t Environment::thread_id() const {
   return thread_id_;
-}
-
-inline void Environment::set_thread_id(uint64_t id) {
-  thread_id_ = id;
 }
 
 inline worker::Worker* Environment::worker_context() const {
@@ -663,7 +677,7 @@ inline worker::Worker* Environment::worker_context() const {
 }
 
 inline void Environment::set_worker_context(worker::Worker* context) {
-  CHECK_EQ(worker_context_, nullptr);  // Should be set only once.
+  CHECK_NULL(worker_context_);  // Should be set only once.
   worker_context_ = context;
 }
 

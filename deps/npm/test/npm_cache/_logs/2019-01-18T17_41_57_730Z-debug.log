@@ -1,0 +1,26 @@
+0 info it worked if it ends with ok
+1 verbose cli [ '/usr/local/bin/node',
+1 verbose cli   '/Users/zkat/Documents/code/work/npm/bin/npm-cli.js',
+1 verbose cli   'deprecate',
+1 verbose cli   'cond@-9001',
+1 verbose cli   'make it dead',
+1 verbose cli   '--registry',
+1 verbose cli   'http://localhost:1337' ]
+2 info using npm@6.6.0
+3 info using node@v11.6.0
+4 verbose npm-session 754b761c5653fbe8
+5 verbose stack Error: invalid version range: -9001
+5 verbose stack     at BB.try (/Users/zkat/Documents/code/work/npm/lib/deprecate.js:52:13)
+5 verbose stack     at tryCatcher (/Users/zkat/Documents/code/work/npm/node_modules/bluebird/js/release/util.js:16:23)
+5 verbose stack     at Function.Promise.attempt.Promise.try (/Users/zkat/Documents/code/work/npm/node_modules/bluebird/js/release/method.js:39:29)
+5 verbose stack     at EventEmitter.deprecate (/Users/zkat/Documents/code/work/npm/lib/deprecate.js:42:16)
+5 verbose stack     at Object.commandCache.(anonymous function) (/Users/zkat/Documents/code/work/npm/lib/npm.js:156:13)
+5 verbose stack     at EventEmitter.<anonymous> (/Users/zkat/Documents/code/work/npm/bin/npm-cli.js:131:30)
+5 verbose stack     at process.internalTickCallback (internal/process/next_tick.js:70:11)
+6 verbose cwd /Users/zkat/Documents/code/work/npm
+7 verbose Darwin 18.0.0
+8 verbose argv "/usr/local/bin/node" "/Users/zkat/Documents/code/work/npm/bin/npm-cli.js" "deprecate" "cond@-9001" "make it dead" "--registry" "http://localhost:1337"
+9 verbose node v11.6.0
+10 verbose npm  v6.6.0
+11 error invalid version range: -9001
+12 verbose exit [ 1, true ]

@@ -33,12 +33,6 @@ if (process.argv[2] === 'child') {
     const reports = helper.findReports(child.pid, tmpdir.path);
     assert.strictEqual(reports.length, 1);
     const report = reports[0];
-    const options = { pid: child.pid };
-    // Node.js currently overwrites the command line on AIX
-    // https://github.com/nodejs/node/issues/10607
-    if (!(common.isAIX || common.isSunOS)) {
-      options.commandline = child.spawnargs.join(' ');
-    }
-    helper.validate(report, options);
+    helper.validate(report);
   }));
 }

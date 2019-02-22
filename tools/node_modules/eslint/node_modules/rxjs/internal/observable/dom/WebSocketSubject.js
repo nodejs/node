@@ -29,8 +29,6 @@ var Subscriber_1 = require("../../Subscriber");
 var Observable_1 = require("../../Observable");
 var Subscription_1 = require("../../Subscription");
 var ReplaySubject_1 = require("../../ReplaySubject");
-var tryCatch_1 = require("../../util/tryCatch");
-var errorObject_1 = require("../../util/errorObject");
 var DEFAULT_WEBSOCKET_CONFIG = {
     url: '',
     deserializer: function (e) { return JSON.parse(e.data); },
@@ -84,29 +82,28 @@ var WebSocketSubject = (function (_super) {
     WebSocketSubject.prototype.multiplex = function (subMsg, unsubMsg, messageFilter) {
         var self = this;
         return new Observable_1.Observable(function (observer) {
-            var result = tryCatch_1.tryCatch(subMsg)();
-            if (result === errorObject_1.errorObject) {
-                observer.error(errorObject_1.errorObject.e);
+            try {
+                self.next(subMsg());
             }
-            else {
-                self.next(result);
+            catch (err) {
+                observer.error(err);
             }
             var subscription = self.subscribe(function (x) {
-                var result = tryCatch_1.tryCatch(messageFilter)(x);
-                if (result === errorObject_1.errorObject) {
-                    observer.error(errorObject_1.errorObject.e);
+                try {
+                    if (messageFilter(x)) {
+                        observer.next(x);
+                    }
                 }
-                else if (result) {
-                    observer.next(x);
+                catch (err) {
+                    observer.error(err);
                 }
             }, function (err) { return observer.error(err); }, function () { return observer.complete(); });
             return function () {
-                var result = tryCatch_1.tryCatch(unsubMsg)();
-                if (result === errorObject_1.errorObject) {
-                    observer.error(errorObject_1.errorObject.e);
+                try {
+                    self.next(unsubMsg());
                 }
-                else {
-                    self.next(result);
+                catch (err) {
+                    observer.error(err);
                 }
                 subscription.unsubscribe();
             };
@@ -137,6 +134,12 @@ var WebSocketSubject = (function (_super) {
             }
         });
         socket.onopen = function (e) {
+            var _socket = _this._socket;
+            if (!_socket) {
+                socket.close();
+                _this._resetState();
+                return;
+            }
             var openObserver = _this._config.openObserver;
             if (openObserver) {
                 openObserver.next(e);
@@ -144,13 +147,13 @@ var WebSocketSubject = (function (_super) {
             var queue = _this.destination;
             _this.destination = Subscriber_1.Subscriber.create(function (x) {
                 if (socket.readyState === 1) {
-                    var serializer = _this._config.serializer;
-                    var msg = tryCatch_1.tryCatch(serializer)(x);
-                    if (msg === errorObject_1.errorObject) {
-                        _this.destination.error(errorObject_1.errorObject.e);
-                        return;
+                    try {
+                        var serializer = _this._config.serializer;
+                        socket.send(serializer(x));
                     }
-                    socket.send(msg);
+                    catch (e) {
+                        _this.destination.error(e);
+                    }
                 }
             }, function (e) {
                 var closingObserver = _this._config.closingObserver;
@@ -194,13 +197,12 @@ var WebSocketSubject = (function (_super) {
             }
         };
         socket.onmessage = function (e) {
-            var deserializer = _this._config.deserializer;
-            var result = tryCatch_1.tryCatch(deserializer)(e);
-            if (result === errorObject_1.errorObject) {
-                observer.error(errorObject_1.errorObject.e);
+            try {
+                var deserializer = _this._config.deserializer;
+                observer.next(deserializer(e));
             }
-            else {
-                observer.next(result);
+            catch (err) {
+                observer.error(err);
             }
         };
     };
@@ -226,15 +228,12 @@ var WebSocketSubject = (function (_super) {
         return subscriber;
     };
     WebSocketSubject.prototype.unsubscribe = function () {
-        var _a = this, source = _a.source, _socket = _a._socket;
+        var _socket = this._socket;
         if (_socket && _socket.readyState === 1) {
             _socket.close();
-            this._resetState();
         }
+        this._resetState();
         _super.prototype.unsubscribe.call(this);
-        if (!source) {
-            this.destination = new ReplaySubject_1.ReplaySubject();
-        }
     };
     return WebSocketSubject;
 }(Subject_1.AnonymousSubject));

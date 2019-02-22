@@ -281,18 +281,34 @@ class Reference : private Finalizer {
   }
 
  private:
+  // The N-API finalizer callback may make calls into the engine. V8's heap is
+  // not in a consistent state during the weak callback, and therefore it does
+  // not support calls back into it. However, it provides a mechanism for adding
+  // a finalizer which may make calls back into the engine by allowing us to
+  // attach such a second-pass finalizer from the first pass finalizer. Thus,
+  // we do that here to ensure that the N-API finalizer callback is free to call
+  // into the engine.
   static void FinalizeCallback(const v8::WeakCallbackInfo<Reference>& data) {
     Reference* reference = data.GetParameter();
+
+    // The reference must be reset during the first pass.
     reference->_persistent.Reset();
+
+    data.SetSecondPassCallback(SecondPassCallback);
+  }
+
+  static void SecondPassCallback(const v8::WeakCallbackInfo<Reference>& data) {
+    Reference* reference = data.GetParameter();
 
     napi_env env = reference->_env;
 
     if (reference->_finalize_callback != nullptr) {
-      NAPI_CALL_INTO_MODULE_THROW(env,
+      NapiCallIntoModuleThrow(env, [&]() {
         reference->_finalize_callback(
             reference->_env,
             reference->_finalize_data,
-            reference->_finalize_hint));
+            reference->_finalize_hint);
+      });
     }
 
     // this is safe because if a request to delete the reference
@@ -433,7 +449,7 @@ class CallbackWrapperBase : public CallbackWrapper {
     napi_callback cb = _bundle->*FunctionField;
 
     napi_value result;
-    NAPI_CALL_INTO_MODULE_THROW(env, result = cb(env, cbinfo_wrapper));
+    NapiCallIntoModuleThrow(env, [&]() { result = cb(env, cbinfo_wrapper); });
 
     if (result != nullptr) {
       this->SetReturnValue(result);

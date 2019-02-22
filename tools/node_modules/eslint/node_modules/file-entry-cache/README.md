@@ -13,6 +13,17 @@ npm i --save file-entry-cache
 
 ## Usage
 
+The module exposes two functions `create` and `createFromFile`.
+
+## `create(cacheName, [directory, useCheckSum])`
+- **cacheName**: the name of the cache to be created
+- **directory**: Optional the directory to load the cache from
+- **usecheckSum**: Whether to use md5 checksum to verify if file changed. If false the default will be to use the mtime and size of the file.
+
+## `createFromFile(pathToCache, [useCheckSum])`
+- **pathToCache**: the path to the cache file (this combines the cache name and directory)
+- **useCheckSum**: Whether to use md5 checksum to verify if file changed. If false the default will be to use the mtime and size of the file.
+
 ```js
 // loads the cache, if one does not exists for the given
 // Id a new one will be prepared to be created
@@ -93,12 +104,6 @@ In the worst case scenario all the files will be processed. In the best case sce
 ## Important notes
 - The values set on the meta attribute of the entries should be `stringify-able` ones if possible, flat-cache uses `circular-json` to try to persist circular structures, but this should be considered experimental. The best results are always obtained with non circular values
 - All the changes to the cache state are done to memory first and only persisted after reconcile.
-- By default non visited entries are removed from the cache. This is done to prevent the file from growing too much. If this is not an issue and
-  you prefer to do a manual pruning of the cache files, you can pass `true` to the `reconcile` call. Like this:
-
-  ```javascript
-  cache.reconcile( true /* noPrune */ );
-  ```
 
 ## License
 

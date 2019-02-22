@@ -18,8 +18,10 @@ module.exports = class Choices {
         if (!(val instanceof Separator)) {
           val = new Separator(val.line);
         }
+
         return val;
       }
+
       return new Choice(val, answers);
     });
 

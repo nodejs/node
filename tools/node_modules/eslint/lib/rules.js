@@ -10,7 +10,6 @@
 //------------------------------------------------------------------------------
 
 const lodash = require("lodash");
-const loadRules = require("./load-rules");
 const ruleReplacements = require("../conf/replacements").rules;
 const builtInRules = require("./built-in-rules-index");
 
@@ -60,7 +59,9 @@ function normalizeRule(rule) {
 class Rules {
     constructor() {
         this._rules = Object.create(null);
-        this.defineAll(builtInRules);
+        Object.keys(builtInRules).forEach(ruleId => {
+            this.define(ruleId, builtInRules[ruleId]);
+        });
     }
 
     /**
@@ -71,46 +72,6 @@ class Rules {
      */
     define(ruleId, ruleModule) {
         this._rules[ruleId] = normalizeRule(ruleModule);
-    }
-
-    /**
-     * Loads and registers all rules from passed rules directory.
-     * @param {string} [rulesDir] Path to rules directory, may be relative. Defaults to `lib/rules`.
-     * @param {string} cwd Current working directory
-     * @returns {void}
-     */
-    load(rulesDir, cwd) {
-        const newRules = loadRules(rulesDir, cwd);
-
-        this.defineAll(newRules);
-    }
-
-    /**
-     * Pulls a Map of new rules to the defined ones of this instance.
-     * @param {Object} newRules Expects to have an object here that maps the rule ID to the rule definition.
-     * @returns {void}
-     */
-    defineAll(newRules) {
-        Object.keys(newRules).forEach(ruleId => {
-            this.define(ruleId, newRules[ruleId]);
-        });
-    }
-
-    /**
-     * Registers all given rules of a plugin.
-     * @param {Object} plugin The plugin object to import.
-     * @param {string} pluginName The name of the plugin without prefix (`eslint-plugin-`).
-     * @returns {void}
-     */
-    importPlugin(plugin, pluginName) {
-        if (plugin.rules) {
-            Object.keys(plugin.rules).forEach(ruleId => {
-                const qualifiedRuleId = `${pluginName}/${ruleId}`,
-                    rule = plugin.rules[ruleId];
-
-                this.define(qualifiedRuleId, rule);
-            });
-        }
     }
 
     /**

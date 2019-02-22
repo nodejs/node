@@ -126,8 +126,6 @@ if (process.argv[2] === 'child') {
     assert.deepStrictEqual(udp, 1, udp_msg);
 
     // Common report tests.
-    helper.validateContent(stdout, { pid: child.pid,
-                                     commandline: child.spawnargs.join(' ')
-    });
+    helper.validateContent(stdout);
   }));
 }

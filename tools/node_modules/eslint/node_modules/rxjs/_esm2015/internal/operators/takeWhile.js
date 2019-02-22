@@ -1,19 +1,21 @@
 import { Subscriber } from '../Subscriber';
-export function takeWhile(predicate) {
-    return (source) => source.lift(new TakeWhileOperator(predicate));
+export function takeWhile(predicate, inclusive = false) {
+    return (source) => source.lift(new TakeWhileOperator(predicate, inclusive));
 }
 class TakeWhileOperator {
-    constructor(predicate) {
+    constructor(predicate, inclusive) {
         this.predicate = predicate;
+        this.inclusive = inclusive;
     }
     call(subscriber, source) {
-        return source.subscribe(new TakeWhileSubscriber(subscriber, this.predicate));
+        return source.subscribe(new TakeWhileSubscriber(subscriber, this.predicate, this.inclusive));
     }
 }
 class TakeWhileSubscriber extends Subscriber {
-    constructor(destination, predicate) {
+    constructor(destination, predicate, inclusive) {
         super(destination);
         this.predicate = predicate;
+        this.inclusive = inclusive;
         this.index = 0;
     }
     _next(value) {
@@ -34,6 +36,9 @@ class TakeWhileSubscriber extends Subscriber {
             destination.next(value);
         }
         else {
+            if (this.inclusive) {
+                destination.next(value);
+            }
             destination.complete();
         }
     }

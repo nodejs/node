@@ -14,8 +14,6 @@ var __extends = (this && this.__extends) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 var Subscriber_1 = require("../Subscriber");
-var tryCatch_1 = require("../util/tryCatch");
-var errorObject_1 = require("../util/errorObject");
 function distinctUntilChanged(compare, keySelector) {
     return function (source) { return source.lift(new DistinctUntilChangedOperator(compare, keySelector)); };
 }
@@ -45,25 +43,28 @@ var DistinctUntilChangedSubscriber = (function (_super) {
         return x === y;
     };
     DistinctUntilChangedSubscriber.prototype._next = function (value) {
-        var keySelector = this.keySelector;
-        var key = value;
-        if (keySelector) {
-            key = tryCatch_1.tryCatch(this.keySelector)(value);
-            if (key === errorObject_1.errorObject) {
-                return this.destination.error(errorObject_1.errorObject.e);
-            }
+        var key;
+        try {
+            var keySelector = this.keySelector;
+            key = keySelector ? keySelector(value) : value;
+        }
+        catch (err) {
+            return this.destination.error(err);
         }
         var result = false;
         if (this.hasKey) {
-            result = tryCatch_1.tryCatch(this.compare)(this.key, key);
-            if (result === errorObject_1.errorObject) {
-                return this.destination.error(errorObject_1.errorObject.e);
+            try {
+                var compare = this.compare;
+                result = compare(this.key, key);
+            }
+            catch (err) {
+                return this.destination.error(err);
             }
         }
         else {
             this.hasKey = true;
         }
-        if (Boolean(result) === false) {
+        if (!result) {
             this.key = key;
             this.destination.next(value);
         }

@@ -19,6 +19,7 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Just;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Name;
 using v8::NewStringType;
 using v8::None;
@@ -66,31 +67,36 @@ static void GetParentProcessId(Local<Name> property,
   info.GetReturnValue().Set(uv_os_getppid());
 }
 
-Local<Object> CreateProcessObject(Environment* env,
-                                  const std::vector<std::string>& args,
-                                  const std::vector<std::string>& exec_args) {
+MaybeLocal<Object> CreateProcessObject(
+    Environment* env,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args) {
   Isolate* isolate = env->isolate();
   EscapableHandleScope scope(isolate);
   Local<Context> context = env->context();
 
   Local<FunctionTemplate> process_template = FunctionTemplate::New(isolate);
   process_template->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "process"));
-  Local<Object> process = process_template->GetFunction(context)
-                              .ToLocalChecked()
-                              ->NewInstance(context)
-                              .ToLocalChecked();
+  Local<Function> process_ctor;
+  Local<Object> process;
+  if (!process_template->GetFunction(context).ToLocal(&process_ctor) ||
+      !process_ctor->NewInstance(context).ToLocal(&process)) {
+    return MaybeLocal<Object>();
+  }
 
   // process.title
   auto title_string = FIXED_ONE_BYTE_STRING(env->isolate(), "title");
-  CHECK(process->SetAccessor(
-      env->context(),
-      title_string,
-      ProcessTitleGetter,
-      env->is_main_thread() ? ProcessTitleSetter : nullptr,
-      env->as_external(),
-      DEFAULT,
-      None,
-      SideEffectType::kHasNoSideEffect).FromJust());
+  CHECK(process
+            ->SetAccessor(
+                env->context(),
+                title_string,
+                ProcessTitleGetter,
+                env->owns_process_state() ? ProcessTitleSetter : nullptr,
+                env->as_external(),
+                DEFAULT,
+                None,
+                SideEffectType::kHasNoSideEffect)
+            .FromJust());
 
   // process.version
   READONLY_PROPERTY(process,
@@ -145,11 +151,16 @@ Local<Object> CreateProcessObject(Environment* env,
                ToV8Value(env->context(), exec_args)
                    .ToLocalChecked()).FromJust();
 
+  Local<Object> env_var_proxy;
+  if (!CreateEnvVarProxy(context, isolate, env->as_external())
+           .ToLocal(&env_var_proxy))
+    return MaybeLocal<Object>();
+
   // process.env
   process
       ->Set(env->context(),
             FIXED_ONE_BYTE_STRING(env->isolate(), "env"),
-            CreateEnvVarProxy(context, isolate, env->as_external()))
+            env_var_proxy)
       .FromJust();
 
   READONLY_PROPERTY(process, "pid",
@@ -250,18 +261,6 @@ Local<Object> CreateProcessObject(Environment* env,
                                 "_breakNodeFirstLine", True(env->isolate()));
   }
 
-  // --inspect --debug-brk
-  if (env->options()->debug_options().deprecated_invocation()) {
-    READONLY_DONT_ENUM_PROPERTY(process,
-                                "_deprecatedDebugBrk", True(env->isolate()));
-  }
-
-  // --debug or, --debug-brk without --inspect
-  if (env->options()->debug_options().invalid_invocation()) {
-    READONLY_DONT_ENUM_PROPERTY(process,
-                                "_invalidDebug", True(env->isolate()));
-  }
-
   // --security-revert flags
 #define V(code, _, __)                                                        \
   do {                                                                        \
@@ -274,30 +273,45 @@ Local<Object> CreateProcessObject(Environment* env,
 
   // process.execPath
   {
-    size_t exec_path_len = 2 * PATH_MAX;
-    std::vector<char> exec_path(exec_path_len);
-    Local<String> exec_path_value;
-    if (uv_exepath(exec_path.data(), &exec_path_len) == 0) {
-      exec_path_value = String::NewFromUtf8(env->isolate(),
-                                            exec_path.data(),
-                                            NewStringType::kInternalized,
-                                            exec_path_len).ToLocalChecked();
+    char exec_path_buf[2 * PATH_MAX];
+    size_t exec_path_len = sizeof(exec_path_buf);
+    std::string exec_path;
+    if (uv_exepath(exec_path_buf, &exec_path_len) == 0) {
+      exec_path = std::string(exec_path_buf, exec_path_len);
     } else {
-      exec_path_value = String::NewFromUtf8(env->isolate(), args[0].c_str(),
-          NewStringType::kInternalized).ToLocalChecked();
+      exec_path = args[0];
     }
-    process->Set(env->context(),
-                 FIXED_ONE_BYTE_STRING(env->isolate(), "execPath"),
-                 exec_path_value).FromJust();
+    // On OpenBSD process.execPath will be relative unless we
+    // get the full path before process.execPath is used.
+#if defined(__OpenBSD__)
+    uv_fs_t req;
+    req.ptr = nullptr;
+    if (0 ==
+        uv_fs_realpath(env->event_loop(), &req, exec_path.c_str(), nullptr)) {
+      CHECK_NOT_NULL(req.ptr);
+      exec_path = std::string(static_cast<char*>(req.ptr));
+    }
+#endif
+    process
+        ->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "execPath"),
+              String::NewFromUtf8(env->isolate(),
+                                  exec_path.c_str(),
+                                  NewStringType::kInternalized,
+                                  exec_path.size())
+                  .ToLocalChecked())
+        .FromJust();
   }
 
   // process.debugPort
   auto debug_port_string = FIXED_ONE_BYTE_STRING(env->isolate(), "debugPort");
-  CHECK(process->SetAccessor(env->context(),
-                             debug_port_string,
-                             DebugPortGetter,
-                             env->is_main_thread() ? DebugPortSetter : nullptr,
-                             env->as_external()).FromJust());
+  CHECK(process
+            ->SetAccessor(env->context(),
+                          debug_port_string,
+                          DebugPortGetter,
+                          env->owns_process_state() ? DebugPortSetter : nullptr,
+                          env->as_external())
+            .FromJust());
 
   // process._rawDebug: may be overwritten later in JS land, but should be
   // availbale from the begining for debugging purposes

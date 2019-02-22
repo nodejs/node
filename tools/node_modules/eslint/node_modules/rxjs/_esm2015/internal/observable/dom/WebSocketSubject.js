@@ -3,8 +3,6 @@ import { Subscriber } from '../../Subscriber';
 import { Observable } from '../../Observable';
 import { Subscription } from '../../Subscription';
 import { ReplaySubject } from '../../ReplaySubject';
-import { tryCatch } from '../../util/tryCatch';
-import { errorObject } from '../../util/errorObject';
 const DEFAULT_WEBSOCKET_CONFIG = {
     url: '',
     deserializer: (e) => JSON.parse(e.data),
@@ -56,29 +54,28 @@ export class WebSocketSubject extends AnonymousSubject {
     multiplex(subMsg, unsubMsg, messageFilter) {
         const self = this;
         return new Observable((observer) => {
-            const result = tryCatch(subMsg)();
-            if (result === errorObject) {
-                observer.error(errorObject.e);
+            try {
+                self.next(subMsg());
             }
-            else {
-                self.next(result);
+            catch (err) {
+                observer.error(err);
             }
-            let subscription = self.subscribe(x => {
-                const result = tryCatch(messageFilter)(x);
-                if (result === errorObject) {
-                    observer.error(errorObject.e);
+            const subscription = self.subscribe(x => {
+                try {
+                    if (messageFilter(x)) {
+                        observer.next(x);
+                    }
                 }
-                else if (result) {
-                    observer.next(x);
+                catch (err) {
+                    observer.error(err);
                 }
             }, err => observer.error(err), () => observer.complete());
             return () => {
-                const result = tryCatch(unsubMsg)();
-                if (result === errorObject) {
-                    observer.error(errorObject.e);
+                try {
+                    self.next(unsubMsg());
                 }
-                else {
-                    self.next(result);
+                catch (err) {
+                    observer.error(err);
                 }
                 subscription.unsubscribe();
             };
@@ -108,6 +105,12 @@ export class WebSocketSubject extends AnonymousSubject {
             }
         });
         socket.onopen = (e) => {
+            const { _socket } = this;
+            if (!_socket) {
+                socket.close();
+                this._resetState();
+                return;
+            }
             const { openObserver } = this._config;
             if (openObserver) {
                 openObserver.next(e);
@@ -115,13 +118,13 @@ export class WebSocketSubject extends AnonymousSubject {
             const queue = this.destination;
             this.destination = Subscriber.create((x) => {
                 if (socket.readyState === 1) {
-                    const { serializer } = this._config;
-                    const msg = tryCatch(serializer)(x);
-                    if (msg === errorObject) {
-                        this.destination.error(errorObject.e);
-                        return;
+                    try {
+                        const { serializer } = this._config;
+                        socket.send(serializer(x));
                     }
-                    socket.send(msg);
+                    catch (e) {
+                        this.destination.error(e);
+                    }
                 }
             }, (e) => {
                 const { closingObserver } = this._config;
@@ -165,13 +168,12 @@ export class WebSocketSubject extends AnonymousSubject {
             }
         };
         socket.onmessage = (e) => {
-            const { deserializer } = this._config;
-            const result = tryCatch(deserializer)(e);
-            if (result === errorObject) {
-                observer.error(errorObject.e);
+            try {
+                const { deserializer } = this._config;
+                observer.next(deserializer(e));
             }
-            else {
-                observer.next(result);
+            catch (err) {
+                observer.error(err);
             }
         };
     }
@@ -196,15 +198,12 @@ export class WebSocketSubject extends AnonymousSubject {
         return subscriber;
     }
     unsubscribe() {
-        const { source, _socket } = this;
+        const { _socket } = this;
         if (_socket && _socket.readyState === 1) {
             _socket.close();
-            this._resetState();
         }
+        this._resetState();
         super.unsubscribe();
-        if (!source) {
-            this.destination = new ReplaySubject();
-        }
     }
 }
 //# sourceMappingURL=WebSocketSubject.js.map

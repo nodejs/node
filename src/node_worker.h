@@ -9,6 +9,8 @@
 namespace node {
 namespace worker {
 
+class WorkerThreadData;
+
 // A worker thread, as represented in its parent thread.
 class Worker : public AsyncWrap {
  public:
@@ -16,7 +18,7 @@ class Worker : public AsyncWrap {
          v8::Local<v8::Object> wrap,
          const std::string& url,
          std::shared_ptr<PerIsolateOptions> per_isolate_opts);
-  ~Worker();
+  ~Worker() override;
 
   // Run the worker. This is only called from the worker thread.
   void Run();
@@ -44,22 +46,23 @@ class Worker : public AsyncWrap {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StartThread(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StopThread(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetMessagePort(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Ref(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Unref(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  private:
   void OnThreadStopped();
-  void DisposeIsolate();
 
-  uv_loop_t loop_;
-  DeleteFnPtr<IsolateData, FreeIsolateData> isolate_data_;
-  DeleteFnPtr<Environment, FreeEnvironment> env_;
   const std::string url_;
+
+  std::shared_ptr<PerIsolateOptions> per_isolate_opts_;
+  MultiIsolatePlatform* platform_;
   v8::Isolate* isolate_ = nullptr;
-  DeleteFnPtr<ArrayBufferAllocator, FreeArrayBufferAllocator>
-      array_buffer_allocator_;
+  bool profiler_idle_notifier_started_;
   uv_thread_t tid_;
+
+#if NODE_USE_V8_PLATFORM && HAVE_INSPECTOR
+  std::unique_ptr<inspector::ParentInspectorHandle> inspector_parent_handle_;
+#endif
 
   // This mutex protects access to all variables listed below it.
   mutable Mutex mutex_;
@@ -77,15 +80,23 @@ class Worker : public AsyncWrap {
   bool thread_joined_ = true;
   int exit_code_ = 0;
   uint64_t thread_id_ = -1;
+  uintptr_t stack_base_;
+
+  // Full size of the thread's stack.
+  static constexpr size_t kStackSize = 4 * 1024 * 1024;
+  // Stack buffer size that is not available to the JS engine.
+  static constexpr size_t kStackBufferSize = 192 * 1024;
 
   std::unique_ptr<MessagePortData> child_port_data_;
 
-  // The child port is always kept alive by the child Environment's persistent
-  // handle to it.
+  // The child port is kept alive by the child Environment's persistent
+  // handle to it, as long as that child Environment exists.
   MessagePort* child_port_ = nullptr;
   // This is always kept alive because the JS object associated with the Worker
   // instance refers to it via its [kPort] property.
   MessagePort* parent_port_ = nullptr;
+
+  friend class WorkerThreadData;
 };
 
 }  // namespace worker

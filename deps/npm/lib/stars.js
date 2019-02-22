@@ -1,47 +1,37 @@
-module.exports = stars
+'use strict'
+
+const BB = require('bluebird')
+
+const npmConfig = require('./config/figgy-config.js')
+const fetch = require('libnpm/fetch')
+const log = require('npmlog')
+const output = require('./utils/output.js')
+const whoami = require('./whoami.js')
 
 stars.usage = 'npm stars [<user>]'
 
-var npm = require('./npm.js')
-var log = require('npmlog')
-var mapToRegistry = require('./utils/map-to-registry.js')
-var output = require('./utils/output.js')
-
-function stars (args, cb) {
-  npm.commands.whoami([], true, function (er, username) {
-    var name = args.length === 1 ? args[0] : username
-
-    if (er) {
-      if (er.code === 'ENEEDAUTH' && !name) {
-        var needAuth = new Error("'npm stars' on your own user account requires auth")
-        needAuth.code = 'ENEEDAUTH'
-        return cb(needAuth)
+module.exports = stars
+function stars ([user], cb) {
+  const opts = npmConfig()
+  return BB.try(() => {
+    return (user ? BB.resolve(user) : whoami([], true, () => {})).then(usr => {
+      return fetch.json('/-/_view/starredByUser', opts.concat({
+        query: {key: `"${usr}"`} // WHY. WHY THE ""?!
+      }))
+    }).then(data => data.rows).then(stars => {
+      if (stars.length === 0) {
+        log.warn('stars', 'user has not starred any packages.')
+      } else {
+        stars.forEach(s => output(s.value))
       }
-
-      if (er.code !== 'ENEEDAUTH') return cb(er)
-    }
-
-    mapToRegistry('', npm.config, function (er, uri, auth) {
-      if (er) return cb(er)
-
-      var params = {
-        username: name,
-        auth: auth
-      }
-      npm.registry.stars(uri, params, showstars)
     })
-  })
-
-  function showstars (er, data) {
-    if (er) return cb(er)
-
-    if (data.rows.length === 0) {
-      log.warn('stars', 'user has not starred any packages.')
-    } else {
-      data.rows.forEach(function (a) {
-        output(a.value)
+  }).catch(err => {
+    if (err.code === 'ENEEDAUTH') {
+      throw Object.assign(new Error("'npm starts' on your own user account requires auth"), {
+        code: 'ENEEDAUTH'
       })
+    } else {
+      throw err
     }
-    cb()
-  }
+  }).nodeify(cb)
 }

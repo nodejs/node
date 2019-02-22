@@ -17,7 +17,7 @@
   - [Breaking Changes](#breaking-changes)
     - [Breaking Changes and Deprecations](#breaking-changes-and-deprecations)
     - [Breaking Changes to Internal Elements](#breaking-changes-to-internal-elements)
-    - [When Breaking Changes Actually Break Things](#when-breaking-changes-actually-break-things)
+    - [Unintended Breaking Changes](#unintended-breaking-changes)
       - [Reverting commits](#reverting-commits)
   - [Introducing New Modules](#introducing-new-modules)
   - [Additions to N-API](#additions-to-n-api)
@@ -270,107 +270,74 @@ For more information, see [Deprecations](#deprecations).
 #### Breaking Changes to Internal Elements
 
 Breaking changes to internal elements may occur in semver-patch or semver-minor
-commits. Collaborators should take significant care when making and reviewing
-such changes. An effort must be made to determine the potential impact of the
-change in the ecosystem. Use
+commits. Take significant care when making and reviewing such changes. Make
+an effort to determine the potential impact of the change in the ecosystem. Use
 [Canary in the Goldmine](https://github.com/nodejs/citgm) to test such changes.
 If a change will cause ecosystem breakage, then it is semver-major. Consider
 providing a Public API in such cases.
 
-#### When Breaking Changes Actually Break Things
+#### Unintended Breaking Changes
 
-Because breaking (semver-major) changes are permitted to land on the master
-branch at any time, at least some subset of the user ecosystem may be adversely
-affected in the short term when attempting to build and use Node.js directly
-from the master branch. This potential instability is why Node.js offers
-distinct Current and LTS release streams that offer explicit stability
-guarantees.
-
-Specifically:
-
-* Breaking changes should *never* land in Current or LTS except when:
-  * Resolving critical security issues.
-  * Fixing a critical bug (e.g. fixing a memory leak) requires a breaking
-    change.
-  * There is TSC consensus that the change is required.
-* If a breaking commit does accidentally land in a Current or LTS branch, an
-  attempt to fix the issue will be made before the next release; If no fix is
-  provided then the commit will be reverted.
-
-When any changes are landed on the master branch and it is determined that the
-changes *do* break existing code, a decision may be made to revert those
-changes either temporarily or permanently. However, the decision to revert or
-not can often be based on many complex factors that are not easily codified. It
-is also possible that the breaking commit can be labeled retroactively as a
-semver-major change that will not be backported to Current or LTS branches.
+Sometimes, a change intended to be non-breaking turns out to be a breaking
+change. If such a change lands on the master branch, a Collaborator may revert
+it. As an alternative to reverting, the TSC may apply the semver-major label
+after-the-fact.
 
 ##### Reverting commits
 
-Commits are reverted with `git revert <HASH>`, or `git revert <FROM>..<TO>` for
-multiple commits. Commit metadata and the reason for the revert should be
-appended. Commit message rules about line length and subsystem can be ignored.
-A Pull Request should be raised and approved like any other change.
+Revert commits with `git revert <HASH>` or `git revert <FROM>..<TO>`. The
+generated commit message will not have a subsystem and may violate line length
+rules. That is OK. Append the reason for the revert and any `Refs` or `Fixes`
+metadata. Raise a Pull Request like any other change.
 
 ### Introducing New Modules
 
-Semver-minor commits that introduce new core modules should be treated with
-extra care.
+Treat commits that introduce new core modules with extra care.
 
-The name of the new core module should not conflict with any existing
-module in the ecosystem unless a written agreement with the owner of those
-modules is reached to transfer ownership.
+Check if the module's name conflicts with an existing ecosystem module. If it
+does, choose a different name unless the module owner has agreed in writing to
+transfer it.
 
-If the new module name is free, a Collaborator should register a placeholder
-in the module registry as soon as possible, linking to the pull request that
-introduces the new core module.
+If the new module name is free, register a placeholder in the module registry as
+soon as possible. Link to the pull request that introduces the new core module
+in the placeholder's `README`.
 
-Pull requests introducing new core modules:
+For pull requests introducing new core modules:
 
-* Must be left open for at least one week for review.
-* Must be labeled using the `tsc-review` label.
-* Must have signoff from at least two TSC members.
-
-New core modules must be landed with a [Stability Index][] of Experimental,
-and must remain Experimental until a semver-major release.
+* Allow at least one week for review.
+* Label with the `tsc-review` label.
+* Land only after sign-off from at least two TSC members.
+* Land with a [Stability Index][] of Experimental. The module must remain
+  Experimental until a semver-major release.
 
 ### Additions to N-API
 
-N-API provides an ABI stable API that we will have to support in future
-versions without the usual option to modify or remove existing APIs on
-SemVer boundaries. Therefore, additions need to be managed carefully.
-
-This
-[guide](https://github.com/nodejs/node/blob/master/doc/guides/adding-new-napi-api.md)
-outlines the requirements and principles that we should follow when
-approving and landing new N-API APIs (any additions to `node_api.h` and
-`node_api_types.h`).
+N-API provides an ABI-stable API guaranteed for future Node.js versions. N-API
+additions call for unusual care and scrutiny. If a change adds to `node_api.h`
+or `node_api_types.h`, consult [the relevant
+guide](https://github.com/nodejs/node/blob/master/doc/guides/adding-new-napi-api.md).
 
 ### Deprecations
 
-[_Deprecation_][] is "the discouragement of use of some … feature … or practice,
-typically because it has been superseded or is no longer considered efficient or
-safe, without completely removing it or prohibiting its use. It can also imply
-that a feature, design, or practice will be removed or discontinued entirely in
-the future."
+Node.js uses three [Deprecation][] levels. For all deprecated APIs, the API
+documentation must state the deprecation status.
 
-Node.js uses three Deprecation levels:
+* Documentation-Only Deprecation
+  * A deprecation notice appears in the API documentation.
+  * There are no functional changes.
+  * By default, there will be no warnings emitted for such deprecations at
+    runtime.
+  * May cause a runtime warning with the [`--pending-deprecation`][] flag or
+    `NODE_PENDING_DEPRECATION` environment variable.
 
-* *Documentation-Only Deprecation*: A deprecation notice is added to the API
-  documentation but no functional changes are implemented in the code. By
-  default, there will be no warnings emitted for such deprecations at
-  runtime. Documentation-only deprecations may trigger a runtime warning when
-  Node.js is started with the [`--pending-deprecation`][] flag or the
-  `NODE_PENDING_DEPRECATION=1` environment variable is set.
+* Runtime Deprecation
+  * Emits a warning at runtime on first use of the deprecated API.
+  * If used with the [`--throw-deprecation`][] flag, will throw a runtime error.
 
-* *Runtime Deprecation*: A warning is emitted at runtime the first time that a
-  deprecated API is used. The [`--throw-deprecation`][] flag can be used to
-  escalate such warnings into runtime errors that will cause the Node.js process
-  to exit. As with Documentation-Only Deprecation, the documentation for the API
-  must be updated to clearly indicate the deprecated status.
-
-* *End-of-life*: The API is no longer subject to the semantic versioning rules.
-  Backward-incompatible changes including complete removal of such APIs may
-  occur at any time.
+* End-of-life
+  * The API is no longer subject to the semantic versioning rules.
+  * Backward-incompatible changes including complete removal of such APIs may
+    occur at any time.
 
 Documentation-Only Deprecations may be handled as semver-minor or semver-major
 changes. Such deprecations have no impact on the successful operation of running
@@ -823,9 +790,9 @@ When things need extra attention, are controversial, or `semver-major`:
 If you cannot find who to cc for a file, `git shortlog -n -s <file>` may help.
 
 ["Merge Pull Request"]: https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github
+[Deprecation]: https://en.wikipedia.org/wiki/Deprecation
 [Stability Index]: doc/api/documentation.md#stability-index
 [TSC]: https://github.com/nodejs/TSC
-[_Deprecation_]: https://en.wikipedia.org/wiki/Deprecation
 [`--pending-deprecation`]: doc/api/cli.md#--pending-deprecation
 [`--throw-deprecation`]: doc/api/cli.md#--throw-deprecation
 [`node-core-utils`]: https://github.com/nodejs/node-core-utils

@@ -104,7 +104,7 @@ function main({ dur, len, type }) {
 
     clientHandle.readStart();
 
-    setTimeout(function() {
+    setTimeout(() => {
       // Multiply by 2 since we're sending it first one way
       // then then back again.
       bench.end(2 * (bytes * 8) / (1024 * 1024 * 1024));

@@ -161,6 +161,7 @@ class CheckboxPrompt extends Base {
       this.pointer = input - 1;
       this.toggleChoice(this.pointer);
     }
+
     this.render();
   }
 

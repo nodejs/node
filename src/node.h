@@ -29,7 +29,7 @@
 #   define NODE_EXTERN __declspec(dllimport)
 # endif
 #else
-# define NODE_EXTERN /* nothing */
+# define NODE_EXTERN __attribute__((visibility("default")))
 #endif
 
 #ifdef BUILDING_NODE_EXTENSION
@@ -220,7 +220,7 @@ class Environment;
 
 class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
  public:
-  virtual ~MultiIsolatePlatform() { }
+  ~MultiIsolatePlatform() override { }
   // Returns true if work was dispatched or executed. New tasks that are
   // posted during flushing of the queue are postponed until the next
   // flushing.
@@ -562,13 +562,15 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
 /* Called after the event loop exits but before the VM is disposed.
  * Callbacks are run in reverse order of registration, i.e. newest first.
  */
-NODE_EXTERN void AtExit(void (*cb)(void* arg), void* arg = 0);
+NODE_EXTERN void AtExit(void (*cb)(void* arg), void* arg = nullptr);
 
 /* Registers a callback with the passed-in Environment instance. The callback
  * is called after the event loop exits, but before the VM is disposed.
  * Callbacks are run in reverse order of registration, i.e. newest first.
  */
-NODE_EXTERN void AtExit(Environment* env, void (*cb)(void* arg), void* arg = 0);
+NODE_EXTERN void AtExit(Environment* env,
+                        void (*cb)(void* arg),
+                        void* arg = nullptr);
 
 typedef void (*promise_hook_func) (v8::PromiseHookType type,
                                    v8::Local<v8::Promise> promise,
@@ -653,14 +655,14 @@ class NODE_EXTERN CallbackScope {
                 async_context asyncContext);
   ~CallbackScope();
 
- private:
-  InternalCallbackScope* private_;
-  v8::TryCatch try_catch_;
-
   void operator=(const CallbackScope&) = delete;
   void operator=(CallbackScope&&) = delete;
   CallbackScope(const CallbackScope&) = delete;
   CallbackScope(CallbackScope&&) = delete;
+
+ private:
+  InternalCallbackScope* private_;
+  v8::TryCatch try_catch_;
 };
 
 /* An API specific to emit before/after callbacks is unnecessary because
@@ -703,16 +705,6 @@ class AsyncResource {
   AsyncResource(v8::Isolate* isolate,
                 v8::Local<v8::Object> resource,
                 const char* name,
-                async_id trigger_async_id = -1)
-      : isolate_(isolate),
-        resource_(isolate, resource) {
-    async_context_ = EmitAsyncInit(isolate, resource, name,
-                                   trigger_async_id);
-  }
-
-  AsyncResource(v8::Isolate* isolate,
-                v8::Local<v8::Object> resource,
-                v8::Local<v8::String> name,
                 async_id trigger_async_id = -1)
       : isolate_(isolate),
         resource_(isolate, resource) {

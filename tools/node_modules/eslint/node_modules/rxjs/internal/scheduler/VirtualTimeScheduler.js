@@ -29,7 +29,9 @@ var VirtualTimeScheduler = (function (_super) {
     VirtualTimeScheduler.prototype.flush = function () {
         var _a = this, actions = _a.actions, maxFrames = _a.maxFrames;
         var error, action;
-        while ((action = actions.shift()) && (this.frame = action.delay) <= maxFrames) {
+        while ((action = actions[0]) && action.delay <= maxFrames) {
+            actions.shift();
+            this.frame = action.delay;
             if (error = action.execute(action.state, action.delay)) {
                 break;
             }

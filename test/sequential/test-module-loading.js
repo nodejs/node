@@ -131,7 +131,7 @@ require('../fixtures/node_modules/foo');
   assert.ok(my_path.path_func instanceof Function);
   // this one does not exist and should throw
   assert.throws(function() { require('./utils'); },
-                /^Error: Cannot find module '\.\/utils'$/);
+                /^Error: Cannot find module '\.\/utils'/);
 }
 
 let errorThrown = false;
@@ -170,12 +170,13 @@ assert.strictEqual(require('../fixtures/registerExt2').custom, 'passed');
 assert.strictEqual(require('../fixtures/foo').foo, 'ok');
 
 // Should not attempt to load a directory
-try {
-  tmpdir.refresh();
-  require(tmpdir.path);
-} catch (err) {
-  assert.strictEqual(err.message, `Cannot find module '${tmpdir.path}'`);
-}
+assert.throws(
+  () => {
+    tmpdir.refresh();
+    require(tmpdir.path);
+  },
+  (err) => err.message.startsWith(`Cannot find module '${tmpdir.path}`)
+);
 
 {
   // Check load order is as expected

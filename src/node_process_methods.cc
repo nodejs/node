@@ -44,6 +44,7 @@ using v8::Isolate;
 using v8::Local;
 using v8::Name;
 using v8::NewStringType;
+using v8::Number;
 using v8::Object;
 using v8::String;
 using v8::Uint32;
@@ -56,7 +57,7 @@ Mutex umask_mutex;
 
 // Microseconds in a second, as a float, used in CPUUsage() below
 #define MICROS_PER_SEC 1e6
-// used in Hrtime() below
+// used in Hrtime() and Uptime() below
 #define NANOS_PER_SEC 1000000000
 
 #ifdef _WIN32
@@ -72,7 +73,7 @@ static void Abort(const FunctionCallbackInfo<Value>& args) {
 
 static void Chdir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  CHECK(env->is_main_thread());
+  CHECK(env->owns_process_state());
 
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsString());
@@ -239,19 +240,20 @@ static void Umask(const FunctionCallbackInfo<Value>& args) {
 
 static void Uptime(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  double uptime;
 
   uv_update_time(env->event_loop());
-  uptime = uv_now(env->event_loop()) - per_process::prog_start_time;
-
-  args.GetReturnValue().Set(uptime / 1000);
+  double uptime =
+      static_cast<double>(uv_hrtime() - per_process::node_start_time);
+  Local<Number> result = Number::New(env->isolate(), uptime / NANOS_PER_SEC);
+  args.GetReturnValue().Set(result);
 }
 
 static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   std::vector<Local<Value>> request_v;
-  for (auto w : *env->req_wrap_queue()) {
+  for (ReqWrapBase* req_wrap : *env->req_wrap_queue()) {
+    AsyncWrap* w = req_wrap->GetAsyncWrap();
     if (w->persistent().IsEmpty())
       continue;
     request_v.push_back(w->GetOwner());
@@ -385,6 +387,13 @@ static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
 #endif
 }
 
+static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  WaitForInspectorDisconnect(env);
+  int code = args[0]->Int32Value(env->context()).FromMaybe(0);
+  env->Exit(code);
+}
+
 static void InitializeProcessMethods(Local<Object> target,
                                      Local<Value> unused,
                                      Local<Context> context,
@@ -392,16 +401,16 @@ static void InitializeProcessMethods(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
   // define various internal methods
-  if (env->is_main_thread()) {
+  if (env->owns_process_state()) {
     env->SetMethod(target, "_debugProcess", DebugProcess);
     env->SetMethod(target, "_debugEnd", DebugEnd);
-    env->SetMethod(
-        target, "_startProfilerIdleNotifier", StartProfilerIdleNotifier);
-    env->SetMethod(
-        target, "_stopProfilerIdleNotifier", StopProfilerIdleNotifier);
     env->SetMethod(target, "abort", Abort);
     env->SetMethod(target, "chdir", Chdir);
   }
+
+  env->SetMethod(
+      target, "_startProfilerIdleNotifier", StartProfilerIdleNotifier);
+  env->SetMethod(target, "_stopProfilerIdleNotifier", StopProfilerIdleNotifier);
 
   env->SetMethod(target, "umask", Umask);
   env->SetMethod(target, "_rawDebug", RawDebug);
@@ -416,7 +425,7 @@ static void InitializeProcessMethods(Local<Object> target,
 
   env->SetMethodNoSideEffect(target, "cwd", Cwd);
   env->SetMethod(target, "dlopen", binding::DLOpen);
-  env->SetMethod(target, "reallyExit", Exit);
+  env->SetMethod(target, "reallyExit", ReallyExit);
   env->SetMethodNoSideEffect(target, "uptime", Uptime);
 }
 

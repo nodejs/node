@@ -52,8 +52,8 @@ class Duck extends Function {
       gf = arg[fns[i]]
       if (!gf ||
           (gf.hasMethod
-          ? !gf.hasMethod.apply(gf, args)
-          : typeof gf === 'function')) {
+            ? !gf.hasMethod.apply(gf, args)
+            : typeof gf === 'function')) {
         return false
       }
     }
@@ -81,7 +81,7 @@ Duck.prototype.isProtocol = true
 const Protoduck = module.exports = define(['duck'], {
   createGenfun: ['duck', _metaCreateGenfun],
   addMethod: ['duck', _metaAddMethod]
-}, {name: 'Protoduck'})
+}, { name: 'Protoduck' })
 
 const noImplFound = module.exports.noImplFound = genfun.noApplicableMethod
 
@@ -168,22 +168,22 @@ function defineMethod (duck, name, target, types, impls) {
   if (!Object.prototype.hasOwnProperty.call(target, name)) {
     // Make a genfun if there's nothing there
     const gf = useMetaobject
-    ? duck._metaobject.createGenfun(duck, target, name, null)
-    : _metaCreateGenfun(duck, target, name, null)
+      ? duck._metaobject.createGenfun(duck, target, name, null)
+      : _metaCreateGenfun(duck, target, name, null)
     target[name] = gf
   } else if (typeof target[name] === 'function' && !target[name].isGenfun) {
     // Turn non-gf functions into genfuns
     const gf = useMetaobject
-    ? duck._metaobject.createGenfun(duck, target, name, target[name])
-    : _metaCreateGenfun(duck, target, name, target[name])
+      ? duck._metaobject.createGenfun(duck, target, name, target[name])
+      : _metaCreateGenfun(duck, target, name, target[name])
     target[name] = gf
   }
 
   const fn = impls[name] || duck._defaultImpls[name]
   if (fn) { // checkImpls made sure this is safe
     useMetaobject
-    ? duck._metaobject.addMethod(duck, target, name, methodTypes, fn)
-    : _metaAddMethod(duck, target, name, methodTypes, fn)
+      ? duck._metaobject.addMethod(duck, target, name, methodTypes, fn)
+      : _metaAddMethod(duck, target, name, methodTypes, fn)
   }
 }
 
@@ -256,8 +256,8 @@ function installMethodErrorMessage (proto, gf, target, name) {
       proto.name ? `${proto.name}#` : ''
     }${name}(${[].map.call(args, typeName).join(', ')}). You must implement ${
       proto.name
-      ? formatMethod(proto, name, true)
-      : `the protocol ${formatMethod(proto, name)} belongs to`
+        ? formatMethod(proto, name, true)
+        : `the protocol ${formatMethod(proto, name)} belongs to`
     } in order to call ${typeName(thisArg)}#${name}(${
       [].map.call(args, typeName).join(', ')
     }).`
@@ -330,8 +330,8 @@ class Constraint {
     const thisType = (
       this.thisIdx === 'this' || this.thisIdx == null
     )
-    ? target
-    : types[this.thisIdx]
+      ? target
+      : types[this.thisIdx]
     const parentTypes = this.indices.map(idx => {
       if (idx === 'this') {
         return target

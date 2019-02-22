@@ -15,7 +15,7 @@ const types = [
   'FloatLE',
   'FloatBE',
   'DoubleLE',
-  'DoubleBE'
+  'DoubleBE',
 ];
 
 const bench = common.createBenchmark(main, {

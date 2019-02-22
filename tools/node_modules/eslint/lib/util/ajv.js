@@ -17,6 +17,7 @@ const Ajv = require("ajv"),
 
 const ajv = new Ajv({
     meta: false,
+    useDefaults: true,
     validateSchema: false,
     missingRefs: "ignore",
     verbose: true,

@@ -80,9 +80,10 @@ common.expectsError(
     message: 'The argument \'id\' must be a non-empty string. Received \'\''
   });
 
-common.expectsError(
+assert.throws(
   () => { require('../fixtures/packages/is-dir'); },
   {
     code: 'MODULE_NOT_FOUND',
-    message: 'Cannot find module \'../fixtures/packages/is-dir\''
-  });
+    message: /Cannot find module '\.\.\/fixtures\/packages\/is-dir'/
+  }
+);

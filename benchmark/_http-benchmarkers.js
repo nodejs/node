@@ -25,8 +25,11 @@ class AutocannonBenchmarker {
       '-c', options.connections,
       '-j',
       '-n',
-      `http://127.0.0.1:${options.port}${options.path}`
     ];
+    for (const field in options.headers) {
+      args.push('-H', `${field}=${options.headers[field]}`);
+    }
+    args.push(`http://127.0.0.1:${options.port}${options.path}`);
     const child = child_process.spawn(this.executable, args);
     return child;
   }
@@ -59,7 +62,7 @@ class WrkBenchmarker {
       '-d', options.duration,
       '-c', options.connections,
       '-t', 8,
-      `http://127.0.0.1:${options.port}${options.path}`
+      `http://127.0.0.1:${options.port}${options.path}`,
     ];
     const child = child_process.spawn(this.executable, args);
     return child;
@@ -170,7 +173,7 @@ const http_benchmarkers = [
   new AutocannonBenchmarker(),
   new TestDoubleBenchmarker('http'),
   new TestDoubleBenchmarker('http2'),
-  new H2LoadBenchmarker()
+  new H2LoadBenchmarker(),
 ];
 
 const benchmarkers = {};
@@ -188,7 +191,7 @@ exports.run = function(options, callback) {
     path: '/',
     connections: 100,
     duration: 5,
-    benchmarker: exports.default_http_benchmarker
+    benchmarker: exports.default_http_benchmarker,
   }, options);
   if (!options.benchmarker) {
     callback(new Error('Could not locate required http benchmarker. See ' +
@@ -216,7 +219,7 @@ exports.run = function(options, callback) {
   let stdout = '';
   child.stdout.on('data', (chunk) => stdout += chunk.toString());
 
-  child.once('close', function(code) {
+  child.once('close', (code) => {
     const elapsed = process.hrtime(benchmarker_start);
     if (code) {
       let error_message = `${options.benchmarker} failed with ${code}.`;

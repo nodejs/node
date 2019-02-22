@@ -69,7 +69,7 @@ var ThrottleSubscriber = (function (_super) {
     };
     ThrottleSubscriber.prototype.throttle = function (value) {
         var duration = this.tryDurationSelector(value);
-        if (duration) {
+        if (!!duration) {
             this.add(this._throttled = subscribeToResult_1.subscribeToResult(this, duration));
         }
     };

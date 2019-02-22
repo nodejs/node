@@ -369,12 +369,17 @@ See also: [`writable.uncork()`][].
 added: v8.0.0
 -->
 
-* `error` {Error}
+* `error` {Error} Optional, an error to emit with `'error'` event.
 * Returns: {this}
 
-Destroy the stream, and emit the passed `'error'` and a `'close'` event.
+Destroy the stream. Optionally emit an `'error'` event, and always emit
+a `'close'` event.
 After this call, the writable stream has ended and subsequent calls
 to `write()` or `end()` will result in an `ERR_STREAM_DESTROYED` error.
+This is a destructive and immediate way to destroy a stream. Previous calls to
+`write()` may not have drained, and may trigger an `ERR_STREAM_DESTROYED` error.
+Use `end()` instead of destroy if data should flush before close, or wait for
+the `'drain'` event before destroying the stream.
 Implementors should not override this method,
 but instead implement [`writable._destroy()`][writable-_destroy].
 

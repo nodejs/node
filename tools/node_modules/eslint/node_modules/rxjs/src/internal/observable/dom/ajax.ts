@@ -13,7 +13,7 @@ import {  AjaxObservable, AjaxCreationMethod  } from './AjaxObservable';
  * const obs$ = ajax.getJSON(`https://api.github.com/users?per_page=5`).pipe(
  *   map(userResponse => console.log('users: ', userResponse)),
  *   catchError(error => console.log('error: ', error))
- * ));
+ * );
  * ```
  */
 export const ajax: AjaxCreationMethod = AjaxObservable.create;

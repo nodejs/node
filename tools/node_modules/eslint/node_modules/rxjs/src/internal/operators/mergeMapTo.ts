@@ -1,12 +1,12 @@
 import { Observable } from '../Observable';
-import { OperatorFunction } from '../../internal/types';
+import { OperatorFunction, ObservedValueOf } from '../../internal/types';
 import { mergeMap } from './mergeMap';
 import { ObservableInput } from '../types';
 
 /* tslint:disable:max-line-length */
-export function mergeMapTo<T>(innerObservable: ObservableInput<T>, concurrent?: number): OperatorFunction<any, T>;
+export function mergeMapTo<T, O extends ObservableInput<any>>(innerObservable: O, concurrent?: number): OperatorFunction<any, ObservedValueOf<O>>;
 /** @deprecated */
-export function mergeMapTo<T, I, R>(innerObservable: ObservableInput<I>, resultSelector: (outerValue: T, innerValue: I, outerIndex: number, innerIndex: number) => R, concurrent?: number): OperatorFunction<T, R>;
+export function mergeMapTo<T, R, O extends ObservableInput<any>>(innerObservable: O, resultSelector: (outerValue: T, innerValue: ObservedValueOf<O>, outerIndex: number, innerIndex: number) => R, concurrent?: number): OperatorFunction<T, R>;
 /* tslint:enable:max-line-length */
 
 /**
@@ -25,6 +25,9 @@ export function mergeMapTo<T, I, R>(innerObservable: ObservableInput<I>, resultS
  * ## Example
  * For each click event, start an interval Observable ticking every 1 second
  * ```javascript
+ * import { fromEvent, interval } from 'rxjs';
+ * import { mergeMapTo } from 'rxjs/operators';
+ *
  * const clicks = fromEvent(document, 'click');
  * const result = clicks.pipe(mergeMapTo(interval(1000)));
  * result.subscribe(x => console.log(x));
@@ -46,11 +49,11 @@ export function mergeMapTo<T, I, R>(innerObservable: ObservableInput<I>, resultS
  * @method mergeMapTo
  * @owner Observable
  */
-export function mergeMapTo<T, I, R>(
-  innerObservable: ObservableInput<I>,
-  resultSelector?: ((outerValue: T, innerValue: I, outerIndex: number, innerIndex: number) => R) | number,
+export function mergeMapTo<T, R, O extends ObservableInput<any>>(
+  innerObservable: O,
+  resultSelector?: ((outerValue: T, innerValue: ObservedValueOf<O>, outerIndex: number, innerIndex: number) => R) | number,
   concurrent: number = Number.POSITIVE_INFINITY
-): OperatorFunction<T, I|R> {
+): OperatorFunction<T, ObservedValueOf<O>|R> {
   if (typeof resultSelector === 'function') {
     return mergeMap(() => innerObservable, resultSelector, concurrent);
   }

@@ -55,7 +55,7 @@ module.exports = {
     },
 
     create(context) {
-        const props = context.options[0] && Boolean(context.options[0].props);
+        const props = context.options[0] && context.options[0].props;
         const ignoredPropertyAssignmentsFor = context.options[0] && context.options[0].ignorePropertyModificationsFor || [];
 
         /**

@@ -1,5 +1,5 @@
 var rimraf = require( 'rimraf' ).sync;
-var fs = require( 'graceful-fs' );
+var fs = require( 'fs' );
 
 module.exports = function del( file ) {
   if ( fs.existsSync( file ) ) {

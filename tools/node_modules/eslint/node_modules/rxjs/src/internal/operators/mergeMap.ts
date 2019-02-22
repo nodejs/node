@@ -5,16 +5,16 @@ import { Subscription } from '../Subscription';
 import { subscribeToResult } from '../util/subscribeToResult';
 import { OuterSubscriber } from '../OuterSubscriber';
 import { InnerSubscriber } from '../InnerSubscriber';
-import { ObservableInput, OperatorFunction } from '../types';
+import { ObservableInput, OperatorFunction, ObservedValueOf } from '../types';
 import { map } from './map';
 import { from } from '../observable/from';
 
 /* tslint:disable:max-line-length */
-export function mergeMap<T, R>(project: (value: T, index: number) => ObservableInput<R>, concurrent?: number): OperatorFunction<T, R>;
+export function mergeMap<T, O extends ObservableInput<any>>(project: (value: T, index: number) => O, concurrent?: number): OperatorFunction<T, ObservedValueOf<O>>;
 /** @deprecated resultSelector no longer supported, use inner map instead */
-export function mergeMap<T, R>(project: (value: T, index: number) => ObservableInput<R>, resultSelector: undefined, concurrent?: number): OperatorFunction<T, R>;
+export function mergeMap<T, O extends ObservableInput<any>>(project: (value: T, index: number) => O, resultSelector: undefined, concurrent?: number): OperatorFunction<T, ObservedValueOf<O>>;
 /** @deprecated resultSelector no longer supported, use inner map instead */
-export function mergeMap<T, I, R>(project: (value: T, index: number) => ObservableInput<I>, resultSelector: (outerValue: T, innerValue: I, outerIndex: number, innerIndex: number) => R, concurrent?: number): OperatorFunction<T, R>;
+export function mergeMap<T, R, O extends ObservableInput<any>>(project: (value: T, index: number) => O, resultSelector: (outerValue: T, innerValue: ObservedValueOf<O>, outerIndex: number, innerIndex: number) => R, concurrent?: number): OperatorFunction<T, R>;
 /* tslint:enable:max-line-length */
 
 /**
@@ -34,6 +34,9 @@ export function mergeMap<T, I, R>(project: (value: T, index: number) => Observab
  * ## Example
  * Map and flatten each letter to an Observable ticking every 1 second
  * ```javascript
+ * import { of, interval } from 'rxjs';
+ * import { mergeMap, map } from 'rxjs/operators';
+ *
  * const letters = of('a', 'b', 'c');
  * const result = letters.pipe(
  *   mergeMap(x => interval(1000).pipe(map(i => x+i))),
@@ -70,16 +73,16 @@ export function mergeMap<T, I, R>(project: (value: T, index: number) => Observab
  * @method mergeMap
  * @owner Observable
  */
-export function mergeMap<T, I, R>(
-  project: (value: T, index: number) => ObservableInput<I>,
-  resultSelector?: ((outerValue: T, innerValue: I, outerIndex: number, innerIndex: number) => R) | number,
+export function mergeMap<T, R, O extends ObservableInput<any>>(
+  project: (value: T, index: number) => O,
+  resultSelector?: ((outerValue: T, innerValue: ObservedValueOf<O>, outerIndex: number, innerIndex: number) => R) | number,
   concurrent: number = Number.POSITIVE_INFINITY
-): OperatorFunction<T, I|R> {
+): OperatorFunction<T, ObservedValueOf<O>|R> {
   if (typeof resultSelector === 'function') {
     // DEPRECATED PATH
     return (source: Observable<T>) => source.pipe(
       mergeMap((a, i) => from(project(a, i)).pipe(
-        map((b, ii) => resultSelector(a, b, i, ii)),
+        map((b: any, ii: number) => resultSelector(a, b, i, ii)),
       ), concurrent)
     );
   } else if (typeof resultSelector === 'number') {

@@ -2,10 +2,13 @@
 const common = require('../common');
 const assert = require('assert');
 
-if (common.isWindows || !common.isMainThread) {
+if (common.isWindows) {
   assert.strictEqual(process.initgroups, undefined);
   return;
 }
+
+if (!common.isMainThread)
+  return;
 
 [undefined, null, true, {}, [], () => {}].forEach((val) => {
   assert.throws(

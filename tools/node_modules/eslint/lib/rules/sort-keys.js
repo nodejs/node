@@ -90,10 +90,12 @@ module.exports = {
                 type: "object",
                 properties: {
                     caseSensitive: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: true
                     },
                     natural: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false
@@ -106,8 +108,8 @@ module.exports = {
         // Parse options.
         const order = context.options[0] || "asc";
         const options = context.options[1];
-        const insensitive = (options && options.caseSensitive) === false;
-        const natual = Boolean(options && options.natural);
+        const insensitive = options && options.caseSensitive === false;
+        const natual = options && options.natural;
         const isValidOrder = isValidOrders[
             order + (insensitive ? "I" : "") + (natual ? "N" : "")
         ];
@@ -127,8 +129,14 @@ module.exports = {
                 stack = stack.upper;
             },
 
+            SpreadElement(node) {
+                if (node.parent.type === "ObjectExpression") {
+                    stack.prevName = null;
+                }
+            },
+
             Property(node) {
-                if (node.parent.type === "ObjectPattern" || node.parent.properties.some(n => n.type === "SpreadElement")) {
+                if (node.parent.type === "ObjectPattern") {
                     return;
                 }
 

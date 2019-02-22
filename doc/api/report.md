@@ -36,8 +36,11 @@ is provided below for reference.
       "child"
     ],
     "nodejsVersion": "v12.0.0-pre",
-    "glibcVersion": "2.17",
+    "glibcVersionRuntime": "2.17",
+    "glibcVersionCompiler": "2.17",
     "wordSize": "64 bit",
+    "arch": "x64",
+    "platform": "linux",
     "componentVersions": {
       "node": "12.0.0-pre",
       "v8": "7.1.302.28-node.5",
@@ -49,14 +52,16 @@ is provided below for reference.
       "napi": "3",
       "llhttp": "1.0.1",
       "http_parser": "2.8.0",
-      "openssl": "1.1.0j",
-      "arch": "x64",
-      "platform": "linux",
-      "release": "node"
+      "openssl": "1.1.0j"
     },
-    "osVersion": "Linux 3.10.0-862.el7.x86_64 #1 SMP Wed Mar 21 18:14:51 EDT 2018",
-    "glibc": "2.17",
-    "machine": "Linux 3.10.0-862.el7.x86_64 #1 SMP Wed Mar 21 18:14:51 EDT 2018test_machine x86_64"
+    "release": {
+      "name": "node"
+    },
+    "osName": "Linux",
+    "osRelease": "3.10.0-862.el7.x86_64",
+    "osVersion": "#1 SMP Wed Mar 21 18:14:51 EDT 2018",
+    "osMachine": "x86_64",
+    "host": "test_machine"
   },
   "javascriptStack": {
     "message": "Error: *** test-exception.js: throwing uncaught Error",
@@ -73,12 +78,26 @@ is provided below for reference.
     ]
   },
   "nativeStack": [
-    " [pc=0xa7ef87]  [/home/nodeuser/project/node/out/Release/node]",
-    " [pc=0xa81adb] report::TriggerNodeReport(v8::Isolate*, node::Environment*, char const*, char const*, std::string, v8::Local<v8::String>) [/home/nodeuser/project/node/out/Release/node]",
-    " [pc=0xa834f2] report::OnUncaughtException(v8::FunctionCallbackInfo<v8::Value> const&) [/home/nodeuser/project/node/out/Release/node]",
-    " [pc=0xbe6b78]  [/home/nodeuser/project/node/out/Release/node]",
-    " [pc=0xbe7596] v8::internal::Builtin_HandleApiCall(int, v8::internal::Object**, v8::internal::Isolate*) [/home/nodeuser/project/node/out/Release/node]",
-    " [pc=0x1930cae]  [/home/nodeuser/project/node/out/Release/node]"
+    {
+      "pc": "0x000055b57f07a9ef",
+      "symbol": "report::GetNodeReport(v8::Isolate*, node::Environment*, char const*, char const*, v8::Local<v8::String>, std::ostream&) [./node]"
+    },
+    {
+      "pc": "0x000055b57f07cf03",
+      "symbol": "report::GetReport(v8::FunctionCallbackInfo<v8::Value> const&) [./node]"
+    },
+    {
+      "pc": "0x000055b57f1bccfd",
+      "symbol": " [./node]"
+    },
+    {
+      "pc": "0x000055b57f1be048",
+      "symbol": "v8::internal::Builtin_HandleApiCall(int, v8::internal::Object**, v8::internal::Isolate*) [./node]"
+    },
+    {
+      "pc": "0x000055b57feeda0e",
+      "symbol": " [./node]"
+    }
   ],
   "javascriptHeap": {
     "totalMemory": 6127616,
@@ -166,50 +185,84 @@ is provided below for reference.
       "type": "async",
       "is_active": true,
       "is_referenced": false,
-      "address": "68090592",
+      "address": "0x0000000102910900",
       "details": ""
     },
     {
+      "repeat": 0,
+      "firesInMsFromNow": 94403548320796,
+      "expired": true,
       "type": "timer",
       "is_active": false,
       "is_referenced": false,
-      "address": "140723513949920",
-      "details": "repeat: 0, timeout expired: 18075165916 ms ago"
+      "address": "0x00007fff5fbfeab0"
     },
     {
       "type": "check",
       "is_active": true,
       "is_referenced": false,
-      "address": "140723513950072",
-      "details": ""
+      "address": "0x00007fff5fbfeb48"
     },
     {
       "type": "idle",
       "is_active": false,
       "is_referenced": true,
-      "address": "140723513950192",
-      "details": ""
+      "address": "0x00007fff5fbfebc0"
     },
     {
       "type": "prepare",
       "is_active": false,
       "is_referenced": false,
-      "address": "140723513950312",
-      "details": ""
+      "address": "0x00007fff5fbfec38"
     },
     {
       "type": "check",
       "is_active": false,
       "is_referenced": false,
-      "address": "140723513950432",
-      "details": ""
+      "address": "0x00007fff5fbfecb0"
     },
     {
       "type": "async",
       "is_active": true,
       "is_referenced": false,
-      "address": "39353856",
-      "details": ""
+      "address": "0x000000010188f2e0"
+    },
+    {
+      "width": 204,
+      "height": 55,
+      "fd": 17,
+      "writeQueueSize": 0,
+      "readable": true,
+      "writable": true,
+      "type": "tty",
+      "is_active": false,
+      "is_referenced": true,
+      "address": "0x000055b581db0e18"
+    },
+    {
+      "signum": 28,
+      "signal": "SIGWINCH",
+      "type": "signal",
+      "is_active": true,
+      "is_referenced": false,
+      "address": "0x000055b581d80010"
+    },
+    {
+      "width": 204,
+      "height": 55,
+      "fd": 19,
+      "writeQueueSize": 0,
+      "readable": true,
+      "writable": true,
+      "type": "tty",
+      "is_active": true,
+      "is_referenced": true,
+      "address": "0x000055b581df59f8"
+    },
+    {
+      "type": "loop",
+      "is_active": true,
+      "address": "0x000055fc7b2cb180"
     }
   ],
   "environmentVariables": {
@@ -348,9 +401,6 @@ written.
 * `--diagnostic-report-signal` Sets or resets the signal for report generation
 (not supported on Windows). Default signal is `SIGUSR2`.
 
-* `--diagnostic-report-verbose` Flag that enables additional information to be
-printed during report generation.
-
 A report can also be triggered via an API call from a JavaScript application:
 
 ```js
@@ -435,15 +485,14 @@ times for the same Node.js process.
 ## Configuration
 
 Additional runtime configuration that influences the report generation
-constraints are available using `setDiagnosticReportOptions()` API.
+constraints are available using `setOptions()` API.
 
 ```js
-process.report.setDiagnosticReportOptions({
+process.report.setOptions({
   events: ['exception', 'fatalerror', 'signal'],
   signal: 'SIGUSR2',
   filename: 'myreport.json',
-  path: '/home/nodeuser',
-  verbose: true
+  path: '/home/nodeuser'
 });
 ```
 
@@ -466,18 +515,15 @@ timestamp, PID and sequence number.
 URLs are not supported. Defaults to the current working directory of the
 Node.js process.
 
-`verbose` specifies whether to print additional verbose messages
-pertinent to the report generation. Defaults to `false`.
-
 ```js
 // Trigger report only on uncaught exceptions.
-process.report.setDiagnosticReportOptions({ events: ['exception'] });
+process.report.setOptions({ events: ['exception'] });
 
 // Trigger report for both internal errors as well as external signal.
-process.report.setDiagnosticReportOptions({ events: ['fatalerror', 'signal'] });
+process.report.setOptions({ events: ['fatalerror', 'signal'] });
 
 // Change the default signal to `SIGQUIT` and enable it.
-process.report.setDiagnosticReportOptions(
+process.report.setOptions(
   { events: ['signal'], signal: 'SIGQUIT' });
 ```
 
@@ -488,7 +534,7 @@ environment variables:
 NODE_OPTIONS="--experimental-report --diagnostic-report-uncaught-exception \
   --diagnostic-report-on-fatalerror --diagnostic-report-on-signal \
   --diagnostic-report-signal=SIGUSR2  --diagnostic-report-filename=./report.json \
-  --diagnostic-report-directory=/home/nodeuser --diagnostic-report-verbose"
+  --diagnostic-report-directory=/home/nodeuser"
 ```
 
 Specific API documentation can be found under

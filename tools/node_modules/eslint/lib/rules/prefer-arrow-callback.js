@@ -146,10 +146,12 @@ module.exports = {
                 type: "object",
                 properties: {
                     allowNamedFunctions: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     allowUnboundThis: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: true
                     }
                 },
                 additionalProperties: false

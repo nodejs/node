@@ -10,6 +10,9 @@ import { MonoTypeOperatorFunction } from '../types';
  * ## Examples
  * Get the minimal value of a series of numbers
  * ```javascript
+ * import { of } from 'rxjs';
+ * import { min } from 'rxjs/operators';
+ *
  * of(5, 4, 7, 2, 8).pipe(
  *   min(),
  * )
@@ -18,6 +21,9 @@ import { MonoTypeOperatorFunction } from '../types';
  *
  * Use a comparer function to get the minimal item
  * ```typescript
+ * import { of } from 'rxjs';
+ * import { min } from 'rxjs/operators';
+ *
  * interface Person {
  *   age: number,
  *   name: string

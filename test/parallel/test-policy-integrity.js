@@ -33,6 +33,17 @@ const parentFilepath = path.join(tmpdir.path, 'parent.js');
 const parentURL = pathToFileURL(parentFilepath);
 const parentBody = 'require(\'./dep.js\')';
 
+const workerSpawningFilepath = path.join(tmpdir.path, 'worker_spawner.js');
+const workerSpawningURL = pathToFileURL(workerSpawningFilepath);
+const workerSpawningBody = `
+const { Worker } = require('worker_threads');
+// make sure this is gone to ensure we don't do another fs read of it
+// will error out if we do
+require('fs').unlinkSync(${JSON.stringify(policyFilepath)});
+const w = new Worker(${JSON.stringify(parentFilepath)});
+w.on('exit', process.exit);
+`;
+
 const depFilepath = path.join(tmpdir.path, 'dep.js');
 const depURL = pathToFileURL(depFilepath);
 const depBody = '';
@@ -49,8 +60,9 @@ if (!tmpdirURL.pathname.endsWith('/')) {
 }
 function test({
   shouldFail = false,
+  preload = [],
   entry,
-  onerror,
+  onerror = undefined,
   resources = {}
 }) {
   const manifest = {
@@ -65,7 +77,9 @@ function test({
   }
   fs.writeFileSync(policyFilepath, JSON.stringify(manifest, null, 2));
   const { status } = spawnSync(process.execPath, [
-    '--experimental-policy', policyFilepath, entry
+    '--experimental-policy', policyFilepath,
+    ...preload.map((m) => ['-r', m]).flat(),
+    entry
   ]);
   if (shouldFail) {
     assert.notStrictEqual(status, 0);
@@ -74,13 +88,25 @@ function test({
   }
 }
 
-const { status } = spawnSync(process.execPath, [
-  '--experimental-policy', policyFilepath,
-  '--experimental-policy', policyFilepath
-], {
-  stdio: 'pipe'
-});
-assert.notStrictEqual(status, 0, 'Should not allow multiple policies');
+{
+  const { status } = spawnSync(process.execPath, [
+    '--experimental-policy', policyFilepath,
+    '--experimental-policy', policyFilepath
+  ], {
+    stdio: 'pipe'
+  });
+  assert.notStrictEqual(status, 0, 'Should not allow multiple policies');
+}
+{
+  const enoentFilepath = path.join(tmpdir.path, 'enoent');
+  try { fs.unlinkSync(enoentFilepath); } catch {}
+  const { status } = spawnSync(process.execPath, [
+    '--experimental-policy', enoentFilepath, '-e', ''
+  ], {
+    stdio: 'pipe'
+  });
+  assert.notStrictEqual(status, 0, 'Should not allow missing policies');
+}
 
 test({
   shouldFail: true,
@@ -196,6 +222,21 @@ test({
   }
 });
 test({
+  shouldFail: false,
+  preload: [depFilepath],
+  entry: parentFilepath,
+  resources: {
+    [parentURL]: {
+      body: parentBody,
+      match: true,
+    },
+    [depURL]: {
+      body: depBody,
+      match: true,
+    }
+  }
+});
+test({
   shouldFail: true,
   entry: parentFilepath,
   resources: {
@@ -292,6 +333,53 @@ test({
     [depURL]: {
       body: depBody,
       match: false,
+    }
+  }
+});
+test({
+  shouldFail: true,
+  entry: workerSpawningFilepath,
+  resources: {
+    [workerSpawningURL]: {
+      body: workerSpawningBody,
+      match: true,
+    },
+  }
+});
+test({
+  shouldFail: false,
+  entry: workerSpawningFilepath,
+  resources: {
+    [workerSpawningURL]: {
+      body: workerSpawningBody,
+      match: true,
+    },
+    [parentURL]: {
+      body: parentBody,
+      match: true,
+    },
+    [depURL]: {
+      body: depBody,
+      match: true,
+    }
+  }
+});
+test({
+  shouldFail: false,
+  entry: workerSpawningFilepath,
+  preload: [parentFilepath],
+  resources: {
+    [workerSpawningURL]: {
+      body: workerSpawningBody,
+      match: true,
+    },
+    [parentURL]: {
+      body: parentBody,
+      match: true,
+    },
+    [depURL]: {
+      body: depBody,
+      match: true,
     }
   }
 });

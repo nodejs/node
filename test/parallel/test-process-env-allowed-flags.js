@@ -16,7 +16,7 @@ require('../common');
     'r',
     '--stack-trace-limit=100',
     '--stack-trace-limit=-=xX_nodejs_Xx=-',
-  ].concat(process.config.variables.v8_enable_inspector ? [
+  ].concat(process.features.inspector ? [
     '--inspect-brk',
     'inspect-brk',
     '--inspect_brk',

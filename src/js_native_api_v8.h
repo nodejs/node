@@ -11,6 +11,7 @@ struct napi_env__ {
         context_persistent(isolate, context) {
     CHECK_EQ(isolate, context->GetIsolate());
   }
+  virtual ~napi_env__() {}
   v8::Isolate* const isolate;  // Shortcut for context()->GetIsolate()
   v8impl::Persistent<v8::Context> context_persistent;
 
@@ -20,6 +21,8 @@ struct napi_env__ {
 
   inline void Ref() { refs++; }
   inline void Unref() { if ( --refs == 0) delete this; }
+
+  virtual bool can_call_into_js() const { return true; }
 
   v8impl::Persistent<v8::Value> last_exception;
   napi_extended_error_info last_error;
@@ -68,11 +71,12 @@ napi_status napi_set_last_error(napi_env env, napi_status error_code,
   RETURN_STATUS_IF_FALSE((env), !((maybe).IsEmpty()), (status))
 
 // NAPI_PREAMBLE is not wrapped in do..while: try_catch must have function scope
-#define NAPI_PREAMBLE(env)                                       \
-  CHECK_ENV((env));                                              \
-  RETURN_STATUS_IF_FALSE((env), (env)->last_exception.IsEmpty(), \
-                         napi_pending_exception);                \
-  napi_clear_last_error((env));                                  \
+#define NAPI_PREAMBLE(env)                                          \
+  CHECK_ENV((env));                                                 \
+  RETURN_STATUS_IF_FALSE((env),                                     \
+      (env)->last_exception.IsEmpty() && (env)->can_call_into_js(), \
+      napi_pending_exception);                                      \
+  napi_clear_last_error((env));                                     \
   v8impl::TryCatch try_catch((env))
 
 #define CHECK_TO_TYPE(env, type, context, result, src, status)                \
@@ -109,23 +113,26 @@ napi_status napi_set_last_error(napi_env env, napi_status error_code,
     }                                                              \
   } while (0)
 
-#define NAPI_CALL_INTO_MODULE(env, call, handle_exception)                   \
-  do {                                                                       \
-    int open_handle_scopes = (env)->open_handle_scopes;                      \
-    int open_callback_scopes = (env)->open_callback_scopes;                  \
-    napi_clear_last_error((env));                                            \
-    call;                                                                    \
-    CHECK_EQ((env)->open_handle_scopes, open_handle_scopes);                 \
-    CHECK_EQ((env)->open_callback_scopes, open_callback_scopes);             \
-    if (!(env)->last_exception.IsEmpty()) {                                  \
-      handle_exception(                                                      \
-          v8::Local<v8::Value>::New((env)->isolate, (env)->last_exception)); \
-      (env)->last_exception.Reset();                                         \
-    }                                                                        \
-  } while (0)
+template <typename T, typename U>
+void NapiCallIntoModule(napi_env env, T&& call, U&& handle_exception) {
+  int open_handle_scopes = env->open_handle_scopes;
+  int open_callback_scopes = env->open_callback_scopes;
+  napi_clear_last_error(env);
+  call();
+  CHECK_EQ(env->open_handle_scopes, open_handle_scopes);
+  CHECK_EQ(env->open_callback_scopes, open_callback_scopes);
+  if (!env->last_exception.IsEmpty()) {
+    handle_exception(env->last_exception.Get(env->isolate));
+    env->last_exception.Reset();
+  }
+}
 
-#define NAPI_CALL_INTO_MODULE_THROW(env, call) \
-  NAPI_CALL_INTO_MODULE((env), call, (env)->isolate->ThrowException)
+template <typename T>
+void NapiCallIntoModuleThrow(napi_env env, T&& call) {
+  NapiCallIntoModule(env, call, [&](v8::Local<v8::Value> value) {
+    env->isolate->ThrowException(value);
+  });
+}
 
 namespace v8impl {
 

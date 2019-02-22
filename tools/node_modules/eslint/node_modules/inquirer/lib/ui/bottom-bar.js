@@ -92,6 +92,7 @@ class BottomBar extends Base {
          so we need enforce the cursor to locate to the leftmost position for rendering. */
       rlUtils.left(this.rl, message.length + this.rl.line.length);
     }
+
     this.rl.output.write(message);
   }
 }

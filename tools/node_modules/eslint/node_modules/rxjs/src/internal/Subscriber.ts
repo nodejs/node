@@ -47,8 +47,6 @@ export class Subscriber<T> extends Subscription implements Observer<T> {
   protected isStopped: boolean = false;
   protected destination: PartialObserver<any> | Subscriber<any>; // this `any` is the escape hatch to erase extra type param (e.g. R)
 
-  private _parentSubscription: Subscription | null = null;
-
   /**
    * @param {Observer|function(value: T): void} [destinationOrNext] A partially
    * defined Observer or a `next` callback function.
@@ -161,7 +159,6 @@ export class Subscriber<T> extends Subscription implements Observer<T> {
     this.isStopped = false;
     this._parent = _parent;
     this._parents = _parents;
-    this._parentSubscription = null;
     return this;
   }
 }

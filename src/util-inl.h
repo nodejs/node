@@ -143,7 +143,7 @@ typename ListHead<T, M>::Iterator ListHead<T, M>::end() const {
 
 template <typename Inner, typename Outer>
 constexpr uintptr_t OffsetOf(Inner Outer::*field) {
-  return reinterpret_cast<uintptr_t>(&(static_cast<Outer*>(0)->*field));
+  return reinterpret_cast<uintptr_t>(&(static_cast<Outer*>(nullptr)->*field));
 }
 
 template <typename Inner, typename Outer>
@@ -453,6 +453,17 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
   }
 
   return v8::Number::New(isolate, static_cast<double>(number));
+}
+
+SlicedArguments::SlicedArguments(
+    const v8::FunctionCallbackInfo<v8::Value>& args, size_t start) {
+  const size_t length = static_cast<size_t>(args.Length());
+  if (start >= length) return;
+  const size_t size = length - start;
+
+  AllocateSufficientStorage(size);
+  for (size_t i = 0; i < size; ++i)
+    (*this)[i] = args[i + start];
 }
 
 }  // namespace node

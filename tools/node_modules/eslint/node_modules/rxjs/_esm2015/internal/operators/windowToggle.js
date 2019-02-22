@@ -1,7 +1,5 @@
 import { Subject } from '../Subject';
 import { Subscription } from '../Subscription';
-import { tryCatch } from '../util/tryCatch';
-import { errorObject } from '../util/errorObject';
 import { OuterSubscriber } from '../OuterSubscriber';
 import { subscribeToResult } from '../util/subscribeToResult';
 export function windowToggle(openings, closingSelector) {
@@ -76,26 +74,27 @@ class WindowToggleSubscriber extends OuterSubscriber {
     }
     notifyNext(outerValue, innerValue, outerIndex, innerIndex, innerSub) {
         if (outerValue === this.openings) {
-            const { closingSelector } = this;
-            const closingNotifier = tryCatch(closingSelector)(innerValue);
-            if (closingNotifier === errorObject) {
-                return this.error(errorObject.e);
+            let closingNotifier;
+            try {
+                const { closingSelector } = this;
+                closingNotifier = closingSelector(innerValue);
+            }
+            catch (e) {
+                return this.error(e);
+            }
+            const window = new Subject();
+            const subscription = new Subscription();
+            const context = { window, subscription };
+            this.contexts.push(context);
+            const innerSubscription = subscribeToResult(this, closingNotifier, context);
+            if (innerSubscription.closed) {
+                this.closeWindow(this.contexts.length - 1);
             }
             else {
-                const window = new Subject();
-                const subscription = new Subscription();
-                const context = { window, subscription };
-                this.contexts.push(context);
-                const innerSubscription = subscribeToResult(this, closingNotifier, context);
-                if (innerSubscription.closed) {
-                    this.closeWindow(this.contexts.length - 1);
-                }
-                else {
-                    innerSubscription.context = context;
-                    subscription.add(innerSubscription);
-                }
-                this.destination.next(window);
+                innerSubscription.context = context;
+                subscription.add(innerSubscription);
             }
+            this.destination.next(window);
         }
         else {
             this.closeWindow(this.contexts.indexOf(outerValue));

@@ -1,4 +1,6 @@
 #include "sharedarraybuffer_metadata.h"
+
+#include <utility>
 #include "base_object.h"
 #include "base_object-inl.h"
 #include "node_errors.h"
@@ -43,7 +45,7 @@ class SABLifetimePartner : public BaseObject {
                      Local<Object> obj,
                      SharedArrayBufferMetadataReference r)
     : BaseObject(env, obj),
-      reference(r) {
+      reference(std::move(r)) {
     MakeWeak();
   }
 
@@ -75,7 +77,7 @@ SharedArrayBufferMetadata::ForSharedArrayBuffer(
     CHECK(source->IsExternal());
     SABLifetimePartner* partner =
         Unwrap<SABLifetimePartner>(lifetime_partner.As<Object>());
-    CHECK_NE(partner, nullptr);
+    CHECK_NOT_NULL(partner);
     return partner->reference;
   }
 

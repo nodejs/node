@@ -30,7 +30,7 @@ import { Subscriber } from '../Subscriber';
  *
  * ---
  *
- * ### Map and flatten numbers to the sequence 'a', 'b', 'c', but throw an error for 13
+ * ### Map and flatten numbers to the sequence 'a', 'b', 'c', but throw an error for 2
  * ```javascript
  * import { throwError, interval, of } from 'rxjs';
  * import { mergeMap } from 'rxjs/operators';

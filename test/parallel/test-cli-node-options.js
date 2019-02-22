@@ -38,11 +38,13 @@ expect('--trace-event-file-pattern {pid}-${rotation}.trace_events ' +
 
 if (!common.isWindows) {
   expect('--perf-basic-prof', 'B\n');
+  expect('--perf-basic-prof-only-functions', 'B\n');
 }
 
 if (common.isLinux && ['arm', 'x64'].includes(process.arch)) {
   // PerfJitLogger is only implemented in Linux.
   expect('--perf-prof', 'B\n');
+  expect('--perf-prof-unwinding-info', 'B\n');
 }
 
 if (common.hasCrypto) {

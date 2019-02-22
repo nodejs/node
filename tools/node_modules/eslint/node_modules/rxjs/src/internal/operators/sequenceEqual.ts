@@ -2,13 +2,11 @@ import { Operator } from '../Operator';
 import { Observable } from '../Observable';
 import { Subscriber } from '../Subscriber';
 import { Subscription } from '../Subscription';
-import { tryCatch } from '../util/tryCatch';
-import { errorObject } from '../util/errorObject';
 
 import { Observer, OperatorFunction } from '../types';
 
 /**
- * Compares all values of two observables in sequence using an optional comparor function
+ * Compares all values of two observables in sequence using an optional comparator function
  * and returns an observable of a single boolean value representing whether or not the two sequences
  * are equal.
  *
@@ -26,6 +24,9 @@ import { Observer, OperatorFunction } from '../types';
  * ## Example
  * figure out if the Konami code matches
  * ```javascript
+ * import { from, fromEvent } from 'rxjs';
+ * import { sequenceEqual, bufferCount, mergeMap, map } from 'rxjs/operators';
+ *
  * const codes = from([
  *   'ArrowUp',
  *   'ArrowUp',
@@ -55,24 +56,24 @@ import { Observer, OperatorFunction } from '../types';
  * @see {@link withLatestFrom}
  *
  * @param {Observable} compareTo The observable sequence to compare the source sequence to.
- * @param {function} [comparor] An optional function to compare each value pair
+ * @param {function} [comparator] An optional function to compare each value pair
  * @return {Observable} An Observable of a single boolean value representing whether or not
  * the values emitted by both observables were equal in sequence.
  * @method sequenceEqual
  * @owner Observable
  */
 export function sequenceEqual<T>(compareTo: Observable<T>,
-                                 comparor?: (a: T, b: T) => boolean): OperatorFunction<T, boolean> {
-  return (source: Observable<T>) => source.lift(new SequenceEqualOperator(compareTo, comparor));
+                                 comparator?: (a: T, b: T) => boolean): OperatorFunction<T, boolean> {
+  return (source: Observable<T>) => source.lift(new SequenceEqualOperator(compareTo, comparator));
 }
 
 export class SequenceEqualOperator<T> implements Operator<T, boolean> {
   constructor(private compareTo: Observable<T>,
-              private comparor: (a: T, b: T) => boolean) {
+              private comparator: (a: T, b: T) => boolean) {
   }
 
   call(subscriber: Subscriber<boolean>, source: any): any {
-    return source.subscribe(new SequenceEqualSubscriber(subscriber, this.compareTo, this.comparor));
+    return source.subscribe(new SequenceEqualSubscriber(subscriber, this.compareTo, this.comparator));
   }
 }
 
@@ -88,7 +89,7 @@ export class SequenceEqualSubscriber<T, R> extends Subscriber<T> {
 
   constructor(destination: Observer<R>,
               private compareTo: Observable<T>,
-              private comparor: (a: T, b: T) => boolean) {
+              private comparator: (a: T, b: T) => boolean) {
     super(destination);
     (this.destination as Subscription).add(compareTo.subscribe(new SequenceEqualCompareToSubscriber(destination, this)));
   }
@@ -112,18 +113,15 @@ export class SequenceEqualSubscriber<T, R> extends Subscriber<T> {
   }
 
   checkValues() {
-    const { _a, _b, comparor } = this;
+    const { _a, _b, comparator } = this;
     while (_a.length > 0 && _b.length > 0) {
       let a = _a.shift();
       let b = _b.shift();
       let areEqual = false;
-      if (comparor) {
-        areEqual = tryCatch(comparor)(a, b);
-        if (areEqual === errorObject) {
-          this.destination.error(errorObject.e);
-        }
-      } else {
-        areEqual = a === b;
+      try {
+        areEqual = comparator ? comparator(a, b) : a === b;
+      } catch (e) {
+        this.destination.error(e);
       }
       if (!areEqual) {
         this.emit(false);

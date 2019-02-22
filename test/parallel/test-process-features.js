@@ -6,6 +6,7 @@ const assert = require('assert');
 const keys = new Set(Object.keys(process.features));
 
 assert.deepStrictEqual(keys, new Set([
+  'inspector',
   'debug',
   'uv',
   'ipv6',

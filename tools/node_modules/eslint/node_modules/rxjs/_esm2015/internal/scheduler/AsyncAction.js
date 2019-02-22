@@ -29,6 +29,7 @@ export class AsyncAction extends Action {
             return id;
         }
         clearInterval(id);
+        return undefined;
     }
     execute(state, delay) {
         if (this.closed) {

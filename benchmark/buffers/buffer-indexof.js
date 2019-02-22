@@ -18,7 +18,7 @@ const searchStrings = [
   'Soo--oop',
   'aaaaaaaaaaaaaaaaa',
   'venture to go near the house till she had brought herself down to',
-  '</i> to the Caterpillar'
+  '</i> to the Caterpillar',
 ];
 
 const bench = common.createBenchmark(main, {

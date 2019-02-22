@@ -83,36 +83,39 @@ import { WebSocketSubject, WebSocketSubjectConfig } from './WebSocketSubject';
  *
  * ### Examples
  * #### Listening for messages from the server
- * const subject = Rx.Observable.webSocket('ws://localhost:8081');
+ * ```ts
+ * import { webSocket } from "rxjs/webSocket";
+ * const subject = webSocket("ws://localhost:8081");
  *
  * subject.subscribe(
- *    (msg) => console.log('message received: ' + msg), // Called whenever there is a message from the server.
- *    (err) => console.log(err), // Called if at any point WebSocket API signals some kind of error.
+ *    msg => console.log('message received: ' + msg), // Called whenever there is a message from the server.
+ *    err => console.log(err), // Called if at any point WebSocket API signals some kind of error.
  *    () => console.log('complete') // Called when connection is closed (for whatever reason).
  *  );
- *
+ * ```
  *
  * #### Pushing messages to the server
- * const subject = Rx.Observable.webSocket('ws://localhost:8081');
+ * ```ts
+ * import { webSocket } from "rxjs/webSocket";
+ * const subject = webSocket('ws://localhost:8081');
  *
- * subject.subscribe(); // Note that at least one consumer has to subscribe to
- *                      // the created subject - otherwise "nexted" values will be just
- *                      // buffered and not sent, since no connection was established!
+ * subject.subscribe();
+ * // Note that at least one consumer has to subscribe to the created subject - otherwise "nexted" values will be just buffered and not sent,
+ * // since no connection was established!
  *
- * subject.next(JSON.stringify({message: 'some message'})); // This will send a message to the server
- *                                                          // once a connection is made.
- *                                                          // Remember to serialize sent value first!
+ * subject.next(JSON.stringify({message: 'some message'}));
+ * // This will send a message to the server once a connection is made. Remember to serialize sent value first!
  *
  * subject.complete(); // Closes the connection.
  *
- *
- * subject.error({code: 4000, reason: 'I think our app just broke!'}); // Also closes the connection,
- *                                                                     // but let's the server know that
- *                                                                     // this closing is caused by some error.
- *
+ * subject.error({code: 4000, reason: 'I think our app just broke!'});
+ * // Also closes the connection, but let's the server know that this closing is caused by some error.
+ * ```
  *
  * #### Multiplexing WebSocket
- * const subject = Rx.Observable.webSocket('ws://localhost:8081');
+ * ```ts
+ * import { webSocket } from "rxjs/webSocket";
+ * const subject = webSocket('ws://localhost:8081');
  *
  * const observableA = subject.multiplex(
  *   () => JSON.stringify({subscribe: 'A'}), // When server gets this message, it will start sending messages for 'A'...
@@ -127,27 +130,20 @@ import { WebSocketSubject, WebSocketSubjectConfig } from './WebSocketSubject';
  * );
  *
  * const subA = observableA.subscribe(messageForA => console.log(messageForA));
- * // At this moment WebSocket connection
- * // is established. Server gets '{"subscribe": "A"}'
- * // message and starts sending messages for 'A',
+ * // At this moment WebSocket connection is established. Server gets '{"subscribe": "A"}' message and starts sending messages for 'A',
  * // which we log here.
  *
  * const subB = observableB.subscribe(messageForB => console.log(messageForB));
- * // Since we already have a connection,
- * // we just send '{"subscribe": "B"}' message
- * // to the server. It starts sending
- * // messages for 'B', which we log here.
+ * // Since we already have a connection, we just send '{"subscribe": "B"}' message to the server. It starts sending messages for 'B',
+ * // which we log here.
  *
  * subB.unsubscribe();
- * // Message '{"unsubscribe": "B"}' is sent to the
- * // server, which stops sending 'B' messages.
+ * // Message '{"unsubscribe": "B"}' is sent to the server, which stops sending 'B' messages.
  *
  * subA.unubscribe();
- * // Message '{"unsubscribe": "A"}' makes the server
- * // stop sending messages for 'A'. Since there is
- * // no more subscribers to root Subject, socket
- * // connection closes.
- *
+ * // Message '{"unsubscribe": "A"}' makes the server stop sending messages for 'A'. Since there is no more subscribers to root Subject,
+ * // socket connection closes.
+ * ```
  *
  *
  * @param {string|WebSocketSubjectConfig} urlConfigOrSource The WebSocket endpoint as an url or an object with

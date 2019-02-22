@@ -20,6 +20,7 @@ class NumberPrompt extends Input {
         return Number(numberMatch[0]);
       }
     }
+
     // If the input was invalid return the default value.
     return this.opt.default == null ? NaN : this.opt.default;
   }

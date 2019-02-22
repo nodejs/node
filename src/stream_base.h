@@ -82,7 +82,7 @@ class WriteWrap : public StreamReq {
             v8::Local<v8::Object> req_wrap_obj)
     : StreamReq(stream, req_wrap_obj) { }
 
-  ~WriteWrap() {
+  ~WriteWrap() override {
     free(storage_);
   }
 

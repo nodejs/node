@@ -744,7 +744,7 @@ class Parser : public AsyncWrap, public StreamListener {
       Local<String> reason;
       if (err == HPE_USER) {
         const char* colon = strchr(errno_reason, ':');
-        CHECK_NE(colon, nullptr);
+        CHECK_NOT_NULL(colon);
         code = OneByteString(env()->isolate(), errno_reason,
                              colon - errno_reason);
         reason = OneByteString(env()->isolate(), colon + 1);

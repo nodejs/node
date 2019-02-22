@@ -81,7 +81,7 @@ class ObjectWrap {
   }
 
 
-  inline void MakeWeak(void) {
+  inline void MakeWeak() {
     persistent().SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
   }
 

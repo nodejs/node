@@ -29,10 +29,12 @@ module.exports = {
                 type: "object",
                 properties: {
                     before: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     after: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: true
                     }
                 },
                 additionalProperties: false
@@ -48,12 +50,8 @@ module.exports = {
             requireSpaceAfter = true;
 
         if (typeof config === "object") {
-            if (Object.prototype.hasOwnProperty.call(config, "before")) {
-                requireSpaceBefore = config.before;
-            }
-            if (Object.prototype.hasOwnProperty.call(config, "after")) {
-                requireSpaceAfter = config.after;
-            }
+            requireSpaceBefore = config.before;
+            requireSpaceAfter = config.after;
         }
 
         /**

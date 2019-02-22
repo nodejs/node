@@ -518,7 +518,8 @@ module.exports = {
                 properties: {
                     SwitchCase: {
                         type: "integer",
-                        minimum: 0
+                        minimum: 0,
+                        default: 0
                     },
                     VariableDeclarator: {
                         oneOf: [
@@ -582,7 +583,8 @@ module.exports = {
                     ObjectExpression: ELEMENT_LIST_SCHEMA,
                     ImportDeclaration: ELEMENT_LIST_SCHEMA,
                     flatTernaryExpressions: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     ignoredNodes: {
                         type: "array",
@@ -594,7 +596,8 @@ module.exports = {
                         }
                     },
                     ignoreComments: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false
@@ -650,7 +653,7 @@ module.exports = {
             }
 
             if (context.options[1]) {
-                lodash.merge(options, context.options[1]);
+                Object.assign(options, context.options[1]);
 
                 if (typeof options.VariableDeclarator === "number" || options.VariableDeclarator === "first") {
                     options.VariableDeclarator = {

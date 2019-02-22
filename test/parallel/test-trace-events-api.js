@@ -17,8 +17,17 @@ const {
   getEnabledCategories
 } = require('trace_events');
 
+function getEnabledCategoriesFromCommandLine() {
+  const indexOfCatFlag = process.execArgv.indexOf('--trace-event-categories');
+  if (indexOfCatFlag === -1) {
+    return undefined;
+  } else {
+    return process.execArgv[indexOfCatFlag + 1];
+  }
+}
+
 const isChild = process.argv[2] === 'child';
-const enabledCategories = isChild ? 'foo' : undefined;
+const enabledCategories = getEnabledCategoriesFromCommandLine();
 
 assert.strictEqual(getEnabledCategories(), enabledCategories);
 [1, 'foo', true, false, null, undefined].forEach((i) => {
@@ -51,7 +60,9 @@ tracing.enable();  // purposefully enable twice to test calling twice
 assert.strictEqual(tracing.enabled, true);
 
 assert.strictEqual(getEnabledCategories(),
-                   isChild ? 'foo,node.perf' : 'node.perf');
+                   [
+                     ...[enabledCategories].filter((_) => !!_), 'node.perf'
+                   ].join(','));
 
 tracing.disable();
 assert.strictEqual(tracing.enabled, false);
@@ -106,7 +117,15 @@ if (isChild) {
     }
   }
 
+  testApiInChildProcess([], () => {
+    testApiInChildProcess(['--trace-event-categories', 'foo']);
+  });
+}
+
+function testApiInChildProcess(execArgs, cb) {
   tmpdir.refresh();
+  // Save the current directory so we can chdir back to it later
+  const parentDir = process.cwd();
   process.chdir(tmpdir.path);
 
   const expectedMarks = ['A', 'B'];
@@ -121,15 +140,14 @@ if (isChild) {
 
   const proc = cp.fork(__filename,
                        ['child'],
-                       { execArgv: [ '--expose-gc',
-                                     '--trace-event-categories',
-                                     'foo' ] });
+                       { execArgv: [ '--expose-gc', ...execArgs ] });
 
   proc.once('exit', common.mustCall(() => {
     const file = path.join(tmpdir.path, 'node_trace.1.log');
 
     assert(fs.existsSync(file));
     fs.readFile(file, common.mustCall((err, data) => {
+      assert.ifError(err);
       const traces = JSON.parse(data.toString()).traceEvents
         .filter((trace) => trace.cat !== '__metadata');
       assert.strictEqual(traces.length,
@@ -160,6 +178,8 @@ if (isChild) {
             assert.fail('Unexpected trace event phase');
         }
       });
+      process.chdir(parentDir);
+      cb && process.nextTick(cb);
     }));
   }));
 }

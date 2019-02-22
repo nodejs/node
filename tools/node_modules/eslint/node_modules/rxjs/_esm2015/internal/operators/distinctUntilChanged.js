@@ -1,6 +1,4 @@
 import { Subscriber } from '../Subscriber';
-import { tryCatch } from '../util/tryCatch';
-import { errorObject } from '../util/errorObject';
 export function distinctUntilChanged(compare, keySelector) {
     return (source) => source.lift(new DistinctUntilChangedOperator(compare, keySelector));
 }
@@ -26,25 +24,28 @@ class DistinctUntilChangedSubscriber extends Subscriber {
         return x === y;
     }
     _next(value) {
-        const keySelector = this.keySelector;
-        let key = value;
-        if (keySelector) {
-            key = tryCatch(this.keySelector)(value);
-            if (key === errorObject) {
-                return this.destination.error(errorObject.e);
-            }
+        let key;
+        try {
+            const { keySelector } = this;
+            key = keySelector ? keySelector(value) : value;
+        }
+        catch (err) {
+            return this.destination.error(err);
         }
         let result = false;
         if (this.hasKey) {
-            result = tryCatch(this.compare)(this.key, key);
-            if (result === errorObject) {
-                return this.destination.error(errorObject.e);
+            try {
+                const { compare } = this;
+                result = compare(this.key, key);
+            }
+            catch (err) {
+                return this.destination.error(err);
             }
         }
         else {
             this.hasKey = true;
         }
-        if (Boolean(result) === false) {
+        if (!result) {
             this.key = key;
             this.destination.next(value);
         }

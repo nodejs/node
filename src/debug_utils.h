@@ -119,6 +119,7 @@ class NativeSymbolDebuggingContext {
 // about giving information on currently existing handles, if there are any,
 // but still aborts the process.
 void CheckedUvLoopClose(uv_loop_t* loop);
+void PrintLibuvHandleInformation(uv_loop_t* loop, FILE* stream);
 
 }  // namespace node
 

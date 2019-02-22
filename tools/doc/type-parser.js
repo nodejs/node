@@ -16,7 +16,7 @@ const jsPrimitives = {
 const jsGlobalObjectsUrl = `${jsDocPrefix}Reference/Global_Objects/`;
 const jsGlobalTypes = [
   'Array', 'ArrayBuffer', 'DataView', 'Date', 'Error', 'EvalError', 'Function',
-  'Object', 'Promise', 'RangeError', 'ReferenceError', 'RegExp', 'Set',
+  'Map', 'Object', 'Promise', 'RangeError', 'ReferenceError', 'RegExp', 'Set',
   'SharedArrayBuffer', 'SyntaxError', 'TypeError', 'TypedArray', 'URIError',
   'Uint8Array',
 ];
@@ -105,6 +105,7 @@ const customTypesMap = {
 
   'os.constants.dlopen': 'os.html#os_dlopen_constants',
 
+  'Histogram': 'perf_hooks.html#perf_hooks_class_histogram',
   'PerformanceEntry': 'perf_hooks.html#perf_hooks_class_performanceentry',
   'PerformanceNodeTiming':
     'perf_hooks.html#perf_hooks_class_performancenodetiming_extends_performanceentry', // eslint-disable-line max-len

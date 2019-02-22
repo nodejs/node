@@ -17,7 +17,7 @@ TimeoutErrorImpl.prototype = Object.create(Error.prototype);
 /**
  * An error thrown when duetime elapses.
  *
- * @see {@link timeout}
+ * @see {@link operators/timeout}
  *
  * @class TimeoutError
  */

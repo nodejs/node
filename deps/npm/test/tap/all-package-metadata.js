@@ -1,26 +1,26 @@
 'use strict'
 
-var common = require('../common-tap.js')
-var npm = require('../../')
-var test = require('tap').test
-var mkdirp = require('mkdirp')
-var rimraf = require('rimraf')
-var path = require('path')
-var fs = require('fs')
-var cacheFile = require('npm-cache-filename')
-var mr = require('npm-registry-mock')
-var ms = require('mississippi')
-var Tacks = require('tacks')
-var File = Tacks.File
+const common = require('../common-tap.js')
+const npm = require('../../')
+const test = require('tap').test
+const mkdirp = require('mkdirp')
+const rimraf = require('rimraf')
+const path = require('path')
+const fs = require('fs')
+const cacheFile = require('npm-cache-filename')
+const mr = require('npm-registry-mock')
+const ms = require('mississippi')
+const Tacks = require('tacks')
+const File = Tacks.File
 
-var allPackageMetadata = require('../../lib/search/all-package-metadata.js')
+const allPackageMetadata = require('../../lib/search/all-package-metadata.js')
 
-var PKG_DIR = path.resolve(__dirname, 'update-index')
-var CACHE_DIR = path.resolve(PKG_DIR, 'cache')
-var cacheBase
-var cachePath
+const PKG_DIR = path.resolve(__dirname, path.basename(__filename, '.js'), 'update-index')
+const CACHE_DIR = path.resolve(PKG_DIR, 'cache', '_cacache')
+let cacheBase
+let cachePath
 
-var server
+let server
 
 function setup () {
   mkdirp.sync(cacheBase)
@@ -33,9 +33,9 @@ function cleanup () {
 test('setup', function (t) {
   mr({port: common.port, throwOnUnmatched: true}, function (err, s) {
     t.ifError(err, 'registry mocked successfully')
-    npm.load({ cache: CACHE_DIR, registry: common.registry }, function (err) {
+    npm.load({ cache: path.dirname(CACHE_DIR), registry: common.registry }, function (err) {
       t.ifError(err, 'npm loaded successfully')
-      npm.config.set('cache', CACHE_DIR)
+      npm.config.set('cache', path.dirname(CACHE_DIR))
       cacheBase = cacheFile(npm.config.get('cache'))(common.registry + '/-/all')
       cachePath = path.join(cacheBase, '.cache.json')
       server = s
@@ -55,7 +55,11 @@ test('allPackageMetadata full request', function (t) {
   }, {
     date: updated
   })
-  var stream = allPackageMetadata(600)
+  var stream = allPackageMetadata({
+    cache: CACHE_DIR,
+    registry: common.registry,
+    staleness: 600
+  })
   t.ok(stream, 'returned a stream')
   var results = []
   stream.on('data', function (pkg) {
@@ -101,7 +105,11 @@ test('allPackageMetadata cache only', function (t) {
   }
   var fixture = new Tacks(File(cacheContents))
   fixture.create(cachePath)
-  var stream = allPackageMetadata(10000000)
+  var stream = allPackageMetadata({
+    cache: CACHE_DIR,
+    registry: common.registry,
+    staleness: 10000000
+  })
   t.ok(stream, 'returned a stream')
   var results = []
   stream.on('data', function (pkg) {
@@ -143,7 +151,11 @@ test('createEntryStream merged stream', function (t) {
     other: { name: 'other', version: '1.0.0' }
   }))
   fixture.create(cachePath)
-  var stream = allPackageMetadata(600)
+  var stream = allPackageMetadata({
+    cache: CACHE_DIR,
+    registry: common.registry,
+    staleness: 600
+  })
   t.ok(stream, 'returned a stream')
   var results = []
   stream.on('data', function (pkg) {
@@ -184,7 +196,11 @@ test('createEntryStream merged stream', function (t) {
 test('allPackageMetadata no sources', function (t) {
   setup()
   server.get('/-/all').once().reply(404, {})
-  var stream = allPackageMetadata(600)
+  var stream = allPackageMetadata({
+    cache: CACHE_DIR,
+    registry: common.registry,
+    staleness: 600
+  })
   ms.finished(stream, function (err) {
     t.ok(err, 'no sources, got an error')
     t.match(err.message, /No search sources available/, 'useful error message')

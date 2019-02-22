@@ -11,7 +11,7 @@ const bench = common.createBenchmark(main, {
     'Content-Type',
     'Content-Length',
     'Connection',
-    'Transfer-Encoding'
+    'Transfer-Encoding',
   ],
   n: [1e6],
 });

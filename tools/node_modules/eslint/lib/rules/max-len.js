@@ -14,7 +14,8 @@ const OPTIONS_SCHEMA = {
     properties: {
         code: {
             type: "integer",
-            minimum: 0
+            minimum: 0,
+            default: 80
         },
         comments: {
             type: "integer",
@@ -22,28 +23,35 @@ const OPTIONS_SCHEMA = {
         },
         tabWidth: {
             type: "integer",
-            minimum: 0
+            minimum: 0,
+            default: 4
         },
         ignorePattern: {
             type: "string"
         },
         ignoreComments: {
-            type: "boolean"
+            type: "boolean",
+            default: false
         },
         ignoreStrings: {
-            type: "boolean"
+            type: "boolean",
+            default: false
         },
         ignoreUrls: {
-            type: "boolean"
+            type: "boolean",
+            default: false
         },
         ignoreTemplateLiterals: {
-            type: "boolean"
+            type: "boolean",
+            default: false
         },
         ignoreRegExpLiterals: {
-            type: "boolean"
+            type: "boolean",
+            default: false
         },
         ignoreTrailingComments: {
-            type: "boolean"
+            type: "boolean",
+            default: false
         }
     },
     additionalProperties: false
@@ -121,8 +129,7 @@ module.exports = {
         }
 
         // The options object must be the last option specified…
-        const lastOption = context.options[context.options.length - 1];
-        const options = typeof lastOption === "object" ? Object.create(lastOption) : {};
+        const options = Object.assign({}, context.options[context.options.length - 1]);
 
         // …but max code length…
         if (typeof context.options[0] === "number") {

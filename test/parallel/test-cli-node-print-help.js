@@ -22,10 +22,9 @@ function startPrintHelpTest() {
 }
 
 function validateNodePrintHelp() {
-  const config = process.config;
   const HAVE_OPENSSL = common.hasCrypto;
   const NODE_HAVE_I18N_SUPPORT = common.hasIntl;
-  const HAVE_INSPECTOR = config.variables.v8_enable_inspector === 1;
+  const HAVE_INSPECTOR = process.features.inspector;
 
   const cliHelpOptions = [
     { compileConstant: HAVE_OPENSSL,

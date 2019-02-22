@@ -24,13 +24,16 @@ module.exports = {
                 type: "object",
                 properties: {
                     allowShortCircuit: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     allowTernary: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     allowTaggedTemplates: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false

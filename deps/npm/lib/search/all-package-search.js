@@ -8,7 +8,7 @@ function allPackageSearch (opts) {
 
   // Get a stream with *all* the packages. This takes care of dealing
   // with the local cache as well, but that's an internal detail.
-  var allEntriesStream = allPackageMetadata(opts.staleness)
+  var allEntriesStream = allPackageMetadata(opts)
 
   // Grab a stream that filters those packages according to given params.
   var filterStream = streamFilter(function (pkg) {

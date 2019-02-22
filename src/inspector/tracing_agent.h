@@ -10,11 +10,13 @@ namespace node {
 class Environment;
 
 namespace inspector {
+class MainThreadHandle;
+
 namespace protocol {
 
 class TracingAgent : public NodeTracing::Backend {
  public:
-  explicit TracingAgent(Environment*);
+  explicit TracingAgent(Environment*, std::shared_ptr<MainThreadHandle>);
   ~TracingAgent() override;
 
   void Wire(UberDispatcher* dispatcher);
@@ -29,8 +31,10 @@ class TracingAgent : public NodeTracing::Backend {
   void DisconnectTraceClient();
 
   Environment* env_;
+  std::shared_ptr<MainThreadHandle> main_thread_;
   tracing::AgentWriterHandle trace_writer_;
-  std::unique_ptr<NodeTracing::Frontend> frontend_;
+  int frontend_object_id_;
+  std::shared_ptr<NodeTracing::Frontend> frontend_;
 };
 
 

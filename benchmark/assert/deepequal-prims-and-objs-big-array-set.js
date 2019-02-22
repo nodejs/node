@@ -8,7 +8,7 @@ const primValues = {
   'string': 'a',
   'number': 1,
   'object': { 0: 'a' },
-  'array': [1, 2, 3]
+  'array': [1, 2, 3],
 };
 
 const bench = common.createBenchmark(main, {
@@ -20,8 +20,8 @@ const bench = common.createBenchmark(main, {
     'deepEqual_Array',
     'notDeepEqual_Array',
     'deepEqual_Set',
-    'notDeepEqual_Set'
-  ]
+    'notDeepEqual_Set',
+  ],
 });
 
 function run(fn, n, actual, expected) {

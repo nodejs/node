@@ -53,10 +53,18 @@ void GetNodeReport(v8::Isolate* isolate,
                    v8::Local<v8::String> stackstr,
                    std::ostream& out);
 
-// Function declarations - utility functions in src/utilities.cc
-void ReportEndpoints(uv_handle_t* h, std::ostringstream& out);
+// Function declarations - utility functions in src/node_report_utils.cc
 void WalkHandle(uv_handle_t* h, void* arg);
 std::string EscapeJsonChars(const std::string& str);
+
+template <typename T>
+std::string ValueToHexString(T value) {
+  std::stringstream hex;
+
+  hex << "0x" << std::setfill('0') << std::setw(sizeof(T) * 2) << std::hex <<
+    value;
+  return hex.str();
+}
 
 // Function declarations - export functions in src/node_report_module.cc
 void TriggerReport(const v8::FunctionCallbackInfo<v8::Value>& info);
@@ -148,6 +156,8 @@ class JSONWriter {
     state_ = kAfterValue;
   }
 
+  struct Null {};  // Usable as a JSON value.
+
  private:
   template <typename T,
             typename test_for_number = typename std::
@@ -159,6 +169,7 @@ class JSONWriter {
       out_ << number;
   }
 
+  inline void write_value(Null null) { out_ << "null"; }
   inline void write_value(const char* str) { write_string(str); }
   inline void write_value(const std::string& str) { write_string(str); }
 

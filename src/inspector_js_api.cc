@@ -139,7 +139,7 @@ void CallAndPauseOnStart(const FunctionCallbackInfo<v8::Value>& args) {
   env->inspector_agent()->PauseOnNextJavascriptStatement("Break on start");
   v8::MaybeLocal<v8::Value> retval =
       args[0].As<v8::Function>()->Call(env->context(), args[1],
-                                       call_args.size(), call_args.data());
+                                       call_args.length(), call_args.out());
   if (!retval.IsEmpty()) {
     args.GetReturnValue().Set(retval.ToLocalChecked());
   }
@@ -149,33 +149,30 @@ void InspectorConsoleCall(const FunctionCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
   Isolate* isolate = env->isolate();
   Local<Context> context = isolate->GetCurrentContext();
-  CHECK_LT(2, info.Length());
-  SlicedArguments call_args(info, /* start */ 3);
+  CHECK_GE(info.Length(), 2);
+  SlicedArguments call_args(info, /* start */ 2);
   if (InspectorEnabled(env)) {
     Local<Value> inspector_method = info[0];
     CHECK(inspector_method->IsFunction());
-    Local<Value> config_value = info[2];
-    CHECK(config_value->IsObject());
-    Local<Object> config_object = config_value.As<Object>();
-    Local<String> in_call_key = FIXED_ONE_BYTE_STRING(isolate, "in_call");
-    if (!config_object->Has(context, in_call_key).FromMaybe(false)) {
-      CHECK(config_object->Set(context,
-                               in_call_key,
-                               v8::True(isolate)).FromJust());
-      CHECK(!inspector_method.As<Function>()->Call(context,
-                                                   info.Holder(),
-                                                   call_args.size(),
-                                                   call_args.data()).IsEmpty());
+    if (!env->is_in_inspector_console_call()) {
+      env->set_is_in_inspector_console_call(true);
+      MaybeLocal<Value> ret =
+          inspector_method.As<Function>()->Call(context,
+                                                info.Holder(),
+                                                call_args.length(),
+                                                call_args.out());
+      env->set_is_in_inspector_console_call(false);
+      if (ret.IsEmpty())
+        return;
     }
-    CHECK(config_object->Delete(context, in_call_key).FromJust());
   }
 
   Local<Value> node_method = info[1];
   CHECK(node_method->IsFunction());
   node_method.As<Function>()->Call(context,
                                    info.Holder(),
-                                   call_args.size(),
-                                   call_args.data()).FromMaybe(Local<Value>());
+                                   call_args.length(),
+                                   call_args.out()).FromMaybe(Local<Value>());
 }
 
 static void* GetAsyncTask(int64_t asyncId) {

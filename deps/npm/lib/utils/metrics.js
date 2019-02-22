@@ -4,12 +4,13 @@ exports.stop = stopMetrics
 exports.save = saveMetrics
 exports.send = sendMetrics
 
-var fs = require('fs')
-var path = require('path')
-var npm = require('../npm.js')
-var uuid = require('uuid')
+const fs = require('fs')
+const path = require('path')
+const npm = require('../npm.js')
+const regFetch = require('libnpm/fetch')
+const uuid = require('uuid')
 
-var inMetrics = false
+let inMetrics = false
 
 function startMetrics () {
   if (inMetrics) return
@@ -59,15 +60,18 @@ function saveMetrics (itWorked) {
 function sendMetrics (metricsFile, metricsRegistry) {
   inMetrics = true
   var cliMetrics = JSON.parse(fs.readFileSync(metricsFile))
-  npm.load({}, function (err) {
-    if (err) return
-    npm.registry.config.retry.retries = 0
-    npm.registry.sendAnonymousCLIMetrics(metricsRegistry, cliMetrics, function (err) {
-      if (err) {
-        fs.writeFileSync(path.join(path.dirname(metricsFile), 'last-send-metrics-error.txt'), err.stack)
-      } else {
-        fs.unlinkSync(metricsFile)
-      }
-    })
+  regFetch(
+    `/-/npm/anon-metrics/v1/${encodeURIComponent(cliMetrics.metricId)}`,
+    // NOTE: skip npmConfig() to prevent auth
+    {
+      registry: metricsRegistry,
+      method: 'PUT',
+      body: cliMetrics.metrics,
+      retry: false
+    }
+  ).then(() => {
+    fs.unlinkSync(metricsFile)
+  }, err => {
+    fs.writeFileSync(path.join(path.dirname(metricsFile), 'last-send-metrics-error.txt'), err.stack)
   })
 }

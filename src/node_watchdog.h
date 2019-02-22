@@ -45,7 +45,6 @@ class Watchdog {
 
  private:
   static void Run(void* arg);
-  static void Async(uv_async_t* async);
   static void Timer(uv_timer_t* timer);
 
   v8::Isolate* isolate_;

@@ -30,10 +30,12 @@ module.exports = {
                 type: "object",
                 properties: {
                     allowLoop: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     allowSwitch: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false
@@ -43,8 +45,8 @@ module.exports = {
 
     create(context) {
         const options = context.options[0];
-        const allowLoop = Boolean(options && options.allowLoop);
-        const allowSwitch = Boolean(options && options.allowSwitch);
+        const allowLoop = options && options.allowLoop;
+        const allowSwitch = options && options.allowSwitch;
         let scopeInfo = null;
 
         /**

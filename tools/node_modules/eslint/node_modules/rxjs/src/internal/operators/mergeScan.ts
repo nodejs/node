@@ -2,8 +2,6 @@ import { Operator } from '../Operator';
 import { Observable } from '../Observable';
 import { Subscriber } from '../Subscriber';
 import { Subscription } from '../Subscription';
-import { tryCatch } from '../util/tryCatch';
-import { errorObject } from '../util/errorObject';
 import { subscribeToResult } from '../util/subscribeToResult';
 import { OuterSubscriber } from '../OuterSubscriber';
 import { InnerSubscriber } from '../InnerSubscriber';
@@ -20,6 +18,9 @@ import { ObservableInput, OperatorFunction } from '../types';
  * ## Example
  * Count the number of click events
  * ```javascript
+ * import { fromEvent, of } from 'rxjs';
+ * import { mapTo } from 'rxjs/operators';
+ *
  * const click$ = fromEvent(document, 'click');
  * const one$ = click$.pipe(mapTo(1));
  * const seed = 0;
@@ -45,14 +46,14 @@ import { ObservableInput, OperatorFunction } from '../types';
  * @method mergeScan
  * @owner Observable
  */
-export function mergeScan<T, R>(accumulator: (acc: R, value: T) => ObservableInput<R>,
+export function mergeScan<T, R>(accumulator: (acc: R, value: T, index: number) => ObservableInput<R>,
                                 seed: R,
                                 concurrent: number = Number.POSITIVE_INFINITY): OperatorFunction<T, R> {
   return (source: Observable<T>) => source.lift(new MergeScanOperator(accumulator, seed, concurrent));
 }
 
 export class MergeScanOperator<T, R> implements Operator<T, R> {
-  constructor(private accumulator: (acc: R, value: T) => ObservableInput<R>,
+  constructor(private accumulator: (acc: R, value: T, index: number) => ObservableInput<R>,
               private seed: R,
               private concurrent: number) {
   }
@@ -77,7 +78,7 @@ export class MergeScanSubscriber<T, R> extends OuterSubscriber<T, R> {
   protected index: number = 0;
 
   constructor(destination: Subscriber<R>,
-              private accumulator: (acc: R, value: T) => ObservableInput<R>,
+              private accumulator: (acc: R, value: T, index: number) => ObservableInput<R>,
               private acc: R,
               private concurrent: number) {
     super(destination);
@@ -86,14 +87,16 @@ export class MergeScanSubscriber<T, R> extends OuterSubscriber<T, R> {
   protected _next(value: any): void {
     if (this.active < this.concurrent) {
       const index = this.index++;
-      const ish = tryCatch(this.accumulator)(this.acc, value);
       const destination = this.destination;
-      if (ish === errorObject) {
-        destination.error(errorObject.e);
-      } else {
-        this.active++;
-        this._innerSub(ish, value, index);
+      let ish;
+      try {
+        const { accumulator } = this;
+        ish = accumulator(this.acc, value, index);
+      } catch (e) {
+        return destination.error(e);
       }
+      this.active++;
+      this._innerSub(ish, value, index);
     } else {
       this.buffer.push(value);
     }

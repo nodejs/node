@@ -1510,6 +1510,9 @@
 		"opr": false
 	},
 	"greasemonkey": {
+		"cloneInto": false,
+		"createObjectIn": false,
+		"exportFunction": false,
 		"GM": false,
 		"GM_addStyle": false,
 		"GM_deleteValue": false,

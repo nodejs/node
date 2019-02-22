@@ -23,22 +23,28 @@ module.exports = {
                         type: "object",
                         properties: {
                             ClassDeclaration: {
-                                type: "boolean"
+                                type: "boolean",
+                                default: false
                             },
                             MethodDefinition: {
-                                type: "boolean"
+                                type: "boolean",
+                                default: false
                             },
                             FunctionDeclaration: {
-                                type: "boolean"
+                                type: "boolean",
+                                default: true
                             },
                             ArrowFunctionExpression: {
-                                type: "boolean"
+                                type: "boolean",
+                                default: false
                             },
                             FunctionExpression: {
-                                type: "boolean"
+                                type: "boolean",
+                                default: false
                             }
                         },
-                        additionalProperties: false
+                        additionalProperties: false,
+                        default: {}
                     }
                 },
                 additionalProperties: false
@@ -58,7 +64,7 @@ module.exports = {
             ArrowFunctionExpression: false,
             FunctionExpression: false
         };
-        const options = Object.assign(DEFAULT_OPTIONS, context.options[0] && context.options[0].require || {});
+        const options = Object.assign(DEFAULT_OPTIONS, context.options[0] && context.options[0].require);
 
         /**
          * Report the error message

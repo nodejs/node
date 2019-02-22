@@ -109,16 +109,16 @@ class URL {
     }
   }
 
-  explicit URL(std::string input) :
+  explicit URL(const std::string& input) :
       URL(input.c_str(), input.length()) {}
 
-  URL(std::string input, const URL* base) :
+  URL(const std::string& input, const URL* base) :
       URL(input.c_str(), input.length(), base) {}
 
-  URL(std::string input, const URL& base) :
+  URL(const std::string& input, const URL& base) :
       URL(input.c_str(), input.length(), &base) {}
 
-  URL(std::string input, std::string base) :
+  URL(const std::string& input, const std::string& base) :
       URL(input.c_str(), input.length(), base.c_str(), base.length()) {}
 
   int32_t flags() {

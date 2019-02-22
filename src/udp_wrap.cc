@@ -30,12 +30,12 @@ namespace node {
 
 using v8::Array;
 using v8::Context;
-using v8::EscapableHandleScope;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::PropertyAttribute;
 using v8::Signature;
@@ -175,6 +175,19 @@ void UDPWrap::GetFD(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(fd);
 }
 
+int sockaddr_for_family(int address_family,
+                        const char* address,
+                        const unsigned short port,
+                        struct sockaddr_storage* addr) {
+  switch (address_family) {
+  case AF_INET:
+    return uv_ip4_addr(address, port, reinterpret_cast<sockaddr_in*>(addr));
+  case AF_INET6:
+    return uv_ip6_addr(address, port, reinterpret_cast<sockaddr_in6*>(addr));
+  default:
+    CHECK(0 && "unexpected address family");
+  }
+}
 
 void UDPWrap::DoBind(const FunctionCallbackInfo<Value>& args, int family) {
   UDPWrap* wrap;
@@ -191,24 +204,11 @@ void UDPWrap::DoBind(const FunctionCallbackInfo<Value>& args, int family) {
   if (!args[1]->Uint32Value(ctx).To(&port) ||
       !args[2]->Uint32Value(ctx).To(&flags))
     return;
-  char addr[sizeof(sockaddr_in6)];
-  int err;
-
-  switch (family) {
-  case AF_INET:
-    err = uv_ip4_addr(*address, port, reinterpret_cast<sockaddr_in*>(&addr));
-    break;
-  case AF_INET6:
-    err = uv_ip6_addr(*address, port, reinterpret_cast<sockaddr_in6*>(&addr));
-    break;
-  default:
-    CHECK(0 && "unexpected address family");
-    ABORT();
-  }
-
+  struct sockaddr_storage addr_storage;
+  int err = sockaddr_for_family(family, address.out(), port, &addr_storage);
   if (err == 0) {
     err = uv_udp_bind(&wrap->handle_,
-                      reinterpret_cast<const sockaddr*>(&addr),
+                      reinterpret_cast<const sockaddr*>(&addr_storage),
                       flags);
   }
 
@@ -392,27 +392,14 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
 
   req_wrap->msg_size = msg_size;
 
-  char addr[sizeof(sockaddr_in6)];
-  int err;
-
-  switch (family) {
-  case AF_INET:
-    err = uv_ip4_addr(*address, port, reinterpret_cast<sockaddr_in*>(&addr));
-    break;
-  case AF_INET6:
-    err = uv_ip6_addr(*address, port, reinterpret_cast<sockaddr_in6*>(&addr));
-    break;
-  default:
-    CHECK(0 && "unexpected address family");
-    ABORT();
-  }
-
+  struct sockaddr_storage addr_storage;
+  int err = sockaddr_for_family(family, address.out(), port, &addr_storage);
   if (err == 0) {
     err = req_wrap->Dispatch(uv_udp_send,
                              &wrap->handle_,
                              *bufs,
                              count,
-                             reinterpret_cast<const sockaddr*>(&addr),
+                             reinterpret_cast<const sockaddr*>(&addr_storage),
                              OnSend);
   }
 
@@ -518,18 +505,14 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
   wrap->MakeCallback(env->onmessage_string(), arraysize(argv), argv);
 }
 
-
-Local<Object> UDPWrap::Instantiate(Environment* env,
-                                   AsyncWrap* parent,
-                                   UDPWrap::SocketType type) {
-  EscapableHandleScope scope(env->isolate());
+MaybeLocal<Object> UDPWrap::Instantiate(Environment* env,
+                                        AsyncWrap* parent,
+                                        UDPWrap::SocketType type) {
   AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(parent);
 
   // If this assert fires then Initialize hasn't been called yet.
   CHECK_EQ(env->udp_constructor_function().IsEmpty(), false);
-  Local<Object> instance = env->udp_constructor_function()
-      ->NewInstance(env->context()).ToLocalChecked();
-  return scope.Escape(instance);
+  return env->udp_constructor_function()->NewInstance(env->context());
 }
 
 

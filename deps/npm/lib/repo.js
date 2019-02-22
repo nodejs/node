@@ -2,10 +2,10 @@ module.exports = repo
 
 repo.usage = 'npm repo [<pkg>]'
 
-var openUrl = require('./utils/open-url')
-var hostedGitInfo = require('hosted-git-info')
-var url_ = require('url')
-var fetchPackageMetadata = require('./fetch-package-metadata.js')
+const openUrl = require('./utils/open-url')
+const hostedGitInfo = require('hosted-git-info')
+const url_ = require('url')
+const fetchPackageMetadata = require('./fetch-package-metadata.js')
 
 repo.completion = function (opts, cb) {
   // FIXME: there used to be registry completion here, but it stopped making
@@ -14,7 +14,7 @@ repo.completion = function (opts, cb) {
 }
 
 function repo (args, cb) {
-  var n = args.length ? args[0] : '.'
+  const n = args.length ? args[0] : '.'
   fetchPackageMetadata(n, '.', {fullMetadata: true}, function (er, d) {
     if (er) return cb(er)
     getUrlAndOpen(d, cb)
@@ -22,12 +22,12 @@ function repo (args, cb) {
 }
 
 function getUrlAndOpen (d, cb) {
-  var r = d.repository
+  const r = d.repository
   if (!r) return cb(new Error('no repository'))
   // XXX remove this when npm@v1.3.10 from node 0.10 is deprecated
   // from https://github.com/npm/npm-www/issues/418
-  var info = hostedGitInfo.fromUrl(r.url)
-  var url = info ? info.browse() : unknownHostedUrl(r.url)
+  const info = hostedGitInfo.fromUrl(r.url)
+  const url = info ? info.browse() : unknownHostedUrl(r.url)
 
   if (!url) return cb(new Error('no repository: could not get url'))
 
@@ -36,12 +36,12 @@ function getUrlAndOpen (d, cb) {
 
 function unknownHostedUrl (url) {
   try {
-    var idx = url.indexOf('@')
+    const idx = url.indexOf('@')
     if (idx !== -1) {
       url = url.slice(idx + 1).replace(/:([^\d]+)/, '/$1')
     }
     url = url_.parse(url)
-    var protocol = url.protocol === 'https:'
+    const protocol = url.protocol === 'https:'
       ? 'https:'
       : 'http:'
     return protocol + '//' + (url.host || '') +

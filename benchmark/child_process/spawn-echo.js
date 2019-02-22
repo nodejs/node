@@ -15,7 +15,7 @@ function go(n, left) {
     return bench.end(n);
 
   const child = spawn('echo', ['hello']);
-  child.on('exit', function(code) {
+  child.on('exit', (code) => {
     if (code)
       process.exit(code);
     else

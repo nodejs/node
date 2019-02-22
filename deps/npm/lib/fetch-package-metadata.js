@@ -8,11 +8,11 @@ const rimraf = require('rimraf')
 const validate = require('aproba')
 const npa = require('npm-package-arg')
 const npm = require('./npm')
+let npmConfig
 const npmlog = require('npmlog')
 const limit = require('call-limit')
 const tempFilename = require('./utils/temp-filename')
 const pacote = require('pacote')
-let pacoteOpts
 const isWindows = require('./utils/is-windows.js')
 
 function andLogAndFinish (spec, tracker, done) {
@@ -52,10 +52,10 @@ function fetchPackageMetadata (spec, where, opts, done) {
     err.code = 'EWINDOWSPATH'
     return logAndFinish(err)
   }
-  if (!pacoteOpts) {
-    pacoteOpts = require('./config/pacote')
+  if (!npmConfig) {
+    npmConfig = require('./config/figgy-config.js')
   }
-  pacote.manifest(dep, pacoteOpts({
+  pacote.manifest(dep, npmConfig({
     annotate: true,
     fullMetadata: opts.fullMetadata,
     log: tracker || npmlog,
@@ -85,9 +85,6 @@ function fetchPackageMetadata (spec, where, opts, done) {
 module.exports.addBundled = addBundled
 function addBundled (pkg, next) {
   validate('OF', arguments)
-  if (!pacoteOpts) {
-    pacoteOpts = require('./config/pacote')
-  }
   if (pkg._bundled !== undefined) return next(null, pkg)
 
   if (!pkg.bundleDependencies && pkg._requested.type !== 'directory') return next(null, pkg)
@@ -101,7 +98,10 @@ function addBundled (pkg, next) {
   }
   pkg._bundled = null
   const target = tempFilename('unpack')
-  const opts = pacoteOpts({integrity: pkg._integrity})
+  if (!npmConfig) {
+    npmConfig = require('./config/figgy-config.js')
+  }
+  const opts = npmConfig({integrity: pkg._integrity})
   pacote.extract(pkg._resolved || pkg._requested || npa.resolve(pkg.name, pkg.version), target, opts).then(() => {
     log.silly('addBundled', 'read tarball')
     readPackageTree(target, (err, tree) => {

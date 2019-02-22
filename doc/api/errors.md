@@ -1690,10 +1690,10 @@ An attempt has been made to create a string longer than the maximum allowed
 length.
 
 <a id="ERR_SYNTHETIC"></a>
-#### ERR_SYNTHETIC
+### ERR_SYNTHETIC
 
-An artificial error object used to capture call stack when diagnostic report
-is produced.
+An artificial error object used to capture the call stack for diagnostic
+reports.
 
 <a id="ERR_SYSTEM_ERROR"></a>
 ### ERR_SYSTEM_ERROR
@@ -1964,7 +1964,12 @@ an `Error` with this code will be emitted.
 
 <a id="MODULE_NOT_FOUND"></a>
 ### MODULE_NOT_FOUND
-
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/25690
+    description: Added `requireStack` property.
+-->
 A module file could not be resolved while attempting a [`require()`][] or
 `import` operation.
 
@@ -2232,12 +2237,6 @@ size.
 
 This `Error` is thrown when a read is attempted on a TTY `WriteStream`,
 such as `process.stdout.on('data')`.
-
-<a id="ERR_SYNTHETIC"></a>
-#### ERR_SYNTHETIC
-
-An artifical error object used to capture call stack when diagnostic report
-is produced.
 
 
 [`'uncaughtException'`]: process.html#process_event_uncaughtexception

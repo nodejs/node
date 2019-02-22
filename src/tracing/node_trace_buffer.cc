@@ -1,4 +1,5 @@
 #include "tracing/node_trace_buffer.h"
+#include "util-inl.h"
 
 namespace node {
 namespace tracing {
@@ -159,7 +160,7 @@ bool NodeTraceBuffer::TryLoadAvailableBuffer() {
 
 // static
 void NodeTraceBuffer::NonBlockingFlushSignalCb(uv_async_t* signal) {
-  NodeTraceBuffer* buffer = reinterpret_cast<NodeTraceBuffer*>(signal->data);
+  NodeTraceBuffer* buffer = static_cast<NodeTraceBuffer*>(signal->data);
   if (buffer->buffer1_.IsFull() && !buffer->buffer1_.IsFlushing()) {
     buffer->buffer1_.Flush(false);
   }
@@ -170,15 +171,25 @@ void NodeTraceBuffer::NonBlockingFlushSignalCb(uv_async_t* signal) {
 
 // static
 void NodeTraceBuffer::ExitSignalCb(uv_async_t* signal) {
-  NodeTraceBuffer* buffer = reinterpret_cast<NodeTraceBuffer*>(signal->data);
-  uv_close(reinterpret_cast<uv_handle_t*>(&buffer->flush_signal_), nullptr);
-  uv_close(reinterpret_cast<uv_handle_t*>(&buffer->exit_signal_),
+  NodeTraceBuffer* buffer =
+      ContainerOf(&NodeTraceBuffer::exit_signal_, signal);
+
+  // Close both flush_signal_ and exit_signal_.
+  uv_close(reinterpret_cast<uv_handle_t*>(&buffer->flush_signal_),
            [](uv_handle_t* signal) {
+    NodeTraceBuffer* buffer =
+        ContainerOf(&NodeTraceBuffer::flush_signal_,
+                    reinterpret_cast<uv_async_t*>(signal));
+
+    uv_close(reinterpret_cast<uv_handle_t*>(&buffer->exit_signal_),
+             [](uv_handle_t* signal) {
       NodeTraceBuffer* buffer =
-          reinterpret_cast<NodeTraceBuffer*>(signal->data);
-      Mutex::ScopedLock scoped_lock(buffer->exit_mutex_);
-      buffer->exited_ = true;
-      buffer->exit_cond_.Signal(scoped_lock);
+          ContainerOf(&NodeTraceBuffer::exit_signal_,
+                      reinterpret_cast<uv_async_t*>(signal));
+        Mutex::ScopedLock scoped_lock(buffer->exit_mutex_);
+        buffer->exited_ = true;
+        buffer->exit_cond_.Signal(scoped_lock);
+    });
   });
 }
 

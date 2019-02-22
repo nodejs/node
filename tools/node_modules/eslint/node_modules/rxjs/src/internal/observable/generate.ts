@@ -57,7 +57,7 @@ export interface GenerateOptions<T, S> extends GenerateBaseOptions<S> {
  * const res = generate(0, x => x < 10, x => x + 1, x => x);
  *
  * @example <caption>Using asap scheduler, produces sequence of 2, 3, 5, then completes.</caption>
- * const res = generate(1, x => x < 5, x =>  * 2, x => x + 1, asap);
+ * const res = generate(1, x => x < 5, x => x * 2, x => x + 1, asap);
  *
  * @see {@link from}
  * @see {@link Observable}
@@ -193,7 +193,7 @@ export interface GenerateOptions<T, S> extends GenerateBaseOptions<S> {
  *
  *
  * @see {@link from}
- * @see {@link create}
+ * @see {@link index/Observable.create}
  *
  * @param {S} initialState Initial state.
  * @param {function (state: S): boolean} condition Condition to terminate generation (upon returning false).

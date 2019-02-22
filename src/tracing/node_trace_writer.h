@@ -17,7 +17,7 @@ using v8::platform::tracing::TraceWriter;
 class NodeTraceWriter : public AsyncTraceWriter {
  public:
   explicit NodeTraceWriter(const std::string& log_file_pattern);
-  ~NodeTraceWriter();
+  ~NodeTraceWriter() override;
 
   void InitializeOnThread(uv_loop_t* loop) override;
   void AppendTraceEvent(TraceObject* trace_event) override;

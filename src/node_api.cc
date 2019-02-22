@@ -12,8 +12,13 @@ struct node_napi_env__ : public napi_env__ {
       napi_env__(context) {
     CHECK_NOT_NULL(node_env());
   }
+
   inline node::Environment* node_env() const {
     return node::Environment::GetCurrent(context());
+  }
+
+  bool can_call_into_js() const override {
+    return node_env()->can_call_into_js();
   }
 };
 
@@ -29,11 +34,12 @@ class BufferFinalizer: private Finalizer {
   static void FinalizeBufferCallback(char* data, void* hint) {
     BufferFinalizer* finalizer = static_cast<BufferFinalizer*>(hint);
     if (finalizer->_finalize_callback != nullptr) {
-      NAPI_CALL_INTO_MODULE_THROW(finalizer->_env,
+      NapiCallIntoModuleThrow(finalizer->_env, [&]() {
         finalizer->_finalize_callback(
           finalizer->_env,
           data,
-          finalizer->_finalize_hint));
+          finalizer->_finalize_hint);
+      });
     }
 
     Delete(finalizer);
@@ -128,7 +134,7 @@ class ThreadSafeFunction : public node::AsyncResource {
     env->Ref();
   }
 
-  ~ThreadSafeFunction() {
+  ~ThreadSafeFunction() override {
     node::RemoveEnvironmentCleanupHook(env->isolate, Cleanup, this);
     env->Unref();
   }
@@ -460,8 +466,9 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
   napi_env env = v8impl::GetEnv(context);
 
   napi_value _exports;
-  NAPI_CALL_INTO_MODULE_THROW(env,
-      _exports = init(env, v8impl::JsValueFromV8LocalValue(exports)));
+  NapiCallIntoModuleThrow(env, [&]() {
+    _exports = init(env, v8impl::JsValueFromV8LocalValue(exports));
+  });
 
   // If register function returned a non-null exports object different from
   // the exports object we passed it, set that as the "exports" property of
@@ -832,7 +839,7 @@ class Work : public node::AsyncResource, public node::ThreadPoolWork {
       _complete(complete) {
   }
 
-  virtual ~Work() { }
+  ~Work() override { }
 
  public:
   static Work* New(node_napi_env env,
@@ -869,14 +876,14 @@ class Work : public node::AsyncResource, public node::ThreadPoolWork {
     // stored.
     napi_env env = _env;
 
-    NAPI_CALL_INTO_MODULE(env,
-        _complete(_env, ConvertUVErrorCode(status), _data),
-        [env] (v8::Local<v8::Value> local_err) {
-          // If there was an unhandled exception in the complete callback,
-          // report it as a fatal exception. (There is no JavaScript on the
-          // callstack that can possibly handle it.)
-          v8impl::trigger_fatal_exception(env, local_err);
-        });
+    NapiCallIntoModule(env, [&]() {
+      _complete(_env, ConvertUVErrorCode(status), _data);
+    }, [env](v8::Local<v8::Value> local_err) {
+      // If there was an unhandled exception in the complete callback,
+      // report it as a fatal exception. (There is no JavaScript on the
+      // callstack that can possibly handle it.)
+      v8impl::trigger_fatal_exception(env, local_err);
+    });
 
     // Note: Don't access `work` after this point because it was
     // likely deleted by the complete callback.
@@ -1043,8 +1050,8 @@ napi_create_threadsafe_function(napi_env env,
 napi_status
 napi_get_threadsafe_function_context(napi_threadsafe_function func,
                                      void** result) {
-  CHECK(func != nullptr);
-  CHECK(result != nullptr);
+  CHECK_NOT_NULL(func);
+  CHECK_NOT_NULL(result);
 
   *result = reinterpret_cast<v8impl::ThreadSafeFunction*>(func)->Context();
   return napi_ok;
@@ -1054,32 +1061,32 @@ napi_status
 napi_call_threadsafe_function(napi_threadsafe_function func,
                               void* data,
                               napi_threadsafe_function_call_mode is_blocking) {
-  CHECK(func != nullptr);
+  CHECK_NOT_NULL(func);
   return reinterpret_cast<v8impl::ThreadSafeFunction*>(func)->Push(data,
                                                                    is_blocking);
 }
 
 napi_status
 napi_acquire_threadsafe_function(napi_threadsafe_function func) {
-  CHECK(func != nullptr);
+  CHECK_NOT_NULL(func);
   return reinterpret_cast<v8impl::ThreadSafeFunction*>(func)->Acquire();
 }
 
 napi_status
 napi_release_threadsafe_function(napi_threadsafe_function func,
                                  napi_threadsafe_function_release_mode mode) {
-  CHECK(func != nullptr);
+  CHECK_NOT_NULL(func);
   return reinterpret_cast<v8impl::ThreadSafeFunction*>(func)->Release(mode);
 }
 
 napi_status
 napi_unref_threadsafe_function(napi_env env, napi_threadsafe_function func) {
-  CHECK(func != nullptr);
+  CHECK_NOT_NULL(func);
   return reinterpret_cast<v8impl::ThreadSafeFunction*>(func)->Unref();
 }
 
 napi_status
 napi_ref_threadsafe_function(napi_env env, napi_threadsafe_function func) {
-  CHECK(func != nullptr);
+  CHECK_NOT_NULL(func);
   return reinterpret_cast<v8impl::ThreadSafeFunction*>(func)->Ref();
 }

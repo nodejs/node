@@ -215,7 +215,8 @@ module.exports = {
                                 }
                             },
                             balanced: {
-                                type: "boolean"
+                                type: "boolean",
+                                default: false
                             }
                         },
                         additionalProperties: false

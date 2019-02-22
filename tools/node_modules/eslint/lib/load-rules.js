@@ -20,15 +20,12 @@ const rulesDirCache = {};
 
 /**
  * Load all rule modules from specified directory.
- * @param {string} [relativeRulesDir] Path to rules directory, may be relative. Defaults to `lib/rules`.
+ * @param {string} relativeRulesDir Path to rules directory, may be relative.
  * @param {string} cwd Current working directory
  * @returns {Object} Loaded rule modules by rule ids (file names).
  */
 module.exports = function(relativeRulesDir, cwd) {
-
-    const rulesDir = relativeRulesDir
-        ? path.resolve(cwd, relativeRulesDir)
-        : path.join(__dirname, "rules");
+    const rulesDir = path.resolve(cwd, relativeRulesDir);
 
     // cache will help performance as IO operation are expensive
     if (rulesDirCache[rulesDir]) {

@@ -1,6 +1,7 @@
 #include <node.h>
 #include <assert.h>
 #include <openssl/rand.h>
+#include <openssl/ssl.h>
 
 namespace {
 
@@ -28,6 +29,9 @@ inline void Initialize(v8::Local<v8::Object> exports,
                    ->GetFunction(context)
                    .ToLocalChecked();
   assert(exports->Set(context, key, value).IsJust());
+
+  const SSL_METHOD* method = TLSv1_2_server_method();
+  assert(method != nullptr);
 }
 
 }  // anonymous namespace

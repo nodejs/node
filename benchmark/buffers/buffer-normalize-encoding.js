@@ -25,7 +25,7 @@ const bench = common.createBenchmark(main, {
     'utf16le',
     'UTF16LE',
     'utf8',
-    'UTF8'
+    'UTF8',
   ],
   n: [1e6]
 }, {

@@ -31,13 +31,16 @@ module.exports = {
                         }
                     },
                     allowAfterThis: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     allowAfterSuper: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     enforceInMethodNames: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false

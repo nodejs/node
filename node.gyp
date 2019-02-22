@@ -25,10 +25,12 @@
     'node_lib_target_name%': 'node_lib',
     'node_intermediate_lib_type%': 'static_library',
     'library_files': [
-      'lib/internal/per_context.js',
+      'lib/internal/bootstrap/context.js',
+      'lib/internal/bootstrap/primordials.js',
       'lib/internal/bootstrap/cache.js',
       'lib/internal/bootstrap/loaders.js',
       'lib/internal/bootstrap/node.js',
+      'lib/internal/bootstrap/pre_execution.js',
       'lib/async_hooks.js',
       'lib/assert.js',
       'lib/buffer.js',
@@ -84,8 +86,8 @@
       'lib/worker_threads.js',
       'lib/zlib.js',
       'lib/internal/assert.js',
+      'lib/internal/assert/assertion_error.js',
       'lib/internal/async_hooks.js',
-      'lib/internal/bash_completion.js',
       'lib/internal/buffer.js',
       'lib/internal/cli_table.js',
       'lib/internal/child_process.js',
@@ -126,9 +128,21 @@
       'lib/internal/fs/utils.js',
       'lib/internal/fs/watchers.js',
       'lib/internal/http.js',
+      'lib/internal/idna.js',
       'lib/internal/inspector_async_hook.js',
       'lib/internal/js_stream_socket.js',
       'lib/internal/linkedlist.js',
+      'lib/internal/main/check_syntax.js',
+      'lib/internal/main/eval_string.js',
+      'lib/internal/main/eval_stdin.js',
+      'lib/internal/main/inspect.js',
+      'lib/internal/main/print_bash_completion.js',
+      'lib/internal/main/print_help.js',
+      'lib/internal/main/prof_process.js',
+      'lib/internal/main/repl.js',
+      'lib/internal/main/run_main_module.js',
+      'lib/internal/main/run_third_party_main.js',
+      'lib/internal/main/worker_thread.js',
       'lib/internal/modules/cjs/helpers.js',
       'lib/internal/modules/cjs/loader.js',
       'lib/internal/modules/esm/loader.js',
@@ -137,12 +151,10 @@
       'lib/internal/modules/esm/module_job.js',
       'lib/internal/modules/esm/module_map.js',
       'lib/internal/modules/esm/translators.js',
-      'lib/internal/safe_globals.js',
       'lib/internal/net.js',
       'lib/internal/options.js',
-      'lib/internal/policy/sri.js',
       'lib/internal/policy/manifest.js',
-      'lib/internal/print_help.js',
+      'lib/internal/policy/sri.js',
       'lib/internal/priority_queue.js',
       'lib/internal/process/esm_loader.js',
       'lib/internal/process/execution.js',
@@ -160,6 +172,7 @@
       'lib/internal/readline.js',
       'lib/internal/repl.js',
       'lib/internal/repl/await.js',
+      'lib/internal/repl/history.js',
       'lib/internal/repl/recoverable.js',
       'lib/internal/socket_list.js',
       'lib/internal/test/binding.js',
@@ -207,8 +220,8 @@
       'deps/node-inspect/lib/_inspect.js',
       'deps/node-inspect/lib/internal/inspect_client.js',
       'deps/node-inspect/lib/internal/inspect_repl.js',
-      'deps/acorn/dist/acorn.js',
-      'deps/acorn/dist/walk.js',
+      'deps/acorn/acorn/dist/acorn.js',
+      'deps/acorn/acorn-walk/dist/walk.js',
     ],
     'conditions': [
       [ 'node_shared=="true"', {
@@ -249,8 +262,19 @@
       ],
       'include_dirs': [
         'src',
-        'deps/v8/include',
+        'deps/v8/include'
       ],
+      'dependencies': [ 'deps/histogram/histogram.gyp:histogram' ],
+
+      'msvs_settings': {
+        'VCLinkerTool': {
+          'GenerateMapFile': 'true', # /MAP
+          'MapExports': 'true', # /MAPINFO:EXPORTS
+          'RandomizedBaseAddress': 2, # enable ASLR
+          'DataExecutionPrevention': 2, # enable DEP
+          'AllowIsolation': 'true',
+        },
+      },
 
       # - "C4244: conversion from 'type1' to 'type2', possible loss of data"
       #   Ususaly safe. Disable for `dep`, enable for `src`
@@ -267,8 +291,7 @@
         }, {
           'dependencies': [ '<(node_lib_target_name)' ],
         }],
-        [ 'node_intermediate_lib_type=="static_library" and '
-            'node_shared=="false"', {
+        [ 'node_intermediate_lib_type=="static_library" and node_shared=="false"', {
           'xcode_settings': {
             'OTHER_LDFLAGS': [
               '-Wl,-force_load,<(PRODUCT_DIR)/<(STATIC_LIB_PREFIX)'
@@ -323,19 +346,46 @@
             ['OS=="win"', {
               'libraries': [
                 'dbghelp.lib',
-                'Netapi32.lib',
                 'PsApi.lib',
                 'Ws2_32.lib',
               ],
               'dll_files': [
                 'dbghelp.dll',
-                'Netapi32.dll',
                 'PsApi.dll',
                 'Ws2_32.dll',
               ],
             }],
           ],
         }],
+        ['node_with_ltcg=="true"', {
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'WholeProgramOptimization': 'true'   # /GL, whole program optimization, needed for LTCG
+            },
+            'VCLibrarianTool': {
+              'AdditionalOptions': [
+                '/LTCG:INCREMENTAL',               # link time code generation
+              ],
+            },
+            'VCLinkerTool': {
+              'OptimizeReferences': 2,             # /OPT:REF
+              'EnableCOMDATFolding': 2,            # /OPT:ICF
+              'LinkIncremental': 1,                # disable incremental linking
+              'AdditionalOptions': [
+                '/LTCG:INCREMENTAL',               # incremental link-time code generation
+              ],
+            }
+          }
+        }, {
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'WholeProgramOptimization': 'false'
+            },
+            'VCLinkerTool': {
+              'LinkIncremental': 2                 # enable incremental linking
+            },
+          },
+        }]
       ],
     }, # node_core_target_name
     {
@@ -350,16 +400,22 @@
         'src',
         '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
       ],
+      'dependencies': [ 'deps/histogram/histogram.gyp:histogram' ],
 
       'sources': [
+        'src/api/callback.cc',
+        'src/api/encoding.cc',
+        'src/api/environment.cc',
+        'src/api/exceptions.cc',
+        'src/api/hooks.cc',
+        'src/api/utils.cc',
+
         'src/async_wrap.cc',
-        'src/callback_scope.cc',
         'src/cares_wrap.cc',
         'src/connect_wrap.cc',
         'src/connection_wrap.cc',
         'src/debug_utils.cc',
         'src/env.cc',
-        'src/exceptions.cc',
         'src/fs_event_wrap.cc',
         'src/handle_wrap.cc',
         'src/heap_utils.cc',
@@ -379,7 +435,6 @@
         'src/node_contextify.cc',
         'src/node_credentials.cc',
         'src/node_domain.cc',
-        'src/node_encoding.cc',
         'src/node_env_var.cc',
         'src/node_errors.cc',
         'src/node_file.cc',
@@ -444,6 +499,8 @@
         'src/env.h',
         'src/env-inl.h',
         'src/handle_wrap.h',
+        'src/histogram.h',
+        'src/histogram-inl.h',
         'src/http_parser_adaptor.h',
         'src/js_stream.h',
         'src/memory_tracker.h',
@@ -482,6 +539,7 @@
         'src/node_union_bytes.h',
         'src/node_url.h',
         'src/node_version.h',
+        'src/node_v8_platform-inl.h',
         'src/node_watchdog.h',
         'src/node_worker.h',
         'src/pipe_wrap.h',
@@ -660,13 +718,11 @@
             ['OS=="win"', {
               'libraries': [
                 'dbghelp.lib',
-                'Netapi32.lib',
                 'PsApi.lib',
                 'Ws2_32.lib',
               ],
               'dll_files': [
                 'dbghelp.dll',
-                'Netapi32.dll',
                 'PsApi.dll',
                 'Ws2_32.dll',
               ],
@@ -691,7 +747,7 @@
               '-CAES,BF,BIO,DES,DH,DSA,EC,ECDH,ECDSA,ENGINE,EVP,HMAC,MD4,MD5,'
               'PSK,RC2,RC4,RSA,SHA,SHA0,SHA1,SHA256,SHA512,SOCK,STDIO,TLSEXT,'
               'FP_API,TLS1_METHOD,TLS1_1_METHOD,TLS1_2_METHOD,SCRYPT,OCSP,'
-              'NEXTPROTONEG,RMD160,CAST',
+              'NEXTPROTONEG,RMD160,CAST,DEPRECATEDIN_1_1_0,DEPRECATEDIN_1_2_0',
               # Defines.
               '-DWIN32',
               # Symbols to filter from the export list.
@@ -953,6 +1009,7 @@
         '<(node_lib_target_name)',
         'rename_node_bin_win',
         'deps/gtest/gtest.gyp:gtest',
+        'deps/histogram/histogram.gyp:histogram',
         'node_dtrace_header',
         'node_dtrace_ustack',
         'node_dtrace_provider',
@@ -1025,13 +1082,11 @@
             ['OS=="win"', {
               'libraries': [
                 'dbghelp.lib',
-                'Netapi32.lib',
                 'PsApi.lib',
                 'Ws2_32.lib',
               ],
               'dll_files': [
                 'dbghelp.dll',
-                'Netapi32.dll',
                 'PsApi.dll',
                 'Ws2_32.dll',
               ],

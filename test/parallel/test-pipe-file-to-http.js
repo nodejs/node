@@ -29,7 +29,7 @@ const path = require('path');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const filename = path.join(tmpdir.path || '/tmp', 'big');
+const filename = path.join(tmpdir.path, 'big');
 let count = 0;
 
 const server = http.createServer((req, res) => {

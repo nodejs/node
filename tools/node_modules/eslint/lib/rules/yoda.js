@@ -169,10 +169,12 @@ module.exports = {
                 type: "object",
                 properties: {
                     exceptRange: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     },
                     onlyEquality: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false

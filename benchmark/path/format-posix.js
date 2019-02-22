@@ -4,7 +4,7 @@ const { posix } = require('path');
 
 const bench = common.createBenchmark(main, {
   props: [
-    ['/', '/home/user/dir', 'index.html', '.html', 'index'].join('|')
+    ['/', '/home/user/dir', 'index.html', '.html', 'index'].join('|'),
   ],
   n: [1e7]
 });

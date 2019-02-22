@@ -218,7 +218,7 @@ class SSLWrap {
         kind_(kind),
         next_sess_(nullptr),
         session_callbacks_(false),
-        new_session_wait_(false),
+        awaiting_new_session_(false),
         cert_cb_(nullptr),
         cert_cb_arg_(nullptr),
         cert_cb_running_(false) {
@@ -234,7 +234,7 @@ class SSLWrap {
   inline void enable_session_callbacks() { session_callbacks_ = true; }
   inline bool is_server() const { return kind_ == kServer; }
   inline bool is_client() const { return kind_ == kClient; }
-  inline bool is_waiting_new_session() const { return new_session_wait_; }
+  inline bool is_awaiting_new_session() const { return awaiting_new_session_; }
   inline bool is_waiting_cert_cb() const { return cert_cb_ != nullptr; }
 
  protected:
@@ -325,7 +325,7 @@ class SSLWrap {
   SSLSessionPointer next_sess_;
   SSLPointer ssl_;
   bool session_callbacks_;
-  bool new_session_wait_;
+  bool awaiting_new_session_;
 
   // SSL_set_cert_cb
   CertCb cert_cb_;
@@ -442,9 +442,9 @@ class KeyObject : public BaseObject {
   static v8::Local<v8::Function> Initialize(Environment* env,
                                             v8::Local<v8::Object> target);
 
-  static v8::Local<v8::Object> Create(Environment* env,
-                                      KeyType type,
-                                      const ManagedEVPPKey& pkey);
+  static v8::MaybeLocal<v8::Object> Create(Environment* env,
+                                           KeyType type,
+                                           const ManagedEVPPKey& pkey);
 
   // TODO(tniessen): track the memory used by OpenSSL types
   SET_NO_MEMORY_INFO()

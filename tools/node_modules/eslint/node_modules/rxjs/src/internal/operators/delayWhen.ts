@@ -41,6 +41,9 @@ export function delayWhen<T>(delayDurationSelector: (value: T, index: number) =>
  * ## Example
  * Delay each click by a random amount of time, between 0 and 5 seconds
  * ```javascript
+ * import { fromEvent, interval } from 'rxjs';
+ * import { delayWhen } from 'rxjs/operators';
+ *
  * const clicks = fromEvent(document, 'click');
  * const delayedClicks = clicks.pipe(
  *   delayWhen(event => interval(Math.random() * 5000)),

@@ -15,7 +15,6 @@ const testMe = repl.start('', putIn);
 // `Runtime.executionContextCreated` listener
 process.on('warning', common.mustNotCall());
 
-putIn.run(['.clear']);
 putIn.run(['async function test() {']);
 for (let i = 0; i < DEFAULT_MAX_LISTENERS; i++) {
   testMe.complete('await Promise.resolve()', () => {});

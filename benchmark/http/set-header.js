@@ -19,13 +19,13 @@ function main({ res }) {
   process.env.PORT = PORT;
   var server = require('../fixtures/simple-http-server.js')
   .listen(PORT)
-  .on('listening', function() {
+  .on('listening', () => {
     const path = `/${type}/${len}/${chunks}/normal/${chunkedEnc}`;
 
     bench.http({
       path: path,
       connections: c
-    }, function() {
+    }, () => {
       server.close();
     });
   });

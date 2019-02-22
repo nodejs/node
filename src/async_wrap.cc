@@ -39,7 +39,6 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
-using v8::NewStringType;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -201,15 +200,15 @@ PromiseWrap* PromiseWrap::New(Environment* env,
                               Local<Promise> promise,
                               PromiseWrap* parent_wrap,
                               bool silent) {
-  Local<Object> object = env->promise_wrap_template()
-                            ->NewInstance(env->context()).ToLocalChecked();
-  object->SetInternalField(PromiseWrap::kIsChainedPromiseField,
-                           parent_wrap != nullptr ?
-                              v8::True(env->isolate()) :
-                              v8::False(env->isolate()));
-  CHECK_EQ(promise->GetAlignedPointerFromInternalField(0), nullptr);
-  promise->SetInternalField(0, object);
-  return new PromiseWrap(env, object, silent);
+  Local<Object> obj;
+  if (!env->promise_wrap_template()->NewInstance(env->context()).ToLocal(&obj))
+    return nullptr;
+  obj->SetInternalField(PromiseWrap::kIsChainedPromiseField,
+                        parent_wrap != nullptr ? v8::True(env->isolate())
+                                               : v8::False(env->isolate()));
+  CHECK_NULL(promise->GetAlignedPointerFromInternalField(0));
+  promise->SetInternalField(0, obj);
+  return new PromiseWrap(env, obj, silent);
 }
 
 void PromiseWrap::getIsChainedPromise(Local<String> property,
@@ -242,6 +241,7 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
       PromiseWrap* parent_wrap = extractPromiseWrap(parent_promise);
       if (parent_wrap == nullptr) {
         parent_wrap = PromiseWrap::New(env, parent_promise, nullptr, true);
+        if (parent_wrap == nullptr) return;
       }
 
       AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(parent_wrap);
@@ -251,7 +251,8 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
     }
   }
 
-  CHECK_NOT_NULL(wrap);
+  if (wrap == nullptr) return;
+
   if (type == PromiseHookType::kBefore) {
     env->async_hooks()->push_async_ids(
       wrap->get_async_id(), wrap->get_trigger_async_id());
@@ -684,70 +685,6 @@ MaybeLocal<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   EmitTraceEventAfter(provider, context.async_id);
 
   return ret;
-}
-
-
-/* Public C++ embedder API */
-
-
-async_id AsyncHooksGetExecutionAsyncId(Isolate* isolate) {
-  // Environment::GetCurrent() allocates a Local<> handle.
-  HandleScope handle_scope(isolate);
-  Environment* env = Environment::GetCurrent(isolate);
-  if (env == nullptr) return -1;
-  return env->execution_async_id();
-}
-
-
-async_id AsyncHooksGetTriggerAsyncId(Isolate* isolate) {
-  // Environment::GetCurrent() allocates a Local<> handle.
-  HandleScope handle_scope(isolate);
-  Environment* env = Environment::GetCurrent(isolate);
-  if (env == nullptr) return -1;
-  return env->trigger_async_id();
-}
-
-
-async_context EmitAsyncInit(Isolate* isolate,
-                            Local<Object> resource,
-                            const char* name,
-                            async_id trigger_async_id) {
-  HandleScope handle_scope(isolate);
-  Local<String> type =
-      String::NewFromUtf8(isolate, name, NewStringType::kInternalized)
-          .ToLocalChecked();
-  return EmitAsyncInit(isolate, resource, type, trigger_async_id);
-}
-
-async_context EmitAsyncInit(Isolate* isolate,
-                            Local<Object> resource,
-                            Local<String> name,
-                            async_id trigger_async_id) {
-  HandleScope handle_scope(isolate);
-  Environment* env = Environment::GetCurrent(isolate);
-  CHECK_NOT_NULL(env);
-
-  // Initialize async context struct
-  if (trigger_async_id == -1)
-    trigger_async_id = env->get_default_trigger_async_id();
-
-  async_context context = {
-    env->new_async_id(),  // async_id_
-    trigger_async_id  // trigger_async_id_
-  };
-
-  // Run init hooks
-  AsyncWrap::EmitAsyncInit(env, resource, name, context.async_id,
-                           context.trigger_async_id);
-
-  return context;
-}
-
-void EmitAsyncDestroy(Isolate* isolate, async_context asyncContext) {
-  // Environment::GetCurrent() allocates a Local<> handle.
-  HandleScope handle_scope(isolate);
-  AsyncWrap::EmitDestroy(
-      Environment::GetCurrent(isolate), asyncContext.async_id);
 }
 
 std::string AsyncWrap::MemoryInfoName() const {

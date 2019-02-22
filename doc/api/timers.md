@@ -186,7 +186,7 @@ added: v0.0.1
 Schedules repeated execution of `callback` every `delay` milliseconds.
 
 When `delay` is larger than `2147483647` or less than `1`, the `delay` will be
-set to `1`.
+set to `1`. Non-integer delays are truncated to an integer.
 
 If `callback` is not a function, a [`TypeError`][] will be thrown.
 
@@ -209,7 +209,7 @@ nor of their ordering. The callback will be called as close as possible to the
 time specified.
 
 When `delay` is larger than `2147483647` or less than `1`, the `delay`
-will be set to `1`.
+will be set to `1`. Non-integer delays are truncated to an integer.
 
 If `callback` is not a function, a [`TypeError`][] will be thrown.
 

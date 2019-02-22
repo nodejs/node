@@ -61,9 +61,9 @@ class UDPWrap: public HandleWrap {
   static void SetTTL(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void BufferSize(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static v8::Local<v8::Object> Instantiate(Environment* env,
-                                           AsyncWrap* parent,
-                                           SocketType type);
+  static v8::MaybeLocal<v8::Object> Instantiate(Environment* env,
+                                                AsyncWrap* parent,
+                                                SocketType type);
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(UDPWrap)
   SET_SELF_SIZE(UDPWrap)
