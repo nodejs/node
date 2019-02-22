@@ -7,8 +7,8 @@ const assert = require('assert');
 if (process.argv[2] === 'child') {
   try {
     throw new Error('Testing error handling');
-  } catch {
-    process.report.triggerReport();
+  } catch (err) {
+    process.report.triggerReport(err);
   }
 } else {
   const helper = require('../common/report.js');
