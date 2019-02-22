@@ -676,6 +676,7 @@ class Environment {
   v8::MaybeLocal<v8::Object> ProcessCliArgs(
       const std::vector<std::string>& args,
       const std::vector<std::string>& exec_args);
+  inline const std::vector<std::string>& exec_argv();
 
   typedef void (*HandleCleanupCb)(Environment* env,
                                   uv_handle_t* handle,
@@ -1060,6 +1061,7 @@ class Environment {
   // the inspector_host_port_->port() will be the actual port being
   // used.
   std::shared_ptr<HostPort> inspector_host_port_;
+  std::vector<std::string> exec_argv_;
 
   uint32_t module_id_counter_ = 0;
   uint32_t script_id_counter_ = 0;
