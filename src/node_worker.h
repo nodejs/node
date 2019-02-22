@@ -38,7 +38,8 @@ class Worker : public AsyncWrap {
   Worker(Environment* env,
          v8::Local<v8::Object> wrap,
          const std::string& url,
-         std::shared_ptr<PerIsolateOptions> per_isolate_opts);
+         std::shared_ptr<PerIsolateOptions> per_isolate_opts,
+         std::vector<std::string>&& exec_argv);
   ~Worker() override;
 
   // Run the worker. This is only called from the worker thread.
@@ -74,6 +75,7 @@ class Worker : public AsyncWrap {
   const std::string url_;
 
   std::shared_ptr<PerIsolateOptions> per_isolate_opts_;
+  std::vector<std::string> exec_argv_;
   MultiIsolatePlatform* platform_;
   v8::Isolate* isolate_ = nullptr;
   bool profiler_idle_notifier_started_;

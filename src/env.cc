@@ -386,6 +386,7 @@ MaybeLocal<Object> Environment::ProcessCliArgs(
                                       std::move(traced_value));
   }
 
+  exec_argv_ = exec_args;
   Local<Object> process_object =
       node::CreateProcessObject(this, args, exec_args)
           .FromMaybe(Local<Object>());

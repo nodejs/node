@@ -605,6 +605,10 @@ inline std::shared_ptr<EnvironmentOptions> Environment::options() {
   return options_;
 }
 
+inline const std::vector<std::string>& Environment::exec_argv() {
+  return exec_argv_;
+}
+
 inline std::shared_ptr<HostPort> Environment::inspector_host_port() {
   return inspector_host_port_;
 }

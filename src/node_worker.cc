@@ -101,10 +101,12 @@ void AsyncRequest::MemoryInfo(MemoryTracker* tracker) const {
 Worker::Worker(Environment* env,
                Local<Object> wrap,
                const std::string& url,
-               std::shared_ptr<PerIsolateOptions> per_isolate_opts)
+               std::shared_ptr<PerIsolateOptions> per_isolate_opts,
+               std::vector<std::string>&& exec_argv)
     : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_WORKER),
       url_(url),
       per_isolate_opts_(per_isolate_opts),
+      exec_argv_(exec_argv),
       platform_(env->isolate_data()->platform()),
       profiler_idle_notifier_started_(env->profiler_idle_notifier_started()),
       thread_id_(Environment::AllocateThreadId()) {
@@ -284,7 +286,7 @@ void Worker::Run() {
 
         env_->Start(profiler_idle_notifier_started_);
         env_->ProcessCliArgs(std::vector<std::string>{},
-                             std::vector<std::string>{});
+                             std::move(exec_argv_));
       }
 
       Debug(this, "Created Environment for worker with id %llu", thread_id_);
@@ -434,6 +436,9 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
   std::string url;
   std::shared_ptr<PerIsolateOptions> per_isolate_opts = nullptr;
 
+  std::vector<std::string> exec_argv_out;
+  bool has_explicit_exec_argv = false;
+
   // Argument might be a string or URL
   if (args.Length() > 0 && !args[0]->IsNullOrUndefined()) {
     Utf8Value value(
@@ -445,6 +450,7 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
       v8::Local<v8::Array> array = args[1].As<v8::Array>();
       // The first argument is reserved for program name, but we don't need it
       // in workers.
+      has_explicit_exec_argv = true;
       std::vector<std::string> exec_argv = {""};
       uint32_t length = array->Length();
       for (uint32_t i = 0; i < length; i++) {
@@ -472,7 +478,7 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
       // options for the per isolate parser.
       options_parser::PerIsolateOptionsParser::instance.Parse(
           &exec_argv,
-          nullptr,
+          &exec_argv_out,
           &invalid_args,
           per_isolate_opts.get(),
           kDisallowedInEnvironment,
@@ -492,7 +498,9 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
       }
     }
   }
-  new Worker(env, args.This(), url, per_isolate_opts);
+  if (!has_explicit_exec_argv)
+    exec_argv_out = env->exec_argv();
+  new Worker(env, args.This(), url, per_isolate_opts, std::move(exec_argv_out));
 }
 
 void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {

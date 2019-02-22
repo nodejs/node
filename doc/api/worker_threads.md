@@ -428,7 +428,9 @@ if (isMainThread) {
     not automatically be piped through to `process.stderr` in the parent.
   * `execArgv` {string[]} List of node CLI options passed to the worker.
     V8 options (such as `--max-old-space-size`) and options that affect the
-    process (such as `--title`) are not supported.
+    process (such as `--title`) are not supported. If set, this will be provided
+    as [`process.execArgv`][] inside the worker. By default, options will be
+    inherited from the parent thread.
 
 ### Event: 'error'
 <!-- YAML
@@ -582,6 +584,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`process.abort()`]: process.html#process_process_abort
 [`process.chdir()`]: process.html#process_process_chdir_directory
 [`process.env`]: process.html#process_process_env
+[`process.execArgv`]: process.html#process_process_execargv
 [`process.exit()`]: process.html#process_process_exit_code
 [`process.stderr`]: process.html#process_process_stderr
 [`process.stdin`]: process.html#process_process_stdin
