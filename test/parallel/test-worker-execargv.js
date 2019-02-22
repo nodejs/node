@@ -19,4 +19,5 @@ if (isMainThread) {
   }));
 } else {
   process.emitWarning('some warning');
+  assert.deepStrictEqual(process.execArgv, ['--trace-warnings']);
 }
