@@ -48,12 +48,11 @@ void TriggerReport(const FunctionCallbackInfo<Value>& info) {
   std::string filename;
   Local<String> stackstr;
 
-  if (info.Length() == 1) {
-    stackstr = info[0].As<String>();
-  } else {
+  CHECK_EQ(info.Length(), 2);
+  stackstr = info[1].As<String>();
+
+  if (info[0]->IsString())
     filename = *String::Utf8Value(isolate, info[0]);
-    stackstr = info[1].As<String>();
-  }
 
   filename = TriggerNodeReport(
       isolate, env, "JavaScript API", __func__, filename, stackstr);
