@@ -44,6 +44,13 @@ class NodeBIO;
  *       // Node name and size comes from the MemoryInfoName and SelfSize of
  *       // AnotherRetainerClass
  *       tracker->TrackField("another_retainer", another_retainer_);
+ *
+ *       // Add non_pointer_retainer as a separate node into the graph
+ *       // and track its memory information recursively.
+ *       // Note that we need to make sure its size is not accounted in
+ *       // ExampleRetainer::SelfSize().
+ *       tracker->TrackField("non_pointer_retainer", &non_pointer_retainer_);
+ *
  *       // Specify node name and size explicitly
  *       tracker->TrackFieldWithSize("internal_member",
  *                                   internal_member_.size(),
@@ -60,9 +67,12 @@ class NodeBIO;
  *       return "ExampleRetainer";
  *     }
  *
- *     // Or use SET_SELF_SIZE(ExampleRetainer)
+ *     // Classes that only want to return its sizeof() value can use the
+ *     // SET_SELF_SIZE(Class) macro instead.
  *     size_t SelfSize() const override {
- *       return sizeof(ExampleRetainer);
+ *       // We need to exclude the size of non_pointer_retainer so that
+ *       // we can track it separately in ExampleRetainer::MemoryInfo().
+ *       return sizeof(ExampleRetainer) - sizeof(NonPointerRetainerClass);
  *     }
  *
  *     // Note: no need to implement these two methods when implementing
@@ -71,8 +81,10 @@ class NodeBIO;
  *     v8::Local<v8::Object> WrappedObject() const override {
  *       return node::PersistentToLocal(wrapped_);
  *     }
+ *
  *   private:
- *     AnotherRetainerClass another_retainer_;
+ *     AnotherRetainerClass* another_retainer_;
+ *     NonPointerRetainerClass non_pointer_retainer;
  *     InternalClass internal_member_;
  *     std::vector<uv_async_t> vector_;
  *     node::Persistent<Object> target_;
