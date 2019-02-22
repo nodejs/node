@@ -43,6 +43,9 @@ class Worker : public AsyncWrap {
   bool is_stopped() const;
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void CloneParentEnvVars(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetEnvVars(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StartThread(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StopThread(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Ref(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -78,6 +81,7 @@ class Worker : public AsyncWrap {
   static constexpr size_t kStackBufferSize = 192 * 1024;
 
   std::unique_ptr<MessagePortData> child_port_data_;
+  std::shared_ptr<KVStore> env_vars_;
 
   // The child port is kept alive by the child Environment's persistent
   // handle to it, as long as that child Environment exists.
