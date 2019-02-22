@@ -548,11 +548,11 @@ class KVStore {
   virtual v8::Maybe<bool> AssignFromObject(v8::Local<v8::Context> context,
                                            v8::Local<v8::Object> entries);
 
-  static std::shared_ptr<KVStore> CreateGenericKVStore();
+  static std::shared_ptr<KVStore> CreateMapKVStore();
 };
 
 namespace per_process {
-extern std::shared_ptr<KVStore> real_environment;
+extern std::shared_ptr<KVStore> system_environment;
 }
 
 class AsyncHooks {
@@ -804,8 +804,8 @@ class Environment {
   inline ImmediateInfo* immediate_info();
   inline TickInfo* tick_info();
   inline uint64_t timer_base() const;
-  inline std::shared_ptr<KVStore> envvars();
-  inline void set_envvars(std::shared_ptr<KVStore> envvars);
+  inline std::shared_ptr<KVStore> env_vars();
+  inline void set_env_vars(std::shared_ptr<KVStore> env_vars);
 
   inline IsolateData* isolate_data() const;
 
@@ -1100,7 +1100,7 @@ class Environment {
   ImmediateInfo immediate_info_;
   TickInfo tick_info_;
   const uint64_t timer_base_;
-  std::shared_ptr<KVStore> envvars_;
+  std::shared_ptr<KVStore> env_vars_;
   bool printed_error_ = false;
   bool emit_env_nonstring_warning_ = true;
   bool emit_err_name_warning_ = true;

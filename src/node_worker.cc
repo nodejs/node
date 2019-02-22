@@ -68,7 +68,8 @@ Worker::Worker(Environment* env,
       exec_argv_(exec_argv),
       platform_(env->isolate_data()->platform()),
       profiler_idle_notifier_started_(env->profiler_idle_notifier_started()),
-      thread_id_(Environment::AllocateThreadId()) {
+      thread_id_(Environment::AllocateThreadId()),
+      env_vars_(env->env_vars()) {
   Debug(this, "Creating new worker instance with thread id %llu", thread_id_);
 
   // Set up everything that needs to be set up in the parent environment.
@@ -250,6 +251,7 @@ void Worker::Run() {
                                    Environment::kNoFlags,
                                    thread_id_));
         CHECK_NOT_NULL(env_);
+        env_->set_env_vars(std::move(env_vars_));
         env_->set_abort_on_uncaught_exception(false);
         env_->set_worker_context(this);
 
@@ -465,6 +467,25 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
   new Worker(env, args.This(), url, per_isolate_opts, std::move(exec_argv_out));
 }
 
+void Worker::CloneParentEnvVars(const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+  CHECK(w->thread_joined_);  // The Worker has not started yet.
+
+  w->env_vars_ = w->env()->env_vars()->Clone(args.GetIsolate());
+}
+
+void Worker::SetEnvVars(const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+  CHECK(w->thread_joined_);  // The Worker has not started yet.
+
+  CHECK(args[0]->IsObject());
+  w->env_vars_ = KVStore::CreateMapKVStore();
+  w->env_vars_->AssignFromObject(args.GetIsolate()->GetCurrentContext(),
+                                args[0].As<Object>());
+}
+
 void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
   Worker* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
@@ -562,6 +583,8 @@ void InitWorker(Local<Object> target,
     w->InstanceTemplate()->SetInternalFieldCount(1);
     w->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
+    env->SetProtoMethod(w, "setEnvVars", Worker::SetEnvVars);
+    env->SetProtoMethod(w, "cloneParentEnvVars", Worker::CloneParentEnvVars);
     env->SetProtoMethod(w, "startThread", Worker::StartThread);
     env->SetProtoMethod(w, "stopThread", Worker::StopThread);
     env->SetProtoMethod(w, "ref", Worker::Ref);

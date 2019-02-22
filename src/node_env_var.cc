@@ -40,7 +40,7 @@ class RealEnvStore final : public KVStore {
   Local<Array> Enumerate(Isolate* isolate) const override;
 };
 
-class GenericKVStore final : public KVStore {
+class MapKVStore final : public KVStore {
  public:
   Local<String> Get(Isolate* isolate, Local<String> key) const override;
   void Set(Isolate* isolate, Local<String> key, Local<String> value) override;
@@ -50,8 +50,8 @@ class GenericKVStore final : public KVStore {
 
   std::shared_ptr<KVStore> Clone(Isolate* isolate) const override;
 
-  GenericKVStore() {}
-  GenericKVStore(const GenericKVStore& other) : map_(other.map_) {}
+  MapKVStore() {}
+  MapKVStore(const MapKVStore& other) : map_(other.map_) {}
 
  private:
   mutable Mutex mutex_;
@@ -60,7 +60,7 @@ class GenericKVStore final : public KVStore {
 
 namespace per_process {
 Mutex env_var_mutex;
-std::shared_ptr<KVStore> real_environment = std::make_shared<RealEnvStore>();
+std::shared_ptr<KVStore> system_environment = std::make_shared<RealEnvStore>();
 }  // namespace per_process
 
 Local<String> RealEnvStore::Get(Isolate* isolate,
@@ -207,7 +207,7 @@ std::shared_ptr<KVStore> KVStore::Clone(v8::Isolate* isolate) const {
   HandleScope handle_scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
 
-  std::shared_ptr<KVStore> copy = KVStore::CreateGenericKVStore();
+  std::shared_ptr<KVStore> copy = KVStore::CreateMapKVStore();
   Local<Array> keys = Enumerate(isolate);
   uint32_t keys_length = keys->Length();
   for (uint32_t i = 0; i < keys_length; i++) {
@@ -218,9 +218,9 @@ std::shared_ptr<KVStore> KVStore::Clone(v8::Isolate* isolate) const {
   return copy;
 }
 
-Local<String> GenericKVStore::Get(Isolate* isolate, Local<String> key) const {
+Local<String> MapKVStore::Get(Isolate* isolate, Local<String> key) const {
   Mutex::ScopedLock lock(mutex_);
-  String::Utf8Value str(isolate, key);
+  Utf8Value str(isolate, key);
   auto it = map_.find(std::string(*str, str.length()));
   if (it == map_.end()) return Local<String>();
   return String::NewFromUtf8(isolate, it->second.data(),
@@ -228,31 +228,30 @@ Local<String> GenericKVStore::Get(Isolate* isolate, Local<String> key) const {
       .ToLocalChecked();
 }
 
-void GenericKVStore::Set(Isolate* isolate, Local<String> key,
-                         Local<String> value) {
+void MapKVStore::Set(Isolate* isolate, Local<String> key, Local<String> value) {
   Mutex::ScopedLock lock(mutex_);
-  String::Utf8Value key_str(isolate, key);
-  String::Utf8Value value_str(isolate, value);
+  Utf8Value key_str(isolate, key);
+  Utf8Value value_str(isolate, value);
   if (*key_str != nullptr && *value_str != nullptr) {
     map_[std::string(*key_str, key_str.length())] =
         std::string(*value_str, value_str.length());
   }
 }
 
-int32_t GenericKVStore::Query(Isolate* isolate, Local<String> key) const {
+int32_t MapKVStore::Query(Isolate* isolate, Local<String> key) const {
   Mutex::ScopedLock lock(mutex_);
-  String::Utf8Value str(isolate, key);
+  Utf8Value str(isolate, key);
   auto it = map_.find(std::string(*str, str.length()));
   return it == map_.end() ? -1 : 0;
 }
 
-void GenericKVStore::Delete(Isolate* isolate, Local<String> key) {
+void MapKVStore::Delete(Isolate* isolate, Local<String> key) {
   Mutex::ScopedLock lock(mutex_);
-  String::Utf8Value str(isolate, key);
+  Utf8Value str(isolate, key);
   map_.erase(std::string(*str, str.length()));
 }
 
-Local<Array> GenericKVStore::Enumerate(Isolate* isolate) const {
+Local<Array> MapKVStore::Enumerate(Isolate* isolate) const {
   Mutex::ScopedLock lock(mutex_);
   std::vector<Local<Value>> values;
   values.reserve(map_.size());
@@ -265,12 +264,12 @@ Local<Array> GenericKVStore::Enumerate(Isolate* isolate) const {
   return Array::New(isolate, values.data(), values.size());
 }
 
-std::shared_ptr<KVStore> GenericKVStore::Clone(Isolate* isolate) const {
-  return std::make_shared<GenericKVStore>(*this);
+std::shared_ptr<KVStore> MapKVStore::Clone(Isolate* isolate) const {
+  return std::make_shared<MapKVStore>(*this);
 }
 
-std::shared_ptr<KVStore> KVStore::CreateGenericKVStore() {
-  return std::make_shared<GenericKVStore>();
+std::shared_ptr<KVStore> KVStore::CreateMapKVStore() {
+  return std::make_shared<MapKVStore>();
 }
 
 Maybe<bool> KVStore::AssignFromObject(Local<Context> context,
@@ -307,7 +306,7 @@ static void EnvGetter(Local<Name> property,
   }
   CHECK(property->IsString());
   info.GetReturnValue().Set(
-      env->envvars()->Get(env->isolate(), property.As<String>()));
+      env->env_vars()->Get(env->isolate(), property.As<String>()));
 }
 
 static void EnvSetter(Local<Name> property,
@@ -338,7 +337,7 @@ static void EnvSetter(Local<Name> property,
     return;
   }
 
-  env->envvars()->Set(env->isolate(), key, value_string);
+  env->env_vars()->Set(env->isolate(), key, value_string);
 
   // Whether it worked or not, always return value.
   info.GetReturnValue().Set(value);
@@ -348,7 +347,7 @@ static void EnvQuery(Local<Name> property,
                      const PropertyCallbackInfo<Integer>& info) {
   Environment* env = Environment::GetCurrent(info);
   if (property->IsString()) {
-    int32_t rc = env->envvars()->Query(env->isolate(), property.As<String>());
+    int32_t rc = env->env_vars()->Query(env->isolate(), property.As<String>());
     if (rc != -1) info.GetReturnValue().Set(rc);
   }
 }
@@ -357,7 +356,7 @@ static void EnvDeleter(Local<Name> property,
                        const PropertyCallbackInfo<Boolean>& info) {
   Environment* env = Environment::GetCurrent(info);
   if (property->IsString()) {
-    env->envvars()->Delete(env->isolate(), property.As<String>());
+    env->env_vars()->Delete(env->isolate(), property.As<String>());
   }
 
   // process.env never has non-configurable properties, so always
@@ -369,7 +368,7 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
   Environment* env = Environment::GetCurrent(info);
 
   info.GetReturnValue().Set(
-      env->envvars()->Enumerate(env->isolate()));
+      env->env_vars()->Enumerate(env->isolate()));
 }
 
 MaybeLocal<Object> CreateEnvVarProxy(Local<Context> context,
