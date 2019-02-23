@@ -67,3 +67,17 @@ function validate() {
   helper.validate(filename);
   fs.unlinkSync(filename);
 }
+
+// Test with an invalid file argument.
+[null, 1, Symbol(), function() {}].forEach((file) => {
+  common.expectsError(() => {
+    process.report.triggerReport(file);
+  }, { code: 'ERR_INVALID_ARG_TYPE' });
+});
+
+// Test with an invalid error argument.
+[null, 1, Symbol(), function() {}, 'foo'].forEach((error) => {
+  common.expectsError(() => {
+    process.report.triggerReport('file', error);
+  }, { code: 'ERR_INVALID_ARG_TYPE' });
+});
