@@ -3897,7 +3897,7 @@ function resolvePlugin(name, options) {
 
 module.exports = function (args, opts) {
     if (!opts) opts = {};
-
+    
     var flags = { bools : {}, strings : {}, unknownFn: null };
 
     if (typeof opts['unknown'] === 'function') {
@@ -3911,7 +3911,7 @@ module.exports = function (args, opts) {
           flags.bools[key] = true;
       });
     }
-
+    
     var aliases = {};
     Object.keys(opts.alias || {}).forEach(function (key) {
         aliases[key] = [].concat(opts.alias[key]);
@@ -3930,12 +3930,12 @@ module.exports = function (args, opts) {
      });
 
     var defaults = opts['default'] || {};
-
+    
     var argv = { _ : [] };
     Object.keys(flags.bools).forEach(function (key) {
         setArg(key, defaults[key] === undefined ? false : defaults[key]);
     });
-
+    
     var notFlags = [];
 
     if (args.indexOf('--') !== -1) {
@@ -3957,7 +3957,7 @@ module.exports = function (args, opts) {
             ? Number(val) : val
         ;
         setKey(argv, key.split('.'), value);
-
+        
         (aliases[key] || []).forEach(function (x) {
             setKey(argv, x.split('.'), value);
         });
@@ -3981,7 +3981,7 @@ module.exports = function (args, opts) {
             o[key] = [ o[key], value ];
         }
     }
-
+    
     function aliasIsBoolean(key) {
       return aliases[key].some(function (x) {
           return flags.bools[x];
@@ -3990,7 +3990,7 @@ module.exports = function (args, opts) {
 
     for (var i = 0; i < args.length; i++) {
         var arg = args[i];
-
+        
         if (/^--.+=/.test(arg)) {
             // Using [\s\S] instead of . because js doesn't support the
             // 'dotall' regex modifier. See:
@@ -4027,29 +4027,29 @@ module.exports = function (args, opts) {
         }
         else if (/^-[^-]+/.test(arg)) {
             var letters = arg.slice(1,-1).split('');
-
+            
             var broken = false;
             for (var j = 0; j < letters.length; j++) {
                 var next = arg.slice(j+2);
-
+                
                 if (next === '-') {
                     setArg(letters[j], next, arg)
                     continue;
                 }
-
+                
                 if (/[A-Za-z]/.test(letters[j]) && /=/.test(next)) {
                     setArg(letters[j], next.split('=')[1], arg);
                     broken = true;
                     break;
                 }
-
+                
                 if (/[A-Za-z]/.test(letters[j])
                 && /-?\d+(\.\d*)?(e-?\d+)?$/.test(next)) {
                     setArg(letters[j], next, arg);
                     broken = true;
                     break;
                 }
-
+                
                 if (letters[j+1] && letters[j+1].match(/\W/)) {
                     setArg(letters[j], arg.slice(j+2), arg);
                     broken = true;
@@ -4059,7 +4059,7 @@ module.exports = function (args, opts) {
                     setArg(letters[j], flags.strings[letters[j]] ? '' : true, arg);
                 }
             }
-
+            
             var key = arg.slice(-1)[0];
             if (!broken && key !== '-') {
                 if (args[i+1] && !/^(-|--)[^-]/.test(args[i+1])
@@ -4089,17 +4089,17 @@ module.exports = function (args, opts) {
             }
         }
     }
-
+    
     Object.keys(defaults).forEach(function (key) {
         if (!hasKey(argv, key.split('.'))) {
             setKey(argv, key.split('.'), defaults[key]);
-
+            
             (aliases[key] || []).forEach(function (x) {
                 setKey(argv, x.split('.'), defaults[key]);
             });
         }
     });
-
+    
     if (opts['--']) {
         argv['--'] = new Array();
         notFlags.forEach(function(key) {
@@ -26609,7 +26609,7 @@ module.exports = function (rows_, opts) {
     var stringLength = opts.stringLength
         || function (s) { return String(s).length; }
     ;
-
+    
     var dotsizes = reduce(rows_, function (acc, row) {
         forEach(row, function (c, ix) {
             var n = dotindex(c);
@@ -26617,7 +26617,7 @@ module.exports = function (rows_, opts) {
         });
         return acc;
     }, []);
-
+    
     var rows = map(rows_, function (row) {
         return map(row, function (c_, ix) {
             var c = String(c_);
@@ -26631,7 +26631,7 @@ module.exports = function (rows_, opts) {
             else return c;
         });
     });
-
+    
     var sizes = reduce(rows, function (acc, row) {
         forEach(row, function (c, ix) {
             var n = stringLength(c);
@@ -26639,7 +26639,7 @@ module.exports = function (rows_, opts) {
         });
         return acc;
     }, []);
-
+    
     return map(rows, function (row) {
         return map(row, function (c, ix) {
             var n = (sizes[ix] - stringLength(c)) || 0;
@@ -26652,7 +26652,7 @@ module.exports = function (rows_, opts) {
                     + c + Array(Math.floor(n / 2 + 1)).join(' ')
                 ;
             }
-
+            
             return c + s;
         }).join(hsep).replace(/\s+$/, '');
     }).join('\n');
@@ -35184,13 +35184,13 @@ function tableCell(node) {
 /* 302 */
 /***/ (function(module) {
 
-module.exports = {"name":"remark","version":"10.0.0","description":"Markdown processor powered by plugins","license":"MIT","keywords":["markdown","abstract","syntax","tree","ast","parse","stringify","process"],"homepage":"http://remark.js.org","repository":"https://github.com/remarkjs/remark/tree/master/packages/remark","bugs":"https://github.com/remarkjs/remark/issues","author":"Titus Wormer <tituswormer@gmail.com> (http://wooorm.com)","contributors":["Titus Wormer <tituswormer@gmail.com> (http://wooorm.com)"],"files":["index.js"],"dependencies":{"remark-parse":"^6.0.0","remark-stringify":"^6.0.0","unified":"^7.0.0"},"devDependencies":{"tape":"^4.9.1"},"scripts":{"test":"tape test.js"},"xo":false,"_resolved":"https://registry.npmjs.org/remark/-/remark-10.0.0.tgz","_integrity":"sha512-0fZvVmd9CgDi1qHGsRTyhpJShw60r3/4OSdRpAx+I7CmE8/Jmt829T9KWHpw2Ygw3chRZ26sMorqb8aIolU9tQ==","_from":"remark@10.0.0"};
+module.exports = {"_args":[["remark@10.0.0","/Users/trott/io.js/tools/node-lint-md-cli-rollup"]],"_from":"remark@10.0.0","_id":"remark@10.0.0","_inBundle":false,"_integrity":"sha512-0fZvVmd9CgDi1qHGsRTyhpJShw60r3/4OSdRpAx+I7CmE8/Jmt829T9KWHpw2Ygw3chRZ26sMorqb8aIolU9tQ==","_location":"/remark","_phantomChildren":{},"_requested":{"type":"version","registry":true,"raw":"remark@10.0.0","name":"remark","escapedName":"remark","rawSpec":"10.0.0","saveSpec":null,"fetchSpec":"10.0.0"},"_requiredBy":["/"],"_resolved":"https://registry.npmjs.org/remark/-/remark-10.0.0.tgz","_spec":"10.0.0","_where":"/Users/trott/io.js/tools/node-lint-md-cli-rollup","author":{"name":"Titus Wormer","email":"tituswormer@gmail.com","url":"http://wooorm.com"},"bugs":{"url":"https://github.com/remarkjs/remark/issues"},"contributors":[{"name":"Titus Wormer","email":"tituswormer@gmail.com","url":"http://wooorm.com"}],"dependencies":{"remark-parse":"^6.0.0","remark-stringify":"^6.0.0","unified":"^7.0.0"},"description":"Markdown processor powered by plugins","devDependencies":{"tape":"^4.9.1"},"files":["index.js"],"homepage":"http://remark.js.org","keywords":["markdown","abstract","syntax","tree","ast","parse","stringify","process"],"license":"MIT","name":"remark","repository":{"type":"git","url":"https://github.com/remarkjs/remark/tree/master/packages/remark"},"scripts":{"test":"tape test.js"},"version":"10.0.0","xo":false};
 
 /***/ }),
 /* 303 */
 /***/ (function(module) {
 
-module.exports = {"name":"node-lint-md-cli-rollup","description":"remark packaged for node markdown linting","version":"1.0.0","devDependencies":{"@zeit/ncc":"^0.2.0"},"dependencies":{"markdown-extensions":"^1.1.0","remark":"^10.0.0","remark-lint":"^6.0.3","remark-preset-lint-node":"^1.3.1","unified-args":"^6.0.0","unified-engine":"^5.1.0"},"main":"src/cli-entry.js","scripts":{"build":"ncc build","build-node":"npm run build && cp dist/index.js ../lint-md.js"}};
+module.exports = {"name":"node-lint-md-cli-rollup","description":"remark packaged for node markdown linting","version":"1.0.0","devDependencies":{"@zeit/ncc":"^0.2.0"},"dependencies":{"markdown-extensions":"^1.1.0","remark":"^10.0.0","remark-lint":"^6.0.3","remark-preset-lint-node":"^1.4.0","unified-args":"^6.0.0","unified-engine":"^5.1.0"},"main":"src/cli-entry.js","scripts":{"build":"ncc build","build-node":"npm run build && cp dist/index.js ../lint-md.js"}};
 
 /***/ }),
 /* 304 */
@@ -35210,10 +35210,7 @@ module.exports.plugins = [
   __webpack_require__(316),
   __webpack_require__(93),
   __webpack_require__(93),
-  [
-    __webpack_require__(317),
-    'space'
-  ],
+  [__webpack_require__(317), "space"],
   __webpack_require__(320),
   __webpack_require__(321),
   __webpack_require__(322),
@@ -35237,25 +35234,27 @@ module.exports.plugins = [
   [
     __webpack_require__(340),
     {
-      'checked': 'x', 'unchecked': ' '
+      checked: "x",
+      unchecked: " "
     }
   ],
-  [__webpack_require__(341), 'fenced'],
-  [__webpack_require__(342), '`'],
-  [__webpack_require__(343), 'md'],
+  [__webpack_require__(341), "fenced"],
+  [__webpack_require__(342), "`"],
+  [__webpack_require__(343), "md"],
   [__webpack_require__(344), 1],
-  [__webpack_require__(345), 'atx'],
+  [__webpack_require__(345), "atx"],
   [
     __webpack_require__(346),
     [
-      { no: 'Github', yes: 'GitHub' },
-      { no: 'Javascript', yes: 'JavaScript' },
-      { no: 'Node.JS', yes: 'Node.js' },
-      { no: 'v8', yes: 'V8' }
+      { no: "End-Of-Life", yes: "End-of-Life" },
+      { no: "Github", yes: "GitHub" },
+      { no: "Javascript", yes: "JavaScript" },
+      { no: "Node.JS", yes: "Node.js" },
+      { no: "v8", yes: "V8" }
     ]
   ],
-  [__webpack_require__(347), '*'],
-  [__webpack_require__(348), 'padded']
+  [__webpack_require__(347), "*"],
+  [__webpack_require__(348), "padded"]
 ];
 
 
@@ -36842,7 +36841,7 @@ module.exports = {"addendum":"addenda","aircraft":"aircraft","alga":"algae","alu
  *   Options: `number`, default: `80`.
  *
  *   Ignores nodes that cannot be wrapped, such as headings, tables,
- *   code, and definitions.
+ *   code, definitions, HTML, and JSX.
  *
  *   Ignores images, links, and inline code if they start before the wrap, end
  *   after the wrap, and there’s no white-space after them.
@@ -36867,6 +36866,8 @@ module.exports = {"addendum":"addenda","aircraft":"aircraft","alga":"algae","alu
  *   | An | exception | is | line | length | in | long | tables | because | those | can’t | just |
  *   | -- | --------- | -- | ---- | ------ | -- | ---- | ------ | ------- | ----- | ----- | ---- |
  *   | be | helped    |    |      |        |    |      |        |         |       |       | .    |
+ *
+ *   <a><b><i><p><q><s><u>alpha bravo charlie delta echo foxtrot golf</u></s></q></p></i></b></a>
  *
  *   The following is also fine, because there is no white-space.
  *
@@ -36941,10 +36942,11 @@ function maximumLineLength(tree, file, pref) {
   var index = -1
   var lineLength
 
-  visit(tree, ['heading', 'table', 'code', 'definition'], ignore)
+  // Note: JSX is from MDX: <https://github.com/mdx-js/specification>.
+  visit(tree, ['heading', 'table', 'code', 'definition', 'html', 'jsx'], ignore)
   visit(tree, ['link', 'image', 'inlineCode'], inline)
 
-  /* Iterate over every line, and warn for violating lines. */
+  // Iterate over every line, and warn for violating lines.
   while (++index < length) {
     lineLength = lines[index].length
 
@@ -36956,9 +36958,9 @@ function maximumLineLength(tree, file, pref) {
     }
   }
 
-  /* Finally, whitelist some inline spans, but only if they occur at or after
-   * the wrap.  However, when they do, and there’s white-space after it, they
-   * are not whitelisted. */
+  // Finally, whitelist some inline spans, but only if they occur at or after
+  // the wrap.  However, when they do, and there’s white-space after it, they
+  // are not whitelisted.
   function inline(node, pos, parent) {
     var next = parent.children[pos + 1]
     var initial
@@ -36972,13 +36974,12 @@ function maximumLineLength(tree, file, pref) {
     initial = start(node)
     final = end(node)
 
-    /* No whitelisting when starting after the border, or ending before it. */
+    // No whitelisting when starting after the border, or ending before it.
     if (initial.column > style || final.column < style) {
       return
     }
 
-    /* No whitelisting when there’s white-space after
-     * the link. */
+    // No whitelisting when there’s white-space after the link.
     if (
       next &&
       start(next).line === initial.line &&
@@ -36997,7 +36998,7 @@ function maximumLineLength(tree, file, pref) {
     }
   }
 
-  /* Whitelist from `initial` to `final`, zero-based. */
+  // Whitelist from `initial` to `final`, zero-based.
   function whitelist(initial, final) {
     while (initial < final) {
       lines[initial++] = ''
@@ -39599,16 +39600,16 @@ function tableCellPadding(tree, file, pref) {
     var entry
     var final
 
-    /* Check rows. */
+    // Check rows.
     while (++index < length) {
       row = rows[index]
       cells = row.children
       cellCount = cells.length
-      column = -2 /* Start without a first cell */
+      column = -2 // Start without a first cell.
       next = null
       final = undefined
 
-      /* Check fences (before, between, and after cells) */
+      // Check fences (before, between, and after cells).
       while (++column < cellCount) {
         cell = next
         next = cells[column + 1]
@@ -39623,7 +39624,7 @@ function tableCellPadding(tree, file, pref) {
         if (cell && cell.children.length !== 0 && final !== undefined) {
           entries.push({node: cell, start: final, end: pos, index: column})
 
-          /* Detect max space per column. */
+          // Detect max space per column.
           sizes[column] = Math.max(sizes[column] || 0, size(cell))
         } else {
           final = undefined
@@ -39670,7 +39671,7 @@ function tableCellPadding(tree, file, pref) {
     if (style === 0) {
       reason += 'compact'
 
-      /* Ignore every cell except the biggest in the column. */
+      // Ignore every cell except the biggest in the column.
       if (size(cell) < sizes[index]) {
         return
       }
@@ -39680,7 +39681,7 @@ function tableCellPadding(tree, file, pref) {
       if (spacing > style) {
         reason += ' with 1 space, not ' + spacing
 
-        /* May be right or center aligned. */
+        // May be right or center aligned.
         if (size(cell) < sizes[index]) {
           return
         }
