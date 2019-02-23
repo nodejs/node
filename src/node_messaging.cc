@@ -494,10 +494,6 @@ MessagePort::MessagePort(Environment* env,
   Debug(this, "Created message port");
 }
 
-void MessagePort::AddToIncomingQueue(Message&& message) {
-  data_->AddToIncomingQueue(std::move(message));
-}
-
 uv_async_t* MessagePort::async() {
   return reinterpret_cast<uv_async_t*>(GetHandle());
 }
