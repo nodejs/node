@@ -198,9 +198,9 @@ class MessagePort : public HandleWrap {
   void OnClose() override;
   void OnMessage();
   void TriggerAsync();
-  inline uv_async_t* async();
 
   std::unique_ptr<MessagePortData> data_ = nullptr;
+  uv_async_t async_;
 
   friend class MessagePortData;
 };
