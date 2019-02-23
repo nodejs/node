@@ -1,4 +1,3 @@
-// Flags: --expose_internals
 'use strict';
 const common = require('../common');
 const assert = require('assert');
