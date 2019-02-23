@@ -469,18 +469,18 @@ MessagePort::MessagePort(Environment* env,
                          Local<Object> wrap)
   : HandleWrap(env,
                wrap,
-               reinterpret_cast<uv_handle_t*>(new uv_async_t()),
+               reinterpret_cast<uv_handle_t*>(&async_),
                AsyncWrap::PROVIDER_MESSAGEPORT),
     data_(new MessagePortData(this)) {
   auto onmessage = [](uv_async_t* handle) {
     // Called when data has been put into the queue.
-    MessagePort* channel = static_cast<MessagePort*>(handle->data);
+    MessagePort* channel = ContainerOf(&MessagePort::async_, handle);
     channel->OnMessage();
   };
   CHECK_EQ(uv_async_init(env->event_loop(),
-                         async(),
+                         &async_,
                          onmessage), 0);
-  async()->data = static_cast<void*>(this);
+  async_.data = static_cast<void*>(this);
 
   Local<Value> fn;
   if (!wrap->Get(context, env->oninit_symbol()).ToLocal(&fn))
@@ -494,17 +494,13 @@ MessagePort::MessagePort(Environment* env,
   Debug(this, "Created message port");
 }
 
-uv_async_t* MessagePort::async() {
-  return reinterpret_cast<uv_async_t*>(GetHandle());
-}
-
 bool MessagePort::IsDetached() const {
   return data_ == nullptr || IsHandleClosing();
 }
 
 void MessagePort::TriggerAsync() {
   if (IsHandleClosing()) return;
-  CHECK_EQ(uv_async_send(async()), 0);
+  CHECK_EQ(uv_async_send(&async_), 0);
 }
 
 void MessagePort::Close(v8::Local<v8::Value> close_callback) {
@@ -639,7 +635,6 @@ void MessagePort::OnClose() {
     data_->Disentangle();
   }
   data_.reset();
-  delete async();
 }
 
 std::unique_ptr<MessagePortData> MessagePort::Detach() {
