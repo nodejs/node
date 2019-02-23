@@ -47,8 +47,6 @@ using v8::Undefined;
 using v8::Value;
 using worker::Worker;
 
-#define kTraceCategoryCount 1
-
 // TODO(@jasnell): Likely useful to move this to util or node_internal to
 // allow reuse. But since we're not reusing it yet...
 class TraceEventScope {
