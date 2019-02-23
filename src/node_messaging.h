@@ -152,8 +152,6 @@ class MessagePort : public HandleWrap {
   v8::Maybe<bool> PostMessage(Environment* env,
                               v8::Local<v8::Value> message,
                               v8::Local<v8::Value> transfer);
-  // Deliver a single message into this port's incoming queue.
-  void AddToIncomingQueue(Message&& message);
 
   // Start processing messages on this port as a receiving end.
   void Start();
