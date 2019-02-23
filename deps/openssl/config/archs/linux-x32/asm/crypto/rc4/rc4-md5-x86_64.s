@@ -4,15 +4,29 @@
 .globl	rc4_md5_enc
 .type	rc4_md5_enc,@function
 rc4_md5_enc:
+.cfi_startproc	
 	cmpq	$0,%r9
 	je	.Labort
 	pushq	%rbx
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%rbx,-16
 	pushq	%rbp
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%rbp,-24
 	pushq	%r12
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r12,-32
 	pushq	%r13
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r13,-40
 	pushq	%r14
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r14,-48
 	pushq	%r15
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r15,-56
 	subq	$40,%rsp
+.cfi_adjust_cfa_offset	40
 .Lbody:
 	movq	%rcx,%r11
 	movq	%r9,%r12
@@ -1247,13 +1261,21 @@ rc4_md5_enc:
 	movl	%ecx,-4(%rdi)
 
 	movq	40(%rsp),%r15
+.cfi_restore	%r15
 	movq	48(%rsp),%r14
+.cfi_restore	%r14
 	movq	56(%rsp),%r13
+.cfi_restore	%r13
 	movq	64(%rsp),%r12
+.cfi_restore	%r12
 	movq	72(%rsp),%rbp
+.cfi_restore	%rbp
 	movq	80(%rsp),%rbx
+.cfi_restore	%rbx
 	leaq	88(%rsp),%rsp
+.cfi_adjust_cfa_offset	-88
 .Lepilogue:
 .Labort:
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	rc4_md5_enc,.-rc4_md5_enc

@@ -21,16 +21,30 @@ aesni_cbc_sha1_enc:
 .type	aesni_cbc_sha1_enc_ssse3,@function
 .align	32
 aesni_cbc_sha1_enc_ssse3:
+.cfi_startproc	
 	movq	8(%rsp),%r10
 
 
 	pushq	%rbx
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%rbx,-16
 	pushq	%rbp
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%rbp,-24
 	pushq	%r12
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r12,-32
 	pushq	%r13
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r13,-40
 	pushq	%r14
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r14,-48
 	pushq	%r15
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r15,-56
 	leaq	-104(%rsp),%rsp
+.cfi_adjust_cfa_offset	104
 
 
 	movq	%rdi,%r12
@@ -1362,29 +1376,52 @@ aesni_cbc_sha1_enc_ssse3:
 	movl	%ebp,16(%r9)
 	movups	%xmm2,(%r8)
 	leaq	104(%rsp),%rsi
+.cfi_def_cfa	%rsi,56
 	movq	0(%rsi),%r15
+.cfi_restore	%r15
 	movq	8(%rsi),%r14
+.cfi_restore	%r14
 	movq	16(%rsi),%r13
+.cfi_restore	%r13
 	movq	24(%rsi),%r12
+.cfi_restore	%r12
 	movq	32(%rsi),%rbp
+.cfi_restore	%rbp
 	movq	40(%rsi),%rbx
+.cfi_restore	%rbx
 	leaq	48(%rsi),%rsp
+.cfi_def_cfa	%rsp,8
 .Lepilogue_ssse3:
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	aesni_cbc_sha1_enc_ssse3,.-aesni_cbc_sha1_enc_ssse3
 .type	aesni_cbc_sha1_enc_avx,@function
 .align	32
 aesni_cbc_sha1_enc_avx:
+.cfi_startproc	
 	movq	8(%rsp),%r10
 
 
 	pushq	%rbx
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%rbx,-16
 	pushq	%rbp
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%rbp,-24
 	pushq	%r12
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r12,-32
 	pushq	%r13
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r13,-40
 	pushq	%r14
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r14,-48
 	pushq	%r15
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r15,-56
 	leaq	-104(%rsp),%rsp
+.cfi_adjust_cfa_offset	104
 
 
 	vzeroall
@@ -2660,15 +2697,24 @@ aesni_cbc_sha1_enc_avx:
 	vmovups	%xmm12,(%r8)
 	vzeroall
 	leaq	104(%rsp),%rsi
+.cfi_def_cfa	%rsi,56
 	movq	0(%rsi),%r15
+.cfi_restore	%r15
 	movq	8(%rsi),%r14
+.cfi_restore	%r14
 	movq	16(%rsi),%r13
+.cfi_restore	%r13
 	movq	24(%rsi),%r12
+.cfi_restore	%r12
 	movq	32(%rsi),%rbp
+.cfi_restore	%rbp
 	movq	40(%rsi),%rbx
+.cfi_restore	%rbx
 	leaq	48(%rsi),%rsp
+.cfi_def_cfa	%rsp,8
 .Lepilogue_avx:
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	aesni_cbc_sha1_enc_avx,.-aesni_cbc_sha1_enc_avx
 .align	64
 K_XX_XX:

@@ -1,4 +1,3 @@
-.file	"rc4-586.s"
 .text
 .globl	RC4
 .type	RC4,@function

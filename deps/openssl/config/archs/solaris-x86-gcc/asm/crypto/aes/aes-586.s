@@ -1,4 +1,3 @@
-.file	"aes-586.s"
 .text
 .type	_x86_AES_encrypt_compact,@function
 .align	16

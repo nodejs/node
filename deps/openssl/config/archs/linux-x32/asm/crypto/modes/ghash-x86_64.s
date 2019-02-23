@@ -5,9 +5,27 @@
 .type	gcm_gmult_4bit,@function
 .align	16
 gcm_gmult_4bit:
+.cfi_startproc	
 	pushq	%rbx
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%rbx,-16
 	pushq	%rbp
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%rbp,-24
 	pushq	%r12
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r12,-32
+	pushq	%r13
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r13,-40
+	pushq	%r14
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r14,-48
+	pushq	%r15
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r15,-56
+	subq	$280,%rsp
+.cfi_adjust_cfa_offset	280
 .Lgmult_prologue:
 
 	movzbq	15(%rdi),%r8
@@ -84,22 +102,41 @@ gcm_gmult_4bit:
 	movq	%r8,8(%rdi)
 	movq	%r9,(%rdi)
 
-	movq	16(%rsp),%rbx
-	leaq	24(%rsp),%rsp
+	leaq	280+48(%rsp),%rsi
+.cfi_def_cfa	%rsi,8
+	movq	-8(%rsi),%rbx
+.cfi_restore	%rbx
+	leaq	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lgmult_epilogue:
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	gcm_gmult_4bit,.-gcm_gmult_4bit
 .globl	gcm_ghash_4bit
 .type	gcm_ghash_4bit,@function
 .align	16
 gcm_ghash_4bit:
+.cfi_startproc	
 	pushq	%rbx
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%rbx,-16
 	pushq	%rbp
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%rbp,-24
 	pushq	%r12
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r12,-32
 	pushq	%r13
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r13,-40
 	pushq	%r14
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r14,-48
 	pushq	%r15
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r15,-56
 	subq	$280,%rsp
+.cfi_adjust_cfa_offset	280
 .Lghash_prologue:
 	movq	%rdx,%r14
 	movq	%rcx,%r15
@@ -644,16 +681,25 @@ gcm_ghash_4bit:
 	movq	%r8,8(%rdi)
 	movq	%r9,(%rdi)
 
-	leaq	280(%rsp),%rsi
-	movq	0(%rsi),%r15
-	movq	8(%rsi),%r14
-	movq	16(%rsi),%r13
-	movq	24(%rsi),%r12
-	movq	32(%rsi),%rbp
-	movq	40(%rsi),%rbx
-	leaq	48(%rsi),%rsp
+	leaq	280+48(%rsp),%rsi
+.cfi_def_cfa	%rsi,8
+	movq	-48(%rsi),%r15
+.cfi_restore	%r15
+	movq	-40(%rsi),%r14
+.cfi_restore	%r14
+	movq	-32(%rsi),%r13
+.cfi_restore	%r13
+	movq	-24(%rsi),%r12
+.cfi_restore	%r12
+	movq	-16(%rsi),%rbp
+.cfi_restore	%rbp
+	movq	-8(%rsi),%rbx
+.cfi_restore	%rbx
+	leaq	0(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lghash_epilogue:
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	gcm_ghash_4bit,.-gcm_ghash_4bit
 .globl	gcm_init_clmul
 .type	gcm_init_clmul,@function

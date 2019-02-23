@@ -77,15 +77,23 @@ K256:
 .type	aesni_cbc_sha256_enc_xop,@function
 .align	64
 aesni_cbc_sha256_enc_xop:
+.cfi_startproc	
 .Lxop_shortcut:
 	movq	8(%rsp),%r10
+	movq	%rsp,%rax
+.cfi_def_cfa_register	%rax
 	pushq	%rbx
+.cfi_offset	%rbx,-16
 	pushq	%rbp
+.cfi_offset	%rbp,-24
 	pushq	%r12
+.cfi_offset	%r12,-32
 	pushq	%r13
+.cfi_offset	%r13,-40
 	pushq	%r14
+.cfi_offset	%r14,-48
 	pushq	%r15
-	movq	%rsp,%r11
+.cfi_offset	%r15,-56
 	subq	$128,%rsp
 	andq	$-64,%rsp
 
@@ -101,7 +109,8 @@ aesni_cbc_sha256_enc_xop:
 	movq	%r8,64+32(%rsp)
 	movq	%r9,64+40(%rsp)
 	movq	%r10,64+48(%rsp)
-	movq	%r11,64+56(%rsp)
+	movq	%rax,120(%rsp)
+.cfi_escape	0x0f,0x06,0x77,0xf8,0x00,0x06,0x23,0x08
 .Lprologue_xop:
 	vzeroall
 
@@ -1207,31 +1216,48 @@ aesni_cbc_sha256_enc_xop:
 	jb	.Lloop_xop
 
 	movq	64+32(%rsp),%r8
-	movq	64+56(%rsp),%rsi
+	movq	120(%rsp),%rsi
+.cfi_def_cfa	%rsi,8
 	vmovdqu	%xmm8,(%r8)
 	vzeroall
-	movq	(%rsi),%r15
-	movq	8(%rsi),%r14
-	movq	16(%rsi),%r13
-	movq	24(%rsi),%r12
-	movq	32(%rsi),%rbp
-	movq	40(%rsi),%rbx
-	leaq	48(%rsi),%rsp
+	movq	-48(%rsi),%r15
+.cfi_restore	%r15
+	movq	-40(%rsi),%r14
+.cfi_restore	%r14
+	movq	-32(%rsi),%r13
+.cfi_restore	%r13
+	movq	-24(%rsi),%r12
+.cfi_restore	%r12
+	movq	-16(%rsi),%rbp
+.cfi_restore	%rbp
+	movq	-8(%rsi),%rbx
+.cfi_restore	%rbx
+	leaq	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lepilogue_xop:
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	aesni_cbc_sha256_enc_xop,.-aesni_cbc_sha256_enc_xop
 .type	aesni_cbc_sha256_enc_avx,@function
 .align	64
 aesni_cbc_sha256_enc_avx:
+.cfi_startproc	
 .Lavx_shortcut:
 	movq	8(%rsp),%r10
+	movq	%rsp,%rax
+.cfi_def_cfa_register	%rax
 	pushq	%rbx
+.cfi_offset	%rbx,-16
 	pushq	%rbp
+.cfi_offset	%rbp,-24
 	pushq	%r12
+.cfi_offset	%r12,-32
 	pushq	%r13
+.cfi_offset	%r13,-40
 	pushq	%r14
+.cfi_offset	%r14,-48
 	pushq	%r15
-	movq	%rsp,%r11
+.cfi_offset	%r15,-56
 	subq	$128,%rsp
 	andq	$-64,%rsp
 
@@ -1247,7 +1273,8 @@ aesni_cbc_sha256_enc_avx:
 	movq	%r8,64+32(%rsp)
 	movq	%r9,64+40(%rsp)
 	movq	%r10,64+48(%rsp)
-	movq	%r11,64+56(%rsp)
+	movq	%rax,120(%rsp)
+.cfi_escape	0x0f,0x06,0x77,0xf8,0x00,0x06,0x23,0x08
 .Lprologue_avx:
 	vzeroall
 
@@ -2384,31 +2411,48 @@ aesni_cbc_sha256_enc_avx:
 	jb	.Lloop_avx
 
 	movq	64+32(%rsp),%r8
-	movq	64+56(%rsp),%rsi
+	movq	120(%rsp),%rsi
+.cfi_def_cfa	%rsi,8
 	vmovdqu	%xmm8,(%r8)
 	vzeroall
-	movq	(%rsi),%r15
-	movq	8(%rsi),%r14
-	movq	16(%rsi),%r13
-	movq	24(%rsi),%r12
-	movq	32(%rsi),%rbp
-	movq	40(%rsi),%rbx
-	leaq	48(%rsi),%rsp
+	movq	-48(%rsi),%r15
+.cfi_restore	%r15
+	movq	-40(%rsi),%r14
+.cfi_restore	%r14
+	movq	-32(%rsi),%r13
+.cfi_restore	%r13
+	movq	-24(%rsi),%r12
+.cfi_restore	%r12
+	movq	-16(%rsi),%rbp
+.cfi_restore	%rbp
+	movq	-8(%rsi),%rbx
+.cfi_restore	%rbx
+	leaq	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lepilogue_avx:
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	aesni_cbc_sha256_enc_avx,.-aesni_cbc_sha256_enc_avx
 .type	aesni_cbc_sha256_enc_avx2,@function
 .align	64
 aesni_cbc_sha256_enc_avx2:
+.cfi_startproc	
 .Lavx2_shortcut:
 	movq	8(%rsp),%r10
+	movq	%rsp,%rax
+.cfi_def_cfa_register	%rax
 	pushq	%rbx
+.cfi_offset	%rbx,-16
 	pushq	%rbp
+.cfi_offset	%rbp,-24
 	pushq	%r12
+.cfi_offset	%r12,-32
 	pushq	%r13
+.cfi_offset	%r13,-40
 	pushq	%r14
+.cfi_offset	%r14,-48
 	pushq	%r15
-	movq	%rsp,%r11
+.cfi_offset	%r15,-56
 	subq	$576,%rsp
 	andq	$-1024,%rsp
 	addq	$448,%rsp
@@ -2425,7 +2469,8 @@ aesni_cbc_sha256_enc_avx2:
 	movq	%r8,64+32(%rsp)
 	movq	%r9,64+40(%rsp)
 	movq	%r10,64+48(%rsp)
-	movq	%r11,64+56(%rsp)
+	movq	%rax,120(%rsp)
+.cfi_escape	0x0f,0x06,0x77,0xf8,0x00,0x06,0x23,0x08
 .Lprologue_avx2:
 	vzeroall
 
@@ -3987,18 +4032,27 @@ aesni_cbc_sha256_enc_avx2:
 .Ldone_avx2:
 	leaq	(%rbp),%rsp
 	movq	64+32(%rsp),%r8
-	movq	64+56(%rsp),%rsi
+	movq	120(%rsp),%rsi
+.cfi_def_cfa	%rsi,8
 	vmovdqu	%xmm8,(%r8)
 	vzeroall
-	movq	(%rsi),%r15
-	movq	8(%rsi),%r14
-	movq	16(%rsi),%r13
-	movq	24(%rsi),%r12
-	movq	32(%rsi),%rbp
-	movq	40(%rsi),%rbx
-	leaq	48(%rsi),%rsp
+	movq	-48(%rsi),%r15
+.cfi_restore	%r15
+	movq	-40(%rsi),%r14
+.cfi_restore	%r14
+	movq	-32(%rsi),%r13
+.cfi_restore	%r13
+	movq	-24(%rsi),%r12
+.cfi_restore	%r12
+	movq	-16(%rsi),%rbp
+.cfi_restore	%rbp
+	movq	-8(%rsi),%rbx
+.cfi_restore	%rbx
+	leaq	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lepilogue_avx2:
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	aesni_cbc_sha256_enc_avx2,.-aesni_cbc_sha256_enc_avx2
 .type	aesni_cbc_sha256_enc_shaext,@function
 .align	32
