@@ -476,7 +476,7 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
 
       // Using invalid_args as the v8_args argument as it stores unknown
       // options for the per isolate parser.
-      options_parser::PerIsolateOptionsParser::instance.Parse(
+      options_parser::Parse(
           &exec_argv,
           &exec_argv_out,
           &invalid_args,

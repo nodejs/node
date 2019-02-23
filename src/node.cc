@@ -546,7 +546,7 @@ int ProcessGlobalArgs(std::vector<std::string>* args,
   std::vector<std::string> v8_args;
 
   Mutex::ScopedLock lock(per_process::cli_options_mutex);
-  options_parser::PerProcessOptionsParser::instance.Parse(
+  options_parser::Parse(
       args,
       exec_args,
       &v8_args,

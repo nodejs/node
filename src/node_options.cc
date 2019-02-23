@@ -113,19 +113,60 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
 
 namespace options_parser {
 
-// Explicitly access the singelton instances in their dependancy order.
-// This was moved here to workaround a compiler bug.
-// Refs: https://github.com/nodejs/node/issues/25593
+class DebugOptionsParser : public OptionsParser<DebugOptions> {
+ public:
+  DebugOptionsParser();
+};
+
+class EnvironmentOptionsParser : public OptionsParser<EnvironmentOptions> {
+ public:
+  EnvironmentOptionsParser();
+  explicit EnvironmentOptionsParser(const DebugOptionsParser& dop)
+    : EnvironmentOptionsParser() {
+    Insert(&dop, &EnvironmentOptions::get_debug_options);
+  }
+};
+
+class PerIsolateOptionsParser : public OptionsParser<PerIsolateOptions> {
+ public:
+  PerIsolateOptionsParser() = delete;
+  explicit PerIsolateOptionsParser(const EnvironmentOptionsParser& eop);
+};
+
+class PerProcessOptionsParser : public OptionsParser<PerProcessOptions> {
+ public:
+  PerProcessOptionsParser() = delete;
+  explicit PerProcessOptionsParser(const PerIsolateOptionsParser& iop);
+};
 
 #if HAVE_INSPECTOR
-const DebugOptionsParser DebugOptionsParser::instance;
+const DebugOptionsParser _dop_instance{};
+const EnvironmentOptionsParser _eop_instance{_dop_instance};
+#else
+const EnvironmentOptionsParser _eop_instance{};
 #endif  // HAVE_INSPECTOR
+const PerIsolateOptionsParser _piop_instance{_eop_instance};
+const PerProcessOptionsParser _ppop_instance{_piop_instance};
 
-const EnvironmentOptionsParser EnvironmentOptionsParser::instance;
+template <>
+void Parse(
+  StringVector* const args, StringVector* const exec_args,
+  StringVector* const v8_args,
+  PerIsolateOptions* const options,
+  OptionEnvvarSettings required_env_settings, StringVector* const errors) {
+  _piop_instance.Parse(
+    args, exec_args, v8_args, options, required_env_settings, errors);
+}
 
-const PerIsolateOptionsParser PerIsolateOptionsParser::instance;
-
-const PerProcessOptionsParser PerProcessOptionsParser::instance;
+template <>
+void Parse(
+  StringVector* const args, StringVector* const exec_args,
+  StringVector* const v8_args,
+  PerProcessOptions* const options,
+  OptionEnvvarSettings required_env_settings, StringVector* const errors) {
+  _ppop_instance.Parse(
+    args, exec_args, v8_args, options, required_env_settings, errors);
+}
 
 // XXX: If you add an option here, please also add it to doc/node.1 and
 // doc/api/cli.md
@@ -291,14 +332,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::tls_v1_1,
             kAllowedInEnvironment);
 #endif
-
-#if HAVE_INSPECTOR
-  Insert(&DebugOptionsParser::instance,
-         &EnvironmentOptions::get_debug_options);
-#endif  // HAVE_INSPECTOR
 }
 
-PerIsolateOptionsParser::PerIsolateOptionsParser() {
+PerIsolateOptionsParser::PerIsolateOptionsParser(
+  const EnvironmentOptionsParser& eop) {
   AddOption("--track-heap-objects",
             "track heap object allocations for heap snapshots",
             &PerIsolateOptions::track_heap_objects,
@@ -354,11 +391,11 @@ PerIsolateOptionsParser::PerIsolateOptionsParser() {
             kAllowedInEnvironment);
 #endif  // NODE_REPORT
 
-  Insert(&EnvironmentOptionsParser::instance,
-         &PerIsolateOptions::get_per_env_options);
+  Insert(&eop, &PerIsolateOptions::get_per_env_options);
 }
 
-PerProcessOptionsParser::PerProcessOptionsParser() {
+PerProcessOptionsParser::PerProcessOptionsParser(
+  const PerIsolateOptionsParser& iop) {
   AddOption("--title",
             "the process title to use on startup",
             &PerProcessOptions::title,
@@ -464,8 +501,7 @@ PerProcessOptionsParser::PerProcessOptionsParser() {
 #endif
 #endif
 
-  Insert(&PerIsolateOptionsParser::instance,
-         &PerProcessOptions::get_per_isolate_options);
+  Insert(&iop, &PerProcessOptions::get_per_isolate_options);
 }
 
 inline std::string RemoveBrackets(const std::string& host) {
@@ -531,10 +567,8 @@ void GetOptions(const FunctionCallbackInfo<Value>& args) {
     per_process::cli_options->per_isolate = original_per_isolate;
   });
 
-  const auto& parser = PerProcessOptionsParser::instance;
-
   Local<Map> options = Map::New(isolate);
-  for (const auto& item : parser.options_) {
+  for (const auto& item : _ppop_instance.options_) {
     Local<Value> value;
     const auto& option_info = item.second;
     auto field = option_info.field;
@@ -552,29 +586,34 @@ void GetOptions(const FunctionCallbackInfo<Value>& args) {
         }
         break;
       case kBoolean:
-        value = Boolean::New(isolate, *parser.Lookup<bool>(field, opts));
+        value = Boolean::New(isolate,
+                             *_ppop_instance.Lookup<bool>(field, opts));
         break;
       case kInteger:
-        value = Number::New(isolate, *parser.Lookup<int64_t>(field, opts));
+        value = Number::New(isolate,
+                            *_ppop_instance.Lookup<int64_t>(field, opts));
         break;
       case kUInteger:
-        value = Number::New(isolate, *parser.Lookup<uint64_t>(field, opts));
+        value = Number::New(isolate,
+                            *_ppop_instance.Lookup<uint64_t>(field, opts));
         break;
       case kString:
-        if (!ToV8Value(context, *parser.Lookup<std::string>(field, opts))
+        if (!ToV8Value(context,
+                       *_ppop_instance.Lookup<std::string>(field, opts))
                  .ToLocal(&value)) {
           return;
         }
         break;
       case kStringList:
         if (!ToV8Value(context,
-                       *parser.Lookup<std::vector<std::string>>(field, opts))
+                       *_ppop_instance.Lookup<StringVector>(field, opts))
                  .ToLocal(&value)) {
           return;
         }
         break;
       case kHostPort: {
-        const HostPort& host_port = *parser.Lookup<HostPort>(field, opts);
+        const HostPort& host_port =
+          *_ppop_instance.Lookup<HostPort>(field, opts);
         Local<Object> obj = Object::New(isolate);
         Local<Value> host;
         if (!ToV8Value(context, host_port.host()).ToLocal(&host) ||
@@ -615,7 +654,7 @@ void GetOptions(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Value> aliases;
-  if (!ToV8Value(context, parser.aliases_).ToLocal(&aliases)) return;
+  if (!ToV8Value(context, _ppop_instance.aliases_).ToLocal(&aliases)) return;
 
   Local<Object> ret = Object::New(isolate);
   if (ret->Set(context, env->options_string(), options).IsNothing() ||

@@ -310,12 +310,12 @@ class OptionsParser {
   //
   // If `*error` is set, the result of the parsing should be discarded and the
   // contents of any of the argument vectors should be considered undefined.
-  virtual void Parse(std::vector<std::string>* const args,
-                     std::vector<std::string>* const exec_args,
-                     std::vector<std::string>* const v8_args,
-                     Options* const options,
-                     OptionEnvvarSettings required_env_settings,
-                     std::vector<std::string>* const errors) const;
+  void Parse(std::vector<std::string>* const args,
+             std::vector<std::string>* const exec_args,
+             std::vector<std::string>* const v8_args,
+             Options* const options,
+             OptionEnvvarSettings required_env_settings,
+             std::vector<std::string>* const errors) const;
 
  private:
   // We support the wide variety of different option types by remembering
@@ -396,33 +396,12 @@ class OptionsParser {
   friend void GetOptions(const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 
-class DebugOptionsParser : public OptionsParser<DebugOptions> {
- public:
-  DebugOptionsParser();
-
-  static const DebugOptionsParser instance;
-};
-
-class EnvironmentOptionsParser : public OptionsParser<EnvironmentOptions> {
- public:
-  EnvironmentOptionsParser();
-
-  static const EnvironmentOptionsParser instance;
-};
-
-class PerIsolateOptionsParser : public OptionsParser<PerIsolateOptions> {
- public:
-  PerIsolateOptionsParser();
-
-  static const PerIsolateOptionsParser instance;
-};
-
-class PerProcessOptionsParser : public OptionsParser<PerProcessOptions> {
- public:
-  PerProcessOptionsParser();
-
-  static const PerProcessOptionsParser instance;
-};
+using StringVector = std::vector<std::string>;
+template <class OptionsType, class = Options>
+void Parse(
+  StringVector* const args, StringVector* const exec_args,
+  StringVector* const v8_args, OptionsType* const options,
+  OptionEnvvarSettings required_env_settings, StringVector* const errors);
 
 }  // namespace options_parser
 
