@@ -4,14 +4,22 @@
 
 .p2align	4
 _whirlpool_block:
+
+	movq	%rsp,%rax
+
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r12
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
 
-	movq	%rsp,%r11
+
 	subq	$128+40,%rsp
 	andq	$-64,%rsp
 
@@ -19,7 +27,8 @@ _whirlpool_block:
 	movq	%rdi,0(%r10)
 	movq	%rsi,8(%r10)
 	movq	%rdx,16(%r10)
-	movq	%r11,32(%r10)
+	movq	%rax,32(%r10)
+
 L$prologue:
 
 	movq	%r10,%rbx
@@ -579,15 +588,24 @@ L$roundsdone:
 	jmp	L$outerloop
 L$alldone:
 	movq	32(%rbx),%rsi
-	movq	(%rsi),%r15
-	movq	8(%rsi),%r14
-	movq	16(%rsi),%r13
-	movq	24(%rsi),%r12
-	movq	32(%rsi),%rbp
-	movq	40(%rsi),%rbx
-	leaq	48(%rsi),%rsp
+
+	movq	-48(%rsi),%r15
+
+	movq	-40(%rsi),%r14
+
+	movq	-32(%rsi),%r13
+
+	movq	-24(%rsi),%r12
+
+	movq	-16(%rsi),%rbp
+
+	movq	-8(%rsi),%rbx
+
+	leaq	(%rsi),%rsp
+
 L$epilogue:
 	.byte	0xf3,0xc3
+
 
 
 .p2align	6

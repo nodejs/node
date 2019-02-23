@@ -7,21 +7,14 @@
 .align	6
 sha256_block_p8:
 .localentry	sha256_block_p8,0
-	stdu	1,-448(1)
+
+	stdu	1,-384(1)
 	mflr	8
 	li	10,207
 	li	11,223
-	stvx	20,10,1
-	addi	10,10,32
-	li	12,-1
-	stvx	21,11,1
-	addi	11,11,32
-	stvx	22,10,1
-	addi	10,10,32
-	stvx	23,11,1
-	addi	11,11,32
 	stvx	24,10,1
 	addi	10,10,32
+	li	12,-1
 	stvx	25,11,1
 	addi	11,11,32
 	stvx	26,10,1
@@ -34,30 +27,30 @@ sha256_block_p8:
 	addi	11,11,32
 	stvx	30,10,1
 	stvx	31,11,1
-	li	11,-1
-	stw	12,396(1)
+	li	11,-4096+255
+	stw	12,332(1)
 	li	10,0x10
-	std	26,400(1)
+	std	26,336(1)
 	li	26,0x20
-	std	27,408(1)
+	std	27,344(1)
 	li	27,0x30
-	std	28,416(1)
+	std	28,352(1)
 	li	28,0x40
-	std	29,424(1)
+	std	29,360(1)
 	li	29,0x50
-	std	30,432(1)
+	std	30,368(1)
 	li	30,0x60
-	std	31,440(1)
+	std	31,376(1)
 	li	31,0x70
-	std	8,464(1)
+	std	8,400(1)
 	or	11,11,11
 
 	bl	.LPICmeup
-	addi	11,1,64+15
+	addi	11,1,79
 	li	7,8
-	lvsl	30,0,7
-	vspltisb	24,0x0f
-	vxor	30,30,24
+	lvsl	31,0,7
+	vspltisb	28,0x0f
+	vxor	31,31,28
 	.long	0x7C001E19
 	.long	0x7C8A1E19
 	vsldoi	1,0,0,4
@@ -70,10 +63,10 @@ sha256_block_p8:
 	b	.Loop
 .align	5
 .Loop:
-	lvx	24,0,6
-	li	7,16
+	lvx	28,0,6
 	.long	0x7D002699
 	addi	4,4,16
+	mr	7,6
 	stvx	0,0,11
 	stvx	1,10,11
 	stvx	2,26,11
@@ -82,643 +75,539 @@ sha256_block_p8:
 	stvx	5,29,11
 	stvx	6,30,11
 	stvx	7,31,11
-	vadduwm	7,7,24
-	lvx	24,7,6
-	addi	7,7,16
-	vperm	8,8,8,30
-
-	vsel	25,6,5,4
-	.long	0x1364FE82
+	vadduwm	7,7,28
+	lvx	28,10,6
+	vperm	8,8,8,31
 	vadduwm	7,7,8
-	.long	0x13408682
-
-	vadduwm	7,7,25
-	vxor	25,0,1
-
-	vadduwm	7,7,27
-	vsel	25,1,2,25
-	vadduwm	6,6,24
+	vsel	29,6,5,4
+	vadduwm	6,6,28
+	vadduwm	7,7,29
+	.long	0x13C4FE82
+	vadduwm	7,7,30
+	vxor	29,0,1
+	vsel	29,1,2,29
 	vadduwm	3,3,7
-	vadduwm	26,26,25
-
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	7,7,26
-
+	.long	0x13C08682
+	vadduwm	30,30,29
+	vadduwm	7,7,30
+	lvx	28,26,7
 	vsldoi	9,8,8,4
-
-	vsel	25,5,4,3
-	.long	0x1363FE82
 	vadduwm	6,6,9
-	.long	0x13478682
-
-	vadduwm	6,6,25
-	vxor	25,7,0
-
-	vadduwm	6,6,27
-	vsel	25,0,1,25
-	vadduwm	5,5,24
+	vsel	29,5,4,3
+	vadduwm	5,5,28
+	vadduwm	6,6,29
+	.long	0x13C3FE82
+	vadduwm	6,6,30
+	vxor	29,7,0
+	vsel	29,0,1,29
 	vadduwm	2,2,6
-	vadduwm	26,26,25
-
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	6,6,26
-
+	.long	0x13C78682
+	vadduwm	30,30,29
+	vadduwm	6,6,30
+	lvx	28,27,7
 	vsldoi	10,9,9,4
-
-	vsel	25,4,3,2
-	.long	0x1362FE82
 	vadduwm	5,5,10
-	.long	0x13468682
-
-	vadduwm	5,5,25
-	vxor	25,6,7
-
-	vadduwm	5,5,27
-	vsel	25,7,0,25
-	vadduwm	4,4,24
+	vsel	29,4,3,2
+	vadduwm	4,4,28
+	vadduwm	5,5,29
+	.long	0x13C2FE82
+	vadduwm	5,5,30
+	vxor	29,6,7
+	vsel	29,7,0,29
 	vadduwm	1,1,5
-	vadduwm	26,26,25
-
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	5,5,26
-
+	.long	0x13C68682
+	vadduwm	30,30,29
+	vadduwm	5,5,30
+	lvx	28,28,7
 	.long	0x7D802699
 	addi	4,4,16
 	vsldoi	11,10,10,4
-
-	vsel	25,3,2,1
-	.long	0x1361FE82
 	vadduwm	4,4,11
-	.long	0x13458682
-
-	vadduwm	4,4,25
-	vxor	25,5,6
-
-	vadduwm	4,4,27
-	vsel	25,6,7,25
-	vadduwm	3,3,24
+	vsel	29,3,2,1
+	vadduwm	3,3,28
+	vadduwm	4,4,29
+	.long	0x13C1FE82
+	vadduwm	4,4,30
+	vxor	29,5,6
+	vsel	29,6,7,29
 	vadduwm	0,0,4
-	vadduwm	26,26,25
-
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	4,4,26
-
-	vperm	12,12,12,30
-
-	vsel	25,2,1,0
-	.long	0x1360FE82
+	.long	0x13C58682
+	vadduwm	30,30,29
+	vadduwm	4,4,30
+	lvx	28,29,7
+	vperm	12,12,12,31
 	vadduwm	3,3,12
-	.long	0x13448682
-
-	vadduwm	3,3,25
-	vxor	25,4,5
-
-	vadduwm	3,3,27
-	vsel	25,5,6,25
-	vadduwm	2,2,24
+	vsel	29,2,1,0
+	vadduwm	2,2,28
+	vadduwm	3,3,29
+	.long	0x13C0FE82
+	vadduwm	3,3,30
+	vxor	29,4,5
+	vsel	29,5,6,29
 	vadduwm	7,7,3
-	vadduwm	26,26,25
-
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	3,3,26
-
+	.long	0x13C48682
+	vadduwm	30,30,29
+	vadduwm	3,3,30
+	lvx	28,30,7
 	vsldoi	13,12,12,4
-
-	vsel	25,1,0,7
-	.long	0x1367FE82
 	vadduwm	2,2,13
-	.long	0x13438682
-
-	vadduwm	2,2,25
-	vxor	25,3,4
-
-	vadduwm	2,2,27
-	vsel	25,4,5,25
-	vadduwm	1,1,24
+	vsel	29,1,0,7
+	vadduwm	1,1,28
+	vadduwm	2,2,29
+	.long	0x13C7FE82
+	vadduwm	2,2,30
+	vxor	29,3,4
+	vsel	29,4,5,29
 	vadduwm	6,6,2
-	vadduwm	26,26,25
-
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	2,2,26
-
+	.long	0x13C38682
+	vadduwm	30,30,29
+	vadduwm	2,2,30
+	lvx	28,31,7
+	addi	7,7,0x80
 	vsldoi	14,13,13,4
-
-	vsel	25,0,7,6
-	.long	0x1366FE82
 	vadduwm	1,1,14
-	.long	0x13428682
-
-	vadduwm	1,1,25
-	vxor	25,2,3
-
-	vadduwm	1,1,27
-	vsel	25,3,4,25
-	vadduwm	0,0,24
+	vsel	29,0,7,6
+	vadduwm	0,0,28
+	vadduwm	1,1,29
+	.long	0x13C6FE82
+	vadduwm	1,1,30
+	vxor	29,2,3
+	vsel	29,3,4,29
 	vadduwm	5,5,1
-	vadduwm	26,26,25
-
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	1,1,26
-
+	.long	0x13C28682
+	vadduwm	30,30,29
+	vadduwm	1,1,30
+	lvx	28,0,7
 	.long	0x7E002699
 	addi	4,4,16
 	vsldoi	15,14,14,4
-
-	vsel	25,7,6,5
-	.long	0x1365FE82
 	vadduwm	0,0,15
-	.long	0x13418682
-
-	vadduwm	0,0,25
-	vxor	25,1,2
-
-	vadduwm	0,0,27
-	vsel	25,2,3,25
-	vadduwm	7,7,24
+	vsel	29,7,6,5
+	vadduwm	7,7,28
+	vadduwm	0,0,29
+	.long	0x13C5FE82
+	vadduwm	0,0,30
+	vxor	29,1,2
+	vsel	29,2,3,29
 	vadduwm	4,4,0
-	vadduwm	26,26,25
-
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	0,0,26
-
-	vperm	16,16,16,30
-
-	vsel	25,6,5,4
-	.long	0x1364FE82
+	.long	0x13C18682
+	vadduwm	30,30,29
+	vadduwm	0,0,30
+	lvx	28,10,7
+	vperm	16,16,16,31
 	vadduwm	7,7,16
-	.long	0x13408682
-
-	vadduwm	7,7,25
-	vxor	25,0,1
-
-	vadduwm	7,7,27
-	vsel	25,1,2,25
-	vadduwm	6,6,24
+	vsel	29,6,5,4
+	vadduwm	6,6,28
+	vadduwm	7,7,29
+	.long	0x13C4FE82
+	vadduwm	7,7,30
+	vxor	29,0,1
+	vsel	29,1,2,29
 	vadduwm	3,3,7
-	vadduwm	26,26,25
-
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	7,7,26
-
+	.long	0x13C08682
+	vadduwm	30,30,29
+	vadduwm	7,7,30
+	lvx	28,26,7
 	vsldoi	17,16,16,4
-
-	vsel	25,5,4,3
-	.long	0x1363FE82
 	vadduwm	6,6,17
-	.long	0x13478682
-
-	vadduwm	6,6,25
-	vxor	25,7,0
-
-	vadduwm	6,6,27
-	vsel	25,0,1,25
-	vadduwm	5,5,24
+	vsel	29,5,4,3
+	vadduwm	5,5,28
+	vadduwm	6,6,29
+	.long	0x13C3FE82
+	vadduwm	6,6,30
+	vxor	29,7,0
+	vsel	29,0,1,29
 	vadduwm	2,2,6
-	vadduwm	26,26,25
-
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	6,6,26
-
+	.long	0x13C78682
+	vadduwm	30,30,29
+	vadduwm	6,6,30
+	lvx	28,27,7
 	vsldoi	18,17,17,4
-
-	vsel	25,4,3,2
-	.long	0x1362FE82
 	vadduwm	5,5,18
-	.long	0x13468682
-
-	vadduwm	5,5,25
-	vxor	25,6,7
-
-	vadduwm	5,5,27
-	vsel	25,7,0,25
-	vadduwm	4,4,24
+	vsel	29,4,3,2
+	vadduwm	4,4,28
+	vadduwm	5,5,29
+	.long	0x13C2FE82
+	vadduwm	5,5,30
+	vxor	29,6,7
+	vsel	29,7,0,29
 	vadduwm	1,1,5
-	vadduwm	26,26,25
-
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	5,5,26
-
-	.long	0x7E802699
+	.long	0x13C68682
+	vadduwm	30,30,29
+	vadduwm	5,5,30
+	lvx	28,28,7
+	.long	0x7F002699
 	addi	4,4,16
 	vsldoi	19,18,18,4
-
-	vsel	25,3,2,1
-	.long	0x1361FE82
 	vadduwm	4,4,19
-	.long	0x13458682
-
-	vadduwm	4,4,25
-	vxor	25,5,6
-
-	vadduwm	4,4,27
-	vsel	25,6,7,25
-	vadduwm	3,3,24
+	vsel	29,3,2,1
+	vadduwm	3,3,28
+	vadduwm	4,4,29
+	.long	0x13C1FE82
+	vadduwm	4,4,30
+	vxor	29,5,6
+	vsel	29,6,7,29
 	vadduwm	0,0,4
-	vadduwm	26,26,25
-
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	4,4,26
-
-	vperm	20,20,20,30
-
-	vsel	25,2,1,0
-	.long	0x1360FE82
-	vadduwm	3,3,20
-	.long	0x13448682
-
-	vadduwm	3,3,25
-	vxor	25,4,5
-
-	vadduwm	3,3,27
-	vsel	25,5,6,25
-	vadduwm	2,2,24
+	.long	0x13C58682
+	vadduwm	30,30,29
+	vadduwm	4,4,30
+	lvx	28,29,7
+	vperm	24,24,24,31
+	vadduwm	3,3,24
+	vsel	29,2,1,0
+	vadduwm	2,2,28
+	vadduwm	3,3,29
+	.long	0x13C0FE82
+	vadduwm	3,3,30
+	vxor	29,4,5
+	vsel	29,5,6,29
 	vadduwm	7,7,3
-	vadduwm	26,26,25
-
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	3,3,26
-
-	vsldoi	21,20,20,4
-
-	vsel	25,1,0,7
-	.long	0x1367FE82
-	vadduwm	2,2,21
-	.long	0x13438682
-
+	.long	0x13C48682
+	vadduwm	30,30,29
+	vadduwm	3,3,30
+	lvx	28,30,7
+	vsldoi	25,24,24,4
 	vadduwm	2,2,25
-	vxor	25,3,4
-
-	vadduwm	2,2,27
-	vsel	25,4,5,25
-	vadduwm	1,1,24
+	vsel	29,1,0,7
+	vadduwm	1,1,28
+	vadduwm	2,2,29
+	.long	0x13C7FE82
+	vadduwm	2,2,30
+	vxor	29,3,4
+	vsel	29,4,5,29
 	vadduwm	6,6,2
-	vadduwm	26,26,25
-
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	2,2,26
-
-	vsldoi	22,21,21,4
-
-	vsel	25,0,7,6
-	.long	0x1366FE82
-	vadduwm	1,1,22
-	.long	0x13428682
-
-	vadduwm	1,1,25
-	vxor	25,2,3
-
-	vadduwm	1,1,27
-	vsel	25,3,4,25
-	vadduwm	0,0,24
-	vadduwm	5,5,1
-	vadduwm	26,26,25
-
-	lvx	24,7,6
-	addi	7,7,16
+	.long	0x13C38682
+	vadduwm	30,30,29
+	vadduwm	2,2,30
+	lvx	28,31,7
+	addi	7,7,0x80
+	vsldoi	26,25,25,4
 	vadduwm	1,1,26
-
-	vsldoi	23,22,22,4
-	.long	0x13890682
-	vsel	25,7,6,5
-	.long	0x1365FE82
-	vadduwm	0,0,23
-	.long	0x13418682
-	.long	0x13B67E82
-	vadduwm	0,0,25
-	vxor	25,1,2
+	vsel	29,0,7,6
+	vadduwm	0,0,28
+	vadduwm	1,1,29
+	.long	0x13C6FE82
+	vadduwm	1,1,30
+	vxor	29,2,3
+	vsel	29,3,4,29
+	vadduwm	5,5,1
+	.long	0x13C28682
+	vadduwm	30,30,29
+	vadduwm	1,1,30
+	lvx	28,0,7
+	vsldoi	27,26,26,4
+	.long	0x13C90682
+	vadduwm	8,8,30
+	.long	0x13DA7E82
+	vadduwm	8,8,30
 	vadduwm	8,8,17
 	vadduwm	0,0,27
-	vsel	25,2,3,25
-	vadduwm	7,7,24
+	vsel	29,7,6,5
+	vadduwm	7,7,28
+	vadduwm	0,0,29
+	.long	0x13C5FE82
+	vadduwm	0,0,30
+	vxor	29,1,2
+	vsel	29,2,3,29
 	vadduwm	4,4,0
-	vadduwm	26,26,25
-	vadduwm	8,8,28
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	0,0,26
-	vadduwm	8,8,29
+	.long	0x13C18682
+	vadduwm	30,30,29
+	vadduwm	0,0,30
+	lvx	28,10,7
 	mtctr	0
 	b	.L16_xx
 .align	5
 .L16_xx:
-	.long	0x138A0682
-	vsel	25,6,5,4
-	.long	0x1364FE82
-	vadduwm	7,7,8
-	.long	0x13408682
-	.long	0x13B77E82
-	vadduwm	7,7,25
-	vxor	25,0,1
+	.long	0x13CA0682
+	vadduwm	9,9,30
+	.long	0x13DB7E82
+	vadduwm	9,9,30
 	vadduwm	9,9,18
-	vadduwm	7,7,27
-	vsel	25,1,2,25
-	vadduwm	6,6,24
+	vadduwm	7,7,8
+	vsel	29,6,5,4
+	vadduwm	6,6,28
+	vadduwm	7,7,29
+	.long	0x13C4FE82
+	vadduwm	7,7,30
+	vxor	29,0,1
+	vsel	29,1,2,29
 	vadduwm	3,3,7
-	vadduwm	26,26,25
-	vadduwm	9,9,28
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	7,7,26
-	vadduwm	9,9,29
-	.long	0x138B0682
-	vsel	25,5,4,3
-	.long	0x1363FE82
-	vadduwm	6,6,9
-	.long	0x13478682
-	.long	0x13A87E82
-	vadduwm	6,6,25
-	vxor	25,7,0
+	.long	0x13C08682
+	vadduwm	30,30,29
+	vadduwm	7,7,30
+	lvx	28,26,7
+	.long	0x13CB0682
+	vadduwm	10,10,30
+	.long	0x13C87E82
+	vadduwm	10,10,30
 	vadduwm	10,10,19
-	vadduwm	6,6,27
-	vsel	25,0,1,25
-	vadduwm	5,5,24
+	vadduwm	6,6,9
+	vsel	29,5,4,3
+	vadduwm	5,5,28
+	vadduwm	6,6,29
+	.long	0x13C3FE82
+	vadduwm	6,6,30
+	vxor	29,7,0
+	vsel	29,0,1,29
 	vadduwm	2,2,6
-	vadduwm	26,26,25
-	vadduwm	10,10,28
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	6,6,26
-	vadduwm	10,10,29
-	.long	0x138C0682
-	vsel	25,4,3,2
-	.long	0x1362FE82
+	.long	0x13C78682
+	vadduwm	30,30,29
+	vadduwm	6,6,30
+	lvx	28,27,7
+	.long	0x13CC0682
+	vadduwm	11,11,30
+	.long	0x13C97E82
+	vadduwm	11,11,30
+	vadduwm	11,11,24
 	vadduwm	5,5,10
-	.long	0x13468682
-	.long	0x13A97E82
-	vadduwm	5,5,25
-	vxor	25,6,7
-	vadduwm	11,11,20
-	vadduwm	5,5,27
-	vsel	25,7,0,25
-	vadduwm	4,4,24
+	vsel	29,4,3,2
+	vadduwm	4,4,28
+	vadduwm	5,5,29
+	.long	0x13C2FE82
+	vadduwm	5,5,30
+	vxor	29,6,7
+	vsel	29,7,0,29
 	vadduwm	1,1,5
-	vadduwm	26,26,25
-	vadduwm	11,11,28
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	5,5,26
-	vadduwm	11,11,29
-	.long	0x138D0682
-	vsel	25,3,2,1
-	.long	0x1361FE82
+	.long	0x13C68682
+	vadduwm	30,30,29
+	vadduwm	5,5,30
+	lvx	28,28,7
+	.long	0x13CD0682
+	vadduwm	12,12,30
+	.long	0x13CA7E82
+	vadduwm	12,12,30
+	vadduwm	12,12,25
 	vadduwm	4,4,11
-	.long	0x13458682
-	.long	0x13AA7E82
-	vadduwm	4,4,25
-	vxor	25,5,6
-	vadduwm	12,12,21
-	vadduwm	4,4,27
-	vsel	25,6,7,25
-	vadduwm	3,3,24
+	vsel	29,3,2,1
+	vadduwm	3,3,28
+	vadduwm	4,4,29
+	.long	0x13C1FE82
+	vadduwm	4,4,30
+	vxor	29,5,6
+	vsel	29,6,7,29
 	vadduwm	0,0,4
-	vadduwm	26,26,25
-	vadduwm	12,12,28
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	4,4,26
-	vadduwm	12,12,29
-	.long	0x138E0682
-	vsel	25,2,1,0
-	.long	0x1360FE82
+	.long	0x13C58682
+	vadduwm	30,30,29
+	vadduwm	4,4,30
+	lvx	28,29,7
+	.long	0x13CE0682
+	vadduwm	13,13,30
+	.long	0x13CB7E82
+	vadduwm	13,13,30
+	vadduwm	13,13,26
 	vadduwm	3,3,12
-	.long	0x13448682
-	.long	0x13AB7E82
-	vadduwm	3,3,25
-	vxor	25,4,5
-	vadduwm	13,13,22
-	vadduwm	3,3,27
-	vsel	25,5,6,25
-	vadduwm	2,2,24
+	vsel	29,2,1,0
+	vadduwm	2,2,28
+	vadduwm	3,3,29
+	.long	0x13C0FE82
+	vadduwm	3,3,30
+	vxor	29,4,5
+	vsel	29,5,6,29
 	vadduwm	7,7,3
-	vadduwm	26,26,25
-	vadduwm	13,13,28
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	3,3,26
-	vadduwm	13,13,29
-	.long	0x138F0682
-	vsel	25,1,0,7
-	.long	0x1367FE82
+	.long	0x13C48682
+	vadduwm	30,30,29
+	vadduwm	3,3,30
+	lvx	28,30,7
+	.long	0x13CF0682
+	vadduwm	14,14,30
+	.long	0x13CC7E82
+	vadduwm	14,14,30
+	vadduwm	14,14,27
 	vadduwm	2,2,13
-	.long	0x13438682
-	.long	0x13AC7E82
-	vadduwm	2,2,25
-	vxor	25,3,4
-	vadduwm	14,14,23
-	vadduwm	2,2,27
-	vsel	25,4,5,25
-	vadduwm	1,1,24
+	vsel	29,1,0,7
+	vadduwm	1,1,28
+	vadduwm	2,2,29
+	.long	0x13C7FE82
+	vadduwm	2,2,30
+	vxor	29,3,4
+	vsel	29,4,5,29
 	vadduwm	6,6,2
-	vadduwm	26,26,25
-	vadduwm	14,14,28
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	2,2,26
-	vadduwm	14,14,29
-	.long	0x13900682
-	vsel	25,0,7,6
-	.long	0x1366FE82
-	vadduwm	1,1,14
-	.long	0x13428682
-	.long	0x13AD7E82
-	vadduwm	1,1,25
-	vxor	25,2,3
+	.long	0x13C38682
+	vadduwm	30,30,29
+	vadduwm	2,2,30
+	lvx	28,31,7
+	addi	7,7,0x80
+	.long	0x13D00682
+	vadduwm	15,15,30
+	.long	0x13CD7E82
+	vadduwm	15,15,30
 	vadduwm	15,15,8
-	vadduwm	1,1,27
-	vsel	25,3,4,25
-	vadduwm	0,0,24
+	vadduwm	1,1,14
+	vsel	29,0,7,6
+	vadduwm	0,0,28
+	vadduwm	1,1,29
+	.long	0x13C6FE82
+	vadduwm	1,1,30
+	vxor	29,2,3
+	vsel	29,3,4,29
 	vadduwm	5,5,1
-	vadduwm	26,26,25
-	vadduwm	15,15,28
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	1,1,26
-	vadduwm	15,15,29
-	.long	0x13910682
-	vsel	25,7,6,5
-	.long	0x1365FE82
-	vadduwm	0,0,15
-	.long	0x13418682
-	.long	0x13AE7E82
-	vadduwm	0,0,25
-	vxor	25,1,2
+	.long	0x13C28682
+	vadduwm	30,30,29
+	vadduwm	1,1,30
+	lvx	28,0,7
+	.long	0x13D10682
+	vadduwm	16,16,30
+	.long	0x13CE7E82
+	vadduwm	16,16,30
 	vadduwm	16,16,9
-	vadduwm	0,0,27
-	vsel	25,2,3,25
-	vadduwm	7,7,24
+	vadduwm	0,0,15
+	vsel	29,7,6,5
+	vadduwm	7,7,28
+	vadduwm	0,0,29
+	.long	0x13C5FE82
+	vadduwm	0,0,30
+	vxor	29,1,2
+	vsel	29,2,3,29
 	vadduwm	4,4,0
-	vadduwm	26,26,25
-	vadduwm	16,16,28
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	0,0,26
-	vadduwm	16,16,29
-	.long	0x13920682
-	vsel	25,6,5,4
-	.long	0x1364FE82
-	vadduwm	7,7,16
-	.long	0x13408682
-	.long	0x13AF7E82
-	vadduwm	7,7,25
-	vxor	25,0,1
+	.long	0x13C18682
+	vadduwm	30,30,29
+	vadduwm	0,0,30
+	lvx	28,10,7
+	.long	0x13D20682
+	vadduwm	17,17,30
+	.long	0x13CF7E82
+	vadduwm	17,17,30
 	vadduwm	17,17,10
-	vadduwm	7,7,27
-	vsel	25,1,2,25
-	vadduwm	6,6,24
+	vadduwm	7,7,16
+	vsel	29,6,5,4
+	vadduwm	6,6,28
+	vadduwm	7,7,29
+	.long	0x13C4FE82
+	vadduwm	7,7,30
+	vxor	29,0,1
+	vsel	29,1,2,29
 	vadduwm	3,3,7
-	vadduwm	26,26,25
-	vadduwm	17,17,28
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	7,7,26
-	vadduwm	17,17,29
-	.long	0x13930682
-	vsel	25,5,4,3
-	.long	0x1363FE82
-	vadduwm	6,6,17
-	.long	0x13478682
-	.long	0x13B07E82
-	vadduwm	6,6,25
-	vxor	25,7,0
+	.long	0x13C08682
+	vadduwm	30,30,29
+	vadduwm	7,7,30
+	lvx	28,26,7
+	.long	0x13D30682
+	vadduwm	18,18,30
+	.long	0x13D07E82
+	vadduwm	18,18,30
 	vadduwm	18,18,11
-	vadduwm	6,6,27
-	vsel	25,0,1,25
-	vadduwm	5,5,24
+	vadduwm	6,6,17
+	vsel	29,5,4,3
+	vadduwm	5,5,28
+	vadduwm	6,6,29
+	.long	0x13C3FE82
+	vadduwm	6,6,30
+	vxor	29,7,0
+	vsel	29,0,1,29
 	vadduwm	2,2,6
-	vadduwm	26,26,25
-	vadduwm	18,18,28
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	6,6,26
-	vadduwm	18,18,29
-	.long	0x13940682
-	vsel	25,4,3,2
-	.long	0x1362FE82
-	vadduwm	5,5,18
-	.long	0x13468682
-	.long	0x13B17E82
-	vadduwm	5,5,25
-	vxor	25,6,7
+	.long	0x13C78682
+	vadduwm	30,30,29
+	vadduwm	6,6,30
+	lvx	28,27,7
+	.long	0x13D80682
+	vadduwm	19,19,30
+	.long	0x13D17E82
+	vadduwm	19,19,30
 	vadduwm	19,19,12
-	vadduwm	5,5,27
-	vsel	25,7,0,25
-	vadduwm	4,4,24
+	vadduwm	5,5,18
+	vsel	29,4,3,2
+	vadduwm	4,4,28
+	vadduwm	5,5,29
+	.long	0x13C2FE82
+	vadduwm	5,5,30
+	vxor	29,6,7
+	vsel	29,7,0,29
 	vadduwm	1,1,5
-	vadduwm	26,26,25
-	vadduwm	19,19,28
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	5,5,26
-	vadduwm	19,19,29
-	.long	0x13950682
-	vsel	25,3,2,1
-	.long	0x1361FE82
+	.long	0x13C68682
+	vadduwm	30,30,29
+	vadduwm	5,5,30
+	lvx	28,28,7
+	.long	0x13D90682
+	vadduwm	24,24,30
+	.long	0x13D27E82
+	vadduwm	24,24,30
+	vadduwm	24,24,13
 	vadduwm	4,4,19
-	.long	0x13458682
-	.long	0x13B27E82
-	vadduwm	4,4,25
-	vxor	25,5,6
-	vadduwm	20,20,13
-	vadduwm	4,4,27
-	vsel	25,6,7,25
-	vadduwm	3,3,24
+	vsel	29,3,2,1
+	vadduwm	3,3,28
+	vadduwm	4,4,29
+	.long	0x13C1FE82
+	vadduwm	4,4,30
+	vxor	29,5,6
+	vsel	29,6,7,29
 	vadduwm	0,0,4
-	vadduwm	26,26,25
-	vadduwm	20,20,28
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	4,4,26
-	vadduwm	20,20,29
-	.long	0x13960682
-	vsel	25,2,1,0
-	.long	0x1360FE82
-	vadduwm	3,3,20
-	.long	0x13448682
-	.long	0x13B37E82
-	vadduwm	3,3,25
-	vxor	25,4,5
-	vadduwm	21,21,14
-	vadduwm	3,3,27
-	vsel	25,5,6,25
-	vadduwm	2,2,24
+	.long	0x13C58682
+	vadduwm	30,30,29
+	vadduwm	4,4,30
+	lvx	28,29,7
+	.long	0x13DA0682
+	vadduwm	25,25,30
+	.long	0x13D37E82
+	vadduwm	25,25,30
+	vadduwm	25,25,14
+	vadduwm	3,3,24
+	vsel	29,2,1,0
+	vadduwm	2,2,28
+	vadduwm	3,3,29
+	.long	0x13C0FE82
+	vadduwm	3,3,30
+	vxor	29,4,5
+	vsel	29,5,6,29
 	vadduwm	7,7,3
-	vadduwm	26,26,25
-	vadduwm	21,21,28
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	3,3,26
-	vadduwm	21,21,29
-	.long	0x13970682
-	vsel	25,1,0,7
-	.long	0x1367FE82
-	vadduwm	2,2,21
-	.long	0x13438682
-	.long	0x13B47E82
+	.long	0x13C48682
+	vadduwm	30,30,29
+	vadduwm	3,3,30
+	lvx	28,30,7
+	.long	0x13DB0682
+	vadduwm	26,26,30
+	.long	0x13D87E82
+	vadduwm	26,26,30
+	vadduwm	26,26,15
 	vadduwm	2,2,25
-	vxor	25,3,4
-	vadduwm	22,22,15
-	vadduwm	2,2,27
-	vsel	25,4,5,25
-	vadduwm	1,1,24
+	vsel	29,1,0,7
+	vadduwm	1,1,28
+	vadduwm	2,2,29
+	.long	0x13C7FE82
+	vadduwm	2,2,30
+	vxor	29,3,4
+	vsel	29,4,5,29
 	vadduwm	6,6,2
-	vadduwm	26,26,25
-	vadduwm	22,22,28
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	2,2,26
-	vadduwm	22,22,29
-	.long	0x13880682
-	vsel	25,0,7,6
-	.long	0x1366FE82
-	vadduwm	1,1,22
-	.long	0x13428682
-	.long	0x13B57E82
-	vadduwm	1,1,25
-	vxor	25,2,3
-	vadduwm	23,23,16
-	vadduwm	1,1,27
-	vsel	25,3,4,25
-	vadduwm	0,0,24
-	vadduwm	5,5,1
-	vadduwm	26,26,25
-	vadduwm	23,23,28
-	lvx	24,7,6
-	addi	7,7,16
+	.long	0x13C38682
+	vadduwm	30,30,29
+	vadduwm	2,2,30
+	lvx	28,31,7
+	addi	7,7,0x80
+	.long	0x13C80682
+	vadduwm	27,27,30
+	.long	0x13D97E82
+	vadduwm	27,27,30
+	vadduwm	27,27,16
 	vadduwm	1,1,26
-	vadduwm	23,23,29
-	.long	0x13890682
-	vsel	25,7,6,5
-	.long	0x1365FE82
-	vadduwm	0,0,23
-	.long	0x13418682
-	.long	0x13B67E82
-	vadduwm	0,0,25
-	vxor	25,1,2
+	vsel	29,0,7,6
+	vadduwm	0,0,28
+	vadduwm	1,1,29
+	.long	0x13C6FE82
+	vadduwm	1,1,30
+	vxor	29,2,3
+	vsel	29,3,4,29
+	vadduwm	5,5,1
+	.long	0x13C28682
+	vadduwm	30,30,29
+	vadduwm	1,1,30
+	lvx	28,0,7
+	.long	0x13C90682
+	vadduwm	8,8,30
+	.long	0x13DA7E82
+	vadduwm	8,8,30
 	vadduwm	8,8,17
 	vadduwm	0,0,27
-	vsel	25,2,3,25
-	vadduwm	7,7,24
+	vsel	29,7,6,5
+	vadduwm	7,7,28
+	vadduwm	0,0,29
+	.long	0x13C5FE82
+	vadduwm	0,0,30
+	vxor	29,1,2
+	vsel	29,2,3,29
 	vadduwm	4,4,0
-	vadduwm	26,26,25
-	vadduwm	8,8,28
-	lvx	24,7,6
-	addi	7,7,16
-	vadduwm	0,0,26
-	vadduwm	8,8,29
+	.long	0x13C18682
+	vadduwm	30,30,29
+	vadduwm	0,0,30
+	lvx	28,10,7
 	bdnz	.L16_xx
 
 	lvx	10,0,11
@@ -739,50 +628,34 @@ sha256_block_p8:
 	vadduwm	6,6,16
 	vadduwm	7,7,17
 	bne	.Loop
-	lvx	8,7,6
-	addi	7,7,16
-	vperm	0,0,1,24
-	lvx	9,7,6
-	vperm	4,4,5,24
+	lvx	8,26,7
+	vperm	0,0,1,28
+	lvx	9,27,7
+	vperm	4,4,5,28
 	vperm	0,0,2,8
 	vperm	4,4,6,8
 	vperm	0,0,3,9
 	vperm	4,4,7,9
 	.long	0x7C001F19
 	.long	0x7C8A1F19
-	li	10,207
+	addi	11,1,207
 	mtlr	8
-	li	11,223
 	or	12,12,12
-	lvx	20,10,1
-	addi	10,10,32
-	lvx	21,11,1
-	addi	11,11,32
-	lvx	22,10,1
-	addi	10,10,32
-	lvx	23,11,1
-	addi	11,11,32
-	lvx	24,10,1
-	addi	10,10,32
-	lvx	25,11,1
-	addi	11,11,32
-	lvx	26,10,1
-	addi	10,10,32
-	lvx	27,11,1
-	addi	11,11,32
-	lvx	28,10,1
-	addi	10,10,32
-	lvx	29,11,1
-	addi	11,11,32
-	lvx	30,10,1
-	lvx	31,11,1
-	ld	26,400(1)
-	ld	27,408(1)
-	ld	28,416(1)
-	ld	29,424(1)
-	ld	30,432(1)
-	ld	31,440(1)
-	addi	1,1,448
+	lvx	24,0,11
+	lvx	25,10,11
+	lvx	26,26,11
+	lvx	27,27,11
+	lvx	28,28,11
+	lvx	29,29,11
+	lvx	30,30,11
+	lvx	31,31,11
+	ld	26,336(1)
+	ld	27,344(1)
+	ld	28,352(1)
+	ld	29,360(1)
+	ld	30,368(1)
+	ld	31,376(1)
+	addi	1,1,384
 	blr	
 .long	0
 .byte	0,12,4,1,0x80,6,3,0
@@ -867,6 +740,6 @@ sha256_block_p8:
 .long	0x10111213,0x10111213,0x10111213,0x00010203
 .long	0x10111213,0x10111213,0x04050607,0x00010203
 .long	0x10111213,0x08090a0b,0x04050607,0x00010203
-.byte	83,72,65,50,53,54,32,102,111,114,32,80,111,119,101,114,73,83,65,32,50,46,48,55,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
+.byte	83,72,65,50,53,54,32,102,111,114,32,80,111,119,101,114,73,83,65,32,50,46,48,55,44,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	2
 .align	2

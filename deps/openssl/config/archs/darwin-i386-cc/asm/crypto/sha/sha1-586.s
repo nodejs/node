@@ -1,4 +1,3 @@
-.file	"sha1-586.s"
 .text
 .globl	_sha1_block_data_order
 .align	4

@@ -6,6 +6,7 @@
 
 .p2align	5
 _aesni_multi_cbc_encrypt:
+
 	cmpl	$2,%edx
 	jb	L$enc_non_avx
 	movl	_OPENSSL_ia32cap_P+4(%rip),%ecx
@@ -15,12 +16,19 @@ _aesni_multi_cbc_encrypt:
 .p2align	4
 L$enc_non_avx:
 	movq	%rsp,%rax
+
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r12
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
+
 
 
 
@@ -30,6 +38,7 @@ L$enc_non_avx:
 	subq	$48,%rsp
 	andq	$-64,%rsp
 	movq	%rax,16(%rsp)
+
 
 L$enc4x_body:
 	movdqu	(%rsi),%xmm12
@@ -239,6 +248,7 @@ L$enc4x_tail:
 	jnz	L$oop_enc4x
 
 	movq	16(%rsp),%rax
+
 	movl	24(%rsp),%edx
 
 
@@ -256,20 +266,29 @@ L$enc4x_tail:
 
 L$enc4x_done:
 	movq	-48(%rax),%r15
+
 	movq	-40(%rax),%r14
+
 	movq	-32(%rax),%r13
+
 	movq	-24(%rax),%r12
+
 	movq	-16(%rax),%rbp
+
 	movq	-8(%rax),%rbx
+
 	leaq	(%rax),%rsp
+
 L$enc4x_epilogue:
 	.byte	0xf3,0xc3
+
 
 
 .globl	_aesni_multi_cbc_decrypt
 
 .p2align	5
 _aesni_multi_cbc_decrypt:
+
 	cmpl	$2,%edx
 	jb	L$dec_non_avx
 	movl	_OPENSSL_ia32cap_P+4(%rip),%ecx
@@ -279,12 +298,19 @@ _aesni_multi_cbc_decrypt:
 .p2align	4
 L$dec_non_avx:
 	movq	%rsp,%rax
+
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r12
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
+
 
 
 
@@ -294,6 +320,7 @@ L$dec_non_avx:
 	subq	$48,%rsp
 	andq	$-64,%rsp
 	movq	%rax,16(%rsp)
+
 
 L$dec4x_body:
 	movdqu	(%rsi),%xmm12
@@ -503,6 +530,7 @@ L$dec4x_tail:
 	jnz	L$oop_dec4x
 
 	movq	16(%rsp),%rax
+
 	movl	24(%rsp),%edx
 
 	leaq	160(%rdi),%rdi
@@ -511,26 +539,42 @@ L$dec4x_tail:
 
 L$dec4x_done:
 	movq	-48(%rax),%r15
+
 	movq	-40(%rax),%r14
+
 	movq	-32(%rax),%r13
+
 	movq	-24(%rax),%r12
+
 	movq	-16(%rax),%rbp
+
 	movq	-8(%rax),%rbx
+
 	leaq	(%rax),%rsp
+
 L$dec4x_epilogue:
 	.byte	0xf3,0xc3
 
 
+
 .p2align	5
 aesni_multi_cbc_encrypt_avx:
+
 _avx_cbc_enc_shortcut:
 	movq	%rsp,%rax
+
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r12
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
+
 
 
 
@@ -542,6 +586,7 @@ _avx_cbc_enc_shortcut:
 	subq	$192,%rsp
 	andq	$-128,%rsp
 	movq	%rax,16(%rsp)
+
 
 L$enc8x_body:
 	vzeroupper
@@ -944,30 +989,47 @@ L$enc8x_tail:
 
 
 
+
 L$enc8x_done:
 	vzeroupper
 	movq	-48(%rax),%r15
+
 	movq	-40(%rax),%r14
+
 	movq	-32(%rax),%r13
+
 	movq	-24(%rax),%r12
+
 	movq	-16(%rax),%rbp
+
 	movq	-8(%rax),%rbx
+
 	leaq	(%rax),%rsp
+
 L$enc8x_epilogue:
 	.byte	0xf3,0xc3
 
 
 
+
 .p2align	5
 aesni_multi_cbc_decrypt_avx:
+
 _avx_cbc_dec_shortcut:
 	movq	%rsp,%rax
+
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r12
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
+
 
 
 
@@ -981,6 +1043,7 @@ _avx_cbc_dec_shortcut:
 	andq	$-256,%rsp
 	subq	$192,%rsp
 	movq	%rax,16(%rsp)
+
 
 L$dec8x_body:
 	vzeroupper
@@ -1421,15 +1484,23 @@ L$dec8x_tail:
 
 
 
+
 L$dec8x_done:
 	vzeroupper
 	movq	-48(%rax),%r15
+
 	movq	-40(%rax),%r14
+
 	movq	-32(%rax),%r13
+
 	movq	-24(%rax),%r12
+
 	movq	-16(%rax),%rbp
+
 	movq	-8(%rax),%rbx
+
 	leaq	(%rax),%rsp
+
 L$dec8x_epilogue:
 	.byte	0xf3,0xc3
 

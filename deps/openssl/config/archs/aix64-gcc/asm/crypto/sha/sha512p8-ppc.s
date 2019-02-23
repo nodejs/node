@@ -4,21 +4,13 @@
 .globl	.sha512_block_p8
 .align	6
 .sha512_block_p8:
-	stdu	1,-448(1)
+	stdu	1,-384(1)
 	mflr	8
 	li	10,207
 	li	11,223
-	stvx	20,10,1
-	addi	10,10,32
-	li	12,-1
-	stvx	21,11,1
-	addi	11,11,32
-	stvx	22,10,1
-	addi	10,10,32
-	stvx	23,11,1
-	addi	11,11,32
 	stvx	24,10,1
 	addi	10,10,32
+	li	12,-1
 	stvx	25,11,1
 	addi	11,11,32
 	stvx	26,10,1
@@ -31,26 +23,26 @@
 	addi	11,11,32
 	stvx	30,10,1
 	stvx	31,11,1
-	li	11,-1
-	stw	12,396(1)
+	li	11,-4096+255
+	stw	12,332(1)
 	li	10,0x10
-	std	26,400(1)
+	std	26,336(1)
 	li	26,0x20
-	std	27,408(1)
+	std	27,344(1)
 	li	27,0x30
-	std	28,416(1)
+	std	28,352(1)
 	li	28,0x40
-	std	29,424(1)
+	std	29,360(1)
 	li	29,0x50
-	std	30,432(1)
+	std	30,368(1)
 	li	30,0x60
-	std	31,440(1)
+	std	31,376(1)
 	li	31,0x70
-	std	8,464(1)
+	std	8,400(1)
 	or	11,11,11
 
 	bl	LPICmeup
-	addi	11,1,64+15
+	addi	11,1,79
 	.long	0x7C001E99
 	.long	0x7C4A1E99
 	.long	0x7C9A1E99
@@ -63,10 +55,10 @@
 	b	Loop
 .align	5
 Loop:
-	lvx	24,0,6
-	li	7,16
+	lvx	28,0,6
 	.long	0x7D002699
 	addi	4,4,16
+	mr	7,6
 	stvx	0,0,11
 	stvx	1,10,11
 	stvx	2,26,11
@@ -75,643 +67,539 @@ Loop:
 	stvx	5,29,11
 	stvx	6,30,11
 	stvx	7,31,11
-	.long	0x10E7C0C0
-	lvx	24,7,6
-	addi	7,7,16
-
-	vsel	25,6,5,4
-	.long	0x1364FEC2
+	.long	0x10E7E0C0
+	lvx	28,10,6
 	.long	0x10E740C0
-	.long	0x134086C2
-
-	.long	0x10E7C8C0
-	vxor	25,0,1
-
-	.long	0x10E7D8C0
-	vsel	25,1,2,25
-	.long	0x10C6C0C0
+	vsel	29,6,5,4
+	.long	0x10C6E0C0
+	.long	0x10E7E8C0
+	.long	0x13C4FEC2
+	.long	0x10E7F0C0
+	vxor	29,0,1
+	vsel	29,1,2,29
 	.long	0x106338C0
-	.long	0x135AC8C0
-
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x10E7D0C0
-
+	.long	0x13C086C2
+	.long	0x13DEE8C0
+	.long	0x10E7F0C0
+	lvx	28,26,7
 	.long	0x7D402699
 	addi	4,4,16
 	vsldoi	9,8,8,8
-
-	vsel	25,5,4,3
-	.long	0x1363FEC2
 	.long	0x10C648C0
-	.long	0x134786C2
-
-	.long	0x10C6C8C0
-	vxor	25,7,0
-
-	.long	0x10C6D8C0
-	vsel	25,0,1,25
-	.long	0x10A5C0C0
+	vsel	29,5,4,3
+	.long	0x10A5E0C0
+	.long	0x10C6E8C0
+	.long	0x13C3FEC2
+	.long	0x10C6F0C0
+	vxor	29,7,0
+	vsel	29,0,1,29
 	.long	0x104230C0
-	.long	0x135AC8C0
-
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x10C6D0C0
-
-
-	vsel	25,4,3,2
-	.long	0x1362FEC2
+	.long	0x13C786C2
+	.long	0x13DEE8C0
+	.long	0x10C6F0C0
+	lvx	28,27,7
 	.long	0x10A550C0
-	.long	0x134686C2
-
-	.long	0x10A5C8C0
-	vxor	25,6,7
-
-	.long	0x10A5D8C0
-	vsel	25,7,0,25
-	.long	0x1084C0C0
+	vsel	29,4,3,2
+	.long	0x1084E0C0
+	.long	0x10A5E8C0
+	.long	0x13C2FEC2
+	.long	0x10A5F0C0
+	vxor	29,6,7
+	vsel	29,7,0,29
 	.long	0x102128C0
-	.long	0x135AC8C0
-
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x10A5D0C0
-
+	.long	0x13C686C2
+	.long	0x13DEE8C0
+	.long	0x10A5F0C0
+	lvx	28,28,7
 	.long	0x7D802699
 	addi	4,4,16
 	vsldoi	11,10,10,8
-
-	vsel	25,3,2,1
-	.long	0x1361FEC2
 	.long	0x108458C0
-	.long	0x134586C2
-
-	.long	0x1084C8C0
-	vxor	25,5,6
-
-	.long	0x1084D8C0
-	vsel	25,6,7,25
-	.long	0x1063C0C0
+	vsel	29,3,2,1
+	.long	0x1063E0C0
+	.long	0x1084E8C0
+	.long	0x13C1FEC2
+	.long	0x1084F0C0
+	vxor	29,5,6
+	vsel	29,6,7,29
 	.long	0x100020C0
-	.long	0x135AC8C0
-
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x1084D0C0
-
-
-	vsel	25,2,1,0
-	.long	0x1360FEC2
+	.long	0x13C586C2
+	.long	0x13DEE8C0
+	.long	0x1084F0C0
+	lvx	28,29,7
 	.long	0x106360C0
-	.long	0x134486C2
-
-	.long	0x1063C8C0
-	vxor	25,4,5
-
-	.long	0x1063D8C0
-	vsel	25,5,6,25
-	.long	0x1042C0C0
+	vsel	29,2,1,0
+	.long	0x1042E0C0
+	.long	0x1063E8C0
+	.long	0x13C0FEC2
+	.long	0x1063F0C0
+	vxor	29,4,5
+	vsel	29,5,6,29
 	.long	0x10E718C0
-	.long	0x135AC8C0
-
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x1063D0C0
-
+	.long	0x13C486C2
+	.long	0x13DEE8C0
+	.long	0x1063F0C0
+	lvx	28,30,7
 	.long	0x7DC02699
 	addi	4,4,16
 	vsldoi	13,12,12,8
-
-	vsel	25,1,0,7
-	.long	0x1367FEC2
 	.long	0x104268C0
-	.long	0x134386C2
-
-	.long	0x1042C8C0
-	vxor	25,3,4
-
-	.long	0x1042D8C0
-	vsel	25,4,5,25
-	.long	0x1021C0C0
+	vsel	29,1,0,7
+	.long	0x1021E0C0
+	.long	0x1042E8C0
+	.long	0x13C7FEC2
+	.long	0x1042F0C0
+	vxor	29,3,4
+	vsel	29,4,5,29
 	.long	0x10C610C0
-	.long	0x135AC8C0
-
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x1042D0C0
-
-
-	vsel	25,0,7,6
-	.long	0x1366FEC2
+	.long	0x13C386C2
+	.long	0x13DEE8C0
+	.long	0x1042F0C0
+	lvx	28,31,7
+	addi	7,7,0x80
 	.long	0x102170C0
-	.long	0x134286C2
-
-	.long	0x1021C8C0
-	vxor	25,2,3
-
-	.long	0x1021D8C0
-	vsel	25,3,4,25
-	.long	0x1000C0C0
+	vsel	29,0,7,6
+	.long	0x1000E0C0
+	.long	0x1021E8C0
+	.long	0x13C6FEC2
+	.long	0x1021F0C0
+	vxor	29,2,3
+	vsel	29,3,4,29
 	.long	0x10A508C0
-	.long	0x135AC8C0
-
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x1021D0C0
-
+	.long	0x13C286C2
+	.long	0x13DEE8C0
+	.long	0x1021F0C0
+	lvx	28,0,7
 	.long	0x7E002699
 	addi	4,4,16
 	vsldoi	15,14,14,8
-
-	vsel	25,7,6,5
-	.long	0x1365FEC2
 	.long	0x100078C0
-	.long	0x134186C2
-
-	.long	0x1000C8C0
-	vxor	25,1,2
-
-	.long	0x1000D8C0
-	vsel	25,2,3,25
-	.long	0x10E7C0C0
+	vsel	29,7,6,5
+	.long	0x10E7E0C0
+	.long	0x1000E8C0
+	.long	0x13C5FEC2
+	.long	0x1000F0C0
+	vxor	29,1,2
+	vsel	29,2,3,29
 	.long	0x108400C0
-	.long	0x135AC8C0
-
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x1000D0C0
-
-
-	vsel	25,6,5,4
-	.long	0x1364FEC2
+	.long	0x13C186C2
+	.long	0x13DEE8C0
+	.long	0x1000F0C0
+	lvx	28,10,7
 	.long	0x10E780C0
-	.long	0x134086C2
-
-	.long	0x10E7C8C0
-	vxor	25,0,1
-
-	.long	0x10E7D8C0
-	vsel	25,1,2,25
-	.long	0x10C6C0C0
+	vsel	29,6,5,4
+	.long	0x10C6E0C0
+	.long	0x10E7E8C0
+	.long	0x13C4FEC2
+	.long	0x10E7F0C0
+	vxor	29,0,1
+	vsel	29,1,2,29
 	.long	0x106338C0
-	.long	0x135AC8C0
-
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x10E7D0C0
-
+	.long	0x13C086C2
+	.long	0x13DEE8C0
+	.long	0x10E7F0C0
+	lvx	28,26,7
 	.long	0x7E402699
 	addi	4,4,16
 	vsldoi	17,16,16,8
-
-	vsel	25,5,4,3
-	.long	0x1363FEC2
 	.long	0x10C688C0
-	.long	0x134786C2
-
-	.long	0x10C6C8C0
-	vxor	25,7,0
-
-	.long	0x10C6D8C0
-	vsel	25,0,1,25
-	.long	0x10A5C0C0
+	vsel	29,5,4,3
+	.long	0x10A5E0C0
+	.long	0x10C6E8C0
+	.long	0x13C3FEC2
+	.long	0x10C6F0C0
+	vxor	29,7,0
+	vsel	29,0,1,29
 	.long	0x104230C0
-	.long	0x135AC8C0
-
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x10C6D0C0
-
-
-	vsel	25,4,3,2
-	.long	0x1362FEC2
+	.long	0x13C786C2
+	.long	0x13DEE8C0
+	.long	0x10C6F0C0
+	lvx	28,27,7
 	.long	0x10A590C0
-	.long	0x134686C2
-
-	.long	0x10A5C8C0
-	vxor	25,6,7
-
-	.long	0x10A5D8C0
-	vsel	25,7,0,25
-	.long	0x1084C0C0
+	vsel	29,4,3,2
+	.long	0x1084E0C0
+	.long	0x10A5E8C0
+	.long	0x13C2FEC2
+	.long	0x10A5F0C0
+	vxor	29,6,7
+	vsel	29,7,0,29
 	.long	0x102128C0
-	.long	0x135AC8C0
-
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x10A5D0C0
-
-	.long	0x7E802699
+	.long	0x13C686C2
+	.long	0x13DEE8C0
+	.long	0x10A5F0C0
+	lvx	28,28,7
+	.long	0x7F002699
 	addi	4,4,16
 	vsldoi	19,18,18,8
-
-	vsel	25,3,2,1
-	.long	0x1361FEC2
 	.long	0x108498C0
-	.long	0x134586C2
-
-	.long	0x1084C8C0
-	vxor	25,5,6
-
-	.long	0x1084D8C0
-	vsel	25,6,7,25
-	.long	0x1063C0C0
+	vsel	29,3,2,1
+	.long	0x1063E0C0
+	.long	0x1084E8C0
+	.long	0x13C1FEC2
+	.long	0x1084F0C0
+	vxor	29,5,6
+	vsel	29,6,7,29
 	.long	0x100020C0
-	.long	0x135AC8C0
-
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x1084D0C0
-
-
-	vsel	25,2,1,0
-	.long	0x1360FEC2
-	.long	0x1063A0C0
-	.long	0x134486C2
-
-	.long	0x1063C8C0
-	vxor	25,4,5
-
-	.long	0x1063D8C0
-	vsel	25,5,6,25
-	.long	0x1042C0C0
+	.long	0x13C586C2
+	.long	0x13DEE8C0
+	.long	0x1084F0C0
+	lvx	28,29,7
+	.long	0x1063C0C0
+	vsel	29,2,1,0
+	.long	0x1042E0C0
+	.long	0x1063E8C0
+	.long	0x13C0FEC2
+	.long	0x1063F0C0
+	vxor	29,4,5
+	vsel	29,5,6,29
 	.long	0x10E718C0
-	.long	0x135AC8C0
-
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x1063D0C0
-
-	.long	0x7EC02699
+	.long	0x13C486C2
+	.long	0x13DEE8C0
+	.long	0x1063F0C0
+	lvx	28,30,7
+	.long	0x7F402699
 	addi	4,4,16
-	vsldoi	21,20,20,8
-
-	vsel	25,1,0,7
-	.long	0x1367FEC2
-	.long	0x1042A8C0
-	.long	0x134386C2
-
+	vsldoi	25,24,24,8
 	.long	0x1042C8C0
-	vxor	25,3,4
-
-	.long	0x1042D8C0
-	vsel	25,4,5,25
-	.long	0x1021C0C0
+	vsel	29,1,0,7
+	.long	0x1021E0C0
+	.long	0x1042E8C0
+	.long	0x13C7FEC2
+	.long	0x1042F0C0
+	vxor	29,3,4
+	vsel	29,4,5,29
 	.long	0x10C610C0
-	.long	0x135AC8C0
-
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x1042D0C0
-
-
-	vsel	25,0,7,6
-	.long	0x1366FEC2
-	.long	0x1021B0C0
-	.long	0x134286C2
-
-	.long	0x1021C8C0
-	vxor	25,2,3
-
-	.long	0x1021D8C0
-	vsel	25,3,4,25
-	.long	0x1000C0C0
-	.long	0x10A508C0
-	.long	0x135AC8C0
-
-	lvx	24,7,6
-	addi	7,7,16
+	.long	0x13C386C2
+	.long	0x13DEE8C0
+	.long	0x1042F0C0
+	lvx	28,31,7
+	addi	7,7,0x80
 	.long	0x1021D0C0
-
-	vsldoi	23,22,22,8
-	.long	0x138906C2
-	vsel	25,7,6,5
-	.long	0x1365FEC2
-	.long	0x1000B8C0
-	.long	0x134186C2
-	.long	0x13B67EC2
-	.long	0x1000C8C0
-	vxor	25,1,2
+	vsel	29,0,7,6
+	.long	0x1000E0C0
+	.long	0x1021E8C0
+	.long	0x13C6FEC2
+	.long	0x1021F0C0
+	vxor	29,2,3
+	vsel	29,3,4,29
+	.long	0x10A508C0
+	.long	0x13C286C2
+	.long	0x13DEE8C0
+	.long	0x1021F0C0
+	lvx	28,0,7
+	vsldoi	27,26,26,8
+	.long	0x13C906C2
+	.long	0x1108F0C0
+	.long	0x13DA7EC2
+	.long	0x1108F0C0
 	.long	0x110888C0
 	.long	0x1000D8C0
-	vsel	25,2,3,25
-	.long	0x10E7C0C0
+	vsel	29,7,6,5
+	.long	0x10E7E0C0
+	.long	0x1000E8C0
+	.long	0x13C5FEC2
+	.long	0x1000F0C0
+	vxor	29,1,2
+	vsel	29,2,3,29
 	.long	0x108400C0
-	.long	0x135AC8C0
-	.long	0x1108E0C0
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x1000D0C0
-	.long	0x1108E8C0
+	.long	0x13C186C2
+	.long	0x13DEE8C0
+	.long	0x1000F0C0
+	lvx	28,10,7
 	mtctr	0
 	b	L16_xx
 .align	5
 L16_xx:
-	.long	0x138A06C2
-	vsel	25,6,5,4
-	.long	0x1364FEC2
-	.long	0x10E740C0
-	.long	0x134086C2
-	.long	0x13B77EC2
-	.long	0x10E7C8C0
-	vxor	25,0,1
+	.long	0x13CA06C2
+	.long	0x1129F0C0
+	.long	0x13DB7EC2
+	.long	0x1129F0C0
 	.long	0x112990C0
-	.long	0x10E7D8C0
-	vsel	25,1,2,25
-	.long	0x10C6C0C0
+	.long	0x10E740C0
+	vsel	29,6,5,4
+	.long	0x10C6E0C0
+	.long	0x10E7E8C0
+	.long	0x13C4FEC2
+	.long	0x10E7F0C0
+	vxor	29,0,1
+	vsel	29,1,2,29
 	.long	0x106338C0
-	.long	0x135AC8C0
-	.long	0x1129E0C0
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x10E7D0C0
-	.long	0x1129E8C0
-	.long	0x138B06C2
-	vsel	25,5,4,3
-	.long	0x1363FEC2
-	.long	0x10C648C0
-	.long	0x134786C2
-	.long	0x13A87EC2
-	.long	0x10C6C8C0
-	vxor	25,7,0
+	.long	0x13C086C2
+	.long	0x13DEE8C0
+	.long	0x10E7F0C0
+	lvx	28,26,7
+	.long	0x13CB06C2
+	.long	0x114AF0C0
+	.long	0x13C87EC2
+	.long	0x114AF0C0
 	.long	0x114A98C0
-	.long	0x10C6D8C0
-	vsel	25,0,1,25
-	.long	0x10A5C0C0
+	.long	0x10C648C0
+	vsel	29,5,4,3
+	.long	0x10A5E0C0
+	.long	0x10C6E8C0
+	.long	0x13C3FEC2
+	.long	0x10C6F0C0
+	vxor	29,7,0
+	vsel	29,0,1,29
 	.long	0x104230C0
-	.long	0x135AC8C0
-	.long	0x114AE0C0
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x10C6D0C0
-	.long	0x114AE8C0
-	.long	0x138C06C2
-	vsel	25,4,3,2
-	.long	0x1362FEC2
+	.long	0x13C786C2
+	.long	0x13DEE8C0
+	.long	0x10C6F0C0
+	lvx	28,27,7
+	.long	0x13CC06C2
+	.long	0x116BF0C0
+	.long	0x13C97EC2
+	.long	0x116BF0C0
+	.long	0x116BC0C0
 	.long	0x10A550C0
-	.long	0x134686C2
-	.long	0x13A97EC2
-	.long	0x10A5C8C0
-	vxor	25,6,7
-	.long	0x116BA0C0
-	.long	0x10A5D8C0
-	vsel	25,7,0,25
-	.long	0x1084C0C0
+	vsel	29,4,3,2
+	.long	0x1084E0C0
+	.long	0x10A5E8C0
+	.long	0x13C2FEC2
+	.long	0x10A5F0C0
+	vxor	29,6,7
+	vsel	29,7,0,29
 	.long	0x102128C0
-	.long	0x135AC8C0
-	.long	0x116BE0C0
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x10A5D0C0
-	.long	0x116BE8C0
-	.long	0x138D06C2
-	vsel	25,3,2,1
-	.long	0x1361FEC2
+	.long	0x13C686C2
+	.long	0x13DEE8C0
+	.long	0x10A5F0C0
+	lvx	28,28,7
+	.long	0x13CD06C2
+	.long	0x118CF0C0
+	.long	0x13CA7EC2
+	.long	0x118CF0C0
+	.long	0x118CC8C0
 	.long	0x108458C0
-	.long	0x134586C2
-	.long	0x13AA7EC2
-	.long	0x1084C8C0
-	vxor	25,5,6
-	.long	0x118CA8C0
-	.long	0x1084D8C0
-	vsel	25,6,7,25
-	.long	0x1063C0C0
+	vsel	29,3,2,1
+	.long	0x1063E0C0
+	.long	0x1084E8C0
+	.long	0x13C1FEC2
+	.long	0x1084F0C0
+	vxor	29,5,6
+	vsel	29,6,7,29
 	.long	0x100020C0
-	.long	0x135AC8C0
-	.long	0x118CE0C0
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x1084D0C0
-	.long	0x118CE8C0
-	.long	0x138E06C2
-	vsel	25,2,1,0
-	.long	0x1360FEC2
+	.long	0x13C586C2
+	.long	0x13DEE8C0
+	.long	0x1084F0C0
+	lvx	28,29,7
+	.long	0x13CE06C2
+	.long	0x11ADF0C0
+	.long	0x13CB7EC2
+	.long	0x11ADF0C0
+	.long	0x11ADD0C0
 	.long	0x106360C0
-	.long	0x134486C2
-	.long	0x13AB7EC2
-	.long	0x1063C8C0
-	vxor	25,4,5
-	.long	0x11ADB0C0
-	.long	0x1063D8C0
-	vsel	25,5,6,25
-	.long	0x1042C0C0
+	vsel	29,2,1,0
+	.long	0x1042E0C0
+	.long	0x1063E8C0
+	.long	0x13C0FEC2
+	.long	0x1063F0C0
+	vxor	29,4,5
+	vsel	29,5,6,29
 	.long	0x10E718C0
-	.long	0x135AC8C0
-	.long	0x11ADE0C0
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x1063D0C0
-	.long	0x11ADE8C0
-	.long	0x138F06C2
-	vsel	25,1,0,7
-	.long	0x1367FEC2
+	.long	0x13C486C2
+	.long	0x13DEE8C0
+	.long	0x1063F0C0
+	lvx	28,30,7
+	.long	0x13CF06C2
+	.long	0x11CEF0C0
+	.long	0x13CC7EC2
+	.long	0x11CEF0C0
+	.long	0x11CED8C0
 	.long	0x104268C0
-	.long	0x134386C2
-	.long	0x13AC7EC2
-	.long	0x1042C8C0
-	vxor	25,3,4
-	.long	0x11CEB8C0
-	.long	0x1042D8C0
-	vsel	25,4,5,25
-	.long	0x1021C0C0
+	vsel	29,1,0,7
+	.long	0x1021E0C0
+	.long	0x1042E8C0
+	.long	0x13C7FEC2
+	.long	0x1042F0C0
+	vxor	29,3,4
+	vsel	29,4,5,29
 	.long	0x10C610C0
-	.long	0x135AC8C0
-	.long	0x11CEE0C0
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x1042D0C0
-	.long	0x11CEE8C0
-	.long	0x139006C2
-	vsel	25,0,7,6
-	.long	0x1366FEC2
-	.long	0x102170C0
-	.long	0x134286C2
-	.long	0x13AD7EC2
-	.long	0x1021C8C0
-	vxor	25,2,3
+	.long	0x13C386C2
+	.long	0x13DEE8C0
+	.long	0x1042F0C0
+	lvx	28,31,7
+	addi	7,7,0x80
+	.long	0x13D006C2
+	.long	0x11EFF0C0
+	.long	0x13CD7EC2
+	.long	0x11EFF0C0
 	.long	0x11EF40C0
-	.long	0x1021D8C0
-	vsel	25,3,4,25
-	.long	0x1000C0C0
+	.long	0x102170C0
+	vsel	29,0,7,6
+	.long	0x1000E0C0
+	.long	0x1021E8C0
+	.long	0x13C6FEC2
+	.long	0x1021F0C0
+	vxor	29,2,3
+	vsel	29,3,4,29
 	.long	0x10A508C0
-	.long	0x135AC8C0
-	.long	0x11EFE0C0
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x1021D0C0
-	.long	0x11EFE8C0
-	.long	0x139106C2
-	vsel	25,7,6,5
-	.long	0x1365FEC2
-	.long	0x100078C0
-	.long	0x134186C2
-	.long	0x13AE7EC2
-	.long	0x1000C8C0
-	vxor	25,1,2
+	.long	0x13C286C2
+	.long	0x13DEE8C0
+	.long	0x1021F0C0
+	lvx	28,0,7
+	.long	0x13D106C2
+	.long	0x1210F0C0
+	.long	0x13CE7EC2
+	.long	0x1210F0C0
 	.long	0x121048C0
-	.long	0x1000D8C0
-	vsel	25,2,3,25
-	.long	0x10E7C0C0
+	.long	0x100078C0
+	vsel	29,7,6,5
+	.long	0x10E7E0C0
+	.long	0x1000E8C0
+	.long	0x13C5FEC2
+	.long	0x1000F0C0
+	vxor	29,1,2
+	vsel	29,2,3,29
 	.long	0x108400C0
-	.long	0x135AC8C0
-	.long	0x1210E0C0
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x1000D0C0
-	.long	0x1210E8C0
-	.long	0x139206C2
-	vsel	25,6,5,4
-	.long	0x1364FEC2
-	.long	0x10E780C0
-	.long	0x134086C2
-	.long	0x13AF7EC2
-	.long	0x10E7C8C0
-	vxor	25,0,1
+	.long	0x13C186C2
+	.long	0x13DEE8C0
+	.long	0x1000F0C0
+	lvx	28,10,7
+	.long	0x13D206C2
+	.long	0x1231F0C0
+	.long	0x13CF7EC2
+	.long	0x1231F0C0
 	.long	0x123150C0
-	.long	0x10E7D8C0
-	vsel	25,1,2,25
-	.long	0x10C6C0C0
+	.long	0x10E780C0
+	vsel	29,6,5,4
+	.long	0x10C6E0C0
+	.long	0x10E7E8C0
+	.long	0x13C4FEC2
+	.long	0x10E7F0C0
+	vxor	29,0,1
+	vsel	29,1,2,29
 	.long	0x106338C0
-	.long	0x135AC8C0
-	.long	0x1231E0C0
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x10E7D0C0
-	.long	0x1231E8C0
-	.long	0x139306C2
-	vsel	25,5,4,3
-	.long	0x1363FEC2
-	.long	0x10C688C0
-	.long	0x134786C2
-	.long	0x13B07EC2
-	.long	0x10C6C8C0
-	vxor	25,7,0
+	.long	0x13C086C2
+	.long	0x13DEE8C0
+	.long	0x10E7F0C0
+	lvx	28,26,7
+	.long	0x13D306C2
+	.long	0x1252F0C0
+	.long	0x13D07EC2
+	.long	0x1252F0C0
 	.long	0x125258C0
-	.long	0x10C6D8C0
-	vsel	25,0,1,25
-	.long	0x10A5C0C0
+	.long	0x10C688C0
+	vsel	29,5,4,3
+	.long	0x10A5E0C0
+	.long	0x10C6E8C0
+	.long	0x13C3FEC2
+	.long	0x10C6F0C0
+	vxor	29,7,0
+	vsel	29,0,1,29
 	.long	0x104230C0
-	.long	0x135AC8C0
-	.long	0x1252E0C0
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x10C6D0C0
-	.long	0x1252E8C0
-	.long	0x139406C2
-	vsel	25,4,3,2
-	.long	0x1362FEC2
-	.long	0x10A590C0
-	.long	0x134686C2
-	.long	0x13B17EC2
-	.long	0x10A5C8C0
-	vxor	25,6,7
+	.long	0x13C786C2
+	.long	0x13DEE8C0
+	.long	0x10C6F0C0
+	lvx	28,27,7
+	.long	0x13D806C2
+	.long	0x1273F0C0
+	.long	0x13D17EC2
+	.long	0x1273F0C0
 	.long	0x127360C0
-	.long	0x10A5D8C0
-	vsel	25,7,0,25
-	.long	0x1084C0C0
+	.long	0x10A590C0
+	vsel	29,4,3,2
+	.long	0x1084E0C0
+	.long	0x10A5E8C0
+	.long	0x13C2FEC2
+	.long	0x10A5F0C0
+	vxor	29,6,7
+	vsel	29,7,0,29
 	.long	0x102128C0
-	.long	0x135AC8C0
-	.long	0x1273E0C0
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x10A5D0C0
-	.long	0x1273E8C0
-	.long	0x139506C2
-	vsel	25,3,2,1
-	.long	0x1361FEC2
+	.long	0x13C686C2
+	.long	0x13DEE8C0
+	.long	0x10A5F0C0
+	lvx	28,28,7
+	.long	0x13D906C2
+	.long	0x1318F0C0
+	.long	0x13D27EC2
+	.long	0x1318F0C0
+	.long	0x131868C0
 	.long	0x108498C0
-	.long	0x134586C2
-	.long	0x13B27EC2
-	.long	0x1084C8C0
-	vxor	25,5,6
-	.long	0x129468C0
-	.long	0x1084D8C0
-	vsel	25,6,7,25
-	.long	0x1063C0C0
+	vsel	29,3,2,1
+	.long	0x1063E0C0
+	.long	0x1084E8C0
+	.long	0x13C1FEC2
+	.long	0x1084F0C0
+	vxor	29,5,6
+	vsel	29,6,7,29
 	.long	0x100020C0
-	.long	0x135AC8C0
-	.long	0x1294E0C0
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x1084D0C0
-	.long	0x1294E8C0
-	.long	0x139606C2
-	vsel	25,2,1,0
-	.long	0x1360FEC2
-	.long	0x1063A0C0
-	.long	0x134486C2
-	.long	0x13B37EC2
-	.long	0x1063C8C0
-	vxor	25,4,5
-	.long	0x12B570C0
-	.long	0x1063D8C0
-	vsel	25,5,6,25
-	.long	0x1042C0C0
+	.long	0x13C586C2
+	.long	0x13DEE8C0
+	.long	0x1084F0C0
+	lvx	28,29,7
+	.long	0x13DA06C2
+	.long	0x1339F0C0
+	.long	0x13D37EC2
+	.long	0x1339F0C0
+	.long	0x133970C0
+	.long	0x1063C0C0
+	vsel	29,2,1,0
+	.long	0x1042E0C0
+	.long	0x1063E8C0
+	.long	0x13C0FEC2
+	.long	0x1063F0C0
+	vxor	29,4,5
+	vsel	29,5,6,29
 	.long	0x10E718C0
-	.long	0x135AC8C0
-	.long	0x12B5E0C0
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x1063D0C0
-	.long	0x12B5E8C0
-	.long	0x139706C2
-	vsel	25,1,0,7
-	.long	0x1367FEC2
-	.long	0x1042A8C0
-	.long	0x134386C2
-	.long	0x13B47EC2
+	.long	0x13C486C2
+	.long	0x13DEE8C0
+	.long	0x1063F0C0
+	lvx	28,30,7
+	.long	0x13DB06C2
+	.long	0x135AF0C0
+	.long	0x13D87EC2
+	.long	0x135AF0C0
+	.long	0x135A78C0
 	.long	0x1042C8C0
-	vxor	25,3,4
-	.long	0x12D678C0
-	.long	0x1042D8C0
-	vsel	25,4,5,25
-	.long	0x1021C0C0
+	vsel	29,1,0,7
+	.long	0x1021E0C0
+	.long	0x1042E8C0
+	.long	0x13C7FEC2
+	.long	0x1042F0C0
+	vxor	29,3,4
+	vsel	29,4,5,29
 	.long	0x10C610C0
-	.long	0x135AC8C0
-	.long	0x12D6E0C0
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x1042D0C0
-	.long	0x12D6E8C0
-	.long	0x138806C2
-	vsel	25,0,7,6
-	.long	0x1366FEC2
-	.long	0x1021B0C0
-	.long	0x134286C2
-	.long	0x13B57EC2
-	.long	0x1021C8C0
-	vxor	25,2,3
-	.long	0x12F780C0
-	.long	0x1021D8C0
-	vsel	25,3,4,25
-	.long	0x1000C0C0
-	.long	0x10A508C0
-	.long	0x135AC8C0
-	.long	0x12F7E0C0
-	lvx	24,7,6
-	addi	7,7,16
+	.long	0x13C386C2
+	.long	0x13DEE8C0
+	.long	0x1042F0C0
+	lvx	28,31,7
+	addi	7,7,0x80
+	.long	0x13C806C2
+	.long	0x137BF0C0
+	.long	0x13D97EC2
+	.long	0x137BF0C0
+	.long	0x137B80C0
 	.long	0x1021D0C0
-	.long	0x12F7E8C0
-	.long	0x138906C2
-	vsel	25,7,6,5
-	.long	0x1365FEC2
-	.long	0x1000B8C0
-	.long	0x134186C2
-	.long	0x13B67EC2
-	.long	0x1000C8C0
-	vxor	25,1,2
+	vsel	29,0,7,6
+	.long	0x1000E0C0
+	.long	0x1021E8C0
+	.long	0x13C6FEC2
+	.long	0x1021F0C0
+	vxor	29,2,3
+	vsel	29,3,4,29
+	.long	0x10A508C0
+	.long	0x13C286C2
+	.long	0x13DEE8C0
+	.long	0x1021F0C0
+	lvx	28,0,7
+	.long	0x13C906C2
+	.long	0x1108F0C0
+	.long	0x13DA7EC2
+	.long	0x1108F0C0
 	.long	0x110888C0
 	.long	0x1000D8C0
-	vsel	25,2,3,25
-	.long	0x10E7C0C0
+	vsel	29,7,6,5
+	.long	0x10E7E0C0
+	.long	0x1000E8C0
+	.long	0x13C5FEC2
+	.long	0x1000F0C0
+	vxor	29,1,2
+	vsel	29,2,3,29
 	.long	0x108400C0
-	.long	0x135AC8C0
-	.long	0x1108E0C0
-	lvx	24,7,6
-	addi	7,7,16
-	.long	0x1000D0C0
-	.long	0x1108E8C0
+	.long	0x13C186C2
+	.long	0x13DEE8C0
+	.long	0x1000F0C0
+	lvx	28,10,7
 	bc	16,0,L16_xx
 
 	lvx	10,0,11
@@ -732,47 +620,32 @@ L16_xx:
 	.long	0x10C680C0
 	.long	0x10E788C0
 	bne	Loop
-	vperm	0,0,1,24
-	vperm	2,2,3,24
-	vperm	4,4,5,24
-	vperm	6,6,7,24
+	vperm	0,0,1,28
+	vperm	2,2,3,28
+	vperm	4,4,5,28
+	vperm	6,6,7,28
 	.long	0x7C001F99
 	.long	0x7C4A1F99
 	.long	0x7C9A1F99
 	.long	0x7CDB1F99
-	li	10,207
+	addi	11,1,207
 	mtlr	8
-	li	11,223
 	or	12,12,12
-	lvx	20,10,1
-	addi	10,10,32
-	lvx	21,11,1
-	addi	11,11,32
-	lvx	22,10,1
-	addi	10,10,32
-	lvx	23,11,1
-	addi	11,11,32
-	lvx	24,10,1
-	addi	10,10,32
-	lvx	25,11,1
-	addi	11,11,32
-	lvx	26,10,1
-	addi	10,10,32
-	lvx	27,11,1
-	addi	11,11,32
-	lvx	28,10,1
-	addi	10,10,32
-	lvx	29,11,1
-	addi	11,11,32
-	lvx	30,10,1
-	lvx	31,11,1
-	ld	26,400(1)
-	ld	27,408(1)
-	ld	28,416(1)
-	ld	29,424(1)
-	ld	30,432(1)
-	ld	31,440(1)
-	addi	1,1,448
+	lvx	24,0,11
+	lvx	25,10,11
+	lvx	26,26,11
+	lvx	27,27,11
+	lvx	28,28,11
+	lvx	29,29,11
+	lvx	30,30,11
+	lvx	31,31,11
+	ld	26,336(1)
+	ld	27,344(1)
+	ld	28,352(1)
+	ld	29,360(1)
+	ld	30,368(1)
+	ld	31,376(1)
+	addi	1,1,384
 	blr	
 .long	0
 .byte	0,12,4,1,0x80,6,3,0
@@ -953,6 +826,6 @@ LPICmeup:
 .long	0,0
 .long	0x00010203,0x04050607
 .long	0x10111213,0x14151617
-.byte	83,72,65,53,49,50,32,102,111,114,32,80,111,119,101,114,73,83,65,32,50,46,48,55,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
+.byte	83,72,65,53,49,50,32,102,111,114,32,80,111,119,101,114,73,83,65,32,50,46,48,55,44,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	2
 .align	2

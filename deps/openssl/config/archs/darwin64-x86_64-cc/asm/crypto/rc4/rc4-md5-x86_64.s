@@ -4,15 +4,23 @@
 .globl	_rc4_md5_enc
 
 _rc4_md5_enc:
+
 	cmpq	$0,%r9
 	je	L$abort
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r12
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
+
 	subq	$40,%rsp
+
 L$body:
 	movq	%rcx,%r11
 	movq	%r9,%r12
@@ -1247,12 +1255,19 @@ L$oop:
 	movl	%ecx,-4(%rdi)
 
 	movq	40(%rsp),%r15
+
 	movq	48(%rsp),%r14
+
 	movq	56(%rsp),%r13
+
 	movq	64(%rsp),%r12
+
 	movq	72(%rsp),%rbp
+
 	movq	80(%rsp),%rbx
+
 	leaq	88(%rsp),%rsp
+
 L$epilogue:
 L$abort:
 	.byte	0xf3,0xc3

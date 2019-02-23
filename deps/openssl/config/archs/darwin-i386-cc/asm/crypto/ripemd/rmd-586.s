@@ -1,4 +1,3 @@
-.file	"crypto/ripemd/asm/rmd-586.s"
 .text
 .globl	_ripemd160_block_asm_data_order
 .align	4

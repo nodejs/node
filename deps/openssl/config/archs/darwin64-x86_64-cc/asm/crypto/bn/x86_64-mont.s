@@ -6,8 +6,10 @@
 
 .p2align	4
 _bn_mul_mont:
+
 	movl	%r9d,%r9d
 	movq	%rsp,%rax
+
 	testl	$3,%r9d
 	jnz	L$mul_enter
 	cmpl	$8,%r9d
@@ -22,11 +24,17 @@ _bn_mul_mont:
 .p2align	4
 L$mul_enter:
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r12
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
+
 
 	negq	%r9
 	movq	%rsp,%r11
@@ -59,6 +67,7 @@ L$mul_page_walk:
 L$mul_page_walk_done:
 
 	movq	%rax,8(%rsp,%r9,8)
+
 L$mul_body:
 	movq	%rdx,%r12
 	movq	(%r8),%r8
@@ -226,32 +235,49 @@ L$copy:
 	jnz	L$copy
 
 	movq	8(%rsp,%r9,8),%rsi
+
 	movq	$1,%rax
 	movq	-48(%rsi),%r15
+
 	movq	-40(%rsi),%r14
+
 	movq	-32(%rsi),%r13
+
 	movq	-24(%rsi),%r12
+
 	movq	-16(%rsi),%rbp
+
 	movq	-8(%rsi),%rbx
+
 	leaq	(%rsi),%rsp
+
 L$mul_epilogue:
 	.byte	0xf3,0xc3
 
 
+
 .p2align	4
 bn_mul4x_mont:
+
 	movl	%r9d,%r9d
 	movq	%rsp,%rax
+
 L$mul4x_enter:
 	andl	$0x80100,%r11d
 	cmpl	$0x80100,%r11d
 	je	L$mulx4x_enter
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r12
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
+
 
 	negq	%r9
 	movq	%rsp,%r11
@@ -275,6 +301,7 @@ L$mul4x_page_walk:
 L$mul4x_page_walk_done:
 
 	movq	%rax,8(%rsp,%r9,8)
+
 L$mul4x_body:
 	movq	%rdi,16(%rsp,%r9,8)
 	movq	%rdx,%r12
@@ -642,14 +669,22 @@ L$copy4x:
 	decq	%r15
 	jnz	L$copy4x
 	movq	8(%rsp,%r9,8),%rsi
+
 	movq	$1,%rax
 	movq	-48(%rsi),%r15
+
 	movq	-40(%rsi),%r14
+
 	movq	-32(%rsi),%r13
+
 	movq	-24(%rsi),%r12
+
 	movq	-16(%rsi),%rbp
+
 	movq	-8(%rsi),%rbx
+
 	leaq	(%rsi),%rsp
+
 L$mul4x_epilogue:
 	.byte	0xf3,0xc3
 
@@ -657,16 +692,25 @@ L$mul4x_epilogue:
 
 
 
+
 .p2align	5
 bn_sqr8x_mont:
+
 	movq	%rsp,%rax
+
 L$sqr8x_enter:
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r12
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
+
 L$sqr8x_prologue:
 
 	movl	%r9d,%r10d
@@ -722,6 +766,7 @@ L$sqr8x_page_walk_done:
 
 	movq	%r8,32(%rsp)
 	movq	%rax,40(%rsp)
+
 L$sqr8x_body:
 
 .byte	102,72,15,110,209
@@ -787,6 +832,7 @@ L$sqr8x_sub:
 	pxor	%xmm0,%xmm0
 	pshufd	$0,%xmm1,%xmm1
 	movq	40(%rsp),%rsi
+
 	jmp	L$sqr8x_cond_copy
 
 .p2align	5
@@ -816,26 +862,42 @@ L$sqr8x_cond_copy:
 
 	movq	$1,%rax
 	movq	-48(%rsi),%r15
+
 	movq	-40(%rsi),%r14
+
 	movq	-32(%rsi),%r13
+
 	movq	-24(%rsi),%r12
+
 	movq	-16(%rsi),%rbp
+
 	movq	-8(%rsi),%rbx
+
 	leaq	(%rsi),%rsp
+
 L$sqr8x_epilogue:
 	.byte	0xf3,0xc3
 
 
+
 .p2align	5
 bn_mulx4x_mont:
+
 	movq	%rsp,%rax
+
 L$mulx4x_enter:
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r12
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
+
 L$mulx4x_prologue:
 
 	shll	$3,%r9d
@@ -881,6 +943,7 @@ L$mulx4x_page_walk_done:
 	movq	%r8,24(%rsp)
 	movq	%rdi,32(%rsp)
 	movq	%rax,40(%rsp)
+
 	movq	%r9,48(%rsp)
 	jmp	L$mulx4x_body
 
@@ -1125,6 +1188,7 @@ L$mulx4x_sub:
 	pxor	%xmm0,%xmm0
 	pshufd	$0,%xmm1,%xmm1
 	movq	40(%rsp),%rsi
+
 	jmp	L$mulx4x_cond_copy
 
 .p2align	5
@@ -1154,14 +1218,22 @@ L$mulx4x_cond_copy:
 
 	movq	$1,%rax
 	movq	-48(%rsi),%r15
+
 	movq	-40(%rsi),%r14
+
 	movq	-32(%rsi),%r13
+
 	movq	-24(%rsi),%r12
+
 	movq	-16(%rsi),%rbp
+
 	movq	-8(%rsi),%rbx
+
 	leaq	(%rsi),%rsp
+
 L$mulx4x_epilogue:
 	.byte	0xf3,0xc3
+
 
 .byte	77,111,110,116,103,111,109,101,114,121,32,77,117,108,116,105,112,108,105,99,97,116,105,111,110,32,102,111,114,32,120,56,54,95,54,52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .p2align	4

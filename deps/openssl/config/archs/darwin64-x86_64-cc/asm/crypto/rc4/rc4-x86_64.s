@@ -8,9 +8,13 @@ _RC4:	orq	%rsi,%rsi
 	jne	L$entry
 	.byte	0xf3,0xc3
 L$entry:
+
 	pushq	%rbx
+
 	pushq	%r12
+
 	pushq	%r13
+
 L$prologue:
 	movq	%rsi,%r11
 	movq	%rdx,%r12
@@ -511,11 +515,16 @@ L$exit:
 	movl	%ecx,-4(%rdi)
 
 	movq	(%rsp),%r13
+
 	movq	8(%rsp),%r12
+
 	movq	16(%rsp),%rbx
+
 	addq	$24,%rsp
+
 L$epilogue:
 	.byte	0xf3,0xc3
+
 
 .globl	_RC4_set_key
 

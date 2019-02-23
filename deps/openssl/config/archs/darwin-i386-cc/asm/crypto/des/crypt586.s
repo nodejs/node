@@ -1,4 +1,3 @@
-.file	"crypt586.s"
 .text
 .globl	_fcrypt_body
 .align	4

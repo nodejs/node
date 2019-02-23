@@ -99,7 +99,7 @@ _vpaes_consts:
 	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
-.byte	86,101,99,116,111,114,32,80,101,114,109,117,116,97,116,105,111,110,32,65,69,83,32,102,111,114,32,65,108,116,105,86,101,99,44,32,77,105,107,101,32,72,97,109,98,117,114,103,32,40,83,116,97,110,102,111,114,100,32,85,110,105,118,101,114,115,105,116,121,41,0
+.byte	86,101,99,116,111,114,32,80,101,114,109,117,116,97,116,105,111,110,32,65,69,83,32,102,111,114,32,65,108,116,105,86,101,99,44,77,105,107,101,32,72,97,109,98,117,114,103,32,40,83,116,97,110,102,111,114,100,32,85,110,105,118,101,114,115,105,116,121,41,0
 .align	2
 .align	6
 
@@ -205,7 +205,7 @@ _vpaes_encrypt_core:
 	vxor	3, 3, 5
 	vxor	4, 4, 5
 	vperm	2, 10, 7, 3
-	vor	5, 6, 6
+	vor	5,6,6
 	lvx	6, 9, 5
 	vperm	3, 10, 7, 4
 	addi	9, 9, 16
@@ -233,6 +233,7 @@ _vpaes_encrypt_core:
 .align	5
 vpaes_encrypt:
 .localentry	vpaes_encrypt,0
+
 	stdu	1,-256(1)
 	li	10,63
 	li	11,79
@@ -263,7 +264,7 @@ vpaes_encrypt:
 	stw	7,252(1)
 	li	0, -1
 	std	6,272(1)
-	or	 0, 0, 0
+	or	0,0,0
 
 	bl	_vpaes_encrypt_preheat
 
@@ -297,7 +298,7 @@ vpaes_encrypt:
 	li	10,63
 	li	11,79
 	mtlr	6
-	or	 7, 7, 7
+	or	7,7,7
 	lvx	20,10,1
 	addi	10,10,32
 	lvx	21,11,1
@@ -439,7 +440,7 @@ _vpaes_decrypt_core:
 	vxor	3, 3, 2
 	vxor	4, 4, 2
 	vperm	2, 10, 7, 3
-	vor	5, 6, 6
+	vor	5,6,6
 	lvx	6, 9, 5
 	vperm	3, 10, 7, 4
 	addi	9, 9, 16
@@ -467,6 +468,7 @@ _vpaes_decrypt_core:
 .align	5
 vpaes_decrypt:
 .localentry	vpaes_decrypt,0
+
 	stdu	1,-256(1)
 	li	10,63
 	li	11,79
@@ -497,7 +499,7 @@ vpaes_decrypt:
 	stw	7,252(1)
 	li	0, -1
 	std	6,272(1)
-	or	 0, 0, 0
+	or	0,0,0
 
 	bl	_vpaes_decrypt_preheat
 
@@ -531,7 +533,7 @@ vpaes_decrypt:
 	li	10,63
 	li	11,79
 	mtlr	6
-	or	 7, 7, 7
+	or	7,7,7
 	lvx	20,10,1
 	addi	10,10,32
 	lvx	21,11,1
@@ -566,6 +568,7 @@ vpaes_decrypt:
 .align	5
 vpaes_cbc_encrypt:
 .localentry	vpaes_cbc_encrypt,0
+
 	cmpldi	5,16
 	.long	0x4dc00020
 
@@ -609,7 +612,7 @@ vpaes_cbc_encrypt:
 	li	6, -1
 	mcrf	1, 0
 	mr	7, 12
-	or	 6, 6, 6
+	or	6,6,6
 
 	lvx	24, 0, 31
 	li	9, 15
@@ -635,7 +638,7 @@ vpaes_cbc_encrypt:
 
 	beq	1, .Lcbc_enc_loop
 
-	vor	0, 26, 26
+	vor	0,26,26
 	lvx	26, 0, 3
 	addi	3, 3, 16
 	vperm	0, 26, 0, 27
@@ -644,7 +647,7 @@ vpaes_cbc_encrypt:
 	bl	_vpaes_encrypt_core
 
 	andi.	8, 4, 15
-	vor	24, 0, 0
+	vor	24,0,0
 	sub	9, 4, 8
 	vperm	28, 0, 0, 29
 
@@ -659,7 +662,7 @@ vpaes_cbc_encrypt:
 	beq	.Lcbc_unaligned_done
 
 .Lcbc_enc_loop:
-	vor	0, 26, 26
+	vor	0,26,26
 	lvx	26, 0, 3
 	addi	3, 3, 16
 	vperm	0, 26, 0, 27
@@ -667,11 +670,11 @@ vpaes_cbc_encrypt:
 
 	bl	_vpaes_encrypt_core
 
-	vor	24, 0, 0
+	vor	24,0,0
 	sub.	30, 30, 0
 	vperm	0, 0, 0, 29
 	vsel	1, 28, 0, 30
-	vor	28, 0, 0
+	vor	28,0,0
 	stvx	1, 0, 4
 	addi	4, 4, 16
 	bne	.Lcbc_enc_loop
@@ -685,17 +688,17 @@ vpaes_cbc_encrypt:
 
 	beq	1, .Lcbc_dec_loop
 
-	vor	0, 26, 26
+	vor	0,26,26
 	lvx	26, 0, 3
 	addi	3, 3, 16
 	vperm	0, 26, 0, 27
-	vor	25, 0, 0
+	vor	25,0,0
 
 	bl	_vpaes_decrypt_core
 
 	andi.	8, 4, 15
 	vxor	0, 0, 24
-	vor	24, 25, 25
+	vor	24,25,25
 	sub	9, 4, 8
 	vperm	28, 0, 0, 29
 
@@ -710,20 +713,20 @@ vpaes_cbc_encrypt:
 	beq	.Lcbc_unaligned_done
 
 .Lcbc_dec_loop:
-	vor	0, 26, 26
+	vor	0,26,26
 	lvx	26, 0, 3
 	addi	3, 3, 16
 	vperm	0, 26, 0, 27
-	vor	25, 0, 0
+	vor	25,0,0
 
 	bl	_vpaes_decrypt_core
 
 	vxor	0, 0, 24
-	vor	24, 25, 25
+	vor	24,25,25
 	sub.	30, 30, 0
 	vperm	0, 0, 0, 29
 	vsel	1, 28, 0, 30
-	vor	28, 0, 0
+	vor	28,0,0
 	stvx	1, 0, 4
 	addi	4, 4, 16
 	bne	.Lcbc_dec_loop
@@ -753,7 +756,7 @@ vpaes_cbc_encrypt:
 	stvewx	24, 11, 31
 	stvewx	24, 12, 31
 
-	or	 7, 7, 7
+	or	7,7,7
 	li	10,63
 	li	11,79
 	lvx	20,10,1
@@ -858,9 +861,9 @@ _vpaes_schedule_core:
 	vperm	0, 6, 0, 27
 
 
-	vor	3, 0, 0
+	vor	3,0,0
 	bl	_vpaes_schedule_transform
-	vor	7, 0, 0
+	vor	7,0,0
 
 	bne	1, .Lschedule_am_decrypting
 
@@ -993,7 +996,7 @@ _vpaes_schedule_core:
 
 .Loop_schedule_256:
 	bl	_vpaes_schedule_mangle
-	vor	6, 0, 0
+	vor	6,0,0
 
 
 	bl	_vpaes_schedule_round
@@ -1002,10 +1005,10 @@ _vpaes_schedule_core:
 
 
 	vspltw	0, 0, 3-3
-	vor	5, 7, 7
-	vor	7, 6, 6
+	vor	5,7,7
+	vor	7,6,6
 	bl	_vpaes_schedule_low_round
-	vor	7, 5, 5
+	vor	7,5,5
 
 	b	.Loop_schedule_256
 
@@ -1109,7 +1112,7 @@ _vpaes_schedule_192_smear:
 	vsldoi	0, 0, 7, 16-8
 	vxor	6, 6, 1
 	vxor	6, 6, 0
-	vor	0, 6, 6
+	vor	0,6,6
 	vsldoi	6, 9, 6, 16-8
 	vsldoi	6, 6, 9, 16-8
 	blr	
@@ -1250,7 +1253,7 @@ _vpaes_schedule_mangle:
 
 	vperm	1, 3, 3, 29
 	vsel	2, 28, 1, 30
-	vor	28, 1, 1
+	vor	28,1,1
 	stvx	2, 0, 5
 	blr	
 
@@ -1301,7 +1304,7 @@ _vpaes_schedule_mangle:
 
 	vperm	1, 3, 3, 29
 	vsel	2, 28, 1, 30
-	vor	28, 1, 1
+	vor	28,1,1
 	stvx	2, 0, 5
 	blr	
 .long	0
@@ -1312,6 +1315,7 @@ _vpaes_schedule_mangle:
 .align	5
 vpaes_set_encrypt_key:
 .localentry	vpaes_set_encrypt_key,0
+
 	stdu	1,-256(1)
 	li	10,63
 	li	11,79
@@ -1342,20 +1346,20 @@ vpaes_set_encrypt_key:
 	stw	6,252(1)
 	li	7, -1
 	std	0, 272(1)
-	or	 7, 7, 7
+	or	7,7,7
 
 	srwi	9, 4, 5
 	addi	9, 9, 6
 	stw	9, 240(5)
 
-	cmplw	1, 4, 4
+	cmplw	1,4,4
 	li	8, 0x30
 	bl	_vpaes_schedule_core
 
 	ld	0, 272(1)
 	li	10,63
 	li	11,79
-	or	 6, 6, 6
+	or	6,6,6
 	mtlr	0
 	xor	3, 3, 3
 	lvx	20,10,1
@@ -1392,6 +1396,7 @@ vpaes_set_encrypt_key:
 .align	4
 vpaes_set_decrypt_key:
 .localentry	vpaes_set_decrypt_key,0
+
 	stdu	1,-256(1)
 	li	10,63
 	li	11,79
@@ -1422,7 +1427,7 @@ vpaes_set_decrypt_key:
 	stw	6,252(1)
 	li	7, -1
 	std	0, 272(1)
-	or	 7, 7, 7
+	or	7,7,7
 
 	srwi	9, 4, 5
 	addi	9, 9, 6
@@ -1440,7 +1445,7 @@ vpaes_set_decrypt_key:
 	ld	0,  272(1)
 	li	10,63
 	li	11,79
-	or	 6, 6, 6
+	or	6,6,6
 	mtlr	0
 	xor	3, 3, 3
 	lvx	20,10,1

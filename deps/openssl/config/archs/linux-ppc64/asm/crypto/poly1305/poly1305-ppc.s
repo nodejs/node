@@ -7,7 +7,6 @@
 poly1305_init_int:
 .quad	.poly1305_init_int,.TOC.@tocbase,0
 .previous
-
 .align	4
 .poly1305_init_int:
 	xor	0,0,0
@@ -42,8 +41,8 @@ poly1305_init_int:
 	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,2,0
-.size	poly1305_init_int,.-.poly1305_init_int
 .size	.poly1305_init_int,.-.poly1305_init_int
+.size	poly1305_init_int,.-.poly1305_init_int
 
 .globl	poly1305_blocks
 .type	poly1305_blocks,@function
@@ -52,7 +51,6 @@ poly1305_init_int:
 poly1305_blocks:
 .quad	.poly1305_blocks,.TOC.@tocbase,0
 .previous
-
 .align	4
 .poly1305_blocks:
 	srdi.	5,5,4
@@ -144,8 +142,8 @@ poly1305_blocks:
 	blr	
 .long	0
 .byte	0,12,4,1,0x80,5,4,0
-.size	poly1305_blocks,.-.poly1305_blocks
 .size	.poly1305_blocks,.-.poly1305_blocks
+.size	poly1305_blocks,.-.poly1305_blocks
 
 .globl	poly1305_emit
 .type	poly1305_emit,@function
@@ -154,7 +152,6 @@ poly1305_blocks:
 poly1305_emit:
 .quad	.poly1305_emit,.TOC.@tocbase,0
 .previous
-
 .align	4
 .poly1305_emit:
 	ld	7,0(3)
@@ -192,7 +189,7 @@ poly1305_emit:
 	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,3,0
-.size	poly1305_emit,.-.poly1305_emit
 .size	.poly1305_emit,.-.poly1305_emit
-.byte	80,111,108,121,49,51,48,53,32,102,111,114,32,80,80,67,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
+.size	poly1305_emit,.-.poly1305_emit
+.byte	80,111,108,121,49,51,48,53,32,102,111,114,32,80,80,67,44,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	2

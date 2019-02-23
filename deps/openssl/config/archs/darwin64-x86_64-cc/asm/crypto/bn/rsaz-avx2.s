@@ -4,15 +4,24 @@
 
 .p2align	6
 _rsaz_1024_sqr_avx2:
+
 	leaq	(%rsp),%rax
+
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r12
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
+
 	vzeroupper
 	movq	%rax,%rbp
+
 	movq	%rdx,%r13
 	subq	$832,%rsp
 	movq	%r13,%r15
@@ -625,28 +634,46 @@ L$OOP_REDUCE_1024:
 
 	vzeroall
 	movq	%rbp,%rax
+
 	movq	-48(%rax),%r15
+
 	movq	-40(%rax),%r14
+
 	movq	-32(%rax),%r13
+
 	movq	-24(%rax),%r12
+
 	movq	-16(%rax),%rbp
+
 	movq	-8(%rax),%rbx
+
 	leaq	(%rax),%rsp
+
 L$sqr_1024_epilogue:
 	.byte	0xf3,0xc3
+
 
 .globl	_rsaz_1024_mul_avx2
 
 .p2align	6
 _rsaz_1024_mul_avx2:
+
 	leaq	(%rsp),%rax
+
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r12
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
+
 	movq	%rax,%rbp
+
 	vzeroall
 	movq	%rdx,%r13
 	subq	$64,%rsp
@@ -1162,15 +1189,24 @@ L$oop_mul_1024:
 	vzeroupper
 
 	movq	%rbp,%rax
+
 	movq	-48(%rax),%r15
+
 	movq	-40(%rax),%r14
+
 	movq	-32(%rax),%r13
+
 	movq	-24(%rax),%r12
+
 	movq	-16(%rax),%rbp
+
 	movq	-8(%rax),%rbx
+
 	leaq	(%rax),%rsp
+
 L$mul_1024_epilogue:
 	.byte	0xf3,0xc3
+
 
 .globl	_rsaz_1024_red2norm_avx2
 
@@ -1555,8 +1591,10 @@ L$oop_scatter_1024:
 
 .p2align	5
 _rsaz_1024_gather5_avx2:
+
 	vzeroupper
 	movq	%rsp,%r11
+
 	leaq	-256(%rsp),%rsp
 	andq	$-32,%rsp
 	leaq	L$inc(%rip),%r10
@@ -1665,7 +1703,10 @@ L$oop_gather_1024:
 	vmovdqu	%ymm0,(%rdi)
 	vzeroupper
 	leaq	(%r11),%rsp
+
 	.byte	0xf3,0xc3
+
+L$SEH_end_rsaz_1024_gather5:
 
 
 .globl	_rsaz_avx2_eligible

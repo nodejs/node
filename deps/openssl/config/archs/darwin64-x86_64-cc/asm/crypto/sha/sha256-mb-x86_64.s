@@ -6,17 +6,22 @@
 
 .p2align	5
 _sha256_multi_block:
+
 	movq	_OPENSSL_ia32cap_P+4(%rip),%rcx
 	btq	$61,%rcx
 	jc	_shaext_shortcut
 	testl	$268435456,%ecx
 	jnz	_avx_shortcut
 	movq	%rsp,%rax
+
 	pushq	%rbx
+
 	pushq	%rbp
+
 	subq	$288,%rsp
 	andq	$-256,%rsp
 	movq	%rax,272(%rsp)
+
 L$body:
 	leaq	K256+128(%rip),%rbp
 	leaq	256(%rsp),%rbx
@@ -2615,19 +2620,28 @@ L$oop_16_xx:
 
 L$done:
 	movq	272(%rsp),%rax
+
 	movq	-16(%rax),%rbp
+
 	movq	-8(%rax),%rbx
+
 	leaq	(%rax),%rsp
+
 L$epilogue:
 	.byte	0xf3,0xc3
 
 
+
 .p2align	5
 sha256_multi_block_shaext:
+
 _shaext_shortcut:
 	movq	%rsp,%rax
+
 	pushq	%rbx
+
 	pushq	%rbp
+
 	subq	$288,%rsp
 	shll	$1,%edx
 	andq	$-256,%rsp
@@ -3102,14 +3116,19 @@ L$oop_shaext:
 L$done_shaext:
 
 	movq	-16(%rax),%rbp
+
 	movq	-8(%rax),%rbx
+
 	leaq	(%rax),%rsp
+
 L$epilogue_shaext:
 	.byte	0xf3,0xc3
 
 
+
 .p2align	5
 sha256_multi_block_avx:
+
 _avx_shortcut:
 	shrq	$32,%rcx
 	cmpl	$2,%edx
@@ -3120,11 +3139,15 @@ _avx_shortcut:
 .p2align	5
 L$avx:
 	movq	%rsp,%rax
+
 	pushq	%rbx
+
 	pushq	%rbp
+
 	subq	$288,%rsp
 	andq	$-256,%rsp
 	movq	%rax,272(%rsp)
+
 L$body_avx:
 	leaq	K256+128(%rip),%rbp
 	leaq	256(%rsp),%rbx
@@ -5353,27 +5376,41 @@ L$oop_16_xx_avx:
 
 L$done_avx:
 	movq	272(%rsp),%rax
+
 	vzeroupper
 	movq	-16(%rax),%rbp
+
 	movq	-8(%rax),%rbx
+
 	leaq	(%rax),%rsp
+
 L$epilogue_avx:
 	.byte	0xf3,0xc3
 
 
+
 .p2align	5
 sha256_multi_block_avx2:
+
 _avx2_shortcut:
 	movq	%rsp,%rax
+
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r12
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
+
 	subq	$576,%rsp
 	andq	$-256,%rsp
 	movq	%rax,544(%rsp)
+
 L$body_avx2:
 	leaq	K256+128(%rip),%rbp
 	leaq	128(%rdi),%rdi
@@ -7738,16 +7775,25 @@ L$oop_16_xx_avx2:
 
 L$done_avx2:
 	movq	544(%rsp),%rax
+
 	vzeroupper
 	movq	-48(%rax),%r15
+
 	movq	-40(%rax),%r14
+
 	movq	-32(%rax),%r13
+
 	movq	-24(%rax),%r12
+
 	movq	-16(%rax),%rbp
+
 	movq	-8(%rax),%rbx
+
 	leaq	(%rax),%rsp
+
 L$epilogue_avx2:
 	.byte	0xf3,0xc3
+
 
 .p2align	8
 K256:

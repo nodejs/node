@@ -8,7 +8,6 @@
 sha256_block_ppc:
 .quad	.sha256_block_ppc,.TOC.@tocbase,0
 .previous
-
 .align	6
 .sha256_block_ppc:
 	stdu	1,-320(1)
@@ -1296,8 +1295,8 @@ sha256_block_ppc:
 	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
-.size	sha256_block_ppc,.-.sha256_block_ppc
 .size	.sha256_block_ppc,.-.sha256_block_ppc
+.size	sha256_block_ppc,.-.sha256_block_ppc
 .align	6
 .LPICmeup:
 	mflr	0

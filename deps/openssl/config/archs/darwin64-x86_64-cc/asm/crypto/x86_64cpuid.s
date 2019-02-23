@@ -37,10 +37,12 @@ _OPENSSL_rdtsc:
 
 .p2align	4
 _OPENSSL_ia32_cpuid:
+
 	movq	%rbx,%r8
 
+
 	xorl	%eax,%eax
-	movl	%eax,8(%rdi)
+	movq	%rax,8(%rdi)
 	cpuid
 	movl	%eax,%r11d
 
@@ -111,6 +113,7 @@ L$intel:
 L$nocacheinfo:
 	movl	$1,%eax
 	cpuid
+	movd	%eax,%xmm0
 	andl	$0xbfefffff,%edx
 	cmpl	$0,%r9d
 	jne	L$notintel
@@ -158,26 +161,45 @@ L$generic:
 	jc	L$notknights
 	andl	$0xfff7ffff,%ebx
 L$notknights:
+	movd	%xmm0,%eax
+	andl	$0x0fff0ff0,%eax
+	cmpl	$0x00050650,%eax
+	jne	L$notskylakex
+	andl	$0xfffeffff,%ebx
+
+L$notskylakex:
 	movl	%ebx,8(%rdi)
+	movl	%ecx,12(%rdi)
 L$no_extended_info:
 
 	btl	$27,%r9d
 	jnc	L$clear_avx
 	xorl	%ecx,%ecx
 .byte	0x0f,0x01,0xd0
+	andl	$0xe6,%eax
+	cmpl	$0xe6,%eax
+	je	L$done
+	andl	$0x3fdeffff,8(%rdi)
+
+
+
+
 	andl	$6,%eax
 	cmpl	$6,%eax
 	je	L$done
 L$clear_avx:
 	movl	$0xefffe7ff,%eax
 	andl	%eax,%r9d
-	andl	$0xffffffdf,8(%rdi)
+	movl	$0x3fdeffdf,%eax
+	andl	%eax,8(%rdi)
 L$done:
 	shlq	$32,%r9
 	movl	%r10d,%eax
 	movq	%r8,%rbx
+
 	orq	%r9,%rax
 	.byte	0xf3,0xc3
+
 
 
 .globl	_OPENSSL_cleanse
@@ -223,6 +245,18 @@ _CRYPTO_memcmp:
 	xorq	%r10,%r10
 	cmpq	$0,%rdx
 	je	L$no_data
+	cmpq	$16,%rdx
+	jne	L$oop_cmp
+	movq	(%rdi),%r10
+	movq	8(%rdi),%r11
+	movq	$1,%rdx
+	xorq	(%rsi),%r10
+	xorq	8(%rsi),%r11
+	orq	%r11,%r10
+	cmovnzq	%rdx,%rax
+	.byte	0xf3,0xc3
+
+.p2align	4
 L$oop_cmp:
 	movb	(%rdi),%r10b
 	leaq	1(%rdi),%rdi
@@ -346,21 +380,6 @@ L$done2:
 	subq	%rcx,%rax
 	.byte	0xf3,0xc3
 
-.globl	_OPENSSL_ia32_rdrand
-
-.p2align	4
-_OPENSSL_ia32_rdrand:
-	movl	$8,%ecx
-L$oop_rdrand:
-.byte	72,15,199,240
-	jc	L$break_rdrand
-	loop	L$oop_rdrand
-L$break_rdrand:
-	cmpq	$0,%rax
-	cmoveq	%rcx,%rax
-	.byte	0xf3,0xc3
-
-
 .globl	_OPENSSL_ia32_rdrand_bytes
 
 .p2align	4
@@ -394,27 +413,13 @@ L$tail_rdrand_bytes:
 	movb	%r10b,(%rdi)
 	leaq	1(%rdi),%rdi
 	incq	%rax
-	shrq	$8,%r8
+	shrq	$8,%r10
 	decq	%rsi
 	jnz	L$tail_rdrand_bytes
 
 L$done_rdrand_bytes:
+	xorq	%r10,%r10
 	.byte	0xf3,0xc3
-
-.globl	_OPENSSL_ia32_rdseed
-
-.p2align	4
-_OPENSSL_ia32_rdseed:
-	movl	$8,%ecx
-L$oop_rdseed:
-.byte	72,15,199,248
-	jc	L$break_rdseed
-	loop	L$oop_rdseed
-L$break_rdseed:
-	cmpq	$0,%rax
-	cmoveq	%rcx,%rax
-	.byte	0xf3,0xc3
-
 
 .globl	_OPENSSL_ia32_rdseed_bytes
 
@@ -449,10 +454,11 @@ L$tail_rdseed_bytes:
 	movb	%r10b,(%rdi)
 	leaq	1(%rdi),%rdi
 	incq	%rax
-	shrq	$8,%r8
+	shrq	$8,%r10
 	decq	%rsi
 	jnz	L$tail_rdseed_bytes
 
 L$done_rdseed_bytes:
+	xorq	%r10,%r10
 	.byte	0xf3,0xc3
 

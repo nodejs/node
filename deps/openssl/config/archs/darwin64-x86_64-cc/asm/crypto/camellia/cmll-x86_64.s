@@ -17,11 +17,17 @@ _Camellia_EncryptBlock:
 .p2align	4
 L$enc_rounds:
 _Camellia_EncryptBlock_Rounds:
+
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
+
 L$enc_prologue:
 
 
@@ -53,13 +59,20 @@ L$enc_prologue:
 	movl	%r11d,12(%r13)
 
 	movq	0(%rsp),%r15
+
 	movq	8(%rsp),%r14
+
 	movq	16(%rsp),%r13
+
 	movq	24(%rsp),%rbp
+
 	movq	32(%rsp),%rbx
+
 	leaq	40(%rsp),%rsp
+
 L$enc_epilogue:
 	.byte	0xf3,0xc3
+
 
 
 
@@ -286,11 +299,17 @@ _Camellia_DecryptBlock:
 .p2align	4
 L$dec_rounds:
 _Camellia_DecryptBlock_Rounds:
+
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
+
 L$dec_prologue:
 
 
@@ -322,13 +341,20 @@ L$dec_prologue:
 	movl	%r11d,12(%r13)
 
 	movq	0(%rsp),%r15
+
 	movq	8(%rsp),%r14
+
 	movq	16(%rsp),%r13
+
 	movq	24(%rsp),%rbp
+
 	movq	32(%rsp),%rbx
+
 	leaq	40(%rsp),%rsp
+
 L$dec_epilogue:
 	.byte	0xf3,0xc3
+
 
 
 
@@ -542,11 +568,17 @@ L$ddone:
 
 .p2align	4
 _Camellia_Ekeygen:
+
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
+
 L$key_prologue:
 
 	movl	%edi,%r15d
@@ -1074,13 +1106,20 @@ L$2nd256:
 	movl	$4,%eax
 L$done:
 	movq	0(%rsp),%r15
+
 	movq	8(%rsp),%r14
+
 	movq	16(%rsp),%r13
+
 	movq	24(%rsp),%rbp
+
 	movq	32(%rsp),%rbx
+
 	leaq	40(%rsp),%rsp
+
 L$key_epilogue:
 	.byte	0xf3,0xc3
+
 
 .p2align	6
 L$Camellia_SIGMA:
@@ -1605,17 +1644,25 @@ L$Camellia_SBOX:
 
 .p2align	4
 _Camellia_cbc_encrypt:
+
 	cmpq	$0,%rdx
 	je	L$cbc_abort
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r12
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
+
 L$cbc_prologue:
 
 	movq	%rsp,%rbp
+
 	subq	$64,%rsp
 	andq	$-64,%rsp
 
@@ -1636,6 +1683,7 @@ L$cbc_prologue:
 
 	movq	%r8,40(%rsp)
 	movq	%rbp,48(%rsp)
+
 
 L$cbc_body:
 	leaq	L$Camellia_SBOX(%rip),%rbp
@@ -1824,15 +1872,24 @@ L$cbc_dec_popf:
 .p2align	4
 L$cbc_done:
 	movq	48(%rsp),%rcx
+
 	movq	0(%rcx),%r15
+
 	movq	8(%rcx),%r14
+
 	movq	16(%rcx),%r13
+
 	movq	24(%rcx),%r12
+
 	movq	32(%rcx),%rbp
+
 	movq	40(%rcx),%rbx
+
 	leaq	48(%rcx),%rsp
+
 L$cbc_abort:
 	.byte	0xf3,0xc3
+
 
 
 .byte	67,97,109,101,108,108,105,97,32,102,111,114,32,120,56,54,95,54,52,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0

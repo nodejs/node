@@ -6,14 +6,22 @@
 
 .p2align	5
 _rsaz_512_sqr:
+
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r12
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
 
+
 	subq	$128+24,%rsp
+
 L$sqr_body:
 	movq	%rdx,%rbp
 	movq	(%rsi),%rdx
@@ -658,28 +666,45 @@ L$oop_sqrx:
 L$sqr_tail:
 
 	leaq	128+24+48(%rsp),%rax
+
 	movq	-48(%rax),%r15
+
 	movq	-40(%rax),%r14
+
 	movq	-32(%rax),%r13
+
 	movq	-24(%rax),%r12
+
 	movq	-16(%rax),%rbp
+
 	movq	-8(%rax),%rbx
+
 	leaq	(%rax),%rsp
+
 L$sqr_epilogue:
 	.byte	0xf3,0xc3
+
 
 .globl	_rsaz_512_mul
 
 .p2align	5
 _rsaz_512_mul:
+
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r12
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
 
+
 	subq	$128+24,%rsp
+
 L$mul_body:
 .byte	102,72,15,110,199
 .byte	102,72,15,110,201
@@ -741,28 +766,45 @@ L$mul_tail:
 	call	__rsaz_512_subtract
 
 	leaq	128+24+48(%rsp),%rax
+
 	movq	-48(%rax),%r15
+
 	movq	-40(%rax),%r14
+
 	movq	-32(%rax),%r13
+
 	movq	-24(%rax),%r12
+
 	movq	-16(%rax),%rbp
+
 	movq	-8(%rax),%rbx
+
 	leaq	(%rax),%rsp
+
 L$mul_epilogue:
 	.byte	0xf3,0xc3
+
 
 .globl	_rsaz_512_mul_gather4
 
 .p2align	5
 _rsaz_512_mul_gather4:
+
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r12
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
 
+
 	subq	$152,%rsp
+
 L$mul_gather4_body:
 	movd	%r9d,%xmm8
 	movdqa	L$inc+16(%rip),%xmm1
@@ -1151,29 +1193,46 @@ L$mul_gather_tail:
 	call	__rsaz_512_subtract
 
 	leaq	128+24+48(%rsp),%rax
+
 	movq	-48(%rax),%r15
+
 	movq	-40(%rax),%r14
+
 	movq	-32(%rax),%r13
+
 	movq	-24(%rax),%r12
+
 	movq	-16(%rax),%rbp
+
 	movq	-8(%rax),%rbx
+
 	leaq	(%rax),%rsp
+
 L$mul_gather4_epilogue:
 	.byte	0xf3,0xc3
+
 
 .globl	_rsaz_512_mul_scatter4
 
 .p2align	5
 _rsaz_512_mul_scatter4:
+
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r12
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
+
 
 	movl	%r9d,%r9d
 	subq	$128+24,%rsp
+
 L$mul_scatter4_body:
 	leaq	(%r8,%r9,8),%r8
 .byte	102,72,15,110,199
@@ -1248,28 +1307,45 @@ L$mul_scatter_tail:
 	movq	%r15,896(%rsi)
 
 	leaq	128+24+48(%rsp),%rax
+
 	movq	-48(%rax),%r15
+
 	movq	-40(%rax),%r14
+
 	movq	-32(%rax),%r13
+
 	movq	-24(%rax),%r12
+
 	movq	-16(%rax),%rbp
+
 	movq	-8(%rax),%rbx
+
 	leaq	(%rax),%rsp
+
 L$mul_scatter4_epilogue:
 	.byte	0xf3,0xc3
+
 
 .globl	_rsaz_512_mul_by_one
 
 .p2align	5
 _rsaz_512_mul_by_one:
+
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r12
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
 
+
 	subq	$128+24,%rsp
+
 L$mul_by_one_body:
 	movl	_OPENSSL_ia32cap_P+8(%rip),%eax
 	movq	%rdx,%rbp
@@ -1312,15 +1388,24 @@ L$by_one_tail:
 	movq	%r15,56(%rdi)
 
 	leaq	128+24+48(%rsp),%rax
+
 	movq	-48(%rax),%r15
+
 	movq	-40(%rax),%r14
+
 	movq	-32(%rax),%r13
+
 	movq	-24(%rax),%r12
+
 	movq	-16(%rax),%rbp
+
 	movq	-8(%rax),%rbx
+
 	leaq	(%rax),%rsp
+
 L$mul_by_one_epilogue:
 	.byte	0xf3,0xc3
+
 
 
 .p2align	5

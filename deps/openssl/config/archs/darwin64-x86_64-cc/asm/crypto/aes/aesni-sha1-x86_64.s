@@ -21,16 +21,24 @@ _aesni_cbc_sha1_enc:
 
 .p2align	5
 aesni_cbc_sha1_enc_ssse3:
+
 	movq	8(%rsp),%r10
 
 
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r12
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
+
 	leaq	-104(%rsp),%rsp
+
 
 
 	movq	%rdi,%r12
@@ -1362,29 +1370,46 @@ L$aesenclast5:
 	movl	%ebp,16(%r9)
 	movups	%xmm2,(%r8)
 	leaq	104(%rsp),%rsi
+
 	movq	0(%rsi),%r15
+
 	movq	8(%rsi),%r14
+
 	movq	16(%rsi),%r13
+
 	movq	24(%rsi),%r12
+
 	movq	32(%rsi),%rbp
+
 	movq	40(%rsi),%rbx
+
 	leaq	48(%rsi),%rsp
+
 L$epilogue_ssse3:
 	.byte	0xf3,0xc3
 
 
+
 .p2align	5
 aesni_cbc_sha1_enc_avx:
+
 	movq	8(%rsp),%r10
 
 
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r12
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
+
 	leaq	-104(%rsp),%rsp
+
 
 
 	vzeroall
@@ -2660,15 +2685,24 @@ L$vaesenclast10:
 	vmovups	%xmm12,(%r8)
 	vzeroall
 	leaq	104(%rsp),%rsi
+
 	movq	0(%rsi),%r15
+
 	movq	8(%rsi),%r14
+
 	movq	16(%rsi),%r13
+
 	movq	24(%rsi),%r12
+
 	movq	32(%rsi),%rbp
+
 	movq	40(%rsi),%rbx
+
 	leaq	48(%rsi),%rsp
+
 L$epilogue_avx:
 	.byte	0xf3,0xc3
+
 
 .p2align	6
 K_XX_XX:

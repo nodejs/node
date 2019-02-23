@@ -7,6 +7,7 @@
 .align	4
 OPENSSL_fpu_probe:
 .localentry	OPENSSL_fpu_probe,0
+
 	fmr	0,0
 	blr	
 .long	0
@@ -17,6 +18,7 @@ OPENSSL_fpu_probe:
 .align	4
 OPENSSL_ppc64_probe:
 .localentry	OPENSSL_ppc64_probe,0
+
 	fcfid	1,1
 	rldicl	0,0,32,32
 	blr	
@@ -29,6 +31,7 @@ OPENSSL_ppc64_probe:
 .align	4
 OPENSSL_altivec_probe:
 .localentry	OPENSSL_altivec_probe,0
+
 .long	0x10000484
 	blr	
 .long	0
@@ -40,6 +43,7 @@ OPENSSL_altivec_probe:
 .align	4
 OPENSSL_crypto207_probe:
 .localentry	OPENSSL_crypto207_probe,0
+
 	.long	0x7C000E99
 	.long	0x10000508
 	blr	
@@ -52,6 +56,7 @@ OPENSSL_crypto207_probe:
 .align	4
 OPENSSL_madd300_probe:
 .localentry	OPENSSL_madd300_probe,0
+
 	xor	0,0,0
 	.long	0x10600033
 	.long	0x10600031
@@ -64,6 +69,7 @@ OPENSSL_madd300_probe:
 .align	4
 OPENSSL_wipe_cpu:
 .localentry	OPENSSL_wipe_cpu,0
+
 	xor	0,0,0
 	fmr	0,31
 	fmr	1,31
@@ -99,6 +105,7 @@ OPENSSL_wipe_cpu:
 .align	4
 OPENSSL_atomic_add:
 .localentry	OPENSSL_atomic_add,0
+
 .Ladd:	lwarx	5,0,3
 	add	0,4,5
 	stwcx.	0,0,3
@@ -115,6 +122,7 @@ OPENSSL_atomic_add:
 .align	4
 OPENSSL_rdtsc:
 .localentry	OPENSSL_rdtsc,0
+
 	mftb	3
 	blr	
 .long	0
@@ -126,6 +134,7 @@ OPENSSL_rdtsc:
 .align	4
 OPENSSL_cleanse:
 .localentry	OPENSSL_cleanse,0
+
 	cmpldi	4,7
 	li	0,0
 	bge	.Lot
@@ -161,6 +170,7 @@ OPENSSL_cleanse:
 .align	4
 CRYPTO_memcmp:
 .localentry	CRYPTO_memcmp,0
+
 	cmpldi	5,0
 	li	0,0
 	beq	.Lno_data
@@ -188,6 +198,7 @@ CRYPTO_memcmp:
 .align	4
 OPENSSL_instrument_bus:
 .localentry	OPENSSL_instrument_bus,0
+
 	mtctr	4
 
 	mftb	7
@@ -222,6 +233,7 @@ OPENSSL_instrument_bus:
 .align	4
 OPENSSL_instrument_bus2:
 .localentry	OPENSSL_instrument_bus2,0
+
 	mr	0,4
 	slwi	4,4,2
 

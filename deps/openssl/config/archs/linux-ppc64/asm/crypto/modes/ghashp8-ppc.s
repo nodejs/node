@@ -9,7 +9,6 @@
 gcm_init_p8:
 .quad	.gcm_init_p8,.TOC.@tocbase,0
 .previous
-
 .align	5
 .gcm_init_p8:
 	li	0,-4096
@@ -133,8 +132,8 @@ gcm_init_p8:
 .long	0
 .byte	0,12,0x14,0,0,0,2,0
 .long	0
-.size	gcm_init_p8,.-.gcm_init_p8
 .size	.gcm_init_p8,.-.gcm_init_p8
+.size	gcm_init_p8,.-.gcm_init_p8
 .globl	gcm_gmult_p8
 .type	gcm_gmult_p8,@function
 .section	".opd","aw"
@@ -142,7 +141,6 @@ gcm_init_p8:
 gcm_gmult_p8:
 .quad	.gcm_gmult_p8,.TOC.@tocbase,0
 .previous
-
 .align	5
 .gcm_gmult_p8:
 	lis	0,0xfff8
@@ -190,8 +188,8 @@ gcm_gmult_p8:
 .long	0
 .byte	0,12,0x14,0,0,0,2,0
 .long	0
-.size	gcm_gmult_p8,.-.gcm_gmult_p8
 .size	.gcm_gmult_p8,.-.gcm_gmult_p8
+.size	gcm_gmult_p8,.-.gcm_gmult_p8
 
 .globl	gcm_ghash_p8
 .type	gcm_ghash_p8,@function
@@ -200,7 +198,6 @@ gcm_gmult_p8:
 gcm_ghash_p8:
 .quad	.gcm_ghash_p8,.TOC.@tocbase,0
 .previous
-
 .align	5
 .gcm_ghash_p8:
 	li	0,-4096
@@ -500,7 +497,7 @@ gcm_ghash_p8:
 
 	vxor	2,3,0
 	vor	29,23,23
-	vor	30, 24, 24
+	vor	30,24,24
 	vor	31,25,25
 
 	vperm	5,16,22,19
@@ -523,7 +520,7 @@ gcm_ghash_p8:
 	vperm	6,4,16,18
 
 	vsldoi	29,4,17,8
-	vor	30, 17, 17
+	vor	30,17,17
 	vsldoi	31,17,4,8
 
 	.long	0x12855CC8
@@ -537,7 +534,7 @@ gcm_ghash_p8:
 
 
 	vsldoi	29,4,9,8
-	vor	30, 9, 9
+	vor	30,9,9
 	vsldoi	31,9,4,8
 
 	vxor	2,3,0
@@ -581,9 +578,9 @@ gcm_ghash_p8:
 .long	0
 .byte	0,12,0x04,0,0x80,0,4,0
 .long	0
-.size	gcm_ghash_p8,.-.gcm_ghash_p8
 .size	.gcm_ghash_p8,.-.gcm_ghash_p8
+.size	gcm_ghash_p8,.-.gcm_ghash_p8
 
-.byte	71,72,65,83,72,32,102,111,114,32,80,111,119,101,114,73,83,65,32,50,46,48,55,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
+.byte	71,72,65,83,72,32,102,111,114,32,80,111,119,101,114,73,83,65,32,50,46,48,55,44,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	2
 .align	2

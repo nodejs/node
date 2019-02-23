@@ -1,4 +1,3 @@
-.file	"des-586.s"
 .text
 .globl	DES_SPtrans
 .type	_x86_DES_encrypt,@function

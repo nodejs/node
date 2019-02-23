@@ -1,4 +1,3 @@
-.file	"des-586.s"
 .text
 .globl	_DES_SPtrans
 .align	4

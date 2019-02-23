@@ -1,4 +1,3 @@
-.file	"bf-586.s"
 .text
 .globl	_BF_encrypt
 .align	4

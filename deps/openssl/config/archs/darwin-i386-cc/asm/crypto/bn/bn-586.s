@@ -1,4 +1,3 @@
-.file	"crypto/bn/asm/bn-586.s"
 .text
 .globl	_bn_mul_add_words
 .align	4

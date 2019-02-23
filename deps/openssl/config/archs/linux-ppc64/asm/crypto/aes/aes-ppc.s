@@ -607,7 +607,6 @@
 AES_encrypt:
 .quad	.AES_encrypt,.TOC.@tocbase,0
 .previous
-
 .align	7
 .AES_encrypt:
 	stdu	1,-256(1)
@@ -1039,8 +1038,8 @@ AES_encrypt:
 	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
-.size	AES_encrypt,.-.AES_encrypt
 .size	.AES_encrypt,.-.AES_encrypt
+.size	AES_encrypt,.-.AES_encrypt
 
 .globl	AES_decrypt
 .type	AES_decrypt,@function
@@ -1049,7 +1048,6 @@ AES_encrypt:
 AES_decrypt:
 .quad	.AES_decrypt,.TOC.@tocbase,0
 .previous
-
 .align	7
 .AES_decrypt:
 	stdu	1,-256(1)
@@ -1533,9 +1531,9 @@ AES_decrypt:
 	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
-.size	AES_decrypt,.-.AES_decrypt
 .size	.AES_decrypt,.-.AES_decrypt
+.size	AES_decrypt,.-.AES_decrypt
 
-.byte	65,69,83,32,102,111,114,32,80,80,67,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
+.byte	65,69,83,32,102,111,114,32,80,80,67,44,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	2
 .align	7

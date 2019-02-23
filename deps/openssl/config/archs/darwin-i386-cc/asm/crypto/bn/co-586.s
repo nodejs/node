@@ -1,4 +1,3 @@
-.file	"crypto/bn/asm/co-586.s"
 .text
 .globl	_bn_mul_comba8
 .align	4

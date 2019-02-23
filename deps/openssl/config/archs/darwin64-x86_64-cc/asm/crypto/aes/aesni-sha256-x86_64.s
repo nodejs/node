@@ -77,15 +77,23 @@ K256:
 
 .p2align	6
 aesni_cbc_sha256_enc_xop:
+
 L$xop_shortcut:
 	movq	8(%rsp),%r10
+	movq	%rsp,%rax
+
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r12
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
-	movq	%rsp,%r11
+
 	subq	$128,%rsp
 	andq	$-64,%rsp
 
@@ -101,7 +109,8 @@ L$xop_shortcut:
 	movq	%r8,64+32(%rsp)
 	movq	%r9,64+40(%rsp)
 	movq	%r10,64+48(%rsp)
-	movq	%r11,64+56(%rsp)
+	movq	%rax,120(%rsp)
+
 L$prologue_xop:
 	vzeroall
 
@@ -1207,31 +1216,48 @@ L$xop_00_47:
 	jb	L$loop_xop
 
 	movq	64+32(%rsp),%r8
-	movq	64+56(%rsp),%rsi
+	movq	120(%rsp),%rsi
+
 	vmovdqu	%xmm8,(%r8)
 	vzeroall
-	movq	(%rsi),%r15
-	movq	8(%rsi),%r14
-	movq	16(%rsi),%r13
-	movq	24(%rsi),%r12
-	movq	32(%rsi),%rbp
-	movq	40(%rsi),%rbx
-	leaq	48(%rsi),%rsp
+	movq	-48(%rsi),%r15
+
+	movq	-40(%rsi),%r14
+
+	movq	-32(%rsi),%r13
+
+	movq	-24(%rsi),%r12
+
+	movq	-16(%rsi),%rbp
+
+	movq	-8(%rsi),%rbx
+
+	leaq	(%rsi),%rsp
+
 L$epilogue_xop:
 	.byte	0xf3,0xc3
 
 
+
 .p2align	6
 aesni_cbc_sha256_enc_avx:
+
 L$avx_shortcut:
 	movq	8(%rsp),%r10
+	movq	%rsp,%rax
+
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r12
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
-	movq	%rsp,%r11
+
 	subq	$128,%rsp
 	andq	$-64,%rsp
 
@@ -1247,7 +1273,8 @@ L$avx_shortcut:
 	movq	%r8,64+32(%rsp)
 	movq	%r9,64+40(%rsp)
 	movq	%r10,64+48(%rsp)
-	movq	%r11,64+56(%rsp)
+	movq	%rax,120(%rsp)
+
 L$prologue_avx:
 	vzeroall
 
@@ -2384,31 +2411,48 @@ L$avx_00_47:
 	jb	L$loop_avx
 
 	movq	64+32(%rsp),%r8
-	movq	64+56(%rsp),%rsi
+	movq	120(%rsp),%rsi
+
 	vmovdqu	%xmm8,(%r8)
 	vzeroall
-	movq	(%rsi),%r15
-	movq	8(%rsi),%r14
-	movq	16(%rsi),%r13
-	movq	24(%rsi),%r12
-	movq	32(%rsi),%rbp
-	movq	40(%rsi),%rbx
-	leaq	48(%rsi),%rsp
+	movq	-48(%rsi),%r15
+
+	movq	-40(%rsi),%r14
+
+	movq	-32(%rsi),%r13
+
+	movq	-24(%rsi),%r12
+
+	movq	-16(%rsi),%rbp
+
+	movq	-8(%rsi),%rbx
+
+	leaq	(%rsi),%rsp
+
 L$epilogue_avx:
 	.byte	0xf3,0xc3
 
 
+
 .p2align	6
 aesni_cbc_sha256_enc_avx2:
+
 L$avx2_shortcut:
 	movq	8(%rsp),%r10
+	movq	%rsp,%rax
+
 	pushq	%rbx
+
 	pushq	%rbp
+
 	pushq	%r12
+
 	pushq	%r13
+
 	pushq	%r14
+
 	pushq	%r15
-	movq	%rsp,%r11
+
 	subq	$576,%rsp
 	andq	$-1024,%rsp
 	addq	$448,%rsp
@@ -2425,7 +2469,8 @@ L$avx2_shortcut:
 	movq	%r8,64+32(%rsp)
 	movq	%r9,64+40(%rsp)
 	movq	%r10,64+48(%rsp)
-	movq	%r11,64+56(%rsp)
+	movq	%rax,120(%rsp)
+
 L$prologue_avx2:
 	vzeroall
 
@@ -3987,18 +4032,27 @@ L$ower_avx2:
 L$done_avx2:
 	leaq	(%rbp),%rsp
 	movq	64+32(%rsp),%r8
-	movq	64+56(%rsp),%rsi
+	movq	120(%rsp),%rsi
+
 	vmovdqu	%xmm8,(%r8)
 	vzeroall
-	movq	(%rsi),%r15
-	movq	8(%rsi),%r14
-	movq	16(%rsi),%r13
-	movq	24(%rsi),%r12
-	movq	32(%rsi),%rbp
-	movq	40(%rsi),%rbx
-	leaq	48(%rsi),%rsp
+	movq	-48(%rsi),%r15
+
+	movq	-40(%rsi),%r14
+
+	movq	-32(%rsi),%r13
+
+	movq	-24(%rsi),%r12
+
+	movq	-16(%rsi),%rbp
+
+	movq	-8(%rsi),%rbx
+
+	leaq	(%rsi),%rsp
+
 L$epilogue_avx2:
 	.byte	0xf3,0xc3
+
 
 
 .p2align	5

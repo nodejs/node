@@ -130,6 +130,7 @@ bn_sqr_comba4:
 
 
 
+
 	xor	0,0,0
 
 
@@ -254,6 +255,7 @@ bn_sqr_comba4:
 .align	4
 bn_sqr_comba8:
 .localentry	bn_sqr_comba8,0
+
 
 
 
@@ -694,6 +696,7 @@ bn_mul_comba4:
 
 
 
+
 	xor	0,0,0
 
 	ld	6,0(4)
@@ -838,6 +841,7 @@ bn_mul_comba4:
 .align	4
 bn_mul_comba8:
 .localentry	bn_mul_comba8,0
+
 
 
 
@@ -1391,6 +1395,7 @@ bn_sub_words:
 
 
 
+
 	xor	0,0,0
 
 
@@ -1443,6 +1448,7 @@ bn_add_words:
 
 
 
+
 	xor	0,0,0
 
 
@@ -1477,6 +1483,7 @@ bn_add_words:
 .align	4
 bn_div_words:
 .localentry	bn_div_words,0
+
 
 
 
@@ -1607,6 +1614,7 @@ bn_sqr_words:
 
 
 
+
 	addic.	5,5,0
 	beq	.Lppcasm_sqr_adios
 	addi	4,4,-8
@@ -1637,6 +1645,7 @@ bn_sqr_words:
 .align	4
 bn_mul_words:
 .localentry	bn_mul_words,0
+
 
 
 
@@ -1744,6 +1753,7 @@ bn_mul_words:
 .align	4
 bn_mul_add_words:
 .localentry	bn_mul_add_words,0
+
 
 
 

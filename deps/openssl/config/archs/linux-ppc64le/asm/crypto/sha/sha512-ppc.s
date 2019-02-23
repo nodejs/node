@@ -7,6 +7,7 @@
 .align	6
 sha512_block_ppc:
 .localentry	sha512_block_ppc,0
+
 	stdu	1,-384(1)
 	mflr	0
 	sldi	5,5,7
