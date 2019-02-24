@@ -28,6 +28,7 @@ Local<Value> ErrnoException(Isolate* isolate,
                             const char* msg,
                             const char* path) {
   Environment* env = Environment::GetCurrent(isolate);
+  CHECK_NOT_NULL(env);
 
   Local<Value> e;
   Local<String> estring = OneByteString(isolate, errors::errno_string(errorno));
@@ -99,6 +100,7 @@ Local<Value> UVException(Isolate* isolate,
                          const char* path,
                          const char* dest) {
   Environment* env = Environment::GetCurrent(isolate);
+  CHECK_NOT_NULL(env);
 
   if (!msg || !msg[0])
     msg = uv_strerror(errorno);
@@ -187,6 +189,7 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
                                   const char* msg,
                                   const char* path) {
   Environment* env = Environment::GetCurrent(isolate);
+  CHECK_NOT_NULL(env);
   Local<Value> e;
   bool must_free = false;
   if (!msg || !msg[0]) {

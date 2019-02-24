@@ -11,6 +11,7 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
+using v8::SealHandleScope;
 using v8::String;
 using v8::Value;
 using v8::NewStringType;
@@ -88,16 +89,12 @@ void RemoveEnvironmentCleanupHook(Isolate* isolate,
 }
 
 async_id AsyncHooksGetExecutionAsyncId(Isolate* isolate) {
-  // Environment::GetCurrent() allocates a Local<> handle.
-  HandleScope handle_scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
   if (env == nullptr) return -1;
   return env->execution_async_id();
 }
 
 async_id AsyncHooksGetTriggerAsyncId(Isolate* isolate) {
-  // Environment::GetCurrent() allocates a Local<> handle.
-  HandleScope handle_scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
   if (env == nullptr) return -1;
   return env->trigger_async_id();
@@ -119,7 +116,9 @@ async_context EmitAsyncInit(Isolate* isolate,
                             Local<Object> resource,
                             Local<String> name,
                             async_id trigger_async_id) {
-  HandleScope handle_scope(isolate);
+#ifdef DEBUG
+  SealHandleScope handle_scope(isolate);
+#endif
   Environment* env = Environment::GetCurrent(isolate);
   CHECK_NOT_NULL(env);
 
@@ -140,8 +139,6 @@ async_context EmitAsyncInit(Isolate* isolate,
 }
 
 void EmitAsyncDestroy(Isolate* isolate, async_context asyncContext) {
-  // Environment::GetCurrent() allocates a Local<> handle.
-  HandleScope handle_scope(isolate);
   AsyncWrap::EmitDestroy(
       Environment::GetCurrent(isolate), asyncContext.async_id);
 }

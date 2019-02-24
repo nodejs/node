@@ -296,6 +296,8 @@ inline void Environment::AssignToContext(v8::Local<v8::Context> context,
 }
 
 inline Environment* Environment::GetCurrent(v8::Isolate* isolate) {
+  if (UNLIKELY(!isolate->InContext())) return nullptr;
+  v8::HandleScope handle_scope(isolate);
   return GetCurrent(isolate->GetCurrentContext());
 }
 
