@@ -8,11 +8,11 @@
 
 namespace node {
 
-using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::Platform;
+using v8::SealHandleScope;
 using v8::Task;
 using node::tracing::TracingController;
 
@@ -332,7 +332,9 @@ int NodePlatform::NumberOfWorkerThreads() {
 
 void PerIsolatePlatformData::RunForegroundTask(std::unique_ptr<Task> task) {
   Isolate* isolate = Isolate::GetCurrent();
-  HandleScope scope(isolate);
+#ifdef DEBUG
+  SealHandleScope scope(isolate);
+#endif
   Environment* env = Environment::GetCurrent(isolate);
   if (env != nullptr) {
     InternalCallbackScope cb_scope(env, Local<Object>(), { 0, 0 },
