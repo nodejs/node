@@ -483,7 +483,7 @@ static void PrintResourceUsage(JSONWriter* writer) {
     double user_cpu =
         stats.ru_utime.tv_sec + SEC_PER_MICROS * stats.ru_utime.tv_usec;
     double kernel_cpu =
-        stats.ru_utime.tv_sec + SEC_PER_MICROS * stats.ru_utime.tv_usec;
+        stats.ru_stime.tv_sec + SEC_PER_MICROS * stats.ru_stime.tv_usec;
     writer->json_keyvalue("userCpuSeconds", user_cpu);
     writer->json_keyvalue("kernelCpuSeconds", kernel_cpu);
     double cpu_abs = user_cpu + kernel_cpu;
@@ -506,7 +506,7 @@ static void PrintResourceUsage(JSONWriter* writer) {
     double user_cpu =
         stats.ru_utime.tv_sec + SEC_PER_MICROS * stats.ru_utime.tv_usec;
     double kernel_cpu =
-        stats.ru_utime.tv_sec + SEC_PER_MICROS * stats.ru_utime.tv_usec;
+        stats.ru_stime.tv_sec + SEC_PER_MICROS * stats.ru_stime.tv_usec;
     writer->json_keyvalue("userCpuSeconds", user_cpu);
     writer->json_keyvalue("kernelCpuSeconds", kernel_cpu);
     double cpu_abs = user_cpu + kernel_cpu;
