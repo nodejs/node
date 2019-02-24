@@ -19,6 +19,14 @@ assert.strictEqual(typeof PRIORITY_ABOVE_NORMAL, 'number');
 assert.strictEqual(typeof PRIORITY_HIGH, 'number');
 assert.strictEqual(typeof PRIORITY_HIGHEST, 'number');
 
+// Test pid setPriority
+{
+  const expectedError = { code: 'ERR_SYSTEM_ERROR' };
+  common.expectsError(() => {
+    os.setPriority(1, PRIORITY_NORMAL);
+  }, expectedError);
+}
+
 // Test pid type validation.
 [null, true, false, 'foo', {}, [], /x/].forEach((pid) => {
   const errObj = {
