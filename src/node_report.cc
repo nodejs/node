@@ -447,8 +447,7 @@ static void PrintGCStatistics(JSONWriter* writer, Isolate* isolate) {
 
   writer->json_objectstart("heapSpaces");
   // Loop through heap spaces
-  size_t i;
-  for (i = 0; i < isolate->NumberOfHeapSpaces() - 1; i++) {
+  for (size_t i = 0; i < isolate->NumberOfHeapSpaces(); i++) {
     isolate->GetHeapSpaceStatistics(&v8_heap_space_stats, i);
     writer->json_objectstart(v8_heap_space_stats.space_name());
     writer->json_keyvalue("memorySize", v8_heap_space_stats.space_size());
@@ -464,19 +463,7 @@ static void PrintGCStatistics(JSONWriter* writer, Isolate* isolate) {
         "available", v8_heap_space_stats.space_available_size());
     writer->json_objectend();
   }
-  isolate->GetHeapSpaceStatistics(&v8_heap_space_stats, i);
-  writer->json_objectstart(v8_heap_space_stats.space_name());
-  writer->json_keyvalue("memorySize", v8_heap_space_stats.space_size());
-  writer->json_keyvalue(
-      "committedMemory", v8_heap_space_stats.physical_space_size());
-  writer->json_keyvalue(
-      "capacity",
-      v8_heap_space_stats.space_used_size() +
-          v8_heap_space_stats.space_available_size());
-  writer->json_keyvalue("used", v8_heap_space_stats.space_used_size());
-  writer->json_keyvalue(
-      "available", v8_heap_space_stats.space_available_size());
-  writer->json_objectend();
+
   writer->json_objectend();
   writer->json_objectend();
 }
