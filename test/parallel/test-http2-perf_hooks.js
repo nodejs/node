@@ -47,6 +47,14 @@ const obs = new PerformanceObserver(common.mustCall((items) => {
       assert.fail('invalid entry name');
   }
 }, 4));
+
+// Should throw if entryTypes are not valid
+{
+  const expectedError = { code: 'ERR_VALID_PERFORMANCE_ENTRY_TYPE' };
+  const wrongEntryTypes = { entryTypes: ['foo', 'bar', 'baz'] };
+  assert.throws(() => obs.observe(wrongEntryTypes), expectedError);
+}
+
 obs.observe({ entryTypes: ['http2'] });
 
 const body =
