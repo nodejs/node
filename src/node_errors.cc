@@ -314,7 +314,6 @@ void OnFatalError(const char* location, const char* message) {
   }
 #ifdef NODE_REPORT
   Isolate* isolate = Isolate::GetCurrent();
-  HandleScope handle_scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
   if (env == nullptr || env->isolate_data()->options()->report_on_fatalerror) {
     report::TriggerNodeReport(
