@@ -146,7 +146,7 @@ std::string TriggerNodeReport(Isolate* isolate,
   // Open the report file stream for writing. Supports stdout/err,
   // user-specified or (default) generated name
   std::ofstream outfile;
-  std::ostream* outstream;
+  std::ostream* outstream = nullptr;
   if (filename == "stdout") {
     outstream = &std::cout;
   } else if (filename == "stderr") {
