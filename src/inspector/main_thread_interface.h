@@ -89,11 +89,6 @@ class MainThreadInterface {
   void RemoveObject(int handle);
 
  private:
-  using AsyncAndInterface = std::pair<uv_async_t, MainThreadInterface*>;
-
-  static void DispatchMessagesAsyncCallback(uv_async_t* async);
-  static void CloseAsync(AsyncAndInterface*);
-
   MessageQueue requests_;
   Mutex requests_lock_;   // requests_ live across threads
   // This queue is to maintain the order of the messages for the cases

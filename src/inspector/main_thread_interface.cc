@@ -96,13 +96,6 @@ class DispatchMessagesTask : public v8::Task {
   MainThreadInterface* thread_;
 };
 
-void DisposePairCallback(uv_handle_t* ref) {
-  using AsyncAndInterface = std::pair<uv_async_t, MainThreadInterface*>;
-  AsyncAndInterface* pair = node::ContainerOf(
-      &AsyncAndInterface::first, reinterpret_cast<uv_async_t*>(ref));
-  delete pair;
-}
-
 template <typename T>
 class AnotherThreadObjectReference {
  public:
@@ -229,18 +222,6 @@ MainThreadInterface::MainThreadInterface(Agent* agent, uv_loop_t* loop,
 MainThreadInterface::~MainThreadInterface() {
   if (handle_)
     handle_->Reset();
-}
-
-// static
-void MainThreadInterface::DispatchMessagesAsyncCallback(uv_async_t* async) {
-  AsyncAndInterface* asyncAndInterface =
-      node::ContainerOf(&AsyncAndInterface::first, async);
-  asyncAndInterface->second->DispatchMessages();
-}
-
-// static
-void MainThreadInterface::CloseAsync(AsyncAndInterface* pair) {
-  uv_close(reinterpret_cast<uv_handle_t*>(&pair->first), DisposePairCallback);
 }
 
 void MainThreadInterface::Post(std::unique_ptr<Request> request) {
