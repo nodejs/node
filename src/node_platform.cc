@@ -223,7 +223,7 @@ int WorkerThreadsTaskRunner::NumberOfWorkerThreads() const {
 }
 
 PerIsolatePlatformData::PerIsolatePlatformData(
-    v8::Isolate* isolate, uv_loop_t* loop)
+    Isolate* isolate, uv_loop_t* loop)
   : loop_(loop) {
   flush_tasks_ = new uv_async_t();
   CHECK_EQ(0, uv_async_init(loop, flush_tasks_, FlushTasks));
@@ -434,11 +434,11 @@ void NodePlatform::CallDelayedOnForegroundThread(Isolate* isolate,
     std::unique_ptr<Task>(task), delay_in_seconds);
 }
 
-bool NodePlatform::FlushForegroundTasks(v8::Isolate* isolate) {
+bool NodePlatform::FlushForegroundTasks(Isolate* isolate) {
   return ForIsolate(isolate)->FlushForegroundTasksInternal();
 }
 
-void NodePlatform::CancelPendingDelayedTasks(v8::Isolate* isolate) {
+void NodePlatform::CancelPendingDelayedTasks(Isolate* isolate) {
   ForIsolate(isolate)->CancelPendingDelayedTasks();
 }
 
