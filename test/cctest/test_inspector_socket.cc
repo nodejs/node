@@ -61,13 +61,6 @@ enum inspector_handshake_event {
   kInspectorHandshakeNoEvents
 };
 
-struct expectations {
-  std::string actual_data;
-  size_t actual_offset;
-  size_t actual_end;
-  int err_code;
-};
-
 static bool waiting_to_close = true;
 
 void handle_closed(uv_handle_t* handle) {
