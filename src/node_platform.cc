@@ -334,9 +334,13 @@ void PerIsolatePlatformData::RunForegroundTask(std::unique_ptr<Task> task) {
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
-  InternalCallbackScope cb_scope(env, Local<Object>(), { 0, 0 },
-                                 InternalCallbackScope::kAllowEmptyResource);
-  task->Run();
+  if (env != nullptr) {
+    InternalCallbackScope cb_scope(env, Local<Object>(), { 0, 0 },
+                                   InternalCallbackScope::kAllowEmptyResource);
+    task->Run();
+  } else {
+    task->Run();
+  }
 }
 
 void PerIsolatePlatformData::DeleteFromScheduledTasks(DelayedTask* task) {
