@@ -23,6 +23,7 @@ using v8::MaybeLocal;
 using v8::Message;
 using v8::MicrotasksPolicy;
 using v8::ObjectTemplate;
+using v8::SealHandleScope;
 using v8::String;
 using v8::Value;
 
@@ -34,7 +35,9 @@ static bool AllowWasmCodeGenerationCallback(Local<Context> context,
 }
 
 static bool ShouldAbortOnUncaughtException(Isolate* isolate) {
-  HandleScope scope(isolate);
+#ifdef DEBUG
+  SealHandleScope scope(isolate);
+#endif
   Environment* env = Environment::GetCurrent(isolate);
   return env != nullptr &&
          (env->is_main_thread() || !env->is_stopping_worker()) &&
