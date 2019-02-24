@@ -137,7 +137,7 @@ module.exports = {
     'no-path-concat': 'error',
     'no-proto': 'error',
     'no-redeclare': 'error',
-    'no-restricted-modules': ['error', 'sys'],
+    'no-restricted-modules': ['error'],
     /* eslint-disable max-len */
     'no-restricted-properties': [
       'error',

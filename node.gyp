@@ -72,7 +72,6 @@
       'lib/_stream_passthrough.js',
       'lib/_stream_wrap.js',
       'lib/string_decoder.js',
-      'lib/sys.js',
       'lib/timers.js',
       'lib/tls.js',
       'lib/_tls_common.js',

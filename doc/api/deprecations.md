@@ -551,6 +551,9 @@ The `REPLServer.prototype.convertToContext()` API has been removed.
 ### DEP0025: require('sys')
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: XXX
+    description: End-of-Life.
   - version:
     - v4.8.6
     - v6.12.0
@@ -561,7 +564,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The `sys` module is deprecated. Please use the [`util`][] module instead.
 
