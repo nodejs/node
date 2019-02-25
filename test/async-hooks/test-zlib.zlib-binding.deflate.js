@@ -11,7 +11,7 @@ const hooks = initHooks();
 hooks.enable();
 const { internalBinding } = require('internal/test/binding');
 const { Zlib } = internalBinding('zlib');
-const constants = internalBinding('constants').zlib;
+const constants = require('zlib').constants;
 
 const handle = new Zlib(constants.DEFLATE);
 

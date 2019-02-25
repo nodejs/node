@@ -3,8 +3,12 @@
 
 const common = require('../common');
 
-if (!process.binding('config').hasTracing)
+try {
+  require('trace_events');
+} catch {
   common.skip('missing trace events');
+}
+
 common.skipIfWorker(); // https://github.com/nodejs/node/issues/22767
 
 const assert = require('assert');
