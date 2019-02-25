@@ -1,7 +1,7 @@
 #include "env-inl.h"
 #include "node.h"
 #include "node_i18n.h"
-#include "node_options-inl.h"
+#include "node_options.h"
 #include "util-inl.h"
 
 namespace node {
