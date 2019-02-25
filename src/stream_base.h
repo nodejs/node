@@ -207,8 +207,14 @@ class StreamResource {
   // `*bufs` and `*count` accordingly. This is a no-op by default.
   // Return 0 for success and a libuv error code for failures.
   virtual int DoTryWrite(uv_buf_t** bufs, size_t* count);
-  // Perform a write of data, and either call req_wrap->Done() when finished
-  // and return 0, or return a libuv error code for synchronous failures.
+  // Initiate a write of data. If the write completes synchronously, return 0 on
+  // success (with bufs modified to indicate how much data was consumed) or a
+  // libuv error code on failure. If the write will complete asynchronously,
+  // return 0. When the write completes asynchronously, call req_wrap->Done()
+  // with 0 on success (with bufs modified to indicate how much data was
+  // consumed) or a libuv error code on failure. Do not call req_wrap->Done() if
+  // the write completes synchronously, that is, it should never be called
+  // before DoWrite() has returned.
   virtual int DoWrite(WriteWrap* w,
                       uv_buf_t* bufs,
                       size_t count,
