@@ -2306,8 +2306,8 @@ added: v10.7.0
 ```C
 napi_status napi_get_value_bigint_words(napi_env env,
                                         napi_value value,
-                                        size_t* word_count,
                                         int* sign_bit,
+                                        size_t* word_count,
                                         uint64_t* words);
 ```
 
