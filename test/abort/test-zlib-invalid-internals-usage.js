@@ -5,10 +5,12 @@ const os = require('os');
 const cp = require('child_process');
 
 if (process.argv[2] === 'child') {
+  const { internalBinding } = require('internal/test/binding');
   // This is the heart of the test.
-  new (process.binding('zlib').Zlib)(0).init(1, 2, 3, 4, 5);
+  new (internalBinding('zlib').Zlib)(0).init(1, 2, 3, 4, 5);
 } else {
-  const child = cp.spawnSync(`${process.execPath}`, [`${__filename}`, 'child']);
+  const child = cp.spawnSync(
+    `${process.execPath}`, ['--expose-internals', `${__filename}`, 'child']);
 
   assert.strictEqual(child.stdout.toString(), '');
   assert.ok(child.stderr.includes(

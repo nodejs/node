@@ -1,8 +1,11 @@
 'use strict';
 
 const common = require('../common');
-if (!process.binding('config').hasTracing)
+try {
+  require('trace_events');
+} catch {
   common.skip('missing trace events');
+}
 
 const assert = require('assert');
 const cp = require('child_process');
