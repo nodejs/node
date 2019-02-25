@@ -1,18 +1,15 @@
 import url from 'url';
 import path from 'path';
 import process from 'process';
+import { builtinModules } from 'module';
 
-const builtins = new Set(
-  Object.keys(process.binding('natives')).filter((str) =>
-    /^(?!(?:internal|node|v8)\/)/.test(str))
-);
 const JS_EXTENSIONS = new Set(['.js', '.mjs']);
 
 const baseURL = new url.URL('file://');
 baseURL.pathname = process.cwd() + '/';
 
 export function resolve(specifier, parentModuleURL = baseURL /*, defaultResolve */) {
-  if (builtins.has(specifier)) {
+  if (builtinModules.includes(specifier)) {
     return {
       url: specifier,
       format: 'builtin'

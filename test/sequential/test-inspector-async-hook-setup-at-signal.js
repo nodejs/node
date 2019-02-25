@@ -13,7 +13,8 @@ process._rawDebug('Waiting until a signal enables the inspector...');
 let waiting = setInterval(waitUntilDebugged, 50);
 
 function waitUntilDebugged() {
-  if (!process.binding('inspector').isEnabled()) return;
+  const { internalBinding } = require('internal/test/binding');
+  if (!internalBinding('inspector').isEnabled()) return;
   clearInterval(waiting);
   // At this point, even though the Inspector is enabled, the default async
   // call stack depth is 0. We need a chance to call
