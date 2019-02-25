@@ -297,7 +297,7 @@ class OptionsParser {
   // a method that yields the target options type from this parser's options
   // type.
   template <typename ChildOptions>
-  void Insert(const OptionsParser<ChildOptions>* child_options_parser,
+  void Insert(const OptionsParser<ChildOptions>& child_options_parser,
               ChildOptions* (Options::* get_child)());
 
   // Parse a sequence of options into an options struct, a list of

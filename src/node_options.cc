@@ -121,7 +121,7 @@ class EnvironmentOptionsParser : public OptionsParser<EnvironmentOptions> {
   EnvironmentOptionsParser();
   explicit EnvironmentOptionsParser(const DebugOptionsParser& dop)
     : EnvironmentOptionsParser() {
-    Insert(&dop, &EnvironmentOptions::get_debug_options);
+    Insert(dop, &EnvironmentOptions::get_debug_options);
   }
 };
 
@@ -386,7 +386,7 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             kAllowedInEnvironment);
 #endif  // NODE_REPORT
 
-  Insert(&eop, &PerIsolateOptions::get_per_env_options);
+  Insert(eop, &PerIsolateOptions::get_per_env_options);
 }
 
 PerProcessOptionsParser::PerProcessOptionsParser(
@@ -496,7 +496,7 @@ PerProcessOptionsParser::PerProcessOptionsParser(
 #endif
 #endif
 
-  Insert(&iop, &PerProcessOptions::get_per_isolate_options);
+  Insert(iop, &PerProcessOptions::get_per_isolate_options);
 }
 
 inline std::string RemoveBrackets(const std::string& host) {
@@ -510,7 +510,8 @@ inline int ParseAndValidatePort(const std::string& port,
                                 std::vector<std::string>* errors) {
   char* endptr;
   errno = 0;
-  const long result = strtol(port.c_str(), &endptr, 10);  // NOLINT(runtime/int)
+  const unsigned long result =                 // NOLINT(runtime/int)
+    strtoul(port.c_str(), &endptr, 10);
   if (errno != 0 || *endptr != '\0'||
       (result != 0 && result < 1024) || result > 65535) {
     errors->push_back(" must be 0 or in range 1024 to 65535.");
