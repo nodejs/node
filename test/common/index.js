@@ -29,10 +29,9 @@ const os = require('os');
 const { exec, execSync, spawnSync } = require('child_process');
 const util = require('util');
 const tmpdir = require('./tmpdir');
-const {
-  bits,
-  hasIntl
-} = process.binding('config');
+const bits = ['arm64', 'mips', 'mipsel', 'ppc64', 's390x', 'x64']
+  .includes(process.arch) ? 64 : 32;
+const hasIntl = !!process.config.variables.v8_enable_i18n_support;
 const { isMainThread } = require('worker_threads');
 
 // Some tests assume a umask of 0o022 so set that up front. Tests that need a
