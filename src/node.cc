@@ -19,6 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include "node.h"
+
+// ========== local headers ==========
+
 #include "debug_utils.h"
 #include "node_binding.h"
 #include "node_buffer.h"
@@ -72,25 +76,19 @@
 #include "large_pages/node_large_page.h"
 #endif
 
-#include <cerrno>
-#include <fcntl.h>  // _O_RDWR
-#include <climits>  // PATH_MAX
-#include <csignal>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <sys/types.h>
+#ifdef NODE_REPORT
+#include "node_report.h"
+#endif
 
-#include <string>
-#include <vector>
+// ========== global C headers ==========
+
+#include <fcntl.h>  // _O_RDWR
+#include <sys/types.h>
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 #include <unicode/uvernum.h>
 #endif
 
-#ifdef NODE_REPORT
-#include "node_report.h"
-#endif
 
 #if defined(LEAK_SANITIZER)
 #include <sanitizer/lsan_interface.h>
@@ -105,6 +103,18 @@
 #include <sys/resource.h>  // getrlimit, setrlimit
 #include <unistd.h>        // STDIN_FILENO, STDERR_FILENO
 #endif
+
+// ========== global C++ headers ==========
+
+#include <cerrno>
+#include <climits>  // PATH_MAX
+#include <csignal>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
+#include <string>
+#include <vector>
 
 namespace node {
 

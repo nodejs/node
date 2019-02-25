@@ -32,10 +32,11 @@
 #include "brotli/decode.h"
 #include "zlib.h"
 
+#include <sys/types.h>
+
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
-#include <sys/types.h>
 #include <atomic>
 
 namespace node {

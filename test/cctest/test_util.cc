@@ -1,6 +1,4 @@
-#include "util.h"
 #include "util-inl.h"
-
 #include "gtest/gtest.h"
 
 TEST(UtilTest, ListHead) {

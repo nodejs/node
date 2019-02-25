@@ -1,9 +1,11 @@
+#include "../../js-native-api/common.h"
+
 #include <node_api.h>
 #include <uv.h>
-#include <utility>
+
+#include <cassert>
 #include <memory>
-#include <assert.h>
-#include "../../js-native-api/common.h"
+#include <utility>
 
 template <typename T>
 void* SetImmediate(napi_env env, T&& cb) {

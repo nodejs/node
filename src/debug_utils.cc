@@ -22,11 +22,6 @@
 #include <cstdio>
 #endif
 
-#else  // __POSIX__
-
-#include <windows.h>
-#include <dbghelp.h>
-
 #endif  // __POSIX__
 
 #if defined(__linux__) || defined(__sun) || defined(__FreeBSD__)

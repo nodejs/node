@@ -1,9 +1,9 @@
 #include "sharedarraybuffer_metadata.h"
 
-#include <utility>
-#include "base_object.h"
 #include "base_object-inl.h"
 #include "node_errors.h"
+
+#include <utility>
 
 using v8::Context;
 using v8::Function;

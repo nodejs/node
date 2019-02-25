@@ -4,8 +4,6 @@
 #include "node_buffer.h"
 #include "node_perf.h"
 #include "util.h"
-#include "util-inl.h"
-#include "async_wrap.h"
 #include "async_wrap-inl.h"
 
 #if NODE_USE_V8_PLATFORM && HAVE_INSPECTOR

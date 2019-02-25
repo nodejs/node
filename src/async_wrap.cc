@@ -19,6 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include "async_wrap.h"  // NOLINT(build/include_inline)
 #include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "node_errors.h"
