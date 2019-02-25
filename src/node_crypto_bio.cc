@@ -39,9 +39,7 @@ namespace crypto {
 
 
 BIOPointer NodeBIO::New(Environment* env) {
-  // The const_cast doesn't violate const correctness.  OpenSSL's usage of
-  // BIO_METHOD is effectively const but BIO_new() takes a non-const argument.
-  BIOPointer bio(BIO_new(const_cast<BIO_METHOD*>(GetMethod())));
+  BIOPointer bio(BIO_new(GetMethod()));
   if (bio && env != nullptr)
     NodeBIO::FromBIO(bio.get())->env_ = env;
   return bio;
