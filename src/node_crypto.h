@@ -333,7 +333,7 @@ class SSLWrap {
 
   ClientHelloParser hello_parser_;
 
-  Persistent<v8::Object> ocsp_response_;
+  Persistent<v8::ArrayBufferView> ocsp_response_;
   Persistent<v8::Value> sni_context_;
 
   friend class SecureContext;
@@ -462,7 +462,7 @@ class KeyObject : public BaseObject {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void Init(const v8::FunctionCallbackInfo<v8::Value>& args);
-  void InitSecret(const char* key, size_t key_len);
+  void InitSecret(v8::Local<v8::ArrayBufferView> abv);
   void InitPublic(const ManagedEVPPKey& pkey);
   void InitPrivate(const ManagedEVPPKey& pkey);
 
@@ -803,8 +803,7 @@ class ECDH : public BaseObject {
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
   static ECPointPointer BufferToPoint(Environment* env,
                                       const EC_GROUP* group,
-                                      char* data,
-                                      size_t len);
+                                      v8::Local<v8::Value> buf);
 
   // TODO(joyeecheung): track the memory used by OpenSSL types
   SET_NO_MEMORY_INFO()
