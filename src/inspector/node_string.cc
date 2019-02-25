@@ -85,6 +85,28 @@ double toDouble(const char* buffer, size_t length, bool* ok) {
   return d;
 }
 
+std::unique_ptr<Value> parseMessage(const std::string& message, bool binary) {
+  if (binary) {
+    return Value::parseBinary(
+        reinterpret_cast<const uint8_t*>(message.data()),
+        message.length());
+  }
+  return parseJSON(message);
+}
+
+ProtocolMessage jsonToMessage(String message) {
+  return message;
+}
+
+ProtocolMessage binaryToMessage(std::vector<uint8_t> message) {
+  return std::string(reinterpret_cast<const char*>(message.data()),
+                     message.size());
+}
+
+String fromUTF8(const uint8_t* data, size_t length) {
+  return std::string(reinterpret_cast<const char*>(data), length);
+}
+
 }  // namespace StringUtil
 }  // namespace protocol
 }  // namespace inspector

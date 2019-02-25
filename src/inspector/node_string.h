@@ -18,6 +18,17 @@ class Value;
 
 using String = std::string;
 using StringBuilder = std::ostringstream;
+using ProtocolMessage = std::string;
+
+class StringUTF8Adapter {
+ public:
+  explicit StringUTF8Adapter(const std::string& string) : string_(string) { }
+  const char* Data() const { return string_.data(); }
+  size_t length() const { return string_.length(); }
+
+ private:
+  const std::string& string_;
+};
 
 namespace StringUtil {
 // NOLINTNEXTLINE(runtime/references) This is V8 API...
@@ -67,8 +78,29 @@ void builderAppendQuotedString(StringBuilder& builder, const String&);
 std::unique_ptr<Value> parseJSON(const String&);
 std::unique_ptr<Value> parseJSON(v8_inspector::StringView view);
 
+std::unique_ptr<Value> parseMessage(const std::string& message, bool binary);
+ProtocolMessage jsonToMessage(String message);
+ProtocolMessage binaryToMessage(std::vector<uint8_t> message);
+String fromUTF8(const uint8_t* data, size_t length);
+
 extern size_t kNotFound;
 }  // namespace StringUtil
+
+// A read-only sequence of uninterpreted bytes with reference-counted storage.
+// Though the templates for generating the protocol bindings reference
+// this type, js_protocol.pdl doesn't have a field of type 'binary', so
+// therefore it's unnecessary to provide an implementation here.
+class Binary {
+ public:
+  const uint8_t* data() const { UNREACHABLE(); }
+  size_t size() const { UNREACHABLE(); }
+  String toBase64() const { UNREACHABLE(); }
+  static Binary fromBase64(const String& base64, bool* success) {
+    UNREACHABLE();
+  }
+  static Binary fromSpan(const uint8_t* data, size_t size) { UNREACHABLE(); }
+};
+
 }  // namespace protocol
 }  // namespace inspector
 }  // namespace node
