@@ -417,6 +417,27 @@ class MaybeStackBuffer {
   T buf_st_[kStackStorageSize];
 };
 
+// Provides access to an ArrayBufferView's storage, either the original,
+// or for small data, a copy of it. This object's lifetime is bound to the
+// original ArrayBufferView's lifetime.
+template <typename T, size_t kStackStorageSize = 64>
+class ArrayBufferViewContents {
+ public:
+  ArrayBufferViewContents() {}
+
+  explicit inline ArrayBufferViewContents(v8::Local<v8::Value> value);
+  explicit inline ArrayBufferViewContents(v8::Local<v8::ArrayBufferView> abv);
+  inline void Read(v8::Local<v8::ArrayBufferView> abv);
+
+  inline const T* data() const { return data_; }
+  inline size_t length() const { return length_; }
+
+ private:
+  T stack_storage_[kStackStorageSize];
+  T* data_ = nullptr;
+  size_t length_ = 0;
+};
+
 class Utf8Value : public MaybeStackBuffer<char> {
  public:
   explicit Utf8Value(v8::Isolate* isolate, v8::Local<v8::Value> value);

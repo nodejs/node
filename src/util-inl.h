@@ -466,6 +466,32 @@ SlicedArguments::SlicedArguments(
     (*this)[i] = args[i + start];
 }
 
+template <typename T, size_t S>
+ArrayBufferViewContents<T, S>::ArrayBufferViewContents(
+    v8::Local<v8::Value> value) {
+  CHECK(value->IsArrayBufferView());
+  Read(value.As<v8::ArrayBufferView>());
+}
+
+template <typename T, size_t S>
+ArrayBufferViewContents<T, S>::ArrayBufferViewContents(
+    v8::Local<v8::ArrayBufferView> abv) {
+  Read(abv);
+}
+
+template <typename T, size_t S>
+void ArrayBufferViewContents<T, S>::Read(v8::Local<v8::ArrayBufferView> abv) {
+  static_assert(sizeof(T) == 1, "Only supports one-byte data at the moment");
+  length_ = abv->ByteLength();
+  if (length_ > sizeof(stack_storage_) || abv->HasBuffer()) {
+    data_ = static_cast<T*>(abv->Buffer()->GetContents().Data()) +
+        abv->ByteOffset();
+  } else {
+    abv->CopyContents(stack_storage_, sizeof(stack_storage_));
+    data_ = stack_storage_;
+  }
+}
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
