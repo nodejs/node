@@ -282,9 +282,10 @@ _ERROR_CATEGORIES = [
     'build/forward_decl',
     'build/header_guard',
     'build/include',
-    'build/include_subdir',
     'build/include_alpha',
+    'build/include_inline',
     'build/include_order',
+    'build/include_subdir',
     'build/include_what_you_use',
     'build/namespaces_literals',
     'build/namespaces',
@@ -356,8 +357,9 @@ _LEGACY_ERROR_CATEGORIES = [
 # off by default (i.e., categories that must be enabled by the --filter= flags).
 # All entries here should start with a '-' or '+', as in the --filter= flag.
 _DEFAULT_FILTERS = [
-    '-build/include',
+    '-build/include_alpha',
     '-build/include_subdir',
+    '-build/include_what_you_use',
     '-legal/copyright',
     ]
 
@@ -834,9 +836,9 @@ class _IncludeState(object):
   # needs to move backwards, CheckNextIncludeOrder will raise an error.
   _INITIAL_SECTION = 0
   _MY_H_SECTION = 1
-  _C_SECTION = 2
-  _CPP_SECTION = 3
-  _OTHER_H_SECTION = 4
+  _OTHER_H_SECTION = 2
+  _C_SECTION = 3
+  _CPP_SECTION = 4
 
   _TYPE_NAMES = {
       _C_SYS_HEADER: 'C system header',
@@ -848,9 +850,9 @@ class _IncludeState(object):
   _SECTION_NAMES = {
       _INITIAL_SECTION: "... nothing. (This can't be an error.)",
       _MY_H_SECTION: 'a header this file implements',
+      _OTHER_H_SECTION: 'other header',
       _C_SECTION: 'C system header',
       _CPP_SECTION: 'C++ system header',
-      _OTHER_H_SECTION: 'other header',
       }
 
   def __init__(self):
@@ -2130,7 +2132,7 @@ def CheckInlineHeader(filename, include_state, error):
   for name in bad_headers:
     err =  '%s includes both %s and %s-inl.h' % (filename, name, name)
     linenum = all_headers[name]
-    error(filename, linenum, 'build/include', 5, err)
+    error(filename, linenum, 'build/include_inline', 5, err)
 
 
 def CheckForNewlineAtEOF(filename, lines, error):
@@ -4768,11 +4770,10 @@ def CheckIncludeLine(filename, clean_lines, linenum, include_state, error):
       include_state.include_list[-1].append((include, linenum))
 
       # We want to ensure that headers appear in the right order:
-      # 1) for foo.cc, foo.h  (preferred location)
-      # 2) c system files
-      # 3) cpp system files
-      # 4) for foo.cc, foo.h  (deprecated location)
-      # 5) other google headers
+      # 1) for foo.cc, foo.h
+      # 2) other project headers
+      # 3) c system files
+      # 4) cpp system files
       #
       # We classify each include statement as one of those 5 types
       # using a number of techniques. The include_state object keeps
