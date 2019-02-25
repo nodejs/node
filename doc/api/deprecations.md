@@ -2134,9 +2134,12 @@ changes:
   - version: v10.9.0
     pr-url: https://github.com/nodejs/node/pull/22004
     description: Documentation-only deprecation.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/26500
+    description: Added support for `--pending-deprecation`.
 -->
 
-Type: Documentation-only
+Type: Documentation-only (supports [`--pending-deprecation`][])
 
 `process.binding()` is for use by Node.js internal code only.
 
