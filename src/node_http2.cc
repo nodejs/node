@@ -12,6 +12,7 @@
 namespace node {
 
 using v8::ArrayBuffer;
+using v8::ArrayBufferView;
 using v8::Boolean;
 using v8::Context;
 using v8::Float64Array;
@@ -2483,7 +2484,7 @@ void Http2Session::Request(const FunctionCallbackInfo<Value>& args) {
 // state of the Http2Session, it's simply a notification.
 void Http2Session::Goaway(uint32_t code,
                           int32_t lastStreamID,
-                          uint8_t* data,
+                          const uint8_t* data,
                           size_t len) {
   if (IsDestroyed())
     return;
@@ -2508,16 +2509,13 @@ void Http2Session::Goaway(const FunctionCallbackInfo<Value>& args) {
 
   uint32_t code = args[0]->Uint32Value(context).ToChecked();
   int32_t lastStreamID = args[1]->Int32Value(context).ToChecked();
-  Local<Value> opaqueData = args[2];
-  uint8_t* data = nullptr;
-  size_t length = 0;
+  ArrayBufferViewContents<uint8_t> opaque_data;
 
-  if (Buffer::HasInstance(opaqueData)) {
-    data = reinterpret_cast<uint8_t*>(Buffer::Data(opaqueData));
-    length = Buffer::Length(opaqueData);
+  if (args[2]->IsArrayBufferView()) {
+    opaque_data.Read(args[2].As<ArrayBufferView>());
   }
 
-  session->Goaway(code, lastStreamID, data, length);
+  session->Goaway(code, lastStreamID, opaque_data.data(), opaque_data.length());
 }
 
 // Update accounting of data chunks. This is used primarily to manage timeout
@@ -2771,10 +2769,10 @@ void Http2Session::Ping(const FunctionCallbackInfo<Value>& args) {
 
   // A PING frame may have exactly 8 bytes of payload data. If not provided,
   // then the current hrtime will be used as the payload.
-  uint8_t* payload = nullptr;
-  if (Buffer::HasInstance(args[0])) {
-    payload = reinterpret_cast<uint8_t*>(Buffer::Data(args[0]));
-    CHECK_EQ(Buffer::Length(args[0]), 8);
+  ArrayBufferViewContents<uint8_t, 8> payload;
+  if (args[0]->IsArrayBufferView()) {
+    payload.Read(args[0].As<ArrayBufferView>());
+    CHECK_EQ(payload.length(), 8);
   }
 
   Local<Object> obj;
@@ -2799,7 +2797,7 @@ void Http2Session::Ping(const FunctionCallbackInfo<Value>& args) {
   // the callback will be invoked and a notification sent out to JS land. The
   // notification will include the duration of the ping, allowing the round
   // trip to be measured.
-  ping->Send(payload);
+  ping->Send(payload.data());
   args.GetReturnValue().Set(true);
 }
 
@@ -2871,7 +2869,7 @@ Http2Session::Http2Ping::Http2Ping(Http2Session* session, Local<Object> obj)
       session_(session),
       startTime_(uv_hrtime()) {}
 
-void Http2Session::Http2Ping::Send(uint8_t* payload) {
+void Http2Session::Http2Ping::Send(const uint8_t* payload) {
   uint8_t data[8];
   if (payload == nullptr) {
     memcpy(&data, &startTime_, arraysize(data));
