@@ -239,43 +239,39 @@ class OptionsParser {
   struct NoOp {};
   struct V8Option {};
 
-  // TODO(addaleax): A lot of the `std::string` usage here could be reduced
-  // to simple `const char*`s if it's reasonable to expect the values to be
-  // known at compile-time.
-
   // These methods add a single option to the parser. Optionally, it can be
   // specified whether the option should be allowed from environment variable
   // sources (i.e. NODE_OPTIONS).
-  void AddOption(const std::string& name,
-                 const std::string& help_text,
+  void AddOption(const char* name,
+                 const char* help_text,
                  bool Options::* field,
                  OptionEnvvarSettings env_setting = kDisallowedInEnvironment);
-  void AddOption(const std::string& name,
-                 const std::string& help_text,
+  void AddOption(const char* name,
+                 const char* help_text,
                  uint64_t Options::* field,
                  OptionEnvvarSettings env_setting = kDisallowedInEnvironment);
-  void AddOption(const std::string& name,
-                 const std::string& help_text,
+  void AddOption(const char* name,
+                 const char* help_text,
                  int64_t Options::* field,
                  OptionEnvvarSettings env_setting = kDisallowedInEnvironment);
-  void AddOption(const std::string& name,
-                 const std::string& help_text,
+  void AddOption(const char* name,
+                 const char* help_text,
                  std::string Options::* field,
                  OptionEnvvarSettings env_setting = kDisallowedInEnvironment);
-  void AddOption(const std::string& name,
-                 const std::string& help_text,
+  void AddOption(const char* name,
+                 const char* help_text,
                  std::vector<std::string> Options::* field,
                  OptionEnvvarSettings env_setting = kDisallowedInEnvironment);
-  void AddOption(const std::string& name,
-                 const std::string& help_text,
+  void AddOption(const char* name,
+                 const char* help_text,
                  HostPort Options::* field,
                  OptionEnvvarSettings env_setting = kDisallowedInEnvironment);
-  void AddOption(const std::string& name,
-                 const std::string& help_text,
+  void AddOption(const char* name,
+                 const char* help_text,
                  NoOp no_op_tag,
                  OptionEnvvarSettings env_setting = kDisallowedInEnvironment);
-  void AddOption(const std::string& name,
-                 const std::string& help_text,
+  void AddOption(const char* name,
+                 const char* help_text,
                  V8Option v8_option_tag,
                  OptionEnvvarSettings env_setting = kDisallowedInEnvironment);
 
@@ -286,15 +282,15 @@ class OptionsParser {
   // the option is presented in that form (i.e. with a '=').
   // If `from` has the form "--option-a <arg>", the alias will only be expanded
   // if the option has a non-option argument (not starting with -) following it.
-  void AddAlias(const std::string& from, const std::string& to);
-  void AddAlias(const std::string& from, const std::vector<std::string>& to);
-  void AddAlias(const std::string& from,
+  void AddAlias(const char* from, const char* to);
+  void AddAlias(const char* from, const std::vector<std::string>& to);
+  void AddAlias(const char* from,
                 const std::initializer_list<std::string>& to);
 
   // Add implications from some arbitrary option to a boolean one, either
   // in a way that makes `from` set `to` to true or to false.
-  void Implies(const std::string& from, const std::string& to);
-  void ImpliesNot(const std::string& from, const std::string& to);
+  void Implies(const char* from, const char* to);
+  void ImpliesNot(const char* from, const char* to);
 
   // Insert options from another options parser into this one, along with
   // a method that yields the target options type from this parser's options
