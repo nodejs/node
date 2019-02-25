@@ -8,6 +8,7 @@ namespace util {
 
 using v8::ALL_PROPERTIES;
 using v8::Array;
+using v8::ArrayBufferView;
 using v8::Boolean;
 using v8::Context;
 using v8::Function;
@@ -174,6 +175,11 @@ void WatchdogHasPendingSigint(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret);
 }
 
+void ArrayBufferViewHasBuffer(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsArrayBufferView());
+  args.GetReturnValue().Set(args[0].As<ArrayBufferView>()->HasBuffer());
+}
+
 void EnqueueMicrotask(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -254,6 +260,7 @@ void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "watchdogHasPendingSigint",
                              WatchdogHasPendingSigint);
 
+  env->SetMethod(target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
   env->SetMethod(target, "enqueueMicrotask", EnqueueMicrotask);
   env->SetMethod(target, "triggerFatalException", FatalException);
   Local<Object> constants = Object::New(env->isolate());
