@@ -1,16 +1,17 @@
-#ifndef SRC_MEMORY_TRACKER_H_
-#define SRC_MEMORY_TRACKER_H_
+#pragma once
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include <unordered_map>
+#include "aliased_buffer.h"
+#include "v8-profiler.h"
+
+#include <uv.h>
+
+#include <limits>
 #include <queue>
 #include <stack>
 #include <string>
-#include <limits>
-#include <uv.h>
-#include "aliased_buffer.h"
-#include "v8-profiler.h"
+#include <unordered_map>
 
 namespace node {
 
@@ -253,5 +254,3 @@ class MemoryTracker {
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
-#endif  // SRC_MEMORY_TRACKER_H_

@@ -8,8 +8,11 @@
 #include "node_metadata.h"
 #include "zlib.h"
 
-#include <atomic>
-#include <fstream>
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#endif
+
+#include <fcntl.h>
 
 #ifdef _WIN32
 #include <Lm.h>
@@ -18,30 +21,18 @@
 #include <process.h>
 #include <psapi.h>
 #include <tchar.h>
-#include <cwctype>
-#else
+#else  // !_WIN32
 #include <sys/resource.h>
-// Get the standard printf format macros for C99 stdint types.
-#ifndef __STDC_FORMAT_MACROS
-#define __STDC_FORMAT_MACROS
-#endif
 #include <cxxabi.h>
 #include <dlfcn.h>
-#include <cinttypes>
 #endif
 
-#include <fcntl.h>
 #include <cstring>
 #include <ctime>
+#include <cwctype>
+#include <atomic>
+#include <fstream>
 #include <iomanip>
-
-#ifndef _MSC_VER
-#include <strings.h>
-#endif
-
-#ifdef __APPLE__
-#include <mach-o/dyld.h>
-#endif
 
 #ifndef _WIN32
 extern char** environ;

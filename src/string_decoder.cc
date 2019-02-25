@@ -1,7 +1,9 @@
+#include "string_decoder.h"  // NOLINT(build/include_inline)
+#include "string_decoder-inl.h"
+
 #include "env-inl.h"
 #include "node_buffer.h"
 #include "string_bytes.h"
-#include "string_decoder-inl.h"
 
 using v8::Array;
 using v8::ArrayBufferView;

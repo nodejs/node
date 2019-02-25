@@ -1,7 +1,10 @@
-#include <cerrno>
+#include "node_options.h"  // NOLINT(build/include_inline)
+#include "node_options-inl.h"
+
 #include "env-inl.h"
 #include "node_binding.h"
-#include "node_options-inl.h"
+
+#include <cstdlib>  // strtoul, errno
 
 using v8::Boolean;
 using v8::Context;

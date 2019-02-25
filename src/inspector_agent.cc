@@ -16,15 +16,15 @@
 
 #include "libplatform/libplatform.h"
 
+#ifdef __POSIX__
+#include <pthread.h>
+#include <climits>  // PTHREAD_STACK_MIN
+#endif  // __POSIX__
+
 #include <cstring>
 #include <sstream>
 #include <unordered_map>
 #include <vector>
-
-#ifdef __POSIX__
-#include <climits>  // PTHREAD_STACK_MIN
-#include <pthread.h>
-#endif  // __POSIX__
 
 namespace node {
 namespace inspector {

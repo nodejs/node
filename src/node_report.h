@@ -1,25 +1,9 @@
-#ifndef SRC_NODE_REPORT_H_
-#define SRC_NODE_REPORT_H_
+#pragma once
 
-#include <node.h>
-#include <node_buffer.h>
-#include <uv.h>
-#include <algorithm>
-#include <climits>
-#include <cstdlib>
-#include <cstring>
-#include <queue>
-#include <string>
-#include <utility>
-#include <vector>
+#include "node.h"
+#include "node_buffer.h"
+#include "uv.h"
 #include "v8.h"
-
-#include <cstdio>
-#include <cstdlib>
-#include <iomanip>
-#include <iostream>
-#include <sstream>
-#include <limits>
 
 #ifdef _WIN32
 #include <time.h>
@@ -28,6 +12,20 @@
 #include <sys/types.h>
 #include <unistd.h>
 #endif
+
+#include <climits>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <limits>
+#include <algorithm>
+#include <queue>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace report {
 
@@ -185,5 +183,3 @@ class JSONWriter {
 };
 
 }  // namespace report
-
-#endif  // SRC_NODE_REPORT_H_
