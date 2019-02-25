@@ -24,27 +24,30 @@
 
 #include "zlib.h"
 
-#include <cerrno>
 #if !defined(_MSC_VER)
 #include <unistd.h>
 #endif
+
 #include <fcntl.h>
-#include <csignal>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <limits>
+
 
 #if HAVE_OPENSSL
-# include <openssl/ec.h>
-# include <openssl/ssl.h>
-# ifndef OPENSSL_NO_ENGINE
-#  include <openssl/engine.h>
-# endif  // !OPENSSL_NO_ENGINE
-#endif
+#include <openssl/ec.h>
+#include <openssl/ssl.h>
+#ifndef OPENSSL_NO_ENGINE
+#include <openssl/engine.h>
+#endif  // !OPENSSL_NO_ENGINE
+#endif  // HAVE_OPENSSL
 
 #if defined(__POSIX__)
 #include <dlfcn.h>
 #endif
+
+#include <cerrno>
+#include <csignal>
+#include <limits>
 
 namespace node {
 

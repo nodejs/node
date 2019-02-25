@@ -22,8 +22,7 @@
 // This file is included from 2 files, node_http_parser_traditional.cc
 // and node_http_parser_llhttp.cc.
 
-#ifndef SRC_NODE_HTTP_PARSER_IMPL_H_
-#define SRC_NODE_HTTP_PARSER_IMPL_H_
+#pragma once
 
 #include "node.h"
 #include "node_buffer.h"
@@ -32,13 +31,13 @@
 #include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "stream_base-inl.h"
-#include "util-inl.h"
 #include "v8.h"
+
+#include "http_parser_adaptor.h"
 
 #include <cstdlib>  // free()
 #include <cstring>  // strdup(), strchr()
 
-#include "http_parser_adaptor.h"
 
 // This is a binding to http_parser (https://github.com/nodejs/http-parser)
 // The goal is to decouple sockets from parsing for more javascript-level
@@ -978,5 +977,3 @@ void InitializeHttpParser(Local<Object> target,
 
 }  // anonymous namespace
 }  // namespace node
-
-#endif  // SRC_NODE_HTTP_PARSER_IMPL_H_

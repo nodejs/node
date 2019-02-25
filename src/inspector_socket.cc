@@ -12,8 +12,8 @@
 
 #include "openssl/sha.h"  // Sha-1 hash
 
-#include <map>
 #include <cstring>
+#include <map>
 
 #define ACCEPT_KEY_LENGTH base64_encoded_size(20)
 

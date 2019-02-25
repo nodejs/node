@@ -1,5 +1,4 @@
 #include "base_object-inl.h"
-#include "base_object.h"
 #include "env-inl.h"
 #include "node.h"
 #include "node_errors.h"

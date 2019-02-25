@@ -19,9 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "node_win32_etw_provider.h"
-#include "node_etw_provider.h"
+#include "node_win32_etw_provider.h"  // NOLINT(build/include_inline)
 #include "node_win32_etw_provider-inl.h"
+
+#include "node_etw_provider.h"
 
 namespace node {
 
