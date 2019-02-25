@@ -1,27 +1,30 @@
-# Copyright 2017 The Chromium Authors. All rights reserved.
+# Copyright 2018 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+from __future__ import print_function
 import collections
 import json
 import os.path
 import re
 import sys
 
-file_name = None
 description = ''
 
-primitiveTypes = ['integer', 'number', 'boolean', 'string', 'object', 'any', 'array']
+
+primitiveTypes = ['integer', 'number', 'boolean', 'string', 'object', 'any', 'array', 'binary']
 
 
-def assignType(item, type, isArray=False):
-    if isArray:
+def assignType(item, type, is_array=False, map_binary_to_string=False):
+    if is_array:
         item['type'] = 'array'
         item['items'] = collections.OrderedDict()
-        assignType(item['items'], type)
+        assignType(item['items'], type, False, map_binary_to_string)
         return
 
     if type == 'enum':
+        type = 'string'
+    if map_binary_to_string and type == 'binary':
         type = 'string'
     if type in primitiveTypes:
         item['type'] = type
@@ -43,7 +46,7 @@ def createItem(d, experimental, deprecated, name=None):
     return result
 
 
-def parse(data):
+def parse(data, file_name, map_binary_to_string=False):
     protocol = collections.OrderedDict()
     protocol['version'] = collections.OrderedDict()
     protocol['domains'] = []
@@ -89,7 +92,7 @@ def parse(data):
             if 'types' not in domain:
                 domain['types'] = []
             item = createItem({'id': match.group(3)}, match.group(1), match.group(2))
-            assignType(item, match.group(5), match.group(4))
+            assignType(item, match.group(5), match.group(4), map_binary_to_string)
             domain['types'].append(item)
             continue
 
@@ -116,7 +119,7 @@ def parse(data):
             param = createItem({}, match.group(1), match.group(2), match.group(6))
             if match.group(3):
                 param['optional'] = True
-            assignType(param, match.group(5), match.group(4))
+            assignType(param, match.group(5), match.group(4), map_binary_to_string)
             if match.group(5) == 'enum':
                 enumliterals = param['enum'] = []
             subitems.append(param)
@@ -157,27 +160,12 @@ def parse(data):
             enumliterals.append(trimLine)
             continue
 
-        print 'Error in %s:%s, illegal token: \t%s' % (file_name, i, line)
+        print('Error in %s:%s, illegal token: \t%s' % (file_name, i, line))
         sys.exit(1)
     return protocol
 
-def main(argv):
-    if len(argv) < 2:
-        sys.stderr.write("Usage: %s <protocol.pdl> <protocol.json>\n" % sys.argv[0])
-        return 1
-    global file_name
-    file_name = os.path.normpath(argv[0])
-    input_file = open(file_name, "r")
-    pdl_string = input_file.read()
-    protocol = parse(pdl_string)
-    output_file = open(argv[0].replace('.pdl', '.json'), 'wb')
-    json.dump(protocol, output_file, indent=4, separators=(',', ': '))
-    output_file.close()
 
-    output_file = open(os.path.normpath(argv[1]), 'wb')
-    json.dump(protocol, output_file, indent=4, separators=(',', ': '))
-    output_file.close()
-
-
-if __name__ == '__main__':
-    sys.exit(main(sys.argv[1:]))
+def loads(data, file_name, map_binary_to_string=False):
+    if file_name.endswith(".pdl"):
+        return parse(data, file_name, map_binary_to_string)
+    return json.loads(data)

@@ -236,15 +236,19 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
   }
 
   std::string dispatchProtocolMessage(const StringView& message) {
-    std::unique_ptr<protocol::DictionaryValue> parsed;
+    std::string raw_message = protocol::StringUtil::StringViewToUtf8(message);
+    std::unique_ptr<protocol::DictionaryValue> value =
+        protocol::DictionaryValue::cast(protocol::StringUtil::parseMessage(
+            raw_message, false));
+    int call_id;
     std::string method;
-    node_dispatcher_->getCommandName(
-        protocol::StringUtil::StringViewToUtf8(message), &method, &parsed);
+    node_dispatcher_->parseCommand(value.get(), &call_id, &method);
     if (v8_inspector::V8InspectorSession::canDispatchMethod(
             Utf8ToStringView(method)->string())) {
       session_->dispatchProtocolMessage(message);
     } else {
-      node_dispatcher_->dispatch(std::move(parsed));
+      node_dispatcher_->dispatch(call_id, method, std::move(value),
+                                 raw_message);
     }
     return method;
   }
@@ -284,11 +288,17 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
 
   void sendProtocolResponse(int callId,
                             std::unique_ptr<Serializable> message) override {
-    sendMessageToFrontend(message->serialize());
+    sendMessageToFrontend(message->serializeToJSON());
   }
   void sendProtocolNotification(
       std::unique_ptr<Serializable> message) override {
-    sendMessageToFrontend(message->serialize());
+    sendMessageToFrontend(message->serializeToJSON());
+  }
+
+  void fallThrough(int callId,
+                   const std::string& method,
+                   const std::string& message) override {
+    DCHECK(false);
   }
 
   std::unique_ptr<protocol::TracingAgent> tracing_agent_;
