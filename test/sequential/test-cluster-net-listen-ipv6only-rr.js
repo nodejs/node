@@ -48,9 +48,14 @@ if (cluster.isMaster) {
     workers.set(i, worker);
   }
 } else {
+  // As the cluster member has the potential to grab any port
+  // from the environment, this can cause collision when master
+  // obtains the port from cluster member and tries to listen on.
+  // So move this to sequential, and provide a static port.
+  // Refs: https://github.com/nodejs/node/issues/25813
   net.createServer().listen({
-    host,
-    port: 0,
+    host: host,
+    port: common.PORT,
     ipv6Only: true,
   }, common.mustCall());
 }
