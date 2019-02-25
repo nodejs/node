@@ -1,6 +1,3 @@
-#include <algorithm>
-#include <climits>  // PATH_MAX
-#include <sys/stat.h>  // S_IFDIR
 #include "module_wrap.h"
 
 #include "env.h"
@@ -9,6 +6,11 @@
 #include "util-inl.h"
 #include "node_contextify.h"
 #include "node_watchdog.h"
+
+#include <sys/stat.h>  // S_IFDIR
+
+#include <algorithm>
+#include <climits>  // PATH_MAX
 
 namespace node {
 namespace loader {

@@ -1,11 +1,6 @@
-#ifndef SRC_INSPECTOR_AGENT_H_
-#define SRC_INSPECTOR_AGENT_H_
+#pragma once
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
-#include <memory>
-
-#include <cstddef>
 
 #if !HAVE_INSPECTOR
 #error("This header can only be used when inspector is enabled")
@@ -14,6 +9,9 @@
 #include "node_options-inl.h"
 #include "node_persistent.h"
 #include "v8.h"
+
+#include <cstddef>
+#include <memory>
 
 namespace v8_inspector {
 class StringView;
@@ -143,5 +141,3 @@ class Agent {
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
-#endif  // SRC_INSPECTOR_AGENT_H_

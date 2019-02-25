@@ -1,11 +1,10 @@
 #include "node_messaging.h"
+
 #include "async_wrap-inl.h"
-#include "async_wrap.h"
 #include "debug_utils.h"
 #include "node_buffer.h"
 #include "node_errors.h"
 #include "node_process.h"
-#include "util-inl.h"
 #include "util.h"
 
 using v8::Array;

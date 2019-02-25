@@ -23,19 +23,19 @@
 #include "string_bytes.h"
 #include "util.h"
 
-#include <array>
-#include <cerrno>
-#include <cstring>
-
 #ifdef __MINGW32__
 # include <io.h>
 #endif  // __MINGW32__
 
 #ifdef __POSIX__
-# include <climits>         // PATH_MAX on Solaris.
 # include <unistd.h>        // gethostname, sysconf
 # include <sys/utsname.h>
+# include <climits>         // PATH_MAX on Solaris.
 #endif  // __POSIX__
+
+#include <array>
+#include <cerrno>
+#include <cstring>
 
 namespace node {
 namespace os {

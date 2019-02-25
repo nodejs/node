@@ -2,10 +2,11 @@
 
 #include "node_mutex.h"
 #include "v8-inspector.h"
+#include "util-inl.h"
+
+#include <unicode/unistr.h>
 
 #include <functional>
-#include <unicode/unistr.h>
-#include "util-inl.h"
 
 namespace node {
 namespace inspector {
