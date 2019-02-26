@@ -378,7 +378,7 @@ typedef void (*napi_finalize)(napi_env env,
 
 #### napi_async_execute_callback
 Function pointer used with functions that support asynchronous
-operations. Callback functions must statisfy the following signature:
+operations. Callback functions must satisfy the following signature:
 
 ```C
 typedef void (*napi_async_execute_callback)(napi_env env, void* data);
@@ -391,7 +391,7 @@ calls should be made in `napi_async_complete_callback` instead.
 
 #### napi_async_complete_callback
 Function pointer used with functions that support asynchronous
-operations. Callback functions must statisfy the following signature:
+operations. Callback functions must satisfy the following signature:
 
 ```C
 typedef void (*napi_async_complete_callback)(napi_env env,
