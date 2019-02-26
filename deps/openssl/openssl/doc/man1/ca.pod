@@ -230,7 +230,7 @@ The section of the configuration file containing certificate extensions
 to be added when a certificate is issued (defaults to B<x509_extensions>
 unless the B<-extfile> option is used). If no extension section is
 present then, a V1 certificate is created. If the extension section
-is present (even if it is empty), then a V3 certificate is created. See the:w
+is present (even if it is empty), then a V3 certificate is created. See the
 L<x509v3_config(5)> manual page for details of the
 extension section format.
 
@@ -475,7 +475,7 @@ the B<-selfsign> command line option.
 
 Note that it is valid in some circumstances for certificates to be created
 without any subject. In the case where there are multiple certificates without
-subjects this does not count as a duplicate. 
+subjects this does not count as a duplicate.
 
 =item B<serial>
 
@@ -753,7 +753,7 @@ L<config(5)>, L<x509v3_config(5)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

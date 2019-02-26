@@ -147,7 +147,7 @@ L<passphrase-encoding(7)>
 
 OSSL_STORE_CTX(), OSSL_STORE_post_process_info_fn(), OSSL_STORE_open(),
 OSSL_STORE_ctrl(), OSSL_STORE_load(), OSSL_STORE_eof() and OSSL_STORE_close()
-were added to OpenSSL 1.1.1.
+were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 

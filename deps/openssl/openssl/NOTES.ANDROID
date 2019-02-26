@@ -23,22 +23,22 @@
  platform. Though you still need to know the prefix to extend your PATH,
  in order to invoke $(CROSS_COMPILE)gcc and company. (Configure will fail
  and give you a hint if you get it wrong.) Apart from PATH adjustment
- you need to set ANDROID_NDK environment to point at NDK directory
+ you need to set ANDROID_NDK_HOME environment to point at NDK directory
  as /some/where/android-ndk-<ver>. Both variables are significant at both
  configuration and compilation times. NDK customarily supports multiple
- Android API levels, e.g. android-14, android-21, etc. By default latest 
+ Android API levels, e.g. android-14, android-21, etc. By default latest
  one available is chosen. If you need to target older platform, pass
  additional -D__ANDROID_API__=N to Configure. N is numeric value of the
  target platform version. For example, to compile for ICS on ARM with
  NDK 10d:
 
-    export ANDROID_NDK=/some/where/android-ndk-10d
-    PATH=$ANDROID_NDK/toolchains/arm-linux-androideabi-4.8/prebuilt/linux-x86_64/bin:$PATH
+    export ANDROID_NDK_HOME=/some/where/android-ndk-10d
+    PATH=$ANDROID_NDK_HOME/toolchains/arm-linux-androideabi-4.8/prebuilt/linux-x86_64/bin:$PATH
     ./Configure android-arm -D__ANDROID_API__=14
     make
 
  Caveat lector! Earlier OpenSSL versions relied on additional CROSS_SYSROOT
- variable set to $ANDROID_NDK/platforms/android-<api>/arch-<arch> to
+ variable set to $ANDROID_NDK_HOME/platforms/android-<api>/arch-<arch> to
  appoint headers-n-libraries' location. It's still recognized in order
  to facilitate migration from older projects. However, since API level
  appears in CROSS_SYSROOT value, passing -D__ANDROID_API__=N can be in
@@ -53,9 +53,9 @@
 
  Another option is to create so called "standalone toolchain" tailored
  for single specific platform including Android API level, and assign its
- location to ANDROID_NDK. In such case you have to pass matching target
- name to Configure and shouldn't use -D__ANDROID_API__=N. PATH adjusment
- becomes simpler, $ANDROID_NDK/bin:$PATH suffices.
+ location to ANDROID_NDK_HOME. In such case you have to pass matching
+ target name to Configure and shouldn't use -D__ANDROID_API__=N. PATH
+ adjustment becomes simpler, $ANDROID_NDK_HOME/bin:$PATH suffices.
 
  Running tests (on Linux)
  ------------------------

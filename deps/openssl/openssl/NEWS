@@ -5,6 +5,13 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.1.1a and OpenSSL 1.1.1b [26 Feb 2019]
+
+      o Change the info callback signals for the start and end of a post-handshake
+        message exchange in TLSv1.3.
+      o Fix a bug in DTLS over SCTP. This breaks interoperability with older versions
+        of OpenSSL like OpenSSL 1.1.0 and OpenSSL 1.0.2.
+
   Major changes between OpenSSL 1.1.1 and OpenSSL 1.1.1a [20 Nov 2018]
 
       o Timing vulnerability in DSA signature generation (CVE-2018-0734)

@@ -7,6 +7,44 @@
  https://github.com/openssl/openssl/commits/ and pick the appropriate
  release branch.
 
+ Changes between 1.1.1a and 1.1.1b [26 Feb 2019]
+
+  *) Added SCA hardening for modular field inversion in EC_GROUP through
+     a new dedicated field_inv() pointer in EC_METHOD.
+     This also addresses a leakage affecting conversions from projective
+     to affine coordinates.
+     [Billy Bob Brumley, Nicola Tuveri]
+
+  *) Change the info callback signals for the start and end of a post-handshake
+     message exchange in TLSv1.3. In 1.1.1/1.1.1a we used SSL_CB_HANDSHAKE_START
+     and SSL_CB_HANDSHAKE_DONE. Experience has shown that many applications get
+     confused by this and assume that a TLSv1.2 renegotiation has started. This
+     can break KeyUpdate handling. Instead we no longer signal the start and end
+     of a post handshake message exchange (although the messages themselves are
+     still signalled). This could break some applications that were expecting
+     the old signals. However without this KeyUpdate is not usable for many
+     applications.
+     [Matt Caswell]
+
+  *) Fix a bug in the computation of the endpoint-pair shared secret used
+     by DTLS over SCTP. This breaks interoperability with older versions
+     of OpenSSL like OpenSSL 1.1.0 and OpenSSL 1.0.2. There is a runtime
+     switch SSL_MODE_DTLS_SCTP_LABEL_LENGTH_BUG (off by default) enabling
+     interoperability with such broken implementations. However, enabling
+     this switch breaks interoperability with correct implementations.
+
+  *) Fix a use after free bug in d2i_X509_PUBKEY when overwriting a
+     re-used X509_PUBKEY object if the second PUBKEY is malformed.
+     [Bernd Edlinger]
+
+  *) Move strictness check from EVP_PKEY_asn1_new() to EVP_PKEY_asn1_add0().
+     [Richard Levitte]
+
+  *) Remove the 'dist' target and add a tarball building script.  The
+     'dist' target has fallen out of use, and it shouldn't be
+     necessary to configure just to create a source distribution.
+     [Richard Levitte]
+
  Changes between 1.1.1 and 1.1.1a [20 Nov 2018]
 
   *) Timing vulnerability in DSA signature generation

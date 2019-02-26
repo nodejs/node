@@ -361,10 +361,10 @@ L<dhparam(1)>
 =head1 HISTORY
 
 The attempt to always try to use secure renegotiation was added in
-Openssl 0.9.8m.
+OpenSSL 0.9.8m.
 
-B<SSL_OP_PRIORITIZE_CHACHA> and B<SSL_OP_NO_RENEGOTIATION> were added in
-OpenSSL 1.1.1.
+The B<SSL_OP_PRIORITIZE_CHACHA> and B<SSL_OP_NO_RENEGOTIATION> options
+were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 

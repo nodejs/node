@@ -20,10 +20,10 @@ SSL_CTX_get_num_tickets
 =head1 DESCRIPTION
 
 SSL_CTX_set_num_tickets() and SSL_set_num_tickets() can be called for a server
-application and set the number of session tickets that will be sent to the
-client after a full handshake. Set the desired value (which could be 0) in the
-B<num_tickets> argument. Typically these functions should be called before the
-start of the handshake.
+application and set the number of TLSv1.3 session tickets that will be sent to
+the client after a full handshake. Set the desired value (which could be 0) in
+the B<num_tickets> argument. Typically these functions should be called before
+the start of the handshake.
 
 The default number of tickets is 2; the default number of tickets sent following
 a resumption handshake is 1 but this cannot be changed using these functions.

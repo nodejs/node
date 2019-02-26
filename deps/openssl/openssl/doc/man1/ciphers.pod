@@ -762,7 +762,7 @@ The B<-V> option for the B<ciphers> command was added in OpenSSL 1.0.0.
 The B<-stdname> is only available if OpenSSL is built with tracing enabled
 (B<enable-ssl-trace> argument to Configure) before OpenSSL 1.1.1.
 
-The B<-convert> was added in OpenSSL 1.1.1.
+The B<-convert> option was added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 

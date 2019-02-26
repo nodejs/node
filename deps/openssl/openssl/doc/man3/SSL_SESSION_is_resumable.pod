@@ -30,7 +30,7 @@ L<SSL_CTX_sess_set_new_cb(3)>
 
 =head1 HISTORY
 
-SSL_SESSION_is_resumable() was first added to OpenSSL 1.1.1
+The SSL_SESSION_is_resumable() function was added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 

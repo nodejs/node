@@ -1,5 +1,5 @@
 
- 
+
  INSTALLATION ON THE DOS PLATFORM WITH DJGPP
  -------------------------------------------
 
@@ -29,7 +29,7 @@
  running "./Configure" with appropriate arguments:
 
 	./Configure no-threads --prefix=/dev/env/DJDIR DJGPP
- 
+
  And finally fire up "make". You may run out of DPMI selectors when
  running in a DOS box under Windows. If so, just close the BASH
  shell, go back to Windows, and restart BASH. Then run "make" again.

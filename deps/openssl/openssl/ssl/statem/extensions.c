@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -348,10 +348,12 @@ static const EXTENSION_DEFINITION ext_defs[] = {
     {
         /*
          * Special unsolicited ServerHello extension only used when
-         * SSL_OP_CRYPTOPRO_TLSEXT_BUG is set
+         * SSL_OP_CRYPTOPRO_TLSEXT_BUG is set. We allow it in a ClientHello but
+         * ignore it.
          */
         TLSEXT_TYPE_cryptopro_bug,
-        SSL_EXT_TLS1_2_SERVER_HELLO | SSL_EXT_TLS1_2_AND_BELOW_ONLY,
+        SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_2_SERVER_HELLO
+        | SSL_EXT_TLS1_2_AND_BELOW_ONLY,
         NULL, NULL, NULL, tls_construct_stoc_cryptopro_bug, NULL, NULL
     },
     {
@@ -623,7 +625,12 @@ int tls_collect_extensions(SSL *s, PACKET *packet, unsigned int context,
                 && type != TLSEXT_TYPE_cookie
                 && type != TLSEXT_TYPE_renegotiate
                 && type != TLSEXT_TYPE_signed_certificate_timestamp
-                && (s->ext.extflags[idx] & SSL_EXT_FLAG_SENT) == 0) {
+                && (s->ext.extflags[idx] & SSL_EXT_FLAG_SENT) == 0
+#ifndef OPENSSL_NO_GOST
+                && !((context & SSL_EXT_TLS1_2_SERVER_HELLO) != 0
+                     && type == TLSEXT_TYPE_cryptopro_bug)
+#endif
+								) {
             SSLfatal(s, SSL_AD_UNSUPPORTED_EXTENSION,
                      SSL_F_TLS_COLLECT_EXTENSIONS, SSL_R_UNSOLICITED_EXTENSION);
             goto err;
@@ -1506,7 +1513,7 @@ int tls_psk_do_binder(SSL *s, const EVP_MD *md, const unsigned char *msgstart,
 
     /* Generate the binder key */
     if (!tls13_hkdf_expand(s, md, early_secret, label, labelsize, hash,
-                           hashsize, binderkey, hashsize)) {
+                           hashsize, binderkey, hashsize, 1)) {
         /* SSLfatal() already called */
         goto err;
     }

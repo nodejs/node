@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 # -*- mode: perl; -*-
-# Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -144,6 +144,8 @@ my $gcc_devteam_warn = "-DDEBUG_UNUSED"
 #       -Wlanguage-extension-token -- no, we use asm()
 #       -Wunused-macros -- no, too tricky for BN and _XOPEN_SOURCE etc
 #       -Wextended-offsetof -- no, needed in CMS ASN1 code
+#       -Wunused-function -- no, it forces header use of safestack et al
+#                            DEFINE macros
 my $clang_devteam_warn = ""
         . " -Wswitch-default"
         . " -Wno-parentheses-equality"
@@ -153,6 +155,7 @@ my $clang_devteam_warn = ""
         . " -Wincompatible-pointer-types-discards-qualifiers"
         . " -Wmissing-variable-declarations"
         . " -Wno-unknown-warning-option"
+        . " -Wno-unused-function"
         ;
 
 # This adds backtrace information to the memory leak info.  Is only used
@@ -374,6 +377,7 @@ my @disablables = (
     "msan",
     "multiblock",
     "nextprotoneg",
+    "pinshared",
     "ocb",
     "ocsp",
     "pic",
@@ -1110,13 +1114,13 @@ foreach my $feature (@{$target{disable}}) {
     $disabled{$feature} = 'config';
 }
 foreach my $feature (@{$target{enable}}) {
-    if ("default" eq ($disabled{$_} // "")) {
+    if ("default" eq ($disabled{$feature} // "")) {
         if (exists $deprecated_disablables{$feature}) {
             warn "***** config $target enables deprecated feature $feature\n";
         } elsif (!grep { $feature eq $_ } @disablables) {
             die "***** config $target enables unknown feature $feature\n";
         }
-        delete $disabled{$_};
+        delete $disabled{$feature};
     }
 }
 
@@ -1370,6 +1374,7 @@ unless ($disabled{asm}) {
     push @{$config{lib_defines}}, "OPENSSL_BN_ASM_MONT" if ($target{bn_asm_src} =~ /-mont/);
     push @{$config{lib_defines}}, "OPENSSL_BN_ASM_MONT5" if ($target{bn_asm_src} =~ /-mont5/);
     push @{$config{lib_defines}}, "OPENSSL_BN_ASM_GF2m" if ($target{bn_asm_src} =~ /-gf2m/);
+    push @{$config{lib_defines}}, "BN_DIV3W" if ($target{bn_asm_src} =~ /-div3w/);
 
     if ($target{sha1_asm_src}) {
 	push @{$config{lib_defines}}, "SHA1_ASM"   if ($target{sha1_asm_src} =~ /sx86/ || $target{sha1_asm_src} =~ /sha1/);

@@ -90,10 +90,8 @@ generally macro's that add the standard C B<__FILE__> and B<__LINE__>
 parameters and call a lower-level B<CRYPTO_xxx> API.
 Some functions do not add those parameters, but exist for consistency.
 
-OPENSSL_malloc_init() sets the lower-level memory allocation functions
-to their default implementation.
-It is generally not necessary to call this, except perhaps in certain
-shared-library situations.
+OPENSSL_malloc_init() does nothing and does not need to be called. It is
+included for compatibility with older versions of OpenSSL.
 
 OPENSSL_malloc(), OPENSSL_realloc(), and OPENSSL_free() are like the
 C malloc(), realloc(), and free() functions.
@@ -247,7 +245,7 @@ only, say, the malloc() implementation is outright dangerous.>
 
 =head1 COPYRIGHT
 
-Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

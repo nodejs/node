@@ -44,7 +44,7 @@ L<X509_STORE_get0_param(3)>
 =head1 HISTORY
 
 The X509_STORE_up_ref(), X509_STORE_lock() and X509_STORE_unlock()
-functions were added in OpenSSL 1.1.0
+functions were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 

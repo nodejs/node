@@ -315,5 +315,5 @@ certificates checked properly, using the code above:
   SSL_CTX_set_cert_verify_callback(s_ctx, my_X509_verify_cert, &needed_rights);
 
 
--- 
+--
 Richard Levitte

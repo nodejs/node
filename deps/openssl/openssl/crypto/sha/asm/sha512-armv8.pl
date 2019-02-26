@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2014-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2014-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -219,6 +219,7 @@ $code.=<<___	if ($SZ==8);
 ___
 $code.=<<___;
 #endif
+	.inst	0xd503233f				// paciasp
 	stp	x29,x30,[sp,#-128]!
 	add	x29,sp,#0
 
@@ -280,6 +281,7 @@ $code.=<<___;
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#128
+	.inst	0xd50323bf				// autiasp
 	ret
 .size	$func,.-$func
 

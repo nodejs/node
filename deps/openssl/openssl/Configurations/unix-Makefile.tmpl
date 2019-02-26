@@ -227,6 +227,7 @@ TARFLAGS= {- $target{TARFLAGS} -}
 
 BASENAME=       openssl
 NAME=           $(BASENAME)-$(VERSION)
+# Relative to $(SRCDIR)
 TARFILE=        ../$(NAME).tar
 
 ##### Project flags ##################################################
@@ -650,7 +651,7 @@ install_runtime_libs: build_libs
 		: {- output_off() unless windowsdll(); "" -}; \
 		$(ECHO) "install $$s -> $(DESTDIR)$(INSTALLTOP)/bin/$$fn"; \
 		cp $$s $(DESTDIR)$(INSTALLTOP)/bin/$$fn.new; \
-		chmod 644 $(DESTDIR)$(INSTALLTOP)/bin/$$fn.new; \
+		chmod 755 $(DESTDIR)$(INSTALLTOP)/bin/$$fn.new; \
 		mv -f $(DESTDIR)$(INSTALLTOP)/bin/$$fn.new \
 		      $(DESTDIR)$(INSTALLTOP)/bin/$$fn; \
 		: {- output_on() unless windowsdll(); "" -}{- output_off() if windowsdll(); "" -}; \
@@ -830,37 +831,8 @@ tags TAGS: FORCE
 
 # Release targets (note: only available on Unix) #####################
 
-# If your tar command doesn't support --owner and --group, make sure to
-# use one that does, for example GNU tar
-TAR_COMMAND=$(TAR) $(TARFLAGS) --owner 0 --group 0 -cf -
-PREPARE_CMD=:
 tar:
-	set -e; \
-	TMPDIR=/var/tmp/openssl-copy.$$$$; \
-	DISTDIR=$(NAME); \
-	mkdir -p $$TMPDIR/$$DISTDIR; \
-	(cd $(SRCDIR); \
-	 excl_re=`git submodule status | sed -e 's/^.//' | cut -d' ' -f2`; \
-	 excl_re="^(fuzz/corpora|Configurations/.*\.norelease\.conf|`echo $$excl_re | sed -e 's/ /$$|/g'`\$$)"; \
-	 echo "$$excl_re"; \
-	 git ls-tree -r --name-only --full-tree HEAD \
-	 | egrep -v "$$excl_re" \
-	 | while read F; do \
-	       mkdir -p $$TMPDIR/$$DISTDIR/`dirname $$F`; \
-	       cp $$F $$TMPDIR/$$DISTDIR/$$F; \
-	   done); \
-	(cd $$TMPDIR/$$DISTDIR; \
-	 $(PREPARE_CMD); \
-	 find . -type d -print | xargs chmod 755; \
-	 find . -type f -print | xargs chmod a+r; \
-	 find . -type f -perm -0100 -print | xargs chmod a+x); \
-	(cd $$TMPDIR; $(TAR_COMMAND) $$DISTDIR) \
-	| (cd $(SRCDIR); gzip --best > $(TARFILE).gz); \
-	rm -rf $$TMPDIR
-	cd $(SRCDIR); ls -l $(TARFILE).gz
-
-dist:
-	@$(MAKE) PREPARE_CMD='$(PERL) ./Configure dist' TARFILE="$(TARFILE)" NAME="$(NAME)" tar
+	(cd $(SRCDIR); ./util/mktar.sh --name='$(NAME)' --tarfile='$(TARFILE)')
 
 # Helper targets #####################################################
 

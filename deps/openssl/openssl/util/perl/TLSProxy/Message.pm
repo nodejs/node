@@ -1,4 +1,4 @@
-# Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -86,10 +86,7 @@ use constant {
     EXT_SIG_ALGS_CERT => 50,
     EXT_RENEGOTIATE => 65281,
     EXT_NPN => 13172,
-    # This extension is an unofficial extension only ever written by OpenSSL
-    # (i.e. not read), and even then only when enabled. We use it to test
-    # handling of duplicate extensions.
-    EXT_DUPLICATE_EXTENSION => 0xfde8,
+    EXT_CRYPTOPRO_BUG_EXTENSION => 0xfde8,
     EXT_UNKNOWN => 0xfffe,
     #Unknown extension that should appear last
     EXT_FORCE_LAST => 0xffff
@@ -241,7 +238,7 @@ sub get_messages
                 $startoffset = $recoffset;
                 $recoffset += 4;
                 $payload = "";
-                
+
                 if ($recoffset <= $record->decrypt_len) {
                     #Some payload data is present in this record
                     if ($record->decrypt_len - $recoffset >= $messlen) {
@@ -413,14 +410,15 @@ sub new
         $records,
         $startoffset,
         $message_frag_lens) = @_;
-    
+
     my $self = {
         server => $server,
         data => $data,
         records => $records,
         mt => $mt,
         startoffset => $startoffset,
-        message_frag_lens => $message_frag_lens
+        message_frag_lens => $message_frag_lens,
+        dupext => -1
     };
 
     return bless $self, $class;
@@ -574,6 +572,14 @@ sub encoded_length
 {
     my $self = shift;
     return TLS_MESSAGE_HEADER_LENGTH + length($self->data);
+}
+sub dupext
+{
+    my $self = shift;
+    if (@_) {
+        $self->{dupext} = shift;
+    }
+    return $self->{dupext};
 }
 sub successondata
 {

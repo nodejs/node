@@ -305,7 +305,7 @@ L<gendsa(1)>
 
 =head1 HISTORY
 
-The B<-iter> option was added to OpenSSL 1.1.0.
+The B<-iter> option was added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 

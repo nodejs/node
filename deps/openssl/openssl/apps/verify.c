@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -286,16 +286,19 @@ static int cb(int ok, X509_STORE_CTX *ctx)
                cert_error,
                X509_STORE_CTX_get_error_depth(ctx),
                X509_verify_cert_error_string(cert_error));
+
+        /*
+         * Pretend that some errors are ok, so they don't stop further
+         * processing of the certificate chain.  Setting ok = 1 does this.
+         * After X509_verify_cert() is done, we verify that there were
+         * no actual errors, even if the returned value was positive.
+         */
         switch (cert_error) {
         case X509_V_ERR_NO_EXPLICIT_POLICY:
             policies_print(ctx);
             /* fall thru */
         case X509_V_ERR_CERT_HAS_EXPIRED:
-
-            /*
-             * since we are just checking the certificates, it is ok if they
-             * are self signed. But we should still warn the user.
-             */
+            /* Continue even if the leaf is a self signed cert */
         case X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:
             /* Continue after extension errors too */
         case X509_V_ERR_INVALID_CA:

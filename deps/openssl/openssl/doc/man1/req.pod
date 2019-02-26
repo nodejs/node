@@ -502,7 +502,7 @@ The actual permitted field names are any object identifier short or
 long names. These are compiled into OpenSSL and include the usual
 values such as commonName, countryName, localityName, organizationName,
 organizationalUnitName, stateOrProvinceName. Additionally emailAddress
-is include as well as name, surname, givenName initials and dnQualifier.
+is included as well as name, surname, givenName, initials, and dnQualifier.
 
 Additional object identifiers can be defined with the B<oid_file> or
 B<oid_section> options in the configuration file. Any additional fields

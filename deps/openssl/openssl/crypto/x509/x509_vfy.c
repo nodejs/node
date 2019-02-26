@@ -3232,12 +3232,19 @@ static int check_key_level(X509_STORE_CTX *ctx, X509 *cert)
     EVP_PKEY *pkey = X509_get0_pubkey(cert);
     int level = ctx->param->auth_level;
 
+    /*
+     * At security level zero, return without checking for a supported public
+     * key type.  Some engines support key types not understood outside the
+     * engine, and we only need to understand the key when enforcing a security
+     * floor.
+     */
+    if (level <= 0)
+        return 1;
+
     /* Unsupported or malformed keys are not secure */
     if (pkey == NULL)
         return 0;
 
-    if (level <= 0)
-        return 1;
     if (level > NUM_AUTH_LEVELS)
         level = NUM_AUTH_LEVELS;
 

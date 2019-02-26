@@ -98,7 +98,7 @@ L<SHA1(3)>, L<dgst(1)>
 =head1 HISTORY
 
 EVP_DigestVerifyInit(), EVP_DigestVerifyUpdate() and EVP_DigestVerifyFinal()
-were first added to OpenSSL 1.0.0.
+were added in OpenSSL 1.0.0.
 
 =head1 COPYRIGHT
 

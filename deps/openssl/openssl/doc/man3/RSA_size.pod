@@ -41,7 +41,7 @@ L<BN_num_bits(3)>
 
 =head1 HISTORY
 
-RSA_bits() was added in OpenSSL 1.1.0.
+The RSA_bits() function was added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 

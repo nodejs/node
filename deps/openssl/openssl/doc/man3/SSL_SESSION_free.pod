@@ -73,7 +73,7 @@ L<d2i_SSL_SESSION(3)>
 
 =head1 HISTORY
 
-SSL_SESSION_dup() was added in OpenSSL 1.1.1.
+The SSL_SESSION_dup() function was added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 

@@ -98,6 +98,7 @@ B<openssl> B<s_server>
 [B<-no_comp>]
 [B<-comp>]
 [B<-no_ticket>]
+[B<-num_tickets>]
 [B<-serverpref>]
 [B<-legacy_renegotiation>]
 [B<-no_renegotiation>]
@@ -172,6 +173,7 @@ B<openssl> B<s_server>
 [B<-dtls1>]
 [B<-dtls1_2>]
 [B<-sctp>]
+[B<-sctp_label_bug>]
 [B<-no_dhe>]
 [B<-nextprotoneg val>]
 [B<-use_srtp val>]
@@ -558,7 +560,14 @@ OpenSSL 1.1.0.
 
 =item B<-no_ticket>
 
-Disable RFC4507bis session ticket support.
+Disable RFC4507bis session ticket support. This option has no effect if TLSv1.3
+is negotiated. See B<-num_tickets>.
+
+=item B<-num_tickets>
+
+Control the number of tickets that will be sent to the client after a full
+handshake in TLSv1.3. The default number of tickets is 2. This option does not
+affect the number of tickets sent after a resumption handshake.
 
 =item B<-serverpref>
 
@@ -675,6 +684,14 @@ respectively.
 
 Use SCTP for the transport protocol instead of UDP in DTLS. Must be used in
 conjunction with B<-dtls>, B<-dtls1> or B<-dtls1_2>. This option is only
+available where OpenSSL has support for SCTP enabled.
+
+=item B<-sctp_label_bug>
+
+Use the incorrect behaviour of older OpenSSL implementations when computing
+endpoint-pair shared secrets for DTLS/SCTP. This allows communication with
+older broken implementations but breaks interoperability with correct
+implementations. Must be used in conjunction with B<-sctp>. This option is only
 available where OpenSSL has support for SCTP enabled.
 
 =item B<-no_dhe>
@@ -817,18 +834,18 @@ unknown cipher suites a client says it supports.
 L<SSL_CONF_cmd(3)>, L<sess_id(1)>, L<s_client(1)>, L<ciphers(1)>
 L<SSL_CTX_set_max_send_fragment(3)>,
 L<SSL_CTX_set_split_send_fragment(3)>,
-L<SSL_CTX_set_max_pipelines(3)> 
+L<SSL_CTX_set_max_pipelines(3)>
 
 =head1 HISTORY
 
-The -no_alt_chains option was first added to OpenSSL 1.1.0.
+The -no_alt_chains option was added in OpenSSL 1.1.0.
 
-The -allow-no-dhe-kex and -prioritize_chacha options were first added to
-OpenSSL 1.1.1.
+The
+-allow-no-dhe-kex and -prioritize_chacha options were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

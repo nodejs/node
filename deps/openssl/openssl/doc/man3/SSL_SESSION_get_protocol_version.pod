@@ -41,8 +41,8 @@ L<SSL_CTX_set_psk_use_session_callback(3)>
 
 =head1 HISTORY
 
-SSL_SESSION_get_protocol_version() was first added to OpenSSL 1.1.0.
-SSL_SESSION_set_protocol_version() was first added to OpenSSL 1.1.1.
+The SSL_SESSION_get_protocol_version() function was added in OpenSSL 1.1.0.
+The SSL_SESSION_set_protocol_version() function was added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 

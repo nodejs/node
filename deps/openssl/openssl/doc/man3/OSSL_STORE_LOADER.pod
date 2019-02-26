@@ -250,7 +250,7 @@ OSSL_STORE_LOADER_set_eof(), OSSL_STORE_LOADER_set_close(),
 OSSL_STORE_LOADER_free(), OSSL_STORE_register_loader(),
 OSSL_STORE_unregister_loader(), OSSL_STORE_open_fn(), OSSL_STORE_ctrl_fn(),
 OSSL_STORE_load_fn(), OSSL_STORE_eof_fn() and OSSL_STORE_close_fn()
-were added to OpenSSL 1.1.1.
+were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 

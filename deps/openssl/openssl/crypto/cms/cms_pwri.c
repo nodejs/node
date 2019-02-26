@@ -373,6 +373,7 @@ int cms_RecipientInfo_pwri_crypt(CMS_ContentInfo *cms, CMS_RecipientInfo *ri,
             goto err;
         }
 
+        OPENSSL_clear_free(ec->key, ec->keylen);
         ec->key = key;
         ec->keylen = keylen;
 

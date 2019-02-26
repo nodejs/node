@@ -724,14 +724,14 @@ No revocation checking is done on the signer's certificate.
 The use of multiple B<-signer> options and the B<-resign> command were first
 added in OpenSSL 1.0.0.
 
-The B<keyopt> option was first added in OpenSSL 1.0.2.
+The B<keyopt> option was added in OpenSSL 1.0.2.
 
-Support for RSA-OAEP and RSA-PSS was first added to OpenSSL 1.0.2.
+Support for RSA-OAEP and RSA-PSS was added in OpenSSL 1.0.2.
 
-The use of non-RSA keys with B<-encrypt> and B<-decrypt> was first added
-to OpenSSL 1.0.2.
+The use of non-RSA keys with B<-encrypt> and B<-decrypt>
+was added in OpenSSL 1.0.2.
 
-The -no_alt_chains options was first added to OpenSSL 1.0.2b.
+The -no_alt_chains option was added in OpenSSL 1.0.2b.
 
 =head1 COPYRIGHT
 

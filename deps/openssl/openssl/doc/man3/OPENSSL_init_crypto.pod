@@ -2,10 +2,11 @@
 
 =head1 NAME
 
-OPENSSL_INIT_new, OPENSSL_INIT_set_config_appname, OPENSSL_INIT_free,
-OPENSSL_init_crypto, OPENSSL_cleanup,
-OPENSSL_atexit, OPENSSL_thread_stop - OpenSSL
-initialisation and deinitialisation functions
+OPENSSL_INIT_new, OPENSSL_INIT_set_config_filename,
+OPENSSL_INIT_set_config_appname, OPENSSL_INIT_set_config_file_flags,
+OPENSSL_INIT_free, OPENSSL_init_crypto, OPENSSL_cleanup, OPENSSL_atexit,
+OPENSSL_thread_stop - OpenSSL initialisation
+and deinitialisation functions
 
 =head1 SYNOPSIS
 
@@ -17,6 +18,10 @@ initialisation and deinitialisation functions
  void OPENSSL_thread_stop(void);
 
  OPENSSL_INIT_SETTINGS *OPENSSL_INIT_new(void);
+ int OPENSSL_INIT_set_config_filename(OPENSSL_INIT_SETTINGS *init,
+                                      const char* filename);
+ int OPENSSL_INIT_set_config_file_flags(OPENSSL_INIT_SETTINGS *init,
+                                        unsigned long flags);
  int OPENSSL_INIT_set_config_appname(OPENSSL_INIT_SETTINGS *init,
                                      const char* name);
  void OPENSSL_INIT_free(OPENSSL_INIT_SETTINGS *init);
@@ -33,7 +38,7 @@ As of version 1.1.0 OpenSSL will automatically allocate all resources that it
 needs so no explicit initialisation is required. Similarly it will also
 automatically deinitialise as required.
 
-However, there way be situations when explicit initialisation is desirable or
+However, there may be situations when explicit initialisation is desirable or
 needed, for example when some non-default initialisation is required. The
 function OPENSSL_init_crypto() can be used for this purpose for
 libcrypto (see also L<OPENSSL_init_ssl(3)> for the libssl
@@ -96,7 +101,7 @@ B<OPENSSL_INIT_ADD_ALL_DIGESTS> will be ignored.
 
 With this option an OpenSSL configuration file will be automatically loaded and
 used by calling OPENSSL_config(). This is not a default option for libcrypto.
-From OpenSSL 1.1.1 this is a default option for libssl (see
+As of OpenSSL 1.1.1 this is a default option for libssl (see
 L<OPENSSL_init_ssl(3)> for further details about libssl initialisation). See the
 description of OPENSSL_INIT_new(), below.
 
@@ -157,6 +162,13 @@ engines. This not a default option.
 With this option the library will register its fork handlers.
 See OPENSSL_fork_prepare(3) for details.
 
+=item OPENSSL_INIT_NO_ATEXIT
+
+By default OpenSSL will attempt to clean itself up when the process exits via an
+"atexit" handler. Using this option suppresses that behaviour. This means that
+the application will have to clean up OpenSSL explicitly using
+OPENSSL_cleanup().
+
 =back
 
 Multiple options may be combined together in a single call to
@@ -196,12 +208,22 @@ the library when the thread exits. This should only be called directly if
 resources should be freed at an earlier time, or under the circumstances
 described in the NOTES section below.
 
-The B<OPENSSL_INIT_LOAD_CONFIG> flag will load a default configuration
-file. For optional configuration file settings, an B<OPENSSL_INIT_SETTINGS>
-must be created and used.
-The routines OPENSSL_init_new() and OPENSSL_INIT_set_config_appname() can
-be used to allocate the object and set the application name, and then the
-object can be released with OPENSSL_INIT_free() when done.
+The B<OPENSSL_INIT_LOAD_CONFIG> flag will load a configuration file, as with
+L<CONF_modules_load_file(3)> with NULL filename and application name and the
+B<CONF_MFLAGS_IGNORE_MISSING_FILE>, B<CONF_MFLAGS_IGNORE_RETURN_CODES>  and
+B<CONF_MFLAGS_DEFAULT_SECTION> flags.
+The filename, application name, and flags can be customized by providing a
+non-null B<OPENSSL_INIT_SETTINGS> object.
+The object can be allocated via B<OPENSSL_init_new()>.
+The B<OPENSSL_INIT_set_config_filename()> function can be used to specify a
+non-default filename, which is copied and need not refer to persistent storage.
+Similarly, OPENSSL_INIT_set_config_appname() can be used to specify a
+non-default application name.
+Finally, OPENSSL_INIT_set_file_flags can be used to specify non-default flags.
+If the B<CONF_MFLAGS_IGNORE_RETURN_CODES> flag is not included, any errors in
+the configuration file will cause an error return from B<OPENSSL_init_crypto>
+or indirectly L<OPENSSL_init_ssl(3)>.
+The object can be released with OPENSSL_INIT_free() when done.
 
 =head1 NOTES
 
@@ -242,7 +264,7 @@ and OPENSSL_INIT_free() functions were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2019 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -223,7 +223,7 @@ static int test_builtin(void)
     const BIGNUM *sig_r, *sig_s;
     BIGNUM *modified_r = NULL, *modified_s = NULL;
     BIGNUM *unmodified_r = NULL, *unmodified_s = NULL;
-    unsigned int sig_len, degree, r_len, s_len, bn_len, buf_len;
+    unsigned int sig_len, order, r_len, s_len, bn_len, buf_len;
     int nid, ret = 0;
 
     /* fill digest values with some random data */
@@ -251,7 +251,7 @@ static int test_builtin(void)
                 || !TEST_true(EC_KEY_set_group(eckey, group)))
             goto builtin_err;
         EC_GROUP_free(group);
-        degree = EC_GROUP_get_degree(EC_KEY_get0_group(eckey));
+        order = EC_GROUP_order_bits(EC_KEY_get0_group(eckey));
 
         TEST_info("testing %s", OBJ_nid2sn(nid));
 
@@ -316,7 +316,7 @@ static int test_builtin(void)
         /* Store the two BIGNUMs in raw_buf. */
         r_len = BN_num_bytes(sig_r);
         s_len = BN_num_bytes(sig_s);
-        bn_len = (degree + 7) / 8;
+        bn_len = (order + 7) / 8;
         if (!TEST_false(r_len > bn_len)
                 || !TEST_false(s_len > bn_len))
             goto builtin_err;

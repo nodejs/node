@@ -795,10 +795,10 @@ $target : $args{generator}->[0] $deps
 	$generator \$\@-S
         \@ $incs_on
 	PIPE \$(CPP) $cppflags \$\@-S | -
-        \$(PERL) -ne "/^#(\\s*line)?\\s*[0-9]+\\s+""/ or print" > \$\@-i
+             \$(PERL) -ne "/^#(\\s*line)?\\s*[0-9]+\\s+""/ or print" > \$\@-i
         \@ $incs_off
         RENAME \$\@-i \$\@
-        DELETE \$\@-S
+        DELETE \$\@-S;
 EOF
               }
               # Otherwise....
@@ -840,19 +840,6 @@ EOF
       my $before = $unified_info{before}->{$obj.".OBJ"} || "\@ !";
       my $after = $unified_info{after}->{$obj.".OBJ"} || "\@ !";
 
-      if ($srcs[0] =~ /\.asm$/) {
-          my $asflags = { lib => ' $(LIB_ASFLAGS)',
-		          dso => ' $(DSO_ASFLAGS)',
-		          bin => ' $(BIN_ASFLAGS)' } -> {$args{intent}};
-          return <<"EOF";
-$obj.OBJ : $deps
-        ${before}
-        SET DEFAULT $forward
-        \$(AS) $asflags \$(ASOUTFLAG)${objd}${objn}.OBJ $srcs
-        SET DEFAULT $backward
-EOF
-      }
-
       my $cflags;
       if ($args{installed}) {
           $cflags = { lib => '$(LIB_CFLAGS)',
@@ -866,6 +853,9 @@ EOF
       $cflags .= { lib => '$(LIB_CPPFLAGS)',
 		   dso => '$(DSO_CPPFLAGS)',
 		   bin => '$(BIN_CPPFLAGS)' } -> {$args{intent}};
+      my $asflags = { lib => ' $(LIB_ASFLAGS)',
+		      dso => ' $(DSO_ASFLAGS)',
+		      bin => ' $(BIN_ASFLAGS)' } -> {$args{intent}};
 
       my @incs_cmds = includes({ lib => '$(LIB_INCLUDES)',
                                  dso => '$(DSO_INCLUDES)',
@@ -877,6 +867,34 @@ EOF
                                } @{$args{incs}});
       my $incs_on = join("\n\t\@ ", @{$incs_cmds[0]}) || '!';
       my $incs_off = join("\n\t\@ ", @{$incs_cmds[1]}) || '!';
+
+      if ($srcs[0] =~ /\.asm$/) {
+          return <<"EOF";
+$obj.OBJ : $deps
+        ${before}
+        SET DEFAULT $forward
+        \$(AS) $asflags \$(ASOUTFLAG)${objd}${objn}.OBJ $srcs
+        SET DEFAULT $backward
+        ${after}
+        - PURGE $obj.OBJ
+EOF
+      } elsif ($srcs[0] =~ /.S$/) {
+         return <<"EOF";
+$obj.OBJ : $deps
+        ${before}
+        SET DEFAULT $forward
+        \@ $incs_on
+        PIPE \$(CPP) ${cflags} $srcs | -
+             \$(PERL) -ne "/^#(\\s*line)?\\s*[0-9]+\\s+""/ or print" -
+             > ${objd}${objn}.asm
+        \@ $incs_off
+        SET DEFAULT $backward
+        ${after}
+        \$(AS) $asflags \$(ASOUTFLAG)$obj.OBJ $obj.asm
+        - PURGE $obj.OBJ
+EOF
+      }
+
       my $depbuild = $disabled{makedepend} ? ""
           : " /MMS=(FILE=${objd}${objn}.D,TARGET=$obj.OBJ)";
 
@@ -1028,7 +1046,7 @@ EOF
                                  push @lines, "\@ WRITE OPT_FILE \"$x/SHARE\"";
                              } elsif ($x =~ m|\.OLB$|) {
                                  (my $l = $x) =~ s/\W/_/g;
-                                 push @lines, 
+                                 push @lines,
                                      "\@ IF nomain THEN WRITE OPT_FILE \"$x/LIB\$(INCLUDE_MAIN_$l)\"",
                                      "\@ IF .NOT. nomain THEN WRITE OPT_FILE \"$x/LIB\""
                              }

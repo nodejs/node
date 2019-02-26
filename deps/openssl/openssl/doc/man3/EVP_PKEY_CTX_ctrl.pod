@@ -359,7 +359,7 @@ B<param_enc> when generating EC parameters or an EC key. The encoding can be
 B<OPENSSL_EC_EXPLICIT_CURVE> for explicit parameters (the default in versions
 of OpenSSL before 1.1.0) or B<OPENSSL_EC_NAMED_CURVE> to use named curve form.
 For maximum compatibility the named curve form should be used. Note: the
-B<OPENSSL_EC_NAMED_CURVE> value was only added to OpenSSL 1.1.0; previous
+B<OPENSSL_EC_NAMED_CURVE> value was added in OpenSSL 1.1.0; previous
 versions should use 0 instead.
 
 =head2 ECDH parameters
@@ -439,8 +439,9 @@ L<EVP_PKEY_keygen(3)>
 
 =head1 HISTORY
 
+The
 EVP_PKEY_CTX_set1_id(), EVP_PKEY_CTX_get1_id() and EVP_PKEY_CTX_get1_id_len()
-macros were added in 1.1.1, other functions were first added to OpenSSL 1.0.0.
+macros were added in 1.1.1, other functions were added in OpenSSL 1.0.0.
 
 =head1 COPYRIGHT
 

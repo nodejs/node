@@ -105,6 +105,15 @@ Enable asynchronous processing. TLS I/O operations may indicate a retry with
 SSL_ERROR_WANT_ASYNC with this mode set if an asynchronous capable engine is
 used to perform cryptographic operations. See L<SSL_get_error(3)>.
 
+=item SSL_MODE_DTLS_SCTP_LABEL_LENGTH_BUG
+
+Older versions of OpenSSL had a bug in the computation of the label length
+used for computing the endpoint-pair shared secret. The bug was that the
+terminating zero was included in the length of the label. Setting this option
+enables this behaviour to allow interoperability with such broken
+implementations. Please note that setting this option breaks interoperability
+with correct implementations. This option only applies to DTLS over SCTP.
+
 =back
 
 All modes are off by default except for SSL_MODE_AUTO_RETRY which is on by
@@ -124,11 +133,11 @@ L<SSL_write(3)>, L<SSL_get_error(3)>
 
 =head1 HISTORY
 
-SSL_MODE_ASYNC was first added to OpenSSL 1.1.0.
+SSL_MODE_ASYNC was added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

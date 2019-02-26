@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -134,7 +134,8 @@ DEFINE_RUN_ONCE_STATIC(ossl_init_load_ssl_strings)
     return 1;
 }
 
-DEFINE_RUN_ONCE_STATIC(ossl_init_no_load_ssl_strings)
+DEFINE_RUN_ONCE_STATIC_ALT(ossl_init_no_load_ssl_strings,
+                           ossl_init_load_ssl_strings)
 {
     /* Do nothing in this case */
     return 1;
@@ -194,20 +195,22 @@ int OPENSSL_init_ssl(uint64_t opts, const OPENSSL_INIT_SETTINGS * settings)
         return 0;
     }
 
-    if (!OPENSSL_init_crypto(opts
+    opts |= OPENSSL_INIT_ADD_ALL_CIPHERS
+         |  OPENSSL_INIT_ADD_ALL_DIGESTS;
 #ifndef OPENSSL_NO_AUTOLOAD_CONFIG
-                             | OPENSSL_INIT_LOAD_CONFIG
+    if ((opts & OPENSSL_INIT_NO_LOAD_CONFIG) == 0)
+        opts |= OPENSSL_INIT_LOAD_CONFIG;
 #endif
-                             | OPENSSL_INIT_ADD_ALL_CIPHERS
-                             | OPENSSL_INIT_ADD_ALL_DIGESTS,
-                             settings))
+
+    if (!OPENSSL_init_crypto(opts, settings))
         return 0;
 
     if (!RUN_ONCE(&ssl_base, ossl_init_ssl_base))
         return 0;
 
     if ((opts & OPENSSL_INIT_NO_LOAD_SSL_STRINGS)
-        && !RUN_ONCE(&ssl_strings, ossl_init_no_load_ssl_strings))
+        && !RUN_ONCE_ALT(&ssl_strings, ossl_init_no_load_ssl_strings,
+                         ossl_init_load_ssl_strings))
         return 0;
 
     if ((opts & OPENSSL_INIT_LOAD_SSL_STRINGS)

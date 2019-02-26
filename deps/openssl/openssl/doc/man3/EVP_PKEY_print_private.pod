@@ -47,7 +47,7 @@ L<EVP_PKEY_keygen(3)>
 
 =head1 HISTORY
 
-These functions were first added to OpenSSL 1.0.0.
+These functions were added in OpenSSL 1.0.0.
 
 =head1 COPYRIGHT
 
