@@ -1674,7 +1674,7 @@ reports for the current process. Additional documentation is available in the
 added: v11.8.0
 -->
 
-* `err` {Error} A custom error used for reporting the JavsScript stack.
+* `err` {Error} A custom error used for reporting the JavaScript stack.
 * Returns: {string}
 
 Returns a JSON-formatted diagnostic report for the running process. The report's
@@ -1734,7 +1734,7 @@ added: v11.8.0
   should be a relative path, that will be appended to the directory specified in
   `process.report.setOptions`, or the current working directory of the Node.js
   process, if unspecified.
-* `err` {Error} A custom error used for reporting the JavsScript stack.
+* `err` {Error} A custom error used for reporting the JavaScript stack.
 
 * Returns: {string} Returns the filename of the generated report.
 
