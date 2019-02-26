@@ -114,7 +114,7 @@ void TTYWrap::GetWindowSize(const FunctionCallbackInfo<Value>& args) {
   int err = uv_tty_get_winsize(&wrap->handle_, &width, &height);
 
   if (err == 0) {
-    Local<v8::Array> a = args[0].As<Array>();
+    Local<Array> a = args[0].As<Array>();
     a->Set(env->context(), 0, Integer::New(env->isolate(), width)).FromJust();
     a->Set(env->context(), 1, Integer::New(env->isolate(), height)).FromJust();
   }
