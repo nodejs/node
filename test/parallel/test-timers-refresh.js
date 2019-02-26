@@ -32,14 +32,14 @@ const { setUnrefTimeout } = require('internal/timers');
 
 // should throw with non-functions
 {
-  const expedtedError = {
+  const expectedError = {
     code: 'ERR_INVALID_CALLBACK',
     message: 'Callback must be a function'
   };
 
   [null, true, false, 0, 1, NaN, '', 'foo', {}, Symbol()].forEach((cb) => {
     common.expectsError(() => setUnrefTimeout(cb),
-                        expedtedError);
+                        expectedError);
   });
 }
 
