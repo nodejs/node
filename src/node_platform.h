@@ -62,7 +62,7 @@ class PerIsolatePlatformData :
   void PostIdleTask(std::unique_ptr<v8::IdleTask> task) override;
   void PostDelayedTask(std::unique_ptr<v8::Task> task,
                        double delay_in_seconds) override;
-  bool IdleTasksEnabled() override { return false; };
+  bool IdleTasksEnabled() override { return false; }
 
   void Shutdown();
 
