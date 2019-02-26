@@ -22,6 +22,10 @@ Whether the operation succeeds or not, the SSL_SENT_SHUTDOWN flag is set and
 a currently open session is considered closed and good and will be kept in the
 session cache for further reuse.
 
+Note that SSL_shutdown() must not be called if a previous fatal error has
+occurred on a connection i.e. if SSL_get_error() has returned SSL_ERROR_SYSCALL
+or SSL_ERROR_SSL.
+
 The shutdown procedure consists of 2 steps: the sending of the "close notify"
 shutdown alert and the reception of the peer's "close notify" shutdown
 alert. According to the TLS standard, it is acceptable for an application

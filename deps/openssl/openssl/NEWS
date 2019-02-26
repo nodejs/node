@@ -5,6 +5,10 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.0.2q and OpenSSL 1.0.2r [26 Feb 2019]
+
+      o 0-byte record padding oracle (CVE-2019-1559)
+
   Major changes between OpenSSL 1.0.2p and OpenSSL 1.0.2q [20 Nov 2018]
 
       o Microarchitecture timing vulnerability in ECC scalar multiplication (CVE-2018-5407)

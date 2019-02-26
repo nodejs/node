@@ -82,7 +82,7 @@ err.o: ../../include/openssl/err.h ../../include/openssl/lhash.h
 err.o: ../../include/openssl/opensslconf.h ../../include/openssl/opensslv.h
 err.o: ../../include/openssl/ossl_typ.h ../../include/openssl/safestack.h
 err.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
-err.o: ../cryptlib.h err.c
+err.o: ../constant_time_locl.h ../cryptlib.h err.c
 err_all.o: ../../include/openssl/asn1.h ../../include/openssl/bio.h
 err_all.o: ../../include/openssl/bn.h ../../include/openssl/buffer.h
 err_all.o: ../../include/openssl/cms.h ../../include/openssl/comp.h

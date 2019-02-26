@@ -3697,6 +3697,12 @@ int tls12_get_sigid(const EVP_PKEY *pk)
                          sizeof(tls12_sig) / sizeof(tls12_lookup));
 }
 
+static int tls12_get_hash_nid(unsigned char hash_alg)
+{
+    return tls12_find_nid(hash_alg, tls12_md,
+                          sizeof(tls12_md) / sizeof(tls12_lookup));
+}
+
 const EVP_MD *tls12_get_hash(unsigned char hash_alg)
 {
     switch (hash_alg) {
@@ -3887,6 +3893,8 @@ int tls1_process_sigalgs(SSL *s)
     const EVP_MD *md;
     CERT *c = s->cert;
     TLS_SIGALGS *sigptr;
+    int mandatory_mdnid;
+
     if (!tls1_set_shared_sigalgs(s))
         return 0;
 
@@ -3918,6 +3926,18 @@ int tls1_process_sigalgs(SSL *s)
     for (i = 0, sigptr = c->shared_sigalgs;
          i < c->shared_sigalgslen; i++, sigptr++) {
         idx = tls12_get_pkey_idx(sigptr->rsign);
+        if (s->cert->pkeys[idx].privatekey) {
+            ERR_set_mark();
+            if (EVP_PKEY_get_default_digest_nid(s->cert->pkeys[idx].privatekey,
+                                                &mandatory_mdnid) == 2 &&
+                mandatory_mdnid != tls12_get_hash_nid(sigptr->rhash))
+                continue;
+            /*
+             * If EVP_PKEY_get_default_digest_nid() failed, don't pollute
+             * the error stack.
+             */
+            ERR_pop_to_mark();
+        }
         if (idx > 0 && c->pkeys[idx].digest == NULL) {
             md = tls12_get_hash(sigptr->rhash);
             c->pkeys[idx].digest = md;

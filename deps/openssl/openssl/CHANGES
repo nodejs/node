@@ -7,6 +7,33 @@
  https://github.com/openssl/openssl/commits/ and pick the appropriate
  release branch.
 
+ Changes between 1.0.2q and 1.0.2r [26 Feb 2019]
+
+  *) 0-byte record padding oracle
+
+     If an application encounters a fatal protocol error and then calls
+     SSL_shutdown() twice (once to send a close_notify, and once to receive one)
+     then OpenSSL can respond differently to the calling application if a 0 byte
+     record is received with invalid padding compared to if a 0 byte record is
+     received with an invalid MAC. If the application then behaves differently
+     based on that in a way that is detectable to the remote peer, then this
+     amounts to a padding oracle that could be used to decrypt data.
+
+     In order for this to be exploitable "non-stitched" ciphersuites must be in
+     use. Stitched ciphersuites are optimised implementations of certain
+     commonly used ciphersuites. Also the application must call SSL_shutdown()
+     twice even if a protocol error has occurred (applications should not do
+     this but some do anyway).
+
+     This issue was discovered by Juraj Somorovsky, Robert Merget and Nimrod
+     Aviram, with additional investigation by Steven Collison and Andrew
+     Hourselt. It was reported to OpenSSL on 10th December 2018.
+     (CVE-2019-1559)
+     [Matt Caswell]
+
+  *) Move strictness check from EVP_PKEY_asn1_new() to EVP_PKEY_asn1_add0().
+     [Richard Levitte]
+
  Changes between 1.0.2p and 1.0.2q [20 Nov 2018]
 
   *) Microarchitecture timing vulnerability in ECC scalar multiplication

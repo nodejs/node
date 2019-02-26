@@ -115,6 +115,7 @@
 #include <openssl/rsa.h>
 #include <openssl/rand.h>
 #include "bn_int.h"
+#include "constant_time_locl.h"
 
 #ifndef RSA_NULL
 
@@ -397,6 +398,11 @@ static int RSA_eay_private_encrypt(int flen, const unsigned char *from,
         goto err;
     }
 
+    if (rsa->flags & RSA_FLAG_CACHE_PUBLIC)
+        if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, CRYPTO_LOCK_RSA,
+                                    rsa->n, ctx))
+            goto err;
+
     if (!(rsa->flags & RSA_FLAG_NO_BLINDING)) {
         blinding = rsa_get_blinding(rsa, &local_blinding, ctx);
         if (blinding == NULL) {
@@ -430,11 +436,6 @@ static int RSA_eay_private_encrypt(int flen, const unsigned char *from,
             BN_with_flags(d, rsa->d, BN_FLG_CONSTTIME);
         } else
             d = rsa->d;
-
-        if (rsa->flags & RSA_FLAG_CACHE_PUBLIC)
-            if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, CRYPTO_LOCK_RSA,
-                                        rsa->n, ctx))
-                goto err;
 
         if (!rsa->meth->bn_mod_exp(ret, f, d, rsa->n, ctx,
                                    rsa->_method_mod_n))
@@ -587,8 +588,8 @@ static int RSA_eay_private_decrypt(int flen, const unsigned char *from,
         RSAerr(RSA_F_RSA_EAY_PRIVATE_DECRYPT, RSA_R_UNKNOWN_PADDING_TYPE);
         goto err;
     }
-    if (r < 0)
-        RSAerr(RSA_F_RSA_EAY_PRIVATE_DECRYPT, RSA_R_PADDING_CHECK_FAILED);
+    RSAerr(RSA_F_RSA_EAY_PRIVATE_DECRYPT, RSA_R_PADDING_CHECK_FAILED);
+    err_clear_last_constant_time(r >= 0);
 
  err:
     if (ctx != NULL) {

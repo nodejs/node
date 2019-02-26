@@ -8,7 +8,8 @@ PKCS12_parse - parse a PKCS#12 structure
 
  #include <openssl/pkcs12.h>
 
-int PKCS12_parse(PKCS12 *p12, const char *pass, EVP_PKEY **pkey, X509 **cert, STACK_OF(X509) **ca);
+ int PKCS12_parse(PKCS12 *p12, const char *pass, EVP_PKEY **pkey, X509 **cert,
+                  STACK_OF(X509) **ca);
 
 =head1 DESCRIPTION
 

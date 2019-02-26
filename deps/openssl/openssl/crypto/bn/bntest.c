@@ -89,6 +89,10 @@
 #include <openssl/x509.h>
 #include <openssl/err.h>
 
+#ifndef OSSL_NELEM
+# define OSSL_NELEM(x)    (sizeof(x)/sizeof(x[0]))
+#endif
+
 const int num0 = 100;           /* number of tests */
 const int num1 = 50;            /* additional tests for some functions */
 const int num2 = 5;             /* number of tests for slow functions */
@@ -123,6 +127,7 @@ int test_gf2m_mod_solve_quad(BIO *bp, BN_CTX *ctx);
 int test_kron(BIO *bp, BN_CTX *ctx);
 int test_sqrt(BIO *bp, BN_CTX *ctx);
 int rand_neg(void);
+static int test_ctx_consttime_flag(void);
 static int results = 0;
 
 static unsigned char lst[] =
@@ -330,6 +335,15 @@ int main(int argc, char *argv[])
         goto err;
     (void)BIO_flush(out);
 #endif
+
+    /* silently flush any pre-existing error on the stack */
+    ERR_clear_error();
+
+    message(out, "BN_CTX_get BN_FLG_CONSTTIME");
+    if (!test_ctx_consttime_flag())
+        goto err;
+    (void)BIO_flush(out);
+
     BN_CTX_free(ctx);
     BIO_free(out);
 
@@ -2157,4 +2171,91 @@ int rand_neg(void)
     static int sign[8] = { 0, 0, 0, 1, 1, 0, 1, 1 };
 
     return (sign[(neg++) % 8]);
+}
+
+static int test_ctx_set_ct_flag(BN_CTX *c)
+{
+    int st = 0;
+    size_t i;
+    BIGNUM *b[15];
+
+    BN_CTX_start(c);
+    for (i = 0; i < OSSL_NELEM(b); i++) {
+        if (NULL == (b[i] = BN_CTX_get(c))) {
+            fprintf(stderr, "ERROR: BN_CTX_get() failed.\n");
+            goto err;
+        }
+        if (i % 2 == 1)
+            BN_set_flags(b[i], BN_FLG_CONSTTIME);
+    }
+
+    st = 1;
+ err:
+    BN_CTX_end(c);
+    return st;
+}
+
+static int test_ctx_check_ct_flag(BN_CTX *c)
+{
+    int st = 0;
+    size_t i;
+    BIGNUM *b[30];
+
+    BN_CTX_start(c);
+    for (i = 0; i < OSSL_NELEM(b); i++) {
+        if (NULL == (b[i] = BN_CTX_get(c))) {
+            fprintf(stderr, "ERROR: BN_CTX_get() failed.\n");
+            goto err;
+        }
+        if (BN_get_flags(b[i], BN_FLG_CONSTTIME) != 0) {
+            fprintf(stderr, "ERROR: BN_FLG_CONSTTIME should not be set.\n");
+            goto err;
+        }
+    }
+
+    st = 1;
+ err:
+    BN_CTX_end(c);
+    return st;
+}
+
+static int test_ctx_consttime_flag(void)
+{
+    /*-
+     * The constant-time flag should not "leak" among BN_CTX frames:
+     *
+     * - test_ctx_set_ct_flag() starts a frame in the given BN_CTX and
+     *   sets the BN_FLG_CONSTTIME flag on some of the BIGNUMs obtained
+     *   from the frame before ending it.
+     * - test_ctx_check_ct_flag() then starts a new frame and gets a
+     *   number of BIGNUMs from it. In absence of leaks, none of the
+     *   BIGNUMs in the new frame should have BN_FLG_CONSTTIME set.
+     *
+     * In actual BN_CTX usage inside libcrypto the leak could happen at
+     * any depth level in the BN_CTX stack, with varying results
+     * depending on the patterns of sibling trees of nested function
+     * calls sharing the same BN_CTX object, and the effect of
+     * unintended BN_FLG_CONSTTIME on the called BN_* functions.
+     *
+     * This simple unit test abstracts away this complexity and verifies
+     * that the leak does not happen between two sibling functions
+     * sharing the same BN_CTX object at the same level of nesting.
+     *
+     */
+    BN_CTX *c = NULL;
+    int st = 0;
+
+    if (NULL == (c = BN_CTX_new())) {
+        fprintf(stderr, "ERROR: BN_CTX_new() failed.\n");
+        goto err;
+    }
+
+    if (!test_ctx_set_ct_flag(c)
+            || !test_ctx_check_ct_flag(c))
+        goto err;
+
+    st = 1;
+ err:
+    BN_CTX_free(c);
+    return st;
 }

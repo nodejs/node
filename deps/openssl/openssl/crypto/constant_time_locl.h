@@ -204,6 +204,12 @@ static inline int constant_time_select_int(unsigned int mask, int a, int b)
     return (int)(constant_time_select(mask, (unsigned)(a), (unsigned)(b)));
 }
 
+/*
+ * Expected usage pattern is to unconditionally set error and then
+ * wipe it if there was no actual error. |clear| is 1 or 0.
+ */
+void err_clear_last_constant_time(int clear);
+
 #ifdef __cplusplus
 }
 #endif

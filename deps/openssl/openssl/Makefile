@@ -4,7 +4,7 @@
 ## Makefile for OpenSSL
 ##
 
-VERSION=1.0.2q
+VERSION=1.0.2r
 MAJOR=1
 MINOR=0.2
 SHLIB_VERSION_NUMBER=1.0.0
@@ -521,7 +521,7 @@ $(TARFILE).list:
 	find * \! -name STATUS \! -name TABLE \! -name '*.o' \! -name '*.a' \
 	       \! -name '*.so' \! -name '*.so.*'  \! -name 'openssl' \
 	       \( \! -name '*test' -o -name bctest -o -name pod2mantest \) \
-	       \! -name '.#*' \! -name '*~' \! -type l \
+	       \! -name '.#*' \! -name '*.bak' \! -name '*~' \! -type l \
 	    | sort > $(TARFILE).list
 
 tar: $(TARFILE).list
