@@ -9,6 +9,7 @@ global	aesni_encrypt
 
 ALIGN	16
 aesni_encrypt:
+
 	movups	xmm2,XMMWORD[rcx]
 	mov	eax,DWORD[240+r8]
 	movups	xmm0,XMMWORD[r8]
@@ -29,10 +30,12 @@ DB	102,15,56,221,209
 	DB	0F3h,0C3h		;repret
 
 
+
 global	aesni_decrypt
 
 ALIGN	16
 aesni_decrypt:
+
 	movups	xmm2,XMMWORD[rcx]
 	mov	eax,DWORD[240+r8]
 	movups	xmm0,XMMWORD[r8]
@@ -53,8 +56,10 @@ DB	102,15,56,223,209
 	DB	0F3h,0C3h		;repret
 
 
+
 ALIGN	16
 _aesni_encrypt2:
+
 	movups	xmm0,XMMWORD[rcx]
 	shl	eax,4
 	movups	xmm1,XMMWORD[16+rcx]
@@ -82,8 +87,10 @@ DB	102,15,56,221,216
 	DB	0F3h,0C3h		;repret
 
 
+
 ALIGN	16
 _aesni_decrypt2:
+
 	movups	xmm0,XMMWORD[rcx]
 	shl	eax,4
 	movups	xmm1,XMMWORD[16+rcx]
@@ -111,8 +118,10 @@ DB	102,15,56,223,216
 	DB	0F3h,0C3h		;repret
 
 
+
 ALIGN	16
 _aesni_encrypt3:
+
 	movups	xmm0,XMMWORD[rcx]
 	shl	eax,4
 	movups	xmm1,XMMWORD[16+rcx]
@@ -145,8 +154,10 @@ DB	102,15,56,221,224
 	DB	0F3h,0C3h		;repret
 
 
+
 ALIGN	16
 _aesni_decrypt3:
+
 	movups	xmm0,XMMWORD[rcx]
 	shl	eax,4
 	movups	xmm1,XMMWORD[16+rcx]
@@ -179,8 +190,10 @@ DB	102,15,56,223,224
 	DB	0F3h,0C3h		;repret
 
 
+
 ALIGN	16
 _aesni_encrypt4:
+
 	movups	xmm0,XMMWORD[rcx]
 	shl	eax,4
 	movups	xmm1,XMMWORD[16+rcx]
@@ -219,8 +232,10 @@ DB	102,15,56,221,232
 	DB	0F3h,0C3h		;repret
 
 
+
 ALIGN	16
 _aesni_decrypt4:
+
 	movups	xmm0,XMMWORD[rcx]
 	shl	eax,4
 	movups	xmm1,XMMWORD[16+rcx]
@@ -259,8 +274,10 @@ DB	102,15,56,223,232
 	DB	0F3h,0C3h		;repret
 
 
+
 ALIGN	16
 _aesni_encrypt6:
+
 	movups	xmm0,XMMWORD[rcx]
 	shl	eax,4
 	movups	xmm1,XMMWORD[16+rcx]
@@ -313,8 +330,10 @@ DB	102,15,56,221,248
 	DB	0F3h,0C3h		;repret
 
 
+
 ALIGN	16
 _aesni_decrypt6:
+
 	movups	xmm0,XMMWORD[rcx]
 	shl	eax,4
 	movups	xmm1,XMMWORD[16+rcx]
@@ -367,8 +386,10 @@ DB	102,15,56,223,248
 	DB	0F3h,0C3h		;repret
 
 
+
 ALIGN	16
 _aesni_encrypt8:
+
 	movups	xmm0,XMMWORD[rcx]
 	shl	eax,4
 	movups	xmm1,XMMWORD[16+rcx]
@@ -431,8 +452,10 @@ DB	102,68,15,56,221,200
 	DB	0F3h,0C3h		;repret
 
 
+
 ALIGN	16
 _aesni_decrypt8:
+
 	movups	xmm0,XMMWORD[rcx]
 	shl	eax,4
 	movups	xmm1,XMMWORD[16+rcx]
@@ -494,6 +517,7 @@ DB	102,68,15,56,223,192
 DB	102,68,15,56,223,200
 	DB	0F3h,0C3h		;repret
 
+
 global	aesni_ecb_encrypt
 
 ALIGN	16
@@ -507,6 +531,7 @@ $L$SEH_begin_aesni_ecb_encrypt:
 	mov	rdx,r8
 	mov	rcx,r9
 	mov	r8,QWORD[40+rsp]
+
 
 
 	lea	rsp,[((-88))+rsp]
@@ -864,6 +889,7 @@ $L$ecb_enc_ret:
 	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD[16+rsp]
 	DB	0F3h,0C3h		;repret
+
 $L$SEH_end_aesni_ecb_encrypt:
 global	aesni_ccm64_encrypt_blocks
 

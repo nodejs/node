@@ -1,4 +1,4 @@
-// Copyright 2014-2018 The OpenSSL Project Authors. All Rights Reserved.
+// Copyright 2014-2019 The OpenSSL Project Authors. All Rights Reserved.
 //
 // Licensed under the OpenSSL license (the "License").  You may not use
 // this file except in compliance with the License.  You can obtain a copy
@@ -75,6 +75,7 @@ sha512_block_data_order:
 	tst	w16,#ARMV8_SHA512
 	b.ne	.Lv8_entry
 #endif
+.inst	0xd503233f				// paciasp
 	stp	x29,x30,[sp,#-128]!
 	add	x29,sp,#0
 
@@ -1034,6 +1035,7 @@ sha512_block_data_order:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#128
+.inst	0xd50323bf				// autiasp
 	ret
 .size	sha512_block_data_order,.-sha512_block_data_order
 
