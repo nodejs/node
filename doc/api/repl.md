@@ -159,25 +159,19 @@ changes:
 The REPL uses the [`domain`][] module to catch all uncaught exceptions for that
 REPL session.
 
-This use of the [`domain`][] module in the REPL has these side effects:
+This use of the [`domain`][] module in the REPL has the side effect of making
+uncaught exceptions not emit the [`'uncaughtException'`][] event.
 
-* Uncaught exceptions only emit the [`'uncaughtException'`][] event in the
-  standalone REPL. Adding a listener for this event in a REPL within
-  another Node.js program results in [`ERR_INVALID_REPL_INPUT`][].
+```js
+const r = repl.start();
 
-  ```js
-  const r = repl.start();
+r.write('process.on("uncaughtException", () => console.log("Foobar"));\n');
+// Output stream includes:
+//   TypeError [ERR_INVALID_REPL_INPUT]: Listeners for `uncaughtException`
+//   cannot be used in the REPL
 
-  r.write('process.on("uncaughtException", () => console.log("Foobar"));\n');
-  // Output stream includes:
-  //   TypeError [ERR_INVALID_REPL_INPUT]: Listeners for `uncaughtException`
-  //   cannot be used in the REPL
-
-  r.close();
-  ```
-
-* Trying to use [`process.setUncaughtExceptionCaptureCallback()`][] throws
-  an [`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`][] error.
+r.close();
+```
 
 #### Assignment of the `_` (underscore) variable
 <!-- YAML
@@ -748,11 +742,8 @@ For an example of running a REPL instance over [`curl(1)`][], see:
 [ZSH]: https://en.wikipedia.org/wiki/Z_shell
 [`'uncaughtException'`]: process.md#process_event_uncaughtexception
 [`--experimental-repl-await`]: cli.md#cli_experimental_repl_await
-[`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`]: errors.md#errors_err_domain_cannot_set_uncaught_exception_capture
-[`ERR_INVALID_REPL_INPUT`]: errors.md#errors_err_invalid_repl_input
 [`curl(1)`]: https://curl.haxx.se/docs/manpage.html
 [`domain`]: domain.md
-[`process.setUncaughtExceptionCaptureCallback()`]: process.md#process_process_setuncaughtexceptioncapturecallback_fn
 [`readline.InterfaceCompleter`]: readline.md#readline_use_of_the_completer_function
 [`repl.ReplServer`]: #repl_class_replserver
 [`repl.start()`]: #repl_repl_start_options
