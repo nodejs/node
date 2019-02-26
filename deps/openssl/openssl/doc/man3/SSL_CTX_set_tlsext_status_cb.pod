@@ -108,8 +108,8 @@ side if the client requested OCSP stapling. Otherwise -1 is returned.
 
 =head1 HISTORY
 
-SSL_get_tlsext_status_type(), SSL_CTX_get_tlsext_status_type() and
-SSL_CTX_set_tlsext_status_type() were added in OpenSSL 1.1.0.
+The SSL_get_tlsext_status_type(), SSL_CTX_get_tlsext_status_type()
+and SSL_CTX_set_tlsext_status_type() functions were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 

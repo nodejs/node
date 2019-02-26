@@ -61,7 +61,7 @@ L<CMS_encrypt(3)>
 
 =head1 HISTORY
 
-BIO_new_CMS() was added to OpenSSL 1.0.0
+The BIO_new_CMS() function was added in OpenSSL 1.0.0.
 
 =head1 COPYRIGHT
 

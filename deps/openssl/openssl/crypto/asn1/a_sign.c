@@ -29,7 +29,8 @@ int ASN1_sign(i2d_of_void *i2d, X509_ALGOR *algor1, X509_ALGOR *algor2,
 {
     EVP_MD_CTX *ctx = EVP_MD_CTX_new();
     unsigned char *p, *buf_in = NULL, *buf_out = NULL;
-    int i, inl = 0, outl = 0, outll = 0;
+    int i, inl = 0, outl = 0;
+    size_t inll = 0, outll = 0;
     X509_ALGOR *a;
 
     if (ctx == NULL) {
@@ -70,10 +71,15 @@ int ASN1_sign(i2d_of_void *i2d, X509_ALGOR *algor1, X509_ALGOR *algor2,
         }
     }
     inl = i2d(data, NULL);
-    buf_in = OPENSSL_malloc((unsigned int)inl);
+    if (inl <= 0) {
+        ASN1err(ASN1_F_ASN1_SIGN, ERR_R_INTERNAL_ERROR);
+        goto err;
+    }
+    inll = (size_t)inl;
+    buf_in = OPENSSL_malloc(inll);
     outll = outl = EVP_PKEY_size(pkey);
-    buf_out = OPENSSL_malloc((unsigned int)outl);
-    if ((buf_in == NULL) || (buf_out == NULL)) {
+    buf_out = OPENSSL_malloc(outll);
+    if (buf_in == NULL || buf_out == NULL) {
         outl = 0;
         ASN1err(ASN1_F_ASN1_SIGN, ERR_R_MALLOC_FAILURE);
         goto err;
@@ -101,7 +107,7 @@ int ASN1_sign(i2d_of_void *i2d, X509_ALGOR *algor1, X509_ALGOR *algor2,
     signature->flags |= ASN1_STRING_FLAG_BITS_LEFT;
  err:
     EVP_MD_CTX_free(ctx);
-    OPENSSL_clear_free((char *)buf_in, (unsigned int)inl);
+    OPENSSL_clear_free((char *)buf_in, inll);
     OPENSSL_clear_free((char *)buf_out, outll);
     return outl;
 }
@@ -138,7 +144,7 @@ int ASN1_item_sign_ctx(const ASN1_ITEM *it,
     EVP_PKEY *pkey;
     unsigned char *buf_in = NULL, *buf_out = NULL;
     size_t inl = 0, outl = 0, outll = 0;
-    int signid, paramtype;
+    int signid, paramtype, buf_len = 0;
     int rv;
 
     type = EVP_MD_CTX_md(ctx);
@@ -198,10 +204,16 @@ int ASN1_item_sign_ctx(const ASN1_ITEM *it,
 
     }
 
-    inl = ASN1_item_i2d(asn, &buf_in, it);
+    buf_len = ASN1_item_i2d(asn, &buf_in, it);
+    if (buf_len <= 0) {
+        outl = 0;
+        ASN1err(ASN1_F_ASN1_ITEM_SIGN_CTX, ERR_R_INTERNAL_ERROR);
+        goto err;
+    }
+    inl = buf_len;
     outll = outl = EVP_PKEY_size(pkey);
-    buf_out = OPENSSL_malloc((unsigned int)outl);
-    if ((buf_in == NULL) || (buf_out == NULL)) {
+    buf_out = OPENSSL_malloc(outll);
+    if (buf_in == NULL || buf_out == NULL) {
         outl = 0;
         ASN1err(ASN1_F_ASN1_ITEM_SIGN_CTX, ERR_R_MALLOC_FAILURE);
         goto err;
@@ -223,7 +235,7 @@ int ASN1_item_sign_ctx(const ASN1_ITEM *it,
     signature->flags &= ~(ASN1_STRING_FLAG_BITS_LEFT | 0x07);
     signature->flags |= ASN1_STRING_FLAG_BITS_LEFT;
  err:
-    OPENSSL_clear_free((char *)buf_in, (unsigned int)inl);
+    OPENSSL_clear_free((char *)buf_in, inl);
     OPENSSL_clear_free((char *)buf_out, outll);
     return outl;
 }

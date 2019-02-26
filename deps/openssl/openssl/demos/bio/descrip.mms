@@ -23,7 +23,7 @@ SHARED = TRUE
 	@ !
 
 # Because we use an option file, we need to redefine this
-.obj.exe : 
+.obj.exe :
 	$(LINK) $(LINKFLAGS) $<,OPT:/OPT
 
 all : client-arg.exe client-conf.exe saccept.exe sconnect.exe -

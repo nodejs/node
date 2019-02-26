@@ -13,7 +13,7 @@ RIPEMD-160 hash function
                           unsigned char *md);
 
  int RIPEMD160_Init(RIPEMD160_CTX *c);
- int RIPEMD160_Update(RIPEMD_CTX *c, const void *data, unsigned long len);
+ int RIPEMD160_Update(RIPEMD160_CTX *c, const void *data, unsigned long len);
  int RIPEMD160_Final(unsigned char *md, RIPEMD160_CTX *c);
 
 =head1 DESCRIPTION
@@ -61,7 +61,7 @@ L<EVP_DigestInit(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

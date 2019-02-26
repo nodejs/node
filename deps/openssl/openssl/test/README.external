@@ -145,7 +145,7 @@ To update the commit for any of the above test suites:
 
 - Enter subdirectory and pull from the repository (use a specific branch/tag if required):
 
-  $ cd <submodule-dir> 
+  $ cd <submodule-dir>
   $ git pull origin master
 
 - Go to root directory, there should be a new git status:

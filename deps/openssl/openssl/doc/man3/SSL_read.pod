@@ -128,7 +128,7 @@ You should instead call SSL_get_error() to find out if it's retryable.
 
 =head1 HISTORY
 
-SSL_read_ex() and SSL_peek_ex() were added in OpenSSL 1.1.1.
+The SSL_read_ex() and SSL_peek_ex() functions were added in OpenSSL 1.1.1.
 
 =head1 SEE ALSO
 

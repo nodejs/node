@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL licenses, (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ static int test_certs(int num)
     typedef int (*i2d_X509_t)(X509 *, unsigned char **);
     int err = 0;
     BIO *fp = BIO_new_file(test_get_argument(num), "r");
+    X509 *reuse = NULL;
 
     if (!TEST_ptr(fp))
         return 0;
@@ -91,6 +92,13 @@ static int test_certs(int num)
             err = 1;
             goto next;
         }
+        p = buf;
+        reuse = d2i(&reuse, &p, enclen);
+        if (reuse == NULL || X509_cmp (reuse, cert)) {
+            TEST_error("X509_cmp does not work with %s", name);
+            err = 1;
+            goto next;
+        }
         OPENSSL_free(buf);
         buf = NULL;
 
@@ -139,6 +147,7 @@ static int test_certs(int num)
         OPENSSL_free(data);
     }
     BIO_free(fp);
+    X509_free(reuse);
 
     if (ERR_GET_REASON(ERR_peek_last_error()) == PEM_R_NO_START_LINE) {
         /* Reached end of PEM file */

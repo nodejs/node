@@ -319,9 +319,9 @@ Generate an ED448 private key:
 =head1 HISTORY
 
 The ability to use NIST curve names, and to generate an EC key directly,
-were added in OpenSSL 1.0.2. The ability to generate X25519 keys was added in
-OpenSSL 1.1.0. The ability to generate X448, ED25519 and ED448 keys was added in
-OpenSSL 1.1.1.
+were added in OpenSSL 1.0.2.
+The ability to generate X25519 keys was added in OpenSSL 1.1.0.
+The ability to generate X448, ED25519 and ED448 keys was added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 

@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -287,6 +287,7 @@ __bn_sqr8x_mont:
 	cmp	$ap,$bp
 	b.ne	__bn_mul4x_mont
 .Lsqr8x_mont:
+	.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-128]!
 	add	x29,sp,#0
 	stp	x19,x20,[sp,#16]
@@ -1040,6 +1041,7 @@ $code.=<<___;
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldr	x29,[sp],#128
+	.inst	0xd50323bf		// autiasp
 	ret
 .size	__bn_sqr8x_mont,.-__bn_sqr8x_mont
 ___
@@ -1063,6 +1065,7 @@ $code.=<<___;
 .type	__bn_mul4x_mont,%function
 .align	5
 __bn_mul4x_mont:
+	.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-128]!
 	add	x29,sp,#0
 	stp	x19,x20,[sp,#16]
@@ -1496,6 +1499,7 @@ __bn_mul4x_mont:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldr	x29,[sp],#128
+	.inst	0xd50323bf		// autiasp
 	ret
 .size	__bn_mul4x_mont,.-__bn_mul4x_mont
 ___

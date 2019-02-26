@@ -27,7 +27,7 @@ sub verify {
     run(app([@args]));
 }
 
-plan tests => 134;
+plan tests => 135;
 
 # Canonical success
 ok(verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert"]),
@@ -361,6 +361,8 @@ ok(verify("some-names2", "sslserver", ["many-constraints"], ["many-constraints"]
     "Not too many names and constraints to check (2)");
 ok(verify("some-names2", "sslserver", ["many-constraints"], ["many-constraints"], ),
     "Not too many names and constraints to check (3)");
+ok(verify("root-cert-rsa2", "sslserver", ["root-cert-rsa2"], [], "-check_ss_sig"),
+    "Public Key Algorithm rsa instead of rsaEncryption");
 
 SKIP: {
     skip "Ed25519 is not supported by this OpenSSL build", 1

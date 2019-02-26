@@ -53,8 +53,8 @@ and X509_CRL_set_issuer_name() return 1 for success and 0 for failure.
 X509_REQ_get_subject_name() is a function in OpenSSL 1.1.0 and a macro in
 earlier versions.
 
-X509_CRL_get_issuer() is a function in OpenSSL 1.1.0. It was first added
-to OpenSSL 1.0.0 as a macro.
+X509_CRL_get_issuer() is a function in OpenSSL 1.1.0. It was previously
+added in OpenSSL 1.0.0 as a macro.
 
 =head1 SEE ALSO
 

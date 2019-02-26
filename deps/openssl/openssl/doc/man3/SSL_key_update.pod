@@ -14,11 +14,11 @@ SSL_renegotiate_pending
  #include <openssl/ssl.h>
 
  int SSL_key_update(SSL *s, int updatetype);
- int SSL_get_key_update_type(SSL *s);
+ int SSL_get_key_update_type(const SSL *s);
 
  int SSL_renegotiate(SSL *s);
  int SSL_renegotiate_abbreviated(SSL *s);
- int SSL_renegotiate_pending(SSL *s);
+ int SSL_renegotiate_pending(const SSL *s);
 
 =head1 DESCRIPTION
 
@@ -100,7 +100,7 @@ OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

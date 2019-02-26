@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -119,6 +119,7 @@ $code.=<<___;
 .type	ecp_nistz256_to_mont,%function
 .align	6
 ecp_nistz256_to_mont:
+	.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-32]!
 	add	x29,sp,#0
 	stp	x19,x20,[sp,#16]
@@ -134,6 +135,7 @@ ecp_nistz256_to_mont:
 
 	ldp	x19,x20,[sp,#16]
 	ldp	x29,x30,[sp],#32
+	.inst	0xd50323bf		// autiasp
 	ret
 .size	ecp_nistz256_to_mont,.-ecp_nistz256_to_mont
 
@@ -142,6 +144,7 @@ ecp_nistz256_to_mont:
 .type	ecp_nistz256_from_mont,%function
 .align	4
 ecp_nistz256_from_mont:
+	.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-32]!
 	add	x29,sp,#0
 	stp	x19,x20,[sp,#16]
@@ -157,6 +160,7 @@ ecp_nistz256_from_mont:
 
 	ldp	x19,x20,[sp,#16]
 	ldp	x29,x30,[sp],#32
+	.inst	0xd50323bf		// autiasp
 	ret
 .size	ecp_nistz256_from_mont,.-ecp_nistz256_from_mont
 
@@ -166,6 +170,7 @@ ecp_nistz256_from_mont:
 .type	ecp_nistz256_mul_mont,%function
 .align	4
 ecp_nistz256_mul_mont:
+	.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-32]!
 	add	x29,sp,#0
 	stp	x19,x20,[sp,#16]
@@ -180,6 +185,7 @@ ecp_nistz256_mul_mont:
 
 	ldp	x19,x20,[sp,#16]
 	ldp	x29,x30,[sp],#32
+	.inst	0xd50323bf		// autiasp
 	ret
 .size	ecp_nistz256_mul_mont,.-ecp_nistz256_mul_mont
 
@@ -188,6 +194,7 @@ ecp_nistz256_mul_mont:
 .type	ecp_nistz256_sqr_mont,%function
 .align	4
 ecp_nistz256_sqr_mont:
+	.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-32]!
 	add	x29,sp,#0
 	stp	x19,x20,[sp,#16]
@@ -201,6 +208,7 @@ ecp_nistz256_sqr_mont:
 
 	ldp	x19,x20,[sp,#16]
 	ldp	x29,x30,[sp],#32
+	.inst	0xd50323bf		// autiasp
 	ret
 .size	ecp_nistz256_sqr_mont,.-ecp_nistz256_sqr_mont
 
@@ -210,6 +218,7 @@ ecp_nistz256_sqr_mont:
 .type	ecp_nistz256_add,%function
 .align	4
 ecp_nistz256_add:
+	.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 
@@ -223,6 +232,7 @@ ecp_nistz256_add:
 	bl	__ecp_nistz256_add
 
 	ldp	x29,x30,[sp],#16
+	.inst	0xd50323bf		// autiasp
 	ret
 .size	ecp_nistz256_add,.-ecp_nistz256_add
 
@@ -231,6 +241,7 @@ ecp_nistz256_add:
 .type	ecp_nistz256_div_by_2,%function
 .align	4
 ecp_nistz256_div_by_2:
+	.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 
@@ -242,6 +253,7 @@ ecp_nistz256_div_by_2:
 	bl	__ecp_nistz256_div_by_2
 
 	ldp	x29,x30,[sp],#16
+	.inst	0xd50323bf		//  autiasp
 	ret
 .size	ecp_nistz256_div_by_2,.-ecp_nistz256_div_by_2
 
@@ -250,6 +262,7 @@ ecp_nistz256_div_by_2:
 .type	ecp_nistz256_mul_by_2,%function
 .align	4
 ecp_nistz256_mul_by_2:
+	.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 
@@ -265,6 +278,7 @@ ecp_nistz256_mul_by_2:
 	bl	__ecp_nistz256_add	// ret = a+a	// 2*a
 
 	ldp	x29,x30,[sp],#16
+	.inst	0xd50323bf		// autiasp
 	ret
 .size	ecp_nistz256_mul_by_2,.-ecp_nistz256_mul_by_2
 
@@ -273,6 +287,7 @@ ecp_nistz256_mul_by_2:
 .type	ecp_nistz256_mul_by_3,%function
 .align	4
 ecp_nistz256_mul_by_3:
+	.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 
@@ -299,6 +314,7 @@ ecp_nistz256_mul_by_3:
 	bl	__ecp_nistz256_add	// ret += a	// 2*a+a=3*a
 
 	ldp	x29,x30,[sp],#16
+	.inst	0xd50323bf		// autiasp
 	ret
 .size	ecp_nistz256_mul_by_3,.-ecp_nistz256_mul_by_3
 
@@ -308,6 +324,7 @@ ecp_nistz256_mul_by_3:
 .type	ecp_nistz256_sub,%function
 .align	4
 ecp_nistz256_sub:
+	.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 
@@ -319,6 +336,7 @@ ecp_nistz256_sub:
 	bl	__ecp_nistz256_sub_from
 
 	ldp	x29,x30,[sp],#16
+	.inst	0xd50323bf		// autiasp
 	ret
 .size	ecp_nistz256_sub,.-ecp_nistz256_sub
 
@@ -327,6 +345,7 @@ ecp_nistz256_sub:
 .type	ecp_nistz256_neg,%function
 .align	4
 ecp_nistz256_neg:
+	.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 
@@ -341,6 +360,7 @@ ecp_nistz256_neg:
 	bl	__ecp_nistz256_sub_from
 
 	ldp	x29,x30,[sp],#16
+	.inst	0xd50323bf		// autiasp
 	ret
 .size	ecp_nistz256_neg,.-ecp_nistz256_neg
 
@@ -701,6 +721,7 @@ $code.=<<___;
 .type	ecp_nistz256_point_double,%function
 .align	5
 ecp_nistz256_point_double:
+	.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-80]!
 	add	x29,sp,#0
 	stp	x19,x20,[sp,#16]
@@ -835,6 +856,7 @@ ecp_nistz256_point_double:
 	ldp	x19,x20,[x29,#16]
 	ldp	x21,x22,[x29,#32]
 	ldp	x29,x30,[sp],#80
+	.inst	0xd50323bf		// autiasp
 	ret
 .size	ecp_nistz256_point_double,.-ecp_nistz256_point_double
 ___
@@ -857,6 +879,7 @@ $code.=<<___;
 .type	ecp_nistz256_point_add,%function
 .align	5
 ecp_nistz256_point_add:
+	.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-80]!
 	add	x29,sp,#0
 	stp	x19,x20,[sp,#16]
@@ -1094,12 +1117,13 @@ $code.=<<___;
 	stp	$acc2,$acc3,[$rp_real,#$i+16]
 
 .Ladd_done:
-	add	sp,x29,#0	// destroy frame
+	add	sp,x29,#0		// destroy frame
 	ldp	x19,x20,[x29,#16]
 	ldp	x21,x22,[x29,#32]
 	ldp	x23,x24,[x29,#48]
 	ldp	x25,x26,[x29,#64]
 	ldp	x29,x30,[sp],#80
+	.inst	0xd50323bf		// autiasp
 	ret
 .size	ecp_nistz256_point_add,.-ecp_nistz256_point_add
 ___
@@ -1121,6 +1145,7 @@ $code.=<<___;
 .type	ecp_nistz256_point_add_affine,%function
 .align	5
 ecp_nistz256_point_add_affine:
+	.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-80]!
 	add	x29,sp,#0
 	stp	x19,x20,[sp,#16]
@@ -1309,6 +1334,7 @@ $code.=<<___;
 	ldp	x23,x24,[x29,#48]
 	ldp	x25,x26,[x29,#64]
 	ldp	x29,x30,[sp],#80
+	.inst	0xd50323bf		// autiasp
 	ret
 .size	ecp_nistz256_point_add_affine,.-ecp_nistz256_point_add_affine
 ___

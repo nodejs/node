@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -227,6 +227,8 @@ BIGNUM *BN_CTX_get(BN_CTX *ctx)
     }
     /* OK, make sure the returned bignum is "zero" */
     BN_zero(ret);
+    /* clear BN_FLG_CONSTTIME if leaked from previous frames */
+    ret->flags &= (~BN_FLG_CONSTTIME);
     ctx->used++;
     CTXDBG_RET(ctx, ret);
     return ret;
@@ -256,7 +258,7 @@ static int BN_STACK_push(BN_STACK *st, unsigned int idx)
         unsigned int newsize =
             st->size ? (st->size * 3 / 2) : BN_CTX_START_FRAMES;
         unsigned int *newitems;
-        
+
         if ((newitems = OPENSSL_malloc(sizeof(*newitems) * newsize)) == NULL) {
             BNerr(BN_F_BN_STACK_PUSH, ERR_R_MALLOC_FAILURE);
             return 0;
@@ -310,7 +312,7 @@ static BIGNUM *BN_POOL_get(BN_POOL *p, int flag)
     /* Full; allocate a new pool item and link it in. */
     if (p->used == p->size) {
         BN_POOL_ITEM *item;
-        
+
         if ((item = OPENSSL_malloc(sizeof(*item))) == NULL) {
             BNerr(BN_F_BN_POOL_GET, ERR_R_MALLOC_FAILURE);
             return NULL;

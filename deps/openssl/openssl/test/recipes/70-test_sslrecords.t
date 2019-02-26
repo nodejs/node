@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -44,7 +44,7 @@ my $content_type = TLSProxy::Record::RT_APPLICATION_DATA;
 my $inject_recs_num = 1;
 $proxy->serverflags("-tls1_2");
 $proxy->start() or plan skip_all => "Unable to start up Proxy for tests";
-plan tests => 18;
+plan tests => 20;
 ok($fatal_alert, "Out of context empty records test");
 
 #Test 2: Injecting in context empty records should succeed
@@ -155,7 +155,7 @@ ok($fatal_alert, "Changed record version in TLS1.2");
 
 #TLS1.3 specific tests
 SKIP: {
-    skip "TLSv1.3 disabled", 6 if disabled("tls1_3");
+    skip "TLSv1.3 disabled", 8 if disabled("tls1_3");
 
     #Test 13: Sending a different record version in TLS1.3 should fail
     $proxy->clear();
@@ -181,7 +181,9 @@ SKIP: {
     use constant {
         DATA_AFTER_SERVER_HELLO => 0,
         DATA_AFTER_FINISHED => 1,
-        DATA_AFTER_KEY_UPDATE => 2
+        DATA_AFTER_KEY_UPDATE => 2,
+        DATA_BETWEEN_KEY_UPDATE => 3,
+        NO_DATA_BETWEEN_KEY_UPDATE => 4,
     };
 
     #Test 16: Sending a ServerHello which doesn't end on a record boundary
@@ -198,7 +200,6 @@ SKIP: {
     $fatal_alert = 0;
     $proxy->clear();
     $boundary_test_type = DATA_AFTER_FINISHED;
-    $proxy->filter(\&not_on_record_boundary);
     $proxy->start();
     ok($fatal_alert, "Record not on boundary in TLS1.3 (Finished)");
 
@@ -207,9 +208,24 @@ SKIP: {
     $fatal_alert = 0;
     $proxy->clear();
     $boundary_test_type = DATA_AFTER_KEY_UPDATE;
-    $proxy->filter(\&not_on_record_boundary);
     $proxy->start();
     ok($fatal_alert, "Record not on boundary in TLS1.3 (KeyUpdate)");
+
+    #Test 19: Sending application data in the middle of a fragmented KeyUpdate
+    #         should fail. Strictly speaking this is not a record boundary test
+    #         but we use the same filter.
+    $fatal_alert = 0;
+    $proxy->clear();
+    $boundary_test_type = DATA_BETWEEN_KEY_UPDATE;
+    $proxy->start();
+    ok($fatal_alert, "Data between KeyUpdate");
+
+    #Test 20: Fragmented KeyUpdate. This should succeed. Strictly speaking this
+    #         is not a record boundary test but we use the same filter.
+    $proxy->clear();
+    $boundary_test_type = NO_DATA_BETWEEN_KEY_UPDATE;
+    $proxy->start();
+    ok(TLSProxy::Message->success(), "No data between KeyUpdate");
  }
 
 
@@ -573,7 +589,7 @@ sub not_on_record_boundary
         #Update the record
         $last_record->data($data);
         $last_record->len(length $data);
-    } else {
+    } elsif ($boundary_test_type == DATA_AFTER_KEY_UPDATE) {
         return if @{$proxy->{message_list}}[-1]->{mt}
                   != TLSProxy::Message::MT_FINISHED;
 
@@ -605,5 +621,79 @@ sub not_on_record_boundary
         $record->data($data);
         $record->len(length $data);
         push @{$records}, $record;
+    } else {
+        return if @{$proxy->{message_list}}[-1]->{mt}
+                  != TLSProxy::Message::MT_FINISHED;
+
+        my $record = TLSProxy::Record->new(
+            1,
+            TLSProxy::Record::RT_APPLICATION_DATA,
+            TLSProxy::Record::VERS_TLS_1_2,
+            0,
+            0,
+            0,
+            0,
+            "",
+            ""
+        );
+
+        #Add a partial KeyUpdate message into the record
+        $data = pack "C1",
+            0x18; # KeyUpdate message type. Omit the rest of the message header
+
+        #Add content type and tag
+        $data .= pack("C", TLSProxy::Record::RT_HANDSHAKE).("\0"x16);
+
+        $record->data($data);
+        $record->len(length $data);
+        push @{$records}, $record;
+
+        if ($boundary_test_type == DATA_BETWEEN_KEY_UPDATE) {
+            #Now add an app data record
+            $record = TLSProxy::Record->new(
+                1,
+                TLSProxy::Record::RT_APPLICATION_DATA,
+                TLSProxy::Record::VERS_TLS_1_2,
+                0,
+                0,
+                0,
+                0,
+                "",
+                ""
+            );
+
+            #Add an empty app data record (just content type and tag)
+            $data = pack("C", TLSProxy::Record::RT_APPLICATION_DATA).("\0"x16);
+
+            $record->data($data);
+            $record->len(length $data);
+            push @{$records}, $record;
+        }
+
+        #Now add the rest of the KeyUpdate message
+        $record = TLSProxy::Record->new(
+            1,
+            TLSProxy::Record::RT_APPLICATION_DATA,
+            TLSProxy::Record::VERS_TLS_1_2,
+            0,
+            0,
+            0,
+            0,
+            "",
+            ""
+        );
+
+        #Add the last 4 bytes of the KeyUpdate record
+        $data = pack "C4",
+            0x00, 0x00, 0x01, # Message length
+            0x00; # Update not requested
+
+        #Add content type and tag
+        $data .= pack("C", TLSProxy::Record::RT_HANDSHAKE).("\0"x16);
+
+        $record->data($data);
+        $record->len(length $data);
+        push @{$records}, $record;
+
     }
 }

@@ -632,7 +632,7 @@ L<EVP_sm4(3)>
 
 =head1 HISTORY
 
-Support for OCB mode was added in OpenSSL 1.1.0
+Support for OCB mode was added in OpenSSL 1.1.0.
 
 B<EVP_CIPHER_CTX> was made opaque in OpenSSL 1.1.0.  As a result,
 EVP_CIPHER_CTX_reset() appeared and EVP_CIPHER_CTX_cleanup()

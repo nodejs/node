@@ -106,7 +106,7 @@ You should instead call SSL_get_error() to find out if it's retryable.
 
 =head1 HISTORY
 
-SSL_write_ex() was added in OpenSSL 1.1.1.
+The SSL_write_ex() function was added in OpenSSL 1.1.1.
 
 =head1 SEE ALSO
 

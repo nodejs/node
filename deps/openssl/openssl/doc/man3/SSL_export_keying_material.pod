@@ -59,7 +59,8 @@ B<label> and should be B<llen> bytes long. Typically this will be a value from
 the IANA Exporter Label Registry
 (L<https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#exporter-labels>).
 Alternatively labels beginning with "EXPERIMENTAL" are permitted by the standard
-to be used without registration.
+to be used without registration. TLSv1.3 imposes a maximum label length of
+249 bytes.
 
 Note that this function is only defined for TLSv1.0 and above, and DTLSv1.0 and
 above. Attempting to use it in SSLv3 will result in an error.
@@ -72,7 +73,7 @@ SSL_export_keying_material_early() returns 0 on failure or 1 on success.
 
 =head1 HISTORY
 
-SSL_export_keying_material_early() was first added in OpenSSL 1.1.1.
+The SSL_export_keying_material_early() function was added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
