@@ -85,6 +85,7 @@ class DebugOptions : public Options {
 class EnvironmentOptions : public Options {
  public:
   bool abort_on_uncaught_exception = false;
+  bool experimental_json_modules = false;
   bool experimental_modules = false;
   std::string es_module_specifier_resolution = "explicit";
   std::string module_type;
