@@ -1133,11 +1133,16 @@ bytes. This property is `undefined` for symmetric keys.
 ### keyObject.asymmetricKeyType
 <!-- YAML
 added: v11.6.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/26319
+    description: Added support for `'ed25519'` and `'ed448'`
 -->
 * {string}
 
 For asymmetric keys, this property represents the type of the embedded key
-(`'rsa'`, `'dsa'` or `'ec'`). This property is `undefined` for symmetric keys.
+(`'rsa'`, `'dsa'`, `'ec'`, `'ed25519'`, or `'ed448'`).
+This property is `undefined` for symmetric keys.
 
 ### keyObject.export([options])
 <!-- YAML
