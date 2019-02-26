@@ -53,11 +53,11 @@ our %config = (
   minor => "1.1",
   openssl_algorithm_defines => [ "OPENSSL_NO_COMP", "OPENSSL_NO_MD2", "OPENSSL_NO_RC5" ],
   openssl_api_defines => [  ],
-  openssl_other_defines => [ "OPENSSL_RAND_SEED_OS", "OPENSSL_NO_AFALGENG", "OPENSSL_NO_ASAN", "OPENSSL_NO_ASM", "OPENSSL_NO_CRYPTO_MDEBUG", "OPENSSL_NO_CRYPTO_MDEBUG_BACKTRACE", "OPENSSL_NO_DEVCRYPTOENG", "OPENSSL_NO_EC_NISTP_64_GCC_128", "OPENSSL_NO_EGD", "OPENSSL_NO_EXTERNAL_TESTS", "OPENSSL_NO_FUZZ_AFL", "OPENSSL_NO_FUZZ_LIBFUZZER", "OPENSSL_NO_HEARTBEATS", "OPENSSL_NO_MSAN", "OPENSSL_NO_SCTP", "OPENSSL_NO_SSL_TRACE", "OPENSSL_NO_SSL3", "OPENSSL_NO_SSL3_METHOD", "OPENSSL_NO_UBSAN", "OPENSSL_NO_UNIT_TEST", "OPENSSL_NO_WEAK_SSL_CIPHERS", "OPENSSL_NO_DYNAMIC_ENGINE", "OPENSSL_NO_AFALGENG" ],
+  openssl_other_defines => [ "OPENSSL_RAND_SEED_OS", "OPENSSL_NO_AFALGENG", "OPENSSL_NO_ASAN", "OPENSSL_NO_ASM", "OPENSSL_NO_CRYPTO_MDEBUG", "OPENSSL_NO_CRYPTO_MDEBUG_BACKTRACE", "OPENSSL_NO_EC_NISTP_64_GCC_128", "OPENSSL_NO_EGD", "OPENSSL_NO_EXTERNAL_TESTS", "OPENSSL_NO_FUZZ_AFL", "OPENSSL_NO_FUZZ_LIBFUZZER", "OPENSSL_NO_HEARTBEATS", "OPENSSL_NO_MSAN", "OPENSSL_NO_SCTP", "OPENSSL_NO_SSL_TRACE", "OPENSSL_NO_SSL3", "OPENSSL_NO_SSL3_METHOD", "OPENSSL_NO_UBSAN", "OPENSSL_NO_UNIT_TEST", "OPENSSL_NO_WEAK_SSL_CIPHERS", "OPENSSL_NO_DYNAMIC_ENGINE", "OPENSSL_NO_AFALGENG" ],
   openssl_sys_defines => [  ],
   openssl_thread_defines => [ "OPENSSL_THREADS" ],
   openssldir => "",
-  options => " no-afalgeng no-asan no-asm no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fuzz-afl no-fuzz-libfuzzer no-heartbeats no-md2 no-msan no-rc5 no-sctp no-shared no-ssl-trace no-ssl3 no-ssl3-method no-ubsan no-unit-test no-weak-ssl-ciphers no-zlib no-zlib-dynamic",
+  options => " no-afalgeng no-asan no-asm no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fuzz-afl no-fuzz-libfuzzer no-heartbeats no-md2 no-msan no-rc5 no-sctp no-shared no-ssl-trace no-ssl3 no-ssl3-method no-ubsan no-unit-test no-weak-ssl-ciphers no-zlib no-zlib-dynamic",
   perl_archname => "x86_64-linux-gnu-thread-multi",
   perl_cmd => "/usr/bin/perl",
   perl_version => "5.26.2",
@@ -109,8 +109,8 @@ our %config = (
   sourcedir => ".",
   target => "BSD-x86_64",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1a",
-  version_num => "0x1010101fL",
+  version => "1.1.1b",
+  version_num => "0x1010102fL",
 );
 
 our %target = (
@@ -257,6 +257,7 @@ our @disablables = (
   "msan",
   "multiblock",
   "nextprotoneg",
+  "pinshared",
   "ocb",
   "ocsp",
   "pic",
@@ -318,7 +319,6 @@ our %disabled = (
   "comp" => "option",
   "crypto-mdebug" => "default",
   "crypto-mdebug-backtrace" => "default",
-  "devcryptoeng" => "default",
   "dynamic-engine" => "forced",
   "ec_nistp_64_gcc_128" => "default",
   "egd" => "default",
@@ -778,6 +778,11 @@ our %unified_info = (
                     "test/libtestutil.a",
                 ],
             "test/bio_enc_test" =>
+                [
+                    "libcrypto",
+                    "test/libtestutil.a",
+                ],
+            "test/bio_memleak_test" =>
                 [
                     "libcrypto",
                     "test/libtestutil.a",
@@ -1263,6 +1268,11 @@ our %unified_info = (
             "test/dtlsv1listentest" =>
                 [
                     "libssl",
+                    "test/libtestutil.a",
+                ],
+            "test/ec_internal_test" =>
+                [
+                    "libcrypto.a",
                     "test/libtestutil.a",
                 ],
             "test/ecdsatest" =>
@@ -2276,6 +2286,7 @@ our %unified_info = (
                             "crypto/engine/eng_all.o",
                             "crypto/engine/eng_cnf.o",
                             "crypto/engine/eng_ctrl.o",
+                            "crypto/engine/eng_devcrypto.o",
                             "crypto/engine/eng_dyn.o",
                             "crypto/engine/eng_err.o",
                             "crypto/engine/eng_fat.o",
@@ -6700,6 +6711,12 @@ our %unified_info = (
                     "crypto/include",
                     "include",
                 ],
+            "crypto/engine/eng_devcrypto.o" =>
+                [
+                    ".",
+                    "crypto/include",
+                    "include",
+                ],
             "crypto/engine/eng_dyn.o" =>
                 [
                     ".",
@@ -9232,6 +9249,10 @@ our %unified_info = (
                 [
                     "include",
                 ],
+            "test/bio_memleak_test.o" =>
+                [
+                    "include",
+                ],
             "test/bioprinttest.o" =>
                 [
                     "include",
@@ -9627,6 +9648,12 @@ our %unified_info = (
             "test/dtlsv1listentest.o" =>
                 [
                     "include",
+                ],
+            "test/ec_internal_test.o" =>
+                [
+                    "include",
+                    "crypto/ec",
+                    "crypto/include",
                 ],
             "test/ecdsatest.o" =>
                 [
@@ -10035,6 +10062,7 @@ our %unified_info = (
             "test/bftest",
             "test/bio_callback_test",
             "test/bio_enc_test",
+            "test/bio_memleak_test",
             "test/bioprinttest",
             "test/bntest",
             "test/buildtest_aes",
@@ -10130,6 +10158,7 @@ our %unified_info = (
             "test/dtls_mtu_test",
             "test/dtlstest",
             "test/dtlsv1listentest",
+            "test/ec_internal_test",
             "test/ecdsatest",
             "test/ecstresstest",
             "test/ectest",
@@ -11686,6 +11715,10 @@ our %unified_info = (
             "crypto/engine/eng_ctrl.o" =>
                 [
                     "crypto/engine/eng_ctrl.c",
+                ],
+            "crypto/engine/eng_devcrypto.o" =>
+                [
+                    "crypto/engine/eng_devcrypto.c",
                 ],
             "crypto/engine/eng_dyn.o" =>
                 [
@@ -13466,6 +13499,7 @@ our %unified_info = (
                     "crypto/engine/eng_all.o",
                     "crypto/engine/eng_cnf.o",
                     "crypto/engine/eng_ctrl.o",
+                    "crypto/engine/eng_devcrypto.o",
                     "crypto/engine/eng_dyn.o",
                     "crypto/engine/eng_err.o",
                     "crypto/engine/eng_fat.o",
@@ -14140,6 +14174,14 @@ our %unified_info = (
             "test/bio_enc_test.o" =>
                 [
                     "test/bio_enc_test.c",
+                ],
+            "test/bio_memleak_test" =>
+                [
+                    "test/bio_memleak_test.o",
+                ],
+            "test/bio_memleak_test.o" =>
+                [
+                    "test/bio_memleak_test.c",
                 ],
             "test/bioprinttest" =>
                 [
@@ -14908,6 +14950,14 @@ our %unified_info = (
                 [
                     "test/dtlsv1listentest.c",
                 ],
+            "test/ec_internal_test" =>
+                [
+                    "test/ec_internal_test.o",
+                ],
+            "test/ec_internal_test.o" =>
+                [
+                    "test/ec_internal_test.c",
+                ],
             "test/ecdsatest" =>
                 [
                     "test/ecdsatest.o",
@@ -15590,9 +15640,6 @@ my %disabled_info = (
     },
     'crypto-mdebug-backtrace' => {
         macro => 'OPENSSL_NO_CRYPTO_MDEBUG_BACKTRACE',
-    },
-    'devcryptoeng' => {
-        macro => 'OPENSSL_NO_DEVCRYPTOENG',
     },
     'ec_nistp_64_gcc_128' => {
         macro => 'OPENSSL_NO_EC_NISTP_64_GCC_128',

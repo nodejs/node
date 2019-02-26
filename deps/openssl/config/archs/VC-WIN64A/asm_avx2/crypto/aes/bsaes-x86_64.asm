@@ -11,6 +11,7 @@ EXTERN	asm_AES_decrypt
 
 ALIGN	64
 _bsaes_encrypt8:
+
 	lea	r11,[$L$BS0]
 
 	movdqa	xmm8,XMMWORD[rax]
@@ -481,8 +482,10 @@ $L$enc_done:
 
 
 
+
 ALIGN	64
 _bsaes_decrypt8:
+
 	lea	r11,[$L$BS0]
 
 	movdqa	xmm8,XMMWORD[rax]
@@ -986,8 +989,10 @@ $L$dec_done:
 	DB	0F3h,0C3h		;repret
 
 
+
 ALIGN	16
 _bsaes_key_convert:
+
 	lea	r11,[$L$masks]
 	movdqu	xmm7,XMMWORD[rcx]
 	lea	rcx,[16+rcx]
@@ -1066,6 +1071,7 @@ DB	102,15,56,0,244
 	movdqa	xmm7,XMMWORD[80+r11]
 
 	DB	0F3h,0C3h		;repret
+
 
 EXTERN	asm_AES_cbc_encrypt
 global	bsaes_cbc_encrypt

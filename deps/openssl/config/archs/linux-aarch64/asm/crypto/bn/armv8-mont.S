@@ -209,6 +209,7 @@ __bn_sqr8x_mont:
 	cmp	x1,x2
 	b.ne	__bn_mul4x_mont
 .Lsqr8x_mont:
+.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-128]!
 	add	x29,sp,#0
 	stp	x19,x20,[sp,#16]
@@ -959,11 +960,13 @@ __bn_sqr8x_mont:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldr	x29,[sp],#128
+.inst	0xd50323bf		// autiasp
 	ret
 .size	__bn_sqr8x_mont,.-__bn_sqr8x_mont
 .type	__bn_mul4x_mont,%function
 .align	5
 __bn_mul4x_mont:
+.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-128]!
 	add	x29,sp,#0
 	stp	x19,x20,[sp,#16]
@@ -1397,6 +1400,7 @@ __bn_mul4x_mont:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldr	x29,[sp],#128
+.inst	0xd50323bf		// autiasp
 	ret
 .size	__bn_mul4x_mont,.-__bn_mul4x_mont
 .byte	77,111,110,116,103,111,109,101,114,121,32,77,117,108,116,105,112,108,105,99,97,116,105,111,110,32,102,111,114,32,65,82,77,118,56,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0

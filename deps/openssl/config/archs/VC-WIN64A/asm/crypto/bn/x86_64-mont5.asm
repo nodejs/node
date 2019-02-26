@@ -3022,6 +3022,7 @@ __bn_sqrx8x_internal:
 
 
 
+
 	lea	rdi,[((48+8))+rsp]
 	lea	rbp,[r9*1+rsi]
 	mov	QWORD[((0+8))+rsp],r9
@@ -3593,6 +3594,7 @@ DB	102,72,15,126,213
 	cmp	r8,QWORD[((8+8))+rsp]
 	jb	NEAR $L$sqrx8x_reduction_loop
 	DB	0F3h,0C3h		;repret
+
 
 ALIGN	32
 __bn_postx4x_internal:
