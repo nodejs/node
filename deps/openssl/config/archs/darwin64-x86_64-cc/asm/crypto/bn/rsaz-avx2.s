@@ -1212,6 +1212,7 @@ L$mul_1024_epilogue:
 
 .p2align	5
 _rsaz_1024_red2norm_avx2:
+
 	subq	$-128,%rsi
 	xorq	%rax,%rax
 	movq	-128(%rsi),%r8
@@ -1405,10 +1406,12 @@ _rsaz_1024_red2norm_avx2:
 	.byte	0xf3,0xc3
 
 
+
 .globl	_rsaz_1024_norm2red_avx2
 
 .p2align	5
 _rsaz_1024_norm2red_avx2:
+
 	subq	$-128,%rdi
 	movq	(%rsi),%r8
 	movl	$0x1fffffff,%eax
@@ -1562,10 +1565,12 @@ _rsaz_1024_norm2red_avx2:
 	movq	%r8,184(%rdi)
 	.byte	0xf3,0xc3
 
+
 .globl	_rsaz_1024_scatter5_avx2
 
 .p2align	5
 _rsaz_1024_scatter5_avx2:
+
 	vzeroupper
 	vmovdqu	L$scatter_permd(%rip),%ymm5
 	shll	$4,%edx
@@ -1585,6 +1590,7 @@ L$oop_scatter_1024:
 
 	vzeroupper
 	.byte	0xf3,0xc3
+
 
 
 .globl	_rsaz_1024_gather5_avx2

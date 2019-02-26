@@ -95,15 +95,19 @@ Ladd:	lwarx	5,0,3
 .long	0
 
 
-.globl	.OPENSSL_rdtsc
+.globl	.OPENSSL_rdtsc_mftb
 .align	4
-.OPENSSL_rdtsc:
-Loop_rdtsc:
-	mftbu	5
+.OPENSSL_rdtsc_mftb:
 	mftb	3
-	mftbu	4
-	cmplw	0,4,5
-	bne	Loop_rdtsc
+	blr
+.long	0
+.byte	0,12,0x14,0,0,0,0,0
+
+
+.globl	.OPENSSL_rdtsc_mfspr268
+.align	4
+.OPENSSL_rdtsc_mfspr268:
+	mfspr	3,268
 	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
@@ -167,9 +171,9 @@ Lno_data:
 .byte	0,12,0x14,0,0,0,3,0
 .long	0
 
-.globl	.OPENSSL_instrument_bus
+.globl	.OPENSSL_instrument_bus_mftb
 .align	4
-.OPENSSL_instrument_bus:
+.OPENSSL_instrument_bus_mftb:
 	mtctr	4
 
 	mftb	7
@@ -199,9 +203,9 @@ Loop:	mftb	6
 .long	0
 
 
-.globl	.OPENSSL_instrument_bus2
+.globl	.OPENSSL_instrument_bus2_mftb
 .align	4
-.OPENSSL_instrument_bus2:
+.OPENSSL_instrument_bus2_mftb:
 	mr	0,4
 	slwi	4,4,2
 
@@ -250,3 +254,86 @@ Ldone2:
 .byte	0,12,0x14,0,0,0,3,0
 .long	0
 
+
+.globl	.OPENSSL_instrument_bus_mfspr268
+.align	4
+.OPENSSL_instrument_bus_mfspr268:
+	mtctr	4
+
+	mfspr	7,268
+	li	8,0
+
+	dcbf	0,3
+	lwarx	6,0,3
+	add	6,6,8
+	stwcx.	6,0,3
+	stwx	6,0,3
+
+Loop3:	mfspr	6,268
+	sub	8,6,7
+	mr	7,6
+	dcbf	0,3
+	lwarx	6,0,3
+	add	6,6,8
+	stwcx.	6,0,3
+	stwx	6,0,3
+	addi	3,3,4
+	bc	16,0,Loop3
+
+	mr	3,4
+	blr
+.long	0
+.byte	0,12,0x14,0,0,0,2,0
+.long	0
+
+
+.globl	.OPENSSL_instrument_bus2_mfspr268
+.align	4
+.OPENSSL_instrument_bus2_mfspr268:
+	mr	0,4
+	slwi	4,4,2
+
+	mfspr	7,268
+	li	8,0
+
+	dcbf	0,3
+	lwarx	6,0,3
+	add	6,6,8
+	stwcx.	6,0,3
+	stwx	6,0,3
+
+	mfspr	6,268
+	sub	8,6,7
+	mr	7,6
+	mr	9,8
+Loop4:
+	dcbf	0,3
+	lwarx	6,0,3
+	add	6,6,8
+	stwcx.	6,0,3
+	stwx	6,0,3
+
+	addic.	5,5,-1
+	beq	Ldone4
+
+	mfspr	6,268
+	sub	8,6,7
+	mr	7,6
+	cmplw	7,8,9
+	mr	9,8
+
+	mfcr	6
+	not	6,6
+	rlwinm	6,6,1,29,29
+
+	sub.	4,4,6
+	add	3,3,6
+	bne	Loop4
+
+Ldone4:
+	srwi	4,4,2
+	sub	3,0,4
+	blr
+.long	0
+.byte	0,12,0x14,0,0,0,3,0
+.long	0

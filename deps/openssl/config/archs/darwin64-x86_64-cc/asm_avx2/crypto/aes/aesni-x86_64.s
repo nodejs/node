@@ -4,6 +4,7 @@
 
 .p2align	4
 _aesni_encrypt:
+
 	movups	(%rdi),%xmm2
 	movl	240(%rdx),%eax
 	movups	(%rdx),%xmm0
@@ -24,10 +25,12 @@ L$oop_enc1_1:
 	.byte	0xf3,0xc3
 
 
+
 .globl	_aesni_decrypt
 
 .p2align	4
 _aesni_decrypt:
+
 	movups	(%rdi),%xmm2
 	movl	240(%rdx),%eax
 	movups	(%rdx),%xmm0
@@ -48,8 +51,10 @@ L$oop_dec1_2:
 	.byte	0xf3,0xc3
 
 
+
 .p2align	4
 _aesni_encrypt2:
+
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -77,8 +82,10 @@ L$enc_loop2:
 	.byte	0xf3,0xc3
 
 
+
 .p2align	4
 _aesni_decrypt2:
+
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -106,8 +113,10 @@ L$dec_loop2:
 	.byte	0xf3,0xc3
 
 
+
 .p2align	4
 _aesni_encrypt3:
+
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -140,8 +149,10 @@ L$enc_loop3:
 	.byte	0xf3,0xc3
 
 
+
 .p2align	4
 _aesni_decrypt3:
+
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -174,8 +185,10 @@ L$dec_loop3:
 	.byte	0xf3,0xc3
 
 
+
 .p2align	4
 _aesni_encrypt4:
+
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -214,8 +227,10 @@ L$enc_loop4:
 	.byte	0xf3,0xc3
 
 
+
 .p2align	4
 _aesni_decrypt4:
+
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -254,8 +269,10 @@ L$dec_loop4:
 	.byte	0xf3,0xc3
 
 
+
 .p2align	4
 _aesni_encrypt6:
+
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -308,8 +325,10 @@ L$enc_loop6_enter:
 	.byte	0xf3,0xc3
 
 
+
 .p2align	4
 _aesni_decrypt6:
+
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -362,8 +381,10 @@ L$dec_loop6_enter:
 	.byte	0xf3,0xc3
 
 
+
 .p2align	4
 _aesni_encrypt8:
+
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -426,8 +447,10 @@ L$enc_loop8_enter:
 	.byte	0xf3,0xc3
 
 
+
 .p2align	4
 _aesni_decrypt8:
+
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -489,10 +512,12 @@ L$dec_loop8_enter:
 .byte	102,68,15,56,223,200
 	.byte	0xf3,0xc3
 
+
 .globl	_aesni_ecb_encrypt
 
 .p2align	4
 _aesni_ecb_encrypt:
+
 	andq	$-16,%rdx
 	jz	L$ecb_ret
 
@@ -830,6 +855,7 @@ L$ecb_ret:
 	xorps	%xmm0,%xmm0
 	pxor	%xmm1,%xmm1
 	.byte	0xf3,0xc3
+
 
 .globl	_aesni_ccm64_encrypt_blocks
 

@@ -2933,6 +2933,7 @@ __bn_sqrx8x_internal:
 
 
 
+
 	leaq	48+8(%rsp),%rdi
 	leaq	(%rsi,%r9,1),%rbp
 	movq	%r9,0+8(%rsp)
@@ -3504,6 +3505,7 @@ L$sqrx8x_no_tail:
 	cmpq	8+8(%rsp),%r8
 	jb	L$sqrx8x_reduction_loop
 	.byte	0xf3,0xc3
+
 
 .p2align	5
 __bn_postx4x_internal:

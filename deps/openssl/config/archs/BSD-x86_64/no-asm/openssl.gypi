@@ -335,6 +335,7 @@
       'openssl/crypto/engine/eng_all.c',
       'openssl/crypto/engine/eng_cnf.c',
       'openssl/crypto/engine/eng_ctrl.c',
+      'openssl/crypto/engine/eng_devcrypto.c',
       'openssl/crypto/engine/eng_dyn.c',
       'openssl/crypto/engine/eng_err.c',
       'openssl/crypto/engine/eng_fat.c',

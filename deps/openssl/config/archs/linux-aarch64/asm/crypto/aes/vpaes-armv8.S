@@ -195,6 +195,7 @@ _vpaes_encrypt_core:
 .type	vpaes_encrypt,%function
 .align	4
 vpaes_encrypt:
+.inst	0xd503233f			// paciasp
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 
@@ -204,6 +205,7 @@ vpaes_encrypt:
 	st1	{v0.16b}, [x1]
 
 	ldp	x29,x30,[sp],#16
+.inst	0xd50323bf			// autiasp
 	ret
 .size	vpaes_encrypt,.-vpaes_encrypt
 
@@ -426,6 +428,7 @@ _vpaes_decrypt_core:
 .type	vpaes_decrypt,%function
 .align	4
 vpaes_decrypt:
+.inst	0xd503233f			// paciasp
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 
@@ -435,6 +438,7 @@ vpaes_decrypt:
 	st1	{v0.16b}, [x1]
 
 	ldp	x29,x30,[sp],#16
+.inst	0xd50323bf			// autiasp
 	ret
 .size	vpaes_decrypt,.-vpaes_decrypt
 
@@ -598,6 +602,7 @@ _vpaes_key_preheat:
 .type	_vpaes_schedule_core,%function
 .align	4
 _vpaes_schedule_core:
+.inst	0xd503233f			// paciasp
 	stp	x29, x30, [sp,#-16]!
 	add	x29,sp,#0
 
@@ -762,6 +767,7 @@ _vpaes_schedule_core:
 	eor	v6.16b, v6.16b, v6.16b		// vpxor	%xmm6,	%xmm6,	%xmm6
 	eor	v7.16b, v7.16b, v7.16b		// vpxor	%xmm7,	%xmm7,	%xmm7
 	ldp	x29, x30, [sp],#16
+.inst	0xd50323bf			// autiasp
 	ret
 .size	_vpaes_schedule_core,.-_vpaes_schedule_core
 
@@ -974,6 +980,7 @@ _vpaes_schedule_mangle:
 .type	vpaes_set_encrypt_key,%function
 .align	4
 vpaes_set_encrypt_key:
+.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 	stp	d8,d9,[sp,#-16]!	// ABI spec says so
@@ -989,6 +996,7 @@ vpaes_set_encrypt_key:
 
 	ldp	d8,d9,[sp],#16
 	ldp	x29,x30,[sp],#16
+.inst	0xd50323bf		// autiasp
 	ret
 .size	vpaes_set_encrypt_key,.-vpaes_set_encrypt_key
 
@@ -996,6 +1004,7 @@ vpaes_set_encrypt_key:
 .type	vpaes_set_decrypt_key,%function
 .align	4
 vpaes_set_decrypt_key:
+.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 	stp	d8,d9,[sp,#-16]!	// ABI spec says so
@@ -1015,6 +1024,7 @@ vpaes_set_decrypt_key:
 
 	ldp	d8,d9,[sp],#16
 	ldp	x29,x30,[sp],#16
+.inst	0xd50323bf		// autiasp
 	ret
 .size	vpaes_set_decrypt_key,.-vpaes_set_decrypt_key
 .globl	vpaes_cbc_encrypt
@@ -1025,6 +1035,7 @@ vpaes_cbc_encrypt:
 	cmp	w5, #0			// check direction
 	b.eq	vpaes_cbc_decrypt
 
+.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 
@@ -1047,6 +1058,7 @@ vpaes_cbc_encrypt:
 	st1	{v0.16b}, [x4]	// write ivec
 
 	ldp	x29,x30,[sp],#16
+.inst	0xd50323bf		// autiasp
 .Lcbc_abort:
 	ret
 .size	vpaes_cbc_encrypt,.-vpaes_cbc_encrypt
@@ -1054,6 +1066,7 @@ vpaes_cbc_encrypt:
 .type	vpaes_cbc_decrypt,%function
 .align	4
 vpaes_cbc_decrypt:
+.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 	stp	d8,d9,[sp,#-16]!	// ABI spec says so
@@ -1095,12 +1108,14 @@ vpaes_cbc_decrypt:
 	ldp	d10,d11,[sp],#16
 	ldp	d8,d9,[sp],#16
 	ldp	x29,x30,[sp],#16
+.inst	0xd50323bf		// autiasp
 	ret
 .size	vpaes_cbc_decrypt,.-vpaes_cbc_decrypt
 .globl	vpaes_ecb_encrypt
 .type	vpaes_ecb_encrypt,%function
 .align	4
 vpaes_ecb_encrypt:
+.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 	stp	d8,d9,[sp,#-16]!	// ABI spec says so
@@ -1134,6 +1149,7 @@ vpaes_ecb_encrypt:
 	ldp	d10,d11,[sp],#16
 	ldp	d8,d9,[sp],#16
 	ldp	x29,x30,[sp],#16
+.inst	0xd50323bf		// autiasp
 	ret
 .size	vpaes_ecb_encrypt,.-vpaes_ecb_encrypt
 
@@ -1141,6 +1157,7 @@ vpaes_ecb_encrypt:
 .type	vpaes_ecb_decrypt,%function
 .align	4
 vpaes_ecb_decrypt:
+.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 	stp	d8,d9,[sp,#-16]!	// ABI spec says so
@@ -1174,5 +1191,6 @@ vpaes_ecb_decrypt:
 	ldp	d10,d11,[sp],#16
 	ldp	d8,d9,[sp],#16
 	ldp	x29,x30,[sp],#16
+.inst	0xd50323bf		// autiasp
 	ret
 .size	vpaes_ecb_decrypt,.-vpaes_ecb_decrypt

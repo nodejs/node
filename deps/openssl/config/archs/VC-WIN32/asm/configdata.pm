@@ -113,8 +113,8 @@ our %config = (
   sourcedir => ".",
   target => "VC-WIN32",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1a",
-  version_num => "0x1010101fL",
+  version => "1.1.1b",
+  version_num => "0x1010102fL",
 );
 
 our %target = (
@@ -130,7 +130,7 @@ our %target = (
   LDFLAGS => "/nologo /debug",
   MT => "mt",
   MTFLAGS => "-nologo",
-  RANLIB => "CODE(0x55b562d8aa40)",
+  RANLIB => "CODE(0x55b87dbf88c8)",
   RC => "rc",
   _conf_fname_int => [ "Configurations/00-base-templates.conf", "Configurations/00-base-templates.conf", "Configurations/10-main.conf", "Configurations/10-main.conf", "Configurations/00-base-templates.conf", "Configurations/10-main.conf", "Configurations/shared-info.pl" ],
   aes_asm_src => "aes-586.s vpaes-x86.s aesni-x86.s",
@@ -280,6 +280,7 @@ our @disablables = (
   "msan",
   "multiblock",
   "nextprotoneg",
+  "pinshared",
   "ocb",
   "ocsp",
   "pic",
@@ -804,6 +805,11 @@ our %unified_info = (
                     "libcrypto",
                     "test/libtestutil.a",
                 ],
+            "test/bio_memleak_test" =>
+                [
+                    "libcrypto",
+                    "test/libtestutil.a",
+                ],
             "test/bioprinttest" =>
                 [
                     "libcrypto",
@@ -1285,6 +1291,11 @@ our %unified_info = (
             "test/dtlsv1listentest" =>
                 [
                     "libssl",
+                    "test/libtestutil.a",
+                ],
+            "test/ec_internal_test" =>
+                [
+                    "libcrypto.a",
                     "test/libtestutil.a",
                 ],
             "test/ecdsatest" =>
@@ -9348,6 +9359,10 @@ our %unified_info = (
                 [
                     "include",
                 ],
+            "test/bio_memleak_test.o" =>
+                [
+                    "include",
+                ],
             "test/bioprinttest.o" =>
                 [
                     "include",
@@ -9743,6 +9758,12 @@ our %unified_info = (
             "test/dtlsv1listentest.o" =>
                 [
                     "include",
+                ],
+            "test/ec_internal_test.o" =>
+                [
+                    "include",
+                    "crypto/ec",
+                    "crypto/include",
                 ],
             "test/ecdsatest.o" =>
                 [
@@ -10151,6 +10172,7 @@ our %unified_info = (
             "test/bftest",
             "test/bio_callback_test",
             "test/bio_enc_test",
+            "test/bio_memleak_test",
             "test/bioprinttest",
             "test/bntest",
             "test/buildtest_aes",
@@ -10246,6 +10268,7 @@ our %unified_info = (
             "test/dtls_mtu_test",
             "test/dtlstest",
             "test/dtlsv1listentest",
+            "test/ec_internal_test",
             "test/ecdsatest",
             "test/ecstresstest",
             "test/ectest",
@@ -14295,6 +14318,14 @@ our %unified_info = (
                 [
                     "test/bio_enc_test.c",
                 ],
+            "test/bio_memleak_test" =>
+                [
+                    "test/bio_memleak_test.o",
+                ],
+            "test/bio_memleak_test.o" =>
+                [
+                    "test/bio_memleak_test.c",
+                ],
             "test/bioprinttest" =>
                 [
                     "test/bioprinttest.o",
@@ -15061,6 +15092,14 @@ our %unified_info = (
             "test/dtlsv1listentest.o" =>
                 [
                     "test/dtlsv1listentest.c",
+                ],
+            "test/ec_internal_test" =>
+                [
+                    "test/ec_internal_test.o",
+                ],
+            "test/ec_internal_test.o" =>
+                [
+                    "test/ec_internal_test.c",
                 ],
             "test/ecdsatest" =>
                 [
