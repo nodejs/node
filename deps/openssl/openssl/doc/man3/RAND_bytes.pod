@@ -53,7 +53,7 @@ RAND_pseudo_bytes() was deprecated in OpenSSL 1.1.0; use RAND_bytes() instead.
 
 =item *
 
-RAND_priv_bytes() was added in OpenSSL 1.1.1.
+The RAND_priv_bytes() function was added in OpenSSL 1.1.1.
 
 =back
 

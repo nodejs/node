@@ -65,7 +65,7 @@ L<OSSL_STORE_load(3)>
 =head1 HISTORY
 
 OSSL_STORE_expect(), OSSL_STORE_supports_search() and OSSL_STORE_find()
-were added to OpenSSL 1.1.1.
+were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 

@@ -83,7 +83,7 @@ L<PKCS7_final(3)>,
 
 =head1 HISTORY
 
-PPKCS7_sign_add_signer() was added to OpenSSL 1.0.0
+The PPKCS7_sign_add_signer() function was added in OpenSSL 1.0.0.
 
 =head1 COPYRIGHT
 

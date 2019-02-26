@@ -91,9 +91,8 @@ L<ssl(7)>
 
 =head1 HISTORY
 
-SSL_COMP_free_compression_methods() was deprecated in OpenSSL 1.1.0;
-do not use it.
-SSL_COMP_get0_name() and SSL_comp_get_id() were added in OpenSSL 1.1.0d.
+The SSL_COMP_free_compression_methods() function was deprecated in OpenSSL 1.1.0.
+The SSL_COMP_get0_name() and SSL_comp_get_id() functions were added in OpenSSL 1.1.0d.
 
 =head1 COPYRIGHT
 

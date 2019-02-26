@@ -56,8 +56,9 @@ L<X509_verify_cert(3)>
 
 =head1 HISTORY
 
-X509_get_serialNumber() and X509_set_serialNumber() are available in
-all versions of OpenSSL. X509_get0_serialNumber() was added in OpenSSL 1.1.0.
+The X509_get_serialNumber() and X509_set_serialNumber() functions are
+available in all versions of OpenSSL.
+The X509_get0_serialNumber() function was added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 

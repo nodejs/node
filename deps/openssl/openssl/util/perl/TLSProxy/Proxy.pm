@@ -1,4 +1,4 @@
-# Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -44,7 +44,7 @@ BEGIN
         $s->close();
     };
     if ($@ eq "") {
-        $IP_factory = sub { IO::Socket::INET6->new(@_); };
+        $IP_factory = sub { IO::Socket::INET6->new(Domain => AF_INET6, @_); };
         $have_IPv6 = 1;
     } else {
         eval {

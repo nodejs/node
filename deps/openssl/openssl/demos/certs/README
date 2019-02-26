@@ -8,7 +8,7 @@ automatically using scripts. Example creates a root CA, an intermediate CA
 signed by the root and several certificates signed by the intermediate CA.
 
 The script then creates an empty index.txt file and adds entries for the
-certificates and generates a CRL. Then one certificate is revoked and a 
+certificates and generates a CRL. Then one certificate is revoked and a
 second CRL generated.
 
 The script ocsprun.sh runs the test responder on port 8888 covering the

@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -358,11 +358,36 @@ OPENSSL_INIT_SETTINGS *OPENSSL_INIT_new(void)
 
     if (ret != NULL)
         memset(ret, 0, sizeof(*ret));
+    ret->flags = DEFAULT_CONF_MFLAGS;
+
     return ret;
 }
 
 
 #ifndef OPENSSL_NO_STDIO
+int OPENSSL_INIT_set_config_filename(OPENSSL_INIT_SETTINGS *settings,
+                                     const char *filename)
+{
+    char *newfilename = NULL;
+
+    if (filename != NULL) {
+        newfilename = strdup(filename);
+        if (newfilename == NULL)
+            return 0;
+    }
+
+    free(settings->filename);
+    settings->filename = newfilename;
+
+    return 1;
+}
+
+void OPENSSL_INIT_set_config_file_flags(OPENSSL_INIT_SETTINGS *settings,
+                                        unsigned long flags)
+{
+    settings->flags = flags;
+}
+
 int OPENSSL_INIT_set_config_appname(OPENSSL_INIT_SETTINGS *settings,
                                     const char *appname)
 {
@@ -383,6 +408,7 @@ int OPENSSL_INIT_set_config_appname(OPENSSL_INIT_SETTINGS *settings,
 
 void OPENSSL_INIT_free(OPENSSL_INIT_SETTINGS *settings)
 {
+    free(settings->filename);
     free(settings->appname);
     free(settings);
 }

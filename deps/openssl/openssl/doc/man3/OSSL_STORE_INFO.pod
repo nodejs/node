@@ -190,7 +190,7 @@ OSSL_STORE_INFO_get0_CERT(), OSSL_STORE_INFO_get0_CRL(),
 OSSL_STORE_INFO_type_string(), OSSL_STORE_INFO_free(), OSSL_STORE_INFO_new_NAME(),
 OSSL_STORE_INFO_new_PARAMS(), OSSL_STORE_INFO_new_PKEY(),
 OSSL_STORE_INFO_new_CERT() and OSSL_STORE_INFO_new_CRL()
-were added to OpenSSL 1.1.1.
+were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 

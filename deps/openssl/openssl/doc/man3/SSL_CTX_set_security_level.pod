@@ -176,7 +176,7 @@ data pointer or NULL if the ex data is not set.
 
 =head1 HISTORY
 
-These functions were first added to OpenSSL 1.1.0
+These functions were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 

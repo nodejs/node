@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2005 Nokia. All rights reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -90,8 +90,6 @@ static int ssl3_generate_key_block(SSL *s, unsigned char *km, int num)
 int ssl3_change_cipher_state(SSL *s, int which)
 {
     unsigned char *p, *mac_secret;
-    unsigned char exp_key[EVP_MAX_KEY_LENGTH];
-    unsigned char exp_iv[EVP_MAX_IV_LENGTH];
     unsigned char *ms, *key, *iv;
     EVP_CIPHER_CTX *dd;
     const EVP_CIPHER *c;
@@ -239,12 +237,8 @@ int ssl3_change_cipher_state(SSL *s, int which)
     }
 
     s->statem.enc_write_state = ENC_WRITE_STATE_VALID;
-    OPENSSL_cleanse(exp_key, sizeof(exp_key));
-    OPENSSL_cleanse(exp_iv, sizeof(exp_iv));
     return 1;
  err:
-    OPENSSL_cleanse(exp_key, sizeof(exp_key));
-    OPENSSL_cleanse(exp_iv, sizeof(exp_iv));
     return 0;
 }
 

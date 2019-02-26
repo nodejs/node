@@ -157,6 +157,7 @@ L<RSA_new(3)>, L<RSA_size(3)>
 
 =head1 HISTORY
 
+The
 RSA_get_multi_prime_extra_count(), RSA_get0_multi_prime_factors(),
 RSA_get0_multi_prime_crt_params(), RSA_set0_multi_prime_params(),
 and RSA_get_version() functions were added in OpenSSL 1.1.1.

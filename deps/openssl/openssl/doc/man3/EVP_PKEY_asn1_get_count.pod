@@ -48,7 +48,7 @@ engine that implements it.
 
 EVP_PKEY_asn1_get0_info() returns the public key ID, base public key
 ID (both NIDs), any flags, the method description and PEM type string
-associated with the public key ASN.1 method B<*ameth>. 
+associated with the public key ASN.1 method B<*ameth>.
 
 EVP_PKEY_asn1_count(), EVP_PKEY_asn1_get0(), EVP_PKEY_asn1_find() and
 EVP_PKEY_asn1_find_str() are not thread safe, but as long as all
@@ -70,7 +70,7 @@ L<EVP_PKEY_asn1_new(3)>, L<EVP_PKEY_asn1_add0(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

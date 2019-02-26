@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -141,6 +141,9 @@ int CONF_modules_load_file(const char *filename, const char *appname,
     if (filename == NULL)
         OPENSSL_free(file);
     NCONF_free(conf);
+
+    if (flags & CONF_MFLAGS_IGNORE_RETURN_CODES)
+        return 1;
 
     return ret;
 }

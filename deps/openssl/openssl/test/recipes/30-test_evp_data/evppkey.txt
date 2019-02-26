@@ -17601,6 +17601,14 @@ Key = ED25519-1-PUBLIC-Raw
 Input = ""
 Output = e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e065224901555fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b
 
+#Signature maleability test.
+#Same as the verify operation above but with the order added to s
+OneShotDigestVerify = NULL
+Key = ED25519-1-PUBLIC-Raw
+Input = ""
+Output = e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e065224901554c8c7872aa064e049dbb3013fbf29380d25bf5f0595bbe24655141438e7a101b
+Result = VERIFY_ERROR
+
 Title = ED448 tests from RFC8032
 
 PrivateKey=ED448-1
@@ -17809,6 +17817,13 @@ Key = ED448-1-PUBLIC-Raw
 Input = ""
 Output = 533a37f6bbe457251f023c0d88f976ae2dfb504a843e34d2074fd823d41a591f2b233f034f628281f2fd7a22ddd47d7828c59bd0a21bfd3980ff0d2028d4b18a9df63e006c5d1c2d345b925d8dc00b4104852db99ac5c7cdda8530a113a0f4dbb61149f05a7363268c71d95808ff2e652600
 
+#Signature malelability test.
+#Same as the verify operation above but with the order added to s
+OneShotDigestVerify = NULL
+Key = ED448-1-PUBLIC-Raw
+Input = ""
+Output = 533a37f6bbe457251f023c0d88f976ae2dfb504a843e34d2074fd823d41a591f2b233f034f628281f2fd7a22ddd47d7828c59bd0a21bfd3980f25278d3667403c14bcec5f9cfde9955ebc8333c0ae78fc86e518317c5c7cdda8530a113a0f4dbb61149f05a7363268c71d95808ff2e656600
+Result = VERIFY_ERROR
 
 # Key generation tests
 KeyGen = rsaEncryption

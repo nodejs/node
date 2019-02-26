@@ -33,7 +33,7 @@ function. The symmetric algorithms are not covered neither.
 
 =head1 HISTORY
 
-BN_security_bits() was added in OpenSSL 1.1.0.
+The BN_security_bits() function was added in OpenSSL 1.1.0.
 
 =head1 SEE ALSO
 

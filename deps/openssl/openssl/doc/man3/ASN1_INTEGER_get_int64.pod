@@ -119,7 +119,7 @@ L<ERR_get_error(3)>
 
 ASN1_INTEGER_set_int64(), ASN1_INTEGER_get_int64(),
 ASN1_ENUMERATED_set_int64() and ASN1_ENUMERATED_get_int64()
-were added to OpenSSL 1.1.0.
+were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 

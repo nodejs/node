@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -362,7 +362,11 @@ X509_STORE_CTX_cleanup_fn X509_STORE_CTX_get_cleanup(X509_STORE_CTX *ctx);
 # define X509_STORE_CTX_set_chain X509_STORE_CTX_set0_untrusted
 # define X509_STORE_CTX_trusted_stack X509_STORE_CTX_set0_trusted_stack
 # define X509_STORE_get_by_subject X509_STORE_CTX_get_by_subject
+# define X509_STORE_get1_certs X509_STORE_CTX_get1_certs
+# define X509_STORE_get1_crls X509_STORE_CTX_get1_crls
+/* the following macro is misspelled; use X509_STORE_get1_certs instead */
 # define X509_STORE_get1_cert X509_STORE_CTX_get1_certs
+/* the following macro is misspelled; use X509_STORE_get1_crls instead */
 # define X509_STORE_get1_crl X509_STORE_CTX_get1_crls
 #endif
 

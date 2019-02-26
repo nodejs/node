@@ -93,7 +93,7 @@ the server.
 A client uses the function SSL_write_early_data() to send early data. This
 function is similar to the L<SSL_write_ex(3)> function, but with the following
 differences. See L<SSL_write_ex(3)> for information on how to write bytes to
-the underlying connection, and how to handle any errors that may arise. This 
+the underlying connection, and how to handle any errors that may arise. This
 page describes the differences between SSL_write_early_data() and
 L<SSL_write_ex(3)>.
 
@@ -364,7 +364,7 @@ All of the functions described above were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

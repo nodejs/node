@@ -61,7 +61,7 @@ L<CRYPTO_secure_malloc(3)>.
 
 =head1 HISTORY
 
-BUF_MEM_new_ex() was added in OpenSSL 1.1.0.
+The BUF_MEM_new_ex() function was added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 

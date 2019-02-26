@@ -94,7 +94,7 @@ truncated.
 
 SSL_CTX_get_default_passwd_cb(), SSL_CTX_get_default_passwd_cb_userdata(),
 SSL_set_default_passwd_cb() and SSL_set_default_passwd_cb_userdata() were
-first added to OpenSSL 1.1.0
+added in OpenSSL 1.1.0.
 
 =head1 SEE ALSO
 

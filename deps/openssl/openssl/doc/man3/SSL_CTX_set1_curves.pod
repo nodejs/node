@@ -97,8 +97,8 @@ L<SSL_CTX_add_extra_chain_cert(3)>
 
 =head1 HISTORY
 
-The curve functions were first added to OpenSSL 1.0.2. The equivalent group
-functions were first added to OpenSSL 1.1.1.
+The curve functions were added in OpenSSL 1.0.2. The equivalent group
+functions were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 

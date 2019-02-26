@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -945,14 +945,9 @@ const EVP_CIPHER *EVP_sm4_ctr(void);
                         | OPENSSL_INIT_ADD_ALL_DIGESTS, NULL)
 
 #  ifdef OPENSSL_LOAD_CONF
-#   define OpenSSL_add_all_algorithms() \
-    OPENSSL_init_crypto(OPENSSL_INIT_ADD_ALL_CIPHERS \
-                        | OPENSSL_INIT_ADD_ALL_DIGESTS \
-                        | OPENSSL_INIT_LOAD_CONFIG, NULL)
+#   define OpenSSL_add_all_algorithms() OPENSSL_add_all_algorithms_conf()
 #  else
-#   define OpenSSL_add_all_algorithms() \
-    OPENSSL_init_crypto(OPENSSL_INIT_ADD_ALL_CIPHERS \
-                        | OPENSSL_INIT_ADD_ALL_DIGESTS, NULL)
+#   define OpenSSL_add_all_algorithms() OPENSSL_add_all_algorithms_noconf()
 #  endif
 
 #  define OpenSSL_add_all_ciphers() \
@@ -994,7 +989,7 @@ int EVP_PKEY_id(const EVP_PKEY *pkey);
 int EVP_PKEY_base_id(const EVP_PKEY *pkey);
 int EVP_PKEY_bits(const EVP_PKEY *pkey);
 int EVP_PKEY_security_bits(const EVP_PKEY *pkey);
-int EVP_PKEY_size(EVP_PKEY *pkey);
+int EVP_PKEY_size(const EVP_PKEY *pkey);
 int EVP_PKEY_set_type(EVP_PKEY *pkey, int type);
 int EVP_PKEY_set_type_str(EVP_PKEY *pkey, const char *str, int len);
 int EVP_PKEY_set_alias_type(EVP_PKEY *pkey, int type);

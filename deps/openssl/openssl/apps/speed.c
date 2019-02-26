@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -100,7 +100,7 @@
 #include <openssl/modes.h>
 
 #ifndef HAVE_FORK
-# if defined(OPENSSL_SYS_VMS) || defined(OPENSSL_SYS_WINDOWS)
+# if defined(OPENSSL_SYS_VMS) || defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_VXWORKS)
 #  define HAVE_FORK 0
 # else
 #  define HAVE_FORK 1
@@ -1499,11 +1499,11 @@ int speed_main(int argc, char **argv)
         {"nistp192", NID_X9_62_prime192v1, 192},
         {"nistp224", NID_secp224r1, 224},
         {"nistp256", NID_X9_62_prime256v1, 256},
-        {"nistp384", NID_secp384r1, 384}, 
+        {"nistp384", NID_secp384r1, 384},
         {"nistp521", NID_secp521r1, 521},
         /* Binary Curves */
         {"nistk163", NID_sect163k1, 163},
-        {"nistk233", NID_sect233k1, 233}, 
+        {"nistk233", NID_sect233k1, 233},
         {"nistk283", NID_sect283k1, 283},
         {"nistk409", NID_sect409k1, 409},
         {"nistk571", NID_sect571k1, 571},

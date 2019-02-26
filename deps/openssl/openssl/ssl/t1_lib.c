@@ -2537,7 +2537,8 @@ static int tls12_get_cert_sigalg_idx(const SSL *s, const SIGALG_LOOKUP *lu)
 static int has_usable_cert(SSL *s, const SIGALG_LOOKUP *sig, int idx)
 {
     const SIGALG_LOOKUP *lu;
-    int mdnid, pknid;
+    int mdnid, pknid, default_mdnid;
+    int mandatory_md = 0;
     size_t i;
 
     /* TLS 1.2 callers can override lu->sig_idx, but not TLS 1.3 callers. */
@@ -2545,12 +2546,26 @@ static int has_usable_cert(SSL *s, const SIGALG_LOOKUP *sig, int idx)
         idx = sig->sig_idx;
     if (!ssl_has_cert(s, idx))
         return 0;
+    /* If the EVP_PKEY reports a mandatory digest, allow nothing else. */
+    ERR_set_mark();
+    switch (EVP_PKEY_get_default_digest_nid(s->cert->pkeys[idx].privatekey,
+                                            &default_mdnid)) {
+    case 2:
+        mandatory_md = 1;
+        break;
+    case 1:
+        break;
+    default: /* If it didn't report a mandatory NID, for whatever reasons,
+              * just clear the error and allow all hashes to be used. */
+        ERR_pop_to_mark();
+    }
     if (s->s3->tmp.peer_cert_sigalgs != NULL) {
         for (i = 0; i < s->s3->tmp.peer_cert_sigalgslen; i++) {
             lu = tls1_lookup_sigalg(s->s3->tmp.peer_cert_sigalgs[i]);
             if (lu == NULL
                 || !X509_get_signature_info(s->cert->pkeys[idx].x509, &mdnid,
-                                            &pknid, NULL, NULL))
+                                            &pknid, NULL, NULL)
+                || (mandatory_md && mdnid != default_mdnid))
                 continue;
             /*
              * TODO this does not differentiate between the
@@ -2563,7 +2578,7 @@ static int has_usable_cert(SSL *s, const SIGALG_LOOKUP *sig, int idx)
         }
         return 0;
     }
-    return 1;
+    return !mandatory_md || sig->hash == default_mdnid;
 }
 
 /*

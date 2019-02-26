@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 1998-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1998-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -19,7 +19,7 @@ THERE=`dirname $0`
 # pick up any command line args to config
 for i
 do
-case "$i" in 
+case "$i" in
 -d*) options=$options" --debug";;
 -t*) DRYRUN="true" VERBOSE="true";;
 -v*) VERBOSE="true";;
@@ -59,7 +59,7 @@ __CNF_LDLIBS=
 
 # Now test for ISC and SCO, since it is has a braindamaged uname.
 #
-# We need to work around FreeBSD 1.1.5.1 
+# We need to work around FreeBSD 1.1.5.1
 (
 XREL=`uname -X 2>/dev/null | grep "^Release" | awk '{print $3}'`
 if [ "x$XREL" != "x" ]; then
@@ -363,7 +363,7 @@ esac
 # At this point we gone through all the one's
 # we know of: Punt
 
-echo "${MACHINE}-whatever-${SYSTEM}" 
+echo "${MACHINE}-whatever-${SYSTEM}"
 exit 0
 ) 2>/dev/null | (
 
@@ -433,7 +433,7 @@ fi
 
 CCVER=${CCVER:-0}
 
-# read the output of the embedded GuessOS 
+# read the output of the embedded GuessOS
 read GUESSOS
 
 echo Operating system: $GUESSOS
@@ -732,7 +732,7 @@ case "$GUESSOS" in
   *-*-[Uu]nix[Ww]are7)
 	if [ "$CC" = "gcc" ]; then
 	  OUT="unixware-7-gcc" ; options="$options no-sse2"
-	else    
+	else
 	  OUT="unixware-7" ; options="$options no-sse2"
 	  __CNF_CPPFLAGS="$__CNF_CPPFLAGS -D__i386__"
 	fi
@@ -793,7 +793,7 @@ case "$GUESSOS" in
             OUT="aix64-gcc"
           fi
 	elif [ $OBJECT_MODE -eq 64 ]; then
-	    echo 'Your $OBJECT_MODE was found to be set to 64' 
+	    echo 'Your $OBJECT_MODE was found to be set to 64'
 	    OUT="aix64-cc"
 	else
 	    OUT="aix-cc"
@@ -897,7 +897,7 @@ if [ ".$PERL" = . ] ; then
 	exit 1
 fi
 
-# run Configure to check to see if we need to specify the 
+# run Configure to check to see if we need to specify the
 # compiler for the platform ... in which case we add it on
 # the end ... otherwise we leave it off
 
@@ -920,7 +920,7 @@ if [ $? = "0" ]; then
 	 __CNF_LDFLAGS="'$__CNF_LDFLAGS'" \
 	 __CNF_LDLIBS="'$__CNF_LDLIBS'" \
 	 $PERL $THERE/Configure $OUT $options
-  fi  
+  fi
   if [ "$DRYRUN" = "false" ]; then
     # eval to make sure quoted options, possibly with spaces inside,
     # are treated right

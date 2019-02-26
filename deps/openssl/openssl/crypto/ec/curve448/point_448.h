@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2015-2016 Cryptography Research, Inc.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -116,7 +116,7 @@ void curve448_scalar_encode(unsigned char ser[C448_SCALAR_BYTES],
 
 /*
  * Add two scalars. |a|, |b| and |out| may alias each other.
- * 
+ *
  * a (in): One scalar.
  * b (in): Another scalar.
  * out (out): a+b.
@@ -135,7 +135,7 @@ void curve448_scalar_sub(curve448_scalar_t out,
 
 /*
  * Multiply two scalars. |a|, |b| and |out| may alias each other.
- * 
+ *
  * a (in): One scalar.
  * b (in): Another scalar.
  * out (out): a*b.
@@ -145,7 +145,7 @@ void curve448_scalar_mul(curve448_scalar_t out,
 
 /*
 * Halve a scalar.  |a| and |out| may alias each other.
-* 
+*
 * a (in): A scalar.
 * out (out): a/2.
 */
@@ -154,7 +154,7 @@ void curve448_scalar_halve(curve448_scalar_t out, const curve448_scalar_t a);
 /*
  * Copy a scalar.  The scalars may alias each other, in which case this
  * function does nothing.
- * 
+ *
  * a (in): A scalar.
  * out (out): Will become a copy of a.
  */
@@ -183,7 +183,7 @@ static ossl_inline void curve448_point_copy(curve448_point_t a,
  *
  * a (in): A point.
  * b (in): Another point.
- * 
+ *
  * Returns:
  * C448_TRUE: The points are equal.
  * C448_FALSE: The points are not equal.
@@ -243,7 +243,7 @@ void curve448_point_mul_by_ratio_and_encode_like_x448(
 /*
  * RFC 7748 Diffie-Hellman base point scalarmul.  This function uses a different
  * (non-Decaf) encoding.
- * 
+ *
  * out (out): The scaled point base*scalar
  * scalar (in): The scalar to multiply by.
  */
@@ -273,7 +273,7 @@ void curve448_precomputed_scalarmul(curve448_point_t scaled,
  * base2 (in): A second point to be scaled.
  * scalar2 (in) A second scalar to multiply by.
  *
- * Warning: This function takes variable time, and may leak the scalars used. 
+ * Warning: This function takes variable time, and may leak the scalars used.
  * It is designed for signature verification.
  */
 void curve448_base_double_scalarmul_non_secret(curve448_point_t combo,

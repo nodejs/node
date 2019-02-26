@@ -91,7 +91,7 @@ because reuse of an existing key with a different digest is not supported.
 
 HMAC_Init() initializes a B<HMAC_CTX> structure to use the hash
 function B<evp_md> and the key B<key> which is B<key_len> bytes
-long. 
+long.
 
 HMAC_Update() can be called repeatedly with chunks of the message to
 be authenticated (B<len> bytes at B<data>).
@@ -147,7 +147,7 @@ OpenSSL before version 1.0.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
