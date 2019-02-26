@@ -2141,7 +2141,9 @@ changes:
   * `maxReservedRemoteStreams` {number} Sets the maximum number of reserved push
     streams the client will accept at any given time. Once the current number of
     currently reserved push streams exceeds reaches this limit, new push streams
-    sent by the server will be automatically rejected.
+    sent by the server will be automatically rejected. The minimum allowed value
+    is 0. The maximum allowed value is 2<sup>32</sup>-1. A negative value sets
+    this option to the maximum allowed value. **Default:** `200`.
   * `maxSendHeaderBlockLength` {number} Sets the maximum allowed size for a
     serialized, compressed block of headers. Attempts to send headers that
     exceed this limit will result in a `'frameError'` event being emitted
