@@ -170,3 +170,34 @@ const privatePem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
     createPrivateKey({ key: '' });
   }, /null/);
 }
+
+[
+  { private: fixtures.readSync('test_ed25519_privkey.pem', 'ascii'),
+    public: fixtures.readSync('test_ed25519_pubkey.pem', 'ascii'),
+    keyType: 'ed25519' },
+  { private: fixtures.readSync('test_ed448_privkey.pem', 'ascii'),
+    public: fixtures.readSync('test_ed448_pubkey.pem', 'ascii'),
+    keyType: 'ed448' }
+].forEach((info) => {
+  const keyType = info.keyType;
+
+  {
+    const exportOptions = { type: 'pkcs8', format: 'pem' };
+    const key = createPrivateKey(info.private);
+    assert.strictEqual(key.type, 'private');
+    assert.strictEqual(key.asymmetricKeyType, keyType);
+    assert.strictEqual(key.symmetricKeySize, undefined);
+    assert.strictEqual(key.export(exportOptions), info.private);
+  }
+
+  {
+    const exportOptions = { type: 'spki', format: 'pem' };
+    [info.private, info.public].forEach((pem) => {
+      const key = createPublicKey(pem);
+      assert.strictEqual(key.type, 'public');
+      assert.strictEqual(key.asymmetricKeyType, keyType);
+      assert.strictEqual(key.symmetricKeySize, undefined);
+      assert.strictEqual(key.export(exportOptions), info.public);
+    });
+  }
+});

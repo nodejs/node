@@ -3468,6 +3468,10 @@ Local<String> KeyObject::GetAsymmetricKeyType() const {
     return env()->crypto_dsa_string();
   case EVP_PKEY_EC:
     return env()->crypto_ec_string();
+  case EVP_PKEY_ED25519:
+    return env()->crypto_ed25519_string();
+  case EVP_PKEY_ED448:
+    return env()->crypto_ed448_string();
   default:
     CHECK(false);
   }
