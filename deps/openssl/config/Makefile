@@ -27,7 +27,6 @@ COPTS =  no-comp no-shared no-afalgeng
 # disable platform check in Configure
 NO_WARN_ENV = CONFIGURE_CHECKER_WARN=1
 
-GITIGNORE = $(OPSSL_SRC)/.gitignore
 GENERATE = ./generate_gypi.pl
 
 OPSSL_SRC = ../openssl
@@ -45,8 +44,6 @@ all: $(ARCHS) replace
 
 # Configure and generate openssl asm files for each archs
 $(ARCHS):
-# Remove openssl .gitignore to follow nodejs .gitignore
-	if [ -e $(GITIGNORE) ]; then rm $(GITIGNORE); fi
 	cd $(OPSSL_SRC); $(NO_WARN_ENV) CC=$(CC) $(PERL) $(CONFIGURE) $(COPTS) $@;
 	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) asm $@
 # Confgure asm_avx2 and generate upto avx2 support
