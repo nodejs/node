@@ -107,6 +107,8 @@ const http = require('http');
 const fs = require('fs');
 http.createServer((request, response) => {
   const raw = fs.createReadStream('index.html');
+  // instruct the proxy to store both a compressed and uncompressed version of the resource
+  response.setHeader('Vary: Accept-Encoding');
   let acceptEncoding = request.headers['accept-encoding'];
   if (!acceptEncoding) {
     acceptEncoding = '';
