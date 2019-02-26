@@ -30,6 +30,19 @@ const { setUnrefTimeout } = require('internal/timers');
   strictEqual(timer.refresh(), timer);
 }
 
+// should throw with non-functions
+{
+  const expectedError = {
+    code: 'ERR_INVALID_CALLBACK',
+    message: 'Callback must be a function'
+  };
+
+  [null, true, false, 0, 1, NaN, '', 'foo', {}, Symbol()].forEach((cb) => {
+    common.expectsError(() => setUnrefTimeout(cb),
+                        expectedError);
+  });
+}
+
 // unref pooled timer
 {
   let called = false;
