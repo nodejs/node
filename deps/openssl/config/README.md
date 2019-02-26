@@ -96,7 +96,6 @@ $ git add deps/openssl/config/archs
 $ git add deps/openssl/openssl/crypto/include/internal/bn_conf.h
 $ git add deps/openssl/openssl/crypto/include/internal/dso_conf.h
 $ git add deps/openssl/openssl/include/openssl/opensslconf.h
-$ git add deps/openssl/openssl/.gitignore
 $ git commit
 ```
 
