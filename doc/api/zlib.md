@@ -107,7 +107,7 @@ const http = require('http');
 const fs = require('fs');
 http.createServer((request, response) => {
   const raw = fs.createReadStream('index.html');
-  // To store both, a compressed and an uncompressed version of the resource.
+  // Store both a compressed and an uncompressed version of the resource.
   response.setHeader('Vary: Accept-Encoding');
   let acceptEncoding = request.headers['accept-encoding'];
   if (!acceptEncoding) {
