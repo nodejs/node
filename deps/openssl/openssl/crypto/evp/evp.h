@@ -1489,8 +1489,10 @@ void ERR_load_EVP_strings(void);
 # define EVP_F_EVP_CIPHER_CTX_CTRL                        124
 # define EVP_F_EVP_CIPHER_CTX_SET_KEY_LENGTH              122
 # define EVP_F_EVP_DECRYPTFINAL_EX                        101
+# define EVP_F_EVP_DECRYPTUPDATE                          181
 # define EVP_F_EVP_DIGESTINIT_EX                          128
 # define EVP_F_EVP_ENCRYPTFINAL_EX                        127
+# define EVP_F_EVP_ENCRYPTUPDATE                          180
 # define EVP_F_EVP_MD_CTX_COPY_EX                         110
 # define EVP_F_EVP_MD_SIZE                                162
 # define EVP_F_EVP_OPENINIT                               102

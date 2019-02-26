@@ -234,6 +234,21 @@ const EVP_PKEY_ASN1_METHOD *EVP_PKEY_asn1_find_str(ENGINE **pe,
 
 int EVP_PKEY_asn1_add0(const EVP_PKEY_ASN1_METHOD *ameth)
 {
+    /*
+     * One of the following must be true:
+     *
+     * pem_str == NULL AND ASN1_PKEY_ALIAS is set
+     * pem_str != NULL AND ASN1_PKEY_ALIAS is clear
+     *
+     * Anything else is an error and may lead to a corrupt ASN1 method table
+     */
+    if (!((ameth->pem_str == NULL
+           && (ameth->pkey_flags & ASN1_PKEY_ALIAS) != 0)
+          || (ameth->pem_str != NULL
+              && (ameth->pkey_flags & ASN1_PKEY_ALIAS) == 0))) {
+        return 0;
+    }
+
     if (app_methods == NULL) {
         app_methods = sk_EVP_PKEY_ASN1_METHOD_new(ameth_cmp);
         if (!app_methods)
@@ -304,18 +319,6 @@ EVP_PKEY_ASN1_METHOD *EVP_PKEY_asn1_new(int id, int flags,
             goto err;
     } else
         ameth->info = NULL;
-
-    /*
-     * One of the following must be true:
-     *
-     * pem_str == NULL AND ASN1_PKEY_ALIAS is set
-     * pem_str != NULL AND ASN1_PKEY_ALIAS is clear
-     *
-     * Anything else is an error and may lead to a corrupt ASN1 method table
-     */
-    if (!((pem_str == NULL && (flags & ASN1_PKEY_ALIAS) != 0)
-          || (pem_str != NULL && (flags & ASN1_PKEY_ALIAS) == 0)))
-        goto err;
 
     if (pem_str) {
         ameth->pem_str = BUF_strdup(pem_str);

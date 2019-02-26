@@ -90,14 +90,17 @@ Details depend on the application.
 
 =item SSL_ERROR_SYSCALL
 
-Some non-recoverable I/O error occurred.
-The OpenSSL error queue may contain more information on the error.
-For socket I/O on Unix systems, consult B<errno> for details.
+Some non-recoverable, fatal I/O error occurred. The OpenSSL error queue may
+contain more information on the error. For socket I/O on Unix systems, consult
+B<errno> for details. If this error occurs then no further I/O operations should
+be performed on the connection and SSL_shutdown() must not be called.
 
 =item SSL_ERROR_SSL
 
-A failure in the SSL library occurred, usually a protocol error.  The
-OpenSSL error queue contains more information on the error.
+A non-recoverable, fatal error in the SSL library occurred, usually a protocol
+error.  The OpenSSL error queue contains more information on the error. If this
+error occurs then no further I/O operations should be performed on the
+connection and SSL_shutdown() must not be called.
 
 =back
 

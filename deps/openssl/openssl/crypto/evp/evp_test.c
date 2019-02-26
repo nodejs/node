@@ -1,6 +1,6 @@
 /* Written by Ben Laurie, 2001 */
 /*
- * Copyright (c) 2001 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 2001-2019 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -327,7 +327,7 @@ static void test1(const EVP_CIPHER *c, const unsigned char *key, int kn,
                 ERR_print_errors_fp(stderr);
                 test1_exit(12);
             }
-            if (an && !EVP_EncryptUpdate(&ctx, NULL, &outl, aad, an)) {
+            if (an && !EVP_DecryptUpdate(&ctx, NULL, &outl, aad, an)) {
                 fprintf(stderr, "AAD set failed\n");
                 ERR_print_errors_fp(stderr);
                 test1_exit(13);

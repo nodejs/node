@@ -519,7 +519,7 @@ $(TARFILE).list:
 	find * \! -name STATUS \! -name TABLE \! -name '*.o' \! -name '*.a' \
 	       \! -name '*.so' \! -name '*.so.*'  \! -name 'openssl' \
 	       \( \! -name '*test' -o -name bctest -o -name pod2mantest \) \
-	       \! -name '.#*' \! -name '*~' \! -type l \
+	       \! -name '.#*' \! -name '*.bak' \! -name '*~' \! -type l \
 	    | sort > $(TARFILE).list
 
 tar: $(TARFILE).list

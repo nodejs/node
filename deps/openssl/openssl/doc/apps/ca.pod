@@ -214,7 +214,7 @@ the section of the configuration file containing certificate extensions
 to be added when a certificate is issued (defaults to B<x509_extensions>
 unless the B<-extfile> option is used). If no extension section is
 present then, a V1 certificate is created. If the extension section
-is present (even if it is empty), then a V3 certificate is created. See the:w
+is present (even if it is empty), then a V3 certificate is created. See the
 L<x509v3_config(5)|x509v3_config(5)> manual page for details of the
 extension section format.
 
