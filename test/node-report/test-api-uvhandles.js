@@ -121,7 +121,7 @@ if (process.argv[2] === 'child') {
         // 1. The server's listening socket.
         // 2. The inbound socket making the request.
         // 3. The outbound socket sending the response.
-        const port = child_data.tcp_address.port.toString();
+        const port = child_data.tcp_address.port;
         if (handle.localEndpoint.port === port) {
           if (handle.remoteEndpoint === null) {
             found_tcp.push('listening');
@@ -139,7 +139,7 @@ if (process.argv[2] === 'child') {
       }),
       udp: common.mustCall(function udp_validator(handle) {
         assert.strictEqual(handle.localEndpoint.port,
-                           child_data.udp_address.port.toString());
+                           child_data.udp_address.port);
         assert(handle.is_referenced);
       }),
     };

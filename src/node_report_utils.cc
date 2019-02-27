@@ -8,32 +8,41 @@ using node::MallocedBuffer;
 static constexpr auto null = JSONWriter::Null{};
 
 // Utility function to format socket information.
-static bool ReportEndpoint(uv_handle_t* h,
+static void ReportEndpoint(uv_handle_t* h,
                            struct sockaddr* addr,
                            const char* name,
                            JSONWriter* writer) {
-  uv_getnameinfo_t endpoint;
-  if (uv_getnameinfo(h->loop, &endpoint, nullptr, addr, NI_NUMERICSERV) == 0) {
-    writer->json_objectstart(name);
-    writer->json_keyvalue("host", endpoint.host);
-    writer->json_keyvalue("port", endpoint.service);
-    writer->json_objectend();
-    return true;
-  } else {
-    char host[INET6_ADDRSTRLEN];
-    int family = addr->sa_family;
-    if (uv_inet_ntop(family, addr, host, sizeof(host)) == 0) {
-      std::string port = std::to_string(ntohs(family == AF_INET ?
-                         reinterpret_cast<sockaddr_in*>(addr)->sin_port :
-                         reinterpret_cast<sockaddr_in6*>(addr)->sin6_port));
-      writer->json_objectstart(name);
-      writer->json_keyvalue("host", host);
-      writer->json_keyvalue("port", port);
-      writer->json_objectend();
-      return true;
-    }
-    return false;
+  if (addr == nullptr) {
+    writer->json_keyvalue(name, null);
+    return;
   }
+
+  uv_getnameinfo_t endpoint;
+  char* host = nullptr;
+  char hostbuf[INET6_ADDRSTRLEN];
+  int family = addr->sa_family;
+  int port = ntohs(family == AF_INET ?
+                   reinterpret_cast<sockaddr_in*>(addr)->sin_port :
+                   reinterpret_cast<sockaddr_in6*>(addr)->sin6_port);
+
+  if (uv_getnameinfo(h->loop, &endpoint, nullptr, addr, NI_NUMERICSERV) == 0) {
+    host = endpoint.host;
+  } else {
+    const void* src = family == AF_INET ?
+                      static_cast<void*>(
+                        &(reinterpret_cast<sockaddr_in*>(addr)->sin_addr)) :
+                      static_cast<void*>(
+                        &(reinterpret_cast<sockaddr_in6*>(addr)->sin6_addr));
+    if (uv_inet_ntop(family, src, hostbuf, sizeof(hostbuf)) == 0) {
+      host = hostbuf;
+    }
+  }
+  writer->json_objectstart(name);
+  if (host != nullptr) {
+    writer->json_keyvalue("host", host);
+  }
+  writer->json_keyvalue("port", port);
+  writer->json_objectend();
 }
 
 // Utility function to format libuv socket information.
@@ -54,16 +63,12 @@ static void ReportEndpoints(uv_handle_t* h, JSONWriter* writer) {
     default:
       break;
   }
-  if (rc != 0 || !ReportEndpoint(h, addr, "localEndpoint", writer)) {
-    writer->json_keyvalue("localEndpoint", null);
-  }
+  ReportEndpoint(h, rc == 0 ? addr : nullptr,  "localEndpoint", writer);
 
   if (h->type == UV_TCP) {
     // Get the remote end of the connection.
     rc = uv_tcp_getpeername(&handle->tcp, addr, &addr_size);
-    if (rc != 0 || !ReportEndpoint(h, addr, "remoteEndpoint", writer)) {
-      writer->json_keyvalue("remoteEndpoint", null);
-    }
+    ReportEndpoint(h, rc == 0 ? addr : nullptr, "remoteEndpoint", writer);
   }
 }
 
