@@ -2,8 +2,6 @@
 'use strict';
 
 const common = require('../common');
-if (!common.hasCrypto)
-  common.skip('missing crypto');
 const assert = require('assert');
 
 // Assert that whitelisted internalBinding modules are accessible via
@@ -13,7 +11,9 @@ assert(process.binding('buffer'));
 assert(process.binding('cares_wrap'));
 assert(process.binding('constants'));
 assert(process.binding('contextify'));
-assert(process.binding('crypto'));
+if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
+  assert(process.binding('crypto'));
+}
 assert(process.binding('fs'));
 assert(process.binding('fs_event_wrap'));
 assert(process.binding('http_parser'));
