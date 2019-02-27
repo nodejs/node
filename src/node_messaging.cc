@@ -63,7 +63,7 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
       return MaybeLocal<Object>();
     CHECK_LE(id, message_ports_.size());
     return message_ports_[id]->object(isolate);
-  };
+  }
 
   MaybeLocal<SharedArrayBuffer> GetSharedArrayBufferFromId(
       Isolate* isolate, uint32_t clone_id) override {
