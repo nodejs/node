@@ -320,4 +320,4 @@ void Initialize(Local<Object> target, Local<Value> unused,
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(inspector,
-                                  node::inspector::Initialize);
+                                  node::inspector::Initialize)
