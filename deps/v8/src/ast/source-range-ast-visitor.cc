@@ -56,7 +56,18 @@ void SourceRangeAstVisitor::MaybeRemoveLastContinuationRange(
   if (statements->is_empty()) return;
 
   Statement* last_statement = statements->last();
-  AstNodeSourceRanges* last_range = source_range_map_->Find(last_statement);
+  AstNodeSourceRanges* last_range = nullptr;
+
+  if (last_statement->IsExpressionStatement() &&
+      last_statement->AsExpressionStatement()->expression()->IsThrow()) {
+    // For ThrowStatement, source range is tied to Throw expression not
+    // ExpressionStatement.
+    last_range = source_range_map_->Find(
+        last_statement->AsExpressionStatement()->expression());
+  } else {
+    last_range = source_range_map_->Find(last_statement);
+  }
+
   if (last_range == nullptr) return;
 
   if (last_range->HasRange(SourceRangeKind::kContinuation)) {
