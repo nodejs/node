@@ -20,13 +20,14 @@ static void ReportEndpoint(uv_handle_t* h,
   uv_getnameinfo_t endpoint;
   char* host = nullptr;
   char hostbuf[INET6_ADDRSTRLEN];
-  int family = addr->sa_family;
-  int port = ntohs(family == AF_INET ?
-                   reinterpret_cast<sockaddr_in*>(addr)->sin_port :
-                   reinterpret_cast<sockaddr_in6*>(addr)->sin6_port);
+  const int family = addr->sa_family;
+  const int port = ntohs(family == AF_INET ?
+                         reinterpret_cast<sockaddr_in*>(addr)->sin_port :
+                         reinterpret_cast<sockaddr_in6*>(addr)->sin6_port);
 
   if (uv_getnameinfo(h->loop, &endpoint, nullptr, addr, NI_NUMERICSERV) == 0) {
     host = endpoint.host;
+    DCHECK_EQ(port, std::stoi(endpoint.service));
   } else {
     const void* src = family == AF_INET ?
                       static_cast<void*>(
