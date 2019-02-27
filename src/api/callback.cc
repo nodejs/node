@@ -220,7 +220,7 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
   MaybeLocal<Value> ret =
       InternalMakeCallback(env, recv, callback, argc, argv, asyncContext);
   if (ret.IsEmpty() && env->makecallback_depth() == 0) {
-    // This is only for legacy compatiblity and we may want to look into
+    // This is only for legacy compatibility and we may want to look into
     // removing/adjusting it.
     return Undefined(env->isolate());
   }
