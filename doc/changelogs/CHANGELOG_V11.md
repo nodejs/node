@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#11.10.1">11.10.1</a><br/>
 <a href="#11.10.0">11.10.0</a><br/>
 <a href="#11.9.0">11.9.0</a><br/>
 <a href="#11.8.0">11.8.0</a><br/>
@@ -36,6 +37,27 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="11.10.1"></a>
+## 2019-02-28, Version 11.10.1 (Current), @rvagg
+
+This is a security release. All Node.js users should consult the security release summary at:
+
+  https://nodejs.org/en/blog/vulnerability/february-2019-security-releases/
+
+for details on patched vulnerabilities.
+
+A fix for the following CVE is included in this release:
+
+  * Node.js: Slowloris HTTP Denial of Service with keep-alive (CVE-2019-5737)
+
+### Notable Changes
+
+* **http**: Further prevention of "Slowloris" attacks on HTTP and HTTPS connections by consistently applying the receive timeout set by `server.headersTimeout` to connections in keep-alive mode. Reported by Marco Pracucci ([Voxnest](https://voxnest.com)). (CVE-2019-5737 / Matteo Collina)
+
+### Commits
+
+* [[`05534a24ca`](https://github.com/nodejs/node/commit/05534a24ca)] - **http**: prevent slowloris with keepalive connections (Matteo Collina) [nodejs-private/node-private#158](https://github.com/nodejs-private/node-private/pull/158)
 
 <a id="11.10.0"></a>
 ## 2019-02-14, Version 11.10.0 (Current), @targos
