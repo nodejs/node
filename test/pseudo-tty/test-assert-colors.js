@@ -5,6 +5,10 @@ const assert = require('assert').strict;
 try {
   // Activate colors even if the tty does not support colors.
   process.env.COLORTERM = '1';
+  // Make sure TERM is not set to e.g., 'dumb' and NODE_DISABLE_COLORS is not
+  // active.
+  process.env.TERM = 'FOOBAR';
+  delete process.env.NODE_DISABLE_COLORS;
   assert.deepStrictEqual([1, 2, 2, 2], [2, 2, 2, 2]);
 } catch (err) {
   const expected = 'Expected values to be strictly deep-equal:\n' +
