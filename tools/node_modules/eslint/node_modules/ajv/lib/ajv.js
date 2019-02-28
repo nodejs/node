@@ -30,6 +30,7 @@ var customKeyword = require('./keyword');
 Ajv.prototype.addKeyword = customKeyword.add;
 Ajv.prototype.getKeyword = customKeyword.get;
 Ajv.prototype.removeKeyword = customKeyword.remove;
+Ajv.prototype.validateKeyword = customKeyword.validate;
 
 var errorClasses = require('./compile/error_classes');
 Ajv.ValidationError = errorClasses.Validation;
