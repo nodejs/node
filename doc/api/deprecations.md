@@ -2336,7 +2336,7 @@ Setting the TLS ServerName to an IP address is not permitted by
 [RFC 6066][]. This will be ignored in a future version.
 
 <a id="DEP0XXX"></a>
-### DEP0XXX: using REPLServer#rli
+### DEP0XXX: using REPLServer.rli
 <!-- YAML
 changes:
   - version: REPLACEME
@@ -2346,7 +2346,7 @@ changes:
 
 Type: Runtime
 
-This property is just a reference to the instance itself.
+This property is a reference to the instance itself.
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
