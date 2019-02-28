@@ -8,7 +8,7 @@ Correctly stops looking after an `--` argument terminator.
 ## Install
 
 ```
-$ npm install --save has-flag
+$ npm install has-flag
 ```
 
 
@@ -22,6 +22,9 @@ hasFlag('unicorn');
 //=> true
 
 hasFlag('--unicorn');
+//=> true
+
+hasFlag('f');
 //=> true
 
 hasFlag('-f');
@@ -46,7 +49,7 @@ $ node foo.js -f --unicorn --foo=bar -- --rainbow
 
 ### hasFlag(flag, [argv])
 
-Returns a boolean whether the flag exists.
+Returns a boolean for whether the flag exists.
 
 #### flag
 
@@ -56,7 +59,7 @@ CLI flag to look for. The `--` prefix is optional.
 
 #### argv
 
-Type: `array`<br>
+Type: `string[]`<br>
 Default: `process.argv`
 
 CLI arguments.

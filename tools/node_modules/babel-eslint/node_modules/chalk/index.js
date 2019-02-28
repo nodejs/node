@@ -1,7 +1,7 @@
 'use strict';
 const escapeStringRegexp = require('escape-string-regexp');
 const ansiStyles = require('ansi-styles');
-const supportsColor = require('supports-color');
+const stdoutColor = require('supports-color').stdout;
 
 const template = require('./templates.js');
 
@@ -19,7 +19,7 @@ function applyOptions(obj, options) {
 	options = options || {};
 
 	// Detect level if not set manually
-	const scLevel = supportsColor ? supportsColor.level : 0;
+	const scLevel = stdoutColor ? stdoutColor.level : 0;
 	obj.level = options.level === undefined ? scLevel : options.level;
 	obj.enabled = 'enabled' in options ? options.enabled : obj.level > 0;
 }
@@ -224,5 +224,5 @@ function chalkTag(chalk, strings) {
 Object.defineProperties(Chalk.prototype, styles);
 
 module.exports = Chalk(); // eslint-disable-line new-cap
-module.exports.supportsColor = supportsColor;
+module.exports.supportsColor = stdoutColor;
 module.exports.default = module.exports; // For TypeScript
