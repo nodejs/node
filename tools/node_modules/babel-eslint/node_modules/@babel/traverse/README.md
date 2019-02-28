@@ -1,33 +1,19 @@
 # @babel/traverse
 
-> @babel/traverse maintains the overall tree state, and is responsible for replacing, removing, and adding nodes.
+> The Babel Traverse module maintains the overall tree state, and is responsible for replacing, removing, and adding nodes
+
+See our website [@babel/traverse](https://babeljs.io/docs/en/next/babel-traverse.html) for more information or the [issues](https://github.com/babel/babel/issues?utf8=%E2%9C%93&q=is%3Aissue+label%3A%22pkg%3A%20traverse%22+is%3Aopen) associated with this package.
 
 ## Install
 
+Using npm:
+
 ```sh
-$ npm install --save @babel/traverse
+npm install --save-dev @babel/traverse
 ```
 
-## Usage
+or using yarn:
 
-We can use it alongside Babylon to traverse and update nodes:
-
-```js
-import * as babylon from "babylon";
-import traverse from "@babel/traverse";
-
-const code = `function square(n) {
-  return n * n;
-}`;
-
-const ast = babylon.parse(code);
-
-traverse(ast, {
-  enter(path) {
-    if (path.isIdentifier({ name: "n" })) {
-      path.node.name = "x";
-    }
-  }
-});
+```sh
+yarn add @babel/traverse --dev
 ```
-[:book: **Read the full docs here**](https://github.com/thejameskyle/babel-handbook/blob/master/translations/en/plugin-handbook.md#babel-traverse)

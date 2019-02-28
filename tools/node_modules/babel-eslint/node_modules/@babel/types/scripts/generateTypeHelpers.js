@@ -1,6 +1,7 @@
 "use strict";
 const fs = require("fs");
 const path = require("path");
+const chalk = require("chalk");
 const generateBuilders = require("./generators/generateBuilders");
 const generateValidators = require("./generators/generateValidators");
 const generateAsserts = require("./generators/generateAsserts");
@@ -26,6 +27,13 @@ function writeFile(content, location) {
 console.log("Generating @babel/types dynamic functions");
 
 writeFile(generateBuilders(), "builders/generated/index.js");
+console.log(`  ${chalk.green("✔")} Generated builders`);
+
 writeFile(generateValidators(), "validators/generated/index.js");
+console.log(`  ${chalk.green("✔")} Generated validators`);
+
 writeFile(generateAsserts(), "asserts/generated/index.js");
+console.log(`  ${chalk.green("✔")} Generated asserts`);
+
 writeFile(generateConstants(), "constants/generated/index.js");
+console.log(`  ${chalk.green("✔")} Generated constants`);

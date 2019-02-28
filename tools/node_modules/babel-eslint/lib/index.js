@@ -11,10 +11,7 @@ exports.parseForESLint = function(code, options) {
   options.allowImportExportEverywhere =
     options.allowImportExportEverywhere || false;
 
-  if (options.eslintVisitorKeys && options.eslintScopeManager) {
-    return require("./parse-with-scope")(code, options);
-  }
-  return { ast: require("./parse-with-patch")(code, options) };
+  return require("./parse-with-scope")(code, options);
 };
 
 exports.parseNoPatch = function(code, options) {
