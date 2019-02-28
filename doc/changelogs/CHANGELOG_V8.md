@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#8.15.1">8.15.1</a><br/>
 <a href="#8.15.0">8.15.0</a><br/>
 <a href="#8.14.1">8.14.1</a><br/>
 <a href="#8.14.0">8.14.0</a><br/>
@@ -64,6 +65,35 @@
 *Note*: Node.js v8 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2019 and maintained until December 2019.
+
+<a id="8.15.1"></a>
+## 2019-02-28, Version 8.15.1 'Carbon' (LTS), @rvagg
+
+This is a security release. All Node.js users should consult the security release summary at:
+
+  https://nodejs.org/en/blog/vulnerability/february-2019-security-releases/
+
+for details on patched vulnerabilities.
+
+Fixes for the following CVEs are included in this release:
+
+  * Node.js: Slowloris HTTP Denial of Service with keep-alive (CVE-2019-5737)
+  * OpenSSL: 0-byte record padding oracle (CVE-2019-1559)
+
+### Notable Changes
+
+* **deps**: OpenSSL has been upgraded to 1.0.2r which contains a fix for [CVE-2019-1559](https://www.openssl.org/news/secadv/20190226.txt). Under certain circumstances, a TLS server can be forced to respond differently to a client if a zero-byte record is received with an invalid _padding_ compared to a zero-byte record with an invalid _MAC_. This can be used as the basis of a padding oracle attack to decrypt data.
+* **http**: Further prevention of "Slowloris" attacks on HTTP and HTTPS connections by consistently applying the receive timeout set by `server.headersTimeout` to connections in keep-alive mode. Reported by Marco Pracucci ([Voxnest](https://voxnest.com)). (CVE-2019-5737 / Matteo Collina)
+
+### Commits
+
+* [[`61980dcbf9`](https://github.com/nodejs/node/commit/61980dcbf9)] - **deps**: add -no\_rand\_screen to openssl s\_client (Shigeki Ohtsu) [nodejs/io.js#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`bf287faf21`](https://github.com/nodejs/node/commit/bf287faf21)] - **deps**: fix asm build error of openssl in x86\_win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`22ec5feff0`](https://github.com/nodejs/node/commit/22ec5feff0)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`2cc5e7f534`](https://github.com/nodejs/node/commit/2cc5e7f534)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu)
+* [[`d71517fd43`](https://github.com/nodejs/node/commit/d71517fd43)] - **deps**: upgrade openssl sources to 1.0.2r (Shigeki Ohtsu)
+* [[`76d52c508a`](https://github.com/nodejs/node/commit/76d52c508a)] - **http**: prevent slowloris with keepalive connections (Matteo Collina) [nodejs-private/node-private#162](https://github.com/nodejs-private/node-private/pull/162)
+* [[`6969fad7d6`](https://github.com/nodejs/node/commit/6969fad7d6)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
 
 <a id="8.15.0"></a>
 ## 2018-12-26, Version 8.15.0 'Carbon' (LTS), @MylesBorins
