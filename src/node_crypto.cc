@@ -964,7 +964,7 @@ void SecureContext::SetCiphers(const FunctionCallbackInfo<Value>& args) {
   // TLSv1.3 cipher suites, so we get backwards compatible synchronous errors.
   const node::Utf8Value ciphers(args.GetIsolate(), args[0]);
   if (
-#ifdef TLS1_3_VERSION
+#if defined(TLS1_3_VERSION) && !defined(OPENSSL_IS_BORINGSSL)
       !SSL_CTX_set_ciphersuites(sc->ctx_.get(), "") ||
 #endif
       !SSL_CTX_set_cipher_list(sc->ctx_.get(), *ciphers)) {
