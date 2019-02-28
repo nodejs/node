@@ -67,6 +67,8 @@ ipch/
 .vs/
 .vscode/
 /*.exe
+cmake-build-*/
+CMakeLists.txt
 
 /config.mk
 /config.gypi
