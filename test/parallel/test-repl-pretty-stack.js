@@ -6,7 +6,7 @@ const assert = require('assert');
 const repl = require('repl');
 
 
-function run({ command, expected }) {
+function run({ command, expected, ...extraREPLOptions }) {
   let accum = '';
 
   const inputStream = new ArrayStream();
@@ -19,7 +19,8 @@ function run({ command, expected }) {
     input: inputStream,
     output: outputStream,
     terminal: false,
-    useColors: false
+    useColors: false,
+    ...extraREPLOptions
   });
 
   r.write(`${command}\n`);
@@ -43,6 +44,18 @@ const tests = [
   {
     command: 'throw new Error(\'Whoops!\')',
     expected: 'Thrown:\nError: Whoops!\n'
+  },
+  {
+    command: '(() => { const err = Error(\'Whoops!\'); ' +
+             'err.foo = \'bar\'; throw err; })()',
+    expected: 'Thrown:\n{ Error: Whoops!\n    at repl:1:22 foo: \'bar\' }\n',
+  },
+  {
+    command: '(() => { const err = Error(\'Whoops!\'); ' +
+             'err.foo = \'bar\'; throw err; })()',
+    expected: 'Thrown:\n{ Error: Whoops!\n    at repl:1:22 foo: ' +
+              "\u001b[32m'bar'\u001b[39m }\n",
+    useColors: true
   },
   {
     command: 'foo = bar;',
