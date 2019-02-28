@@ -735,7 +735,7 @@ function writeNode(state, level, object, block, compact, iskey) {
         }
       }
     } else if (type === '[object Array]') {
-      var arrayLevel = (state.noArrayIndent) ? level - 1 : level;
+      var arrayLevel = (state.noArrayIndent && (level > 0)) ? level - 1 : level;
       if (block && (state.dump.length !== 0)) {
         writeBlockSequence(state, arrayLevel, state.dump, compact);
         if (duplicate) {

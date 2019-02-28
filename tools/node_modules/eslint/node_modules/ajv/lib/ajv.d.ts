@@ -122,6 +122,14 @@ declare namespace ajv {
     */
     removeKeyword(keyword: string): Ajv;
     /**
+    * Validate keyword
+    * @this  Ajv
+    * @param {object} definition keyword definition object
+    * @param {boolean} throwError true to throw exception if definition is invalid
+    * @return {boolean} validation result
+    */
+    validateKeyword(definition: KeywordDefinition, throwError: boolean): boolean;
+    /**
     * Convert array of error message objects to string
     * @param  {Array<object>} errors optional array of validation errors, if not passed errors from the instance are used.
     * @param  {object} options optional options with properties `separator` and `dataVar`.
@@ -219,6 +227,8 @@ declare namespace ajv {
     metaSchema?: object;
     // schema: false makes validate not to expect schema (ValidateFunction)
     schema?: boolean;
+    statements?: boolean;
+    dependencies?: Array<string>;
     modifying?: boolean;
     valid?: boolean;
     // one and only one of the following properties should be present
