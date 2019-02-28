@@ -7,7 +7,8 @@ var metaSchema = require('./refs/json-schema-draft-07.json');
 module.exports = {
   add: addKeyword,
   get: getKeyword,
-  remove: removeKeyword
+  remove: removeKeyword,
+  validate: validateKeyword
 };
 
 var definitionSchema = {
@@ -43,8 +44,6 @@ var definitionSchema = {
   }
 };
 
-var validateDefinition;
-
 /**
  * Define custom keyword
  * @this  Ajv
@@ -56,7 +55,6 @@ function addKeyword(keyword, definition) {
   /* jshint validthis: true */
   /* eslint no-shadow: 0 */
   var RULES = this.RULES;
-
   if (RULES.keywords[keyword])
     throw new Error('Keyword ' + keyword + ' is already defined');
 
@@ -64,10 +62,7 @@ function addKeyword(keyword, definition) {
     throw new Error('Keyword ' + keyword + ' is not a valid identifier');
 
   if (definition) {
-    validateDefinition = validateDefinition || this.compile(definitionSchema);
-
-    if (!validateDefinition(definition))
-      throw new Error('custom keyword definition is invalid: '  + this.errorsText(validateDefinition.errors));
+    this.validateKeyword(definition, true);
 
     var dataType = definition.type;
     if (Array.isArray(dataType)) {
@@ -159,4 +154,25 @@ function removeKeyword(keyword) {
     }
   }
   return this;
+}
+
+
+/**
+ * Validate keyword definition
+ * @this  Ajv
+ * @param {Object} definition keyword definition object.
+ * @param {Boolean} throwError true to throw exception if definition is invalid
+ * @return {boolean} validation result
+ */
+function validateKeyword(definition, throwError) {
+  validateKeyword.errors = null;
+  var v = this._validateKeyword = this._validateKeyword
+                                  || this.compile(definitionSchema, true);
+
+  if (v(definition)) return true;
+  validateKeyword.errors = v.errors;
+  if (throwError)
+    throw new Error('custom keyword definition is invalid: '  + this.errorsText(v.errors));
+  else
+    return false;
 }

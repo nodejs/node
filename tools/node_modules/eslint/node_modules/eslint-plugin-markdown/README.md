@@ -137,9 +137,44 @@ Since code blocks are not files themselves but embedded inside a Markdown docume
 - `eol-last`
 - `unicode-bom`
 
-### Strict
+### Project or directory-wide overrides for code snippets
 
-The `strict` rule is technically satisfiable inside of Markdown code blocks, but writing a `"use strict"` directive at the top of every code block is tedious and distracting. We recommend using a [glob pattern override](https://eslint.org/docs/user-guide/configuring#configuration-based-on-glob-patterns) for `.md` files to disable `strict` and enable the `impliedStrict` [parser option](https://eslint.org/docs/user-guide/configuring#specifying-parser-options) so the code blocks still parse in strict mode:
+Given that code snippets often lack full context, and adding full context
+through configuration comments may be too cumbersome to apply for each snippet,
+one may wish to instead set defaults for all one's JavaScript snippets in a
+manner that applies to all Markdown files within your project (or a specific
+directory).
+
+ESLint allows a configuration property `overrides` which has a `files`
+property which accepts a
+[glob pattern](https://eslint.org/docs/user-guide/configuring#configuration-based-on-glob-patterns), allowing you to designate files (such as all `md` files) whose rules will
+be overridden.
+
+The following example shows the disabling of a few commonly problematic rules
+for code snippets. It also points to the fact that some rules
+(e.g., `padded-blocks`) may be more appealing for disabling given that
+one may wish for documentation to be more liberal in providing padding for
+readability.
+
+```js
+// .eslintrc.json
+{
+    // ...
+    "overrides": [{
+        "files": ["**/*.md"],
+        "rules": {
+            "no-undef": "off",
+            "no-unused-vars": "off",
+            "no-console": "off",
+            "padded-blocks": "off"
+        }
+    }]
+}
+```
+
+#### Overriding `strict`
+
+The `strict` rule is technically satisfiable inside of Markdown code blocks, but writing a `"use strict"` directive at the top of every code block is tedious and distracting. We recommend a glob pattern for `.md` files to disable `strict` and enable the `impliedStrict` [parser option](https://eslint.org/docs/user-guide/configuring#specifying-parser-options) so the code blocks still parse in strict mode:
 
 ```js
 // .eslintrc.json
@@ -158,6 +193,20 @@ The `strict` rule is technically satisfiable inside of Markdown code blocks, but
     }]
 }
 ```
+
+## Tips for use with Atom linter-eslint
+
+The [linter-eslint](https://atom.io/packages/linter-eslint) package allows for
+linting within the [Atom IDE](https://atom.io/).
+
+In order to see `eslint-plugin-markdown` work its magic within Markdown code
+blocks in your Atom editor, you can go to `linter-eslint`'s settings and
+within "List of scopes to run ESLint on...", add the cursor scope "source.gfm".
+
+However, this reports a problem when viewing Markdown which does not have
+configuration, so you may wish to use the cursor scope "source.embedded.js",
+but note that `eslint-plugin-markdown` configuration comments and skip
+directives won't work in this context.
 
 ## Contributing
 
