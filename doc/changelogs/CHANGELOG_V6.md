@@ -7,6 +7,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#6.17.0">6.17.0</a><br/>
 <a href="#6.16.0">6.16.0</a><br/>
 <a href="#6.15.1">6.15.1</a><br/>
 <a href="#6.15.0">6.15.0</a><br/>
@@ -67,6 +68,42 @@
 **Note:** Node.js v6 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2018 and maintained until April 2019.
+
+<a id="6.17.0"></a>
+## 2018-02-28, Version 6.17.0 'Boron' (LTS), @rvagg
+
+This is a security release. All Node.js users should consult the security release summary at:
+
+  https://nodejs.org/en/blog/vulnerability/february-2019-security-releases/
+
+for details on patched vulnerabilities.
+
+Fixes for the following CVEs are included in this release:
+
+  * Node.js: Denial of Service with keep-alive HTTP connections (CVE-2019-5739)
+  * Node.js: Slowloris HTTP Denial of Service with keep-alive (CVE-2019-5737)
+  * OpenSSL: 0-byte record padding oracle (CVE-2019-1559)
+
+### Notable Changes
+
+* **deps**: OpenSSL has been upgraded to 1.0.2r which contains a fix for [CVE-2019-1559](https://www.openssl.org/news/secadv/20190226.txt). Under certain circumstances, a TLS server can be forced to respond differently to a client if a zero-byte record is received with an invalid _padding_ compared to a zero-byte record with an invalid _MAC_. This can be used as the basis of a padding oracle attack to decrypt data.
+* **http**:
+  - Backport `server.keepAliveTimeout` to prevent keep-alive HTTP and HTTPS connections remaining open and inactive for an extended period of time, leading to a potential Denial of Service (DoS). (CVE-2019-5739 / [Timur Shemsedinov](https://github.com/tshemsedinov), [Matteo Collina](https://twitter.com/matteocollina))
+  - Further prevention of "Slowloris" attacks on HTTP and HTTPS connections by consistently applying the receive timeout set by `server.headersTimeout` to connections in keep-alive mode. Reported by Marco Pracucci ([Voxnest](https://voxnest.com)). (CVE-2019-5737 / Matteo Collina)
+
+### Commits
+
+* [[`b282c68ce8`](https://github.com/nodejs/node/commit/b282c68ce8)] - **deps**: add -no\_rand\_screen to openssl s\_client (Shigeki Ohtsu) [nodejs/io.js#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`a80ef49dcf`](https://github.com/nodejs/node/commit/a80ef49dcf)] - **deps**: fix asm build error of openssl in x86\_win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`1d3c412101`](https://github.com/nodejs/node/commit/1d3c412101)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`661fd61c3a`](https://github.com/nodejs/node/commit/661fd61c3a)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu)
+* [[`da12284235`](https://github.com/nodejs/node/commit/da12284235)] - **deps**: upgrade openssl sources to 1.0.2r (Shigeki Ohtsu)
+* [[`b13b4a9ffb`](https://github.com/nodejs/node/commit/b13b4a9ffb)] - **http**: prevent slowloris with keepalive connections (Matteo Collina) [nodejs-private/node-private#162](https://github.com/nodejs-private/node-private/pull/162)
+* [[`e9ae4aaaad`](https://github.com/nodejs/node/commit/e9ae4aaaad)] - **http**: fix timeout reset after keep-alive timeout (Alexey Orlenko) [#13549](https://github.com/nodejs/node/pull/13549)
+* [[`f23b3b6bad`](https://github.com/nodejs/node/commit/f23b3b6bad)] - **(SEMVER-MINOR)** **http**: destroy sockets after keepAliveTimeout (Timur Shemsedinov) [#2534](https://github.com/nodejs/node/pull/2534)
+* [[`190894448b`](https://github.com/nodejs/node/commit/190894448b)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`06a208d316`](https://github.com/nodejs/node/commit/06a208d316)] - **test**: refactor test-http-server-keep-alive-timeout (realwakka) [#13448](https://github.com/nodejs/node/pull/13448)
+* [[`1c7fbdc53b`](https://github.com/nodejs/node/commit/1c7fbdc53b)] - **test**: improve test-https-server-keep-alive-timeout (Rich Trott) [#13312](https://github.com/nodejs/node/pull/13312)
 
 <a id="6.16.0"></a>
 ## 2018-12-26, Version 6.16.0 'Boron' (LTS), @MylesBorins

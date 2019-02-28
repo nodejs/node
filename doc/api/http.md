@@ -885,7 +885,7 @@ value only affects new connections to the server, not any existing connections.
 
 ### server.keepAliveTimeout
 <!-- YAML
-added: REPLACEME
+added: v6.17.0
 -->
 
 * {number} Timeout in milliseconds. Defaults to 5000 (5 seconds).

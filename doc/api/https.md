@@ -48,7 +48,7 @@ See [`http.Server#timeout`][].
 
 ### server.keepAliveTimeout
 <!-- YAML
-added: REPLACEME
+added: v6.17.0
 -->
 - {number} Defaults to 5000 (5 seconds).
 
