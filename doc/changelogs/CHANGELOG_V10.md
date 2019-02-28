@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#10.15.2">10.15.2</a><br/>
 <a href="#10.15.1">10.15.1</a><br/>
 <a href="#10.15.0">10.15.0</a><br/>
 <a href="#10.14.2">10.14.2</a><br/>
@@ -48,6 +49,27 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="10.15.2"></a>
+## 2019-02-28, Version 10.15.2 'Dubnium' (LTS), @rvagg
+
+This is a security release. All Node.js users should consult the security release summary at:
+
+  https://nodejs.org/en/blog/vulnerability/february-2019-security-releases/
+
+for details on patched vulnerabilities.
+
+A fix for the following CVE is included in this release:
+
+  * Node.js: Slowloris HTTP Denial of Service with keep-alive (CVE-2019-5737)
+
+### Notable Changes
+
+* **http**: Further prevention of "Slowloris" attacks on HTTP and HTTPS connections by consistently applying the receive timeout set by `server.headersTimeout` to connections in keep-alive mode. Reported by Marco Pracucci ([Voxnest](https://voxnest.com)). (CVE-2019-5737 / Matteo Collina)
+
+### Commits
+
+* [[`1a7302bd48`](https://github.com/nodejs/node/commit/1a7302bd48)] - **http**: prevent slowloris with keepalive connections (Matteo Collina) [nodejs-private/node-private#158](https://github.com/nodejs-private/node-private/pull/158)
 
 <a id="10.15.1"></a>
 ## 2019-01-29, Version 10.15.1 'Dubnium' (LTS), @codebytere
