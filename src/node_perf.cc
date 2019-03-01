@@ -333,7 +333,6 @@ inline Local<Value> GetName(Local<Function> fn) {
 // execution.
 void TimerFunctionCall(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
-  HandleScope scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
   Environment* env = Environment::GetCurrent(context);
   CHECK_NOT_NULL(env);
