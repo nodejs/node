@@ -1,4 +1,4 @@
-## Upgrading OpenSSL-1.1.0
+## Upgrading OpenSSL
 
 ### Requirements
 - Linux environment (Only CentOS7.1 and Ubuntu16 are tested)
@@ -22,12 +22,12 @@ Copyright (C) 2015 Free Software Foundation, Inc.
 $ nasm -v
 NASM version 2.11.08
 ```
+
 ### 1. Obtain and extract new OpenSSL sources
 
 Get a new source from  https://www.openssl.org/source/ and extract
 all files into `deps/openssl/openssl`. Then add all files and commit
 them.
-
 ```sh
 $ cd deps/openssl/
 $ rm -rf openssl
@@ -36,36 +36,58 @@ $ mv openssl-1.1.0h openssl
 $ git add --all openssl
 $ git commit openssl
 ````
-The commit message can be
 
+The commit message can be (with the openssl version set to the relevant value):
 ```
 deps: upgrade openssl sources to 1.1.0h
 
-This updates all sources in deps/openssl/openssl with openssl-1.1.0h.
+This updates all sources in deps/openssl/openssl by:
+    $ cd deps/openssl/
+    $ rm -rf openssl
+    $ tar zxf ~/tmp/openssl-1.1.0h.tar.gz
+    $ mv openssl-1.1.0h openssl
+    $ git add --all openssl
+    $ git commit openssl
 ```
+
 ### 2. Apply a floating patch
 
-Currently, one floating patch is needed to build S390 asm files.
+Currently, one floating patch is needed to build S390 asm files:
 ```
- commit 094465362758ebf967b33c84d5c96230b46a34b3
- Author: Shigeki Ohtsu <ohtsu@ohtsu.org>
- Date:   Wed Mar 7 23:52:52 2018 +0900
+Author: Shigeki Ohtsu <ohtsu@ohtsu.org>
+Date:   Wed Mar 7 23:52:52 2018 +0900
 
-     deps: add s390 asm rules for OpenSSL-1.1.0
+    deps: add s390 asm rules for OpenSSL-1.1.0
 
-     This is a floating patch against OpenSSL-1.1.0 to generate asm files
-         with Makefile rules and it is to be submitted to the upstream.
+    This is a floating patch against OpenSSL-1.1.0 to generate asm files
+    with Makefile rules and it is to be submitted to the upstream.
+
+    Fixes: https://github.com/nodejs/node/issues/4270
+    PR-URL: https://github.com/nodejs/node/pull/19794
+    Reviewed-By: James M Snell <jasnell@gmail.com>
+    Reviewed-By: Rod Vagg <rod@vagg.org>
+    Reviewed-By: Michael Dawson <michael_dawson@ca.ibm.com>
+
+ deps/openssl/openssl/crypto/poly1305/build.info | 2 ++
 ```
 
-Cherry pick it from the previous commit.
+Find the SHA of the previous commit of this patch:
+```sh
+$ git log -n1 --oneline -- deps/openssl/openssl/crypto/poly1305/build.info
+```
+
+Using the SHA found in the previous step, cherry pick it from the previous
+commit (with the openssl version in the commit message set to the relevant
+value):
 ```sh
 $ git cherry-pick 45b9f5df6ff1548f01ed646ebee75e3f0873cefd
 ```
+
+
 ### 3. Execute `make` in `deps/openssl/config` directory
 
-Just type `make` then it generates all platform dependent files into
-`deps/openssl/config/archs` directory.
-
+Use `make` to regenerate all platform dependent files in
+`deps/openssl/config/archs/`:
 ```sh
 $ cd deps/openssl/config; make
 ```
@@ -99,15 +121,19 @@ $ git add deps/openssl/openssl/include/openssl/opensslconf.h
 $ git commit
 ```
 
-The commit message can be
+The commit message can be (with the openssl version set to the relevant value):
 ```
- commit 8cb1de45c60f2d520551166610115531db673518
- Author: Shigeki Ohtsu <ohtsu@ohtsu.org>
- Date:   Thu Mar 29 16:46:11 2018 +0900
+ deps: update archs files for OpenSSL-1.1.0
 
-     deps: update archs files for OpenSSL-1.1.0
-
-     `cd deps/openssl/config; make` updates all archs dependant files.
+ After an OpenSSL source update, all the config files need to be regenerated and
+ comitted by:
+    $ cd deps/openssl/config
+    $ make
+    $ git add deps/openssl/config/archs
+    $ git add deps/openssl/openssl/crypto/include/internal/bn_conf.h
+    $ git add deps/openssl/openssl/crypto/include/internal/dso_conf.h
+    $ git add deps/openssl/openssl/include/openssl/opensslconf.h
+    $ git commit
 ```
 
 Finally, build Node and run tests.
