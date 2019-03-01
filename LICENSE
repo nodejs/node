@@ -774,6 +774,17 @@ The externally maintained libraries used by Node.js are:
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   """
 
+- SipHash, located at deps/v8/src/third_party/siphash, is licensed as follows:
+  """
+    SipHash reference C implementation
+
+    Copyright (c) 2016 Jean-Philippe Aumasson <jeanphilippe.aumasson@gmail.com>
+
+    To the extent possible under law, the author(s) have dedicated all
+    copyright and related and neighboring rights to this software to the public
+    domain worldwide. This software is distributed without any warranty.
+  """
+
 - zlib, located at deps/zlib, is licensed as follows:
   """
     zlib.h -- interface of the 'zlib' general purpose compression library
