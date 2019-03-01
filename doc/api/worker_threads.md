@@ -429,7 +429,8 @@ if (isMainThread) {
   * `execArgv` {string[]} List of node CLI options passed to the worker.
     V8 options (such as `--max-old-space-size`) and options that affect the
     process (such as `--title`) are not supported. If set, this will be provided
-    as [`process.execArgv`][] inside the worker.
+    as [`process.execArgv`][] inside the worker. By default, options will be
+    inherited from the parent thread.
 
 ### Event: 'error'
 <!-- YAML
