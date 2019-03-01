@@ -624,7 +624,7 @@ function skipIfInspectorDisabled() {
 
 function skipIfReportDisabled() {
   if (!process.config.variables.node_report) {
-    skip('Node Report is disabled');
+    skip('Diagnostic reporting is disabled');
   }
 }
 
