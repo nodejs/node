@@ -64,10 +64,8 @@ class PerIsolatePlatformData :
                        double delay_in_seconds) override;
   bool IdleTasksEnabled() override { return false; }
 
+  void AddShutdownCallback(void (*callback)(void*), void* data);
   void Shutdown();
-
-  void ref();
-  int unref();
 
   // Returns true if work was dispatched or executed. New tasks that are
   // posted during flushing of the queue are postponed until the next
@@ -84,7 +82,13 @@ class PerIsolatePlatformData :
   static void RunForegroundTask(std::unique_ptr<v8::Task> task);
   static void RunForegroundTask(uv_timer_t* timer);
 
-  int ref_count_ = 1;
+  struct ShutdownCallback {
+    void (*cb)(void*);
+    void* data;
+  };
+  typedef std::vector<ShutdownCallback> ShutdownCbList;
+  ShutdownCbList shutdown_callbacks_;
+
   uv_loop_t* const loop_;
   uv_async_t* flush_tasks_ = nullptr;
   TaskQueue<v8::Task> foreground_tasks_;
@@ -145,6 +149,8 @@ class NodePlatform : public MultiIsolatePlatform {
 
   void RegisterIsolate(v8::Isolate* isolate, uv_loop_t* loop) override;
   void UnregisterIsolate(v8::Isolate* isolate) override;
+  void AddIsolateFinishedCallback(v8::Isolate* isolate,
+                                  void (*callback)(void*), void* data) override;
 
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
       v8::Isolate* isolate) override;

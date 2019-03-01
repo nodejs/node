@@ -228,10 +228,22 @@ class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
   virtual void DrainTasks(v8::Isolate* isolate) = 0;
   virtual void CancelPendingDelayedTasks(v8::Isolate* isolate) = 0;
 
-  // These will be called by the `IsolateData` creation/destruction functions.
+  // This needs to be called between the calls to `Isolate::Allocate()` and
+  // `Isolate::Initialize()`, so that initialization can already start
+  // using the platform.
+  // When using `NewIsolate()`, this is taken care of by that function.
+  // This function may only be called once per `Isolate`.
   virtual void RegisterIsolate(v8::Isolate* isolate,
                                struct uv_loop_s* loop) = 0;
+  // This needs to be called right before calling `Isolate::Dispose()`.
+  // This function may only be called once per `Isolate`.
   virtual void UnregisterIsolate(v8::Isolate* isolate) = 0;
+  // The platform should call the passed function once all state associated
+  // with the given isolate has been cleaned up. This can, but does not have to,
+  // happen asynchronously.
+  virtual void AddIsolateFinishedCallback(v8::Isolate* isolate,
+                                          void (*callback)(void*),
+                                          void* data) = 0;
 };
 
 // Creates a new isolate with Node.js-specific settings.
