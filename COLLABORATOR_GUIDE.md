@@ -347,13 +347,11 @@ Runtime Deprecations and End-of-life APIs (internal or public) are breaking
 changes (`semver-major`). The TSC may make exceptions, deciding that one of
 these deprecations is not a breaking change.
 
-All Documentation-Only and Runtime deprecations will be assigned a unique
-identifier that can be used to persistently refer to the deprecation in
-documentation, emitted process warnings, or errors thrown. Documentation for
-these identifiers will be included in the Node.js API documentation and will
-be immutable once assigned. Even if End-of-Life code is removed from Node.js,
-the documentation for the assigned deprecation identifier must remain in the
-Node.js API documentation.
+All deprecations receive a unique and immutable identifier. Documentation,
+warnings, and errors use the identifier when referring to the deprecation. The
+documentation for the assigned deprecation identifier must always remain in the
+API documentation. This is true even if the deprecation is no longer in use (for
+example, due to removal of an End-of-Life deprecated API).
 
 <a id="deprecation-cycle"></a>
 A _Deprecation cycle_ is a major release during which an API has been in one of
