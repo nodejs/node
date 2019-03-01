@@ -34,11 +34,6 @@ using v8::String;
 using v8::V8;
 using v8::Value;
 
-// Internal/static function declarations
-static void Initialize(Local<Object> exports,
-                       Local<Value> unused,
-                       Local<Context> context);
-
 // External JavaScript API for triggering a report
 void TriggerReport(const FunctionCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
