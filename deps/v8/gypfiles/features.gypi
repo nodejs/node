@@ -178,6 +178,9 @@
       ['v8_use_snapshot=="true" and v8_use_external_startup_data==1', {
         'defines': ['V8_USE_EXTERNAL_STARTUP_DATA',],
       }],
+      ['v8_use_siphash=="true"', {
+        'defines': ['V8_USE_SIPHASH',],
+      }],
       ['dcheck_always_on!=0', {
         'defines': ['DEBUG',],
       }],
