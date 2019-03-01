@@ -44,6 +44,9 @@
     # Old time default, now explicitly stated.
     'v8_use_snapshot': 'true',
 
+    # Turn on SipHash for hash seed generation, addresses HashWick
+    'v8_use_siphash': 'true',
+
     # These are more relevant for V8 internal development.
     # Refs: https://github.com/nodejs/node/issues/23122
     # Refs: https://github.com/nodejs/node/issues/23167

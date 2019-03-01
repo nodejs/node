@@ -130,6 +130,7 @@
               'v8_enable_verify_predictable=<(v8_enable_verify_predictable)',
               'v8_target_cpu=<(v8_target_arch)',
               'v8_use_snapshot=<(v8_use_snapshot)',
+              'v8_use_siphash=<(v8_use_siphash)',
             ]
           },
           'conditions': [
@@ -1528,6 +1529,8 @@
         '../src/string-stream.h',
         '../src/strtod.cc',
         '../src/strtod.h',
+        '../src/third_party/siphash/halfsiphash.cc',
+        '../src/third_party/siphash/halfsiphash.h',
         '../src/third_party/utf8-decoder/utf8-decoder.h',
         '../src/torque-assembler.h',
         '../src/tracing/trace-event.cc',

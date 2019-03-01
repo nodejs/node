@@ -477,6 +477,11 @@ parser.add_option('--without-snapshot',
     dest='without_snapshot',
     help=optparse.SUPPRESS_HELP)
 
+parser.add_option('--without-siphash',
+    action='store_true',
+    dest='without_siphash',
+    help=optparse.SUPPRESS_HELP)
+
 parser.add_option('--code-cache-path',
     action='store',
     dest='code_cache_path',
@@ -1122,6 +1127,7 @@ def configure_v8(o):
   o['variables']['v8_random_seed'] = 0  # Use a random seed for hash tables.
   o['variables']['v8_promise_internal_field_count'] = 1 # Add internal field to promises for async hooks.
   o['variables']['v8_use_snapshot'] = 'false' if options.without_snapshot else 'true'
+  o['variables']['v8_use_siphash'] = 'false' if options.without_siphash else 'true'
   o['variables']['v8_trace_maps'] = 1 if options.trace_maps else 0
   o['variables']['node_use_v8_platform'] = b(not options.without_v8_platform)
   o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
