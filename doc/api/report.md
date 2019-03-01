@@ -32,7 +32,7 @@ is provided below for reference.
       "/home/nodeuser/project/node/out/Release/node",
       "--experimental-report",
       "--diagnostic-report-uncaught-exception",
-      "/home/nodeuser/project/node/test/node-report/test-exception.js",
+      "/home/nodeuser/project/node/test/report/test-exception.js",
       "child"
     ],
     "nodejsVersion": "v12.0.0-pre",
@@ -66,8 +66,8 @@ is provided below for reference.
   "javascriptStack": {
     "message": "Error: *** test-exception.js: throwing uncaught Error",
     "stack": [
-      "at myException (/home/nodeuser/project/node/test/node-report/test-exception.js:9:11)",
-      "at Object.<anonymous> (/home/nodeuser/project/node/test/node-report/test-exception.js:12:3)",
+      "at myException (/home/nodeuser/project/node/test/report/test-exception.js:9:11)",
+      "at Object.<anonymous> (/home/nodeuser/project/node/test/report/test-exception.js:12:3)",
       "at Module._compile (internal/modules/cjs/loader.js:718:30)",
       "at Object.Module._extensions..js (internal/modules/cjs/loader.js:729:10)",
       "at Module.load (internal/modules/cjs/loader.js:617:32)",
