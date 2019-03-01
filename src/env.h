@@ -321,7 +321,8 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(zero_return_string, "ZERO_RETURN")
 
 #define ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)                            \
-  V(as_external, v8::External)                                                 \
+  V(as_callback_data, v8::Object)                                              \
+  V(as_callback_data_template, v8::FunctionTemplate)                           \
   V(async_hooks_after_function, v8::Function)                                  \
   V(async_hooks_before_function, v8::Function)                                 \
   V(async_hooks_binding, v8::Object)                                           \
@@ -662,6 +663,8 @@ class Environment {
   template <typename T>
   static inline Environment* GetCurrent(
       const v8::PropertyCallbackInfo<T>& info);
+
+  static inline Environment* GetFromCallbackData(v8::Local<v8::Value> val);
 
   static uv_key_t thread_local_env;
   static inline Environment* GetThreadLocalEnv();

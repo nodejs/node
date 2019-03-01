@@ -137,7 +137,7 @@ Local<FunctionTemplate> LibuvStreamWrap::GetConstructorTemplate(
     Local<FunctionTemplate> get_write_queue_size =
         FunctionTemplate::New(env->isolate(),
                               GetWriteQueueSize,
-                              env->as_external(),
+                              env->as_callback_data(),
                               Signature::New(env->isolate(), tmpl));
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         env->write_queue_size_string(),
