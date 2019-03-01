@@ -149,7 +149,7 @@ struct V8Platform {
   inline void DrainVMTasks(v8::Isolate* isolate) {}
   inline void CancelVMTasks(v8::Isolate* isolate) {}
   inline void StartTracingAgent() {
-    if (!trace_enabled_categories.empty()) {
+    if (!per_process::cli_options->trace_event_categories.empty()) {
       fprintf(stderr,
               "Node compiled with NODE_USE_V8_PLATFORM=0, "
               "so event tracing is not available.\n");
