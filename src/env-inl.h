@@ -316,16 +316,23 @@ inline Environment* Environment::GetCurrent(v8::Local<v8::Context> context) {
 
 inline Environment* Environment::GetCurrent(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  CHECK(info.Data()->IsExternal());
-  return static_cast<Environment*>(info.Data().As<v8::External>()->Value());
+  return GetFromCallbackData(info.Data());
 }
 
 template <typename T>
 inline Environment* Environment::GetCurrent(
     const v8::PropertyCallbackInfo<T>& info) {
-  CHECK(info.Data()->IsExternal());
-  return static_cast<Environment*>(
-      info.Data().template As<v8::External>()->Value());
+  return GetFromCallbackData(info.Data());
+}
+
+inline Environment* Environment::GetFromCallbackData(v8::Local<v8::Value> val) {
+  DCHECK(val->IsObject());
+  v8::Local<v8::Object> obj = val.As<v8::Object>();
+  DCHECK_GE(obj->InternalFieldCount(), 1);
+  Environment* env =
+      static_cast<Environment*>(obj->GetAlignedPointerFromInternalField(0));
+  DCHECK(env->as_callback_data_template()->HasInstance(obj));
+  return env;
 }
 
 inline Environment* Environment::GetThreadLocalEnv() {
@@ -857,7 +864,7 @@ inline v8::Local<v8::FunctionTemplate>
                                      v8::Local<v8::Signature> signature,
                                      v8::ConstructorBehavior behavior,
                                      v8::SideEffectType side_effect_type) {
-  v8::Local<v8::External> external = as_external();
+  v8::Local<v8::Object> external = as_callback_data();
   return v8::FunctionTemplate::New(isolate(), callback, external,
                                    signature, 0, behavior, side_effect_type);
 }

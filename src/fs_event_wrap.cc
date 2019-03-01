@@ -111,7 +111,7 @@ void FSEventWrap::Initialize(Local<Object> target,
   Local<FunctionTemplate> get_initialized_templ =
       FunctionTemplate::New(env->isolate(),
                             GetInitialized,
-                            env->as_external(),
+                            env->as_callback_data(),
                             Signature::New(env->isolate(), t));
 
   t->PrototypeTemplate()->SetAccessorProperty(
