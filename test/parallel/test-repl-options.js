@@ -27,7 +27,7 @@ const repl = require('repl');
 
 common.expectWarning({
   DeprecationWarning: {
-    DEP0XXX: 'REPLServer.rli is deprecated'
+    DEP0124: 'REPLServer.rli is deprecated'
   }
 });
 
