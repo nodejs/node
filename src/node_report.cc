@@ -377,7 +377,7 @@ static void PrintJavaScriptStack(JSONWriter* writer,
 
   std::string ss;
   if ((!strcmp(location, "OnFatalError")) ||
-      (!strcmp(location, "OnUserSignal"))) {
+      (!strcmp(location, "Signal"))) {
     ss = "No stack.\nUnavailable.\n";
   } else {
     String::Utf8Value sv(isolate, stackstr);

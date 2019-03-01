@@ -75,18 +75,6 @@ void GetReport(const FunctionCallbackInfo<Value>& info) {
                                 .ToLocalChecked());
 }
 
-// Signal handler for report action, called from JS land (util.js)
-void OnUserSignal(const FunctionCallbackInfo<Value>& info) {
-  Environment* env = Environment::GetCurrent(info);
-  Isolate* isolate = env->isolate();
-  CHECK(info[0]->IsString());
-  Local<String> str = info[0].As<String>();
-  String::Utf8Value value(isolate, str);
-  std::string filename;
-  TriggerNodeReport(
-      isolate, env, *value, __func__, filename, info[0].As<String>());
-}
-
 // A method to sync up data elements in the JS land with its
 // corresponding elements in the C++ world. Required because
 // (i) the tunables are first intercepted through the CLI but
@@ -219,7 +207,6 @@ static void Initialize(Local<Object> exports,
   std::shared_ptr<PerIsolateOptions> options = env->isolate_data()->options();
   env->SetMethod(exports, "triggerReport", TriggerReport);
   env->SetMethod(exports, "getReport", GetReport);
-  env->SetMethod(exports, "onUserSignal", OnUserSignal);
   env->SetMethod(exports, "syncConfig", SyncConfig);
 }
 
