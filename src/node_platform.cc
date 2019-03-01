@@ -261,6 +261,11 @@ PerIsolatePlatformData::~PerIsolatePlatformData() {
   Shutdown();
 }
 
+void PerIsolatePlatformData::AddShutdownCallback(void (*callback)(void*),
+                                                 void* data) {
+  shutdown_callbacks_.emplace_back(ShutdownCallback { callback, data });
+}
+
 void PerIsolatePlatformData::Shutdown() {
   if (flush_tasks_ == nullptr)
     return;
@@ -269,19 +274,17 @@ void PerIsolatePlatformData::Shutdown() {
   CHECK_NULL(foreground_tasks_.Pop());
   CancelPendingDelayedTasks();
 
+  ShutdownCbList* copy = new ShutdownCbList(std::move(shutdown_callbacks_));
+  flush_tasks_->data = copy;
   uv_close(reinterpret_cast<uv_handle_t*>(flush_tasks_),
            [](uv_handle_t* handle) {
+    std::unique_ptr<ShutdownCbList> callbacks(
+        static_cast<ShutdownCbList*>(handle->data));
+    for (const auto& callback : *callbacks)
+      callback.cb(callback.data);
     delete reinterpret_cast<uv_async_t*>(handle);
   });
   flush_tasks_ = nullptr;
-}
-
-void PerIsolatePlatformData::ref() {
-  ref_count_++;
-}
-
-int PerIsolatePlatformData::unref() {
-  return --ref_count_;
 }
 
 NodePlatform::NodePlatform(int thread_pool_size,
@@ -298,23 +301,29 @@ NodePlatform::NodePlatform(int thread_pool_size,
 void NodePlatform::RegisterIsolate(Isolate* isolate, uv_loop_t* loop) {
   Mutex::ScopedLock lock(per_isolate_mutex_);
   std::shared_ptr<PerIsolatePlatformData> existing = per_isolate_[isolate];
-  if (existing) {
-    CHECK_EQ(loop, existing->event_loop());
-    existing->ref();
-  } else {
-    per_isolate_[isolate] =
-        std::make_shared<PerIsolatePlatformData>(isolate, loop);
-  }
+  CHECK(!existing);
+  per_isolate_[isolate] =
+      std::make_shared<PerIsolatePlatformData>(isolate, loop);
 }
 
 void NodePlatform::UnregisterIsolate(Isolate* isolate) {
   Mutex::ScopedLock lock(per_isolate_mutex_);
   std::shared_ptr<PerIsolatePlatformData> existing = per_isolate_[isolate];
   CHECK(existing);
-  if (existing->unref() == 0) {
-    existing->Shutdown();
-    per_isolate_.erase(isolate);
+  existing->Shutdown();
+  per_isolate_.erase(isolate);
+}
+
+void NodePlatform::AddIsolateFinishedCallback(Isolate* isolate,
+                                              void (*cb)(void*), void* data) {
+  Mutex::ScopedLock lock(per_isolate_mutex_);
+  auto it = per_isolate_.find(isolate);
+  if (it == per_isolate_.end()) {
+    CHECK(it->second);
+    cb(data);
+    return;
   }
+  it->second->AddShutdownCallback(cb, data);
 }
 
 void NodePlatform::Shutdown() {

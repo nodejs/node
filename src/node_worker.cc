@@ -188,16 +188,20 @@ class WorkerThreadData {
 
     w_->platform_->CancelPendingDelayedTasks(isolate);
 
+    bool platform_finished = false;
+
     isolate_data_.reset();
+
+    w_->platform_->AddIsolateFinishedCallback(isolate, [](void* data) {
+      *static_cast<bool*>(data) = true;
+    }, &platform_finished);
     w_->platform_->UnregisterIsolate(isolate);
 
     isolate->Dispose();
 
-    // Need to run the loop twice more to close the platform's uv_async_t
-    // TODO(addaleax): It would be better for the platform itself to provide
-    // some kind of notification when it has fully cleaned up.
-    uv_run(&loop_, UV_RUN_ONCE);
-    uv_run(&loop_, UV_RUN_ONCE);
+    // Wait until the platform has cleaned up all relevant resources.
+    while (!platform_finished)
+      uv_run(&loop_, UV_RUN_ONCE);
 
     CheckedUvLoopClose(&loop_);
   }

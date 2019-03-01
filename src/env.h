@@ -401,7 +401,6 @@ class IsolateData {
               uv_loop_t* event_loop,
               MultiIsolatePlatform* platform = nullptr,
               ArrayBufferAllocator* node_allocator = nullptr);
-  ~IsolateData();
   inline uv_loop_t* event_loop() const;
   inline MultiIsolatePlatform* platform() const;
   inline std::shared_ptr<PerIsolateOptions> options();

@@ -84,8 +84,6 @@ IsolateData::IsolateData(Isolate* isolate,
       uses_node_allocator_(allocator_ == node_allocator_),
       platform_(platform) {
   CHECK_NOT_NULL(allocator_);
-  if (platform_ != nullptr)
-    platform_->RegisterIsolate(isolate_, event_loop);
 
   options_.reset(
       new PerIsolateOptions(*(per_process::cli_options->per_isolate)));
@@ -136,12 +134,6 @@ IsolateData::IsolateData(Isolate* isolate,
   PER_ISOLATE_STRING_PROPERTIES(V)
 #undef V
 }
-
-IsolateData::~IsolateData() {
-  if (platform_ != nullptr)
-    platform_->UnregisterIsolate(isolate_);
-}
-
 
 void InitThreadLocalOnce() {
   CHECK_EQ(0, uv_key_create(&Environment::thread_local_env));
