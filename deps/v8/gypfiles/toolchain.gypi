@@ -1431,6 +1431,7 @@
         }],
       ],
     },  # configurations
+    'cflags': [ '-Wno-type-limits', ],
     'msvs_disabled_warnings': [
       4245,  # Conversion with signed/unsigned mismatch.
       4267,  # Conversion with possible loss of data.
