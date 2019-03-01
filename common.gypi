@@ -32,6 +32,9 @@
     # Increment by one for each non-official patch applied to deps/v8.
     'v8_embedder_string': '-node.18',
 
+    # Turn on SipHash for hash seed generation, addresses HashWick
+    'v8_use_siphash': 'true',
+
     # Enable disassembler for `--print-code` v8 options
     'v8_enable_disassembler': 1,
 
