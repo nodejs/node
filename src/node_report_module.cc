@@ -35,7 +35,6 @@ using v8::V8;
 using v8::Value;
 
 // Internal/static function declarations
-void OnUncaughtException(const FunctionCallbackInfo<Value>& info);
 static void Initialize(Local<Object> exports,
                        Local<Value> unused,
                        Local<Context> context);
@@ -48,14 +47,16 @@ void TriggerReport(const FunctionCallbackInfo<Value>& info) {
   std::string filename;
   Local<String> stackstr;
 
-  CHECK_EQ(info.Length(), 2);
-  stackstr = info[1].As<String>();
+  CHECK_EQ(info.Length(), 4);
+  String::Utf8Value message(isolate, info[0].As<String>());
+  String::Utf8Value trigger(isolate, info[1].As<String>());
+  stackstr = info[3].As<String>();
 
-  if (info[0]->IsString())
-    filename = *String::Utf8Value(isolate, info[0]);
+  if (info[2]->IsString())
+    filename = *String::Utf8Value(isolate, info[2]);
 
   filename = TriggerNodeReport(
-      isolate, env, "JavaScript API", __func__, filename, stackstr);
+      isolate, env, *message, *trigger, filename, stackstr);
   // Return value is the report filename
   info.GetReturnValue().Set(
       String::NewFromUtf8(isolate, filename.c_str(), v8::NewStringType::kNormal)
@@ -77,22 +78,6 @@ void GetReport(const FunctionCallbackInfo<Value>& info) {
                                                 out.str().c_str(),
                                                 v8::NewStringType::kNormal)
                                 .ToLocalChecked());
-}
-
-// Callbacks for triggering report on uncaught exception.
-// Calls triggered from JS land.
-void OnUncaughtException(const FunctionCallbackInfo<Value>& info) {
-  Environment* env = Environment::GetCurrent(info);
-  Isolate* isolate = env->isolate();
-  HandleScope scope(isolate);
-  std::string filename;
-  std::shared_ptr<PerIsolateOptions> options = env->isolate_data()->options();
-
-  // Trigger report if requested
-  if (options->report_uncaught_exception) {
-    TriggerNodeReport(
-        isolate, env, "exception", __func__, filename, info[0].As<String>());
-  }
 }
 
 // Signal handler for report action, called from JS land (util.js)
@@ -239,7 +224,6 @@ static void Initialize(Local<Object> exports,
   std::shared_ptr<PerIsolateOptions> options = env->isolate_data()->options();
   env->SetMethod(exports, "triggerReport", TriggerReport);
   env->SetMethod(exports, "getReport", GetReport);
-  env->SetMethod(exports, "onUnCaughtException", OnUncaughtException);
   env->SetMethod(exports, "onUserSignal", OnUserSignal);
   env->SetMethod(exports, "syncConfig", SyncConfig);
 }
