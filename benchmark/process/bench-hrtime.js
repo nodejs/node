@@ -37,5 +37,6 @@ function main({ n, type }) {
       break;
   }
 
+  // eslint-disable-next-line valid-typeof
   assert.ok(Array.isArray(noDead) || typeof noDead === 'bigint');
 }
