@@ -92,7 +92,7 @@ MaybeLocal<Object> CreateProcessObject(
                 title_string,
                 ProcessTitleGetter,
                 env->owns_process_state() ? ProcessTitleSetter : nullptr,
-                env->as_external(),
+                env->as_callback_data(),
                 DEFAULT,
                 None,
                 SideEffectType::kHasNoSideEffect)
@@ -152,7 +152,7 @@ MaybeLocal<Object> CreateProcessObject(
                    .ToLocalChecked()).FromJust();
 
   Local<Object> env_var_proxy;
-  if (!CreateEnvVarProxy(context, isolate, env->as_external())
+  if (!CreateEnvVarProxy(context, isolate, env->as_callback_data())
            .ToLocal(&env_var_proxy))
     return MaybeLocal<Object>();
 
@@ -310,7 +310,7 @@ MaybeLocal<Object> CreateProcessObject(
                           debug_port_string,
                           DebugPortGetter,
                           env->owns_process_state() ? DebugPortSetter : nullptr,
-                          env->as_external())
+                          env->as_callback_data())
             .FromJust());
 
   // process._rawDebug: may be overwritten later in JS land, but should be
