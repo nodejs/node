@@ -204,7 +204,7 @@ static void Initialize(Local<Object> exports,
                        Local<Value> unused,
                        Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
-  std::shared_ptr<PerIsolateOptions> options = env->isolate_data()->options();
+
   env->SetMethod(exports, "triggerReport", TriggerReport);
   env->SetMethod(exports, "getReport", GetReport);
   env->SetMethod(exports, "syncConfig", SyncConfig);
