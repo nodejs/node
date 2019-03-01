@@ -53,6 +53,8 @@ class Worker : public AsyncWrap {
 
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackField("parent_port", parent_port_);
+    tracker->TrackInlineField(&thread_stopper_, "thread_stopper_");
+    tracker->TrackInlineField(&on_thread_finished_, "on_thread_finished_");
   }
 
   SET_MEMORY_INFO_NAME(Worker)
