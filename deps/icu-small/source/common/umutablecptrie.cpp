@@ -18,6 +18,11 @@
 #include "uassert.h"
 #include "ucptrie_impl.h"
 
+// ICU-20235 In case Microsoft math.h has defined this, undefine it.
+#ifdef OVERFLOW
+#undef OVERFLOW
+#endif
+
 U_NAMESPACE_BEGIN
 
 namespace {
@@ -60,6 +65,7 @@ constexpr uint8_t I3_18 = 3;
 constexpr int32_t INDEX_3_18BIT_BLOCK_LENGTH = UCPTRIE_INDEX_3_BLOCK_LENGTH + UCPTRIE_INDEX_3_BLOCK_LENGTH / 8;
 
 class AllSameBlocks;
+class MixedBlocks;
 
 class MutableCodePointTrie : public UMemory {
 public:
@@ -92,8 +98,10 @@ private:
     void maskValues(uint32_t mask);
     UChar32 findHighStart() const;
     int32_t compactWholeDataBlocks(int32_t fastILimit, AllSameBlocks &allSameBlocks);
-    int32_t compactData(int32_t fastILimit, uint32_t *newData, int32_t dataNullIndex);
-    int32_t compactIndex(int32_t fastILimit, UErrorCode &errorCode);
+    int32_t compactData(
+            int32_t fastILimit, uint32_t *newData, int32_t newDataCapacity,
+            int32_t dataNullIndex, MixedBlocks &mixedBlocks, UErrorCode &errorCode);
+    int32_t compactIndex(int32_t fastILimit, MixedBlocks &mixedBlocks, UErrorCode &errorCode);
     int32_t compactTrie(int32_t fastILimit, UErrorCode &errorCode);
 
     uint32_t *index = nullptr;
@@ -301,41 +309,56 @@ UChar32 MutableCodePointTrie::getRange(
     uint32_t nullValue = initialValue;
     if (filter != nullptr) { nullValue = filter(context, nullValue); }
     UChar32 c = start;
-    uint32_t value;
+    uint32_t trieValue, value;
     bool haveValue = false;
     int32_t i = c >> UCPTRIE_SHIFT_3;
     do {
         if (flags[i] == ALL_SAME) {
-            uint32_t value2 = maybeFilterValue(index[i], initialValue, nullValue,
-                                               filter, context);
+            uint32_t trieValue2 = index[i];
             if (haveValue) {
-                if (value2 != value) {
-                    return c - 1;
+                if (trieValue2 != trieValue) {
+                    if (filter == nullptr ||
+                            maybeFilterValue(trieValue2, initialValue, nullValue,
+                                             filter, context) != value) {
+                        return c - 1;
+                    }
+                    trieValue = trieValue2;  // may or may not help
                 }
             } else {
-                value = value2;
+                trieValue = trieValue2;
+                value = maybeFilterValue(trieValue2, initialValue, nullValue, filter, context);
                 if (pValue != nullptr) { *pValue = value; }
                 haveValue = true;
             }
             c = (c + UCPTRIE_SMALL_DATA_BLOCK_LENGTH) & ~UCPTRIE_SMALL_DATA_MASK;
         } else /* MIXED */ {
             int32_t di = index[i] + (c & UCPTRIE_SMALL_DATA_MASK);
-            uint32_t value2 = maybeFilterValue(data[di], initialValue, nullValue,
-                                               filter, context);
+            uint32_t trieValue2 = data[di];
             if (haveValue) {
-                if (value2 != value) {
-                    return c - 1;
+                if (trieValue2 != trieValue) {
+                    if (filter == nullptr ||
+                            maybeFilterValue(trieValue2, initialValue, nullValue,
+                                             filter, context) != value) {
+                        return c - 1;
+                    }
+                    trieValue = trieValue2;  // may or may not help
                 }
             } else {
-                value = value2;
+                trieValue = trieValue2;
+                value = maybeFilterValue(trieValue2, initialValue, nullValue, filter, context);
                 if (pValue != nullptr) { *pValue = value; }
                 haveValue = true;
             }
             while ((++c & UCPTRIE_SMALL_DATA_MASK) != 0) {
-                if (maybeFilterValue(data[++di], initialValue, nullValue,
-                                     filter, context) != value) {
-                    return c - 1;
+                trieValue2 = data[++di];
+                if (trieValue2 != trieValue) {
+                    if (filter == nullptr ||
+                            maybeFilterValue(trieValue2, initialValue, nullValue,
+                                             filter, context) != value) {
+                        return c - 1;
+                    }
                 }
+                trieValue = trieValue2;  // may or may not help
             }
         }
         ++i;
@@ -548,28 +571,8 @@ void MutableCodePointTrie::maskValues(uint32_t mask) {
     }
 }
 
-inline bool
-equalBlocks(const uint32_t *s, const uint32_t *t, int32_t length) {
-    while (length > 0 && *s == *t) {
-        ++s;
-        ++t;
-        --length;
-    }
-    return length == 0;
-}
-
-inline bool
-equalBlocks(const uint16_t *s, const uint32_t *t, int32_t length) {
-    while (length > 0 && *s == *t) {
-        ++s;
-        ++t;
-        --length;
-    }
-    return length == 0;
-}
-
-inline bool
-equalBlocks(const uint16_t *s, const uint16_t *t, int32_t length) {
+template<typename UIntA, typename UIntB>
+bool equalBlocks(const UIntA *s, const UIntB *t, int32_t length) {
     while (length > 0 && *s == *t) {
         ++s;
         ++t;
@@ -585,36 +588,6 @@ bool allValuesSameAs(const uint32_t *p, int32_t length, uint32_t value) {
 }
 
 /** Search for an identical block. */
-int32_t findSameBlock(const uint32_t *p, int32_t pStart, int32_t length,
-                      const uint32_t *q, int32_t qStart, int32_t blockLength) {
-    // Ensure that we do not even partially get past length.
-    length -= blockLength;
-
-    q += qStart;
-    while (pStart <= length) {
-        if (equalBlocks(p + pStart, q, blockLength)) {
-            return pStart;
-        }
-        ++pStart;
-    }
-    return -1;
-}
-
-int32_t findSameBlock(const uint16_t *p, int32_t pStart, int32_t length,
-                      const uint32_t *q, int32_t qStart, int32_t blockLength) {
-    // Ensure that we do not even partially get past length.
-    length -= blockLength;
-
-    q += qStart;
-    while (pStart <= length) {
-        if (equalBlocks(p + pStart, q, blockLength)) {
-            return pStart;
-        }
-        ++pStart;
-    }
-    return -1;
-}
-
 int32_t findSameBlock(const uint16_t *p, int32_t pStart, int32_t length,
                       const uint16_t *q, int32_t qStart, int32_t blockLength) {
     // Ensure that we do not even partially get past length.
@@ -655,30 +628,9 @@ int32_t findAllSameBlock(const uint32_t *p, int32_t start, int32_t limit,
  * Look for maximum overlap of the beginning of the other block
  * with the previous, adjacent block.
  */
-int32_t getOverlap(const uint32_t *p, int32_t length,
-                   const uint32_t *q, int32_t qStart, int32_t blockLength) {
-    int32_t overlap = blockLength - 1;
-    U_ASSERT(overlap <= length);
-    q += qStart;
-    while (overlap > 0 && !equalBlocks(p + (length - overlap), q, overlap)) {
-        --overlap;
-    }
-    return overlap;
-}
-
-int32_t getOverlap(const uint16_t *p, int32_t length,
-                   const uint32_t *q, int32_t qStart, int32_t blockLength) {
-    int32_t overlap = blockLength - 1;
-    U_ASSERT(overlap <= length);
-    q += qStart;
-    while (overlap > 0 && !equalBlocks(p + (length - overlap), q, overlap)) {
-        --overlap;
-    }
-    return overlap;
-}
-
-int32_t getOverlap(const uint16_t *p, int32_t length,
-                   const uint16_t *q, int32_t qStart, int32_t blockLength) {
+template<typename UIntA, typename UIntB>
+int32_t getOverlap(const UIntA *p, int32_t length,
+                   const UIntB *q, int32_t qStart, int32_t blockLength) {
     int32_t overlap = blockLength - 1;
     U_ASSERT(overlap <= length);
     q += qStart;
@@ -805,6 +757,171 @@ private:
     int32_t indexes[CAPACITY];
     uint32_t values[CAPACITY];
     int32_t refCounts[CAPACITY];
+};
+
+// Custom hash table for mixed-value blocks to be found anywhere in the
+// compacted data or index so far.
+class MixedBlocks {
+public:
+    MixedBlocks() {}
+    ~MixedBlocks() {
+        uprv_free(table);
+    }
+
+    bool init(int32_t maxLength, int32_t newBlockLength) {
+        // We store actual data indexes + 1 to reserve 0 for empty entries.
+        int32_t maxDataIndex = maxLength - newBlockLength + 1;
+        int32_t newLength;
+        if (maxDataIndex <= 0xfff) {  // 4k
+            newLength = 6007;
+            shift = 12;
+            mask = 0xfff;
+        } else if (maxDataIndex <= 0x7fff) {  // 32k
+            newLength = 50021;
+            shift = 15;
+            mask = 0x7fff;
+        } else if (maxDataIndex <= 0x1ffff) {  // 128k
+            newLength = 200003;
+            shift = 17;
+            mask = 0x1ffff;
+        } else {
+            // maxDataIndex up to around MAX_DATA_LENGTH, ca. 1.1M
+            newLength = 1500007;
+            shift = 21;
+            mask = 0x1fffff;
+        }
+        if (newLength > capacity) {
+            uprv_free(table);
+            table = (uint32_t *)uprv_malloc(newLength * 4);
+            if (table == nullptr) {
+                return false;
+            }
+            capacity = newLength;
+        }
+        length = newLength;
+        uprv_memset(table, 0, length * 4);
+
+        blockLength = newBlockLength;
+        return true;
+    }
+
+    template<typename UInt>
+    void extend(const UInt *data, int32_t minStart, int32_t prevDataLength, int32_t newDataLength) {
+        int32_t start = prevDataLength - blockLength;
+        if (start >= minStart) {
+            ++start;  // Skip the last block that we added last time.
+        } else {
+            start = minStart;  // Begin with the first full block.
+        }
+        for (int32_t end = newDataLength - blockLength; start <= end; ++start) {
+            uint32_t hashCode = makeHashCode(data, start);
+            addEntry(data, start, hashCode, start);
+        }
+    }
+
+    template<typename UIntA, typename UIntB>
+    int32_t findBlock(const UIntA *data, const UIntB *blockData, int32_t blockStart) const {
+        uint32_t hashCode = makeHashCode(blockData, blockStart);
+        int32_t entryIndex = findEntry(data, blockData, blockStart, hashCode);
+        if (entryIndex >= 0) {
+            return (table[entryIndex] & mask) - 1;
+        } else {
+            return -1;
+        }
+    }
+
+    int32_t findAllSameBlock(const uint32_t *data, uint32_t blockValue) const {
+        uint32_t hashCode = makeHashCode(blockValue);
+        int32_t entryIndex = findEntry(data, blockValue, hashCode);
+        if (entryIndex >= 0) {
+            return (table[entryIndex] & mask) - 1;
+        } else {
+            return -1;
+        }
+    }
+
+private:
+    template<typename UInt>
+    uint32_t makeHashCode(const UInt *blockData, int32_t blockStart) const {
+        int32_t blockLimit = blockStart + blockLength;
+        uint32_t hashCode = blockData[blockStart++];
+        do {
+            hashCode = 37 * hashCode + blockData[blockStart++];
+        } while (blockStart < blockLimit);
+        return hashCode;
+    }
+
+    uint32_t makeHashCode(uint32_t blockValue) const {
+        uint32_t hashCode = blockValue;
+        for (int32_t i = 1; i < blockLength; ++i) {
+            hashCode = 37 * hashCode + blockValue;
+        }
+        return hashCode;
+    }
+
+    template<typename UInt>
+    void addEntry(const UInt *data, int32_t blockStart, uint32_t hashCode, int32_t dataIndex) {
+        U_ASSERT(0 <= dataIndex && dataIndex < (int32_t)mask);
+        int32_t entryIndex = findEntry(data, data, blockStart, hashCode);
+        if (entryIndex < 0) {
+            table[~entryIndex] = (hashCode << shift) | (dataIndex + 1);
+        }
+    }
+
+    template<typename UIntA, typename UIntB>
+    int32_t findEntry(const UIntA *data, const UIntB *blockData, int32_t blockStart,
+                      uint32_t hashCode) const {
+        uint32_t shiftedHashCode = hashCode << shift;
+        int32_t initialEntryIndex = (hashCode % (length - 1)) + 1;  // 1..length-1
+        for (int32_t entryIndex = initialEntryIndex;;) {
+            uint32_t entry = table[entryIndex];
+            if (entry == 0) {
+                return ~entryIndex;
+            }
+            if ((entry & ~mask) == shiftedHashCode) {
+                int32_t dataIndex = (entry & mask) - 1;
+                if (equalBlocks(data + dataIndex, blockData + blockStart, blockLength)) {
+                    return entryIndex;
+                }
+            }
+            entryIndex = nextIndex(initialEntryIndex, entryIndex);
+        }
+    }
+
+    int32_t findEntry(const uint32_t *data, uint32_t blockValue, uint32_t hashCode) const {
+        uint32_t shiftedHashCode = hashCode << shift;
+        int32_t initialEntryIndex = (hashCode % (length - 1)) + 1;  // 1..length-1
+        for (int32_t entryIndex = initialEntryIndex;;) {
+            uint32_t entry = table[entryIndex];
+            if (entry == 0) {
+                return ~entryIndex;
+            }
+            if ((entry & ~mask) == shiftedHashCode) {
+                int32_t dataIndex = (entry & mask) - 1;
+                if (allValuesSameAs(data + dataIndex, blockLength, blockValue)) {
+                    return entryIndex;
+                }
+            }
+            entryIndex = nextIndex(initialEntryIndex, entryIndex);
+        }
+    }
+
+    inline int32_t nextIndex(int32_t initialEntryIndex, int32_t entryIndex) const {
+        // U_ASSERT(0 < initialEntryIndex && initialEntryIndex < length);
+        return (entryIndex + initialEntryIndex) % length;
+    }
+
+    // Hash table.
+    // The length is a prime number, larger than the maximum data length.
+    // The "shift" lower bits store a data index + 1.
+    // The remaining upper bits store a partial hashCode of the block data values.
+    uint32_t *table = nullptr;
+    int32_t capacity = 0;
+    int32_t length = 0;
+    int32_t shift = 0;
+    uint32_t mask = 0;
+
+    int32_t blockLength = 0;
 };
 
 int32_t MutableCodePointTrie::compactWholeDataBlocks(int32_t fastILimit, AllSameBlocks &allSameBlocks) {
@@ -962,8 +1079,9 @@ void printBlock(const uint32_t *block, int32_t blockLength, uint32_t value,
  *
  * It does not try to find an optimal order of writing, deduplicating, and overlapping blocks.
  */
-int32_t MutableCodePointTrie::compactData(int32_t fastILimit,
-                                          uint32_t *newData, int32_t dataNullIndex) {
+int32_t MutableCodePointTrie::compactData(
+        int32_t fastILimit, uint32_t *newData, int32_t newDataCapacity,
+        int32_t dataNullIndex, MixedBlocks &mixedBlocks, UErrorCode &errorCode) {
 #ifdef UCPTRIE_DEBUG
     int32_t countSame=0, sumOverlaps=0;
     bool printData = dataLength == 29088 /* line.brk */ ||
@@ -983,8 +1101,14 @@ int32_t MutableCodePointTrie::compactData(int32_t fastILimit,
 #endif
     }
 
-    int32_t iLimit = highStart >> UCPTRIE_SHIFT_3;
     int32_t blockLength = UCPTRIE_FAST_DATA_BLOCK_LENGTH;
+    if (!mixedBlocks.init(newDataCapacity, blockLength)) {
+        errorCode = U_MEMORY_ALLOCATION_ERROR;
+        return 0;
+    }
+    mixedBlocks.extend(newData, 0, 0, newDataLength);
+
+    int32_t iLimit = highStart >> UCPTRIE_SHIFT_3;
     int32_t inc = SMALL_DATA_BLOCKS_PER_BMP_BLOCK;
     int32_t fastLength = 0;
     for (int32_t i = ASCII_I_LIMIT; i < iLimit; i += inc) {
@@ -992,12 +1116,17 @@ int32_t MutableCodePointTrie::compactData(int32_t fastILimit,
             blockLength = UCPTRIE_SMALL_DATA_BLOCK_LENGTH;
             inc = 1;
             fastLength = newDataLength;
+            if (!mixedBlocks.init(newDataCapacity, blockLength)) {
+                errorCode = U_MEMORY_ALLOCATION_ERROR;
+                return 0;
+            }
+            mixedBlocks.extend(newData, 0, 0, newDataLength);
         }
         if (flags[i] == ALL_SAME) {
             uint32_t value = index[i];
-            int32_t n;
             // Find an earlier part of the data array of length blockLength
             // that is filled with this value.
+            int32_t n = mixedBlocks.findAllSameBlock(newData, value);
             // If we find a match, and the current block is the data null block,
             // and it is not a fast block but matches the start of a fast block,
             // then we need to continue looking.
@@ -1005,12 +1134,10 @@ int32_t MutableCodePointTrie::compactData(int32_t fastILimit,
             // and not all of the rest of the fast block is filled with this value.
             // Otherwise trie.getRange() would detect that the fast block starts at
             // dataNullOffset and assume incorrectly that it is filled with the null value.
-            for (int32_t start = 0;
-                    (n = findAllSameBlock(newData, start, newDataLength,
-                                value, blockLength)) >= 0 &&
-                            i == dataNullIndex && i >= fastILimit && n < fastLength &&
-                            isStartOfSomeFastBlock(n, index, fastILimit);
-                    start = n + 1) {}
+            while (n >= 0 && i == dataNullIndex && i >= fastILimit && n < fastLength &&
+                    isStartOfSomeFastBlock(n, index, fastILimit)) {
+                n = findAllSameBlock(newData, n + 1, newDataLength, value, blockLength);
+            }
             if (n >= 0) {
                 DEBUG_DO(++countSame);
                 index[i] = n;
@@ -1023,14 +1150,16 @@ int32_t MutableCodePointTrie::compactData(int32_t fastILimit,
                 }
 #endif
                 index[i] = newDataLength - n;
+                int32_t prevDataLength = newDataLength;
                 while (n < blockLength) {
                     newData[newDataLength++] = value;
                     ++n;
                 }
+                mixedBlocks.extend(newData, 0, prevDataLength, newDataLength);
             }
         } else if (flags[i] == MIXED) {
             const uint32_t *block = data + index[i];
-            int32_t n = findSameBlock(newData, 0, newDataLength, block, 0, blockLength);
+            int32_t n = mixedBlocks.findBlock(newData, block, 0);
             if (n >= 0) {
                 DEBUG_DO(++countSame);
                 index[i] = n;
@@ -1043,9 +1172,11 @@ int32_t MutableCodePointTrie::compactData(int32_t fastILimit,
                 }
 #endif
                 index[i] = newDataLength - n;
+                int32_t prevDataLength = newDataLength;
                 while (n < blockLength) {
                     newData[newDataLength++] = block[n++];
                 }
+                mixedBlocks.extend(newData, 0, prevDataLength, newDataLength);
             }
         } else /* SAME_AS */ {
             uint32_t j = index[i];
@@ -1061,7 +1192,8 @@ int32_t MutableCodePointTrie::compactData(int32_t fastILimit,
     return newDataLength;
 }
 
-int32_t MutableCodePointTrie::compactIndex(int32_t fastILimit, UErrorCode &errorCode) {
+int32_t MutableCodePointTrie::compactIndex(int32_t fastILimit, MixedBlocks &mixedBlocks,
+                                           UErrorCode &errorCode) {
     int32_t fastIndexLength = fastILimit >> (UCPTRIE_FAST_SHIFT - UCPTRIE_SHIFT_3);
     if ((highStart >> UCPTRIE_FAST_SHIFT) <= fastIndexLength) {
         // Only the linear fast index, no multi-stage index tables.
@@ -1095,6 +1227,12 @@ int32_t MutableCodePointTrie::compactIndex(int32_t fastILimit, UErrorCode &error
         }
     }
 
+    if (!mixedBlocks.init(fastIndexLength, UCPTRIE_INDEX_3_BLOCK_LENGTH)) {
+        errorCode = U_MEMORY_ALLOCATION_ERROR;
+        return 0;
+    }
+    mixedBlocks.extend(fastIndex, 0, 0, fastIndexLength);
+
     // Examine index-3 blocks. For each determine one of:
     // - same as the index-3 null block
     // - same as a fast-index block
@@ -1105,6 +1243,7 @@ int32_t MutableCodePointTrie::compactIndex(int32_t fastILimit, UErrorCode &error
     // Also determine an upper limit for the index-3 table length.
     int32_t index3Capacity = 0;
     i3FirstNull = index3NullOffset;
+    bool hasLongI3Blocks = false;
     // If the fast index covers the whole BMP, then
     // the multi-stage index is only for supplementary code points.
     // Otherwise, the multi-stage index covers all of Unicode.
@@ -1129,13 +1268,13 @@ int32_t MutableCodePointTrie::compactIndex(int32_t fastILimit, UErrorCode &error
                     index3Capacity += UCPTRIE_INDEX_3_BLOCK_LENGTH;
                 } else {
                     index3Capacity += INDEX_3_18BIT_BLOCK_LENGTH;
+                    hasLongI3Blocks = true;
                 }
                 i3FirstNull = 0;
             }
         } else {
             if (oredI3 <= 0xffff) {
-                int32_t n = findSameBlock(fastIndex, 0, fastIndexLength,
-                                          index, i, UCPTRIE_INDEX_3_BLOCK_LENGTH);
+                int32_t n = mixedBlocks.findBlock(fastIndex, index, i);
                 if (n >= 0) {
                     flags[i] = I3_BMP;
                     index[i] = n;
@@ -1146,6 +1285,7 @@ int32_t MutableCodePointTrie::compactIndex(int32_t fastILimit, UErrorCode &error
             } else {
                 flags[i] = I3_18;
                 index3Capacity += INDEX_3_18BIT_BLOCK_LENGTH;
+                hasLongI3Blocks = true;
             }
         }
         i = j;
@@ -1166,6 +1306,18 @@ int32_t MutableCodePointTrie::compactIndex(int32_t fastILimit, UErrorCode &error
     }
     uprv_memcpy(index16, fastIndex, fastIndexLength * 2);
 
+    if (!mixedBlocks.init(index16Capacity, UCPTRIE_INDEX_3_BLOCK_LENGTH)) {
+        errorCode = U_MEMORY_ALLOCATION_ERROR;
+        return 0;
+    }
+    MixedBlocks longI3Blocks;
+    if (hasLongI3Blocks) {
+        if (!longI3Blocks.init(index16Capacity, INDEX_3_18BIT_BLOCK_LENGTH)) {
+            errorCode = U_MEMORY_ALLOCATION_ERROR;
+            return 0;
+        }
+    }
+
     // Compact the index-3 table and write an uncompacted version of the index-2 table.
     uint16_t index2[UNICODE_LIMIT >> UCPTRIE_SHIFT_2];  // index2Capacity
     int32_t i2Length = 0;
@@ -1185,8 +1337,7 @@ int32_t MutableCodePointTrie::compactIndex(int32_t fastILimit, UErrorCode &error
         } else if (f == I3_BMP) {
             i3 = index[i];
         } else if (f == I3_16) {
-            int32_t n = findSameBlock(index16, index3Start, indexLength,
-                                      index, i, UCPTRIE_INDEX_3_BLOCK_LENGTH);
+            int32_t n = mixedBlocks.findBlock(index16, index, i);
             if (n >= 0) {
                 i3 = n;
             } else {
@@ -1198,12 +1349,18 @@ int32_t MutableCodePointTrie::compactIndex(int32_t fastILimit, UErrorCode &error
                                    index, i, UCPTRIE_INDEX_3_BLOCK_LENGTH);
                 }
                 i3 = indexLength - n;
+                int32_t prevIndexLength = indexLength;
                 while (n < UCPTRIE_INDEX_3_BLOCK_LENGTH) {
                     index16[indexLength++] = index[i + n++];
+                }
+                mixedBlocks.extend(index16, index3Start, prevIndexLength, indexLength);
+                if (hasLongI3Blocks) {
+                    longI3Blocks.extend(index16, index3Start, prevIndexLength, indexLength);
                 }
             }
         } else {
             U_ASSERT(f == I3_18);
+            U_ASSERT(hasLongI3Blocks);
             // Encode an index-3 block that contains one or more data indexes exceeding 16 bits.
             int32_t j = i;
             int32_t jLimit = i + UCPTRIE_INDEX_3_BLOCK_LENGTH;
@@ -1236,8 +1393,7 @@ int32_t MutableCodePointTrie::compactIndex(int32_t fastILimit, UErrorCode &error
                 index16[k++] = v;
                 index16[k - 9] = upperBits;
             } while (j < jLimit);
-            int32_t n = findSameBlock(index16, index3Start, indexLength,
-                                      index16, indexLength, INDEX_3_18BIT_BLOCK_LENGTH);
+            int32_t n = longI3Blocks.findBlock(index16, index16, indexLength);
             if (n >= 0) {
                 i3 = n | 0x8000;
             } else {
@@ -1249,6 +1405,7 @@ int32_t MutableCodePointTrie::compactIndex(int32_t fastILimit, UErrorCode &error
                                    index16, indexLength, INDEX_3_18BIT_BLOCK_LENGTH);
                 }
                 i3 = (indexLength - n) | 0x8000;
+                int32_t prevIndexLength = indexLength;
                 if (n > 0) {
                     int32_t start = indexLength;
                     while (n < INDEX_3_18BIT_BLOCK_LENGTH) {
@@ -1256,6 +1413,10 @@ int32_t MutableCodePointTrie::compactIndex(int32_t fastILimit, UErrorCode &error
                     }
                 } else {
                     indexLength += INDEX_3_18BIT_BLOCK_LENGTH;
+                }
+                mixedBlocks.extend(index16, index3Start, prevIndexLength, indexLength);
+                if (hasLongI3Blocks) {
+                    longI3Blocks.extend(index16, index3Start, prevIndexLength, indexLength);
                 }
             }
         }
@@ -1279,16 +1440,23 @@ int32_t MutableCodePointTrie::compactIndex(int32_t fastILimit, UErrorCode &error
     }
 
     // Compact the index-2 table and write the index-1 table.
+    static_assert(UCPTRIE_INDEX_2_BLOCK_LENGTH == UCPTRIE_INDEX_3_BLOCK_LENGTH,
+                  "must re-init mixedBlocks");
     int32_t blockLength = UCPTRIE_INDEX_2_BLOCK_LENGTH;
     int32_t i1 = fastIndexLength;
     for (int32_t i = 0; i < i2Length; i += blockLength) {
-        if ((i2Length - i) < blockLength) {
+        int32_t n;
+        if ((i2Length - i) >= blockLength) {
+            // normal block
+            U_ASSERT(blockLength == UCPTRIE_INDEX_2_BLOCK_LENGTH);
+            n = mixedBlocks.findBlock(index16, index2, i);
+        } else {
             // highStart is inside the last index-2 block. Shorten it.
             blockLength = i2Length - i;
+            n = findSameBlock(index16, index3Start, indexLength,
+                              index2, i, blockLength);
         }
         int32_t i2;
-        int32_t n = findSameBlock(index16, index3Start, indexLength,
-                                  index2, i, blockLength);
         if (n >= 0) {
             i2 = n;
         } else {
@@ -1299,9 +1467,11 @@ int32_t MutableCodePointTrie::compactIndex(int32_t fastILimit, UErrorCode &error
                 n = getOverlap(index16, indexLength, index2, i, blockLength);
             }
             i2 = indexLength - n;
+            int32_t prevIndexLength = indexLength;
             while (n < blockLength) {
                 index16[indexLength++] = index2[i + n++];
             }
+            mixedBlocks.extend(index16, index3Start, prevIndexLength, indexLength);
         }
         // Set the index-1 table entry.
         index16[i1++] = i2;
@@ -1369,7 +1539,11 @@ int32_t MutableCodePointTrie::compactTrie(int32_t fastILimit, UErrorCode &errorC
     uprv_memcpy(newData, asciiData, sizeof(asciiData));
 
     int32_t dataNullIndex = allSameBlocks.findMostUsed();
-    int32_t newDataLength = compactData(fastILimit, newData, dataNullIndex);
+
+    MixedBlocks mixedBlocks;
+    int32_t newDataLength = compactData(fastILimit, newData, newDataCapacity,
+                                        dataNullIndex, mixedBlocks, errorCode);
+    if (U_FAILURE(errorCode)) { return 0; }
     U_ASSERT(newDataLength <= newDataCapacity);
     uprv_free(data);
     data = newData;
@@ -1394,7 +1568,7 @@ int32_t MutableCodePointTrie::compactTrie(int32_t fastILimit, UErrorCode &errorC
         dataNullOffset = UCPTRIE_NO_DATA_NULL_OFFSET;
     }
 
-    int32_t indexLength = compactIndex(fastILimit, errorCode);
+    int32_t indexLength = compactIndex(fastILimit, mixedBlocks, errorCode);
     highStart = realHighStart;
     return indexLength;
 }

@@ -728,8 +728,7 @@ struct LookAheadResults {
                 return fPositions[i];
             }
         }
-        U_ASSERT(FALSE);
-        return -1;
+        UPRV_UNREACHABLE;
     }
 
     void setPosition(int16_t key, int32_t position) {
@@ -741,8 +740,7 @@ struct LookAheadResults {
             }
         }
         if (i >= kMaxLookaheads) {
-            U_ASSERT(FALSE);
-            i = kMaxLookaheads - 1;
+            UPRV_UNREACHABLE;
         }
         fKeys[i] = key;
         fPositions[i] = position;

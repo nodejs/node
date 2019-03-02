@@ -7,13 +7,13 @@
 #ifndef __NUMPARSE_AFFIXES_H__
 #define __NUMPARSE_AFFIXES_H__
 
+#include "cmemory.h"
+
 #include "numparse_types.h"
 #include "numparse_symbols.h"
 #include "numparse_currency.h"
 #include "number_affixutils.h"
 #include "number_currencysymbols.h"
-
-#include <array>
 
 U_NAMESPACE_BEGIN
 namespace numparse {
@@ -47,49 +47,19 @@ class CodePointMatcher : public NumberParseMatcher, public UMemory {
 } // namespace impl
 } // namespace numparse
 
-// Export a explicit template instantiations of MaybeStackArray and CompactUnicodeString.
+// Export a explicit template instantiations of MaybeStackArray, MemoryPool and CompactUnicodeString.
 // When building DLLs for Windows this is required even though no direct access leaks out of the i18n library.
 // (See digitlst.h, pluralaffix.h, datefmt.h, and others for similar examples.)
-// Note: These need to be outside of the impl::numparse namespace, or Clang will generate a compile error.
+// Note: These need to be outside of the numparse::impl namespace, or Clang will generate a compile error.
 #if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
+template class U_I18N_API MaybeStackArray<numparse::impl::CodePointMatcher*, 8>;
 template class U_I18N_API MaybeStackArray<UChar, 4>;
-template class U_I18N_API MaybeStackArray<numparse::impl::CodePointMatcher*, 3>;
+template class U_I18N_API MemoryPool<numparse::impl::CodePointMatcher, 8>;
 template class U_I18N_API numparse::impl::CompactUnicodeString<4>;
 #endif
 
 namespace numparse {
 namespace impl {
-
-/**
- * A warehouse to retain ownership of CodePointMatchers.
- */
-// Exported as U_I18N_API for tests
-class U_I18N_API CodePointMatcherWarehouse : public UMemory {
-  private:
-    static constexpr int32_t CODE_POINT_STACK_CAPACITY = 5; // Number of entries directly on the stack
-    static constexpr int32_t CODE_POINT_BATCH_SIZE = 10; // Number of entries per heap allocation
-
-  public:
-    CodePointMatcherWarehouse();
-
-    // A custom destructor is needed to free the memory from MaybeStackArray.
-    // A custom move constructor and move assignment seem to be needed because of the custom destructor.
-
-    ~CodePointMatcherWarehouse();
-
-    CodePointMatcherWarehouse(CodePointMatcherWarehouse&& src) U_NOEXCEPT;
-
-    CodePointMatcherWarehouse& operator=(CodePointMatcherWarehouse&& src) U_NOEXCEPT;
-
-    NumberParseMatcher& nextCodePointMatcher(UChar32 cp);
-
-  private:
-    std::array<CodePointMatcher, CODE_POINT_STACK_CAPACITY> codePoints; // By value
-    MaybeStackArray<CodePointMatcher*, 3> codePointsOverflow; // On heap in "batches"
-    int32_t codePointCount; // Total for both the ones by value and on heap
-    int32_t codePointNumBatches; // Number of batches in codePointsOverflow
-};
-
 
 struct AffixTokenMatcherSetupData {
     const CurrencySymbols& currencySymbols;
@@ -129,7 +99,7 @@ class U_I18N_API AffixTokenMatcherWarehouse : public UMemory {
 
     IgnorablesMatcher& ignorables();
 
-    NumberParseMatcher& nextCodePointMatcher(UChar32 cp);
+    NumberParseMatcher* nextCodePointMatcher(UChar32 cp, UErrorCode& status);
 
   private:
     // NOTE: The following field may be unsafe to access after construction is done!
@@ -143,7 +113,7 @@ class U_I18N_API AffixTokenMatcherWarehouse : public UMemory {
     CombinedCurrencyMatcher fCurrency;
 
     // Use a child class for code point matchers, since it requires non-default operators.
-    CodePointMatcherWarehouse fCodePoints;
+    MemoryPool<CodePointMatcher> fCodePoints;
 
     friend class AffixPatternMatcherBuilder;
     friend class AffixPatternMatcher;

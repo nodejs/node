@@ -30,7 +30,7 @@
 #include "olsontz.h"
 #include "uinvchar.h"
 
-static UMutex gZoneMetaLock = U_MUTEX_INITIALIZER;
+static icu::UMutex gZoneMetaLock = U_MUTEX_INITIALIZER;
 
 // CLDR Canonical ID mapping table
 static UHashtable *gCanonicalIDCache = NULL;
@@ -784,14 +784,13 @@ static void U_CALLCONV initAvailableMetaZoneIDs () {
 
     UResourceBundle *rb = ures_openDirect(NULL, gMetaZones, &status);
     UResourceBundle *bundle = ures_getByKey(rb, gMapTimezonesTag, NULL, &status);
-    UResourceBundle res;
-    ures_initStackObject(&res);
+    StackUResourceBundle res;
     while (U_SUCCESS(status) && ures_hasNext(bundle)) {
-        ures_getNextResource(bundle, &res, &status);
+        ures_getNextResource(bundle, res.getAlias(), &status);
         if (U_FAILURE(status)) {
             break;
         }
-        const char *mzID = ures_getKey(&res);
+        const char *mzID = ures_getKey(res.getAlias());
         int32_t len = static_cast<int32_t>(uprv_strlen(mzID));
         UChar *uMzID = (UChar*)uprv_malloc(sizeof(UChar) * (len + 1));
         if (uMzID == NULL) {
@@ -809,7 +808,6 @@ static void U_CALLCONV initAvailableMetaZoneIDs () {
             delete usMzID;
         }
     }
-    ures_close(&res);
     ures_close(bundle);
     ures_close(rb);
 

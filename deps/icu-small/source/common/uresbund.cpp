@@ -21,6 +21,7 @@
 ******************************************************************************
 */
 
+#include "unicode/ures.h"
 #include "unicode/ustring.h"
 #include "unicode/ucnv.h"
 #include "charstr.h"
@@ -488,6 +489,9 @@ findFirstExisting(const char* path, char* name,
 
         /*Fallback data stuff*/
         *hasChopped = chopLocale(name);
+        if (*hasChopped && *name == '\0') {
+            uprv_strcpy(name, "und");
+        }
     }
     return r;
 }
@@ -511,6 +515,18 @@ U_CFUNC void ures_initStackObject(UResourceBundle* resB) {
   uprv_memset(resB, 0, sizeof(UResourceBundle));
   ures_setIsStackObject(resB, TRUE);
 }
+
+U_NAMESPACE_BEGIN
+
+StackUResourceBundle::StackUResourceBundle() {
+    ures_initStackObject(&bundle);
+}
+
+StackUResourceBundle::~StackUResourceBundle() {
+    ures_close(&bundle);
+}
+
+U_NAMESPACE_END
 
 static UBool  // returns U_SUCCESS(*status)
 loadParentsExceptRoot(UResourceDataEntry *&t1,
@@ -1110,7 +1126,7 @@ static UResourceBundle *init_resb_result(const ResourceData *rdata, Resource r,
                             UResourceDataEntry *dataEntry = mainRes->fData;
                             char stackPath[URES_MAX_BUFFER_SIZE];
                             char *pathBuf = stackPath, *myPath = pathBuf;
-                            if(uprv_strlen(keyPath) > URES_MAX_BUFFER_SIZE) {
+                            if(uprv_strlen(keyPath) >= UPRV_LENGTHOF(stackPath)) {
                                 pathBuf = (char *)uprv_malloc((uprv_strlen(keyPath)+1)*sizeof(char));
                                 if(pathBuf == NULL) {
                                     *status = U_MEMORY_ALLOCATION_ERROR;
@@ -2300,11 +2316,13 @@ ures_openDirect(const char* path, const char* localeID, UErrorCode* status) {
 }
 
 /**
- *  API: This function is used to open a resource bundle
+ *  Internal API: This function is used to open a resource bundle
  *  proper fallback chaining is executed while initialization.
  *  The result is stored in cache for later fallback search.
+ *
+ * Same as ures_open(), but uses the fill-in parameter and does not allocate a new bundle.
  */
-U_CAPI void U_EXPORT2
+U_INTERNAL void U_EXPORT2
 ures_openFillIn(UResourceBundle *r, const char* path,
                 const char* localeID, UErrorCode* status) {
     if(U_SUCCESS(*status) && r == NULL) {
@@ -2312,6 +2330,18 @@ ures_openFillIn(UResourceBundle *r, const char* path,
         return;
     }
     ures_openWithType(r, path, localeID, URES_OPEN_LOCALE_DEFAULT_ROOT, status);
+}
+
+/**
+ * Same as ures_openDirect(), but uses the fill-in parameter and does not allocate a new bundle.
+ */
+U_INTERNAL void U_EXPORT2
+ures_openDirectFillIn(UResourceBundle *r, const char* path, const char* localeID, UErrorCode* status) {
+    if(U_SUCCESS(*status) && r == NULL) {
+        *status = U_ILLEGAL_ARGUMENT_ERROR;
+        return;
+    }
+    ures_openWithType(r, path, localeID, URES_OPEN_DIRECT, status);
 }
 
 /**

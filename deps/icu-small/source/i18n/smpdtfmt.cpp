@@ -856,6 +856,17 @@ SimpleDateFormat::initialize(const Locale& locale,
 {
     if (U_FAILURE(status)) return;
 
+    parsePattern(); // Need this before initNumberFormatters(), to set fHasHanYearChar
+
+    // Simple-minded hack to force Gannen year numbering for ja@calendar=japanese
+    // if format is non-numeric (includes 年) and fDateOverride is not already specified.
+    // This does not update if applyPattern subsequently changes the pattern type.
+    if (fDateOverride.isBogus() && fHasHanYearChar &&
+            fCalendar != nullptr && uprv_strcmp(fCalendar->getType(),"japanese") == 0 &&
+            uprv_strcmp(fLocale.getLanguage(),"ja") == 0) {
+        fDateOverride.setTo(u"y=jpanyear", -1);
+    }
+
     // We don't need to check that the row count is >= 1, since all 2d arrays have at
     // least one row
     fNumberFormat = NumberFormat::createInstance(locale, status);
@@ -872,8 +883,6 @@ SimpleDateFormat::initialize(const Locale& locale,
     {
         status = U_MISSING_RESOURCE_ERROR;
     }
-
-    parsePattern();
 }
 
 /* Initialize the fields we use to disambiguate ambiguous years. Separate
@@ -1778,7 +1787,7 @@ SimpleDateFormat::subFormat(UnicodeString &appendTo,
                     }
                 }
                 else {
-                    U_ASSERT(FALSE);
+                    UPRV_UNREACHABLE;
                 }
             }
             appendTo += zoneString;
@@ -1950,7 +1959,8 @@ SimpleDateFormat::subFormat(UnicodeString &appendTo,
     }
 #if !UCONFIG_NO_BREAK_ITERATION
     // if first field, check to see whether we need to and are able to titlecase it
-    if (fieldNum == 0 && u_islower(appendTo.char32At(beginOffset)) && fCapitalizationBrkIter != NULL) {
+    if (fieldNum == 0 && fCapitalizationBrkIter != NULL && appendTo.length() > beginOffset &&
+            u_islower(appendTo.char32At(beginOffset))) {
         UBool titlecase = FALSE;
         switch (capitalizationContext) {
             case UDISPCTX_CAPITALIZATION_FOR_BEGINNING_OF_SENTENCE:
@@ -2079,7 +2089,7 @@ SimpleDateFormat::zeroPaddingNumber(
         if (U_FAILURE(localStatus)) {
             return;
         }
-        appendTo.append(result.string.toTempUnicodeString());
+        appendTo.append(result.getStringRef().toTempUnicodeString());
         return;
     }
 
@@ -4207,6 +4217,7 @@ SimpleDateFormat::tzFormat(UErrorCode &status) const {
 void SimpleDateFormat::parsePattern() {
     fHasMinute = FALSE;
     fHasSecond = FALSE;
+    fHasHanYearChar = FALSE;
 
     int len = fPattern.length();
     UBool inQuote = FALSE;
@@ -4214,6 +4225,9 @@ void SimpleDateFormat::parsePattern() {
         UChar ch = fPattern[i];
         if (ch == QUOTE) {
             inQuote = !inQuote;
+        }
+        if (ch == 0x5E74) { // don't care whether this is inside quotes
+            fHasHanYearChar = TRUE;
         }
         if (!inQuote) {
             if (ch == 0x6D) {  // 0x6D == 'm'

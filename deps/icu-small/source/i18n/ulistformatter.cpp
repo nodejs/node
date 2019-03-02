@@ -15,6 +15,7 @@
 #include "unicode/listformatter.h"
 #include "unicode/localpointer.h"
 #include "cmemory.h"
+#include "formattedval_impl.h"
 
 U_NAMESPACE_USE
 
@@ -40,6 +41,49 @@ ulistfmt_close(UListFormatter *listfmt)
 }
 
 
+// Magic number: FLST in ASCII
+UPRV_FORMATTED_VALUE_CAPI_AUTO_IMPL(
+    FormattedList,
+    UFormattedList,
+    UFormattedListImpl,
+    UFormattedListApiHelper,
+    ulistfmt,
+    0x464C5354)
+
+
+static UnicodeString* getUnicodeStrings(
+        const UChar* const strings[],
+        const int32_t* stringLengths,
+        int32_t stringCount,
+        UnicodeString* length4StackBuffer,
+        LocalArray<UnicodeString>& maybeOwner,
+        UErrorCode& status) {
+    U_ASSERT(U_SUCCESS(status));
+    if (stringCount < 0 || (strings == NULL && stringCount > 0)) {
+        status = U_ILLEGAL_ARGUMENT_ERROR;
+        return nullptr;
+    }
+    UnicodeString* ustrings = length4StackBuffer;
+    if (stringCount > 4) {
+        maybeOwner.adoptInsteadAndCheckErrorCode(new UnicodeString[stringCount], status);
+        if (U_FAILURE(status)) {
+            return nullptr;
+        }
+        ustrings = maybeOwner.getAlias();
+    }
+    if (stringLengths == NULL) {
+        for (int32_t stringIndex = 0; stringIndex < stringCount; stringIndex++) {
+            ustrings[stringIndex].setTo(TRUE, strings[stringIndex], -1);
+        }
+    } else {
+        for (int32_t stringIndex = 0; stringIndex < stringCount; stringIndex++) {
+            ustrings[stringIndex].setTo(stringLengths[stringIndex] < 0, strings[stringIndex], stringLengths[stringIndex]);
+        }
+    }
+    return ustrings;
+}
+
+
 U_CAPI int32_t U_EXPORT2
 ulistfmt_format(const UListFormatter* listfmt,
                 const UChar* const strings[],
@@ -52,27 +96,16 @@ ulistfmt_format(const UListFormatter* listfmt,
     if (U_FAILURE(*status)) {
         return -1;
     }
-    if (stringCount < 0 || (strings == NULL && stringCount > 0) || ((result == NULL)? resultCapacity != 0 : resultCapacity < 0)) {
+    if ((result == NULL) ? resultCapacity != 0 : resultCapacity < 0) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return -1;
     }
-    UnicodeString ustringsStackBuf[4];
-    UnicodeString* ustrings = ustringsStackBuf;
-    if (stringCount > UPRV_LENGTHOF(ustringsStackBuf)) {
-        ustrings = new UnicodeString[stringCount];
-        if (ustrings == NULL) {
-            *status = U_MEMORY_ALLOCATION_ERROR;
-            return -1;
-        }
-    }
-    if (stringLengths == NULL) {
-        for (int32_t stringIndex = 0; stringIndex < stringCount; stringIndex++) {
-            ustrings[stringIndex].setTo(TRUE, strings[stringIndex], -1);
-        }
-    } else {
-        for (int32_t stringIndex = 0; stringIndex < stringCount; stringIndex++) {
-            ustrings[stringIndex].setTo(stringLengths[stringIndex] < 0, strings[stringIndex], stringLengths[stringIndex]);
-        }
+    UnicodeString length4StackBuffer[4];
+    LocalArray<UnicodeString> maybeOwner;
+    UnicodeString* ustrings = getUnicodeStrings(
+        strings, stringLengths, stringCount, length4StackBuffer, maybeOwner, *status);
+    if (U_FAILURE(*status)) {
+        return -1;
     }
     UnicodeString res;
     if (result != NULL) {
@@ -80,11 +113,32 @@ ulistfmt_format(const UListFormatter* listfmt,
         // otherwise, alias the destination buffer (copied from udat_format)
         res.setTo(result, 0, resultCapacity);
     }
-    ((const ListFormatter*)listfmt)->format( ustrings, stringCount, res, *status );
-    if (ustrings != ustringsStackBuf) {
-        delete[] ustrings;
-    }
+    reinterpret_cast<const ListFormatter*>(listfmt)->format( ustrings, stringCount, res, *status );
     return res.extract(result, resultCapacity, *status);
+}
+
+
+U_CAPI void U_EXPORT2
+ulistfmt_formatStringsToResult(
+                const UListFormatter* listfmt,
+                const UChar* const strings[],
+                const int32_t *    stringLengths,
+                int32_t            stringCount,
+                UFormattedList*    uresult,
+                UErrorCode*        status) {
+    auto* result = UFormattedListApiHelper::validate(uresult, *status);
+    if (U_FAILURE(*status)) {
+        return;
+    }
+    UnicodeString length4StackBuffer[4];
+    LocalArray<UnicodeString> maybeOwner;
+    UnicodeString* ustrings = getUnicodeStrings(
+        strings, stringLengths, stringCount, length4StackBuffer, maybeOwner, *status);
+    if (U_FAILURE(*status)) {
+        return;
+    }
+    result->fImpl = reinterpret_cast<const ListFormatter*>(listfmt)
+        ->formatStringsToValue(ustrings, stringCount, *status);
 }
 
 

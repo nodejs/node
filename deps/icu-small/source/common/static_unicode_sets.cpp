@@ -23,7 +23,7 @@ using namespace icu::unisets;
 
 namespace {
 
-UnicodeSet* gUnicodeSets[COUNT] = {};
+UnicodeSet* gUnicodeSets[UNISETS_KEY_COUNT] = {};
 
 // Save the empty instance in static memory to have well-defined behavior if a
 // regular UnicodeSet cannot be allocated.
@@ -97,14 +97,28 @@ class ParseDataSink : public ResourceSink {
                             saveSet(isLenient ? COMMA : STRICT_COMMA, str, status);
                         } else if (str.indexOf(u'+') != -1) {
                             saveSet(PLUS_SIGN, str, status);
-                        } else if (str.indexOf(u'‒') != -1) {
+                        } else if (str.indexOf(u'-') != -1) {
                             saveSet(MINUS_SIGN, str, status);
                         } else if (str.indexOf(u'$') != -1) {
                             saveSet(DOLLAR_SIGN, str, status);
                         } else if (str.indexOf(u'£') != -1) {
                             saveSet(POUND_SIGN, str, status);
-                        } else if (str.indexOf(u'₨') != -1) {
+                        } else if (str.indexOf(u'₹') != -1) {
                             saveSet(RUPEE_SIGN, str, status);
+                        } else if (str.indexOf(u'¥') != -1) {
+                            saveSet(YEN_SIGN, str, status);
+                        } else if (str.indexOf(u'₩') != -1) {
+                            saveSet(WON_SIGN, str, status);
+                        } else if (str.indexOf(u'%') != -1) {
+                            saveSet(PERCENT_SIGN, str, status);
+                        } else if (str.indexOf(u'‰') != -1) {
+                            saveSet(PERMILLE_SIGN, str, status);
+                        } else if (str.indexOf(u'’') != -1) {
+                            saveSet(APOSTROPHE_SIGN, str, status);
+                        } else {
+                            // Unknown class of parse lenients
+                            // TODO(ICU-20428): Make ICU automatically accept new classes?
+                            U_ASSERT(FALSE);
                         }
                         if (U_FAILURE(status)) { return; }
                     }
@@ -122,7 +136,7 @@ UBool U_CALLCONV cleanupNumberParseUniSets() {
         reinterpret_cast<UnicodeSet*>(gEmptyUnicodeSet)->~UnicodeSet();
         gEmptyUnicodeSetInitialized = FALSE;
     }
-    for (int32_t i = 0; i < COUNT; i++) {
+    for (int32_t i = 0; i < UNISETS_KEY_COUNT; i++) {
         delete gUnicodeSets[i];
         gUnicodeSets[i] = nullptr;
     }
@@ -155,27 +169,35 @@ void U_CALLCONV initNumberParseUniSets(UErrorCode& status) {
     U_ASSERT(gUnicodeSets[STRICT_COMMA] != nullptr);
     U_ASSERT(gUnicodeSets[PERIOD] != nullptr);
     U_ASSERT(gUnicodeSets[STRICT_PERIOD] != nullptr);
+    U_ASSERT(gUnicodeSets[APOSTROPHE_SIGN] != nullptr);
 
-    gUnicodeSets[OTHER_GROUPING_SEPARATORS] = new UnicodeSet(
-            u"['٬‘’＇\\u0020\\u00A0\\u2000-\\u200A\\u202F\\u205F\\u3000]", status);
+    LocalPointer<UnicodeSet> otherGrouping(new UnicodeSet(
+        u"[٬‘\\u0020\\u00A0\\u2000-\\u200A\\u202F\\u205F\\u3000]",
+        status
+    ), status);
+    if (U_FAILURE(status)) { return; }
+    otherGrouping->addAll(*gUnicodeSets[APOSTROPHE_SIGN]);
+    gUnicodeSets[OTHER_GROUPING_SEPARATORS] = otherGrouping.orphan();
     gUnicodeSets[ALL_SEPARATORS] = computeUnion(COMMA, PERIOD, OTHER_GROUPING_SEPARATORS);
     gUnicodeSets[STRICT_ALL_SEPARATORS] = computeUnion(
             STRICT_COMMA, STRICT_PERIOD, OTHER_GROUPING_SEPARATORS);
 
     U_ASSERT(gUnicodeSets[MINUS_SIGN] != nullptr);
     U_ASSERT(gUnicodeSets[PLUS_SIGN] != nullptr);
+    U_ASSERT(gUnicodeSets[PERCENT_SIGN] != nullptr);
+    U_ASSERT(gUnicodeSets[PERMILLE_SIGN] != nullptr);
 
-    gUnicodeSets[PERCENT_SIGN] = new UnicodeSet(u"[%٪]", status);
-    gUnicodeSets[PERMILLE_SIGN] = new UnicodeSet(u"[‰؉]", status);
-    gUnicodeSets[INFINITY_KEY] = new UnicodeSet(u"[∞]", status);
+    gUnicodeSets[INFINITY_SIGN] = new UnicodeSet(u"[∞]", status);
+    if (U_FAILURE(status)) { return; }
 
     U_ASSERT(gUnicodeSets[DOLLAR_SIGN] != nullptr);
     U_ASSERT(gUnicodeSets[POUND_SIGN] != nullptr);
     U_ASSERT(gUnicodeSets[RUPEE_SIGN] != nullptr);
-    gUnicodeSets[YEN_SIGN] = new UnicodeSet(u"[¥\\uffe5]", status);
+    U_ASSERT(gUnicodeSets[YEN_SIGN] != nullptr);
+    U_ASSERT(gUnicodeSets[WON_SIGN] != nullptr);
 
     gUnicodeSets[DIGITS] = new UnicodeSet(u"[:digit:]", status);
-
+    if (U_FAILURE(status)) { return; }
     gUnicodeSets[DIGITS_OR_ALL_SEPARATORS] = computeUnion(DIGITS, ALL_SEPARATORS);
     gUnicodeSets[DIGITS_OR_STRICT_ALL_SEPARATORS] = computeUnion(DIGITS, STRICT_ALL_SEPARATORS);
 

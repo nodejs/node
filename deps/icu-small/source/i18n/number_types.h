@@ -23,7 +23,11 @@ namespace impl {
 
 // Typedef several enums for brevity and for easier comparison to Java.
 
-typedef UNumberFormatFields Field;
+// Convention: bottom 4 bits for field, top 4 bits for field category.
+// Field category 0 implies the number category so that the number field
+// literals can be directly passed as a Field type.
+// See the helper functions in "NumFieldUtils" in number_utils.h
+typedef uint8_t Field;
 
 typedef UNumberFormatRoundingMode RoundingMode;
 
@@ -345,6 +349,7 @@ class U_I18N_API NullableValue {
     bool fNull;
     T fValue;
 };
+
 
 } // namespace impl
 } // namespace number

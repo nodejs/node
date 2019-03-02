@@ -67,7 +67,14 @@ class JapaneseCalendar : public GregorianCalendar {
 public:
 
     /**
+     * Check environment variable.
+     * @internal
+     */
+    U_I18N_API static UBool U_EXPORT2 enableTentativeEra(void);
+
+    /**
      * Useful constants for JapaneseCalendar.
+     * Exported for use by test code.
      * @internal
      */
     U_I18N_API static uint32_t U_EXPORT2 getCurrentEra(void); // the current era

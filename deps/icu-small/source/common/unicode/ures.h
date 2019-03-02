@@ -333,19 +333,19 @@ ures_getLocaleByType(const UResourceBundle* resourceBundle,
 
 #ifndef U_HIDE_INTERNAL_API
 /**
- * Same as ures_open() but uses the fill-in parameter instead of allocating
- * a bundle, if r!=NULL.
+ * Same as ures_open() but uses the fill-in parameter instead of allocating a new bundle.
+ *
  * TODO need to revisit usefulness of this function
  *      and usage model for fillIn parameters without knowing sizeof(UResourceBundle)
- * @param r The resourcebundle to open
+ * @param r The existing UResourceBundle to fill in. If NULL then status will be
+ *               set to U_ILLEGAL_ARGUMENT_ERROR.
  * @param packageName   The packageName and locale together point to an ICU udata object,
  *                      as defined by <code> udata_open( packageName, "res", locale, err) </code>
  *                      or equivalent.  Typically, packageName will refer to a (.dat) file, or to
  *                      a package registered with udata_setAppData(). Using a full file or directory
  *                      pathname for packageName is deprecated. If NULL, ICU data will be used.
  * @param localeID specifies the locale for which we want to open the resource
- * @param status The error code
- * @return a newly allocated resource bundle or NULL if it doesn't exist.
+ * @param status The error code.
  * @internal
  */
 U_INTERNAL void U_EXPORT2

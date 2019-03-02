@@ -16,6 +16,12 @@ namespace impl {
 
 class LongNameHandler : public MicroPropsGenerator, public ModifierStore, public UMemory {
   public:
+    static UnicodeString getUnitDisplayName(
+        const Locale& loc,
+        const MeasureUnit& unit,
+        UNumberUnitWidth width,
+        UErrorCode& status);
+
     static LongNameHandler*
     forCurrencyLongNames(const Locale &loc, const CurrencyUnit &currency, const PluralRules *rules,
                          const MicroPropsGenerator *parent, UErrorCode &status);

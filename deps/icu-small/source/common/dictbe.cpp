@@ -7,6 +7,8 @@
  *******************************************************************************
  */
 
+#include <utility>
+
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_BREAK_ITERATION
@@ -1204,8 +1206,8 @@ CjkBreakEngine::divideUpDictionaryRange( UText *inText,
                 inputMap->elementAti(inString.length()) : inString.length()+rangeStart;
         normalizedMap->addElement(nativeEnd, status);
 
-        inputMap.moveFrom(normalizedMap);
-        inString.moveFrom(normalizedInput);
+        inputMap = std::move(normalizedMap);
+        inString = std::move(normalizedInput);
     }
 
     int32_t numCodePts = inString.countChar32();

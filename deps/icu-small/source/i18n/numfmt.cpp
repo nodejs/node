@@ -156,7 +156,7 @@ static const icu::number::impl::CldrPatternStyle gFormatCldrStyles[UNUM_FORMAT_S
 
 // Static hashtable cache of NumberingSystem objects used by NumberFormat
 static UHashtable * NumberingSystem_cache = NULL;
-static UMutex nscacheMutex = U_MUTEX_INITIALIZER;
+static icu::UMutex nscacheMutex = U_MUTEX_INITIALIZER;
 static icu::UInitOnce gNSCacheInitOnce = U_INITONCE_INITIALIZER;
 
 #if !UCONFIG_NO_SERVICE

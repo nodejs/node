@@ -653,7 +653,8 @@ compactToUnicode2(UCMStates *states,
     /* for each lead byte */
     for(i=0; i<256; ++i) {
         entry=states->stateTable[leadState][i];
-        if(MBCS_ENTRY_IS_TRANSITION(entry) && (MBCS_ENTRY_TRANSITION_STATE(entry))==trailState) {
+        if(MBCS_ENTRY_IS_TRANSITION(entry) &&
+                (MBCS_ENTRY_TRANSITION_STATE(entry))==static_cast<uint32_t>(trailState)) {
             /* the offset is different for each lead byte */
             offset=MBCS_ENTRY_TRANSITION_OFFSET(entry);
             /* for each trail byte for this lead byte */

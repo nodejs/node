@@ -20,12 +20,14 @@
 
 #include "unicode/utypes.h"
 
+#ifndef U_HIDE_INTERNAL_API
 /**
  * \def NUMSYS_NAME_CAPACITY
  * Size of a numbering system name.
  * @internal
  */
 #define NUMSYS_NAME_CAPACITY 8
+#endif  /* U_HIDE_INTERNAL_API */
 
 
 /**
@@ -106,9 +108,9 @@ public:
 
     /**
      * Return a StringEnumeration over all the names of numbering systems known to ICU.
+     * The numbering system names will be in alphabetical (invariant) order.
      * @stable ICU 4.2
      */
-
      static StringEnumeration * U_EXPORT2 getAvailableNames(UErrorCode& status);
 
     /**
@@ -119,8 +121,10 @@ public:
      * default, native, traditional, finance - do not identify specific numbering systems,
      * but rather key values that may only be used as part of a locale, which in turn
      * defines how they are mapped to a specific numbering system such as "latn" or "hant".
+     *
      * @param name   The name of the numbering system.
-     * @param status ICU status
+     * @param status ICU status; set to U_UNSUPPORTED_ERROR if numbering system not found.
+     * @return The NumberingSystem instance, or nullptr if not found.
      * @stable ICU 4.2
      */
     static NumberingSystem* U_EXPORT2 createInstanceByName(const char* name, UErrorCode& status);

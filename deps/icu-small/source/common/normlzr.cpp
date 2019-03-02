@@ -23,7 +23,7 @@
 #include "normalizer2impl.h"
 #include "uprops.h"  // for uniset_getUnicode32Instance()
 
-#if defined(_ARM64_) && defined(move32)
+#if defined(move32)
  // System can define move32 intrinsics, but the char iters define move32 method
  // using same undef trick in headers, so undef here to re-enable the method.
 #undef move32

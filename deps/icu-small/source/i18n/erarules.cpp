@@ -1,6 +1,8 @@
 // © 2018 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 
+#include <utility>
+
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_FORMATTING
@@ -101,7 +103,7 @@ static int32_t compareEncodedDateWithYMD(int encoded, int year, int month, int d
 
 EraRules::EraRules(LocalMemory<int32_t>& eraStartDates, int32_t numEras)
     : numEras(numEras) {
-    startDates.moveFrom(eraStartDates);
+    startDates = std::move(eraStartDates);
     initCurrentEra();
 }
 

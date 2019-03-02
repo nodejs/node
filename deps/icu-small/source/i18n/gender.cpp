@@ -32,7 +32,7 @@
 #include "uhash.h"
 
 static UHashtable* gGenderInfoCache = NULL;
-static UMutex gGenderMetaLock = U_MUTEX_INITIALIZER;
+static icu::UMutex gGenderMetaLock = U_MUTEX_INITIALIZER;
 static const char* gNeutralStr = "neutral";
 static const char* gMailTaintsStr = "maleTaints";
 static const char* gMixedNeutralStr = "mixedNeutral";

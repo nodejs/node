@@ -65,7 +65,7 @@ static inline UBool isINVALID(double d) {
   return(uprv_isNaN(d));
 }
 
-static UMutex ccLock = U_MUTEX_INITIALIZER;
+static icu::UMutex ccLock = U_MUTEX_INITIALIZER;
 
 U_CDECL_BEGIN
 static UBool calendar_astro_cleanup(void) {

@@ -37,12 +37,32 @@
 #   define NOSERVICE
 #   define NOIME
 #   define NOMCX
+
+#   if U_PLATFORM_HAS_WINUWP_API == 1
+        // Some previous versions of the Windows 10 SDK don't expose various APIs for UWP applications
+        // to use, even though UWP apps are allowed to call and use them.  Temporarily change the
+        // WINAPI family partition below to Desktop, so that function declarations are visible for UWP.
+#       include <winapifamily.h>
+#       if !(WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM))
+#           pragma push_macro("WINAPI_PARTITION_DESKTOP")
+#           undef WINAPI_PARTITION_DESKTOP
+#           define WINAPI_PARTITION_DESKTOP 1
+#           define CHANGED_WINAPI_PARTITION_DESKTOP_VALUE
+#       endif
+#   endif
+
 #   include <windows.h>
+
+#   if U_PLATFORM_HAS_WINUWP_API == 1 && defined(CHANGED_WINAPI_PARTITION_DESKTOP_VALUE)
+#       pragma pop_macro("WINAPI_PARTITION_DESKTOP")
+#   endif
+
 #   include "cmemory.h"
 
-    typedef HANDLE MemoryMap;
+typedef HANDLE MemoryMap;
 
-#   define IS_MAP(map) ((map)!=NULL)
+#   define IS_MAP(map) ((map)!=nullptr)
+
 #elif MAP_IMPLEMENTATION==MAP_POSIX || MAP_IMPLEMENTATION==MAP_390DLL
     typedef size_t MemoryMap;
 
@@ -74,7 +94,7 @@
 
     typedef void *MemoryMap;
 
-#   define IS_MAP(map) ((map)!=NULL)
+#   define IS_MAP(map) ((map)!=nullptr)
 #endif
 
 /*----------------------------------------------------------------------------*
@@ -105,20 +125,24 @@
          UErrorCode *status     /* Error status, used to report out-of-memory errors. */
          )
     {
-        HANDLE map;
-        HANDLE file;
-
         if (U_FAILURE(*status)) {
             return FALSE;
         }
+
+        HANDLE map = nullptr;
+        HANDLE file = INVALID_HANDLE_VALUE;
 
         UDataMemory_init(pData); /* Clear the output struct.        */
 
         /* open the input file */
 #if U_PLATFORM_HAS_WINUWP_API == 0
-        file=CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, NULL,
+        // Note: In the non-UWP code-path (ie: Win32), the value of the path variable might have come from
+        // the CRT 'getenv' function, and would be therefore be encoded in the default ANSI code page.
+        // This means that we can't call the *W version of API below, whereas in the UWP code-path
+        // there is no 'getenv' call, and thus the string will be only UTF-8/Invariant characters.
+        file=CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, nullptr,
             OPEN_EXISTING,
-            FILE_ATTRIBUTE_NORMAL|FILE_FLAG_RANDOM_ACCESS, NULL);
+            FILE_ATTRIBUTE_NORMAL|FILE_FLAG_RANDOM_ACCESS, nullptr);
 #else
         // Convert from UTF-8 string to UTF-16 string.
         wchar_t utf16Path[MAX_PATH];
@@ -134,8 +158,9 @@
             return FALSE;
         }
 
-        // TODO: Is it worth setting extended parameters to specify random access?
-        file = CreateFile2(utf16Path, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING, NULL);
+        file = CreateFileW(utf16Path, GENERIC_READ, FILE_SHARE_READ, nullptr,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS, nullptr);
 #endif
         if (file == INVALID_HANDLE_VALUE) {
             // If we failed to open the file due to an out-of-memory error, then we want
@@ -146,36 +171,13 @@
             return FALSE;
         }
 
-        /* Declare and initialize a security descriptor.
-           This is required for multiuser systems on Windows 2000 SP4 and beyond */
-        // TODO: UWP does not have this function and I do not think it is required?
-#if U_PLATFORM_HAS_WINUWP_API == 0
-
-        SECURITY_ATTRIBUTES mappingAttributes;
-        SECURITY_ATTRIBUTES *mappingAttributesPtr = NULL;
-        SECURITY_DESCRIPTOR securityDesc;
-
-        if (InitializeSecurityDescriptor(&securityDesc, SECURITY_DESCRIPTOR_REVISION)) {
-            /* give the security descriptor a Null Dacl done using the  "TRUE, (PACL)NULL" here */
-            if (SetSecurityDescriptorDacl(&securityDesc, TRUE, (PACL)NULL, FALSE)) {
-                /* Make the security attributes point to the security descriptor */
-                uprv_memset(&mappingAttributes, 0, sizeof(mappingAttributes));
-                mappingAttributes.nLength = sizeof(mappingAttributes);
-                mappingAttributes.lpSecurityDescriptor = &securityDesc;
-                mappingAttributes.bInheritHandle = FALSE; /* object uninheritable */
-                mappingAttributesPtr = &mappingAttributes;
-            }
-        }
-        /* else creating security descriptors can fail when we are on Windows 98,
-           and mappingAttributesPtr == NULL for that case. */
-
+        // Note: We use NULL/nullptr for lpAttributes parameter below.
+        // This means our handle cannot be inherited and we will get the default security descriptor.
         /* create an unnamed Windows file-mapping object for the specified file */
-        map=CreateFileMapping(file, mappingAttributesPtr, PAGE_READONLY, 0, 0, NULL);
-#else
-        map = CreateFileMappingFromApp(file, NULL, PAGE_READONLY, 0, NULL);
-#endif
+        map = CreateFileMappingW(file, nullptr, PAGE_READONLY, 0, 0, nullptr);
+
         CloseHandle(file);
-        if (map == NULL) {
+        if (map == nullptr) {
             // If we failed to create the mapping due to an out-of-memory error, then
             // we want to report that error back to the caller.
             if (HRESULT_FROM_WIN32(GetLastError()) == E_OUTOFMEMORY) {
@@ -185,22 +187,22 @@
         }
 
         /* map a view of the file into our address space */
-        pData->pHeader=(const DataHeader *)MapViewOfFile(map, FILE_MAP_READ, 0, 0, 0);
-        if(pData->pHeader==NULL) {
+        pData->pHeader = reinterpret_cast<const DataHeader *>(MapViewOfFile(map, FILE_MAP_READ, 0, 0, 0));
+        if (pData->pHeader == nullptr) {
             CloseHandle(map);
             return FALSE;
         }
-        pData->map=map;
+        pData->map = map;
         return TRUE;
     }
 
     U_CFUNC void
     uprv_unmapFile(UDataMemory *pData) {
-        if(pData!=NULL && pData->map!=NULL) {
+        if (pData != nullptr && pData->map != nullptr) {
             UnmapViewOfFile(pData->pHeader);
             CloseHandle(pData->map);
-            pData->pHeader=NULL;
-            pData->map=NULL;
+            pData->pHeader = nullptr;
+            pData->map = nullptr;
         }
     }
 
@@ -255,13 +257,13 @@
 
     U_CFUNC void
     uprv_unmapFile(UDataMemory *pData) {
-        if(pData!=NULL && pData->map!=NULL) {
+        if(pData!=nullptr && pData->map!=nullptr) {
             size_t dataLen = (char *)pData->map - (char *)pData->mapAddr;
             if(munmap(pData->mapAddr, dataLen)==-1) {
             }
-            pData->pHeader=NULL;
+            pData->pHeader=nullptr;
             pData->map=0;
-            pData->mapAddr=NULL;
+            pData->mapAddr=nullptr;
         }
     }
 
@@ -295,7 +297,7 @@
         UDataMemory_init(pData); /* Clear the output struct.        */
         /* open the input file */
         file=fopen(path, "rb");
-        if(file==NULL) {
+        if(file==nullptr) {
             return FALSE;
         }
 
@@ -308,7 +310,7 @@
 
         /* allocate the memory to hold the file data */
         p=uprv_malloc(fileLength);
-        if(p==NULL) {
+        if(p==nullptr) {
             fclose(file);
             *status = U_MEMORY_ALLOCATION_ERROR;
             return FALSE;
@@ -330,11 +332,11 @@
 
     U_CFUNC void
     uprv_unmapFile(UDataMemory *pData) {
-        if(pData!=NULL && pData->map!=NULL) {
+        if(pData!=nullptr && pData->map!=nullptr) {
             uprv_free(pData->map);
-            pData->map     = NULL;
-            pData->mapAddr = NULL;
-            pData->pHeader = NULL;
+            pData->map     = nullptr;
+            pData->mapAddr = nullptr;
+            pData->pHeader = nullptr;
         }
     }
 
@@ -397,7 +399,7 @@
             * Copy the ICU_DATA path to the path buffer and return that*/
             const char *icuDataDir;
             icuDataDir=u_getDataDirectory();
-            if(icuDataDir!=NULL && *icuDataDir!=0) {
+            if(icuDataDir!=nullptr && *icuDataDir!=0) {
                 return strcpy_returnEnd(pathBuffer, icuDataDir);
             } else {
                 /* there is no icuDataDir either.  Just return the empty pathBuffer. */
@@ -429,7 +431,7 @@
         }
 
         inBasename=uprv_strrchr(path, U_FILE_SEP_CHAR);
-        if(inBasename==NULL) {
+        if(inBasename==nullptr) {
             inBasename = path;
         } else {
             inBasename++;
@@ -494,7 +496,7 @@
                fprintf(stderr, " -> %08X\n", handle );
 #       endif
 
-        if(handle != NULL) {
+        if(handle != nullptr) {
                /* we have a data DLL - what kind of lookup do we need here? */
                /* try to find the Table of Contents */
                UDataMemory_init(pData); /* Clear the output struct.        */
@@ -515,11 +517,11 @@
     }
 
     U_CFUNC void uprv_unmapFile(UDataMemory *pData) {
-        if(pData!=NULL && pData->map!=NULL) {
+        if(pData!=nullptr && pData->map!=nullptr) {
             uprv_free(pData->map);
-            pData->map     = NULL;
-            pData->mapAddr = NULL;
-            pData->pHeader = NULL;
+            pData->map     = nullptr;
+            pData->mapAddr = nullptr;
+            pData->pHeader = nullptr;
         }
     }
 

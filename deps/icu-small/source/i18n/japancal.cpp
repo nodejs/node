@@ -18,6 +18,16 @@
 #if !UCONFIG_NO_FORMATTING
 #if U_PLATFORM_HAS_WINUWP_API == 0
 #include <stdlib.h> // getenv() is not available in UWP env
+#else
+#ifndef WIN32_LEAN_AND_MEAN
+#   define WIN32_LEAN_AND_MEAN
+#endif
+#   define VC_EXTRALEAN
+#   define NOUSER
+#   define NOSERVICE
+#   define NOIME
+#   define NOMCX
+#include <windows.h>
 #endif
 #include "cmemory.h"
 #include "erarules.h"
@@ -51,8 +61,9 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(JapaneseCalendar)
 static const int32_t kGregorianEpoch = 1970;    // used as the default value of EXTENDED_YEAR
 static const char* TENTATIVE_ERA_VAR_NAME = "ICU_ENABLE_TENTATIVE_ERA";
 
-// Initialize global Japanese era data
-static void U_CALLCONV initializeEras(UErrorCode &status) {
+
+// Export the following for use by test code.
+UBool JapaneseCalendar::enableTentativeEra() {
     // Although start date of next Japanese era is planned ahead, a name of
     // new era might not be available. This implementation allows tester to
     // check a new era without era names by settings below (in priority order).
@@ -77,7 +88,13 @@ static void U_CALLCONV initializeEras(UErrorCode &status) {
         includeTentativeEra = TRUE;
     }
 #endif
-    gJapaneseEraRules = EraRules::createInstance("japanese", includeTentativeEra, status);
+    return includeTentativeEra;
+}
+
+
+// Initialize global Japanese era data
+static void U_CALLCONV initializeEras(UErrorCode &status) {
+    gJapaneseEraRules = EraRules::createInstance("japanese", JapaneseCalendar::enableTentativeEra(), status);
     if (U_FAILURE(status)) {
         return;
     }

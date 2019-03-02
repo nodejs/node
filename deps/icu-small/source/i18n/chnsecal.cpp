@@ -51,7 +51,7 @@ static void debug_chnsecal_msg(const char *pat, ...)
 
 
 // --- The cache --
-static UMutex astroLock = U_MUTEX_INITIALIZER;  // Protects access to gChineseCalendarAstro.
+static icu::UMutex astroLock = U_MUTEX_INITIALIZER;  // Protects access to gChineseCalendarAstro.
 static icu::CalendarAstronomer *gChineseCalendarAstro = NULL;
 
 // Lazy Creation & Access synchronized by class CalendarCache with a mutex.

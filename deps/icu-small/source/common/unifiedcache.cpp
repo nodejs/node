@@ -21,8 +21,8 @@
 #include "umutex.h"
 
 static icu::UnifiedCache *gCache = NULL;
-static UMutex gCacheMutex = U_MUTEX_INITIALIZER;
-static UConditionVar gInProgressValueAddedCond = U_CONDITION_INITIALIZER;
+static icu::UMutex gCacheMutex = U_MUTEX_INITIALIZER;
+static icu::UConditionVar gInProgressValueAddedCond = U_CONDITION_INITIALIZER;
 static icu::UInitOnce gCacheInitOnce = U_INITONCE_INITIALIZER;
 
 static const int32_t MAX_EVICT_ITERATIONS = 10;
