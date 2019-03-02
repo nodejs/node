@@ -43,9 +43,9 @@ function _validateContent(data) {
   // Verify that all sections are present as own properties of the report.
   const sections = ['header', 'javascriptStack', 'nativeStack',
                     'javascriptHeap', 'libuv', 'environmentVariables',
-                    'sharedObjects'];
+                    'sharedObjects', 'resourceUsage'];
   if (!isWindows)
-    sections.push('resourceUsage', 'userLimits');
+    sections.push('userLimits');
 
   if (report.uvthreadResourceUsage)
     sections.push('uvthreadResourceUsage');
@@ -133,26 +133,24 @@ function _validateContent(data) {
     });
   });
 
-  // Verify the format of the resourceUsage section on non-Windows platforms.
-  if (!isWindows) {
-    const usage = report.resourceUsage;
-    const resourceUsageFields = ['userCpuSeconds', 'kernelCpuSeconds',
-                                 'cpuConsumptionPercent', 'maxRss',
-                                 'pageFaults', 'fsActivity'];
-    checkForUnknownFields(usage, resourceUsageFields);
-    assert.strictEqual(typeof usage.userCpuSeconds, 'number');
-    assert.strictEqual(typeof usage.kernelCpuSeconds, 'number');
-    assert.strictEqual(typeof usage.cpuConsumptionPercent, 'number');
-    assert(Number.isSafeInteger(usage.maxRss));
-    assert(typeof usage.pageFaults === 'object' && usage.pageFaults !== null);
-    checkForUnknownFields(usage.pageFaults, ['IORequired', 'IONotRequired']);
-    assert(Number.isSafeInteger(usage.pageFaults.IORequired));
-    assert(Number.isSafeInteger(usage.pageFaults.IONotRequired));
-    assert(typeof usage.fsActivity === 'object' && usage.fsActivity !== null);
-    checkForUnknownFields(usage.fsActivity, ['reads', 'writes']);
-    assert(Number.isSafeInteger(usage.fsActivity.reads));
-    assert(Number.isSafeInteger(usage.fsActivity.writes));
-  }
+  // Verify the format of the resourceUsage section.
+  const usage = report.resourceUsage;
+  const resourceUsageFields = ['userCpuSeconds', 'kernelCpuSeconds',
+                               'cpuConsumptionPercent', 'maxRss',
+                               'pageFaults', 'fsActivity'];
+  checkForUnknownFields(usage, resourceUsageFields);
+  assert.strictEqual(typeof usage.userCpuSeconds, 'number');
+  assert.strictEqual(typeof usage.kernelCpuSeconds, 'number');
+  assert.strictEqual(typeof usage.cpuConsumptionPercent, 'number');
+  assert(Number.isSafeInteger(usage.maxRss));
+  assert(typeof usage.pageFaults === 'object' && usage.pageFaults !== null);
+  checkForUnknownFields(usage.pageFaults, ['IORequired', 'IONotRequired']);
+  assert(Number.isSafeInteger(usage.pageFaults.IORequired));
+  assert(Number.isSafeInteger(usage.pageFaults.IONotRequired));
+  assert(typeof usage.fsActivity === 'object' && usage.fsActivity !== null);
+  checkForUnknownFields(usage.fsActivity, ['reads', 'writes']);
+  assert(Number.isSafeInteger(usage.fsActivity.reads));
+  assert(Number.isSafeInteger(usage.fsActivity.writes));
 
   // Verify the format of the uvthreadResourceUsage section, if present.
   if (report.uvthreadResourceUsage) {
