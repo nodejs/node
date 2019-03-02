@@ -11,8 +11,8 @@
 module.exports = function(context) {
   const sourceCode = context.getSourceCode();
   const regexpStack = [];
-  var regexpBuffer = [];
-  var inRegExp = false;
+  let regexpBuffer = [];
+  let inRegExp = false;
 
   function report(node, startOffset) {
     const indexOfDot = sourceCode.getIndexFromLoc(node.loc.start) + startOffset;
@@ -25,13 +25,13 @@ module.exports = function(context) {
 
   const allowedModifiers = ['+', '*', '?', '{'];
   function checkRegExp(nodes) {
-    var escaping = false;
-    var inCharClass = false;
-    for (var n = 0; n < nodes.length; ++n) {
+    let escaping = false;
+    let inCharClass = false;
+    for (let n = 0; n < nodes.length; ++n) {
       const pair = nodes[n];
       const node = pair[0];
       const str = pair[1];
-      for (var i = 0; i < str.length; ++i) {
+      for (let i = 0; i < str.length; ++i) {
         switch (str[i]) {
           case '[':
             if (!escaping)
@@ -96,7 +96,7 @@ module.exports = function(context) {
                         node.quasis.length);
     if (inRegExp &&
         (isTemplate || (typeof node.value === 'string' && node.value.length))) {
-      var p = node.parent;
+      let p = node.parent;
       while (p && p.type === 'BinaryExpression') {
         p = p.parent;
       }
@@ -105,7 +105,7 @@ module.exports = function(context) {
           p.callee.name === 'RegExp') {
         if (isTemplate) {
           const quasis = node.quasis;
-          for (var i = 0; i < quasis.length; ++i) {
+          for (let i = 0; i < quasis.length; ++i) {
             const el = quasis[i];
             if (el.type === 'TemplateElement' && el.value && el.value.cooked)
               regexpBuffer.push([el, el.value.cooked]);
