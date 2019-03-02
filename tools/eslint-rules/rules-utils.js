@@ -69,7 +69,7 @@ module.exports.inSkipBlock = function(node) {
       node.test.operator === '!') {
     const consequent = node.consequent;
     if (consequent.body) {
-      consequent.body.some(function(expressionStatement) {
+      consequent.body.some((expressionStatement) => {
         if (hasSkip(expressionStatement.expression)) {
           return hasSkipBlock = true;
         }

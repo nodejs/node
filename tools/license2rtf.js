@@ -222,20 +222,12 @@ function rtfEscape(string) {
   }
 
   return string
-    .replace(/[\\{}]/g, function(m) {
-      return `\\${m}`;
-    })
-    .replace(/\t/g, function() {
-      return '\\tab ';
-    })
+    .replace(/[\\{}]/g, (m) => `\\${m}`)
+    .replace(/\t/g, () => '\\tab ')
     // eslint-disable-next-line no-control-regex
-    .replace(/[\x00-\x1f\x7f-\xff]/g, function(m) {
-      return `\\'${toHex(m.charCodeAt(0), 2)}`;
-    })
+    .replace(/[\x00-\x1f\x7f-\xff]/g, (m) => `\\'${toHex(m.charCodeAt(0), 2)}`)
     .replace(/\ufeff/g, '')
-    .replace(/[\u0100-\uffff]/g, function(m) {
-      return `\\u${toHex(m.charCodeAt(0), 4)}?`;
-    });
+    .replace(/[\u0100-\uffff]/g, (m) => `\\u${toHex(m.charCodeAt(0), 4)}?`);
 }
 
 /*

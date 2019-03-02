@@ -86,9 +86,7 @@ if (cluster.isMaster) {
     outFn = function(str) {
       fs.writeSync(fd, str, 'utf8');
     };
-    process.on('exit', function() {
-      fs.closeSync(fd);
-    });
+    process.on('exit', () => { fs.closeSync(fd); });
   } else {
     outFn = function(str) {
       process.stdout.write(str);
@@ -117,20 +115,20 @@ if (cluster.isMaster) {
 
   if (showProgress) {
     // Start the progress display update timer when the first worker is ready
-    cluster.once('online', function() {
+    cluster.once('online', () => {
       startTime = process.hrtime();
       setInterval(printProgress, 1000).unref();
       printProgress();
     });
   }
 
-  cluster.on('online', function(worker) {
+  cluster.on('online', (worker) => {
     // Configure worker and give it some initial work to do
     worker.send(workerConfig);
     sendWork(worker);
   });
 
-  process.on('exit', function(code) {
+  process.on('exit', (code) => {
     if (showProgress) {
       curPath = 'Done';
       printProgress();
@@ -232,7 +230,7 @@ if (cluster.isMaster) {
   // Worker
 
   var config = {};
-  process.on('message', function(files) {
+  process.on('message', (files) => {
     if (files instanceof Array) {
       // Lint some files
       const report = cli.executeOnFiles(files);

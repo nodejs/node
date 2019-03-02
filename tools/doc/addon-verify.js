@@ -81,7 +81,7 @@ ${files[name].replace(
           target_name: 'addon',
           sources: files.map(({ name }) => name),
           includes: ['../common.gypi'],
-        }
+        },
       ]
     })
   });
