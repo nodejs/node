@@ -44,7 +44,7 @@ std::string TriggerNodeReport(v8::Isolate* isolate,
                               node::Environment* env,
                               const char* message,
                               const char* trigger,
-                              std::string name,
+                              const std::string& name,
                               v8::Local<v8::String> stackstr);
 void GetNodeReport(v8::Isolate* isolate,
                    node::Environment* env,
