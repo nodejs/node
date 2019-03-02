@@ -1881,8 +1881,9 @@ Http2Stream::Http2Stream(
 
   // Limit the number of header pairs
   max_header_pairs_ = session->GetMaxHeaderPairs();
-  if (max_header_pairs_ == 0)
-  max_header_pairs_ = DEFAULT_MAX_HEADER_LIST_PAIRS;
+  if (max_header_pairs_ == 0) {
+    max_header_pairs_ = DEFAULT_MAX_HEADER_LIST_PAIRS;
+  }
   current_headers_.reserve(max_header_pairs_);
 
   // Limit the number of header octets
