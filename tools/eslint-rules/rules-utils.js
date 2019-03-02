@@ -24,7 +24,7 @@ module.exports.isRequired = function(node, modules) {
 * Return true if common module is required
 * in AST Node under inspection
 */
-var commonModuleRegExp = new RegExp(/^(\.\.\/)*common(\.js)?$/);
+const commonModuleRegExp = new RegExp(/^(\.\.\/)*common(\.js)?$/);
 module.exports.isCommonModule = function(node) {
   return node.callee.name === 'require' &&
          node.arguments.length !== 0 &&
@@ -63,7 +63,7 @@ module.exports.usesCommonProperty = function(node, properties) {
  * and the block also has a call to skip.
  */
 module.exports.inSkipBlock = function(node) {
-  var hasSkipBlock = false;
+  let hasSkipBlock = false;
   if (node.test &&
       node.test.type === 'UnaryExpression' &&
       node.test.operator === '!') {
