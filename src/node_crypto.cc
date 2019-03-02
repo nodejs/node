@@ -3303,6 +3303,8 @@ Local<Function> KeyObject::Initialize(Environment* env, Local<Object> target) {
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
   env->SetProtoMethod(t, "init", Init);
+  env->SetProtoMethodNoSideEffect(t, "getAsymmetricKeySize",
+                                  GetAsymmetricKeySize);
   env->SetProtoMethodNoSideEffect(t, "getSymmetricKeySize",
                                   GetSymmetricKeySize);
   env->SetProtoMethodNoSideEffect(t, "getAsymmetricKeyType",
@@ -3346,6 +3348,11 @@ ManagedEVPPKey KeyObject::GetAsymmetricKey() const {
 const char* KeyObject::GetSymmetricKey() const {
   CHECK_EQ(key_type_, kKeyTypeSecret);
   return this->symmetric_key_.get();
+}
+
+size_t KeyObject::GetAsymmetricKeySize() const {
+  CHECK_NE(key_type_, kKeyTypeSecret);
+  return EVP_PKEY_size(this->asymmetric_key_.get());
 }
 
 size_t KeyObject::GetSymmetricKeySize() const {
@@ -3445,6 +3452,12 @@ void KeyObject::GetAsymmetricKeyType(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
 
   args.GetReturnValue().Set(key->GetAsymmetricKeyType());
+}
+
+void KeyObject::GetAsymmetricKeySize(const FunctionCallbackInfo<Value>& args) {
+  KeyObject* key;
+  ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
+  args.GetReturnValue().Set(static_cast<uint32_t>(key->GetAsymmetricKeySize()));
 }
 
 void KeyObject::GetSymmetricKeySize(const FunctionCallbackInfo<Value>& args) {
