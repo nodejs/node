@@ -16,19 +16,19 @@ const espree = require("espree");
 // Helpers
 //------------------------------------------------------------------------------
 
-const anyFunctionPattern = /^(?:Function(?:Declaration|Expression)|ArrowFunctionExpression)$/;
-const anyLoopPattern = /^(?:DoWhile|For|ForIn|ForOf|While)Statement$/;
-const arrayOrTypedArrayPattern = /Array$/;
-const arrayMethodPattern = /^(?:every|filter|find|findIndex|forEach|map|some)$/;
-const bindOrCallOrApplyPattern = /^(?:bind|call|apply)$/;
-const breakableTypePattern = /^(?:(?:Do)?While|For(?:In|Of)?|Switch)Statement$/;
-const thisTagPattern = /^[\s*]*@this/m;
+const anyFunctionPattern = /^(?:Function(?:Declaration|Expression)|ArrowFunctionExpression)$/u;
+const anyLoopPattern = /^(?:DoWhile|For|ForIn|ForOf|While)Statement$/u;
+const arrayOrTypedArrayPattern = /Array$/u;
+const arrayMethodPattern = /^(?:every|filter|find|findIndex|forEach|map|some)$/u;
+const bindOrCallOrApplyPattern = /^(?:bind|call|apply)$/u;
+const breakableTypePattern = /^(?:(?:Do)?While|For(?:In|Of)?|Switch)Statement$/u;
+const thisTagPattern = /^[\s*]*@this/mu;
 
 
-const COMMENTS_IGNORE_PATTERN = /^\s*(?:eslint|jshint\s+|jslint\s+|istanbul\s+|globals?\s+|exported\s+|jscs)/;
+const COMMENTS_IGNORE_PATTERN = /^\s*(?:eslint|jshint\s+|jslint\s+|istanbul\s+|globals?\s+|exported\s+|jscs)/u;
 const LINEBREAKS = new Set(["\r\n", "\r", "\n", "\u2028", "\u2029"]);
-const LINEBREAK_MATCHER = /\r\n|[\r\n\u2028\u2029]/;
-const SHEBANG_MATCHER = /^#!([^\r\n]+)/;
+const LINEBREAK_MATCHER = /\r\n|[\r\n\u2028\u2029]/u;
+const SHEBANG_MATCHER = /^#!([^\r\n]+)/u;
 
 // A set of node types that can contain a list of statements
 const STATEMENT_LIST_PARENTS = new Set(["Program", "BlockStatement", "SwitchCase"]);
@@ -398,7 +398,7 @@ function getOpeningParenOfParams(node, sourceCode) {
  * @returns {RegExp} A global regular expression that matches line terminators
  */
 function createGlobalLinebreakMatcher() {
-    return new RegExp(LINEBREAK_MATCHER.source, "g");
+    return new RegExp(LINEBREAK_MATCHER.source, "gu");
 }
 
 /**
@@ -1006,7 +1006,7 @@ module.exports = {
      * '5'     // false
      */
     isDecimalInteger(node) {
-        return node.type === "Literal" && typeof node.value === "number" && /^(0|[1-9]\d*)$/.test(node.raw);
+        return node.type === "Literal" && typeof node.value === "number" && /^(0|[1-9]\d*)$/u.test(node.raw);
     },
 
     /**

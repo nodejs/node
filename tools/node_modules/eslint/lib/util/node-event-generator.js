@@ -157,7 +157,7 @@ function compareSpecificity(selectorA, selectorB) {
  */
 function tryParseSelector(rawSelector) {
     try {
-        return esquery.parse(rawSelector.replace(/:exit$/, ""));
+        return esquery.parse(rawSelector.replace(/:exit$/u, ""));
     } catch (err) {
         if (typeof err.offset === "number") {
             throw new SyntaxError(`Syntax error in selector "${rawSelector}" at position ${err.offset}: ${err.message}`);

@@ -111,8 +111,8 @@ module.exports = {
                  * fetch the source code and do matching via regexps.
                  */
 
-                const re = new RegExp(NONBLANK),
-                    skipMatch = new RegExp(SKIP_BLANK),
+                const re = new RegExp(NONBLANK, "u"),
+                    skipMatch = new RegExp(SKIP_BLANK, "u"),
                     lines = sourceCode.lines,
                     linebreaks = sourceCode.getText().match(astUtils.createGlobalLinebreakMatcher()),
                     comments = sourceCode.getAllComments(),

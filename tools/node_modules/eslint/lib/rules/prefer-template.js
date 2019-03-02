@@ -52,7 +52,7 @@ function isOctalEscapeSequence(node) {
         return false;
     }
 
-    const match = node.raw.match(/^([^\\]|\\[^0-7])*\\([0-7]{1,3})/);
+    const match = node.raw.match(/^([^\\]|\\[^0-7])*\\([0-7]{1,3})/u);
 
     if (match) {
 
@@ -187,14 +187,14 @@ module.exports = {
                  * for some reason, don't add another backslash, because that would change the meaning of the code (it would cause
                  * an actual backslash character to appear before the dollar sign).
                  */
-                return `\`${currentNode.raw.slice(1, -1).replace(/\\*(\${|`)/g, matched => {
+                return `\`${currentNode.raw.slice(1, -1).replace(/\\*(\$\{|`)/gu, matched => {
                     if (matched.lastIndexOf("\\") % 2) {
                         return `\\${matched}`;
                     }
                     return matched;
 
                 // Unescape any quotes that appear in the original Literal that no longer need to be escaped.
-                }).replace(new RegExp(`\\\\${currentNode.raw[0]}`, "g"), currentNode.raw[0])}\``;
+                }).replace(new RegExp(`\\\\${currentNode.raw[0]}`, "gu"), currentNode.raw[0])}\``;
             }
 
             if (currentNode.type === "TemplateLiteral") {

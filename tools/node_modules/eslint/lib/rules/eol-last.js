@@ -97,7 +97,7 @@ module.exports = {
                         loc: location,
                         messageId: "unexpected",
                         fix(fixer) {
-                            const finalEOLs = /(?:\r?\n)+$/,
+                            const finalEOLs = /(?:\r?\n)+$/u,
                                 match = finalEOLs.exec(sourceCode.text),
                                 start = match.index,
                                 end = sourceCode.text.length;

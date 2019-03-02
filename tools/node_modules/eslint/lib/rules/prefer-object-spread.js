@@ -14,7 +14,7 @@ const {
     isParenthesised
 } = require("../util/ast-utils");
 
-const ANY_SPACE = /\s/;
+const ANY_SPACE = /\s/u;
 
 /**
  * Helper that checks if the Object.assign call has array spread

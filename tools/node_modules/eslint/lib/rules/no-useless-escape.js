@@ -181,7 +181,7 @@ module.exports = {
                 }
 
                 const value = isTemplateElement ? node.value.raw : node.raw.slice(1, -1);
-                const pattern = /\\[^\d]/g;
+                const pattern = /\\[^\d]/gu;
                 let match;
 
                 while ((match = pattern.exec(value))) {

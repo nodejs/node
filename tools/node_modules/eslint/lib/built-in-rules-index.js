@@ -232,6 +232,7 @@ module.exports = {
     "prefer-arrow-callback": require("./rules/prefer-arrow-callback"),
     "prefer-const": require("./rules/prefer-const"),
     "prefer-destructuring": require("./rules/prefer-destructuring"),
+    "prefer-named-capture-group": require("./rules/prefer-named-capture-group"),
     "prefer-numeric-literals": require("./rules/prefer-numeric-literals"),
     "prefer-object-spread": require("./rules/prefer-object-spread"),
     "prefer-promise-reject-errors": require("./rules/prefer-promise-reject-errors"),

@@ -130,7 +130,7 @@ module.exports = {
         const options = Object.assign({}, context.options[0]);
         const ignorePattern = options.ignorePattern;
         const defaultIgnoreRegExp = astUtils.COMMENTS_IGNORE_PATTERN;
-        const customIgnoreRegExp = new RegExp(ignorePattern);
+        const customIgnoreRegExp = new RegExp(ignorePattern); // eslint-disable-line require-unicode-regexp
         const applyDefaultIgnorePatterns = options.applyDefaultIgnorePatterns !== false;
 
         options.beforeBlockComment = typeof options.beforeBlockComment !== "undefined" ? options.beforeBlockComment : true;

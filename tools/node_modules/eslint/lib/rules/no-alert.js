@@ -20,7 +20,7 @@ const getPropertyName = require("../util/ast-utils").getStaticPropertyName;
  * @returns {boolean} Whether or not the name is prohibited.
  */
 function isProhibitedIdentifier(name) {
-    return /^(alert|confirm|prompt)$/.test(name);
+    return /^(alert|confirm|prompt)$/u.test(name);
 }
 
 /**

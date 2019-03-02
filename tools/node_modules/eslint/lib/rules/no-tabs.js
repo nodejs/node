@@ -9,8 +9,8 @@
 // Helpers
 //------------------------------------------------------------------------------
 
-const tabRegex = /\t+/g;
-const anyNonWhitespaceRegex = /\S/;
+const tabRegex = /\t+/gu;
+const anyNonWhitespaceRegex = /\S/u;
 
 //------------------------------------------------------------------------------
 // Public Interface

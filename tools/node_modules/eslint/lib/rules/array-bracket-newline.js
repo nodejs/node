@@ -34,13 +34,11 @@ module.exports = {
                         type: "object",
                         properties: {
                             multiline: {
-                                type: "boolean",
-                                default: true
+                                type: "boolean"
                             },
                             minItems: {
                                 type: ["integer", "null"],
-                                minimum: 0,
-                                default: null
+                                minimum: 0
                             }
                         },
                         additionalProperties: false

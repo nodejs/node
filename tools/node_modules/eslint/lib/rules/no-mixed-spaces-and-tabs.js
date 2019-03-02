@@ -88,7 +88,7 @@ module.exports = {
                  * or the reverse before non-tab/-space
                  * characters begin.
                  */
-                let regex = /^(?=[\t ]*(\t | \t))/;
+                let regex = /^(?=[\t ]*(\t | \t))/u;
                 const lines = sourceCode.lines,
                     comments = sourceCode.getAllComments();
 
@@ -114,7 +114,7 @@ module.exports = {
                      * At least one space followed by a tab
                      * before non-tab/-space characters begin.
                      */
-                    regex = /^(?=[\t ]* \t)/;
+                    regex = /^(?=[\t ]* \t)/u;
                 }
 
                 lines.forEach((line, i) => {

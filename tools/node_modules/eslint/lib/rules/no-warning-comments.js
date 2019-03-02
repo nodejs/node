@@ -47,7 +47,7 @@ module.exports = {
             configuration = context.options[0] || {},
             warningTerms = configuration.terms || ["todo", "fixme", "xxx"],
             location = configuration.location || "start",
-            selfConfigRegEx = /\bno-warning-comments\b/;
+            selfConfigRegEx = /\bno-warning-comments\b/u;
 
         /**
          * Convert a warning term into a RegExp which will match a comment containing that whole word in the specified
@@ -58,7 +58,7 @@ module.exports = {
          * @returns {RegExp} The term converted to a RegExp
          */
         function convertToRegExp(term) {
-            const escaped = term.replace(/[-/\\$^*+?.()|[\]{}]/g, "\\$&");
+            const escaped = term.replace(/[-/\\$^*+?.()|[\]{}]/gu, "\\$&");
             const wordBoundary = "\\b";
             const eitherOrWordBoundary = `|${wordBoundary}`;
             let prefix;
@@ -73,7 +73,7 @@ module.exports = {
              * In these cases, use no bounding match. Same applies for the
              * prefix, handled below.
              */
-            const suffix = /\w$/.test(term) ? "\\b" : "";
+            const suffix = /\w$/u.test(term) ? "\\b" : "";
 
             if (location === "start") {
 
@@ -82,7 +82,7 @@ module.exports = {
                  * there's no need to worry about word boundaries.
                  */
                 prefix = "^\\s*";
-            } else if (/^\w/.test(term)) {
+            } else if (/^\w/u.test(term)) {
                 prefix = wordBoundary;
             } else {
                 prefix = "";
@@ -95,7 +95,7 @@ module.exports = {
                  * ^\s*TERM\b.  This checks the word boundary
                  * at the beginning of the comment.
                  */
-                return new RegExp(prefix + escaped + suffix, "i");
+                return new RegExp(prefix + escaped + suffix, "iu");
             }
 
             /*
@@ -103,7 +103,7 @@ module.exports = {
              * \bTERM\b|\bTERM\b, this checks the entire comment
              * for the term.
              */
-            return new RegExp(prefix + escaped + suffix + eitherOrWordBoundary + term + wordBoundary, "i");
+            return new RegExp(prefix + escaped + suffix + eitherOrWordBoundary + term + wordBoundary, "iu");
         }
 
         const warningRegExps = warningTerms.map(convertToRegExp);

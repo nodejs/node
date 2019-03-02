@@ -65,7 +65,7 @@ module.exports = function(results) {
                     message.line || 0,
                     message.column || 0,
                     messageType,
-                    message.message.replace(/([^ ])\.$/, "$1"),
+                    message.message.replace(/([^ ])\.$/u, "$1"),
                     chalk.dim(message.ruleId || "")
                 ];
             }),
@@ -75,7 +75,7 @@ module.exports = function(results) {
                     return stripAnsi(str).length;
                 }
             }
-        ).split("\n").map(el => el.replace(/(\d+)\s+(\d+)/, (m, p1, p2) => chalk.dim(`${p1}:${p2}`))).join("\n")}\n\n`;
+        ).split("\n").map(el => el.replace(/(\d+)\s+(\d+)/u, (m, p1, p2) => chalk.dim(`${p1}:${p2}`))).join("\n")}\n\n`;
     });
 
     const total = errorCount + warningCount;

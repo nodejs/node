@@ -90,7 +90,7 @@ module.exports = {
          */
         function isAllowed(name) {
             return allow.findIndex(
-                entry => name === entry || name.match(new RegExp(entry))
+                entry => name === entry || name.match(new RegExp(entry)) // eslint-disable-line require-unicode-regexp
             ) !== -1;
         }
 
@@ -142,7 +142,7 @@ module.exports = {
                  * private/protected identifiers, strip them before checking if underscored
                  */
                 const name = node.name,
-                    nameIsUnderscored = isUnderscored(name.replace(/^_+|_+$/g, "")),
+                    nameIsUnderscored = isUnderscored(name.replace(/^_+|_+$/gu, "")),
                     effectiveParent = (node.parent.type === "MemberExpression") ? node.parent.parent : node.parent;
 
                 // First, we ignore the node if it match the ignore list

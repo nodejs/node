@@ -15,7 +15,7 @@ const astUtils = require("../util/ast-utils");
 // Helpers
 //------------------------------------------------------------------------------
 
-const SPACES = /\s+/g;
+const SPACES = /\s+/gu;
 
 /**
  * Checks whether the property of 2 given member expression nodes are the same

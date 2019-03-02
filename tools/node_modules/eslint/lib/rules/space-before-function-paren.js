@@ -37,16 +37,13 @@ module.exports = {
                         type: "object",
                         properties: {
                             anonymous: {
-                                enum: ["always", "never", "ignore"],
-                                default: "always"
+                                enum: ["always", "never", "ignore"]
                             },
                             named: {
-                                enum: ["always", "never", "ignore"],
-                                default: "always"
+                                enum: ["always", "never", "ignore"]
                             },
                             asyncArrow: {
-                                enum: ["always", "never", "ignore"],
-                                default: "always"
+                                enum: ["always", "never", "ignore"]
                             }
                         },
                         additionalProperties: false

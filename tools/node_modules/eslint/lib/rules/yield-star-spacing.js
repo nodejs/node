@@ -31,8 +31,8 @@ module.exports = {
                     {
                         type: "object",
                         properties: {
-                            before: { type: "boolean", default: false },
-                            after: { type: "boolean", default: true }
+                            before: { type: "boolean" },
+                            after: { type: "boolean" }
                         },
                         additionalProperties: false
                     }

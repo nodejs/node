@@ -38,16 +38,13 @@ module.exports = {
                         properties: {
                             max: {
                                 type: "integer",
-                                minimum: 0,
-                                default: 300
+                                minimum: 0
                             },
                             skipComments: {
-                                type: "boolean",
-                                default: false
+                                type: "boolean"
                             },
                             skipBlankLines: {
-                                type: "boolean",
-                                default: false
+                                type: "boolean"
                             }
                         },
                         additionalProperties: false
@@ -64,7 +61,7 @@ module.exports = {
         const option = context.options[0];
         let max = 300;
 
-        if (typeof option === "object") {
+        if (typeof option === "object" && Object.prototype.hasOwnProperty.call(option, "max")) {
             max = option.max;
         } else if (typeof option === "number") {
             max = option;

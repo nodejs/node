@@ -15,8 +15,8 @@ const astUtils = require("../util/ast-utils");
 // Helpers
 //------------------------------------------------------------------------------
 
-const GET_KIND = /^(?:init|get)$/;
-const SET_KIND = /^(?:init|set)$/;
+const GET_KIND = /^(?:init|get)$/u;
+const SET_KIND = /^(?:init|set)$/u;
 
 /**
  * The class which stores properties' information of an object.

@@ -47,7 +47,7 @@ function formatFilePath(filePath, line, column) {
  */
 function formatMessage(message, parentResult) {
     const type = (message.fatal || message.severity === 2) ? chalk.red("error") : chalk.yellow("warning");
-    const msg = `${chalk.bold(message.message.replace(/([^ ])\.$/, "$1"))}`;
+    const msg = `${chalk.bold(message.message.replace(/([^ ])\.$/u, "$1"))}`;
     const ruleId = message.fatal ? "" : chalk.dim(`(${message.ruleId})`);
     const filePath = formatFilePath(parentResult.filePath, message.line, message.column);
     const sourceCode = parentResult.output ? parentResult.output : parentResult.source;

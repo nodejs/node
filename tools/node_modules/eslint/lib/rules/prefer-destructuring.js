@@ -36,12 +36,10 @@ module.exports = {
                                 type: "object",
                                 properties: {
                                     array: {
-                                        type: "boolean",
-                                        default: true
+                                        type: "boolean"
                                     },
                                     object: {
-                                        type: "boolean",
-                                        default: true
+                                        type: "boolean"
                                     }
                                 },
                                 additionalProperties: false
@@ -50,12 +48,10 @@ module.exports = {
                                 type: "object",
                                 properties: {
                                     array: {
-                                        type: "boolean",
-                                        default: true
+                                        type: "boolean"
                                     },
                                     object: {
-                                        type: "boolean",
-                                        default: true
+                                        type: "boolean"
                                     }
                                 },
                                 additionalProperties: false
@@ -67,12 +63,10 @@ module.exports = {
                         type: "object",
                         properties: {
                             array: {
-                                type: "boolean",
-                                default: true
+                                type: "boolean"
                             },
                             object: {
-                                type: "boolean",
-                                default: true
+                                type: "boolean"
                             }
                         },
                         additionalProperties: false
@@ -83,8 +77,7 @@ module.exports = {
                 type: "object",
                 properties: {
                     enforceForRenamedProperties: {
-                        type: "boolean",
-                        default: false
+                        type: "boolean"
                     }
                 },
                 additionalProperties: false

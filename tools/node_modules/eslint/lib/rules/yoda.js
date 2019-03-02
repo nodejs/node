@@ -20,7 +20,7 @@ const astUtils = require("../util/ast-utils");
  * @returns {boolean} Whether or not it is a comparison operator.
  */
 function isComparisonOperator(operator) {
-    return (/^(==|===|!=|!==|<|>|<=|>=)$/).test(operator);
+    return (/^(==|===|!=|!==|<|>|<=|>=)$/u).test(operator);
 }
 
 /**
@@ -29,7 +29,7 @@ function isComparisonOperator(operator) {
  * @returns {boolean} Whether or not it is an equality operator.
  */
 function isEqualityOperator(operator) {
-    return (/^(==|===)$/).test(operator);
+    return (/^(==|===)$/u).test(operator);
 }
 
 /**

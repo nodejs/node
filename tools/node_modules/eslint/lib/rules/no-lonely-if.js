@@ -58,7 +58,7 @@ module.exports = {
                                 node.consequent.type !== "BlockStatement" && lastIfToken.value !== ";" && tokenAfterElseBlock &&
                                 (
                                     node.consequent.loc.end.line === tokenAfterElseBlock.loc.start.line ||
-                                    /^[([/+`-]/.test(tokenAfterElseBlock.value) ||
+                                    /^[([/+`-]/u.test(tokenAfterElseBlock.value) ||
                                     lastIfToken.value === "++" ||
                                     lastIfToken.value === "--"
                                 )

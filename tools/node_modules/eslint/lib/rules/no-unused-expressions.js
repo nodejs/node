@@ -88,7 +88,7 @@ module.exports = {
                 grandparent = ancestors[ancestors.length - 2];
 
             return (parent.type === "Program" || parent.type === "BlockStatement" &&
-                    (/Function/.test(grandparent.type))) &&
+                    (/Function/u.test(grandparent.type))) &&
                     directives(parent).indexOf(node) >= 0;
         }
 
@@ -116,7 +116,7 @@ module.exports = {
                 return true;
             }
 
-            return /^(?:Assignment|Call|New|Update|Yield|Await)Expression$/.test(node.type) ||
+            return /^(?:Assignment|Call|New|Update|Yield|Await)Expression$/u.test(node.type) ||
                 (node.type === "UnaryExpression" && ["delete", "void"].indexOf(node.operator) >= 0);
         }
 

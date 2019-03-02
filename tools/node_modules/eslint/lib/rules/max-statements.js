@@ -40,13 +40,11 @@ module.exports = {
                         properties: {
                             maximum: {
                                 type: "integer",
-                                minimum: 0,
-                                default: 10
+                                minimum: 0
                             },
                             max: {
                                 type: "integer",
-                                minimum: 0,
-                                default: 10
+                                minimum: 0
                             }
                         },
                         additionalProperties: false
@@ -80,7 +78,10 @@ module.exports = {
             topLevelFunctions = [];
         let maxStatements = 10;
 
-        if (typeof option === "object") {
+        if (
+            typeof option === "object" &&
+            (Object.prototype.hasOwnProperty.call(option, "maximum") || Object.prototype.hasOwnProperty.call(option, "max"))
+        ) {
             maxStatements = option.maximum || option.max;
         } else if (typeof option === "number") {
             maxStatements = option;

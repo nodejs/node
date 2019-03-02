@@ -10,7 +10,7 @@
 
 const RegExpValidator = require("regexpp").RegExpValidator;
 const validator = new RegExpValidator({ ecmaVersion: 2018 });
-const validFlags = /[gimuys]/g;
+const validFlags = /[gimuys]/gu;
 const undefined1 = void 0;
 
 //------------------------------------------------------------------------------
@@ -51,7 +51,7 @@ module.exports = {
             const temp = options.allowConstructorFlags.join("").replace(validFlags, "");
 
             if (temp) {
-                allowedFlags = new RegExp(`[${temp}]`, "gi");
+                allowedFlags = new RegExp(`[${temp}]`, "giu");
             }
         }
 

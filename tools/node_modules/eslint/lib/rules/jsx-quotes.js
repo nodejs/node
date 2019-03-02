@@ -20,14 +20,14 @@ const QUOTE_SETTINGS = {
         quote: "\"",
         description: "singlequote",
         convert(str) {
-            return str.replace(/'/g, "\"");
+            return str.replace(/'/gu, "\"");
         }
     },
     "prefer-single": {
         quote: "'",
         description: "doublequote",
         convert(str) {
-            return str.replace(/"/g, "'");
+            return str.replace(/"/gu, "'");
         }
     }
 };

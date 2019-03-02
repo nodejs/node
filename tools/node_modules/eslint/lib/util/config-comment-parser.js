@@ -38,9 +38,9 @@ module.exports = class ConfigCommentParser {
         const items = {};
 
         // Collapse whitespace around `:` and `,` to make parsing easier
-        const trimmedString = string.replace(/\s*([:,])\s*/g, "$1");
+        const trimmedString = string.replace(/\s*([:,])\s*/gu, "$1");
 
-        trimmedString.split(/\s|,+/).forEach(name => {
+        trimmedString.split(/\s|,+/u).forEach(name => {
             if (!name) {
                 return;
             }
@@ -90,7 +90,7 @@ module.exports = class ConfigCommentParser {
          * But we are supporting that. So this is a fallback for that.
          */
         items = {};
-        const normalizedString = string.replace(/([a-zA-Z0-9\-/]+):/g, "\"$1\":").replace(/(]|[0-9])\s+(?=")/, "$1,");
+        const normalizedString = string.replace(/([a-zA-Z0-9\-/]+):/gu, "\"$1\":").replace(/(\]|[0-9])\s+(?=")/u, "$1,");
 
         try {
             items = JSON.parse(`{${normalizedString}}`);
@@ -128,7 +128,7 @@ module.exports = class ConfigCommentParser {
         const items = {};
 
         // Collapse whitespace around commas
-        string.replace(/\s*,\s*/g, ",").split(/,+/).forEach(name => {
+        string.replace(/\s*,\s*/gu, ",").split(/,+/u).forEach(name => {
             const trimmedName = name.trim();
 
             if (trimmedName) {

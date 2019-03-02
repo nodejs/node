@@ -126,7 +126,7 @@ function createAlwaysStylePattern(markers, exceptions) {
     pattern += "?"; // or nothing.
     pattern += createExceptionsPattern(exceptions);
 
-    return new RegExp(pattern);
+    return new RegExp(pattern); // eslint-disable-line require-unicode-regexp
 }
 
 /**
@@ -142,7 +142,7 @@ function createAlwaysStylePattern(markers, exceptions) {
 function createNeverStylePattern(markers) {
     const pattern = `^(${markers.map(escape).join("|")})?[ \t]+`;
 
-    return new RegExp(pattern);
+    return new RegExp(pattern); // eslint-disable-line require-unicode-regexp
 }
 
 //------------------------------------------------------------------------------
@@ -250,9 +250,9 @@ module.exports = {
             // Create RegExp object for valid patterns.
             rule[type] = {
                 beginRegex: requireSpace ? createAlwaysStylePattern(markers, exceptions) : createNeverStylePattern(markers),
-                endRegex: balanced && requireSpace ? new RegExp(`${createExceptionsPattern(exceptions)}$`) : new RegExp(endNeverPattern),
+                endRegex: balanced && requireSpace ? new RegExp(`${createExceptionsPattern(exceptions)}$`) : new RegExp(endNeverPattern), // eslint-disable-line require-unicode-regexp
                 hasExceptions: exceptions.length > 0,
-                markers: new RegExp(`^(${markers.map(escape).join("|")})`)
+                markers: new RegExp(`^(${markers.map(escape).join("|")})`) // eslint-disable-line require-unicode-regexp
             };
 
             return rule;

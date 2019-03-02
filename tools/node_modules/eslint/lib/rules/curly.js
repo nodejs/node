@@ -191,7 +191,7 @@ module.exports = {
                 return true;
             }
 
-            if (/^[([/`+-]/.test(tokenAfter.value)) {
+            if (/^[([/`+-]/u.test(tokenAfter.value)) {
 
                 // If the next token starts with a character that would disrupt ASI, insert a semicolon.
                 return true;

@@ -14,7 +14,7 @@ const astUtils = require("../util/ast-utils");
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
-const TARGET_NODE_TYPE = /^(?:Arrow)?FunctionExpression$/;
+const TARGET_NODE_TYPE = /^(?:Arrow)?FunctionExpression$/u;
 
 /**
  * Checks a given code path segment is reachable.

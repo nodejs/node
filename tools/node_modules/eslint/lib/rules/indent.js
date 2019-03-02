@@ -442,7 +442,7 @@ class OffsetStorage {
                 const offset = (
                     offsetInfo.from &&
                     offsetInfo.from.loc.start.line === token.loc.start.line &&
-                    !/^\s*?\n/.test(token.value) &&
+                    !/^\s*?\n/u.test(token.value) &&
                     !offsetInfo.force
                 ) ? 0 : offsetInfo.offset * this._indentSize;
 
@@ -785,7 +785,7 @@ module.exports = {
          * or the total number of linebreaks if the string is all whitespace.
          */
         function countTrailingLinebreaks(string) {
-            const trailingWhitespace = string.match(/\s*$/)[0];
+            const trailingWhitespace = string.match(/\s*$/u)[0];
             const linebreakMatches = trailingWhitespace.match(astUtils.createGlobalLinebreakMatcher());
 
             return linebreakMatches === null ? 0 : linebreakMatches.length;

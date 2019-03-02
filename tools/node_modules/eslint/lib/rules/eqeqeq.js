@@ -38,8 +38,7 @@ module.exports = {
                             type: "object",
                             properties: {
                                 null: {
-                                    enum: ["always", "never", "ignore"],
-                                    default: "always"
+                                    enum: ["always", "never", "ignore"]
                                 }
                             },
                             additionalProperties: false

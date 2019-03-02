@@ -24,7 +24,7 @@ module.exports = {
     },
 
     create(context) {
-        const CALLEE_RE = /^(setTimeout|setInterval|execScript)$/;
+        const CALLEE_RE = /^(setTimeout|setInterval|execScript)$/u;
 
         /*
          * Figures out if we should inspect a given binary expression. Is a stack

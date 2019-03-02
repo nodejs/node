@@ -36,7 +36,7 @@ module.exports = {
 
     create(context) {
 
-        const REGEX_FLAG_MATCHER = /^[gimsuy]+$/;
+        const REGEX_FLAG_MATCHER = /^[gimsuy]+$/u;
 
         const sourceCode = context.getSourceCode();
 

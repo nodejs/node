@@ -258,7 +258,7 @@ function processFile(filename, configHelper, options, linter) {
  */
 function createIgnoreResult(filePath, baseDir) {
     let message;
-    const isHidden = /^\./.test(path.basename(filePath));
+    const isHidden = /^\./u.test(path.basename(filePath));
     const isInNodeModules = baseDir && path.relative(baseDir, filePath).startsWith("node_modules");
     const isInBowerComponents = baseDir && path.relative(baseDir, filePath).startsWith("bower_components");
 
@@ -757,7 +757,7 @@ class CLIEngine {
         if (typeof resolvedFormatName === "string") {
 
             // replace \ with / for Windows compatibility
-            const normalizedFormatName = resolvedFormatName.replace(/\\/g, "/");
+            const normalizedFormatName = resolvedFormatName.replace(/\\/gu, "/");
 
             const cwd = this.options ? this.options.cwd : process.cwd();
             const namespace = naming.getNamespaceFromTerm(normalizedFormatName);
