@@ -539,7 +539,7 @@ module.exports = require("util");
 
 module.exports = statistics
 
-/* Get stats for a file, list of files, or list of messages. */
+// Get stats for a file, list of files, or list of messages.
 function statistics(files) {
   var result = {true: 0, false: 0, null: 0}
 
@@ -556,10 +556,10 @@ function statistics(files) {
   function count(value) {
     if (value) {
       if (value[0] && value[0].messages) {
-        /* Multiple vfiles */
+        // Multiple vfiles
         countInAll(value)
       } else {
-        /* One vfile / messages */
+        // One vfile / messages
         countAll(value.messages || value)
       }
     }
@@ -958,10 +958,8 @@ Duplex.prototype._destroy = function (err, cb) {
 "use strict";
 
 
-/* Expose. */
 module.exports = factory
 
-/* Factory. */
 function factory(file) {
   var contents = indices(String(file))
 
@@ -971,13 +969,12 @@ function factory(file) {
   }
 }
 
-/* Factory to get the line and column-based `position` for
- * `offset` in the bound indices. */
+// Factory to get the line and column-based `position` for `offset` in the bound
+// indices.
 function offsetToPositionFactory(indices) {
   return offsetToPosition
 
-  /* Get the line and column-based `position` for
-   * `offset` in the bound indices. */
+  // Get the line and column-based `position` for `offset` in the bound indices.
   function offsetToPosition(offset) {
     var index = -1
     var length = indices.length
@@ -1000,13 +997,13 @@ function offsetToPositionFactory(indices) {
   }
 }
 
-/* Factory to get the `offset` for a line and column-based
- * `position` in the bound indices. */
+// Factory to get the `offset` for a line and column-based `position` in the
+// bound indices.
 function positionToOffsetFactory(indices) {
   return positionToOffset
 
-  /* Get the `offset` for a line and column-based
-   * `position` in the bound indices. */
+  // Get the `offset` for a line and column-based `position` in the bound
+  // indices.
   function positionToOffset(position) {
     var line = position && position.line
     var column = position && position.column
@@ -1019,7 +1016,7 @@ function positionToOffsetFactory(indices) {
   }
 }
 
-/* Get indices of line-breaks in `value`. */
+// Get indices of line-breaks in `value`.
 function indices(value) {
   var result = []
   var index = value.indexOf('\n')
@@ -3479,13 +3476,13 @@ function setup(env) {
     var prevTime;
 
     function debug() {
-      for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
-        args[_key] = arguments[_key];
-      }
-
       // Disabled?
       if (!debug.enabled) {
         return;
+      }
+
+      for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+        args[_key] = arguments[_key];
       }
 
       var self = debug; // Set `diff` timestamp
@@ -3815,34 +3812,33 @@ var windows = process.platform === 'win32'
 var prefix = windows ? /* istanbul ignore next */ '' : 'lib'
 var globals = path.resolve(npmPrefix, prefix, 'node_modules')
 
-/* istanbul ignore next - If we’re in Electron, we’re running in a modified
- * Node that cannot really install global node modules.  To find the actual
- * modules, the user has to either set `prefix` in their `.npmrc` (which is
- * picked up by `npm-prefix`).  Most people don’t do that, and some use NVM
- * instead to manage different versions of Node.  Luckily NVM leaks some
- * environment variables that we can pick up on to try and detect the actual
- * modules. */
+// If we’re in Electron, we’re running in a modified Node that cannot really
+// install global node modules.  To find the actual modules, the user has to
+// either set `prefix` in their `.npmrc` (which is picked up by `npm-prefix`).
+// Most people don’t do that, and some use NVM instead to manage different
+// versions of Node.  Luckily NVM leaks some environment variables that we can
+// pick up on to try and detect the actual modules.
+/* istanbul ignore next */
 if (electron && nvm && !fs.existsSync(globals)) {
   globals = path.resolve(nvm, '..', prefix, 'node_modules')
 }
 
-/* Load the plug-in found using `resolvePlugin`. */
+// Load the plug-in found using `resolvePlugin`.
 function loadPlugin(name, options) {
   return __webpack_require__(141)(resolvePlugin(name, options) || name)
 }
 
-/* Find a plugin.
- *
- * See also:
- * <https://docs.npmjs.com/files/folders#node-modules>
- * <https://github.com/sindresorhus/resolve-from>
- *
- * Uses the standard node module loading strategy to find $name
- * in each given `cwd` (and optionally the global node_modules
- * directory).
- *
- * If a prefix is given and $name is not a path, `$prefix-$name`
- * is also searched (preferring these over non-prefixed modules). */
+// Find a plugin.
+//
+// See also:
+// <https://docs.npmjs.com/files/folders#node-modules>
+// <https://github.com/sindresorhus/resolve-from>
+//
+// Uses the standard node module loading strategy to find $name in each given
+// `cwd` (and optionally the global `node_modules` directory).
+//
+// If a prefix is given and $name is not a path, `$prefix-$name` is also
+// searched (preferring these over non-prefixed modules).
 function resolvePlugin(name, options) {
   var settings = options || {}
   var prefix = settings.prefix
@@ -3852,6 +3848,8 @@ function resolvePlugin(name, options) {
   var length
   var index
   var plugin
+  var slash
+  var scope = ''
 
   if (cwd && typeof cwd === 'object') {
     sources = cwd.concat()
@@ -3859,19 +3857,33 @@ function resolvePlugin(name, options) {
     sources = [cwd || process.cwd()]
   }
 
-  /* Non-path. */
-  if (name.indexOf(path.sep) === -1 && name.charAt(0) !== '.') {
+  // Non-path.
+  if (name.charAt(0) !== '.') {
     if (settings.global == null ? globally : settings.global) {
       sources.push(globals)
     }
 
-    /* Unprefix module. */
+    // Unprefix module.
     if (prefix) {
       prefix = prefix.charAt(prefix.length - 1) === '-' ? prefix : prefix + '-'
 
-      if (name.slice(0, prefix.length) !== prefix) {
-        plugin = prefix + name
+      // Scope?
+      if (name.charAt(0) === '@') {
+        slash = name.indexOf('/')
+
+        // Let’s keep the algorithm simple.  No need to care if this is a
+        // “valid” scope (I think?).  But we do check for the slash.
+        if (slash !== -1) {
+          scope = name.slice(0, slash + 1)
+          name = name.slice(slash + 1)
+        }
       }
+
+      if (name.slice(0, prefix.length) !== prefix) {
+        plugin = scope + prefix + name
+      }
+
+      name = scope + name
     }
   }
 
@@ -5564,12 +5576,12 @@ var stringify = __webpack_require__(27)
 
 module.exports = VMessage
 
-/* Inherit from `Error#`. */
+// Inherit from `Error#`.
 function VMessagePrototype() {}
 VMessagePrototype.prototype = Error.prototype
 VMessage.prototype = new VMessagePrototype()
 
-/* Message properties. */
+// Message properties.
 var proto = VMessage.prototype
 
 proto.file = ''
@@ -5581,11 +5593,11 @@ proto.fatal = null
 proto.column = null
 proto.line = null
 
-/* Construct a new VMessage.
- *
- * Note: We cannot invoke `Error` on the created context,
- * as that adds readonly `line` and `column` attributes on
- * Safari 9, thus throwing and failing the data. */
+// Construct a new VMessage.
+//
+// Note: We cannot invoke `Error` on the created context, as that adds readonly
+// `line` and `column` attributes on Safari 9, thus throwing and failing the
+// data.
 function VMessage(reason, position, origin) {
   var parts
   var range
@@ -5604,18 +5616,18 @@ function VMessage(reason, position, origin) {
     end: {line: null, column: null}
   }
 
-  /* Node. */
+  // Node.
   if (position && position.position) {
     position = position.position
   }
 
   if (position) {
-    /* Position. */
+    // Position.
     if (position.start) {
       location = position
       position = position.start
     } else {
-      /* Point. */
+      // Point.
       location.start = position
     }
   }
@@ -18936,16 +18948,17 @@ function encodeHex(character) {
 }
 
 function State(options) {
-  this.schema       = options['schema'] || DEFAULT_FULL_SCHEMA;
-  this.indent       = Math.max(1, (options['indent'] || 2));
-  this.skipInvalid  = options['skipInvalid'] || false;
-  this.flowLevel    = (common.isNothing(options['flowLevel']) ? -1 : options['flowLevel']);
-  this.styleMap     = compileStyleMap(this.schema, options['styles'] || null);
-  this.sortKeys     = options['sortKeys'] || false;
-  this.lineWidth    = options['lineWidth'] || 80;
-  this.noRefs       = options['noRefs'] || false;
-  this.noCompatMode = options['noCompatMode'] || false;
-  this.condenseFlow = options['condenseFlow'] || false;
+  this.schema        = options['schema'] || DEFAULT_FULL_SCHEMA;
+  this.indent        = Math.max(1, (options['indent'] || 2));
+  this.noArrayIndent = options['noArrayIndent'] || false;
+  this.skipInvalid   = options['skipInvalid'] || false;
+  this.flowLevel     = (common.isNothing(options['flowLevel']) ? -1 : options['flowLevel']);
+  this.styleMap      = compileStyleMap(this.schema, options['styles'] || null);
+  this.sortKeys      = options['sortKeys'] || false;
+  this.lineWidth     = options['lineWidth'] || 80;
+  this.noRefs        = options['noRefs'] || false;
+  this.noCompatMode  = options['noCompatMode'] || false;
+  this.condenseFlow  = options['condenseFlow'] || false;
 
   this.implicitTypes = this.schema.compiledImplicit;
   this.explicitTypes = this.schema.compiledExplicit;
@@ -19565,13 +19578,14 @@ function writeNode(state, level, object, block, compact, iskey) {
         }
       }
     } else if (type === '[object Array]') {
+      var arrayLevel = (state.noArrayIndent && (level > 0)) ? level - 1 : level;
       if (block && (state.dump.length !== 0)) {
-        writeBlockSequence(state, level, state.dump, compact);
+        writeBlockSequence(state, arrayLevel, state.dump, compact);
         if (duplicate) {
           state.dump = '&ref_' + duplicateIndex + state.dump;
         }
       } else {
-        writeFlowSequence(state, level, state.dump);
+        writeFlowSequence(state, arrayLevel, state.dump);
         if (duplicate) {
           state.dump = '&ref_' + duplicateIndex + ' ' + state.dump;
         }
@@ -35184,7 +35198,7 @@ function tableCell(node) {
 /* 302 */
 /***/ (function(module) {
 
-module.exports = {"_args":[["remark@10.0.0","/Users/trott/io.js/tools/node-lint-md-cli-rollup"]],"_from":"remark@10.0.0","_id":"remark@10.0.0","_inBundle":false,"_integrity":"sha512-0fZvVmd9CgDi1qHGsRTyhpJShw60r3/4OSdRpAx+I7CmE8/Jmt829T9KWHpw2Ygw3chRZ26sMorqb8aIolU9tQ==","_location":"/remark","_phantomChildren":{},"_requested":{"type":"version","registry":true,"raw":"remark@10.0.0","name":"remark","escapedName":"remark","rawSpec":"10.0.0","saveSpec":null,"fetchSpec":"10.0.0"},"_requiredBy":["/"],"_resolved":"https://registry.npmjs.org/remark/-/remark-10.0.0.tgz","_spec":"10.0.0","_where":"/Users/trott/io.js/tools/node-lint-md-cli-rollup","author":{"name":"Titus Wormer","email":"tituswormer@gmail.com","url":"http://wooorm.com"},"bugs":{"url":"https://github.com/remarkjs/remark/issues"},"contributors":[{"name":"Titus Wormer","email":"tituswormer@gmail.com","url":"http://wooorm.com"}],"dependencies":{"remark-parse":"^6.0.0","remark-stringify":"^6.0.0","unified":"^7.0.0"},"description":"Markdown processor powered by plugins","devDependencies":{"tape":"^4.9.1"},"files":["index.js"],"homepage":"http://remark.js.org","keywords":["markdown","abstract","syntax","tree","ast","parse","stringify","process"],"license":"MIT","name":"remark","repository":{"type":"git","url":"https://github.com/remarkjs/remark/tree/master/packages/remark"},"scripts":{"test":"tape test.js"},"version":"10.0.0","xo":false};
+module.exports = {"name":"remark","version":"10.0.1","description":"Markdown processor powered by plugins","license":"MIT","keywords":["markdown","abstract","syntax","tree","ast","parse","stringify","process"],"homepage":"https://remark.js.org","repository":"https://github.com/remarkjs/remark/tree/master/packages/remark","bugs":"https://github.com/remarkjs/remark/issues","author":"Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)","contributors":["Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)"],"files":["index.js"],"dependencies":{"remark-parse":"^6.0.0","remark-stringify":"^6.0.0","unified":"^7.0.0"},"devDependencies":{"tape":"^4.9.1"},"scripts":{"test":"tape test.js"},"xo":false,"_resolved":"https://registry.npmjs.org/remark/-/remark-10.0.1.tgz","_integrity":"sha512-E6lMuoLIy2TyiokHprMjcWNJ5UxfGQjaMSMhV+f4idM625UjjK4j798+gPs5mfjzDE6vL0oFKVeZM6gZVSVrzQ==","_from":"remark@10.0.1"};
 
 /***/ }),
 /* 303 */
@@ -35269,9 +35283,9 @@ var control = __webpack_require__(306)
 
 module.exports = lint
 
-/* `remark-lint`.  This adds support for ignoring stuff from
- * messages (`<!--lint ignore-->`).
- * All rules are in their own packages and presets. */
+// `remark-lint`.  This adds support for ignoring stuff from messages
+// (`<!--lint ignore-->`).
+// All rules are in their own packages and presets.
 function lint() {
   this.use(lintMessageControl)
 }
@@ -35288,19 +35302,14 @@ function lintMessageControl() {
 "use strict";
 
 
-var control = __webpack_require__(307);
-var marker = __webpack_require__(308);
-var xtend = __webpack_require__(7);
+var control = __webpack_require__(307)
+var marker = __webpack_require__(308)
+var xtend = __webpack_require__(7)
 
-module.exports = messageControl;
+module.exports = messageControl
 
 function messageControl(options) {
-  var settings = options || {};
-
-  return control(xtend(options, {
-    marker: settings.marker || marker,
-    test: settings.test || 'html'
-  }));
+  return control(xtend({marker: marker, test: 'html'}, options))
 }
 
 
@@ -35622,106 +35631,64 @@ function detectGaps(tree, file) {
 "use strict";
 
 
-/* Expose. */
 module.exports = marker
 
-/* HTML type. */
-var T_HTML = 'html'
+var whiteSpaceExpression = /\s+/g
 
-/* Expression for eliminating extra spaces */
-var SPACES = /\s+/g
+var parametersExpression = /\s+([-a-z0-9_]+)(?:=(?:"((?:\\[\s\S]|[^"])+)"|'((?:\\[\s\S]|[^'])+)'|((?:\\[\s\S]|[^"'\s])+)))?/gi
 
-/* Expression for parsing parameters. */
-var PARAMETERS = new RegExp(
-  '\\s+' +
-    '(' +
-    '[-a-z0-9_]+' +
-    ')' +
-    '(?:' +
-    '=' +
-    '(?:' +
-    '"' +
-    '(' +
-    '(?:' +
-    '\\\\[\\s\\S]' +
-    '|' +
-    '[^"]' +
-    ')+' +
-    ')' +
-    '"' +
-    '|' +
-    "'" +
-    '(' +
-    '(?:' +
-    '\\\\[\\s\\S]' +
-    '|' +
-    "[^']" +
-    ')+' +
-    ')' +
-    "'" +
-    '|' +
-    '(' +
-    '(?:' +
-    '\\\\[\\s\\S]' +
-    '|' +
-    '[^"\'\\s]' +
-    ')+' +
-    ')' +
-    ')' +
-    ')?',
-  'gi'
+var commentExpression = /\s*([a-zA-Z0-9-]+)(\s+([\s\S]*))?\s*/
+
+var markerExpression = new RegExp(
+  '(\\s*<!--' + commentExpression.source + '-->\\s*)'
 )
 
-var MARKER = new RegExp(
-  '(' +
-    '\\s*' +
-    '<!--' +
-    '\\s*' +
-    '([a-zA-Z0-9-]+)' +
-    '(\\s+([\\s\\S]*?))?' +
-    '\\s*' +
-    '-->' +
-    '\\s*' +
-    ')'
-)
-
-/* Parse a comment marker */
+// Parse a comment marker.
 function marker(node) {
+  var type
   var value
   var match
   var params
 
-  if (!node || node.type !== T_HTML) {
+  if (!node) {
+    return null
+  }
+
+  type = node.type
+
+  if (type !== 'html' && type !== 'comment') {
     return null
   }
 
   value = node.value
-  match = value.match(MARKER)
+  match = value.match(type === 'comment' ? commentExpression : markerExpression)
 
-  if (!match || match[1].length !== value.length) {
+  if (!match || match[0].length !== value.length) {
     return null
   }
 
-  params = parameters(match[3] || '')
+  match = match.slice(node.type === 'comment' ? 1 : 2)
+
+  params = parameters(match[1] || '')
 
   if (!params) {
     return null
   }
 
   return {
-    name: match[2],
-    attributes: match[4] || '',
+    name: match[0],
+    attributes: match[2] || '',
     parameters: params,
     node: node
   }
 }
 
-/* Parse `value` into an object. */
+// Parse `value` into an object.
 function parameters(value) {
   var attributes = {}
-  var rest = value.replace(PARAMETERS, replacer)
+  var rest = value.replace(parametersExpression, replacer)
 
-  return rest.replace(SPACES, '') ? null : attributes
+  return rest.replace(whiteSpaceExpression, '') ? null : attributes
 
   /* eslint-disable max-params */
   function replacer($0, $1, $2, $3, $4) {
