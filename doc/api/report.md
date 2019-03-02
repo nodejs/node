@@ -23,7 +23,7 @@ is provided below for reference.
 {
   "header": {
     "event": "exception",
-    "location": "OnUncaughtException",
+    "trigger": "Exception",
     "filename": "report.20181221.005011.8974.001.json",
     "dumpEventTime": "2018-12-21T00:50:11Z",
     "dumpEventTimeStamp": "1545371411331",

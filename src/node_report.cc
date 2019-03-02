@@ -70,7 +70,7 @@ using v8::Value;
 static void WriteNodeReport(Isolate* isolate,
                             Environment* env,
                             const char* message,
-                            const char* location,
+                            const char* trigger,
                             const std::string& filename,
                             std::ostream& out,
                             Local<String> stackstr,
@@ -79,7 +79,7 @@ static void PrintVersionInformation(JSONWriter* writer);
 static void PrintJavaScriptStack(JSONWriter* writer,
                                  Isolate* isolate,
                                  Local<String> stackstr,
-                                 const char* location);
+                                 const char* trigger);
 static void PrintNativeStack(JSONWriter* writer);
 #ifndef _WIN32
 static void PrintResourceUsage(JSONWriter* writer);
@@ -100,7 +100,7 @@ static std::atomic_int seq = {0};  // sequence number for report filenames
 std::string TriggerNodeReport(Isolate* isolate,
                               Environment* env,
                               const char* message,
-                              const char* location,
+                              const char* trigger,
                               std::string name,
                               Local<String> stackstr) {
   std::ostringstream oss;
@@ -178,7 +178,7 @@ std::string TriggerNodeReport(Isolate* isolate,
               << "Writing Node.js report to file: " << filename << std::endl;
   }
 
-  WriteNodeReport(isolate, env, message, location, filename, *outstream,
+  WriteNodeReport(isolate, env, message, trigger, filename, *outstream,
                   stackstr, &tm_struct);
 
   // Do not close stdout/stderr, only close files we opened.
@@ -194,14 +194,14 @@ std::string TriggerNodeReport(Isolate* isolate,
 void GetNodeReport(Isolate* isolate,
                    Environment* env,
                    const char* message,
-                   const char* location,
+                   const char* trigger,
                    Local<String> stackstr,
                    std::ostream& out) {
   // Obtain the current time and the pid (platform dependent)
   TIME_TYPE tm_struct;
   LocalTime(&tm_struct);
   WriteNodeReport(
-      isolate, env, message, location, "", out, stackstr, &tm_struct);
+      isolate, env, message, trigger, "", out, stackstr, &tm_struct);
 }
 
 // Internal function to coordinate and write the various
@@ -209,7 +209,7 @@ void GetNodeReport(Isolate* isolate,
 static void WriteNodeReport(Isolate* isolate,
                             Environment* env,
                             const char* message,
-                            const char* location,
+                            const char* trigger,
                             const std::string& filename,
                             std::ostream& out,
                             Local<String> stackstr,
@@ -228,7 +228,7 @@ static void WriteNodeReport(Isolate* isolate,
   writer.json_objectstart("header");
 
   writer.json_keyvalue("event", message);
-  writer.json_keyvalue("location", location);
+  writer.json_keyvalue("trigger", trigger);
   if (!filename.empty())
     writer.json_keyvalue("filename", filename);
   else
@@ -280,7 +280,7 @@ static void WriteNodeReport(Isolate* isolate,
   writer.json_objectend();
 
   // Report summary JavaScript stack backtrace
-  PrintJavaScriptStack(&writer, isolate, stackstr, location);
+  PrintJavaScriptStack(&writer, isolate, stackstr, trigger);
 
   // Report native stack backtrace
   PrintNativeStack(&writer);
@@ -372,12 +372,12 @@ static void PrintVersionInformation(JSONWriter* writer) {
 static void PrintJavaScriptStack(JSONWriter* writer,
                                  Isolate* isolate,
                                  Local<String> stackstr,
-                                 const char* location) {
+                                 const char* trigger) {
   writer->json_objectstart("javascriptStack");
 
   std::string ss;
-  if ((!strcmp(location, "OnFatalError")) ||
-      (!strcmp(location, "Signal"))) {
+  if ((!strcmp(trigger, "FatalError")) ||
+      (!strcmp(trigger, "Signal"))) {
     ss = "No stack.\nUnavailable.\n";
   } else {
     String::Utf8Value sv(isolate, stackstr);

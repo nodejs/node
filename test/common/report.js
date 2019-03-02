@@ -58,7 +58,7 @@ function _validateContent(data) {
 
   // Verify the format of the header section.
   const header = report.header;
-  const headerFields = ['event', 'location', 'filename', 'dumpEventTime',
+  const headerFields = ['event', 'trigger', 'filename', 'dumpEventTime',
                         'dumpEventTimeStamp', 'processId', 'commandLine',
                         'nodejsVersion', 'wordSize', 'arch', 'platform',
                         'componentVersions', 'release', 'osName', 'osRelease',
@@ -66,7 +66,7 @@ function _validateContent(data) {
                         'glibcVersionCompiler'];
   checkForUnknownFields(header, headerFields);
   assert.strictEqual(typeof header.event, 'string');
-  assert.strictEqual(typeof header.location, 'string');
+  assert.strictEqual(typeof header.trigger, 'string');
   assert(typeof header.filename === 'string' || header.filename === null);
   assert.notStrictEqual(new Date(header.dumpEventTime).toString(),
                         'Invalid Date');
