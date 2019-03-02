@@ -1,4 +1,9 @@
 rules:
-  # Variables
-  # http://eslint.org/docs/rules/#variables
+  comma-dangle:
+    - error
+    - arrays: 'always-multiline'
+      objects: 'only-multiline'
+      imports: 'only-multiline'
+      exports: 'only-multiline'
   no-unused-vars: [error, { args: 'after-used' }]
+  prefer-arrow-callback: error
