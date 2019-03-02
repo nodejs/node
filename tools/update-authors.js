@@ -23,10 +23,10 @@ else
 
 output.write('# Authors ordered by first contribution.\n\n');
 
-let mailmap = new Map();
+const mailmap = new Map();
 {
   const lines = fs.readFileSync(path.resolve(__dirname, '../', '.mailmap'),
-                                  { encoding: 'utf8' }).split('\n');
+                                { encoding: 'utf8' }).split('\n');
   for (let line of lines) {
     line = line.trim();
     if (line.startsWith('#') || line === '') continue;
