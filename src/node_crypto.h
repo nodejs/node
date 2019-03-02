@@ -456,6 +456,7 @@ class KeyObject : public BaseObject {
   // only be used to implement cryptograohic operations requiring the key.
   ManagedEVPPKey GetAsymmetricKey() const;
   const char* GetSymmetricKey() const;
+  size_t GetAsymmetricKeySize() const;
   size_t GetSymmetricKeySize() const;
 
  protected:
@@ -469,6 +470,9 @@ class KeyObject : public BaseObject {
   static void GetAsymmetricKeyType(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   v8::Local<v8::String> GetAsymmetricKeyType() const;
+
+  static void GetAsymmetricKeySize(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void GetSymmetricKeySize(
       const v8::FunctionCallbackInfo<v8::Value>& args);

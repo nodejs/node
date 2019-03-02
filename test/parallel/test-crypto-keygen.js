@@ -108,10 +108,12 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   assert.strictEqual(typeof publicKey, 'object');
   assert.strictEqual(publicKey.type, 'public');
   assert.strictEqual(publicKey.asymmetricKeyType, 'rsa');
+  assert.strictEqual(publicKey.asymmetricKeySize, 64);
 
   assert.strictEqual(typeof privateKey, 'object');
   assert.strictEqual(privateKey.type, 'private');
   assert.strictEqual(privateKey.asymmetricKeyType, 'rsa');
+  assert.strictEqual(publicKey.asymmetricKeySize, 64);
 }
 
 {
@@ -453,6 +455,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     assert.strictEqual(typeof publicKey, 'object');
     assert.strictEqual(publicKey.type, 'public');
     assert.strictEqual(publicKey.asymmetricKeyType, 'rsa');
+    assert.strictEqual(publicKey.asymmetricKeySize, 128);
 
     // The private key should still be a string.
     assert.strictEqual(typeof privateKey, 'string');
@@ -477,6 +480,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     assert.strictEqual(typeof privateKey, 'object');
     assert.strictEqual(privateKey.type, 'private');
     assert.strictEqual(privateKey.asymmetricKeyType, 'rsa');
+    assert.strictEqual(privateKey.asymmetricKeySize, 128);
 
     testEncryptDecrypt(publicKey, privateKey);
     testSignVerify(publicKey, privateKey);
