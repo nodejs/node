@@ -10,7 +10,7 @@ const utils = require('./rules-utils.js');
 module.exports = {
   create(context) {
     const sourceCode = context.getSourceCode();
-    var assertImported = false;
+    let assertImported = false;
 
     function hasSameTokens(nodeA, nodeB) {
       const aTokens = sourceCode.getTokens(nodeA);
