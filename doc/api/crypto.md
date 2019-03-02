@@ -1121,6 +1121,15 @@ exposes different functions.
 Most applications should consider using the new `KeyObject` API instead of
 passing keys as strings or `Buffer`s due to improved security features.
 
+### keyObject.asymmetricKeySize
+<!-- YAML
+added: REPLACEME
+-->
+* {number}
+
+For asymmetric keys, this property represents the size of the embedded key in
+bytes. This property is `undefined` for symmetric keys.
+
 ### keyObject.asymmetricKeyType
 <!-- YAML
 added: v11.6.0
