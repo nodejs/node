@@ -41,7 +41,7 @@ let nodeVersion = null;
 let outputDir = null;
 let apilinks = {};
 
-args.forEach(function(arg) {
+args.forEach((arg) => {
   if (!arg.startsWith('--')) {
     filename = arg;
   } else if (arg.startsWith('--node-version=')) {

@@ -14,7 +14,7 @@ const args = {
   description: cli.description,
   version: [
     proc.name + ': ' + proc.version,
-    cli.name + ': ' + cli.version
+    cli.name + ': ' + cli.version,
   ].join(', '),
   ignoreName: '.' + proc.name + 'ignore',
   extensions: extensions
@@ -23,7 +23,7 @@ const config = options(process.argv.slice(2), args);
 config.detectConfig = false;
 config.plugins = plugins;
 
-engine(config, function done(err, code) {
+engine(config, (err, code) => {
   if (err) console.error(err);
   process.exit(code);
 });
