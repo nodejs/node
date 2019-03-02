@@ -318,7 +318,7 @@ void OnFatalError(const char* location, const char* message) {
   Environment* env = Environment::GetCurrent(isolate);
   if (env == nullptr || env->isolate_data()->options()->report_on_fatalerror) {
     report::TriggerNodeReport(
-        isolate, env, message, __func__, "", Local<String>());
+        isolate, env, message, "FatalError", "", Local<String>());
   }
 #endif  // NODE_REPORT
   fflush(stderr);
