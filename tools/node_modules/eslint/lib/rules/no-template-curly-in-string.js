@@ -23,7 +23,7 @@ module.exports = {
     },
 
     create(context) {
-        const regex = /\$\{[^}]+\}/;
+        const regex = /\$\{[^}]+\}/u;
 
         return {
             Literal(node) {

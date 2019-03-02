@@ -57,7 +57,7 @@ module.exports = {
         // Helpers
         //--------------------------------------------------------------------------
 
-        const SINGLE_CHILD_ALLOWED = /^(?:(?:DoWhile|For|ForIn|ForOf|If|Labeled|While)Statement|Export(?:Default|Named)Declaration)$/;
+        const SINGLE_CHILD_ALLOWED = /^(?:(?:DoWhile|For|ForIn|ForOf|If|Labeled|While)Statement|Export(?:Default|Named)Declaration)$/u;
 
         /**
          * Reports with the first extra statement, and clears it.

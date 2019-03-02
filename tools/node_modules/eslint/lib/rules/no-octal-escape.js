@@ -32,7 +32,7 @@ module.exports = {
                     return;
                 }
 
-                const match = node.raw.match(/^([^\\]|\\[^0-7])*\\([0-3][0-7]{1,2}|[4-7][0-7]|[0-7])/);
+                const match = node.raw.match(/^([^\\]|\\[^0-7])*\\([0-3][0-7]{1,2}|[4-7][0-7]|[0-7])/u);
 
                 if (match) {
                     const octalDigit = match[2];

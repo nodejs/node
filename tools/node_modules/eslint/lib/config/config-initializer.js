@@ -152,7 +152,7 @@ function configureRules(answers, config) {
     bar.tick(0); // Shows the progress bar
 
     // Get the SourceCode of all chosen files
-    const patterns = answers.patterns.split(/[\s]+/);
+    const patterns = answers.patterns.split(/[\s]+/u);
 
     try {
         sourceCodes = getSourceCodeOfFiles(patterns, { baseConfig: newConfig, useEslintrc: false }, total => {

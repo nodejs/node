@@ -14,7 +14,7 @@ const astUtils = require("../util/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
-const validIdentifier = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
+const validIdentifier = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/u;
 const keywords = require("../util/keywords");
 
 module.exports = {
@@ -61,7 +61,7 @@ module.exports = {
         let allowPattern;
 
         if (options.allowPattern) {
-            allowPattern = new RegExp(options.allowPattern);
+            allowPattern = new RegExp(options.allowPattern); // eslint-disable-line require-unicode-regexp
         }
 
         /**

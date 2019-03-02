@@ -52,7 +52,7 @@ module.exports = {
             }
             return commentGroup[0].value
                 .split(astUtils.LINEBREAK_MATCHER)
-                .map(line => line.replace(/^\s*\*?/, ""));
+                .map(line => line.replace(/^\s*\*?/u, ""));
         }
 
         /**
@@ -103,9 +103,9 @@ module.exports = {
             const lines = commentGroup[0].value.split(astUtils.LINEBREAK_MATCHER);
 
             return commentGroup[0].type === "Block" &&
-                /^\*\s*$/.test(lines[0]) &&
-                lines.slice(1, -1).every(line => /^\s* /.test(line)) &&
-                /^\s*$/.test(lines[lines.length - 1]);
+                /^\*\s*$/u.test(lines[0]) &&
+                lines.slice(1, -1).every(line => /^\s* /u.test(line)) &&
+                /^\s*$/u.test(lines[lines.length - 1]);
         }
 
         /**
@@ -143,7 +143,7 @@ module.exports = {
                     const lines = block.value.split(astUtils.LINEBREAK_MATCHER);
                     const expectedLinePrefix = `${sourceCode.text.slice(block.range[0] - block.loc.start.column, block.range[0])} *`;
 
-                    if (!/^\*?\s*$/.test(lines[0])) {
+                    if (!/^\*?\s*$/u.test(lines[0])) {
                         const start = block.value.startsWith("*") ? block.range[0] + 1 : block.range[0];
 
                         context.report({
@@ -156,7 +156,7 @@ module.exports = {
                         });
                     }
 
-                    if (!/^\s*$/.test(lines[lines.length - 1])) {
+                    if (!/^\s*$/u.test(lines[lines.length - 1])) {
                         context.report({
                             loc: {
                                 start: { line: block.loc.end.line, column: block.loc.end.column - 2 },
@@ -176,12 +176,12 @@ module.exports = {
                                     start: { line: lineNumber, column: 0 },
                                     end: { line: lineNumber, column: sourceCode.lines[lineNumber - 1].length }
                                 },
-                                messageId: /^\s*\*/.test(lineText)
+                                messageId: /^\s*\*/u.test(lineText)
                                     ? "alignment"
                                     : "missingStar",
                                 fix(fixer) {
                                     const lineStartIndex = sourceCode.getIndexFromLoc({ line: lineNumber, column: 0 });
-                                    const linePrefixLength = lineText.match(/^\s*\*? ?/)[0].length;
+                                    const linePrefixLength = lineText.match(/^\s*\*? ?/u)[0].length;
                                     const commentStartIndex = lineStartIndex + linePrefixLength;
 
                                     const replacementText = lineNumber === block.loc.end.line || lineText.length === linePrefixLength
@@ -244,7 +244,7 @@ module.exports = {
                         const block = commentGroup[0];
                         const lines = block.value.split(astUtils.LINEBREAK_MATCHER).filter(line => line.trim());
 
-                        if (lines.length > 0 && lines.every(line => /^\s*\*/.test(line))) {
+                        if (lines.length > 0 && lines.every(line => /^\s*\*/u.test(line))) {
                             context.report({
                                 loc: {
                                     start: block.loc.start,

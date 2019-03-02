@@ -35,7 +35,7 @@ module.exports = {
                 const objectName = node.object.name,
                     propertyName = node.property.name;
 
-                if (objectName === "arguments" && !node.computed && propertyName && propertyName.match(/^calle[er]$/)) {
+                if (objectName === "arguments" && !node.computed && propertyName && propertyName.match(/^calle[er]$/u)) {
                     context.report({ node, messageId: "unexpected", data: { prop: propertyName } });
                 }
 

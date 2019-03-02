@@ -34,7 +34,7 @@ const DEFAULT_GROUPS = [
     LOGICAL_OPERATORS,
     RELATIONAL_OPERATORS
 ];
-const TARGET_NODE_TYPE = /^(?:Binary|Logical)Expression$/;
+const TARGET_NODE_TYPE = /^(?:Binary|Logical)Expression$/u;
 
 /**
  * Normalizes options.

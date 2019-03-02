@@ -53,7 +53,7 @@ module.exports = {
         // Options
         //--------------------------------------------------------------------------
         const pattern = context.options[0] || "^.+$",
-            regexp = new RegExp(pattern);
+            regexp = new RegExp(pattern); // eslint-disable-line require-unicode-regexp
 
         const options = context.options[1] || {},
             properties = !!options.properties,

@@ -89,7 +89,7 @@ function mergeDefaultOptions(options) {
  */
 const normalizePathSeps = path.sep === "/"
     ? (str => str)
-    : ((seps, str) => str.replace(seps, "/")).bind(null, new RegExp(`\\${path.sep}`, "g"));
+    : ((seps, str) => str.replace(seps, "/")).bind(null, new RegExp(`\\${path.sep}`, "gu"));
 /* eslint-enable valid-jsdoc */
 
 /**
@@ -104,7 +104,7 @@ function relativize(globPattern, relativePathToOldBaseDir) {
     }
 
     const prefix = globPattern.startsWith("!") ? "!" : "";
-    const globWithoutPrefix = globPattern.replace(/^!/, "");
+    const globWithoutPrefix = globPattern.replace(/^!/u, "");
 
     if (globWithoutPrefix.startsWith("/")) {
         return `${prefix}/${normalizePathSeps(relativePathToOldBaseDir)}${globWithoutPrefix}`;
@@ -284,7 +284,7 @@ class IgnoredPaths {
             }
 
             // If it's only Windows drive letter, it needs \
-            if (/^[A-Z]:$/.test(this._baseDir)) {
+            if (/^[A-Z]:$/u.test(this._baseDir)) {
                 this._baseDir += "\\";
             }
 
@@ -300,7 +300,7 @@ class IgnoredPaths {
      */
     readIgnoreFile(filePath) {
         if (typeof this.cache[filePath] === "undefined") {
-            this.cache[filePath] = fs.readFileSync(filePath, "utf8").split(/\r?\n/g).filter(Boolean);
+            this.cache[filePath] = fs.readFileSync(filePath, "utf8").split(/\r?\n/gu).filter(Boolean);
         }
         return this.cache[filePath];
     }

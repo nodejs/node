@@ -52,7 +52,7 @@ function processPath(options) {
     const cwd = (options && options.cwd) || process.cwd();
     let extensions = (options && options.extensions) || [".js"];
 
-    extensions = extensions.map(ext => ext.replace(/^\./, ""));
+    extensions = extensions.map(ext => ext.replace(/^\./u, ""));
 
     let suffix = "/**";
 
@@ -74,7 +74,7 @@ function processPath(options) {
         const resolvedPath = path.resolve(cwd, pathname);
 
         if (directoryExists(resolvedPath)) {
-            newPath = pathname.replace(/[/\\]$/, "") + suffix;
+            newPath = pathname.replace(/[/\\]$/u, "") + suffix;
         }
 
         return pathUtils.convertPathToPosix(newPath);
@@ -169,7 +169,7 @@ function resolveFileGlobPatterns(patterns, options) {
     return patterns.map(processPathExtensions);
 }
 
-const dotfilesPattern = /(?:(?:^\.)|(?:[/\\]\.))[^/\\.].*/;
+const dotfilesPattern = /(?:(?:^\.)|(?:[/\\]\.))[^/\\.].*/u;
 
 /**
  * Build a list of absolute filesnames on which ESLint will act.

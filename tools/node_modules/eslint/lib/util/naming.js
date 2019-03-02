@@ -13,7 +13,7 @@ const pathUtils = require("../util/path-utils");
 // Private
 //------------------------------------------------------------------------------
 
-const NAMESPACE_REGEX = /^@.*\//i;
+const NAMESPACE_REGEX = /^@.*\//iu;
 
 /**
  * Brings package name to correct format based on prefix
@@ -40,8 +40,8 @@ function normalizePackageName(name, prefix) {
          * it's a scoped package
          * package name is the prefix, or just a username
          */
-        const scopedPackageShortcutRegex = new RegExp(`^(@[^/]+)(?:/(?:${prefix})?)?$`),
-            scopedPackageNameRegex = new RegExp(`^${prefix}(-|$)`);
+        const scopedPackageShortcutRegex = new RegExp(`^(@[^/]+)(?:/(?:${prefix})?)?$`, "u"),
+            scopedPackageNameRegex = new RegExp(`^${prefix}(-|$)`, "u");
 
         if (scopedPackageShortcutRegex.test(normalizedName)) {
             normalizedName = normalizedName.replace(scopedPackageShortcutRegex, `$1/${prefix}`);
@@ -51,7 +51,7 @@ function normalizePackageName(name, prefix) {
              * for scoped packages, insert the prefix after the first / unless
              * the path is already @scope/eslint or @scope/eslint-xxx-yyy
              */
-            normalizedName = normalizedName.replace(/^@([^/]+)\/(.*)$/, `@$1/${prefix}-$2`);
+            normalizedName = normalizedName.replace(/^@([^/]+)\/(.*)$/u, `@$1/${prefix}-$2`);
         }
     } else if (normalizedName.indexOf(`${prefix}-`) !== 0) {
         normalizedName = `${prefix}-${normalizedName}`;
@@ -68,13 +68,13 @@ function normalizePackageName(name, prefix) {
  */
 function getShorthandName(fullname, prefix) {
     if (fullname[0] === "@") {
-        let matchResult = new RegExp(`^(@[^/]+)/${prefix}$`).exec(fullname);
+        let matchResult = new RegExp(`^(@[^/]+)/${prefix}$`, "u").exec(fullname);
 
         if (matchResult) {
             return matchResult[1];
         }
 
-        matchResult = new RegExp(`^(@[^/]+)/${prefix}-(.+)$`).exec(fullname);
+        matchResult = new RegExp(`^(@[^/]+)/${prefix}-(.+)$`, "u").exec(fullname);
         if (matchResult) {
             return `${matchResult[1]}/${matchResult[2]}`;
         }

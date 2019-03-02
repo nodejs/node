@@ -16,11 +16,11 @@ const Traverser = require("../util/traverser"),
 // Helpers
 //------------------------------------------------------------------------------
 
-const SENTINEL_PATTERN = /(?:(?:Call|Class|Function|Member|New|Yield)Expression|Statement|Declaration)$/;
-const LOOP_PATTERN = /^(?:DoWhile|For|While)Statement$/; // for-in/of statements don't have `test` property.
-const GROUP_PATTERN = /^(?:BinaryExpression|ConditionalExpression)$/;
-const SKIP_PATTERN = /^(?:ArrowFunction|Class|Function)Expression$/;
-const DYNAMIC_PATTERN = /^(?:Call|Member|New|TaggedTemplate|Yield)Expression$/;
+const SENTINEL_PATTERN = /(?:(?:Call|Class|Function|Member|New|Yield)Expression|Statement|Declaration)$/u;
+const LOOP_PATTERN = /^(?:DoWhile|For|While)Statement$/u; // for-in/of statements don't have `test` property.
+const GROUP_PATTERN = /^(?:BinaryExpression|ConditionalExpression)$/u;
+const SKIP_PATTERN = /^(?:ArrowFunction|Class|Function)Expression$/u;
+const DYNAMIC_PATTERN = /^(?:Call|Member|New|TaggedTemplate|Yield)Expression$/u;
 
 /**
  * @typedef {Object} LoopConditionInfo

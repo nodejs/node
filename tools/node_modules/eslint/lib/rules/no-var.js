@@ -77,7 +77,7 @@ function isDeclarationInitialized(node) {
     return node.declarations.every(declarator => declarator.init !== null);
 }
 
-const SCOPE_NODE_TYPE = /^(?:Program|BlockStatement|SwitchStatement|ForStatement|ForInStatement|ForOfStatement)$/;
+const SCOPE_NODE_TYPE = /^(?:Program|BlockStatement|SwitchStatement|ForStatement|ForInStatement|ForOfStatement)$/u;
 
 /**
  * Gets the scope node which directly contains a given node.

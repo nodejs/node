@@ -84,7 +84,7 @@ class Plugins {
         const shortName = naming.getShorthandName(longName, "eslint-plugin");
         let plugin = null;
 
-        if (pluginName.match(/\s+/)) {
+        if (pluginName.match(/\s+/u)) {
             const whitespaceError = new Error(`Whitespace found in plugin name '${pluginName}'`);
 
             whitespaceError.messageTemplate = "whitespace-found";

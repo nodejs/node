@@ -82,7 +82,7 @@ module.exports = {
                      * after the if block
                      */
                     const ifBlockMaybeUnsafe = node.parent.consequent.type !== "BlockStatement" && lastIfToken.value !== ";";
-                    const elseBlockUnsafe = /^[([/+`-]/.test(firstTokenOfElseBlock.value);
+                    const elseBlockUnsafe = /^[([/+`-]/u.test(firstTokenOfElseBlock.value);
 
                     if (ifBlockMaybeUnsafe && elseBlockUnsafe) {
                         return null;
@@ -94,7 +94,7 @@ module.exports = {
                     if (lastTokenOfElseBlock.value !== ";") {
                         const nextToken = sourceCode.getTokenAfter(endToken);
 
-                        const nextTokenUnsafe = nextToken && /^[([/+`-]/.test(nextToken.value);
+                        const nextTokenUnsafe = nextToken && /^[([/+`-]/u.test(nextToken.value);
                         const nextTokenOnSameLine = nextToken && nextToken.loc.start.line === lastTokenOfElseBlock.loc.start.line;
 
                         /*

@@ -75,8 +75,7 @@ module.exports = {
                             type: "object",
                             properties: {
                                 ignoreForLoopInit: {
-                                    type: "boolean",
-                                    default: false
+                                    type: "boolean"
                                 }
                             },
                             additionalProperties: false

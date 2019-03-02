@@ -14,7 +14,7 @@ const astUtils = require("../util/ast-utils");
 // Helpers
 //------------------------------------------------------------------------------
 
-const SENTINEL_TYPE = /^(?:[a-zA-Z]+?Statement|ArrowFunctionExpression|FunctionExpression|ClassExpression)$/;
+const SENTINEL_TYPE = /^(?:[a-zA-Z]+?Statement|ArrowFunctionExpression|FunctionExpression|ClassExpression)$/u;
 
 //------------------------------------------------------------------------------
 // Rule Definition

@@ -36,16 +36,13 @@ module.exports = {
                                 default: false
                             },
                             var: {
-                                enum: ["always", "never", "consecutive"],
-                                default: "always"
+                                enum: ["always", "never", "consecutive"]
                             },
                             let: {
-                                enum: ["always", "never", "consecutive"],
-                                default: "always"
+                                enum: ["always", "never", "consecutive"]
                             },
                             const: {
-                                enum: ["always", "never", "consecutive"],
-                                default: "always"
+                                enum: ["always", "never", "consecutive"]
                             }
                         },
                         additionalProperties: false

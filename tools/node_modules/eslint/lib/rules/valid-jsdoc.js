@@ -300,7 +300,7 @@ module.exports = {
                     });
                 } catch (ex) {
 
-                    if (/braces/i.test(ex.message)) {
+                    if (/braces/iu.test(ex.message)) {
                         context.report({ node: jsdocNode, messageId: "missingBrace" });
                     } else {
                         context.report({ node: jsdocNode, messageId: "syntaxError" });
@@ -482,7 +482,7 @@ module.exports = {
                 }
 
                 if (options.matchDescription) {
-                    const regex = new RegExp(options.matchDescription);
+                    const regex = new RegExp(options.matchDescription); // eslint-disable-line require-unicode-regexp
 
                     if (!regex.test(jsdoc.description)) {
                         context.report({ node: jsdocNode, messageId: "unsatisfiedDesc" });

@@ -103,7 +103,7 @@ module.exports = {
          *   too many false positives
          * - We don't care about matching the entire URL, any small segment is fine
          */
-        const URL_REGEXP = /[^:/?#]:\/\/[^?#]/;
+        const URL_REGEXP = /[^:/?#]:\/\/[^?#]/u;
 
         const sourceCode = context.getSourceCode();
 
@@ -118,7 +118,7 @@ module.exports = {
         function computeLineLength(line, tabWidth) {
             let extraCharacterCount = 0;
 
-            line.replace(/\t/g, (match, offset) => {
+            line.replace(/\t/gu, (match, offset) => {
                 const totalOffset = offset + extraCharacterCount,
                     previousTabStopOffset = tabWidth ? totalOffset % tabWidth : 0,
                     spaceCount = tabWidth - previousTabStopOffset;
@@ -153,7 +153,7 @@ module.exports = {
         let ignorePattern = options.ignorePattern || null;
 
         if (ignorePattern) {
-            ignorePattern = new RegExp(ignorePattern);
+            ignorePattern = new RegExp(ignorePattern); // eslint-disable-line require-unicode-regexp
         }
 
         //--------------------------------------------------------------------------
@@ -201,7 +201,7 @@ module.exports = {
         function stripTrailingComment(line, comment) {
 
             // loc.column is zero-indexed
-            return line.slice(0, comment.loc.start.column).replace(/\s+$/, "");
+            return line.slice(0, comment.loc.start.column).replace(/\s+$/u, "");
         }
 
         /**

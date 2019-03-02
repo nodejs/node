@@ -32,8 +32,7 @@ module.exports = {
                     type: "array",
                     items: [
                         {
-                            enum: ["always", "as-needed", "consistent", "consistent-as-needed"],
-                            default: "always"
+                            enum: ["always", "as-needed", "consistent", "consistent-as-needed"]
                         }
                     ],
                     minItems: 0,
@@ -43,23 +42,19 @@ module.exports = {
                     type: "array",
                     items: [
                         {
-                            enum: ["always", "as-needed", "consistent", "consistent-as-needed"],
-                            default: "always"
+                            enum: ["always", "as-needed", "consistent", "consistent-as-needed"]
                         },
                         {
                             type: "object",
                             properties: {
                                 keywords: {
-                                    type: "boolean",
-                                    default: false
+                                    type: "boolean"
                                 },
                                 unnecessary: {
-                                    type: "boolean",
-                                    default: true
+                                    type: "boolean"
                                 },
                                 numbers: {
-                                    type: "boolean",
-                                    default: false
+                                    type: "boolean"
                                 }
                             },
                             additionalProperties: false

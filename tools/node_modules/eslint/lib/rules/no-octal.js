@@ -28,7 +28,7 @@ module.exports = {
         return {
 
             Literal(node) {
-                if (typeof node.value === "number" && /^0[0-7]/.test(node.raw)) {
+                if (typeof node.value === "number" && /^0[0-7]/u.test(node.raw)) {
                     context.report({ node, message: "Octal literals should not be used." });
                 }
             }

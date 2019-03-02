@@ -8,7 +8,7 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-const stopNodePattern = /(?:Statement|Declaration|Function(?:Expression)?|Program)$/;
+const stopNodePattern = /(?:Statement|Declaration|Function(?:Expression)?|Program)$/u;
 
 module.exports = {
     meta: {

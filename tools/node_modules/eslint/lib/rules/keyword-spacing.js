@@ -16,13 +16,13 @@ const astUtils = require("../util/ast-utils"),
 // Constants
 //------------------------------------------------------------------------------
 
-const PREV_TOKEN = /^[)\]}>]$/;
-const NEXT_TOKEN = /^(?:[([{<~!]|\+\+?|--?)$/;
-const PREV_TOKEN_M = /^[)\]}>*]$/;
-const NEXT_TOKEN_M = /^[{*]$/;
-const TEMPLATE_OPEN_PAREN = /\$\{$/;
-const TEMPLATE_CLOSE_PAREN = /^\}/;
-const CHECK_TYPE = /^(?:JSXElement|RegularExpression|String|Template)$/;
+const PREV_TOKEN = /^[)\]}>]$/u;
+const NEXT_TOKEN = /^(?:[([{<~!]|\+\+?|--?)$/u;
+const PREV_TOKEN_M = /^[)\]}>*]$/u;
+const NEXT_TOKEN_M = /^[{*]$/u;
+const TEMPLATE_OPEN_PAREN = /\$\{$/u;
+const TEMPLATE_CLOSE_PAREN = /^\}/u;
+const CHECK_TYPE = /^(?:JSXElement|RegularExpression|String|Template)$/u;
 const KEYS = keywords.concat(["as", "async", "await", "from", "get", "let", "of", "set", "yield"]);
 
 // check duplications.

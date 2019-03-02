@@ -57,8 +57,7 @@ module.exports = {
                             type: "object",
                             properties: {
                                 avoidQuotes: {
-                                    type: "boolean",
-                                    default: false
+                                    type: "boolean"
                                 }
                             },
                             additionalProperties: false
@@ -77,16 +76,13 @@ module.exports = {
                             type: "object",
                             properties: {
                                 ignoreConstructors: {
-                                    type: "boolean",
-                                    default: false
+                                    type: "boolean"
                                 },
                                 avoidQuotes: {
-                                    type: "boolean",
-                                    default: false
+                                    type: "boolean"
                                 },
                                 avoidExplicitReturnArrows: {
-                                    type: "boolean",
-                                    default: false
+                                    type: "boolean"
                                 }
                             },
                             additionalProperties: false

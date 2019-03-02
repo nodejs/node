@@ -39,7 +39,7 @@ module.exports = {
          * @private
          */
         function checkRegex(node, value, valueStart) {
-            const multipleSpacesRegex = /( {2,})( [+*{?]|[^+*{?]|$)/,
+            const multipleSpacesRegex = /( {2,})( [+*{?]|[^+*{?]|$)/u,
                 regexResults = multipleSpacesRegex.exec(value);
 
             if (regexResults !== null) {

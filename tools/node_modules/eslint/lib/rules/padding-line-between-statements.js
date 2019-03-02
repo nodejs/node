@@ -17,10 +17,11 @@ const astUtils = require("../util/ast-utils");
 
 const LT = `[${Array.from(astUtils.LINEBREAKS).join("")}]`;
 const PADDING_LINE_SEQUENCE = new RegExp(
-    String.raw`^(\s*?${LT})\s*${LT}(\s*;?)$`
+    String.raw`^(\s*?${LT})\s*${LT}(\s*;?)$`,
+    "u"
 );
-const CJS_EXPORT = /^(?:module\s*\.\s*)?exports(?:\s*\.|\s*\[|$)/;
-const CJS_IMPORT = /^require\(/;
+const CJS_EXPORT = /^(?:module\s*\.\s*)?exports(?:\s*\.|\s*\[|$)/u;
+const CJS_IMPORT = /^require\(/u;
 
 /**
  * Creates tester which check if a node starts with specific keyword.

@@ -30,7 +30,7 @@ module.exports = {
 
         return {
             BinaryExpression(node) {
-                if (/^(?:[<>]|[!=]=)=?$/.test(node.operator) && (node.left.name === "NaN" || node.right.name === "NaN")) {
+                if (/^(?:[<>]|[!=]=)=?$/u.test(node.operator) && (node.left.name === "NaN" || node.right.name === "NaN")) {
                     context.report({ node, messageId: "useIsNaN" });
                 }
             }

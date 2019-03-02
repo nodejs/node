@@ -26,16 +26,14 @@ const OPTION_VALUE = {
             type: "object",
             properties: {
                 multiline: {
-                    type: "boolean",
-                    default: false
+                    type: "boolean"
                 },
                 minProperties: {
                     type: "integer",
                     minimum: 0
                 },
                 consistent: {
-                    type: "boolean",
-                    default: false
+                    type: "boolean"
                 }
             },
             additionalProperties: false,
@@ -61,9 +59,9 @@ function normalizeOptionValue(value) {
         } else if (value === "never") {
             minProperties = Number.POSITIVE_INFINITY;
         } else {
-            multiline = value.multiline;
+            multiline = Boolean(value.multiline);
             minProperties = value.minProperties || Number.POSITIVE_INFINITY;
-            consistent = value.consistent;
+            consistent = Boolean(value.consistent);
         }
     } else {
         consistent = true;

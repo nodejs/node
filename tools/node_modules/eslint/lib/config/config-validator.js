@@ -76,7 +76,7 @@ function validateRuleSeverity(options) {
         return normSeverity;
     }
 
-    throw new Error(`\tSeverity should be one of the following: 0 = off, 1 = warn, 2 = error (you passed '${util.inspect(severity).replace(/'/g, "\"").replace(/\n/g, "")}').\n`);
+    throw new Error(`\tSeverity should be one of the following: 0 = off, 1 = warn, 2 = error (you passed '${util.inspect(severity).replace(/'/gu, "\"").replace(/\n/gu, "")}').\n`);
 
 }
 

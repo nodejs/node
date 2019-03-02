@@ -187,7 +187,7 @@ module.exports = {
                 }
 
                 if (skipBlankLines) {
-                    if (line.match(/^\s*$/)) {
+                    if (line.match(/^\s*$/u)) {
                         continue;
                     }
                 }

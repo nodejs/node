@@ -61,7 +61,7 @@ const resolver = new ModuleResolver();
  * @private
  */
 function readFile(filePath) {
-    return fs.readFileSync(filePath, "utf8").replace(/^\ufeff/, "");
+    return fs.readFileSync(filePath, "utf8").replace(/^\ufeff/u, "");
 }
 
 /**
@@ -73,7 +73,7 @@ function readFile(filePath) {
  * @private
  */
 function isFilePath(filePath) {
-    return path.isAbsolute(filePath) || !/\w|@/.test(filePath.charAt(0));
+    return path.isAbsolute(filePath) || !/\w|@/u.test(filePath.charAt(0));
 }
 
 /**

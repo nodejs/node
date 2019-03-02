@@ -22,7 +22,7 @@ const path = require("path");
  */
 function convertPathToPosix(filepath) {
     const normalizedFilepath = path.normalize(filepath);
-    const posixFilepath = normalizedFilepath.replace(/\\/g, "/");
+    const posixFilepath = normalizedFilepath.replace(/\\/gu, "/");
 
     return posixFilepath;
 }
@@ -58,7 +58,7 @@ function getRelativePath(filepath, baseDir) {
         }
         return path.relative(baseDir, absolutePath);
     }
-    return absolutePath.replace(/^\//, "");
+    return absolutePath.replace(/^\//u, "");
 
 }
 

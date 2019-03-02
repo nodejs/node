@@ -15,7 +15,7 @@ module.exports = (text, data) => {
     }
 
     // Substitution content for any {{ }} markers.
-    return text.replace(/\{\{([^{}]+?)\}\}/g, (fullMatch, termWithWhitespace) => {
+    return text.replace(/\{\{([^{}]+?)\}\}/gu, (fullMatch, termWithWhitespace) => {
         const term = termWithWhitespace.trim();
 
         if (term in data) {

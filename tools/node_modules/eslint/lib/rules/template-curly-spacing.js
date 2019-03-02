@@ -15,8 +15,8 @@ const astUtils = require("../util/ast-utils");
 // Helpers
 //------------------------------------------------------------------------------
 
-const OPEN_PAREN = /\$\{$/;
-const CLOSE_PAREN = /^\}/;
+const OPEN_PAREN = /\$\{$/u;
+const CLOSE_PAREN = /^\}/u;
 
 //------------------------------------------------------------------------------
 // Rule Definition

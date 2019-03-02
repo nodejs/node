@@ -117,7 +117,7 @@ module.exports = {
          * @returns {void}
          */
         function blockScopeVarCheck(node, parent, grandParent) {
-            if (!(/Function/.test(grandParent.type) &&
+            if (!(/Function/u.test(grandParent.type) &&
                     parent.type === "BlockStatement" &&
                     isVarOnTop(node, parent.body))) {
                 context.report({ node, messageId: "top" });

@@ -11,7 +11,7 @@ const astUtils = require("../util/ast-utils");
 // Helpers
 //------------------------------------------------------------------------------
 
-const INDEX_OF_PATTERN = /^(?:i|lastI)ndexOf$/;
+const INDEX_OF_PATTERN = /^(?:i|lastI)ndexOf$/u;
 const ALLOWABLE_OPERATORS = ["~", "!!", "+", "*"];
 
 /**

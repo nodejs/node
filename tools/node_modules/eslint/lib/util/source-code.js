@@ -357,7 +357,7 @@ class SourceCode extends TokenStore {
                 if (parent.type !== "CallExpression" && parent.type !== "NewExpression") {
                     while (
                         !this.getCommentsBefore(parent).length &&
-                        !/Function/.test(parent.type) &&
+                        !/Function/u.test(parent.type) &&
                         parent.type !== "MethodDefinition" &&
                         parent.type !== "Property"
                     ) {
@@ -422,7 +422,7 @@ class SourceCode extends TokenStore {
     isSpaceBetweenTokens(first, second) {
         const text = this.text.slice(first.range[1], second.range[0]);
 
-        return /\s/.test(text.replace(/\/\*.*?\*\//g, ""));
+        return /\s/u.test(text.replace(/\/\*.*?\*\//gu, ""));
     }
 
     /**

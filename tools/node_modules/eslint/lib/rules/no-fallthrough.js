@@ -14,7 +14,7 @@ const lodash = require("lodash");
 // Helpers
 //------------------------------------------------------------------------------
 
-const DEFAULT_FALLTHROUGH_COMMENT = /falls?\s?through/i;
+const DEFAULT_FALLTHROUGH_COMMENT = /falls?\s?through/iu;
 
 /**
  * Checks whether or not a given node has a fallthrough comment.
@@ -95,7 +95,7 @@ module.exports = {
         let fallthroughCommentPattern = null;
 
         if (options.commentPattern) {
-            fallthroughCommentPattern = new RegExp(options.commentPattern);
+            fallthroughCommentPattern = new RegExp(options.commentPattern); // eslint-disable-line require-unicode-regexp
         } else {
             fallthroughCommentPattern = DEFAULT_FALLTHROUGH_COMMENT;
         }

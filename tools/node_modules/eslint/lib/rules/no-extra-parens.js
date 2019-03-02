@@ -44,11 +44,11 @@ module.exports = {
                         {
                             type: "object",
                             properties: {
-                                conditionalAssign: { type: "boolean", default: true },
-                                nestedBinaryExpressions: { type: "boolean", default: true },
-                                returnAssign: { type: "boolean", default: true },
+                                conditionalAssign: { type: "boolean" },
+                                nestedBinaryExpressions: { type: "boolean" },
+                                returnAssign: { type: "boolean" },
                                 ignoreJSX: { enum: ["none", "all", "single-line", "multi-line"] },
-                                enforceForArrowConditionals: { type: "boolean", default: true }
+                                enforceForArrowConditionals: { type: "boolean" }
                             },
                             additionalProperties: false
                         }
@@ -471,6 +471,7 @@ module.exports = {
             const firstToken = isParenthesised(node) ? sourceCode.getTokenBefore(node) : sourceCode.getFirstToken(node);
             const secondToken = sourceCode.getTokenAfter(firstToken, astUtils.isNotOpeningParenToken);
             const thirdToken = secondToken ? sourceCode.getTokenAfter(secondToken) : null;
+            const tokenAfterClosingParens = secondToken ? sourceCode.getTokenAfter(secondToken, astUtils.isNotClosingParenToken) : null;
 
             if (
                 astUtils.isOpeningParenToken(firstToken) &&
@@ -479,7 +480,12 @@ module.exports = {
                     secondToken.type === "Keyword" && (
                         secondToken.value === "function" ||
                         secondToken.value === "class" ||
-                        secondToken.value === "let" && astUtils.isOpeningBracketToken(sourceCode.getTokenAfter(secondToken, astUtils.isNotClosingParenToken))
+                        secondToken.value === "let" &&
+                            tokenAfterClosingParens &&
+                            (
+                                astUtils.isOpeningBracketToken(tokenAfterClosingParens) ||
+                                tokenAfterClosingParens.type === "Identifier"
+                            )
                     ) ||
                     secondToken && secondToken.type === "Identifier" && secondToken.value === "async" && thirdToken && thirdToken.type === "Keyword" && thirdToken.value === "function"
                 )

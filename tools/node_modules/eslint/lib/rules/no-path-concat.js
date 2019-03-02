@@ -24,7 +24,7 @@ module.exports = {
 
     create(context) {
 
-        const MATCHER = /^__(?:dir|file)name$/;
+        const MATCHER = /^__(?:dir|file)name$/u;
 
         //--------------------------------------------------------------------------
         // Public
