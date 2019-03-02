@@ -71,11 +71,9 @@ module.exports = function(context) {
     'Program:exit'(node) {
       if (foundModules.length < requiredModules.length) {
         var missingModules = requiredModules.filter(
-          function(module) {
-            return foundModules.indexOf(module) === -1;
-          }
+          (module) => foundModules.indexOf(module) === -1
         );
-        missingModules.forEach(function(moduleName) {
+        missingModules.forEach((moduleName) => {
           context.report(
             node,
             'Mandatory module "{{moduleName}}" must be loaded.',

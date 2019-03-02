@@ -413,7 +413,7 @@ function altDocs(filename, docCreated) {
     { num: '5.x' },
     { num: '4.x' },
     { num: '0.12.x' },
-    { num: '0.10.x' }
+    { num: '0.10.x' },
   ];
 
   const getHref = (versionNum) =>
