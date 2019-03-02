@@ -99,7 +99,7 @@ std::string TriggerNodeReport(Isolate* isolate,
                               Environment* env,
                               const char* message,
                               const char* trigger,
-                              std::string name,
+                              const std::string& name,
                               Local<String> stackstr) {
   std::ostringstream oss;
   std::string filename;
