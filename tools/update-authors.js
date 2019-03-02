@@ -3,6 +3,7 @@
 // Passing --dry will redirect output to stdout rather than write to 'AUTHORS'.
 'use strict';
 const { spawn } = require('child_process');
+const path = require('path');
 const fs = require('fs');
 const readline = require('readline');
 
@@ -22,6 +23,41 @@ else
 
 output.write('# Authors ordered by first contribution.\n\n');
 
+let mailmap = new Map();
+{
+  const lines = fs.readFileSync(path.resolve(__dirname, '../', '.mailmap'),
+                                  { encoding: 'utf8' }).split('\n');
+  for (let line of lines) {
+    line = line.trim();
+    if (line.startsWith('#') || line === '') continue;
+    // Replaced Name <original@example.com>
+    const emailToAuthor = line.match(/^([^<]+)\s+(<[^>]+>)$/);
+    // <replaced@example.com> <original@example.com>
+    const emailToEmail = line.match(/^<([^>]+)>\s+(<[^>]+>)$/);
+    // Replaced Name <replaced@example.com> <original@example.com>
+    const emailToBoth = line.match(/^([^<]+)\s+(<[^>]+>)\s+(<[^>]+>)$/);
+    // Replaced Name <replaced@example.com> Original Name <original@example.com>
+    const bothToBoth =
+        line.match(/^([^<]+)\s+(<[^>]+>)\s+([^<]+)\s+(<[^>]+>)$/);
+
+    if (emailToAuthor) {
+      mailmap.set(emailToAuthor[2], { author: emailToAuthor[1] });
+    } else if (emailToEmail) {
+      mailmap.set(emailToEmail[2], { email: emailToEmail[1] });
+    } else if (emailToBoth) {
+      mailmap.set(emailToBoth[3], {
+        author: emailToBoth[1], email: emailToBoth[2]
+      });
+    } else if (bothToBoth) {
+      mailmap.set(bothToBoth[2] + '\0' + bothToBoth[3], {
+        author: bothToBoth[1], email: bothToBoth[2]
+      });
+    } else {
+      console.warn('Unknown .mailmap format:', line);
+    }
+  }
+}
+
 const seen = new Set();
 
 // Support regular git author metadata, as well as `Author:` and
@@ -34,7 +70,14 @@ rl.on('line', (line) => {
   const match = line.match(authorRe);
   if (!match) return;
 
-  const { author, email } = match.groups;
+  let { author, email } = match.groups;
+
+  let replacement;
+  if ((replacement = mailmap.get(author + '\0' + email)) ||
+      (replacement = mailmap.get(email))) {
+    ({ author, email } = { author, email, ...replacement });
+  }
+
   if (seen.has(email) ||
       /@chromium\.org/.test(email) ||
       email === '<erik.corry@gmail.com>') {
