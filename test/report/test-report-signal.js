@@ -64,6 +64,7 @@ if (process.argv[2] === 'child') {
   });
   child.on('exit', common.mustCall((code, signal) => {
     console.log('child exited');
+    console.log(stderr);
     const report_msg = 'No reports found';
     const process_msg = 'Process exited unexpectedly';
     const signal_msg = 'Process exited with unexpected signal';

@@ -18,10 +18,7 @@
 
 namespace report {
 using node::Environment;
-using node::FIXED_ONE_BYTE_STRING;
-using node::PerIsolateOptions;
 using node::Utf8Value;
-using v8::Array;
 using v8::Boolean;
 using v8::Context;
 using v8::Function;
@@ -31,7 +28,6 @@ using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::String;
-using v8::V8;
 using v8::Value;
 
 // External JavaScript API for triggering a report
@@ -75,129 +71,89 @@ void GetReport(const FunctionCallbackInfo<Value>& info) {
                                 .ToLocalChecked());
 }
 
-// A method to sync up data elements in the JS land with its
-// corresponding elements in the C++ world. Required because
-// (i) the tunables are first intercepted through the CLI but
-// later modified via APIs. (ii) the report generation events
-// are controlled partly from C++ and partly from JS.
-void SyncConfig(const FunctionCallbackInfo<Value>& info) {
+static void GetDirectory(const FunctionCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
-  Local<Context> context = env->context();
-  std::shared_ptr<PerIsolateOptions> options = env->isolate_data()->options();
+  std::string directory = env->isolate_data()->options()->report_directory;
+  auto result = String::NewFromUtf8(env->isolate(),
+                                    directory.c_str(),
+                                    v8::NewStringType::kNormal);
+  info.GetReturnValue().Set(result.ToLocalChecked());
+}
 
-  CHECK_EQ(info.Length(), 2);
-  Local<Object> obj;
-  if (!info[0]->ToObject(context).ToLocal(&obj)) return;
-  bool sync = info[1].As<Boolean>()->Value();
+static void SetDirectory(const FunctionCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  CHECK(info[0]->IsString());
+  Utf8Value dir(env->isolate(), info[0].As<String>());
+  env->isolate_data()->options()->report_directory = *dir;
+}
 
-  // Events array
-  Local<String> eventskey = FIXED_ONE_BYTE_STRING(env->isolate(), "events");
-  Local<Value> events_unchecked;
-  if (!obj->Get(context, eventskey).ToLocal(&events_unchecked)) return;
-  Local<Array> events;
-  if (events_unchecked->IsUndefined() || events_unchecked->IsNull()) {
-    events_unchecked = Array::New(env->isolate(), 0);
-    if (obj->Set(context, eventskey, events_unchecked).IsNothing()) return;
-  }
-  events = events_unchecked.As<Array>();
+static void GetFilename(const FunctionCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  std::string filename = env->isolate_data()->options()->report_filename;
+  auto result = String::NewFromUtf8(env->isolate(),
+                                    filename.c_str(),
+                                    v8::NewStringType::kNormal);
+  info.GetReturnValue().Set(result.ToLocalChecked());
+}
 
-  // Signal
-  Local<String> signalkey = env->signal_string();
-  Local<Value> signal_unchecked;
-  if (!obj->Get(context, signalkey).ToLocal(&signal_unchecked)) return;
-  Local<String> signal;
-  if (signal_unchecked->IsUndefined() || signal_unchecked->IsNull())
-    signal_unchecked = signalkey;
-  signal = signal_unchecked.As<String>();
+static void SetFilename(const FunctionCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  CHECK(info[0]->IsString());
+  Utf8Value name(env->isolate(), info[0].As<String>());
+  env->isolate_data()->options()->report_filename = *name;
+}
 
-  Utf8Value signalstr(env->isolate(), signal);
+static void GetSignal(const FunctionCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  std::string signal = env->isolate_data()->options()->report_signal;
+  auto result = String::NewFromUtf8(env->isolate(),
+                                    signal.c_str(),
+                                    v8::NewStringType::kNormal);
+  info.GetReturnValue().Set(result.ToLocalChecked());
+}
 
-  // Report file
-  Local<String> filekey = FIXED_ONE_BYTE_STRING(env->isolate(), "filename");
-  Local<Value> file_unchecked;
-  if (!obj->Get(context, filekey).ToLocal(&file_unchecked)) return;
-  Local<String> file;
-  if (file_unchecked->IsUndefined() || file_unchecked->IsNull())
-    file_unchecked = filekey;
-  file = file_unchecked.As<String>();
+static void SetSignal(const FunctionCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  CHECK(info[0]->IsString());
+  Utf8Value signal(env->isolate(), info[0].As<String>());
+  env->isolate_data()->options()->report_signal = *signal;
+}
 
-  Utf8Value filestr(env->isolate(), file);
+static void ShouldReportOnFatalError(const FunctionCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  info.GetReturnValue().Set(
+      env->isolate_data()->options()->report_on_fatalerror);
+}
 
-  // Report file path
-  Local<String> pathkey = FIXED_ONE_BYTE_STRING(env->isolate(), "path");
-  Local<Value> path_unchecked;
-  if (!obj->Get(context, pathkey).ToLocal(&path_unchecked)) return;
-  Local<String> path;
-  if (path_unchecked->IsUndefined() || path_unchecked->IsNull())
-    path_unchecked = pathkey;
-  path = path_unchecked.As<String>();
+static void SetReportOnFatalError(const FunctionCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  CHECK(info[0]->IsBoolean());
+  env->isolate_data()->options()->report_on_fatalerror = info[0]->IsTrue();
+}
 
-  Utf8Value pathstr(env->isolate(), path);
+static void ShouldReportOnSignal(const FunctionCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  info.GetReturnValue().Set(env->isolate_data()->options()->report_on_signal);
+}
 
-  if (sync) {
-    static const std::string e = "exception";
-    static const std::string s = "signal";
-    static const std::string f = "fatalerror";
-    for (uint32_t i = 0; i < events->Length(); i++) {
-      Local<Value> v;
-      if (!events->Get(context, i).ToLocal(&v)) return;
-      Local<String> elem;
-      if (!v->ToString(context).ToLocal(&elem)) return;
-      String::Utf8Value buf(env->isolate(), elem);
-      if (*buf == e) {
-        options->report_uncaught_exception = true;
-      } else if (*buf == s) {
-        options->report_on_signal = true;
-      } else if (*buf == f) {
-        options->report_on_fatalerror = true;
-      }
-    }
-    CHECK_NOT_NULL(*signalstr);
-    options->report_signal = *signalstr;
-    CHECK_NOT_NULL(*filestr);
-    options->report_filename = *filestr;
-    CHECK_NOT_NULL(*pathstr);
-    options->report_directory = *pathstr;
-  } else {
-    int i = 0;
-    if (options->report_uncaught_exception &&
-        events
-            ->Set(context,
-                  i++,
-                  FIXED_ONE_BYTE_STRING(env->isolate(), "exception"))
-            .IsNothing())
-      return;
-    if (options->report_on_signal &&
-        events
-            ->Set(context, i++, FIXED_ONE_BYTE_STRING(env->isolate(), "signal"))
-            .IsNothing())
-      return;
-    if (options->report_on_fatalerror &&
-        events
-            ->Set(
-                context, i, FIXED_ONE_BYTE_STRING(env->isolate(), "fatalerror"))
-            .IsNothing())
-      return;
+static void SetReportOnSignal(const FunctionCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  CHECK(info[0]->IsBoolean());
+  env->isolate_data()->options()->report_on_signal = info[0]->IsTrue();
+}
 
-    Local<Value> signal_value;
-    Local<Value> file_value;
-    Local<Value> path_value;
-    std::string signal = options->report_signal;
-    if (signal.empty()) signal = "SIGUSR2";
-    if (!node::ToV8Value(context, signal).ToLocal(&signal_value))
-      return;
-    if (!obj->Set(context, signalkey, signal_value).FromJust()) return;
+static void ShouldReportOnUncaughtException(
+    const FunctionCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  info.GetReturnValue().Set(
+      env->isolate_data()->options()->report_uncaught_exception);
+}
 
-    if (!node::ToV8Value(context, options->report_filename)
-             .ToLocal(&file_value))
-      return;
-    if (!obj->Set(context, filekey, file_value).FromJust()) return;
-
-    if (!node::ToV8Value(context, options->report_directory)
-             .ToLocal(&path_value))
-      return;
-    if (!obj->Set(context, pathkey, path_value).FromJust()) return;
-  }
+static void SetReportOnUncaughtException(
+    const FunctionCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  CHECK(info[0]->IsBoolean());
+  env->isolate_data()->options()->report_uncaught_exception = info[0]->IsTrue();
 }
 
 static void Initialize(Local<Object> exports,
@@ -207,7 +163,20 @@ static void Initialize(Local<Object> exports,
 
   env->SetMethod(exports, "triggerReport", TriggerReport);
   env->SetMethod(exports, "getReport", GetReport);
-  env->SetMethod(exports, "syncConfig", SyncConfig);
+  env->SetMethod(exports, "getDirectory", GetDirectory);
+  env->SetMethod(exports, "setDirectory", SetDirectory);
+  env->SetMethod(exports, "getFilename", GetFilename);
+  env->SetMethod(exports, "setFilename", SetFilename);
+  env->SetMethod(exports, "getSignal", GetSignal);
+  env->SetMethod(exports, "setSignal", SetSignal);
+  env->SetMethod(exports, "shouldReportOnFatalError", ShouldReportOnFatalError);
+  env->SetMethod(exports, "setReportOnFatalError", SetReportOnFatalError);
+  env->SetMethod(exports, "shouldReportOnSignal", ShouldReportOnSignal);
+  env->SetMethod(exports, "setReportOnSignal", SetReportOnSignal);
+  env->SetMethod(exports, "shouldReportOnUncaughtException",
+                 ShouldReportOnUncaughtException);
+  env->SetMethod(exports, "setReportOnUncaughtException",
+                 SetReportOnUncaughtException);
 }
 
 }  // namespace report

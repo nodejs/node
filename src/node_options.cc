@@ -57,8 +57,14 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors) {
 void PerIsolateOptions::CheckOptions(std::vector<std::string>* errors) {
   per_env->CheckOptions(errors);
 #ifdef NODE_REPORT
-  if (per_env->experimental_report)
+  if (per_env->experimental_report) {
+    // Assign the report_signal default value here. Once the
+    // --experimental-report flag is dropped, move this initialization to
+    // node_options.h, where report_signal is declared.
+    if (report_signal.empty())
+      report_signal = "SIGUSR2";
     return;
+  }
 
   if (!report_directory.empty()) {
     errors->push_back("--diagnostic-report-directory option is valid only when "

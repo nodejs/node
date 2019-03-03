@@ -14,7 +14,7 @@ common.expectWarning('ExperimentalWarning',
                      'report is an experimental feature. This feature could ' +
                      'change at any time');
 tmpdir.refresh();
-process.report.setOptions({ path: tmpdir.path });
+process.report.directory = tmpdir.path;
 
 function validate() {
   const reports = helper.findReports(process.pid, tmpdir.path);
@@ -59,11 +59,11 @@ function validate() {
 
 {
   // Test with a filename option.
-  const filename = path.join(tmpdir.path, 'custom-name-3.json');
-  process.report.setOptions({ filename });
+  process.report.filename = 'custom-name-3.json';
   const file = process.report.triggerReport();
   assert.strictEqual(helper.findReports(process.pid, tmpdir.path).length, 0);
-  assert.strictEqual(file, filename);
+  const filename = path.join(process.report.directory, 'custom-name-3.json');
+  assert.strictEqual(file, process.report.filename);
   helper.validate(filename);
   fs.unlinkSync(filename);
 }
