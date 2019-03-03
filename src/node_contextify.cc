@@ -66,6 +66,8 @@ using v8::PropertyHandlerFlags;
 using v8::Script;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
+using v8::StackFrame;
+using v8::StackTrace;
 using v8::String;
 using v8::Symbol;
 using v8::Uint32;
@@ -221,6 +223,7 @@ void ContextifyContext::Init(Environment* env, Local<Object> target) {
   env->SetMethod(target, "makeContext", MakeContext);
   env->SetMethod(target, "isContext", IsContext);
   env->SetMethod(target, "compileFunction", CompileFunction);
+  env->SetMethod(target, "getStackSourceName", GetStackSourceName);
 }
 
 
@@ -285,6 +288,30 @@ void ContextifyContext::IsContext(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result.FromJust());
 }
 
+void ContextifyContext::GetStackSourceName(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsNumber());
+
+  int32_t stack_depth = args[0].As<Integer>()->Value();
+
+  Local<StackFrame> frame;
+  do {
+    Local<StackTrace> stack =
+        StackTrace::CurrentStackTrace(env->isolate(),
+                                      stack_depth + 1);
+    if (stack_depth >= stack->GetFrameCount()) {
+      return;
+    }
+    frame = stack->GetFrame(env->isolate(), stack_depth++);
+  } while (frame->IsEval());
+
+  Local<Value> script_name = frame->GetScriptName();
+
+  args.GetReturnValue().Set(script_name);
+}
 
 void ContextifyContext::WeakCallback(
     const WeakCallbackInfo<ContextifyContext>& data) {

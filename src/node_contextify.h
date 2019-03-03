@@ -57,6 +57,8 @@ class ContextifyContext {
  private:
   static void MakeContext(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void IsContext(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetStackSourceName(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CompileFunction(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WeakCallback(
