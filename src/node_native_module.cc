@@ -191,7 +191,6 @@ MaybeLocal<Function> NativeModuleLoader::LookupAndCompile(
     Environment* optional_env) {
   Isolate* isolate = context->GetIsolate();
   EscapableHandleScope scope(isolate);
-  Local<Value> ret;  // Used to convert to MaybeLocal before return
 
   const auto source_it = source_.find(id);
   CHECK_NE(source_it, source_.end());
