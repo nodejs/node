@@ -15,4 +15,4 @@ assert.notStrictEqual(untrustedFlag, -1);
 const nextFlag = v8Options.indexOf('--', untrustedFlag + 2);
 const slice = v8Options.substring(untrustedFlag, nextFlag);
 
-assert(slice.match(/type: bool  default: false/));
+assert(slice.match(/type: bool {2}default: false/));

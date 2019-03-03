@@ -86,7 +86,7 @@ common.expectsError(() => {
   }, { code: 'TEST_ERROR_1', type: RangeError });
 }, {
   code: 'ERR_ASSERTION',
-  message: /\+   type: \[Function: TypeError]\n-   type: \[Function: RangeError]/
+  message: /\+ {3}type: \[Function: TypeError]\n- {3}type: \[Function: RangeError]/
 });
 
 common.expectsError(() => {
@@ -98,7 +98,7 @@ common.expectsError(() => {
 }, {
   code: 'ERR_ASSERTION',
   type: assert.AssertionError,
-  message: /\+   message: 'Error for testing purposes: a',\n-   message: \/\^Error/
+  message: /\+ {3}message: 'Error for testing purposes: a',\n- {3}message: \/\^Error/
 });
 
 // Test ERR_INVALID_FD_TYPE

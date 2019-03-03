@@ -537,10 +537,10 @@ const errorTests = [
       /^{ Error: Cannot find module 'internal\/repl'/,
       /^Require stack:/,
       /^- <repl>/,
-      /^    at .*/,
-      /^    at .*/,
-      /^    at .*/,
-      /^    at .*/
+      /^ {4}at .*/,
+      /^ {4}at .*/,
+      /^ {4}at .*/,
+      /^ {4}at .*/
     ]
   },
   // REPL should handle quotes within regexp literal in multiline mode

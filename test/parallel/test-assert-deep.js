@@ -1064,7 +1064,7 @@ assert.throws(
     {
       code: 'ERR_ASSERTION',
       name: 'AssertionError [ERR_ASSERTION]',
-      message: /a: \[Getter: 5]\n-   a: \[Getter: 6]\n  /
+      message: /a: \[Getter: 5]\n- {3}a: \[Getter: 6]\n {2}/
     }
   );
 

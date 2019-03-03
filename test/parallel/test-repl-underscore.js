@@ -181,7 +181,7 @@ function testError() {
       'Thrown:',
       /^{ Error: ENOENT: no such file or directory, scandir '.*nonexistent.*'/,
       /Object\.readdirSync/,
-      /^  errno: -(2|4058),$/,
+      /^ {2}errno: -(2|4058),$/,
       "  syscall: 'scandir',",
       "  code: 'ENOENT',",
       "  path: '/nonexistent?' }",
@@ -196,8 +196,8 @@ function testError() {
       'Thrown:',
       'Error: baz',
       /setImmediate/,
-      /^    at/,
-      /^    at/,
+      /^ {4}at/,
+      /^ {4}at/,
     ];
     for (const line of lines) {
       const expected = expectedLines.shift();
