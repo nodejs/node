@@ -182,6 +182,8 @@ Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 Enable experimental frozen intrinsics like `Array` and `Object`.
 
 Support is currently only provided for the root context and no guarantees are
