@@ -944,6 +944,24 @@ static X509_STORE* NewRootCertStore() {
 }
 
 
+void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Local<Array> result = Array::New(env->isolate(), arraysize(root_certs));
+
+  for (size_t i = 0; i < arraysize(root_certs); i++) {
+    Local<Value> value;
+    if (!String::NewFromOneByte(env->isolate(),
+                                reinterpret_cast<const uint8_t*>(root_certs[i]),
+                                NewStringType::kNormal).ToLocal(&value) ||
+        !result->Set(env->context(), i, value).FromMaybe(false)) {
+      return;
+    }
+  }
+
+  args.GetReturnValue().Set(result);
+}
+
+
 void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -6870,6 +6888,8 @@ void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "certVerifySpkac", VerifySpkac);
   env->SetMethodNoSideEffect(target, "certExportPublicKey", ExportPublicKey);
   env->SetMethodNoSideEffect(target, "certExportChallenge", ExportChallenge);
+  env->SetMethodNoSideEffect(target, "getRootCertificates",
+                             GetRootCertificates);
   // Exposed for testing purposes only.
   env->SetMethodNoSideEffect(target, "isExtraRootCertsFileLoaded",
                              IsExtraRootCertsFileLoaded);

@@ -1384,6 +1384,7 @@ changes:
     provided.
     For PEM encoded certificates, supported types are "TRUSTED CERTIFICATE",
     "X509 CERTIFICATE", and "CERTIFICATE".
+    See also [`tls.rootCertificates`].
   * `cert` {string|string[]|Buffer|Buffer[]} Cert chains in PEM format. One cert
     chain should be provided per private key. Each cert chain should consist of
     the PEM formatted certificate for a provided private `key`, followed by the
@@ -1594,6 +1595,17 @@ TLSv1.2 and below.
 console.log(tls.getCiphers()); // ['aes128-gcm-sha256', 'aes128-sha', ...]
 ```
 
+## tls.rootCertificates
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string[]}
+
+An immutable array of strings representing the root certificates (in PEM format)
+used for verifying peer certificates. This is the default value of the `ca`
+option to [`tls.createSecureContext()`].
+
 ## tls.DEFAULT_ECDH_CURVE
 <!-- YAML
 added: v0.11.13
@@ -1778,6 +1790,7 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [`tls.createSecurePair()`]: #tls_tls_createsecurepair_context_isserver_requestcert_rejectunauthorized_options
 [`tls.createServer()`]: #tls_tls_createserver_options_secureconnectionlistener
 [`tls.getCiphers()`]: #tls_tls_getciphers
+[`tls.rootCertificates`]: #tls_tls_rootcertificates
 [Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Cipher-Suites
 [DHE]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
 [ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
