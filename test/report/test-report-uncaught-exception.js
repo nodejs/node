@@ -12,7 +12,7 @@ common.expectWarning('ExperimentalWarning',
                      'report is an experimental feature. This feature could ' +
                      'change at any time');
 tmpdir.refresh();
-process.report.setOptions({ path: tmpdir.path });
+process.report.directory = tmpdir.path;
 
 process.on('uncaughtException', common.mustCall((err) => {
   assert.strictEqual(err, error);
