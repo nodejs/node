@@ -91,3 +91,11 @@ assert.strictEqual(Buffer.compare(z, Buffer.alloc(4, 0)), 0);
 // Large overrun could corrupt the process
 assert.strictEqual(Buffer.alloc(4)
   .write('ыыыыыы'.repeat(100), 3, 'utf16le'), 0);
+
+{
+  // .write() does not affect the byte after the written-to slice of the Buffer.
+  // Refs: https://github.com/nodejs/node/issues/26422
+  const buf = Buffer.alloc(8);
+  assert.strictEqual(buf.write('ыы', 1, 'utf16le'), 4);
+  assert.deepStrictEqual([...buf], [0, 0x4b, 0x04, 0x4b, 0x04, 0, 0, 0]);
+}
