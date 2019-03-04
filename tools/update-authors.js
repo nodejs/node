@@ -30,27 +30,24 @@ const mailmap = new Map();
   for (let line of lines) {
     line = line.trim();
     if (line.startsWith('#') || line === '') continue;
-    // Replaced Name <original@example.com>
-    const emailToAuthor = line.match(/^([^<]+)\s+(<[^>]+>)$/);
-    // <replaced@example.com> <original@example.com>
-    const emailToEmail = line.match(/^<([^>]+)>\s+(<[^>]+>)$/);
-    // Replaced Name <replaced@example.com> <original@example.com>
-    const emailToBoth = line.match(/^([^<]+)\s+(<[^>]+>)\s+(<[^>]+>)$/);
-    // Replaced Name <replaced@example.com> Original Name <original@example.com>
-    const bothToBoth =
-        line.match(/^([^<]+)\s+(<[^>]+>)\s+([^<]+)\s+(<[^>]+>)$/);
 
-    if (emailToAuthor) {
-      mailmap.set(emailToAuthor[2], { author: emailToAuthor[1] });
-    } else if (emailToEmail) {
-      mailmap.set(emailToEmail[2], { email: emailToEmail[1] });
-    } else if (emailToBoth) {
-      mailmap.set(emailToBoth[3], {
-        author: emailToBoth[1], email: emailToBoth[2]
+    let match;
+    // Replaced Name <original@example.com>
+    if (match = line.match(/^([^<]+)\s+(<[^>]+>)$/)) {
+      mailmap.set(match[2], { author: match[1] });
+    // <replaced@example.com> <original@example.com>
+    } else if (match = line.match(/^<([^>]+)>\s+(<[^>]+>)$/)) {
+      mailmap.set(match[2], { email: match[1] });
+    // Replaced Name <replaced@example.com> <original@example.com>
+    } else if (match = line.match(/^([^<]+)\s+(<[^>]+>)\s+(<[^>]+>)$/)) {
+      mailmap.set(match[3], {
+        author: match[1], email: match[2]
       });
-    } else if (bothToBoth) {
-      mailmap.set(bothToBoth[2] + '\0' + bothToBoth[3], {
-        author: bothToBoth[1], email: bothToBoth[2]
+    // Replaced Name <replaced@example.com> Original Name <original@example.com>
+    } else if (match =
+        line.match(/^([^<]+)\s+(<[^>]+>)\s+([^<]+)\s+(<[^>]+>)$/)) {
+      mailmap.set(match[3] + '\0' + match[4], {
+        author: match[1], email: match[2]
       });
     } else {
       console.warn('Unknown .mailmap format:', line);
@@ -72,9 +69,8 @@ rl.on('line', (line) => {
 
   let { author, email } = match.groups;
 
-  let replacement;
-  if ((replacement = mailmap.get(author + '\0' + email)) ||
-      (replacement = mailmap.get(email))) {
+  const replacement = mailmap.get(author + '\0' + email) || mailmap.get(email);
+  if (replacement) {
     ({ author, email } = { author, email, ...replacement });
   }
 
