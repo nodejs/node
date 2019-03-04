@@ -6,16 +6,12 @@ const path = require('path');
 const searchStrings = [
   '@',
   'SQ',
-  '10x',
   '--l',
   'Alice',
   'Gryphon',
-  'Panther',
   'Ou est ma chatte?',
   'found it very',
-  'among mad people',
   'neighbouring pool',
-  'Soo--oop',
   'aaaaaaaaaaaaaaaaa',
   'venture to go near the house till she had brought herself down to',
   '</i> to the Caterpillar',
@@ -23,9 +19,9 @@ const searchStrings = [
 
 const bench = common.createBenchmark(main, {
   search: searchStrings,
-  encoding: ['undefined', 'utf8', 'ucs2', 'binary'],
+  encoding: ['utf8', 'ucs2'],
   type: ['buffer', 'string'],
-  n: [100000]
+  n: [5e4]
 });
 
 function main({ n, search, encoding, type }) {

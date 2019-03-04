@@ -2,8 +2,8 @@
 const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
-  size: [16, 512, 1024, 4096, 16386],
-  args: [1, 2, 3, 4, 5],
+  size: [16, 512, 4096, 16386],
+  args: [1, 2, 5],
   n: [1e6]
 });
 
@@ -16,22 +16,6 @@ function main({ n, size, args }) {
 
   b1[size - 1] = 'b'.charCodeAt(0);
 
-  switch (args) {
-    case 2:
-      b0.compare(b1, 0);
-      break;
-    case 3:
-      b0.compare(b1, 0, b1Len);
-      break;
-    case 4:
-      b0.compare(b1, 0, b1Len, 0);
-      break;
-    case 5:
-      b0.compare(b1, 0, b1Len, 0, b0Len);
-      break;
-    default:
-      b0.compare(b1);
-  }
   switch (args) {
     case 2:
       b0.compare(b1, 0);
