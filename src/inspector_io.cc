@@ -292,7 +292,7 @@ void InspectorIo::ThreadMain() {
                               script_path, script_name_));
   InspectorSocketServer server(std::move(delegate),
                                &loop,
-                               host_port_->host().c_str(),
+                               host_port_->host(),
                                host_port_->port());
   request_queue_ = queue->handle();
   // Its lifetime is now that of the server delegate
