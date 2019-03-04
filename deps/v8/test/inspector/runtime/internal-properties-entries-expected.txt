@@ -596,6 +596,7 @@ expression: it = new Set([1,2]).keys(); it.next(); it
 expression: it = new Set([1,2]).entries(); it.next(); it
 [
     [0] : {
+        key : 2
         value : 2
     }
 ]
@@ -610,7 +611,7 @@ expression: it = new Set([1,2]).entries(); it.next(); it
                 name : 0
                 value : {
                     className : Object
-                    description : 2
+                    description : {2 => 2}
                     objectId : <objectId>
                     subtype : internal#entry
                     type : object
