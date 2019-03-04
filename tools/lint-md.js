@@ -263,7 +263,7 @@ function generated(node) {
   return !start.line || !start.column || !end.line || !end.column
 }
 
-/* Return `value` if it’s an object, an empty object
+/* Return `value` if it's an object, an empty object
  * otherwise. */
 function optional(value) {
   return value && typeof value === 'object' ? value : {}
@@ -1951,7 +1951,7 @@ function parse(value, settings) {
     }
   }
 
-  /* “Throw” a parse-error: a warning. */
+  /* "Throw" a parse-error: a warning. */
   function parseError(code, offset) {
     var position = now()
 
@@ -3715,7 +3715,7 @@ let supportLevel = (() => {
 
 	if (process.platform === 'win32') {
 		// Node.js 7.5.0 is the first version of Node.js to include a patch to
-		// libuv that enables 256 color output on Windows. Anything earlier and it
+		// libuv that enables the 256-color output on Windows. Anything earlier and it
 		// won't work. However, here we target Node.js 8 at minimum as it is an LTS
 		// release, and Node.js 7 is not. Windows 10 build 10586 is the first Windows
 		// release that supports 256 colors.
@@ -3812,10 +3812,10 @@ var windows = process.platform === 'win32'
 var prefix = windows ? /* istanbul ignore next */ '' : 'lib'
 var globals = path.resolve(npmPrefix, prefix, 'node_modules')
 
-// If we’re in Electron, we’re running in a modified Node that cannot really
+// If we're in Electron, we're running in a modified Node that cannot really
 // install global node modules.  To find the actual modules, the user has to
 // either set `prefix` in their `.npmrc` (which is picked up by `npm-prefix`).
-// Most people don’t do that, and some use NVM instead to manage different
+// Most people don't do that, and some use NVM instead to manage different
 // versions of Node.  Luckily NVM leaks some environment variables that we can
 // pick up on to try and detect the actual modules.
 /* istanbul ignore next */
@@ -3871,8 +3871,8 @@ function resolvePlugin(name, options) {
       if (name.charAt(0) === '@') {
         slash = name.indexOf('/')
 
-        // Let’s keep the algorithm simple.  No need to care if this is a
-        // “valid” scope (I think?).  But we do check for the slash.
+        // Let's keep the algorithm simple.  No need to care if this is a
+        // "valid" scope (I think?).  But we do check for the slash.
         if (slash !== -1) {
           scope = name.slice(0, slash + 1)
           name = name.slice(slash + 1)
@@ -4254,7 +4254,7 @@ function load(filePath, callback) {
     function next() {
       var parent;
 
-      /* Try to read the next file. We don’t use `readdir` because on
+      /* Try to read the next file. We don't use `readdir` because on
        * huge directories, that could be *very* slow. */
       if (++index < length) {
         read(join(directory, names[index]), done);
@@ -8453,7 +8453,7 @@ function locate(value, fromIndex) {
     return link
   }
 
-  // Link can never be `-1` if an image is found, so we don’t need to check
+  // Link can never be `-1` if an image is found, so we don't need to check
   // for that :)
   return link < image ? link : image
 }
@@ -8527,7 +8527,7 @@ function length(value) {
   var prefix
 
   /* istanbul ignore if - Currently also tested for at implemention, but we
-   * keep it here because that’s proper. */
+   * keep it here because that's proper. */
   if (value.charAt(0) !== ampersand) {
     return 0
   }
@@ -8865,7 +8865,7 @@ function run(options, callback) {
   settings.output = options.output;
   settings.out = options.out;
 
-  /* Null overwrites config settings, `undefined` doesn’t. */
+  /* Null overwrites config settings, `undefined` doesn't. */
   if (settings.output === null || settings.output === undefined) {
     settings.output = undefined;
   }
@@ -9004,7 +9004,7 @@ function wrap(fn, callback) {
       /* Well, this is quite the pickle.  `fn` received
        * a callback and invoked it (thus continuing the
        * pipeline), but later also threw an error.
-       * We’re not about to restart the pipeline again,
+       * We're not about to restart the pipeline again,
        * so the only thing left to do is to throw the
        * thing instea. */
       if (callback && invoked) {
@@ -9158,7 +9158,7 @@ function create(buf, filePath) {
     contents = transform(contents, filePath);
   }
 
-  /* Exit if we did find a `package.json`, but it doesn’t have configuration. */
+  /* Exit if we did find a `package.json`, but it doesn't have configuration. */
   if (buf && contents === undefined && basename(filePath) === 'package.json') {
     return;
   }
@@ -19022,7 +19022,7 @@ function isWhitespace(c) {
 
 // Returns true if the character can be printed without escaping.
 // From YAML 1.2: "any allowed characters known to be non-printable
-// should also be escaped. [However,] This isn’t mandatory"
+// should also be escaped. [However,] This isn't mandatory"
 // Derived from nb-char - \t - #x85 - #xA0 - #x2028 - #x2029.
 function isPrintable(c) {
   return  (0x00020 <= c && c <= 0x00007E)
@@ -19054,7 +19054,7 @@ function isPlainSafeFirst(c) {
   return isPrintable(c) && c !== 0xFEFF
     && !isWhitespace(c) // - s-white
     // - (c-indicator ::=
-    // “-” | “?” | “:” | “,” | “[” | “]” | “{” | “}”
+    // "-" | "?" | ":" | "," | "[" | "]" | "{" | "}"
     && c !== CHAR_MINUS
     && c !== CHAR_QUESTION
     && c !== CHAR_COLON
@@ -19063,7 +19063,7 @@ function isPlainSafeFirst(c) {
     && c !== CHAR_RIGHT_SQUARE_BRACKET
     && c !== CHAR_LEFT_CURLY_BRACKET
     && c !== CHAR_RIGHT_CURLY_BRACKET
-    // | “#” | “&” | “*” | “!” | “|” | “>” | “'” | “"”
+    // | "#" | "&" | "*" | "!" | "|" | ">" | "'" | """
     && c !== CHAR_SHARP
     && c !== CHAR_AMPERSAND
     && c !== CHAR_ASTERISK
@@ -19072,7 +19072,7 @@ function isPlainSafeFirst(c) {
     && c !== CHAR_GREATER_THAN
     && c !== CHAR_SINGLE_QUOTE
     && c !== CHAR_DOUBLE_QUOTE
-    // | “%” | “@” | “`”)
+    // | "%" | "@" | "`")
     && c !== CHAR_PERCENT
     && c !== CHAR_COMMERCIAL_AT
     && c !== CHAR_GRAVE_ACCENT;
@@ -21390,21 +21390,21 @@ function fileSystem(context, settings, next) {
   function found(err, result) {
     var output = result.files;
 
-    /* Sort alphabetically. Everything’s unique so we don’t care
+    /* Sort alphabetically. Everything's unique so we don't care
      * about cases where left and right are equal. */
     output.sort(function (left, right) {
       return left.path < right.path ? -1 : 1;
     });
 
     /* Mark as given.  This allows outputting files,
-     * which can be pretty dangerous, so it’s “hidden”. */
+     * which can be pretty dangerous, so it's "hidden". */
     output.forEach(function (file) {
       file.data.unifiedEngineGiven = true;
     });
 
     context.files = output;
 
-    /* If `out` wasn’t set, detect it based on
+    /* If `out` wasn't set, detect it based on
      * whether one file was given. */
     if (settings.out === null || settings.out === undefined) {
       settings.out = result.oneFileMode;
@@ -22058,7 +22058,7 @@ function search(input, options, next) {
 
       if (ignored) {
         try {
-          file.fail('Cannot process specified file: it’s ignored');
+          file.fail('Cannot process specified file: it\'s ignored');
         } catch (err) {}
       }
 
@@ -23407,7 +23407,7 @@ function readSync(description, options) {
 function write(description, options, callback) {
   var file = vfile(description);
 
-  /* Weird, right? Otherwise `fs` doesn’t accept it. */
+  /* Weird, right? Otherwise `fs` doesn't accept it. */
   if (!callback && func(options)) {
     callback = options;
     options = undefined;
@@ -23454,7 +23454,7 @@ var vfile = __webpack_require__(157);
 module.exports = toVFile;
 
 /* Create a virtual file from a description.
- * If `options` is a string or a buffer, it’s used as the
+ * If `options` is a string or a buffer, it's used as the
  * path.  In all other cases, the options are passed through
  * to `vfile()`. */
 function toVFile(options) {
@@ -23777,7 +23777,7 @@ function stdin(context, settings, next) {
 
     context.files = [file];
 
-    /* If `out` wasn’t set, set `out`. */
+    /* If `out` wasn't set, set `out`. */
     settings.out = settings.out === null || settings.out === undefined ? true : settings.out;
 
     next();
@@ -24876,7 +24876,7 @@ function transform(context, settings, next) {
     }, file, fileSet, done);
 
     function done(err) {
-      /* istanbul ignore next - doesn’t occur as all
+      /* istanbul ignore next - doesn't occur as all
        * failures in `filePipeLine` are failed on each
        * file.  Still, just to ensure things work in
        * the future, we add an extra check. */
@@ -25181,7 +25181,7 @@ function configure(context, file, fileSet, next) {
       try {
         processor.use(plugin, options, fileSet);
       } catch (err) {
-        /* istanbul ignore next - Shouldn’t happen anymore! */
+        /* istanbul ignore next - Shouldn't happen anymore! */
         return next(err);
       }
     }
@@ -25238,7 +25238,7 @@ function parse(context, file) {
     }
 
     /* Add the preferred extension to ensure the file, when compiled, is
-     * correctly recognized. Only add it if there’s a path — not if the
+     * correctly recognized. Only add it if there's a path — not if the
      * file is for example stdin. */
     if (file.path) {
       file.extname = context.extensions[0];
@@ -25386,7 +25386,7 @@ function stringify(context, file) {
   debug('Compiling `%s`', file.path);
 
   if (context.inspect) {
-    /* Add a `txt` extension if there’s a path. */
+    /* Add a `txt` extension if there's a path. */
     if (file.path) {
       file.extname = '.txt';
     }
@@ -25394,7 +25394,7 @@ function stringify(context, file) {
     value = inspect[context.color ? 'color' : 'noColor'](tree) + '\n';
   } else if (context.treeOut) {
     /* Add a `json` extension to ensure the file is correctly seen as JSON.
-     * Only add it if there’s a path — not if the file is for example stdin. */
+     * Only add it if there's a path — not if the file is for example stdin. */
     if (file.path) {
       file.extname = '.json';
     }
@@ -25457,7 +25457,7 @@ var COLOR_EXPRESSION = new RegExp(
 
 /* Standard keys defined by unist:
  * https://github.com/syntax-tree/unist.
- * We don’t ignore `data` though. */
+ * We don't ignore `data` though. */
 var ignore = ['type', 'value', 'children', 'position']
 
 /* Inspects a node, without using color. */
@@ -25876,7 +25876,7 @@ var labels = {
   undefined: 'info'
 };
 
-/* Report a file’s messages. */
+/* Report a file's messages. */
 function reporter(files, options) {
   var settings = options || {};
   var one;
@@ -26386,7 +26386,7 @@ function options(flags, configuration) {
 
   return {
     helpMessage: help,
-    /* “hidden” feature, makes testing easier. */
+    /* "hidden" feature, makes testing easier. */
     cwd: configuration.cwd,
     processor: configuration.processor,
     help: config.help,
@@ -26942,7 +26942,7 @@ function unified() {
 
   // Freeze: used to signal a processor that has finished configuration.
   //
-  // For example, take unified itself.  It’s frozen.  Plugins should not be
+  // For example, take unified itself.  It's frozen.  Plugins should not be
   // added to it.  Rather, it should be extended, by invoking it, before
   // modifying it.
   //
@@ -27790,7 +27790,7 @@ proto.enterBlock = toggle('inBlock', false)
 // ___
 // ```
 //
-// In the above example, the thematic break “interupts” the paragraph.
+// In the above example, the thematic break "interupts" the paragraph.
 proto.interruptParagraph = [
   ['thematicBreak'],
   ['atxHeading'],
@@ -27809,7 +27809,7 @@ proto.interruptParagraph = [
 // ___
 // ```
 //
-// In the above example, the thematic break “interupts” the list.
+// In the above example, the thematic break "interupts" the list.
 proto.interruptList = [
   ['atxHeading', {pedantic: false}],
   ['fencedCode', {pedantic: false}],
@@ -27825,7 +27825,7 @@ proto.interruptList = [
 // ___
 // ```
 //
-// In the above example, the thematic break “interupts” the blockquote.
+// In the above example, the thematic break "interupts" the blockquote.
 proto.interruptBlockquote = [
   ['indentedCode', {commonmark: true}],
   ['fencedCode', {commonmark: true}],
@@ -28141,12 +28141,12 @@ function factory(type) {
     }
 
     // Get offset.  Called before the first character is eaten to retrieve the
-    // range’s offsets.
+    // range's offsets.
     function getOffset() {
       var indentation = []
       var pos = line + 1
 
-      // Done.  Called when the last character is eaten to retrieve the range’s
+      // Done.  Called when the last character is eaten to retrieve the range's
       // offsets.
       return function() {
         var last = line + 1
@@ -28176,7 +28176,7 @@ function factory(type) {
       this.end = now()
     }
 
-    // Throw when a value is incorrectly eaten.  This shouldn’t happen but will
+    // Throw when a value is incorrectly eaten.  This shouldn't happen but will
     // throw on new, incorrect rules.
     function validateEat(subvalue) {
       /* istanbul ignore if */
@@ -28208,8 +28208,8 @@ function factory(type) {
         node.position = new Position(start)
 
         // If there was already a `position`, this node was merged.  Fixing
-        // `start` wasn’t hard, but the indent is different.  Especially
-        // because some information, the indent between `n` and `l` wasn’t
+        // `start` wasn't hard, but the indent is different.  Especially
+        // because some information, the indent between `n` and `l` wasn't
         // tracked.  Luckily, that space is (should be?) empty, so we can
         // safely check for it now.
         if (prev && indent && prev.indent) {
@@ -28738,7 +28738,7 @@ function anyFactory(tests) {
 }
 
 /* Utility to convert a string into a function which checks
- * a given node’s type for said string. */
+ * a given node's type for said string. */
 function typeFactory(test) {
   return type
 
@@ -29909,7 +29909,7 @@ function pedanticListItem(ctx, value, position) {
   var offsets = ctx.offset
   var line = position.line
 
-  // Remove the list-item’s bullet.
+  // Remove the list-item's bullet.
   value = value.replace(pedanticBulletExpression, replacer)
 
   // The initial line was also matched by the below, so we reset the `line`.
@@ -29939,7 +29939,7 @@ function normalListItem(ctx, value, position) {
   var index
   var length
 
-  // Remove the list-item’s bullet.
+  // Remove the list-item's bullet.
   value = value.replace(bulletExpression, replacer)
 
   lines = value.split(lineFeed)
@@ -31088,7 +31088,7 @@ function paragraph(eat, value, silent) {
   var now
 
   while (index < length) {
-    // Eat everything if there’s no following newline.
+    // Eat everything if there's no following newline.
     if (index === -1) {
       index = length
       break
@@ -31694,7 +31694,7 @@ function link(eat, value, silent) {
     return
   }
 
-  // Exit when this is a link and we’re already inside a link.
+  // Exit when this is a link and we're already inside a link.
   if (!isImage && self.inLink) {
     return
   }
@@ -31736,7 +31736,7 @@ function link(eat, value, silent) {
       subqueue += value.charAt(index)
     } else if ((!opening || gfm) && character === leftSquareBracket) {
       // In GFM mode, brackets in code still count.  In all other modes,
-      // they don’t.
+      // they don't.
       depth++
     } else if ((!opening || gfm) && character === rightSquareBracket) {
       if (depth) {
@@ -32063,7 +32063,7 @@ function reference(eat, value, silent) {
   var bracketed
   var depth
 
-  // Check whether we’re eating an image.
+  // Check whether we're eating an image.
   if (character === exclamationMark) {
     type = image
     intro = character
@@ -32078,10 +32078,10 @@ function reference(eat, value, silent) {
   intro += character
   queue = ''
 
-  // Check whether we’re eating a footnote.
+  // Check whether we're eating a footnote.
   if (self.options.footnotes && value.charAt(index) === caret) {
     // Exit if `![^` is found, so the `!` will be seen as text after this,
-    // and we’ll enter this function again when `[^` is found.
+    // and we'll enter this function again when `[^` is found.
     if (type === image) {
       return
     }
@@ -33354,7 +33354,7 @@ var blankExpression = /\n\s*$/
 function factory(options) {
   return escape
 
-  // Escape punctuation characters in a node’s value.
+  // Escape punctuation characters in a node's value.
   function escape(value, node, parent) {
     var self = this
     var gfm = options.gfm
@@ -33879,7 +33879,7 @@ var lineFeed = '\n'
 
 var blank = lineFeed + lineFeed
 
-// Visit unordered list items.  Uses `options.bullet` as each item’s bullet.
+// Visit unordered list items.  Uses `options.bullet` as each item's bullet.
 function unorderedItems(node) {
   var self = this
   var bullet = self.options.bullet
@@ -34114,7 +34114,7 @@ function listItem(node, parent, position, bullet) {
   value = values.join(spread ? blank : lineFeed)
 
   if (typeof checked === 'boolean') {
-    // Note: I’d like to be able to only add the space between the check and
+    // Note: I'd like to be able to only add the space between the check and
     // the value, but unfortunately github does not support empty list-items
     // with a checkbox :(
     value =
@@ -34251,7 +34251,7 @@ function code(node, parent) {
 
   // Without (needed) fences.
   if (!info && !options.fences && value) {
-    // Throw when pedantic, in a list item which isn’t compiled using a tab.
+    // Throw when pedantic, in a list item which isn't compiled using a tab.
     if (
       parent &&
       parent.type === 'listItem' &&
@@ -34589,7 +34589,7 @@ var punctuationExppresion = /[-!"#$%&'()*+,./:;<=>?@[\\\]^`{|}~_]/
 // identifier, so we need to restore the original encoding and escaping
 // that were present in the source string.
 //
-// This function takes the unescaped & unencoded value from shortcut’s
+// This function takes the unescaped & unencoded value from shortcut's
 // child nodes and the identifier and encodes the former according to
 // the latter.
 function copy(value, identifier) {
@@ -35449,8 +35449,8 @@ function messageControl(options) {
         return true
       }
 
-      /* We only ignore messages if they‘re disabled,
-       * *not* when they’re not in the document. */
+      /* We only ignore messages if they're disabled,
+       * *not* when they're not in the document. */
       if (!message.line) {
         message.line = 1
       }
@@ -35575,7 +35575,7 @@ function detectGaps(tree, file) {
 
   /* Get the end of the document.
    * This detects if the last node was the last node.
-   * If not, there’s an extra gap between the last node
+   * If not, there's an extra gap between the last node
    * and the end of the document. */
   if (
     lastNode &&
@@ -35778,7 +35778,7 @@ function checkboxContentIndent(tree, file) {
     }
 
     initial = start(node).offset
-    /* istanbul ignore next - hard to test, couldn’t find a case. */
+    /* istanbul ignore next - hard to test, couldn't find a case. */
     final = (node.children.length ? start(node.children[0]) : end(node)).offset
 
     while (/[^\S\n]/.test(contents.charAt(final))) {
@@ -36592,7 +36592,7 @@ function finalNewline(tree, file) {
  * @license MIT
  * @module list-item-indent
  * @fileoverview
- *   Warn when the spacing between a list item’s bullet and its content
+ *   Warn when the spacing between a list item's bullet and its content
  *   violates a given style.
  *
  *   Options: `'tab-size'`, `'mixed'`, or `'space'`, default: `'tab-size'`.
@@ -36603,7 +36603,7 @@ function finalNewline(tree, file) {
  *   uses `'tab-size'` (named `'tab'` there) by default to ensure markdown is
  *   seen the same way across vendors. This can be configured with the
  *   [`listItemIndent`](https://github.com/remarkjs/remark/tree/master/packages/remark-stringify#optionslistitemindent)
- *   option. This rule’s `'space'` option is named `'1'` there.
+ *   option. This rule's `'space'` option is named `'1'` there.
  *
  *   See [Using remark to fix your markdown](https://github.com/remarkjs/remark-lint#using-remark-to-fix-your-markdown)
  *   on how to automatically fix warnings for this rule.
@@ -36811,7 +36811,7 @@ module.exports = {"addendum":"addenda","aircraft":"aircraft","alga":"algae","alu
  *   code, definitions, HTML, and JSX.
  *
  *   Ignores images, links, and inline code if they start before the wrap, end
- *   after the wrap, and there’s no white-space after them.
+ *   after the wrap, and there's no white-space after them.
  *
  * @example {"name": "valid.md", "config": {"positionless": true}}
  *
@@ -36830,7 +36830,7 @@ module.exports = {"addendum":"addenda","aircraft":"aircraft","alga":"algae","alu
  *
  *   ![foo](http://this-long-url-with-a-long-domain-is-valid.co.uk/a-long-path?query=variables)
  *
- *   | An | exception | is | line | length | in | long | tables | because | those | can’t | just |
+ *   | An | exception | is | line | length | in | long | tables | because | those | can't | just |
  *   | -- | --------- | -- | ---- | ------ | -- | ---- | ------ | ------- | ----- | ----- | ---- |
  *   | be | helped    |    |      |        |    |      |        |         |       |       | .    |
  *
@@ -36926,7 +36926,7 @@ function maximumLineLength(tree, file, pref) {
   }
 
   // Finally, whitelist some inline spans, but only if they occur at or after
-  // the wrap.  However, when they do, and there’s white-space after it, they
+  // the wrap.  However, when they do, and there's white-space after it, they
   // are not whitelisted.
   function inline(node, pos, parent) {
     var next = parent.children[pos + 1]
@@ -36946,7 +36946,7 @@ function maximumLineLength(tree, file, pref) {
       return
     }
 
-    // No whitelisting when there’s white-space after the link.
+    // No whitelisting when there's white-space after the link.
     if (
       next &&
       start(next).line === initial.line &&
@@ -37000,7 +37000,7 @@ function maximumLineLength(tree, file, pref) {
  *   <http://www.example.com>
  *   <mailto:foo@bar.com>
  *
- *   Most markdown vendors don’t recognize the following as a link:
+ *   Most markdown vendors don't recognize the following as a link:
  *   <www.example.com>
  *
  * @example {"name": "invalid.md", "label": "input"}
@@ -37363,12 +37363,12 @@ function noFileNameOuterDashes(tree, file) {
  * @license MIT
  * @module no-heading-content-indent
  * @fileoverview
- *   Warn when a heading’s content is indented.
+ *   Warn when a heading's content is indented.
  *
  *   ## Fix
  *
  *   [`remark-stringify`](https://github.com/remarkjs/remark/tree/master/packages/remark-stringify)
- *   removes all unneeded padding around a heading’s content.
+ *   removes all unneeded padding around a heading's content.
  *
  *   See [Using remark to fix your markdown](https://github.com/remarkjs/remark-lint#using-remark-to-fix-your-markdown)
  *   on how to automatically fix warnings for this rule.
@@ -37396,9 +37396,9 @@ function noFileNameOuterDashes(tree, file) {
  *
  * @example {"name": "invalid.md", "label": "output"}
  *
- *   1:4: Remove 1 space before this heading’s content
- *   3:7: Remove 1 space after this heading’s content
- *   5:7: Remove 1 space before this heading’s content
+ *   1:4: Remove 1 space before this heading's content
+ *   3:7: Remove 1 space after this heading's content
+ *   5:7: Remove 1 space before this heading's content
  *
  * @example {"name": "empty-heading.md"}
  *
@@ -37412,8 +37412,8 @@ function noFileNameOuterDashes(tree, file) {
  *
  * @example {"name": "tight.md", "label": "output"}
  *
- *   3:3: Add 1 space before this heading’s content
- *   3:34: Remove 1 space after this heading’s content
+ *   3:3: Add 1 space before this heading's content
+ *   3:34: Remove 1 space after this heading's content
  */
 
 
@@ -37489,7 +37489,7 @@ function noHeadingContentIndent(tree, file) {
           Math.abs(diff) +
           ' ' +
           plural('space', diff) +
-          ' before this heading’s content'
+          ' before this heading\'s content'
 
         file.message(reason, start(children[0]))
       }
@@ -37508,7 +37508,7 @@ function noHeadingContentIndent(tree, file) {
           diff +
           ' ' +
           plural('space', diff) +
-          ' after this heading’s content'
+          ' after this heading\'s content'
 
         file.message(reason, final)
       }
@@ -37652,9 +37652,9 @@ function noHeadingIndent(tree, file) {
  *
  * @example {"name": "invalid.md", "label": "output"}
  *
- *   1:8-1:17: Don’t pad `emphasis` with inner spaces
- *   1:19-1:30: Don’t pad `emphasis` with inner spaces
- *   1:32-1:63: Don’t pad `link` with inner spaces
+ *   1:8-1:17: Don't pad `emphasis` with inner spaces
+ *   1:19-1:30: Don't pad `emphasis` with inner spaces
+ *   1:32-1:63: Don't pad `link` with inner spaces
  */
 
 
@@ -37679,7 +37679,7 @@ function noInlinePadding(tree, file) {
         contents.charAt(0) === ' ' ||
         contents.charAt(contents.length - 1) === ' '
       ) {
-        file.message('Don’t pad `' + node.type + '` with inner spaces', node)
+        file.message('Don\'t pad `' + node.type + '` with inner spaces', node)
       }
     }
   }
@@ -37715,7 +37715,7 @@ function noInlinePadding(tree, file) {
  *
  * @example {"name": "invalid.md", "setting": 1, "label": "output"}
  *
- *   3:1-3:6: Don’t use multiple top level headings (1:1)
+ *   3:1-3:6: Don't use multiple top level headings (1:1)
  */
 
 
@@ -37741,7 +37741,7 @@ function noMultipleToplevelHeadings(tree, file, pref) {
     if (!generated(node) && node.depth === style) {
       if (duplicate) {
         file.message(
-          'Don’t use multiple top level headings (' + duplicate + ')',
+          'Don\'t use multiple top level headings (' + duplicate + ')',
           node
         )
       } else {
@@ -37785,7 +37785,7 @@ function noMultipleToplevelHeadings(tree, file, pref) {
  *   ```command
  *   ```
  *
- *   It’s fine to use dollars in non-shell code.
+ *   It's fine to use dollars in non-shell code.
  *
  *   ```js
  *   $('div').remove();
@@ -37877,7 +37877,7 @@ function noShellDollars(tree, file) {
  *   Warn when shortcut reference images are used.
  *
  *   Shortcut references render as images when a definition is found, and as
- *   plain text without definition.  Sometimes, you don’t intend to create an
+ *   plain text without definition.  Sometimes, you don't intend to create an
  *   image from the reference, but this rule still warns anyway.  In that case,
  *   you can escape the reference like so: `!\[foo]`.
  *
@@ -38202,7 +38202,7 @@ function noUnusedDefinitions(tree, file) {
  *   `'consistent'` detects the first used rule style and warns when subsequent
  *   rules use different styles.
  *
- *   Note: horizontal rules are also called “thematic break”.
+ *   Note: horizontal rules are also called "thematic break".
  *
  *   ## Fix
  *
@@ -39284,7 +39284,7 @@ function prohibitedStrings(ast, file, strings) {
  *   `'consistent'` detects the first used strong style and warns when subsequent
  *   strongs use different styles.
  *
- *   Note: strong is also called “importance”.
+ *   Note: strong is also called "importance".
  *
  *   ## Fix
  *
@@ -39411,7 +39411,7 @@ function strongMarker(tree, file, pref) {
  *   | :----- | ---: |
  *   |Charlie | Delta|
  *
- *   Too much padding isn’t good either:
+ *   Too much padding isn't good either:
  *
  *   | E     | F        |   G    |      H |
  *   | :---- | -------- | :----: | -----: |
