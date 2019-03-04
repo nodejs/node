@@ -1335,6 +1335,9 @@ napi_status napi_create_string_utf8(napi_env env,
   CHECK_ENV(env);
   CHECK_ARG(env, result);
 
+  RETURN_STATUS_IF_FALSE(env,
+      (length == NAPI_AUTO_LENGTH) || length <= INT_MAX,
+      napi_invalid_arg);
   auto isolate = env->isolate;
   auto str_maybe =
       v8::String::NewFromUtf8(isolate,
