@@ -5,8 +5,8 @@ const common = require('../common.js');
 const bench = common.createBenchmark(main, {
   aligned: ['true', 'false'],
   method: ['swap16', 'swap32', 'swap64'/* , 'htons', 'htonl', 'htonll' */],
-  len: [8, 64, 128, 256, 512, 768, 1024, 1536, 2056, 4096, 8192],
-  n: [5e7]
+  len: [64, 256, 768, 1024, 2056, 8192],
+  n: [1e6]
 });
 
 // The htons and htonl methods below are used to benchmark the

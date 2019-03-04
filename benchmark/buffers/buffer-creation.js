@@ -1,5 +1,4 @@
 'use strict';
-const SlowBuffer = require('buffer').SlowBuffer;
 
 const common = require('../common.js');
 const assert = require('assert');
@@ -9,10 +8,9 @@ const bench = common.createBenchmark(main, {
     'fast-alloc-fill',
     'fast-allocUnsafe',
     'slow-allocUnsafe',
-    'slow',
-    'buffer()'],
-  len: [10, 1024, 2048, 4096, 8192],
-  n: [1024]
+  ],
+  len: [10, 1024, 4096, 8192],
+  n: [6e5]
 });
 
 function main({ len, n, type }) {
@@ -24,7 +22,7 @@ function main({ len, n, type }) {
       break;
     case 'fast-alloc-fill':
       bench.start();
-      for (i = 0; i < n * 1024; i++) {
+      for (i = 0; i < n; i++) {
         Buffer.alloc(len, 0);
       }
       bench.end(n);
@@ -35,18 +33,12 @@ function main({ len, n, type }) {
     case 'slow-allocUnsafe':
       fn = Buffer.allocUnsafeSlow;
       break;
-    case 'slow':
-      fn = SlowBuffer;
-      break;
-    case 'buffer()':
-      fn = Buffer;
-      break;
     default:
       assert.fail('Should not get here');
   }
 
   bench.start();
-  for (i = 0; i < n * 1024; i++) {
+  for (i = 0; i < n; i++) {
     fn(len);
   }
   bench.end(n);

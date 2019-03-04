@@ -3,7 +3,7 @@ const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
   type: ['Double', 'Float'],
-  endian: ['BE', 'LE'],
+  endian: ['LE'],
   value: ['zero', 'big', 'small', 'inf', 'nan'],
   n: [1e6]
 });

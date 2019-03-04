@@ -27,7 +27,7 @@ const types = [
 ];
 
 const bench = common.createBenchmark(main, {
-  buffer: ['fast', 'slow'],
+  buffer: ['fast'],
   type: types,
   n: [1e6]
 });
@@ -71,8 +71,9 @@ const byteLength = {
 };
 
 function main({ n, buf, type }) {
-  const clazz = buf === 'fast' ? Buffer : require('buffer').SlowBuffer;
-  const buff = new clazz(8);
+  const buff = buf === 'fast' ?
+    Buffer.alloc(8) :
+    require('buffer').SlowBuffer(8);
   const fn = `write${type || 'UInt8'}`;
 
   if (!/\d/.test(fn))

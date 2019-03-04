@@ -3,8 +3,8 @@ const common = require('../common');
 
 const bench = common.createBenchmark(main, {
   encoding: ['utf8', 'base64', 'buffer'],
-  len: [1, 2, 4, 16, 64, 256], // x16
-  n: [5e6]
+  len: [2, 16, 256], // x16
+  n: [4e6]
 });
 
 // 16 chars each

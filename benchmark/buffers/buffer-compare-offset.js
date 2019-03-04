@@ -3,7 +3,7 @@ const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
   method: ['offset', 'slice'],
-  size: [16, 512, 1024, 4096, 16386],
+  size: [16, 512, 4096, 16386],
   n: [1e6]
 });
 
