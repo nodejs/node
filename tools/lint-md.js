@@ -8785,7 +8785,7 @@ const args = {
   description: cli.description,
   version: [
     proc.name + ': ' + proc.version,
-    cli.name + ': ' + cli.version
+    cli.name + ': ' + cli.version,
   ].join(', '),
   ignoreName: '.' + proc.name + 'ignore',
   extensions: extensions
@@ -8794,7 +8794,7 @@ const config = options(process.argv.slice(2), args);
 config.detectConfig = false;
 config.plugins = plugins;
 
-engine(config, function done(err, code) {
+engine(config, (err, code) => {
   if (err) console.error(err);
   process.exit(code);
 });
@@ -26711,36 +26711,40 @@ function map (xs, f) {
 "use strict";
 
 
-const preserveCamelCase = input => {
+const preserveCamelCase = string => {
 	let isLastCharLower = false;
 	let isLastCharUpper = false;
 	let isLastLastCharUpper = false;
 
-	for (let i = 0; i < input.length; i++) {
-		const c = input[i];
+	for (let i = 0; i < string.length; i++) {
+		const character = string[i];
 
-		if (isLastCharLower && /[a-zA-Z]/.test(c) && c.toUpperCase() === c) {
-			input = input.slice(0, i) + '-' + input.slice(i);
+		if (isLastCharLower && /[a-zA-Z]/.test(character) && character.toUpperCase() === character) {
+			string = string.slice(0, i) + '-' + string.slice(i);
 			isLastCharLower = false;
 			isLastLastCharUpper = isLastCharUpper;
 			isLastCharUpper = true;
 			i++;
-		} else if (isLastCharUpper && isLastLastCharUpper && /[a-zA-Z]/.test(c) && c.toLowerCase() === c) {
-			input = input.slice(0, i - 1) + '-' + input.slice(i - 1);
+		} else if (isLastCharUpper && isLastLastCharUpper && /[a-zA-Z]/.test(character) && character.toLowerCase() === character) {
+			string = string.slice(0, i - 1) + '-' + string.slice(i - 1);
 			isLastLastCharUpper = isLastCharUpper;
 			isLastCharUpper = false;
 			isLastCharLower = true;
 		} else {
-			isLastCharLower = c.toLowerCase() === c;
+			isLastCharLower = character.toLowerCase() === character;
 			isLastLastCharUpper = isLastCharUpper;
-			isLastCharUpper = c.toUpperCase() === c;
+			isLastCharUpper = character.toUpperCase() === character;
 		}
 	}
 
-	return input;
+	return string;
 };
 
 module.exports = (input, options) => {
+	if (!(typeof input === 'string' || Array.isArray(input))) {
+		throw new TypeError('Expected the input to be `string | string[]`');
+	}
+
 	options = Object.assign({
 		pascalCase: false
 	}, options);
@@ -35198,7 +35202,7 @@ function tableCell(node) {
 /* 302 */
 /***/ (function(module) {
 
-module.exports = {"name":"remark","version":"10.0.1","description":"Markdown processor powered by plugins","license":"MIT","keywords":["markdown","abstract","syntax","tree","ast","parse","stringify","process"],"homepage":"https://remark.js.org","repository":"https://github.com/remarkjs/remark/tree/master/packages/remark","bugs":"https://github.com/remarkjs/remark/issues","author":"Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)","contributors":["Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)"],"files":["index.js"],"dependencies":{"remark-parse":"^6.0.0","remark-stringify":"^6.0.0","unified":"^7.0.0"},"devDependencies":{"tape":"^4.9.1"},"scripts":{"test":"tape test.js"},"xo":false,"_resolved":"https://registry.npmjs.org/remark/-/remark-10.0.1.tgz","_integrity":"sha512-E6lMuoLIy2TyiokHprMjcWNJ5UxfGQjaMSMhV+f4idM625UjjK4j798+gPs5mfjzDE6vL0oFKVeZM6gZVSVrzQ==","_from":"remark@10.0.1"};
+module.exports = {"_from":"remark@^10.0.0","_id":"remark@10.0.1","_inBundle":false,"_integrity":"sha512-E6lMuoLIy2TyiokHprMjcWNJ5UxfGQjaMSMhV+f4idM625UjjK4j798+gPs5mfjzDE6vL0oFKVeZM6gZVSVrzQ==","_location":"/remark","_phantomChildren":{},"_requested":{"type":"range","registry":true,"raw":"remark@^10.0.0","name":"remark","escapedName":"remark","rawSpec":"^10.0.0","saveSpec":null,"fetchSpec":"^10.0.0"},"_requiredBy":["/"],"_resolved":"https://registry.npmjs.org/remark/-/remark-10.0.1.tgz","_shasum":"3058076dc41781bf505d8978c291485fe47667df","_spec":"remark@^10.0.0","_where":"/Users/trott/io.js/tools/node-lint-md-cli-rollup","author":{"name":"Titus Wormer","email":"tituswormer@gmail.com","url":"https://wooorm.com"},"bugs":{"url":"https://github.com/remarkjs/remark/issues"},"bundleDependencies":false,"contributors":[{"name":"Titus Wormer","email":"tituswormer@gmail.com","url":"https://wooorm.com"}],"dependencies":{"remark-parse":"^6.0.0","remark-stringify":"^6.0.0","unified":"^7.0.0"},"deprecated":false,"description":"Markdown processor powered by plugins","devDependencies":{"tape":"^4.9.1"},"files":["index.js"],"homepage":"https://remark.js.org","keywords":["markdown","abstract","syntax","tree","ast","parse","stringify","process"],"license":"MIT","name":"remark","repository":{"type":"git","url":"https://github.com/remarkjs/remark/tree/master/packages/remark"},"scripts":{"test":"tape test.js"},"version":"10.0.1","xo":false};
 
 /***/ }),
 /* 303 */
@@ -35261,6 +35265,7 @@ module.exports.plugins = [
     __webpack_require__(346),
     [
       { no: "End-Of-Life", yes: "End-of-Life" },
+      { no: "End-of-life", yes: "End-of-Life" },
       { no: "Github", yes: "GitHub" },
       { no: "Javascript", yes: "JavaScript" },
       { no: "Node.JS", yes: "Node.js" },
