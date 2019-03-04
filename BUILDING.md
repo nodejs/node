@@ -72,7 +72,7 @@ There are three support tiers:
 For production applications, run Node.js on supported platforms only.
 
 Node.js does not support a platform version if a vendor has expired support
-for it. In other words, Node.js does not support running on End-of-life (EoL)
+for it. In other words, Node.js does not support running on End-of-Life (EoL)
 platforms. This is true regardless of entries in the table below.
 
 | System       | Support type | Version                         | Architectures    | Notes                         |
