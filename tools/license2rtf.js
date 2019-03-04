@@ -239,7 +239,8 @@ function rtfEscape(string) {
 }
 
 /*
- * This filter generates an rtf document from a stream of paragraph objects.
+ * This filter generates a document in RTF format
+ * from a stream of paragraph objects.
  */
 class RtfGenerator extends Stream {
   constructor() {
