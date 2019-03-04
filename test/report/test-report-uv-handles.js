@@ -133,7 +133,7 @@ if (process.argv[2] === 'child') {
         }
         assert(handle.is_referenced);
       }, 3),
-      timer: common.mustCall(function timer_validator(handle) {
+      timer: common.mustCallAtLeast(function timer_validator(handle) {
         assert(!handle.is_referenced);
         assert.strictEqual(handle.repeat, 0);
       }),
@@ -143,6 +143,7 @@ if (process.argv[2] === 'child') {
         assert(handle.is_referenced);
       }),
     };
+    console.log(report.libuv);
     for (const entry of report.libuv) {
       if (validators[entry.type]) validators[entry.type](entry);
     }
