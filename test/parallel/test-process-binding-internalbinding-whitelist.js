@@ -17,7 +17,9 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
 assert(process.binding('fs'));
 assert(process.binding('fs_event_wrap'));
 assert(process.binding('http_parser'));
-assert(process.binding('icu'));
+if (common.hasIntl) {
+  assert(process.binding('icu'));
+}
 assert(process.binding('inspector'));
 assert(process.binding('js_stream'));
 assert(process.binding('natives'));
