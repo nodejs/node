@@ -14,7 +14,7 @@
 
 # Git and Unix tools will be added to the PATH
 choco install git -params /GitAndUnixToolsOnPath -y
-choco install python2 -y
+choco install python python2 -y
 
 # Installs VS 2017 Build Tools
 choco install visualstudio2017buildtools -y

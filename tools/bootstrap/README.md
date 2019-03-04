@@ -6,7 +6,7 @@ A [Boxstarter][] script can be used for easy setup of Windows systems with all
 the required prerequisites for Node.js development. This script will install
 the following [Chocolatey] packages:
   * [Git for Windows][] with the `git` and Unix tools added to the `PATH`
-  * [Python 2.x][]
+  * [Python 3.x][] and [legacy Python][]
   * [Visual Studio 2017 Build Tools][] with [Visual C++ workload][]
   * [NetWide Assembler][]
 
@@ -24,6 +24,16 @@ Install-BoxstarterPackage https://raw.githubusercontent.com/nodejs/node/master/t
 ```
 
 Entire installation will take up about 10 GB of disk space.
+
+### Why install two different versions of Python?
+Python 2 will reach its _end-of-life_ at the end of 2019. Afterwards, the
+interpreter will not get updates — no bugfixes, no security fixes, nothing. In
+the interim, the Python ecosystem is abandoning 2.7 support.
+https://python3statement.org/  In order to remain safe and current the Node.js
+community is transitioning its Python code to Python 3. Having both versions of
+Python in this bootstrap will allow developers and end users to test, benchmark,
+and debug Node.js running on both versions to ensure a smooth and complete
+transition before the yearend deadline.
 
 ## Linux
 
@@ -50,7 +60,8 @@ xcode-select --install
 [Boxstarter WebLauncher]: http://boxstarter.org/WebLauncher
 [Chocolatey]: https://chocolatey.org/
 [Git for Windows]: https://chocolatey.org/packages/git
-[Python 2.x]: https://chocolatey.org/packages/python2
+[Python 3.x]: https://chocolatey.org/packages/python
+[legacy Python]: https://chocolatey.org/packages/python2
 [Visual Studio 2017 Build Tools]: https://chocolatey.org/packages/visualstudio2017buildtools
 [Visual C++ workload]: https://chocolatey.org/packages/visualstudio2017-workload-vctools
 [NetWide Assembler]: https://chocolatey.org/packages/nasm
