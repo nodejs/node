@@ -20620,6 +20620,7 @@ TEST(IsolateNewDispose) {
   CHECK_NOT_NULL(isolate);
   CHECK(current_isolate != isolate);
   CHECK(current_isolate == CcTest::isolate());
+  CHECK(isolate->GetArrayBufferAllocator() == CcTest::array_buffer_allocator());
 
   isolate->SetFatalErrorHandler(StoringErrorCallback);
   last_location = last_message = nullptr;
