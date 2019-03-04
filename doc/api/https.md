@@ -10,10 +10,27 @@ separate module.
 ## Class: https.Agent
 <!-- YAML
 added: v0.4.5
+changes:
+  - version: v2.5.0
+    pr-url: https://github.com/nodejs/node/pull/2228
+    description: parameter `maxCachedSessions` added to `options` for TLS
+                 sessions reuse.
+  - version: v5.3.0
+    pr-url: https://github.com/nodejs/node/pull/4252
+    description: support `0` `maxCachedSessions` to disable TLS session caching.
 -->
 
 An [`Agent`][] object for HTTPS similar to [`http.Agent`][]. See
 [`https.request()`][] for more information.
+
+### new Agent([options])
+
+* `options` {Object} Set of configurable options to set on the agent.
+  Can have the same fields as for [`http.Agent(options)`][], and
+  * `maxCachedSessions` {number} maximum number of TLS cached sessions.
+    Use `0` to disable TLS session caching. **Default:** `100`.
+
+    See [`Session Resumption`][] for infomation about TLS session reuse.
 
 ## Class: https.Server
 <!-- YAML
@@ -369,6 +386,7 @@ headers: max-age=0; pin-sha256="WoiWRyIOVNa9ihaBciRSC7XHjliYS9VwUGOIud4PB18="; p
 [`Agent`]: #https_class_https_agent
 [`URL`]: url.html#url_the_whatwg_url_api
 [`http.Agent`]: http.html#http_class_http_agent
+[`http.Agent(options)`]: http.html#http_new_agent_options
 [`http.Server#headersTimeout`]: http.html#http_server_headerstimeout
 [`http.Server#keepAliveTimeout`]: http.html#http_server_keepalivetimeout
 [`http.Server#maxHeadersCount`]: http.html#http_server_maxheaderscount
@@ -387,3 +405,4 @@ headers: max-age=0; pin-sha256="WoiWRyIOVNa9ihaBciRSC7XHjliYS9VwUGOIud4PB18="; p
 [`tls.connect()`]: tls.html#tls_tls_connect_options_callback
 [`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
+[`Session Resumption`]: tls.html#tls_session_resumption
