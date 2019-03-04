@@ -39,21 +39,24 @@ try {
   assert.strictEqual(e.name, 'RangeError');
 }
 
-// Should work with number-coercible values
-assert.strictEqual(SlowBuffer('6').length, 6);
-assert.strictEqual(SlowBuffer(true).length, 1);
+// Should throw with invalid length type
+const bufferInvalidTypeMsg = common.expectsError({
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: /^The "size" argument must be of type number/,
+}, 4);
+assert.throws(() => SlowBuffer(), bufferInvalidTypeMsg);
+assert.throws(() => SlowBuffer({}), bufferInvalidTypeMsg);
+assert.throws(() => SlowBuffer('6'), bufferInvalidTypeMsg);
+assert.throws(() => SlowBuffer(true), bufferInvalidTypeMsg);
 
-// Should throw with invalid length
+// Should throw with invalid length value
 const bufferMaxSizeMsg = common.expectsError({
   code: 'ERR_INVALID_OPT_VALUE',
   type: RangeError,
   message: /^The value "[^"]*" is invalid for option "size"$/
-}, 7);
-
-assert.throws(() => SlowBuffer(), bufferMaxSizeMsg);
+}, 4);
 assert.throws(() => SlowBuffer(NaN), bufferMaxSizeMsg);
-assert.throws(() => SlowBuffer({}), bufferMaxSizeMsg);
-assert.throws(() => SlowBuffer('string'), bufferMaxSizeMsg);
 assert.throws(() => SlowBuffer(Infinity), bufferMaxSizeMsg);
 assert.throws(() => SlowBuffer(-1), bufferMaxSizeMsg);
 assert.throws(() => SlowBuffer(buffer.kMaxLength + 1), bufferMaxSizeMsg);
