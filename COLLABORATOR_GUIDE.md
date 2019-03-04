@@ -359,7 +359,7 @@ the three Deprecation levels. Documentation-Only Deprecations may land in a
 minor release. They may not change to a Runtime Deprecation until the next major
 release.
 
-No API can change to End-of-life without going through a Runtime Deprecation
+No API can change to End-of-Life without going through a Runtime Deprecation
 cycle. There is no rule that deprecated code must progress to End-of-Life.
 Documentation-Only and Runtime Deprecations may remain in place for an unlimited
 duration.
