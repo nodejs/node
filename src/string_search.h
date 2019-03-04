@@ -348,8 +348,7 @@ size_t StringSearch<Char>::BoyerMooreSearch(
       // we have matched more than our tables allow us to be smart about.
       // Fall back on BMH shift.
       index += pattern_length - 1 -
-               CharOccurrence(bad_char_occurrence,
-                              static_cast<Char>(last_char));
+               CharOccurrence(bad_char_occurrence, last_char);
     } else {
       int gs_shift = good_suffix_shift[j + 1];
       int bc_occ = CharOccurrence(bad_char_occurrence, c);
@@ -446,7 +445,7 @@ size_t StringSearch<Char>::BoyerMooreHorspoolSearch(
   Char last_char = pattern_[pattern_length - 1];
   int last_char_shift =
       pattern_length - 1 -
-      CharOccurrence(char_occurrences, static_cast<Char>(last_char));
+      CharOccurrence(char_occurrences, last_char);
 
   // Perform search
   size_t index = start_index;  // No matches found prior to this index.
