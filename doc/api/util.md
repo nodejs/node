@@ -375,7 +375,7 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
-  - version: REPLACEME
+  - version: v11.11.0
     pr-url: https://github.com/nodejs/node/pull/26269
     description: The `compact` option accepts numbers for a new output mode.
   - version: v11.7.0
