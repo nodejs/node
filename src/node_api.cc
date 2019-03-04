@@ -1993,12 +1993,15 @@ napi_status napi_create_string_latin1(napi_env env,
                                       napi_value* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, result);
+  RETURN_STATUS_IF_FALSE(env,
+      (length == NAPI_AUTO_LENGTH) || length <= INT_MAX,
+      napi_invalid_arg);
 
   auto isolate = env->isolate;
   auto str_maybe =
       v8::String::NewFromOneByte(isolate,
                                  reinterpret_cast<const uint8_t*>(str),
-                                 v8::NewStringType::kInternalized,
+                                 v8::NewStringType::kNormal,
                                  length);
   CHECK_MAYBE_EMPTY(env, str_maybe, napi_generic_failure);
 
@@ -2012,11 +2015,18 @@ napi_status napi_create_string_utf8(napi_env env,
                                     napi_value* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, result);
+  RETURN_STATUS_IF_FALSE(env,
+      (length == NAPI_AUTO_LENGTH) || length <= INT_MAX,
+      napi_invalid_arg);
 
-  v8::Local<v8::String> s;
-  CHECK_NEW_FROM_UTF8_LEN(env, s, str, length);
-
-  *result = v8impl::JsValueFromV8LocalValue(s);
+  auto isolate = env->isolate;
+  auto str_maybe =
+      v8::String::NewFromUtf8(isolate,
+                              str,
+                              v8::NewStringType::kNormal,
+                              static_cast<int>(length));
+  CHECK_MAYBE_EMPTY(env, str_maybe, napi_generic_failure);
+  *result = v8impl::JsValueFromV8LocalValue(str_maybe.ToLocalChecked());
   return napi_clear_last_error(env);
 }
 
@@ -2026,12 +2036,15 @@ napi_status napi_create_string_utf16(napi_env env,
                                      napi_value* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, result);
+  RETURN_STATUS_IF_FALSE(env,
+      (length == NAPI_AUTO_LENGTH) || length <= INT_MAX,
+      napi_invalid_arg);
 
   auto isolate = env->isolate;
   auto str_maybe =
       v8::String::NewFromTwoByte(isolate,
                                  reinterpret_cast<const uint16_t*>(str),
-                                 v8::NewStringType::kInternalized,
+                                 v8::NewStringType::kNormal,
                                  length);
   CHECK_MAYBE_EMPTY(env, str_maybe, napi_generic_failure);
 

@@ -215,6 +215,32 @@ napi_value TestLargeUtf8(napi_env env, napi_callback_info info) {
   return output;
 }
 
+static napi_value TestLargeLatin1(napi_env env, napi_callback_info info) {
+  napi_value output;
+  if (SIZE_MAX > INT_MAX) {
+    NAPI_CALL(env, napi_create_string_latin1(env, "", ((size_t)INT_MAX) + 1, &output));
+  } else {
+    // just throw the expected error as there is nothing to test
+    // in this case since we can't overflow
+    NAPI_CALL(env, napi_throw_error(env, NULL, "Invalid argument"));
+  }
+
+  return output;
+}
+
+static napi_value TestLargeUtf16(napi_env env, napi_callback_info info) {
+  napi_value output;
+  if (SIZE_MAX > INT_MAX) {
+    NAPI_CALL(env, napi_create_string_utf16(env, "", ((size_t)INT_MAX) + 1, &output));
+  } else {
+    // just throw the expected error as there is nothing to test
+    // in this case since we can't overflow
+    NAPI_CALL(env, napi_throw_error(env, NULL, "Invalid argument"));
+  }
+
+  return output;
+}
+
 napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor properties[] = {
     DECLARE_NAPI_PROPERTY("TestLatin1", TestLatin1),
@@ -226,6 +252,8 @@ napi_value Init(napi_env env, napi_value exports) {
     DECLARE_NAPI_PROPERTY("Utf16Length", Utf16Length),
     DECLARE_NAPI_PROPERTY("Utf8Length", Utf8Length),
     DECLARE_NAPI_PROPERTY("TestLargeUtf8", TestLargeUtf8),
+    DECLARE_NAPI_PROPERTY("TestLargeLatin1", TestLargeLatin1),
+    DECLARE_NAPI_PROPERTY("TestLargeUtf16", TestLargeUtf16),
   };
 
   NAPI_CALL(env, napi_define_properties(
