@@ -7700,6 +7700,9 @@ class V8_EXPORT Isolate {
    */
   void SetIdle(bool is_idle);
 
+  /** Returns the ArrayBuffer::Allocator used in this isolate. */
+  ArrayBuffer::Allocator* GetArrayBufferAllocator();
+
   /** Returns true if this isolate has a current context. */
   bool InContext();
 
