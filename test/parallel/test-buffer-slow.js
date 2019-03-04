@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const buffer = require('buffer');
 const SlowBuffer = buffer.SlowBuffer;
@@ -39,21 +39,24 @@ try {
   assert.strictEqual(e.name, 'RangeError');
 }
 
-// Should work with number-coercible values
-assert.strictEqual(SlowBuffer('6').length, 6);
-assert.strictEqual(SlowBuffer(true).length, 1);
+// Should throw with invalid length type
+const bufferInvalidTypeMsg = {
+  code: 'ERR_INVALID_ARG_TYPE',
+  name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+  message: /^The "size" argument must be of type number/,
+};
+assert.throws(() => SlowBuffer(), bufferInvalidTypeMsg);
+assert.throws(() => SlowBuffer({}), bufferInvalidTypeMsg);
+assert.throws(() => SlowBuffer('6'), bufferInvalidTypeMsg);
+assert.throws(() => SlowBuffer(true), bufferInvalidTypeMsg);
 
-// Should throw with invalid length
-const bufferMaxSizeMsg = common.expectsError({
+// Should throw with invalid length value
+const bufferMaxSizeMsg = {
   code: 'ERR_INVALID_OPT_VALUE',
-  type: RangeError,
+  name: 'RangeError [ERR_INVALID_OPT_VALUE]',
   message: /^The value "[^"]*" is invalid for option "size"$/
-}, 7);
-
-assert.throws(() => SlowBuffer(), bufferMaxSizeMsg);
+};
 assert.throws(() => SlowBuffer(NaN), bufferMaxSizeMsg);
-assert.throws(() => SlowBuffer({}), bufferMaxSizeMsg);
-assert.throws(() => SlowBuffer('string'), bufferMaxSizeMsg);
 assert.throws(() => SlowBuffer(Infinity), bufferMaxSizeMsg);
 assert.throws(() => SlowBuffer(-1), bufferMaxSizeMsg);
 assert.throws(() => SlowBuffer(buffer.kMaxLength + 1), bufferMaxSizeMsg);
