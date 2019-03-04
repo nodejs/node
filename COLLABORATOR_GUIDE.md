@@ -334,7 +334,7 @@ documentation must state the deprecation status.
   * Emits a warning at runtime on first use of the deprecated API.
   * If used with the [`--throw-deprecation`][] flag, will throw a runtime error.
 
-* End-of-life
+* End-of-Life
   * The API is no longer subject to the semantic versioning rules.
   * Backward-incompatible changes including complete removal of such APIs may
     occur at any time.
@@ -343,32 +343,33 @@ Apply the `notable change` label to all pull requests that introduce
 Documentation-Only Deprecations. Such deprecations have no impact on code
 execution. Thus, they are not breaking changes (`semver-major`).
 
-Runtime Deprecations and End-of-life APIs (internal or public) are breaking
+Runtime Deprecations and End-of-Life APIs (internal or public) are breaking
 changes (`semver-major`). The TSC may make exceptions, deciding that one of
 these deprecations is not a breaking change.
 
 All deprecations receive a unique and immutable identifier. Documentation,
 warnings, and errors use the identifier when referring to the deprecation. The
-documentation for the assigned deprecation identifier must always remain in the
-API documentation. This is true even if the deprecation is no longer in use (for
+documentation for the deprecation identifier must always remain in the API
+documentation. This is true even if the deprecation is no longer in use (for
 example, due to removal of an End-of-Life deprecated API).
 
 <a id="deprecation-cycle"></a>
-A _Deprecation cycle_ is a major release during which an API has been in one of
+A _deprecation cycle_ is a major release during which an API has been in one of
 the three Deprecation levels. Documentation-Only Deprecations may land in a
-minor release but must not be upgraded to a Runtime Deprecation until the next
-major release.
+minor release. They may not change to a Runtime Deprecation until the next major
+release.
 
-No API can be moved to End-of-life without first having gone through a
-Runtime Deprecation cycle. However, there is no requirement that deprecated
-code must progress ultimately to *End-of-Life*. Documentation-only and runtime
-deprecations may remain indefinitely.
+No API can change to End-of-life without going through a Runtime Deprecation
+cycle. There is no rule that deprecated code must progress to End-of-Life.
+Documentation-Only and Runtime Deprecations may remain in place for an unlimited
+duration.
 
 Communicate pending deprecations and associated mitigations with the ecosystem
-as soon as possible (preferably before the pull request adding the deprecation
-lands on the master branch). Use the `notable-change` label on all pull requests
-that add a new deprecation or move an existing deprecation to a new deprecation
-level.
+as soon as possible. If possible, do it before the pull request adding the
+deprecation lands on the master branch.
+
+Use the `notable-change` label on pull requests that add or change the
+deprecation level of an API.
 
 ### Involving the TSC
 
