@@ -62,7 +62,7 @@ set no_cctest=
 set cctest=
 set openssl_no_asm=
 set doc=
-set extra_msbuild_args=^ 
+set extra_msbuild_args=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -136,8 +136,7 @@ if /i "%1"=="no-cctest"     set no_cctest=1&goto arg-ok
 if /i "%1"=="cctest"        set cctest=1&goto arg-ok
 if /i "%1"=="openssl-no-asm"   set openssl_no_asm=1&goto arg-ok
 if /i "%1"=="doc"           set doc=1&goto arg-ok
-if /i "%1"=="binlog"        set extra_msbuild_args=%extra_msbuild_args% /binaryLogger:%config%\node.binlog&goto arg-ok
-if /i "%1"=="msbuild_arg"   set extra_msbuild_args=%extra_msbuild_args% %2&goto arg-ok-2
+if /i "%1"=="binlog"        set extra_msbuild_args=/binaryLogger:%config%\node.binlog&goto arg-ok
 
 echo Error: invalid command line option `%1`.
 exit /b 1
@@ -254,6 +253,7 @@ set vcvars_call="%VCINSTALLDIR%\Auxiliary\Build\vcvarsall.bat" %vcvarsall_arg%
 echo calling: %vcvars_call%
 call %vcvars_call%
 if errorlevel 1 goto msbuild-not-found
+if defined DEBUG_HELPER @ECHO ON
 :found_vs2017
 echo Found MSVS version %VisualStudioVersion%
 set GYP_MSVS_VERSION=2017
@@ -319,6 +319,7 @@ if "%target%"=="Build" (
   if defined cctest set target="Build"
 )
 if "%target%"=="rename_node_bin_win" if exist "%config%\cctest.exe" del "%config%\cctest.exe"
+if defined msbuild_args set "extra_msbuild_args=%extra_msbuild_args% %msbuild_args%"
 msbuild node.sln %msbcpu% /t:%target% /p:Configuration=%config% /p:Platform=%msbplatform% /clp:NoItemAndPropertyList;Verbosity=minimal /nologo %extra_msbuild_args%
 if errorlevel 1 (
   if not defined project_generated echo Building Node with reused solution failed. To regenerate project files use "vcbuild projgen"
