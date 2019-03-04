@@ -398,7 +398,7 @@ MaybeLocal<Value> StartMainThreadExecution(Environment* env) {
   }
 
   if (env->options()->prof_process) {
-    env->set_execution_mode(Environment::ExecutionMode::kPrintBashCompletion);
+    env->set_execution_mode(Environment::ExecutionMode::kProfProcess);
     return StartExecution(env, "internal/main/prof_process");
   }
 
