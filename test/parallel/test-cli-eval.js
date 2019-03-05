@@ -34,9 +34,6 @@ const path = require('path');
 const fixtures = require('../common/fixtures');
 const nodejs = `"${process.execPath}"`;
 
-if (!common.isMainThread)
-  common.skip('process.chdir is not available in Workers');
-
 if (process.argv.length > 2) {
   console.log(process.argv.slice(2).join(' '));
   process.exit(0);
@@ -98,16 +95,14 @@ child.exec(`${nodejs} --print "os.platform()"`,
            }));
 
 // Module path resolve bug regression test.
-const cwd = process.cwd();
-process.chdir(path.resolve(__dirname, '../../'));
 child.exec(`${nodejs} --eval "require('./test/parallel/test-cli-eval.js')"`,
+           { cwd: path.resolve(__dirname, '../../') },
            common.mustCall((err, stdout, stderr) => {
              assert.strictEqual(err.code, 42);
              assert.strictEqual(
                stdout, 'Loaded as a module, exiting with status code 42.\n');
              assert.strictEqual(stderr, '');
            }));
-process.chdir(cwd);
 
 // Missing argument should not crash.
 child.exec(`${nodejs} -e`, common.mustCall((err, stdout, stderr) => {

@@ -2,8 +2,6 @@
 const common = require('../common');
 if (process.config.variables.node_without_node_options)
   common.skip('missing NODE_OPTIONS support');
-if (!common.isMainThread)
-  common.skip('process.chdir is not available in Workers');
 
 // Test options specified by env variable.
 
@@ -12,7 +10,6 @@ const exec = require('child_process').execFile;
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
-process.chdir(tmpdir.path);
 
 const printA = require.resolve('../fixtures/printA.js');
 expect(`-r ${printA}`, 'A\nB\n');
@@ -64,6 +61,7 @@ expect('--stack-trace-limit=100',
 function expect(opt, want, command = 'console.log("B")', wantsError = false) {
   const argv = ['-e', command];
   const opts = {
+    cwd: tmpdir.path,
     env: Object.assign({}, process.env, { NODE_OPTIONS: opt }),
     maxBuffer: 1e6,
   };
