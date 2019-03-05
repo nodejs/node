@@ -327,14 +327,46 @@ inline Environment* Environment::GetCurrent(
   return GetFromCallbackData(info.Data());
 }
 
-inline Environment* Environment::GetFromCallbackData(v8::Local<v8::Value> val) {
+Environment* Environment::GetFromCallbackData(v8::Local<v8::Value> val) {
   DCHECK(val->IsObject());
   v8::Local<v8::Object> obj = val.As<v8::Object>();
-  DCHECK_GE(obj->InternalFieldCount(), 1);
-  Environment* env =
-      static_cast<Environment*>(obj->GetAlignedPointerFromInternalField(0));
+  DCHECK_GE(obj->InternalFieldCount(),
+            BaseObject::kInternalFieldCount);
+  Environment* env = Unwrap<BaseObject>(obj)->env();
   DCHECK(env->as_callback_data_template()->HasInstance(obj));
   return env;
+}
+
+template <typename T>
+Environment::BindingScope<T>::BindingScope(Environment* env) : env(env) {
+  v8::Local<v8::Object> callback_data;
+  if (!env->MakeBindingCallbackData<T>().ToLocal(&callback_data))
+    return;
+  data = Unwrap<T>(callback_data);
+
+  // No nesting allowed currently.
+  CHECK_EQ(env->current_callback_data(), env->as_callback_data());
+  env->set_current_callback_data(callback_data);
+}
+
+template <typename T>
+Environment::BindingScope<T>::~BindingScope() {
+  env->set_current_callback_data(env->as_callback_data());
+}
+
+template <typename T>
+v8::MaybeLocal<v8::Object> Environment::MakeBindingCallbackData() {
+  v8::Local<v8::Function> ctor;
+  v8::Local<v8::Object> obj;
+  if (!as_callback_data_template()->GetFunction(context()).ToLocal(&ctor) ||
+      !ctor->NewInstance(context()).ToLocal(&obj)) {
+    return v8::MaybeLocal<v8::Object>();
+  }
+  T* data = new T(this, obj);
+  // This won't compile if T is not a BaseObject subclass.
+  CHECK_EQ(data, static_cast<BaseObject*>(data));
+  data->MakeWeak();
+  return obj;
 }
 
 inline Environment* Environment::GetThreadLocalEnv() {
@@ -1123,7 +1155,7 @@ inline v8::Local<v8::FunctionTemplate>
                                      v8::Local<v8::Signature> signature,
                                      v8::ConstructorBehavior behavior,
                                      v8::SideEffectType side_effect_type) {
-  v8::Local<v8::Object> external = as_callback_data();
+  v8::Local<v8::Object> external = current_callback_data();
   return v8::FunctionTemplate::New(isolate(), callback, external,
                                    signature, 0, behavior, side_effect_type);
 }
@@ -1261,7 +1293,7 @@ void Environment::modify_base_object_count(int64_t delta) {
 }
 
 int64_t Environment::base_object_count() const {
-  return base_object_count_;
+  return base_object_count_ - initial_base_object_count_;
 }
 
 void Environment::set_main_utf16(std::unique_ptr<v8::String::Value> str) {
@@ -1320,6 +1352,10 @@ void Environment::set_process_exit_handler(
     return PersistentToLocal::Strong(context_);
   }
 }  // namespace node
+
+// These two files depend on each other. Including base_object-inl.h after this
+// file is the easiest way to avoid issues with that circular dependency.
+#include "base_object-inl.h"
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 

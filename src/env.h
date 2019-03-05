@@ -436,6 +436,7 @@ constexpr size_t kFsStatsBufferLength =
   V(async_hooks_promise_resolve_function, v8::Function)                        \
   V(buffer_prototype_object, v8::Object)                                       \
   V(crypto_key_object_constructor, v8::Function)                               \
+  V(current_callback_data, v8::Object)                                         \
   V(domain_callback, v8::Function)                                             \
   V(domexception_function, v8::Function)                                       \
   V(enhance_fatal_stack_after_inspector, v8::Function)                         \
@@ -870,6 +871,24 @@ class Environment : public MemoryRetainer {
       const v8::PropertyCallbackInfo<T>& info);
 
   static inline Environment* GetFromCallbackData(v8::Local<v8::Value> val);
+
+  // Methods created using SetMethod(), SetPrototypeMethod(), etc. inside
+  // this scope can access the created T* object using
+  // Unwrap<T>(args.Data()) later.
+  template <typename T>
+  struct BindingScope {
+    explicit inline BindingScope(Environment* env);
+    inline ~BindingScope();
+
+    T* data = nullptr;
+    Environment* env;
+
+    inline operator bool() const { return data != nullptr; }
+    inline bool operator !() const { return data == nullptr; }
+  };
+
+  template <typename T>
+  inline v8::MaybeLocal<v8::Object> MakeBindingCallbackData();
 
   static uv_key_t thread_local_env;
   static inline Environment* GetThreadLocalEnv();
@@ -1461,6 +1480,7 @@ class Environment : public MemoryRetainer {
   bool started_cleanup_ = false;
 
   int64_t base_object_count_ = 0;
+  int64_t initial_base_object_count_ = 0;
   std::atomic_bool is_stopping_ { false };
 
   std::function<void(Environment*, int)> process_exit_handler_ {

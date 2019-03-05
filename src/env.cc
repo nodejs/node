@@ -258,18 +258,30 @@ void TrackingTraceStateObserver::UpdateTraceCategoryState() {
   USE(cb->Call(env_->context(), Undefined(isolate), arraysize(args), args));
 }
 
+class NoBindingData : public BaseObject {
+ public:
+  NoBindingData(Environment* env, Local<Object> obj) : BaseObject(env, obj) {}
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(NoBindingData)
+  SET_SELF_SIZE(NoBindingData)
+};
+
 void Environment::CreateProperties() {
   HandleScope handle_scope(isolate_);
   Local<Context> ctx = context();
-  Local<FunctionTemplate> templ = FunctionTemplate::New(isolate());
-  templ->InstanceTemplate()->SetInternalFieldCount(1);
-  Local<Object> obj = templ->GetFunction(ctx)
-                          .ToLocalChecked()
-                          ->NewInstance(ctx)
-                          .ToLocalChecked();
-  obj->SetAlignedPointerInInternalField(0, this);
-  set_as_callback_data(obj);
-  set_as_callback_data_template(templ);
+  {
+    Context::Scope context_scope(ctx);
+    Local<FunctionTemplate> templ = FunctionTemplate::New(isolate());
+    templ->InstanceTemplate()->SetInternalFieldCount(
+        BaseObject::kInternalFieldCount);
+    set_as_callback_data_template(templ);
+
+    Local<Object> obj = MakeBindingCallbackData<NoBindingData>()
+        .ToLocalChecked();
+    set_as_callback_data(obj);
+    set_current_callback_data(obj);
+  }
 
   // Store primordials setup by the per-context script in the environment.
   Local<Object> per_context_bindings =
@@ -417,6 +429,10 @@ Environment::Environment(IsolateData* isolate_data,
   // TODO(joyeecheung): deserialize when the snapshot covers the environment
   // properties.
   CreateProperties();
+
+  // This adjusts the return value of base_object_count() so that tests that
+  // check the count do not have to account for internally created BaseObjects.
+  initial_base_object_count_ = base_object_count();
 }
 
 Environment::~Environment() {
@@ -467,7 +483,7 @@ Environment::~Environment() {
     }
   }
 
-  CHECK_EQ(base_object_count(), 0);
+  CHECK_EQ(base_object_count_, 0);
 }
 
 void Environment::InitializeLibuv(bool start_profiler_idle_notifier) {
