@@ -64,9 +64,19 @@ class NodeTestFixture : public ::testing::Test {
   static TracingAgentUniquePtr tracing_agent;
   static NodePlatformUniquePtr platform;
   static uv_loop_t current_loop;
+  static bool node_initialized;
   v8::Isolate* isolate_;
 
   static void SetUpTestCase() {
+    if (!node_initialized) {
+      node_initialized = true;
+      int argc = 1;
+      const char* argv0 = "cctest";
+      int exec_argc;
+      const char** exec_argv;
+      node::Init(&argc, &argv0, &exec_argc, &exec_argv);
+    }
+
     tracing_agent.reset(new node::tracing::Agent());
     node::tracing::TraceEventHelper::SetAgent(tracing_agent.get());
     CHECK_EQ(0, uv_loop_init(&current_loop));
@@ -89,9 +99,11 @@ class NodeTestFixture : public ::testing::Test {
                                      &node::FreeArrayBufferAllocator);
     isolate_ = NewIsolate(allocator.get(), &current_loop);
     CHECK_NE(isolate_, nullptr);
+    isolate_->Enter();
   }
 
   void TearDown() override {
+    isolate_->Exit();
     isolate_->Dispose();
     platform->UnregisterIsolate(isolate_);
     isolate_ = nullptr;
@@ -118,6 +130,8 @@ class EnvironmentTestFixture : public NodeTestFixture {
                                              1, *argv,
                                              argv.nr_args(), *argv);
       CHECK_NE(nullptr, environment_);
+      // TODO(addaleax): Make this a public API.
+      CHECK(!RunBootstrapping(environment_).IsEmpty());
     }
 
     ~Env() {
