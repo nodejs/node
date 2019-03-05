@@ -1814,7 +1814,7 @@ must be an object with the properties described above.
 added: v11.6.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/???
+    pr-url: https://github.com/nodejs/node/pull/26278
     description: The `key` argument can now be a `KeyObject` with type
                  `private`.
   - version: v11.7.0
