@@ -503,7 +503,7 @@ to intercept external triggers for report generation. Defaults to
 `filename` specifies the name of the output file in the file system.
 Special meaning is attached to `stdout` and `stderr`. Usage of these
 will result in report being written to the associated standard streams.
-In cases where standard streams are used, the value in `'directory'` is ignored.
+In cases where standard streams are used, the value in `directory` is ignored.
 URLs are not supported. Defaults to a composite filename that contains
 timestamp, PID and sequence number.
 
@@ -522,7 +522,7 @@ process.report.reportOnFatalError = true;
 process.report.reportOnSignal = true;
 process.report.reportOnUncaughtException = false;
 
-// Change the default signal to `SIGQUIT` and enable it.
+// Change the default signal to 'SIGQUIT' and enable it.
 process.report.reportOnFatalError = false;
 process.report.reportOnUncaughtException = false;
 process.report.reportOnSignal = true;

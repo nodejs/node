@@ -1669,7 +1669,7 @@ added: v11.8.0
 reports for the current process. Additional documentation is available in the
 [report documentation][].
 
-## process.report.directory
+### process.report.directory
 <!-- YAML
 added: REPLACEME
 -->
@@ -1682,6 +1682,21 @@ Node.js process.
 
 ```js
 console.log(`Report directory is ${process.report.directory}`);
+```
+
+### process.report.filename
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+Filename where the report is written. If set to the empty string, the output
+filename will be comprised of a timestamp, PID, and sequence number. The default
+value is the empty string.
+
+```js
+console.log(`Report filename is ${process.report.filename}`);
 ```
 
 ### process.report.getReport([err])
@@ -1702,22 +1717,7 @@ console.log(data);
 
 Additional documentation is available in the [report documentation][].
 
-## process.report.filename
-<!-- YAML
-added: REPLACEME
--->
-
-* {string}
-
-Filename where the report is written. If set to the empty string, the output
-filename will be comprised of a timestamp, PID, and sequence number. The default
-value is the empty string.
-
-```js
-console.log(`Report filename is ${process.report.filename}`);
-```
-
-## process.report.reportOnFatalError
+### process.report.reportOnFatalError
 <!-- YAML
 added: REPLACEME
 -->
@@ -1731,7 +1731,7 @@ memory errors or failed C++ assertions.
 console.log(`Report on fatal error: ${process.report.reportOnFatalError}`);
 ```
 
-## process.report.reportOnSignal
+### process.report.reportOnSignal
 <!-- YAML
 added: REPLACEME
 -->
@@ -1745,7 +1745,7 @@ signal specified by `process.report.signal`.
 console.log(`Report on signal: ${process.report.reportOnSignal}`);
 ```
 
-## process.report.reportOnUncaughtException
+### process.report.reportOnUncaughtException
 <!-- YAML
 added: REPLACEME
 -->
@@ -1758,7 +1758,7 @@ If `true`, a diagnostic report is generated on uncaught exception.
 console.log(`Report on exception: ${process.report.reportOnUncaughtException}`);
 ```
 
-## process.report.signal
+### process.report.signal
 <!-- YAML
 added: REPLACEME
 -->
@@ -1766,7 +1766,7 @@ added: REPLACEME
 * {string}
 
 The signal used to trigger the creation of a diagnostic report. Defaults to
-`SIGUSR2`.
+`'SIGUSR2'`.
 
 ```js
 console.log(`Report signal: ${process.report.signal}`);
