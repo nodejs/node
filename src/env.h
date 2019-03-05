@@ -1049,7 +1049,6 @@ class Environment {
   TickInfo tick_info_;
   const uint64_t timer_base_;
   bool printed_error_ = false;
-  bool abort_on_uncaught_exception_ = false;
   bool emit_env_nonstring_warning_ = true;
   bool emit_err_name_warning_ = true;
   size_t makecallback_cntr_ = 0;
