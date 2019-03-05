@@ -23,7 +23,8 @@ enum {
 
 // Make sure our internal values match the public API's values.
 static_assert(static_cast<int>(NM_F_LINKED) ==
-              static_cast<int>(node::ModuleFlags::kLinked));
+              static_cast<int>(node::ModuleFlags::kLinked),
+              "NM_F_LINKED != node::ModuleFlags::kLinked");
 
 #define NODE_MODULE_CONTEXT_AWARE_CPP(modname, regfunc, priv, flags)           \
   static node::node_module _module = {                                         \
