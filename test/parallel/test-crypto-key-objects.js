@@ -107,6 +107,16 @@ const privatePem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
   assert.strictEqual(derivedPublicKey.asymmetricKeyType, 'rsa');
   assert.strictEqual(derivedPublicKey.symmetricKeySize, undefined);
 
+  // Test exporting with an invalid options object, this should throw.
+  for (const opt of [undefined, null, 'foo', 0, NaN]) {
+    common.expectsError(() => publicKey.export(opt), {
+      type: TypeError,
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "options" argument must be of type object. Received type ' +
+               typeof opt
+    });
+  }
+
   const publicDER = publicKey.export({
     format: 'der',
     type: 'pkcs1'
