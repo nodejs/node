@@ -45,6 +45,14 @@ using v8::String;
 using v8::Undefined;
 using v8::Value;
 
+static const char* const EXTENSIONS[] = {
+  ".mjs",
+  ".cjs",
+  ".js",
+  ".json",
+  ".node"
+};
+
 ModuleWrap::ModuleWrap(Environment* env,
                        Local<Object> object,
                        Local<Module> module,
@@ -669,13 +677,57 @@ Maybe<URL> LegacyMainResolve(const URL& pjson_url,
   return Nothing<URL>();
 }
 
-Maybe<URL> FinalizeResolution(Environment* env,
-                                           const URL& resolved,
-                                           const URL& base,
-                                           bool check_exists) {
-  const std::string& path = resolved.ToFilePath();
+enum ResolveExtensionsOptions {
+  TRY_EXACT_NAME,
+  ONLY_VIA_EXTENSIONS
+};
 
-  if (check_exists && CheckDescriptorAtPath(path) != FILE) {
+template <ResolveExtensionsOptions options>
+Maybe<URL> ResolveExtensions(const URL& search) {
+  if (options == TRY_EXACT_NAME) {
+    if (FileExists(search)) {
+      return Just(search);
+    }
+  }
+
+  for (const char* extension : EXTENSIONS) {
+    URL guess(search.path() + extension, &search);
+    if (FileExists(guess)) {
+      return Just(guess);
+    }
+  }
+
+  return Nothing<URL>();
+}
+
+inline Maybe<URL> ResolveIndex(const URL& search) {
+  return ResolveExtensions<ONLY_VIA_EXTENSIONS>(URL("index", search));
+}
+
+Maybe<URL> FinalizeResolution(Environment* env,
+                              const URL& resolved,
+                              const URL& base) {
+  if (env->options()->es_module_specifier_resolution == "node") {
+    Maybe<URL> file = ResolveExtensions<TRY_EXACT_NAME>(resolved);
+    if (!file.IsNothing()) {
+      return file;
+    }
+    if (resolved.path().back() != '/') {
+      file = ResolveIndex(URL(resolved.path() + "/", &base));
+    } else {
+      file = ResolveIndex(resolved);
+    }
+    if (!file.IsNothing()) {
+      return file;
+    }
+    std::string msg = "Cannot find module '" + resolved.path() +
+        "' imported from " + base.ToFilePath();
+    node::THROW_ERR_MODULE_NOT_FOUND(env, msg.c_str());
+    return Nothing<URL>();
+  }
+
+  const std::string& path = resolved.ToFilePath();
+  if (CheckDescriptorAtPath(path) != FILE) {
     std::string msg = "Cannot find module '" + path +
         "' imported from " + base.ToFilePath();
     node::THROW_ERR_MODULE_NOT_FOUND(env, msg.c_str());
@@ -686,32 +738,36 @@ Maybe<URL> FinalizeResolution(Environment* env,
 }
 
 Maybe<URL> PackageMainResolve(Environment* env,
-                                           const URL& pjson_url,
-                                           const PackageConfig& pcfg,
-                                           const URL& base) {
-  if (pcfg.exists == Exists::No || (
-      pcfg.esm == IsESM::Yes && pcfg.has_main == HasMain::No)) {
-    std::string msg = "Cannot find main entry point for '" +
-        URL(".", pjson_url).ToFilePath() + "' imported from " +
-        base.ToFilePath();
-    node::THROW_ERR_MODULE_NOT_FOUND(env, msg.c_str());
-    return Nothing<URL>();
+                              const URL& pjson_url,
+                              const PackageConfig& pcfg,
+                              const URL& base) {
+  if (pcfg.exists == Exists::Yes) {
+    if (pcfg.has_main == HasMain::Yes) {
+      URL resolved(pcfg.main, pjson_url);
+      const std::string& path = resolved.ToFilePath();
+      if (CheckDescriptorAtPath(path) == FILE) {
+        return Just(resolved);
+      }
+    }
+    if (env->options()->es_module_specifier_resolution == "node") {
+      if (pcfg.has_main == HasMain::Yes) {
+        return FinalizeResolution(env, URL(pcfg.main, pjson_url), base);
+      } else {
+        return FinalizeResolution(env, URL("index", pjson_url), base);
+      }
+    }
+    if (pcfg.esm == IsESM::No) {
+      Maybe<URL> resolved = LegacyMainResolve(pjson_url, pcfg);
+      if (!resolved.IsNothing()) {
+        return resolved;
+      }
+    }
   }
-  if (pcfg.has_main == HasMain::Yes &&
-      pcfg.main.substr(pcfg.main.length() - 4, 4) == ".mjs") {
-    return FinalizeResolution(env, URL(pcfg.main, pjson_url), base, true);
-  }
-  if (pcfg.esm == IsESM::Yes &&
-      pcfg.main.substr(pcfg.main.length() - 3, 3) == ".js") {
-    return FinalizeResolution(env, URL(pcfg.main, pjson_url), base, true);
-  }
-
-  Maybe<URL> resolved = LegacyMainResolve(pjson_url, pcfg);
-  // Legacy main resolution error
-  if (resolved.IsNothing()) {
-    return Nothing<URL>();
-  }
-  return resolved;
+  std::string msg = "Cannot find main entry point for '" +
+      URL(".", pjson_url).ToFilePath() + "' imported from " +
+      base.ToFilePath();
+  node::THROW_ERR_MODULE_NOT_FOUND(env, msg.c_str());
+  return Nothing<URL>();
 }
 
 Maybe<URL> PackageResolve(Environment* env,
@@ -761,7 +817,7 @@ Maybe<URL> PackageResolve(Environment* env,
     if (!pkg_subpath.length()) {
       return PackageMainResolve(env, pjson_url, *pcfg.FromJust(), base);
     } else {
-      return FinalizeResolution(env, URL(pkg_subpath, pjson_url), base, true);
+      return FinalizeResolution(env, URL(pkg_subpath, pjson_url), base);
     }
     CHECK(false);
     // Cross-platform root check.
@@ -791,7 +847,7 @@ Maybe<URL> Resolve(Environment* env,
       return PackageResolve(env, specifier, base);
     }
   }
-  return FinalizeResolution(env, resolved, base, true);
+  return FinalizeResolution(env, resolved, base);
 }
 
 void ModuleWrap::Resolve(const FunctionCallbackInfo<Value>& args) {
