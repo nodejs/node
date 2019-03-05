@@ -29,7 +29,9 @@ assert(process.binding('signal_wrap'));
 assert(process.binding('spawn_sync'));
 assert(process.binding('stream_wrap'));
 assert(process.binding('tcp_wrap'));
-assert(process.binding('tls_wrap'));
+if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
+  assert(process.binding('tls_wrap'));
+}
 assert(process.binding('tty_wrap'));
 assert(process.binding('udp_wrap'));
 assert(process.binding('url'));
