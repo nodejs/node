@@ -580,39 +580,6 @@ inline double Environment::get_default_trigger_async_id() {
   return default_trigger_async_id;
 }
 
-inline double* Environment::heap_statistics_buffer() const {
-  CHECK_NOT_NULL(heap_statistics_buffer_);
-  return static_cast<double*>(heap_statistics_buffer_->Data());
-}
-
-inline void Environment::set_heap_statistics_buffer(
-    std::shared_ptr<v8::BackingStore> backing_store) {
-  CHECK(!heap_statistics_buffer_);  // Should be set only once.
-  heap_statistics_buffer_ = std::move(backing_store);
-}
-
-inline double* Environment::heap_space_statistics_buffer() const {
-  CHECK(heap_space_statistics_buffer_);
-  return static_cast<double*>(heap_space_statistics_buffer_->Data());
-}
-
-inline void Environment::set_heap_space_statistics_buffer(
-    std::shared_ptr<v8::BackingStore> backing_store) {
-  CHECK(!heap_space_statistics_buffer_);  // Should be set only once.
-  heap_space_statistics_buffer_ = std::move(backing_store);
-}
-
-inline double* Environment::heap_code_statistics_buffer() const {
-  CHECK(heap_code_statistics_buffer_);
-  return static_cast<double*>(heap_code_statistics_buffer_->Data());
-}
-
-inline void Environment::set_heap_code_statistics_buffer(
-    std::shared_ptr<v8::BackingStore> backing_store) {
-  CHECK(!heap_code_statistics_buffer_);  // Should be set only once.
-  heap_code_statistics_buffer_ = std::move(backing_store);
-}
-
 inline char* Environment::http_parser_buffer() const {
   return http_parser_buffer_;
 }
