@@ -874,9 +874,6 @@ class Environment {
   inline void SetProtoMethod(v8::Local<v8::FunctionTemplate> that,
                              const char* name,
                              v8::FunctionCallback callback);
-  inline void SetTemplateMethod(v8::Local<v8::FunctionTemplate> that,
-                                const char* name,
-                                v8::FunctionCallback callback);
 
   // Safe variants denote the function has no side effects.
   inline void SetMethodNoSideEffect(v8::Local<v8::Object> that,
