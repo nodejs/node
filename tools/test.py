@@ -918,12 +918,12 @@ TIMEOUT_SCALEFACTOR = {
 
 class Context(object):
 
-  def __init__(self, workspace, buildspace, verbose, vm, args, expect_fail,
+  def __init__(self, workspace, verbose, vm, args, expect_fail,
                timeout, processor, suppress_dialogs,
                store_unexpected_output, repeat, abort_on_timeout):
     self.workspace = workspace
-    self.buildspace = buildspace
     self.verbose = verbose
+    self.vm = vm
     self.node_args = args
     self.expect_fail = expect_fail
     self.timeout = timeout
@@ -936,6 +936,8 @@ class Context(object):
     self.node_has_crypto = True
 
   def GetVm(self, arch, mode):
+    if self.vm is not None:
+      return self.vm
     if arch == 'none':
       name = 'out/Debug/node' if mode == 'debug' else 'out/Release/node'
     else:
@@ -1381,7 +1383,7 @@ def BuildOptions():
         dest="suppress_dialogs", default=True, action="store_true")
   result.add_option("--no-suppress-dialogs", help="Display Windows dialogs for crashing tests",
         dest="suppress_dialogs", action="store_false")
-  result.add_option("--shell", help="Path to V8 shell", default="shell")
+  result.add_option("--shell", help="Path to node executable", default=None)
   result.add_option("--store-unexpected-output",
       help="Store the temporary JS files from tests that fails",
       dest="store_unexpected_output", default=True, action="store_true")
@@ -1605,14 +1607,11 @@ def Main():
     run_worker = join(workspace, "tools", "run-worker.js")
     options.node_args.append(run_worker)
 
-  shell = abspath(options.shell)
-  buildspace = dirname(shell)
-
   processor = GetSpecialCommandProcessor(options.special_command)
+
   context = Context(workspace,
-                    buildspace,
                     VERBOSE,
-                    shell,
+                    options.shell,
                     options.node_args,
                     options.expect_fail,
                     options.timeout,
