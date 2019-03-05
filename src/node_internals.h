@@ -217,6 +217,20 @@ class InternalCallbackScope {
   bool closed_ = false;
 };
 
+class DebugSealHandleScope {
+ public:
+  explicit inline DebugSealHandleScope(v8::Isolate* isolate)
+#ifdef DEBUG
+    : actual_scope_(isolate)
+#endif
+  {}
+
+ private:
+#ifdef DEBUG
+  v8::SealHandleScope actual_scope_;
+#endif
+};
+
 class ThreadPoolWork {
  public:
   explicit inline ThreadPoolWork(Environment* env) : env_(env) {
