@@ -409,7 +409,7 @@ class NgRcBufPointer : public MemoryRetainer {
         NgRcBufPointer<T> ptr) {
       Environment* env = allocator->env();
       if (ptr.IsStatic()) {
-        auto& static_str_map = env->isolate_data()->http_static_strs;
+        auto& static_str_map = env->isolate_data()->static_str_map;
         const char* header_name = reinterpret_cast<const char*>(ptr.data());
         v8::Eternal<v8::String>& eternal = static_str_map[header_name];
         if (eternal.IsEmpty()) {
