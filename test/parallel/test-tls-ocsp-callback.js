@@ -36,21 +36,20 @@ const assert = require('assert');
 const SSL_OP_NO_TICKET = require('crypto').constants.SSL_OP_NO_TICKET;
 
 const pfx = fixtures.readKey('agent1.pfx');
+const key = fixtures.readKey('agent1-key.pem');
+const cert = fixtures.readKey('agent1-cert.pem');
+const ca = fixtures.readKey('ca1-cert.pem');
 
 function test(testOptions, cb) {
-
-  const key = fixtures.readKey('agent1-key.pem');
-  const cert = fixtures.readKey('agent1-cert.pem');
-  const ca = fixtures.readKey('ca1-cert.pem');
   const options = {
     key,
     cert,
     ca: [ca]
   };
-  let requestCount = 0;
-  let clientSecure = 0;
-  let ocspCount = 0;
-  let ocspResponse;
+  const requestCount = testOptions.response ? 0 : 1;
+
+  if (!testOptions.ocsp)
+    assert.strictEqual(testOptions.response, undefined);
 
   if (testOptions.pfx) {
     delete options.key;
@@ -59,7 +58,7 @@ function test(testOptions, cb) {
     options.passphrase = testOptions.passphrase;
   }
 
-  const server = tls.createServer(options, function(cleartext) {
+  const server = tls.createServer(options, common.mustCall((cleartext) => {
     cleartext.on('error', function(er) {
       // We're ok with getting ECONNRESET in this test, but it's
       // timing-dependent, and thus unreliable. Any other errors
@@ -67,74 +66,48 @@ function test(testOptions, cb) {
       if (er.code !== 'ECONNRESET')
         throw er;
     });
-    ++requestCount;
     cleartext.end();
-  });
-  server.on('OCSPRequest', function(cert, issuer, callback) {
-    ++ocspCount;
-    assert.ok(Buffer.isBuffer(cert));
-    assert.ok(Buffer.isBuffer(issuer));
+  }, requestCount));
 
-    // Just to check that async really works there
-    setTimeout(function() {
-      callback(null,
-               testOptions.response ? Buffer.from(testOptions.response) : null);
-    }, 100);
-  });
+  if (!testOptions.ocsp)
+    server.on('OCSPRequest', common.mustNotCall());
+  else
+    server.on('OCSPRequest', common.mustCall((cert, issuer, callback) => {
+      assert.ok(Buffer.isBuffer(cert));
+      assert.ok(Buffer.isBuffer(issuer));
+
+      // Callback a little later to ensure that async really works.
+      return setTimeout(callback, 100, null, testOptions.response ?
+        Buffer.from(testOptions.response) : null);
+    }));
+
   server.listen(0, function() {
     const client = tls.connect({
       port: this.address().port,
-      requestOCSP: testOptions.ocsp !== false,
-      secureOptions: testOptions.ocsp === false ?
-        SSL_OP_NO_TICKET : 0,
+      requestOCSP: testOptions.ocsp,
+      secureOptions: testOptions.ocsp ? 0 : SSL_OP_NO_TICKET,
       rejectUnauthorized: false
-    }, function() {
-      clientSecure++;
-    });
-    client.on('OCSPResponse', function(resp) {
-      ocspResponse = resp;
-      if (resp)
+    }, common.mustCall(() => { }, requestCount));
+
+    client.on('OCSPResponse', common.mustCall((resp) => {
+      if (testOptions.response) {
+        assert.strictEqual(resp.toString(), testOptions.response);
         client.destroy();
-    });
-    client.on('close', function() {
+      } else {
+        assert.strictEqual(resp, null);
+      }
+    }, testOptions.ocsp === false ? 0 : 1));
+
+    client.on('close', common.mustCall(() => {
       server.close(cb);
-    });
-  });
-
-  process.on('exit', function() {
-    if (testOptions.ocsp === false) {
-      assert.strictEqual(requestCount, clientSecure);
-      assert.strictEqual(requestCount, 1);
-      return;
-    }
-
-    if (testOptions.response) {
-      assert.strictEqual(ocspResponse.toString(), testOptions.response);
-    } else {
-      assert.strictEqual(ocspResponse, null);
-    }
-    assert.strictEqual(requestCount, testOptions.response ? 0 : 1);
-    assert.strictEqual(clientSecure, requestCount);
-    assert.strictEqual(ocspCount, 1);
+    }));
   });
 }
 
-const tests = [
-  { response: false },
-  { response: 'hello world' },
-  { ocsp: false }
-];
+test({ ocsp: true, response: false });
+test({ ocsp: true, response: 'hello world' });
+test({ ocsp: false });
 
 if (!common.hasFipsCrypto) {
-  tests.push({ pfx: pfx, passphrase: 'sample', response: 'hello pfx' });
+  test({ ocsp: true, response: 'hello pfx', pfx: pfx, passphrase: 'sample' });
 }
-
-function runTests(i) {
-  if (i === tests.length) return;
-
-  test(tests[i], common.mustCall(function() {
-    runTests(i + 1);
-  }));
-}
-
-runTests(0);
