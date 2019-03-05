@@ -209,16 +209,16 @@ const availableHashes = new Set(crypto.getHashes());
 // Oakley curves do not clean up ERR stack, it was causing unexpected failure
 // when accessing other OpenSSL APIs afterwards.
 if (availableCurves.has('Oakley-EC2N-3')) {
-  crypto.createECDH('Oakley-EC2N-3');
+  crypto.generateECDHKey('Oakley-EC2N-3');
   crypto.createHash('sha256');
 }
 
 // Test ECDH
 if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
-  const ecdh1 = crypto.createECDH('prime256v1');
-  const ecdh2 = crypto.createECDH('prime256v1');
-  key1 = ecdh1.generateKeys();
-  key2 = ecdh2.generateKeys('hex');
+  const ecdh1 = crypto.generateECDHKey('prime256v1');
+  const ecdh2 = crypto.generateECDHKey('prime256v1');
+  key1 = ecdh1.getPublicKey();
+  key2 = ecdh2.getPublicKey('hex');
   secret1 = ecdh1.computeSecret(key2, 'hex', 'base64');
   secret2 = ecdh2.computeSecret(key1, 'latin1', 'buffer');
 
@@ -241,8 +241,8 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
     });
 
   // ECDH should check that point is on curve
-  const ecdh3 = crypto.createECDH('secp256k1');
-  const key3 = ecdh3.generateKeys();
+  const ecdh3 = crypto.generateECDHKey('secp256k1');
+  const key3 = ecdh3.getPublicKey();
 
   common.expectsError(
     () => ecdh2.computeSecret(key3, 'latin1', 'buffer'),
@@ -252,28 +252,10 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
       message: 'Public key is not valid for specified curve'
     });
 
-  // ECDH should allow .setPrivateKey()/.setPublicKey()
-  const ecdh4 = crypto.createECDH('prime256v1');
-
-  ecdh4.setPrivateKey(ecdh1.getPrivateKey());
-  ecdh4.setPublicKey(ecdh1.getPublicKey());
-
-  assert.throws(() => {
-    ecdh4.setPublicKey(ecdh3.getPublicKey());
-  }, /^Error: Failed to convert Buffer to EC_POINT$/);
+  // ECDH should allow importing
+  const ecdh4 = crypto.importECDHKey('prime256v1', ecdh1.getPrivateKey());
 
   // Verify that we can use ECDH without having to use newly generated keys.
-  const ecdh5 = crypto.createECDH('secp256k1');
-
-  // Verify errors are thrown when retrieving keys from an uninitialized object.
-  assert.throws(() => {
-    ecdh5.getPublicKey();
-  }, /^Error: Failed to get ECDH public key$/);
-
-  assert.throws(() => {
-    ecdh5.getPrivateKey();
-  }, /^Error: Failed to get ECDH private key$/);
-
   // A valid private key for the secp256k1 curve.
   const cafebabeKey = 'cafebabe'.repeat(8);
   // Associated compressed and uncompressed public keys (points).
@@ -282,8 +264,10 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
   const cafebabePubPtUnComp =
   '04672a31bfc59d3f04548ec9b7daeeba2f61814e8ccc40448045007f5479f693a3' +
   '2e02c7f93d13dc2732b760ca377a5897b9dd41a1c1b29dc0442fdce6d0a04d1d';
-  ecdh5.setPrivateKey(cafebabeKey, 'hex');
+  const ecdh5 = crypto.importECDHKey('secp256k1', Buffer.from(cafebabeKey, 'hex'));
+
   assert.strictEqual(ecdh5.getPrivateKey('hex'), cafebabeKey);
+
   // Show that the public point (key) is generated while setting the
   // private key.
   assert.strictEqual(ecdh5.getPublicKey('hex'), cafebabePubPtUnComp);
@@ -309,33 +293,6 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
   assert.strictEqual(ecdh5.getPrivateKey('hex'), cafebabeKey);
   assert.strictEqual(ecdh5.getPublicKey('hex'), cafebabePubPtUnComp);
 
-  // Verify setting and getting compressed and non-compressed serializations.
-  ecdh5.setPublicKey(cafebabePubPtComp, 'hex');
-  assert.strictEqual(ecdh5.getPublicKey('hex'), cafebabePubPtUnComp);
-  assert.strictEqual(
-    ecdh5.getPublicKey('hex', 'compressed'),
-    cafebabePubPtComp
-  );
-  ecdh5.setPublicKey(cafebabePubPtUnComp, 'hex');
-  assert.strictEqual(ecdh5.getPublicKey('hex'), cafebabePubPtUnComp);
-  assert.strictEqual(
-    ecdh5.getPublicKey('hex', 'compressed'),
-    cafebabePubPtComp
-  );
-
-  // Show why allowing the public key to be set on this type
-  // does not make sense.
-  ecdh5.setPublicKey(peerPubPtComp, 'hex');
-  assert.strictEqual(ecdh5.getPublicKey('hex'), peerPubPtUnComp);
-  assert.throws(() => {
-    // Error because the public key does not match the private key anymore.
-    ecdh5.computeSecret(peerPubPtComp, 'hex', 'hex');
-  }, /^Error: Invalid key pair$/);
-
-  // Set to a valid key to show that later attempts to set an invalid key are
-  // rejected.
-  ecdh5.setPrivateKey(cafebabeKey, 'hex');
-
   // Some invalid private keys for the secp256k1 curve.
   const errMessage = /^Error: Private key is not valid for specified curve\.$/;
   ['0000000000000000000000000000000000000000000000000000000000000000',
@@ -343,20 +300,17 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
    'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',
   ].forEach((element) => {
     assert.throws(() => {
-      ecdh5.setPrivateKey(element, 'hex');
+      crypto.importECDHKey('secp256k1', element, 'hex');
     }, errMessage);
-    // Verify object state did not change.
-    assert.strictEqual(ecdh5.getPrivateKey('hex'), cafebabeKey);
   });
 }
 
 // Use of invalid keys was not cleaning up ERR stack, and was causing
 // unexpected failure in subsequent signing operations.
 if (availableCurves.has('prime256v1') && availableHashes.has('sha256')) {
-  const curve = crypto.createECDH('prime256v1');
+  const curve = crypto.generateECDHKey('prime256v1');
   const invalidKey = Buffer.alloc(65);
   invalidKey.fill('\0');
-  curve.generateKeys();
   common.expectsError(
     () => curve.computeSecret(invalidKey),
     {
@@ -376,10 +330,29 @@ if (availableCurves.has('prime256v1') && availableHashes.has('sha256')) {
 
 // Invalid test: curve argument is undefined
 common.expectsError(
-  () => crypto.createECDH(),
+  () => crypto.generateECDHKey(),
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "curve" argument must be of type string. ' +
              'Received type undefined'
+  });
+
+// Invalid test: curve argument is undefined
+common.expectsError(
+  () => crypto.importECDHKey(),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "curve" argument must be of type string. ' +
+             'Received type undefined'
+  });
+
+// Invalid test: key not specified
+common.expectsError(
+  () => crypto.importECDHKey('prime256v1'),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'Private key must be a buffer'
   });

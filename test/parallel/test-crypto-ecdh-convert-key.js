@@ -92,9 +92,7 @@ if (getCurves().includes('secp256k1')) {
   assert.strictEqual(compressed, cafebabePubPtComp);
 
   // Compare to getPublicKey.
-  const ecdh1 = ECDH('secp256k1');
-  ecdh1.generateKeys();
-  ecdh1.setPrivateKey(cafebabeKey, 'hex');
+  const ecdh1 = ECDH('secp256k1', cafebabeKey, 'hex');
   assert.strictEqual(ecdh1.getPublicKey('hex', 'uncompressed'), uncompressed);
   assert.strictEqual(ecdh1.getPublicKey('hex', 'compressed'), compressed);
   assert.strictEqual(ecdh1.getPublicKey('hex', 'hybrid'), hybrid);

@@ -5128,12 +5128,9 @@ void ECDH::Initialize(Environment* env, Local<Object> target) {
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
-  env->SetProtoMethod(t, "generateKeys", GenerateKeys);
   env->SetProtoMethod(t, "computeSecret", ComputeSecret);
   env->SetProtoMethodNoSideEffect(t, "getPublicKey", GetPublicKey);
   env->SetProtoMethodNoSideEffect(t, "getPrivateKey", GetPrivateKey);
-  env->SetProtoMethod(t, "setPublicKey", SetPublicKey);
-  env->SetProtoMethod(t, "setPrivateKey", SetPrivateKey);
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "ECDH"),
@@ -5159,18 +5156,49 @@ void ECDH::New(const FunctionCallbackInfo<Value>& args) {
   if (!key)
     return env->ThrowError("Failed to create EC_KEY using curve name");
 
-  new ECDH(env, args.This(), std::move(key));
-}
+  ECDH* ecdh = new ECDH(env, args.This(), std::move(key));
 
+  if (args.Length() >= 2) {
+    THROW_AND_RETURN_IF_NOT_BUFFER(env, args[1], "Private key");
 
-void ECDH::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+    BignumPointer priv(BN_bin2bn(
+        reinterpret_cast<unsigned char*>(Buffer::Data(args[1].As<Object>())),
+        Buffer::Length(args[1].As<Object>()),
+        nullptr));
+    if (!priv)
+      return env->ThrowError("Failed to convert Buffer to BN");
 
-  ECDH* ecdh;
-  ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.Holder());
+    if (!ecdh->IsKeyValidForCurve(priv)) {
+      return env->ThrowError("Private key is not valid for specified curve.");
+    }
 
-  if (!EC_KEY_generate_key(ecdh->key_.get()))
-    return env->ThrowError("Failed to generate EC_KEY");
+    int result = EC_KEY_set_private_key(ecdh->key_.get(), priv.get());
+    priv.reset();
+
+    if (!result) {
+      return env->ThrowError("Failed to convert BN to a private key");
+    }
+
+    MarkPopErrorOnReturn mark_pop_error_on_return;
+    USE(&mark_pop_error_on_return);
+
+    const BIGNUM* priv_key = EC_KEY_get0_private_key(ecdh->key_.get());
+    CHECK_NOT_NULL(priv_key);
+
+    ECPointPointer pub(EC_POINT_new(ecdh->group_));
+    CHECK(pub);
+
+    if (!EC_POINT_mul(ecdh->group_, pub.get(), priv_key,
+                      nullptr, nullptr, nullptr)) {
+      return env->ThrowError("Failed to generate ECDH public key");
+    }
+
+    if (!EC_KEY_set_public_key(ecdh->key_.get(), pub.get()))
+      return env->ThrowError("Failed to set generated public key");
+  } else {
+    if (!EC_KEY_generate_key(ecdh->key_.get()))
+      return env->ThrowError("Failed to generate EC_KEY");
+  }
 }
 
 
@@ -5282,78 +5310,6 @@ void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> buf = out.ToBuffer().ToLocalChecked();
   args.GetReturnValue().Set(buf);
-}
-
-
-void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  ECDH* ecdh;
-  ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.Holder());
-
-  THROW_AND_RETURN_IF_NOT_BUFFER(env, args[0], "Private key");
-
-  BignumPointer priv(BN_bin2bn(
-      reinterpret_cast<unsigned char*>(Buffer::Data(args[0].As<Object>())),
-      Buffer::Length(args[0].As<Object>()),
-      nullptr));
-  if (!priv)
-    return env->ThrowError("Failed to convert Buffer to BN");
-
-  if (!ecdh->IsKeyValidForCurve(priv)) {
-    return env->ThrowError("Private key is not valid for specified curve.");
-  }
-
-  int result = EC_KEY_set_private_key(ecdh->key_.get(), priv.get());
-  priv.reset();
-
-  if (!result) {
-    return env->ThrowError("Failed to convert BN to a private key");
-  }
-
-  // To avoid inconsistency, clear the current public key in-case computing
-  // the new one fails for some reason.
-  EC_KEY_set_public_key(ecdh->key_.get(), nullptr);
-
-  MarkPopErrorOnReturn mark_pop_error_on_return;
-  USE(&mark_pop_error_on_return);
-
-  const BIGNUM* priv_key = EC_KEY_get0_private_key(ecdh->key_.get());
-  CHECK_NOT_NULL(priv_key);
-
-  ECPointPointer pub(EC_POINT_new(ecdh->group_));
-  CHECK(pub);
-
-  if (!EC_POINT_mul(ecdh->group_, pub.get(), priv_key,
-                    nullptr, nullptr, nullptr)) {
-    return env->ThrowError("Failed to generate ECDH public key");
-  }
-
-  if (!EC_KEY_set_public_key(ecdh->key_.get(), pub.get()))
-    return env->ThrowError("Failed to set generated public key");
-}
-
-
-void ECDH::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  ECDH* ecdh;
-  ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.Holder());
-
-  THROW_AND_RETURN_IF_NOT_BUFFER(env, args[0], "Public key");
-
-  MarkPopErrorOnReturn mark_pop_error_on_return;
-
-  ECPointPointer pub(
-      ECDH::BufferToPoint(env,
-                          ecdh->group_,
-                          args[0]));
-  if (!pub)
-    return env->ThrowError("Failed to convert Buffer to EC_POINT");
-
-  int r = EC_KEY_set_public_key(ecdh->key_.get(), pub.get());
-  if (!r)
-    return env->ThrowError("Failed to set EC_POINT as the public key");
 }
 
 
