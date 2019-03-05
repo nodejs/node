@@ -445,6 +445,10 @@ typedef void (*addon_context_register_func)(
     v8::Local<v8::Context> context,
     void* priv);
 
+enum ModuleFlags {
+  kLinked = 0x02
+};
+
 struct node_module {
   int nm_version;
   unsigned int nm_flags;
@@ -531,6 +535,14 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
 #define NODE_MODULE_CONTEXT_AWARE(modname, regfunc)                   \
   /* NOLINTNEXTLINE (readability/null_usage) */                       \
   NODE_MODULE_CONTEXT_AWARE_X(modname, regfunc, NULL, 0)
+
+// Embedders can use this type of binding for statically linked native bindings.
+// It is used the same way addon bindings are used, except that linked bindings
+// can be accessed through `process._linkedBinding(modname)`.
+#define NODE_MODULE_LINKED(modname, regfunc)                               \
+  /* NOLINTNEXTLINE (readability/null_usage) */                            \
+  NODE_MODULE_CONTEXT_AWARE_X(modname, regfunc, NULL,                      \
+                              node::ModuleFlags::kLinked)
 
 /*
  * For backward compatibility in add-on modules.
