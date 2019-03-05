@@ -644,9 +644,7 @@ void Environment::RunAndClearNativeImmediates() {
     auto drain_list = [&]() {
       TryCatchScope try_catch(this);
       for (auto it = list.begin(); it != list.end(); ++it) {
-#ifdef DEBUG
-        v8::SealHandleScope seal_handle_scope(isolate());
-#endif
+        DebugSealHandleScope seal_handle_scope(isolate());
         it->cb_(this, it->data_);
         if (it->refed_)
           ref_count++;
