@@ -56,10 +56,6 @@ class ContextifyScript;
 class CompiledFnEntry;
 }
 
-namespace fs {
-class FileHandleReadWrap;
-}
-
 namespace performance {
 class PerformanceState;
 }
@@ -1009,12 +1005,6 @@ class Environment : public MemoryRetainer {
 
   EnabledDebugList* enabled_debug_list() { return &enabled_debug_list_; }
 
-  inline AliasedFloat64Array* fs_stats_field_array();
-  inline AliasedBigUint64Array* fs_stats_field_bigint_array();
-
-  inline std::vector<std::unique_ptr<fs::FileHandleReadWrap>>&
-      file_handle_read_wrap_freelist();
-
   inline performance::PerformanceState* performance_state();
   inline std::unordered_map<std::string, uint64_t>* performance_marks();
 
@@ -1364,12 +1354,6 @@ class Environment : public MemoryRetainer {
   int request_waiting_ = 0;
 
   EnabledDebugList enabled_debug_list_;
-
-  AliasedFloat64Array fs_stats_field_array_;
-  AliasedBigUint64Array fs_stats_field_bigint_array_;
-
-  std::vector<std::unique_ptr<fs::FileHandleReadWrap>>
-      file_handle_read_wrap_freelist_;
 
   std::list<node_module> extra_linked_bindings_;
   Mutex extra_linked_bindings_mutex_;
