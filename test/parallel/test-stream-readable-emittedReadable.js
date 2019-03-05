@@ -59,7 +59,6 @@ noRead.once('readable', common.mustCall(() => {
     // emittedReadable is not reset during read(0)
     assert.strictEqual(noRead._readableState.emittedReadable, false);
 
-    noRead.once('readable', common.mustNotCall());
   }));
 }));
 
