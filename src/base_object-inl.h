@@ -100,15 +100,16 @@ Environment* BaseObject::env() const {
   return env_;
 }
 
-BaseObject* BaseObject::FromJSObject(v8::Local<v8::Object> obj) {
-  CHECK_GT(obj->InternalFieldCount(), 0);
+BaseObject* BaseObject::FromJSObject(v8::Local<v8::Value> value) {
+  v8::Local<v8::Object> obj = value.As<v8::Object>();
+  DCHECK_GE(obj->InternalFieldCount(), BaseObject::kSlot);
   return static_cast<BaseObject*>(
       obj->GetAlignedPointerFromInternalField(BaseObject::kSlot));
 }
 
 
 template <typename T>
-T* BaseObject::FromJSObject(v8::Local<v8::Object> object) {
+T* BaseObject::FromJSObject(v8::Local<v8::Value> object) {
   return static_cast<T*>(FromJSObject(object));
 }
 
