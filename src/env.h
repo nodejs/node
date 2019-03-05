@@ -216,7 +216,6 @@ class ModuleWrap;
   V(onheaders_string, "onheaders")                                            \
   V(onmessage_string, "onmessage")                                            \
   V(onnewsession_string, "onnewsession")                                      \
-  V(onnewsessiondone_string, "onnewsessiondone")                              \
   V(onocspresponse_string, "onocspresponse")                                  \
   V(ongoawaydata_string, "ongoawaydata")                                      \
   V(onorigin_string, "onorigin")                                              \
