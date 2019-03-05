@@ -143,7 +143,7 @@ v8::MaybeLocal<v8::String> NgHeader<T>::GetName(
   // If header_name is not nullptr, then it is a known header with
   // a statically defined name. We can safely internalize it here.
   if (header_name != nullptr) {
-    auto& static_str_map = env_->isolate_data()->http_static_strs;
+    auto& static_str_map = env_->isolate_data()->static_str_map;
     v8::Eternal<v8::String> eternal = static_str_map[header_name];
     if (eternal.IsEmpty()) {
       v8::Local<v8::String> str = OneByteString(env_->isolate(), header_name);
