@@ -61,9 +61,9 @@ class BaseObject : public MemoryRetainer {
   // was also passed to the `BaseObject()` constructor initially.
   // This may return `nullptr` if the C++ object has not been constructed yet,
   // e.g. when the JS object used `MakeLazilyInitializedJSTemplate`.
-  static inline BaseObject* FromJSObject(v8::Local<v8::Object> object);
+  static inline BaseObject* FromJSObject(v8::Local<v8::Value> object);
   template <typename T>
-  static inline T* FromJSObject(v8::Local<v8::Object> object);
+  static inline T* FromJSObject(v8::Local<v8::Value> object);
 
   // Make the `v8::Global` a weak reference and, `delete` this object once
   // the JS object has been garbage collected and there are no (strong)
@@ -152,7 +152,7 @@ class BaseObject : public MemoryRetainer {
 
 // Global alias for FromJSObject() to avoid churn.
 template <typename T>
-inline T* Unwrap(v8::Local<v8::Object> obj) {
+inline T* Unwrap(v8::Local<v8::Value> obj) {
   return BaseObject::FromJSObject<T>(obj);
 }
 
