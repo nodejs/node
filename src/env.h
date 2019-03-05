@@ -1007,18 +1007,6 @@ class Environment : public MemoryRetainer {
   inline uint32_t get_next_script_id();
   inline uint32_t get_next_function_id();
 
-  inline double* heap_statistics_buffer() const;
-  inline void set_heap_statistics_buffer(
-      std::shared_ptr<v8::BackingStore> backing_store);
-
-  inline double* heap_space_statistics_buffer() const;
-  inline void set_heap_space_statistics_buffer(
-      std::shared_ptr<v8::BackingStore> backing_store);
-
-  inline double* heap_code_statistics_buffer() const;
-  inline void set_heap_code_statistics_buffer(
-      std::shared_ptr<v8::BackingStore> backing_store);
-
   inline char* http_parser_buffer() const;
   inline void set_http_parser_buffer(char* buffer);
   inline bool http_parser_buffer_in_use() const;
@@ -1380,14 +1368,10 @@ class Environment : public MemoryRetainer {
   int handle_cleanup_waiting_ = 0;
   int request_waiting_ = 0;
 
-  std::shared_ptr<v8::BackingStore> heap_statistics_buffer_;
-  std::shared_ptr<v8::BackingStore> heap_space_statistics_buffer_;
-  std::shared_ptr<v8::BackingStore> heap_code_statistics_buffer_;
-
   char* http_parser_buffer_ = nullptr;
   bool http_parser_buffer_in_use_ = false;
-
   EnabledDebugList enabled_debug_list_;
+
   AliasedFloat64Array fs_stats_field_array_;
   AliasedBigUint64Array fs_stats_field_bigint_array_;
 
