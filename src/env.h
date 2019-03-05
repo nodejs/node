@@ -885,10 +885,6 @@ class Environment {
   inline void SetProtoMethodNoSideEffect(v8::Local<v8::FunctionTemplate> that,
                                          const char* name,
                                          v8::FunctionCallback callback);
-  inline void SetTemplateMethodNoSideEffect(
-      v8::Local<v8::FunctionTemplate> that,
-      const char* name,
-      v8::FunctionCallback callback);
 
   void BeforeExit(void (*cb)(void* arg), void* arg);
   void RunBeforeExitCallbacks();
