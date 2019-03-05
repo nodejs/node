@@ -3123,8 +3123,7 @@ static ManagedEVPPKey GetPrivateKeyFromJs(
 
 static ManagedEVPPKey GetPublicOrPrivateKeyFromJs(
     const FunctionCallbackInfo<Value>& args,
-    unsigned int* offset,
-    bool allow_key_object) {
+    unsigned int* offset) {
   if (args[*offset]->IsString() || Buffer::HasInstance(args[*offset])) {
     Environment* env = Environment::GetCurrent(args);
     ByteSource data = ByteSource::FromStringOrBuffer(env, args[(*offset)++]);
@@ -3172,7 +3171,7 @@ static ManagedEVPPKey GetPublicOrPrivateKeyFromJs(
       ThrowCryptoError(env, ERR_get_error(), "Failed to read asymmetric key");
     return ManagedEVPPKey(pkey.release());
   } else {
-    CHECK(args[*offset]->IsObject() && allow_key_object);
+    CHECK(args[*offset]->IsObject());
     KeyObject* key = Unwrap<KeyObject>(args[*offset].As<Object>());
     CHECK(key);
     CHECK_NE(key->GetKeyType(), kKeyTypeSecret);
@@ -3382,7 +3381,7 @@ void KeyObject::Init(const FunctionCallbackInfo<Value>& args) {
     CHECK_EQ(args.Length(), 3);
 
     offset = 0;
-    pkey = GetPublicOrPrivateKeyFromJs(args, &offset, false);
+    pkey = GetPublicOrPrivateKeyFromJs(args, &offset);
     if (!pkey)
       return;
     key->InitPublic(pkey);
@@ -4649,7 +4648,7 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&verify, args.Holder());
 
   unsigned int offset = 0;
-  ManagedEVPPKey pkey = GetPublicOrPrivateKeyFromJs(args, &offset, true);
+  ManagedEVPPKey pkey = GetPublicOrPrivateKeyFromJs(args, &offset);
   if (!pkey)
     return;
 
@@ -4712,7 +4711,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   unsigned int offset = 0;
-  ManagedEVPPKey pkey = GetPublicOrPrivateKeyFromJs(args, &offset, true);
+  ManagedEVPPKey pkey = GetPublicOrPrivateKeyFromJs(args, &offset);
   if (!pkey)
     return;
 
