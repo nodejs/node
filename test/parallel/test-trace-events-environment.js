@@ -10,9 +10,6 @@ const tmpdir = require('../common/tmpdir');
 
 // This tests the emission of node.environment trace events
 
-if (!common.isMainThread)
-  common.skip('process.chdir is not available in Workers');
-
 const names = new Set([
   'Environment',
   'RunAndClearNativeImmediates',
@@ -32,10 +29,10 @@ if (process.argv[2] === 'child') {
   setTimeout(() => { 1 + 1; }, 1);
 } else {
   tmpdir.refresh();
-  process.chdir(tmpdir.path);
 
   const proc = cp.fork(__filename,
                        [ 'child' ], {
+                         cwd: tmpdir.path,
                          execArgv: [
                            '--trace-event-categories',
                            'node.environment'
