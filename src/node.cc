@@ -608,9 +608,14 @@ int ProcessGlobalArgs(std::vector<std::string>* args,
   return 0;
 }
 
+static std::atomic_bool init_called{false};
+
 int Init(std::vector<std::string>* argv,
          std::vector<std::string>* exec_argv,
          std::vector<std::string>* errors) {
+  // Make sure Init() is called only once.
+  CHECK(!init_called.exchange(true));
+
   // Register built-in modules
   binding::RegisterBuiltinModules();
 
