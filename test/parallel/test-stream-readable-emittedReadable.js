@@ -50,7 +50,7 @@ noRead.once('readable', common.mustCall(() => {
   // emittedReadable is not reset during read(0)
   assert.strictEqual(noRead._readableState.emittedReadable, true);
 
-  noRead.once('readable', common.mustCall(() => {
+  noRead.on('readable', common.mustCall(() => {
     // The second 'readable' is emitted because we are ending
 
     // emittedReadable should be true when the readable event is emitted
