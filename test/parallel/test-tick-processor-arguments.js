@@ -5,20 +5,18 @@ const fs = require('fs');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
 
-if (!common.isMainThread)
-  common.skip('chdir not available in workers');
 if (!common.enoughTestMem)
   common.skip('skipped due to memory requirements');
 if (common.isAIX)
   common.skip('does not work on AIX');
 
 tmpdir.refresh();
-process.chdir(tmpdir.path);
 
 // Generate log file.
-spawnSync(process.execPath, [ '--prof', '-p', '42' ]);
+spawnSync(process.execPath, [ '--prof', '-p', '42' ], { cwd: tmpdir.path });
 
-const logfile = fs.readdirSync('.').filter((name) => name.endsWith('.log'))[0];
+const files = fs.readdirSync(tmpdir.path);
+const logfile = files.filter((name) => /\.log$/.test(name))[0];
 assert(logfile);
 
 // Make sure that the --preprocess argument is passed through correctly,
@@ -28,7 +26,7 @@ assert(logfile);
 const { stdout } = spawnSync(
   process.execPath,
   [ '--prof-process', '--preprocess', logfile ],
-  { encoding: 'utf8' });
+  { cwd: tmpdir.path, encoding: 'utf8' });
 
 // Make sure that the result is valid JSON.
 JSON.parse(stdout);

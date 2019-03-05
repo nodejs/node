@@ -1,13 +1,11 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const tmpdir = require('../common/tmpdir');
 const fs = require('fs');
 const assert = require('assert');
+const { join } = require('path');
 const { spawnSync } = require('child_process');
 const { Worker } = require('worker_threads');
-
-if (!common.isMainThread)
-  common.skip('process.chdir is not available in Workers');
 
 // Test that --prof also tracks Worker threads.
 // Refs: https://github.com/nodejs/node/issues/24016
@@ -23,13 +21,14 @@ if (process.argv[2] === 'child') {
 }
 
 tmpdir.refresh();
-process.chdir(tmpdir.path);
-spawnSync(process.execPath, ['--prof', __filename, 'child']);
-const logfiles = fs.readdirSync('.').filter((name) => /\.log$/.test(name));
+spawnSync(process.execPath, ['--prof', __filename, 'child'],
+          { cwd: tmpdir.path });
+const files = fs.readdirSync(tmpdir.path);
+const logfiles = files.filter((name) => /\.log$/.test(name));
 assert.strictEqual(logfiles.length, 2);  // Parent thread + child thread.
 
 for (const logfile of logfiles) {
-  const lines = fs.readFileSync(logfile, 'utf8').split('\n');
+  const lines = fs.readFileSync(join(tmpdir.path, logfile), 'utf8').split('\n');
   const ticks = lines.filter((line) => /^tick,/.test(line)).length;
 
   // Test that at least 15 ticks have been recorded for both parent and child
