@@ -580,19 +580,6 @@ inline double Environment::get_default_trigger_async_id() {
   return default_trigger_async_id;
 }
 
-inline AliasedFloat64Array* Environment::fs_stats_field_array() {
-  return &fs_stats_field_array_;
-}
-
-inline AliasedBigUint64Array* Environment::fs_stats_field_bigint_array() {
-  return &fs_stats_field_bigint_array_;
-}
-
-inline std::vector<std::unique_ptr<fs::FileHandleReadWrap>>&
-Environment::file_handle_read_wrap_freelist() {
-  return file_handle_read_wrap_freelist_;
-}
-
 inline std::shared_ptr<EnvironmentOptions> Environment::options() {
   return options_;
 }

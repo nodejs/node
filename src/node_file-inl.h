@@ -39,11 +39,13 @@ void FSContinuationData::Done(int result) {
   done_cb_(req_);
 }
 
-FSReqBase::FSReqBase(Environment* env,
-          v8::Local<v8::Object> req,
-          AsyncWrap::ProviderType type,
-          bool use_bigint)
-  : ReqWrap(env, req, type), use_bigint_(use_bigint) {
+FSReqBase::FSReqBase(BindingData* binding_data,
+                     v8::Local<v8::Object> req,
+                     AsyncWrap::ProviderType type,
+                     bool use_bigint)
+  : ReqWrap(binding_data->env(), req, type),
+    use_bigint_(use_bigint),
+    binding_data_(binding_data) {
 }
 
 void FSReqBase::Init(const char* syscall,
@@ -72,9 +74,13 @@ FSReqBase::Init(const char* syscall, size_t len, enum encoding encoding) {
   return buffer_;
 }
 
-FSReqCallback::FSReqCallback(Environment* env,
-                             v8::Local<v8::Object> req, bool use_bigint)
-  : FSReqBase(env, req, AsyncWrap::PROVIDER_FSREQCALLBACK, use_bigint) {}
+FSReqCallback::FSReqCallback(BindingData* binding_data,
+                             v8::Local<v8::Object> req,
+                             bool use_bigint)
+  : FSReqBase(binding_data,
+              req,
+              AsyncWrap::PROVIDER_FSREQCALLBACK,
+              use_bigint) {}
 
 template <typename NativeT, typename V8T>
 void FillStatsArray(AliasedBufferBase<NativeT, V8T>* fields,
@@ -112,18 +118,18 @@ void FillStatsArray(AliasedBufferBase<NativeT, V8T>* fields,
 #undef SET_FIELD_WITH_STAT
 }
 
-v8::Local<v8::Value> FillGlobalStatsArray(Environment* env,
+v8::Local<v8::Value> FillGlobalStatsArray(BindingData* binding_data,
                                           const bool use_bigint,
                                           const uv_stat_t* s,
                                           const bool second) {
   const ptrdiff_t offset =
       second ? static_cast<ptrdiff_t>(FsStatsOffset::kFsStatsFieldsNumber) : 0;
   if (use_bigint) {
-    auto* const arr = env->fs_stats_field_bigint_array();
+    auto* const arr = &binding_data->stats_field_bigint_array;
     FillStatsArray(arr, s, offset);
     return arr->GetJSArray();
   } else {
-    auto* const arr = env->fs_stats_field_array();
+    auto* const arr = &binding_data->stats_field_array;
     FillStatsArray(arr, s, offset);
     return arr->GetJSArray();
   }
@@ -131,7 +137,9 @@ v8::Local<v8::Value> FillGlobalStatsArray(Environment* env,
 
 template <typename AliasedBufferT>
 FSReqPromise<AliasedBufferT>*
-FSReqPromise<AliasedBufferT>::New(Environment* env, bool use_bigint) {
+FSReqPromise<AliasedBufferT>::New(BindingData* binding_data,
+                                  bool use_bigint) {
+  Environment* env = binding_data->env();
   v8::Local<v8::Object> obj;
   if (!env->fsreqpromise_constructor_template()
            ->NewInstance(env->context())
@@ -143,7 +151,7 @@ FSReqPromise<AliasedBufferT>::New(Environment* env, bool use_bigint) {
       obj->Set(env->context(), env->promise_string(), resolver).IsNothing()) {
     return nullptr;
   }
-  return new FSReqPromise(env, obj, use_bigint);
+  return new FSReqPromise(binding_data, obj, use_bigint);
 }
 
 template <typename AliasedBufferT>
@@ -154,12 +162,15 @@ FSReqPromise<AliasedBufferT>::~FSReqPromise() {
 
 template <typename AliasedBufferT>
 FSReqPromise<AliasedBufferT>::FSReqPromise(
-    Environment* env,
+    BindingData* binding_data,
     v8::Local<v8::Object> obj,
     bool use_bigint)
-  : FSReqBase(env, obj, AsyncWrap::PROVIDER_FSREQPROMISE, use_bigint),
+  : FSReqBase(binding_data,
+              obj,
+              AsyncWrap::PROVIDER_FSREQPROMISE,
+              use_bigint),
     stats_field_array_(
-        env->isolate(),
+        env()->isolate(),
         static_cast<size_t>(FsStatsOffset::kFsStatsFieldsNumber)) {}
 
 template <typename AliasedBufferT>
@@ -208,15 +219,21 @@ void FSReqPromise<AliasedBufferT>::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("stats_field_array", stats_field_array_);
 }
 
-FSReqBase* GetReqWrap(Environment* env, v8::Local<v8::Value> value,
+FSReqBase* GetReqWrap(const v8::FunctionCallbackInfo<v8::Value>& args,
+                      int index,
                       bool use_bigint) {
+  v8::Local<v8::Value> value = args[index];
   if (value->IsObject()) {
     return Unwrap<FSReqBase>(value.As<v8::Object>());
-  } else if (value->StrictEquals(env->fs_use_promises_symbol())) {
+  }
+
+  BindingData* binding_data = Unwrap<BindingData>(args.Data());
+  Environment* env = binding_data->env();
+  if (value->StrictEquals(env->fs_use_promises_symbol())) {
     if (use_bigint) {
-      return FSReqPromise<AliasedBigUint64Array>::New(env, use_bigint);
+      return FSReqPromise<AliasedBigUint64Array>::New(binding_data, use_bigint);
     } else {
-      return FSReqPromise<AliasedFloat64Array>::New(env, use_bigint);
+      return FSReqPromise<AliasedFloat64Array>::New(binding_data, use_bigint);
     }
   }
   return nullptr;
