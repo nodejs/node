@@ -257,15 +257,15 @@ function isRecoverableError(error) {
 By default, [`repl.REPLServer`][] instances format output using the
 [`util.inspect()`][] method before writing the output to the provided `Writable`
 stream (`process.stdout` by default). The `showProxy` inspection option is set
-to true by default and the `colors` option is set to true depending on the REPLs
-`useColors` option.
+to true by default and the `colors` option is set to true depending on the
+REPL's `useColors` option.
 
 The `useColors` boolean option can be specified at construction to instruct the
 default writer to use ANSI style codes to colorize the output from the
 `util.inspect()` method.
 
 If the REPL is run as standalone program, it is also possible to change the
-REPLs [inspection defaults][`util.inspect()`] from inside the REPL by using the
+REPL's [inspection defaults][`util.inspect()`] from inside the REPL by using the
 `inspect.replDefaults` property which mirrors the `defaultOptions` from
 [`util.inspect()`][].
 
