@@ -340,6 +340,16 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
   MaybeLocal<Value> result = ExecuteBootstrapper(
       env, "internal/bootstrap/node", &node_params, &node_args);
 
+  Local<Object> env_var_proxy;
+  if (!CreateEnvVarProxy(context, isolate, env->as_callback_data())
+           .ToLocal(&env_var_proxy) ||
+      process
+          ->Set(env->context(),
+                FIXED_ONE_BYTE_STRING(env->isolate(), "env"),
+                env_var_proxy)
+          .IsNothing())
+    return MaybeLocal<Value>();
+
   env->set_has_run_bootstrapping_code(true);
 
   return scope.EscapeMaybe(result);
