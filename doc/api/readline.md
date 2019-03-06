@@ -597,6 +597,34 @@ rl.on('line', (line) => {
 });
 ```
 
+Currently, `for`-`await`-`of` loop can be a bit slower. If `async` / `await`
+flow and speed are both essential, a mixed approach can be applied:
+
+```js
+const { once } = require('events');
+const { createReadStream } = require('fs');
+const { createInterface } = require('readline');
+
+(async function processLineByLine() {
+  try {
+    const rl = createInterface({
+      input: createReadStream('big-file.txt'),
+      crlfDelay: Infinity
+    });
+
+    rl.on('line', (line) => {
+      // Process the line.
+    });
+
+    await once(rl, 'close');
+
+    console.log('File processed.');
+  } catch (err) {
+    console.error(err);
+  }
+})();
+```
+
 [`'SIGCONT'`]: readline.html#readline_event_sigcont
 [`'SIGTSTP'`]: readline.html#readline_event_sigtstp
 [`'line'`]: #readline_event_line
