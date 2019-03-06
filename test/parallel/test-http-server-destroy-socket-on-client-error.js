@@ -37,7 +37,9 @@ server.listen(0, () => {
   });
 
   socket.on('end', mustCall(() => {
-    const expected = Buffer.from('HTTP/1.1 400 Bad Request\r\n\r\n');
+    const expected = Buffer.from(
+      'HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n'
+    );
     assert(Buffer.concat(chunks).equals(expected));
 
     server.close();
