@@ -151,18 +151,6 @@ MaybeLocal<Object> CreateProcessObject(
                ToV8Value(env->context(), exec_args)
                    .ToLocalChecked()).FromJust();
 
-  Local<Object> env_var_proxy;
-  if (!CreateEnvVarProxy(context, isolate, env->as_callback_data())
-           .ToLocal(&env_var_proxy))
-    return MaybeLocal<Object>();
-
-  // process.env
-  process
-      ->Set(env->context(),
-            FIXED_ONE_BYTE_STRING(env->isolate(), "env"),
-            env_var_proxy)
-      .FromJust();
-
   READONLY_PROPERTY(process, "pid",
                     Integer::New(env->isolate(), uv_os_getpid()));
 
