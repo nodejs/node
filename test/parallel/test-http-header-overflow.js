@@ -39,7 +39,8 @@ server.listen(0, mustCall(() => {
   c.on('end', mustCall(() => {
     assert.strictEqual(
       received,
-      'HTTP/1.1 431 Request Header Fields Too Large\r\n\r\n'
+      'HTTP/1.1 431 Request Header Fields Too Large\r\n' +
+      'Connection: close\r\n\r\n'
     );
     c.end();
   }));
