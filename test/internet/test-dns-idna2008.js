@@ -11,23 +11,41 @@
 const { mustCall } = require('../common');
 const assert = require('assert');
 const dns = require('dns');
+const { addresses } = require('../common/internet');
 
-const [host, expectedAddress] = ['straße.de', '81.169.145.78'];
+const fixture = {
+  hostname: 'straße.de',
+  expectedAddress: '81.169.145.78',
+  dnsServer: addresses.DNS4_SERVER
+};
 
-dns.lookup(host, mustCall((err, address) => {
+// Explicitly use well behaved DNS servers that are known to be able to resolve
+// the query (which is a.k.a xn--strae-oqa.de).
+dns.setServers([fixture.dnsServer]);
+
+dns.lookup(fixture.hostname, mustCall((err, address) => {
+  if (err && err.errno === 'ESERVFAIL') {
+    assert.ok(err.message.includes('queryA ESERVFAIL straße.de'));
+    return;
+  }
   assert.ifError(err);
-  assert.strictEqual(address, expectedAddress);
+  assert.strictEqual(address, fixture.expectedAddress);
 }));
 
-dns.promises.lookup(host).then(mustCall(({ address }) => {
-  assert.strictEqual(address, expectedAddress);
+dns.promises.lookup(fixture.hostname).then(mustCall(({ address }) => {
+  assert.strictEqual(address, fixture.expectedAddress);
+}).catch((err) => {
+  if (err && err.errno === 'ESERVFAIL') {
+    assert.ok(err.message.includes('queryA ESERVFAIL straße.de'));
+  }
 }));
 
-dns.resolve4(host, mustCall((err, addresses) => {
+dns.resolve4(fixture.hostname, mustCall((err, addresses) => {
   assert.ifError(err);
-  assert.deepStrictEqual(addresses, [expectedAddress]);
+  assert.deepStrictEqual(addresses, [fixture.expectedAddress]);
 }));
 
-new dns.promises.Resolver().resolve4(host).then(mustCall((addresses) => {
-  assert.deepStrictEqual(addresses, [expectedAddress]);
+const p = new dns.promises.Resolver().resolve4(fixture.hostname);
+p.then(mustCall((addresses) => {
+  assert.deepStrictEqual(addresses, [fixture.expectedAddress]);
 }));
