@@ -379,7 +379,7 @@ Do this if a pull request or issue:
 - is labeled `semver-major`, or
 - has a significant impact on the codebase, or
 - is controversial, or
-- is at an impasse among Collaborators who are  participating in the discussion.
+- is at an impasse among Collaborators who are participating in the discussion.
 
 Assign the `tsc-review` label or @-mention the
 `@nodejs/tsc` GitHub team if you want to elevate an issue to the [TSC][].
