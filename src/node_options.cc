@@ -548,6 +548,12 @@ HostPort SplitHostPort(const std::string& arg,
 void GetOptions(const FunctionCallbackInfo<Value>& args) {
   Mutex::ScopedLock lock(per_process::cli_options_mutex);
   Environment* env = Environment::GetCurrent(args);
+  if (!env->has_run_bootstrapping_code()) {
+    // No code because this is an assertion.
+    return env->ThrowError(
+        "Should not query options before bootstrapping is done");
+  }
+
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
 
