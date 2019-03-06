@@ -760,6 +760,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   HandleScope handle_scope(isolate);
   Local<Context> context = NewContext(isolate);
   Context::Scope context_scope(context);
+  int exit_code = 0;
   Environment env(
       isolate_data,
       context,
@@ -780,7 +781,8 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
                                true);
   if (env.options()->debug_options().inspector_enabled &&
       !env.inspector_agent()->IsListening()) {
-    return 12;  // Signal internal error.
+    exit_code = 12;  // Signal internal error.
+    goto exit;
   }
 #else
   // inspector_enabled can't be true if !HAVE_INSPECTOR or !NODE_USE_V8_PLATFORM
@@ -821,10 +823,11 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
 
   env.set_trace_sync_io(false);
 
-  const int exit_code = EmitExit(&env);
+  exit_code = EmitExit(&env);
 
   WaitForInspectorDisconnect(&env);
 
+exit:
   env.set_can_call_into_js(false);
   env.stop_sub_worker_contexts();
   uv_tty_reset_mode();
