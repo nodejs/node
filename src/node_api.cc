@@ -7,6 +7,8 @@
 #include "node_errors.h"
 #include "node_internals.h"
 
+#include <memory>
+
 struct node_napi_env__ : public napi_env__ {
   explicit node_napi_env__(v8::Local<v8::Context> context):
       napi_env__(context) {
@@ -220,9 +222,9 @@ class ThreadSafeFunction : public node::AsyncResource {
 
     if (uv_async_init(loop, &async, AsyncCb) == 0) {
       if (max_queue_size > 0) {
-        cond.reset(new node::ConditionVariable);
+        cond = std::make_unique<node::ConditionVariable>();
       }
-      if ((max_queue_size == 0 || cond.get() != nullptr) &&
+      if ((max_queue_size == 0 || cond) &&
           uv_idle_init(loop, &idle) == 0) {
         return napi_ok;
       }
@@ -809,15 +811,15 @@ namespace uvimpl {
 
 static napi_status ConvertUVErrorCode(int code) {
   switch (code) {
-  case 0:
-    return napi_ok;
-  case UV_EINVAL:
-    return napi_invalid_arg;
-  case UV_ECANCELED:
-    return napi_cancelled;
+    case 0:
+      return napi_ok;
+    case UV_EINVAL:
+      return napi_invalid_arg;
+    case UV_ECANCELED:
+      return napi_cancelled;
+    default:
+      return napi_generic_failure;
   }
-
-  return napi_generic_failure;
 }
 
 // Wrapper around uv_work_t which calls user-provided callbacks.
