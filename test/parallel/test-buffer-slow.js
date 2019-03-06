@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const buffer = require('buffer');
 const SlowBuffer = buffer.SlowBuffer;
@@ -40,22 +40,22 @@ try {
 }
 
 // Should throw with invalid length type
-const bufferInvalidTypeMsg = common.expectsError({
+const bufferInvalidTypeMsg = {
   code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
+  name: 'TypeError [ERR_INVALID_ARG_TYPE]',
   message: /^The "size" argument must be of type number/,
-}, 4);
+};
 assert.throws(() => SlowBuffer(), bufferInvalidTypeMsg);
 assert.throws(() => SlowBuffer({}), bufferInvalidTypeMsg);
 assert.throws(() => SlowBuffer('6'), bufferInvalidTypeMsg);
 assert.throws(() => SlowBuffer(true), bufferInvalidTypeMsg);
 
 // Should throw with invalid length value
-const bufferMaxSizeMsg = common.expectsError({
+const bufferMaxSizeMsg = {
   code: 'ERR_INVALID_OPT_VALUE',
-  type: RangeError,
+  name: 'RangeError [ERR_INVALID_OPT_VALUE]',
   message: /^The value "[^"]*" is invalid for option "size"$/
-}, 4);
+};
 assert.throws(() => SlowBuffer(NaN), bufferMaxSizeMsg);
 assert.throws(() => SlowBuffer(Infinity), bufferMaxSizeMsg);
 assert.throws(() => SlowBuffer(-1), bufferMaxSizeMsg);
