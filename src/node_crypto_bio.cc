@@ -427,9 +427,7 @@ char* NodeBIO::PeekWritable(size_t* size) {
   TryAllocateForWrite(*size);
 
   size_t available = write_head_->len_ - write_head_->write_pos_;
-  if (*size != 0 && available > *size)
-    available = *size;
-  else
+  if (*size == 0 || available <= *size)
     *size = available;
 
   return write_head_->data_ + write_head_->write_pos_;
