@@ -7,3 +7,4 @@ rules:
       exports: 'only-multiline'
   no-unused-vars: [error, { args: 'after-used' }]
   prefer-arrow-callback: error
+  no-var: error
