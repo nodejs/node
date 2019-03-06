@@ -52,7 +52,9 @@ server.listen(0, common.mustCall(() => {
     received += data.toString();
   }));
   c.on('end', common.mustCall(() => {
-    assert.strictEqual(received, 'HTTP/1.1 400 Bad Request\r\n\r\n');
+    assert.strictEqual(received,
+                       'HTTP/1.1 400 Bad Request\r\n' +
+                       'Connection: close\r\n\r\n');
     c.end();
   }));
   c.on('close', common.mustCall(() => server.close()));
