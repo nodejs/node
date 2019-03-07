@@ -675,7 +675,7 @@ class Environment {
               uint64_t thread_id = kNoThreadId);
   ~Environment();
 
-  void Start(bool start_profiler_idle_notifier);
+  void InitializeLibuv(bool start_profiler_idle_notifier);
   v8::MaybeLocal<v8::Object> ProcessCliArgs(
       const std::vector<std::string>& args,
       const std::vector<std::string>& exec_args);

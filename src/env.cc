@@ -320,7 +320,7 @@ Environment::~Environment() {
   }
 }
 
-void Environment::Start(bool start_profiler_idle_notifier) {
+void Environment::InitializeLibuv(bool start_profiler_idle_notifier) {
   HandleScope handle_scope(isolate());
   Context::Scope context_scope(context());
 

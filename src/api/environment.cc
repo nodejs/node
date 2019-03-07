@@ -225,7 +225,7 @@ Environment* CreateEnvironment(IsolateData* isolate_data,
       static_cast<Environment::Flags>(Environment::kIsMainThread |
                                       Environment::kOwnsProcessState |
                                       Environment::kOwnsInspector));
-  env->Start(per_process::v8_is_profiling);
+  env->InitializeLibuv(per_process::v8_is_profiling);
   env->ProcessCliArgs(args, exec_args);
   return env;
 }

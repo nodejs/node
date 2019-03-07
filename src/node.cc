@@ -620,10 +620,10 @@ int ProcessGlobalArgs(std::vector<std::string>* args,
 
 static std::atomic_bool init_called{false};
 
-int Init(std::vector<std::string>* argv,
-         std::vector<std::string>* exec_argv,
-         std::vector<std::string>* errors) {
-  // Make sure Init() is called only once.
+int InitializeNodeWithArgs(std::vector<std::string>* argv,
+                           std::vector<std::string>* exec_argv,
+                           std::vector<std::string>* errors) {
+  // Make sure InitializeNodeWithArgs() is called only once.
   CHECK(!init_called.exchange(true));
 
   // Register built-in modules
@@ -734,7 +734,7 @@ void Init(int* argc,
 
   // This (approximately) duplicates some logic that has been moved to
   // node::Start(), with the difference that here we explicitly call `exit()`.
-  int exit_code = Init(&argv_, &exec_argv_, &errors);
+  int exit_code = InitializeNodeWithArgs(&argv_, &exec_argv_, &errors);
 
   for (const std::string& error : errors)
     fprintf(stderr, "%s: %s\n", argv_.at(0).c_str(), error.c_str());
@@ -769,9 +769,10 @@ void RunBeforeExit(Environment* env) {
     EmitBeforeExit(env);
 }
 
-inline int Start(Isolate* isolate, IsolateData* isolate_data,
-                 const std::vector<std::string>& args,
-                 const std::vector<std::string>& exec_args) {
+inline int StartNodeWithIsolate(Isolate* isolate,
+                                IsolateData* isolate_data,
+                                const std::vector<std::string>& args,
+                                const std::vector<std::string>& exec_args) {
   HandleScope handle_scope(isolate);
   Local<Context> context = NewContext(isolate);
   Context::Scope context_scope(context);
@@ -782,7 +783,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
       static_cast<Environment::Flags>(Environment::kIsMainThread |
                                       Environment::kOwnsProcessState |
                                       Environment::kOwnsInspector));
-  env.Start(per_process::v8_is_profiling);
+  env.InitializeLibuv(per_process::v8_is_profiling);
   env.ProcessCliArgs(args, exec_args);
 
 #if HAVE_INSPECTOR && NODE_USE_V8_PLATFORM
@@ -858,24 +859,14 @@ exit:
   return exit_code;
 }
 
-inline int Start(uv_loop_t* event_loop,
-                 const std::vector<std::string>& args,
-                 const std::vector<std::string>& exec_args) {
+inline int StartNodeWithLoopAndArgs(uv_loop_t* event_loop,
+                                    const std::vector<std::string>& args,
+                                    const std::vector<std::string>& exec_args) {
   std::unique_ptr<ArrayBufferAllocator, decltype(&FreeArrayBufferAllocator)>
       allocator(CreateArrayBufferAllocator(), &FreeArrayBufferAllocator);
   Isolate* const isolate = NewIsolate(allocator.get(), event_loop);
   if (isolate == nullptr)
     return 12;  // Signal internal error.
-
-  if (per_process::cli_options->print_version) {
-    printf("%s\n", NODE_VERSION);
-    return 0;
-  }
-
-  if (per_process::cli_options->print_v8_help) {
-    V8::SetFlagsFromString("--help", 6);  // Doesn't return.
-    UNREACHABLE();
-  }
 
   int exit_code;
   {
@@ -894,7 +885,7 @@ inline int Start(uv_loop_t* event_loop,
       isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
     }
     exit_code =
-        Start(isolate, isolate_data.get(), args, exec_args);
+        StartNodeWithIsolate(isolate, isolate_data.get(), args, exec_args);
   }
 
   isolate->Dispose();
@@ -926,10 +917,20 @@ int Start(int argc, char** argv) {
   std::vector<std::string> errors;
   // This needs to run *before* V8::Initialize().
   {
-    const int exit_code = Init(&args, &exec_args, &errors);
+    const int exit_code = InitializeNodeWithArgs(&args, &exec_args, &errors);
     for (const std::string& error : errors)
       fprintf(stderr, "%s: %s\n", args.at(0).c_str(), error.c_str());
     if (exit_code != 0) return exit_code;
+  }
+
+  if (per_process::cli_options->print_version) {
+    printf("%s\n", NODE_VERSION);
+    return 0;
+  }
+
+  if (per_process::cli_options->print_v8_help) {
+    V8::SetFlagsFromString("--help", 6);  // Doesn't return.
+    UNREACHABLE();
   }
 
 #if HAVE_OPENSSL
@@ -953,7 +954,7 @@ int Start(int argc, char** argv) {
   performance::performance_v8_start = PERFORMANCE_NOW();
   per_process::v8_initialized = true;
   const int exit_code =
-      Start(uv_default_loop(), args, exec_args);
+      StartNodeWithLoopAndArgs(uv_default_loop(), args, exec_args);
   per_process::v8_initialized = false;
   V8::Dispose();
 
