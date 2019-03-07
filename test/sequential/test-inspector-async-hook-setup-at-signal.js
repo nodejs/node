@@ -37,7 +37,7 @@ function setupTimeoutWithBreak() {
 
 async function waitForInitialSetup(session) {
   console.error('[test]', 'Waiting for initial setup');
-  await session.waitForBreakOnLine(15, '[eval]');
+  await session.waitForBreakOnLine(16, '[eval]');
 }
 
 async function setupTimeoutForStackTrace(session) {
@@ -51,7 +51,7 @@ async function setupTimeoutForStackTrace(session) {
 
 async function checkAsyncStackTrace(session) {
   console.error('[test]', 'Verify basic properties of asyncStackTrace');
-  const paused = await session.waitForBreakOnLine(22, '[eval]');
+  const paused = await session.waitForBreakOnLine(23, '[eval]');
   assert(paused.params.asyncStackTrace,
          `${Object.keys(paused.params)} contains "asyncStackTrace" property`);
   assert(paused.params.asyncStackTrace.description, 'Timeout');
