@@ -17,7 +17,6 @@ const expectedModules = new Set([
   'Internal Binding credentials',
   'Internal Binding fs',
   'Internal Binding inspector',
-  'Internal Binding messaging',
   'Internal Binding module_wrap',
   'Internal Binding native_module',
   'Internal Binding options',
@@ -38,7 +37,6 @@ const expectedModules = new Set([
   'NativeModule internal/console/constructor',
   'NativeModule internal/console/global',
   'NativeModule internal/constants',
-  'NativeModule internal/domexception',
   'NativeModule internal/encoding',
   'NativeModule internal/errors',
   'NativeModule internal/fixed_queue',
@@ -74,6 +72,7 @@ if (common.isMainThread) {
   expectedModules.add('NativeModule internal/process/stdio');
 } else {
   expectedModules.add('Internal Binding heap_utils');
+  expectedModules.add('Internal Binding messaging');
   expectedModules.add('Internal Binding serdes');
   expectedModules.add('Internal Binding stream_wrap');
   expectedModules.add('Internal Binding symbols');
