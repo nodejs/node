@@ -41,6 +41,7 @@ namespace node {
   V(FSREQPROMISE)                                                             \
   V(GETADDRINFOREQWRAP)                                                       \
   V(GETNAMEINFOREQWRAP)                                                       \
+  V(HEAPSNAPSHOT)                                                             \
   V(HTTP2SESSION)                                                             \
   V(HTTP2STREAM)                                                              \
   V(HTTP2PING)                                                                \

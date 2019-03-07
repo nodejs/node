@@ -10,7 +10,7 @@ try {
   console.log('using `test/common/heap.js` requires `--expose-internals`');
   throw e;
 }
-const { createJSHeapDump, buildEmbedderGraph } = internalTestHeap;
+const { createJSHeapSnapshot, buildEmbedderGraph } = internalTestHeap;
 
 function inspectNode(snapshot) {
   return util.inspect(snapshot, { depth: 4 });
@@ -33,7 +33,7 @@ function isEdge(edge, { node_name, edge_name }) {
 
 class State {
   constructor() {
-    this.snapshot = createJSHeapDump();
+    this.snapshot = createJSHeapSnapshot();
     this.embedderGraph = buildEmbedderGraph();
   }
 
