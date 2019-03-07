@@ -23,7 +23,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-// does node think that i18n was enabled?
+// Does node think that i18n was enabled?
 let enablei18n = process.config.variables.v8_enable_i18n_support;
 if (enablei18n === undefined) {
   enablei18n = 0;

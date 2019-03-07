@@ -35,7 +35,7 @@ let invalidFd = 2;
 try {
   while (fs.fstatSync(++invalidFd));
 } catch {
-  // do nothing; we now have an invalid fd
+  // Do nothing; we now have an invalid fd
 }
 
 net.createServer(common.mustNotCall()).listen({ fd: invalidFd })

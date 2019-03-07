@@ -32,7 +32,7 @@ assert.strictEqual(test_general.testGetPrototype(extendedObject),
 assert.notStrictEqual(test_general.testGetPrototype(baseObject),
                       test_general.testGetPrototype(extendedObject));
 
-// test version management functions
+// Test version management functions
 // expected version is currently 4
 assert.strictEqual(test_general.testGetVersion(), 4);
 
@@ -91,7 +91,7 @@ assert.strictEqual(finalizeWasCalled, false,
                    ' test_general.finalizeWasCalled() ' +
                    `returned ${finalizeWasCalled}`);
 
-// test napi_adjust_external_memory
+// Test napi_adjust_external_memory
 const adjustedValue = test_general.testAdjustExternalMemory();
 assert.strictEqual(typeof adjustedValue, 'number');
 assert(adjustedValue > 0);

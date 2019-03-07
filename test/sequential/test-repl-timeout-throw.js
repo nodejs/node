@@ -53,7 +53,7 @@ child.stdout.once('data', function() {
 
 child.on('close', function(c) {
   assert.strictEqual(c, 0);
-  // make sure we got 3 throws, in the end.
+  // Make sure we got 3 throws, in the end.
   const lastLine = stdout.trim().split(/\r?\n/).pop();
   assert.strictEqual(lastLine, '> 3');
 });

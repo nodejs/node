@@ -50,7 +50,7 @@ const DOWN = { name: 'down' };
 const prompt = '> ';
 
 const tests = [
-  { // creates few history to navigate for
+  { // Creates few history to navigate for
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
     test: [ 'let ab = 45', ENTER,
             '555 + 909', ENTER,

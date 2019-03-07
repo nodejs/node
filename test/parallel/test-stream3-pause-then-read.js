@@ -77,7 +77,7 @@ function readn(n, then) {
   })();
 }
 
-// then we listen to some data events
+// Then we listen to some data events
 function onData() {
   expectEndingData -= 100;
   console.error('onData');

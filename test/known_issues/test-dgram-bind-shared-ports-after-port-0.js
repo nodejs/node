@@ -29,7 +29,7 @@ if (cluster.isMaster) {
     const worker2 = cluster.fork({ PRT1: msg.port1 });
     worker2.on('message', () => process.exit(0));
     worker2.on('exit', (code, signal) => {
-      // this is the droid we are looking for
+      // This is the droid we are looking for
       assert.strictEqual(code, 0);
       assert.strictEqual(signal, null);
     });

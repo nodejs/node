@@ -64,7 +64,7 @@ FakeStream.prototype.close = function() {
 };
 
 
-// expect all streams to close properly.
+// Expect all streams to close properly.
 process.on('exit', function() {
   assert.strictEqual(wclosed, cnt);
   assert.strictEqual(rclosed, cnt);
@@ -93,7 +93,7 @@ for (let i = 0; i < cnt; i++) {
   r.pipe(w);
 }
 
-// now start passing through data
+// Now start passing through data
 // simulate a relatively fast async stream.
 rr.forEach(function(r) {
   let cnt = chunks;

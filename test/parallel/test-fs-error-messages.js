@@ -321,7 +321,7 @@ function re(literals, ...values) {
         `ENOTEMPTY: directory not empty, rename '${existingDir}' -> ` +
         `'${existingDir2}'`);
       assert.strictEqual(err.errno, UV_ENOTEMPTY);
-    } else if (err.code === 'EXDEV') {  // not on the same mounted filesystem
+    } else if (err.code === 'EXDEV') {  // Not on the same mounted filesystem
       assert.strictEqual(
         err.message,
         `EXDEV: cross-device link not permitted, rename '${existingDir}' -> ` +

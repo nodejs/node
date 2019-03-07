@@ -54,10 +54,10 @@ assert.strictEqual(d.length, 0);
 // Test invalid encoding for Buffer.toString
 assert.throws(() => b.toString('invalid'),
               /Unknown encoding: invalid/);
-// invalid encoding for Buffer.write
+// Invalid encoding for Buffer.write
 assert.throws(() => b.write('test string', 0, 5, 'invalid'),
               /Unknown encoding: invalid/);
-// unsupported arguments for Buffer.write
+// Unsupported arguments for Buffer.write
 assert.throws(() => b.write('test', 'utf8', 0),
               /is no longer supported/);
 
@@ -87,13 +87,13 @@ const outOfRangeError = {
 // Try to write a 0-length string beyond the end of b
 common.expectsError(() => b.write('', 2048), outOfBoundsError);
 
-// throw when writing to negative offset
+// Throw when writing to negative offset
 common.expectsError(() => b.write('a', -1), outOfBoundsError);
 
 // Throw when writing past bounds from the pool
 common.expectsError(() => b.write('a', 2048), outOfBoundsError);
 
-// throw when writing to negative offset
+// Throw when writing to negative offset
 common.expectsError(() => b.write('a', -1), outOfBoundsError);
 
 // Try to copy 0 bytes worth of data into an empty buffer
@@ -192,7 +192,7 @@ Buffer.alloc(1).write('', 1, 0);
 }
 
 {
-  // also from a non-pooled instance
+  // Also from a non-pooled instance
   const b = Buffer.allocUnsafeSlow(5);
   const c = b.slice(0, 4);
   const d = c.slice(0, 2);
@@ -390,7 +390,7 @@ assert.strictEqual(Buffer.from('KioqKioqKioqKioqKioqKioqKio=',
                                'base64').toString(),
                    '*'.repeat(20));
 
-// no padding, not a multiple of 4
+// No padding, not a multiple of 4
 assert.strictEqual(Buffer.from('Kg', 'base64').toString(), '*');
 assert.strictEqual(Buffer.from('Kio', 'base64').toString(), '*'.repeat(2));
 assert.strictEqual(Buffer.from('KioqKg', 'base64').toString(), '*'.repeat(4));
@@ -713,7 +713,7 @@ assert.strictEqual(x.inspect(), '<Buffer 81 a3 66 6f 6f a3 62 61 72>');
 }
 
 {
-  // test offset returns are correct
+  // Test offset returns are correct
   const b = Buffer.allocUnsafe(16);
   assert.strictEqual(b.writeUInt32LE(0, 0), 4);
   assert.strictEqual(b.writeUInt16LE(0, 4), 6);
@@ -818,7 +818,7 @@ common.expectsError(
   outOfRangeError
 );
 
-// test for common write(U)IntLE/BE
+// Test for common write(U)IntLE/BE
 {
   let buf = Buffer.allocUnsafe(3);
   buf.writeUIntLE(0x123456, 0, 3);

@@ -167,7 +167,7 @@ if (process.argv[2] !== 'child') {
     reuseAddr: true
   });
 
-  // bind the address explicitly for sending
+  // Bind the address explicitly for sending
   // INADDR_BROADCAST to only one interface
   sendSocket.bind(common.PORT, bindAddress);
   sendSocket.on('listening', function() {

@@ -74,7 +74,7 @@ function createServer() {
   }));
 }
 
-// use port and host and option connect
+// Use port and host and option connect
 {
   const server = createServer();
   server.listen(0, common.mustCall(() => {

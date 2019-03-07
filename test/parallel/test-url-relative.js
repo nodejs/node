@@ -152,7 +152,7 @@ const relativeTests2 = [
   ['g#s/../x', bases[0], 'http://a/b/c/g#s/../x'],
   ['http:g', bases[0], ('http:g', 'http://a/b/c/g')],
   ['http:', bases[0], ('http:', bases[0])],
-  // not sure where this one originated
+  // Not sure where this one originated
   ['/a/b/c/./../../g', bases[0], 'http://a/a/g'],
 
   // http://gbiv.com/protocols/uri/test/rel_examples2.html
@@ -211,7 +211,7 @@ const relativeTests2 = [
   ['../../', bases[3], 'fred:///s//'],
   ['../../g', bases[3], 'fred:///s//g'],
   ['../../../g', bases[3], 'fred:///s/g'],
-  // may change to fred:///s//a/../../../g
+  // May change to fred:///s//a/../../../g
   ['../../../../g', bases[3], 'fred:///g'],
 
   // http://gbiv.com/protocols/uri/test/rel_examples5.html
@@ -229,9 +229,9 @@ const relativeTests2 = [
   ['../g', bases[4], 'http:///s//a/g'],
   ['../../', bases[4], 'http:///s//'],
   ['../../g', bases[4], 'http:///s//g'],
-  // may change to http:///s//a/../../g
+  // May change to http:///s//a/../../g
   ['../../../g', bases[4], 'http:///s/g'],
-  // may change to http:///s//a/../../../g
+  // May change to http:///s//a/../../../g
   ['../../../../g', bases[4], 'http:///g'],
 
   // From Dan Connelly's tests in http://www.w3.org/2000/10/swap/uripath.py

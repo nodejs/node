@@ -45,7 +45,7 @@ require('../fixtures/not-main-module.js');
 }
 
 {
-  // require a file without any extensions
+  // Require a file without any extensions
   const foo_no_ext = require('../fixtures/foo');
   assert.strictEqual(foo_no_ext.foo, 'ok');
 }
@@ -154,7 +154,7 @@ require.extensions['.test'] = function(module, filename) {
 };
 
 assert.strictEqual(require('../fixtures/registerExt').test, 'passed');
-// unknown extension, load as .js
+// Unknown extension, load as .js
 assert.strictEqual(require('../fixtures/registerExt.hello.world').test,
                    'passed');
 

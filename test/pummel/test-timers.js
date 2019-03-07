@@ -23,11 +23,11 @@
 const common = require('../common');
 const assert = require('assert');
 
-const WINDOW = 200; // why is does this need to be so big?
+const WINDOW = 200; // Why is does this need to be so big?
 
 let interval_count = 0;
 
-// check that these don't blow up.
+// Check that these don't blow up.
 clearTimeout(null);
 clearInterval(null);
 

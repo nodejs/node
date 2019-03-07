@@ -17,7 +17,7 @@ let seenChunks = [];
 let seenEnd = false;
 
 const w = new Writable();
-// lets arrange to store the chunks
+// Lets arrange to store the chunks
 w._write = function(chunk, encoding, cb) {
   // Stream end event is not seen before the last write
   assert.ok(!seenEnd);
@@ -27,7 +27,7 @@ w._write = function(chunk, encoding, cb) {
   seenChunks.push(chunk);
   cb();
 };
-// lets record the stream end event
+// Lets record the stream end event
 w.on('finish', () => {
   seenEnd = true;
 });
@@ -39,7 +39,7 @@ function writeChunks(remainingChunks, callback) {
   if (writeChunk) {
     setImmediate(() => {
       writeState = w.write(writeChunk);
-      // we were not told to stop writing
+      // We were not told to stop writing
       assert.ok(writeState);
 
       writeChunks(remainingChunks, callback);
@@ -61,13 +61,13 @@ w.cork();
 
 // write the bufferedChunks
 writeChunks(inputChunks, () => {
-  // should not have seen anything yet
+  // Should not have seen anything yet
   assert.strictEqual(seenChunks.length, 0);
 
-  // trigger flush and ending the stream
+  // Trigger flush and ending the stream
   w.end();
 
-  // stream should not ended in current tick
+  // Stream should not ended in current tick
   assert.ok(!seenEnd);
 
   // Buffered bytes should be seen in current tick
@@ -85,7 +85,7 @@ writeChunks(inputChunks, () => {
   }
 
   setImmediate(() => {
-    // stream should have ended in next tick
+    // Stream should have ended in next tick
     assert.ok(seenEnd);
   });
 });

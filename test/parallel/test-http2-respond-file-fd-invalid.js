@@ -26,7 +26,7 @@ server.on('stream', (stream) => {
   try {
     while (fs.fstatSync(++fd));
   } catch {
-    // do nothing; we now have an invalid fd
+    // Do nothing; we now have an invalid fd
   }
 
   stream.respondWithFD(fd);

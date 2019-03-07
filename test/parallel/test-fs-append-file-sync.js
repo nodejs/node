@@ -70,13 +70,13 @@ const fileData3 = fs.readFileSync(filename3);
 
 assert.strictEqual(buf.length + currentFileData.length, fileData3.length);
 
-// test that appendFile accepts numbers.
+// Test that appendFile accepts numbers.
 const filename4 = join(tmpdir.path, 'append-sync4.txt');
 fs.writeFileSync(filename4, currentFileData, { mode: m });
 
 fs.appendFileSync(filename4, num, { mode: m });
 
-// windows permissions aren't unix
+// Windows permissions aren't unix
 if (!common.isWindows) {
   const st = fs.statSync(filename4);
   assert.strictEqual(st.mode & 0o700, m);

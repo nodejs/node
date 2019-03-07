@@ -61,7 +61,7 @@ execFile(node, traceDep, function(er, stdout, stderr) {
   assert.strictEqual(er, null);
   assert.strictEqual(stdout, '');
   const stack = stderr.trim().split('\n');
-  // just check the top and bottom.
+  // Just check the top and bottom.
   assert(/this function is deprecated/.test(stack[1]));
   assert(/This is deprecated/.test(stack[0]));
   console.log('trace ok');

@@ -7,7 +7,7 @@ const { expectsError, mustCall } = require('../common');
 const CRLF = '\r\n';
 const DUMMY_HEADER_NAME = 'Cookie: ';
 const DUMMY_HEADER_VALUE = 'a'.repeat(
-  // plus one is to make it 1 byte too big
+  // Plus one is to make it 1 byte too big
   maxHeaderSize - DUMMY_HEADER_NAME.length - (2 * CRLF.length) + 1
 );
 const PAYLOAD_GET = 'GET /blah HTTP/1.1';

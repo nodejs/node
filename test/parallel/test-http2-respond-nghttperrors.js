@@ -13,7 +13,7 @@ const {
 } = internalBinding('http2');
 const { NghttpError } = require('internal/http2/util');
 
-// tests error handling within respond
+// Tests error handling within respond
 // - every other NGHTTP2 error from binding (should emit stream error)
 
 const specificTestKeys = [];

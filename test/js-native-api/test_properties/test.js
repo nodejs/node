@@ -33,7 +33,7 @@ assert.ok(!propertyNames.includes('readwriteAccessor2'));
 assert.ok(!propertyNames.includes('readonlyAccessor1'));
 assert.ok(!propertyNames.includes('readonlyAccessor2'));
 
-// validate property created with symbol
+// Validate property created with symbol
 const start = 'Symbol('.length;
 const end = start + 'NameKeySymbol'.length;
 const symbolDescription =

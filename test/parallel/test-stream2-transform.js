@@ -407,7 +407,7 @@ const Transform = require('_stream_transform');
     }
   };
 
-  // anything except null/undefined is fine.
+  // Anything except null/undefined is fine.
   // those are "magic" in the stream API, because they signal EOF.
   const objects = [
     { foo: 'bar' },
@@ -448,7 +448,7 @@ const Transform = require('_stream_transform');
     }
   };
 
-  // anything except null/undefined is fine.
+  // Anything except null/undefined is fine.
   // those are "magic" in the stream API, because they signal EOF.
   const objects = [
     { foo: 'bar' },

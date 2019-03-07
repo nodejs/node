@@ -15,7 +15,7 @@ testError();
 function testSloppyMode() {
   const r = initRepl(repl.REPL_MODE_SLOPPY);
 
-  // cannot use `let` in sloppy mode
+  // Cannot use `let` in sloppy mode
   r.write(`_;          // initial value undefined
           var x = 10;  // evaluates to undefined
           _;           // still undefined

@@ -1911,7 +1911,7 @@ console.log(fs.readFileSync('temp.txt', 'utf8'));
 // get the file descriptor of the file to be truncated
 const fd = fs.openSync('temp.txt', 'r+');
 
-// truncate the file to first four bytes
+// Truncate the file to first four bytes
 fs.ftruncate(fd, 4, (err) => {
   assert.ifError(err);
   console.log(fs.readFileSync('temp.txt', 'utf8'));
@@ -3912,7 +3912,7 @@ async function doTruncate() {
     await filehandle.truncate(4);
   } finally {
     if (filehandle) {
-      // close the file if it is opened.
+      // Close the file if it is opened.
       await filehandle.close();
     }
   }
@@ -3939,7 +3939,7 @@ async function doTruncate() {
     await filehandle.truncate(10);
   } finally {
     if (filehandle) {
-      // close the file if it is opened.
+      // Close the file if it is opened.
       await filehandle.close();
     }
   }

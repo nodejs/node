@@ -59,7 +59,7 @@ if (cluster.isMaster) {
   }, common.mustCall(function() {
     server2.listen({ port: common.PORT + 1, exclusive: true },
                    common.mustCall(function() {
-                     // the first worker should succeed
+                     // The first worker should succeed
                      process.send('success');
                    })
     );

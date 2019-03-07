@@ -41,14 +41,14 @@ const stream = new ArrayStream();
   assert.ok(!server.underscoreAssigned);
   assert.strictEqual(server.lines.length, 0);
 
-  // an assignment to '_' in the repl server
+  // An assignment to '_' in the repl server
   server.write('_ = 500;\n');
   assert.ok(server.underscoreAssigned);
   assert.strictEqual(server.lines.length, 1);
   assert.strictEqual(server.lines[0], '_ = 500;');
   assert.strictEqual(server.last, 500);
 
-  // use the server to create a new context
+  // Use the server to create a new context
   const context = server.createContext();
 
   // Ensure that creating a new context does not

@@ -78,7 +78,7 @@ assert.strictEqual(b.indexOf(Buffer.from('f'), 6), -1);
 
 assert.strictEqual(Buffer.from('ff').indexOf(Buffer.from('f'), 1, 'ucs2'), -1);
 
-// test invalid and uppercase encoding
+// Test invalid and uppercase encoding
 assert.strictEqual(b.indexOf('b', 'utf8'), 1);
 assert.strictEqual(b.indexOf('b', 'UTF8'), 1);
 assert.strictEqual(b.indexOf('62', 'HEX'), 1);

@@ -92,7 +92,7 @@ if (cluster.isWorker) {
       testCluster(common.mustCall(() => {
         // 3. disconnect cluster
         cluster.disconnect(common.mustCall(() => {
-          // run test again to confirm cleanup
+          // Run test again to confirm cleanup
           if (again) {
             test();
           }

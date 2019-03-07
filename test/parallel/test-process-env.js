@@ -59,7 +59,7 @@ if (process.argv[2] === 'you-are-the-child') {
   child.stderr.on('data', function(data) { console.log(data.toString()); });
   child.on('exit', function(statusCode) {
     if (statusCode !== 0) {
-      process.exit(statusCode);  // failed assertion in child process
+      process.exit(statusCode);  // Failed assertion in child process
     }
   });
 }

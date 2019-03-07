@@ -5,7 +5,7 @@ const assert = require('assert');
 const { OutgoingMessage } = require('http');
 
 {
-  // tests for settimeout method with socket
+  // Tests for settimeout method with socket
   const expectedMsecs = 42;
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage.socket = {

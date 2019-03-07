@@ -33,7 +33,7 @@ function stat_resource(resource) {
     return fs.statSync(resource);
   } else {
     const stats = fs.fstatSync(resource);
-    // ensure mtime has been written to disk
+    // Ensure mtime has been written to disk
     // except for directories on AIX where it cannot be synced
     if (common.isAIX && stats.isDirectory())
       return stats;
@@ -59,7 +59,7 @@ function expect_errno(syscall, resource, err, errno) {
 function expect_ok(syscall, resource, err, atime, mtime) {
   const mtime_diff = check_mtime(resource, mtime);
   assert(
-    // check up to single-second precision
+    // Check up to single-second precision
     // sub-second precision is OS and fs dependant
     !err && (mtime_diff < 2) || err && err.code === 'ENOSYS',
     `FAILED: expect_ok ${util.inspect(arguments)}
@@ -119,7 +119,7 @@ function runTests(iter) {
     fs.utimesSync(tmpdir.path, atime, mtime);
     expect_ok('utimesSync', tmpdir.path, undefined, atime, mtime);
 
-    // some systems don't have futimes
+    // Some systems don't have futimes
     // if there's an error, it should be ENOSYS
     try {
       fs.futimesSync(fd, atime, mtime);

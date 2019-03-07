@@ -139,7 +139,7 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
   fs.appendFile(filename, n, { mode: m }, common.mustCall((e) => {
     assert.ifError(e);
 
-    // windows permissions aren't unix
+    // Windows permissions aren't unix
     if (!common.isWindows) {
       const st = fs.statSync(filename);
       assert.strictEqual(st.mode & 0o700, m);
@@ -161,7 +161,7 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
   const m = 0o600;
   fs.promises.appendFile(filename, n, { mode: m })
     .then(common.mustCall(() => {
-      // windows permissions aren't unix
+      // Windows permissions aren't unix
       if (!common.isWindows) {
         const st = fs.statSync(filename);
         assert.strictEqual(st.mode & 0o700, m);

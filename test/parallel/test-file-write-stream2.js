@@ -62,7 +62,7 @@ function removeTestFile() {
 
 tmpdir.refresh();
 
-// drain at 0, return false at 10.
+// Drain at 0, return false at 10.
 const file = fs.createWriteStream(filepath, {
   highWaterMark: 11
 });

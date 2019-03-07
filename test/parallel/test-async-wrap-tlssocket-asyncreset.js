@@ -52,7 +52,7 @@ server.listen(
               assert.strictEqual(res.statusCode, 200);
               res2.on('error', (err) => assert.fail(err));
               res2.socket.on('error', (err) => assert.fail(err));
-              // this should be the end of the test
+              // This should be the end of the test
               res2.destroy();
               server.close();
             })

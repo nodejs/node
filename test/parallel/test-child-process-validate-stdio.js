@@ -11,7 +11,7 @@ const expectedError =
 // Should throw if string and not ignore, pipe, or inherit
 assert.throws(() => _validateStdio('foo'), expectedError);
 
-// should throw if not a string or array
+// Should throw if not a string or array
 assert.throws(() => _validateStdio(600), expectedError);
 
 // Should populate stdio with undefined if len < 3
