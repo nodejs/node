@@ -289,25 +289,33 @@ Local<Context> NewContext(Isolate* isolate,
                            True(isolate));
 
   {
-    // Run lib/internal/bootstrap/context.js
+    // Run per-context JS files.
     Context::Scope context_scope(context);
 
-    std::vector<Local<String>> parameters = {
-        FIXED_ONE_BYTE_STRING(isolate, "global")};
-    Local<Value> arguments[] = {context->Global()};
-    MaybeLocal<Function> maybe_fn =
-        per_process::native_module_loader.LookupAndCompile(
-            context, "internal/bootstrap/context", &parameters, nullptr);
-    if (maybe_fn.IsEmpty()) {
-      return Local<Context>();
-    }
-    Local<Function> fn = maybe_fn.ToLocalChecked();
-    MaybeLocal<Value> result =
-        fn->Call(context, Undefined(isolate), arraysize(arguments), arguments);
-    // Execution failed during context creation.
-    // TODO(joyeecheung): deprecate this signature and return a MaybeLocal.
-    if (result.IsEmpty()) {
-      return Local<Context>();
+    static const char* context_files[] = {
+      "internal/per_context/setup",
+      nullptr
+    };
+
+    for (const char** module = context_files; *module != nullptr; module++) {
+      std::vector<Local<String>> parameters = {
+          FIXED_ONE_BYTE_STRING(isolate, "global")};
+      Local<Value> arguments[] = {context->Global()};
+      MaybeLocal<Function> maybe_fn =
+          per_process::native_module_loader.LookupAndCompile(
+              context, *module, &parameters, nullptr);
+      if (maybe_fn.IsEmpty()) {
+        return Local<Context>();
+      }
+      Local<Function> fn = maybe_fn.ToLocalChecked();
+      MaybeLocal<Value> result =
+          fn->Call(context, Undefined(isolate),
+                   arraysize(arguments), arguments);
+      // Execution failed during context creation.
+      // TODO(joyeecheung): deprecate this signature and return a MaybeLocal.
+      if (result.IsEmpty()) {
+        return Local<Context>();
+      }
     }
   }
 
