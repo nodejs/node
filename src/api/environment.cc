@@ -15,6 +15,7 @@
 
 namespace node {
 using v8::Context;
+using v8::EscapableHandleScope;
 using v8::Function;
 using v8::HandleScope;
 using v8::Isolate;
@@ -22,7 +23,9 @@ using v8::Local;
 using v8::MaybeLocal;
 using v8::Message;
 using v8::MicrotasksPolicy;
+using v8::Object;
 using v8::ObjectTemplate;
+using v8::Private;
 using v8::String;
 using v8::Value;
 
@@ -279,6 +282,26 @@ void FreePlatform(MultiIsolatePlatform* platform) {
   delete platform;
 }
 
+MaybeLocal<Object> GetPerContextExports(Local<Context> context) {
+  Isolate* isolate = context->GetIsolate();
+  EscapableHandleScope handle_scope(isolate);
+
+  Local<Object> global = context->Global();
+  Local<Private> key = Private::ForApi(isolate,
+      FIXED_ONE_BYTE_STRING(isolate, "node:per_context_binding_exports"));
+
+  Local<Value> existing_value;
+  if (!global->GetPrivate(context, key).ToLocal(&existing_value))
+    return MaybeLocal<Object>();
+  if (existing_value->IsObject())
+    return handle_scope.Escape(existing_value.As<Object>());
+
+  Local<Object> exports = Object::New(isolate);
+  if (context->Global()->SetPrivate(context, key, exports).IsNothing())
+    return MaybeLocal<Object>();
+  return handle_scope.Escape(exports);
+}
+
 Local<Context> NewContext(Isolate* isolate,
                           Local<ObjectTemplate> object_template) {
   auto context = Context::New(isolate, nullptr, object_template);
@@ -291,16 +314,25 @@ Local<Context> NewContext(Isolate* isolate,
   {
     // Run per-context JS files.
     Context::Scope context_scope(context);
+    Local<Object> exports;
+    if (!GetPerContextExports(context).ToLocal(&exports))
+      return Local<Context>();
+
+    Local<String> global_string = FIXED_ONE_BYTE_STRING(isolate, "global");
+    Local<String> exports_string = FIXED_ONE_BYTE_STRING(isolate, "exports");
 
     static const char* context_files[] = {
       "internal/per_context/setup",
+      "internal/per_context/domexception",
       nullptr
     };
 
     for (const char** module = context_files; *module != nullptr; module++) {
       std::vector<Local<String>> parameters = {
-          FIXED_ONE_BYTE_STRING(isolate, "global")};
-      Local<Value> arguments[] = {context->Global()};
+        global_string,
+        exports_string
+      };
+      Local<Value> arguments[] = {context->Global(), exports};
       MaybeLocal<Function> maybe_fn =
           per_process::native_module_loader.LookupAndCompile(
               context, *module, &parameters, nullptr);
