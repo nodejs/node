@@ -573,6 +573,9 @@ program. For a comprehensive list, see the [`errno`(3) man page][].
 - `ENOTEMPTY` (Directory not empty): A directory with entries was the target
   of an operation that requires an empty directory — usually [`fs.unlink`][].
 
+- `ENOTFOUND` (DNS lookup failed): Indicates a DNS failure of either
+  `EAI_NODATA` or `EAI_NONAME`. This is not a standard POSIX error.
+
 - `EPERM` (Operation not permitted): An attempt was made to perform an
   operation that requires elevated privileges.
 
