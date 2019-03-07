@@ -729,7 +729,6 @@ void MessagePort::Start(const FunctionCallbackInfo<Value>& args) {
   MessagePort* port;
   ASSIGN_OR_RETURN_UNWRAP(&port, args.This());
   if (!port->data_) {
-    THROW_ERR_CLOSED_MESSAGE_PORT(env);
     return;
   }
   port->Start();
@@ -741,7 +740,6 @@ void MessagePort::Stop(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
   ASSIGN_OR_RETURN_UNWRAP(&port, args[0].As<Object>());
   if (!port->data_) {
-    THROW_ERR_CLOSED_MESSAGE_PORT(env);
     return;
   }
   port->Stop();
