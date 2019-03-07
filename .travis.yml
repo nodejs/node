@@ -3,7 +3,7 @@ cache: ccache
 os: linux
 matrix:
   include:
-    - name: "Respect Commit message guidelines: <a href=\"https://goo.gl/p2fr5Q\">link</a>"
+    - name: "The first commit message complies with the guidelines: <a href=\"https://goo.gl/p2fr5Q\">https://goo.gl/p2fr5Q</a>"
       if: type = pull_request
       language: node_js
       node_js: "node"
