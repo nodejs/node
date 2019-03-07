@@ -284,7 +284,7 @@ void Worker::Run() {
         env_->set_abort_on_uncaught_exception(false);
         env_->set_worker_context(this);
 
-        env_->Start(profiler_idle_notifier_started_);
+        env_->InitializeLibuv(profiler_idle_notifier_started_);
         env_->ProcessCliArgs(std::vector<std::string>{},
                              std::move(exec_argv_));
       }
