@@ -294,6 +294,8 @@ void DefineZlibConstants(v8::Local<v8::Object> target);
 v8::MaybeLocal<v8::Value> RunBootstrapping(Environment* env);
 v8::MaybeLocal<v8::Value> StartExecution(Environment* env,
                                          const char* main_script_id);
+v8::MaybeLocal<v8::Object> GetPerContextExports(v8::Local<v8::Context> context);
+
 namespace coverage {
 bool StartCoverageCollection(Environment* env);
 }
