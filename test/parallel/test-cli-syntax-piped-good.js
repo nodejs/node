@@ -18,7 +18,7 @@ syntaxArgs.forEach(function(args) {
   const stdin = 'throw new Error("should not get run");';
   const c = spawnSync(node, args, { encoding: 'utf8', input: stdin });
 
-  // no stdout or stderr should be produced
+  // No stdout or stderr should be produced
   assert.strictEqual(c.stdout, '');
   assert.strictEqual(c.stderr, '');
 

@@ -41,7 +41,7 @@ setTimeout(function() {
 }, 0);
 
 
-// no nextTick, microtask with nextTick
+// No nextTick, microtask with nextTick
 setTimeout(function() {
   let called = false;
 

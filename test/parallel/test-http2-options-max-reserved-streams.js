@@ -15,7 +15,7 @@ const countdown = new Countdown(3, () => {
   client.close();
 });
 
-// we use the lower-level API here
+// We use the lower-level API here
 server.on('stream', common.mustCall((stream) => {
   // The first pushStream will complete as normal
   stream.pushStream({

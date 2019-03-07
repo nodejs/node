@@ -62,7 +62,7 @@ function checkDataAndSockets(body) {
 }
 
 function second() {
-  // request second, use the same socket
+  // Request second, use the same socket
   get('/second', common.mustCall((res) => {
     assert.strictEqual(res.statusCode, 200);
     res.on('data', checkDataAndSockets);
@@ -79,7 +79,7 @@ function second() {
 }
 
 function remoteClose() {
-  // mock remote server close the socket
+  // Mock remote server close the socket
   get('/remote_close', common.mustCall((res) => {
     assert.deepStrictEqual(res.statusCode, 200);
     res.on('data', checkDataAndSockets);
@@ -89,7 +89,7 @@ function remoteClose() {
       process.nextTick(common.mustCall(() => {
         assert.strictEqual(agent.sockets[name], undefined);
         assert.strictEqual(agent.freeSockets[name].length, 1);
-        // waiting remote server close the socket
+        // Waiting remote server close the socket
         setTimeout(common.mustCall(() => {
           assert.strictEqual(agent.sockets[name], undefined);
           assert.strictEqual(agent.freeSockets[name], undefined);
@@ -101,7 +101,7 @@ function remoteClose() {
 }
 
 function remoteError() {
-  // remote server will destroy the socket
+  // Remote server will destroy the socket
   const req = get('/error', common.mustNotCall());
   req.on('error', common.mustCall((err) => {
     assert(err);

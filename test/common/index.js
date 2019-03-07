@@ -811,7 +811,7 @@ module.exports = {
 
     const opensslCmd = spawnSync(opensslCli, ['version']);
     if (opensslCmd.status !== 0 || opensslCmd.error !== undefined) {
-      // openssl command cannot be executed
+      // OpenSSL command cannot be executed
       opensslCli = false;
     }
     return opensslCli;

@@ -43,7 +43,7 @@ function onconnection(conn) {
       console.log('ok - got chunk');
     }
 
-    // just some basic sanity checks.
+    // Just some basic sanity checks.
     assert(c.length);
     assert(Buffer.isBuffer(c));
 
@@ -69,7 +69,7 @@ server.listen(0, function() {
     write();
   }
   function write() {
-    // this needs to return false eventually
+    // This needs to return false eventually
     while (false !== conn.write(chunk));
   }
 });

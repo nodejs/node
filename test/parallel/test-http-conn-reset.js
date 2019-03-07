@@ -38,7 +38,7 @@ const server = net.createServer(function(client) {
 });
 server.listen(0, options.host, common.mustCall(onListen));
 
-// do a GET request, expect it to fail
+// Do a GET request, expect it to fail
 function onListen() {
   options.port = this.address().port;
   const req = http.request(options, common.mustNotCall());

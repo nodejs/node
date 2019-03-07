@@ -639,7 +639,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     message: 'Unknown cipher'
   });
 
-  // cipher, but no valid passphrase.
+  // Cipher, but no valid passphrase.
   for (const passphrase of [undefined, null, 5, false, true]) {
     common.expectsError(() => generateKeyPairSync('rsa', {
       modulusLength: 4096,

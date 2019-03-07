@@ -33,7 +33,7 @@ if (process.argv[2] !== 'child') {
   ].forEach((processEnv) => {
     fork(__filename, ['child'], { env: processEnv })
     .on('exit', common.mustCall((status) => {
-      // client did not succeed in connecting
+      // Client did not succeed in connecting
       assert.strictEqual(status, 0);
     }));
   });

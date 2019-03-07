@@ -30,7 +30,7 @@ let d;
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-// first fire up a simple HTTP server
+// First fire up a simple HTTP server
 const server = http.createServer(function(req, res) {
   res.writeHead(200);
   res.end();

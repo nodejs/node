@@ -38,17 +38,17 @@ fs.write = function() {
   switch (writeCalls++) {
     case 0:
       console.error('first write');
-      // first time is ok.
+      // First time is ok.
       return write.apply(fs, arguments);
     case 1:
-      // then it breaks
+      // Then it breaks.
       console.error('second write');
       const cb = arguments[arguments.length - 1];
       return process.nextTick(function() {
         cb(err);
       });
     default:
-      // and should not be called again!
+      // It should not be called again!
       throw new Error('BOOM!');
   }
 };

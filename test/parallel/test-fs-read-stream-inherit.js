@@ -140,7 +140,7 @@ const rangeFile = fixtures.path('x.txt');
   }));
 }
 
-// pause and then resume immediately.
+// Pause and then resume immediately.
 {
   const pauseRes = fs.createReadStream(rangeFile);
   pauseRes.pause();

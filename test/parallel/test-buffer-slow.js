@@ -43,7 +43,7 @@ try {
 assert.strictEqual(SlowBuffer('6').length, 6);
 assert.strictEqual(SlowBuffer(true).length, 1);
 
-// should throw with invalid length
+// Should throw with invalid length
 const bufferMaxSizeMsg = common.expectsError({
   code: 'ERR_INVALID_OPT_VALUE',
   type: RangeError,

@@ -65,7 +65,7 @@ grep.stdin.on('drain', function(data) {
   echo.stdout.resume();
 });
 
-// propagate end from echo to grep
+// Propagate end from echo to grep
 echo.stdout.on('end', function(code) {
   grep.stdin.end();
 });
@@ -95,7 +95,7 @@ sed.stdin.on('drain', function(data) {
   grep.stdout.resume();
 });
 
-// propagate end from grep to sed
+// Propagate end from grep to sed
 grep.stdout.on('end', function(code) {
   console.error('grep stdout end');
   sed.stdin.end();

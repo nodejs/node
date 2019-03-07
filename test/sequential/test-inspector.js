@@ -225,7 +225,7 @@ async function testCommandLineAPI(session) {
   checkException(result);
   assert.deepStrictEqual(JSON.parse(result.result.value),
                          { old: 'yes' });
-  // remove module from require.cache
+  // Remove module from require.cache
   result = await session.send(
     {
       'method': 'Runtime.evaluate', 'params': {

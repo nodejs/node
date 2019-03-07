@@ -97,7 +97,7 @@ kill('0', undefined, 0, 15);
 kill(0, 1, 0, 1);
 kill(0, 15, 0, 15);
 
-// negative numbers are meaningful on unix
+// Negative numbers are meaningful on unix
 kill(-1, 'SIGHUP', -1, 1);
 kill(-1, undefined, -1, 15);
 kill('-1', 'SIGHUP', -1, 1);

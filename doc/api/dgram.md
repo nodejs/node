@@ -27,7 +27,7 @@ server.on('listening', () => {
 });
 
 server.bind(41234);
-// server listening 0.0.0.0:41234
+// Prints: server listening 0.0.0.0:41234
 ```
 
 ## Class: dgram.Socket
@@ -172,7 +172,7 @@ server.on('listening', () => {
 });
 
 server.bind(41234);
-// server listening 0.0.0.0:41234
+// Prints: server listening 0.0.0.0:41234
 ```
 
 ### socket.bind(options[, callback])

@@ -26,7 +26,7 @@ const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const { execFile } = require('child_process');
 
-// test for leaked global detection
+// Test for leaked global detection
 {
   const p = fixtures.path('leakedGlobal.js');
   execFile(process.execPath, [p], common.mustCall((err, stdout, stderr) => {

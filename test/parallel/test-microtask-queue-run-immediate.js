@@ -41,7 +41,7 @@ setImmediate(function() {
 });
 
 
-// no nextTick, microtask with nextTick
+// No nextTick, microtask with nextTick
 setImmediate(function() {
   let called = false;
 

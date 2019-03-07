@@ -85,7 +85,7 @@ child.spawn({
 assert.strictEqual(child.hasOwnProperty('pid'), true);
 assert(Number.isInteger(child.pid));
 
-// try killing with invalid signal
+// Try killing with invalid signal
 common.expectsError(
   () => { child.kill('foo'); },
   { code: 'ERR_UNKNOWN_SIGNAL', type: TypeError }

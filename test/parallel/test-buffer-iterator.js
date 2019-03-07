@@ -16,7 +16,7 @@ for (b of buffer)
 assert.deepStrictEqual(arr, [1, 2, 3, 4, 5]);
 
 
-// buffer iterators should be iterable
+// Buffer iterators should be iterable
 
 arr = [];
 

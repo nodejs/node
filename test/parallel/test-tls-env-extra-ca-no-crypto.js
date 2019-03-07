@@ -16,7 +16,7 @@ if (process.argv[2] === 'child') {
     ['child'],
     { env: Object.assign({}, process.env, { NODE_EXTRA_CA_CERTS }) },
   ).on('exit', common.mustCall(function(status) {
-    // client did not succeed in connecting
+    // Client did not succeed in connecting
     assert.strictEqual(status, 0);
   }));
 }

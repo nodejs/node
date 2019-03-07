@@ -237,7 +237,7 @@ if (cluster.isMaster) {
     res.writeHead(200);
     res.end('hello world\n');
 
-    // notify master about the request
+    // Notify master about the request
     process.send({ cmd: 'notifyRequest' });
   }).listen(8000);
 }

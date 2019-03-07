@@ -65,7 +65,7 @@ function CLI(usage, settings) {
       // item arguments
       this.items.push(arg);
 
-      // the next value must be an item
+      // The next value must be an item
       mode = 'item';
     } else {
       // Bad case, abort

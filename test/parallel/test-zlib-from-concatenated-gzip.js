@@ -81,6 +81,6 @@ fs.createReadStream(pmmFileGz)
     abcEncoded, defEncoded.slice(0, offset)
   ]));
 
-  // write remaining bytes of "def"
+  // Write remaining bytes of "def"
   unzip.end(defEncoded.slice(offset));
 });

@@ -65,7 +65,7 @@ assert.strictEqual(Buffer.byteLength(float64), 64);
 const dv = new DataView(new ArrayBuffer(2));
 assert.strictEqual(Buffer.byteLength(dv), 2);
 
-// special case: zero length string
+// Special case: zero length string
 assert.strictEqual(Buffer.byteLength('', 'ascii'), 0);
 assert.strictEqual(Buffer.byteLength('', 'HeX'), 0);
 

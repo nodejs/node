@@ -60,7 +60,7 @@ inputs.forEach((value, index) => {
   }, value);
 
   const handle = setInterval(() => {
-    clearInterval(handle); // disarm timer or we'll never finish
+    clearInterval(handle); // Disarm timer or we'll never finish
     intervals[index] = true;
   }, value);
 });
@@ -69,7 +69,7 @@ inputs.forEach((value, index) => {
 // before a timer set here for 2 ms.
 
 setTimeout(common.mustCall(() => {
-  // assert that all other timers have run
+  // Assert that all other timers have run
   inputs.forEach((value, index) => {
     assert(timeouts[index]);
     assert(intervals[index]);
