@@ -2349,8 +2349,8 @@ Type: Runtime
 
 This property is a reference to the instance itself.
 
-<a id="DEP0XXX"></a>
-### DEP0XXX: require('\_stream\_wrap')
+<a id="DEP0125"></a>
+### DEP0125: require('\_stream\_wrap')
 <!-- YAML
 changes:
   - version: REPLACEME
