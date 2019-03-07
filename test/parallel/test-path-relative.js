@@ -7,7 +7,7 @@ const failures = [];
 
 const relativeTests = [
   [ path.win32.relative,
-    // arguments                     result
+    // Arguments                     result
     [['c:/blah\\blah', 'd:/games', 'd:\\games'],
      ['c:/aaaa/bbbb', 'c:/aaaa', '..'],
      ['c:/aaaa/bbbb', 'c:/cccc', '..\\..\\cccc'],

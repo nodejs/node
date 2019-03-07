@@ -2,7 +2,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const _module = require('module'); // avoid collision with global.module
+const _module = require('module'); // Avoid collision with global.module
 
 // Current directory gets highest priority for local modules
 function testFirstInPath(moduleName, isLocalModule) {

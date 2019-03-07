@@ -49,7 +49,7 @@ const Countdown = require('../common/countdown');
   }));
 }
 
-// test destroy before client operations
+// Test destroy before client operations
 {
   const server = h2.createServer();
   server.listen(0, common.mustCall(() => {
@@ -81,7 +81,7 @@ const Countdown = require('../common/countdown');
     common.expectsError(() => client.settings({}), sessionError);
     common.expectsError(() => client.goaway(), sessionError);
     common.expectsError(() => client.request(), sessionError);
-    client.close();  // should be a non-op at this point
+    client.close();  // Should be a non-op at this point
 
     // Wait for setImmediate call from destroy() to complete
     // so that state.destroyed is set to true
@@ -91,7 +91,7 @@ const Countdown = require('../common/countdown');
       common.expectsError(() => client.settings({}), sessionError);
       common.expectsError(() => client.goaway(), sessionError);
       common.expectsError(() => client.request(), sessionError);
-      client.close();  // should be a non-op at this point
+      client.close();  // Should be a non-op at this point
     });
 
     req.resume();

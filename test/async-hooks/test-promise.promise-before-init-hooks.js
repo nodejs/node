@@ -9,7 +9,7 @@ const p = new Promise(common.mustCall(function executor(resolve) {
   resolve(5);
 }));
 
-// init hooks after promise was created
+// Init hooks after promise was created
 const hooks = initHooks({ allowNoInit: true });
 hooks.enable();
 

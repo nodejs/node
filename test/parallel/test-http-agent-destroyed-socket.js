@@ -41,7 +41,7 @@ const server = http.createServer(common.mustCall((req, res) => {
   };
 
   const request1 = http.get(requestOptions, common.mustCall((response) => {
-    // assert request2 is queued in the agent
+    // Assert request2 is queued in the agent
     const key = agent.getName(requestOptions);
     assert.strictEqual(agent.requests[key].length, 1);
     response.resume();

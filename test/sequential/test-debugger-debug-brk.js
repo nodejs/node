@@ -19,7 +19,7 @@ function test(arg) {
   const fail = () => assert.fail(true, false, `'${argStr}' should not quit`);
   child.on('exit', fail);
 
-  // give node time to start up the debugger
+  // Give node time to start up the debugger
   setTimeout(function() {
     child.removeListener('exit', fail);
     child.kill();

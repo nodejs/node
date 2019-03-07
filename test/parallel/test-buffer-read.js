@@ -2,7 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-// testing basic buffer read functions
+// Testing basic buffer read functions
 const buf = Buffer.from([0xa4, 0xfd, 0x48, 0xea, 0xcf, 0xff, 0xd9, 0x01, 0xde]);
 
 function read(buff, funx, args, expected) {

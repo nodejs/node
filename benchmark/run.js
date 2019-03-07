@@ -50,7 +50,7 @@ if (format === 'csv') {
     for (const key of Object.keys(data.conf)) {
       conf += ` ${key}=${JSON.stringify(data.conf[key])}`;
     }
-    // delete first space of the configuration
+    // Delete first space of the configuration
     conf = conf.slice(1);
     if (format === 'csv') {
       // Escape quotes (") for correct csv formatting

@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-// test uncompressing invalid input
+// Test uncompressing invalid input
 
 const common = require('../common');
 const assert = require('assert');

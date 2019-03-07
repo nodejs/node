@@ -28,7 +28,7 @@ const fs = require('fs');
 
 const tmpdir = require('../common/tmpdir');
 
-// test creating and reading symbolic link
+// Test creating and reading symbolic link
 const linkData = fixtures.path('cycles/');
 const linkPath = path.join(tmpdir.path, 'cycles_link');
 

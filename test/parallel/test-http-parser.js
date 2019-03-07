@@ -179,7 +179,7 @@ function expectBody(expected) {
   let seen_body = false;
 
   const onHeaders = (headers) => {
-    assert.ok(seen_body); // trailers should come after the body
+    assert.ok(seen_body); // Trailers should come after the body
     assert.deepStrictEqual(headers,
                            ['Vary', '*', 'Content-Type', 'text/plain']);
   };
@@ -190,7 +190,7 @@ function expectBody(expected) {
     assert.strictEqual(url || parser.url, '/it');
     assert.strictEqual(versionMajor, 1);
     assert.strictEqual(versionMinor, 1);
-    // expect to see trailing headers now
+    // Expect to see trailing headers now
     parser[kOnHeaders] = mustCall(onHeaders);
   };
 

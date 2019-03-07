@@ -31,7 +31,7 @@ process.nextTick(common.mustCall(() => {
   readable.push('bar');
 }));
 
-// these triggers two readable events
+// These triggers two readable events
 setImmediate(common.mustCall(() => {
   readable.push('quo');
   process.nextTick(common.mustCall(() => {

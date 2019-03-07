@@ -221,7 +221,7 @@ function preprocessElements({ filename }) {
           node.children.shift();
           node.children.unshift(...paragraph.children);
 
-          // insert div with prefix and number
+          // Insert div with prefix and number
           node.children.unshift({
             type: 'html',
             value: `<div class="api_stability api_stability_${number}">` +
@@ -231,7 +231,7 @@ function preprocessElements({ filename }) {
                 .replace(/\n/g, ' ')
           });
 
-          // remove prefix and number from text
+          // Remove prefix and number from text
           text.value = explication;
 
           // close div

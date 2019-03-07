@@ -30,7 +30,7 @@ const { setUnrefTimeout } = require('internal/timers');
   strictEqual(timer.refresh(), timer);
 }
 
-// should throw with non-functions
+// Should throw with non-functions
 {
   const expectedError = {
     code: 'ERR_INVALID_CALLBACK',

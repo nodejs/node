@@ -60,7 +60,7 @@ const EventEmitter = require('events');
   ee.emit('hello', 'a', 'b');
 }
 
-// just make sure that this doesn't throw:
+// Just make sure that this doesn't throw:
 {
   const f = new EventEmitter();
 

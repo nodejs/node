@@ -57,7 +57,7 @@ function depth1(N) {
   }
 }
 
-// concurrent setImmediate, 0 arguments
+// Concurrent setImmediate, 0 arguments
 function breadth(N) {
   var n = 0;
   bench.start();
@@ -71,7 +71,7 @@ function breadth(N) {
   }
 }
 
-// concurrent setImmediate, 1 argument
+// Concurrent setImmediate, 1 argument
 function breadth1(N) {
   var n = 0;
   bench.start();
@@ -85,7 +85,7 @@ function breadth1(N) {
   }
 }
 
-// concurrent setImmediate, 4 arguments
+// Concurrent setImmediate, 4 arguments
 function breadth4(N) {
   N /= 2;
   var n = 0;

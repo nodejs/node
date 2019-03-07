@@ -33,7 +33,7 @@ if (process.argv[2] === 'child') {
       const connect = net.connect(server.address().port);
 
       connect.on('close', common.mustCall(() => {
-        // now server.connections should be null
+        // `server.connections` should now be null.
         assert.strictEqual(server.connections, null);
         server.close();
       }));

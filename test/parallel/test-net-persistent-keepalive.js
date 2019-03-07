@@ -25,7 +25,7 @@ echoServer.listen(0);
 
 echoServer.on('listening', function() {
   clientConnection = new net.Socket();
-  // send a keepalive packet after 1000 ms
+  // Send a keepalive packet after 1000 ms
   // and make sure it persists
   const s = clientConnection.setKeepAlive(true, 400);
   assert.ok(s instanceof net.Socket);

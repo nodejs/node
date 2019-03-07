@@ -5,7 +5,7 @@ const common = require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
 
-// should ignore trailing null-bytes
+// Should ignore trailing null-bytes
 let data = Buffer.concat([
   zlib.gzipSync('abc'),
   zlib.gzipSync('def'),

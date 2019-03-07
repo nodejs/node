@@ -93,7 +93,7 @@ assert.throws(() => url.fileURLToPath('https://a/b/c'), {
       { path: 'C:\\fóóbàr', fileURL: 'file:///C:/f%C3%B3%C3%B3b%C3%A0r' },
       // euro sign (BMP code point)
       { path: 'C:\\€', fileURL: 'file:///C:/%E2%82%AC' },
-      // rocket emoji (non-BMP code point)
+      // Rocket emoji (non-BMP code point)
       { path: 'C:\\🚀', fileURL: 'file:///C:/%F0%9F%9A%80' }
     ];
   } else {
@@ -138,7 +138,7 @@ assert.throws(() => url.fileURLToPath('https://a/b/c'), {
       { path: '/fóóbàr', fileURL: 'file:///f%C3%B3%C3%B3b%C3%A0r' },
       // euro sign (BMP code point)
       { path: '/€', fileURL: 'file:///%E2%82%AC' },
-      // rocket emoji (non-BMP code point)
+      // Rocket emoji (non-BMP code point)
       { path: '/🚀', fileURL: 'file:///%F0%9F%9A%80' },
     ];
   }

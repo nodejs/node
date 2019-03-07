@@ -39,7 +39,7 @@ testTransform(555, 555, {
   writableHighWaterMark: 777,
 });
 
-// test highWaterMark = 0 overriding
+// Test highWaterMark = 0 overriding
 testTransform(0, 0, {
   highWaterMark: 0,
   readableHighWaterMark: 666,

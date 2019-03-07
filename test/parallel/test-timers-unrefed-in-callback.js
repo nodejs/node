@@ -24,7 +24,7 @@ let counter2 = 0;
 //    it would have fired 11 more times, and the assertion in the
 //    process'exit event handler would fail.
 function Test1() {
-  // server only for maintaining event loop
+  // Server only for maintaining event loop
   const server = net.createServer().listen(0);
 
   const timer1 = setInterval(common.mustCall(() => {
@@ -43,7 +43,7 @@ function Test1() {
 // timer callback. counter2 continues to be incremented more than 11
 // until server close completed.
 function Test2() {
-  // server only for maintaining event loop
+  // Server only for maintaining event loop
   const server = net.createServer().listen(0);
 
   const timer2 = setInterval(() => {

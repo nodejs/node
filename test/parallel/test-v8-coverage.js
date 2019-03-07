@@ -28,7 +28,7 @@ function nextdir() {
   assert.ok(fixtureCoverage);
   // first branch executed.
   assert.strictEqual(fixtureCoverage.functions[0].ranges[0].count, 1);
-  // second branch did not execute.
+  // Second branch did not execute.
   assert.strictEqual(fixtureCoverage.functions[0].ranges[1].count, 0);
 }
 
@@ -44,7 +44,7 @@ function nextdir() {
   assert.ok(fixtureCoverage, 'coverage not found for file');
   // first branch executed.
   assert.strictEqual(fixtureCoverage.functions[0].ranges[0].count, 1);
-  // second branch did not execute.
+  // Second branch did not execute.
   assert.strictEqual(fixtureCoverage.functions[0].ranges[1].count, 0);
 }
 
@@ -62,11 +62,11 @@ function nextdir() {
   assert.ok(fixtureCoverage);
   // first branch executed.
   assert.strictEqual(fixtureCoverage.functions[0].ranges[0].count, 1);
-  // second branch did not execute.
+  // Second branch did not execute.
   assert.strictEqual(fixtureCoverage.functions[0].ranges[1].count, 0);
 }
 
-// outputs coverage from subprocess.
+// Outputs coverage from subprocess.
 {
   const coverageDirectory = path.join(tmpdir.path, nextdir());
   const output = spawnSync(process.execPath, [
@@ -79,7 +79,7 @@ function nextdir() {
   assert.ok(fixtureCoverage);
   // first branch executed.
   assert.strictEqual(fixtureCoverage.functions[1].ranges[0].count, 1);
-  // second branch did not execute.
+  // Second branch did not execute.
   assert.strictEqual(fixtureCoverage.functions[1].ranges[1].count, 0);
 }
 
@@ -96,7 +96,7 @@ function nextdir() {
   assert.ok(fixtureCoverage);
   // first branch executed.
   assert.strictEqual(fixtureCoverage.functions[1].ranges[0].count, 1);
-  // second branch did not execute.
+  // Second branch did not execute.
   assert.strictEqual(fixtureCoverage.functions[1].ranges[1].count, 0);
 }
 
@@ -145,7 +145,7 @@ function nextdir() {
   assert.ok(fixtureCoverage);
   // first branch executed.
   assert.strictEqual(fixtureCoverage.functions[0].ranges[0].count, 1);
-  // second branch did not execute.
+  // Second branch did not execute.
   assert.strictEqual(fixtureCoverage.functions[0].ranges[1].count, 0);
 }
 

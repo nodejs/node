@@ -158,7 +158,7 @@ const fs = require('fs');
 
 try {
   fs.readFile('/some/file/that/does-not-exist', (err, data) => {
-    // mistaken assumption: throwing here...
+    // Mistaken assumption: throwing here...
     if (err) {
       throw err;
     }
@@ -217,7 +217,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // similar to `new Error().stack`
+myObject.stack;  // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -316,7 +316,7 @@ will not be present in the stack traces:
 const cheetahify = require('./native-binding.node');
 
 function makeFaster() {
-  // cheetahify *synchronously* calls speedy.
+  // `cheetahify()` *synchronously* calls speedy.
   cheetahify(function speedy() {
     throw new Error('oh no!');
   });

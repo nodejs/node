@@ -32,7 +32,7 @@ readable._read = Function();
 // Default state of a stream is not "paused"
 assert.ok(!readable.isPaused());
 
-// make the stream start flowing...
+// Make the stream start flowing...
 readable.on('data', Function());
 
 // still not paused.

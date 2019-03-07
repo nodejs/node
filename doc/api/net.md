@@ -132,7 +132,7 @@ const server = net.createServer((socket) => {
   throw err;
 });
 
-// grab an arbitrary unused port.
+// Grab an arbitrary unused port.
 server.listen(() => {
   console.log('opened server on', server.address());
 });

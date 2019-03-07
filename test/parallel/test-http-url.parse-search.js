@@ -26,7 +26,7 @@ const http = require('http');
 const url = require('url');
 
 function check(request) {
-  // a path should come over with params
+  // A path should come over with params
   assert.strictEqual(request.url, '/asdf?qwer=zxcv');
 }
 

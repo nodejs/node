@@ -59,7 +59,7 @@ function writeHeaders(socket, headers) {
     last = current;
   }
 
-  // safety check we are chunking correctly
+  // Safety check we are chunking correctly
   assert.strictEqual(array.join(''), headers);
 
   next();

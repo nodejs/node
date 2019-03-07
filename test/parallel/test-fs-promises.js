@@ -119,7 +119,7 @@ async function getHandle(dest) {
       await unlink(dest);
     }
 
-    // bytes written to file match buffer
+    // Bytes written to file match buffer
     {
       const handle = await getHandle(dest);
       const buf = Buffer.from('hello fsPromises');
@@ -130,7 +130,7 @@ async function getHandle(dest) {
       assert.deepStrictEqual(ret.buffer, buf);
     }
 
-    // truncate file to specified length
+    // Truncate file to specified length
     {
       const handle = await getHandle(dest);
       const buf = Buffer.from('hello FileHandle');
@@ -224,7 +224,7 @@ async function getHandle(dest) {
 
         const newMode = 0o666;
         if (common.isOSX) {
-          // lchmod is only available on macOS
+          // `lchmod` is only available on macOS.
           await lchmod(newLink, newMode);
           stats = await lstat(newLink);
           assert.strictEqual(stats.mode & 0o777, newMode);
@@ -287,7 +287,7 @@ async function getHandle(dest) {
       assert(stats.isDirectory());
     }
 
-    // mkdirp when folder does not yet exist.
+    // `mkdirp` when folder does not yet exist.
     {
       const dir = path.join(tmpDir, nextdir(), nextdir());
       await mkdir(dir, { recursive: true });
@@ -344,7 +344,7 @@ async function getHandle(dest) {
       });
     }
 
-    // mkdtemp with invalid numeric prefix
+    // `mkdtemp` with invalid numeric prefix
     {
       await mkdtemp(path.resolve(tmpDir, 'FOO'));
       assert.rejects(

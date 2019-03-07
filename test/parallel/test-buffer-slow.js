@@ -49,7 +49,7 @@ assert.strictEqual(SlowBuffer(NaN).length, 0);
 assert.strictEqual(SlowBuffer({}).length, 0);
 assert.strictEqual(SlowBuffer('string').length, 0);
 
-// should throw with invalid length
+// Should throw with invalid length
 const bufferMaxSizeMsg = common.expectsError({
   code: 'ERR_INVALID_OPT_VALUE',
   type: RangeError,

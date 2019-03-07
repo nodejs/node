@@ -117,7 +117,7 @@ Object.defineProperty(this, 'encodeURI', { value: 42 });
 assert.strictEqual(vm.runInContext('encodeURI;', ctx), 42);
 assert.strictEqual(ctx.encodeURI, 42);
 
-// redefine properties on the sandbox
+// Redefine properties on the sandbox
 vm.runInContext(`
 Object.defineProperty(this, 'e', { value: 'newE' });
 `, ctx);

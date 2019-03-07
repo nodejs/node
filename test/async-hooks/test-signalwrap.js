@@ -42,7 +42,7 @@ function onsigusr2() {
       signal1, { init: 1, before: 1 },
       ' signal1: when first SIGUSR2 handler is called for the first time');
 
-    // trigger same signal handler again
+    // Trigger same signal handler again
     exec(`kill -USR2 ${process.pid}`);
   } else {
     // second invocation
@@ -50,7 +50,7 @@ function onsigusr2() {
       signal1, { init: 1, before: 2, after: 1 },
       'signal1: when first SIGUSR2 handler is called for the second time');
 
-    // install another signal handler
+    // Install another signal handler
     process.removeAllListeners('SIGUSR2');
     process.on('SIGUSR2', common.mustCall(onsigusr2Again));
 
