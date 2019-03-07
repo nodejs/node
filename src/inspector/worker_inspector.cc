@@ -1,6 +1,7 @@
 #include "worker_inspector.h"
-
 #include "main_thread_interface.h"
+
+#include <memory>
 
 namespace node {
 namespace inspector {
@@ -88,8 +89,7 @@ void WorkerManager::WorkerStarted(int session_id,
 std::unique_ptr<ParentInspectorHandle>
 WorkerManager::NewParentHandle(int thread_id, const std::string& url) {
   bool wait = !delegates_waiting_on_start_.empty();
-  return std::unique_ptr<ParentInspectorHandle>(
-      new ParentInspectorHandle(thread_id, url, thread_, wait));
+  return std::make_unique<ParentInspectorHandle>(thread_id, url, thread_, wait);
 }
 
 void WorkerManager::RemoveAttachDelegate(int id) {
@@ -106,8 +106,7 @@ std::unique_ptr<WorkerManagerEventHandle> WorkerManager::SetAutoAttach(
     // Waiting is only reported when a worker is started, same as browser
     Report(delegate, worker.second, false);
   }
-  return std::unique_ptr<WorkerManagerEventHandle>(
-      new WorkerManagerEventHandle(shared_from_this(), id));
+  return std::make_unique<WorkerManagerEventHandle>(shared_from_this(), id);
 }
 
 void WorkerManager::SetWaitOnStartForDelegate(int id, bool wait) {

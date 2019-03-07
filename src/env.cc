@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdio>
+#include <memory>
 
 namespace node {
 
@@ -217,8 +218,7 @@ Environment::Environment(IsolateData* isolate_data,
 
 #if HAVE_INSPECTOR
   // We can only create the inspector agent after having cloned the options.
-  inspector_agent_ =
-      std::unique_ptr<inspector::Agent>(new inspector::Agent(this));
+  inspector_agent_ = std::make_unique<inspector::Agent>(this);
 #endif
 
   AssignToContext(context, ContextInfo(""));
@@ -238,7 +238,8 @@ Environment::Environment(IsolateData* isolate_data,
       },
       this);
 
-  performance_state_.reset(new performance::performance_state(isolate()));
+  performance_state_ =
+      std::make_unique<performance::performance_state>(isolate());
   performance_state_->Mark(
       performance::NODE_PERFORMANCE_MILESTONE_ENVIRONMENT);
   performance_state_->Mark(performance::NODE_PERFORMANCE_MILESTONE_NODE_START,

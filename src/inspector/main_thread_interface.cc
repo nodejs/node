@@ -7,6 +7,7 @@
 #include <unicode/unistr.h>
 
 #include <functional>
+#include <memory>
 
 namespace node {
 namespace inspector {
@@ -114,8 +115,7 @@ class AnotherThreadObjectReference {
 
   ~AnotherThreadObjectReference() {
     // Disappearing thread may cause a memory leak
-    thread_->Post(
-        std::unique_ptr<DeleteRequest>(new DeleteRequest(object_id_)));
+    thread_->Post(std::make_unique<DeleteRequest>(object_id_));
   }
 
   template <typename Fn>
@@ -151,8 +151,7 @@ class MainThreadSessionState {
 
   static std::unique_ptr<MainThreadSessionState> Create(
       MainThreadInterface* thread, bool prevent_shutdown) {
-    return std::unique_ptr<MainThreadSessionState>(
-        new MainThreadSessionState(thread, prevent_shutdown));
+    return std::make_unique<MainThreadSessionState>(thread, prevent_shutdown);
   }
 
   void Connect(std::unique_ptr<InspectorSessionDelegate> delegate) {
