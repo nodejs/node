@@ -3700,6 +3700,16 @@ void CipherBase::InitIv(const char* cipher_type,
     return env()->ThrowError("Invalid IV length");
   }
 
+  if (EVP_CIPHER_nid(cipher) == NID_chacha20_poly1305) {
+    CHECK(has_iv);
+    // Check for invalid IV lengths, since OpenSSL does not under some
+    // conditions:
+    //   https://www.openssl.org/news/secadv/20190306.txt.
+    if (iv_len > 12) {
+      return env()->ThrowError("Invalid IV length");
+    }
+  }
+
   CommonInit(cipher_type, cipher, key, key_len, iv, iv_len, auth_tag_len);
 }
 
