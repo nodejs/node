@@ -278,6 +278,9 @@ inline void StreamBase::AttachToObject(v8::Local<v8::Object> obj) {
 }
 
 inline StreamBase* StreamBase::FromObject(v8::Local<v8::Object> obj) {
+  if (obj->GetAlignedPointerFromInternalField(0) == nullptr)
+    return nullptr;
+
   return static_cast<StreamBase*>(
       obj->GetAlignedPointerFromInternalField(kStreamBaseField));
 }
