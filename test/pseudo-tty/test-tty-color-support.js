@@ -59,11 +59,18 @@ const writeStream = new WriteStream(fd);
   [{ TERM: 'color' }, 4],
   [{ TERM: 'linux' }, 4],
   [{ TERM: 'fail' }, 1],
-  [{ NODE_DISABLE_COLORS: '1' }, 1],
+  [{ TERM: 'color', NODE_DISABLE_COLORS: '1' }, 1],
   [{ TERM: 'dumb' }, 1],
   [{ TERM: 'dumb', COLORTERM: '1' }, 1],
   [{ TERM: 'terminator' }, 24],
-  [{ TERM: 'console' }, 4]
+  [{ TERM: 'console' }, 4],
+  [{ COLORTERM: '24bit', FORCE_COLOR: '' }, 4],
+  [{ NO_COLOR: '1', FORCE_COLOR: '2' }, 8],
+  [{ NODE_DISABLE_COLORS: '1', FORCE_COLOR: '3' }, 24],
+  [{ NO_COLOR: '1', COLORTERM: '24bit' }, 1],
+  [{ NO_COLOR: '', COLORTERM: '24bit' }, 1],
+  [{ TMUX: '1', FORCE_COLOR: 0 }, 1],
+  [{ NO_COLOR: 'true', FORCE_COLOR: 0, COLORTERM: 'truecolor' }, 1],
 ].forEach(([env, depth], i) => {
   const actual = writeStream.getColorDepth(env);
   assert.strictEqual(
