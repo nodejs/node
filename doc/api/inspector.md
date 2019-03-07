@@ -154,10 +154,12 @@ to the run-time events.
 
 ## Example usage
 
+Apart from the debugger, various V8 Profilers are available through the DevTools
+protocol.
+
 ### CPU Profiler
 
-Apart from the debugger, various V8 Profilers are available through the DevTools
-protocol. Here's a simple example showing how to use the [CPU profiler][]:
+Here's an example showing how to use the [CPU Profiler][]:
 
 ```js
 const inspector = require('inspector');
@@ -180,8 +182,33 @@ session.post('Profiler.enable', () => {
 });
 ```
 
+### Heap Profiler
+
+Here's an example showing how to use the [Heap Profiler][]:
+
+```js
+const inspector = require('inspector');
+const fs = require('fs');
+const session = new inspector.Session();
+
+const fd = fs.openSync('profile.heapsnapshot', 'w');
+
+session.connect();
+
+session.on('HeapProfiler.addHeapSnapshotChunk', (m) => {
+  fs.writeSync(fd, m.params.chunk);
+});
+
+session.post('HeapProfiler.takeHeapSnapshot', null, (err, r) => {
+  console.log('Runtime.takeHeapSnapshot done:', err, r);
+  session.disconnect();
+  fs.closeSync(fd);
+});
+```
+
 [`'Debugger.paused'`]: https://chromedevtools.github.io/devtools-protocol/v8/Debugger#event-paused
 [`EventEmitter`]: events.html#events_class_eventemitter
 [`session.connect()`]: #inspector_session_connect
 [CPU Profiler]: https://chromedevtools.github.io/devtools-protocol/v8/Profiler
 [Chrome DevTools Protocol Viewer]: https://chromedevtools.github.io/devtools-protocol/v8/
+[Heap Profiler]: https://chromedevtools.github.io/devtools-protocol/v8/HeapProfiler
