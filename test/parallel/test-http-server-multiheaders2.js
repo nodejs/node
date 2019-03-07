@@ -65,7 +65,7 @@ const multipleForbidden = [
   'Location',
   'Max-Forwards',
 
-  // special case, tested differently
+  // Special case, tested differently
   // 'Content-Length',
 ];
 

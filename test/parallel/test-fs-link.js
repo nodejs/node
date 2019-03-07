@@ -7,7 +7,7 @@ const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-// test creating and reading hard link
+// Test creating and reading hard link
 const srcPath = path.join(tmpdir.path, 'hardlink-target.txt');
 const dstPath = path.join(tmpdir.path, 'link1.js');
 fs.writeFileSync(srcPath, 'hello world');

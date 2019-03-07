@@ -41,17 +41,17 @@ assert.strictEqual(writable._writableState.corked, 1);
 assert.strictEqual(writable._writableState.bufferedRequestCount, 2);
 
 function uncork() {
-  // second uncork flushes the buffer
+  // Second uncork flushes the buffer
   writable.uncork();
   assert.strictEqual(writable._writableState.corked, 0);
   assert.strictEqual(writable._writableState.bufferedRequestCount, 0);
 
-  // verify that end() uncorks correctly
+  // Verify that end() uncorks correctly
   writable.cork();
   writable.write('third chunk');
   writable.end();
 
-  // end causes an uncork() as well
+  // End causes an uncork() as well
   assert.strictEqual(writable._writableState.corked, 0);
   assert.strictEqual(writable._writableState.bufferedRequestCount, 0);
 }

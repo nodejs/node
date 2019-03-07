@@ -171,7 +171,7 @@ session.post('Profiler.enable', () => {
 
     // some time later...
     session.post('Profiler.stop', (err, { profile }) => {
-      // write profile to disk, upload, etc.
+      // Write profile to disk, upload, etc.
       if (!err) {
         fs.writeFileSync('./profile.cpuprofile', JSON.stringify(profile));
       }

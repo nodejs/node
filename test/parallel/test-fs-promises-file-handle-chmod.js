@@ -17,7 +17,7 @@ tmpdir.refresh();
 async function validateFilePermission() {
   const filePath = path.resolve(tmpDir, 'tmp-chmod.txt');
   const fileHandle = await open(filePath, 'w+', 0o444);
-  // file created with r--r--r-- 444
+  // File created with r--r--r-- 444
   const statsBeforeMod = fs.statSync(filePath);
   assert.deepStrictEqual(statsBeforeMod.mode & 0o444, 0o444);
 
@@ -34,7 +34,7 @@ async function validateFilePermission() {
     expectedAccess = newPermissions;
   }
 
-  // change the permissions to rwxr--r-x
+  // Change the permissions to rwxr--r-x
   await fileHandle.chmod(newPermissions);
   const statsAfterMod = fs.statSync(filePath);
   assert.deepStrictEqual(statsAfterMod.mode & expectedAccess, expectedAccess);

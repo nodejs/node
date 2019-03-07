@@ -24,7 +24,7 @@ const encodings = {
   'ucs-2': 'ucs2',
   'utf16le': 'ucs2',
   'utf-16le': 'ucs2',
-  'UTF8': 'utf8' // should fall through to Buffer.from
+  'UTF8': 'utf8' // Should fall through to Buffer.from
 };
 
 const testsToRun = Object.keys(encodings).length;

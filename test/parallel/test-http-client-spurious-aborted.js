@@ -67,7 +67,7 @@ function download() {
       assert.strictEqual(aborted, abortRequest);
       finishCountdown.dec();
       if (finishCountdown.remaining === 0) return;
-      abortRequest = false; // next one should be a good response
+      abortRequest = false; // Next one should be a good response
       download();
     });
   });

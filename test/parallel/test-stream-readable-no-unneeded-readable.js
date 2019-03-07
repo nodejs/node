@@ -17,7 +17,7 @@ function test(r) {
         if (data) {
           wrapper.push(data);
         }
-        // else the end event should fire
+        // else: the end event should fire
       });
     },
   });

@@ -1286,7 +1286,7 @@ setTimeout(() => {
   // [ 1, 552 ]
 
   console.log(`Benchmark took ${diff[0] * NS_PER_SEC + diff[1]} nanoseconds`);
-  // benchmark took 1000000552 nanoseconds
+  // Benchmark took 1000000552 nanoseconds
 }, 1000);
 ```
 

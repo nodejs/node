@@ -93,35 +93,35 @@ hijackStderr(function(data) {
   errStrings.push(data);
 });
 
-// test console.log() goes to stdout
+// Test console.log() goes to stdout
 console.log('foo');
 console.log('foo', 'bar');
 console.log('%s %s', 'foo', 'bar', 'hop');
 console.log({ slashes: '\\\\' });
 console.log(custom_inspect);
 
-// test console.debug() goes to stdout
+// Test console.debug() goes to stdout
 console.debug('foo');
 console.debug('foo', 'bar');
 console.debug('%s %s', 'foo', 'bar', 'hop');
 console.debug({ slashes: '\\\\' });
 console.debug(custom_inspect);
 
-// test console.info() goes to stdout
+// Test console.info() goes to stdout
 console.info('foo');
 console.info('foo', 'bar');
 console.info('%s %s', 'foo', 'bar', 'hop');
 console.info({ slashes: '\\\\' });
 console.info(custom_inspect);
 
-// test console.error() goes to stderr
+// Test console.error() goes to stderr
 console.error('foo');
 console.error('foo', 'bar');
 console.error('%s %s', 'foo', 'bar', 'hop');
 console.error({ slashes: '\\\\' });
 console.error(custom_inspect);
 
-// test console.warn() goes to stderr
+// Test console.warn() goes to stderr
 console.warn('foo');
 console.warn('foo', 'bar');
 console.warn('%s %s', 'foo', 'bar', 'hop');

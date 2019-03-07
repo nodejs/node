@@ -20,7 +20,7 @@ const Readable = require('stream').Readable;
     if (readable.readableFlowing)
       assert.strictEqual(state.readingMore, true);
 
-    // reading as long as we've not ended
+    // Reading as long as we've not ended
     assert.strictEqual(state.reading, !state.ended);
   }, 2));
 
@@ -78,7 +78,7 @@ const Readable = require('stream').Readable;
     if (readable.readableFlowing)
       assert.strictEqual(state.readingMore, true);
 
-    // reading as long as we've not ended
+    // Reading as long as we've not ended
     assert.strictEqual(state.reading, !state.ended);
   }, 2));
 
@@ -127,7 +127,7 @@ const Readable = require('stream').Readable;
   readable.on('readable', onReadable);
 
   readable.on('data', common.mustCall((data) => {
-    // reading as long as we've not ended
+    // Reading as long as we've not ended
     assert.strictEqual(state.reading, !state.ended);
   }, 2));
 

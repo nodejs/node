@@ -39,7 +39,7 @@ let zlibPairs = [
 // How fast to trickle through the slowstream
 let trickle = [128, 1024, 1024 * 1024];
 
-// tunable options for zlib classes.
+// Tunable options for zlib classes.
 
 // several different chunk sizes
 let chunkSize = [128, 1024, 1024 * 16, 1024 * 1024];
@@ -144,7 +144,7 @@ class SlowStream extends stream.Stream {
   }
 
   end(chunk) {
-    // walk over the chunk in blocks.
+    // Walk over the chunk in blocks.
     this.chunk = chunk;
     this.length = chunk.length;
     this.resume();

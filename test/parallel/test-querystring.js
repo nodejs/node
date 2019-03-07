@@ -269,7 +269,7 @@ qsWeirdObjects.forEach((testCase) => {
   assert.strictEqual(qs.stringify(testCase[0]), testCase[1]);
 });
 
-// invalid surrogate pair throws URIError
+// Invalid surrogate pair throws URIError
 common.expectsError(
   () => qs.stringify({ foo: '\udc00' }),
   {

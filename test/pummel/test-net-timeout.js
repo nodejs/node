@@ -59,7 +59,7 @@ echo_server.listen(common.PORT, () => {
 
   const client = net.createConnection(common.PORT);
   client.setEncoding('UTF8');
-  client.setTimeout(0); // disable the timeout for client
+  client.setTimeout(0); // Disable the timeout for client
   client.on('connect', () => {
     console.log('client connected.');
     client.write('hello\r\n');

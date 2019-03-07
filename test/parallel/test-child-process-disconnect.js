@@ -57,7 +57,7 @@ if (process.argv[2] === 'child') {
     socket.write('ready');
   });
 
-  // when the server is ready tell parent
+  // When the server is ready tell parent
   server.on('listening', function() {
     process.send({ msg: 'ready', port: server.address().port });
   });

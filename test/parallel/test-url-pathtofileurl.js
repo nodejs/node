@@ -67,7 +67,7 @@ const url = require('url');
       { path: 'C:\\fóóbàr', expected: 'file:///C:/f%C3%B3%C3%B3b%C3%A0r' },
       // euro sign (BMP code point)
       { path: 'C:\\€', expected: 'file:///C:/%E2%82%AC' },
-      // rocket emoji (non-BMP code point)
+      // Rocket emoji (non-BMP code point)
       { path: 'C:\\🚀', expected: 'file:///C:/%F0%9F%9A%80' }
     ];
   } else {
@@ -112,7 +112,7 @@ const url = require('url');
       { path: '/fóóbàr', expected: 'file:///f%C3%B3%C3%B3b%C3%A0r' },
       // euro sign (BMP code point)
       { path: '/€', expected: 'file:///%E2%82%AC' },
-      // rocket emoji (non-BMP code point)
+      // Rocket emoji (non-BMP code point)
       { path: '/🚀', expected: 'file:///%F0%9F%9A%80' },
     ];
   }

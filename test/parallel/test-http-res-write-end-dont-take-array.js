@@ -40,7 +40,7 @@ server.once('request', common.mustCall((req, res) => {
     name: 'TypeError [ERR_INVALID_ARG_TYPE]',
   };
 
-  // write should not accept an Array
+  // Write should not accept an Array
   assert.throws(
     () => {
       res.write(['array']);
@@ -48,7 +48,7 @@ server.once('request', common.mustCall((req, res) => {
     expectedError
   );
 
-  // end should not accept an Array
+  // End should not accept an Array
   assert.throws(
     () => {
       res.end(['moo']);
@@ -64,7 +64,7 @@ server.listen(0, function() {
   // Just make a request, other tests handle responses
   http.get({ port: this.address().port }, (res) => {
     res.resume();
-    // do it again to test .end(Buffer);
+    // Do it again to test .end(Buffer);
     http.get({ port: server.address().port }, (res) => {
       res.resume();
       server.close();

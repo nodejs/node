@@ -32,7 +32,7 @@ const message = 'Read, Eval, Print Loop';
 const prompt_unix = 'node via Unix socket> ';
 const prompt_tcp = 'node via TCP socket> ';
 
-// absolute path to test/fixtures/a.js
+// Absolute path to test/fixtures/a.js
 const moduleFilename = fixtures.path('a');
 
 // function for REPL to run

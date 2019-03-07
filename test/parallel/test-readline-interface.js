@@ -61,7 +61,7 @@ function isWarned(emitter) {
 }
 
 {
-  // set crlfDelay to float 100.5ms
+  // Set crlfDelay to float 100.5ms
   const fi = new FakeInput();
   const rli = new readline.Interface({
     input: fi,
@@ -172,7 +172,7 @@ function isWarned(emitter) {
     rli.close();
   }
 
-  // sending multiple newlines at once
+  // Sending multiple newlines at once
   {
     const fi = new FakeInput();
     const rli = new readline.Interface(
@@ -288,7 +288,7 @@ function isWarned(emitter) {
     }), delay * 2);
   }
 
-  // set crlfDelay to `Infinity` is allowed
+  // Set crlfDelay to `Infinity` is allowed
   {
     const fi = new FakeInput();
     const delay = 200;
@@ -515,7 +515,7 @@ function isWarned(emitter) {
     rli.close();
   }
 
-  // calling readline without `new`
+  // Calling readline without `new`
   {
     const fi = new FakeInput();
     const rli = readline.Interface(
@@ -661,13 +661,13 @@ function isWarned(emitter) {
       });
       fi.emit('data', '💻');
 
-      // move left one character/code point
+      // Move left one character/code point
       fi.emit('keypress', '.', { name: 'left' });
       let cursorPos = rli._getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 0);
 
-      // move right one character/code point
+      // Move right one character/code point
       fi.emit('keypress', '.', { name: 'right' });
       cursorPos = rli._getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
@@ -695,7 +695,7 @@ function isWarned(emitter) {
       });
       fi.emit('data', '💻');
 
-      // move left one character/code point
+      // Move left one character/code point
       fi.emit('keypress', '.', { name: 'left' });
       let cursorPos = rli._getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
@@ -731,7 +731,7 @@ function isWarned(emitter) {
       });
       fi.emit('data', '💻');
 
-      // move left one character/code point
+      // Move left one character/code point
       fi.emit('keypress', '.', { name: 'right' });
       let cursorPos = rli._getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
@@ -1104,7 +1104,7 @@ function isWarned(emitter) {
   assert.strictEqual(internalReadline.getStringWidth('안녕하세요'), 10);
   assert.strictEqual(internalReadline.getStringWidth('A\ud83c\ude00BC'), 5);
 
-  // check if vt control chars are stripped
+  // Check if vt control chars are stripped
   assert.strictEqual(
     internalReadline.stripVTControlCharacters('\u001b[31m> \u001b[39m'),
     '> '

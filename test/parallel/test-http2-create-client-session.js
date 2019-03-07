@@ -13,7 +13,7 @@ const body =
 const server = h2.createServer();
 const count = 100;
 
-// we use the lower-level API here
+// We use the lower-level API here
 server.on('stream', common.mustCall(onStream, count));
 
 function onStream(stream, headers, flags) {

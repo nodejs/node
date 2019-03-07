@@ -31,7 +31,7 @@ server.on('listening', common.mustCall(function() {
   assert.strictEqual(clientRequest.writable, true);
   clientRequest.end();
 
-  // writable is still true when close
+  // Writable is still true when close
   // THIS IS LEGACY, we cannot change it
   // unless we break error detection
   assert.strictEqual(clientRequest.writable, true);

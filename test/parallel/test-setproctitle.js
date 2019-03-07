@@ -39,6 +39,6 @@ exec(cmd, common.mustCall((error, stdout, stderr) => {
   if (common.isFreeBSD || common.isOpenBSD)
     title += ` (${path.basename(process.execPath)})`;
 
-  // omitting trailing whitespace and \n
+  // Omitting trailing whitespace and \n
   assert.strictEqual(stdout.replace(/\s+$/, '').endsWith(title), true);
 }));

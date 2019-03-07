@@ -21,7 +21,7 @@ server.on('stream', common.mustCall((stream, headers) => {
     }, common.mustCall((err, push, headers) => {
       assert.strictEqual(push._writableState.ended, true);
       push.respond();
-      // cannot write to push() anymore
+      // Cannot write to push() anymore
       push.on('error', common.expectsError({
         type: Error,
         code: 'ERR_STREAM_WRITE_AFTER_END',

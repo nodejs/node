@@ -256,8 +256,8 @@ function writeOneMillionTimes(writer, data, encoding, callback) {
         // last time!
         writer.write(data, encoding, callback);
       } else {
-        // see if we should continue, or wait
-        // don't pass the callback, because we're not done yet.
+        // See if we should continue, or wait.
+        // Don't pass the callback, because we're not done yet.
         ok = writer.write(data, encoding);
       }
     } while (i > 0 && ok);
@@ -418,7 +418,7 @@ const fs = require('fs');
 const file = fs.createWriteStream('example.txt');
 file.write('hello, ');
 file.end('world!');
-// writing more now is not allowed!
+// Writing more now is not allowed!
 ```
 
 ##### writable.setDefaultEncoding(encoding)
@@ -819,7 +819,7 @@ cause some amount of data to be read into an internal buffer.
 ```javascript
 const readable = getReadableStreamSomehow();
 readable.on('readable', function() {
-  // there is some data to read now
+  // There is some data to read now
   let data;
 
   while (data = this.read()) {
@@ -2431,7 +2431,7 @@ net.createServer((socket) => {
     socket.end('The message was received but was not processed.\n');
   });
 
-  // start the flow of data, discarding it.
+  // Start the flow of data, discarding it.
   socket.resume();
 }).listen(1337);
 ```

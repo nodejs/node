@@ -79,7 +79,7 @@ function ontcpConnection(serverConnection) {
     return;
   }
 
-  // only focusing on TCPCONNECTWRAP here
+  // Only focusing on TCPCONNECTWRAP here
   const tcpconnects = hooks.activitiesOfTypes('TCPCONNECTWRAP');
   assert.strictEqual(tcpconnects.length, 1);
   tcpconnect = tcpconnects[0];

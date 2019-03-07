@@ -27,7 +27,7 @@ const fs = require('fs');
 let caughtException = false;
 
 try {
-  // should throw ENOENT, not EBADF
+  // Should throw ENOENT, not EBADF
   // see https://github.com/joyent/node/pull/1228
   fs.openSync('/path/to/file/that/does/not/exist', 'r');
 } catch (e) {

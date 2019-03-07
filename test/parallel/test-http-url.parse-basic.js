@@ -29,7 +29,7 @@ let testURL;
 
 // make sure the basics work
 function check(request) {
-  // default method should still be get
+  // Default method should still be 'GET'
   assert.strictEqual(request.method, 'GET');
   // There are no URL params, so you should not see any
   assert.strictEqual(request.url, '/');

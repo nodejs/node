@@ -921,7 +921,7 @@ added: v10.12.0
 const { createRequireFromPath } = require('module');
 const requireUtil = createRequireFromPath('../src/utils');
 
-// require `../src/utils/some-tool`
+// Require `../src/utils/some-tool`
 requireUtil('./some-tool');
 ```
 

@@ -365,7 +365,7 @@ function test_upone_actual(realpath, realpathSync, cb) {
   cb();
 }
 
-// going up with .. multiple times
+// Going up with .. multiple times
 // .
 // `-- a/
 //     |-- b/
@@ -407,7 +407,7 @@ function test_up_multiple(realpath, realpathSync, cb) {
 }
 
 
-// absolute symlinks with children.
+// Absolute symlinks with children.
 // .
 // `-- a/
 //     |-- b/

@@ -4,7 +4,7 @@
 const common = require('../../common');
 const assert = require('assert');
 
-// testing api calls for function
+// Testing api calls for function
 const test_function = require(`./build/${common.buildType}/test_function`);
 
 function func1() {

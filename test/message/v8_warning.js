@@ -9,7 +9,7 @@ function AsmModule() {
     a = a | 0;
     b = b | 0;
 
-    // should be `return (a + b) | 0;`
+    // Should be `return (a + b) | 0;`
     return a + b;
   }
 

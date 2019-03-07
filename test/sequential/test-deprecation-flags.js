@@ -61,7 +61,7 @@ execFile(node, traceDep, function(er, stdout, stderr) {
   assert.strictEqual(er, null);
   assert.strictEqual(stdout, '');
   const stack = stderr.trim().split('\n');
-  // just check the top and bottom.
+  // Just check the top and bottom.
   assert(
     /util\.debug is deprecated\. Use console\.error instead\./.test(stack[1])
   );

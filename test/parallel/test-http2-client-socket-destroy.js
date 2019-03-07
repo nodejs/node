@@ -13,7 +13,7 @@ const body =
 
 const server = h2.createServer();
 
-// we use the lower-level API here
+// We use the lower-level API here
 server.on('stream', common.mustCall((stream) => {
   stream.on('aborted', common.mustCall());
   stream.on('close', common.mustCall());

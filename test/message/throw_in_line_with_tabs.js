@@ -26,7 +26,7 @@ require('../common');
 console.error('before');
 
 (function() {
-	// these lines should contain tab!
+	// These lines should contain tab!
 	// eslint-disable-next-line no-throw-literal
 	throw ({ foo: 'bar' });
 })();

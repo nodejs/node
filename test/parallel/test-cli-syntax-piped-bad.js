@@ -25,7 +25,7 @@ syntaxArgs.forEach(function(args) {
   // stderr should include '[stdin]' as the filename
   assert(c.stderr.startsWith('[stdin]'), `${c.stderr} starts with ${stdin}`);
 
-  // no stdout or stderr should be produced
+  // No stdout or stderr should be produced
   assert.strictEqual(c.stdout, '');
 
   // stderr should have a syntax error message

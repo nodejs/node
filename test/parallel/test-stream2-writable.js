@@ -34,7 +34,7 @@ class TestWriter extends W {
   }
 
   _write(chunk, encoding, cb) {
-    // simulate a small unpredictable latency
+    // Simulate a small unpredictable latency
     setTimeout(() => {
       this.buffer.push(chunk.toString());
       this.written += chunk.length;
@@ -73,7 +73,7 @@ for (let i = 0; i < chunks.length; i++) {
   });
 
   tw.on('finish', common.mustCall(function() {
-    //  got chunks in the right order
+    //  Got chunks in the right order
     assert.deepStrictEqual(tw.buffer, chunks);
   }));
 

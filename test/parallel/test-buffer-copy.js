@@ -70,7 +70,7 @@ let cntr = 0;
 }
 
 {
-  // copy starting near end of b to c
+  // Copy starting near end of b to c
   b.fill(++cntr);
   c.fill(++cntr);
   const copied = b.copy(c, 0, b.length - Math.floor(c.length / 2));
@@ -113,7 +113,7 @@ bb.fill('hello crazy world');
 // Try to copy from before the beginning of b. Should not throw.
 b.copy(c, 0, 100, 10);
 
-// copy throws at negative sourceStart
+// Copy throws at negative sourceStart
 common.expectsError(
   () => Buffer.allocUnsafe(5).copy(Buffer.allocUnsafe(5), 0, -1),
   errorProperty);

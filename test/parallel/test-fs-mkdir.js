@@ -132,7 +132,7 @@ function nextdir() {
   }
 }
 
-// mkdirp when folder does not yet exist.
+// `mkdirp` when folder does not yet exist.
 {
   const pathname = path.join(tmpdir.path, nextdir(), nextdir());
 

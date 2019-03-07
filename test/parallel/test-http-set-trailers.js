@@ -36,7 +36,7 @@ const server = http.createServer(function(req, res) {
 server.listen(0);
 
 
-// first, we test an HTTP/1.0 request.
+// First, we test an HTTP/1.0 request.
 server.on('listening', function() {
   const c = net.createConnection(this.address().port);
   let res_buffer = '';
@@ -66,7 +66,7 @@ server.on('listening', function() {
   });
 });
 
-// now, we test an HTTP/1.1 request.
+// Now, we test an HTTP/1.1 request.
 server.on('listening', function() {
   const c = net.createConnection(this.address().port);
   let res_buffer = '';

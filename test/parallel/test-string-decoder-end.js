@@ -94,7 +94,7 @@ function testBuf(encoding, buf) {
   }
   res1 += s.end();
 
-  // write the whole buffer at once.
+  // Write the whole buffer at once.
   let res2 = '';
   s = new SD(encoding);
   res2 += s.write(buf);

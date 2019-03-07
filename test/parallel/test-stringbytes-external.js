@@ -67,10 +67,10 @@ assert.strictEqual(ucs2_control, l_bin);
 const b_bin = b.toString('binary');
 assert.strictEqual(ucs2_control, b_bin);
 
-// create buffer copy from external
+// Create buffer copy from external
 const c_bin = Buffer.from(l_bin, 'latin1');
 const c_ucs = Buffer.from(b_ucs, 'ucs2');
-// make sure they're the same length
+// Make sure they're the same length
 assert.strictEqual(c_bin.length, c_ucs.length);
 // Make sure Buffers from externals are the same
 for (let i = 0; i < c_bin.length; i++) {
@@ -101,7 +101,7 @@ const PRE_3OF4_APEX = Math.ceil((EXTERN_APEX / 4) * 3) - RADIOS;
       assert.strictEqual(pumped_string[k], pumped_string2[k]);
     }
 
-    // the recoded buffer is the same?
+    // The recoded buffer is the same?
     for (let i = 0; i < decoded.length; ++i) {
       assert.strictEqual(datum[i], decoded[i]);
     }
@@ -122,7 +122,7 @@ const PRE_3OF4_APEX = Math.ceil((EXTERN_APEX / 4) * 3) - RADIOS;
       assert.strictEqual(pumped_string[k], pumped_string2[k]);
     }
 
-    // the recoded buffer is the same?
+    // The recoded buffer is the same?
     for (let i = 0; i < decoded.length; ++i) {
       assert.strictEqual(datum[i], decoded[i]);
     }
