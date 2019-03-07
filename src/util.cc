@@ -27,7 +27,15 @@
 #include "string_bytes.h"
 #include "uv.h"
 
+#ifdef _WIN32
+#include <time.h>
+#else
+#include <sys/time.h>
+#include <sys/types.h>
+#endif
+
 #include <cstdio>
+#include <iomanip>
 #include <sstream>
 
 namespace node {
@@ -142,6 +150,63 @@ std::vector<std::string> SplitString(const std::string& in, char delim) {
 
 void ThrowErrStringTooLong(Isolate* isolate) {
   isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
+}
+
+void DiagnosticFilename::LocalTime(TIME_TYPE* tm_struct) {
+#ifdef _WIN32
+  GetLocalTime(tm_struct);
+#else  // UNIX, OSX
+  struct timeval time_val;
+  gettimeofday(&time_val, nullptr);
+  localtime_r(&time_val.tv_sec, tm_struct);
+#endif
+}
+
+// Defined in node_internals.h
+std::string DiagnosticFilename::MakeFilename(
+    uint64_t thread_id,
+    const char* prefix,
+    const char* ext,
+    int seq) {
+  std::ostringstream oss;
+  TIME_TYPE tm_struct;
+  LocalTime(&tm_struct);
+  oss << prefix;
+#ifdef _WIN32
+  oss << "." << std::setfill('0') << std::setw(4) << tm_struct.wYear;
+  oss << std::setfill('0') << std::setw(2) << tm_struct.wMonth;
+  oss << std::setfill('0') << std::setw(2) << tm_struct.wDay;
+  oss << "." << std::setfill('0') << std::setw(2) << tm_struct.wHour;
+  oss << std::setfill('0') << std::setw(2) << tm_struct.wMinute;
+  oss << std::setfill('0') << std::setw(2) << tm_struct.wSecond;
+#else  // UNIX, OSX
+  oss << "."
+            << std::setfill('0')
+            << std::setw(4)
+            << tm_struct.tm_year + 1900;
+  oss << std::setfill('0')
+            << std::setw(2)
+            << tm_struct.tm_mon + 1;
+  oss << std::setfill('0')
+            << std::setw(2)
+            << tm_struct.tm_mday;
+  oss << "."
+            << std::setfill('0')
+            << std::setw(2)
+            << tm_struct.tm_hour;
+  oss << std::setfill('0')
+            << std::setw(2)
+            << tm_struct.tm_min;
+  oss << std::setfill('0')
+            << std::setw(2)
+            << tm_struct.tm_sec;
+#endif
+  oss << "." << uv_os_getpid();
+  oss << "." << thread_id;
+  if (seq >= 0)
+    oss << "." << std::setfill('0') << std::setw(3) << ++seq;
+  oss << "." << ext;
+  return oss.str();
 }
 
 }  // namespace node

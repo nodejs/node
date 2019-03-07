@@ -299,6 +299,41 @@ v8::MaybeLocal<v8::Value> StartExecution(Environment* env,
 namespace profiler {
 void StartCoverageCollection(Environment* env);
 }
+
+#ifdef _WIN32
+typedef SYSTEMTIME TIME_TYPE;
+#else  // UNIX, OSX
+typedef struct tm TIME_TYPE;
+#endif
+
+class DiagnosticFilename {
+ public:
+  static void LocalTime(TIME_TYPE* tm_struct);
+
+  DiagnosticFilename(Environment* env,
+                     const char* prefix,
+                     const char* ext,
+                     int seq = -1) :
+      filename_(MakeFilename(env->thread_id(), prefix, ext, seq)) {}
+
+  DiagnosticFilename(uint64_t thread_id,
+                     const char* prefix,
+                     const char* ext,
+                     int seq = -1) :
+      filename_(MakeFilename(thread_id, prefix, ext, seq)) {}
+
+  const char* operator*() const { return filename_.c_str(); }
+
+ private:
+  static std::string MakeFilename(
+      uint64_t thread_id,
+      const char* prefix,
+      const char* ext,
+      int seq = -1);
+
+  std::string filename_;
+};
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
