@@ -1,4 +1,6 @@
 #include "tracing/node_trace_buffer.h"
+
+#include <memory>
 #include "util-inl.h"
 
 namespace node {
@@ -19,7 +21,7 @@ TraceObject* InternalTraceBuffer::AddTraceEvent(uint64_t* handle) {
     if (chunk) {
       chunk->Reset(current_chunk_seq_++);
     } else {
-      chunk.reset(new TraceBufferChunk(current_chunk_seq_++));
+      chunk = std::make_unique<TraceBufferChunk>(current_chunk_seq_++);
     }
   }
   auto& chunk = chunks_[total_chunks_ - 1];

@@ -4,6 +4,7 @@
 #include "gtest/gtest.h"
 
 #include <algorithm>
+#include <memory>
 #include <sstream>
 
 static uv_loop_t loop;
@@ -356,8 +357,8 @@ ServerHolder::ServerHolder(bool has_targets, uv_loop_t* loop,
     targets = { MAIN_TARGET_ID };
   std::unique_ptr<TestSocketServerDelegate> delegate(
       new TestSocketServerDelegate(this, targets));
-  server_.reset(
-      new InspectorSocketServer(std::move(delegate), loop, host, port, out));
+  server_ = std::make_unique<InspectorSocketServer>(
+      std::move(delegate), loop, host, port, out);
 }
 
 static void TestHttpRequest(int port, const std::string& path,

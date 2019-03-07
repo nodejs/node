@@ -2,6 +2,7 @@
 #define TEST_CCTEST_NODE_TEST_FIXTURE_H_
 
 #include <cstdlib>
+#include <memory>
 #include "gtest/gtest.h"
 #include "node.h"
 #include "node_platform.h"
@@ -67,7 +68,7 @@ class NodeTestFixture : public ::testing::Test {
   v8::Isolate* isolate_;
 
   static void SetUpTestCase() {
-    tracing_agent.reset(new node::tracing::Agent());
+    tracing_agent = std::make_unique<node::tracing::Agent>();
     node::tracing::TraceEventHelper::SetAgent(tracing_agent.get());
     CHECK_EQ(0, uv_loop_init(&current_loop));
     platform.reset(static_cast<node::NodePlatform*>(
