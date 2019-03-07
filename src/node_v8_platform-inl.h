@@ -3,6 +3,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <memory>
+
 #include "env-inl.h"
 #include "node.h"
 #include "node_metadata.h"
@@ -79,11 +81,12 @@ class NodeTraceStateObserver
 struct V8Platform {
 #if NODE_USE_V8_PLATFORM
   inline void Initialize(int thread_pool_size) {
-    tracing_agent_.reset(new tracing::Agent());
+    tracing_agent_ = std::make_unique<tracing::Agent>();
     node::tracing::TraceEventHelper::SetAgent(tracing_agent_.get());
     node::tracing::TracingController* controller =
         tracing_agent_->GetTracingController();
-    trace_state_observer_.reset(new NodeTraceStateObserver(controller));
+    trace_state_observer_ =
+        std::make_unique<NodeTraceStateObserver>(controller);
     controller->AddTraceStateObserver(trace_state_observer_.get());
     tracing_file_writer_ = tracing_agent_->DefaultHandle();
     // Only start the tracing agent if we enabled any tracing categories.

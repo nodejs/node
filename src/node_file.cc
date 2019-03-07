@@ -344,7 +344,7 @@ int FileHandle::ReadStart() {
                .ToLocal(&wrap_obj)) {
         return UV_EBUSY;
       }
-      read_wrap.reset(new FileHandleReadWrap(this, wrap_obj));
+      read_wrap = std::make_unique<FileHandleReadWrap>(this, wrap_obj);
     }
   }
   int64_t recommended_read = 65536;
@@ -1288,8 +1288,8 @@ int MKDirpAsync(uv_loop_t* loop,
   FSReqBase* req_wrap = FSReqBase::from_req(req);
   // on the first iteration of algorithm, stash state information.
   if (req_wrap->continuation_data == nullptr) {
-    req_wrap->continuation_data = std::unique_ptr<FSContinuationData>{
-      new FSContinuationData(req, mode, cb)};
+    req_wrap->continuation_data =
+        std::make_unique<FSContinuationData>(req, mode, cb);
     req_wrap->continuation_data->PushPath(std::move(path));
   }
 

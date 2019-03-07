@@ -5,6 +5,7 @@
 #include "debug_utils.h"
 #include "util.h"
 #include <algorithm>
+#include <memory>
 
 namespace node {
 
@@ -172,8 +173,8 @@ WorkerThreadsTaskRunner::WorkerThreadsTaskRunner(int thread_pool_size) {
   Mutex::ScopedLock lock(platform_workers_mutex);
   int pending_platform_workers = thread_pool_size;
 
-  delayed_task_scheduler_.reset(
-      new DelayedTaskScheduler(&pending_worker_tasks_));
+  delayed_task_scheduler_ = std::make_unique<DelayedTaskScheduler>(
+      &pending_worker_tasks_);
   threads_.push_back(delayed_task_scheduler_->Start());
 
   for (int i = 0; i < thread_pool_size; i++) {

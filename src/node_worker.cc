@@ -10,6 +10,7 @@
 #include "inspector/worker_inspector.h"  // ParentInspectorHandle
 #endif
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -77,7 +78,7 @@ Worker::Worker(Environment* env,
     return;
   }
 
-  child_port_data_.reset(new MessagePortData(nullptr));
+  child_port_data_ = std::make_unique<MessagePortData>(nullptr);
   MessagePort::Entangle(parent_port_, child_port_data_.get());
 
   object()->Set(env->context(),
