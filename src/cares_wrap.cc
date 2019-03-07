@@ -30,6 +30,7 @@
 
 #include <cerrno>
 #include <cstring>
+#include <memory>
 #include <vector>
 #include <unordered_set>
 
@@ -663,7 +664,7 @@ class QueryWrap : public AsyncWrap {
       memcpy(buf_copy, answer_buf, answer_len);
     }
 
-    wrap->response_data_.reset(new ResponseData());
+    wrap->response_data_ = std::make_unique<ResponseData>();
     ResponseData* data = wrap->response_data_.get();
     data->status = status;
     data->is_host = false;
@@ -683,7 +684,7 @@ class QueryWrap : public AsyncWrap {
       cares_wrap_hostent_cpy(host_copy, host);
     }
 
-    wrap->response_data_.reset(new ResponseData());
+    wrap->response_data_ = std::make_unique<ResponseData>();
     ResponseData* data = wrap->response_data_.get();
     data->status = status;
     data->host.reset(host_copy);
