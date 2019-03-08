@@ -106,3 +106,19 @@ function validate() {
   const report = child.stderr.toString().split('Node.js report completed')[0];
   helper.validateContent(report);
 }
+
+{
+  // Test the case where the report file cannot be opened.
+  const reportDir = path.join(tmpdir.path, 'does', 'not', 'exist');
+  const args = ['--experimental-report',
+                `--diagnostic-report-directory=${reportDir}`,
+                '-e',
+                'process.report.triggerReport()'];
+  const child = spawnSync(process.execPath, args, { cwd: tmpdir.path });
+
+  assert.strictEqual(child.status, 0);
+  assert.strictEqual(child.signal, null);
+  assert.strictEqual(child.stdout.toString().trim(), '');
+  const stderr = child.stderr.toString();
+  assert(stderr.includes('Failed to open Node.js report file:'));
+}
