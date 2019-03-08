@@ -101,7 +101,7 @@ namespace task_queue {
 void PromiseRejectCallback(v8::PromiseRejectMessage message);
 }  // namespace task_queue
 
-class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+class NodeArrayBufferAllocator : public ArrayBufferAllocator {
  public:
   inline uint32_t* zero_fill_field() { return &zero_fill_field_; }
 
@@ -116,11 +116,13 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   virtual void RegisterPointer(void* data, size_t size) {}
   virtual void UnregisterPointer(void* data, size_t size) {}
 
+  NodeArrayBufferAllocator* GetImpl() final { return this; }
+
  private:
   uint32_t zero_fill_field_ = 1;  // Boolean but exposed as uint32 to JS land.
 };
 
-class DebuggingArrayBufferAllocator final : public ArrayBufferAllocator {
+class DebuggingArrayBufferAllocator final : public NodeArrayBufferAllocator {
  public:
   ~DebuggingArrayBufferAllocator() override;
   void* Allocate(size_t size) override;
