@@ -23,9 +23,9 @@
 #endif
 
 #if HAVE_INSPECTOR
-#define NODE_BUILTIN_COVERAGE_MODULES(V) V(coverage)
+#define NODE_BUILTIN_PROFILER_MODULES(V) V(profiler)
 #else
-#define NODE_BUILTIN_COVERAGE_MODULES(V)
+#define NODE_BUILTIN_PROFILER_MODULES(V)
 #endif
 
 // A list of built-in modules. In order to do module registration
@@ -85,7 +85,7 @@
   NODE_BUILTIN_OPENSSL_MODULES(V)                                              \
   NODE_BUILTIN_ICU_MODULES(V)                                                  \
   NODE_BUILTIN_REPORT_MODULES(V)                                               \
-  NODE_BUILTIN_COVERAGE_MODULES(V)
+  NODE_BUILTIN_PROFILER_MODULES(V)
 
 // This is used to load built-in modules. Instead of using
 // __attribute__((constructor)), we call the _register_<modname>
