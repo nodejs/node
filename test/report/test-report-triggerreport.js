@@ -5,6 +5,7 @@
 const common = require('../common');
 common.skipIfReportDisabled();
 const assert = require('assert');
+const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const helper = require('../common/report');
@@ -81,3 +82,27 @@ function validate() {
     process.report.triggerReport('file', error);
   }, { code: 'ERR_INVALID_ARG_TYPE' });
 });
+
+{
+  // Test the special "stdout" filename.
+  const args = ['--experimental-report', '-e',
+                'process.report.triggerReport("stdout")'];
+  const child = spawnSync(process.execPath, args, { cwd: tmpdir.path });
+  assert.strictEqual(child.status, 0);
+  assert.strictEqual(child.signal, null);
+  assert.strictEqual(helper.findReports(child.pid, tmpdir.path).length, 0);
+  helper.validateContent(child.stdout.toString());
+}
+
+{
+  // Test the special "stderr" filename.
+  const args = ['--experimental-report', '-e',
+                'process.report.triggerReport("stderr")'];
+  const child = spawnSync(process.execPath, args, { cwd: tmpdir.path });
+  assert.strictEqual(child.status, 0);
+  assert.strictEqual(child.signal, null);
+  assert.strictEqual(child.stdout.toString().trim(), '');
+  assert.strictEqual(helper.findReports(child.pid, tmpdir.path).length, 0);
+  const report = child.stderr.toString().split('Node.js report completed')[0];
+  helper.validateContent(report);
+}
