@@ -1099,7 +1099,8 @@ void Initialize(Local<Object> target,
 
   // It can be a nullptr when running inside an isolate where we
   // do not own the ArrayBuffer allocator.
-  if (ArrayBufferAllocator* allocator = env->isolate_data()->node_allocator()) {
+  if (NodeArrayBufferAllocator* allocator =
+          env->isolate_data()->node_allocator()) {
     uint32_t* zero_fill_field = allocator->zero_fill_field();
     Local<ArrayBuffer> array_buffer = ArrayBuffer::New(
         env->isolate(), zero_fill_field, sizeof(*zero_fill_field));

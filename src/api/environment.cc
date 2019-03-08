@@ -71,7 +71,7 @@ static void OnMessage(Local<Message> message, Local<Value> error) {
   }
 }
 
-void* ArrayBufferAllocator::Allocate(size_t size) {
+void* NodeArrayBufferAllocator::Allocate(size_t size) {
   if (zero_fill_field_ || per_process::cli_options->zero_fill_all_buffers)
     return UncheckedCalloc(size);
   else
@@ -84,14 +84,14 @@ DebuggingArrayBufferAllocator::~DebuggingArrayBufferAllocator() {
 
 void* DebuggingArrayBufferAllocator::Allocate(size_t size) {
   Mutex::ScopedLock lock(mutex_);
-  void* data = ArrayBufferAllocator::Allocate(size);
+  void* data = NodeArrayBufferAllocator::Allocate(size);
   RegisterPointerInternal(data, size);
   return data;
 }
 
 void* DebuggingArrayBufferAllocator::AllocateUninitialized(size_t size) {
   Mutex::ScopedLock lock(mutex_);
-  void* data = ArrayBufferAllocator::AllocateUninitialized(size);
+  void* data = NodeArrayBufferAllocator::AllocateUninitialized(size);
   RegisterPointerInternal(data, size);
   return data;
 }
@@ -99,14 +99,14 @@ void* DebuggingArrayBufferAllocator::AllocateUninitialized(size_t size) {
 void DebuggingArrayBufferAllocator::Free(void* data, size_t size) {
   Mutex::ScopedLock lock(mutex_);
   UnregisterPointerInternal(data, size);
-  ArrayBufferAllocator::Free(data, size);
+  NodeArrayBufferAllocator::Free(data, size);
 }
 
 void* DebuggingArrayBufferAllocator::Reallocate(void* data,
                                                 size_t old_size,
                                                 size_t size) {
   Mutex::ScopedLock lock(mutex_);
-  void* ret = ArrayBufferAllocator::Reallocate(data, old_size, size);
+  void* ret = NodeArrayBufferAllocator::Reallocate(data, old_size, size);
   if (ret == nullptr) {
     if (size == 0)  // i.e. equivalent to free().
       UnregisterPointerInternal(data, old_size);
@@ -149,11 +149,15 @@ void DebuggingArrayBufferAllocator::RegisterPointerInternal(void* data,
   allocations_[data] = size;
 }
 
-ArrayBufferAllocator* CreateArrayBufferAllocator() {
-  if (per_process::cli_options->debug_arraybuffer_allocations)
-    return new DebuggingArrayBufferAllocator();
+std::unique_ptr<ArrayBufferAllocator> ArrayBufferAllocator::Create(bool debug) {
+  if (debug || per_process::cli_options->debug_arraybuffer_allocations)
+    return std::make_unique<DebuggingArrayBufferAllocator>();
   else
-    return new ArrayBufferAllocator();
+    return std::make_unique<NodeArrayBufferAllocator>();
+}
+
+ArrayBufferAllocator* CreateArrayBufferAllocator() {
+  return ArrayBufferAllocator::Create().release();
 }
 
 void FreeArrayBufferAllocator(ArrayBufferAllocator* allocator) {

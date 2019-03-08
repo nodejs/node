@@ -56,7 +56,7 @@ inline v8::ArrayBuffer::Allocator* IsolateData::allocator() const {
   return allocator_;
 }
 
-inline ArrayBufferAllocator* IsolateData::node_allocator() const {
+inline NodeArrayBufferAllocator* IsolateData::node_allocator() const {
   return node_allocator_;
 }
 

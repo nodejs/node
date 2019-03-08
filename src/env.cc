@@ -80,7 +80,8 @@ IsolateData::IsolateData(Isolate* isolate,
     : isolate_(isolate),
       event_loop_(event_loop),
       allocator_(isolate->GetArrayBufferAllocator()),
-      node_allocator_(node_allocator),
+      node_allocator_(node_allocator == nullptr ?
+          nullptr : node_allocator->GetImpl()),
       uses_node_allocator_(allocator_ == node_allocator_),
       platform_(platform) {
   CHECK_NOT_NULL(allocator_);

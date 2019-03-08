@@ -64,6 +64,8 @@
 #include "v8-platform.h"  // NOLINT(build/include_order)
 #include "node_version.h"  // NODE_MODULE_VERSION
 
+#include <memory>
+
 #define NODE_MAKE_VERSION(major, minor, patch)                                \
   ((major) * 0x1000 + (minor) * 0x100 + (patch))
 
@@ -217,8 +219,30 @@ NODE_EXTERN void Init(int* argc,
                       int* exec_argc,
                       const char*** exec_argv);
 
-class ArrayBufferAllocator;
+class NodeArrayBufferAllocator;
 
+// An ArrayBuffer::Allocator class with some Node.js-specific tweaks. If you do
+// not have to use another allocator, using this class is recommended:
+// - It supports Buffer.allocUnsafe() and Buffer.allocUnsafeSlow() with
+//   uninitialized memory.
+// - It supports transferring, rather than copying, ArrayBuffers when using
+//   MessagePorts.
+class NODE_EXTERN ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+ public:
+  // If `always_debug` is true, create an ArrayBuffer::Allocator instance
+  // that performs additional integrity checks (e.g. make sure that only memory
+  // that was allocated by the it is also freed by it).
+  // This can also be set using the --debug-arraybuffer-allocations flag.
+  static std::unique_ptr<ArrayBufferAllocator> Create(
+      bool always_debug = false);
+
+ private:
+  virtual NodeArrayBufferAllocator* GetImpl() = 0;
+
+  friend class IsolateData;
+};
+
+// Legacy equivalents for ArrayBufferAllocator::Create().
 NODE_EXTERN ArrayBufferAllocator* CreateArrayBufferAllocator();
 NODE_EXTERN void FreeArrayBufferAllocator(ArrayBufferAllocator* allocator);
 
