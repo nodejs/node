@@ -47,16 +47,16 @@ assert.strictEqual(typeof alcaEvent.asyncId(), 'number');
 assert.notStrictEqual(alcaEvent.asyncId(), alcaTriggerId);
 assert.strictEqual(alcaEvent.triggerAsyncId(), alcaTriggerId);
 
-alcaEvent.emitBefore();
-checkInvocations(alcazares, { init: 1, before: 1 },
-                 'alcazares emitted before');
-alcaEvent.emitAfter();
+alcaEvent.runInAsyncScope(() => {
+  checkInvocations(alcazares, { init: 1, before: 1 },
+                   'alcazares emitted before');
+});
 checkInvocations(alcazares, { init: 1, before: 1, after: 1 },
                  'alcazares emitted after');
-alcaEvent.emitBefore();
-checkInvocations(alcazares, { init: 1, before: 2, after: 1 },
-                 'alcazares emitted before again');
-alcaEvent.emitAfter();
+alcaEvent.runInAsyncScope(() => {
+  checkInvocations(alcazares, { init: 1, before: 2, after: 1 },
+                   'alcazares emitted before again');
+});
 checkInvocations(alcazares, { init: 1, before: 2, after: 2 },
                  'alcazares emitted after again');
 alcaEvent.emitDestroy();
@@ -75,11 +75,11 @@ function tick1() {
   assert.strictEqual(typeof poblado.uid, 'number');
   assert.strictEqual(poblado.triggerAsyncId, pobTriggerId);
   checkInvocations(poblado, { init: 1 }, 'poblado constructed');
-  pobEvent.emitBefore();
-  checkInvocations(poblado, { init: 1, before: 1 },
-                   'poblado emitted before');
+  pobEvent.runInAsyncScope(() => {
+    checkInvocations(poblado, { init: 1, before: 1 },
+                     'poblado emitted before');
+  });
 
-  pobEvent.emitAfter();
   checkInvocations(poblado, { init: 1, before: 1, after: 1 },
                    'poblado emitted after');
 

@@ -1905,6 +1905,9 @@ should start using the `async_context` variant of `MakeCallback` or
 ### DEP0098: AsyncHooks Embedder AsyncResource.emitBefore and AsyncResource.emitAfter APIs
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url:
+    description: End-of-Life
   - version:
     - v8.12.0
     - v9.6.0
@@ -1913,7 +1916,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The embedded API provided by AsyncHooks exposes `.emitBefore()` and
 `.emitAfter()` methods which are very easy to use incorrectly which can lead

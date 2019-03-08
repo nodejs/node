@@ -1,12 +1,17 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
 const assert = require('assert');
-const async_hooks = require('async_hooks');
-const { AsyncResource } = async_hooks;
+const internal_async_hooks = require('internal/async_hooks');
 const { spawn } = require('child_process');
 const corruptedMsg = /async hook stack has become corrupted/;
 const heartbeatMsg = /heartbeat: still alive/;
+
+const {
+  newAsyncId, getDefaultTriggerAsyncId,
+  emitInit, emitBefore, emitAfter
+} = internal_async_hooks;
 
 const initHooks = require('./init-hooks');
 
@@ -14,30 +19,31 @@ if (process.argv[2] === 'child') {
   const hooks = initHooks();
   hooks.enable();
 
-  // In both the below two cases 'before' of event2 is nested inside 'before'
-  // of event1.
-  // Therefore the 'after' of event2 needs to occur before the
-  // 'after' of event 1.
-  // The first test of the two below follows that rule,
-  // the second one doesn't.
+  // Async hooks enforce proper order of 'before' and 'after' invocations
 
-  const event1 = new AsyncResource('event1', async_hooks.executionAsyncId());
-  const event2 = new AsyncResource('event2', async_hooks.executionAsyncId());
+  // Proper ordering
+  {
+    const asyncId = newAsyncId();
+    const triggerId = getDefaultTriggerAsyncId();
+    emitInit(asyncId, 'event1', triggerId, {});
+    emitBefore(asyncId, triggerId);
+    emitAfter(asyncId);
+  }
 
-  // Proper unwind
-  event1.emitBefore();
-  event2.emitBefore();
-  event2.emitAfter();
-  event1.emitAfter();
+  // Improper ordering
+  // Emitting 'after' without 'before' which is illegal
+  {
+    const asyncId = newAsyncId();
+    const triggerId = getDefaultTriggerAsyncId();
+    emitInit(asyncId, 'event2', triggerId, {});
 
-  // Improper unwind
-  event1.emitBefore();
-  event2.emitBefore();
-
-  console.log('heartbeat: still alive');
-  event1.emitAfter();
+    console.log('heartbeat: still alive');
+    emitAfter(asyncId);
+  }
 } else {
-  const args = process.argv.slice(1).concat('child');
+  const args = ['--expose-internals']
+    .concat(process.argv.slice(1))
+    .concat('child');
   let errData = Buffer.from('');
   let outData = Buffer.from('');
 
