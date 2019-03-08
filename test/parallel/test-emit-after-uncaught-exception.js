@@ -26,12 +26,12 @@ setImmediate(common.mustCall(() => {
   // Create a stack of async ids that will need to be emitted in the case of
   // an uncaught exception.
   const ar1 = new async_hooks.AsyncResource('Mine');
-  ar1.emitBefore();
-
-  const ar2 = new async_hooks.AsyncResource('Mine');
-  ar2.emitBefore();
-
-  throw new Error('bye');
+  ar1.runInAsyncScope(() => {
+    const ar2 = new async_hooks.AsyncResource('Mine');
+    ar2.runInAsyncScope(() => {
+      throw new Error('bye');
+    });
+  });
 
   // TODO(trevnorris): This test shows that the after() hooks are always called
   // correctly, but it doesn't solve where the emitDestroy() is missed because

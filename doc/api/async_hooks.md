@@ -659,41 +659,6 @@ of the async resource. This will establish the context, trigger the AsyncHooks
 before callbacks, call the function, trigger the AsyncHooks after callbacks, and
 then restore the original execution context.
 
-#### asyncResource.emitBefore()
-<!-- YAML
-deprecated: v9.6.0
--->
-> Stability: 0 - Deprecated: Use [`asyncResource.runInAsyncScope()`][] instead.
-
-Call all `before` callbacks to notify that a new asynchronous execution context
-is being entered. If nested calls to `emitBefore()` are made, the stack of
-`asyncId`s will be tracked and properly unwound.
-
-`before` and `after` calls must be unwound in the same order that they
-are called. Otherwise, an unrecoverable exception will occur and the process
-will abort. For this reason, the `emitBefore` and `emitAfter` APIs are
-considered deprecated. Please use `runInAsyncScope`, as it provides a much safer
-alternative.
-
-#### asyncResource.emitAfter()
-<!-- YAML
-deprecated: v9.6.0
--->
-> Stability: 0 - Deprecated: Use [`asyncResource.runInAsyncScope()`][] instead.
-
-Call all `after` callbacks. If nested calls to `emitBefore()` were made, then
-make sure the stack is unwound properly. Otherwise an error will be thrown.
-
-If the user's callback throws an exception, `emitAfter()` will automatically be
-called for all `asyncId`s on the stack if the error is handled by a domain or
-`'uncaughtException'` handler.
-
-`before` and `after` calls must be unwound in the same order that they
-are called. Otherwise, an unrecoverable exception will occur and the process
-will abort. For this reason, the `emitBefore` and `emitAfter` APIs are
-considered deprecated. Please use `runInAsyncScope`, as it provides a much safer
-alternative.
-
 #### asyncResource.emitDestroy()
 
 * Returns: {AsyncResource} A reference to `asyncResource`.
@@ -713,7 +678,6 @@ never be called.
 `AsyncResource` constructor.
 
 [`after` callback]: #async_hooks_after_asyncid
-[`asyncResource.runInAsyncScope()`]: #async_hooks_asyncresource_runinasyncscope_fn_thisarg_args
 [`before` callback]: #async_hooks_before_asyncid
 [`destroy` callback]: #async_hooks_destroy_asyncid
 [`init` callback]: #async_hooks_init_asyncid_type_triggerasyncid_resource
