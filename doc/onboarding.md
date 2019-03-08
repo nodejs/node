@@ -89,8 +89,6 @@ onboarding session.
     so that we know what parts of the code base the pull request modifies. It is
     not perfect, of course. Feel free to apply relevant labels and remove
     irrelevant labels from pull requests and issues.
-  * Use the `tsc-review` label if a topic is controversial or isn't coming to a
-    conclusion after an extended time.
   * `semver-{minor,major}`:
     * If a change has the remote *chance* of breaking something, use the
       `semver-major` label
