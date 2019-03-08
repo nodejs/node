@@ -171,9 +171,7 @@ std::string TriggerNodeReport(Isolate* isolate,
       return "";
     }
     outstream = &outfile;
-
-    std::cerr << std::endl
-              << "Writing Node.js report to file: " << filename << std::endl;
+    std::cerr << std::endl << "Writing Node.js report to file: " << filename;
   }
 
   WriteNodeReport(isolate, env, message, trigger, filename, *outstream,
@@ -184,7 +182,7 @@ std::string TriggerNodeReport(Isolate* isolate,
     outfile.close();
   }
 
-  std::cerr << "Node.js report completed" << std::endl;
+  std::cerr << std::endl << "Node.js report completed" << std::endl;
   return filename;
 }
 
