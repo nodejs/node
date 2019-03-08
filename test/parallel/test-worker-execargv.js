@@ -19,6 +19,13 @@ if (!process.env.HAS_STARTED_WORKER) {
       /Warning: some warning[\s\S]*at Object\.<anonymous>/.test(error)
     );
   }));
+
+  new Worker(
+    "require('worker_threads').parentPort.postMessage(process.execArgv)",
+    { eval: true, execArgv: ['--trace-warnings'] })
+    .on('message', common.mustCall((data) => {
+      assert.deepStrictEqual(data, ['--trace-warnings']);
+    }));
 } else {
   process.emitWarning('some warning');
   assert.deepStrictEqual(process.execArgv, ['--trace-warnings']);
