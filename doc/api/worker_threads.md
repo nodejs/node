@@ -157,6 +157,22 @@ console.log(receiveMessageOnPort(port2));
 When this function is used, no `'message'` event will be emitted and the
 `onmessage` listener will not be invoked.
 
+### `worker.resourceLimits`
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Object|undefined}
+  * `maxYoungGenerationSizeMb` {number}
+  * `maxOldGenerationSizeMb` {number}
+  * `codeRangeSizeMb` {number}
+
+Provides the set of JS engine resource constraints inside this Worker thread.
+If the `resourceLimits` option was passed to the [`Worker`][] constructor,
+this matches its values.
+
+If this is used in the main thread, its value is an empty object.
+
 ## `worker.SHARE_ENV`
 <!-- YAML
 added: v11.14.0
@@ -488,6 +504,13 @@ if (isMainThread) {
 ```
 
 ### `new Worker(filename[, options])`
+<!-- YAML
+added: v10.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/26628
+    description: The `resourceLimits` option was introduced.
+-->
 
 * `filename` {string} The path to the Worker’s main script. Must be
   either an absolute path or a relative path (i.e. relative to the
@@ -519,6 +542,16 @@ if (isMainThread) {
     occur as described in the [HTML structured clone algorithm][], and an error
     will be thrown if the object cannot be cloned (e.g. because it contains
     `function`s).
+  * `resourceLimits` {Object} An optional set of resource limits for the new
+    JS engine instance. Reaching these limits will lead to termination of the
+    `Worker` instance. These limits only affect the JS engine, and no external
+    data, including no `ArrayBuffer`s. Even if these limits are set, the process
+    may still abort if it encounters a global out-of-memory situation.
+    * `maxOldGenerationSizeMb` {number} The maximum size of the main heap in MB.
+    * `maxYoungGenerationSizeMb` {number} The maximum size of a heap space for
+      recently created objects.
+    * `codeRangeSizeMb` {number} The size of a pre-allocated memory range
+      used for generated code.
 
 ### Event: `'error'`
 <!-- YAML
@@ -583,6 +616,21 @@ Opposite of `unref()`, calling `ref()` on a previously `unref()`ed worker will
 behavior). If the worker is `ref()`ed, calling `ref()` again will have
 no effect.
 
+### `worker.resourceLimits`
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Object}
+  * `maxYoungGenerationSizeMb` {number}
+  * `maxOldGenerationSizeMb` {number}
+  * `codeRangeSizeMb` {number}
+
+Provides the set of JS engine resource constraints for this Worker thread.
+If the `resourceLimits` option was passed to the [`Worker`][] constructor,
+this matches its values.
+
+If the worker has stopped, the return value is an empty object.
 ### `worker.stderr`
 <!-- YAML
 added: v10.5.0
