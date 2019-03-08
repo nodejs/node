@@ -262,9 +262,24 @@ class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
   virtual void UnregisterIsolate(v8::Isolate* isolate) = 0;
 };
 
+// Set up some Node.js-specific defaults for `params`, in particular
+// the ArrayBuffer::Allocator if it is provided, memory limits, and
+// possibly a code event handler.
+NODE_EXTERN void SetIsolateCreateParams(v8::Isolate::CreateParams* params,
+                                        ArrayBufferAllocator* allocator
+                                            = nullptr);
+// Set a number of callbacks for the `isolate`, in particular the Node.js
+// uncaught exception listener.
+NODE_EXTERN void SetIsolateUpForNode(v8::Isolate* isolate);
 // Creates a new isolate with Node.js-specific settings.
+// This is a convenience method equivalent to using SetIsolateCreateParams(),
+// Isolate::Allocate(), MultiIsolatePlatform::RegisterIsolate(),
+// Isolate::Initialize(), and SetIsolateUpForNode().
 NODE_EXTERN v8::Isolate* NewIsolate(ArrayBufferAllocator* allocator,
                                     struct uv_loop_s* event_loop);
+NODE_EXTERN v8::Isolate* NewIsolate(ArrayBufferAllocator* allocator,
+                                    struct uv_loop_s* event_loop,
+                                    MultiIsolatePlatform* platform);
 
 // Creates a new context with Node.js-specific tweaks.
 NODE_EXTERN v8::Local<v8::Context> NewContext(

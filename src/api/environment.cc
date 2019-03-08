@@ -164,21 +164,17 @@ void FreeArrayBufferAllocator(ArrayBufferAllocator* allocator) {
   delete allocator;
 }
 
-Isolate* NewIsolate(ArrayBufferAllocator* allocator, uv_loop_t* event_loop) {
-  Isolate::CreateParams params;
-  params.array_buffer_allocator = allocator;
+void SetIsolateCreateParams(Isolate::CreateParams* params,
+                            ArrayBufferAllocator* allocator) {
+  if (allocator != nullptr)
+    params->array_buffer_allocator = allocator;
+
 #ifdef NODE_ENABLE_VTUNE_PROFILING
-  params.code_event_handler = vTune::GetVtuneCodeEventHandler();
+  params->code_event_handler = vTune::GetVtuneCodeEventHandler();
 #endif
+}
 
-  Isolate* isolate = Isolate::Allocate();
-  if (isolate == nullptr) return nullptr;
-
-  // Register the isolate on the platform before the isolate gets initialized,
-  // so that the isolate can access the platform during initialization.
-  per_process::v8_platform.Platform()->RegisterIsolate(isolate, event_loop);
-  Isolate::Initialize(isolate, params);
-
+void SetIsolateUpForNode(v8::Isolate* isolate) {
   isolate->AddMessageListenerWithErrorLevel(
       OnMessage,
       Isolate::MessageErrorLevel::kMessageError |
@@ -187,7 +183,29 @@ Isolate* NewIsolate(ArrayBufferAllocator* allocator, uv_loop_t* event_loop) {
   isolate->SetMicrotasksPolicy(MicrotasksPolicy::kExplicit);
   isolate->SetFatalErrorHandler(OnFatalError);
   isolate->SetAllowWasmCodeGenerationCallback(AllowWasmCodeGenerationCallback);
+  isolate->SetPromiseRejectCallback(task_queue::PromiseRejectCallback);
   v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
+}
+
+Isolate* NewIsolate(ArrayBufferAllocator* allocator, uv_loop_t* event_loop) {
+  return NewIsolate(allocator, event_loop, GetMainThreadMultiIsolatePlatform());
+}
+
+Isolate* NewIsolate(ArrayBufferAllocator* allocator,
+                    uv_loop_t* event_loop,
+                    MultiIsolatePlatform* platform) {
+  Isolate::CreateParams params;
+  SetIsolateCreateParams(&params, allocator);
+
+  Isolate* isolate = Isolate::Allocate();
+  if (isolate == nullptr) return nullptr;
+
+  // Register the isolate on the platform before the isolate gets initialized,
+  // so that the isolate can access the platform during initialization.
+  platform->RegisterIsolate(isolate, event_loop);
+  Isolate::Initialize(isolate, params);
+
+  SetIsolateUpForNode(isolate);
 
   return isolate;
 }
