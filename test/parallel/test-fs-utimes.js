@@ -59,8 +59,8 @@ function expect_errno(syscall, resource, err, errno) {
 function expect_ok(syscall, resource, err, atime, mtime) {
   const mtime_diff = check_mtime(resource, mtime);
   assert(
-    // Check up to single-second precision
-    // sub-second precision is OS and fs dependant
+    // Check up to single-second precision.
+    // Sub-second precision is OS and fs dependant.
     !err && (mtime_diff < 2) || err && err.code === 'ENOSYS',
     `FAILED: expect_ok ${util.inspect(arguments)}
      check_mtime: ${mtime_diff}`
@@ -82,7 +82,7 @@ runTests(cases.values());
 function runTests(iter) {
   const { value, done } = iter.next();
   if (done) return;
-  // Support easy setting same or different atime / mtime values
+  // Support easy setting same or different atime / mtime values.
   const [atime, mtime] = Array.isArray(value) ? value : [value, value];
 
   let fd;

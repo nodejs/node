@@ -93,8 +93,8 @@ for (let i = 0; i < cnt; i++) {
   r.pipe(w);
 }
 
-// Now start passing through data
-// simulate a relatively fast async stream.
+// Now start passing through data.
+// Simulate a relatively fast async stream.
 rr.forEach(function(r) {
   let cnt = chunks;
   let paused = false;

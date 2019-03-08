@@ -256,8 +256,8 @@ function writeOneMillionTimes(writer, data, encoding, callback) {
         // last time!
         writer.write(data, encoding, callback);
       } else {
-        // See if we should continue, or wait
-        // don't pass the callback, because we're not done yet.
+        // See if we should continue, or wait.
+        // Don't pass the callback, because we're not done yet.
         ok = writer.write(data, encoding);
       }
     } while (i > 0 && ok);

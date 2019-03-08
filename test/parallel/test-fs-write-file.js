@@ -48,7 +48,7 @@ fs.writeFile(filename, s, common.mustCall(function(e) {
   }));
 }));
 
-// Test that writeFile accepts buffers
+// Test that writeFile accepts buffers.
 const filename2 = join(tmpdir.path, 'test2.txt');
 const buf = Buffer.from(s, 'utf8');
 
@@ -69,7 +69,7 @@ const m = 0o600;
 fs.writeFile(filename3, n, { mode: m }, common.mustCall(function(e) {
   assert.ifError(e);
 
-  // Windows permissions aren't unix
+  // Windows permissions aren't Unix.
   if (!common.isWindows) {
     const st = fs.statSync(filename3);
     assert.strictEqual(st.mode & 0o700, m);
@@ -82,7 +82,7 @@ fs.writeFile(filename3, n, { mode: m }, common.mustCall(function(e) {
   }));
 }));
 
-// Test that writeFile accepts file descriptors
+// Test that writeFile accepts file descriptors.
 const filename4 = join(tmpdir.path, 'test4.txt');
 
 fs.open(filename4, 'w+', common.mustCall(function(e, fd) {
