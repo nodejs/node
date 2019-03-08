@@ -214,7 +214,7 @@ NODE_EXTERN void Init(int* argc,
 
 class NodeArrayBufferAllocator;
 
-// A ArrayBuffer::Allocator class with some Node.js-specific tweaks. If you do
+// An ArrayBuffer::Allocator class with some Node.js-specific tweaks. If you do
 // not have to use another allocator, using this class is recommended:
 // - It supports Buffer.allocUnsafe() and Buffer.allocUnsafeSlow() with
 //   uninitialized memory.
