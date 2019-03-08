@@ -1837,8 +1837,8 @@ bool Http2Session::HasWritesOnSocketForStream(Http2Stream* stream) {
 // (typically a net.Socket or tls.TLSSocket). The lifecycle of the two is
 // tightly coupled with all data transfer between the two happening at the
 // C++ layer via the StreamBase API.
-void Http2Session::Consume(Local<External> external) {
-  StreamBase* stream = static_cast<StreamBase*>(external->Value());
+void Http2Session::Consume(Local<Object> stream_obj) {
+  StreamBase* stream = StreamBase::FromObject(stream_obj);
   stream->PushStreamListener(this);
   Debug(this, "i/o stream consumed");
 }
@@ -2429,8 +2429,8 @@ void Http2Session::New(const FunctionCallbackInfo<Value>& args) {
 void Http2Session::Consume(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
-  CHECK(args[0]->IsExternal());
-  session->Consume(args[0].As<External>());
+  CHECK(args[0]->IsObject());
+  session->Consume(args[0].As<Object>());
 }
 
 // Destroys the Http2Session instance and renders it unusable

@@ -3,7 +3,6 @@
 #include "node_buffer.h"
 
 using v8::Context;
-using v8::External;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -226,10 +225,10 @@ void StreamPipe::WritableListener::OnStreamRead(ssize_t nread,
 
 void StreamPipe::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
-  CHECK(args[0]->IsExternal());
-  CHECK(args[1]->IsExternal());
-  auto source = static_cast<StreamBase*>(args[0].As<External>()->Value());
-  auto sink = static_cast<StreamBase*>(args[1].As<External>()->Value());
+  CHECK(args[0]->IsObject());
+  CHECK(args[1]->IsObject());
+  StreamBase* source = StreamBase::FromObject(args[0].As<Object>());
+  StreamBase* sink = StreamBase::FromObject(args[1].As<Object>());
 
   new StreamPipe(source, sink, args.This());
 }
