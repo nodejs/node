@@ -296,8 +296,8 @@ v8::MaybeLocal<v8::Value> StartExecution(Environment* env,
                                          const char* main_script_id);
 v8::MaybeLocal<v8::Object> GetPerContextExports(v8::Local<v8::Context> context);
 
-namespace coverage {
-bool StartCoverageCollection(Environment* env);
+namespace profiler {
+void StartCoverageCollection(Environment* env);
 }
 
 #ifdef _WIN32

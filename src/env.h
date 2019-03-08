@@ -469,7 +469,7 @@ struct CompileFnEntry {
 #define DEBUG_CATEGORY_NAMES(V)                                                \
   NODE_ASYNC_PROVIDER_TYPES(V)                                                 \
   V(INSPECTOR_SERVER)                                                          \
-  V(COVERAGE)
+  V(INSPECTOR_PROFILER)
 
 enum class DebugCategory {
 #define V(name) name,

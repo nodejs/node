@@ -245,9 +245,7 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
   bool rc = credentials::SafeGetenv("NODE_V8_COVERAGE", &coverage);
   if (rc && !coverage.empty()) {
 #if HAVE_INSPECTOR
-    if (!coverage::StartCoverageCollection(env)) {
-      return MaybeLocal<Value>();
-    }
+    profiler::StartCoverageCollection(env);
 #else
     fprintf(stderr, "NODE_V8_COVERAGE cannot be used without inspector");
 #endif  // HAVE_INSPECTOR
