@@ -158,91 +158,10 @@ MaybeLocal<Object> CreateProcessObject(
                              FIXED_ONE_BYTE_STRING(env->isolate(), "ppid"),
                              GetParentProcessId).FromJust());
 
-  // TODO(joyeecheung): the following process properties that are set using
-  // parsed CLI flags should be migrated to `internal/options` in JS land.
-
-  // -e, --eval
-  // TODO(addaleax): Remove this.
-  if (env->options()->has_eval_string) {
-    READONLY_PROPERTY(process,
-                      "_eval",
-                      String::NewFromUtf8(
-                          env->isolate(),
-                          env->options()->eval_string.c_str(),
-                          NewStringType::kNormal).ToLocalChecked());
-  }
-
-  // -p, --print
-  // TODO(addaleax): Remove this.
-  if (env->options()->print_eval) {
-    READONLY_PROPERTY(process, "_print_eval", True(env->isolate()));
-  }
-
-  // -c, --check
-  // TODO(addaleax): Remove this.
-  if (env->options()->syntax_check_only) {
-    READONLY_PROPERTY(process, "_syntax_check_only", True(env->isolate()));
-  }
-
-  // -i, --interactive
-  // TODO(addaleax): Remove this.
-  if (env->options()->force_repl) {
-    READONLY_PROPERTY(process, "_forceRepl", True(env->isolate()));
-  }
-
-  // -r, --require
-  // TODO(addaleax): Remove this.
-  const std::vector<std::string>& preload_modules =
-      env->options()->preload_modules;
-  if (!preload_modules.empty()) {
-    READONLY_PROPERTY(process,
-                      "_preload_modules",
-                      ToV8Value(env->context(), preload_modules)
-                          .ToLocalChecked());
-  }
-
-  // --no-deprecation
-  if (env->options()->no_deprecation) {
-    READONLY_PROPERTY(process, "noDeprecation", True(env->isolate()));
-  }
-
-  // --no-warnings
-  if (env->options()->no_warnings) {
-    READONLY_PROPERTY(process, "noProcessWarnings", True(env->isolate()));
-  }
-
-  // --trace-warnings
-  if (env->options()->trace_warnings) {
-    READONLY_PROPERTY(process, "traceProcessWarnings", True(env->isolate()));
-  }
-
-  // --throw-deprecation
-  if (env->options()->throw_deprecation) {
-    READONLY_PROPERTY(process, "throwDeprecation", True(env->isolate()));
-  }
-
-  // --prof-process
-  // TODO(addaleax): Remove this.
-  if (env->options()->prof_process) {
-    READONLY_PROPERTY(process, "profProcess", True(env->isolate()));
-  }
-
-  // --trace-deprecation
-  if (env->options()->trace_deprecation) {
-    READONLY_PROPERTY(process, "traceDeprecation", True(env->isolate()));
-  }
-
-  // --inspect-brk
-  if (env->options()->debug_options().wait_for_connect()) {
-    READONLY_DONT_ENUM_PROPERTY(process,
-                                "_breakFirstLine", True(env->isolate()));
-  }
-
-  // --inspect-brk-node
-  if (env->options()->debug_options().break_node_first_line) {
-    READONLY_DONT_ENUM_PROPERTY(process,
-                                "_breakNodeFirstLine", True(env->isolate()));
-  }
+  // TODO(joyeecheung): make this available in JS during pre-execution.
+  // Note that to use this in releases the code doing the revert need to be
+  // careful to delay the check until after the bootstrap but that may not
+  // be possible depending on the feature being reverted.
 
   // --security-revert flags
 #define V(code, _, __)                                                        \
