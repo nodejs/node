@@ -388,32 +388,30 @@ The TSC should serve as the final arbiter where required.
 
 ## Landing Pull Requests
 
-1. Avoid landing PRs that are assigned to someone else. Authors who wish to land
-   their own PRs will self-assign them, or delegate to someone else. If in
-   doubt, ask the assignee whether it is okay to land.
+1. Avoid landing pull requests that have someone else as an assignee. Authors
+   who wish to land their own pull requests will self-assign them. Sometimes, an
+   author will delegate to someone else. If in doubt, ask the assignee whether
+   it is okay to land.
 1. Never use GitHub's green ["Merge Pull Request"][] button. Reasons for not
    using the web interface button:
    * The "Create a merge commit" method will add an unnecessary merge commit.
-   * The "Squash and merge" method will add metadata (the PR #) to the commit
-     title. If more than one author has contributed to the PR, squashing will
-     only keep the most recent author.
+   * The "Squash and merge" method will add metadata (the pull request #) to the
+     commit title. If more than one author contributes to the pull request,
+     squashing only keeps one author.
    * The "Rebase and merge" method has no way of adding metadata to the commit.
-1. Make sure the CI is done and the result is green. If the CI is not green,
-   check for flaky tests and infrastructure failures. Please check if those were
-   already reported in the appropriate repository ([node][flaky tests] and
-   [build](https://github.com/nodejs/build/issues)) or not and open new issues
-   in case they are not. If no CI was run or the run is outdated because code
-   was pushed after the last run, please first start a new CI and wait for the
-   result. If no CI is required, please leave a comment in case none is already
-   present.
-1. Review the commit message to ensure that it adheres to the guidelines
-   outlined in the [contributing][] guide.
+1. Make sure CI is complete and green. If the CI is not green, check for
+   unreliable tests and infrastructure failures. If there are not corresponding
+   issues in the [node][unreliable tests] or
+   [build](https://github.com/nodejs/build/issues) repositories, open new
+   issues. Run a new CI any time someone pushes new code to the pull request.
+1. Check that the commit message adheres to [commit message guidelines][].
 1. Add all necessary [metadata](#metadata) to commit messages before landing. If
    you are unsure exactly how to format the commit messages, use the commit log
    as a reference. See [this commit][commit-example] as an example.
 
-For PRs from first-time contributors, be [welcoming](#welcoming-first-time-contributors).
-Also, verify that their git settings are to their liking.
+For pull requests from first-time contributors, be
+[welcoming](#welcoming-first-time-contributors). Also, verify that their git
+settings are to their liking.
 
 All commits should be self-contained, meaning every commit should pass all
 tests. This makes it much easier when bisecting to find a breaking change.
@@ -550,8 +548,7 @@ commit message for that commit. This is a good moment to fix incorrect
 commit logs, ensure that they are properly formatted, and add
 `Reviewed-By` lines.
 
-* The commit message text must conform to the
-[commit message guidelines](./doc/guides/contributing/pull-requests.md#commit-message-guidelines).
+* The commit message text must conform to the [commit message guidelines][].
 
 <a name="metadata"></a>
 * Modify the original commit message to include additional metadata regarding
@@ -793,12 +790,12 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` may help.
 [`--throw-deprecation`]: doc/api/cli.md#--throw-deprecation
 [`node-core-utils`]: https://github.com/nodejs/node-core-utils
 [backporting guide]: doc/guides/backporting-to-release-lines.md
-[contributing]: ./doc/guides/contributing/pull-requests.md#commit-message-guidelines
+[commit message guidelines]: ./doc/guides/contributing/pull-requests.md#commit-message-guidelines
 [commit-example]: https://github.com/nodejs/node/commit/b636ba8186
-[flaky tests]: https://github.com/nodejs/node/issues?q=is%3Aopen+is%3Aissue+label%3A%22CI+%2F+flaky+test%22y
 [git-node]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md
 [git-node-metadata]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-metadata
 [git-username]: https://help.github.com/articles/setting-your-username-in-git/
 [git-email]: https://help.github.com/articles/setting-your-commit-email-address-in-git/
 [node-core-utils-credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
 [node-core-utils-issues]: https://github.com/nodejs/node-core-utils/issues
+[unreliable tests]: https://github.com/nodejs/node/issues?q=is%3Aopen+is%3Aissue+label%3A%22CI+%2F+flaky+test%22
