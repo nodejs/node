@@ -305,7 +305,6 @@ in the placeholder's `README`.
 For pull requests introducing new core modules:
 
 * Allow at least one week for review.
-* Label with the `tsc-review` label.
 * Land only after sign-off from at least two TSC members.
 * Land with a [Stability Index][] of Experimental. The module must remain
   Experimental until a semver-major release.
@@ -382,9 +381,8 @@ This should be done where a pull request:
 - has failed to reach consensus amongst the Collaborators who are
   actively participating in the discussion.
 
-Assign the `tsc-review` label or @-mention the
-`@nodejs/tsc` GitHub team if you want to elevate an issue to the [TSC][].
-Do not use the GitHub UI on the right-hand side to assign to
+@-mention the `@nodejs/tsc` GitHub team if you want to elevate an issue to the
+[TSC][]. Do not use the GitHub UI on the right-hand side to assign to
 `@nodejs/tsc` or request a review from `@nodejs/tsc`.
 
 The TSC should serve as the final arbiter where required.

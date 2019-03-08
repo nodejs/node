@@ -50,10 +50,6 @@ be accepted unless:
   This should only happen if disagreements between Collaborators cannot be
   resolved through discussion.
 
-Collaborators may opt to elevate significant or controversial modifications to
-the TSC by assigning the `tsc-review` label to a pull request or issue. The
-TSC should serve as the final arbiter where required.
-
 See:
 
 * [Current list of Collaborators](./README.md#current-project-team-members)
@@ -105,11 +101,9 @@ The intention of the agenda is not to approve or review all patches.
 That should happen continuously on GitHub and be handled by the larger
 group of Collaborators.
 
-Any community member or contributor can ask that something be reviewed
-by the TSC by logging a GitHub issue. Any Collaborator, TSC member, or the
-meeting chair can bring the issue to the TSC's attention by applying the
-`tsc-review` label. If consensus-seeking among TSC members fails for a
-particular issue, it may be added to the TSC meeting agenda by adding the
+Any community member or contributor can ask that something be reviewed by the
+TSC by logging a GitHub issue. If consensus-seeking among TSC members fails for
+a particular issue, it may be added to the TSC meeting agenda by adding the
 `tsc-agenda` label.
 
 Prior to each TSC meeting, the meeting chair will share the agenda with
