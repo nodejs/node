@@ -165,10 +165,10 @@ terminal. This can be useful to check how specific environment settings behave.
 
 To enforce a specific color support, use one of the below environment settings.
 
-* 2 colors: FORCE_COLOR = 0 (Disables colors)
-* 16 colors: FORCE_COLOR = 1
-* 256 colors: FORCE_COLOR = 2
-* 16,777,216 colors: FORCE_COLOR = 3
+* 2 colors: `FORCE_COLOR = 0` (Disables colors)
+* 16 colors: `FORCE_COLOR = 1`
+* 256 colors: `FORCE_COLOR = 2`
+* 16,777,216 colors: `FORCE_COLOR = 3`
 
 Disabling color support is also possible by using the `NO_COLOR` and
 `NODE_DISABLE_COLORS` environment variables.
