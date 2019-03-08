@@ -4,7 +4,7 @@
         ^
 ReferenceError: undefined_reference_error_maker is not defined
     at *test*message*nexttick_throw.js:*:*
-    at processTicksAndRejections (internal/process/next_tick.js:*:*)
-    at process.runNextTicks [as _tickCallback] (internal/process/next_tick.js:*:*)
+    at processTicksAndRejections (internal/process/task_queues.js:*:*)
+    at process.runNextTicks [as _tickCallback] (internal/process/task_queues.js:*:*)
     at Function.Module.runMain (internal/modules/cjs/loader.js:*:*)
     at internal/main/run_main_module.js:*:*
