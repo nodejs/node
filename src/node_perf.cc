@@ -31,6 +31,7 @@ using v8::Name;
 using v8::NewStringType;
 using v8::Number;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
 using v8::String;
@@ -391,6 +392,167 @@ void Timerify(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(wrap);
 }
 
+// Heap Histograms
+namespace {
+static void HistogramMin(const FunctionCallbackInfo<Value>& args) {
+  HistogramWrap* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  double value = static_cast<double>((**histogram)->Min());
+  args.GetReturnValue().Set(value);
+}
+
+static void HistogramMax(const FunctionCallbackInfo<Value>& args) {
+  HistogramWrap* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  double value = static_cast<double>((**histogram)->Max());
+  args.GetReturnValue().Set(value);
+}
+
+static void HistogramMean(const FunctionCallbackInfo<Value>& args) {
+  HistogramWrap* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  args.GetReturnValue().Set((**histogram)->Mean());
+}
+
+static void HistogramExceeds(const FunctionCallbackInfo<Value>& args) {
+  HistogramWrap* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  double value = static_cast<double>(histogram->Exceeds());
+  args.GetReturnValue().Set(value);
+}
+
+static void HistogramStddev(const FunctionCallbackInfo<Value>& args) {
+  HistogramWrap* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  args.GetReturnValue().Set((**histogram)->Stddev());
+}
+
+static void HistogramPercentile(const FunctionCallbackInfo<Value>& args) {
+  HistogramWrap* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  CHECK(args[0]->IsNumber());
+  double percentile = args[0].As<Number>()->Value();
+  args.GetReturnValue().Set((**histogram)->Percentile(percentile));
+}
+
+static void HistogramPercentiles(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  HistogramWrap* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  CHECK(args[0]->IsMap());
+  Local<Map> map = args[0].As<Map>();
+  (**histogram)->Percentiles([&](double key, double value) {
+    map->Set(env->context(),
+             Number::New(env->isolate(), key),
+             Number::New(env->isolate(), value)).IsEmpty();
+  });
+}
+
+static void HeapHistogramsEnable(const FunctionCallbackInfo<Value>& args) {
+  HeapHistograms* histograms;
+  ASSIGN_OR_RETURN_UNWRAP(&histograms, args.Holder());
+  args.GetReturnValue().Set(histograms->Enable());
+}
+
+static void HeapHistogramsDisable(const FunctionCallbackInfo<Value>& args) {
+  HeapHistograms* histograms;
+  ASSIGN_OR_RETURN_UNWRAP(&histograms, args.Holder());
+  args.GetReturnValue().Set(histograms->Disable());
+}
+
+static void HeapHistogramsReset(const FunctionCallbackInfo<Value>& args) {
+  ELDHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  histogram->env()->performance_state()->ResetHeapStatistics();
+}
+
+static void HeapHistogramsNew(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args.IsConstructCall());
+  int32_t resolution = args[0]->IntegerValue(env->context()).FromJust();
+  CHECK_GT(resolution, 0);
+  new HeapHistograms(env, args.This(), resolution);
+
+#define SET_HISTOGRAM(name, str)                                               \
+  HistogramWrap* name##_wrap =                                                 \
+      HistogramWrap::New(                                                      \
+          env,                                                                 \
+          env->performance_state()->name##_histogram(),                        \
+          [env]() { return env->performance_state()->name##_exceeds(); });     \
+  CHECK_NE(name##_wrap, nullptr);                                              \
+  args.This()->Set(env->context(), str, name##_wrap->object()).FromJust();
+  SET_HISTOGRAM(rss, env->rss_string())
+  SET_HISTOGRAM(total_heap_size, env->heap_total_string())
+  SET_HISTOGRAM(used_heap_size, env->heap_used_string())
+  SET_HISTOGRAM(external_memory, env->external_string())
+#undef SET_HISTOGRAM
+}
+
+void HeapHistogramsInterval(uv_timer_t* req) {
+  HeapHistograms* histogram =
+    reinterpret_cast<HeapHistograms*>(req->data);
+  histogram->env()->performance_state()->RecordHeapStatistics(
+      histogram->env()->isolate());
+}
+
+} // namespace
+
+HeapHistograms::HeapHistograms(Environment* env,
+                               Local<Object> wrap,
+                               int32_t resolution) :
+      BaseObject(env, wrap),
+      resolution_(resolution) {
+  MakeWeak();
+  timer_ = new uv_timer_t();
+  uv_timer_init(env->event_loop(), timer_);
+  timer_->data = this;
+}
+
+bool HeapHistograms::Enable() {
+  if (enabled_) return false;
+  enabled_ = true;
+  uv_timer_start(timer_,
+                 HeapHistogramsInterval,
+                 resolution_,
+                 resolution_);
+  uv_unref(reinterpret_cast<uv_handle_t*>(timer_));
+  return true;
+}
+
+bool HeapHistograms::Disable() {
+  if (!enabled_) return false;
+  enabled_ = false;
+  uv_timer_stop(timer_);
+  return true;
+}
+
+void HeapHistograms::CloseTimer() {
+  if (timer_ == nullptr)
+    return;
+
+  env()->CloseHandle(timer_, [](uv_timer_t* handle) { delete handle; });
+  timer_ = nullptr;
+}
+
+HeapHistograms::~HeapHistograms() {
+  Disable();
+  CloseTimer();
+}
+
+
+HistogramWrap* HistogramWrap::New(Environment* env,
+                                  Histogram* histogram,
+                                  std::function<int64_t()> exceeds_fn) {
+  Local<Object> obj;
+  if (!env->histogram_constructor_template()
+          ->NewInstance(env->context())
+          .ToLocal(&obj)) {
+    return nullptr;
+  }
+  return new HistogramWrap(env, obj, histogram, std::move(exceeds_fn));
+}
+
+
 // Event Loop Timing Histogram
 namespace {
 static void ELDHistogramMin(const FunctionCallbackInfo<Value>& args) {
@@ -640,6 +802,40 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(eldh, "reset", ELDHistogramReset);
   target->Set(context, eldh_classname,
               eldh->GetFunction(env->context()).ToLocalChecked()).FromJust();
+
+  Local<String> histogram_name =
+      FIXED_ONE_BYTE_STRING(isolate, "Histogram");
+  Local<FunctionTemplate> histogram =
+      FunctionTemplate::New(env->isolate());
+  histogram->SetClassName(histogram_name);
+  env->SetProtoMethod(histogram, "exceeds", HistogramExceeds);
+  env->SetProtoMethod(histogram, "min", HistogramMin);
+  env->SetProtoMethod(histogram, "max", HistogramMax);
+  env->SetProtoMethod(histogram, "mean", HistogramMean);
+  env->SetProtoMethod(histogram, "stddev", HistogramStddev);
+  env->SetProtoMethod(histogram, "percentile", HistogramPercentile);
+  env->SetProtoMethod(histogram, "percentiles", HistogramPercentiles);
+  Local<ObjectTemplate> histogramt = histogram->InstanceTemplate();
+  histogramt->SetInternalFieldCount(1);
+  env->set_histogram_constructor_template(histogramt);
+
+  Local<String> heap_histograms_name =
+      FIXED_ONE_BYTE_STRING(isolate, "HeapHistograms");
+  Local<FunctionTemplate> heap_histograms =
+      env->NewFunctionTemplate(HeapHistogramsNew);
+  heap_histograms->SetClassName(heap_histograms_name);
+  env->SetProtoMethod(heap_histograms, "enable", HeapHistogramsEnable);
+  env->SetProtoMethod(heap_histograms, "disable", HeapHistogramsDisable);
+  env->SetProtoMethod(heap_histograms, "reset", HeapHistogramsReset);
+  Local<ObjectTemplate> heap_histogramst = heap_histograms->InstanceTemplate();
+  heap_histogramst->Set(env->rss_string(), Null(env->isolate()));
+  heap_histogramst->Set(env->heap_total_string(), Null(env->isolate()));
+  heap_histogramst->Set(env->heap_used_string(), Null(env->isolate()));
+  heap_histogramst->Set(env->external_string(), Null(env->isolate()));
+  heap_histogramst->SetInternalFieldCount(1);
+  target->Set(context, heap_histograms_name,
+              heap_histograms->GetFunction(
+                  env->context()).ToLocalChecked()).FromJust();
 }
 
 }  // namespace performance

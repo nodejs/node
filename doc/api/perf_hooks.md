@@ -530,6 +530,161 @@ added: v11.10.0
 
 The standard deviation of the recorded event loop delays.
 
+## perf_hooks.monitorHeapStatistics([options])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `resolution` {number} The sample rate in milliseconds. Must be greater
+    than zero. **Default** `10`.
+* Returns {HeapHistograms}
+
+Creates an object that samples and reports heap use statistics as a set
+of histograms.
+
+```js
+const { monitorHeapStatistics } = require('perf_hooks');
+const h = monitorHeapStatistics({ resolution: 20 });
+h.enable();
+// Do something.
+h.disable();
+console.log(h.heapTotal.min);
+console.log(h.heapTotal.max);
+console.log(h.heapTotal.mean);
+console.log(h.heapTotal.stddev);
+console.log(h.heapTotal.percentiles);
+console.log(h.heapTotal.percentile(50));
+console.log(h.heapTotal.percentile(99));
+```
+
+### Class: HeapHistograms
+
+#### heaphistograms.disable()
+<!--YAML
+added: REPLACEME
+-->
+* Returns: {boolean}
+
+Disables the heap statistics sample timer. Returns `true` if the timer was
+stopped, `false` if it was already stopped.
+
+
+#### heaphistograms.enable()
+<!--YAML
+added: REPLACEME
+-->
+* Returns: {boolean}
+
+Enables the heap statistics sample timer. Returns `true` if the timer was
+started, `false` if it was already started.
+
+
+#### heaphistograms.external
+<!--YAML
+added: REPLACEME
+-->
+* Returns: {HeapHistogram}
+
+A histogram object that tracks external memory.
+
+#### heaphistograms.heapTotal
+<!--YAML
+added: REPLACEME
+-->
+* Returns: {HeapHistogram}
+
+A histogram object that tracks total heap memory size.
+
+#### heaphistograms.heapUsed
+<!--YAML
+added: REPLACEME
+-->
+* Returns: {HeapHistogram}
+
+A histogram object that tracks used heap memory size.
+
+#### heaphistograms.reset()
+<!--YAML
+added: REPLACEME
+-->
+
+Resets the collected histogram data.
+
+#### heaphistograms.rss
+<!--YAML
+added: REPLACEME
+-->
+* Returns: {HeapHistogram}
+
+A histogram object that tracks RSS memory size.
+
+### HeapHistogram
+
+#### heaphistogram.exceeds
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number}
+
+The number of times the sample value exceeded the maximum.
+
+#### heaphistogram.max
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number}
+
+The maximum recorded sample value.
+
+#### heaphistogram.mean
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number}
+
+The mean of the recorded samples.
+
+#### heaphistogram.min
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number}
+
+The minimum recorded sample value.
+
+#### heaphistogram.percentile(percentile)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `percentile` {number} A percentile value between 1 and 100.
+* Returns: {number}
+
+Returns the value at the given percentile.
+
+#### heaphistogram.percentiles
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Map}
+
+Returns a `Map` object detailing the accumulated percentile distribution.
+
+#### heaphistogram.stddev
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number}
+
+The standard deviation of the recorded samples.
+
 ## Examples
 
 ### Measuring the duration of async operations

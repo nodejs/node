@@ -175,6 +175,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(exponent_string, "exponent")                                               \
   V(exports_string, "exports")                                                 \
   V(ext_key_usage_string, "ext_key_usage")                                     \
+  V(external_string, "external")                                               \
   V(external_stream_string, "_externalStream")                                 \
   V(family_string, "family")                                                   \
   V(fatal_exception_string, "_fatalException")                                 \
@@ -189,6 +190,8 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(get_shared_array_buffer_id_string, "_getSharedArrayBufferId")              \
   V(gid_string, "gid")                                                         \
   V(handle_string, "handle")                                                   \
+  V(heap_total_string, "heapTotal")                                            \
+  V(heap_used_string, "heapUsed")                                              \
   V(help_text_string, "helpText")                                              \
   V(homedir_string, "homedir")                                                 \
   V(host_string, "host")                                                       \
@@ -273,6 +276,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(replacement_string, "replacement")                                         \
   V(require_string, "require")                                                 \
   V(retry_string, "retry")                                                     \
+  V(rss_string, "rss")                                                         \
   V(scheme_string, "scheme")                                                   \
   V(scopeid_string, "scopeid")                                                 \
   V(serial_number_string, "serialNumber")                                      \
@@ -343,6 +347,8 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(fs_use_promises_symbol, v8::Symbol)                                        \
   V(fsreqpromise_constructor_template, v8::ObjectTemplate)                     \
   V(handle_wrap_ctor_template, v8::FunctionTemplate)                           \
+  V(heap_histograms_constructor_template, v8::ObjectTemplate)                  \
+  V(histogram_constructor_template, v8::ObjectTemplate)                        \
   V(host_import_module_dynamically_callback, v8::Function)                     \
   V(host_initialize_import_meta_object_callback, v8::Function)                 \
   V(http2ping_constructor_template, v8::ObjectTemplate)                        \

@@ -12,6 +12,7 @@
 #include "v8.h"
 #include "uv.h"
 
+#include <functional>  // std::function
 #include <string>
 
 namespace node {
@@ -123,6 +124,51 @@ class GCPerformanceEntry : public PerformanceEntry {
 
  private:
   PerformanceGCKind gckind_;
+};
+
+class HeapHistograms : public BaseObject {
+ public:
+  HeapHistograms(Environment* env, Local<Object> wrap, int32_t resolution);
+  ~HeapHistograms() override;
+
+  bool Enable();
+  bool Disable();
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(HeapHistograms)
+  SET_SELF_SIZE(HeapHistograms)
+ private:
+  void CloseTimer();
+  bool enabled_ = false;
+  int32_t resolution_;
+  uv_timer_t* timer_;
+};
+
+class HistogramWrap : public BaseObject {
+ public:
+  static HistogramWrap* New(Environment* env,
+                            Histogram* histogram,
+                            std::function<int64_t()> exceeds_fn);
+  ~HistogramWrap() override {}
+
+  Histogram* operator*() const { return histogram_; }
+  int64_t Exceeds() { return exceeds_fn_(); }
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(HistogramWrap)
+  SET_SELF_SIZE(HistogramWrap)
+ private:
+  HistogramWrap(Environment* env,
+                Local<Object> wrap,
+                Histogram* histogram,
+                std::function<int64_t()> exceeds_fn) :
+      BaseObject(env, wrap),
+      histogram_(histogram),
+      exceeds_fn_(std::move(exceeds_fn)) {
+    MakeWeak();
+  }
+  Histogram* histogram_;
+  std::function<int64_t()> exceeds_fn_;
 };
 
 class ELDHistogram : public BaseObject, public Histogram {
