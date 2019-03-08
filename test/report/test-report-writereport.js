@@ -27,19 +27,19 @@ function validate() {
 
 {
   // Test with no arguments.
-  process.report.triggerReport();
+  process.report.writeReport();
   validate();
 }
 
 {
   // Test with an error argument.
-  process.report.triggerReport(new Error('test error'));
+  process.report.writeReport(new Error('test error'));
   validate();
 }
 
 {
   // Test with a file argument.
-  const file = process.report.triggerReport('custom-name-1.json');
+  const file = process.report.writeReport('custom-name-1.json');
   const absolutePath = path.join(tmpdir.path, file);
   assert.strictEqual(helper.findReports(process.pid, tmpdir.path).length, 0);
   assert.strictEqual(file, 'custom-name-1.json');
@@ -49,8 +49,8 @@ function validate() {
 
 {
   // Test with file and error arguments.
-  const file = process.report.triggerReport('custom-name-2.json',
-                                            new Error('test error'));
+  const file = process.report.writeReport('custom-name-2.json',
+                                          new Error('test error'));
   const absolutePath = path.join(tmpdir.path, file);
   assert.strictEqual(helper.findReports(process.pid, tmpdir.path).length, 0);
   assert.strictEqual(file, 'custom-name-2.json');
@@ -61,7 +61,7 @@ function validate() {
 {
   // Test with a filename option.
   process.report.filename = 'custom-name-3.json';
-  const file = process.report.triggerReport();
+  const file = process.report.writeReport();
   assert.strictEqual(helper.findReports(process.pid, tmpdir.path).length, 0);
   const filename = path.join(process.report.directory, 'custom-name-3.json');
   assert.strictEqual(file, process.report.filename);
@@ -72,21 +72,21 @@ function validate() {
 // Test with an invalid file argument.
 [null, 1, Symbol(), function() {}].forEach((file) => {
   common.expectsError(() => {
-    process.report.triggerReport(file);
+    process.report.writeReport(file);
   }, { code: 'ERR_INVALID_ARG_TYPE' });
 });
 
 // Test with an invalid error argument.
 [null, 1, Symbol(), function() {}, 'foo'].forEach((error) => {
   common.expectsError(() => {
-    process.report.triggerReport('file', error);
+    process.report.writeReport('file', error);
   }, { code: 'ERR_INVALID_ARG_TYPE' });
 });
 
 {
   // Test the special "stdout" filename.
   const args = ['--experimental-report', '-e',
-                'process.report.triggerReport("stdout")'];
+                'process.report.writeReport("stdout")'];
   const child = spawnSync(process.execPath, args, { cwd: tmpdir.path });
   assert.strictEqual(child.status, 0);
   assert.strictEqual(child.signal, null);
@@ -97,7 +97,7 @@ function validate() {
 {
   // Test the special "stderr" filename.
   const args = ['--experimental-report', '-e',
-                'process.report.triggerReport("stderr")'];
+                'process.report.writeReport("stderr")'];
   const child = spawnSync(process.execPath, args, { cwd: tmpdir.path });
   assert.strictEqual(child.status, 0);
   assert.strictEqual(child.signal, null);
@@ -113,7 +113,7 @@ function validate() {
   const args = ['--experimental-report',
                 `--diagnostic-report-directory=${reportDir}`,
                 '-e',
-                'process.report.triggerReport()'];
+                'process.report.writeReport()'];
   const child = spawnSync(process.execPath, args, { cwd: tmpdir.path });
 
   assert.strictEqual(child.status, 0);

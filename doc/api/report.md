@@ -404,14 +404,14 @@ written.
 A report can also be triggered via an API call from a JavaScript application:
 
 ```js
-process.report.triggerReport();
+process.report.writeReport();
 ```
 
 This function takes an optional additional argument `filename`, which is
 the name of a file into which the report is written.
 
 ```js
-process.report.triggerReport('./foo.json');
+process.report.writeReport('./foo.json');
 ```
 
 This function takes an optional additional argument `err` - an `Error` object
@@ -424,19 +424,19 @@ as where it was handled.
 try {
   process.chdir('/non-existent-path');
 } catch (err) {
-  process.report.triggerReport(err);
+  process.report.writeReport(err);
 }
 // Any other code
 ```
 
-If both filename and error object are passed to `triggerReport()` the
+If both filename and error object are passed to `writeReport()` the
 error object must be the second parameter.
 
 ```js
 try {
   process.chdir('/non-existent-path');
 } catch (err) {
-  process.report.triggerReport(filename, err);
+  process.report.writeReport(filename, err);
 }
 // Any other code
 ```
@@ -470,7 +470,7 @@ triggered using the Node.js REPL:
 
 ```raw
 $ node
-> process.report.triggerReport();
+> process.report.writeReport();
 Writing Node.js report to file: report.20181126.091102.8480.001.json
 Node.js report completed
 >
