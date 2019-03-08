@@ -12,7 +12,6 @@
 namespace node {
 
 using v8::Signature;
-using v8::External;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;

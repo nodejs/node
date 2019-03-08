@@ -17,6 +17,7 @@ namespace node {
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::Context;
+using v8::External;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Integer;
@@ -368,6 +369,9 @@ void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
       t, "writeUcs2String", JSMethod<&StreamBase::WriteString<UCS2>>);
   env->SetProtoMethod(
       t, "writeLatin1String", JSMethod<&StreamBase::WriteString<LATIN1>>);
+  t->PrototypeTemplate()->Set(FIXED_ONE_BYTE_STRING(env->isolate(),
+                                                    "isStreamBase"),
+                              True(env->isolate()));
 }
 
 void StreamBase::GetFD(const FunctionCallbackInfo<Value>& args) {
