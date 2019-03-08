@@ -1772,7 +1772,7 @@ The signal used to trigger the creation of a diagnostic report. Defaults to
 console.log(`Report signal: ${process.report.signal}`);
 ```
 
-### process.report.triggerReport([filename][, err])
+### process.report.writeReport([filename][, err])
 <!-- YAML
 added: v11.8.0
 -->
@@ -1790,7 +1790,7 @@ filename includes the date, time, PID, and a sequence number. The report's
 JavaScript stack trace is taken from `err`, if present.
 
 ```js
-process.report.triggerReport();
+process.report.writeReport();
 ```
 
 Additional documentation is available in the [report documentation][].

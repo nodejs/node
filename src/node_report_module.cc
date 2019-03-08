@@ -30,8 +30,7 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-// External JavaScript API for triggering a report
-void TriggerReport(const FunctionCallbackInfo<Value>& info) {
+void WriteReport(const FunctionCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
@@ -161,7 +160,7 @@ static void Initialize(Local<Object> exports,
                        Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
-  env->SetMethod(exports, "triggerReport", TriggerReport);
+  env->SetMethod(exports, "writeReport", WriteReport);
   env->SetMethod(exports, "getReport", GetReport);
   env->SetMethod(exports, "getDirectory", GetDirectory);
   env->SetMethod(exports, "setDirectory", SetDirectory);

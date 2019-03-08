@@ -67,7 +67,7 @@ std::string ValueToHexString(T value) {
 }
 
 // Function declarations - export functions in src/node_report_module.cc
-void TriggerReport(const v8::FunctionCallbackInfo<v8::Value>& info);
+void WriteReport(const v8::FunctionCallbackInfo<v8::Value>& info);
 void GetReport(const v8::FunctionCallbackInfo<v8::Value>& info);
 
 // Node.js boot time - defined in src/node.cc
