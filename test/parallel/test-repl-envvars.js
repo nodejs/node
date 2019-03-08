@@ -38,19 +38,25 @@ const tests = [
 function run(test) {
   const env = test.env;
   const expected = test.expected;
+
   const opts = {
     terminal: true,
     input: new stream.Readable({ read() {} }),
     output: new stream.Writable({ write() {} })
   };
 
-  REPL.createInternalRepl(env, opts, function(err, repl) {
+  Object.assign(process.env, env);
+
+  REPL.createInternalRepl(process.env, opts, function(err, repl) {
     assert.ifError(err);
 
     assert.strictEqual(repl.terminal, expected.terminal,
                        `Expected ${inspect(expected)} with ${inspect(env)}`);
     assert.strictEqual(repl.useColors, expected.useColors,
                        `Expected ${inspect(expected)} with ${inspect(env)}`);
+    for (const key of Object.keys(env)) {
+      delete process.env[key];
+    }
     repl.close();
   });
 }

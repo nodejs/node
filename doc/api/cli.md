@@ -671,7 +671,7 @@ added: v0.1.32
 added: v0.3.0
 -->
 
-When set to `1` colors will not be used in the REPL.
+When set, colors will not be used in the REPL.
 
 ### `NODE_EXTRA_CA_CERTS=file`
 <!-- YAML
