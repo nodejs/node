@@ -180,15 +180,6 @@ void ArrayBufferViewHasBuffer(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(args[0].As<ArrayBufferView>()->HasBuffer());
 }
 
-void EnqueueMicrotask(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-
-  CHECK(args[0]->IsFunction());
-
-  isolate->EnqueueMicrotask(args[0].As<Function>());
-}
-
 class WeakReference : public BaseObject {
  public:
   WeakReference(Environment* env, Local<Object> object, Local<Object> target)
@@ -261,8 +252,6 @@ void Initialize(Local<Object> target,
                              WatchdogHasPendingSigint);
 
   env->SetMethod(target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
-  env->SetMethod(target, "enqueueMicrotask", EnqueueMicrotask);
-  env->SetMethod(target, "triggerFatalException", FatalException);
   Local<Object> constants = Object::New(env->isolate());
   NODE_DEFINE_CONSTANT(constants, ALL_PROPERTIES);
   NODE_DEFINE_CONSTANT(constants, ONLY_WRITABLE);

@@ -31,8 +31,6 @@ void FatalException(v8::Isolate* isolate,
                     v8::Local<v8::Value> error,
                     v8::Local<v8::Message> message);
 
-void FatalException(const v8::FunctionCallbackInfo<v8::Value>& args);
-
 // Helpers to construct errors similar to the ones provided by
 // lib/internal/errors.js.
 // Example: with `V(ERR_INVALID_ARG_TYPE, TypeError)`, there will be
