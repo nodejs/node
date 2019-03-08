@@ -191,6 +191,7 @@ void SetIsolateUpForNode(v8::Isolate* isolate) {
   isolate->SetMicrotasksPolicy(MicrotasksPolicy::kExplicit);
   isolate->SetFatalErrorHandler(OnFatalError);
   isolate->SetAllowWasmCodeGenerationCallback(AllowWasmCodeGenerationCallback);
+  isolate->SetPromiseRejectCallback(task_queue::PromiseRejectCallback);
   v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
 }
 
