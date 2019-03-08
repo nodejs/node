@@ -408,7 +408,7 @@ class IsolateData {
 
   inline bool uses_node_allocator() const;
   inline v8::ArrayBuffer::Allocator* allocator() const;
-  inline ArrayBufferAllocator* node_allocator() const;
+  inline NodeArrayBufferAllocator* node_allocator() const;
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
@@ -443,7 +443,7 @@ class IsolateData {
   v8::Isolate* const isolate_;
   uv_loop_t* const event_loop_;
   v8::ArrayBuffer::Allocator* const allocator_;
-  ArrayBufferAllocator* const node_allocator_;
+  NodeArrayBufferAllocator* const node_allocator_;
   const bool uses_node_allocator_;
   MultiIsolatePlatform* platform_;
   std::shared_ptr<PerIsolateOptions> options_;
