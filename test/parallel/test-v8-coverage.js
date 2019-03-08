@@ -22,6 +22,9 @@ function nextdir() {
   const output = spawnSync(process.execPath, [
     require.resolve('../fixtures/v8-coverage/basic')
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
+  if (output.status !== 0) {
+    console.log(output.stderr.toString());
+  }
   assert.strictEqual(output.status, 0);
   assert.strictEqual(output.stderr.toString(), '');
   const fixtureCoverage = getFixtureCoverage('basic.js', coverageDirectory);
@@ -38,6 +41,9 @@ function nextdir() {
   const output = spawnSync(process.execPath, [
     require.resolve('../fixtures/v8-coverage/exit-1')
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
+  if (output.status !== 1) {
+    console.log(output.stderr.toString());
+  }
   assert.strictEqual(output.status, 1);
   assert.strictEqual(output.stderr.toString(), '');
   const fixtureCoverage = getFixtureCoverage('exit-1.js', coverageDirectory);
@@ -55,6 +61,9 @@ function nextdir() {
     require.resolve('../fixtures/v8-coverage/sigint')
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   if (!common.isWindows) {
+    if (output.signal !== 'SIGINT') {
+      console.log(output.stderr.toString());
+    }
     assert.strictEqual(output.signal, 'SIGINT');
   }
   assert.strictEqual(output.stderr.toString(), '');
@@ -72,6 +81,9 @@ function nextdir() {
   const output = spawnSync(process.execPath, [
     require.resolve('../fixtures/v8-coverage/spawn-subprocess')
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
+  if (output.status !== 0) {
+    console.log(output.stderr.toString());
+  }
   assert.strictEqual(output.status, 0);
   assert.strictEqual(output.stderr.toString(), '');
   const fixtureCoverage = getFixtureCoverage('subprocess.js',
@@ -89,6 +101,9 @@ function nextdir() {
   const output = spawnSync(process.execPath, [
     require.resolve('../fixtures/v8-coverage/worker')
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
+  if (output.status !== 0) {
+    console.log(output.stderr.toString());
+  }
   assert.strictEqual(output.status, 0);
   assert.strictEqual(output.stderr.toString(), '');
   const fixtureCoverage = getFixtureCoverage('subprocess.js',
@@ -106,6 +121,9 @@ function nextdir() {
   const output = spawnSync(process.execPath, [
     require.resolve('../fixtures/v8-coverage/spawn-subprocess-no-cov')
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
+  if (output.status !== 0) {
+    console.log(output.stderr.toString());
+  }
   assert.strictEqual(output.status, 0);
   assert.strictEqual(output.stderr.toString(), '');
   const fixtureCoverage = getFixtureCoverage('subprocess.js',
@@ -119,6 +137,9 @@ function nextdir() {
   const output = spawnSync(process.execPath, [
     require.resolve('../fixtures/v8-coverage/async-hooks')
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
+  if (output.status !== 0) {
+    console.log(output.stderr.toString());
+  }
   assert.strictEqual(output.status, 0);
   assert.strictEqual(output.stderr.toString(), '');
   const fixtureCoverage = getFixtureCoverage('async-hooks.js',
@@ -138,6 +159,9 @@ function nextdir() {
     cwd: tmpdir.path,
     env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory }
   });
+  if (output.status !== 0) {
+    console.log(output.stderr.toString());
+  }
   assert.strictEqual(output.status, 0);
   assert.strictEqual(output.stderr.toString(), '');
   const fixtureCoverage = getFixtureCoverage('basic.js',
