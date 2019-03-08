@@ -40,12 +40,12 @@ function execAndClose() {
     throw e;
   });
 
-  parser.consume(socket._handle._externalStream);
+  parser.consume(socket._handle);
 
   parser.onIncoming = function onIncoming() {
     process.stdout.write('+');
     gotResponses++;
-    parser.unconsume(socket._handle._externalStream);
+    parser.unconsume();
     httpCommon.freeParser(parser);
     socket.destroy();
     setImmediate(execAndClose);
