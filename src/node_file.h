@@ -162,7 +162,7 @@ template <typename NativeT,
 constexpr NativeT ToNative(uv_timespec_t ts) {
   // This template has exactly two specializations below.
   static_assert(std::is_arithmetic<NativeT>::value == false, "Not implemented");
-  UNREACHABLE();
+  return NativeT();
 }
 
 template <>
