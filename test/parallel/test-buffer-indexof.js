@@ -76,8 +76,6 @@ assert.strictEqual(b.indexOf(Buffer.from('f'), 5), 5);
 assert.strictEqual(b.indexOf(Buffer.from('f'), -1), 5);
 assert.strictEqual(b.indexOf(Buffer.from('f'), 6), -1);
 
-assert.strictEqual(Buffer.from('ff').indexOf(Buffer.from('f'), 1, 'ucs2'), -1);
-
 // Test invalid and uppercase encoding
 assert.strictEqual(b.indexOf('b', 'utf8'), 1);
 assert.strictEqual(b.indexOf('b', 'UTF8'), 1);
@@ -295,6 +293,12 @@ assert.strictEqual(Buffer.from('aaaa').indexOf('你好', 'ucs2'), -1);
 // Haystack has odd length, but the needle is UCS2.
 assert.strictEqual(Buffer.from('aaaaa').indexOf('b', 'ucs2'), -1);
 
+// Needle is at odd index
+assert.strictEqual(Buffer.from('00aaaa', 'hex').indexOf(
+  '\uaaaa', 'utf16le'), 1);
+assert.strictEqual(Buffer.from('00aaaa', 'hex').indexOf(
+  Buffer.from('\uaaaa', 'utf16le'), 'utf16le'), 1);
+
 {
   // Find substrings in Utf8.
   const lengths = [1, 3, 15];  // Single char, simple and complex.
@@ -321,27 +325,6 @@ assert.strictEqual(Buffer.from('aaaaa').indexOf('b', 'ucs2'), -1);
 
       const patternStringUtf8 = patternBufferUtf8.toString();
       assert.strictEqual(index, allCharsBufferUtf8.indexOf(patternStringUtf8));
-    }
-  }
-}
-
-{
-  // Find substrings in Usc2.
-  const lengths = [2, 4, 16];  // Single char, simple and complex.
-  const indices = [0x5, 0x65, 0x105, 0x205, 0x285, 0x2005, 0x2085, 0xfff0];
-  for (let lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
-    for (let i = 0; i < indices.length; i++) {
-      const index = indices[i] * 2;
-      const length = lengths[lengthIndex];
-
-      const patternBufferUcs2 =
-          allCharsBufferUcs2.slice(index, index + length);
-      assert.strictEqual(
-        index, allCharsBufferUcs2.indexOf(patternBufferUcs2, 0, 'ucs2'));
-
-      const patternStringUcs2 = patternBufferUcs2.toString('ucs2');
-      assert.strictEqual(
-        index, allCharsBufferUcs2.indexOf(patternStringUcs2, 0, 'ucs2'));
     }
   }
 }

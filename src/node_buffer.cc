@@ -796,8 +796,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
 
   const char* haystack = ts_obj_data;
   // Round down to the nearest multiple of 2 in case of UCS2.
-  const size_t haystack_length = (enc == UCS2) ?
-      ts_obj_length &~ 1 : ts_obj_length;  // NOLINT(whitespace/operators)
+  const size_t haystack_length = ts_obj_length;
 
   size_t needle_length;
   if (!StringBytes::Size(isolate, needle, enc).To(&needle_length)) return;
@@ -841,27 +840,26 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
     if (IsBigEndian()) {
       StringBytes::InlineDecoder decoder;
       if (decoder.Decode(env, needle, args[3], UCS2).IsNothing()) return;
-      const uint16_t* decoded_string =
-          reinterpret_cast<const uint16_t*>(decoder.out());
+      const uint8_t* decoded_string =
+          reinterpret_cast<const uint8_t*>(decoder.out());
 
       if (decoded_string == nullptr)
         return args.GetReturnValue().Set(-1);
 
-      result = SearchString(reinterpret_cast<const uint16_t*>(haystack),
-                            haystack_length / 2,
+      result = SearchString(reinterpret_cast<const uint8_t*>(haystack),
+                            haystack_length,
                             decoded_string,
-                            decoder.size() / 2,
-                            offset / 2,
+                            decoder.size(),
+                            offset,
                             is_forward);
     } else {
-      result = SearchString(reinterpret_cast<const uint16_t*>(haystack),
-                            haystack_length / 2,
-                            reinterpret_cast<const uint16_t*>(*needle_value),
-                            needle_value.length(),
-                            offset / 2,
+      result = SearchString(reinterpret_cast<const uint8_t*>(haystack),
+                            haystack_length,
+                            reinterpret_cast<const uint8_t*>(*needle_value),
+                            needle_value.length() * 2,
+                            offset,
                             is_forward);
     }
-    result *= 2;
   } else if (enc == UTF8) {
     String::Utf8Value needle_value(isolate, needle);
     if (*needle_value == nullptr)
@@ -898,10 +896,6 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsObject());
   CHECK(args[2]->IsNumber());
   CHECK(args[4]->IsBoolean());
-
-  enum encoding enc = ParseEncoding(args.GetIsolate(),
-                                    args[3],
-                                    UTF8);
 
   THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[1]);
@@ -940,29 +934,13 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(-1);
   }
 
-  size_t result = haystack_length;
-
-  if (enc == UCS2) {
-    if (haystack_length < 2 || needle_length < 2) {
-      return args.GetReturnValue().Set(-1);
-    }
-    result = SearchString(
-        reinterpret_cast<const uint16_t*>(haystack),
-        haystack_length / 2,
-        reinterpret_cast<const uint16_t*>(needle),
-        needle_length / 2,
-        offset / 2,
-        is_forward);
-    result *= 2;
-  } else {
-    result = SearchString(
-        reinterpret_cast<const uint8_t*>(haystack),
-        haystack_length,
-        reinterpret_cast<const uint8_t*>(needle),
-        needle_length,
-        offset,
-        is_forward);
-  }
+  size_t result = SearchString(
+      reinterpret_cast<const uint8_t*>(haystack),
+      haystack_length,
+      reinterpret_cast<const uint8_t*>(needle),
+      needle_length,
+      offset,
+      is_forward);
 
   args.GetReturnValue().Set(
       result == haystack_length ? -1 : static_cast<int>(result));

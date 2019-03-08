@@ -74,8 +74,6 @@ assert(b.includes(Buffer.from('f'), 5));
 assert(b.includes(Buffer.from('f'), -1));
 assert(!b.includes(Buffer.from('f'), 6));
 
-assert(!Buffer.from('ff').includes(Buffer.from('f'), 1, 'ucs2'));
-
 // test hex encoding
 assert.strictEqual(
   Buffer.from(b.toString('hex'), 'hex')
