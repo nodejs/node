@@ -116,6 +116,16 @@ void DumpBacktrace(FILE* fp);
 
 #define ABORT() node::Abort()
 
+#define ASSERT(expr)                                                          \
+  do {                                                                        \
+    /* Make sure that this struct does not end up in inline code, but      */ \
+    /* rather in a read-only data section when modifying this code.        */ \
+    constexpr node::AssertionInfo args = {                                    \
+      __FILE__ ":" STRINGIFY(__LINE__), #expr, PRETTY_FUNCTION_NAME           \
+    };                                                                        \
+    node::Assert(args);                                                       \
+  } while (0)
+
 #ifdef __GNUC__
 #define LIKELY(expr) __builtin_expect(!!(expr), 1)
 #define UNLIKELY(expr) __builtin_expect(!!(expr), 0)
@@ -132,12 +142,7 @@ void DumpBacktrace(FILE* fp);
 #define CHECK(expr)                                                           \
   do {                                                                        \
     if (UNLIKELY(!(expr))) {                                                  \
-      /* Make sure that this struct does not end up in inline code, but    */ \
-      /* rather in a read-only data section when modifying this code.      */ \
-      static const node::AssertionInfo args = {                               \
-        __FILE__ ":" STRINGIFY(__LINE__), #expr, PRETTY_FUNCTION_NAME         \
-      };                                                                      \
-      node::Assert(args);                                                     \
+      ASSERT(expr);                                                           \
     }                                                                         \
   } while (0)
 
@@ -176,7 +181,7 @@ void DumpBacktrace(FILE* fp);
 #endif
 
 
-#define UNREACHABLE() ABORT()
+#define UNREACHABLE(expr) ASSERT(expr)
 
 // TAILQ-style intrusive list node.
 template <typename T>
