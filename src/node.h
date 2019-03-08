@@ -597,9 +597,10 @@ struct async_context {
 
 /* Registers an additional v8::PromiseHook wrapper. This API exists because V8
  * itself supports only a single PromiseHook. */
-NODE_EXTERN void AddPromiseHook(v8::Isolate* isolate,
-                                promise_hook_func fn,
-                                void* arg);
+NODE_DEPRECATED("Use async_hooks directly instead",
+                NODE_EXTERN void AddPromiseHook(v8::Isolate* isolate,
+                                                promise_hook_func fn,
+                                                void* arg));
 
 /* This is a lot like node::AtExit, except that the hooks added via this
  * function are run before the AtExit ones and will always be registered
