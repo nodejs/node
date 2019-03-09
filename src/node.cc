@@ -296,8 +296,6 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
       env->process_string(),
       FIXED_ONE_BYTE_STRING(isolate, "getLinkedBinding"),
       FIXED_ONE_BYTE_STRING(isolate, "getInternalBinding"),
-      // --experimental-modules
-      FIXED_ONE_BYTE_STRING(isolate, "experimentalModules"),
       // --expose-internals
       FIXED_ONE_BYTE_STRING(isolate, "exposeInternals"),
       env->primordials_string()};
@@ -309,7 +307,6 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
       env->NewFunctionTemplate(binding::GetInternalBinding)
           ->GetFunction(context)
           .ToLocalChecked(),
-      Boolean::New(isolate, env->options()->experimental_modules),
       Boolean::New(isolate, env->options()->expose_internals),
       env->primordials()};
 
@@ -331,16 +328,19 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
       loader_exports_obj->Get(context, env->require_string()).ToLocalChecked();
   env->set_native_module_require(require.As<Function>());
 
-  // process, loaderExports, isMainThread, ownsProcessState, primordials
+  // process, require, internalBinding, isMainThread,
+  // ownsProcessState, primordials
   std::vector<Local<String>> node_params = {
       env->process_string(),
-      FIXED_ONE_BYTE_STRING(isolate, "loaderExports"),
+      env->require_string(),
+      env->internal_binding_string(),
       FIXED_ONE_BYTE_STRING(isolate, "isMainThread"),
       FIXED_ONE_BYTE_STRING(isolate, "ownsProcessState"),
       env->primordials_string()};
   std::vector<Local<Value>> node_args = {
       process,
-      loader_exports_obj,
+      require,
+      internal_binding_loader,
       Boolean::New(isolate, env->is_main_thread()),
       Boolean::New(isolate, env->owns_process_state()),
       env->primordials()};
