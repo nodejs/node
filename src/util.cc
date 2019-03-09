@@ -134,6 +134,7 @@ std::vector<std::string> SplitString(const std::string& in, char delim) {
   while (in_stream.good()) {
     std::string item;
     std::getline(in_stream, item, delim);
+    if (item.empty()) continue;
     out.emplace_back(std::move(item));
   }
   return out;
