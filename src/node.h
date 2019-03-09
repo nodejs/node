@@ -269,7 +269,7 @@ NODE_EXTERN void SetIsolateUpForNode(v8::Isolate* isolate);
 // Creates a new isolate with Node.js-specific settings.
 // This is a convenience method equivalent to using SetIsolateCreateParams(),
 // Isolate::Allocate(), MultiIsolatePlatform::RegisterIsolate(),
-// Isolate::Initialize(), and SetIsolateUpForNow().
+// Isolate::Initialize(), and SetIsolateUpForNode().
 NODE_EXTERN v8::Isolate* NewIsolate(ArrayBufferAllocator* allocator,
                                     struct uv_loop_s* event_loop);
 NODE_EXTERN v8::Isolate* NewIsolate(ArrayBufferAllocator* allocator,
