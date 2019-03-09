@@ -463,6 +463,11 @@ struct CompileFnEntry {
   CompileFnEntry(Environment* env, uint32_t id);
 };
 
+class ReqWrapHistogram {
+ public:
+  virtual void Record(int type, int64_t delta) = 0;
+};
+
 // Listing the AsyncWrap provider types first enables us to cast directly
 // from a provider type to a debug category.
 #define DEBUG_CATEGORY_NAMES(V)                                                \
@@ -814,6 +819,11 @@ class Environment {
   inline performance::performance_state* performance_state();
   inline std::unordered_map<std::string, uint64_t>* performance_marks();
 
+  void add_req_wrap_listener(ReqWrapHistogram* listener);
+  void remove_req_wrap_listener(ReqWrapHistogram* listener);
+  void record_req_wrap_latency(int type, uint64_t start_time);
+  bool req_wrap_latency_enabled();
+
   void CollectUVExceptionInfo(v8::Local<v8::Value> context,
                               int errorno,
                               const char* syscall = nullptr,
@@ -1123,6 +1133,8 @@ class Environment {
       file_handle_read_wrap_freelist_;
 
   worker::Worker* worker_context_ = nullptr;
+
+  std::unordered_set<ReqWrapHistogram*> req_wrap_listeners_;
 
   static void RunTimers(uv_timer_t* handle);
 

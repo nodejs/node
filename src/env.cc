@@ -942,6 +942,26 @@ char* Environment::Reallocate(char* data, size_t old_size, size_t size) {
   return new_data;
 }
 
+void Environment::add_req_wrap_listener(ReqWrapHistogram* listener) {
+  req_wrap_listeners_.insert(listener);
+}
+
+void Environment::remove_req_wrap_listener(ReqWrapHistogram* listener) {
+  req_wrap_listeners_.erase(listener);
+}
+
+void Environment::record_req_wrap_latency(int type, uint64_t start_time) {
+  auto delta = uv_hrtime() - start_time;
+  for (auto listener : req_wrap_listeners_) {
+    listener->Record(type, delta);
+  }
+}
+
+bool Environment::req_wrap_latency_enabled() {
+  return !req_wrap_listeners_.empty();
+}
+
+
 // Not really any better place than env.cc at this moment.
 void BaseObject::DeleteMe(void* data) {
   BaseObject* self = static_cast<BaseObject*>(data);

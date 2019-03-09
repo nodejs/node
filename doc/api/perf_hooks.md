@@ -4,10 +4,11 @@
 
 > Stability: 1 - Experimental
 
-The Performance Timing API provides an implementation of the
-[W3C Performance Timeline][] specification. The purpose of the API
-is to support collection of high resolution performance metrics.
-This is the same Performance API as implemented in modern Web browsers.
+The `perf_hooks` module provides an implementation of the Performance
+Timing API based on the [W3C Performance Timeline][] specification, as
+well as several other performance and timing diagnostic functions. The
+purpose of the API is to support collection of high resolution performance
+metrics.
 
 ```js
 const { PerformanceObserver, performance } = require('perf_hooks');
@@ -24,6 +25,113 @@ doSomeLongRunningProcess(() => {
   performance.measure('A to B', 'A', 'B');
 });
 ```
+
+## Class: Histogram
+<!-- YAML
+added: v11.10.0
+-->
+The `Histogram` class is returned by several `perf_hooks` APIs including
+`perf_hooks.monitorEventLoopDelay()` and `perf_hooks.monitorRequestWrapLatency()`.
+
+### histogram.count
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number}
+
+The total number of sample values recorded.
+
+### histogram.disable()
+<!-- YAML
+added: v11.10.0
+-->
+
+* Returns: {boolean}
+
+Disables the histogram tracking. Returns `true` if the tracking was
+disabled, `false` if it was already disabled.
+
+### histogram.enable()
+<!-- YAML
+added: v11.10.0
+-->
+
+* Returns: {boolean}
+
+Enables the histogram tracking. Returns `true` if the tracking was
+enabled, `false` if it was already enabled.
+
+### histogram.exceeds
+<!-- YAML
+added: v11.10.0
+-->
+
+* {number}
+
+The number of times the sample value exceeded the maximum.
+
+### histogram.max
+<!-- YAML
+added: v11.10.0
+-->
+
+* {number}
+
+The maximum recorded sample value.
+
+### histogram.mean
+<!-- YAML
+added: v11.10.0
+-->
+
+* {number}
+
+The mean of the recorded sample value.
+
+### histogram.min
+<!-- YAML
+added: v11.10.0
+-->
+
+* {number}
+
+The minimum recorded sample value.
+
+### histogram.percentile(percentile)
+<!-- YAML
+added: v11.10.0
+-->
+
+* `percentile` {number} A percentile value between 1 and 100.
+* Returns: {number}
+
+Returns the value at the given percentile.
+
+### histogram.percentiles
+<!-- YAML
+added: v11.10.0
+-->
+
+* {Map}
+
+Returns a `Map` object detailing the accumulated percentile distribution.
+
+### histogram.reset()
+<!-- YAML
+added: v11.10.0
+-->
+
+Resets the collected histogram data.
+
+### histogram.stddev
+<!-- YAML
+added: v11.10.0
+-->
+
+* {number}
+
+The standard deviation of the recorded sample values.
 
 ## Class: Performance
 <!-- YAML
@@ -432,103 +540,52 @@ console.log(h.percentile(50));
 console.log(h.percentile(99));
 ```
 
-### Class: Histogram
-<!-- YAML
-added: v11.10.0
--->
-Tracks the event loop delay at a given sampling rate.
+The maximum event loop delay that can be recorded is one hour. Values above
+that limit are dropped. The number of dropped values is reported by the
+`histogram.exceeds` property.
 
-#### histogram.disable()
+## perf_hooks.monitorRequestWrapLatency([options])
 <!-- YAML
-added: v11.10.0
+added: REPLACEME
 -->
 
-* Returns: {boolean}
+* `options` {Object}
+  * `types` {string[]} A list of [async_hook types][] to include in the
+    histogram samples. If not specified, the histogram will record
+    values for all ReqWrap types.
+* Returns: {Histogram}
 
-Disables the event loop delay sample timer. Returns `true` if the timer was
-stopped, `false` if it was already stopped.
+Returns a `Histogram` object that reports the latency of libuv
+request handles. A request handle is an async resource within
+Node.js that tracks the state of an individual asynchronous
+operation (e.g. a file read, a DNS lookup, etc). The latency
+of a request is the length of time from when the request is
+passed off to the event loop to when the corresponding callback
+is invoked.
 
-#### histogram.enable()
-<!-- YAML
-added: v11.10.0
--->
+The histogram effectively measures how long the event loop is
+taking to perform and resolve individual asynchronous operations,
+without differentiating between the types of operations
+measured.
 
-* Returns: {boolean}
+```js
+const { monitorRequestWrapLatency } = require('perf_hooks');
+const h = monitorRequestWrapLatency();
+h.enable();
+// Do something.
+h.disable();
+console.log(h.min);
+console.log(h.max);
+console.log(h.mean);
+console.log(h.stddev);
+console.log(h.percentiles);
+console.log(h.percentile(50));
+console.log(h.percentile(99));
+```
 
-Enables the event loop delay sample timer. Returns `true` if the timer was
-started, `false` if it was already started.
-
-#### histogram.exceeds
-<!-- YAML
-added: v11.10.0
--->
-
-* {number}
-
-The number of times the event loop delay exceeded the maximum 1 hour event
-loop delay threshold.
-
-#### histogram.max
-<!-- YAML
-added: v11.10.0
--->
-
-* {number}
-
-The maximum recorded event loop delay.
-
-#### histogram.mean
-<!-- YAML
-added: v11.10.0
--->
-
-* {number}
-
-The mean of the recorded event loop delays.
-
-#### histogram.min
-<!-- YAML
-added: v11.10.0
--->
-
-* {number}
-
-The minimum recorded event loop delay.
-
-#### histogram.percentile(percentile)
-<!-- YAML
-added: v11.10.0
--->
-
-* `percentile` {number} A percentile value between 1 and 100.
-* Returns: {number}
-
-Returns the value at the given percentile.
-
-#### histogram.percentiles
-<!-- YAML
-added: v11.10.0
--->
-
-* {Map}
-
-Returns a `Map` object detailing the accumulated percentile distribution.
-
-#### histogram.reset()
-<!-- YAML
-added: v11.10.0
--->
-
-Resets the collected histogram data.
-
-#### histogram.stddev
-<!-- YAML
-added: v11.10.0
--->
-
-* {number}
-
-The standard deviation of the recorded event loop delays.
+The maximum latency that can be recorded is one hour. Values above
+that limit are dropped. The number of dropped values is reported by the
+`histogram.exceeds` property.
 
 ## Examples
 
@@ -612,3 +669,4 @@ require('some-module');
 [`timeOrigin`]: https://w3c.github.io/hr-time/#dom-performance-timeorigin
 [Async Hooks]: async_hooks.html
 [W3C Performance Timeline]: https://w3c.github.io/performance-timeline/
+[async_hook types]: async_hooks.html#async_hooks_type

@@ -2,12 +2,13 @@
 
 const common = require('../common');
 const assert = require('assert');
+const fs = require('fs');
 const {
-  monitorEventLoopDelay
+  monitorRequestWrapLatency
 } = require('perf_hooks');
 
 {
-  const histogram = monitorEventLoopDelay();
+  const histogram = monitorRequestWrapLatency();
   assert(histogram);
   assert(histogram.enable());
   assert(!histogram.enable());
@@ -17,42 +18,12 @@ const {
 }
 
 {
-  [null, 'a', 1, false, Infinity].forEach((i) => {
-    common.expectsError(
-      () => monitorEventLoopDelay(i),
-      {
-        type: TypeError,
-        code: 'ERR_INVALID_ARG_TYPE'
-      }
-    );
-  });
-
-  [null, 'a', false, {}, []].forEach((i) => {
-    common.expectsError(
-      () => monitorEventLoopDelay({ resolution: i }),
-      {
-        type: TypeError,
-        code: 'ERR_INVALID_ARG_TYPE'
-      }
-    );
-  });
-
-  [-1, 0, Infinity].forEach((i) => {
-    common.expectsError(
-      () => monitorEventLoopDelay({ resolution: i }),
-      {
-        type: RangeError,
-        code: 'ERR_INVALID_OPT_VALUE'
-      }
-    );
-  });
-}
-
-{
-  const histogram = monitorEventLoopDelay({ resolution: 1 });
+  const histogram = monitorRequestWrapLatency();
   histogram.enable();
   let m = 5;
   function spinAWhile() {
+    // do an async operation
+    fs.readFile(__filename, () => { /* We don't care about the results */ });
     common.busyLoop(1000);
     if (--m > 0) {
       setTimeout(spinAWhile, common.platformTimeout(500));
@@ -98,3 +69,39 @@ const {
   }
   spinAWhile();
 }
+
+{
+  // Pick a AsyncWrap provider name that we won't use...
+  const histogram = monitorRequestWrapLatency({
+    types: [ 'WRITEWRAP', 'not-a-real-value-wont-cause-an-error' ]
+  });
+  histogram.enable();
+  let m = 5;
+  function spinAWhile() {
+    // do an async operation
+    fs.readFile(__filename, () => { /* We don't care about the results */ });
+    common.busyLoop(1000);
+    if (--m > 0) {
+      setTimeout(spinAWhile, common.platformTimeout(500));
+    } else {
+      histogram.disable();
+      assert.strictEqual(histogram.count, 0);
+      assert.strictEqual(histogram.min, 9223372036854776000);
+      assert.strictEqual(histogram.max, 0);
+      assert(Number.isNaN(histogram.stddev));
+      assert(Number.isNaN(histogram.mean));
+      assert.strictEqual(histogram.percentiles.size, 1);
+    }
+  }
+  spinAWhile();
+}
+
+[1, true, {}, 'test', null].forEach((i) => {
+  common.expectsError(
+    () => monitorRequestWrapLatency({ types: i }),
+    {
+      type: TypeError,
+      code: 'ERR_INVALID_ARG_TYPE'
+    }
+  );
+});

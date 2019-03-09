@@ -3,6 +3,7 @@
 #include "node_perf.h"
 #include "node_buffer.h"
 #include "node_process.h"
+#include "async_wrap-inl.h"
 
 #include <cinttypes>
 
@@ -25,7 +26,6 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
-using v8::Map;
 using v8::MaybeLocal;
 using v8::Name;
 using v8::NewStringType;
@@ -391,127 +391,124 @@ void Timerify(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(wrap);
 }
 
-// Event Loop Timing Histogram
+
 namespace {
-static void ELDHistogramMin(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
+void HistogramMin(const FunctionCallbackInfo<Value>& args) {
+  HistogramBase* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  double value = static_cast<double>(histogram->Min());
-  args.GetReturnValue().Set(value);
+  Histogram::GetMin(histogram, args);
 }
 
-static void ELDHistogramMax(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
+void HistogramMax(const FunctionCallbackInfo<Value>& args) {
+  HistogramBase* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  double value = static_cast<double>(histogram->Max());
-  args.GetReturnValue().Set(value);
+  Histogram::GetMax(histogram, args);
 }
 
-static void ELDHistogramMean(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
+void HistogramMean(const FunctionCallbackInfo<Value>& args) {
+  HistogramBase* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  args.GetReturnValue().Set(histogram->Mean());
+  Histogram::GetMean(histogram, args);
 }
 
-static void ELDHistogramExceeds(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
+void HistogramCount(const FunctionCallbackInfo<Value>& args) {
+  HistogramBase* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  double value = static_cast<double>(histogram->Exceeds());
-  args.GetReturnValue().Set(value);
+  Histogram::GetCount(histogram, args);
 }
 
-static void ELDHistogramStddev(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
+void HistogramExceeds(const FunctionCallbackInfo<Value>& args) {
+  HistogramBase* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  args.GetReturnValue().Set(histogram->Stddev());
+  Histogram::GetExceeds(histogram, args);
 }
 
-static void ELDHistogramPercentile(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
+void HistogramStddev(const FunctionCallbackInfo<Value>& args) {
+  HistogramBase* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  CHECK(args[0]->IsNumber());
-  double percentile = args[0].As<Number>()->Value();
-  args.GetReturnValue().Set(histogram->Percentile(percentile));
+  Histogram::GetStddev(histogram, args);
 }
 
-static void ELDHistogramPercentiles(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  ELDHistogram* histogram;
+void HistogramPercentile(const FunctionCallbackInfo<Value>& args) {
+  HistogramBase* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  CHECK(args[0]->IsMap());
-  Local<Map> map = args[0].As<Map>();
-  histogram->Percentiles([&](double key, double value) {
-    map->Set(env->context(),
-             Number::New(env->isolate(), key),
-             Number::New(env->isolate(), value)).IsEmpty();
-  });
+  Histogram::GetPercentile(histogram, args);
 }
 
-static void ELDHistogramEnable(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
+void HistogramPercentiles(const FunctionCallbackInfo<Value>& args) {
+  HistogramBase* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  Histogram::GetPercentiles(histogram, args);
+}
+
+void HistogramEnable(const FunctionCallbackInfo<Value>& args) {
+  HistogramBase* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
   args.GetReturnValue().Set(histogram->Enable());
 }
 
-static void ELDHistogramDisable(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
+void HistogramDisable(const FunctionCallbackInfo<Value>& args) {
+  HistogramBase* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
   args.GetReturnValue().Set(histogram->Disable());
 }
 
-static void ELDHistogramReset(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
+void HistogramReset(const FunctionCallbackInfo<Value>& args) {
+  HistogramBase* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
   histogram->ResetState();
 }
 
-static void ELDHistogramNew(const FunctionCallbackInfo<Value>& args) {
+void ELDHistogramNew(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args.IsConstructCall());
   int32_t resolution = args[0]->IntegerValue(env->context()).FromJust();
   CHECK_GT(resolution, 0);
   new ELDHistogram(env, args.This(), resolution);
 }
-}  // namespace
 
-ELDHistogram::ELDHistogram(
-    Environment* env,
-    Local<Object> wrap,
-    int32_t resolution) : BaseObject(env, wrap),
-                          Histogram(1, 3.6e12),
-                          resolution_(resolution) {
-  MakeWeak();
-  timer_ = new uv_timer_t();
-  uv_timer_init(env->event_loop(), timer_);
-  timer_->data = this;
-}
-
-void ELDHistogram::CloseTimer() {
-  if (timer_ == nullptr)
-    return;
-
-  env()->CloseHandle(timer_, [](uv_timer_t* handle) { delete handle; });
-  timer_ = nullptr;
-}
-
-ELDHistogram::~ELDHistogram() {
-  Disable();
-  CloseTimer();
+void RWLHistogramNew(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args.IsConstructCall());
+  RWLHistogram* ret = new RWLHistogram(env, args.This());
+  ret->SetTypes(args[0]);
 }
 
 void ELDHistogramDelayInterval(uv_timer_t* req) {
   ELDHistogram* histogram =
     reinterpret_cast<ELDHistogram*>(req->data);
   histogram->RecordDelta();
-  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                 "min", histogram->Min());
-  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                 "max", histogram->Max());
-  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                 "mean", histogram->Mean());
-  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                 "stddev", histogram->Stddev());
+  if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
+          TRACING_CATEGORY_NODE2(perf, event_loop)) != 0) {
+    auto value = tracing::TracedValue::Create();
+    histogram->DumpToTracedValue(value.get());
+    TRACE_EVENT_INSTANT1(TRACING_CATEGORY_NODE2(perf, event_loop),
+                         "EventLoopDelay",
+                         TRACE_EVENT_SCOPE_THREAD,
+                         "histogram",
+                         std::move(value));
+  }
 }
+
+}  // namespace
+
+HistogramBase::HistogramBase(
+    Environment* env,
+    Local<Object> wrap,
+    int64_t lowest,
+    int64_t highest,
+    int figures) :
+    BaseObject(env, wrap),
+    Histogram(lowest, highest, figures) {
+  MakeWeak();
+}
+
+ELDHistogram::ELDHistogram(
+    Environment* env,
+    Local<Object> wrap,
+    int32_t resolution) : HistogramBase(env, wrap, 1, 3.6e12),
+                          resolution_(resolution),
+                          timer_(nullptr) {}
 
 bool ELDHistogram::RecordDelta() {
   uint64_t time = uv_hrtime();
@@ -521,10 +518,9 @@ bool ELDHistogram::RecordDelta() {
     if (delta > 0) {
       ret = Record(delta);
       TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                     "delay", delta);
+                     "EventLoopDelay",
+                     delta);
       if (!ret) {
-        if (exceeds_ < 0xFFFFFFFF)
-          exceeds_++;
         ProcessEmitWarning(
             env(),
             "Event loop delay exceeded 1 hour: %" PRId64 " nanoseconds",
@@ -536,9 +532,22 @@ bool ELDHistogram::RecordDelta() {
   return ret;
 }
 
+void ELDHistogram::Cleanup() {
+  if (timer_ == nullptr)
+    return;
+  env()->CloseHandle(timer_, [](uv_timer_t* handle) { delete handle; });
+  timer_ = nullptr;
+}
+
 bool ELDHistogram::Enable() {
-  if (enabled_) return false;
-  enabled_ = true;
+  if (timer_ == nullptr) {
+    timer_ = new uv_timer_t();
+    timer_->data = static_cast<void*>(this);
+    uv_timer_init(env()->event_loop(), timer_);
+  } else if (uv_is_active(reinterpret_cast<uv_handle_t*>(timer_))) {
+    // Timer is already running
+    return false;
+  }
   uv_timer_start(timer_,
                  ELDHistogramDelayInterval,
                  resolution_,
@@ -548,10 +557,70 @@ bool ELDHistogram::Enable() {
 }
 
 bool ELDHistogram::Disable() {
-  if (!enabled_) return false;
-  enabled_ = false;
-  uv_timer_stop(timer_);
+  if (timer_ == nullptr)
+    return false;
+  Cleanup();
   return true;
+}
+
+
+RWLHistogram::RWLHistogram(
+    Environment* env,
+    Local<Object> wrap) : HistogramBase(env, wrap, 1, 3.6e12),
+    providers_(0) {}
+
+bool RWLHistogram::Enable() {
+  if (!enabled_) {
+    enabled_ = true;
+    env()->add_req_wrap_listener(this);
+    return true;
+  }
+  return false;
+}
+
+bool RWLHistogram::Disable() {
+  if (enabled_) {
+    enabled_ = false;
+    env()->remove_req_wrap_listener(this);
+    return true;
+  }
+  return false;
+}
+
+void RWLHistogram::Record(int type, int64_t delta) {
+  if (!providers_[type])
+    return;
+  Histogram::Record(delta);
+  if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
+          TRACING_CATEGORY_NODE2(perf, reqwrap)) != 0) {
+    auto value = tracing::TracedValue::Create();
+    DumpToTracedValue(value.get());
+    TRACE_EVENT_INSTANT1(TRACING_CATEGORY_NODE2(perf, reqwrap),
+                        "ReqWrapLatency",
+                        TRACE_EVENT_SCOPE_THREAD,
+                        "histogram",
+                        std::move(value));
+  }
+}
+
+void RWLHistogram::SetTypes(Local<Value> names) {
+  if (names->IsArray()) {
+    Local<Array> array = names.As<Array>();
+    uint32_t length = array->Length();
+    for (uint32_t i = 0; i < length; ++i) {
+      Utf8Value name(env()->isolate(),
+                     array->Get(env()->context(), i).ToLocalChecked());
+#define V(n)                                                                   \
+  if (strcmp(*name, #n) == 0) {                                                \
+    providers_.set(AsyncWrap::PROVIDER_ ## n);                                 \
+  }
+      NODE_ASYNC_PROVIDER_TYPES(V)
+#undef V
+    }
+  } else if (names.IsEmpty() || names->IsUndefined()) {
+    for (uint32_t i = 0; i < AsyncWrap::PROVIDERS_LENGTH; i++)
+      providers_.set(i);
+  }
 }
 
 void Initialize(Local<Object> target,
@@ -628,18 +697,24 @@ void Initialize(Local<Object> target,
       env->NewFunctionTemplate(ELDHistogramNew);
   eldh->SetClassName(eldh_classname);
   eldh->InstanceTemplate()->SetInternalFieldCount(1);
-  env->SetProtoMethod(eldh, "exceeds", ELDHistogramExceeds);
-  env->SetProtoMethod(eldh, "min", ELDHistogramMin);
-  env->SetProtoMethod(eldh, "max", ELDHistogramMax);
-  env->SetProtoMethod(eldh, "mean", ELDHistogramMean);
-  env->SetProtoMethod(eldh, "stddev", ELDHistogramStddev);
-  env->SetProtoMethod(eldh, "percentile", ELDHistogramPercentile);
-  env->SetProtoMethod(eldh, "percentiles", ELDHistogramPercentiles);
-  env->SetProtoMethod(eldh, "enable", ELDHistogramEnable);
-  env->SetProtoMethod(eldh, "disable", ELDHistogramDisable);
-  env->SetProtoMethod(eldh, "reset", ELDHistogramReset);
+#define SET_ELDH_FNS(name, fn)                                                 \
+  env->SetProtoMethod(eldh, #name, Histogram##fn);
+  HISTOGRAM_FNS(SET_ELDH_FNS)
+#undef SET_ELDH_FNS
   target->Set(context, eldh_classname,
               eldh->GetFunction(env->context()).ToLocalChecked()).FromJust();
+
+  Local<String> rwlh_classname = FIXED_ONE_BYTE_STRING(isolate, "RWLHistogram");
+  Local<FunctionTemplate> rwlh =
+      env->NewFunctionTemplate(RWLHistogramNew);
+  rwlh->SetClassName(rwlh_classname);
+  rwlh->InstanceTemplate()->SetInternalFieldCount(1);
+#define SET_RWL_FNS(name, fn)                                                 \
+  env->SetProtoMethod(rwlh, #name, Histogram##fn);
+  HISTOGRAM_FNS(SET_RWL_FNS)
+#undef SET_RWL_FNS
+  target->Set(context, rwlh_classname,
+              rwlh->GetFunction(env->context()).ToLocalChecked()).FromJust();
 }
 
 }  // namespace performance

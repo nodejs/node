@@ -124,6 +124,10 @@ struct MakeLibuvRequestCallback<ReqT, void(*)(ReqT*, Args...)> {
     ReqWrap<ReqT>* req_wrap = ContainerOf(&ReqWrap<ReqT>::req_, req);
     req_wrap->env()->DecreaseWaitingRequestCounter();
     F original_callback = reinterpret_cast<F>(req_wrap->original_callback_);
+    if (req_wrap->env()->req_wrap_latency_enabled())
+      req_wrap->env()->record_req_wrap_latency(
+        req_wrap->provider_type(),
+        req_wrap->start_timestamp_);
     original_callback(req, args...);
   }
 
@@ -154,6 +158,8 @@ int ReqWrap<T>::Dispatch(LibuvFunction fn, Args... args) {
   //                                                               |
   //               Other (non-function) arguments are passed  -----/
   //               through verbatim
+  if (env()->req_wrap_latency_enabled())
+    start_timestamp_ = uv_hrtime();
   int err = CallLibuvFunction<T, LibuvFunction>::Call(
       fn,
       env()->event_loop(),

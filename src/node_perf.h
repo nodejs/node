@@ -8,10 +8,12 @@
 #include "env.h"
 #include "base_object-inl.h"
 #include "histogram-inl.h"
+#include "async_wrap.h"
 
 #include "v8.h"
 #include "uv.h"
 
+#include <bitset>
 #include <string>
 
 namespace node {
@@ -125,37 +127,75 @@ class GCPerformanceEntry : public PerformanceEntry {
   PerformanceGCKind gckind_;
 };
 
-class ELDHistogram : public BaseObject, public Histogram {
+class HistogramBase : public BaseObject,
+                      public Histogram {
+ public:
+  HistogramBase(
+    Environment* env,
+    Local<Object> wrap,
+    int64_t lowest,
+    int64_t highest,
+    int figures = 3);
+  virtual ~HistogramBase() {
+    Disable();
+  }
+
+  virtual void Cleanup() {}
+  virtual bool Enable() {
+    return false;
+  }
+
+  virtual bool Disable() {
+    Cleanup();
+    return false;
+  }
+  virtual void ResetState() {
+    Reset();
+  }
+
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackFieldWithSize("histogram", GetMemorySize());
+  }
+};
+
+class RWLHistogram : public HistogramBase,
+                     public ReqWrapHistogram {
+ public:
+  RWLHistogram(Environment* env, Local<Object> wrap);
+
+  bool Enable() override;
+  bool Disable() override;
+  void Record(int type, int64_t delta) override;
+  void SetTypes(v8::Local<v8::Value> names);
+
+  SET_MEMORY_INFO_NAME(RWLHistogram)
+  SET_SELF_SIZE(RWLHistogram)
+
+ private:
+  std::bitset<AsyncWrap::PROVIDERS_LENGTH> providers_;
+  bool enabled_ = false;
+};
+
+class ELDHistogram : public HistogramBase {
  public:
   ELDHistogram(Environment* env,
                Local<Object> wrap,
                int32_t resolution);
 
-  ~ELDHistogram() override;
-
   bool RecordDelta();
-  bool Enable();
-  bool Disable();
-  void ResetState() {
+  void Cleanup() override;
+  bool Enable() override;
+  bool Disable() override;
+  void ResetState() override {
     Reset();
-    exceeds_ = 0;
     prev_ = 0;
-  }
-  int64_t Exceeds() { return exceeds_; }
-
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackFieldWithSize("histogram", GetMemorySize());
   }
 
   SET_MEMORY_INFO_NAME(ELDHistogram)
   SET_SELF_SIZE(ELDHistogram)
 
  private:
-  void CloseTimer();
-
-  bool enabled_ = false;
   int32_t resolution_ = 0;
-  int64_t exceeds_ = 0;
   uint64_t prev_ = 0;
   uv_timer_t* timer_;
 };

@@ -33,6 +33,7 @@
 #include "node_perf_common.h"
 #include "node_context_data.h"
 #include "node_worker.h"
+#include "histogram-inl.h"
 
 #include <cstddef>
 #include <cstdint>

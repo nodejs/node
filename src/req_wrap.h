@@ -66,6 +66,7 @@ class ReqWrap : public AsyncWrap, public ReqWrapBase {
   // req_. For more information please refer to
   // `doc/guides/node-postmortem-support.md`
   T req_;
+  uint64_t start_timestamp_;
 };
 
 }  // namespace node

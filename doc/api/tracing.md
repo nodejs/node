@@ -23,17 +23,19 @@ The available categories are:
 * `node.environment` - Enables capture of Node.js Environment milestones.
 * `node.fs.sync` - Enables capture of trace data for file system sync methods.
 * `node.perf` - Enables capture of [Performance API] measurements.
-  * `node.perf.usertiming` - Enables capture of only Performance API User Timing
-    measures and marks.
+  * `node.perf.event_loop` - Enables capture of event loop delay information
+    when the `perf_hooks.monitorEventLoopDelay()` API is used.
+  * `node.perf.reqwrap` - Enables capture of ReqWrap Latency information when
+    the `perf_hooks.monitorRequestWrapLatency()` API is used.
   * `node.perf.timerify` - Enables capture of only Performance API timerify
     measurements.
+  * `node.perf.usertiming` - Enables capture of only Performance API User Timing
+    measures and marks.
 * `node.promises.rejections` - Enables capture of trace data tracking the number
   of unhandled Promise rejections and handled-after-rejections.
 * `node.vm.script` - Enables capture of trace data for the `vm` module's
   `runInNewContext()`, `runInContext()`, and `runInThisContext()` methods.
 * `v8` - The [V8] events are GC, compiling, and execution related.
-
-By default the `node`, `node.async_hooks`, and `v8` categories are enabled.
 
 ```txt
 node --trace-event-categories v8,node,node.async_hooks server.js
