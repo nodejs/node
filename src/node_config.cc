@@ -74,6 +74,10 @@ static void Initialize(Local<Object> target,
   READONLY_PROPERTY(target,
                     "bits",
                     Number::New(env->isolate(), 8 * sizeof(intptr_t)));
+
+#if defined HAVE_DTRACE || defined HAVE_ETW
+  READONLY_TRUE_PROPERTY(target, "hasDtrace");
+#endif
 }  // InitConfig
 
 }  // namespace node
