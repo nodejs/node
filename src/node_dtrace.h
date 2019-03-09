@@ -76,7 +76,7 @@ typedef struct {
 
 namespace node {
 
-void InitDTrace(Environment* env, v8::Local<v8::Object> target);
+void InitDTrace(Environment* env);
 
 }  // namespace node
 

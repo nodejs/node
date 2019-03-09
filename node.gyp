@@ -116,6 +116,7 @@
       'lib/internal/dns/promises.js',
       'lib/internal/dns/utils.js',
       'lib/internal/domexception.js',
+      'lib/internal/dtrace.js',
       'lib/internal/encoding.js',
       'lib/internal/errors.js',
       'lib/internal/error-serdes.js',

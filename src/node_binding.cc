@@ -28,6 +28,12 @@
 #define NODE_BUILTIN_PROFILER_MODULES(V)
 #endif
 
+#if HAVE_DTRACE || HAVE_ETW
+#define NODE_BUILTIN_DTRACE_MODULES(V) V(dtrace)
+#else
+#define NODE_BUILTIN_DTRACE_MODULES(V)
+#endif
+
 // A list of built-in modules. In order to do module registration
 // in node::Init(), need to add built-in modules in the following list.
 // Then in binding::RegisterBuiltinModules(), it calls modules' registration
@@ -85,7 +91,8 @@
   NODE_BUILTIN_OPENSSL_MODULES(V)                                              \
   NODE_BUILTIN_ICU_MODULES(V)                                                  \
   NODE_BUILTIN_REPORT_MODULES(V)                                               \
-  NODE_BUILTIN_PROFILER_MODULES(V)
+  NODE_BUILTIN_PROFILER_MODULES(V)                                             \
+  NODE_BUILTIN_DTRACE_MODULES(V)
 
 // This is used to load built-in modules. Instead of using
 // __attribute__((constructor)), we call the _register_<modname>

@@ -255,7 +255,7 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
   Local<Object> global = context->Global();
 
 #if defined HAVE_DTRACE || defined HAVE_ETW
-  InitDTrace(env, global);
+  InitDTrace(env);
 #endif
 
   Local<Object> process = env->process_object();
