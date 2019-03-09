@@ -285,19 +285,21 @@ assert.throws(
 
 Output written by tests to stdout or stderr, such as with `console.log()` or
 `console.error()`, can be useful when writing tests, as well as for debugging
-them during later maintenance.  The output will be supressed by the test runner
+them during later maintenance. The output will be suppressed by the test runner
 (`./tools/test.py`) unless the test fails, but will always be displayed when
 running tests directly with `node`. For failing tests, the test runner will
 include the output along with the failed test assertion in the test report.
 
 Some output can help debugging by giving context to test failures. For example,
 when troubleshooting tests that timeout in CI. With no log statements, we have
-no idea where the test got hung up. There have been cases where tests fail
-without `console.log()`, and then pass when its added, so be cautious about its
-use, particularly in tests of the I/O and streaming APIs.
+no idea where the test got hung up.
+
+There have been cases where tests fail without `console.log()`, and then pass
+when its added, so be cautious about its use, particularly in tests of the I/O
+and streaming APIs.
 
 Excessive use of console output is discouraged as it can overwhelm the display,
-including the Jenkins console and test report displays.  Be particularly
+including the Jenkins console and test report displays. Be particularly
 cautious of output in loops, or other contexts where output may be repeated many
 times in the case of failure.
 
