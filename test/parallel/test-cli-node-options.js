@@ -14,9 +14,10 @@ tmpdir.refresh();
 const printA = require.resolve('../fixtures/printA.js');
 const printSpaceA = require.resolve('../fixtures/print A.js');
 
+expect(` -r ${printA} `, 'A\nB\n');
 expect(`-r ${printA}`, 'A\nB\n');
-expect(`-r ${printA.replace(/[a-z]/gi, '\\$&')}`, 'A\nB\n');
-expect(`-r ${printSpaceA.replace(/[\\ ]/g, '\\$&')}`, 'A\nB\n');
+expect(`-r ${JSON.stringify(printA)}`, 'A\nB\n');
+expect(`-r ${JSON.stringify(printSpaceA)}`, 'A\nB\n');
 expect(`-r ${printA} -r ${printA}`, 'A\nB\n');
 expect(`   -r ${printA}    -r ${printA}`, 'A\nB\n');
 expect(`   --require ${printA}    --require ${printA}`, 'A\nB\n');

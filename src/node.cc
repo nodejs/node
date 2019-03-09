@@ -677,6 +677,7 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
     // [0] is expected to be the program name, fill it in from the real argv.
     env_argv.push_back(argv->at(0));
 
+    bool is_in_string = false;
     bool will_start_new_arg = true;
     for (std::string::size_type index = 0;
          index < node_options.size();
@@ -684,7 +685,7 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
       char c = node_options.at(index);
 
       // Backslashes escape the following character
-      if (c == '\\') {
+      if (c == '\\' && is_in_string) {
         if (index + 1 == node_options.size()) {
           fprintf(stderr,
                   "%s: invalid escaping for NODE_OPTIONS\n",
@@ -693,8 +694,11 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
         } else {
           c = node_options.at(++index);
         }
-      } else if (c == ' ') {
+      } else if (c == ' ' && !is_in_string) {
         will_start_new_arg = true;
+        continue;
+      } else if (c == '"') {
+        is_in_string = !is_in_string;
         continue;
       }
 
