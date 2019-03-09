@@ -136,6 +136,9 @@ Worker::Worker(Environment* env,
       env->inspector_agent()->GetParentHandle(thread_id_, url);
 #endif
 
+  // Mark this Worker object as weak until we actually start the thread.
+  MakeWeak();
+
   Debug(this, "Preparation for worker %llu finished", thread_id_);
 }
 
@@ -412,13 +415,9 @@ void Worker::OnThreadStopped() {
 
 Worker::~Worker() {
   Mutex::ScopedLock lock(mutex_);
-  JoinThread();
 
   CHECK(thread_stopper_.IsStopped());
   CHECK(thread_joined_);
-
-  // This has most likely already happened within the worker thread -- this
-  // is just in case Worker creation failed early.
 
   Debug(this, "Worker %llu destroyed", thread_id_);
 }
@@ -509,6 +508,10 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
   Mutex::ScopedLock lock(w->mutex_);
 
+  // The object now owns the created thread and should not be garbage collected
+  // until that finishes.
+  w->ClearWeak();
+
   w->env()->add_sub_worker_context(w);
   w->thread_joined_ = false;
   w->thread_stopper_.SetStopped(false);
@@ -518,6 +521,7 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
     CHECK(w_->thread_stopper_.IsStopped());
     w_->parent_port_ = nullptr;
     w_->JoinThread();
+    delete w_;
   });
 
   uv_thread_options_t thread_options;
@@ -545,6 +549,7 @@ void Worker::StopThread(const FunctionCallbackInfo<Value>& args) {
   Debug(w, "Worker %llu is getting stopped by parent", w->thread_id_);
   w->Exit(1);
   w->JoinThread();
+  delete w;
 }
 
 void Worker::Ref(const FunctionCallbackInfo<Value>& args) {
