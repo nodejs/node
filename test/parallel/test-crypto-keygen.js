@@ -425,7 +425,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     type: TypeError,
     code: 'ERR_INVALID_ARG_VALUE',
     message: "The argument 'type' must be one of " +
-             "'rsa', 'dsa', 'ec'. Received 'rsa2'"
+             "'rsa', 'dsa', 'ec', 'ed25519', 'ed448'. Received 'rsa2'"
   });
 }
 
@@ -436,6 +436,15 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     code: 'ERR_INVALID_ARG_TYPE',
     message: 'The "options" argument must be of ' +
       'type object. Received type undefined'
+  });
+
+  // Even if no options are required, it should be impossible to pass anything
+  // but an object (or undefined).
+  common.expectsError(() => generateKeyPair('ed448', 0, common.mustNotCall()), {
+    type: TypeError,
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "options" argument must be of ' +
+      'type object. Received type number'
   });
 }
 
@@ -772,6 +781,23 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }, common.mustCall((err, publicKey, privateKey) => {
     assert.ifError(err);
   }));
+}
+
+// Test EdDSA key generation.
+{
+  if (!/^1\.1\.0/.test(process.versions.openssl)) {
+    ['ed25519', 'ed448'].forEach((keyType) => {
+      generateKeyPair(keyType, common.mustCall((err, publicKey, privateKey) => {
+        assert.ifError(err);
+
+        assert.strictEqual(publicKey.type, 'public');
+        assert.strictEqual(publicKey.asymmetricKeyType, keyType);
+
+        assert.strictEqual(privateKey.type, 'private');
+        assert.strictEqual(privateKey.asymmetricKeyType, keyType);
+      }));
+    });
+  }
 }
 
 // Test invalid key encoding types.
