@@ -426,6 +426,10 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "set the maximum size of HTTP headers (default: 8KB)",
             &PerProcessOptions::max_http_header_size,
             kAllowedInEnvironment);
+  AddOption("--max-http-uri-size",
+            "set the maximum size of HTTP request uri (default: 7KB)",
+            &PerProcessOptions::max_http_uri_size,
+            kAllowedInEnvironment);
   AddOption("--v8-pool-size",
             "set V8's thread pool size",
             &PerProcessOptions::v8_thread_pool_size,

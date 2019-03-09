@@ -1959,6 +1959,17 @@ added: v11.6.0
 Read-only property specifying the maximum allowed size of HTTP headers in bytes.
 Defaults to 8KB. Configurable using the [`--max-http-header-size`][] CLI option.
 
+## http.maxUriSize
+<!-- YAML
+added: v12.0.0
+-->
+
+* {number}
+
+Read-only property specifying the maximum allowed size of HTTP request uri
+in bytes. Defaults to 7KB. Configurable using the
+[`--max-http-uri-size`][] CLI option.
+
 ## http.request(options[, callback])
 ## http.request(url[, options][, callback])
 <!-- YAML

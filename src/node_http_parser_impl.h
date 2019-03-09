@@ -180,7 +180,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
 
   int on_url(const char* at, size_t length) {
-    int rv = TrackHeader(length);
+    int rv = TrackHeader(length, before_headers);
     if (rv != 0) {
       return rv;
     }
@@ -825,11 +825,20 @@ class Parser : public AsyncWrap, public StreamListener {
     got_exception_ = false;
   }
 
-
-  int TrackHeader(size_t len) {
+  enum tracking_position {
+    before_headers,
+    after_request_line
+  };
+  int TrackHeader(size_t len, enum tracking_position pos = after_request_line) {
 #ifdef NODE_EXPERIMENTAL_HTTP
     header_nread_ += len;
-    if (header_nread_ >= per_process::cli_options->max_http_header_size) {
+    if (pos == before_headers &&
+        header_nread_ >= per_process::cli_options->max_http_uri_size) {
+      llhttp_set_error_reason(&parser_,
+                              "HPE_URI_OVERFLOW:URI overflow");
+      return HPE_USER;
+    } else if (pos == after_request_line &&
+        header_nread_ >= per_process::cli_options->max_http_header_size) {
       llhttp_set_error_reason(&parser_, "HPE_HEADER_OVERFLOW:Header overflow");
       return HPE_USER;
     }
