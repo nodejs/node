@@ -14,6 +14,8 @@ tmpdir.refresh();
 const printA = require.resolve('../fixtures/printA.js');
 expect(`-r ${printA}`, 'A\nB\n');
 expect(`-r ${printA} -r ${printA}`, 'A\nB\n');
+expect(`   -r ${printA}    -r ${printA}`, 'A\nB\n');
+expect(`   --require ${printA}    --require ${printA}`, 'A\nB\n');
 expect('--no-deprecation', 'B\n');
 expect('--no-warnings', 'B\n');
 expect('--no_warnings', 'B\n');
