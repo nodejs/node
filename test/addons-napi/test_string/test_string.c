@@ -232,7 +232,9 @@ static napi_value TestLargeLatin1(napi_env env, napi_callback_info info) {
 static napi_value TestLargeUtf16(napi_env env, napi_callback_info info) {
   napi_value output;
   if (SIZE_MAX > INT_MAX) {
-    NAPI_CALL(env, napi_create_string_utf16(env, "", ((size_t)INT_MAX) + 1, &output));
+    NAPI_CALL(env, napi_create_string_utf16(env,
+                                            ((const char16_t*)""),
+                                            ((size_t)INT_MAX) + 1, &output));
   } else {
     // just throw the expected error as there is nothing to test
     // in this case since we can't overflow
