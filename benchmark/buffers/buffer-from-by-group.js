@@ -36,7 +36,7 @@ function main({ len, n, source }) {
   const uint8array = new Uint8Array(len);
   const obj = { length: null }; // Results in a new, empty Buffer
 
-  var i;
+  let i;
 
   switch (source) {
     case 'array':
