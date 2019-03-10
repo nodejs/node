@@ -32,13 +32,15 @@ dns.lookup(fixture.hostname, mustCall((err, address) => {
   assert.strictEqual(address, fixture.expectedAddress);
 }));
 
-dns.promises.lookup(fixture.hostname).then(mustCall(({ address }) => {
+dns.promises.lookup(fixture.hostname).then(({ address }) => {
   assert.strictEqual(address, fixture.expectedAddress);
-}).catch((err) => {
+}, (err) => {
   if (err && err.errno === 'ESERVFAIL') {
     assert.ok(err.message.includes('queryA ESERVFAIL straße.de'));
+  } else {
+    throw err;
   }
-}));
+}).finally(mustCall());
 
 dns.resolve4(fixture.hostname, mustCall((err, addresses) => {
   assert.ifError(err);
