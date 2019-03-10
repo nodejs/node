@@ -65,6 +65,7 @@ assert.throws(() => a.notEqual(true, true),
 assert.throws(() => a.strictEqual(2, '2'),
               a.AssertionError, 'strictEqual(2, \'2\')');
 
+/* eslint-disable no-restricted-syntax */
 assert.throws(() => a.strictEqual(null, undefined),
               a.AssertionError, 'strictEqual(null, undefined)');
 
@@ -95,11 +96,9 @@ function thrower(errorConstructor) {
 // The basic calls work.
 assert.throws(() => thrower(a.AssertionError), a.AssertionError, 'message');
 assert.throws(() => thrower(a.AssertionError), a.AssertionError);
-// eslint-disable-next-line no-restricted-syntax
 assert.throws(() => thrower(a.AssertionError));
 
 // If not passing an error, catch all.
-// eslint-disable-next-line no-restricted-syntax
 assert.throws(() => thrower(TypeError));
 
 // When passing a type, only catch errors of the appropriate type.
@@ -309,7 +308,7 @@ try {
 }
 
 try {
-  assert.strictEqual(1, 2, 'oh no'); // eslint-disable-line no-restricted-syntax
+  assert.strictEqual(1, 2, 'oh no');
 } catch (e) {
   assert.strictEqual(e.message, 'oh no');
   // Message should not be marked as generated.
@@ -833,7 +832,6 @@ common.expectsError(
 );
 
 common.expectsError(
-  // eslint-disable-next-line no-restricted-syntax
   () => assert.throws(() => {}, 'Error message', 'message'),
   {
     code: 'ERR_INVALID_ARG_TYPE',
@@ -1010,6 +1008,7 @@ assert.throws(
              'The error message "foo" is identical to the message.'
   }
 );
+/* eslint-enable no-restricted-syntax */
 
 // Should not throw.
 // eslint-disable-next-line no-restricted-syntax, no-throw-literal
