@@ -286,7 +286,7 @@ inline void Environment::AssignToContext(v8::Local<v8::Context> context,
                                          const ContextInfo& info) {
   context->SetAlignedPointerInEmbedderData(
       ContextEmbedderIndex::kEnvironment, this);
-  // Used by EnvPromiseHook to know that we are on a node context.
+  // Used by Environment::GetCurrent to know that we are on a node context.
   context->SetAlignedPointerInEmbedderData(
     ContextEmbedderIndex::kContextTag, Environment::kNodeContextTagPtr);
 #if HAVE_INSPECTOR

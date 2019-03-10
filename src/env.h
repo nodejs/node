@@ -959,8 +959,6 @@ class Environment {
   inline HandleWrapQueue* handle_wrap_queue() { return &handle_wrap_queue_; }
   inline ReqWrapQueue* req_wrap_queue() { return &req_wrap_queue_; }
 
-  void AddPromiseHook(promise_hook_func fn, void* arg);
-  bool RemovePromiseHook(promise_hook_func fn, void* arg);
   inline bool EmitProcessEnvWarning() {
     bool current_value = emit_env_nonstring_warning_;
     emit_env_nonstring_warning_ = false;
@@ -1164,13 +1162,6 @@ class Environment {
 
   std::list<ExitCallback> at_exit_functions_;
 
-  struct PromiseHookCallback {
-    promise_hook_func cb_;
-    void* arg_;
-    size_t enable_count_;
-  };
-  std::vector<PromiseHookCallback> promise_hooks_;
-
   struct NativeImmediateCallback {
     native_immediate_callback cb_;
     void* data_;
@@ -1213,10 +1204,6 @@ class Environment {
   // A custom async abstraction (a pair of async handle and a state variable)
   // Used by embedders to shutdown running Node instance.
   AsyncRequest thread_stopper_;
-
-  static void EnvPromiseHook(v8::PromiseHookType type,
-                             v8::Local<v8::Promise> promise,
-                             v8::Local<v8::Value> parent);
 
   template <typename T>
   void ForEachBaseObject(T&& iterator);

@@ -639,23 +639,11 @@ NODE_EXTERN void AtExit(Environment* env,
                         void (*cb)(void* arg),
                         void* arg = nullptr);
 
-typedef void (*promise_hook_func) (v8::PromiseHookType type,
-                                   v8::Local<v8::Promise> promise,
-                                   v8::Local<v8::Value> parent,
-                                   void* arg);
-
 typedef double async_id;
 struct async_context {
   ::node::async_id async_id;
   ::node::async_id trigger_async_id;
 };
-
-/* Registers an additional v8::PromiseHook wrapper. This API exists because V8
- * itself supports only a single PromiseHook. */
-NODE_DEPRECATED("Use async_hooks directly instead",
-                NODE_EXTERN void AddPromiseHook(v8::Isolate* isolate,
-                                                promise_hook_func fn,
-                                                void* arg));
 
 /* This is a lot like node::AtExit, except that the hooks added via this
  * function are run before the AtExit ones and will always be registered

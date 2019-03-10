@@ -301,7 +301,6 @@ v8::MaybeLocal<v8::Object> GetPerContextExports(v8::Local<v8::Context> context);
 namespace profiler {
 void StartCoverageCollection(Environment* env);
 }
-
 #ifdef _WIN32
 typedef SYSTEMTIME TIME_TYPE;
 #else  // UNIX, OSX
@@ -334,6 +333,23 @@ class DiagnosticFilename {
       int seq = -1);
 
   std::string filename_;
+};
+
+class TraceEventScope {
+ public:
+  TraceEventScope(const char* category,
+                  const char* name,
+                  void* id) : category_(category), name_(name), id_(id) {
+    TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(category_, name_, id_);
+  }
+  ~TraceEventScope() {
+    TRACE_EVENT_NESTABLE_ASYNC_END0(category_, name_, id_);
+  }
+
+ private:
+  const char* category_;
+  const char* name_;
+  void* id_;
 };
 
 }  // namespace node
