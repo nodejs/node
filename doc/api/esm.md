@@ -168,14 +168,11 @@ of these top-level routines.
 
 _isMain_ is **true** when resolving the Node.js application entry point.
 
-If the top-level `--type` is _"commonjs"_, then the ESM resolver is skipped
-entirely for the CommonJS loader.
-
-If the top-level `--type` is _"module"_, then the ESM resolver is used
-as described here, with the conditional `--type` check in **ESM_FORMAT**.
+When using the `--type` flag, it overrides the ESM_FORMAT result while
+providing errors in the case of explicit conflicts.
 
 <details>
-<summary>Resolver algorithm psuedocode</summary>
+<summary>Resolver algorithm specification</summary>
 
 **ESM_RESOLVE(_specifier_, _parentURL_, _isMain_)**
 > 1. Let _resolvedURL_ be **undefined**.
@@ -255,25 +252,20 @@ PACKAGE_MAIN_RESOLVE(_packageURL_, _pjson_)
 
 **ESM_FORMAT(_url_, _isMain_)**
 > 1. Assert: _url_ corresponds to an existing file.
-> 1. If _isMain_ is **true** and the `--type` flag is _"module"_, then
->    1. If _url_ ends with _".cjs"_, then
->       1. Throw a _Type Mismatch_ error.
->    1. Return _"module"_.
 > 1. Let _pjson_ be the result of **READ_PACKAGE_SCOPE**(_url_).
-> 1. If _pjson_ is **null** and _isMain_ is **true**, then
->    1. If _url_ ends in _".mjs"_, then
->       1. Return _"module"_.
->    1. Return _"commonjs"_.
-> 1. If _pjson.type_ exists and is _"module"_, then
->    1. If _url_ ends in _".cjs"_, then
->       1. Return _"commonjs"_.
+> 1. If _url_ ends in _".mjs"_, then
 >    1. Return _"module"_.
-> 1. Otherwise,
->    1. If _url_ ends in _".mjs"_, then
->       1. Return _"module"_.
->    1. If _url_ does not end in _".js"_, then
->       1. Throw an _Unsupported File Extension_ error.
+> 1. If _url_ ends in _".cjs"_, then
 >    1. Return _"commonjs"_.
+> 1. If _pjson?.type_ exists and is _"module"_, then
+>    1. If _isMain_ is **true** or _url_ ends in _".js"_, then
+>       1. Return _"module"_.
+>    1. Throw an _Unsupported File Extension_ error.
+> 1. Otherwise,
+>    1. If _isMain_ is **true** or _url_ ends in _".js"_, _".json"_ or
+>       _".node"_, then
+>       1. Return _"commonjs"_.
+>    1. Throw an _Unsupported File Extension_ error.
 
 READ_PACKAGE_SCOPE(_url_)
 > 1. Let _scopeURL_ be _url_.
