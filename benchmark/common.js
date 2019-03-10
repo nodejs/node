@@ -12,12 +12,27 @@ exports.createBenchmark = function(fn, configs, options) {
 function Benchmark(fn, configs, options) {
   // Use the file name as the name of the benchmark
   this.name = require.main.filename.slice(__dirname.length + 1);
-  // Parse job-specific configuration from the command line arguments
-  const parsed_args = this._parseArgs(process.argv.slice(2), configs);
-  this.options = parsed_args.cli;
-  this.extra_options = parsed_args.extra;
-  // The configuration list as a queue of jobs
-  this.queue = this._queue(this.options);
+  this.queue = [];
+  const byGroup = (options && options.byGroup) || false;
+
+  if (byGroup) {
+    for (var groupKey of Object.keys(configs)) {
+      const config = configs[groupKey];
+      const parsed_args = this._parseArgs(process.argv.slice(2), config);
+      this.options = parsed_args.cli;
+      this.extra_options = parsed_args.extra;
+      // The configuration list as a queue of jobs
+      this.queue = [ ...this.queue, ...this._queue(this.options) ];
+    }
+  } else {
+    // Parse job-specific configuration from the command line arguments
+    const parsed_args = this._parseArgs(process.argv.slice(2), configs);
+    this.options = parsed_args.cli;
+    this.extra_options = parsed_args.extra;
+    // The configuration list as a queue of jobs
+    this.queue = this._queue(this.options);
+  }
+
   // The configuration of the current job, head of the queue
   this.config = this.queue[0];
   // Execution arguments i.e. flags used to run the jobs
