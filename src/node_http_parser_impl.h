@@ -180,7 +180,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
 
   int on_url(const char* at, size_t length) {
-    int rv = TrackHeader(length, kBeforeHeaders);
+    int rv = TrackURI(length);
     if (rv != 0) {
       return rv;
     }
@@ -251,6 +251,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
   int on_headers_complete() {
 #ifdef NODE_EXPERIMENTAL_HTTP
+    uri_nread_ = 0;
     header_nread_ = 0;
 #endif  /* NODE_EXPERIMENTAL_HTTP */
 
@@ -813,6 +814,7 @@ class Parser : public AsyncWrap, public StreamListener {
   void Init(parser_type_t type) {
 #ifdef NODE_EXPERIMENTAL_HTTP
     llhttp_init(&parser_, type, &settings);
+    uri_nread_ = 0;
     header_nread_ = 0;
 #else  /* !NODE_EXPERIMENTAL_HTTP */
     http_parser_init(&parser_, type);
@@ -825,21 +827,22 @@ class Parser : public AsyncWrap, public StreamListener {
     got_exception_ = false;
   }
 
-  enum HeaderTrackState {
-    kBeforeHeaders,
-    kAfterRequestLine
-  };
-
-  int TrackHeader(size_t len, enum HeaderTrackState pos = kAfterRequestLine) {
+  int TrackURI(size_t len) {
 #ifdef NODE_EXPERIMENTAL_HTTP
-    header_nread_ += len;
-    if (pos == kBeforeHeaders &&
-        header_nread_ >= per_process::cli_options->max_http_uri_size) {
+    uri_nread_ += len;
+    if (uri_nread_ >= per_process::cli_options->max_http_uri_size) {
       llhttp_set_error_reason(&parser_,
                               "HPE_URI_OVERFLOW:URI overflow");
       return HPE_USER;
-    } else if (pos == kAfterRequestLine &&
-        header_nread_ >= per_process::cli_options->max_http_header_size) {
+    }
+#endif  /* NODE_EXPERIMENTAL_HTTP */
+    return 0;
+  }
+
+  int TrackHeader(size_t len) {
+#ifdef NODE_EXPERIMENTAL_HTTP
+    header_nread_ += len;
+    if (header_nread_ >= per_process::cli_options->max_http_header_size) {
       llhttp_set_error_reason(&parser_, "HPE_HEADER_OVERFLOW:Header overflow");
       return HPE_USER;
     }
@@ -879,6 +882,7 @@ class Parser : public AsyncWrap, public StreamListener {
 #ifdef NODE_EXPERIMENTAL_HTTP
   unsigned int execute_depth_ = 0;
   bool pending_pause_ = false;
+  uint64_t uri_nread_ = 0;
   uint64_t header_nread_ = 0;
 #endif  /* NODE_EXPERIMENTAL_HTTP */
 
