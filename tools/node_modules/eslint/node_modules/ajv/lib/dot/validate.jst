@@ -20,6 +20,17 @@
     , $id = it.self._getId(it.schema);
 }}
 
+{{
+  if (it.opts.strictKeywords) {
+    var $unknownKwd = it.util.schemaUnknownRules(it.schema, it.RULES.keywords);
+    if ($unknownKwd) {
+      var $keywordsMsg = 'unknown keyword: ' + $unknownKwd;
+      if (it.opts.strictKeywords === 'log') it.logger.warn($keywordsMsg);
+      else throw new Error($keywordsMsg);
+    }
+  }
+}}
+
 {{? it.isTop }}
   var validate = {{?$async}}{{it.async = true;}}async {{?}}function(data, dataPath, parentData, parentDataProperty, rootData) {
     'use strict';
@@ -71,6 +82,12 @@
     delete it.isTop;
 
     it.dataPathArr = [undefined];
+
+    if (it.schema.default !== undefined && it.opts.useDefaults && it.opts.strictDefaults) {
+      var $defaultMsg = 'default is ignored in the schema root';
+      if (it.opts.strictDefaults === 'log') it.logger.warn($defaultMsg);
+      else throw new Error($defaultMsg);
+    }
   }}
 
   var vErrors = null; {{ /* don't edit, used in replace */ }}
@@ -177,7 +194,7 @@
       {{? $rulesGroup.type }}
         if ({{= it.util.checkDataType($rulesGroup.type, $data) }}) {
       {{?}}
-        {{? it.opts.useDefaults && !it.compositeRule }}
+        {{? it.opts.useDefaults }}
           {{? $rulesGroup.type == 'object' && it.schema.properties }}
             {{# def.defaultProperties }}
           {{?? $rulesGroup.type == 'array' && Array.isArray(it.schema.items) }}

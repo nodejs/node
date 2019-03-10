@@ -27,6 +27,9 @@ stringWidth('\u001b[1m古\u001b[22m');
 
 stringWidth('a');
 //=> 1
+
+stringWidth('\u001B]8;;https://github.com\u0007Click\u001B]8;;\u0007');
+// => 5
 ```
 
 

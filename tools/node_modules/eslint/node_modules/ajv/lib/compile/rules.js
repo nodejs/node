@@ -20,7 +20,7 @@ module.exports = function rules() {
 
   var ALL = [ 'type', '$comment' ];
   var KEYWORDS = [
-    '$schema', '$id', 'id', '$data', 'title',
+    '$schema', '$id', 'id', '$data', '$async', 'title',
     'description', 'default', 'definitions',
     'examples', 'readOnly', 'writeOnly',
     'contentMediaType', 'contentEncoding',
