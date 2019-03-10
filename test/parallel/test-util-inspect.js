@@ -791,7 +791,7 @@ util.inspect({ hasOwnProperty: null });
     }) };
   });
 
-  util.inspect(subject, { customInspectOptions: true });
+  util.inspect(subject);
 
   // util.inspect.custom is a shared symbol which can be accessed as
   // Symbol.for("nodejs.util.inspect.custom").
@@ -803,9 +803,11 @@ util.inspect({ hasOwnProperty: null });
 
   subject[inspect] = (depth, opts) => {
     assert.strictEqual(opts.customInspectOptions, true);
+    assert.strictEqual(opts.seen, null);
+    return {};
   };
 
-  util.inspect(subject, { customInspectOptions: true });
+  util.inspect(subject, { customInspectOptions: true, seen: null });
 }
 
 {
