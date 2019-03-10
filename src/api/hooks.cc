@@ -65,12 +65,6 @@ int EmitExit(Environment* env) {
       .ToChecked();
 }
 
-void AddPromiseHook(Isolate* isolate, promise_hook_func fn, void* arg) {
-  Environment* env = Environment::GetCurrent(isolate);
-  CHECK_NOT_NULL(env);
-  env->AddPromiseHook(fn, arg);
-}
-
 void AddEnvironmentCleanupHook(Isolate* isolate,
                                void (*fun)(void* arg),
                                void* arg) {

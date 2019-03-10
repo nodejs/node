@@ -39,8 +39,6 @@ using v8::NewStringType;
 using v8::Number;
 using v8::Object;
 using v8::Private;
-using v8::Promise;
-using v8::PromiseHookType;
 using v8::StackFrame;
 using v8::StackTrace;
 using v8::String;
@@ -49,25 +47,6 @@ using v8::TracingController;
 using v8::Undefined;
 using v8::Value;
 using worker::Worker;
-
-// TODO(@jasnell): Likely useful to move this to util or node_internal to
-// allow reuse. But since we're not reusing it yet...
-class TraceEventScope {
- public:
-  TraceEventScope(const char* category,
-                  const char* name,
-                  void* id) : category_(category), name_(name), id_(id) {
-    TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(category_, name_, id_);
-  }
-  ~TraceEventScope() {
-    TRACE_EVENT_NESTABLE_ASYNC_END0(category_, name_, id_);
-  }
-
- private:
-  const char* category_;
-  const char* name_;
-  void* id_;
-};
 
 int const Environment::kNodeContextTag = 0x6e6f64;
 void* const Environment::kNodeContextTagPtr = const_cast<void*>(
@@ -588,56 +567,6 @@ void Environment::RunAtExitCallbacks() {
 
 void Environment::AtExit(void (*cb)(void* arg), void* arg) {
   at_exit_functions_.push_back(ExitCallback{cb, arg});
-}
-
-void Environment::AddPromiseHook(promise_hook_func fn, void* arg) {
-  auto it = std::find_if(
-      promise_hooks_.begin(), promise_hooks_.end(),
-      [&](const PromiseHookCallback& hook) {
-        return hook.cb_ == fn && hook.arg_ == arg;
-      });
-  if (it != promise_hooks_.end()) {
-    it->enable_count_++;
-    return;
-  }
-  promise_hooks_.push_back(PromiseHookCallback{fn, arg, 1});
-
-  if (promise_hooks_.size() == 1) {
-    isolate_->SetPromiseHook(EnvPromiseHook);
-  }
-}
-
-bool Environment::RemovePromiseHook(promise_hook_func fn, void* arg) {
-  auto it = std::find_if(
-      promise_hooks_.begin(), promise_hooks_.end(),
-      [&](const PromiseHookCallback& hook) {
-        return hook.cb_ == fn && hook.arg_ == arg;
-      });
-
-  if (it == promise_hooks_.end()) return false;
-
-  if (--it->enable_count_ > 0) return true;
-
-  promise_hooks_.erase(it);
-  if (promise_hooks_.empty()) {
-    isolate_->SetPromiseHook(nullptr);
-  }
-
-  return true;
-}
-
-void Environment::EnvPromiseHook(PromiseHookType type,
-                                 Local<Promise> promise,
-                                 Local<Value> parent) {
-  Local<Context> context = promise->CreationContext();
-
-  Environment* env = Environment::GetCurrent(context);
-  if (env == nullptr) return;
-  TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
-                              "EnvPromiseHook", env);
-  for (const PromiseHookCallback& hook : env->promise_hooks_) {
-    hook.cb_(type, promise, parent, hook.arg_);
-  }
 }
 
 void Environment::RunAndClearNativeImmediates() {

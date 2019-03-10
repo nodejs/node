@@ -227,8 +227,14 @@ static PromiseWrap* extractPromiseWrap(Local<Promise> promise) {
 }
 
 static void PromiseHook(PromiseHookType type, Local<Promise> promise,
-                        Local<Value> parent, void* arg) {
-  Environment* env = static_cast<Environment*>(arg);
+                        Local<Value> parent) {
+  Local<Context> context = promise->CreationContext();
+
+  Environment* env = Environment::GetCurrent(context);
+  if (env == nullptr) return;
+  TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
+                              "EnvPromiseHook", env);
+
   PromiseWrap* wrap = extractPromiseWrap(promise);
   if (type == PromiseHookType::kInit || wrap == nullptr) {
     bool silent = type != PromiseHookType::kInit;
@@ -318,20 +324,22 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
 
 
 static void EnablePromiseHook(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  env->AddPromiseHook(PromiseHook, static_cast<void*>(env));
+  args.GetIsolate()->SetPromiseHook(PromiseHook);
 }
 
 
 static void DisablePromiseHook(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
 
   // Delay the call to `RemovePromiseHook` because we might currently be
   // between the `before` and `after` calls of a Promise.
-  env->isolate()->EnqueueMicrotask([](void* data) {
-    Environment* env = static_cast<Environment*>(data);
-    env->RemovePromiseHook(PromiseHook, data);
-  }, static_cast<void*>(env));
+  isolate->EnqueueMicrotask([](void* data) {
+    // The per-Isolate API provides no way of knowing whether there are multiple
+    // users of the PromiseHook. That hopefully goes away when V8 introduces
+    // a per-context API.
+    Isolate* isolate = static_cast<Isolate*>(data);
+    isolate->SetPromiseHook(nullptr);
+  }, static_cast<void*>(isolate));
 }
 
 
