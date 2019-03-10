@@ -46,8 +46,8 @@ const fs = require('fs');
   const errObj = {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError [ERR_OUT_OF_RANGE]',
-    message: 'The value of "mode" is out of range. It must be >= 0 && < ' +
-             `4294967296. Received ${input}`
+    message: 'The value of "mode" is out of range. It must be >= 0 && <= ' +
+             `4294967295. Received ${input}`
   };
 
   assert.throws(() => fs.fchmod(1, input), errObj);
