@@ -791,7 +791,7 @@ util.inspect({ hasOwnProperty: null });
     }) };
   });
 
-  util.inspect(subject, { customInspectOptions: true });
+  util.inspect(subject);
 
   // util.inspect.custom is a shared symbol which can be accessed as
   // Symbol.for("nodejs.util.inspect.custom").
@@ -803,9 +803,11 @@ util.inspect({ hasOwnProperty: null });
 
   subject[inspect] = (depth, opts) => {
     assert.strictEqual(opts.customInspectOptions, true);
+    assert.strictEqual(opts.seen, null);
+    return {};
   };
 
-  util.inspect(subject, { customInspectOptions: true });
+  util.inspect(subject, { customInspectOptions: true, seen: null });
 }
 
 {
@@ -815,6 +817,12 @@ util.inspect({ hasOwnProperty: null });
   assert.strictEqual(util.inspect(subject),
                      `{ a: 123,\n  [Symbol(${UIC})]: [Function: [${UIC}]] }`);
 }
+
+// Verify that it's possible to use the stylize function to manipulate input.
+assert.strictEqual(
+  util.inspect([1, 2, 3], { stylize() { return 'x'; } }),
+  '[ x, x, x ]'
+);
 
 // Using `util.inspect` with "colors" option should produce as many lines as
 // without it.
