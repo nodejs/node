@@ -785,7 +785,11 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsNumber());
   CHECK(args[4]->IsBoolean());
 
-  enum encoding enc = ParseEncoding(isolate, args[3], UTF8);
+  enum encoding enc = ParseEncoding(isolate, args[3], PARSE_ERROR);
+  if (enc == PARSE_ERROR) {
+    return args.GetReturnValue().Set(-2);
+  }
+
 
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   SPREAD_BUFFER_ARG(args[0], ts_obj);
