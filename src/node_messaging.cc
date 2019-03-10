@@ -387,9 +387,8 @@ Maybe<bool> Message::Serialize(Environment* env,
     env->isolate_data()->node_allocator()->UnregisterPointer(
         contents.Data(), contents.ByteLength());
 
-    array_buffer_contents_.push_back(
-        MallocedBuffer<char> { static_cast<char*>(contents.Data()),
-                               contents.ByteLength() });
+    array_buffer_contents_.emplace_back(MallocedBuffer<char>{
+        static_cast<char*>(contents.Data()), contents.ByteLength()});
   }
 
   delegate.Finish();

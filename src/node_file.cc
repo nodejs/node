@@ -661,7 +661,7 @@ void AfterScanDirWithTypes(uv_fs_t* req) {
       return req_wrap->Reject(error);
 
     name_v.push_back(filename.ToLocalChecked());
-    type_v.push_back(Integer::New(isolate, ent.type));
+    type_v.emplace_back(Integer::New(isolate, ent.type));
   }
 
   Local<Array> result = Array::New(isolate, 2);
@@ -1508,7 +1508,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
       name_v.push_back(filename.ToLocalChecked());
 
       if (with_types) {
-        type_v.push_back(Integer::New(isolate, ent.type));
+        type_v.emplace_back(Integer::New(isolate, ent.type));
       }
     }
 

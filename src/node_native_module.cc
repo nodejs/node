@@ -92,7 +92,7 @@ void NativeModuleLoader::ModuleIdsGetter(
   ids.reserve(source_.size());
 
   for (auto const& x : source_) {
-    ids.push_back(OneByteString(isolate, x.first.c_str(), x.first.size()));
+    ids.emplace_back(OneByteString(isolate, x.first.c_str(), x.first.size()));
   }
 
   info.GetReturnValue().Set(Array::New(isolate, ids.data(), ids.size()));

@@ -554,10 +554,11 @@ class HttpHandler : public ProtocolHandler {
   static int OnMessageComplete(parser_t* parser) {
     // Event needs to be fired after the parser is done.
     HttpHandler* handler = From(parser);
-    handler->events_.push_back(
-        HttpEvent(handler->path_, parser->upgrade, parser->method == HTTP_GET,
-                  handler->HeaderValue("Sec-WebSocket-Key"),
-                  handler->HeaderValue("Host")));
+    handler->events_.emplace_back(handler->path_,
+                                  parser->upgrade,
+                                  parser->method == HTTP_GET,
+                                  handler->HeaderValue("Sec-WebSocket-Key"),
+                                  handler->HeaderValue("Host"));
     handler->path_ = "";
     handler->parsing_value_ = false;
     handler->headers_.clear();

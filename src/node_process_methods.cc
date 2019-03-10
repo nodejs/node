@@ -255,7 +255,7 @@ static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
     AsyncWrap* w = req_wrap->GetAsyncWrap();
     if (w->persistent().IsEmpty())
       continue;
-    request_v.push_back(w->GetOwner());
+    request_v.emplace_back(w->GetOwner());
   }
 
   args.GetReturnValue().Set(
@@ -271,7 +271,7 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
   for (auto w : *env->handle_wrap_queue()) {
     if (!HandleWrap::HasRef(w))
       continue;
-    handle_v.push_back(w->GetOwner());
+    handle_v.emplace_back(w->GetOwner());
   }
   args.GetReturnValue().Set(
       Array::New(env->isolate(), handle_v.data(), handle_v.size()));
