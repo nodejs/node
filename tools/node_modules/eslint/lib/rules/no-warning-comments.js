@@ -95,7 +95,7 @@ module.exports = {
                  * ^\s*TERM\b.  This checks the word boundary
                  * at the beginning of the comment.
                  */
-                return new RegExp(prefix + escaped + suffix, "iu");
+                return new RegExp(prefix + escaped + suffix, "i"); // eslint-disable-line require-unicode-regexp
             }
 
             /*
@@ -103,7 +103,7 @@ module.exports = {
              * \bTERM\b|\bTERM\b, this checks the entire comment
              * for the term.
              */
-            return new RegExp(prefix + escaped + suffix + eitherOrWordBoundary + term + wordBoundary, "iu");
+            return new RegExp(prefix + escaped + suffix + eitherOrWordBoundary + term + wordBoundary, "i"); // eslint-disable-line require-unicode-regexp
         }
 
         const warningRegExps = warningTerms.map(convertToRegExp);
