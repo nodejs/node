@@ -1,8 +1,8 @@
 'use strict';
+const { expectsError, mustCall } = require('../common');
 const assert = require('assert');
 const { createServer, maxUriSize } = require('http');
 const { createConnection } = require('net');
-const { expectsError, mustCall } = require('../common');
 
 const CRLF = '\r\n';
 const REQUEST_METHOD_AND_SPACE = 'GET ';
