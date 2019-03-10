@@ -16,12 +16,13 @@ function Benchmark(fn, configs, options) {
   const byGroup = (options && options.byGroup) || false;
 
   if (byGroup) {
-    for (var groupKey of Object.keys(configs)) {
+    for (const groupKey of Object.keys(configs)) {
       const config = configs[groupKey];
       const parsed_args = this._parseArgs(process.argv.slice(2), config);
       this.options = parsed_args.cli;
       this.extra_options = parsed_args.extra;
-      // The configuration list as a queue of jobs
+      // The configuration list as a queue of jobs by merging the existing
+      // items with the new items to return a new array
       this.queue = [ ...this.queue, ...this._queue(this.options) ];
     }
   } else {
