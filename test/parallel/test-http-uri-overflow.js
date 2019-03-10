@@ -8,7 +8,7 @@ const CRLF = '\r\n';
 const REQUEST_METHOD_AND_SPACE = 'GET ';
 const DUMMY_URI = '/' + 'a'.repeat(
   maxUriSize
-); // the slash makes it just 1 byte too long
+); // The slash makes it just 1 byte too long.
 
 const PAYLOAD = REQUEST_METHOD_AND_SPACE + DUMMY_URI + CRLF;
 
