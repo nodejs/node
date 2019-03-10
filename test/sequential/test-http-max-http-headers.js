@@ -123,7 +123,7 @@ const test2 = common.mustCall(() => {
     'X-CRASH: ';
 
   // /, Host, localhost, Agent, node, X-CRASH, a...
-  const currentSize = 1 + 4 + 9 + 5 + 4 + 7;
+  const currentSize = 4 + 9 + 5 + 4 + 7;
   headers = fillHeaders(headers, currentSize);
 
   const server = http.createServer(common.mustNotCall());
