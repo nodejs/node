@@ -46,9 +46,7 @@ assert.throws(() => fs.lchmod(f, {}), { code: 'ERR_INVALID_CALLBACK' });
              `octal string. Received ${util.inspect(input)}`
   };
 
-  promises.lchmod(f, input, () => {})
-    .then(common.mustNotCall())
-    .catch(common.expectsError(errObj));
+  assert.rejects(promises.lchmod(f, input, () => {}), errObj);
   assert.throws(() => fs.lchmodSync(f, input), errObj);
 });
 
@@ -56,12 +54,10 @@ assert.throws(() => fs.lchmod(f, {}), { code: 'ERR_INVALID_CALLBACK' });
   const errObj = {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError [ERR_OUT_OF_RANGE]',
-    message: 'The value of "mode" is out of range. It must be >= 0 && < ' +
-             `4294967296. Received ${input}`
+    message: 'The value of "mode" is out of range. It must be >= 0 && <= ' +
+             `4294967295. Received ${input}`
   };
 
-  promises.lchmod(f, input, () => {})
-    .then(common.mustNotCall())
-    .catch(common.expectsError(errObj));
+  assert.rejects(promises.lchmod(f, input, () => {}), errObj);
   assert.throws(() => fs.lchmodSync(f, input), errObj);
 });
