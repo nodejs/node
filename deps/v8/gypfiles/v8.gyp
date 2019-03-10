@@ -79,7 +79,7 @@
       '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtin-definitions-from-dsl.h',
     ],
   },
-  'includes': ['toolchain.gypi', 'features.gypi'],
+  'includes': ['toolchain.gypi', 'features.gypi', 'v8_external_snapshot.gypi'],
   'targets': [
     {
       'target_name': 'v8',
@@ -541,6 +541,7 @@
           'dependencies': ['js2c#host'],
         }, {
           'toolsets': ['target'],
+          'dependencies': ['js2c#target'],
         }],
         ['component=="shared_library"', {
           'defines': [
@@ -2507,78 +2508,6 @@
       },
     }, # v8_libsampler
     {
-      'target_name': 'natives_blob',
-      'type': 'none',
-      'conditions': [
-        ['want_separate_host_toolset==1', {
-          'toolsets': ['host', 'target'],
-        }, {
-           'toolsets': ['target'],
-        }],
-        [ 'v8_use_external_startup_data==1', {
-          'conditions': [
-            ['want_separate_host_toolset==1', {
-              'dependencies': ['js2c#host'],
-            }],
-          ],
-          'actions': [
-            {
-              'action_name': 'js2c_extras_bin',
-              'inputs': [
-                '../tools/js2c.py',
-                '<@(v8_extra_library_files)',
-              ],
-              'outputs': ['<@(libraries_extras_bin_file)'],
-              'action': [
-                'python',
-                '../tools/js2c.py',
-                '<(SHARED_INTERMEDIATE_DIR)/extras-libraries.cc',
-                'EXTRAS',
-                '<@(v8_extra_library_files)',
-                '--startup_blob', '<@(libraries_extras_bin_file)',
-                '--nojs',
-              ],
-            },
-            {
-              'action_name': 'concatenate_natives_blob',
-              'inputs': [
-                '../tools/concatenate-files.py',
-                '<(SHARED_INTERMEDIATE_DIR)/libraries-extras.bin',
-              ],
-              'conditions': [
-                ['want_separate_host_toolset==1', {
-                  'target_conditions': [
-                    ['_toolset=="host"', {
-                      'outputs': [
-                        '<(PRODUCT_DIR)/natives_blob_host.bin',
-                      ],
-                      'action': [
-                        'python', '<@(_inputs)', '<(PRODUCT_DIR)/natives_blob_host.bin'
-                      ],
-                    }, {
-                      'outputs': [
-                        '<(PRODUCT_DIR)/natives_blob.bin',
-                      ],
-                      'action': [
-                        'python', '<@(_inputs)', '<(PRODUCT_DIR)/natives_blob.bin'
-                      ],
-                    }],
-                  ],
-                }, {
-                  'outputs': [
-                    '<(PRODUCT_DIR)/natives_blob.bin',
-                  ],
-                  'action': [
-                    'python', '<@(_inputs)', '<(PRODUCT_DIR)/natives_blob.bin'
-                  ],
-                }],
-              ],
-            },
-          ],
-        }],
-      ]
-    }, # natives_blob
-    {
       'target_name': 'js2c',
       'type': 'none',
       'conditions': [
@@ -2830,8 +2759,5 @@
         },
       ],
     }, # generate_bytecode_builtins_list
-    {
-      'includes': [ 'v8_external_snapshot.gypi' ],
-    }, # v8_external_snapshot
   ],
 }
