@@ -859,6 +859,7 @@ void Environment::BuildEmbedderGraph(Isolate* isolate,
 }
 
 char* Environment::Reallocate(char* data, size_t old_size, size_t size) {
+  if (old_size == size) return data;
   // If we know that the allocator is our ArrayBufferAllocator, we can let
   // if reallocate directly.
   if (isolate_data()->uses_node_allocator()) {
