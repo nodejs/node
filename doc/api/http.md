@@ -1961,7 +1961,7 @@ Defaults to 8KB. Configurable using the [`--max-http-header-size`][] CLI option.
 
 ## http.maxUriSize
 <!-- YAML
-added: v12.0.0
+added: REPLACEME
 -->
 
 * {number}
