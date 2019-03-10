@@ -170,7 +170,8 @@ module.exports = {
         message: '__defineSetter__ is deprecated.',
       },
     ],
-    // If this list is modified, please copy changes that should apply to ./lib as well to lib/.eslintrc.yaml.
+    // If this list is modified, please copy changes that should apply to ./lib
+    // as well to lib/.eslintrc.yaml.
     'no-restricted-syntax': [
       'error',
       {
