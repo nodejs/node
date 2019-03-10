@@ -33,7 +33,7 @@ server.listen(0, () => {
 
   req.on('response', common.mustCall((headers) => {
     assert.strictEqual(headers[HTTP2_HEADER_STATUS], 304);
-    assert.strictEqual(headers[HTTP2_HEADER_CONTENT_TYPE, undefined]);
+    assert.strictEqual(headers[HTTP2_HEADER_CONTENT_TYPE], undefined);
   }));
 
   req.on('data', common.mustNotCall());
