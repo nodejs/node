@@ -122,7 +122,7 @@ const test2 = common.mustCall(() => {
     'Agent: nod2\r\n' +
     'X-CRASH: ';
 
-  // /, Host, localhost, Agent, node, X-CRASH, a...
+  // Host, localhost, Agent, node, X-CRASH, a...
   const currentSize = 4 + 9 + 5 + 4 + 7;
   headers = fillHeaders(headers, currentSize);
 
