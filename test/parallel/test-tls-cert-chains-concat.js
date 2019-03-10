@@ -25,7 +25,7 @@ connect({
   const peer = pair.client.conn.getPeerCertificate();
   debug('peer:\n', peer);
   assert.strictEqual(peer.subject.emailAddress, 'adam.lippai@tresorit.com');
-  assert.strictEqual(peer.subject.CN, 'Ádám Lippai'),
+  assert.strictEqual(peer.subject.CN, 'Ádám Lippai');
   assert.strictEqual(peer.issuer.CN, 'ca3');
   assert.strictEqual(peer.serialNumber, 'D0082F458B6EFBE8');
 
