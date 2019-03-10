@@ -31,14 +31,14 @@ const spawn = require('child_process').spawn;
 let grep, sed, echo;
 
 if (common.isWindows) {
-  grep = spawn('grep', ['--binary', 'o']),
-  sed = spawn('sed', ['--binary', 's/o/O/']),
+  grep = spawn('grep', ['--binary', 'o']);
+  sed = spawn('sed', ['--binary', 's/o/O/']);
   echo = spawn('cmd.exe',
                ['/c', 'echo', 'hello&&', 'echo',
                 'node&&', 'echo', 'and&&', 'echo', 'world']);
 } else {
-  grep = spawn('grep', ['o']),
-  sed = spawn('sed', ['s/o/O/']),
+  grep = spawn('grep', ['o']);
+  sed = spawn('sed', ['s/o/O/']);
   echo = spawn('echo', ['hello\nnode\nand\nworld\n']);
 }
 
