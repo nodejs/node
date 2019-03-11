@@ -40,9 +40,8 @@ function nextdir() {
   return `test${++dirc}`;
 }
 
-// fs.promises should not be enumerable as long as it causes a warning to be
-// emitted.
-assert.strictEqual(Object.keys(fs).includes('promises'), false);
+// fs.promises should not enumerable.
+assert.strictEqual(Object.keys(fs).includes('promises'), true);
 
 {
   access(__filename, 'r')
