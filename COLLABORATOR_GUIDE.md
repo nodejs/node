@@ -433,7 +433,7 @@ To use `node-core-utils`, you will need a GitHub access token. If you do not
 have one, `node-core-utils` will create one for you the first time you use it.
 To do this, it will ask for your GitHub password and two-factor authentication
 code. If you wish to create the token yourself in advance, see
-the `node-core-utils` guide][node-core-utils-credentials].
+[the `node-core-utils` guide][node-core-utils-credentials].
 
 ### Technical HOWTO
 
