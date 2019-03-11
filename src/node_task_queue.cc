@@ -116,7 +116,8 @@ static void TriggerFatalException(const FunctionCallbackInfo<Value>& args) {
     ReportException(env, exception, message);
     Abort();
   }
-  FatalException(isolate, exception, message);
+  bool from_promise = args[1]->IsTrue();
+  FatalException(isolate, exception, message, from_promise);
 }
 
 static void Initialize(Local<Object> target,
