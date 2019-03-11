@@ -50,7 +50,7 @@ class Worker : public AsyncWrap {
 
  private:
   void OnThreadStopped();
-
+  void CreateEnvMessagePort(Environment* env);
   const std::string url_;
 
   std::shared_ptr<PerIsolateOptions> per_isolate_opts_;
