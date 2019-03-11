@@ -251,7 +251,12 @@ class ZoneList final {
   // Drops all but the first 'pos' elements from the list.
   INLINE(void Rewind(int pos));
 
-  inline bool Contains(const T& elm) const;
+  inline bool Contains(const T& elm) const {
+    for (int i = 0; i < length_; i++) {
+      if (data_[i] == elm) return true;
+    }
+    return false;
+  }
 
   // Iterate through all list entries, starting at index 0.
   template <class Visitor>
