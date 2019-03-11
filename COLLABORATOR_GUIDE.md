@@ -464,18 +464,19 @@ Apply external patches:
 $ curl -L https://github.com/nodejs/node/pull/xxx.patch | git am --whitespace=fix
 ```
 
-If the merge fails even though recent CI runs were successful, then a 3-way
-merge may be required.  In this case try:
+If the merge fails even though recent CI runs were successful, try a 3-way
+merge:
 
 ```text
 $ git am --abort
 $ curl -L https://github.com/nodejs/node/pull/xxx.patch | git am -3 --whitespace=fix
 ```
-If the 3-way merge succeeds you can proceed, but make sure to check the changes
-against the original PR carefully and build/test on at least one platform
-before landing. If the 3-way merge fails, then it is most likely that a
-conflicting PR has landed since the CI run and you will have to ask the author
-to rebase.
+
+If the 3-way merge succeeds, check the results against the original pull
+request. Build and test on at least one platform before landing.
+
+If the 3-way merge fails, then it is most likely that a conflicting pull request
+has landed since the CI run. You will have to ask the author to rebase.
 
 Check and re-review the changes:
 
@@ -541,52 +542,46 @@ reword 51759dc crypto: feature B
 fixup 7d6f433 test for feature B
 ```
 
-Save the file and close the editor. You'll be asked to enter a new
-commit message for that commit. This is a good moment to fix incorrect
-commit logs, ensure that they are properly formatted, and add
-`Reviewed-By` lines.
+Save the file and close the editor. When prompted, enter a new commit message
+for that commit. This is an opportunity to fix commit messages.
 
 * The commit message text must conform to the [commit message guidelines][].
 
 <a name="metadata"></a>
-* Modify the original commit message to include additional metadata regarding
-  the change process. (The [`git node metadata`][git-node-metadata] command
-  can generate the metadata for you.)
+* Change the original commit message to include metadata. (The
+  [`git node metadata`][git-node-metadata] command can generate the metadata
+  for you.)
 
-  * Required: A `PR-URL:` line that references the *full* GitHub URL of the
-    original pull request being merged so it's easy to trace a commit back to
-    the conversation that led up to that change.
-  * Optional: A `Fixes: X` line, where _X_ either includes the *full* GitHub URL
-    for an issue, and/or the hash and commit message if the commit fixes
-    a bug in a previous commit. Multiple `Fixes:` lines may be added if
-    appropriate.
+  * Required: A `PR-URL:` line that references the full GitHub URL of the pull
+    request. This makes it easy to trace a commit back to the conversation that
+    led up to that change.
+  * Optional: A `Fixes: X` line, where _X_ is the full GitHub URL for an
+    issue. A commit message may include more than one `Fixes:` lines.
   * Optional: One or more `Refs:` lines referencing a URL for any relevant
     background.
-  * Required: A `Reviewed-By: Name <email>` line for yourself and any
-    other Collaborators who have reviewed the change.
+  * Required: A `Reviewed-By: Name <email>` line for each Collaborator who
+    reviewed the change.
     * Useful for @mentions / contact list if something goes wrong in the PR.
     * Protects against the assumption that GitHub will be around forever.
 
-Run tests (`make -j4 test` or `vcbuild test`). Even though there was a
-successful continuous integration run, other changes may have landed on master
-since then, so running the tests one last time locally is a good practice.
+Other changes may have landed on master since the successful CI run. As a
+precaution, run tests (`make -j4 test` or `vcbuild test`).
 
-Validate that the commit message is properly formatted using
+Confirm that the commit message format is correct using
 [core-validate-commit](https://github.com/evanlucas/core-validate-commit).
 
 ```text
 $ git rev-list upstream/master...HEAD | xargs core-validate-commit
 ```
 
-Optional: When landing your own commits, force push the amended commit to the
-branch you used to open the pull request. If your branch is called `bugfix`,
-then the command would be `git push --force-with-lease origin master:bugfix`.
-Don't manually close the PR, GitHub will close it automatically later after you
-push it upstream, and will mark it with the purple merged status rather than the
-red closed status. If you close the PR before GitHub adjusts its status, it will
-show up as a 0 commit PR and the changed file history will be empty. Also if you
-push upstream before you push to your branch, GitHub will close the issue with
-red status so the order of operations is important.
+Optional: For your own commits, force push the amended commit to the pull
+request branch. If your branch name is `bugfix`, then: `git push
+--force-with-lease origin master:bugfix`. Don't close the PR. It will close
+after you push it upstream. It will have the purple merged status rather than
+the red closed status. If you close the PR before GitHub adjusts its status, it
+will show up as a 0 commit PR with no changed files. The order of operations is
+important. If you push upstream before you push to your branch, GitHub will
+close the issue with the red closed status.
 
 Time to push it:
 
@@ -597,7 +592,7 @@ $ git push upstream master
 Close the pull request with a "Landed in `<commit hash>`" comment. If
 your pull request shows the purple merged status then you should still
 add the "Landed in <commit hash>..<commit hash>" comment if you added
-multiple commits.
+more than one commit.
 
 ### Troubleshooting
 
