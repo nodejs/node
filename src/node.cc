@@ -358,6 +358,12 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
           .IsNothing())
     return MaybeLocal<Value>();
 
+  // Make sure that no request or handle is created during bootstrap -
+  // if necessary those should be done in pre-exeuction.
+  // TODO(joyeecheung): print handles/requests before aborting
+  CHECK(env->req_wrap_queue()->IsEmpty());
+  CHECK(env->handle_wrap_queue()->IsEmpty());
+
   env->set_has_run_bootstrapping_code(true);
 
   return scope.EscapeMaybe(result);
