@@ -222,16 +222,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
     set_strict_mode(is_strict(language_mode));
   }
 
-  void ReopenHandlesInNewHandleScope() {
-    if (!script_.is_null()) {
-      script_ = Handle<Script>(*script_);
-    }
-    Handle<ScopeInfo> outer_scope_info;
-    if (maybe_outer_scope_info_.ToHandle(&outer_scope_info)) {
-      maybe_outer_scope_info_ = Handle<ScopeInfo>(*outer_scope_info);
-    }
-  }
-
   void EmitBackgroundParseStatisticsOnBackgroundThread();
   void UpdateBackgroundParseStatisticsOnMainThread(Isolate* isolate);
 

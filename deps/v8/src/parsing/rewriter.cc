@@ -43,7 +43,7 @@ class Processor final : public AstVisitor<Processor> {
     InitializeAstVisitor(parser->stack_limit());
   }
 
-  void Process(ZoneList<Statement*>* statements);
+  void Process(ZonePtrList<Statement>* statements);
   bool result_assigned() const { return result_assigned_; }
 
   Zone* zone() { return zone_; }
@@ -121,8 +121,7 @@ Statement* Processor::AssignUndefinedBefore(Statement* s) {
   return b;
 }
 
-
-void Processor::Process(ZoneList<Statement*>* statements) {
+void Processor::Process(ZonePtrList<Statement>* statements) {
   // If we're in a breakable scope (named block, iteration, or switch), we walk
   // all statements. The last value producing statement before the break needs
   // to assign to .result. If we're not in a breakable scope, only the last
@@ -283,7 +282,7 @@ void Processor::VisitSwitchStatement(SwitchStatement* node) {
   DCHECK(breakable_ || !is_set_);
   BreakableScope scope(this);
   // Rewrite statements in all case clauses.
-  ZoneList<CaseClause*>* clauses = node->cases();
+  ZonePtrList<CaseClause>* clauses = node->cases();
   for (int i = clauses->length() - 1; i >= 0; --i) {
     CaseClause* clause = clauses->at(i);
     Process(clause->statements());
@@ -381,7 +380,7 @@ bool Rewriter::Rewrite(ParseInfo* info) {
     return true;
   }
 
-  ZoneList<Statement*>* body = function->body();
+  ZonePtrList<Statement>* body = function->body();
   DCHECK_IMPLIES(scope->is_module_scope(), !body->is_empty());
   if (!body->is_empty()) {
     Variable* result = scope->AsDeclarationScope()->NewTemporary(
@@ -416,7 +415,7 @@ bool Rewriter::Rewrite(Parser* parser, DeclarationScope* closure_scope,
   DCHECK_EQ(closure_scope, closure_scope->GetClosureScope());
   DCHECK(block->scope() == nullptr ||
          block->scope()->GetClosureScope() == closure_scope);
-  ZoneList<Statement*>* body = block->statements();
+  ZonePtrList<Statement>* body = block->statements();
   VariableProxy* result = expr->result();
   Variable* result_var = result->var();
 

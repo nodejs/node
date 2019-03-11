@@ -59,7 +59,7 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
   set_language_mode(shared->language_mode());
   set_asm_wasm_broken(shared->is_asm_wasm_broken());
 
-  Handle<Script> script(Script::cast(shared->script()));
+  Handle<Script> script(Script::cast(shared->script()), isolate);
   set_script(script);
   set_native(script->type() == Script::TYPE_NATIVE);
   set_eval(script->compilation_type() == Script::COMPILATION_TYPE_EVAL);

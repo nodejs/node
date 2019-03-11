@@ -290,6 +290,11 @@ class ZoneList final {
   DISALLOW_COPY_AND_ASSIGN(ZoneList);
 };
 
+// ZonePtrList is a ZoneList of pointers to ZoneObjects allocated in the same
+// zone as the list object.
+template <typename T>
+using ZonePtrList = ZoneList<T*>;
+
 // A zone splay tree.  The config type parameter encapsulates the
 // different configurations of a concrete splay tree (see splay-tree.h).
 // The tree itself and all its elements are allocated in the Zone.

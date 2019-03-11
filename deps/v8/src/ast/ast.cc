@@ -831,7 +831,7 @@ Call::CallType Call::GetCallType() const {
   return OTHER_CALL;
 }
 
-CaseClause::CaseClause(Expression* label, ZoneList<Statement*>* statements)
+CaseClause::CaseClause(Expression* label, ZonePtrList<Statement>* statements)
     : label_(label), statements_(statements) {}
 
 bool Literal::IsPropertyName() const {
@@ -954,7 +954,7 @@ const char* CallRuntime::debug_name() {
   case k##NodeType:             \
     return static_cast<const NodeType*>(this)->labels();
 
-ZoneList<const AstRawString*>* BreakableStatement::labels() const {
+ZonePtrList<const AstRawString>* BreakableStatement::labels() const {
   switch (node_type()) {
     BREAKABLE_NODE_LIST(RETURN_LABELS)
     ITERATION_NODE_LIST(RETURN_LABELS)

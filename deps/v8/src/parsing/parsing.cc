@@ -24,7 +24,7 @@ bool ParseProgram(ParseInfo* info, Isolate* isolate) {
   VMState<PARSER> state(isolate);
 
   // Create a character stream for the parser.
-  Handle<String> source(String::cast(info->script()->source()));
+  Handle<String> source(String::cast(info->script()->source()), isolate);
   source = String::Flatten(source);
   isolate->counters()->total_parse_size()->Increment(source->length());
   std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(source));
@@ -59,7 +59,7 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
   DCHECK_NULL(info->literal());
 
   // Create a character stream for the parser.
-  Handle<String> source(String::cast(info->script()->source()));
+  Handle<String> source(String::cast(info->script()->source()), isolate);
   source = String::Flatten(source);
   isolate->counters()->total_parse_size()->Increment(source->length());
   std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(

@@ -43,7 +43,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   // Visiting function for declarations list and statements are overridden.
   void VisitDeclarations(Declaration::List* declarations);
-  void VisitStatements(ZoneList<Statement*>* statments);
+  void VisitStatements(ZonePtrList<Statement>* statments);
 
  private:
   class ContextScope;
@@ -100,7 +100,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   // Visit the arguments expressions in |args| and store them in |args_regs|,
   // growing |args_regs| for each argument visited.
-  void VisitArguments(ZoneList<Expression*>* args, RegisterList* arg_regs);
+  void VisitArguments(ZonePtrList<Expression>* args, RegisterList* arg_regs);
 
   // Visit a keyed super property load. The optional
   // |opt_receiver_out| register will have the receiver stored to it
@@ -179,7 +179,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                FeedbackSlot element_slot);
   void BuildArrayLiteralElementsInsertion(Register array,
                                           int first_spread_index,
-                                          ZoneList<Expression*>* elements,
+                                          ZonePtrList<Expression>* elements,
                                           bool skip_constants);
 
   void AllocateTopLevelRegisters();
