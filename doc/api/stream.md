@@ -372,10 +372,10 @@ added: v8.0.0
 * `error` {Error} Optional, an error to emit with `'error'` event.
 * Returns: {this}
 
-Destroy the stream. Optionally emit an `'error'` event, and always emit
-a `'close'` event.
-After this call, the writable stream has ended and subsequent calls
-to `write()` or `end()` will result in an `ERR_STREAM_DESTROYED` error.
+Destroy the stream. Optionally emit an `'error'` event, and emit a `'close'`
+event unless `emitClose` is set in `false`. After this call, the writable
+stream has ended and subsequent calls to `write()` or `end()` will result in
+an `ERR_STREAM_DESTROYED` error.
 This is a destructive and immediate way to destroy a stream. Previous calls to
 `write()` may not have drained, and may trigger an `ERR_STREAM_DESTROYED` error.
 Use `end()` instead of destroy if data should flush before close, or wait for
@@ -876,9 +876,10 @@ added: v8.0.0
 * `error` {Error} Error which will be passed as payload in `'error'` event
 * Returns: {this}
 
-Destroy the stream, and emit `'error'` and `'close'`. After this call, the
-readable stream will release any internal resources and subsequent calls
-to `push()` will be ignored.
+Destroy the stream. Optionally emit an `'error'` event, and emit a `'close'`
+event unless `emitClose` is set in `false`. After this call, the readable
+stream will release any internal resources and subsequent calls to `push()`
+will be ignored.
 Implementors should not override this method, but instead implement
 [`readable._destroy()`][readable-_destroy].
 
@@ -1342,11 +1343,12 @@ added: v8.0.0
 -->
 * `error` {Error}
 
-Destroy the stream, and emit `'error'`. After this call, the
+Destroy the stream, and optionally emit an `'error'` event. After this call, the
 transform stream would release any internal resources.
 Implementors should not override this method, but instead implement
 [`readable._destroy()`][readable-_destroy].
-The default implementation of `_destroy()` for `Transform` also emit `'close'`.
+The default implementation of `_destroy()` for `Transform` also emit `'close'`
+unless `emitClose` is set in false.
 
 ### stream.finished(stream[, options], callback)
 <!-- YAML
