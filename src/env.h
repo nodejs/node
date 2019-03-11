@@ -862,6 +862,9 @@ class Environment {
   inline bool has_run_bootstrapping_code() const;
   inline void set_has_run_bootstrapping_code(bool has_run_bootstrapping_code);
 
+  inline bool has_serialized_options() const;
+  inline void set_has_serialized_options(bool has_serialized_options);
+
   static uint64_t AllocateThreadId();
   static constexpr uint64_t kNoThreadId = -1;
 
@@ -1106,6 +1109,8 @@ class Environment {
   std::unordered_map<std::string, uint64_t> performance_marks_;
 
   bool has_run_bootstrapping_code_ = false;
+  bool has_serialized_options_ = false;
+
   bool can_call_into_js_ = true;
   Flags flags_;
   uint64_t thread_id_;
