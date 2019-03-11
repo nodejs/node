@@ -129,14 +129,6 @@ void ZoneList<T>::Iterate(Visitor* visitor) {
 }
 
 template <typename T>
-bool ZoneList<T>::Contains(const T& elm) const {
-  for (int i = 0; i < length_; i++) {
-    if (data_[i] == elm) return true;
-  }
-  return false;
-}
-
-template <typename T>
 template <typename CompareFunction>
 void ZoneList<T>::Sort(CompareFunction cmp) {
   ToVector().Sort(cmp, 0, length_);

@@ -251,7 +251,12 @@ class ZoneList final {
   // Drops all but the first 'pos' elements from the list.
   INLINE(void Rewind(int pos));
 
-  inline bool Contains(const T& elm) const;
+  inline bool Contains(const T& elm) const {
+    for (int i = 0; i < length_; i++) {
+      if (data_[i] == elm) return true;
+    }
+    return false;
+  }
 
   // Iterate through all list entries, starting at index 0.
   template <class Visitor>
@@ -289,6 +294,11 @@ class ZoneList final {
 
   DISALLOW_COPY_AND_ASSIGN(ZoneList);
 };
+
+// ZonePtrList is a ZoneList of pointers to ZoneObjects allocated in the same
+// zone as the list object.
+template <typename T>
+using ZonePtrList = ZoneList<T*>;
 
 // A zone splay tree.  The config type parameter encapsulates the
 // different configurations of a concrete splay tree (see splay-tree.h).

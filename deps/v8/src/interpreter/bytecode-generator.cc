@@ -369,7 +369,6 @@ class BytecodeGenerator::ControlScopeForBreakable final
  protected:
   bool Execute(Command command, Statement* statement,
                int source_position) override {
-    control_builder_->set_needs_continuation_counter();
     if (statement != statement_) return false;
     switch (command) {
       case CMD_BREAK:
@@ -1327,7 +1326,7 @@ void BytecodeGenerator::VisitDeclarations(Declaration::List* declarations) {
   globals_builder_ = new (zone()) GlobalDeclarationsBuilder(zone());
 }
 
-void BytecodeGenerator::VisitStatements(ZoneList<Statement*>* statements) {
+void BytecodeGenerator::VisitStatements(ZonePtrList<Statement>* statements) {
   for (int i = 0; i < statements->length(); i++) {
     // Allocate an outer register allocations scope for the statement.
     RegisterAllocationScope allocation_scope(this);
@@ -1416,7 +1415,7 @@ void BytecodeGenerator::VisitWithStatement(WithStatement* stmt) {
 void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   // We need this scope because we visit for register values. We have to
   // maintain a execution result scope where registers can be allocated.
-  ZoneList<CaseClause*>* clauses = stmt->cases();
+  ZonePtrList<CaseClause>* clauses = stmt->cases();
   SwitchBuilder switch_builder(builder(), block_coverage_builder_, stmt,
                                clauses->length());
   ControlScopeForBreakable scope(this, stmt, &switch_builder);
@@ -2315,15 +2314,15 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 }
 
 void BytecodeGenerator::BuildArrayLiteralElementsInsertion(
-    Register array, int first_spread_index, ZoneList<Expression*>* elements,
+    Register array, int first_spread_index, ZonePtrList<Expression>* elements,
     bool skip_constants) {
   DCHECK_LT(first_spread_index, elements->length());
 
   Register index = register_allocator()->NewRegister();
   int array_index = 0;
 
-  ZoneList<Expression*>::iterator iter = elements->begin();
-  ZoneList<Expression*>::iterator first_spread_or_end =
+  ZonePtrList<Expression>::iterator iter = elements->begin();
+  ZonePtrList<Expression>::iterator first_spread_or_end =
       first_spread_index >= 0 ? elements->begin() + first_spread_index
                               : elements->end();
 
@@ -3424,7 +3423,7 @@ void BytecodeGenerator::VisitResolvedProperty(ResolvedProperty* expr) {
   UNREACHABLE();
 }
 
-void BytecodeGenerator::VisitArguments(ZoneList<Expression*>* args,
+void BytecodeGenerator::VisitArguments(ZonePtrList<Expression>* args,
                                        RegisterList* arg_regs) {
   // Visit arguments.
   for (int i = 0; i < static_cast<int>(args->length()); i++) {
@@ -3595,7 +3594,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
 void BytecodeGenerator::VisitCallSuper(Call* expr) {
   RegisterAllocationScope register_scope(this);
   SuperCallReference* super = expr->expression()->AsSuperCallReference();
-  ZoneList<Expression*>* args = expr->arguments();
+  ZonePtrList<Expression>* args = expr->arguments();
 
   int first_spread_index = 0;
   for (; first_spread_index < args->length(); first_spread_index++) {
@@ -4309,8 +4308,8 @@ void BytecodeGenerator::VisitGetTemplateObject(GetTemplateObject* expr) {
 }
 
 void BytecodeGenerator::VisitTemplateLiteral(TemplateLiteral* expr) {
-  const TemplateLiteral::StringList& parts = *expr->string_parts();
-  const TemplateLiteral::ExpressionList& substitutions = *expr->substitutions();
+  const ZonePtrList<const AstRawString>& parts = *expr->string_parts();
+  const ZonePtrList<Expression>& substitutions = *expr->substitutions();
   // Template strings with no substitutions are turned into StringLiterals.
   DCHECK_GT(substitutions.length(), 0);
   DCHECK_EQ(parts.length(), substitutions.length() + 1);

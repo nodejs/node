@@ -256,7 +256,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // which is an error even though the two 'e's are declared in different
   // scopes.
   Declaration* CheckLexDeclarationsConflictingWith(
-      const ZoneList<const AstRawString*>& names);
+      const ZonePtrList<const AstRawString>& names);
 
   // ---------------------------------------------------------------------------
   // Scope-specific info.
@@ -964,7 +964,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   bool has_inferred_function_name_ : 1;
 
   // Parameter list in source order.
-  ZoneList<Variable*> params_;
+  ZonePtrList<Variable> params_;
   // Map of function names to lists of functions defined in sloppy blocks
   SloppyBlockFunctionMap* sloppy_block_function_map_;
   // Convenience variable.
