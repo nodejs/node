@@ -12,9 +12,12 @@ if (!common.isMainThread)
 
 let stage = 0;
 
-process.once('uncaughtException', common.expectsError({
-  type: Error,
-  message: 'caughtException'
+process.once('uncaughtException', common.mustCall((err, errorOrigin) => {
+  assert.strictEqual(errorOrigin, 'uncaughtException');
+  common.expectsError({
+    type: Error,
+    message: 'caughtException'
+  })(err);
 }));
 
 setImmediate(() => {

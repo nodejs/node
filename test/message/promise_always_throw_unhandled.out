@@ -1,0 +1,14 @@
+*
+    throw err;
+    ^
+Error: One
+    at *promise_always_throw_unhandled.js:*:*
+    at new Promise (<anonymous>)
+    at Object.<anonymous> (*promise_always_throw_unhandled.js:*:*)
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *

@@ -218,6 +218,9 @@ Print stack traces for process warnings (including deprecations).
 .It Fl -track-heap-objects
 Track heap object allocations for heap snapshots.
 .
+.It Fl --unhandled-rejections=mode
+Define the behavior for unhandled rejections. Can be one of `strict` (raise an error), `warn` (enforce warnings) or `none` (silence warnings).
+.
 .It Fl -use-bundled-ca , Fl -use-openssl-ca
 Use bundled Mozilla CA store as supplied by current Node.js version or use OpenSSL's default CA store.
 The default store is selectable at build-time.

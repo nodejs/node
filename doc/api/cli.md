@@ -401,6 +401,23 @@ added: v2.4.0
 
 Track heap object allocations for heap snapshots.
 
+### `--unhandled-rejections=mode`
+<!-- YAML
+added: REPLACEME
+-->
+
+By default all unhandled rejections trigger a warning plus a deprecation warning
+for the very first unhandled rejection in case no [`unhandledRejection`][] hook
+is used.
+
+Using this flag allows to change what should happen when an unhandled rejection
+occurs. One of three modes can be chosen:
+
+* `strict`: Raise the unhandled rejection as an uncaught exception.
+* `warn`: Always trigger a warning, no matter if the [`unhandledRejection`][]
+  hook is set or not but do not print the deprecation warning.
+* `none`: Silence all warnings.
+
 ### `--use-bundled-ca`, `--use-openssl-ca`
 <!-- YAML
 added: v6.11.0
@@ -614,6 +631,7 @@ Node.js options that are allowed are:
 - `--trace-sync-io`
 - `--trace-warnings`
 - `--track-heap-objects`
+- `--unhandled-rejections`
 - `--use-bundled-ca`
 - `--use-openssl-ca`
 - `--v8-pool-size`
@@ -773,6 +791,7 @@ greater than `4` (its current default value). For more information, see the
 [`Buffer`]: buffer.html#buffer_class_buffer
 [`SlowBuffer`]: buffer.html#buffer_class_slowbuffer
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
+[`unhandledRejection`]: process.html#process_event_unhandledrejection
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [REPL]: repl.html
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
