@@ -419,9 +419,8 @@ tests. This makes it much easier when bisecting to find a breaking change.
 ### Using `git-node`
 
 In most cases, using [the `git-node` command][git-node] of [`node-core-utils`][]
-should be enough to help you land a Pull Request. If you discover a problem when
-using this tool, please file an issue
-[to the issue tracker][node-core-utils-issues].
+should be enough to land a pull request. If you discover a problem when using
+this tool, please file an issue [to the issue tracker][node-core-utils-issues].
 
 Quick example:
 
@@ -430,12 +429,11 @@ $ npm install -g node-core-utils
 $ git node land $PRID
 ```
 
-If it's the first time you have used `node-core-utils`, you will be prompted
-to type the password of your GitHub account and the two-factor authentication
-code in the console so the tool can create the GitHub access token for you.
-If you do not want to do that, follow
-[the `node-core-utils` guide][node-core-utils-credentials]
-to set up your credentials manually.
+To use `node-core-utils`, you will need a GitHub access token. If you do not
+have one, `node-core-utils` will create one for you the first time you use it.
+To do this, it will ask for your GitHub password and two-factor authentication
+code. If you wish to create the token yourself in advance, see
+[the `node-core-utils` guide][node-core-utils-credentials].
 
 ### Technical HOWTO
 
