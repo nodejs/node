@@ -3,5 +3,5 @@
   ^
 ReferenceError: undefined_reference_error_maker is not defined
     at Timeout._onTimeout (*test*message*timeout_throw.js:*:*)
-    at listOnTimeout (timers.js:*:*)
-    at processTimers (timers.js:*:*)
+    at listOnTimeout (internal/timers.js:*:*)
+    at processTimers (internal/timers.js:*:*)
