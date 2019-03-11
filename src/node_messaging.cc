@@ -725,7 +725,6 @@ void MessagePort::Stop() {
 }
 
 void MessagePort::Start(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   MessagePort* port;
   ASSIGN_OR_RETURN_UNWRAP(&port, args.This());
   if (!port->data_) {
@@ -735,7 +734,6 @@ void MessagePort::Start(const FunctionCallbackInfo<Value>& args) {
 }
 
 void MessagePort::Stop(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   MessagePort* port;
   CHECK(args[0]->IsObject());
   ASSIGN_OR_RETURN_UNWRAP(&port, args[0].As<Object>());
