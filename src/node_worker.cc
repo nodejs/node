@@ -269,22 +269,6 @@ void Worker::Run() {
       Debug(this, "Created Environment for worker with id %llu", thread_id_);
       if (is_stopped()) return;
       {
-        HandleScope handle_scope(isolate_);
-        Mutex::ScopedLock lock(mutex_);
-        // Set up the message channel for receiving messages in the child.
-        child_port_ = MessagePort::New(env_.get(),
-                                       env_->context(),
-                                       std::move(child_port_data_));
-        // MessagePort::New() may return nullptr if execution is terminated
-        // within it.
-        if (child_port_ != nullptr)
-          env_->set_message_port(child_port_->object(isolate_));
-
-        Debug(this, "Created message port for worker %llu", thread_id_);
-      }
-
-      if (is_stopped()) return;
-      {
 #if NODE_USE_V8_PLATFORM && HAVE_INSPECTOR
         StartWorkerInspector(env_.get(),
                              std::move(inspector_parent_handle_),
@@ -296,6 +280,9 @@ void Worker::Run() {
         Environment::AsyncCallbackScope callback_scope(env_.get());
         env_->async_hooks()->push_async_ids(1, 0);
         if (!RunBootstrapping(env_.get()).IsEmpty()) {
+          CreateEnvMessagePort(env_.get());
+          if (is_stopped()) return;
+          Debug(this, "Created message port for worker %llu", thread_id_);
           USE(StartExecution(env_.get(), "internal/main/worker_thread"));
         }
 
@@ -346,6 +333,19 @@ void Worker::Run() {
   }
 
   Debug(this, "Worker %llu thread stops", thread_id_);
+}
+
+void Worker::CreateEnvMessagePort(Environment* env) {
+  HandleScope handle_scope(isolate_);
+  Mutex::ScopedLock lock(mutex_);
+  // Set up the message channel for receiving messages in the child.
+  child_port_ = MessagePort::New(env,
+                                 env->context(),
+                                 std::move(child_port_data_));
+  // MessagePort::New() may return nullptr if execution is terminated
+  // within it.
+  if (child_port_ != nullptr)
+    env->set_message_port(child_port_->object(isolate_));
 }
 
 void Worker::JoinThread() {
