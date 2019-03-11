@@ -23,8 +23,11 @@ const errObj = {
   message: 'setImmediate Err'
 };
 
-process.once('uncaughtException', common.expectsError(errObj));
-process.once('uncaughtException', () => assert.strictEqual(stage, 0));
+process.once('uncaughtException', common.mustCall((err, errorOrigin) => {
+  assert.strictEqual(errorOrigin, 'uncaughtException');
+  assert.strictEqual(stage, 0);
+  common.expectsError(errObj)(err);
+}));
 
 const d1 = domain.create();
 d1.once('error', common.expectsError(errObj));

@@ -39,6 +39,14 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
   if (syntax_check_only && has_eval_string) {
     errors->push_back("either --check or --eval can be used, not both");
   }
+
+  if (!unhandled_rejections.empty() &&
+      unhandled_rejections != "strict" &&
+      unhandled_rejections != "warn" &&
+      unhandled_rejections != "none") {
+    errors->push_back("invalid value for --unhandled-rejections");
+  }
+
   debug_options->CheckOptions(errors);
 }
 
@@ -154,6 +162,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--trace-warnings",
             "show stack traces on process warnings",
             &EnvironmentOptions::trace_warnings,
+            kAllowedInEnvironment);
+  AddOption("--unhandled-rejections",
+            "define unhandled rejections behavior. Options are 'strict' (raise "
+            "an error), 'warn' (enforce warnings) or 'none' (silence warnings)",
+            &EnvironmentOptions::unhandled_rejections,
             kAllowedInEnvironment);
 
   AddOption("--check",

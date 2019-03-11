@@ -1370,7 +1370,8 @@ FatalTryCatch::~FatalTryCatch() {
 
 void FatalException(Isolate* isolate,
                     Local<Value> error,
-                    Local<Message> message) {
+                    Local<Message> message,
+                    bool from_promise) {
   HandleScope scope(isolate);
 
   Environment* env = Environment::GetCurrent(isolate);
@@ -1391,9 +1392,12 @@ void FatalException(Isolate* isolate,
     // Do not call FatalException when _fatalException handler throws
     fatal_try_catch.SetVerbose(false);
 
+    Local<Value> argv[2] = { error,
+                             Boolean::New(env->isolate(), from_promise) };
+
     // This will return true if the JS layer handled it, false otherwise
     MaybeLocal<Value> caught = fatal_exception_function.As<Function>()->Call(
-        env->context(), process_object, 1, &error);
+        env->context(), process_object, arraysize(argv), argv);
 
     if (fatal_try_catch.HasTerminated())
       return;
@@ -1418,6 +1422,11 @@ void FatalException(Isolate* isolate,
   }
 }
 
+void FatalException(Isolate* isolate,
+                    Local<Value> error,
+                    Local<Message> message) {
+  FatalException(isolate, error, message, false /* from_promise */);
+}
 
 void FatalException(Isolate* isolate, const TryCatch& try_catch) {
   // If we try to print out a termination exception, we'd just get 'null',
