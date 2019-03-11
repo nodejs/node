@@ -3679,7 +3679,7 @@ this API: [`fs.write(fd, string...)`][].
 
 ## fs Promises API
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 The `fs.promises` API provides an alternative set of asynchronous file system
 methods that return `Promise` objects rather than using callbacks. The
