@@ -10,6 +10,7 @@
 namespace node {
 
 using errors::TryCatchScope;
+using v8::Boolean;
 using v8::Context;
 using v8::Exception;
 using v8::Function;
@@ -771,7 +772,8 @@ void DecorateErrorStack(Environment* env,
 
 void FatalException(Isolate* isolate,
                     Local<Value> error,
-                    Local<Message> message) {
+                    Local<Message> message,
+                    bool from_promise) {
   CHECK(!error.IsEmpty());
   HandleScope scope(isolate);
 
@@ -794,9 +796,12 @@ void FatalException(Isolate* isolate,
     // Do not call FatalException when _fatalException handler throws
     fatal_try_catch.SetVerbose(false);
 
+    Local<Value> argv[2] = { error,
+                             Boolean::New(env->isolate(), from_promise) };
+
     // This will return true if the JS layer handled it, false otherwise
     MaybeLocal<Value> caught = fatal_exception_function.As<Function>()->Call(
-        env->context(), process_object, 1, &error);
+        env->context(), process_object, arraysize(argv), argv);
 
     if (fatal_try_catch.HasTerminated()) return;
 
@@ -819,6 +824,12 @@ void FatalException(Isolate* isolate,
       env->Exit(code.As<Int32>()->Value());
     }
   }
+}
+
+void FatalException(Isolate* isolate,
+                    Local<Value> error,
+                    Local<Message> message) {
+  FatalException(isolate, error, message, false /* from_promise */);
 }
 
 }  // namespace node

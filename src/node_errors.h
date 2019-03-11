@@ -39,6 +39,11 @@ void FatalException(v8::Isolate* isolate,
                     Local<Value> error,
                     Local<Message> message);
 
+void FatalException(v8::Isolate* isolate,
+                    Local<Value> error,
+                    Local<Message> message,
+                    bool from_promise);
+
 // Helpers to construct errors similar to the ones provided by
 // lib/internal/errors.js.
 // Example: with `V(ERR_INVALID_ARG_TYPE, TypeError)`, there will be

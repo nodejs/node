@@ -141,6 +141,13 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
     errors->push_back("invalid value for --http-parser");
   }
 
+  if (!unhandled_rejections.empty() &&
+      unhandled_rejections != "strict" &&
+      unhandled_rejections != "warn" &&
+      unhandled_rejections != "none") {
+    errors->push_back("invalid value for --unhandled-rejections");
+  }
+
 #if HAVE_INSPECTOR
   debug_options_.CheckOptions(errors);
 #endif  // HAVE_INSPECTOR
@@ -287,6 +294,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "custom loader",
             &EnvironmentOptions::userland_loader,
             kAllowedInEnvironment);
+  AddOption("--entry-type",
+            "set module type name of the entry point",
+            &EnvironmentOptions::module_type,
+            kAllowedInEnvironment);
   AddOption("--es-module-specifier-resolution",
             "Select extension resolution algorithm for es modules; "
             "either 'explicit' (default) or 'node'",
@@ -342,9 +353,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "show stack traces on process warnings",
             &EnvironmentOptions::trace_warnings,
             kAllowedInEnvironment);
-  AddOption("--entry-type",
-            "set module type name of the entry point",
-            &EnvironmentOptions::module_type,
+  AddOption("--unhandled-rejections",
+            "define unhandled rejections behavior. Options are 'strict' (raise "
+            "an error), 'warn' (enforce warnings) or 'none' (silence warnings)",
+            &EnvironmentOptions::unhandled_rejections,
             kAllowedInEnvironment);
 
   AddOption("--check",
