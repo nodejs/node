@@ -684,6 +684,14 @@ inline void Environment::set_has_run_bootstrapping_code(bool value) {
   has_run_bootstrapping_code_ = value;
 }
 
+inline bool Environment::has_serialized_options() const {
+  return has_serialized_options_;
+}
+
+inline void Environment::set_has_serialized_options(bool value) {
+  has_serialized_options_ = value;
+}
+
 inline bool Environment::is_main_thread() const {
   return flags_ & kIsMainThread;
 }

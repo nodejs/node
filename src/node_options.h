@@ -85,6 +85,12 @@ class DebugOptions : public Options {
     return deprecated_debug && !inspector_enabled;
   }
 
+  // Used to patch the options as if --inspect-brk is passed.
+  void EnableBreakFirstLine() {
+    inspector_enabled = true;
+    break_first_line = true;
+  }
+
   bool wait_for_connect() const {
     return break_first_line || break_node_first_line;
   }

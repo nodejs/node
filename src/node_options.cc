@@ -553,6 +553,7 @@ void GetOptions(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError(
         "Should not query options before bootstrapping is done");
   }
+  env->set_has_serialized_options(true);
 
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
