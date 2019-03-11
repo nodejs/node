@@ -160,9 +160,7 @@ function test(options) {
         version: 'TLSv1/SSLv3'
       });
       assert.strictEqual(ecdsa.getPeerCertificate().subject.CN, eccCN);
-      // XXX(sam) certs don't currently include EC key info, so depend on
-      // absence of RSA key info to indicate key is EC.
-      assert(!ecdsa.getPeerCertificate().exponent, 'not cert for an RSA key');
+      assert.strictEqual(ecdsa.getPeerCertificate().asn1Curve, 'prime256v1');
       ecdsa.end();
       connectWithRsa();
     }));
