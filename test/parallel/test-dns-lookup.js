@@ -27,8 +27,6 @@ common.expectWarning({
   'internal/test/binding': [
     'These APIs are for internal testing only. Do not use them.'
   ],
-  // For dns.promises.
-  'ExperimentalWarning': 'The dns.promises API is experimental',
   // For calling `dns.lookup` with falsy `hostname`.
   'DeprecationWarning': {
     DEP0118: 'The provided hostname "false" is not a valid ' +
