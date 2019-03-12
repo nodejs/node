@@ -24,7 +24,7 @@ original_argv = sys.argv[1:]
 CC = os.environ.get('CC', 'cc' if sys.platform == 'darwin' else 'gcc')
 CXX = os.environ.get('CXX', 'c++' if sys.platform == 'darwin' else 'g++')
 
-sys.path.insert(0, os.path.join('tools', 'gyp', 'pylib'))
+sys.path.insert(0, os.path.join('tools', 'gyp'))
 from gyp.common import GetFlavor
 
 # imports in tools/configure.d

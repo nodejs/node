@@ -6,7 +6,7 @@ import sys
 script_dir = os.path.dirname(__file__)
 node_root  = os.path.normpath(os.path.join(script_dir, os.pardir))
 
-sys.path.insert(0, os.path.join(node_root, 'tools', 'gyp', 'pylib'))
+sys.path.insert(0, os.path.join(node_root, 'tools', 'gyp'))
 import gyp
 
 # Directory within which we want all generated files (including Makefiles)
@@ -34,13 +34,11 @@ def run_gyp(args):
 
   args.append('--depth=' + node_root)
 
-  # There's a bug with windows which doesn't allow this feature.
-  if sys.platform != 'win32' and 'ninja' not in args:
-    # Tell gyp to write the Makefiles into output_dir
-    args.extend(['--generator-output', output_dir])
+  # Tell gyp to write the Makefiles into output_dir
+  args.extend(['--generator-output', output_dir])
 
-    # Tell make to write its output into the same dir
-    args.extend(['-Goutput_dir=' + output_dir])
+  # Tell make to write its output into the same dir
+  args.extend(['-Goutput_dir=' + output_dir])
 
   args.append('-Dcomponent=static_library')
   args.append('-Dlibrary=static_library')
