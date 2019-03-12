@@ -203,12 +203,7 @@ Response V8InspectorSessionImpl::findInjectedScript(
   if (!context) return Response::Error("Cannot find context with specified id");
   injectedScript = context->getInjectedScript(m_sessionId);
   if (!injectedScript) {
-    if (!context->createInjectedScript(m_sessionId)) {
-      if (m_inspector->isolate()->IsExecutionTerminating())
-        return Response::Error("Execution was terminated");
-      return Response::Error("Cannot access specified execution context");
-    }
-    injectedScript = context->getInjectedScript(m_sessionId);
+    injectedScript = context->createInjectedScript(m_sessionId);
     if (m_customObjectFormatterEnabled)
       injectedScript->setCustomObjectFormatterEnabled(true);
   }
@@ -285,14 +280,16 @@ V8InspectorSessionImpl::wrapObject(v8::Local<v8::Context> context,
   findInjectedScript(InspectedContext::contextId(context), injectedScript);
   if (!injectedScript) return nullptr;
   std::unique_ptr<protocol::Runtime::RemoteObject> result;
-  injectedScript->wrapObject(value, groupName, false, generatePreview, &result);
+  injectedScript->wrapObject(
+      value, groupName,
+      generatePreview ? WrapMode::kWithPreview : WrapMode::kNoPreview, &result);
   return result;
 }
 
 std::unique_ptr<protocol::Runtime::RemoteObject>
 V8InspectorSessionImpl::wrapTable(v8::Local<v8::Context> context,
-                                  v8::Local<v8::Value> table,
-                                  v8::Local<v8::Value> columns) {
+                                  v8::Local<v8::Object> table,
+                                  v8::MaybeLocal<v8::Array> columns) {
   InjectedScript* injectedScript = nullptr;
   findInjectedScript(InspectedContext::contextId(context), injectedScript);
   if (!injectedScript) return nullptr;

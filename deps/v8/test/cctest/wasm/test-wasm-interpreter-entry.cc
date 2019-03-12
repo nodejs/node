@@ -5,6 +5,7 @@
 #include <cstdint>
 
 #include "src/assembler-inl.h"
+#include "src/base/overflowing-math.h"
 #include "src/objects-inl.h"
 #include "src/wasm/wasm-objects.h"
 #include "test/cctest/cctest.h"
@@ -100,7 +101,9 @@ TEST(TestArgumentPassing_int32) {
        WASM_I32_ADD(WASM_I32_MUL(WASM_I32V_1(2), WASM_GET_LOCAL(0)), WASM_ONE)},
       {// Call f2 with param <0>.
        WASM_GET_LOCAL(0), WASM_CALL_FUNCTION0(f2.function_index())},
-      [](int32_t a) { return 2 * a + 1; });
+      [](int32_t a) {
+        return base::AddWithWraparound(base::MulWithWraparound(2, a), 1);
+      });
 
   FOR_INT32_INPUTS(v) { helper.CheckCall(*v); }
 }

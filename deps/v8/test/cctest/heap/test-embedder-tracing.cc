@@ -49,14 +49,15 @@ class TestEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
     to_register_with_v8_.push_back(persistent);
   }
 
-  bool AdvanceTracing(double deadline_in_ms,
-                      AdvanceTracingActions actions) final {
+  bool AdvanceTracing(double deadline_in_ms) final {
     for (auto persistent : to_register_with_v8_) {
       persistent->RegisterExternalReference(isolate_);
     }
     to_register_with_v8_.clear();
-    return false;
+    return true;
   }
+
+  bool IsTracingDone() final { return to_register_with_v8_.empty(); }
 
   void TracePrologue() final {}
   void TraceEpilogue() final {}

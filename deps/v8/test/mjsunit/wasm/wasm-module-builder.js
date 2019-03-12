@@ -69,12 +69,13 @@ class Binary extends Array {
     // Emit section name.
     this.emit_u8(section_code);
     // Emit the section to a temporary buffer: its full length isn't know yet.
-    let section = new Binary;
+    const section = new Binary;
     content_generator(section);
     // Emit section length.
     this.emit_u32v(section.length);
     // Copy the temporary buffer.
-    for (var i = 0; i < section.length; i++) this.push(section[i]);
+    // Avoid spread because {section} can be huge.
+    for (let b of section) this.push(b);
   }
 }
 
@@ -84,10 +85,11 @@ class WasmFunctionBuilder {
     this.name = name;
     this.type_index = type_index;
     this.body = [];
+    this.locals = [];
+    this.local_names = [];
   }
 
   numLocalNames() {
-    if (this.local_names === undefined) return 0;
     let num_local_names = 0;
     for (let loc_name of this.local_names) {
       if (loc_name !== undefined) ++num_local_names;
@@ -123,7 +125,7 @@ class WasmFunctionBuilder {
 
   getNumLocals() {
     let total_locals = 0;
-    for (let l of this.locals || []) {
+    for (let l of this.locals) {
       for (let type of ["i32", "i64", "f32", "f64", "s128"]) {
         total_locals += l[type + "_count"] || 0;
       }
@@ -133,10 +135,8 @@ class WasmFunctionBuilder {
 
   addLocals(locals, names) {
     const old_num_locals = this.getNumLocals();
-    if (!this.locals) this.locals = []
     this.locals.push(locals);
     if (names) {
-      if (!this.local_names) this.local_names = [];
       const missing_names = old_num_locals - this.local_names.length;
       this.local_names.push(...new Array(missing_names), ...names);
     }
@@ -171,11 +171,10 @@ class WasmModuleBuilder {
     this.globals = [];
     this.exceptions = [];
     this.functions = [];
-    this.function_table = [];
-    this.function_table_length_min = 0;
-    this.function_table_length_max = 0;
-    this.function_table_inits = [];
-    this.segments = [];
+    this.table_length_min = 0;
+    this.table_length_max = undefined;
+    this.element_segments = [];
+    this.data_segments = [];
     this.explicit = [];
     this.num_imported_funcs = 0;
     this.num_imported_globals = 0;
@@ -211,7 +210,10 @@ class WasmModuleBuilder {
     name = this.stringToBytes(name);
     var length = new Binary();
     length.emit_u32v(name.length + bytes.length);
-    this.explicit.push([0, ...length, ...name, ...bytes]);
+    var section = [0, ...length, ...name];
+    // Avoid spread because {bytes} can be huge.
+    for (var b of bytes) section.push(b);
+    this.explicit.push(section);
   }
 
   addType(type) {
@@ -229,11 +231,9 @@ class WasmModuleBuilder {
   }
 
   addException(type) {
-    if (type.results.length != 0) {
-      throw new Error('Exception signature must have void result: ' + type);
-    }
+    let type_index = (typeof type) == "number" ? type : this.addType(type);
     let except_index = this.exceptions.length + this.num_imported_exceptions;
-    this.exceptions.push(type);
+    this.exceptions.push(type_index);
     return except_index;
   }
 
@@ -245,7 +245,7 @@ class WasmModuleBuilder {
     return func;
   }
 
-  addImport(module = "", name, type) {
+  addImport(module, name, type) {
     if (this.functions.length != 0) {
       throw new Error('Imported functions must be declared before local ones');
     }
@@ -255,7 +255,7 @@ class WasmModuleBuilder {
     return this.num_imported_funcs++;
   }
 
-  addImportedGlobal(module = "", name, type, mutable = false) {
+  addImportedGlobal(module, name, type, mutable = false) {
     if (this.globals.length != 0) {
       throw new Error('Imported globals must be declared before local ones');
     }
@@ -265,27 +265,25 @@ class WasmModuleBuilder {
     return this.num_imported_globals++;
   }
 
-  addImportedMemory(module = "", name, initial = 0, maximum, shared) {
+  addImportedMemory(module, name, initial = 0, maximum, shared) {
     let o = {module: module, name: name, kind: kExternalMemory,
              initial: initial, maximum: maximum, shared: shared};
     this.imports.push(o);
     return this;
   }
 
-  addImportedTable(module = "", name, initial, maximum) {
+  addImportedTable(module, name, initial, maximum) {
     let o = {module: module, name: name, kind: kExternalTable, initial: initial,
              maximum: maximum};
     this.imports.push(o);
   }
 
-  addImportedException(module = "", name, type) {
-    if (type.results.length != 0) {
-      throw new Error('Exception signature must have void result: ' + type);
-    }
+  addImportedException(module, name, type) {
     if (this.exceptions.length != 0) {
       throw new Error('Imported exceptions must be declared before local ones');
     }
-    let o = {module: module, name: name, kind: kExternalException, type: type};
+    let type_index = (typeof type) == "number" ? type : this.addType(type);
+    let o = {module: module, name: name, kind: kExternalException, type: type_index};
     this.imports.push(o);
     return this.num_imported_exceptions++;
   }
@@ -301,26 +299,37 @@ class WasmModuleBuilder {
   }
 
   addDataSegment(addr, data, is_global = false) {
-    this.segments.push({addr: addr, data: data, is_global: is_global});
-    return this.segments.length - 1;
+    this.data_segments.push(
+        {addr: addr, data: data, is_global: is_global, is_active: true});
+    return this.data_segments.length - 1;
+  }
+
+  addPassiveDataSegment(data) {
+    this.data_segments.push({data: data, is_active: false});
+    return this.data_segments.length - 1;
   }
 
   exportMemoryAs(name) {
     this.exports.push({name: name, kind: kExternalMemory, index: 0});
   }
 
-  addFunctionTableInit(base, is_global, array, is_import = false) {
-    this.function_table_inits.push({base: base, is_global: is_global,
-                                    array: array});
+  addElementSegment(base, is_global, array, is_import = false) {
+    this.element_segments.push({base: base, is_global: is_global,
+                                    array: array, is_active: true});
     if (!is_global) {
       var length = base + array.length;
-      if (length > this.function_table_length_min && !is_import) {
-        this.function_table_length_min = length;
+      if (length > this.table_length_min && !is_import) {
+        this.table_length_min = length;
       }
-      if (length > this.function_table_length_max && !is_import) {
-         this.function_table_length_max = length;
+      if (length > this.table_length_max && !is_import) {
+         this.table_length_max = length;
       }
     }
+    return this;
+  }
+
+  addPassiveElementSegment(array, is_import = false) {
+    this.element_segments.push({array: array, is_active: false});
     return this;
   }
 
@@ -329,12 +338,12 @@ class WasmModuleBuilder {
       if (typeof n != 'number')
         throw new Error('invalid table (entries have to be numbers): ' + array);
     }
-    return this.addFunctionTableInit(this.function_table.length, false, array);
+    return this.addElementSegment(this.table_length_min, false, array);
   }
 
-  setFunctionTableBounds(min, max) {
-    this.function_table_length_min = min;
-    this.function_table_length_max = max;
+  setTableBounds(min, max = undefined) {
+    this.table_length_min = min;
+    this.table_length_max = max;
     return this;
   }
 
@@ -400,10 +409,8 @@ class WasmModuleBuilder {
             section.emit_u32v(imp.initial); // initial
             if (has_max) section.emit_u32v(imp.maximum); // maximum
           } else if (imp.kind == kExternalException) {
-            section.emit_u32v(imp.type.params.length);
-            for (let param of imp.type.params) {
-              section.emit_u8(param);
-            }
+            section.emit_u32v(kExceptionAttribute);
+            section.emit_u32v(imp.type);
           } else {
             throw new Error("unknown/unsupported import kind " + imp.kind);
           }
@@ -422,17 +429,17 @@ class WasmModuleBuilder {
       });
     }
 
-    // Add function_table.
-    if (wasm.function_table_length_min > 0) {
+    // Add table section
+    if (wasm.table_length_min > 0) {
       if (debug) print("emitting table @ " + binary.length);
       binary.emit_section(kTableSectionCode, section => {
         section.emit_u8(1);  // one table entry
         section.emit_u8(kWasmAnyFunctionTypeForm);
-        // TODO(gdeepti): Cleanup to use optional max flag,
-        // fix up tests to set correct initial/maximum values
-        section.emit_u32v(1);
-        section.emit_u32v(wasm.function_table_length_min);
-        section.emit_u32v(wasm.function_table_length_max);
+        const max = wasm.table_length_max;
+        const has_max = max !== undefined;
+        section.emit_u8(has_max ? kHasMaximumFlag : 0);
+        section.emit_u32v(wasm.table_length_min);
+        if (has_max) section.emit_u32v(max);
       });
     }
 
@@ -493,6 +500,9 @@ class WasmModuleBuilder {
               section.emit_u8(byte_view[6]);
               section.emit_u8(byte_view[7]);
               break;
+            case kWasmAnyRef:
+              section.emit_u8(kExprRefNull);
+              break;
             }
           } else {
             // Emit a global-index initializer.
@@ -510,10 +520,8 @@ class WasmModuleBuilder {
       binary.emit_section(kExceptionSectionCode, section => {
         section.emit_u32v(wasm.exceptions.length);
         for (let type of wasm.exceptions) {
-          section.emit_u32v(type.params.length);
-          for (let param of type.params) {
-            section.emit_u8(param);
-          }
+          section.emit_u32v(kExceptionAttribute);
+          section.emit_u32v(type);
         }
       });
     }
@@ -546,27 +554,38 @@ class WasmModuleBuilder {
       });
     }
 
-    // Add table elements.
-    if (wasm.function_table_inits.length > 0) {
-      if (debug) print("emitting table @ " + binary.length);
+    // Add element segments
+    if (wasm.element_segments.length > 0) {
+      if (debug) print("emitting element segments @ " + binary.length);
       binary.emit_section(kElementSectionCode, section => {
-        var inits = wasm.function_table_inits;
+        var inits = wasm.element_segments;
         section.emit_u32v(inits.length);
 
         for (let init of inits) {
-          section.emit_u8(0); // table index
-          if (init.is_global) {
-            section.emit_u8(kExprGetGlobal);
+          if (init.is_active) {
+            section.emit_u8(0);  // table index / flags
+            if (init.is_global) {
+              section.emit_u8(kExprGetGlobal);
+            } else {
+              section.emit_u8(kExprI32Const);
+            }
+            section.emit_u32v(init.base);
+            section.emit_u8(kExprEnd);
           } else {
-            section.emit_u8(kExprI32Const);
+            section.emit_u8(kPassive);  // flags
           }
-          section.emit_u32v(init.base);
-          section.emit_u8(kExprEnd);
           section.emit_u32v(init.array.length);
           for (let index of init.array) {
             section.emit_u32v(index);
           }
         }
+      });
+    }
+
+    // If there are any passive data segments, add the DataCount section.
+    if (wasm.data_segments.some(seg => !seg.is_active)) {
+      binary.emit_section(kDataCountSectionCode, section => {
+        section.emit_u32v(wasm.data_segments.length);
       });
     }
 
@@ -618,22 +637,26 @@ class WasmModuleBuilder {
     }
 
     // Add data segments.
-    if (wasm.segments.length > 0) {
+    if (wasm.data_segments.length > 0) {
       if (debug) print("emitting data segments @ " + binary.length);
       binary.emit_section(kDataSectionCode, section => {
-        section.emit_u32v(wasm.segments.length);
-        for (let seg of wasm.segments) {
-          section.emit_u8(0);  // linear memory index 0
-          if (seg.is_global) {
-            // initializer is a global variable
-            section.emit_u8(kExprGetGlobal);
-            section.emit_u32v(seg.addr);
+        section.emit_u32v(wasm.data_segments.length);
+        for (let seg of wasm.data_segments) {
+          if (seg.is_active) {
+            section.emit_u8(0);  // linear memory index 0 / flags
+            if (seg.is_global) {
+              // initializer is a global variable
+              section.emit_u8(kExprGetGlobal);
+              section.emit_u32v(seg.addr);
+            } else {
+              // initializer is a constant
+              section.emit_u8(kExprI32Const);
+              section.emit_u32v(seg.addr);
+            }
+            section.emit_u8(kExprEnd);
           } else {
-            // initializer is a constant
-            section.emit_u8(kExprI32Const);
-            section.emit_u32v(seg.addr);
+            section.emit_u8(kPassive);  // flags
           }
-          section.emit_u8(kExprEnd);
           section.emit_u32v(seg.data.length);
           section.emit_bytes(seg.data);
         }

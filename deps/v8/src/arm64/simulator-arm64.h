@@ -5,6 +5,11 @@
 #ifndef V8_ARM64_SIMULATOR_ARM64_H_
 #define V8_ARM64_SIMULATOR_ARM64_H_
 
+// globals.h defines USE_SIMULATOR.
+#include "src/globals.h"
+
+#if defined(USE_SIMULATOR)
+
 #include <stdarg.h>
 #include <vector>
 
@@ -15,14 +20,11 @@
 #include "src/arm64/instrument-arm64.h"
 #include "src/assembler.h"
 #include "src/base/compiler-specific.h"
-#include "src/globals.h"
 #include "src/simulator-base.h"
 #include "src/utils.h"
 
 namespace v8 {
 namespace internal {
-
-#if defined(USE_SIMULATOR)
 
 // Assemble the specified IEEE-754 components into the target type and apply
 // appropriate rounding.
@@ -2228,8 +2230,6 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
 
   class GlobalMonitor {
    public:
-    GlobalMonitor();
-
     class Processor {
      public:
       Processor();
@@ -2265,16 +2265,21 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
     // Called when the simulator is destroyed.
     void RemoveProcessor(Processor* processor);
 
+    static GlobalMonitor* Get();
+
    private:
+    // Private constructor. Call {GlobalMonitor::Get()} to get the singleton.
+    GlobalMonitor() = default;
+    friend class base::LeakyObject<GlobalMonitor>;
+
     bool IsProcessorInLinkedList_Locked(Processor* processor) const;
     void PrependProcessor_Locked(Processor* processor);
 
-    Processor* head_;
+    Processor* head_ = nullptr;
   };
 
   LocalMonitor local_monitor_;
   GlobalMonitor::Processor global_monitor_processor_;
-  static base::LazyInstance<GlobalMonitor>::type global_monitor_;
 
  private:
   void Init(FILE* stream);
@@ -2356,9 +2361,8 @@ inline float Simulator::FPDefaultNaN<float>() {
   return kFP32DefaultNaN;
 }
 
-#endif  // defined(USE_SIMULATOR)
-
 }  // namespace internal
 }  // namespace v8
 
+#endif  // defined(USE_SIMULATOR)
 #endif  // V8_ARM64_SIMULATOR_ARM64_H_

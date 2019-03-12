@@ -70,12 +70,13 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 // Set up V8 to a state where we can at least run the assembler and
 // disassembler. Declare the variables and allocate the data structures used
 // in the rest of the macros.
-#define SET_UP()                                            \
-  CcTest::InitializeVM();                                   \
-  Isolate* isolate = CcTest::i_isolate();                   \
-  HandleScope scope(isolate);                               \
-  byte* buffer = reinterpret_cast<byte*>(malloc(4 * 1024)); \
-  Assembler assm(AssemblerOptions{}, buffer, 4 * 1024);     \
+#define SET_UP()                                             \
+  CcTest::InitializeVM();                                    \
+  Isolate* isolate = CcTest::i_isolate();                    \
+  HandleScope scope(isolate);                                \
+  byte* buffer = reinterpret_cast<byte*>(malloc(4 * 1024));  \
+  Assembler assm(AssemblerOptions{},                         \
+                 ExternalAssemblerBuffer(buffer, 4 * 1024)); \
   bool failure = false;
 
 // This macro assembles one instruction using the preallocated assembler and
@@ -1123,11 +1124,11 @@ TEST(madd_msub_maddf_msubf) {
 TEST(atomic_load_store) {
   SET_UP();
   if (IsMipsArchVariant(kMips32r6)) {
-    COMPARE(ll(v0, MemOperand(v1, -1)), "7c62ffb6       ll     v0, -1(v1)");
-    COMPARE(sc(v0, MemOperand(v1, 1)), "7c6200a6       sc     v0, 1(v1)");
+    COMPARE(ll(v0, MemOperand(v1, -1)), "7c62ffb6       ll      v0, -1(v1)");
+    COMPARE(sc(v0, MemOperand(v1, 1)), "7c6200a6       sc      v0, 1(v1)");
   } else {
-    COMPARE(ll(v0, MemOperand(v1, -1)), "c062ffff       ll     v0, -1(v1)");
-    COMPARE(sc(v0, MemOperand(v1, 1)), "e0620001       sc     v0, 1(v1)");
+    COMPARE(ll(v0, MemOperand(v1, -1)), "c062ffff       ll      v0, -1(v1)");
+    COMPARE(sc(v0, MemOperand(v1, 1)), "e0620001       sc      v0, 1(v1)");
   }
   VERIFY_RUN();
 }

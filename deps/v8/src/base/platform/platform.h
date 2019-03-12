@@ -55,17 +55,17 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
   const intptr_t kTibExtraTlsOffset = 0xF94;
   const intptr_t kMaxInlineSlots = 64;
   const intptr_t kMaxSlots = kMaxInlineSlots + 1024;
-  const intptr_t kPointerSize = sizeof(void*);
+  const intptr_t kSystemPointerSize = sizeof(void*);
   DCHECK(0 <= index && index < kMaxSlots);
   USE(kMaxSlots);
   if (index < kMaxInlineSlots) {
-    return static_cast<intptr_t>(__readfsdword(kTibInlineTlsOffset +
-                                               kPointerSize * index));
+    return static_cast<intptr_t>(
+        __readfsdword(kTibInlineTlsOffset + kSystemPointerSize * index));
   }
   intptr_t extra = static_cast<intptr_t>(__readfsdword(kTibExtraTlsOffset));
   DCHECK_NE(extra, 0);
-  return *reinterpret_cast<intptr_t*>(extra +
-                                      kPointerSize * (index - kMaxInlineSlots));
+  return *reinterpret_cast<intptr_t*>(extra + kSystemPointerSize *
+                                                  (index - kMaxInlineSlots));
 }
 
 #elif defined(__APPLE__) && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
@@ -272,6 +272,9 @@ class V8_BASE_EXPORT OS {
 
   V8_WARN_UNUSED_RESULT static bool SetPermissions(void* address, size_t size,
                                                    MemoryPermission access);
+
+  V8_WARN_UNUSED_RESULT static bool DiscardSystemPages(void* address,
+                                                       size_t size);
 
   static const int msPerSecond = 1000;
 

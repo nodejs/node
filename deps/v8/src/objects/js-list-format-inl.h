@@ -18,6 +18,8 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(JSListFormat, JSObject)
+
 // Base list format accessors.
 ACCESSORS(JSListFormat, locale, String, kLocaleOffset)
 ACCESSORS(JSListFormat, icu_formatter, Managed<icu::ListFormatter>,

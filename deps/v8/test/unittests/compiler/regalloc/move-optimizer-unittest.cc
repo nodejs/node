@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/move-optimizer.h"
-#include "src/compiler/pipeline.h"
+#include "src/compiler/backend/move-optimizer.h"
 #include "src/ostreams.h"
-#include "test/unittests/compiler/instruction-sequence-unittest.h"
+#include "test/unittests/compiler/backend/instruction-sequence-unittest.h"
 
 namespace v8 {
 namespace internal {
@@ -54,18 +53,16 @@ class MoveOptimizerTest : public InstructionSequenceTest {
   void Optimize() {
     WireBlocks();
     if (FLAG_trace_turbo) {
-      PrintableInstructionSequence printable = {config(), sequence()};
       StdoutStream{}
           << "----- Instruction sequence before move optimization -----\n"
-          << printable;
+          << *sequence();
     }
     MoveOptimizer move_optimizer(zone(), sequence());
     move_optimizer.Run();
     if (FLAG_trace_turbo) {
-      PrintableInstructionSequence printable = {config(), sequence()};
       StdoutStream{}
           << "----- Instruction sequence after move optimization -----\n"
-          << printable;
+          << *sequence();
     }
   }
 

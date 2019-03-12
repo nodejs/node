@@ -21,8 +21,8 @@ function Spread_OneByteShort() {
 
 function Spread_OneByteShortTearDown() {
   var expected = "A|l|p|h|a|b|e|t|-|S|o|u|p";
-  return assert(Array.isArray(result))
-      && assertEquals(expected, result.join("|"));
+  assert(Array.isArray(result));
+  assertEquals(expected, result.join("|"));
 }
 
 // ----------------------------------------------------------------------------
@@ -44,8 +44,8 @@ function Spread_TwoByteShort() {
 
 function Spread_TwoByteShortTearDown() {
   var expected = "\u5FCD|\u8005|\u306E|\u653B|\u6483";
-  return assert(Array.isArray(result))
-      && assertEquals(expected, result.join("|"));
+  assert(Array.isArray(result));
+  assertEquals(expected, result.join("|"));
 }
 
 // ----------------------------------------------------------------------------
@@ -69,8 +69,8 @@ function Spread_WithSurrogatePairsShort() {
 function Spread_WithSurrogatePairsShortTearDown() {
   var expected =
       "\uD83C\uDF1F|\u5FCD|\u8005|\u306E|\u653B|\u6483|\uD83C\uDF1F";
-  return assert(Array.isArray(result))
-      && assertEquals(expected, result.join("|"));
+  assert(Array.isArray(result));
+  assertEquals(expected, result.join("|"));
 }
 
 // ----------------------------------------------------------------------------
@@ -92,7 +92,7 @@ function ForOf_OneByteShort() {
 }
 
 function ForOf_OneByteShortTearDown() {
-  return assertEquals(string, result);
+  assertEquals(string, result);
 }
 
 // ----------------------------------------------------------------------------
@@ -114,7 +114,7 @@ function ForOf_TwoByteShort() {
 }
 
 function ForOf_TwoByteShortTearDown() {
-  return assertEquals(string, result);
+  assertEquals(string, result);
 }
 
 // ----------------------------------------------------------------------------
@@ -137,7 +137,7 @@ function ForOf_WithSurrogatePairsShort() {
 }
 
 function ForOf_WithSurrogatePairsShortTearDown() {
-  return assertEquals(string, result);
+  assertEquals(string, result);
 }
 
 // ----------------------------------------------------------------------------
@@ -159,7 +159,7 @@ function ForOf_OneByteLong() {
 }
 
 function ForOf_OneByteLongTearDown() {
-  return assertEquals(string, result);
+  assertEquals(string, result);
 }
 
 // ----------------------------------------------------------------------------
@@ -181,7 +181,7 @@ function ForOf_TwoByteLong() {
 }
 
 function ForOf_TwoByteLongTearDown() {
-  return assertEquals(string, result);
+  assertEquals(string, result);
 }
 
 // ----------------------------------------------------------------------------
@@ -204,5 +204,5 @@ function ForOf_WithSurrogatePairsLong() {
 }
 
 function ForOf_WithSurrogatePairsLongTearDown() {
-  return assertEquals(string, result);
+  assertEquals(string, result);
 }

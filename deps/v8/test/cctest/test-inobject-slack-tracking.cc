@@ -8,7 +8,7 @@
 
 #include "src/api-inl.h"
 #include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/objects/heap-number-inl.h"
 #include "src/v8.h"
 
 #include "test/cctest/cctest.h"
@@ -49,10 +49,11 @@ Handle<T> GetLexical(const char* name) {
   ScriptContextTable::LookupResult lookup_result;
   if (ScriptContextTable::Lookup(isolate, script_contexts, str_name,
                                  &lookup_result)) {
-    Handle<Object> result = FixedArray::get(
-        *ScriptContextTable::GetContext(isolate, script_contexts,
-                                        lookup_result.context_index),
-        lookup_result.slot_index, isolate);
+    Handle<Context> script_context = ScriptContextTable::GetContext(
+        isolate, script_contexts, lookup_result.context_index);
+
+    Handle<Object> result(script_context->get(lookup_result.slot_index),
+                          isolate);
     return Handle<T>::cast(result);
   }
   return Handle<T>();
@@ -74,31 +75,27 @@ static inline Handle<T> CompileRunI(const char* script) {
   return OpenHandle<T>(CompileRun(script));
 }
 
-
-static Object* GetFieldValue(JSObject* obj, int property_index) {
+static Object GetFieldValue(JSObject obj, int property_index) {
   FieldIndex index = FieldIndex::ForPropertyIndex(obj->map(), property_index);
   return obj->RawFastPropertyAt(index);
 }
 
-
-static double GetDoubleFieldValue(JSObject* obj, FieldIndex field_index) {
+static double GetDoubleFieldValue(JSObject obj, FieldIndex field_index) {
   if (obj->IsUnboxedDoubleField(field_index)) {
     return obj->RawFastDoublePropertyAt(field_index);
   } else {
-    Object* value = obj->RawFastPropertyAt(field_index);
+    Object value = obj->RawFastPropertyAt(field_index);
     CHECK(value->IsMutableHeapNumber());
     return MutableHeapNumber::cast(value)->value();
   }
 }
 
-
-static double GetDoubleFieldValue(JSObject* obj, int property_index) {
+static double GetDoubleFieldValue(JSObject obj, int property_index) {
   FieldIndex index = FieldIndex::ForPropertyIndex(obj->map(), property_index);
   return GetDoubleFieldValue(obj, index);
 }
 
-
-bool IsObjectShrinkable(JSObject* obj) {
+bool IsObjectShrinkable(JSObject obj) {
   Handle<Map> filler_map =
       CcTest::i_isolate()->factory()->one_pointer_filler_map();
 
@@ -113,7 +110,6 @@ bool IsObjectShrinkable(JSObject* obj) {
   }
   return true;
 }
-
 
 TEST(JSObjectBasic) {
   // Avoid eventual completion of in-object slack tracking.

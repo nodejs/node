@@ -84,8 +84,16 @@ struct WasmException {
 
 // Static representation of a wasm data segment.
 struct WasmDataSegment {
+  // Construct an active segment.
+  explicit WasmDataSegment(WasmInitExpr dest_addr)
+      : dest_addr(dest_addr), active(true) {}
+
+  // Construct a passive segment, which has no dest_addr.
+  WasmDataSegment() : active(false) {}
+
   WasmInitExpr dest_addr;  // destination memory address of the data.
   WireBytesRef source;     // start offset in the module bytes.
+  bool active = true;      // true if copied automatically during instantiation.
 };
 
 // Static representation of a wasm indirect call table.
@@ -101,16 +109,21 @@ struct WasmTable {
   bool exported = false;        // true if exported.
 };
 
-// Static representation of how to initialize a table.
-struct WasmTableInit {
-  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmTableInit);
+// Static representation of wasm element segment (table initializer).
+struct WasmElemSegment {
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmElemSegment);
 
-  WasmTableInit(uint32_t table_index, WasmInitExpr offset)
-      : table_index(table_index), offset(offset) {}
+  // Construct an active segment.
+  WasmElemSegment(uint32_t table_index, WasmInitExpr offset)
+      : table_index(table_index), offset(offset), active(true) {}
+
+  // Construct a passive segment, which has no table index or offset.
+  WasmElemSegment() : table_index(0), active(false) {}
 
   uint32_t table_index;
   WasmInitExpr offset;
   std::vector<uint32_t> entries;
+  bool active;  // true if copied automatically during instantiation.
 };
 
 // Static representation of a wasm import.
@@ -152,11 +165,13 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<WasmGlobal> globals;
   // Size of the buffer required for all globals that are not imported and
   // mutable.
-  uint32_t globals_buffer_size = 0;
+  uint32_t untagged_globals_buffer_size = 0;
+  uint32_t tagged_globals_buffer_size = 0;
   uint32_t num_imported_mutable_globals = 0;
   uint32_t num_imported_functions = 0;
   uint32_t num_declared_functions = 0;  // excluding imported
   uint32_t num_exported_functions = 0;
+  uint32_t num_declared_data_segments = 0;  // From the DataCount section.
   WireBytesRef name = {0, 0};
   std::vector<FunctionSig*> signatures;  // by signature index
   std::vector<uint32_t> signature_ids;   // by signature index
@@ -166,7 +181,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<WasmImport> import_table;
   std::vector<WasmExport> export_table;
   std::vector<WasmException> exceptions;
-  std::vector<WasmTableInit> table_inits;
+  std::vector<WasmElemSegment> elem_segments;
   SignatureMap signature_map;  // canonicalizing map for signature indexes.
 
   ModuleOrigin origin = kWasmOrigin;  // origin of the module
@@ -174,21 +189,21 @@ struct V8_EXPORT_PRIVATE WasmModule {
       function_names;
   std::string source_map_url;
 
-  explicit WasmModule(std::unique_ptr<Zone> owned = nullptr);
+  explicit WasmModule(std::unique_ptr<Zone> signature_zone = nullptr);
 
   WireBytesRef LookupFunctionName(const ModuleWireBytes& wire_bytes,
                                   uint32_t function_index) const;
   void AddFunctionNameForTesting(int function_index, WireBytesRef name);
 };
 
-size_t EstimateWasmModuleSize(const WasmModule* module);
+size_t EstimateStoredSize(const WasmModule* module);
 
 // Interface to the storage (wire bytes) of a wasm module.
 // It is illegal for anyone receiving a ModuleWireBytes to store pointers based
 // on module_bytes, as this storage is only guaranteed to be alive as long as
 // this struct is alive.
 struct V8_EXPORT_PRIVATE ModuleWireBytes {
-  ModuleWireBytes(Vector<const byte> module_bytes)
+  explicit ModuleWireBytes(Vector<const byte> module_bytes)
       : module_bytes_(module_bytes) {}
   ModuleWireBytes(const byte* start, const byte* end)
       : module_bytes_(start, static_cast<int>(end - start)) {

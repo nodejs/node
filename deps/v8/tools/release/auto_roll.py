@@ -20,7 +20,7 @@ Please close rolling in case of a roll revert:
 https://v8-roll.appspot.com/
 This only works with a Google account.
 
-CQ_INCLUDE_TRYBOTS=master.tryserver.blink:linux_trusty_blink_rel;luci.chromium.try:linux_optional_gpu_tests_rel;luci.chromium.try:mac_optional_gpu_tests_rel;luci.chromium.try:win_optional_gpu_tests_rel;luci.chromium.try:android_optional_gpu_tests_rel""")
+CQ_INCLUDE_TRYBOTS=luci.chromium.try:linux-blink-rel;luci.chromium.try:linux_optional_gpu_tests_rel;luci.chromium.try:mac_optional_gpu_tests_rel;luci.chromium.try:win_optional_gpu_tests_rel;luci.chromium.try:android_optional_gpu_tests_rel""")
 
 class Preparation(Step):
   MESSAGE = "Preparation."
@@ -155,8 +155,7 @@ class UploadCL(Step):
     message.append("TBR=%s" % self._options.reviewer)
     self.GitCommit("\n\n".join(message),  author=self._options.author, cwd=cwd)
     if not self._options.dry_run:
-      self.GitUpload(author=self._options.author,
-                     force=True,
+      self.GitUpload(force=True,
                      bypass_hooks=True,
                      cq=self._options.use_commit_queue,
                      cq_dry_run=self._options.use_dry_run,

@@ -24,7 +24,7 @@ function assertThrowsAsync(run, errorType, message) {
 
   assertFalse(hadValue || hadError);
 
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
 
   if (!hadError) {
     throw new MjsUnitAssertionError(
@@ -185,7 +185,7 @@ class MyError extends Error {};
   testFailure = error;
 });
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 if (testFailed) {
   throw testFailure;
 }
@@ -619,7 +619,7 @@ if (testFailed) {
   testFailure = error;
 });
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 if (testFailed) {
   throw testFailure;
 }
@@ -663,7 +663,7 @@ if (testFailed) {
 
   // Cycle through `f` to extract iterator methods
   f().catch(function() { %AbortJS("No error should have occurred"); });
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
 
   assertEquals(typeof extractedNext, "function");
   assertThrowsAsync(() => extractedNext.call(undefined), TypeError);

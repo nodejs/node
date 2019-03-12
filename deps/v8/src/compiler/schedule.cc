@@ -55,6 +55,9 @@ void BasicBlock::AddNode(Node* node) { nodes_.push_back(node); }
 void BasicBlock::set_control(Control control) { control_ = control; }
 
 void BasicBlock::set_control_input(Node* control_input) {
+  if (!nodes_.empty() && control_input == nodes_.back()) {
+    nodes_.pop_back();
+  }
   control_input_ = control_input;
 }
 
@@ -363,30 +366,14 @@ void Schedule::EliminateRedundantPhiNodes() {
 }
 
 void Schedule::EnsureSplitEdgeForm(BasicBlock* block) {
+#ifdef DEBUG
   DCHECK(block->PredecessorCount() > 1 && block != end_);
   for (auto current_pred = block->predecessors().begin();
        current_pred != block->predecessors().end(); ++current_pred) {
     BasicBlock* pred = *current_pred;
-    if (pred->SuccessorCount() > 1) {
-      // Found a predecessor block with multiple successors.
-      BasicBlock* split_edge_block = NewBasicBlock();
-      split_edge_block->set_control(BasicBlock::kGoto);
-      split_edge_block->successors().push_back(block);
-      split_edge_block->predecessors().push_back(pred);
-      split_edge_block->set_deferred(block->deferred());
-      *current_pred = split_edge_block;
-      // Find a corresponding successor in the previous block, replace it
-      // with the split edge block... but only do it once, since we only
-      // replace the previous blocks in the current block one at a time.
-      for (auto successor = pred->successors().begin();
-           successor != pred->successors().end(); ++successor) {
-        if (*successor == block) {
-          *successor = split_edge_block;
-          break;
-        }
-      }
-    }
+    DCHECK_LE(pred->SuccessorCount(), 1);
   }
+#endif
 }
 
 void Schedule::EnsureDeferredCodeSingleEntryPoint(BasicBlock* block) {

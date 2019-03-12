@@ -55,6 +55,8 @@ class PropertyDescriptorObject : public FixedArray {
       FixedArray::OffsetOfElementAt(PropertyDescriptorObject::kGetIndex);
   static const int kSetOffset =
       FixedArray::OffsetOfElementAt(PropertyDescriptorObject::kSetIndex);
+
+  OBJECT_CONSTRUCTORS(PropertyDescriptorObject, FixedArray)
 };
 
 }  // namespace internal

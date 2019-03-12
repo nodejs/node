@@ -14,75 +14,70 @@ namespace internal {
 // Unicode character predicates as defined by ECMA-262, 3rd,
 // used for lexical analysis.
 
-inline int AsciiAlphaToLower(uc32 c);
-inline bool IsCarriageReturn(uc32 c);
-inline bool IsLineFeed(uc32 c);
-inline bool IsAsciiIdentifier(uc32 c);
-inline bool IsAlphaNumeric(uc32 c);
-inline bool IsDecimalDigit(uc32 c);
-inline bool IsHexDigit(uc32 c);
-inline bool IsOctalDigit(uc32 c);
-inline bool IsBinaryDigit(uc32 c);
-inline bool IsRegExpWord(uc32 c);
-inline bool IsRegExpNewline(uc32 c);
+inline constexpr int AsciiAlphaToLower(uc32 c);
+inline constexpr bool IsCarriageReturn(uc32 c);
+inline constexpr bool IsLineFeed(uc32 c);
+inline constexpr bool IsAsciiIdentifier(uc32 c);
+inline constexpr bool IsAlphaNumeric(uc32 c);
+inline constexpr bool IsDecimalDigit(uc32 c);
+inline constexpr bool IsHexDigit(uc32 c);
+inline constexpr bool IsOctalDigit(uc32 c);
+inline constexpr bool IsBinaryDigit(uc32 c);
+inline constexpr bool IsRegExpWord(uc32 c);
+inline constexpr bool IsRegExpNewline(uc32 c);
 
 // ES#sec-names-and-keywords
 // This includes '_', '$' and '\', and ID_Start according to
 // http://www.unicode.org/reports/tr31/, which consists of categories
 // 'Lu', 'Ll', 'Lt', 'Lm', 'Lo', 'Nl', but excluding properties
 // 'Pattern_Syntax' or 'Pattern_White_Space'.
+inline bool IsIdentifierStart(uc32 c);
 #ifdef V8_INTL_SUPPORT
-struct V8_EXPORT_PRIVATE IdentifierStart {
-  static bool Is(uc32 c);
+V8_EXPORT_PRIVATE bool IsIdentifierStartSlow(uc32 c);
 #else
-struct IdentifierStart {
+inline bool IsIdentifierStartSlow(uc32 c) {
   // Non-BMP characters are not supported without I18N.
-  static inline bool Is(uc32 c) {
-    return (c <= 0xFFFF) ? unibrow::ID_Start::Is(c) : false;
-  }
+  return (c <= 0xFFFF) ? unibrow::ID_Start::Is(c) : false;
+}
 #endif
-};
 
 // ES#sec-names-and-keywords
 // This includes \u200c and \u200d, and ID_Continue according to
 // http://www.unicode.org/reports/tr31/, which consists of ID_Start,
 // the categories 'Mn', 'Mc', 'Nd', 'Pc', but excluding properties
 // 'Pattern_Syntax' or 'Pattern_White_Space'.
+inline bool IsIdentifierPart(uc32 c);
 #ifdef V8_INTL_SUPPORT
-struct V8_EXPORT_PRIVATE IdentifierPart {
-  static bool Is(uc32 c);
+V8_EXPORT_PRIVATE bool IsIdentifierPartSlow(uc32 c);
 #else
-struct IdentifierPart {
-  static inline bool Is(uc32 c) {
-    // Non-BMP charaacters are not supported without I18N.
-    if (c <= 0xFFFF) {
-      return unibrow::ID_Start::Is(c) || unibrow::ID_Continue::Is(c);
-    }
-    return false;
+inline bool IsIdentifierPartSlow(uc32 c) {
+  // Non-BMP charaacters are not supported without I18N.
+  if (c <= 0xFFFF) {
+    return unibrow::ID_Start::Is(c) || unibrow::ID_Continue::Is(c);
   }
+  return false;
+}
 #endif
-};
 
 // ES6 draft section 11.2
 // This includes all code points of Unicode category 'Zs'.
 // Further included are \u0009, \u000b, \u000c, and \ufeff.
+inline bool IsWhiteSpace(uc32 c);
 #ifdef V8_INTL_SUPPORT
-struct V8_EXPORT_PRIVATE WhiteSpace {
-  static bool Is(uc32 c);
+V8_EXPORT_PRIVATE bool IsWhiteSpaceSlow(uc32 c);
 #else
-struct WhiteSpace {
-  static inline bool Is(uc32 c) { return unibrow::WhiteSpace::Is(c); }
+inline bool IsWhiteSpaceSlow(uc32 c) { return unibrow::WhiteSpace::Is(c); }
 #endif
-};
 
 // WhiteSpace and LineTerminator according to ES6 draft section 11.2 and 11.3
 // This includes all the characters with Unicode category 'Z' (= Zs+Zl+Zp)
 // as well as \u0009 - \u000d and \ufeff.
-struct WhiteSpaceOrLineTerminator {
-  static inline bool Is(uc32 c) {
-    return WhiteSpace::Is(c) || unibrow::IsLineTerminator(c);
-  }
-};
+inline bool IsWhiteSpaceOrLineTerminator(uc32 c);
+inline bool IsWhiteSpaceOrLineTerminatorSlow(uc32 c) {
+  return IsWhiteSpaceSlow(c) || unibrow::IsLineTerminator(c);
+}
+
+inline bool IsLineTerminatorSequence(uc32 c, uc32 next);
 
 }  // namespace internal
 }  // namespace v8

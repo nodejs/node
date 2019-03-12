@@ -42,21 +42,16 @@ class _Driver(object):
     from devil.android import device_utils  # pylint: disable=import-error
     from devil.android.perf import cache_control  # pylint: disable=import-error
     from devil.android.perf import perf_control  # pylint: disable=import-error
-    from devil.android.sdk import adb_wrapper  # pylint: disable=import-error
     global cache_control
     global device_errors
     global perf_control
 
     devil_chromium.Initialize()
 
-    if not device:
-      # Detect attached device if not specified.
-      devices = adb_wrapper.AdbWrapper.Devices()
-      assert devices, 'No devices detected'
-      assert len(devices) == 1, 'Multiple devices detected.'
-      device = str(devices[0])
-    self.adb_wrapper = adb_wrapper.AdbWrapper(device)
-    self.device = device_utils.DeviceUtils(self.adb_wrapper)
+    # Find specified device or a single attached device if none was specified.
+    # In case none or multiple devices are attached, this raises an exception.
+    self.device = device_utils.DeviceUtils.HealthyDevices(
+        retries=5, enable_usb_resets=True, device_arg=device)[0]
 
     # This remembers what we have already pushed to the device.
     self.pushed = set()
@@ -77,6 +72,8 @@ class _Driver(object):
       skip_if_missing: Keeps silent about missing files when set. Otherwise logs
           error.
     """
+    # TODO(sergiyb): Implement this method using self.device.PushChangedFiles to
+    # avoid accessing low-level self.device.adb.
     file_on_host = os.path.join(host_dir, file_name)
 
     # Only push files not yet pushed in one execution.
@@ -95,13 +92,13 @@ class _Driver(object):
 
     # Work-around for 'text file busy' errors. Push the files to a temporary
     # location and then copy them with a shell command.
-    output = self.adb_wrapper.Push(file_on_host, file_on_device_tmp)
+    output = self.device.adb.Push(file_on_host, file_on_device_tmp)
     # Success looks like this: '3035 KB/s (12512056 bytes in 4.025s)'.
     # Errors look like this: 'failed to copy  ... '.
     if output and not re.search('^[0-9]', output.splitlines()[-1]):
       logging.critical('PUSH FAILED: ' + output)
-    self.adb_wrapper.Shell('mkdir -p %s' % folder_on_device)
-    self.adb_wrapper.Shell('cp %s %s' % (file_on_device_tmp, file_on_device))
+    self.device.adb.Shell('mkdir -p %s' % folder_on_device)
+    self.device.adb.Shell('cp %s %s' % (file_on_device_tmp, file_on_device))
     self.pushed.add(file_on_host)
 
   def push_executable(self, shell_dir, target_dir, binary):

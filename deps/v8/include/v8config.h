@@ -161,14 +161,8 @@
 //
 // C++11 feature detection
 //
-//  V8_HAS_CXX11_ALIGNAS        - alignas specifier supported
-//  V8_HAS_CXX11_ALIGNOF        - alignof(type) operator supported
-//
 // Compiler-specific feature detection
 //
-//  V8_HAS___ALIGNOF                    - __alignof(type) operator supported
-//  V8_HAS___ALIGNOF__                  - __alignof__(type) operator supported
-//  V8_HAS_ATTRIBUTE_ALIGNED            - __attribute__((aligned(n))) supported
 //  V8_HAS_ATTRIBUTE_ALWAYS_INLINE      - __attribute__((always_inline))
 //                                        supported
 //  V8_HAS_ATTRIBUTE_DEPRECATED         - __attribute__((deprecated)) supported
@@ -188,7 +182,6 @@
 //  V8_HAS_BUILTIN_SADD_OVERFLOW        - __builtin_sadd_overflow() supported
 //  V8_HAS_BUILTIN_SSUB_OVERFLOW        - __builtin_ssub_overflow() supported
 //  V8_HAS_BUILTIN_UADD_OVERFLOW        - __builtin_uadd_overflow() supported
-//  V8_HAS_DECLSPEC_ALIGN               - __declspec(align(n)) supported
 //  V8_HAS_DECLSPEC_DEPRECATED          - __declspec(deprecated) supported
 //  V8_HAS_DECLSPEC_NOINLINE            - __declspec(noinline) supported
 //  V8_HAS_DECLSPEC_SELECTANY           - __declspec(selectany) supported
@@ -207,11 +200,6 @@
 # define V8_CC_GNU 1
 #endif
 
-// Clang defines __alignof__ as alias for __alignof
-# define V8_HAS___ALIGNOF 1
-# define V8_HAS___ALIGNOF__ V8_HAS___ALIGNOF
-
-# define V8_HAS_ATTRIBUTE_ALIGNED (__has_attribute(aligned))
 # define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (__has_attribute(always_inline))
 # define V8_HAS_ATTRIBUTE_DEPRECATED (__has_attribute(deprecated))
 # define V8_HAS_ATTRIBUTE_DEPRECATED_MESSAGE \
@@ -234,7 +222,9 @@
 # define V8_HAS_BUILTIN_SSUB_OVERFLOW (__has_builtin(__builtin_ssub_overflow))
 # define V8_HAS_BUILTIN_UADD_OVERFLOW (__has_builtin(__builtin_uadd_overflow))
 
-# define V8_HAS_CXX11_ALIGNAS (__has_feature(cxx_alignas))
+# if __cplusplus >= 201402L
+#  define V8_CAN_HAVE_DCHECK_IN_CONSTEXPR 1
+# endif
 
 #elif defined(__GNUC__)
 
@@ -250,9 +240,6 @@
 # endif
 # define V8_CC_MINGW (V8_CC_MINGW32 || V8_CC_MINGW64)
 
-# define V8_HAS___ALIGNOF__ (V8_GNUC_PREREQ(4, 3, 0))
-
-# define V8_HAS_ATTRIBUTE_ALIGNED (V8_GNUC_PREREQ(2, 95, 0))
 // always_inline is available in gcc 4.0 but not very reliable until 4.4.
 // Works around "sorry, unimplemented: inlining failed" build errors with
 // older compilers.
@@ -271,17 +258,11 @@
 # define V8_HAS_BUILTIN_FRAME_ADDRESS (V8_GNUC_PREREQ(2, 96, 0))
 # define V8_HAS_BUILTIN_POPCOUNT (V8_GNUC_PREREQ(3, 4, 0))
 
-# if __cplusplus >= 201103L
-#  define V8_HAS_CXX11_ALIGNAS (V8_GNUC_PREREQ(4, 8, 0))
-#  define V8_HAS_CXX11_ALIGNOF (V8_GNUC_PREREQ(4, 8, 0))
-# endif
 #endif
 
 #if defined(_MSC_VER)
 # define V8_CC_MSVC 1
-# define V8_HAS___ALIGNOF 1
 
-# define V8_HAS_DECLSPEC_ALIGN 1
 # define V8_HAS_DECLSPEC_DEPRECATED 1
 # define V8_HAS_DECLSPEC_NOINLINE 1
 # define V8_HAS_DECLSPEC_SELECTANY 1
@@ -358,58 +339,6 @@
 # define V8_LIKELY(condition) (condition)
 #endif
 
-
-// This macro allows to specify memory alignment for structs, classes, etc.
-// Use like:
-//   class V8_ALIGNED(16) MyClass { ... };
-//   V8_ALIGNED(32) int array[42];
-#if V8_HAS_CXX11_ALIGNAS
-# define V8_ALIGNED(n) alignas(n)
-#elif V8_HAS_ATTRIBUTE_ALIGNED
-# define V8_ALIGNED(n) __attribute__((aligned(n)))
-#elif V8_HAS_DECLSPEC_ALIGN
-# define V8_ALIGNED(n) __declspec(align(n))
-#else
-# define V8_ALIGNED(n) /* NOT SUPPORTED */
-#endif
-
-
-// This macro is similar to V8_ALIGNED(), but takes a type instead of size
-// in bytes. If the compiler does not supports using the alignment of the
-// |type|, it will align according to the |alignment| instead. For example,
-// Visual Studio C++ cannot combine __declspec(align) and __alignof. The
-// |alignment| must be a literal that is used as a kind of worst-case fallback
-// alignment.
-// Use like:
-//   struct V8_ALIGNAS(AnotherClass, 16) NewClass { ... };
-//   V8_ALIGNAS(double, 8) int array[100];
-#if V8_HAS_CXX11_ALIGNAS
-# define V8_ALIGNAS(type, alignment) alignas(type)
-#elif V8_HAS___ALIGNOF__ && V8_HAS_ATTRIBUTE_ALIGNED
-# define V8_ALIGNAS(type, alignment) __attribute__((aligned(__alignof__(type))))
-#else
-# define V8_ALIGNAS(type, alignment) V8_ALIGNED(alignment)
-#endif
-
-
-// This macro returns alignment in bytes (an integer power of two) required for
-// any instance of the given type, which is either complete type, an array type,
-// or a reference type.
-// Use like:
-//   size_t alignment = V8_ALIGNOF(double);
-#if V8_HAS_CXX11_ALIGNOF
-# define V8_ALIGNOF(type) alignof(type)
-#elif V8_HAS___ALIGNOF
-# define V8_ALIGNOF(type) __alignof(type)
-#elif V8_HAS___ALIGNOF__
-# define V8_ALIGNOF(type) __alignof__(type)
-#else
-// Note that alignment of a type within a struct can be less than the
-// alignment of the type stand-alone (because of ancient ABIs), so this
-// should only be used as a last resort.
-namespace v8 { template <typename T> class AlignOfHelper { char c; T t; }; }
-# define V8_ALIGNOF(type) (sizeof(::v8::AlignOfHelper<type>) - sizeof(type))
-#endif
 
 // Annotate a function indicating the caller must examine the return value.
 // Use like:

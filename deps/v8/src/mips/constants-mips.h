@@ -4,7 +4,7 @@
 
 #ifndef V8_MIPS_CONSTANTS_MIPS_H_
 #define V8_MIPS_CONSTANTS_MIPS_H_
-#include "src/globals.h"
+#include "src/cpu-features.h"
 // UNIMPLEMENTED_ macro for MIPS.
 #ifdef DEBUG
 #define UNIMPLEMENTED_MIPS()                                                  \
@@ -145,8 +145,7 @@ const uint32_t kLeastSignificantByteInInt32Offset = 3;
 namespace v8 {
 namespace internal {
 
-// TODO(sigurds): Change this value once we use relative jumps.
-constexpr size_t kMaxPCRelativeCodeRangeInMB = 0;
+constexpr size_t kMaxPCRelativeCodeRangeInMB = 4096;
 
 // -----------------------------------------------------------------------------
 // Registers and FPURegisters.
@@ -1685,9 +1684,10 @@ class Instruction : public InstructionGetters<InstructionBase> {
 // C/C++ argument slots size.
 const int kCArgSlotCount = 4;
 const int kCArgsSlotsSize = kCArgSlotCount * kInstrSize;
-const int kInvalidStackOffset = -1;
+
 // JS argument slots size.
 const int kJSArgsSlotsSize = 0 * kInstrSize;
+
 // Assembly builtins argument slots size.
 const int kBArgsSlotsSize = 0 * kInstrSize;
 

@@ -8,6 +8,7 @@
 #include "src/identity-map.h"
 #include "src/isolate.h"
 #include "src/objects.h"
+#include "src/objects/heap-number-inl.h"
 #include "src/zone/zone.h"
 #include "test/cctest/cctest.h"
 
@@ -142,8 +143,9 @@ class IdentityMapTester : public HandleAndZoneScope {
 
   void SimulateGCByIncrementingSmisBy(int shift) {
     for (int i = 0; i < map.capacity_; i++) {
-      if (map.keys_[i]->IsSmi()) {
-        map.keys_[i] = Smi::FromInt(Smi::ToInt(map.keys_[i]) + shift);
+      Address key = map.keys_[i];
+      if (!Internals::HasHeapObjectTag(key)) {
+        map.keys_[i] = Internals::IntToSmi(Internals::SmiValue(key) + shift);
       }
     }
     map.gc_counter_ = -1;
@@ -705,7 +707,7 @@ TEST(CanonicalHandleScope) {
   for (int i = 0; i < 100; i++) {
     smi_handles.push_back(Handle<Object>(Smi::FromInt(i), isolate));
   }
-  Object** next_handle = isolate->handle_scope_data()->next;
+  Address* next_handle = isolate->handle_scope_data()->next;
   for (int i = 0; i < 100; i++) {
     Handle<Object> new_smi = Handle<Object>(Smi::FromInt(i), isolate);
     Handle<Object> old_smi = smi_handles[i];

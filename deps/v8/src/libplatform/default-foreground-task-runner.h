@@ -29,7 +29,7 @@ class V8_PLATFORM_EXPORT DefaultForegroundTaskRunner
 
   std::unique_ptr<IdleTask> PopTaskFromIdleQueue();
 
-  void WaitForTaskLocked(const base::LockGuard<base::Mutex>&);
+  void WaitForTaskLocked(const base::MutexGuard&);
 
   double MonotonicallyIncreasingTime();
 
@@ -46,13 +46,11 @@ class V8_PLATFORM_EXPORT DefaultForegroundTaskRunner
  private:
   // The same as PostTask, but the lock is already held by the caller. The
   // {guard} parameter should make sure that the caller is holding the lock.
-  void PostTaskLocked(std::unique_ptr<Task> task,
-                      const base::LockGuard<base::Mutex>&);
+  void PostTaskLocked(std::unique_ptr<Task> task, const base::MutexGuard&);
 
   // A caller of this function has to hold {lock_}. The {guard} parameter should
   // make sure that the caller is holding the lock.
-  std::unique_ptr<Task> PopTaskFromDelayedQueueLocked(
-      const base::LockGuard<base::Mutex>&);
+  std::unique_ptr<Task> PopTaskFromDelayedQueueLocked(const base::MutexGuard&);
 
   bool terminated_ = false;
   base::Mutex lock_;
@@ -68,7 +66,7 @@ class V8_PLATFORM_EXPORT DefaultForegroundTaskRunner
   // queue. This is necessary because we have to reset the unique_ptr when we
   // remove a DelayedEntry from the priority queue.
   struct DelayedEntryCompare {
-    bool operator()(DelayedEntry& left, DelayedEntry& right) {
+    bool operator()(const DelayedEntry& left, const DelayedEntry& right) const {
       return left.first > right.first;
     }
   };

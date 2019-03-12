@@ -51,16 +51,16 @@ handlers: [
 snippet: "
   var a = { val: 2 }; a.name *= 2;
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 22
+bytecode array length: 20
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(1),
-                B(Mov), R(1), R(0),
-  /*   54 S> */ B(LdaNamedProperty), R(1), U8(1), U8(1),
+  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
+                B(Star), R(0),
+  /*   54 S> */ B(LdaNamedProperty), R(0), U8(1), U8(1),
                 B(MulSmi), I8(2), U8(3),
-  /*   61 E> */ B(StaNamedProperty), R(1), U8(1), U8(4),
+  /*   61 E> */ B(StaNamedProperty), R(0), U8(1), U8(4),
                 B(LdaUndefined),
   /*   67 S> */ B(Return),
 ]
@@ -77,16 +77,16 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 25
+bytecode array length: 23
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(1),
-                B(Mov), R(1), R(0),
+  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
+                B(Star), R(0),
   /*   52 S> */ B(LdaSmi), I8(1),
                 B(Star), R(2),
-                B(LdaKeyedProperty), R(1), U8(1),
+                B(LdaKeyedProperty), R(0), U8(1),
                 B(BitwiseXorSmi), I8(2), U8(3),
-  /*   57 E> */ B(StaKeyedProperty), R(1), R(2), U8(4),
+  /*   57 E> */ B(StaKeyedProperty), R(0), R(2), U8(4),
                 B(LdaUndefined),
   /*   63 S> */ B(Return),
 ]

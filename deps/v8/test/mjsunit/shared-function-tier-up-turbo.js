@@ -6,6 +6,10 @@
 // Flags: --opt --no-always-opt --turbo-filter=*
 
 // If we are always or never optimizing it is useless.
+if (isNeverOptimizeLiteMode()) {
+  print("Warning: skipping test that requires optimization in Lite mode.");
+  quit(0);
+}
 assertFalse(isAlwaysOptimize());
 assertFalse(isNeverOptimize());
 

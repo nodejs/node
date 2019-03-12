@@ -7,6 +7,7 @@
 
 #include "src/base/timezone-cache.h"
 #include "src/globals.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
@@ -160,7 +161,7 @@ class DateCache {
   // We increment the stamp each time when the timezone information changes.
   // JSDate objects perform stamp check and invalidate their caches if
   // their saved stamp is not equal to the current stamp.
-  Smi* stamp() { return stamp_; }
+  Smi stamp() { return stamp_; }
   void* stamp_address() { return &stamp_; }
 
   // These functions are virtual so that we can override them when testing.
@@ -217,7 +218,7 @@ class DateCache {
     return segment->start_sec > segment->end_sec;
   }
 
-  Smi* stamp_;
+  Smi stamp_;
 
   // Daylight Saving Time cache.
   DST dst_[kDSTSize];

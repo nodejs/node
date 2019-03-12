@@ -9,6 +9,7 @@
 #include "src/code-stub-assembler.h"
 #include "src/frames-inl.h"
 #include "src/objects/js-generator.h"
+#include "src/objects/js-promise.h"
 
 namespace v8 {
 namespace internal {
@@ -237,24 +238,22 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwaitResumeClosure(
 
 template <typename Descriptor>
 void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwait(bool is_catchable) {
-  Node* generator = Parameter(Descriptor::kGenerator);
-  Node* value = Parameter(Descriptor::kAwaited);
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<JSAsyncGeneratorObject> async_generator_object =
+      CAST(Parameter(Descriptor::kAsyncGeneratorObject));
+  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
-  CSA_SLOW_ASSERT(this, TaggedIsAsyncGenerator(generator));
-
-  Node* const request = LoadFirstAsyncGeneratorRequestFromQueue(generator);
-  CSA_ASSERT(this, IsNotUndefined(request));
-
-  Node* outer_promise =
-      LoadObjectField(request, AsyncGeneratorRequest::kPromiseOffset);
+  TNode<AsyncGeneratorRequest> request =
+      CAST(LoadFirstAsyncGeneratorRequestFromQueue(async_generator_object));
+  TNode<JSPromise> outer_promise = LoadObjectField<JSPromise>(
+      request, AsyncGeneratorRequest::kPromiseOffset);
 
   const int resolve_index = Context::ASYNC_GENERATOR_AWAIT_RESOLVE_SHARED_FUN;
   const int reject_index = Context::ASYNC_GENERATOR_AWAIT_REJECT_SHARED_FUN;
 
-  SetGeneratorAwaiting(generator);
-  Await(context, generator, value, outer_promise, resolve_index, reject_index,
-        is_catchable);
+  SetGeneratorAwaiting(async_generator_object);
+  Await(context, async_generator_object, value, outer_promise, resolve_index,
+        reject_index, is_catchable);
   Return(UndefinedConstant());
 }
 
@@ -492,9 +491,11 @@ TF_BUILTIN(AsyncGeneratorResolve, AsyncGeneratorBuiltinsAssembler) {
   CSA_SLOW_ASSERT(this, TaggedIsAsyncGenerator(generator));
   CSA_ASSERT(this, Word32BinaryNot(IsGeneratorAwaiting(generator)));
 
-  // If this assertion fails, the `value` component was not Awaited as it should
-  // have been, per https://github.com/tc39/proposal-async-iteration/pull/102/.
-  CSA_SLOW_ASSERT(this, TaggedDoesntHaveInstanceType(value, JS_PROMISE_TYPE));
+  // This operation should be called only when the `value` parameter has been
+  // Await-ed. Typically, this means `value` is not a JSPromise value. However,
+  // it may be a JSPromise value whose "then" method has been overridden to a
+  // non-callable value. This can't be checked with assertions due to being
+  // observable, but keep it in mind.
 
   Node* const next = TakeFirstAsyncGeneratorRequestFromQueue(generator);
   Node* const promise = LoadPromiseFromAsyncGeneratorRequest(next);

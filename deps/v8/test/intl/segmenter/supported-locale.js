@@ -9,14 +9,14 @@ assertEquals(
     "Intl.Segmenter.supportedLocalesOf should be a function"
 );
 
-var undef = Intl.Segmenter.supportedLocalesOf();
+const undef = Intl.Segmenter.supportedLocalesOf();
 assertEquals([], undef);
 
-var empty = Intl.Segmenter.supportedLocalesOf([]);
+const empty = Intl.Segmenter.supportedLocalesOf([]);
 assertEquals([], empty);
 
-var strLocale = Intl.Segmenter.supportedLocalesOf("sr");
+const strLocale = Intl.Segmenter.supportedLocalesOf("sr");
 assertEquals("sr", strLocale[0]);
 
-var multiLocale = ["sr-Thai-RS", "de", "zh-CN"];
+const multiLocale = ["sr-Thai-RS", "de", "zh-CN"];
 assertEquals(multiLocale, Intl.Segmenter.supportedLocalesOf(multiLocale));

@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --liftoff --wasm-async-compilation
-// Flags: --no-future --no-wasm-tier-up
+// Flags: --allow-natives-syntax --liftoff --no-future --no-wasm-tier-up
 
 load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');

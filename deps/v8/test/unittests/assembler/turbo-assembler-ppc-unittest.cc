@@ -21,12 +21,9 @@ namespace internal {
 class TurboAssemblerTest : public TestWithIsolate {};
 
 TEST_F(TurboAssemblerTest, TestHardAbort) {
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  TurboAssembler tasm(nullptr, AssemblerOptions{}, buffer,
-                      static_cast<int>(allocated), CodeObjectRequired::kNo);
-  // Called from C
-  __ function_descriptor();
+  auto buffer = AllocateAssemblerBuffer();
+  TurboAssembler tasm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
+                      buffer->CreateView());
 
   __ set_abort_hard(true);
 
@@ -34,20 +31,17 @@ TEST_F(TurboAssemblerTest, TestHardAbort) {
 
   CodeDesc desc;
   tasm.GetCode(nullptr, &desc);
-  MakeAssemblerBufferExecutable(buffer, allocated);
+  buffer->MakeExecutable();
   // We need an isolate here to execute in the simulator.
-  auto f = GeneratedCode<void>::FromBuffer(isolate(), buffer);
+  auto f = GeneratedCode<void>::FromBuffer(isolate(), buffer->start());
 
   ASSERT_DEATH_IF_SUPPORTED({ f.Call(); }, "abort: no reason");
 }
 
 TEST_F(TurboAssemblerTest, TestCheck) {
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  TurboAssembler tasm(nullptr, AssemblerOptions{}, buffer,
-                      static_cast<int>(allocated), CodeObjectRequired::kNo);
-  // Called from C
-  __ function_descriptor();
+  auto buffer = AllocateAssemblerBuffer();
+  TurboAssembler tasm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
+                      buffer->CreateView());
 
   __ set_abort_hard(true);
 
@@ -59,9 +53,9 @@ TEST_F(TurboAssemblerTest, TestCheck) {
 
   CodeDesc desc;
   tasm.GetCode(nullptr, &desc);
-  MakeAssemblerBufferExecutable(buffer, allocated);
+  buffer->MakeExecutable();
   // We need an isolate here to execute in the simulator.
-  auto f = GeneratedCode<void, int>::FromBuffer(isolate(), buffer);
+  auto f = GeneratedCode<void, int>::FromBuffer(isolate(), buffer->start());
 
   f.Call(0);
   f.Call(18);

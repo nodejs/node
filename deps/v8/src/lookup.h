@@ -10,6 +10,7 @@
 #include "src/isolate.h"
 #include "src/objects.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/js-objects.h"
 #include "src/objects/map.h"
 
 namespace v8 {
@@ -44,10 +45,9 @@ class V8_EXPORT_PRIVATE LookupIterator final {
     BEFORE_PROPERTY = INTERCEPTOR
   };
 
-  LookupIterator(Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
-                 Configuration configuration = DEFAULT)
-      : LookupIterator(isolate, receiver, name, GetRoot(isolate, receiver),
-                       configuration) {}
+  inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
+                        Handle<Name> name,
+                        Configuration configuration = DEFAULT);
 
   inline LookupIterator(Handle<Object> receiver, Handle<Name> name,
                         Handle<JSReceiver> holder,
@@ -57,10 +57,8 @@ class V8_EXPORT_PRIVATE LookupIterator final {
                         Handle<Name> name, Handle<JSReceiver> holder,
                         Configuration configuration = DEFAULT);
 
-  LookupIterator(Isolate* isolate, Handle<Object> receiver, uint32_t index,
-                 Configuration configuration = DEFAULT)
-      : LookupIterator(isolate, receiver, index,
-                       GetRoot(isolate, receiver, index), configuration) {}
+  inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
+                        uint32_t index, Configuration configuration = DEFAULT);
 
   LookupIterator(Isolate* isolate, Handle<Object> receiver, uint32_t index,
                  Handle<JSReceiver> holder,
@@ -130,19 +128,10 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   template <class T>
   inline Handle<T> GetStoreTarget() const;
   inline bool is_dictionary_holder() const;
-  Handle<Map> transition_map() const {
-    DCHECK_EQ(TRANSITION, state_);
-    return Handle<Map>::cast(transition_);
-  }
-  Handle<PropertyCell> transition_cell() const {
-    DCHECK_EQ(TRANSITION, state_);
-    return Handle<PropertyCell>::cast(transition_);
-  }
+  inline Handle<Map> transition_map() const;
+  inline Handle<PropertyCell> transition_cell() const;
   template <class T>
-  Handle<T> GetHolder() const {
-    DCHECK(IsFound());
-    return Handle<T>::cast(holder_);
-  }
+  inline Handle<T> GetHolder() const;
 
   bool HolderIsReceiver() const;
   bool HolderIsReceiverOrHiddenPrototype() const;
@@ -221,22 +210,22 @@ class V8_EXPORT_PRIVATE LookupIterator final {
 
   Handle<Map> GetReceiverMap() const;
 
-  V8_WARN_UNUSED_RESULT inline JSReceiver* NextHolder(Map* map);
+  V8_WARN_UNUSED_RESULT inline JSReceiver NextHolder(Map map);
 
   template <bool is_element>
   V8_EXPORT_PRIVATE void Start();
   template <bool is_element>
-  void NextInternal(Map* map, JSReceiver* holder);
+  void NextInternal(Map map, JSReceiver holder);
   template <bool is_element>
-  inline State LookupInHolder(Map* map, JSReceiver* holder) {
+  inline State LookupInHolder(Map map, JSReceiver holder) {
     return map->IsSpecialReceiverMap()
                ? LookupInSpecialHolder<is_element>(map, holder)
                : LookupInRegularHolder<is_element>(map, holder);
   }
   template <bool is_element>
-  State LookupInRegularHolder(Map* map, JSReceiver* holder);
+  State LookupInRegularHolder(Map map, JSReceiver holder);
   template <bool is_element>
-  State LookupInSpecialHolder(Map* map, JSReceiver* holder);
+  State LookupInSpecialHolder(Map map, JSReceiver holder);
   template <bool is_element>
   void RestartLookupForNonMaskingInterceptors() {
     RestartInternal<is_element>(InterceptorState::kProcessNonMasking);
@@ -244,33 +233,20 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   template <bool is_element>
   void RestartInternal(InterceptorState interceptor_state);
   Handle<Object> FetchValue() const;
-  bool IsConstFieldValueEqualTo(Object* value) const;
+  bool IsConstFieldValueEqualTo(Object value) const;
   template <bool is_element>
   void ReloadPropertyInformation();
 
   template <bool is_element>
-  bool SkipInterceptor(JSObject* holder);
+  bool SkipInterceptor(JSObject holder);
   template <bool is_element>
-  inline InterceptorInfo* GetInterceptor(JSObject* holder) const {
-    return is_element ? holder->GetIndexedInterceptor()
-                      : holder->GetNamedInterceptor();
-  }
+  static inline InterceptorInfo GetInterceptor(JSObject holder);
 
   bool check_interceptor() const {
     return (configuration_ & kInterceptor) != 0;
   }
-  int descriptor_number() const {
-    DCHECK(!IsElement());
-    DCHECK(has_property_);
-    DCHECK(holder_->HasFastProperties());
-    return number_;
-  }
-  int dictionary_entry() const {
-    DCHECK(!IsElement());
-    DCHECK(has_property_);
-    DCHECK(!holder_->HasFastProperties());
-    return number_;
-  }
+  inline int descriptor_number() const;
+  inline int dictionary_entry() const;
 
   static inline Configuration ComputeConfiguration(
       Configuration configuration, Handle<Name> name);
@@ -281,7 +257,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
                                            Handle<Object> receiver,
                                            uint32_t index = kMaxUInt32);
 
-  State NotFound(JSReceiver* const holder) const;
+  State NotFound(JSReceiver const holder) const;
 
   // If configuration_ becomes mutable, update
   // HolderIsReceiverOrHiddenPrototype.

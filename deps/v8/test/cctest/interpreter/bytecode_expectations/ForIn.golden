@@ -79,9 +79,9 @@ bytecodes: [
                 B(JumpIfFalse), U8(22),
                 B(ForInNext), R(3), R(7), R(4), U8(0),
                 B(JumpIfUndefined), U8(8),
-                B(Star), R(1),
-  /*   54 E> */ B(StackCheck),
                 B(Star), R(2),
+  /*   54 E> */ B(StackCheck),
+  /*   63 S> */ B(Star), R(1),
   /*   82 S> */ B(Return),
                 B(ForInStep), R(7),
                 B(Star), R(7),
@@ -119,10 +119,10 @@ bytecodes: [
                 B(JumpIfFalse), U8(31),
                 B(ForInNext), R(3), R(7), R(4), U8(0),
                 B(JumpIfUndefined), U8(17),
-                B(Star), R(1),
-  /*   45 E> */ B(StackCheck),
                 B(Star), R(2),
-  /*   70 S> */ B(Ldar), R(1),
+  /*   45 E> */ B(StackCheck),
+  /*   54 S> */ B(Star), R(1),
+  /*   70 S> */ B(Ldar), R(2),
   /*   75 E> */ B(Add), R(0), U8(2),
                 B(Mov), R(0), R(8),
                 B(Star), R(0),
@@ -148,11 +148,11 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 87
+bytecode array length: 85
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(1),
-                B(Mov), R(1), R(0),
+  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
+                B(Star), R(0),
   /*   77 S> */ B(CreateArrayLiteral), U8(1), U8(2), U8(37),
                 B(JumpIfUndefined), U8(72),
                 B(JumpIfNull), U8(70),
@@ -167,7 +167,7 @@ bytecodes: [
                 B(JumpIfUndefined), U8(41),
                 B(Star), R(6),
                 B(Ldar), R(6),
-  /*   67 E> */ B(StaNamedProperty), R(0), U8(2), U8(3),
+  /*   68 E> */ B(StaNamedProperty), R(0), U8(2), U8(3),
   /*   62 E> */ B(StackCheck),
   /*  100 S> */ B(LdaNamedProperty), R(0), U8(2), U8(5),
                 B(Star), R(6),
@@ -223,7 +223,7 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(8),
                 B(Ldar), R(6),
-  /*   64 E> */ B(StaKeyedProperty), R(0), R(8), U8(3),
+  /*   65 E> */ B(StaKeyedProperty), R(0), R(8), U8(3),
   /*   59 E> */ B(StackCheck),
   /*   83 S> */ B(LdaSmi), I8(3),
   /*   91 E> */ B(LdaKeyedProperty), R(0), U8(5),

@@ -6,8 +6,10 @@
 #define V8_ASSERT_SCOPE_H_
 
 #include <stdint.h>
+
 #include "src/base/macros.h"
 #include "src/globals.h"
+#include "src/pointer-with-payload.h"
 
 namespace v8 {
 namespace internal {
@@ -16,6 +18,10 @@ namespace internal {
 class Isolate;
 class PerThreadAssertData;
 
+template <>
+struct PointerWithPayloadTraits<PerThreadAssertData> {
+  static constexpr int value = 1;
+};
 
 enum PerThreadAssertType {
   HEAP_ALLOCATION_ASSERT,
@@ -29,6 +35,7 @@ enum PerThreadAssertType {
 enum PerIsolateAssertType {
   JAVASCRIPT_EXECUTION_ASSERT,
   JAVASCRIPT_EXECUTION_THROWS,
+  JAVASCRIPT_EXECUTION_DUMP,
   DEOPTIMIZATION_ASSERT,
   COMPILATION_ASSERT,
   NO_EXCEPTION_ASSERT
@@ -45,8 +52,21 @@ class PerThreadAssertScope {
   void Release();
 
  private:
-  PerThreadAssertData* data_;
-  bool old_state_;
+  PointerWithPayload<PerThreadAssertData, bool, 1> data_and_old_state_;
+
+  V8_INLINE void set_data(PerThreadAssertData* data) {
+    data_and_old_state_.SetPointer(data);
+  }
+
+  V8_INLINE PerThreadAssertData* data() const {
+    return data_and_old_state_.GetPointer();
+  }
+
+  V8_INLINE void set_old_state(bool old_state) {
+    return data_and_old_state_.SetPayload(old_state);
+  }
+
+  V8_INLINE bool old_state() const { return data_and_old_state_.GetPayload(); }
 
   DISALLOW_COPY_AND_ASSIGN(PerThreadAssertScope);
 };
@@ -112,6 +132,13 @@ typedef PerThreadAssertScopeDebugOnly<HANDLE_ALLOCATION_ASSERT, true>
 // Scope to document where we do not expect any allocation and GC.
 typedef PerThreadAssertScopeDebugOnly<HEAP_ALLOCATION_ASSERT, false>
     DisallowHeapAllocation;
+#ifdef DEBUG
+#define DISALLOW_HEAP_ALLOCATION(name) DisallowHeapAllocation name
+#define DISALLOW_HEAP_ALLOCATION_REF(name) const DisallowHeapAllocation& name
+#else
+#define DISALLOW_HEAP_ALLOCATION(name)
+#define DISALLOW_HEAP_ALLOCATION_REF(name)
+#endif
 
 // Scope to introduce an exception to DisallowHeapAllocation.
 typedef PerThreadAssertScopeDebugOnly<HEAP_ALLOCATION_ASSERT, true>
@@ -173,6 +200,14 @@ typedef PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, false>
 // Scope to introduce an exception to ThrowOnJavascriptExecution.
 typedef PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, true>
     NoThrowOnJavascriptExecution;
+
+// Scope in which javascript execution causes dumps.
+typedef PerIsolateAssertScope<JAVASCRIPT_EXECUTION_DUMP, false>
+    DumpOnJavascriptExecution;
+
+// Scope in which javascript execution causes dumps.
+typedef PerIsolateAssertScope<JAVASCRIPT_EXECUTION_DUMP, true>
+    NoDumpOnJavascriptExecution;
 
 // Scope to document where we do not expect deoptimization.
 typedef PerIsolateAssertScopeDebugOnly<DEOPTIMIZATION_ASSERT, false>

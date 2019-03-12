@@ -37,7 +37,7 @@ log = [];
 Debug.setListener(listener);
 Debug.setBreakOnException();
 caught_throw();
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 Debug.setListener(null);
 Debug.clearBreakOnException();
 assertEquals(["a"], log);
@@ -48,7 +48,7 @@ log = [];
 Debug.setListener(listener);
 Debug.setBreakOnUncaughtException();
 caught_throw();
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 Debug.setListener(null);
 Debug.clearBreakOnUncaughtException();
 assertEquals([], log);
@@ -69,7 +69,7 @@ log = [];
 Debug.setListener(listener);
 Debug.setBreakOnException();
 caught_reject();
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 Debug.setListener(null);
 Debug.clearBreakOnException();
 assertEquals([], log);
@@ -80,7 +80,7 @@ log = [];
 Debug.setListener(listener);
 Debug.setBreakOnUncaughtException();
 caught_reject();
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 Debug.setListener(null);
 Debug.clearBreakOnUncaughtException();
 assertEquals([], log);
@@ -95,7 +95,7 @@ async function propagate_inner() { return thrower(); }
 async function propagate_outer() { return propagate_inner(); }
 
 propagate_outer();
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals(["a"], log);
 assertNull(exception);
 
@@ -104,7 +104,7 @@ log = [];
 async function propagate_await() { await 1; return thrower(); }
 async function propagate_await_outer() { return propagate_await(); }
 propagate_await_outer();
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals(["a"], log);
 assertNull(exception);
 
@@ -113,7 +113,7 @@ Debug.setBreakOnUncaughtException();
 
 log = [];
 Promise.resolve().then(() => Promise.reject()).catch(() => log.push("d")); // Exception c
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals(["d"], log);
 assertNull(exception);
 

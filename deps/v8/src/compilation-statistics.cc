@@ -14,7 +14,7 @@ namespace internal {
 void CompilationStatistics::RecordPhaseStats(const char* phase_kind_name,
                                              const char* phase_name,
                                              const BasicStats& stats) {
-  base::LockGuard<base::Mutex> guard(&record_mutex_);
+  base::MutexGuard guard(&record_mutex_);
 
   std::string phase_name_str(phase_name);
   auto it = phase_map_.find(phase_name_str);
@@ -28,7 +28,7 @@ void CompilationStatistics::RecordPhaseStats(const char* phase_kind_name,
 
 void CompilationStatistics::RecordPhaseKindStats(const char* phase_kind_name,
                                                  const BasicStats& stats) {
-  base::LockGuard<base::Mutex> guard(&record_mutex_);
+  base::MutexGuard guard(&record_mutex_);
 
   std::string phase_kind_name_str(phase_kind_name);
   auto it = phase_kind_map_.find(phase_kind_name_str);
@@ -43,7 +43,7 @@ void CompilationStatistics::RecordPhaseKindStats(const char* phase_kind_name,
 
 void CompilationStatistics::RecordTotalStats(size_t source_size,
                                              const BasicStats& stats) {
-  base::LockGuard<base::Mutex> guard(&record_mutex_);
+  base::MutexGuard guard(&record_mutex_);
 
   source_size += source_size;
   total_stats_.Accumulate(stats);

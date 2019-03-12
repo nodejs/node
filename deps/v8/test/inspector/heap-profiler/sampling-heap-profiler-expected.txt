@@ -4,4 +4,5 @@ Allocated size is zero in the beginning: true
 Allocated size is more than 100KB after a chunk is allocated: true
 Allocated size increased after one more chunk is allocated: true
 Allocated size did not change after stopping: true
+Sample found: true
 Successfully finished

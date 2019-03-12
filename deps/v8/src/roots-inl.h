@@ -7,12 +7,20 @@
 
 #include "src/roots.h"
 
+#include "src/feedback-vector.h"
+#include "src/handles.h"
 #include "src/heap/heap-inl.h"
+#include "src/objects/api-callbacks.h"
+#include "src/objects/descriptor-array.h"
+#include "src/objects/literal-objects.h"
+#include "src/objects/map.h"
+#include "src/objects/scope-info.h"
+#include "src/objects/slots.h"
 
 namespace v8 {
 namespace internal {
 
-V8_INLINE bool operator<(RootIndex lhs, RootIndex rhs) {
+V8_INLINE constexpr bool operator<(RootIndex lhs, RootIndex rhs) {
   typedef typename std::underlying_type<RootIndex>::type type;
   return static_cast<type>(lhs) < static_cast<type>(rhs);
 }
@@ -23,56 +31,57 @@ V8_INLINE RootIndex operator++(RootIndex& index) {
   return index;
 }
 
-ReadOnlyRoots::ReadOnlyRoots(Heap* heap) : roots_table_(heap->roots_table()) {}
+bool RootsTable::IsRootHandleLocation(Address* handle_location,
+                                      RootIndex* index) const {
+  FullObjectSlot location(handle_location);
+  FullObjectSlot first_root(&roots_[0]);
+  FullObjectSlot last_root(&roots_[kEntriesCount]);
+  if (location >= last_root) return false;
+  if (location < first_root) return false;
+  *index = static_cast<RootIndex>(location - first_root);
+  return true;
+}
+
+template <typename T>
+bool RootsTable::IsRootHandle(Handle<T> handle, RootIndex* index) const {
+  // This can't use handle.location() because it is called from places
+  // where handle dereferencing is disallowed. Comparing the handle's
+  // location against the root handle list is safe though.
+  Address* handle_location = reinterpret_cast<Address*>(handle.address());
+  return IsRootHandleLocation(handle_location, index);
+}
+
+ReadOnlyRoots::ReadOnlyRoots(Heap* heap)
+    : roots_table_(heap->isolate()->roots_table()) {}
 
 ReadOnlyRoots::ReadOnlyRoots(Isolate* isolate)
-    : roots_table_(isolate->heap()->roots_table()) {}
+    : roots_table_(isolate->roots_table()) {}
 
-#define ROOT_ACCESSOR(type, name, CamelName)                       \
-  type* ReadOnlyRoots::name() {                                    \
-    return type::cast(roots_table_[RootIndex::k##CamelName]);      \
-  }                                                                \
-  Handle<type> ReadOnlyRoots::name##_handle() {                    \
-    return Handle<type>(                                           \
-        bit_cast<type**>(&roots_table_[RootIndex::k##CamelName])); \
+#define ROOT_ACCESSOR(Type, name, CamelName)                          \
+  Type ReadOnlyRoots::name() const {                                  \
+    return Type::cast(Object(roots_table_[RootIndex::k##CamelName])); \
+  }                                                                   \
+  Handle<Type> ReadOnlyRoots::name##_handle() const {                 \
+    return Handle<Type>(&roots_table_[RootIndex::k##CamelName]);      \
   }
 
 READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-Map* ReadOnlyRoots::MapForFixedTypedArray(ExternalArrayType array_type) {
+Map ReadOnlyRoots::MapForFixedTypedArray(ExternalArrayType array_type) {
   RootIndex root_index = RootsTable::RootIndexForFixedTypedArray(array_type);
-  return Map::cast(roots_table_[root_index]);
+  return Map::cast(Object(roots_table_[root_index]));
 }
 
-Map* ReadOnlyRoots::MapForFixedTypedArray(ElementsKind elements_kind) {
+Map ReadOnlyRoots::MapForFixedTypedArray(ElementsKind elements_kind) {
   RootIndex root_index = RootsTable::RootIndexForFixedTypedArray(elements_kind);
-  return Map::cast(roots_table_[root_index]);
+  return Map::cast(Object(roots_table_[root_index]));
 }
 
-FixedTypedArrayBase* ReadOnlyRoots::EmptyFixedTypedArrayForMap(const Map* map) {
+FixedTypedArrayBase ReadOnlyRoots::EmptyFixedTypedArrayForMap(const Map map) {
   RootIndex root_index =
       RootsTable::RootIndexForEmptyFixedTypedArray(map->elements_kind());
-  return FixedTypedArrayBase::cast(roots_table_[root_index]);
-}
-
-Object** RootsTable::read_only_roots_end() {
-// Enumerate the read-only roots into an expression of the form:
-// (root_1, root_2, root_3, ..., root_n)
-// This evaluates to root_n, but Clang warns that the other values in the list
-// are unused so suppress that warning.
-#if defined(__GNUC__) || defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-value"
-#endif
-#define ROOT(type, name, CamelName) , RootIndex::k##CamelName
-  constexpr RootIndex kLastReadOnlyRoot =
-      (RootIndex::kFirstRoot READ_ONLY_ROOT_LIST(ROOT));
-#undef ROOT
-#if defined(__GNUC__) || defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
-  return &roots_[static_cast<size_t>(kLastReadOnlyRoot) + 1];
+  return FixedTypedArrayBase::cast(Object(roots_table_[root_index]));
 }
 
 }  // namespace internal

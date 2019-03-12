@@ -27,7 +27,7 @@ On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE
 
 
 PASS a = 1; delete a; is true
-PASS delete nonexistant; is true
+PASS delete nonexistent; is true
 PASS delete NaN is false
 PASS successfullyParsed is true
 

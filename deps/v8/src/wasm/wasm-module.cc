@@ -74,8 +74,8 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
   return os;
 }
 
-WasmModule::WasmModule(std::unique_ptr<Zone> owned)
-    : signature_zone(std::move(owned)) {}
+WasmModule::WasmModule(std::unique_ptr<Zone> signature_zone)
+    : signature_zone(std::move(signature_zone)) {}
 
 bool IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
   // TODO(wasm): Once wasm has its own CSP policy, we should introduce a
@@ -260,7 +260,8 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
       thrower->RangeError("out of memory allocating custom section data");
       return Handle<JSArray>();
     }
-    Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
+    Handle<JSArrayBuffer> buffer =
+        isolate->factory()->NewJSArrayBuffer(SharedFlag::kNotShared);
     constexpr bool is_external = false;
     JSArrayBuffer::Setup(buffer, isolate, is_external, memory, size);
     memcpy(memory, wire_bytes.start() + section.payload.offset(),
@@ -312,15 +313,15 @@ inline size_t VectorSize(const std::vector<T>& vector) {
 }
 }  // namespace
 
-size_t EstimateWasmModuleSize(const WasmModule* module) {
-  size_t estimate =
-      sizeof(WasmModule) + VectorSize(module->signatures) +
-      VectorSize(module->signature_ids) + VectorSize(module->functions) +
-      VectorSize(module->data_segments) + VectorSize(module->tables) +
-      VectorSize(module->import_table) + VectorSize(module->export_table) +
-      VectorSize(module->exceptions) + VectorSize(module->table_inits);
-  // TODO(wasm): include names table and wire bytes in size estimate
-  return estimate;
+size_t EstimateStoredSize(const WasmModule* module) {
+  return sizeof(WasmModule) + VectorSize(module->globals) +
+         (module->signature_zone ? module->signature_zone->allocation_size()
+                                 : 0) +
+         VectorSize(module->signatures) + VectorSize(module->signature_ids) +
+         VectorSize(module->functions) + VectorSize(module->data_segments) +
+         VectorSize(module->tables) + VectorSize(module->import_table) +
+         VectorSize(module->export_table) + VectorSize(module->exceptions) +
+         VectorSize(module->elem_segments);
 }
 }  // namespace wasm
 }  // namespace internal

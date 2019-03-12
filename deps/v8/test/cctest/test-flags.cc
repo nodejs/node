@@ -183,81 +183,30 @@ TEST(Flags6b) {
   CHECK_EQ(3, FlagList::SetFlagsFromString(str, StrLength(str)));
 }
 
-
-TEST(FlagsJSArguments1) {
-  SetFlagsToDefault();
-  int argc = 6;
-  const char* argv[] = {"TestJSArgs1",
-                        "--testing-int-flag", "42",
-                        "--", "testing-float-flag", "7"};
-  CHECK_EQ(0, FlagList::SetFlagsFromCommandLine(&argc,
-                                                const_cast<char **>(argv),
-                                                true));
-  CHECK_EQ(42, FLAG_testing_int_flag);
-  CHECK_EQ(2.5, FLAG_testing_float_flag);
-  CHECK_EQ(2, FLAG_js_arguments.argc);
-  CHECK_EQ(0, strcmp(FLAG_js_arguments[0], "testing-float-flag"));
-  CHECK_EQ(0, strcmp(FLAG_js_arguments[1], "7"));
-  CHECK_EQ(1, argc);
-}
-
-
-TEST(FlagsJSArguments1b) {
-  SetFlagsToDefault();
-  const char* str = "--testing-int-flag 42 -- testing-float-flag 7";
-  CHECK_EQ(0, FlagList::SetFlagsFromString(str, StrLength(str)));
-  CHECK_EQ(42, FLAG_testing_int_flag);
-  CHECK_EQ(2.5, FLAG_testing_float_flag);
-  CHECK_EQ(2, FLAG_js_arguments.argc);
-  CHECK_EQ(0, strcmp(FLAG_js_arguments[0], "testing-float-flag"));
-  CHECK_EQ(0, strcmp(FLAG_js_arguments[1], "7"));
-}
-
-
-TEST(FlagsJSArguments2) {
-  SetFlagsToDefault();
-  const char* str = "--testing-int-flag 42 --js-arguments testing-float-flag 7";
-  CHECK_EQ(0, FlagList::SetFlagsFromString(str, StrLength(str)));
-  CHECK_EQ(42, FLAG_testing_int_flag);
-  CHECK_EQ(2.5, FLAG_testing_float_flag);
-  CHECK_EQ(2, FLAG_js_arguments.argc);
-  CHECK_EQ(0, strcmp(FLAG_js_arguments[0], "testing-float-flag"));
-  CHECK_EQ(0, strcmp(FLAG_js_arguments[1], "7"));
-}
-
-
-TEST(FlagsJSArguments3) {
-  SetFlagsToDefault();
-  const char* str = "--testing-int-flag 42 --js-arguments=testing-float-flag 7";
-  CHECK_EQ(0, FlagList::SetFlagsFromString(str, StrLength(str)));
-  CHECK_EQ(42, FLAG_testing_int_flag);
-  CHECK_EQ(2.5, FLAG_testing_float_flag);
-  CHECK_EQ(2, FLAG_js_arguments.argc);
-  CHECK_EQ(0, strcmp(FLAG_js_arguments[0], "testing-float-flag"));
-  CHECK_EQ(0, strcmp(FLAG_js_arguments[1], "7"));
-}
-
-
-TEST(FlagsJSArguments4) {
-  SetFlagsToDefault();
-  const char* str = "--testing-int-flag 42 --";
-  CHECK_EQ(0, FlagList::SetFlagsFromString(str, StrLength(str)));
-  CHECK_EQ(42, FLAG_testing_int_flag);
-  CHECK_EQ(0, FLAG_js_arguments.argc);
-}
-
-
 TEST(FlagsRemoveIncomplete) {
   // Test that processed command line arguments are removed, even
   // if the list of arguments ends unexpectedly.
   SetFlagsToDefault();
   int argc = 3;
-  const char* argv[] = {"", "--opt", "--expose-natives-as"};
+  const char* argv[] = {"", "--testing-bool-flag", "--expose-gc-as"};
   CHECK_EQ(2, FlagList::SetFlagsFromCommandLine(&argc,
                                                 const_cast<char **>(argv),
                                                 true));
   CHECK(argv[1]);
   CHECK_EQ(2, argc);
+}
+
+TEST(FlagsJitlessImplications) {
+  if (FLAG_jitless) {
+    // Double-check implications work as expected. Our implication system is
+    // fairly primitive and can break easily depending on the implication
+    // definition order in flag-definitions.h.
+    CHECK(!FLAG_opt);
+    CHECK(!FLAG_validate_asm);
+    CHECK(FLAG_wasm_interpret_all);
+    CHECK(!FLAG_asm_wasm_lazy_compilation);
+    CHECK(!FLAG_wasm_lazy_compilation);
+  }
 }
 
 }  // namespace internal

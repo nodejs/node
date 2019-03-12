@@ -5,19 +5,20 @@
 #ifndef V8_ISOLATE_INL_H_
 #define V8_ISOLATE_INL_H_
 
+#include "src/heap/heap-inl.h"  // Need MemoryChunk from heap/spaces.h
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/cell-inl.h"
+#include "src/objects/regexp-match-info.h"
 
 namespace v8 {
 namespace internal {
 
-base::AddressRegion Isolate::root_register_addressable_region() {
-  Address start = reinterpret_cast<Address>(this);
-  Address end = heap_.root_register_addressable_end();
-  return base::AddressRegion(start, end - start);
+IsolateAllocationMode Isolate::isolate_allocation_mode() {
+  return isolate_allocator_->mode();
 }
 
-bool Isolate::FromWritableHeapObject(HeapObject* obj, Isolate** isolate) {
+bool Isolate::FromWritableHeapObject(HeapObject obj, Isolate** isolate) {
   i::MemoryChunk* chunk = i::MemoryChunk::FromHeapObject(obj);
   if (chunk->owner()->identity() == i::RO_SPACE) {
     *isolate = nullptr;
@@ -27,8 +28,8 @@ bool Isolate::FromWritableHeapObject(HeapObject* obj, Isolate** isolate) {
   return true;
 }
 
-void Isolate::set_context(Context* context) {
-  DCHECK(context == nullptr || context->IsContext());
+void Isolate::set_context(Context context) {
+  DCHECK(context.is_null() || context->IsContext());
   thread_local_top_.context_ = context;
 }
 
@@ -36,22 +37,20 @@ Handle<NativeContext> Isolate::native_context() {
   return handle(context()->native_context(), this);
 }
 
-NativeContext* Isolate::raw_native_context() {
+NativeContext Isolate::raw_native_context() {
   return context()->native_context();
 }
 
-Object* Isolate::pending_exception() {
+Object Isolate::pending_exception() {
   DCHECK(has_pending_exception());
   DCHECK(!thread_local_top_.pending_exception_->IsException(this));
   return thread_local_top_.pending_exception_;
 }
 
-
-void Isolate::set_pending_exception(Object* exception_obj) {
+void Isolate::set_pending_exception(Object exception_obj) {
   DCHECK(!exception_obj->IsException(this));
   thread_local_top_.pending_exception_ = exception_obj;
 }
-
 
 void Isolate::clear_pending_exception() {
   DCHECK(!thread_local_top_.pending_exception_->IsException(this));
@@ -69,13 +68,11 @@ void Isolate::clear_pending_message() {
   thread_local_top_.pending_message_obj_ = ReadOnlyRoots(this).the_hole_value();
 }
 
-
-Object* Isolate::scheduled_exception() {
+Object Isolate::scheduled_exception() {
   DCHECK(has_scheduled_exception());
   DCHECK(!thread_local_top_.scheduled_exception_->IsException(this));
   return thread_local_top_.scheduled_exception_;
 }
-
 
 bool Isolate::has_scheduled_exception() {
   DCHECK(!thread_local_top_.scheduled_exception_->IsException(this));
@@ -89,20 +86,12 @@ void Isolate::clear_scheduled_exception() {
   thread_local_top_.scheduled_exception_ = ReadOnlyRoots(this).the_hole_value();
 }
 
-bool Isolate::is_catchable_by_javascript(Object* exception) {
+bool Isolate::is_catchable_by_javascript(Object exception) {
   return exception != ReadOnlyRoots(heap()).termination_exception();
 }
 
 void Isolate::FireBeforeCallEnteredCallback() {
   for (auto& callback : before_call_entered_callbacks_) {
-    callback(reinterpret_cast<v8::Isolate*>(this));
-  }
-}
-
-void Isolate::FireMicrotasksCompletedCallback() {
-  std::vector<MicrotasksCompletedCallback> callbacks(
-      microtasks_completed_callbacks_);
-  for (auto& callback : callbacks) {
     callback(reinterpret_cast<v8::Isolate*>(this));
   }
 }
@@ -129,14 +118,14 @@ Isolate::ExceptionScope::~ExceptionScope() {
   Handle<type> Isolate::name() {                             \
     return Handle<type>(raw_native_context()->name(), this); \
   }                                                          \
-  bool Isolate::is_##name(type* value) {                     \
+  bool Isolate::is_##name(type value) {                      \
     return raw_native_context()->is_##name(value);           \
   }
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
 #undef NATIVE_CONTEXT_FIELD_ACCESSOR
 
 bool Isolate::IsArrayConstructorIntact() {
-  Cell* array_constructor_cell = heap()->array_constructor_protector();
+  Cell array_constructor_cell = heap()->array_constructor_protector();
   return array_constructor_cell->value() == Smi::FromInt(kProtectorValid);
 }
 
@@ -153,40 +142,56 @@ bool Isolate::IsArraySpeciesLookupChainIntact() {
   // done here. In place, there are mjsunit tests harmony/array-species* which
   // ensure that behavior is correct in various invalid protector cases.
 
-  PropertyCell* species_cell = heap()->array_species_protector();
+  PropertyCell species_cell = heap()->array_species_protector();
   return species_cell->value()->IsSmi() &&
          Smi::ToInt(species_cell->value()) == kProtectorValid;
 }
 
 bool Isolate::IsTypedArraySpeciesLookupChainIntact() {
-  PropertyCell* species_cell = heap()->typed_array_species_protector();
+  PropertyCell species_cell = heap()->typed_array_species_protector();
+  return species_cell->value()->IsSmi() &&
+         Smi::ToInt(species_cell->value()) == kProtectorValid;
+}
+
+bool Isolate::IsRegExpSpeciesLookupChainIntact() {
+  PropertyCell species_cell = heap()->regexp_species_protector();
   return species_cell->value()->IsSmi() &&
          Smi::ToInt(species_cell->value()) == kProtectorValid;
 }
 
 bool Isolate::IsPromiseSpeciesLookupChainIntact() {
-  PropertyCell* species_cell = heap()->promise_species_protector();
+  PropertyCell species_cell = heap()->promise_species_protector();
   return species_cell->value()->IsSmi() &&
          Smi::ToInt(species_cell->value()) == kProtectorValid;
 }
 
 bool Isolate::IsStringLengthOverflowIntact() {
-  Cell* string_length_cell = heap()->string_length_protector();
+  Cell string_length_cell = heap()->string_length_protector();
   return string_length_cell->value() == Smi::FromInt(kProtectorValid);
 }
 
-bool Isolate::IsArrayBufferNeuteringIntact() {
-  PropertyCell* buffer_neutering = heap()->array_buffer_neutering_protector();
-  return buffer_neutering->value() == Smi::FromInt(kProtectorValid);
+bool Isolate::IsArrayBufferDetachingIntact() {
+  PropertyCell buffer_detaching = heap()->array_buffer_detaching_protector();
+  return buffer_detaching->value() == Smi::FromInt(kProtectorValid);
 }
 
 bool Isolate::IsArrayIteratorLookupChainIntact() {
-  PropertyCell* array_iterator_cell = heap()->array_iterator_protector();
+  PropertyCell array_iterator_cell = heap()->array_iterator_protector();
   return array_iterator_cell->value() == Smi::FromInt(kProtectorValid);
 }
 
+bool Isolate::IsMapIteratorLookupChainIntact() {
+  PropertyCell map_iterator_cell = heap()->map_iterator_protector();
+  return map_iterator_cell->value() == Smi::FromInt(kProtectorValid);
+}
+
+bool Isolate::IsSetIteratorLookupChainIntact() {
+  PropertyCell set_iterator_cell = heap()->set_iterator_protector();
+  return set_iterator_cell->value() == Smi::FromInt(kProtectorValid);
+}
+
 bool Isolate::IsStringIteratorLookupChainIntact() {
-  PropertyCell* string_iterator_cell = heap()->string_iterator_protector();
+  PropertyCell string_iterator_cell = heap()->string_iterator_protector();
   return string_iterator_cell->value() == Smi::FromInt(kProtectorValid);
 }
 

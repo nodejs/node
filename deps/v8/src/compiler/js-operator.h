@@ -667,6 +667,8 @@ BinaryOperationHint BinaryOperationHintOf(const Operator* op);
 
 CompareOperationHint CompareOperationHintOf(const Operator* op);
 
+int RegisterCountOf(Operator const* op) V8_WARN_UNUSED_RESULT;
+
 int GeneratorStoreValueCountOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 int RestoreRegisterIndexOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
@@ -717,6 +719,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateArguments(CreateArgumentsType type);
   const Operator* CreateArray(size_t arity, MaybeHandle<AllocationSite> site);
   const Operator* CreateArrayIterator(IterationKind);
+  const Operator* CreateAsyncFunctionObject(int register_count);
   const Operator* CreateCollectionIterator(CollectionKind, IterationKind);
   const Operator* CreateBoundFunction(size_t arity, Handle<Map> map);
   const Operator* CreateClosure(Handle<SharedFunctionInfo> shared_info,
@@ -808,6 +811,10 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* HasInPrototypeChain();
   const Operator* InstanceOf(const VectorSlotPair& feedback);
   const Operator* OrdinaryHasInstance();
+
+  const Operator* AsyncFunctionEnter();
+  const Operator* AsyncFunctionReject();
+  const Operator* AsyncFunctionResolve();
 
   const Operator* ForInEnumerate();
   const Operator* ForInNext(ForInMode);

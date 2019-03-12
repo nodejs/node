@@ -41,8 +41,9 @@ static NodeVector::iterator FindInsertionPoint(BasicBlock* block) {
 // TODO(dcarney): need to mark code as non-serializable.
 static const Operator* PointerConstant(CommonOperatorBuilder* common,
                                        intptr_t ptr) {
-  return kPointerSize == 8 ? common->Int64Constant(ptr)
-                           : common->Int32Constant(static_cast<int32_t>(ptr));
+  return kSystemPointerSize == 8
+             ? common->Int64Constant(ptr)
+             : common->Int32Constant(static_cast<int32_t>(ptr));
 }
 
 BasicBlockProfiler::Data* BasicBlockInstrumentor::Instrument(

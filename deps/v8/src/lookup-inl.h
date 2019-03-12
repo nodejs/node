@@ -17,6 +17,11 @@
 namespace v8 {
 namespace internal {
 
+LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
+                               Handle<Name> name, Configuration configuration)
+    : LookupIterator(isolate, receiver, name, GetRoot(isolate, receiver),
+                     configuration) {}
+
 LookupIterator::LookupIterator(Handle<Object> receiver, Handle<Name> name,
                                Handle<JSReceiver> holder,
                                Configuration configuration)
@@ -42,6 +47,11 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
 #endif  // DEBUG
   Start<false>();
 }
+
+LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
+                               uint32_t index, Configuration configuration)
+    : LookupIterator(isolate, receiver, index,
+                     GetRoot(isolate, receiver, index), configuration) {}
 
 LookupIterator LookupIterator::PropertyOrElement(
     Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
@@ -80,6 +90,22 @@ bool LookupIterator::is_dictionary_holder() const {
   return !holder_->HasFastProperties();
 }
 
+Handle<Map> LookupIterator::transition_map() const {
+  DCHECK_EQ(TRANSITION, state_);
+  return Handle<Map>::cast(transition_);
+}
+
+Handle<PropertyCell> LookupIterator::transition_cell() const {
+  DCHECK_EQ(TRANSITION, state_);
+  return Handle<PropertyCell>::cast(transition_);
+}
+
+template <class T>
+Handle<T> LookupIterator::GetHolder() const {
+  DCHECK(IsFound());
+  return Handle<T>::cast(holder_);
+}
+
 bool LookupIterator::ExtendingNonExtensible(Handle<JSReceiver> receiver) {
   DCHECK(receiver.is_identical_to(GetStoreTarget<JSReceiver>()));
   return !receiver->map()->is_extensible() &&
@@ -107,6 +133,20 @@ void LookupIterator::UpdateProtector() {
   }
 }
 
+int LookupIterator::descriptor_number() const {
+  DCHECK(!IsElement());
+  DCHECK(has_property_);
+  DCHECK(holder_->HasFastProperties());
+  return number_;
+}
+
+int LookupIterator::dictionary_entry() const {
+  DCHECK(!IsElement());
+  DCHECK(has_property_);
+  DCHECK(!holder_->HasFastProperties());
+  return number_;
+}
+
 LookupIterator::Configuration LookupIterator::ComputeConfiguration(
     Configuration configuration, Handle<Name> name) {
   return name->IsPrivate() ? OWN_SKIP_INTERCEPTOR : configuration;
@@ -123,16 +163,23 @@ template <class T>
 Handle<T> LookupIterator::GetStoreTarget() const {
   DCHECK(receiver_->IsJSReceiver());
   if (receiver_->IsJSGlobalProxy()) {
-    Map* map = JSGlobalProxy::cast(*receiver_)->map();
+    Map map = JSGlobalProxy::cast(*receiver_)->map();
     if (map->has_hidden_prototype()) {
       return handle(JSGlobalObject::cast(map->prototype()), isolate_);
     }
   }
   return Handle<T>::cast(receiver_);
 }
+
+template <bool is_element>
+InterceptorInfo LookupIterator::GetInterceptor(JSObject holder) {
+  return is_element ? holder->GetIndexedInterceptor()
+                    : holder->GetNamedInterceptor();
+}
+
 inline Handle<InterceptorInfo> LookupIterator::GetInterceptor() const {
   DCHECK_EQ(INTERCEPTOR, state_);
-  InterceptorInfo* result =
+  InterceptorInfo result =
       IsElement() ? GetInterceptor<true>(JSObject::cast(*holder_))
                   : GetInterceptor<false>(JSObject::cast(*holder_));
   return handle(result, isolate_);

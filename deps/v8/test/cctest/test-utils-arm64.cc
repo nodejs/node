@@ -25,14 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/v8.h"
+#include "test/cctest/test-utils-arm64.h"
 
 #include "src/arm64/assembler-arm64-inl.h"
 #include "src/arm64/utils-arm64.h"
 #include "src/base/template-utils.h"
 #include "src/macro-assembler-inl.h"
+#include "src/v8.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/test-utils-arm64.h"
 
 namespace v8 {
 namespace internal {
@@ -233,7 +233,7 @@ RegList PopulateRegisterArray(Register* w, Register* x, Register* r,
   RegList list = 0;
   int i = 0;
   for (unsigned n = 0; (n < kNumberOfRegisters) && (i < reg_count); n++) {
-    if (((1UL << n) & allowed) != 0) {
+    if (((1ULL << n) & allowed) != 0) {
       // Only assign allowed registers.
       if (r) {
         r[i] = Register::Create(n, reg_size);
@@ -244,7 +244,7 @@ RegList PopulateRegisterArray(Register* w, Register* x, Register* r,
       if (w) {
         w[i] = Register::Create(n, kWRegSizeInBits);
       }
-      list |= (1UL << n);
+      list |= (1ULL << n);
       i++;
     }
   }
@@ -259,7 +259,7 @@ RegList PopulateVRegisterArray(VRegister* s, VRegister* d, VRegister* v,
   RegList list = 0;
   int i = 0;
   for (unsigned n = 0; (n < kNumberOfVRegisters) && (i < reg_count); n++) {
-    if (((1UL << n) & allowed) != 0) {
+    if (((1ULL << n) & allowed) != 0) {
       // Only assigned allowed registers.
       if (v) {
         v[i] = VRegister::Create(n, reg_size);
@@ -270,7 +270,7 @@ RegList PopulateVRegisterArray(VRegister* s, VRegister* d, VRegister* v,
       if (s) {
         s[i] = VRegister::Create(n, kSRegSizeInBits);
       }
-      list |= (1UL << n);
+      list |= (1ULL << n);
       i++;
     }
   }
@@ -284,7 +284,7 @@ RegList PopulateVRegisterArray(VRegister* s, VRegister* d, VRegister* v,
 void Clobber(MacroAssembler* masm, RegList reg_list, uint64_t const value) {
   Register first = NoReg;
   for (unsigned i = 0; i < kNumberOfRegisters; i++) {
-    if (reg_list & (1UL << i)) {
+    if (reg_list & (1ULL << i)) {
       Register xn = Register::Create(i, kXRegSizeInBits);
       // We should never write into sp here.
       CHECK(!xn.Is(sp));
@@ -307,7 +307,7 @@ void Clobber(MacroAssembler* masm, RegList reg_list, uint64_t const value) {
 void ClobberFP(MacroAssembler* masm, RegList reg_list, double const value) {
   VRegister first = NoVReg;
   for (unsigned i = 0; i < kNumberOfVRegisters; i++) {
-    if (reg_list & (1UL << i)) {
+    if (reg_list & (1ULL << i)) {
       VRegister dn = VRegister::Create(i, kDRegSizeInBits);
       if (!first.IsValid()) {
         // This is the first register we've hit, so construct the literal.

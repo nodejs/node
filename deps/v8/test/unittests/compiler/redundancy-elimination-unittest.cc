@@ -133,6 +133,67 @@ TEST_F(RedundancyEliminationTest, CheckNumberSubsumedByCheckSmi) {
 }
 
 // -----------------------------------------------------------------------------
+// CheckReceiver
+
+TEST_F(RedundancyEliminationTest, CheckReceiver) {
+  Node* value = Parameter(0);
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+
+  Node* check1 = effect =
+      graph()->NewNode(simplified()->CheckReceiver(), value, effect, control);
+  Reduction r1 = Reduce(check1);
+  ASSERT_TRUE(r1.Changed());
+  EXPECT_EQ(r1.replacement(), check1);
+
+  Node* check2 = effect =
+      graph()->NewNode(simplified()->CheckReceiver(), value, effect, control);
+  Reduction r2 = Reduce(check2);
+  ASSERT_TRUE(r2.Changed());
+  EXPECT_EQ(r2.replacement(), check1);
+}
+
+// -----------------------------------------------------------------------------
+// CheckReceiverOrNullOrUndefined
+
+TEST_F(RedundancyEliminationTest, CheckReceiverOrNullOrUndefined) {
+  Node* value = Parameter(0);
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+
+  Node* check1 = effect = graph()->NewNode(
+      simplified()->CheckReceiverOrNullOrUndefined(), value, effect, control);
+  Reduction r1 = Reduce(check1);
+  ASSERT_TRUE(r1.Changed());
+  EXPECT_EQ(r1.replacement(), check1);
+
+  Node* check2 = effect = graph()->NewNode(
+      simplified()->CheckReceiverOrNullOrUndefined(), value, effect, control);
+  Reduction r2 = Reduce(check2);
+  ASSERT_TRUE(r2.Changed());
+  EXPECT_EQ(r2.replacement(), check1);
+}
+
+TEST_F(RedundancyEliminationTest,
+       CheckReceiverOrNullOrUndefinedSubsumedByCheckReceiver) {
+  Node* value = Parameter(0);
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+
+  Node* check1 = effect =
+      graph()->NewNode(simplified()->CheckReceiver(), value, effect, control);
+  Reduction r1 = Reduce(check1);
+  ASSERT_TRUE(r1.Changed());
+  EXPECT_EQ(r1.replacement(), check1);
+
+  Node* check2 = effect = graph()->NewNode(
+      simplified()->CheckReceiverOrNullOrUndefined(), value, effect, control);
+  Reduction r2 = Reduce(check2);
+  ASSERT_TRUE(r2.Changed());
+  EXPECT_EQ(r2.replacement(), check1);
+}
+
+// -----------------------------------------------------------------------------
 // CheckString
 
 TEST_F(RedundancyEliminationTest,
@@ -197,6 +258,35 @@ TEST_F(RedundancyEliminationTest, CheckedFloat64ToInt32) {
 
         Node* check2 = effect = graph()->NewNode(
             simplified()->CheckedFloat64ToInt32(mode, feedback2), value, effect,
+            control);
+        Reduction r2 = Reduce(check2);
+        ASSERT_TRUE(r2.Changed());
+        EXPECT_EQ(r2.replacement(), check1);
+      }
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// CheckedFloat64ToInt64
+
+TEST_F(RedundancyEliminationTest, CheckedFloat64ToInt64) {
+  TRACED_FOREACH(VectorSlotPair, feedback1, vector_slot_pairs()) {
+    TRACED_FOREACH(VectorSlotPair, feedback2, vector_slot_pairs()) {
+      TRACED_FOREACH(CheckForMinusZeroMode, mode, kCheckForMinusZeroModes) {
+        Node* value = Parameter(0);
+        Node* effect = graph()->start();
+        Node* control = graph()->start();
+
+        Node* check1 = effect = graph()->NewNode(
+            simplified()->CheckedFloat64ToInt64(mode, feedback1), value, effect,
+            control);
+        Reduction r1 = Reduce(check1);
+        ASSERT_TRUE(r1.Changed());
+        EXPECT_EQ(r1.replacement(), check1);
+
+        Node* check2 = effect = graph()->NewNode(
+            simplified()->CheckedFloat64ToInt64(mode, feedback2), value, effect,
             control);
         Reduction r2 = Reduce(check2);
         ASSERT_TRUE(r2.Changed());
@@ -427,6 +517,35 @@ TEST_F(RedundancyEliminationTest,
 }
 
 // -----------------------------------------------------------------------------
+// CheckedTaggedToInt64
+
+TEST_F(RedundancyEliminationTest, CheckedTaggedToInt64) {
+  TRACED_FOREACH(VectorSlotPair, feedback1, vector_slot_pairs()) {
+    TRACED_FOREACH(VectorSlotPair, feedback2, vector_slot_pairs()) {
+      TRACED_FOREACH(CheckForMinusZeroMode, mode, kCheckForMinusZeroModes) {
+        Node* value = Parameter(0);
+        Node* effect = graph()->start();
+        Node* control = graph()->start();
+
+        Node* check1 = effect = graph()->NewNode(
+            simplified()->CheckedTaggedToInt64(mode, feedback1), value, effect,
+            control);
+        Reduction r1 = Reduce(check1);
+        ASSERT_TRUE(r1.Changed());
+        EXPECT_EQ(r1.replacement(), check1);
+
+        Node* check2 = effect = graph()->NewNode(
+            simplified()->CheckedTaggedToInt64(mode, feedback2), value, effect,
+            control);
+        Reduction r2 = Reduce(check2);
+        ASSERT_TRUE(r2.Changed());
+        EXPECT_EQ(r2.replacement(), check1);
+      }
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
 // CheckedTaggedToTaggedPointer
 
 TEST_F(RedundancyEliminationTest, CheckedTaggedToTaggedPointer) {
@@ -539,6 +658,34 @@ TEST_F(RedundancyEliminationTest,
 }
 
 // -----------------------------------------------------------------------------
+// CheckedUint32Bounds
+
+TEST_F(RedundancyEliminationTest, CheckedUint32Bounds) {
+  TRACED_FOREACH(VectorSlotPair, feedback1, vector_slot_pairs()) {
+    TRACED_FOREACH(VectorSlotPair, feedback2, vector_slot_pairs()) {
+      Node* index = Parameter(0);
+      Node* length = Parameter(1);
+      Node* effect = graph()->start();
+      Node* control = graph()->start();
+
+      Node* check1 = effect =
+          graph()->NewNode(simplified()->CheckedUint32Bounds(feedback1), index,
+                           length, effect, control);
+      Reduction r1 = Reduce(check1);
+      ASSERT_TRUE(r1.Changed());
+      EXPECT_EQ(r1.replacement(), check1);
+
+      Node* check2 = effect =
+          graph()->NewNode(simplified()->CheckedUint32Bounds(feedback2), index,
+                           length, effect, control);
+      Reduction r2 = Reduce(check2);
+      ASSERT_TRUE(r2.Changed());
+      EXPECT_EQ(r2.replacement(), check1);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
 // CheckedUint32ToInt32
 
 TEST_F(RedundancyEliminationTest, CheckedUint32ToInt32) {
@@ -585,6 +732,34 @@ TEST_F(RedundancyEliminationTest, CheckedUint32ToTaggedSigned) {
       Node* check2 = effect =
           graph()->NewNode(simplified()->CheckedUint32ToTaggedSigned(feedback2),
                            value, effect, control);
+      Reduction r2 = Reduce(check2);
+      ASSERT_TRUE(r2.Changed());
+      EXPECT_EQ(r2.replacement(), check1);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// CheckedUint64Bounds
+
+TEST_F(RedundancyEliminationTest, CheckedUint64Bounds) {
+  TRACED_FOREACH(VectorSlotPair, feedback1, vector_slot_pairs()) {
+    TRACED_FOREACH(VectorSlotPair, feedback2, vector_slot_pairs()) {
+      Node* index = Parameter(0);
+      Node* length = Parameter(1);
+      Node* effect = graph()->start();
+      Node* control = graph()->start();
+
+      Node* check1 = effect =
+          graph()->NewNode(simplified()->CheckedUint64Bounds(feedback1), index,
+                           length, effect, control);
+      Reduction r1 = Reduce(check1);
+      ASSERT_TRUE(r1.Changed());
+      EXPECT_EQ(r1.replacement(), check1);
+
+      Node* check2 = effect =
+          graph()->NewNode(simplified()->CheckedUint64Bounds(feedback2), index,
+                           length, effect, control);
       Reduction r2 = Reduce(check2);
       ASSERT_TRUE(r2.Changed());
       EXPECT_EQ(r2.replacement(), check1);
@@ -651,7 +826,7 @@ TEST_F(RedundancyEliminationTest, CheckedUint64ToTaggedSigned) {
 
 TEST_F(RedundancyEliminationTest,
        SpeculativeNumberEqualWithCheckBoundsBetterType) {
-  Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
+  Typer typer(broker(), Typer::kNoFlags, graph());
   TRACED_FOREACH(VectorSlotPair, feedback1, vector_slot_pairs()) {
     TRACED_FOREACH(VectorSlotPair, feedback2, vector_slot_pairs()) {
       Node* lhs = Parameter(Type::Any(), 0);
@@ -687,7 +862,7 @@ TEST_F(RedundancyEliminationTest,
 
 TEST_F(RedundancyEliminationTest,
        SpeculativeNumberEqualWithCheckBoundsSameType) {
-  Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
+  Typer typer(broker(), Typer::kNoFlags, graph());
   TRACED_FOREACH(VectorSlotPair, feedback1, vector_slot_pairs()) {
     TRACED_FOREACH(VectorSlotPair, feedback2, vector_slot_pairs()) {
       Node* lhs = Parameter(Type::UnsignedSmall(), 0);
@@ -726,7 +901,7 @@ TEST_F(RedundancyEliminationTest,
 
 TEST_F(RedundancyEliminationTest,
        SpeculativeNumberLessThanWithCheckBoundsBetterType) {
-  Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
+  Typer typer(broker(), Typer::kNoFlags, graph());
   TRACED_FOREACH(VectorSlotPair, feedback1, vector_slot_pairs()) {
     TRACED_FOREACH(VectorSlotPair, feedback2, vector_slot_pairs()) {
       Node* lhs = Parameter(Type::Any(), 0);
@@ -762,7 +937,7 @@ TEST_F(RedundancyEliminationTest,
 
 TEST_F(RedundancyEliminationTest,
        SpeculativeNumberLessThanWithCheckBoundsSameType) {
-  Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
+  Typer typer(broker(), Typer::kNoFlags, graph());
   TRACED_FOREACH(VectorSlotPair, feedback1, vector_slot_pairs()) {
     TRACED_FOREACH(VectorSlotPair, feedback2, vector_slot_pairs()) {
       Node* lhs = Parameter(Type::UnsignedSmall(), 0);
@@ -801,7 +976,7 @@ TEST_F(RedundancyEliminationTest,
 
 TEST_F(RedundancyEliminationTest,
        SpeculativeNumberLessThanOrEqualWithCheckBoundsBetterType) {
-  Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
+  Typer typer(broker(), Typer::kNoFlags, graph());
   TRACED_FOREACH(VectorSlotPair, feedback1, vector_slot_pairs()) {
     TRACED_FOREACH(VectorSlotPair, feedback2, vector_slot_pairs()) {
       Node* lhs = Parameter(Type::Any(), 0);
@@ -837,7 +1012,7 @@ TEST_F(RedundancyEliminationTest,
 
 TEST_F(RedundancyEliminationTest,
        SpeculativeNumberLessThanOrEqualWithCheckBoundsSameType) {
-  Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
+  Typer typer(broker(), Typer::kNoFlags, graph());
   TRACED_FOREACH(VectorSlotPair, feedback1, vector_slot_pairs()) {
     TRACED_FOREACH(VectorSlotPair, feedback2, vector_slot_pairs()) {
       Node* lhs = Parameter(Type::UnsignedSmall(), 0);
@@ -876,7 +1051,7 @@ TEST_F(RedundancyEliminationTest,
 
 TEST_F(RedundancyEliminationTest,
        SpeculativeNumberAddWithCheckBoundsBetterType) {
-  Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
+  Typer typer(broker(), Typer::kNoFlags, graph());
   TRACED_FOREACH(VectorSlotPair, feedback, vector_slot_pairs()) {
     TRACED_FOREACH(NumberOperationHint, hint, kNumberOperationHints) {
       Node* lhs = Parameter(Type::Any(), 0);
@@ -902,7 +1077,7 @@ TEST_F(RedundancyEliminationTest,
 }
 
 TEST_F(RedundancyEliminationTest, SpeculativeNumberAddWithCheckBoundsSameType) {
-  Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
+  Typer typer(broker(), Typer::kNoFlags, graph());
   TRACED_FOREACH(VectorSlotPair, feedback, vector_slot_pairs()) {
     TRACED_FOREACH(NumberOperationHint, hint, kNumberOperationHints) {
       Node* lhs = Parameter(Type::Range(42.0, 42.0, zone()), 0);
@@ -932,7 +1107,7 @@ TEST_F(RedundancyEliminationTest, SpeculativeNumberAddWithCheckBoundsSameType) {
 
 TEST_F(RedundancyEliminationTest,
        SpeculativeNumberSubtractWithCheckBoundsBetterType) {
-  Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
+  Typer typer(broker(), Typer::kNoFlags, graph());
   TRACED_FOREACH(VectorSlotPair, feedback, vector_slot_pairs()) {
     TRACED_FOREACH(NumberOperationHint, hint, kNumberOperationHints) {
       Node* lhs = Parameter(Type::Any(), 0);
@@ -960,7 +1135,7 @@ TEST_F(RedundancyEliminationTest,
 
 TEST_F(RedundancyEliminationTest,
        SpeculativeNumberSubtractWithCheckBoundsSameType) {
-  Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
+  Typer typer(broker(), Typer::kNoFlags, graph());
   TRACED_FOREACH(VectorSlotPair, feedback, vector_slot_pairs()) {
     TRACED_FOREACH(NumberOperationHint, hint, kNumberOperationHints) {
       Node* lhs = Parameter(Type::Range(42.0, 42.0, zone()), 0);
@@ -991,7 +1166,7 @@ TEST_F(RedundancyEliminationTest,
 
 TEST_F(RedundancyEliminationTest,
        SpeculativeSafeIntegerAddWithCheckBoundsBetterType) {
-  Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
+  Typer typer(broker(), Typer::kNoFlags, graph());
   TRACED_FOREACH(VectorSlotPair, feedback, vector_slot_pairs()) {
     TRACED_FOREACH(NumberOperationHint, hint, kNumberOperationHints) {
       Node* lhs = Parameter(Type::Any(), 0);
@@ -1019,7 +1194,7 @@ TEST_F(RedundancyEliminationTest,
 
 TEST_F(RedundancyEliminationTest,
        SpeculativeSafeIntegerAddWithCheckBoundsSameType) {
-  Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
+  Typer typer(broker(), Typer::kNoFlags, graph());
   TRACED_FOREACH(VectorSlotPair, feedback, vector_slot_pairs()) {
     TRACED_FOREACH(NumberOperationHint, hint, kNumberOperationHints) {
       Node* lhs = Parameter(Type::Range(42.0, 42.0, zone()), 0);
@@ -1050,7 +1225,7 @@ TEST_F(RedundancyEliminationTest,
 
 TEST_F(RedundancyEliminationTest,
        SpeculativeSafeIntegerSubtractWithCheckBoundsBetterType) {
-  Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
+  Typer typer(broker(), Typer::kNoFlags, graph());
   TRACED_FOREACH(VectorSlotPair, feedback, vector_slot_pairs()) {
     TRACED_FOREACH(NumberOperationHint, hint, kNumberOperationHints) {
       Node* lhs = Parameter(Type::Any(), 0);
@@ -1078,7 +1253,7 @@ TEST_F(RedundancyEliminationTest,
 
 TEST_F(RedundancyEliminationTest,
        SpeculativeSafeIntegerSubtractWithCheckBoundsSameType) {
-  Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
+  Typer typer(broker(), Typer::kNoFlags, graph());
   TRACED_FOREACH(VectorSlotPair, feedback, vector_slot_pairs()) {
     TRACED_FOREACH(NumberOperationHint, hint, kNumberOperationHints) {
       Node* lhs = Parameter(Type::Range(42.0, 42.0, zone()), 0);
@@ -1109,7 +1284,7 @@ TEST_F(RedundancyEliminationTest,
 
 TEST_F(RedundancyEliminationTest,
        SpeculativeToNumberWithCheckBoundsBetterType) {
-  Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
+  Typer typer(broker(), Typer::kNoFlags, graph());
   TRACED_FOREACH(VectorSlotPair, feedback1, vector_slot_pairs()) {
     TRACED_FOREACH(VectorSlotPair, feedback2, vector_slot_pairs()) {
       TRACED_FOREACH(NumberOperationHint, hint, kNumberOperationHints) {
@@ -1137,7 +1312,7 @@ TEST_F(RedundancyEliminationTest,
 }
 
 TEST_F(RedundancyEliminationTest, SpeculativeToNumberWithCheckBoundsSameType) {
-  Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
+  Typer typer(broker(), Typer::kNoFlags, graph());
   TRACED_FOREACH(VectorSlotPair, feedback1, vector_slot_pairs()) {
     TRACED_FOREACH(VectorSlotPair, feedback2, vector_slot_pairs()) {
       TRACED_FOREACH(NumberOperationHint, hint, kNumberOperationHints) {

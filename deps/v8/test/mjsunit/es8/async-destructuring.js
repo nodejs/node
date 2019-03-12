@@ -21,7 +21,7 @@ function assertThrowsAsync(run, errorType, message) {
 
   assertFalse(hadValue || hadError);
 
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
 
   if (!hadError) {
     throw new MjsUnitAssertionError(
@@ -55,7 +55,7 @@ function assertEqualsAsync(expected, run, msg) {
 
   assertFalse(hadValue || hadError);
 
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
 
   if (hadError) throw actual;
 
@@ -77,7 +77,7 @@ function assertEqualsAsync(expected, run, msg) {
   assertEquals(1, y);
   assertEquals(1, z);
   assertEquals(0, w);
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
   assertEquals(1, y);
   assertEquals(1, z);
   assertEquals(1, w);

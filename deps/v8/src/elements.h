@@ -31,7 +31,7 @@ class ElementsAccessor {
 
   // Checks the elements of an object for consistency, asserting when a problem
   // is found.
-  virtual void Validate(JSObject* obj) = 0;
+  virtual void Validate(JSObject obj) = 0;
 
   // Returns true if a holder contains an element with the specified index
   // without iterating up the prototype chain.  The caller can optionally pass
@@ -43,23 +43,23 @@ class ElementsAccessor {
   // index is ignored. Note that only Dictionary elements have custom
   // PropertyAttributes associated, hence the |filter| argument is ignored for
   // all but DICTIONARY_ELEMENTS and SLOW_SLOPPY_ARGUMENTS_ELEMENTS.
-  virtual bool HasElement(JSObject* holder, uint32_t index,
-                          FixedArrayBase* backing_store,
+  virtual bool HasElement(JSObject holder, uint32_t index,
+                          FixedArrayBase backing_store,
                           PropertyFilter filter = ALL_PROPERTIES) = 0;
 
-  inline bool HasElement(JSObject* holder, uint32_t index,
+  inline bool HasElement(JSObject holder, uint32_t index,
                          PropertyFilter filter = ALL_PROPERTIES);
 
   // Note: this is currently not implemented for string wrapper and
   // typed array elements.
-  virtual bool HasEntry(JSObject* holder, uint32_t entry) = 0;
+  virtual bool HasEntry(JSObject holder, uint32_t entry) = 0;
 
   // TODO(cbruni): HasEntry and Get should not be exposed publicly with the
   // entry parameter.
   virtual Handle<Object> Get(Handle<JSObject> holder, uint32_t entry) = 0;
 
-  virtual bool HasAccessors(JSObject* holder) = 0;
-  virtual uint32_t NumberOfElements(JSObject* holder) = 0;
+  virtual bool HasAccessors(JSObject holder) = 0;
+  virtual uint32_t NumberOfElements(JSObject holder) = 0;
 
   // Modifies the length data property as specified for JSArrays and resizes the
   // underlying backing store accordingly. The method honors the semantics of
@@ -117,7 +117,7 @@ class ElementsAccessor {
   static void InitializeOncePerProcess();
   static void TearDown();
 
-  virtual void Set(Handle<JSObject> holder, uint32_t entry, Object* value) = 0;
+  virtual void Set(Handle<JSObject> holder, uint32_t entry, Object value) = 0;
 
   virtual void Add(Handle<JSObject> object, uint32_t index,
                    Handle<Object> value, PropertyAttributes attributes,
@@ -141,11 +141,11 @@ class ElementsAccessor {
 
   virtual Handle<NumberDictionary> Normalize(Handle<JSObject> object) = 0;
 
-  virtual uint32_t GetCapacity(JSObject* holder,
-                               FixedArrayBase* backing_store) = 0;
+  virtual uint32_t GetCapacity(JSObject holder,
+                               FixedArrayBase backing_store) = 0;
 
-  virtual Object* Fill(Handle<JSObject> receiver, Handle<Object> obj_value,
-                       uint32_t start, uint32_t end) = 0;
+  virtual Object Fill(Handle<JSObject> receiver, Handle<Object> obj_value,
+                      uint32_t start, uint32_t end) = 0;
 
   // Check an Object's own elements for an element (using SameValueZero
   // semantics)
@@ -164,22 +164,22 @@ class ElementsAccessor {
                                           Handle<Object> value,
                                           uint32_t start) = 0;
 
-  virtual void Reverse(JSObject* receiver) = 0;
+  virtual void Reverse(JSObject receiver) = 0;
 
   virtual void CopyElements(Isolate* isolate, Handle<FixedArrayBase> source,
                             ElementsKind source_kind,
                             Handle<FixedArrayBase> destination, int size) = 0;
 
-  virtual Object* CopyElements(Handle<Object> source,
-                               Handle<JSObject> destination, size_t length,
-                               uint32_t offset = 0) = 0;
+  virtual Object CopyElements(Handle<Object> source,
+                              Handle<JSObject> destination, size_t length,
+                              uint32_t offset = 0) = 0;
 
   virtual Handle<FixedArray> CreateListFromArrayLike(Isolate* isolate,
                                                      Handle<JSObject> object,
                                                      uint32_t length) = 0;
 
-  virtual void CopyTypedArrayElementsSlice(JSTypedArray* source,
-                                           JSTypedArray* destination,
+  virtual void CopyTypedArrayElementsSlice(JSTypedArray source,
+                                           JSTypedArray destination,
                                            size_t start, size_t end) = 0;
 
  protected:
@@ -193,11 +193,11 @@ class ElementsAccessor {
   // indices are equivalent to entries. In the NumberDictionary
   // ElementsAccessor, entries are mapped to an index using the KeyAt method on
   // the NumberDictionary.
-  virtual uint32_t GetEntryForIndex(Isolate* isolate, JSObject* holder,
-                                    FixedArrayBase* backing_store,
+  virtual uint32_t GetEntryForIndex(Isolate* isolate, JSObject holder,
+                                    FixedArrayBase backing_store,
                                     uint32_t index) = 0;
 
-  virtual PropertyDetails GetDetails(JSObject* holder, uint32_t entry) = 0;
+  virtual PropertyDetails GetDetails(JSObject holder, uint32_t entry) = 0;
   virtual void Reconfigure(Handle<JSObject> object,
                            Handle<FixedArrayBase> backing_store, uint32_t entry,
                            Handle<Object> value,
@@ -210,7 +210,7 @@ class ElementsAccessor {
   // raw pointer parameter |source_holder| in the function that allocates.
   // This is done intentionally to avoid ArrayConcat() builtin performance
   // degradation.
-  virtual void CopyElements(JSObject* source_holder, uint32_t source_start,
+  virtual void CopyElements(JSObject source_holder, uint32_t source_start,
                             ElementsKind source_kind,
                             Handle<FixedArrayBase> destination,
                             uint32_t destination_start, int copy_size) = 0;
@@ -229,17 +229,21 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> ArrayConstructInitializeElements(
     Handle<JSArray> array, Arguments* args);
 
 // Called directly from CSA.
-void CopyFastNumberJSArrayElementsToTypedArray(Context* context,
-                                               JSArray* source,
-                                               JSTypedArray* destination,
+// {raw_context}: Context pointer.
+// {raw_source}: JSArray pointer.
+// {raw_destination}: JSTypedArray pointer.
+void CopyFastNumberJSArrayElementsToTypedArray(Address raw_context,
+                                               Address raw_source,
+                                               Address raw_destination,
                                                uintptr_t length,
                                                uintptr_t offset);
-void CopyTypedArrayElementsToTypedArray(JSTypedArray* source,
-                                        JSTypedArray* destination,
+// {raw_source}, {raw_destination}: JSTypedArray pointers.
+void CopyTypedArrayElementsToTypedArray(Address raw_source,
+                                        Address raw_destination,
                                         uintptr_t length, uintptr_t offset);
-void CopyTypedArrayElementsSlice(JSTypedArray* source,
-                                 JSTypedArray* destination, uintptr_t start,
-                                 uintptr_t end);
+// {raw_source}, {raw_destination}: JSTypedArray pointers.
+void CopyTypedArrayElementsSlice(Address raw_source, Address raw_destination,
+                                 uintptr_t start, uintptr_t end);
 
 }  // namespace internal
 }  // namespace v8

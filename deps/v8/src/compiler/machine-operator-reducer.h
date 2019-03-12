@@ -21,9 +21,9 @@ class MachineGraph;
 // Performs constant folding and strength reduction on nodes that have
 // machine operators.
 class V8_EXPORT_PRIVATE MachineOperatorReducer final
-    : public NON_EXPORTED_BASE(Reducer) {
+    : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
-  explicit MachineOperatorReducer(MachineGraph* mcgraph,
+  explicit MachineOperatorReducer(Editor* editor, MachineGraph* mcgraph,
                                   bool allow_signalling_nan = true);
   ~MachineOperatorReducer() override;
 

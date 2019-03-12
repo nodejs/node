@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "src/base/macros.h"
-#include "src/debug/debug-interface.h"
+#include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Debugger.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
@@ -30,9 +30,9 @@ class V8InspectorImpl;
 class V8StackTraceImpl;
 struct V8StackTraceId;
 
+enum class WrapMode { kForceValue, kNoPreview, kWithPreview };
+
 using protocol::Response;
-using ScheduleStepIntoAsyncCallback =
-    protocol::Debugger::Backend::ScheduleStepIntoAsyncCallback;
 using TerminateExecutionCallback =
     protocol::Runtime::Backend::TerminateExecutionCallback;
 
@@ -59,9 +59,6 @@ class V8Debugger : public v8::debug::DebugDelegate,
   void stepIntoStatement(int targetContextGroupId, bool breakOnAsyncCall);
   void stepOverStatement(int targetContextGroupId);
   void stepOutOfFunction(int targetContextGroupId);
-  void scheduleStepIntoAsync(
-      std::unique_ptr<ScheduleStepIntoAsyncCallback> callback,
-      int targetContextGroupId);
   void pauseOnAsyncCall(int targetContextGroupId, uintptr_t task,
                         const String16& debuggerId);
 
@@ -134,14 +131,19 @@ class V8Debugger : public v8::debug::DebugDelegate,
   std::shared_ptr<AsyncStackTrace> stackTraceFor(int contextGroupId,
                                                  const V8StackTraceId& id);
 
+  void reportTermination();
+
  private:
+  bool addInternalObject(v8::Local<v8::Context> context,
+                         v8::Local<v8::Object> object,
+                         V8InternalValueType type);
+
   void clearContinueToLocation();
   bool shouldContinueToCurrentLocation();
 
   static size_t nearHeapLimitCallback(void* data, size_t current_heap_limit,
                                       size_t initial_heap_limit);
   static void terminateExecutionCompletedCallback(v8::Isolate* isolate);
-
   void handleProgramBreak(
       v8::Local<v8::Context> pausedContext, v8::Local<v8::Value> exception,
       const std::vector<v8::debug::BreakpointId>& hitBreakpoints,
@@ -160,6 +162,8 @@ class V8Debugger : public v8::debug::DebugDelegate,
                                            v8::Local<v8::Function>);
   v8::MaybeLocal<v8::Value> generatorScopes(v8::Local<v8::Context>,
                                             v8::Local<v8::Value>);
+  v8::MaybeLocal<v8::Array> collectionsEntries(v8::Local<v8::Context> context,
+                                               v8::Local<v8::Value> value);
 
   void asyncTaskScheduledForStack(const String16& taskName, void* task,
                                   bool recurring);
@@ -191,12 +195,10 @@ class V8Debugger : public v8::debug::DebugDelegate,
   int currentContextGroupId();
   bool asyncStepOutOfFunction(int targetContextGroupId, bool onlyAtReturn);
 
-  v8::MaybeLocal<v8::Uint32> stableObjectId(v8::Local<v8::Context>,
-                                            v8::Local<v8::Value>);
-
   v8::Isolate* m_isolate;
   V8InspectorImpl* m_inspector;
   int m_enableCount;
+
   int m_breakpointsActiveCount = 0;
   int m_ignoreScriptParsedEventsCounter;
   size_t m_originalHeapLimit = 0;
@@ -231,7 +233,6 @@ class V8Debugger : public v8::debug::DebugDelegate,
   void* m_taskWithScheduledBreak = nullptr;
   String16 m_taskWithScheduledBreakDebuggerId;
 
-  std::unique_ptr<ScheduleStepIntoAsyncCallback> m_stepIntoAsyncCallback;
   bool m_breakRequested = false;
 
   v8::debug::ExceptionBreakState m_pauseOnExceptionsState;
@@ -249,9 +250,6 @@ class V8Debugger : public v8::debug::DebugDelegate,
       m_serializedDebuggerIdToDebuggerId;
 
   std::unique_ptr<TerminateExecutionCallback> m_terminateExecutionCallback;
-
-  uint32_t m_lastStableObjectId = 0;
-  v8::Global<v8::debug::WeakMap> m_stableObjectId;
 
   WasmTranslation m_wasmTranslation;
 

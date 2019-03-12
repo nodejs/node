@@ -84,6 +84,7 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
   V(AllocateInNewSpaceStubConstant) \
   V(AllocateInOldSpaceStubConstant) \
   V(ArrayConstructorStubConstant)   \
+  V(BooleanMapConstant)             \
   V(ToNumberBuiltinConstant)        \
   V(EmptyFixedArrayConstant)        \
   V(EmptyStringConstant)            \

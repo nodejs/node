@@ -31,7 +31,7 @@ Handle<LayoutDescriptor> LayoutDescriptor::New(
   Handle<LayoutDescriptor> layout_descriptor_handle =
       LayoutDescriptor::New(isolate, layout_descriptor_length);
 
-  LayoutDescriptor* layout_descriptor = Initialize(
+  LayoutDescriptor layout_descriptor = Initialize(
       *layout_descriptor_handle, *map, *descriptors, num_descriptors);
 
   return handle(layout_descriptor, isolate);
@@ -53,7 +53,7 @@ Handle<LayoutDescriptor> LayoutDescriptor::ShareAppend(
       isolate, layout_descriptor, field_index + details.field_width_in_words());
 
   DisallowHeapAllocation no_allocation;
-  LayoutDescriptor* layout_desc = *layout_descriptor;
+  LayoutDescriptor layout_desc = *layout_descriptor;
   layout_desc = layout_desc->SetRawData(field_index);
   if (details.field_width_in_words() > 1) {
     layout_desc = layout_desc->SetRawData(field_index + 1);
@@ -65,7 +65,7 @@ Handle<LayoutDescriptor> LayoutDescriptor::AppendIfFastOrUseFull(
     Isolate* isolate, Handle<Map> map, PropertyDetails details,
     Handle<LayoutDescriptor> full_layout_descriptor) {
   DisallowHeapAllocation no_allocation;
-  LayoutDescriptor* layout_descriptor = map->layout_descriptor();
+  LayoutDescriptor layout_descriptor = map->layout_descriptor();
   if (layout_descriptor->IsSlowLayout()) {
     return full_layout_descriptor;
   }
@@ -134,7 +134,7 @@ bool LayoutDescriptor::IsTagged(int field_index, int max_sequence_length,
   uint32_t layout_mask = static_cast<uint32_t>(1) << layout_bit_index;
 
   uint32_t value = IsSlowLayout() ? get_layout_word(layout_word_index)
-                                  : static_cast<uint32_t>(Smi::ToInt(this));
+                                  : static_cast<uint32_t>(Smi::ToInt(*this));
 
   bool is_tagged = (value & layout_mask) == 0;
   if (!is_tagged) value = ~value;  // Count set bits instead of cleared bits.
@@ -186,26 +186,24 @@ Handle<LayoutDescriptor> LayoutDescriptor::NewForTesting(Isolate* isolate,
   return New(isolate, length);
 }
 
-
-LayoutDescriptor* LayoutDescriptor::SetTaggedForTesting(int field_index,
-                                                        bool tagged) {
+LayoutDescriptor LayoutDescriptor::SetTaggedForTesting(int field_index,
+                                                       bool tagged) {
   return SetTagged(field_index, tagged);
 }
-
 
 bool LayoutDescriptorHelper::IsTagged(
     int offset_in_bytes, int end_offset,
     int* out_end_of_contiguous_region_offset) {
-  DCHECK(IsAligned(offset_in_bytes, kPointerSize));
-  DCHECK(IsAligned(end_offset, kPointerSize));
+  DCHECK(IsAligned(offset_in_bytes, kTaggedSize));
+  DCHECK(IsAligned(end_offset, kTaggedSize));
   DCHECK(offset_in_bytes < end_offset);
   if (all_fields_tagged_) {
     *out_end_of_contiguous_region_offset = end_offset;
     DCHECK(offset_in_bytes < *out_end_of_contiguous_region_offset);
     return true;
   }
-  int max_sequence_length = (end_offset - offset_in_bytes) / kPointerSize;
-  int field_index = Max(0, (offset_in_bytes - header_size_) / kPointerSize);
+  int max_sequence_length = (end_offset - offset_in_bytes) / kTaggedSize;
+  int field_index = Max(0, (offset_in_bytes - header_size_) / kTaggedSize);
   int sequence_length;
   bool tagged = layout_descriptor_->IsTagged(field_index, max_sequence_length,
                                              &sequence_length);
@@ -216,7 +214,7 @@ bool LayoutDescriptorHelper::IsTagged(
     if (tagged) {
       // First field is tagged, calculate end offset from there.
       *out_end_of_contiguous_region_offset =
-          header_size_ + sequence_length * kPointerSize;
+          header_size_ + sequence_length * kTaggedSize;
 
     } else {
       *out_end_of_contiguous_region_offset = header_size_;
@@ -225,19 +223,18 @@ bool LayoutDescriptorHelper::IsTagged(
     return true;
   }
   *out_end_of_contiguous_region_offset =
-      offset_in_bytes + sequence_length * kPointerSize;
+      offset_in_bytes + sequence_length * kTaggedSize;
   DCHECK(offset_in_bytes < *out_end_of_contiguous_region_offset);
   return tagged;
 }
 
-
-LayoutDescriptor* LayoutDescriptor::Trim(Heap* heap, Map* map,
-                                         DescriptorArray* descriptors,
-                                         int num_descriptors) {
+LayoutDescriptor LayoutDescriptor::Trim(Heap* heap, Map map,
+                                        DescriptorArray descriptors,
+                                        int num_descriptors) {
   DisallowHeapAllocation no_allocation;
   // Fast mode descriptors are never shared and therefore always fully
   // correspond to their map.
-  if (!IsSlowLayout()) return this;
+  if (!IsSlowLayout()) return *this;
 
   int layout_descriptor_length =
       CalculateCapacity(map, descriptors, num_descriptors);
@@ -252,19 +249,18 @@ LayoutDescriptor* LayoutDescriptor::Trim(Heap* heap, Map* map,
   if (new_backing_store_length != backing_store_length) {
     DCHECK_LT(new_backing_store_length, backing_store_length);
     int delta = backing_store_length - new_backing_store_length;
-    heap->RightTrimFixedArray(this, delta);
+    heap->RightTrimFixedArray(*this, delta);
   }
   memset(GetDataStartAddress(), 0, DataSize());
-  LayoutDescriptor* layout_descriptor =
-      Initialize(this, map, descriptors, num_descriptors);
-  DCHECK_EQ(this, layout_descriptor);
+  LayoutDescriptor layout_descriptor =
+      Initialize(*this, map, descriptors, num_descriptors);
+  DCHECK_EQ(*this, layout_descriptor);
   return layout_descriptor;
 }
 
-
-bool LayoutDescriptor::IsConsistentWithMap(Map* map, bool check_tail) {
+bool LayoutDescriptor::IsConsistentWithMap(Map map, bool check_tail) {
   if (FLAG_unbox_double_fields) {
-    DescriptorArray* descriptors = map->instance_descriptors();
+    DescriptorArray descriptors = map->instance_descriptors();
     int nof_descriptors = map->NumberOfOwnDescriptors();
     int last_field_index = 0;
     for (int i = 0; i < nof_descriptors; i++) {

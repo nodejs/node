@@ -10,6 +10,7 @@
 #include "src/identity-map.h"
 #include "src/maybe-handles.h"
 #include "src/objects-inl.h"
+#include "src/roots-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -24,15 +25,14 @@ ASSERT_TRIVIALLY_COPYABLE(MaybeHandle<Object>);
 #ifdef DEBUG
 bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
   DCHECK_NOT_NULL(location_);
-  Object* object = *location_;
+  Object object(*location_);
   if (object->IsSmi()) return true;
-  HeapObject* heap_object = HeapObject::cast(object);
+  HeapObject heap_object = HeapObject::cast(object);
   Isolate* isolate;
   if (!Isolate::FromWritableHeapObject(heap_object, &isolate)) return true;
-  Heap* heap = isolate->heap();
   RootIndex root_index;
-  if (heap->IsRootHandleLocation(location_, &root_index) &&
-      heap->RootCanBeTreatedAsConstant(root_index)) {
+  if (isolate->roots_table().IsRootHandleLocation(location_, &root_index) &&
+      RootsTable::IsImmortalImmovable(root_index)) {
     return true;
   }
   if (!AllowHandleDereference::IsAllowed()) return false;
@@ -58,11 +58,10 @@ int HandleScope::NumberOfHandles(Isolate* isolate) {
              (isolate->handle_scope_data()->next - impl->blocks()->back()));
 }
 
-
-Object** HandleScope::Extend(Isolate* isolate) {
+Address* HandleScope::Extend(Isolate* isolate) {
   HandleScopeData* current = isolate->handle_scope_data();
 
-  Object** result = current->next;
+  Address* result = current->next;
 
   DCHECK(result == current->limit);
   // Make sure there's at least one scope on the stack and that the
@@ -76,7 +75,7 @@ Object** HandleScope::Extend(Isolate* isolate) {
   // If there's more room in the last block, we use that. This is used
   // for fast creation of scopes after scope barriers.
   if (!impl->blocks()->empty()) {
-    Object** limit = &impl->blocks()->back()[kHandleBlockSize];
+    Address* limit = &impl->blocks()->back()[kHandleBlockSize];
     if (current->limit != limit) {
       current->limit = limit;
       DCHECK_LT(limit - current->next, kHandleBlockSize);
@@ -105,10 +104,10 @@ void HandleScope::DeleteExtensions(Isolate* isolate) {
 
 
 #ifdef ENABLE_HANDLE_ZAPPING
-void HandleScope::ZapRange(Object** start, Object** end) {
+void HandleScope::ZapRange(Address* start, Address* end) {
   DCHECK_LE(end - start, kHandleBlockSize);
-  for (Object** p = start; p != end; p++) {
-    *reinterpret_cast<Address*>(p) = static_cast<Address>(kHandleZapValue);
+  for (Address* p = start; p != end; p++) {
+    *p = static_cast<Address>(kHandleZapValue);
   }
 }
 #endif
@@ -134,7 +133,7 @@ CanonicalHandleScope::CanonicalHandleScope(Isolate* isolate)
   prev_canonical_scope_ = handle_scope_data->canonical_scope;
   handle_scope_data->canonical_scope = this;
   root_index_map_ = new RootIndexMap(isolate);
-  identity_map_ = new IdentityMap<Object**, ZoneAllocationPolicy>(
+  identity_map_ = new IdentityMap<Address*, ZoneAllocationPolicy>(
       isolate->heap(), ZoneAllocationPolicy(&zone_));
   canonical_level_ = handle_scope_data->level;
 }
@@ -146,26 +145,25 @@ CanonicalHandleScope::~CanonicalHandleScope() {
   isolate_->handle_scope_data()->canonical_scope = prev_canonical_scope_;
 }
 
-
-Object** CanonicalHandleScope::Lookup(Object* object) {
+Address* CanonicalHandleScope::Lookup(Address object) {
   DCHECK_LE(canonical_level_, isolate_->handle_scope_data()->level);
   if (isolate_->handle_scope_data()->level != canonical_level_) {
     // We are in an inner handle scope. Do not canonicalize since we will leave
     // this handle scope while still being in the canonical scope.
     return HandleScope::CreateHandle(isolate_, object);
   }
-  if (object->IsHeapObject()) {
+  if (Internals::HasHeapObjectTag(object)) {
     RootIndex root_index;
-    if (root_index_map_->Lookup(HeapObject::cast(object), &root_index)) {
-      return isolate_->heap()->root_handle(root_index).location();
+    if (root_index_map_->Lookup(object, &root_index)) {
+      return isolate_->root_handle(root_index).location();
     }
   }
-  Object*** entry = identity_map_->Get(object);
+  Address** entry = identity_map_->Get(Object(object));
   if (*entry == nullptr) {
     // Allocate new handle location.
     *entry = HandleScope::CreateHandle(isolate_, object);
   }
-  return reinterpret_cast<Object**>(*entry);
+  return *entry;
 }
 
 
@@ -173,8 +171,8 @@ DeferredHandleScope::DeferredHandleScope(Isolate* isolate)
     : impl_(isolate->handle_scope_implementer()) {
   impl_->BeginDeferredScope();
   HandleScopeData* data = impl_->isolate()->handle_scope_data();
-  Object** new_next = impl_->GetSpareOrNewBlock();
-  Object** new_limit = &new_next[kHandleBlockSize];
+  Address* new_next = impl_->GetSpareOrNewBlock();
+  Address* new_limit = &new_next[kHandleBlockSize];
   // Check that at least one HandleScope with at least one Handle in it exists,
   // see the class description.
   DCHECK(!impl_->blocks()->empty());

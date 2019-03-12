@@ -17,12 +17,12 @@ namespace v8 {
 namespace internal {
 
 class SharedToCounterMap
-    : public base::TemplateHashMapImpl<SharedFunctionInfo*, uint32_t,
-                                       base::KeyEqualityMatcher<void*>,
+    : public base::TemplateHashMapImpl<SharedFunctionInfo, uint32_t,
+                                       base::KeyEqualityMatcher<Object>,
                                        base::DefaultAllocationPolicy> {
  public:
-  typedef base::TemplateHashMapEntry<SharedFunctionInfo*, uint32_t> Entry;
-  inline void Add(SharedFunctionInfo* key, uint32_t count) {
+  typedef base::TemplateHashMapEntry<SharedFunctionInfo, uint32_t> Entry;
+  inline void Add(SharedFunctionInfo key, uint32_t count) {
     Entry* entry = LookupOrInsert(key, Hash(key), []() { return 0; });
     uint32_t old_count = entry->value;
     if (UINT32_MAX - count < old_count) {
@@ -32,28 +32,28 @@ class SharedToCounterMap
     }
   }
 
-  inline uint32_t Get(SharedFunctionInfo* key) {
+  inline uint32_t Get(SharedFunctionInfo key) {
     Entry* entry = Lookup(key, Hash(key));
     if (entry == nullptr) return 0;
     return entry->value;
   }
 
  private:
-  static uint32_t Hash(SharedFunctionInfo* key) {
-    return static_cast<uint32_t>(reinterpret_cast<intptr_t>(key));
+  static uint32_t Hash(SharedFunctionInfo key) {
+    return static_cast<uint32_t>(key.ptr());
   }
 
   DisallowHeapAllocation no_gc;
 };
 
 namespace {
-int StartPosition(SharedFunctionInfo* info) {
+int StartPosition(SharedFunctionInfo info) {
   int start = info->function_token_position();
   if (start == kNoSourcePosition) start = info->StartPosition();
   return start;
 }
 
-bool CompareSharedFunctionInfo(SharedFunctionInfo* a, SharedFunctionInfo* b) {
+bool CompareSharedFunctionInfo(SharedFunctionInfo a, SharedFunctionInfo b) {
   int a_start = StartPosition(a);
   int b_start = StartPosition(b);
   if (a_start == b_start) return a->EndPosition() > b->EndPosition();
@@ -72,10 +72,10 @@ void SortBlockData(std::vector<CoverageBlock>& v) {
   std::sort(v.begin(), v.end(), CompareCoverageBlock);
 }
 
-std::vector<CoverageBlock> GetSortedBlockData(SharedFunctionInfo* shared) {
+std::vector<CoverageBlock> GetSortedBlockData(SharedFunctionInfo shared) {
   DCHECK(shared->HasCoverageInfo());
 
-  CoverageInfo* coverage_info =
+  CoverageInfo coverage_info =
       CoverageInfo::cast(shared->GetDebugInfo()->coverage_info());
 
   std::vector<CoverageBlock> result;
@@ -364,10 +364,10 @@ void ClampToBinary(CoverageFunction* function) {
   }
 }
 
-void ResetAllBlockCounts(SharedFunctionInfo* shared) {
+void ResetAllBlockCounts(SharedFunctionInfo shared) {
   DCHECK(shared->HasCoverageInfo());
 
-  CoverageInfo* coverage_info =
+  CoverageInfo coverage_info =
       CoverageInfo::cast(shared->GetDebugInfo()->coverage_info());
 
   for (int i = 0; i < coverage_info->SlotCount(); i++) {
@@ -395,7 +395,7 @@ bool IsBinaryMode(debug::Coverage::Mode mode) {
   }
 }
 
-void CollectBlockCoverage(CoverageFunction* function, SharedFunctionInfo* info,
+void CollectBlockCoverage(CoverageFunction* function, SharedFunctionInfo info,
                           debug::Coverage::Mode mode) {
   DCHECK(IsBlockMode(mode));
 
@@ -477,8 +477,8 @@ std::unique_ptr<Coverage> Coverage::Collect(
       Handle<ArrayList> list = Handle<ArrayList>::cast(
           isolate->factory()->feedback_vectors_for_profiling_tools());
       for (int i = 0; i < list->Length(); i++) {
-        FeedbackVector* vector = FeedbackVector::cast(list->Get(i));
-        SharedFunctionInfo* shared = vector->shared_function_info();
+        FeedbackVector vector = FeedbackVector::cast(list->Get(i));
+        SharedFunctionInfo shared = vector->shared_function_info();
         DCHECK(shared->IsSubjectToDebugging());
         uint32_t count = static_cast<uint32_t>(vector->invocation_count());
         if (reset_count) vector->clear_invocation_count();
@@ -492,10 +492,11 @@ std::unique_ptr<Coverage> Coverage::Collect(
                   ->IsArrayList());
       DCHECK_EQ(v8::debug::Coverage::kBestEffort, collectionMode);
       HeapIterator heap_iterator(isolate->heap());
-      while (HeapObject* current_obj = heap_iterator.next()) {
+      for (HeapObject current_obj = heap_iterator.next();
+           !current_obj.is_null(); current_obj = heap_iterator.next()) {
         if (!current_obj->IsFeedbackVector()) continue;
-        FeedbackVector* vector = FeedbackVector::cast(current_obj);
-        SharedFunctionInfo* shared = vector->shared_function_info();
+        FeedbackVector vector = FeedbackVector::cast(current_obj);
+        SharedFunctionInfo shared = vector->shared_function_info();
         if (!shared->IsSubjectToDebugging()) continue;
         uint32_t count = static_cast<uint32_t>(vector->invocation_count());
         counter_map.Add(shared, count);
@@ -508,7 +509,8 @@ std::unique_ptr<Coverage> Coverage::Collect(
   // between source ranges and invocation counts.
   std::unique_ptr<Coverage> result(new Coverage());
   Script::Iterator scripts(isolate);
-  while (Script* script = scripts.Next()) {
+  for (Script script = scripts.Next(); !script.is_null();
+       script = scripts.Next()) {
     if (!script->IsUserJavaScript()) continue;
 
     // Create and add new script data.
@@ -516,12 +518,13 @@ std::unique_ptr<Coverage> Coverage::Collect(
     result->emplace_back(script_handle);
     std::vector<CoverageFunction>* functions = &result->back().functions;
 
-    std::vector<SharedFunctionInfo*> sorted;
+    std::vector<SharedFunctionInfo> sorted;
 
     {
       // Sort functions by start position, from outer to inner functions.
       SharedFunctionInfo::ScriptIterator infos(isolate, *script_handle);
-      while (SharedFunctionInfo* info = infos.Next()) {
+      for (SharedFunctionInfo info = infos.Next(); !info.is_null();
+           info = infos.Next()) {
         sorted.push_back(info);
       }
       std::sort(sorted.begin(), sorted.end(), CompareSharedFunctionInfo);
@@ -531,7 +534,7 @@ std::unique_ptr<Coverage> Coverage::Collect(
     std::vector<size_t> nesting;
 
     // Use sorted list to reconstruct function nesting.
-    for (SharedFunctionInfo* info : sorted) {
+    for (SharedFunctionInfo info : sorted) {
       int start = StartPosition(info);
       int end = info->EndPosition();
       uint32_t count = counter_map.Get(info);
@@ -607,17 +610,17 @@ void Coverage::SelectMode(Isolate* isolate, debug::Coverage::Mode mode) {
       isolate->MaybeInitializeVectorListFromHeap();
 
       HeapIterator heap_iterator(isolate->heap());
-      while (HeapObject* o = heap_iterator.next()) {
+      for (HeapObject o = heap_iterator.next(); !o.is_null();
+           o = heap_iterator.next()) {
         if (IsBinaryMode(mode) && o->IsSharedFunctionInfo()) {
           // If collecting binary coverage, reset
           // SFI::has_reported_binary_coverage to avoid optimizing / inlining
           // functions before they have reported coverage.
-          SharedFunctionInfo* shared = SharedFunctionInfo::cast(o);
+          SharedFunctionInfo shared = SharedFunctionInfo::cast(o);
           shared->set_has_reported_binary_coverage(false);
         } else if (o->IsFeedbackVector()) {
           // In any case, clear any collected invocation counts.
-          FeedbackVector* vector = FeedbackVector::cast(o);
-          vector->clear_invocation_count();
+          FeedbackVector::cast(o)->clear_invocation_count();
         }
       }
 

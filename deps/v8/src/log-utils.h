@@ -65,14 +65,14 @@ class Log {
     explicit MessageBuilder(Log* log);
     ~MessageBuilder() = default;
 
-    void AppendString(String* str,
+    void AppendString(String str,
                       base::Optional<int> length_limit = base::nullopt);
     void AppendString(Vector<const char> str);
     void AppendString(const char* str);
     void AppendString(const char* str, size_t length);
     void PRINTF_FORMAT(2, 3) AppendFormatString(const char* format, ...);
     void AppendCharacter(char c);
-    void AppendSymbolName(Symbol* symbol);
+    void AppendSymbolName(Symbol symbol);
 
     // Delegate insertion to the underlying {log_}.
     // All appended strings are escaped to maintain one-line log entries.
@@ -91,13 +91,13 @@ class Log {
     int PRINTF_FORMAT(2, 0)
         FormatStringIntoBuffer(const char* format, va_list args);
 
-    void AppendSymbolNameDetails(String* str, bool show_impl_info);
+    void AppendSymbolNameDetails(String str, bool show_impl_info);
 
     void PRINTF_FORMAT(2, 3) AppendRawFormatString(const char* format, ...);
     void AppendRawCharacter(const char character);
 
     Log* log_;
-    base::LockGuard<base::Mutex> lock_guard_;
+    base::MutexGuard lock_guard_;
   };
 
  private:
@@ -143,11 +143,11 @@ Log::MessageBuilder& Log::MessageBuilder::operator<<<const char*>(
 template <>
 Log::MessageBuilder& Log::MessageBuilder::operator<<<char>(char c);
 template <>
-Log::MessageBuilder& Log::MessageBuilder::operator<<<String*>(String* string);
+Log::MessageBuilder& Log::MessageBuilder::operator<<<String>(String string);
 template <>
-Log::MessageBuilder& Log::MessageBuilder::operator<<<Symbol*>(Symbol* symbol);
+Log::MessageBuilder& Log::MessageBuilder::operator<<<Symbol>(Symbol symbol);
 template <>
-Log::MessageBuilder& Log::MessageBuilder::operator<<<Name*>(Name* name);
+Log::MessageBuilder& Log::MessageBuilder::operator<<<Name>(Name name);
 
 }  // namespace internal
 }  // namespace v8

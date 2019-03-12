@@ -6,6 +6,8 @@
 
 #include "src/external-reference-table.h"
 #include "src/objects-inl.h"
+#include "src/objects/foreign-inl.h"
+#include "src/objects/slots.h"
 
 namespace v8 {
 namespace internal {
@@ -22,8 +24,8 @@ ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate) {
   map_ = new AddressToIndexHashMap();
   isolate->set_external_reference_map(map_);
   // Add V8's external references.
-  ExternalReferenceTable* table = isolate->heap()->external_reference_table();
-  for (uint32_t i = 0; i < table->size(); ++i) {
+  ExternalReferenceTable* table = isolate->external_reference_table();
+  for (uint32_t i = 0; i < ExternalReferenceTable::kSize; ++i) {
     Address addr = table->address(i);
     // Ignore duplicate references.
     // This can happen due to ICF. See http://crbug.com/726896.
@@ -89,7 +91,7 @@ const char* ExternalReferenceEncoder::NameOfAddress(Isolate* isolate,
   if (maybe_index.IsNothing()) return "<unknown>";
   Value value(maybe_index.FromJust());
   if (value.is_from_api()) return "<from api>";
-  return isolate->heap()->external_reference_table()->name(value.index());
+  return isolate->external_reference_table()->name(value.index());
 }
 
 void SerializedData::AllocateData(uint32_t size) {
@@ -101,9 +103,7 @@ void SerializedData::AllocateData(uint32_t size) {
 }
 
 // static
-uint32_t SerializedData::ComputeMagicNumber(Isolate* isolate) {
-  return ComputeMagicNumber(isolate->heap()->external_reference_table());
-}
+constexpr uint32_t SerializedData::kMagicNumber;
 
 // The partial snapshot cache is terminated by undefined. We visit the
 // partial snapshot...
@@ -112,34 +112,34 @@ uint32_t SerializedData::ComputeMagicNumber(Isolate* isolate) {
 //  - not during serialization. The partial serializer adds to it explicitly.
 DISABLE_CFI_PERF
 void SerializerDeserializer::Iterate(Isolate* isolate, RootVisitor* visitor) {
-  std::vector<Object*>* cache = isolate->partial_snapshot_cache();
+  std::vector<Object>* cache = isolate->partial_snapshot_cache();
   for (size_t i = 0;; ++i) {
     // Extend the array ready to get a value when deserializing.
     if (cache->size() <= i) cache->push_back(Smi::kZero);
     // During deserialization, the visitor populates the partial snapshot cache
     // and eventually terminates the cache with undefined.
     visitor->VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
-                              &cache->at(i));
+                              FullObjectSlot(&cache->at(i)));
     if (cache->at(i)->IsUndefined(isolate)) break;
   }
 }
 
-bool SerializerDeserializer::CanBeDeferred(HeapObject* o) {
+bool SerializerDeserializer::CanBeDeferred(HeapObject o) {
   return !o->IsString() && !o->IsScript() && !o->IsJSTypedArray();
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirectors(
-    const std::vector<AccessorInfo*>& accessor_infos) {
+    const std::vector<AccessorInfo>& accessor_infos) {
   // Restore wiped accessor infos.
-  for (AccessorInfo* info : accessor_infos) {
+  for (AccessorInfo info : accessor_infos) {
     Foreign::cast(info->js_getter())
         ->set_foreign_address(info->redirected_getter());
   }
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirectors(
-    const std::vector<CallHandlerInfo*>& call_handler_infos) {
-  for (CallHandlerInfo* info : call_handler_infos) {
+    const std::vector<CallHandlerInfo>& call_handler_infos) {
+  for (CallHandlerInfo info : call_handler_infos) {
     Foreign::cast(info->js_callback())
         ->set_foreign_address(info->redirected_callback());
   }

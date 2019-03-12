@@ -44,7 +44,7 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
   int function_literal_id = 1;
   // Ensure that the function can be compiled lazily.
   shared->set_uncompiled_data(
-      *isolate->factory()->NewUncompiledDataWithoutPreParsedScope(
+      *isolate->factory()->NewUncompiledDataWithoutPreparseData(
           ReadOnlyRoots(isolate).empty_string_handle(), 0, source->length(),
           function_literal_id));
   // Make sure we have an outer scope info, even though it's empty

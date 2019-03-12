@@ -4,6 +4,7 @@
 
 #include <memory>
 
+#include "src/microtask-queue.h"
 #include "src/objects-inl.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-engine.h"
@@ -94,7 +95,7 @@ class SharedEngineIsolate {
   }
 
   SharedModule ExportInstance(Handle<WasmInstanceObject> instance) {
-    return instance->module_object()->managed_native_module()->get();
+    return instance->module_object()->shared_native_module();
   }
 
   int32_t Run(Handle<WasmInstanceObject> instance) {
@@ -146,7 +147,7 @@ class MockInstantiationResolver : public InstantiationResultResolver {
   explicit MockInstantiationResolver(Handle<Object>* out_instance)
       : out_instance_(out_instance) {}
   void OnInstantiationSucceeded(Handle<WasmInstanceObject> result) override {
-    *out_instance_->location() = *result;
+    *out_instance_->location() = result->ptr();
   }
   void OnInstantiationFailed(Handle<Object> error_reason) override {
     UNREACHABLE();
@@ -180,7 +181,8 @@ void PumpMessageLoop(SharedEngineIsolate& isolate) {
   v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
                                 isolate.v8_isolate(),
                                 platform::MessageLoopBehavior::kWaitForWork);
-  isolate.isolate()->RunMicrotasks();
+  isolate.isolate()->default_microtask_queue()->RunMicrotasks(
+      isolate.isolate());
 }
 
 Handle<WasmInstanceObject> CompileAndInstantiateAsync(
@@ -350,11 +352,9 @@ TEST(SharedEngineRunThreadedTierUp) {
   threads.emplace_back(&engine, [module](SharedEngineIsolate& isolate) {
     HandleScope scope(isolate.isolate());
     Handle<WasmInstanceObject> instance = isolate.ImportInstance(module);
-    ErrorThrower thrower(isolate.isolate(), "Forced Tier Up");
     WasmFeatures detected = kNoWasmFeatures;
     WasmCompilationUnit::CompileWasmFunction(
-        isolate.isolate(), module.get(), &detected, &thrower,
-        GetModuleEnv(module->compilation_state()),
+        isolate.isolate(), module.get(), &detected,
         &module->module()->functions[0], ExecutionTier::kOptimized);
     CHECK_EQ(23, isolate.Run(instance));
   });

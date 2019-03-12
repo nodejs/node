@@ -15,13 +15,13 @@ print('=== grow_memory in direct calls ===');
 
 // This test verifies that the current_memory instruction returns the correct
 // value after returning from a function (direct call) that grew memory.
-(function TestGrowMemoryInFunction() {
-  print('TestGrowMemoryInFunction ...');
+(function TestMemoryGrowInFunction() {
+  print('TestMemoryGrowInFunction ...');
   let builder = new WasmModuleBuilder();
   builder.addMemory(initialMemoryPages, maximumMemoryPages, true);
   let kGrowFunction =
       builder.addFunction('grow', kSig_i_i)
-          .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
+          .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
           .exportFunc()
           .index;
   builder.addFunction('main', kSig_i_i)
@@ -41,14 +41,14 @@ print('=== grow_memory in direct calls ===');
 
 // This test verifies that accessing a memory page that has been created inside
 // a function (direct call) does not trap in the caller.
-(function TestGrowMemoryAndAccessInFunction() {
-  print('TestGrowMemoryAndAccessInFunction ...');
+(function TestMemoryGrowAndAccessInFunction() {
+  print('TestMemoryGrowAndAccessInFunction ...');
   let index = 2 * kPageSize - 4;
   let builder = new WasmModuleBuilder();
   builder.addMemory(initialMemoryPages, maximumMemoryPages, true);
   let kGrowFunction =
       builder.addFunction('grow', kSig_i_i)
-          .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
+          .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
           .exportFunc()
           .index;
   builder.addFunction('load', kSig_i_i)
@@ -75,8 +75,8 @@ print('=== grow_memory in direct calls ===');
 // This test verifies that when a function (direct call) grows and store
 // something in the grown memory, the caller always reads from the grown
 // memory. This checks that the memory start address gets updated in the caller.
-(function TestGrowMemoryAndStoreInFunction() {
-  print('TestGrowMemoryAndStoreInFunction ...');
+(function TestMemoryGrowAndStoreInFunction() {
+  print('TestMemoryGrowAndStoreInFunction ...');
   let index = 0;
   let oldValue = 21;
   let newValue = 42;
@@ -87,7 +87,7 @@ print('=== grow_memory in direct calls ===');
       builder.addFunction('grow', kSig_v_v)
           .addBody([
             kExprI32Const, deltaPages,     // always grow memory by deltaPages
-            kExprGrowMemory, kMemoryZero,  // grow memory
+            kExprMemoryGrow, kMemoryZero,  // grow memory
             kExprDrop,                     // drop the result of grow
             kExprI32Const, index,          // put index on stack
             kExprI32Const, newValue,       // put new value on stack
@@ -113,13 +113,13 @@ print('=== grow_memory in direct calls ===');
 // This test verifies that the effects of growing memory in an directly
 // called function inside a loop affect the result of current_memory when
 // the loop is over.
-(function TestGrowMemoryInFunctionInsideLoop() {
-  print('TestGrowMemoryInFunctionInsideLoop ...');
+(function TestMemoryGrowInFunctionInsideLoop() {
+  print('TestMemoryGrowInFunctionInsideLoop ...');
   let builder = new WasmModuleBuilder();
   builder.addMemory(initialMemoryPages, maximumMemoryPages, true);
   let kGrowFunction =
       builder.addFunction('grow', kSig_i_i)
-          .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
+          .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
           .exportFunc()
           .index;
   builder.addFunction('main', kSig_i_ii)
@@ -156,8 +156,8 @@ print('=== grow_memory in direct calls ===');
 
 // This test verifies that the effects of writing to memory grown in an
 // directly called function inside a loop are retained when the loop is over.
-(function TestGrowMemoryAndStoreInFunctionInsideLoop() {
-  print('TestGrowMemoryAndStoreInFunctionInsideLoop ...');
+(function TestMemoryGrowAndStoreInFunctionInsideLoop() {
+  print('TestMemoryGrowAndStoreInFunctionInsideLoop ...');
   let builder = new WasmModuleBuilder();
   builder.addMemory(initialMemoryPages, maximumMemoryPages, true);
   builder.addFunction('store', kSig_i_ii)
@@ -168,7 +168,7 @@ print('=== grow_memory in direct calls ===');
       .exportFunc();
   let kGrowFunction =
       builder.addFunction('grow', kSig_i_i)
-          .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
+          .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
           .exportFunc()
           .index;
   // parameters:  iterations, deltaPages, index
@@ -220,13 +220,13 @@ print('\n=== grow_memory in indirect calls ===');
 
 // This test verifies that the current_memory instruction returns the correct
 // value after returning from a function (indirect call) that grew memory.
-(function TestGrowMemoryInIndirectCall() {
-  print('TestGrowMemoryInIndirectCall ...');
+(function TestMemoryGrowInIndirectCall() {
+  print('TestMemoryGrowInIndirectCall ...');
   let builder = new WasmModuleBuilder();
   builder.addMemory(initialMemoryPages, maximumMemoryPages, true);
   let kGrowFunction =
       builder.addFunction('grow', kSig_i_i)
-          .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
+          .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
           .exportFunc()
           .index;
   builder.addFunction('main', kSig_i_ii)
@@ -249,14 +249,14 @@ print('\n=== grow_memory in indirect calls ===');
 
 // This test verifies that accessing a memory page that has been created inside
 // a function (indirect call) does not trap in the caller.
-(function TestGrowMemoryAndAccessInIndirectCall() {
-  print('TestGrowMemoryAndAccessInIndirectCall ...');
+(function TestMemoryGrowAndAccessInIndirectCall() {
+  print('TestMemoryGrowAndAccessInIndirectCall ...');
   let index = 2 * kPageSize - 4;
   let builder = new WasmModuleBuilder();
   builder.addMemory(initialMemoryPages, maximumMemoryPages, true);
   let kGrowFunction =
       builder.addFunction('grow', kSig_i_i)
-          .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
+          .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
           .exportFunc()
           .index;
   builder.addFunction('load', kSig_i_i)
@@ -287,8 +287,8 @@ print('\n=== grow_memory in indirect calls ===');
 // This test verifies that when a function (indirect call) grows and store
 // something in the grown memory, the caller always reads from the grown
 // memory. This checks that the memory start address gets updated in the caller.
-(function TestGrowMemoryAndStoreInIndirectCall() {
-  print('TestGrowMemoryAndStoreInIndirectCall ...');
+(function TestMemoryGrowAndStoreInIndirectCall() {
+  print('TestMemoryGrowAndStoreInIndirectCall ...');
   let index = 0;
   let oldValue = 21;
   let newValue = 42;
@@ -299,7 +299,7 @@ print('\n=== grow_memory in indirect calls ===');
       builder.addFunction('grow', kSig_v_v)
           .addBody([
             kExprI32Const, deltaPages,     // always grow memory by deltaPages
-            kExprGrowMemory, kMemoryZero,  // grow memory
+            kExprMemoryGrow, kMemoryZero,  // grow memory
             kExprDrop,                     // drop the result of grow
             kExprI32Const, index,          // put index on stack
             kExprI32Const, newValue,       // put new value on stack
@@ -327,13 +327,13 @@ print('\n=== grow_memory in indirect calls ===');
 // This test verifies that the effects of growing memory in an indirectly
 // called function inside a loop affect the result of current_memory when
 // the loop is over.
-(function TestGrowMemoryInIndirectCallInsideLoop() {
-  print('TestGrowMemoryInIndirectCallInsideLoop ...');
+(function TestMemoryGrowInIndirectCallInsideLoop() {
+  print('TestMemoryGrowInIndirectCallInsideLoop ...');
   let builder = new WasmModuleBuilder();
   builder.addMemory(initialMemoryPages, maximumMemoryPages, true);
   let kGrowFunction =
       builder.addFunction('grow', kSig_i_i)
-          .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
+          .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
           .exportFunc()
           .index;
   builder.addFunction('main', kSig_i_iii)
@@ -372,14 +372,14 @@ print('\n=== grow_memory in indirect calls ===');
 
 // This test verifies that the effects of writing to memory grown in an
 // indirectly called function inside a loop are retained when the loop is over.
-(function TestGrowMemoryAndStoreInIndirectCallInsideLoop() {
-  print('TestGrowMemoryAndStoreInIndirectCallInsideLoop ...');
+(function TestMemoryGrowAndStoreInIndirectCallInsideLoop() {
+  print('TestMemoryGrowAndStoreInIndirectCallInsideLoop ...');
   let builder = new WasmModuleBuilder();
   let deltaPages = 1;
   builder.addMemory(initialMemoryPages, maximumMemoryPages, true);
   let kGrowFunction =
       builder.addFunction('grow', kSig_i_i)
-          .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
+          .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
           .exportFunc()
           .index;
   builder.addFunction('store', kSig_i_ii)

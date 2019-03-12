@@ -3,10 +3,18 @@
 // found in the LICENSE file.
 
 #include "src/roots.h"
+
 #include "src/elements-kind.h"
+#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {
+
+const char* RootsTable::root_names_[RootsTable::kEntriesCount] = {
+#define ROOT_NAME(type, name, CamelName) #name,
+    ROOT_LIST(ROOT_NAME)
+#undef ROOT_NAME
+};
 
 // static
 RootIndex RootsTable::RootIndexForFixedTypedArray(
@@ -48,6 +56,13 @@ RootIndex RootsTable::RootIndexForEmptyFixedTypedArray(
     default:
       UNREACHABLE();
   }
+}
+
+void ReadOnlyRoots::Iterate(RootVisitor* visitor) {
+  visitor->VisitRootPointers(Root::kReadOnlyRootList, nullptr,
+                             roots_table_.read_only_roots_begin(),
+                             roots_table_.read_only_roots_end());
+  visitor->Synchronize(VisitorSynchronization::kReadOnlyRootList);
 }
 
 }  // namespace internal

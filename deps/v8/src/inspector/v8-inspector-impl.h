@@ -37,6 +37,7 @@
 
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
+#include "src/inspector/injected-script.h"
 #include "src/inspector/protocol/Protocol.h"
 
 #include "include/v8-inspector.h"
@@ -78,8 +79,7 @@ class V8InspectorImpl : public V8Inspector {
                                               const StringView& state) override;
   void contextCreated(const V8ContextInfo&) override;
   void contextDestroyed(v8::Local<v8::Context>) override;
-  v8::MaybeLocal<v8::Context> contextById(int groupId,
-                                          v8::Maybe<int> contextId) override;
+  v8::MaybeLocal<v8::Context> contextById(int contextId) override;
   void contextCollected(int contextGroupId, int contextId);
   void resetContextGroup(int contextGroupId) override;
   void idleStarted() override;
@@ -127,15 +127,17 @@ class V8InspectorImpl : public V8Inspector {
 
   class EvaluateScope {
    public:
-    explicit EvaluateScope(v8::Isolate* isolate);
+    explicit EvaluateScope(const InjectedScript::Scope& scope);
     ~EvaluateScope();
 
     protocol::Response setTimeout(double timeout);
 
    private:
-    v8::Isolate* m_isolate;
     class TerminateTask;
     struct CancelToken;
+
+    const InjectedScript::Scope& m_scope;
+    v8::Isolate* m_isolate;
     std::shared_ptr<CancelToken> m_cancelToken;
     v8::Isolate::SafeForTerminationScope m_safeForTerminationScope;
   };

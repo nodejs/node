@@ -13,7 +13,7 @@
 //
 // https://github.com/python/cpython/blob/master/Objects/listsort.txt
 
-module array {
+namespace array {
   // All accessors bail to the GenericElementsAccessor if assumptions checked
   // by "CanUseSameAccessor<>" are violated:
   //  Generic <- FastPackedSmi
@@ -124,10 +124,10 @@ module array {
   // copied values from the prototype chain to the receiver if they were visible
   // through a hole.
 
-  builtin Load<ElementsAccessor: type>(
+  transitioning builtin Load<ElementsAccessor: type>(
       context: Context, sortState: FixedArray, elements: HeapObject,
       index: Smi): Object {
-    return GetProperty(context, elements, index);
+    return GetProperty(elements, index);
   }
 
   Load<FastPackedSmiElements>(
@@ -193,10 +193,10 @@ module array {
     return elems[index];
   }
 
-  builtin Store<ElementsAccessor: type>(
+  transitioning builtin Store<ElementsAccessor: type>(
       context: Context, sortState: FixedArray, elements: HeapObject, index: Smi,
       value: Object): Smi {
-    SetProperty(context, elements, index, value);
+    SetProperty(elements, index, value);
     return kSuccess;
   }
 
@@ -257,25 +257,19 @@ module array {
     return kSuccess;
   }
 
-  extern macro UnsafeCastObjectToCompareBuiltinFn(Object): CompareBuiltinFn;
-  UnsafeCast<CompareBuiltinFn>(o: Object): CompareBuiltinFn {
-    return UnsafeCastObjectToCompareBuiltinFn(o);
+  UnsafeCast<CompareBuiltinFn>(implicit context: Context)(o: Object):
+      CompareBuiltinFn {
+    return %RawObjectCast<CompareBuiltinFn>(o);
   }
-
-  extern macro UnsafeCastObjectToLoadFn(Object): LoadFn;
-  UnsafeCast<LoadFn>(o: Object): LoadFn {
-    return UnsafeCastObjectToLoadFn(o);
+  UnsafeCast<LoadFn>(implicit context: Context)(o: Object): LoadFn {
+    return %RawObjectCast<LoadFn>(o);
   }
-
-  extern macro UnsafeCastObjectToStoreFn(Object): StoreFn;
-  UnsafeCast<StoreFn>(o: Object): StoreFn {
-    return UnsafeCastObjectToStoreFn(o);
+  UnsafeCast<StoreFn>(implicit context: Context)(o: Object): StoreFn {
+    return %RawObjectCast<StoreFn>(o);
   }
-
-  extern macro UnsafeCastObjectToCanUseSameAccessorFn(Object):
-      CanUseSameAccessorFn;
-  UnsafeCast<CanUseSameAccessorFn>(o: Object): CanUseSameAccessorFn {
-    return UnsafeCastObjectToCanUseSameAccessorFn(o);
+  UnsafeCast<CanUseSameAccessorFn>(implicit context: Context)(o: Object):
+      CanUseSameAccessorFn {
+    return %RawObjectCast<CanUseSameAccessorFn>(o);
   }
 
   builtin SortCompareDefault(
@@ -306,7 +300,7 @@ module array {
     return 0;
   }
 
-  builtin SortCompareUserFn(
+  transitioning builtin SortCompareUserFn(
       context: Context, comparefn: Object, x: Object, y: Object): Number {
     assert(comparefn != Undefined);
     const cmpfn: Callable = UnsafeCast<Callable>(comparefn);
@@ -325,14 +319,12 @@ module array {
   builtin CanUseSameAccessor<ElementsAccessor: type>(
       context: Context, receiver: JSReceiver, initialReceiverMap: Object,
       initialReceiverLength: Number): Boolean {
-    assert(IsJSArray(receiver));
-
-    let a: JSArray = UnsafeCast<JSArray>(receiver);
+    const a: JSArray = UnsafeCast<JSArray>(receiver);
     if (a.map != initialReceiverMap) return False;
 
     assert(TaggedIsSmi(initialReceiverLength));
     let originalLength: Smi = UnsafeCast<Smi>(initialReceiverLength);
-    if (a.length_fast != originalLength) return False;
+    if (UnsafeCast<Smi>(a.length) != originalLength) return False;
 
     return True;
   }
@@ -362,8 +354,7 @@ module array {
 
     const receiver: JSReceiver = GetReceiver(sortState);
     const initialReceiverMap: Object = sortState[kInitialReceiverMapIdx];
-    const initialReceiverLength: Number =
-        UnsafeCast<Number>(sortState[kInitialReceiverLengthIdx]);
+    const initialReceiverLength: Number = GetInitialReceiverLength(sortState);
     const canUseSameAccessorFn: CanUseSameAccessorFn =
         GetCanUseSameAccessorFn(sortState);
 
@@ -378,7 +369,8 @@ module array {
   // might have occurred. This means we cannot leave any pointer to the elements
   // backing store on the stack (since it would point to the filler object).
   // TODO(v8:7995): Remove reloading once left-trimming is removed.
-  macro ReloadElements(sortState: FixedArray): HeapObject {
+  macro ReloadElements(implicit context: Context)(sortState: FixedArray):
+      HeapObject {
     const receiver: JSReceiver = GetReceiver(sortState);
     if (sortState[kAccessorIdx] == kGenericElementsAccessorId) return receiver;
 
@@ -386,31 +378,40 @@ module array {
     return object.elements;
   }
 
-  macro GetLoadFn(sortState: FixedArray): LoadFn {
+  macro GetInitialReceiverLength(implicit context:
+                                     Context)(sortState: FixedArray): Number {
+    return UnsafeCast<Number>(sortState[kInitialReceiverLengthIdx]);
+  }
+
+  macro GetLoadFn(implicit context: Context)(sortState: FixedArray): LoadFn {
     return UnsafeCast<LoadFn>(sortState[kLoadFnIdx]);
   }
 
-  macro GetStoreFn(sortState: FixedArray): StoreFn {
+  macro GetStoreFn(implicit context: Context)(sortState: FixedArray): StoreFn {
     return UnsafeCast<StoreFn>(sortState[kStoreFnIdx]);
   }
 
-  macro GetCanUseSameAccessorFn(sortState: FixedArray): CanUseSameAccessorFn {
+  macro GetCanUseSameAccessorFn(implicit context: Context)(
+      sortState: FixedArray): CanUseSameAccessorFn {
     return UnsafeCast<CanUseSameAccessorFn>(
         sortState[kCanUseSameAccessorFnIdx]);
   }
 
-  macro GetReceiver(sortState: FixedArray): JSReceiver {
+  macro GetReceiver(implicit context: Context)(sortState: FixedArray):
+      JSReceiver {
     return UnsafeCast<JSReceiver>(sortState[kReceiverIdx]);
   }
 
   // Returns the temporary array without changing its size.
-  macro GetTempArray(sortState: FixedArray): FixedArray {
+  macro GetTempArray(implicit context: Context)(sortState: FixedArray):
+      FixedArray {
     return UnsafeCast<FixedArray>(sortState[kTempArrayIdx]);
   }
 
   // Re-loading the stack-size is done in a few places. The small macro allows
   // for easier invariant checks at all use sites.
-  macro GetPendingRunsSize(sortState: FixedArray): Smi {
+  macro GetPendingRunsSize(implicit context: Context)(sortState: FixedArray):
+      Smi {
     assert(TaggedIsSmi(sortState[kPendingRunsSizeIdx]));
     const stackSize: Smi = UnsafeCast<Smi>(sortState[kPendingRunsSizeIdx]);
 
@@ -422,7 +423,8 @@ module array {
     sortState[kPendingRunsSizeIdx] = value;
   }
 
-  macro GetPendingRunBase(pendingRuns: FixedArray, run: Smi): Smi {
+  macro GetPendingRunBase(implicit context:
+                              Context)(pendingRuns: FixedArray, run: Smi): Smi {
     return UnsafeCast<Smi>(pendingRuns[run << 1]);
   }
 
@@ -430,7 +432,8 @@ module array {
     pendingRuns[run << 1] = value;
   }
 
-  macro GetPendingRunLength(pendingRuns: FixedArray, run: Smi): Smi {
+  macro GetPendingRunLength(implicit context: Context)(
+      pendingRuns: FixedArray, run: Smi): Smi {
     return UnsafeCast<Smi>(pendingRuns[(run << 1) + 1]);
   }
 
@@ -438,7 +441,8 @@ module array {
     pendingRuns[(run << 1) + 1] = value;
   }
 
-  macro PushRun(sortState: FixedArray, base: Smi, length: Smi) {
+  macro PushRun(implicit context:
+                    Context)(sortState: FixedArray, base: Smi, length: Smi) {
     assert(GetPendingRunsSize(sortState) < kMaxMergePending);
 
     const stackSize: Smi = GetPendingRunsSize(sortState);
@@ -453,7 +457,8 @@ module array {
 
   // Returns the temporary array and makes sure that it is big enough.
   // TODO(szuend): Implement a better re-size strategy.
-  macro GetTempArray(sortState: FixedArray, requestedSize: Smi): FixedArray {
+  macro GetTempArray(implicit context: Context)(
+      sortState: FixedArray, requestedSize: Smi): FixedArray {
     const minSize: Smi = SmiMax(kSortStateTempSize, requestedSize);
 
     const currentSize: Smi = UnsafeCast<Smi>(sortState[kTempArraySizeIdx]);
@@ -470,7 +475,8 @@ module array {
   }
 
   // This macro jumps to the Bailout label iff kBailoutStatus is kFailure.
-  macro EnsureSuccess(sortState: FixedArray) labels Bailout {
+  macro EnsureSuccess(implicit context:
+                          Context)(sortState: FixedArray) labels Bailout {
     const status: Smi = UnsafeCast<Smi>(sortState[kBailoutStatusIdx]);
     if (status == kFailure) goto Bailout;
   }
@@ -501,19 +507,19 @@ module array {
     EnsureSuccess(sortState) otherwise Bailout;
   }
 
-  macro CallCopyFromTempArray(
+  transitioning macro CallCopyFromTempArray(
       context: Context, sortState: FixedArray, dstElements: HeapObject,
       dstPos: Smi, tempArray: FixedArray, srcPos: Smi, length: Smi)
-  labels Bailout {
+      labels Bailout {
     CopyFromTempArray(
         context, sortState, dstElements, dstPos, tempArray, srcPos, length);
     EnsureSuccess(sortState) otherwise Bailout;
   }
 
-  macro CallCopyWithinSortArray(
+  transitioning macro CallCopyWithinSortArray(
       context: Context, sortState: FixedArray, elements: HeapObject,
       srcPos: Smi, dstPos: Smi, length: Smi)
-  labels Bailout {
+      labels Bailout {
     CopyWithinSortArray(context, sortState, elements, srcPos, dstPos, length);
     EnsureSuccess(sortState) otherwise Bailout;
   }
@@ -538,32 +544,21 @@ module array {
     return result;
   }
 
-  macro CallMergeAt(context: Context, sortState: FixedArray, i: Smi)
-  labels Bailout {
+  transitioning macro
+  CallMergeAt(context: Context, sortState: FixedArray, i: Smi)
+      labels Bailout {
     MergeAt(context, sortState, i);
     EnsureSuccess(sortState) otherwise Bailout;
   }
 
-  // Used for OOB asserts in Copy* builtins.
-  macro GetReceiverLengthProperty(
-      context: Context, sortState: FixedArray): Smi {
-    const receiver: JSReceiver = GetReceiver(sortState);
-
-    if (IsJSArray(receiver)) return UnsafeCast<JSArray>(receiver).length_fast;
-
-    const len: Number =
-        ToLength_Inline(context, GetProperty(context, receiver, kLengthString));
-    return UnsafeCast<Smi>(len);
-  }
-
-  macro CopyToTempArray(
+  transitioning macro CopyToTempArray(
       context: Context, sortState: FixedArray, load: LoadFn,
       srcElements: HeapObject, srcPos: Smi, tempArray: FixedArray, dstPos: Smi,
       length: Smi)
-  labels Bailout {
+      labels Bailout {
     assert(srcPos >= 0);
     assert(dstPos >= 0);
-    assert(srcPos <= GetReceiverLengthProperty(context, sortState) - length);
+    assert(srcPos <= GetInitialReceiverLength(sortState) - length);
     assert(dstPos <= tempArray.length - length);
 
     let srcIdx: Smi = srcPos;
@@ -578,13 +573,13 @@ module array {
     }
   }
 
-  builtin CopyFromTempArray(
+  transitioning builtin CopyFromTempArray(
       context: Context, sortState: FixedArray, dstElements: HeapObject,
       dstPos: Smi, tempArray: FixedArray, srcPos: Smi, length: Smi): Smi {
     assert(srcPos >= 0);
     assert(dstPos >= 0);
     assert(srcPos <= tempArray.length - length);
-    assert(dstPos <= GetReceiverLengthProperty(context, sortState) - length);
+    assert(dstPos <= GetInitialReceiverLength(sortState) - length);
 
     let store: StoreFn = GetStoreFn(sortState);
 
@@ -605,13 +600,13 @@ module array {
     }
   }
 
-  builtin CopyWithinSortArray(
+  transitioning builtin CopyWithinSortArray(
       context: Context, sortState: FixedArray, elements: HeapObject,
       srcPos: Smi, dstPos: Smi, length: Smi): Smi {
     assert(srcPos >= 0);
     assert(dstPos >= 0);
-    assert(srcPos <= GetReceiverLengthProperty(context, sortState) - length);
-    assert(dstPos <= GetReceiverLengthProperty(context, sortState) - length);
+    assert(srcPos <= GetInitialReceiverLength(sortState) - length);
+    assert(dstPos <= GetInitialReceiverLength(sortState) - length);
 
     try {
       let load: LoadFn = GetLoadFn(sortState);
@@ -681,7 +676,7 @@ module array {
 
         // Find pivot insertion point.
         while (left < right) {
-          const mid: Smi = left + ((right - left) >>> 1);
+          const mid: Smi = left + ((right - left) >> 1);
           const midElement: Object =
               CallLoad(context, sortState, load, elements, mid)
               otherwise Bailout;
@@ -795,7 +790,7 @@ module array {
   macro ReverseRange(
       context: Context, sortState: FixedArray, load: LoadFn, store: StoreFn,
       elements: HeapObject, from: Smi, to: Smi)
-  labels Bailout {
+      labels Bailout {
     let low: Smi = from;
     let high: Smi = to - 1;
 
@@ -813,7 +808,8 @@ module array {
 
   // Merges the two runs at stack indices i and i + 1.
   // Returns kFailure if we need to bailout, kSuccess otherwise.
-  builtin MergeAt(context: Context, sortState: FixedArray, i: Smi): Smi {
+  transitioning builtin
+  MergeAt(context: Context, sortState: FixedArray, i: Smi): Smi {
     const stackSize: Smi = GetPendingRunsSize(sortState);
 
     // We are only allowed to either merge the two top-most runs, or leave
@@ -891,7 +887,7 @@ module array {
     }
   }
 
-  macro LoadElementsOrTempArray(
+  macro LoadElementsOrTempArray(implicit context: Context)(
       useTempArray: Boolean, sortState: FixedArray): HeapObject {
     return useTempArray == True ? GetTempArray(sortState) :
                                   ReloadElements(sortState);
@@ -1003,7 +999,7 @@ module array {
       //   a[base + lastOfs - 1] < key <= a[base + offset].
       lastOfs++;
       while (lastOfs < offset) {
-        const m: Smi = lastOfs + ((offset - lastOfs) >>> 1);
+        const m: Smi = lastOfs + ((offset - lastOfs) >> 1);
 
         const baseMElement: Object = CallLoad(
             context, sortState, load,
@@ -1124,7 +1120,7 @@ module array {
       // a[base + lastOfs - 1] < key <= a[base + ofs].
       lastOfs++;
       while (lastOfs < offset) {
-        const m: Smi = lastOfs + ((offset - lastOfs) >>> 1);
+        const m: Smi = lastOfs + ((offset - lastOfs) >> 1);
 
         const baseMElement: Object = CallLoad(
             context, sortState, load,
@@ -1153,7 +1149,7 @@ module array {
   macro CopyElement(
       context: Context, sortState: FixedArray, load: LoadFn, store: StoreFn,
       elements: HeapObject, from: Smi, to: Smi)
-  labels Bailout {
+      labels Bailout {
     const element: Object = CallLoad(context, sortState, load, elements, from)
         otherwise Bailout;
     CallStore(context, sortState, store, elements, to, element)
@@ -1166,10 +1162,10 @@ module array {
   // array[baseB] < array[baseA],
   // that array[baseA + lengthA - 1] belongs at the end of the merge,
   // and should have lengthA <= lengthB.
-  macro MergeLow(
+  transitioning macro MergeLow(
       context: Context, sortState: FixedArray, baseA: Smi, lengthAArg: Smi,
       baseB: Smi, lengthBArg: Smi)
-  labels Bailout {
+      labels Bailout {
     assert(0 < lengthAArg && 0 < lengthBArg);
     assert(0 <= baseA && 0 < baseB);
     assert(baseA + lengthAArg == baseB);
@@ -1341,10 +1337,10 @@ module array {
   // starting at baseB in a stable way, in-place. lengthA and lengthB must
   // be > 0. Must also have that array[baseA + lengthA - 1] belongs at the
   // end of the merge and should have lengthA >= lengthB.
-  macro MergeHigh(
+  transitioning macro MergeHigh(
       context: Context, sortState: FixedArray, baseA: Smi, lengthAArg: Smi,
       baseB: Smi, lengthBArg: Smi)
-  labels Bailout {
+      labels Bailout {
     assert(0 < lengthAArg && 0 < lengthBArg);
     assert(0 <= baseA && 0 < baseB);
     assert(baseA + lengthAArg == baseB);
@@ -1535,7 +1531,7 @@ module array {
     assert(n >= 0);
     while (n >= 64) {
       r = r | (n & 1);
-      n = n >>> 1;
+      n = n >> 1;
     }
 
     const minRunLength: Smi = n + r;
@@ -1544,7 +1540,8 @@ module array {
   }
 
   // Returns true iff run_length(n - 2) > run_length(n - 1) + run_length(n).
-  macro RunInvariantEstablished(pendingRuns: FixedArray, n: Smi): bool {
+  macro RunInvariantEstablished(implicit context: Context)(
+      pendingRuns: FixedArray, n: Smi): bool {
     if (n < 2) return true;
 
     const runLengthN: Smi = GetPendingRunLength(pendingRuns, n);
@@ -1563,8 +1560,8 @@ module array {
   // TODO(szuend): Remove unnecessary loads. This macro was refactored to
   //               improve readability, introducing unnecessary loads in the
   //               process. Determine if all these extra loads are ok.
-  macro MergeCollapse(context: Context, sortState: FixedArray)
-  labels Bailout {
+  transitioning macro MergeCollapse(context: Context, sortState: FixedArray)
+      labels Bailout {
     const pendingRuns: FixedArray =
         UnsafeCast<FixedArray>(sortState[kPendingRunsIdx]);
 
@@ -1592,8 +1589,9 @@ module array {
 
   // Regardless of invariants, merge all runs on the stack until only one
   // remains. This is used at the end of the mergesort.
-  macro MergeForceCollapse(context: Context, sortState: FixedArray)
-  labels Bailout {
+  transitioning macro
+  MergeForceCollapse(context: Context, sortState: FixedArray)
+      labels Bailout {
     let pendingRuns: FixedArray =
         UnsafeCast<FixedArray>(sortState[kPendingRunsIdx]);
 
@@ -1635,8 +1633,9 @@ module array {
         CanUseSameAccessor<GenericElementsAccessor>;
   }
 
-  macro ArrayTimSortImpl(context: Context, sortState: FixedArray, length: Smi)
-  labels Bailout {
+  transitioning macro
+  ArrayTimSortImpl(context: Context, sortState: FixedArray, length: Smi)
+      labels Bailout {
     InitializeSortState(sortState);
 
     if (length < 2) return;
@@ -1678,8 +1677,8 @@ module array {
             UnsafeCast<FixedArray>(sortState[kPendingRunsIdx]), 0) == length);
   }
 
-  builtin ArrayTimSort(
-      context: Context, sortState: FixedArray, length: Smi): Object {
+  transitioning builtin
+  ArrayTimSort(context: Context, sortState: FixedArray, length: Smi): Object {
     try {
       ArrayTimSortImpl(context, sortState, length)
           otherwise Slow;
@@ -1712,8 +1711,8 @@ module array {
   extern runtime PrepareElementsForSort(Context, Object, Number): Smi;
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.sort
-  javascript builtin ArrayPrototypeSort(
-      context: Context, receiver: Object, ...arguments): Object {
+  transitioning javascript builtin
+  ArrayPrototypeSort(context: Context, receiver: Object, ...arguments): Object {
     // 1. If comparefn is not undefined and IsCallable(comparefn) is false,
     //    throw a TypeError exception.
     const comparefnObj: Object = arguments[0];
@@ -1733,8 +1732,8 @@ module array {
     sortState[kBailoutStatusIdx] = kSuccess;
 
     // 3. Let len be ? ToLength(? Get(obj, "length")).
-    const len: Number =
-        ToLength_Inline(context, GetProperty(context, obj, 'length'));
+    const len: Number = GetLengthProperty(obj);
+
     if (len < 2) return receiver;
 
     // TODO(szuend): Investigate performance tradeoff of skipping this step
@@ -1747,10 +1746,9 @@ module array {
     sortState[kInitialReceiverLengthIdx] = len;
 
     try {
-      const a: JSArray = Cast<JSArray>(obj) otherwise Slow;
-      const elementsKind: ElementsKind = map.elements_kind;
-      if (!IsFastElementsKind(elementsKind)) goto Slow;
+      let a: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
 
+      const elementsKind: ElementsKind = map.elements_kind;
       if (IsDoubleElementsKind(elementsKind)) {
         InitializeSortStateAccessor<FastDoubleElements>(sortState);
       } else if (elementsKind == PACKED_SMI_ELEMENTS) {
@@ -1773,4 +1771,3 @@ module array {
     return receiver;
   }
 }
-

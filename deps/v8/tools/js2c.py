@@ -33,7 +33,6 @@
 
 import os, re
 import optparse
-import jsmin
 import textwrap
 
 
@@ -96,161 +95,6 @@ def ExpandConstants(lines, constants):
   return lines
 
 
-def ExpandMacroDefinition(lines, pos, name_pattern, macro, expander):
-  pattern_match = name_pattern.search(lines, pos)
-  while pattern_match is not None:
-    # Scan over the arguments
-    height = 1
-    start = pattern_match.start()
-    end = pattern_match.end()
-    assert lines[end - 1] == '('
-    last_match = end
-    arg_index = [0]  # Wrap state into array, to work around Python "scoping"
-    mapping = { }
-    def add_arg(str):
-      # Remember to expand recursively in the arguments
-      if arg_index[0] >= len(macro.args):
-        lineno = lines.count(os.linesep, 0, start) + 1
-        raise Error('line %s: Too many arguments for macro "%s"' % (lineno, name_pattern.pattern))
-      replacement = expander(str.strip())
-      mapping[macro.args[arg_index[0]]] = replacement
-      arg_index[0] += 1
-    while end < len(lines) and height > 0:
-      # We don't count commas at higher nesting levels.
-      if lines[end] == ',' and height == 1:
-        add_arg(lines[last_match:end])
-        last_match = end + 1
-      elif lines[end] in ['(', '{', '[']:
-        height = height + 1
-      elif lines[end] in [')', '}', ']']:
-        height = height - 1
-      end = end + 1
-    # Remember to add the last match.
-    add_arg(lines[last_match:end-1])
-    if arg_index[0] < len(macro.args) -1:
-      lineno = lines.count(os.linesep, 0, start) + 1
-      raise Error('line %s: Too few arguments for macro "%s"' % (lineno, name_pattern.pattern))
-    result = macro.expand(mapping)
-    # Replace the occurrence of the macro with the expansion
-    lines = lines[:start] + result + lines[end:]
-    pattern_match = name_pattern.search(lines, start + len(result))
-  return lines
-
-def ExpandMacros(lines, macros):
-  # We allow macros to depend on the previously declared macros, but
-  # we don't allow self-dependecies or recursion.
-  for name_pattern, macro in reversed(macros):
-    def expander(s):
-      return ExpandMacros(s, macros)
-    lines = ExpandMacroDefinition(lines, 0, name_pattern, macro, expander)
-  return lines
-
-class TextMacro:
-  def __init__(self, args, body):
-    self.args = args
-    self.body = body
-  def expand(self, mapping):
-    # Keys could be substrings of earlier values. To avoid unintended
-    # clobbering, apply all replacements simultaneously.
-    any_key_pattern = "|".join(re.escape(k) for k in mapping.iterkeys())
-    def replace(match):
-      return mapping[match.group(0)]
-    return re.sub(any_key_pattern, replace, self.body)
-
-CONST_PATTERN = re.compile(r'^define\s+([a-zA-Z0-9_]+)\s*=\s*([^;]*);$')
-MACRO_PATTERN = re.compile(r'^macro\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*=\s*([^;]*);$')
-
-
-def ReadMacros(lines):
-  constants = []
-  macros = []
-  for line in lines.split('\n'):
-    hash = line.find('#')
-    if hash != -1: line = line[:hash]
-    line = line.strip()
-    if len(line) is 0: continue
-    const_match = CONST_PATTERN.match(line)
-    if const_match:
-      name = const_match.group(1)
-      value = const_match.group(2).strip()
-      constants.append((re.compile("\\b%s\\b" % name), value))
-    else:
-      macro_match = MACRO_PATTERN.match(line)
-      if macro_match:
-        name = macro_match.group(1)
-        args = [match.strip() for match in macro_match.group(2).split(',')]
-        body = macro_match.group(3).strip()
-        macros.append((re.compile("\\b%s\\(" % name), TextMacro(args, body)))
-      else:
-        raise Error("Illegal line: " + line)
-  return (constants, macros)
-
-
-TEMPLATE_PATTERN = re.compile(r'^\s+T\(([A-Z][a-zA-Z0-9]*),')
-
-def ReadMessageTemplates(lines):
-  templates = []
-  index = 0
-  for line in lines.split('\n'):
-    template_match = TEMPLATE_PATTERN.match(line)
-    if template_match:
-      name = "k%s" % template_match.group(1)
-      value = index
-      index = index + 1
-      templates.append((re.compile("\\b%s\\b" % name), value))
-  return templates
-
-INLINE_MACRO_PATTERN = re.compile(r'macro\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*\n')
-INLINE_MACRO_END_PATTERN = re.compile(r'endmacro\s*\n')
-
-def ExpandInlineMacros(lines):
-  pos = 0
-  while True:
-    macro_match = INLINE_MACRO_PATTERN.search(lines, pos)
-    if macro_match is None:
-      # no more macros
-      return lines
-    name = macro_match.group(1)
-    args = [match.strip() for match in macro_match.group(2).split(',')]
-    end_macro_match = INLINE_MACRO_END_PATTERN.search(lines, macro_match.end());
-    if end_macro_match is None:
-      raise Error("Macro %s unclosed" % name)
-    body = lines[macro_match.end():end_macro_match.start()]
-
-    # remove macro definition
-    lines = lines[:macro_match.start()] + lines[end_macro_match.end():]
-    name_pattern = re.compile("\\b%s\\(" % name)
-    macro = TextMacro(args, body)
-
-    # advance position to where the macro definition was
-    pos = macro_match.start()
-
-    def non_expander(s):
-      return s
-    lines = ExpandMacroDefinition(lines, pos, name_pattern, macro, non_expander)
-
-
-INLINE_CONSTANT_PATTERN = re.compile(r'define\s+([a-zA-Z0-9_]+)\s*=\s*([^;\n]+);\n')
-
-def ExpandInlineConstants(lines):
-  pos = 0
-  while True:
-    const_match = INLINE_CONSTANT_PATTERN.search(lines, pos)
-    if const_match is None:
-      # no more constants
-      return lines
-    name = const_match.group(1)
-    replacement = const_match.group(2)
-    name_pattern = re.compile("\\b%s\\b" % name)
-
-    # remove constant definition and replace
-    lines = (lines[:const_match.start()] +
-             re.sub(name_pattern, replacement, lines[const_match.end():]))
-
-    # advance position to where the constant definition was
-    pos = const_match.start()
-
-
 HEADER_TEMPLATE = """\
 // Copyright 2011 Google Inc. All Rights Reserved.
 
@@ -270,11 +114,6 @@ namespace internal {
   template <>
   int NativesCollection<%(type)s>::GetBuiltinsCount() {
     return %(builtin_count)i;
-  }
-
-  template <>
-  int NativesCollection<%(type)s>::GetDebuggerCount() {
-    return %(debugger_count)i;
   }
 
   template <>
@@ -323,33 +162,16 @@ GET_SCRIPT_NAME_CASE = """\
 """
 
 
-def BuildFilterChain(macro_filename, message_template_file):
+def BuildFilterChain():
   """Build the chain of filter functions to be applied to the sources.
-
-  Args:
-    macro_filename: Name of the macro file, if any.
 
   Returns:
     A function (string -> string) that processes a source file.
   """
-  filter_chain = []
-
-  if macro_filename:
-    (consts, macros) = ReadMacros(ReadFile(macro_filename))
-    filter_chain.append(lambda l: ExpandMacros(l, macros))
-    filter_chain.append(lambda l: ExpandConstants(l, consts))
-
-  if message_template_file:
-    message_templates = ReadMessageTemplates(ReadFile(message_template_file))
-    filter_chain.append(lambda l: ExpandConstants(l, message_templates))
-
-  filter_chain.extend([
+  filter_chain = [
     RemoveCommentsEmptyLinesAndWhitespace,
-    ExpandInlineMacros,
-    ExpandInlineConstants,
     Validate,
-    jsmin.JavaScriptMinifier().JSMinify
-  ])
+  ]
 
   def chain(f1, f2):
     return lambda x: f2(f1(x))
@@ -363,25 +185,12 @@ class Sources:
   def __init__(self):
     self.names = []
     self.modules = []
-    self.is_debugger_id = []
-
-
-def IsDebuggerFile(filename):
-  return os.path.basename(os.path.dirname(filename)) == "debug"
-
-def IsMacroFile(filename):
-  return filename.endswith("macros.py")
-
-def IsMessageTemplateFile(filename):
-  return filename.endswith("messages.h")
-
 
 def PrepareSources(source_files, native_type, emit_js):
   """Read, prepare and assemble the list of source files.
 
   Args:
-    source_files: List of JavaScript-ish source files. A file named macros.py
-        will be treated as a list of macros.
+    source_files: List of JavaScript-ish source files.
     native_type: String corresponding to a NativeType enum value, allowing us
         to treat different types of sources differently.
     emit_js: True if we should skip the byte conversion and just leave the
@@ -390,29 +199,7 @@ def PrepareSources(source_files, native_type, emit_js):
   Returns:
     An instance of Sources.
   """
-  macro_file = None
-  macro_files = filter(IsMacroFile, source_files)
-  assert len(macro_files) in [0, 1]
-  if macro_files:
-    source_files.remove(macro_files[0])
-    macro_file = macro_files[0]
-
-  message_template_file = None
-  message_template_files = filter(IsMessageTemplateFile, source_files)
-  assert len(message_template_files) in [0, 1]
-  if message_template_files:
-    source_files.remove(message_template_files[0])
-    message_template_file = message_template_files[0]
-
-  filters = None
-  if native_type in ("EXTRAS", "EXPERIMENTAL_EXTRAS"):
-    filters = BuildExtraFilterChain()
-  else:
-    filters = BuildFilterChain(macro_file, message_template_file)
-
-  # Sort 'debugger' sources first.
-  source_files = sorted(source_files,
-                        lambda l,r: IsDebuggerFile(r) - IsDebuggerFile(l))
+  filters = BuildFilterChain()
 
   source_files_and_contents = [(f, ReadFile(f)) for f in source_files]
 
@@ -432,9 +219,6 @@ def PrepareSources(source_files, native_type, emit_js):
       raise Error("In file %s:\n%s" % (source, str(e)))
 
     result.modules.append(lines)
-
-    is_debugger = IsDebuggerFile(source)
-    result.is_debugger_id.append(is_debugger)
 
     name = os.path.basename(source)[:-3]
     result.names.append(name)
@@ -483,7 +267,6 @@ def BuildMetadata(sources, source_bytes, native_type):
 
   metadata = {
     "builtin_count": len(sources.modules),
-    "debugger_count": sum(sources.is_debugger_id),
     "sources_declaration": SOURCES_DECLARATION % ToCArray(source_bytes),
     "total_length": total_length,
     "get_index_cases": "".join(get_index_cases),
@@ -528,14 +311,8 @@ def WriteStartupBlob(sources, startup_blob):
   """
   output = open(startup_blob, "wb")
 
-  debug_sources = sum(sources.is_debugger_id);
-  PutInt(output, debug_sources)
-  for i in xrange(debug_sources):
-    PutStr(output, sources.names[i]);
-    PutStr(output, sources.modules[i]);
-
-  PutInt(output, len(sources.names) - debug_sources)
-  for i in xrange(debug_sources, len(sources.names)):
+  PutInt(output, len(sources.names))
+  for i in xrange(len(sources.names)):
     PutStr(output, sources.names[i]);
     PutStr(output, sources.modules[i]);
 
@@ -578,7 +355,7 @@ def main():
   parser.set_usage("""js2c out.cc type sources.js ...
         out.cc: C code to be generated.
         type: type parameter for NativesCollection template.
-        sources.js: JS internal sources or macros.py.""")
+        sources.js: JS internal sources.""")
   (options, args) = parser.parse_args()
   JS2C(args[2:],
        args[0],

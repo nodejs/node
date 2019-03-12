@@ -16,7 +16,7 @@ namespace wasm {
 // the module after that won't affect the serialized result.
 class WasmSerializer {
  public:
-  WasmSerializer(Isolate* isolate, NativeModule* native_module);
+  explicit WasmSerializer(NativeModule* native_module);
 
   // Measure the required buffer size needed for serialization.
   size_t GetSerializedNativeModuleSize() const;
@@ -26,16 +26,15 @@ class WasmSerializer {
   bool SerializeNativeModule(Vector<byte> buffer) const;
 
  private:
-  Isolate* isolate_;
   NativeModule* native_module_;
   std::vector<WasmCode*> code_table_;
 };
 
 // Support for deserializing WebAssembly {NativeModule} objects.
 // Checks the version header of the data against the current version.
-bool IsSupportedVersion(Isolate* isolate, Vector<const byte> data);
+bool IsSupportedVersion(Vector<const byte> data);
 
-// Deserializes the given data to create a compiled Wasm module.
+// Deserializes the given data to create a Wasm module object.
 MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     Isolate* isolate, Vector<const byte> data, Vector<const byte> wire_bytes);
 

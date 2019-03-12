@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/builtins-object-gen.h"
+
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
@@ -11,6 +13,7 @@
 #include "src/objects/js-generator.h"
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/shared-function-info.h"
+#include "src/property-details.h"
 
 namespace v8 {
 namespace internal {
@@ -218,9 +221,10 @@ void ObjectEntriesValuesBuiltinsAssembler::GetOwnValuesOrEntries(
   BIND(&if_no_properties);
   {
     Node* native_context = LoadNativeContext(context);
-    Node* array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
-    Node* empty_array = AllocateJSArray(PACKED_ELEMENTS, array_map,
-                                        IntPtrConstant(0), SmiConstant(0));
+    TNode<Map> array_map =
+        LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
+    TNode<JSArray> empty_array = AllocateJSArray(
+        PACKED_ELEMENTS, array_map, IntPtrConstant(0), SmiConstant(0));
     Return(empty_array);
   }
 
@@ -317,15 +321,15 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
       // Currently, we will not invoke getters,
       // so, map will not be changed.
       CSA_ASSERT(this, WordEqual(map, LoadMap(object)));
-      TNode<Uint32T> descriptor_index = TNode<Uint32T>::UncheckedCast(
-          TruncateIntPtrToInt32(var_descriptor_number.value()));
-      Node* next_key = GetKey(descriptors, descriptor_index);
+      TNode<IntPtrT> descriptor_entry = var_descriptor_number.value();
+      Node* next_key = LoadKeyByDescriptorEntry(descriptors, descriptor_entry);
 
       // Skip Symbols.
       GotoIf(IsSymbol(next_key), &next_descriptor);
 
-      TNode<Uint32T> details = TNode<Uint32T>::UncheckedCast(
-          DescriptorArrayGetDetails(descriptors, descriptor_index));
+      TNode<Uint32T> details =
+          LoadDetailsByDescriptorEntry(descriptors, descriptor_entry);
+
       TNode<Uint32T> kind = LoadPropertyKind(details);
 
       // If property is accessor, we escape fast path and call runtime.
@@ -609,8 +613,9 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
     Node* array = nullptr;
     Node* elements = nullptr;
     Node* native_context = LoadNativeContext(context);
-    Node* array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
-    Node* array_length = SmiTag(object_enum_length);
+    TNode<Map> array_map =
+        LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
+    TNode<Smi> array_length = SmiTag(object_enum_length);
     std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
         PACKED_ELEMENTS, array_map, array_length, nullptr, object_enum_length,
         INTPTR_PARAMETERS);
@@ -640,9 +645,10 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
   {
     // Wrap the elements into a proper JSArray and return that.
     Node* native_context = LoadNativeContext(context);
-    Node* array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
-    Node* array = AllocateUninitializedJSArrayWithoutElements(
-        array_map, var_length.value(), nullptr);
+    TNode<Map> array_map =
+        LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
+    TNode<JSArray> array = AllocateUninitializedJSArrayWithoutElements(
+        array_map, CAST(var_length.value()), nullptr);
     StoreObjectFieldNoWriteBarrier(array, JSArray::kElementsOffset,
                                    var_elements.value());
     Return(array);
@@ -700,8 +706,9 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
     Node* array = nullptr;
     Node* elements = nullptr;
     Node* native_context = LoadNativeContext(context);
-    Node* array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
-    Node* array_length = SmiTag(object_enum_length);
+    TNode<Map> array_map =
+        LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
+    TNode<Smi> array_length = SmiTag(object_enum_length);
     std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
         PACKED_ELEMENTS, array_map, array_length, nullptr, object_enum_length,
         INTPTR_PARAMETERS);
@@ -742,9 +749,10 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
   {
     // Wrap the elements into a proper JSArray and return that.
     Node* native_context = LoadNativeContext(context);
-    Node* array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
-    Node* array = AllocateUninitializedJSArrayWithoutElements(
-        array_map, var_length.value(), nullptr);
+    TNode<Map> array_map =
+        LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
+    TNode<JSArray> array = AllocateUninitializedJSArrayWithoutElements(
+        array_map, CAST(var_length.value()), nullptr);
     StoreObjectFieldNoWriteBarrier(array, JSArray::kElementsOffset,
                                    var_elements.value());
     Return(array);
@@ -814,7 +822,13 @@ TF_BUILTIN(ObjectPrototypeIsPrototypeOf, ObjectBuiltinsAssembler) {
 }
 
 // ES #sec-object.prototype.tostring
-TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
+TF_BUILTIN(ObjectPrototypeToString, CodeStubAssembler) {
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  Return(CallBuiltin(Builtins::kObjectToString, context, receiver));
+}
+
+TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
   Label checkstringtag(this), if_apiobject(this, Label::kDeferred),
       if_arguments(this), if_array(this), if_boolean(this), if_date(this),
       if_error(this), if_function(this), if_number(this, Label::kDeferred),
@@ -1042,17 +1056,57 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
 
   BIND(&if_value);
   {
+    Label if_value_is_number(this, Label::kDeferred),
+        if_value_is_boolean(this, Label::kDeferred),
+        if_value_is_symbol(this, Label::kDeferred),
+        if_value_is_bigint(this, Label::kDeferred),
+        if_value_is_string(this, Label::kDeferred);
+
     Node* receiver_value = LoadJSValueValue(receiver);
-    GotoIf(TaggedIsSmi(receiver_value), &if_number);
+    // We need to start with the object to see if the value was a subclass
+    // which might have interesting properties.
+    var_holder.Bind(receiver);
+    GotoIf(TaggedIsSmi(receiver_value), &if_value_is_number);
     Node* receiver_value_map = LoadMap(receiver_value);
-    GotoIf(IsHeapNumberMap(receiver_value_map), &if_number);
-    GotoIf(IsBooleanMap(receiver_value_map), &if_boolean);
-    GotoIf(IsSymbolMap(receiver_value_map), &if_symbol);
+    GotoIf(IsHeapNumberMap(receiver_value_map), &if_value_is_number);
+    GotoIf(IsBooleanMap(receiver_value_map), &if_value_is_boolean);
+    GotoIf(IsSymbolMap(receiver_value_map), &if_value_is_symbol);
     Node* receiver_value_instance_type =
         LoadMapInstanceType(receiver_value_map);
-    GotoIf(IsBigIntInstanceType(receiver_value_instance_type), &if_bigint);
+    GotoIf(IsBigIntInstanceType(receiver_value_instance_type),
+           &if_value_is_bigint);
     CSA_ASSERT(this, IsStringInstanceType(receiver_value_instance_type));
-    Goto(&if_string);
+    Goto(&if_value_is_string);
+
+    BIND(&if_value_is_number);
+    {
+      var_default.Bind(LoadRoot(RootIndex::knumber_to_string));
+      Goto(&checkstringtag);
+    }
+
+    BIND(&if_value_is_boolean);
+    {
+      var_default.Bind(LoadRoot(RootIndex::kboolean_to_string));
+      Goto(&checkstringtag);
+    }
+
+    BIND(&if_value_is_string);
+    {
+      var_default.Bind(LoadRoot(RootIndex::kstring_to_string));
+      Goto(&checkstringtag);
+    }
+
+    BIND(&if_value_is_bigint);
+    {
+      var_default.Bind(LoadRoot(RootIndex::kobject_to_string));
+      Goto(&checkstringtag);
+    }
+
+    BIND(&if_value_is_symbol);
+    {
+      var_default.Bind(LoadRoot(RootIndex::kobject_to_string));
+      Goto(&checkstringtag);
+    }
   }
 
   BIND(&checkstringtag);
@@ -1341,7 +1395,7 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
                       MachineType::Uint16()));
   Node* frame_size = ChangeInt32ToIntPtr(LoadObjectField(
       bytecode_array, BytecodeArray::kFrameSizeOffset, MachineType::Int32()));
-  Node* size = IntPtrAdd(WordSar(frame_size, IntPtrConstant(kPointerSizeLog2)),
+  Node* size = IntPtrAdd(WordSar(frame_size, IntPtrConstant(kTaggedSizeLog2)),
                          formal_parameter_count);
   Node* parameters_and_registers = AllocateFixedArray(HOLEY_ELEMENTS, size);
   FillFixedArrayWithValue(HOLEY_ELEMENTS, parameters_and_registers,

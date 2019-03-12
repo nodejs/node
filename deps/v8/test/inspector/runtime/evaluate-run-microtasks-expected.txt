@@ -14,7 +14,7 @@ Tests that microtasks run before the Runtime.evaluate response is sent
             callFrames : [
                 [0] : {
                     columnNumber : 37
-                    functionName : Promise.resolve.then
+                    functionName : 
                     lineNumber : 0
                     scriptId : <scriptId>
                     url : 

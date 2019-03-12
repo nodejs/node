@@ -6,13 +6,12 @@
 #define TEST_SIGNATURES_H
 
 #include "src/signature.h"
+#include "src/wasm/value-type.h"
 #include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
-
-typedef Signature<ValueType> FunctionSig;
 
 // A helper class with many useful signatures in order to simplify tests.
 class TestSignatures {

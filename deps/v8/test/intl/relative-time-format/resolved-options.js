@@ -13,10 +13,15 @@ assertEquals('long', rtf.resolvedOptions().style);
 assertEquals('always', rtf.resolvedOptions().numeric);
 
 // contains style, numeric and locale key
-assertEquals(3, Object.getOwnPropertyNames(rtf.resolvedOptions()).length);
+assertEquals(4, Object.getOwnPropertyNames(rtf.resolvedOptions()).length);
 
 // contains style, numeric and locale key
-assertEquals(3, Object.getOwnPropertyNames(new Intl.RelativeTimeFormat('en').resolvedOptions()).length);
+assertEquals(
+    4,
+    Object.getOwnPropertyNames(
+        new Intl.RelativeTimeFormat("en").resolvedOptions()
+    ).length
+);
 
 assertEquals(
     'short',
@@ -154,9 +159,6 @@ assertEquals(
      Intl.RelativeTimeFormat.prototype.resolvedOptions.call(receiver), TypeError);
 }
 
-// The following is not working yet because it depend on the getAvailableLocales
-// work in another path set.
-// TODO(ftang): uncomment the following once that patchset is checked in.
-//assertEquals(
-//    'ar',
-//    (new Intl.RelativeTimeFormat(['i-default', 'ar'])).resolvedOptions().locale);
+assertEquals(
+    'ar',
+    (new Intl.RelativeTimeFormat(['i-default', 'ar'])).resolvedOptions().locale);

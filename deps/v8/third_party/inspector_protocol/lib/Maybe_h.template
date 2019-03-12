@@ -116,6 +116,15 @@ public:
     using MaybeBase::operator=;
 };
 
+template<>
+class Maybe<Binary> : public MaybeBase<Binary> {
+public:
+    Maybe() { }
+    Maybe(Binary value) : MaybeBase(value) { }
+    Maybe(Maybe&& other) IP_NOEXCEPT : MaybeBase(std::move(other)) {}
+    using MaybeBase::operator=;
+};
+
 {% for namespace in config.protocol.namespace %}
 } // namespace {{namespace}}
 {% endfor %}

@@ -34,7 +34,9 @@ class MaybeUtf8 {
         // Why copy? Well, the trace event mechanism requires null-terminated
         // strings, the bytes we get from SeqOneByteString are not. buf_ is
         // guaranteed to be null terminated.
-        memcpy(buf_, Handle<SeqOneByteString>::cast(string)->GetChars(), len);
+        DisallowHeapAllocation no_gc;
+        memcpy(buf_, Handle<SeqOneByteString>::cast(string)->GetChars(no_gc),
+               len);
       }
     } else {
       Local<v8::String> local = Utils::ToLocal(string);

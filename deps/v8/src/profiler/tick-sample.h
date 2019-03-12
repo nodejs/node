@@ -19,6 +19,8 @@ struct TickSample : public v8::TickSample {
             RecordCEntryFrame record_c_entry_frame, bool update_stats,
             bool use_simulator_reg_state = true);
   base::TimeTicks timestamp;
+
+  void print() const;
 };
 
 }  // namespace internal

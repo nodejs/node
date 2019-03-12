@@ -63,5 +63,65 @@ TEST(DetachableVector, DetachLeaksBackingStore) {
   // The destructor of v2 will release the backing store.
 }
 
+TEST(DetachableVector, PushAndPopWithReallocation) {
+  DetachableVector<size_t> v;
+  const size_t kMinimumCapacity = DetachableVector<size_t>::kMinimumCapacity;
+
+  EXPECT_EQ(0u, v.capacity());
+  EXPECT_EQ(0u, v.size());
+  v.push_back(0);
+  EXPECT_EQ(kMinimumCapacity, v.capacity());
+  EXPECT_EQ(1u, v.size());
+
+  // Push values until the reallocation happens.
+  for (size_t i = 1; i <= kMinimumCapacity; ++i) {
+    v.push_back(i);
+  }
+  EXPECT_EQ(2 * kMinimumCapacity, v.capacity());
+  EXPECT_EQ(kMinimumCapacity + 1, v.size());
+
+  EXPECT_EQ(kMinimumCapacity, v.back());
+  v.pop_back();
+
+  v.push_back(100);
+  EXPECT_EQ(100u, v.back());
+  v.pop_back();
+  EXPECT_EQ(kMinimumCapacity - 1, v.back());
+}
+
+TEST(DetachableVector, ShrinkToFit) {
+  DetachableVector<size_t> v;
+  const size_t kMinimumCapacity = DetachableVector<size_t>::kMinimumCapacity;
+
+  // shrink_to_fit doesn't affect the empty capacity DetachableVector.
+  EXPECT_EQ(0u, v.capacity());
+  v.shrink_to_fit();
+  EXPECT_EQ(0u, v.capacity());
+
+  // Do not shrink the buffer if it's smaller than kMinimumCapacity.
+  v.push_back(0);
+  EXPECT_EQ(kMinimumCapacity, v.capacity());
+  v.shrink_to_fit();
+  EXPECT_EQ(kMinimumCapacity, v.capacity());
+
+  // Fill items to |v| until the buffer grows twice.
+  for (size_t i = 0; i < 2 * kMinimumCapacity; ++i) {
+    v.push_back(i);
+  }
+  EXPECT_EQ(2 * kMinimumCapacity + 1, v.size());
+  EXPECT_EQ(4 * kMinimumCapacity, v.capacity());
+
+  // Do not shrink the buffer if the number of unused slots is not large enough.
+  v.shrink_to_fit();
+  EXPECT_EQ(2 * kMinimumCapacity + 1, v.size());
+  EXPECT_EQ(4 * kMinimumCapacity, v.capacity());
+
+  v.pop_back();
+  v.pop_back();
+  v.shrink_to_fit();
+  EXPECT_EQ(2 * kMinimumCapacity - 1, v.size());
+  EXPECT_EQ(2 * kMinimumCapacity - 1, v.capacity());
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -42,7 +42,6 @@ bool ParseProgram(ParseInfo* info, Isolate* isolate) {
     info->pending_error_handler()->ReportErrors(isolate, info->script(),
                                                 info->ast_value_factory());
   } else {
-    result->scope()->AttachOuterScopeInfo(info, isolate);
     info->set_language_mode(info->literal()->language_mode());
     if (info->is_eval()) {
       info->set_allow_eval_cache(parser.allow_eval_cache());
@@ -80,7 +79,7 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
     info->pending_error_handler()->ReportErrors(isolate, info->script(),
                                                 info->ast_value_factory());
   } else {
-    result->scope()->AttachOuterScopeInfo(info, isolate);
+    info->ast_value_factory()->Internalize(isolate);
     if (info->is_eval()) {
       info->set_allow_eval_cache(parser.allow_eval_cache());
     }

@@ -207,8 +207,7 @@ class CommitBranch(Step):
     self["commit_title"] = text.splitlines()[0]
     TextToFile(text, self.Config("COMMITMSG_FILE"))
 
-    self.GitCommit(file_name = self.Config("COMMITMSG_FILE"))
-    os.remove(self.Config("COMMITMSG_FILE"))
+    self.GitCommit(file_name=self.Config("COMMITMSG_FILE"))
     os.remove(self.Config("CHANGELOG_ENTRY_FILE"))
 
 
@@ -219,15 +218,17 @@ class LandBranch(Step):
     if self._options.dry_run:
       print "Dry run - upload CL."
     else:
-      self.GitUpload(author=self._options.author,
-                     force=True,
+      self.GitUpload(force=True,
                      bypass_hooks=True,
-                     no_autocc=True)
+                     no_autocc=True,
+                     message_file=self.Config("COMMITMSG_FILE"))
     cmd = "cl land --bypass-hooks -f"
     if self._options.dry_run:
       print "Dry run. Command:\ngit %s" % cmd
     else:
       self.Git(cmd)
+
+    os.remove(self.Config("COMMITMSG_FILE"))
 
 
 class TagRevision(Step):

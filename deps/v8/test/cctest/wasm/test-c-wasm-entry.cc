@@ -5,6 +5,7 @@
 #include <cstdint>
 
 #include "src/assembler-inl.h"
+#include "src/base/overflowing-math.h"
 #include "src/objects-inl.h"
 #include "src/wasm/wasm-objects.h"
 #include "test/cctest/cctest.h"
@@ -59,11 +60,11 @@ class CWasmEntryArgTester {
     WriteToBuffer(reinterpret_cast<Address>(arg_buffer.data()), args...);
 
     Handle<Object> receiver = isolate_->factory()->undefined_value();
-    Handle<Object> buffer_obj(reinterpret_cast<Object*>(arg_buffer.data()),
-                              isolate_);
+    Handle<Object> buffer_obj(
+        Object(reinterpret_cast<Address>(arg_buffer.data())), isolate_);
     CHECK(!buffer_obj->IsHeapObject());
-    Handle<Object> code_entry_obj(
-        reinterpret_cast<Object*>(wasm_code_->instruction_start()), isolate_);
+    Handle<Object> code_entry_obj(Object(wasm_code_->instruction_start()),
+                                  isolate_);
     CHECK(!code_entry_obj->IsHeapObject());
     Handle<Object> call_args[]{code_entry_obj,
                                runner_.builder().instance_object(), buffer_obj};
@@ -104,7 +105,9 @@ TEST(TestCWasmEntryArgPassing_int32) {
   CWasmEntryArgTester<int32_t, int32_t> tester(
       {// Return 2*<0> + 1.
        WASM_I32_ADD(WASM_I32_MUL(WASM_I32V_1(2), WASM_GET_LOCAL(0)), WASM_ONE)},
-      [](int32_t a) { return 2 * a + 1; });
+      [](int32_t a) {
+        return base::AddWithWraparound(base::MulWithWraparound(2, a), 1);
+      });
 
   FOR_INT32_INPUTS(v) { tester.CheckCall(*v); }
 }

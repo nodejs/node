@@ -165,7 +165,7 @@ void CheckDebuggerUnloaded() {
 
   // Iterate the heap and check that there are no debugger related objects left.
   HeapIterator iterator(CcTest::heap());
-  for (HeapObject* obj = iterator.next(); obj != nullptr;
+  for (HeapObject obj = iterator.next(); !obj.is_null();
        obj = iterator.next()) {
     CHECK(!obj->IsDebugInfo());
   }
@@ -2818,6 +2818,21 @@ TEST(DebugBreakInWrappedScript) {
   CheckDebuggerUnloaded();
 }
 
+static void EmptyHandler(const v8::FunctionCallbackInfo<v8::Value>& args) {}
+
+TEST(DebugScopeIteratorWithFunctionTemplate) {
+  LocalContext env;
+  v8::HandleScope handle_scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  EnableDebugger(isolate);
+  v8::Local<v8::Function> func =
+      v8::Function::New(env.local(), EmptyHandler).ToLocalChecked();
+  std::unique_ptr<v8::debug::ScopeIterator> iterator =
+      v8::debug::ScopeIterator::CreateForFunction(isolate, func);
+  CHECK(iterator->Done());
+  DisableDebugger(isolate);
+}
+
 TEST(DebugBreakWithoutJS) {
   i::FLAG_stress_compaction = false;
 #ifdef VERIFY_HEAP
@@ -3039,7 +3054,7 @@ TEST(DebugScriptLineEndsAreAscending) {
         v8::internal::Script::cast(instances->get(i)), CcTest::i_isolate());
 
     v8::internal::Script::InitLineEnds(script);
-    v8::internal::FixedArray* ends =
+    v8::internal::FixedArray ends =
         v8::internal::FixedArray::cast(script->line_ends());
     CHECK_GT(ends->length(), 0);
 
@@ -4016,6 +4031,8 @@ UNINITIALIZED_TEST(DebugSetOutOfMemoryListener) {
 }
 
 TEST(DebugCoverage) {
+  // Coverage needs feedback vectors.
+  if (i::FLAG_lite_mode) return;
   i::FLAG_always_opt = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -4069,6 +4086,8 @@ v8::debug::Coverage::ScriptData GetScriptDataAndDeleteCoverage(
 }  // namespace
 
 TEST(DebugCoverageWithCoverageOutOfScope) {
+  // Coverage needs feedback vectors.
+  if (i::FLAG_lite_mode) return;
   i::FLAG_always_opt = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -4138,6 +4157,8 @@ v8::debug::Coverage::FunctionData GetFunctionDataAndDeleteCoverage(
 }  // namespace
 
 TEST(DebugCoverageWithScriptDataOutOfScope) {
+  // Coverage needs feedback vectors.
+  if (i::FLAG_lite_mode) return;
   i::FLAG_always_opt = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -4163,12 +4184,10 @@ TEST(BuiltinsExceptionPrediction) {
   v8::HandleScope handle_scope(isolate);
   v8::Context::New(isolate);
 
-  i::Snapshot::EnsureAllBuiltinsAreDeserialized(iisolate);
-
   i::Builtins* builtins = iisolate->builtins();
   bool fail = false;
   for (int i = 0; i < i::Builtins::builtin_count; i++) {
-    i::Code* builtin = builtins->builtin(i);
+    i::Code builtin = builtins->builtin(i);
     if (builtin->kind() != i::Code::BUILTIN) continue;
     auto prediction = builtin->GetBuiltinCatchPrediction();
     USE(prediction);
@@ -4213,9 +4232,10 @@ TEST(DebugEvaluateNoSideEffect) {
   std::vector<i::Handle<i::JSFunction>> all_functions;
   {
     i::HeapIterator iterator(isolate->heap());
-    while (i::HeapObject* obj = iterator.next()) {
+    for (i::HeapObject obj = iterator.next(); !obj.is_null();
+         obj = iterator.next()) {
       if (!obj->IsJSFunction()) continue;
-      i::JSFunction* fun = i::JSFunction::cast(obj);
+      i::JSFunction fun = i::JSFunction::cast(obj);
       all_functions.emplace_back(fun, isolate);
     }
   }
@@ -4249,7 +4269,6 @@ i::MaybeHandle<i::Script> FindScript(
 
 UNINITIALIZED_TEST(LoadedAtStartupScripts) {
   i::FLAG_expose_gc = true;
-  i::FLAG_expose_natives_as = "natives";
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -4266,8 +4285,8 @@ UNINITIALIZED_TEST(LoadedAtStartupScripts) {
     {
       i::DisallowHeapAllocation no_gc;
       i::Script::Iterator iterator(i_isolate);
-      i::Script* script;
-      while ((script = iterator.Next()) != nullptr) {
+      for (i::Script script = iterator.Next(); !script.is_null();
+           script = iterator.Next()) {
         if (script->type() == i::Script::TYPE_NATIVE &&
             script->name()->IsUndefined(i_isolate)) {
           continue;
@@ -4276,16 +4295,11 @@ UNINITIALIZED_TEST(LoadedAtStartupScripts) {
         scripts.emplace_back(script, i_isolate);
       }
     }
-    CHECK_EQ(count_by_type[i::Script::TYPE_NATIVE],
-             i::Natives::GetBuiltinsCount());
+    CHECK_EQ(count_by_type[i::Script::TYPE_NATIVE], 0);
     CHECK_EQ(count_by_type[i::Script::TYPE_EXTENSION], 2);
     CHECK_EQ(count_by_type[i::Script::TYPE_NORMAL], 1);
     CHECK_EQ(count_by_type[i::Script::TYPE_WASM], 0);
     CHECK_EQ(count_by_type[i::Script::TYPE_INSPECTOR], 0);
-
-    i::Handle<i::Script> native_array_script =
-        FindScript(i_isolate, scripts, "native array.js").ToHandleChecked();
-    CHECK_EQ(native_array_script->type(), i::Script::TYPE_NATIVE);
 
     i::Handle<i::Script> gc_script =
         FindScript(i_isolate, scripts, "v8/gc").ToHandleChecked();

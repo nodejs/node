@@ -27,6 +27,8 @@ include_rules = [
   "+src/interpreter/interpreter-generator.h",
   "+src/interpreter/setup-interpreter.h",
   "-src/trap-handler",
+  "+src/trap-handler/handler-inside-posix.h",
+  "+src/trap-handler/handler-inside-win.h",
   "+src/trap-handler/trap-handler.h",
   "+testing/gtest/include/gtest/gtest_prod.h",
   "-src/libplatform",

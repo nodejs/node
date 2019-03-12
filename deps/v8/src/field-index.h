@@ -24,11 +24,10 @@ class FieldIndex final {
   FieldIndex() : bit_field_(0) {}
 
   static FieldIndex ForPropertyIndex(
-      const Map* map, int index,
+      const Map map, int index,
       Representation representation = Representation::Tagged());
-  static FieldIndex ForInObjectOffset(int offset, Encoding encoding,
-                                      const Map* map = nullptr);
-  static FieldIndex ForDescriptor(const Map* map, int descriptor_index);
+  static FieldIndex ForInObjectOffset(int offset, Encoding encoding);
+  static FieldIndex ForDescriptor(const Map map, int descriptor_index);
 
   int GetLoadByFieldIndex() const;
 
@@ -44,20 +43,20 @@ class FieldIndex final {
 
   // Zero-indexed from beginning of the object.
   int index() const {
-    DCHECK_EQ(0, offset() % kPointerSize);
-    return offset() / kPointerSize;
+    DCHECK(IsAligned(offset(), kTaggedSize));
+    return offset() / kTaggedSize;
   }
 
   int outobject_array_index() const {
     DCHECK(!is_inobject());
-    return index() - first_inobject_property_offset() / kPointerSize;
+    return index() - first_inobject_property_offset() / kTaggedSize;
   }
 
   // Zero-based from the first inobject property. Overflows to out-of-object
   // properties.
   int property_index() const {
     DCHECK(!is_hidden_field());
-    int result = index() - first_inobject_property_offset() / kPointerSize;
+    int result = index() - first_inobject_property_offset() / kTaggedSize;
     if (!is_inobject()) {
       result += InObjectPropertyBits::decode(bit_field_);
     }
@@ -78,7 +77,7 @@ class FieldIndex final {
   FieldIndex(bool is_inobject, int offset, Encoding encoding,
              int inobject_properties, int first_inobject_property_offset,
              bool is_hidden = false) {
-    DCHECK_EQ(first_inobject_property_offset & (kPointerSize - 1), 0);
+    DCHECK(IsAligned(first_inobject_property_offset, kTaggedSize));
     bit_field_ = IsInObjectBits::encode(is_inobject) |
                  EncodingBits::encode(encoding) |
                  FirstInobjectPropertyOffsetBits::encode(
@@ -110,7 +109,7 @@ class FieldIndex final {
   }
 
   static const int kOffsetBitsSize =
-      (kDescriptorIndexBitCount + 1 + kPointerSizeLog2);
+      (kDescriptorIndexBitCount + 1 + kTaggedSizeLog2);
 
   // Index from beginning of object.
   class OffsetBits : public BitField64<int, 0, kOffsetBitsSize> {};

@@ -34,8 +34,8 @@ inline const char* StateToString(StateTag state) {
       return "OTHER";
     case EXTERNAL:
       return "EXTERNAL";
-    default:
-      UNREACHABLE();
+    case IDLE:
+      return "IDLE";
   }
 }
 

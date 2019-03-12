@@ -15,10 +15,7 @@ class VariantsGenerator(testsuite.VariantsGenerator):
 
 class TestSuite(testsuite.TestSuite):
   SUB_TESTS = ( 'json', 'parser', 'regexp_builtins', 'regexp', 'multi_return', 'wasm',
-          'wasm_async', 'wasm_code', 'wasm_compile',
-          'wasm_data_section', 'wasm_function_sigs_section',
-          'wasm_globals_section', 'wasm_imports_section', 'wasm_memory_section',
-          'wasm_names_section', 'wasm_types_section' )
+          'wasm_async', 'wasm_code', 'wasm_compile')
 
   def ListTests(self):
     tests = []

@@ -55,8 +55,8 @@ class V8InspectorSessionImpl : public V8InspectorSession,
       v8::Local<v8::Context>, v8::Local<v8::Value>, const String16& groupName,
       bool generatePreview);
   std::unique_ptr<protocol::Runtime::RemoteObject> wrapTable(
-      v8::Local<v8::Context>, v8::Local<v8::Value> table,
-      v8::Local<v8::Value> columns);
+      v8::Local<v8::Context>, v8::Local<v8::Object> table,
+      v8::MaybeLocal<v8::Array> columns);
   std::vector<std::unique_ptr<protocol::Schema::Domain>> supportedDomainsImpl();
   Response unwrapObject(const String16& objectId, v8::Local<v8::Value>*,
                         v8::Local<v8::Context>*, String16* objectGroup);

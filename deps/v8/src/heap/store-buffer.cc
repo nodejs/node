@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "src/base/bits.h"
 #include "src/base/macros.h"
 #include "src/base/template-utils.h"
 #include "src/counters.h"
@@ -32,9 +33,16 @@ StoreBuffer::StoreBuffer(Heap* heap)
 
 void StoreBuffer::SetUp() {
   v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
-  const size_t requested_size = kStoreBufferSize * kStoreBuffers;
+  // Round up the requested size in order to fulfill the VirtualMemory's
+  // requrements on the requested size alignment. This may cause a bit of
+  // memory wastage if the actual CommitPageSize() will be bigger than the
+  // kMinExpectedOSPageSize value but this is a trade-off for keeping the
+  // store buffer overflow check in write barriers cheap.
+  const size_t requested_size = RoundUp(kStoreBufferSize * kStoreBuffers,
+                                        page_allocator->CommitPageSize());
   // Allocate buffer memory aligned at least to kStoreBufferSize. This lets us
   // use a bit test to detect the ends of the buffers.
+  STATIC_ASSERT(base::bits::IsPowerOfTwo(kStoreBufferSize));
   const size_t alignment =
       std::max<size_t>(kStoreBufferSize, page_allocator->AllocatePageSize());
   void* hint = AlignedAddress(heap_->GetRandomMmapAddr(), alignment);
@@ -47,9 +55,9 @@ void StoreBuffer::SetUp() {
   const size_t allocated_size = reservation.size();
 
   start_[0] = reinterpret_cast<Address*>(start);
-  limit_[0] = start_[0] + (kStoreBufferSize / kPointerSize);
+  limit_[0] = start_[0] + (kStoreBufferSize / kSystemPointerSize);
   start_[1] = limit_[0];
-  limit_[1] = start_[1] + (kStoreBufferSize / kPointerSize);
+  limit_[1] = start_[1] + (kStoreBufferSize / kSystemPointerSize);
 
   // Sanity check the buffers.
   Address* vm_limit = reinterpret_cast<Address*>(start + allocated_size);
@@ -133,7 +141,7 @@ int StoreBuffer::StoreBufferOverflow(Isolate* isolate) {
 }
 
 void StoreBuffer::FlipStoreBuffers() {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   int other = (current_ + 1) % kStoreBuffers;
   MoveEntriesToRememberedSet(other);
   lazy_top_[current_] = top_;
@@ -152,14 +160,15 @@ void StoreBuffer::MoveEntriesToRememberedSet(int index) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, kStoreBuffers);
   Address last_inserted_addr = kNullAddress;
+  MemoryChunk* chunk = nullptr;
 
-  // We are taking the chunk map mutex here because the page lookup of addr
-  // below may require us to check if addr is part of a large page.
-  base::LockGuard<base::Mutex> guard(heap_->lo_space()->chunk_map_mutex());
   for (Address* current = start_[index]; current < lazy_top_[index];
        current++) {
     Address addr = *current;
-    MemoryChunk* chunk = MemoryChunk::FromAnyPointerAddress(heap_, addr);
+    if (chunk == nullptr ||
+        MemoryChunk::BaseAddress(addr) != chunk->address()) {
+      chunk = MemoryChunk::FromAnyPointerAddress(addr);
+    }
     if (IsDeletionAddress(addr)) {
       last_inserted_addr = kNullAddress;
       current++;
@@ -184,7 +193,7 @@ void StoreBuffer::MoveEntriesToRememberedSet(int index) {
 }
 
 void StoreBuffer::MoveAllEntriesToRememberedSet() {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   int other = (current_ + 1) % kStoreBuffers;
   MoveEntriesToRememberedSet(other);
   lazy_top_[current_] = top_;
@@ -193,7 +202,7 @@ void StoreBuffer::MoveAllEntriesToRememberedSet() {
 }
 
 void StoreBuffer::ConcurrentlyProcessStoreBuffer() {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   int other = (current_ + 1) % kStoreBuffers;
   MoveEntriesToRememberedSet(other);
   task_running_ = false;

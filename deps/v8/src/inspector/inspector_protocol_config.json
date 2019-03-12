@@ -16,7 +16,6 @@
             },
             {
                 "domain": "Debugger",
-                "async": [ "scheduleStepIntoAsync" ],
                 "exported": ["SearchMatch", "paused.reason"]
             },
             {

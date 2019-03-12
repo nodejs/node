@@ -4,14 +4,12 @@
 
 #if V8_TARGET_ARCH_PPC
 
-#include "src/assembler.h"
+#include "src/ppc/frame-constants-ppc.h"
+
+#include "src/assembler-inl.h"
 #include "src/frame-constants.h"
 #include "src/macro-assembler.h"
-#include "src/ppc/assembler-ppc-inl.h"
-#include "src/ppc/assembler-ppc.h"
-#include "src/ppc/macro-assembler-ppc.h"
 
-#include "src/ppc/frame-constants-ppc.h"
 
 namespace v8 {
 namespace internal {

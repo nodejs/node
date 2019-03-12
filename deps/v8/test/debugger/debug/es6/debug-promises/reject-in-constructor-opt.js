@@ -40,22 +40,22 @@ function bar(a,b) {
 }
 
 foo();
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
 foo();
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
 %OptimizeFunctionOnNextCall(foo);
 
 // bar likely gets inlined into foo.
 foo();
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
 %NeverOptimizeFunction(bar);
 %OptimizeFunctionOnNextCall(foo);
 
 // bar does not get inlined into foo.
 foo();
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
 assertEquals(0, expected_events);

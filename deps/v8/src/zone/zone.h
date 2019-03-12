@@ -47,7 +47,21 @@ class V8_EXPORT_PRIVATE Zone final {
 
   // Allocate 'size' bytes of memory in the Zone; expands the Zone by
   // allocating new segments of memory on demand using malloc().
-  void* New(size_t size);
+  void* New(size_t size) {
+#ifdef V8_USE_ADDRESS_SANITIZER
+    return AsanNew(size);
+#else
+    size = RoundUp(size, kAlignmentInBytes);
+    Address result = position_;
+    if (V8_UNLIKELY(size > limit_ - position_)) {
+      result = NewExpand(size);
+    } else {
+      position_ += size;
+    }
+    return reinterpret_cast<void*>(result);
+#endif
+  }
+  void* AsanNew(size_t size);
 
   template <typename T>
   T* NewArray(size_t length) {
@@ -70,7 +84,10 @@ class V8_EXPORT_PRIVATE Zone final {
 
   const char* name() const { return name_; }
 
-  size_t allocation_size() const { return allocation_size_; }
+  size_t allocation_size() const {
+    size_t extra = segment_head_ ? position_ - segment_head_->start() : 0;
+    return allocation_size_ + extra;
+  }
 
   AccountingAllocator* allocator() const { return allocator_; }
 
@@ -208,6 +225,9 @@ class ZoneList final {
   V8_INLINE int capacity() const { return capacity_; }
 
   Vector<T> ToVector() const { return Vector<T>(data_, length_); }
+  Vector<T> ToVector(int start, int length) const {
+    return Vector<T>(data_ + start, Min(length_ - start, length));
+  }
 
   Vector<const T> ToConstVector() const {
     return Vector<const T>(data_, length_);
@@ -257,7 +277,12 @@ class ZoneList final {
   // Drops all but the first 'pos' elements from the list.
   V8_INLINE void Rewind(int pos);
 
-  inline bool Contains(const T& elm) const;
+  inline bool Contains(const T& elm) const {
+    for (int i = 0; i < length_; i++) {
+      if (data_[i] == elm) return true;
+    }
+    return false;
+  }
 
   // Iterate through all list entries, starting at index 0.
   template <class Visitor>
@@ -300,6 +325,65 @@ class ZoneList final {
 // zone as the list object.
 template <typename T>
 using ZonePtrList = ZoneList<T*>;
+
+template <typename T>
+class ScopedPtrList final {
+ public:
+  explicit ScopedPtrList(std::vector<void*>* buffer)
+      : buffer_(*buffer), start_(buffer->size()), end_(buffer->size()) {}
+
+  ~ScopedPtrList() { Rewind(); }
+
+  void Rewind() {
+    DCHECK_EQ(buffer_.size(), end_);
+    buffer_.resize(start_);
+    end_ = start_;
+  }
+
+  void MergeInto(ScopedPtrList* parent) {
+    DCHECK_EQ(parent->end_, start_);
+    parent->end_ = end_;
+    start_ = end_;
+    DCHECK_EQ(0, length());
+  }
+
+  int length() const { return static_cast<int>(end_ - start_); }
+  T* at(int i) const {
+    size_t index = start_ + i;
+    DCHECK_LE(start_, index);
+    DCHECK_LT(index, buffer_.size());
+    return reinterpret_cast<T*>(buffer_[index]);
+  }
+
+  void CopyTo(ZonePtrList<T>* target, Zone* zone) const {
+    DCHECK_LE(end_, buffer_.size());
+    // Make sure we don't reference absent elements below.
+    if (length() == 0) return;
+    target->Initialize(length(), zone);
+    T** data = reinterpret_cast<T**>(&buffer_[start_]);
+    target->AddAll(Vector<T*>(data, length()), zone);
+  }
+
+  void Add(T* value) {
+    DCHECK_EQ(buffer_.size(), end_);
+    buffer_.push_back(value);
+    ++end_;
+  }
+
+  void AddAll(const ZonePtrList<T>& list) {
+    DCHECK_EQ(buffer_.size(), end_);
+    buffer_.reserve(buffer_.size() + list.length());
+    for (int i = 0; i < list.length(); i++) {
+      buffer_.push_back(list.at(i));
+    }
+    end_ += list.length();
+  }
+
+ private:
+  std::vector<void*>& buffer_;
+  size_t start_;
+  size_t end_;
+};
 
 // ZoneThreadedList is a special variant of the ThreadedList that can be put
 // into a Zone.

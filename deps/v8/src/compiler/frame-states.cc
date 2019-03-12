@@ -143,8 +143,8 @@ Node* CreateStubBuiltinContinuationFrameState(
   std::vector<Node*> actual_parameters;
   // Stack parameters first. Depending on {mode}, final parameters are added
   // by the deoptimizer and aren't explicitly passed in the frame state.
-  int stack_parameter_count = descriptor.GetRegisterParameterCount() -
-                              DeoptimizerParameterCountFor(mode);
+  int stack_parameter_count =
+      descriptor.GetParameterCount() - DeoptimizerParameterCountFor(mode);
   // Reserving space in the vector, except for the case where
   // stack_parameter_count is -1.
   actual_parameters.reserve(stack_parameter_count >= 0
@@ -168,7 +168,7 @@ Node* CreateStubBuiltinContinuationFrameState(
 }
 
 Node* CreateJavaScriptBuiltinContinuationFrameState(
-    JSGraph* jsgraph, Handle<SharedFunctionInfo> shared, Builtins::Name name,
+    JSGraph* jsgraph, const SharedFunctionInfoRef& shared, Builtins::Name name,
     Node* target, Node* context, Node* const* stack_parameters,
     int stack_parameter_count, Node* outer_frame_state,
     ContinuationFrameStateMode mode) {
@@ -202,7 +202,8 @@ Node* CreateJavaScriptBuiltinContinuationFrameState(
           ? FrameStateType::kJavaScriptBuiltinContinuationWithCatch
           : FrameStateType::kJavaScriptBuiltinContinuation,
       name, target, context, &actual_parameters[0],
-      static_cast<int>(actual_parameters.size()), outer_frame_state, shared);
+      static_cast<int>(actual_parameters.size()), outer_frame_state,
+      shared.object());
 }
 
 }  // namespace compiler

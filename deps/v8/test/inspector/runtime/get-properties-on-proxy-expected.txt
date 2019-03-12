@@ -54,10 +54,6 @@ Testing regular Proxy
                     value : false
                 }
             }
-            [3] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
         ]
         result : [
         ]
@@ -118,10 +114,6 @@ Testing revocable Proxy
                     value : false
                 }
             }
-            [3] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
         ]
         result : [
         ]
@@ -173,10 +165,6 @@ Testing revocable Proxy
                     type : boolean
                     value : true
                 }
-            }
-            [3] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
             }
         ]
         result : [

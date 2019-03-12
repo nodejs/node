@@ -60,25 +60,23 @@ class ExternalReferenceEncoder {
 
 class HotObjectsList {
  public:
-  HotObjectsList() : index_(0) {
-    for (int i = 0; i < kSize; i++) circular_queue_[i] = nullptr;
-  }
+  HotObjectsList() : index_(0) {}
 
-  void Add(HeapObject* object) {
+  void Add(HeapObject object) {
     DCHECK(!AllowHeapAllocation::IsAllowed());
     circular_queue_[index_] = object;
     index_ = (index_ + 1) & kSizeMask;
   }
 
-  HeapObject* Get(int index) {
+  HeapObject Get(int index) {
     DCHECK(!AllowHeapAllocation::IsAllowed());
-    DCHECK_NOT_NULL(circular_queue_[index]);
+    DCHECK(!circular_queue_[index].is_null());
     return circular_queue_[index];
   }
 
   static const int kNotFound = -1;
 
-  int Find(HeapObject* object) {
+  int Find(HeapObject object) {
     DCHECK(!AllowHeapAllocation::IsAllowed());
     for (int i = 0; i < kSize; i++) {
       if (circular_queue_[i] == object) return i;
@@ -91,7 +89,7 @@ class HotObjectsList {
  private:
   static_assert(base::bits::IsPowerOfTwo(kSize), "kSize must be power of two");
   static const int kSizeMask = kSize - 1;
-  HeapObject* circular_queue_[kSize];
+  HeapObject circular_queue_[kSize];
   int index_;
 
   DISALLOW_COPY_AND_ASSIGN(HotObjectsList);
@@ -108,25 +106,29 @@ class SerializerDeserializer : public RootVisitor {
   // We also handle map space differenly.
   STATIC_ASSERT(MAP_SPACE == CODE_SPACE + 1);
 
-  // We do not support young generation large objects.
+  // We do not support young generation large objects and large code objects.
   STATIC_ASSERT(LAST_SPACE == NEW_LO_SPACE);
-  STATIC_ASSERT(LAST_SPACE - 1 == LO_SPACE);
+  STATIC_ASSERT(LAST_SPACE - 2 == LO_SPACE);
   static const int kNumberOfPreallocatedSpaces = CODE_SPACE + 1;
+
+  // The number of spaces supported by the serializer. Spaces after LO_SPACE
+  // (NEW_LO_SPACE and CODE_LO_SPACE) are not supported.
   static const int kNumberOfSpaces = LO_SPACE + 1;
 
  protected:
-  static bool CanBeDeferred(HeapObject* o);
+  static bool CanBeDeferred(HeapObject o);
 
   void RestoreExternalReferenceRedirectors(
-      const std::vector<AccessorInfo*>& accessor_infos);
+      const std::vector<AccessorInfo>& accessor_infos);
   void RestoreExternalReferenceRedirectors(
-      const std::vector<CallHandlerInfo*>& call_handler_infos);
+      const std::vector<CallHandlerInfo>& call_handler_infos);
 
 #define UNUSED_SERIALIZER_BYTE_CODES(V) \
-  V(0x18)                               \
-  V(0x3d)                               \
+  V(0x0e)                               \
+  V(0x2e)                               \
   V(0x3e)                               \
   V(0x3f)                               \
+  V(0x4e)                               \
   V(0x58)                               \
   V(0x59)                               \
   V(0x5a)                               \
@@ -136,13 +138,12 @@ class SerializerDeserializer : public RootVisitor {
   V(0x5e)                               \
   V(0x5f)                               \
   V(0x67)                               \
+  V(0x6e)                               \
   V(0x76)                               \
-  V(0x78)                               \
   V(0x79)                               \
   V(0x7a)                               \
   V(0x7b)                               \
-  V(0x7c)                               \
-  V(0x7d)
+  V(0x7c)
 
   // ---------- byte code range 0x00..0x7f ----------
   // Byte codes in this range represent Where, HowToCode and WhereToPoint.
@@ -163,12 +164,12 @@ class SerializerDeserializer : public RootVisitor {
     // 0x07        External reference referenced by id.
     kExternalReference = 0x07,
 
-    // 0x0e        Builtin code referenced by index.
-    kBuiltin = 0x0e,
     // 0x16       Root array item.
     kRootArray = 0x16,
     // 0x17        Object provided in the attached list.
     kAttachedReference = 0x17,
+    // 0x18        Object in the read-only object cache.
+    kReadOnlyObjectCache = 0x18,
 
     // 0x0f        Misc, see below (incl. 0x2f, 0x4f, 0x6f).
     // 0x18..0x1f  Misc, see below (incl. 0x38..0x3f, 0x58..0x5f, 0x78..0x7f).
@@ -225,16 +226,17 @@ class SerializerDeserializer : public RootVisitor {
   // Used for embedder-provided serialization data for embedder fields.
   static const int kEmbedderFieldsData = 0x1f;
 
-  // Used to encode external referenced provided through the API.
-  static const int kApiReference = 0x38;
-
   static const int kVariableRawCode = 0x39;
   static const int kVariableRawData = 0x3a;
 
   static const int kInternalReference = 0x3b;
   static const int kInternalReferenceEncoded = 0x3c;
 
+  // Used to encode external references provided through the API.
+  static const int kApiReference = 0x3d;
+
   // In-place weak references
+  static const int kClearedWeakReference = 0x7d;
   static const int kWeakPrefix = 0x7e;
 
   // Encodes an off-heap instruction stream target.
@@ -318,12 +320,9 @@ class SerializedData {
   class ChunkSizeBits : public BitField<uint32_t, 0, 31> {};
   class IsLastChunkBits : public BitField<bool, 31, 1> {};
 
-  static uint32_t ComputeMagicNumber(ExternalReferenceTable* table) {
-    uint32_t external_refs = table->size();
-    return 0xC0DE0000 ^ external_refs;
-  }
-
-  static const uint32_t kMagicNumberOffset = 0;
+  static constexpr uint32_t kMagicNumberOffset = 0;
+  static constexpr uint32_t kMagicNumber =
+      0xC0DE0000 ^ ExternalReferenceTable::kSize;
 
  protected:
   void SetHeaderValue(uint32_t offset, uint32_t value) {
@@ -337,11 +336,7 @@ class SerializedData {
 
   void AllocateData(uint32_t size);
 
-  static uint32_t ComputeMagicNumber(Isolate* isolate);
-
-  void SetMagicNumber(Isolate* isolate) {
-    SetHeaderValue(kMagicNumberOffset, ComputeMagicNumber(isolate));
-  }
+  void SetMagicNumber() { SetHeaderValue(kMagicNumberOffset, kMagicNumber); }
 
   byte* data_;
   uint32_t size_;

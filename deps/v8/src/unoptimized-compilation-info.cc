@@ -18,9 +18,7 @@ namespace internal {
 UnoptimizedCompilationInfo::UnoptimizedCompilationInfo(Zone* zone,
                                                        ParseInfo* parse_info,
                                                        FunctionLiteral* literal)
-    : flags_(FLAG_untrusted_code_mitigations ? kUntrustedCodeMitigations : 0),
-      zone_(zone),
-      feedback_vector_spec_(zone) {
+    : flags_(0), zone_(zone), feedback_vector_spec_(zone) {
   // NOTE: The parse_info passed here represents the global information gathered
   // during parsing, but does not represent specific details of the actual
   // function literal being compiled for this OptimizedCompilationInfo. As such,
@@ -34,6 +32,7 @@ UnoptimizedCompilationInfo::UnoptimizedCompilationInfo(Zone* zone,
   if (parse_info->is_eval()) MarkAsEval();
   if (parse_info->is_native()) MarkAsNative();
   if (parse_info->collect_type_profile()) MarkAsCollectTypeProfile();
+  if (parse_info->might_always_opt()) MarkAsMightAlwaysOpt();
 }
 
 DeclarationScope* UnoptimizedCompilationInfo::scope() const {

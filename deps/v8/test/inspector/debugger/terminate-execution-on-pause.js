@@ -22,22 +22,63 @@ callback();
 //# sourceURL=test.js`});
     await Protocol.Debugger.oncePaused();
     const terminated = Protocol.Runtime.terminateExecution();
-    Protocol.Debugger.resume();
+    await Protocol.Debugger.resume();
     await terminated;
   },
 
   async function testTerminateAtBreakpoint() {
     Protocol.Debugger.setBreakpointByUrl({url: 'test.js', lineNumber: 2});
-    Protocol.Runtime.evaluate({expression: `
+    const result = Protocol.Runtime.evaluate({expression: `
 function callback() {
   console.log(42);
   setTimeout(callback, 0);
 }
 callback();
-//# sourceURL=test.js`});
+//# sourceURL=test.js`}).then(InspectorTest.logMessage);
     await Protocol.Debugger.oncePaused();
     const terminated = Protocol.Runtime.terminateExecution();
-    Protocol.Debugger.resume();
+    await Protocol.Debugger.resume();
     await terminated;
-  }
+    await result;
+  },
+
+  async function testTerminateRuntimeEvaluate() {
+    Protocol.Runtime.evaluate({expression: `
+function callback() {
+  debugger;
+  console.log(42);
+  debugger;
+}
+callback();
+//# sourceURL=test.js`});
+    await Protocol.Debugger.oncePaused();
+    await Promise.all([
+      Protocol.Runtime.terminateExecution().then(InspectorTest.logMessage),
+      Protocol.Runtime.evaluate({expression: 'console.log(42)'}).then(InspectorTest.logMessage)
+    ]);
+    await Protocol.Debugger.resume();
+    await Protocol.Debugger.oncePaused();
+    await Protocol.Debugger.resume();
+  },
+
+  async function testTerminateRuntimeEvaluateOnCallFrame() {
+    Protocol.Runtime.evaluate({expression: `
+function callback() {
+  let a = 1;
+  debugger;
+  console.log(43);
+}
+callback();
+//# sourceURL=test.js`});
+    let message = await Protocol.Debugger.oncePaused();
+    let topFrameId = message.params.callFrames[0].callFrameId;
+    await Protocol.Debugger.evaluateOnCallFrame({callFrameId: topFrameId, expression: "a"})
+    .then(InspectorTest.logMessage)
+    await Promise.all([
+      Protocol.Runtime.terminateExecution().then(InspectorTest.logMessage),
+      Protocol.Debugger.evaluateOnCallFrame({callFrameId: topFrameId, expression: "a"})
+          .then(InspectorTest.logMessage)
+    ]);
+    await Protocol.Debugger.resume();
+  },
 ]);

@@ -36,19 +36,6 @@ def WriteFile(filename, content):
     f.write('\n')
 
 
-def GetArch():
-  gyp_host_arch = re.search(
-      'host_arch=(\S*)', os.environ.get('GYP_DEFINES', ''))
-  if gyp_host_arch:
-    arch = gyp_host_arch.group(1)
-    # This matches detect_host_arch.py.
-    if arch == 'x86_64':
-      return 'x64'
-    return arch
-
-  return DetectHostArch()
-
-
 def FetchAndExtract(arch):
   archdir = os.path.join(BINUTILS_DIR, 'Linux_' + arch)
   tarball = os.path.join(archdir, BINUTILS_FILE)
@@ -99,7 +86,7 @@ def main(args):
   if not sys.platform.startswith('linux'):
     return 0
 
-  arch = GetArch()
+  arch = DetectHostArch()
   if arch == 'x64':
     return FetchAndExtract(arch)
   if arch == 'ia32':

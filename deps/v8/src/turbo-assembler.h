@@ -7,7 +7,8 @@
 
 #include "src/assembler-arch.h"
 #include "src/base/template-utils.h"
-#include "src/heap/heap.h"
+#include "src/builtins/builtins.h"
+#include "src/roots.h"
 
 namespace v8 {
 namespace internal {
@@ -39,6 +40,19 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   void set_has_frame(bool v) { has_frame_ = v; }
   bool has_frame() const { return has_frame_; }
 
+  // Calls the given builtin. If builtins are embedded, the trampoline Code
+  // object on the heap is not used.
+  virtual void CallBuiltinPointer(Register builtin_pointer) = 0;
+
+  // Calls/jumps to the given Code object. If builtins are embedded, the
+  // trampoline Code object on the heap is not used.
+  virtual void CallCodeObject(Register code_object) = 0;
+  virtual void JumpCodeObject(Register code_object) = 0;
+
+  // Loads the given Code object's entry point into the destination register.
+  virtual void LoadCodeObjectEntry(Register destination,
+                                   Register code_object) = 0;
+
   // Loads the given constant or external reference without embedding its direct
   // pointer. The produced code is isolate-independent.
   void IndirectLoadConstant(Register destination, Handle<HeapObject> object);
@@ -48,19 +62,25 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   virtual void LoadFromConstantsTable(Register destination,
                                       int constant_index) = 0;
 
+  // Corresponds to: destination = kRootRegister + offset.
   virtual void LoadRootRegisterOffset(Register destination,
                                       intptr_t offset) = 0;
+
+  // Corresponds to: destination = [kRootRegister + offset].
   virtual void LoadRootRelative(Register destination, int32_t offset) = 0;
 
   virtual void LoadRoot(Register destination, RootIndex index) = 0;
 
-  static int32_t RootRegisterOffset(RootIndex root_index);
-  static int32_t RootRegisterOffsetForExternalReferenceIndex(
-      int reference_index);
-
+  static int32_t RootRegisterOffsetForRootIndex(RootIndex root_index);
   static int32_t RootRegisterOffsetForBuiltinIndex(int builtin_index);
 
+  // Returns the root-relative offset to reference.address().
   static intptr_t RootRegisterOffsetForExternalReference(
+      Isolate* isolate, const ExternalReference& reference);
+
+  // Returns the root-relative offset to the external reference table entry,
+  // which itself contains reference.address().
+  static int32_t RootRegisterOffsetForExternalReferenceTableEntry(
       Isolate* isolate, const ExternalReference& reference);
 
   // An address is addressable through kRootRegister if it is located within
@@ -69,14 +89,19 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
       Isolate* isolate, const ExternalReference& reference);
 
  protected:
-  TurboAssemblerBase(const AssemblerOptions& options, void* buffer,
-                     int buffer_size)
-      : TurboAssemblerBase(nullptr, options.EnableV8AgnosticCode(), buffer,
-                           buffer_size, CodeObjectRequired::kNo) {}
+  TurboAssemblerBase(const AssemblerOptions& options,
+                     std::unique_ptr<AssemblerBuffer> buffer = {})
+      : TurboAssemblerBase(nullptr, options.EnableV8AgnosticCode(),
+                           CodeObjectRequired::kNo, std::move(buffer)) {}
+
+  TurboAssemblerBase(Isolate* isolate, CodeObjectRequired create_code_object,
+                     std::unique_ptr<AssemblerBuffer> buffer = {})
+      : TurboAssemblerBase(isolate, AssemblerOptions::Default(isolate),
+                           create_code_object, std::move(buffer)) {}
 
   TurboAssemblerBase(Isolate* isolate, const AssemblerOptions& options,
-                     void* buffer, int buffer_size,
-                     CodeObjectRequired create_code_object);
+                     CodeObjectRequired create_code_object,
+                     std::unique_ptr<AssemblerBuffer> buffer = {});
 
   void RecordCommentForOffHeapTrampoline(int builtin_index);
 
@@ -118,13 +143,14 @@ class HardAbortScope {
   bool old_value_;
 };
 
-// Helper stubs can be called in different ways depending on where the target
-// code is located and how the call sequence is expected to look like:
-//  - JavaScript: Call on-heap {Code} object via {RelocInfo::CODE_TARGET}.
-//  - WebAssembly: Call native {WasmCode} stub via {RelocInfo::WASM_STUB_CALL}.
-enum class StubCallMode { kCallOnHeapBuiltin, kCallWasmRuntimeStub };
-
 #ifdef DEBUG
+struct CountIfValidRegisterFunctor {
+  template <typename RegType>
+  constexpr int operator()(int count, RegType reg) const {
+    return count + (reg.is_valid() ? 1 : 0);
+  }
+};
+
 template <typename RegType, typename... RegTypes,
           // All arguments must be either Register or DoubleRegister.
           typename = typename std::enable_if<
@@ -132,7 +158,8 @@ template <typename RegType, typename... RegTypes,
               base::is_same<DoubleRegister, RegType, RegTypes...>::value>::type>
 inline bool AreAliased(RegType first_reg, RegTypes... regs) {
   int num_different_regs = NumRegs(RegType::ListOf(first_reg, regs...));
-  int num_given_regs = sizeof...(regs) + 1;
+  int num_given_regs =
+      base::fold(CountIfValidRegisterFunctor{}, 0, first_reg, regs...);
   return num_different_regs < num_given_regs;
 }
 #endif

@@ -27,12 +27,12 @@ typedef BitField<int, kStringBuilderConcatHelperLengthBits,
     StringBuilderSubstringPosition;
 
 template <typename sinkchar>
-void StringBuilderConcatHelper(String* special, sinkchar* sink,
-                               FixedArray* fixed_array, int array_length);
+void StringBuilderConcatHelper(String special, sinkchar* sink,
+                               FixedArray fixed_array, int array_length);
 
 // Returns the result length of the concatenation.
 // On illegal argument, -1 is returned.
-int StringBuilderConcatLength(int special_length, FixedArray* fixed_array,
+int StringBuilderConcatLength(int special_length, FixedArray fixed_array,
                               int array_length, bool* one_byte);
 
 class FixedArrayBuilder {
@@ -43,8 +43,8 @@ class FixedArrayBuilder {
   bool HasCapacity(int elements);
   void EnsureCapacity(Isolate* isolate, int elements);
 
-  void Add(Object* value);
-  void Add(Smi* value);
+  void Add(Object value);
+  void Add(Smi value);
 
   Handle<FixedArray> array() { return array_; }
 
@@ -103,7 +103,7 @@ class ReplacementStringBuilder {
   }
 
  private:
-  void AddElement(Object* element);
+  void AddElement(Object element);
 
   Heap* heap_;
   FixedArrayBuilder array_builder_;
@@ -182,14 +182,15 @@ class IncrementalStringBuilder {
   template <typename DestChar>
   class NoExtend {
    public:
-    explicit NoExtend(Handle<String> string, int offset) {
+    NoExtend(Handle<String> string, int offset,
+             const DisallowHeapAllocation& no_gc) {
       DCHECK(string->IsSeqOneByteString() || string->IsSeqTwoByteString());
       if (sizeof(DestChar) == 1) {
         start_ = reinterpret_cast<DestChar*>(
-            Handle<SeqOneByteString>::cast(string)->GetChars() + offset);
+            Handle<SeqOneByteString>::cast(string)->GetChars(no_gc) + offset);
       } else {
         start_ = reinterpret_cast<DestChar*>(
-            Handle<SeqTwoByteString>::cast(string)->GetChars() + offset);
+            Handle<SeqTwoByteString>::cast(string)->GetChars(no_gc) + offset);
       }
       cursor_ = start_;
     }
@@ -205,7 +206,7 @@ class IncrementalStringBuilder {
    private:
     DestChar* start_;
     DestChar* cursor_;
-    DisallowHeapAllocation no_gc_;
+    DISALLOW_HEAP_ALLOCATION(no_gc_);
   };
 
   template <typename DestChar>
@@ -231,8 +232,10 @@ class IncrementalStringBuilder {
   template <typename DestChar>
   class NoExtendBuilder : public NoExtend<DestChar> {
    public:
-    NoExtendBuilder(IncrementalStringBuilder* builder, int required_length)
-        : NoExtend<DestChar>(builder->current_part(), builder->current_index_),
+    NoExtendBuilder(IncrementalStringBuilder* builder, int required_length,
+                    const DisallowHeapAllocation& no_gc)
+        : NoExtend<DestChar>(builder->current_part(), builder->current_index_,
+                             no_gc),
           builder_(builder) {
       DCHECK(builder->CurrentPartCanFit(required_length));
     }
@@ -251,13 +254,13 @@ class IncrementalStringBuilder {
   V8_INLINE Handle<String> accumulator() { return accumulator_; }
 
   V8_INLINE void set_accumulator(Handle<String> string) {
-    *accumulator_.location() = *string;
+    *accumulator_.location() = string->ptr();
   }
 
   V8_INLINE Handle<String> current_part() { return current_part_; }
 
   V8_INLINE void set_current_part(Handle<String> string) {
-    *current_part_.location() = *string;
+    *current_part_.location() = string->ptr();
   }
 
   // Add the current part to the accumulator.

@@ -38,11 +38,12 @@ std::string AsmType::Name() {
   return this->AsCallableType()->Name();
 }
 
-bool AsmType::IsExactly(AsmType* that) {
-  // TODO(jpp): maybe this can become this == that.
-  AsmValueType* avt = this->AsValueType();
+bool AsmType::IsExactly(AsmType* x, AsmType* y) {
+  // TODO(jpp): maybe this can become x == y.
+  if (x == nullptr) return y == nullptr;
+  AsmValueType* avt = x->AsValueType();
   if (avt != nullptr) {
-    AsmValueType* tavt = that->AsValueType();
+    AsmValueType* tavt = y->AsValueType();
     if (tavt == nullptr) {
       return false;
     }
@@ -51,7 +52,7 @@ bool AsmType::IsExactly(AsmType* that) {
 
   // TODO(jpp): is it useful to allow non-value types to be tested with
   // IsExactly?
-  return that == this;
+  return x == y;
 }
 
 bool AsmType::IsA(AsmType* that) {
@@ -200,7 +201,7 @@ class AsmMinMaxType final : public AsmCallableType {
 
   bool CanBeInvokedWith(AsmType* return_type,
                         const ZoneVector<AsmType*>& args) override {
-    if (!return_type_->IsExactly(return_type)) {
+    if (!AsmType::IsExactly(return_type_, return_type)) {
       return false;
     }
 
@@ -239,7 +240,7 @@ bool AsmFunctionType::IsA(AsmType* other) {
   if (that == nullptr) {
     return false;
   }
-  if (!return_type_->IsExactly(that->return_type_)) {
+  if (!AsmType::IsExactly(return_type_, that->return_type_)) {
     return false;
   }
 
@@ -248,7 +249,7 @@ bool AsmFunctionType::IsA(AsmType* other) {
   }
 
   for (size_t ii = 0; ii < args_.size(); ++ii) {
-    if (!args_[ii]->IsExactly(that->args_[ii])) {
+    if (!AsmType::IsExactly(args_[ii], that->args_[ii])) {
       return false;
     }
   }
@@ -258,7 +259,7 @@ bool AsmFunctionType::IsA(AsmType* other) {
 
 bool AsmFunctionType::CanBeInvokedWith(AsmType* return_type,
                                        const ZoneVector<AsmType*>& args) {
-  if (!return_type_->IsExactly(return_type)) {
+  if (!AsmType::IsExactly(return_type_, return_type)) {
     return false;
   }
 

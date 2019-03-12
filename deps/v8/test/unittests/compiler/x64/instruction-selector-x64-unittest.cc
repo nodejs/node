@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/unittests/compiler/instruction-selector-unittest.h"
+#include "test/unittests/compiler/backend/instruction-selector-unittest.h"
 
 #include "src/compiler/node-matchers.h"
 #include "src/objects-inl.h"
@@ -1205,9 +1205,113 @@ TEST_F(InstructionSelectorTest, Int32Shl4BecomesLea) {
   EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
 }
 
-
 // -----------------------------------------------------------------------------
 // Binops with a memory operand.
+
+TEST_F(InstructionSelectorTest, LoadCmp32) {
+  {
+    // Word32Equal(Load[Int8](p0, p1), Int32Constant(0)) -> cmpb [p0,p1], 0
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int64(),
+                    MachineType::Int64());
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    m.Return(
+        m.Word32Equal(m.Load(MachineType::Int8(), p0, p1), m.Int32Constant(0)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kX64Cmp8, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MR1, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_TRUE(s[0]->InputAt(2)->IsImmediate());
+  }
+  {
+    // Word32Equal(Load[Uint8](p0, p1), Int32Constant(0)) -> cmpb [p0,p1], 0
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int64(),
+                    MachineType::Int64());
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    m.Return(m.Word32Equal(m.Load(MachineType::Uint8(), p0, p1),
+                           m.Int32Constant(0)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kX64Cmp8, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MR1, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_TRUE(s[0]->InputAt(2)->IsImmediate());
+  }
+  {
+    // Word32Equal(Load[Int16](p0, p1), Int32Constant(0)) -> cmpw [p0,p1], 0
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int64(),
+                    MachineType::Int64());
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    m.Return(m.Word32Equal(m.Load(MachineType::Int16(), p0, p1),
+                           m.Int32Constant(0)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kX64Cmp16, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MR1, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_TRUE(s[0]->InputAt(2)->IsImmediate());
+  }
+  {
+    // Word32Equal(Load[Uint16](p0, p1), Int32Constant(0)) -> cmpw [p0,p1], 0
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int64(),
+                    MachineType::Int64());
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    m.Return(m.Word32Equal(m.Load(MachineType::Uint16(), p0, p1),
+                           m.Int32Constant(0)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kX64Cmp16, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MR1, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_TRUE(s[0]->InputAt(2)->IsImmediate());
+  }
+  {
+    // Word32Equal(Load[Int32](p0, p1), Int32Constant(0)) -> cmpl [p0,p1], 0
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int64(),
+                    MachineType::Int64());
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    m.Return(m.Word32Equal(m.Load(MachineType::Int32(), p0, p1),
+                           m.Int32Constant(0)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kX64Cmp32, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MR1, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_TRUE(s[0]->InputAt(2)->IsImmediate());
+  }
+  {
+    // Word32Equal(Load[Uint32](p0, p1), Int32Constant(0)) -> cmpl [p0,p1], 0
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int64(),
+                    MachineType::Int64());
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    m.Return(m.Word32Equal(m.Load(MachineType::Uint32(), p0, p1),
+                           m.Int32Constant(0)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kX64Cmp32, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MR1, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_TRUE(s[0]->InputAt(2)->IsImmediate());
+  }
+}
 
 TEST_F(InstructionSelectorTest, LoadAnd32) {
   StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),

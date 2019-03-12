@@ -105,7 +105,8 @@ BenchmarkSuite.ResetRNG = function() {
   Math.random = (function() {
     var seed = 49734321;
     return function() {
-      // Robert Jenkins' 32 bit integer hash function.
+      // Robert Jenkins' 32-bit integer hash function.
+      seed = seed & 0xffffffff;
       seed = ((seed + 0x7ed55d16) + (seed << 12))  & 0xffffffff;
       seed = ((seed ^ 0xc761c23c) ^ (seed >>> 19)) & 0xffffffff;
       seed = ((seed + 0x165667b1) + (seed << 5))   & 0xffffffff;

@@ -52,12 +52,10 @@ void HeapProfiler::DefineWrapperClass(
   wrapper_callbacks_[class_id] = callback;
 }
 
-
 v8::RetainedObjectInfo* HeapProfiler::ExecuteWrapperClassCallback(
-    uint16_t class_id, Object** wrapper) {
+    uint16_t class_id, Handle<Object> wrapper) {
   if (wrapper_callbacks_.size() <= class_id) return nullptr;
-  return wrapper_callbacks_[class_id](
-      class_id, Utils::ToLocal(Handle<Object>(wrapper)));
+  return wrapper_callbacks_[class_id](class_id, Utils::ToLocal(wrapper));
 }
 
 void HeapProfiler::SetGetRetainerInfosCallback(
@@ -185,7 +183,7 @@ SnapshotObjectId HeapProfiler::GetSnapshotObjectId(Handle<Object> obj) {
 }
 
 void HeapProfiler::ObjectMoveEvent(Address from, Address to, int size) {
-  base::LockGuard<base::Mutex> guard(&profiler_mutex_);
+  base::MutexGuard guard(&profiler_mutex_);
   bool known_object = ids_->MoveObject(from, to, size);
   if (!known_object && allocation_tracker_) {
     allocation_tracker_->address_to_trace()->MoveObject(from, to, size);
@@ -205,18 +203,18 @@ void HeapProfiler::UpdateObjectSizeEvent(Address addr, int size) {
 }
 
 Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
-  HeapObject* object = nullptr;
+  HeapObject object;
   HeapIterator iterator(heap(), HeapIterator::kFilterUnreachable);
   // Make sure that object with the given id is still reachable.
-  for (HeapObject* obj = iterator.next(); obj != nullptr;
+  for (HeapObject obj = iterator.next(); !obj.is_null();
        obj = iterator.next()) {
     if (ids_->FindEntry(obj->address()) == id) {
-      DCHECK_NULL(object);
+      DCHECK(object.is_null());
       object = obj;
       // Can't break -- kFilterUnreachable requires full heap traversal.
     }
   }
-  return object != nullptr ? Handle<HeapObject>(object, isolate())
+  return !object.is_null() ? Handle<HeapObject>(object, isolate())
                            : Handle<HeapObject>();
 }
 
@@ -238,8 +236,8 @@ void HeapProfiler::QueryObjects(Handle<Context> context,
   // collect all garbage first.
   heap()->CollectAllAvailableGarbage(GarbageCollectionReason::kHeapProfiler);
   HeapIterator heap_iterator(heap());
-  HeapObject* heap_obj;
-  while ((heap_obj = heap_iterator.next()) != nullptr) {
+  for (HeapObject heap_obj = heap_iterator.next(); !heap_obj.is_null();
+       heap_obj = heap_iterator.next()) {
     if (!heap_obj->IsJSObject() || heap_obj->IsExternal(isolate())) continue;
     v8::Local<v8::Object> v8_obj(
         Utils::ToLocal(handle(JSObject::cast(heap_obj), isolate())));

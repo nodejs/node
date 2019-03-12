@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/overflowing-math.h"
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
@@ -501,7 +502,8 @@ TEST(BranchCombineInt32AddLessThanZero) {
     FOR_INT32_INPUTS(j) {
       int32_t a = *i;
       int32_t b = *j;
-      int32_t expect = (a + b < 0) ? t_constant : f_constant;
+      int32_t expect =
+          (base::AddWithWraparound(a, b) < 0) ? t_constant : f_constant;
       CHECK_EQ(expect, m.Call(a, b));
     }
   }
@@ -529,7 +531,8 @@ TEST(BranchCombineInt32AddGreaterThanOrEqualZero) {
     FOR_INT32_INPUTS(j) {
       int32_t a = *i;
       int32_t b = *j;
-      int32_t expect = (a + b >= 0) ? t_constant : f_constant;
+      int32_t expect =
+          (base::AddWithWraparound(a, b) >= 0) ? t_constant : f_constant;
       CHECK_EQ(expect, m.Call(a, b));
     }
   }
@@ -557,7 +560,8 @@ TEST(BranchCombineInt32ZeroGreaterThanAdd) {
     FOR_INT32_INPUTS(j) {
       int32_t a = *i;
       int32_t b = *j;
-      int32_t expect = (0 > a + b) ? t_constant : f_constant;
+      int32_t expect =
+          (0 > base::AddWithWraparound(a, b)) ? t_constant : f_constant;
       CHECK_EQ(expect, m.Call(a, b));
     }
   }
@@ -585,7 +589,8 @@ TEST(BranchCombineInt32ZeroLessThanOrEqualAdd) {
     FOR_INT32_INPUTS(j) {
       int32_t a = *i;
       int32_t b = *j;
-      int32_t expect = (0 <= a + b) ? t_constant : f_constant;
+      int32_t expect =
+          (0 <= base::AddWithWraparound(a, b)) ? t_constant : f_constant;
       CHECK_EQ(expect, m.Call(a, b));
     }
   }
@@ -609,8 +614,8 @@ TEST(BranchCombineUint32AddLessThanOrEqualZero) {
   m.Bind(&blockb);
   m.Return(m.Int32Constant(f_constant));
 
-  FOR_INT32_INPUTS(i) {
-    FOR_INT32_INPUTS(j) {
+  FOR_UINT32_INPUTS(i) {
+    FOR_UINT32_INPUTS(j) {
       uint32_t a = *i;
       uint32_t b = *j;
       int32_t expect = (a + b <= 0) ? t_constant : f_constant;
@@ -637,8 +642,8 @@ TEST(BranchCombineUint32AddGreaterThanZero) {
   m.Bind(&blockb);
   m.Return(m.Int32Constant(f_constant));
 
-  FOR_INT32_INPUTS(i) {
-    FOR_INT32_INPUTS(j) {
+  FOR_UINT32_INPUTS(i) {
+    FOR_UINT32_INPUTS(j) {
       uint32_t a = *i;
       uint32_t b = *j;
       int32_t expect = (a + b > 0) ? t_constant : f_constant;
@@ -665,8 +670,8 @@ TEST(BranchCombineUint32ZeroGreaterThanOrEqualAdd) {
   m.Bind(&blockb);
   m.Return(m.Int32Constant(f_constant));
 
-  FOR_INT32_INPUTS(i) {
-    FOR_INT32_INPUTS(j) {
+  FOR_UINT32_INPUTS(i) {
+    FOR_UINT32_INPUTS(j) {
       uint32_t a = *i;
       uint32_t b = *j;
       int32_t expect = (0 >= a + b) ? t_constant : f_constant;
@@ -693,8 +698,8 @@ TEST(BranchCombineUint32ZeroLessThanAdd) {
   m.Bind(&blockb);
   m.Return(m.Int32Constant(f_constant));
 
-  FOR_INT32_INPUTS(i) {
-    FOR_INT32_INPUTS(j) {
+  FOR_UINT32_INPUTS(i) {
+    FOR_UINT32_INPUTS(j) {
       uint32_t a = *i;
       uint32_t b = *j;
       int32_t expect = (0 < a + b) ? t_constant : f_constant;

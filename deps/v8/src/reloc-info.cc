@@ -4,8 +4,8 @@
 
 #include "src/reloc-info.h"
 
-#include "src/assembler-arch-inl.h"
-#include "src/code-stubs.h"
+#include "src/assembler-inl.h"
+#include "src/code-reference.h"
 #include "src/deoptimize-reason.h"
 #include "src/deoptimizer.h"
 #include "src/heap/heap-write-barrier-inl.h"
@@ -158,9 +158,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     WriteShortTaggedPC(pc_delta, kWasmStubCallTag);
   } else {
     WriteModeAndPC(pc_delta, rmode);
-    if (RelocInfo::IsComment(rmode)) {
-      WriteData(rinfo->data());
-    } else if (RelocInfo::IsDeoptReason(rmode)) {
+    if (RelocInfo::IsDeoptReason(rmode)) {
       DCHECK_LT(rinfo->data(), 1 << kBitsPerByte);
       WriteShortData(rinfo->data());
     } else if (RelocInfo::IsConstPool(rmode) ||
@@ -249,13 +247,7 @@ void RelocIterator::next() {
         AdvanceReadLongPCJump();
       } else {
         AdvanceReadPC();
-        if (RelocInfo::IsComment(rmode)) {
-          if (SetMode(rmode)) {
-            AdvanceReadData();
-            return;
-          }
-          Advance(kIntptrSize);
-        } else if (RelocInfo::IsDeoptReason(rmode)) {
+        if (RelocInfo::IsDeoptReason(rmode)) {
           Advance();
           if (SetMode(rmode)) {
             ReadShortData();
@@ -279,18 +271,22 @@ void RelocIterator::next() {
   done_ = true;
 }
 
-RelocIterator::RelocIterator(Code* code, int mode_mask)
+RelocIterator::RelocIterator(Code code, int mode_mask)
+    : RelocIterator(code, code->unchecked_relocation_info(), mode_mask) {}
+
+RelocIterator::RelocIterator(Code code, ByteArray relocation_info,
+                             int mode_mask)
     : RelocIterator(code, code->raw_instruction_start(), code->constant_pool(),
-                    code->relocation_end(), code->relocation_start(),
-                    mode_mask) {}
+                    relocation_info->GetDataEndAddress(),
+                    relocation_info->GetDataStartAddress(), mode_mask) {}
 
 RelocIterator::RelocIterator(const CodeReference code_reference, int mode_mask)
-    : RelocIterator(nullptr, code_reference.instruction_start(),
+    : RelocIterator(Code(), code_reference.instruction_start(),
                     code_reference.constant_pool(),
                     code_reference.relocation_end(),
                     code_reference.relocation_start(), mode_mask) {}
 
-RelocIterator::RelocIterator(EmbeddedData* embedded_data, Code* code,
+RelocIterator::RelocIterator(EmbeddedData* embedded_data, Code code,
                              int mode_mask)
     : RelocIterator(
           code, embedded_data->InstructionStartOfBuiltin(code->builtin_index()),
@@ -299,7 +295,7 @@ RelocIterator::RelocIterator(EmbeddedData* embedded_data, Code* code,
           code->relocation_start(), mode_mask) {}
 
 RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask)
-    : RelocIterator(nullptr, reinterpret_cast<Address>(desc.buffer), 0,
+    : RelocIterator(Code(), reinterpret_cast<Address>(desc.buffer), 0,
                     desc.buffer + desc.buffer_size,
                     desc.buffer + desc.buffer_size - desc.reloc_size,
                     mode_mask) {}
@@ -307,11 +303,11 @@ RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask)
 RelocIterator::RelocIterator(Vector<byte> instructions,
                              Vector<const byte> reloc_info, Address const_pool,
                              int mode_mask)
-    : RelocIterator(nullptr, reinterpret_cast<Address>(instructions.start()),
+    : RelocIterator(Code(), reinterpret_cast<Address>(instructions.start()),
                     const_pool, reloc_info.start() + reloc_info.size(),
                     reloc_info.start(), mode_mask) {}
 
-RelocIterator::RelocIterator(Code* host, Address pc, Address constant_pool,
+RelocIterator::RelocIterator(Code host, Address pc, Address constant_pool,
                              const byte* pos, const byte* end, int mode_mask)
     : pos_(pos), end_(end), mode_mask_(mode_mask) {
   // Relocation info is read backwards.
@@ -369,11 +365,28 @@ void RelocInfo::set_target_address(Address target,
          IsWasmCall(rmode_));
   Assembler::set_target_address_at(pc_, constant_pool_, target,
                                    icache_flush_mode);
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr &&
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null() &&
       IsCodeTargetMode(rmode_)) {
-    Code* target_code = Code::GetCodeFromTargetAddress(target);
+    Code target_code = Code::GetCodeFromTargetAddress(target);
     MarkingBarrierForCode(host(), this, target_code);
   }
+}
+
+bool RelocInfo::HasTargetAddressAddress() const {
+  // TODO(jgruber): Investigate whether WASM_CALL is still appropriate on
+  // non-intel platforms now that wasm code is no longer on the heap.
+#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64)
+  static constexpr int kTargetAddressAddressModeMask =
+      ModeMask(CODE_TARGET) | ModeMask(EMBEDDED_OBJECT) |
+      ModeMask(EXTERNAL_REFERENCE) | ModeMask(OFF_HEAP_TARGET) |
+      ModeMask(RUNTIME_ENTRY) | ModeMask(WASM_CALL) | ModeMask(WASM_STUB_CALL);
+#else
+  static constexpr int kTargetAddressAddressModeMask =
+      ModeMask(CODE_TARGET) | ModeMask(RELATIVE_CODE_TARGET) |
+      ModeMask(EMBEDDED_OBJECT) | ModeMask(EXTERNAL_REFERENCE) |
+      ModeMask(OFF_HEAP_TARGET) | ModeMask(RUNTIME_ENTRY) | ModeMask(WASM_CALL);
+#endif
+  return (ModeMask(rmode_) & kTargetAddressAddressModeMask) != 0;
 }
 
 bool RelocInfo::RequiresRelocationAfterCodegen(const CodeDesc& desc) {
@@ -381,7 +394,7 @@ bool RelocInfo::RequiresRelocationAfterCodegen(const CodeDesc& desc) {
   return !it.done();
 }
 
-bool RelocInfo::RequiresRelocation(Code* code) {
+bool RelocInfo::RequiresRelocation(Code code) {
   RelocIterator it(code, RelocInfo::kApplyMask);
   return !it.done();
 }
@@ -399,8 +412,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "relative code target";
     case RUNTIME_ENTRY:
       return "runtime entry";
-    case COMMENT:
-      return "comment";
     case EXTERNAL_REFERENCE:
       return "external reference";
     case INTERNAL_REFERENCE:
@@ -425,8 +436,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "internal wasm call";
     case WASM_STUB_CALL:
       return "wasm stub call";
-    case JS_TO_WASM_CALL:
-      return "js to wasm call";
     case NUMBER_OF_MODES:
     case PC_JUMP:
       UNREACHABLE();
@@ -436,9 +445,7 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
 
 void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
   os << reinterpret_cast<const void*>(pc_) << "  " << RelocModeName(rmode_);
-  if (IsComment(rmode_)) {
-    os << "  (" << reinterpret_cast<char*>(data_) << ")";
-  } else if (rmode_ == DEOPT_SCRIPT_OFFSET || rmode_ == DEOPT_INLINING_ID) {
+  if (rmode_ == DEOPT_SCRIPT_OFFSET || rmode_ == DEOPT_INLINING_ID) {
     os << "  (" << data() << ")";
   } else if (rmode_ == DEOPT_REASON) {
     os << "  ("
@@ -456,22 +463,19 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
        << ")";
   } else if (IsCodeTargetMode(rmode_)) {
     const Address code_target = target_address();
-    Code* code = Code::GetCodeFromTargetAddress(code_target);
+    Code code = Code::GetCodeFromTargetAddress(code_target);
     DCHECK(code->IsCode());
     os << " (" << Code::Kind2String(code->kind());
     if (Builtins::IsBuiltin(code)) {
       os << " " << Builtins::name(code->builtin_index());
-    } else if (code->kind() == Code::STUB) {
-      os << " " << CodeStub::MajorName(CodeStub::GetMajorKey(code));
     }
     os << ")  (" << reinterpret_cast<const void*>(target_address()) << ")";
   } else if (IsRuntimeEntry(rmode_) && isolate->deoptimizer_data() != nullptr) {
     // Deoptimization bailouts are stored as runtime entries.
     DeoptimizeKind type;
     if (Deoptimizer::IsDeoptimizationEntry(isolate, target_address(), &type)) {
-      int id = GetDeoptimizationId(isolate, type);
-      os << "  (" << Deoptimizer::MessageFor(type) << " deoptimization bailout "
-         << id << ")";
+      os << "  (" << Deoptimizer::MessageFor(type)
+         << " deoptimization bailout)";
     }
   } else if (IsConstPool(rmode_)) {
     os << " (size " << static_cast<int>(data_) << ")";
@@ -493,8 +497,8 @@ void RelocInfo::Verify(Isolate* isolate) {
       Address addr = target_address();
       CHECK_NE(addr, kNullAddress);
       // Check that we can find the right code object.
-      Code* code = Code::GetCodeFromTargetAddress(addr);
-      Object* found = isolate->FindCodeObject(addr);
+      Code code = Code::GetCodeFromTargetAddress(addr);
+      Object found = isolate->FindCodeObject(addr);
       CHECK(found->IsCode());
       CHECK(code->address() == HeapObject::cast(found)->address());
       break;
@@ -503,7 +507,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case INTERNAL_REFERENCE_ENCODED: {
       Address target = target_internal_reference();
       Address pc = target_internal_reference_address();
-      Code* code = Code::cast(isolate->FindCodeObject(pc));
+      Code code = Code::cast(isolate->FindCodeObject(pc));
       CHECK(target >= code->InstructionStart());
       CHECK(target <= code->InstructionEnd());
       break;
@@ -511,11 +515,10 @@ void RelocInfo::Verify(Isolate* isolate) {
     case OFF_HEAP_TARGET: {
       Address addr = target_off_heap_target();
       CHECK_NE(addr, kNullAddress);
-      CHECK_NOT_NULL(InstructionStream::TryLookupCode(isolate, addr));
+      CHECK(!InstructionStream::TryLookupCode(isolate, addr).is_null());
       break;
     }
     case RUNTIME_ENTRY:
-    case COMMENT:
     case EXTERNAL_REFERENCE:
     case DEOPT_SCRIPT_OFFSET:
     case DEOPT_INLINING_ID:
@@ -525,7 +528,6 @@ void RelocInfo::Verify(Isolate* isolate) {
     case VENEER_POOL:
     case WASM_CALL:
     case WASM_STUB_CALL:
-    case JS_TO_WASM_CALL:
     case NONE:
       break;
     case NUMBER_OF_MODES:

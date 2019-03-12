@@ -6,21 +6,32 @@
 #define V8_LAYOUT_DESCRIPTOR_INL_H_
 
 #include "src/layout-descriptor.h"
+
+#include "src/handles-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/smi.h"
+
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
 
-LayoutDescriptor* LayoutDescriptor::FromSmi(Smi* smi) {
+LayoutDescriptor::LayoutDescriptor(Address ptr)
+    : ByteArray(ptr, AllowInlineSmiStorage::kAllowBeingASmi) {
+  SLOW_DCHECK(IsLayoutDescriptor());
+}
+CAST_ACCESSOR(LayoutDescriptor)
+
+LayoutDescriptor LayoutDescriptor::FromSmi(Smi smi) {
   return LayoutDescriptor::cast(smi);
 }
-
 
 Handle<LayoutDescriptor> LayoutDescriptor::New(Isolate* isolate, int length) {
   if (length <= kBitsInSmiLayout) {
     // The whole bit vector fits into a smi.
-    return handle(LayoutDescriptor::FromSmi(Smi::kZero), isolate);
+    return handle(LayoutDescriptor::FromSmi(Smi::zero()), isolate);
   }
   int backing_store_length = GetSlowModeBackingStoreLength(length);
   Handle<LayoutDescriptor> result = Handle<LayoutDescriptor>::cast(
@@ -40,11 +51,9 @@ bool LayoutDescriptor::InobjectUnboxedField(int inobject_properties,
   return details.field_index() < inobject_properties;
 }
 
-
-LayoutDescriptor* LayoutDescriptor::FastPointerLayout() {
-  return LayoutDescriptor::FromSmi(Smi::kZero);
+LayoutDescriptor LayoutDescriptor::FastPointerLayout() {
+  return LayoutDescriptor::FromSmi(Smi::zero());
 }
-
 
 bool LayoutDescriptor::GetIndexes(int field_index, int* layout_word_index,
                                   int* layout_bit_index) {
@@ -60,13 +69,11 @@ bool LayoutDescriptor::GetIndexes(int field_index, int* layout_word_index,
   return true;
 }
 
-
-LayoutDescriptor* LayoutDescriptor::SetRawData(int field_index) {
+LayoutDescriptor LayoutDescriptor::SetRawData(int field_index) {
   return SetTagged(field_index, false);
 }
 
-
-LayoutDescriptor* LayoutDescriptor::SetTagged(int field_index, bool tagged) {
+LayoutDescriptor LayoutDescriptor::SetTagged(int field_index, bool tagged) {
   int layout_word_index = 0;
   int layout_bit_index = 0;
 
@@ -81,9 +88,9 @@ LayoutDescriptor* LayoutDescriptor::SetTagged(int field_index, bool tagged) {
       value |= layout_mask;
     }
     set_layout_word(layout_word_index, value);
-    return this;
+    return *this;
   } else {
-    uint32_t value = static_cast<uint32_t>(Smi::ToInt(this));
+    uint32_t value = static_cast<uint32_t>(Smi::ToInt(*this));
     if (tagged) {
       value &= ~layout_mask;
     } else {
@@ -92,7 +99,6 @@ LayoutDescriptor* LayoutDescriptor::SetTagged(int field_index, bool tagged) {
     return LayoutDescriptor::FromSmi(Smi::FromInt(static_cast<int>(value)));
   }
 }
-
 
 bool LayoutDescriptor::IsTagged(int field_index) {
   if (IsFastPointerLayout()) return true;
@@ -110,21 +116,19 @@ bool LayoutDescriptor::IsTagged(int field_index) {
     uint32_t value = get_layout_word(layout_word_index);
     return (value & layout_mask) == 0;
   } else {
-    uint32_t value = static_cast<uint32_t>(Smi::ToInt(this));
+    uint32_t value = static_cast<uint32_t>(Smi::ToInt(*this));
     return (value & layout_mask) == 0;
   }
 }
 
 
 bool LayoutDescriptor::IsFastPointerLayout() {
-  return this == FastPointerLayout();
+  return *this == FastPointerLayout();
 }
 
-
-bool LayoutDescriptor::IsFastPointerLayout(Object* layout_descriptor) {
+bool LayoutDescriptor::IsFastPointerLayout(Object layout_descriptor) {
   return layout_descriptor == FastPointerLayout();
 }
-
 
 bool LayoutDescriptor::IsSlowLayout() { return !IsSmi(); }
 
@@ -133,25 +137,23 @@ int LayoutDescriptor::capacity() {
   return IsSlowLayout() ? (length() * kBitsPerByte) : kBitsInSmiLayout;
 }
 
-
-LayoutDescriptor* LayoutDescriptor::cast_gc_safe(Object* object) {
+LayoutDescriptor LayoutDescriptor::cast_gc_safe(Object object) {
   // The map word of the object can be a forwarding pointer during
   // object evacuation phase of GC. Since the layout descriptor methods
   // for checking whether a field is tagged or not do not depend on the
   // object map, it should be safe.
-  return reinterpret_cast<LayoutDescriptor*>(object);
+  return LayoutDescriptor::unchecked_cast(object);
 }
 
 int LayoutDescriptor::GetSlowModeBackingStoreLength(int length) {
   DCHECK_LT(0, length);
-  // We allocate kPointerSize rounded blocks of memory anyway so we increase
+  // We allocate kTaggedSize rounded blocks of memory anyway so we increase
   // the length  of allocated array to utilize that "lost" space which could
   // also help to avoid layout descriptor reallocations.
-  return RoundUp(length, kBitsPerByte * kPointerSize) / kBitsPerByte;
+  return RoundUp(length, kBitsPerByte * kTaggedSize) / kBitsPerByte;
 }
 
-
-int LayoutDescriptor::CalculateCapacity(Map* map, DescriptorArray* descriptors,
+int LayoutDescriptor::CalculateCapacity(Map map, DescriptorArray descriptors,
                                         int num_descriptors) {
   int inobject_properties = map->GetInObjectProperties();
   if (inobject_properties == 0) return 0;
@@ -159,7 +161,7 @@ int LayoutDescriptor::CalculateCapacity(Map* map, DescriptorArray* descriptors,
   DCHECK_LE(num_descriptors, descriptors->number_of_descriptors());
 
   int layout_descriptor_length;
-  const int kMaxWordsPerField = kDoubleSize / kPointerSize;
+  const int kMaxWordsPerField = kDoubleSize / kTaggedSize;
 
   if (num_descriptors <= kBitsInSmiLayout / kMaxWordsPerField) {
     // Even in the "worst" case (all fields are doubles) it would fit into
@@ -182,9 +184,8 @@ int LayoutDescriptor::CalculateCapacity(Map* map, DescriptorArray* descriptors,
   return layout_descriptor_length;
 }
 
-
-LayoutDescriptor* LayoutDescriptor::Initialize(
-    LayoutDescriptor* layout_descriptor, Map* map, DescriptorArray* descriptors,
+LayoutDescriptor LayoutDescriptor::Initialize(
+    LayoutDescriptor layout_descriptor, Map map, DescriptorArray descriptors,
     int num_descriptors) {
   DisallowHeapAllocation no_allocation;
   int inobject_properties = map->GetInObjectProperties();
@@ -219,7 +220,7 @@ void LayoutDescriptor::set_layout_word(int index, uint32_t value) {
 
 // LayoutDescriptorHelper is a helper class for querying whether inobject
 // property at offset is Double or not.
-LayoutDescriptorHelper::LayoutDescriptorHelper(Map* map)
+LayoutDescriptorHelper::LayoutDescriptorHelper(Map map)
     : all_fields_tagged_(true),
       header_size_(0),
       layout_descriptor_(LayoutDescriptor::FastPointerLayout()) {
@@ -230,7 +231,7 @@ LayoutDescriptorHelper::LayoutDescriptorHelper(Map* map)
     return;
   }
 
-  header_size_ = map->GetInObjectPropertiesStartInWords() * kPointerSize;
+  header_size_ = map->GetInObjectPropertiesStartInWords() * kTaggedSize;
   DCHECK_GE(header_size_, 0);
 
   all_fields_tagged_ = false;
@@ -238,16 +239,18 @@ LayoutDescriptorHelper::LayoutDescriptorHelper(Map* map)
 
 
 bool LayoutDescriptorHelper::IsTagged(int offset_in_bytes) {
-  DCHECK(IsAligned(offset_in_bytes, kPointerSize));
+  DCHECK(IsAligned(offset_in_bytes, kTaggedSize));
   if (all_fields_tagged_) return true;
   // Object headers do not contain non-tagged fields.
   if (offset_in_bytes < header_size_) return true;
-  int field_index = (offset_in_bytes - header_size_) / kPointerSize;
+  int field_index = (offset_in_bytes - header_size_) / kTaggedSize;
 
   return layout_descriptor_->IsTagged(field_index);
 }
 
 }  // namespace internal
 }  // namespace v8
+
+#include "src/objects/object-macros-undef.h"
 
 #endif  // V8_LAYOUT_DESCRIPTOR_INL_H_

@@ -61,13 +61,13 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerChangeTaggedToUint32(Node* node);
   Node* LowerChangeTaggedToInt64(Node* node);
   Node* LowerChangeTaggedToTaggedSigned(Node* node);
-  Node* LowerCheckBounds(Node* node, Node* frame_state);
   Node* LowerPoisonIndex(Node* node);
   Node* LowerCheckInternalizedString(Node* node, Node* frame_state);
   void LowerCheckMaps(Node* node, Node* frame_state);
   Node* LowerCompareMaps(Node* node);
   Node* LowerCheckNumber(Node* node, Node* frame_state);
   Node* LowerCheckReceiver(Node* node, Node* frame_state);
+  Node* LowerCheckReceiverOrNullOrUndefined(Node* node, Node* frame_state);
   Node* LowerCheckString(Node* node, Node* frame_state);
   Node* LowerCheckSymbol(Node* node, Node* frame_state);
   void LowerCheckIf(Node* node, Node* frame_state);
@@ -81,13 +81,17 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerCheckedInt32ToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedInt64ToInt32(Node* node, Node* frame_state);
   Node* LowerCheckedInt64ToTaggedSigned(Node* node, Node* frame_state);
+  Node* LowerCheckedUint32Bounds(Node* node, Node* frame_state);
   Node* LowerCheckedUint32ToInt32(Node* node, Node* frame_state);
   Node* LowerCheckedUint32ToTaggedSigned(Node* node, Node* frame_state);
+  Node* LowerCheckedUint64Bounds(Node* node, Node* frame_state);
   Node* LowerCheckedUint64ToInt32(Node* node, Node* frame_state);
   Node* LowerCheckedUint64ToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedFloat64ToInt32(Node* node, Node* frame_state);
+  Node* LowerCheckedFloat64ToInt64(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedSignedToInt32(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToInt32(Node* node, Node* frame_state);
+  Node* LowerCheckedTaggedToInt64(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToFloat64(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToTaggedPointer(Node* node, Node* frame_state);
@@ -181,6 +185,9 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
 
   Node* AllocateHeapNumberWithValue(Node* node);
   Node* BuildCheckedFloat64ToInt32(CheckForMinusZeroMode mode,
+                                   const VectorSlotPair& feedback, Node* value,
+                                   Node* frame_state);
+  Node* BuildCheckedFloat64ToInt64(CheckForMinusZeroMode mode,
                                    const VectorSlotPair& feedback, Node* value,
                                    Node* frame_state);
   Node* BuildCheckedHeapNumberOrOddballToFloat64(CheckTaggedInputMode mode,

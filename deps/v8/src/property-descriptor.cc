@@ -43,7 +43,7 @@ bool GetPropertyIfPresent(Handle<JSReceiver> receiver, Handle<String> name,
 bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
                                   PropertyDescriptor* desc) {
   if (!obj->IsJSObject()) return false;
-  Map* map = Handle<JSObject>::cast(obj)->map();
+  Map map = Handle<JSObject>::cast(obj)->map();
   if (map->instance_type() != JS_OBJECT_TYPE) return false;
   if (map->is_access_check_needed()) return false;
   if (map->prototype() != *isolate->initial_object_prototype()) return false;
@@ -60,7 +60,7 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
       Handle<DescriptorArray>(map->instance_descriptors(), isolate);
   for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
     PropertyDetails details = descs->GetDetails(i);
-    Name* key = descs->GetKey(i);
+    Name key = descs->GetKey(i);
     Handle<Object> value;
     if (details.location() == kField) {
       if (details.kind() == kData) {

@@ -2,12 +2,6 @@ Tests that scopes do not report variables with empty names
 {
     id : <messageId>
     result : {
-        internalProperties : [
-            [0] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
-        ]
         result : [
             [0] : {
                 configurable : true

@@ -17,13 +17,22 @@
 
 #define WASM_MODULE_HEADER U32_LE(kWasmMagic), U32_LE(kWasmVersion)
 
-#define IMPORT_SIG_INDEX(v) U32V_1(v)
+#define SIG_INDEX(v) U32V_1(v)
 #define FUNC_INDEX(v) U32V_1(v)
-#define TABLE_INDEX(v) U32V_1(v)
 #define EXCEPTION_INDEX(v) U32V_1(v)
 #define NO_NAME U32V_1(0)
-#define NAME_LENGTH(v) U32V_1(v)
 #define ENTRY_COUNT(v) U32V_1(v)
+
+// Segment flags
+#define ACTIVE_NO_INDEX 0
+#define PASSIVE 1
+#define ACTIVE_WITH_INDEX 2
+
+// The table index field in an element segment was repurposed as a flags field.
+// To specify a table index, we have to set the flag value to 2, followed by
+// the table index.
+#define TABLE_INDEX0 U32V_1(ACTIVE_NO_INDEX)
+#define TABLE_INDEX(v) U32V_1(ACTIVE_WITH_INDEX), U32V_1(v)
 
 #define ZERO_ALIGNMENT 0
 #define ZERO_OFFSET 0
@@ -573,10 +582,25 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_I64_SCONVERT_SAT_F64(x) x, WASM_NUMERIC_OP(kExprI64SConvertSatF64)
 #define WASM_I64_UCONVERT_SAT_F64(x) x, WASM_NUMERIC_OP(kExprI64UConvertSatF64)
 
+#define MEMORY_ZERO 0
+
+#define WASM_MEMORY_INIT(seg, dst, src, size) \
+  dst, src, size, WASM_NUMERIC_OP(kExprMemoryInit), MEMORY_ZERO, U32V_1(seg)
+#define WASM_MEMORY_DROP(seg) WASM_NUMERIC_OP(kExprMemoryDrop), U32V_1(seg)
+#define WASM_MEMORY_COPY(dst, src, size) \
+  dst, src, size, WASM_NUMERIC_OP(kExprMemoryCopy), MEMORY_ZERO
+#define WASM_MEMORY_FILL(dst, val, size) \
+  dst, val, size, WASM_NUMERIC_OP(kExprMemoryFill), MEMORY_ZERO
+#define WASM_TABLE_INIT(seg, dst, src, size) \
+  dst, src, size, WASM_NUMERIC_OP(kExprTableInit), TABLE_ZERO, U32V_1(seg)
+#define WASM_TABLE_DROP(seg) WASM_NUMERIC_OP(kExprTableDrop), U32V_1(seg)
+#define WASM_TABLE_COPY(dst, src, size) \
+  dst, src, size, WASM_NUMERIC_OP(kExprTableCopy), TABLE_ZERO
+
 //------------------------------------------------------------------------------
 // Memory Operations.
 //------------------------------------------------------------------------------
-#define WASM_GROW_MEMORY(x) x, kExprGrowMemory, 0
+#define WASM_GROW_MEMORY(x) x, kExprMemoryGrow, 0
 #define WASM_MEMORY_SIZE kExprMemorySize, 0
 
 #define SIG_ENTRY_v_v kWasmFunctionTypeCode, 0, 0

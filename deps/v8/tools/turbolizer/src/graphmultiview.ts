@@ -2,12 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {GraphView} from "./graph-view.js"
-import {ScheduleView} from "./schedule-view.js"
-import {SequenceView} from "./sequence-view.js"
-import {SourceResolver} from "./source-resolver.js"
-import {SelectionBroker} from "./selection-broker.js"
-import {View, PhaseView} from "./view.js"
+import { GraphView } from "../src/graph-view";
+import { ScheduleView } from "../src/schedule-view";
+import { SequenceView } from "../src/sequence-view";
+import { SourceResolver } from "../src/source-resolver";
+import { SelectionBroker } from "../src/selection-broker";
+import { View, PhaseView } from "../src/view";
+
+const multiviewID = "multiview";
+
+const toolboxHTML = `
+<div class="graph-toolbox">
+  <select id="phase-select">
+    <option disabled selected>(please open a file)</option>
+  </select>
+  <input id="search-input" type="text" title="search nodes for regex" alt="search node for regex" class="search-input"
+    placeholder="find with regexp&hellip;">
+  <label><input id="search-only-visible" type="checkbox" name="instruction-address" alt="Apply search to visible nodes only">only visible</label>
+</div>`;
 
 export class GraphMultiView extends View {
   sourceResolver: SourceResolver;
@@ -16,11 +28,12 @@ export class GraphMultiView extends View {
   schedule: ScheduleView;
   sequence: SequenceView;
   selectMenu: HTMLSelectElement;
-  currentPhaseView: View & PhaseView;
+  currentPhaseView: PhaseView;
 
   createViewElement() {
-    const pane = document.createElement('div');
-    pane.setAttribute('id', "multiview");
+    const pane = document.createElement("div");
+    pane.setAttribute("id", multiviewID);
+    pane.className = "viewpane";
     return pane;
   }
 
@@ -29,35 +42,50 @@ export class GraphMultiView extends View {
     const view = this;
     view.sourceResolver = sourceResolver;
     view.selectionBroker = selectionBroker;
-    const searchInput = document.getElementById("search-input") as HTMLInputElement;
+    const toolbox = document.createElement("div");
+    toolbox.className = "toolbox-anchor";
+    toolbox.innerHTML = toolboxHTML;
+    view.divNode.appendChild(toolbox);
+    const searchInput = toolbox.querySelector("#search-input") as HTMLInputElement;
+    const onlyVisibleCheckbox = toolbox.querySelector("#search-only-visible") as HTMLInputElement;
     searchInput.addEventListener("keyup", e => {
       if (!view.currentPhaseView) return;
-      view.currentPhaseView.searchInputAction(searchInput, e)
+      view.currentPhaseView.searchInputAction(searchInput, e, onlyVisibleCheckbox.checked);
+    });
+    view.divNode.addEventListener("keyup", (e: KeyboardEvent) => {
+      if (e.keyCode == 191) { // keyCode == '/'
+        searchInput.focus();
+      }
     });
     searchInput.setAttribute("value", window.sessionStorage.getItem("lastSearch") || "");
-    this.graph = new GraphView(id, selectionBroker,
-      (phaseName) => view.displayPhaseByName(phaseName));
-    this.schedule = new ScheduleView(id, selectionBroker);
-    this.sequence = new SequenceView(id, selectionBroker);
-    this.selectMenu = (<HTMLSelectElement>document.getElementById('display-selector'));
+    this.graph = new GraphView(this.divNode, selectionBroker, view.displayPhaseByName.bind(this),
+      toolbox.querySelector(".graph-toolbox"));
+    this.schedule = new ScheduleView(this.divNode, selectionBroker);
+    this.sequence = new SequenceView(this.divNode, selectionBroker);
+    this.selectMenu = toolbox.querySelector("#phase-select") as HTMLSelectElement;
   }
 
   initializeSelect() {
     const view = this;
-    view.selectMenu.innerHTML = '';
-    view.sourceResolver.forEachPhase((phase) => {
+    view.selectMenu.innerHTML = "";
+    view.sourceResolver.forEachPhase(phase => {
       const optionElement = document.createElement("option");
-      optionElement.text = phase.name;
+      let maxNodeId = "";
+      if (phase.type == "graph" && phase.highestNodeId != 0) {
+        maxNodeId = ` ${phase.highestNodeId}`;
+      }
+      optionElement.text = `${phase.name}${maxNodeId}`;
       view.selectMenu.add(optionElement);
     });
     this.selectMenu.onchange = function (this: HTMLSelectElement) {
-      window.sessionStorage.setItem("lastSelectedPhase", this.selectedIndex.toString());
-      view.displayPhase(view.sourceResolver.getPhase(this.selectedIndex));
-    }
+      const phaseIndex = this.selectedIndex;
+      window.sessionStorage.setItem("lastSelectedPhase", phaseIndex.toString());
+      view.displayPhase(view.sourceResolver.getPhase(phaseIndex));
+    };
   }
 
-  show(data, rememberedSelection) {
-    super.show(data, rememberedSelection);
+  show() {
+    super.show();
     this.initializeSelect();
     const lastPhaseIndex = +window.sessionStorage.getItem("lastSelectedPhase");
     const initialPhaseIndex = this.sourceResolver.repairPhaseId(lastPhaseIndex);
@@ -65,29 +93,27 @@ export class GraphMultiView extends View {
     this.displayPhase(this.sourceResolver.getPhase(initialPhaseIndex));
   }
 
-  initializeContent() { }
-
-  displayPhase(phase) {
-    if (phase.type == 'graph') {
-      this.displayPhaseView(this.graph, phase.data);
-    } else if (phase.type == 'schedule') {
-      this.displayPhaseView(this.schedule, phase);
-    } else if (phase.type == 'sequence') {
-      this.displayPhaseView(this.sequence, phase);
+  displayPhase(phase, selection?: Set<any>) {
+    if (phase.type == "graph") {
+      this.displayPhaseView(this.graph, phase, selection);
+    } else if (phase.type == "schedule") {
+      this.displayPhaseView(this.schedule, phase, selection);
+    } else if (phase.type == "sequence") {
+      this.displayPhaseView(this.sequence, phase, selection);
     }
   }
 
-  displayPhaseView(view, data) {
-    const rememberedSelection = this.hideCurrentPhase();
-    view.show(data, rememberedSelection);
-    document.getElementById("middle").classList.toggle("scrollable", view.isScrollable());
+  displayPhaseView(view: PhaseView, data, selection?: Set<any>) {
+    const rememberedSelection = selection ? selection : this.hideCurrentPhase();
+    view.initializeContent(data, rememberedSelection);
+    this.divNode.classList.toggle("scrollable", view.isScrollable());
     this.currentPhaseView = view;
   }
 
-  displayPhaseByName(phaseName) {
+  displayPhaseByName(phaseName, selection?: Set<any>) {
     const phaseId = this.sourceResolver.getPhaseIdByName(phaseName);
-    this.selectMenu.selectedIndex = phaseId - 1;
-    this.displayPhase(this.sourceResolver.getPhase(phaseId));
+    this.selectMenu.selectedIndex = phaseId;
+    this.displayPhase(this.sourceResolver.getPhase(phaseId), selection);
   }
 
   hideCurrentPhase() {
@@ -102,10 +128,6 @@ export class GraphMultiView extends View {
 
   onresize() {
     if (this.currentPhaseView) this.currentPhaseView.onresize();
-  }
-
-  deleteContent() {
-    this.hideCurrentPhase();
   }
 
   detachSelection() {

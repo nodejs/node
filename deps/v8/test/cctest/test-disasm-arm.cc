@@ -106,12 +106,13 @@ bool DisassembleAndCompare(byte* begin, UseRegex use_regex,
 // Set up V8 to a state where we can at least run the assembler and
 // disassembler. Declare the variables and allocate the data structures used
 // in the rest of the macros.
-#define SET_UP()                                            \
-  CcTest::InitializeVM();                                   \
-  Isolate* isolate = CcTest::i_isolate();                   \
-  HandleScope scope(isolate);                               \
-  byte* buffer = reinterpret_cast<byte*>(malloc(4 * 1024)); \
-  Assembler assm(AssemblerOptions{}, buffer, 4 * 1024);     \
+#define SET_UP()                                             \
+  CcTest::InitializeVM();                                    \
+  Isolate* isolate = CcTest::i_isolate();                    \
+  HandleScope scope(isolate);                                \
+  byte* buffer = reinterpret_cast<byte*>(malloc(4 * 1024));  \
+  Assembler assm(AssemblerOptions{},                         \
+                 ExternalAssemblerBuffer(buffer, 4 * 1024)); \
   bool failure = false;
 
 // This macro assembles one instruction using the preallocated assembler and
@@ -1511,12 +1512,13 @@ static void TestLoadLiteral(byte* buffer, Assembler* assm, bool* failure,
 
   const char *expected_string_template =
     (offset >= 0) ?
-    "e59f0%03x       ldr r0, [pc, #+%d] (addr %p)" :
-    "e51f0%03x       ldr r0, [pc, #%d] (addr %p)";
+    "e59f0%03x       ldr r0, [pc, #+%d] (addr 0x%08" PRIxPTR ")" :
+    "e51f0%03x       ldr r0, [pc, #%d] (addr 0x%08" PRIxPTR ")";
   char expected_string[80];
   snprintf(expected_string, sizeof(expected_string), expected_string_template,
-           abs(offset), offset,
-           progcounter + Instruction::kPcLoadDelta + offset);
+    abs(offset), offset,
+    reinterpret_cast<uintptr_t>(
+      progcounter + Instruction::kPcLoadDelta + offset));
   if (!DisassembleAndCompare(progcounter, kRawString, expected_string)) {
     *failure = true;
   }

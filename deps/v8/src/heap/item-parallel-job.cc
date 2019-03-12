@@ -119,7 +119,7 @@ void ItemParallelJob::Run(const std::shared_ptr<Counters>& async_counters) {
   // Wait for background tasks.
   for (size_t i = 0; i < num_tasks; i++) {
     if (cancelable_task_manager_->TryAbort(task_ids[i]) !=
-        CancelableTaskManager::kTaskAborted) {
+        TryAbortResult::kTaskAborted) {
       pending_tasks_->Wait();
     }
   }

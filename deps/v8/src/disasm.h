@@ -24,8 +24,8 @@ class NameConverter {
   virtual const char* NameOfConstant(byte* addr) const;
   virtual const char* NameInCode(byte* addr) const;
 
-  // Given a root-relative offset, returns either a name or nullptr if none is
-  // found.
+  // Given a root-register-relative offset, returns either a name or nullptr if
+  // none is found.
   // TODO(jgruber,v8:7989): This is a temporary solution until we can preserve
   // code comments through snapshotting.
   virtual const char* RootRelativeName(int offset) const { UNREACHABLE(); }

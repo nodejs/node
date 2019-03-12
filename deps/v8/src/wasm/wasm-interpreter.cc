@@ -8,6 +8,7 @@
 #include "src/wasm/wasm-interpreter.h"
 
 #include "src/assembler-inl.h"
+#include "src/base/overflowing-math.h"
 #include "src/boxed-float.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/conversions.h"
@@ -289,23 +290,19 @@ inline int64_t ExecuteI64ShrS(int64_t a, int64_t b, TrapReason* trap) {
 }
 
 inline uint32_t ExecuteI32Ror(uint32_t a, uint32_t b, TrapReason* trap) {
-  uint32_t shift = (b & 0x1F);
-  return (a >> shift) | (a << (32 - shift));
+  return (a >> (b & 0x1F)) | (a << ((32 - b) & 0x1F));
 }
 
 inline uint32_t ExecuteI32Rol(uint32_t a, uint32_t b, TrapReason* trap) {
-  uint32_t shift = (b & 0x1F);
-  return (a << shift) | (a >> (32 - shift));
+  return (a << (b & 0x1F)) | (a >> ((32 - b) & 0x1F));
 }
 
 inline uint64_t ExecuteI64Ror(uint64_t a, uint64_t b, TrapReason* trap) {
-  uint32_t shift = (b & 0x3F);
-  return (a >> shift) | (a << (64 - shift));
+  return (a >> (b & 0x3F)) | (a << ((64 - b) & 0x3F));
 }
 
 inline uint64_t ExecuteI64Rol(uint64_t a, uint64_t b, TrapReason* trap) {
-  uint32_t shift = (b & 0x3F);
-  return (a << shift) | (a >> (64 - shift));
+  return (a << (b & 0x3F)) | (a >> ((64 - b) & 0x3F));
 }
 
 inline float ExecuteF32Min(float a, float b, TrapReason* trap) {
@@ -858,14 +855,14 @@ class SideTable : public ZoneObject {
           break;
         }
         case kExprBr: {
-          BreakDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+          BranchDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
           TRACE("control @%u: Br[depth=%u]\n", i.pc_offset(), imm.depth);
           Control* c = &control_stack[control_stack.size() - imm.depth - 1];
           if (!unreachable) c->end_label->Ref(i.pc(), stack_height);
           break;
         }
         case kExprBrIf: {
-          BreakDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+          BranchDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
           TRACE("control @%u: BrIf[depth=%u]\n", i.pc_offset(), imm.depth);
           Control* c = &control_stack[control_stack.size() - imm.depth - 1];
           if (!unreachable) c->end_label->Ref(i.pc(), stack_height);
@@ -1244,7 +1241,7 @@ class ThreadImpl {
     pc_t pc;
     sp_t sp;
     size_t fp;
-    unsigned arity;
+    uint32_t arity;
   };
 
   friend class InterpretedFrameImpl;
@@ -1405,14 +1402,18 @@ class ThreadImpl {
 
   template <typename mtype>
   inline Address BoundsCheckMem(uint32_t offset, uint32_t index) {
-    size_t mem_size = instance_object_->memory_size();
-    if (sizeof(mtype) > mem_size) return kNullAddress;
-    if (offset > (mem_size - sizeof(mtype))) return kNullAddress;
-    if (index > (mem_size - sizeof(mtype) - offset)) return kNullAddress;
+    uint32_t effective_index = offset + index;
+    if (effective_index < index) {
+      return kNullAddress;  // wraparound => oob
+    }
+    if (!IsInBounds(effective_index, sizeof(mtype),
+                    instance_object_->memory_size())) {
+      return kNullAddress;  // oob
+    }
     // Compute the effective address of the access, making sure to condition
     // the index even in the in-bounds case.
     return reinterpret_cast<Address>(instance_object_->memory_start()) +
-           offset + (index & instance_object_->memory_mask());
+           (effective_index & instance_object_->memory_mask());
   }
 
   template <typename ctype, typename mtype>
@@ -1737,9 +1738,9 @@ class ThreadImpl {
       BINOP_CASE(F32x4Mul, f32x4, float4, 4, a * b)
       BINOP_CASE(F32x4Min, f32x4, float4, 4, a < b ? a : b)
       BINOP_CASE(F32x4Max, f32x4, float4, 4, a > b ? a : b)
-      BINOP_CASE(I32x4Add, i32x4, int4, 4, a + b)
-      BINOP_CASE(I32x4Sub, i32x4, int4, 4, a - b)
-      BINOP_CASE(I32x4Mul, i32x4, int4, 4, a * b)
+      BINOP_CASE(I32x4Add, i32x4, int4, 4, base::AddWithWraparound(a, b))
+      BINOP_CASE(I32x4Sub, i32x4, int4, 4, base::SubWithWraparound(a, b))
+      BINOP_CASE(I32x4Mul, i32x4, int4, 4, base::MulWithWraparound(a, b))
       BINOP_CASE(I32x4MinS, i32x4, int4, 4, a < b ? a : b)
       BINOP_CASE(I32x4MinU, i32x4, int4, 4,
                  static_cast<uint32_t>(a) < static_cast<uint32_t>(b) ? a : b)
@@ -1749,9 +1750,9 @@ class ThreadImpl {
       BINOP_CASE(S128And, i32x4, int4, 4, a & b)
       BINOP_CASE(S128Or, i32x4, int4, 4, a | b)
       BINOP_CASE(S128Xor, i32x4, int4, 4, a ^ b)
-      BINOP_CASE(I16x8Add, i16x8, int8, 8, a + b)
-      BINOP_CASE(I16x8Sub, i16x8, int8, 8, a - b)
-      BINOP_CASE(I16x8Mul, i16x8, int8, 8, a * b)
+      BINOP_CASE(I16x8Add, i16x8, int8, 8, base::AddWithWraparound(a, b))
+      BINOP_CASE(I16x8Sub, i16x8, int8, 8, base::SubWithWraparound(a, b))
+      BINOP_CASE(I16x8Mul, i16x8, int8, 8, base::MulWithWraparound(a, b))
       BINOP_CASE(I16x8MinS, i16x8, int8, 8, a < b ? a : b)
       BINOP_CASE(I16x8MinU, i16x8, int8, 8,
                  static_cast<uint16_t>(a) < static_cast<uint16_t>(b) ? a : b)
@@ -1762,9 +1763,9 @@ class ThreadImpl {
       BINOP_CASE(I16x8AddSaturateU, i16x8, int8, 8, SaturateAdd<uint16_t>(a, b))
       BINOP_CASE(I16x8SubSaturateS, i16x8, int8, 8, SaturateSub<int16_t>(a, b))
       BINOP_CASE(I16x8SubSaturateU, i16x8, int8, 8, SaturateSub<uint16_t>(a, b))
-      BINOP_CASE(I8x16Add, i8x16, int16, 16, a + b)
-      BINOP_CASE(I8x16Sub, i8x16, int16, 16, a - b)
-      BINOP_CASE(I8x16Mul, i8x16, int16, 16, a * b)
+      BINOP_CASE(I8x16Add, i8x16, int16, 16, base::AddWithWraparound(a, b))
+      BINOP_CASE(I8x16Sub, i8x16, int16, 16, base::SubWithWraparound(a, b))
+      BINOP_CASE(I8x16Mul, i8x16, int16, 16, base::MulWithWraparound(a, b))
       BINOP_CASE(I8x16MinS, i8x16, int16, 16, a < b ? a : b)
       BINOP_CASE(I8x16MinU, i8x16, int16, 16,
                  static_cast<uint8_t>(a) < static_cast<uint8_t>(b) ? a : b)
@@ -1792,12 +1793,12 @@ class ThreadImpl {
   }
       UNOP_CASE(F32x4Abs, f32x4, float4, 4, std::abs(a))
       UNOP_CASE(F32x4Neg, f32x4, float4, 4, -a)
-      UNOP_CASE(F32x4RecipApprox, f32x4, float4, 4, 1.0f / a)
-      UNOP_CASE(F32x4RecipSqrtApprox, f32x4, float4, 4, 1.0f / std::sqrt(a))
-      UNOP_CASE(I32x4Neg, i32x4, int4, 4, -a)
+      UNOP_CASE(F32x4RecipApprox, f32x4, float4, 4, base::Recip(a))
+      UNOP_CASE(F32x4RecipSqrtApprox, f32x4, float4, 4, base::RecipSqrt(a))
+      UNOP_CASE(I32x4Neg, i32x4, int4, 4, base::NegateWithWraparound(a))
       UNOP_CASE(S128Not, i32x4, int4, 4, ~a)
-      UNOP_CASE(I16x8Neg, i16x8, int8, 8, -a)
-      UNOP_CASE(I8x16Neg, i8x16, int16, 16, -a)
+      UNOP_CASE(I16x8Neg, i16x8, int8, 8, base::NegateWithWraparound(a))
+      UNOP_CASE(I8x16Neg, i8x16, int16, 16, base::NegateWithWraparound(a))
 #undef UNOP_CASE
 #define CMPOP_CASE(op, name, stype, out_stype, count, expr) \
   case kExpr##op: {                                         \
@@ -2191,13 +2192,15 @@ class ThreadImpl {
           break;
         }
         case kExprBr: {
-          BreakDepthImmediate<Decoder::kNoValidate> imm(&decoder, code->at(pc));
+          BranchDepthImmediate<Decoder::kNoValidate> imm(&decoder,
+                                                         code->at(pc));
           len = DoBreak(code, pc, imm.depth);
           TRACE("  br => @%zu\n", pc + len);
           break;
         }
         case kExprBrIf: {
-          BreakDepthImmediate<Decoder::kNoValidate> imm(&decoder, code->at(pc));
+          BranchDepthImmediate<Decoder::kNoValidate> imm(&decoder,
+                                                         code->at(pc));
           WasmValue cond = Pop();
           bool is_true = cond.to<uint32_t>() != 0;
           if (is_true) {
@@ -2475,7 +2478,7 @@ class ThreadImpl {
           ASMJS_STORE_CASE(F32AsmjsStoreMem, float, float);
           ASMJS_STORE_CASE(F64AsmjsStoreMem, double, double);
 #undef ASMJS_STORE_CASE
-        case kExprGrowMemory: {
+        case kExprMemoryGrow: {
           MemoryIndexImmediate<Decoder::kNoValidate> imm(&decoder,
                                                          code->at(pc));
           uint32_t delta_pages = Pop().to<uint32_t>();
@@ -2710,11 +2713,15 @@ class ThreadImpl {
     return {ExternalCallResult::EXTERNAL_RETURNED};
   }
 
-  ExternalCallResult CallExternalWasmFunction(
-      Isolate* isolate, Handle<WasmInstanceObject> instance,
-      const WasmCode* code, FunctionSig* sig) {
+  ExternalCallResult CallExternalWasmFunction(Isolate* isolate,
+                                              Handle<Object> object_ref,
+                                              const WasmCode* code,
+                                              FunctionSig* sig) {
+    wasm::WasmFeatures enabled_features =
+        wasm::WasmFeaturesFromIsolate(isolate);
+
     if (code->kind() == WasmCode::kWasmToJsWrapper &&
-        !IsJSCompatibleSignature(sig)) {
+        !IsJSCompatibleSignature(sig, enabled_features.bigint)) {
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kWasmTrapTypeError));
       return TryHandleException(isolate);
@@ -2770,18 +2777,17 @@ class ThreadImpl {
 
     // Wrap the arg_buffer and the code target data pointers in handles. As
     // these are aligned pointers, to the GC it will look like Smis.
-    Handle<Object> arg_buffer_obj(reinterpret_cast<Object*>(arg_buffer.data()),
-                                  isolate);
+    Handle<Object> arg_buffer_obj(
+        Object(reinterpret_cast<Address>(arg_buffer.data())), isolate);
     DCHECK(!arg_buffer_obj->IsHeapObject());
-    Handle<Object> code_entry_obj(
-        reinterpret_cast<Object*>(code->instruction_start()), isolate);
+    Handle<Object> code_entry_obj(Object(code->instruction_start()), isolate);
     DCHECK(!code_entry_obj->IsHeapObject());
 
     static_assert(compiler::CWasmEntryParameters::kNumParameters == 3,
                   "code below needs adaption");
     Handle<Object> args[compiler::CWasmEntryParameters::kNumParameters];
     args[compiler::CWasmEntryParameters::kCodeEntry] = code_entry_obj;
-    args[compiler::CWasmEntryParameters::kWasmInstance] = instance;
+    args[compiler::CWasmEntryParameters::kObjectRef] = object_ref;
     args[compiler::CWasmEntryParameters::kArgumentsBuffer] = arg_buffer_obj;
 
     Handle<Object> receiver = isolate->factory()->undefined_value();
@@ -2792,9 +2798,9 @@ class ThreadImpl {
           maybe_retval.is_null() ? " with exception" : "");
 
     if (maybe_retval.is_null()) {
-      // JSEntryStub may through a stack overflow before we actually get to wasm
-      // code or back to the interpreter, meaning the thread-in-wasm flag won't
-      // be cleared.
+      // JSEntry may throw a stack overflow before we actually get to wasm code
+      // or back to the interpreter, meaning the thread-in-wasm flag won't be
+      // cleared.
       if (trap_handler::IsThreadInWasm()) {
         trap_handler::ClearThreadInWasm();
       }
@@ -2844,19 +2850,18 @@ class ThreadImpl {
   }
 
   ExternalCallResult CallImportedFunction(uint32_t function_index) {
+    DCHECK_GT(module()->num_imported_functions, function_index);
     // Use a new HandleScope to avoid leaking / accumulating handles in the
     // outer scope.
     Isolate* isolate = instance_object_->GetIsolate();
     HandleScope handle_scope(isolate);
 
-    DCHECK_GT(module()->num_imported_functions, function_index);
-    Handle<WasmInstanceObject> instance;
     ImportedFunctionEntry entry(instance_object_, function_index);
-    instance = handle(entry.instance(), isolate);
+    Handle<Object> object_ref(entry.object_ref(), isolate);
     WasmCode* code =
         GetTargetCode(isolate->wasm_engine()->code_manager(), entry.target());
-    FunctionSig* sig = codemap()->module()->functions[function_index].sig;
-    return CallExternalWasmFunction(isolate, instance, code, sig);
+    FunctionSig* sig = module()->functions[function_index].sig;
+    return CallExternalWasmFunction(isolate, object_ref, code, sig);
   }
 
   ExternalCallResult CallIndirectFunction(uint32_t table_index,
@@ -2900,28 +2905,20 @@ class ThreadImpl {
       return {ExternalCallResult::SIGNATURE_MISMATCH};
     }
 
-    Handle<WasmInstanceObject> instance = handle(entry.instance(), isolate);
+    HandleScope scope(isolate);
+    FunctionSig* signature = module()->signatures[sig_index];
+    Handle<Object> object_ref = handle(entry.object_ref(), isolate);
     WasmCode* code =
         GetTargetCode(isolate->wasm_engine()->code_manager(), entry.target());
 
-    // Call either an internal or external WASM function.
-    HandleScope scope(isolate);
-    FunctionSig* signature = module()->signatures[sig_index];
-
-    if (code->kind() == WasmCode::kFunction) {
-      if (!instance_object_.is_identical_to(instance)) {
-        // Cross instance call.
-        return CallExternalWasmFunction(isolate, instance, code, signature);
-      }
-      return {ExternalCallResult::INTERNAL, codemap()->GetCode(code->index())};
+    if (!object_ref->IsWasmInstanceObject() || /* call to an import */
+        !instance_object_.is_identical_to(object_ref) /* cross-instance */) {
+      return CallExternalWasmFunction(isolate, object_ref, code, signature);
     }
 
-    // Call to external function.
-    if (code->kind() == WasmCode::kInterpreterEntry ||
-        code->kind() == WasmCode::kWasmToJsWrapper) {
-      return CallExternalWasmFunction(isolate, instance, code, signature);
-    }
-    return {ExternalCallResult::INVALID_FUNC};
+    DCHECK(code->kind() == WasmCode::kInterpreterEntry ||
+           code->kind() == WasmCode::kFunction);
+    return {ExternalCallResult::INTERNAL, codemap()->GetCode(code->index())};
   }
 
   inline Activation current_activation() {
@@ -3101,8 +3098,8 @@ class WasmInterpreterInternals : public ZoneObject {
 
 namespace {
 void NopFinalizer(const v8::WeakCallbackInfo<void>& data) {
-  Object** global_handle_location =
-      reinterpret_cast<Object**>(data.GetParameter());
+  Address* global_handle_location =
+      reinterpret_cast<Address*>(data.GetParameter());
   GlobalHandles::Destroy(global_handle_location);
 }
 
@@ -3110,8 +3107,7 @@ Handle<WasmInstanceObject> MakeWeak(
     Isolate* isolate, Handle<WasmInstanceObject> instance_object) {
   Handle<WasmInstanceObject> weak_instance =
       isolate->global_handles()->Create<WasmInstanceObject>(*instance_object);
-  Object** global_handle_location =
-      Handle<Object>::cast(weak_instance).location();
+  Address* global_handle_location = weak_instance.location();
   GlobalHandles::MakeWeak(global_handle_location, global_handle_location,
                           &NopFinalizer, v8::WeakCallbackType::kParameter);
   return weak_instance;

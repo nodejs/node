@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/code-generator.h"
+#include "src/compiler/backend/code-generator.h"
+#include "src/compiler/backend/instruction.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
-#include "src/compiler/instruction.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"

@@ -14,11 +14,15 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(DataHandler, Struct)
+
+CAST_ACCESSOR(DataHandler)
+
 ACCESSORS(DataHandler, smi_handler, Object, kSmiHandlerOffset)
 ACCESSORS(DataHandler, validity_cell, Object, kValidityCellOffset)
 
 int DataHandler::data_field_count() const {
-  return (map()->instance_size() - kSizeWithData0) / kPointerSize;
+  return (map()->instance_size() - kSizeWithData0) / kTaggedSize;
 }
 
 WEAK_ACCESSORS_CHECKED(DataHandler, data1, kData1Offset,

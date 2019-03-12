@@ -31,8 +31,9 @@
 
 #include "src/assembler.h"
 #include "src/eh-frame.h"
-#include "src/instruction-stream.h"
 #include "src/objects-inl.h"
+#include "src/ostreams.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/source-position-table.h"
 #include "src/wasm/wasm-code-manager.h"
 
@@ -195,8 +196,8 @@ uint64_t PerfJitLogger::GetTimestamp() {
   return (ts.tv_sec * kNsecPerSec) + ts.tv_nsec;
 }
 
-void PerfJitLogger::LogRecordedBuffer(AbstractCode* abstract_code,
-                                      SharedFunctionInfo* shared,
+void PerfJitLogger::LogRecordedBuffer(AbstractCode abstract_code,
+                                      SharedFunctionInfo shared,
                                       const char* name, int length) {
   if (FLAG_perf_basic_prof_only_functions &&
       (abstract_code->kind() != AbstractCode::INTERPRETED_FUNCTION &&
@@ -210,11 +211,11 @@ void PerfJitLogger::LogRecordedBuffer(AbstractCode* abstract_code,
 
   // We only support non-interpreted functions.
   if (!abstract_code->IsCode()) return;
-  Code* code = abstract_code->GetCode();
+  Code code = abstract_code->GetCode();
   DCHECK(code->raw_instruction_start() == code->address() + Code::kHeaderSize);
 
   // Debug info has to be emitted first.
-  if (FLAG_perf_prof && shared != nullptr) {
+  if (FLAG_perf_prof && !shared.is_null()) {
     // TODO(herhut): This currently breaks for js2wasm/wasm2js functions.
     if (code->kind() != Code::JS_TO_WASM_FUNCTION &&
         code->kind() != Code::WASM_TO_JS_FUNCTION) {
@@ -278,9 +279,9 @@ constexpr size_t kUnknownScriptNameStringLen =
 
 size_t GetScriptNameLength(const SourcePositionInfo& info) {
   if (!info.script.is_null()) {
-    Object* name_or_url = info.script->GetNameOrSourceURL();
+    Object name_or_url = info.script->GetNameOrSourceURL();
     if (name_or_url->IsString()) {
-      String* str = String::cast(name_or_url);
+      String str = String::cast(name_or_url);
       if (str->IsOneByteRepresentation()) return str->length();
       int length;
       str->ToCString(DISALLOW_NULLS, FAST_STRING_TRAVERSAL, &length);
@@ -291,12 +292,13 @@ size_t GetScriptNameLength(const SourcePositionInfo& info) {
 }
 
 Vector<const char> GetScriptName(const SourcePositionInfo& info,
-                                 std::unique_ptr<char[]>* storage) {
+                                 std::unique_ptr<char[]>* storage,
+                                 const DisallowHeapAllocation& no_gc) {
   if (!info.script.is_null()) {
-    Object* name_or_url = info.script->GetNameOrSourceURL();
+    Object name_or_url = info.script->GetNameOrSourceURL();
     if (name_or_url->IsSeqOneByteString()) {
-      SeqOneByteString* str = SeqOneByteString::cast(name_or_url);
-      return {reinterpret_cast<char*>(str->GetChars()),
+      SeqOneByteString str = SeqOneByteString::cast(name_or_url);
+      return {reinterpret_cast<char*>(str->GetChars(no_gc)),
               static_cast<size_t>(str->length())};
     } else if (name_or_url->IsString()) {
       int length;
@@ -322,7 +324,7 @@ SourcePositionInfo GetSourcePositionInfo(Handle<Code> code,
 
 }  // namespace
 
-void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
+void PerfJitLogger::LogWriteDebugInfo(Code code, SharedFunctionInfo shared) {
   // Compute the entry count and get the name of the script.
   uint32_t entry_count = 0;
   for (SourcePositionTableIterator iterator(code->SourcePositionTable());
@@ -377,7 +379,7 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
     // The extracted name may point into heap-objects, thus disallow GC.
     DisallowHeapAllocation no_gc;
     std::unique_ptr<char[]> name_storage;
-    Vector<const char> name_string = GetScriptName(info, &name_storage);
+    Vector<const char> name_string = GetScriptName(info, &name_storage, no_gc);
     LogWriteBytes(name_string.start(),
                   static_cast<uint32_t>(name_string.size()) + 1);
   }
@@ -385,7 +387,7 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
   LogWriteBytes(padding_bytes, padding);
 }
 
-void PerfJitLogger::LogWriteUnwindingInfo(Code* code) {
+void PerfJitLogger::LogWriteUnwindingInfo(Code code) {
   PerfJitCodeUnwindingInfo unwinding_info_header;
   unwinding_info_header.event_ = PerfJitCodeLoad::kUnwindingInfo;
   unwinding_info_header.time_stamp_ = GetTimestamp();
@@ -420,7 +422,7 @@ void PerfJitLogger::LogWriteUnwindingInfo(Code* code) {
   LogWriteBytes(padding_bytes, static_cast<int>(padding_size));
 }
 
-void PerfJitLogger::CodeMoveEvent(AbstractCode* from, AbstractCode* to) {
+void PerfJitLogger::CodeMoveEvent(AbstractCode from, AbstractCode to) {
   // We may receive a CodeMove event if a BytecodeArray object moves. Otherwise
   // code relocation is not supported.
   CHECK(from->IsBytecodeArray());

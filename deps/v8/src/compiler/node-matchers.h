@@ -13,6 +13,7 @@
 #include "src/double.h"
 #include "src/external-reference.h"
 #include "src/globals.h"
+#include "src/objects/heap-object.h"
 
 namespace v8 {
 namespace internal {
@@ -130,7 +131,8 @@ struct IntMatcher final : public ValueMatcher<T, kOpcode> {
   }
   bool IsNegativePowerOf2() const {
     return this->HasValue() && this->Value() < 0 &&
-           (-this->Value() & (-this->Value() - 1)) == 0;
+           ((this->Value() == kMinInt) ||
+            (-this->Value() & (-this->Value() - 1)) == 0);
   }
   bool IsNegative() const { return this->HasValue() && this->Value() < 0; }
 };
@@ -678,11 +680,13 @@ struct BaseWithIndexAndDisplacementMatcher {
       switch (from->opcode()) {
         case IrOpcode::kLoad:
         case IrOpcode::kPoisonedLoad:
+        case IrOpcode::kProtectedLoad:
         case IrOpcode::kInt32Add:
         case IrOpcode::kInt64Add:
           // Skip addressing uses.
           break;
         case IrOpcode::kStore:
+        case IrOpcode::kProtectedStore:
           // If the stored value is this node, it is not an addressing use.
           if (from->InputAt(2) == node) return false;
           // Otherwise it is used as an address and skipped.
@@ -780,7 +784,9 @@ struct WasmStackCheckMatcher {
 template <class BinopMatcher, IrOpcode::Value expected_opcode>
 struct StackCheckMatcher {
   StackCheckMatcher(Isolate* isolate, Node* compare)
-      : isolate_(isolate), compare_(compare) {}
+      : isolate_(isolate), compare_(compare) {
+    DCHECK_NOT_NULL(isolate);
+  }
   bool Matched() {
     // TODO(jgruber): Ideally, we could be more flexible here and also match the
     // same pattern with switched operands (i.e.: left is LoadStackPointer and

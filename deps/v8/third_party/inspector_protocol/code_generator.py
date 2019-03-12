@@ -266,6 +266,21 @@ def create_string_type_definition():
     }
 
 
+def create_binary_type_definition():
+    # pylint: disable=W0622
+    return {
+        "return_type": "Binary",
+        "pass_type": "const Binary&",
+        "to_pass_type": "%s",
+        "to_raw_type": "%s",
+        "to_rvalue": "%s",
+        "type": "Binary",
+        "raw_type": "Binary",
+        "raw_pass_type": "const Binary&",
+        "raw_return_type": "Binary",
+    }
+
+
 def create_primitive_type_definition(type):
     # pylint: disable=W0622
     typedefs = {
@@ -443,8 +458,10 @@ class Protocol(object):
         self.type_definitions["boolean"] = create_primitive_type_definition("boolean")
         self.type_definitions["object"] = create_object_type_definition()
         self.type_definitions["any"] = create_any_type_definition()
+        self.type_definitions["binary"] = create_binary_type_definition()
         for domain in self.json_api["domains"]:
             self.type_definitions[domain["domain"] + ".string"] = create_string_type_definition()
+            self.type_definitions[domain["domain"] + ".binary"] = create_binary_type_definition()
             if not ("types" in domain):
                 continue
             for type in domain["types"]:
@@ -457,6 +474,8 @@ class Protocol(object):
                     self.type_definitions[type_name] = self.resolve_type(type)
                 elif type["type"] == domain["domain"] + ".string":
                     self.type_definitions[type_name] = create_string_type_definition()
+                elif type["type"] == domain["domain"] + ".binary":
+                    self.type_definitions[type_name] = create_binary_type_definition()
                 else:
                     self.type_definitions[type_name] = create_primitive_type_definition(type["type"])
 

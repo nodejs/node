@@ -6,10 +6,7 @@
 
 
 class Derived extends RegExp {
-  constructor(a) {
-    // Syntax Error
-    const a = 1;
-  }
+  constructor(a) { throw "error" }
 }
 
 let o = Reflect.construct(RegExp, [], Derived);

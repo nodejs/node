@@ -14,4 +14,4 @@ let table = new WebAssembly.Table({element: "anyfunc",
   initial: 1, maximum:1000000});
 let instance = new WebAssembly.Instance(module, {x: {table:table}});
 
-assertThrows(() => table.grow(Infinity), RangeError);
+assertThrows(() => table.grow(Infinity), TypeError);

@@ -22,7 +22,7 @@ bool IsRename(Node* node) {
     case IrOpcode::kCheckHeapObject:
     case IrOpcode::kFinishRegion:
     case IrOpcode::kTypeGuard:
-      return true;
+      return !node->IsDead();
     default:
       return false;
   }
@@ -1209,8 +1209,8 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
 
 // static
 int LoadElimination::FieldIndexOf(int offset) {
-  DCHECK_EQ(0, offset % kPointerSize);
-  int field_index = offset / kPointerSize;
+  DCHECK(IsAligned(offset, kTaggedSize));
+  int field_index = offset / kTaggedSize;
   if (field_index >= static_cast<int>(kMaxTrackedFields)) return -1;
   DCHECK_LT(0, field_index);
   return field_index - 1;
@@ -1226,9 +1226,13 @@ int LoadElimination::FieldIndexOf(FieldAccess const& access) {
       UNREACHABLE();
       break;
     case MachineRepresentation::kWord32:
+      if (kInt32Size != kTaggedSize) {
+        return -1;  // We currently only track tagged pointer size fields.
+      }
+      break;
     case MachineRepresentation::kWord64:
-      if (rep != MachineType::PointerRepresentation()) {
-        return -1;  // We currently only track pointer size fields.
+      if (kInt64Size != kTaggedSize) {
+        return -1;  // We currently only track tagged pointer size fields.
       }
       break;
     case MachineRepresentation::kWord8:
@@ -1236,8 +1240,8 @@ int LoadElimination::FieldIndexOf(FieldAccess const& access) {
     case MachineRepresentation::kFloat32:
       return -1;  // Currently untracked.
     case MachineRepresentation::kFloat64:
-      if (kDoubleSize != kPointerSize) {
-        return -1;  // We currently only track pointer size fields.
+      if (kDoubleSize != kTaggedSize) {
+        return -1;  // We currently only track tagged pointer size fields.
       }
       break;
     case MachineRepresentation::kTaggedSigned:

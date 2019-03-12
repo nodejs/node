@@ -13,6 +13,7 @@
 #include "src/interpreter/bytecode-source-info.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/objects-inl.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
@@ -393,7 +394,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperation(Token::Value op,
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperationSmiLiteral(
-    Token::Value op, Smi* literal, int feedback_slot) {
+    Token::Value op, Smi literal, int feedback_slot) {
   switch (op) {
     case Token::Value::ADD:
       OutputAddSmi(literal->value(), feedback_slot);
@@ -571,8 +572,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadConstantPoolEntry(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(
-    v8::internal::Smi* smi) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(Smi smi) {
   int32_t raw_smi = smi->value();
   if (raw_smi == 0) {
     OutputLdaZero();
@@ -994,10 +994,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArrayFromIterable() {
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateObjectLiteral(
-    size_t constant_properties_entry, int literal_index, int flags,
-    Register output) {
-  OutputCreateObjectLiteral(constant_properties_entry, literal_index, flags,
-                            output);
+    size_t constant_properties_entry, int literal_index, int flags) {
+  OutputCreateObjectLiteral(constant_properties_entry, literal_index, flags);
   return *this;
 }
 
@@ -1344,6 +1342,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MarkHandler(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::MarkTryBegin(int handler_id,
                                                          Register context) {
+  // TODO(leszeks): Do we need to start a new basic block here? Could we simply
+  // get the current bytecode offset from the array writer instead?
   BytecodeLabel try_begin;
   Bind(&try_begin);
   handler_table_builder()->SetTryRegionStart(handler_id, try_begin.offset());

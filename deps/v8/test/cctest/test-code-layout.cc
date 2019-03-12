@@ -30,6 +30,7 @@ TEST(CodeLayoutWithoutUnwindingInfo) {
   code_desc.origin = nullptr;
   code_desc.unwinding_info = nullptr;
   code_desc.unwinding_info_size = 0;
+  code_desc.code_comments_size = 0;
 
   Handle<Code> code = CcTest::i_isolate()->factory()->NewCode(
       code_desc, Code::STUB, Handle<Object>::null());
@@ -68,6 +69,7 @@ TEST(CodeLayoutWithUnwindingInfo) {
   code_desc.origin = nullptr;
   code_desc.unwinding_info = unwinding_info;
   code_desc.unwinding_info_size = unwinding_info_size;
+  code_desc.code_comments_size = 0;
 
   Handle<Code> code = CcTest::i_isolate()->factory()->NewCode(
       code_desc, Code::STUB, Handle<Object>::null());

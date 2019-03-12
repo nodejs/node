@@ -80,7 +80,7 @@ MaybeHandle<BigInt> ThisBigIntValue(Isolate* isolate, Handle<Object> value,
   if (value->IsJSValue()) {
     // 2a. Assert: value.[[BigIntData]] is a BigInt value.
     // 2b. Return value.[[BigIntData]].
-    Object* data = JSValue::cast(*value)->value();
+    Object data = JSValue::cast(*value)->value();
     if (data->IsBigInt()) return handle(BigInt::cast(data), isolate);
   }
   // 3. Throw a TypeError exception.
@@ -92,8 +92,8 @@ MaybeHandle<BigInt> ThisBigIntValue(Isolate* isolate, Handle<Object> value,
       BigInt);
 }
 
-Object* BigIntToStringImpl(Handle<Object> receiver, Handle<Object> radix,
-                           Isolate* isolate, const char* builtin_name) {
+Object BigIntToStringImpl(Handle<Object> receiver, Handle<Object> radix,
+                          Isolate* isolate, const char* builtin_name) {
   // 1. Let x be ? thisBigIntValue(this value).
   Handle<BigInt> x;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(

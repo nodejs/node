@@ -19,6 +19,7 @@
 #include "src/conversions.h"
 #include "src/double.h"
 #include "src/objects-inl.h"
+#include "src/objects/heap-number-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -71,7 +72,7 @@ inline double DoubleToInteger(double x) {
   return (x >= 0) ? std::floor(x) : std::ceil(x);
 }
 
-
+// Implements most of https://tc39.github.io/ecma262/#sec-toint32.
 int32_t DoubleToInt32(double x) {
   if ((std::isfinite(x)) && (x <= INT_MAX) && (x >= INT_MIN)) {
     int32_t i = static_cast<int32_t>(x);
@@ -79,13 +80,18 @@ int32_t DoubleToInt32(double x) {
   }
   Double d(x);
   int exponent = d.Exponent();
+  uint64_t bits;
   if (exponent < 0) {
     if (exponent <= -Double::kSignificandSize) return 0;
-    return d.Sign() * static_cast<int32_t>(d.Significand() >> -exponent);
+    bits = d.Significand() >> -exponent;
   } else {
     if (exponent > 31) return 0;
-    return d.Sign() * static_cast<int32_t>(d.Significand() << exponent);
+    // Masking to a 32-bit value ensures that the result of the
+    // static_cast<int64_t> below is not the minimal int64_t value,
+    // which would overflow on multiplication with d.Sign().
+    bits = (d.Significand() << exponent) & 0xFFFFFFFFul;
   }
+  return static_cast<int32_t>(d.Sign() * static_cast<int64_t>(bits));
 }
 
 bool DoubleToSmiInteger(double value, int* smi_int_value) {
@@ -142,17 +148,17 @@ bool DoubleToUint32IfEqualToSelf(double value, uint32_t* uint32_value) {
   return false;
 }
 
-int32_t NumberToInt32(Object* number) {
+int32_t NumberToInt32(Object number) {
   if (number->IsSmi()) return Smi::ToInt(number);
   return DoubleToInt32(number->Number());
 }
 
-uint32_t NumberToUint32(Object* number) {
+uint32_t NumberToUint32(Object number) {
   if (number->IsSmi()) return Smi::ToInt(number);
   return DoubleToUint32(number->Number());
 }
 
-uint32_t PositiveNumberToUint32(Object* number) {
+uint32_t PositiveNumberToUint32(Object number) {
   if (number->IsSmi()) {
     int value = Smi::ToInt(number);
     if (value <= 0) return 0;
@@ -167,7 +173,7 @@ uint32_t PositiveNumberToUint32(Object* number) {
   return max;
 }
 
-int64_t NumberToInt64(Object* number) {
+int64_t NumberToInt64(Object number) {
   if (number->IsSmi()) return Smi::ToInt(number);
   double d = number->Number();
   if (std::isnan(d)) return 0;
@@ -180,7 +186,7 @@ int64_t NumberToInt64(Object* number) {
   return static_cast<int64_t>(d);
 }
 
-uint64_t PositiveNumberToUint64(Object* number) {
+uint64_t PositiveNumberToUint64(Object number) {
   if (number->IsSmi()) {
     int value = Smi::ToInt(number);
     if (value <= 0) return 0;
@@ -195,7 +201,7 @@ uint64_t PositiveNumberToUint64(Object* number) {
   return max;
 }
 
-bool TryNumberToSize(Object* number, size_t* result) {
+bool TryNumberToSize(Object number, size_t* result) {
   // Do not create handles in this function! Don't use SealHandleScope because
   // the function can be used concurrently.
   if (number->IsSmi()) {
@@ -224,13 +230,12 @@ bool TryNumberToSize(Object* number, size_t* result) {
   }
 }
 
-size_t NumberToSize(Object* number) {
+size_t NumberToSize(Object number) {
   size_t result = 0;
   bool is_valid = TryNumberToSize(number, &result);
   CHECK(is_valid);
   return result;
 }
-
 
 uint32_t DoubleToUint32(double x) {
   return static_cast<uint32_t>(DoubleToInt32(x));

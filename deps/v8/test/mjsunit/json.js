@@ -390,11 +390,9 @@ for (var i = 0x0000; i <= 0xFFFF; i++) {
     else if (string == '\n') expected = '\\n';
     else if (string == '\f') expected = '\\f';
     else if (string == '\r') expected = '\\r';
-  } else if (i < 0x20) {
+  } else if (i < 0x20 || (i >= 0xD800 && i <= 0xDFFF)) {
     // Step 2.c
     expected = '\\u' + i.toString(16).padStart(4, '0');
-    // TODO(mathias): Add i >= 0xD800 && i <= 0xDFFF case once
-    // --harmony-json-stringify is enabled by default.
   } else {
     expected = string;
   }

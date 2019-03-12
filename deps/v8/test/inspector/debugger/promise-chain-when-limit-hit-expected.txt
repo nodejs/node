@@ -23,7 +23,7 @@ Run expression 'console.trace()' with async chain len: 3
                 }
                 [1] : {
                     columnNumber : 33
-                    functionName : Promise.resolve.then
+                    functionName : 
                     lineNumber : 5
                     scriptId : <scriptId>
                     url : 
@@ -40,7 +40,7 @@ Run expression 'console.trace()' with async chain len: 3
                     }
                     [1] : {
                         columnNumber : 33
-                        functionName : Promise.resolve.then
+                        functionName : 
                         lineNumber : 5
                         scriptId : <scriptId>
                         url : 
@@ -58,7 +58,7 @@ Run expression 'console.trace()' with async chain len: 3
                         }
                         [1] : {
                             columnNumber : 33
-                            functionName : Promise.resolve.then
+                            functionName : 
                             lineNumber : 5
                             scriptId : <scriptId>
                             url : 
@@ -114,7 +114,7 @@ Run expression 'console.trace()' with async chain len: 3
                 }
                 [1] : {
                     columnNumber : 33
-                    functionName : Promise.resolve.then
+                    functionName : 
                     lineNumber : 5
                     scriptId : <scriptId>
                     url : 
@@ -131,7 +131,7 @@ Run expression 'console.trace()' with async chain len: 3
                     }
                     [1] : {
                         columnNumber : 33
-                        functionName : Promise.resolve.then
+                        functionName : 
                         lineNumber : 5
                         scriptId : <scriptId>
                         url : 
@@ -149,7 +149,7 @@ Run expression 'console.trace()' with async chain len: 3
                         }
                         [1] : {
                             columnNumber : 33
-                            functionName : Promise.resolve.then
+                            functionName : 
                             lineNumber : 5
                             scriptId : <scriptId>
                             url : 
@@ -205,7 +205,7 @@ Run expression 'console.trace()' with async chain len: 3
                 }
                 [1] : {
                     columnNumber : 33
-                    functionName : Promise.resolve.then
+                    functionName : 
                     lineNumber : 5
                     scriptId : <scriptId>
                     url : 
@@ -222,7 +222,7 @@ Run expression 'console.trace()' with async chain len: 3
                     }
                     [1] : {
                         columnNumber : 33
-                        functionName : Promise.resolve.then
+                        functionName : 
                         lineNumber : 5
                         scriptId : <scriptId>
                         url : 
@@ -240,7 +240,7 @@ Run expression 'console.trace()' with async chain len: 3
                         }
                         [1] : {
                             columnNumber : 33
-                            functionName : Promise.resolve.then
+                            functionName : 
                             lineNumber : 5
                             scriptId : <scriptId>
                             url : 
@@ -296,7 +296,7 @@ Run expression 'console.trace()' with async chain len: 3
                 }
                 [1] : {
                     columnNumber : 33
-                    functionName : Promise.resolve.then
+                    functionName : 
                     lineNumber : 5
                     scriptId : <scriptId>
                     url : 
@@ -313,7 +313,7 @@ Run expression 'console.trace()' with async chain len: 3
                     }
                     [1] : {
                         columnNumber : 33
-                        functionName : Promise.resolve.then
+                        functionName : 
                         lineNumber : 5
                         scriptId : <scriptId>
                         url : 
@@ -331,7 +331,7 @@ Run expression 'console.trace()' with async chain len: 3
                         }
                         [1] : {
                             columnNumber : 33
-                            functionName : Promise.resolve.then
+                            functionName : 
                             lineNumber : 5
                             scriptId : <scriptId>
                             url : 
@@ -387,7 +387,7 @@ Run expression 'console.trace()' with async chain len: 3
                 }
                 [1] : {
                     columnNumber : 33
-                    functionName : Promise.resolve.then
+                    functionName : 
                     lineNumber : 5
                     scriptId : <scriptId>
                     url : 
@@ -404,7 +404,7 @@ Run expression 'console.trace()' with async chain len: 3
                     }
                     [1] : {
                         columnNumber : 33
-                        functionName : Promise.resolve.then
+                        functionName : 
                         lineNumber : 5
                         scriptId : <scriptId>
                         url : 
@@ -422,7 +422,7 @@ Run expression 'console.trace()' with async chain len: 3
                         }
                         [1] : {
                             columnNumber : 33
-                            functionName : Promise.resolve.then
+                            functionName : 
                             lineNumber : 5
                             scriptId : <scriptId>
                             url : 
@@ -478,7 +478,7 @@ Run expression 'console.trace()' with async chain len: 3
                 }
                 [1] : {
                     columnNumber : 33
-                    functionName : Promise.resolve.then
+                    functionName : 
                     lineNumber : 5
                     scriptId : <scriptId>
                     url : 
@@ -495,7 +495,7 @@ Run expression 'console.trace()' with async chain len: 3
                     }
                     [1] : {
                         columnNumber : 33
-                        functionName : Promise.resolve.then
+                        functionName : 
                         lineNumber : 5
                         scriptId : <scriptId>
                         url : 
@@ -513,7 +513,7 @@ Run expression 'console.trace()' with async chain len: 3
                         }
                         [1] : {
                             columnNumber : 33
-                            functionName : Promise.resolve.then
+                            functionName : 
                             lineNumber : 5
                             scriptId : <scriptId>
                             url : 

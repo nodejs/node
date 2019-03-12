@@ -1,2 +1,6 @@
 #############################################################################
 # UBSan blacklist.
+
+# UBSan bug, fixed in LLVM r350779. Drop this suppression when that
+# revision has rolled into Chromium's bundled Clang.
+fun:*v8*internal*NewArray*

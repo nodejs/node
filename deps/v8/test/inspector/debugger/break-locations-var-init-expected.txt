@@ -15,12 +15,12 @@ function testFunction() {
   var y = |_|(a = 100);
   var z = |_|x + (a = 1) + (a = 2) + (a = 3) + |C|f();
   function f() {
-    for (let { x, y } = |_|{ x: 0, y: 1 }; y |_|> 0; --|_|y) { let z = |_|x + y; }
+    for (let { |_|x, |_|y } = |_|{ x: 0, y: 1 }; y |_|> 0; --|_|y) { let z = |_|x + y; }
   |R|}
   var b = obj1.|_|a;
   |_|(async function asyncF() {
     let r = |_|await Promise.|C|resolve(42);
-    |_|return r;
+    |_|return r;|R|
   |R|})|C|();
   |_|return promise;|R|
 }
@@ -89,6 +89,20 @@ testFunction (test.js:10:44)
     for (let { x, y } = #{ x: 0, y: 1 }; y > 0; --y) { let z = x + y; }
   }
 
+f (test.js:12:15)
+testFunction (test.js:10:44)
+(anonymous) (expr.js:0:0)
+  function f() {
+    for (let { #x, y } = { x: 0, y: 1 }; y > 0; --y) { let z = x + y; }
+  }
+
+f (test.js:12:18)
+testFunction (test.js:10:44)
+(anonymous) (expr.js:0:0)
+  function f() {
+    for (let { x, #y } = { x: 0, y: 1 }; y > 0; --y) { let z = x + y; }
+  }
+
 f (test.js:12:42)
 testFunction (test.js:10:44)
 (anonymous) (expr.js:0:0)
@@ -148,10 +162,40 @@ asyncF (test.js:17:4)
     #return r;
   })();
 
-asyncF (test.js:18:2)
-    return r;
-  #})();
-  return promise;
+asyncF (test.js:17:13)
+    let r = await Promise.resolve(42);
+    return r;#
+  })();
+
+(anonymous) (test.js:4:64)
+  var arr1 = [1];
+  var promise = Promise.resolve(1).then(x => x * 2).then(x => x #/ 2);
+  Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+
+(anonymous) (test.js:4:67)
+  var arr1 = [1];
+  var promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2#);
+  Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+
+(anonymous) (test.js:5:50)
+  var promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+  Promise.resolve(1).then(x => x * 2).then(x => x #/ 2);
+  promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+
+(anonymous) (test.js:5:53)
+  var promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+  Promise.resolve(1).then(x => x * 2).then(x => x / 2#);
+  promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+
+(anonymous) (test.js:6:60)
+  Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+  promise = Promise.resolve(1).then(x => x * 2).then(x => x #/ 2);
+  var a = 1;
+
+(anonymous) (test.js:6:63)
+  Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+  promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2#);
+  var a = 1;
 
 
 Running test: testStepIntoAfterBreakpoint

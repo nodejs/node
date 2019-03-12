@@ -77,27 +77,3 @@ assertDoesNotThrow(
 assertThrows(
     () => new Intl.RelativeTimeFormat('sr', {numeric: 'never'}),
     RangeError);
-
-// Throws only once during construction.
-// Check for all getters to prevent regression.
-// Preserve the order of getter initialization.
-let getCount = 0;
-let localeMatcher = -1;
-let style = -1;
-let numeric = -1;
-
-new Intl.RelativeTimeFormat('en-US', {
-  get localeMatcher() {
-    localeMatcher = ++getCount;
-  },
-  get style() {
-    style = ++getCount;
-  },
-  get numeric() {
-    numeric = ++getCount;
-  }
-});
-
-assertEquals(1, localeMatcher);
-assertEquals(2, style);
-assertEquals(3, numeric);

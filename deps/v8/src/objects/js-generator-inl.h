@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_GENERATOR_INL_H_
 
 #include "src/objects/js-generator.h"
+#include "src/objects/js-promise-inl.h"
 
 #include "src/objects-inl.h"  // Needed for write barriers
 
@@ -15,8 +16,15 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(JSGeneratorObject)
+OBJECT_CONSTRUCTORS_IMPL(JSGeneratorObject, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(JSAsyncFunctionObject, JSGeneratorObject)
+OBJECT_CONSTRUCTORS_IMPL(JSAsyncGeneratorObject, JSGeneratorObject)
+OBJECT_CONSTRUCTORS_IMPL(AsyncGeneratorRequest, Struct)
+
+CAST_ACCESSOR(JSAsyncFunctionObject)
 CAST_ACCESSOR(JSAsyncGeneratorObject)
+CAST_ACCESSOR(JSGeneratorObject)
+CAST_ACCESSOR(AsyncGeneratorRequest)
 
 ACCESSORS(JSGeneratorObject, function, JSFunction, kFunctionOffset)
 ACCESSORS(JSGeneratorObject, context, Context, kContextOffset)
@@ -26,6 +34,11 @@ SMI_ACCESSORS(JSGeneratorObject, resume_mode, kResumeModeOffset)
 SMI_ACCESSORS(JSGeneratorObject, continuation, kContinuationOffset)
 ACCESSORS(JSGeneratorObject, parameters_and_registers, FixedArray,
           kParametersAndRegistersOffset)
+
+ACCESSORS(AsyncGeneratorRequest, next, Object, kNextOffset)
+SMI_ACCESSORS(AsyncGeneratorRequest, resume_mode, kResumeModeOffset)
+ACCESSORS(AsyncGeneratorRequest, value, Object, kValueOffset)
+ACCESSORS(AsyncGeneratorRequest, promise, Object, kPromiseOffset)
 
 bool JSGeneratorObject::is_suspended() const {
   DCHECK_LT(kGeneratorExecuting, 0);
@@ -40,6 +53,8 @@ bool JSGeneratorObject::is_closed() const {
 bool JSGeneratorObject::is_executing() const {
   return continuation() == kGeneratorExecuting;
 }
+
+ACCESSORS(JSAsyncFunctionObject, promise, JSPromise, kPromiseOffset)
 
 ACCESSORS(JSAsyncGeneratorObject, queue, HeapObject, kQueueOffset)
 SMI_ACCESSORS(JSAsyncGeneratorObject, is_awaiting, kIsAwaitingOffset)

@@ -46,7 +46,7 @@ class SamplingCircularQueue {
              // completely processed by the consumer.
   };
 
-  struct V8_ALIGNED(PROCESSOR_CACHE_LINE_SIZE) Entry {
+  struct alignas(PROCESSOR_CACHE_LINE_SIZE) Entry {
     Entry() : marker(kEmpty) {}
     T record;
     base::Atomic32 marker;
@@ -55,8 +55,8 @@ class SamplingCircularQueue {
   Entry* Next(Entry* entry);
 
   Entry buffer_[Length];
-  V8_ALIGNED(PROCESSOR_CACHE_LINE_SIZE) Entry* enqueue_pos_;
-  V8_ALIGNED(PROCESSOR_CACHE_LINE_SIZE) Entry* dequeue_pos_;
+  alignas(PROCESSOR_CACHE_LINE_SIZE) Entry* enqueue_pos_;
+  alignas(PROCESSOR_CACHE_LINE_SIZE) Entry* dequeue_pos_;
 
   DISALLOW_COPY_AND_ASSIGN(SamplingCircularQueue);
 };

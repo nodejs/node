@@ -52,6 +52,7 @@ source_set("gtest") {
     # TODO(crbug.com/829773): Remove this after transitioning off <tr1/tuple>.
     "custom/gmock/internal/custom/gmock-port.h",
     "src/googletest/include/gtest/gtest-death-test.h",
+    "src/googletest/include/gtest/gtest-matchers.h",
     "src/googletest/include/gtest/gtest-message.h",
     "src/googletest/include/gtest/gtest-param-test.h",
     "src/googletest/include/gtest/gtest-printers.h",
@@ -75,6 +76,7 @@ source_set("gtest") {
     "src/googletest/src/gtest-death-test.cc",
     "src/googletest/src/gtest-filepath.cc",
     "src/googletest/src/gtest-internal-inl.h",
+    "src/googletest/src/gtest-matchers.cc",
     "src/googletest/src/gtest-port.cc",
     "src/googletest/src/gtest-printers.cc",
     "src/googletest/src/gtest-test-part.cc",
@@ -93,7 +95,10 @@ source_set("gtest") {
   deps = []
 
   if (is_fuchsia) {
-    deps += [ "//third_party/fuchsia-sdk:fdio" ]
+    deps += [
+      "//third_party/fuchsia-sdk/sdk:fdio",
+      "//third_party/fuchsia-sdk/sdk:zx",
+    ]
   }
 }
 
@@ -116,16 +121,21 @@ source_set("gmock") {
   sources = [
     "src/googlemock/include/gmock/gmock-actions.h",
     "src/googlemock/include/gmock/gmock-cardinalities.h",
+    "src/googlemock/include/gmock/gmock-function-mocker.h",
     "src/googlemock/include/gmock/gmock-generated-actions.h",
     "src/googlemock/include/gmock/gmock-generated-function-mockers.h",
     "src/googlemock/include/gmock/gmock-generated-matchers.h",
     "src/googlemock/include/gmock/gmock-generated-nice-strict.h",
     "src/googlemock/include/gmock/gmock-matchers.h",
+    "src/googlemock/include/gmock/gmock-more-actions.h",
+    "src/googlemock/include/gmock/gmock-more-matchers.h",
+    "src/googlemock/include/gmock/gmock-nice-strict.h",
     "src/googlemock/include/gmock/gmock-spec-builders.h",
     "src/googlemock/include/gmock/gmock.h",
     "src/googlemock/include/gmock/internal/gmock-generated-internal-utils.h",
     "src/googlemock/include/gmock/internal/gmock-internal-utils.h",
     "src/googlemock/include/gmock/internal/gmock-port.h",
+    "src/googlemock/include/gmock/internal/gmock-pp.h",
 
     # gmock helpers.
     "custom/gmock/internal/custom/gmock-port.h",

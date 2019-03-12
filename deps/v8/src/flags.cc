@@ -10,9 +10,10 @@
 #include <sstream>
 
 #include "src/allocation.h"
-#include "src/assembler.h"
 #include "src/base/functional.h"
 #include "src/base/platform/platform.h"
+#include "src/cpu-features.h"
+#include "src/memcopy.h"
 #include "src/ostreams.h"
 #include "src/utils.h"
 #include "src/wasm/wasm-limits.h"
@@ -43,7 +44,6 @@ struct Flag {
     TYPE_FLOAT,
     TYPE_SIZE_T,
     TYPE_STRING,
-    TYPE_ARGS
   };
 
   FlagType type_;           // What type of flag, bool, int, or string.
@@ -107,11 +107,6 @@ struct Flag {
     owns_ptr_ = owns_ptr;
   }
 
-  JSArguments* args_variable() const {
-    DCHECK(type_ == TYPE_ARGS);
-    return reinterpret_cast<JSArguments*>(valptr_);
-  }
-
   bool bool_default() const {
     DCHECK(type_ == TYPE_BOOL);
     return *reinterpret_cast<const bool*>(defptr_);
@@ -147,11 +142,6 @@ struct Flag {
     return *reinterpret_cast<const char* const *>(defptr_);
   }
 
-  JSArguments args_default() const {
-    DCHECK(type_ == TYPE_ARGS);
-    return *reinterpret_cast<const JSArguments*>(defptr_);
-  }
-
   // Compare this flag's current value against the default.
   bool IsDefault() const {
     switch (type_) {
@@ -176,8 +166,6 @@ struct Flag {
         if (str1 == nullptr) return str2 == nullptr;
         return strcmp(str1, str2) == 0;
       }
-      case TYPE_ARGS:
-        return args_variable()->argc == 0;
     }
     UNREACHABLE();
   }
@@ -209,9 +197,6 @@ struct Flag {
       case TYPE_STRING:
         set_string_value(string_default(), false);
         break;
-      case TYPE_ARGS:
-        *args_variable() = args_default();
-        break;
     }
   }
 };
@@ -239,7 +224,6 @@ static const char* Type2String(Flag::FlagType type) {
     case Flag::TYPE_SIZE_T:
       return "size_t";
     case Flag::TYPE_STRING: return "string";
-    case Flag::TYPE_ARGS: return "arguments";
   }
   UNREACHABLE();
 }
@@ -275,16 +259,6 @@ std::ostream& operator<<(std::ostream& os, const Flag& flag) {  // NOLINT
       os << (str ? str : "nullptr");
       break;
     }
-    case Flag::TYPE_ARGS: {
-      JSArguments args = *flag.args_variable();
-      if (args.argc > 0) {
-        os << args[0];
-        for (int i = 1; i < args.argc; i++) {
-          os << args[i];
-        }
-      }
-      break;
-    }
   }
   return os;
 }
@@ -293,15 +267,9 @@ std::ostream& operator<<(std::ostream& os, const Flag& flag) {  // NOLINT
 // static
 std::vector<const char*>* FlagList::argv() {
   std::vector<const char*>* args = new std::vector<const char*>(8);
-  Flag* args_flag = nullptr;
   for (size_t i = 0; i < num_flags; ++i) {
     Flag* f = &flags[i];
     if (!f->IsDefault()) {
-      if (f->type() == Flag::TYPE_ARGS) {
-        DCHECK_NULL(args_flag);
-        args_flag = f;  // Must be last in arguments.
-        continue;
-      }
       {
         bool disabled = f->type() == Flag::TYPE_BOOL && !*f->bool_variable();
         std::ostringstream os;
@@ -313,15 +281,6 @@ std::vector<const char*>* FlagList::argv() {
         os << *f;
         args->push_back(StrDup(os.str().c_str()));
       }
-    }
-  }
-  if (args_flag != nullptr) {
-    std::ostringstream os;
-    os << "--" << args_flag->name();
-    args->push_back(StrDup(os.str().c_str()));
-    JSArguments jsargs = *args_flag->args_variable();
-    for (int j = 0; j < jsargs.argc; j++) {
-      args->push_back(StrDup(jsargs[j]));
     }
   }
   return args;
@@ -454,8 +413,7 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
 
       // if we still need a flag value, use the next argument if available
       if (flag->type() != Flag::TYPE_BOOL &&
-          flag->type() != Flag::TYPE_MAYBE_BOOL &&
-          flag->type() != Flag::TYPE_ARGS && value == nullptr) {
+          flag->type() != Flag::TYPE_MAYBE_BOOL && value == nullptr) {
         if (i < *argc) {
           value = argv[i++];
         }
@@ -503,20 +461,6 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
         case Flag::TYPE_STRING:
           flag->set_string_value(value ? StrDup(value) : nullptr, true);
           break;
-        case Flag::TYPE_ARGS: {
-          int start_pos = (value == nullptr) ? i : i - 1;
-          int js_argc = *argc - start_pos;
-          const char** js_argv = NewArray<const char*>(js_argc);
-          if (value != nullptr) {
-            js_argv[0] = StrDup(value);
-          }
-          for (int k = i; k < *argc; k++) {
-            js_argv[k - start_pos] = StrDup(argv[k]);
-          }
-          *flag->args_variable() = JSArguments::Create(js_argc, js_argv);
-          i = *argc;  // Consume all arguments
-          break;
-        }
       }
 
       // handle errors

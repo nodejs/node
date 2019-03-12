@@ -145,6 +145,10 @@
   assertEquals(-4n, BigInt.asIntN(3, "12"));
   assertEquals(0x123456789abcdefn,
                BigInt.asIntN(64, 0xabcdef0123456789abcdefn));
+}{
+  // Regression test for crbug.com/v8/8426.
+  assertEquals(-0x8000000000000000n,
+               BigInt.asIntN(64, -0x8000000000000000n));
 }
 
 // BigInt.asUintN

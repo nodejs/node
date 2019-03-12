@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-module array {
+namespace array {
   macro LoadWithHoleCheck<Elements: type>(
       elements: FixedArrayBase, index: Smi): Object
       labels IfHole;
 
-  LoadWithHoleCheck<FixedArray>(elements: FixedArrayBase, index: Smi): Object
+  LoadWithHoleCheck<FixedArray>(implicit context: Context)(
+      elements: FixedArrayBase, index: Smi): Object
       labels IfHole {
     const elements: FixedArray = UnsafeCast<FixedArray>(elements);
     const element: Object = elements[index];
@@ -15,8 +16,8 @@ module array {
     return element;
   }
 
-  LoadWithHoleCheck<FixedDoubleArray>(elements: FixedArrayBase, index: Smi):
-      Object
+  LoadWithHoleCheck<FixedDoubleArray>(implicit context: Context)(
+      elements: FixedArrayBase, index: Smi): Object
       labels IfHole {
     const elements: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
     const element: float64 = LoadDoubleWithHoleCheck(elements, index)
@@ -44,7 +45,7 @@ module array {
 
         const same: Boolean = StrictEqual(searchElement, element);
         if (same == True) {
-          assert(IsFastJSArray(array, context));
+          assert(Is<FastJSArray>(array));
           return k;
         }
       }
@@ -53,7 +54,7 @@ module array {
       --k;
     }
 
-    assert(IsFastJSArray(array, context));
+    assert(Is<FastJSArray>(array));
     return -1;
   }
 
@@ -83,10 +84,8 @@ module array {
       context: Context, receiver: JSReceiver, searchElement: Object,
       from: Number): Object
       labels Slow {
-    EnsureFastJSArray(context, receiver) otherwise Slow;
-    const array: JSArray = UnsafeCast<JSArray>(receiver);
-
-    const length: Smi = array.length_fast;
+    const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
+    const length: Smi = array.length;
     if (length == 0) return SmiConstant(-1);
 
     const fromSmi: Smi = Cast<Smi>(from) otherwise Slow;
@@ -100,7 +99,7 @@ module array {
         context, array, fromSmi, searchElement);
   }
 
-  macro GenericArrayLastIndexOf(
+  transitioning macro GenericArrayLastIndexOf(
       context: Context, object: JSReceiver, searchElement: Object,
       from: Number): Object {
     let k: Number = from;
@@ -108,12 +107,12 @@ module array {
     // 7. Repeat, while k >= 0.
     while (k >= 0) {
       // a. Let kPresent be ? HasProperty(O, ! ToString(k)).
-      const kPresent: Boolean = HasProperty(context, object, k);
+      const kPresent: Boolean = HasProperty(object, k);
 
       // b. If kPresent is true, then.
       if (kPresent == True) {
         // i. Let elementK be ? Get(O, ! ToString(k)).
-        const element: Object = GetProperty(context, object, k);
+        const element: Object = GetProperty(object, k);
 
         // ii. Let same be the result of performing Strict Equality Comparison
         //     searchElement === elementK.
@@ -132,13 +131,13 @@ module array {
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.lastIndexOf
-  javascript builtin ArrayPrototypeLastIndexOf(
+  transitioning javascript builtin ArrayPrototypeLastIndexOf(
       context: Context, receiver: Object, ...arguments): Object {
     // 1. Let O be ? ToObject(this value).
     const object: JSReceiver = ToObject_Inline(context, receiver);
 
     // 2. Let len be ? ToLength(? Get(O, "length")).
-    const length: Number = GetLengthProperty(context, object);
+    const length: Number = GetLengthProperty(object);
 
     // 3. If len is 0, return -1.
     if (length == SmiConstant(0)) return SmiConstant(-1);

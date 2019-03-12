@@ -5,6 +5,8 @@
 #ifndef V8_WASM_FUNCTION_COMPILER_H_
 #define V8_WASM_FUNCTION_COMPILER_H_
 
+#include "src/trap-handler/trap-handler.h"
+#include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
@@ -13,112 +15,99 @@
 namespace v8 {
 namespace internal {
 
+class AssemblerBuffer;
 class Counters;
 
 namespace compiler {
+class Pipeline;
 class TurbofanWasmCompilationUnit;
 }  // namespace compiler
 
 namespace wasm {
 
 class LiftoffCompilationUnit;
-struct ModuleWireBytes;
 class NativeModule;
 class WasmCode;
+class WasmCompilationUnit;
 class WasmEngine;
 struct WasmFunction;
 
-enum RuntimeExceptionSupport : bool {
-  kRuntimeExceptionSupport = true,
-  kNoRuntimeExceptionSupport = false
+class WasmInstructionBuffer final {
+ public:
+  ~WasmInstructionBuffer();
+  std::unique_ptr<AssemblerBuffer> CreateView();
+  std::unique_ptr<uint8_t[]> ReleaseBuffer();
+
+  static std::unique_ptr<WasmInstructionBuffer> New();
+
+ private:
+  WasmInstructionBuffer() = delete;
+  DISALLOW_COPY_AND_ASSIGN(WasmInstructionBuffer);
 };
 
-enum UseTrapHandler : bool { kUseTrapHandler = true, kNoTrapHandler = false };
+struct WasmCompilationResult {
+ public:
+  MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(WasmCompilationResult);
 
-enum LowerSimd : bool { kLowerSimd = true, kNoLowerSimd = false };
+  explicit WasmCompilationResult(WasmError error) : error(std::move(error)) {}
 
-// The {ModuleEnv} encapsulates the module data that is used during compilation.
-// ModuleEnvs are shareable across multiple compilations.
-struct ModuleEnv {
-  // A pointer to the decoded module's static representation.
-  const WasmModule* const module;
+  bool succeeded() const {
+    DCHECK_EQ(code_desc.buffer != nullptr, error.empty());
+    return error.empty();
+  }
+  operator bool() const { return succeeded(); }
 
-  // True if trap handling should be used in compiled code, rather than
-  // compiling in bounds checks for each memory access.
-  const UseTrapHandler use_trap_handler;
+  CodeDesc code_desc;
+  std::unique_ptr<uint8_t[]> instr_buffer;
+  uint32_t frame_slot_count = 0;
+  size_t safepoint_table_offset = 0;
+  size_t handler_table_offset = 0;
+  OwnedVector<byte> source_positions;
+  OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions;
 
-  // If the runtime doesn't support exception propagation,
-  // we won't generate stack checks, and trap handling will also
-  // be generated differently.
-  const RuntimeExceptionSupport runtime_exception_support;
-
-  // The smallest size of any memory that could be used with this module, in
-  // bytes.
-  const uint64_t min_memory_size;
-
-  // The largest size of any memory that could be used with this module, in
-  // bytes.
-  const uint64_t max_memory_size;
-
-  const LowerSimd lower_simd;
-
-  constexpr ModuleEnv(const WasmModule* module, UseTrapHandler use_trap_handler,
-                      RuntimeExceptionSupport runtime_exception_support,
-                      LowerSimd lower_simd = kNoLowerSimd)
-      : module(module),
-        use_trap_handler(use_trap_handler),
-        runtime_exception_support(runtime_exception_support),
-        min_memory_size(module ? module->initial_pages * uint64_t{kWasmPageSize}
-                               : 0),
-        max_memory_size(module && module->has_maximum_pages
-                            ? (module->maximum_pages * uint64_t{kWasmPageSize})
-                            : kSpecMaxWasmMemoryBytes),
-        lower_simd(lower_simd) {}
+  WasmError error;
 };
 
 class WasmCompilationUnit final {
  public:
-  static ExecutionTier GetDefaultExecutionTier();
+  static ExecutionTier GetDefaultExecutionTier(const WasmModule*);
 
   // If constructing from a background thread, pass in a Counters*, and ensure
   // that the Counters live at least as long as this compilation unit (which
   // typically means to hold a std::shared_ptr<Counters>).
   // If used exclusively from a foreground thread, Isolate::counters() may be
   // used by callers to pass Counters.
-  WasmCompilationUnit(WasmEngine* wasm_engine, ModuleEnv*, NativeModule*,
-                      FunctionBody, int index, Counters*,
-                      ExecutionTier = GetDefaultExecutionTier());
+  WasmCompilationUnit(WasmEngine*, int index, ExecutionTier);
 
   ~WasmCompilationUnit();
 
-  void ExecuteCompilation(WasmFeatures* detected);
-  WasmCode* FinishCompilation(ErrorThrower* thrower);
+  WasmCompilationResult ExecuteCompilation(
+      CompilationEnv*, const std::shared_ptr<WireBytesStorage>&, Counters*,
+      WasmFeatures* detected);
 
-  static WasmCode* CompileWasmFunction(
-      Isolate* isolate, NativeModule* native_module, WasmFeatures* detected,
-      ErrorThrower* thrower, ModuleEnv* env, const WasmFunction* function,
-      ExecutionTier = GetDefaultExecutionTier());
+  WasmCode* Publish(WasmCompilationResult, NativeModule*);
 
-  NativeModule* native_module() const { return native_module_; }
-  ExecutionTier mode() const { return mode_; }
+  ExecutionTier tier() const { return tier_; }
+
+  static void CompileWasmFunction(Isolate*, NativeModule*,
+                                  WasmFeatures* detected, const WasmFunction*,
+                                  ExecutionTier);
 
  private:
   friend class LiftoffCompilationUnit;
   friend class compiler::TurbofanWasmCompilationUnit;
 
-  ModuleEnv* env_;
-  WasmEngine* wasm_engine_;
-  FunctionBody func_body_;
-  Counters* counters_;
-  int func_index_;
-  NativeModule* native_module_;
-  ExecutionTier mode_;
-  // LiftoffCompilationUnit, set if {mode_ == kLiftoff}.
+  WasmEngine* const wasm_engine_;
+  const int func_index_;
+  ExecutionTier tier_;
+  WasmCode* result_ = nullptr;
+
+  // LiftoffCompilationUnit, set if {tier_ == kLiftoff}.
   std::unique_ptr<LiftoffCompilationUnit> liftoff_unit_;
-  // TurbofanWasmCompilationUnit, set if {mode_ == kTurbofan}.
+  // TurbofanWasmCompilationUnit, set if {tier_ == kTurbofan}.
   std::unique_ptr<compiler::TurbofanWasmCompilationUnit> turbofan_unit_;
 
-  void SwitchMode(ExecutionTier new_mode);
+  void SwitchTier(ExecutionTier new_tier);
 
   DISALLOW_COPY_AND_ASSIGN(WasmCompilationUnit);
 };

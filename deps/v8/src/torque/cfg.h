@@ -19,11 +19,15 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
+class ControlFlowGraph;
+
 class Block {
  public:
-  explicit Block(size_t id, base::Optional<Stack<const Type*>> input_types,
+  explicit Block(ControlFlowGraph* cfg, size_t id,
+                 base::Optional<Stack<const Type*>> input_types,
                  bool is_deferred)
-      : input_types_(std::move(input_types)),
+      : cfg_(cfg),
+        input_types_(std::move(input_types)),
         id_(id),
         is_deferred_(is_deferred) {}
   void Add(Instruction instruction) {
@@ -34,6 +38,12 @@ class Block {
   bool HasInputTypes() const { return input_types_ != base::nullopt; }
   const Stack<const Type*>& InputTypes() const { return *input_types_; }
   void SetInputTypes(const Stack<const Type*>& input_types);
+  void Retype() {
+    Stack<const Type*> current_stack = InputTypes();
+    for (const Instruction& instruction : instructions()) {
+      instruction.TypeInstruction(&current_stack, cfg_);
+    }
+  }
 
   const std::vector<Instruction>& instructions() const { return instructions_; }
   bool IsComplete() const {
@@ -43,6 +53,7 @@ class Block {
   bool IsDeferred() const { return is_deferred_; }
 
  private:
+  ControlFlowGraph* cfg_;
   std::vector<Instruction> instructions_;
   base::Optional<Stack<const Type*>> input_types_;
   const size_t id_;
@@ -58,7 +69,8 @@ class ControlFlowGraph {
 
   Block* NewBlock(base::Optional<Stack<const Type*>> input_types,
                   bool is_deferred) {
-    blocks_.emplace_back(next_block_id_++, std::move(input_types), is_deferred);
+    blocks_.emplace_back(this, next_block_id_++, std::move(input_types),
+                         is_deferred);
     return &blocks_.back();
   }
   void PlaceBlock(Block* block) { placed_blocks_.push_back(block); }
@@ -133,13 +145,40 @@ class CfgAssembler {
   void Poke(StackRange destination, StackRange origin,
             base::Optional<const Type*> type);
   void Print(std::string s);
+  void AssertionFailure(std::string message);
   void Unreachable();
   void DebugBreak();
 
+  void PrintCurrentStack(std::ostream& s) { s << "stack: " << current_stack_; }
+
  private:
+  friend class CfgAssemblerScopedTemporaryBlock;
   Stack<const Type*> current_stack_;
   ControlFlowGraph cfg_;
   Block* current_block_ = cfg_.start();
+};
+
+class CfgAssemblerScopedTemporaryBlock {
+ public:
+  CfgAssemblerScopedTemporaryBlock(CfgAssembler* assembler, Block* block)
+      : assembler_(assembler), saved_block_(block) {
+    saved_stack_ = block->InputTypes();
+    DCHECK(!assembler->CurrentBlockIsComplete());
+    std::swap(saved_block_, assembler->current_block_);
+    std::swap(saved_stack_, assembler->current_stack_);
+    assembler->cfg_.PlaceBlock(block);
+  }
+
+  ~CfgAssemblerScopedTemporaryBlock() {
+    DCHECK(assembler_->CurrentBlockIsComplete());
+    std::swap(saved_block_, assembler_->current_block_);
+    std::swap(saved_stack_, assembler_->current_stack_);
+  }
+
+ private:
+  CfgAssembler* assembler_;
+  Stack<const Type*> saved_stack_;
+  Block* saved_block_;
 };
 
 }  // namespace torque

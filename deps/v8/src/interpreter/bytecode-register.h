@@ -91,7 +91,7 @@ class V8_EXPORT_PRIVATE Register final {
 
   static const int kInvalidIndex = kMaxInt;
   static const int kRegisterFileStartOffset =
-      InterpreterFrameConstants::kRegisterFileFromFp / kPointerSize;
+      InterpreterFrameConstants::kRegisterFileFromFp / kSystemPointerSize;
 
   int index_;
 };

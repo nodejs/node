@@ -17,8 +17,8 @@ class ZoneHandleSet final {
  public:
   ZoneHandleSet() : data_(kEmptyTag) {}
   explicit ZoneHandleSet(Handle<T> handle)
-      : data_(bit_cast<intptr_t>(handle.address()) | kSingletonTag) {
-    DCHECK(IsAligned(bit_cast<intptr_t>(handle.address()), kPointerAlignment));
+      : data_(handle.address() | kSingletonTag) {
+    DCHECK(IsAligned(handle.address(), kPointerAlignment));
   }
 
   bool is_empty() const { return data_ == kEmptyTag; }
@@ -41,10 +41,10 @@ class ZoneHandleSet final {
   Handle<T> operator[](size_t i) const { return at(i); }
 
   void insert(Handle<T> handle, Zone* zone) {
-    T** const value = bit_cast<T**>(handle.address());
-    DCHECK(IsAligned(bit_cast<intptr_t>(value), kPointerAlignment));
+    Address* const value = reinterpret_cast<Address*>(handle.address());
+    DCHECK(IsAligned(reinterpret_cast<Address>(value), kPointerAlignment));
     if ((data_ & kTagMask) == kEmptyTag) {
-      data_ = bit_cast<intptr_t>(value) | kSingletonTag;
+      data_ = reinterpret_cast<Address>(value) | kSingletonTag;
     } else if ((data_ & kTagMask) == kSingletonTag) {
       if (singleton() == value) return;
       List* list = new (zone->New(sizeof(List))) List(zone);
@@ -55,8 +55,8 @@ class ZoneHandleSet final {
         list->push_back(value);
         list->push_back(singleton());
       }
-      DCHECK(IsAligned(bit_cast<intptr_t>(list), kPointerAlignment));
-      data_ = bit_cast<intptr_t>(list) | kListTag;
+      DCHECK(IsAligned(reinterpret_cast<Address>(list), kPointerAlignment));
+      data_ = reinterpret_cast<Address>(list) | kListTag;
     } else {
       DCHECK_EQ(kListTag, data_ & kTagMask);
       List const* const old_list = list();
@@ -76,8 +76,8 @@ class ZoneHandleSet final {
         new_list->push_back(old_list->at(i));
       }
       DCHECK_EQ(old_list->size() + 1, new_list->size());
-      DCHECK(IsAligned(bit_cast<intptr_t>(new_list), kPointerAlignment));
-      data_ = bit_cast<intptr_t>(new_list) | kListTag;
+      DCHECK(IsAligned(reinterpret_cast<Address>(new_list), kPointerAlignment));
+      data_ = reinterpret_cast<Address>(new_list) | kListTag;
     }
   }
 
@@ -105,12 +105,13 @@ class ZoneHandleSet final {
 
   bool contains(Handle<T> other) const {
     if (data_ == kEmptyTag) return false;
+    Address* other_address = reinterpret_cast<Address*>(other.address());
     if ((data_ & kTagMask) == kSingletonTag) {
-      return singleton() == bit_cast<T**>(other.address());
+      return singleton() == other_address;
     }
     DCHECK_EQ(kListTag, data_ & kTagMask);
-    return std::find(list()->begin(), list()->end(),
-                     bit_cast<T**>(other.address())) != list()->end();
+    return std::find(list()->begin(), list()->end(), other_address) !=
+           list()->end();
   }
 
   void remove(Handle<T> handle, Zone* zone) {
@@ -156,19 +157,19 @@ class ZoneHandleSet final {
   inline const_iterator end() const;
 
  private:
-  typedef ZoneVector<T**> List;
+  typedef ZoneVector<Address*> List;
 
   List const* list() const {
     DCHECK_EQ(kListTag, data_ & kTagMask);
-    return bit_cast<List const*>(data_ - kListTag);
+    return reinterpret_cast<List const*>(data_ - kListTag);
   }
 
-  T** singleton() const {
+  Address* singleton() const {
     DCHECK_EQ(kSingletonTag, data_ & kTagMask);
-    return bit_cast<T**>(data_ - kSingletonTag);
+    return reinterpret_cast<Address*>(data_ - kSingletonTag);
   }
 
-  enum Tag : intptr_t {
+  enum Tag : Address {
     kSingletonTag = 0,
     kEmptyTag = 1,
     kListTag = 2,
@@ -177,7 +178,7 @@ class ZoneHandleSet final {
 
   STATIC_ASSERT(kTagMask < kPointerAlignment);
 
-  intptr_t data_;
+  Address data_;
 };
 
 template <typename T>

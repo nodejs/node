@@ -5,7 +5,7 @@
 #ifndef V8_CCTEST_COMPILER_CODEGEN_TESTER_H_
 #define V8_CCTEST_COMPILER_CODEGEN_TESTER_H_
 
-#include "src/compiler/instruction-selector.h"
+#include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/optimized-compilation-info.h"
@@ -59,11 +59,11 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
 
   ~RawMachineAssemblerTester() override = default;
 
-  void CheckNumber(double expected, Object* number) {
+  void CheckNumber(double expected, Object number) {
     CHECK(this->isolate()->factory()->NewNumber(expected)->SameValue(number));
   }
 
-  void CheckString(const char* expected, Object* string) {
+  void CheckString(const char* expected, Object string) {
     CHECK(
         this->isolate()->factory()->InternalizeUtf8String(expected)->SameValue(
             string));

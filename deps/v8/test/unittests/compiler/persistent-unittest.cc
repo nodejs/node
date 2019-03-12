@@ -83,19 +83,19 @@ TEST(PersistentMap, Zip) {
 
   // Provoke hash collisions to stress the iterator.
   struct bad_hash {
-    size_t operator()(int key) {
+    size_t operator()(uint32_t key) {
       return base::hash_value(static_cast<size_t>(key) % 1000);
     }
   };
-  PersistentMap<int, int, bad_hash> a(&zone);
-  PersistentMap<int, int, bad_hash> b(&zone);
+  PersistentMap<int, uint32_t, bad_hash> a(&zone);
+  PersistentMap<int, uint32_t, bad_hash> b(&zone);
 
-  int sum_a = 0;
-  int sum_b = 0;
+  uint32_t sum_a = 0;
+  uint32_t sum_b = 0;
 
   for (int i = 0; i < 30000; ++i) {
     int key = small_big_distr(&rand);
-    int value = small_big_distr(&rand);
+    uint32_t value = small_big_distr(&rand);
     if (rand.NextBool()) {
       sum_a += value;
       a.Set(key, a.Get(key) + value);
@@ -105,28 +105,28 @@ TEST(PersistentMap, Zip) {
     }
   }
 
-  int sum = sum_a + sum_b;
+  uint32_t sum = sum_a + sum_b;
 
   for (auto pair : a) {
     sum_a -= pair.second;
   }
-  ASSERT_EQ(0, sum_a);
+  ASSERT_EQ(0u, sum_a);
 
   for (auto pair : b) {
     sum_b -= pair.second;
   }
-  ASSERT_EQ(0, sum_b);
+  ASSERT_EQ(0u, sum_b);
 
   for (auto triple : a.Zip(b)) {
     int key = std::get<0>(triple);
-    int value_a = std::get<1>(triple);
-    int value_b = std::get<2>(triple);
+    uint32_t value_a = std::get<1>(triple);
+    uint32_t value_b = std::get<2>(triple);
     ASSERT_EQ(value_a, a.Get(key));
     ASSERT_EQ(value_b, b.Get(key));
     sum -= value_a;
     sum -= value_b;
   }
-  ASSERT_EQ(0, sum);
+  ASSERT_EQ(0u, sum);
 }
 
 }  // namespace compiler

@@ -7,18 +7,29 @@ import re
 from . import base
 
 
+def _is_failure_output(output):
+  return (
+    output.exit_code != 0 or
+    'FAILED!' in output.stdout
+  )
+
+
 class ExceptionOutProc(base.OutProc):
   """Output processor for tests with expected exception."""
-  def __init__(self, expected_outcomes, expected_exception=None):
+  def __init__(
+      self, expected_outcomes, expected_exception=None, negative=False):
     super(ExceptionOutProc, self).__init__(expected_outcomes)
     self._expected_exception = expected_exception
+    self._negative = negative
+
+  @property
+  def negative(self):
+    return self._negative
 
   def _is_failure_output(self, output):
-    if output.exit_code != 0:
-      return True
     if self._expected_exception != self._parse_exception(output.stdout):
       return True
-    return 'FAILED!' in output.stdout
+    return _is_failure_output(output)
 
   def _parse_exception(self, string):
     # somefile:somelinenumber: someerror[: sometext]
@@ -31,16 +42,13 @@ class ExceptionOutProc(base.OutProc):
       return None
 
 
-def _is_failure_output(self, output):
-  return (
-    output.exit_code != 0 or
-    'FAILED!' in output.stdout
-  )
-
-
 class NoExceptionOutProc(base.OutProc):
   """Output processor optimized for tests without expected exception."""
-NoExceptionOutProc._is_failure_output = _is_failure_output
+  def __init__(self, expected_outcomes):
+    super(NoExceptionOutProc, self).__init__(expected_outcomes)
+
+  def _is_failure_output(self, output):
+    return _is_failure_output(output)
 
 
 class PassNoExceptionOutProc(base.PassOutProc):
@@ -48,7 +56,8 @@ class PassNoExceptionOutProc(base.PassOutProc):
   Output processor optimized for tests expected to PASS without expected
   exception.
   """
-PassNoExceptionOutProc._is_failure_output = _is_failure_output
+  def _is_failure_output(self, output):
+    return _is_failure_output(output)
 
 
 PASS_NO_EXCEPTION = PassNoExceptionOutProc()

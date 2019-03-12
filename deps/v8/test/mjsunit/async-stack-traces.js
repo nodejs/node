@@ -268,3 +268,34 @@
     await test(one);
   })());
 })();
+
+// Basic test to check that we also follow initial
+// promise chains created via Promise#then().
+(function() {
+  async function one(p) {
+    return await p.then(two);
+  }
+
+  function two() {
+    throw new Error();
+  }
+
+  async function test(f) {
+    try {
+      await f(Promise.resolve());
+      assertUnreachable();
+    } catch (e) {
+      assertInstanceof(e, Error);
+      assertMatches(/Error.+at two.+at async one.+at async test/ms, e.stack);
+    }
+  }
+
+  assertPromiseResult((async () => {
+    await test(one);
+    await test(one);
+    %OptimizeFunctionOnNextCall(two);
+    await test(one);
+    %OptimizeFunctionOnNextCall(one);
+    await test(one);
+  })());
+})();

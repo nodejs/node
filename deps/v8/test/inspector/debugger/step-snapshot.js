@@ -5,6 +5,7 @@
 // Embed a user function in the snapshot and step through it.
 
 // Flags: --embed 'function c(f, ...args) { return f(...args); }'
+// Flags: --no-turbo-rewrite-far-jumps
 
 let {session, contextGroup, Protocol} = InspectorTest.start('Tests that stepping works on snapshotted function');
 session.setupScriptMap();

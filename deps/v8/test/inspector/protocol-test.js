@@ -33,32 +33,32 @@ InspectorTest.startDumpingProtocolMessages = function() {
 }
 
 InspectorTest.logMessage = function(originalMessage) {
-  var message = JSON.parse(JSON.stringify(originalMessage));
-  if (message.id)
-    message.id = "<messageId>";
-
   const nonStableFields = new Set([
     'objectId', 'scriptId', 'exceptionId', 'timestamp', 'executionContextId',
     'callFrameId', 'breakpointId', 'bindRemoteObjectFunctionId',
-    'formatterObjectId', 'debuggerId'
+    'formatterObjectId', 'debuggerId', 'bodyGetterId'
   ]);
-  var objects = [ message ];
-  while (objects.length) {
-    var object = objects.shift();
-    if (object && object.name === '[[StableObjectId]]')
-      object.value = '<StablectObjectId>';
-    for (var key in object) {
-      if (nonStableFields.has(key))
-        object[key] = `<${key}>`;
-      else if (typeof object[key] === "string" && object[key].match(/\d+:\d+:\d+:\d+/))
-        object[key] = object[key].substring(0, object[key].lastIndexOf(':')) + ":<scriptId>";
-      else if (typeof object[key] === "object")
-        objects.push(object[key]);
-    }
-  }
+  const message = JSON.parse(JSON.stringify(originalMessage, replacer.bind(null, Symbol(), nonStableFields)));
+  if (message.id)
+    message.id = '<messageId>';
 
   InspectorTest.logObject(message);
   return originalMessage;
+
+  function replacer(stableIdSymbol, nonStableFields, name, val) {
+    if (nonStableFields.has(name))
+      return `<${name}>`;
+    if (name === 'internalProperties') {
+      const stableId = val.find(prop => prop.name === '[[StableObjectId]]');
+      if (stableId)
+        stableId.value[stableIdSymbol] = true;
+    }
+    if (name === 'parentId')
+      return { id: '<id>' };
+    if (val && val[stableIdSymbol])
+      return '<StablectObjectId>';
+    return val;
+  }
 }
 
 InspectorTest.logObject = function(object, title) {
@@ -140,16 +140,28 @@ InspectorTest.ContextGroup = class {
     return new InspectorTest.Session(this);
   }
 
+  reset() {
+    utils.resetContextGroup(this.id);
+  }
+
   setupInjectedScriptEnvironment(session) {
     let scriptSource = '';
-    // First define all getters on Object.prototype.
-    let injectedScriptSource = utils.read('src/inspector/injected-script-source.js');
-    let getterRegex = /\.[a-zA-Z0-9]+/g;
-    let match;
-    let getters = new Set();
-    while (match = getterRegex.exec(injectedScriptSource)) {
-      getters.add(match[0].substr(1));
-    }
+    let getters = ["length","internalConstructorName","subtype","getProperty",
+        "objectHasOwnProperty","nullifyPrototype","primitiveTypes",
+        "closureTypes","prototype","all","RemoteObject","bind",
+        "PropertyDescriptor","object","get","set","value","configurable",
+        "enumerable","symbol","getPrototypeOf","nativeAccessorDescriptor",
+        "isBuiltin","hasGetter","hasSetter","getOwnPropertyDescriptor",
+        "description","formatAccessorsAsProperties","isOwn","name",
+        "typedArrayProperties","keys","getOwnPropertyNames",
+        "getOwnPropertySymbols","isPrimitiveValue","com","toLowerCase",
+        "ELEMENT","trim","replace","DOCUMENT","size","byteLength","toString",
+        "stack","substr","message","indexOf","key","type","unserializableValue",
+        "objectId","className","preview","proxyTargetValue","customPreview",
+        "CustomPreview","resolve","then","console","error","header","hasBody",
+        "stringify","ObjectPreview","ObjectPreviewType","properties",
+        "ObjectPreviewSubtype","getInternalProperties","wasThrown","indexes",
+        "overflow","valuePreview","entries"];
     scriptSource += `(function installSettersAndGetters() {
         let defineProperty = Object.defineProperty;
         let ObjectPrototype = Object.prototype;
@@ -158,7 +170,7 @@ InspectorTest.ContextGroup = class {
           set() { debugger; throw 42; }, get() { debugger; throw 42; },
           __proto__: null
         });`,
-        scriptSource += Array.from(getters).map(getter => `
+        scriptSource += getters.map(getter => `
         defineProperty(ObjectPrototype, '${getter}', {
           set() { debugger; throw 42; }, get() { debugger; throw 42; },
           __proto__: null
@@ -168,8 +180,6 @@ InspectorTest.ContextGroup = class {
 
     if (session) {
       InspectorTest.log('WARNING: setupInjectedScriptEnvironment with debug flag for debugging only and should not be landed.');
-      InspectorTest.log('WARNING: run test with --expose-inspector-scripts flag to get more details.');
-      InspectorTest.log('WARNING: you can additionally comment rjsmin in xxd.py to get unminified injected-script-source.js.');
       session.setupScriptMap();
       session.Protocol.Debugger.enable();
       session.Protocol.Debugger.onPaused(message => {
@@ -401,6 +411,9 @@ InspectorTest.runTestSuite = function(testSuite) {
 }
 
 InspectorTest.runAsyncTestSuite = async function(testSuite) {
+  const selected = testSuite.filter(test => test.name.startsWith('f_'));
+  if (selected.length)
+    testSuite = selected;
   for (var test of testSuite) {
     InspectorTest.log("\nRunning test: " + test.name);
     try {

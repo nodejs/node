@@ -5,29 +5,31 @@
 #ifndef V8_BUILTINS_BUILTINS_TYPED_ARRAY_GEN_H_
 #define V8_BUILTINS_BUILTINS_TYPED_ARRAY_GEN_H_
 
-#include "torque-generated/builtins-base-from-dsl-gen.h"
+#include "src/code-stub-assembler.h"
 
 namespace v8 {
 namespace internal {
 
-class TypedArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
+class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
  public:
   explicit TypedArrayBuiltinsAssembler(compiler::CodeAssemblerState* state)
-      : BaseBuiltinsFromDSLAssembler(state) {}
+      : CodeStubAssembler(state) {}
 
-  TNode<JSTypedArray> SpeciesCreateByLength(TNode<Context> context,
-                                            TNode<JSTypedArray> exemplar,
-                                            TNode<Smi> len,
-                                            const char* method_name);
+  template <class... TArgs>
+  TNode<JSTypedArray> TypedArraySpeciesCreate(const char* method_name,
+                                              TNode<Context> context,
+                                              TNode<JSTypedArray> exemplar,
+                                              TArgs... args);
 
- protected:
+  TNode<JSTypedArray> TypedArraySpeciesCreateByLength(
+      TNode<Context> context, TNode<JSTypedArray> exemplar, TNode<Smi> len,
+      const char* method_name);
+
   void GenerateTypedArrayPrototypeIterationMethod(TNode<Context> context,
                                                   TNode<Object> receiver,
                                                   const char* method_name,
                                                   IterationKind iteration_kind);
 
-  void ConstructByLength(TNode<Context> context, TNode<JSTypedArray> holder,
-                         TNode<Object> length, TNode<Smi> element_size);
   void ConstructByArrayBuffer(TNode<Context> context,
                               TNode<JSTypedArray> holder,
                               TNode<JSArrayBuffer> buffer,
@@ -36,11 +38,6 @@ class TypedArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
   void ConstructByTypedArray(TNode<Context> context, TNode<JSTypedArray> holder,
                              TNode<JSTypedArray> typed_array,
                              TNode<Smi> element_size);
-  void ConstructByArrayLike(TNode<Context> context, TNode<JSTypedArray> holder,
-                            TNode<HeapObject> array_like,
-                            TNode<Object> initial_length,
-                            TNode<Smi> element_size,
-                            TNode<JSReceiver> buffer_constructor);
   void ConstructByIterable(TNode<Context> context, TNode<JSTypedArray> holder,
                            TNode<JSReceiver> iterable,
                            TNode<JSReceiver> iterator_fn,
@@ -73,22 +70,17 @@ class TypedArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
                                           JSTypedArray::kBufferOffset);
   }
 
-  TNode<Object> GetDefaultConstructor(TNode<Context> context,
-                                      TNode<JSTypedArray> exemplar);
+  TNode<JSFunction> GetDefaultConstructor(TNode<Context> context,
+                                          TNode<JSTypedArray> exemplar);
 
-  TNode<Object> TypedArraySpeciesConstructor(TNode<Context> context,
-                                             TNode<JSTypedArray> exemplar);
+  TNode<JSTypedArray> TypedArrayCreateByLength(TNode<Context> context,
+                                               TNode<Object> constructor,
+                                               TNode<Smi> len,
+                                               const char* method_name);
 
-  TNode<JSTypedArray> SpeciesCreateByArrayBuffer(TNode<Context> context,
-                                                 TNode<JSTypedArray> exemplar,
-                                                 TNode<JSArrayBuffer> buffer,
-                                                 TNode<Number> byte_offset,
-                                                 TNode<Smi> len,
-                                                 const char* method_name);
-
-  TNode<JSTypedArray> CreateByLength(TNode<Context> context,
-                                     TNode<Object> constructor, TNode<Smi> len,
-                                     const char* method_name);
+  void ThrowIfLengthLessThan(TNode<Context> context,
+                             TNode<JSTypedArray> typed_array,
+                             TNode<Smi> min_length);
 
   TNode<JSArrayBuffer> GetBuffer(TNode<Context> context,
                                  TNode<JSTypedArray> array);
@@ -109,6 +101,9 @@ class TypedArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
 
   void CallCMemmove(TNode<IntPtrT> dest_ptr, TNode<IntPtrT> src_ptr,
                     TNode<IntPtrT> byte_length);
+
+  void CallCMemcpy(TNode<RawPtrT> dest_ptr, TNode<RawPtrT> src_ptr,
+                   TNode<UintPtrT> byte_length);
 
   void CallCCopyFastNumberJSArrayElementsToTypedArray(
       TNode<Context> context, TNode<JSArray> source, TNode<JSTypedArray> dest,

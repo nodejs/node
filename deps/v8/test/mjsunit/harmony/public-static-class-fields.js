@@ -457,3 +457,16 @@ y()();
 
   assertEquals(1, X.p);
 }
+
+{
+  let p = { z: class { static y = this.name } }
+  assertEquals(p.z.y, 'z');
+
+  let q = { ["z"]: class { static y = this.name } }
+  assertEquals(q.z.y, 'z');
+
+  const C = class {
+    static x = this.name;
+  }
+  assertEquals(C.x, 'C');
+}

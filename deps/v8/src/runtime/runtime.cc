@@ -18,13 +18,13 @@ namespace internal {
 
 // Header of runtime functions.
 #define F(name, number_of_args, result_size)                    \
-  Object* Runtime_##name(int args_length, Object** args_object, \
+  Address Runtime_##name(int args_length, Address* args_object, \
                          Isolate* isolate);
 FOR_EACH_INTRINSIC_RETURN_OBJECT(F)
 #undef F
 
 #define P(name, number_of_args, result_size)                       \
-  ObjectPair Runtime_##name(int args_length, Object** args_object, \
+  ObjectPair Runtime_##name(int args_length, Address* args_object, \
                             Isolate* isolate);
 FOR_EACH_INTRINSIC_RETURN_PAIR(P)
 #undef P
@@ -98,10 +98,17 @@ void InitializeIntrinsicFunctionNames() {
 
 bool Runtime::NeedsExactContext(FunctionId id) {
   switch (id) {
+    case Runtime::kInlineAsyncFunctionReject:
+    case Runtime::kInlineAsyncFunctionResolve:
+      // For %_AsyncFunctionReject and %_AsyncFunctionResolve we don't
+      // really need the current context, which in particular allows
+      // us to usually eliminate the catch context for the implicit
+      // try-catch in async function.
+      return false;
     case Runtime::kAddPrivateField:
     case Runtime::kCopyDataProperties:
     case Runtime::kCreateDataProperty:
-    case Runtime::kCreatePrivateFieldSymbol:
+    case Runtime::kCreatePrivateNameSymbol:
     case Runtime::kReThrow:
     case Runtime::kThrow:
     case Runtime::kThrowApplyNonFunction:

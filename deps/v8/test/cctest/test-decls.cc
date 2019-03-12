@@ -29,8 +29,6 @@
 
 #include "src/v8.h"
 
-#include "src/heap/heap-inl.h"
-#include "src/heap/heap.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

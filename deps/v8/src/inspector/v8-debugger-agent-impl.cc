@@ -260,8 +260,9 @@ Response buildScopes(v8::Isolate* isolate, v8::debug::ScopeIterator* iterator,
 
   for (; !iterator->Done(); iterator->Advance()) {
     std::unique_ptr<RemoteObject> object;
-    Response result = injectedScript->wrapObject(
-        iterator->GetObject(), kBacktraceObjectGroup, false, false, &object);
+    Response result =
+        injectedScript->wrapObject(iterator->GetObject(), kBacktraceObjectGroup,
+                                   WrapMode::kNoPreview, &object);
     if (!result.isSuccess()) return result;
 
     auto scope = Scope::create()
@@ -1003,16 +1004,6 @@ Response V8DebuggerAgentImpl::stepOut() {
   return Response::OK();
 }
 
-void V8DebuggerAgentImpl::scheduleStepIntoAsync(
-    std::unique_ptr<ScheduleStepIntoAsyncCallback> callback) {
-  if (!isPaused()) {
-    callback->sendFailure(Response::Error(kDebuggerNotPaused));
-    return;
-  }
-  m_debugger->scheduleStepIntoAsync(std::move(callback),
-                                    m_session->contextGroupId());
-}
-
 Response V8DebuggerAgentImpl::pauseOnAsyncCall(
     std::unique_ptr<protocol::Runtime::StackTraceId> inParentStackTraceId) {
   bool isOk = false;
@@ -1073,7 +1064,7 @@ Response V8DebuggerAgentImpl::evaluateOnCallFrame(
 
   v8::MaybeLocal<v8::Value> maybeResultValue;
   {
-    V8InspectorImpl::EvaluateScope evaluateScope(m_isolate);
+    V8InspectorImpl::EvaluateScope evaluateScope(scope);
     if (timeout.isJust()) {
       response = evaluateScope.setTimeout(timeout.fromJust() / 1000.0);
       if (!response.isSuccess()) return response;
@@ -1085,10 +1076,12 @@ Response V8DebuggerAgentImpl::evaluateOnCallFrame(
   // context or session.
   response = scope.initialize();
   if (!response.isSuccess()) return response;
+  WrapMode mode = generatePreview.fromMaybe(false) ? WrapMode::kWithPreview
+                                                   : WrapMode::kNoPreview;
+  if (returnByValue.fromMaybe(false)) mode = WrapMode::kForceValue;
   return scope.injectedScript()->wrapEvaluateResult(
-      maybeResultValue, scope.tryCatch(), objectGroup.fromMaybe(""),
-      returnByValue.fromMaybe(false), generatePreview.fromMaybe(false), result,
-      exceptionDetails);
+      maybeResultValue, scope.tryCatch(), objectGroup.fromMaybe(""), mode,
+      result, exceptionDetails);
 }
 
 Response V8DebuggerAgentImpl::setVariableValue(
@@ -1268,8 +1261,9 @@ Response V8DebuggerAgentImpl::currentCallFrames(
     if (injectedScript) {
       v8::Local<v8::Value> receiver;
       if (iterator->GetReceiver().ToLocal(&receiver)) {
-        res = injectedScript->wrapObject(receiver, kBacktraceObjectGroup, false,
-                                         false, &protocolReceiver);
+        res =
+            injectedScript->wrapObject(receiver, kBacktraceObjectGroup,
+                                       WrapMode::kNoPreview, &protocolReceiver);
         if (!res.isSuccess()) return res;
       }
     }
@@ -1320,7 +1314,7 @@ Response V8DebuggerAgentImpl::currentCallFrames(
     if (!returnValue.IsEmpty() && injectedScript) {
       std::unique_ptr<RemoteObject> value;
       res = injectedScript->wrapObject(returnValue, kBacktraceObjectGroup,
-                                       false, false, &value);
+                                       WrapMode::kNoPreview, &value);
       if (!res.isSuccess()) return res;
       frame->setReturnValue(std::move(value));
     }
@@ -1418,8 +1412,9 @@ void V8DebuggerAgentImpl::didParseSource(
   std::unique_ptr<V8StackTraceImpl> stack =
       V8StackTraceImpl::capture(m_inspector->debugger(), contextGroupId, 1);
   std::unique_ptr<protocol::Runtime::StackTrace> stackTrace =
-      stack && !stack->isEmpty() ? stack->buildInspectorObjectImpl(m_debugger)
-                                 : nullptr;
+      stack && !stack->isEmpty()
+          ? stack->buildInspectorObjectImpl(m_debugger, 0)
+          : nullptr;
   if (success) {
     // TODO(herhut, dgozman): Report correct length for WASM if needed for
     // coverage. Or do not send the length at all and change coverage instead.
@@ -1527,8 +1522,8 @@ void V8DebuggerAgentImpl::didPause(
               ? protocol::Debugger::Paused::ReasonEnum::PromiseRejection
               : protocol::Debugger::Paused::ReasonEnum::Exception;
       std::unique_ptr<protocol::Runtime::RemoteObject> obj;
-      injectedScript->wrapObject(exception, kBacktraceObjectGroup, false, false,
-                                 &obj);
+      injectedScript->wrapObject(exception, kBacktraceObjectGroup,
+                                 WrapMode::kNoPreview, &obj);
       std::unique_ptr<protocol::DictionaryValue> breakAuxData;
       if (obj) {
         breakAuxData = obj->toValue();

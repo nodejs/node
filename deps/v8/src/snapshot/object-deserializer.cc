@@ -5,13 +5,16 @@
 #include "src/snapshot/object-deserializer.h"
 
 #include "src/assembler-inl.h"
-#include "src/code-stubs.h"
 #include "src/isolate.h"
 #include "src/objects.h"
+#include "src/objects/slots.h"
 #include "src/snapshot/code-serializer.h"
 
 namespace v8 {
 namespace internal {
+
+ObjectDeserializer::ObjectDeserializer(const SerializedCodeData* data)
+    : Deserializer(data, true) {}
 
 MaybeHandle<SharedFunctionInfo>
 ObjectDeserializer::DeserializeSharedFunctionInfo(
@@ -19,12 +22,6 @@ ObjectDeserializer::DeserializeSharedFunctionInfo(
   ObjectDeserializer d(data);
 
   d.AddAttachedObject(source);
-
-  Vector<const uint32_t> code_stub_keys = data->CodeStubKeys();
-  for (int i = 0; i < code_stub_keys.length(); i++) {
-    d.AddAttachedObject(
-        CodeStub::GetCode(isolate, code_stub_keys[i]).ToHandleChecked());
-  }
 
   Handle<HeapObject> result;
   return d.Deserialize(isolate).ToHandle(&result)
@@ -42,10 +39,13 @@ MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(Isolate* isolate) {
   Handle<HeapObject> result;
   {
     DisallowHeapAllocation no_gc;
-    Object* root;
-    VisitRootPointer(Root::kPartialSnapshotCache, nullptr, &root);
+    Object root;
+    VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
+                     FullObjectSlot(&root));
     DeserializeDeferredObjects();
-    FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects();
+    FlushICache();
+    LinkAllocationSites();
+    LogNewMapEvents();
     result = handle(HeapObject::cast(root), isolate);
     Rehash();
     allocator()->RegisterDeserializedObjectsForBlackAllocation();
@@ -54,10 +54,9 @@ MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(Isolate* isolate) {
   return scope.CloseAndEscape(result);
 }
 
-void ObjectDeserializer::
-    FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects() {
+void ObjectDeserializer::FlushICache() {
   DCHECK(deserializing_user_code());
-  for (Code* code : new_code_objects()) {
+  for (Code code : new_code_objects()) {
     // Record all references to embedded objects in the new code object.
     WriteBarrierForCode(code);
     Assembler::FlushICache(code->raw_instruction_start(),
@@ -72,7 +71,8 @@ void ObjectDeserializer::CommitPostProcessedObjects() {
   for (Handle<String> string : new_internalized_strings()) {
     DisallowHeapAllocation no_gc;
     StringTableInsertionKey key(*string);
-    DCHECK_NULL(StringTable::ForwardStringIfExists(isolate(), &key, *string));
+    DCHECK(
+        StringTable::ForwardStringIfExists(isolate(), &key, *string).is_null());
     StringTable::AddKeyNoResize(isolate(), &key);
   }
 
@@ -81,19 +81,21 @@ void ObjectDeserializer::CommitPostProcessedObjects() {
   for (Handle<Script> script : new_scripts()) {
     // Assign a new script id to avoid collision.
     script->set_id(isolate()->heap()->NextScriptId());
-    LOG(isolate(),
-        ScriptEvent(Logger::ScriptEventType::kDeserialize, script->id()));
-    LOG(isolate(), ScriptDetails(*script));
+    LogScriptEvents(*script);
     // Add script to list.
     Handle<WeakArrayList> list = factory->script_list();
     list = WeakArrayList::AddToEnd(isolate(), list,
                                    MaybeObjectHandle::Weak(script));
     heap->SetRootScriptList(*list);
   }
+}
 
+void ObjectDeserializer::LinkAllocationSites() {
+  DisallowHeapAllocation no_gc;
+  Heap* heap = isolate()->heap();
   // Allocation sites are present in the snapshot, and must be linked into
   // a list at deserialization time.
-  for (AllocationSite* site : new_allocation_sites()) {
+  for (AllocationSite site : new_allocation_sites()) {
     if (!site->HasWeakNext()) continue;
     // TODO(mvstanton): consider treating the heap()->allocation_sites_list()
     // as a (weak) root. If this root is relocated correctly, this becomes

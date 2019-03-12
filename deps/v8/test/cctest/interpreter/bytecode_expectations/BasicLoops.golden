@@ -708,7 +708,7 @@ bytecodes: [
                 B(Star), R(0),
   /*   73 S> */ B(LdaSmi), I8(1),
   /*   73 E> */ B(StaCurrentContextSlot), U8(4),
-                B(Mov), R(0), R(2),
+  /*  102 S> */ B(Mov), R(0), R(2),
   /*  106 S> */ B(LdaCurrentContextSlot), U8(4),
                 B(JumpIfToBooleanFalse), U8(6),
   /*  113 S> */ B(PopContext), R(3),

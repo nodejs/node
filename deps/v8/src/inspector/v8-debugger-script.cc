@@ -417,8 +417,9 @@ class WasmVirtualScript : public V8DebuggerScript {
 
  private:
   static const String16& emptyString() {
-    static const String16 singleEmptyString;
-    return singleEmptyString;
+    // On the heap and leaked so that no destructor needs to run at exit time.
+    static const String16* singleEmptyString = new String16;
+    return *singleEmptyString;
   }
 
   v8::Local<v8::debug::Script> script() const override {

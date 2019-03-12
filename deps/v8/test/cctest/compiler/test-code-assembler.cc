@@ -8,6 +8,7 @@
 #include "src/compiler/opcodes.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/heap-number-inl.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 
@@ -68,8 +69,7 @@ TEST(SimpleIntPtrReturn) {
       m.IntPtrConstant(reinterpret_cast<intptr_t>(&test))));
   FunctionTester ft(asm_tester.GenerateCode());
   MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(reinterpret_cast<intptr_t>(&test),
-           reinterpret_cast<intptr_t>(*result.ToHandleChecked()));
+  CHECK_EQ(reinterpret_cast<Address>(&test), result.ToHandleChecked()->ptr());
 }
 
 TEST(SimpleDoubleReturn) {
@@ -558,6 +558,50 @@ TEST(GotoIfExceptionMultiple) {
                                    isolate->factory()->constructor_string())
           .ToHandleChecked();
   CHECK(constructor->SameValue(*isolate->type_error_function()));
+}
+
+TEST(ExceptionHandler) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 0;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeAssembler m(asm_tester.state());
+
+  CodeAssembler::TVariable<Object> var(m.SmiConstant(0), &m);
+  Label exception(&m, {&var}, Label::kDeferred);
+  {
+    CodeAssemblerScopedExceptionHandler handler(&m, &exception, &var);
+    Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
+    m.CallRuntime(Runtime::kThrow, context, m.SmiConstant(2));
+  }
+  m.Return(m.SmiConstant(1));
+
+  m.Bind(&exception);
+  m.Return(var.value());
+
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  CHECK_EQ(2, ft.CallChecked<Smi>()->value());
+}
+
+TEST(TestCodeAssemblerCodeComment) {
+  i::FLAG_code_comments = true;
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 0;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeAssembler m(asm_tester.state());
+
+  m.Comment("Comment1");
+  m.Return(m.SmiConstant(1));
+
+  Handle<Code> code = asm_tester.GenerateCode();
+  CHECK_NE(code->code_comments(), kNullAddress);
+  CodeCommentsIterator it(code->code_comments());
+  CHECK(it.HasCurrent());
+  bool found_comment = false;
+  while (it.HasCurrent()) {
+    if (strcmp(it.GetComment(), "Comment1") == 0) found_comment = true;
+    it.Next();
+  }
+  CHECK(found_comment);
 }
 
 }  // namespace compiler

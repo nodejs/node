@@ -16,6 +16,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
+enum InstanceType : uint16_t;
 class ObjectTemplateInfo;
 class TemplateInfo;
 

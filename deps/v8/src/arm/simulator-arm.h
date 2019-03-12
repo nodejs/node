@@ -12,17 +12,18 @@
 #ifndef V8_ARM_SIMULATOR_ARM_H_
 #define V8_ARM_SIMULATOR_ARM_H_
 
-#include "src/allocation.h"
-#include "src/base/lazy-instance.h"
-#include "src/base/platform/mutex.h"
-#include "src/boxed-float.h"
+// globals.h defines USE_SIMULATOR.
+#include "src/globals.h"
 
 #if defined(USE_SIMULATOR)
 // Running with a simulator.
 
+#include "src/allocation.h"
 #include "src/arm/constants-arm.h"
-#include "src/assembler.h"
 #include "src/base/hashmap.h"
+#include "src/base/lazy-instance.h"
+#include "src/base/platform/mutex.h"
+#include "src/boxed-float.h"
 #include "src/simulator-base.h"
 
 namespace v8 {
@@ -446,8 +447,6 @@ class Simulator : public SimulatorBase {
 
   class GlobalMonitor {
    public:
-    GlobalMonitor();
-
     class Processor {
      public:
       Processor();
@@ -483,16 +482,21 @@ class Simulator : public SimulatorBase {
     // Called when the simulator is destroyed.
     void RemoveProcessor(Processor* processor);
 
+    static GlobalMonitor* Get();
+
    private:
+    // Private constructor. Call {GlobalMonitor::Get()} to get the singleton.
+    GlobalMonitor() = default;
+    friend class base::LeakyObject<GlobalMonitor>;
+
     bool IsProcessorInLinkedList_Locked(Processor* processor) const;
     void PrependProcessor_Locked(Processor* processor);
 
-    Processor* head_;
+    Processor* head_ = nullptr;
   };
 
   LocalMonitor local_monitor_;
   GlobalMonitor::Processor global_monitor_processor_;
-  static base::LazyInstance<GlobalMonitor>::type global_monitor_;
 };
 
 }  // namespace internal

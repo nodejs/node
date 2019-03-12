@@ -16,7 +16,7 @@ builder0.addFunction('main', kSig_i_i)
       kExprCallIndirect, sig_index, kTableZero
     ])  // --
     .exportAs('main');
-builder0.setFunctionTableBounds(3, 3);
+builder0.setTableBounds(3, 3);
 builder0.addExportOfKind('table', kExternalTable);
 let module0 = new WebAssembly.Module(builder0.toBuffer());
 let instance0 = new WebAssembly.Instance(module0);
@@ -25,7 +25,7 @@ let builder1 = new WasmModuleBuilder();
 builder1.setName('module_1');
 builder1.addFunction('main', kSig_i_v).addBody([kExprUnreachable]);
 builder1.addImportedTable('z', 'table');
-builder1.addFunctionTableInit(0, false, [0], true);
+builder1.addElementSegment(0, false, [0], true);
 let module1 = new WebAssembly.Module(builder1.toBuffer());
 let instance1 =
     new WebAssembly.Instance(module1, {z: {table: instance0.exports.table}});

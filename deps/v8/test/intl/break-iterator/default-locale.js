@@ -37,9 +37,6 @@ assertFalse(options.locale === 'und');
 assertFalse(options.locale === '');
 assertFalse(options.locale === undefined);
 
-// Then check for legitimacy.
-assertLanguageTag(%GetDefaultICULocale(), options.locale);
-
 var iteratorNone = new Intl.v8BreakIterator();
 assertEquals(options.locale, iteratorNone.resolvedOptions().locale);
 

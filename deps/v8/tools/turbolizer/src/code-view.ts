@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {Source,SourceResolver,sourcePositionToStringKey} from "./source-resolver.js"
-import {SelectionBroker} from "./selection-broker.js"
-import {View} from "./view.js"
-import {MySelection} from "./selection.js"
-import {anyToString,ViewElements} from "./util.js"
+import { Source, SourceResolver, sourcePositionToStringKey } from "../src/source-resolver";
+import { SelectionBroker } from "../src/selection-broker";
+import { View } from "../src/view";
+import { MySelection } from "../src/selection";
+import { ViewElements } from "../src/util";
+import { SelectionHandler } from "./selection-handler";
 
 export enum CodeMode {
   MAIN_SOURCE = "main function",
   INLINED_SOURCE = "inlined function"
-};
+}
 
 export class CodeView extends View {
   broker: SelectionBroker;
@@ -29,11 +30,10 @@ export class CodeView extends View {
     return sourceContainer;
   }
 
-  constructor(parentId, broker, sourceResolver, sourceFunction, codeMode: CodeMode) {
-    super(parentId);
-    let view = this;
+  constructor(parent: HTMLElement, broker: SelectionBroker, sourceResolver: SourceResolver, sourceFunction: Source, codeMode: CodeMode) {
+    super(parent);
+    const view = this;
     view.broker = broker;
-    view.source = null;
     view.sourceResolver = sourceResolver;
     view.source = sourceFunction;
     view.codeMode = codeMode;
@@ -44,11 +44,11 @@ export class CodeView extends View {
       clear: function () {
         view.selection.clear();
         view.updateSelection();
-        broker.broadcastClear(this)
+        broker.broadcastClear(this);
       },
       select: function (sourcePositions, selected) {
         const locations = [];
-        for (var sourcePosition of sourcePositions) {
+        for (const sourcePosition of sourcePositions) {
           locations.push(sourcePosition);
           sourceResolver.addInliningPositions(sourcePosition, locations);
         }
@@ -62,7 +62,7 @@ export class CodeView extends View {
         for (const location of locations) {
           const translated = sourceResolver.translateToSourceId(view.source.sourceId, location);
           if (!translated) continue;
-          view.selection.select(translated, selected);
+          view.selection.select([translated], selected);
         }
         view.updateSelection(firstSelect);
       },
@@ -100,9 +100,6 @@ export class CodeView extends View {
     mkVisible.apply(scrollIntoView);
   }
 
-  initializeContent(data, rememberedSelection) {
-  }
-
   getCodeHtmlElementName() {
     return `source-pre-${this.source.sourceId}`;
   }
@@ -117,7 +114,6 @@ export class CodeView extends View {
   }
 
   onSelectLine(lineNumber: number, doClear: boolean) {
-    const key = anyToString(lineNumber);
     if (doClear) {
       this.selectionHandler.clear();
     }
@@ -127,7 +123,7 @@ export class CodeView extends View {
     }
   }
 
-  onSelectSourcePosition(sourcePosition, doClear) {
+  onSelectSourcePosition(sourcePosition, doClear: boolean) {
     if (doClear) {
       this.selectionHandler.clear();
     }
@@ -135,7 +131,7 @@ export class CodeView extends View {
   }
 
   initializeCode() {
-    var view = this;
+    const view = this;
     const source = this.source;
     const sourceText = source.sourceText;
     if (!sourceText) return;
@@ -145,14 +141,14 @@ export class CodeView extends View {
     } else {
       sourceContainer.classList.add("inlined-source");
     }
-    var codeHeader = document.createElement("div");
+    const codeHeader = document.createElement("div");
     codeHeader.setAttribute("id", this.getCodeHeaderHtmlElementName());
     codeHeader.classList.add("code-header");
-    var codeFileFunction = document.createElement("div");
+    const codeFileFunction = document.createElement("div");
     codeFileFunction.classList.add("code-file-function");
     codeFileFunction.innerHTML = `${source.sourceName}:${source.functionName}`;
     codeHeader.appendChild(codeFileFunction);
-    var codeModeDiv = document.createElement("div");
+    const codeModeDiv = document.createElement("div");
     codeModeDiv.classList.add("code-mode");
     codeModeDiv.innerHTML = `${this.codeMode}`;
     codeHeader.appendChild(codeModeDiv);
@@ -160,7 +156,7 @@ export class CodeView extends View {
     clearDiv.style.clear = "both";
     codeHeader.appendChild(clearDiv);
     sourceContainer.appendChild(codeHeader);
-    var codePre = document.createElement("pre");
+    const codePre = document.createElement("pre");
     codePre.setAttribute("id", this.getCodeHtmlElementName());
     codePre.classList.add("prettyprint");
     sourceContainer.appendChild(codePre);
@@ -171,7 +167,7 @@ export class CodeView extends View {
       } else {
         codePre.style.display = "none";
       }
-    }
+    };
     if (sourceText != "") {
       codePre.classList.add("linenums");
       codePre.textContent = sourceText;
@@ -182,9 +178,17 @@ export class CodeView extends View {
         console.log(e);
       }
 
-      view.divNode.onclick = function (e) {
-        view.selectionHandler.clear();
-      }
+      view.divNode.onclick = function (e: MouseEvent) {
+        if (e.target instanceof Element && e.target.tagName == "DIV") {
+          const targetDiv = e.target as HTMLDivElement;
+          if (targetDiv.classList.contains("line-number")) {
+            e.stopPropagation();
+            view.onSelectLine(Number(targetDiv.dataset.lineNumber), !e.shiftKey);
+          }
+        } else {
+          view.selectionHandler.clear();
+        }
+      };
 
       const base: number = source.startPosition;
       let current = 0;
@@ -197,13 +201,14 @@ export class CodeView extends View {
         currentLineElement.id = "li" + i;
         currentLineElement.dataset.lineNumber = "" + lineNumber;
         const spans = currentLineElement.childNodes;
-        for (let j = 0; j < spans.length; ++j) {
-          const currentSpan = spans[j];
-          const pos = base + current;
-          const end = pos + currentSpan.textContent.length;
-          current += currentSpan.textContent.length;
-          this.insertSourcePositions(currentSpan, lineNumber, pos, end, newlineAdjust);
-          newlineAdjust = 0;
+        for (const currentSpan of spans) {
+          if (currentSpan instanceof HTMLSpanElement) {
+            const pos = base + current;
+            const end = pos + currentSpan.textContent.length;
+            current += currentSpan.textContent.length;
+            this.insertSourcePositions(currentSpan, lineNumber, pos, end, newlineAdjust);
+            newlineAdjust = 0;
+          }
         }
 
         this.insertLineNumber(currentLineElement, lineNumber);
@@ -220,44 +225,44 @@ export class CodeView extends View {
   insertSourcePositions(currentSpan, lineNumber, pos, end, adjust) {
     const view = this;
     const sps = this.sourceResolver.sourcePositionsInRange(this.source.sourceId, pos - adjust, end);
+    let offset = 0;
     for (const sourcePosition of sps) {
       this.sourceResolver.addAnyPositionToLine(lineNumber, sourcePosition);
-      const textnode = currentSpan.tagName == 'SPAN' ? currentSpan.firstChild : currentSpan;
-      const replacementNode = textnode.splitText(Math.max(0, sourcePosition.scriptOffset - pos));
+      const textnode = currentSpan.tagName == 'SPAN' ? currentSpan.lastChild : currentSpan;
+      if (!(textnode instanceof Text)) continue;
+      const splitLength = Math.max(0, sourcePosition.scriptOffset - pos - offset);
+      offset += splitLength;
+      const replacementNode = textnode.splitText(splitLength);
       const span = document.createElement('span');
       span.setAttribute("scriptOffset", sourcePosition.scriptOffset);
-      span.classList.add("source-position")
+      span.classList.add("source-position");
       const marker = document.createElement('span');
-      marker.classList.add("marker")
+      marker.classList.add("marker");
       span.appendChild(marker);
       const inlining = this.sourceResolver.getInliningForPosition(sourcePosition);
       if (inlining != undefined && view.showAdditionalInliningPosition) {
         const sourceName = this.sourceResolver.getSourceName(inlining.sourceId);
         const inliningMarker = document.createElement('span');
-        inliningMarker.classList.add("inlining-marker")
-        inliningMarker.setAttribute("data-descr", `${sourceName} was inlined here`)
+        inliningMarker.classList.add("inlining-marker");
+        inliningMarker.setAttribute("data-descr", `${sourceName} was inlined here`);
         span.appendChild(inliningMarker);
       }
       span.onclick = function (e) {
         e.stopPropagation();
-        view.onSelectSourcePosition(sourcePosition, !e.shiftKey)
+        view.onSelectSourcePosition(sourcePosition, !e.shiftKey);
       };
       view.addHtmlElementToSourcePosition(sourcePosition, span);
       textnode.parentNode.insertBefore(span, replacementNode);
     }
   }
 
-  insertLineNumber(lineElement, lineNumber) {
+  insertLineNumber(lineElement: HTMLElement, lineNumber: number) {
     const view = this;
     const lineNumberElement = document.createElement("div");
     lineNumberElement.classList.add("line-number");
-    lineNumberElement.dataset.lineNumber = lineNumber;
-    lineNumberElement.innerText = lineNumber;
-    lineNumberElement.onclick = function (e) {
-      e.stopPropagation();
-      view.onSelectLine(lineNumber, !e.shiftKey);
-    }
-    lineElement.insertBefore(lineNumberElement, lineElement.firstChild)
+    lineNumberElement.dataset.lineNumber = `${lineNumber}`;
+    lineNumberElement.innerText = `${lineNumber}`;
+    lineElement.insertBefore(lineNumberElement, lineElement.firstChild);
     // Don't add lines to source positions of not in backwardsCompatibility mode.
     if (this.source.backwardsCompatibility === true) {
       for (const sourcePosition of this.sourceResolver.linetoSourcePositions(lineNumber - 1)) {
@@ -266,6 +271,4 @@ export class CodeView extends View {
     }
   }
 
-  deleteContent() { }
-  detachSelection() { return null; }
 }

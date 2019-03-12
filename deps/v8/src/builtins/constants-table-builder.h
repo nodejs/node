@@ -45,7 +45,7 @@ class BuiltinsConstantsTableBuilder final {
   typedef IdentityMap<uint32_t, FreeStoreAllocationPolicy> ConstantsMap;
   ConstantsMap map_;
 
-  DISALLOW_COPY_AND_ASSIGN(BuiltinsConstantsTableBuilder)
+  DISALLOW_COPY_AND_ASSIGN(BuiltinsConstantsTableBuilder);
 };
 
 }  // namespace internal

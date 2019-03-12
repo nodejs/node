@@ -44,7 +44,6 @@ v8_executable("inspector-test") {
     "sessions/",
     "testcfg.py",
     "type-profiler/",
-    "../../src/inspector/injected-script-source.js",
   ]
 
   cflags = []

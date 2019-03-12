@@ -30,11 +30,9 @@ class ZoneAllocator {
   // MSVS unfortunately requires the default constructor to be defined.
   ZoneAllocator() : ZoneAllocator(nullptr) { UNREACHABLE(); }
 #endif
-  explicit ZoneAllocator(Zone* zone) throw() : zone_(zone) {}
-  explicit ZoneAllocator(const ZoneAllocator& other) throw()
-      : ZoneAllocator<T>(other.zone_) {}
+  explicit ZoneAllocator(Zone* zone) : zone_(zone) {}
   template <typename U>
-  ZoneAllocator(const ZoneAllocator<U>& other) throw()
+  ZoneAllocator(const ZoneAllocator<U>& other) V8_NOEXCEPT
       : ZoneAllocator<T>(other.zone_) {}
   template <typename U>
   friend class ZoneAllocator;
@@ -48,7 +46,7 @@ class ZoneAllocator {
   void deallocate(T* p, size_t) { /* noop for Zones */
   }
 
-  size_t max_size() const throw() {
+  size_t max_size() const {
     return std::numeric_limits<int>::max() / sizeof(T);
   }
   template <typename U, typename... Args>
@@ -93,13 +91,12 @@ class RecyclingZoneAllocator : public ZoneAllocator<T> {
     UNREACHABLE();
   }
 #endif
-  explicit RecyclingZoneAllocator(Zone* zone) throw()
+  explicit RecyclingZoneAllocator(Zone* zone)
       : ZoneAllocator<T>(zone), free_list_(nullptr) {}
-  explicit RecyclingZoneAllocator(const RecyclingZoneAllocator& other) throw()
-      : ZoneAllocator<T>(other), free_list_(nullptr) {}
   template <typename U>
-  RecyclingZoneAllocator(const RecyclingZoneAllocator<U>& other) throw()
-      : ZoneAllocator<T>(other), free_list_(nullptr) {}
+  RecyclingZoneAllocator(const RecyclingZoneAllocator<U>& other) V8_NOEXCEPT
+      : ZoneAllocator<T>(other),
+        free_list_(nullptr) {}
   template <typename U>
   friend class RecyclingZoneAllocator;
 

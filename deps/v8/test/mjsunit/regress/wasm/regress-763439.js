@@ -10,7 +10,7 @@ builder.addMemory(0, 1234, false);
 builder.addFunction('f', kSig_i_v)
     .addBody([
       kExprI32Const, 0x1d,                       // --
-      kExprGrowMemory, 0x00,                     // --
+      kExprMemoryGrow, 0x00,                     // --
       kExprI32LoadMem, 0x00, 0xff, 0xff, 0x45,  // --
     ])
     .exportFunc();

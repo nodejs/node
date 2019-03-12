@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-module test {
+namespace test {
   macro ElementsKindTestHelper1(kind: constexpr ElementsKind): bool {
     if constexpr ((kind == UINT8_ELEMENTS) || (kind == UINT16_ELEMENTS)) {
       return true;
@@ -174,7 +174,7 @@ module test {
     return x + 2;
   }
 
-  macro TestFunctionPointers(context: Context): Boolean {
+  macro TestFunctionPointers(implicit context: Context)(): Boolean {
     let fptr: builtin(Context, Smi) => Smi = TestHelperPlus1;
     check(fptr(context, 42) == 43);
     fptr = TestHelperPlus2;
@@ -182,7 +182,7 @@ module test {
     return True;
   }
 
-  macro TestVariableRedeclaration(context: Context): Boolean {
+  macro TestVariableRedeclaration(implicit context: Context)(): Boolean {
     let var1: int31 = FromConstexpr<bool>(42 == 0) ? 0 : 1;
     let var2: int31 = FromConstexpr<bool>(42 == 0) ? 1 : 0;
     return True;
@@ -203,16 +203,16 @@ module test {
     check(fptr2(c, Undefined) == Undefined);
   }
 
-  type SmiToSmi = builtin(Smi) => Smi;
-  macro TestTypeAlias(x: SmiToSmi): Code {
+  type ObjectToObject = builtin(Context, Object) => Object;
+  macro TestTypeAlias(x: ObjectToObject): BuiltinPtr {
     return x;
   }
 
-  macro TestUnsafeCast(c: Context, n: Number): Boolean {
+  macro TestUnsafeCast(implicit context: Context)(n: Number): Boolean {
     if (TaggedIsSmi(n)) {
       let m: Smi = UnsafeCast<Smi>(n);
 
-      check(TestHelperPlus1(c, m) == 11);
+      check(TestHelperPlus1(context, m) == 11);
       return True;
     }
     return False;
@@ -223,7 +223,7 @@ module test {
     check(Convert<intptr>(-0xffff) == -65535);
   }
 
-  macro TestLargeIntegerLiterals(c: Context) {
+  macro TestLargeIntegerLiterals(implicit c: Context)() {
     let x: int32 = 0x40000000;
     let y: int32 = 0x7fffffff;
   }
@@ -278,11 +278,11 @@ module test {
     return i.i;
   }
 
-  macro TestStruct2(): TestStructA {
+  macro TestStruct2(implicit context: Context)(): TestStructA {
     return TestStructA{UnsafeCast<FixedArray>(kEmptyFixedArray), 27, 31};
   }
 
-  macro TestStruct3(): TestStructA {
+  macro TestStruct3(implicit context: Context)(): TestStructA {
     let a: TestStructA =
     TestStructA{UnsafeCast<FixedArray>(kEmptyFixedArray), 13, 5};
     let b: TestStructA = a;
@@ -304,8 +304,19 @@ module test {
     y: TestStructA;
   }
 
-  macro TestStruct4(): TestStructC {
+  macro TestStruct4(implicit context: Context)(): TestStructC {
     return TestStructC{TestStruct2(), TestStruct2()};
+  }
+
+  macro TestStructInLabel(implicit context: Context)(): never
+      labels Foo(TestStructA) {
+    goto Foo(TestStruct2());
+  }
+  macro CallTestStructInLabel(implicit context: Context)() {
+    try {
+      TestStructInLabel() otherwise Foo;
+    }
+    label Foo(s: TestStructA) {}
   }
 
   // This macro tests different versions of the for-loop where some parts
@@ -392,6 +403,16 @@ module test {
       j++;
     }
     check(sum == 7);
+
+    j = 0;
+    try {
+      for (;;) {
+        if (++j == 10) goto Exit;
+      }
+    }
+    label Exit {
+      check(j == 10);
+    }
   }
 
   macro TestSubtyping(x: Smi) {
@@ -409,9 +430,11 @@ module test {
     }
   }
 
-  macro TypeswitchExample(x: Number | FixedArray): int32 {
+  type NumberOrFixedArray = Number | FixedArray;
+  macro TypeswitchExample(implicit context: Context)(x: NumberOrFixedArray):
+      int32 {
     let result: int32 = 0;
-    typeswitch (IncrementIfSmi<(Number | FixedArray)>(x)) {
+    typeswitch (IncrementIfSmi(x)) {
       case (x: FixedArray): {
         result = result + 1;
       }
@@ -422,7 +445,7 @@ module test {
 
     result = result * 10;
 
-    typeswitch (IncrementIfSmi<(Number | FixedArray)>(x)) {
+    typeswitch (IncrementIfSmi(x)) {
       case (x: Smi): {
         result = result + Convert<int32>(x);
       }
@@ -437,11 +460,24 @@ module test {
     return result;
   }
 
-  macro TestTypeswitch() {
+  macro TestTypeswitch(implicit context: Context)() {
     check(TypeswitchExample(FromConstexpr<Smi>(5)) == 26);
     const a: FixedArray = AllocateZeroedFixedArray(3);
     check(TypeswitchExample(a) == 13);
     check(TypeswitchExample(FromConstexpr<Number>(0.5)) == 27);
+  }
+
+  macro TestTypeswitchAsanLsanFailure(implicit context: Context)(obj: Object) {
+    typeswitch (obj) {
+      case (o: Smi): {
+      }
+      case (o: JSTypedArray): {
+      }
+      case (o: JSReceiver): {
+      }
+      case (o: HeapObject): {
+      }
+    }
   }
 
   macro ExampleGenericOverload<A: type>(o: Object): A {
@@ -451,7 +487,7 @@ module test {
     return o + 1;
   }
 
-  macro TestGenericOverload() {
+  macro TestGenericOverload(implicit context: Context)() {
     const xSmi: Smi = 5;
     const xObject: Object = xSmi;
     check(ExampleGenericOverload<Smi>(xSmi) == 6);
@@ -587,5 +623,149 @@ module test {
     label B(b: Smi) {
       assert(b == 5);
     }
+  }
+
+  macro TestQualifiedAccess(implicit context: Context)() {
+    let s: Smi = 0;
+    check(!array::IsJSArray(s));
+  }
+
+  macro TestCatch1(implicit context: Context)(): Smi {
+    let r: Smi = 0;
+    try {
+      ThrowTypeError(context, kInvalidArrayLength);
+    } catch (e) {
+      r = 1;
+      return r;
+    }
+  }
+
+  macro TestCatch2Wrapper(implicit context: Context)(): never {
+    ThrowTypeError(context, kInvalidArrayLength);
+  }
+
+  macro TestCatch2(implicit context: Context)(): Smi {
+    let r: Smi = 0;
+    try {
+      TestCatch2Wrapper();
+    } catch (e) {
+      r = 2;
+      return r;
+    }
+  }
+
+  macro TestCatch3WrapperWithLabel(implicit context: Context)(): never
+      labels Abort {
+    ThrowTypeError(context, kInvalidArrayLength);
+  }
+
+  macro TestCatch3(implicit context: Context)(): Smi {
+    let r: Smi = 0;
+    try {
+      TestCatch3WrapperWithLabel() otherwise Abort;
+    }
+    label Abort {
+      return -1;
+    }
+    catch (e) {
+      r = 2;
+      return r;
+    }
+  }
+
+  // This test doesn't actually test the functionality of iterators,
+  // it's only purpose is to make sure tha the CSA macros in the
+  // IteratorBuiltinsAssembler match the signatures provided in
+  // iterator.tq.
+  macro TestIterator(implicit context: Context)(o: Object, map: Map) {
+    try {
+      const t1: Object = iterator::GetIteratorMethod(o);
+      const t2: iterator::IteratorRecord = iterator::GetIterator(o);
+
+      const t3: Object = iterator::IteratorStep(t2) otherwise Fail;
+      const t4: Object = iterator::IteratorStep(t2, map) otherwise Fail;
+
+      const t5: Object = iterator::IteratorValue(t4);
+      const t6: Object = iterator::IteratorValue(t4, map);
+
+      const t7: JSArray = iterator::IterableToList(t1, t1);
+
+      iterator::IteratorCloseOnException(t2, t5);
+    }
+    label Fail {}
+  }
+
+  macro TestFrame1(implicit context: Context)() {
+    const f: Frame = LoadFramePointer();
+    const frameType: FrameType =
+        Cast<FrameType>(f.context_or_frame_type) otherwise unreachable;
+    assert(frameType == STUB_FRAME);
+    assert(f.caller == LoadParentFramePointer());
+    typeswitch (f) {
+      case (f: StandardFrame): {
+        unreachable;
+      }
+      case (f: ArgumentsAdaptorFrame): {
+        unreachable;
+      }
+      case (f: StubFrame): {
+      }
+    }
+  }
+
+  macro TestNew(implicit context: Context)() {
+    const f: JSArray = new JSArray{};
+    assert(f.IsEmpty());
+    f.length = 0;
+  }
+
+  struct TestInner {
+    SetX(newValue: int32) {
+      this.x = newValue;
+    }
+    GetX(): int32 {
+      return this.x;
+    }
+    x: int32;
+    y: int32;
+  }
+
+  struct TestOuter {
+    a: int32;
+    b: TestInner;
+    c: int32;
+  }
+
+  struct TestCustomStructConstructor {
+    constructor(x: int32, y: Smi) {
+      this.a = x;
+      this.c = x;
+      this.b = y;
+      this.d = y;
+    }
+    a: int32;
+    b: Smi;
+    c: int32;
+    d: Smi;
+  }
+
+  macro TestStructConstructor(implicit context: Context)() {
+    // Test default constructor
+    let a: TestOuter = TestOuter{5, TestInner{6, 7}, 8};
+    assert(a.a == 5);
+    assert(a.b.x == 6);
+    assert(a.b.y == 7);
+    assert(a.c == 8);
+    a.b.x = 1;
+    assert(a.b.x == 1);
+    a.b.SetX(2);
+    assert(a.b.x == 2);
+    assert(a.b.GetX() == 2);
+    // Test custom constructor
+    let w: TestCustomStructConstructor = TestCustomStructConstructor{1, 2};
+    assert(w.a == 1);
+    assert(w.b == 2);
+    assert(w.c == 1);
+    assert(w.d == 2);
   }
 }

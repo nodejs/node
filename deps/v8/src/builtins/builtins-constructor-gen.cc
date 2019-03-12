@@ -13,32 +13,24 @@
 #include "src/code-stub-assembler.h"
 #include "src/counters.h"
 #include "src/interface-descriptors.h"
+#include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
 void Builtins::Generate_ConstructVarargs(MacroAssembler* masm) {
-#ifdef V8_TARGET_ARCH_IA32
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-#endif
   Generate_CallOrConstructVarargs(masm,
                                   BUILTIN_CODE(masm->isolate(), Construct));
 }
 
 void Builtins::Generate_ConstructForwardVarargs(MacroAssembler* masm) {
-#ifdef V8_TARGET_ARCH_IA32
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-#endif
   Generate_CallOrConstructForwardVarargs(
       masm, CallOrConstructMode::kConstruct,
       BUILTIN_CODE(masm->isolate(), Construct));
 }
 
 void Builtins::Generate_ConstructFunctionForwardVarargs(MacroAssembler* masm) {
-#ifdef V8_TARGET_ARCH_IA32
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-#endif
   Generate_CallOrConstructForwardVarargs(
       masm, CallOrConstructMode::kConstruct,
       BUILTIN_CODE(masm->isolate(), ConstructFunction));
@@ -79,6 +71,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
     Node* const feedback_cell_map = LoadMap(feedback_cell);
     Label no_closures(this), one_closure(this), cell_done(this);
 
+    GotoIf(IsNoFeedbackCellMap(feedback_cell_map), &cell_done);
     GotoIf(IsNoClosuresCellMap(feedback_cell_map), &no_closures);
     GotoIf(IsOneClosureCellMap(feedback_cell_map), &one_closure);
     CSA_ASSERT(this, IsManyClosuresCellMap(feedback_cell_map),
@@ -115,9 +108,9 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
       LoadContextElement(native_context, function_map_index);
 
   // Create a new closure from the given function info in new space
-  Node* instance_size_in_bytes =
-      TimesPointerSize(LoadMapInstanceSizeInWords(function_map));
-  Node* const result = Allocate(instance_size_in_bytes);
+  TNode<IntPtrT> instance_size_in_bytes =
+      TimesTaggedSize(LoadMapInstanceSizeInWords(function_map));
+  TNode<Object> result = Allocate(instance_size_in_bytes);
   StoreMapNoWriteBarrier(result, function_map);
   InitializeJSObjectBodyNoSlackTracking(result, function_map,
                                         instance_size_in_bytes,
@@ -141,14 +134,14 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
     BIND(&done);
   }
 
-  STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kPointerSize);
+  STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kFeedbackCellOffset,
                                  feedback_cell);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kSharedFunctionInfoOffset,
                                  shared_function_info);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kContextOffset, context);
-  Handle<Code> lazy_builtin_handle(
-      isolate()->builtins()->builtin(Builtins::kCompileLazy), isolate());
+  Handle<Code> lazy_builtin_handle =
+      isolate()->builtins()->builtin_handle(Builtins::kCompileLazy);
   Node* lazy_builtin = HeapConstant(lazy_builtin_handle);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kCodeOffset, lazy_builtin);
   Return(result);
@@ -232,14 +225,10 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewObject(Node* context,
 }
 
 Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
-    Node* scope_info, Node* slots, Node* context, ScopeType scope_type) {
-  slots = ChangeUint32ToWord(slots);
-
-  // TODO(ishell): Use CSA::OptimalParameterMode() here.
-  ParameterMode mode = INTPTR_PARAMETERS;
-  Node* min_context_slots = IntPtrConstant(Context::MIN_CONTEXT_SLOTS);
-  Node* length = IntPtrAdd(slots, min_context_slots);
-  Node* size = GetFixedArrayAllocationSize(length, PACKED_ELEMENTS, mode);
+    Node* scope_info, Node* slots_uint32, Node* context, ScopeType scope_type) {
+  TNode<IntPtrT> slots = Signed(ChangeUint32ToWord(slots_uint32));
+  TNode<IntPtrT> size = ElementOffsetFromIndex(
+      slots, PACKED_ELEMENTS, INTPTR_PARAMETERS, Context::kTodoHeaderSize);
 
   // Create a new closure from the given function info in new space
   TNode<Context> function_context =
@@ -256,33 +245,34 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
     default:
       UNREACHABLE();
   }
+  // Set up the header.
   StoreMapNoWriteBarrier(function_context, context_type);
+  TNode<IntPtrT> min_context_slots = IntPtrConstant(Context::MIN_CONTEXT_SLOTS);
+  // TODO(ishell): for now, length also includes MIN_CONTEXT_SLOTS.
+  TNode<IntPtrT> length = IntPtrAdd(slots, min_context_slots);
   StoreObjectFieldNoWriteBarrier(function_context, Context::kLengthOffset,
                                  SmiTag(length));
+  StoreObjectFieldNoWriteBarrier(function_context, Context::kScopeInfoOffset,
+                                 scope_info);
+  StoreObjectFieldNoWriteBarrier(function_context, Context::kPreviousOffset,
+                                 context);
+  StoreObjectFieldNoWriteBarrier(function_context, Context::kExtensionOffset,
+                                 TheHoleConstant());
+  TNode<Context> native_context = LoadNativeContext(context);
+  StoreObjectFieldNoWriteBarrier(function_context,
+                                 Context::kNativeContextOffset, native_context);
 
-  // Set up the fixed slots.
-  StoreFixedArrayElement(function_context, Context::SCOPE_INFO_INDEX,
-                         scope_info, SKIP_WRITE_BARRIER);
-  StoreFixedArrayElement(function_context, Context::PREVIOUS_INDEX, context,
-                         SKIP_WRITE_BARRIER);
-  StoreFixedArrayElement(function_context, Context::EXTENSION_INDEX,
-                         TheHoleConstant(), SKIP_WRITE_BARRIER);
-
-  // Copy the native context from the previous context.
-  Node* native_context = LoadNativeContext(context);
-  StoreFixedArrayElement(function_context, Context::NATIVE_CONTEXT_INDEX,
-                         native_context, SKIP_WRITE_BARRIER);
-
-  // Initialize the rest of the slots to undefined.
-  Node* undefined = UndefinedConstant();
-  BuildFastFixedArrayForEach(
-      function_context, PACKED_ELEMENTS, min_context_slots, length,
-      [this, undefined](Node* context, Node* offset) {
-        StoreNoWriteBarrier(MachineRepresentation::kTagged, context, offset,
-                            undefined);
+  // Initialize the varrest of the slots to undefined.
+  TNode<HeapObject> undefined = UndefinedConstant();
+  TNode<IntPtrT> start_offset = IntPtrConstant(Context::kTodoHeaderSize);
+  CodeStubAssembler::VariableList vars(0, zone());
+  BuildFastLoop(
+      vars, start_offset, size,
+      [=](Node* offset) {
+        StoreObjectFieldNoWriteBarrier(
+            function_context, UncheckedCast<IntPtrT>(offset), undefined);
       },
-      mode);
-
+      kTaggedSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
   return function_context;
 }
 
@@ -314,9 +304,9 @@ Node* ConstructorBuiltinsAssembler::EmitCreateRegExpLiteral(
   {
     Node* boilerplate = literal_site;
     CSA_ASSERT(this, IsJSRegExp(boilerplate));
-    int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
+    int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kTaggedSize;
     Node* copy = Allocate(size);
-    for (int offset = 0; offset < size; offset += kPointerSize) {
+    for (int offset = 0; offset < size; offset += kTaggedSize) {
       Node* value = LoadObjectField(boilerplate, offset);
       StoreObjectFieldNoWriteBarrier(copy, offset, value);
     }
@@ -415,10 +405,10 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
   TNode<Int32T> kind = LoadElementsKind(allocation_site.value());
   TNode<Context> native_context = LoadNativeContext(context);
   Comment("LoadJSArrayElementsMap");
-  Node* array_map = LoadJSArrayElementsMap(kind, native_context);
-  Node* zero = SmiConstant(0);
+  TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
+  TNode<Smi> zero = SmiConstant(0);
   Comment("Allocate JSArray");
-  Node* result =
+  TNode<JSArray> result =
       AllocateJSArray(GetInitialFastElementsKind(), array_map, zero, zero,
                       allocation_site.value(), ParameterMode::SMI_PARAMETERS);
 
@@ -501,9 +491,9 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
   // Ensure new-space allocation for a fresh JSObject so we can skip write
   // barriers when copying all object fields.
   STATIC_ASSERT(JSObject::kMaxInstanceSize < kMaxRegularHeapObjectSize);
-  Node* instance_size =
-      TimesPointerSize(LoadMapInstanceSizeInWords(boilerplate_map));
-  Node* allocation_size = instance_size;
+  TNode<IntPtrT> instance_size =
+      TimesTaggedSize(LoadMapInstanceSizeInWords(boilerplate_map));
+  TNode<IntPtrT> allocation_size = instance_size;
   bool needs_allocation_memento = FLAG_allocation_site_pretenuring;
   if (needs_allocation_memento) {
     // Prepare for inner-allocating the AllocationMemento.
@@ -511,7 +501,8 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
         IntPtrAdd(instance_size, IntPtrConstant(AllocationMemento::kSize));
   }
 
-  Node* copy = AllocateInNewSpace(allocation_size);
+  TNode<HeapObject> copy =
+      UncheckedCast<HeapObject>(AllocateInNewSpace(allocation_size));
   {
     Comment("Initialize Literal Copy");
     // Initialize Object fields.
@@ -531,8 +522,7 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
   {
     // Copy over in-object properties.
     Label continue_with_write_barrier(this), done_init(this);
-    VARIABLE(offset, MachineType::PointerRepresentation(),
-             IntPtrConstant(JSObject::kHeaderSize));
+    TVARIABLE(IntPtrT, offset, IntPtrConstant(JSObject::kHeaderSize));
     // Mutable heap numbers only occur on 32-bit platforms.
     bool may_use_mutable_heap_numbers = !FLAG_unbox_double_fields;
     {
@@ -541,16 +531,21 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
       Branch(WordEqual(offset.value(), instance_size), &done_init,
              &continue_fast);
       BIND(&continue_fast);
-      Node* field = LoadObjectField(boilerplate, offset.value());
       if (may_use_mutable_heap_numbers) {
+        TNode<Object> field = LoadObjectField(boilerplate, offset.value());
         Label store_field(this);
         GotoIf(TaggedIsSmi(field), &store_field);
-        GotoIf(IsMutableHeapNumber(field), &continue_with_write_barrier);
+        GotoIf(IsMutableHeapNumber(CAST(field)), &continue_with_write_barrier);
         Goto(&store_field);
         BIND(&store_field);
+        StoreObjectFieldNoWriteBarrier(copy, offset.value(), field);
+      } else {
+        // Copy fields as raw data.
+        TNode<IntPtrT> field =
+            LoadObjectField<IntPtrT>(boilerplate, offset.value());
+        StoreObjectFieldNoWriteBarrier(copy, offset.value(), field);
       }
-      StoreObjectFieldNoWriteBarrier(copy, offset.value(), field);
-      offset.Bind(IntPtrAdd(offset.value(), IntPtrConstant(kPointerSize)));
+      offset = IntPtrAdd(offset.value(), IntPtrConstant(kTaggedSize));
       Branch(WordNotEqual(offset.value(), instance_size), &continue_fast,
              &done_init);
     }
@@ -566,33 +561,36 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
     BIND(&continue_with_write_barrier);
     {
       Comment("Copy in-object properties slow");
-      BuildFastLoop(offset.value(), instance_size,
-                    [=](Node* offset) {
-                      Node* field = LoadObjectField(boilerplate, offset);
-                      StoreObjectFieldNoWriteBarrier(copy, offset, field);
-                    },
-                    kPointerSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+      BuildFastLoop(
+          offset.value(), instance_size,
+          [=](Node* offset) {
+            // TODO(ishell): value decompression is not necessary here.
+            Node* field = LoadObjectField(boilerplate, offset);
+            StoreObjectFieldNoWriteBarrier(copy, offset, field);
+          },
+          kTaggedSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
       Comment("Copy mutable HeapNumber values");
-      BuildFastLoop(offset.value(), instance_size,
-                    [=](Node* offset) {
-                      Node* field = LoadObjectField(copy, offset);
-                      Label copy_mutable_heap_number(this, Label::kDeferred),
-                          continue_loop(this);
-                      // We only have to clone complex field values.
-                      GotoIf(TaggedIsSmi(field), &continue_loop);
-                      Branch(IsMutableHeapNumber(field),
-                             &copy_mutable_heap_number, &continue_loop);
-                      BIND(&copy_mutable_heap_number);
-                      {
-                        Node* double_value = LoadHeapNumberValue(field);
-                        Node* mutable_heap_number =
-                            AllocateMutableHeapNumberWithValue(double_value);
-                        StoreObjectField(copy, offset, mutable_heap_number);
-                        Goto(&continue_loop);
-                      }
-                      BIND(&continue_loop);
-                    },
-                    kPointerSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+      BuildFastLoop(
+          offset.value(), instance_size,
+          [=](Node* offset) {
+            Node* field = LoadObjectField(copy, offset);
+            Label copy_mutable_heap_number(this, Label::kDeferred),
+                continue_loop(this);
+            // We only have to clone complex field values.
+            GotoIf(TaggedIsSmi(field), &continue_loop);
+            Branch(IsMutableHeapNumber(field), &copy_mutable_heap_number,
+                   &continue_loop);
+            BIND(&copy_mutable_heap_number);
+            {
+              Node* double_value = LoadHeapNumberValue(field);
+              Node* mutable_heap_number =
+                  AllocateMutableHeapNumberWithValue(double_value);
+              StoreObjectField(copy, offset, mutable_heap_number);
+              Goto(&continue_loop);
+            }
+            BIND(&continue_loop);
+          },
+          kTaggedSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
       Goto(&done_init);
     }
     BIND(&done_init);

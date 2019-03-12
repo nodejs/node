@@ -291,7 +291,7 @@ TEST(Breakpoint_I32And_disable) {
   }
 }
 
-TEST(GrowMemory) {
+TEST(MemoryGrow) {
   {
     WasmRunner<int32_t, uint32_t> r(ExecutionTier::kInterpreter);
     r.builder().AddMemory(kWasmPageSize);
@@ -308,7 +308,7 @@ TEST(GrowMemory) {
   }
 }
 
-TEST(GrowMemoryPreservesData) {
+TEST(MemoryGrowPreservesData) {
   int32_t index = 16;
   int32_t value = 2335;
   WasmRunner<int32_t, uint32_t> r(ExecutionTier::kInterpreter);
@@ -320,7 +320,7 @@ TEST(GrowMemoryPreservesData) {
   CHECK_EQ(value, r.Call(1));
 }
 
-TEST(GrowMemoryInvalidSize) {
+TEST(MemoryGrowInvalidSize) {
   // Grow memory by an invalid amount without initial memory.
   WasmRunner<int32_t, uint32_t> r(ExecutionTier::kInterpreter);
   r.builder().AddMemory(kWasmPageSize);

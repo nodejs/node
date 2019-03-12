@@ -11,13 +11,6 @@ namespace {{namespace}} {
 
 enum NotNullTagEnum { NotNullLiteral };
 
-#define PROTOCOL_DISALLOW_NEW()                                 \
-    private:                                                    \
-        void* operator new(size_t) = delete;                    \
-        void* operator new(size_t, NotNullTagEnum, void*) = delete; \
-        void* operator new(size_t, void*) = delete;             \
-    public:
-
 #define PROTOCOL_DISALLOW_COPY(ClassName) \
     private: \
         ClassName(const ClassName&) = delete; \

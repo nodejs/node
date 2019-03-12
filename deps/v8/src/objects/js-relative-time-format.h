@@ -9,6 +9,9 @@
 #ifndef V8_OBJECTS_JS_RELATIVE_TIME_FORMAT_H_
 #define V8_OBJECTS_JS_RELATIVE_TIME_FORMAT_H_
 
+#include <set>
+#include <string>
+
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects.h"
@@ -46,6 +49,8 @@ class JSRelativeTimeFormat : public JSObject {
       Isolate* isolate, Handle<Object> value_obj, Handle<Object> unit_obj,
       Handle<JSRelativeTimeFormat> format_holder, const char* func_name,
       bool to_parts);
+
+  static std::set<std::string> GetAvailableLocales();
 
   DECL_CAST(JSRelativeTimeFormat)
 
@@ -101,17 +106,23 @@ class JSRelativeTimeFormat : public JSObject {
   DECL_VERIFIER(JSRelativeTimeFormat)
 
   // Layout description.
-  static const int kJSRelativeTimeFormatOffset = JSObject::kHeaderSize;
-  static const int kLocaleOffset = kJSRelativeTimeFormatOffset + kPointerSize;
-  static const int kICUFormatterOffset = kLocaleOffset + kPointerSize;
-  static const int kFlagsOffset = kICUFormatterOffset + kPointerSize;
-  static const int kSize = kFlagsOffset + kPointerSize;
+#define JS_RELATIVE_TIME_FORMAT_FIELDS(V)     \
+  V(kJSRelativeTimeFormatOffset, kTaggedSize) \
+  V(kLocaleOffset, kTaggedSize)               \
+  V(kICUFormatterOffset, kTaggedSize)         \
+  V(kFlagsOffset, kTaggedSize)                \
+  /* Header size. */                          \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_RELATIVE_TIME_FORMAT_FIELDS)
+#undef JS_RELATIVE_TIME_FORMAT_FIELDS
 
  private:
   static Style getStyle(const char* str);
   static Numeric getNumeric(const char* str);
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSRelativeTimeFormat);
+  OBJECT_CONSTRUCTORS(JSRelativeTimeFormat, JSObject);
 };
 
 }  // namespace internal

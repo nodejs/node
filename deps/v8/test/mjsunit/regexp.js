@@ -808,3 +808,19 @@ assertFalse(/^[\d-X-Z]*$/.test("234-XYZ-432"));
 
 assertFalse(/\uDB88|\uDBEC|aa/.test(""));
 assertFalse(/\uDB88|\uDBEC|aa/u.test(""));
+
+// EscapeRegExpPattern
+assertEquals("\\n", /\n/.source);
+assertEquals("\\n", new RegExp("\n").source);
+assertEquals("\\n", new RegExp("\\n").source);
+assertEquals("\\\\n", /\\n/.source);
+assertEquals("\\r", /\r/.source);
+assertEquals("\\r", new RegExp("\r").source);
+assertEquals("\\r", new RegExp("\\r").source);
+assertEquals("\\\\r", /\\r/.source);
+assertEquals("\\u2028", /\u2028/.source);
+assertEquals("\\u2028", new RegExp("\u2028").source);
+assertEquals("\\u2028", new RegExp("\\u2028").source);
+assertEquals("\\u2029", /\u2029/.source);
+assertEquals("\\u2029", new RegExp("\u2029").source);
+assertEquals("\\u2029", new RegExp("\\u2029").source);

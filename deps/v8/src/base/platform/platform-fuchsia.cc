@@ -49,7 +49,7 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   size_t request_size = size + (alignment - page_size);
 
   zx_handle_t vmo;
-  if (zx_vmo_create(request_size, 0, &vmo) != ZX_OK) {
+  if (zx_vmo_create(request_size, ZX_VMO_NON_RESIZABLE, &vmo) != ZX_OK) {
     return nullptr;
   }
   static const char kVirtualMemoryName[] = "v8-virtualmem";
@@ -57,6 +57,11 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
                          strlen(kVirtualMemoryName));
   uintptr_t reservation;
   uint32_t prot = GetProtectionFromMemoryPermission(access);
+  if ((prot & ZX_VM_FLAG_PERM_EXECUTE) != 0) {
+    if (zx_vmo_replace_as_executable(vmo, ZX_HANDLE_INVALID, &vmo) != ZX_OK) {
+      return nullptr;
+    }
+  }
   zx_status_t status = zx_vmar_map(zx_vmar_root_self(), prot, 0, vmo, 0,
                                    request_size, &reservation);
   // Either the vmo is now referenced by the vmar, or we failed and are bailing,
@@ -117,6 +122,12 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
   uint32_t prot = GetProtectionFromMemoryPermission(access);
   return zx_vmar_protect(zx_vmar_root_self(), prot,
                          reinterpret_cast<uintptr_t>(address), size) == ZX_OK;
+}
+
+// static
+bool OS::DiscardSystemPages(void* address, size_t size) {
+  // TODO(hpayer): Does Fuchsia have madvise?
+  return true;
 }
 
 // static

@@ -160,6 +160,7 @@ class V8_EXPORT_PRIVATE Node final {
   bool OwnedBy(Node const* owner1, Node const* owner2) const;
 
   void Print() const;
+  void Print(std::ostream&) const;
 
  private:
   struct Use;

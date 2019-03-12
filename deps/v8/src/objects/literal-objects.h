@@ -5,8 +5,8 @@
 #ifndef V8_OBJECTS_LITERAL_OBJECTS_H_
 #define V8_OBJECTS_LITERAL_OBJECTS_H_
 
-#include "src/objects.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/struct.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -23,10 +23,10 @@ class ClassLiteral;
 // in the list.
 class ObjectBoilerplateDescription : public FixedArray {
  public:
-  Object* name(int index) const;
-  Object* value(int index) const;
+  Object name(int index) const;
+  Object value(int index) const;
 
-  void set_key_value(int index, Object* key, Object* value);
+  void set_key_value(int index, Object key, Object value);
 
   // The number of boilerplate properties.
   int size() const;
@@ -48,6 +48,8 @@ class ObjectBoilerplateDescription : public FixedArray {
 
  private:
   bool has_number_of_properties() const;
+
+  OBJECT_CONSTRUCTORS(ObjectBoilerplateDescription, FixedArray)
 };
 
 class ArrayBoilerplateDescription : public Struct {
@@ -67,8 +69,9 @@ class ArrayBoilerplateDescription : public Struct {
   void BriefPrintDetails(std::ostream& os);
 
 #define ARRAY_BOILERPLATE_DESCRIPTION_FIELDS(V) \
-  V(kFlagsOffset, kPointerSize)                 \
-  V(kConstantElementsOffset, kPointerSize)      \
+  V(kFlagsOffset, kTaggedSize)                  \
+  V(kConstantElementsOffset, kTaggedSize)       \
+  /* Total size. */                             \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
@@ -77,7 +80,7 @@ class ArrayBoilerplateDescription : public Struct {
 
  private:
   DECL_INT_ACCESSORS(flags)
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ArrayBoilerplateDescription);
+  OBJECT_CONSTRUCTORS(ArrayBoilerplateDescription, Struct);
 };
 
 class ClassBoilerplate : public FixedArray {
@@ -126,12 +129,12 @@ class ClassBoilerplate : public FixedArray {
   static void AddToPropertiesTemplate(Isolate* isolate,
                                       Handle<NameDictionary> dictionary,
                                       Handle<Name> name, int key_index,
-                                      ValueKind value_kind, Object* value);
+                                      ValueKind value_kind, Object value);
 
   static void AddToElementsTemplate(Isolate* isolate,
                                     Handle<NumberDictionary> dictionary,
                                     uint32_t key, int key_index,
-                                    ValueKind value_kind, Object* value);
+                                    ValueKind value_kind, Object value);
 
   static Handle<ClassBoilerplate> BuildClassBoilerplate(Isolate* isolate,
                                                         ClassLiteral* expr);
@@ -151,6 +154,8 @@ class ClassBoilerplate : public FixedArray {
 
  private:
   DECL_INT_ACCESSORS(flags)
+
+  OBJECT_CONSTRUCTORS(ClassBoilerplate, FixedArray)
 };
 
 }  // namespace internal
