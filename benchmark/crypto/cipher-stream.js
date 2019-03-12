@@ -35,11 +35,18 @@ function main({ api, cipher, type, len, writes }) {
   // alice_secret and bob_secret should be the same
   assert(alice_secret === bob_secret);
 
-  const alice_cipher = crypto.createCipher(cipher, alice_secret);
-  const bob_cipher = crypto.createDecipher(cipher, bob_secret);
+  // for cipher AES192
+  let keylen = 24;
+  if (cipher === 'AES256') {
+    keylen = 32;
+  }
+  const key = crypto.scryptSync(alice_secret, 'salt', keylen);
+  const iv = crypto.randomBytes(16);
+  const alice_cipher = crypto.createCipheriv(cipher, key, iv);
+  const bob_cipher = crypto.createDecipheriv(cipher, key, iv);
 
-  var message;
-  var encoding;
+  let message;
+  let encoding;
   switch (type) {
     case 'asc':
       message = 'a'.repeat(len);
@@ -65,7 +72,7 @@ function main({ api, cipher, type, len, writes }) {
 }
 
 function streamWrite(alice, bob, message, encoding, writes) {
-  var written = 0;
+  let written = 0;
   bob.on('data', (c) => {
     written += c.length;
   });
@@ -86,9 +93,9 @@ function streamWrite(alice, bob, message, encoding, writes) {
 }
 
 function legacyWrite(alice, bob, message, encoding, writes) {
-  var written = 0;
-  var enc, dec;
-  for (var i = 0; i < writes; i++) {
+  let written = 0;
+  let enc, dec;
+  for (let i = 0; i < writes; i++) {
     enc = alice.update(message, encoding);
     dec = bob.update(enc);
     written += dec.length;
