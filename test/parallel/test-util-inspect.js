@@ -289,11 +289,11 @@ assert.strictEqual(
 // Dynamic properties.
 {
   assert.strictEqual(
-    util.inspect({ get readonly() {} }),
+    util.inspect({ get readonly() { return 1; } }),
     '{ readonly: [Getter] }');
 
   assert.strictEqual(
-    util.inspect({ get readwrite() {}, set readwrite(val) {} }),
+    util.inspect({ get readwrite() { return 1; }, set readwrite(val) {} }),
     '{ readwrite: [Getter/Setter] }');
 
   assert.strictEqual(
