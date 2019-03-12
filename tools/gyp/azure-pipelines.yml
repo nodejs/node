@@ -1,0 +1,26 @@
+strategy:
+  matrix:
+    #    VS2015:
+    #      msvsVersion: '2015'
+    #      imageName: 'vs2015-win2012r2'
+    VS2017:
+      msvsVersion: '2017'
+      imageName: 'vs2017-win2016'
+    VS2019:
+      msvsVersion: '2019'
+      imageName: 'windows-2019'
+
+
+pool:
+  vmImage: $(imageName)
+
+
+steps:
+- task: PythonScript@0
+  displayName: 'Run Tests'
+  env:
+    GYP_MSVS_VERSION: $(msvsVersion)
+  inputs:
+    scriptPath: gyptest.py
+    arguments: -f msvs -a -v
+    failOnStderr: false

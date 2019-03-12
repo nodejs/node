@@ -1,0 +1,2 @@
+.globl _asfun
+ret

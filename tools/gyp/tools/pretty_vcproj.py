@@ -12,56 +12,46 @@
    It outputs the resulting xml to stdout.
 """
 
+from __future__ import print_function
+
 __author__ = 'nsylvain (Nicolas Sylvain)'
 
 import os
 import sys
 
-from xml.dom.minidom import parse
-from xml.dom.minidom import Node
+from xml.dom.minidom import parse, Node
 
-REPLACEMENTS = dict()
+
+REPLACEMENTS = {}
 ARGUMENTS = None
 
 
-class CmpTuple(object):
-  """Compare function between 2 tuple."""
-  def __call__(self, x, y):
-    return cmp(x[0], y[0])
+def get_node_string(node):
+  node_string = "node"
+  node_string += node.nodeName
+  if node.nodeValue:
+    node_string += node.nodeValue
 
+  if node.attributes:
+    # We first sort by name, if present.
+    node_string += node.getAttribute("Name")
 
-class CmpNode(object):
-  """Compare function between 2 xml nodes."""
+    all_nodes = []
+    for (name, value) in node.attributes.items():
+      all_nodes.append((name, value))
 
-  def __call__(self, x, y):
-    def get_string(node):
-      node_string = "node"
-      node_string += node.nodeName
-      if node.nodeValue:
-        node_string += node.nodeValue
+    all_nodes.sort(key=lambda x: x[0])
+    for (name, value) in all_nodes:
+      node_string += name
+      node_string += value
 
-      if node.attributes:
-        # We first sort by name, if present.
-        node_string += node.getAttribute("Name")
-
-        all_nodes = []
-        for (name, value) in node.attributes.items():
-          all_nodes.append((name, value))
-
-        all_nodes.sort(CmpTuple())
-        for (name, value) in all_nodes:
-          node_string += name
-          node_string += value
-
-      return node_string
-
-    return cmp(get_string(x), get_string(y))
+  return node_string
 
 
 def PrettyPrintNode(node, indent=0):
   if node.nodeType == Node.TEXT_NODE:
     if node.data.strip():
-      print '%s%s' % (' '*indent, node.data.strip())
+      print('%s%s' % (' '*indent, node.data.strip()))
     return
 
   if node.childNodes:
@@ -73,23 +63,23 @@ def PrettyPrintNode(node, indent=0):
 
   # Print the main tag
   if attr_count == 0:
-    print '%s<%s>' % (' '*indent, node.nodeName)
+    print('%s<%s>' % (' '*indent, node.nodeName))
   else:
-    print '%s<%s' % (' '*indent, node.nodeName)
+    print('%s<%s' % (' '*indent, node.nodeName))
 
     all_attributes = []
     for (name, value) in node.attributes.items():
       all_attributes.append((name, value))
-      all_attributes.sort(CmpTuple())
+      all_attributes.sort(key=(lambda attr: attr[0]))
     for (name, value) in all_attributes:
-      print '%s  %s="%s"' % (' '*indent, name, value)
-    print '%s>' % (' '*indent)
+      print('%s  %s="%s"' % (' '*indent, name, value))
+    print('%s>' % (' '*indent))
   if node.nodeValue:
-    print '%s  %s' % (' '*indent, node.nodeValue)
+    print('%s  %s' % (' '*indent, node.nodeValue))
 
   for sub_node in node.childNodes:
     PrettyPrintNode(sub_node, indent=indent+2)
-  print '%s</%s>' % (' '*indent, node.nodeName)
+  print('%s</%s>' % (' '*indent, node.nodeName))
 
 
 def FlattenFilter(node):
@@ -186,7 +176,7 @@ def CleanupVcproj(node):
 
 
   # Sort the list.
-  node_array.sort(CmpNode())
+  node_array.sort(key=get_node_string)
 
   # Insert the nodes in the correct order.
   for new_node in node_array:
@@ -200,7 +190,7 @@ def CleanupVcproj(node):
     node.appendChild(new_node)
 
 
-def GetConfiguationNodes(vcproj):
+def GetConfigurationNodes(vcproj):
   #TODO(nsylvain): Find a better way to navigate the xml.
   nodes = []
   for node in vcproj.childNodes:
@@ -283,8 +273,8 @@ def main(argv):
 
   # check if we have exactly 1 parameter.
   if len(argv) < 2:
-    print ('Usage: %s "c:\\path\\to\\vcproj.vcproj" [key1=value1] '
-           '[key2=value2]' % argv[0])
+    print('Usage: %s "c:\\path\\to\\vcproj.vcproj" [key1=value1] '
+          '[key2=value2]' % argv[0])
     return 1
 
   # Parse the keys
@@ -297,7 +287,7 @@ def main(argv):
 
   # First thing we need to do is find the Configuration Node and merge them
   # with the vsprops they include.
-  for configuration_node in GetConfiguationNodes(dom.documentElement):
+  for configuration_node in GetConfigurationNodes(dom.documentElement):
     # Get the property sheets associated with this configuration.
     vsprops = configuration_node.getAttribute('InheritedPropertySheets')
 
@@ -320,7 +310,6 @@ def main(argv):
 
   # Finally, we use the prett xml function to print the vcproj back to the
   # user.
-  #print dom.toprettyxml(newl="\n")
   PrettyPrintNode(dom.documentElement)
   return 0
 

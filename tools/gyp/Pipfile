@@ -1,0 +1,14 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[dev-packages]
+flake8 = "*"
+pywin32 = { version = "*", sys_platform = "=='win32'" }
+
+[packages]
+
+[scripts]
+lint = "flake8 . --count --show-source --statistics"
+test = "python gyptest.py -a"

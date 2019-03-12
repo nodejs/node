@@ -1,0 +1,13 @@
+// Copyright (c) 2014 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+import "oaidl.idl";
+
+[
+  object,
+  uuid(A03D1421-B1EC-11D0-8C3A-00C04FC31D3F),
+]
+interface Bar : IUnknown {
+  HRESULT BarFunction();
+};

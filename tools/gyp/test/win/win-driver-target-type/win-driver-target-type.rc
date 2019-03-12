@@ -1,0 +1,14 @@
+// Copyright (c) 2016 Google Inc. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include <windows.h>
+#include <ntverp.h>
+
+#define VER_FILETYPE    VFT_DRV
+#define VER_FILESUBTYPE VFT2_DRV_SYSTEM
+#define VER_FILEDESCRIPTION_STR     "Windows Driver GYP target type"
+#define VER_INTERNALNAME_STR        "win-driver-target-type.sys"
+#define VER_ORIGINALFILENAME_STR    "win-driver-target-type.sys"
+
+#include "common.ver"

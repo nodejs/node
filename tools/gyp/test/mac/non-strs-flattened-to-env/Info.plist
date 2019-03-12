@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <!-- Not a valid plist file since it's missing so much. That's fine. -->
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>My Variable</key>
+	<string>${MY_VAR}</string>
+	<key>CFlags</key>
+	<string>${OTHER_CFLAGS}</string>
+</dict>
+</plist>

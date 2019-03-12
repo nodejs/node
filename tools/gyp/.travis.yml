@@ -1,0 +1,77 @@
+linux-setup-steps: &linux-setup-steps
+  dist: xenial  # required for Python >= 3.7 (travis-ci/travis-ci#9069)
+  os: linux
+  language: python
+  install:
+    - pip install --upgrade pip pipenv
+    - pipenv install --dev
+    - sudo apt-get install ninja-build
+
+windows-setup-steps: &windows-setup-steps
+  os: windows
+  language: shell  # 'language: python' is not yet supported on Windows
+  env:
+    - PYTHONUNBUFFERED=1
+  install:
+    - pip install --user --upgrade pip pipenv
+    - pipenv install --dev
+
+osx-setup-steps: &osx-setup-steps
+  os: osx
+  language: cpp  # 'language: python' is not yet supported on macOS
+  # before_install: brew upgrade python  # takes too long
+  install:
+    - HOMEBREW_NO_AUTO_UPDATE=1 brew install ninja
+    - pip install --upgrade pip pipenv
+    - pipenv install --dev
+    - pipenv install PyObjC  # This is not in the Pipfile because it breaks other platforms https://github.com/pypa/pipenv/issues/3187
+
+matrix:
+  include:
+    - name: "Linux: test with make and ninja on Python 3.7"
+      python: '3.7'
+      <<: *linux-setup-steps
+      script: pipenv run -v test -f make,ninja
+
+    - name: "Linux: test with make and ninja on Python 2.7"
+      python: '2.7'
+      <<: *linux-setup-steps
+      script: pipenv run -v test -f make,ninja
+
+    - name: "Windows: test on Python 3 with VS2019 Build Tools"
+      <<: *windows-setup-steps
+      env:
+        - GYP_MSVS_VERSION=2019
+        - PATH=/c/Python37:/c/Python37/Scripts:/C/Users/travis/AppData/Roaming/Python/Python37/Scripts:$PATH
+      before_install:
+        - choco install python3 visualstudio2019buildtools visualstudio2019-workload-vctools
+      script: pipenv run -v test -f msvs
+
+#    - name: "Windows: test on Python 2 with VS2017 Build Tools"
+#      <<: *windows-setup-steps
+#      env:
+#        - GYP_MSVS_VERSION=2017
+#        - GYP_BUILD_TOOL=C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\MSBuild\15.0\Bin\MSBuild.exe
+#        - PATH=/c/Python27:/c/Python27/Scripts:/C/Users/travis/AppData/Roaming/Python/Scripts:$PATH
+#      before_install:
+#        - choco install python2 visualstudio2017buildtools visualstudio2017-workload-vctools
+#      script:
+#        - ls -la tools/vssetup.powershell
+#        - pipenv run -v test -f msvs
+
+    - name: "macOS: test with make and ninja on Python 3.7"
+      <<: *osx-setup-steps
+      script: pipenv run -v test -f make,ninja
+
+    - name: "lint with Python 2.7"
+      python: '2.7'
+      <<: *linux-setup-steps
+      script: pipenv run -v lint
+
+    - name: "lint with Python 3.7"
+      python: '3.7'
+      <<: *linux-setup-steps
+      script: pipenv run -v lint
+
+notifications:
+  slack: node4good:C2EI9vo04FY8Ce5u7kcOLlDw
