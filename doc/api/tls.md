@@ -717,18 +717,25 @@ socket has been destroyed, `null` will be returned.
 ### tlsSocket.getCipher()
 <!-- YAML
 added: v0.11.4
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/26625
+    description: Return the minimum cipher version, instead of a fixed string
+      (`'TLSv1/SSLv3'`).
 -->
 
 * Returns: {Object}
+  * `name` {string} The name of the cipher suite.
+  * `version` {string} The minimum TLS protocol version supported by this cipher
+    suite.
 
-Returns an object representing the cipher name. The `version` key is a legacy
-field which always contains the value `'TLSv1/SSLv3'`.
+Returns an object containing information on the negotiated cipher suite.
 
 For example: `{ name: 'AES256-SHA', version: 'TLSv1/SSLv3' }`.
 
-See `SSL_CIPHER_get_name()` in
-<https://www.openssl.org/docs/man1.1.0/ssl/SSL_CIPHER_get_name.html> for more
-information.
+See
+[OpenSSL](https://www.openssl.org/docs/man1.1.1/man3/SSL_CIPHER_get_name.html)
+for more information.
 
 ### tlsSocket.getEphemeralKeyInfo()
 <!-- YAML

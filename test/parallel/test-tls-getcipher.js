@@ -30,28 +30,42 @@ const tls = require('tls');
 // Import fixtures directly from its module
 const fixtures = require('../common/fixtures');
 
-const cipher_list = ['AES128-SHA256', 'AES256-SHA256'];
-const cipher_version_pattern = /TLS|SSL/;
 const options = {
   key: fixtures.readKey('agent2-key.pem'),
   cert: fixtures.readKey('agent2-cert.pem'),
-  ciphers: cipher_list.join(':'),
   honorCipherOrder: true
 };
 
-const server = tls.createServer(options, common.mustCall());
+let clients = 0;
+const server = tls.createServer(options, common.mustCall(() => {
+  if (--clients === 0)
+    server.close();
+}, 2));
 
 server.listen(0, '127.0.0.1', common.mustCall(function() {
-  const client = tls.connect({
+  clients++;
+  tls.connect({
     host: '127.0.0.1',
     port: this.address().port,
-    ciphers: cipher_list.join(':'),
+    ciphers: 'AES128-SHA256',
     rejectUnauthorized: false
   }, common.mustCall(function() {
-    const cipher = client.getCipher();
-    assert.strictEqual(cipher.name, cipher_list[0]);
-    assert(cipher_version_pattern.test(cipher.version));
-    client.end();
-    server.close();
+    const cipher = this.getCipher();
+    assert.strictEqual(cipher.name, 'AES128-SHA256');
+    assert.strictEqual(cipher.version, 'TLSv1.2');
+    this.end();
+  }));
+
+  clients++;
+  tls.connect({
+    host: '127.0.0.1',
+    port: this.address().port,
+    cipher: 'ECDHE-RSA-AES128-GCM-SHA256',
+    rejectUnauthorized: false
+  }, common.mustCall(function() {
+    const cipher = this.getCipher();
+    assert.strictEqual(cipher.name, 'ECDHE-RSA-AES128-GCM-SHA256');
+    assert.strictEqual(cipher.version, 'TLSv1.2');
+    this.end();
   }));
 }));
