@@ -181,7 +181,8 @@ void DumpBacktrace(FILE* fp);
 #endif
 
 
-#define UNREACHABLE(expr) ASSERT(expr)
+#define UNREACHABLE(expr)                                                     \
+  ASSERT("Unreachable code reached:" expr)
 
 // TAILQ-style intrusive list node.
 template <typename T>
