@@ -818,6 +818,12 @@ util.inspect({ hasOwnProperty: null });
                      `{ a: 123,\n  [Symbol(${UIC})]: [Function: [${UIC}]] }`);
 }
 
+// Verify that it's possible to use the stylize function to manipulate input.
+assert.strictEqual(
+  util.inspect([1, 2, 3], { stylize() { return ''; } }),
+  '[ x, x, x ]'
+);
+
 // Using `util.inspect` with "colors" option should produce as many lines as
 // without it.
 {
