@@ -41,15 +41,19 @@ namespace internal {
 #define DEFINE_TFH_INTERFACE_DESCRIPTOR(Name, InterfaceDescriptor) \
   typedef InterfaceDescriptor##Descriptor Builtin_##Name##_InterfaceDescriptor;
 
+#define DEFINE_ASM_INTERFACE_DESCRIPTOR(Name, InterfaceDescriptor) \
+  typedef InterfaceDescriptor##Descriptor Builtin_##Name##_InterfaceDescriptor;
+
 BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, DEFINE_TFJ_INTERFACE_DESCRIPTOR,
              DEFINE_TFC_INTERFACE_DESCRIPTOR, DEFINE_TFS_INTERFACE_DESCRIPTOR,
-             DEFINE_TFH_INTERFACE_DESCRIPTOR, IGNORE_BUILTIN, IGNORE_BUILTIN,
-             IGNORE_BUILTIN)
+             DEFINE_TFH_INTERFACE_DESCRIPTOR, IGNORE_BUILTIN,
+             DEFINE_ASM_INTERFACE_DESCRIPTOR)
 
 #undef DEFINE_TFJ_INTERFACE_DESCRIPTOR
 #undef DEFINE_TFC_INTERFACE_DESCRIPTOR
 #undef DEFINE_TFS_INTERFACE_DESCRIPTOR
 #undef DEFINE_TFH_INTERFACE_DESCRIPTOR
+#undef DEFINE_ASM_INTERFACE_DESCRIPTOR
 
 }  // namespace internal
 }  // namespace v8

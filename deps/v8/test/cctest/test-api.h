@@ -15,7 +15,7 @@
 template <typename T>
 static void CheckReturnValue(const T& t, i::Address callback) {
   v8::ReturnValue<v8::Value> rv = t.GetReturnValue();
-  i::Object** o = *reinterpret_cast<i::Object***>(&rv);
+  i::FullObjectSlot o(*reinterpret_cast<i::Address*>(&rv));
   CHECK_EQ(CcTest::isolate(), t.GetIsolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(t.GetIsolate());
   CHECK_EQ(t.GetIsolate(), rv.GetIsolate());

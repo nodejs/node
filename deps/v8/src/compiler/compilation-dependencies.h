@@ -67,10 +67,9 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
 
   // Depend on the stability of (the maps of) all prototypes of every class in
   // {receiver_type} up to (and including) the {holder}.
-  // TODO(neis): Fully brokerize!
   void DependOnStablePrototypeChains(
-      JSHeapBroker* broker, Handle<Context> native_context,
-      std::vector<Handle<Map>> const& receiver_maps, Handle<JSObject> holder);
+      JSHeapBroker* broker, std::vector<Handle<Map>> const& receiver_maps,
+      const JSObjectRef& holder);
 
   // Like DependOnElementsKind but also applies to all nested allocation sites.
   void DependOnElementsKinds(const AllocationSiteRef& site);
@@ -92,6 +91,7 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
  private:
   Zone* zone_;
   ZoneForwardList<Dependency*> dependencies_;
+  Isolate* isolate_;
 };
 
 }  // namespace compiler

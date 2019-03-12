@@ -42,7 +42,6 @@
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
-#include "src/code-stubs.h"
 #include "src/deoptimizer.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
@@ -339,23 +338,6 @@ bool RelocInfo::IsInConstantPool() {
   return Assembler::is_constant_pool_load(pc_);
 }
 
-int RelocInfo::GetDeoptimizationId(Isolate* isolate, DeoptimizeKind kind) {
-  DCHECK(IsRuntimeEntry(rmode_));
-  return Deoptimizer::GetDeoptimizationId(isolate, target_address(), kind);
-}
-
-void RelocInfo::set_js_to_wasm_address(Address address,
-                                       ICacheFlushMode icache_flush_mode) {
-  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  Assembler::set_target_address_at(pc_, constant_pool_, address,
-                                   icache_flush_mode);
-}
-
-Address RelocInfo::js_to_wasm_address() const {
-  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  return Assembler::target_address_at(pc_, constant_pool_);
-}
-
 uint32_t RelocInfo::wasm_call_tag() const {
   DCHECK(rmode_ == WASM_CALL || rmode_ == WASM_STUB_CALL);
   return static_cast<uint32_t>(
@@ -408,13 +390,6 @@ Operand Operand::EmbeddedNumber(double value) {
   Operand result(0, RelocInfo::EMBEDDED_OBJECT);
   result.is_heap_object_request_ = true;
   result.value_.heap_object_request = HeapObjectRequest(value);
-  return result;
-}
-
-Operand Operand::EmbeddedCode(CodeStub* stub) {
-  Operand result(0, RelocInfo::CODE_TARGET);
-  result.is_heap_object_request_ = true;
-  result.value_.heap_object_request = HeapObjectRequest(stub);
   return result;
 }
 
@@ -488,10 +463,6 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
         object =
             isolate->factory()->NewHeapNumber(request.heap_number(), TENURED);
         break;
-      case HeapObjectRequest::kCodeStub:
-        request.code_stub()->set_isolate(isolate);
-        object = request.code_stub()->GetCode();
-        break;
       case HeapObjectRequest::kStringConstant: {
         const StringConstantBase* str = request.string();
         CHECK_NOT_NULL(str);
@@ -499,7 +470,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
         break;
       }
     }
-    Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
+    Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
     Memory<Address>(constant_pool_entry_address(pc, 0 /* unused */)) =
         object.address();
   }
@@ -517,6 +488,11 @@ const Instr kPopRegPattern = al | B26 | L | 4 | PostIndex | sp.code() * B16;
 // ldr rd, [pc, #offset]
 const Instr kLdrPCImmedMask = 15 * B24 | 7 * B20 | 15 * B16;
 const Instr kLdrPCImmedPattern = 5 * B24 | L | pc.code() * B16;
+// Pc-relative call or jump to a signed imm24 offset.
+// bl pc + #offset
+// b  pc + #offset
+const Instr kBOrBlPCImmedMask = 0xE * B24;
+const Instr kBOrBlPCImmedPattern = 0xA * B24;
 // vldr dd, [pc, #offset]
 const Instr kVldrDPCMask = 15 * B24 | 3 * B20 | 15 * B16 | 15 * B8;
 const Instr kVldrDPCPattern = 13 * B24 | L | pc.code() * B16 | 11 * B8;
@@ -552,20 +528,17 @@ const Instr kLdrRegFpNegOffsetPattern =
 const Instr kStrRegFpNegOffsetPattern = al | B26 | NegOffset | fp.code() * B16;
 const Instr kLdrStrInstrTypeMask = 0xFFFF0000;
 
-Assembler::Assembler(const AssemblerOptions& options, void* buffer,
-                     int buffer_size)
-    : AssemblerBase(options, buffer, buffer_size),
+Assembler::Assembler(const AssemblerOptions& options,
+                     std::unique_ptr<AssemblerBuffer> buffer)
+    : AssemblerBase(options, std::move(buffer)),
       pending_32_bit_constants_(),
-      pending_64_bit_constants_(),
       scratch_register_list_(ip.bit()) {
   pending_32_bit_constants_.reserve(kMinNumPendingConstants);
-  pending_64_bit_constants_.reserve(kMinNumPendingConstants);
-  reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
+  reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
   next_buffer_check_ = 0;
   const_pool_blocked_nesting_ = 0;
   no_const_pool_before_ = 0;
   first_const_pool_32_use_ = -1;
-  first_const_pool_64_use_ = -1;
   last_bound_pos_ = 0;
   if (CpuFeatures::IsSupported(VFP32DREGS)) {
     // Register objects tend to be abstracted and survive between scopes, so
@@ -588,23 +561,24 @@ Assembler::~Assembler() {
 
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   // Emit constant pool if necessary.
-  int constant_pool_offset = 0;
   CheckConstPool(true, false);
   DCHECK(pending_32_bit_constants_.empty());
-  DCHECK(pending_64_bit_constants_.empty());
+
+  int code_comments_size = WriteCodeComments();
 
   AllocateAndInstallRequestedHeapObjects(isolate);
 
   // Set up code descriptor.
-  desc->buffer = buffer_;
-  desc->buffer_size = buffer_size_;
+  desc->buffer = buffer_start_;
+  desc->buffer_size = buffer_->size();
   desc->instr_size = pc_offset();
-  desc->reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
-  desc->constant_pool_size =
-      (constant_pool_offset ? desc->instr_size - constant_pool_offset : 0);
+  desc->reloc_size =
+      (buffer_start_ + desc->buffer_size) - reloc_info_writer.pos();
+  desc->constant_pool_size = 0;
   desc->origin = this;
   desc->unwinding_info_size = 0;
   desc->unwinding_info = nullptr;
+  desc->code_comments_size = code_comments_size;
 }
 
 
@@ -761,6 +735,9 @@ bool Assembler::IsLdrPcImmediateOffset(Instr instr) {
   return (instr & kLdrPCImmedMask) == kLdrPCImmedPattern;
 }
 
+bool Assembler::IsBOrBlPcImmediateOffset(Instr instr) {
+  return (instr & kBOrBlPCImmedMask) == kBOrBlPCImmedPattern;
+}
 
 bool Assembler::IsVldrDPcImmediateOffset(Instr instr) {
   // Check the instruction is indeed a
@@ -883,8 +860,8 @@ void Assembler::target_at_put(int pos, int target_pos) {
     if (is_uint8(target24)) {
       // If the target fits in a byte then only patch with a mov
       // instruction.
-      PatchingAssembler patcher(options(),
-                                reinterpret_cast<byte*>(buffer_ + pos), 1);
+      PatchingAssembler patcher(
+          options(), reinterpret_cast<byte*>(buffer_start_ + pos), 1);
       patcher.mov(dst, Operand(target24));
     } else {
       uint16_t target16_0 = target24 & kImm16Mask;
@@ -892,13 +869,13 @@ void Assembler::target_at_put(int pos, int target_pos) {
       if (CpuFeatures::IsSupported(ARMv7)) {
         // Patch with movw/movt.
         if (target16_1 == 0) {
-          PatchingAssembler patcher(options(),
-                                    reinterpret_cast<byte*>(buffer_ + pos), 1);
+          PatchingAssembler patcher(
+              options(), reinterpret_cast<byte*>(buffer_start_ + pos), 1);
           CpuFeatureScope scope(&patcher, ARMv7);
           patcher.movw(dst, target16_0);
         } else {
-          PatchingAssembler patcher(options(),
-                                    reinterpret_cast<byte*>(buffer_ + pos), 2);
+          PatchingAssembler patcher(
+              options(), reinterpret_cast<byte*>(buffer_start_ + pos), 2);
           CpuFeatureScope scope(&patcher, ARMv7);
           patcher.movw(dst, target16_0);
           patcher.movt(dst, target16_1);
@@ -909,13 +886,13 @@ void Assembler::target_at_put(int pos, int target_pos) {
         uint8_t target8_1 = target16_0 >> 8;
         uint8_t target8_2 = target16_1 & kImm8Mask;
         if (target8_2 == 0) {
-          PatchingAssembler patcher(options(),
-                                    reinterpret_cast<byte*>(buffer_ + pos), 2);
+          PatchingAssembler patcher(
+              options(), reinterpret_cast<byte*>(buffer_start_ + pos), 2);
           patcher.mov(dst, Operand(target8_0));
           patcher.orr(dst, dst, Operand(target8_1 << 8));
         } else {
-          PatchingAssembler patcher(options(),
-                                    reinterpret_cast<byte*>(buffer_ + pos), 3);
+          PatchingAssembler patcher(
+              options(), reinterpret_cast<byte*>(buffer_start_ + pos), 3);
           patcher.mov(dst, Operand(target8_0));
           patcher.orr(dst, dst, Operand(target8_1 << 8));
           patcher.orr(dst, dst, Operand(target8_2 << 16));
@@ -1167,7 +1144,7 @@ void Assembler::Move32BitImmediate(Register rd, const Operand& x,
     DCHECK(!x.MustOutputRelocInfo(this));
     UseScratchRegisterScope temps(this);
     // Re-use the destination register as a scratch if possible.
-    Register target = rd != pc ? rd : temps.Acquire();
+    Register target = rd != pc && rd != sp ? rd : temps.Acquire();
     uint32_t imm32 = static_cast<uint32_t>(x.immediate());
     movw(target, imm32 & 0xFFFF, cond);
     movt(target, imm32 >> 16, cond);
@@ -1241,8 +1218,9 @@ void Assembler::AddrMode1(Instr instr, Register rd, Register rn,
       // it first to a scratch register and change the original instruction to
       // use it.
       // Re-use the destination register if possible.
-      Register scratch =
-          (rd.is_valid() && rd != rn && rd != pc) ? rd : temps.Acquire();
+      Register scratch = (rd.is_valid() && rd != rn && rd != pc && rd != sp)
+                             ? rd
+                             : temps.Acquire();
       mov(scratch, x, LeaveCC, cond);
       AddrMode1(instr, rd, rn, Operand(scratch));
     }
@@ -1307,8 +1285,9 @@ void Assembler::AddrMode2(Instr instr, Register rd, const MemOperand& x) {
       UseScratchRegisterScope temps(this);
       // Allow re-using rd for load instructions if possible.
       bool is_load = (instr & L) == L;
-      Register scratch =
-          (is_load && rd != x.rn_ && rd != pc) ? rd : temps.Acquire();
+      Register scratch = (is_load && rd != x.rn_ && rd != pc && rd != sp)
+                             ? rd
+                             : temps.Acquire();
       mov(scratch, Operand(x.offset_), LeaveCC,
           Instruction::ConditionField(instr));
       AddrMode2(instr, rd, MemOperand(x.rn_, scratch, x.am_));
@@ -1347,8 +1326,9 @@ void Assembler::AddrMode3(Instr instr, Register rd, const MemOperand& x) {
       // register.
       UseScratchRegisterScope temps(this);
       // Allow re-using rd for load instructions if possible.
-      Register scratch =
-          (is_load && rd != x.rn_ && rd != pc) ? rd : temps.Acquire();
+      Register scratch = (is_load && rd != x.rn_ && rd != pc && rd != sp)
+                             ? rd
+                             : temps.Acquire();
       mov(scratch, Operand(x.offset_), LeaveCC,
           Instruction::ConditionField(instr));
       AddrMode3(instr, rd, MemOperand(x.rn_, scratch, x.am_));
@@ -1362,7 +1342,7 @@ void Assembler::AddrMode3(Instr instr, Register rd, const MemOperand& x) {
     UseScratchRegisterScope temps(this);
     // Allow re-using rd for load instructions if possible.
     Register scratch =
-        (is_load && rd != x.rn_ && rd != pc) ? rd : temps.Acquire();
+        (is_load && rd != x.rn_ && rd != pc && rd != sp) ? rd : temps.Acquire();
     mov(scratch, Operand(x.rm_, x.shift_op_, x.shift_imm_), LeaveCC,
         Instruction::ConditionField(instr));
     AddrMode3(instr, rd, MemOperand(x.rn_, scratch, x.am_));
@@ -1510,6 +1490,10 @@ void Assembler::eor(Register dst, Register src1, const Operand& src2,
   AddrMode1(cond | EOR | s, dst, src1, src2);
 }
 
+void Assembler::eor(Register dst, Register src1, Register src2, SBit s,
+                    Condition cond) {
+  AddrMode1(cond | EOR | s, dst, src1, Operand(src2));
+}
 
 void Assembler::sub(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
@@ -5041,40 +5025,34 @@ void Assembler::RecordConstPool(int size) {
 
 
 void Assembler::GrowBuffer() {
-  if (!own_buffer_) FATAL("external code buffer is too small");
+  DCHECK_EQ(buffer_start_, buffer_->start());
 
   // Compute new buffer size.
-  CodeDesc desc;  // the new buffer
-  if (buffer_size_ < 1 * MB) {
-    desc.buffer_size = 2*buffer_size_;
-  } else {
-    desc.buffer_size = buffer_size_ + 1*MB;
-  }
+  int old_size = buffer_->size();
+  int new_size = std::min(2 * old_size, old_size + 1 * MB);
 
   // Some internal data structures overflow for very large buffers,
   // they must ensure that kMaximalBufferSize is not too large.
-  if (desc.buffer_size > kMaximalBufferSize) {
+  if (new_size > kMaximalBufferSize) {
     V8::FatalProcessOutOfMemory(nullptr, "Assembler::GrowBuffer");
   }
 
   // Set up new buffer.
-  desc.buffer = NewArray<byte>(desc.buffer_size);
-
-  desc.instr_size = pc_offset();
-  desc.reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
-  desc.origin = this;
+  std::unique_ptr<AssemblerBuffer> new_buffer = buffer_->Grow(new_size);
+  DCHECK_EQ(new_size, new_buffer->size());
+  byte* new_start = new_buffer->start();
 
   // Copy the data.
-  int pc_delta = desc.buffer - buffer_;
-  int rc_delta = (desc.buffer + desc.buffer_size) - (buffer_ + buffer_size_);
-  MemMove(desc.buffer, buffer_, desc.instr_size);
+  int pc_delta = new_start - buffer_start_;
+  int rc_delta = (new_start + new_size) - (buffer_start_ + old_size);
+  size_t reloc_size = (buffer_start_ + old_size) - reloc_info_writer.pos();
+  MemMove(new_start, buffer_start_, pc_offset());
   MemMove(reloc_info_writer.pos() + rc_delta, reloc_info_writer.pos(),
-          desc.reloc_size);
+          reloc_size);
 
   // Switch buffers.
-  DeleteArray(buffer_);
-  buffer_ = desc.buffer;
-  buffer_size_ = desc.buffer_size;
+  buffer_ = std::move(new_buffer);
+  buffer_start_ = new_start;
   pc_ += pc_delta;
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
@@ -5089,7 +5067,6 @@ void Assembler::db(uint8_t data) {
   // db is used to write raw data. The constant pool should be emitted or
   // blocked before using db.
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
-  DCHECK(is_const_pool_blocked() || pending_64_bit_constants_.empty());
   CheckBuffer();
   *reinterpret_cast<uint8_t*>(pc_) = data;
   pc_ += sizeof(uint8_t);
@@ -5100,7 +5077,6 @@ void Assembler::dd(uint32_t data) {
   // dd is used to write raw data. The constant pool should be emitted or
   // blocked before using dd.
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
-  DCHECK(is_const_pool_blocked() || pending_64_bit_constants_.empty());
   CheckBuffer();
   *reinterpret_cast<uint32_t*>(pc_) = data;
   pc_ += sizeof(uint32_t);
@@ -5111,7 +5087,6 @@ void Assembler::dq(uint64_t value) {
   // dq is used to write raw data. The constant pool should be emitted or
   // blocked before using dq.
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
-  DCHECK(is_const_pool_blocked() || pending_64_bit_constants_.empty());
   CheckBuffer();
   *reinterpret_cast<uint64_t*>(pc_) = value;
   pc_ += sizeof(uint64_t);
@@ -5120,13 +5095,13 @@ void Assembler::dq(uint64_t value) {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (!ShouldRecordRelocInfo(rmode)) return;
   DCHECK_GE(buffer_space(), kMaxRelocSize);  // too late to grow buffer here
-  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code());
   reloc_info_writer.Write(&rinfo);
 }
 
 void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
                                      intptr_t value) {
-  DCHECK(rmode != RelocInfo::COMMENT && rmode != RelocInfo::CONST_POOL);
+  DCHECK(rmode != RelocInfo::CONST_POOL);
   // We can share CODE_TARGETs because we don't patch the code objects anymore,
   // and we make sure we emit only one reloc info for them (thus delta patching)
   // will apply the delta only once. At the moment, we do not dedup code targets
@@ -5173,11 +5148,7 @@ void Assembler::BlockConstPoolFor(int instructions) {
 #ifdef DEBUG
     int start = pc_limit + kInstrSize + 2 * kPointerSize;
     DCHECK(pending_32_bit_constants_.empty() ||
-           (start - first_const_pool_32_use_ +
-                pending_64_bit_constants_.size() * kDoubleSize <
-            kMaxDistToIntPool));
-    DCHECK(pending_64_bit_constants_.empty() ||
-           (start - first_const_pool_64_use_ < kMaxDistToFPPool));
+           (start < first_const_pool_32_use_ + kMaxDistToIntPool));
 #endif
     no_const_pool_before_ = pc_limit;
   }
@@ -5199,7 +5170,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   }
 
   // There is nothing to do if there are no pending constant pool entries.
-  if (pending_32_bit_constants_.empty() && pending_64_bit_constants_.empty()) {
+  if (pending_32_bit_constants_.empty()) {
     // Calculate the offset of the next check.
     next_buffer_check_ = pc_offset() + kCheckPoolInterval;
     return;
@@ -5212,19 +5183,6 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   int size_up_to_marker = jump_instr + kInstrSize;
   int estimated_size_after_marker =
       pending_32_bit_constants_.size() * kPointerSize;
-  bool has_int_values = !pending_32_bit_constants_.empty();
-  bool has_fp_values = !pending_64_bit_constants_.empty();
-  bool require_64_bit_align = false;
-  if (has_fp_values) {
-    require_64_bit_align =
-        !IsAligned(reinterpret_cast<intptr_t>(pc_ + size_up_to_marker),
-                   kDoubleAlignment);
-    if (require_64_bit_align) {
-      estimated_size_after_marker += kInstrSize;
-    }
-    estimated_size_after_marker +=
-        pending_64_bit_constants_.size() * kDoubleSize;
-  }
   int estimated_size = size_up_to_marker + estimated_size_after_marker;
 
   // We emit a constant pool when:
@@ -5236,35 +5194,18 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   //  * the instruction doesn't require a jump after itself to jump over the
   //    constant pool, and we're getting close to running out of range.
   if (!force_emit) {
-    DCHECK(has_fp_values || has_int_values);
+    DCHECK(!pending_32_bit_constants_.empty());
     bool need_emit = false;
-    if (has_fp_values) {
-      // The 64-bit constants are always emitted before the 32-bit constants, so
-      // we can ignore the effect of the 32-bit constants on estimated_size.
-      int dist64 = pc_offset() + estimated_size -
-                   pending_32_bit_constants_.size() * kPointerSize -
-                   first_const_pool_64_use_;
-      if ((dist64 >= kMaxDistToFPPool - kCheckPoolInterval) ||
-          (!require_jump && (dist64 >= kMaxDistToFPPool / 2))) {
-        need_emit = true;
-      }
-    }
-    if (has_int_values) {
-      int dist32 = pc_offset() + estimated_size - first_const_pool_32_use_;
-      if ((dist32 >= kMaxDistToIntPool - kCheckPoolInterval) ||
-          (!require_jump && (dist32 >= kMaxDistToIntPool / 2))) {
-        need_emit = true;
-      }
+    int dist32 = pc_offset() + estimated_size - first_const_pool_32_use_;
+    if ((dist32 >= kMaxDistToIntPool - kCheckPoolInterval) ||
+        (!require_jump && (dist32 >= kMaxDistToIntPool / 2))) {
+      need_emit = true;
     }
     if (!need_emit) return;
   }
 
   // Deduplicate constants.
   int size_after_marker = estimated_size_after_marker;
-  for (size_t i = 0; i < pending_64_bit_constants_.size(); i++) {
-    ConstantPoolEntry& entry = pending_64_bit_constants_[i];
-    if (entry.is_merged()) size_after_marker -= kDoubleSize;
-  }
 
   for (size_t i = 0; i < pending_32_bit_constants_.size(); i++) {
     ConstantPoolEntry& entry = pending_32_bit_constants_[i];
@@ -5295,40 +5236,6 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     // The data size helps disassembly know what to print.
     emit(kConstantPoolMarker |
          EncodeConstantPoolLength(size_after_marker / kPointerSize));
-
-    if (require_64_bit_align) {
-      emit(kConstantPoolMarker);
-    }
-
-    // Emit 64-bit constant pool entries first: their range is smaller than
-    // 32-bit entries.
-    for (size_t i = 0; i < pending_64_bit_constants_.size(); i++) {
-      ConstantPoolEntry& entry = pending_64_bit_constants_[i];
-
-      Instr instr = instr_at(entry.position());
-      // Instruction to patch must be 'vldr rd, [pc, #offset]' with offset == 0.
-      DCHECK((IsVldrDPcImmediateOffset(instr) &&
-              GetVldrDRegisterImmediateOffset(instr) == 0));
-
-      int delta = pc_offset() - entry.position() - Instruction::kPcLoadDelta;
-      DCHECK(is_uint10(delta));
-
-      if (entry.is_merged()) {
-        ConstantPoolEntry& merged =
-            pending_64_bit_constants_[entry.merged_index()];
-        DCHECK(entry.value64() == merged.value64());
-        Instr merged_instr = instr_at(merged.position());
-        DCHECK(IsVldrDPcImmediateOffset(merged_instr));
-        delta = GetVldrDRegisterImmediateOffset(merged_instr);
-        delta += merged.position() - entry.position();
-      }
-      instr_at_put(entry.position(),
-                   SetVldrDRegisterImmediateOffset(instr, delta));
-      if (!entry.is_merged()) {
-        DCHECK(IsAligned(reinterpret_cast<intptr_t>(pc_), kDoubleAlignment));
-        dq(entry.value64());
-      }
-    }
 
     // Emit 32-bit constant pool entries.
     for (size_t i = 0; i < pending_32_bit_constants_.size(); i++) {
@@ -5366,10 +5273,8 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     }
 
     pending_32_bit_constants_.clear();
-    pending_64_bit_constants_.clear();
 
     first_const_pool_32_use_ = -1;
-    first_const_pool_64_use_ = -1;
 
     RecordComment("]");
 
@@ -5387,21 +5292,28 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
 PatchingAssembler::PatchingAssembler(const AssemblerOptions& options,
                                      byte* address, int instructions)
-    : Assembler(options, address, instructions * kInstrSize + kGap) {
-  DCHECK_EQ(reloc_info_writer.pos(), buffer_ + buffer_size_);
+    : Assembler(options, ExternalAssemblerBuffer(
+                             address, instructions * kInstrSize + kGap)) {
+  DCHECK_EQ(reloc_info_writer.pos(), buffer_start_ + buffer_->size());
 }
 
 PatchingAssembler::~PatchingAssembler() {
   // Check that we don't have any pending constant pools.
   DCHECK(pending_32_bit_constants_.empty());
-  DCHECK(pending_64_bit_constants_.empty());
 
   // Check that the code was patched as expected.
-  DCHECK_EQ(pc_, buffer_ + buffer_size_ - kGap);
-  DCHECK_EQ(reloc_info_writer.pos(), buffer_ + buffer_size_);
+  DCHECK_EQ(pc_, buffer_start_ + buffer_->size() - kGap);
+  DCHECK_EQ(reloc_info_writer.pos(), buffer_start_ + buffer_->size());
 }
 
 void PatchingAssembler::Emit(Address addr) { emit(static_cast<Instr>(addr)); }
+
+void PatchingAssembler::PadWithNops() {
+  DCHECK_LE(pc_, buffer_start_ + buffer_->size() - kGap);
+  while (pc_ < buffer_start_ + buffer_->size() - kGap) {
+    nop();
+  }
+}
 
 UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)
     : assembler_(assembler),

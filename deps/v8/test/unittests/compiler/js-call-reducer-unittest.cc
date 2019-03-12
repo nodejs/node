@@ -22,9 +22,7 @@ class JSCallReducerTest : public TypedGraphTest {
  public:
   JSCallReducerTest()
       : TypedGraphTest(3), javascript_(zone()), deps_(isolate(), zone()) {
-    if (FLAG_concurrent_compiler_frontend) {
-      js_heap_broker()->SerializeStandardObjects();
-    }
+    broker()->SerializeStandardObjects();
   }
   ~JSCallReducerTest() override = default;
 
@@ -37,23 +35,12 @@ class JSCallReducerTest : public TypedGraphTest {
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
 
-    JSCallReducer reducer(&graph_reducer, &jsgraph, js_heap_broker(),
-                          JSCallReducer::kNoFlags, native_context(), &deps_);
+    JSCallReducer reducer(&graph_reducer, &jsgraph, broker(),
+                          JSCallReducer::kNoFlags, &deps_);
     return reducer.Reduce(node);
   }
 
   JSOperatorBuilder* javascript() { return &javascript_; }
-
-  static void SetUpTestCase() {
-    old_flag_lazy_ = i::FLAG_lazy_deserialization;
-    i::FLAG_lazy_deserialization = false;
-    TypedGraphTest::SetUpTestCase();
-  }
-
-  static void TearDownTestCase() {
-    TypedGraphTest::TearDownTestCase();
-    i::FLAG_lazy_deserialization = old_flag_lazy_;
-  }
 
   Node* GlobalFunction(const char* name) {
     Handle<JSFunction> f = Handle<JSFunction>::cast(
@@ -131,9 +118,6 @@ class JSCallReducerTest : public TypedGraphTest {
  private:
   JSOperatorBuilder javascript_;
   CompilationDependencies deps_;
-
-  static bool old_flag_lazy_;
-  static bool old_flag_lazy_handler_;
 };
 
 TEST_F(JSCallReducerTest, PromiseConstructorNoArgs) {
@@ -216,9 +200,6 @@ TEST_F(JSCallReducerTest, PromiseConstructorWithHook) {
 
   ASSERT_FALSE(r.Changed());
 }
-
-bool JSCallReducerTest::old_flag_lazy_;
-bool JSCallReducerTest::old_flag_lazy_handler_;
 
 // -----------------------------------------------------------------------------
 // Math unaries

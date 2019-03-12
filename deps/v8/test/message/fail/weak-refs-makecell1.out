@@ -1,0 +1,6 @@
+*%(basename)s:8: TypeError: WeakFactory.prototype.makeCell: target must be an object
+wf.makeCell(1);
+   ^
+TypeError: WeakFactory.prototype.makeCell: target must be an object
+    at WeakFactory.makeCell (<anonymous>)
+    at *%(basename)s:8:4

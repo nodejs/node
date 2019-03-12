@@ -160,20 +160,20 @@ void CcTest::TearDown() {
   if (isolate_ != nullptr) isolate_->Dispose();
 }
 
-v8::Local<v8::Context> CcTest::NewContext(CcTestExtensionFlags extensions,
+v8::Local<v8::Context> CcTest::NewContext(CcTestExtensionFlags extension_flags,
                                           v8::Isolate* isolate) {
-    const char* extension_names[kMaxExtensions];
-    int extension_count = 0;
-  #define CHECK_EXTENSION_FLAG(Name, Id) \
-    if (extensions.Contains(Name##_ID)) extension_names[extension_count++] = Id;
-    EXTENSION_LIST(CHECK_EXTENSION_FLAG)
-  #undef CHECK_EXTENSION_FLAG
-    v8::ExtensionConfiguration config(extension_count, extension_names);
-    v8::Local<v8::Context> context = v8::Context::New(isolate, &config);
-    CHECK(!context.IsEmpty());
-    return context;
+  const char* extension_names[kMaxExtensions];
+  int extension_count = 0;
+  for (int i = 0; i < kMaxExtensions; ++i) {
+    if (!extension_flags.contains(static_cast<CcTestExtensionId>(i))) continue;
+    extension_names[extension_count] = kExtensionName[i];
+    ++extension_count;
+  }
+  v8::ExtensionConfiguration config(extension_count, extension_names);
+  v8::Local<v8::Context> context = v8::Context::New(isolate, &config);
+  CHECK(!context.IsEmpty());
+  return context;
 }
-
 
 void CcTest::DisableAutomaticDispose() {
   CHECK_EQ(kUninitialized, initialization_state_);

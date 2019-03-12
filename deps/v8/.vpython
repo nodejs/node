@@ -43,3 +43,26 @@ wheel: <
     platform: "win_amd64"
   >
 >
+
+# Used by:
+#   tools/unittests/run_perf_test.py
+wheel: <
+  name: "infra/python/wheels/coverage/${vpython_platform}"
+  version: "version:4.3.4"
+>
+wheel: <
+  name: "infra/python/wheels/six-py2_py3"
+  version: "version:1.10.0"
+>
+wheel: <
+  name: "infra/python/wheels/pbr-py2_py3"
+  version: "version:3.0.0"
+>
+wheel: <
+  name: "infra/python/wheels/funcsigs-py2_py3"
+  version: "version:1.0.2"
+>
+wheel: <
+  name: "infra/python/wheels/mock-py2_py3"
+  version: "version:2.0.0"
+>

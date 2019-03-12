@@ -50,6 +50,7 @@ group("v8_testrunner") {
   data = [
     # Also add the num-fuzzer wrapper script in order to be able to run the
     # num-fuzzer on all existing isolated V8 test suites.
+    "predictable_wrapper.py",
     "run-num-fuzzer.py",
     "run-tests.py",
     "testrunner/",

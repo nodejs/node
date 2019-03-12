@@ -7,7 +7,7 @@
 var error1, error2;
 import('modules-skip-10.js').catch(e => error1 = e);
 import('modules-skip-10.js').catch(e => error2 = e);
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
 assertEquals(error1, error2);
 assertInstanceof(error1, SyntaxError);

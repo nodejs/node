@@ -8,7 +8,7 @@ var buffer = new ArrayBuffer(1024 * 1024);
 buffer.constructor = {
   [Symbol.species]: new Proxy(function() {}, {
     get: _ => {
-      %ArrayBufferNeuter(buffer);
+      %ArrayBufferDetach(buffer);
     }
   })
 };

@@ -112,7 +112,7 @@ var kV8MaxPages = 32767;
   }
 })();
 
-(function TestGrowMemoryMaxDesc() {
+(function TestMemoryGrowMaxDesc() {
   print("MaximumDescriptor");
   let memory = new WebAssembly.Memory({initial: 1, maximum: 5});
   assertEquals(kPageSize, memory.buffer.byteLength);
@@ -150,7 +150,7 @@ var kV8MaxPages = 32767;
   assertThrows(() => memory.grow(1));
 })();
 
-(function TestGrowMemoryZeroInitialMemory() {
+(function TestMemoryGrowZeroInitialMemory() {
   print("ZeroInitialMemory");
   let memory = new WebAssembly.Memory({initial: 0});
   assertEquals(0, memory.buffer.byteLength);
@@ -188,7 +188,7 @@ var kV8MaxPages = 32767;
   assertEquals(2*kPageSize, memory.buffer.byteLength);
   let builder = new WasmModuleBuilder();
   builder.addFunction("grow", kSig_i_i)
-      .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
+      .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
       .exportFunc();
   builder.addImportedMemory("cat", "mine");
   let instance = builder.instantiate({cat: {mine: memory}});
@@ -200,8 +200,8 @@ var kV8MaxPages = 32767;
   assertThrows(() => memory.grow(1));
 })();
 
-(function TestGrowMemoryExportedMaximum() {
-  print("TestGrowMemoryExportedMaximum");
+(function TestMemoryGrowExportedMaximum() {
+  print("TestMemoryGrowExportedMaximum");
   let initial_size = 1, maximum_size = 10;
   var exp_instance;
   {
@@ -218,7 +218,7 @@ var kV8MaxPages = 32767;
       .addBody([kExprMemorySize, kMemoryZero])
       .exportFunc();
     builder.addFunction("grow", kSig_i_i)
-      .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
+      .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
       .exportFunc();
     instance = builder.instantiate({fur: {
       imported_mem: exp_instance.exports.exported_mem}});
@@ -239,7 +239,7 @@ var kV8MaxPages = 32767;
     .addBody([kExprMemorySize, kMemoryZero])
     .exportAs("mem_size");
   builder.addFunction("grow", kSig_i_i)
-    .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
+    .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
     .exportFunc();
   var module = new WebAssembly.Module(builder.toBuffer());
   var instances = [];
@@ -258,7 +258,7 @@ var kV8MaxPages = 32767;
   verify_mem_size(1);
 
   // Verify memory size with interleaving calls to Memory.grow,
-  // GrowMemory opcode.
+  // MemoryGrow opcode.
   var current_mem_size = 1;
   for (var i = 0; i < 5; i++) {
     function grow(pages) { return instances[i].exports.grow(pages); }
@@ -280,7 +280,7 @@ var kV8MaxPages = 32767;
     .addBody([kExprMemorySize, kMemoryZero])
     .exportFunc();
   builder.addFunction("grow", kSig_i_i)
-    .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
+    .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
     .exportFunc();
   var instances = [];
   for (var i = 0; i < 5; i++) {
@@ -345,7 +345,7 @@ var kV8MaxPages = 32767;
     .addBody([kExprMemorySize, kMemoryZero])
     .exportFunc();
   builder.addFunction("grow", kSig_i_i)
-    .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
+    .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
     .exportFunc();
   var instances = [];
   for (var i = 0; i < 10; i++) {
@@ -380,7 +380,7 @@ var kV8MaxPages = 32767;
     builder.addMemory(1, kSpecMaxPages, true);
     builder.exportMemoryAs("exported_mem");
     builder.addFunction("grow", kSig_i_i)
-      .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
+      .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
       .exportFunc();
     instance_1 = builder.instantiate();
   }
@@ -388,7 +388,7 @@ var kV8MaxPages = 32767;
     let builder = new WasmModuleBuilder();
     builder.addImportedMemory("doo", "imported_mem");
     builder.addFunction("grow", kSig_i_i)
-      .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
+      .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
       .exportFunc();
     instance_2 = builder.instantiate({
       doo: {imported_mem: instance_1.exports.exported_mem}});
@@ -408,7 +408,7 @@ var kV8MaxPages = 32767;
     .addBody([kExprMemorySize, kMemoryZero])
     .exportFunc();
   builder.addFunction("grow", kSig_i_i)
-    .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
+    .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
     .exportFunc();
   instance = builder.instantiate();
   assertEquals(kPageSize, instance.exports.exported_mem.buffer.byteLength);

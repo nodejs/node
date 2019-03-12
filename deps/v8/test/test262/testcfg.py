@@ -44,6 +44,8 @@ from testrunner.outproc import test262
 FEATURE_FLAGS = {
   'class-fields-public': '--harmony-public-fields',
   'class-static-fields-public': '--harmony-class-fields',
+  'class-fields-private': '--harmony-private-fields',
+  'class-static-fields-private': '--harmony-private-fields',
   'Array.prototype.flat': '--harmony-array-flat',
   'Array.prototype.flatMap': '--harmony-array-flat',
   'String.prototype.matchAll': '--harmony-string-matchall',
@@ -56,14 +58,13 @@ FEATURE_FLAGS = {
   'Symbol.prototype.description': '--harmony-symbol-description',
   'globalThis': '--harmony-global',
   'well-formed-json-stringify': '--harmony-json-stringify',
+  'export-star-as-namespace-from-module': '--harmony-namespace-exports',
+  'Object.fromEntries': '--harmony-object-from-entries',
 }
 
-SKIPPED_FEATURES = set(['Object.fromEntries',
-                        'export-star-as-namespace-from-module',
-                        'class-fields-private',
-                        'class-static-fields-private',
-                        'class-methods-private',
-                        'class-static-methods-private'])
+SKIPPED_FEATURES = set(['class-methods-private',
+                        'class-static-methods-private',
+                        'Intl.NumberFormat-unified'])
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
@@ -86,15 +87,23 @@ class VariantsGenerator(testsuite.VariantsGenerator):
   def gen(self, test):
     flags_set = self._get_flags_set(test)
     test_record = test.test_record
-    for n, variant in enumerate(self._get_variants(test)):
-      flags = flags_set[variant][0]
-      if 'noStrict' in test_record:
-        yield (variant, flags, str(n))
-      elif 'onlyStrict' in test_record:
-        yield (variant, flags + ['--use-strict'], 'strict-%d' % n)
-      else:
-        yield (variant, flags, str(n))
-        yield (variant, flags + ['--use-strict'], 'strict-%d' % n)
+
+    # Add a reverse test ensuring that FAIL_PHASE_ONLY is only used for tests
+    # that actually fail to throw an exception at wrong phase.
+    phase_variants = ['']
+    if test.fail_phase_only:
+      phase_variants.append('-fail-phase-reverse')
+
+    for phase_var in phase_variants:
+      for n, variant in enumerate(self._get_variants(test)):
+        flags = flags_set[variant][0]
+        if 'noStrict' in test_record:
+          yield (variant, flags, str(n) + phase_var)
+        elif 'onlyStrict' in test_record:
+          yield (variant, flags + ['--use-strict'], 'strict-%d' % n + phase_var)
+        else:
+          yield (variant, flags, str(n))
+          yield (variant, flags + ['--use-strict'], 'strict-%d' % n + phase_var)
 
 
 class TestSuite(testsuite.TestSuite):
@@ -168,11 +177,34 @@ class TestCase(testcase.D8TestCase):
           .get('type', None)
     )
 
+    # We disallow combining FAIL_PHASE_ONLY with any other fail outcome types.
+    # Outcome parsing logic in the base class converts all outcomes specified in
+    # the status file into either FAIL, CRASH or PASS, thus we do not need to
+    # handle FAIL_OK, FAIL_SLOPPY and various other outcomes.
+    if self.fail_phase_only:
+      assert (
+          statusfile.FAIL not in self.expected_outcomes and
+          statusfile.CRASH not in self.expected_outcomes), self.name
+
+  @property
+  def fail_phase_only(self):
+    # The FAIL_PHASE_ONLY is defined in tools/testrunner/local/statusfile.py and
+    # can be used in status files to mark tests that throw an exception at wrong
+    # phase, e.g. SyntaxError is thrown at execution phase instead of parsing
+    # phase. See https://crbug.com/v8/8467 for more details.
+    return statusfile.FAIL_PHASE_ONLY in self._statusfile_outcomes
+
+  @property
+  def _fail_phase_reverse(self):
+    return 'fail-phase-reverse' in self.procid
+
   def _get_files_params(self):
     return (
         list(self.suite.harness) +
         ([os.path.join(self.suite.root, "harness-agent.js")]
          if self.path.startswith('built-ins/Atomics') else []) +
+        ([os.path.join(self.suite.root, "harness-adapt-donotevaluate.js")]
+         if self.fail_phase_only and not self._fail_phase_reverse else []) +
         self._get_includes() +
         (["--module"] if "module" in self.test_record else []) +
         [self._get_source_path()]
@@ -185,7 +217,8 @@ class TestCase(testcase.D8TestCase):
          if "detachArrayBuffer.js" in self.test_record.get("includes", [])
          else []) +
         [flag for (feature, flag) in FEATURE_FLAGS.items()
-          if feature in self.test_record.get("features", [])]
+          if feature in self.test_record.get("features", [])] +
+        ["--no-arguments"]  # disable top-level arguments in d8
     )
 
   def _get_includes(self):
@@ -209,7 +242,12 @@ class TestCase(testcase.D8TestCase):
   def output_proc(self):
     if self._expected_exception is not None:
       return test262.ExceptionOutProc(self.expected_outcomes,
-                                      self._expected_exception)
+                                      self._expected_exception,
+                                      self._fail_phase_reverse)
+    else:
+      # We only support fail phase reverse on tests that expect an exception.
+      assert not self._fail_phase_reverse
+
     if self.expected_outcomes == outproc.OUTCOMES_PASS:
       return test262.PASS_NO_EXCEPTION
     return test262.NoExceptionOutProc(self.expected_outcomes)

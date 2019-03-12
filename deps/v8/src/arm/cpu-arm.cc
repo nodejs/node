@@ -14,8 +14,7 @@
 
 #if V8_TARGET_ARCH_ARM
 
-#include "src/assembler.h"
-#include "src/macro-assembler.h"
+#include "src/cpu-features.h"
 
 namespace v8 {
 namespace internal {

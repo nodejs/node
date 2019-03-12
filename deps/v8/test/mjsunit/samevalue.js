@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-// Flags: --expose-natives-as natives --allow-natives-syntax
+// Flags: --allow-natives-syntax
 // Test the SameValue and SameValueZero internal methods.
 
 var obj1 = {x: 10, y: 11, z: "test"};

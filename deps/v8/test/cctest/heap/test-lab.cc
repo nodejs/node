@@ -26,7 +26,7 @@ static void VerifyIterable(v8::internal::Address base,
                            v8::internal::Address limit,
                            std::vector<intptr_t> expected_size) {
   CHECK_LE(base, limit);
-  HeapObject* object = nullptr;
+  HeapObject object;
   size_t counter = 0;
   while (base < limit) {
     object = HeapObject::FromAddress(base);
@@ -42,7 +42,7 @@ static void VerifyIterable(v8::internal::Address base,
 static bool AllocateFromLab(Heap* heap, LocalAllocationBuffer* lab,
                             intptr_t size_in_bytes,
                             AllocationAlignment alignment = kWordAligned) {
-  HeapObject* obj;
+  HeapObject obj;
   AllocationResult result =
       lab->AllocateRawAligned(static_cast<int>(size_in_bytes), alignment);
   if (result.To(&obj)) {
@@ -63,7 +63,6 @@ TEST(InvalidLab) {
 TEST(UnusedLabImplicitClose) {
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
-  heap->root(RootIndex::kOnePointerFillerMap);
   const int kLabSize = 4 * KB;
   Address base = AllocateLabBackingStore(heap, kLabSize);
   Address limit = base + kLabSize;

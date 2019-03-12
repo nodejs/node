@@ -42,7 +42,7 @@ assertDoesNotThrow(
     () => new Intl.Segmenter(["sr"], { granularity: "grapheme" })
 );
 
-assertDoesNotThrow(() => new Intl.Segmenter(["sr"], { granularity: "line" }));
+assertThrows(() => new Intl.Segmenter(["sr"], { granularity: "line" }), RangeError);
 
 assertThrows(
     () => new Intl.Segmenter(["sr"], { granularity: "standard" }),
@@ -61,105 +61,104 @@ assertDoesNotThrow(
     () => new Intl.Segmenter(["sr"], { lineBreakStyle: "loose" })
 );
 
+assertDoesNotThrow(
+    () => new Intl.Segmenter(["sr"], { lineBreakStyle: "giant" })
+);
+
+assertDoesNotThrow(
+    () =>
+        new Intl.Segmenter(["sr"], {
+            granularity: "sentence",
+            lineBreakStyle: "normal"
+        })
+);
+
+assertDoesNotThrow(
+    () =>
+        new Intl.Segmenter(["sr"], {
+            granularity: "sentence",
+            lineBreakStyle: "strict"
+        })
+);
+
+assertDoesNotThrow(
+    () =>
+        new Intl.Segmenter(["sr"], {
+            granularity: "sentence",
+            lineBreakStyle: "loose"
+        })
+);
+
+assertDoesNotThrow(
+    () =>
+        new Intl.Segmenter(["sr"], {
+            granularity: "word",
+            lineBreakStyle: "normal"
+        })
+);
+
+assertDoesNotThrow(
+    () =>
+        new Intl.Segmenter(["sr"], {
+            granularity: "word",
+            lineBreakStyle: "strict"
+        })
+);
+
+assertDoesNotThrow(
+    () =>
+        new Intl.Segmenter(["sr"], {
+            granularity: "word",
+            lineBreakStyle: "loose"
+        })
+);
+
+assertDoesNotThrow(
+    () =>
+        new Intl.Segmenter(["sr"], {
+            granularity: "grapheme",
+            lineBreakStyle: "normal"
+        })
+);
+
+assertDoesNotThrow(
+    () =>
+        new Intl.Segmenter(["sr"], {
+            granularity: "grapheme",
+            lineBreakStyle: "strict"
+        })
+);
+
+assertDoesNotThrow(
+    () =>
+        new Intl.Segmenter(["sr"], {
+            granularity: "grapheme",
+            lineBreakStyle: "loose"
+        })
+);
+
 assertThrows(
-    () => new Intl.Segmenter(["sr"], { lineBreakStyle: "giant" }),
-    RangeError
-);
-
-assertDoesNotThrow(
-    () =>
-        new Intl.Segmenter(["sr"], {
-            granularity: "sentence",
-            lineBreakStyle: "normal"
-        })
-);
-
-assertDoesNotThrow(
-    () =>
-        new Intl.Segmenter(["sr"], {
-            granularity: "sentence",
-            lineBreakStyle: "strict"
-        })
-);
-
-assertDoesNotThrow(
-    () =>
-        new Intl.Segmenter(["sr"], {
-            granularity: "sentence",
-            lineBreakStyle: "loose"
-        })
-);
-
-assertDoesNotThrow(
-    () =>
-        new Intl.Segmenter(["sr"], {
-            granularity: "word",
-            lineBreakStyle: "normal"
-        })
-);
-
-assertDoesNotThrow(
-    () =>
-        new Intl.Segmenter(["sr"], {
-            granularity: "word",
-            lineBreakStyle: "strict"
-        })
-);
-
-assertDoesNotThrow(
-    () =>
-        new Intl.Segmenter(["sr"], {
-            granularity: "word",
-            lineBreakStyle: "loose"
-        })
-);
-
-assertDoesNotThrow(
-    () =>
-        new Intl.Segmenter(["sr"], {
-            granularity: "grapheme",
-            lineBreakStyle: "normal"
-        })
-);
-
-assertDoesNotThrow(
-    () =>
-        new Intl.Segmenter(["sr"], {
-            granularity: "grapheme",
-            lineBreakStyle: "strict"
-        })
-);
-
-assertDoesNotThrow(
-    () =>
-        new Intl.Segmenter(["sr"], {
-            granularity: "grapheme",
-            lineBreakStyle: "loose"
-        })
-);
-
-assertDoesNotThrow(
     () =>
         new Intl.Segmenter(["sr"], {
             granularity: "line",
             lineBreakStyle: "loose"
-        })
+        }), RangeError
 );
 
-assertDoesNotThrow(
+assertThrows(
     () =>
         new Intl.Segmenter(["sr"], {
             granularity: "line",
             lineBreakStyle: "normal"
-        })
+        }), RangeError
 );
 
-assertDoesNotThrow(
+assertThrows(
     () =>
         new Intl.Segmenter(["sr"], {
             granularity: "line",
             lineBreakStyle: "strict"
-        })
+        }), RangeError
 );
 
 // propagate exception from getter
@@ -172,14 +171,13 @@ assertThrows(
         }),
     TypeError
 );
-assertThrows(
+assertDoesNotThrow(
     () =>
         new Intl.Segmenter(undefined, {
             get lineBreakStyle() {
                 throw new TypeError("");
             }
-        }),
-    TypeError
+        })
 );
 assertThrows(
     () =>
@@ -190,27 +188,3 @@ assertThrows(
         }),
     TypeError
 );
-
-// Throws only once during construction.
-// Check for all getters to prevent regression.
-// Preserve the order of getter initialization.
-let getCount = 0;
-let localeMatcher = -1;
-let lineBreakStyle = -1;
-let granularity = -1;
-
-new Intl.Segmenter(["en-US"], {
-    get localeMatcher() {
-        localeMatcher = ++getCount;
-    },
-    get lineBreakStyle() {
-        lineBreakStyle = ++getCount;
-    },
-    get granularity() {
-        granularity = ++getCount;
-    }
-});
-
-assertEquals(1, localeMatcher);
-assertEquals(2, lineBreakStyle);
-assertEquals(3, granularity);

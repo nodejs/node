@@ -9,7 +9,7 @@
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/runtime/runtime-utils.h"
@@ -36,7 +36,9 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
   if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
     return isolate->StackOverflow();
   }
-  if (!Compiler::Compile(function, Compiler::KEEP_EXCEPTION)) {
+  IsCompiledScope is_compiled_scope;
+  if (!Compiler::Compile(function, Compiler::KEEP_EXCEPTION,
+                         &is_compiled_scope)) {
     return ReadOnlyRoots(isolate).exception();
   }
   DCHECK(function->is_compiled());
@@ -123,7 +125,7 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   }
   if (function->shared()->HasAsmWasmData()) {
     Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-    Handle<FixedArray> data(shared->asm_wasm_data(), isolate);
+    Handle<AsmWasmData> data(shared->asm_wasm_data(), isolate);
     MaybeHandle<Object> result = AsmJs::InstantiateAsmWasm(
         isolate, shared, data, stdlib, foreign, memory);
     if (!result.is_null()) {
@@ -150,7 +152,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   DCHECK(deoptimizer->compiled_code()->kind() == Code::OPTIMIZED_FUNCTION);
   DCHECK(deoptimizer->compiled_code()->is_turbofanned());
   DCHECK(AllowHeapAllocation::IsAllowed());
-  DCHECK_NULL(isolate->context());
+  DCHECK(isolate->context().is_null());
 
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
@@ -253,7 +255,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   Handle<Code> result;
   if (maybe_result.ToHandle(&result) &&
       result->kind() == Code::OPTIMIZED_FUNCTION) {
-    DeoptimizationData* data =
+    DeoptimizationData data =
         DeoptimizationData::cast(result->deoptimization_data());
 
     if (data->OsrPcOffset()->value() >= 0) {
@@ -289,13 +291,13 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   if (!function->IsOptimized()) {
     function->set_code(function->shared()->GetCode());
   }
-  return nullptr;
+  return Object();
 }
 
-static Object* CompileGlobalEval(Isolate* isolate, Handle<String> source,
-                                 Handle<SharedFunctionInfo> outer_info,
-                                 LanguageMode language_mode,
-                                 int eval_scope_position, int eval_position) {
+static Object CompileGlobalEval(Isolate* isolate, Handle<String> source,
+                                Handle<SharedFunctionInfo> outer_info,
+                                LanguageMode language_mode,
+                                int eval_scope_position, int eval_position) {
   Handle<Context> context(isolate->context(), isolate);
   Handle<Context> native_context(context->native_context(), isolate);
 
@@ -325,7 +327,6 @@ static Object* CompileGlobalEval(Isolate* isolate, Handle<String> source,
       ReadOnlyRoots(isolate).exception());
   return *compiled;
 }
-
 
 RUNTIME_FUNCTION(Runtime_ResolvePossiblyDirectEval) {
   HandleScope scope(isolate);

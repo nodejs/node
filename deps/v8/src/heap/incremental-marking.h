@@ -20,7 +20,6 @@ class Object;
 class PagedSpace;
 
 enum class StepOrigin { kV8, kTask };
-enum class WorklistToProcess { kAll, kBailout };
 
 class V8_EXPORT_PRIVATE IncrementalMarking {
  public:
@@ -98,9 +97,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
     return &non_atomic_marking_state_;
   }
 
-  void NotifyLeftTrimming(HeapObject* from, HeapObject* to);
+  void NotifyLeftTrimming(HeapObject from, HeapObject to);
 
-  V8_INLINE void TransferColor(HeapObject* from, HeapObject* to);
+  V8_INLINE void TransferColor(HeapObject from, HeapObject to);
 
   State state() const {
     DCHECK(state_ == STOPPED || FLAG_incremental_marking);
@@ -175,13 +174,18 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void FinalizeSweeping();
 
   size_t Step(size_t bytes_to_process, CompletionAction action,
-              StepOrigin step_origin,
-              WorklistToProcess worklist_to_process = WorklistToProcess::kAll);
+              StepOrigin step_origin);
+  void StepOnAllocation(size_t bytes_to_process, double max_step_size);
+
+  bool ShouldDoEmbedderStep();
   void EmbedderStep(double duration);
 
   inline void RestartIfNotMarking();
 
-  static int RecordWriteFromCode(HeapObject* obj, MaybeObject** slot,
+  // {raw_obj} and {slot_address} are raw Address values instead of a
+  // HeapObject and a MaybeObjectSlot because this is called from
+  // generated code via ExternalReference.
+  static int RecordWriteFromCode(Address raw_obj, Address slot_address,
                                  Isolate* isolate);
 
   // Record a slot for compaction.  Returns false for objects that are
@@ -190,34 +194,35 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   // No slots in white objects should be recorded, as some slots are typed and
   // cannot be interpreted correctly if the underlying object does not survive
   // the incremental cycle (stays white).
-  V8_INLINE bool BaseRecordWrite(HeapObject* obj, Object* value);
-  V8_INLINE void RecordWrite(HeapObject* obj, Object** slot, Object* value);
-  V8_INLINE void RecordMaybeWeakWrite(HeapObject* obj, MaybeObject** slot,
-                                      MaybeObject* value);
-  void RevisitObject(HeapObject* obj);
+  V8_INLINE bool BaseRecordWrite(HeapObject obj, Object value);
+  V8_INLINE void RecordWrite(HeapObject obj, ObjectSlot slot, Object value);
+  V8_INLINE void RecordMaybeWeakWrite(HeapObject obj, MaybeObjectSlot slot,
+                                      MaybeObject value);
+  void RevisitObject(HeapObject obj);
+  // Ensures that all descriptors int range [0, number_of_own_descripts)
+  // are visited.
+  void VisitDescriptors(HeapObject host, DescriptorArray array,
+                        int number_of_own_descriptors);
 
-  void RecordWriteSlow(HeapObject* obj, HeapObjectReference** slot,
-                       Object* value);
-  void RecordWriteIntoCode(Code* host, RelocInfo* rinfo, HeapObject* value);
+  void RecordWriteSlow(HeapObject obj, HeapObjectSlot slot, Object value);
+  void RecordWriteIntoCode(Code host, RelocInfo* rinfo, HeapObject value);
 
   // Returns true if the function succeeds in transitioning the object
   // from white to grey.
-  bool WhiteToGreyAndPush(HeapObject* obj);
+  bool WhiteToGreyAndPush(HeapObject obj);
 
   // This function is used to color the object black before it undergoes an
   // unsafe layout change. This is a part of synchronization protocol with
   // the concurrent marker.
-  void MarkBlackAndPush(HeapObject* obj);
+  void MarkBlackAndVisitObjectDueToLayoutChange(HeapObject obj);
 
   bool IsCompacting() { return IsMarking() && is_compacting_; }
-
-  void ActivateGeneratedStub(Code* stub);
 
   void NotifyIncompleteScanOfObject(int unscanned_bytes) {
     unscanned_bytes_of_large_object_ = unscanned_bytes;
   }
 
-  void ProcessBlackAllocatedObject(HeapObject* obj);
+  void ProcessBlackAllocatedObject(HeapObject obj);
 
   Heap* heap() const { return heap_; }
 
@@ -239,6 +244,10 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   void Deactivate();
 
+  // Ensures that the given region is black allocated if it is in the old
+  // generation.
+  void EnsureBlackAllocated(Address allocated, size_t size);
+
  private:
   class Observer : public AllocationObserver {
    public:
@@ -259,7 +268,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void FinishBlackAllocation();
 
   void MarkRoots();
-  bool ShouldRetainMap(Map* map, int age);
+  bool ShouldRetainMap(Map map, int age);
   // Retain dying maps for <FLAG_retain_maps_for_n_gc> garbage collections to
   // increase chances of reusing of map transition tree in future.
   void RetainMaps();
@@ -272,15 +281,14 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void DeactivateIncrementalWriteBarrierForSpace(NewSpace* space);
   void DeactivateIncrementalWriteBarrier();
 
-  template <WorklistToProcess worklist_to_process = WorklistToProcess::kAll>
   V8_INLINE intptr_t ProcessMarkingWorklist(
       intptr_t bytes_to_process,
       ForceCompletionAction completion = DO_NOT_FORCE_COMPLETION);
 
-  V8_INLINE bool IsFixedArrayWithProgressBar(HeapObject* object);
+  V8_INLINE bool IsFixedArrayWithProgressBar(HeapObject object);
 
   // Visits the object and returns its size.
-  V8_INLINE int VisitObject(Map* map, HeapObject* obj);
+  V8_INLINE int VisitObject(Map map, HeapObject obj);
 
   void IncrementIdleMarkingDelayCounter();
 

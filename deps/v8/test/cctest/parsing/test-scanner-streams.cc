@@ -751,7 +751,7 @@ TEST(RelocatingCharacterStream) {
   CHECK_EQ('a', two_byte_string_stream->Advance());
   CHECK_EQ('b', two_byte_string_stream->Advance());
   CHECK_EQ(size_t{2}, two_byte_string_stream->pos());
-  i::String* raw = *two_byte_string;
+  i::String raw = *two_byte_string;
   i_isolate->heap()->CollectGarbage(i::NEW_SPACE,
                                     i::GarbageCollectionReason::kUnknown);
   // GC moved the string.

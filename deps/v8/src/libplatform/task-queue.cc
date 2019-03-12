@@ -16,13 +16,13 @@ TaskQueue::TaskQueue() : process_queue_semaphore_(0), terminated_(false) {}
 
 
 TaskQueue::~TaskQueue() {
-  base::LockGuard<base::Mutex> guard(&lock_);
+  base::MutexGuard guard(&lock_);
   DCHECK(terminated_);
   DCHECK(task_queue_.empty());
 }
 
 void TaskQueue::Append(std::unique_ptr<Task> task) {
-  base::LockGuard<base::Mutex> guard(&lock_);
+  base::MutexGuard guard(&lock_);
   DCHECK(!terminated_);
   task_queue_.push(std::move(task));
   process_queue_semaphore_.Signal();
@@ -31,7 +31,7 @@ void TaskQueue::Append(std::unique_ptr<Task> task) {
 std::unique_ptr<Task> TaskQueue::GetNext() {
   for (;;) {
     {
-      base::LockGuard<base::Mutex> guard(&lock_);
+      base::MutexGuard guard(&lock_);
       if (!task_queue_.empty()) {
         std::unique_ptr<Task> result = std::move(task_queue_.front());
         task_queue_.pop();
@@ -48,7 +48,7 @@ std::unique_ptr<Task> TaskQueue::GetNext() {
 
 
 void TaskQueue::Terminate() {
-  base::LockGuard<base::Mutex> guard(&lock_);
+  base::MutexGuard guard(&lock_);
   DCHECK(!terminated_);
   terminated_ = true;
   process_queue_semaphore_.Signal();
@@ -57,7 +57,7 @@ void TaskQueue::Terminate() {
 void TaskQueue::BlockUntilQueueEmptyForTesting() {
   for (;;) {
     {
-      base::LockGuard<base::Mutex> guard(&lock_);
+      base::MutexGuard guard(&lock_);
       if (task_queue_.empty()) return;
     }
     base::OS::Sleep(base::TimeDelta::FromMilliseconds(5));

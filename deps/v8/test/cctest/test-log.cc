@@ -34,6 +34,7 @@
 #include "src/log-utils.h"
 #include "src/log.h"
 #include "src/objects-inl.h"
+#include "src/ostreams.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/snapshot/natives.h"
 #include "src/v8.h"
@@ -104,6 +105,11 @@ class ScopedLoggerInitializer {
         .ToLocalChecked();
   }
 
+  void PrintLog() {
+    i::StdoutStream os;
+    os << raw_log_ << std::flush;
+  }
+
   void StopLogging() {
     bool exists = false;
     raw_log_ = i::ReadFile(StopLoggingGetTempFile(), &exists, true);
@@ -146,16 +152,19 @@ class ScopedLoggerInitializer {
     return true;
   }
 
-  std::unordered_set<uintptr_t> ExtractAllAddresses(std::string search_term,
-                                                    size_t address_column) {
+  std::unordered_set<uintptr_t> ExtractLogAddresses(std::string search_term,
+                                                    size_t address_column,
+                                                    bool allow_duplicates) {
     CHECK_GT(log_.size(), 0);
-    std::unordered_set<uintptr_t> result;
-    size_t start = 0;
+    // Map addresses of Maps to log_lines.
+    std::unordered_map<uintptr_t, std::string> map;
+    size_t current = 0;
     while (true) {
-      start = IndexOfLine({search_term}, start);
-      if (start == std::string::npos) break;
-      std::vector<std::string> columns = Split(log_.at(start), ',');
-      ++start;  // Skip the found line.
+      current = IndexOfLine({search_term}, current);
+      if (current == std::string::npos) break;
+      std::string current_line = log_.at(current);
+      std::vector<std::string> columns = Split(current_line, ',');
+      ++current;  // Skip the found line.
       // TODO(crbug.com/v8/8084): These two continue lines should really be
       // errors. But on Windows the log is sometimes mysteriously cut off at the
       // end. If the cut-off point happens to fall in the address field, the
@@ -164,7 +173,25 @@ class ScopedLoggerInitializer {
       uintptr_t address =
           strtoll(columns.at(address_column).c_str(), nullptr, 16);
       if (address == 0) continue;
-      result.insert(address);
+      if (!allow_duplicates) {
+        auto match = map.find(address);
+        // Ignore same address but different log line.
+        if (match != map.end() && match->second.compare(current_line) == 0) {
+          for (size_t i = 0; i < current; i++) {
+            printf("%s\n", log_.at(i).c_str());
+          }
+          printf("%zu\n", current);
+          V8_Fatal(__FILE__, __LINE__, "%s, ... %p apperead twice:\n    %s",
+                   search_term.c_str(), reinterpret_cast<void*>(address),
+                   current_line.c_str());
+        }
+      }
+      map.insert({address, current_line});
+    }
+    // Extract all keys.
+    std::unordered_set<uintptr_t> result;
+    for (auto key_value : map) {
+      result.insert(key_value.first);
     }
     return result;
   }
@@ -431,7 +458,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
         "  obj.test =\n"
         "    (function a(j) { return function b() { return j; } })(100);\n"
         "})(this);");
-    logger.logger()->StopProfiler();
+    logger.logger()->StopProfilerThread();
     CcTest::PreciseCollectAllGarbage();
     logger.StringEvent("test-logging-done", "");
 
@@ -506,12 +533,12 @@ TEST(Issue539892) {
     explicit FakeCodeEventLogger(i::Isolate* isolate)
         : CodeEventLogger(isolate) {}
 
-    void CodeMoveEvent(i::AbstractCode* from, i::AbstractCode* to) override {}
-    void CodeDisableOptEvent(i::AbstractCode* code,
-                             i::SharedFunctionInfo* shared) override {}
+    void CodeMoveEvent(i::AbstractCode from, i::AbstractCode to) override {}
+    void CodeDisableOptEvent(i::AbstractCode code,
+                             i::SharedFunctionInfo shared) override {}
 
    private:
-    void LogRecordedBuffer(i::AbstractCode* code, i::SharedFunctionInfo* shared,
+    void LogRecordedBuffer(i::AbstractCode code, i::SharedFunctionInfo shared,
                            const char* name, int length) override {}
     void LogRecordedBuffer(const i::wasm::WasmCode* code, const char* name,
                            int length) override {}
@@ -559,7 +586,7 @@ TEST(LogAll) {
   SETUP_FLAGS();
   i::FLAG_log_all = true;
   i::FLAG_turbo_inlining = false;
-  i::FLAG_enable_one_shot_optimization = false;
+  i::FLAG_allow_natives_syntax = true;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -567,12 +594,27 @@ TEST(LogAll) {
   {
     ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
 
-    const char* source_text =
-        "function testAddFn(a,b) { return a + b };"
-        "let result;"
-        "for (let i = 0; i < 100000; i++) { result = testAddFn(i, i); };"
-        "testAddFn('1', 1);"
-        "for (let i = 0; i < 100000; i++) { result = testAddFn('1', i); }";
+    const char* source_text = R"(
+        function testAddFn(a,b) {
+          return a + b
+        };
+        let result;
+
+        // Warm up the ICs.
+        for (let i = 0; i < 100000; i++) {
+          result = testAddFn(i, i);
+        };
+
+        // Enforce optimization.
+        %OptimizeFunctionOnNextCall(testAddFn);
+        result = testAddFn(1, 1);
+
+        // Cause deopt.
+        testAddFn('1', 1)
+        for (let i = 0; i < 100000; i++) {
+          result = testAddFn('1', i);
+        }
+      )";
     CompileRun(source_text);
 
     logger.StopLogging();
@@ -584,10 +626,9 @@ TEST(LogAll) {
     CHECK(logger.ContainsLine({"code-creation,Script", ":1:1"}));
     CHECK(logger.ContainsLine({"api,v8::Script::Run"}));
     CHECK(logger.ContainsLine({"code-creation,LazyCompile,", "testAddFn"}));
+
     if (i::FLAG_opt && !i::FLAG_always_opt) {
       CHECK(logger.ContainsLine({"code-deopt,", "not a Smi"}));
-      if (i::FLAG_enable_one_shot_optimization)
-        CHECK(logger.ContainsLine({"code-deopt,", "DeoptimizeNow"}));
       CHECK(logger.ContainsLine({"timer-event-start", "V8.DeoptimizeCode"}));
       CHECK(logger.ContainsLine({"timer-event-end", "V8.DeoptimizeCode"}));
     }
@@ -595,6 +636,7 @@ TEST(LogAll) {
   isolate->Dispose();
 }
 
+#ifndef V8_TARGET_ARCH_ARM
 TEST(LogInterpretedFramesNativeStack) {
   SETUP_FLAGS();
   i::FLAG_interpreted_frames_native_stack = true;
@@ -617,6 +659,7 @@ TEST(LogInterpretedFramesNativeStack) {
   }
   isolate->Dispose();
 }
+#endif  // V8_TARGET_ARCH_ARM
 
 TEST(ExternalCodeEventListener) {
   i::FLAG_log = false;
@@ -630,7 +673,7 @@ TEST(ExternalCodeEventListener) {
     v8::HandleScope scope(isolate);
     v8::Isolate::Scope isolate_scope(isolate);
     v8::Local<v8::Context> context = v8::Context::New(isolate);
-    context->Enter();
+    v8::Context::Scope context_scope(context);
 
     TestCodeEventHandler code_event_handler(isolate);
 
@@ -657,12 +700,69 @@ TEST(ExternalCodeEventListener) {
     CHECK_GE(code_event_handler.CountLines("LazyCompile",
                                            "testCodeEventListenerAfterStart"),
              1);
-
-    context->Exit();
   }
   isolate->Dispose();
 }
 
+TEST(ExternalCodeEventListenerInnerFunctions) {
+  i::FLAG_log = false;
+  i::FLAG_prof = false;
+
+  v8::ScriptCompiler::CachedData* cache;
+  static const char* source_cstring =
+      "(function f1() { return (function f2() {}); })()";
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate1 = v8::Isolate::New(create_params);
+  {  // Test that we emit the correct code events from eagerly compiling.
+    v8::HandleScope scope(isolate1);
+    v8::Isolate::Scope isolate_scope(isolate1);
+    v8::Local<v8::Context> context = v8::Context::New(isolate1);
+    v8::Context::Scope context_scope(context);
+
+    TestCodeEventHandler code_event_handler(isolate1);
+    code_event_handler.Enable();
+
+    v8::Local<v8::String> source_string = v8_str(source_cstring);
+    v8::ScriptOrigin origin(v8_str("test"));
+    v8::ScriptCompiler::Source source(source_string, origin);
+    v8::Local<v8::UnboundScript> script =
+        v8::ScriptCompiler::CompileUnboundScript(isolate1, &source)
+            .ToLocalChecked();
+    CHECK_EQ(code_event_handler.CountLines("Script", "f1"), 1);
+    CHECK_EQ(code_event_handler.CountLines("Script", "f2"), 1);
+    cache = v8::ScriptCompiler::CreateCodeCache(script);
+  }
+  isolate1->Dispose();
+
+  v8::Isolate* isolate2 = v8::Isolate::New(create_params);
+  {  // Test that we emit the correct code events from deserialization.
+    v8::HandleScope scope(isolate2);
+    v8::Isolate::Scope isolate_scope(isolate2);
+    v8::Local<v8::Context> context = v8::Context::New(isolate2);
+    v8::Context::Scope context_scope(context);
+
+    TestCodeEventHandler code_event_handler(isolate2);
+    code_event_handler.Enable();
+
+    v8::Local<v8::String> source_string = v8_str(source_cstring);
+    v8::ScriptOrigin origin(v8_str("test"));
+    v8::ScriptCompiler::Source source(source_string, origin, cache);
+    {
+      i::DisallowCompilation no_compile_expected(
+          reinterpret_cast<i::Isolate*>(isolate2));
+      v8::ScriptCompiler::CompileUnboundScript(
+          isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache)
+          .ToLocalChecked();
+    }
+    CHECK_EQ(code_event_handler.CountLines("Script", "f1"), 1);
+    CHECK_EQ(code_event_handler.CountLines("Script", "f2"), 1);
+  }
+  isolate2->Dispose();
+}
+
+#ifndef V8_TARGET_ARCH_ARM
 TEST(ExternalCodeEventListenerWithInterpretedFramesNativeStack) {
   i::FLAG_log = false;
   i::FLAG_prof = false;
@@ -712,6 +812,7 @@ TEST(ExternalCodeEventListenerWithInterpretedFramesNativeStack) {
   }
   isolate->Dispose();
 }
+#endif  // V8_TARGET_ARCH_ARM
 
 TEST(TraceMaps) {
   SETUP_FLAGS();
@@ -723,15 +824,25 @@ TEST(TraceMaps) {
     ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
     // Try to create many different kind of maps to make sure the logging won't
     // crash. More detailed tests are implemented separately.
-    const char* source_text =
-        "let a = {};"
-        "for (let i = 0; i < 500; i++) { a['p'+i] = i };"
-        "class Test { constructor(i) { this.a = 1; this['p'+i] = 1; }};"
-        "let t = new Test();"
-        "t.b = 1; t.c = 1; t.d = 3;"
-        "for (let i = 0; i < 100; i++) { t = new Test(i) };"
-        "t.b = {};";
-    CompileRun(source_text);
+    const char* source_text = R"(
+      let a = {};
+      for (let i = 0; i < 500; i++) {
+        a['p'+i] = i
+      };
+      class Test {
+        constructor(i) {
+          this.a = 1;
+          this['p'+i] = 1;
+        }
+      };
+      let t = new Test();
+      t.b = 1; t.c = 1; t.d = 3;
+      for (let i = 0; i < 100; i++) {
+        t = new Test(i)
+      };
+      t.b = {};
+    )";
+    CompileRunChecked(isolate, source_text);
 
     logger.StopLogging();
 
@@ -744,7 +855,58 @@ TEST(TraceMaps) {
   isolate->Dispose();
 }
 
-TEST(LogMaps) {
+namespace {
+// Ensure that all Maps found on the heap have a single corresponding map-create
+// and map-details entry in the v8.log.
+void ValidateMapDetailsLogging(v8::Isolate* isolate,
+                               ScopedLoggerInitializer* logger) {
+  // map-create might have duplicates if a Map address is reused after a gc.
+  std::unordered_set<uintptr_t> map_create_addresses =
+      logger->ExtractLogAddresses("map-create", 2, true);
+  std::unordered_set<uintptr_t> map_details_addresses =
+      logger->ExtractLogAddresses("map-details", 2, false);
+
+  // Iterate over all maps on the heap.
+  i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
+  i::HeapIterator iterator(heap);
+  i::DisallowHeapAllocation no_gc;
+  size_t i = 0;
+  for (i::HeapObject obj = iterator.next(); !obj.is_null();
+       obj = iterator.next()) {
+    if (!obj->IsMap()) continue;
+    i++;
+    uintptr_t address = obj->ptr();
+    if (map_create_addresses.find(address) == map_create_addresses.end()) {
+      // logger->PrintLog();
+      i::Map::cast(obj)->Print();
+      V8_Fatal(__FILE__, __LINE__,
+               "Map (%p, #%zu) creation not logged during startup with "
+               "--trace-maps!"
+               "\n# Expected Log Line: map-create, ... %p",
+               reinterpret_cast<void*>(obj->ptr()), i,
+               reinterpret_cast<void*>(obj->ptr()));
+    } else if (map_details_addresses.find(address) ==
+               map_details_addresses.end()) {
+      // logger->PrintLog();
+      i::Map::cast(obj)->Print();
+      V8_Fatal(__FILE__, __LINE__,
+               "Map (%p, #%zu) details not logged during startup with "
+               "--trace-maps!"
+               "\n# Expected Log Line: map-details, ... %p",
+               reinterpret_cast<void*>(obj->ptr()), i,
+               reinterpret_cast<void*>(obj->ptr()));
+    }
+  }
+}
+
+}  // namespace
+
+TEST(LogMapsDetailsStartup) {
+  // Reusing map addresses might cause these tests to fail.
+  if (i::FLAG_gc_global || i::FLAG_stress_compaction ||
+      i::FLAG_stress_incremental_marking) {
+    return;
+  }
   // Test that all Map details from Maps in the snapshot are logged properly.
   SETUP_FLAGS();
   i::FLAG_trace_maps = true;
@@ -754,27 +916,142 @@ TEST(LogMaps) {
   {
     ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
     logger.StopLogging();
-    std::unordered_set<uintptr_t> map_addresses =
-        logger.ExtractAllAddresses("map-details", 2);
-    i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
-    i::HeapIterator iterator(heap);
-    i::DisallowHeapAllocation no_gc;
-
-    // Iterate over all maps on the heap.
-    size_t i = 0;
-    for (i::HeapObject* obj = iterator.next(); obj != nullptr;
-         obj = iterator.next()) {
-      i++;
-      if (!obj->IsMap()) continue;
-      uintptr_t address = reinterpret_cast<uintptr_t>(obj);
-      if (map_addresses.find(address) != map_addresses.end()) continue;
-      i::Map::cast(obj)->Print();
-      V8_Fatal(__FILE__, __LINE__,
-               "Map (%p, #%zu) was not logged during startup with --trace-maps!"
-               "\n# Expected Log Line: map_details, ... %p",
-               reinterpret_cast<void*>(obj), i, reinterpret_cast<void*>(obj));
-    }
+    ValidateMapDetailsLogging(isolate, &logger);
   }
+
+  i::FLAG_log_function_events = false;
+  isolate->Dispose();
+}
+
+TEST(LogMapsDetailsCode) {
+  // Reusing map addresses might cause these tests to fail.
+  if (i::FLAG_gc_global || i::FLAG_stress_compaction ||
+      i::FLAG_stress_incremental_marking) {
+    return;
+  }
+  SETUP_FLAGS();
+  i::FLAG_retain_maps_for_n_gc = 0xFFFFFFF;
+  i::FLAG_trace_maps = true;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  const char* source = R"(
+    // Normal properties overflowing into dict-mode.
+    let a = {};
+    for (let i = 0; i < 500; i++) {
+      a['p'+i] = i
+    };
+    // Constructor / initial maps
+    function Constructor(dictElements=false) {
+      this.a = 1;
+      this.b = 2;
+      this.c = 3;
+      if (dictElements) {
+        this[0xFFFFF] = 1;
+      }
+      this.d = 4;
+      this.e = 5;
+      this.f = 5;
+    }
+    // Keep objects and their maps alive to avoid reusing map addresses.
+    let instances = [];
+    let instance;
+    for (let i =0; i < 500; i++) {
+      instances.push(new Constructor());
+    }
+    // Map deprecation.
+    for (let i =0; i < 500; i++) {
+      instance = new Constructor();
+      instance.d = 1.1;
+      instances.push(instance);
+    }
+    for (let i =0; i < 500; i++) {
+      instance = new Constructor();
+      instance.b = 1.1;
+      instances.push(instance);
+    }
+    for (let i =0; i < 500; i++) {
+      instance = new Constructor();
+      instance.c = Object;
+      instances.push(instance);
+    }
+    // Create instance with dict-elements.
+    instances.push(new Constructor(true));
+
+    // Class
+    class Test {
+      constructor(i) {
+        this.a = 1;
+        this['p'+i] = 1;
+      }
+    };
+    let t = new Test();
+    t.b = 1; t.c = 1; t.d = 3;
+    for (let i = 0; i < 100; i++) {
+      t = new Test(i);
+      instances.push(t);
+    }
+    t.b = {};
+
+    // Anonymous classes
+    function create(value) {
+      return new class {
+        constructor() {
+          this.value = value;
+        }
+      }
+    }
+    for (let i = 0; i < 100; i++) {
+      instances.push(create(i));
+    };
+
+    // Modifying some protoypes.
+    Array.prototype.helper = () => 1;
+    [1,2,3].helper();
+  )";
+  {
+    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+    CompileRunChecked(isolate, source);
+    logger.StopLogging();
+    ValidateMapDetailsLogging(isolate, &logger);
+  }
+
+  i::FLAG_log_function_events = false;
+  isolate->Dispose();
+}
+
+TEST(LogMapsDetailsContexts) {
+  // Reusing map addresses might cause these tests to fail.
+  if (i::FLAG_gc_global || i::FLAG_stress_compaction ||
+      i::FLAG_stress_incremental_marking) {
+    return;
+  }
+  // Test that all Map details from Maps in the snapshot are logged properly.
+  SETUP_FLAGS();
+  i::FLAG_trace_maps = true;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  {
+    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+    // Use the default context.
+    CompileRunChecked(isolate, "{a:1}");
+    // Create additional contexts.
+    v8::Local<v8::Context> env1 = v8::Context::New(isolate);
+    env1->Enter();
+    CompileRun(env1, "{b:1}").ToLocalChecked();
+
+    v8::Local<v8::Context> env2 = v8::Context::New(isolate);
+    env2->Enter();
+    CompileRun(env2, "{c:1}").ToLocalChecked();
+    env2->Exit();
+    env1->Exit();
+
+    logger.StopLogging();
+    ValidateMapDetailsLogging(isolate, &logger);
+  }
+
   i::FLAG_log_function_events = false;
   isolate->Dispose();
 }

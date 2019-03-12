@@ -5,9 +5,11 @@
 #include "src/heap/array-buffer-collector.h"
 
 #include "src/base/template-utils.h"
+#include "src/cancelable-task.h"
 #include "src/heap/array-buffer-tracker.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
+#include "src/task-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -28,13 +30,13 @@ void ArrayBufferCollector::QueueOrFreeGarbageAllocations(
   if (heap_->ShouldReduceMemory()) {
     FreeAllocationsHelper(heap_, allocations);
   } else {
-    base::LockGuard<base::Mutex> guard(&allocations_mutex_);
+    base::MutexGuard guard(&allocations_mutex_);
     allocations_.push_back(std::move(allocations));
   }
 }
 
 void ArrayBufferCollector::PerformFreeAllocations() {
-  base::LockGuard<base::Mutex> guard(&allocations_mutex_);
+  base::MutexGuard guard(&allocations_mutex_);
   for (const std::vector<JSArrayBuffer::Allocation>& allocations :
        allocations_) {
     FreeAllocationsHelper(heap_, allocations);
@@ -48,7 +50,7 @@ void ArrayBufferCollector::FreeAllocations() {
   if (!heap_->IsTearingDown() && !heap_->ShouldReduceMemory() &&
       FLAG_concurrent_array_buffer_freeing) {
     V8::GetCurrentPlatform()->CallOnWorkerThread(
-        MakeCancelableLambdaTask(heap_->isolate(), [this] {
+        MakeCancelableTask(heap_->isolate(), [this] {
           TRACE_BACKGROUND_GC(
               heap_->tracer(),
               GCTracer::BackgroundScope::BACKGROUND_ARRAY_BUFFER_FREE);

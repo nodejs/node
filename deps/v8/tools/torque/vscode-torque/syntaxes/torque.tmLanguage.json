@@ -61,11 +61,11 @@
 		"keywords": {
 			"patterns": [{
 				"name": "keyword.control.torque",
-				"match": "\\b(if|else|while|for|return|continue|break|goto|otherwise|try|catch)\\b"
+				"match": "\\b(if|else|while|for|return|continue|break|goto|otherwise|try|label|catch)\\b"
 			},
 			{
 				"name": "keyword.other.torque",
-				"match": "\\b(constexpr|module|macro|builtin|runtime|javascript|implicit|deferred|label|labels|tail|let|generates|type|extends|extern|const|typeswitch|case)\\b"
+				"match": "\\b(constexpr|module|macro|builtin|runtime|intrinsic|javascript|implicit|deferred|label|labels|tail|let|generates|type|struct|class|weak|extends|extern|const|typeswitch|case|transient|transitioning)\\b"
 			},
 			{
 				"name": "keyword.operator.torque",

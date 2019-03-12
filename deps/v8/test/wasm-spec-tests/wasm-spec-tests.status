@@ -43,4 +43,11 @@
   'tests/f64': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
 
+##############################################################################
+['lite_mode', {
+  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+  '*': [SKIP],
+}], # lite_mode
+
+
 ]

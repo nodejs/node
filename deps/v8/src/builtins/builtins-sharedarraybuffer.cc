@@ -74,7 +74,7 @@ V8_WARN_UNUSED_RESULT Maybe<size_t> ValidateAtomicAccess(
 
   size_t access_index;
   if (!TryNumberToSize(*access_index_obj, &access_index) ||
-      typed_array->WasNeutered() ||
+      typed_array->WasDetached() ||
       access_index >= typed_array->length_value()) {
     isolate->Throw(*isolate->factory()->NewRangeError(
         MessageTemplate::kInvalidAtomicAccessIndex));
@@ -183,8 +183,8 @@ BUILTIN(AtomicsWait) {
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
   size_t addr = (i << 2) + sta->byte_offset();
 
-  return FutexEmulation::Wait(isolate, array_buffer, addr, value_int32,
-                              timeout_number);
+  return FutexEmulation::WaitJs(isolate, array_buffer, addr, value_int32,
+                                timeout_number);
 }
 
 }  // namespace internal

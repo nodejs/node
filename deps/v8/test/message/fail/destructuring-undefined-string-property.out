@@ -2,4 +2,4 @@
 var { x } = undefined;
       ^
 TypeError: Cannot destructure property `x` of 'undefined' or 'null'.
-    at *%(basename)s:5:13
+    at *%(basename)s:5:5

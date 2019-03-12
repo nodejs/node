@@ -16,7 +16,7 @@ namespace internal {
 
 namespace {
 
-inline bool EqualImmutableValues(Object* obj1, Object* obj2) {
+inline bool EqualImmutableValues(Object obj1, Object obj2) {
   if (obj1 == obj2) return true;  // Valid for both kData and kAccessor kinds.
   // TODO(ishell): compare AccessorPairs.
   return false;
@@ -38,7 +38,7 @@ MapUpdater::MapUpdater(Isolate* isolate, Handle<Map> old_map)
               ->IsFunctionTemplateInfo());
 }
 
-Name* MapUpdater::GetKey(int descriptor) const {
+Name MapUpdater::GetKey(int descriptor) const {
   return old_descriptors_->GetKey(descriptor);
 }
 
@@ -51,7 +51,7 @@ PropertyDetails MapUpdater::GetDetails(int descriptor) const {
   return old_descriptors_->GetDetails(descriptor);
 }
 
-Object* MapUpdater::GetValue(int descriptor) const {
+Object MapUpdater::GetValue(int descriptor) const {
   DCHECK_LE(0, descriptor);
   if (descriptor == modified_descriptor_) {
     DCHECK_EQ(kDescriptor, new_location_);
@@ -61,7 +61,7 @@ Object* MapUpdater::GetValue(int descriptor) const {
   return old_descriptors_->GetStrongValue(descriptor);
 }
 
-FieldType* MapUpdater::GetFieldType(int descriptor) const {
+FieldType MapUpdater::GetFieldType(int descriptor) const {
   DCHECK_LE(0, descriptor);
   if (descriptor == modified_descriptor_) {
     DCHECK_EQ(kField, new_location_);
@@ -170,6 +170,9 @@ Handle<Map> MapUpdater::Update() {
   if (FindTargetMap() == kEnd) return result_map_;
   ConstructNewMap();
   DCHECK_EQ(kEnd, state_);
+  if (FLAG_fast_map_update) {
+    TransitionsAccessor(isolate_, old_map_).SetMigrationTarget(*result_map_);
+  }
   return result_map_;
 }
 
@@ -284,7 +287,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
     DCHECK_EQ(kData, old_details.kind());
     DCHECK_EQ(kData, new_kind_);
     DCHECK_EQ(kField, new_location_);
-    FieldType* old_field_type =
+    FieldType old_field_type =
         old_descriptors_->GetFieldType(modified_descriptor_);
     if (!new_field_type_->NowIs(old_field_type)) {
       return CopyGeneralizeAllFields("GenAll_RootModification5");
@@ -317,10 +320,10 @@ MapUpdater::State MapUpdater::FindTargetMap() {
   int root_nof = root_map_->NumberOfOwnDescriptors();
   for (int i = root_nof; i < old_nof_; ++i) {
     PropertyDetails old_details = GetDetails(i);
-    Map* transition = TransitionsAccessor(isolate_, target_map_)
-                          .SearchTransition(GetKey(i), old_details.kind(),
-                                            old_details.attributes());
-    if (transition == nullptr) break;
+    Map transition = TransitionsAccessor(isolate_, target_map_)
+                         .SearchTransition(GetKey(i), old_details.kind(),
+                                           old_details.attributes());
+    if (transition.is_null()) break;
     Handle<Map> tmp_map(transition, isolate_);
 
     Handle<DescriptorArray> tmp_descriptors(tmp_map->instance_descriptors(),
@@ -372,7 +375,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
   if (target_nof == old_nof_) {
 #ifdef DEBUG
     if (modified_descriptor_ >= 0) {
-      DescriptorArray* target_descriptors = target_map_->instance_descriptors();
+      DescriptorArray target_descriptors = target_map_->instance_descriptors();
       PropertyDetails details =
           target_descriptors->GetDetails(modified_descriptor_);
       DCHECK_EQ(new_kind_, details.kind());
@@ -403,10 +406,10 @@ MapUpdater::State MapUpdater::FindTargetMap() {
   // Find the last compatible target map in the transition tree.
   for (int i = target_nof; i < old_nof_; ++i) {
     PropertyDetails old_details = GetDetails(i);
-    Map* transition = TransitionsAccessor(isolate_, target_map_)
-                          .SearchTransition(GetKey(i), old_details.kind(),
-                                            old_details.attributes());
-    if (transition == nullptr) break;
+    Map transition = TransitionsAccessor(isolate_, target_map_)
+                         .SearchTransition(GetKey(i), old_details.kind(),
+                                           old_details.attributes());
+    if (transition.is_null()) break;
     Handle<Map> tmp_map(transition, isolate_);
     Handle<DescriptorArray> tmp_descriptors(tmp_map->instance_descriptors(),
                                             isolate_);
@@ -439,11 +442,13 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
   // descriptors, with minimally the exact same size as the old descriptor
   // array.
   int new_slack =
-      Max(old_nof_, old_descriptors_->number_of_descriptors()) - old_nof_;
+      std::max<int>(old_nof_, old_descriptors_->number_of_descriptors()) -
+      old_nof_;
   Handle<DescriptorArray> new_descriptors =
       DescriptorArray::Allocate(isolate_, old_nof_, new_slack);
-  DCHECK(new_descriptors->length() > target_descriptors->length() ||
-         new_descriptors->NumberOfSlackDescriptors() > 0 ||
+  DCHECK(new_descriptors->number_of_all_descriptors() >
+             target_descriptors->number_of_all_descriptors() ||
+         new_descriptors->number_of_slack_descriptors() > 0 ||
          new_descriptors->number_of_descriptors() ==
              old_descriptors_->number_of_descriptors());
   DCHECK(new_descriptors->number_of_descriptors() == old_nof_);
@@ -610,15 +615,15 @@ Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
   DisallowHeapAllocation no_allocation;
 
   int root_nof = root_map_->NumberOfOwnDescriptors();
-  Map* current = *root_map_;
+  Map current = *root_map_;
   for (int i = root_nof; i < old_nof_; i++) {
-    Name* name = descriptors->GetKey(i);
+    Name name = descriptors->GetKey(i);
     PropertyDetails details = descriptors->GetDetails(i);
-    Map* next =
+    Map next =
         TransitionsAccessor(isolate_, current, &no_allocation)
             .SearchTransition(name, details.kind(), details.attributes());
-    if (next == nullptr) break;
-    DescriptorArray* next_descriptors = next->instance_descriptors();
+    if (next.is_null()) break;
+    DescriptorArray next_descriptors = next->instance_descriptors();
 
     PropertyDetails next_details = next_descriptors->GetDetails(i);
     DCHECK_EQ(details.kind(), next_details.kind());
@@ -628,7 +633,7 @@ Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
     if (!details.representation().Equals(next_details.representation())) break;
 
     if (next_details.location() == kField) {
-      FieldType* next_field_type = next_descriptors->GetFieldType(i);
+      FieldType next_field_type = next_descriptors->GetFieldType(i);
       if (!descriptors->GetFieldType(i)->NowIs(next_field_type)) {
         break;
       }
@@ -654,16 +659,16 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
   TransitionsAccessor transitions(isolate_, split_map);
 
   // Invalidate a transition target at |key|.
-  Map* maybe_transition = transitions.SearchTransition(
+  Map maybe_transition = transitions.SearchTransition(
       GetKey(split_nof), split_details.kind(), split_details.attributes());
-  if (maybe_transition != nullptr) {
+  if (!maybe_transition.is_null()) {
     maybe_transition->DeprecateTransitionTree(isolate_);
   }
 
   // If |maybe_transition| is not nullptr then the transition array already
   // contains entry for given descriptor. This means that the transition
   // could be inserted regardless of whether transitions array is full or not.
-  if (maybe_transition == nullptr && !transitions.CanHaveMoreTransitions()) {
+  if (maybe_transition.is_null() && !transitions.CanHaveMoreTransitions()) {
     return CopyGeneralizeAllFields("GenAll_CantHaveMoreTransitions");
   }
 

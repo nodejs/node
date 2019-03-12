@@ -31,10 +31,8 @@
 
 #include "include/v8-profiler.h"
 #include "src/api-inl.h"
-#include "src/code-stubs.h"
 #include "src/disassembler.h"
 #include "src/isolate.h"
-#include "src/log.h"
 #include "src/objects-inl.h"
 #include "src/v8.h"
 #include "src/vm-state-inl.h"
@@ -44,8 +42,8 @@
 namespace v8 {
 namespace internal {
 
-static bool IsAddressWithinFuncCode(JSFunction* function, void* addr) {
-  i::AbstractCode* code = function->abstract_code();
+static bool IsAddressWithinFuncCode(JSFunction function, void* addr) {
+  i::AbstractCode code = function->abstract_code();
   return code->contains(reinterpret_cast<Address>(addr));
 }
 
@@ -54,7 +52,7 @@ static bool IsAddressWithinFuncCode(v8::Local<v8::Context> context,
   v8::Local<v8::Value> func =
       context->Global()->Get(context, v8_str(func_name)).ToLocalChecked();
   CHECK(func->IsFunction());
-  JSFunction* js_func = JSFunction::cast(*v8::Utils::OpenHandle(*func));
+  JSFunction js_func = JSFunction::cast(*v8::Utils::OpenHandle(*func));
   return IsAddressWithinFuncCode(js_func, addr);
 }
 
@@ -148,7 +146,7 @@ TEST(CFromJSStackTrace) {
   i::TraceExtension::InitTraceEnv(&sample);
 
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> context = CcTest::NewContext(TRACE_EXTENSION);
+  v8::Local<v8::Context> context = CcTest::NewContext({TRACE_EXTENSION_ID});
   v8::Context::Scope context_scope(context);
 
   // Create global function JSFuncDoTrace which calls
@@ -197,7 +195,7 @@ TEST(PureJSStackTrace) {
   i::TraceExtension::InitTraceEnv(&sample);
 
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> context = CcTest::NewContext(TRACE_EXTENSION);
+  v8::Local<v8::Context> context = CcTest::NewContext({TRACE_EXTENSION_ID});
   v8::Context::Scope context_scope(context);
 
   // Create global function JSFuncDoTrace which calls
@@ -267,7 +265,7 @@ TEST(PureCStackTrace) {
   TickSample sample;
   i::TraceExtension::InitTraceEnv(&sample);
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> context = CcTest::NewContext(TRACE_EXTENSION);
+  v8::Local<v8::Context> context = CcTest::NewContext({TRACE_EXTENSION_ID});
   v8::Context::Scope context_scope(context);
   // Check that sampler doesn't crash
   CHECK_EQ(10, CFunc(10));
@@ -276,7 +274,7 @@ TEST(PureCStackTrace) {
 
 TEST(JsEntrySp) {
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> context = CcTest::NewContext(TRACE_EXTENSION);
+  v8::Local<v8::Context> context = CcTest::NewContext({TRACE_EXTENSION_ID});
   v8::Context::Scope context_scope(context);
   CHECK(!i::TraceExtension::GetJsEntrySp());
   CompileRun("a = 1; b = a + 1;");

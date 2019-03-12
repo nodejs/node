@@ -1,2 +1,0 @@
-Tests that stepping ignores injected script
-InjectedSciptSource was not reached

@@ -6,11 +6,10 @@
 
 #include "src/objects/scope-info.h"
 
-#include "src/ast/context-slot-cache.h"
 #include "src/ast/scopes.h"
 #include "src/ast/variables.h"
 #include "src/bootstrapper.h"
-#include "src/heap/heap-inl.h"
+
 #include "src/objects-inl.h"
 #include "src/objects/module-inl.h"
 
@@ -26,11 +25,11 @@ enum ModuleVariableEntryOffset {
 };
 
 #ifdef DEBUG
-bool ScopeInfo::Equals(ScopeInfo* other) const {
+bool ScopeInfo::Equals(ScopeInfo other) const {
   if (length() != other->length()) return false;
   for (int index = 0; index < length(); ++index) {
-    Object* entry = get(index);
-    Object* other_entry = other->get(index);
+    Object entry = get(index);
+    Object other_entry = other->get(index);
     if (entry->IsSmi()) {
       if (entry != other_entry) return false;
     } else {
@@ -153,12 +152,12 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
   Handle<ScopeInfo> scope_info = factory->NewScopeInfo(length);
 
   bool has_simple_parameters = false;
-  bool asm_module = false;
+  bool is_asm_module = false;
   bool calls_sloppy_eval = false;
   if (scope->is_function_scope()) {
     DeclarationScope* function_scope = scope->AsDeclarationScope();
     has_simple_parameters = function_scope->has_simple_parameters();
-    asm_module = function_scope->asm_module();
+    is_asm_module = function_scope->is_asm_module();
   }
   FunctionKind function_kind = kNormalFunction;
   if (scope->is_declaration_scope()) {
@@ -176,11 +175,12 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
       HasNewTargetField::encode(has_new_target) |
       FunctionVariableField::encode(function_name_info) |
       HasInferredFunctionNameField::encode(has_inferred_function_name) |
-      AsmModuleField::encode(asm_module) |
+      IsAsmModuleField::encode(is_asm_module) |
       HasSimpleParametersField::encode(has_simple_parameters) |
       FunctionKindField::encode(function_kind) |
       HasOuterScopeInfoField::encode(has_outer_scope_info) |
-      IsDebugEvaluateScopeField::encode(scope->is_debug_evaluate_scope());
+      IsDebugEvaluateScopeField::encode(scope->is_debug_evaluate_scope()) |
+      ForceContextAllocationField::encode(scope->ForceContextForLanguageMode());
   scope_info->SetFlags(flags);
 
   scope_info->SetParameterCount(parameter_count);
@@ -268,7 +268,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
     DisallowHeapAllocation no_gc;
     Variable* var = scope->AsDeclarationScope()->function_var();
     int var_index = -1;
-    Object* name = Smi::kZero;
+    Object name = Smi::kZero;
     if (var != nullptr) {
       var_index = var->index();
       name = *var->name();
@@ -331,7 +331,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
       LanguageModeField::encode(LanguageMode::kSloppy) |
       DeclarationScopeField::encode(false) |
       ReceiverVariableField::encode(NONE) | HasNewTargetField::encode(false) |
-      FunctionVariableField::encode(NONE) | AsmModuleField::encode(false) |
+      FunctionVariableField::encode(NONE) | IsAsmModuleField::encode(false) |
       HasSimpleParametersField::encode(true) |
       FunctionKindField::encode(kNormalFunction) |
       HasOuterScopeInfoField::encode(has_outer_scope_info) |
@@ -395,7 +395,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
       HasNewTargetField::encode(false) |
       FunctionVariableField::encode(is_empty_function ? UNUSED : NONE) |
       HasInferredFunctionNameField::encode(has_inferred_function_name) |
-      AsmModuleField::encode(false) | HasSimpleParametersField::encode(true) |
+      IsAsmModuleField::encode(false) | HasSimpleParametersField::encode(true) |
       FunctionKindField::encode(FunctionKind::kNormalFunction) |
       HasOuterScopeInfoField::encode(false) |
       IsDebugEvaluateScopeField::encode(false);
@@ -452,7 +452,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
   return scope_info;
 }
 
-ScopeInfo* ScopeInfo::Empty(Isolate* isolate) {
+ScopeInfo ScopeInfo::Empty(Isolate* isolate) {
   return ReadOnlyRoots(isolate).empty_scope_info();
 }
 
@@ -483,7 +483,9 @@ int ScopeInfo::ContextLength() const {
     int context_locals = ContextLocalCount();
     bool function_name_context_slot =
         FunctionVariableField::decode(Flags()) == CONTEXT;
-    bool has_context = context_locals > 0 || function_name_context_slot ||
+    bool force_context = ForceContextAllocationField::decode(Flags());
+    bool has_context = context_locals > 0 || force_context ||
+                       function_name_context_slot ||
                        scope_type() == WITH_SCOPE ||
                        (scope_type() == BLOCK_SCOPE && CallsSloppyEval() &&
                         is_declaration_scope()) ||
@@ -539,13 +541,13 @@ bool ScopeInfo::HasSharedFunctionName() const {
   return FunctionName() != SharedFunctionInfo::kNoSharedNameSentinel;
 }
 
-void ScopeInfo::SetFunctionName(Object* name) {
+void ScopeInfo::SetFunctionName(Object name) {
   DCHECK(HasFunctionName());
   DCHECK(name->IsString() || name == SharedFunctionInfo::kNoSharedNameSentinel);
   set(FunctionNameInfoIndex(), name);
 }
 
-void ScopeInfo::SetInferredFunctionName(String* name) {
+void ScopeInfo::SetInferredFunctionName(String name) {
   DCHECK(HasInferredFunctionName());
   set(InferredFunctionNameIndex(), name);
 }
@@ -571,18 +573,18 @@ void ScopeInfo::SetIsDebugEvaluateScope() {
 
 bool ScopeInfo::HasContext() const { return ContextLength() > 0; }
 
-Object* ScopeInfo::FunctionName() const {
+Object ScopeInfo::FunctionName() const {
   DCHECK(HasFunctionName());
   return get(FunctionNameInfoIndex());
 }
 
-Object* ScopeInfo::InferredFunctionName() const {
+Object ScopeInfo::InferredFunctionName() const {
   DCHECK(HasInferredFunctionName());
   return get(InferredFunctionNameIndex());
 }
 
-String* ScopeInfo::FunctionDebugName() const {
-  Object* name = FunctionName();
+String ScopeInfo::FunctionDebugName() const {
+  Object name = FunctionName();
   if (name->IsString() && String::cast(name)->length() > 0) {
     return String::cast(name);
   }
@@ -610,17 +612,17 @@ void ScopeInfo::SetPositionInfo(int start, int end) {
   set(PositionInfoIndex() + 1, Smi::FromInt(end));
 }
 
-ScopeInfo* ScopeInfo::OuterScopeInfo() const {
+ScopeInfo ScopeInfo::OuterScopeInfo() const {
   DCHECK(HasOuterScopeInfo());
   return ScopeInfo::cast(get(OuterScopeInfoIndex()));
 }
 
-ModuleInfo* ScopeInfo::ModuleDescriptorInfo() const {
+ModuleInfo ScopeInfo::ModuleDescriptorInfo() const {
   DCHECK(scope_type() == MODULE_SCOPE);
   return ModuleInfo::cast(get(ModuleInfoIndex()));
 }
 
-String* ScopeInfo::ContextLocalName(int var) const {
+String ScopeInfo::ContextLocalName(int var) const {
   DCHECK_LE(0, var);
   DCHECK_LT(var, ContextLocalCount());
   int info_index = ContextLocalNamesIndex() + var;
@@ -667,7 +669,7 @@ MaybeAssignedFlag ScopeInfo::ContextLocalMaybeAssignedFlag(int var) const {
 }
 
 // static
-bool ScopeInfo::VariableIsSynthetic(String* name) {
+bool ScopeInfo::VariableIsSynthetic(String name) {
   // There's currently no flag stored on the ScopeInfo to indicate that a
   // variable is a compiler-introduced temporary. However, to avoid conflict
   // with user declarations, the current temporaries like .generator_object and
@@ -688,7 +690,7 @@ int ScopeInfo::ModuleIndex(Handle<String> name, VariableMode* mode,
   int module_vars_count = Smi::ToInt(get(ModuleVariableCountIndex()));
   int entry = ModuleVariablesIndex();
   for (int i = 0; i < module_vars_count; ++i) {
-    String* var_name = String::cast(get(entry + kModuleVariableNameOffset));
+    String var_name = String::cast(get(entry + kModuleVariableNameOffset));
     if (name->Equals(var_name)) {
       int index;
       ModuleVariable(i, nullptr, &index, mode, init_flag, maybe_assigned_flag);
@@ -712,26 +714,6 @@ int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
 
   if (scope_info->length() == 0) return -1;
 
-  // Get the Isolate via the heap.
-  //
-  // Ideally we'd pass Isolate* through to this function, however this is mostly
-  // called from the parser, which is otherwise isolate independent. We can't
-  // assume that all scope infos are never RO space (like we can with JSReceiver
-  // or Context), but we can assume that *non-empty* scope infos are.
-  //
-  // So, we take the least-ugly approach of manually getting the isolate to be
-  // able to remove GetIsolate from ScopeInfo in the general case, while
-  // allowing it in this one particular case.
-  Isolate* isolate = Heap::FromWritableHeapObject(*scope_info)->isolate();
-
-  ContextSlotCache* context_slot_cache = isolate->context_slot_cache();
-  int result = context_slot_cache->Lookup(*scope_info, *name, mode, init_flag,
-                                          maybe_assigned_flag);
-  if (result != ContextSlotCache::kNotFound) {
-    DCHECK_LT(result, scope_info->ContextLength());
-    return result;
-  }
-
   int start = scope_info->ContextLocalNamesIndex();
   int end = start + scope_info->ContextLocalCount();
   for (int i = start; i < end; ++i) {
@@ -740,17 +722,12 @@ int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
       *mode = scope_info->ContextLocalMode(var);
       *init_flag = scope_info->ContextLocalInitFlag(var);
       *maybe_assigned_flag = scope_info->ContextLocalMaybeAssignedFlag(var);
-      result = Context::MIN_CONTEXT_SLOTS + var;
+      int result = Context::MIN_CONTEXT_SLOTS + var;
 
-      context_slot_cache->Update(scope_info, name, *mode, *init_flag,
-                                 *maybe_assigned_flag, result);
       DCHECK_LT(result, scope_info->ContextLength());
       return result;
     }
   }
-  // Cache as not found. Mode, init flag and maybe assigned flag don't matter.
-  context_slot_cache->Update(scope_info, name, VariableMode::kTemporary,
-                             kNeedsInitialization, kNotAssigned, -1);
 
   return -1;
 }
@@ -762,7 +739,7 @@ int ScopeInfo::ReceiverContextSlotIndex() const {
   return -1;
 }
 
-int ScopeInfo::FunctionContextSlotIndex(String* name) const {
+int ScopeInfo::FunctionContextSlotIndex(String name) const {
   DCHECK(name->IsInternalizedString());
   if (length() > 0) {
     if (FunctionVariableField::decode(Flags()) == CONTEXT &&
@@ -819,7 +796,7 @@ int ScopeInfo::ModuleVariablesIndex() const {
   return ModuleVariableCountIndex() + 1;
 }
 
-void ScopeInfo::ModuleVariable(int i, String** name, int* index,
+void ScopeInfo::ModuleVariable(int i, String* name, int* index,
                                VariableMode* mode,
                                InitializationFlag* init_flag,
                                MaybeAssignedFlag* maybe_assigned_flag) {
@@ -947,7 +924,7 @@ int ModuleInfo::RegularExportCount() const {
   return regular_exports()->length() / kRegularExportLength;
 }
 
-String* ModuleInfo::RegularExportLocalName(int i) const {
+String ModuleInfo::RegularExportLocalName(int i) const {
   return String::cast(regular_exports()->get(i * kRegularExportLength +
                                              kRegularExportLocalNameOffset));
 }
@@ -957,7 +934,7 @@ int ModuleInfo::RegularExportCellIndex(int i) const {
                                            kRegularExportCellIndexOffset));
 }
 
-FixedArray* ModuleInfo::RegularExportExportNames(int i) const {
+FixedArray ModuleInfo::RegularExportExportNames(int i) const {
   return FixedArray::cast(regular_exports()->get(
       i * kRegularExportLength + kRegularExportExportNamesOffset));
 }

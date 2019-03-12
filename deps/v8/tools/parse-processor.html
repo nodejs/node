@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <!--
 Copyright 2016 the V8 project authors. All rights reserved.  Use of this source
@@ -5,6 +6,8 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 -->
 
 <head>
+<meta charset="utf-8">
+<title>V8 Parse Processor</title>
 <style>
   html {
     font-family: monospace;
@@ -100,18 +103,18 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     text-align: right;
   }
 </style>
-<script src="./splaytree.js" type="text/javascript"></script>
-<script src="./codemap.js" type="text/javascript"></script>
-<script src="./csvparser.js" type="text/javascript"></script>
-<script src="./consarray.js" type="text/javascript"></script>
-<script src="./profile.js" type="text/javascript"></script>
-<script src="./profile_view.js" type="text/javascript"></script>
-<script src="./logreader.js" type="text/javascript"></script>
-<script src="./arguments.js" type="text/javascript"></script>
-<script src="./parse-processor.js" type="text/javascript"></script>
-<script src="./SourceMap.js" type="text/javascript"></script>
-<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-<script type="text/javascript">
+<script src="./splaytree.js"></script>
+<script src="./codemap.js"></script>
+<script src="./csvparser.js"></script>
+<script src="./consarray.js"></script>
+<script src="./profile.js"></script>
+<script src="./profile_view.js"></script>
+<script src="./logreader.js"></script>
+<script src="./arguments.js"></script>
+<script src="./parse-processor.js"></script>
+<script src="./SourceMap.js"></script>
+<script src="https://www.gstatic.com/charts/loader.js"></script>
+<script>
 "use strict";
 google.charts.load('current', {packages: ['corechart']});
 

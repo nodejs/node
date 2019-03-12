@@ -7,10 +7,6 @@ expression: (function* foo() { yield 1 })
     result : {
         internalProperties : [
             [0] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
-            [1] : {
                 name : [[FunctionLocation]]
                 value : {
                     description : Object
@@ -23,14 +19,14 @@ expression: (function* foo() { yield 1 })
                     }
                 }
             }
-            [2] : {
+            [1] : {
                 name : [[IsGenerator]]
                 value : {
                     type : boolean
                     value : true
                 }
             }
-            [3] : {
+            [2] : {
                 name : [[Scopes]]
                 value : {
                     className : Array
@@ -51,10 +47,6 @@ expression: (function foo() {})
     result : {
         internalProperties : [
             [0] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
-            [1] : {
                 name : [[FunctionLocation]]
                 value : {
                     description : Object
@@ -67,7 +59,7 @@ expression: (function foo() {})
                     }
                 }
             }
-            [2] : {
+            [1] : {
                 name : [[Scopes]]
                 value : {
                     className : Array
@@ -95,10 +87,6 @@ expression: new Number(239)
                     value : 239
                 }
             }
-            [1] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
         ]
     }
 }
@@ -114,10 +102,6 @@ expression: new Boolean(false)
                     value : false
                 }
             }
-            [1] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
         ]
     }
 }
@@ -132,10 +116,6 @@ expression: new String('abc')
                     type : string
                     value : abc
                 }
-            }
-            [1] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
             }
         ]
     }
@@ -153,10 +133,6 @@ expression: Object(Symbol(42))
                     type : symbol
                 }
             }
-            [1] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
         ]
     }
 }
@@ -172,10 +148,6 @@ expression: Object(BigInt(2))
                     type : bigint
                     unserializableValue : 2n
                 }
-            }
-            [1] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
             }
         ]
     }
@@ -202,10 +174,6 @@ expression: Promise.resolve(42)
                     value : 42
                 }
             }
-            [2] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
         ]
     }
 }
@@ -227,10 +195,6 @@ expression: new Promise(() => undefined)
                     type : undefined
                 }
             }
-            [2] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
         ]
     }
 }
@@ -242,35 +206,6 @@ expression: gen1
     result : {
         internalProperties : [
             [0] : {
-                name : [[GeneratorStatus]]
-                value : {
-                    type : string
-                    value : suspended
-                }
-            }
-            [1] : {
-                name : [[GeneratorFunction]]
-                value : {
-                    className : GeneratorFunction
-                    description : function* foo() {   yield 1; }
-                    objectId : <objectId>
-                    type : function
-                }
-            }
-            [2] : {
-                name : [[GeneratorReceiver]]
-                value : {
-                    className : global
-                    description : global
-                    objectId : <objectId>
-                    type : object
-                }
-            }
-            [3] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
-            [4] : {
                 name : [[GeneratorLocation]]
                 value : {
                     description : Object
@@ -283,7 +218,32 @@ expression: gen1
                     }
                 }
             }
-            [5] : {
+            [1] : {
+                name : [[GeneratorStatus]]
+                value : {
+                    type : string
+                    value : suspended
+                }
+            }
+            [2] : {
+                name : [[GeneratorFunction]]
+                value : {
+                    className : GeneratorFunction
+                    description : function* foo() {   yield 1; }
+                    objectId : <objectId>
+                    type : function
+                }
+            }
+            [3] : {
+                name : [[GeneratorReceiver]]
+                value : {
+                    className : global
+                    description : global
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [4] : {
                 name : [[Scopes]]
                 value : {
                     className : Array
@@ -302,35 +262,6 @@ expression: gen1.next();gen1
     result : {
         internalProperties : [
             [0] : {
-                name : [[GeneratorStatus]]
-                value : {
-                    type : string
-                    value : suspended
-                }
-            }
-            [1] : {
-                name : [[GeneratorFunction]]
-                value : {
-                    className : GeneratorFunction
-                    description : function* foo() {   yield 1; }
-                    objectId : <objectId>
-                    type : function
-                }
-            }
-            [2] : {
-                name : [[GeneratorReceiver]]
-                value : {
-                    className : global
-                    description : global
-                    objectId : <objectId>
-                    type : object
-                }
-            }
-            [3] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
-            [4] : {
                 name : [[GeneratorLocation]]
                 value : {
                     description : Object
@@ -343,7 +274,32 @@ expression: gen1.next();gen1
                     }
                 }
             }
-            [5] : {
+            [1] : {
+                name : [[GeneratorStatus]]
+                value : {
+                    type : string
+                    value : suspended
+                }
+            }
+            [2] : {
+                name : [[GeneratorFunction]]
+                value : {
+                    className : GeneratorFunction
+                    description : function* foo() {   yield 1; }
+                    objectId : <objectId>
+                    type : function
+                }
+            }
+            [3] : {
+                name : [[GeneratorReceiver]]
+                value : {
+                    className : global
+                    description : global
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [4] : {
                 name : [[Scopes]]
                 value : {
                     className : Array
@@ -362,35 +318,6 @@ expression: gen1.next();gen1
     result : {
         internalProperties : [
             [0] : {
-                name : [[GeneratorStatus]]
-                value : {
-                    type : string
-                    value : closed
-                }
-            }
-            [1] : {
-                name : [[GeneratorFunction]]
-                value : {
-                    className : GeneratorFunction
-                    description : function* foo() {   yield 1; }
-                    objectId : <objectId>
-                    type : function
-                }
-            }
-            [2] : {
-                name : [[GeneratorReceiver]]
-                value : {
-                    className : global
-                    description : global
-                    objectId : <objectId>
-                    type : object
-                }
-            }
-            [3] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
-            [4] : {
                 name : [[GeneratorLocation]]
                 value : {
                     description : Object
@@ -401,6 +328,31 @@ expression: gen1.next();gen1
                         lineNumber : 8
                         scriptId : <scriptId>
                     }
+                }
+            }
+            [1] : {
+                name : [[GeneratorStatus]]
+                value : {
+                    type : string
+                    value : closed
+                }
+            }
+            [2] : {
+                name : [[GeneratorFunction]]
+                value : {
+                    className : GeneratorFunction
+                    description : function* foo() {   yield 1; }
+                    objectId : <objectId>
+                    type : function
+                }
+            }
+            [3] : {
+                name : [[GeneratorReceiver]]
+                value : {
+                    className : global
+                    description : global
+                    objectId : <objectId>
+                    type : object
                 }
             }
         ]
@@ -414,35 +366,6 @@ expression: gen2
     result : {
         internalProperties : [
             [0] : {
-                name : [[GeneratorStatus]]
-                value : {
-                    type : string
-                    value : suspended
-                }
-            }
-            [1] : {
-                name : [[GeneratorFunction]]
-                value : {
-                    className : GeneratorFunction
-                    description : function* foo() {   yield 1; }
-                    objectId : <objectId>
-                    type : function
-                }
-            }
-            [2] : {
-                name : [[GeneratorReceiver]]
-                value : {
-                    className : global
-                    description : global
-                    objectId : <objectId>
-                    type : object
-                }
-            }
-            [3] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
-            [4] : {
                 name : [[GeneratorLocation]]
                 value : {
                     description : Object
@@ -455,7 +378,32 @@ expression: gen2
                     }
                 }
             }
-            [5] : {
+            [1] : {
+                name : [[GeneratorStatus]]
+                value : {
+                    type : string
+                    value : suspended
+                }
+            }
+            [2] : {
+                name : [[GeneratorFunction]]
+                value : {
+                    className : GeneratorFunction
+                    description : function* foo() {   yield 1; }
+                    objectId : <objectId>
+                    type : function
+                }
+            }
+            [3] : {
+                name : [[GeneratorReceiver]]
+                value : {
+                    className : global
+                    description : global
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [4] : {
                 name : [[Scopes]]
                 value : {
                     className : Array
@@ -474,35 +422,6 @@ expression: gen2.next();gen2
     result : {
         internalProperties : [
             [0] : {
-                name : [[GeneratorStatus]]
-                value : {
-                    type : string
-                    value : suspended
-                }
-            }
-            [1] : {
-                name : [[GeneratorFunction]]
-                value : {
-                    className : GeneratorFunction
-                    description : function* foo() {   yield 1; }
-                    objectId : <objectId>
-                    type : function
-                }
-            }
-            [2] : {
-                name : [[GeneratorReceiver]]
-                value : {
-                    className : global
-                    description : global
-                    objectId : <objectId>
-                    type : object
-                }
-            }
-            [3] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
-            [4] : {
                 name : [[GeneratorLocation]]
                 value : {
                     description : Object
@@ -515,7 +434,32 @@ expression: gen2.next();gen2
                     }
                 }
             }
-            [5] : {
+            [1] : {
+                name : [[GeneratorStatus]]
+                value : {
+                    type : string
+                    value : suspended
+                }
+            }
+            [2] : {
+                name : [[GeneratorFunction]]
+                value : {
+                    className : GeneratorFunction
+                    description : function* foo() {   yield 1; }
+                    objectId : <objectId>
+                    type : function
+                }
+            }
+            [3] : {
+                name : [[GeneratorReceiver]]
+                value : {
+                    className : global
+                    description : global
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [4] : {
                 name : [[Scopes]]
                 value : {
                     className : Array
@@ -534,35 +478,6 @@ expression: gen2.next();gen2
     result : {
         internalProperties : [
             [0] : {
-                name : [[GeneratorStatus]]
-                value : {
-                    type : string
-                    value : closed
-                }
-            }
-            [1] : {
-                name : [[GeneratorFunction]]
-                value : {
-                    className : GeneratorFunction
-                    description : function* foo() {   yield 1; }
-                    objectId : <objectId>
-                    type : function
-                }
-            }
-            [2] : {
-                name : [[GeneratorReceiver]]
-                value : {
-                    className : global
-                    description : global
-                    objectId : <objectId>
-                    type : object
-                }
-            }
-            [3] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
-            [4] : {
                 name : [[GeneratorLocation]]
                 value : {
                     description : Object
@@ -573,6 +488,31 @@ expression: gen2.next();gen2
                         lineNumber : 8
                         scriptId : <scriptId>
                     }
+                }
+            }
+            [1] : {
+                name : [[GeneratorStatus]]
+                value : {
+                    type : string
+                    value : closed
+                }
+            }
+            [2] : {
+                name : [[GeneratorFunction]]
+                value : {
+                    className : GeneratorFunction
+                    description : function* foo() {   yield 1; }
+                    objectId : <objectId>
+                    type : function
+                }
+            }
+            [3] : {
+                name : [[GeneratorReceiver]]
+                value : {
+                    className : global
+                    description : global
+                    objectId : <objectId>
+                    type : object
                 }
             }
         ]
@@ -608,10 +548,6 @@ expression: (new Map([[1,2]])).entries()
                 }
             }
             [3] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
-            [4] : {
                 name : [[Entries]]
                 value : {
                     className : Array
@@ -652,10 +588,6 @@ expression: (new Set([[1,2]])).entries()
                 }
             }
             [3] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
-            [4] : {
                 name : [[Entries]]
                 value : {
                     className : Array

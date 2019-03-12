@@ -86,9 +86,7 @@ assertThrows(
     }),
     Error);
 
-// These don't throw yet, we need to implement language/script/region
-// override logic first.
-assertDoesNotThrow(
+assertThrows(
     () => new Intl.Locale('en-US', {
       get language() {
         throw new Error('foo');
@@ -96,7 +94,7 @@ assertDoesNotThrow(
     }),
     Error);
 
-assertDoesNotThrow(
+assertThrows(
     () => new Intl.Locale('en-US', {
       get script() {
         throw new Error('foo');
@@ -104,7 +102,7 @@ assertDoesNotThrow(
     }),
     Error);
 
-assertDoesNotThrow(
+assertThrows(
     () => new Intl.Locale('en-US', {
       get region() {
         throw new Error('foo');

@@ -10,7 +10,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class ZoneStatsTest : public TestWithIsolate {
+class ZoneStatsTest : public ::testing::Test {
  public:
   ZoneStatsTest() : zone_stats_(&allocator_) {}
 

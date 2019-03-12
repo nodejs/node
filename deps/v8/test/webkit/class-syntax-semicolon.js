@@ -23,12 +23,9 @@
 
 description('Tests for ES6 class syntax containing semicolon in the class body');
 
-shouldThrow("class A { foo;() { } }", "'SyntaxError: Unexpected token ;'");
 shouldThrow("class A { foo() ; { } }", "'SyntaxError: Unexpected token ;'");
-shouldThrow("class A { get ; foo() { } }", "'SyntaxError: Unexpected token ;'");
 shouldThrow("class A { get foo;() { } }", "'SyntaxError: Unexpected token ;'");
 shouldThrow("class A { get foo() ; { } }", "'SyntaxError: Unexpected token ;'");
-shouldThrow("class A { set ; foo(x) { } }", "'SyntaxError: Unexpected token ;'");
 shouldThrow("class A { set foo;(x) { } }", "'SyntaxError: Unexpected token ;'");
 shouldThrow("class A { set foo(x) ; { } }", "'SyntaxError: Unexpected token ;'");
 

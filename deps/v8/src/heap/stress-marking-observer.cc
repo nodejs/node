@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/heap/stress-marking-observer.h"
+#include "src/heap/incremental-marking.h"
 
 namespace v8 {
 namespace internal {
@@ -15,6 +16,7 @@ void StressMarkingObserver::Step(int bytes_allocated, Address soon_object,
                                  size_t size) {
   heap_.StartIncrementalMarkingIfAllocationLimitIsReached(Heap::kNoGCFlags,
                                                           kNoGCCallbackFlags);
+  heap_.incremental_marking()->EnsureBlackAllocated(soon_object, size);
 }
 
 }  // namespace internal

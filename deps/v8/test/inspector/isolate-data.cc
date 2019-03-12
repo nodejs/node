@@ -110,6 +110,10 @@ v8::Local<v8::Context> IsolateData::GetContext(int context_group_id) {
   return contexts_[context_group_id].Get(isolate_.get());
 }
 
+void IsolateData::ResetContextGroup(int context_group_id) {
+  inspector_->resetContextGroup(context_group_id);
+}
+
 int IsolateData::GetContextGroupId(v8::Local<v8::Context> context) {
   return static_cast<int>(
       reinterpret_cast<intptr_t>(
@@ -242,7 +246,7 @@ void IsolateData::DumpAsyncTaskStacksStateForTest() {
 int IsolateData::HandleMessage(v8::Local<v8::Message> message,
                                v8::Local<v8::Value> exception) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  v8::Local<v8::Context> context = isolate->GetEnteredContext();
+  v8::Local<v8::Context> context = isolate->GetEnteredOrMicrotaskContext();
   if (context.IsEmpty()) return 0;
   v8_inspector::V8Inspector* inspector =
       IsolateData::FromContext(context)->inspector_.get();
@@ -285,7 +289,7 @@ void IsolateData::MessageHandler(v8::Local<v8::Message> message,
 // static
 void IsolateData::PromiseRejectHandler(v8::PromiseRejectMessage data) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  v8::Local<v8::Context> context = isolate->GetEnteredContext();
+  v8::Local<v8::Context> context = isolate->GetEnteredOrMicrotaskContext();
   if (context.IsEmpty()) return;
   v8::Local<v8::Promise> promise = data.GetPromise();
   v8::Local<v8::Private> id_private = v8::Private::ForApi(

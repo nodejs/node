@@ -9,8 +9,13 @@
 #ifndef V8_OBJECTS_JS_DATE_TIME_FORMAT_H_
 #define V8_OBJECTS_JS_DATE_TIME_FORMAT_H_
 
+#include <set>
+#include <string>
+
 #include "src/isolate.h"
+#include "src/objects/intl-objects.h"
 #include "src/objects/managed.h"
+#include "unicode/uversion.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -18,7 +23,7 @@
 namespace U_ICU_NAMESPACE {
 class Locale;
 class SimpleDateFormat;
-}
+}  // namespace U_ICU_NAMESPACE
 
 namespace v8 {
 namespace internal {
@@ -64,32 +69,50 @@ class JSDateTimeFormat : public JSObject {
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToLocaleDateTime(
       Isolate* isolate, Handle<Object> date, Handle<Object> locales,
-      Handle<Object> options, RequiredOption required, DefaultsOption defaults,
-      const char* service);
+      Handle<Object> options, RequiredOption required, DefaultsOption defaults);
 
+  static std::set<std::string> GetAvailableLocales();
+
+  Handle<String> HourCycleAsString() const;
   DECL_CAST(JSDateTimeFormat)
 
 // Layout description.
-#define JS_DATE_TIME_FORMAT_FIELDS(V)         \
-  V(kICULocaleOffset, kPointerSize)           \
-  V(kICUSimpleDateFormatOffset, kPointerSize) \
-  V(kBoundFormatOffset, kPointerSize)         \
-  /* Total size. */                           \
+#define JS_DATE_TIME_FORMAT_FIELDS(V)        \
+  V(kICULocaleOffset, kTaggedSize)           \
+  V(kICUSimpleDateFormatOffset, kTaggedSize) \
+  V(kBoundFormatOffset, kTaggedSize)         \
+  V(kFlagsOffset, kTaggedSize)               \
+  /* Total size. */                          \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 JS_DATE_TIME_FORMAT_FIELDS)
 #undef JS_DATE_TIME_FORMAT_FIELDS
 
+  inline void set_hour_cycle(Intl::HourCycle hour_cycle);
+  inline Intl::HourCycle hour_cycle() const;
+
+// Bit positions in |flags|.
+#define FLAGS_BIT_FIELDS(V, _) V(HourCycleBits, Intl::HourCycle, 3, _)
+
+  DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
+#undef FLAGS_BIT_FIELDS
+
+  STATIC_ASSERT(Intl::HourCycle::kUndefined <= HourCycleBits::kMax);
+  STATIC_ASSERT(Intl::HourCycle::kH11 <= HourCycleBits::kMax);
+  STATIC_ASSERT(Intl::HourCycle::kH12 <= HourCycleBits::kMax);
+  STATIC_ASSERT(Intl::HourCycle::kH23 <= HourCycleBits::kMax);
+  STATIC_ASSERT(Intl::HourCycle::kH24 <= HourCycleBits::kMax);
+
   DECL_ACCESSORS(icu_locale, Managed<icu::Locale>)
   DECL_ACCESSORS(icu_simple_date_format, Managed<icu::SimpleDateFormat>)
   DECL_ACCESSORS(bound_format, Object)
+  DECL_INT_ACCESSORS(flags)
 
   DECL_PRINTER(JSDateTimeFormat)
   DECL_VERIFIER(JSDateTimeFormat)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSDateTimeFormat);
+  OBJECT_CONSTRUCTORS(JSDateTimeFormat, JSObject);
 };
 
 }  // namespace internal

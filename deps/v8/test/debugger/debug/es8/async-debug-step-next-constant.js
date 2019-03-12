@@ -27,11 +27,11 @@ async function f() {
   a +=               // B1 StepNext
        await
              5;
-  return a;          // B2 StepNext
-}                    // B3 Continue
+  return a;          // B2 Continue
+}
 
 f();
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
-assertEquals(4, step_count);
+assertEquals(3, step_count);

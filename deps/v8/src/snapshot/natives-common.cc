@@ -16,22 +16,9 @@ NativesExternalStringResource::NativesExternalStringResource(NativeType type,
     : type_(type), index_(index) {
   Vector<const char> source;
   DCHECK_LE(0, index);
-  switch (type_) {
-    case CORE:
-      DCHECK(index < Natives::GetBuiltinsCount());
-      source = Natives::GetScriptSource(index);
-      break;
-    case EXTRAS:
-      DCHECK(index < ExtraNatives::GetBuiltinsCount());
-      source = ExtraNatives::GetScriptSource(index);
-      break;
-    case EXPERIMENTAL_EXTRAS:
-      DCHECK(index < ExperimentalExtraNatives::GetBuiltinsCount());
-      source = ExperimentalExtraNatives::GetScriptSource(index);
-      break;
-    default:
-      UNREACHABLE();
-  }
+  CHECK_EQ(EXTRAS, type_);
+  DCHECK(index < ExtraNatives::GetBuiltinsCount());
+  source = ExtraNatives::GetScriptSource(index);
   data_ = source.start();
   length_ = source.length();
 }

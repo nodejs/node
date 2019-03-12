@@ -20,7 +20,7 @@ from testrunner.testproc.execution import ExecutionProc
 from testrunner.testproc.expectation import ForgiveTimeoutProc
 from testrunner.testproc.filter import StatusFileFilterProc, NameFilterProc
 from testrunner.testproc.loader import LoadProc
-from testrunner.testproc.progress import ResultsTracker, TestsCounter
+from testrunner.testproc.progress import ResultsTracker
 from testrunner.utils import random_utils
 
 
@@ -55,6 +55,11 @@ class NumFuzzer(base_runner.BaseTestRunner):
     parser.add_option("--stress-gc", default=0, type="int",
                       help="probability [0-10] of adding --random-gc-interval "
                            "flag to the test")
+
+    # Stress tasks
+    parser.add_option("--stress-delay-tasks", default=0, type="int",
+                      help="probability [0-10] of adding --stress-delay-tasks "
+                           "flag to the test")
     parser.add_option("--stress-thread-pool-size", default=0, type="int",
                       help="probability [0-10] of adding --thread-pool-size "
                            "flag to the test")
@@ -66,11 +71,6 @@ class NumFuzzer(base_runner.BaseTestRunner):
     parser.add_option("--stress-deopt-min", default=1, type="int",
                       help="extends --stress-deopt to have minimum interval "
                            "between deopt points")
-
-    # Stress interrupt budget
-    parser.add_option("--stress-interrupt-budget", default=0, type="int",
-                      help="probability [0-10] of adding --interrupt-budget "
-                           "flag to the test")
 
     # Combine multiple tests
     parser.add_option("--combine-tests", default=False, action="store_true",
@@ -110,14 +110,6 @@ class NumFuzzer(base_runner.BaseTestRunner):
   def _get_default_suite_names(self):
     return DEFAULT_SUITES
 
-  def _timeout_scalefactor(self, options):
-    factor = super(NumFuzzer, self)._timeout_scalefactor(options)
-    if options.stress_interrupt_budget:
-      # TODO(machenbach): This should be moved to a more generic config.
-      # Fuzzers have too much timeout in debug mode.
-      factor = max(int(factor * 0.25), 1)
-    return factor
-
   def _get_statusfile_variables(self, options):
     variables = (
         super(NumFuzzer, self)._get_statusfile_variables(options))
@@ -129,6 +121,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
                              options.stress_scavenge,
                              options.stress_compaction,
                              options.stress_gc,
+                             options.stress_delay_tasks,
                              options.stress_thread_pool_size])),
     })
     return variables
@@ -180,15 +173,8 @@ class NumFuzzer(base_runner.BaseTestRunner):
     # Indicate if a SIGINT or SIGTERM happened.
     return sigproc.exit_code
 
-  def _load_suites(self, names, options):
-    suites = super(NumFuzzer, self)._load_suites(names, options)
-    if options.combine_tests:
-      suites = [s for s in suites if s.test_combiner_available()]
-    if options.stress_interrupt_budget:
-      # Changing interrupt budget forces us to suppress certain test assertions.
-      for suite in suites:
-        suite.do_suppress_internals()
-    return suites
+  def _is_testsuite_supported(self, suite, options):
+    return not options.combine_tests or suite.test_combiner_available()
 
   def _create_combiner(self, rng, options):
     if not options.combine_tests:
@@ -211,7 +197,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
 
   def _disable_analysis(self, options):
     """Disable analysis phase when options are used that don't support it."""
-    return options.combine_tests or options.stress_interrupt_budget
+    return options.combine_tests
 
   def _create_fuzzer_configs(self, options):
     fuzzers = []
@@ -224,7 +210,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
     add('scavenge', options.stress_scavenge)
     add('gc_interval', options.stress_gc)
     add('threads', options.stress_thread_pool_size)
-    add('interrupt_budget', options.stress_interrupt_budget)
+    add('delay', options.stress_delay_tasks)
     add('deopt', options.stress_deopt, options.stress_deopt_min)
     return fuzzers
 

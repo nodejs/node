@@ -13,14 +13,7 @@
 namespace v8 {
 namespace internal {
 
-namespace {
-base::LazyInstance<BasicBlockProfiler>::type kBasicBlockProfiler =
-    LAZY_INSTANCE_INITIALIZER;
-}
-
-BasicBlockProfiler* BasicBlockProfiler::Get() {
-  return kBasicBlockProfiler.Pointer();
-}
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(BasicBlockProfiler, BasicBlockProfiler::Get);
 
 BasicBlockProfiler::Data::Data(size_t n_blocks)
     : n_blocks_(n_blocks),
@@ -66,7 +59,7 @@ void BasicBlockProfiler::Data::ResetCounts() {
 }
 
 BasicBlockProfiler::Data* BasicBlockProfiler::NewData(size_t n_blocks) {
-  base::LockGuard<base::Mutex> lock(&data_list_mutex_);
+  base::MutexGuard lock(&data_list_mutex_);
   Data* data = new Data(n_blocks);
   data_list_.push_back(data);
   return data;

@@ -89,3 +89,43 @@
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(0, foo(0xFFFFFFFF));
 })();
+
+// Test checked Float32->Word64 conversions.
+(function() {
+  function foo(dv, i) {
+    i = dv.getFloat32(i, true);
+    return dv.getInt8(i, true);
+  }
+
+  const dv = new DataView(new ArrayBuffer(10));
+  dv.setFloat32(0, 8, true);
+  dv.setFloat32(4, 9, true);
+  dv.setInt8(8, 42);
+  dv.setInt8(9, 24);
+
+  assertEquals(42, foo(dv, 0));
+  assertEquals(24, foo(dv, 4));
+  %OptimizeFunctionOnNextCall(foo);
+  assertEquals(42, foo(dv, 0));
+  assertEquals(24, foo(dv, 4));
+})();
+
+// Test checked Float64->Word64 conversions.
+(function() {
+  function foo(dv, i) {
+    i = dv.getFloat64(i, true);
+    return dv.getInt8(i, true);
+  }
+
+  const dv = new DataView(new ArrayBuffer(18));
+  dv.setFloat64(0, 16, true);
+  dv.setFloat64(8, 17, true);
+  dv.setInt8(16, 42);
+  dv.setInt8(17, 24);
+
+  assertEquals(42, foo(dv, 0));
+  assertEquals(24, foo(dv, 8));
+  %OptimizeFunctionOnNextCall(foo);
+  assertEquals(42, foo(dv, 0));
+  assertEquals(24, foo(dv, 8));
+})();

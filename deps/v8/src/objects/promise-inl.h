@@ -5,14 +5,23 @@
 #ifndef V8_OBJECTS_PROMISE_INL_H_
 #define V8_OBJECTS_PROMISE_INL_H_
 
-#include "src/objects/js-promise-inl.h"
 #include "src/objects/promise.h"
+
+#include "src/objects/js-promise-inl.h"
+#include "src/objects/microtask-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+OBJECT_CONSTRUCTORS_IMPL(PromiseReactionJobTask, Microtask)
+OBJECT_CONSTRUCTORS_IMPL(PromiseFulfillReactionJobTask, PromiseReactionJobTask)
+OBJECT_CONSTRUCTORS_IMPL(PromiseRejectReactionJobTask, PromiseReactionJobTask)
+OBJECT_CONSTRUCTORS_IMPL(PromiseResolveThenableJobTask, Microtask)
+OBJECT_CONSTRUCTORS_IMPL(PromiseCapability, Struct)
+OBJECT_CONSTRUCTORS_IMPL(PromiseReaction, Struct)
 
 CAST_ACCESSOR(PromiseCapability)
 CAST_ACCESSOR(PromiseReaction)

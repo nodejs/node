@@ -193,28 +193,5 @@ TEST(DateParseLegacyUseCounter) {
   CHECK_EQ(1, legacy_parse_count);
 }
 
-#ifdef V8_INTL_SUPPORT
-TEST(DateCacheVersion) {
-  FLAG_allow_natives_syntax = true;
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::Isolate::Scope isolate_scope(isolate);
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::Context> context = v8::Context::New(isolate);
-  v8::Context::Scope context_scope(context);
-  v8::Local<v8::Number> date_cache_version =
-      v8::Local<v8::Number>::Cast(CompileRun("%DateCacheVersion()"));
-
-  CHECK(date_cache_version->IsNumber());
-  CHECK_EQ(0.0, date_cache_version->NumberValue(context).FromMaybe(-1.0));
-
-  v8::Date::DateTimeConfigurationChangeNotification(isolate);
-
-  date_cache_version =
-      v8::Local<v8::Number>::Cast(CompileRun("%DateCacheVersion()"));
-  CHECK(date_cache_version->IsNumber());
-  CHECK_EQ(1.0, date_cache_version->NumberValue(context).FromMaybe(-1.0));
-}
-#endif  // V8_INTL_SUPPORT
-
 }  // namespace internal
 }  // namespace v8

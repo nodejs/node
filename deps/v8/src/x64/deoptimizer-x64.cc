@@ -5,6 +5,7 @@
 #if V8_TARGET_ARCH_X64
 
 #include "src/deoptimizer.h"
+#include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
@@ -12,15 +13,12 @@
 namespace v8 {
 namespace internal {
 
-const int Deoptimizer::table_entry_size_ = 5;
+#define __ masm->
 
-#define __ masm()->
-
-void Deoptimizer::TableEntryGenerator::Generate() {
-  Label deopt_table_entry;
-  __ bind(&deopt_table_entry);
-
-  GeneratePrologue();
+void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
+                                                Isolate* isolate,
+                                                DeoptimizeKind deopt_kind) {
+  NoRootArrayScope no_root_array(masm);
 
   // Save all general purpose registers before messing with them.
   const int kNumberOfRegisters = Register::kNumRegisters;
@@ -57,7 +55,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
       kNumberOfRegisters * kRegisterSize + kDoubleRegsSize + kFloatRegsSize;
 
   __ Store(
-      ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate()),
+      ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate),
       rbp);
 
   // We use this to keep the value of the fifth argument temporarily.
@@ -65,29 +63,13 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // this on linux), since it is another parameter passing register on windows.
   Register arg5 = r11;
 
-  // Get the bailout id from the stack.
-  __ movp(rax, Operand(rsp, kSavedRegistersAreaSize));
-
-  // address of deoptimization table
-  __ leap(rdx, Operand(&deopt_table_entry));
-
-  // rax = deopt_entry - deopt_table_entry - 5
-  __ subp(rax, rdx);
-  __ subl(rax, Immediate(5));
-
-  // rax /= 5
-  __ movl(rbx, Immediate(0xcccccccd));
-  __ imulq(rax, rbx);
-  __ shrq(rax, Immediate(0x22));
-
-  // bailout id
-  __ movl(arg_reg_3, rax);
+  // The bailout id is passed using r13 on the stack.
+  __ movp(arg_reg_3, r13);
 
   // Get the address of the location in the code object
   // and compute the fp-to-sp delta in register arg5.
-  __ movp(arg_reg_4, Operand(rsp, kSavedRegistersAreaSize + 1 * kRegisterSize));
-  __ leap(arg5, Operand(rsp, kSavedRegistersAreaSize + 1 * kRegisterSize +
-                            kPCOnStackSize));
+  __ movp(arg_reg_4, Operand(rsp, kSavedRegistersAreaSize));
+  __ leap(arg5, Operand(rsp, kSavedRegistersAreaSize + kPCOnStackSize));
 
   __ subp(arg5, rbp);
   __ negp(arg5);
@@ -101,21 +83,22 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ movp(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
   __ bind(&context_check);
   __ movp(arg_reg_1, rax);
-  __ Set(arg_reg_2, static_cast<int>(deopt_kind()));
+  __ Set(arg_reg_2, static_cast<int>(deopt_kind));
   // Args 3 and 4 are already in the right registers.
 
   // On windows put the arguments on the stack (PrepareCallCFunction
   // has created space for this). On linux pass the arguments in r8 and r9.
 #ifdef _WIN64
   __ movq(Operand(rsp, 4 * kRegisterSize), arg5);
-  __ LoadAddress(arg5, ExternalReference::isolate_address(isolate()));
+  __ LoadAddress(arg5, ExternalReference::isolate_address(isolate));
   __ movq(Operand(rsp, 5 * kRegisterSize), arg5);
 #else
   __ movp(r8, arg5);
-  __ LoadAddress(r9, ExternalReference::isolate_address(isolate()));
+  __ LoadAddress(r9, ExternalReference::isolate_address(isolate));
 #endif
 
-  { AllowExternalCallThatCantCauseGC scope(masm());
+  {
+    AllowExternalCallThatCantCauseGC scope(masm);
     __ CallCFunction(ExternalReference::new_deoptimizer_function(), 6);
   }
   // Preserve deoptimizer object in register rax and get the input
@@ -124,7 +107,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Fill in the input registers.
   for (int i = kNumberOfRegisters -1; i >= 0; i--) {
-    int offset = (i * kPointerSize) + FrameDescription::registers_offset();
+    int offset = (i * kRegisterSize) + FrameDescription::registers_offset();
     __ PopQuad(Operand(rbx, offset));
   }
 
@@ -145,8 +128,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ popq(Operand(rbx, dst_offset));
   }
 
-  // Remove the bailout id and return address from the stack.
-  __ addp(rsp, Immediate(1 * kRegisterSize + kPCOnStackSize));
+  // Remove the return address from the stack.
+  __ addp(rsp, Immediate(kPCOnStackSize));
 
   // Compute a pointer to the unwinding limit in register rcx; that is
   // the first stack slot not part of the input frame.
@@ -171,9 +154,9 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ pushq(rax);
   __ PrepareCallCFunction(2);
   __ movp(arg_reg_1, rax);
-  __ LoadAddress(arg_reg_2, ExternalReference::isolate_address(isolate()));
+  __ LoadAddress(arg_reg_2, ExternalReference::isolate_address(isolate));
   {
-    AllowExternalCallThatCantCauseGC scope(masm());
+    AllowExternalCallThatCantCauseGC scope(masm);
     __ CallCFunction(ExternalReference::compute_output_frames_function(), 2);
   }
   __ popq(rax);
@@ -200,7 +183,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ bind(&inner_loop_header);
   __ testp(rcx, rcx);
   __ j(not_zero, &inner_push_loop);
-  __ addp(rax, Immediate(kPointerSize));
+  __ addp(rax, Immediate(kSystemPointerSize));
   __ bind(&outer_loop_header);
   __ cmpp(rax, rdx);
   __ j(below, &outer_push_loop);
@@ -218,7 +201,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Push the registers from the last output frame.
   for (int i = 0; i < kNumberOfRegisters; i++) {
-    int offset = (i * kPointerSize) + FrameDescription::registers_offset();
+    int offset = (i * kRegisterSize) + FrameDescription::registers_offset();
     __ PushQuad(Operand(rbx, offset));
   }
 
@@ -234,41 +217,25 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ popq(r);
   }
 
-  // Set up the roots register.
-  __ InitializeRootRegister();
-
   // Return to the continuation point.
   __ ret(0);
-}
-
-
-void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
-  // Create a sequence of deoptimization entries.
-  Label done;
-  for (int i = 0; i < count(); i++) {
-    int start = masm()->pc_offset();
-    USE(start);
-    __ call(&done);
-    DCHECK(masm()->pc_offset() - start == table_entry_size_);
-  }
-  __ bind(&done);
 }
 
 bool Deoptimizer::PadTopOfStackRegister() { return false; }
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
-  if (kPCOnStackSize == 2 * kPointerSize) {
+  if (kPCOnStackSize == 2 * kSystemPointerSize) {
     // Zero out the high-32 bit of PC for x32 port.
-    SetFrameSlot(offset + kPointerSize, 0);
+    SetFrameSlot(offset + kSystemPointerSize, 0);
   }
   SetFrameSlot(offset, value);
 }
 
 
 void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
-  if (kFPOnStackSize == 2 * kPointerSize) {
+  if (kFPOnStackSize == 2 * kSystemPointerSize) {
     // Zero out the high-32 bit of FP for x32 port.
-    SetFrameSlot(offset + kPointerSize, 0);
+    SetFrameSlot(offset + kSystemPointerSize, 0);
   }
   SetFrameSlot(offset, value);
 }

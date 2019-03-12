@@ -39,4 +39,4 @@ function listener(event, exec_state, event_data, data) {}
 Debug.setBreakOnUncaughtException();
 Debug.setListener(listener);
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();

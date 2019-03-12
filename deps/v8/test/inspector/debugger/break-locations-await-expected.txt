@@ -5,7 +5,7 @@ Running test: testBreakLocations
 function testFunction() {
   async function f1() {
     for (let x = |_|0; x |_|< 1; ++|_|x) |_|await x;
-    |_|return |_|await Promise.|C|resolve(2);
+    |_|return |_|await Promise.|C|resolve(2);|R|
   |R|}
 
   async function f2() {
@@ -16,7 +16,7 @@ function testFunction() {
     |_|await Promise.|C|resolve().|C|then(x => x |_|* 2|R|);
     let p = |_|Promise.|C|resolve(42);
     |_|await p;
-    |_|return r;
+    |_|return r;|R|
   |R|}
 
   return |C|f2();|R|
@@ -79,10 +79,10 @@ f1 (test.js:4:4)
     #return await Promise.resolve(2);
   }
 
-f1 (test.js:5:2)
-    return await Promise.resolve(2);
-  #}
-
+f1 (test.js:4:36)
+    for (let x = 0; x < 1; ++x) await x;
+    return await Promise.resolve(2);#
+  }
 
 f2 (test.js:8:31)
   async function f2() {
@@ -122,10 +122,10 @@ f1 (test.js:4:4)
     #return await Promise.resolve(2);
   }
 
-f1 (test.js:5:2)
-    return await Promise.resolve(2);
-  #}
-
+f1 (test.js:4:36)
+    for (let x = 0; x < 1; ++x) await x;
+    return await Promise.resolve(2);#
+  }
 
 f2 (test.js:9:4)
     let r = await f1() + await f1();
@@ -165,10 +165,10 @@ f1 (test.js:4:4)
     #return await Promise.resolve(2);
   }
 
-f1 (test.js:5:2)
-    return await Promise.resolve(2);
-  #}
-
+f1 (test.js:4:36)
+    for (let x = 0; x < 1; ++x) await x;
+    return await Promise.resolve(2);#
+  }
 
 f2 (test.js:10:4)
     await f1();
@@ -208,17 +208,17 @@ f1 (test.js:4:4)
     #return await Promise.resolve(2);
   }
 
-f1 (test.js:5:2)
-    return await Promise.resolve(2);
-  #}
+f1 (test.js:4:36)
+    for (let x = 0; x < 1; ++x) await x;
+    return await Promise.resolve(2);#
+  }
 
-
-f1.then.x (test.js:10:27)
+(anonymous) (test.js:10:27)
     await f1();
     await f1().then(x => x #* 2);
     await [1].map(x => Promise.resolve(x))[0];
 
-f1.then.x (test.js:10:30)
+(anonymous) (test.js:10:30)
     await f1();
     await f1().then(x => x * 2#);
     await [1].map(x => Promise.resolve(x))[0];
@@ -228,13 +228,13 @@ f2 (test.js:11:4)
     #await [1].map(x => Promise.resolve(x))[0];
     await Promise.resolve().then(x => x * 2);
 
-map.x (test.js:11:31)
+(anonymous) (test.js:11:31)
 f2 (test.js:11:14)
     await f1().then(x => x * 2);
     await [1].map(x => Promise.#resolve(x))[0];
     await Promise.resolve().then(x => x * 2);
 
-map.x (test.js:11:41)
+(anonymous) (test.js:11:41)
 f2 (test.js:11:14)
     await f1().then(x => x * 2);
     await [1].map(x => Promise.resolve(x)#)[0];
@@ -260,10 +260,10 @@ f2 (test.js:15:4)
     #return r;
   }
 
-f2 (test.js:16:2)
-    return r;
-  #}
-
+f2 (test.js:15:13)
+    await p;
+    return r;#
+  }
 
 
 Running test: testStepOver
@@ -314,10 +314,10 @@ f2 (test.js:15:4)
     #return r;
   }
 
-f2 (test.js:16:2)
-    return r;
-  #}
-
+f2 (test.js:15:13)
+    await p;
+    return r;#
+  }
 
 
 Running test: testStepIntoAfterBreakpoint

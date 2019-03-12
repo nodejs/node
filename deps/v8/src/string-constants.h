@@ -5,6 +5,7 @@
 #ifndef V8_STRING_CONSTANTS_H_
 #define V8_STRING_CONSTANTS_H_
 
+#include "src/handles.h"
 #include "src/objects/string.h"
 #include "src/zone/zone.h"
 

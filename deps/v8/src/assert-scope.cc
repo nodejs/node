@@ -14,20 +14,9 @@ namespace internal {
 
 namespace {
 
-struct PerThreadAssertKeyConstructTrait final {
-  static void Construct(void* key_arg) {
-    auto key = reinterpret_cast<base::Thread::LocalStorageKey*>(key_arg);
-    *key = base::Thread::CreateThreadLocalKey();
-  }
-};
-
-
-typedef base::LazyStaticInstance<base::Thread::LocalStorageKey,
-                                 PerThreadAssertKeyConstructTrait>::type
-    PerThreadAssertKey;
-
-
-PerThreadAssertKey kPerThreadAssertKey;
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(base::Thread::LocalStorageKey,
+                                GetPerThreadAssertKey,
+                                base::Thread::CreateThreadLocalKey());
 
 }  // namespace
 
@@ -54,10 +43,10 @@ class PerThreadAssertData final {
 
   static PerThreadAssertData* GetCurrent() {
     return reinterpret_cast<PerThreadAssertData*>(
-        base::Thread::GetThreadLocal(kPerThreadAssertKey.Get()));
+        base::Thread::GetThreadLocal(*GetPerThreadAssertKey()));
   }
   static void SetCurrent(PerThreadAssertData* data) {
-    base::Thread::SetThreadLocal(kPerThreadAssertKey.Get(), data);
+    base::Thread::SetThreadLocal(*GetPerThreadAssertKey(), data);
   }
 
  private:
@@ -67,44 +56,42 @@ class PerThreadAssertData final {
   DISALLOW_COPY_AND_ASSIGN(PerThreadAssertData);
 };
 
-
 template <PerThreadAssertType kType, bool kAllow>
-PerThreadAssertScope<kType, kAllow>::PerThreadAssertScope()
-    : data_(PerThreadAssertData::GetCurrent()) {
-  if (data_ == nullptr) {
-    data_ = new PerThreadAssertData();
-    PerThreadAssertData::SetCurrent(data_);
+PerThreadAssertScope<kType, kAllow>::PerThreadAssertScope() {
+  PerThreadAssertData* current_data = PerThreadAssertData::GetCurrent();
+  if (current_data == nullptr) {
+    current_data = new PerThreadAssertData();
+    PerThreadAssertData::SetCurrent(current_data);
   }
-  data_->IncrementLevel();
-  old_state_ = data_->Get(kType);
-  data_->Set(kType, kAllow);
+  data_and_old_state_.update(current_data, current_data->Get(kType));
+  current_data->IncrementLevel();
+  current_data->Set(kType, kAllow);
 }
-
 
 template <PerThreadAssertType kType, bool kAllow>
 PerThreadAssertScope<kType, kAllow>::~PerThreadAssertScope() {
-  if (data_ == nullptr) return;
+  if (data() == nullptr) return;
   Release();
 }
 
 template <PerThreadAssertType kType, bool kAllow>
 void PerThreadAssertScope<kType, kAllow>::Release() {
-  DCHECK_NOT_NULL(data_);
-  data_->Set(kType, old_state_);
-  if (data_->DecrementLevel()) {
+  auto* current_data = data();
+  DCHECK_NOT_NULL(current_data);
+  current_data->Set(kType, old_state());
+  if (current_data->DecrementLevel()) {
     PerThreadAssertData::SetCurrent(nullptr);
-    delete data_;
+    delete current_data;
   }
-  data_ = nullptr;
+  set_data(nullptr);
 }
 
 // static
 template <PerThreadAssertType kType, bool kAllow>
 bool PerThreadAssertScope<kType, kAllow>::IsAllowed() {
-  PerThreadAssertData* data = PerThreadAssertData::GetCurrent();
-  return data == nullptr || data->Get(kType);
+  PerThreadAssertData* current_data = PerThreadAssertData::GetCurrent();
+  return current_data == nullptr || current_data->Get(kType);
 }
-
 
 template <PerIsolateAssertType kType, bool kAllow>
 class PerIsolateAssertScope<kType, kAllow>::DataBit
@@ -151,6 +138,8 @@ template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, false>;
 template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, true>;
 template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, false>;
 template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, true>;
+template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_DUMP, false>;
+template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_DUMP, true>;
 template class PerIsolateAssertScope<DEOPTIMIZATION_ASSERT, false>;
 template class PerIsolateAssertScope<DEOPTIMIZATION_ASSERT, true>;
 template class PerIsolateAssertScope<COMPILATION_ASSERT, false>;

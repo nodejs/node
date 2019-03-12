@@ -10,7 +10,7 @@
 namespace v8 {
 namespace internal {
 
-bool DateParser::DayComposer::Write(FixedArray* output) {
+bool DateParser::DayComposer::Write(FixedArray output) {
   if (index_ < 1) return false;
   // Day and month defaults to 1.
   while (index_ < kSize) {
@@ -62,8 +62,7 @@ bool DateParser::DayComposer::Write(FixedArray* output) {
   return true;
 }
 
-
-bool DateParser::TimeComposer::Write(FixedArray* output) {
+bool DateParser::TimeComposer::Write(FixedArray output) {
   // All time slots default to 0
   while (index_ < kSize) {
     comp_[index_++] = 0;
@@ -95,8 +94,7 @@ bool DateParser::TimeComposer::Write(FixedArray* output) {
   return true;
 }
 
-
-bool DateParser::TimeZoneComposer::Write(FixedArray* output) {
+bool DateParser::TimeZoneComposer::Write(FixedArray output) {
   if (sign_ != kNone) {
     if (hour_ == kNone) hour_ = 0;
     if (minute_ == kNone) minute_ = 0;

@@ -26,7 +26,7 @@ class CompilationSubCache {
   CompilationSubCache(Isolate* isolate, int generations)
       : isolate_(isolate),
         generations_(generations) {
-    tables_ = NewArray<Object*>(generations);
+    tables_ = NewArray<Object>(generations);
   }
 
   ~CompilationSubCache() { DeleteArray(tables_); }
@@ -68,7 +68,7 @@ class CompilationSubCache {
  private:
   Isolate* isolate_;
   int generations_;  // Number of generations.
-  Object** tables_;  // Compilation cache tables - one for each generation.
+  Object* tables_;   // Compilation cache tables - one for each generation.
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationSubCache);
 };

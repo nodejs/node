@@ -6,8 +6,9 @@
 #define V8_BUILTINS_BUILTINS_PROMISE_GEN_H_
 
 #include "src/code-stub-assembler.h"
-#include "src/contexts.h"
 #include "src/objects/promise.h"
+#include "torque-generated/builtins-base-from-dsl-gen.h"
+#include "torque-generated/builtins-iterator-from-dsl-gen.h"
 
 namespace v8 {
 namespace internal {
@@ -16,59 +17,6 @@ typedef compiler::CodeAssemblerState CodeAssemblerState;
 
 class PromiseBuiltinsAssembler : public CodeStubAssembler {
  public:
-  enum PromiseResolvingFunctionContextSlot {
-    // The promise which resolve/reject callbacks fulfill.
-    kPromiseSlot = Context::MIN_CONTEXT_SLOTS,
-
-    // Whether the callback was already invoked.
-    kAlreadyResolvedSlot,
-
-    // Whether to trigger a debug event or not. Used in catch
-    // prediction.
-    kDebugEventSlot,
-    kPromiseContextLength,
-  };
-
- protected:
-  enum PromiseAllResolveElementContextSlots {
-    // Remaining elements count
-    kPromiseAllResolveElementRemainingSlot = Context::MIN_CONTEXT_SLOTS,
-
-    // Promise capability from Promise.all
-    kPromiseAllResolveElementCapabilitySlot,
-
-    // Values array from Promise.all
-    kPromiseAllResolveElementValuesArraySlot,
-
-    kPromiseAllResolveElementLength
-  };
-
- public:
-  enum FunctionContextSlot {
-    kCapabilitySlot = Context::MIN_CONTEXT_SLOTS,
-
-    kCapabilitiesContextLength,
-  };
-
-  // This is used by the Promise.prototype.finally builtin to store
-  // onFinally callback and the Promise constructor.
-  // TODO(gsathya): For native promises we can create a variant of
-  // this without extra space for the constructor to save memory.
-  enum PromiseFinallyContextSlot {
-    kOnFinallySlot = Context::MIN_CONTEXT_SLOTS,
-    kConstructorSlot,
-
-    kPromiseFinallyContextLength,
-  };
-
-  // This is used by the ThenFinally and CatchFinally builtins to
-  // store the value to return or reason to throw.
-  enum PromiseValueThunkOrReasonContextSlot {
-    kValueSlot = Context::MIN_CONTEXT_SLOTS,
-
-    kPromiseValueThunkOrReasonContextLength,
-  };
-
   explicit PromiseBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
   // These allocate and initialize a promise with pending state and
@@ -144,6 +92,9 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   void BranchIfPromiseResolveLookupChainIntact(Node* native_context,
                                                Node* constructor,
                                                Label* if_fast, Label* if_slow);
+  void GotoIfNotPromiseResolveLookupChainIntact(Node* native_context,
+                                                Node* constructor,
+                                                Label* if_slow);
 
   // We can shortcut the SpeciesConstructor on {promise_map} if it's
   // [[Prototype]] is the (initial)  Promise.prototype and the @@species
@@ -177,9 +128,10 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
 
   Node* CreateThrowerFunction(Node* reason, Node* native_context);
 
-  Node* PerformPromiseAll(Node* context, Node* constructor, Node* capability,
-                          const IteratorRecord& record, Label* if_exception,
-                          Variable* var_exception);
+  Node* PerformPromiseAll(
+      Node* context, Node* constructor, Node* capability,
+      const IteratorBuiltinsFromDSLAssembler::IteratorRecord& record,
+      Label* if_exception, Variable* var_exception);
 
   void SetForwardingHandlerIfTrue(Node* context, Node* condition,
                                   const NodeGenerator& object);

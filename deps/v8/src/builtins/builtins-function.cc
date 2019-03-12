@@ -177,7 +177,7 @@ BUILTIN(AsyncGeneratorFunctionConstructor) {
 
 namespace {
 
-Object* DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
+Object DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
   HandleScope scope(isolate);
   DCHECK_LE(1, args.length());
   if (!args.receiver()->IsCallable()) {

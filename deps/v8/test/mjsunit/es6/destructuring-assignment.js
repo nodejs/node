@@ -574,3 +574,58 @@ assertEquals(oz, [1, 2, 3, 4, 5]);
   assertEquals(1, ext("let x; ({x} = { x: super() })").x);
   assertEquals(1, ext("let x, y; ({ x: y } = { x } = { x: super() })").x);
 })();
+
+(function testInvalidReturn() {
+  function* g() { yield 1; }
+
+  let executed_x_setter;
+  let executed_return;
+  var a = {
+    set x(val) {
+      executed_x_setter = true;
+      throw 3;
+    }
+  };
+
+  // The exception from the execution of g().return() should be suppressed by
+  // the setter error.
+  executed_x_setter = false;
+  executed_return = false;
+  g.prototype.return = function() {
+    executed_return = true;
+    throw 4;
+  };
+  assertThrowsEquals("[a.x] = g()", 3);
+  assertTrue(executed_x_setter);
+  assertTrue(executed_return);
+
+  // The exception from g().return() not returning an object should be
+  // suppressed by the setter error.
+  executed_x_setter = false;
+  executed_return = false;
+  g.prototype.return = function() {
+    assertTrue(executed_return);
+    return null;
+  };
+  assertThrowsEquals("[a.x] = g()", 3);
+  assertTrue(executed_x_setter);
+  assertTrue(executed_return);
+
+  // The TypeError from g().return not being a method should suppress the setter
+  // error.
+  executed_x_setter = false;
+  g.prototype.return = "not a method";
+  assertThrows("[a.x] = g()", TypeError);
+  assertTrue(executed_x_setter);
+
+  // The exception from the access of g().return should suppress the setter
+  // error.
+  executed_x_setter = false;
+  Object.setPrototypeOf(g.prototype, {
+    get return() {
+      throw 4;
+    }
+  });
+  assertThrowsEquals("[a.x] = g()", 4);
+  assertTrue(executed_x_setter);
+})

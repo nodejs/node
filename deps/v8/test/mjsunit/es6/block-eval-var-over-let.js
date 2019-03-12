@@ -141,15 +141,15 @@ try {
 }
 assertTrue(caught);
 
-caught = false
-try {
-  (function() {
-    {
-      let x = 1;
-      eval('{ function x() {} }');
-    }
-  })();
-} catch (e) {
-  caught = true;
-}
-assertFalse(caught);
+// See ES#sec-web-compat-evaldeclarationinstantiation. Sloppy block functions
+// inside of blocks in eval behave similar to regular sloppy block function
+// hoisting: the var declaration on the function level is only created if
+// it would not cause a syntax error. A masking let would cause a conflicting
+// var declaration syntax error, and hence the var isn't introduced.
+(function() {
+  {
+    let x = 1;
+    eval('{ function x() {} }');
+    assertEquals(1, x);
+  }
+})();

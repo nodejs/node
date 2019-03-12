@@ -21,9 +21,9 @@ void EhFrameWriter::WriteReturnAddressRegisterCode() {
 }
 
 void EhFrameWriter::WriteInitialStateInCie() {
-  SetBaseAddressRegisterAndOffset(rsp, kPointerSize);
+  SetBaseAddressRegisterAndOffset(rsp, kSystemPointerSize);
   // x64 rip (r16) has no Register instance associated.
-  RecordRegisterSavedToStack(kRipDwarfCode, -kPointerSize);
+  RecordRegisterSavedToStack(kRipDwarfCode, -kSystemPointerSize);
 }
 
 // static

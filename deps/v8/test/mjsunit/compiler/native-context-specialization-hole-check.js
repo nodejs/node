@@ -27,6 +27,11 @@
 
 // Flags: --allow-natives-syntax --opt --no-always-opt
 
+if (isNeverOptimizeLiteMode()) {
+  print("Warning: skipping test that requires optimization in Lite mode.");
+  quit(0);
+}
+
 function f() {
   Array.prototype[10] = 2;
   var arr = new Array();

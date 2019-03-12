@@ -18,7 +18,7 @@ class V8_EXPORT_PRIVATE ConstantFoldingReducer final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
   ConstantFoldingReducer(Editor* editor, JSGraph* jsgraph,
-                         JSHeapBroker* js_heap_broker);
+                         JSHeapBroker* broker);
   ~ConstantFoldingReducer() final;
 
   const char* reducer_name() const override { return "ConstantFoldingReducer"; }
@@ -27,10 +27,10 @@ class V8_EXPORT_PRIVATE ConstantFoldingReducer final
 
  private:
   JSGraph* jsgraph() const { return jsgraph_; }
-  JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
+  JSHeapBroker* broker() const { return broker_; }
 
   JSGraph* const jsgraph_;
-  JSHeapBroker* const js_heap_broker_;
+  JSHeapBroker* const broker_;
 
   DISALLOW_COPY_AND_ASSIGN(ConstantFoldingReducer);
 };

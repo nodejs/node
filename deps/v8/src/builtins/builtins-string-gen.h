@@ -23,8 +23,10 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                         Node* rhs, Node* rhs_instance_type,
                         TNode<IntPtrT> length, Label* if_equal,
                         Label* if_not_equal, Label* if_indirect);
-  TNode<BoolT> IsStringPrimitiveWithNoCustomIteration(TNode<Object> object,
-                                                      TNode<Context> context);
+  void BranchIfStringPrimitiveWithNoCustomIteration(TNode<Object> object,
+                                                    TNode<Context> context,
+                                                    Label* if_true,
+                                                    Label* if_false);
 
  protected:
   TNode<JSArray> StringToList(TNode<Context> context, TNode<String> string);
@@ -110,6 +112,7 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   void MaybeCallFunctionAtSymbol(Node* const context, Node* const object,
                                  Node* const maybe_string,
                                  Handle<Symbol> symbol,
+                                 DescriptorIndexAndName symbol_index,
                                  const NodeFunction0& regexp_call,
                                  const NodeFunction1& generic_call);
 };

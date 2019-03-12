@@ -4,13 +4,13 @@
                     modernize-redundant-void-arg,
                     modernize-replace-random-shuffle,
                     modernize-shrink-to-fit,
-                    modernize-use-auto,
+                    # modernize-use-auto,
                     modernize-use-bool-literals,
                     modernize-use-equals-default,
-                    modernize-use-equals-delete,
+                    # modernize-use-equals-delete,
                     modernize-use-nullptr,
                     modernize-use-override,
-                    google-build-explicit-make-pair,
+                    # google-build-explicit-make-pair,
                     google-explicit-constructor,
                     google-readability-casting'
 WarningsAsErrors: ''

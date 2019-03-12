@@ -58,5 +58,9 @@ bool PageAllocator::SetPermissions(void* address, size_t size,
       address, size, static_cast<base::OS::MemoryPermission>(access));
 }
 
+bool PageAllocator::DiscardSystemPages(void* address, size_t size) {
+  return base::OS::DiscardSystemPages(address, size);
+}
+
 }  // namespace base
 }  // namespace v8

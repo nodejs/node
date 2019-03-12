@@ -31,7 +31,6 @@ InvalidatedSlotsFilter::InvalidatedSlotsFilter(MemoryChunk* chunk) {
     invalidated_end_ = sentinel_;
   }
   // These values will be lazily set when needed.
-  invalidated_object_ = nullptr;
   invalidated_object_size_ = 0;
 #ifdef DEBUG
   last_slot_ = chunk->area_start();

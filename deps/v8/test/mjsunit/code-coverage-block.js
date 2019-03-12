@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-always-opt
+// Flags: --allow-natives-syntax --no-always-opt --no-stress-flush-bytecode
 // Files: test/mjsunit/code-coverage-utils.js
 
 %DebugToggleBlockCoverage(true);
@@ -213,7 +213,7 @@ TestCoverage(
     nop();                                // 0100
   }                                       // 0150
 }();                                      // 0200
-%RunMicrotasks();                         // 0250
+%PerformMicrotaskCheckpoint();            // 0250
 `,
 [{"start":0,"end":299,"count":1},
  {"start":1,"end":201,"count":6},  // TODO(jgruber): Invocation count is off.
@@ -353,11 +353,11 @@ TestCoverage(
 [{"start":0,"end":849,"count":1},
  {"start":1,"end":801,"count":1},
  {"start":67,"end":87,"count":0},
- {"start":221,"end":222,"count":0},
+ {"start":219,"end":222,"count":0},
  {"start":254,"end":274,"count":0},
- {"start":371,"end":372,"count":0},
+ {"start":369,"end":372,"count":0},
  {"start":403,"end":404,"count":0},
- {"start":553,"end":554,"count":0}]
+ {"start":513,"end":554,"count":0}]
 );
 
 TestCoverage("try/catch/finally statements with early return",
@@ -374,10 +374,10 @@ TestCoverage("try/catch/finally statements with early return",
 `,
 [{"start":0,"end":449,"count":1},
  {"start":1,"end":151,"count":1},
- {"start":69,"end":70,"count":0},
+ {"start":67,"end":70,"count":0},
  {"start":91,"end":150,"count":0},
  {"start":201,"end":401,"count":1},
- {"start":269,"end":270,"count":0},
+ {"start":267,"end":270,"count":0},
  {"start":321,"end":400,"count":0}]
 );
 
@@ -409,7 +409,7 @@ TestCoverage(
 `,
 [{"start":0,"end":1099,"count":1},
  {"start":1,"end":151,"count":1},
- {"start":69,"end":70,"count":0},
+ {"start":67,"end":70,"count":0},
  {"start":91,"end":150,"count":0},
  {"start":201,"end":351,"count":1},
  {"start":286,"end":350,"count":0},
@@ -417,7 +417,7 @@ TestCoverage(
  {"start":603,"end":700,"count":0},
  {"start":561,"end":568,"count":0},  // TODO(jgruber): Sorting.
  {"start":751,"end":1051,"count":1},
- {"start":819,"end":820,"count":0},
+ {"start":817,"end":820,"count":0},
  {"start":861,"end":1050,"count":0}]
 );
 
@@ -656,7 +656,7 @@ async function f() {                      // 0000
   await 42;                               // 0100
 };                                        // 0150
 f();                                      // 0200
-%RunMicrotasks();                         // 0250
+%PerformMicrotaskCheckpoint();            // 0250
 `,
 [{"start":0,"end":299,"count":1},
  {"start":0,"end":151,"count":3},
@@ -1002,43 +1002,6 @@ c(true); d(true);                         // 1650
  {"start":1050,"end":1551,"count":1},
  {"start":1167,"end":1255,"count":0},
  {"start":1403,"end":1503,"count":0}]
-);
-
-TestCoverage(
-"https://crbug.com/927464",
-`
-!function f() {                           // 0000
-  function unused() { nop(); }            // 0050
-  nop();                                  // 0100
-}();                                      // 0150
-`,
-[{"start":0,"end":199,"count":1},
- {"start":1,"end":151,"count":1},
- {"start":52,"end":80,"count":0}]
-);
-
-TestCoverage(
-"https://crbug.com/v8/8691",
-`
-function f(shouldThrow) {                 // 0000
-  if (shouldThrow) {                      // 0050
-    throw Error('threw')                  // 0100
-  }                                       // 0150
-}                                         // 0200
-try {                                     // 0250
-  f(true)                                 // 0300
-} catch (err) {                           // 0350
-                                          // 0400
-}                                         // 0450
-try {                                     // 0500
-  f(false)                                // 0550
-} catch (err) {}                          // 0600
-`,
-[{"start":0,"end":649,"count":1},
- {"start":351,"end":352,"count":0},
- {"start":602,"end":616,"count":0},
- {"start":0,"end":201,"count":2},
- {"start":69,"end":153,"count":1}]
 );
 
 %DebugToggleBlockCoverage(false);

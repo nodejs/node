@@ -37,7 +37,12 @@ std::ostream& operator<<(std::ostream& out, const SourcePosition& pos) {
   } else {
     out << "<not inlined:";
   }
-  out << pos.ScriptOffset() << ">";
+
+  if (pos.IsExternal()) {
+    out << pos.ExternalLine() << ", " << pos.ExternalFileId() << ">";
+  } else {
+    out << pos.ScriptOffset() << ">";
+  }
   return out;
 }
 
@@ -76,16 +81,16 @@ std::vector<SourcePositionInfo> SourcePosition::InliningStack(
 }
 
 void SourcePosition::Print(std::ostream& out,
-                           SharedFunctionInfo* function) const {
+                           SharedFunctionInfo function) const {
   Script::PositionInfo pos;
-  Object* source_name = nullptr;
+  Object source_name;
   if (function->script()->IsScript()) {
-    Script* script = Script::cast(function->script());
+    Script script = Script::cast(function->script());
     source_name = script->name();
     script->GetPositionInfo(ScriptOffset(), &pos, Script::WITH_OFFSET);
   }
   out << "<";
-  if (source_name != nullptr && source_name->IsString()) {
+  if (source_name->IsString()) {
     out << String::cast(source_name)
                ->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL)
                .get();
@@ -96,15 +101,21 @@ void SourcePosition::Print(std::ostream& out,
 }
 
 void SourcePosition::PrintJson(std::ostream& out) const {
-  out << "{ \"scriptOffset\" : " << ScriptOffset() << ", "
-      << "  \"inliningId\" : " << InliningId() << "}";
+  if (IsExternal()) {
+    out << "{ \"line\" : " << ExternalLine() << ", "
+        << "  \"fileId\" : " << ExternalFileId() << ", "
+        << "  \"inliningId\" : " << InliningId() << "}";
+  } else {
+    out << "{ \"scriptOffset\" : " << ScriptOffset() << ", "
+        << "  \"inliningId\" : " << InliningId() << "}";
+  }
 }
 
-void SourcePosition::Print(std::ostream& out, Code* code) const {
-  DeoptimizationData* deopt_data =
+void SourcePosition::Print(std::ostream& out, Code code) const {
+  DeoptimizationData deopt_data =
       DeoptimizationData::cast(code->deoptimization_data());
   if (!isInlined()) {
-    SharedFunctionInfo* function(
+    SharedFunctionInfo function(
         SharedFunctionInfo::cast(deopt_data->SharedFunctionInfo()));
     Print(out, function);
   } else {
@@ -112,7 +123,7 @@ void SourcePosition::Print(std::ostream& out, Code* code) const {
     if (inl.inlined_function_id == -1) {
       out << *this;
     } else {
-      SharedFunctionInfo* function =
+      SharedFunctionInfo function =
           deopt_data->GetInlinedFunction(inl.inlined_function_id);
       Print(out, function);
     }
@@ -124,6 +135,7 @@ void SourcePosition::Print(std::ostream& out, Code* code) const {
 SourcePositionInfo::SourcePositionInfo(SourcePosition pos,
                                        Handle<SharedFunctionInfo> f)
     : position(pos),
+      shared(f),
       script(f.is_null() || !f->script()->IsScript()
                  ? Handle<Script>::null()
                  : handle(Script::cast(f->script()), f->GetIsolate())) {

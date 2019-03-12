@@ -36,7 +36,8 @@ class RegExpUtils : public AllStatic {
   static Maybe<bool> IsRegExp(Isolate* isolate, Handle<Object> object);
 
   // Checks whether the given object is an unmodified JSRegExp instance.
-  // Neither the object's map, nor its prototype's map may be modified.
+  // Neither the object's map, nor its prototype's map, nor any relevant
+  // method on the prototype may be modified.
   static bool IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj);
 
   // ES#sec-advancestringindex

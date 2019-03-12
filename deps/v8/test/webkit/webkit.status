@@ -52,17 +52,18 @@
   # Too slow with --enable-slow-asserts.
   'array-iterate-backwards': [SKIP],
 }],  # 'mode == debug'
-['simulator', {
+['simulator_run', {
   # Skip tests that timeout with turbofan.
   'array-iterate-backwards': [PASS, NO_VARIANTS],
   'function-apply-aliased': [SKIP],
 
   # Skip tests that are too slow for simulators.
   'dfg-int-overflow-in-loop': [SKIP],
-}],  # 'simulator'
-['arch == arm64 and simulator_run', {
-  'dfg-int-overflow-in-loop': [SKIP],
-}],  # 'arch == arm64 and simulator_run'
+}],  # 'simulator_run'
+['mode == debug and simulator_run', {
+  # Too slow on debug simulators.
+  'dfg-inline-function-dot-caller': [SKIP],
+}],  # 'mode == debug and simulator_run'
 ['dcheck_always_on == True and (arch == arm or arch == arm64)', {
   # Doesn't work with gcc 4.6 on arm or arm64 for some reason.
   'reentrant-caching': [SKIP],
@@ -71,14 +72,6 @@
   # Too slow for mips big-endian boards on bots (no FPU).
   'dfg-int-overflow-in-loop': [SKIP],
 }], # 'arch == mips'
-['(arch == mips64 or arch == mips64el) and simulator_run', {
-  # Too slow.
-  'dfg-int-overflow-in-loop': [SKIP],
-}], # '(arch == mips64 or arch == mips64el) and simulator_run'
-['(arch == ppc or arch == ppc64) and simulator_run', {
-  # Too slow.
-  'dfg-int-overflow-in-loop': [SKIP],
-}], # 'arch == ppc or arch == ppc64'
 ['arch == s390 or arch == s390x', {
   # Too slow.
   'dfg-int-overflow-in-loop': [SKIP],

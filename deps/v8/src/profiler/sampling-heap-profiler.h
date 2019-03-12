@@ -25,62 +25,48 @@ class SamplingAllocationObserver;
 
 class AllocationProfile : public v8::AllocationProfile {
  public:
-  AllocationProfile() : nodes_() {}
+  AllocationProfile() = default;
 
   v8::AllocationProfile::Node* GetRootNode() override {
     return nodes_.size() == 0 ? nullptr : &nodes_.front();
   }
 
-  std::deque<v8::AllocationProfile::Node>& nodes() { return nodes_; }
+  const std::vector<v8::AllocationProfile::Sample>& GetSamples() override {
+    return samples_;
+  }
 
  private:
   std::deque<v8::AllocationProfile::Node> nodes_;
+  std::vector<v8::AllocationProfile::Sample> samples_;
+
+  friend class SamplingHeapProfiler;
 
   DISALLOW_COPY_AND_ASSIGN(AllocationProfile);
 };
 
 class SamplingHeapProfiler {
  public:
-  SamplingHeapProfiler(Heap* heap, StringsStorage* names, uint64_t rate,
-                       int stack_depth, v8::HeapProfiler::SamplingFlags flags);
-  ~SamplingHeapProfiler();
-
-  v8::AllocationProfile* GetAllocationProfile();
-
-  StringsStorage* names() const { return names_; }
-
-  class AllocationNode;
-
-  struct Sample {
-   public:
-    Sample(size_t size_, AllocationNode* owner_, Local<Value> local_,
-           SamplingHeapProfiler* profiler_)
-        : size(size_),
-          owner(owner_),
-          global(Global<Value>(
-              reinterpret_cast<v8::Isolate*>(profiler_->isolate_), local_)),
-          profiler(profiler_) {}
-    ~Sample() { global.Reset(); }
-    const size_t size;
-    AllocationNode* const owner;
-    Global<Value> global;
-    SamplingHeapProfiler* const profiler;
-
-   private:
-    DISALLOW_COPY_AND_ASSIGN(Sample);
-  };
-
   class AllocationNode {
    public:
+    typedef uint64_t FunctionId;
     AllocationNode(AllocationNode* parent, const char* name, int script_id,
-                   int start_position)
+                   int start_position, uint32_t id)
         : parent_(parent),
           script_id_(script_id),
           script_position_(start_position),
-          name_(name) {}
+          name_(name),
+          id_(id) {}
 
-   private:
-    typedef uint64_t FunctionId;
+    AllocationNode* FindChildNode(FunctionId id) {
+      auto it = children_.find(id);
+      return it != children_.end() ? it->second.get() : nullptr;
+    }
+
+    AllocationNode* AddChildNode(FunctionId id,
+                                 std::unique_ptr<AllocationNode> node) {
+      return children_.emplace(id, std::move(node)).first->second.get();
+    }
+
     static FunctionId function_id(int script_id, int start_position,
                                   const char* name) {
       // script_id == kNoScriptId case:
@@ -96,8 +82,8 @@ class SamplingHeapProfiler {
       DCHECK(static_cast<unsigned>(start_position) < (1u << 31));
       return (static_cast<uint64_t>(script_id) << 32) + (start_position << 1);
     }
-    AllocationNode* FindOrAddChildNode(const char* name, int script_id,
-                                       int start_position);
+
+   private:
     // TODO(alph): make use of unordered_map's here. Pay attention to
     // iterator invalidation during TranslateAllocationNode.
     std::map<size_t, unsigned int> allocations_;
@@ -106,6 +92,7 @@ class SamplingHeapProfiler {
     const int script_id_;
     const int script_position_;
     const char* const name_;
+    uint32_t id_;
     bool pinned_ = false;
 
     friend class SamplingHeapProfiler;
@@ -113,12 +100,44 @@ class SamplingHeapProfiler {
     DISALLOW_COPY_AND_ASSIGN(AllocationNode);
   };
 
- private:
-  Heap* heap() const { return heap_; }
+  struct Sample {
+    Sample(size_t size_, AllocationNode* owner_, Local<Value> local_,
+           SamplingHeapProfiler* profiler_, uint64_t sample_id)
+        : size(size_),
+          owner(owner_),
+          global(Global<Value>(
+              reinterpret_cast<v8::Isolate*>(profiler_->isolate_), local_)),
+          profiler(profiler_),
+          sample_id(sample_id) {}
+    ~Sample() { global.Reset(); }
+    const size_t size;
+    AllocationNode* const owner;
+    Global<Value> global;
+    SamplingHeapProfiler* const profiler;
+    const uint64_t sample_id;
 
+   private:
+    DISALLOW_COPY_AND_ASSIGN(Sample);
+  };
+
+  SamplingHeapProfiler(Heap* heap, StringsStorage* names, uint64_t rate,
+                       int stack_depth, v8::HeapProfiler::SamplingFlags flags);
+  ~SamplingHeapProfiler();
+
+  v8::AllocationProfile* GetAllocationProfile();
+  StringsStorage* names() const { return names_; }
+
+ private:
   void SampleObject(Address soon_object, size_t size);
 
+  const std::vector<v8::AllocationProfile::Sample> BuildSamples() const;
+
+  AllocationNode* FindOrAddChildNode(AllocationNode* parent, const char* name,
+                                     int script_id, int start_position);
   static void OnWeakCallback(const WeakCallbackInfo<Sample>& data);
+
+  uint32_t next_node_id() { return ++last_node_id_; }
+  uint64_t next_sample_id() { return ++last_sample_id_; }
 
   // Methods that construct v8::AllocationProfile.
 
@@ -131,11 +150,13 @@ class SamplingHeapProfiler {
       AllocationProfile* profile, SamplingHeapProfiler::AllocationNode* node,
       const std::map<int, Handle<Script>>& scripts);
   v8::AllocationProfile::Allocation ScaleSample(size_t size,
-                                                unsigned int count);
+                                                unsigned int count) const;
   AllocationNode* AddStack();
 
   Isolate* const isolate_;
   Heap* const heap_;
+  uint64_t last_sample_id_ = 0;
+  uint32_t last_node_id_ = 0;
   std::unique_ptr<SamplingAllocationObserver> new_space_observer_;
   std::unique_ptr<SamplingAllocationObserver> other_spaces_observer_;
   StringsStorage* const names_;

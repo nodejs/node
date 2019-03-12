@@ -112,15 +112,19 @@ function array_natives_test() {
   assertEquals([2], a2.slice(1,2));
   a2 = [1.1,2,3];
   assertTrue(%HasDoubleElements(a2.slice()));
-  assertTrue(%HasDoubleElements(a2.slice(1)));
-  assertTrue(%HasDoubleElements(a2.slice(1, 2)));
+  assertTrue(%HasDoubleElements(a2.slice(1)) ||
+             %HasSmiElements(a2.slice(1)));
+  assertTrue(%HasDoubleElements(a2.slice(1, 2)) ||
+            %HasSmiElements(a2.slice(1, 2)));
   assertEquals([1.1,2,3], a2.slice());
   assertEquals([2,3], a2.slice(1));
   assertEquals([2], a2.slice(1,2));
   a2 = [{},2,3];
   assertTrue(%HasObjectElements(a2.slice()));
-  assertTrue(%HasObjectElements(a2.slice(1)));
-  assertTrue(%HasObjectElements(a2.slice(1, 2)));
+  assertTrue(%HasObjectElements(a2.slice(1)) ||
+             %HasSmiElements(a2.slice(1)));
+  assertTrue(%HasObjectElements(a2.slice(1, 2)) ||
+             %HasSmiElements(a2.slice(1, 2)));
   assertEquals([{},2,3], a2.slice());
   assertEquals([2,3], a2.slice(1));
   assertEquals([2], a2.slice(1,2));

@@ -78,7 +78,7 @@ class TraceFileReader extends HTMLElement {
         }
       };
       // Delay the loading a bit to allow for CSS animations to happen.
-      setTimeout(() => reader.readAsArrayBuffer(file), 10);
+      setTimeout(() => reader.readAsArrayBuffer(file), 0);
     } else {
       reader.onload = (e) => {
         try {
@@ -90,7 +90,8 @@ class TraceFileReader extends HTMLElement {
           this.section.className = 'failure';
         }
       };
-      setTimeout(() => reader.readAsText(file), 10);
+      // Delay the loading a bit to allow for CSS animations to happen.
+      setTimeout(() => reader.readAsText(file), 0);
     }
   }
 

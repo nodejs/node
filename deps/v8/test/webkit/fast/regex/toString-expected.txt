@@ -43,13 +43,13 @@ PASS testForwardSlash("x/x/x", "x\/x\/x"); is true
 PASS testForwardSlash("x\/x/x", "x\/x\/x"); is true
 PASS testForwardSlash("x/x\/x", "x\/x\/x"); is true
 PASS testForwardSlash("x\/x\/x", "x\/x\/x"); is true
-FAIL testLineTerminator("\n"); should be false. Was true.
+PASS testLineTerminator("\n"); is false
 PASS testLineTerminator("\\n"); is false
-FAIL testLineTerminator("\r"); should be false. Was true.
+PASS testLineTerminator("\r"); is false
 PASS testLineTerminator("\\r"); is false
-FAIL testLineTerminator("\u2028"); should be false. Was true.
+PASS testLineTerminator("\u2028"); is false
 PASS testLineTerminator("\\u2028"); is false
-FAIL testLineTerminator("\u2029"); should be false. Was true.
+PASS testLineTerminator("\u2029"); is false
 PASS testLineTerminator("\\u2029"); is false
 FAIL RegExp('[/]').source should be [/]. Was [\/].
 PASS RegExp('\\[/]').source is '\\[\\/]'

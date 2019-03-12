@@ -8,6 +8,8 @@
 #include "src/objects/api-callbacks.h"
 
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-write-barrier.h"
+#include "src/objects/foreign-inl.h"
 #include "src/objects/name.h"
 #include "src/objects/templates.h"
 
@@ -16,6 +18,11 @@
 
 namespace v8 {
 namespace internal {
+
+OBJECT_CONSTRUCTORS_IMPL(AccessCheckInfo, Struct)
+OBJECT_CONSTRUCTORS_IMPL(AccessorInfo, Struct)
+OBJECT_CONSTRUCTORS_IMPL(InterceptorInfo, Struct)
+OBJECT_CONSTRUCTORS_IMPL(CallHandlerInfo, Tuple3)
 
 CAST_ACCESSOR(AccessorInfo)
 CAST_ACCESSOR(AccessCheckInfo)
@@ -78,7 +85,7 @@ void AccessorInfo::set_setter_side_effect_type(SideEffectType value) {
 BIT_FIELD_ACCESSORS(AccessorInfo, flags, initial_property_attributes,
                     AccessorInfo::InitialAttributesBits)
 
-bool AccessorInfo::IsCompatibleReceiver(Object* receiver) {
+bool AccessorInfo::IsCompatibleReceiver(Object receiver) {
   if (!HasExpectedReceiverType()) return true;
   if (!receiver->IsJSObject()) return false;
   return FunctionTemplateInfo::cast(expected_receiver_type())

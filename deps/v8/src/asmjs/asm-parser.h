@@ -10,6 +10,7 @@
 
 #include "src/asmjs/asm-scanner.h"
 #include "src/asmjs/asm-types.h"
+#include "src/base/enum-set.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/zone/zone-containers.h"
 
@@ -47,7 +48,7 @@ class AsmJsParser {
   };
   // clang-format on
 
-  typedef EnumSet<StandardMember, uint64_t> StdlibSet;
+  using StdlibSet = base::EnumSet<StandardMember, uint64_t>;
 
   explicit AsmJsParser(Zone* zone, uintptr_t stack_limit,
                        Utf16CharacterStream* stream);

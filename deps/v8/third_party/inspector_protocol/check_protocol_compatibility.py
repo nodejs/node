@@ -168,6 +168,11 @@ def compare_types(context, kind, type_1, type_2, types_map_1, types_map_2, depth
     base_type_1 = type_1["type"]
     base_type_2 = type_2["type"]
 
+    # Binary and string have the same wire representation in JSON.
+    if ((base_type_1 == "string" and base_type_2 == "binary") or
+        (base_type_2 == "string" and base_type_1 == "binary")):
+      return
+
     if base_type_1 != base_type_2:
         errors.append("%s: %s base type mismatch, '%s' vs '%s'" % (context, kind, base_type_1, base_type_2))
     elif base_type_1 == "object":

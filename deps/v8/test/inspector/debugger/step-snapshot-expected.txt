@@ -11,6 +11,12 @@ paused
 }
 
 paused
+function c(f#, ...args) { return f(...args); }
+
+paused
+function c(f, ...args#) { return f(...args); }
+
+paused
 function c(f, ...args) { #return f(...args); }
 
 paused

@@ -13,5 +13,12 @@ specific_include_rules = {
     "+src/base/build_config.h",
     "+src/globals.h",
     "+src/flags.h",
+  ],
+  "handler-inside-posix.h": [
+    # To access V8_OS_LINUX. This file is already included in build_config.h.
+    "+include/v8config.h",
+  ],
+  "handler-inside-win.h": [
+    "+src/base/macros.h",
   ]
 }

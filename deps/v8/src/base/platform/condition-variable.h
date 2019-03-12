@@ -79,7 +79,6 @@ class V8_BASE_EXPORT ConditionVariable final {
   DISALLOW_COPY_AND_ASSIGN(ConditionVariable);
 };
 
-
 // POD ConditionVariable initialized lazily (i.e. the first time Pointer() is
 // called).
 // Usage:
@@ -87,7 +86,7 @@ class V8_BASE_EXPORT ConditionVariable final {
 //       LAZY_CONDITION_VARIABLE_INITIALIZER;
 //
 //   void my_function() {
-//     LockGuard<Mutex> lock_guard(&my_mutex);
+//     MutexGuard lock_guard(&my_mutex);
 //     my_condvar.Pointer()->Wait(&my_mutex);
 //   }
 typedef LazyStaticInstance<

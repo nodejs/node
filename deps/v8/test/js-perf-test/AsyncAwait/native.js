@@ -34,10 +34,10 @@ function Setup() {
   b = async function b() { return c(); };
   a = async function a() { return b(); };
 
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
 }
 
 function Basic() {
   a();
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
 }

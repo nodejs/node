@@ -2,12 +2,6 @@ Tests that variables introduced in eval scopes are accessible
 {
     id : <messageId>
     result : {
-        internalProperties : [
-            [0] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
-        ]
         result : [
             [0] : {
                 configurable : true

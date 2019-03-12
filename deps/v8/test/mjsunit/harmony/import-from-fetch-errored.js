@@ -7,7 +7,7 @@
 var error1, error2;
 import('no-such-file').catch(e => error1 = e);
 import('no-such-file').catch(e => error2 = e);
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
 assertEquals(error1, error2);
 assertEquals(typeof error1, "string");

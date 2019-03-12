@@ -23,5 +23,5 @@ async function bar() {
 
 foo();
 bar();
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals(2, count);

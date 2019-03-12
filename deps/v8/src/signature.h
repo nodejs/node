@@ -27,12 +27,12 @@ class Signature : public ZoneObject {
   size_t parameter_count() const { return parameter_count_; }
 
   T GetParam(size_t index) const {
-    DCHECK(index < parameter_count_);
+    DCHECK_LT(index, parameter_count_);
     return reps_[return_count_ + index];
   }
 
   T GetReturn(size_t index = 0) const {
-    DCHECK(index < return_count_);
+    DCHECK_LT(index, return_count_);
     return reps_[index];
   }
 
@@ -71,16 +71,24 @@ class Signature : public ZoneObject {
     const size_t parameter_count_;
 
     void AddReturn(T val) {
-      DCHECK(rcursor_ < return_count_);
+      DCHECK_LT(rcursor_, return_count_);
       buffer_[rcursor_++] = val;
     }
+
     void AddParam(T val) {
-      DCHECK(pcursor_ < parameter_count_);
+      DCHECK_LT(pcursor_, parameter_count_);
       buffer_[return_count_ + pcursor_++] = val;
     }
+
+    void AddParamAt(size_t index, T val) {
+      DCHECK_LT(index, parameter_count_);
+      buffer_[return_count_ + index] = val;
+      pcursor_ = std::max(pcursor_, index + 1);
+    }
+
     Signature<T>* Build() {
-      DCHECK(rcursor_ == return_count_);
-      DCHECK(pcursor_ == parameter_count_);
+      DCHECK_EQ(rcursor_, return_count_);
+      DCHECK_EQ(pcursor_, parameter_count_);
       return new (zone_) Signature<T>(return_count_, parameter_count_, buffer_);
     }
 

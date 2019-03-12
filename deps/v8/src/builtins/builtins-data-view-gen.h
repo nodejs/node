@@ -5,17 +5,17 @@
 #ifndef V8_BUILTINS_BUILTINS_DATA_VIEW_GEN_H_
 #define V8_BUILTINS_BUILTINS_DATA_VIEW_GEN_H_
 
+#include "src/code-stub-assembler.h"
 #include "src/elements-kind.h"
 #include "src/objects/bigint.h"
-#include "torque-generated/builtins-base-from-dsl-gen.h"
 
 namespace v8 {
 namespace internal {
 
-class DataViewBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
+class DataViewBuiltinsAssembler : public CodeStubAssembler {
  public:
   explicit DataViewBuiltinsAssembler(compiler::CodeAssemblerState* state)
-      : BaseBuiltinsFromDSLAssembler(state) {}
+      : CodeStubAssembler(state) {}
 
   TNode<Int32T> LoadUint8(TNode<RawPtrT> data_pointer, TNode<UintPtrT> offset) {
     return UncheckedCast<Int32T>(
@@ -37,19 +37,19 @@ class DataViewBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
     return ElementsKindToByteSize(elements_kind);
   }
 
-  TNode<IntPtrT> DataViewEncodeBigIntBits(bool sign, int32_t digits) {
-    return IntPtrConstant(BigInt::SignBits::encode(sign) |
-                          BigInt::LengthBits::encode(digits));
+  TNode<Uint32T> DataViewEncodeBigIntBits(bool sign, int32_t digits) {
+    return Unsigned(Int32Constant(BigInt::SignBits::encode(sign) |
+                                  BigInt::LengthBits::encode(digits)));
   }
 
-  TNode<UintPtrT> DataViewDecodeBigIntLength(TNode<BigInt> value) {
-    TNode<WordT> bitfield = LoadBigIntBitfield(value);
-    return DecodeWord<BigIntBase::LengthBits>(bitfield);
+  TNode<Uint32T> DataViewDecodeBigIntLength(TNode<BigInt> value) {
+    TNode<Word32T> bitfield = LoadBigIntBitfield(value);
+    return DecodeWord32<BigIntBase::LengthBits>(bitfield);
   }
 
-  TNode<UintPtrT> DataViewDecodeBigIntSign(TNode<BigInt> value) {
-    TNode<WordT> bitfield = LoadBigIntBitfield(value);
-    return DecodeWord<BigIntBase::SignBits>(bitfield);
+  TNode<Uint32T> DataViewDecodeBigIntSign(TNode<BigInt> value) {
+    TNode<Word32T> bitfield = LoadBigIntBitfield(value);
+    return DecodeWord32<BigIntBase::SignBits>(bitfield);
   }
 };
 

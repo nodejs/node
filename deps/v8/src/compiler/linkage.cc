@@ -5,12 +5,12 @@
 #include "src/compiler/linkage.h"
 
 #include "src/assembler-inl.h"
-#include "src/code-stubs.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/frame.h"
 #include "src/compiler/node.h"
 #include "src/compiler/osr.h"
 #include "src/compiler/pipeline.h"
+#include "src/macro-assembler.h"
 #include "src/optimized-compilation-info.h"
 
 namespace v8 {
@@ -38,7 +38,13 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k) {
       os << "Addr";
       break;
     case CallDescriptor::kCallWasmFunction:
-      os << "Wasm";
+      os << "WasmFunction";
+      break;
+    case CallDescriptor::kCallWasmImportWrapper:
+      os << "WasmImportWrapper";
+      break;
+    case CallDescriptor::kCallBuiltinPointer:
+      os << "BuiltinPointer";
       break;
   }
   return os;
@@ -127,8 +133,10 @@ int CallDescriptor::CalculateFixedFrameSize() const {
       return CommonFrameConstants::kFixedSlotCountAboveFp +
              CommonFrameConstants::kCPSlotCount;
     case kCallCodeObject:
+    case kCallBuiltinPointer:
       return TypedFrameConstants::kFixedSlotCount;
     case kCallWasmFunction:
+    case kCallWasmImportWrapper:
       return WasmCompiledFrameConstants::kFixedSlotCount;
   }
   UNREACHABLE();
@@ -136,11 +144,11 @@ int CallDescriptor::CalculateFixedFrameSize() const {
 
 CallDescriptor* Linkage::ComputeIncoming(Zone* zone,
                                          OptimizedCompilationInfo* info) {
-  DCHECK(!info->IsStub());
+  DCHECK(!info->IsNotOptimizedFunctionOrWasmFunction());
   if (!info->closure().is_null()) {
     // If we are compiling a JS function, use a JS call descriptor,
     // plus the receiver.
-    SharedFunctionInfo* shared = info->closure()->shared();
+    SharedFunctionInfo shared = info->closure()->shared();
     return GetJSCallDescriptor(zone, info->is_osr(),
                                1 + shared->internal_formal_parameter_count(),
                                CallDescriptor::kCanUseRoots);
@@ -388,12 +396,23 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
   }
 
   // The target for stub calls depends on the requested mode.
-  CallDescriptor::Kind kind = stub_mode == StubCallMode::kCallWasmRuntimeStub
-                                  ? CallDescriptor::kCallWasmFunction
-                                  : CallDescriptor::kCallCodeObject;
-  MachineType target_type = stub_mode == StubCallMode::kCallWasmRuntimeStub
-                                ? MachineType::Pointer()
-                                : MachineType::AnyTagged();
+  CallDescriptor::Kind kind;
+  MachineType target_type;
+  switch (stub_mode) {
+    case StubCallMode::kCallCodeObject:
+      kind = CallDescriptor::kCallCodeObject;
+      target_type = MachineType::AnyTagged();
+      break;
+    case StubCallMode::kCallWasmRuntimeStub:
+      kind = CallDescriptor::kCallWasmFunction;
+      target_type = MachineType::Pointer();
+      break;
+    case StubCallMode::kCallBuiltinPointer:
+      kind = CallDescriptor::kCallBuiltinPointer;
+      target_type = MachineType::AnyTagged();
+      break;
+  }
+
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
   return new (zone) CallDescriptor(          // --
       kind,                                  // kind

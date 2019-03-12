@@ -35,7 +35,7 @@ Promise.resolve()
   .finally(() => thenable)
   .catch(e => caughtException = e);
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
 Debug.setListener(null);
 Debug.clearBreakOnException();

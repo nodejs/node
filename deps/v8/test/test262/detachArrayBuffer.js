@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 function $DETACHBUFFER(buffer) {
-  %ArrayBufferNeuter(buffer);
+  %ArrayBufferDetach(buffer);
 }
 
 $262.detachArrayBuffer = $DETACHBUFFER;

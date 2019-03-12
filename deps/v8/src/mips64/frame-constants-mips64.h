@@ -13,6 +13,8 @@ namespace internal {
 
 class EntryFrameConstants : public AllStatic {
  public:
+  // This is the offset to where JSEntry pushes the current value of
+  // Isolate::c_entry_fp onto the stack.
   static constexpr int kCallerFPOffset =
       -(StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize);
 };
@@ -39,7 +41,7 @@ class ExitFrameConstants : public TypedFrameConstants {
 
 class WasmCompileLazyFrameConstants : public TypedFrameConstants {
  public:
-  static constexpr int kNumberOfSavedGpParamRegs = 8;
+  static constexpr int kNumberOfSavedGpParamRegs = 7;
   static constexpr int kNumberOfSavedFpParamRegs = 7;
 
   // FP-relative.

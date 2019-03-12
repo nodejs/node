@@ -9,38 +9,28 @@ import subprocess
 import sys
 
 BOTS = {
-  '--arm32': 'v8_arm32_perf_try',
+  '--chromebook': 'v8_chromebook_perf_try',
   '--linux32': 'v8_linux32_perf_try',
   '--linux64': 'v8_linux64_perf_try',
   '--linux64_atom': 'v8_linux64_atom_perf_try',
-  '--linux64_haswell': 'v8_linux64_haswell_perf_try',
   '--nexus5': 'v8_nexus5_perf_try',
   '--nexus7': 'v8_nexus7_perf_try',
-  '--nexus10': 'v8_nexus10_perf_try',
-  '--pixel2': 'v8_pixel2_perf_try',
   '--nokia1': 'v8_nokia1_perf_try',
+  '--odroid32': 'v8_odroid32_perf_try',
+  '--pixel2': 'v8_pixel2_perf_try',
 }
 
-# This list will contain builder names that should be triggered on an internal
-# swarming bucket instead of internal Buildbot master.
-SWARMING_BOTS = [
-  'v8_linux64_perf_try',
-  'v8_pixel2_perf_try',
-  'v8_nokia1_perf_try',
-]
-
 DEFAULT_BOTS = [
-  'v8_arm32_perf_try',
+  'v8_chromebook_perf_try',
   'v8_linux32_perf_try',
-  'v8_linux64_haswell_perf_try',
-  'v8_nexus10_perf_try',
+  'v8_linux64_perf_try',
 ]
 
 PUBLIC_BENCHMARKS = [
   'arewefastyet',
+  'compile',
   'embenchen',
   'emscripten',
-  'compile',
   'jetstream',
   'jsbench',
   'jstests',
@@ -60,17 +50,6 @@ PUBLIC_BENCHMARKS = [
 
 V8_BASE = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 
-def _trigger_bots(bucket, bots, options):
-  cmd = ['git cl try']
-  cmd += ['-B', bucket]
-  cmd += ['-b %s' % bot for bot in bots]
-  if options.revision: cmd += ['-r %s' % options.revision]
-  benchmarks = ['"%s"' % benchmark for benchmark in options.benchmarks]
-  cmd += ['-p \'testfilter=[%s]\'' % ','.join(benchmarks)]
-  if options.extra_flags:
-    cmd += ['-p \'extra_flags="%s"\'' % options.extra_flags]
-  subprocess.check_call(' '.join(cmd), shell=True, cwd=V8_BASE)
-
 def main():
   parser = argparse.ArgumentParser(description='')
   parser.add_argument('benchmarks', nargs='+', help='The benchmarks to run.')
@@ -80,6 +59,8 @@ def main():
                       help='Revision (use full hash!) to use for the try job; '
                            'default: the revision will be determined by the '
                            'try server; see its waterfall for more info')
+  parser.add_argument('-v', '--verbose', action='store_true',
+                      help='Print debug information')
   for option in sorted(BOTS):
     parser.add_argument(
         option, dest='bots', action='append_const', const=BOTS[option],
@@ -110,14 +91,17 @@ def main():
   subprocess.check_output(
       'update_depot_tools', shell=True, stderr=subprocess.STDOUT, cwd=V8_BASE)
 
-  buildbot_bots = [bot for bot in options.bots if bot not in SWARMING_BOTS]
-  if buildbot_bots:
-    _trigger_bots('master.internal.client.v8', buildbot_bots, options)
-
-  swarming_bots = [bot for bot in options.bots if bot in SWARMING_BOTS]
-  if swarming_bots:
-    _trigger_bots('luci.v8-internal.try', swarming_bots, options)
-
+  cmd = ['git cl try', '-B', 'luci.v8-internal.try']
+  cmd += ['-b %s' % bot for bot in options.bots]
+  if options.revision: cmd += ['-r %s' % options.revision]
+  benchmarks = ['"%s"' % benchmark for benchmark in options.benchmarks]
+  cmd += ['-p \'testfilter=[%s]\'' % ','.join(benchmarks)]
+  if options.extra_flags:
+    cmd += ['-p \'extra_flags="%s"\'' % options.extra_flags]
+  if options.verbose:
+    cmd.append('-vv')
+    print 'Running %s' % ' '.join(cmd)
+  subprocess.check_call(' '.join(cmd), shell=True, cwd=V8_BASE)
 
 if __name__ == '__main__':  # pragma: no cover
   sys.exit(main())

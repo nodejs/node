@@ -29,8 +29,8 @@ namespace compiler {
 
 template <typename T>
 inline constexpr MachineType MachineTypeForC() {
-  static_assert(std::is_convertible<T, Object*>::value,
-                "all non-specialized types must be convertible to Object*");
+  static_assert(std::is_convertible<T, Object>::value,
+                "all non-specialized types must be convertible to Object");
   return MachineType::AnyTagged();
 }
 
@@ -114,7 +114,7 @@ typedef CSignatureOf<int32_t, int32_t, int32_t> CSignature_i_ii;
 typedef CSignatureOf<uint32_t, uint32_t, uint32_t> CSignature_u_uu;
 typedef CSignatureOf<float, float, float> CSignature_f_ff;
 typedef CSignatureOf<double, double, double> CSignature_d_dd;
-typedef CSignatureOf<Object*, Object*, Object*> CSignature_o_oo;
+typedef CSignatureOf<Object, Object, Object> CSignature_o_oo;
 
 }  // namespace compiler
 }  // namespace internal

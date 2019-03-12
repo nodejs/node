@@ -6,16 +6,16 @@ Check that exceptionThrown is supported by test runner.
             columnNumber : 2
             exception : {
                 className : Error
-                description : Error     at setTimeout (<anonymous>:2:9)
+                description : Error     at <anonymous>:2:9
                 objectId : <objectId>
                 preview : {
-                    description : Error     at setTimeout (<anonymous>:2:9)
+                    description : Error     at <anonymous>:2:9
                     overflow : false
                     properties : [
                         [0] : {
                             name : stack
                             type : string
-                            value : Error     at setTimeout (<anonymous>:2:9)
+                            value : Error     at <anonymous>:2:9
                         }
                     ]
                     subtype : error
@@ -31,7 +31,7 @@ Check that exceptionThrown is supported by test runner.
                 callFrames : [
                     [0] : {
                         columnNumber : 8
-                        functionName : setTimeout
+                        functionName : 
                         lineNumber : 1
                         scriptId : <scriptId>
                         url : 
@@ -99,7 +99,7 @@ Check that exceptionThrown is supported by test runner.
                 callFrames : [
                     [0] : {
                         columnNumber : 2
-                        functionName : setTimeout
+                        functionName : 
                         lineNumber : 1
                         scriptId : <scriptId>
                         url : 

@@ -88,7 +88,7 @@ TEST(OperandScaling, ScalableAndNonScalable) {
     CHECK_EQ(Bytecodes::Size(Bytecode::kCallRuntime, operand_scale),
              1 + 2 + 2 * scale);
     CHECK_EQ(Bytecodes::Size(Bytecode::kCreateObjectLiteral, operand_scale),
-             1 + 2 * scale + 1 + 1 * scale);
+             1 + 2 * scale + 1);
     CHECK_EQ(Bytecodes::Size(Bytecode::kTestIn, operand_scale), 1 + scale);
   }
 }

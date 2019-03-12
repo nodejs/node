@@ -101,7 +101,7 @@ for (var constructor of typedArrayConstructors) {
 
   // Detached Operation
   var array = new constructor([1, 2, 3]);
-  %ArrayBufferNeuter(array.buffer);
+  %ArrayBufferDetach(array.buffer);
   assertThrows(() => array.join(), TypeError);
   assertThrows(() => array.toLocalString(), TypeError);
   assertThrows(() => array.toString(), TypeError);

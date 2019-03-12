@@ -4,8 +4,8 @@
 
 // Flags: --allow-natives-syntax
 
-// Disable the neutering protector.
-%ArrayBufferNeuter(new ArrayBuffer(1024));
+// Disable the detaching protector.
+%ArrayBufferDetach(new ArrayBuffer(1024));
 
 // ArrayBuffer
 

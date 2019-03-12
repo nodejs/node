@@ -8,6 +8,7 @@
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/stub-cache.h"
 #include "src/objects-inl.h"
+#include "src/objects/smi.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 
@@ -58,7 +59,7 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
   };
 
   Handle<Map> maps[] = {
-      Handle<Map>(nullptr, isolate),
+      Handle<Map>(Map(), isolate),
       factory->cell_map(),
       Map::Create(isolate, 0),
       factory->meta_map(),
@@ -88,7 +89,7 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
       }
       Handle<Object> result = ft.Call(name, map).ToHandleChecked();
 
-      Smi* expected = Smi::FromInt(expected_result & Smi::kMaxValue);
+      Smi expected = Smi::FromInt(expected_result & Smi::kMaxValue);
       CHECK_EQ(expected, Smi::cast(*result));
     }
   }
@@ -227,8 +228,8 @@ TEST(TryProbeStubCache) {
     int index = rand_gen.NextInt();
     Handle<Name> name = names[index % names.size()];
     Handle<JSObject> receiver = receivers[index % receivers.size()];
-    MaybeObject* handler = stub_cache.Get(*name, receiver->map());
-    if (handler == nullptr) {
+    MaybeObject handler = stub_cache.Get(*name, receiver->map());
+    if (handler.ptr() == kNullAddress) {
       queried_non_existing = true;
     } else {
       queried_existing = true;
@@ -243,8 +244,8 @@ TEST(TryProbeStubCache) {
     int index2 = rand_gen.NextInt();
     Handle<Name> name = names[index1 % names.size()];
     Handle<JSObject> receiver = receivers[index2 % receivers.size()];
-    MaybeObject* handler = stub_cache.Get(*name, receiver->map());
-    if (handler == nullptr) {
+    MaybeObject handler = stub_cache.Get(*name, receiver->map());
+    if (handler.ptr() == kNullAddress) {
       queried_non_existing = true;
     } else {
       queried_existing = true;

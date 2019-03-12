@@ -34,11 +34,17 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
   // - Look up current function on the frame.
   // - Leave the frame.
   // - Restart the frame by calling the function.
+
+  Register decompr_scratch_for_debug =
+      COMPRESS_POINTERS_BOOL ? kScratchRegister : no_reg;
+
   __ movp(rbp, rbx);
   __ movp(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
   __ leave();
 
-  __ movp(rbx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadTaggedPointerField(
+      rbx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset),
+      decompr_scratch_for_debug);
   __ movzxwq(
       rbx, FieldOperand(rbx, SharedFunctionInfo::kFormalParameterCountOffset));
 

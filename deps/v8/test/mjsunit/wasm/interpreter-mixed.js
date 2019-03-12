@@ -26,11 +26,11 @@ function checkStack(stack, expected_lines) {
   }
 }
 
-(function testGrowMemoryBetweenInterpretedAndCompiled() {
+(function testMemoryGrowBetweenInterpretedAndCompiled() {
   // grow_memory can be called from interpreted or compiled code, and changes
   // should be reflected in either execution.
   var builder = new WasmModuleBuilder();
-  var grow_body = [kExprGetLocal, 0, kExprGrowMemory, kMemoryZero];
+  var grow_body = [kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero];
   var load_body = [kExprGetLocal, 0, kExprI32LoadMem, 0, 0];
   var store_body = [kExprGetLocal, 0, kExprGetLocal, 1, kExprI32StoreMem, 0, 0];
   builder.addFunction('grow_memory', kSig_i_i).addBody(grow_body).exportFunc();

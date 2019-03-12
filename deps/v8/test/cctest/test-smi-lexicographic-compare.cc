@@ -5,6 +5,7 @@
 #include <set>
 
 #include "src/objects-inl.h"
+#include "src/objects/smi.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
@@ -13,7 +14,7 @@ namespace internal {
 
 namespace {
 
-void AddSigned(std::set<Smi*>& smis, int64_t x) {
+void AddSigned(std::set<Smi>& smis, int64_t x) {
   if (!Smi::IsValid(x)) return;
 
   smis.insert(Smi::FromInt(static_cast<int>(x)));
@@ -21,7 +22,7 @@ void AddSigned(std::set<Smi*>& smis, int64_t x) {
 }
 
 // Uses std::lexicographical_compare twice to convert the result to -1, 0 or 1.
-int ExpectedCompareResult(Smi* a, Smi* b) {
+int ExpectedCompareResult(Smi a, Smi b) {
   std::string str_a = std::to_string(a->value());
   std::string str_b = std::to_string(b->value());
   bool expected_a_lt_b = std::lexicographical_compare(
@@ -39,8 +40,8 @@ int ExpectedCompareResult(Smi* a, Smi* b) {
   }
 }
 
-bool Test(Isolate* isolate, Smi* a, Smi* b) {
-  int actual = Smi::LexicographicCompare(isolate, a, b)->value();
+bool Test(Isolate* isolate, Smi a, Smi b) {
+  int actual = Smi(Smi::LexicographicCompare(isolate, a, b)).value();
   int expected = ExpectedCompareResult(a, b);
 
   return actual == expected;
@@ -52,7 +53,7 @@ TEST(TestSmiLexicographicCompare) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   HandleScope scope(isolate);
 
-  std::set<Smi*> smis;
+  std::set<Smi> smis;
 
   for (int64_t xb = 1; xb <= Smi::kMaxValue; xb *= 10) {
     for (int64_t xf = 0; xf <= 9; ++xf) {
@@ -68,8 +69,8 @@ TEST(TestSmiLexicographicCompare) {
     }
   }
 
-  for (Smi* a : smis) {
-    for (Smi* b : smis) {
+  for (Smi a : smis) {
+    for (Smi b : smis) {
       CHECK(Test(isolate, a, b));
     }
   }

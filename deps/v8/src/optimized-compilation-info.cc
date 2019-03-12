@@ -10,6 +10,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/source-position.h"
+#include "src/wasm/function-compiler.h"
 
 namespace v8 {
 namespace internal {
@@ -18,6 +19,8 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
     Zone* zone, Isolate* isolate, Handle<SharedFunctionInfo> shared,
     Handle<JSFunction> closure)
     : OptimizedCompilationInfo(Code::OPTIMIZED_FUNCTION, zone) {
+  DCHECK(shared->is_compiled());
+  bytecode_array_ = handle(shared->GetBytecodeArray(), isolate);
   shared_info_ = shared;
   closure_ = closure;
   optimization_id_ = isolate->NextOptimizationId();
@@ -77,8 +80,10 @@ void OptimizedCompilationInfo::ConfigureFlags() {
       MarkAsSourcePositionsEnabled();
 #endif  // ENABLE_GDB_JIT_INTERFACE && DEBUG
       break;
-    default:
+    case Code::WASM_FUNCTION:
       SetFlag(kSwitchJumpTableEnabled);
+      break;
+    default:
       break;
   }
 }
@@ -104,6 +109,9 @@ void OptimizedCompilationInfo::set_deferred_handles(
 void OptimizedCompilationInfo::ReopenHandlesInNewHandleScope(Isolate* isolate) {
   if (!shared_info_.is_null()) {
     shared_info_ = Handle<SharedFunctionInfo>(*shared_info_, isolate);
+  }
+  if (!bytecode_array_.is_null()) {
+    bytecode_array_ = Handle<BytecodeArray>(*bytecode_array_, isolate);
   }
   if (!closure_.is_null()) {
     closure_ = Handle<JSFunction>(*closure_, isolate);
@@ -142,34 +150,49 @@ StackFrame::Type OptimizedCompilationInfo::GetOutputStackFrameType() const {
   }
 }
 
+void OptimizedCompilationInfo::SetWasmCompilationResult(
+    std::unique_ptr<wasm::WasmCompilationResult> wasm_compilation_result) {
+  wasm_compilation_result_ = std::move(wasm_compilation_result);
+}
+
+std::unique_ptr<wasm::WasmCompilationResult>
+OptimizedCompilationInfo::ReleaseWasmCompilationResult() {
+  return std::move(wasm_compilation_result_);
+}
+
 bool OptimizedCompilationInfo::has_context() const {
   return !closure().is_null();
 }
 
-Context* OptimizedCompilationInfo::context() const {
-  return has_context() ? closure()->context() : nullptr;
+Context OptimizedCompilationInfo::context() const {
+  DCHECK(has_context());
+  return closure()->context();
 }
 
 bool OptimizedCompilationInfo::has_native_context() const {
-  return !closure().is_null() && (closure()->native_context() != nullptr);
+  return !closure().is_null() && !closure()->native_context().is_null();
 }
 
-Context* OptimizedCompilationInfo::native_context() const {
-  return has_native_context() ? closure()->native_context() : nullptr;
+Context OptimizedCompilationInfo::native_context() const {
+  DCHECK(has_native_context());
+  return closure()->native_context();
 }
 
 bool OptimizedCompilationInfo::has_global_object() const {
   return has_native_context();
 }
 
-JSGlobalObject* OptimizedCompilationInfo::global_object() const {
-  return has_global_object() ? native_context()->global_object() : nullptr;
+JSGlobalObject OptimizedCompilationInfo::global_object() const {
+  DCHECK(has_global_object());
+  return native_context()->global_object();
 }
 
 int OptimizedCompilationInfo::AddInlinedFunction(
-    Handle<SharedFunctionInfo> inlined_function, SourcePosition pos) {
+    Handle<SharedFunctionInfo> inlined_function,
+    Handle<BytecodeArray> inlined_bytecode, SourcePosition pos) {
   int id = static_cast<int>(inlined_functions_.size());
-  inlined_functions_.push_back(InlinedFunctionHolder(inlined_function, pos));
+  inlined_functions_.push_back(
+      InlinedFunctionHolder(inlined_function, inlined_bytecode, pos));
   return id;
 }
 

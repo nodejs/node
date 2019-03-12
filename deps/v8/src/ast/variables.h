@@ -131,11 +131,12 @@ class Variable final : public ZoneObject {
     return kind() != SLOPPY_FUNCTION_NAME_VARIABLE || is_strict(language_mode);
   }
 
-  bool is_function() const { return kind() == FUNCTION_VARIABLE; }
   bool is_this() const { return kind() == THIS_VARIABLE; }
   bool is_sloppy_function_name() const {
     return kind() == SLOPPY_FUNCTION_NAME_VARIABLE;
   }
+
+  bool is_parameter() const { return kind() == PARAMETER_VARIABLE; }
 
   Variable* local_if_not_shadowed() const {
     DCHECK(mode() == VariableMode::kDynamicLocal &&
@@ -175,6 +176,13 @@ class Variable final : public ZoneObject {
     index_ = index;
   }
 
+  void MakeParameterNonSimple() {
+    DCHECK(is_parameter());
+    bit_field_ = VariableModeField::update(bit_field_, VariableMode::kLet);
+    bit_field_ =
+        InitializationFlagField::update(bit_field_, kNeedsInitialization);
+  }
+
   static InitializationFlag DefaultInitializationFlag(VariableMode mode) {
     DCHECK(IsDeclaredVariableMode(mode));
     return mode == VariableMode::kVar ? kCreatedInitialized
@@ -199,7 +207,7 @@ class Variable final : public ZoneObject {
 
   class VariableModeField : public BitField16<VariableMode, 0, 3> {};
   class VariableKindField
-      : public BitField16<VariableKind, VariableModeField::kNext, 3> {};
+      : public BitField16<VariableKind, VariableModeField::kNext, 2> {};
   class LocationField
       : public BitField16<VariableLocation, VariableKindField::kNext, 3> {};
   class ForceContextAllocationField

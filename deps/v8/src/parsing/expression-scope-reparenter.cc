@@ -27,7 +27,6 @@ class Reparenter final : public AstTraversalVisitor<Reparenter> {
   void VisitFunctionLiteral(FunctionLiteral* expr);
   void VisitClassLiteral(ClassLiteral* expr);
   void VisitVariableProxy(VariableProxy* expr);
-  void VisitRewritableExpression(RewritableExpression* expr);
 
   void VisitBlock(Block* stmt);
   void VisitTryCatchStatement(TryCatchStatement* stmt);
@@ -77,11 +76,6 @@ void Reparenter::VisitVariableProxy(VariableProxy* proxy) {
     DCHECK(proxy->var()->mode() != VariableMode::kTemporary ||
            proxy->var()->scope() == scope_->GetClosureScope());
   }
-}
-
-void Reparenter::VisitRewritableExpression(RewritableExpression* expr) {
-  Visit(expr->expression());
-  expr->set_scope(scope_);
 }
 
 void Reparenter::VisitBlock(Block* stmt) {

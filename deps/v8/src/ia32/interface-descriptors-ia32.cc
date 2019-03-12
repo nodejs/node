@@ -6,6 +6,8 @@
 
 #include "src/interface-descriptors.h"
 
+#include "src/frames.h"
+
 namespace v8 {
 namespace internal {
 
@@ -23,7 +25,7 @@ void CallInterfaceDescriptor::DefaultInitializePlatformSpecific(
 
 void RecordWriteDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  static const Register default_stub_registers[] = {ecx, edx, edi,
+  static const Register default_stub_registers[] = {ecx, edx, esi, edi,
                                                     kReturnRegister0};
 
   data->RestrictAllocatableRegisters(default_stub_registers,
@@ -68,12 +70,6 @@ const Register TypeConversionDescriptor::ArgumentRegister() { return eax; }
 void TypeofDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {ecx};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-void CallFunctionDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {edi};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -210,10 +206,9 @@ void ArgumentsAdaptorDescriptor::InitializePlatformSpecific(
 void ApiCallbackDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
-      JavaScriptFrame::context_register(),  // callee context
-      eax,                                  // call_data
-      ecx,                                  // holder
-      edx,                                  // api_function_address
+      JavaScriptFrame::context_register(),  // kTargetContext
+      edx,                                  // kApiFunctionAddress
+      ecx,                                  // kArgc
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
@@ -260,6 +255,11 @@ void FrameDropperTrampolineDescriptor::InitializePlatformSpecific(
       eax,  // loaded new FP
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void RunMicrotasksEntryDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  data->InitializePlatformSpecific(0, nullptr);
 }
 
 }  // namespace internal

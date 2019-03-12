@@ -29,6 +29,7 @@ Reduction RedundancyElimination::Reduce(Node* node) {
     case IrOpcode::kCheckNotTaggedHole:
     case IrOpcode::kCheckNumber:
     case IrOpcode::kCheckReceiver:
+    case IrOpcode::kCheckReceiverOrNullOrUndefined:
     case IrOpcode::kCheckSmi:
     case IrOpcode::kCheckString:
     case IrOpcode::kCheckSymbol:
@@ -135,6 +136,9 @@ bool CheckSubsumes(Node const* a, Node const* b) {
     } else if (a->opcode() == IrOpcode::kCheckedTaggedSignedToInt32 &&
                b->opcode() == IrOpcode::kCheckedTaggedToInt32) {
       // CheckedTaggedSignedToInt32(node) implies CheckedTaggedToInt32(node)
+    } else if (a->opcode() == IrOpcode::kCheckReceiver &&
+               b->opcode() == IrOpcode::kCheckReceiverOrNullOrUndefined) {
+      // CheckReceiver(node) implies CheckReceiverOrNullOrUndefined(node)
     } else if (a->opcode() != b->opcode()) {
       return false;
     } else {
@@ -150,13 +154,17 @@ bool CheckSubsumes(Node const* a, Node const* b) {
         case IrOpcode::kCheckedTaggedSignedToInt32:
         case IrOpcode::kCheckedTaggedToTaggedPointer:
         case IrOpcode::kCheckedTaggedToTaggedSigned:
+        case IrOpcode::kCheckedUint32Bounds:
         case IrOpcode::kCheckedUint32ToInt32:
         case IrOpcode::kCheckedUint32ToTaggedSigned:
+        case IrOpcode::kCheckedUint64Bounds:
         case IrOpcode::kCheckedUint64ToInt32:
         case IrOpcode::kCheckedUint64ToTaggedSigned:
           break;
         case IrOpcode::kCheckedFloat64ToInt32:
-        case IrOpcode::kCheckedTaggedToInt32: {
+        case IrOpcode::kCheckedFloat64ToInt64:
+        case IrOpcode::kCheckedTaggedToInt32:
+        case IrOpcode::kCheckedTaggedToInt64: {
           const CheckMinusZeroParameters& ap =
               CheckMinusZeroParametersOf(a->op());
           const CheckMinusZeroParameters& bp =
@@ -192,11 +200,22 @@ bool CheckSubsumes(Node const* a, Node const* b) {
   return true;
 }
 
+bool TypeSubsumes(Node* node, Node* replacement) {
+  if (!NodeProperties::IsTyped(node) || !NodeProperties::IsTyped(replacement)) {
+    // If either node is untyped, we are running during an untyped optimization
+    // phase, and replacement is OK.
+    return true;
+  }
+  Type node_type = NodeProperties::GetType(node);
+  Type replacement_type = NodeProperties::GetType(replacement);
+  return replacement_type.Is(node_type);
+}
+
 }  // namespace
 
 Node* RedundancyElimination::EffectPathChecks::LookupCheck(Node* node) const {
   for (Check const* check = head_; check != nullptr; check = check->next) {
-    if (CheckSubsumes(check->node, node)) {
+    if (CheckSubsumes(check->node, node) && TypeSubsumes(node, check->node)) {
       DCHECK(!check->node->IsDead());
       return check->node;
     }

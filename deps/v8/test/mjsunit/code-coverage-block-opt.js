@@ -3,7 +3,13 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --no-always-opt --opt
+// Flags: --no-stress-flush-bytecode
 // Files: test/mjsunit/code-coverage-utils.js
+
+if (isNeverOptimizeLiteMode()) {
+  print("Warning: skipping test that requires optimization in Lite mode.");
+  quit(0);
+}
 
 %DebugToggleBlockCoverage(true);
 

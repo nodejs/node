@@ -5,9 +5,9 @@
 #ifndef V8_MACRO_ASSEMBLER_H_
 #define V8_MACRO_ASSEMBLER_H_
 
-#include "src/assembler.h"
 #include "src/frames.h"
 #include "src/heap/heap.h"
+#include "src/turbo-assembler.h"
 
 // Helper types to make boolean flag easier to read at call-site.
 enum InvokeFlag {
@@ -32,6 +32,8 @@ enum AllocationFlags {
   PRETENURE = 1 << 3,
 };
 
+// This is the only place allowed to include the platform-specific headers.
+#define INCLUDED_FROM_MACRO_ASSEMBLER_H
 #if V8_TARGET_ARCH_IA32
 #include "src/ia32/macro-assembler-ia32.h"
 #elif V8_TARGET_ARCH_X64
@@ -57,6 +59,7 @@ enum AllocationFlags {
 #else
 #error Unsupported target architecture.
 #endif
+#undef INCLUDED_FROM_MACRO_ASSEMBLER_H
 
 namespace v8 {
 namespace internal {
@@ -172,28 +175,11 @@ class AllowExternalCallThatCantCauseGC: public FrameScope {
       : FrameScope(masm, StackFrame::NONE) { }
 };
 
-
-class NoCurrentFrameScope {
- public:
-  explicit NoCurrentFrameScope(MacroAssembler* masm)
-      : masm_(masm), saved_(masm->has_frame()) {
-    masm->set_has_frame(false);
-  }
-
-  ~NoCurrentFrameScope() {
-    masm_->set_has_frame(saved_);
-  }
-
- private:
-  MacroAssembler* masm_;
-  bool saved_;
-};
-
 // Prevent the use of the RootArray during the lifetime of this
 // scope object.
 class NoRootArrayScope {
  public:
-  explicit NoRootArrayScope(MacroAssembler* masm)
+  explicit NoRootArrayScope(TurboAssembler* masm)
       : masm_(masm), old_value_(masm->root_array_available()) {
     masm->set_root_array_available(false);
   }
@@ -201,7 +187,7 @@ class NoRootArrayScope {
   ~NoRootArrayScope() { masm_->set_root_array_available(old_value_); }
 
  private:
-  MacroAssembler* masm_;
+  TurboAssembler* masm_;
   bool old_value_;
 };
 

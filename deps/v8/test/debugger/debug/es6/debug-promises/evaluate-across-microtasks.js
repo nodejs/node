@@ -51,7 +51,7 @@ LogX("start")();
 // Make sure that the debug event listener was invoked.
 assertTrue(listenerComplete);
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
 var expectation =
   [ "[0] debugger", "[1] start", "[1] then 1",

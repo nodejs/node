@@ -13,13 +13,13 @@
 namespace v8 {
 namespace internal {
 
-HandlerTable::HandlerTable(Code* code)
+HandlerTable::HandlerTable(Code code)
     : HandlerTable(code->InstructionStart(), code->handler_table_offset()) {}
 
-HandlerTable::HandlerTable(BytecodeArray* bytecode_array)
+HandlerTable::HandlerTable(BytecodeArray bytecode_array)
     : HandlerTable(bytecode_array->handler_table()) {}
 
-HandlerTable::HandlerTable(ByteArray* byte_array)
+HandlerTable::HandlerTable(ByteArray byte_array)
     : number_of_entries_(byte_array->length() / kRangeEntrySize /
                          sizeof(int32_t)),
 #ifdef DEBUG

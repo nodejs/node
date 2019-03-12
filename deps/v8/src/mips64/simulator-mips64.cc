@@ -2,28 +2,29 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/mips64/simulator-mips64.h"
+
+// Only build the simulator if not compiling for real MIPS hardware.
+#if defined(USE_SIMULATOR)
+
 #include <limits.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <cmath>
 
-#if V8_TARGET_ARCH_MIPS64
-
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
-#include "src/codegen.h"
 #include "src/disasm.h"
 #include "src/macro-assembler.h"
 #include "src/mips64/constants-mips64.h"
-#include "src/mips64/simulator-mips64.h"
 #include "src/ostreams.h"
 #include "src/runtime/runtime-utils.h"
 
-// Only build the simulator if not compiling for real MIPS hardware.
-#if defined(USE_SIMULATOR)
-
 namespace v8 {
 namespace internal {
+
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(Simulator::GlobalMonitor,
+                                Simulator::GlobalMonitor::Get);
 
 // Util functions.
 inline bool HaveSameSign(int64_t a, int64_t b) { return ((a ^ b) >= 0); }
@@ -246,7 +247,6 @@ void MipsDebugger::PrintAllRegs() {
          REG_INFO(31), REG_INFO(34));
 
 #undef REG_INFO
-#undef FPU_REG_INFO
 }
 
 
@@ -293,7 +293,6 @@ void MipsDebugger::PrintAllRegsIncludingFPU() {
   PrintF("%3s: 0x%016" PRIx64 "  %16.4e\n", FPU_REG_INFO(30));
   PrintF("%3s: 0x%016" PRIx64 "  %16.4e\n", FPU_REG_INFO(31));
 
-#undef REG_INFO
 #undef FPU_REG_INFO
 }
 
@@ -420,7 +419,7 @@ void MipsDebugger::Debug() {
           int64_t value;
           StdoutStream os;
           if (GetValue(arg1, &value)) {
-            Object* obj = reinterpret_cast<Object*>(value);
+            Object obj(value);
             os << arg1 << ": \n";
 #ifdef DEBUG
             obj->Print(os);
@@ -464,14 +463,12 @@ void MipsDebugger::Debug() {
         while (cur < end) {
           PrintF("  0x%012" PRIxPTR " :  0x%016" PRIx64 "  %14" PRId64 " ",
                  reinterpret_cast<intptr_t>(cur), *cur, *cur);
-          HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
-          int64_t value = *cur;
+          Object obj(*cur);
           Heap* current_heap = sim_->isolate_->heap();
-          if (((value & 1) == 0) ||
-              current_heap->ContainsSlow(obj->address())) {
+          if (obj.IsSmi() || current_heap->Contains(HeapObject::cast(obj))) {
             PrintF(" (");
-            if ((value & 1) == 0) {
-              PrintF("smi %d", static_cast<int>(value >> 32));
+            if (obj.IsSmi()) {
+              PrintF("smi %d", Smi::ToInt(obj));
             } else {
               obj->ShortPrint();
             }
@@ -849,9 +846,10 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   last_debugger_input_ = nullptr;
 }
 
-
-Simulator::~Simulator() { free(stack_); }
-
+Simulator::~Simulator() {
+  GlobalMonitor::Get()->RemoveLinkedAddress(&global_monitor_thread_);
+  free(stack_);
+}
 
 // Get the active Simulator for the current thread.
 Simulator* Simulator::current(Isolate* isolate) {
@@ -1872,6 +1870,7 @@ int32_t Simulator::ReadW(int64_t addr, Instruction* instr, TraceType t) {
     DieOrDebug();
   }
   if ((addr & 0x3) == 0 || kArchVariant == kMips64r6) {
+    local_monitor_.NotifyLoad();
     int32_t* ptr = reinterpret_cast<int32_t*>(addr);
     TraceMemRd(addr, static_cast<int64_t>(*ptr), t);
     return *ptr;
@@ -1892,6 +1891,7 @@ uint32_t Simulator::ReadWU(int64_t addr, Instruction* instr) {
     DieOrDebug();
   }
   if ((addr & 0x3) == 0 || kArchVariant == kMips64r6) {
+    local_monitor_.NotifyLoad();
     uint32_t* ptr = reinterpret_cast<uint32_t*>(addr);
     TraceMemRd(addr, static_cast<int64_t>(*ptr), WORD);
     return *ptr;
@@ -1912,6 +1912,9 @@ void Simulator::WriteW(int64_t addr, int32_t value, Instruction* instr) {
     DieOrDebug();
   }
   if ((addr & 0x3) == 0 || kArchVariant == kMips64r6) {
+    local_monitor_.NotifyStore();
+    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+    GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_thread_);
     TraceMemWr(addr, value, WORD);
     int* ptr = reinterpret_cast<int*>(addr);
     *ptr = value;
@@ -1922,6 +1925,35 @@ void Simulator::WriteW(int64_t addr, int32_t value, Instruction* instr) {
   DieOrDebug();
 }
 
+void Simulator::WriteConditionalW(int64_t addr, int32_t value,
+                                  Instruction* instr, int32_t rt_reg) {
+  if (addr >= 0 && addr < 0x400) {
+    // This has to be a nullptr-dereference, drop into debugger.
+    PrintF("Memory write to bad address: 0x%08" PRIx64 " , pc=0x%08" PRIxPTR
+           " \n",
+           addr, reinterpret_cast<intptr_t>(instr));
+    DieOrDebug();
+  }
+  if ((addr & 0x3) == 0 || kArchVariant == kMips64r6) {
+    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+    if (local_monitor_.NotifyStoreConditional(addr, TransactionSize::Word) &&
+        GlobalMonitor::Get()->NotifyStoreConditional_Locked(
+            addr, &global_monitor_thread_)) {
+      local_monitor_.NotifyStore();
+      GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_thread_);
+      TraceMemWr(addr, value, WORD);
+      int* ptr = reinterpret_cast<int*>(addr);
+      *ptr = value;
+      set_register(rt_reg, 1);
+    } else {
+      set_register(rt_reg, 0);
+    }
+    return;
+  }
+  PrintF("Unaligned write at 0x%08" PRIx64 " , pc=0x%08" V8PRIxPTR "\n", addr,
+         reinterpret_cast<intptr_t>(instr));
+  DieOrDebug();
+}
 
 int64_t Simulator::Read2W(int64_t addr, Instruction* instr) {
   if (addr >=0 && addr < 0x400) {
@@ -1932,6 +1964,7 @@ int64_t Simulator::Read2W(int64_t addr, Instruction* instr) {
     DieOrDebug();
   }
   if ((addr & kPointerAlignmentMask) == 0 || kArchVariant == kMips64r6) {
+    local_monitor_.NotifyLoad();
     int64_t* ptr = reinterpret_cast<int64_t*>(addr);
     TraceMemRd(addr, *ptr);
     return *ptr;
@@ -1952,6 +1985,9 @@ void Simulator::Write2W(int64_t addr, int64_t value, Instruction* instr) {
     DieOrDebug();
   }
   if ((addr & kPointerAlignmentMask) == 0 || kArchVariant == kMips64r6) {
+    local_monitor_.NotifyStore();
+    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+    GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_thread_);
     TraceMemWr(addr, value, DWORD);
     int64_t* ptr = reinterpret_cast<int64_t*>(addr);
     *ptr = value;
@@ -1962,9 +1998,40 @@ void Simulator::Write2W(int64_t addr, int64_t value, Instruction* instr) {
   DieOrDebug();
 }
 
+void Simulator::WriteConditional2W(int64_t addr, int64_t value,
+                                   Instruction* instr, int32_t rt_reg) {
+  if (addr >= 0 && addr < 0x400) {
+    // This has to be a nullptr-dereference, drop into debugger.
+    PrintF("Memory write to bad address: 0x%08" PRIx64 " , pc=0x%08" PRIxPTR
+           "\n",
+           addr, reinterpret_cast<intptr_t>(instr));
+    DieOrDebug();
+  }
+  if ((addr & kPointerAlignmentMask) == 0 || kArchVariant == kMips64r6) {
+    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+    if (local_monitor_.NotifyStoreConditional(addr,
+                                              TransactionSize::DoubleWord) &&
+        GlobalMonitor::Get()->NotifyStoreConditional_Locked(
+            addr, &global_monitor_thread_)) {
+      local_monitor_.NotifyStore();
+      GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_thread_);
+      TraceMemWr(addr, value, DWORD);
+      int64_t* ptr = reinterpret_cast<int64_t*>(addr);
+      *ptr = value;
+      set_register(rt_reg, 1);
+    } else {
+      set_register(rt_reg, 0);
+    }
+    return;
+  }
+  PrintF("Unaligned write at 0x%08" PRIx64 " , pc=0x%08" V8PRIxPTR "\n", addr,
+         reinterpret_cast<intptr_t>(instr));
+  DieOrDebug();
+}
 
 double Simulator::ReadD(int64_t addr, Instruction* instr) {
   if ((addr & kDoubleAlignmentMask) == 0 || kArchVariant == kMips64r6) {
+    local_monitor_.NotifyLoad();
     double* ptr = reinterpret_cast<double*>(addr);
     return *ptr;
   }
@@ -1977,6 +2044,9 @@ double Simulator::ReadD(int64_t addr, Instruction* instr) {
 
 void Simulator::WriteD(int64_t addr, double value, Instruction* instr) {
   if ((addr & kDoubleAlignmentMask) == 0 || kArchVariant == kMips64r6) {
+    local_monitor_.NotifyStore();
+    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+    GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_thread_);
     double* ptr = reinterpret_cast<double*>(addr);
     *ptr = value;
     return;
@@ -1990,6 +2060,7 @@ void Simulator::WriteD(int64_t addr, double value, Instruction* instr) {
 
 uint16_t Simulator::ReadHU(int64_t addr, Instruction* instr) {
   if ((addr & 1) == 0 || kArchVariant == kMips64r6) {
+    local_monitor_.NotifyLoad();
     uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
     TraceMemRd(addr, static_cast<int64_t>(*ptr));
     return *ptr;
@@ -2004,6 +2075,7 @@ uint16_t Simulator::ReadHU(int64_t addr, Instruction* instr) {
 
 int16_t Simulator::ReadH(int64_t addr, Instruction* instr) {
   if ((addr & 1) == 0 || kArchVariant == kMips64r6) {
+    local_monitor_.NotifyLoad();
     int16_t* ptr = reinterpret_cast<int16_t*>(addr);
     TraceMemRd(addr, static_cast<int64_t>(*ptr));
     return *ptr;
@@ -2018,6 +2090,9 @@ int16_t Simulator::ReadH(int64_t addr, Instruction* instr) {
 
 void Simulator::WriteH(int64_t addr, uint16_t value, Instruction* instr) {
   if ((addr & 1) == 0 || kArchVariant == kMips64r6) {
+    local_monitor_.NotifyStore();
+    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+    GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_thread_);
     TraceMemWr(addr, value, HALF);
     uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
     *ptr = value;
@@ -2032,6 +2107,9 @@ void Simulator::WriteH(int64_t addr, uint16_t value, Instruction* instr) {
 
 void Simulator::WriteH(int64_t addr, int16_t value, Instruction* instr) {
   if ((addr & 1) == 0 || kArchVariant == kMips64r6) {
+    local_monitor_.NotifyStore();
+    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+    GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_thread_);
     TraceMemWr(addr, value, HALF);
     int16_t* ptr = reinterpret_cast<int16_t*>(addr);
     *ptr = value;
@@ -2045,6 +2123,7 @@ void Simulator::WriteH(int64_t addr, int16_t value, Instruction* instr) {
 
 
 uint32_t Simulator::ReadBU(int64_t addr) {
+  local_monitor_.NotifyLoad();
   uint8_t* ptr = reinterpret_cast<uint8_t*>(addr);
   TraceMemRd(addr, static_cast<int64_t>(*ptr));
   return *ptr & 0xFF;
@@ -2052,6 +2131,7 @@ uint32_t Simulator::ReadBU(int64_t addr) {
 
 
 int32_t Simulator::ReadB(int64_t addr) {
+  local_monitor_.NotifyLoad();
   int8_t* ptr = reinterpret_cast<int8_t*>(addr);
   TraceMemRd(addr, static_cast<int64_t>(*ptr));
   return *ptr;
@@ -2059,6 +2139,9 @@ int32_t Simulator::ReadB(int64_t addr) {
 
 
 void Simulator::WriteB(int64_t addr, uint8_t value) {
+  local_monitor_.NotifyStore();
+  base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+  GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_thread_);
   TraceMemWr(addr, value, BYTE);
   uint8_t* ptr = reinterpret_cast<uint8_t*>(addr);
   *ptr = value;
@@ -2066,6 +2149,9 @@ void Simulator::WriteB(int64_t addr, uint8_t value) {
 
 
 void Simulator::WriteB(int64_t addr, int8_t value) {
+  local_monitor_.NotifyStore();
+  base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+  GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_thread_);
   TraceMemWr(addr, value, BYTE);
   int8_t* ptr = reinterpret_cast<int8_t*>(addr);
   *ptr = value;
@@ -2075,6 +2161,7 @@ template <typename T>
 T Simulator::ReadMem(int64_t addr, Instruction* instr) {
   int alignment_mask = (1 << sizeof(T)) - 1;
   if ((addr & alignment_mask) == 0 || kArchVariant == kMips64r6) {
+    local_monitor_.NotifyLoad();
     T* ptr = reinterpret_cast<T*>(addr);
     TraceMemRd(addr, *ptr);
     return *ptr;
@@ -2090,6 +2177,9 @@ template <typename T>
 void Simulator::WriteMem(int64_t addr, T value, Instruction* instr) {
   int alignment_mask = (1 << sizeof(T)) - 1;
   if ((addr & alignment_mask) == 0 || kArchVariant == kMips64r6) {
+    local_monitor_.NotifyStore();
+    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+    GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_thread_);
     T* ptr = reinterpret_cast<T*>(addr);
     *ptr = value;
     TraceMemWr(addr, value);
@@ -6913,6 +7003,7 @@ void Simulator::DecodeTypeImmediate() {
       set_register(rt_reg, ReadH(rs + se_imm16, instr_.instr()));
       break;
     case LWL: {
+      local_monitor_.NotifyLoad();
       // al_offset is offset of the effective address within an aligned word.
       uint8_t al_offset = (rs + se_imm16) & kInt32AlignmentMask;
       uint8_t byte_shift = kInt32AlignmentMask - al_offset;
@@ -7026,29 +7117,35 @@ void Simulator::DecodeTypeImmediate() {
       break;
     }
     case LL: {
-      // LL/SC sequence cannot be simulated properly
-      DCHECK_EQ(kArchVariant, kMips64r2);
-      set_register(rt_reg, ReadW(rs + se_imm16, instr_.instr()));
+      DCHECK(kArchVariant != kMips64r6);
+      base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+      addr = rs + se_imm16;
+      set_register(rt_reg, ReadW(addr, instr_.instr()));
+      local_monitor_.NotifyLoadLinked(addr, TransactionSize::Word);
+      GlobalMonitor::Get()->NotifyLoadLinked_Locked(addr,
+                                                    &global_monitor_thread_);
       break;
     }
     case SC: {
-      // LL/SC sequence cannot be simulated properly
-      DCHECK_EQ(kArchVariant, kMips64r2);
-      WriteW(rs + se_imm16, static_cast<int32_t>(rt), instr_.instr());
-      set_register(rt_reg, 1);
+      DCHECK(kArchVariant != kMips64r6);
+      addr = rs + se_imm16;
+      WriteConditionalW(addr, static_cast<int32_t>(rt), instr_.instr(), rt_reg);
       break;
     }
     case LLD: {
-      // LL/SC sequence cannot be simulated properly
-      DCHECK_EQ(kArchVariant, kMips64r2);
-      set_register(rt_reg, ReadD(rs + se_imm16, instr_.instr()));
+      DCHECK(kArchVariant != kMips64r6);
+      base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+      addr = rs + se_imm16;
+      set_register(rt_reg, Read2W(addr, instr_.instr()));
+      local_monitor_.NotifyLoadLinked(addr, TransactionSize::DoubleWord);
+      GlobalMonitor::Get()->NotifyLoadLinked_Locked(addr,
+                                                    &global_monitor_thread_);
       break;
     }
     case SCD: {
-      // LL/SC sequence cannot be simulated properly
-      DCHECK_EQ(kArchVariant, kMips64r2);
-      WriteD(rs + se_imm16, rt, instr_.instr());
-      set_register(rt_reg, 1);
+      DCHECK(kArchVariant != kMips64r6);
+      addr = rs + se_imm16;
+      WriteConditional2W(addr, rt, instr_.instr(), rt_reg);
       break;
     }
     case LWC1:
@@ -7102,8 +7199,7 @@ void Simulator::DecodeTypeImmediate() {
                   imm19 <<= (kOpcodeBits + kRsBits + 2);
                   imm19 >>= (kOpcodeBits + kRsBits + 2);
                   addr = current_pc + (imm19 << 2);
-                  uint32_t* ptr = reinterpret_cast<uint32_t*>(addr);
-                  alu_out = *ptr;
+                  alu_out = ReadWU(addr, instr_.instr());
                   break;
                 }
                 case LWPC: {
@@ -7111,8 +7207,7 @@ void Simulator::DecodeTypeImmediate() {
                   imm19 <<= (kOpcodeBits + kRsBits + 2);
                   imm19 >>= (kOpcodeBits + kRsBits + 2);
                   addr = current_pc + (imm19 << 2);
-                  int32_t* ptr = reinterpret_cast<int32_t*>(addr);
-                  alu_out = *ptr;
+                  alu_out = ReadW(addr, instr_.instr());
                   break;
                 }
                 case ADDIUPC: {
@@ -7137,37 +7232,48 @@ void Simulator::DecodeTypeImmediate() {
     case SPECIAL3: {
       switch (instr_.FunctionFieldRaw()) {
         case LL_R6: {
-          // LL/SC sequence cannot be simulated properly
           DCHECK_EQ(kArchVariant, kMips64r6);
+          base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
           int64_t base = get_register(instr_.BaseValue());
           int32_t offset9 = instr_.Imm9Value();
-          set_register(rt_reg, ReadW(base + offset9, instr_.instr()));
+          addr = base + offset9;
+          DCHECK_EQ(addr & 0x3, 0);
+          set_register(rt_reg, ReadW(addr, instr_.instr()));
+          local_monitor_.NotifyLoadLinked(addr, TransactionSize::Word);
+          GlobalMonitor::Get()->NotifyLoadLinked_Locked(
+              addr, &global_monitor_thread_);
           break;
         }
         case LLD_R6: {
-          // LL/SC sequence cannot be simulated properly
           DCHECK_EQ(kArchVariant, kMips64r6);
+          base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
           int64_t base = get_register(instr_.BaseValue());
           int32_t offset9 = instr_.Imm9Value();
-          set_register(rt_reg, ReadD(base + offset9, instr_.instr()));
+          addr = base + offset9;
+          DCHECK_EQ(addr & kPointerAlignmentMask, 0);
+          set_register(rt_reg, Read2W(addr, instr_.instr()));
+          local_monitor_.NotifyLoadLinked(addr, TransactionSize::DoubleWord);
+          GlobalMonitor::Get()->NotifyLoadLinked_Locked(
+              addr, &global_monitor_thread_);
           break;
         }
         case SC_R6: {
-          // LL/SC sequence cannot be simulated properly
           DCHECK_EQ(kArchVariant, kMips64r6);
           int64_t base = get_register(instr_.BaseValue());
           int32_t offset9 = instr_.Imm9Value();
-          WriteW(base + offset9, static_cast<int32_t>(rt), instr_.instr());
-          set_register(rt_reg, 1);
+          addr = base + offset9;
+          DCHECK_EQ(addr & 0x3, 0);
+          WriteConditionalW(addr, static_cast<int32_t>(rt), instr_.instr(),
+                            rt_reg);
           break;
         }
         case SCD_R6: {
-          // LL/SC sequence cannot be simulated properly
           DCHECK_EQ(kArchVariant, kMips64r6);
           int64_t base = get_register(instr_.BaseValue());
           int32_t offset9 = instr_.Imm9Value();
-          WriteD(base + offset9, rt, instr_.instr());
-          set_register(rt_reg, 1);
+          addr = base + offset9;
+          DCHECK_EQ(addr & kPointerAlignmentMask, 0);
+          WriteConditional2W(addr, rt, instr_.instr(), rt_reg);
           break;
         }
         default:
@@ -7402,7 +7508,7 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   if (reg_arg_count > 0) set_register(a0, arguments[0]);
   if (reg_arg_count > 1) set_register(a1, arguments[1]);
   if (reg_arg_count > 2) set_register(a2, arguments[2]);
-  if (reg_arg_count > 2) set_register(a3, arguments[3]);
+  if (reg_arg_count > 3) set_register(a3, arguments[3]);
 
   // Up to eight arguments passed in registers in N64 ABI.
   // TODO(plind): N64 ABI calls these regs a4 - a7. Clarify this.
@@ -7475,11 +7581,181 @@ uintptr_t Simulator::PopAddress() {
   return address;
 }
 
+Simulator::LocalMonitor::LocalMonitor()
+    : access_state_(MonitorAccess::Open),
+      tagged_addr_(0),
+      size_(TransactionSize::None) {}
 
-#undef UNSUPPORTED
+void Simulator::LocalMonitor::Clear() {
+  access_state_ = MonitorAccess::Open;
+  tagged_addr_ = 0;
+  size_ = TransactionSize::None;
+}
+
+void Simulator::LocalMonitor::NotifyLoad() {
+  if (access_state_ == MonitorAccess::RMW) {
+    // A non linked load could clear the local monitor. As a result, it's
+    // most strict to unconditionally clear the local monitor on load.
+    Clear();
+  }
+}
+
+void Simulator::LocalMonitor::NotifyLoadLinked(uintptr_t addr,
+                                               TransactionSize size) {
+  access_state_ = MonitorAccess::RMW;
+  tagged_addr_ = addr;
+  size_ = size;
+}
+
+void Simulator::LocalMonitor::NotifyStore() {
+  if (access_state_ == MonitorAccess::RMW) {
+    // A non exclusive store could clear the local monitor. As a result, it's
+    // most strict to unconditionally clear the local monitor on store.
+    Clear();
+  }
+}
+
+bool Simulator::LocalMonitor::NotifyStoreConditional(uintptr_t addr,
+                                                     TransactionSize size) {
+  if (access_state_ == MonitorAccess::RMW) {
+    if (addr == tagged_addr_ && size_ == size) {
+      Clear();
+      return true;
+    } else {
+      return false;
+    }
+  } else {
+    DCHECK(access_state_ == MonitorAccess::Open);
+    return false;
+  }
+}
+
+Simulator::GlobalMonitor::LinkedAddress::LinkedAddress()
+    : access_state_(MonitorAccess::Open),
+      tagged_addr_(0),
+      next_(nullptr),
+      prev_(nullptr),
+      failure_counter_(0) {}
+
+void Simulator::GlobalMonitor::LinkedAddress::Clear_Locked() {
+  access_state_ = MonitorAccess::Open;
+  tagged_addr_ = 0;
+}
+
+void Simulator::GlobalMonitor::LinkedAddress::NotifyLoadLinked_Locked(
+    uintptr_t addr) {
+  access_state_ = MonitorAccess::RMW;
+  tagged_addr_ = addr;
+}
+
+void Simulator::GlobalMonitor::LinkedAddress::NotifyStore_Locked() {
+  if (access_state_ == MonitorAccess::RMW) {
+    // A non exclusive store could clear the global monitor. As a result, it's
+    // most strict to unconditionally clear global monitors on store.
+    Clear_Locked();
+  }
+}
+
+bool Simulator::GlobalMonitor::LinkedAddress::NotifyStoreConditional_Locked(
+    uintptr_t addr, bool is_requesting_thread) {
+  if (access_state_ == MonitorAccess::RMW) {
+    if (is_requesting_thread) {
+      if (addr == tagged_addr_) {
+        Clear_Locked();
+        // Introduce occasional sc/scd failures. This is to simulate the
+        // behavior of hardware, which can randomly fail due to background
+        // cache evictions.
+        if (failure_counter_++ >= kMaxFailureCounter) {
+          failure_counter_ = 0;
+          return false;
+        } else {
+          return true;
+        }
+      }
+    } else if ((addr & kExclusiveTaggedAddrMask) ==
+               (tagged_addr_ & kExclusiveTaggedAddrMask)) {
+      // Check the masked addresses when responding to a successful lock by
+      // another thread so the implementation is more conservative (i.e. the
+      // granularity of locking is as large as possible.)
+      Clear_Locked();
+      return false;
+    }
+  }
+  return false;
+}
+
+void Simulator::GlobalMonitor::NotifyLoadLinked_Locked(
+    uintptr_t addr, LinkedAddress* linked_address) {
+  linked_address->NotifyLoadLinked_Locked(addr);
+  PrependProcessor_Locked(linked_address);
+}
+
+void Simulator::GlobalMonitor::NotifyStore_Locked(
+    LinkedAddress* linked_address) {
+  // Notify each thread of the store operation.
+  for (LinkedAddress* iter = head_; iter; iter = iter->next_) {
+    iter->NotifyStore_Locked();
+  }
+}
+
+bool Simulator::GlobalMonitor::NotifyStoreConditional_Locked(
+    uintptr_t addr, LinkedAddress* linked_address) {
+  DCHECK(IsProcessorInLinkedList_Locked(linked_address));
+  if (linked_address->NotifyStoreConditional_Locked(addr, true)) {
+    // Notify the other processors that this StoreConditional succeeded.
+    for (LinkedAddress* iter = head_; iter; iter = iter->next_) {
+      if (iter != linked_address) {
+        iter->NotifyStoreConditional_Locked(addr, false);
+      }
+    }
+    return true;
+  } else {
+    return false;
+  }
+}
+
+bool Simulator::GlobalMonitor::IsProcessorInLinkedList_Locked(
+    LinkedAddress* linked_address) const {
+  return head_ == linked_address || linked_address->next_ ||
+         linked_address->prev_;
+}
+
+void Simulator::GlobalMonitor::PrependProcessor_Locked(
+    LinkedAddress* linked_address) {
+  if (IsProcessorInLinkedList_Locked(linked_address)) {
+    return;
+  }
+
+  if (head_) {
+    head_->prev_ = linked_address;
+  }
+  linked_address->prev_ = nullptr;
+  linked_address->next_ = head_;
+  head_ = linked_address;
+}
+
+void Simulator::GlobalMonitor::RemoveLinkedAddress(
+    LinkedAddress* linked_address) {
+  base::MutexGuard lock_guard(&mutex);
+  if (!IsProcessorInLinkedList_Locked(linked_address)) {
+    return;
+  }
+
+  if (linked_address->prev_) {
+    linked_address->prev_->next_ = linked_address->next_;
+  } else {
+    head_ = linked_address->next_;
+  }
+  if (linked_address->next_) {
+    linked_address->next_->prev_ = linked_address->prev_;
+  }
+  linked_address->prev_ = nullptr;
+  linked_address->next_ = nullptr;
+}
+
+#undef SScanF
+
 }  // namespace internal
 }  // namespace v8
 
 #endif  // USE_SIMULATOR
-
-#endif  // V8_TARGET_ARCH_MIPS64

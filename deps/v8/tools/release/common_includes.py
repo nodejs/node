@@ -782,7 +782,7 @@ class UploadStep(Step):
       self.DieNoManualMode("A reviewer must be specified in forced mode.")
       reviewer = self.ReadLine()
 
-    self.GitUpload(reviewer, self._options.author, self._options.force_upload,
+    self.GitUpload(reviewer, self._options.force_upload,
                    bypass_hooks=self._options.bypass_upload_hooks,
                    cc=self._options.cc, tbr_reviewer=tbr_reviewer)
 

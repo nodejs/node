@@ -17,7 +17,7 @@ function TryToLoadModule(filename, expect_error, token) {
   }
 
   import(filename).catch(SetError);
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
 
   if (expect_error) {
     assertTrue(caught_error instanceof SyntaxError);

@@ -27,15 +27,12 @@
 
 [
 [ALWAYS, {
-  # TODO(jochen): The following test is flaky.
+# TODO(jochen): The following test is flaky.
   'overrides/caching': [PASS, FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6891
-  'segmenter/segment': [FAIL],
-  'segmenter/segment-iterator': [FAIL],
-  'segmenter/segment-iterator-following': [FAIL],
-  'segmenter/segment-iterator-next': [FAIL],
-  'segmenter/segment-iterator-preceding': [FAIL],
+  # https://code.google.com/p/v8/issues/detail?id=7481
+  'collator/check-kf-option': [FAIL],
+  'collator/check-kn-option': [FAIL],
 }],  # ALWAYS
 
 ['variant == no_wasm_traps', {
@@ -46,14 +43,18 @@
   # noi18n cannot turn on ICU backend for Date
   'relative-time-format/default-locale-fr-CA': [SKIP],
   'relative-time-format/default-locale-pt-BR': [SKIP],
+
+  # Unable to change locale on Windows:
+  'default_locale': [SKIP],
 }],  # system == windows'
 
 ['system == android', {
   # Android's ICU data file does not have the Chinese/Japanese dictionary
   # required for the test to pass.
-  'break-iterator/zh-break': [FAIL],
+  'break-iterator/zh-break': [SKIP],
   # Unable to change locale on Android:
-  'relative-time-format/default-locale-fr-CA': [FAIL],
-  'relative-time-format/default-locale-pt-BR': [FAIL],
+  'relative-time-format/default-locale-fr-CA': [SKIP],
+  'relative-time-format/default-locale-pt-BR': [SKIP],
+  'default_locale': [SKIP],
 }],  # 'system == android'
 ]

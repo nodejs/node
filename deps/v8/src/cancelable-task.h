@@ -5,10 +5,10 @@
 #ifndef V8_CANCELABLE_TASK_H_
 #define V8_CANCELABLE_TASK_H_
 
+#include <atomic>
 #include <unordered_map>
 
 #include "include/v8-platform.h"
-#include "src/base/atomic-utils.h"
 #include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/globals.h"
@@ -19,6 +19,13 @@ namespace internal {
 class Cancelable;
 class Isolate;
 
+// The possible outcomes of trying to abort a job are:
+// (1) The task is already finished running or was canceled before and
+//     thus has been removed from the manager.
+// (2) The task is currently running and cannot be canceled anymore.
+// (3) The task is not yet running (or finished) so it is canceled and
+//     removed.
+enum class TryAbortResult { kTaskRemoved, kTaskRunning, kTaskAborted };
 
 // Keeps track of cancelable tasks. It is possible to register and remove tasks
 // from any fore- and background task/thread.
@@ -28,24 +35,19 @@ class V8_EXPORT_PRIVATE CancelableTaskManager {
 
   CancelableTaskManager();
 
+  ~CancelableTaskManager();
+
   // Registers a new cancelable {task}. Returns the unique {id} of the task that
   // can be used to try to abort a task by calling {Abort}.
-  // Must not be called after CancelAndWait.
+  // If {Register} is called after {CancelAndWait}, then the task will be
+  // aborted immediately.
+  // {Register} should only be called by the thread which owns the
+  // {CancelableTaskManager}, or by a task which is managed by the
+  // {CancelableTaskManager}.
   Id Register(Cancelable* task);
 
-  // Try to abort running a task identified by {id}. The possible outcomes are:
-  // (1) The task is already finished running or was canceled before and
-  //     thus has been removed from the manager.
-  // (2) The task is currently running and cannot be canceled anymore.
-  // (3) The task is not yet running (or finished) so it is canceled and
-  //     removed.
-  //
-  enum TryAbortResult { kTaskRemoved, kTaskRunning, kTaskAborted };
+  // Try to abort running a task identified by {id}.
   TryAbortResult TryAbort(Id id);
-
-  // Cancels all remaining registered tasks and waits for tasks that are
-  // already running. This disallows subsequent Register calls.
-  void CancelAndWait();
 
   // Tries to cancel all remaining registered tasks. The return value indicates
   // whether
@@ -58,7 +60,16 @@ class V8_EXPORT_PRIVATE CancelableTaskManager {
   // 3) All registered tasks were cancelled (kTaskAborted).
   TryAbortResult TryAbortAll();
 
+  // Cancels all remaining registered tasks and waits for tasks that are
+  // already running. This disallows subsequent Register calls.
+  void CancelAndWait();
+
+  // Returns true of the task manager has been cancelled.
+  bool canceled() const { return canceled_; }
+
  private:
+  static constexpr Id kInvalidTaskId = 0;
+
   // Only called by {Cancelable} destructor. The task is done with executing,
   // but needs to be removed.
   void RemoveFinishedTask(Id id);
@@ -83,7 +94,9 @@ class V8_EXPORT_PRIVATE CancelableTaskManager {
 
 class V8_EXPORT_PRIVATE Cancelable {
  public:
-  explicit Cancelable(CancelableTaskManager* parent);
+  explicit Cancelable(CancelableTaskManager* parent)
+      : parent_(parent), id_(parent->Register(this)) {}
+
   virtual ~Cancelable();
 
   // Never invoke after handing over the task to the platform! The reason is
@@ -94,42 +107,37 @@ class V8_EXPORT_PRIVATE Cancelable {
   CancelableTaskManager::Id id() { return id_; }
 
  protected:
-  bool TryRun() { return status_.TrySetValue(kWaiting, kRunning); }
-  bool IsRunning() { return status_.Value() == kRunning; }
-  intptr_t CancelAttempts() { return cancel_counter_; }
-
- private:
   // Identifies the state a cancelable task is in:
   // |kWaiting|: The task is scheduled and waiting to be executed. {TryRun} will
   //   succeed.
   // |kCanceled|: The task has been canceled. {TryRun} will fail.
   // |kRunning|: The task is currently running and cannot be canceled anymore.
-  enum Status {
-    kWaiting,
-    kCanceled,
-    kRunning,
-  };
+  enum Status { kWaiting, kCanceled, kRunning };
+
+  bool TryRun(Status* previous = nullptr) {
+    return CompareExchangeStatus(kWaiting, kRunning, previous);
+  }
+
+ private:
+  friend class CancelableTaskManager;
 
   // Use {CancelableTaskManager} to abort a task that has not yet been
   // executed.
-  bool Cancel() {
-    if (status_.TrySetValue(kWaiting, kCanceled)) {
-      return true;
-    }
-    cancel_counter_++;
-    return false;
+  bool Cancel() { return CompareExchangeStatus(kWaiting, kCanceled); }
+
+  bool CompareExchangeStatus(Status expected, Status desired,
+                             Status* previous = nullptr) {
+    // {compare_exchange_strong} updates {expected}.
+    bool success = status_.compare_exchange_strong(expected, desired,
+                                                   std::memory_order_acq_rel,
+                                                   std::memory_order_acquire);
+    if (previous) *previous = expected;
+    return success;
   }
 
-  CancelableTaskManager* parent_;
-  base::AtomicValue<Status> status_;
-  CancelableTaskManager::Id id_;
-
-  // The counter is incremented for failing tries to cancel a task. This can be
-  // used by the task itself as an indication how often external entities tried
-  // to abort it.
-  std::atomic<intptr_t> cancel_counter_;
-
-  friend class CancelableTaskManager;
+  CancelableTaskManager* const parent_;
+  std::atomic<Status> status_{kWaiting};
+  const CancelableTaskManager::Id id_;
 
   DISALLOW_COPY_AND_ASSIGN(Cancelable);
 };
@@ -154,33 +162,6 @@ class V8_EXPORT_PRIVATE CancelableTask : public Cancelable,
   DISALLOW_COPY_AND_ASSIGN(CancelableTask);
 };
 
-// TODO(clemensh): Use std::function and move implementation to cc file.
-template <typename Func>
-class CancelableLambdaTask final : public CancelableTask {
- public:
-  CancelableLambdaTask(Isolate* isolate, Func func)
-      : CancelableTask(isolate), func_(std::move(func)) {}
-  CancelableLambdaTask(CancelableTaskManager* manager, Func func)
-      : CancelableTask(manager), func_(std::move(func)) {}
-  void RunInternal() final { func_(); }
-
- private:
-  Func func_;
-};
-
-template <typename Func>
-std::unique_ptr<CancelableTask> MakeCancelableLambdaTask(Isolate* isolate,
-                                                         Func func) {
-  return std::unique_ptr<CancelableTask>(
-      new CancelableLambdaTask<Func>(isolate, std::move(func)));
-}
-template <typename Func>
-std::unique_ptr<CancelableTask> MakeCancelableLambdaTask(
-    CancelableTaskManager* manager, Func func) {
-  return std::unique_ptr<CancelableTask>(
-      new CancelableLambdaTask<Func>(manager, std::move(func)));
-}
-
 // Multiple inheritance can be used because IdleTask is a pure interface.
 class CancelableIdleTask : public Cancelable, public IdleTask {
  public:
@@ -199,34 +180,6 @@ class CancelableIdleTask : public Cancelable, public IdleTask {
  private:
   DISALLOW_COPY_AND_ASSIGN(CancelableIdleTask);
 };
-
-template <typename Func>
-class CancelableIdleLambdaTask final : public CancelableIdleTask {
- public:
-  CancelableIdleLambdaTask(Isolate* isolate, Func func)
-      : CancelableIdleTask(isolate), func_(std::move(func)) {}
-  CancelableIdleLambdaTask(CancelableTaskManager* manager, Func func)
-      : CancelableIdleTask(manager), func_(std::move(func)) {}
-  void RunInternal(double deadline_in_seconds) final {
-    func_(deadline_in_seconds);
-  }
-
- private:
-  Func func_;
-};
-
-template <typename Func>
-std::unique_ptr<CancelableIdleTask> MakeCancelableIdleLambdaTask(
-    Isolate* isolate, Func func) {
-  return std::unique_ptr<CancelableIdleTask>(
-      new CancelableIdleLambdaTask<Func>(isolate, std::move(func)));
-}
-template <typename Func>
-std::unique_ptr<CancelableIdleTask> MakeCancelableIdleLambdaTask(
-    CancelableTaskManager* manager, Func func) {
-  return std::unique_ptr<CancelableIdleTask>(
-      new CancelableIdleLambdaTask<Func>(manager, std::move(func)));
-}
 
 }  // namespace internal
 }  // namespace v8

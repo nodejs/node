@@ -41,7 +41,7 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
     case FAST_STRING_WRAPPER_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS:
-      return kPointerSizeLog2;
+      return kTaggedSizeLog2;
     case NO_ELEMENTS:
       UNREACHABLE();
   }
@@ -68,48 +68,32 @@ const char* ElementsKindToString(ElementsKind kind) {
   return accessor->name();
 }
 
-
-struct InitializeFastElementsKindSequence {
-  static void Construct(void* fast_elements_kind_sequence_ptr_arg) {
-    auto fast_elements_kind_sequence_ptr =
-        reinterpret_cast<ElementsKind**>(fast_elements_kind_sequence_ptr_arg);
-    ElementsKind* fast_elements_kind_sequence =
-        new ElementsKind[kFastElementsKindCount];
-    *fast_elements_kind_sequence_ptr = fast_elements_kind_sequence;
-    STATIC_ASSERT(PACKED_SMI_ELEMENTS == FIRST_FAST_ELEMENTS_KIND);
-    fast_elements_kind_sequence[0] = PACKED_SMI_ELEMENTS;
-    fast_elements_kind_sequence[1] = HOLEY_SMI_ELEMENTS;
-    fast_elements_kind_sequence[2] = PACKED_DOUBLE_ELEMENTS;
-    fast_elements_kind_sequence[3] = HOLEY_DOUBLE_ELEMENTS;
-    fast_elements_kind_sequence[4] = PACKED_ELEMENTS;
-    fast_elements_kind_sequence[5] = HOLEY_ELEMENTS;
-
-    // Verify that kFastElementsKindPackedToHoley is correct.
-    STATIC_ASSERT(PACKED_SMI_ELEMENTS + kFastElementsKindPackedToHoley ==
-                  HOLEY_SMI_ELEMENTS);
-    STATIC_ASSERT(PACKED_DOUBLE_ELEMENTS + kFastElementsKindPackedToHoley ==
-                  HOLEY_DOUBLE_ELEMENTS);
-    STATIC_ASSERT(PACKED_ELEMENTS + kFastElementsKindPackedToHoley ==
-                  HOLEY_ELEMENTS);
-  }
+ElementsKind kFastElementsKindSequence[kFastElementsKindCount] = {
+    PACKED_SMI_ELEMENTS,     // 0
+    HOLEY_SMI_ELEMENTS,      // 1
+    PACKED_DOUBLE_ELEMENTS,  // 2
+    HOLEY_DOUBLE_ELEMENTS,   // 3
+    PACKED_ELEMENTS,         // 4
+    HOLEY_ELEMENTS           // 5
 };
-
-
-static base::LazyInstance<ElementsKind*,
-                          InitializeFastElementsKindSequence>::type
-    fast_elements_kind_sequence = LAZY_INSTANCE_INITIALIZER;
-
+STATIC_ASSERT(PACKED_SMI_ELEMENTS == FIRST_FAST_ELEMENTS_KIND);
+// Verify that kFastElementsKindPackedToHoley is correct.
+STATIC_ASSERT(PACKED_SMI_ELEMENTS + kFastElementsKindPackedToHoley ==
+              HOLEY_SMI_ELEMENTS);
+STATIC_ASSERT(PACKED_DOUBLE_ELEMENTS + kFastElementsKindPackedToHoley ==
+              HOLEY_DOUBLE_ELEMENTS);
+STATIC_ASSERT(PACKED_ELEMENTS + kFastElementsKindPackedToHoley ==
+              HOLEY_ELEMENTS);
 
 ElementsKind GetFastElementsKindFromSequenceIndex(int sequence_number) {
   DCHECK(sequence_number >= 0 &&
          sequence_number < kFastElementsKindCount);
-  return fast_elements_kind_sequence.Get()[sequence_number];
+  return kFastElementsKindSequence[sequence_number];
 }
-
 
 int GetSequenceIndexFromFastElementsKind(ElementsKind elements_kind) {
   for (int i = 0; i < kFastElementsKindCount; ++i) {
-    if (fast_elements_kind_sequence.Get()[i] == elements_kind) {
+    if (kFastElementsKindSequence[i] == elements_kind) {
       return i;
     }
   }

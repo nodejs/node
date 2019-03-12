@@ -356,7 +356,7 @@ var kTests = {
 
     Detached_Int8Array() {
       var array = new Int8Array(10);
-      %ArrayBufferNeuter(array.buffer);
+      %ArrayBufferDetach(array.buffer);
       assertFalse(Array.prototype.includes.call(array, 0));
       assertFalse(Array.prototype.includes.call(array, 0, 10));
     },
@@ -391,7 +391,7 @@ var kTests = {
 
     Detached_Uint8Array() {
       var array = new Uint8Array(10);
-      %ArrayBufferNeuter(array.buffer);
+      %ArrayBufferDetach(array.buffer);
       assertFalse(Array.prototype.includes.call(array, 0));
       assertFalse(Array.prototype.includes.call(array, 0, 10));
     },
@@ -421,7 +421,7 @@ var kTests = {
 
     Detached_Uint8ClampedArray() {
       var array = new Uint8ClampedArray(10);
-      %ArrayBufferNeuter(array.buffer);
+      %ArrayBufferDetach(array.buffer);
       assertFalse(Array.prototype.includes.call(array, 0));
       assertFalse(Array.prototype.includes.call(array, 0, 10));
     },
@@ -453,7 +453,7 @@ var kTests = {
 
     Detached_Int16Array() {
       var array = new Int16Array(10);
-      %ArrayBufferNeuter(array.buffer);
+      %ArrayBufferDetach(array.buffer);
       assertFalse(Array.prototype.includes.call(array, 0));
       assertFalse(Array.prototype.includes.call(array, 0, 10));
     },
@@ -485,7 +485,7 @@ var kTests = {
 
     Detached_Uint16Array() {
       var array = new Uint16Array(10);
-      %ArrayBufferNeuter(array.buffer);
+      %ArrayBufferDetach(array.buffer);
       assertFalse(Array.prototype.includes.call(array, 0));
       assertFalse(Array.prototype.includes.call(array, 0, 10));
     },
@@ -517,7 +517,7 @@ var kTests = {
 
     Detached_Int32Array() {
       var array = new Int32Array(10);
-      %ArrayBufferNeuter(array.buffer);
+      %ArrayBufferDetach(array.buffer);
       assertFalse(Array.prototype.includes.call(array, 0));
       assertFalse(Array.prototype.includes.call(array, 0, 10));
     },
@@ -550,7 +550,7 @@ var kTests = {
 
     Detached_Uint32Array() {
       var array = new Uint32Array(10);
-      %ArrayBufferNeuter(array.buffer);
+      %ArrayBufferDetach(array.buffer);
       assertFalse(Array.prototype.includes.call(array, 0));
       assertFalse(Array.prototype.includes.call(array, 0, 10));
     },
@@ -583,7 +583,7 @@ var kTests = {
 
     Detached_Float32Array() {
       var array = new Float32Array(10);
-      %ArrayBufferNeuter(array.buffer);
+      %ArrayBufferDetach(array.buffer);
       assertFalse(Array.prototype.includes.call(array, 0));
       assertFalse(Array.prototype.includes.call(array, 0, 10));
     },
@@ -616,7 +616,7 @@ var kTests = {
 
     Detached_Float64Array() {
       var array = new Float32Array(10);
-      %ArrayBufferNeuter(array.buffer);
+      %ArrayBufferDetach(array.buffer);
       assertFalse(Array.prototype.includes.call(array, 0));
       assertFalse(Array.prototype.includes.call(array, 0, 10));
     },

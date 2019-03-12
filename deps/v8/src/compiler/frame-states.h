@@ -17,6 +17,7 @@ namespace compiler {
 
 class JSGraph;
 class Node;
+class SharedFunctionInfoRef;
 
 // Flag that describes how to combine the current environment with
 // the output of a node to obtain a framestate for lazy bailout.
@@ -155,7 +156,7 @@ Node* CreateStubBuiltinContinuationFrameState(
     ContinuationFrameStateMode mode);
 
 Node* CreateJavaScriptBuiltinContinuationFrameState(
-    JSGraph* graph, Handle<SharedFunctionInfo> shared, Builtins::Name name,
+    JSGraph* graph, const SharedFunctionInfoRef& shared, Builtins::Name name,
     Node* target, Node* context, Node* const* stack_parameters,
     int stack_parameter_count, Node* outer_frame_state,
     ContinuationFrameStateMode mode);

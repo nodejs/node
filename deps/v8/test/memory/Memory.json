@@ -20,8 +20,8 @@
       "results_regexp": "(\\d+) bytes in \\d+ chunks for startup$"
     },
     {
-      "name": "SnapshotSizeBuiltins",
-      "results_regexp": "(\\d+) bytes for builtins$"
+      "name": "SnapshotSizeReadOnly",
+      "results_regexp": "(\\d+) bytes for read-only$"
     },
     {
       "name": "SnapshotSizeContext",

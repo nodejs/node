@@ -13,8 +13,6 @@ namespace internal {
 namespace compiler {
 namespace machine_operator_unittest {
 
-#if GTEST_HAS_COMBINE
-
 template <typename T>
 class MachineOperatorTestWithParam
     : public TestWithZone,
@@ -159,7 +157,6 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Combine(::testing::ValuesIn(kRepresentationsForStore),
                            ::testing::Values(kNoWriteBarrier,
                                              kFullWriteBarrier))));
-#endif
 
 // -----------------------------------------------------------------------------
 // Pure operators.

@@ -16,9 +16,15 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(JSArrayBuffer, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(JSArrayBufferView, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(JSTypedArray, JSArrayBufferView)
+OBJECT_CONSTRUCTORS_IMPL(JSDataView, JSArrayBufferView)
+
 CAST_ACCESSOR(JSArrayBuffer)
 CAST_ACCESSOR(JSArrayBufferView)
 CAST_ACCESSOR(JSTypedArray)
+CAST_ACCESSOR(JSDataView)
 
 size_t JSArrayBuffer::byte_length() const {
   return READ_UINTPTR_FIELD(this, kByteLengthOffset);
@@ -80,14 +86,15 @@ void JSArrayBuffer::set_is_wasm_memory(bool is_wasm_memory) {
   set_bit_field(IsWasmMemoryBit::update(bit_field(), is_wasm_memory));
 }
 
-void JSArrayBuffer::set_bit_field(uint32_t bits) {
-  if (kInt32Size != kPointerSize) {
-#if V8_TARGET_LITTLE_ENDIAN
-    WRITE_UINT32_FIELD(this, kBitFieldSlot + kInt32Size, 0);
-#else
-    WRITE_UINT32_FIELD(this, kBitFieldSlot, 0);
-#endif
+void JSArrayBuffer::clear_padding() {
+  if (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
+    DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
+    memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
+           FIELD_SIZE(kOptionalPaddingOffset));
   }
+}
+
+void JSArrayBuffer::set_bit_field(uint32_t bits) {
   WRITE_UINT32_FIELD(this, kBitFieldOffset, bits);
 }
 
@@ -98,10 +105,10 @@ uint32_t JSArrayBuffer::bit_field() const {
 // |bit_field| fields.
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_external,
                     JSArrayBuffer::IsExternalBit)
-BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_neuterable,
-                    JSArrayBuffer::IsNeuterableBit)
-BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, was_neutered,
-                    JSArrayBuffer::WasNeuteredBit)
+BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_detachable,
+                    JSArrayBuffer::IsDetachableBit)
+BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, was_detached,
+                    JSArrayBuffer::WasDetachedBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_shared,
                     JSArrayBuffer::IsSharedBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_growable,
@@ -125,13 +132,11 @@ void JSArrayBufferView::set_byte_length(size_t value) {
 
 ACCESSORS(JSArrayBufferView, buffer, Object, kBufferOffset)
 
-bool JSArrayBufferView::WasNeutered() const {
-  return JSArrayBuffer::cast(buffer())->was_neutered();
+bool JSArrayBufferView::WasDetached() const {
+  return JSArrayBuffer::cast(buffer())->was_detached();
 }
 
-Object* JSTypedArray::length() const {
-  return Object::cast(READ_FIELD(this, kLengthOffset));
-}
+Object JSTypedArray::length() const { return READ_FIELD(this, kLengthOffset); }
 
 size_t JSTypedArray::length_value() const {
   double val = length()->Number();
@@ -142,17 +147,17 @@ size_t JSTypedArray::length_value() const {
   return static_cast<size_t>(val);
 }
 
-void JSTypedArray::set_length(Object* value, WriteBarrierMode mode) {
+void JSTypedArray::set_length(Object value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kLengthOffset, value);
-  CONDITIONAL_WRITE_BARRIER(this, kLengthOffset, value, mode);
+  CONDITIONAL_WRITE_BARRIER(*this, kLengthOffset, value, mode);
 }
 
 bool JSTypedArray::is_on_heap() const {
   DisallowHeapAllocation no_gc;
   // Checking that buffer()->backing_store() is not nullptr is not sufficient;
   // it will be nullptr when byte_length is 0 as well.
-  FixedTypedArrayBase* fta(FixedTypedArrayBase::cast(elements()));
-  return fta->base_pointer() == fta;
+  FixedTypedArrayBase fta = FixedTypedArrayBase::cast(elements());
+  return fta->base_pointer()->ptr() == fta.ptr();
 }
 
 // static
@@ -160,14 +165,13 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
                                                  Handle<Object> receiver,
                                                  const char* method_name) {
   if (V8_UNLIKELY(!receiver->IsJSTypedArray())) {
-    const MessageTemplate::Template message = MessageTemplate::kNotTypedArray;
+    const MessageTemplate message = MessageTemplate::kNotTypedArray;
     THROW_NEW_ERROR(isolate, NewTypeError(message), JSTypedArray);
   }
 
   Handle<JSTypedArray> array = Handle<JSTypedArray>::cast(receiver);
-  if (V8_UNLIKELY(array->WasNeutered())) {
-    const MessageTemplate::Template message =
-        MessageTemplate::kDetachedOperation;
+  if (V8_UNLIKELY(array->WasDetached())) {
+    const MessageTemplate message = MessageTemplate::kDetachedOperation;
     Handle<String> operation =
         isolate->factory()->NewStringFromAsciiChecked(method_name);
     THROW_NEW_ERROR(isolate, NewTypeError(message, operation), JSTypedArray);

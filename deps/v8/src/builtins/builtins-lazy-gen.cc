@@ -120,6 +120,13 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   // First lookup code, maybe we don't need to compile!
   Label compile_function(this, Label::kDeferred);
 
+  // Check the code object for the SFI. If SFI's code entry points to
+  // CompileLazy, then we need to lazy compile regardless of the function or
+  // feedback vector marker.
+  TNode<SharedFunctionInfo> shared =
+      CAST(LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset));
+  TNode<Code> sfi_code = GetSharedFunctionInfoCode(shared, &compile_function);
+
   // Compile function if we don't have a valid feedback vector.
   TNode<FeedbackVector> feedback_vector =
       LoadFeedbackVector(function, &compile_function);
@@ -127,23 +134,14 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   // Is there an optimization marker or optimized code in the feedback vector?
   MaybeTailCallOptimizedCodeSlot(function, feedback_vector);
 
-  // We found no optimized code. Infer the code object needed for the SFI.
-  TNode<SharedFunctionInfo> shared =
-      CAST(LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset));
-  // If code entry points to anything other than CompileLazy, install that,
-  // otherwise call runtime to compile the function.
-  TNode<Code> code = GetSharedFunctionInfoCode(shared, &compile_function);
-
-  CSA_ASSERT(
-      this,
-      WordNotEqual(code, HeapConstant(BUILTIN_CODE(isolate(), CompileLazy))));
-
-  // Install the SFI's code entry.
-  StoreObjectField(function, JSFunction::kCodeOffset, code);
-  GenerateTailCallToJSCode(code, function);
+  // If not, install the SFI's code entry and jump to that.
+  CSA_ASSERT(this, WordNotEqual(sfi_code, HeapConstant(BUILTIN_CODE(
+                                              isolate(), CompileLazy))));
+  StoreObjectField(function, JSFunction::kCodeOffset, sfi_code);
+  GenerateTailCallToJSCode(sfi_code, function);
 
   BIND(&compile_function);
-  { GenerateTailCallToReturnedCode(Runtime::kCompileLazy, function); }
+  GenerateTailCallToReturnedCode(Runtime::kCompileLazy, function);
 }
 
 TF_BUILTIN(CompileLazy, LazyBuiltinsAssembler) {
@@ -159,44 +157,6 @@ TF_BUILTIN(CompileLazyDeoptimizedCode, LazyBuiltinsAssembler) {
   TNode<Code> code = HeapConstant(BUILTIN_CODE(isolate(), CompileLazy));
   StoreObjectField(function, JSFunction::kCodeOffset, code);
   GenerateTailCallToJSCode(code, function);
-}
-
-// Lazy deserialization design doc: http://goo.gl/dxkYDZ.
-TF_BUILTIN(DeserializeLazy, LazyBuiltinsAssembler) {
-  Label deserialize_in_runtime(this, Label::kDeferred);
-
-  TNode<JSFunction> function = CAST(Parameter(Descriptor::kTarget));
-
-  // Load the builtin id for lazy deserialization from SharedFunctionInfo.
-  TNode<SharedFunctionInfo> shared =
-      CAST(LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset));
-
-  TNode<Smi> sfi_data =
-      CAST(LoadObjectField(shared, SharedFunctionInfo::kFunctionDataOffset));
-
-  // The builtin may already have been deserialized. If that is the case, it is
-  // stored in the builtins table, and we can copy to correct code object to
-  // both the shared function info and function without calling into runtime.
-  //
-  // Otherwise, we need to call into runtime to deserialize.
-
-  TNode<Code> code = LoadBuiltin(sfi_data);
-
-  // Check if the loaded code object has already been deserialized. This is
-  // the case iff it does not equal DeserializeLazy.
-  GotoIf(
-      WordEqual(code, HeapConstant(BUILTIN_CODE(isolate(), DeserializeLazy))),
-      &deserialize_in_runtime);
-
-  // If we've reached this spot, the target builtin has been deserialized and
-  // we simply need to copy it over to the target function.
-  StoreObjectField(function, JSFunction::kCodeOffset, code);
-
-  // All copying is done. Jump to the deserialized code object.
-  GenerateTailCallToJSCode(code, function);
-
-  BIND(&deserialize_in_runtime);
-  { GenerateTailCallToReturnedCode(Runtime::kDeserializeLazy, function); }
 }
 
 }  // namespace internal

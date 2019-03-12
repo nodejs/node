@@ -195,8 +195,7 @@ void TestInvalidateExclusiveAccess(TestData initial_data, MemoryAccess access1,
                                    int expected_res, TestData expected_data) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler masm(isolate, nullptr, 0,
-                      v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
 
   AssembleLoadExcl(&masm, access1, w1, x1);
   AssembleMemoryAccess(&masm, access2, w3, w2, x1);
@@ -271,8 +270,7 @@ namespace {
 int ExecuteMemoryAccess(Isolate* isolate, TestData* test_data,
                         MemoryAccess access) {
   HandleScope scope(isolate);
-  MacroAssembler masm(isolate, nullptr, 0,
-                      v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
   AssembleMemoryAccess(&masm, access, w0, w2, x1);
   __ br(lr);
 
@@ -303,7 +301,7 @@ class MemoryAccessThread : public v8::base::Thread {
     Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate_);
     {
       v8::Isolate::Scope scope(isolate_);
-      v8::base::LockGuard<v8::base::Mutex> lock_guard(&mutex_);
+      v8::base::MutexGuard lock_guard(&mutex_);
       while (!is_finished_) {
         while (!(has_request_ || is_finished_)) {
           has_request_cv_.Wait(&mutex_);
@@ -324,7 +322,7 @@ class MemoryAccessThread : public v8::base::Thread {
 
   void NextAndWait(TestData* test_data, MemoryAccess access) {
     DCHECK(!has_request_);
-    v8::base::LockGuard<v8::base::Mutex> lock_guard(&mutex_);
+    v8::base::MutexGuard lock_guard(&mutex_);
     test_data_ = test_data;
     access_ = access;
     has_request_ = true;
@@ -336,7 +334,7 @@ class MemoryAccessThread : public v8::base::Thread {
   }
 
   void Finish() {
-    v8::base::LockGuard<v8::base::Mutex> lock_guard(&mutex_);
+    v8::base::MutexGuard lock_guard(&mutex_);
     is_finished_ = true;
     has_request_cv_.NotifyOne();
   }

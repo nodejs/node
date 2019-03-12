@@ -69,9 +69,9 @@ const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
   return AddOrDisposeString(str.start(), len);
 }
 
-const char* StringsStorage::GetName(Name* name) {
+const char* StringsStorage::GetName(Name name) {
   if (name->IsString()) {
-    String* str = String::cast(name);
+    String str = String::cast(name);
     int length = Min(FLAG_heap_snapshot_string_limit, str->length());
     int actual_length = 0;
     std::unique_ptr<char[]> data = str->ToCString(
@@ -87,9 +87,9 @@ const char* StringsStorage::GetName(int index) {
   return GetFormatted("%d", index);
 }
 
-const char* StringsStorage::GetConsName(const char* prefix, Name* name) {
+const char* StringsStorage::GetConsName(const char* prefix, Name name) {
   if (name->IsString()) {
-    String* str = String::cast(name);
+    String str = String::cast(name);
     int length = Min(FLAG_heap_snapshot_string_limit, str->length());
     int actual_length = 0;
     std::unique_ptr<char[]> data = str->ToCString(

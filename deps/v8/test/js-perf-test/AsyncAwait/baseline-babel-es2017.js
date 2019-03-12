@@ -160,10 +160,10 @@ function Setup() {
     return a;
   })();
 
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
 }
 
 function Basic() {
   a();
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
 }

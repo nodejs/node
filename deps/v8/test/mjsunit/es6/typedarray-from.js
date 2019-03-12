@@ -208,7 +208,7 @@ for (var constructor of typedArrayConstructors) {
 
   let ta2 = new constructor(3).fill(1);
   Object.defineProperty(ta2, "length", {get: function() {
-    %ArrayBufferNeuter(ta2.buffer);
+    %ArrayBufferDetach(ta2.buffer);
     return 6;
   }});
   assertArrayLikeEquals(constructor.from(ta2), [d, d, d, d, d, d], constructor);

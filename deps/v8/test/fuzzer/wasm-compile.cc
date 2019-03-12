@@ -61,14 +61,15 @@ class DataRange {
     return split;
   }
 
-  template <typename T>
+  template <typename T, size_t max_bytes = sizeof(T)>
   T get() {
+    STATIC_ASSERT(max_bytes <= sizeof(T));
     // We want to support the case where we have less than sizeof(T) bytes
     // remaining in the slice. For example, if we emit an i32 constant, it's
     // okay if we don't have a full four bytes available, we'll just use what
     // we have. We aren't concerned about endianness because we are generating
     // arbitrary expressions.
-    const size_t num_bytes = std::min(sizeof(T), data_.size());
+    const size_t num_bytes = std::min(max_bytes, data_.size());
     T result = T();
     memcpy(&result, data_.start(), num_bytes);
     data_ += num_bytes;
@@ -342,6 +343,16 @@ class WasmGenerator {
     local_op<wanted_type>(data, kExprTeeLocal);
   }
 
+  template <size_t num_bytes>
+  void i32_const(DataRange& data) {
+    builder_->EmitI32Const(data.get<int32_t, num_bytes>());
+  }
+
+  template <size_t num_bytes>
+  void i64_const(DataRange& data) {
+    builder_->EmitI64Const(data.get<int64_t, num_bytes>());
+  }
+
   Var GetRandomGlobal(DataRange& data, bool ensure_mutable) {
     uint32_t index;
     if (ensure_mutable) {
@@ -507,12 +518,17 @@ void WasmGenerator::Generate<kWasmStmt>(DataRange& data) {
 template <>
 void WasmGenerator::Generate<kWasmI32>(DataRange& data) {
   GeneratorRecursionScope rec_scope(this);
-  if (recursion_limit_reached() || data.size() <= sizeof(uint32_t)) {
+  if (recursion_limit_reached() || data.size() <= 1) {
     builder_->EmitI32Const(data.get<uint32_t>());
     return;
   }
 
   constexpr generate_fn alternates[] = {
+      &WasmGenerator::i32_const<1>,
+      &WasmGenerator::i32_const<2>,
+      &WasmGenerator::i32_const<3>,
+      &WasmGenerator::i32_const<4>,
+
       &WasmGenerator::sequence<kWasmI32, kWasmStmt>,
       &WasmGenerator::sequence<kWasmStmt, kWasmI32>,
       &WasmGenerator::sequence<kWasmStmt, kWasmI32, kWasmStmt>,
@@ -598,12 +614,21 @@ void WasmGenerator::Generate<kWasmI32>(DataRange& data) {
 template <>
 void WasmGenerator::Generate<kWasmI64>(DataRange& data) {
   GeneratorRecursionScope rec_scope(this);
-  if (recursion_limit_reached() || data.size() <= sizeof(uint64_t)) {
+  if (recursion_limit_reached() || data.size() <= 1) {
     builder_->EmitI64Const(data.get<int64_t>());
     return;
   }
 
   constexpr generate_fn alternates[] = {
+      &WasmGenerator::i64_const<1>,
+      &WasmGenerator::i64_const<2>,
+      &WasmGenerator::i64_const<3>,
+      &WasmGenerator::i64_const<4>,
+      &WasmGenerator::i64_const<5>,
+      &WasmGenerator::i64_const<6>,
+      &WasmGenerator::i64_const<7>,
+      &WasmGenerator::i64_const<8>,
+
       &WasmGenerator::sequence<kWasmI64, kWasmStmt>,
       &WasmGenerator::sequence<kWasmStmt, kWasmI64>,
       &WasmGenerator::sequence<kWasmStmt, kWasmI64, kWasmStmt>,
@@ -720,7 +745,7 @@ void WasmGenerator::Generate<kWasmF64>(DataRange& data) {
 
 void WasmGenerator::grow_memory(DataRange& data) {
   Generate<kWasmI32>(data);
-  builder_->EmitWithU8(kExprGrowMemory, 0);
+  builder_->EmitWithU8(kExprMemoryGrow, 0);
 }
 
 void WasmGenerator::Generate(ValueType type, DataRange& data) {
@@ -824,7 +849,8 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   constexpr bool require_valid = true;
-  return WasmCompileFuzzer().FuzzWasmModule({data, size}, require_valid);
+  WasmCompileFuzzer().FuzzWasmModule({data, size}, require_valid);
+  return 0;
 }
 
 }  // namespace fuzzer

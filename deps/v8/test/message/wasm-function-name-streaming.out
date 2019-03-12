@@ -1,4 +1,4 @@
 RuntimeError: unreachable
     at main (wasm-function[0]:1)
-    at pair (test/message/wasm-function-name-async.js:16:27)
-    at promise.then.result (test/mjsunit/mjsunit.js:*)
+    at test/message/wasm-function-name-async.js:16:27
+    at test/mjsunit/mjsunit.js:*

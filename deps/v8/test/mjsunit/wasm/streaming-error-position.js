@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-test-streaming --wasm-async-compilation --expose-wasm --allow-natives-syntax
+// Flags: --wasm-test-streaming --expose-wasm --allow-natives-syntax
 
 'use strict';
 

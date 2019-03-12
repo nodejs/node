@@ -65,7 +65,7 @@ for (var constructor of typedArrayConstructors) {
 
   // Detached Operation
   var array = new constructor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-  %ArrayBufferNeuter(array.buffer);
+  %ArrayBufferDetach(array.buffer);
   assertThrows(() => array.sort(), TypeError);
 }
 

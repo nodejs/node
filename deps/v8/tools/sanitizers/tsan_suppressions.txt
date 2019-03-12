@@ -4,7 +4,3 @@
 # Incorrectly detected lock cycles in test-lockers
 # https://code.google.com/p/thread-sanitizer/issues/detail?id=81
 deadlock:LockAndUnlockDifferentIsolatesThread::Run
-
-# Data race in a third party lib
-# https://bugs.chromium.org/p/v8/issues/detail?id=8110
-race:IndianCalendar::fgSystemDefaultCenturyStartYear

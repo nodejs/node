@@ -2,18 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import * as d3 from "d3"
-import {layoutNodeGraph} from "./graph-layout.js"
-import {MAX_RANK_SENTINEL} from "./constants.js"
-import {GNode, nodeToStr, isNodeInitiallyVisible} from "./node.js"
-import {NODE_INPUT_WIDTH, MINIMUM_NODE_OUTPUT_APPROACH} from "./node.js"
-import {DEFAULT_NODE_BUBBLE_RADIUS} from "./node.js"
-import {Edge, edgeToStr} from "./edge.js"
-import {View, PhaseView} from "./view.js"
-import {MySelection} from "./selection.js"
-import {partial, alignUp} from "./util.js"
+import * as d3 from "d3";
+import { layoutNodeGraph } from "../src/graph-layout";
+import { GNode, nodeToStr } from "../src/node";
+import { NODE_INPUT_WIDTH } from "../src/node";
+import { DEFAULT_NODE_BUBBLE_RADIUS } from "../src/node";
+import { Edge, edgeToStr } from "../src/edge";
+import { PhaseView } from "../src/view";
+import { MySelection } from "../src/selection";
+import { partial } from "../src/util";
+import { NodeSelectionHandler, ClearableHandler } from "./selection-handler";
+import { Graph } from "./graph";
+import { SelectionBroker } from "./selection-broker";
 
-function nodeToStringKey(n) {
+function nodeToStringKey(n: GNode) {
   return "" + n.id;
 }
 
@@ -21,35 +23,28 @@ interface GraphState {
   showTypes: boolean;
   selection: MySelection;
   mouseDownNode: any;
-  justDragged: boolean,
-  justScaleTransGraph: boolean,
-  lastKeyDown: number,
-  hideDead: boolean
+  justDragged: boolean;
+  justScaleTransGraph: boolean;
+  hideDead: boolean;
 }
 
-export class GraphView extends View implements PhaseView {
+export class GraphView extends PhaseView {
   divElement: d3.Selection<any, any, any, any>;
   svg: d3.Selection<any, any, any, any>;
-  showPhaseByName: (string) => void;
+  showPhaseByName: (p: string, s: Set<any>) => void;
   state: GraphState;
-  nodes: Array<GNode>;
-  edges: Array<any>;
-  selectionHandler: NodeSelectionHandler;
+  selectionHandler: NodeSelectionHandler & ClearableHandler;
   graphElement: d3.Selection<any, any, any, any>;
   visibleNodes: d3.Selection<any, GNode, any, any>;
   visibleEdges: d3.Selection<any, Edge, any, any>;
-  minGraphX: number;
-  maxGraphX: number;
-  minGraphY: number;
-  maxGraphY: number;
-  width: number;
-  height: number;
-  maxGraphNodeX: number;
   drag: d3.DragBehavior<any, GNode, GNode>;
   panZoom: d3.ZoomBehavior<SVGElement, any>;
-  nodeMap: Array<any>;
   visibleBubbles: d3.Selection<any, any, any, any>;
   transitionTimout: number;
+  graph: Graph;
+  broker: SelectionBroker;
+  phaseName: string;
+  toolbox: HTMLElement;
 
   createViewElement() {
     const pane = document.createElement('div');
@@ -57,82 +52,88 @@ export class GraphView extends View implements PhaseView {
     return pane;
   }
 
-  constructor(id, broker, showPhaseByName: (string) => void) {
-    super(id);
-    var graph = this;
+  constructor(idOrContainer: string | HTMLElement, broker: SelectionBroker,
+    showPhaseByName: (s: string) => void, toolbox: HTMLElement) {
+    super(idOrContainer);
+    const view = this;
+    this.broker = broker;
     this.showPhaseByName = showPhaseByName;
     this.divElement = d3.select(this.divNode);
-    const svg = this.divElement.append("svg").attr('version', '1.1')
+    this.phaseName = "";
+    this.toolbox = toolbox;
+    const svg = this.divElement.append("svg")
+      .attr('version', '2.0')
       .attr("width", "100%")
       .attr("height", "100%");
     svg.on("click", function (d) {
-      graph.selectionHandler.clear();
+      view.selectionHandler.clear();
     });
-    graph.svg = svg;
+    // Listen for key events. Note that the focus handler seems
+    // to be important even if it does nothing.
+    svg
+      .attr("focusable", false)
+      .on("focus", e => { })
+      .on("keydown", e => { view.svgKeyDown(); });
 
-    graph.nodes = [];
-    graph.edges = [];
+    view.svg = svg;
 
-    graph.minGraphX = 0;
-    graph.maxGraphX = 1;
-    graph.minGraphY = 0;
-    graph.maxGraphY = 1;
-
-    graph.state = {
+    this.state = {
       selection: null,
       mouseDownNode: null,
       justDragged: false,
       justScaleTransGraph: false,
-      lastKeyDown: -1,
       showTypes: false,
       hideDead: false
     };
 
     this.selectionHandler = {
       clear: function () {
-        graph.state.selection.clear();
+        view.state.selection.clear();
         broker.broadcastClear(this);
-        graph.updateGraphVisibility();
+        view.updateGraphVisibility();
       },
-      select: function (nodes, selected) {
-        let locations = [];
+      select: function (nodes: Array<GNode>, selected: boolean) {
+        const locations = [];
         for (const node of nodes) {
-          if (node.sourcePosition) {
-            locations.push(node.sourcePosition);
+          if (node.nodeLabel.sourcePosition) {
+            locations.push(node.nodeLabel.sourcePosition);
           }
-          if (node.origin && node.origin.bytecodePosition) {
-            locations.push({ bytecodePosition: node.origin.bytecodePosition });
+          if (node.nodeLabel.origin && node.nodeLabel.origin.bytecodePosition) {
+            locations.push({ bytecodePosition: node.nodeLabel.origin.bytecodePosition });
           }
         }
-        graph.state.selection.select(nodes, selected);
+        view.state.selection.select(nodes, selected);
         broker.broadcastSourcePositionSelect(this, locations, selected);
-        graph.updateGraphVisibility();
+        view.updateGraphVisibility();
       },
-      brokeredNodeSelect: function (locations, selected) {
-        let selection = graph.nodes
-          .filter(function (n) {
-            return locations.has(nodeToStringKey(n))
-              && (!graph.state.hideDead || n.isLive());
-          });
-        graph.state.selection.select(selection, selected);
+      brokeredNodeSelect: function (locations, selected: boolean) {
+        if (!view.graph) return;
+        const selection = view.graph.nodes(n => {
+          return locations.has(nodeToStringKey(n))
+            && (!view.state.hideDead || n.isLive());
+        });
+        view.state.selection.select(selection, selected);
         // Update edge visibility based on selection.
-        graph.nodes.forEach((n) => {
-          if (graph.state.selection.isSelected(n)) n.visible = true;
-        });
-        graph.edges.forEach(function (e) {
-          e.visible = e.visible ||
-            (graph.state.selection.isSelected(e.source) && graph.state.selection.isSelected(e.target));
-        });
-        graph.updateGraphVisibility();
+        for (const n of view.graph.nodes()) {
+          if (view.state.selection.isSelected(n)) {
+            n.visible = true;
+            n.inputs.forEach(e => {
+              e.visible = e.visible || view.state.selection.isSelected(e.source);
+            });
+            n.outputs.forEach(e => {
+              e.visible = e.visible || view.state.selection.isSelected(e.target);
+            });
+          }
+        }
+        view.updateGraphVisibility();
       },
       brokeredClear: function () {
-        graph.state.selection.clear();
-        graph.updateGraphVisibility();
+        view.state.selection.clear();
+        view.updateGraphVisibility();
       }
     };
-    broker.addNodeHandler(this.selectionHandler);
 
-    graph.state.selection = new MySelection(nodeToStringKey);
+    view.state.selection = new MySelection(nodeToStringKey);
 
     const defs = svg.append('svg:defs');
     defs.append('svg:marker')
@@ -146,35 +147,20 @@ export class GraphView extends View implements PhaseView {
       .attr('d', 'M0,-4L8,0L0,4');
 
     this.graphElement = svg.append("g");
-    graph.visibleEdges = this.graphElement.append("g");
-    graph.visibleNodes = this.graphElement.append("g");
+    view.visibleEdges = this.graphElement.append("g");
+    view.visibleNodes = this.graphElement.append("g");
 
-    graph.drag = d3.drag<any, GNode, GNode>()
+    view.drag = d3.drag<any, GNode, GNode>()
       .on("drag", function (d) {
         d.x += d3.event.dx;
         d.y += d3.event.dy;
-        graph.updateGraphVisibility();
+        view.updateGraphVisibility();
       });
-
-
-    d3.select("#layout").on("click", partial(this.layoutAction, graph));
-    d3.select("#show-all").on("click", partial(this.showAllAction, graph));
-    d3.select("#toggle-hide-dead").on("click", partial(this.toggleHideDead, graph));
-    d3.select("#hide-unselected").on("click", partial(this.hideUnselectedAction, graph));
-    d3.select("#hide-selected").on("click", partial(this.hideSelectedAction, graph));
-    d3.select("#zoom-selection").on("click", partial(this.zoomSelectionAction, graph));
-    d3.select("#toggle-types").on("click", partial(this.toggleTypesAction, graph));
-
-    // listen for key events
-    d3.select(window).on("keydown", function (e) {
-      graph.svgKeyDown.call(graph);
-    }).on("keyup", function () {
-      graph.svgKeyUp.call(graph);
-    });
 
     function zoomed() {
       if (d3.event.shiftKey) return false;
-      graph.graphElement.attr("transform", d3.event.transform);
+      view.graphElement.attr("transform", d3.event.transform);
+      return true;
     }
 
     const zoomSvg = d3.zoom<SVGElement, any>()
@@ -190,38 +176,17 @@ export class GraphView extends View implements PhaseView {
 
     svg.call(zoomSvg).on("dblclick.zoom", null);
 
-    graph.panZoom = zoomSvg;
+    view.panZoom = zoomSvg;
 
   }
 
-
-  static get selectedClass() {
-    return "selected";
-  }
-  static get rectClass() {
-    return "nodeStyle";
-  }
-  static get activeEditId() {
-    return "active-editing";
-  }
-  static get nodeRadius() {
-    return 50;
-  }
-
-  getNodeHeight(d): number {
-    if (this.state.showTypes) {
-      return d.normalheight + d.labelbbox.height;
-    } else {
-      return d.normalheight;
-    }
-  }
-
-  getEdgeFrontier(nodes, inEdges, edgeFilter) {
-    let frontier = new Set();
+  getEdgeFrontier(nodes: Iterable<GNode>, inEdges: boolean,
+    edgeFilter: (e: Edge, i: number) => boolean) {
+    const frontier: Set<Edge> = new Set();
     for (const n of nodes) {
-      var edges = inEdges ? n.inputs : n.outputs;
-      var edgeNumber = 0;
-      edges.forEach(function (edge) {
+      const edges = inEdges ? n.inputs : n.outputs;
+      let edgeNumber = 0;
+      edges.forEach((edge: Edge) => {
         if (edgeFilter == undefined || edgeFilter(edge, edgeNumber)) {
           frontier.add(edge);
         }
@@ -231,28 +196,29 @@ export class GraphView extends View implements PhaseView {
     return frontier;
   }
 
-  getNodeFrontier(nodes, inEdges, edgeFilter) {
-    let graph = this;
-    var frontier = new Set();
-    var newState = true;
-    var edgeFrontier = graph.getEdgeFrontier(nodes, inEdges, edgeFilter);
+  getNodeFrontier(nodes: Iterable<GNode>, inEdges: boolean,
+    edgeFilter: (e: Edge, i: number) => boolean) {
+    const view = this;
+    const frontier: Set<GNode> = new Set();
+    let newState = true;
+    const edgeFrontier = view.getEdgeFrontier(nodes, inEdges, edgeFilter);
     // Control key toggles edges rather than just turning them on
     if (d3.event.ctrlKey) {
-      edgeFrontier.forEach(function (edge) {
+      edgeFrontier.forEach(function (edge: Edge) {
         if (edge.visible) {
           newState = false;
         }
       });
     }
-    edgeFrontier.forEach(function (edge) {
+    edgeFrontier.forEach(function (edge: Edge) {
       edge.visible = newState;
       if (newState) {
-        var node = inEdges ? edge.source : edge.target;
+        const node = inEdges ? edge.source : edge.target;
         node.visible = true;
         frontier.add(node);
       }
     });
-    graph.updateGraphVisibility();
+    view.updateGraphVisibility();
     if (newState) {
       return frontier;
     } else {
@@ -261,8 +227,39 @@ export class GraphView extends View implements PhaseView {
   }
 
   initializeContent(data, rememberedSelection) {
-    this.createGraph(data, rememberedSelection);
-    if (rememberedSelection != null) {
+    this.show();
+    function createImgInput(id: string, title: string, onClick): HTMLElement {
+      const input = document.createElement("input");
+      input.setAttribute("id", id);
+      input.setAttribute("type", "image");
+      input.setAttribute("title", title);
+      input.setAttribute("src", `img/${id}-icon.png`);
+      input.className = "button-input graph-toolbox-item";
+      input.addEventListener("click", onClick);
+      return input;
+    }
+    this.toolbox.appendChild(createImgInput("layout", "layout graph",
+      partial(this.layoutAction, this)));
+    this.toolbox.appendChild(createImgInput("show-all", "show all nodes",
+      partial(this.showAllAction, this)));
+    this.toolbox.appendChild(createImgInput("show-control", "show all nodes",
+      partial(this.showControlAction, this)));
+    this.toolbox.appendChild(createImgInput("toggle-hide-dead", "show only live nodes",
+      partial(this.toggleHideDead, this)));
+    this.toolbox.appendChild(createImgInput("hide-unselected", "show only live nodes",
+      partial(this.hideUnselectedAction, this)));
+    this.toolbox.appendChild(createImgInput("hide-selected", "show only live nodes",
+      partial(this.hideSelectedAction, this)));
+    this.toolbox.appendChild(createImgInput("zoom-selection", "show only live nodes",
+      partial(this.zoomSelectionAction, this)));
+    this.toolbox.appendChild(createImgInput("toggle-types", "show only live nodes",
+      partial(this.toggleTypesAction, this)));
+
+    this.phaseName = data.name;
+    this.createGraph(data.data, rememberedSelection);
+    this.broker.addNodeHandler(this.selectionHandler);
+
+    if (rememberedSelection != null && rememberedSelection.size > 0) {
       this.attachSelection(rememberedSelection);
       this.connectVisibleSelectedNodes();
       this.viewSelection();
@@ -272,88 +269,50 @@ export class GraphView extends View implements PhaseView {
   }
 
   deleteContent() {
-    if (this.visibleNodes) {
-      this.nodes = [];
-      this.edges = [];
-      this.nodeMap = [];
-      this.updateGraphVisibility();
+    for (const item of this.toolbox.querySelectorAll(".graph-toolbox-item")) {
+      item.parentElement.removeChild(item);
     }
-  };
 
-  measureText(text) {
-    const textMeasure = document.getElementById('text-measure') as SVGTSpanElement;
-    textMeasure.textContent = text;
-    return {
-      width: textMeasure.getBBox().width,
-      height: textMeasure.getBBox().height,
-    };
+    for (const n of this.graph.nodes()) {
+      n.visible = false;
+    }
+    this.graph.forEachEdge((e: Edge) => {
+      e.visible = false;
+    });
+    this.updateGraphVisibility();
+  }
+
+  public hide(): void {
+    super.hide();
+    this.deleteContent();
   }
 
   createGraph(data, rememberedSelection) {
-    var g = this;
-    g.nodes = [];
-    g.nodeMap = [];
-    data.nodes.forEach(function (n, i) {
-      n.__proto__ = GNode.prototype;
-      n.visible = false;
-      n.x = 0;
-      n.y = 0;
-      if (typeof n.pos === "number") {
-        // Backwards compatibility.
-        n.sourcePosition = { scriptOffset: n.pos, inliningId: -1 };
+    this.graph = new Graph(data);
+
+    this.showControlAction(this);
+
+    if (rememberedSelection != undefined) {
+      for (const n of this.graph.nodes()) {
+        n.visible = n.visible || rememberedSelection.has(nodeToStringKey(n));
       }
-      n.rank = MAX_RANK_SENTINEL;
-      n.inputs = [];
-      n.outputs = [];
-      n.rpo = -1;
-      n.outputApproach = MINIMUM_NODE_OUTPUT_APPROACH;
-      n.cfg = n.control;
-      g.nodeMap[n.id] = n;
-      n.displayLabel = n.getDisplayLabel();
-      n.labelbbox = g.measureText(n.displayLabel);
-      n.typebbox = g.measureText(n.getDisplayType());
-      var innerwidth = Math.max(n.labelbbox.width, n.typebbox.width);
-      n.width = alignUp(innerwidth + NODE_INPUT_WIDTH * 2,
-        NODE_INPUT_WIDTH);
-      var innerheight = Math.max(n.labelbbox.height, n.typebbox.height);
-      n.normalheight = innerheight + 20;
-      g.nodes.push(n);
-    });
-    g.edges = [];
-    data.edges.forEach(function (e, i) {
-      var t = g.nodeMap[e.target];
-      var s = g.nodeMap[e.source];
-      var newEdge = new Edge(t, e.index, s, e.type);
-      t.inputs.push(newEdge);
-      s.outputs.push(newEdge);
-      g.edges.push(newEdge);
-      if (e.type == 'control') {
-        s.cfg = true;
-      }
-    });
-    g.nodes.forEach(function (n, i) {
-      n.visible = isNodeInitiallyVisible(n) && (!g.state.hideDead || n.isLive());
-      if (rememberedSelection != undefined) {
-        if (rememberedSelection.has(nodeToStringKey(n))) {
-          n.visible = true;
-        }
-      }
-    });
-    g.updateGraphVisibility();
-    g.layoutGraph();
-    g.updateGraphVisibility();
-    g.viewWholeGraph();
+    }
+
+    this.graph.forEachEdge(e => e.visible = e.source.visible && e.target.visible);
+
+    this.layoutGraph();
+    this.updateGraphVisibility();
   }
 
   connectVisibleSelectedNodes() {
-    var graph = this;
-    for (const n of graph.state.selection) {
-      n.inputs.forEach(function (edge) {
+    const view = this;
+    for (const n of view.state.selection) {
+      n.inputs.forEach(function (edge: Edge) {
         if (edge.source.visible && edge.target.visible) {
           edge.visible = true;
         }
       });
-      n.outputs.forEach(function (edge) {
+      n.outputs.forEach(function (edge: Edge) {
         if (edge.source.visible && edge.target.visible) {
           edge.visible = true;
         }
@@ -362,52 +321,51 @@ export class GraphView extends View implements PhaseView {
   }
 
   updateInputAndOutputBubbles() {
-    var g = this;
-    var s = g.visibleBubbles;
+    const view = this;
+    const g = this.graph;
+    const s = this.visibleBubbles;
     s.classed("filledBubbleStyle", function (c) {
-      var components = this.id.split(',');
+      const components = this.id.split(',');
       if (components[0] == "ib") {
-        var edge = g.nodeMap[components[3]].inputs[components[2]];
+        const edge = g.nodeMap[components[3]].inputs[components[2]];
         return edge.isVisible();
       } else {
         return g.nodeMap[components[1]].areAnyOutputsVisible() == 2;
       }
     }).classed("halfFilledBubbleStyle", function (c) {
-      var components = this.id.split(',');
+      const components = this.id.split(',');
       if (components[0] == "ib") {
-        var edge = g.nodeMap[components[3]].inputs[components[2]];
         return false;
       } else {
         return g.nodeMap[components[1]].areAnyOutputsVisible() == 1;
       }
     }).classed("bubbleStyle", function (c) {
-      var components = this.id.split(',');
+      const components = this.id.split(',');
       if (components[0] == "ib") {
-        var edge = g.nodeMap[components[3]].inputs[components[2]];
+        const edge = g.nodeMap[components[3]].inputs[components[2]];
         return !edge.isVisible();
       } else {
         return g.nodeMap[components[1]].areAnyOutputsVisible() == 0;
       }
     });
     s.each(function (c) {
-      var components = this.id.split(',');
+      const components = this.id.split(',');
       if (components[0] == "ob") {
-        var from = g.nodeMap[components[1]];
-        var x = from.getOutputX();
-        var y = g.getNodeHeight(from) + DEFAULT_NODE_BUBBLE_RADIUS;
-        var transform = "translate(" + x + "," + y + ")";
+        const from = g.nodeMap[components[1]];
+        const x = from.getOutputX();
+        const y = from.getNodeHeight(view.state.showTypes) + DEFAULT_NODE_BUBBLE_RADIUS;
+        const transform = "translate(" + x + "," + y + ")";
         this.setAttribute('transform', transform);
       }
     });
   }
 
   attachSelection(s) {
-    const graph = this;
     if (!(s instanceof Set)) return;
-    graph.selectionHandler.clear();
-    const selected = graph.nodes.filter((n) =>
-      s.has(graph.state.selection.stringKey(n)) && (!graph.state.hideDead || n.isLive()));
-    graph.selectionHandler.select(selected, true);
+    this.selectionHandler.clear();
+    const selected = [...this.graph.nodes(n =>
+      s.has(this.state.selection.stringKey(n)) && (!this.state.hideDead || n.isLive()))];
+    this.selectionHandler.select(selected, true);
   }
 
   detachSelection() {
@@ -415,134 +373,135 @@ export class GraphView extends View implements PhaseView {
   }
 
   selectAllNodes() {
-    var graph = this;
     if (!d3.event.shiftKey) {
-      graph.state.selection.clear();
+      this.state.selection.clear();
     }
-    const allVisibleNodes = graph.nodes.filter((n) => n.visible);
-    graph.state.selection.select(allVisibleNodes, true);
-    graph.updateGraphVisibility();
+    const allVisibleNodes = [...this.graph.nodes(n => n.visible)];
+    this.state.selection.select(allVisibleNodes, true);
+    this.updateGraphVisibility();
   }
 
-  layoutAction(graph) {
-    graph.updateGraphVisibility();
+  layoutAction(graph: GraphView) {
     graph.layoutGraph();
     graph.updateGraphVisibility();
     graph.viewWholeGraph();
   }
 
-  showAllAction(graph) {
-    graph.nodes.forEach(function (n) {
-      n.visible = !graph.state.hideDead || n.isLive();
+  showAllAction(view: GraphView) {
+    for (const n of view.graph.nodes()) {
+      n.visible = !view.state.hideDead || n.isLive();
+    }
+    view.graph.forEachEdge((e: Edge) => {
+      e.visible = e.source.visible || e.target.visible;
     });
-    graph.edges.forEach(function (e) {
-      e.visible = !graph.state.hideDead || (e.source.isLive() && e.target.isLive());
-    });
-    graph.updateGraphVisibility();
-    graph.viewWholeGraph();
+    view.updateGraphVisibility();
+    view.viewWholeGraph();
   }
 
-  toggleHideDead(graph) {
-    graph.state.hideDead = !graph.state.hideDead;
-    if (graph.state.hideDead) graph.hideDead();
-    var element = document.getElementById('toggle-hide-dead');
-    element.classList.toggle('button-input-toggled', graph.state.hideDead);
+  showControlAction(view: GraphView) {
+    for (const n of view.graph.nodes()) {
+      n.visible = n.cfg && (!view.state.hideDead || n.isLive());
+    }
+    view.graph.forEachEdge((e: Edge) => {
+      e.visible = e.type == 'control' && e.source.visible && e.target.visible;
+    });
+    view.updateGraphVisibility();
+    view.viewWholeGraph();
+  }
+
+  toggleHideDead(view: GraphView) {
+    view.state.hideDead = !view.state.hideDead;
+    if (view.state.hideDead) view.hideDead();
+    const element = document.getElementById('toggle-hide-dead');
+    element.classList.toggle('button-input-toggled', view.state.hideDead);
   }
 
   hideDead() {
-    const graph = this;
-    graph.nodes.filter(function (n) {
+    for (const n of this.graph.nodes()) {
       if (!n.isLive()) {
         n.visible = false;
-        graph.state.selection.select([n], false);
+        this.state.selection.select([n], false);
       }
-    })
-    graph.updateGraphVisibility();
+    }
+    this.updateGraphVisibility();
   }
 
-  hideUnselectedAction(graph) {
-    graph.nodes.forEach(function (n) {
-      if (!graph.state.selection.isSelected(n)) {
+  hideUnselectedAction(view: GraphView) {
+    for (const n of view.graph.nodes()) {
+      if (!view.state.selection.isSelected(n)) {
         n.visible = false;
       }
-    });
-    graph.updateGraphVisibility();
+    }
+    view.updateGraphVisibility();
   }
 
-  hideSelectedAction(graph) {
-    graph.nodes.forEach(function (n) {
-      if (graph.state.selection.isSelected(n)) {
+  hideSelectedAction(view: GraphView) {
+    for (const n of view.graph.nodes()) {
+      if (view.state.selection.isSelected(n)) {
         n.visible = false;
       }
-    });
-    graph.selectionHandler.clear();
+    }
+    view.selectionHandler.clear();
   }
 
-  zoomSelectionAction(graph) {
-    graph.viewSelection();
+  zoomSelectionAction(view: GraphView) {
+    view.viewSelection();
   }
 
-  toggleTypesAction(graph) {
-    graph.toggleTypes();
+  toggleTypesAction(view: GraphView) {
+    view.toggleTypes();
   }
 
-  searchInputAction(searchBar, e: KeyboardEvent) {
-    const graph = this;
+  searchInputAction(searchBar: HTMLInputElement, e: KeyboardEvent, onlyVisible: boolean) {
     if (e.keyCode == 13) {
-      graph.selectionHandler.clear();
-      var query = searchBar.value;
+      this.selectionHandler.clear();
+      const query = searchBar.value;
       window.sessionStorage.setItem("lastSearch", query);
       if (query.length == 0) return;
 
-      var reg = new RegExp(query);
-      var filterFunction = function (n) {
+      const reg = new RegExp(query);
+      const filterFunction = (n: GNode) => {
         return (reg.exec(n.getDisplayLabel()) != null ||
-          (graph.state.showTypes && reg.exec(n.getDisplayType())) ||
+          (this.state.showTypes && reg.exec(n.getDisplayType())) ||
           (reg.exec(n.getTitle())) ||
-          reg.exec(n.opcode) != null);
+          reg.exec(n.nodeLabel.opcode) != null);
       };
 
-      const selection = graph.nodes.filter(
-        function (n, i) {
-          if ((e.ctrlKey || n.visible) && filterFunction(n)) {
-            if (e.ctrlKey) n.visible = true;
-            return true;
-          }
-          return false;
-        });
+      const selection = [...this.graph.nodes(n => {
+        if ((e.ctrlKey || n.visible || !onlyVisible) && filterFunction(n)) {
+          if (e.ctrlKey || !onlyVisible) n.visible = true;
+          return true;
+        }
+        return false;
+      })];
 
-      graph.selectionHandler.select(selection, true);
-      graph.connectVisibleSelectedNodes();
-      graph.updateGraphVisibility();
+      this.selectionHandler.select(selection, true);
+      this.connectVisibleSelectedNodes();
+      this.updateGraphVisibility();
       searchBar.blur();
-      graph.viewSelection();
+      this.viewSelection();
     }
     e.stopPropagation();
   }
 
   svgKeyDown() {
-    var state = this.state;
-    var graph = this;
+    const view = this;
+    const state = this.state;
 
-    // Don't handle key press repetition
-    if (state.lastKeyDown !== -1) return;
-
-    var showSelectionFrontierNodes = function (inEdges, filter, select) {
-      var frontier = graph.getNodeFrontier(state.selection, inEdges, filter);
+    const showSelectionFrontierNodes = (inEdges: boolean, filter: (e: Edge, i: number) => boolean, doSelect: boolean) => {
+      const frontier = view.getNodeFrontier(state.selection, inEdges, filter);
       if (frontier != undefined && frontier.size) {
-        if (select) {
+        if (doSelect) {
           if (!d3.event.shiftKey) {
             state.selection.clear();
           }
-          state.selection.select(frontier, true);
+          state.selection.select([...frontier], true);
         }
-        graph.updateGraphVisibility();
+        view.updateGraphVisibility();
       }
-      allowRepetition = false;
-    }
+    };
 
-    var allowRepetition = true;
-    var eventHandled = true; // unless the below switch defaults
+    let eventHandled = true; // unless the below switch defaults
     switch (d3.event.keyCode) {
       case 49:
       case 50:
@@ -555,8 +514,8 @@ export class GraphView extends View implements PhaseView {
       case 57:
         // '1'-'9'
         showSelectionFrontierNodes(true,
-          (edge, index) => { return index == (d3.event.keyCode - 49); },
-          false);
+          (edge: Edge, index: number) => index == (d3.event.keyCode - 49),
+          !d3.event.ctrlKey);
         break;
       case 97:
       case 98:
@@ -569,19 +528,19 @@ export class GraphView extends View implements PhaseView {
       case 105:
         // 'numpad 1'-'numpad 9'
         showSelectionFrontierNodes(true,
-          (edge, index) => { return index == (d3.event.keyCode - 97); },
-          false);
+          (edge, index) => index == (d3.event.keyCode - 97),
+          !d3.event.ctrlKey);
         break;
       case 67:
         // 'c'
         showSelectionFrontierNodes(d3.event.altKey,
-          (edge, index) => { return edge.type == 'control'; },
+          (edge, index) => edge.type == 'control',
           true);
         break;
       case 69:
         // 'e'
         showSelectionFrontierNodes(d3.event.altKey,
-          (edge, index) => { return edge.type == 'effect'; },
+          (edge, index) => edge.type == 'effect',
           true);
         break;
       case 79:
@@ -590,21 +549,26 @@ export class GraphView extends View implements PhaseView {
         break;
       case 73:
         // 'i'
-        showSelectionFrontierNodes(true, undefined, false);
+        if (!d3.event.ctrlKey && !d3.event.shiftKey) {
+          showSelectionFrontierNodes(true, undefined, false);
+        } else {
+          eventHandled = false;
+        }
         break;
       case 65:
         // 'a'
-        graph.selectAllNodes();
-        allowRepetition = false;
+        view.selectAllNodes();
         break;
       case 38:
+      // UP
       case 40: {
+        // DOWN
         showSelectionFrontierNodes(d3.event.keyCode == 38, undefined, true);
         break;
       }
       case 82:
         // 'r'
-        if (!d3.event.ctrlKey) {
+        if (!d3.event.ctrlKey && !d3.event.shiftKey) {
           this.layoutAction(this);
         } else {
           eventHandled = false;
@@ -612,11 +576,7 @@ export class GraphView extends View implements PhaseView {
         break;
       case 83:
         // 's'
-        graph.selectOrigins();
-        break;
-      case 191:
-        // '/'
-        document.getElementById("search-input").focus();
+        view.selectOrigins();
         break;
       default:
         eventHandled = false;
@@ -625,93 +585,100 @@ export class GraphView extends View implements PhaseView {
     if (eventHandled) {
       d3.event.preventDefault();
     }
-    if (!allowRepetition) {
-      state.lastKeyDown = d3.event.keyCode;
-    }
   }
 
-  svgKeyUp() {
-    this.state.lastKeyDown = -1
-  };
-
   layoutGraph() {
-    layoutNodeGraph(this);
+    console.time("layoutGraph");
+    layoutNodeGraph(this.graph, this.state.showTypes);
+    const extent = this.graph.redetermineGraphBoundingBox(this.state.showTypes);
+    this.panZoom.translateExtent(extent);
+    this.minScale();
+    console.timeEnd("layoutGraph");
   }
 
   selectOrigins() {
     const state = this.state;
     const origins = [];
-    let phase = null;
+    let phase = this.phaseName;
+    const selection = new Set<any>();
     for (const n of state.selection) {
-      if (n.origin) {
-        const node = this.nodeMap[n.origin.nodeId];
-        origins.push(node);
-        phase = n.origin.phase;
+      const origin = n.nodeLabel.origin;
+      if (origin) {
+        phase = origin.phase;
+        const node = this.graph.nodeMap[origin.nodeId];
+        if (phase === this.phaseName && node) {
+          origins.push(node);
+        } else {
+          selection.add(`${origin.nodeId}`);
+        }
       }
     }
-    if (origins.length) {
-      state.selection.clear();
-      state.selection.select(origins, true);
-      if (phase) {
-        this.showPhaseByName(phase);
-      }
+    // Only go through phase reselection if we actually need
+    // to display another phase.
+    if (selection.size > 0 && phase !== this.phaseName) {
+      this.showPhaseByName(phase, selection);
+    } else if (origins.length > 0) {
+      this.selectionHandler.clear();
+      this.selectionHandler.select(origins, true);
     }
   }
 
   // call to propagate changes to graph
   updateGraphVisibility() {
-    let graph = this;
-    let state = graph.state;
+    const view = this;
+    const graph = this.graph;
+    const state = this.state;
+    if (!graph) return;
 
-    var filteredEdges = graph.edges.filter(function (e) {
-      return e.isVisible();
-    });
-    const selEdges = graph.visibleEdges.selectAll<SVGPathElement, Edge>("path").data(filteredEdges, edgeToStr);
+    const filteredEdges = [...graph.filteredEdges(function (e) {
+      return e.source.visible && e.target.visible;
+    })];
+    const selEdges = view.visibleEdges.selectAll<SVGPathElement, Edge>("path").data(filteredEdges, edgeToStr);
 
     // remove old links
     selEdges.exit().remove();
 
     // add new paths
-    selEdges.enter()
-      .append('path')
-      .style('marker-end', 'url(#end-arrow)')
-      .classed('hidden', function (e) {
-        return !e.isVisible();
-      })
+    const newEdges = selEdges.enter()
+      .append('path');
+
+    newEdges.style('marker-end', 'url(#end-arrow)')
       .attr("id", function (edge) { return "e," + edge.stringID(); })
       .on("click", function (edge) {
         d3.event.stopPropagation();
         if (!d3.event.shiftKey) {
-          graph.selectionHandler.clear();
+          view.selectionHandler.clear();
         }
-        graph.selectionHandler.select([edge.source, edge.target], true);
+        view.selectionHandler.select([edge.source, edge.target], true);
       })
-      .attr("adjacentToHover", "false");
+      .attr("adjacentToHover", "false")
+      .classed('value', function (e) {
+        return e.type == 'value' || e.type == 'context';
+      }).classed('control', function (e) {
+        return e.type == 'control';
+      }).classed('effect', function (e) {
+        return e.type == 'effect';
+      }).classed('frame-state', function (e) {
+        return e.type == 'frame-state';
+      }).attr('stroke-dasharray', function (e) {
+        if (e.type == 'frame-state') return "10,10";
+        return (e.type == 'effect') ? "5,5" : "";
+      });
 
-    // Set the correct styles on all of the paths
-    selEdges.classed('value', function (e) {
-      return e.type == 'value' || e.type == 'context';
-    }).classed('control', function (e) {
-      return e.type == 'control';
-    }).classed('effect', function (e) {
-      return e.type == 'effect';
-    }).classed('frame-state', function (e) {
-      return e.type == 'frame-state';
-    }).attr('stroke-dasharray', function (e) {
-      if (e.type == 'frame-state') return "10,10";
-      return (e.type == 'effect') ? "5,5" : "";
-    });
+    const newAndOldEdges = newEdges.merge(selEdges);
+
+    newAndOldEdges.classed('hidden', e => !e.isVisible());
 
     // select existing nodes
-    const filteredNodes = graph.nodes.filter(n => n.visible);
-    const allNodes = graph.visibleNodes.selectAll<SVGGElement, GNode>("g");
+    const filteredNodes = [...graph.nodes(n => n.visible)];
+    const allNodes = view.visibleNodes.selectAll<SVGGElement, GNode>("g");
     const selNodes = allNodes.data(filteredNodes, nodeToStr);
 
     // remove old nodes
     selNodes.exit().remove();
 
     // add new nodes
-    var newGs = selNodes.enter()
+    const newGs = selNodes.enter()
       .append("g");
 
     newGs.classed("turbonode", function (n) { return true; })
@@ -723,36 +690,33 @@ export class GraphView extends View implements PhaseView {
       .classed("simplified", function (n) { return n.isSimplified(); })
       .classed("machine", function (n) { return n.isMachine(); })
       .on('mouseenter', function (node) {
-        const visibleEdges = graph.visibleEdges.selectAll<SVGPathElement, Edge>('path');
-        const adjInputEdges = visibleEdges.filter(e => { return e.target === node; });
-        const adjOutputEdges = visibleEdges.filter(e => { return e.source === node; });
+        const visibleEdges = view.visibleEdges.selectAll<SVGPathElement, Edge>('path');
+        const adjInputEdges = visibleEdges.filter(e => e.target === node);
+        const adjOutputEdges = visibleEdges.filter(e => e.source === node);
         adjInputEdges.attr('relToHover', "input");
         adjOutputEdges.attr('relToHover', "output");
         const adjInputNodes = adjInputEdges.data().map(e => e.source);
-        const visibleNodes = graph.visibleNodes.selectAll<SVGGElement, GNode>("g");
-        const input = visibleNodes.data<GNode>(adjInputNodes, nodeToStr)
-          .attr('relToHover', "input");
+        const visibleNodes = view.visibleNodes.selectAll<SVGGElement, GNode>("g");
+        visibleNodes.data<GNode>(adjInputNodes, nodeToStr).attr('relToHover', "input");
         const adjOutputNodes = adjOutputEdges.data().map(e => e.target);
-        const output = visibleNodes.data<GNode>(adjOutputNodes, nodeToStr)
-          .attr('relToHover', "output");
-        graph.updateGraphVisibility();
+        visibleNodes.data<GNode>(adjOutputNodes, nodeToStr).attr('relToHover', "output");
+        view.updateGraphVisibility();
       })
       .on('mouseleave', function (node) {
-        const visibleEdges = graph.visibleEdges.selectAll<SVGPathElement, Edge>('path');
-        const adjEdges = visibleEdges.filter(e => { return e.target === node || e.source === node; });
+        const visibleEdges = view.visibleEdges.selectAll<SVGPathElement, Edge>('path');
+        const adjEdges = visibleEdges.filter(e => e.target === node || e.source === node);
         adjEdges.attr('relToHover', "none");
         const adjNodes = adjEdges.data().map(e => e.target).concat(adjEdges.data().map(e => e.source));
-        const visibleNodes = graph.visibleNodes.selectAll<SVGPathElement, GNode>("g");
-        const nodes = visibleNodes.data(adjNodes, nodeToStr)
-          .attr('relToHover', "none");
-        graph.updateGraphVisibility();
+        const visibleNodes = view.visibleNodes.selectAll<SVGPathElement, GNode>("g");
+        visibleNodes.data(adjNodes, nodeToStr).attr('relToHover', "none");
+        view.updateGraphVisibility();
       })
-      .on("click", (d) => {
-        if (!d3.event.shiftKey) graph.selectionHandler.clear();
-        graph.selectionHandler.select([d], undefined);
+      .on("click", d => {
+        if (!d3.event.shiftKey) view.selectionHandler.clear();
+        view.selectionHandler.select([d], undefined);
         d3.event.stopPropagation();
       })
-      .call(graph.drag)
+      .call(view.drag);
 
     newGs.append("rect")
       .attr("rx", 10)
@@ -761,14 +725,14 @@ export class GraphView extends View implements PhaseView {
         return d.getTotalNodeWidth();
       })
       .attr('height', function (d) {
-        return graph.getNodeHeight(d);
-      })
+        return d.getNodeHeight(view.state.showTypes);
+      });
 
     function appendInputAndOutputBubbles(g, d) {
-      for (var i = 0; i < d.inputs.length; ++i) {
-        var x = d.getInputX(i);
-        var y = -DEFAULT_NODE_BUBBLE_RADIUS;
-        var s = g.append('circle')
+      for (let i = 0; i < d.inputs.length; ++i) {
+        const x = d.getInputX(i);
+        const y = -DEFAULT_NODE_BUBBLE_RADIUS;
+        g.append('circle')
           .classed("filledBubbleStyle", function (c) {
             return d.inputs[i].isVisible();
           })
@@ -780,20 +744,20 @@ export class GraphView extends View implements PhaseView {
           .attr("transform", function (d) {
             return "translate(" + x + "," + y + ")";
           })
-          .on("click", function (d) {
-            var components = this.id.split(',');
-            var node = graph.nodeMap[components[3]];
-            var edge = node.inputs[components[2]];
-            var visible = !edge.isVisible();
+          .on("click", function (this: SVGCircleElement, d) {
+            const components = this.id.split(',');
+            const node = graph.nodeMap[components[3]];
+            const edge = node.inputs[components[2]];
+            const visible = !edge.isVisible();
             node.setInputVisibility(components[2], visible);
             d3.event.stopPropagation();
-            graph.updateGraphVisibility();
+            view.updateGraphVisibility();
           });
       }
       if (d.outputs.length != 0) {
-        var x = d.getOutputX();
-        var y = graph.getNodeHeight(d) + DEFAULT_NODE_BUBBLE_RADIUS;
-        var s = g.append('circle')
+        const x = d.getOutputX();
+        const y = d.getNodeHeight(view.state.showTypes) + DEFAULT_NODE_BUBBLE_RADIUS;
+        g.append('circle')
           .classed("filledBubbleStyle", function (c) {
             return d.areAnyOutputsVisible() == 2;
           })
@@ -811,7 +775,7 @@ export class GraphView extends View implements PhaseView {
           .on("click", function (d) {
             d.setOutputVisibility(d.areAnyOutputsVisible() == 0);
             d3.event.stopPropagation();
-            graph.updateGraphVisibility();
+            view.updateGraphVisibility();
           });
       }
     }
@@ -833,8 +797,8 @@ export class GraphView extends View implements PhaseView {
         .append("title")
         .text(function (l) {
           return d.getTitle();
-        })
-      if (d.type != undefined) {
+        });
+      if (d.nodeLabel.type != undefined) {
         d3.select(this).append("text")
           .classed("label", true)
           .classed("type", true)
@@ -848,14 +812,14 @@ export class GraphView extends View implements PhaseView {
           .append("title")
           .text(function (l) {
             return d.getType();
-          })
+          });
       }
     });
 
     const newAndOldNodes = newGs.merge(selNodes);
 
     newAndOldNodes.select<SVGTextElement>('.type').each(function (d) {
-      this.setAttribute('visibility', graph.state.showTypes ? 'visible' : 'hidden');
+      this.setAttribute('visibility', view.state.showTypes ? 'visible' : 'hidden');
     });
 
     newAndOldNodes
@@ -865,15 +829,15 @@ export class GraphView extends View implements PhaseView {
       })
       .attr("transform", function (d) { return "translate(" + d.x + "," + d.y + ")"; })
       .select('rect')
-      .attr('height', function (d) { return graph.getNodeHeight(d); });
+      .attr('height', function (d) { return d.getNodeHeight(view.state.showTypes); });
 
-    graph.visibleBubbles = d3.selectAll('circle');
+    view.visibleBubbles = d3.selectAll('circle');
 
-    graph.updateInputAndOutputBubbles();
+    view.updateInputAndOutputBubbles();
 
     graph.maxGraphX = graph.maxGraphNodeX;
-    selEdges.attr("d", function (edge) {
-      return edge.generatePath(graph);
+    newAndOldEdges.attr("d", function (edge) {
+      return edge.generatePath(graph, view.state.showTypes);
     });
   }
 
@@ -886,10 +850,9 @@ export class GraphView extends View implements PhaseView {
   }
 
   minScale() {
-    const graph = this;
     const dimensions = this.getSvgViewDimensions();
-    const minXScale = dimensions[0] / (2 * graph.width);
-    const minYScale = dimensions[1] / (2 * graph.height);
+    const minXScale = dimensions[0] / (2 * this.graph.width);
+    const minYScale = dimensions[1] / (2 * this.graph.height);
     const minScale = Math.min(minXScale, minYScale);
     this.panZoom.scaleExtent([minScale, 40]);
     return minScale;
@@ -897,48 +860,49 @@ export class GraphView extends View implements PhaseView {
 
   onresize() {
     const trans = d3.zoomTransform(this.svg.node());
-    const ctrans = this.panZoom.constrain()(trans, this.getSvgExtent(), this.panZoom.translateExtent())
-    this.panZoom.transform(this.svg, ctrans)
+    const ctrans = this.panZoom.constrain()(trans, this.getSvgExtent(), this.panZoom.translateExtent());
+    this.panZoom.transform(this.svg, ctrans);
   }
 
   toggleTypes() {
-    var graph = this;
-    graph.state.showTypes = !graph.state.showTypes;
-    var element = document.getElementById('toggle-types');
-    element.classList.toggle('button-input-toggled', graph.state.showTypes);
-    graph.updateGraphVisibility();
+    const view = this;
+    view.state.showTypes = !view.state.showTypes;
+    const element = document.getElementById('toggle-types');
+    element.classList.toggle('button-input-toggled', view.state.showTypes);
+    view.updateGraphVisibility();
   }
 
   viewSelection() {
-    var graph = this;
-    var minX, maxX, minY, maxY;
-    var hasSelection = false;
-    graph.visibleNodes.selectAll<SVGGElement, GNode>("g").each(function (n) {
-      if (graph.state.selection.isSelected(n)) {
+    const view = this;
+    let minX;
+    let maxX;
+    let minY;
+    let maxY;
+    let hasSelection = false;
+    view.visibleNodes.selectAll<SVGGElement, GNode>("g").each(function (n) {
+      if (view.state.selection.isSelected(n)) {
         hasSelection = true;
         minX = minX ? Math.min(minX, n.x) : n.x;
         maxX = maxX ? Math.max(maxX, n.x + n.getTotalNodeWidth()) :
           n.x + n.getTotalNodeWidth();
         minY = minY ? Math.min(minY, n.y) : n.y;
-        maxY = maxY ? Math.max(maxY, n.y + graph.getNodeHeight(n)) :
-          n.y + graph.getNodeHeight(n);
+        maxY = maxY ? Math.max(maxY, n.y + n.getNodeHeight(view.state.showTypes)) :
+          n.y + n.getNodeHeight(view.state.showTypes);
       }
     });
     if (hasSelection) {
-      graph.viewGraphRegion(minX - NODE_INPUT_WIDTH, minY - 60,
-        maxX + NODE_INPUT_WIDTH, maxY + 60,
-        true);
+      view.viewGraphRegion(minX - NODE_INPUT_WIDTH, minY - 60,
+        maxX + NODE_INPUT_WIDTH, maxY + 60);
     }
   }
 
-  viewGraphRegion(minX, minY, maxX, maxY, transition) {
+  viewGraphRegion(minX, minY, maxX, maxY) {
     const [width, height] = this.getSvgViewDimensions();
     const dx = maxX - minX;
     const dy = maxY - minY;
     const x = (minX + maxX) / 2;
     const y = (minY + maxY) / 2;
     const scale = Math.min(width / (1.1 * dx), height / (1.1 * dy));
-    const transform = d3.zoomIdentity.translate(1500, 100).scale(0.75);
     this.svg
       .transition().duration(300).call(this.panZoom.translateTo, x, y)
       .transition().duration(300).call(this.panZoom.scaleTo, scale)
@@ -947,6 +911,8 @@ export class GraphView extends View implements PhaseView {
 
   viewWholeGraph() {
     this.panZoom.scaleTo(this.svg, 0);
-    this.panZoom.translateTo(this.svg, this.minGraphX + this.width / 2, this.minGraphY + this.height / 2)
+    this.panZoom.translateTo(this.svg,
+      this.graph.minGraphX + this.graph.width / 2,
+      this.graph.minGraphY + this.graph.height / 2);
   }
 }

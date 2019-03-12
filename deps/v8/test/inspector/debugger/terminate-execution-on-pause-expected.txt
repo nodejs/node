@@ -3,3 +3,58 @@ Tests Runtime.terminateExecution on pause
 Running test: testTerminateOnDebugger
 
 Running test: testTerminateAtBreakpoint
+{
+    error : {
+        code : -32000
+        message : Execution was terminated
+    }
+    id : <messageId>
+}
+
+Running test: testTerminateRuntimeEvaluate
+{
+    id : <messageId>
+    result : {
+    }
+}
+{
+    error : {
+        code : -32000
+        message : Execution was terminated
+    }
+    id : <messageId>
+}
+{
+    description : 42
+    type : number
+    value : 42
+}
+
+Running test: testTerminateRuntimeEvaluateOnCallFrame
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 1
+            type : number
+            value : 1
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+    }
+}
+{
+    error : {
+        code : -32000
+        message : Execution was terminated
+    }
+    id : <messageId>
+}
+{
+    description : 43
+    type : number
+    value : 43
+}

@@ -133,7 +133,7 @@ let id = (() => {  // identity exported function
 
   builder.addImportedTable("q", "table", 5, 32);
   let g = builder.addImportedGlobal("q", "base", kWasmI32);
-  builder.addFunctionTableInit(g, true,
+  builder.addElementSegment(g, true,
       [funcs.mul.index, funcs.add.index, funcs.sub.index]);
   builder.addExportOfKind("table", kExternalTable, 0);
   let module = new WebAssembly.Module(builder.toBuffer());
@@ -179,10 +179,10 @@ let id = (() => {  // identity exported function
   let i = builder.addImport("q", "exp_inc", sig_i_i);
   let t = builder.addImport("q", "exp_ten", sig_i_v);
 
-  builder.setFunctionTableBounds(7, 35);
-  // builder.addFunctionTableInit(g1, true,
+  builder.setTableBounds(7, 35);
+  // builder.addElementSegment(g1, true,
   //     [funcs.mul.index, funcs.add.index, funcs.sub.index]);
-  builder.addFunctionTableInit(g1, true, [a, i, t]);
+  builder.addElementSegment(g1, true, [a, i, t]);
 
   builder.addExportOfKind("table", kExternalTable, 0);
   let module = new WebAssembly.Module(builder.toBuffer());
@@ -215,7 +215,7 @@ let id = (() => {  // identity exported function
   let funcs = addFunctions(builder1);
 
   builder1.addImportedTable("q", "table", 6, 36);
-  builder1.addFunctionTableInit(g, true,
+  builder1.addElementSegment(g, true,
       [funcs.mul.index, funcs.add.index, funcs.sub.index]);
   let module1 = new WebAssembly.Module(builder1.toBuffer());
 
@@ -267,7 +267,7 @@ let id = (() => {  // identity exported function
         kExprGetLocal, 0,
         kExprCallIndirect, index_i_ii, kTableZero])
       .exportAs("main");
-    builder.addFunctionTableInit(0, false, [0], true);
+    builder.addElementSegment(0, false, [0], true);
     return new WebAssembly.Module(builder.toBuffer());
   }
 

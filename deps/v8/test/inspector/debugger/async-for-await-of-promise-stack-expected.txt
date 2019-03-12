@@ -4,7 +4,7 @@ Running test: testBasic
 Debugger (test.js:10:2)
 Basic (test.js:48:4)
 -- async function --
-Basic (test.js:47:19)
+Basic (test.js:47:17)
 (anonymous) (testBasic.js:0:0)
 
 
@@ -26,7 +26,7 @@ Running test: testCaughtReject
 Debugger (test.js:10:2)
 CaughtReject (test.js:76:4)
 -- async function --
-CaughtReject (test.js:72:21)
+CaughtReject (test.js:72:19)
 (anonymous) (testCaughtReject.js:0:0)
 
 
@@ -34,7 +34,7 @@ Running test: testCaughtThrow
 Debugger (test.js:10:2)
 CaughtThrow (test.js:86:4)
 -- async function --
-CaughtThrow (test.js:82:21)
+CaughtThrow (test.js:82:19)
 (anonymous) (testCaughtThrow.js:0:0)
 
 
@@ -53,6 +53,6 @@ Running test: testCaughtThrowOnBreak
 Debugger (test.js:10:2)
 CaughtThrowOnBreak (test.js:124:4)
 -- async function --
-CaughtThrowOnBreak (test.js:120:21)
+CaughtThrowOnBreak (test.js:120:19)
 (anonymous) (testCaughtThrowOnBreak.js:0:0)
 

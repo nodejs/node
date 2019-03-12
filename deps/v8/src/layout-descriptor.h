@@ -9,6 +9,9 @@
 
 #include "src/objects/fixed-array.h"
 
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
+
 namespace v8 {
 namespace internal {
 
@@ -38,15 +41,14 @@ class LayoutDescriptor : public ByteArray {
 
   // Returns true if this is a layout of the object having only tagged fields.
   V8_INLINE bool IsFastPointerLayout();
-  V8_INLINE static bool IsFastPointerLayout(Object* layout_descriptor);
+  V8_INLINE static bool IsFastPointerLayout(Object layout_descriptor);
 
   // Returns true if the layout descriptor is in non-Smi form.
   V8_INLINE bool IsSlowLayout();
 
-  V8_INLINE static LayoutDescriptor* cast(Object* object);
-  V8_INLINE static const LayoutDescriptor* cast(const Object* object);
+  DECL_CAST(LayoutDescriptor)
 
-  V8_INLINE static LayoutDescriptor* cast_gc_safe(Object* object);
+  V8_INLINE static LayoutDescriptor cast_gc_safe(Object object);
 
   // Builds layout descriptor optimized for given |map| by |num_descriptors|
   // elements of given descriptors array. The |map|'s descriptors could be
@@ -69,17 +71,17 @@ class LayoutDescriptor : public ByteArray {
 
   // Layout descriptor that corresponds to an object all fields of which are
   // tagged (FastPointerLayout).
-  V8_INLINE static LayoutDescriptor* FastPointerLayout();
+  V8_INLINE static LayoutDescriptor FastPointerLayout();
 
   // Check that this layout descriptor corresponds to given map.
-  bool IsConsistentWithMap(Map* map, bool check_tail = false);
+  bool IsConsistentWithMap(Map map, bool check_tail = false);
 
   // Trims this layout descriptor to given number of descriptors. This happens
   // only when corresponding descriptors array is trimmed.
   // The layout descriptor could be trimmed if it was slow or it could
   // become fast.
-  LayoutDescriptor* Trim(Heap* heap, Map* map, DescriptorArray* descriptors,
-                         int num_descriptors);
+  LayoutDescriptor Trim(Heap* heap, Map map, DescriptorArray descriptors,
+                        int num_descriptors);
 
 #ifdef OBJECT_PRINT
   // For our gdb macros, we should perhaps change these in the future.
@@ -93,7 +95,7 @@ class LayoutDescriptor : public ByteArray {
   V8_INLINE int capacity();
 
   static Handle<LayoutDescriptor> NewForTesting(Isolate* isolate, int length);
-  LayoutDescriptor* SetTaggedForTesting(int field_index, bool tagged);
+  LayoutDescriptor SetTaggedForTesting(int field_index, bool tagged);
 
  private:
   // Exclude sign-bit to simplify encoding.
@@ -107,14 +109,14 @@ class LayoutDescriptor : public ByteArray {
   V8_INLINE void set_layout_word(int index, uint32_t value);
 
   V8_INLINE static Handle<LayoutDescriptor> New(Isolate* isolate, int length);
-  V8_INLINE static LayoutDescriptor* FromSmi(Smi* smi);
+  V8_INLINE static LayoutDescriptor FromSmi(Smi smi);
 
   V8_INLINE static bool InobjectUnboxedField(int inobject_properties,
                                              PropertyDetails details);
 
   // Calculates minimal layout descriptor capacity required for given
   // |map|, |descriptors| and |num_descriptors|.
-  V8_INLINE static int CalculateCapacity(Map* map, DescriptorArray* descriptors,
+  V8_INLINE static int CalculateCapacity(Map map, DescriptorArray descriptors,
                                          int num_descriptors);
 
   // Calculates the length of the slow-mode backing store array by given layout
@@ -123,9 +125,9 @@ class LayoutDescriptor : public ByteArray {
 
   // Fills in clean |layout_descriptor| according to given |map|, |descriptors|
   // and |num_descriptors|.
-  V8_INLINE static LayoutDescriptor* Initialize(
-      LayoutDescriptor* layout_descriptor, Map* map,
-      DescriptorArray* descriptors, int num_descriptors);
+  V8_INLINE static LayoutDescriptor Initialize(
+      LayoutDescriptor layout_descriptor, Map map, DescriptorArray descriptors,
+      int num_descriptors);
 
   static Handle<LayoutDescriptor> EnsureCapacity(
       Isolate* isolate, Handle<LayoutDescriptor> layout_descriptor,
@@ -135,10 +137,12 @@ class LayoutDescriptor : public ByteArray {
   V8_INLINE bool GetIndexes(int field_index, int* layout_word_index,
                             int* layout_bit_index);
 
-  V8_INLINE V8_WARN_UNUSED_RESULT LayoutDescriptor* SetRawData(int field_index);
+  V8_INLINE V8_WARN_UNUSED_RESULT LayoutDescriptor SetRawData(int field_index);
 
-  V8_INLINE V8_WARN_UNUSED_RESULT LayoutDescriptor* SetTagged(int field_index,
-                                                              bool tagged);
+  V8_INLINE V8_WARN_UNUSED_RESULT LayoutDescriptor SetTagged(int field_index,
+                                                             bool tagged);
+
+  OBJECT_CONSTRUCTORS(LayoutDescriptor, ByteArray)
 };
 
 
@@ -146,7 +150,7 @@ class LayoutDescriptor : public ByteArray {
 // about whether the field at given offset is tagged or not.
 class LayoutDescriptorHelper {
  public:
-  inline explicit LayoutDescriptorHelper(Map* map);
+  inline explicit LayoutDescriptorHelper(Map map);
 
   bool all_fields_tagged() { return all_fields_tagged_; }
   inline bool IsTagged(int offset_in_bytes);
@@ -162,9 +166,11 @@ class LayoutDescriptorHelper {
  private:
   bool all_fields_tagged_;
   int header_size_;
-  LayoutDescriptor* layout_descriptor_;
+  LayoutDescriptor layout_descriptor_;
 };
 }  // namespace internal
 }  // namespace v8
+
+#include "src/objects/object-macros-undef.h"
 
 #endif  // V8_LAYOUT_DESCRIPTOR_H_

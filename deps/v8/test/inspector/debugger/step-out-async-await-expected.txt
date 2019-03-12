@@ -9,9 +9,9 @@ Running test: testStepInto
       #return p;
     }
 
-      return p;
-    #}
-    await foo();
+      debugger;
+      return p;#
+    }
 
       await p;
       p.then(() => #1);
@@ -27,9 +27,9 @@ Running test: testStepOver
       #return p;
     }
 
-      return p;
-    #}
-    await foo();
+      debugger;
+      return p;#
+    }
 
       await p;
       p.then(() => #1);
@@ -53,9 +53,9 @@ Running test: testStepOut
       #return p;
     }
 
-      return p;
-    #}
-    await foo();
+      debugger;
+      return p;#
+    }
 
       await p;
       p.then(() => #1);

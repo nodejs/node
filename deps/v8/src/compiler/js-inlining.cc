@@ -17,6 +17,7 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/isolate-inl.h"
+#include "src/objects/feedback-cell-inl.h"
 #include "src/optimized-compilation-info.h"
 #include "src/parsing/parse-info.h"
 
@@ -288,6 +289,9 @@ bool JSInliner::DetermineCallTarget(
   if (match.HasValue() && match.Value()->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(match.Value());
 
+    // Don't inline if the function has never run.
+    if (!function->has_feedback_vector()) return false;
+
     // Disallow cross native-context inlining for now. This means that all parts
     // of the resulting code will operate on the same global object. This also
     // prevents cross context leaks, where we could inline functions from a
@@ -296,8 +300,7 @@ bool JSInliner::DetermineCallTarget(
     // TODO(turbofan): We might want to revisit this restriction later when we
     // have a need for this, and we know how to model different native contexts
     // in the same graph in a compositional way.
-    if (function->context()->native_context() !=
-        info_->context()->native_context()) {
+    if (function->native_context() != info_->native_context()) {
       return false;
     }
 
@@ -340,10 +343,7 @@ void JSInliner::DetermineCallContext(
 
   if (match.HasValue() && match.Value()->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(match.Value());
-
-    // If the target function was never invoked, its feedback cell array might
-    // not contain a feedback vector. We ensure at this point that it's created.
-    JSFunction::EnsureFeedbackVector(function);
+    CHECK(function->has_feedback_vector());
 
     // The inlinee specializes to the context from the JSFunction object.
     context_out = jsgraph()->Constant(handle(function->context(), isolate()));
@@ -376,7 +376,7 @@ Reduction JSInliner::Reduce(Node* node) {
 }
 
 Handle<Context> JSInliner::native_context() const {
-  return handle(info_->context()->native_context(), isolate());
+  return handle(info_->native_context(), isolate());
 }
 
 Reduction JSInliner::ReduceJSCall(Node* node) {
@@ -387,13 +387,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // Determine the call target.
   if (!DetermineCallTarget(node, shared_info)) return NoChange();
 
-  // Function must be inlineable.
-  if (!shared_info->IsInlineable()) {
-    TRACE("Not inlining %s into %s because callee is not inlineable\n",
-          shared_info->DebugName()->ToCString().get(),
-          info_->shared_info()->DebugName()->ToCString().get());
-    return NoChange();
-  }
+  DCHECK(shared_info->IsInlineable());
 
   // Constructor must be constructable.
   if (node->opcode() == IrOpcode::kJSConstruct &&
@@ -453,8 +447,10 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     return NoChange();
   }
 
-  if (!shared_info->is_compiled() &&
-      !Compiler::Compile(shared_info, Compiler::CLEAR_EXCEPTION)) {
+  IsCompiledScope is_compiled_scope(shared_info->is_compiled_scope());
+  if (!is_compiled_scope.is_compiled() &&
+      !Compiler::Compile(shared_info, Compiler::CLEAR_EXCEPTION,
+                         &is_compiled_scope)) {
     TRACE("Not inlining %s into %s because bytecode generation failed\n",
           shared_info->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
@@ -469,14 +465,29 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
         info_->shared_info()->DebugName()->ToCString().get(),
         (exception_target != nullptr) ? " (inside try-block)" : "");
 
+  // Get the bytecode array.
+  Handle<BytecodeArray> bytecode_array =
+      handle(shared_info->GetBytecodeArray(), isolate());
+
   // Determine the targets feedback vector and its context.
   Node* context;
   Handle<FeedbackVector> feedback_vector;
   DetermineCallContext(node, context, feedback_vector);
 
+  if (FLAG_concurrent_inlining) {
+    SharedFunctionInfoRef sfi(broker(), shared_info);
+    FeedbackVectorRef feedback(broker(), feedback_vector);
+    if (!sfi.IsSerializedForCompilation(feedback)) {
+      TRACE_BROKER(broker(),
+                   "Would have missed opportunity to inline a function ("
+                       << Brief(*sfi.object()) << " with "
+                       << Brief(*feedback.object()) << ")");
+    }
+  }
+
   // Remember that we inlined this function.
   int inlining_id = info_->AddInlinedFunction(
-      shared_info, source_positions_->GetSourcePosition(node));
+      shared_info, bytecode_array, source_positions_->GetSourcePosition(node));
 
   // Create the subgraph for the inlinee.
   Node* start;
@@ -490,8 +501,8 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     }
     CallFrequency frequency = call.frequency();
     BytecodeGraphBuilder graph_builder(
-        zone(), shared_info, feedback_vector, BailoutId::None(), jsgraph(),
-        frequency, source_positions_, native_context(), inlining_id,
+        zone(), bytecode_array, shared_info, feedback_vector, BailoutId::None(),
+        jsgraph(), frequency, source_positions_, native_context(), inlining_id,
         flags, false, info_->is_analyze_environment_liveness());
     graph_builder.CreateGraph();
 
@@ -609,7 +620,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   if (node->opcode() == IrOpcode::kJSCall &&
       is_sloppy(shared_info->language_mode()) && !shared_info->native()) {
     Node* effect = NodeProperties::GetEffectInput(node);
-    if (NodeProperties::CanBePrimitive(isolate(), call.receiver(), effect)) {
+    if (NodeProperties::CanBePrimitive(broker(), call.receiver(), effect)) {
       CallParameters const& p = CallParametersOf(node->op());
       Node* global_proxy = jsgraph()->HeapConstant(
           handle(info_->native_context()->global_proxy(), isolate()));

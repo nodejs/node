@@ -12,6 +12,7 @@
 #include "src/heap/factory.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/objects/feedback-cell-inl.h"
 #include "test/cctest/test-feedback-vector.h"
 
 namespace v8 {
@@ -95,7 +96,7 @@ TEST(VectorStructure) {
     CHECK_EQ(1,
              FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCreateClosure));
     FeedbackSlot slot = helper.slot(1);
-    FeedbackCell* cell =
+    FeedbackCell cell =
         FeedbackCell::cast(vector->Get(slot)->GetHeapObjectAssumeStrong());
     CHECK_EQ(cell->value(), *factory->undefined_value());
   }
@@ -158,7 +159,9 @@ TEST(VectorICMetadata) {
 
 
 TEST(VectorCallICStates) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -184,7 +187,9 @@ TEST(VectorCallICStates) {
 }
 
 TEST(VectorCallFeedback) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -202,7 +207,7 @@ TEST(VectorCallFeedback) {
   FeedbackNexus nexus(feedback_vector, slot);
 
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
-  HeapObject* heap_object;
+  HeapObject heap_object;
   CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(*foo, heap_object);
 
@@ -212,7 +217,9 @@ TEST(VectorCallFeedback) {
 }
 
 TEST(VectorCallFeedbackForArray) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -227,7 +234,7 @@ TEST(VectorCallFeedbackForArray) {
   FeedbackNexus nexus(feedback_vector, slot);
 
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
-  HeapObject* heap_object;
+  HeapObject heap_object;
   CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(*isolate->array_function(), heap_object);
 
@@ -247,7 +254,9 @@ size_t GetFeedbackVectorLength(Isolate* isolate, const char* src,
 }
 
 TEST(OneShotCallICSlotCount) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -299,7 +308,9 @@ TEST(OneShotCallICSlotCount) {
 }
 
 TEST(VectorCallCounts) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -328,7 +339,9 @@ TEST(VectorCallCounts) {
 }
 
 TEST(VectorConstructCounts) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -359,7 +372,9 @@ TEST(VectorConstructCounts) {
 }
 
 TEST(VectorSpeculationMode) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -391,7 +406,9 @@ TEST(VectorSpeculationMode) {
 }
 
 TEST(VectorLoadICStates) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -436,7 +453,7 @@ TEST(VectorLoadICStates) {
   // Finally driven megamorphic.
   CompileRun("f({ blarg: 3, gran: 3, torino: 10, foo: 2 })");
   CHECK_EQ(MEGAMORPHIC, nexus.StateFromFeedback());
-  CHECK(!nexus.FindFirstMap());
+  CHECK(nexus.FindFirstMap().is_null());
 
   // After a collection, state should not be reset to PREMONOMORPHIC.
   CcTest::CollectAllGarbage();
@@ -444,7 +461,9 @@ TEST(VectorLoadICStates) {
 }
 
 TEST(VectorLoadGlobalICSlotSharing) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -479,7 +498,9 @@ TEST(VectorLoadGlobalICSlotSharing) {
 
 
 TEST(VectorLoadICOnSmi) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -501,7 +522,7 @@ TEST(VectorLoadICOnSmi) {
   CompileRun("f(34)");
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
   // Verify that the monomorphic map is the one we expect.
-  Map* number_map = ReadOnlyRoots(heap).heap_number_map();
+  Map number_map = ReadOnlyRoots(heap).heap_number_map();
   CHECK_EQ(number_map, nexus.FindFirstMap());
 
   // Now go polymorphic on o.
@@ -537,7 +558,9 @@ TEST(VectorLoadICOnSmi) {
 
 
 TEST(ReferenceContextAllocatesNoSlots) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -675,6 +698,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
 
 
 TEST(VectorStoreICBasic) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
 
   CcTest::InitializeVM();
@@ -700,6 +724,7 @@ TEST(VectorStoreICBasic) {
 }
 
 TEST(StoreOwnIC) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
 
   CcTest::InitializeVM();

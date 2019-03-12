@@ -484,14 +484,14 @@ void RunConvertTest(ExecutionTier execution_tier, WasmOpcode wasm_op,
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
   r.builder().SetHasSharedMemory();
 
-  BUILD(r, WASM_I32_CONVERT_I64(WASM_ATOMICS_BINOP(
-               kExprI64AtomicAdd, WASM_ZERO, WASM_GET_LOCAL(0),
-               MachineRepresentation::kWord64)));
+  BUILD(r, WASM_I32_CONVERT_I64(
+               WASM_ATOMICS_BINOP(wasm_op, WASM_ZERO, WASM_GET_LOCAL(0),
+                                  MachineRepresentation::kWord64)));
 
   uint64_t initial = 0x1111222233334444, local = 0x1111111111111111;
   r.builder().WriteMemory(&memory[0], initial);
   CHECK_EQ(static_cast<uint32_t>(initial), r.Call(local));
-  uint64_t expected = Add(initial, local);
+  uint64_t expected = op(initial, local);
   CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
 }
 
@@ -518,6 +518,104 @@ WASM_EXEC_TEST(I64AtomicConvertCompareExchange) {
   CHECK_EQ(static_cast<uint32_t>(initial), r.Call(initial, local));
   uint64_t expected = CompareExchange(initial, initial, local);
   CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
+}
+
+// The WASM_I64_EQ operation is used here to test that the index node
+// is lowered correctly.
+void RunNonConstIndexTest(ExecutionTier execution_tier, WasmOpcode wasm_op,
+                          Uint64BinOp op) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint32_t, uint64_t> r(execution_tier);
+  uint64_t* memory =
+      r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
+  r.builder().SetHasSharedMemory();
+
+  BUILD(r, WASM_I32_CONVERT_I64(WASM_ATOMICS_BINOP(
+               wasm_op, WASM_I64_EQ(WASM_I64V(1), WASM_I64V(0)),
+               WASM_GET_LOCAL(0), MachineRepresentation::kWord32)));
+
+  uint64_t initial = 0x1111222233334444, local = 0x5555666677778888;
+  r.builder().WriteMemory(&memory[0], initial);
+  CHECK_EQ(static_cast<uint32_t>(initial), r.Call(local));
+  CHECK_EQ(static_cast<uint32_t>(op(initial, local)),
+           static_cast<uint32_t>(r.builder().ReadMemory(&memory[0])));
+}
+
+#define TEST_OPERATION(Name)                                               \
+  WASM_EXEC_TEST(I64AtomicConstIndex##Name) {                              \
+    RunNonConstIndexTest(execution_tier, kExprI64Atomic##Name##32U, Name); \
+  }
+OPERATION_LIST(TEST_OPERATION)
+#undef TEST_OPERATION
+
+WASM_EXEC_TEST(I64AtomicNonConstIndexCompareExchange) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint32_t, uint64_t, uint64_t> r(execution_tier);
+  uint64_t* memory =
+      r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
+  r.builder().SetHasSharedMemory();
+
+  BUILD(r, WASM_I32_CONVERT_I64(WASM_ATOMICS_TERNARY_OP(
+               kExprI64AtomicCompareExchange16U,
+               WASM_I64_EQ(WASM_I64V(1), WASM_I64V(0)), WASM_GET_LOCAL(0),
+               WASM_GET_LOCAL(1), MachineRepresentation::kWord16)));
+
+  uint64_t initial = 4444333322221111, local = 0x9999888877776666;
+  r.builder().WriteMemory(&memory[0], initial);
+  CHECK_EQ(static_cast<uint16_t>(initial), r.Call(initial, local));
+  CHECK_EQ(static_cast<uint16_t>(CompareExchange(initial, initial, local)),
+           static_cast<uint16_t>(r.builder().ReadMemory(&memory[0])));
+}
+
+WASM_EXEC_TEST(I64AtomicNonConstIndexLoad8U) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint32_t> r(execution_tier);
+  r.builder().SetHasSharedMemory();
+  uint64_t* memory =
+      r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
+  BUILD(r, WASM_I32_CONVERT_I64(WASM_ATOMICS_LOAD_OP(
+               kExprI64AtomicLoad8U, WASM_I64_EQ(WASM_I64V(1), WASM_I64V(0)),
+               MachineRepresentation::kWord8)));
+
+  uint64_t expected = 0xffffeeeeddddcccc;
+  r.builder().WriteMemory(&memory[0], expected);
+  CHECK_EQ(static_cast<uint8_t>(expected), r.Call());
+}
+
+WASM_EXEC_TEST(I64AtomicCompareExchangeFail) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint64_t, uint64_t, uint64_t> r(execution_tier);
+  r.builder().SetHasSharedMemory();
+  uint64_t* memory =
+      r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
+  BUILD(r, WASM_ATOMICS_TERNARY_OP(
+               kExprI64AtomicCompareExchange, WASM_I32V_1(0), WASM_GET_LOCAL(0),
+               WASM_GET_LOCAL(1), MachineRepresentation::kWord64));
+
+  uint64_t initial = 0x1111222233334444, local = 0x1111111111111111,
+           test = 0x2222222222222222;
+  r.builder().WriteMemory(&memory[0], initial);
+  CHECK_EQ(initial, r.Call(test, local));
+  // No memory change on failed compare exchange
+  CHECK_EQ(initial, r.builder().ReadMemory(&memory[0]));
+}
+
+WASM_EXEC_TEST(I64AtomicCompareExchange32UFail) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint64_t, uint64_t, uint64_t> r(execution_tier);
+  r.builder().SetHasSharedMemory();
+  uint64_t* memory =
+      r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
+  BUILD(r, WASM_ATOMICS_TERNARY_OP(kExprI64AtomicCompareExchange32U,
+                                   WASM_I32V_1(0), WASM_GET_LOCAL(0),
+                                   WASM_GET_LOCAL(1),
+                                   MachineRepresentation::kWord32));
+
+  uint64_t initial = 0x1111222233334444, test = 0xffffffff, local = 0xeeeeeeee;
+  r.builder().WriteMemory(&memory[0], initial);
+  CHECK_EQ(static_cast<uint32_t>(initial), r.Call(test, local));
+  // No memory change on failed compare exchange
+  CHECK_EQ(initial, r.builder().ReadMemory(&memory[0]));
 }
 
 }  // namespace test_run_wasm_atomics_64

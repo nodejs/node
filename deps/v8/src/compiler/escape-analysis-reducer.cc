@@ -192,7 +192,7 @@ Node* EscapeAnalysisReducer::ReduceDeoptState(Node* node, Node* effect,
       return ObjectIdNode(vobject);
     } else {
       std::vector<Node*> inputs;
-      for (int offset = 0; offset < vobject->size(); offset += kPointerSize) {
+      for (int offset = 0; offset < vobject->size(); offset += kTaggedSize) {
         Node* field =
             analysis_result().GetVirtualObjectField(vobject, offset, effect);
         CHECK_NOT_NULL(field);
@@ -315,10 +315,10 @@ void EscapeAnalysisReducer::Finalize() {
 
       ElementAccess stack_access;
       stack_access.base_is_tagged = BaseTaggedness::kUntaggedBase;
-      // Reduce base address by {kPointerSize} such that (length - index)
+      // Reduce base address by {kSystemPointerSize} such that (length - index)
       // resolves to the right position.
       stack_access.header_size =
-          CommonFrameConstants::kFixedFrameSizeAboveFp - kPointerSize;
+          CommonFrameConstants::kFixedFrameSizeAboveFp - kSystemPointerSize;
       stack_access.type = Type::NonInternal();
       stack_access.machine_type = MachineType::AnyTagged();
       stack_access.write_barrier_kind = WriteBarrierKind::kNoWriteBarrier;
@@ -335,7 +335,7 @@ void EscapeAnalysisReducer::Finalize() {
                 jsgraph()->simplified()->NumberSubtract(), arguments_length,
                 index);
             NodeProperties::SetType(offset,
-                                    TypeCache::Get().kArgumentsLengthType);
+                                    TypeCache::Get()->kArgumentsLengthType);
             NodeProperties::ReplaceValueInput(load, arguments_frame, 0);
             NodeProperties::ReplaceValueInput(load, offset, 1);
             NodeProperties::ChangeOp(load, load_stack_op);

@@ -5,7 +5,9 @@
 #ifndef V8_BUILTINS_BUILTINS_REGEXP_GEN_H_
 #define V8_BUILTINS_BUILTINS_REGEXP_GEN_H_
 
+#include "src/base/optional.h"
 #include "src/code-stub-assembler.h"
+#include "src/message-template.h"
 
 namespace v8 {
 namespace internal {
@@ -15,9 +17,10 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   explicit RegExpBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  void BranchIfFastRegExp(Node* const context, Node* const object,
-                          Node* const map, Label* const if_isunmodified,
-                          Label* const if_ismodified);
+  void BranchIfFastRegExp(
+      Node* const context, Node* const object, Node* const map,
+      base::Optional<DescriptorIndexAndName> additional_property_to_check,
+      Label* const if_isunmodified, Label* const if_ismodified);
 
   // Create and initialize a RegExp object.
   TNode<Object> RegExpCreate(TNode<Context> context,
@@ -26,12 +29,6 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
 
   TNode<Object> RegExpCreate(TNode<Context> context, TNode<Map> initial_map,
                              TNode<Object> regexp_string, TNode<String> flags);
-
-  TNode<Object> MatchAllIterator(TNode<Context> context,
-                                 TNode<Context> native_context,
-                                 TNode<Object> regexp, TNode<String> string,
-                                 TNode<BoolT> is_fast_regexp,
-                                 char const* method_name);
 
  protected:
   TNode<Smi> SmiZero();
@@ -82,7 +79,7 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                                             const bool is_fastpath);
 
   Node* ThrowIfNotJSReceiver(Node* context, Node* maybe_receiver,
-                             MessageTemplate::Template msg_template,
+                             MessageTemplate msg_template,
                              char const* method_name);
 
   // Analogous to BranchIfFastRegExp, for use in asserts.
@@ -106,15 +103,16 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
 
   Node* FlagsGetter(Node* const context, Node* const regexp, bool is_fastpath);
 
-  Node* FastFlagGetter(Node* const regexp, JSRegExp::Flag flag);
-  Node* SlowFlagGetter(Node* const context, Node* const regexp,
-                       JSRegExp::Flag flag);
-  Node* FlagGetter(Node* const context, Node* const regexp, JSRegExp::Flag flag,
-                   bool is_fastpath);
+  TNode<Int32T> FastFlagGetter(TNode<JSRegExp> regexp, JSRegExp::Flag flag);
+  TNode<Int32T> SlowFlagGetter(TNode<Context> context, TNode<Object> regexp,
+                               JSRegExp::Flag flag);
+  TNode<Int32T> FlagGetter(TNode<Context> context, TNode<Object> regexp,
+                           JSRegExp::Flag flag, bool is_fastpath);
+
   void FlagGetter(Node* context, Node* receiver, JSRegExp::Flag flag,
                   int counter, const char* method_name);
 
-  Node* IsRegExp(Node* const context, Node* const maybe_receiver);
+  TNode<BoolT> IsRegExp(TNode<Context> context, TNode<Object> maybe_receiver);
 
   Node* RegExpInitialize(Node* const context, Node* const regexp,
                          Node* const maybe_pattern, Node* const maybe_flags);
@@ -142,6 +140,20 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   Node* ReplaceSimpleStringFastPath(Node* context, Node* regexp,
                                     TNode<String> string,
                                     TNode<String> replace_string);
+};
+
+class RegExpMatchAllAssembler : public RegExpBuiltinsAssembler {
+ public:
+  explicit RegExpMatchAllAssembler(compiler::CodeAssemblerState* state)
+      : RegExpBuiltinsAssembler(state) {}
+
+  TNode<Object> CreateRegExpStringIterator(TNode<Context> native_context,
+                                           TNode<Object> regexp,
+                                           TNode<String> string,
+                                           TNode<Int32T> global,
+                                           TNode<Int32T> full_unicode);
+  void Generate(TNode<Context> context, TNode<Context> native_context,
+                TNode<Object> receiver, TNode<Object> maybe_string);
 };
 
 }  // namespace internal

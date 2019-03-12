@@ -81,7 +81,9 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
 
   for (; i.has_next(); i.next()) {
     WasmOpcode opcode = i.current();
-    if (opcode == kExprElse || opcode == kExprEnd) --control_depth;
+    if (opcode == kExprElse || opcode == kExprCatch || opcode == kExprEnd) {
+      --control_depth;
+    }
 
     DCHECK_LE(0, control_depth);
     const int kMaxIndentation = 64;
@@ -113,12 +115,21 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
       }
       case kExprBr:
       case kExprBrIf: {
-        BreakDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+        BranchDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
         os << WasmOpcodes::OpcodeName(opcode) << ' ' << imm.depth;
         break;
       }
+      case kExprBrOnExn: {
+        BranchDepthImmediate<Decoder::kNoValidate> imm_br(&i, i.pc());
+        ExceptionIndexImmediate<Decoder::kNoValidate> imm_idx(
+            &i, i.pc() + imm_br.length);
+        os << WasmOpcodes::OpcodeName(opcode) << ' ' << imm_br.depth << ' '
+           << imm_idx.index;
+        break;
+      }
       case kExprElse:
-        os << "else";
+      case kExprCatch:
+        os << WasmOpcodes::OpcodeName(opcode);
         control_depth++;
         break;
       case kExprEnd:
@@ -149,8 +160,7 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
         os << WasmOpcodes::OpcodeName(opcode) << ' ' << imm.index;
         break;
       }
-      case kExprThrow:
-      case kExprCatch: {
+      case kExprThrow: {
         ExceptionIndexImmediate<Decoder::kNoValidate> imm(&i, i.pc());
         os << WasmOpcodes::OpcodeName(opcode) << ' ' << imm.index;
         break;
@@ -188,7 +198,7 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
       case kExprNop:
       case kExprReturn:
       case kExprMemorySize:
-      case kExprGrowMemory:
+      case kExprMemoryGrow:
       case kExprDrop:
       case kExprSelect:
         os << WasmOpcodes::OpcodeName(opcode);

@@ -4,6 +4,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/deoptimizer.h"
+#include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
@@ -11,14 +12,14 @@
 namespace v8 {
 namespace internal {
 
-const int Deoptimizer::table_entry_size_ = 8;
-
-#define __ masm()->
+#define __ masm->
 
 // This code tries to be close to ia32 code so that any changes can be
 // easily ported.
-void Deoptimizer::TableEntryGenerator::Generate() {
-  GeneratePrologue();
+void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
+                                                Isolate* isolate,
+                                                DeoptimizeKind deopt_kind) {
+  NoRootArrayScope no_root_array(masm);
 
   // Save all general purpose registers before messing with them.
   const int kNumberOfRegisters = Register::kNumRegisters;
@@ -32,9 +33,9 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Save all allocatable VFP registers before messing with them.
   {
     // We use a run-time check for VFP32DREGS.
-    CpuFeatureScope scope(masm(), VFP32DREGS,
+    CpuFeatureScope scope(masm, VFP32DREGS,
                           CpuFeatureScope::kDontCheckSupported);
-    UseScratchRegisterScope temps(masm());
+    UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
 
     // Check CPU flags for number of registers, setting the Z condition flag.
@@ -56,25 +57,24 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ stm(db_w, sp, restored_regs  | sp.bit() | lr.bit() | pc.bit());
 
   {
-    UseScratchRegisterScope temps(masm());
+    UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
     __ mov(scratch, Operand(ExternalReference::Create(
-                        IsolateAddressId::kCEntryFPAddress, isolate())));
+                        IsolateAddressId::kCEntryFPAddress, isolate)));
     __ str(fp, MemOperand(scratch));
   }
 
   const int kSavedRegistersAreaSize =
       (kNumberOfRegisters * kPointerSize) + kDoubleRegsSize + kFloatRegsSize;
 
-  // Get the bailout id from the stack.
-  __ ldr(r2, MemOperand(sp, kSavedRegistersAreaSize));
+  // Get the bailout id is passed as r10 by the caller.
+  __ mov(r2, r10);
 
   // Get the address of the location in the code object (r3) (return
   // address for lazy deoptimization) and compute the fp-to-sp delta in
   // register r4.
   __ mov(r3, lr);
-  // Correct one word for bailout id.
-  __ add(r4, sp, Operand(kSavedRegistersAreaSize + (1 * kPointerSize)));
+  __ add(r4, sp, Operand(kSavedRegistersAreaSize));
   __ sub(r4, fp, r4);
 
   // Allocate a new deoptimizer object.
@@ -86,15 +86,15 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ JumpIfSmi(r1, &context_check);
   __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ bind(&context_check);
-  __ mov(r1, Operand(static_cast<int>(deopt_kind())));
+  __ mov(r1, Operand(static_cast<int>(deopt_kind)));
   // r2: bailout id already loaded.
   // r3: code address or 0 already loaded.
   __ str(r4, MemOperand(sp, 0 * kPointerSize));  // Fp-to-sp delta.
-  __ mov(r5, Operand(ExternalReference::isolate_address(isolate())));
+  __ mov(r5, Operand(ExternalReference::isolate_address(isolate)));
   __ str(r5, MemOperand(sp, 1 * kPointerSize));  // Isolate.
   // Call Deoptimizer::New().
   {
-    AllowExternalCallThatCantCauseGC scope(masm());
+    AllowExternalCallThatCantCauseGC scope(masm);
     __ CallCFunction(ExternalReference::new_deoptimizer_function(), 6);
   }
 
@@ -134,8 +134,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ str(r2, MemOperand(r1, dst_offset));
   }
 
-  // Remove the bailout id and the saved registers from the stack.
-  __ add(sp, sp, Operand(kSavedRegistersAreaSize + (1 * kPointerSize)));
+  // Remove the saved registers from the stack.
+  __ add(sp, sp, Operand(kSavedRegistersAreaSize));
 
   // Compute a pointer to the unwinding limit in register r2; that is
   // the first stack slot not part of the input frame.
@@ -163,7 +163,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ PrepareCallCFunction(1);
   // Call Deoptimizer::ComputeOutputFrames().
   {
-    AllowExternalCallThatCantCauseGC scope(masm());
+    AllowExternalCallThatCantCauseGC scope(masm);
     __ CallCFunction(ExternalReference::compute_output_frames_function(), 1);
   }
   __ pop(r0);  // Restore deoptimizer object (class Deoptimizer).
@@ -221,71 +221,16 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Restore the registers from the stack.
   __ ldm(ia_w, sp, restored_regs);  // all but pc registers.
 
-  __ InitializeRootRegister();
-
   // Remove sp, lr and pc.
   __ Drop(3);
   {
-    UseScratchRegisterScope temps(masm());
+    UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
     __ pop(scratch);  // get continuation, leave pc on stack
     __ pop(lr);
     __ Jump(scratch);
   }
   __ stop("Unreachable.");
-}
-
-
-void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
-  // Create a sequence of deoptimization entries.
-  // Note that registers are still live when jumping to an entry.
-
-  // We need to be able to generate immediates up to kMaxNumberOfEntries. On
-  // ARMv7, we can use movw (with a maximum immediate of 0xFFFF). On ARMv6, we
-  // need two instructions.
-  STATIC_ASSERT((kMaxNumberOfEntries - 1) <= 0xFFFF);
-  UseScratchRegisterScope temps(masm());
-  Register scratch = temps.Acquire();
-  if (CpuFeatures::IsSupported(ARMv7)) {
-    CpuFeatureScope scope(masm(), ARMv7);
-    Label done;
-    for (int i = 0; i < count(); i++) {
-      int start = masm()->pc_offset();
-      USE(start);
-      __ movw(scratch, i);
-      __ b(&done);
-      DCHECK_EQ(table_entry_size_, masm()->pc_offset() - start);
-    }
-    __ bind(&done);
-  } else {
-    // We want to keep table_entry_size_ == 8 (since this is the common case),
-    // but we need two instructions to load most immediates over 0xFF. To handle
-    // this, we set the low byte in the main table, and then set the high byte
-    // in a separate table if necessary.
-    Label high_fixes[256];
-    int high_fix_max = (count() - 1) >> 8;
-    DCHECK_GT(arraysize(high_fixes), static_cast<size_t>(high_fix_max));
-    for (int i = 0; i < count(); i++) {
-      int start = masm()->pc_offset();
-      USE(start);
-      __ mov(scratch, Operand(i & 0xFF));  // Set the low byte.
-      __ b(&high_fixes[i >> 8]);      // Jump to the secondary table.
-      DCHECK_EQ(table_entry_size_, masm()->pc_offset() - start);
-    }
-    // Generate the secondary table, to set the high byte.
-    for (int high = 1; high <= high_fix_max; high++) {
-      __ bind(&high_fixes[high]);
-      __ orr(scratch, scratch, Operand(high << 8));
-      // If this isn't the last entry, emit a branch to the end of the table.
-      // The last entry can just fall through.
-      if (high < high_fix_max) __ b(&high_fixes[0]);
-    }
-    // Bind high_fixes[0] last, for indices like 0x00**. This case requires no
-    // fix-up, so for (common) small tables we can jump here, then just fall
-    // through with no additional branch.
-    __ bind(&high_fixes[0]);
-  }
-  __ push(scratch);
 }
 
 bool Deoptimizer::PadTopOfStackRegister() { return false; }

@@ -67,52 +67,13 @@ class WasmTranslation::TranslatorImpl {
           column(column) {}
   };
 
-  virtual void Init(v8::Isolate*, WasmTranslation*, V8DebuggerAgentImpl*) = 0;
-  virtual void Translate(TransLocation*) = 0;
-  virtual void TranslateBack(TransLocation*) = 0;
-  virtual const WasmSourceInformation& GetSourceInformation(v8::Isolate*,
-                                                            int index) = 0;
-  virtual const String16 GetHash(v8::Isolate*, int index) = 0;
-
-  virtual ~TranslatorImpl() = default;
-
-  class RawTranslator;
-  class DisassemblingTranslator;
-};
-
-class WasmTranslation::TranslatorImpl::RawTranslator
-    : public WasmTranslation::TranslatorImpl {
- public:
-  void Init(v8::Isolate*, WasmTranslation*, V8DebuggerAgentImpl*) override {}
-  void Translate(TransLocation*) override {}
-  void TranslateBack(TransLocation*) override {}
-  const WasmSourceInformation& GetSourceInformation(v8::Isolate*,
-                                                    int index) override {
-    // NOTE(mmarchini): prior to 3.9, clang won't accept const object
-    // instantiations with non-user-provided default constructors, unless an
-    // empty initializer is explicitly given. Node.js still supports older
-    // clang versions, therefore we must take care when using const objects
-    // with default constructors. For more informations, please refer to CWG
-    // 253 (http://open-std.org/jtc1/sc22/wg21/docs/cwg_defects.html#253)
-    static const WasmSourceInformation singleEmptySourceInformation = {};
-    return singleEmptySourceInformation;
+  TranslatorImpl(v8::Isolate* isolate, v8::Local<v8::debug::WasmScript> script)
+      : script_(isolate, script) {
+    script_.AnnotateStrongRetainer(kGlobalScriptHandleLabel);
   }
-  const String16 GetHash(v8::Isolate*, int index) override {
-    // TODO(herhut): Find useful hash default value.
-    return String16();
-  }
-};
-
-class WasmTranslation::TranslatorImpl::DisassemblingTranslator
-    : public WasmTranslation::TranslatorImpl {
-
- public:
-  DisassemblingTranslator(v8::Isolate* isolate,
-                          v8::Local<v8::debug::WasmScript> script)
-      : script_(isolate, script) {}
 
   void Init(v8::Isolate* isolate, WasmTranslation* translation,
-            V8DebuggerAgentImpl* agent) override {
+            V8DebuggerAgentImpl* agent) {
     // Register fake scripts for each function in this wasm module/script.
     v8::Local<v8::debug::WasmScript> script = script_.Get(isolate);
     int num_functions = script->NumFunctions();
@@ -127,7 +88,7 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
     }
   }
 
-  void Translate(TransLocation* loc) override {
+  void Translate(TransLocation* loc) {
     const OffsetTable& offset_table = GetOffsetTable(loc);
     DCHECK(!offset_table.empty());
     uint32_t byte_offset = static_cast<uint32_t>(loc->column);
@@ -160,7 +121,7 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
            (entry.line == loc.line && entry.column < loc.column);
   }
 
-  void TranslateBack(TransLocation* loc) override {
+  void TranslateBack(TransLocation* loc) {
     v8::Isolate* isolate = loc->translation->isolate_;
     int func_index = GetFunctionIndexFromFakeScriptId(loc->script_id);
     const OffsetTable& reverse_table = GetReverseTable(isolate, func_index);
@@ -192,7 +153,7 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
   }
 
   const WasmSourceInformation& GetSourceInformation(v8::Isolate* isolate,
-                                                    int index) override {
+                                                    int index) {
     auto it = source_informations_.find(index);
     if (it != source_informations_.end()) return it->second;
     v8::HandleScope scope(isolate);
@@ -207,13 +168,19 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
     return inserted.first->second;
   }
 
-  const String16 GetHash(v8::Isolate* isolate, int index) override {
+  const String16 GetHash(v8::Isolate* isolate, int index) {
     v8::HandleScope scope(isolate);
     v8::Local<v8::debug::WasmScript> script = script_.Get(isolate);
     uint32_t hash = script->GetFunctionHash(index);
     String16Builder builder;
     builder.appendUnsignedAsHex(hash);
     return builder.toString();
+  }
+
+  int GetContextId(v8::Isolate* isolate) {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::debug::WasmScript> script = script_.Get(isolate);
+    return script->ContextId().FromMaybe(0);
   }
 
  private:
@@ -279,6 +246,9 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
     return GetSourceInformation(isolate, func_index).reverse_offset_table;
   }
 
+  static constexpr char kGlobalScriptHandleLabel[] =
+      "WasmTranslation::TranslatorImpl::script_";
+
   v8::Global<v8::debug::WasmScript> script_;
 
   // We assume to only disassemble a subset of the functions, so store them in a
@@ -286,22 +256,16 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
   std::unordered_map<int, WasmSourceInformation> source_informations_;
 };
 
-WasmTranslation::WasmTranslation(v8::Isolate* isolate)
-    : isolate_(isolate), mode_(Disassemble) {}
+constexpr char WasmTranslation::TranslatorImpl::kGlobalScriptHandleLabel[];
+
+WasmTranslation::WasmTranslation(v8::Isolate* isolate) : isolate_(isolate) {}
 
 WasmTranslation::~WasmTranslation() { Clear(); }
 
 void WasmTranslation::AddScript(v8::Local<v8::debug::WasmScript> script,
                                 V8DebuggerAgentImpl* agent) {
   std::unique_ptr<TranslatorImpl> impl;
-  switch (mode_) {
-    case Raw:
-      impl.reset(new TranslatorImpl::RawTranslator());
-      break;
-    case Disassemble:
-      impl.reset(new TranslatorImpl::DisassemblingTranslator(isolate_, script));
-      break;
-  }
+  impl.reset(new TranslatorImpl(isolate_, script));
   DCHECK(impl);
   auto inserted =
       wasm_translators_.insert(std::make_pair(script->Id(), std::move(impl)));
@@ -314,6 +278,32 @@ void WasmTranslation::AddScript(v8::Local<v8::debug::WasmScript> script,
 void WasmTranslation::Clear() {
   wasm_translators_.clear();
   fake_scripts_.clear();
+}
+
+void WasmTranslation::Clear(v8::Isolate* isolate,
+                            const std::vector<int>& contextIdsToClear) {
+  for (auto iter = fake_scripts_.begin(); iter != fake_scripts_.end();) {
+    auto contextId = iter->second->GetContextId(isolate);
+    auto it = std::find(std::begin(contextIdsToClear),
+                        std::end(contextIdsToClear), contextId);
+    if (it != std::end(contextIdsToClear)) {
+      iter = fake_scripts_.erase(iter);
+    } else {
+      ++iter;
+    }
+  }
+
+  for (auto iter = wasm_translators_.begin();
+       iter != wasm_translators_.end();) {
+    auto contextId = iter->second->GetContextId(isolate);
+    auto it = std::find(std::begin(contextIdsToClear),
+                        std::end(contextIdsToClear), contextId);
+    if (it != std::end(contextIdsToClear)) {
+      iter = wasm_translators_.erase(iter);
+    } else {
+      ++iter;
+    }
+  }
 }
 
 const String16& WasmTranslation::GetSource(const String16& script_id,

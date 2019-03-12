@@ -11,7 +11,7 @@ namespace v8 {
 namespace internal {
 
 #define DEOPTIMIZE_REASON_LIST(V)                                              \
-  V(ArrayBufferWasNeutered, "array buffer was neutered")                       \
+  V(ArrayBufferWasDetached, "array buffer was detached")                       \
   V(CowArrayElementsChanged, "copy-on-write array's elements changed")         \
   V(CouldNotGrowElements, "failed to grow elements store")                     \
   V(DeoptimizeNow, "%_DeoptimizeNow")                                          \
@@ -39,6 +39,8 @@ namespace internal {
   V(NoCache, "no cache")                                                       \
   V(NotAHeapNumber, "not a heap number")                                       \
   V(NotAJavaScriptObject, "not a JavaScript object")                           \
+  V(NotAJavaScriptObjectOrNullOrUndefined,                                     \
+    "not a JavaScript object, Null or Undefined")                              \
   V(NotANumberOrOddball, "not a Number or Oddball")                            \
   V(NotASmi, "not a Smi")                                                      \
   V(NotAString, "not a String")                                                \

@@ -19,8 +19,8 @@ assertTrue(0n === 0n);
 
 // crbug.com/818277: Must throw without DCHECK failures.
 // In order to run acceptably fast in Debug mode, this test assumes that
-// we allow at least 2 billion bits in a BigInt.
-var close_to_limit = 2n ** 2000000000n;
+// we allow at least 1 billion bits in a BigInt.
+var close_to_limit = 2n ** 1000000000n;
 assertThrows(() => close_to_limit ** 100n, RangeError);
 
 // Check boundary conditions of the power-of-two fast path.

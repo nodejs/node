@@ -24,7 +24,7 @@ DefaultWorkerThreadsTaskRunner::~DefaultWorkerThreadsTaskRunner() {
 }
 
 void DefaultWorkerThreadsTaskRunner::Terminate() {
-  base::LockGuard<base::Mutex> guard(&lock_);
+  base::MutexGuard guard(&lock_);
   terminated_ = true;
   queue_.Terminate();
   // Clearing the thread pool lets all worker threads join.
@@ -32,14 +32,14 @@ void DefaultWorkerThreadsTaskRunner::Terminate() {
 }
 
 void DefaultWorkerThreadsTaskRunner::PostTask(std::unique_ptr<Task> task) {
-  base::LockGuard<base::Mutex> guard(&lock_);
+  base::MutexGuard guard(&lock_);
   if (terminated_) return;
   queue_.Append(std::move(task));
 }
 
 void DefaultWorkerThreadsTaskRunner::PostDelayedTask(std::unique_ptr<Task> task,
                                                      double delay_in_seconds) {
-  base::LockGuard<base::Mutex> guard(&lock_);
+  base::MutexGuard guard(&lock_);
   if (terminated_) return;
   if (delay_in_seconds == 0) {
     queue_.Append(std::move(task));

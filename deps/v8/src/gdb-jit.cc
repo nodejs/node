@@ -14,7 +14,6 @@
 #include "src/frames-inl.h"
 #include "src/frames.h"
 #include "src/global-handles.h"
-#include "src/messages.h"
 #include "src/objects.h"
 #include "src/ostreams.h"
 #include "src/snapshot/natives.h"
@@ -954,7 +953,7 @@ class CodeDescription {
   };
 #endif
 
-  CodeDescription(const char* name, Code* code, SharedFunctionInfo* shared,
+  CodeDescription(const char* name, Code code, SharedFunctionInfo shared,
                   LineInfo* lineinfo)
       : name_(name), code_(code), shared_info_(shared), lineinfo_(lineinfo) {}
 
@@ -969,9 +968,9 @@ class CodeDescription {
     return kind == Code::OPTIMIZED_FUNCTION;
   }
 
-  bool has_scope_info() const { return shared_info_ != nullptr; }
+  bool has_scope_info() const { return !shared_info_.is_null(); }
 
-  ScopeInfo* scope_info() const {
+  ScopeInfo scope_info() const {
     DCHECK(has_scope_info());
     return shared_info_->scope_info();
   }
@@ -989,10 +988,10 @@ class CodeDescription {
   }
 
   bool has_script() {
-    return shared_info_ != nullptr && shared_info_->script()->IsScript();
+    return !shared_info_.is_null() && shared_info_->script()->IsScript();
   }
 
-  Script* script() { return Script::cast(shared_info_->script()); }
+  Script script() { return Script::cast(shared_info_->script()); }
 
   bool IsLineInfoAvailable() { return lineinfo_ != nullptr; }
 
@@ -1009,7 +1008,7 @@ class CodeDescription {
 #endif
 
   std::unique_ptr<char[]> GetFilename() {
-    if (shared_info_ != nullptr) {
+    if (!shared_info_.is_null()) {
       return String::cast(script()->name())->ToCString();
     } else {
       std::unique_ptr<char[]> result(new char[1]);
@@ -1019,7 +1018,7 @@ class CodeDescription {
   }
 
   int GetScriptLineNumber(int pos) {
-    if (shared_info_ != nullptr) {
+    if (!shared_info_.is_null()) {
       return script()->GetLineNumber(pos) + 1;
     } else {
       return 0;
@@ -1028,8 +1027,8 @@ class CodeDescription {
 
  private:
   const char* name_;
-  Code* code_;
-  SharedFunctionInfo* shared_info_;
+  Code code_;
+  SharedFunctionInfo shared_info_;
   LineInfo* lineinfo_;
 #if V8_TARGET_ARCH_X64
   uintptr_t stack_state_start_addresses_[STACK_STATE_MAX];
@@ -1131,7 +1130,7 @@ class DebugInfoSection : public DebugSection {
     w->WriteString("v8value");
 
     if (desc_->has_scope_info()) {
-      ScopeInfo* scope = desc_->scope_info();
+      ScopeInfo scope = desc_->scope_info();
       w->WriteULEB128(2);
       w->WriteString(desc_->name());
       w->Write<intptr_t>(desc_->CodeStart());
@@ -1333,7 +1332,7 @@ class DebugAbbrevSection : public DebugSection {
     w->WriteULEB128(0);
 
     if (extra_info) {
-      ScopeInfo* scope = desc_->scope_info();
+      ScopeInfo scope = desc_->scope_info();
       int params = scope->ParameterCount();
       int context_slots = scope->ContextLocalCount();
       // The real slot ID is internal_slots + context_slot_id.
@@ -1839,7 +1838,7 @@ extern "C" {
   JITDescriptor __jit_debug_descriptor = {1, 0, nullptr, nullptr};
 
 #ifdef OBJECT_PRINT
-  void __gdb_print_v8_object(Object* object) {
+  void __gdb_print_v8_object(Object object) {
     StdoutStream os;
     object->Print(os);
     os << std::flush;
@@ -2083,8 +2082,7 @@ static void AddJITCodeEntry(CodeMap* map, const AddressRange& range,
   RegisterCodeEntry(entry);
 }
 
-
-static void AddCode(const char* name, Code* code, SharedFunctionInfo* shared,
+static void AddCode(const char* name, Code code, SharedFunctionInfo shared,
                     LineInfo* lineinfo) {
   DisallowHeapAllocation no_gc;
 
@@ -2121,23 +2119,23 @@ static void AddCode(const char* name, Code* code, SharedFunctionInfo* shared,
   AddJITCodeEntry(code_map, range, entry, should_dump, name_hint);
 }
 
-
 void EventHandler(const v8::JitCodeEvent* event) {
   if (!FLAG_gdbjit) return;
   if (event->code_type != v8::JitCodeEvent::JIT_CODE) return;
-  base::LockGuard<base::Mutex> lock_guard(mutex.Pointer());
+  base::MutexGuard lock_guard(mutex.Pointer());
   switch (event->type) {
     case v8::JitCodeEvent::CODE_ADDED: {
       Address addr = reinterpret_cast<Address>(event->code_start);
-      Code* code = Code::GetCodeFromTargetAddress(addr);
+      Isolate* isolate = reinterpret_cast<Isolate*>(event->isolate);
+      Code code = isolate->heap()->GcSafeFindCodeForInnerPointer(addr);
       LineInfo* lineinfo = GetLineInfo(addr);
       EmbeddedVector<char, 256> buffer;
       StringBuilder builder(buffer.start(), buffer.length());
       builder.AddSubstring(event->name.str, static_cast<int>(event->name.len));
       // It's called UnboundScript in the API but it's a SharedFunctionInfo.
-      SharedFunctionInfo* shared = event->script.IsEmpty()
-                                       ? nullptr
-                                       : *Utils::OpenHandle(*event->script);
+      SharedFunctionInfo shared = event->script.IsEmpty()
+                                      ? SharedFunctionInfo()
+                                      : *Utils::OpenHandle(*event->script);
       AddCode(builder.Finalize(), code, shared, lineinfo);
       break;
     }

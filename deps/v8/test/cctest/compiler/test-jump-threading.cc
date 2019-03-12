@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/instruction-codes.h"
-#include "src/compiler/instruction.h"
-#include "src/compiler/jump-threading.h"
+#include "src/compiler/backend/instruction-codes.h"
+#include "src/compiler/backend/instruction.h"
+#include "src/compiler/backend/jump-threading.h"
 #include "src/source-position.h"
 #include "test/cctest/cctest.h"
 
@@ -613,6 +613,7 @@ TEST(FwPermuted_diamond) { RunAllPermutations<4>(RunPermutedDiamond); }
 
 
 void ApplyForwarding(TestCode& code, int size, int* forward) {
+  code.sequence_.RecomputeAssemblyOrderForTesting();
   ZoneVector<RpoNumber> vector(code.main_zone());
   for (int i = 0; i < size; i++) {
     vector.push_back(RpoNumber::FromInt(forward[i]));

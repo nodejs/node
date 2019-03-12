@@ -10,18 +10,17 @@
 
 #include "src/allocation.h"
 #include "src/base/atomic-utils.h"
+#include "src/objects/heap-object.h"
 #include "src/utils.h"
 
 namespace v8 {
 namespace internal {
 
-class HeapObject;
-
 // This data structure stores objects that went through object layout change
 // that potentially invalidates slots recorded concurrently. The second part
 // of each element is the size of the corresponding object before the layout
 // change.
-using InvalidatedSlots = std::map<HeapObject*, int>;
+using InvalidatedSlots = std::map<HeapObject, int, Object::Comparer>;
 
 // This class provides IsValid predicate that takes into account the set
 // of invalidated objects in the given memory chunk.
@@ -40,7 +39,7 @@ class InvalidatedSlotsFilter {
   Address sentinel_;
   Address invalidated_start_;
   Address invalidated_end_;
-  HeapObject* invalidated_object_;
+  HeapObject invalidated_object_;
   int invalidated_object_size_;
   bool slots_in_free_space_are_valid_;
   InvalidatedSlots empty_;

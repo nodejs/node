@@ -20,39 +20,29 @@
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-locale-inl.h"
+#include "unicode/char16ptr.h"
 #include "unicode/locid.h"
 #include "unicode/uloc.h"
 #include "unicode/unistr.h"
-#include "unicode/uvernum.h"
-#include "unicode/uversion.h"
-
-#if U_ICU_VERSION_MAJOR_NUM >= 59
-#include "unicode/char16ptr.h"
-#endif
 
 namespace v8 {
 namespace internal {
 
 namespace {
 
-JSLocale::CaseFirst GetCaseFirst(const char* str) {
-  if (strcmp(str, "upper") == 0) return JSLocale::CaseFirst::UPPER;
-  if (strcmp(str, "lower") == 0) return JSLocale::CaseFirst::LOWER;
-  if (strcmp(str, "false") == 0) return JSLocale::CaseFirst::FALSE_VALUE;
-  UNREACHABLE();
-}
-
-JSLocale::HourCycle GetHourCycle(const char* str) {
-  if (strcmp(str, "h11") == 0) return JSLocale::HourCycle::H11;
-  if (strcmp(str, "h12") == 0) return JSLocale::HourCycle::H12;
-  if (strcmp(str, "h23") == 0) return JSLocale::HourCycle::H23;
-  if (strcmp(str, "h24") == 0) return JSLocale::HourCycle::H24;
-  UNREACHABLE();
-}
-
-JSLocale::Numeric GetNumeric(const char* str) {
-  return strcmp(str, "true") == 0 ? JSLocale::Numeric::TRUE_VALUE
-                                  : JSLocale::Numeric::FALSE_VALUE;
+// Helper function to check a locale is valid. It will return false if
+// the length of the extension fields are incorrect. For example, en-u-a or
+// en-u-co-b will return false.
+bool IsValidLocale(const icu::Locale& locale) {
+  // icu::Locale::toLanguageTag won't return U_STRING_NOT_TERMINATED_WARNING for
+  // incorrect locale yet. So we still need the following uloc_toLanguageTag
+  // TODO(ftang): Change to use icu::Locale::toLanguageTag once it indicate
+  // error.
+  char result[ULOC_FULLNAME_CAPACITY];
+  UErrorCode status = U_ZERO_ERROR;
+  uloc_toLanguageTag(locale.getName(), result, ULOC_FULLNAME_CAPACITY, true,
+                     &status);
+  return U_SUCCESS(status) && status != U_STRING_NOT_TERMINATED_WARNING;
 }
 
 struct OptionData {
@@ -65,9 +55,9 @@ struct OptionData {
 // Inserts tags from options into locale string.
 Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
                                     Handle<JSReceiver> options,
-                                    char* icu_locale) {
+                                    icu::Locale* icu_locale) {
   CHECK(isolate);
-  CHECK(icu_locale);
+  CHECK(!icu_locale->isBogus());
 
   const std::vector<const char*> hour_cycle_values = {"h11", "h12", "h23",
                                                       "h24"};
@@ -85,6 +75,7 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
   // TODO(cira): Pass in values as per the spec to make this to be
   // spec compliant.
 
+  UErrorCode status = U_ZERO_ERROR;
   for (const auto& option_to_bcp47 : kOptionToUnicodeTagMap) {
     std::unique_ptr<char[]> value_str = nullptr;
     bool value_bool = false;
@@ -114,14 +105,9 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
 
     // Overwrite existing, or insert new key-value to the locale string.
     const char* value = uloc_toLegacyType(key, value_str.get());
-    UErrorCode status = U_ZERO_ERROR;
     if (value) {
-      // TODO(cira): ICU puts artificial limit on locale length, while BCP47
-      // doesn't. Switch to C++ API when it's ready.
-      // Related ICU bug - https://ssl.icu-project.org/trac/ticket/13417.
-      uloc_setKeywordValue(key, value, icu_locale, ULOC_FULLNAME_CAPACITY,
-                           &status);
-      if (U_FAILURE(status) || status == U_STRING_NOT_TERMINATED_WARNING) {
+      icu_locale->setKeywordValue(key, value, status);
+      if (U_FAILURE(status)) {
         return Just(false);
       }
     } else {
@@ -129,277 +115,346 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
     }
   }
 
+  // Check all the unicode extension fields are in the right length.
+  if (!IsValidLocale(*icu_locale)) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NewRangeError(MessageTemplate::kLocaleBadParameters),
+        Nothing<bool>());
+  }
+
   return Just(true);
 }
 
-// Fills in the JSLocale object slots with Unicode tag/values.
-bool PopulateLocaleWithUnicodeTags(Isolate* isolate, const char* icu_locale,
-                                   Handle<JSLocale> locale_holder) {
-  CHECK(isolate);
-  CHECK(icu_locale);
-
-  Factory* factory = isolate->factory();
-
+Handle<Object> UnicodeKeywordValue(Isolate* isolate, Handle<JSLocale> locale,
+                                   const char* key) {
+  icu::Locale* icu_locale = locale->icu_locale()->raw();
   UErrorCode status = U_ZERO_ERROR;
-  UEnumeration* keywords = uloc_openKeywords(icu_locale, &status);
-  if (!keywords) return true;
-
-  char value[ULOC_FULLNAME_CAPACITY];
-  while (const char* keyword = uenum_next(keywords, nullptr, &status)) {
-    uloc_getKeywordValue(icu_locale, keyword, value, ULOC_FULLNAME_CAPACITY,
-                         &status);
-    if (U_FAILURE(status)) {
-      status = U_ZERO_ERROR;
-      continue;
-    }
-
-    // Ignore those we don't recognize - spec allows that.
-    const char* bcp47_key = uloc_toUnicodeLocaleKey(keyword);
-    if (bcp47_key) {
-      const char* bcp47_value = uloc_toUnicodeLocaleType(bcp47_key, value);
-      if (bcp47_value) {
-          if (strcmp(bcp47_key, "kn") == 0) {
-            locale_holder->set_numeric(GetNumeric(bcp47_value));
-          } else if (strcmp(bcp47_key, "ca") == 0) {
-            Handle<String> bcp47_handle =
-                factory->NewStringFromAsciiChecked(bcp47_value);
-            locale_holder->set_calendar(*bcp47_handle);
-          } else if (strcmp(bcp47_key, "kf") == 0) {
-            locale_holder->set_case_first(GetCaseFirst(bcp47_value));
-          } else if (strcmp(bcp47_key, "co") == 0) {
-            Handle<String> bcp47_handle =
-                factory->NewStringFromAsciiChecked(bcp47_value);
-            locale_holder->set_collation(*bcp47_handle);
-          } else if (strcmp(bcp47_key, "hc") == 0) {
-            locale_holder->set_hour_cycle(GetHourCycle(bcp47_value));
-          } else if (strcmp(bcp47_key, "nu") == 0) {
-            Handle<String> bcp47_handle =
-                factory->NewStringFromAsciiChecked(bcp47_value);
-            locale_holder->set_numbering_system(*bcp47_handle);
-          }
-      }
-    }
+  std::string value =
+      icu_locale->getUnicodeKeywordValue<std::string>(key, status);
+  if (status == U_ILLEGAL_ARGUMENT_ERROR || value == "") {
+    return isolate->factory()->undefined_value();
   }
+  return isolate->factory()->NewStringFromAsciiChecked(value.c_str());
+}
 
-  uenum_close(keywords);
+bool InRange(size_t value, size_t start, size_t end) {
+  return (start <= value) && (value <= end);
+}
+bool InRange(char value, char start, char end) {
+  return (start <= value) && (value <= end);
+}
 
+bool IsCheckRange(const std::string& str, size_t min, size_t max,
+                  bool(range_check_func)(char)) {
+  if (!InRange(str.length(), min, max)) return false;
+  for (size_t i = 0; i < str.length(); i++) {
+    if (!range_check_func(str[i])) return false;
+  }
   return true;
 }
+bool IsAlpha(const std::string& str, size_t min, size_t max) {
+  return IsCheckRange(str, min, max, [](char c) -> bool {
+    return InRange(c, 'a', 'z') || InRange(c, 'A', 'Z');
+  });
+}
+
+bool IsDigit(const std::string& str, size_t min, size_t max) {
+  return IsCheckRange(str, min, max,
+                      [](char c) -> bool { return InRange(c, '0', '9'); });
+}
+
+bool ValidateLanguageProduction(const std::string& value) {
+  // language      = 2*3ALPHA            ; shortest ISO 639 code
+  //                 ["-" extlang]       ; sometimes followed by
+  //                                     ; extended language subtags
+  //               / 4ALPHA              ; or reserved for future use
+  //               / 5*8ALPHA            ; or registered language subtag
+  //
+  // extlang       = 3ALPHA              ; selected ISO 639 codes
+  //                 *2("-" 3ALPHA)      ; permanently reserved
+  // TODO(ftang) not handling the [extlang] yet
+  return IsAlpha(value, 2, 8);
+}
+
+bool ValidateScriptProduction(const std::string& value) {
+  // script        = 4ALPHA              ; ISO 15924 code
+  return IsAlpha(value, 4, 4);
+}
+
+bool ValidateRegionProduction(const std::string& value) {
+  // region        = 2ALPHA              ; ISO 3166-1 code
+  //               / 3DIGIT              ; UN M.49 code
+  return IsAlpha(value, 2, 2) || IsDigit(value, 3, 3);
+}
+
+Maybe<icu::Locale> ApplyOptionsToTag(Isolate* isolate, Handle<String> tag,
+                                     Handle<JSReceiver> options) {
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  if (tag->length() == 0) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NewRangeError(MessageTemplate::kLocaleNotEmpty),
+        Nothing<icu::Locale>());
+  }
+
+  v8::String::Utf8Value bcp47_tag(v8_isolate, v8::Utils::ToLocal(tag));
+  CHECK_LT(0, bcp47_tag.length());
+  CHECK_NOT_NULL(*bcp47_tag);
+  // 2. If IsStructurallyValidLanguageTag(tag) is false, throw a RangeError
+  // exception.
+  UErrorCode status = U_ZERO_ERROR;
+  icu::Locale icu_locale =
+      icu::Locale::forLanguageTag({*bcp47_tag, bcp47_tag.length()}, status);
+  if (U_FAILURE(status)) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NewRangeError(MessageTemplate::kLocaleBadParameters),
+        Nothing<icu::Locale>());
+  }
+
+  // 3. Let language be ? GetOption(options, "language", "string", undefined,
+  // undefined).
+  const std::vector<const char*> empty_values = {};
+  std::unique_ptr<char[]> language_str = nullptr;
+  Maybe<bool> maybe_language =
+      Intl::GetStringOption(isolate, options, "language", empty_values,
+                            "ApplyOptionsToTag", &language_str);
+  MAYBE_RETURN(maybe_language, Nothing<icu::Locale>());
+  // 4. If language is not undefined, then
+  if (maybe_language.FromJust()) {
+    // a. If language does not match the language production, throw a RangeError
+    // exception.
+    // b. If language matches the grandfathered production, throw a RangeError
+    // exception.
+    // Currently ValidateLanguageProduction only take 2*3ALPHA / 4ALPHA /
+    // 5*8ALPHA and won't take 2*3ALPHA "-" extlang so none of the grandfathered
+    // will be matched.
+    if (!ValidateLanguageProduction(language_str.get())) {
+      THROW_NEW_ERROR_RETURN_VALUE(
+          isolate, NewRangeError(MessageTemplate::kLocaleBadParameters),
+          Nothing<icu::Locale>());
+    }
+  }
+  // 5. Let script be ? GetOption(options, "script", "string", undefined,
+  // undefined).
+  std::unique_ptr<char[]> script_str = nullptr;
+  Maybe<bool> maybe_script =
+      Intl::GetStringOption(isolate, options, "script", empty_values,
+                            "ApplyOptionsToTag", &script_str);
+  MAYBE_RETURN(maybe_script, Nothing<icu::Locale>());
+  // 6. If script is not undefined, then
+  if (maybe_script.FromJust()) {
+    // a. If script does not match the script production, throw a RangeError
+    // exception.
+    if (!ValidateScriptProduction(script_str.get())) {
+      THROW_NEW_ERROR_RETURN_VALUE(
+          isolate, NewRangeError(MessageTemplate::kLocaleBadParameters),
+          Nothing<icu::Locale>());
+    }
+  }
+  // 7. Let region be ? GetOption(options, "region", "string", undefined,
+  // undefined).
+  std::unique_ptr<char[]> region_str = nullptr;
+  Maybe<bool> maybe_region =
+      Intl::GetStringOption(isolate, options, "region", empty_values,
+                            "ApplyOptionsToTag", &region_str);
+  MAYBE_RETURN(maybe_region, Nothing<icu::Locale>());
+  // 8. If region is not undefined, then
+  if (maybe_region.FromJust()) {
+    // a. If region does not match the region production, throw a RangeError
+    // exception.
+    if (!ValidateRegionProduction(region_str.get())) {
+      THROW_NEW_ERROR_RETURN_VALUE(
+          isolate, NewRangeError(MessageTemplate::kLocaleBadParameters),
+          Nothing<icu::Locale>());
+    }
+  }
+  // 9. Set tag to CanonicalizeLanguageTag(tag).
+
+  // 10.  If language is not undefined,
+  std::string locale_str;
+  if (maybe_language.FromJust()) {
+    // a. Assert: tag matches the langtag production.
+    // b. Set tag to tag with the substring corresponding to the language
+    // production replaced by the string language.
+    locale_str = language_str.get();
+  } else {
+    locale_str = icu_locale.getLanguage();
+  }
+  // 11. If script is not undefined, then
+  const char* script_ptr = nullptr;
+  if (maybe_script.FromJust()) {
+    // a. If tag does not contain a script production, then
+    // i. Set tag to the concatenation of the language production of tag, "-",
+    // script, and the rest of tag.
+    // i. Set tag to tag with the substring corresponding to the script
+    // production replaced by the string script.
+    script_ptr = script_str.get();
+  } else {
+    script_ptr = icu_locale.getScript();
+  }
+  if (script_ptr != nullptr && strlen(script_ptr) > 0) {
+    locale_str.append("-");
+    locale_str.append(script_ptr);
+  }
+  // 12. If region is not undefined, then
+  const char* region_ptr = nullptr;
+  if (maybe_region.FromJust()) {
+    // a. If tag does not contain a region production, then
+    //
+    // i. Set tag to the concatenation of the language production of tag, the
+    // substring corresponding to the "-" script production if present,  "-",
+    // region, and the rest of tag.
+    //
+    // b. Else,
+    //
+    // i. Set tag to tag with the substring corresponding to the region
+    // production replaced by the string region.
+    region_ptr = region_str.get();
+  } else {
+    region_ptr = icu_locale.getCountry();
+  }
+
+  std::string without_options(icu_locale.getName());
+
+  // replace with values from options
+  icu_locale =
+      icu::Locale(locale_str.c_str(), region_ptr, icu_locale.getVariant());
+  locale_str = icu_locale.getName();
+
+  // Append extensions from tag
+  size_t others = without_options.find("@");
+  if (others != std::string::npos) {
+    locale_str += without_options.substr(others);
+  }
+
+  // 13.  Return CanonicalizeLanguageTag(tag).
+  icu_locale = icu::Locale::createCanonical(locale_str.c_str());
+  return Just(icu_locale);
+}
+
 }  // namespace
 
 MaybeHandle<JSLocale> JSLocale::Initialize(Isolate* isolate,
-                                           Handle<JSLocale> locale_holder,
-                                           Handle<String> locale,
+                                           Handle<JSLocale> locale,
+                                           Handle<String> locale_str,
                                            Handle<JSReceiver> options) {
-  locale_holder->set_flags(0);
-  static const char* const kMethod = "Intl.Locale";
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  UErrorCode status = U_ZERO_ERROR;
+  Maybe<icu::Locale> maybe_locale =
+      ApplyOptionsToTag(isolate, locale_str, options);
+  MAYBE_RETURN(maybe_locale, MaybeHandle<JSLocale>());
+  icu::Locale icu_locale = maybe_locale.FromJust();
 
-  // Get ICU locale format, and canonicalize it.
-  char icu_result[ULOC_FULLNAME_CAPACITY];
-
-  if (locale->length() == 0) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kLocaleNotEmpty),
+  Maybe<bool> error = InsertOptionsIntoLocale(isolate, options, &icu_locale);
+  MAYBE_RETURN(error, MaybeHandle<JSLocale>());
+  if (!error.FromJust()) {
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kLocaleBadParameters),
                     JSLocale);
   }
 
-  v8::String::Utf8Value bcp47_locale(v8_isolate, v8::Utils::ToLocal(locale));
-  CHECK_LT(0, bcp47_locale.length());
-  CHECK_NOT_NULL(*bcp47_locale);
+  // 31. Set locale.[[Locale]] to r.[[locale]].
+  Handle<Managed<icu::Locale>> managed_locale =
+      Managed<icu::Locale>::FromRawPtr(isolate, 0, icu_locale.clone());
+  locale->set_icu_locale(*managed_locale);
 
-  int parsed_length = 0;
-  int icu_length =
-      uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
-                          &parsed_length, &status);
-
-  if (U_FAILURE(status) ||
-      parsed_length < static_cast<int>(bcp47_locale.length()) ||
-      status == U_STRING_NOT_TERMINATED_WARNING || icu_length == 0) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewRangeError(MessageTemplate::kLocaleBadParameters,
-                      isolate->factory()->NewStringFromAsciiChecked(kMethod),
-                      locale_holder),
-        JSLocale);
-  }
-
-  Maybe<bool> error = InsertOptionsIntoLocale(isolate, options, icu_result);
-  MAYBE_RETURN(error, MaybeHandle<JSLocale>());
-  if (!error.FromJust()) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewRangeError(MessageTemplate::kLocaleBadParameters,
-                      isolate->factory()->NewStringFromAsciiChecked(kMethod),
-                      locale_holder),
-        JSLocale);
-  }
-
-  if (!PopulateLocaleWithUnicodeTags(isolate, icu_result, locale_holder)) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewRangeError(MessageTemplate::kLocaleBadParameters,
-                      isolate->factory()->NewStringFromAsciiChecked(kMethod),
-                      locale_holder),
-        JSLocale);
-  }
-
-  // Extract language, script and region parts.
-  char icu_language[ULOC_LANG_CAPACITY];
-  uloc_getLanguage(icu_result, icu_language, ULOC_LANG_CAPACITY, &status);
-
-  char icu_script[ULOC_SCRIPT_CAPACITY];
-  uloc_getScript(icu_result, icu_script, ULOC_SCRIPT_CAPACITY, &status);
-
-  char icu_region[ULOC_COUNTRY_CAPACITY];
-  uloc_getCountry(icu_result, icu_region, ULOC_COUNTRY_CAPACITY, &status);
-
-  if (U_FAILURE(status) || status == U_STRING_NOT_TERMINATED_WARNING) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewRangeError(MessageTemplate::kLocaleBadParameters,
-                      isolate->factory()->NewStringFromAsciiChecked(kMethod),
-                      locale_holder),
-        JSLocale);
-  }
-
-  Factory* factory = isolate->factory();
-
-  // NOTE: One shouldn't use temporary handles, because they can go out of
-  // scope and be garbage collected before properly assigned.
-  // DON'T DO THIS: locale_holder->set_language(*f->NewStringAscii...);
-  Handle<String> language = factory->NewStringFromAsciiChecked(icu_language);
-  locale_holder->set_language(*language);
-
-  if (strlen(icu_script) != 0) {
-    Handle<String> script = factory->NewStringFromAsciiChecked(icu_script);
-    locale_holder->set_script(*script);
-  }
-
-  if (strlen(icu_region) != 0) {
-    Handle<String> region = factory->NewStringFromAsciiChecked(icu_region);
-    locale_holder->set_region(*region);
-  }
-
-  char icu_base_name[ULOC_FULLNAME_CAPACITY];
-  uloc_getBaseName(icu_result, icu_base_name, ULOC_FULLNAME_CAPACITY, &status);
-  // We need to convert it back to BCP47.
-  char bcp47_result[ULOC_FULLNAME_CAPACITY];
-  uloc_toLanguageTag(icu_base_name, bcp47_result, ULOC_FULLNAME_CAPACITY, true,
-                     &status);
-  if (U_FAILURE(status) || status == U_STRING_NOT_TERMINATED_WARNING) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewRangeError(MessageTemplate::kLocaleBadParameters,
-                      isolate->factory()->NewStringFromAsciiChecked(kMethod),
-                      locale_holder),
-        JSLocale);
-  }
-  Handle<String> base_name = factory->NewStringFromAsciiChecked(bcp47_result);
-  locale_holder->set_base_name(*base_name);
-
-  // Produce final representation of the locale string, for toString().
-  uloc_toLanguageTag(icu_result, bcp47_result, ULOC_FULLNAME_CAPACITY, true,
-                     &status);
-  if (U_FAILURE(status) || status == U_STRING_NOT_TERMINATED_WARNING) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewRangeError(MessageTemplate::kLocaleBadParameters,
-                      isolate->factory()->NewStringFromAsciiChecked(kMethod),
-                      locale_holder),
-        JSLocale);
-  }
-  Handle<String> locale_handle =
-      factory->NewStringFromAsciiChecked(bcp47_result);
-  locale_holder->set_locale(*locale_handle);
-
-  return locale_holder;
+  return locale;
 }
 
 namespace {
-
-Handle<String> MorphLocale(Isolate* isolate, String* language_tag,
-                           int32_t (*morph_func)(const char*, char*, int32_t,
-                                                 UErrorCode*)) {
-  Factory* factory = isolate->factory();
-  char localeBuffer[ULOC_FULLNAME_CAPACITY];
-  char morphBuffer[ULOC_FULLNAME_CAPACITY];
-
+Handle<String> MorphLocale(Isolate* isolate, String locale,
+                           void (*morph_func)(icu::Locale*, UErrorCode*)) {
   UErrorCode status = U_ZERO_ERROR;
-  // Convert from language id to locale.
-  int32_t parsed_length;
-  int32_t length =
-      uloc_forLanguageTag(language_tag->ToCString().get(), localeBuffer,
-                          ULOC_FULLNAME_CAPACITY, &parsed_length, &status);
-  CHECK(parsed_length == language_tag->length());
-  DCHECK(U_SUCCESS(status));
-  DCHECK_GT(length, 0);
-  DCHECK_NOT_NULL(morph_func);
-  // Add the likely subtags or Minimize the subtags on the locale id
-  length =
-      (*morph_func)(localeBuffer, morphBuffer, ULOC_FULLNAME_CAPACITY, &status);
-  DCHECK(U_SUCCESS(status));
-  DCHECK_GT(length, 0);
-  // Returns a well-formed language tag
-  length = uloc_toLanguageTag(morphBuffer, localeBuffer, ULOC_FULLNAME_CAPACITY,
-                              false, &status);
-  DCHECK(U_SUCCESS(status));
-  DCHECK_GT(length, 0);
-  std::string lang(localeBuffer, length);
-  std::replace(lang.begin(), lang.end(), '_', '-');
-
-  return factory->NewStringFromAsciiChecked(lang.c_str());
+  icu::Locale icu_locale =
+      icu::Locale::forLanguageTag(locale.ToCString().get(), status);
+  CHECK(U_SUCCESS(status));
+  CHECK(!icu_locale.isBogus());
+  (*morph_func)(&icu_locale, &status);
+  CHECK(U_SUCCESS(status));
+  CHECK(!icu_locale.isBogus());
+  std::string locale_str = Intl::ToLanguageTag(icu_locale).FromJust();
+  return isolate->factory()->NewStringFromAsciiChecked(locale_str.c_str());
 }
 
 }  // namespace
 
-Handle<String> JSLocale::Maximize(Isolate* isolate, String* locale) {
-  return MorphLocale(isolate, locale, uloc_addLikelySubtags);
+Handle<String> JSLocale::Maximize(Isolate* isolate, String locale) {
+  return MorphLocale(isolate, locale,
+                     [](icu::Locale* icu_locale, UErrorCode* status) {
+                       icu_locale->addLikelySubtags(*status);
+                     });
 }
 
-Handle<String> JSLocale::Minimize(Isolate* isolate, String* locale) {
-  return MorphLocale(isolate, locale, uloc_minimizeSubtags);
+Handle<String> JSLocale::Minimize(Isolate* isolate, String locale) {
+  return MorphLocale(isolate, locale,
+                     [](icu::Locale* icu_locale, UErrorCode* status) {
+                       icu_locale->minimizeSubtags(*status);
+                     });
 }
 
-Handle<String> JSLocale::CaseFirstAsString() const {
-  switch (case_first()) {
-    case CaseFirst::UPPER:
-      return GetReadOnlyRoots().upper_string_handle();
-    case CaseFirst::LOWER:
-      return GetReadOnlyRoots().lower_string_handle();
-    case CaseFirst::FALSE_VALUE:
-      return GetReadOnlyRoots().false_string_handle();
-    case CaseFirst::COUNT:
-      UNREACHABLE();
-  }
+Handle<Object> JSLocale::Language(Isolate* isolate, Handle<JSLocale> locale) {
+  Factory* factory = isolate->factory();
+  const char* language = locale->icu_locale()->raw()->getLanguage();
+  if (strlen(language) == 0) return factory->undefined_value();
+  return factory->NewStringFromAsciiChecked(language);
 }
 
-Handle<String> JSLocale::HourCycleAsString() const {
-  switch (hour_cycle()) {
-    case HourCycle::H11:
-      return GetReadOnlyRoots().h11_string_handle();
-    case HourCycle::H12:
-      return GetReadOnlyRoots().h12_string_handle();
-    case HourCycle::H23:
-      return GetReadOnlyRoots().h23_string_handle();
-    case HourCycle::H24:
-      return GetReadOnlyRoots().h24_string_handle();
-    case HourCycle::COUNT:
-      UNREACHABLE();
-  }
+Handle<Object> JSLocale::Script(Isolate* isolate, Handle<JSLocale> locale) {
+  Factory* factory = isolate->factory();
+  const char* script = locale->icu_locale()->raw()->getScript();
+  if (strlen(script) == 0) return factory->undefined_value();
+  return factory->NewStringFromAsciiChecked(script);
 }
 
-Handle<String> JSLocale::NumericAsString() const {
-  switch (numeric()) {
-    case Numeric::NOTSET:
-      return GetReadOnlyRoots().undefined_string_handle();
-    case Numeric::TRUE_VALUE:
-      return GetReadOnlyRoots().true_string_handle();
-    case Numeric::FALSE_VALUE:
-      return GetReadOnlyRoots().false_string_handle();
-    case Numeric::COUNT:
-      UNREACHABLE();
-  }
+Handle<Object> JSLocale::Region(Isolate* isolate, Handle<JSLocale> locale) {
+  Factory* factory = isolate->factory();
+  const char* region = locale->icu_locale()->raw()->getCountry();
+  if (strlen(region) == 0) return factory->undefined_value();
+  return factory->NewStringFromAsciiChecked(region);
+}
+
+Handle<String> JSLocale::BaseName(Isolate* isolate, Handle<JSLocale> locale) {
+  icu::Locale icu_locale =
+      icu::Locale::createFromName(locale->icu_locale()->raw()->getBaseName());
+  std::string base_name = Intl::ToLanguageTag(icu_locale).FromJust();
+  return isolate->factory()->NewStringFromAsciiChecked(base_name.c_str());
+}
+
+Handle<Object> JSLocale::Calendar(Isolate* isolate, Handle<JSLocale> locale) {
+  return UnicodeKeywordValue(isolate, locale, "ca");
+}
+
+Handle<Object> JSLocale::CaseFirst(Isolate* isolate, Handle<JSLocale> locale) {
+  return UnicodeKeywordValue(isolate, locale, "kf");
+}
+
+Handle<Object> JSLocale::Collation(Isolate* isolate, Handle<JSLocale> locale) {
+  return UnicodeKeywordValue(isolate, locale, "co");
+}
+
+Handle<Object> JSLocale::HourCycle(Isolate* isolate, Handle<JSLocale> locale) {
+  return UnicodeKeywordValue(isolate, locale, "hc");
+}
+
+Handle<Object> JSLocale::Numeric(Isolate* isolate, Handle<JSLocale> locale) {
+  Factory* factory = isolate->factory();
+  icu::Locale* icu_locale = locale->icu_locale()->raw();
+  UErrorCode status = U_ZERO_ERROR;
+  std::string numeric =
+      icu_locale->getUnicodeKeywordValue<std::string>("kn", status);
+  return (numeric == "true") ? factory->true_value() : factory->false_value();
+}
+
+Handle<Object> JSLocale::NumberingSystem(Isolate* isolate,
+                                         Handle<JSLocale> locale) {
+  return UnicodeKeywordValue(isolate, locale, "nu");
+}
+
+std::string JSLocale::ToString(Handle<JSLocale> locale) {
+  icu::Locale* icu_locale = locale->icu_locale()->raw();
+  return Intl::ToLanguageTag(*icu_locale).FromJust();
+}
+
+Handle<String> JSLocale::ToString(Isolate* isolate, Handle<JSLocale> locale) {
+  std::string locale_str = JSLocale::ToString(locale);
+  return isolate->factory()->NewStringFromAsciiChecked(locale_str.c_str());
 }
 
 }  // namespace internal

@@ -147,6 +147,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(ChangeFloat64ToInt64, Operator::kNoProperties, 1, 0, 1)               \
   V(ChangeFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)              \
   V(ChangeFloat64ToUint64, Operator::kNoProperties, 1, 0, 1)              \
+  V(TruncateFloat64ToInt64, Operator::kNoProperties, 1, 0, 1)             \
   V(TruncateFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)            \
   V(TruncateFloat32ToInt32, Operator::kNoProperties, 1, 0, 1)             \
   V(TruncateFloat32ToUint32, Operator::kNoProperties, 1, 0, 1)            \
@@ -812,17 +813,19 @@ struct MachineOperatorGlobalCache {
 struct CommentOperator : public Operator1<const char*> {
   explicit CommentOperator(const char* msg)
       : Operator1<const char*>(IrOpcode::kComment, Operator::kNoThrow,
-                               "Comment", 0, 0, 0, 0, 0, 0, msg) {}
+                               "Comment", 0, 1, 1, 0, 1, 0, msg) {}
 };
 
-static base::LazyInstance<MachineOperatorGlobalCache>::type
-    kMachineOperatorGlobalCache = LAZY_INSTANCE_INITIALIZER;
+namespace {
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(MachineOperatorGlobalCache,
+                                GetMachineOperatorGlobalCache);
+}
 
 MachineOperatorBuilder::MachineOperatorBuilder(
     Zone* zone, MachineRepresentation word, Flags flags,
     AlignmentRequirements alignmentRequirements)
     : zone_(zone),
-      cache_(kMachineOperatorGlobalCache.Get()),
+      cache_(*GetMachineOperatorGlobalCache()),
       word_(word),
       flags_(flags),
       alignment_requirements_(alignmentRequirements) {

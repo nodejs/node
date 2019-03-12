@@ -65,7 +65,7 @@ class HeapProfiler : public HeapObjectAllocationTracker {
       uint16_t class_id, v8::HeapProfiler::WrapperInfoCallback callback);
 
   v8::RetainedObjectInfo* ExecuteWrapperClassCallback(uint16_t class_id,
-                                                      Object** wrapper);
+                                                      Handle<Object> wrapper);
 
   void SetGetRetainerInfosCallback(
       v8::HeapProfiler::GetRetainerInfosCallback callback);

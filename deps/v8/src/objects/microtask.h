@@ -6,6 +6,7 @@
 #define V8_OBJECTS_MICROTASK_H_
 
 #include "src/objects.h"
+#include "src/objects/struct.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -22,8 +23,7 @@ class Microtask : public Struct {
   DECL_CAST(Microtask)
   DECL_VERIFIER(Microtask)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Microtask);
+  OBJECT_CONSTRUCTORS(Microtask, Struct);
 };
 
 // A CallbackTask is a special Microtask that allows us to schedule
@@ -34,17 +34,22 @@ class CallbackTask : public Microtask {
   DECL_ACCESSORS(callback, Foreign)
   DECL_ACCESSORS(data, Foreign)
 
-  static const int kCallbackOffset = Microtask::kHeaderSize;
-  static const int kDataOffset = kCallbackOffset + kPointerSize;
-  static const int kSize = kDataOffset + kPointerSize;
+// Layout description.
+#define CALLBACK_TASK_FIELDS(V)   \
+  V(kCallbackOffset, kTaggedSize) \
+  V(kDataOffset, kTaggedSize)     \
+  /* Total size. */               \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Microtask::kHeaderSize, CALLBACK_TASK_FIELDS)
+#undef CALLBACK_TASK_FIELDS
 
   // Dispatched behavior.
   DECL_CAST(CallbackTask)
   DECL_PRINTER(CallbackTask)
   DECL_VERIFIER(CallbackTask)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CallbackTask)
+  OBJECT_CONSTRUCTORS(CallbackTask, Microtask);
 };
 
 // A CallableTask is a special (internal) Microtask that allows us to
@@ -55,9 +60,15 @@ class CallableTask : public Microtask {
   DECL_ACCESSORS(callable, JSReceiver)
   DECL_ACCESSORS(context, Context)
 
-  static const int kCallableOffset = Microtask::kHeaderSize;
-  static const int kContextOffset = kCallableOffset + kPointerSize;
-  static const int kSize = kContextOffset + kPointerSize;
+// Layout description.
+#define CALLABLE_TASK_FIELDS(V)   \
+  V(kCallableOffset, kTaggedSize) \
+  V(kContextOffset, kTaggedSize)  \
+  /* Total size. */               \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Microtask::kHeaderSize, CALLABLE_TASK_FIELDS)
+#undef CALLABLE_TASK_FIELDS
 
   // Dispatched behavior.
   DECL_CAST(CallableTask)
@@ -65,8 +76,7 @@ class CallableTask : public Microtask {
   DECL_VERIFIER(CallableTask)
   void BriefPrintDetails(std::ostream& os);
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CallableTask);
+  OBJECT_CONSTRUCTORS(CallableTask, Microtask);
 };
 
 }  // namespace internal

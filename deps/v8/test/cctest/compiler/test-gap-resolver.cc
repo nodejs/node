@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/gap-resolver.h"
+#include "src/compiler/backend/gap-resolver.h"
 
 #include "src/base/utils/random-number-generator.h"
 #include "test/cctest/cctest.h"
@@ -165,14 +165,12 @@ class InterpreterState {
 
   friend std::ostream& operator<<(std::ostream& os,
                                   const InterpreterState& is) {
-    for (OperandMap::const_iterator it = is.values_.begin();
-         it != is.values_.end(); ++it) {
-      if (it != is.values_.begin()) os << " ";
-      InstructionOperand source = FromKey(it->second);
-      InstructionOperand destination = FromKey(it->first);
-      MoveOperands mo(source, destination);
-      PrintableMoveOperands pmo = {GetRegConfig(), &mo};
-      os << pmo;
+    const char* space = "";
+    for (auto& value : is.values_) {
+      InstructionOperand source = FromKey(value.second);
+      InstructionOperand destination = FromKey(value.first);
+      os << space << MoveOperands{source, destination};
+      space = " ";
     }
     return os;
   }
@@ -314,9 +312,9 @@ class ParallelMoveCreator : public HandleAndZoneScope {
     UNREACHABLE();
   }
 
-  // min(num_alloctable_general_registers for each arch) == 6 from
+  // min(num_alloctable_general_registers for each arch) == 5 from
   // assembler-ia32.h
-  const int kMaxIndex = 6;
+  const int kMaxIndex = 5;
   const int kMaxIndices = kMaxIndex + 1;
 
   // Non-FP slots shouldn't overlap FP slots.

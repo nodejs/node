@@ -11,6 +11,7 @@
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/cancelable-task.h"
+#include "src/heap/slot-set.h"
 #include "src/heap/spaces.h"
 #include "src/heap/worklist.h"
 #include "src/utils.h"
@@ -24,8 +25,13 @@ class Isolate;
 class MajorNonAtomicMarkingState;
 struct WeakObjects;
 
-using LiveBytesMap =
-    std::unordered_map<MemoryChunk*, intptr_t, MemoryChunk::Hasher>;
+struct MemoryChunkData {
+  intptr_t live_bytes;
+  std::unique_ptr<TypedSlots> typed_slots;
+};
+
+using MemoryChunkDataMap =
+    std::unordered_map<MemoryChunk*, MemoryChunkData, MemoryChunk::Hasher>;
 
 class ConcurrentMarking {
  public:
@@ -57,12 +63,11 @@ class ConcurrentMarking {
   // Worklist::kMaxNumTasks being maxed at 8 (concurrent marking doesn't use
   // task 0, reserved for the main thread).
   static constexpr int kMaxTasks = 7;
-  using MarkingWorklist = Worklist<HeapObject*, 64 /* segment size */>;
-  using EmbedderTracingWorklist = Worklist<HeapObject*, 16 /* segment size */>;
+  using MarkingWorklist = Worklist<HeapObject, 64 /* segment size */>;
+  using EmbedderTracingWorklist = Worklist<HeapObject, 16 /* segment size */>;
 
   ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
-                    MarkingWorklist* bailout, MarkingWorklist* on_hold,
-                    WeakObjects* weak_objects,
+                    MarkingWorklist* on_hold, WeakObjects* weak_objects,
                     EmbedderTracingWorklist* embedder_objects);
 
   // Schedules asynchronous tasks to perform concurrent marking. Objects in the
@@ -75,11 +80,11 @@ class ConcurrentMarking {
   bool Stop(StopRequest stop_request);
 
   void RescheduleTasksIfNeeded();
-  // Flushes the local live bytes into the given marking state.
-  void FlushLiveBytes(MajorNonAtomicMarkingState* marking_state);
+  // Flushes memory chunk data using the given marking state.
+  void FlushMemoryChunkData(MajorNonAtomicMarkingState* marking_state);
   // This function is called for a new space page that was cleared after
   // scavenge and is going to be re-used.
-  void ClearLiveness(MemoryChunk* chunk);
+  void ClearMemoryChunkData(MemoryChunk* chunk);
 
   int TaskCount() { return task_count_; }
 
@@ -98,16 +103,16 @@ class ConcurrentMarking {
     // The main thread sets this flag to true when it wants the concurrent
     // marker to give up the worker thread.
     std::atomic<bool> preemption_request;
-
-    LiveBytesMap live_bytes;
+    MemoryChunkDataMap memory_chunk_data;
     size_t marked_bytes = 0;
+    unsigned mark_compact_epoch;
+    bool is_forced_gc;
     char cache_line_padding[64];
   };
   class Task;
   void Run(int task_id, TaskState* task_state);
   Heap* const heap_;
   MarkingWorklist* const shared_;
-  MarkingWorklist* const bailout_;
   MarkingWorklist* const on_hold_;
   WeakObjects* const weak_objects_;
   EmbedderTracingWorklist* const embedder_objects_;

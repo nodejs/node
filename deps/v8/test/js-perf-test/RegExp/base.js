@@ -5,6 +5,7 @@
 function benchName(bench, setup) {
   var name = bench.name;
   if (setup) name += "/" + setup.name;
+  return name;
 }
 
 function slowBenchName(bench, setup) {
@@ -30,7 +31,7 @@ function createBenchmarkSuite(name) {
   return new BenchmarkSuite(
     name, [1000],
     benchmarks.map(([bench, setup]) =>
-        new Benchmark(benchName(bench, setup), false, false, 0, bench,
+        new Benchmark(benchName(bench, setup), false, false, 100000, bench,
                       setup)));
 }
 

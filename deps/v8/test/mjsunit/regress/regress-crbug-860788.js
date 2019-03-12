@@ -26,5 +26,5 @@ try {
 } catch(e) { print("Caught: " + e); }
 try {
   var obj = {prop: 7};
-  assertThrows("nonexistant(obj)");
+  assertThrows("nonexistent(obj)");
 } catch(e) { print("Caught: " + e); }

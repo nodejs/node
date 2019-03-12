@@ -6,16 +6,18 @@
 
 #include <cstdint>
 
-namespace v8 {
-namespace internal {
+#include "src/base/macros.h"
 
-const uint8_t* DefaultEmbeddedBlob() { return nullptr; }
-uint32_t DefaultEmbeddedBlobSize() { return 0; }
+extern "C" const uint8_t* v8_Default_embedded_blob_;
+extern "C" uint32_t v8_Default_embedded_blob_size_;
+
+const uint8_t* v8_Default_embedded_blob_ = nullptr;
+uint32_t v8_Default_embedded_blob_size_ = 0;
 
 #ifdef V8_MULTI_SNAPSHOTS
-const uint8_t* TrustedEmbeddedBlob() { return nullptr; }
-uint32_t TrustedEmbeddedBlobSize() { return 0; }
-#endif
+extern "C" const uint8_t* v8_Trusted_embedded_blob_;
+extern "C" uint32_t v8_Trusted_embedded_blob_size_;
 
-}  // namespace internal
-}  // namespace v8
+const uint8_t* v8_Trusted_embedded_blob_ = nullptr;
+uint32_t v8_Trusted_embedded_blob_size_ = 0;
+#endif

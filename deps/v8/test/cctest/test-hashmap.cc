@@ -27,6 +27,7 @@
 
 #include <stdlib.h>
 
+#include "src/base/overflowing-math.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
@@ -133,7 +134,7 @@ void TestSet(IntKeyHash hash, int size) {
   for (uint32_t i = 0; i < n; i++) {
     CHECK_EQ(i, static_cast<double>(set.occupancy()));
     set.Insert(x);
-    x = x * factor + offset;
+    x = base::AddWithWraparound(base::MulWithWraparound(x, factor), offset);
   }
   CHECK_EQ(n, static_cast<double>(set.occupancy()));
 
@@ -141,7 +142,7 @@ void TestSet(IntKeyHash hash, int size) {
   x = start;
   for (uint32_t i = 0; i < n; i++) {
     CHECK(set.Present(x));
-    x = x * factor + offset;
+    x = base::AddWithWraparound(base::MulWithWraparound(x, factor), offset);
   }
   CHECK_EQ(n, static_cast<double>(set.occupancy()));
 
@@ -152,7 +153,7 @@ void TestSet(IntKeyHash hash, int size) {
     CHECK(set.Present(x));
     set.Remove(x);
     CHECK(!set.Present(x));
-    x = x * factor + offset;
+    x = base::AddWithWraparound(base::MulWithWraparound(x, factor), offset);
 
     // Verify the the expected values are still there.
     int y = start;
@@ -162,7 +163,7 @@ void TestSet(IntKeyHash hash, int size) {
       } else {
         CHECK(set.Present(y));
       }
-      y = y * factor + offset;
+      y = base::AddWithWraparound(base::MulWithWraparound(y, factor), offset);
     }
   }
   CHECK_EQ(0u, set.occupancy());

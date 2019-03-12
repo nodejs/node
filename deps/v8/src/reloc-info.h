@@ -7,6 +7,7 @@
 
 #include "src/globals.h"
 #include "src/objects.h"
+#include "src/objects/code.h"
 
 namespace v8 {
 namespace internal {
@@ -57,12 +58,10 @@ class RelocInfo {
     RELATIVE_CODE_TARGET,  // LAST_CODE_TARGET_MODE
     EMBEDDED_OBJECT,       // LAST_GCED_ENUM
 
-    JS_TO_WASM_CALL,
     WASM_CALL,  // FIRST_SHAREABLE_RELOC_MODE
     WASM_STUB_CALL,
 
     RUNTIME_ENTRY,
-    COMMENT,
 
     EXTERNAL_REFERENCE,  // The address of an external C++ function.
     INTERNAL_REFERENCE,  // An address inside the same function.
@@ -102,7 +101,7 @@ class RelocInfo {
 
   RelocInfo() = default;
 
-  RelocInfo(Address pc, Mode rmode, intptr_t data, Code* host,
+  RelocInfo(Address pc, Mode rmode, intptr_t data, Code host,
             Address constant_pool = kNullAddress)
       : pc_(pc),
         rmode_(rmode),
@@ -137,10 +136,10 @@ class RelocInfo {
     return mode == RUNTIME_ENTRY;
   }
   static constexpr bool IsWasmCall(Mode mode) { return mode == WASM_CALL; }
+  static constexpr bool IsWasmReference(Mode mode) { return mode == WASM_CALL; }
   static constexpr bool IsWasmStubCall(Mode mode) {
     return mode == WASM_STUB_CALL;
   }
-  static constexpr bool IsComment(Mode mode) { return mode == COMMENT; }
   static constexpr bool IsConstPool(Mode mode) { return mode == CONST_POOL; }
   static constexpr bool IsVeneerPool(Mode mode) { return mode == VENEER_POOL; }
   static constexpr bool IsDeoptPosition(Mode mode) {
@@ -163,15 +162,6 @@ class RelocInfo {
     return mode == OFF_HEAP_TARGET;
   }
   static constexpr bool IsNone(Mode mode) { return mode == NONE; }
-  static constexpr bool IsWasmReference(Mode mode) {
-    return IsWasmPtrReference(mode);
-  }
-  static constexpr bool IsJsToWasmCall(Mode mode) {
-    return mode == JS_TO_WASM_CALL;
-  }
-  static constexpr bool IsWasmPtrReference(Mode mode) {
-    return mode == WASM_CALL || mode == JS_TO_WASM_CALL;
-  }
 
   static bool IsOnlyForSerializer(Mode mode) {
 #ifdef V8_TARGET_ARCH_IA32
@@ -192,7 +182,7 @@ class RelocInfo {
   Address pc() const { return pc_; }
   Mode rmode() const { return rmode_; }
   intptr_t data() const { return data_; }
-  Code* host() const { return host_; }
+  Code host() const { return host_; }
   Address constant_pool() const { return constant_pool_; }
 
   // Apply a relocation by delta bytes. When the code object is moved, PC
@@ -214,22 +204,14 @@ class RelocInfo {
   // constant pool, otherwise the pointer is embedded in the instruction stream.
   bool IsInConstantPool();
 
-  // Returns the deoptimization id for the entry associated with the reloc info
-  // where {kind} is the deoptimization kind.
-  // This is only used for printing RUNTIME_ENTRY relocation info.
-  int GetDeoptimizationId(Isolate* isolate, DeoptimizeKind kind);
-
   Address wasm_call_address() const;
   Address wasm_stub_call_address() const;
-  Address js_to_wasm_address() const;
 
   uint32_t wasm_call_tag() const;
 
   void set_wasm_call_address(
       Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   void set_wasm_stub_call_address(
-      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
-  void set_js_to_wasm_address(
       Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   void set_target_address(
@@ -240,10 +222,10 @@ class RelocInfo {
   // this relocation applies to;
   // can only be called if IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
   V8_INLINE Address target_address();
-  V8_INLINE HeapObject* target_object();
+  V8_INLINE HeapObject target_object();
   V8_INLINE Handle<HeapObject> target_object_handle(Assembler* origin);
   V8_INLINE void set_target_object(
-      Heap* heap, HeapObject* target,
+      Heap* heap, HeapObject target,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   V8_INLINE Address target_runtime_entry(Assembler* origin);
@@ -252,11 +234,6 @@ class RelocInfo {
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   V8_INLINE Address target_off_heap_target();
-  V8_INLINE Cell* target_cell();
-  V8_INLINE Handle<Cell> target_cell_handle();
-  V8_INLINE void set_target_cell(
-      Cell* cell, WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   V8_INLINE void set_target_external_reference(
       Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
@@ -271,6 +248,7 @@ class RelocInfo {
   // output before the next target.  Architecture-independent code shouldn't
   // dereference the pointer it gets back from this.
   V8_INLINE Address target_address_address();
+  bool HasTargetAddressAddress() const;
 
   // This indicates how much space a target takes up when deserializing a code
   // stream.  For most architectures this is just the size of a pointer.  For
@@ -305,7 +283,7 @@ class RelocInfo {
   // Check whether the given code contains relocation information that
   // either is position-relative or movable by the garbage collector.
   static bool RequiresRelocationAfterCodegen(const CodeDesc& desc);
-  static bool RequiresRelocation(Code* code);
+  static bool RequiresRelocation(Code code);
 
 #ifdef ENABLE_DISASSEMBLER
   // Printing
@@ -334,7 +312,7 @@ class RelocInfo {
   Address pc_;
   Mode rmode_;
   intptr_t data_ = 0;
-  Code* host_;
+  Code host_;
   Address constant_pool_ = kNullAddress;
   friend class RelocIterator;
 };
@@ -392,9 +370,9 @@ class RelocIterator : public Malloced {
   // the beginning of the reloc info.
   // Relocation information with mode k is included in the
   // iteration iff bit k of mode_mask is set.
-  explicit RelocIterator(Code* code, int mode_mask = -1);
-  explicit RelocIterator(EmbeddedData* embedded_data, Code* code,
-                         int mode_mask);
+  explicit RelocIterator(Code code, int mode_mask = -1);
+  explicit RelocIterator(Code code, ByteArray relocation_info, int mode_mask);
+  explicit RelocIterator(EmbeddedData* embedded_data, Code code, int mode_mask);
   explicit RelocIterator(const CodeDesc& desc, int mode_mask = -1);
   explicit RelocIterator(const CodeReference code_reference,
                          int mode_mask = -1);
@@ -414,7 +392,7 @@ class RelocIterator : public Malloced {
   }
 
  private:
-  RelocIterator(Code* host, Address pc, Address constant_pool, const byte* pos,
+  RelocIterator(Code host, Address pc, Address constant_pool, const byte* pos,
                 const byte* end, int mode_mask);
 
   // Advance* moves the position before/after reading.

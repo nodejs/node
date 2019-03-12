@@ -13,22 +13,18 @@ namespace wasm {
 uint32_t SignatureMap::FindOrInsert(const FunctionSig& sig) {
   CHECK(!frozen_);
   auto pos = map_.find(sig);
-  if (pos != map_.end()) {
-    return pos->second;
-  } else {
-    uint32_t index = next_++;
-    map_[sig] = index;
-    return index;
-  }
+  if (pos != map_.end()) return pos->second;
+  // Indexes are returned as int32_t, thus check against their limit.
+  CHECK_GE(kMaxInt, map_.size());
+  uint32_t index = static_cast<uint32_t>(map_.size());
+  map_.insert(std::make_pair(sig, index));
+  return index;
 }
 
 int32_t SignatureMap::Find(const FunctionSig& sig) const {
   auto pos = map_.find(sig);
-  if (pos != map_.end()) {
-    return static_cast<int32_t>(pos->second);
-  } else {
-    return -1;
-  }
+  if (pos == map_.end()) return -1;
+  return static_cast<int32_t>(pos->second);
 }
 
 }  // namespace wasm

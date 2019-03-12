@@ -7,6 +7,7 @@
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-array-random-iterator.h"
 #include "src/objects-inl.h"
+#include "src/objects/smi.h"
 #include "test/unittests/interpreter/bytecode-utils.h"
 #include "test/unittests/test-utils.h"
 
@@ -29,9 +30,9 @@ TEST_F(BytecodeArrayRandomIteratorTest, InvalidBeforeStart) {
                               isolate()->heap()->HashSeed());
   double heap_num_0 = 2.718;
   double heap_num_1 = 2.0 * Smi::kMaxValue;
-  Smi* zero = Smi::kZero;
-  Smi* smi_0 = Smi::FromInt(64);
-  Smi* smi_1 = Smi::FromInt(-65536);
+  Smi zero = Smi::zero();
+  Smi smi_0 = Smi::FromInt(64);
+  Smi smi_1 = Smi::FromInt(-65536);
   Register reg_0(0);
   Register reg_1(1);
   RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
@@ -83,9 +84,9 @@ TEST_F(BytecodeArrayRandomIteratorTest, InvalidAfterEnd) {
                               isolate()->heap()->HashSeed());
   double heap_num_0 = 2.718;
   double heap_num_1 = 2.0 * Smi::kMaxValue;
-  Smi* zero = Smi::kZero;
-  Smi* smi_0 = Smi::FromInt(64);
-  Smi* smi_1 = Smi::FromInt(-65536);
+  Smi zero = Smi::zero();
+  Smi smi_0 = Smi::FromInt(64);
+  Smi smi_1 = Smi::FromInt(-65536);
   Register reg_0(0);
   Register reg_1(1);
   RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
@@ -137,9 +138,9 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesFirst) {
                               isolate()->heap()->HashSeed());
   double heap_num_0 = 2.718;
   double heap_num_1 = 2.0 * Smi::kMaxValue;
-  Smi* zero = Smi::kZero;
-  Smi* smi_0 = Smi::FromInt(64);
-  Smi* smi_1 = Smi::FromInt(-65536);
+  Smi zero = Smi::zero();
+  Smi smi_0 = Smi::FromInt(64);
+  Smi smi_1 = Smi::FromInt(-65536);
   Register reg_0(0);
   Register reg_1(1);
   RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
@@ -195,9 +196,9 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesLast) {
                               isolate()->heap()->HashSeed());
   double heap_num_0 = 2.718;
   double heap_num_1 = 2.0 * Smi::kMaxValue;
-  Smi* zero = Smi::kZero;
-  Smi* smi_0 = Smi::FromInt(64);
-  Smi* smi_1 = Smi::FromInt(-65536);
+  Smi zero = Smi::zero();
+  Smi smi_0 = Smi::FromInt(64);
+  Smi smi_1 = Smi::FromInt(-65536);
   Register reg_0(0);
   Register reg_1(1);
   RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
@@ -254,9 +255,9 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
                               isolate()->heap()->HashSeed());
   double heap_num_0 = 2.718;
   double heap_num_1 = 2.0 * Smi::kMaxValue;
-  Smi* zero = Smi::kZero;
-  Smi* smi_0 = Smi::FromInt(64);
-  Smi* smi_1 = Smi::FromInt(-65536);
+  Smi zero = Smi::zero();
+  Smi smi_0 = Smi::FromInt(64);
+  Smi smi_1 = Smi::FromInt(-65536);
   Register reg_0(0);
   Register reg_1(1);
   RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
@@ -439,9 +440,9 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
                               isolate()->heap()->HashSeed());
   double heap_num_0 = 2.718;
   double heap_num_1 = 2.0 * Smi::kMaxValue;
-  Smi* zero = Smi::kZero;
-  Smi* smi_0 = Smi::FromInt(64);
-  Smi* smi_1 = Smi::FromInt(-65536);
+  Smi zero = Smi::zero();
+  Smi smi_0 = Smi::FromInt(64);
+  Smi smi_1 = Smi::FromInt(-65536);
   Register reg_0(0);
   Register reg_1(1);
   RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
@@ -718,9 +719,9 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
                               isolate()->heap()->HashSeed());
   double heap_num_0 = 2.718;
   double heap_num_1 = 2.0 * Smi::kMaxValue;
-  Smi* zero = Smi::kZero;
-  Smi* smi_0 = Smi::FromInt(64);
-  Smi* smi_1 = Smi::FromInt(-65536);
+  Smi zero = Smi::zero();
+  Smi smi_0 = Smi::FromInt(64);
+  Smi smi_1 = Smi::FromInt(-65536);
   Register reg_0(0);
   Register reg_1(1);
   RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);

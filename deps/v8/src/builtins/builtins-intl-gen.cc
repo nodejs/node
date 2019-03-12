@@ -103,22 +103,18 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
   }
 
   // Call into C for case conversion. The signature is:
-  // Object* ConvertOneByteToLower(String* src, String* dst, Isolate* isolate);
+  // String ConvertOneByteToLower(String src, String dst);
   BIND(&call_c);
   {
     Node* const src = to_direct.string();
 
     Node* const function_addr =
         ExternalConstant(ExternalReference::intl_convert_one_byte_to_lower());
-    Node* const isolate_ptr =
-        ExternalConstant(ExternalReference::isolate_address(isolate()));
 
-    MachineType type_ptr = MachineType::Pointer();
     MachineType type_tagged = MachineType::AnyTagged();
 
-    Node* const result =
-        CallCFunction3(type_tagged, type_tagged, type_tagged, type_ptr,
-                       function_addr, src, dst, isolate_ptr);
+    Node* const result = CallCFunction2(type_tagged, type_tagged, type_tagged,
+                                        function_addr, src, dst);
 
     Return(result);
   }
@@ -188,10 +184,10 @@ void IntlBuiltinsAssembler::ListFormatCommon(TNode<Context> context,
 
 TNode<JSArray> IntlBuiltinsAssembler::AllocateEmptyJSArray(
     TNode<Context> context) {
-  return CAST(CodeStubAssembler::AllocateJSArray(
+  return CodeStubAssembler::AllocateJSArray(
       PACKED_ELEMENTS,
       LoadJSArrayElementsMap(PACKED_ELEMENTS, LoadNativeContext(context)),
-      SmiConstant(0), SmiConstant(0)));
+      SmiConstant(0), SmiConstant(0));
 }
 
 TF_BUILTIN(ListFormatPrototypeFormat, IntlBuiltinsAssembler) {

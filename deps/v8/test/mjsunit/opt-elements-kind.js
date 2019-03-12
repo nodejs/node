@@ -134,11 +134,15 @@ function test1() {
   convert_mixed(construct_smis(), "three", elements_kind.fast);
   convert_mixed(construct_doubles(), "three", elements_kind.fast);
 
-  smis = construct_smis();
-  doubles = construct_doubles();
-  convert_mixed(smis, 1, elements_kind.fast);
-  convert_mixed(doubles, 1, elements_kind.fast);
-  assertTrue(%HaveSameMap(smis, doubles));
+  if (%ICsAreEnabled()) {
+    // Test that allocation sites allocate correct elements kind initially based
+    // on previous transitions.
+    smis = construct_smis();
+    doubles = construct_doubles();
+    convert_mixed(smis, 1, elements_kind.fast);
+    convert_mixed(doubles, 1, elements_kind.fast);
+    assertTrue(%HaveSameMap(smis, doubles));
+  }
 }
 
 function clear_ic_state() {

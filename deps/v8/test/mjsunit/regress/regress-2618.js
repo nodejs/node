@@ -28,7 +28,11 @@
 // Flags: --use-osr --allow-natives-syntax --ignition-osr --opt
 // Flags: --no-always-opt
 
-// Can't OSR with always-opt.
+// Can't OSR with always-opt or in Lite mode.
+if (isNeverOptimizeLiteMode()) {
+  print("Warning: skipping test that requires optimization in Lite mode.");
+  quit(0);
+}
 assertFalse(isAlwaysOptimize());
 
 function f() {

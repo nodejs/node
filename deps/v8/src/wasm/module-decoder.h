@@ -19,7 +19,7 @@ class Counters;
 
 namespace wasm {
 
-struct ModuleEnv;
+struct CompilationEnv;
 
 inline bool IsValidSectionCode(uint8_t byte) {
   return kTypeSectionCode <= byte && byte <= kLastKnownModuleSection;

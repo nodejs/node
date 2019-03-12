@@ -15,12 +15,10 @@ namespace internal {
 namespace compiler {
 
 OsrHelper::OsrHelper(OptimizedCompilationInfo* info)
-    : parameter_count_(
-          info->shared_info()->GetBytecodeArray()->parameter_count()),
-      stack_slot_count_(
-          InterpreterFrameConstants::RegisterStackSlotCount(
-              info->shared_info()->GetBytecodeArray()->register_count()) +
-          InterpreterFrameConstants::kExtraSlotCount) {}
+    : parameter_count_(info->bytecode_array()->parameter_count()),
+      stack_slot_count_(InterpreterFrameConstants::RegisterStackSlotCount(
+                            info->bytecode_array()->register_count()) +
+                        InterpreterFrameConstants::kExtraSlotCount) {}
 
 void OsrHelper::SetupFrame(Frame* frame) {
   // The optimized frame will subsume the unoptimized frame. Do so by reserving

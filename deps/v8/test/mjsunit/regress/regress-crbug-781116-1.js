@@ -9,7 +9,6 @@ function baz(obj, store) {
 }
 function bar(store) {
   baz(Array.prototype, store);
-  baz(this.arguments, true);
 }
 bar(false);
 bar(false);

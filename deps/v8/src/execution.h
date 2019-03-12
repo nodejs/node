@@ -11,6 +11,8 @@
 namespace v8 {
 namespace internal {
 
+class MicrotaskQueue;
+
 template <typename T>
 class Handle;
 
@@ -50,12 +52,11 @@ class Execution final : public AllStatic {
                                      Handle<Object> receiver, int argc,
                                      Handle<Object> argv[],
                                      MessageHandling message_handling,
-                                     MaybeHandle<Object>* exception_out,
-                                     Target target = Target::kCallable);
+                                     MaybeHandle<Object>* exception_out);
   // Convenience method for performing RunMicrotasks
-  static MaybeHandle<Object> RunMicrotasks(Isolate* isolate,
-                                           MessageHandling message_handling,
-                                           MaybeHandle<Object>* exception_out);
+  static MaybeHandle<Object> TryRunMicrotasks(
+      Isolate* isolate, MicrotaskQueue* microtask_queue,
+      MaybeHandle<Object>* exception_out);
 };
 
 
@@ -67,6 +68,8 @@ class InterruptsScope;
 // invocation.
 class V8_EXPORT_PRIVATE StackGuard final {
  public:
+  explicit StackGuard(Isolate* isolate) : isolate_(isolate) {}
+
   // Pass the address beyond which the stack should not grow.  The stack
   // is assumed to grow downwards.
   void SetStackLimit(uintptr_t limit);
@@ -133,11 +136,9 @@ class V8_EXPORT_PRIVATE StackGuard final {
 
   // If the stack guard is triggered, but it is not an actual
   // stack overflow, then handle the interruption accordingly.
-  Object* HandleInterrupts();
+  Object HandleInterrupts();
 
  private:
-  StackGuard();
-
   bool CheckInterrupt(InterruptFlag flag);
   void RequestInterrupt(InterruptFlag flag);
   void ClearInterrupt(InterruptFlag flag);

@@ -43,7 +43,7 @@ class LocalAllocator {
 
   inline AllocationResult Allocate(AllocationSpace space, int object_size,
                                    AllocationAlignment alignment);
-  inline void FreeLast(AllocationSpace space, HeapObject* object,
+  inline void FreeLast(AllocationSpace space, HeapObject object,
                        int object_size);
 
  private:
@@ -52,8 +52,8 @@ class LocalAllocator {
   inline bool NewLocalAllocationBuffer();
   inline AllocationResult AllocateInLAB(int object_size,
                                         AllocationAlignment alignment);
-  inline void FreeLastInNewSpace(HeapObject* object, int object_size);
-  inline void FreeLastInOldSpace(HeapObject* object, int object_size);
+  inline void FreeLastInNewSpace(HeapObject object, int object_size);
+  inline void FreeLastInOldSpace(HeapObject object, int object_size);
 
   Heap* const heap_;
   NewSpace* const new_space_;

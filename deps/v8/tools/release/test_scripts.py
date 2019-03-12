@@ -933,8 +933,9 @@ TBR=reviewer@chromium.org"""
           cb=self.WriteFakeWatchlistsFile),
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], "",
           cb=CheckVersionCommit),
-      Cmd("git cl upload --send-mail --email \"author@chromium.org\" "
-          "-f --bypass-hooks --no-autocc --gerrit", ""),
+      Cmd("git cl upload --send-mail "
+          "-f --bypass-hooks --no-autocc --message-file "
+          "\"%s\" --gerrit" % TEST_CONFIG["COMMITMSG_FILE"], ""),
       Cmd("git cl land --bypass-hooks -f", ""),
       Cmd("git fetch", ""),
       Cmd("git log -1 --format=%H --grep="
@@ -1003,7 +1004,7 @@ Please close rolling in case of a roll revert:
 https://v8-roll.appspot.com/
 This only works with a Google account.
 
-CQ_INCLUDE_TRYBOTS=master.tryserver.blink:linux_trusty_blink_rel;luci.chromium.try:linux_optional_gpu_tests_rel;luci.chromium.try:mac_optional_gpu_tests_rel;luci.chromium.try:win_optional_gpu_tests_rel;luci.chromium.try:android_optional_gpu_tests_rel
+CQ_INCLUDE_TRYBOTS=luci.chromium.try:linux-blink-rel;luci.chromium.try:linux_optional_gpu_tests_rel;luci.chromium.try:mac_optional_gpu_tests_rel;luci.chromium.try:win_optional_gpu_tests_rel;luci.chromium.try:android_optional_gpu_tests_rel
 
 TBR=reviewer@chromium.org"""
 
@@ -1085,7 +1086,7 @@ deps = {
            "--author \"author@chromium.org <author@chromium.org>\"" %
            self.ROLL_COMMIT_MSG),
           "", cwd=chrome_dir),
-      Cmd("git cl upload --send-mail --email \"author@chromium.org\" -f "
+      Cmd("git cl upload --send-mail -f "
           "--cq-dry-run --bypass-hooks --gerrit", "",
           cwd=chrome_dir),
       Cmd("git checkout -f master", "", cwd=chrome_dir),

@@ -41,6 +41,7 @@ enum class CompareOperationHint : uint8_t {
   kSymbol,
   kBigInt,
   kReceiver,
+  kReceiverOrNullOrUndefined,
   kAny
 };
 

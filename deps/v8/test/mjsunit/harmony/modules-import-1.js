@@ -7,6 +7,6 @@
 var life;
 import('modules-skip-1.js').then(namespace => life = namespace.life());
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
 assertEquals(42, life);

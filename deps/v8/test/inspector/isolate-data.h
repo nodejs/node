@@ -35,6 +35,7 @@ class IsolateData : public v8_inspector::V8InspectorClient {
 
   // Setting things up.
   int CreateContextGroup();
+  void ResetContextGroup(int context_group_id);
   v8::Local<v8::Context> GetContext(int context_group_id);
   int GetContextGroupId(v8::Local<v8::Context> context);
   void RegisterModule(v8::Local<v8::Context> context,
