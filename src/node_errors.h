@@ -14,10 +14,14 @@
 
 namespace node {
 
+using v8::Local;
+using v8::Message;
+using v8::Value;
+
 enum ErrorHandlingMode { CONTEXTIFY_ERROR, FATAL_ERROR, MODULE_ERROR };
 void AppendExceptionLine(Environment* env,
-                         v8::Local<v8::Value> er,
-                         v8::Local<v8::Message> message,
+                         Local<Value> er,
+                         Local<Message> message,
                          enum ErrorHandlingMode mode);
 
 [[noreturn]] void FatalError(const char* location, const char* message);
@@ -27,9 +31,13 @@ void PrintErrorString(const char* format, ...);
 
 void ReportException(Environment* env, const v8::TryCatch& try_catch);
 
+void ReportException(Environment* env,
+                     Local<Value> er,
+                     Local<Message> message);
+
 void FatalException(v8::Isolate* isolate,
-                    v8::Local<v8::Value> error,
-                    v8::Local<v8::Message> message);
+                    Local<Value> error,
+                    Local<Message> message);
 
 // Helpers to construct errors similar to the ones provided by
 // lib/internal/errors.js.

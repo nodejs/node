@@ -110,11 +110,12 @@ static void SetPromiseRejectCallback(
 static void TriggerFatalException(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Environment* env = Environment::GetCurrent(isolate);
-  if (env != nullptr && env->abort_on_uncaught_exception()) {
-    Abort();
-  }
   Local<Value> exception = args[0];
   Local<Message> message = Exception::CreateMessage(isolate, exception);
+  if (env != nullptr && env->abort_on_uncaught_exception()) {
+    ReportException(env, exception, message);
+    Abort();
+  }
   FatalException(isolate, exception, message);
 }
 
