@@ -11,7 +11,6 @@
 namespace node {
 
 using v8::Array;
-using v8::Boolean;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -149,15 +148,6 @@ void NodeCategorySet::Initialize(Local<Object> target,
                   .FromJust();
   target->Set(context, trace,
               binding->Get(context, trace).ToLocalChecked()).FromJust();
-
-  // Initial value of async hook trace events
-  bool async_hooks_enabled = (*(TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
-                                 TRACING_CATEGORY_NODE1(async_hooks)))) != 0;
-  target
-      ->Set(context,
-            FIXED_ONE_BYTE_STRING(env->isolate(), "asyncHooksEnabledInitial"),
-            Boolean::New(env->isolate(), async_hooks_enabled))
-      .FromJust();
 }
 
 }  // namespace node
