@@ -83,6 +83,7 @@ module.exports = {
     'func-call-spacing': 'error',
     'func-name-matching': 'error',
     'func-style': ['error', 'declaration', { allowArrowFunctions: true }],
+    'getter-return': 'error',
     'indent': ['error', 2, {
       ArrayExpression: 'first',
       CallExpression: { arguments: 'first' },
