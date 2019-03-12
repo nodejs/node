@@ -1,5 +1,8 @@
 'use strict';
 
+// This tests that tracing can be enabled dynamically with the
+// trace_events module.
+
 const common = require('../common');
 try {
   require('trace_events');
@@ -11,7 +14,6 @@ const assert = require('assert');
 const cp = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const util = require('util');
 
 const enable = `require("trace_events").createTracing(
 { categories: ["node.async_hooks"] }).enable();`;
@@ -32,36 +34,16 @@ const proc = cp.spawnSync(
       'NODE_DEBUG': 'tracing'
     })
   });
-console.log(proc.signal);
-console.log(proc.stderr.toString());
-assert.strictEqual(proc.status, 0);
 
+console.log('process exit with signal:', proc.signal);
+console.log('process stderr:', proc.stderr.toString());
+
+assert.strictEqual(proc.status, 0);
 assert(fs.existsSync(filename));
 const data = fs.readFileSync(filename, 'utf-8');
 const traces = JSON.parse(data).traceEvents;
-assert(traces.length > 0);
-// V8 trace events should be generated.
-assert(!traces.some((trace) => {
-  if (trace.pid !== proc.pid)
-    return false;
-  if (trace.cat !== 'v8')
-    return false;
-  if (trace.name !== 'V8.ScriptCompiler')
-    return false;
-  return true;
-}));
 
-// C++ async_hooks trace events should be generated.
-assert(traces.some((trace) => {
-  if (trace.pid !== proc.pid)
-    return false;
-  if (trace.cat !== 'node,node.async_hooks')
-    return false;
-  return true;
-}));
-
-// JavaScript async_hooks trace events should be generated.
-assert(traces.some((trace) => {
+function filterTimeoutTraces(trace) {
   if (trace.pid !== proc.pid)
     return false;
   if (trace.cat !== 'node,node.async_hooks')
@@ -69,18 +51,14 @@ assert(traces.some((trace) => {
   if (trace.name !== 'Timeout')
     return false;
   return true;
-}));
+}
 
-// Check args in init events
-const initEvents = traces.filter((trace) => {
-  return (trace.ph === 'b' && !trace.name.includes('_CALLBACK'));
-});
-for (const trace of initEvents) {
-  console.log(trace);
-  if (trace.args.data.executionAsyncId > 0 &&
-    trace.args.data.triggerAsyncId > 0) {
-    continue;
+{
+  const timeoutTraces = traces.filter(filterTimeoutTraces);
+  assert.notDeepStrictEqual(timeoutTraces, []);
+  const threads = new Set();
+  for (const trace of timeoutTraces) {
+    threads.add(trace.tid);
   }
-  assert.fail('Unexpected initEvent: ',
-              util.inspect(trace, { depth: Infinity }));
+  assert.notDeepStrictEqual(timeoutTraces, []);
 }
