@@ -4,7 +4,6 @@ const common = require('../common');
 const assert = require('assert');
 
 const deprecatedModules = [
-  'node-inspect/lib/_inspect',
   'node-inspect/lib/internal/inspect_client',
   'node-inspect/lib/internal/inspect_repl',
   'v8/tools/SourceMap',
