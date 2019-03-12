@@ -18,7 +18,6 @@ const TEST_CASES = {
   'Verify': ['RSA-SHA1'],
   'DiffieHellman': [1024],
   'DiffieHellmanGroup': ['modp5'],
-  //'ECDH': ['prime256v1'],
 };
 
 if (!common.hasFipsCrypto) {

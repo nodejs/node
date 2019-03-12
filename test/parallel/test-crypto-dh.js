@@ -253,7 +253,7 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
     });
 
   // ECDH should allow importing
-  const ecdh4 = crypto.importECDHKey('prime256v1', ecdh1.getPrivateKey());
+  crypto.importECDHKey('prime256v1', ecdh1.getPrivateKey());
 
   // Verify that we can use ECDH without having to use newly generated keys.
   // A valid private key for the secp256k1 curve.
@@ -264,13 +264,20 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
   const cafebabePubPtUnComp =
   '04672a31bfc59d3f04548ec9b7daeeba2f61814e8ccc40448045007f5479f693a3' +
   '2e02c7f93d13dc2732b760ca377a5897b9dd41a1c1b29dc0442fdce6d0a04d1d';
-  const ecdh5 = crypto.importECDHKey('secp256k1', Buffer.from(cafebabeKey, 'hex'));
+  const ecdh5 = crypto.importECDHKey(
+    'secp256k1',
+    Buffer.from(cafebabeKey, 'hex')
+  );
 
   assert.strictEqual(ecdh5.getPrivateKey('hex'), cafebabeKey);
 
   // Show that the public point (key) is generated while setting the
   // private key.
   assert.strictEqual(ecdh5.getPublicKey('hex'), cafebabePubPtUnComp);
+  assert.strictEqual(
+    ecdh5.getPublicKey('hex', 'compressed'),
+    cafebabePubPtComp
+  );
 
   // Compressed and uncompressed public points/keys for other party's
   // private key.
