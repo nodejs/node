@@ -5952,16 +5952,8 @@ void GenerateKeyPairEC(const FunctionCallbackInfo<Value>& args) {
 }
 
 void GenerateKeyPairEdDSA(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args[0]->IsString());
-  String::Utf8Value curve_name(args.GetIsolate(), args[0].As<String>());
-  int id;
-  if (strcmp(*curve_name, "ed25519") == 0) {
-    id = EVP_PKEY_ED25519;
-  } else {
-    CHECK_EQ(strcmp(*curve_name, "ed448"), 0);
-    id = EVP_PKEY_ED448;
-  }
-
+  CHECK(args[0]->IsBoolean());
+  const int id = args[0]->IsTrue() ? EVP_PKEY_ED25519 : EVP_PKEY_ED448;
   std::unique_ptr<KeyPairGenerationConfig> config(
       new EdDSAKeyPairGenerationConfig(id));
   GenerateKeyPair(args, 1, std::move(config));
