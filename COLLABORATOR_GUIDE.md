@@ -575,7 +575,7 @@ $ git rev-list upstream/master...HEAD | xargs core-validate-commit
 ```
 
 Optional: For your own commits, force push the amended commit to the pull
-request branch. If your branch name is bugfix, then: `git push
+request branch. If your branch name is `bugfix`, then: `git push
 --force-with-lease origin master:bugfix`. Don't close the PR. It will close
 after you push it upstream. It will have the purple merged status rather than
 the red closed status. If you close the PR before GitHub adjusts its status, it
