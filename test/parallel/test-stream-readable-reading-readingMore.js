@@ -31,7 +31,7 @@ const Readable = require('stream').Readable;
     assert.strictEqual(state.reading, false);
   }
 
-  const expectedReadingMore = [true, false, false];
+  const expectedReadingMore = [true, false];
   readable.on('readable', common.mustCall(() => {
     // There is only one readingMore scheduled from on('data'),
     // after which everything is governed by the .read() call
@@ -40,12 +40,10 @@ const Readable = require('stream').Readable;
     // If the stream has ended, we shouldn't be reading
     assert.strictEqual(state.ended, !state.reading);
 
-    // consume all the data
-    while (readable.read() !== null) {}
-
-    if (expectedReadingMore.length === 0) // reached end of stream
+    const data = readable.read();
+    if (data === null) // reached end of stream
       process.nextTick(common.mustCall(onStreamEnd, 1));
-  }, 3));
+  }, 2));
 
   readable.on('end', common.mustCall(onStreamEnd));
   readable.push('pushed');

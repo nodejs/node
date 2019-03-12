@@ -11,11 +11,8 @@ const server = http.createServer(function(req, res) {
     let data = '';
     res.on('readable', common.mustCall(function() {
       console.log('readable event');
-      let chunk;
-      while ((chunk = res.read()) !== null) {
-        data += chunk;
-      }
-    }, 2));
+      data += res.read();
+    }));
     res.on('end', common.mustCall(function() {
       console.log('end event');
       assert.strictEqual(msg, data);

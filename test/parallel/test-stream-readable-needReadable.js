@@ -14,7 +14,7 @@ readable.on('readable', common.mustCall(() => {
   // When the readable event fires, needReadable is reset.
   assert.strictEqual(readable._readableState.needReadable, false);
   readable.read();
-}, 2));
+}));
 
 // If a readable listener is attached, then a readable event is needed.
 assert.strictEqual(readable._readableState.needReadable, true);
@@ -74,14 +74,12 @@ const slowProducer = new Readable({
 });
 
 slowProducer.on('readable', common.mustCall(() => {
-  const chunk = slowProducer.read(8);
-  const state = slowProducer._readableState;
-  if (chunk === null) {
+  if (slowProducer.read(8) === null) {
     // The buffer doesn't have enough data, and the stream is not need,
     // we need to notify the reader when data arrives.
-    assert.strictEqual(state.needReadable, true);
+    assert.strictEqual(slowProducer._readableState.needReadable, true);
   } else {
-    assert.strictEqual(state.needReadable, false);
+    assert.strictEqual(slowProducer._readableState.needReadable, false);
   }
 }, 4));
 
