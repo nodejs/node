@@ -142,63 +142,95 @@ common.expectsError(
     ];
     const errMessage = /^Error:.*data too large for key size$/;
 
+    const data = Buffer.from('Test123');
+
     signSaltLengths.forEach((signSaltLength) => {
       if (signSaltLength > max) {
         // If the salt length is too big, an Error should be thrown
         assert.throws(() => {
           crypto.createSign(algo)
-            .update('Test123')
+            .update(data)
             .sign({
               key: keyPem,
               padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
               saltLength: signSaltLength
             });
         }, errMessage);
+        assert.throws(() => {
+          crypto.sign(algo, data, {
+            key: keyPem,
+            padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+            saltLength: signSaltLength
+          });
+        }, errMessage);
       } else {
         // Otherwise, a valid signature should be generated
         const s4 = crypto.createSign(algo)
-                         .update('Test123')
+                         .update(data)
                          .sign({
                            key: keyPem,
                            padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
                            saltLength: signSaltLength
                          });
+        const s4_2 = crypto.sign(algo, data, {
+          key: keyPem,
+          padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: signSaltLength
+        });
 
-        let verified;
-        verifySaltLengths.forEach((verifySaltLength) => {
-          // Verification should succeed if and only if the salt length is
-          // correct
+        [s4, s4_2].forEach((sig) => {
+          let verified;
+          verifySaltLengths.forEach((verifySaltLength) => {
+            // Verification should succeed if and only if the salt length is
+            // correct
+            verified = crypto.createVerify(algo)
+                             .update(data)
+                             .verify({
+                               key: certPem,
+                               padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+                               saltLength: verifySaltLength
+                             }, sig);
+            assert.strictEqual(verified, crypto.verify(algo, data, {
+              key: certPem,
+              padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+              saltLength: verifySaltLength
+            }, sig));
+            const saltLengthCorrect = getEffectiveSaltLength(signSaltLength) ===
+                                      getEffectiveSaltLength(verifySaltLength);
+            assert.strictEqual(verified, saltLengthCorrect);
+          });
+
+          // Verification using RSA_PSS_SALTLEN_AUTO should always work
           verified = crypto.createVerify(algo)
-                           .update('Test123')
+                           .update(data)
                            .verify({
                              key: certPem,
                              padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-                             saltLength: verifySaltLength
-                           }, s4);
-          const saltLengthCorrect = getEffectiveSaltLength(signSaltLength) ===
-                                    getEffectiveSaltLength(verifySaltLength);
-          assert.strictEqual(verified, saltLengthCorrect);
+                             saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO
+                           }, sig);
+          assert.strictEqual(verified, true);
+          assert.strictEqual(verified, crypto.verify(algo, data, {
+            key: certPem,
+            padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+            saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO
+          }, sig));
+
+          // Verifying an incorrect message should never work
+          const wrongData = Buffer.from('Test1234');
+          verified = crypto.createVerify(algo)
+                           .update(wrongData)
+                           .verify({
+                             key: certPem,
+                             padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+                             saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO
+                           }, sig);
+          assert.strictEqual(verified, false);
+          assert.strictEqual(verified, crypto.verify(algo, wrongData, {
+            key: certPem,
+            padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+            saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO
+          }, sig));
         });
-
-        // Verification using RSA_PSS_SALTLEN_AUTO should always work
-        verified = crypto.createVerify(algo)
-                         .update('Test123')
-                         .verify({
-                           key: certPem,
-                           padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-                           saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO
-                         }, s4);
-        assert.strictEqual(verified, true);
-
-        // Verifying an incorrect message should never work
-        verified = crypto.createVerify(algo)
-                         .update('Test1234')
-                         .verify({
-                           key: certPem,
-                           padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-                           saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO
-                         }, s4);
-        assert.strictEqual(verified, false);
       }
     });
   }
@@ -281,40 +313,6 @@ common.expectsError(
   });
 }
 
-// RSA-PSS Sign test by verifying with 'openssl dgst -verify'
-{
-  if (!common.opensslCli)
-    common.skip('node compiled without OpenSSL CLI.');
-
-  const pubfile = fixtures.path('keys', 'rsa_public_2048.pem');
-  const privkey = fixtures.readKey('rsa_private_2048.pem');
-
-  const msg = 'Test123';
-  const s5 = crypto.createSign('SHA256')
-    .update(msg)
-    .sign({
-      key: privkey,
-      padding: crypto.constants.RSA_PKCS1_PSS_PADDING
-    });
-
-  const tmpdir = require('../common/tmpdir');
-  tmpdir.refresh();
-
-  const sigfile = path.join(tmpdir.path, 's5.sig');
-  fs.writeFileSync(sigfile, s5);
-  const msgfile = path.join(tmpdir.path, 's5.msg');
-  fs.writeFileSync(msgfile, msg);
-
-  const cmd =
-    `"${common.opensslCli}" dgst -sha256 -verify "${pubfile}" -signature "${
-      sigfile}" -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:-2 "${
-      msgfile}"`;
-
-  exec(cmd, common.mustCall((err, stdout, stderr) => {
-    assert(stdout.includes('Verified OK'));
-  }));
-}
-
 {
   const sign = crypto.createSign('SHA1');
   const verify = crypto.createVerify('SHA1');
@@ -368,4 +366,144 @@ common.expectsError(
   assert.throws(
     () => crypto.createSign('sha8'),
     /Unknown message digest/);
+  assert.throws(
+    () => crypto.sign('sha8', Buffer.alloc(1), keyPem),
+    /Unknown message digest/);
+}
+
+[
+  { private: fixtures.readSync('test_ed25519_privkey.pem', 'ascii'),
+    public: fixtures.readSync('test_ed25519_pubkey.pem', 'ascii'),
+    algo: null,
+    sigLen: 64 },
+  { private: fixtures.readSync('test_ed448_privkey.pem', 'ascii'),
+    public: fixtures.readSync('test_ed448_pubkey.pem', 'ascii'),
+    algo: null,
+    sigLen: 114 },
+  { private: fixtures.readKey('rsa_private_2048.pem', 'ascii'),
+    public: fixtures.readKey('rsa_public_2048.pem', 'ascii'),
+    algo: 'sha1',
+    sigLen: 256 }
+].forEach((pair) => {
+  const algo = pair.algo;
+
+  {
+    const data = Buffer.from('Hello world');
+    const sig = crypto.sign(algo, data, pair.private);
+    assert.strictEqual(sig.length, pair.sigLen);
+
+    assert.strictEqual(crypto.verify(algo, data, pair.private, sig),
+                       true);
+    assert.strictEqual(crypto.verify(algo, data, pair.public, sig),
+                       true);
+  }
+
+  {
+    const data = Buffer.from('Hello world');
+    const privKeyObj = crypto.createPrivateKey(pair.private);
+    const pubKeyObj = crypto.createPublicKey(pair.public);
+
+    const sig = crypto.sign(algo, data, privKeyObj);
+    assert.strictEqual(sig.length, pair.sigLen);
+
+    assert.strictEqual(crypto.verify(algo, data, privKeyObj, sig), true);
+    assert.strictEqual(crypto.verify(algo, data, pubKeyObj, sig), true);
+  }
+
+  {
+    const data = Buffer.from('Hello world');
+    const otherData = Buffer.from('Goodbye world');
+    const otherSig = crypto.sign(algo, otherData, pair.private);
+    assert.strictEqual(crypto.verify(algo, data, pair.private, otherSig),
+                       false);
+  }
+
+  [
+    Uint8Array, Uint16Array, Uint32Array, Float32Array, Float64Array
+  ].forEach((clazz) => {
+    const data = new clazz();
+    const sig = crypto.sign(algo, data, pair.private);
+    assert.strictEqual(crypto.verify(algo, data, pair.private, sig),
+                       true);
+  });
+});
+
+[1, {}, [], true, Infinity].forEach((input) => {
+  const data = Buffer.alloc(1);
+  const sig = Buffer.alloc(1);
+  const type = typeof input;
+  const errObj = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+    message: 'The "data" argument must be one of type Buffer, ' +
+             `TypedArray, or DataView. Received type ${type}`
+  };
+
+  assert.throws(() => crypto.sign(null, input, 'asdf'), errObj);
+  assert.throws(() => crypto.verify(null, input, 'asdf', sig), errObj);
+
+  errObj.message = 'The "key" argument must be one of type string, Buffer, ' +
+                   `TypedArray, DataView, or KeyObject. Received type ${type}`;
+
+  assert.throws(() => crypto.sign(null, data, input), errObj);
+  assert.throws(() => crypto.verify(null, data, input, sig), errObj);
+
+  errObj.message = 'The "signature" argument must be one of type ' +
+                   `Buffer, TypedArray, or DataView. Received type ${type}`;
+  assert.throws(() => crypto.verify(null, data, 'test', input), errObj);
+});
+
+{
+  const privKey = fixtures.readKey('ec-key.pem');
+  const data = Buffer.from('Hello world');
+  [
+    crypto.createSign('sha1').update(data).sign(privKey),
+    crypto.sign('sha1', data, privKey)
+  ].forEach((sig) => {
+    // Signature length variability due to DER encoding
+    assert.strictEqual(sig.length >= 68, true);
+
+    assert.strictEqual(
+      crypto.createVerify('sha1').update(data).verify(privKey, sig),
+      true
+    );
+    assert.strictEqual(crypto.verify('sha1', data, privKey, sig), true);
+  });
+}
+
+
+// RSA-PSS Sign test by verifying with 'openssl dgst -verify'
+// Note: this particular test *must* be the last in this file as it will exit
+// early if no openssl binary is found
+{
+  if (!common.opensslCli)
+    common.skip('node compiled without OpenSSL CLI.');
+
+  const pubfile = fixtures.path('keys', 'rsa_public_2048.pem');
+  const privkey = fixtures.readKey('rsa_private_2048.pem');
+
+  const msg = 'Test123';
+  const s5 = crypto.createSign('SHA256')
+    .update(msg)
+    .sign({
+      key: privkey,
+      padding: crypto.constants.RSA_PKCS1_PSS_PADDING
+    });
+
+  const tmpdir = require('../common/tmpdir');
+  tmpdir.refresh();
+
+  const sigfile = path.join(tmpdir.path, 's5.sig');
+  fs.writeFileSync(sigfile, s5);
+  const msgfile = path.join(tmpdir.path, 's5.msg');
+  fs.writeFileSync(msgfile, msg);
+
+  const cmd =
+    `"${common.opensslCli}" dgst -sha256 -verify "${pubfile}" -signature "${
+      sigfile}" -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:-2 "${
+      msgfile}"`;
+
+  exec(cmd, common.mustCall((err, stdout, stderr) => {
+    assert(stdout.includes('Verified OK'));
+  }));
 }

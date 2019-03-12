@@ -4598,41 +4598,45 @@ SignBase::Error SignBase::Update(const char* data, int len) {
 }
 
 
-void SignBase::CheckThrow(SignBase::Error error) {
-  HandleScope scope(env()->isolate());
+void CheckThrow(Environment* env, SignBase::Error error) {
+  HandleScope scope(env->isolate());
 
   switch (error) {
-    case kSignUnknownDigest:
-      return env()->ThrowError("Unknown message digest");
+    case SignBase::Error::kSignUnknownDigest:
+      return env->ThrowError("Unknown message digest");
 
-    case kSignNotInitialised:
-      return env()->ThrowError("Not initialised");
+    case SignBase::Error::kSignNotInitialised:
+      return env->ThrowError("Not initialised");
 
-    case kSignInit:
-    case kSignUpdate:
-    case kSignPrivateKey:
-    case kSignPublicKey:
+    case SignBase::Error::kSignInit:
+    case SignBase::Error::kSignUpdate:
+    case SignBase::Error::kSignPrivateKey:
+    case SignBase::Error::kSignPublicKey:
       {
         unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
         if (err)
-          return ThrowCryptoError(env(), err);
+          return ThrowCryptoError(env, err);
         switch (error) {
-          case kSignInit:
-            return env()->ThrowError("EVP_SignInit_ex failed");
-          case kSignUpdate:
-            return env()->ThrowError("EVP_SignUpdate failed");
-          case kSignPrivateKey:
-            return env()->ThrowError("PEM_read_bio_PrivateKey failed");
-          case kSignPublicKey:
-            return env()->ThrowError("PEM_read_bio_PUBKEY failed");
+          case SignBase::Error::kSignInit:
+            return env->ThrowError("EVP_SignInit_ex failed");
+          case SignBase::Error::kSignUpdate:
+            return env->ThrowError("EVP_SignUpdate failed");
+          case SignBase::Error::kSignPrivateKey:
+            return env->ThrowError("PEM_read_bio_PrivateKey failed");
+          case SignBase::Error::kSignPublicKey:
+            return env->ThrowError("PEM_read_bio_PUBKEY failed");
           default:
             ABORT();
         }
       }
 
-    case kSignOk:
+    case SignBase::Error::kSignOk:
       return;
   }
+}
+
+void SignBase::CheckThrow(SignBase::Error error) {
+  node::crypto::CheckThrow(env(), error);
 }
 
 static bool ApplyRSAOptions(const ManagedEVPPKey& pkey,
@@ -4800,6 +4804,90 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret.signature.ToBuffer().ToLocalChecked());
 }
 
+void SignOneShot(const FunctionCallbackInfo<Value>& args) {
+  ClearErrorOnReturn clear_error_on_return;
+  Environment* env = Environment::GetCurrent(args);
+
+  unsigned int offset = 0;
+  ManagedEVPPKey key = GetPrivateKeyFromJs(args, &offset, true);
+  if (!key)
+    return;
+
+#ifdef NODE_FIPS_MODE
+  /* Validate DSA2 parameters from FIPS 186-4 */
+  if (FIPS_mode() && EVP_PKEY_DSA == EVP_PKEY_base_id(key.get())) {
+    DSA* dsa = EVP_PKEY_get0_DSA(key.get());
+    const BIGNUM* p;
+    DSA_get0_pqg(dsa, &p, nullptr, nullptr);
+    size_t L = BN_num_bits(p);
+    const BIGNUM* q;
+    DSA_get0_pqg(dsa, nullptr, &q, nullptr);
+    size_t N = BN_num_bits(q);
+    bool result = false;
+
+    if (L == 1024 && N == 160)
+      result = true;
+    else if (L == 2048 && N == 224)
+      result = true;
+    else if (L == 2048 && N == 256)
+      result = true;
+    else if (L == 3072 && N == 256)
+      result = true;
+
+    if (!result) {
+      return CheckThrow(env, SignBase::Error::kSignPrivateKey);
+    }
+  }
+#endif  // NODE_FIPS_MODE
+
+  ArrayBufferViewContents<char> data(args[offset]);
+
+  const EVP_MD* md;
+  if (args[offset + 1]->IsNullOrUndefined()) {
+    md = nullptr;
+  } else {
+    const node::Utf8Value sign_type(args.GetIsolate(), args[offset + 1]);
+    md = EVP_get_digestbyname(*sign_type);
+    if (md == nullptr)
+      return CheckThrow(env, SignBase::Error::kSignUnknownDigest);
+  }
+
+  CHECK(args[offset + 2]->IsInt32());
+  int rsa_padding = args[offset + 2].As<Int32>()->Value();
+
+  CHECK(args[offset + 3]->IsInt32());
+  int rsa_salt_len = args[offset + 3].As<Int32>()->Value();
+
+  EVP_PKEY_CTX* pkctx = nullptr;
+  EVPMDPointer mdctx(EVP_MD_CTX_new());
+  if (!mdctx ||
+      !EVP_DigestSignInit(mdctx.get(), &pkctx, md, nullptr, key.get())) {
+    return CheckThrow(env, SignBase::Error::kSignInit);
+  }
+
+  if (!ApplyRSAOptions(key, pkctx, rsa_padding, rsa_salt_len))
+    return CheckThrow(env, SignBase::Error::kSignPrivateKey);
+
+  const unsigned char* input =
+    reinterpret_cast<const unsigned char*>(data.data());
+  size_t sig_len;
+  if (!EVP_DigestSign(mdctx.get(), nullptr, &sig_len, input, data.length()))
+    return CheckThrow(env, SignBase::Error::kSignPrivateKey);
+
+  AllocatedBuffer signature = env->AllocateManaged(sig_len);
+  if (!EVP_DigestSign(mdctx.get(),
+                      reinterpret_cast<unsigned char*>(signature.data()),
+                      &sig_len,
+                      input,
+                      data.length())) {
+    return CheckThrow(env, SignBase::Error::kSignPrivateKey);
+  }
+
+  signature.Resize(sig_len);
+
+  args.GetReturnValue().Set(signature.ToBuffer().ToLocalChecked());
+}
+
 void Verify::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
@@ -4901,6 +4989,66 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
                                   salt_len, &verify_result);
   if (err != kSignOk)
     return verify->CheckThrow(err);
+  args.GetReturnValue().Set(verify_result);
+}
+
+void VerifyOneShot(const FunctionCallbackInfo<Value>& args) {
+  ClearErrorOnReturn clear_error_on_return;
+  Environment* env = Environment::GetCurrent(args);
+
+  unsigned int offset = 0;
+  ManagedEVPPKey key = GetPublicOrPrivateKeyFromJs(args, &offset);
+  if (!key)
+    return;
+
+  ArrayBufferViewContents<char> sig(args[offset]);
+
+  ArrayBufferViewContents<char> data(args[offset + 1]);
+
+  const EVP_MD* md;
+  if (args[offset + 2]->IsNullOrUndefined()) {
+    md = nullptr;
+  } else {
+    const node::Utf8Value sign_type(args.GetIsolate(), args[offset + 2]);
+    md = EVP_get_digestbyname(*sign_type);
+    if (md == nullptr)
+      return CheckThrow(env, SignBase::Error::kSignUnknownDigest);
+  }
+
+  CHECK(args[offset + 3]->IsInt32());
+  int rsa_padding = args[offset + 3].As<Int32>()->Value();
+
+  CHECK(args[offset + 4]->IsInt32());
+  int rsa_salt_len = args[offset + 4].As<Int32>()->Value();
+
+  EVP_PKEY_CTX* pkctx = nullptr;
+  EVPMDPointer mdctx(EVP_MD_CTX_new());
+  if (!mdctx ||
+      !EVP_DigestVerifyInit(mdctx.get(), &pkctx, md, nullptr, key.get())) {
+    return CheckThrow(env, SignBase::Error::kSignInit);
+  }
+
+  if (!ApplyRSAOptions(key, pkctx, rsa_padding, rsa_salt_len))
+    return CheckThrow(env, SignBase::Error::kSignPublicKey);
+
+  bool verify_result;
+  const int r = EVP_DigestVerify(
+    mdctx.get(),
+    reinterpret_cast<const unsigned char*>(sig.data()),
+    sig.length(),
+    reinterpret_cast<const unsigned char*>(data.data()),
+    data.length());
+  switch (r) {
+    case 1:
+      verify_result = true;
+      break;
+    case 0:
+      verify_result = false;
+      break;
+    default:
+      return CheckThrow(env, SignBase::Error::kSignPublicKey);
+  }
+
   args.GetReturnValue().Set(verify_result);
 }
 
@@ -6577,6 +6725,8 @@ void Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(target, kKeyTypePublic);
   NODE_DEFINE_CONSTANT(target, kKeyTypePrivate);
   env->SetMethod(target, "randomBytes", RandomBytes);
+  env->SetMethod(target, "signOneShot", SignOneShot);
+  env->SetMethod(target, "verifyOneShot", VerifyOneShot);
   env->SetMethodNoSideEffect(target, "timingSafeEqual", TimingSafeEqual);
   env->SetMethodNoSideEffect(target, "getSSLCiphers", GetSSLCiphers);
   env->SetMethodNoSideEffect(target, "getCiphers", GetCiphers);

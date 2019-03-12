@@ -2659,6 +2659,35 @@ added: v10.0.0
 Enables the FIPS compliant crypto provider in a FIPS-enabled Node.js build.
 Throws an error if FIPS mode is not available.
 
+### crypto.sign(algorithm, data, key)
+<!-- YAML
+added: REPLACEME
+-->
+* `algorithm` {string | null | undefined}
+* `data` {Buffer | TypedArray | DataView}
+* `key` {Object | string | Buffer | KeyObject}
+* Returns: {Buffer}
+
+Calculates and returns the signature for `data` using the given private key and
+algorithm. If `algorithm` is `null` or `undefined`, then the algorithm is
+dependent upon the key type (especially Ed25519 and Ed448).
+
+If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
+passed to [`crypto.createPrivateKey()`][]. If it is an object, the following
+additional properties can be passed:
+
+* `padding`: {integer} - Optional padding value for RSA, one of the following:
+  * `crypto.constants.RSA_PKCS1_PADDING` (default)
+  * `crypto.constants.RSA_PKCS1_PSS_PADDING`
+
+  Note that `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
+  used to sign the message as specified in section 3.1 of [RFC 4055][].
+* `saltLength`: {integer} - salt length for when padding is
+  `RSA_PKCS1_PSS_PADDING`. The special value
+  `crypto.constants.RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest
+  size, `crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN` (default) sets it to the
+  maximum permissible value.
+
 ### crypto.timingSafeEqual(a, b)
 <!-- YAML
 added: v6.6.0
@@ -2679,6 +2708,41 @@ must have the same length.
 Use of `crypto.timingSafeEqual` does not guarantee that the *surrounding* code
 is timing-safe. Care should be taken to ensure that the surrounding code does
 not introduce timing vulnerabilities.
+
+### crypto.verify(algorithm, data, key, signature)
+<!-- YAML
+added: REPLACEME
+-->
+* `algorithm` {string | null | undefined}
+* `data` {Buffer | TypedArray | DataView}
+* `key` {Object | string | Buffer | KeyObject}
+* `signature` {Buffer | TypedArray | DataView}
+* Returns: {boolean}
+
+Verifies the given signature for `data` using the given key and algorithm. If
+`algorithm` is `null` or `undefined`, then the algorithm is dependent upon the
+key type (especially Ed25519 and Ed448).
+
+If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
+passed to [`crypto.createPublicKey()`][]. If it is an object, the following
+additional properties can be passed:
+
+* `padding`: {integer} - Optional padding value for RSA, one of the following:
+  * `crypto.constants.RSA_PKCS1_PADDING` (default)
+  * `crypto.constants.RSA_PKCS1_PSS_PADDING`
+
+  Note that `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
+  used to sign the message as specified in section 3.1 of [RFC 4055][].
+* `saltLength`: {integer} - salt length for when padding is
+  `RSA_PKCS1_PSS_PADDING`. The special value
+  `crypto.constants.RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest
+  size, `crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN` (default) sets it to the
+  maximum permissible value.
+
+The `signature` argument is the previously calculated signature for the `data`.
+
+Because public keys can be derived from private keys, a private key or a public
+key may be passed for `key`.
 
 ## Notes
 
