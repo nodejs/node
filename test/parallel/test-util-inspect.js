@@ -820,7 +820,7 @@ util.inspect({ hasOwnProperty: null });
 
 // Verify that it's possible to use the stylize function to manipulate input.
 assert.strictEqual(
-  util.inspect([1, 2, 3], { stylize() { return ''; } }),
+  util.inspect([1, 2, 3], { stylize() { return 'x'; } }),
   '[ x, x, x ]'
 );
 
