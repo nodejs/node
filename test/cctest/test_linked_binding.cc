@@ -16,7 +16,7 @@ void InitializeBinding(v8::Local<v8::Object> exports,
       .FromJust();
 }
 
-NODE_MODULE_LINKED(cctest_linkedbinding, InitializeBinding);
+NODE_MODULE_LINKED(cctest_linkedbinding, InitializeBinding)
 
 class LinkedBindingTest : public EnvironmentTestFixture {};
 
