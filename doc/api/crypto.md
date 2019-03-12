@@ -707,19 +707,19 @@ The `ECDH` class is a utility for creating Elliptic Curve Diffie-Hellman (ECDH)
 key exchanges.
 
 Instances of the `ECDH` class can be created using the
-[`crypto.createECDH()`][] function.
+[`crypto.generateECDHKey()`][] or [`crypto.importECDHKey()`][] functions.
 
 ```js
 const crypto = require('crypto');
 const assert = require('assert');
 
 // Generate Alice's keys...
-const alice = crypto.createECDH('secp521r1');
-const aliceKey = alice.generateKeys();
+const alice = crypto.generateECDHKey('secp521r1');
+const aliceKey = alice.getPublicKey();
 
 // Generate Bob's keys...
-const bob = crypto.createECDH('secp521r1');
-const bobKey = bob.generateKeys();
+const bob = crypto.generateECDHKey('secp521r1');
+const bobKey = bob.getPublicKey();
 
 // Exchange and generate the secret...
 const aliceSecret = alice.computeSecret(bobKey);
@@ -760,10 +760,9 @@ If the `inputEncoding` is not provided, `key` is expected to be a [`Buffer`][],
 Example (uncompressing a key):
 
 ```js
-const { createECDH, ECDH } = require('crypto');
+const { generateECDHKey, ECDH } = require('crypto');
 
-const ecdh = createECDH('secp256k1');
-ecdh.generateKeys();
+const ecdh = generateECDHKey('secp256k1');
 
 const compressedKey = ecdh.getPublicKey('hex', 'compressed');
 
@@ -811,25 +810,6 @@ lies outside of the elliptic curve. Since `otherPublicKey` is
 usually supplied from a remote user over an insecure network,
 its recommended for developers to handle this exception accordingly.
 
-### ecdh.generateKeys([encoding[, format]])
-<!-- YAML
-added: v0.11.14
--->
-* `encoding` {string} The [encoding][] of the return value.
-* `format` {string} **Default:** `'uncompressed'`
-* Returns: {Buffer | string}
-
-Generates private and public EC Diffie-Hellman key values, and returns
-the public key in the specified `format` and `encoding`. This key should be
-transferred to the other party.
-
-The `format` argument specifies point encoding and can be `'compressed'` or
-`'uncompressed'`. If `format` is not specified, the point will be returned in
-`'uncompressed'` format.
-
-If `encoding` is provided a string is returned; otherwise a [`Buffer`][]
-is returned.
-
 ### ecdh.getPrivateKey([encoding])
 <!-- YAML
 added: v0.11.14
@@ -855,69 +835,6 @@ The `format` argument specifies point encoding and can be `'compressed'` or
 
 If `encoding` is specified, a string is returned; otherwise a [`Buffer`][] is
 returned.
-
-### ecdh.setPrivateKey(privateKey[, encoding])
-<!-- YAML
-added: v0.11.14
--->
-* `privateKey` {string | Buffer | TypedArray | DataView}
-* `encoding` {string} The [encoding][] of the `privateKey` string.
-
-Sets the EC Diffie-Hellman private key.
-If `encoding` is provided, `privateKey` is expected
-to be a string; otherwise `privateKey` is expected to be a [`Buffer`][],
-`TypedArray`, or `DataView`.
-
-If `privateKey` is not valid for the curve specified when the `ECDH` object was
-created, an error is thrown. Upon setting the private key, the associated
-public point (key) is also generated and set in the `ECDH` object.
-
-### ecdh.setPublicKey(publicKey[, encoding])
-<!-- YAML
-added: v0.11.14
-deprecated: v5.2.0
--->
-
-> Stability: 0 - Deprecated
-
-* `publicKey` {string | Buffer | TypedArray | DataView}
-* `encoding` {string} The [encoding][] of the `publicKey` string.
-
-Sets the EC Diffie-Hellman public key.
-If `encoding` is provided `publicKey` is expected to
-be a string; otherwise a [`Buffer`][], `TypedArray`, or `DataView` is expected.
-
-Note that there is not normally a reason to call this method because `ECDH`
-only requires a private key and the other party's public key to compute the
-shared secret. Typically either [`ecdh.generateKeys()`][] or
-[`ecdh.setPrivateKey()`][] will be called. The [`ecdh.setPrivateKey()`][] method
-attempts to generate the public point/key associated with the private key being
-set.
-
-Example (obtaining a shared secret):
-
-```js
-const crypto = require('crypto');
-const alice = crypto.createECDH('secp256k1');
-const bob = crypto.createECDH('secp256k1');
-
-// This is a shortcut way of specifying one of Alice's previous private
-// keys. It would be unwise to use such a predictable private key in a real
-// application.
-alice.setPrivateKey(
-  crypto.createHash('sha256').update('alice', 'utf8').digest()
-);
-
-// Bob uses a newly generated cryptographically strong
-// pseudorandom key pair
-bob.generateKeys();
-
-const aliceSecret = alice.computeSecret(bob.getPublicKey(), null, 'hex');
-const bobSecret = bob.computeSecret(alice.getPublicKey(), null, 'hex');
-
-// aliceSecret and bobSecret should be the same shared secret value
-console.log(aliceSecret === bobSecret);
-```
 
 ## Class: Hash
 <!-- YAML
@@ -1693,18 +1610,36 @@ Creates a `DiffieHellman` key exchange object and generates a prime of
 `primeLength` bits using an optional specific numeric `generator`.
 If `generator` is not specified, the value `2` is used.
 
-### crypto.createECDH(curveName)
+### ecdh.generateECDHKey(curveName)
 <!-- YAML
-added: v0.11.14
+added: v13.0.0
 -->
 * `curveName` {string}
 * Returns: {ECDH}
 
-Creates an Elliptic Curve Diffie-Hellman (`ECDH`) key exchange object using a
+Generates private and public Elliptic Curve Diffie-Hellman (`ECDH`) key values
+using a predefined curve specified by the `curveName` string. Use
+[`crypto.getCurves()`][] to obtain a list of available curve names. On recent
+OpenSSL releases, `openssl ecparam -list_curves` will also display the name
+and description of each available elliptic curve.
+
+### ecdh.importECDHKey(curveName, key[, encoding])
+<!-- YAML
+added: v13.0.0
+-->
+* `curveName` {string}
+* `key` {string | Buffer | TypedArray | DataView}
+* `encoding` {string} The [encoding][] of the `privateKey` string.
+* Returns: {ECDH}
+
+Imports a private Elliptic Curve Diffie-Hellman (`ECDH`) key value of a
 predefined curve specified by the `curveName` string. Use
 [`crypto.getCurves()`][] to obtain a list of available curve names. On recent
 OpenSSL releases, `openssl ecparam -list_curves` will also display the name
 and description of each available elliptic curve.
+
+`key` should be the private part of the key pair. The public key will be
+derived at import time.
 
 ### crypto.createHash(algorithm[, options])
 <!-- YAML
@@ -3092,7 +3027,8 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`crypto.createDecipher()`]: #crypto_crypto_createdecipher_algorithm_password_options
 [`crypto.createDecipheriv()`]: #crypto_crypto_createdecipheriv_algorithm_key_iv_options
 [`crypto.createDiffieHellman()`]: #crypto_crypto_creatediffiehellman_prime_primeencoding_generator_generatorencoding
-[`crypto.createECDH()`]: #crypto_crypto_createecdh_curvename
+[`crypto.importECDHKey()`]: #crypto_crypto_importecdhkey_curvename_key_encoding
+[`crypto.generateECDHKey()`]: #crypto_crypto_generateecdhkey_curvename
 [`crypto.createHash()`]: #crypto_crypto_createhash_algorithm_options
 [`crypto.createHmac()`]: #crypto_crypto_createhmac_algorithm_key_options
 [`crypto.createPrivateKey()`]: #crypto_crypto_createprivatekey_key
