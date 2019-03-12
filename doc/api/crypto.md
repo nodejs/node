@@ -1908,6 +1908,9 @@ algorithm names.
 <!-- YAML
 added: v10.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/26554
+    description: Ed25519 and Ed448 key pairs can now be generated.
   - version: v11.6.0
     pr-url: https://github.com/nodejs/node/pull/24234
     description: The `generateKeyPair` and `generateKeyPairSync` functions now
@@ -1926,8 +1929,8 @@ changes:
   - `publicKey`: {string | Buffer | KeyObject}
   - `privateKey`: {string | Buffer | KeyObject}
 
-Generates a new asymmetric key pair of the given `type`. Only RSA, DSA and EC
-are currently supported.
+Generates a new asymmetric key pair of the given `type`. RSA, DSA, EC, Ed25519
+and Ed448 are currently supported.
 
 If a `publicKeyEncoding` or `privateKeyEncoding` was specified, this function
 behaves as if [`keyObject.export()`][] had been called on its result. Otherwise,
@@ -1965,6 +1968,9 @@ a `Promise` for an `Object` with `publicKey` and `privateKey` properties.
 <!-- YAML
 added: v10.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/26554
+    description: Ed25519 and Ed448 key pairs can now be generated.
   - version: v11.6.0
     pr-url: https://github.com/nodejs/node/pull/24234
     description: The `generateKeyPair` and `generateKeyPairSync` functions now
@@ -1982,8 +1988,8 @@ changes:
   - `publicKey`: {string | Buffer | KeyObject}
   - `privateKey`: {string | Buffer | KeyObject}
 
-Generates a new asymmetric key pair of the given `type`. Only RSA, DSA and EC
-are currently supported.
+Generates a new asymmetric key pair of the given `type`. RSA, DSA, EC, Ed25519
+and Ed448 are currently supported.
 
 If a `publicKeyEncoding` or `privateKeyEncoding` was specified, this function
 behaves as if [`keyObject.export()`][] had been called on its result. Otherwise,
