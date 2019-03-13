@@ -626,6 +626,19 @@ function expectsError(fn, settings, exact) {
   return mustCall(innerFn, exact);
 }
 
+const suffix = 'This is caused by either a bug in Node.js ' +
+  'or incorrect usage of Node.js internals.\n' +
+  'Please open an issue with this stack trace at ' +
+  'https://github.com/nodejs/node/issues\n';
+
+function expectsInternalAssertion(fn, message) {
+  assert.throws(fn, {
+    message: `${message}\n${suffix}`,
+    name: 'Error',
+    code: 'ERR_INTERNAL_ASSERTION'
+  });
+}
+
 function skipIfInspectorDisabled() {
   if (!process.features.inspector) {
     skip('V8 inspector is disabled');
@@ -729,6 +742,7 @@ module.exports = {
   enoughTestCpu,
   enoughTestMem,
   expectsError,
+  expectsInternalAssertion,
   expectWarning,
   getArrayBufferViews,
   getBufferSources,
