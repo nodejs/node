@@ -38,7 +38,6 @@ const privatePem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
   const key = createSecretKey(keybuf);
   assert.strictEqual(key.type, 'secret');
   assert.strictEqual(key.symmetricKeySize, 32);
-  assert.strictEqual(key.asymmetricKeySize, undefined);
   assert.strictEqual(key.asymmetricKeyType, undefined);
 
   const exportedKey = key.export();
@@ -92,13 +91,11 @@ const privatePem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
   const publicKey = createPublicKey(publicPem);
   assert.strictEqual(publicKey.type, 'public');
   assert.strictEqual(publicKey.asymmetricKeyType, 'rsa');
-  assert.strictEqual(publicKey.asymmetricKeySize, 128);
   assert.strictEqual(publicKey.symmetricKeySize, undefined);
 
   const privateKey = createPrivateKey(privatePem);
   assert.strictEqual(privateKey.type, 'private');
   assert.strictEqual(privateKey.asymmetricKeyType, 'rsa');
-  assert.strictEqual(privateKey.asymmetricKeySize, 128);
   assert.strictEqual(privateKey.symmetricKeySize, undefined);
 
   // It should be possible to derive a public key from a private key.
