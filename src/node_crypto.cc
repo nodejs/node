@@ -2233,16 +2233,17 @@ void SSLWrap<Base>::GetEphemeralKeyInfo(
 
   Local<Object> info = Object::New(env->isolate());
 
-  EVP_PKEY* key;
-
-  if (SSL_get_server_tmp_key(w->ssl_.get(), &key)) {
-    int kid = EVP_PKEY_id(key);
+  EVP_PKEY* raw_key;
+  if (SSL_get_server_tmp_key(w->ssl_.get(), &raw_key)) {
+    EVPKeyPointer key(raw_key);
+    int kid = EVP_PKEY_id(key.get());
     switch (kid) {
       case EVP_PKEY_DH:
         info->Set(context, env->type_string(),
                   FIXED_ONE_BYTE_STRING(env->isolate(), "DH")).FromJust();
         info->Set(context, env->size_string(),
-                  Integer::New(env->isolate(), EVP_PKEY_bits(key))).FromJust();
+                  Integer::New(env->isolate(), EVP_PKEY_bits(key.get())))
+            .FromJust();
         break;
       case EVP_PKEY_EC:
       // TODO(shigeki) Change this to EVP_PKEY_X25519 and add EVP_PKEY_X448
@@ -2251,7 +2252,7 @@ void SSLWrap<Base>::GetEphemeralKeyInfo(
         {
           const char* curve_name;
           if (kid == EVP_PKEY_EC) {
-            EC_KEY* ec = EVP_PKEY_get1_EC_KEY(key);
+            EC_KEY* ec = EVP_PKEY_get1_EC_KEY(key.get());
             int nid = EC_GROUP_get_curve_name(EC_KEY_get0_group(ec));
             curve_name = OBJ_nid2sn(nid);
             EC_KEY_free(ec);
@@ -2265,11 +2266,10 @@ void SSLWrap<Base>::GetEphemeralKeyInfo(
                                   curve_name)).FromJust();
           info->Set(context, env->size_string(),
                     Integer::New(env->isolate(),
-                                 EVP_PKEY_bits(key))).FromJust();
+                                 EVP_PKEY_bits(key.get()))).FromJust();
         }
         break;
     }
-    EVP_PKEY_free(key);
   }
 
   return args.GetReturnValue().Set(info);
@@ -3138,7 +3138,7 @@ static ManagedEVPPKey GetPrivateKeyFromJs(
         ParsePrivateKey(config.Release(), key.get(), key.size());
     if (!pkey)
       ThrowCryptoError(env, ERR_get_error(), "Failed to read private key");
-    return ManagedEVPPKey(pkey.release());
+    return ManagedEVPPKey(std::move(pkey));
   } else {
     CHECK(args[*offset]->IsObject() && allow_key_object);
     KeyObject* key;
@@ -3197,7 +3197,7 @@ static ManagedEVPPKey GetPublicOrPrivateKeyFromJs(
     }
     if (!pkey)
       ThrowCryptoError(env, ERR_get_error(), "Failed to read asymmetric key");
-    return ManagedEVPPKey(pkey.release());
+    return ManagedEVPPKey(std::move(pkey));
   } else {
     CHECK(args[*offset]->IsObject());
     KeyObject* key = Unwrap<KeyObject>(args[*offset].As<Object>());
@@ -3287,42 +3287,27 @@ static MaybeLocal<Value> WritePrivateKey(
   return BIOToStringOrBuffer(env, bio.get(), config.format_);
 }
 
-ManagedEVPPKey::ManagedEVPPKey() : pkey_(nullptr) {}
+ManagedEVPPKey::ManagedEVPPKey(EVPKeyPointer&& pkey) : pkey_(std::move(pkey)) {}
 
-ManagedEVPPKey::ManagedEVPPKey(EVP_PKEY* pkey) : pkey_(pkey) {}
-
-ManagedEVPPKey::ManagedEVPPKey(const ManagedEVPPKey& key) : pkey_(nullptr) {
-  *this = key;
+ManagedEVPPKey::ManagedEVPPKey(const ManagedEVPPKey& that) {
+  *this = that;
 }
 
-ManagedEVPPKey::ManagedEVPPKey(ManagedEVPPKey&& key) {
-  *this = key;
-}
+ManagedEVPPKey& ManagedEVPPKey::operator=(const ManagedEVPPKey& that) {
+  pkey_.reset(that.get());
 
-ManagedEVPPKey::~ManagedEVPPKey() {
-  EVP_PKEY_free(pkey_);
-}
+  if (pkey_)
+    EVP_PKEY_up_ref(pkey_.get());
 
-ManagedEVPPKey& ManagedEVPPKey::operator=(const ManagedEVPPKey& key) {
-  EVP_PKEY_free(pkey_);
-  pkey_ = key.pkey_;
-  EVP_PKEY_up_ref(pkey_);
-  return *this;
-}
-
-ManagedEVPPKey& ManagedEVPPKey::operator=(ManagedEVPPKey&& key) {
-  EVP_PKEY_free(pkey_);
-  pkey_ = key.pkey_;
-  key.pkey_ = nullptr;
   return *this;
 }
 
 ManagedEVPPKey::operator bool() const {
-  return pkey_ != nullptr;
+  return !!pkey_;
 }
 
 EVP_PKEY* ManagedEVPPKey::get() const {
-  return pkey_;
+  return pkey_.get();
 }
 
 Local<Function> KeyObject::Initialize(Environment* env, Local<Object> target) {
@@ -5704,13 +5689,13 @@ class DSAKeyPairGenerationConfig : public KeyPairGenerationConfig {
       }
     }
 
-    EVP_PKEY* params = nullptr;
-    if (EVP_PKEY_paramgen(param_ctx.get(), &params) <= 0)
+    EVP_PKEY* raw_params = nullptr;
+    if (EVP_PKEY_paramgen(param_ctx.get(), &raw_params) <= 0)
       return nullptr;
+    EVPKeyPointer params(raw_params);
     param_ctx.reset();
 
-    EVPKeyCtxPointer key_ctx(EVP_PKEY_CTX_new(params, nullptr));
-    EVP_PKEY_free(params);
+    EVPKeyCtxPointer key_ctx(EVP_PKEY_CTX_new(params.get(), nullptr));
     return key_ctx;
   }
 
@@ -5739,13 +5724,13 @@ class ECKeyPairGenerationConfig : public KeyPairGenerationConfig {
     if (EVP_PKEY_CTX_set_ec_param_enc(param_ctx.get(), param_encoding_) <= 0)
       return nullptr;
 
-    EVP_PKEY* params = nullptr;
-    if (EVP_PKEY_paramgen(param_ctx.get(), &params) <= 0)
+    EVP_PKEY* raw_params = nullptr;
+    if (EVP_PKEY_paramgen(param_ctx.get(), &raw_params) <= 0)
       return nullptr;
+    EVPKeyPointer params(raw_params);
     param_ctx.reset();
 
-    EVPKeyCtxPointer key_ctx(EVP_PKEY_CTX_new(params, nullptr));
-    EVP_PKEY_free(params);
+    EVPKeyCtxPointer key_ctx(EVP_PKEY_CTX_new(params.get(), nullptr));
     return key_ctx;
   }
 
@@ -5793,7 +5778,7 @@ class GenerateKeyPairJob : public CryptoJob {
     EVP_PKEY* pkey = nullptr;
     if (EVP_PKEY_keygen(ctx.get(), &pkey) != 1)
       return false;
-    pkey_ = ManagedEVPPKey(pkey);
+    pkey_ = ManagedEVPPKey(EVPKeyPointer(pkey));
     return true;
   }
 
