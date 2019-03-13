@@ -421,20 +421,16 @@ enum KeyType {
 // use.
 class ManagedEVPPKey {
  public:
-  ManagedEVPPKey();
-  explicit ManagedEVPPKey(EVP_PKEY* pkey);
-  ManagedEVPPKey(const ManagedEVPPKey& key);
-  ManagedEVPPKey(ManagedEVPPKey&& key);
-  ~ManagedEVPPKey();
-
-  ManagedEVPPKey& operator=(const ManagedEVPPKey& key);
-  ManagedEVPPKey& operator=(ManagedEVPPKey&& key);
+  ManagedEVPPKey() = default;
+  explicit ManagedEVPPKey(EVPKeyPointer&& pkey);
+  ManagedEVPPKey(const ManagedEVPPKey& that);
+  ManagedEVPPKey& operator=(const ManagedEVPPKey& that);
 
   operator bool() const;
   EVP_PKEY* get() const;
 
  private:
-  EVP_PKEY* pkey_;
+  EVPKeyPointer pkey_;
 };
 
 class KeyObject : public BaseObject {
