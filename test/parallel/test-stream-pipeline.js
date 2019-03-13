@@ -5,6 +5,7 @@ const { Stream, Writable, Readable, Transform, pipeline } = require('stream');
 const assert = require('assert');
 const http = require('http');
 const { promisify } = require('util');
+const Countdown = require('../common/countdown');
 
 {
   let finished = false;
@@ -476,4 +477,50 @@ const { promisify } = require('util');
     () => pipeline(read, transform, write),
     { code: 'ERR_INVALID_CALLBACK' }
   );
+}
+
+{
+  const read = new Readable({
+    read() {}
+  });
+
+  const write = new Writable({
+    emitClose: false,
+    write(data, enc, cb) {
+      cb();
+    }
+  });
+
+  setImmediate(() => read.destroy());
+
+  pipeline(read, write, common.mustCall((err) => {
+    assert.ok(err, 'should have an error');
+  }));
+}
+
+{
+  const countdown = new Countdown(1, common.mustCall());
+  const read = new Readable({
+    read() {}
+  });
+
+  const write = new Writable({
+    emitClose: false,
+    write(data, enc, cb) {
+      cb();
+    },
+    destroy(err, cb) {
+      setImmediate(() => {
+        countdown.dec();
+        cb(err);
+      });
+    }
+  });
+
+  setImmediate(() => read.destroy());
+
+  pipeline(read, write, common.mustCall((err) => {
+    assert.ok(err, 'should have an error');
+    assert(!countdown.remaining, 'destroy should be called first');
+  }));
 }

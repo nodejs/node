@@ -5,6 +5,7 @@ const { Writable, Readable, Transform, finished } = require('stream');
 const assert = require('assert');
 const fs = require('fs');
 const { promisify } = require('util');
+const Countdown = require('../common/countdown');
 
 {
   const rs = new Readable({
@@ -174,4 +175,53 @@ const { promisify } = require('util');
   rs.emit('close');
   rs.push(null);
   rs.resume();
+}
+
+{
+  const rs = new Readable({
+    emitClose: false,
+    read() {}
+  });
+
+  finished(rs, common.mustCall((err) => {
+    assert(!err, 'no error');
+  }));
+
+  setImmediate(() => rs.destroy());
+}
+
+{
+  const ws = new Writable({
+    emitClose: false,
+    write(data, enc, cb) {
+      cb();
+    }
+  });
+
+  finished(ws, common.mustCall((err) => {
+    assert(!err, 'no error');
+  }));
+
+  setImmediate(() => ws.destroy());
+}
+
+{
+  const countdown = new Countdown(1, common.mustCall());
+  const rs = new Readable({
+    emitClose: false,
+    read() {},
+    destroy(err, cb) {
+      setImmediate(() => {
+        countdown.dec();
+        cb(err);
+      });
+    }
+  });
+
+  finished(rs, common.mustCall((err) => {
+    assert(!err, 'no error');
+    assert(!countdown.remaining, 'destroy should be called first');
+  }));
+
+  setImmediate(() => rs.destroy());
 }
