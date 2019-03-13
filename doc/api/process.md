@@ -1671,7 +1671,7 @@ reports for the current process. Additional documentation is available in the
 
 ### process.report.directory
 <!-- YAML
-added: REPLACEME
+added: v11.12.0
 -->
 
 * {string}
@@ -1686,7 +1686,7 @@ console.log(`Report directory is ${process.report.directory}`);
 
 ### process.report.filename
 <!-- YAML
-added: REPLACEME
+added: v11.12.0
 -->
 
 * {string}
@@ -1719,7 +1719,7 @@ Additional documentation is available in the [report documentation][].
 
 ### process.report.reportOnFatalError
 <!-- YAML
-added: REPLACEME
+added: v11.12.0
 -->
 
 * {boolean}
@@ -1733,7 +1733,7 @@ console.log(`Report on fatal error: ${process.report.reportOnFatalError}`);
 
 ### process.report.reportOnSignal
 <!-- YAML
-added: REPLACEME
+added: v11.12.0
 -->
 
 * {boolean}
@@ -1747,7 +1747,7 @@ console.log(`Report on signal: ${process.report.reportOnSignal}`);
 
 ### process.report.reportOnUncaughtException
 <!-- YAML
-added: REPLACEME
+added: v11.12.0
 -->
 
 * {boolean}
@@ -1760,7 +1760,7 @@ console.log(`Report on exception: ${process.report.reportOnUncaughtException}`);
 
 ### process.report.signal
 <!-- YAML
-added: REPLACEME
+added: v11.12.0
 -->
 
 * {string}

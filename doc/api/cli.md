@@ -179,7 +179,7 @@ Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
 
 ### `--frozen-intrinsics`
 <!-- YAML
-added: REPLACEME
+added: v11.12.0
 -->
 
 > Stability: 1 - Experimental
