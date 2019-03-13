@@ -27,24 +27,29 @@ using v8::PropertyCallbackInfo;
 using v8::String;
 using v8::Value;
 
+class RealEnvStore final : public KVStore {
+ public:
+  Local<String> Get(Isolate* isolate, Local<String> key) const override;
+  void Set(Isolate* isolate, Local<String> key, Local<String> value) override;
+  int32_t Query(Isolate* isolate, Local<String> key) const override;
+  void Delete(Isolate* isolate, Local<String> key) override;
+  Local<Array> Enumerate(Isolate* isolate) const override;
+};
+
 namespace per_process {
 Mutex env_var_mutex;
+std::shared_ptr<KVStore> real_environment = std::make_shared<RealEnvStore>();
 }  // namespace per_process
 
-static void EnvGetter(Local<Name> property,
-                      const PropertyCallbackInfo<Value>& info) {
-  Isolate* isolate = info.GetIsolate();
-  if (property->IsSymbol()) {
-    return info.GetReturnValue().SetUndefined();
-  }
+Local<String> RealEnvStore::Get(Isolate* isolate,
+                                Local<String> property) const {
   Mutex::ScopedLock lock(per_process::env_var_mutex);
 #ifdef __POSIX__
   node::Utf8Value key(isolate, property);
   const char* val = getenv(*key);
   if (val) {
-    return info.GetReturnValue().Set(
-        String::NewFromUtf8(isolate, val, NewStringType::kNormal)
-            .ToLocalChecked());
+    return String::NewFromUtf8(isolate, val, NewStringType::kNormal)
+        .ToLocalChecked();
   }
 #else  // _WIN32
   node::TwoByteValue key(isolate, property);
@@ -62,11 +67,129 @@ static void EnvGetter(Local<Name> property,
         isolate, two_byte_buffer, NewStringType::kNormal);
     if (rc.IsEmpty()) {
       isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
-      return;
+      return Local<String>();
     }
-    return info.GetReturnValue().Set(rc.ToLocalChecked());
+    return rc.ToLocalChecked();
   }
 #endif
+  return Local<String>();
+}
+
+void RealEnvStore::Set(Isolate* isolate,
+                       Local<String> property,
+                       Local<String> value) {
+  Mutex::ScopedLock lock(per_process::env_var_mutex);
+#ifdef __POSIX__
+  node::Utf8Value key(isolate, property);
+  node::Utf8Value val(isolate, value);
+  setenv(*key, *val, 1);
+#else  // _WIN32
+  node::TwoByteValue key(isolate, property);
+  node::TwoByteValue val(isolate, value);
+  WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
+  // Environment variables that start with '=' are read-only.
+  if (key_ptr[0] != L'=') {
+    SetEnvironmentVariableW(key_ptr, reinterpret_cast<WCHAR*>(*val));
+  }
+#endif
+}
+
+int32_t RealEnvStore::Query(Isolate* isolate, Local<String> property) const {
+  Mutex::ScopedLock lock(per_process::env_var_mutex);
+#ifdef __POSIX__
+  node::Utf8Value key(isolate, property);
+  if (getenv(*key)) return 0;
+#else  // _WIN32
+  node::TwoByteValue key(isolate, property);
+  WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
+  SetLastError(ERROR_SUCCESS);
+  if (GetEnvironmentVariableW(key_ptr, nullptr, 0) > 0 ||
+      GetLastError() == ERROR_SUCCESS) {
+    if (key_ptr[0] == L'=') {
+      // Environment variables that start with '=' are hidden and read-only.
+      return static_cast<int32_t>(v8::ReadOnly) |
+             static_cast<int32_t>(v8::DontDelete) |
+             static_cast<int32_t>(v8::DontEnum);
+    }
+    return 0;
+  }
+#endif
+  return -1;
+}
+
+void RealEnvStore::Delete(Isolate* isolate, Local<String> property) {
+  Mutex::ScopedLock lock(per_process::env_var_mutex);
+#ifdef __POSIX__
+  node::Utf8Value key(isolate, property);
+  unsetenv(*key);
+#else
+  node::TwoByteValue key(isolate, property);
+  WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
+  SetEnvironmentVariableW(key_ptr, nullptr);
+#endif
+}
+
+Local<Array> RealEnvStore::Enumerate(Isolate* isolate) const {
+  Mutex::ScopedLock lock(per_process::env_var_mutex);
+#ifdef __POSIX__
+  int env_size = 0;
+  while (environ[env_size]) {
+    env_size++;
+  }
+  std::vector<Local<Value>> env_v(env_size);
+
+  for (int i = 0; i < env_size; ++i) {
+    const char* var = environ[i];
+    const char* s = strchr(var, '=');
+    const int length = s ? s - var : strlen(var);
+    env_v[i] = String::NewFromUtf8(isolate, var, NewStringType::kNormal, length)
+                   .ToLocalChecked();
+  }
+#else  // _WIN32
+  std::vector<Local<Value>> env_v;
+  WCHAR* environment = GetEnvironmentStringsW();
+  if (environment == nullptr)
+    return Array::New(isolate);  // This should not happen.
+  WCHAR* p = environment;
+  while (*p) {
+    WCHAR* s;
+    if (*p == L'=') {
+      // If the key starts with '=' it is a hidden environment variable.
+      p += wcslen(p) + 1;
+      continue;
+    } else {
+      s = wcschr(p, L'=');
+    }
+    if (!s) {
+      s = p + wcslen(p);
+    }
+    const uint16_t* two_byte_buffer = reinterpret_cast<const uint16_t*>(p);
+    const size_t two_byte_buffer_len = s - p;
+    v8::MaybeLocal<String> rc = String::NewFromTwoByte(
+        isolate, two_byte_buffer, NewStringType::kNormal, two_byte_buffer_len);
+    if (rc.IsEmpty()) {
+      isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
+      FreeEnvironmentStringsW(environment);
+      return Local<Array>();
+    }
+    env_v.push_back(rc.ToLocalChecked());
+    p = s + wcslen(s) + 1;
+  }
+  FreeEnvironmentStringsW(environment);
+#endif
+
+  return Array::New(isolate, env_v.data(), env_v.size());
+}
+
+static void EnvGetter(Local<Name> property,
+                      const PropertyCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  if (property->IsSymbol()) {
+    return info.GetReturnValue().SetUndefined();
+  }
+  CHECK(property->IsString());
+  info.GetReturnValue().Set(
+      env->envvars()->Get(env->isolate(), property.As<String>()));
 }
 
 static void EnvSetter(Local<Name> property,
@@ -90,63 +213,33 @@ static void EnvSetter(Local<Name> property,
       return;
   }
 
-  Mutex::ScopedLock lock(per_process::env_var_mutex);
-#ifdef __POSIX__
-  node::Utf8Value key(info.GetIsolate(), property);
-  node::Utf8Value val(info.GetIsolate(), value);
-  setenv(*key, *val, 1);
-#else  // _WIN32
-  node::TwoByteValue key(info.GetIsolate(), property);
-  node::TwoByteValue val(info.GetIsolate(), value);
-  WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
-  // Environment variables that start with '=' are read-only.
-  if (key_ptr[0] != L'=') {
-    SetEnvironmentVariableW(key_ptr, reinterpret_cast<WCHAR*>(*val));
+  Local<String> key;
+  Local<String> value_string;
+  if (!property->ToString(env->context()).ToLocal(&key) ||
+      !value->ToString(env->context()).ToLocal(&value_string)) {
+    return;
   }
-#endif
+
+  env->envvars()->Set(env->isolate(), key, value_string);
+
   // Whether it worked or not, always return value.
   info.GetReturnValue().Set(value);
 }
 
 static void EnvQuery(Local<Name> property,
                      const PropertyCallbackInfo<Integer>& info) {
-  Mutex::ScopedLock lock(per_process::env_var_mutex);
-  int32_t rc = -1;  // Not found unless proven otherwise.
+  Environment* env = Environment::GetCurrent(info);
   if (property->IsString()) {
-#ifdef __POSIX__
-    node::Utf8Value key(info.GetIsolate(), property);
-    if (getenv(*key)) rc = 0;
-#else  // _WIN32
-    node::TwoByteValue key(info.GetIsolate(), property);
-    WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
-    SetLastError(ERROR_SUCCESS);
-    if (GetEnvironmentVariableW(key_ptr, nullptr, 0) > 0 ||
-        GetLastError() == ERROR_SUCCESS) {
-      rc = 0;
-      if (key_ptr[0] == L'=') {
-        // Environment variables that start with '=' are hidden and read-only.
-        rc = static_cast<int32_t>(v8::ReadOnly) |
-             static_cast<int32_t>(v8::DontDelete) |
-             static_cast<int32_t>(v8::DontEnum);
-      }
-    }
-#endif
+    int32_t rc = env->envvars()->Query(env->isolate(), property.As<String>());
+    if (rc != -1) info.GetReturnValue().Set(rc);
   }
-  if (rc != -1) info.GetReturnValue().Set(rc);
 }
 
 static void EnvDeleter(Local<Name> property,
                        const PropertyCallbackInfo<Boolean>& info) {
-  Mutex::ScopedLock lock(per_process::env_var_mutex);
+  Environment* env = Environment::GetCurrent(info);
   if (property->IsString()) {
-#ifdef __POSIX__
-    node::Utf8Value key(info.GetIsolate(), property);
-    unsetenv(*key);
-#else
-    node::TwoByteValue key(info.GetIsolate(), property);
-    WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
-    SetEnvironmentVariableW(key_ptr, nullptr);
-#endif
+    env->envvars()->Delete(env->isolate(), property.As<String>());
   }
 
   // process.env never has non-configurable properties, so always
@@ -156,58 +249,9 @@ static void EnvDeleter(Local<Name> property,
 
 static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
   Environment* env = Environment::GetCurrent(info);
-  Isolate* isolate = env->isolate();
 
-  Mutex::ScopedLock lock(per_process::env_var_mutex);
-  Local<Array> envarr;
-  int env_size = 0;
-#ifdef __POSIX__
-  while (environ[env_size]) {
-    env_size++;
-  }
-  std::vector<Local<Value>> env_v(env_size);
-
-  for (int i = 0; i < env_size; ++i) {
-    const char* var = environ[i];
-    const char* s = strchr(var, '=');
-    const int length = s ? s - var : strlen(var);
-    env_v[i] = String::NewFromUtf8(isolate, var, NewStringType::kNormal, length)
-                   .ToLocalChecked();
-  }
-#else  // _WIN32
-  std::vector<Local<Value>> env_v;
-  WCHAR* environment = GetEnvironmentStringsW();
-  if (environment == nullptr) return;  // This should not happen.
-  WCHAR* p = environment;
-  while (*p) {
-    WCHAR* s;
-    if (*p == L'=') {
-      // If the key starts with '=' it is a hidden environment variable.
-      p += wcslen(p) + 1;
-      continue;
-    } else {
-      s = wcschr(p, L'=');
-    }
-    if (!s) {
-      s = p + wcslen(p);
-    }
-    const uint16_t* two_byte_buffer = reinterpret_cast<const uint16_t*>(p);
-    const size_t two_byte_buffer_len = s - p;
-    v8::MaybeLocal<String> rc = String::NewFromTwoByte(
-        isolate, two_byte_buffer, NewStringType::kNormal, two_byte_buffer_len);
-    if (rc.IsEmpty()) {
-      isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
-      FreeEnvironmentStringsW(environment);
-      return;
-    }
-    env_v.push_back(rc.ToLocalChecked());
-    p = s + wcslen(s) + 1;
-  }
-  FreeEnvironmentStringsW(environment);
-#endif
-
-  envarr = Array::New(isolate, env_v.data(), env_v.size());
-  info.GetReturnValue().Set(envarr);
+  info.GetReturnValue().Set(
+      env->envvars()->Enumerate(env->isolate()));
 }
 
 MaybeLocal<Object> CreateEnvVarProxy(Local<Context> context,
