@@ -1984,7 +1984,7 @@ A module file could not be resolved while attempting a [`require()`][] or
 ### ERR_CLOSED_MESSAGE_PORT
 <!-- YAML
 added: v10.5.0
-removed: REPLACEME
+removed: v11.12.0
 -->
 
 There was an attempt to use a `MessagePort` instance in a closed
