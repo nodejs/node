@@ -116,7 +116,7 @@ void DumpBacktrace(FILE* fp);
 
 #define ABORT() node::Abort()
 
-#define ASSERT(expr)                                                          \
+#define ERROR_AND_ABORT(expr)                                                 \
   do {                                                                        \
     /* Make sure that this struct does not end up in inline code, but      */ \
     /* rather in a read-only data section when modifying this code.        */ \
@@ -142,7 +142,7 @@ void DumpBacktrace(FILE* fp);
 #define CHECK(expr)                                                           \
   do {                                                                        \
     if (UNLIKELY(!(expr))) {                                                  \
-      ASSERT(expr);                                                           \
+      ERROR_AND_ABORT(expr);                                                  \
     }                                                                         \
   } while (0)
 
@@ -182,7 +182,7 @@ void DumpBacktrace(FILE* fp);
 
 
 #define UNREACHABLE(expr)                                                     \
-  ASSERT("Unreachable code reached:" expr)
+  ERROR_AND_ABORT("Unreachable code reached:" expr)
 
 // TAILQ-style intrusive list node.
 template <typename T>
