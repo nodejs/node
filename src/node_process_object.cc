@@ -256,18 +256,6 @@ MaybeLocal<Object> CreateProcessObject(
                                 "_breakNodeFirstLine", True(env->isolate()));
   }
 
-  // --inspect --debug-brk
-  if (env->options()->debug_options().deprecated_invocation()) {
-    READONLY_DONT_ENUM_PROPERTY(process,
-                                "_deprecatedDebugBrk", True(env->isolate()));
-  }
-
-  // --debug or, --debug-brk without --inspect
-  if (env->options()->debug_options().invalid_invocation()) {
-    READONLY_DONT_ENUM_PROPERTY(process,
-                                "_invalidDebug", True(env->isolate()));
-  }
-
   // --security-revert flags
 #define V(code, _, __)                                                        \
   do {                                                                        \
