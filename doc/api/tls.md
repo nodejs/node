@@ -1284,7 +1284,7 @@ changes:
     for stronger security. If omitted or invalid, the parameters are silently
     discarded and DHE ciphers will not be available.
   * `ecdhCurve` {string} A string describing a named curve or a colon separated
-    list of curve NIDs or names, for example `P-521:P-384:P-256`, to use for
+    list of curve NIDs or names, for example `P-512:P-384:P-256`, to use for
     ECDH key agreement. Set to `auto` to select the
     curve automatically. Use [`crypto.getCurves()`][] to obtain a list of
     available curve names. On recent releases, `openssl ecparam -list_curves`
