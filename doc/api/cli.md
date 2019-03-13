@@ -227,6 +227,14 @@ added: v7.6.0
 Activate inspector on `host:port` and break at start of user script.
 Default `host:port` is `127.0.0.1:9229`.
 
+### `--inspect-brk-node[=[host:]port]`
+<!-- YAML
+added: v7.6.0
+-->
+
+Activate inspector on `host:port` and break at start of node script.
+Default `host:port` is `127.0.0.1:9229`.
+
 ### `--inspect-port=[host:]port`
 <!-- YAML
 added: v7.6.0
@@ -710,6 +718,7 @@ Node.js options that are allowed are:
 - `--icu-data-dir`
 - `--inspect`
 - `--inspect-brk`
+- `--inspect-brk-node`
 - `--inspect-port`
 - `--loader`
 - `--max-http-header-size`
