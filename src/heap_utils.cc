@@ -386,7 +386,7 @@ void CreateHeapSnapshotStream(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(env->isolate());
   const HeapSnapshot* const snapshot =
       env->isolate()->GetHeapProfiler()->TakeHeapSnapshot();
-
+  CHECK_NOT_NULL(snapshot);
   Local<Object> obj;
   if (!env->streambaseoutputstream_constructor_template()
            ->NewInstance(env->context())

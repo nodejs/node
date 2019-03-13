@@ -1869,11 +1869,6 @@ signal (such as [`subprocess.kill()`][]).
 
 The V8 `BreakIterator` API was used but the full ICU data set is not installed.
 
-<a id="ERR_V8_HEAPSNAPSHOT"></a>
-### ERR_V8_HEAPSNAPSHOT
-
-A V8 Heap Snapshot stream could not be created when calling `v8.getHeapSnapshot()`.
-
 <a id="ERR_VALID_PERFORMANCE_ENTRY_TYPE"></a>
 ### ERR_VALID_PERFORMANCE_ENTRY_TYPE
 
