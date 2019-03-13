@@ -211,22 +211,6 @@ module.exports = {
         message: 'Use `new` keyword when throwing an `Error`.',
       },
       {
-        selector: "CallExpression[callee.property.name='notDeepStrictEqual'][arguments.length<2]",
-        message: 'assert.notDeepStrictEqual() must be invoked with at least two arguments.',
-      },
-      {
-        selector: "CallExpression[callee.property.name='deepStrictEqual'][arguments.length<2]",
-        message: 'assert.deepStrictEqual() must be invoked with at least two arguments.',
-      },
-      {
-        selector: "CallExpression[callee.property.name='notStrictEqual'][arguments.length<2]",
-        message: 'assert.notStrictEqual() must be invoked with at least two arguments.',
-      },
-      {
-        selector: "CallExpression[callee.property.name='strictEqual'][arguments.length<2]",
-        message: 'assert.strictEqual() must be invoked with at least two arguments.',
-      },
-      {
         selector: "CallExpression[callee.property.name='notDeepStrictEqual'][arguments.0.type='Literal']:not([arguments.1.type='Literal']):not([arguments.1.type='ObjectExpression']):not([arguments.1.type='ArrayExpression']):not([arguments.1.type='UnaryExpression'])",
         message: 'The first argument should be the `actual`, not the `expected` value.',
       },

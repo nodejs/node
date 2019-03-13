@@ -560,7 +560,7 @@ assert.throws(
     '- undefined',
   ].join('\n');
   assert.throws(
-    () => assert.deepEqual([1, 2, 1]),
+    () => assert.deepEqual([1, 2, 1], undefined),
     { message });
 
   message = [
@@ -1147,3 +1147,53 @@ assert.throws(
   }
   assert(threw);
 }
+
+assert.throws(
+  () => a.equal(1),
+  { code: 'ERR_MISSING_ARGS' }
+);
+
+assert.throws(
+  () => a.deepEqual(/a/),
+  { code: 'ERR_MISSING_ARGS' }
+);
+
+assert.throws(
+  () => a.notEqual(null),
+  { code: 'ERR_MISSING_ARGS' }
+);
+
+assert.throws(
+  () => a.notDeepEqual('test'),
+  { code: 'ERR_MISSING_ARGS' }
+);
+
+assert.throws(
+  () => a.strictEqual({}),
+  { code: 'ERR_MISSING_ARGS' }
+);
+
+assert.throws(
+  () => a.deepStrictEqual(Symbol()),
+  { code: 'ERR_MISSING_ARGS' }
+);
+
+assert.throws(
+  () => a.notStrictEqual(5n),
+  { code: 'ERR_MISSING_ARGS' }
+);
+
+assert.throws(
+  () => a.notDeepStrictEqual(undefined),
+  { code: 'ERR_MISSING_ARGS' }
+);
+
+assert.throws(
+  () => a.strictEqual(),
+  { code: 'ERR_MISSING_ARGS' }
+);
+
+assert.throws(
+  () => a.deepStrictEqual(),
+  { code: 'ERR_MISSING_ARGS' }
+);
