@@ -50,12 +50,10 @@ errors.E('TEST_ERROR_2', (a, b) => `${a} ${b}`, Error);
 }
 
 {
-  assert.throws(
+  common.expectsInternalAssertion(
     () => new errors.codes.TEST_ERROR_1(),
-    {
-      message: 'Code: TEST_ERROR_1; The provided arguments ' +
-               'length (0) does not match the required ones (1).'
-    }
+    'Code: TEST_ERROR_1; The provided arguments ' +
+    'length (0) does not match the required ones (1).'
   );
 }
 

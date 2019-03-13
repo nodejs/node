@@ -1148,6 +1148,12 @@ is set for the `Http2Stream`.
 `http2.connect()` was passed a URL that uses any protocol other than `http:` or
 `https:`.
 
+<a id="ERR_INTERNAL_ASSERTION"></a>
+### ERR_INTERNAL_ASSERTION
+
+There was a bug in Node.js or incorrect usage of Node.js internals.
+To fix the error, open an issue at https://github.com/nodejs/node/issues.
+
 <a id="ERR_INCOMPATIBLE_OPTION_PAIR"></a>
 ### ERR_INCOMPATIBLE_OPTION_PAIR
 
