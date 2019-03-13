@@ -87,6 +87,10 @@ class CallbackInfo {
                                   FreeCallback callback,
                                   char* data,
                                   void* hint = nullptr);
+
+  CallbackInfo(const CallbackInfo&) = delete;
+  CallbackInfo& operator=(const CallbackInfo&) = delete;
+
  private:
   static void WeakCallback(const WeakCallbackInfo<CallbackInfo>&);
   inline void WeakCallback(Isolate* isolate);
@@ -99,7 +103,6 @@ class CallbackInfo {
   FreeCallback const callback_;
   char* const data_;
   void* const hint_;
-  DISALLOW_COPY_AND_ASSIGN(CallbackInfo);
 };
 
 

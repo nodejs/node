@@ -97,10 +97,6 @@ struct AssertionInfo {
 [[noreturn]] void Abort();
 void DumpBacktrace(FILE* fp);
 
-#define DISALLOW_COPY_AND_ASSIGN(TypeName)                                    \
-  TypeName(const TypeName&) = delete;                                         \
-  TypeName& operator=(const TypeName&) = delete
-
 // Windows 8+ does not like abort() in Release mode
 #ifdef _WIN32
 #define ABORT_NO_BACKTRACE() _exit(134)
@@ -188,12 +184,14 @@ class ListNode {
   inline void Remove();
   inline bool IsEmpty() const;
 
+  ListNode(const ListNode&) = delete;
+  ListNode& operator=(const ListNode&) = delete;
+
  private:
   template <typename U, ListNode<U> (U::*M)> friend class ListHead;
   friend int GenDebugSymbols();
   ListNode* prev_;
   ListNode* next_;
-  DISALLOW_COPY_AND_ASSIGN(ListNode);
 };
 
 template <typename T, ListNode<T> (T::*M)>
@@ -220,10 +218,12 @@ class ListHead {
   inline Iterator begin() const;
   inline Iterator end() const;
 
+  ListHead(const ListHead&) = delete;
+  ListHead& operator=(const ListHead&) = delete;
+
  private:
   friend int GenDebugSymbols();
   ListNode<T> head_;
-  DISALLOW_COPY_AND_ASSIGN(ListHead);
 };
 
 // The helper is for doing safe downcasts from base types to derived types.

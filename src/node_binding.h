@@ -80,8 +80,8 @@ class DLib {
 #endif
   bool has_entry_in_global_handle_map_ = false;
 
- private:
-  DISALLOW_COPY_AND_ASSIGN(DLib);
+  DLib(const DLib&) = delete;
+  DLib& operator=(const DLib&) = delete;
 };
 
 // Call _register<module_name> functions for all of

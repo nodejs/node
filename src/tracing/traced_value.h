@@ -50,6 +50,9 @@ class TracedValue : public v8::ConvertableToTraceFormat {
   // ConvertableToTraceFormat implementation.
   void AppendAsTraceFormat(std::string* out) const override;
 
+  TracedValue(const TracedValue&) = delete;
+  TracedValue& operator=(const TracedValue&) = delete;
+
  private:
   explicit TracedValue(bool root_is_array = false);
 
@@ -59,8 +62,6 @@ class TracedValue : public v8::ConvertableToTraceFormat {
   std::string data_;
   bool first_item_;
   bool root_is_array_;
-
-  DISALLOW_COPY_AND_ASSIGN(TracedValue);
 };
 
 }  // namespace tracing

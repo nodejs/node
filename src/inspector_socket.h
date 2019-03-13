@@ -41,13 +41,14 @@ class InspectorSocket {
   void SwitchProtocol(ProtocolHandler* handler);
   std::string GetHost();
 
+  InspectorSocket(const InspectorSocket&) = delete;
+  InspectorSocket& operator=(const InspectorSocket&) = delete;
+
  private:
   static void Shutdown(ProtocolHandler*);
   InspectorSocket() = default;
 
   DeleteFnPtr<ProtocolHandler, Shutdown> protocol_handler_;
-
-  DISALLOW_COPY_AND_ASSIGN(InspectorSocket);
 };
 
 

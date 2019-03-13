@@ -682,8 +682,8 @@ class FSReqWrapSync {
   ~FSReqWrapSync() { uv_fs_req_cleanup(&req); }
   uv_fs_t req;
 
- private:
-  DISALLOW_COPY_AND_ASSIGN(FSReqWrapSync);
+  FSReqWrapSync(const FSReqWrapSync&) = delete;
+  FSReqWrapSync& operator=(const FSReqWrapSync&) = delete;
 };
 
 // Returns nullptr if the operation fails from the start.

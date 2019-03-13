@@ -149,11 +149,13 @@ class EnvironmentTestFixture : public NodeTestFixture {
       return context_;
     }
 
+    Env(const Env&) = delete;
+    Env& operator=(const Env&) = delete;
+
    private:
     v8::Local<v8::Context> context_;
     node::IsolateData* isolate_data_;
     node::Environment* environment_;
-    DISALLOW_COPY_AND_ASSIGN(Env);
   };
 };
 

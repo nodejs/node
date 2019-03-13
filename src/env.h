@@ -426,6 +426,8 @@ class IsolateData {
 
   std::unordered_map<nghttp2_rcbuf*, v8::Eternal<v8::String>> http2_static_strs;
   inline v8::Isolate* isolate() const;
+  IsolateData(const IsolateData&) = delete;
+  IsolateData& operator=(const IsolateData&) = delete;
 
  private:
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
@@ -448,8 +450,6 @@ class IsolateData {
   const bool uses_node_allocator_;
   MultiIsolatePlatform* platform_;
   std::shared_ptr<PerIsolateOptions> options_;
-
-  DISALLOW_COPY_AND_ASSIGN(IsolateData);
 };
 
 struct ContextInfo {
@@ -534,6 +534,9 @@ class AsyncRequest : public MemoryRetainer {
 
 class Environment {
  public:
+  Environment(const Environment&) = delete;
+  Environment& operator=(const Environment&) = delete;
+
   class AsyncHooks {
    public:
     // Reason for both UidFields and Fields are that one is stored as a double*
@@ -571,6 +574,9 @@ class Environment {
     inline bool pop_async_id(double async_id);
     inline void clear_async_id_stack();  // Used in fatal exceptions.
 
+    AsyncHooks(const AsyncHooks&) = delete;
+    AsyncHooks& operator=(const AsyncHooks&) = delete;
+
     // Used to set the kDefaultTriggerAsyncId in a scope. This is instead of
     // passing the trigger_async_id along with other constructor arguments.
     class DefaultTriggerAsyncIdScope {
@@ -581,11 +587,13 @@ class Environment {
       explicit DefaultTriggerAsyncIdScope(AsyncWrap* async_wrap);
       ~DefaultTriggerAsyncIdScope();
 
+      DefaultTriggerAsyncIdScope(const DefaultTriggerAsyncIdScope&) = delete;
+      DefaultTriggerAsyncIdScope& operator=(const DefaultTriggerAsyncIdScope&) =
+          delete;
+
      private:
       AsyncHooks* async_hooks_;
       double old_default_trigger_async_id_;
-
-      DISALLOW_COPY_AND_ASSIGN(DefaultTriggerAsyncIdScope);
     };
 
 
@@ -603,8 +611,6 @@ class Environment {
     AliasedBuffer<double, v8::Float64Array> async_id_fields_;
 
     void grow_async_ids_stack();
-
-    DISALLOW_COPY_AND_ASSIGN(AsyncHooks);
   };
 
   class AsyncCallbackScope {
@@ -612,11 +618,11 @@ class Environment {
     AsyncCallbackScope() = delete;
     explicit AsyncCallbackScope(Environment* env);
     ~AsyncCallbackScope();
+    AsyncCallbackScope(const AsyncCallbackScope&) = delete;
+    AsyncCallbackScope& operator=(const AsyncCallbackScope&) = delete;
 
    private:
     Environment* env_;
-
-    DISALLOW_COPY_AND_ASSIGN(AsyncCallbackScope);
   };
 
   inline size_t makecallback_depth() const;
@@ -634,6 +640,9 @@ class Environment {
     inline void ref_count_inc(uint32_t increment);
     inline void ref_count_dec(uint32_t decrement);
 
+    ImmediateInfo(const ImmediateInfo&) = delete;
+    ImmediateInfo& operator=(const ImmediateInfo&) = delete;
+
    private:
     friend class Environment;  // So we can call the constructor.
     inline explicit ImmediateInfo(v8::Isolate* isolate);
@@ -646,8 +655,6 @@ class Environment {
     };
 
     AliasedBuffer<uint32_t, v8::Uint32Array> fields_;
-
-    DISALLOW_COPY_AND_ASSIGN(ImmediateInfo);
   };
 
   class TickInfo {
@@ -655,6 +662,9 @@ class Environment {
     inline AliasedBuffer<uint8_t, v8::Uint8Array>& fields();
     inline bool has_tick_scheduled() const;
     inline bool has_rejection_to_warn() const;
+
+    TickInfo(const TickInfo&) = delete;
+    TickInfo& operator=(const TickInfo&) = delete;
 
    private:
     friend class Environment;  // So we can call the constructor.
@@ -667,8 +677,6 @@ class Environment {
     };
 
     AliasedBuffer<uint8_t, v8::Uint8Array> fields_;
-
-    DISALLOW_COPY_AND_ASSIGN(TickInfo);
   };
 
   enum Flags {
@@ -1211,8 +1219,6 @@ class Environment {
 #define V(PropertyName, TypeName) Persistent<TypeName> PropertyName ## _;
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V
-
-  DISALLOW_COPY_AND_ASSIGN(Environment);
 };
 
 }  // namespace node

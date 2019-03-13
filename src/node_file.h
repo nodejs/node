@@ -114,6 +114,9 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
     return static_cast<FSReqBase*>(ReqWrap::from_req(req));
   }
 
+  FSReqBase(const FSReqBase&) = delete;
+  FSReqBase& operator=(const FSReqBase&) = delete;
+
  private:
   enum encoding encoding_ = UTF8;
   bool has_data_ = false;
@@ -123,8 +126,6 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
   // Typically, the content of buffer_ is something like a file name, so
   // something around 64 bytes should be enough.
   FSReqBuffer buffer_;
-
-  DISALLOW_COPY_AND_ASSIGN(FSReqBase);
 };
 
 class FSReqCallback : public FSReqBase {
@@ -144,8 +145,8 @@ class FSReqCallback : public FSReqBase {
   SET_MEMORY_INFO_NAME(FSReqCallback)
   SET_SELF_SIZE(FSReqCallback)
 
- private:
-  DISALLOW_COPY_AND_ASSIGN(FSReqCallback);
+  FSReqCallback(const FSReqCallback&) = delete;
+  FSReqCallback& operator=(const FSReqCallback&) = delete;
 };
 
 // Wordaround a GCC4.9 bug that C++14 N3652 was not implemented
