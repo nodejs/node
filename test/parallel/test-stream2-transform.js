@@ -321,16 +321,10 @@ const Transform = require('_stream_transform');
 
   pt.end();
 
-  // The next readable is emitted on the next tick.
-  assert.strictEqual(emits, 0);
-
-  process.on('nextTick', function() {
-    assert.strictEqual(emits, 1);
-    assert.strictEqual(pt.read(5).toString(), 'l');
-    assert.strictEqual(pt.read(5), null);
-
-    assert.strictEqual(emits, 1);
-  });
+  assert.strictEqual(emits, 1);
+  assert.strictEqual(pt.read(5).toString(), 'l');
+  assert.strictEqual(pt.read(5), null);
+  assert.strictEqual(emits, 1);
 }
 
 {
