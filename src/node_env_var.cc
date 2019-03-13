@@ -14,13 +14,17 @@ using v8::Array;
 using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
+using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
+using v8::Just;
 using v8::Local;
+using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Name;
 using v8::NamedPropertyHandlerConfiguration;
 using v8::NewStringType;
+using v8::Nothing;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::PropertyCallbackInfo;
@@ -34,6 +38,24 @@ class RealEnvStore final : public KVStore {
   int32_t Query(Isolate* isolate, Local<String> key) const override;
   void Delete(Isolate* isolate, Local<String> key) override;
   Local<Array> Enumerate(Isolate* isolate) const override;
+};
+
+class GenericKVStore final : public KVStore {
+ public:
+  Local<String> Get(Isolate* isolate, Local<String> key) const override;
+  void Set(Isolate* isolate, Local<String> key, Local<String> value) override;
+  int32_t Query(Isolate* isolate, Local<String> key) const override;
+  void Delete(Isolate* isolate, Local<String> key) override;
+  Local<Array> Enumerate(Isolate* isolate) const override;
+
+  std::shared_ptr<KVStore> Clone(Isolate* isolate) const override;
+
+  GenericKVStore() {}
+  GenericKVStore(const GenericKVStore& other) : map_(other.map_) {}
+
+ private:
+  mutable Mutex mutex_;
+  std::unordered_map<std::string, std::string> map_;
 };
 
 namespace per_process {
@@ -179,6 +201,102 @@ Local<Array> RealEnvStore::Enumerate(Isolate* isolate) const {
 #endif
 
   return Array::New(isolate, env_v.data(), env_v.size());
+}
+
+std::shared_ptr<KVStore> KVStore::Clone(v8::Isolate* isolate) const {
+  HandleScope handle_scope(isolate);
+  Local<Context> context = isolate->GetCurrentContext();
+
+  std::shared_ptr<KVStore> copy = KVStore::CreateGenericKVStore();
+  Local<Array> keys = Enumerate(isolate);
+  uint32_t keys_length = keys->Length();
+  for (uint32_t i = 0; i < keys_length; i++) {
+    Local<Value> key = keys->Get(context, i).ToLocalChecked();
+    CHECK(key->IsString());
+    copy->Set(isolate, key.As<String>(), Get(isolate, key.As<String>()));
+  }
+  return copy;
+}
+
+Local<String> GenericKVStore::Get(Isolate* isolate, Local<String> key) const {
+  Mutex::ScopedLock lock(mutex_);
+  String::Utf8Value str(isolate, key);
+  auto it = map_.find(std::string(*str, str.length()));
+  if (it == map_.end()) return Local<String>();
+  return String::NewFromUtf8(isolate, it->second.data(),
+                             NewStringType::kNormal, it->second.size())
+      .ToLocalChecked();
+}
+
+void GenericKVStore::Set(Isolate* isolate, Local<String> key,
+                         Local<String> value) {
+  Mutex::ScopedLock lock(mutex_);
+  String::Utf8Value key_str(isolate, key);
+  String::Utf8Value value_str(isolate, value);
+  if (*key_str != nullptr && *value_str != nullptr) {
+    map_[std::string(*key_str, key_str.length())] =
+        std::string(*value_str, value_str.length());
+  }
+}
+
+int32_t GenericKVStore::Query(Isolate* isolate, Local<String> key) const {
+  Mutex::ScopedLock lock(mutex_);
+  String::Utf8Value str(isolate, key);
+  auto it = map_.find(std::string(*str, str.length()));
+  return it == map_.end() ? -1 : 0;
+}
+
+void GenericKVStore::Delete(Isolate* isolate, Local<String> key) {
+  Mutex::ScopedLock lock(mutex_);
+  String::Utf8Value str(isolate, key);
+  map_.erase(std::string(*str, str.length()));
+}
+
+Local<Array> GenericKVStore::Enumerate(Isolate* isolate) const {
+  Mutex::ScopedLock lock(mutex_);
+  std::vector<Local<Value>> values;
+  values.reserve(map_.size());
+  for (const auto& pair : map_) {
+    values.emplace_back(
+        String::NewFromUtf8(isolate, pair.first.data(),
+                            NewStringType::kNormal, pair.first.size())
+            .ToLocalChecked());
+  }
+  return Array::New(isolate, values.data(), values.size());
+}
+
+std::shared_ptr<KVStore> GenericKVStore::Clone(Isolate* isolate) const {
+  return std::make_shared<GenericKVStore>(*this);
+}
+
+std::shared_ptr<KVStore> KVStore::CreateGenericKVStore() {
+  return std::make_shared<GenericKVStore>();
+}
+
+Maybe<bool> KVStore::AssignFromObject(Local<Context> context,
+                                      Local<Object> entries) {
+  Isolate* isolate = context->GetIsolate();
+  HandleScope handle_scope(isolate);
+  Local<Array> keys;
+  if (!entries->GetOwnPropertyNames(context).ToLocal(&keys))
+    return Nothing<bool>();
+  uint32_t keys_length = keys->Length();
+  for (uint32_t i = 0; i < keys_length; i++) {
+    Local<Value> key;
+    if (!keys->Get(context, i).ToLocal(&key))
+      return Nothing<bool>();
+    if (!key->IsString()) continue;
+
+    Local<Value> value;
+    Local<String> value_string;
+    if (!entries->Get(context, key.As<String>()).ToLocal(&value) ||
+        !value->ToString(context).ToLocal(&value_string)) {
+      return Nothing<bool>();
+    }
+
+    Set(isolate, key.As<String>(), value_string);
+  }
+  return Just(true);
 }
 
 static void EnvGetter(Local<Name> property,
