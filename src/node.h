@@ -226,7 +226,8 @@ class NODE_EXTERN ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   // that performs additional integrity checks (e.g. make sure that only memory
   // that was allocated by the it is also freed by it).
   // This can also be set using the --debug-arraybuffer-allocations flag.
-  static std::unique_ptr<ArrayBufferAllocator> Create(bool always_debug = true);
+  static std::unique_ptr<ArrayBufferAllocator> Create(
+      bool always_debug = false);
 
  private:
   virtual NodeArrayBufferAllocator* GetImpl() = 0;
