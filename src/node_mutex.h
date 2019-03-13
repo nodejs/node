@@ -23,6 +23,9 @@ class MutexBase {
   inline void Lock();
   inline void Unlock();
 
+  MutexBase(const MutexBase&) = delete;
+  MutexBase& operator=(const MutexBase&) = delete;
+
   class ScopedLock;
   class ScopedUnlock;
 
@@ -32,11 +35,13 @@ class MutexBase {
     inline explicit ScopedLock(const ScopedUnlock& scoped_unlock);
     inline ~ScopedLock();
 
+    ScopedLock(const ScopedLock&) = delete;
+    ScopedLock& operator=(const ScopedLock&) = delete;
+
    private:
     template <typename> friend class ConditionVariableBase;
     friend class ScopedUnlock;
     const MutexBase& mutex_;
-    DISALLOW_COPY_AND_ASSIGN(ScopedLock);
   };
 
   class ScopedUnlock {
@@ -44,16 +49,17 @@ class MutexBase {
     inline explicit ScopedUnlock(const ScopedLock& scoped_lock);
     inline ~ScopedUnlock();
 
+    ScopedUnlock(const ScopedUnlock&) = delete;
+    ScopedUnlock& operator=(const ScopedUnlock&) = delete;
+
    private:
     friend class ScopedLock;
     const MutexBase& mutex_;
-    DISALLOW_COPY_AND_ASSIGN(ScopedUnlock);
   };
 
  private:
   template <typename> friend class ConditionVariableBase;
   mutable typename Traits::MutexT mutex_;
-  DISALLOW_COPY_AND_ASSIGN(MutexBase);
 };
 
 template <typename Traits>
@@ -67,9 +73,11 @@ class ConditionVariableBase {
   inline void Signal(const ScopedLock&);
   inline void Wait(const ScopedLock& scoped_lock);
 
+  ConditionVariableBase(const ConditionVariableBase&) = delete;
+  ConditionVariableBase& operator=(const ConditionVariableBase&) = delete;
+
  private:
   typename Traits::CondT cond_;
-  DISALLOW_COPY_AND_ASSIGN(ConditionVariableBase);
 };
 
 struct LibuvMutexTraits {

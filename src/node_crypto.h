@@ -367,6 +367,9 @@ class ByteSource {
 
   static ByteSource FromSymmetricKeyObject(v8::Local<v8::Value> handle);
 
+  ByteSource(const ByteSource&) = delete;
+  ByteSource& operator=(const ByteSource&) = delete;
+
  private:
   const char* data_ = nullptr;
   char* allocated_data_ = nullptr;
@@ -376,8 +379,6 @@ class ByteSource {
 
   static ByteSource Allocated(char* data, size_t size);
   static ByteSource Foreign(const char* data, size_t size);
-
-  DISALLOW_COPY_AND_ASSIGN(ByteSource);
 };
 
 enum PKEncodingType {
