@@ -127,7 +127,7 @@ class ZlibContext : public MemoryRetainer {
   void DoThreadPoolWork();
   void SetBuffers(char* in, uint32_t in_len, char* out, uint32_t out_len);
   void SetFlush(int flush);
-  void GetAfterWriteOffsets(uint32_t* avail_in, uint32_t* avail_out) const;
+  void GetAfterWriteOffsets(uint32_t* ret, uint32_t* avail_in, uint32_t* avail_out) const;
   CompressionError GetErrorInfo() const;
   inline void SetMode(node_zlib_mode mode) { mode_ = mode; }
   CompressionError ResetStream();
@@ -172,7 +172,7 @@ class BrotliContext : public MemoryRetainer {
 
   void SetBuffers(char* in, uint32_t in_len, char* out, uint32_t out_len);
   void SetFlush(int flush);
-  void GetAfterWriteOffsets(uint32_t* avail_in, uint32_t* avail_out) const;
+  void GetAfterWriteOffsets(uint32_t* ret,uint32_t* avail_in, uint32_t* avail_out) const;
   inline void SetMode(node_zlib_mode mode) { mode_ = mode; }
 
  protected:
@@ -359,7 +359,7 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
   }
 
   void UpdateWriteResult() {
-    ctx_.GetAfterWriteOffsets(&write_result_[1], &write_result_[0]);
+    ctx_.GetAfterWriteOffsets(&write_result_[2], &write_result_[1], &write_result_[0]);
   }
 
   // thread pool!
@@ -846,8 +846,10 @@ void ZlibContext::SetFlush(int flush) {
 }
 
 
-void ZlibContext::GetAfterWriteOffsets(uint32_t* avail_in,
+void ZlibContext::GetAfterWriteOffsets(uint32_t* ret,
+                                       uint32_t* avail_in,
                                        uint32_t* avail_out) const {
+  *ret = err_;
   *avail_in = strm_.avail_in;
   *avail_out = strm_.avail_out;
 }
@@ -1063,8 +1065,10 @@ void BrotliContext::SetFlush(int flush) {
 }
 
 
-void BrotliContext::GetAfterWriteOffsets(uint32_t* avail_in,
+void BrotliContext::GetAfterWriteOffsets(uint32_t* ret,
+                                         uint32_t* avail_in,
                                          uint32_t* avail_out) const {
+  *ret = 0;
   *avail_in = avail_in_;
   *avail_out = avail_out_;
 }
