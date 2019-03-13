@@ -83,12 +83,11 @@ class InspectorSocketServer {
                              const std::string &formatted_address);
   bool TargetExists(const std::string& id);
 
-  enum class ServerState {kNew, kRunning, kStopping, kStopped};
+  enum class ServerState {kNew, kRunning, kStopped};
   uv_loop_t* loop_;
   std::unique_ptr<SocketServerDelegate> delegate_;
   const std::string host_;
   int port_;
-  std::string path_;
   std::vector<ServerSocketPtr> server_sockets_;
   std::map<int, std::pair<std::string, std::unique_ptr<SocketSession>>>
       connected_sessions_;
