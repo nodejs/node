@@ -687,10 +687,9 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
       // Backslashes escape the following character
       if (c == '\\' && is_in_string) {
         if (index + 1 == node_options.size()) {
-          fprintf(stderr,
-                  "%s: invalid escaping for NODE_OPTIONS\n",
-                  argv->at(0).c_str());
-          exit(9);
+          errors->push_back("invalid value for NODE_OPTIONS "
+                            "(invalid escape)\n");
+          return 9;
         } else {
           c = node_options.at(++index);
         }
@@ -708,6 +707,12 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
       } else {
         env_argv.back() += c;
       }
+    }
+
+    if (is_in_string) {
+      errors->push_back("invalid value for NODE_OPTIONS "
+                        "(unterminated string)\n");
+      return 9;
     }
 
     const int exit_code = ProcessGlobalArgs(&env_argv, nullptr, errors, true);
