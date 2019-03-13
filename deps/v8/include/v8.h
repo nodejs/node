@@ -4337,14 +4337,13 @@ class V8_EXPORT CompiledWasmModule {
 class V8_EXPORT WasmModuleObject : public Object {
  public:
   // TODO(clemensh): Remove after 7.3 branch.
-  V8_DEPRECATED("Use OwnedBuffer", typedef)
-  std::pair<std::unique_ptr<const uint8_t[]>, size_t> SerializedModule;
+  typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> SerializedModule;
 
   /**
    * A unowned reference to a byte buffer.
    * TODO(clemensh): Remove after 7.3 branch.
    */
-  V8_DEPRECATED("Use MemorySpan<const uint8_t>", struct) BufferReference {
+  struct BufferReference {
     const uint8_t* start;
     size_t size;
     BufferReference(const uint8_t* start, size_t size)

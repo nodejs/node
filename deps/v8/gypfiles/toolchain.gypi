@@ -1393,7 +1393,7 @@
         ],  # conditions
       },  # Release
     },  # configurations
-    'cflags': [ '-Wno-type-limits', ],
+    'cflags!': [ '-Wall', '-Wextra' ],
     'msvs_disabled_warnings': [
       4245,  # Conversion with signed/unsigned mismatch.
       4267,  # Conversion with possible loss of data.
