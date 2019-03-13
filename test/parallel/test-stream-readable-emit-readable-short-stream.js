@@ -54,7 +54,7 @@ const assert = require('assert');
         break;
       assert.strictEqual(chunk.toString(), 'content');
     }
-  }, 2));
+  }));
 }
 
 {
@@ -78,7 +78,7 @@ const assert = require('assert');
         break;
       assert.strictEqual(chunk.toString(), 'content');
     }
-  }, 2));
+  }));
 }
 
 {
@@ -94,7 +94,7 @@ const assert = require('assert');
         break;
       assert.strictEqual(chunk.toString(), 'content');
     }
-  }, 2));
+  }));
 
   t.push('content');
   t.push(null);

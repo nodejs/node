@@ -31,7 +31,7 @@ const Readable = require('stream').Readable;
     assert.strictEqual(state.reading, false);
   }
 
-  const expectedReadingMore = [true, false, false];
+  const expectedReadingMore = [true, true, false];
   readable.on('readable', common.mustCall(() => {
     // There is only one readingMore scheduled from on('data'),
     // after which everything is governed by the .read() call

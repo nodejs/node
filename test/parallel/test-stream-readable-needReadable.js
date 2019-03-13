@@ -14,7 +14,7 @@ readable.on('readable', common.mustCall(() => {
   // When the readable event fires, needReadable is reset.
   assert.strictEqual(readable._readableState.needReadable, false);
   readable.read();
-}, 2));
+}));
 
 // If a readable listener is attached, then a readable event is needed.
 assert.strictEqual(readable._readableState.needReadable, true);
