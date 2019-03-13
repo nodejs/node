@@ -532,6 +532,23 @@ class AsyncRequest : public MemoryRetainer {
   std::atomic_bool stopped_ {true};
 };
 
+class KVStore {
+ public:
+  virtual v8::Local<v8::String> Get(v8::Isolate* isolate,
+                                    v8::Local<v8::String> key) const = 0;
+  virtual void Set(v8::Isolate* isolate,
+                   v8::Local<v8::String> key,
+                   v8::Local<v8::String> value) = 0;
+  virtual int32_t Query(v8::Isolate* isolate,
+                        v8::Local<v8::String> key) const = 0;
+  virtual void Delete(v8::Isolate* isolate, v8::Local<v8::String> key) = 0;
+  virtual v8::Local<v8::Array> Enumerate(v8::Isolate* isolate) const = 0;
+};
+
+namespace per_process {
+extern std::shared_ptr<KVStore> real_environment;
+}
+
 class AsyncHooks {
  public:
   // Reason for both UidFields and Fields are that one is stored as a double*
@@ -781,6 +798,8 @@ class Environment {
   inline ImmediateInfo* immediate_info();
   inline TickInfo* tick_info();
   inline uint64_t timer_base() const;
+  inline std::shared_ptr<KVStore> envvars();
+  inline void set_envvars(std::shared_ptr<KVStore> envvars);
 
   inline IsolateData* isolate_data() const;
 
@@ -1075,6 +1094,7 @@ class Environment {
   ImmediateInfo immediate_info_;
   TickInfo tick_info_;
   const uint64_t timer_base_;
+  std::shared_ptr<KVStore> envvars_;
   bool printed_error_ = false;
   bool emit_env_nonstring_warning_ = true;
   bool emit_err_name_warning_ = true;

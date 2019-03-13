@@ -15,11 +15,14 @@ using v8::Array;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
+using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
+using v8::NewStringType;
 using v8::Object;
 using v8::String;
+using v8::TryCatch;
 using v8::Uint32;
 using v8::Value;
 
@@ -30,12 +33,26 @@ bool linux_at_secure = false;
 namespace credentials {
 
 // Look up environment variable unless running as setuid root.
-bool SafeGetenv(const char* key, std::string* text) {
+bool SafeGetenv(const char* key, std::string* text, Environment* env) {
 #if !defined(__CloudABI__) && !defined(_WIN32)
   if (per_process::linux_at_secure || getuid() != geteuid() ||
       getgid() != getegid())
     goto fail;
 #endif
+
+  if (env != nullptr) {
+    HandleScope handle_scope(env->isolate());
+    TryCatch ignore_errors(env->isolate());
+    MaybeLocal<String> value = env->envvars()->Get(
+        env->isolate(),
+        String::NewFromUtf8(env->isolate(), key, NewStringType::kNormal)
+            .ToLocalChecked());
+    if (value.IsEmpty()) goto fail;
+    String::Utf8Value utf8_value(env->isolate(), value.ToLocalChecked());
+    if (*utf8_value == nullptr) goto fail;
+    *text = std::string(*utf8_value, utf8_value.length());
+    return true;
+  }
 
   {
     Mutex::ScopedLock lock(per_process::env_var_mutex);
@@ -52,10 +69,11 @@ fail:
 
 static void SafeGetenv(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
-  Isolate* isolate = args.GetIsolate();
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
   Utf8Value strenvtag(isolate, args[0]);
   std::string text;
-  if (!SafeGetenv(*strenvtag, &text)) return;
+  if (!SafeGetenv(*strenvtag, &text, env)) return;
   Local<Value> result =
       ToV8Value(isolate->GetCurrentContext(), text).ToLocalChecked();
   args.GetReturnValue().Set(result);

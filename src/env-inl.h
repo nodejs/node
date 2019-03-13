@@ -447,6 +447,14 @@ inline uint64_t Environment::timer_base() const {
   return timer_base_;
 }
 
+inline std::shared_ptr<KVStore> Environment::envvars() {
+  return envvars_;
+}
+
+inline void Environment::set_envvars(std::shared_ptr<KVStore> envvars) {
+  envvars_ = envvars;
+}
+
 inline bool Environment::printed_error() const {
   return printed_error_;
 }

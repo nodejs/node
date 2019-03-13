@@ -207,6 +207,8 @@ Environment::Environment(IsolateData* isolate_data,
     set_as_callback_data_template(templ);
   }
 
+  set_envvars(per_process::real_environment);
+
   // We create new copies of the per-Environment option sets, so that it is
   // easier to modify them after Environment creation. The defaults are
   // part of the per-Isolate option set, for which in turn the defaults are
@@ -250,7 +252,7 @@ Environment::Environment(IsolateData* isolate_data,
   should_abort_on_uncaught_toggle_[0] = 1;
 
   std::string debug_cats;
-  credentials::SafeGetenv("NODE_DEBUG_NATIVE", &debug_cats);
+  credentials::SafeGetenv("NODE_DEBUG_NATIVE", &debug_cats, this);
   set_debug_categories(debug_cats, true);
 
   isolate()->GetHeapProfiler()->AddBuildEmbedderGraphCallback(
