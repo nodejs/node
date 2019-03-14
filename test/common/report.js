@@ -7,8 +7,8 @@ const path = require('path');
 
 function findReports(pid, dir) {
   // Default filenames are of the form
-  // report.<date>.<time>.<pid>.<seq>.json
-  const format = '^report\\.\\d+\\.\\d+\\.' + pid + '\\.\\d+\\.json$';
+  // report.<date>.<time>.<pid>.<tid>.<seq>.json
+  const format = '^report\\.\\d+\\.\\d+\\.' + pid + '\\.\\d+\\.\\d+\\.json$';
   const filePattern = new RegExp(format);
   const files = fs.readdirSync(dir);
   const results = [];

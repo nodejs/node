@@ -24,7 +24,7 @@ is provided below for reference.
   "header": {
     "event": "exception",
     "trigger": "Exception",
-    "filename": "report.20181221.005011.8974.001.json",
+    "filename": "report.20181221.005011.8974.0.001.json",
     "dumpEventTime": "2018-12-21T00:50:11Z",
     "dumpEventTimeStamp": "1545371411331",
     "processId": 8974,
@@ -471,7 +471,7 @@ triggered using the Node.js REPL:
 ```raw
 $ node
 > process.report.writeReport();
-Writing Node.js report to file: report.20181126.091102.8480.001.json
+Writing Node.js report to file: report.20181126.091102.8480.0.001.json
 Node.js report completed
 >
 ```

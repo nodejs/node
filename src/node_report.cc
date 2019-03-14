@@ -43,6 +43,7 @@ constexpr double SEC_PER_MICROS = 1e-6;
 
 namespace report {
 using node::arraysize;
+using node::DiagnosticFilename;
 using node::Environment;
 using node::Mutex;
 using node::NativeSymbolDebuggingContext;
@@ -92,46 +93,26 @@ std::string TriggerNodeReport(Isolate* isolate,
                               const char* trigger,
                               const std::string& name,
                               Local<String> stackstr) {
-  std::ostringstream oss;
   std::string filename;
   std::shared_ptr<PerIsolateOptions> options;
   if (env != nullptr) options = env->isolate_data()->options();
 
-  // Obtain the current time and the pid (platform dependent)
+  // Obtain the current time.
   TIME_TYPE tm_struct;
   LocalTime(&tm_struct);
   // Determine the required report filename. In order of priority:
   //   1) supplied on API 2) configured on startup 3) default generated
   if (!name.empty()) {
-    // Filename was specified as API parameter, use that
-    oss << name;
+    // Filename was specified as API parameter.
+    filename = name;
   } else if (env != nullptr && options->report_filename.length() > 0) {
-    // File name was supplied via start-up option, use that
-    oss << options->report_filename;
+    // File name was supplied via start-up option.
+    filename = options->report_filename;
   } else {
-    // Construct the report filename, with timestamp, pid and sequence number
-    oss << "report";
-#ifdef _WIN32
-    oss << "." << std::setfill('0') << std::setw(4) << tm_struct.wYear;
-    oss << std::setfill('0') << std::setw(2) << tm_struct.wMonth;
-    oss << std::setfill('0') << std::setw(2) << tm_struct.wDay;
-    oss << "." << std::setfill('0') << std::setw(2) << tm_struct.wHour;
-    oss << std::setfill('0') << std::setw(2) << tm_struct.wMinute;
-    oss << std::setfill('0') << std::setw(2) << tm_struct.wSecond;
-#else  // UNIX, OSX
-    oss << "." << std::setfill('0') << std::setw(4) << tm_struct.tm_year + 1900;
-    oss << std::setfill('0') << std::setw(2) << tm_struct.tm_mon + 1;
-    oss << std::setfill('0') << std::setw(2) << tm_struct.tm_mday;
-    oss << "." << std::setfill('0') << std::setw(2) << tm_struct.tm_hour;
-    oss << std::setfill('0') << std::setw(2) << tm_struct.tm_min;
-    oss << std::setfill('0') << std::setw(2) << tm_struct.tm_sec;
-#endif
-    oss << "." << uv_os_getpid();
-    oss << "." << std::setfill('0') << std::setw(3) << ++seq;
-    oss << ".json";
+    filename = *DiagnosticFilename(env != nullptr ? env->thread_id() : 0,
+                                   "report", "json", seq++);
   }
 
-  filename = oss.str();
   // Open the report file stream for writing. Supports stdout/err,
   // user-specified or (default) generated name
   std::ofstream outfile;
