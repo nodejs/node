@@ -1187,3 +1187,13 @@ assert.throws(
   () => a.notDeepStrictEqual(undefined),
   { code: 'ERR_MISSING_ARGS' }
 );
+
+assert.throws(
+  () => a.strictEqual(),
+  { code: 'ERR_MISSING_ARGS' }
+);
+
+assert.throws(
+  () => a.deepStrictEqual(),
+  { code: 'ERR_MISSING_ARGS' }
+);
