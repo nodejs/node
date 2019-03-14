@@ -610,9 +610,8 @@ hint: See the 'Note about fast-forwards' in 'git push --help' for details.
 ```
 
 That means a commit has landed since your last rebase against `upstream/master`.
-To fix this, pull with rebase from upstream and run the tests again (to make
-sure no interactions between your changes and the new changes cause any
-problems), and push again:
+To fix this, pull with rebase from upstream, run the tests again, and (if the
+tests pass) push again:
 
 ```sh
 git pull upstream master --rebase
