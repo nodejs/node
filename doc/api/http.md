@@ -69,7 +69,7 @@ remade for every request and cannot be pooled. The `Agent` will still make
 the requests to that server, but each one will occur over a new connection.
 
 When a connection is closed by the client or the server, it is removed
-from the pool. Any unused sockets in the pool will be unrefed so as not
+from the pool. Any unused sockets in the pool will be unreferred so as not
 to keep the Node.js process running when there are no outstanding requests.
 (see [`socket.unref()`]).
 
