@@ -117,6 +117,6 @@ module.exports = function(context) {
     'CallExpression': (node) => testCryptoUsage(node),
     'IfStatement:exit': (node) => testIfStatement(node),
     'MemberExpression:exit': (node) => testMemberExpression(node),
-    'Program:exit': (node) => reportIfMissingCheck(node)
+    'Program:exit': () => reportIfMissingCheck()
   };
 };

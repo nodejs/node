@@ -55,6 +55,6 @@ module.exports = function(context) {
   return {
     'CallExpression': (node) => testEslintUsage(context, node),
     'MemberExpression': (node) => checkMemberExpression(context, node),
-    'Program:exit': (node) => reportIfMissing(context, node)
+    'Program:exit': () => reportIfMissing(context)
   };
 };
