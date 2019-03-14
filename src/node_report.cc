@@ -65,8 +65,7 @@ static void WriteNodeReport(Isolate* isolate,
                             const char* trigger,
                             const std::string& filename,
                             std::ostream& out,
-                            Local<String> stackstr,
-                            TIME_TYPE* tm_struct);
+                            Local<String> stackstr);
 static void PrintVersionInformation(JSONWriter* writer);
 static void PrintJavaScriptStack(JSONWriter* writer,
                                  Isolate* isolate,
@@ -79,7 +78,6 @@ static void PrintSystemInformation(JSONWriter* writer);
 static void PrintLoadedLibraries(JSONWriter* writer);
 static void PrintComponentVersions(JSONWriter* writer);
 static void PrintRelease(JSONWriter* writer);
-static void LocalTime(TIME_TYPE* tm_struct);
 
 // Global variables
 static std::atomic_int seq = {0};  // sequence number for report filenames
@@ -97,9 +95,6 @@ std::string TriggerNodeReport(Isolate* isolate,
   std::shared_ptr<PerIsolateOptions> options;
   if (env != nullptr) options = env->isolate_data()->options();
 
-  // Obtain the current time.
-  TIME_TYPE tm_struct;
-  LocalTime(&tm_struct);
   // Determine the required report filename. In order of priority:
   //   1) supplied on API 2) configured on startup 3) default generated
   if (!name.empty()) {
@@ -147,7 +142,7 @@ std::string TriggerNodeReport(Isolate* isolate,
   }
 
   WriteNodeReport(isolate, env, message, trigger, filename, *outstream,
-                  stackstr, &tm_struct);
+                  stackstr);
 
   // Do not close stdout/stderr, only close files we opened.
   if (outfile.is_open()) {
@@ -165,11 +160,7 @@ void GetNodeReport(Isolate* isolate,
                    const char* trigger,
                    Local<String> stackstr,
                    std::ostream& out) {
-  // Obtain the current time and the pid (platform dependent)
-  TIME_TYPE tm_struct;
-  LocalTime(&tm_struct);
-  WriteNodeReport(
-      isolate, env, message, trigger, "", out, stackstr, &tm_struct);
+  WriteNodeReport(isolate, env, message, trigger, "", out, stackstr);
 }
 
 // Internal function to coordinate and write the various
@@ -180,8 +171,10 @@ static void WriteNodeReport(Isolate* isolate,
                             const char* trigger,
                             const std::string& filename,
                             std::ostream& out,
-                            Local<String> stackstr,
-                            TIME_TYPE* tm_struct) {
+                            Local<String> stackstr) {
+  // Obtain the current time and the pid.
+  TIME_TYPE tm_struct;
+  DiagnosticFilename::LocalTime(&tm_struct);
   uv_pid_t pid = uv_os_getpid();
 
   // Save formatting for output stream.
@@ -208,23 +201,23 @@ static void WriteNodeReport(Isolate* isolate,
   snprintf(timebuf,
            sizeof(timebuf),
            "%4d-%02d-%02dT%02d:%02d:%02dZ",
-           tm_struct->wYear,
-           tm_struct->wMonth,
-           tm_struct->wDay,
-           tm_struct->wHour,
-           tm_struct->wMinute,
-           tm_struct->wSecond);
+           tm_struct.wYear,
+           tm_struct.wMonth,
+           tm_struct.wDay,
+           tm_struct.wHour,
+           tm_struct.wMinute,
+           tm_struct.wSecond);
   writer.json_keyvalue("dumpEventTime", timebuf);
 #else  // UNIX, OSX
   snprintf(timebuf,
            sizeof(timebuf),
            "%4d-%02d-%02dT%02d:%02d:%02dZ",
-           tm_struct->tm_year + 1900,
-           tm_struct->tm_mon + 1,
-           tm_struct->tm_mday,
-           tm_struct->tm_hour,
-           tm_struct->tm_min,
-           tm_struct->tm_sec);
+           tm_struct.tm_year + 1900,
+           tm_struct.tm_mon + 1,
+           tm_struct.tm_mday,
+           tm_struct.tm_hour,
+           tm_struct.tm_min,
+           tm_struct.tm_sec);
   writer.json_keyvalue("dumpEventTime", timebuf);
   struct timeval ts;
   gettimeofday(&ts, nullptr);
@@ -617,16 +610,6 @@ static void PrintRelease(JSONWriter* writer) {
 #endif  // NODE_HAS_RELEASE_URLS
 
   writer->json_objectend();
-}
-
-static void LocalTime(TIME_TYPE* tm_struct) {
-#ifdef _WIN32
-  GetLocalTime(tm_struct);
-#else  // UNIX, OSX
-  struct timeval time_val;
-  gettimeofday(&time_val, nullptr);
-  localtime_r(&time_val.tv_sec, tm_struct);
-#endif
 }
 
 }  // namespace report
