@@ -107,6 +107,26 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
     errors->push_back("--loader requires --experimental-modules be enabled");
   }
 
+  if (!module_type.empty() && !experimental_modules) {
+    errors->push_back("--type requires --experimental-modules be enabled");
+  }
+
+  if (experimental_json_modules && !experimental_modules) {
+    errors->push_back("--experimental-json-modules requires "
+                      "--experimental-modules be enabled");
+  }
+
+  if (!es_module_specifier_resolution.empty()) {
+    if (!experimental_modules) {
+      errors->push_back("--es-module-specifier-resolution requires "
+                        "--experimental-modules be enabled");
+    }
+    if (es_module_specifier_resolution != "node" &&
+        es_module_specifier_resolution != "explicit") {
+      errors->push_back("invalid value for --es-module-specifier-resolution");
+    }
+  }
+
   if (syntax_check_only && has_eval_string) {
     errors->push_back("either --check or --eval can be used, not both");
   }
