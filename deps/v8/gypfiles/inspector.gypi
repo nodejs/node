@@ -90,7 +90,7 @@
     {
       'action_name': 'protocol_compatibility',
       'inputs': [
-        '<(inspector_path)/js_protocol.json',
+        '<(inspector_path)/js_protocol.pdl',
       ],
       'outputs': [
         '<@(SHARED_INTERMEDIATE_DIR)/src/js_protocol.stamp',
@@ -99,14 +99,14 @@
         'python',
         '<(protocol_path)/check_protocol_compatibility.py',
         '--stamp', '<@(_outputs)',
-        '<(inspector_path)/js_protocol.json',
+        '<@(_inputs)',
       ],
       'message': 'Checking inspector protocol compatibility',
     },
     {
       'action_name': 'protocol_generated_sources',
       'inputs': [
-        '<(inspector_path)/js_protocol.json',
+        '<(inspector_path)/js_protocol.pdl',
         '<(inspector_path)/inspector_protocol_config.json',
         '<@(inspector_protocol_files)',
       ],

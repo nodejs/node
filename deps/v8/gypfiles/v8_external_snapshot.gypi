@@ -11,7 +11,7 @@
               'toolsets': ['host', 'target'],
               'dependencies': [
                 'mksnapshot#host',
-                'js2c#host',
+                'js2c_extras#host',
                 'natives_blob',
               ]
             }, {
@@ -141,7 +141,7 @@
         ['v8_use_external_startup_data==1', {
           'conditions': [
             ['want_separate_host_toolset==1', {
-              'dependencies': ['js2c#host'],
+              'dependencies': ['js2c_extras#host'],
             }],
           ],
           'actions': [
@@ -151,14 +151,14 @@
                 '../tools/js2c.py',
                 '<@(v8_extra_library_files)',
               ],
-              'outputs': ['<@(libraries_extras_bin_file)'],
+              'outputs': ['<(SHARED_INTERMEDIATE_DIR)/libraries-extras.bin'],
               'action': [
                 'python',
                 '../tools/js2c.py',
                 '<(SHARED_INTERMEDIATE_DIR)/extras-libraries.cc',
                 'EXTRAS',
                 '<@(v8_extra_library_files)',
-                '--startup_blob', '<@(libraries_extras_bin_file)',
+                '--startup_blob', '<@(_outputs)',
                 '--nojs',
               ],
             },

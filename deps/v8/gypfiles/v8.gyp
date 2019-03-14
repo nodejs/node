@@ -8,6 +8,7 @@
     'v8_random_seed%': 314159265,
     'v8_vector_stores%': 0,
     'v8_embed_script%': "",
+    # Placeholder. For upstream V8, this includes test files that Node.js does not need.
     'v8_extra_library_files%': [],
     'mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
     'v8_os_page_size%': 0,
@@ -418,12 +419,16 @@
           'toolsets': ['host', 'target'],
           'dependencies': [
             'mksnapshot#host',
-            'js2c#host',
+            'js2c_extras#host',   # TODO(refack) get rid of this.
+                                  # This has effectively become a noop for Node.js,
+                                  # but the V8 code still tried to acess the code this generates.
+                                  # Refs: https://github.com/nodejs/node/blob/169b7f1f3b3751289f24678930e6a5731464ebc9/deps/v8/src/bootstrapper.cc#L5172-L5174
           ],
         }, {
           'toolsets': ['target'],
           'dependencies': [
             'mksnapshot',
+            'js2c_extras',
           ],
         }],
         ['component=="shared_library"', {
@@ -538,10 +543,10 @@
       'conditions': [
         ['want_separate_host_toolset==1', {
           'toolsets': ['host', 'target'],
-          'dependencies': ['js2c#host'],
+          'dependencies': [ 'js2c_extras#host', ],
         }, {
           'toolsets': ['target'],
-          'dependencies': ['js2c#target'],
+          'dependencies': [ 'js2c_extras', ],
         }],
         ['component=="shared_library"', {
           'defines': [
@@ -2508,7 +2513,7 @@
       },
     }, # v8_libsampler
     {
-      'target_name': 'js2c',
+      'target_name': 'js2c_extras',
       'type': 'none',
       'conditions': [
         ['want_separate_host_toolset==1', {
@@ -2517,14 +2522,6 @@
           'toolsets': ['target'],
         }],
       ],
-      'variables': {
-        'library_files': [
-          '../src/js/macros.py',
-          '../src/message-template.h',
-          '../src/js/prologue.js',
-        ],
-        'libraries_extras_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-extras.bin',
-      },
       'actions': [
        {
           'action_name': 'js2c_extras',
@@ -2535,14 +2532,12 @@
           'outputs': ['<(SHARED_INTERMEDIATE_DIR)/extras-libraries.cc'],
           'action': [
             'python',
-            '../tools/js2c.py',
-            '<(SHARED_INTERMEDIATE_DIR)/extras-libraries.cc',
-            'EXTRAS',
-            '<@(v8_extra_library_files)',
+            '../tools/js2c.py', '<@(_outputs)',
+            'EXTRAS', '<@(v8_extra_library_files)',
           ],
         },
       ],
-    }, # js2c
+    }, # js2c_extras
     {
       'target_name': 'torque_base',
       'type': '<(component)',
