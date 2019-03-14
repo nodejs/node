@@ -3,8 +3,7 @@
 require('../common');
 const assert = require('assert');
 
-try {
-  Object.defineProperty = 'asdf';
-  assert(false);
-} catch {
-}
+assert.throws(
+  () => Object.defineProperty = 'asdf',
+  TypeError
+);
