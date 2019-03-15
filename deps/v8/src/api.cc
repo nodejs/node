@@ -10443,16 +10443,6 @@ void HeapProfiler::DeleteAllHeapSnapshots() {
   reinterpret_cast<i::HeapProfiler*>(this)->DeleteAllSnapshots();
 }
 
-void HeapProfiler::SetBuildEmbedderGraphCallback(
-    LegacyBuildEmbedderGraphCallback callback) {
-  reinterpret_cast<i::HeapProfiler*>(this)->AddBuildEmbedderGraphCallback(
-      [](v8::Isolate* isolate, v8::EmbedderGraph* graph, void* data) {
-        reinterpret_cast<LegacyBuildEmbedderGraphCallback>(data)(isolate,
-                                                                 graph);
-      },
-      reinterpret_cast<void*>(callback));
-}
-
 void HeapProfiler::AddBuildEmbedderGraphCallback(
     BuildEmbedderGraphCallback callback, void* data) {
   reinterpret_cast<i::HeapProfiler*>(this)->AddBuildEmbedderGraphCallback(

@@ -756,10 +756,6 @@ class V8_EXPORT HeapProfiler {
                                              v8::EmbedderGraph* graph,
                                              void* data);
 
-  /** TODO(addaleax): Remove */
-  typedef void (*LegacyBuildEmbedderGraphCallback)(v8::Isolate* isolate,
-                                                   v8::EmbedderGraph* graph);
-
   /** Returns the number of snapshots taken. */
   int GetSnapshotCount();
 
@@ -898,10 +894,6 @@ class V8_EXPORT HeapProfiler {
    */
   void DeleteAllHeapSnapshots();
 
-  V8_DEPRECATED(
-      "Use AddBuildEmbedderGraphCallback to provide info about embedder nodes",
-      void SetBuildEmbedderGraphCallback(
-          LegacyBuildEmbedderGraphCallback callback));
   void AddBuildEmbedderGraphCallback(BuildEmbedderGraphCallback callback,
                                      void* data);
   void RemoveBuildEmbedderGraphCallback(BuildEmbedderGraphCallback callback,
