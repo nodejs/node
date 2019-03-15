@@ -427,7 +427,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     type: TypeError,
     code: 'ERR_INVALID_ARG_VALUE',
     message: "The argument 'type' must be one of " +
-             "'rsa', 'dsa', 'ec'. Received 'rsa2'"
+             "'rsa', 'dsa', 'ec', 'ed25519', 'ed448'. Received 'rsa2'"
   });
 }
 
