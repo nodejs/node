@@ -17,7 +17,13 @@
 
 #include <stdint.h>
 #include <vector>
+
+#ifdef __APPLE__
+#include <set>
+#define unordered_set set
+#else
 #include <unordered_set>
+#endif
 
 // Caveat emptor: we're going slightly crazy with macros here but the end
 // hopefully justifies the means. We have a lot of per-context properties
