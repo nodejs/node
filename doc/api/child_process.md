@@ -868,7 +868,8 @@ changes:
   * `output` {Array} Array of results from stdio output.
   * `stdout` {Buffer|string} The contents of `output[1]`.
   * `stderr` {Buffer|string} The contents of `output[2]`.
-  * `status` {number} The exit code of the child process.
+  * `status` {number|null} The exit code of the subprocess, or `null` if the
+    child process exited due to a signal.
   * `signal` {string} The signal used to kill the child process.
   * `error` {Error} The error object if the child process failed or timed out.
 
