@@ -87,3 +87,15 @@ const { setUnrefTimeout } = require('internal/timers');
 
   strictEqual(timer.refresh(), timer);
 }
+
+// refresh timeout in callback
+{
+  let called = 0;
+  const timer = setTimeout(common.mustCall(() => {
+    called += 1;
+    if (called === 2) {
+      clearTimeout(timer);
+    }
+    timer.refresh();
+  }, 2), 1);
+}
