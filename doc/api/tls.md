@@ -734,7 +734,7 @@ Returns an object containing information on the negotiated cipher suite.
 For example: `{ name: 'AES256-SHA', version: 'TLSv1/SSLv3' }`.
 
 See
-[OpenSSL](https://www.openssl.org/docs/man1.1.1/ssl/SSL_CIPHER_get_name.html)
+[OpenSSL](https://www.openssl.org/docs/man1.1.1/man3/SSL_CIPHER_get_name.html)
 for more information.
 
 ### tlsSocket.getEphemeralKeyInfo()
