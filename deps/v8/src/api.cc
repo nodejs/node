@@ -8931,6 +8931,11 @@ void v8::Isolate::LocaleConfigurationChangeNotification() {
 #endif  // V8_INTL_SUPPORT
 }
 
+// static
+std::unique_ptr<MicrotaskQueue> MicrotaskQueue::New(Isolate* isolate) {
+  return i::MicrotaskQueue::New(reinterpret_cast<i::Isolate*>(isolate));
+}
+
 MicrotasksScope::MicrotasksScope(Isolate* isolate, MicrotasksScope::Type type)
     : MicrotasksScope(
           isolate,

@@ -6779,7 +6779,7 @@ class V8_EXPORT MicrotaskQueue {
   /**
    * Creates an empty MicrotaskQueue instance.
    */
-  static std::unique_ptr<MicrotaskQueue> New();
+  static std::unique_ptr<MicrotaskQueue> New(Isolate* isolate);
 
   virtual ~MicrotaskQueue() = default;
 
