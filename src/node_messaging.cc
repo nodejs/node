@@ -30,7 +30,7 @@ using v8::String;
 using v8::Value;
 using v8::ValueDeserializer;
 using v8::ValueSerializer;
-using v8::WasmCompiledModule;
+using v8::WasmModuleObject;
 
 namespace node {
 namespace worker {
@@ -49,7 +49,7 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
       Environment* env,
       const std::vector<MessagePort*>& message_ports,
       const std::vector<Local<SharedArrayBuffer>>& shared_array_buffers,
-      const std::vector<WasmCompiledModule::TransferrableModule>& wasm_modules)
+      const std::vector<WasmModuleObject::TransferrableModule>& wasm_modules)
       : message_ports_(message_ports),
         shared_array_buffers_(shared_array_buffers),
         wasm_modules_(wasm_modules) {}
@@ -70,10 +70,10 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
     return shared_array_buffers_[clone_id];
   }
 
-  MaybeLocal<WasmCompiledModule> GetWasmModuleFromId(
+  MaybeLocal<WasmModuleObject> GetWasmModuleFromId(
       Isolate* isolate, uint32_t transfer_id) override {
     CHECK_LE(transfer_id, wasm_modules_.size());
-    return WasmCompiledModule::FromTransferrableModule(
+    return WasmModuleObject::FromTransferrableModule(
         isolate, wasm_modules_[transfer_id]);
   }
 
@@ -82,7 +82,7 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
  private:
   const std::vector<MessagePort*>& message_ports_;
   const std::vector<Local<SharedArrayBuffer>>& shared_array_buffers_;
-  const std::vector<WasmCompiledModule::TransferrableModule>& wasm_modules_;
+  const std::vector<WasmModuleObject::TransferrableModule>& wasm_modules_;
 };
 
 }  // anonymous namespace
@@ -170,7 +170,7 @@ void Message::AddMessagePort(std::unique_ptr<MessagePortData>&& data) {
   message_ports_.emplace_back(std::move(data));
 }
 
-uint32_t Message::AddWASMModule(WasmCompiledModule::TransferrableModule&& mod) {
+uint32_t Message::AddWASMModule(WasmModuleObject::TransferrableModule&& mod) {
   wasm_modules_.emplace_back(std::move(mod));
   return wasm_modules_.size() - 1;
 }
@@ -235,7 +235,7 @@ class SerializerDelegate : public ValueSerializer::Delegate {
   }
 
   Maybe<uint32_t> GetWasmModuleTransferId(
-      Isolate* isolate, Local<WasmCompiledModule> module) override {
+      Isolate* isolate, Local<WasmModuleObject> module) override {
     return Just(msg_->AddWASMModule(module->GetTransferrableModule()));
   }
 
@@ -302,7 +302,7 @@ Maybe<bool> Message::Serialize(Environment* env,
         Local<ArrayBuffer> ab = entry.As<ArrayBuffer>();
         // If we cannot render the ArrayBuffer unusable in this Isolate and
         // take ownership of its memory, copying the buffer will have to do.
-        if (!ab->IsNeuterable() || ab->IsExternal() ||
+        if (!ab->IsDetachable() || ab->IsExternal() ||
             !env->isolate_data()->uses_node_allocator()) {
           continue;
         }
@@ -368,7 +368,7 @@ Maybe<bool> Message::Serialize(Environment* env,
     // (a.k.a. externalize) the underlying memory region and render
     // it inaccessible in this Isolate.
     ArrayBuffer::Contents contents = ab->Externalize();
-    ab->Neuter();
+    ab->Detach();
 
     CHECK(env->isolate_data()->uses_node_allocator());
     env->isolate_data()->node_allocator()->UnregisterPointer(
