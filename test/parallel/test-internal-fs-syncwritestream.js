@@ -19,7 +19,6 @@ const filename = path.join(tmpdir.path, 'sync-write-stream.txt');
   assert.strictEqual(stream.fd, 1);
   assert.strictEqual(stream.readable, false);
   assert.strictEqual(stream.autoClose, true);
-  assert.strictEqual(stream.listenerCount('end'), 1);
 }
 
 // Verify constructing the instance with specified options.
@@ -29,7 +28,6 @@ const filename = path.join(tmpdir.path, 'sync-write-stream.txt');
   assert.strictEqual(stream.fd, 1);
   assert.strictEqual(stream.readable, false);
   assert.strictEqual(stream.autoClose, false);
-  assert.strictEqual(stream.listenerCount('end'), 1);
 }
 
 // Verify that the file will be written synchronously.
@@ -47,21 +45,28 @@ const filename = path.join(tmpdir.path, 'sync-write-stream.txt');
   const fd = fs.openSync(filename, 'w');
   const stream = new SyncWriteStream(fd);
 
-  stream.on('close', common.mustCall(3));
-
-  assert.strictEqual(stream.destroy(), true);
+  stream.on('close', common.mustCall());
+  assert.strictEqual(stream.destroy(), stream);
   assert.strictEqual(stream.fd, null);
-  assert.strictEqual(stream.destroy(), true);
-  assert.strictEqual(stream.destroySoon(), true);
 }
 
-// Verify that the 'end' event listener will also destroy the stream.
+// Verify that the stream will unset the fd after destroySoon().
+{
+  const fd = fs.openSync(filename, 'w');
+  const stream = new SyncWriteStream(fd);
+
+  stream.on('close', common.mustCall());
+  assert.strictEqual(stream.destroySoon(), stream);
+  assert.strictEqual(stream.fd, null);
+}
+
+// Verify that calling end() will also destroy the stream.
 {
   const fd = fs.openSync(filename, 'w');
   const stream = new SyncWriteStream(fd);
 
   assert.strictEqual(stream.fd, fd);
 
-  stream.emit('end');
+  stream.end();
   assert.strictEqual(stream.fd, null);
 }
