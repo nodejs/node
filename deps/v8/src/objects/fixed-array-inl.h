@@ -737,6 +737,9 @@ inline uint64_t FixedTypedArray<BigUint64ArrayTraits>::from(double value) {
 
 template <>
 inline float FixedTypedArray<Float32ArrayTraits>::from(double value) {
+  using limits = std::numeric_limits<float>;
+  if (value > limits::max()) return limits::infinity();
+  if (value < limits::lowest()) return -limits::infinity();
   return static_cast<float>(value);
 }
 

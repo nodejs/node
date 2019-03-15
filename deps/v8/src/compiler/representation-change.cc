@@ -977,9 +977,12 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
       break;
     case IrOpcode::kNumberConstant: {
       double const fv = OpParameter<double>(node->op());
-      int64_t const iv = static_cast<int64_t>(fv);
-      if (static_cast<double>(iv) == fv) {
-        return jsgraph()->Int64Constant(iv);
+      using limits = std::numeric_limits<int64_t>;
+      if (fv <= limits::max() && fv >= limits::min()) {
+        int64_t const iv = static_cast<int64_t>(fv);
+        if (static_cast<double>(iv) == fv) {
+          return jsgraph()->Int64Constant(iv);
+        }
       }
       break;
     }

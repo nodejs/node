@@ -448,7 +448,12 @@ BUILTIN(StringRaw) {
                                      Object::ToLength(isolate, raw_len));
 
   IncrementalStringBuilder result_builder(isolate);
-  const uint32_t length = static_cast<uint32_t>(raw_len->Number());
+  // Intentional spec violation: we ignore {length} values >= 2^32, because
+  // assuming non-empty chunks they would generate too-long strings anyway.
+  const double raw_len_number = raw_len->Number();
+  const uint32_t length = raw_len_number > std::numeric_limits<uint32_t>::max()
+                              ? std::numeric_limits<uint32_t>::max()
+                              : static_cast<uint32_t>(raw_len_number);
   if (length > 0) {
     Handle<Object> first_element;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, first_element,

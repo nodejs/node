@@ -1875,7 +1875,7 @@ MaybeHandle<FreshlyAllocatedBigInt> BigInt::AllocateFor(
     bits_min = (bits_min + roundup) >> kBitsPerCharTableShift;
     if (bits_min <= static_cast<size_t>(kMaxInt)) {
       // Divide by kDigitsBits, rounding up.
-      int length = (static_cast<int>(bits_min) + kDigitBits - 1) / kDigitBits;
+      int length = static_cast<int>((bits_min + kDigitBits - 1) / kDigitBits);
       if (length <= kMaxLength) {
         Handle<MutableBigInt> result =
             MutableBigInt::New(isolate, length, pretenure).ToHandleChecked();

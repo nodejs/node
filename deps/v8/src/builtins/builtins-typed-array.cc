@@ -27,21 +27,18 @@ BUILTIN(TypedArrayPrototypeBuffer) {
 namespace {
 
 int64_t CapRelativeIndex(Handle<Object> num, int64_t minimum, int64_t maximum) {
-  int64_t relative;
   if (V8_LIKELY(num->IsSmi())) {
-    relative = Smi::ToInt(*num);
+    int64_t relative = Smi::ToInt(*num);
+    return relative < 0 ? std::max<int64_t>(relative + maximum, minimum)
+                        : std::min<int64_t>(relative, maximum);
   } else {
     DCHECK(num->IsHeapNumber());
-    double fp = HeapNumber::cast(*num)->value();
-    if (V8_UNLIKELY(!std::isfinite(fp))) {
-      // +Infinity / -Infinity
-      DCHECK(!std::isnan(fp));
-      return fp < 0 ? minimum : maximum;
-    }
-    relative = static_cast<int64_t>(fp);
+    double relative = HeapNumber::cast(*num)->value();
+    DCHECK(!std::isnan(relative));
+    return static_cast<int64_t>(
+        relative < 0 ? std::max<double>(relative + maximum, minimum)
+                     : std::min<double>(relative, maximum));
   }
-  return relative < 0 ? std::max<int64_t>(relative + maximum, minimum)
-                      : std::min<int64_t>(relative, maximum);
 }
 
 }  // namespace

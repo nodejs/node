@@ -10939,7 +10939,11 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
       reinterpret_cast<int64_t*>(reinterpret_cast<uint8_t*>(this) +
                                  I::kExternalMemoryAtLastMarkCompactOffset);
 
-  const int64_t amount = *external_memory + change_in_bytes;
+  // Embedders are weird: we see both over- and underflows here. Perform the
+  // addition with unsigned types to avoid undefined behavior.
+  const int64_t amount =
+      static_cast<int64_t>(static_cast<uint64_t>(change_in_bytes) +
+                           static_cast<uint64_t>(*external_memory));
   *external_memory = amount;
 
   int64_t allocation_diff_since_last_mc =

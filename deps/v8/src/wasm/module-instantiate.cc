@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/wasm/module-instantiate.h"
+
 #include "src/asmjs/asm-js.h"
+#include "src/conversions-inl.h"
 #include "src/heap/heap-inl.h"  // For CodeSpaceMemoryModificationScope.
 #include "src/property-descriptor.h"
 #include "src/utils.h"
@@ -132,6 +134,7 @@ class InstanceBuilder {
   void LoadDataSegments(Handle<WasmInstanceObject> instance);
 
   void WriteGlobalValue(const WasmGlobal& global, double value);
+  void WriteGlobalValue(const WasmGlobal& global, int64_t num);
   void WriteGlobalValue(const WasmGlobal& global,
                         Handle<WasmGlobalObject> value);
 
@@ -653,23 +656,32 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global, double num) {
   switch (global.type) {
     case kWasmI32:
       WriteLittleEndianValue<int32_t>(GetRawGlobalPtr<int32_t>(global),
-                                      static_cast<int32_t>(num));
+                                      DoubleToInt32(num));
       break;
     case kWasmI64:
-      WriteLittleEndianValue<int64_t>(GetRawGlobalPtr<int64_t>(global),
-                                      static_cast<int64_t>(num));
+      // The Wasm-BigInt proposal currently says that i64 globals may
+      // only be initialized with BigInts. See:
+      // https://github.com/WebAssembly/JS-BigInt-integration/issues/12
+      UNREACHABLE();
       break;
     case kWasmF32:
       WriteLittleEndianValue<float>(GetRawGlobalPtr<float>(global),
-                                    static_cast<float>(num));
+                                    DoubleToFloat32(num));
       break;
     case kWasmF64:
-      WriteLittleEndianValue<double>(GetRawGlobalPtr<double>(global),
-                                     static_cast<double>(num));
+      WriteLittleEndianValue<double>(GetRawGlobalPtr<double>(global), num);
       break;
     default:
       UNREACHABLE();
   }
+}
+
+void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global, int64_t num) {
+  TRACE("init [globals_start=%p + %u] = %" PRId64 ", type = %s\n",
+        reinterpret_cast<void*>(raw_buffer_ptr(untagged_globals_, 0)),
+        global.offset, num, ValueTypes::TypeName(global.type));
+  DCHECK_EQ(kWasmI64, global.type);
+  WriteLittleEndianValue<int64_t>(GetRawGlobalPtr<int64_t>(global), num);
 }
 
 void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
@@ -1051,7 +1063,7 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
     return true;
   }
 
-  if (value->IsNumber()) {
+  if (value->IsNumber() && global.type != kWasmI64) {
     WriteGlobalValue(global, value->Number());
     return true;
   }
