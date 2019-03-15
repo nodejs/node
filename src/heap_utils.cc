@@ -200,40 +200,6 @@ void BuildEmbedderGraph(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(ret);
 }
 
-
-class BufferOutputStream : public v8::OutputStream {
- public:
-  BufferOutputStream() : buffer_(new JSString()) {}
-
-  void EndOfStream() override {}
-  int GetChunkSize() override { return 1024 * 1024; }
-  WriteResult WriteAsciiChunk(char* data, int size) override {
-    buffer_->Append(data, size);
-    return kContinue;
-  }
-
-  Local<String> ToString(Isolate* isolate) {
-    return String::NewExternalOneByte(isolate,
-                                      buffer_.release()).ToLocalChecked();
-  }
-
- private:
-  class JSString : public String::ExternalOneByteStringResource {
-   public:
-    void Append(char* data, size_t count) {
-      store_.append(data, count);
-    }
-
-    const char* data() const override { return store_.data(); }
-    size_t length() const override { return store_.size(); }
-
-   private:
-    std::string store_;
-  };
-
-  std::unique_ptr<JSString> buffer_;
-};
-
 namespace {
 class FileOutputStream : public v8::OutputStream {
  public:
@@ -370,17 +336,6 @@ inline bool WriteSnapshot(Isolate* isolate, const char* filename) {
 
 }  // namespace
 
-void CreateHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-  BufferOutputStream out;
-  TakeSnapshot(isolate, &out);
-  Local<Value> ret;
-  if (JSON::Parse(isolate->GetCurrentContext(),
-                  out.ToString(isolate)).ToLocal(&ret)) {
-    args.GetReturnValue().Set(ret);
-  }
-}
-
 void CreateHeapSnapshotStream(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   HandleScope scope(env->isolate());
@@ -430,9 +385,6 @@ void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target,
                              "buildEmbedderGraph",
                              BuildEmbedderGraph);
-  env->SetMethodNoSideEffect(target,
-                             "createHeapSnapshot",
-                             CreateHeapSnapshot);
   env->SetMethodNoSideEffect(target,
                              "triggerHeapSnapshot",
                              TriggerHeapSnapshot);
