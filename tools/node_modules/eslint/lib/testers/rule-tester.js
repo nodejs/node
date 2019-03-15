@@ -379,7 +379,7 @@ class RuleTester {
                 }
             }
 
-            validator.validate(config, "rule-tester", ruleMap.get.bind(ruleMap), new Environments());
+            validator.validate(config, ruleMap.get.bind(ruleMap), new Environments(), "rule-tester");
 
             return {
                 messages: linter.verify(code, config, filename, true),

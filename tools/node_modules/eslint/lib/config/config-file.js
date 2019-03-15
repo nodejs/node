@@ -541,7 +541,7 @@ function loadFromDisk(resolvedPath, configContext) {
         const ruleMap = configContext.linterContext.getRules();
 
         // validate the configuration before continuing
-        validator.validate(config, resolvedPath.configFullName, ruleMap.get.bind(ruleMap), configContext.linterContext.environments);
+        validator.validate(config, ruleMap.get.bind(ruleMap), configContext.linterContext.environments, resolvedPath.configFullName);
 
         /*
          * If an `extends` property is defined, it represents a configuration file to use as
