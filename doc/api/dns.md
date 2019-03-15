@@ -367,6 +367,10 @@ Here is an example of the `ret` object passed to the callback:
     minttl: 60 } ]
 ```
 
+DNS server operators may choose not to respond to `ANY`
+queries. It may be better to call individual methods like [`dns.resolve4()`][],
+[`dns.resolveMx()`][], and so on. For more details, see [RFC 8482][].
+
 ## dns.resolveCname(hostname, callback)
 <!-- YAML
 added: v0.3.2
@@ -1142,5 +1146,6 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [`util.promisify()`]: util.html#util_util_promisify_original
 [DNS error codes]: #dns_error_codes
 [Implementation considerations section]: #dns_implementation_considerations
+[RFC 8482]: https://tools.ietf.org/html/rfc8482
 [rfc5952]: https://tools.ietf.org/html/rfc5952#section-6
 [supported `getaddrinfo` flags]: #dns_supported_getaddrinfo_flags
