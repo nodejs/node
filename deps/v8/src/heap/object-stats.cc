@@ -578,6 +578,7 @@ static ObjectStats::VirtualInstanceType GetFeedbackSlotType(
     case FeedbackSlotKind::kLoadGlobalInsideTypeof:
     case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
     case FeedbackSlotKind::kLoadKeyed:
+    case FeedbackSlotKind::kHasKeyed:
       if (obj == *isolate->factory()->uninitialized_symbol() ||
           obj == *isolate->factory()->premonomorphic_symbol()) {
         return ObjectStats::FEEDBACK_VECTOR_SLOT_LOAD_UNUSED_TYPE;

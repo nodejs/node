@@ -103,9 +103,9 @@ TEST_P(InstructionSelectorChangeInt32ToInt64Test, ChangeInt32ToInt64WithLoad) {
   EXPECT_EQ(extension.expected_opcode, s[0]->arch_opcode());
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorChangeInt32ToInt64Test,
-                        ::testing::ValuesIn(kLoadWithToInt64Extensions));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorChangeInt32ToInt64Test,
+                         ::testing::ValuesIn(kLoadWithToInt64Extensions));
 
 // -----------------------------------------------------------------------------
 // Loads and stores
@@ -171,11 +171,9 @@ TEST_P(InstructionSelectorMemoryAccessTest, StoreWithParameters) {
   EXPECT_EQ(0U, s[0]->OutputCount());
 }
 
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorMemoryAccessTest,
-                        ::testing::ValuesIn(kMemoryAccesses));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorMemoryAccessTest,
+                         ::testing::ValuesIn(kMemoryAccesses));
 
 // -----------------------------------------------------------------------------
 // ChangeUint32ToUint64.
@@ -237,10 +235,9 @@ TEST_P(InstructionSelectorChangeUint32ToUint64Test, ChangeUint32ToUint64) {
   ASSERT_EQ(1U, s.size());
 }
 
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorChangeUint32ToUint64Test,
-                        ::testing::ValuesIn(kWord32BinaryOperations));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorChangeUint32ToUint64Test,
+                         ::testing::ValuesIn(kWord32BinaryOperations));
 
 // -----------------------------------------------------------------------------
 // CanElideChangeUint32ToUint64
@@ -320,9 +317,9 @@ TEST_P(InstructionSelectorElidedChangeUint32ToUint64Test, Parameter) {
   EXPECT_EQ(1U, s[0]->OutputCount());
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorElidedChangeUint32ToUint64Test,
-                        ::testing::ValuesIn(kCanElideChangeUint32ToUint64));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorElidedChangeUint32ToUint64Test,
+                         ::testing::ValuesIn(kCanElideChangeUint32ToUint64));
 
 // ChangeUint32ToUint64AfterLoad
 TEST_F(InstructionSelectorTest, ChangeUint32ToUint64AfterLoad) {

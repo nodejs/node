@@ -202,10 +202,12 @@ class AstBigInt {
   F(await, "await")                             \
   F(bigint, "bigint")                           \
   F(boolean, "boolean")                         \
+  F(computed, "<computed>")                     \
   F(constructor, "constructor")                 \
   F(default, "default")                         \
   F(done, "done")                               \
   F(dot, ".")                                   \
+  F(dot_default, ".default")                    \
   F(dot_for, ".for")                            \
   F(dot_generator_object, ".generator_object")  \
   F(dot_iterator, ".iterator")                  \
@@ -235,7 +237,6 @@ class AstBigInt {
   F(return, "return")                           \
   F(set, "set")                                 \
   F(set_space, "set ")                          \
-  F(star_default_star, "*default*")             \
   F(string, "string")                           \
   F(symbol, "symbol")                           \
   F(target, "target")                           \

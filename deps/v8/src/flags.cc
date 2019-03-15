@@ -610,6 +610,12 @@ void ComputeFlagListHash() {
   }
   for (size_t i = 0; i < num_flags; ++i) {
     Flag* current = &flags[i];
+    if (current->type() == Flag::TYPE_BOOL &&
+        current->bool_variable() == &FLAG_profile_deserialization) {
+      // We want to be able to flip --profile-deserialization without
+      // causing the code cache to get invalidated by this hash.
+      continue;
+    }
     if (!current->IsDefault()) {
       modified_args_as_string << i;
       modified_args_as_string << *current;

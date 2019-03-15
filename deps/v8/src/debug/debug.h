@@ -7,27 +7,20 @@
 
 #include <vector>
 
-#include "src/allocation.h"
-#include "src/base/atomicops.h"
-#include "src/base/hashmap.h"
-#include "src/base/platform/platform.h"
 #include "src/debug/debug-interface.h"
 #include "src/debug/interface-types.h"
-#include "src/execution.h"
-#include "src/flags.h"
 #include "src/frames.h"
 #include "src/globals.h"
-#include "src/heap/factory.h"
+#include "src/handles.h"
+#include "src/isolate.h"
 #include "src/objects/debug-objects.h"
-#include "src/runtime/runtime.h"
 #include "src/source-position-table.h"
-#include "src/string-stream.h"
-#include "src/v8threads.h"
 
 namespace v8 {
 namespace internal {
 
 // Forward declarations.
+class AbstractCode;
 class DebugScope;
 class JSGeneratorObject;
 
@@ -268,6 +261,8 @@ class Debug {
   bool GetPossibleBreakpoints(Handle<Script> script, int start_position,
                               int end_position, bool restrict_to_function,
                               std::vector<BreakLocation>* locations);
+
+  MaybeHandle<JSArray> GetPrivateFields(Handle<JSReceiver> receiver);
 
   bool IsBlackboxed(Handle<SharedFunctionInfo> shared);
 

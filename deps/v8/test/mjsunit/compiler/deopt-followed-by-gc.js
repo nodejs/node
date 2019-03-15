@@ -17,6 +17,7 @@ function deopt() {
 }
 %NeverOptimizeFunction(deopt);
 
+%PrepareFunctionForOptimization(opt_me);
 opt_me();
 opt_me();
 %OptimizeFunctionOnNextCall(opt_me);

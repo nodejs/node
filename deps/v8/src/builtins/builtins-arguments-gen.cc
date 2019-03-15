@@ -101,7 +101,7 @@ Node* ArgumentsBuiltinsAssembler::ConstructParametersObjectFromArgs(
                     [this, elements, &offset](Node* arg) {
                       StoreNoWriteBarrier(MachineRepresentation::kTagged,
                                           elements, offset.value(), arg);
-                      Increment(&offset, kSystemPointerSize);
+                      Increment(&offset, kTaggedSize);
                     },
                     first_arg, nullptr, param_mode);
   return result;

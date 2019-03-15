@@ -136,7 +136,7 @@ class PipelineData {
         JSGraph(isolate_, graph_, common_, javascript_, simplified_, machine_);
     broker_ = new (info_->zone()) JSHeapBroker(isolate_, info_->zone());
     dependencies_ =
-        new (info_->zone()) CompilationDependencies(isolate_, info_->zone());
+        new (info_->zone()) CompilationDependencies(broker_, info_->zone());
   }
 
   // For WebAssembly compile entry point.
@@ -535,7 +535,7 @@ class PipelineImpl final {
                     std::unique_ptr<AssemblerBuffer> buffer = {});
 
   // Step D. Run the code finalization pass.
-  MaybeHandle<Code> FinalizeCode();
+  MaybeHandle<Code> FinalizeCode(bool retire_broker = true);
 
   // Step E. Install any code dependencies.
   bool CommitDependencies(Handle<Code> code);
@@ -928,6 +928,11 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   if (compilation_info()->closure()->raw_feedback_cell()->map() ==
       ReadOnlyRoots(isolate).one_closure_cell_map()) {
     compilation_info()->MarkAsFunctionContextSpecializing();
+  }
+
+  if (compilation_info()->is_source_positions_enabled()) {
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(
+        isolate, compilation_info()->shared_info());
   }
 
   data_.set_start_source_position(
@@ -1603,7 +1608,7 @@ struct InstructionSelectionPhase {
             ? InstructionSelector::kEnableScheduling
             : InstructionSelector::kDisableScheduling,
         !data->isolate() || data->isolate()->serializer_enabled() ||
-                data->isolate()->ShouldLoadConstantsFromRootList()
+                data->isolate()->IsGeneratingEmbeddedBuiltins()
             ? InstructionSelector::kDisableRootsRelativeAddressing
             : InstructionSelector::kEnableRootsRelativeAddressing,
         data->info()->GetPoisoningMitigationLevel(),
@@ -1716,6 +1721,14 @@ struct LocateSpillSlotsPhase {
   }
 };
 
+struct DecideSpillingModePhase {
+  static const char* phase_name() { return "decide spilling mode"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    OperandAssigner assigner(data->register_allocation_data());
+    assigner.DecideSpillingMode();
+  }
+};
 
 struct AssignSpillSlotsPhase {
   static const char* phase_name() { return "assign spill slots"; }
@@ -2197,13 +2210,14 @@ wasm::WasmCode* Pipeline::GenerateCodeForWasmNativeStub(
 
   CodeGenerator* code_generator = pipeline.code_generator();
   CodeDesc code_desc;
-  code_generator->tasm()->GetCode(nullptr, &code_desc);
+  code_generator->tasm()->GetCode(
+      nullptr, &code_desc, code_generator->safepoint_table_builder(),
+      static_cast<int>(code_generator->GetHandlerTableOffset()));
 
   wasm::WasmCode* code = native_module->AddCode(
       wasm::WasmCode::kAnonymousFuncIndex, code_desc,
       code_generator->frame()->GetTotalFrameSlotCount(),
-      code_generator->GetSafepointTableOffset(),
-      code_generator->GetHandlerTableOffset(),
+      call_descriptor->GetTaggedParameterSlots(),
       code_generator->GetProtectedInstructions(),
       code_generator->GetSourcePositionTable(),
       static_cast<wasm::WasmCode::Kind>(wasm_kind), wasm::WasmCode::kOther);
@@ -2290,12 +2304,17 @@ MaybeHandle<Code> Pipeline::GenerateCodeForWasmHeapStub(
 
 // static
 MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
-    OptimizedCompilationInfo* info, Isolate* isolate) {
+    OptimizedCompilationInfo* info, Isolate* isolate,
+    JSHeapBroker** out_broker) {
   ZoneStats zone_stats(isolate->allocator());
   std::unique_ptr<PipelineStatistics> pipeline_statistics(
       CreatePipelineStatistics(Handle<Script>::null(), info, isolate,
                                &zone_stats));
   PipelineData data(&zone_stats, isolate, info, pipeline_statistics.get());
+  if (out_broker != nullptr) {
+    *out_broker = data.broker();
+  }
+
   PipelineImpl pipeline(&data);
 
   Linkage linkage(Linkage::ComputeIncoming(data.instruction_zone(), info));
@@ -2305,7 +2324,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
   if (!pipeline.OptimizeGraph(&linkage)) return MaybeHandle<Code>();
   pipeline.AssembleCode(&linkage);
   Handle<Code> code;
-  if (pipeline.FinalizeCode().ToHandle(&code) &&
+  if (pipeline.FinalizeCode(out_broker == nullptr).ToHandle(&code) &&
       pipeline.CommitDependencies(code)) {
     return code;
   }
@@ -2438,12 +2457,13 @@ void Pipeline::GenerateCodeForWasmFunction(
 
   auto result = base::make_unique<wasm::WasmCompilationResult>();
   CodeGenerator* code_generator = pipeline.code_generator();
-  code_generator->tasm()->GetCode(nullptr, &result->code_desc);
+  code_generator->tasm()->GetCode(
+      nullptr, &result->code_desc, code_generator->safepoint_table_builder(),
+      static_cast<int>(code_generator->GetHandlerTableOffset()));
 
   result->instr_buffer = instruction_buffer->ReleaseBuffer();
   result->frame_slot_count = code_generator->frame()->GetTotalFrameSlotCount();
-  result->safepoint_table_offset = code_generator->GetSafepointTableOffset();
-  result->handler_table_offset = code_generator->GetHandlerTableOffset();
+  result->tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
   result->source_positions = code_generator->GetSourcePositionTable();
   result->protected_instructions = code_generator->GetProtectedInstructions();
 
@@ -2454,7 +2474,7 @@ void Pipeline::GenerateCodeForWasmFunction(
     std::stringstream disassembler_stream;
     Disassembler::Decode(
         nullptr, &disassembler_stream, result->code_desc.buffer,
-        result->code_desc.buffer + result->safepoint_table_offset,
+        result->code_desc.buffer + result->code_desc.instr_size,
         CodeReference(&result->code_desc));
     for (auto const c : disassembler_stream.str()) {
       json_of << AsEscapedUC16ForJSON(c);
@@ -2703,9 +2723,9 @@ std::ostream& operator<<(std::ostream& out, const BlockStartsAsJSON& s) {
   return out;
 }
 
-MaybeHandle<Code> PipelineImpl::FinalizeCode() {
+MaybeHandle<Code> PipelineImpl::FinalizeCode(bool retire_broker) {
   PipelineData* data = this->data_;
-  if (data->broker()) {
+  if (data->broker() && retire_broker) {
     data->broker()->Retire();
   }
   Run<FinalizeCodePhase>();
@@ -2863,8 +2883,8 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
     Run<MergeSplintersPhase>();
   }
 
+  Run<DecideSpillingModePhase>();
   Run<AssignSpillSlotsPhase>();
-
   Run<CommitAssignmentPhase>();
 
   // TODO(chromium:725559): remove this check once
@@ -2875,12 +2895,13 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
   }
 
   Run<PopulateReferenceMapsPhase>();
+
   Run<ConnectRangesPhase>();
+
   Run<ResolveControlFlowPhase>();
   if (FLAG_turbo_move_optimization) {
     Run<OptimizeMovesPhase>();
   }
-
   Run<LocateSpillSlotsPhase>();
 
   TraceSequence(info(), data, "after register allocation");

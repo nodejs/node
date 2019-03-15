@@ -215,16 +215,20 @@ class InterpreterHandle {
               WasmOpcodes::TrapReasonToMessageId(thread->GetTrapReason());
           Handle<Object> exception =
               isolate_->factory()->NewWasmRuntimeError(message_id);
-          isolate_->Throw(*exception);
-          // Handle this exception. Return without trying to read back the
-          // return value.
-          auto result = thread->HandleException(isolate_);
-          return result == WasmInterpreter::Thread::HANDLED;
-        } break;
+          auto result = thread->RaiseException(isolate_, exception);
+          if (result == WasmInterpreter::Thread::HANDLED) break;
+          // If no local handler was found, we fall-thru to {STOPPED}.
+          DCHECK_EQ(WasmInterpreter::State::STOPPED, thread->state());
+          V8_FALLTHROUGH;
+        }
         case WasmInterpreter::State::STOPPED:
-          // An exception happened, and the current activation was unwound.
+          // An exception happened, and the current activation was unwound
+          // without hitting a local exception handler. All that remains to be
+          // done is finish the activation and let the exception propagate.
           DCHECK_EQ(thread->ActivationFrameBase(activation_id),
                     thread->GetFrameCount());
+          DCHECK(isolate_->has_pending_exception());
+          FinishActivation(frame_pointer, activation_id);
           return false;
         // RUNNING should never occur here.
         case WasmInterpreter::State::RUNNING:
@@ -379,26 +383,6 @@ class InterpreterHandle {
     return thread->GetFrame(frame_range.first + idx);
   }
 
-  void Unwind(Address frame_pointer) {
-    // Find the current activation.
-    DCHECK_EQ(1, activations_.count(frame_pointer));
-    // Activations must be properly stacked:
-    DCHECK_EQ(activations_.size() - 1, activations_[frame_pointer]);
-    uint32_t activation_id = static_cast<uint32_t>(activations_.size() - 1);
-
-    // Unwind the frames of the current activation if not already unwound.
-    WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
-    if (static_cast<uint32_t>(thread->GetFrameCount()) >
-        thread->ActivationFrameBase(activation_id)) {
-      using ExceptionResult = WasmInterpreter::Thread::ExceptionHandlingResult;
-      ExceptionResult result = thread->HandleException(isolate_);
-      // TODO(wasm): Handle exceptions caught in wasm land.
-      CHECK_EQ(ExceptionResult::UNWOUND, result);
-    }
-
-    FinishActivation(frame_pointer, activation_id);
-  }
-
   uint64_t NumInterpretedCalls() {
     DCHECK_EQ(1, interpreter()->GetThreadCount());
     return interpreter()->GetThread(0)->NumInterpretedCalls();
@@ -482,38 +466,6 @@ class InterpreterHandle {
           .Assert();
     }
     return local_scope_object;
-  }
-
-  Handle<JSArray> GetScopeDetails(Address frame_pointer, int frame_index,
-                                  Handle<WasmDebugInfo> debug_info) {
-    auto frame = GetInterpretedFrame(frame_pointer, frame_index);
-
-    Handle<FixedArray> global_scope =
-        isolate_->factory()->NewFixedArray(ScopeIterator::kScopeDetailsSize);
-    global_scope->set(ScopeIterator::kScopeDetailsTypeIndex,
-                      Smi::FromInt(ScopeIterator::ScopeTypeGlobal));
-    Handle<JSObject> global_scope_object =
-        GetGlobalScopeObject(frame.get(), debug_info);
-    global_scope->set(ScopeIterator::kScopeDetailsObjectIndex,
-                      *global_scope_object);
-
-    Handle<FixedArray> local_scope =
-        isolate_->factory()->NewFixedArray(ScopeIterator::kScopeDetailsSize);
-    local_scope->set(ScopeIterator::kScopeDetailsTypeIndex,
-                     Smi::FromInt(ScopeIterator::ScopeTypeLocal));
-    Handle<JSObject> local_scope_object =
-        GetLocalScopeObject(frame.get(), debug_info);
-    local_scope->set(ScopeIterator::kScopeDetailsObjectIndex,
-                     *local_scope_object);
-
-    Handle<JSArray> global_jsarr =
-        isolate_->factory()->NewJSArrayWithElements(global_scope);
-    Handle<JSArray> local_jsarr =
-        isolate_->factory()->NewJSArrayWithElements(local_scope);
-    Handle<FixedArray> all_scopes = isolate_->factory()->NewFixedArray(2);
-    all_scopes->set(0, *global_jsarr);
-    all_scopes->set(1, *local_jsarr);
-    return isolate_->factory()->NewJSArrayWithElements(all_scopes);
   }
 };
 
@@ -664,20 +616,9 @@ wasm::WasmInterpreter::FramePtr WasmDebugInfo::GetInterpretedFrame(
   return GetInterpreterHandle(*this)->GetInterpretedFrame(frame_pointer, idx);
 }
 
-void WasmDebugInfo::Unwind(Address frame_pointer) {
-  return GetInterpreterHandle(*this)->Unwind(frame_pointer);
-}
-
 uint64_t WasmDebugInfo::NumInterpretedCalls() {
   auto* handle = GetInterpreterHandleOrNull(*this);
   return handle ? handle->NumInterpretedCalls() : 0;
-}
-
-// static
-Handle<JSObject> WasmDebugInfo::GetScopeDetails(
-    Handle<WasmDebugInfo> debug_info, Address frame_pointer, int frame_index) {
-  auto* interp_handle = GetInterpreterHandle(*debug_info);
-  return interp_handle->GetScopeDetails(frame_pointer, frame_index, debug_info);
 }
 
 // static

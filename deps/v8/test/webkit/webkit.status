@@ -132,4 +132,9 @@
 }],  # variant == no_wasm_traps
 
 ##############################################################################
+['variant == jitless and not embedded_builtins', {
+  '*': [SKIP],
+}], # variant == jitless and not embedded_builtins
+
+##############################################################################
 ]

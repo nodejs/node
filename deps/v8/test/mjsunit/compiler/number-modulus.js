@@ -13,6 +13,7 @@
     return (x * -2) % (2 ** 32) === 0;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo(2));
   assertFalse(foo(1));
   %OptimizeFunctionOnNextCall(foo);

@@ -48,7 +48,7 @@ inline JSRelativeTimeFormat::Numeric JSRelativeTimeFormat::numeric() const {
   return NumericBits::decode(flags());
 }
 
-CAST_ACCESSOR(JSRelativeTimeFormat);
+CAST_ACCESSOR(JSRelativeTimeFormat)
 
 }  // namespace internal
 }  // namespace v8

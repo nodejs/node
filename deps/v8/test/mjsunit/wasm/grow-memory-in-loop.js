@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm --stress-compaction
 
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 let initialPages = 1;

@@ -68,6 +68,7 @@
       return r;
     }
 
+    %PrepareFunctionForOptimization(A);
     assertEquals("ABC", A(1,2));
     assertEquals("ABC", A(1,2));
     %OptimizeFunctionOnNextCall(A);

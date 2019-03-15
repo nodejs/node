@@ -32,9 +32,8 @@ class JSCreateLoweringTest : public TypedGraphTest {
   JSCreateLoweringTest()
       : TypedGraphTest(3),
         javascript_(zone()),
-        deps_(isolate(), zone()),
-        handle_scope_(isolate()) {
-  }
+        deps_(broker(), zone()),
+        handle_scope_(isolate()) {}
   ~JSCreateLoweringTest() override = default;
 
  protected:

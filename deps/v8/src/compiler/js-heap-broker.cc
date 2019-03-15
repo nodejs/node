@@ -11,6 +11,7 @@
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/per-isolate-compiler-cache.h"
 #include "src/objects-inl.h"
+#include "src/objects/allocation-site-inl.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/instance-type-inl.h"
@@ -310,6 +311,7 @@ class JSFunctionData : public JSObjectData {
   JSFunctionData(JSHeapBroker* broker, ObjectData** storage,
                  Handle<JSFunction> object);
 
+  bool has_feedback_vector() const { return has_feedback_vector_; }
   bool has_initial_map() const { return has_initial_map_; }
   bool has_prototype() const { return has_prototype_; }
   bool PrototypeRequiresRuntimeLookup() const {
@@ -323,12 +325,14 @@ class JSFunctionData : public JSObjectData {
   MapData* initial_map() const { return initial_map_; }
   ObjectData* prototype() const { return prototype_; }
   SharedFunctionInfoData* shared() const { return shared_; }
+  FeedbackVectorData* feedback_vector() const { return feedback_vector_; }
   int initial_map_instance_size_with_min_slack() const {
     CHECK(serialized_);
     return initial_map_instance_size_with_min_slack_;
   }
 
  private:
+  bool has_feedback_vector_;
   bool has_initial_map_;
   bool has_prototype_;
   bool PrototypeRequiresRuntimeLookup_;
@@ -340,6 +344,7 @@ class JSFunctionData : public JSObjectData {
   MapData* initial_map_ = nullptr;
   ObjectData* prototype_ = nullptr;
   SharedFunctionInfoData* shared_ = nullptr;
+  FeedbackVectorData* feedback_vector_ = nullptr;
   int initial_map_instance_size_with_min_slack_;
 };
 
@@ -833,6 +838,7 @@ MapData::MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object)
 JSFunctionData::JSFunctionData(JSHeapBroker* broker, ObjectData** storage,
                                Handle<JSFunction> object)
     : JSObjectData(broker, storage, object),
+      has_feedback_vector_(object->has_feedback_vector()),
       has_initial_map_(object->has_prototype_slot() &&
                        object->has_initial_map()),
       has_prototype_(object->has_prototype_slot() && object->has_prototype()),
@@ -851,11 +857,16 @@ void JSFunctionData::Serialize(JSHeapBroker* broker) {
   DCHECK_NULL(initial_map_);
   DCHECK_NULL(prototype_);
   DCHECK_NULL(shared_);
+  DCHECK_NULL(feedback_vector_);
 
   context_ = broker->GetOrCreateData(function->context())->AsContext();
   native_context_ =
       broker->GetOrCreateData(function->native_context())->AsNativeContext();
   shared_ = broker->GetOrCreateData(function->shared())->AsSharedFunctionInfo();
+  feedback_vector_ = has_feedback_vector()
+                         ? broker->GetOrCreateData(function->feedback_vector())
+                               ->AsFeedbackVector()
+                         : nullptr;
   initial_map_ = has_initial_map()
                      ? broker->GetOrCreateData(function->initial_map())->AsMap()
                      : nullptr;
@@ -1138,7 +1149,8 @@ class SharedFunctionInfoData : public HeapObjectData {
 
   int builtin_id() const { return builtin_id_; }
   BytecodeArrayData* GetBytecodeArray() const { return GetBytecodeArray_; }
-  void SetSerializedForCompilation(FeedbackVectorRef feedback);
+  void SetSerializedForCompilation(JSHeapBroker* broker,
+                                   FeedbackVectorRef feedback);
   bool IsSerializedForCompilation(FeedbackVectorRef feedback) const;
 #define DECL_ACCESSOR(type, name) \
   type name() const { return name##_; }
@@ -1177,8 +1189,10 @@ SharedFunctionInfoData::SharedFunctionInfoData(
 }
 
 void SharedFunctionInfoData::SetSerializedForCompilation(
-    FeedbackVectorRef feedback) {
+    JSHeapBroker* broker, FeedbackVectorRef feedback) {
   CHECK(serialized_for_compilation_.insert(feedback.object()).second);
+  TRACE(broker, "Set function " << object() << " with " << feedback.object()
+                                << " as serialized for compilation.");
 }
 
 bool SharedFunctionInfoData::IsSerializedForCompilation(
@@ -1439,7 +1453,7 @@ void JSObjectData::SerializeRecursive(JSHeapBroker* broker, int depth) {
       elements_object->map() == ReadOnlyRoots(isolate).fixed_cow_array_map();
   if (empty_or_cow) {
     // We need to make sure copy-on-write elements are tenured.
-    if (Heap::InNewSpace(*elements_object)) {
+    if (ObjectInYoungGeneration(*elements_object)) {
       elements_object = isolate->factory()->CopyAndTenureFixedCOWArray(
           Handle<FixedArray>::cast(elements_object));
       boilerplate->set_elements(*elements_object);
@@ -1558,7 +1572,8 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone)
       current_zone_(broker_zone),
       refs_(new (zone())
                 RefsMap(kMinimalRefsBucketCount, AddressMatcher(), zone())),
-      array_and_object_prototypes_(zone()) {
+      array_and_object_prototypes_(zone()),
+      feedback_(zone()) {
   // Note that this initialization of the refs_ pointer with the minimal
   // initial capacity is redundant in the normal use case (concurrent
   // compilation enabled, standard objects to be serialized), as the map
@@ -1567,9 +1582,9 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone)
   TRACE(this, "Constructing heap broker.");
 }
 
-std::ostream& JSHeapBroker::Trace() const {
-  std::cout << "[" << this << "] " << std::string(trace_indentation_ * 2, ' ');
-  return std::cout;
+std::ostream& JSHeapBroker::Trace() {
+  return trace_out_ << "[" << this << "] "
+                    << std::string(trace_indentation_ * 2, ' ');
 }
 
 void JSHeapBroker::StartSerializing() {
@@ -1924,8 +1939,8 @@ ScriptContextTableRef::lookup(const NameRef& name) const {
   if (!name.IsString()) return {};
   ScriptContextTable::LookupResult lookup_result;
   auto table = object();
-  if (!ScriptContextTable::Lookup(broker()->isolate(), table,
-                                  name.AsString().object(), &lookup_result)) {
+  if (!ScriptContextTable::Lookup(broker()->isolate(), *table,
+                                  *name.AsString().object(), &lookup_result)) {
     return {};
   }
   Handle<Context> script_context = ScriptContextTable::GetContext(
@@ -2017,7 +2032,7 @@ void JSObjectRef::EnsureElementsTenured() {
     AllowHeapAllocation allow_heap_allocation;
 
     Handle<FixedArrayBase> object_elements = elements().object();
-    if (Heap::InNewSpace(*object_elements)) {
+    if (ObjectInYoungGeneration(*object_elements)) {
       // If we would like to pretenure a fixed cow array, we must ensure that
       // the array is already in old space, otherwise we'll create too many
       // old-to-new-space pointers (overflowing the store buffer).
@@ -2234,14 +2249,16 @@ BIMODAL_ACCESSOR(JSBoundFunction, FixedArray, bound_arguments)
 BIMODAL_ACCESSOR_C(JSDataView, size_t, byte_length)
 BIMODAL_ACCESSOR_C(JSDataView, size_t, byte_offset)
 
-BIMODAL_ACCESSOR_C(JSFunction, bool, has_prototype)
+BIMODAL_ACCESSOR_C(JSFunction, bool, has_feedback_vector)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_initial_map)
+BIMODAL_ACCESSOR_C(JSFunction, bool, has_prototype)
 BIMODAL_ACCESSOR_C(JSFunction, bool, PrototypeRequiresRuntimeLookup)
 BIMODAL_ACCESSOR(JSFunction, Context, context)
 BIMODAL_ACCESSOR(JSFunction, NativeContext, native_context)
 BIMODAL_ACCESSOR(JSFunction, Map, initial_map)
 BIMODAL_ACCESSOR(JSFunction, Object, prototype)
 BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
+BIMODAL_ACCESSOR(JSFunction, FeedbackVector, feedback_vector)
 
 BIMODAL_ACCESSOR_C(JSTypedArray, bool, is_on_heap)
 BIMODAL_ACCESSOR_C(JSTypedArray, size_t, length_value)
@@ -2410,26 +2427,26 @@ bool ObjectRef::BooleanValue() const {
   return IsSmi() ? (AsSmi() != 0) : data()->AsHeapObject()->boolean_value();
 }
 
-double ObjectRef::OddballToNumber() const {
+Maybe<double> ObjectRef::OddballToNumber() const {
   OddballType type = AsHeapObject().map().oddball_type();
 
   switch (type) {
     case OddballType::kBoolean: {
       ObjectRef true_ref(broker(),
                          broker()->isolate()->factory()->true_value());
-      return this->equals(true_ref) ? 1 : 0;
+      return this->equals(true_ref) ? Just(1.0) : Just(0.0);
       break;
     }
     case OddballType::kUndefined: {
-      return std::numeric_limits<double>::quiet_NaN();
+      return Just(std::numeric_limits<double>::quiet_NaN());
       break;
     }
     case OddballType::kNull: {
-      return 0;
+      return Just(0.0);
       break;
     }
     default: {
-      UNREACHABLE();
+      return Nothing<double>();
       break;
     }
   }
@@ -2480,7 +2497,7 @@ ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object)
     case JSHeapBroker::kRetired:
       UNREACHABLE();
   }
-  CHECK_NOT_NULL(data_);
+  CHECK_WITH_MSG(data_ != nullptr, "Object is not known to the heap broker");
 }
 
 namespace {
@@ -2675,10 +2692,15 @@ void JSFunctionRef::Serialize() {
   data()->AsJSFunction()->Serialize(broker());
 }
 
+bool JSFunctionRef::IsSerializedForCompilation() const {
+  return shared().IsSerializedForCompilation(feedback_vector());
+}
+
 void SharedFunctionInfoRef::SetSerializedForCompilation(
     FeedbackVectorRef feedback) {
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsSharedFunctionInfo()->SetSerializedForCompilation(feedback);
+  data()->AsSharedFunctionInfo()->SetSerializedForCompilation(broker(),
+                                                              feedback);
 }
 
 bool SharedFunctionInfoRef::IsSerializedForCompilation(
@@ -2733,6 +2755,66 @@ void JSBoundFunctionRef::Serialize() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsJSBoundFunction()->Serialize(broker());
+}
+
+bool CanInlineElementAccess(Handle<Map> map) {
+  if (!map->IsJSObjectMap()) return false;
+  if (map->is_access_check_needed()) return false;
+  if (map->has_indexed_interceptor()) return false;
+  ElementsKind const elements_kind = map->elements_kind();
+  if (IsFastElementsKind(elements_kind)) return true;
+  if (IsFixedTypedArrayElementsKind(elements_kind) &&
+      elements_kind != BIGUINT64_ELEMENTS &&
+      elements_kind != BIGINT64_ELEMENTS) {
+    return true;
+  }
+  return false;
+}
+
+bool JSHeapBroker::HasFeedback(FeedbackNexus const& nexus) const {
+  return feedback_.find(nexus) != feedback_.end();
+}
+
+ProcessedFeedback& JSHeapBroker::GetOrCreateFeedback(
+    FeedbackNexus const& nexus) {
+  auto it = feedback_.find(nexus);
+  if (it != feedback_.end()) return it->second;
+  auto insertion = feedback_.insert({nexus, ProcessedFeedback(zone())});
+  CHECK(insertion.second);
+  return insertion.first->second;
+}
+
+void ProcessFeedbackMapsForElementAccess(Isolate* isolate,
+                                         MapHandles const& maps,
+                                         ProcessedFeedback* processed) {
+  DCHECK(processed->receiver_maps.empty());
+  DCHECK(processed->transitions.empty());
+
+  // Collect possible transition targets.
+  MapHandles possible_transition_targets;
+  possible_transition_targets.reserve(maps.size());
+  for (Handle<Map> map : maps) {
+    if (CanInlineElementAccess(map) &&
+        IsFastElementsKind(map->elements_kind()) &&
+        GetInitialFastElementsKind() != map->elements_kind()) {
+      possible_transition_targets.push_back(map);
+    }
+  }
+
+  // Separate the actual receiver maps and the possible transition sources.
+  for (Handle<Map> map : maps) {
+    // Don't generate elements kind transitions from stable maps.
+    Map transition_target = map->is_stable()
+                                ? Map()
+                                : map->FindElementsKindTransitionedMap(
+                                      isolate, possible_transition_targets);
+    if (transition_target.is_null()) {
+      processed->receiver_maps.push_back(map);
+    } else {
+      processed->transitions.emplace_back(map,
+                                          handle(transition_target, isolate));
+    }
+  }
 }
 
 #undef BIMODAL_ACCESSOR

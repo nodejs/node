@@ -540,6 +540,10 @@ text {
   content: "Block B";
 }
 
+.schedule-block.deferred>.block-id::after {
+  content: " (deferred)";
+}
+
 .schedule-block .block-list {
   display: inline-block;
 }

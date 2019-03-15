@@ -295,7 +295,7 @@ class Simulator : public SimulatorBase {
   inline void Write##size(uintptr_t addr, type value); \
   inline int32_t WriteEx##size(uintptr_t addr, type value);
 
-  RW_VAR_LIST(GENERATE_RW_FUNC);
+  RW_VAR_LIST(GENERATE_RW_FUNC)
 #undef GENERATE_RW_FUNC
 
   void Trace(Instruction* instr);

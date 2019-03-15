@@ -25,7 +25,8 @@ class Handle;
   V(Function, JSFunction)             \
   V(Code, AbstractCode)               \
   V(Offset, Smi)                      \
-  V(Flags, Smi)
+  V(Flags, Smi)                       \
+  V(Parameters, FixedArray)
 
 // Container object for data collected during simple stack trace captures.
 class FrameArray : public FixedArray {
@@ -39,6 +40,7 @@ class FrameArray : public FixedArray {
   inline bool IsWasmFrame(int frame_ix) const;
   inline bool IsWasmInterpretedFrame(int frame_ix) const;
   inline bool IsAsmJsWasmFrame(int frame_ix) const;
+  inline bool IsAnyWasmFrame(int frame_ix) const;
   inline int FrameCount() const;
 
   void ShrinkToFit(Isolate* isolate);
@@ -59,7 +61,8 @@ class FrameArray : public FixedArray {
                                           Handle<Object> receiver,
                                           Handle<JSFunction> function,
                                           Handle<AbstractCode> code, int offset,
-                                          int flags);
+                                          int flags,
+                                          Handle<FixedArray> parameters);
   static Handle<FrameArray> AppendWasmFrame(
       Handle<FrameArray> in, Handle<WasmInstanceObject> wasm_instance,
       int wasm_function_index, wasm::WasmCode* code, int offset, int flags);
@@ -86,7 +89,9 @@ class FrameArray : public FixedArray {
 
   static const int kFlagsOffset = 4;
 
-  static const int kElementsPerFrame = 5;
+  static const int kParametersOffset = 5;
+
+  static const int kElementsPerFrame = 6;
 
   // Array layout indices.
 

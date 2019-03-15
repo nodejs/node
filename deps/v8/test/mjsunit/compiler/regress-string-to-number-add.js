@@ -9,6 +9,7 @@ function f(x) {
   return 1 + Number(s);
 }
 
+%PrepareFunctionForOptimization(f);
 f(0);
 f(0);
 %OptimizeFunctionOnNextCall(f);

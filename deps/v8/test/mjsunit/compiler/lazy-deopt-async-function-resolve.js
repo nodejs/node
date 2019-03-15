@@ -13,6 +13,7 @@
   }
 
   assertPromiseResult((async () => {
+    %PrepareFunctionForOptimization(foo);
     await foo(1);
     await foo(2);
     %OptimizeFunctionOnNextCall(foo);

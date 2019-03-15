@@ -316,8 +316,8 @@ TEST_P(InstructionSelectorFPCmpTest, Parameter) {
   EXPECT_EQ(cmp.cond, s[0]->flags_condition());
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorFPCmpTest,
-                        ::testing::ValuesIn(kFPCmpInstructions));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest, InstructionSelectorFPCmpTest,
+                         ::testing::ValuesIn(kFPCmpInstructions));
 
 // ----------------------------------------------------------------------------
 // Arithmetic compare instructions integers
@@ -367,8 +367,8 @@ TEST_P(InstructionSelectorCmpTest, Parameter) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorCmpTest,
-                        ::testing::ValuesIn(kCmpInstructions));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest, InstructionSelectorCmpTest,
+                         ::testing::ValuesIn(kCmpInstructions));
 
 // ----------------------------------------------------------------------------
 // Shift instructions.
@@ -393,8 +393,8 @@ TEST_P(InstructionSelectorShiftTest, Immediate) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorShiftTest,
-                        ::testing::ValuesIn(kShiftInstructions));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest, InstructionSelectorShiftTest,
+                         ::testing::ValuesIn(kShiftInstructions));
 
 TEST_F(InstructionSelectorTest, Word32ShrWithWord32AndWithImmediate) {
   // The available shift operand range is `0 <= imm < 32`, but we also test
@@ -549,9 +549,9 @@ TEST_P(InstructionSelectorLogicalTest, Parameter) {
   EXPECT_EQ(1U, s[0]->OutputCount());
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorLogicalTest,
-                        ::testing::ValuesIn(kLogicalInstructions));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorLogicalTest,
+                         ::testing::ValuesIn(kLogicalInstructions));
 
 TEST_F(InstructionSelectorTest, Word64XorMinusOneWithParameter) {
   {
@@ -824,8 +824,8 @@ TEST_P(InstructionSelectorMulDivTest, Parameter) {
   EXPECT_EQ(1U, s[0]->OutputCount());
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorMulDivTest,
-                        ::testing::ValuesIn(kMulDivInstructions));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest, InstructionSelectorMulDivTest,
+                         ::testing::ValuesIn(kMulDivInstructions));
 
 // ----------------------------------------------------------------------------
 // MOD instructions.
@@ -844,8 +844,8 @@ TEST_P(InstructionSelectorModTest, Parameter) {
   EXPECT_EQ(1U, s[0]->OutputCount());
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorModTest,
-                        ::testing::ValuesIn(kModInstructions));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest, InstructionSelectorModTest,
+                         ::testing::ValuesIn(kModInstructions));
 
 // ----------------------------------------------------------------------------
 // Floating point instructions.
@@ -864,8 +864,9 @@ TEST_P(InstructionSelectorFPArithTest, Parameter) {
   EXPECT_EQ(1U, s[0]->OutputCount());
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorFPArithTest,
-                        ::testing::ValuesIn(kFPArithInstructions));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorFPArithTest,
+                         ::testing::ValuesIn(kFPArithInstructions));
 // ----------------------------------------------------------------------------
 // Integer arithmetic
 // ----------------------------------------------------------------------------
@@ -884,10 +885,9 @@ TEST_P(InstructionSelectorIntArithTwoTest, Parameter) {
   EXPECT_EQ(1U, s[0]->OutputCount());
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorIntArithTwoTest,
-                        ::testing::ValuesIn(kAddSubInstructions));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorIntArithTwoTest,
+                         ::testing::ValuesIn(kAddSubInstructions));
 
 // ----------------------------------------------------------------------------
 // One node.
@@ -909,9 +909,9 @@ TEST_P(InstructionSelectorIntArithOneTest, Parameter) {
   EXPECT_EQ(1U, s[0]->OutputCount());
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorIntArithOneTest,
-                        ::testing::ValuesIn(kAddSubOneInstructions));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorIntArithOneTest,
+                         ::testing::ValuesIn(kAddSubOneInstructions));
 // ----------------------------------------------------------------------------
 // Conversions.
 // ----------------------------------------------------------------------------
@@ -929,9 +929,9 @@ TEST_P(InstructionSelectorConversionTest, Parameter) {
   EXPECT_EQ(1U, s[0]->OutputCount());
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorConversionTest,
-                        ::testing::ValuesIn(kConversionInstructions));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorConversionTest,
+                         ::testing::ValuesIn(kConversionInstructions));
 
 TEST_F(InstructionSelectorTest, ChangesFromToSmi) {
   {
@@ -975,9 +975,9 @@ TEST_P(CombineChangeFloat64ToInt32WithRoundFloat64, Parameter) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        CombineChangeFloat64ToInt32WithRoundFloat64,
-                        ::testing::ValuesIn(kFloat64RoundInstructions));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         CombineChangeFloat64ToInt32WithRoundFloat64,
+                         ::testing::ValuesIn(kFloat64RoundInstructions));
 
 typedef InstructionSelectorTestWithParam<Conversion>
     CombineChangeFloat32ToInt32WithRoundFloat32;
@@ -997,10 +997,9 @@ TEST_P(CombineChangeFloat32ToInt32WithRoundFloat32, Parameter) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        CombineChangeFloat32ToInt32WithRoundFloat32,
-                        ::testing::ValuesIn(kFloat32RoundInstructions));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         CombineChangeFloat32ToInt32WithRoundFloat32,
+                         ::testing::ValuesIn(kFloat32RoundInstructions));
 
 TEST_F(InstructionSelectorTest, ChangeFloat64ToInt32OfChangeFloat32ToFloat64) {
   {
@@ -1172,9 +1171,9 @@ TEST_P(InstructionSelectorElidedChangeUint32ToUint64Test, Parameter) {
   EXPECT_EQ(1U, s[0]->OutputCount());
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorElidedChangeUint32ToUint64Test,
-                        ::testing::ValuesIn(kCanElideChangeUint32ToUint64));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorElidedChangeUint32ToUint64Test,
+                         ::testing::ValuesIn(kCanElideChangeUint32ToUint64));
 
 TEST_F(InstructionSelectorTest, ChangeUint32ToUint64AfterLoad) {
   // For each case, make sure the `ChangeUint32ToUint64` node turned into a
@@ -1477,10 +1476,9 @@ TEST_P(InstructionSelectorMemoryAccessTest, StoreWithParameters) {
   EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorMemoryAccessTest,
-                        ::testing::ValuesIn(kMemoryAccesses));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorMemoryAccessTest,
+                         ::testing::ValuesIn(kMemoryAccesses));
 
 // ----------------------------------------------------------------------------
 // Load immediate.
@@ -1552,9 +1550,9 @@ TEST_P(InstructionSelectorMemoryAccessImmTest, StoreZero) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorMemoryAccessImmTest,
-                        ::testing::ValuesIn(kMemoryAccessesImm));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorMemoryAccessImmTest,
+                         ::testing::ValuesIn(kMemoryAccessesImm));
 
 typedef InstructionSelectorTestWithParam<MemoryAccessImm2>
     InstructionSelectorMemoryAccessUnalignedImmTest;
@@ -1583,9 +1581,9 @@ TEST_P(InstructionSelectorMemoryAccessUnalignedImmTest, StoreZero) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorMemoryAccessUnalignedImmTest,
-                        ::testing::ValuesIn(kMemoryAccessesImmUnaligned));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorMemoryAccessUnalignedImmTest,
+                         ::testing::ValuesIn(kMemoryAccessesImmUnaligned));
 
 // ----------------------------------------------------------------------------
 // Load/store offsets more than 16 bits.
@@ -1628,10 +1626,9 @@ TEST_P(InstructionSelectorMemoryAccessImmMoreThan16bitTest,
   }
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorMemoryAccessImmMoreThan16bitTest,
-                        ::testing::ValuesIn(kMemoryAccessImmMoreThan16bit));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorMemoryAccessImmMoreThan16bitTest,
+                         ::testing::ValuesIn(kMemoryAccessImmMoreThan16bit));
 
 // ----------------------------------------------------------------------------
 // kMips64Cmp with zero testing.

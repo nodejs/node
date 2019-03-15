@@ -284,7 +284,7 @@ TARGET_TEST_P(InstructionSelectorPhiTest, Referenceness) {
   EXPECT_EQ(s.IsReference(phi), s.IsReference(param1));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     InstructionSelectorTest, InstructionSelectorPhiTest,
     ::testing::Values(MachineType::Float64(), MachineType::Int8(),
                       MachineType::Uint8(), MachineType::Int16(),

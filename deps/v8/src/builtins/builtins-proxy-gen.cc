@@ -116,9 +116,7 @@ Node* ProxiesCodeStubAssembler::AllocateJSArrayForCodeStubArguments(
   TNode<Map> array_map =
       LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
   TNode<JSArray> array =
-      AllocateUninitializedJSArrayWithoutElements(array_map, length);
-  StoreObjectFieldNoWriteBarrier(array, JSObject::kElementsOffset,
-                                 elements.value());
+      AllocateJSArray(array_map, CAST(elements.value()), length);
 
   return array;
 }
@@ -547,7 +545,6 @@ TF_BUILTIN(ProxySetProperty, ProxiesCodeStubAssembler) {
   Node* name = Parameter(Descriptor::kName);
   Node* value = Parameter(Descriptor::kValue);
   Node* receiver = Parameter(Descriptor::kReceiverValue);
-  TNode<Smi> language_mode = CAST(Parameter(Descriptor::kLanguageMode));
 
   CSA_ASSERT(this, IsJSProxy(proxy));
 
@@ -598,13 +595,10 @@ TF_BUILTIN(ProxySetProperty, ProxiesCodeStubAssembler) {
 
   BIND(&failure);
   {
-    Label if_throw(this, Label::kDeferred);
-    Branch(SmiEqual(language_mode, SmiConstant(LanguageMode::kStrict)),
-           &if_throw, &success);
-
-    BIND(&if_throw);
-    ThrowTypeError(context, MessageTemplate::kProxyTrapReturnedFalsishFor,
-                   HeapConstant(set_string), name);
+    CallRuntime(Runtime::kThrowTypeErrorIfStrict, context,
+                SmiConstant(MessageTemplate::kProxyTrapReturnedFalsishFor),
+                HeapConstant(set_string), name);
+    Goto(&success);
   }
 
   // 12. Return true.
@@ -613,23 +607,18 @@ TF_BUILTIN(ProxySetProperty, ProxiesCodeStubAssembler) {
 
   BIND(&private_symbol);
   {
-    Label failure(this), throw_error(this, Label::kDeferred);
+    Label failure(this);
 
-    Branch(SmiEqual(language_mode, SmiConstant(LanguageMode::kStrict)),
-           &throw_error, &failure);
-
-    BIND(&failure);
+    CallRuntime(Runtime::kThrowTypeErrorIfStrict, context,
+                SmiConstant(MessageTemplate::kProxyPrivate));
     Return(UndefinedConstant());
-
-    BIND(&throw_error);
-    ThrowTypeError(context, MessageTemplate::kProxyPrivate);
   }
 
   BIND(&trap_undefined);
   {
     // 7.a. Return ? target.[[Set]](P, V, Receiver).
     CallRuntime(Runtime::kSetPropertyWithReceiver, context, target, name, value,
-                receiver, language_mode);
+                receiver);
     Return(value);
   }
 
@@ -647,6 +636,7 @@ void ProxiesCodeStubAssembler::CheckGetSetTrapResult(
 
   Label if_found_value(this), check_in_runtime(this, Label::kDeferred);
 
+  GotoIfNot(IsUniqueNameNoIndex(CAST(name)), &check_in_runtime);
   Node* instance_type = LoadInstanceType(target);
   TryGetOwnProperty(context, target, target, map, instance_type, name,
                     &if_found_value, &var_value, &var_details, &var_raw_value,
@@ -754,6 +744,7 @@ void ProxiesCodeStubAssembler::CheckHasTrapResult(Node* context, Node* target,
       throw_non_extensible(this, Label::kDeferred);
 
   // 9.a. Let targetDesc be ? target.[[GetOwnProperty]](P).
+  GotoIfNot(IsUniqueNameNoIndex(CAST(name)), if_bailout);
   Node* instance_type = LoadInstanceType(target);
   TryGetOwnProperty(context, target, target, target_map, instance_type, name,
                     &if_found_value, &var_value, &var_details, &var_raw_value,

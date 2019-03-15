@@ -860,13 +860,13 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   // Commonly-used special cases.
   template<typename T>
   void set_lr(T value) {
-    DCHECK_EQ(sizeof(T), static_cast<unsigned>(kPointerSize));
+    DCHECK_EQ(sizeof(T), static_cast<unsigned>(kSystemPointerSize));
     set_reg(kLinkRegCode, value);
   }
 
   template<typename T>
   void set_sp(T value) {
-    DCHECK_EQ(sizeof(T), static_cast<unsigned>(kPointerSize));
+    DCHECK_EQ(sizeof(T), static_cast<unsigned>(kSystemPointerSize));
     set_reg(31, value, Reg31IsStackPointer);
   }
 

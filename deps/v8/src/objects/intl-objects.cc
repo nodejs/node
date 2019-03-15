@@ -29,6 +29,7 @@
 #include "unicode/brkiter.h"
 #include "unicode/calendar.h"
 #include "unicode/coll.h"
+#include "unicode/datefmt.h"
 #include "unicode/decimfmt.h"
 #include "unicode/locid.h"
 #include "unicode/normalizer2.h"
@@ -254,7 +255,7 @@ MaybeHandle<String> LocaleConvertCase(Isolate* isolate, Handle<String> s,
 // Called from TF builtins.
 String Intl::ConvertOneByteToLower(String src, String dst) {
   DCHECK_EQ(src->length(), dst->length());
-  DCHECK(src->HasOnlyOneByteChars());
+  DCHECK(src->IsOneByteRepresentation());
   DCHECK(src->IsFlat());
   DCHECK(dst->IsSeqOneByteString());
 
@@ -298,7 +299,7 @@ String Intl::ConvertOneByteToLower(String src, String dst) {
 }
 
 MaybeHandle<String> Intl::ConvertToLower(Isolate* isolate, Handle<String> s) {
-  if (!s->HasOnlyOneByteChars()) {
+  if (!s->IsOneByteRepresentation()) {
     // Use a slower implementation for strings with characters beyond U+00FF.
     return LocaleConvertCase(isolate, s, false, "");
   }
@@ -330,7 +331,7 @@ MaybeHandle<String> Intl::ConvertToLower(Isolate* isolate, Handle<String> s) {
 
 MaybeHandle<String> Intl::ConvertToUpper(Isolate* isolate, Handle<String> s) {
   int32_t length = s->length();
-  if (s->HasOnlyOneByteChars() && length > 0) {
+  if (s->IsOneByteRepresentation() && length > 0) {
     Handle<SeqOneByteString> result =
         isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
 
@@ -552,7 +553,8 @@ std::string DefaultLocale(Isolate* isolate) {
   if (isolate->default_locale().empty()) {
     icu::Locale default_locale;
     // Translate ICU's fallback locale to a well-known locale.
-    if (strcmp(default_locale.getName(), "en_US_POSIX") == 0) {
+    if (strcmp(default_locale.getName(), "en_US_POSIX") == 0 ||
+        strcmp(default_locale.getName(), "c") == 0) {
       isolate->set_default_locale("en-US");
     } else {
       // Set the locale
@@ -729,11 +731,20 @@ Maybe<std::string> Intl::CanonicalizeLanguageTag(Isolate* isolate,
   }
   std::string locale(locale_str->ToCString().get());
 
+  return Intl::CanonicalizeLanguageTag(isolate, locale);
+}
+
+Maybe<std::string> Intl::CanonicalizeLanguageTag(Isolate* isolate,
+                                                 const std::string& locale_in) {
+  std::string locale = locale_in;
+
   if (locale.length() == 0 ||
       !String::IsAscii(locale.data(), static_cast<int>(locale.length()))) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
-        NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),
+        NewRangeError(
+            MessageTemplate::kInvalidLanguageTag,
+            isolate->factory()->NewStringFromAsciiChecked(locale.c_str())),
         Nothing<std::string>());
   }
 
@@ -774,18 +785,22 @@ Maybe<std::string> Intl::CanonicalizeLanguageTag(Isolate* isolate,
   if (U_FAILURE(error) || icu_locale.isBogus()) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
-        NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),
+        NewRangeError(
+            MessageTemplate::kInvalidLanguageTag,
+            isolate->factory()->NewStringFromAsciiChecked(locale.c_str())),
         Nothing<std::string>());
   }
   Maybe<std::string> maybe_to_language_tag = Intl::ToLanguageTag(icu_locale);
   if (maybe_to_language_tag.IsNothing()) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
-        NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),
+        NewRangeError(
+            MessageTemplate::kInvalidLanguageTag,
+            isolate->factory()->NewStringFromAsciiChecked(locale.c_str())),
         Nothing<std::string>());
   }
 
-  return Intl::ToLanguageTag(icu_locale);
+  return maybe_to_language_tag;
 }
 
 Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
@@ -994,11 +1009,14 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
                                                Handle<Object> num,
                                                Handle<Object> locales,
                                                Handle<Object> options) {
-  Handle<Object> number_obj;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, number_obj,
-                             Object::ToNumber(isolate, num), String);
-
-  double number = number_obj->Number();
+  Handle<Object> numeric_obj;
+  if (FLAG_harmony_intl_bigint) {
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, numeric_obj,
+                               Object::ToNumeric(isolate, num), String);
+  } else {
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, numeric_obj,
+                               Object::ToNumber(isolate, num), String);
+  }
 
   // We only cache the instance when both locales and options are undefined,
   // as that is the only case when the specified side-effects of examining
@@ -1011,8 +1029,8 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
             Isolate::ICUObjectCacheType::kDefaultNumberFormat));
     // We may use the cached icu::NumberFormat for a fast path.
     if (cached_number_format != nullptr) {
-      return JSNumberFormat::FormatNumber(isolate, *cached_number_format,
-                                          number);
+      return JSNumberFormat::FormatNumeric(isolate, *cached_number_format,
+                                           numeric_obj);
     }
   }
 
@@ -1036,7 +1054,8 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
   // Return FormatNumber(numberFormat, x).
   icu::NumberFormat* icu_number_format =
       number_format->icu_number_format()->raw();
-  return JSNumberFormat::FormatNumber(isolate, *icu_number_format, number);
+  return JSNumberFormat::FormatNumeric(isolate, *icu_number_format,
+                                       numeric_obj);
 }
 
 namespace {
@@ -1710,9 +1729,9 @@ MaybeHandle<String> Intl::Normalize(Isolate* isolate, Handle<String> string,
 // functionality in a straightforward way.
 class ICUTimezoneCache : public base::TimezoneCache {
  public:
-  ICUTimezoneCache() : timezone_(nullptr) { Clear(); }
+  ICUTimezoneCache() : timezone_(nullptr) { Clear(TimeZoneDetection::kSkip); }
 
-  ~ICUTimezoneCache() override { Clear(); };
+  ~ICUTimezoneCache() override { Clear(TimeZoneDetection::kSkip); }
 
   const char* LocalTimezone(double time_ms) override;
 
@@ -1720,7 +1739,7 @@ class ICUTimezoneCache : public base::TimezoneCache {
 
   double LocalTimeOffset(double time_ms, bool is_utc) override;
 
-  void Clear() override;
+  void Clear(TimeZoneDetection time_zone_detection) override;
 
  private:
   icu::TimeZone* GetTimeZone();
@@ -1793,11 +1812,14 @@ double ICUTimezoneCache::LocalTimeOffset(double time_ms, bool is_utc) {
   return raw_offset + dst_offset;
 }
 
-void ICUTimezoneCache::Clear() {
+void ICUTimezoneCache::Clear(TimeZoneDetection time_zone_detection) {
   delete timezone_;
   timezone_ = nullptr;
   timezone_name_.clear();
   dst_timezone_name_.clear();
+  if (time_zone_detection == TimeZoneDetection::kRedetect) {
+    icu::TimeZone::adoptDefault(icu::TimeZone::detectHostTimeZone());
+  }
 }
 
 base::TimezoneCache* Intl::CreateTimeZoneCache() {
@@ -1840,6 +1862,18 @@ Intl::HourCycle Intl::ToHourCycle(const std::string& hc) {
   if (hc == "h23") return Intl::HourCycle::kH23;
   if (hc == "h24") return Intl::HourCycle::kH24;
   return Intl::HourCycle::kUndefined;
+}
+
+const std::set<std::string>& Intl::GetAvailableLocalesForLocale() {
+  static base::LazyInstance<Intl::AvailableLocales<icu::Locale>>::type
+      available_locales = LAZY_INSTANCE_INITIALIZER;
+  return available_locales.Pointer()->Get();
+}
+
+const std::set<std::string>& Intl::GetAvailableLocalesForDateFormat() {
+  static base::LazyInstance<Intl::AvailableLocales<icu::DateFormat>>::type
+      available_locales = LAZY_INSTANCE_INITIALIZER;
+  return available_locales.Pointer()->Get();
 }
 
 }  // namespace internal

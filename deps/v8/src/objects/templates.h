@@ -224,13 +224,6 @@ class FunctionTemplateInfo : public TemplateInfo {
   static MaybeHandle<Name> TryGetCachedPropertyName(Isolate* isolate,
                                                     Handle<Object> getter);
 
- private:
-  static inline FunctionTemplateRareData EnsureFunctionTemplateRareData(
-      Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info);
-
-  static FunctionTemplateRareData AllocateFunctionTemplateRareData(
-      Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info);
-
   // Bit position in the flag, from least significant bit position.
   static const int kHiddenPrototypeBit = 0;
   static const int kUndetectableBit = 1;
@@ -239,6 +232,13 @@ class FunctionTemplateInfo : public TemplateInfo {
   static const int kRemovePrototypeBit = 4;
   static const int kDoNotCacheBit = 5;
   static const int kAcceptAnyReceiver = 6;
+
+ private:
+  static inline FunctionTemplateRareData EnsureFunctionTemplateRareData(
+      Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info);
+
+  static FunctionTemplateRareData AllocateFunctionTemplateRareData(
+      Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info);
 
   OBJECT_CONSTRUCTORS(FunctionTemplateInfo, TemplateInfo);
 };
@@ -277,7 +277,7 @@ class ObjectTemplateInfo : public TemplateInfo {
   class EmbedderFieldCount
       : public BitField<int, IsImmutablePrototype::kNext, 29> {};
 
-  OBJECT_CONSTRUCTORS(ObjectTemplateInfo, TemplateInfo)
+  OBJECT_CONSTRUCTORS(ObjectTemplateInfo, TemplateInfo);
 };
 
 }  // namespace internal

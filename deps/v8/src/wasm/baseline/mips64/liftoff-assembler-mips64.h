@@ -1094,7 +1094,7 @@ inline FPUCondition ConditionToConditionCmpFPU(bool& predicate,
   UNREACHABLE();
 }
 
-};  // namespace liftoff
+}  // namespace liftoff
 
 void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
                                          DoubleRegister lhs,
@@ -1308,7 +1308,7 @@ void LiftoffStackSlots::Construct() {
       case LiftoffAssembler::VarState::kRegister:
         liftoff::push(asm_, src.reg(), src.type());
         break;
-      case LiftoffAssembler::VarState::KIntConst: {
+      case LiftoffAssembler::VarState::kIntConst: {
         asm_->li(kScratchReg, Operand(src.i32_const()));
         asm_->push(kScratchReg);
         break;

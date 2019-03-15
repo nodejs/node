@@ -3,6 +3,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import argparse
 import os
 import sys
@@ -160,9 +163,9 @@ class UploadCL(Step):
                      cq=self._options.use_commit_queue,
                      cq_dry_run=self._options.use_dry_run,
                      cwd=cwd)
-      print "CL uploaded."
+      print("CL uploaded.")
     else:
-      print "Dry run - don't upload."
+      print("Dry run - don't upload.")
 
     self.GitCheckout("master", cwd=cwd)
     self.GitDeleteBranch("work-branch", cwd=cwd)
@@ -205,7 +208,7 @@ class AutoRoll(ScriptsBase):
 
   def _ProcessOptions(self, options):  # pragma: no cover
     if not options.author or not options.reviewer:
-      print "A reviewer (-r) and an author (-a) are required."
+      print("A reviewer (-r) and an author (-a) are required.")
       return False
 
     options.requires_editor = False

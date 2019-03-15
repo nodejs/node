@@ -195,7 +195,8 @@ class UnallocatedOperand final : public InstructionOperand {
       : UnallocatedOperand(virtual_register) {
     DCHECK(policy == FIXED_SLOT);
     value_ |= BasicPolicyField::encode(policy);
-    value_ |= static_cast<int64_t>(index) << FixedSlotIndexField::kShift;
+    value_ |= static_cast<uint64_t>(static_cast<int64_t>(index))
+              << FixedSlotIndexField::kShift;
     DCHECK(this->fixed_slot_index() == index);
   }
 
@@ -306,7 +307,7 @@ class UnallocatedOperand final : public InstructionOperand {
     return LifetimeField::decode(value_) == USED_AT_START;
   }
 
-  INSTRUCTION_OPERAND_CASTS(UnallocatedOperand, UNALLOCATED);
+  INSTRUCTION_OPERAND_CASTS(UnallocatedOperand, UNALLOCATED)
 
   // The encoding used for UnallocatedOperand operands depends on the policy
   // that is
@@ -369,7 +370,7 @@ class ConstantOperand : public InstructionOperand {
     return InstructionOperand::New(zone, ConstantOperand(virtual_register));
   }
 
-  INSTRUCTION_OPERAND_CASTS(ConstantOperand, CONSTANT);
+  INSTRUCTION_OPERAND_CASTS(ConstantOperand, CONSTANT)
 
   STATIC_ASSERT(KindField::kSize == 3);
   class VirtualRegisterField : public BitField64<uint32_t, 3, 32> {};
@@ -382,7 +383,8 @@ class ImmediateOperand : public InstructionOperand {
   explicit ImmediateOperand(ImmediateType type, int32_t value)
       : InstructionOperand(IMMEDIATE) {
     value_ |= TypeField::encode(type);
-    value_ |= static_cast<int64_t>(value) << ValueField::kShift;
+    value_ |= static_cast<uint64_t>(static_cast<int64_t>(value))
+              << ValueField::kShift;
   }
 
   ImmediateType type() const { return TypeField::decode(value_); }
@@ -401,7 +403,7 @@ class ImmediateOperand : public InstructionOperand {
     return InstructionOperand::New(zone, ImmediateOperand(type, value));
   }
 
-  INSTRUCTION_OPERAND_CASTS(ImmediateOperand, IMMEDIATE);
+  INSTRUCTION_OPERAND_CASTS(ImmediateOperand, IMMEDIATE)
 
   STATIC_ASSERT(KindField::kSize == 3);
   class TypeField : public BitField64<ImmediateType, 3, 1> {};
@@ -420,7 +422,8 @@ class LocationOperand : public InstructionOperand {
     DCHECK(IsSupportedRepresentation(rep));
     value_ |= LocationKindField::encode(location_kind);
     value_ |= RepresentationField::encode(rep);
-    value_ |= static_cast<int64_t>(index) << IndexField::kShift;
+    value_ |= static_cast<uint64_t>(static_cast<int64_t>(index))
+              << IndexField::kShift;
   }
 
   int index() const {
@@ -518,7 +521,7 @@ class V8_EXPORT_PRIVATE ExplicitOperand
     return InstructionOperand::New(zone, ExplicitOperand(kind, rep, index));
   }
 
-  INSTRUCTION_OPERAND_CASTS(ExplicitOperand, EXPLICIT);
+  INSTRUCTION_OPERAND_CASTS(ExplicitOperand, EXPLICIT)
 };
 
 class AllocatedOperand : public LocationOperand {
@@ -531,7 +534,7 @@ class AllocatedOperand : public LocationOperand {
     return InstructionOperand::New(zone, AllocatedOperand(kind, rep, index));
   }
 
-  INSTRUCTION_OPERAND_CASTS(AllocatedOperand, ALLOCATED);
+  INSTRUCTION_OPERAND_CASTS(AllocatedOperand, ALLOCATED)
 };
 
 #undef INSTRUCTION_OPERAND_CASTS
@@ -971,6 +974,11 @@ class RpoNumber final {
   bool IsNext(const RpoNumber other) const {
     DCHECK(IsValid());
     return other.index_ == this->index_ + 1;
+  }
+
+  RpoNumber Next() const {
+    DCHECK(IsValid());
+    return RpoNumber(index_ + 1);
   }
 
   // Comparison operators.

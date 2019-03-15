@@ -1946,7 +1946,7 @@ Matcher<Node*> IsTailCall(
         IrOpcode::k##opcode, hint_matcher, lhs_matcher, rhs_matcher,          \
         effect_matcher, control_matcher));                                    \
   }
-SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DEFINE_SPECULATIVE_BINOP_MATCHER);
+SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DEFINE_SPECULATIVE_BINOP_MATCHER)
 DEFINE_SPECULATIVE_BINOP_MATCHER(SpeculativeNumberEqual)
 DEFINE_SPECULATIVE_BINOP_MATCHER(SpeculativeNumberLessThan)
 DEFINE_SPECULATIVE_BINOP_MATCHER(SpeculativeNumberLessThanOrEqual)

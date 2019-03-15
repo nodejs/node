@@ -126,13 +126,6 @@ test(function() {
   [].join(o);
 }, "Cannot convert object to primitive value", TypeError);
 
-// kCircularStructure
-test(function() {
-  var o = {};
-  o.o = o;
-  JSON.stringify(o);
-}, "Converting circular structure to JSON", TypeError);
-
 // kConstructorNotFunction
 test(function() {
   Map();

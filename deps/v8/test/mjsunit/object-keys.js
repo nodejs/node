@@ -4,6 +4,31 @@
 
 // Flags: --allow-natives-syntax
 
+// Ensure empty keys are handled properly
+(function() {
+  const a = {};
+  let k = Object.keys(a);
+  %HeapObjectVerify(k);
+  assertEquals(0, k.length);
+})();
+
+// Ensure non-enumerable keys are handled properly
+(function() {
+  const a = {};
+  Object.defineProperty(a, 'x', {
+    value: 1,
+    enumerable: false
+  });
+  let k = Object.keys(a);
+  %HeapObjectVerify(k);
+  assertEquals(0, k.length);
+
+  a.y = 2;
+  k = Object.keys(a);
+  %HeapObjectVerify(k);
+  assertEquals(1, k.length);
+})();
+
 // Ensure that mutation of the Object.keys result doesn't affect the
 // enumeration cache for fast-mode objects.
 (function() {

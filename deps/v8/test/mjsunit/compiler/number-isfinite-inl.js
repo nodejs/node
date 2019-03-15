@@ -22,6 +22,7 @@ function test(f) {
   assertFalse(Number.isFinite(-1 / 0));
 }
 
+%PrepareFunctionForOptimization(test);
 test();
 test();
 %OptimizeFunctionOnNextCall(test);
@@ -48,6 +49,7 @@ function test2(f) {
   assertFalse(Number.isFinite(-1 / 0));
 }
 
+%PrepareFunctionForOptimization(test2);
 test2();
 test2();
 %OptimizeFunctionOnNextCall(test2);

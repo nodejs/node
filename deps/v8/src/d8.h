@@ -94,7 +94,8 @@ class SourceGroup {
 
   void End(int offset) { end_offset_ = offset; }
 
-  void Execute(Isolate* isolate);
+  // Returns true on success, false if an uncaught exception was thrown.
+  bool Execute(Isolate* isolate);
 
   void StartExecuteInThread();
   void WaitForThread();
@@ -417,7 +418,7 @@ class Shell : public i::AllStatic {
   static void OnExit(Isolate* isolate);
   static void CollectGarbage(Isolate* isolate);
   static bool EmptyMessageQueues(Isolate* isolate);
-  static void CompleteMessageLoop(Isolate* isolate);
+  static bool CompleteMessageLoop(Isolate* isolate);
 
   static std::unique_ptr<SerializationData> SerializeValue(
       Isolate* isolate, Local<Value> value, Local<Value> transfer);

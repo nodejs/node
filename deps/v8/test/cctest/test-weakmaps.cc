@@ -29,6 +29,7 @@
 
 #include "src/global-handles.h"
 #include "src/heap/factory.h"
+#include "src/heap/heap-inl.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/hash-table-inl.h"
@@ -173,7 +174,7 @@ TEST(Regress2060a) {
     HandleScope scope(isolate);
     for (int i = 0; i < 32; i++) {
       Handle<JSObject> object = factory->NewJSObject(function, TENURED);
-      CHECK(!Heap::InNewSpace(*object));
+      CHECK(!Heap::InYoungGeneration(*object));
       CHECK(!first_page->Contains(object->address()));
       int32_t hash = key->GetOrCreateHash(isolate)->value();
       JSWeakCollection::Set(weakmap, key, object, hash);
@@ -211,7 +212,7 @@ TEST(Regress2060b) {
   Handle<JSObject> keys[32];
   for (int i = 0; i < 32; i++) {
     keys[i] = factory->NewJSObject(function, TENURED);
-    CHECK(!Heap::InNewSpace(*keys[i]));
+    CHECK(!Heap::InYoungGeneration(*keys[i]));
     CHECK(!first_page->Contains(keys[i]->address()));
   }
   Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
@@ -245,6 +246,39 @@ TEST(Regress399527) {
   // the object unreachable. Aborting incremental marking will clear all the
   // marking bits which makes the weak map garbage.
   CcTest::CollectAllGarbage();
+}
+
+TEST(WeakMapsWithChainedEntries) {
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  i::Isolate* i_isolate = CcTest::i_isolate();
+  v8::HandleScope scope(isolate);
+
+  const int initial_gc_count = i_isolate->heap()->gc_count();
+  Handle<JSWeakMap> weakmap1 = i_isolate->factory()->NewJSWeakMap();
+  Handle<JSWeakMap> weakmap2 = i_isolate->factory()->NewJSWeakMap();
+  v8::Global<v8::Object> g1;
+  v8::Global<v8::Object> g2;
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Object> o1 = v8::Object::New(isolate);
+    g1.Reset(isolate, o1);
+    g1.SetWeak();
+    v8::Local<v8::Object> o2 = v8::Object::New(isolate);
+    g2.Reset(isolate, o2);
+    g2.SetWeak();
+    Handle<Object> i_o1 = v8::Utils::OpenHandle(*o1);
+    Handle<Object> i_o2 = v8::Utils::OpenHandle(*o2);
+    int32_t hash1 = i_o1->GetOrCreateHash(i_isolate)->value();
+    int32_t hash2 = i_o2->GetOrCreateHash(i_isolate)->value();
+    JSWeakCollection::Set(weakmap1, i_o1, i_o2, hash1);
+    JSWeakCollection::Set(weakmap2, i_o2, i_o1, hash2);
+  }
+  CcTest::CollectGarbage(OLD_SPACE);
+  CHECK(g1.IsEmpty());
+  CHECK(g2.IsEmpty());
+  CHECK_EQ(1, i_isolate->heap()->gc_count() - initial_gc_count);
 }
 
 }  // namespace test_weakmaps

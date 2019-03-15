@@ -7,6 +7,7 @@
 (function() {
   const p = Promise.resolve(1);
   function foo(p) { return p.then(); }
+  %PrepareFunctionForOptimization(foo);
   foo(p);
   foo(p);
   %OptimizeFunctionOnNextCall(foo);
@@ -16,6 +17,7 @@
 (function() {
   const p = Promise.resolve(1);
   function foo(p) { return p.then(x => x); }
+  %PrepareFunctionForOptimization(foo);
   foo(p);
   foo(p);
   %OptimizeFunctionOnNextCall(foo);
@@ -25,6 +27,7 @@
 (function() {
   const p = Promise.resolve(1);
   function foo(p) { return p.then(x => x, y => y); }
+  %PrepareFunctionForOptimization(foo);
   foo(p);
   foo(p);
   %OptimizeFunctionOnNextCall(foo);
@@ -34,6 +37,7 @@
 (function() {
   const p = Promise.resolve(1);
   function foo(p, f) { return p.then(f, f); }
+  %PrepareFunctionForOptimization(foo);
   foo(p, x => x);
   foo(p, x => x);
   %OptimizeFunctionOnNextCall(foo);
@@ -43,6 +47,7 @@
 (function() {
   const p = Promise.resolve(1);
   function foo(p, f) { return p.then(f, f).then(f, f); }
+  %PrepareFunctionForOptimization(foo);
   foo(p, x => x);
   foo(p, x => x);
   %OptimizeFunctionOnNextCall(foo);

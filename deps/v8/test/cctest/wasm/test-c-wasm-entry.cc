@@ -109,7 +109,7 @@ TEST(TestCWasmEntryArgPassing_int32) {
         return base::AddWithWraparound(base::MulWithWraparound(2, a), 1);
       });
 
-  FOR_INT32_INPUTS(v) { tester.CheckCall(*v); }
+  FOR_INT32_INPUTS(v) { tester.CheckCall(v); }
 }
 
 // Pass int64_t, return double.
@@ -119,7 +119,7 @@ TEST(TestCWasmEntryArgPassing_double_int64) {
        WASM_F64_SCONVERT_I64(WASM_GET_LOCAL(0))},
       [](int64_t a) { return static_cast<double>(a); });
 
-  FOR_INT64_INPUTS(v) { tester.CheckCall(*v); }
+  FOR_INT64_INPUTS(v) { tester.CheckCall(v); }
 }
 
 // Pass double, return int64_t.
@@ -129,7 +129,7 @@ TEST(TestCWasmEntryArgPassing_int64_double) {
        WASM_I64_SCONVERT_F64(WASM_GET_LOCAL(0))},
       [](double d) { return static_cast<int64_t>(d); });
 
-  FOR_INT64_INPUTS(i) { tester.CheckCall(*i); }
+  FOR_INT64_INPUTS(i) { tester.CheckCall(i); }
 }
 
 // Pass float, return double.
@@ -141,7 +141,7 @@ TEST(TestCWasmEntryArgPassing_float_double) {
            WASM_F64(1))},
       [](float f) { return 2. * static_cast<double>(f) + 1.; });
 
-  FOR_FLOAT32_INPUTS(f) { tester.CheckCall(*f); }
+  FOR_FLOAT32_INPUTS(f) { tester.CheckCall(f); }
 }
 
 // Pass two doubles, return double.
@@ -152,7 +152,7 @@ TEST(TestCWasmEntryArgPassing_double_double) {
       [](double a, double b) { return a + b; });
 
   FOR_FLOAT64_INPUTS(d1) {
-    FOR_FLOAT64_INPUTS(d2) { tester.CheckCall(*d1, *d2); }
+    FOR_FLOAT64_INPUTS(d2) { tester.CheckCall(d1, d2); }
   }
 }
 

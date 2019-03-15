@@ -47,7 +47,7 @@ void TurboAssemblerBase::IndirectLoadConstant(Register destination,
     LoadRootRelative(destination,
                      RootRegisterOffsetForBuiltinIndex(maybe_builtin_index_));
   } else {
-    CHECK(isolate()->ShouldLoadConstantsFromRootList());
+    CHECK(isolate()->IsGeneratingEmbeddedBuiltins());
     // Ensure the given object is in the builtins constants table and fetch its
     // index.
     BuiltinsConstantsTableBuilder* builder =

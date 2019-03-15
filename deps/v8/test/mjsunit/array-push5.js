@@ -14,6 +14,7 @@ my_array_proto.__proto__ = [].__proto__;
 function push_wrapper_2(array, value) {
   array.push(value);
 }
+%PrepareFunctionForOptimization(push_wrapper_2);
 array = [];
 array.__proto__ = my_array_proto;
 push_wrapper_2(array, 66);

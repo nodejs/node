@@ -46,20 +46,17 @@ FEATURE_FLAGS = {
   'class-static-fields-public': '--harmony-class-fields',
   'class-fields-private': '--harmony-private-fields',
   'class-static-fields-private': '--harmony-private-fields',
-  'Array.prototype.flat': '--harmony-array-flat',
-  'Array.prototype.flatMap': '--harmony-array-flat',
   'String.prototype.matchAll': '--harmony-string-matchall',
   'Symbol.matchAll': '--harmony-string-matchall',
   'numeric-separator-literal': '--harmony-numeric-separator',
-  'Intl.ListFormat': '--harmony-intl-list-format',
   'Intl.Locale': '--harmony-locale',
-  'Intl.RelativeTimeFormat': '--harmony-intl-relative-time-format',
   'Intl.Segmenter': '--harmony-intl-segmenter',
   'Symbol.prototype.description': '--harmony-symbol-description',
   'globalThis': '--harmony-global',
   'well-formed-json-stringify': '--harmony-json-stringify',
   'export-star-as-namespace-from-module': '--harmony-namespace-exports',
   'Object.fromEntries': '--harmony-object-from-entries',
+  'hashbang': '--harmony-hashbang',
 }
 
 SKIPPED_FEATURES = set(['class-methods-private',
@@ -75,9 +72,6 @@ TEST_262_SUITE_PATH = ["data", "test"]
 TEST_262_HARNESS_PATH = ["data", "harness"]
 TEST_262_TOOLS_PATH = ["harness", "src"]
 TEST_262_LOCAL_TESTS_PATH = ["local-tests", "test"]
-
-TEST_262_RELPATH_REGEXP = re.compile(
-    r'.*[\\/]test[\\/]test262[\\/][^\\/]+[\\/]test[\\/](.*)\.js')
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              *TEST_262_TOOLS_PATH))
@@ -106,18 +100,38 @@ class VariantsGenerator(testsuite.VariantsGenerator):
           yield (variant, flags + ['--use-strict'], 'strict-%d' % n + phase_var)
 
 
-class TestSuite(testsuite.TestSuite):
-  # Match the (...) in '/path/to/v8/test/test262/subdir/test/(...).js'
-  # In practice, subdir is data or local-tests
+class TestLoader(testsuite.JSTestLoader):
+  @property
+  def test_dirs(self):
+    return [
+      self.test_root,
+      os.path.join(self.suite.root, *TEST_262_LOCAL_TESTS_PATH),
+    ]
 
+  @property
+  def excluded_suffixes(self):
+    return {"_FIXTURE.js"}
+
+  @property
+  def excluded_dirs(self):
+    return {"intl402"} if self.test_config.noi18n else set()
+
+  def _should_filter_by_test(self, test):
+    features = test.test_record.get("features", [])
+    return SKIPPED_FEATURES.intersection(features)
+
+
+class TestSuite(testsuite.TestSuite):
   def __init__(self, *args, **kwargs):
     super(TestSuite, self).__init__(*args, **kwargs)
-    self.testroot = os.path.join(self.root, *TEST_262_SUITE_PATH)
+    self.test_root = os.path.join(self.root, *TEST_262_SUITE_PATH)
+    # TODO: this makes the TestLoader mutable, refactor it.
+    self._test_loader.test_root = self.test_root
     self.harnesspath = os.path.join(self.root, *TEST_262_HARNESS_PATH)
     self.harness = [os.path.join(self.harnesspath, f)
                     for f in TEST_262_HARNESS_FILES]
     self.harness += [os.path.join(self.root, "harness-adapt.js")]
-    self.localtestroot = os.path.join(self.root, *TEST_262_LOCAL_TESTS_PATH)
+    self.local_test_root = os.path.join(self.root, *TEST_262_LOCAL_TESTS_PATH)
     self.parse_test_record = self._load_parse_test_record()
 
   def _load_parse_test_record(self):
@@ -135,28 +149,8 @@ class TestSuite(testsuite.TestSuite):
       if f:
         f.close()
 
-  def ListTests(self):
-    testnames = set()
-    for dirname, dirs, files in itertools.chain(os.walk(self.testroot),
-                                                os.walk(self.localtestroot)):
-      for dotted in [x for x in dirs if x.startswith(".")]:
-        dirs.remove(dotted)
-      if self.test_config.noi18n and "intl402" in dirs:
-        dirs.remove("intl402")
-      dirs.sort()
-      files.sort()
-      for filename in files:
-        if not filename.endswith(".js"):
-          continue
-        if filename.endswith("_FIXTURE.js"):
-          continue
-        fullpath = os.path.join(dirname, filename)
-        relpath = re.match(TEST_262_RELPATH_REGEXP, fullpath).group(1)
-        testnames.add(relpath.replace(os.path.sep, "/"))
-    cases = map(self._create_test, testnames)
-    return [case for case in cases if len(
-                SKIPPED_FEATURES.intersection(
-                    case.test_record.get("features", []))) == 0]
+  def _test_loader_class(self):
+    return TestLoader
 
   def _test_class(self):
     return TestCase
@@ -198,11 +192,15 @@ class TestCase(testcase.D8TestCase):
   def _fail_phase_reverse(self):
     return 'fail-phase-reverse' in self.procid
 
+  def __needs_harness_agent(self):
+    tokens = self.path.split(os.path.sep)
+    return tokens[:2] == ["built-ins", "Atomics"]
+
   def _get_files_params(self):
     return (
         list(self.suite.harness) +
         ([os.path.join(self.suite.root, "harness-agent.js")]
-         if self.path.startswith('built-ins/Atomics') else []) +
+         if self.__needs_harness_agent() else []) +
         ([os.path.join(self.suite.root, "harness-adapt-donotevaluate.js")]
          if self.fail_phase_only and not self._fail_phase_reverse else []) +
         self._get_includes() +
@@ -233,10 +231,10 @@ class TestCase(testcase.D8TestCase):
 
   def _get_source_path(self):
     filename = self.path + self._get_suffix()
-    path = os.path.join(self.suite.localtestroot, filename)
+    path = os.path.join(self.suite.local_test_root, filename)
     if os.path.exists(path):
       return path
-    return os.path.join(self.suite.testroot, filename)
+    return os.path.join(self.suite.test_root, filename)
 
   @property
   def output_proc(self):

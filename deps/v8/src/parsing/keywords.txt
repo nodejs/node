@@ -35,6 +35,7 @@ false, Token::FALSE_LITERAL
 finally, Token::FINALLY
 for, Token::FOR
 function, Token::FUNCTION
+get, Token::GET
 if, Token::IF
 implements, Token::FUTURE_STRICT_RESERVED_WORD
 import, Token::IMPORT
@@ -49,6 +50,7 @@ private, Token::FUTURE_STRICT_RESERVED_WORD
 protected, Token::FUTURE_STRICT_RESERVED_WORD
 public, Token::FUTURE_STRICT_RESERVED_WORD
 return, Token::RETURN
+set, Token::SET
 static, Token::STATIC
 super, Token::SUPER
 switch, Token::SWITCH

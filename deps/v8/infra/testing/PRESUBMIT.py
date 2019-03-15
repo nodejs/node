@@ -11,6 +11,10 @@ For simplicity, we check all pyl files on any changes in this folder.
 import ast
 import os
 
+try:
+  basestring       # Python 2
+except NameError:  # Python 3
+  basestring = str
 
 SUPPORTED_BUILDER_SPEC_KEYS = [
   'swarming_dimensions',

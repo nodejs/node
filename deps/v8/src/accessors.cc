@@ -9,6 +9,7 @@
 #include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
+#include "src/field-index-inl.h"
 #include "src/frames-inl.h"
 #include "src/heap/factory.h"
 #include "src/isolate-inl.h"
@@ -796,7 +797,8 @@ MaybeHandle<JSReceiver> ClearInternalStackTrace(Isolate* isolate,
       isolate,
       Object::SetProperty(
           isolate, error, isolate->factory()->stack_trace_symbol(),
-          isolate->factory()->undefined_value(), LanguageMode::kStrict),
+          isolate->factory()->undefined_value(), StoreOrigin::kMaybeKeyed,
+          Just(ShouldThrow::kThrowOnError)),
       JSReceiver);
   return error;
 }

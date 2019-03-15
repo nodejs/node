@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --concurrent-recompilation
+// Flags: --concurrent-recompilation --turbo-inlining
 // Flags: --allow-natives-syntax --no-always-opt
 
 if (!%IsConcurrentRecompilationSupported()) {

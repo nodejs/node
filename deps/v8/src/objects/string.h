@@ -52,7 +52,6 @@ class StringShape {
   inline StringRepresentationTag representation_tag();
   inline uint32_t encoding_tag();
   inline uint32_t full_representation_tag();
-  inline bool HasOnlyOneByteChars();
 #ifdef DEBUG
   inline uint32_t type() { return type_; }
   inline void invalidate() { valid_ = false; }
@@ -167,10 +166,6 @@ class String : public Name {
   // This function is static because that helps it get inlined.
   // Requires: string.IsFlat()
   static inline bool IsOneByteRepresentationUnderneath(String string);
-
-  // NOTE: this should be considered only a hint.  False negatives are
-  // possible.
-  inline bool HasOnlyOneByteChars();
 
   // Get and set individual two byte chars in the string.
   inline void Set(int index, uint16_t value);
@@ -450,7 +445,7 @@ class String : public Name {
   V8_EXPORT_PRIVATE bool SlowAsArrayIndex(uint32_t* index);
 
   // Compute and set the hash code.
-  uint32_t ComputeAndSetHash(Isolate* isolate);
+  uint32_t ComputeAndSetHash();
 
   OBJECT_CONSTRUCTORS(String, Name);
 };

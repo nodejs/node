@@ -563,7 +563,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kFloat64Pow: {
       Float64BinopMatcher m(node);
       if (m.IsFoldable()) {
-        return ReplaceFloat64(Pow(m.left().Value(), m.right().Value()));
+        return ReplaceFloat64(
+            base::ieee754::pow(m.left().Value(), m.right().Value()));
       } else if (m.right().Is(0.0)) {  // x ** +-0.0 => 1.0
         return ReplaceFloat64(1.0);
       } else if (m.right().Is(-2.0)) {  // x ** -2.0 => 1 / (x * x)
@@ -1395,8 +1396,7 @@ namespace {
 bool IsFloat64RepresentableAsFloat32(const Float64Matcher& m) {
   if (m.HasValue()) {
     double v = m.Value();
-    float fv = static_cast<float>(v);
-    return static_cast<double>(fv) == v;
+    return DoubleToFloat32(v) == v;
   }
   return false;
 }
@@ -1461,7 +1461,7 @@ Reduction MachineOperatorReducer::ReduceFloat64RoundDown(Node* node) {
   DCHECK_EQ(IrOpcode::kFloat64RoundDown, node->opcode());
   Float64Matcher m(node->InputAt(0));
   if (m.HasValue()) {
-    return ReplaceFloat64(Floor(m.Value()));
+    return ReplaceFloat64(std::floor(m.Value()));
   }
   return NoChange();
 }

@@ -44,10 +44,15 @@
 }],  # 'arch == s390 or arch == s390x'
 
 ##############################################################################
-['lite_mode', {
+['lite_mode or variant == jitless', {
   # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
   '*': [SKIP],
-}], # lite_mode
+}], # lite_mode or variant == jitless
+
+##############################################################################
+['variant == jitless and not embedded_builtins', {
+  '*': [SKIP],
+}], # variant == jitless and not embedded_builtins
 
 
 ]

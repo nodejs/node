@@ -1,0 +1,107 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-typed-array-gen.h'
+
+namespace typed_array_slice {
+  const kBuiltinName: constexpr string = '%TypedArray%.prototype.slice';
+
+  extern macro TypedArrayBuiltinsAssembler::CallCCopyTypedArrayElementsSlice(
+      JSTypedArray, JSTypedArray, intptr, intptr): void;
+
+  macro FastCopy(
+      src: typed_array::AttachedJSTypedArray, dest: JSTypedArray, k: intptr,
+      count: PositiveSmi) labels IfSlow {
+    GotoIfForceSlowPath() otherwise IfSlow;
+
+    const srcKind: ElementsKind = src.elements_kind;
+    const destInfo = typed_array::GetTypedArrayElementsInfo(dest);
+
+    // dest could be a different type from src or share the same buffer
+    // with the src because of custom species constructor. If the types
+    // of src and result array are the same and they are not sharing the
+    // same buffer, use memmove.
+    if (srcKind != destInfo.kind) goto IfSlow;
+    if (BitcastTaggedToWord(dest.buffer) == BitcastTaggedToWord(src.buffer)) {
+      goto IfSlow;
+    }
+
+    const countBytes: uintptr =
+        destInfo.CalculateByteLength(count) otherwise unreachable;
+    const startOffset: uintptr =
+        destInfo.CalculateByteLength(Convert<PositiveSmi>(k))
+        otherwise unreachable;
+    const srcPtr: RawPtr = src.data_ptr + Convert<intptr>(startOffset);
+
+    assert(countBytes <= dest.byte_length);
+    assert(countBytes <= src.byte_length - startOffset);
+
+    typed_array::CallCMemmove(dest.data_ptr, srcPtr, countBytes);
+  }
+
+  macro SlowCopy(implicit context: Context)(
+      src: JSTypedArray, dest: JSTypedArray, k: intptr, final: intptr) {
+    if (typed_array::IsBigInt64ElementsKind(src.elements_kind) !=
+        typed_array::IsBigInt64ElementsKind(dest.elements_kind))
+      deferred {
+        ThrowTypeError(kBigIntMixedTypes);
+      }
+
+    CallCCopyTypedArrayElementsSlice(src, dest, k, final);
+  }
+
+  // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.slice
+  transitioning javascript builtin TypedArrayPrototypeSlice(
+      context: Context, receiver: Object, ...arguments): Object {
+    // arguments[0] = start
+    // arguments[1] = end
+
+    // 1. Let O be the this value.
+    // 2. Perform ? ValidateTypedArray(O).
+    const src: JSTypedArray =
+        typed_array::ValidateTypedArray(context, receiver, kBuiltinName);
+
+    // 3. Let len be O.[[ArrayLength]].
+    const len = Convert<intptr>(src.length);
+
+    // 4. Let relativeStart be ? ToInteger(start).
+    // 5. If relativeStart < 0, let k be max((len + relativeStart), 0);
+    //    else let k be min(relativeStart, len).
+    const start = arguments[0];
+    const k: intptr =
+        start != Undefined ? ConvertToRelativeIndex(start, len) : 0;
+
+    // 6. If end is undefined, let relativeEnd be len;
+    //    else let relativeEnd be ? ToInteger(end).
+    // 7. If relativeEnd < 0, let final be max((len + relativeEnd), 0);
+    //    else let final be min(relativeEnd, len).
+    const end = arguments[1];
+    const final: intptr =
+        end != Undefined ? ConvertToRelativeIndex(end, len) : len;
+
+    // 8. Let count be max(final - k, 0).
+    const count = Convert<PositiveSmi>(IntPtrMax(final - k, 0));
+
+    // 9. Let A be ? TypedArraySpeciesCreate(O, « count »).
+    const dest: JSTypedArray =
+        typed_array_createtypedarray::TypedArraySpeciesCreateByLength(
+            kBuiltinName, src, count);
+
+    if (count > 0) {
+      try {
+        const srcAttached = typed_array::EnsureAttached(src)
+            otherwise IfDetached;
+        FastCopy(srcAttached, dest, k, count) otherwise IfSlow;
+      }
+      label IfDetached deferred {
+        ThrowTypeError(kDetachedOperation, kBuiltinName);
+      }
+      label IfSlow deferred {
+        SlowCopy(src, dest, k, final);
+      }
+    }
+
+    return dest;
+  }
+}

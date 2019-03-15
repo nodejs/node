@@ -50,7 +50,7 @@ class PromiseReactionJobTask : public Microtask {
   DECL_CAST(PromiseReactionJobTask)
   DECL_VERIFIER(PromiseReactionJobTask)
 
-  OBJECT_CONSTRUCTORS(PromiseReactionJobTask, Microtask)
+  OBJECT_CONSTRUCTORS(PromiseReactionJobTask, Microtask);
 };
 
 // Struct to hold state required for a PromiseReactionJob of type "Fulfill".
@@ -61,7 +61,7 @@ class PromiseFulfillReactionJobTask : public PromiseReactionJobTask {
   DECL_PRINTER(PromiseFulfillReactionJobTask)
   DECL_VERIFIER(PromiseFulfillReactionJobTask)
 
-  OBJECT_CONSTRUCTORS(PromiseFulfillReactionJobTask, PromiseReactionJobTask)
+  OBJECT_CONSTRUCTORS(PromiseFulfillReactionJobTask, PromiseReactionJobTask);
 };
 
 // Struct to hold state required for a PromiseReactionJob of type "Reject".
@@ -72,7 +72,7 @@ class PromiseRejectReactionJobTask : public PromiseReactionJobTask {
   DECL_PRINTER(PromiseRejectReactionJobTask)
   DECL_VERIFIER(PromiseRejectReactionJobTask)
 
-  OBJECT_CONSTRUCTORS(PromiseRejectReactionJobTask, PromiseReactionJobTask)
+  OBJECT_CONSTRUCTORS(PromiseRejectReactionJobTask, PromiseReactionJobTask);
 };
 
 // A container struct to hold state required for PromiseResolveThenableJob.
@@ -101,7 +101,7 @@ class PromiseResolveThenableJobTask : public Microtask {
   DECL_PRINTER(PromiseResolveThenableJobTask)
   DECL_VERIFIER(PromiseResolveThenableJobTask)
 
-  OBJECT_CONSTRUCTORS(PromiseResolveThenableJobTask, Microtask)
+  OBJECT_CONSTRUCTORS(PromiseResolveThenableJobTask, Microtask);
 };
 
 // Struct to hold the state of a PromiseCapability.
@@ -111,16 +111,8 @@ class PromiseCapability : public Struct {
   DECL_ACCESSORS(resolve, Object)
   DECL_ACCESSORS(reject, Object)
 
-// Layout description.
-#define PROMISE_CAPABILITY_FIELDS(V) \
-  V(kPromiseOffset, kTaggedSize)     \
-  V(kResolveOffset, kTaggedSize)     \
-  V(kRejectOffset, kTaggedSize)      \
-  /* Total size. */                  \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, PROMISE_CAPABILITY_FIELDS)
-#undef PROMISE_CAPABILITY_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
+                                TORQUE_GENERATED_PROMISE_CAPABILITY_FIELDS)
 
   // Dispatched behavior.
   DECL_CAST(PromiseCapability)
@@ -158,17 +150,8 @@ class PromiseReaction : public Struct {
   // a PromiseCapability (general case), or undefined (in case of await).
   DECL_ACCESSORS(promise_or_capability, HeapObject)
 
-// Layout description.
-#define PROMISE_REACTION_FIELDS(V)           \
-  V(kNextOffset, kTaggedSize)                \
-  V(kRejectHandlerOffset, kTaggedSize)       \
-  V(kFulfillHandlerOffset, kTaggedSize)      \
-  V(kPromiseOrCapabilityOffset, kTaggedSize) \
-  /* Total size. */                          \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, PROMISE_REACTION_FIELDS)
-#undef PROMISE_REACTION_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
+                                TORQUE_GENERATED_PROMISE_REACTION_FIELDS)
 
   // Dispatched behavior.
   DECL_CAST(PromiseReaction)

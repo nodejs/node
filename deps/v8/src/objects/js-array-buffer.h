@@ -189,7 +189,7 @@ class JSTypedArray : public JSArrayBufferView {
   // ES6 9.4.5.3
   V8_WARN_UNUSED_RESULT static Maybe<bool> DefineOwnProperty(
       Isolate* isolate, Handle<JSTypedArray> o, Handle<Object> key,
-      PropertyDescriptor* desc, ShouldThrow should_throw);
+      PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw);
 
   DECL_CAST(JSTypedArray)
 
@@ -210,10 +210,10 @@ class JSTypedArray : public JSArrayBufferView {
   DECL_VERIFIER(JSTypedArray)
 
 // Layout description.
-#define JS_TYPED_ARRAY_FIELDS(V)       \
-  /* Raw data fields. */               \
-  V(kLengthOffset, kSystemPointerSize) \
-  /* Header size. */                   \
+#define JS_TYPED_ARRAY_FIELDS(V) \
+  /* Raw data fields. */         \
+  V(kLengthOffset, kTaggedSize)  \
+  /* Header size. */             \
   V(kHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSArrayBufferView::kHeaderSize,

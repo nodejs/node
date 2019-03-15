@@ -10,6 +10,7 @@
 
   function foo() { return new A; }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), A);
   assertEquals(0, foo().length);
   assertInstanceof(foo(), A);
@@ -26,6 +27,7 @@
 
   function foo() { return new A(L); }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), A);
   assertEquals(L, foo().length);
   assertInstanceof(foo(), A);
@@ -42,6 +44,7 @@
 
   function foo() { return new A(L); }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), A);
   assertEquals(L, foo().length);
   assertInstanceof(foo(), A);
@@ -57,6 +60,7 @@
 
   function foo() { return new A(true); }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), A);
   assertEquals(1, foo().length);
   assertEquals(true, foo()[0]);
@@ -75,6 +79,7 @@
 
   function foo() { return new A(""); }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), A);
   assertEquals(1, foo().length);
   assertEquals("", foo()[0]);
@@ -94,6 +99,7 @@
 
   function foo() { return new A(O); }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), A);
   assertEquals(1, foo().length);
   assertSame(O, foo()[0]);
@@ -112,6 +118,7 @@
 
   function foo() { return new A(1, 2, 3); }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), A);
   assertEquals(3, foo().length);
   assertEquals(1, foo()[0]);
@@ -131,6 +138,7 @@
 
   function foo() { return new A(1.1, 2.2, 3.3); }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), A);
   assertEquals(3, foo().length);
   assertEquals(1.1, foo()[0]);
@@ -150,6 +158,7 @@
 
   function foo() { return new A("a", "b", "c", "d"); }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), A);
   assertEquals(4, foo().length);
   assertEquals("a", foo()[0]);
@@ -176,6 +185,7 @@
 
   function foo() { return new A; }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), A);
   assertEquals(0, foo().length);
   assertEquals(1, foo().bar);
@@ -200,6 +210,7 @@
 
   function foo() { return new A(L); }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), A);
   assertEquals(L, foo().length);
   assertEquals(1, foo().bar);
@@ -224,6 +235,7 @@
 
   function foo() { return new A(L); }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), A);
   assertEquals(L, foo().length);
   assertEquals(1, foo().bar);
@@ -247,6 +259,7 @@
 
   function foo() { return new A(true); }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), A);
   assertEquals(1, foo().length);
   assertEquals(true, foo()[0]);
@@ -273,6 +286,7 @@
 
   function foo() { return new A(""); }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), A);
   assertEquals(1, foo().length);
   assertEquals("", foo()[0]);
@@ -300,6 +314,7 @@
 
   function foo() { return new A(O); }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), A);
   assertEquals(1, foo().length);
   assertSame(O, foo()[0]);
@@ -326,6 +341,7 @@
 
   function foo() { return new A(1, 2, 3); }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), A);
   assertEquals(3, foo().length);
   assertEquals(1, foo()[0]);
@@ -352,6 +368,7 @@
 
   function foo() { return new A(1.1, 2.2, 3.3); }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), A);
   assertEquals(3, foo().length);
   assertEquals(1.1, foo()[0]);
@@ -378,6 +395,7 @@
 
   function foo() { return new A("a", "b", "c", "d"); }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), A);
   assertEquals(4, foo().length);
   assertEquals("a", foo()[0]);

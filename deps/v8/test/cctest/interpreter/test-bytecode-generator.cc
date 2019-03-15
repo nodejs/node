@@ -91,6 +91,7 @@ class InitializedIgnitionHandleScope : public InitializedHandleScope {
   InitializedIgnitionHandleScope() {
     i::FLAG_always_opt = false;
     i::FLAG_allow_natives_syntax = true;
+    i::FLAG_enable_lazy_source_positions = false;
   }
 };
 
@@ -2420,7 +2421,7 @@ TEST(WideRegisters) {
   // Prepare prologue that creates frame for lots of registers.
   std::ostringstream os;
   for (size_t i = 0; i < 157; ++i) {
-    os << "var x" << i << ";\n";
+    os << "var x" << i << " = 0;\n";
   }
   std::string prologue(os.str());
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array {
+namespace array_slice {
   macro HandleSimpleArgumentsSlice(
       context: Context, args: JSArgumentsObjectWithLength, start: Smi,
       count: Smi): JSArray
@@ -43,13 +43,13 @@ namespace array {
     // defined arguments
     const end: Smi = start + count;
     const unmappedElements: FixedArray =
-        Cast<FixedArray>(sloppyElements[kSloppyArgumentsArgumentsIndex])
+        Cast<FixedArray>(sloppyElements.objects[kSloppyArgumentsArgumentsIndex])
         otherwise Bailout;
     const unmappedElementsLength: Smi = unmappedElements.length;
     if (SmiAbove(end, unmappedElementsLength)) goto Bailout;
 
-    const argumentsContext: Context =
-        UnsafeCast<Context>(sloppyElements[kSloppyArgumentsContextIndex]);
+    const argumentsContext: Context = UnsafeCast<Context>(
+        sloppyElements.objects[kSloppyArgumentsContextIndex]);
 
     const arrayMap: Map = LoadJSArrayElementsMap(HOLEY_ELEMENTS, context);
     const result: JSArray =
@@ -62,10 +62,10 @@ namespace array {
     // Fill in the part of the result that map to context-mapped parameters.
     for (let current: Smi = start; current < to; ++current) {
       const e: Object =
-          sloppyElements[current + kSloppyArgumentsParameterMapStart];
+          sloppyElements.objects[current + kSloppyArgumentsParameterMapStart];
       const newElement: Object = e != Hole ?
           argumentsContext[UnsafeCast<Smi>(e)] :
-          unmappedElements[current];
+          unmappedElements.objects[current];
       StoreFixedArrayElementSmi(
           resultElements, indexOut++, newElement, SKIP_WRITE_BARRIER);
     }
@@ -193,7 +193,7 @@ namespace array {
         const kValue: Object = GetProperty(o, pK);
 
         // ii. Perform ? CreateDataPropertyOrThrow(A, ! ToString(n), kValue).
-        CreateDataProperty(a, n, kValue);
+        FastCreateDataProperty(a, n, kValue);
       }
 
       // d. Increase k by 1.

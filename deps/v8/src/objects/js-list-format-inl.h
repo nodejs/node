@@ -48,7 +48,7 @@ inline JSListFormat::Type JSListFormat::type() const {
   return TypeBits::decode(flags());
 }
 
-CAST_ACCESSOR(JSListFormat);
+CAST_ACCESSOR(JSListFormat)
 
 }  // namespace internal
 }  // namespace v8

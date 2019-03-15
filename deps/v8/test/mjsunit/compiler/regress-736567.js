@@ -15,6 +15,7 @@ function g() {
   f(0, "s");
 }
 
+%PrepareFunctionForOptimization(g);
 assertThrows(g);
 %OptimizeFunctionOnNextCall(g);
 assertThrows(g);

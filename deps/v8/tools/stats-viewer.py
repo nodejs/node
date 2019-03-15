@@ -34,6 +34,9 @@ The stats viewer reads counters from a binary file and displays them
 in a window, re-reading and re-displaying with regular intervals.
 """
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import mmap
 import optparse
 import os
@@ -100,7 +103,7 @@ class StatsViewer(object):
     if not os.path.exists(self.data_name):
       maps_name = "/proc/%s/maps" % self.data_name
       if not os.path.exists(maps_name):
-        print "\"%s\" is neither a counter file nor a PID." % self.data_name
+        print("\"%s\" is neither a counter file nor a PID." % self.data_name)
         sys.exit(1)
       maps_file = open(maps_name, "r")
       try:
@@ -110,7 +113,7 @@ class StatsViewer(object):
             self.data_name = m.group(0)
             break
         if self.data_name is None:
-          print "Can't find counter file in maps for PID %s." % self.data_name
+          print("Can't find counter file in maps for PID %s." % self.data_name)
           sys.exit(1)
       finally:
         maps_file.close()
@@ -123,7 +126,7 @@ class StatsViewer(object):
       return CounterCollection(data_access)
     elif data_access.IntAt(0) == CHROME_COUNTERS_FILE_MAGIC_NUMBER:
       return ChromeCounterCollection(data_access)
-    print "File %s is not stats data." % self.data_name
+    print("File %s is not stats data." % self.data_name)
     sys.exit(1)
 
   def CleanUp(self):
@@ -143,7 +146,7 @@ class StatsViewer(object):
       self.RefreshCounters()
       changed = True
     else:
-      for i in xrange(self.data.CountersInUse()):
+      for i in range(self.data.CountersInUse()):
         counter = self.data.Counter(i)
         name = counter.Name()
         if name in self.ui_counters:
@@ -188,7 +191,7 @@ class StatsViewer(object):
       sorted by prefix.
     """
     names = {}
-    for i in xrange(self.data.CountersInUse()):
+    for i in range(self.data.CountersInUse()):
       counter = self.data.Counter(i)
       name = counter.Name()
       names[name] = counter
@@ -233,7 +236,7 @@ class StatsViewer(object):
                              text=counter_name)
         name.grid(row=index, column=0, padx=1, pady=1)
       count = len(counter_objs)
-      for i in xrange(count):
+      for i in range(count):
         counter = counter_objs[i]
         name = counter.Name()
         var = Tkinter.StringVar()
@@ -435,7 +438,7 @@ class ChromeCounterCollection(object):
 
   def CountersInUse(self):
     """Return the number of counters in active use."""
-    for i in xrange(self.max_counters):
+    for i in range(self.max_counters):
       name_offset = self.counter_names_offset + i * self._COUNTER_NAME_SIZE
       if self.data.ByteAt(name_offset) == 0:
         return i

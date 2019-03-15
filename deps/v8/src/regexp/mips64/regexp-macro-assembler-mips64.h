@@ -12,7 +12,6 @@
 namespace v8 {
 namespace internal {
 
-#ifndef V8_INTERPRETED_REGEXP
 class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
  public:
   RegExpMacroAssemblerMIPS(Isolate* isolate, Zone* zone, Mode mode,
@@ -222,9 +221,6 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   Label stack_overflow_label_;
   Label internal_failure_label_;
 };
-
-#endif  // V8_INTERPRETED_REGEXP
-
 
 }  // namespace internal
 }  // namespace v8

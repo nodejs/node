@@ -19,7 +19,6 @@
 namespace v8 {
 namespace internal {
 
-#ifndef V8_INTERPRETED_REGEXP
 /*
  * This assembler uses the following register assignment convention
  * - r6: Temporarily stores the index of capture start after a matching pass
@@ -357,7 +356,6 @@ void RegExpMacroAssemblerS390::CheckNotBackReference(int start_reg,
                                                      bool read_backward,
                                                      Label* on_no_match) {
   Label fallthrough;
-  Label success;
 
   // Find length of back-referenced capture.
   __ LoadP(r2, register_location(start_reg));
@@ -903,7 +901,6 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
   if (stack_overflow_label_.is_linked()) {
     SafeCallTarget(&stack_overflow_label_);
     // Reached if the backtrack-stack limit has been hit.
-    Label grow_failed;
 
     // Call GrowStack(backtrack_stackpointer(), &stack_base)
     static const int num_arguments = 3;
@@ -1073,7 +1070,7 @@ void RegExpMacroAssemblerS390::WriteStackPointerToRegister(int reg) {
 // Private methods:
 
 void RegExpMacroAssemblerS390::CallCheckStackGuardState(Register scratch) {
-  DCHECK(!isolate()->ShouldLoadConstantsFromRootList());
+  DCHECK(!isolate()->IsGeneratingEmbeddedBuiltins());
   DCHECK(!masm_->options().isolate_independent_code);
 
   static constexpr int num_arguments = 3;
@@ -1293,7 +1290,6 @@ void RegExpMacroAssemblerS390::LoadCurrentCharacterUnchecked(int cp_offset,
 
 #undef __
 
-#endif  // V8_INTERPRETED_REGEXP
 }  // namespace internal
 }  // namespace v8
 

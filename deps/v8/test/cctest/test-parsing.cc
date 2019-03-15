@@ -50,6 +50,7 @@
 #include "src/parsing/rewriter.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/token.h"
+#include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/scope-test-helper.h"
@@ -91,6 +92,8 @@ TEST(AutoSemicolonToken) {
 bool TokenIsAnyIdentifier(Token::Value token) {
   switch (token) {
     case Token::IDENTIFIER:
+    case Token::GET:
+    case Token::SET:
     case Token::ASYNC:
     case Token::AWAIT:
     case Token::YIELD:
@@ -115,6 +118,8 @@ bool TokenIsCallable(Token::Value token) {
   switch (token) {
     case Token::SUPER:
     case Token::IDENTIFIER:
+    case Token::GET:
+    case Token::SET:
     case Token::ASYNC:
     case Token::AWAIT:
     case Token::YIELD:
@@ -139,6 +144,8 @@ bool TokenIsValidIdentifier(Token::Value token, LanguageMode language_mode,
                             bool is_generator, bool disallow_await) {
   switch (token) {
     case Token::IDENTIFIER:
+    case Token::GET:
+    case Token::SET:
     case Token::ASYNC:
       return true;
     case Token::YIELD:
@@ -613,9 +620,8 @@ TEST(ScanHTMLEndComments) {
     i::Scanner scanner(stream.get(), false);
     scanner.Initialize();
     i::Zone zone(i_isolate->allocator(), ZONE_NAME);
-    i::AstValueFactory ast_value_factory(&zone,
-                                         i_isolate->ast_string_constants(),
-                                         i_isolate->heap()->HashSeed());
+    i::AstValueFactory ast_value_factory(
+        &zone, i_isolate->ast_string_constants(), HashSeed(i_isolate));
     i::PendingCompilationErrorHandler pending_error_handler;
     i::PreParser preparser(&zone, &scanner, stack_limit, &ast_value_factory,
                            &pending_error_handler,
@@ -632,9 +638,8 @@ TEST(ScanHTMLEndComments) {
     i::Scanner scanner(stream.get(), false);
     scanner.Initialize();
     i::Zone zone(i_isolate->allocator(), ZONE_NAME);
-    i::AstValueFactory ast_value_factory(&zone,
-                                         i_isolate->ast_string_constants(),
-                                         i_isolate->heap()->HashSeed());
+    i::AstValueFactory ast_value_factory(
+        &zone, i_isolate->ast_string_constants(), HashSeed(i_isolate));
     i::PendingCompilationErrorHandler pending_error_handler;
     i::PreParser preparser(&zone, &scanner, stack_limit, &ast_value_factory,
                            &pending_error_handler,
@@ -705,9 +710,8 @@ TEST(StandAlonePreParser) {
     scanner.Initialize();
 
     i::Zone zone(i_isolate->allocator(), ZONE_NAME);
-    i::AstValueFactory ast_value_factory(&zone,
-                                         i_isolate->ast_string_constants(),
-                                         i_isolate->heap()->HashSeed());
+    i::AstValueFactory ast_value_factory(
+        &zone, i_isolate->ast_string_constants(), HashSeed(i_isolate));
     i::PendingCompilationErrorHandler pending_error_handler;
     i::PreParser preparser(&zone, &scanner, stack_limit, &ast_value_factory,
                            &pending_error_handler,
@@ -725,8 +729,8 @@ TEST(StandAlonePreParserNoNatives) {
   v8::V8::Initialize();
 
   i::Isolate* isolate = CcTest::i_isolate();
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(
-      i::GetCurrentStackPosition() - 128 * 1024);
+  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+                                        128 * 1024);
 
   const char* programs[] = {"%ArgleBargle(glop);", "var x = %_IsSmi(42);",
                             nullptr};
@@ -738,10 +742,9 @@ TEST(StandAlonePreParserNoNatives) {
     scanner.Initialize();
 
     // Preparser defaults to disallowing natives syntax.
-    i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-    i::AstValueFactory ast_value_factory(
-        &zone, CcTest::i_isolate()->ast_string_constants(),
-        CcTest::i_isolate()->heap()->HashSeed());
+    i::Zone zone(isolate->allocator(), ZONE_NAME);
+    i::AstValueFactory ast_value_factory(&zone, isolate->ast_string_constants(),
+                                         HashSeed(isolate));
     i::PendingCompilationErrorHandler pending_error_handler;
     i::PreParser preparser(&zone, &scanner, stack_limit, &ast_value_factory,
                            &pending_error_handler,
@@ -772,15 +775,14 @@ TEST(RegressChromium62639) {
   auto stream = i::ScannerStream::ForTesting(program);
   i::Scanner scanner(stream.get(), false);
   scanner.Initialize();
-  i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-  i::AstValueFactory ast_value_factory(
-      &zone, CcTest::i_isolate()->ast_string_constants(),
-      CcTest::i_isolate()->heap()->HashSeed());
+  i::Zone zone(isolate->allocator(), ZONE_NAME);
+  i::AstValueFactory ast_value_factory(&zone, isolate->ast_string_constants(),
+                                       HashSeed(isolate));
   i::PendingCompilationErrorHandler pending_error_handler;
-  i::PreParser preparser(
-      &zone, &scanner, CcTest::i_isolate()->stack_guard()->real_climit(),
-      &ast_value_factory, &pending_error_handler,
-      isolate->counters()->runtime_call_stats(), isolate->logger());
+  i::PreParser preparser(&zone, &scanner, isolate->stack_guard()->real_climit(),
+                         &ast_value_factory, &pending_error_handler,
+                         isolate->counters()->runtime_call_stats(),
+                         isolate->logger());
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
   // Even in the case of a syntax error, kPreParseSuccess is returned.
   CHECK_EQ(i::PreParser::kPreParseSuccess, result);
@@ -807,10 +809,9 @@ TEST(PreParseOverflow) {
   i::Scanner scanner(stream.get(), false);
   scanner.Initialize();
 
-  i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-  i::AstValueFactory ast_value_factory(
-      &zone, CcTest::i_isolate()->ast_string_constants(),
-      CcTest::i_isolate()->heap()->HashSeed());
+  i::Zone zone(isolate->allocator(), ZONE_NAME);
+  i::AstValueFactory ast_value_factory(&zone, isolate->ast_string_constants(),
+                                       HashSeed(isolate));
   i::PendingCompilationErrorHandler pending_error_handler;
   i::PreParser preparser(
       &zone, &scanner, stack_limit, &ast_value_factory, &pending_error_handler,
@@ -845,19 +846,9 @@ TEST(StreamScanner) {
   std::unique_ptr<i::Utf16CharacterStream> stream1(
       i::ScannerStream::ForTesting(str1));
   i::Token::Value expectations1[] = {
-      i::Token::LBRACE,
-      i::Token::IDENTIFIER,
-      i::Token::IDENTIFIER,
-      i::Token::FOR,
-      i::Token::COLON,
-      i::Token::MUL,
-      i::Token::DIV,
-      i::Token::LT,
-      i::Token::SUB,
-      i::Token::IDENTIFIER,
-      i::Token::EOS,
-      i::Token::ILLEGAL
-  };
+      i::Token::LBRACE, i::Token::IDENTIFIER, i::Token::GET, i::Token::FOR,
+      i::Token::COLON,  i::Token::MUL,        i::Token::DIV, i::Token::LT,
+      i::Token::SUB,    i::Token::IDENTIFIER, i::Token::EOS, i::Token::ILLEGAL};
   TestStreamScanner(stream1.get(), expectations1, 0, 0);
 
   const char* str2 = "case default const {THIS\nPART\nSKIPPED} do";
@@ -911,7 +902,7 @@ void TestScanRegExp(const char* re_source, const char* expected) {
   i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   i::AstValueFactory ast_value_factory(
       &zone, CcTest::i_isolate()->ast_string_constants(),
-      CcTest::i_isolate()->heap()->HashSeed());
+      HashSeed(CcTest::i_isolate()));
   const i::AstRawString* current_symbol =
       scanner.CurrentSymbol(&ast_value_factory);
   ast_value_factory.Internalize(CcTest::i_isolate());
@@ -1101,8 +1092,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
       if ((source_data[i].expected & THIS) != 0) {
         // Currently the is_used() flag is conservative; all variables in a
         // script scope are marked as used.
-        CHECK(scope->LookupForTesting(info.ast_value_factory()->this_string())
-                  ->is_used());
+        CHECK(scope->GetReceiverScope()->receiver()->is_used());
       }
       if (is_sloppy(scope->language_mode())) {
         CHECK_EQ((source_data[i].expected & EVAL) != 0,
@@ -1596,10 +1586,9 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     std::unique_ptr<i::Utf16CharacterStream> stream(
         i::ScannerStream::For(isolate, source));
     i::Scanner scanner(stream.get(), is_module);
-    i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-    i::AstValueFactory ast_value_factory(
-        &zone, CcTest::i_isolate()->ast_string_constants(),
-        CcTest::i_isolate()->heap()->HashSeed());
+    i::Zone zone(isolate->allocator(), ZONE_NAME);
+    i::AstValueFactory ast_value_factory(&zone, isolate->ast_string_constants(),
+                                         HashSeed(isolate));
     i::PreParser preparser(&zone, &scanner, stack_limit, &ast_value_factory,
                            &pending_error_handler,
                            isolate->counters()->runtime_call_stats(),
@@ -3118,8 +3107,7 @@ TEST(FuncNameInferrerBasic) {
   ExpectString("Ctor()", "Ctor.foo5");
   ExpectString("%FunctionGetInferredName(obj1.foo6)", "obj1.foo6");
   ExpectString("%FunctionGetInferredName(obj2.foo7)", "obj2.foo7");
-  ExpectString("%FunctionGetInferredName(obj3[1])",
-               "obj3.(anonymous function)");
+  ExpectString("%FunctionGetInferredName(obj3[1])", "obj3.<computed>");
   ExpectString("%FunctionGetInferredName(obj4[1])", "");
   ExpectString("%FunctionGetInferredName(obj5['foo9'])", "obj5.foo9");
   ExpectString("%FunctionGetInferredName(obj6.obj7.foo10)", "obj6.obj7.foo10");
@@ -3236,7 +3224,7 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
   i::Context context = f->context();
   i::AstValueFactory avf(&zone, isolate->ast_string_constants(),
-                         isolate->heap()->HashSeed());
+                         HashSeed(isolate));
   const i::AstRawString* name = avf.GetOneByteString("result");
   avf.Internalize(isolate);
   i::Handle<i::String> str = name->string();
@@ -3286,7 +3274,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
   i::Context context = f->context();
   i::AstValueFactory avf(&zone, isolate->ast_string_constants(),
-                         isolate->heap()->HashSeed());
+                         HashSeed(isolate));
   const i::AstRawString* name_x = avf.GetOneByteString("x");
   avf.Internalize(isolate);
 
@@ -3473,7 +3461,6 @@ TEST(InnerAssignment) {
         i::Variable* var = scope->LookupForTesting(var_name);
         bool expected = outers[i].assigned || inners[j].assigned;
         CHECK_NOT_NULL(var);
-        CHECK(var->is_used() || !expected);
         bool is_maybe_assigned = var->maybe_assigned() == i::kMaybeAssigned;
         CHECK(is_maybe_assigned == expected ||
               (is_maybe_assigned && inners[j].allow_error_in_inner_function));
@@ -3615,7 +3602,7 @@ static void TestMaybeAssigned(Input input, const char* variable, bool module,
   }
 
   CHECK_NOT_NULL(var);
-  CHECK(var->is_used());
+  CHECK_IMPLIES(input.assigned, var->is_used());
   STATIC_ASSERT(true == i::kMaybeAssigned);
   CHECK_EQ(input.assigned, var->maybe_assigned() == i::kMaybeAssigned);
 }
@@ -4202,7 +4189,7 @@ namespace {
 i::Scope* DeserializeFunctionScope(i::Isolate* isolate, i::Zone* zone,
                                    i::Handle<i::JSObject> m, const char* name) {
   i::AstValueFactory avf(zone, isolate->ast_string_constants(),
-                         isolate->heap()->HashSeed());
+                         HashSeed(isolate));
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(
       i::JSReceiver::GetProperty(isolate, m, name).ToHandleChecked());
   i::DeclarationScope* script_scope =
@@ -5622,6 +5609,8 @@ TEST(PrivateMembersInNonClassNoErrors) {
                                    {"function() {", "}"},
                                    {"() => {", "}"},
                                    {"class C { test() {", "} }"},
+                                   {"const {", "} = {}"},
+                                   {"({", "} = {})"},
                                    {nullptr, nullptr}};
   const char* class_body_data[] = {
     "#a = 1",
@@ -6086,7 +6075,7 @@ TEST(PrivateStaticClassFieldsErrors) {
 TEST(PrivateNameNoErrors) {
   // clang-format off
   const char* context_data[][2] = {
-      {"", ""},
+      {"class X { bar() { ", " } }"},
       {"\"use strict\";", ""},
       {nullptr, nullptr}
   };
@@ -6138,6 +6127,9 @@ TEST(PrivateNameErrors) {
   // clang-format off
   const char* context_data[][2] = {
       {"", ""},
+      {"function t() { ", " }"},
+      {"var t => { ", " }"},
+      {"var t = { [ ", " ] }"},
       {"\"use strict\";", ""},
       {nullptr, nullptr}
   };
@@ -7599,7 +7591,7 @@ TEST(ModuleParsingInternals) {
         i::VariableLocation::MODULE);
 
   CHECK(declarations->AtForTest(7)->var()->raw_name()->IsOneByteEqualTo(
-      "*default*"));
+      ".default"));
   CHECK(declarations->AtForTest(7)->var()->mode() == i::VariableMode::kConst);
   CHECK(declarations->AtForTest(7)->var()->binding_needs_init());
   CHECK(declarations->AtForTest(7)->var()->location() ==
@@ -7688,7 +7680,7 @@ TEST(ModuleParsingInternals) {
   entry = descriptor->regular_exports()
               .find(declarations->AtForTest(7)->var()->raw_name())
               ->second;
-  CheckEntry(entry, "default", "*default*", nullptr, -1);
+  CheckEntry(entry, "default", ".default", nullptr, -1);
   entry = descriptor->regular_exports()
               .find(declarations->AtForTest(12)->var()->raw_name())
               ->second;
@@ -9385,11 +9377,10 @@ TEST(EscapedKeywords) {
     "class C { st\\u0061tic *bar() {} }",
     "class C { st\\u0061tic get bar() {} }",
     "class C { st\\u0061tic set bar() {} }",
-
-    // TODO(adamk): These should not be errors in sloppy mode.
-    "(y\\u0069eld);",
-    "var y\\u0069eld = 1;",
-    "var { y\\u0069eld } = {};",
+    "(async ()=>{\\u0061wait 100})()",
+    "({\\u0067et get(){}})",
+    "({\\u0073et set(){}})",
+    "(async ()=>{var \\u0061wait = 100})()",
     nullptr
   };
   // clang-format on
@@ -9403,6 +9394,9 @@ TEST(EscapedKeywords) {
     "var l\\u0065t = 1;",
     "l\\u0065t = 1;",
     "(l\\u0065t === 1);",
+    "(y\\u0069eld);",
+    "var y\\u0069eld = 1;",
+    "var { y\\u0069eld } = {};",
     nullptr
   };
   // clang-format on
@@ -11297,7 +11291,7 @@ TEST(LexicalLoopVariable) {
   }
 }
 
-TEST(PrivateNamesSyntaxError) {
+TEST(PrivateNamesSyntaxErrorWithScopeAnalysis) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
   LocalContext env;
@@ -11379,21 +11373,8 @@ TEST(PrivateNamesSyntaxError) {
       "}",
   };
 
-  // TODO(gsathya): The preparser does not track unresolved
-  // variables in top level function which fails this test.
-  // https://bugs.chromium.org/p/v8/issues/detail?id=7468
-  const char* parser_data[] = {
-      "function t() {"
-      "  return this.#foo;"
-      "}",
-  };
-
   for (const char* source : data) {
     CHECK(test(source, true));
-    CHECK(test(source, false));
-  }
-
-  for (const char* source : parser_data) {
     CHECK(test(source, false));
   }
 }

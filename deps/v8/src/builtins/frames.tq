@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-type FrameType extends Smi
-    generates 'TNode<Smi>' constexpr 'StackFrame::Type';
+type FrameType extends Smi constexpr 'StackFrame::Type';
 const ARGUMENTS_ADAPTOR_FRAME: constexpr FrameType
     generates 'StackFrame::ARGUMENTS_ADAPTOR';
 const STUB_FRAME: constexpr FrameType
@@ -19,7 +18,7 @@ FromConstexpr<FrameType, constexpr FrameType>(t: constexpr FrameType):
   // up by a single bit.
   const i: constexpr uintptr = %RawConstexprCast<constexpr uintptr>(t)
       << kSmiTagSize;
-  return %RawObjectCast<FrameType>(BitcastWordToTaggedSigned(i));
+  return %RawDownCast<FrameType>(BitcastWordToTaggedSigned(i));
 }
 Cast<FrameType>(o: Object): FrameType
     labels CastError {
@@ -27,17 +26,13 @@ Cast<FrameType>(o: Object): FrameType
   assert(
       (Convert<uintptr>(BitcastTaggedToWord(o)) >>> kSmiTagSize) <
       kFrameTypeCount);
-  return %RawObjectCast<FrameType>(o);
+  return %RawDownCast<FrameType>(o);
 }
 
-type FrameBase extends RawPtr
-    generates 'TNode<RawPtrT>' constexpr 'void*';
-type StandardFrame extends FrameBase
-    generates 'TNode<RawPtrT>' constexpr 'void*';
-type ArgumentsAdaptorFrame extends FrameBase
-    generates 'TNode<RawPtrT>' constexpr 'void*';
-type StubFrame extends FrameBase
-    generates 'TNode<RawPtrT>' constexpr 'void*';
+type FrameBase extends RawPtr constexpr 'void*';
+type StandardFrame extends FrameBase constexpr 'void*';
+type ArgumentsAdaptorFrame extends FrameBase constexpr 'void*';
+type StubFrame extends FrameBase constexpr 'void*';
 type Frame = ArgumentsAdaptorFrame | StandardFrame | StubFrame;
 
 extern macro LoadFramePointer(): Frame;
@@ -57,18 +52,18 @@ macro LoadSmiFromFrame(f: Frame, o: constexpr int32): Smi {
 const kStandardFrameFunctionOffset: constexpr int31
     generates 'StandardFrameConstants::kFunctionOffset';
 operator '.function' macro LoadFunctionFromFrame(f: Frame): JSFunction {
-  // TODO(danno): Use RawObjectCast here in order to avoid passing the implicit
+  // TODO(danno): Use RawDownCast here in order to avoid passing the implicit
   // context, since this accessor is used in legacy CSA code through
   // LoadTargetFromFrame
   const result: Object = LoadObjectFromFrame(f, kStandardFrameFunctionOffset);
-  return %RawObjectCast<JSFunction>(result);
+  return %RawDownCast<JSFunction>(result);
 }
 
 const kStandardFrameCallerFPOffset: constexpr int31
     generates 'StandardFrameConstants::kCallerFPOffset';
 operator '.caller' macro LoadCallerFromFrame(f: Frame): Frame {
   const result: RawPtr = LoadPointerFromFrame(f, kStandardFrameCallerFPOffset);
-  return %RawPointerCast<Frame>(result);
+  return %RawDownCast<Frame>(result);
 }
 
 type ContextOrFrameType = Context | FrameType;
@@ -124,7 +119,7 @@ Cast<StandardFrame>(implicit context: Context)(f: Frame):
   // stack from generated code.
   // See the descriptions and frame layouts in src/frame-constants.h.
   if (IsContext(o)) {
-    return %RawPointerCast<StandardFrame>(f);
+    return %RawDownCast<StandardFrame>(f);
   }
   goto CastError;
 }
@@ -134,7 +129,7 @@ Cast<ArgumentsAdaptorFrame>(implicit context: Context)(f: Frame):
   const t: FrameType =
       Cast<FrameType>(f.context_or_frame_type) otherwise CastError;
   if (t == ARGUMENTS_ADAPTOR_FRAME) {
-    return %RawPointerCast<ArgumentsAdaptorFrame>(f);
+    return %RawDownCast<ArgumentsAdaptorFrame>(f);
   }
   goto CastError;
 }

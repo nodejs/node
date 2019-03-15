@@ -10,7 +10,7 @@
 #include "src/isolate.h"
 #include "src/objects.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/types-fuzz.h"
+#include "test/common/types-fuzz.h"
 
 namespace v8 {
 namespace internal {

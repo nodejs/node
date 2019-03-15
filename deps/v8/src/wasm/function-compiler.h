@@ -5,6 +5,7 @@
 #ifndef V8_WASM_FUNCTION_COMPILER_H_
 #define V8_WASM_FUNCTION_COMPILER_H_
 
+#include "src/code-desc.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-body-decoder.h"
@@ -60,8 +61,7 @@ struct WasmCompilationResult {
   CodeDesc code_desc;
   std::unique_ptr<uint8_t[]> instr_buffer;
   uint32_t frame_slot_count = 0;
-  size_t safepoint_table_offset = 0;
-  size_t handler_table_offset = 0;
+  uint32_t tagged_parameter_slots = 0;
   OwnedVector<byte> source_positions;
   OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions;
 
@@ -87,7 +87,8 @@ class WasmCompilationUnit final {
 
   WasmCode* Publish(WasmCompilationResult, NativeModule*);
 
-  ExecutionTier tier() const { return tier_; }
+  ExecutionTier requested_tier() const { return requested_tier_; }
+  ExecutionTier executed_tier() const { return executed_tier_; }
 
   static void CompileWasmFunction(Isolate*, NativeModule*,
                                   WasmFeatures* detected, const WasmFunction*,
@@ -99,8 +100,8 @@ class WasmCompilationUnit final {
 
   WasmEngine* const wasm_engine_;
   const int func_index_;
-  ExecutionTier tier_;
-  WasmCode* result_ = nullptr;
+  ExecutionTier requested_tier_;
+  ExecutionTier executed_tier_;
 
   // LiftoffCompilationUnit, set if {tier_ == kLiftoff}.
   std::unique_ptr<LiftoffCompilationUnit> liftoff_unit_;

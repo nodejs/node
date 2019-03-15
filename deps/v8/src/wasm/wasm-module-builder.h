@@ -9,6 +9,7 @@
 #include "src/zone/zone-containers.h"
 
 #include "src/v8memory.h"
+#include "src/vector.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/local-decl-encoder.h"
 #include "src/wasm/wasm-opcodes.h"

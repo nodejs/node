@@ -3,12 +3,6 @@
 	"name": "Torque",
 	"patterns": [
 		{
-			"include": "#keywords"
-		},
-		{
-			"include": "#strings"
-		},
-		{
 			"name": "comment.line.double-slash.torque",
 			"begin": "//",
 			"end": "$"
@@ -19,67 +13,160 @@
 			"end": "\\*/"
 		},
 		{
-			"name": "string.quoted.single.torque",
-			"begin": "'",
-			"end": "'",
-			"patterns": [
-				{
-					"name": "constant.character.escape.torque",
-					"match": "\\\\."
-				}]
-		},
-		{
 			"name": "support.function.torque",
 			"match": "\\b(assert|check|debug|unreachable|Cast|Convert|FromConstexpr|UnsafeCast)\\b"
 		},
-    {
-      "name": "support.variable.torque",
-      "match": "\\b(true|True|false|False|Undefined|Hole|Null)\\b"
-    },
-    {
-      "begin": "<(?=[A-Za-z][0-9A-Za-z_]*>)",
-      "end": ">",
-      "patterns": [
-        {
-          "name": "support.type.torque",
-          "match": "([A-Za-z][0-9A-Za-z_]*)"
-        }
-      ]
-    },
-    {
-      "begin": ":(\\s*)?",
-      "end": "(?=[^0-9A-Za-z_])",
-      "patterns": [
-        {
-          "name": "support.type.torque",
-          "match": "([A-Za-z][0-9A-Za-z_]*)"
-        }
-      ]
-    }
-	],
-	"repository": {
-		"keywords": {
-			"patterns": [{
-				"name": "keyword.control.torque",
-				"match": "\\b(if|else|while|for|return|continue|break|goto|otherwise|try|label|catch)\\b"
-			},
-			{
-				"name": "keyword.other.torque",
-				"match": "\\b(constexpr|module|macro|builtin|runtime|intrinsic|javascript|implicit|deferred|label|labels|tail|let|generates|type|struct|class|weak|extends|extern|const|typeswitch|case|transient|transitioning)\\b"
-			},
-			{
-				"name": "keyword.operator.torque",
-				"match": "\\b(=|\\*=)\\b"
-			}]
+		{
+			"name": "constant.other.torque",
+			"match": "\\b(true|True|false|False|Undefined|Hole|Null|k[A-Z][A-Za-z0-9]+)\\b"
 		},
-		"strings": {
-			"name": "string.quoted.double.torque",
-			"begin": "\"",
-			"end": "\"",
+		{
+			"begin": "\\b<(?=[A-Za-z][0-9A-Za-z_|, ]*>)",
+			"end": ">",
 			"patterns": [
 				{
-					"name": "constant.character.escape.torque",
-					"match": "\\\\."
+					"include": "#common"
+				},
+				{
+					"name": "support.type.torque",
+					"match": "([A-Za-z][0-9A-Za-z_]*)"
+				}
+			]
+		},
+		{
+			"begin": "\\b(?=extern\\b)",
+			"end": ";",
+			"patterns": [
+				{
+					"begin": "\\)\\(|(?=(\\b[a-zA-Z0-9_]+)\\((?!\\s*implicit))",
+					"end": "\\)",
+					"patterns": [
+						{
+							"include": "#common"
+						},
+						{
+							"name": "support.type.torque",
+							"match": "([A-Za-z][0-9A-Za-z_]*)"
+						}
+					]
+				},
+				{
+					"include": "#common"
+				}
+			]
+		},
+		{
+			"begin": "\\b(type)\\b",
+			"end": ";",
+			"captures": {
+				"1": {
+					"name": "keyword.other.torque"
+				}
+			},
+			"patterns": [
+				{
+					"include": "#common"
+				},
+				{
+					"name": "support.type.torque",
+					"match": "\\b([A-Za-z][0-9A-Za-z_]*)\\b"
+				}
+			]
+		},
+		{
+			"name": "keyword.control.torque",
+			"match": "#include"
+		},
+		{
+			"include": "#common"
+		}
+	],
+	"repository": {
+		"common": {
+			"patterns": [
+				{
+					"match": "\\b(extends)\\s+([A-Za-z0-9]+)",
+					"captures": {
+						"1": {
+							"name": "keyword.other.torque"
+						},
+						"2": {
+							"name": "support.type.torque"
+						}
+					}
+				},
+				{
+					"name": "keyword.control.torque",
+					"match": "\\b(if|else|while|for|return|continue|break|goto|otherwise|try|label|catch)\\b"
+				},
+				{
+					"name": "keyword.other.torque",
+					"match": "\\b(constexpr|macro|builtin|runtime|intrinsic|javascript|implicit|deferred|label|labels|tail|let|generates|weak|extern|const|typeswitch|case|transient|transitioning|operator|namespace)\\b"
+				},
+				{
+					"name": "keyword.operator.torque",
+					"match": "\\b(=|\\*=)\\b"
+				},
+				{
+					"match": "\\b(class)\\s+([A-Za-z0-9]+)",
+					"captures": {
+						"1": {
+							"name": "keyword.other.torque"
+						},
+						"2": {
+							"name": "support.type.torque"
+						}
+					}
+				},
+				{
+					"match": "\\b(struct)\\s+([A-Za-z0-9]+)",
+					"captures": {
+						"1": {
+							"name": "keyword.other.torque"
+						},
+						"2": {
+							"name": "support.type.torque"
+						}
+					}
+				},
+				{
+					"name": "string.quoted.double.torque",
+					"begin": "\"",
+					"end": "\"",
+					"patterns": [
+						{
+							"name": "constant.character.escape.torque",
+							"match": "\\\\."
+						}
+					]
+				},
+				{
+					"name": "string.quoted.single.torque",
+					"begin": "'",
+					"end": "'",
+					"patterns": [
+						{
+							"name": "constant.character.escape.torque",
+							"match": "\\\\."
+						}
+					]
+				},
+				{
+					"begin": ":(\\s*)?",
+					"end": "(?=(generates|[^0-9A-Za-z_| ]))",
+					"patterns": [
+						{
+							"include": "#common"
+						},
+						{
+							"name": "support.type.torque",
+							"match": "([A-Za-z][0-9A-Za-z_]*)"
+						}
+					]
+				},
+				{
+					"name": "support.function.torque",
+					"match": "\\b[A-Za-z0-9_]+\\b(?=(<[ ,:A-Za-z0-9_]+>)?\\()"
 				}
 			]
 		}

@@ -9,7 +9,6 @@
 // Note that results of this test are flaky by design. While the test is
 // deterministic with a fixed seed, bugs may introduce non-determinism.
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 const kDebug = false;

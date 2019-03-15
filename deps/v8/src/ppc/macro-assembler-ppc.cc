@@ -16,6 +16,7 @@
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
+#include "src/heap/heap-inl.h"  // For MemoryChunk.
 #include "src/macro-assembler.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
@@ -142,11 +143,6 @@ void TurboAssembler::LoadRootRegisterOffset(Register destination,
     mov(destination, Operand(offset));
     add(destination, kRootRegister, destination);
   }
-}
-
-void MacroAssembler::JumpToJSEntry(Register target) {
-  Move(ip, target);
-  Jump(ip);
 }
 
 void TurboAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
@@ -916,7 +912,7 @@ void TurboAssembler::LoadConstantPoolPointerRegisterFromCodeTargetAddress(
     Register code_target_address) {
   lwz(kConstantPoolRegister,
       MemOperand(code_target_address,
-                 Code::kConstantPoolOffset - Code::kHeaderSize));
+                 Code::kConstantPoolOffsetOffset - Code::kHeaderSize));
   add(kConstantPoolRegister, kConstantPoolRegister, code_target_address);
 }
 
@@ -1556,6 +1552,20 @@ void TurboAssembler::SubAndCheckForOverflow(Register dst, Register left,
   }
 }
 
+void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
+                                     unsigned higher_limit,
+                                     Label* on_in_range) {
+  Register scratch = r0;
+  if (lower_limit != 0) {
+    mov(scratch, Operand(lower_limit));
+    sub(scratch, value, scratch);
+    cmpli(scratch, Operand(higher_limit - lower_limit));
+  } else {
+    mov(scratch, Operand(higher_limit));
+    cmpl(value, scratch);
+  }
+  ble(on_in_range);
+}
 
 void MacroAssembler::TryDoubleToInt32Exact(Register result,
                                            DoubleRegister double_input,
@@ -2733,50 +2743,6 @@ void MacroAssembler::StoreByte(Register src, const MemOperand& mem,
   }
 }
 
-
-void MacroAssembler::LoadRepresentation(Register dst, const MemOperand& mem,
-                                        Representation r, Register scratch) {
-  DCHECK(!r.IsDouble());
-  if (r.IsInteger8()) {
-    LoadByte(dst, mem, scratch);
-    extsb(dst, dst);
-  } else if (r.IsUInteger8()) {
-    LoadByte(dst, mem, scratch);
-  } else if (r.IsInteger16()) {
-    LoadHalfWordArith(dst, mem, scratch);
-  } else if (r.IsUInteger16()) {
-    LoadHalfWord(dst, mem, scratch);
-#if V8_TARGET_ARCH_PPC64
-  } else if (r.IsInteger32()) {
-    LoadWordArith(dst, mem, scratch);
-#endif
-  } else {
-    LoadP(dst, mem, scratch);
-  }
-}
-
-
-void MacroAssembler::StoreRepresentation(Register src, const MemOperand& mem,
-                                         Representation r, Register scratch) {
-  DCHECK(!r.IsDouble());
-  if (r.IsInteger8() || r.IsUInteger8()) {
-    StoreByte(src, mem, scratch);
-  } else if (r.IsInteger16() || r.IsUInteger16()) {
-    StoreHalfWord(src, mem, scratch);
-#if V8_TARGET_ARCH_PPC64
-  } else if (r.IsInteger32()) {
-    StoreWord(src, mem, scratch);
-#endif
-  } else {
-    if (r.IsHeapObject()) {
-      AssertNotSmi(src);
-    } else if (r.IsSmi()) {
-      AssertSmi(src);
-    }
-    StoreP(src, mem, scratch);
-  }
-}
-
 void TurboAssembler::LoadDouble(DoubleRegister dst, const MemOperand& mem,
                                 Register scratch) {
   Register base = mem.ra();
@@ -2787,6 +2753,19 @@ void TurboAssembler::LoadDouble(DoubleRegister dst, const MemOperand& mem,
     lfdx(dst, MemOperand(base, scratch));
   } else {
     lfd(dst, mem);
+  }
+}
+
+void TurboAssembler::LoadFloat32(DoubleRegister dst, const MemOperand& mem,
+                                Register scratch) {
+  Register base = mem.ra();
+  int offset = mem.offset();
+
+  if (!is_int16(offset)) {
+    mov(scratch, Operand(offset));
+    lfsx(dst, MemOperand(base, scratch));
+  } else {
+    lfs(dst, mem);
   }
 }
 

@@ -21,6 +21,7 @@ function foo(o, x) {
   return bar(1, (o[x], 2), 3);
 }
 
+%PrepareFunctionForOptimization(foo);
 assertEquals(4, foo(o, "v"));
 assertEquals(4, foo(o, "v"));
 assertEquals(4, foo(o, "x"));

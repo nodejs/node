@@ -21,6 +21,7 @@ function foo() {
   }
   return x;
 }
+%PrepareFunctionForOptimization(foo);
 foo();
 foo();
 %OptimizeFunctionOnNextCall(foo);

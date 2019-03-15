@@ -4,7 +4,6 @@
 
 // Flags: --no-wait-for-wasm --wasm-tier-up
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function ShutdownDuringTierUp() {

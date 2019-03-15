@@ -73,7 +73,9 @@ int Scanner::LiteralBuffer::NewCapacity(int min_capacity) {
 void Scanner::LiteralBuffer::ExpandBuffer() {
   int min_capacity = Max(kInitialCapacity, backing_store_.length());
   Vector<byte> new_store = Vector<byte>::New(NewCapacity(min_capacity));
-  MemCopy(new_store.start(), backing_store_.start(), position_);
+  if (position_ > 0) {
+    MemCopy(new_store.start(), backing_store_.start(), position_);
+  }
   backing_store_.Dispose();
   backing_store_ = new_store;
 }
@@ -275,11 +277,10 @@ Token::Value Scanner::SkipSingleLineComment() {
 
 Token::Value Scanner::SkipSourceURLComment() {
   TryToParseSourceURLComment();
-  while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
-    Advance();
+  if (unibrow::IsLineTerminator(c0_) || c0_ == kEndOfInput) {
+    return Token::WHITESPACE;
   }
-
-  return Token::WHITESPACE;
+  return SkipSingleLineComment();
 }
 
 void Scanner::TryToParseSourceURLComment() {
@@ -337,27 +338,46 @@ void Scanner::TryToParseSourceURLComment() {
 
 Token::Value Scanner::SkipMultiLineComment() {
   DCHECK_EQ(c0_, '*');
-  Advance();
 
+  // Until we see the first newline, check for * and newline characters.
+  if (!next().after_line_terminator) {
+    do {
+      AdvanceUntil([](uc32 c0) {
+        if (V8_UNLIKELY(static_cast<uint32_t>(c0) > kMaxAscii)) {
+          return unibrow::IsLineTerminator(c0);
+        }
+        uint8_t char_flags = character_scan_flags[c0];
+        return MultilineCommentCharacterNeedsSlowPath(char_flags);
+      });
+
+      while (c0_ == '*') {
+        Advance();
+        if (c0_ == '/') {
+          Advance();
+          return Token::WHITESPACE;
+        }
+      }
+
+      if (unibrow::IsLineTerminator(c0_)) {
+        next().after_line_terminator = true;
+        break;
+      }
+    } while (c0_ != kEndOfInput);
+  }
+
+  // After we've seen newline, simply try to find '*/'.
   while (c0_ != kEndOfInput) {
-    DCHECK(!unibrow::IsLineTerminator(kEndOfInput));
-    if (!HasLineTerminatorBeforeNext() && unibrow::IsLineTerminator(c0_)) {
-      // Following ECMA-262, section 7.4, a comment containing
-      // a newline will make the comment count as a line-terminator.
-      next().after_line_terminator = true;
-    }
+    AdvanceUntil([](uc32 c0) { return c0 == '*'; });
 
-    while (V8_UNLIKELY(c0_ == '*')) {
+    while (c0_ == '*') {
       Advance();
       if (c0_ == '/') {
         Advance();
         return Token::WHITESPACE;
       }
     }
-    Advance();
   }
 
-  // Unterminated multi-line comment.
   return Token::ILLEGAL;
 }
 
@@ -434,9 +454,6 @@ bool Scanner::ScanEscape() {
   }
 
   switch (c) {
-    case '\'':  // fall through
-    case '"' :  // fall through
-    case '\\': break;
     case 'b' : c = '\b'; break;
     case 'f' : c = '\f'; break;
     case 'n' : c = '\n'; break;
@@ -499,48 +516,42 @@ uc32 Scanner::ScanOctalEscape(uc32 c, int length) {
 
 Token::Value Scanner::ScanString() {
   uc32 quote = c0_;
-  Advance();  // consume quote
 
   next().literal_chars.Start();
   while (true) {
-    if (V8_UNLIKELY(c0_ == kEndOfInput)) return Token::ILLEGAL;
-    if ((V8_UNLIKELY(static_cast<uint32_t>(c0_) >= kMaxAscii) &&
-         !unibrow::IsStringLiteralLineTerminator(c0_)) ||
-        !MayTerminateString(character_scan_flags[c0_])) {
-      AddLiteralChar(c0_);
-      AdvanceUntil([this](uc32 c0) {
-        if (V8_UNLIKELY(static_cast<uint32_t>(c0) > kMaxAscii)) {
-          if (V8_UNLIKELY(unibrow::IsStringLiteralLineTerminator(c0))) {
-            return true;
-          }
-          AddLiteralChar(c0);
-          return false;
+    AdvanceUntil([this](uc32 c0) {
+      if (V8_UNLIKELY(static_cast<uint32_t>(c0) > kMaxAscii)) {
+        if (V8_UNLIKELY(unibrow::IsStringLiteralLineTerminator(c0))) {
+          return true;
         }
-        uint8_t char_flags = character_scan_flags[c0];
-        if (MayTerminateString(char_flags)) return true;
         AddLiteralChar(c0);
         return false;
-      });
-    }
-    if (c0_ == quote) {
-      Advance();
-      return Token::STRING;
-    }
-    if (c0_ == '\\') {
+      }
+      uint8_t char_flags = character_scan_flags[c0];
+      if (MayTerminateString(char_flags)) return true;
+      AddLiteralChar(c0);
+      return false;
+    });
+
+    while (c0_ == '\\') {
       Advance();
       // TODO(verwaest): Check whether we can remove the additional check.
       if (V8_UNLIKELY(c0_ == kEndOfInput || !ScanEscape<false>())) {
         return Token::ILLEGAL;
       }
-      continue;
     }
+
+    if (c0_ == quote) {
+      Advance();
+      return Token::STRING;
+    }
+
     if (V8_UNLIKELY(c0_ == kEndOfInput ||
                     unibrow::IsStringLiteralLineTerminator(c0_))) {
       return Token::ILLEGAL;
     }
-    DCHECK_NE(quote, c0_);
-    DCHECK((c0_ == '\'' || c0_ == '"'));
-    AddLiteralCharAdvance();
+
+    AddLiteralChar(c0_);
   }
 }
 
@@ -842,15 +853,15 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
 
       // either 0, 0exxx, 0Exxx, 0.xxx, a hex number, a binary number or
       // an octal number.
-      if (c0_ == 'x' || c0_ == 'X') {
+      if (AsciiAlphaToLower(c0_) == 'x') {
         AddLiteralCharAdvance();
         kind = HEX;
         if (!ScanHexDigits()) return Token::ILLEGAL;
-      } else if (c0_ == 'o' || c0_ == 'O') {
+      } else if (AsciiAlphaToLower(c0_) == 'o') {
         AddLiteralCharAdvance();
         kind = OCTAL;
         if (!ScanOctalDigits()) return Token::ILLEGAL;
-      } else if (c0_ == 'b' || c0_ == 'B') {
+      } else if (AsciiAlphaToLower(c0_) == 'b') {
         AddLiteralCharAdvance();
         kind = BINARY;
         if (!ScanBinaryDigits()) return Token::ILLEGAL;
@@ -872,14 +883,12 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
     }
 
     // Parse decimal digits and allow trailing fractional part.
-    if (kind == DECIMAL || kind == DECIMAL_WITH_LEADING_ZERO) {
+    if (IsDecimalNumberKind(kind)) {
       // This is an optimization for parsing Decimal numbers as Smi's.
       if (at_start) {
         uint64_t value = 0;
         // scan subsequent decimal digits
-        if (!ScanDecimalAsSmi(&value)) {
-          return Token::ILLEGAL;
-        }
+        if (!ScanDecimalAsSmi(&value)) return Token::ILLEGAL;
 
         if (next().literal_chars.one_byte_literal().length() <= 10 &&
             value <= Smi::kMaxValue && c0_ != '.' && !IsIdentifierStart(c0_)) {
@@ -906,8 +915,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
   }
 
   bool is_bigint = false;
-  if (c0_ == 'n' && !seen_period &&
-      (kind == DECIMAL || kind == HEX || kind == OCTAL || kind == BINARY)) {
+  if (c0_ == 'n' && !seen_period && IsValidBigIntKind(kind)) {
     // Check that the literal is within our limits for BigInt length.
     // For simplicity, use 4 bits per character to calculate the maximum
     // allowed literal length.
@@ -921,12 +929,11 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
 
     is_bigint = true;
     Advance();
-  } else if (c0_ == 'e' || c0_ == 'E') {
+  } else if (AsciiAlphaToLower(c0_) == 'e') {
     // scan exponent, if any
     DCHECK(kind != HEX);  // 'e'/'E' must be scanned as part of the hex number
 
-    if (!(kind == DECIMAL || kind == DECIMAL_WITH_LEADING_ZERO))
-      return Token::ILLEGAL;
+    if (!IsDecimalNumberKind(kind)) return Token::ILLEGAL;
 
     // scan exponent
     AddLiteralCharAdvance();
@@ -1005,16 +1012,17 @@ Token::Value Scanner::ScanIdentifierOrKeywordInnerSlow(bool escaped,
     Vector<const uint8_t> chars = next().literal_chars.one_byte_literal();
     Token::Value token =
         KeywordOrIdentifierToken(chars.start(), chars.length());
-    /* TODO(adamk): YIELD should be handled specially. */
+    if (IsInRange(token, Token::IDENTIFIER, Token::YIELD)) return token;
+
     if (token == Token::FUTURE_STRICT_RESERVED_WORD) {
       if (escaped) return Token::ESCAPED_STRICT_RESERVED_WORD;
       return token;
     }
-    if (token == Token::IDENTIFIER) return token;
 
     if (!escaped) return token;
 
-    if (token == Token::LET || token == Token::STATIC) {
+    STATIC_ASSERT(Token::LET + 1 == Token::STATIC);
+    if (IsInRange(token, Token::LET, Token::STATIC)) {
       return Token::ESCAPED_STRICT_RESERVED_WORD;
     }
     return Token::ESCAPED_KEYWORD;

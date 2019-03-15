@@ -266,8 +266,10 @@ class RememberedSet : public AllStatic {
 
 class UpdateTypedSlotHelper {
  public:
-  // Updates a typed slot using an untyped slot callback.
-  // The callback accepts MaybeObjectSlot and returns SlotCallbackResult.
+  // Updates a typed slot using an untyped slot callback where |addr| depending
+  // on slot type represents either address for respective RelocInfo or address
+  // of the uncompressed constant pool entry.
+  // The callback accepts FullMaybeObjectSlot and returns SlotCallbackResult.
   template <typename Callback>
   static SlotCallbackResult UpdateTypedSlot(Heap* heap, SlotType slot_type,
                                             Address addr, Callback callback) {
@@ -284,8 +286,6 @@ class UpdateTypedSlotHelper {
         return UpdateEmbeddedPointer(heap, &rinfo, callback);
       }
       case OBJECT_SLOT: {
-        // TODO(ishell): the incoming addr represents MaybeObjectSlot(addr).
-        STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
         return callback(FullMaybeObjectSlot(addr));
       }
       case CLEARED_SLOT:

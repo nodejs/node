@@ -46,6 +46,7 @@ function nonPowerOfTwoDiv(a, b) {
 }
 
 function test(fn, a, b, sets) {
+  %PrepareFunctionForOptimization(fn);
   const expected = fn(a, b);
   fn(1, 2);
   fn(0, 0);

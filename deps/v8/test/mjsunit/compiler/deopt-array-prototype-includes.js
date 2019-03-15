@@ -16,6 +16,7 @@
     return arr.includes(val);
   }
 
+  %PrepareFunctionForOptimization(includes);
   assertTrue(includes(iarr, 0)); assertTrue(includes(darr, 0));
   assertTrue(includes(iarr, 2)); assertTrue(includes(darr, 2));
 
@@ -33,6 +34,7 @@
     return arr.includes(val);
   }
 
+  %PrepareFunctionForOptimization(includes);
   assertTrue(includes(iarr, 0));
   assertTrue(includes(iarr, 2));
 
@@ -55,6 +57,7 @@
   iarr.__proto__ = [2];
 
   // get feedback
+  %PrepareFunctionForOptimization(includes);
   assertFalse(includes(iarr, 0));
   assertTrue(includes(iarr, 2));
 
@@ -72,6 +75,7 @@
     return arr.includes(val);
   }
 
+  %PrepareFunctionForOptimization(includes);
   assertFalse(includes(iarr, 2));
   assertTrue(includes(iarr, 3));
 
@@ -92,6 +96,7 @@
     return array.includes(val);
   }
 
+  %PrepareFunctionForOptimization(includes);
   includes(6); includes(6);
 
   %OptimizeFunctionOnNextCall(includes);

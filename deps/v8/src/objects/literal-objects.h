@@ -49,7 +49,7 @@ class ObjectBoilerplateDescription : public FixedArray {
  private:
   bool has_number_of_properties() const;
 
-  OBJECT_CONSTRUCTORS(ObjectBoilerplateDescription, FixedArray)
+  OBJECT_CONSTRUCTORS(ObjectBoilerplateDescription, FixedArray);
 };
 
 class ArrayBoilerplateDescription : public Struct {
@@ -68,15 +68,9 @@ class ArrayBoilerplateDescription : public Struct {
   DECL_VERIFIER(ArrayBoilerplateDescription)
   void BriefPrintDetails(std::ostream& os);
 
-#define ARRAY_BOILERPLATE_DESCRIPTION_FIELDS(V) \
-  V(kFlagsOffset, kTaggedSize)                  \
-  V(kConstantElementsOffset, kTaggedSize)       \
-  /* Total size. */                             \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                ARRAY_BOILERPLATE_DESCRIPTION_FIELDS)
-#undef ARRAY_BOILERPLATE_DESCRIPTION_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      HeapObject::kHeaderSize,
+      TORQUE_GENERATED_ARRAY_BOILERPLATE_DESCRIPTION_FIELDS)
 
  private:
   DECL_INT_ACCESSORS(flags)
@@ -155,7 +149,7 @@ class ClassBoilerplate : public FixedArray {
  private:
   DECL_INT_ACCESSORS(flags)
 
-  OBJECT_CONSTRUCTORS(ClassBoilerplate, FixedArray)
+  OBJECT_CONSTRUCTORS(ClassBoilerplate, FixedArray);
 };
 
 }  // namespace internal

@@ -23,13 +23,13 @@ class FieldIndex final {
 
   FieldIndex() : bit_field_(0) {}
 
-  static FieldIndex ForPropertyIndex(
+  static inline FieldIndex ForPropertyIndex(
       const Map map, int index,
       Representation representation = Representation::Tagged());
-  static FieldIndex ForInObjectOffset(int offset, Encoding encoding);
-  static FieldIndex ForDescriptor(const Map map, int descriptor_index);
+  static inline FieldIndex ForInObjectOffset(int offset, Encoding encoding);
+  static inline FieldIndex ForDescriptor(const Map map, int descriptor_index);
 
-  int GetLoadByFieldIndex() const;
+  inline int GetLoadByFieldIndex() const;
 
   bool is_inobject() const {
     return IsInObjectBits::decode(bit_field_);

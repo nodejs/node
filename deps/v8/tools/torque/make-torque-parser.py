@@ -23,7 +23,7 @@ result = subprocess.call(cargs)
 os.chdir(cwd)
 
 def fix_file(filename):
-  is_header = re.search(r'\.h', filename) <> None;
+  is_header = re.search(r'\.h', filename) is not None;
   header_macro = filename.upper();
   header_macro = re.sub('\.', '_', header_macro);
   header_macro = "V8_TORQUE_" + header_macro + '_';

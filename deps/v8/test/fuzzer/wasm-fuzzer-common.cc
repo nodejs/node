@@ -139,7 +139,6 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
         "can be\n"
         "// found in the LICENSE file.\n"
         "\n"
-        "load('test/mjsunit/wasm/wasm-constants.js');\n"
         "load('test/mjsunit/wasm/wasm-module-builder.js');\n"
         "\n"
         "(function() {\n"

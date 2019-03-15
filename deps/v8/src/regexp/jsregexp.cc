@@ -13,6 +13,7 @@
 #include "src/elements.h"
 #include "src/execution.h"
 #include "src/heap/factory.h"
+#include "src/heap/heap-inl.h"
 #include "src/isolate-inl.h"
 #include "src/message-template.h"
 #include "src/ostreams.h"
@@ -28,13 +29,13 @@
 #include "src/string-search.h"
 #include "src/unicode-decoder.h"
 #include "src/unicode-inl.h"
+#include "src/zone/zone-list-inl.h"
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uniset.h"
 #include "unicode/utypes.h"
 #endif  // V8_INTL_SUPPORT
 
-#ifndef V8_INTERPRETED_REGEXP
 #if V8_TARGET_ARCH_IA32
 #include "src/regexp/ia32/regexp-macro-assembler-ia32.h"
 #elif V8_TARGET_ARCH_X64
@@ -54,8 +55,6 @@
 #else
 #error Unsupported target architecture.
 #endif
-#endif
-
 
 namespace v8 {
 namespace internal {
@@ -300,11 +299,11 @@ bool RegExpImpl::EnsureCompiledIrregexp(Isolate* isolate, Handle<JSRegExp> re,
                                         Handle<String> sample_subject,
                                         bool is_one_byte) {
   Object compiled_code = re->DataAt(JSRegExp::code_index(is_one_byte));
-#ifdef V8_INTERPRETED_REGEXP
-  if (compiled_code->IsByteArray()) return true;
-#else  // V8_INTERPRETED_REGEXP (RegExp native code)
-  if (compiled_code->IsCode()) return true;
-#endif
+  if (compiled_code != Smi::FromInt(JSRegExp::kUninitializedValue)) {
+    DCHECK(FLAG_regexp_interpret_all ? compiled_code->IsByteArray()
+                                     : compiled_code->IsCode());
+    return true;
+  }
   return CompileIrregexp(isolate, re, sample_subject, is_one_byte);
 }
 
@@ -413,18 +412,18 @@ int RegExpImpl::IrregexpPrepare(Isolate* isolate, Handle<JSRegExp> regexp,
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
   if (!EnsureCompiledIrregexp(isolate, regexp, subject, is_one_byte)) return -1;
 
-#ifdef V8_INTERPRETED_REGEXP
-  // Byte-code regexp needs space allocated for all its registers.
-  // The result captures are copied to the start of the registers array
-  // if the match succeeds.  This way those registers are not clobbered
-  // when we set the last match info from last successful match.
-  return IrregexpNumberOfRegisters(FixedArray::cast(regexp->data())) +
-         (IrregexpNumberOfCaptures(FixedArray::cast(regexp->data())) + 1) * 2;
-#else  // V8_INTERPRETED_REGEXP
-  // Native regexp only needs room to output captures. Registers are handled
-  // internally.
-  return (IrregexpNumberOfCaptures(FixedArray::cast(regexp->data())) + 1) * 2;
-#endif  // V8_INTERPRETED_REGEXP
+  if (FLAG_regexp_interpret_all) {
+    // Byte-code regexp needs space allocated for all its registers.
+    // The result captures are copied to the start of the registers array
+    // if the match succeeds.  This way those registers are not clobbered
+    // when we set the last match info from last successful match.
+    return IrregexpNumberOfRegisters(FixedArray::cast(regexp->data())) +
+           (IrregexpNumberOfCaptures(FixedArray::cast(regexp->data())) + 1) * 2;
+  } else {
+    // Native regexp only needs room to output captures. Registers are handled
+    // internally.
+    return (IrregexpNumberOfCaptures(FixedArray::cast(regexp->data())) + 1) * 2;
+  }
 }
 
 int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
@@ -438,75 +437,68 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
 
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
 
-#ifndef V8_INTERPRETED_REGEXP
-  DCHECK(output_size >= (IrregexpNumberOfCaptures(*irregexp) + 1) * 2);
-  do {
-    EnsureCompiledIrregexp(isolate, regexp, subject, is_one_byte);
-    Handle<Code> code(IrregexpNativeCode(*irregexp, is_one_byte), isolate);
-    // The stack is used to allocate registers for the compiled regexp code.
-    // This means that in case of failure, the output registers array is left
-    // untouched and contains the capture results from the previous successful
-    // match.  We can use that to set the last match info lazily.
-    NativeRegExpMacroAssembler::Result res =
-        NativeRegExpMacroAssembler::Match(code,
-                                          subject,
-                                          output,
-                                          output_size,
-                                          index,
-                                          isolate);
-    if (res != NativeRegExpMacroAssembler::RETRY) {
-      DCHECK(res != NativeRegExpMacroAssembler::EXCEPTION ||
-             isolate->has_pending_exception());
-      STATIC_ASSERT(
-          static_cast<int>(NativeRegExpMacroAssembler::SUCCESS) == RE_SUCCESS);
-      STATIC_ASSERT(
-          static_cast<int>(NativeRegExpMacroAssembler::FAILURE) == RE_FAILURE);
-      STATIC_ASSERT(static_cast<int>(NativeRegExpMacroAssembler::EXCEPTION)
-                    == RE_EXCEPTION);
-      return static_cast<IrregexpResult>(res);
+  if (!FLAG_regexp_interpret_all) {
+    DCHECK(output_size >= (IrregexpNumberOfCaptures(*irregexp) + 1) * 2);
+    do {
+      EnsureCompiledIrregexp(isolate, regexp, subject, is_one_byte);
+      Handle<Code> code(IrregexpNativeCode(*irregexp, is_one_byte), isolate);
+      // The stack is used to allocate registers for the compiled regexp code.
+      // This means that in case of failure, the output registers array is left
+      // untouched and contains the capture results from the previous successful
+      // match.  We can use that to set the last match info lazily.
+      int res = NativeRegExpMacroAssembler::Match(code, subject, output,
+                                                  output_size, index, isolate);
+      if (res != NativeRegExpMacroAssembler::RETRY) {
+        DCHECK(res != NativeRegExpMacroAssembler::EXCEPTION ||
+               isolate->has_pending_exception());
+        STATIC_ASSERT(static_cast<int>(NativeRegExpMacroAssembler::SUCCESS) ==
+                      RE_SUCCESS);
+        STATIC_ASSERT(static_cast<int>(NativeRegExpMacroAssembler::FAILURE) ==
+                      RE_FAILURE);
+        STATIC_ASSERT(static_cast<int>(NativeRegExpMacroAssembler::EXCEPTION) ==
+                      RE_EXCEPTION);
+        return res;
+      }
+      // If result is RETRY, the string has changed representation, and we
+      // must restart from scratch.
+      // In this case, it means we must make sure we are prepared to handle
+      // the, potentially, different subject (the string can switch between
+      // being internal and external, and even between being Latin1 and UC16,
+      // but the characters are always the same).
+      IrregexpPrepare(isolate, regexp, subject);
+      is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
+    } while (true);
+    UNREACHABLE();
+  } else {
+    DCHECK(FLAG_regexp_interpret_all);
+    DCHECK(output_size >= IrregexpNumberOfRegisters(*irregexp));
+    // We must have done EnsureCompiledIrregexp, so we can get the number of
+    // registers.
+    int number_of_capture_registers =
+        (IrregexpNumberOfCaptures(*irregexp) + 1) * 2;
+    int32_t* raw_output = &output[number_of_capture_registers];
+    // We do not touch the actual capture result registers until we know there
+    // has been a match so that we can use those capture results to set the
+    // last match info.
+    for (int i = number_of_capture_registers - 1; i >= 0; i--) {
+      raw_output[i] = -1;
     }
-    // If result is RETRY, the string has changed representation, and we
-    // must restart from scratch.
-    // In this case, it means we must make sure we are prepared to handle
-    // the, potentially, different subject (the string can switch between
-    // being internal and external, and even between being Latin1 and UC16,
-    // but the characters are always the same).
-    IrregexpPrepare(isolate, regexp, subject);
-    is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
-  } while (true);
-  UNREACHABLE();
-#else  // V8_INTERPRETED_REGEXP
+    Handle<ByteArray> byte_codes(IrregexpByteCode(*irregexp, is_one_byte),
+                                 isolate);
 
-  DCHECK(output_size >= IrregexpNumberOfRegisters(*irregexp));
-  // We must have done EnsureCompiledIrregexp, so we can get the number of
-  // registers.
-  int number_of_capture_registers =
-      (IrregexpNumberOfCaptures(*irregexp) + 1) * 2;
-  int32_t* raw_output = &output[number_of_capture_registers];
-  // We do not touch the actual capture result registers until we know there
-  // has been a match so that we can use those capture results to set the
-  // last match info.
-  for (int i = number_of_capture_registers - 1; i >= 0; i--) {
-    raw_output[i] = -1;
+    IrregexpResult result = IrregexpInterpreter::Match(
+        isolate, byte_codes, subject, raw_output, index);
+    if (result == RE_SUCCESS) {
+      // Copy capture results to the start of the registers array.
+      MemCopy(output, raw_output,
+              number_of_capture_registers * sizeof(int32_t));
+    }
+    if (result == RE_EXCEPTION) {
+      DCHECK(!isolate->has_pending_exception());
+      isolate->StackOverflow();
+    }
+    return result;
   }
-  Handle<ByteArray> byte_codes(IrregexpByteCode(*irregexp, is_one_byte),
-                               isolate);
-
-  IrregexpResult result = IrregexpInterpreter::Match(isolate,
-                                                     byte_codes,
-                                                     subject,
-                                                     raw_output,
-                                                     index);
-  if (result == RE_SUCCESS) {
-    // Copy capture results to the start of the registers array.
-    MemCopy(output, raw_output, number_of_capture_registers * sizeof(int32_t));
-  }
-  if (result == RE_EXCEPTION) {
-    DCHECK(!isolate->has_pending_exception());
-    isolate->StackOverflow();
-  }
-  return result;
-#endif  // V8_INTERPRETED_REGEXP
 }
 
 MaybeHandle<Object> RegExpImpl::IrregexpExec(
@@ -517,8 +509,8 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(
   subject = String::Flatten(isolate, subject);
 
   // Prepare space for the return values.
-#if defined(V8_INTERPRETED_REGEXP) && defined(DEBUG)
-  if (FLAG_trace_regexp_bytecodes) {
+#ifdef DEBUG
+  if (FLAG_regexp_interpret_all && FLAG_trace_regexp_bytecodes) {
     String pattern = regexp->Pattern();
     PrintF("\n\nRegexp match:   /%s/\n\n", pattern->ToCString().get());
     PrintF("\n\nSubject string: '%s'\n\n", subject->ToCString().get());
@@ -572,12 +564,12 @@ Handle<RegExpMatchInfo> RegExpImpl::SetLastMatchInfo(
   result->SetNumberOfCaptureRegisters(capture_register_count);
 
   if (*result != *last_match_info) {
-    // The match info has been reallocated, update the corresponding reference
-    // on the native context.
     if (*last_match_info == *isolate->regexp_last_match_info()) {
+      // This inner condition is only needed for special situations like the
+      // regexp fuzzer, where we pass our own custom RegExpMatchInfo to
+      // RegExpImpl::Exec; there actually want to bypass the Isolate's match
+      // info and execute the regexp without side effects.
       isolate->native_context()->set_regexp_last_match_info(*result);
-    } else if (*last_match_info == *isolate->regexp_internal_match_info()) {
-      isolate->native_context()->set_regexp_internal_match_info(*result);
     }
   }
 
@@ -600,11 +592,7 @@ RegExpImpl::GlobalCache::GlobalCache(Handle<JSRegExp> regexp,
       regexp_(regexp),
       subject_(subject),
       isolate_(isolate) {
-#ifdef V8_INTERPRETED_REGEXP
-  bool interpreted = true;
-#else
-  bool interpreted = false;
-#endif  // V8_INTERPRETED_REGEXP
+  bool interpreted = FLAG_regexp_interpret_all;
 
   if (regexp_->TypeTag() == JSRegExp::ATOM) {
     static const int kAtomRegistersPerMatch = 2;
@@ -1076,8 +1064,8 @@ RegExpEngine::CompilationResult RegExpCompiler::Assemble(
   Handle<HeapObject> code = macro_assembler_->GetCode(pattern);
   isolate->IncreaseTotalRegexpCodeGenerated(code->Size());
   work_list_ = nullptr;
-#if defined(ENABLE_DISASSEMBLER) && !defined(V8_INTERPRETED_REGEXP)
-  if (FLAG_print_code) {
+#ifdef ENABLE_DISASSEMBLER
+  if (FLAG_print_code && !FLAG_regexp_interpret_all) {
     CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
     OFStream os(trace_scope.file());
     Handle<Code>::cast(code)->Disassemble(pattern->ToCString().get(), os);
@@ -6698,57 +6686,57 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
   }
 
   // Create the correct assembler for the architecture.
-#ifndef V8_INTERPRETED_REGEXP
-  DCHECK(!FLAG_jitless);
+  std::unique_ptr<RegExpMacroAssembler> macro_assembler;
+  if (!FLAG_regexp_interpret_all) {
+    // Native regexp implementation.
+    DCHECK(!FLAG_jitless);
 
-  // Native regexp implementation.
-
-  NativeRegExpMacroAssembler::Mode mode =
-      is_one_byte ? NativeRegExpMacroAssembler::LATIN1
-                  : NativeRegExpMacroAssembler::UC16;
+    NativeRegExpMacroAssembler::Mode mode =
+        is_one_byte ? NativeRegExpMacroAssembler::LATIN1
+                    : NativeRegExpMacroAssembler::UC16;
 
 #if V8_TARGET_ARCH_IA32
-  RegExpMacroAssemblerIA32 macro_assembler(isolate, zone, mode,
-                                           (data->capture_count + 1) * 2);
+    macro_assembler.reset(new RegExpMacroAssemblerIA32(
+        isolate, zone, mode, (data->capture_count + 1) * 2));
 #elif V8_TARGET_ARCH_X64
-  RegExpMacroAssemblerX64 macro_assembler(isolate, zone, mode,
-                                          (data->capture_count + 1) * 2);
+    macro_assembler.reset(new RegExpMacroAssemblerX64(
+        isolate, zone, mode, (data->capture_count + 1) * 2));
 #elif V8_TARGET_ARCH_ARM
-  RegExpMacroAssemblerARM macro_assembler(isolate, zone, mode,
-                                          (data->capture_count + 1) * 2);
+    macro_assembler.reset(new RegExpMacroAssemblerARM(
+        isolate, zone, mode, (data->capture_count + 1) * 2));
 #elif V8_TARGET_ARCH_ARM64
-  RegExpMacroAssemblerARM64 macro_assembler(isolate, zone, mode,
-                                            (data->capture_count + 1) * 2);
+    macro_assembler.reset(new RegExpMacroAssemblerARM64(
+        isolate, zone, mode, (data->capture_count + 1) * 2));
 #elif V8_TARGET_ARCH_S390
-  RegExpMacroAssemblerS390 macro_assembler(isolate, zone, mode,
-                                           (data->capture_count + 1) * 2);
+    macro_assembler.reset(new RegExpMacroAssemblerS390(
+        isolate, zone, mode, (data->capture_count + 1) * 2));
 #elif V8_TARGET_ARCH_PPC
-  RegExpMacroAssemblerPPC macro_assembler(isolate, zone, mode,
-                                          (data->capture_count + 1) * 2);
+    macro_assembler.reset(new RegExpMacroAssemblerPPC(
+        isolate, zone, mode, (data->capture_count + 1) * 2));
 #elif V8_TARGET_ARCH_MIPS
-  RegExpMacroAssemblerMIPS macro_assembler(isolate, zone, mode,
-                                           (data->capture_count + 1) * 2);
+    macro_assembler.reset(new RegExpMacroAssemblerMIPS(
+        isolate, zone, mode, (data->capture_count + 1) * 2));
 #elif V8_TARGET_ARCH_MIPS64
-  RegExpMacroAssemblerMIPS macro_assembler(isolate, zone, mode,
-                                           (data->capture_count + 1) * 2);
+    macro_assembler.reset(new RegExpMacroAssemblerMIPS(
+        isolate, zone, mode, (data->capture_count + 1) * 2));
 #else
 #error "Unsupported architecture"
 #endif
+  } else {
+    DCHECK(FLAG_regexp_interpret_all);
 
-#else  // V8_INTERPRETED_REGEXP
-  // Interpreted regexp implementation.
-  EmbeddedVector<byte, 1024> codes;
-  RegExpMacroAssemblerIrregexp macro_assembler(isolate, codes, zone);
-#endif  // V8_INTERPRETED_REGEXP
+    // Interpreted regexp implementation.
+    macro_assembler.reset(new RegExpMacroAssemblerIrregexp(isolate, zone));
+  }
 
-  macro_assembler.set_slow_safe(TooMuchRegExpCode(isolate, pattern));
+  macro_assembler->set_slow_safe(TooMuchRegExpCode(isolate, pattern));
 
   // Inserted here, instead of in Assembler, because it depends on information
   // in the AST that isn't replicated in the Node structure.
   static const int kMaxBacksearchLimit = 1024;
   if (is_end_anchored && !is_start_anchored && !is_sticky &&
       max_length < kMaxBacksearchLimit) {
-    macro_assembler.SetCurrentPositionFromEnd(max_length);
+    macro_assembler->SetCurrentPositionFromEnd(max_length);
   }
 
   if (is_global) {
@@ -6758,17 +6746,17 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
     } else if (is_unicode) {
       mode = RegExpMacroAssembler::GLOBAL_UNICODE;
     }
-    macro_assembler.set_global_mode(mode);
+    macro_assembler->set_global_mode(mode);
   }
 
-  return compiler.Assemble(isolate, &macro_assembler, node, data->capture_count,
-                           pattern);
+  return compiler.Assemble(isolate, macro_assembler.get(), node,
+                           data->capture_count, pattern);
 }
 
 bool RegExpEngine::TooMuchRegExpCode(Isolate* isolate, Handle<String> pattern) {
   Heap* heap = isolate->heap();
   bool too_much = pattern->length() > RegExpImpl::kRegExpTooLargeToOptimize;
-  if (heap->isolate()->total_regexp_code_generated() >
+  if (isolate->total_regexp_code_generated() >
           RegExpImpl::kRegExpCompiledLimit &&
       heap->CommittedMemoryExecutable() >
           RegExpImpl::kRegExpExecutableMemoryLimit) {

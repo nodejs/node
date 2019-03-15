@@ -16,6 +16,7 @@ function f() {
   return o.c.a.c.a.c.a.c.b;
 }
 
+%PrepareFunctionForOptimization(f);
 assertEquals(42, f());
 assertEquals(42, f());
 %OptimizeFunctionOnNextCall(f);

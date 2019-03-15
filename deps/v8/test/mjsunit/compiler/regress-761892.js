@@ -9,6 +9,7 @@ function f(x) {
   1.1!=(x||x0)
 }
 
+%PrepareFunctionForOptimization(f);
 f(1.1);
 f(1.1);
 %OptimizeFunctionOnNextCall(f);

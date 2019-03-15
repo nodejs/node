@@ -4,7 +4,7 @@
 
 #include "src/visitors.h"
 
-#include "src/objects/code.h"
+#include "src/reloc-info.h"
 
 namespace v8 {
 namespace internal {
@@ -21,6 +21,12 @@ const char* RootVisitor::RootName(Root root) {
   }
   UNREACHABLE();
   return nullptr;
+}
+
+void ObjectVisitor::VisitRelocInfo(RelocIterator* it) {
+  for (; !it->done(); it->next()) {
+    it->rinfo()->Visit(this);
+  }
 }
 
 }  // namespace internal

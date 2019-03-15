@@ -48,7 +48,7 @@ class ArgPassingHelper {
     runner.Build(outer_code.data(), outer_code.data() + outer_code.size());
 
     int funcs_to_redict[] = {static_cast<int>(inner_compiler.function_index())};
-    runner.builder().Link();
+    runner.builder().SetExecutable();
     WasmDebugInfo::RedirectToInterpreter(debug_info_,
                                          ArrayVector(funcs_to_redict));
     main_fun_wrapper_ = runner.builder().WrapCode(runner.function_index());
@@ -105,7 +105,7 @@ TEST(TestArgumentPassing_int32) {
         return base::AddWithWraparound(base::MulWithWraparound(2, a), 1);
       });
 
-  FOR_INT32_INPUTS(v) { helper.CheckCall(*v); }
+  FOR_INT32_INPUTS(v) { helper.CheckCall(v); }
 }
 
 // Pass int64_t, return double.
@@ -124,17 +124,17 @@ TEST(TestArgumentPassing_double_int64) {
        WASM_CALL_FUNCTION0(f2.function_index())},
       [](int32_t a, int32_t b) {
         int64_t a64 = static_cast<int64_t>(a) & 0xFFFFFFFF;
-        int64_t b64 = static_cast<int64_t>(b) << 32;
+        int64_t b64 = static_cast<uint64_t>(static_cast<int64_t>(b)) << 32;
         return static_cast<double>(a64 | b64);
       });
 
   FOR_INT32_INPUTS(v1) {
-    FOR_INT32_INPUTS(v2) { helper.CheckCall(*v1, *v2); }
+    FOR_INT32_INPUTS(v2) { helper.CheckCall(v1, v2); }
   }
 
   FOR_INT64_INPUTS(v) {
-    int32_t v1 = static_cast<int32_t>(*v);
-    int32_t v2 = static_cast<int32_t>(*v >> 32);
+    int32_t v1 = static_cast<int32_t>(v);
+    int32_t v2 = static_cast<int32_t>(v >> 32);
     helper.CheckCall(v1, v2);
     helper.CheckCall(v2, v1);
   }
@@ -175,7 +175,7 @@ TEST(TestArgumentPassing_float_double) {
        WASM_GET_LOCAL(0), WASM_CALL_FUNCTION0(f2.function_index())},
       [](float f) { return 2. * static_cast<double>(f) + 1.; });
 
-  FOR_FLOAT32_INPUTS(f) { helper.CheckCall(*f); }
+  FOR_FLOAT32_INPUTS(f) { helper.CheckCall(f); }
 }
 
 // Pass two doubles, return double.
@@ -192,7 +192,7 @@ TEST(TestArgumentPassing_double_double) {
                           [](double a, double b) { return a + b; });
 
   FOR_FLOAT64_INPUTS(d1) {
-    FOR_FLOAT64_INPUTS(d2) { helper.CheckCall(*d1, *d2); }
+    FOR_FLOAT64_INPUTS(d2) { helper.CheckCall(d1, d2); }
   }
 }
 

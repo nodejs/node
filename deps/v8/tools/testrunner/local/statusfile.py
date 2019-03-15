@@ -25,6 +25,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import os
 import re
 
@@ -133,7 +136,7 @@ class StatusFile(object):
             variant_desc = 'variant independent'
           else:
             variant_desc = 'variant: %s' % variant
-          print 'Unused rule: %s -> %s (%s)' % (rule, value, variant_desc)
+          print('Unused rule: %s -> %s (%s)' % (rule, value, variant_desc))
 
 
 def _JoinsPassAndFail(outcomes1, outcomes2):
@@ -329,5 +332,5 @@ def PresubmitCheck(path):
                   "missing file for %s test %s" % (basename, rule))
     return status["success"]
   except Exception as e:
-    print e
+    print(e)
     return False

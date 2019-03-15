@@ -564,7 +564,7 @@ void RawMachineAssembler::Unreachable() {
   current_block_ = nullptr;
 }
 
-void RawMachineAssembler::Comment(std::string msg) {
+void RawMachineAssembler::Comment(const std::string& msg) {
   size_t length = msg.length() + 1;
   char* zone_buffer = zone()->NewArray<char>(length);
   MemCopy(zone_buffer, msg.c_str(), length);

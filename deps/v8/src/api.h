@@ -7,7 +7,6 @@
 
 #include "include/v8-testing.h"
 #include "src/contexts.h"
-#include "src/debug/debug-interface.h"
 #include "src/detachable-vector.h"
 #include "src/heap/factory.h"
 #include "src/isolate.h"
@@ -27,6 +26,12 @@ namespace v8 {
 namespace internal {
 class JSArrayBufferView;
 }  // namespace internal
+
+namespace debug {
+class GeneratorObject;
+class Script;
+class WeakMap;
+}  // namespace debug
 
 // Constants used in the implementation of the API.  The most natural thing
 // would usually be to place these with the classes that use them, but
@@ -66,15 +71,22 @@ class ApiFunction {
 
 class RegisteredExtension {
  public:
-  explicit RegisteredExtension(Extension* extension);
-  static void Register(RegisteredExtension* that);
+  static void Register(Extension*);
+  static void Register(std::unique_ptr<Extension>);
   static void UnregisterAll();
-  Extension* extension() { return extension_; }
-  RegisteredExtension* next() { return next_; }
+  Extension* extension() const {
+    return legacy_unowned_extension_ ? legacy_unowned_extension_
+                                     : extension_.get();
+  }
+  RegisteredExtension* next() const { return next_; }
   static RegisteredExtension* first_extension() { return first_extension_; }
  private:
-  Extension* extension_;
-  RegisteredExtension* next_;
+  explicit RegisteredExtension(Extension*);
+  explicit RegisteredExtension(std::unique_ptr<Extension>);
+  // TODO(clemensh): Remove this after the 7.4 branch.
+  Extension* legacy_unowned_extension_ = nullptr;
+  std::unique_ptr<Extension> extension_;
+  RegisteredExtension* next_ = nullptr;
   static RegisteredExtension* first_extension_;
 };
 
@@ -116,7 +128,7 @@ class RegisteredExtension {
   V(Context, Context)                          \
   V(External, Object)                          \
   V(StackTrace, FixedArray)                    \
-  V(StackFrame, StackFrameInfo)                \
+  V(StackFrame, StackTraceFrame)               \
   V(Proxy, JSProxy)                            \
   V(debug::GeneratorObject, JSGeneratorObject) \
   V(debug::Script, Script)                     \
@@ -207,7 +219,7 @@ class Utils {
   static inline Local<StackTrace> StackTraceToLocal(
       v8::internal::Handle<v8::internal::FixedArray> obj);
   static inline Local<StackFrame> StackFrameToLocal(
-      v8::internal::Handle<v8::internal::StackFrameInfo> obj);
+      v8::internal::Handle<v8::internal::StackTraceFrame> obj);
   static inline Local<Number> NumberToLocal(
       v8::internal::Handle<v8::internal::Object> obj);
   static inline Local<Integer> IntegerToLocal(
@@ -355,7 +367,6 @@ class HandleScopeImplementer {
       : isolate_(isolate),
         spare_(nullptr),
         call_depth_(0),
-        microtasks_policy_(v8::MicrotasksPolicy::kAuto),
         last_handle_before_deferred_block_(nullptr) {
   }
 
@@ -387,9 +398,6 @@ class HandleScopeImplementer {
   inline size_t EnteredContextCount() const { return entered_contexts_.size(); }
 
   inline void EnterMicrotaskContext(Context context);
-
-  inline void set_microtasks_policy(v8::MicrotasksPolicy policy);
-  inline v8::MicrotasksPolicy microtasks_policy() const;
 
   // Returns the last entered context or an empty handle if no
   // contexts have been entered.
@@ -459,8 +467,6 @@ class HandleScopeImplementer {
   Address* spare_;
   int call_depth_;
 
-  v8::MicrotasksPolicy microtasks_policy_;
-
   Address* last_handle_before_deferred_block_;
   // This is only used for threading support.
   HandleScopeData handle_scope_data_;
@@ -477,17 +483,6 @@ class HandleScopeImplementer {
 };
 
 const int kHandleBlockSize = v8::internal::KB - 2;  // fit in one page
-
-
-void HandleScopeImplementer::set_microtasks_policy(
-    v8::MicrotasksPolicy policy) {
-  microtasks_policy_ = policy;
-}
-
-
-v8::MicrotasksPolicy HandleScopeImplementer::microtasks_policy() const {
-  return microtasks_policy_;
-}
 
 void HandleScopeImplementer::SaveContext(Context context) {
   saved_contexts_.push_back(context);

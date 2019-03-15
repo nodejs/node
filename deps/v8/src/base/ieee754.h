@@ -60,6 +60,14 @@ V8_BASE_EXPORT double cbrt(double x);
 // Returns exp(x)-1, the exponential of |x| minus 1.
 V8_BASE_EXPORT double expm1(double x);
 
+// Returns |x| to the power of |y|.
+// The result of base ** exponent when base is 1 or -1 and exponent is
+// +Infinity or -Infinity differs from IEEE 754-2008. The first edition
+// of ECMAScript specified a result of NaN for this operation, whereas
+// later versions of IEEE 754-2008 specified 1. The historical ECMAScript
+// behaviour is preserved for compatibility reasons.
+V8_BASE_EXPORT double pow(double x, double y);
+
 // Returns the sine of |x|, where |x| is given in radians.
 V8_BASE_EXPORT double sin(double x);
 

@@ -5,7 +5,6 @@
 // Flags: --wasm-max-mem-pages=49152
 
 // This test makes sure things don't break once we support >2GB wasm memories.
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function testHugeMemory() {

@@ -144,29 +144,11 @@ function TestOrderWithDuplicates(withWarmup) {
   });
 
   if (withWarmup) {
-    for (const key in P) {}
+    for (const key in O) {};
+    try { for (const key in P) {} } catch {};
   }
-  log = [];
 
-  assertEquals([
-    ["a", 1],
-    ["a", 1],
-    ["456", 123],
-    ["456", 123]
-  ], Object.entries(P));
-  assertEquals([
-    "[[OwnPropertyKeys]]",
-    "[[GetOwnProperty]](\"a\")",
-    "[[Get]](\"a\")",
-    "[[GetOwnProperty]](\"a\")",
-    "[[Get]](\"a\")",
-    "[[GetOwnProperty]](\"456\")",
-    "[[Get]](\"456\")",
-    "[[GetOwnProperty]](\"HIDDEN\")",
-    "[[GetOwnProperty]](\"HIDDEN\")",
-    "[[GetOwnProperty]](\"456\")",
-    "[[Get]](\"456\")"
-  ], log);
+  assertThrows(() => Object.entries(P), TypeError);
 }
 TestOrderWithDuplicates();
 TestOrderWithDuplicates(true);

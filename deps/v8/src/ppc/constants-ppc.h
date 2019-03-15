@@ -2829,11 +2829,11 @@ class Instruction {
   inline int RSValue() const { return Bits(25, 21); }
   inline int RTValue() const { return Bits(25, 21); }
   inline int RAValue() const { return Bits(20, 16); }
-  DECLARE_STATIC_ACCESSOR(RAValue);
+  DECLARE_STATIC_ACCESSOR(RAValue)
   inline int RBValue() const { return Bits(15, 11); }
-  DECLARE_STATIC_ACCESSOR(RBValue);
+  DECLARE_STATIC_ACCESSOR(RBValue)
   inline int RCValue() const { return Bits(10, 6); }
-  DECLARE_STATIC_ACCESSOR(RCValue);
+  DECLARE_STATIC_ACCESSOR(RCValue)
 
   inline int OpcodeValue() const { return static_cast<Opcode>(Bits(31, 26)); }
   inline uint32_t OpcodeField() const {

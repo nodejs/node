@@ -20,12 +20,13 @@
 #include "src/mips/constants-mips.h"
 #include "src/ostreams.h"
 #include "src/runtime/runtime-utils.h"
+#include "src/vector.h"
 
 namespace v8 {
 namespace internal {
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(Simulator::GlobalMonitor,
-                                Simulator::GlobalMonitor::Get);
+                                Simulator::GlobalMonitor::Get)
 
 // Utils functions.
 bool HaveSameSign(int32_t a, int32_t b) {

@@ -344,6 +344,12 @@ class CpuProfile {
  public:
   typedef v8::CpuProfilingMode ProfilingMode;
 
+  struct SampleInfo {
+    ProfileNode* node;
+    base::TimeTicks timestamp;
+    int line;
+  };
+
   CpuProfile(CpuProfiler* profiler, const char* title, bool record_samples,
              ProfilingMode mode);
 
@@ -356,10 +362,7 @@ class CpuProfile {
   const ProfileTree* top_down() const { return &top_down_; }
 
   int samples_count() const { return static_cast<int>(samples_.size()); }
-  ProfileNode* sample(int index) const { return samples_.at(index); }
-  base::TimeTicks sample_timestamp(int index) const {
-    return timestamps_.at(index);
-  }
+  const SampleInfo& sample(int index) const { return samples_[index]; }
 
   base::TimeTicks start_time() const { return start_time_; }
   base::TimeTicks end_time() const { return end_time_; }
@@ -377,8 +380,7 @@ class CpuProfile {
   ProfilingMode mode_;
   base::TimeTicks start_time_;
   base::TimeTicks end_time_;
-  std::vector<ProfileNode*> samples_;
-  std::vector<base::TimeTicks> timestamps_;
+  std::deque<SampleInfo> samples_;
   ProfileTree top_down_;
   CpuProfiler* const profiler_;
   size_t streaming_next_sample_;

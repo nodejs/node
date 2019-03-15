@@ -215,7 +215,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   // frame description.
   __ Add(x3, x1, FrameDescription::frame_content_offset());
   __ SlotAddress(x1, 0);
-  __ Lsr(unwind_limit, unwind_limit, kPointerSizeLog2);
+  __ Lsr(unwind_limit, unwind_limit, kSystemPointerSizeLog2);
   __ Mov(x5, unwind_limit);
   __ CopyDoubleWords(x3, x1, x5);
   __ Drop(unwind_limit);
@@ -237,19 +237,18 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   }
 
   // Replace the current (input) frame with the output frames.
-  Label outer_push_loop, inner_push_loop,
-      outer_loop_header, inner_loop_header;
+  Label outer_push_loop, outer_loop_header;
   __ Ldrsw(x1, MemOperand(x4, Deoptimizer::output_count_offset()));
   __ Ldr(x0, MemOperand(x4, Deoptimizer::output_offset()));
-  __ Add(x1, x0, Operand(x1, LSL, kPointerSizeLog2));
+  __ Add(x1, x0, Operand(x1, LSL, kSystemPointerSizeLog2));
   __ B(&outer_loop_header);
 
   __ Bind(&outer_push_loop);
   Register current_frame = x2;
   Register frame_size = x3;
-  __ Ldr(current_frame, MemOperand(x0, kPointerSize, PostIndex));
+  __ Ldr(current_frame, MemOperand(x0, kSystemPointerSize, PostIndex));
   __ Ldr(x3, MemOperand(current_frame, FrameDescription::frame_size_offset()));
-  __ Lsr(frame_size, x3, kPointerSizeLog2);
+  __ Lsr(frame_size, x3, kSystemPointerSizeLog2);
   __ Claim(frame_size);
 
   __ Add(x7, current_frame, FrameDescription::frame_content_offset());

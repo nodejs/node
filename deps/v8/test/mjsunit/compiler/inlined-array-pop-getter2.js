@@ -15,6 +15,7 @@ var a = new Array(4);
 var o = {}
 o.__defineGetter__(0, function() { return 1; });
 
+%PrepareFunctionForOptimization(foo);
 assertEquals(undefined, foo(a));
 assertEquals(undefined, foo(a));
 %OptimizeFunctionOnNextCall(foo);

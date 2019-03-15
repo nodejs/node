@@ -9,6 +9,7 @@ var object = Object.create(prototype);
 
 function foo() { return Reflect.getPrototypeOf(object); }
 
+%PrepareFunctionForOptimization(foo);
 assertSame(prototype, foo());
 assertSame(prototype, foo());
 %OptimizeFunctionOnNextCall(foo);

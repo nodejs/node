@@ -71,10 +71,10 @@ std::unique_ptr<TypeProfile> TypeProfile::Collect(Isolate* isolate) {
   return result;
 }
 
-void TypeProfile::SelectMode(Isolate* isolate, debug::TypeProfile::Mode mode) {
+void TypeProfile::SelectMode(Isolate* isolate, debug::TypeProfileMode mode) {
   HandleScope handle_scope(isolate);
 
-  if (mode == debug::TypeProfile::Mode::kNone) {
+  if (mode == debug::TypeProfileMode::kNone) {
     if (!isolate->factory()
              ->feedback_vectors_for_profiling_tools()
              ->IsUndefined(isolate)) {
@@ -106,7 +106,7 @@ void TypeProfile::SelectMode(Isolate* isolate, debug::TypeProfile::Mode mode) {
       }
     }
   } else {
-    DCHECK_EQ(debug::TypeProfile::Mode::kCollect, mode);
+    DCHECK_EQ(debug::TypeProfileMode::kCollect, mode);
     isolate->MaybeInitializeVectorListFromHeap();
   }
   isolate->set_type_profile_mode(mode);

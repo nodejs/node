@@ -8,8 +8,11 @@
 #include "src/debug/debug.h"
 #include "src/elements.h"
 #include "src/heap/factory.h"
+#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/isolate-inl.h"
 #include "src/keys.h"
+#include "src/objects/allocation-site-inl.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
@@ -130,11 +133,11 @@ Object RemoveArrayHolesGeneric(Isolate* isolate, Handle<JSReceiver> receiver,
       // the remaining undefineds or delete the remaining properties.
       RETURN_FAILURE_ON_EXCEPTION(
           isolate, Object::SetElement(isolate, receiver, current_pos, element,
-                                      LanguageMode::kStrict));
+                                      ShouldThrow::kThrowOnError));
       RETURN_FAILURE_ON_EXCEPTION(
           isolate, Object::SetElement(isolate, receiver, key,
                                       isolate->factory()->undefined_value(),
-                                      LanguageMode::kStrict));
+                                      ShouldThrow::kThrowOnError));
       ++current_pos;
     }
   }
@@ -152,7 +155,7 @@ Object RemoveArrayHolesGeneric(Isolate* isolate, Handle<JSReceiver> receiver,
     RETURN_FAILURE_ON_EXCEPTION(
         isolate, Object::SetElement(isolate, receiver, current_pos++,
                                     isolate->factory()->undefined_value(),
-                                    LanguageMode::kStrict));
+                                    ShouldThrow::kThrowOnError));
   }
   // TODO(szuend): Re-enable when we also copy from the prototype chain for
   //               JSArrays. Then we can use HasOwnProperty instead of
@@ -207,7 +210,8 @@ Object RemoveArrayHoles(Isolate* isolate, Handle<JSReceiver> receiver,
     Handle<Map> new_map =
         JSObject::GetElementsTransitionMap(object, HOLEY_ELEMENTS);
 
-    PretenureFlag tenure = Heap::InNewSpace(*object) ? NOT_TENURED : TENURED;
+    PretenureFlag tenure =
+        ObjectInYoungGeneration(*object) ? NOT_TENURED : TENURED;
     Handle<FixedArray> fast_elements =
         isolate->factory()->NewFixedArray(dict->NumberOfElements(), tenure);
     dict->CopyValuesTo(*fast_elements);
@@ -336,7 +340,7 @@ Maybe<bool> ConditionalCopy(Isolate* isolate, Handle<JSReceiver> source,
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, set_result,
       Object::SetElement(isolate, target, index, source_element,
-                         LanguageMode::kStrict),
+                         ShouldThrow::kThrowOnError),
       Nothing<bool>());
 
   return Just(true);

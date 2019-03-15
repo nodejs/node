@@ -9,12 +9,12 @@
 namespace v8 {
 namespace internal {
 
-base::Atomic32 ThreadId::highest_thread_id_ = 0;
-
 namespace {
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(base::Thread::LocalStorageKey, GetThreadIdKey,
-                                base::Thread::CreateThreadLocalKey());
+                                base::Thread::CreateThreadLocalKey())
+
+std::atomic<int> next_thread_id{1};
 
 }  // namespace
 
@@ -26,10 +26,12 @@ ThreadId ThreadId::TryGetCurrent() {
 
 // static
 int ThreadId::GetCurrentThreadId() {
-  int thread_id = base::Thread::GetThreadLocalInt(*GetThreadIdKey());
+  auto key = *GetThreadIdKey();
+  int thread_id = base::Thread::GetThreadLocalInt(key);
   if (thread_id == 0) {
-    thread_id = AllocateThreadId();
-    base::Thread::SetThreadLocalInt(*GetThreadIdKey(), thread_id);
+    thread_id = next_thread_id.fetch_add(1);
+    CHECK_LE(1, thread_id);
+    base::Thread::SetThreadLocalInt(key, thread_id);
   }
   return thread_id;
 }

@@ -50,9 +50,11 @@ void DecodeIncrementally(const std::vector<byte>& bytes,
                          std::vector<unibrow::uchar>* output) {
   unibrow::Utf8::Utf8IncrementalBuffer buffer = 0;
   unibrow::Utf8::State state = unibrow::Utf8::State::kAccept;
-  for (size_t i = 0; i < bytes.size();) {
+  const byte* cursor = &bytes[0];
+  const byte* end = &bytes[bytes.size()];
+  while (cursor < end) {
     unibrow::uchar result =
-        unibrow::Utf8::ValueOfIncremental(bytes[i], &i, &state, &buffer);
+        unibrow::Utf8::ValueOfIncremental(&cursor, &state, &buffer);
     if (result != unibrow::Utf8::kIncomplete) {
       output->push_back(result);
     }

@@ -205,8 +205,7 @@ TEST(DisasmX64) {
   __ incq(Operand(rbx, rcx, times_4, 10000));
   __ pushq(Operand(rbx, rcx, times_4, 10000));
   __ popq(Operand(rbx, rcx, times_4, 10000));
-  // TODO(mstarzinger): The following is protected.
-  // __ jmp(Operand(rbx, rcx, times_4, 10000));
+  __ jmp(Operand(rbx, rcx, times_4, 10000));
 
   __ leaq(rdx, Operand(rbx, rcx, times_4, 10000));
   __ orq(rdx, Immediate(12345));
@@ -291,8 +290,7 @@ TEST(DisasmX64) {
   __ nop();
 
   __ jmp(&L1);
-  // TODO(mstarzinger): The following is protected.
-  // __ jmp(Operand(rbx, rcx, times_4, 10000));
+  __ jmp(Operand(rbx, rcx, times_4, 10000));
   __ jmp(ic, RelocInfo::CODE_TARGET);
   __ nop();
 

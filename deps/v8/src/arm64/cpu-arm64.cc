@@ -15,7 +15,7 @@ namespace internal {
 class CacheLineSizes {
  public:
   CacheLineSizes() {
-#if defined(USE_SIMULATOR) || defined(V8_OS_WIN)
+#if !defined(V8_HOST_ARCH_ARM64) || defined(V8_OS_WIN)
     cache_type_register_ = 0;
 #else
     // Copy the content of the cache type register to a core register.
@@ -38,9 +38,10 @@ class CacheLineSizes {
 };
 
 void CpuFeatures::FlushICache(void* address, size_t length) {
+#if defined(V8_HOST_ARCH_ARM64)
 #if defined(V8_OS_WIN)
-  FlushInstructionCache(GetCurrentProcess(), address, length);
-#elif defined(V8_HOST_ARCH_ARM64)
+  ::FlushInstructionCache(GetCurrentProcess(), address, length);
+#else
   // The code below assumes user space cache operations are allowed. The goal
   // of this routine is to make sure the code generated is visible to the I
   // side of the CPU.
@@ -109,6 +110,7 @@ void CpuFeatures::FlushICache(void* address, size_t length) {
     // move this code before the code is generated.
     : "cc", "memory"
   );  // NOLINT
+#endif  // V8_OS_WIN
 #endif  // V8_HOST_ARCH_ARM64
 }
 

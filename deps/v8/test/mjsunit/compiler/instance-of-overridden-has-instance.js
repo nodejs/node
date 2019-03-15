@@ -13,6 +13,7 @@
     return {} instanceof C;
   }
 
+  %PrepareFunctionForOptimization(f);
   assertTrue(f());
   assertTrue(f());
   %OptimizeFunctionOnNextCall(f);
@@ -35,6 +36,7 @@
     return f(b, C);
   }
 
+  %PrepareFunctionForOptimization(g);
   assertFalse(f(true, Number));
   assertFalse(f(true, Number));
   assertFalse(g(false));
@@ -57,6 +59,7 @@
     return f(b, C);
   }
 
+  %PrepareFunctionForOptimization(g);
   assertFalse(f(true, Number));
   assertFalse(f(true, Number));
   assertFalse(g(false));
@@ -76,6 +79,7 @@
     return {} instanceof C;
   }
 
+  %PrepareFunctionForOptimization(f);
   assertTrue(f());
   assertTrue(f());
   %OptimizeFunctionOnNextCall(f);
@@ -97,6 +101,7 @@
     return {} instanceof C;
   }
 
+  %PrepareFunctionForOptimization(f);
   assertFalse(f());
   assertFalse(f());
   %OptimizeFunctionOnNextCall(f);

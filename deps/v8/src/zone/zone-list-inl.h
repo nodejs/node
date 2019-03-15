@@ -66,7 +66,9 @@ template <typename T>
 void ZoneList<T>::Resize(int new_capacity, ZoneAllocationPolicy alloc) {
   DCHECK_LE(length_, new_capacity);
   T* new_data = NewData(new_capacity, alloc);
-  MemCopy(new_data, data_, length_ * sizeof(T));
+  if (length_ > 0) {
+    MemCopy(new_data, data_, length_ * sizeof(T));
+  }
   ZoneList<T>::DeleteData(data_);
   data_ = new_data;
   capacity_ = new_capacity;

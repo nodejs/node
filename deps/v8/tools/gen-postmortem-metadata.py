@@ -46,6 +46,9 @@
 # the generated libv8 binary.
 #
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import re
 import sys
 
@@ -82,7 +85,6 @@ consts_misc = [
     { 'name': 'SmiTagMask',             'value': 'kSmiTagMask' },
     { 'name': 'SmiValueShift',          'value': 'kSmiTagSize' },
     { 'name': 'SmiShiftSize',           'value': 'kSmiShiftSize' },
-    { 'name': 'PointerSizeLog2',        'value': 'kPointerSizeLog2' },
 
     { 'name': 'OddballFalse',           'value': 'Oddball::kFalse' },
     { 'name': 'OddballTrue',            'value': 'Oddball::kTrue' },
@@ -124,26 +126,14 @@ consts_misc = [
         'value': 'PropertyDetails::RepresentationField::kMask' },
     { 'name': 'prop_representation_shift',
         'value': 'PropertyDetails::RepresentationField::kShift' },
-    { 'name': 'prop_representation_integer8',
-        'value': 'Representation::Kind::kInteger8' },
-    { 'name': 'prop_representation_uinteger8',
-        'value': 'Representation::Kind::kUInteger8' },
-    { 'name': 'prop_representation_integer16',
-        'value': 'Representation::Kind::kInteger16' },
-    { 'name': 'prop_representation_uinteger16',
-        'value': 'Representation::Kind::kUInteger16' },
     { 'name': 'prop_representation_smi',
         'value': 'Representation::Kind::kSmi' },
-    { 'name': 'prop_representation_integer32',
-        'value': 'Representation::Kind::kInteger32' },
     { 'name': 'prop_representation_double',
         'value': 'Representation::Kind::kDouble' },
     { 'name': 'prop_representation_heapobject',
         'value': 'Representation::Kind::kHeapObject' },
     { 'name': 'prop_representation_tagged',
         'value': 'Representation::Kind::kTagged' },
-    { 'name': 'prop_representation_external',
-        'value': 'Representation::Kind::kExternal' },
 
     { 'name': 'prop_desc_key',
         'value': 'DescriptorArray::kEntryKeyIndex' },
@@ -250,8 +240,8 @@ extras_accessors = [
     'JSObject, elements, Object, kElementsOffset',
     'JSObject, internal_fields, uintptr_t, kHeaderSize',
     'FixedArray, data, uintptr_t, kHeaderSize',
-    'FixedTypedArrayBase, external_pointer, Object, kExternalPointerOffset',
-    'JSArrayBuffer, backing_store, Object, kBackingStoreOffset',
+    'FixedTypedArrayBase, external_pointer, uintptr_t, kExternalPointerOffset',
+    'JSArrayBuffer, backing_store, uintptr_t, kBackingStoreOffset',
     'JSArrayBuffer, byte_length, size_t, kByteLengthOffset',
     'JSArrayBufferView, byte_length, size_t, kByteLengthOffset',
     'JSArrayBufferView, byte_offset, size_t, kByteOffsetOffset',
@@ -313,10 +303,12 @@ header = '''
 #include "src/frames-inl.h" /* for architecture-specific frame constants */
 #include "src/contexts.h"
 #include "src/objects.h"
+#include "src/objects/data-handler.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/js-regexp-string-iterator.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 extern "C" {
 
@@ -331,6 +323,9 @@ STACK_FRAME_TYPE_LIST(FRAME_CONST)
 ''' % sys.argv[0];
 
 footer = '''
+}
+
+}
 }
 '''
 
@@ -624,7 +619,7 @@ def emit_set(out, consts):
 # Emit the whole output file.
 #
 def emit_config():
-        out = file(sys.argv[1], 'w');
+        out = open(sys.argv[1], 'w');
 
         out.write(header);
 

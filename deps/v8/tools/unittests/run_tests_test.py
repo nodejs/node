@@ -17,6 +17,9 @@ with different test suite extensions and build configurations.
 # TODO(machenbach): Coverage data from multiprocessing doesn't work.
 # TODO(majeski): Add some tests for the fuzzers.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import collections
 import contextlib
 import json
@@ -126,7 +129,7 @@ class SystemTest(unittest.TestCase):
       import coverage
       if int(coverage.__version__.split('.')[0]) < 4:
         cls._cov = None
-        print 'Python coverage version >= 4 required.'
+        print('Python coverage version >= 4 required.')
         raise ImportError()
       cls._cov = coverage.Coverage(
           source=([os.path.join(TOOLS_ROOT, 'testrunner')]),
@@ -142,10 +145,12 @@ class SystemTest(unittest.TestCase):
       cls._cov.exclude('assert False')
       cls._cov.start()
     except ImportError:
-      print 'Running without python coverage.'
+      print('Running without python coverage.')
     sys.path.append(TOOLS_ROOT)
     global standard_runner
     from testrunner import standard_runner
+    global num_fuzzer
+    from testrunner import num_fuzzer
     from testrunner.local import command
     from testrunner.local import pool
     command.setup_testing()
@@ -155,8 +160,8 @@ class SystemTest(unittest.TestCase):
   def tearDownClass(cls):
     if cls._cov:
       cls._cov.stop()
-      print ''
-      print cls._cov.report(show_missing=True)
+      print('')
+      print(cls._cov.report(show_missing=True))
 
   def testPass(self):
     """Test running only passing tests in two variants.
@@ -173,7 +178,7 @@ class SystemTest(unittest.TestCase):
           'sweet/bananas',
           'sweet/raspberries',
       )
-      self.assertIn('Done running sweet/bananas: pass', result.stdout, result)
+      self.assertIn('Done running sweet/bananas default: pass', result.stdout, result)
       # TODO(majeski): Implement for test processors
       # self.assertIn('Total time:', result.stderr, result)
       # self.assertIn('sweet/bananas', result.stderr, result)
@@ -189,17 +194,24 @@ class SystemTest(unittest.TestCase):
             '--variants=default,stress',
             '--shard-count=2',
             '--shard-run=%d' % shard,
-            'sweet/bananas',
+            'sweet/blackberries',
             'sweet/raspberries',
             infra_staging=False,
         )
         # One of the shards gets one variant of each test.
         self.assertIn('2 tests ran', result.stdout, result)
         if shard == 1:
-          self.assertIn('Done running sweet/bananas', result.stdout, result)
+          self.assertIn(
+            'Done running sweet/raspberries default', result.stdout, result)
+          self.assertIn(
+            'Done running sweet/raspberries stress', result.stdout, result)
+          self.assertEqual(0, result.returncode, result)
         else:
-          self.assertIn('Done running sweet/raspberries', result.stdout, result)
-        self.assertEqual(0, result.returncode, result)
+          self.assertIn(
+            'sweet/blackberries default: FAIL', result.stdout, result)
+          self.assertIn(
+            'sweet/blackberries stress: FAIL', result.stdout, result)
+          self.assertEqual(1, result.returncode, result)
 
   @unittest.skip("incompatible with test processors")
   def testSharded(self):
@@ -233,7 +245,7 @@ class SystemTest(unittest.TestCase):
           'sweet/strawberries',
           infra_staging=False,
       )
-      self.assertIn('Done running sweet/strawberries: FAIL', result.stdout, result)
+      self.assertIn('Done running sweet/strawberries default: FAIL', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
 
   def check_cleaned_json_output(
@@ -278,7 +290,7 @@ class SystemTest(unittest.TestCase):
           'sweet/strawberries',
           infra_staging=False,
       )
-      self.assertIn('Done running sweet/strawberries: FAIL', result.stdout, result)
+      self.assertIn('Done running sweet/strawberries default: FAIL', result.stdout, result)
       # With test processors we don't count reruns as separated failures.
       # TODO(majeski): fix it?
       self.assertIn('1 tests failed', result.stdout, result)
@@ -308,7 +320,7 @@ class SystemTest(unittest.TestCase):
           infra_staging=False,
       )
       self.assertIn(
-        'Done running sweet/bananaflakes: pass', result.stdout, result)
+        'Done running sweet/bananaflakes default: pass', result.stdout, result)
       self.assertIn('All tests succeeded', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
       self.maxDiff = None
@@ -400,13 +412,6 @@ class SystemTest(unittest.TestCase):
       result = run_tests(basedir)
       self.assertIn('Failed to load build config', result.stdout, result)
       self.assertEqual(5, result.returncode, result)
-
-  def testGNOption(self):
-    """Test using gn option, but no gn build folder is found."""
-    with temp_base() as basedir:
-      # TODO(machenbach): This should fail gracefully.
-      with self.assertRaises(OSError):
-        run_tests(basedir, '--gn')
 
   def testInconsistentMode(self):
     """Test failing run when attempting to wrongly override the mode."""
@@ -505,7 +510,8 @@ class SystemTest(unittest.TestCase):
           infra_staging=False,
       )
       self.assertIn('1 tests ran', result.stdout, result)
-      self.assertIn('Done running sweet/bananas: FAIL', result.stdout, result)
+      self.assertIn(
+        'Done running sweet/bananas default: FAIL', result.stdout, result)
       self.assertIn('Test had no allocation output', result.stdout, result)
       self.assertIn('--predictable --verify_predictable', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
@@ -619,10 +625,11 @@ class SystemTest(unittest.TestCase):
           infra_staging=False,
       )
       if name == 'color':
-        expected = ('\033[32m+   1\033[0m|'
+        expected = ('\033[34m%  28\033[0m|'
+                    '\033[32m+   1\033[0m|'
                     '\033[31m-   1\033[0m]: Done')
       else:
-        expected = '+   1|-   1]: Done'
+        expected = '%  28|+   1|-   1]: Done'
       self.assertIn(expected, result.stdout)
       self.assertIn('sweet/cherries', result.stdout)
       self.assertIn('sweet/bananas', result.stdout)
@@ -641,14 +648,25 @@ class SystemTest(unittest.TestCase):
           'sweet/blackberries',  # FAIL
           'sweet/raspberries',   # should not run
       )
-      self.assertIn('sweet/mangoes: pass', result.stdout, result)
-      self.assertIn('sweet/strawberries: FAIL', result.stdout, result)
+      self.assertIn('sweet/mangoes default: pass', result.stdout, result)
+      self.assertIn('sweet/strawberries default: FAIL', result.stdout, result)
       self.assertIn('Too many failures, exiting...', result.stdout, result)
-      self.assertIn('sweet/blackberries: FAIL', result.stdout, result)
+      self.assertIn('sweet/blackberries default: FAIL', result.stdout, result)
       self.assertNotIn('Done running sweet/raspberries', result.stdout, result)
       self.assertIn('2 tests failed', result.stdout, result)
       self.assertIn('3 tests ran', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
+
+  def testNumFuzzer(self):
+    sys_args = ['--command-prefix', sys.executable, '--outdir', 'out/Release']
+
+    with temp_base() as basedir:
+      with capture() as (stdout, stderr):
+        code = num_fuzzer.NumFuzzer(basedir=basedir).execute(sys_args)
+        result = Result(stdout.getvalue(), stderr.getvalue(), code)
+
+      self.assertEqual(0, result.returncode, result)
+
 
 if __name__ == '__main__':
   unittest.main()

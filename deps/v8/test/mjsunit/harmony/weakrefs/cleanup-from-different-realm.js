@@ -9,15 +9,15 @@ let r = Realm.create();
 let cleanup = Realm.eval(r, "var stored_global; function cleanup() { stored_global = globalThis; } cleanup");
 let realm_global_this = Realm.eval(r, "globalThis");
 
-let wf = new WeakFactory(cleanup);
+let fg = new FinalizationGroup(cleanup);
 
-// Create an object and a WeakCell pointing to it. The object needs to be inside
-// a closure so that we can reliably kill them!
+// Create an object and a register it in the FinalizationGroup. The object needs
+// to be inside a closure so that we can reliably kill them!
 let weak_cell;
 
 (function() {
   let object = {};
-  weak_cell = wf.makeCell(object);
+  fg.register(object, {});
 
   // object goes out of scope.
 })();

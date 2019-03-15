@@ -236,12 +236,12 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     DCHECK_NULL(value_high);                                                \
     return AddNode(machine()->Word32Atomic##name(rep), base, index, value); \
   }
-  ATOMIC_FUNCTION(Exchange);
-  ATOMIC_FUNCTION(Add);
-  ATOMIC_FUNCTION(Sub);
-  ATOMIC_FUNCTION(And);
-  ATOMIC_FUNCTION(Or);
-  ATOMIC_FUNCTION(Xor);
+  ATOMIC_FUNCTION(Exchange)
+  ATOMIC_FUNCTION(Add)
+  ATOMIC_FUNCTION(Sub)
+  ATOMIC_FUNCTION(And)
+  ATOMIC_FUNCTION(Or)
+  ATOMIC_FUNCTION(Xor)
 #undef ATOMIC_FUNCTION
 #undef VALUE_HALVES
 
@@ -496,18 +496,18 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
                                    : prefix##32##name(a, b); \
   }
 
-  INTPTR_BINOP(Int, Add);
-  INTPTR_BINOP(Int, AddWithOverflow);
-  INTPTR_BINOP(Int, Sub);
-  INTPTR_BINOP(Int, SubWithOverflow);
-  INTPTR_BINOP(Int, Mul);
-  INTPTR_BINOP(Int, Div);
-  INTPTR_BINOP(Int, LessThan);
-  INTPTR_BINOP(Int, LessThanOrEqual);
-  INTPTR_BINOP(Word, Equal);
-  INTPTR_BINOP(Word, NotEqual);
-  INTPTR_BINOP(Int, GreaterThanOrEqual);
-  INTPTR_BINOP(Int, GreaterThan);
+  INTPTR_BINOP(Int, Add)
+  INTPTR_BINOP(Int, AddWithOverflow)
+  INTPTR_BINOP(Int, Sub)
+  INTPTR_BINOP(Int, SubWithOverflow)
+  INTPTR_BINOP(Int, Mul)
+  INTPTR_BINOP(Int, Div)
+  INTPTR_BINOP(Int, LessThan)
+  INTPTR_BINOP(Int, LessThanOrEqual)
+  INTPTR_BINOP(Word, Equal)
+  INTPTR_BINOP(Word, NotEqual)
+  INTPTR_BINOP(Int, GreaterThanOrEqual)
+  INTPTR_BINOP(Int, GreaterThan)
 
 #undef INTPTR_BINOP
 
@@ -517,10 +517,10 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
                                    : prefix##32##name(a, b); \
   }
 
-  UINTPTR_BINOP(Uint, LessThan);
-  UINTPTR_BINOP(Uint, LessThanOrEqual);
-  UINTPTR_BINOP(Uint, GreaterThanOrEqual);
-  UINTPTR_BINOP(Uint, GreaterThan);
+  UINTPTR_BINOP(Uint, LessThan)
+  UINTPTR_BINOP(Uint, LessThanOrEqual)
+  UINTPTR_BINOP(Uint, GreaterThanOrEqual)
+  UINTPTR_BINOP(Uint, GreaterThan)
 
 #undef UINTPTR_BINOP
 
@@ -941,7 +941,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   void DebugAbort(Node* message);
   void DebugBreak();
   void Unreachable();
-  void Comment(std::string msg);
+  void Comment(const std::string& msg);
 
 #if DEBUG
   void Bind(RawMachineLabel* label, AssemblerDebugInfo info);

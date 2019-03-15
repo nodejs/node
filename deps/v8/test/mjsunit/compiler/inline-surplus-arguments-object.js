@@ -13,5 +13,6 @@ function bar(s, t) {
          args[2] == 13;
 }
 
+%PrepareFunctionForOptimization(bar);
 %OptimizeFunctionOnNextCall(bar);
 assertEquals(true, bar(11, 12));

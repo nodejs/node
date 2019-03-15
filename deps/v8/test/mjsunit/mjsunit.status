@@ -33,7 +33,6 @@
   'harmony/modules-skip*': [SKIP],
   'regress/modules-skip*': [SKIP],
   'wasm/exceptions-utils': [SKIP],
-  'wasm/wasm-constants': [SKIP],
   'wasm/wasm-module-builder': [SKIP],
 
   # All tests in the bug directory are expected to fail.
@@ -77,6 +76,9 @@
 
   # Too slow in debug mode and under turbofan.
   'regress/regress-4595': [PASS, NO_VARIANTS, ['mode == debug', SKIP]],
+
+  # Too slow in debug mode, due to large allocations.
+  'regress/regress-crbug-941743': [PASS, ['mode == debug', SKIP], ['(arch == arm or arch == arm64) and simulator_run == True', SKIP]],
 
   ##############################################################################
   # Only RegExp stuff tested, no need for extensive optimizing compiler tests.
@@ -323,7 +325,7 @@
 }],  # 'gc_stress == True'
 
 ##############################################################################
-['lite_mode', {
+['lite_mode or variant == jitless', {
   # Skip tests not suitable for lite_mode.
 
   # TODO(8596): We cache the templates in the feedback vector. In lite mode
@@ -343,15 +345,16 @@
   'regress/regress-trap-allocation-memento': [SKIP],
   'regress/regress-4121': [SKIP],
 
-  # Slow tests without feedback vectors
-  # TODO(mythria): Investigate why they are slow and either fix if
-  # possible are update the reason why they are slow.
-  'spread-large-string': [SKIP],
-  'spread-large-array': [SKIP],
-
   # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+  'regress/regress-5888': [SKIP],
+  'regress/regress-5911': [SKIP],
+  'regress/regress-813440': [SKIP],
+  'regress/regress-crbug-746835': [SKIP],
+  'regress/regress-crbug-772056': [SKIP],
+  'regress/regress-crbug-816961': [SKIP],
   'regress/wasm/*': [SKIP],
   'tools/compiler-trace-flags': [SKIP],
+  'regress/regress-8947': [SKIP],
   'wasm/*': [SKIP],
 
   # Other tests that use asm / wasm / optimized code.
@@ -367,6 +370,7 @@
   'regress/regress-6700': [SKIP],
   'regress/regress-6838-2': [SKIP],
   'regress/regress-6838-3': [SKIP],
+  'regress/regress-crbug-934138': [SKIP],
 
   # Timeouts in lite / jitless mode.
   'asm/embenchen/*': [SKIP],
@@ -380,7 +384,157 @@
   'regress/regress-crbug-721835': [SKIP],
   'regress/regress-crbug-759327': [SKIP],
   'regress/regress-crbug-898974': [SKIP],
-}],  # 'lite_mode'
+}],  # 'lite_mode or variant == jitless'
+
+##############################################################################
+['lite_mode', {
+  # TODO(v8:8510): Tests that currently fail with lazy source positions.
+  'stack-traces-overflow': [SKIP],
+}], # lite_mode
+
+##############################################################################
+['variant == jitless', {
+  # https://crbug.com/v8/7777
+  'array-literal-transitions': [SKIP],
+  'array-push5': [SKIP],
+  'array-shift4': [SKIP],
+  'array-store-and-grow': [SKIP],
+  'code-coverage-block-opt': [SKIP],
+  'compiler/abstract-equal-receiver': [SKIP],
+  'compiler/abstract-equal-symbol': [SKIP],
+  'compiler/abstract-equal-undetectable': [SKIP],
+  'compiler/array-buffer-is-view': [SKIP],
+  'compiler/array-multiple-receiver-maps': [SKIP],
+  'compiler/array-push-3': [SKIP],
+  'compiler/array-slice-clone': [SKIP],
+  'compiler/constant-fold-cow-array': [SKIP],
+  'compiler/dataview-deopt': [SKIP],
+  'compiler/dataview-get': [SKIP],
+  'compiler/dataview-neutered': [SKIP],
+  'compiler/dataview-set': [SKIP],
+  'compiler/deopt-array-builtins': [SKIP],
+  'compiler/deopt-array-push': [SKIP],
+  'compiler/deopt-inlined-from-call': [SKIP],
+  'compiler/deopt-numberoroddball-binop': [SKIP],
+  'compiler/deopt-string-outofbounds': [SKIP],
+  'compiler/dont-flush-code-marked-for-opt': [SKIP],
+  'compiler/increment-typefeedback': [SKIP],
+  'compiler/inlined-array-pop-opt': [SKIP],
+  'compiler/inlined-call': [SKIP],
+  'compiler/integral32-add-sub': [SKIP],
+  'compiler/manual-concurrent-recompile': [SKIP],
+  'compiler/math-imul': [SKIP],
+  'compiler/native-context-specialization-hole-check': [SKIP],
+  'compiler/number-abs': [SKIP],
+  'compiler/number-ceil': [SKIP],
+  'compiler/number-comparison-truncations': [SKIP],
+  'compiler/number-divide': [SKIP],
+  'compiler/number-floor': [SKIP],
+  'compiler/number-max': [SKIP],
+  'compiler/number-min': [SKIP],
+  'compiler/number-modulus': [SKIP],
+  'compiler/number-round': [SKIP],
+  'compiler/number-toboolean': [SKIP],
+  'compiler/number-trunc': [SKIP],
+  'compiler/optimized-float32array-length': [SKIP],
+  'compiler/optimized-float64array-length': [SKIP],
+  'compiler/optimized-int32array-length': [SKIP],
+  'compiler/optimized-uint32array-length': [SKIP],
+  'compiler/opt-next-call': [SKIP],
+  'compiler/opt-next-call-turbo': [SKIP],
+  'compiler/promise-resolve-stable-maps': [SKIP],
+  'compiler/redundancy-elimination': [SKIP],
+  'compiler/regress-5320': [SKIP],
+  'compiler/regress-compare-negate': [SKIP],
+  'compiler/stress-deopt-count-1': [SKIP],
+  'compiler/stress-deopt-count-2': [SKIP],
+  'compiler/string-from-code-point': [SKIP],
+  'compiler/uint8-clamped-array': [SKIP],
+  'constant-folding-2': [SKIP],
+  'default-nospec': [SKIP],
+  'deopt-minus-zero': [SKIP],
+  'deopt-recursive-eager-once': [SKIP],
+  'deopt-recursive-lazy-once': [SKIP],
+  'deopt-recursive-soft-once': [SKIP],
+  'deopt-unlinked': [SKIP],
+  'deopt-with-fp-regs': [SKIP],
+  'deserialize-optimize-inner': [SKIP],
+  'div-mul-minus-one': [SKIP],
+  'elements-transition-hoisting': [SKIP],
+  'ensure-growing-store-learns': [SKIP],
+  'es6/array-iterator-turbo': [SKIP],
+  'es6/block-let-crankshaft': [SKIP],
+  'es6/block-let-crankshaft-sloppy': [SKIP],
+  'es6/block-scoping': [SKIP],
+  'es6/block-scoping-sloppy': [SKIP],
+  'es6/collections-constructor-custom-iterator': [SKIP],
+  'es6/collections-constructor-iterator-side-effect': [SKIP],
+  'es6/collections-constructor-with-modified-array-prototype': [SKIP],
+  'es6/collections-constructor-with-modified-protoype': [SKIP],
+  'es6/map-constructor-entry-side-effect': [SKIP],
+  'es6/map-constructor-entry-side-effect2': [SKIP],
+  'es6/map-constructor-entry-side-effect3': [SKIP],
+  'es6/map-constructor-entry-side-effect4': [SKIP],
+  'field-type-tracking': [SKIP],
+  'getters-on-elements': [SKIP],
+  'ignition/throw-if-hole': [SKIP],
+  'ignition/throw-if-not-hole': [SKIP],
+  'ignition/throw-super-not-called': [SKIP],
+  'keyed-load-hole-to-undefined': [SKIP],
+  'keyed-load-with-string-key': [SKIP],
+  'keyed-load-with-symbol-key': [SKIP],
+  'math-deopt': [SKIP],
+  'math-floor-of-div-minus-zero': [SKIP],
+  'modules-turbo1': [SKIP],
+  'never-optimize': [SKIP],
+  'object-seal': [SKIP],
+  'optimized-map': [SKIP],
+  'regress/regress-2132': [SKIP],
+  'regress/regress-2250': [SKIP],
+  'regress/regress-2315': [SKIP],
+  'regress/regress-2339': [SKIP],
+  'regress/regress-2451': [SKIP],
+  'regress/regress-252797': [SKIP],
+  'regress/regress-2618': [SKIP],
+  'regress/regress-3176': [SKIP],
+  'regress/regress-3650-3': [SKIP],
+  'regress/regress-3709': [SKIP],
+  'regress/regress-385565': [SKIP],
+  'regress/regress-4380': [SKIP],
+  'regress/regress-5404': [SKIP],
+  'regress/regress-5790': [SKIP],
+  'regress/regress-5802': [SKIP],
+  'regress/regress-6607-1': [SKIP],
+  'regress/regress-6607-2': [SKIP],
+  'regress/regress-6941': [SKIP],
+  'regress/regress-6948': [SKIP],
+  'regress/regress-6989': [SKIP],
+  'regress/regress-6991': [SKIP],
+  'regress/regress-7014-1': [SKIP],
+  'regress/regress-7014-2': [SKIP],
+  'regress/regress-7135': [SKIP],
+  'regress/regress-7254': [SKIP],
+  'regress/regress-7510': [SKIP],
+  'regress/regress-794825': [SKIP],
+  'regress/regress-8913': [SKIP],
+  'regress/regress-crbug-554831': [SKIP],
+  'regress/regress-crbug-587068': [SKIP],
+  'regress/regress-crbug-594183': [SKIP],
+  'regress/regress-crbug-882233-2': [SKIP],
+  'regress/regress-embedded-cons-string': [SKIP],
+  'regress/regress-map-invalidation-2': [SKIP],
+  'regress/regress-param-local-type': [SKIP],
+  'regress/regress-store-uncacheable': [SKIP],
+  'regress/regress-v8-5697': [SKIP],
+  'shared-function-tier-up-turbo': [SKIP],
+  'shift-for-integer-div': [SKIP],
+  'sin-cos': [SKIP],
+  'smi-mul': [SKIP],
+  'smi-mul-const': [SKIP],
+  'string-deopt': [SKIP],
+  'strong-rooted-literals': [SKIP],
+  'unary-minus-deopt': [SKIP],
+}], # variant == jitless
 
 ##############################################################################
 ['byteorder == big', {
@@ -424,6 +578,9 @@
 
   # BUG(v8:4016)
   'regress/regress-crbug-467047': [SKIP],
+
+  # OOMing tests
+  'regress/regress-500980': [SKIP],
 
   # Slow tests.
   'array-concat': [PASS, SLOW],
@@ -718,13 +875,13 @@
 ##############################################################################
 ['system == android', {
   # Tests consistently failing on Android.
-  # Unable to change locale on Android:
-  'icu-date-to-string': [FAIL],
-  'regress/regress-6288': [FAIL],
+  # Setting the locale with environment variables unavailable
+  'icu-date-to-string': [SKIP],
+  'icu-date-lord-howe': [SKIP],
+  'regress/regress-6288': [SKIP],
   # OOM:
   'regress/regress-748069': [FAIL],
   'regress/regress-752764': [FAIL],
-  'regress/regress-779407': [FAIL],
   # Flaky OOM:
   'regress/regress-852258': [SKIP],
 }],  # 'system == android'
@@ -792,7 +949,6 @@
   'compiler/native-context-specialization-hole-check': [PASS, FAIL],
   'elements-transition-hoisting': [PASS, FAIL],
   'es6/collections-constructor-custom-iterator': [PASS, FAIL],
-  'harmony/weakrefs/clear-clears-factory-pointer': [PASS, FAIL],
   'ignition/throw-if-not-hole': [PASS, FAIL],
   'keyed-load-with-symbol-key': [PASS, FAIL],
   'object-seal': [PASS, FAIL],
@@ -1002,5 +1158,10 @@
   # Unwinding info writer is only supported on x64, arm, and arm64 Linux
   'regress/regress-913844': [SKIP],
 }],
+
+##############################################################################
+['variant == jitless and not embedded_builtins', {
+  '*': [SKIP],
+}], # variant == jitless and not embedded_builtins
 
 ]

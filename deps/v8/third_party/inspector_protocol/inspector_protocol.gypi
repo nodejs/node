@@ -7,6 +7,8 @@
     'inspector_protocol_files': [
       'lib/Allocator_h.template',
       'lib/Array_h.template',
+      'lib/CBOR_h.template',
+      'lib/CBOR_cpp.template',
       'lib/DispatcherBase_cpp.template',
       'lib/DispatcherBase_h.template',
       'lib/ErrorSupport_cpp.template',

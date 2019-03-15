@@ -107,6 +107,7 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_FLOAT_OP(CopySign, "copysign")
     CASE_REF_OP(Null, "null")
     CASE_REF_OP(IsNull, "is_null")
+    CASE_REF_OP(Func, "func")
     CASE_I32_OP(ConvertI64, "wrap/i64")
     CASE_CONVERT_OP(Convert, INT, F32, "f32", "trunc")
     CASE_CONVERT_OP(Convert, INT, F64, "f64", "trunc")
@@ -137,6 +138,8 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(Return, "return")
     CASE_OP(CallFunction, "call")
     CASE_OP(CallIndirect, "call_indirect")
+    CASE_OP(ReturnCall, "return_call")
+    CASE_OP(ReturnCallIndirect, "return_call_indirect")
     CASE_OP(Drop, "drop")
     CASE_OP(Select, "select")
     CASE_OP(GetLocal, "get_local")
@@ -144,6 +147,8 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(TeeLocal, "tee_local")
     CASE_OP(GetGlobal, "get_global")
     CASE_OP(SetGlobal, "set_global")
+    CASE_OP(GetTable, "get_table")
+    CASE_OP(SetTable, "set_table")
     CASE_ALL_OP(Const, "const")
     CASE_OP(MemorySize, "memory.size")
     CASE_OP(MemoryGrow, "memory.grow")
@@ -198,11 +203,11 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_CONVERT_SAT_OP(Convert, I64, F32, "f32", "trunc")
     CASE_CONVERT_SAT_OP(Convert, I64, F64, "f64", "trunc")
     CASE_OP(MemoryInit, "memory.init")
-    CASE_OP(MemoryDrop, "memory.drop")
+    CASE_OP(DataDrop, "data.drop")
     CASE_OP(MemoryCopy, "memory.copy")
     CASE_OP(MemoryFill, "memory.fill")
     CASE_OP(TableInit, "table.init")
-    CASE_OP(TableDrop, "table.drop")
+    CASE_OP(ElemDrop, "elem.drop")
     CASE_OP(TableCopy, "table.copy")
 
     // SIMD opcodes.
@@ -362,6 +367,19 @@ bool WasmOpcodes::IsAnyRefOpcode(WasmOpcode opcode) {
   switch (opcode) {
     case kExprRefNull:
     case kExprRefIsNull:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool WasmOpcodes::IsThrowingOpcode(WasmOpcode opcode) {
+  // TODO(8729): Trapping opcodes are not yet considered to be throwing.
+  switch (opcode) {
+    case kExprThrow:
+    case kExprRethrow:
+    case kExprCallFunction:
+    case kExprCallIndirect:
       return true;
     default:
       return false;

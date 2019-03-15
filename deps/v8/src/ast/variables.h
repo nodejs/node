@@ -6,6 +6,7 @@
 #define V8_AST_VARIABLES_H_
 
 #include "src/ast/ast-value-factory.h"
+#include "src/base/threaded-list.h"
 #include "src/globals.h"
 #include "src/zone/zone.h"
 
@@ -59,7 +60,7 @@ class Variable final : public ZoneObject {
     return ForceContextAllocationField::decode(bit_field_);
   }
   void ForceContextAllocation() {
-    DCHECK(IsUnallocated() || IsContextSlot() ||
+    DCHECK(IsUnallocated() || IsContextSlot() || IsLookupSlot() ||
            location() == VariableLocation::MODULE);
     bit_field_ = ForceContextAllocationField::update(bit_field_, true);
   }
@@ -137,6 +138,9 @@ class Variable final : public ZoneObject {
   }
 
   bool is_parameter() const { return kind() == PARAMETER_VARIABLE; }
+  bool is_sloppy_block_function() {
+    return kind() == SLOPPY_BLOCK_FUNCTION_VARIABLE;
+  }
 
   Variable* local_if_not_shadowed() const {
     DCHECK(mode() == VariableMode::kDynamicLocal &&
@@ -207,7 +211,7 @@ class Variable final : public ZoneObject {
 
   class VariableModeField : public BitField16<VariableMode, 0, 3> {};
   class VariableKindField
-      : public BitField16<VariableKind, VariableModeField::kNext, 2> {};
+      : public BitField16<VariableKind, VariableModeField::kNext, 3> {};
   class LocationField
       : public BitField16<VariableLocation, VariableKindField::kNext, 3> {};
   class ForceContextAllocationField

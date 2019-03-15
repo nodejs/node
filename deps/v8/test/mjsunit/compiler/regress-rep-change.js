@@ -37,6 +37,8 @@ function test(start) {
   for (var i = start; i < 10; i++) { }
 }
 
+%PrepareFunctionForOptimization(test);
+
 var n = 3;
 
 for (var i = 0; i < n; ++i) {

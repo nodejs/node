@@ -15,9 +15,10 @@ class VariantsGenerator(testsuite.VariantsGenerator):
     return self._standard_variant
 
 
-class TestSuite(testsuite.TestSuite):
-  def ListTests(self):
-    shell = os.path.abspath(os.path.join(self.test_config.shell_dir, self.name))
+class TestLoader(testsuite.TestLoader):
+  def _list_test_filenames(self):
+    shell = os.path.abspath(
+      os.path.join(self.test_config.shell_dir, "unittests"))
     if utils.IsWindows():
       shell += ".exe"
 
@@ -30,6 +31,7 @@ class TestSuite(testsuite.TestSuite):
       output = cmd.execute()
       if output.exit_code == 0:
         break
+
       print "Test executable failed to list the tests (try %d).\n\nCmd:" % i
       print cmd
       print "\nStdout:"
@@ -40,17 +42,22 @@ class TestSuite(testsuite.TestSuite):
     else:
       raise Exception("Test executable failed to list the tests.")
 
-    tests = []
-    test_case = ''
+    # TODO create an ExecutableTestLoader for refactoring this similar to
+    # JSTestLoader.
+    test_names = []
     for line in output.stdout.splitlines():
       test_desc = line.strip().split()[0]
       if test_desc.endswith('.'):
         test_case = test_desc
       elif test_case and test_desc:
-        test_path = test_case + test_desc
-        tests.append(self._create_test(test_path))
-    tests.sort(key=lambda t: t.path)
-    return tests
+        test_names.append(test_case + test_desc)
+
+    return sorted(test_names)
+
+
+class TestSuite(testsuite.TestSuite):
+  def _test_loader_class(self):
+    return TestLoader
 
   def _test_class(self):
     return TestCase

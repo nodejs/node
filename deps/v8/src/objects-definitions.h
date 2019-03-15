@@ -43,10 +43,8 @@ namespace internal {
   V(EXTERNAL_INTERNALIZED_STRING_TYPE)                             \
   V(ONE_BYTE_INTERNALIZED_STRING_TYPE)                             \
   V(EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE)                    \
-  V(EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE)          \
   V(UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE)                    \
   V(UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE)           \
-  V(UNCACHED_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE) \
   V(STRING_TYPE)                                                   \
   V(CONS_STRING_TYPE)                                              \
   V(EXTERNAL_STRING_TYPE)                                          \
@@ -57,10 +55,8 @@ namespace internal {
   V(EXTERNAL_ONE_BYTE_STRING_TYPE)                                 \
   V(SLICED_ONE_BYTE_STRING_TYPE)                                   \
   V(THIN_ONE_BYTE_STRING_TYPE)                                     \
-  V(EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE)                       \
   V(UNCACHED_EXTERNAL_STRING_TYPE)                                 \
   V(UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE)                        \
-  V(UNCACHED_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE)              \
                                                                    \
   V(SYMBOL_TYPE)                                                   \
   V(HEAP_NUMBER_TYPE)                                              \
@@ -98,6 +94,7 @@ namespace internal {
   V(ALLOCATION_MEMENTO_TYPE)                                       \
   V(ASM_WASM_DATA_TYPE)                                            \
   V(ASYNC_GENERATOR_REQUEST_TYPE)                                  \
+  V(CLASS_POSITIONS_TYPE)                                          \
   V(DEBUG_INFO_TYPE)                                               \
   V(FUNCTION_TEMPLATE_INFO_TYPE)                                   \
   V(FUNCTION_TEMPLATE_RARE_DATA_TYPE)                              \
@@ -111,6 +108,7 @@ namespace internal {
   V(PROTOTYPE_INFO_TYPE)                                           \
   V(SCRIPT_TYPE)                                                   \
   V(STACK_FRAME_INFO_TYPE)                                         \
+  V(STACK_TRACE_FRAME_TYPE)                                        \
   V(TUPLE2_TYPE)                                                   \
   V(TUPLE3_TYPE)                                                   \
   V(ARRAY_BOILERPLATE_DESCRIPTION_TYPE)                            \
@@ -123,7 +121,7 @@ namespace internal {
   V(PROMISE_FULFILL_REACTION_JOB_TASK_TYPE)                        \
   V(PROMISE_REJECT_REACTION_JOB_TASK_TYPE)                         \
   V(PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE)                        \
-  V(WEAK_FACTORY_CLEANUP_JOB_TASK_TYPE)                            \
+  V(FINALIZATION_GROUP_CLEANUP_JOB_TASK_TYPE)                      \
                                                                    \
   V(ALLOCATION_SITE_TYPE)                                          \
   V(EMBEDDER_DATA_ARRAY_TYPE)                                      \
@@ -175,6 +173,7 @@ namespace internal {
   V(UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE)                    \
   V(UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE)                       \
   V(WEAK_ARRAY_LIST_TYPE)                                          \
+  V(WEAK_CELL_TYPE)                                                \
                                                                    \
   V(JS_PROXY_TYPE)                                                 \
   V(JS_GLOBAL_OBJECT_TYPE)                                         \
@@ -208,10 +207,9 @@ namespace internal {
   V(JS_SET_KEY_VALUE_ITERATOR_TYPE)                                \
   V(JS_SET_VALUE_ITERATOR_TYPE)                                    \
   V(JS_STRING_ITERATOR_TYPE)                                       \
-  V(JS_WEAK_CELL_TYPE)                                             \
   V(JS_WEAK_REF_TYPE)                                              \
-  V(JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE)                         \
-  V(JS_WEAK_FACTORY_TYPE)                                          \
+  V(JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE)                   \
+  V(JS_FINALIZATION_GROUP_TYPE)                                    \
   V(JS_WEAK_MAP_TYPE)                                              \
   V(JS_WEAK_SET_TYPE)                                              \
   V(JS_TYPED_ARRAY_TYPE)                                           \
@@ -263,17 +261,11 @@ namespace internal {
     ExternalString)                                                            \
   V(EXTERNAL_ONE_BYTE_STRING_TYPE, ExternalOneByteString::kSize,               \
     external_one_byte_string, ExternalOneByteString)                           \
-  V(EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE, ExternalTwoByteString::kSize,     \
-    external_string_with_one_byte_data, ExternalStringWithOneByteData)         \
   V(UNCACHED_EXTERNAL_STRING_TYPE, ExternalTwoByteString::kUncachedSize,       \
     uncached_external_string, UncachedExternalString)                          \
   V(UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE,                                    \
     ExternalOneByteString::kUncachedSize, uncached_external_one_byte_string,   \
     UncachedExternalOneByteString)                                             \
-  V(UNCACHED_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE,                          \
-    ExternalTwoByteString::kUncachedSize,                                      \
-    uncached_external_string_with_one_byte_data,                               \
-    UncachedExternalStringWithOneByteData)                                     \
                                                                                \
   V(INTERNALIZED_STRING_TYPE, kVariableSizeSentinel, internalized_string,      \
     InternalizedString)                                                        \
@@ -283,10 +275,6 @@ namespace internal {
     external_internalized_string, ExternalInternalizedString)                  \
   V(EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE, ExternalOneByteString::kSize,  \
     external_one_byte_internalized_string, ExternalOneByteInternalizedString)  \
-  V(EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE,                      \
-    ExternalTwoByteString::kSize,                                              \
-    external_internalized_string_with_one_byte_data,                           \
-    ExternalInternalizedStringWithOneByteData)                                 \
   V(UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE,                                \
     ExternalTwoByteString::kUncachedSize,                                      \
     uncached_external_internalized_string, UncachedExternalInternalizedString) \
@@ -294,10 +282,6 @@ namespace internal {
     ExternalOneByteString::kUncachedSize,                                      \
     uncached_external_one_byte_internalized_string,                            \
     UncachedExternalOneByteInternalizedString)                                 \
-  V(UNCACHED_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE,             \
-    ExternalTwoByteString::kUncachedSize,                                      \
-    uncached_external_internalized_string_with_one_byte_data,                  \
-    UncachedExternalInternalizedStringWithOneByteData)                         \
   V(THIN_STRING_TYPE, ThinString::kSize, thin_string, ThinString)              \
   V(THIN_ONE_BYTE_STRING_TYPE, ThinString::kSize, thin_one_byte_string,        \
     ThinOneByteString)
@@ -321,6 +305,7 @@ namespace internal {
   V(_, ASM_WASM_DATA_TYPE, AsmWasmData, asm_wasm_data)                        \
   V(_, ASYNC_GENERATOR_REQUEST_TYPE, AsyncGeneratorRequest,                   \
     async_generator_request)                                                  \
+  V(_, CLASS_POSITIONS_TYPE, ClassPositions, class_positions)                 \
   V(_, DEBUG_INFO_TYPE, DebugInfo, debug_info)                                \
   V(_, FUNCTION_TEMPLATE_INFO_TYPE, FunctionTemplateInfo,                     \
     function_template_info)                                                   \
@@ -336,6 +321,7 @@ namespace internal {
   V(_, PROTOTYPE_INFO_TYPE, PrototypeInfo, prototype_info)                    \
   V(_, SCRIPT_TYPE, Script, script)                                           \
   V(_, STACK_FRAME_INFO_TYPE, StackFrameInfo, stack_frame_info)               \
+  V(_, STACK_TRACE_FRAME_TYPE, StackTraceFrame, stack_trace_frame)            \
   V(_, TUPLE2_TYPE, Tuple2, tuple2)                                           \
   V(_, TUPLE3_TYPE, Tuple3, tuple3)                                           \
   V(_, ARRAY_BOILERPLATE_DESCRIPTION_TYPE, ArrayBoilerplateDescription,       \
@@ -352,8 +338,8 @@ namespace internal {
     promise_reject_reaction_job_task)                                         \
   V(_, PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE, PromiseResolveThenableJobTask, \
     promise_resolve_thenable_job_task)                                        \
-  V(_, WEAK_FACTORY_CLEANUP_JOB_TASK_TYPE, WeakFactoryCleanupJobTask,         \
-    weak_factory_cleanup_job_task)
+  V(_, FINALIZATION_GROUP_CLEANUP_JOB_TASK_TYPE,                              \
+    FinalizationGroupCleanupJobTask, finalization_group_cleanup_job_task)
 
 // Adapts one STRUCT_LIST_GENERATOR entry to the STRUCT_LIST entry
 #define STRUCT_LIST_ADAPTER(V, NAME, Name, name) V(NAME, Name, name)

@@ -29,6 +29,7 @@ function g(abort, a, b) {
   return f(abort, "abc", a, b);
 }
 
+%PrepareFunctionForOptimization(g);
 g(true); g(true); g(true); g(true);
 
 %OptimizeFunctionOnNextCall(g);

@@ -50,6 +50,8 @@
 namespace v8 {
 namespace internal {
 
+class SafepointTableBuilder;
+
 // Allow programmer to use Branch Delay Slot of Branches, Jumps, Calls.
 enum BranchDelaySlot { USE_DELAY_SLOT, PROTECT };
 
@@ -159,10 +161,20 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   virtual ~Assembler() { }
 
-  // GetCode emits any pending (non-emitted) code and fills the descriptor
-  // desc. GetCode() is idempotent; it returns the same result if no other
-  // Assembler functions are invoked in between GetCode() calls.
-  void GetCode(Isolate* isolate, CodeDesc* desc);
+  // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
+  static constexpr int kNoHandlerTable = 0;
+  static constexpr SafepointTableBuilder* kNoSafepointTable = nullptr;
+  void GetCode(Isolate* isolate, CodeDesc* desc,
+               SafepointTableBuilder* safepoint_table_builder,
+               int handler_table_offset);
+
+  // Convenience wrapper for code without safepoint or handler tables.
+  void GetCode(Isolate* isolate, CodeDesc* desc) {
+    GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
+  }
+
+  // Unused on this architecture.
+  void MaybeEmitOutOfLineConstantPool() {}
 
   // Label operations & relative jumps (PPUM Appendix D).
   //
@@ -253,8 +265,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Return the code target address at a call site from the return address
   // of that call in the instruction stream.
   inline static Address target_address_from_return_address(Address pc);
-
-  static void QuietNaN(HeapObject nan);
 
   // This sets the branch destination (which gets loaded at the call address).
   // This is for calls and branches within generated code.  The serializer

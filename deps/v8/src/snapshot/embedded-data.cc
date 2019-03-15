@@ -232,6 +232,13 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   // between two builtins with int3's (on x64/ia32).
   ZapCode(reinterpret_cast<Address>(blob), blob_size);
 
+  // Hash relevant parts of the Isolate's heap and store the result.
+  {
+    STATIC_ASSERT(IsolateHashSize() == kSizetSize);
+    const size_t hash = isolate->HashIsolateForEmbeddedBlob();
+    std::memcpy(blob + IsolateHashOffset(), &hash, IsolateHashSize());
+  }
+
   // Write the metadata tables.
   DCHECK_EQ(MetadataSize(), sizeof(metadata[0]) * metadata.size());
   std::memcpy(blob + MetadataOffset(), metadata.data(), MetadataSize());
@@ -254,12 +261,14 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   FinalizeEmbeddedCodeTargets(isolate, &d);
 
   // Hash the blob and store the result.
-  STATIC_ASSERT(HashSize() == kSizetSize);
-  const size_t hash = d.CreateHash();
-  std::memcpy(blob + HashOffset(), &hash, HashSize());
+  {
+    STATIC_ASSERT(EmbeddedBlobHashSize() == kSizetSize);
+    const size_t hash = d.CreateEmbeddedBlobHash();
+    std::memcpy(blob + EmbeddedBlobHashOffset(), &hash, EmbeddedBlobHashSize());
 
-  DCHECK_EQ(hash, d.CreateHash());
-  DCHECK_EQ(hash, d.Hash());
+    DCHECK_EQ(hash, d.CreateEmbeddedBlobHash());
+    DCHECK_EQ(hash, d.EmbeddedBlobHash());
+  }
 
   if (FLAG_serialization_statistics) d.PrintStatistics();
 
@@ -281,10 +290,10 @@ uint32_t EmbeddedData::InstructionSizeOfBuiltin(int i) const {
   return metadata[i].instructions_length;
 }
 
-size_t EmbeddedData::CreateHash() const {
-  STATIC_ASSERT(HashOffset() == 0);
-  STATIC_ASSERT(HashSize() == kSizetSize);
-  return base::hash_range(data_ + HashSize(), data_ + size_);
+size_t EmbeddedData::CreateEmbeddedBlobHash() const {
+  STATIC_ASSERT(EmbeddedBlobHashOffset() == 0);
+  STATIC_ASSERT(EmbeddedBlobHashSize() == kSizetSize);
+  return base::hash_range(data_ + EmbeddedBlobHashSize(), data_ + size_);
 }
 
 void EmbeddedData::PrintStatistics() const {
@@ -311,7 +320,8 @@ void EmbeddedData::PrintStatistics() const {
   const int k90th = embedded_count * 0.90;
   const int k99th = embedded_count * 0.99;
 
-  const int metadata_size = static_cast<int>(HashSize() + MetadataSize());
+  const int metadata_size = static_cast<int>(
+      EmbeddedBlobHashSize() + IsolateHashSize() + MetadataSize());
 
   PrintF("EmbeddedData:\n");
   PrintF("  Total size:                         %d\n",

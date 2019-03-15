@@ -1025,7 +1025,7 @@ void LiftoffStackSlots::Construct() {
         asm_->Poke(liftoff::GetRegFromType(slot.src_.reg(), slot.src_.type()),
                    poke_offset);
         break;
-      case LiftoffAssembler::VarState::KIntConst:
+      case LiftoffAssembler::VarState::kIntConst:
         DCHECK(slot.src_.type() == kWasmI32 || slot.src_.type() == kWasmI64);
         if (slot.src_.i32_const() == 0) {
           Register zero_reg = slot.src_.type() == kWasmI32 ? wzr : xzr;

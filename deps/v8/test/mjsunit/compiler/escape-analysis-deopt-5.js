@@ -35,6 +35,7 @@ function f() {
   return x[0];
 }
 
+%PrepareFunctionForOptimization(f);
 assertEquals(f(), 23.1234);
 assertEquals(f(), 23.1234);
 %OptimizeFunctionOnNextCall(f);

@@ -107,13 +107,20 @@ var assertNotNull;
 // Assert that the passed function or eval code throws an exception.
 // The optional second argument is an exception constructor that the
 // thrown exception is checked against with "instanceof".
-// The optional third argument is a message type string that is compared
-// to the type property on the thrown exception.
+// The optional third argument is a message type string or RegExp object that is
+// compared to the message of the thrown exception.
 var assertThrows;
 
 // Assert that the passed function throws an exception.
 // The exception is checked against the second argument using assertEquals.
 var assertThrowsEquals;
+
+// Assert that the passed promise does not resolve, but eventually throws an
+// exception. The optional second argument is an exception constructor that the
+// thrown exception is checked against with "instanceof".
+// The optional third argument is a message type string or RegExp object that is
+// compared to the message of the thrown exception.
+var assertThrowsAsync;
 
 // Assert that the passed function or eval code does not throw an exception.
 var assertDoesNotThrow;
@@ -213,7 +220,7 @@ var prettyPrinted;
   // TODO(neis): Remove try-catch once BigInts are enabled by default.
   try {
     BigIntPrototypeValueOf = BigInt.prototype.valueOf;
-  } catch(e) {}
+  } catch (e) {}
 
   function classOf(object) {
     // Argument must not be null or undefined.
@@ -480,45 +487,68 @@ var prettyPrinted;
     }
   };
 
+  function executeCode(code) {
+    if (typeof code === 'function')  return code();
+    if (typeof code === 'string') return eval(code);
+    failWithMessage(
+        'Given code is neither function nor string, but ' + (typeof code) +
+        ': <' + prettyPrinted(code) + '>');
+  }
+
+  function checkException(e, type_opt, cause_opt) {
+    if (type_opt !== undefined) {
+      assertEquals('function', typeof type_opt);
+      assertInstanceof(e, type_opt);
+    }
+    if (RegExp !== undefined && cause_opt instanceof RegExp) {
+      assertMatches(cause_opt, e.message, 'Error message');
+    } else if (cause_opt !== undefined) {
+      assertEquals(cause_opt, e.message, 'Error message');
+    }
+  }
 
   assertThrows = function assertThrows(code, type_opt, cause_opt) {
+    if (type_opt !== undefined && typeof type_opt !== 'function') {
+      failWithMessage(
+          'invalid use of assertThrows, maybe you want assertThrowsEquals');
+    }
     try {
-      if (typeof code === 'function') {
-        code();
-      } else {
-        eval(code);
-      }
+      executeCode(code);
     } catch (e) {
-      if (typeof type_opt === 'function') {
-        assertInstanceof(e, type_opt);
-      } else if (type_opt !== void 0) {
-        failWithMessage(
-            'invalid use of assertThrows, maybe you want assertThrowsEquals');
-      }
-      if (arguments.length >= 3) {
-        if (cause_opt instanceof RegExp) {
-          assertMatches(cause_opt, e.message, "Error message");
-        } else {
-          assertEquals(cause_opt, e.message, "Error message");
-        }
-      }
-      // Success.
+      checkException(e, type_opt, cause_opt);
       return;
     }
-    failWithMessage("Did not throw exception");
+    let msg = 'Did not throw exception';
+    if (type_opt !== undefined && type_opt.name !== undefined)
+      msg += ', expected ' + type_opt.name;
+    failWithMessage(msg);
   };
-
 
   assertThrowsEquals = function assertThrowsEquals(fun, val) {
     try {
       fun();
-    } catch(e) {
+    } catch (e) {
       assertSame(val, e);
       return;
     }
-    failWithMessage("Did not throw exception");
+    failWithMessage('Did not throw exception, expected ' + prettyPrinted(val));
   };
 
+  assertThrowsAsync = function assertThrowsAsync(promise, type_opt, cause_opt) {
+    if (type_opt !== undefined && typeof type_opt !== 'function') {
+      failWithMessage(
+          'invalid use of assertThrows, maybe you want assertThrowsEquals');
+    }
+    let msg = 'Promise did not throw exception';
+    if (type_opt !== undefined && type_opt.name !== undefined)
+      msg += ', expected ' + type_opt.name;
+    return assertPromiseResult(
+        promise,
+        // Use setTimeout to throw the error again to get out of the promise
+        // chain.
+        res => setTimeout(_ => fail('<throw>', res, msg), 0),
+        e => checkException(e, type_opt, cause_opt));
+  };
 
   assertInstanceof = function assertInstanceof(obj, type) {
     if (!(obj instanceof type)) {
@@ -533,15 +563,11 @@ var prettyPrinted;
     }
   };
 
-
-   assertDoesNotThrow = function assertDoesNotThrow(code, name_opt) {
+  assertDoesNotThrow = function assertDoesNotThrow(code, name_opt) {
     try {
-      if (typeof code === 'function') {
-        return code();
-      } else {
-        return eval(code);
-      }
+      executeCode(code);
     } catch (e) {
+      if (e instanceof MjsUnitAssertionError) throw e;
       failWithMessage("threw an exception: " + (e.message || e));
     }
   };
@@ -584,13 +610,16 @@ var prettyPrinted;
   }
 
   assertPromiseResult = function(promise, success, fail) {
+    if (success !== undefined) assertEquals('function', typeof success);
+    if (fail !== undefined) assertEquals('function', typeof fail);
+    assertInstanceof(promise, Promise);
     const stack = (new Error()).stack;
 
     var test_promise = promise.then(
         result => {
           try {
             if (--promiseTestCount == 0) testRunner.notifyDone();
-            if (success) success(result);
+            if (success !== undefined) success(result);
           } catch (e) {
             // Use setTimeout to throw the error again to get out of the promise
             // chain.
@@ -602,7 +631,7 @@ var prettyPrinted;
         result => {
           try {
             if (--promiseTestCount == 0) testRunner.notifyDone();
-            if (!fail) throw result;
+            if (fail === undefined) throw result;
             fail(result);
           } catch (e) {
             // Use setTimeout to throw the error again to get out of the promise
@@ -667,7 +696,9 @@ var prettyPrinted;
     // option is provided. Such tests must add --opt to flags comment.
     assertFalse((opt_status & V8OptimizationStatus.kNeverOptimize) !== 0,
                 "test does not make sense with --no-opt");
-    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0, name_opt);
+    assertTrue(
+        (opt_status & V8OptimizationStatus.kIsFunction) !== 0,
+        'should be a function: ' + name_opt);
     if (skip_if_maybe_deopted &&
         (opt_status & V8OptimizationStatus.kMaybeDeopted) !== 0) {
       // When --deopt-every-n-times flag is specified it's no longer guaranteed
@@ -675,7 +706,9 @@ var prettyPrinted;
       // to stress test the deoptimizer.
       return;
     }
-    assertTrue((opt_status & V8OptimizationStatus.kOptimized) !== 0, name_opt);
+    assertTrue(
+        (opt_status & V8OptimizationStatus.kOptimized) !== 0,
+        'should be optimized: ' + name_opt);
   }
 
   isNeverOptimizeLiteMode = function isNeverOptimizeLiteMode() {
@@ -772,7 +805,7 @@ var prettyPrinted;
         return frame;
       });
       return "" + error.message + "\n" + ArrayPrototypeJoin.call(stack, "\n");
-    } catch(e) {};
+    } catch (e) {};
     return error.stack;
   }
 })();

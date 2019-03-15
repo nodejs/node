@@ -57,11 +57,11 @@ void CreateSplinter(TopLevelLiveRange* range, RegisterAllocationData* data,
 }
 
 void SetSlotUse(TopLevelLiveRange* range) {
-  range->set_has_slot_use(false);
+  range->reset_slot_use();
   for (const UsePosition* pos = range->first_pos();
        !range->has_slot_use() && pos != nullptr; pos = pos->next()) {
     if (pos->type() == UsePositionType::kRequiresSlot) {
-      range->set_has_slot_use(true);
+      range->register_slot_use(TopLevelLiveRange::SlotUseKind::kGeneralSlotUse);
     }
   }
 }

@@ -64,7 +64,7 @@ class PageAllocatorInitializer {
 };
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(PageAllocatorInitializer,
-                                GetPageTableInitializer);
+                                GetPageTableInitializer)
 
 // We will attempt allocation this many times. After each failure, we call
 // OnCriticalMemoryPressure to try to free some memory.

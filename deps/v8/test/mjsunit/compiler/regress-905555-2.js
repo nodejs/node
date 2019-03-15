@@ -10,6 +10,7 @@ function boom(value) {
   return global;
 }
 
+%PrepareFunctionForOptimization(boom);
 assertEquals(1, boom());
 assertEquals(1, boom());
 %OptimizeFunctionOnNextCall(boom, "concurrent");

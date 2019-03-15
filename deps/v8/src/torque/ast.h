@@ -87,6 +87,7 @@ namespace torque {
   AST_STATEMENT_NODE_KIND_LIST(V)       \
   AST_DECLARATION_NODE_KIND_LIST(V)     \
   AST_CALLABLE_NODE_KIND_LIST(V)        \
+  V(Identifier)                         \
   V(LabelBlock)
 
 struct AstNode {
@@ -194,21 +195,29 @@ class Ast {
 
 static const char* const kThisParameterName = "this";
 
+// A Identifier is a string with a SourcePosition attached.
+struct Identifier : AstNode {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(Identifier)
+  Identifier(SourcePosition pos, std::string identifier)
+      : AstNode(kKind, pos), value(std::move(identifier)) {}
+  std::string value;
+};
+
 struct IdentifierExpression : LocationExpression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(IdentifierExpression)
   IdentifierExpression(SourcePosition pos,
                        std::vector<std::string> namespace_qualification,
-                       std::string name, std::vector<TypeExpression*> args = {})
+                       Identifier* name, std::vector<TypeExpression*> args = {})
       : LocationExpression(kKind, pos),
         namespace_qualification(std::move(namespace_qualification)),
-        name(std::move(name)),
+        name(name),
         generic_arguments(std::move(args)) {}
-  IdentifierExpression(SourcePosition pos, std::string name,
+  IdentifierExpression(SourcePosition pos, Identifier* name,
                        std::vector<TypeExpression*> args = {})
-      : IdentifierExpression(pos, {}, std::move(name), std::move(args)) {}
-  bool IsThis() const { return name == kThisParameterName; }
+      : IdentifierExpression(pos, {}, name, std::move(args)) {}
+  bool IsThis() const { return name->value == kThisParameterName; }
   std::vector<std::string> namespace_qualification;
-  std::string name;
+  Identifier* name;
   std::vector<TypeExpression*> generic_arguments;
 };
 
@@ -410,7 +419,7 @@ struct NewExpression : Expression {
 };
 
 struct ParameterList {
-  std::vector<std::string> names;
+  std::vector<Identifier*> names;
   std::vector<TypeExpression*> types;
   size_t implicit_count;
   bool has_varargs;
@@ -532,16 +541,16 @@ struct TailCallStatement : Statement {
 struct VarDeclarationStatement : Statement {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(VarDeclarationStatement)
   VarDeclarationStatement(
-      SourcePosition pos, bool const_qualified, std::string name,
+      SourcePosition pos, bool const_qualified, Identifier* name,
       base::Optional<TypeExpression*> type,
       base::Optional<Expression*> initializer = base::nullopt)
       : Statement(kKind, pos),
         const_qualified(const_qualified),
-        name(std::move(name)),
+        name(name),
         type(type),
         initializer(initializer) {}
   bool const_qualified;
-  std::string name;
+  Identifier* name;
   base::Optional<TypeExpression*> type;
   base::Optional<Expression*> initializer;
 };
@@ -657,17 +666,17 @@ struct BlockStatement : Statement {
 
 struct TypeDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(TypeDeclaration)
-  TypeDeclaration(SourcePosition pos, std::string name, bool transient,
+  TypeDeclaration(SourcePosition pos, Identifier* name, bool transient,
                   base::Optional<std::string> extends,
                   base::Optional<std::string> generates,
                   base::Optional<std::string> constexpr_generates)
       : Declaration(kKind, pos),
-        name(std::move(name)),
+        name(name),
         transient(transient),
         extends(std::move(extends)),
         generates(std::move(generates)),
         constexpr_generates(std::move(constexpr_generates)) {}
-  std::string name;
+  Identifier* name;
   bool transient;
   base::Optional<std::string> extends;
   base::Optional<std::string> generates;
@@ -676,15 +685,15 @@ struct TypeDeclaration : Declaration {
 
 struct TypeAliasDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(TypeAliasDeclaration)
-  TypeAliasDeclaration(SourcePosition pos, std::string name,
+  TypeAliasDeclaration(SourcePosition pos, Identifier* name,
                        TypeExpression* type)
-      : Declaration(kKind, pos), name(std::move(name)), type(type) {}
-  std::string name;
+      : Declaration(kKind, pos), name(name), type(type) {}
+  Identifier* name;
   TypeExpression* type;
 };
 
 struct NameAndTypeExpression {
-  std::string name;
+  Identifier* name;
   TypeExpression* type;
 };
 
@@ -694,6 +703,7 @@ struct StructFieldExpression {
 
 struct ClassFieldExpression {
   NameAndTypeExpression name_and_type;
+  base::Optional<std::string> index;
   bool weak;
 };
 
@@ -815,13 +825,13 @@ struct ExternalRuntimeDeclaration : CallableNode {
 
 struct ConstDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ConstDeclaration)
-  ConstDeclaration(SourcePosition pos, std::string name, TypeExpression* type,
+  ConstDeclaration(SourcePosition pos, Identifier* name, TypeExpression* type,
                    Expression* expression)
       : Declaration(kKind, pos),
-        name(std::move(name)),
+        name(name),
         type(type),
         expression(expression) {}
-  std::string name;
+  Identifier* name;
   TypeExpression* type;
   Expression* expression;
 };
@@ -838,14 +848,14 @@ struct StandardDeclaration : Declaration {
 struct GenericDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(GenericDeclaration)
   GenericDeclaration(SourcePosition pos, CallableNode* callable,
-                     std::vector<std::string> generic_parameters,
+                     std::vector<Identifier*> generic_parameters,
                      base::Optional<Statement*> body = base::nullopt)
       : Declaration(kKind, pos),
         callable(callable),
         generic_parameters(std::move(generic_parameters)),
         body(body) {}
   CallableNode* callable;
-  std::vector<std::string> generic_parameters;
+  std::vector<Identifier*> generic_parameters;
   base::Optional<Statement*> body;
 };
 
@@ -872,47 +882,50 @@ struct SpecializationDeclaration : Declaration {
 
 struct ExternConstDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ExternConstDeclaration)
-  ExternConstDeclaration(SourcePosition pos, std::string name,
+  ExternConstDeclaration(SourcePosition pos, Identifier* name,
                          TypeExpression* type, std::string literal)
       : Declaration(kKind, pos),
-        name(std::move(name)),
+        name(name),
         type(type),
         literal(std::move(literal)) {}
-  std::string name;
+  Identifier* name;
   TypeExpression* type;
   std::string literal;
 };
 
 struct StructDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(StructDeclaration)
-  StructDeclaration(SourcePosition pos, std::string name,
+  StructDeclaration(SourcePosition pos, Identifier* name,
                     std::vector<Declaration*> methods,
                     std::vector<StructFieldExpression> fields)
       : Declaration(kKind, pos),
-        name(std::move(name)),
+        name(name),
         methods(std::move(methods)),
         fields(std::move(fields)) {}
-  std::string name;
+  Identifier* name;
   std::vector<Declaration*> methods;
   std::vector<StructFieldExpression> fields;
 };
 
 struct ClassDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ClassDeclaration)
-  ClassDeclaration(SourcePosition pos, std::string name, bool transient,
-                   std::string super, base::Optional<std::string> generates,
+  ClassDeclaration(SourcePosition pos, Identifier* name, bool is_extern,
+                   bool transient, base::Optional<std::string> super,
+                   base::Optional<std::string> generates,
                    std::vector<Declaration*> methods,
                    std::vector<ClassFieldExpression> fields)
       : Declaration(kKind, pos),
-        name(std::move(name)),
+        name(name),
+        is_extern(is_extern),
         transient(transient),
         super(std::move(super)),
         generates(std::move(generates)),
         methods(std::move(methods)),
         fields(std::move(fields)) {}
-  std::string name;
+  Identifier* name;
+  bool is_extern;
   bool transient;
-  std::string super;
+  base::Optional<std::string> super;
   base::Optional<std::string> generates;
   std::vector<Declaration*> methods;
   std::vector<ClassFieldExpression> fields;

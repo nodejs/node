@@ -84,6 +84,11 @@
   'language/expressions/prefix-increment/S11.4.4_A5_*': [FAIL],
   'language/statements/variable/binding-resolution': [FAIL],
 
+  # https://code.google.com/p/v8/issues/detail?id=8771
+  'language/computed-property-names/class/static/method-number': [FAIL],
+  'language/computed-property-names/class/static/method-string': [FAIL],
+  'language/computed-property-names/class/static/method-symbol': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=4895
   'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/detached-buffer': [FAIL],
   'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/BigInt/detached-buffer': [FAIL],
@@ -137,9 +142,6 @@
   'built-ins/DataView/detached-buffer': [FAIL],
   'built-ins/DataView/prototype/byteLength/detached-buffer': [FAIL],
   'built-ins/DataView/prototype/byteOffset/detached-buffer': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4231
-  'language/eval-code/direct/var-env-lower-lex-catch-non-strict': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4951
   'language/expressions/assignment/destructuring/iterator-destructuring-property-reference-target-evaluation-order': [FAIL],
@@ -374,9 +376,6 @@
   'language/literals/regexp/u-unicode-esc-non-hex': [FAIL_PHASE_ONLY],
   'language/literals/regexp/unicode-escape-nls-err': [FAIL_PHASE_ONLY],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7829
-  'language/block-scope/syntax/redeclaration/function-declaration-attempt-to-redeclare-with-var-declaration-nested-in-function': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4628
   'language/eval-code/direct/non-definable-function-with-function': [FAIL],
   'language/eval-code/direct/non-definable-function-with-variable': [FAIL],
@@ -489,79 +488,27 @@
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-caller': [FAIL_SLOPPY],
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-arguments': [FAIL_SLOPPY],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6776
-  'built-ins/Proxy/ownKeys/return-duplicate-entries-throws': [FAIL],
-  'built-ins/Proxy/ownKeys/return-duplicate-symbol-entries-throws': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7184
   'annexB/language/expressions/yield/star-iterable-return-emulates-undefined-throws-when-called': [FAIL],
   'annexB/language/statements/for-await-of/iterator-close-return-emulates-undefined-throws-when-called': [FAIL],
   'annexB/language/statements/for-of/iterator-close-return-emulates-undefined-throws-when-called': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7468
-  'language/statements/class/elements/privatename-not-valid-earlyerr-script-8': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5690
   'language/expressions/call/eval-spread': [FAIL],
   'language/expressions/call/eval-spread-empty-leading': [FAIL],
   'language/expressions/call/eval-spread-empty-trailing': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8717
-  'intl402/Segmenter/constructor/constructor/options-granularity-valid': [FAIL],
-  'intl402/Segmenter/constructor/constructor/options-lineBreakStyle-invalid': [FAIL],
-  'intl402/Segmenter/constructor/constructor/options-lineBreakStyle-valid': [FAIL],
-  'intl402/Segmenter/constructor/constructor/options-order': [FAIL],
-  'intl402/Segmenter/constructor/constructor/options-throwing-getters': [FAIL],
-  'intl402/Segmenter/constructor/constructor/options-toobject-prototype': [FAIL],
-  'intl402/Segmenter/constructor/constructor/options-valid-combinations': [FAIL],
-  'intl402/Segmenter/iterator/granularity': [FAIL],
-  'intl402/Segmenter/prototype/resolvedOptions/order': [FAIL],
-  'intl402/Segmenter/prototype/resolvedOptions/type-with-lbs': [FAIL],
-  'intl402/Segmenter/prototype/segment/segment-line': [FAIL],
-  'intl402/Segmenter/prototype/segment/segment-line-following': [FAIL],
-  'intl402/Segmenter/prototype/segment/segment-line-following-modes': [FAIL],
-  'intl402/Segmenter/prototype/segment/segment-line-iterable': [FAIL],
-  'intl402/Segmenter/prototype/segment/segment-line-next': [FAIL],
-  'intl402/Segmenter/prototype/segment/segment-line-preceding': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8664
+  'intl402/Collator/missing-unicode-ext-value-defaults-to-true': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7472
   'intl402/NumberFormat/currency-digits': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7482
-  'intl402/DateTimeFormat/prototype/resolvedOptions/resolved-locale-with-hc-unicode': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8849
+  'intl402/Intl/getCanonicalLocales/non-iana-canon': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7483
   'annexB/built-ins/Function/createdynfn-html-close-comment-params': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8260
-  'intl402/Locale/constructor-non-iana-canon': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8261
-  'intl402/Locale/constructor-options-language-valid': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8262
-  'intl402/Locale/constructor-parse-twice': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8246
-  'intl402/Locale/constructor-tag': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8243
-  'intl402/Locale/extensions-private': [FAIL],
-  'intl402/Locale/getters-privateuse': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8236
-  'intl402/Locale/likely-subtags': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8242
-  'intl402/Locale/extensions-grandfathered': [FAIL],
-  'intl402/Locale/getters-grandfathered': [FAIL],
-  'intl402/Locale/likely-subtags-grandfathered': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8613
-  'intl402/RelativeTimeFormat/prototype/resolvedOptions/order': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6705
-  'built-ins/Object/assign/strings-and-symbol-order': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7831
   'language/statements/generators/generator-created-after-decl-inst': [FAIL],
@@ -574,15 +521,6 @@
   'language/expressions/await/await-monkey-patched-promise': ['--harmony-await-optimization'],
   'language/expressions/await/for-await-of-interleaved': ['--harmony-await-optimization'],
   'language/expressions/await/async-await-interleaved': ['--harmony-await-optimization'],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8706
-  'language/block-scope/syntax/redeclaration/fn-scope-var-name-redeclaration-attempt-with-async-function': [FAIL],
-  'language/block-scope/syntax/redeclaration/fn-scope-var-name-redeclaration-attempt-with-async-generator': [FAIL],
-  'language/block-scope/syntax/redeclaration/fn-scope-var-name-redeclaration-attempt-with-class': [FAIL],
-  'language/block-scope/syntax/redeclaration/fn-scope-var-name-redeclaration-attempt-with-const': [FAIL],
-  'language/block-scope/syntax/redeclaration/fn-scope-var-name-redeclaration-attempt-with-function': [FAIL],
-  'language/block-scope/syntax/redeclaration/fn-scope-var-name-redeclaration-attempt-with-generator': [FAIL],
-  'language/block-scope/syntax/redeclaration/fn-scope-var-name-redeclaration-attempt-with-let' : [FAIL],
 
   # https://github.com/tc39/test262/issues/2033
   'language/expressions/class/elements/private-derived-cls-direct-eval-err-contains-supercall': [SKIP],
@@ -616,43 +554,36 @@
   'language/expressions/prefix-increment/eval': [SKIP],
   'language/expressions/prefix-increment/eval-nostrict': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8707
-  'language/line-terminators/invalid-string-ls': [SKIP],
-  'language/line-terminators/invalid-string-ps': [SKIP],
-
-  # https://github.com/tc39/proposal-class-fields/issues/215
-  'language/expressions/class/elements/syntax/early-errors/invalid-names/method-inner-call-expression-bad-reference': [FAIL],
-  'language/expressions/class/elements/syntax/early-errors/invalid-names/method-inner-call-expression-this': [FAIL],
-  'language/expressions/class/elements/syntax/early-errors/invalid-names/method-inner-member-expression-bad-reference': [FAIL],
-  'language/expressions/class/elements/syntax/early-errors/invalid-names/method-inner-member-expression-this': [FAIL],
-  'language/statements/class/elements/syntax/early-errors/invalid-names/method-inner-call-expression-bad-reference': [FAIL],
-  'language/statements/class/elements/syntax/early-errors/invalid-names/method-inner-call-expression-this': [FAIL],
-  'language/statements/class/elements/syntax/early-errors/invalid-names/method-inner-member-expression-bad-reference': [FAIL],
-  'language/statements/class/elements/syntax/early-errors/invalid-names/method-inner-member-expression-this': [FAIL],
-  'language/expressions/function/early-errors/invalid-names-call-expression-bad-reference': [FAIL],
-  'language/expressions/function/early-errors/invalid-names-call-expression-this': [FAIL],
-  'language/expressions/function/early-errors/invalid-names-member-expression-bad-reference': [FAIL],
-  'language/expressions/function/early-errors/invalid-names-member-expression-this': [FAIL],
-  'language/statements/function/early-errors/invalid-names-call-expression-bad-reference': [FAIL],
-  'language/statements/function/early-errors/invalid-names-call-expression-this': [FAIL],
-  'language/statements/function/early-errors/invalid-names-member-expression-bad-reference': [FAIL],
-  'language/statements/function/early-errors/invalid-names-member-expression-this': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8850
+  'language/comments/hashbang/escaped-bang-041': [SKIP],
+  'language/comments/hashbang/escaped-bang-u0021': [SKIP],
+  'language/comments/hashbang/escaped-bang-u21': [SKIP],
+  'language/comments/hashbang/escaped-bang-x21': [SKIP],
+  'language/comments/hashbang/escaped-hash-043': [SKIP],
+  'language/comments/hashbang/escaped-hash-u0023': [SKIP],
+  'language/comments/hashbang/escaped-hash-u23': [SKIP],
+  'language/comments/hashbang/escaped-hash-x23': [SKIP],
+  'language/comments/hashbang/escaped-hashbang': [SKIP],
+  'language/comments/hashbang/eval': [SKIP],
+  'language/comments/hashbang/eval-indirect': [SKIP],
+  'language/comments/hashbang/module': [SKIP],
+  'language/comments/hashbang/multi-line-comment': [SKIP],
+  'language/comments/hashbang/no-line-separator': [SKIP],
+  'language/comments/hashbang/not-empty': [SKIP],
+  'language/comments/hashbang/preceding-directive-prologue': [SKIP],
+  'language/comments/hashbang/preceding-directive-prologue-sc': [SKIP],
+  'language/comments/hashbang/preceding-empty-statement': [SKIP],
+  'language/comments/hashbang/preceding-hashbang': [SKIP],
+  'language/comments/hashbang/preceding-line-comment': [SKIP],
+  'language/comments/hashbang/preceding-multi-line-comment': [SKIP],
+  'language/comments/hashbang/preceding-whitespace': [SKIP],
+  'language/comments/hashbang/use-strict': [SKIP],
 
   ######################## NEEDS INVESTIGATION ###########################
-
-  # These test failures are specific to the intl402 suite and need investigation
-  # to be either marked as bugs with issues filed for them or as deliberate
-  # incompatibilities if the test cases turn out to be broken or ambiguous.
-  # Some of these are related to v8:4361 in being visible side effects from Intl.
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
   'built-ins/Atomics/wait/cannot-suspend-throws': [SKIP],
   'built-ins/Atomics/wait/undefined-index-defaults-to-zero': [SKIP],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8258
-  'intl402/Locale/constructor-options-language-valid-undefined': [FAIL],
-  'intl402/NumberFormat/prototype/format/format-fraction-digits-precision': [FAIL],
-  'intl402/NumberFormat/prototype/format/format-significant-digits-precision': [FAIL],
 
   ##################### DELIBERATE INCOMPATIBILITIES #####################
 
@@ -660,24 +591,6 @@
   'annexB/language/function-code/block-decl-func-skip-arguments': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=6538
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6541
-  'language/export/escaped-as-export-specifier': [FAIL],
-  'language/export/escaped-from': [FAIL],
-  'language/expressions/object/method-definition/escaped-get': [FAIL],
-  'language/expressions/object/method-definition/escaped-set': [FAIL],
-  'language/import/escaped-as-import-specifier': [FAIL],
-  'language/import/escaped-as-namespace-import': [FAIL],
-  'language/import/escaped-from': [FAIL],
-  'language/statements/for-await-of/escaped-of': [FAIL],
-  'language/statements/for-of/escaped-of': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6543
-  'language/statements/labeled/value-await-non-module-escaped': [FAIL],
-  'language/statements/labeled/value-yield-non-strict-escaped': [FAIL],
-  'language/expressions/async-arrow-function/escaped-async-line-terminator': [FAIL],
-  'language/expressions/class/class-name-ident-await-escaped': [FAIL],
-  'language/statements/class/class-name-ident-await-escaped': [FAIL],
 
   ############################ INVALID TESTS #############################
 
@@ -1336,6 +1249,21 @@
   'built-ins/SharedArrayBuffer/length-is-too-large-throws': [SKIP],
 }],  # asan == True or msan == True or tsan == True
 
+['variant == interpreted_regexp', {
+  # Call stack exceeded: https://crbug.com/v8/8678
+  'built-ins/RegExp/CharacterClassEscapes/character-class-non-digit-class-escape-plus-quantifier-flags-u': [SKIP],
+  'built-ins/RegExp/CharacterClassEscapes/character-class-non-whitespace-class-escape-plus-quantifier-flags-u': [SKIP],
+  'built-ins/RegExp/CharacterClassEscapes/character-class-non-word-class-escape-plus-quantifier-flags-u': [SKIP],
+}],  # variant == interpreted_regexp
+
+##############################################################################
+['variant == jitless', {
+  # https://crbug.com/v8/7777
+  'built-ins/RegExp/CharacterClassEscapes/character-class-non-digit-class-escape-plus-quantifier-flags-u': [SKIP],
+  'built-ins/RegExp/CharacterClassEscapes/character-class-non-whitespace-class-escape-plus-quantifier-flags-u': [SKIP],
+  'built-ins/RegExp/CharacterClassEscapes/character-class-non-word-class-escape-plus-quantifier-flags-u': [SKIP],
+}], # variant == jitless
+
 ['variant == no_wasm_traps', {
   '*': [SKIP],
 }],  # variant == no_wasm_traps
@@ -1349,5 +1277,10 @@
   # https://crbug.com/856119
   'intl402/DateTimeFormat/prototype/resolvedOptions/basic': [SKIP],
 }],  # system == windows
+
+##############################################################################
+['variant == jitless and not embedded_builtins', {
+  '*': [SKIP],
+}], # variant == jitless and not embedded_builtins
 
 ]

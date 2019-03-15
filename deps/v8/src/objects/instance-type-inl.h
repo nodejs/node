@@ -17,7 +17,7 @@ namespace internal {
 namespace InstanceTypeChecker {
 
 // Define type checkers for classes with single instance type.
-INSTANCE_TYPE_CHECKERS_SINGLE(INSTANCE_TYPE_CHECKER);
+INSTANCE_TYPE_CHECKERS_SINGLE(INSTANCE_TYPE_CHECKER)
 
 #define TYPED_ARRAY_INSTANCE_TYPE_CHECKER(Type, type, TYPE, ctype) \
   INSTANCE_TYPE_CHECKER(Fixed##Type##Array, FIXED_##TYPE##_ARRAY_TYPE)
@@ -35,7 +35,7 @@ STRUCT_LIST(STRUCT_INSTANCE_TYPE_CHECKER)
   V8_INLINE bool Is##type(InstanceType instance_type) {                       \
     return IsInRange(instance_type, first_instance_type, last_instance_type); \
   }
-INSTANCE_TYPE_CHECKERS_RANGE(INSTANCE_TYPE_CHECKER_RANGE);
+INSTANCE_TYPE_CHECKERS_RANGE(INSTANCE_TYPE_CHECKER_RANGE)
 #undef INSTANCE_TYPE_CHECKER_RANGE
 
 V8_INLINE bool IsFixedArrayBase(InstanceType instance_type) {
@@ -67,7 +67,7 @@ V8_INLINE bool IsJSReceiver(InstanceType instance_type) {
 // TODO(v8:7786): For instance types that have a single map instance on the
 // roots, and when that map is a embedded in the binary, compare against the map
 // pointer rather than looking up the instance type.
-INSTANCE_TYPE_CHECKERS(TYPE_CHECKER);
+INSTANCE_TYPE_CHECKERS(TYPE_CHECKER)
 
 #define TYPED_ARRAY_TYPE_CHECKER(Type, type, TYPE, ctype) \
   TYPE_CHECKER(Fixed##Type##Array)

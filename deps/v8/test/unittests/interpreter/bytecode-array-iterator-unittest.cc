@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/hash-seed-inl.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/objects-inl.h"
@@ -27,7 +28,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   FeedbackVectorSpec feedback_spec(zone());
   BytecodeArrayBuilder builder(zone(), 3, 3, &feedback_spec);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
-                              isolate()->heap()->HashSeed());
+                              HashSeed(isolate()));
   double heap_num_0 = 2.718;
   double heap_num_1 = 2.0 * Smi::kMaxValue;
   Smi zero = Smi::zero();

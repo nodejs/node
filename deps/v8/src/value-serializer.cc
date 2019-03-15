@@ -279,7 +279,7 @@ void ValueSerializer::WriteBigIntContents(BigInt bigint) {
 
 void ValueSerializer::WriteRawBytes(const void* source, size_t length) {
   uint8_t* dest;
-  if (ReserveRawBytes(length).To(&dest)) {
+  if (ReserveRawBytes(length).To(&dest) && length > 0) {
     memcpy(dest, source, length);
   }
 }
@@ -1697,7 +1697,9 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
                                           should_initialize)) {
     return MaybeHandle<JSArrayBuffer>();
   }
-  memcpy(array_buffer->backing_store(), position_, byte_length);
+  if (byte_length > 0) {
+    memcpy(array_buffer->backing_store(), position_, byte_length);
+  }
   position_ += byte_length;
   AddObjectWithID(id, array_buffer);
   return array_buffer;

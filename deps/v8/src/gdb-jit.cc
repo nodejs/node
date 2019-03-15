@@ -18,6 +18,7 @@
 #include "src/ostreams.h"
 #include "src/snapshot/natives.h"
 #include "src/splay-tree-inl.h"
+#include "src/vector.h"
 #include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
@@ -644,8 +645,7 @@ class ELF {
   void WriteHeader(Writer* w) {
     DCHECK_EQ(w->position(), 0);
     Writer::Slot<ELFHeader> header = w->CreateSlotHere<ELFHeader>();
-#if (V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || \
-     (V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT))
+#if (V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM)
     const uint8_t ident[16] = {0x7F, 'E', 'L', 'F', 1, 1, 1, 0,
                                0,    0,   0,   0,   0, 0, 0, 0};
 #elif(V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_64_BIT) || \
@@ -781,7 +781,6 @@ class ELFSymbol {
     return static_cast<Binding>(info >> 4);
   }
 #if (V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM ||     \
-     (V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT) || \
      (V8_TARGET_ARCH_S390 && V8_TARGET_ARCH_32_BIT))
   struct SerializedLayout {
     SerializedLayout(uint32_t name,
@@ -1126,7 +1125,7 @@ class DebugInfoSection : public DebugSection {
 
     uint32_t ty_offset = static_cast<uint32_t>(w->position() - cu_start);
     w->WriteULEB128(3);
-    w->Write<uint8_t>(kPointerSize);
+    w->Write<uint8_t>(kSystemPointerSize);
     w->WriteString("v8value");
 
     if (desc_->has_scope_info()) {
@@ -1174,9 +1173,8 @@ class DebugInfoSection : public DebugSection {
         Writer::Slot<uint32_t> block_size = w->CreateSlotHere<uint32_t>();
         uintptr_t block_start = w->position();
         w->Write<uint8_t>(DW_OP_fbreg);
-        w->WriteSLEB128(
-          JavaScriptFrameConstants::kLastParameterOffset +
-              kPointerSize * (params - param - 1));
+        w->WriteSLEB128(JavaScriptFrameConstants::kLastParameterOffset +
+                        kSystemPointerSize * (params - param - 1));
         block_size.set(static_cast<uint32_t>(w->position() - block_start));
       }
 
@@ -1635,15 +1633,15 @@ class UnwindInfoSection : public DebugSection {
 void UnwindInfoSection::WriteLength(Writer* w,
                                     Writer::Slot<uint32_t>* length_slot,
                                     int initial_position) {
-  uint32_t align = (w->position() - initial_position) % kPointerSize;
+  uint32_t align = (w->position() - initial_position) % kSystemPointerSize;
 
   if (align != 0) {
-    for (uint32_t i = 0; i < (kPointerSize - align); i++) {
+    for (uint32_t i = 0; i < (kSystemPointerSize - align); i++) {
       w->Write<uint8_t>(DW_CFA_NOP);
     }
   }
 
-  DCHECK_EQ((w->position() - initial_position) % kPointerSize, 0);
+  DCHECK_EQ((w->position() - initial_position) % kSystemPointerSize, 0);
   length_slot->set(static_cast<uint32_t>(w->position() - initial_position));
 }
 
@@ -1703,7 +1701,7 @@ void UnwindInfoSection::WriteFDEStateOnEntry(Writer* w) {
   // for the previous function. The previous RBP has not been pushed yet.
   w->Write<uint8_t>(DW_CFA_DEF_CFA_SF);
   w->WriteULEB128(AMD64_RSP);
-  w->WriteSLEB128(-kPointerSize);
+  w->WriteSLEB128(-kSystemPointerSize);
 
   // The RA is stored at location CFA + kCallerPCOffset. This is an invariant,
   // and hence omitted from the next states.
@@ -1765,7 +1763,7 @@ void UnwindInfoSection::WriteFDEStateAfterRBPPop(Writer* w) {
   // The CFA can is now calculated in the same way as in the first state.
   w->Write<uint8_t>(DW_CFA_DEF_CFA_SF);
   w->WriteULEB128(AMD64_RSP);
-  w->WriteSLEB128(-kPointerSize);
+  w->WriteSLEB128(-kSystemPointerSize);
 
   // The RBP
   w->Write<uint8_t>(DW_CFA_OFFSET_EXTENDED);

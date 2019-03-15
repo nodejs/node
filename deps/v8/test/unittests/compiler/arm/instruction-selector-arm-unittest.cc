@@ -530,10 +530,8 @@ TEST_P(InstructionSelectorDPITest, BranchIfNotZeroWithImmediate) {
   }
 }
 
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorDPITest,
-                        ::testing::ValuesIn(kDPIs));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest, InstructionSelectorDPITest,
+                         ::testing::ValuesIn(kDPIs));
 
 // -----------------------------------------------------------------------------
 // Data processing instructions with overflow.
@@ -1031,10 +1029,8 @@ TEST_P(InstructionSelectorODPITest, BranchIfNotZeroWithParameters) {
   EXPECT_EQ(kOverflow, s[0]->flags_condition());
 }
 
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorODPITest,
-                        ::testing::ValuesIn(kODPIs));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest, InstructionSelectorODPITest,
+                         ::testing::ValuesIn(kODPIs));
 
 // -----------------------------------------------------------------------------
 // Shifts.
@@ -1248,10 +1244,8 @@ TEST_P(InstructionSelectorShiftTest,
   }
 }
 
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorShiftTest,
-                        ::testing::ValuesIn(kShifts));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest, InstructionSelectorShiftTest,
+                         ::testing::ValuesIn(kShifts));
 
 // -----------------------------------------------------------------------------
 // Memory access instructions.
@@ -1400,10 +1394,9 @@ TEST_P(InstructionSelectorMemoryAccessTest, StoreWithImmediateIndex) {
   }
 }
 
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorMemoryAccessTest,
-                        ::testing::ValuesIn(kMemoryAccesses));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorMemoryAccessTest,
+                         ::testing::ValuesIn(kMemoryAccesses));
 
 TEST_F(InstructionSelectorMemoryAccessTest, LoadWithShiftedIndex) {
   TRACED_FORRANGE(int, immediate_shift, 1, 31) {
@@ -1572,11 +1565,9 @@ TEST_P(InstructionSelectorComparisonTest, Word32EqualWithZero) {
   }
 }
 
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorComparisonTest,
-                        ::testing::ValuesIn(kComparisons));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorComparisonTest,
+                         ::testing::ValuesIn(kComparisons));
 
 // -----------------------------------------------------------------------------
 // Floating point comparisons.
@@ -1659,11 +1650,9 @@ TEST_P(InstructionSelectorF32ComparisonTest, WithImmediateZeroOnLeft) {
   EXPECT_EQ(cmp.commuted_flags_condition, s[0]->flags_condition());
 }
 
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorF32ComparisonTest,
-                        ::testing::ValuesIn(kF32Comparisons));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorF32ComparisonTest,
+                         ::testing::ValuesIn(kF32Comparisons));
 
 namespace {
 
@@ -1742,11 +1731,9 @@ TEST_P(InstructionSelectorF64ComparisonTest, WithImmediateZeroOnLeft) {
   EXPECT_EQ(cmp.commuted_flags_condition, s[0]->flags_condition());
 }
 
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorF64ComparisonTest,
-                        ::testing::ValuesIn(kF64Comparisons));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorF64ComparisonTest,
+                         ::testing::ValuesIn(kF64Comparisons));
 
 // -----------------------------------------------------------------------------
 // Floating point arithmetic.
@@ -1774,10 +1761,8 @@ TEST_P(InstructionSelectorFAITest, Parameters) {
   EXPECT_EQ(kFlags_none, s[0]->flags_mode());
 }
 
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorFAITest,
-                        ::testing::ValuesIn(kFAIs));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest, InstructionSelectorFAITest,
+                         ::testing::ValuesIn(kFAIs));
 
 TEST_F(InstructionSelectorTest, Float32Abs) {
   StreamBuilder m(this, MachineType::Float32(), MachineType::Float32());
@@ -2208,9 +2193,9 @@ TEST_P(InstructionSelectorFlagSettingTest, CommuteShift) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorFlagSettingTest,
-                        ::testing::ValuesIn(kFlagSettingInstructions));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorFlagSettingTest,
+                         ::testing::ValuesIn(kFlagSettingInstructions));
 
 // -----------------------------------------------------------------------------
 // Miscellaneous.

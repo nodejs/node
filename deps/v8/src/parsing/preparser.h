@@ -943,7 +943,10 @@ class PreParser : public ParserBase<PreParser> {
                               runtime_call_stats, logger, script_id,
                               parsing_module, parsing_on_main_thread),
         use_counts_(nullptr),
-        preparse_data_builder_(nullptr) {}
+        preparse_data_builder_(nullptr),
+        preparse_data_builder_buffer_() {
+    preparse_data_builder_buffer_.reserve(16);
+  }
 
   static bool IsPreParser() { return true; }
 
@@ -975,6 +978,10 @@ class PreParser : public ParserBase<PreParser> {
 
   void set_preparse_data_builder(PreparseDataBuilder* preparse_data_builder) {
     preparse_data_builder_ = preparse_data_builder;
+  }
+
+  std::vector<void*>* preparse_data_builder_buffer() {
+    return &preparse_data_builder_buffer_;
   }
 
  private:
@@ -1021,6 +1028,8 @@ class PreParser : public ParserBase<PreParser> {
     return literal;
   }
 
+  bool HasCheckedSyntax() { return false; }
+
   void ParseStatementListAndLogFunction(PreParserFormalParameters* formals);
 
   struct TemplateLiteralState {};
@@ -1040,8 +1049,6 @@ class PreParser : public ParserBase<PreParser> {
       const PreParserExpression& expression) {
     return expression.IsPropertyWithPrivateFieldKey();
   }
-  V8_INLINE void CheckConflictingVarDeclarations(Scope* scope) {}
-
   V8_INLINE void SetLanguageMode(Scope* scope, LanguageMode mode) {
     scope->SetLanguageMode(mode);
   }
@@ -1082,18 +1089,39 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserStatement::Default();
   }
 
-  void DeclareVariable(VariableProxy* proxy, VariableKind kind,
-                       VariableMode mode, InitializationFlag init, Scope* scope,
-                       bool* was_added, int position) {
-    DeclareVariableName(proxy->raw_name(), mode, scope, was_added, kind);
+  Variable* DeclareVariable(const AstRawString* name, VariableKind kind,
+                            VariableMode mode, InitializationFlag init,
+                            Scope* scope, bool* was_added, int position) {
+    return DeclareVariableName(name, mode, scope, was_added, position, kind);
   }
 
-  void DeclareVariableName(const AstRawString* name, VariableMode mode,
-                           Scope* scope, bool* was_added,
-                           VariableKind kind = NORMAL_VARIABLE) {
-    if (scope->DeclareVariableName(name, mode, was_added, kind) == nullptr) {
+  void DeclareAndBindVariable(const VariableProxy* proxy, VariableKind kind,
+                              VariableMode mode, InitializationFlag init,
+                              Scope* scope, bool* was_added, int position) {
+    DeclareVariableName(proxy->raw_name(), mode, scope, was_added, position,
+                        kind);
+    // Don't bother actually binding the proxy.
+  }
+
+  Variable* DeclareVariableName(const AstRawString* name, VariableMode mode,
+                                Scope* scope, bool* was_added,
+                                int position = kNoSourcePosition,
+                                VariableKind kind = NORMAL_VARIABLE) {
+    Variable* var = scope->DeclareVariableName(name, mode, was_added, kind);
+    if (var == nullptr) {
       ReportUnidentifiableError();
+      if (!IsLexicalVariableMode(mode)) scope = scope->GetDeclarationScope();
+      var = scope->LookupLocal(name);
+    } else if (var->scope() != scope) {
+      DCHECK_NE(kNoSourcePosition, position);
+      DCHECK_EQ(VariableMode::kVar, mode);
+      Declaration* nested_declaration =
+          factory()->ast_node_factory()->NewNestedVariableDeclaration(scope,
+                                                                      position);
+      nested_declaration->set_var(var);
+      var->scope()->declarations()->Add(nested_declaration);
     }
+    return var;
   }
 
   V8_INLINE PreParserBlock RewriteCatchPattern(CatchInfo* catch_info) {
@@ -1158,23 +1186,21 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserStatement::Default();
   }
 
-  V8_INLINE PreParserStatement
-  DeclareFunction(const PreParserIdentifier& variable_name,
-                  const PreParserExpression& function, VariableMode mode,
-                  int beg_pos, int end_pos, bool is_sloppy_block_function,
-                  ZonePtrList<const AstRawString>* names) {
+  V8_INLINE PreParserStatement DeclareFunction(
+      const PreParserIdentifier& variable_name,
+      const PreParserExpression& function, VariableMode mode, VariableKind kind,
+      int beg_pos, int end_pos, ZonePtrList<const AstRawString>* names) {
     DCHECK_NULL(names);
-    if (variable_name.string_ != nullptr) {
-      bool was_added;
-      if (is_strict(language_mode())) {
-        DeclareVariableName(variable_name.string_, mode, scope(), &was_added);
-      } else {
-        scope()->DeclareVariableName(variable_name.string_, mode, &was_added);
-      }
-      if (is_sloppy_block_function) {
-        GetDeclarationScope()->DeclareSloppyBlockFunction(variable_name.string_,
-                                                          scope());
-      }
+    bool was_added;
+    Variable* var = DeclareVariableName(variable_name.string_, mode, scope(),
+                                        &was_added, beg_pos, kind);
+    if (kind == SLOPPY_BLOCK_FUNCTION_VARIABLE) {
+      Token::Value init =
+          loop_nesting_depth() > 0 ? Token::ASSIGN : Token::INIT;
+      SloppyBlockFunctionStatement* statement =
+          factory()->ast_node_factory()->NewSloppyBlockFunctionStatement(
+              end_pos, var, init);
+      GetDeclarationScope()->DeclareSloppyBlockFunction(statement);
     }
     return Statement::Default();
   }
@@ -1185,17 +1211,15 @@ class PreParser : public ParserBase<PreParser> {
       int class_token_pos, int end_pos) {
     // Preparser shouldn't be used in contexts where we need to track the names.
     DCHECK_NULL(names);
-    if (variable_name.string_ != nullptr) {
-      bool was_added;
-      DeclareVariableName(variable_name.string_, VariableMode::kLet, scope(),
-                          &was_added);
-    }
+    bool was_added;
+    DeclareVariableName(variable_name.string_, VariableMode::kLet, scope(),
+                        &was_added);
     return PreParserStatement::Default();
   }
   V8_INLINE void DeclareClassVariable(const PreParserIdentifier& name,
                                       ClassInfo* class_info,
                                       int class_token_pos) {
-    if (name.string_ != nullptr) {
+    if (!IsNull(name)) {
       bool was_added;
       DeclareVariableName(name.string_, VariableMode::kConst, scope(),
                           &was_added);
@@ -1217,7 +1241,7 @@ class PreParser : public ParserBase<PreParser> {
           ClassFieldVariableName(ast_value_factory(),
                                  class_info->computed_field_count),
           VariableMode::kConst, scope(), &was_added);
-    } else if (is_private && property_name.string_ != nullptr) {
+    } else if (is_private) {
       bool was_added;
       DeclareVariableName(property_name.string_, VariableMode::kConst, scope(),
                           &was_added);
@@ -1336,7 +1360,7 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE static void GetDefaultStrings(
       PreParserIdentifier* default_string,
-      PreParserIdentifier* star_default_star_string) {}
+      PreParserIdentifier* dot_default_string) {}
 
   // Functions for encapsulating the differences between parsing and preparsing;
   // operations interleaved with the recursive descent.
@@ -1497,11 +1521,17 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE PreParserIdentifier EmptyIdentifierString() const {
-    return PreParserIdentifier::Default();
+    PreParserIdentifier result = PreParserIdentifier::Default();
+    result.string_ = ast_value_factory()->empty_string();
+    return result;
   }
 
   // Producing data during the recursive descent.
-  PreParserIdentifier GetSymbol() const;
+  PreParserIdentifier GetSymbol() const {
+    return PreParserIdentifier::Default();
+  }
+
+  PreParserIdentifier GetIdentifier() const;
 
   V8_INLINE PreParserIdentifier GetNextSymbol() const {
     return PreParserIdentifier::Default();
@@ -1511,10 +1541,8 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserIdentifier::Default();
   }
 
-  V8_INLINE PreParserExpression ThisExpression(int pos = kNoSourcePosition) {
-    scope()->NewUnresolved(factory()->ast_node_factory(),
-                           ast_value_factory()->this_string(), pos,
-                           THIS_VARIABLE);
+  V8_INLINE PreParserExpression ThisExpression() {
+    UseThis();
     return PreParserExpression::This();
   }
 
@@ -1522,9 +1550,6 @@ class PreParser : public ParserBase<PreParser> {
     scope()->NewUnresolved(factory()->ast_node_factory(),
                            ast_value_factory()->this_function_string(), pos,
                            NORMAL_VARIABLE);
-    scope()->NewUnresolved(factory()->ast_node_factory(),
-                           ast_value_factory()->this_string(), pos,
-                           THIS_VARIABLE);
     return PreParserExpression::Default();
   }
 
@@ -1535,9 +1560,6 @@ class PreParser : public ParserBase<PreParser> {
     scope()->NewUnresolved(factory()->ast_node_factory(),
                            ast_value_factory()->new_target_string(), pos,
                            NORMAL_VARIABLE);
-    scope()->NewUnresolved(factory()->ast_node_factory(),
-                           ast_value_factory()->this_string(), pos,
-                           THIS_VARIABLE);
     return PreParserExpression::SuperCallReference();
   }
 
@@ -1558,10 +1580,13 @@ class PreParser : public ParserBase<PreParser> {
   PreParserExpression ExpressionFromIdentifier(
       const PreParserIdentifier& name, int start_position,
       InferName infer = InferName::kYes) {
-    if (name.string_ != nullptr) {
-      expression_scope()->NewVariable(name.string_, start_position);
-    }
+    expression_scope()->NewVariable(name.string_, start_position);
     return PreParserExpression::FromIdentifier(name);
+  }
+
+  V8_INLINE void DeclareIdentifier(const PreParserIdentifier& name,
+                                   int start_position) {
+    expression_scope()->Declare(name.string_, start_position);
   }
 
   V8_INLINE Variable* DeclareCatchVariableName(
@@ -1640,6 +1665,7 @@ class PreParser : public ParserBase<PreParser> {
   PreParserLogger log_;
 
   PreparseDataBuilder* preparse_data_builder_;
+  std::vector<void*> preparse_data_builder_buffer_;
 };
 
 PreParserExpression PreParser::SpreadCall(const PreParserExpression& function,

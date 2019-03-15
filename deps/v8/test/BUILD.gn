@@ -141,3 +141,24 @@ group("v8_run_num_fuzzer") {
     "webkit:v8_webkit",
   ]
 }
+
+v8_header_set("common_test_headers") {
+  testonly = true
+
+  configs = []
+
+  public_deps = [
+    # We can't depend on this here, because if the "cctest" target depends on it
+    # we will get duplicate symbols.
+    #"../:v8_for_testing",
+    "../:v8_libbase",
+  ]
+
+  sources = [
+    "common/assembler-tester.h",
+    "common/types-fuzz.h",
+    "common/wasm/flag-utils.h",
+    "common/wasm/test-signatures.h",
+    "common/wasm/wasm-macro-gen.h",
+  ]
+}

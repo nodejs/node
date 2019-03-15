@@ -95,14 +95,13 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
     if (!scope_iterator.GetNonLocals()->Has(isolate_,
                                             isolate_->factory()->this_string()))
       return v8::MaybeLocal<v8::Value>();
-
-    Handle<ScopeInfo> scope_info(context->scope_info(), isolate_);
+    DisallowHeapAllocation no_gc;
     VariableMode mode;
     InitializationFlag flag;
     MaybeAssignedFlag maybe_assigned_flag;
     int slot_index = ScopeInfo::ContextSlotIndex(
-        scope_info, isolate_->factory()->this_string(), &mode, &flag,
-        &maybe_assigned_flag);
+        context->scope_info(), ReadOnlyRoots(isolate_->heap()).this_string(),
+        &mode, &flag, &maybe_assigned_flag);
     if (slot_index < 0) return v8::MaybeLocal<v8::Value>();
     Handle<Object> value = handle(context->get(slot_index), isolate_);
     if (value->IsTheHole(isolate_)) return v8::MaybeLocal<v8::Value>();

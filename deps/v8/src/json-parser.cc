@@ -8,6 +8,8 @@
 #include "src/conversions.h"
 #include "src/debug/debug.h"
 #include "src/field-type.h"
+#include "src/hash-seed-inl.h"
+#include "src/heap/heap-inl.h"  // For string_table().
 #include "src/message-template.h"
 #include "src/objects-inl.h"
 #include "src/objects/hash-table-inl.h"
@@ -126,7 +128,7 @@ bool JsonParseInternalizer::RecurseAndApply(Handle<JSReceiver> holder,
     desc.set_enumerable(true);
     desc.set_writable(true);
     change_result = JSReceiver::DefineOwnProperty(isolate_, holder, name, &desc,
-                                                  kDontThrow);
+                                                  Just(kDontThrow));
   }
   MAYBE_RETURN(change_result, false);
   return true;
@@ -839,8 +841,7 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
 
     int position = position_;
     uc32 c0 = c0_;
-    uint32_t running_hash =
-        static_cast<uint32_t>(isolate()->heap()->HashSeed());
+    uint32_t running_hash = static_cast<uint32_t>(HashSeed(isolate()));
     uint32_t index = 0;
     bool is_array_index = true;
 

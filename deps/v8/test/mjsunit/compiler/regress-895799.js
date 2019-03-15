@@ -19,6 +19,8 @@ class A extends C {
   }
 }
 
+%PrepareFunctionForOptimization(A);
+
 var D = new Proxy(A, { get() { %DeoptimizeFunction(A); } });
 
 try { Reflect.construct(A, [], D); } catch(e) {}

@@ -113,7 +113,8 @@ TEST(JSObjectInObjectAddingProperties) {
       factory->NewFunctionForTest(factory->empty_string());
   int nof_inobject_properties = 10;
   // force in object properties by changing the expected_nof_properties
-  function->shared()->set_expected_nof_properties(nof_inobject_properties);
+  // (we always reserve 8 inobject properties slack on top).
+  function->shared()->set_expected_nof_properties(nof_inobject_properties - 8);
   Handle<Object> value(Smi::FromInt(42), isolate);
 
   Handle<JSObject> object = factory->NewJSObject(function);

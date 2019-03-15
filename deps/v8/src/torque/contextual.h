@@ -54,7 +54,7 @@ class ContextualVariable {
     static_assert(std::is_base_of<ContextualVariable, Derived>::value,
                   "Curiously Recurring Template Pattern");
 
-    DISALLOW_NEW_AND_DELETE();
+    DISALLOW_NEW_AND_DELETE()
     DISALLOW_COPY_AND_ASSIGN(Scope);
   };
 
@@ -72,7 +72,7 @@ class ContextualVariable {
 // Usage: DECLARE_CONTEXTUAL_VARIABLE(VarName, VarType)
 #define DECLARE_CONTEXTUAL_VARIABLE(VarName, ...) \
   struct VarName                                  \
-      : v8::internal::torque::ContextualVariable<VarName, __VA_ARGS__> {};
+      : v8::internal::torque::ContextualVariable<VarName, __VA_ARGS__> {}
 
 #define DEFINE_CONTEXTUAL_VARIABLE(VarName)                   \
   template <>                                                 \

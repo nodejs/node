@@ -159,6 +159,7 @@
 //       - BreakPoint
 //       - BreakPointInfo
 //       - StackFrameInfo
+//       - StackTraceFrame
 //       - SourcePositionTableWithFrameCache
 //       - CodeCache
 //       - PrototypeInfo
@@ -257,6 +258,7 @@ class AccessorPair;
 class AccessCheckInfo;
 class AllocationSite;
 class ByteArray;
+class CachedTemplateObject;
 class Cell;
 class ConsString;
 class DependentCode;
@@ -271,6 +273,7 @@ class JSAsyncGeneratorObject;
 class JSGlobalProxy;
 class JSPromise;
 class JSProxy;
+class JSProxyRevocableResult;
 class KeyAccumulator;
 class LayoutDescriptor;
 class LookupIterator;
@@ -334,6 +337,7 @@ class ZoneForwardList;
   V(BreakPointInfo)                            \
   V(ByteArray)                                 \
   V(BytecodeArray)                             \
+  V(CachedTemplateObject)                      \
   V(CallHandlerInfo)                           \
   V(Callable)                                  \
   V(Cell)                                      \
@@ -419,11 +423,10 @@ class ZoneForwardList;
   V(JSStringIterator)                          \
   V(JSTypedArray)                              \
   V(JSValue)                                   \
-  V(JSWeakCell)                                \
   V(JSWeakRef)                                 \
   V(JSWeakCollection)                          \
-  V(JSWeakFactory)                             \
-  V(JSWeakFactoryCleanupIterator)              \
+  V(JSFinalizationGroup)                       \
+  V(JSFinalizationGroupCleanupIterator)        \
   V(JSWeakMap)                                 \
   V(JSWeakSet)                                 \
   V(LoadHandler)                               \
@@ -489,7 +492,8 @@ class ZoneForwardList;
   V(WasmModuleObject)                          \
   V(WasmTableObject)                           \
   V(WeakFixedArray)                            \
-  V(WeakArrayList)
+  V(WeakArrayList)                             \
+  V(WeakCell)
 
 #ifdef V8_INTL_SUPPORT
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \
@@ -530,6 +534,9 @@ class ZoneForwardList;
 
 // The element types selection for CreateListFromArrayLike.
 enum class ElementTypes { kAll, kStringAndSymbol };
+
+// TODO(mythria): Move this to a better place.
+ShouldThrow GetShouldThrow(Isolate* isolate, Maybe<ShouldThrow> should_throw);
 
 // Object is the abstract superclass for all classes in the
 // object hierarchy.
@@ -631,23 +638,16 @@ class Object {
 
   inline bool FitsRepresentation(Representation representation);
 
-  // Checks whether two valid primitive encodings of a property name resolve to
-  // the same logical property. E.g., the smi 1, the string "1" and the double
-  // 1 all refer to the same property, so this helper will return true.
-  inline bool KeyEquals(Object other);
-
   inline bool FilterKey(PropertyFilter filter);
 
   Handle<FieldType> OptimalType(Isolate* isolate,
                                 Representation representation);
 
-  inline static Handle<Object> NewStorageFor(Isolate* isolate,
-                                             Handle<Object> object,
-                                             Representation representation);
+  static Handle<Object> NewStorageFor(Isolate* isolate, Handle<Object> object,
+                                      Representation representation);
 
-  inline static Handle<Object> WrapForRead(Isolate* isolate,
-                                           Handle<Object> object,
-                                           Representation representation);
+  static Handle<Object> WrapForRead(Isolate* isolate, Handle<Object> object,
+                                    Representation representation);
 
   // Returns true if the object is of the correct type to be used as a
   // implementation of a JSObject's elements.
@@ -655,6 +655,7 @@ class Object {
 
   // ECMA-262 9.2.
   bool BooleanValue(Isolate* isolate);
+  Object ToBoolean(Isolate* isolate);
 
   // ES6 section 7.2.11 Abstract Relational Comparison
   V8_WARN_UNUSED_RESULT static Maybe<ComparisonResult> Compare(
@@ -678,8 +679,8 @@ class Object {
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<JSReceiver> ToObject(
       Isolate* isolate, Handle<Object> object,
       const char* method_name = nullptr);
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> ToObject(
-      Isolate* isolate, Handle<Object> object, Handle<Context> native_context,
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> ToObjectImpl(
+      Isolate* isolate, Handle<Object> object,
       const char* method_name = nullptr);
 
   // ES6 section 9.2.1.2, OrdinaryCallBindThis for sloppy callee.
@@ -784,37 +785,39 @@ class Object {
   // argument.  These cases are either in accordance with the spec or not
   // covered by it (eg., concerning API callbacks).
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetProperty(
-      LookupIterator* it, Handle<Object> value, LanguageMode language_mode,
-      StoreOrigin store_origin);
+      LookupIterator* it, Handle<Object> value, StoreOrigin store_origin,
+      Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>());
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> SetProperty(
       Isolate* isolate, Handle<Object> object, Handle<Name> name,
-      Handle<Object> value, LanguageMode language_mode,
-      StoreOrigin store_origin = StoreOrigin::kMaybeKeyed);
+      Handle<Object> value, StoreOrigin store_origin = StoreOrigin::kMaybeKeyed,
+      Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>());
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> SetPropertyOrElement(
       Isolate* isolate, Handle<Object> object, Handle<Name> name,
-      Handle<Object> value, LanguageMode language_mode,
+      Handle<Object> value,
+      Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>(),
       StoreOrigin store_origin = StoreOrigin::kMaybeKeyed);
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetSuperProperty(
-      LookupIterator* it, Handle<Object> value, LanguageMode language_mode,
-      StoreOrigin store_origin);
+      LookupIterator* it, Handle<Object> value, StoreOrigin store_origin,
+      Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>());
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> CannotCreateProperty(
       Isolate* isolate, Handle<Object> receiver, Handle<Object> name,
-      Handle<Object> value, ShouldThrow should_throw);
+      Handle<Object> value, Maybe<ShouldThrow> should_throw);
   V8_WARN_UNUSED_RESULT static Maybe<bool> WriteToReadOnlyProperty(
-      LookupIterator* it, Handle<Object> value, ShouldThrow should_throw);
+      LookupIterator* it, Handle<Object> value,
+      Maybe<ShouldThrow> should_throw);
   V8_WARN_UNUSED_RESULT static Maybe<bool> WriteToReadOnlyProperty(
       Isolate* isolate, Handle<Object> receiver, Handle<Object> name,
       Handle<Object> value, ShouldThrow should_throw);
   V8_WARN_UNUSED_RESULT static Maybe<bool> RedefineIncompatibleProperty(
       Isolate* isolate, Handle<Object> name, Handle<Object> value,
-      ShouldThrow should_throw);
+      Maybe<ShouldThrow> should_throw);
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetDataProperty(
       LookupIterator* it, Handle<Object> value);
   V8_WARN_UNUSED_RESULT static Maybe<bool> AddDataProperty(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
-      ShouldThrow should_throw, StoreOrigin store_origin);
+      Maybe<ShouldThrow> should_throw, StoreOrigin store_origin);
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
       Isolate* isolate, Handle<Object> object, Handle<Name> name);
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
@@ -825,20 +828,21 @@ class Object {
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetPropertyWithAccessor(
       LookupIterator* it);
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetPropertyWithAccessor(
-      LookupIterator* it, Handle<Object> value, ShouldThrow should_throw);
+      LookupIterator* it, Handle<Object> value,
+      Maybe<ShouldThrow> should_throw);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetPropertyWithDefinedGetter(
       Handle<Object> receiver, Handle<JSReceiver> getter);
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetPropertyWithDefinedSetter(
       Handle<Object> receiver, Handle<JSReceiver> setter, Handle<Object> value,
-      ShouldThrow should_throw);
+      Maybe<ShouldThrow> should_throw);
 
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetElement(
       Isolate* isolate, Handle<Object> object, uint32_t index);
 
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> SetElement(
       Isolate* isolate, Handle<Object> object, uint32_t index,
-      Handle<Object> value, LanguageMode language_mode);
+      Handle<Object> value, ShouldThrow should_throw);
 
   // Returns the permanent hash code associated with this object. May return
   // undefined if not yet created.
@@ -928,7 +932,8 @@ class Object {
 
   void ShortPrint(std::ostream& os) const;  // NOLINT
 
-  DECL_CAST(Object)
+  inline static Object cast(Object object) { return object; }
+  inline static Object unchecked_cast(Object object) { return object; }
 
   // Layout description.
   static const int kHeaderSize = 0;  // Object does not take up any space.
@@ -979,7 +984,7 @@ class Object {
   // Helper for SetProperty and SetSuperProperty.
   // Return value is only meaningful if [found] is set to true on return.
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetPropertyInternal(
-      LookupIterator* it, Handle<Object> value, LanguageMode language_mode,
+      LookupIterator* it, Handle<Object> value, Maybe<ShouldThrow> should_throw,
       StoreOrigin store_origin, bool* found);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Name> ConvertToName(

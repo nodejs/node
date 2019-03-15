@@ -19,6 +19,7 @@
     return x + y;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(3, foo([1, 2], 0));
   assertEquals(3, foo([1, 2], 0));
   %OptimizeFunctionOnNextCall(foo);
@@ -40,6 +41,7 @@
     return x + y;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(3, foo([1, 2], 0));
   assertEquals(3, foo([1, 2], 0));
   %OptimizeFunctionOnNextCall(foo);
@@ -61,6 +63,7 @@
     return x + y;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(3, foo([1, 2], 1));
   assertEquals(3, foo([1, 2], 1));
   %OptimizeFunctionOnNextCall(foo);
@@ -82,6 +85,7 @@
     return x + y;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(3, foo([1, 2], 1));
   assertEquals(3, foo([1, 2], 1));
   %OptimizeFunctionOnNextCall(foo);
@@ -97,6 +101,7 @@
     return x + y;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo([1, 2], 0));
   assertEquals(1, foo([1, 2], 0));
   %OptimizeFunctionOnNextCall(foo);
@@ -112,6 +117,7 @@
     return x + y;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(3, foo([1, 2], 0));
   assertEquals(3, foo([1, 2], 0));
   %OptimizeFunctionOnNextCall(foo);
@@ -127,6 +133,7 @@
     return x + y;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(3, foo([1, 2], 1));
   assertEquals(3, foo([1, 2], 1));
   %OptimizeFunctionOnNextCall(foo);
@@ -142,6 +149,7 @@
     return i;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo([1, 2], 0));
   assertEquals(1, foo([1, 2], 1));
   %OptimizeFunctionOnNextCall(foo);
@@ -162,6 +170,7 @@
     return i;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo([1, 2], 0));
   assertEquals(1, foo([1, 2], 1));
   %OptimizeFunctionOnNextCall(foo);
@@ -182,6 +191,7 @@
     return i;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo([1, 2], 0));
   assertEquals(1, foo([1, 2], 1));
   %OptimizeFunctionOnNextCall(foo);

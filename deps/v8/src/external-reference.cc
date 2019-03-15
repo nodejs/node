@@ -13,7 +13,10 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/elements.h"
+#include "src/hash-seed-inl.h"
 #include "src/heap/heap.h"
+// For IncrementalMarking::RecordWriteFromCode. TODO(jkummerow): Drop.
+#include "src/heap/heap-inl.h"
 #include "src/ic/stub-cache.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
@@ -27,7 +30,6 @@
 #include "src/wasm/wasm-external-refs.h"
 
 // Include native regexp-macro-assembler.
-#ifndef V8_INTERPRETED_REGEXP
 #if V8_TARGET_ARCH_IA32
 #include "src/regexp/ia32/regexp-macro-assembler-ia32.h"  // NOLINT
 #elif V8_TARGET_ARCH_X64
@@ -47,7 +49,6 @@
 #else  // Unknown architecture.
 #error "Unknown architecture."
 #endif  // Target architecture.
-#endif  // V8_INTERPRETED_REGEXP
 
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
@@ -232,7 +233,7 @@ struct IsValidExternalReferenceType<Result (Class::*)(Args...)> {
   }
 
 FUNCTION_REFERENCE(incremental_marking_record_write_function,
-                   IncrementalMarking::RecordWriteFromCode);
+                   IncrementalMarking::RecordWriteFromCode)
 
 ExternalReference ExternalReference::store_buffer_overflow_function() {
   return ExternalReference(
@@ -419,6 +420,11 @@ ExternalReference ExternalReference::address_of_min_int() {
   return ExternalReference(reinterpret_cast<Address>(&double_min_int_constant));
 }
 
+ExternalReference
+ExternalReference::address_of_mock_arraybuffer_allocator_flag() {
+  return ExternalReference(&FLAG_mock_arraybuffer_allocator);
+}
+
 ExternalReference ExternalReference::address_of_runtime_stats_flag() {
   return ExternalReference(&FLAG_runtime_stats);
 }
@@ -472,8 +478,6 @@ ExternalReference ExternalReference::invoke_accessor_getter_callback() {
   ApiFunction thunk_fun(thunk_address);
   return ExternalReference::Create(&thunk_fun, thunk_type);
 }
-
-#ifndef V8_INTERPRETED_REGEXP
 
 #if V8_TARGET_ARCH_X64
 #define re_stack_check_func RegExpMacroAssemblerX64::CheckStackGuardState
@@ -531,8 +535,6 @@ ExternalReference ExternalReference::address_of_regexp_stack_memory_size(
   return ExternalReference(isolate->regexp_stack()->memory_size_address());
 }
 
-#endif  // V8_INTERPRETED_REGEXP
-
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_acos_function, base::ieee754::acos,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_acosh_function, base::ieee754::acosh,
@@ -573,6 +575,8 @@ FUNCTION_REFERENCE_WITH_TYPE(ieee754_tan_function, base::ieee754::tan,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_tanh_function, base::ieee754::tanh,
                              BUILTIN_FP_CALL)
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_pow_function, base::ieee754::pow,
+                             BUILTIN_FP_FP_CALL)
 
 void* libc_memchr(void* string, int character, size_t search_length) {
   return memchr(string, character, search_length);
@@ -649,7 +653,7 @@ FUNCTION_REFERENCE(jsreceiver_create_identity_hash,
 
 static uint32_t ComputeSeededIntegerHash(Isolate* isolate, uint32_t key) {
   DisallowHeapAllocation no_gc;
-  return ComputeSeededHash(key, isolate->heap()->HashSeed());
+  return ComputeSeededHash(key, HashSeed(isolate));
 }
 
 FUNCTION_REFERENCE(compute_integer_hash, ComputeSeededIntegerHash)
@@ -697,11 +701,6 @@ template ExternalReference
 ExternalReference::search_string_raw<const uc16, const uint8_t>();
 template ExternalReference
 ExternalReference::search_string_raw<const uc16, const uc16>();
-
-ExternalReference ExternalReference::page_flags(Page* page) {
-  return ExternalReference(reinterpret_cast<Address>(page) +
-                           MemoryChunk::kFlagsOffset);
-}
 
 ExternalReference ExternalReference::FromRawAddress(Address address) {
   return ExternalReference(address);
@@ -764,19 +763,8 @@ static Address InvalidatePrototypeChainsWrapper(Address raw_map) {
 FUNCTION_REFERENCE(invalidate_prototype_chains_function,
                    InvalidatePrototypeChainsWrapper)
 
-double power_double_double(double x, double y) {
-  // The checks for special cases can be dropped in ia32 because it has already
-  // been done in generated code before bailing out here.
-  if (std::isnan(y) || ((x == 1 || x == -1) && std::isinf(y))) {
-    return std::numeric_limits<double>::quiet_NaN();
-  }
-  return Pow(x, y);
-}
-
 double modulo_double_double(double x, double y) { return Modulo(x, y); }
 
-FUNCTION_REFERENCE_WITH_TYPE(power_double_double_function, power_double_double,
-                             BUILTIN_FP_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(mod_two_doubles_operation, modulo_double_double,
                              BUILTIN_FP_FP_CALL)
 
@@ -800,11 +788,6 @@ ExternalReference ExternalReference::fast_c_call_caller_pc_address(
     Isolate* isolate) {
   return ExternalReference(
       isolate->isolate_data()->fast_c_call_caller_pc_address());
-}
-
-ExternalReference ExternalReference::fixed_typed_array_base_data_offset() {
-  return ExternalReference(reinterpret_cast<void*>(
-      FixedTypedArrayBase::kDataOffset - kHeapObjectTag));
 }
 
 FUNCTION_REFERENCE(call_enqueue_microtask_function,
@@ -923,7 +906,7 @@ static int EnterMicrotaskContextWrapper(HandleScopeImplementer* hsi,
   return 0;
 }
 
-FUNCTION_REFERENCE(call_enter_context_function, EnterMicrotaskContextWrapper);
+FUNCTION_REFERENCE(call_enter_context_function, EnterMicrotaskContextWrapper)
 
 bool operator==(ExternalReference lhs, ExternalReference rhs) {
   return lhs.address() == rhs.address();

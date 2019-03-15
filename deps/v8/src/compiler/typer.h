@@ -56,7 +56,7 @@ class V8_EXPORT_PRIVATE Typer {
   DISALLOW_COPY_AND_ASSIGN(Typer);
 };
 
-DEFINE_OPERATORS_FOR_FLAGS(Typer::Flags);
+DEFINE_OPERATORS_FOR_FLAGS(Typer::Flags)
 
 }  // namespace compiler
 }  // namespace internal

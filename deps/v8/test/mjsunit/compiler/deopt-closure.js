@@ -12,6 +12,7 @@
     }
     return g();
   }
+  %PrepareFunctionForOptimization(f);
   assertEquals(24, f(23));
   assertEquals(43, f(42));
   %OptimizeFunctionOnNextCall(f);
@@ -26,6 +27,7 @@
     }
     return g();
   }
+  %PrepareFunctionForOptimization(f);
   assertEquals(24, f(23));
   assertEquals(43, f(42));
   %OptimizeFunctionOnNextCall(f);
@@ -40,6 +42,7 @@
     }
     return new g();
   }
+  %PrepareFunctionForOptimization(f);
   assertEquals({ val: 24 }, f(23));
   assertEquals({ val: 43 }, f(42));
   %OptimizeFunctionOnNextCall(f);

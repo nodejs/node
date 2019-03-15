@@ -367,7 +367,7 @@ class ModuleDecoderImpl : public Decoder {
     // Check if the section is out-of-order.
     if (section_code < next_ordered_section_ &&
         section_code < kFirstUnorderedSection) {
-      errorf(pc(), "unexpected section: %s", SectionName(section_code));
+      errorf(pc(), "unexpected section <%s>", SectionName(section_code));
       return;
     }
 
@@ -446,18 +446,18 @@ class ModuleDecoderImpl : public Decoder {
         if (enabled_features_.bulk_memory) {
           DecodeDataCountSection();
         } else {
-          errorf(pc(), "unexpected section: %s", SectionName(section_code));
+          errorf(pc(), "unexpected section <%s>", SectionName(section_code));
         }
         break;
       case kExceptionSectionCode:
         if (enabled_features_.eh) {
           DecodeExceptionSection();
         } else {
-          errorf(pc(), "unexpected section: %s", SectionName(section_code));
+          errorf(pc(), "unexpected section <%s>", SectionName(section_code));
         }
         break;
       default:
-        errorf(pc(), "unexpected section: %s", SectionName(section_code));
+        errorf(pc(), "unexpected section <%s>", SectionName(section_code));
         return;
     }
 
@@ -524,6 +524,7 @@ class ModuleDecoderImpl : public Decoder {
           // ===== Imported table ==========================================
           if (!AddTable(module_.get())) break;
           import->index = static_cast<uint32_t>(module_->tables.size());
+          module_->num_imported_tables++;
           module_->tables.emplace_back();
           WasmTable* table = &module_->tables.back();
           table->imported = true;
@@ -680,7 +681,8 @@ class ModuleDecoderImpl : public Decoder {
       switch (exp->kind) {
         case kExternalFunction: {
           WasmFunction* func = nullptr;
-          exp->index = consume_func_index(module_.get(), &func);
+          exp->index =
+              consume_func_index(module_.get(), &func, "export function index");
           module_->num_exported_functions++;
           if (func) func->exported = true;
           break;
@@ -757,7 +759,8 @@ class ModuleDecoderImpl : public Decoder {
   void DecodeStartSection() {
     WasmFunction* func;
     const byte* pos = pc_;
-    module_->start_function_index = consume_func_index(module_.get(), &func);
+    module_->start_function_index =
+        consume_func_index(module_.get(), &func, "start function index");
     if (func &&
         (func->sig->parameter_count() > 0 || func->sig->return_count() > 0)) {
       error(pos, "invalid start function: non-zero parameter or return count");
@@ -791,10 +794,16 @@ class ModuleDecoderImpl : public Decoder {
                  table_index);
           break;
         }
+      } else {
+        ValueType type = consume_reference_type();
+        if (type != kWasmAnyFunc) {
+          error(pc_ - 1, "invalid element segment type");
+          break;
+        }
       }
 
       uint32_t num_elem =
-          consume_count("number of elements", kV8MaxWasmTableEntries);
+          consume_count("number of elements", max_table_init_entries());
       if (is_active) {
         module_->elem_segments.emplace_back(table_index, offset);
       } else {
@@ -803,11 +812,9 @@ class ModuleDecoderImpl : public Decoder {
 
       WasmElemSegment* init = &module_->elem_segments.back();
       for (uint32_t j = 0; j < num_elem; j++) {
-        WasmFunction* func = nullptr;
-        uint32_t index = consume_func_index(module_.get(), &func);
-        DCHECK_IMPLIES(ok(), func != nullptr);
-        if (!ok()) break;
-        DCHECK_EQ(index, func->func_index);
+        uint32_t index = is_active ? consume_element_func_index()
+                                   : consume_passive_element();
+        if (failed()) break;
         init->entries.push_back(index);
       }
     }
@@ -1170,8 +1177,6 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
-  // Decodes a single data segment entry inside a module starting at {pc_}.
-
   // Calculate individual global offsets and total size of globals table.
   void CalculateGlobalOffsets(WasmModule* module) {
     uint32_t untagged_offset = 0;
@@ -1267,8 +1272,9 @@ class ModuleDecoderImpl : public Decoder {
     return count;
   }
 
-  uint32_t consume_func_index(WasmModule* module, WasmFunction** func) {
-    return consume_index("function index", module->functions, func);
+  uint32_t consume_func_index(WasmModule* module, WasmFunction** func,
+                              const char* name) {
+    return consume_index(name, module->functions, func);
   }
 
   uint32_t consume_global_index(WasmModule* module, WasmGlobal** global) {
@@ -1569,13 +1575,10 @@ class ModuleDecoderImpl : public Decoder {
       flags = consume_u32v("flags");
       if (failed()) return;
     } else {
-      flags = consume_u32v(name);
-      if (failed()) return;
-
-      if (flags != 0) {
-        errorf(pos, "illegal %s %u != 0", name, flags);
-        return;
-      }
+      // Without the bulk memory proposal, we should still read the table index.
+      // This is the same as reading the `ActiveWithIndex` flag with the bulk
+      // memory proposal.
+      flags = SegmentFlags::kActiveWithIndex;
     }
 
     bool read_index;
@@ -1606,6 +1609,37 @@ class ModuleDecoderImpl : public Decoder {
     if (read_offset) {
       *offset = consume_init_expr(module_.get(), kWasmI32);
     }
+  }
+
+  uint32_t consume_element_func_index() {
+    WasmFunction* func = nullptr;
+    uint32_t index =
+        consume_func_index(module_.get(), &func, "element function index");
+    if (failed()) return index;
+    DCHECK_NE(func, nullptr);
+    DCHECK_EQ(index, func->func_index);
+    DCHECK_NE(index, WasmElemSegment::kNullIndex);
+    return index;
+  }
+
+  uint32_t consume_passive_element() {
+    uint32_t index = WasmElemSegment::kNullIndex;
+    uint8_t opcode = consume_u8("element opcode");
+    if (failed()) return index;
+    switch (opcode) {
+      case kExprRefNull:
+        index = WasmElemSegment::kNullIndex;
+        break;
+      case kExprRefFunc:
+        index = consume_element_func_index();
+        if (failed()) return index;
+        break;
+      default:
+        error("invalid opcode in element");
+        break;
+    }
+    expect_u8("end opcode", kExprEnd);
+    return index;
   }
 };
 

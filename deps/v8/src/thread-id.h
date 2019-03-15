@@ -5,7 +5,9 @@
 #ifndef V8_THREAD_ID_H_
 #define V8_THREAD_ID_H_
 
-#include "src/base/atomicops.h"
+#include <atomic>
+
+#include "src/base/macros.h"
 
 namespace v8 {
 namespace internal {
@@ -14,10 +16,12 @@ namespace internal {
 class ThreadId {
  public:
   // Creates an invalid ThreadId.
-  ThreadId() { base::Relaxed_Store(&id_, kInvalidId); }
+  ThreadId() : ThreadId(kInvalidId) {}
+
+  ThreadId(const ThreadId& other) V8_NOEXCEPT : ThreadId(other.ToInteger()) {}
 
   ThreadId& operator=(const ThreadId& other) V8_NOEXCEPT {
-    base::Relaxed_Store(&id_, base::Relaxed_Load(&other.id_));
+    id_.store(other.ToInteger(), std::memory_order_relaxed);
     return *this;
   }
 
@@ -34,37 +38,28 @@ class ThreadId {
 
   // Compares ThreadIds for equality.
   V8_INLINE bool Equals(const ThreadId& other) const {
-    return base::Relaxed_Load(&id_) == base::Relaxed_Load(&other.id_);
+    return ToInteger() == other.ToInteger();
   }
 
   // Checks whether this ThreadId refers to any thread.
-  V8_INLINE bool IsValid() const {
-    return base::Relaxed_Load(&id_) != kInvalidId;
-  }
+  V8_INLINE bool IsValid() const { return ToInteger() != kInvalidId; }
 
   // Converts ThreadId to an integer representation
   // (required for public API: V8::V8::GetCurrentThreadId).
-  int ToInteger() const { return static_cast<int>(base::Relaxed_Load(&id_)); }
+  int ToInteger() const { return id_.load(std::memory_order_relaxed); }
 
   // Converts ThreadId to an integer representation
   // (required for public API: V8::V8::TerminateExecution).
   static ThreadId FromInteger(int id) { return ThreadId(id); }
 
  private:
-  static const int kInvalidId = -1;
+  static constexpr int kInvalidId = -1;
 
-  explicit ThreadId(int id) { base::Relaxed_Store(&id_, id); }
-
-  static int AllocateThreadId() {
-    int new_id = base::Relaxed_AtomicIncrement(&highest_thread_id_, 1);
-    return new_id;
-  }
+  explicit ThreadId(int id) { id_.store(id, std::memory_order_relaxed); }
 
   static int GetCurrentThreadId();
 
-  base::Atomic32 id_;
-
-  static base::Atomic32 highest_thread_id_;
+  std::atomic<int> id_;
 };
 
 }  // namespace internal

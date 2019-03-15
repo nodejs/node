@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm --wasm-math-intrinsics
 
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 function verbose(args) {

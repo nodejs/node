@@ -23,8 +23,6 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
 
   typedef std::function<void(ArrayBuiltinsAssembler* masm)> PostLoopAction;
 
-  enum class MissingPropertyMode { kSkip, kUseUndefined };
-
   void FindResultGenerator();
 
   Node* FindProcessor(Node* k_value, Node* k);
@@ -50,12 +48,6 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
   Node* ReduceProcessor(Node* k_value, Node* k);
 
   void ReducePostLoopAction();
-
-  void FilterResultGenerator();
-
-  Node* FilterProcessor(Node* k_value, Node* k);
-
-  void MapResultGenerator();
 
   void TypedArrayMapResultGenerator();
 
@@ -106,25 +98,9 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
                                      TNode<Object> receiver, Node* callbackfn,
                                      Node* this_arg, TNode<IntPtrT> argc);
 
-  void GenerateIteratingArrayBuiltinBody(
-      const char* name, const BuiltinResultGenerator& generator,
-      const CallResultProcessor& processor, const PostLoopAction& action,
-      const Callable& slow_case_continuation,
-      MissingPropertyMode missing_property_mode,
-      ForEachDirection direction = ForEachDirection::kForward);
-  void InitIteratingArrayBuiltinLoopContinuation(
-      TNode<Context> context, TNode<Object> receiver, Node* callbackfn,
-      Node* this_arg, Node* a, TNode<JSReceiver> o, Node* initial_k,
-      TNode<Number> len, Node* to);
-
   void GenerateIteratingTypedArrayBuiltinBody(
       const char* name, const BuiltinResultGenerator& generator,
       const CallResultProcessor& processor, const PostLoopAction& action,
-      ForEachDirection direction = ForEachDirection::kForward);
-
-  void GenerateIteratingArrayBuiltinLoopContinuation(
-      const CallResultProcessor& processor, const PostLoopAction& action,
-      MissingPropertyMode missing_property_mode,
       ForEachDirection direction = ForEachDirection::kForward);
 
   void TailCallArrayConstructorStub(
@@ -166,18 +142,6 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
                                   const CallResultProcessor& processor,
                                   Label* detached, ForEachDirection direction,
                                   TNode<JSTypedArray> typed_array);
-
-  void VisitAllFastElementsOneKind(ElementsKind kind,
-                                   const CallResultProcessor& processor,
-                                   Label* array_changed, ParameterMode mode,
-                                   ForEachDirection direction,
-                                   MissingPropertyMode missing_property_mode,
-                                   TNode<Smi> length);
-
-  void HandleFastElements(const CallResultProcessor& processor,
-                          const PostLoopAction& action, Label* slow,
-                          ForEachDirection direction,
-                          MissingPropertyMode missing_property_mode);
 
   // Perform ArraySpeciesCreate (ES6 #sec-arrayspeciescreate).
   // This version is specialized to create a zero length array

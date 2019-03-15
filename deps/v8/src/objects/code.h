@@ -21,6 +21,7 @@ namespace internal {
 class ByteArray;
 class BytecodeArray;
 class CodeDataContainer;
+class CodeDesc;
 class MaybeObject;
 
 namespace interpreter {
@@ -69,8 +70,8 @@ class Code : public HeapObject {
 
   // Returns the size of the native instructions, including embedded
   // data such as the safepoints table. For off-heap code objects
-  // this may from instruction_size in that this will return the size of the
-  // off-heap instruction stream rather than the on-heap trampoline located
+  // this may differ from instruction_size in that this will return the size of
+  // the off-heap instruction stream rather than the on-heap trampoline located
   // at instruction_start.
   inline int InstructionSize() const;
   int OffHeapInstructionSize() const;
@@ -96,17 +97,6 @@ class Code : public HeapObject {
   // Note that this field is stored in the {CodeDataContainer} to be mutable.
   inline Object next_code_link() const;
   inline void set_next_code_link(Object value);
-
-  // [constant_pool offset]: Offset of the constant pool.
-  // Valid for FLAG_enable_embedded_constant_pool only
-  inline int constant_pool_offset() const;
-  inline void set_constant_pool_offset(int offset);
-  inline int constant_pool_size() const;
-
-  // [code_comments_offset]: Offset of the code comment section.
-  inline int code_comments_offset() const;
-  inline void set_code_comments_offset(int offset);
-  inline Address code_comments() const;
 
   // Unchecked accessors to be used during GC.
   inline ByteArray unchecked_relocation_info() const;
@@ -155,11 +145,32 @@ class Code : public HeapObject {
   // instruction stream where the safepoint table starts.
   inline int safepoint_table_offset() const;
   inline void set_safepoint_table_offset(int offset);
+  int safepoint_table_size() const;
+  bool has_safepoint_table() const;
 
   // [handler_table_offset]: The offset in the instruction stream where the
   // exception handler table starts.
   inline int handler_table_offset() const;
   inline void set_handler_table_offset(int offset);
+  int handler_table_size() const;
+  bool has_handler_table() const;
+
+  // [constant_pool offset]: Offset of the constant pool.
+  // Valid for FLAG_enable_embedded_constant_pool only
+  inline int constant_pool_offset() const;
+  inline void set_constant_pool_offset(int offset);
+  int constant_pool_size() const;
+  bool has_constant_pool() const;
+
+  // [code_comments_offset]: Offset of the code comment section.
+  inline int code_comments_offset() const;
+  inline void set_code_comments_offset(int offset);
+  inline Address code_comments() const;
+  int code_comments_size() const;
+  bool has_code_comments() const;
+
+  // The size of the executable instruction area, without embedded metadata.
+  int ExecutableInstructionSize() const;
 
   // [marked_for_deoptimization]: For kind OPTIMIZED_FUNCTION tells whether
   // the code is going to be deoptimized.
@@ -209,7 +220,7 @@ class Code : public HeapObject {
   inline void WipeOutHeader();
 
   // Clear uninitialized padding space. This ensures that the snapshot content
-  // is deterministic.
+  // is deterministic. Depending on the V8 build mode there could be no padding.
   inline void clear_padding();
   // Initialize the flags field. Similar to clear_padding above this ensure that
   // the snapshot content is deterministic.
@@ -264,8 +275,11 @@ class Code : public HeapObject {
   //  |       instructions       |
   //  |           ...            |
   //  +--------------------------+
-  //  |      relocation info     |
-  //  |           ...            |
+  //  |     embedded metadata    |  <-- safepoint_table_offset()
+  //  |           ...            |  <-- handler_table_offset()
+  //  |                          |  <-- constant_pool_offset()
+  //  |                          |  <-- code_comments_offset()
+  //  |                          |
   //  +--------------------------+  <-- raw_instruction_end()
   //
   // If has_unwinding_info() is false, raw_instruction_end() points to the first
@@ -359,25 +373,27 @@ class Code : public HeapObject {
   class OptimizedCodeIterator;
 
   // Layout description.
-#define CODE_FIELDS(V)                                                      \
-  V(kRelocationInfoOffset, kTaggedSize)                                     \
-  V(kDeoptimizationDataOffset, kTaggedSize)                                 \
-  V(kSourcePositionTableOffset, kTaggedSize)                                \
-  V(kCodeDataContainerOffset, kTaggedSize)                                  \
-  /* Data or code not directly visited by GC directly starts here. */       \
-  /* The serializer needs to copy bytes starting from here verbatim. */     \
-  /* Objects embedded into code is visited via reloc info. */               \
-  V(kDataStart, 0)                                                          \
-  V(kInstructionSizeOffset, kIntSize)                                       \
-  V(kFlagsOffset, kIntSize)                                                 \
-  V(kSafepointTableOffsetOffset, kIntSize)                                  \
-  V(kHandlerTableOffsetOffset, kIntSize)                                    \
-  V(kConstantPoolOffset, FLAG_enable_embedded_constant_pool ? kIntSize : 0) \
-  V(kBuiltinIndexOffset, kIntSize)                                          \
-  V(kCodeCommentsOffset, kIntSize)                                          \
-  /* Add padding to align the instruction start following right after */    \
-  /* the Code object header. */                                             \
-  V(kHeaderPaddingStart, CODE_POINTER_PADDING(kHeaderPaddingStart))         \
+#define CODE_FIELDS(V)                                                    \
+  V(kRelocationInfoOffset, kTaggedSize)                                   \
+  V(kDeoptimizationDataOffset, kTaggedSize)                               \
+  V(kSourcePositionTableOffset, kTaggedSize)                              \
+  V(kCodeDataContainerOffset, kTaggedSize)                                \
+  /* Data or code not directly visited by GC directly starts here. */     \
+  /* The serializer needs to copy bytes starting from here verbatim. */   \
+  /* Objects embedded into code is visited via reloc info. */             \
+  V(kDataStart, 0)                                                        \
+  V(kInstructionSizeOffset, kIntSize)                                     \
+  V(kFlagsOffset, kIntSize)                                               \
+  V(kSafepointTableOffsetOffset, kIntSize)                                \
+  V(kHandlerTableOffsetOffset, kIntSize)                                  \
+  V(kConstantPoolOffsetOffset,                                            \
+    FLAG_enable_embedded_constant_pool ? kIntSize : 0)                    \
+  V(kCodeCommentsOffsetOffset, kIntSize)                                  \
+  V(kBuiltinIndexOffset, kIntSize)                                        \
+  V(kUnalignedHeaderSize, 0)                                              \
+  /* Add padding to align the instruction start following right after */  \
+  /* the Code object header. */                                           \
+  V(kOptionalPaddingOffset, CODE_POINTER_PADDING(kOptionalPaddingOffset)) \
   V(kHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CODE_FIELDS)
@@ -387,31 +403,25 @@ class Code : public HeapObject {
   // due to padding for code alignment.
 #if V8_TARGET_ARCH_ARM64
   static constexpr int kHeaderPaddingSize = 0;
-  STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
 #elif V8_TARGET_ARCH_MIPS64
   static constexpr int kHeaderPaddingSize = 0;
-  STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
 #elif V8_TARGET_ARCH_X64
   static constexpr int kHeaderPaddingSize = 0;
-  STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
 #elif V8_TARGET_ARCH_ARM
   static constexpr int kHeaderPaddingSize = 20;
-  STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
 #elif V8_TARGET_ARCH_IA32
   static constexpr int kHeaderPaddingSize = 20;
-  STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
 #elif V8_TARGET_ARCH_MIPS
   static constexpr int kHeaderPaddingSize = 20;
-  STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
 #elif V8_TARGET_ARCH_PPC64
-  // No static assert possible since padding size depends on the
-  // FLAG_enable_embedded_constant_pool runtime flag.
+  static constexpr int kHeaderPaddingSize =
+      FLAG_enable_embedded_constant_pool ? 28 : 0;
 #elif V8_TARGET_ARCH_S390X
   static constexpr int kHeaderPaddingSize = 0;
-  STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
 #else
 #error Unknown architecture.
 #endif
+  STATIC_ASSERT(FIELD_SIZE(kOptionalPaddingOffset) == kHeaderPaddingSize);
 
   inline int GetUnwindingInfoSizeOffset() const;
 
@@ -469,7 +479,7 @@ class Code::OptimizedCodeIterator {
   Code current_code_;
   Isolate* isolate_;
 
-  DISALLOW_HEAP_ALLOCATION(no_gc);
+  DISALLOW_HEAP_ALLOCATION(no_gc)
   DISALLOW_COPY_AND_ASSIGN(OptimizedCodeIterator);
 };
 
@@ -552,8 +562,8 @@ class AbstractCode : public HeapObject {
 
   // Returns the size of the native instructions, including embedded
   // data such as the safepoints table. For off-heap code objects
-  // this may from instruction_size in that this will return the size of the
-  // off-heap instruction stream rather than the on-heap trampoline located
+  // this may differ from instruction_size in that this will return the size of
+  // the off-heap instruction stream rather than the on-heap trampoline located
   // at instruction_start.
   inline int InstructionSize();
 
@@ -586,7 +596,7 @@ class AbstractCode : public HeapObject {
   // nesting that is deeper than 5 levels into account.
   static const int kMaxLoopNestingMarker = 6;
 
-  OBJECT_CONSTRUCTORS(AbstractCode, HeapObject)
+  OBJECT_CONSTRUCTORS(AbstractCode, HeapObject);
 };
 
 // Dependent code is a singly linked list of weak fixed arrays. Each array
@@ -697,7 +707,7 @@ class DependentCode : public WeakFixedArray {
   class CountField : public BitField<int, 3, 27> {};
   STATIC_ASSERT(kGroupCount <= GroupField::kMax + 1);
 
-  OBJECT_CONSTRUCTORS(DependentCode, WeakFixedArray)
+  OBJECT_CONSTRUCTORS(DependentCode, WeakFixedArray);
 };
 
 // BytecodeArray represents a sequence of interpreter bytecodes.
@@ -722,7 +732,7 @@ class BytecodeArray : public FixedArrayBase {
   }
 
   // Setter and getter
-  inline byte get(int index);
+  inline byte get(int index) const;
   inline void set(int index, byte value);
 
   // Returns data start address.
@@ -769,6 +779,7 @@ class BytecodeArray : public FixedArrayBase {
   DECL_ACCESSORS(source_position_table, Object)
 
   inline ByteArray SourcePositionTable();
+  inline bool HasSourcePositionTable();
   inline void ClearFrameCacheFromSourcePositionTable();
 
   DECL_CAST(BytecodeArray)
@@ -781,9 +792,6 @@ class BytecodeArray : public FixedArrayBase {
   // Returns the size of bytecode and its metadata. This includes the size of
   // bytecode, constant pool, source position table, and handler table.
   inline int SizeIncludingMetadata();
-
-  int SourcePosition(int offset);
-  int SourceStatementPosition(int offset);
 
   DECL_PRINTER(BytecodeArray)
   DECL_VERIFIER(BytecodeArray)
@@ -799,6 +807,9 @@ class BytecodeArray : public FixedArrayBase {
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic.
   inline void clear_padding();
+
+  // Compares only the bytecode array but not any of the header fields.
+  bool IsBytecodeEqual(const BytecodeArray other) const;
 
 // Layout description.
 #define BYTECODE_ARRAY_FIELDS(V)                           \
@@ -913,7 +924,7 @@ class DeoptimizationData : public FixedArray {
 
   static int LengthFor(int entry_count) { return IndexForEntry(entry_count); }
 
-  OBJECT_CONSTRUCTORS(DeoptimizationData, FixedArray)
+  OBJECT_CONSTRUCTORS(DeoptimizationData, FixedArray);
 };
 
 class SourcePositionTableWithFrameCache : public Tuple2 {

@@ -4,7 +4,6 @@
 
 // Flags: --allow-natives-syntax --liftoff --no-future --no-wasm-tier-up
 
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function testLiftoffFlag() {

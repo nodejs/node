@@ -8,6 +8,7 @@
 (function() {
   const a = [];
   const foo = (x, y) => a.push(x, y);
+  %PrepareFunctionForOptimization(foo);
   foo(1, 2);
   foo(3, 4);
   %OptimizeFunctionOnNextCall(foo);
@@ -17,6 +18,7 @@
 (function() {
   const a = [];
   const foo = (x, y) => a.push(x, y);
+  %PrepareFunctionForOptimization(foo);
   foo(1, 2);
   foo(3, 4);
   %OptimizeFunctionOnNextCall(foo);
@@ -28,6 +30,7 @@
 (function() {
   const a = [];
   const foo = (x, y) => a.push(x, y);
+  %PrepareFunctionForOptimization(foo);
   foo(1, 2);
   foo(3, 4);
   %OptimizeFunctionOnNextCall(foo);
@@ -37,6 +40,7 @@
 (function() {
   const a = [];
   const foo = (x, y) => a.push(x, y);
+  %PrepareFunctionForOptimization(foo);
   foo(1, 2);
   foo(3, 4);
   %OptimizeFunctionOnNextCall(foo);
@@ -48,6 +52,7 @@
 (function() {
   const a = [0.5];
   const foo = (x, y) => a.push(x, y);
+  %PrepareFunctionForOptimization(foo);
   foo(1, 2);
   foo(3, 4);
   %OptimizeFunctionOnNextCall(foo);
@@ -57,6 +62,7 @@
 (function() {
   const a = [0.5];
   const foo = (x, y) => a.push(x, y);
+  %PrepareFunctionForOptimization(foo);
   foo(1, 2);
   foo(3, 4);
   %OptimizeFunctionOnNextCall(foo);

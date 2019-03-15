@@ -11,6 +11,7 @@
     return i + 1;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0x000000001, foo(false));
   assertEquals(0x000000001, foo(false));
   assertEquals(0x100000000, foo(true));
@@ -27,6 +28,7 @@
     return i + 1;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0x000000000, foo(false));
   assertEquals(0x000000000, foo(false));
   assertEquals(0x100000000, foo(true));
@@ -45,6 +47,7 @@
     return a[0];
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0x0FFFFFFFF, foo({x:0}));
   assertEquals(0x100000000, foo({x:1}));
   %OptimizeFunctionOnNextCall(foo);
@@ -57,6 +60,7 @@
     return {x: Math.floor((o.x + 11123456789) + -11123456788)}.x;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo({x:0}));
   assertEquals(2, foo({x:1}));
   %OptimizeFunctionOnNextCall(foo);
@@ -70,6 +74,7 @@
     return a[i];
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo([1], 0xFFFFFFFF));
   assertEquals(2, foo([2], 0xFFFFFFFF));
   %OptimizeFunctionOnNextCall(foo);
@@ -84,6 +89,7 @@
     return i;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(0xFFFFFFFF));
   assertEquals(0, foo(0xFFFFFFFF));
   %OptimizeFunctionOnNextCall(foo);
@@ -97,6 +103,7 @@
     return dv.getInt8(i, true);
   }
 
+  %PrepareFunctionForOptimization(foo);
   const dv = new DataView(new ArrayBuffer(10));
   dv.setFloat32(0, 8, true);
   dv.setFloat32(4, 9, true);
@@ -117,6 +124,7 @@
     return dv.getInt8(i, true);
   }
 
+  %PrepareFunctionForOptimization(foo);
   const dv = new DataView(new ArrayBuffer(18));
   dv.setFloat64(0, 16, true);
   dv.setFloat64(8, 17, true);

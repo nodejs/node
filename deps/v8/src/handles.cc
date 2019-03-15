@@ -12,6 +12,11 @@
 #include "src/objects-inl.h"
 #include "src/roots-inl.h"
 
+#ifdef DEBUG
+// For GetIsolateFromWritableHeapObject.
+#include "src/heap/heap-write-barrier-inl.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -29,7 +34,7 @@ bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
   if (object->IsSmi()) return true;
   HeapObject heap_object = HeapObject::cast(object);
   Isolate* isolate;
-  if (!Isolate::FromWritableHeapObject(heap_object, &isolate)) return true;
+  if (!GetIsolateFromWritableObject(heap_object, &isolate)) return true;
   RootIndex root_index;
   if (isolate->roots_table().IsRootHandleLocation(location_, &root_index) &&
       RootsTable::IsImmortalImmovable(root_index)) {

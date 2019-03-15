@@ -59,7 +59,7 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
 
      private:
       ByteData* consumed_data_;
-      DISALLOW_HEAP_ALLOCATION(no_gc);
+      DISALLOW_HEAP_ALLOCATION(no_gc)
     };
 
     void SetPosition(int position) {
@@ -92,8 +92,8 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
     }
 
     int32_t ReadVarint32() {
-      DCHECK(HasRemainingBytes(kVarintMinSize));
-      DCHECK_EQ(data_.get(index_++), kVarintMinSize);
+      DCHECK(HasRemainingBytes(kVarint32MinSize));
+      DCHECK_EQ(data_.get(index_++), kVarint32MinSize);
       int32_t value = 0;
       bool has_another_byte;
       unsigned shift = 0;
@@ -103,7 +103,7 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
         shift += 7;
         has_another_byte = byte & 0x80;
       } while (has_another_byte);
-      DCHECK_EQ(data_.get(index_++), kVarintEndMarker);
+      DCHECK_EQ(data_.get(index_++), kVarint32EndMarker);
       stored_quarters_ = 0;
       return value;
     }
@@ -212,6 +212,12 @@ class ZonePreparseData : public ZoneObject {
 
   DISALLOW_COPY_AND_ASSIGN(ZonePreparseData);
 };
+
+ZonePreparseData* PreparseDataBuilder::ByteData::CopyToZone(
+    Zone* zone, int children_length) {
+  DCHECK(is_finalized_);
+  return new (zone) ZonePreparseData(zone, &zone_byte_data_, children_length);
+}
 
 // Implementation of ConsumedPreparseData for PreparseData
 // serialized into zone memory.

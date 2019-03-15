@@ -47,6 +47,11 @@ bool FrameArray::IsAsmJsWasmFrame(int frame_ix) const {
   return (flags & kIsAsmJsWasmFrame) != 0;
 }
 
+bool FrameArray::IsAnyWasmFrame(int frame_ix) const {
+  return IsWasmFrame(frame_ix) || IsWasmInterpretedFrame(frame_ix) ||
+         IsAsmJsWasmFrame(frame_ix);
+}
+
 int FrameArray::FrameCount() const {
   const int frame_count = Smi::ToInt(get(kFrameCountIndex));
   DCHECK_LE(0, frame_count);

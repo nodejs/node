@@ -7,6 +7,7 @@
 #include "src/objects/string.h"
 
 #if V8_OS_WIN
+#include <windows.h>
 #if _MSC_VER < 1900
 #define snprintf sprintf_s
 #endif
@@ -19,6 +20,48 @@
 
 namespace v8 {
 namespace internal {
+
+DbgStreamBuf::DbgStreamBuf() { setp(data_, data_ + sizeof(data_)); }
+
+DbgStreamBuf::~DbgStreamBuf() { sync(); }
+
+int DbgStreamBuf::overflow(int c) {
+#if V8_OS_WIN
+  if (!IsDebuggerPresent()) {
+    return 0;
+  }
+
+  sync();
+
+  if (c != EOF) {
+    if (pbase() == epptr()) {
+      auto as_char = static_cast<char>(c);
+      OutputDebugStringA(&as_char);
+    } else {
+      sputc(static_cast<char>(c));
+    }
+  }
+#endif
+  return 0;
+}
+
+int DbgStreamBuf::sync() {
+#if V8_OS_WIN
+  if (!IsDebuggerPresent()) {
+    return 0;
+  }
+
+  if (pbase() != pptr()) {
+    OutputDebugStringA(std::string(pbase(), static_cast<std::string::size_type>(
+                                                pptr() - pbase()))
+                           .c_str());
+    setp(pbase(), epptr());
+  }
+#endif
+  return 0;
+}
+
+DbgStdoutStream::DbgStdoutStream() : std::ostream(&streambuf_) {}
 
 OFStreamBase::OFStreamBase(FILE* f) : f_(f) {}
 

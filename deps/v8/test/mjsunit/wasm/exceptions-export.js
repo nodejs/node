@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm --experimental-wasm-eh
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestExportSimple() {
@@ -44,7 +43,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addExportOfKind("ex_oob", kExternalException, except + 1);
   assertThrows(
       () => builder.instantiate(), WebAssembly.CompileError,
-      /Wasm decoding failed: exception index 1 out of bounds/);
+      'WebAssembly.Module(): exception index 1 out of bounds (1 entry) @+30');
 })();
 
 (function TestExportSameNameTwice() {
@@ -55,7 +54,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addExportOfKind("ex", kExternalException, except);
   assertThrows(
       () => builder.instantiate(), WebAssembly.CompileError,
-      /Duplicate export name 'ex' for exception 0 and exception 0/);
+      'WebAssembly.Module(): Duplicate export name \'ex\' ' +
+          'for exception 0 and exception 0 @+28');
 })();
 
 (function TestExportModuleGetExports() {

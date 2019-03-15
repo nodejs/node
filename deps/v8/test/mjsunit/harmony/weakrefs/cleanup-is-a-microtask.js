@@ -19,17 +19,17 @@ let log = [];
 
 let cleanup = (iter) => {
   log.push("cleanup");
-  for (wc of iter) { }
+  for (holdings of iter) { }
 }
 
-let wf = new WeakFactory(cleanup);
+let fg = new FinalizationGroup(cleanup);
 let o = null;
 
 (function() {
   // Use a closure here to avoid other references to o which might keep it alive
   // (e.g., stack frames pointing to it).
   o = {};
-  wf.makeCell(o);
+  fg.register(o, {});
 })();
 
 let microtask_after_cleanup = () => {

@@ -45,11 +45,11 @@ const char* CodeCommentsIterator::GetComment() const {
 }
 
 uint32_t CodeCommentsIterator::GetCommentSize() const {
-  return *reinterpret_cast<uint32_t*>(current_entry_ + kOffsetToCommentSize);
+  return ReadUnalignedValue<uint32_t>(current_entry_ + kOffsetToCommentSize);
 }
 
 uint32_t CodeCommentsIterator::GetPCOffset() const {
-  return *reinterpret_cast<uint32_t*>(current_entry_ + kOffsetToPCOffset);
+  return ReadUnalignedValue<uint32_t>(current_entry_ + kOffsetToPCOffset);
 }
 
 void CodeCommentsIterator::Next() {

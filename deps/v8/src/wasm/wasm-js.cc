@@ -19,7 +19,9 @@
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/templates.h"
 #include "src/parsing/parse-info.h"
+#include "src/task-utils.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/v8.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
@@ -69,15 +71,24 @@ class WasmStreaming::WasmStreamingImpl {
 
   void SetClient(std::shared_ptr<Client> client) {
     // There are no other event notifications so just pass client to decoder.
-    // Wrap the client with a callback here so we can also wrap the result.
+    // Wrap the client with a callback to trigger the callback in a new
+    // foreground task.
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
+    v8::Platform* platform = i::V8::GetCurrentPlatform();
+    std::shared_ptr<TaskRunner> foreground_task_runner =
+        platform->GetForegroundTaskRunner(isolate_);
     streaming_decoder_->SetModuleCompiledCallback(
-        [client](const std::shared_ptr<i::wasm::NativeModule>& native_module) {
-          client->OnModuleCompiled(Utils::Convert(native_module));
+        [client, i_isolate, foreground_task_runner](
+            const std::shared_ptr<i::wasm::NativeModule>& native_module) {
+          foreground_task_runner->PostTask(
+              i::MakeCancelableTask(i_isolate, [client, native_module] {
+                client->OnModuleCompiled(Utils::Convert(native_module));
+              }));
         });
   }
 
  private:
-  Isolate* isolate_ = nullptr;
+  Isolate* const isolate_;
   std::shared_ptr<internal::wasm::StreamingDecoder> streaming_decoder_;
   std::shared_ptr<internal::wasm::CompilationResultResolver> resolver_;
 };
@@ -689,6 +700,11 @@ void WebAssemblyModuleCustomSections(
   auto maybe_module = GetFirstArgumentAsModule(args, &thrower);
   if (thrower.error()) return;
 
+  if (args[1]->IsUndefined()) {
+    thrower.TypeError("Argument 1 is required");
+    return;
+  }
+
   i::MaybeHandle<i::Object> maybe_name =
       i::Object::ToString(i_isolate, Utils::OpenHandle(*args[1]));
   i::Handle<i::Object> name;
@@ -707,7 +723,7 @@ MaybeLocal<Value> WebAssemblyInstantiateImpl(Isolate* isolate,
 
   i::MaybeHandle<i::Object> instance_object;
   {
-    ScheduledErrorThrower thrower(i_isolate, "WebAssembly Instantiation");
+    ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Instance()");
 
     // TODO(ahaas): These checks on the module should not be necessary here They
     // are just a workaround for https://crbug.com/837417.
@@ -846,7 +862,7 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i_isolate->CountUsage(
       v8::Isolate::UseCounterFeature::kWebAssemblyInstantiation);
 
-  ScheduledErrorThrower thrower(i_isolate, "WebAssembly Instantiation");
+  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.instantiate()");
 
   HandleScope scope(isolate);
 
@@ -1022,14 +1038,14 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   int64_t initial = 0;
   if (!GetRequiredIntegerProperty(isolate, &thrower, context, descriptor,
                                   v8_str(isolate, "initial"), &initial, 0,
-                                  i::FLAG_wasm_max_table_size)) {
+                                  i::wasm::max_table_init_entries())) {
     return;
   }
   // The descriptor's 'maximum'.
   int64_t maximum = -1;
   if (!GetOptionalIntegerProperty(isolate, &thrower, context, descriptor,
                                   v8_str(isolate, "maximum"), &maximum, initial,
-                                  i::wasm::kSpecMaxWasmTableSize)) {
+                                  i::wasm::max_table_init_entries())) {
     return;
   }
 
@@ -1076,41 +1092,40 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (enabled_features.threads) {
     // Shared property of descriptor
     Local<String> shared_key = v8_str(isolate, "shared");
-    Maybe<bool> has_shared = descriptor->Has(context, shared_key);
-    if (!has_shared.IsNothing() && has_shared.FromJust()) {
-      v8::MaybeLocal<v8::Value> maybe = descriptor->Get(context, shared_key);
-      v8::Local<v8::Value> value;
-      if (maybe.ToLocal(&value)) {
-        is_shared_memory = value->BooleanValue(isolate);
-      }
+    v8::MaybeLocal<v8::Value> maybe_value =
+        descriptor->Get(context, shared_key);
+    v8::Local<v8::Value> value;
+    if (maybe_value.ToLocal(&value)) {
+      is_shared_memory = value->BooleanValue(isolate);
     }
     // Throw TypeError if shared is true, and the descriptor has no "maximum"
     if (is_shared_memory && maximum == -1) {
       thrower.TypeError(
           "If shared is true, maximum property should be defined.");
+      return;
     }
   }
 
-  i::SharedFlag shared_flag =
-      is_shared_memory ? i::SharedFlag::kShared : i::SharedFlag::kNotShared;
-  i::Handle<i::JSArrayBuffer> buffer;
-  size_t size = static_cast<size_t>(i::wasm::kWasmPageSize) *
-                static_cast<size_t>(initial);
-  if (!i::wasm::NewArrayBuffer(i_isolate, size, shared_flag)
-           .ToHandle(&buffer)) {
+  i::Handle<i::JSObject> memory_obj;
+  if (!i::WasmMemoryObject::New(i_isolate, static_cast<uint32_t>(initial),
+                                static_cast<uint32_t>(maximum),
+                                is_shared_memory)
+           .ToHandle(&memory_obj)) {
     thrower.RangeError("could not allocate memory");
     return;
   }
-  if (buffer->is_shared()) {
+  if (is_shared_memory) {
+    i::Handle<i::JSArrayBuffer> buffer(
+        i::Handle<i::WasmMemoryObject>::cast(memory_obj)->array_buffer(),
+        i_isolate);
     Maybe<bool> result =
         buffer->SetIntegrityLevel(buffer, i::FROZEN, i::kDontThrow);
     if (!result.FromJust()) {
       thrower.TypeError(
           "Status of setting SetIntegrityLevel of buffer is false.");
+      return;
     }
   }
-  i::Handle<i::JSObject> memory_obj = i::WasmMemoryObject::New(
-      i_isolate, buffer, static_cast<uint32_t>(maximum));
   args.GetReturnValue().Set(Utils::ToLocal(memory_obj));
 }
 
@@ -1314,7 +1329,7 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  i::Handle<i::FixedArray> old_array(receiver->functions(), i_isolate);
+  i::Handle<i::FixedArray> old_array(receiver->elements(), i_isolate);
   uint32_t old_size = static_cast<uint32_t>(old_array->length());
 
   uint64_t max_size64 = receiver->maximum_length()->Number();
@@ -1342,7 +1357,7 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
     }
     i::Object null = i::ReadOnlyRoots(i_isolate).null_value();
     for (uint32_t i = old_size; i < new_size; ++i) new_array->set(i, null);
-    receiver->set_functions(*new_array);
+    receiver->set_elements(*new_array);
   }
 
   // TODO(gdeepti): use weak links for instances
@@ -1358,7 +1373,7 @@ void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Table.get()");
   Local<Context> context = isolate->GetCurrentContext();
   EXTRACT_THIS(receiver, WasmTableObject);
-  i::Handle<i::FixedArray> array(receiver->functions(), i_isolate);
+  i::Handle<i::FixedArray> array(receiver->elements(), i_isolate);
 
   uint32_t index;
   if (!EnforceUint32("Argument 0", args[0], context, &thrower, &index)) {
@@ -1398,7 +1413,7 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  if (index >= static_cast<uint64_t>(receiver->functions()->length())) {
+  if (index >= static_cast<uint64_t>(receiver->elements()->length())) {
     thrower.RangeError("index out of bounds");
     return;
   }
@@ -1545,7 +1560,7 @@ void WebAssemblyGlobalSetValue(
     return;
   }
   if (args[0]->IsUndefined()) {
-    thrower.TypeError("Argument 0: must be a value");
+    thrower.TypeError("Argument 0 is required");
     return;
   }
 

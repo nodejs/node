@@ -10,12 +10,17 @@
     return String.fromCodePoint(x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals("\u0000", foo(0));
   assertEquals("\u0000", foo(-0));
   %OptimizeFunctionOnNextCall(foo);
   assertEquals("\u0000", foo(0));
   assertEquals("\u0000", foo(-0));
   assertOptimized(foo);
+
+  // Prepare foo to be re-optimized, ensuring it's bytecode / feedback vector
+  // doesn't get flushed after deoptimization.
+  %PrepareFunctionForOptimization(foo);
 
   // Now passing anything outside the valid code point
   // range should invalidate the optimized code.

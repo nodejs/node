@@ -20,6 +20,9 @@ ______________ file2
 ______________ finish <exit code of clang --opt file2> ______________
 """
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import itertools
 import multiprocessing
 import subprocess
@@ -39,6 +42,6 @@ if __name__ == '__main__':
   cmdlines = ["%s %s" % (sys.argv[1], filename) for filename in sys.argv[2:]]
   for filename, result in itertools.izip(
       sys.argv[2:], pool.imap(invoke, cmdlines)):
-    print "______________ %s" % filename
-    print result[0]
-    print "______________ finish %d ______________" % result[1]
+    print("______________ %s" % filename)
+    print(result[0])
+    print("______________ finish %d ______________" % result[1])

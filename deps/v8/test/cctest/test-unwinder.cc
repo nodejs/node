@@ -6,6 +6,7 @@
 
 #include "src/api-inl.h"
 #include "src/builtins/builtins.h"
+#include "src/heap/spaces.h"
 #include "src/isolate.h"
 #include "src/objects/code-inl.h"
 #include "test/cctest/cctest.h"

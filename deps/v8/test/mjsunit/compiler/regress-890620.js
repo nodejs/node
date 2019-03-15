@@ -19,6 +19,7 @@ function f() {
   g();
 }
 
+%PrepareFunctionForOptimization(f);
 f();
 %OptimizeFunctionOnNextCall(f);
 f();

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array {
+namespace array_copywithin {
   macro ConvertToRelativeIndex(index: Number, length: Number): Number {
     return index < 0 ? Max(index + length, 0) : Min(index, length);
   }

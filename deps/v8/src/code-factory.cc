@@ -8,6 +8,7 @@
 #include "src/builtins/builtins-descriptors.h"
 #include "src/ic/ic.h"
 #include "src/objects-inl.h"
+#include "src/objects/allocation-site-inl.h"
 
 namespace v8 {
 namespace internal {

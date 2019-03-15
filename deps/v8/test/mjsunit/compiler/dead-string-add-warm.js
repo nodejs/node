@@ -68,9 +68,14 @@ function run() {
   assertEquals("1", dead3("true", 0));
 }
 
+%PrepareFunctionForOptimization(dead1);
 run();
 run();
 %OptimizeFunctionOnNextCall(dead1);
+run();
+%PrepareFunctionForOptimization(dead2);
 %OptimizeFunctionOnNextCall(dead2);
+run();
+%PrepareFunctionForOptimization(dead3);
 %OptimizeFunctionOnNextCall(dead3);
 run();

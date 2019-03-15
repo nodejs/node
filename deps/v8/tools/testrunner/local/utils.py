@@ -25,6 +25,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# for py2/py3 compatibility
+from __future__ import print_function
 
 from os.path import exists
 from os.path import isdir
@@ -147,7 +149,7 @@ def URLRetrieve(source, destination):
       return
     except:
       # If there's no curl, fall back to urlopen.
-      print "Curl is currently not installed. Falling back to python."
+      print("Curl is currently not installed. Falling back to python.")
       pass
   with open(destination, 'w') as f:
     f.write(urllib2.urlopen(source).read())

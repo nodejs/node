@@ -45,6 +45,7 @@
 #
 # Adding --show_changes to the command line prints out a list of valid public API changes.
 
+from __future__ import print_function
 import copy
 import os.path
 import optparse
@@ -475,9 +476,9 @@ def main():
     if arg_options.show_changes:
         changes = compare_schemas(domains, baseline_domains, True)
         if len(changes) > 0:
-            print "  Public changes since %s:" % version
+            print("  Public changes since %s:" % version)
             for change in changes:
-                print "    %s" % change
+                print("    %s" % change)
 
     if arg_options.stamp:
         with open(arg_options.stamp, 'a') as _:

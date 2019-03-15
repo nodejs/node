@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array {
+namespace array_unshift {
   extern builtin ArrayUnshift(Context, JSFunction, Object, int32);
 
   macro TryFastArrayUnshift(
       context: Context, receiver: Object, arguments: constexpr Arguments): never
       labels Slow {
     const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
-    EnsureWriteableFastElements(array);
+    array::EnsureWriteableFastElements(array);
 
     const map: Map = array.map;
     if (!IsExtensibleMap(map)) goto Slow;
@@ -36,7 +36,7 @@ namespace array {
     if (argCount > 0) {
       // a. If len + argCount > 2**53 - 1, throw a TypeError exception.
       if (length + argCount > kMaxSafeInteger) {
-        ThrowTypeError(context, kInvalidArrayLength);
+        ThrowTypeError(kInvalidArrayLength);
       }
 
       // b. Let k be len.

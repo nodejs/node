@@ -15,6 +15,7 @@
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/task-utils.h"
+#include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
 
 namespace v8 {
 namespace internal {

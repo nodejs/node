@@ -2,7 +2,7 @@ Tests evaluateOnCallFrame in module.
 
 Running test: testTotal
 foo1 (module1:7:2)
-foo2 (module2:6:9)
+foo2 (module2:7:9)
 (anonymous) (module3:4:0)
 local:foo1
 [

@@ -90,6 +90,13 @@ TF_BUILTIN(WasmStackGuard, WasmBuiltinsAssembler) {
   TailCallRuntimeWithCEntry(Runtime::kWasmStackGuard, centry, context);
 }
 
+TF_BUILTIN(WasmStackOverflow, WasmBuiltinsAssembler) {
+  TNode<Object> instance = LoadInstanceFromFrame();
+  TNode<Code> centry = LoadCEntryFromInstance(instance);
+  TNode<Object> context = LoadContextFromInstance(instance);
+  TailCallRuntimeWithCEntry(Runtime::kThrowWasmStackOverflow, centry, context);
+}
+
 TF_BUILTIN(WasmThrow, WasmBuiltinsAssembler) {
   TNode<Object> exception = UncheckedParameter(Descriptor::kException);
   TNode<Object> instance = LoadInstanceFromFrame();

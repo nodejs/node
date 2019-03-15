@@ -427,7 +427,7 @@ enum class AddressOption : uint8_t {
 };
 
 typedef base::Flags<AddressOption, uint8_t> AddressOptions;
-DEFINE_OPERATORS_FOR_FLAGS(AddressOptions);
+DEFINE_OPERATORS_FOR_FLAGS(AddressOptions)
 
 template <class AddMatcher>
 struct BaseWithIndexAndDisplacementMatcher {

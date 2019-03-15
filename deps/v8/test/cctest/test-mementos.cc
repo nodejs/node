@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "src/heap/factory.h"
-#include "src/heap/heap.h"
+#include "src/heap/heap-inl.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"

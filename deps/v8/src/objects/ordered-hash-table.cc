@@ -4,6 +4,7 @@
 
 #include "src/objects/ordered-hash-table.h"
 
+#include "src/heap/heap-inl.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-collection-inl.h"
@@ -70,8 +71,9 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Clear(
     Isolate* isolate, Handle<Derived> table) {
   DCHECK(!table->IsObsolete());
 
-  Handle<Derived> new_table = Allocate(
-      isolate, kMinCapacity, Heap::InNewSpace(*table) ? NOT_TENURED : TENURED);
+  Handle<Derived> new_table =
+      Allocate(isolate, kMinCapacity,
+               Heap::InYoungGeneration(*table) ? NOT_TENURED : TENURED);
 
   table->SetNextTable(*new_table);
   table->SetNumberOfDeletedElements(kClearedTableSentinel);
@@ -187,7 +189,8 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
   DCHECK(!table->IsObsolete());
 
   Handle<Derived> new_table = Derived::Allocate(
-      isolate, new_capacity, Heap::InNewSpace(*table) ? NOT_TENURED : TENURED);
+      isolate, new_capacity,
+      Heap::InYoungGeneration(*table) ? NOT_TENURED : TENURED);
   int nof = table->NumberOfElements();
   int nod = table->NumberOfDeletedElements();
   int new_buckets = new_table->NumberOfBuckets();
@@ -508,7 +511,7 @@ void SmallOrderedHashTable<Derived>::Initialize(Isolate* isolate,
   memset(reinterpret_cast<byte*>(hashtable_start), kNotFound,
          num_buckets + num_chains);
 
-  if (Heap::InNewSpace(*this)) {
+  if (Heap::InYoungGeneration(*this)) {
     MemsetTagged(RawField(DataTableStartOffset()),
                  ReadOnlyRoots(isolate).the_hole_value(),
                  capacity * Derived::kEntrySize);
@@ -728,7 +731,8 @@ Handle<Derived> SmallOrderedHashTable<Derived>::Rehash(Isolate* isolate,
   DCHECK_GE(kMaxCapacity, new_capacity);
 
   Handle<Derived> new_table = SmallOrderedHashTable<Derived>::Allocate(
-      isolate, new_capacity, Heap::InNewSpace(*table) ? NOT_TENURED : TENURED);
+      isolate, new_capacity,
+      Heap::InYoungGeneration(*table) ? NOT_TENURED : TENURED);
   int nof = table->NumberOfElements();
   int nod = table->NumberOfDeletedElements();
   int new_entry = 0;

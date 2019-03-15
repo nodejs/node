@@ -854,8 +854,7 @@ TEST(Run_WasmModule_Reclaim_Memory) {
   Handle<JSArrayBuffer> buffer;
   for (int i = 0; i < 256; ++i) {
     HandleScope scope(isolate);
-    CHECK(NewArrayBuffer(isolate, kWasmPageSize, SharedFlag::kNotShared)
-              .ToHandle(&buffer));
+    CHECK(NewArrayBuffer(isolate, kWasmPageSize).ToHandle(&buffer));
   }
 }
 #endif

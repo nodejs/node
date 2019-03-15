@@ -24,13 +24,20 @@ TEST(CodeLayoutWithoutUnwindingInfo) {
   CodeDesc code_desc;
   code_desc.buffer = buffer;
   code_desc.buffer_size = buffer_size;
-  code_desc.constant_pool_size = 0;
   code_desc.instr_size = buffer_size;
+  code_desc.safepoint_table_offset = buffer_size;
+  code_desc.safepoint_table_size = 0;
+  code_desc.handler_table_offset = buffer_size;
+  code_desc.handler_table_size = 0;
+  code_desc.constant_pool_offset = buffer_size;
+  code_desc.constant_pool_size = 0;
+  code_desc.code_comments_offset = buffer_size;
+  code_desc.code_comments_size = 0;
+  code_desc.reloc_offset = buffer_size;
   code_desc.reloc_size = 0;
-  code_desc.origin = nullptr;
   code_desc.unwinding_info = nullptr;
   code_desc.unwinding_info_size = 0;
-  code_desc.code_comments_size = 0;
+  code_desc.origin = nullptr;
 
   Handle<Code> code = CcTest::i_isolate()->factory()->NewCode(
       code_desc, Code::STUB, Handle<Object>::null());
@@ -63,13 +70,20 @@ TEST(CodeLayoutWithUnwindingInfo) {
   CodeDesc code_desc;
   code_desc.buffer = buffer;
   code_desc.buffer_size = buffer_size;
-  code_desc.constant_pool_size = 0;
   code_desc.instr_size = buffer_size;
+  code_desc.safepoint_table_offset = buffer_size;
+  code_desc.safepoint_table_size = 0;
+  code_desc.handler_table_offset = buffer_size;
+  code_desc.handler_table_size = 0;
+  code_desc.constant_pool_offset = buffer_size;
+  code_desc.constant_pool_size = 0;
+  code_desc.code_comments_offset = buffer_size;
+  code_desc.code_comments_size = 0;
+  code_desc.reloc_offset = buffer_size;
   code_desc.reloc_size = 0;
-  code_desc.origin = nullptr;
   code_desc.unwinding_info = unwinding_info;
   code_desc.unwinding_info_size = unwinding_info_size;
-  code_desc.code_comments_size = 0;
+  code_desc.origin = nullptr;
 
   Handle<Code> code = CcTest::i_isolate()->factory()->NewCode(
       code_desc, Code::STUB, Handle<Object>::null());

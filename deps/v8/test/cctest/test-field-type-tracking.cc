@@ -124,18 +124,10 @@ class Expectations {
     kinds_[index] = kind;
     locations_[index] = location;
     if (kind == kData && location == kField &&
-        IsTransitionableFastElementsKind(elements_kind_) &&
-        Map::IsInplaceGeneralizableField(constness, representation,
-                                         FieldType::cast(*value))) {
-      // Maps with transitionable elements kinds must have non in-place
-      // generalizable fields.
-      if (FLAG_track_constant_fields && FLAG_modify_map_inplace &&
-          constness == PropertyConstness::kConst) {
-        constness = PropertyConstness::kMutable;
-      }
-      if (representation.IsHeapObject() && !FieldType::cast(*value)->IsAny()) {
-        value = FieldType::Any(isolate_);
-      }
+        IsTransitionableFastElementsKind(elements_kind_)) {
+      // Maps with transitionable elements kinds must have the most general
+      // field type.
+      value = FieldType::Any(isolate_);
     }
     constnesses_[index] = constness;
     attributes_[index] = attributes;
@@ -278,6 +270,7 @@ class Expectations {
     if (details.attributes() != expected_attributes) return false;
 
     Representation expected_representation = representations_[descriptor];
+
     if (!details.representation().Equals(expected_representation)) return false;
 
     Object expected_value = *values_[descriptor];
@@ -339,6 +332,12 @@ class Expectations {
     map = Map::AsElementsKind(isolate_, map, elements_kind);
     CHECK_EQ(elements_kind_, map->elements_kind());
     return map;
+  }
+
+  void ChangeAttributesForAllProperties(PropertyAttributes attributes) {
+    for (int i = 0; i < number_of_properties_; i++) {
+      attributes_[i] = attributes;
+    }
   }
 
   Handle<Map> AddDataField(Handle<Map> map, PropertyAttributes attributes,
@@ -665,7 +664,7 @@ static void TestGeneralizeField(int detach_property_at_index,
   // Create new maps by generalizing representation of propX field.
   CanonicalHandleScope canonical(isolate);
   JSHeapBroker broker(isolate, &zone);
-  CompilationDependencies dependencies(isolate, &zone);
+  CompilationDependencies dependencies(&broker, &zone);
   MapRef map_ref(&broker, map);
   map_ref.SerializeOwnDescriptors();
   dependencies.DependOnFieldType(map_ref, property_index);
@@ -1042,7 +1041,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeField(
   Zone zone(isolate->allocator(), ZONE_NAME);
   CanonicalHandleScope canonical(isolate);
   JSHeapBroker broker(isolate, &zone);
-  CompilationDependencies dependencies(isolate, &zone);
+  CompilationDependencies dependencies(&broker, &zone);
   MapRef map_ref(&broker, map);
   map_ref.SerializeOwnDescriptors();
   dependencies.DependOnFieldType(map_ref, kSplitProp);
@@ -1129,10 +1128,11 @@ static void TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
   Zone zone(isolate->allocator(), ZONE_NAME);
   CanonicalHandleScope canonical(isolate);
   JSHeapBroker broker(isolate, &zone);
-  CompilationDependencies dependencies(isolate, &zone);
+  CompilationDependencies dependencies(&broker, &zone);
   MapRef map_ref(&broker, map);
   map_ref.SerializeOwnDescriptors();
   dependencies.DependOnFieldType(map_ref, kSplitProp);
+  dependencies.DependOnFieldConstness(map_ref, kSplitProp);
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
@@ -1813,7 +1813,7 @@ static void TestReconfigureElementsKind_GeneralizeField(
   Zone zone(isolate->allocator(), ZONE_NAME);
   CanonicalHandleScope canonical(isolate);
   JSHeapBroker broker(isolate, &zone);
-  CompilationDependencies dependencies(isolate, &zone);
+  CompilationDependencies dependencies(&broker, &zone);
   MapRef map_ref(&broker, map);
   map_ref.SerializeOwnDescriptors();
   dependencies.DependOnFieldType(map_ref, kDiffProp);
@@ -1911,10 +1911,12 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
   Zone zone(isolate->allocator(), ZONE_NAME);
   CanonicalHandleScope canonical(isolate);
   JSHeapBroker broker(isolate, &zone);
-  CompilationDependencies dependencies(isolate, &zone);
+  CompilationDependencies dependencies(&broker, &zone);
   MapRef map_ref(&broker, map);
   map_ref.SerializeOwnDescriptors();
+
   dependencies.DependOnFieldType(map_ref, kDiffProp);
+  dependencies.DependOnFieldConstness(map_ref, kDiffProp);
 
   // Reconfigure elements kinds of |map2|, which should generalize
   // representations in |map|.
@@ -1935,7 +1937,8 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
                             expected.representation, expected.type);
   CHECK(!map->is_deprecated());
   CHECK_EQ(*map, *new_map);
-  CHECK(dependencies.AreValid());
+  CHECK_EQ(IsGeneralizableTo(to.constness, from.constness),
+           dependencies.AreValid());
 
   CHECK(!new_map->is_deprecated());
   CHECK(expectations.Check(*new_map));
@@ -2333,9 +2336,12 @@ static void TestGeneralizeFieldWithSpecialTransition(TestConfig& config,
       // If Map::TryUpdate() manages to succeed the result must match the result
       // of Map::Update().
       CHECK_EQ(*new_map2, *tmp_map);
+    } else {
+      // Equivalent transitions should always find the updated map.
+      CHECK(config.is_non_equivalent_transition());
     }
 
-    if (config.is_non_equevalent_transition()) {
+    if (config.is_non_equivalent_transition()) {
       // In case of non-equivalent transition currently we generalize all
       // representations.
       for (int i = 0; i < kPropCount; i++) {
@@ -2344,6 +2350,9 @@ static void TestGeneralizeFieldWithSpecialTransition(TestConfig& config,
       CHECK(new_map2->GetBackPointer()->IsUndefined(isolate));
       CHECK(expectations2.Check(*new_map2));
     } else {
+      expectations2.SetDataField(i, expected.constness, expected.representation,
+                                 expected.type);
+
       CHECK(!new_map2->GetBackPointer()->IsUndefined(isolate));
       CHECK(expectations2.Check(*new_map2));
     }
@@ -2374,23 +2383,33 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
   struct TestConfig {
+    TestConfig(PropertyAttributes attributes, Handle<Symbol> symbol)
+        : attributes(attributes), symbol(symbol) {}
+
     Handle<Map> Transition(Handle<Map> map, Expectations& expectations) {
-      Handle<Symbol> frozen_symbol(map->GetReadOnlyRoots().frozen_symbol(),
-                                   CcTest::i_isolate());
       expectations.SetElementsKind(DICTIONARY_ELEMENTS);
-      return Map::CopyForPreventExtensions(CcTest::i_isolate(), map, NONE,
-                                           frozen_symbol,
-                                           "CopyForPreventExtensions");
+      expectations.ChangeAttributesForAllProperties(attributes);
+      return Map::CopyForPreventExtensions(CcTest::i_isolate(), map, attributes,
+                                           symbol, "CopyForPreventExtensions");
     }
     // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
     bool generalizes_representations() const { return false; }
-    bool is_non_equevalent_transition() const { return true; }
+    bool is_non_equivalent_transition() const { return false; }
+
+    PropertyAttributes attributes;
+    Handle<Symbol> symbol;
   };
-  TestConfig config;
-  TestGeneralizeFieldWithSpecialTransition(
-      config, {PropertyConstness::kMutable, Representation::Smi(), any_type},
-      {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+  Factory* factory = isolate->factory();
+  TestConfig configs[] = {{FROZEN, factory->frozen_symbol()},
+                          {SEALED, factory->sealed_symbol()},
+                          {NONE, factory->nonextensible_symbol()}};
+  for (size_t i = 0; i < arraysize(configs); i++) {
+    TestGeneralizeFieldWithSpecialTransition(
+        configs[i],
+        {PropertyConstness::kMutable, Representation::Smi(), any_type},
+        {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
+        {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+  }
 }
 
 
@@ -2404,6 +2423,9 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
   struct TestConfig {
+    TestConfig(PropertyAttributes attributes, Handle<Symbol> symbol)
+        : attributes(attributes), symbol(symbol) {}
+
     Handle<Map> Transition(Handle<Map> map, Expectations& expectations) {
       Isolate* isolate = CcTest::i_isolate();
       Handle<FieldType> any_type = FieldType::Any(isolate);
@@ -2417,21 +2439,29 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
           .ToHandleChecked();
       CHECK(!map->owns_descriptors());
 
-      Handle<Symbol> frozen_symbol(ReadOnlyRoots(isolate).frozen_symbol(),
-                                   isolate);
       expectations.SetElementsKind(DICTIONARY_ELEMENTS);
-      return Map::CopyForPreventExtensions(isolate, map, NONE, frozen_symbol,
+      expectations.ChangeAttributesForAllProperties(attributes);
+      return Map::CopyForPreventExtensions(isolate, map, attributes, symbol,
                                            "CopyForPreventExtensions");
     }
     // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
     bool generalizes_representations() const { return false; }
-    bool is_non_equevalent_transition() const { return true; }
+    bool is_non_equivalent_transition() const { return false; }
+
+    PropertyAttributes attributes;
+    Handle<Symbol> symbol;
   };
-  TestConfig config;
-  TestGeneralizeFieldWithSpecialTransition(
-      config, {PropertyConstness::kMutable, Representation::Smi(), any_type},
-      {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+  Factory* factory = isolate->factory();
+  TestConfig configs[] = {{FROZEN, factory->frozen_symbol()},
+                          {SEALED, factory->sealed_symbol()},
+                          {NONE, factory->nonextensible_symbol()}};
+  for (size_t i = 0; i < arraysize(configs); i++) {
+    TestGeneralizeFieldWithSpecialTransition(
+        configs[i],
+        {PropertyConstness::kMutable, Representation::Smi(), any_type},
+        {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
+        {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+  }
 }
 
 
@@ -2460,7 +2490,7 @@ TEST(PrototypeTransitionFromMapOwningDescriptor) {
     bool generalizes_representations() const {
       return !IS_PROTO_TRANS_ISSUE_FIXED;
     }
-    bool is_non_equevalent_transition() const { return true; }
+    bool is_non_equivalent_transition() const { return true; }
   };
   TestConfig config;
   TestGeneralizeFieldWithSpecialTransition(
@@ -2507,7 +2537,7 @@ TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
     bool generalizes_representations() const {
       return !IS_PROTO_TRANS_ISSUE_FIXED;
     }
-    bool is_non_equevalent_transition() const { return true; }
+    bool is_non_equivalent_transition() const { return true; }
   };
   TestConfig config;
   TestGeneralizeFieldWithSpecialTransition(

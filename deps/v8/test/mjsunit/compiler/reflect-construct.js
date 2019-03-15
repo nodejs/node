@@ -10,6 +10,7 @@
   function A() {}
   function foo() { return Reflect.construct(A); }
 
+  %PrepareFunctionForOptimization(foo);
   assertThrows(foo);
   assertThrows(foo);
   %OptimizeFunctionOnNextCall(foo);
@@ -20,6 +21,7 @@
   function A(x) { this.x = x; }
   function foo() { return Reflect.construct(A, arguments); }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), A);
   assertInstanceof(foo(), A);
   assertEquals(1, foo(1).x);
@@ -32,6 +34,7 @@
   function A(x) { this.x = x; }
   function foo() { return Reflect.construct(A, arguments, A, A); }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), A);
   assertInstanceof(foo(), A);
   assertEquals(1, foo(1).x);
@@ -51,6 +54,7 @@
     }
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo());
   assertEquals(1, foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -66,6 +70,7 @@
     }
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo());
   assertEquals(1, foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -81,6 +86,7 @@
     return Reflect.construct(undefined, dummy, undefined);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertThrows(foo, TypeError);
   assertThrows(foo, TypeError);
   %OptimizeFunctionOnNextCall(foo);
@@ -95,6 +101,7 @@
     return Reflect.construct(undefined, dummy);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertThrows(foo, TypeError);
   assertThrows(foo, TypeError);
   %OptimizeFunctionOnNextCall(foo);
@@ -109,6 +116,7 @@
     return Reflect.construct(null, dummy, null);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertThrows(foo, TypeError);
   assertThrows(foo, TypeError);
   %OptimizeFunctionOnNextCall(foo);
@@ -122,6 +130,7 @@
     return Reflect.construct(null, dummy);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertThrows(foo, TypeError);
   assertThrows(foo, TypeError);
   %OptimizeFunctionOnNextCall(foo);

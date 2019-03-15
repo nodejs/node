@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-array-flat
-
 assertEquals(Array.prototype.flat.length, 0);
 assertEquals(Array.prototype.flat.name, 'flat');
 

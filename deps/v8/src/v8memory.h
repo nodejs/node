@@ -16,6 +16,8 @@ namespace internal {
 // proposal (http://wg21.link/p0593r2) to make it defined behaviour though.
 template <class T>
 T& Memory(Address addr) {
+  // {addr} must be aligned.
+  DCHECK_EQ(0, addr & (alignof(T) - 1));
   return *reinterpret_cast<T*>(addr);
 }
 template <class T>
@@ -26,23 +28,15 @@ T& Memory(byte* addr) {
 template <typename V>
 static inline V ReadUnalignedValue(Address p) {
   ASSERT_TRIVIALLY_COPYABLE(V);
-#if !(V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM)
-  return *reinterpret_cast<const V*>(p);
-#else   // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM
   V r;
-  memmove(&r, reinterpret_cast<void*>(p), sizeof(V));
+  memcpy(&r, reinterpret_cast<void*>(p), sizeof(V));
   return r;
-#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM
 }
 
 template <typename V>
 static inline void WriteUnalignedValue(Address p, V value) {
   ASSERT_TRIVIALLY_COPYABLE(V);
-#if !(V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM)
-  *(reinterpret_cast<V*>(p)) = value;
-#else   // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM
-  memmove(reinterpret_cast<void*>(p), &value, sizeof(V));
-#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM
+  memcpy(reinterpret_cast<void*>(p), &value, sizeof(V));
 }
 
 static inline double ReadFloatValue(Address p) {

@@ -18,7 +18,6 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-number-format.h"
 #include "src/objects/js-relative-time-format-inl.h"
-#include "unicode/datefmt.h"
 #include "unicode/numfmt.h"
 #include "unicode/reldatefmt.h"
 
@@ -273,8 +272,9 @@ MaybeHandle<JSArray> GenerateRelativeTimeFormatParts(
 
     Handle<String> unit = UnitAsString(isolate, unit_enum);
 
-    Maybe<int> maybe_format_to_parts =
-        JSNumberFormat::FormatToParts(isolate, array, index, nf, number, unit);
+    Handle<Object> number_obj = factory->NewNumber(number);
+    Maybe<int> maybe_format_to_parts = JSNumberFormat::FormatToParts(
+        isolate, array, index, nf, number_obj, unit);
     MAYBE_RETURN(maybe_format_to_parts, Handle<JSArray>());
     index = maybe_format_to_parts.FromJust();
 
@@ -408,11 +408,10 @@ MaybeHandle<Object> JSRelativeTimeFormat::Format(
       formatted.length()));
 }
 
-std::set<std::string> JSRelativeTimeFormat::GetAvailableLocales() {
-  int32_t num_locales = 0;
-  const icu::Locale* icu_available_locales =
-      icu::DateFormat::getAvailableLocales(num_locales);
-  return Intl::BuildLocaleSet(icu_available_locales, num_locales);
+const std::set<std::string>& JSRelativeTimeFormat::GetAvailableLocales() {
+  // Since RelativeTimeFormatter does not have a method to list all
+  // available locales, work around by calling the DateFormat.
+  return Intl::GetAvailableLocalesForDateFormat();
 }
 
 }  // namespace internal

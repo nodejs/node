@@ -6,7 +6,6 @@
 // Flags: --trace-turbo-cfg-file=test/mjsunit/tools/turbo.cfg
 // Flags: --trace-turbo-path=test/mjsunit/tools
 
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 // The idea behind this test is to make sure we do not crash when using the

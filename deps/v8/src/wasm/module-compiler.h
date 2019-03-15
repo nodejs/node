@@ -92,7 +92,8 @@ class AsyncCompileJob {
   class DecodeModule;            // Step 1  (async)
   class DecodeFail;              // Step 1b (sync)
   class PrepareAndStartCompile;  // Step 2  (sync)
-  class CompileFailed;           // Step 4b (sync)
+  class CompileFailed;           // Step 3a (sync)
+  class CompileFinished;         // Step 3b (sync)
 
   friend class AsyncStreamingProcessor;
 
@@ -100,6 +101,7 @@ class AsyncCompileJob {
   // function should finish the asynchronous compilation, see the comment on
   // {outstanding_finishers_}.
   V8_WARN_UNUSED_RESULT bool DecrementAndCheckFinisherCount() {
+    DCHECK_LT(0, outstanding_finishers_.load());
     return outstanding_finishers_.fetch_sub(1) == 1;
   }
 
@@ -108,7 +110,7 @@ class AsyncCompileJob {
 
   void FinishCompile();
 
-  void AsyncCompileFailed(Handle<Object> error_reason);
+  void AsyncCompileFailed(const WasmError&);
 
   void AsyncCompileSucceeded(Handle<WasmModuleObject> result);
 
@@ -159,7 +161,6 @@ class AsyncCompileJob {
   Handle<Context> native_context_;
   const std::shared_ptr<CompilationResultResolver> resolver_;
 
-  std::vector<DeferredHandles*> deferred_handles_;
   Handle<WasmModuleObject> module_object_;
   std::shared_ptr<NativeModule> native_module_;
 

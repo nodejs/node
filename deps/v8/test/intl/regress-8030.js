@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-intl-relative-time-format
-
 var locales = ["tlh", "id", "en"];
 var referenceRelativeTimeFormat = new Intl.RelativeTimeFormat(locales);
 var referenceFormatted = referenceRelativeTimeFormat.format(3, "day");

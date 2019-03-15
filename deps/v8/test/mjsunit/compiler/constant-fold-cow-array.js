@@ -9,6 +9,7 @@
 (function() {
   const a = [1, 2, 3];
   const foo = () => a[0];
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo());
   assertEquals(1, foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -24,6 +25,7 @@
 (function() {
   const a = [1, 2, 3];
   const foo = () => a[0];
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo());
   assertEquals(1, foo());
   %OptimizeFunctionOnNextCall(foo);

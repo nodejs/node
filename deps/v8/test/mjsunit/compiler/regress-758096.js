@@ -16,6 +16,7 @@
     return obj.f();
   }
 
+  %PrepareFunctionForOptimization(f);
   f(x);
   f(y);
   f(x);
@@ -45,6 +46,7 @@
     return fg() + a;
   }
 
+  %PrepareFunctionForOptimization(h);
   h(0);
   h(0);
   h(1);

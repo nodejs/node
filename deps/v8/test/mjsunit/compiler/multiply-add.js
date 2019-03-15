@@ -40,6 +40,7 @@ function h(a, b, c, d) {
   return a * b + c * d;
 }
 
+%PrepareFunctionForOptimization(f);
 assertEquals(5, f(1, 2, 3));
 assertEquals(5, f(1, 2, 3));
 %OptimizeFunctionOnNextCall(f);
@@ -47,23 +48,28 @@ assertEquals(5, f(1, 2, 3));
 assertEquals("2foo", f(1, 2, "foo"));
 assertEquals(5.41, f(1.1, 2.1, 3.1));
 assertEquals(5.41, f(1.1, 2.1, 3.1));
+%PrepareFunctionForOptimization(f);
 %OptimizeFunctionOnNextCall(f);
 assertEquals(5.41, f(1.1, 2.1, 3.1));
 
+%PrepareFunctionForOptimization(g);
 assertEquals(7, g(1, 2, 3));
 assertEquals(7, g(1, 2, 3));
 %OptimizeFunctionOnNextCall(g);
 assertEquals(7, g(1, 2, 3));
 assertEquals(8.36, g(1.1, 2.2, 3.3));
 assertEquals(8.36, g(1.1, 2.2, 3.3));
+%PrepareFunctionForOptimization(g);
 %OptimizeFunctionOnNextCall(g);
 assertEquals(8.36, g(1.1, 2.2, 3.3));
 
+%PrepareFunctionForOptimization(h);
 assertEquals(14, h(1, 2, 3, 4));
 assertEquals(14, h(1, 2, 3, 4));
 %OptimizeFunctionOnNextCall(h);
 assertEquals(14, h(1, 2, 3, 4));
 assertEquals(15.02, h(1.1, 2.1, 3.1, 4.1));
 assertEquals(15.02, h(1.1, 2.1, 3.1, 4.1));
+%PrepareFunctionForOptimization(h);
 %OptimizeFunctionOnNextCall(h);
 assertEquals(15.02, h(1.1, 2.1, 3.1, 4.1));

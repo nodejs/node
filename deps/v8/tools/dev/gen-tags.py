@@ -15,6 +15,10 @@ The example usage is as follows:
 If no <arch> is given, it generates tags file for all arches:
     $ tools/dev/gen-tags.py
 """
+
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import os
 import subprocess
 import sys

@@ -112,11 +112,11 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
       assm->pushq(reg.gp());
       break;
     case kWasmF32:
-      assm->subp(rsp, Immediate(kSystemPointerSize));
+      assm->subq(rsp, Immediate(kSystemPointerSize));
       assm->Movss(Operand(rsp, 0), reg.fp());
       break;
     case kWasmF64:
-      assm->subp(rsp, Immediate(kSystemPointerSize));
+      assm->subq(rsp, Immediate(kSystemPointerSize));
       assm->Movsd(Operand(rsp, 0), reg.fp());
       break;
     default:
@@ -170,7 +170,7 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
       if (RelocInfo::IsNone(rmode)) {
         TurboAssembler::Set(reg.gp(), value.to_i64());
       } else {
-        movq(reg.gp(), value.to_i64(), rmode);
+        movq(reg.gp(), Immediate64(value.to_i64(), rmode));
       }
       break;
     case kWasmF32:
@@ -187,7 +187,7 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
 void LiftoffAssembler::LoadFromInstance(Register dst, uint32_t offset,
                                         int size) {
   DCHECK_LE(offset, kMaxInt);
-  movp(dst, liftoff::GetInstanceOperand());
+  movq(dst, liftoff::GetInstanceOperand());
   DCHECK(size == 4 || size == 8);
   if (size == 4) {
     movl(dst, Operand(dst, offset));
@@ -199,16 +199,16 @@ void LiftoffAssembler::LoadFromInstance(Register dst, uint32_t offset,
 void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
                                                      uint32_t offset) {
   DCHECK_LE(offset, kMaxInt);
-  movp(dst, liftoff::GetInstanceOperand());
+  movq(dst, liftoff::GetInstanceOperand());
   LoadTaggedPointerField(dst, Operand(dst, offset));
 }
 
 void LiftoffAssembler::SpillInstance(Register instance) {
-  movp(liftoff::GetInstanceOperand(), instance);
+  movq(liftoff::GetInstanceOperand(), instance);
 }
 
 void LiftoffAssembler::FillInstanceInto(Register dst) {
-  movp(dst, liftoff::GetInstanceOperand());
+  movq(dst, liftoff::GetInstanceOperand());
 }
 
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
@@ -698,9 +698,9 @@ bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
 void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
   if (lhs.gp() != dst.gp()) {
-    leap(dst.gp(), Operand(lhs.gp(), rhs.gp(), times_1, 0));
+    leaq(dst.gp(), Operand(lhs.gp(), rhs.gp(), times_1, 0));
   } else {
-    addp(dst.gp(), rhs.gp());
+    addq(dst.gp(), rhs.gp());
   }
 }
 
@@ -1412,7 +1412,7 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
-  cmpp(rsp, Operand(limit_address, 0));
+  cmpq(rsp, Operand(limit_address, 0));
   j(below_equal, ool_code);
 }
 
@@ -1435,7 +1435,7 @@ void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   LiftoffRegList fp_regs = regs & kFpCacheRegList;
   unsigned num_fp_regs = fp_regs.GetNumRegsSet();
   if (num_fp_regs) {
-    subp(rsp, Immediate(num_fp_regs * kStackSlotSize));
+    subq(rsp, Immediate(num_fp_regs * kStackSlotSize));
     unsigned offset = 0;
     while (!fp_regs.is_empty()) {
       LiftoffRegister reg = fp_regs.GetFirstRegSet();
@@ -1456,7 +1456,7 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
     fp_regs.clear(reg);
     fp_offset += sizeof(double);
   }
-  if (fp_offset) addp(rsp, Immediate(fp_offset));
+  if (fp_offset) addq(rsp, Immediate(fp_offset));
   LiftoffRegList gp_regs = regs & kGpCacheRegList;
   while (!gp_regs.is_empty()) {
     LiftoffRegister reg = gp_regs.GetLastRegSet();
@@ -1476,7 +1476,7 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
                              const LiftoffRegister* rets,
                              ValueType out_argument_type, int stack_bytes,
                              ExternalReference ext_ref) {
-  subp(rsp, Immediate(stack_bytes));
+  subq(rsp, Immediate(stack_bytes));
 
   int arg_bytes = 0;
   for (ValueType param_type : sig->parameters()) {
@@ -1486,7 +1486,7 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
   DCHECK_LE(arg_bytes, stack_bytes);
 
   // Pass a pointer to the buffer with the arguments to the C function.
-  movp(arg_reg_1, rsp);
+  movq(arg_reg_1, rsp);
 
   constexpr int kNumCCallArgs = 1;
 
@@ -1510,7 +1510,7 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
     liftoff::Load(this, *next_result_reg, Operand(rsp, 0), out_argument_type);
   }
 
-  addp(rsp, Immediate(stack_bytes));
+  addq(rsp, Immediate(stack_bytes));
 }
 
 void LiftoffAssembler::CallNativeWasmCode(Address addr) {
@@ -1538,12 +1538,12 @@ void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
-  subp(rsp, Immediate(size));
-  movp(addr, rsp);
+  subq(rsp, Immediate(size));
+  movq(addr, rsp);
 }
 
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
-  addp(rsp, Immediate(size));
+  addq(rsp, Immediate(size));
 }
 
 void LiftoffStackSlots::Construct() {
@@ -1567,7 +1567,7 @@ void LiftoffStackSlots::Construct() {
       case LiftoffAssembler::VarState::kRegister:
         liftoff::push(asm_, src.reg(), src.type());
         break;
-      case LiftoffAssembler::VarState::KIntConst:
+      case LiftoffAssembler::VarState::kIntConst:
         asm_->pushq(Immediate(src.i32_const()));
         break;
     }

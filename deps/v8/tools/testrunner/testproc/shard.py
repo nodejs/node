@@ -5,10 +5,21 @@
 from . import base
 
 
+# Alphabet size determines the hashing radix. Choosing a prime number prevents
+# clustering of the hashes.
+HASHING_ALPHABET_SIZE = 2 ** 7 -1
+
+def radix_hash(capacity, key):
+  h = 0
+  for character in key:
+    h = (h * HASHING_ALPHABET_SIZE + ord(character)) % capacity
+
+  return h
+
+
 class ShardProc(base.TestProcFilter):
   """Processor distributing tests between shards.
-  It simply passes every n-th test. To be deterministic it has to be placed
-  before all processors that generate tests dynamically.
+  It hashes the unique test identifiers uses the hash to shard tests.
   """
   def __init__(self, myid, shards_count):
     """
@@ -22,9 +33,6 @@ class ShardProc(base.TestProcFilter):
 
     self._myid = myid
     self._shards_count = shards_count
-    self._last = 0
 
   def _filter(self, test):
-    res = self._last != self._myid
-    self._last = (self._last + 1) % self._shards_count
-    return res
+    return self._myid != radix_hash(self._shards_count, test.procid)

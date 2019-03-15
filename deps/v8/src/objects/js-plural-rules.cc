@@ -223,7 +223,7 @@ void CreateDataPropertyForOptions(Isolate* isolate, Handle<JSObject> options,
   // This is a brand new JSObject that shouldn't already have the same
   // key so this shouldn't fail.
   CHECK(JSReceiver::CreateDataProperty(isolate, options, key_str, value,
-                                       kDontThrow)
+                                       Just(kDontThrow))
             .FromJust());
 }
 
@@ -314,16 +314,13 @@ Handle<JSObject> JSPluralRules::ResolvedOptions(
   return options;
 }
 
-std::set<std::string> JSPluralRules::GetAvailableLocales() {
-  int32_t num_locales = 0;
+const std::set<std::string>& JSPluralRules::GetAvailableLocales() {
   // TODO(ftang): For PluralRules, filter out locales that
   // don't support PluralRules.
   // PluralRules is missing an appropriate getAvailableLocales method,
   // so we should filter from all locales, but it's not clear how; see
   // https://ssl.icu-project.org/trac/ticket/12756
-  const icu::Locale* icu_available_locales =
-      icu::Locale::getAvailableLocales(num_locales);
-  return Intl::BuildLocaleSet(icu_available_locales, num_locales);
+  return Intl::GetAvailableLocalesForLocale();
 }
 
 }  // namespace internal

@@ -10,6 +10,7 @@
 #include "src/objects/hash-table.h"
 #include "src/objects/property-array.h"
 #include "src/objects/smi.h"
+#include "src/roots.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -86,7 +87,7 @@ class Dictionary : public HashTable<Derived, Shape> {
                                                      Handle<Object> value,
                                                      PropertyDetails details);
 
-  OBJECT_CONSTRUCTORS(Dictionary, HashTable<Derived, Shape>)
+  OBJECT_CONSTRUCTORS(Dictionary, HashTable<Derived, Shape>);
 };
 
 template <typename Key>
@@ -114,7 +115,7 @@ class NameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
  public:
   static inline bool IsMatch(Handle<Name> key, Object other);
   static inline uint32_t Hash(Isolate* isolate, Handle<Name> key);
-  static inline uint32_t HashForObject(Isolate* isolate, Object object);
+  static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Name> key);
   static inline RootIndex GetMapRootIndex();
   static const int kPrefixSize = 2;
@@ -188,7 +189,7 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
       Isolate* isolate, Handle<Derived> dictionary, Key key,
       Handle<Object> value, PropertyDetails details, int* entry_out = nullptr);
 
-  OBJECT_CONSTRUCTORS(BaseNameDictionary, Dictionary<Derived, Shape>)
+  OBJECT_CONSTRUCTORS(BaseNameDictionary, Dictionary<Derived, Shape>);
 };
 
 class NameDictionary
@@ -204,13 +205,13 @@ class NameDictionary
   inline int hash() const;
 
   OBJECT_CONSTRUCTORS(NameDictionary,
-                      BaseNameDictionary<NameDictionary, NameDictionaryShape>)
+                      BaseNameDictionary<NameDictionary, NameDictionaryShape>);
 };
 
 class GlobalDictionaryShape : public NameDictionaryShape {
  public:
   static inline bool IsMatch(Handle<Name> key, Object other);
-  static inline uint32_t HashForObject(Isolate* isolate, Object object);
+  static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 
   static const int kEntrySize = 1;  // Overrides NameDictionaryShape::kEntrySize
 
@@ -241,7 +242,7 @@ class GlobalDictionary
 
   OBJECT_CONSTRUCTORS(
       GlobalDictionary,
-      BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>)
+      BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>);
 };
 
 class NumberDictionaryBaseShape : public BaseDictionaryShape<uint32_t> {
@@ -250,7 +251,7 @@ class NumberDictionaryBaseShape : public BaseDictionaryShape<uint32_t> {
   static inline Handle<Object> AsHandle(Isolate* isolate, uint32_t key);
 
   static inline uint32_t Hash(Isolate* isolate, uint32_t key);
-  static inline uint32_t HashForObject(Isolate* isolate, Object object);
+  static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 };
 
 class NumberDictionaryShape : public NumberDictionaryBaseShape {
@@ -301,7 +302,7 @@ class SimpleNumberDictionary
 
   OBJECT_CONSTRUCTORS(
       SimpleNumberDictionary,
-      Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>)
+      Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>);
 };
 
 extern template class EXPORT_TEMPLATE_DECLARE(
@@ -361,7 +362,7 @@ class NumberDictionary
   static const uint32_t kPreferFastElementsSizeFactor = 3;
 
   OBJECT_CONSTRUCTORS(NumberDictionary,
-                      Dictionary<NumberDictionary, NumberDictionaryShape>)
+                      Dictionary<NumberDictionary, NumberDictionaryShape>);
 };
 
 }  // namespace internal

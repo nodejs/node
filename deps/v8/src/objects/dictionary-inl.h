@@ -7,6 +7,8 @@
 
 #include "src/objects/dictionary.h"
 
+#include "src/hash-seed-inl.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/property-cell-inl.h"
 
@@ -136,14 +138,14 @@ bool NumberDictionaryBaseShape::IsMatch(uint32_t key, Object other) {
 }
 
 uint32_t NumberDictionaryBaseShape::Hash(Isolate* isolate, uint32_t key) {
-  return ComputeSeededHash(key, isolate->heap()->HashSeed());
+  return ComputeSeededHash(key, HashSeed(isolate));
 }
 
-uint32_t NumberDictionaryBaseShape::HashForObject(Isolate* isolate,
+uint32_t NumberDictionaryBaseShape::HashForObject(ReadOnlyRoots roots,
                                                   Object other) {
   DCHECK(other->IsNumber());
   return ComputeSeededHash(static_cast<uint32_t>(other->Number()),
-                           isolate->heap()->HashSeed());
+                           HashSeed(roots));
 }
 
 Handle<Object> NumberDictionaryBaseShape::AsHandle(Isolate* isolate,
@@ -169,7 +171,7 @@ uint32_t NameDictionaryShape::Hash(Isolate* isolate, Handle<Name> key) {
   return key->Hash();
 }
 
-uint32_t NameDictionaryShape::HashForObject(Isolate* isolate, Object other) {
+uint32_t NameDictionaryShape::HashForObject(ReadOnlyRoots roots, Object other) {
   return Name::cast(other)->Hash();
 }
 
@@ -178,7 +180,8 @@ bool GlobalDictionaryShape::IsMatch(Handle<Name> key, Object other) {
   return *key == PropertyCell::cast(other)->name();
 }
 
-uint32_t GlobalDictionaryShape::HashForObject(Isolate* isolate, Object other) {
+uint32_t GlobalDictionaryShape::HashForObject(ReadOnlyRoots roots,
+                                              Object other) {
   return PropertyCell::cast(other)->name()->Hash();
 }
 

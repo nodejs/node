@@ -583,7 +583,7 @@ int Assembler::deserialization_special_target_size(Address location) {
     return kSpecialTargetSize;
   } else {
     DCHECK_EQ(instr->InstructionBits(), 0);
-    return kPointerSize;
+    return kSystemPointerSize;
   }
 }
 
@@ -598,7 +598,7 @@ void Assembler::deserialization_set_special_target_at(Address location,
       target = location;
     }
     instr->SetBranchImmTarget(reinterpret_cast<Instruction*>(target));
-    Assembler::FlushICache(location, kInstrSize);
+    FlushInstructionCache(location, kInstrSize);
   } else {
     DCHECK_EQ(instr->InstructionBits(), 0);
     Memory<Address>(location) = target;
@@ -635,7 +635,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
     }
     instr->SetBranchImmTarget(reinterpret_cast<Instruction*>(target));
     if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-      Assembler::FlushICache(pc, kInstrSize);
+      FlushInstructionCache(pc, kInstrSize);
     }
   }
 }
@@ -645,7 +645,7 @@ int RelocInfo::target_address_size() {
     return Assembler::kSpecialTargetSize;
   } else {
     DCHECK(reinterpret_cast<Instruction*>(pc_)->IsLdrLiteralX());
-    return kPointerSize;
+    return kSystemPointerSize;
   }
 }
 
@@ -762,24 +762,6 @@ void RelocInfo::WipeOut() {
     Memory<Address>(pc_) = kNullAddress;
   } else {
     Assembler::set_target_address_at(pc_, constant_pool_, kNullAddress);
-  }
-}
-
-template <typename ObjectVisitor>
-void RelocInfo::Visit(ObjectVisitor* visitor) {
-  RelocInfo::Mode mode = rmode();
-  if (mode == RelocInfo::EMBEDDED_OBJECT) {
-    visitor->VisitEmbeddedPointer(host(), this);
-  } else if (RelocInfo::IsCodeTargetMode(mode)) {
-    visitor->VisitCodeTarget(host(), this);
-  } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
-    visitor->VisitExternalReference(host(), this);
-  } else if (mode == RelocInfo::INTERNAL_REFERENCE) {
-    visitor->VisitInternalReference(host(), this);
-  } else if (RelocInfo::IsRuntimeEntry(mode)) {
-    visitor->VisitRuntimeEntry(host(), this);
-  } else if (RelocInfo::IsOffHeapTarget(mode)) {
-    visitor->VisitOffHeapTarget(host(), this);
   }
 }
 

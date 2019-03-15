@@ -41,6 +41,7 @@ function f(x, y) {
   return x >> a[0];
 }
 
+%PrepareFunctionForOptimization(f);
 f(42);
 f(42);
 assertEquals(42, f(42));

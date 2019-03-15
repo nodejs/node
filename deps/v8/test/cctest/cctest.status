@@ -74,23 +74,14 @@
 
   # BUG(5193). The cpu profiler tests are notoriously flaky.
   'test-profile-generator/RecordStackTraceAtStartProfiling': [SKIP],
-  'test-cpu-profiler/CollectCpuProfile': [SKIP],
-  'test-cpu-profiler/CollectCpuProfileCallerLineNumbers': [SKIP],
-  'test-cpu-profiler/CollectCpuProfileSamples': [SKIP],
   'test-cpu-profiler/CollectDeoptEvents': [SKIP],
-  'test-cpu-profiler/CpuProfileDeepStack': [SKIP],
-  'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [SKIP],
-  'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [SKIP],
-  'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
-  'test-cpu-profiler/FunctionApplySample': [SKIP],
-  'test-cpu-profiler/HotDeoptNoFrameEntry': [SKIP],
+  'test-cpu-profiler/CollectCpuProfile': [SKIP],
   'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
   'test-cpu-profiler/JsNativeJsRuntimeJsSample': [SKIP],
   'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
-  'test-cpu-profiler/NativeAccessorUninitializedIC': [SKIP],
+  'test-cpu-profiler/HotDeoptNoFrameEntry': [SKIP],
   'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
-  'test-cpu-profiler/TracingCpuProfiler': [SKIP],
   'test-sampler/LibSamplerCollectSample': [SKIP],
 
   # BUG(7202). The test is flaky.
@@ -117,6 +108,12 @@
 
   # BUG(v8:8296). Flaky OOM test.
   'test-heap/OutOfMemorySmallObjects': [SKIP],
+
+  # BUG(v8:8739). Wasm interpreter does not create proper stack traces.
+  'test-wasm-stack/RunWasmInterpreter_CollectDetailedWasmStack_WasmError': [SKIP],
+
+  # https://crbug.com/v8/8919
+  'test-platform/StackAlignment': [PASS, ['not is_clang', SKIP]],
 
   ############################################################################
   # Slow tests.
@@ -184,11 +181,6 @@
 }],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
-# TODO(ahaas): Port multiple return values to ARM, MIPS, S390 and PPC
-['arch == s390 or arch == s390x or arch == ppc or arch == ppc64', {
-  'test-multiple-return/*': [SKIP],
-}],
-##############################################################################
 ['asan == True', {
   # Skip tests not suitable for ASAN.
   'test-assembler-x64/AssemblerX64XchglOperations': [SKIP],
@@ -219,6 +211,8 @@
   # support.
   'test-serialize/CustomSnapshotDataBlobWithWarmup': [SKIP],
   'test-serialize/SnapshotDataBlobWithWarmup': [SKIP],
+  # Fails the embedded blob <-> Isolate verification step.
+  'test-serialize/CustomSnapshotDataBlobWithLocker': [SKIP],
 
   # https://crbug.com/v8/7763
   'test-lockers/ExtensionsRegistration': [SKIP],
@@ -420,7 +414,15 @@
   # TODO(ppc/s390): implement atomic operations
   'test-run-wasm-atomics/*': [SKIP],
 
+  # TODO(ppc/s390): support concurrent patching of jump table
+  'test-jump-table-assembler/*': [SKIP],
+
 }],  # 'arch == ppc or arch == ppc64 or arch == s390 or arch == s390x'
+
+['arch == ppc64', {
+  # https://crbug.com/v8/8766
+  'test-bytecode-generator/WideRegisters': [SKIP],
+}],
 
 ##############################################################################
 ['variant == stress_incremental_marking', {
@@ -432,6 +434,12 @@
 ['variant == stress_background_compile', {
   'test-compiler/DecideToPretenureDuringCompilation': [SKIP],
 }],  # variant == stress_background_compile
+
+##############################################################################
+['variant == interpreted_regexp', {
+  # Times out: https://crbug.com/v8/8678
+  'test-api/RegExpInterruption': [SKIP],
+}],  # variant == interpreted_regexp
 
 ##############################################################################
 ['variant == no_wasm_traps', {
@@ -465,7 +473,7 @@
 }],
 
 ##############################################################################
-['lite_mode', {
+['lite_mode or variant == jitless', {
 
   # TODO(8394): First execution events don't work in lite_mode. Enable this after
   # we fix the lite mode to track the first execution.
@@ -512,6 +520,9 @@
   'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [SKIP],
 
   # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+  'test-api/WasmI32AtomicWaitCallback': [SKIP],
+  'test-api/WasmI64AtomicWaitCallback': [SKIP],
+  'test-api/WasmStreaming*': [SKIP],
   'test-c-wasm-entry/*': [SKIP],
   'test-jump-table-assembler/*': [SKIP],
   'test-run-wasm-64/*': [SKIP],
@@ -519,6 +530,7 @@
   'test-run-wasm-atomics64/*': [SKIP],
   'test-run-wasm-atomics/*': [SKIP],
   'test-run-wasm/*': [SKIP],
+  'test-run-wasm-exceptions/*': [SKIP],
   'test-run-wasm-interpreter/*': [SKIP],
   'test-run-wasm-js/*': [SKIP],
   'test-run-wasm-module/*': [SKIP],
@@ -537,11 +549,81 @@
 
   # Tests that generate code at runtime.
   'codegen-tester/*': [SKIP],
+  'test-api/RegExpInterruption': [SKIP],
   'test-assembler-*': [SKIP],
   'test-basic-block-profiler/*': [SKIP],
   'test-branch-combine/*': [SKIP],
   'test-multiple-return/*': [SKIP],
+  'test-regexp/MacroAssemblernativeAtStart': [SKIP],
+  'test-regexp/MacroAssemblerNativeBackReferenceLATIN1': [SKIP],
+  'test-regexp/MacroAssemblerNativeBackReferenceUC16': [SKIP],
+  'test-regexp/MacroAssemblerNativeBackRefNoCase': [SKIP],
+  'test-regexp/MacroAssemblerNativeBacktrack': [SKIP],
+  'test-regexp/MacroAssemblerNativeLotsOfRegisters': [SKIP],
+  'test-regexp/MacroAssemblerNativeRegisters': [SKIP],
+  'test-regexp/MacroAssemblerNativeSimple': [SKIP],
+  'test-regexp/MacroAssemblerNativeSimpleUC16': [SKIP],
+  'test-regexp/MacroAssemblerNativeSuccess': [SKIP],
+  'test-regexp/MacroAssemblerStackOverflow': [SKIP],
   'test-run-calls-to-external-references/*': [SKIP],
+
+  # Field representation tracking is disabled in jitless mode.
+  'test-field-type-tracking/*': [SKIP],
+
+  # Instruction cache flushing is disabled in jitless mode.
+  'test-icache/*': [SKIP],
+}], # lite_mode or variant == jitless
+
+##############################################################################
+['lite_mode', {
+  # TODO(v8:8510): Tests that currently fail with lazy source positions.
+  'test-cpu-profiler/TickLinesBaseline': [SKIP],
+  'test-cpu-profiler/TickLinesOptimized': [SKIP],
+  'test-cpu-profiler/Inlining2': [SKIP],
 }], # lite_mode
+
+##############################################################################
+['variant == jitless', {
+  # https://crbug.com/v8/7777
+  'serializer-tester/SerializeCallAnyReceiver': [SKIP],
+  'serializer-tester/SerializeCallArguments': [SKIP],
+  'serializer-tester/SerializeCallProperty': [SKIP],
+  'serializer-tester/SerializeCallProperty2': [SKIP],
+  'serializer-tester/SerializeCallUndefinedReceiver': [SKIP],
+  'serializer-tester/SerializeCallUndefinedReceiver2': [SKIP],
+  'serializer-tester/SerializeCallWithSpread': [SKIP],
+  'serializer-tester/SerializeConstruct': [SKIP],
+  'serializer-tester/SerializeConstructWithSpread': [SKIP],
+  'serializer-tester/SerializeInlinedClosure': [SKIP],
+  'serializer-tester/SerializeInlinedFunction': [SKIP],
+  'test-api/TurboAsmDisablesDetach': [SKIP],
+  'test-cpu-profiler/TickLinesOptimized': [SKIP],
+  'test-heap/TestOptimizeAfterBytecodeFlushingCandidate': [SKIP],
+  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchCallDirect': [SKIP],
+  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchCallExternal': [SKIP],
+  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchCallIndirect': [SKIP],
+  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchThrow': [SKIP],
+  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchTrapTypeError': [SKIP],
+  'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchCallDirect': [SKIP],
+  'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchCallExternal': [SKIP],
+  'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchCallIndirect': [SKIP],
+  'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchThrow': [SKIP],
+  'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchTrapTypeError': [SKIP],
+  'test-run-wasm-exceptions/RunWasmTurbofan_TryCatchCallDirect': [SKIP],
+  'test-run-wasm-exceptions/RunWasmTurbofan_TryCatchCallExternal': [SKIP],
+  'test-run-wasm-exceptions/RunWasmTurbofan_TryCatchCallIndirect': [SKIP],
+  'test-run-wasm-exceptions/RunWasmTurbofan_TryCatchThrow': [SKIP],
+  'test-run-wasm-exceptions/RunWasmTurbofan_TryCatchTrapTypeError': [SKIP],
+
+  # Crashes on native arm.
+  'test-macro-assembler-arm/ExtractLane': [PASS, ['arch == arm and not simulator_run', SKIP]],
+  'test-macro-assembler-arm/LoadAndStoreWithRepresentation': [PASS, ['arch == arm and not simulator_run', SKIP]],
+  'test-macro-assembler-arm/ReplaceLane': [PASS, ['arch == arm and not simulator_run', SKIP]],
+}], # variant == jitless
+
+##############################################################################
+['variant == jitless and not embedded_builtins', {
+  '*': [SKIP],
+}], # variant == jitless and not embedded_builtins
 
 ]

@@ -43,6 +43,7 @@ function TestInlineConstant(o) {
 
 var o1 = {};
 o1.f = function() { return 42; };
+%PrepareFunctionForOptimization(TestInlineConstant);
 for (var i = 0; i < 5; i++) TestInlineConstant(o1);
 %OptimizeFunctionOnNextCall(TestInlineConstant);
 TestInlineConstant(o1);
@@ -65,6 +66,7 @@ function TestInlineThis(o) {
 
 var o2 = {};
 o2.g = function() { return this; };
+%PrepareFunctionForOptimization(TestInlineThis);
 for (var i = 0; i < 5; i++) TestInlineThis(o2);
 %OptimizeFunctionOnNextCall(TestInlineThis);
 TestInlineThis(o2);
@@ -87,6 +89,7 @@ function TestInlineThisX(o) {
 
 var o3 = {y:0,x:42};
 o3.h = function() { return this.x; };
+%PrepareFunctionForOptimization(TestInlineThisX);
 for (var i = 0; i < 5; i++) TestInlineThisX(o3);
 %OptimizeFunctionOnNextCall(TestInlineThisX);
 TestInlineThisX(o3);
@@ -109,6 +112,7 @@ function TestInlineThisXLength(o) {
 
 var o4 = {x:[1,2,3]};
 o4.h = function() { return this.x.length; };
+%PrepareFunctionForOptimization(TestInlineThisXLength);
 for (var i = 0; i < 5; i++) TestInlineThisXLength(o4);
 %OptimizeFunctionOnNextCall(TestInlineThisXLength);
 TestInlineThisXLength(o4);
@@ -132,6 +136,7 @@ function TestInlineThisXY(o) {
 var o6 = {y:42}
 var o5 = {e:o6};
 o5.h = function() { return this.e.y; };
+%PrepareFunctionForOptimization(TestInlineThisXY);
 for (var i = 0; i < 5; i++) TestInlineThisXY(o5);
 %OptimizeFunctionOnNextCall(TestInlineThisXY);
 TestInlineThisXY(o5);
@@ -154,6 +159,7 @@ function TestInlineThisX0(o) {
 
 var o7 = {x:[42,43,44]};
 o7.foo = function() { return this.x[0]; };
+%PrepareFunctionForOptimization(TestInlineThisX0);
 for (var i = 0; i < 5; i++) TestInlineThisX0(o7);
 %OptimizeFunctionOnNextCall(TestInlineThisX0);
 TestInlineThisX0(o7);

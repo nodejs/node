@@ -8,6 +8,7 @@
 (() => {
   function foo(x) { return Array(!!x); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals([true], foo(true));
   assertEquals([false], foo(false));
   %OptimizeFunctionOnNextCall(foo);
@@ -19,6 +20,7 @@
 (() => {
   function foo(x) { return new Array(!!x); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals([true], foo(true));
   assertEquals([false], foo(false));
   %OptimizeFunctionOnNextCall(foo);
@@ -30,6 +32,7 @@
 (() => {
   function foo(x) { return Array("" + x); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(["a"], foo("a"));
   assertEquals(["b"], foo("b"));
   %OptimizeFunctionOnNextCall(foo);
@@ -41,6 +44,7 @@
 (() => {
   function foo(x) { return new Array("" + x); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(["a"], foo("a"));
   assertEquals(["b"], foo("b"));
   %OptimizeFunctionOnNextCall(foo);
@@ -52,6 +56,7 @@
 (() => {
   function foo() { return Array(2); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(2, foo().length);
   assertEquals(2, foo().length);
   %OptimizeFunctionOnNextCall(foo);
@@ -62,6 +67,7 @@
 (() => {
   function foo() { return new Array(2); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(2, foo().length);
   assertEquals(2, foo().length);
   %OptimizeFunctionOnNextCall(foo);
@@ -72,6 +78,7 @@
 (() => {
   function foo(x, y, z) { return Array(x, y, z); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals([1, 2, 3], foo(1, 2, 3));
   assertEquals([1, 2, 3], foo(1, 2, 3));
   %OptimizeFunctionOnNextCall(foo);
@@ -82,6 +89,7 @@
 (() => {
   function foo(x, y, z) { return new Array(x, y, z); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals([1, 2, 3], foo(1, 2, 3));
   assertEquals([1, 2, 3], foo(1, 2, 3));
   %OptimizeFunctionOnNextCall(foo);
@@ -92,6 +100,7 @@
 (() => {
   function foo(x) { try { return new Array(x) } catch (e) { return e } }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals([], foo(0));
   assertEquals([], foo(0));
   %OptimizeFunctionOnNextCall(foo);

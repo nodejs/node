@@ -841,6 +841,15 @@ class DeoptimizerData {
   explicit DeoptimizerData(Heap* heap);
   ~DeoptimizerData();
 
+#ifdef DEBUG
+  bool IsDeoptEntryCode(Code code) const {
+    for (int i = 0; i < kLastDeoptimizeKind + 1; i++) {
+      if (code == deopt_entry_code_[i]) return true;
+    }
+    return false;
+  }
+#endif  // DEBUG
+
  private:
   Heap* heap_;
   static const int kLastDeoptimizeKind =

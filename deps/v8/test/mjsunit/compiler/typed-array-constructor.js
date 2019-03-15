@@ -11,6 +11,7 @@ const limit = %MaxSmi() + 1;
     try { new Int8Array(limit); } catch (e) { return e.stack; }
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(/new Int8Array/.test(foo()));
   assertTrue(/new Int8Array/.test(foo()));
   %OptimizeFunctionOnNextCall(foo);
@@ -22,6 +23,7 @@ const limit = %MaxSmi() + 1;
     try { new Uint8Array(limit); } catch (e) { return e.stack; }
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(/new Uint8Array/.test(foo()));
   assertTrue(/new Uint8Array/.test(foo()));
   %OptimizeFunctionOnNextCall(foo);
@@ -33,6 +35,7 @@ const limit = %MaxSmi() + 1;
     try { new Uint8ClampedArray(limit); } catch (e) { return e.stack; }
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(/new Uint8ClampedArray/.test(foo()));
   assertTrue(/new Uint8ClampedArray/.test(foo()));
   %OptimizeFunctionOnNextCall(foo);
@@ -44,6 +47,7 @@ const limit = %MaxSmi() + 1;
     try { new Int16Array(limit); } catch (e) { return e.stack; }
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(/new Int16Array/.test(foo()));
   assertTrue(/new Int16Array/.test(foo()));
   %OptimizeFunctionOnNextCall(foo);
@@ -55,6 +59,7 @@ const limit = %MaxSmi() + 1;
     try { new Uint16Array(limit); } catch (e) { return e.stack; }
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(/new Uint16Array/.test(foo()));
   assertTrue(/new Uint16Array/.test(foo()));
   %OptimizeFunctionOnNextCall(foo);
@@ -66,6 +71,7 @@ const limit = %MaxSmi() + 1;
     try { new Int32Array(limit); } catch (e) { return e.stack; }
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(/new Int32Array/.test(foo()));
   assertTrue(/new Int32Array/.test(foo()));
   %OptimizeFunctionOnNextCall(foo);
@@ -77,6 +83,7 @@ const limit = %MaxSmi() + 1;
     try { new Uint32Array(limit); } catch (e) { return e.stack; }
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(/new Uint32Array/.test(foo()));
   assertTrue(/new Uint32Array/.test(foo()));
   %OptimizeFunctionOnNextCall(foo);
@@ -88,6 +95,7 @@ const limit = %MaxSmi() + 1;
     try { new Float32Array(limit); } catch (e) { return e.stack; }
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(/new Float32Array/.test(foo()));
   assertTrue(/new Float32Array/.test(foo()));
   %OptimizeFunctionOnNextCall(foo);
@@ -100,6 +108,7 @@ const limit = %MaxSmi() + 1;
     try { new Float64Array(limit); } catch (e) { return e.stack; }
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(/new Float64Array/.test(foo()));
   assertTrue(/new Float64Array/.test(foo()));
   %OptimizeFunctionOnNextCall(foo);
@@ -111,6 +120,7 @@ const limit = %MaxSmi() + 1;
     try { new BigInt64Array(limit); } catch (e) { return e.stack; }
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(/new BigInt64Array/.test(foo()));
   assertTrue(/new BigInt64Array/.test(foo()));
   %OptimizeFunctionOnNextCall(foo);
@@ -122,6 +132,7 @@ const limit = %MaxSmi() + 1;
     try { new BigUint64Array(limit); } catch (e) { return e.stack; }
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(/new BigUint64Array/.test(foo()));
   assertTrue(/new BigUint64Array/.test(foo()));
   %OptimizeFunctionOnNextCall(foo);

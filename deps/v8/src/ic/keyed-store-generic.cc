@@ -60,8 +60,7 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
   // Helper that is used by the public KeyedStoreGeneric and by SetProperty.
   void KeyedStoreGeneric(TNode<Context> context, TNode<Object> receiver,
                          TNode<Object> key, TNode<Object> value,
-                         Maybe<LanguageMode> language_mode, TNode<Smi> slot,
-                         TNode<FeedbackVector> vector);
+                         Maybe<LanguageMode> language_mode);
 
   void EmitGenericElementStore(Node* receiver, Node* receiver_map,
                                Node* instance_type, Node* intptr_index,
@@ -912,29 +911,21 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
       BIND(&not_callable);
       {
-        bool handle_strict = true;
-        Label strict(this);
         LanguageMode language_mode;
         if (maybe_language_mode.To(&language_mode)) {
           if (language_mode == LanguageMode::kStrict) {
-            Goto(&strict);
-          } else {
-            handle_strict = false;
-            exit_point->Return(p->value);
-          }
-        } else {
-          BranchIfStrictMode(p->vector, p->slot, &strict);
-          exit_point->Return(p->value);
-        }
-
-        if (handle_strict) {
-          BIND(&strict);
-          {
             exit_point->ReturnCallRuntime(
                 Runtime::kThrowTypeError, p->context,
                 SmiConstant(MessageTemplate::kNoSetterInCallback), p->name,
                 var_accessor_holder.value());
+          } else {
+            exit_point->Return(p->value);
           }
+        } else {
+          CallRuntime(Runtime::kThrowTypeErrorIfStrict, p->context,
+                      SmiConstant(MessageTemplate::kNoSetterInCallback),
+                      p->name, var_accessor_holder.value());
+          exit_point->Return(p->value);
         }
       }
     }
@@ -943,27 +934,20 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
   if (!ShouldReconfigureExisting()) {
     BIND(&readonly);
     {
-      bool handle_strict = true;
-      Label strict(this);
       LanguageMode language_mode;
       if (maybe_language_mode.To(&language_mode)) {
         if (language_mode == LanguageMode::kStrict) {
-          Goto(&strict);
-        } else {
-          handle_strict = false;
-          exit_point->Return(p->value);
-        }
-      } else {
-        BranchIfStrictMode(p->vector, p->slot, &strict);
-        exit_point->Return(p->value);
-      }
-      if (handle_strict) {
-        BIND(&strict);
-        {
           Node* type = Typeof(p->receiver);
           ThrowTypeError(p->context, MessageTemplate::kStrictReadOnlyProperty,
                          p->name, type, p->receiver);
+        } else {
+          exit_point->Return(p->value);
         }
+      } else {
+        CallRuntime(Runtime::kThrowTypeErrorIfStrict, p->context,
+                    SmiConstant(MessageTemplate::kStrictReadOnlyProperty),
+                    p->name, Typeof(p->receiver), p->receiver);
+        exit_point->Return(p->value);
       }
     }
   }
@@ -972,8 +956,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 // Helper that is used by the public KeyedStoreGeneric and by SetProperty.
 void KeyedStoreGenericAssembler::KeyedStoreGeneric(
     TNode<Context> context, TNode<Object> receiver, TNode<Object> key,
-    TNode<Object> value, Maybe<LanguageMode> language_mode, TNode<Smi> slot,
-    TNode<FeedbackVector> vector) {
+    TNode<Object> value, Maybe<LanguageMode> language_mode) {
   TVARIABLE(IntPtrT, var_index);
   TVARIABLE(Object, var_unique, key);
   Label if_index(this), if_unique_name(this), not_internalized(this),
@@ -999,8 +982,8 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
   BIND(&if_unique_name);
   {
     Comment("key is unique name");
-    StoreICParameters p(context, receiver, var_unique.value(), value, slot,
-                        vector);
+    StoreICParameters p(context, receiver, var_unique.value(), value, nullptr,
+                        nullptr);
     ExitPoint direct_exit(this);
     EmitGenericPropertyStore(CAST(receiver), receiver_map, &p, &direct_exit,
                              &slow, language_mode);
@@ -1020,19 +1003,8 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
   {
     if (IsKeyedStore()) {
       Comment("KeyedStoreGeneric_slow");
-      if (language_mode.IsJust()) {
-        TailCallRuntime(Runtime::kSetKeyedProperty, context, receiver, key,
-                        value, SmiConstant(language_mode.FromJust()));
-      } else {
-        TVARIABLE(Smi, var_language_mode, SmiConstant(LanguageMode::kStrict));
-        Label call_runtime(this);
-        BranchIfStrictMode(vector, slot, &call_runtime);
-        var_language_mode = SmiConstant(LanguageMode::kSloppy);
-        Goto(&call_runtime);
-        BIND(&call_runtime);
-        TailCallRuntime(Runtime::kSetKeyedProperty, context, receiver, key,
-                        value, var_language_mode.value());
-      }
+      TailCallRuntime(Runtime::kSetKeyedProperty, context, receiver, key,
+                      value);
     } else {
       DCHECK(IsStoreInLiteral());
       TailCallRuntime(Runtime::kStoreDataPropertyInLiteral, context, receiver,
@@ -1042,17 +1014,14 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
 }
 
 void KeyedStoreGenericAssembler::KeyedStoreGeneric() {
-  typedef StoreWithVectorDescriptor Descriptor;
+  typedef StoreDescriptor Descriptor;
 
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> name = CAST(Parameter(Descriptor::kName));
   TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
-  TNode<FeedbackVector> vector = CAST(Parameter(Descriptor::kVector));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
-  KeyedStoreGeneric(context, receiver, name, value, Nothing<LanguageMode>(),
-                    slot, vector);
+  KeyedStoreGeneric(context, receiver, name, value, Nothing<LanguageMode>());
 }
 
 void KeyedStoreGenericAssembler::SetProperty(TNode<Context> context,
@@ -1060,8 +1029,7 @@ void KeyedStoreGenericAssembler::SetProperty(TNode<Context> context,
                                              TNode<Object> key,
                                              TNode<Object> value,
                                              LanguageMode language_mode) {
-  KeyedStoreGeneric(context, receiver, key, value, Just(language_mode),
-                    TNode<Smi>(), TNode<FeedbackVector>());
+  KeyedStoreGeneric(context, receiver, key, value, Just(language_mode));
 }
 
 void KeyedStoreGenericAssembler::StoreIC_Uninitialized() {
@@ -1074,7 +1042,7 @@ void KeyedStoreGenericAssembler::StoreIC_Uninitialized() {
   Node* vector = Parameter(Descriptor::kVector);
   Node* context = Parameter(Descriptor::kContext);
 
-  Label miss(this);
+  Label miss(this, Label::kDeferred), store_property(this);
 
   GotoIf(TaggedIsSmi(receiver), &miss);
   Node* receiver_map = LoadMap(receiver);
@@ -1084,19 +1052,29 @@ void KeyedStoreGenericAssembler::StoreIC_Uninitialized() {
   GotoIf(IsSpecialReceiverInstanceType(instance_type), &miss);
 
   // Optimistically write the state transition to the vector.
+  GotoIf(IsUndefined(vector), &store_property);
   StoreFeedbackVectorSlot(vector, slot,
                           LoadRoot(RootIndex::kpremonomorphic_symbol),
                           SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
+  Goto(&store_property);
 
-  StoreICParameters p(context, receiver, name, value, slot, vector);
-  EmitGenericPropertyStore(receiver, receiver_map, &p, &miss);
+  BIND(&store_property);
+  {
+    StoreICParameters p(context, receiver, name, value, slot, vector);
+    EmitGenericPropertyStore(receiver, receiver_map, &p, &miss);
+  }
 
   BIND(&miss);
   {
+    Label call_runtime(this);
     // Undo the optimistic state transition.
+    GotoIf(IsUndefined(vector), &call_runtime);
     StoreFeedbackVectorSlot(vector, slot,
                             LoadRoot(RootIndex::kuninitialized_symbol),
                             SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
+    Goto(&call_runtime);
+
+    BIND(&call_runtime);
     TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot, vector,
                     receiver, name);
   }
@@ -1127,7 +1105,7 @@ void KeyedStoreGenericAssembler::SetProperty(TNode<Context> context,
                   unique_name, value);
     } else {
       CallRuntime(Runtime::kSetKeyedProperty, context, receiver, unique_name,
-                  value, SmiConstant(language_mode));
+                  value);
     }
     Goto(&done);
   }

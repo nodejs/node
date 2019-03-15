@@ -9,6 +9,7 @@
     return "abc".concat();
   }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals("abc", f());
   assertEquals("abc", f());
   %OptimizeFunctionOnNextCall(f);
@@ -20,6 +21,7 @@
     return "abc".concat(a);
   }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals("abcde", f("de"));
   assertEquals("abcde", f("de"));
   %OptimizeFunctionOnNextCall(f);
@@ -30,6 +32,8 @@
   function f(a) {
     return "abc".concat(a);
   }
+
+  %PrepareFunctionForOptimization(f);
   assertEquals("abcde", f("de"));
   assertEquals("abcde", f("de"));
   %OptimizeFunctionOnNextCall(f);
@@ -41,6 +45,7 @@
     return "abc".concat(a);
   }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals("abcde", f("de"));
   assertEquals("abcde", f("de"));
   %OptimizeFunctionOnNextCall(f);
@@ -54,6 +59,7 @@
     return "ab".concat("c");
   }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals("abc", f());
   assertEquals("abc", f());
   %OptimizeFunctionOnNextCall(f);
@@ -65,6 +71,7 @@
     return "ab".concat("c", a);
   }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals("abcde", f("de"));
   assertEquals("abcde", f("de"));
   %OptimizeFunctionOnNextCall(f);
@@ -75,6 +82,8 @@
   function f(a) {
     return "ab".concat("c", a);
   }
+
+  %PrepareFunctionForOptimization(f);
   assertEquals("abcde", f("de"));
   assertEquals("abcde", f("de"));
   %OptimizeFunctionOnNextCall(f);
@@ -86,6 +95,7 @@
     return "ab".concat("c", a);
   }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals("abcde", f("de"));
   assertEquals("abcde", f("de"));
   %OptimizeFunctionOnNextCall(f);

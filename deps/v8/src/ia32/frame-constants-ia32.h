@@ -15,21 +15,21 @@ class EntryFrameConstants : public AllStatic {
  public:
   // This is the offset to where JSEntry pushes the current value of
   // Isolate::c_entry_fp onto the stack.
-  static constexpr int kCallerFPOffset = -6 * kPointerSize;
+  static constexpr int kCallerFPOffset = -6 * kSystemPointerSize;
 
   // EntryFrame is used by JSEntry, JSConstructEntry and JSRunMicrotasksEntry.
   // All of them take |root_register_value| as the first parameter.
-  static constexpr int kRootRegisterValueOffset = +2 * kPointerSize;
+  static constexpr int kRootRegisterValueOffset = +2 * kSystemPointerSize;
 
   // Rest of parameters passed to JSEntry and JSConstructEntry.
-  static constexpr int kNewTargetArgOffset = +3 * kPointerSize;
-  static constexpr int kFunctionArgOffset = +4 * kPointerSize;
-  static constexpr int kReceiverArgOffset = +5 * kPointerSize;
-  static constexpr int kArgcOffset = +6 * kPointerSize;
-  static constexpr int kArgvOffset = +7 * kPointerSize;
+  static constexpr int kNewTargetArgOffset = +3 * kSystemPointerSize;
+  static constexpr int kFunctionArgOffset = +4 * kSystemPointerSize;
+  static constexpr int kReceiverArgOffset = +5 * kSystemPointerSize;
+  static constexpr int kArgcOffset = +6 * kSystemPointerSize;
+  static constexpr int kArgvOffset = +7 * kSystemPointerSize;
 
   // Rest of parameters passed to JSRunMicrotasksEntry.
-  static constexpr int kMicrotaskQueueArgOffset = +3 * kPointerSize;
+  static constexpr int kMicrotaskQueueArgOffset = +3 * kSystemPointerSize;
 };
 
 class ExitFrameConstants : public TypedFrameConstants {
@@ -38,12 +38,12 @@ class ExitFrameConstants : public TypedFrameConstants {
   static constexpr int kCodeOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
   DEFINE_TYPED_FRAME_SIZES(2);
 
-  static constexpr int kCallerFPOffset = 0 * kPointerSize;
-  static constexpr int kCallerPCOffset = +1 * kPointerSize;
+  static constexpr int kCallerFPOffset = 0 * kSystemPointerSize;
+  static constexpr int kCallerPCOffset = +1 * kSystemPointerSize;
 
   // FP-relative displacement of the caller's SP.  It points just
   // below the saved PC.
-  static constexpr int kCallerSPDisplacement = +2 * kPointerSize;
+  static constexpr int kCallerSPDisplacement = +2 * kSystemPointerSize;
 
   static constexpr int kConstantPoolOffset = 0;  // Not used
 };
@@ -57,7 +57,7 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
   static constexpr int kWasmInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
   static constexpr int kFixedFrameSizeFromFp =
       TypedFrameConstants::kFixedFrameSizeFromFp +
-      kNumberOfSavedGpParamRegs * kPointerSize +
+      kNumberOfSavedGpParamRegs * kSystemPointerSize +
       kNumberOfSavedFpParamRegs * kSimd128Size;
 };
 
@@ -66,13 +66,13 @@ class JavaScriptFrameConstants : public AllStatic {
   // FP-relative.
   static constexpr int kLocal0Offset =
       StandardFrameConstants::kExpressionsOffset;
-  static constexpr int kLastParameterOffset = +2 * kPointerSize;
+  static constexpr int kLastParameterOffset = +2 * kSystemPointerSize;
   static constexpr int kFunctionOffset =
       StandardFrameConstants::kFunctionOffset;
 
   // Caller SP-relative.
-  static constexpr int kParam0Offset = -2 * kPointerSize;
-  static constexpr int kReceiverOffset = -1 * kPointerSize;
+  static constexpr int kParam0Offset = -2 * kSystemPointerSize;
+  static constexpr int kReceiverOffset = -1 * kSystemPointerSize;
 };
 
 }  // namespace internal

@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm --experimental-wasm-eh
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 // Helper function to return a new exported exception with the {kSig_v_v} type

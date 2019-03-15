@@ -371,6 +371,8 @@ class BytecodeGraphBuilder {
     needs_eager_checkpoint_ = value;
   }
 
+  Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
+
   Handle<Context> native_context() const { return native_context_; }
 
 #define DECLARE_VISIT_BYTECODE(name, ...) void Visit##name();
@@ -431,6 +433,8 @@ class BytecodeGraphBuilder {
   SourcePositionTable* source_positions_;
 
   SourcePosition const start_position_;
+
+  Handle<SharedFunctionInfo> const shared_info_;
 
   // The native context for which we optimize.
   Handle<Context> const native_context_;

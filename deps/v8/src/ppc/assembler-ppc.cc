@@ -245,7 +245,9 @@ Assembler::Assembler(const AssemblerOptions& options,
   relocations_.reserve(128);
 }
 
-void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
+void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
+                        SafepointTableBuilder* safepoint_table_builder,
+                        int handler_table_offset) {
   // Emit constant pool if necessary.
   int constant_pool_size = EmitConstantPool();
 
@@ -256,18 +258,25 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   AllocateAndInstallRequestedHeapObjects(isolate);
 
   // Set up code descriptor.
-  desc->buffer = buffer_start_;
-  desc->buffer_size = buffer_->size();
-  desc->instr_size = pc_offset();
-  desc->reloc_size =
-      (buffer_start_ + desc->buffer_size) - reloc_info_writer.pos();
-  desc->constant_pool_size = constant_pool_size;
-  desc->origin = this;
-  desc->unwinding_info_size = 0;
-  desc->unwinding_info = nullptr;
-  desc->code_comments_size = code_comments_size;
-}
+  // TODO(jgruber): Reconsider how these offsets and sizes are maintained up to
+  // this point to make CodeDesc initialization less fiddly.
 
+  const int instruction_size = pc_offset();
+  const int code_comments_offset = instruction_size - code_comments_size;
+  const int constant_pool_offset = code_comments_offset - constant_pool_size;
+  const int handler_table_offset2 = (handler_table_offset == kNoHandlerTable)
+                                        ? constant_pool_offset
+                                        : handler_table_offset;
+  const int safepoint_table_offset =
+      (safepoint_table_builder == kNoSafepointTable)
+          ? handler_table_offset2
+          : safepoint_table_builder->GetCodeOffset();
+  const int reloc_info_offset =
+      static_cast<int>(reloc_info_writer.pos() - buffer_->start());
+  CodeDesc::Initialize(desc, this, safepoint_table_offset,
+                       handler_table_offset2, constant_pool_offset,
+                       code_comments_offset, reloc_info_offset);
+}
 
 void Assembler::Align(int m) {
   DCHECK(m >= 4 && base::bits::IsPowerOfTwo(m));

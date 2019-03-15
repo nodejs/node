@@ -6,7 +6,6 @@
 
 let {session, contextGroup, Protocol} = InspectorTest.start('Tests how wasm scripts are reported');
 
-utils.load('test/mjsunit/wasm/wasm-constants.js');
 utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
 // Add two empty functions. Both should be registered as individual scripts at

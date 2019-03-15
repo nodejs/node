@@ -1822,15 +1822,6 @@ class Instruction {
   };
 
   static OpcodeFormatType OpcodeFormatTable[256];
-// Helper macro to define static accessors.
-// We use the cast to char* trick to bypass the strict anti-aliasing rules.
-#define DECLARE_STATIC_TYPED_ACCESSOR(return_type, Name) \
-  static inline return_type Name(Instr instr) {          \
-    char* temp = reinterpret_cast<char*>(&instr);        \
-    return reinterpret_cast<Instruction*>(temp)->Name(); \
-  }
-
-#define DECLARE_STATIC_ACCESSOR(Name) DECLARE_STATIC_TYPED_ACCESSOR(int, Name)
 
   // Get the raw instruction bits.
   template <typename T>
@@ -2076,7 +2067,7 @@ class SixByteInstruction : public Instruction {
 // I Instruction
 class IInstruction : public TwoByteInstruction {
  public:
-  DECLARE_FIELD_FOR_TWO_BYTE_INSTR(IValue, int, 8, 16);
+  DECLARE_FIELD_FOR_TWO_BYTE_INSTR(IValue, int, 8, 16)
 };
 
 // E Instruction
@@ -2085,25 +2076,25 @@ class EInstruction : public TwoByteInstruction {};
 // IE Instruction
 class IEInstruction : public FourByteInstruction {
  public:
-  DECLARE_FIELD_FOR_FOUR_BYTE_INSTR(I1Value, int, 24, 28);
-  DECLARE_FIELD_FOR_FOUR_BYTE_INSTR(I2Value, int, 28, 32);
+  DECLARE_FIELD_FOR_FOUR_BYTE_INSTR(I1Value, int, 24, 28)
+  DECLARE_FIELD_FOR_FOUR_BYTE_INSTR(I2Value, int, 28, 32)
 };
 
 // MII Instruction
 class MIIInstruction : public SixByteInstruction {
  public:
-  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(M1Value, uint32_t, 8, 12);
-  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(RI2Value, int, 12, 24);
-  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(RI3Value, int, 24, 47);
+  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(M1Value, uint32_t, 8, 12)
+  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(RI2Value, int, 12, 24)
+  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(RI3Value, int, 24, 47)
 };
 
 // RI Instruction
 class RIInstruction : public FourByteInstruction {
  public:
-  DECLARE_FIELD_FOR_FOUR_BYTE_INSTR(R1Value, int, 8, 12);
-  DECLARE_FIELD_FOR_FOUR_BYTE_INSTR(I2Value, int, 16, 32);
-  DECLARE_FIELD_FOR_FOUR_BYTE_INSTR(I2UnsignedValue, uint32_t, 16, 32);
-  DECLARE_FIELD_FOR_FOUR_BYTE_INSTR(M1Value, uint32_t, 8, 12);
+  DECLARE_FIELD_FOR_FOUR_BYTE_INSTR(R1Value, int, 8, 12)
+  DECLARE_FIELD_FOR_FOUR_BYTE_INSTR(I2Value, int, 16, 32)
+  DECLARE_FIELD_FOR_FOUR_BYTE_INSTR(I2UnsignedValue, uint32_t, 16, 32)
+  DECLARE_FIELD_FOR_FOUR_BYTE_INSTR(M1Value, uint32_t, 8, 12)
 };
 
 // RR Instruction
@@ -2299,12 +2290,12 @@ class RIEInstruction : Instruction {
 // VRR Instruction
 class VRR_C_Instruction : SixByteInstruction {
  public:
-  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(R1Value, int, 8, 12);
-  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(R2Value, int, 12, 16);
-  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(R3Value, int, 16, 20);
-  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(M6Value, uint32_t, 24, 28);
-  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(M5Value, uint32_t, 28, 32);
-  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(M4Value, uint32_t, 32, 36);
+  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(R1Value, int, 8, 12)
+  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(R2Value, int, 12, 16)
+  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(R3Value, int, 16, 20)
+  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(M6Value, uint32_t, 24, 28)
+  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(M5Value, uint32_t, 28, 32)
+  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(M4Value, uint32_t, 32, 36)
 };
 
 // Helper functions for converting between register numbers and names.

@@ -162,7 +162,10 @@ static void InitializeVM() {
   core.Dump(&masm);                                         \
   __ PopCalleeSavedRegisters();                             \
   __ Ret();                                                 \
-  __ GetCode(masm.isolate(), nullptr);
+  {                                                         \
+    CodeDesc desc;                                          \
+    __ GetCode(masm.isolate(), &desc);                      \
+  }
 
 #else  // ifdef USE_SIMULATOR.
 // Run the test on real hardware or models.
@@ -198,11 +201,14 @@ static void InitializeVM() {
     test_function();                                 \
   }
 
-#define END()                   \
-  core.Dump(&masm);             \
-  __ PopCalleeSavedRegisters(); \
-  __ Ret();                     \
-  __ GetCode(masm.isolate(), nullptr);
+#define END()                          \
+  core.Dump(&masm);                    \
+  __ PopCalleeSavedRegisters();        \
+  __ Ret();                            \
+  {                                    \
+    CodeDesc desc;                     \
+    __ GetCode(masm.isolate(), &desc); \
+  }
 
 #endif  // ifdef USE_SIMULATOR.
 
@@ -403,6 +409,60 @@ TEST(mov) {
   CHECK_EQUAL_64(0x00007FF8, x25);
   CHECK_EQUAL_64(0x000000000000FFF0UL, x26);
   CHECK_EQUAL_64(0x000000000001FFE0UL, x27);
+}
+
+TEST(move_pair) {
+  INIT_V8();
+  SETUP();
+
+  START();
+  __ Mov(x0, 0xabababab);
+  __ Mov(x1, 0xbabababa);
+  __ Mov(x2, 0x12341234);
+  __ Mov(x3, 0x43214321);
+
+  // No overlap:
+  //  x4 <- x0
+  //  x5 <- x1
+  __ MovePair(x4, x0, x5, x1);
+
+  // Overlap but we can swap moves:
+  //  x2 <- x0
+  //  x6 <- x2
+  __ MovePair(x2, x0, x6, x2);
+
+  // Overlap but can be done:
+  //  x7 <- x3
+  //  x3 <- x0
+  __ MovePair(x7, x3, x3, x0);
+
+  // Swap.
+  //  x0 <- x1
+  //  x1 <- x0
+  __ MovePair(x0, x1, x1, x0);
+
+  END();
+
+  RUN();
+
+  //  x4 <- x0
+  //  x5 <- x1
+  CHECK_EQUAL_64(0xabababab, x4);
+  CHECK_EQUAL_64(0xbabababa, x5);
+
+  //  x2 <- x0
+  //  x6 <- x2
+  CHECK_EQUAL_64(0xabababab, x2);
+  CHECK_EQUAL_64(0x12341234, x6);
+
+  //  x7 <- x3
+  //  x3 <- x0
+  CHECK_EQUAL_64(0x43214321, x7);
+  CHECK_EQUAL_64(0xabababab, x3);
+
+  // x0 and x1 should be swapped.
+  CHECK_EQUAL_64(0xbabababa, x0);
+  CHECK_EQUAL_64(0xabababab, x1);
 }
 
 TEST(mov_imm_w) {
@@ -2160,7 +2220,7 @@ TEST(far_branch_veneer_broken_link_chain) {
 
   START();
 
-  Label skip, fail, done;
+  Label fail, done;
   Label test_1, test_2, test_3;
   Label far_target;
 
@@ -14525,7 +14585,7 @@ static void AbsHelperX(int64_t value) {
   __ Mov(x1, value);
 
   if (value != kXMinInt) {
-    expected = labs(value);
+    expected = std::abs(value);
 
     Label next;
     // The result is representable.
@@ -14535,7 +14595,7 @@ static void AbsHelperX(int64_t value) {
     __ Bind(&next);
     __ Abs(x13, x1, nullptr, &done);
   } else {
-    // labs is undefined for kXMinInt but our implementation in the
+    // std::abs is undefined for kXMinInt but our implementation in the
     // MacroAssembler will return kXMinInt in such a case.
     expected = kXMinInt;
 
@@ -14715,7 +14775,7 @@ TEST(jump_tables_forward) {
     Label base;
 
     __ Adr(x10, &base);
-    __ Ldr(x11, MemOperand(x10, index, LSL, kPointerSizeLog2));
+    __ Ldr(x11, MemOperand(x10, index, LSL, kSystemPointerSizeLog2));
     __ Br(x11);
     __ Bind(&base);
     for (int i = 0; i < kNumCases; ++i) {
@@ -14783,7 +14843,7 @@ TEST(jump_tables_backward) {
     Label base;
 
     __ Adr(x10, &base);
-    __ Ldr(x11, MemOperand(x10, index, LSL, kPointerSizeLog2));
+    __ Ldr(x11, MemOperand(x10, index, LSL, kSystemPointerSizeLog2));
     __ Br(x11);
     __ Bind(&base);
     for (int i = 0; i < kNumCases; ++i) {

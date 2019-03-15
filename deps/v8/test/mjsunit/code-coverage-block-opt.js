@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --no-always-opt --opt
-// Flags: --no-stress-flush-bytecode
+// Flags: --no-stress-flush-bytecode --turbo-inlining
 // Files: test/mjsunit/code-coverage-utils.js
 
 if (isNeverOptimizeLiteMode()) {

@@ -27,7 +27,7 @@ namespace wasm {
 //
 // The above illustrates jump table lines {Li} containing slots {Si} with each
 // line containing {n} slots and some padding {x} for alignment purposes.
-class JumpTableAssembler : public TurboAssembler {
+class JumpTableAssembler : public MacroAssembler {
  public:
   // Translate an offset into the continuous jump table to a jump table index.
   static uint32_t SlotOffsetToIndex(uint32_t slot_offset) {
@@ -55,6 +55,16 @@ class JumpTableAssembler : public TurboAssembler {
            kJumpTableLineSize;
   }
 
+  // Translate a stub slot index to an offset into the continuous jump table.
+  static uint32_t StubSlotIndexToOffset(uint32_t slot_index) {
+    return slot_index * kJumpTableStubSlotSize;
+  }
+
+  // Determine the size of a jump table containing only runtime stub slots.
+  static constexpr uint32_t SizeForNumberOfStubSlots(uint32_t slot_count) {
+    return slot_count * kJumpTableStubSlotSize;
+  }
+
   static void EmitLazyCompileJumpSlot(Address base, uint32_t slot_index,
                                       uint32_t func_index,
                                       Address lazy_compile_target,
@@ -64,7 +74,19 @@ class JumpTableAssembler : public TurboAssembler {
     jtasm.EmitLazyCompileJumpSlot(func_index, lazy_compile_target);
     jtasm.NopBytes(kJumpTableSlotSize - jtasm.pc_offset());
     if (flush_i_cache) {
-      Assembler::FlushICache(slot, kJumpTableSlotSize);
+      FlushInstructionCache(slot, kJumpTableSlotSize);
+    }
+  }
+
+  static void EmitRuntimeStubSlot(Address base, uint32_t slot_index,
+                                  Address builtin_target,
+                                  WasmCode::FlushICache flush_i_cache) {
+    Address slot = base + StubSlotIndexToOffset(slot_index);
+    JumpTableAssembler jtasm(slot);
+    jtasm.EmitRuntimeStubSlot(builtin_target);
+    jtasm.NopBytes(kJumpTableStubSlotSize - jtasm.pc_offset());
+    if (flush_i_cache) {
+      FlushInstructionCache(slot, kJumpTableStubSlotSize);
     }
   }
 
@@ -76,14 +98,14 @@ class JumpTableAssembler : public TurboAssembler {
     jtasm.EmitJumpSlot(new_target);
     jtasm.NopBytes(kJumpTableSlotSize - jtasm.pc_offset());
     if (flush_i_cache) {
-      Assembler::FlushICache(slot, kJumpTableSlotSize);
+      FlushInstructionCache(slot, kJumpTableSlotSize);
     }
   }
 
  private:
   // Instantiate a {JumpTableAssembler} for patching.
   explicit JumpTableAssembler(Address slot_addr, int size = 256)
-      : TurboAssembler(nullptr, JumpTableAssemblerOptions(),
+      : MacroAssembler(nullptr, JumpTableAssemblerOptions(),
                        CodeObjectRequired::kNo,
                        ExternalAssemblerBuffer(
                            reinterpret_cast<uint8_t*>(slot_addr), size)) {}
@@ -94,36 +116,39 @@ class JumpTableAssembler : public TurboAssembler {
 #if V8_TARGET_ARCH_X64
   static constexpr int kJumpTableLineSize = 64;
   static constexpr int kJumpTableSlotSize = 18;
+  static constexpr int kJumpTableStubSlotSize = 18;
 #elif V8_TARGET_ARCH_IA32
   static constexpr int kJumpTableLineSize = 64;
   static constexpr int kJumpTableSlotSize = 10;
+  static constexpr int kJumpTableStubSlotSize = 10;
 #elif V8_TARGET_ARCH_ARM
   static constexpr int kJumpTableLineSize = 5 * kInstrSize;
   static constexpr int kJumpTableSlotSize = 5 * kInstrSize;
+  static constexpr int kJumpTableStubSlotSize = 5 * kInstrSize;
 #elif V8_TARGET_ARCH_ARM64
   static constexpr int kJumpTableLineSize = 3 * kInstrSize;
   static constexpr int kJumpTableSlotSize = 3 * kInstrSize;
+  static constexpr int kJumpTableStubSlotSize = 6 * kInstrSize;
 #elif V8_TARGET_ARCH_S390X
-  static constexpr int kJumpTableLineSize = 20;
+  static constexpr int kJumpTableLineSize = 128;
   static constexpr int kJumpTableSlotSize = 20;
-#elif V8_TARGET_ARCH_S390
-  static constexpr int kJumpTableLineSize = 14;
-  static constexpr int kJumpTableSlotSize = 14;
+  static constexpr int kJumpTableStubSlotSize = 14;
 #elif V8_TARGET_ARCH_PPC64
-  static constexpr int kJumpTableLineSize = 48;
+  static constexpr int kJumpTableLineSize = 64;
   static constexpr int kJumpTableSlotSize = 48;
-#elif V8_TARGET_ARCH_PPC
-  static constexpr int kJumpTableLineSize = 24;
-  static constexpr int kJumpTableSlotSize = 24;
+  static constexpr int kJumpTableStubSlotSize = 7 * kInstrSize;
 #elif V8_TARGET_ARCH_MIPS
   static constexpr int kJumpTableLineSize = 6 * kInstrSize;
   static constexpr int kJumpTableSlotSize = 6 * kInstrSize;
+  static constexpr int kJumpTableStubSlotSize = 4 * kInstrSize;
 #elif V8_TARGET_ARCH_MIPS64
   static constexpr int kJumpTableLineSize = 8 * kInstrSize;
   static constexpr int kJumpTableSlotSize = 8 * kInstrSize;
+  static constexpr int kJumpTableStubSlotSize = 6 * kInstrSize;
 #else
   static constexpr int kJumpTableLineSize = 1;
   static constexpr int kJumpTableSlotSize = 1;
+  static constexpr int kJumpTableStubSlotSize = 1;
 #endif
 
   static constexpr int kJumpTableSlotsPerLine =
@@ -141,6 +166,8 @@ class JumpTableAssembler : public TurboAssembler {
 
   void EmitLazyCompileJumpSlot(uint32_t func_index,
                                Address lazy_compile_target);
+
+  void EmitRuntimeStubSlot(Address builtin_target);
 
   void EmitJumpSlot(Address target);
 

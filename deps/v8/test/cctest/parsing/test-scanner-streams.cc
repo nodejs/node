@@ -47,7 +47,9 @@ class ChunkSource : public v8::ScriptCompiler::ExternalSourceStream {
     DCHECK_LT(current_, chunks_.size());
     Chunk& next = chunks_[current_++];
     uint8_t* chunk = new uint8_t[next.len];
-    i::MemMove(chunk, next.ptr, next.len);
+    if (next.len > 0) {
+      i::MemMove(chunk, next.ptr, next.len);
+    }
     *src = chunk;
     return next.len;
   }
@@ -162,6 +164,20 @@ TEST(Utf8StreamAsciiOnly) {
   do {
     c = stream->Advance();
   } while (c != v8::internal::Utf16CharacterStream::kEndOfInput);
+}
+
+TEST(Utf8StreamMaxNonSurrogateCharCode) {
+  const char* chunks[] = {"\uffff\uffff", ""};
+  ChunkSource chunk_source(chunks);
+  std::unique_ptr<v8::internal::Utf16CharacterStream> stream(
+      v8::internal::ScannerStream::For(
+          &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8));
+
+  // Read the correct character.
+  uint16_t max = unibrow::Utf16::kMaxNonSurrogateCharCode;
+  CHECK_EQ(max, static_cast<uint32_t>(stream->Advance()));
+  CHECK_EQ(max, static_cast<uint32_t>(stream->Advance()));
+  CHECK_EQ(i::Utf16CharacterStream::kEndOfInput, stream->Advance());
 }
 
 TEST(Utf8StreamBOM) {

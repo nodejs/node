@@ -1074,6 +1074,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     bne(if_not_equal);
   }
 
+  // Checks if value is in range [lower_limit, higher_limit] using a single
+  // comparison.
+  void JumpIfIsInRange(Register value, unsigned lower_limit,
+                       unsigned higher_limit, Label* on_in_range);
+
   // Try to convert a double to a signed 32-bit integer.
   // CR_EQ in cr7 is set and result assigned if the conversion is exact.
   void TryDoubleToInt32Exact(Register result, DoubleRegister double_input,
@@ -1238,8 +1243,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   static int CallSizeNotPredictableCodeSize(Address target,
                                             RelocInfo::Mode rmode,
                                             Condition cond = al);
-  void JumpToJSEntry(Register target);
-
   // Notify the garbage collector that we wrote a pointer into an object.
   // |object| is the object being stored into, |value| is the object being
   // stored.  value and scratch registers are clobbered by the operation.
@@ -1265,11 +1268,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void PushSafepointRegisters();
   void PopSafepointRegisters();
 
-  void LoadRepresentation(Register dst, const MemOperand& mem, Representation r,
-                          Register scratch = no_reg);
-  void StoreRepresentation(Register src, const MemOperand& mem,
-                           Representation r, Register scratch = no_reg);
-
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
   // Helper functions for generating invokes.
@@ -1283,6 +1281,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Needs access to SafepointRegisterStackIndex for compiled frame
   // traversal.
   friend class StandardFrame;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };
 
 // -----------------------------------------------------------------------------

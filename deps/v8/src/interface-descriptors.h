@@ -31,6 +31,7 @@ namespace internal {
   V(BigIntToWasmI64)                  \
   V(BinaryOp)                         \
   V(CallForwardVarargs)               \
+  V(CallFunctionTemplate)             \
   V(CallTrampoline)                   \
   V(CallVarargs)                      \
   V(CallWithArrayLike)                \
@@ -793,6 +794,14 @@ class CallForwardVarargsDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(CallForwardVarargsDescriptor, CallInterfaceDescriptor)
 };
 
+class CallFunctionTemplateDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kFunctionTemplateInfo, kArgumentsCount)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kFunctionTemplateInfo
+                         MachineType::IntPtr())     // kArgumentsCount
+  DECLARE_DESCRIPTOR(CallFunctionTemplateDescriptor, CallInterfaceDescriptor)
+};
+
 class CallWithSpreadDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kTarget, kArgumentsCount, kSpread)
@@ -847,7 +856,7 @@ class ConstructStubDescriptor : public CallInterfaceDescriptor {
  public:
   // TODO(jgruber): Remove the unused allocation site parameter.
   DEFINE_JS_PARAMETERS(kAllocationSite)
-  DEFINE_JS_PARAMETER_TYPES(MachineType::AnyTagged());
+  DEFINE_JS_PARAMETER_TYPES(MachineType::AnyTagged())
 
   // TODO(ishell): Use DECLARE_JS_COMPATIBLE_DESCRIPTOR if registers match
   DECLARE_DESCRIPTOR(ConstructStubDescriptor, CallInterfaceDescriptor)
@@ -870,7 +879,7 @@ class AllocateHeapNumberDescriptor : public CallInterfaceDescriptor {
 class ArrayConstructorDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_JS_PARAMETERS(kAllocationSite)
-  DEFINE_JS_PARAMETER_TYPES(MachineType::AnyTagged());
+  DEFINE_JS_PARAMETER_TYPES(MachineType::AnyTagged())
 
   DECLARE_JS_COMPATIBLE_DESCRIPTOR(ArrayConstructorDescriptor,
                                    CallInterfaceDescriptor, 1)
@@ -993,16 +1002,12 @@ class CEntry1ArgvOnStackDescriptor : public CallInterfaceDescriptor {
 
 class ApiCallbackDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kTargetContext,       // register argument
-                               kApiFunctionAddress,  // register argument
-                               kArgc,                // register argument
-                               kCallData,            // stack argument 1
-                               kHolder)              // stack argument 2
-  //                           receiver is implicit stack argument 3
-  //                           argv are implicit stack arguments [4, 4 + kArgc[
-  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTargetContext
-                         MachineType::Pointer(),    // kApiFunctionAddress
-                         MachineType::IntPtr(),     // kArgc
+  DEFINE_PARAMETERS(kApiFunctionAddress, kActualArgumentsCount, kCallData,
+                    kHolder)
+  //                           receiver is implicit stack argument 1
+  //                           argv are implicit stack arguments [2, 2 + kArgc[
+  DEFINE_PARAMETER_TYPES(MachineType::Pointer(),    // kApiFunctionAddress
+                         MachineType::IntPtr(),     // kActualArgumentsCount
                          MachineType::AnyTagged(),  // kCallData
                          MachineType::AnyTagged())  // kHolder
   DECLARE_DESCRIPTOR(ApiCallbackDescriptor, CallInterfaceDescriptor)

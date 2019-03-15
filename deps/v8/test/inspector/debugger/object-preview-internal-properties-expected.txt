@@ -259,3 +259,39 @@ expression: Promise.resolve(42)
     value : 42
 }
 
+Running test: privateNames
+expression: new class { #foo = 1; #bar = 2; baz = 3;}
+{
+    name : #foo
+    type : number
+    value : 1
+}
+{
+    name : #bar
+    type : number
+    value : 2
+}
+{
+    name : baz
+    type : number
+    value : 3
+}
+
+expression: new class extends class { #baz = 3; } { #foo = 1; #bar = 2; }
+{
+    name : #baz
+    type : number
+    value : 3
+}
+{
+    name : #foo
+    type : number
+    value : 1
+}
+{
+    name : #bar
+    type : number
+    value : 2
+}
+
+expression: new class extends class { constructor() { return new Proxy({}, {}); } } { #foo = 1; #bar = 2; }

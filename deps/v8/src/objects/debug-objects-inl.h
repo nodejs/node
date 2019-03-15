@@ -7,9 +7,9 @@
 
 #include "src/objects/debug-objects.h"
 
-#include "src/heap/heap-inl.h"
-#include "src/heap/heap-write-barrier.h"
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects-inl.h"
+#include "src/objects/code-inl.h"
 #include "src/objects/shared-function-info.h"
 
 // Has to be the last include (doesn't have include guards):

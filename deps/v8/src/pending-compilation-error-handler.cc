@@ -120,18 +120,21 @@ void PendingCompilationErrorHandler::ThrowPendingError(Isolate* isolate,
   Handle<Name> key_start_pos = factory->error_start_pos_symbol();
   Object::SetProperty(isolate, jserror, key_start_pos,
                       handle(Smi::FromInt(location.start_pos()), isolate),
-                      LanguageMode::kSloppy)
+                      StoreOrigin::kMaybeKeyed,
+                      Just(ShouldThrow::kThrowOnError))
       .Check();
 
   Handle<Name> key_end_pos = factory->error_end_pos_symbol();
   Object::SetProperty(isolate, jserror, key_end_pos,
                       handle(Smi::FromInt(location.end_pos()), isolate),
-                      LanguageMode::kSloppy)
+                      StoreOrigin::kMaybeKeyed,
+                      Just(ShouldThrow::kThrowOnError))
       .Check();
 
   Handle<Name> key_script = factory->error_script_symbol();
   Object::SetProperty(isolate, jserror, key_script, script,
-                      LanguageMode::kSloppy)
+                      StoreOrigin::kMaybeKeyed,
+                      Just(ShouldThrow::kThrowOnError))
       .Check();
 
   isolate->Throw(*error, &location);

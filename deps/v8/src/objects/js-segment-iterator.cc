@@ -166,19 +166,20 @@ MaybeHandle<JSReceiver> JSSegmentIterator::Next(
   Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
 
   // 11. Perform ! CreateDataProperty(result "segment", segment).
-  CHECK(JSReceiver::CreateDataProperty(
-            isolate, result, factory->segment_string(), segment, kDontThrow)
+  CHECK(JSReceiver::CreateDataProperty(isolate, result,
+                                       factory->segment_string(), segment,
+                                       Just(kDontThrow))
             .FromJust());
 
   // 12. Perform ! CreateDataProperty(result, "breakType", breakType).
   CHECK(JSReceiver::CreateDataProperty(isolate, result,
                                        factory->breakType_string(), break_type,
-                                       kDontThrow)
+                                       Just(kDontThrow))
             .FromJust());
 
   // 13. Perform ! CreateDataProperty(result, "index", newIndex).
   CHECK(JSReceiver::CreateDataProperty(isolate, result, factory->index_string(),
-                                       new_index, kDontThrow)
+                                       new_index, Just(kDontThrow))
             .FromJust());
 
   // 14. Return CreateIterResultObject(result, false).

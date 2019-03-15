@@ -1082,11 +1082,8 @@ JSReceiver LookupIterator::NextHolder(Map map) {
 LookupIterator::State LookupIterator::NotFound(JSReceiver const holder) const {
   DCHECK(!IsElement());
   if (!holder->IsJSTypedArray() || !name_->IsString()) return NOT_FOUND;
-
-  Handle<String> name_string = Handle<String>::cast(name_);
-  if (name_string->length() == 0) return NOT_FOUND;
-
-  return IsSpecialIndex(*name_string) ? INTEGER_INDEXED_EXOTIC : NOT_FOUND;
+  return IsSpecialIndex(String::cast(*name_)) ? INTEGER_INDEXED_EXOTIC
+                                              : NOT_FOUND;
 }
 
 namespace {

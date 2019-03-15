@@ -1,0 +1,71 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-regexp-gen.h'
+
+namespace string {
+  extern macro RegExpBuiltinsAssembler::IsRegExp(implicit context:
+                                                     Context)(Object): bool;
+
+  // TODO(ryzokuken): Add RequireObjectCoercible to base.tq and update callsites
+  macro RequireObjectCoercible(implicit context: Context)(argument: Object):
+      Object {
+    if (IsNullOrUndefined(argument)) {
+      ThrowTypeError(kCalledOnNullOrUndefined, 'String.prototype.startsWith');
+    }
+    return argument;
+  }
+
+  // https://tc39.github.io/ecma262/#sec-string.prototype.startswith
+  transitioning javascript builtin StringPrototypeStartsWith(
+      context: Context, receiver: Object, ...arguments): Boolean {
+    const searchString: Object = arguments[0];
+    const position: Object = arguments[1];
+
+    // 1. Let O be ? RequireObjectCoercible(this value).
+    const object: Object = RequireObjectCoercible(receiver);
+
+    // 2. Let S be ? ToString(O).
+    const string: String = ToString_Inline(context, object);
+
+    // 3. Let isRegExp be ? IsRegExp(searchString).
+    // 4. If isRegExp is true, throw a TypeError exception.
+    if (IsRegExp(searchString)) {
+      ThrowTypeError(kFirstArgumentNotRegExp, 'String.prototype.startsWith');
+    }
+
+    // 5. Let searchStr be ? ToString(searchString).
+    const searchStr: String = ToString_Inline(context, searchString);
+
+    // 6. Let pos be ? ToInteger(position).
+    const pos: Number = ToInteger_Inline(context, position);
+
+    // 7. Assert: If position is undefined, then pos is 0.
+    // 8. Let len be the length of S.
+    const len: Number = string.length_smi;
+
+    // 9. Let start be min(max(pos, 0), len).
+    const start: Number = NumberMin(NumberMax(pos, 0), len);
+
+    // 10. Let searchLength be the length of searchStr.
+    const searchLength: Smi = searchStr.length_smi;
+
+    // 11. If searchLength + start is greater than len, return false.
+    if (searchLength + start > len) return False;
+
+    // 12. If the sequence of code units of S starting at start of length
+    // searchLength is the same as the full code unit sequence of searchStr,
+    // return true.
+    // 13. Otherwise, return false.
+    try {
+      // Fast Path: If both strings are direct and relevant indices are Smis.
+      return TryFastStringCompareSequence(
+          string, searchStr, start, searchLength) otherwise Slow;
+    }
+    label Slow {
+      // Slow Path: If either of the string is indirect, bail into runtime.
+      return StringCompareSequence(context, string, searchStr, start);
+    }
+  }
+}

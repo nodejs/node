@@ -86,6 +86,10 @@ class TransitionsAccessor {
   static bool IsMatchingMap(Map target, Name name, PropertyKind kind,
                             PropertyAttributes attributes);
 
+  bool HasIntegrityLevelTransitionTo(
+      Map to, Symbol* out_symbol = nullptr,
+      PropertyAttributes* out_integrity_level = nullptr);
+
   // ===== ITERATION =====
   typedef void (*TraverseCallback)(Map map, void* data);
 

@@ -79,6 +79,8 @@ class TestProc(object):
     """
     Method called by previous processor whenever it produces new test.
     This method shouldn't be called by anyone except previous processor.
+    Returns a boolean value to signal whether the test was loaded into the
+    execution queue successfully or not.
     """
     raise NotImplementedError()
 
@@ -109,7 +111,7 @@ class TestProc(object):
 
   def _send_test(self, test):
     """Helper method for sending test to the next processor."""
-    self._next_proc.next_test(test)
+    return self._next_proc.next_test(test)
 
   def _send_result(self, test, result):
     """Helper method for sending result to the previous processor."""
@@ -126,7 +128,7 @@ class TestProcObserver(TestProc):
 
   def next_test(self, test):
     self._on_next_test(test)
-    self._send_test(test)
+    return self._send_test(test)
 
   def result_for(self, test, result):
     self._on_result_for(test, result)
@@ -158,7 +160,7 @@ class TestProcProducer(TestProc):
     self._name = name
 
   def next_test(self, test):
-    self._next_test(test)
+    return self._next_test(test)
 
   def result_for(self, subtest, result):
     self._result_for(subtest.origin, subtest, result)
@@ -190,9 +192,9 @@ class TestProcFilter(TestProc):
 
   def next_test(self, test):
     if self._filter(test):
-      self._send_result(test, SKIPPED)
-    else:
-      self._send_test(test)
+      return False
+
+    return self._send_test(test)
 
   def result_for(self, test, result):
     self._send_result(test, result)

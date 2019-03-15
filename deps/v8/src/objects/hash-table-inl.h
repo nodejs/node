@@ -8,7 +8,9 @@
 #include "src/objects/hash-table.h"
 
 #include "src/heap/heap.h"
+#include "src/objects-inl.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/roots-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -16,6 +18,36 @@
 
 namespace v8 {
 namespace internal {
+
+OBJECT_CONSTRUCTORS_IMPL(HashTableBase, FixedArray)
+
+template <typename Derived, typename Shape>
+HashTable<Derived, Shape>::HashTable(Address ptr) : HashTableBase(ptr) {
+  SLOW_DCHECK(IsHashTable());
+}
+
+template <typename Derived, typename Shape>
+ObjectHashTableBase<Derived, Shape>::ObjectHashTableBase(Address ptr)
+    : HashTable<Derived, Shape>(ptr) {}
+
+ObjectHashTable::ObjectHashTable(Address ptr)
+    : ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape>(ptr) {
+  SLOW_DCHECK(IsObjectHashTable());
+}
+
+EphemeronHashTable::EphemeronHashTable(Address ptr)
+    : ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>(ptr) {
+  SLOW_DCHECK(IsEphemeronHashTable());
+}
+
+ObjectHashSet::ObjectHashSet(Address ptr)
+    : HashTable<ObjectHashSet, ObjectHashSetShape>(ptr) {
+  SLOW_DCHECK(IsObjectHashSet());
+}
+
+CAST_ACCESSOR(ObjectHashTable)
+CAST_ACCESSOR(EphemeronHashTable)
+CAST_ACCESSOR(ObjectHashSet)
 
 int HashTableBase::NumberOfElements() const {
   return Smi::ToInt(get(kNumberOfElementsIndex));
@@ -139,7 +171,8 @@ uint32_t ObjectHashTableShape::Hash(Isolate* isolate, Handle<Object> key) {
   return Smi::ToInt(key->GetHash());
 }
 
-uint32_t ObjectHashTableShape::HashForObject(Isolate* isolate, Object other) {
+uint32_t ObjectHashTableShape::HashForObject(ReadOnlyRoots roots,
+                                             Object other) {
   return Smi::ToInt(other->GetHash());
 }
 

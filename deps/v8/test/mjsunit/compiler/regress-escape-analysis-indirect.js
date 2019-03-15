@@ -9,6 +9,7 @@ function f(apply) {
   apply(function bogeyman() { value = 42 });
   return value;
 }
+%PrepareFunctionForOptimization(f);
 function apply(fun) { fun() }
 assertEquals(42, f(apply));
 assertEquals(42, f(apply));

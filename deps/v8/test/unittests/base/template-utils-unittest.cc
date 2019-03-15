@@ -32,7 +32,7 @@ TEST(TemplateUtilsTest, MakeArraySimple) {
 
 namespace {
 constexpr int doubleIntValue(int i) { return i * 2; }
-};  // namespace
+}  // namespace
 
 TEST(TemplateUtilsTest, MakeArrayConstexpr) {
   constexpr auto computed_array = base::make_array<3>(doubleIntValue);

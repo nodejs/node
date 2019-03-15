@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-intl-relative-time-format
-
 // Make sure that RelativeTimeFormat exposes all required properties. Those not specified
 // should have undefined value.
 // http://tc39.github.io/proposal-intl-relative-time/

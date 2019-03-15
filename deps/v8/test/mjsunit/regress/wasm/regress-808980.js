@@ -4,7 +4,6 @@
 
 // Flags: --allow-natives-syntax --throws
 
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 let kTableSize = 3;
 

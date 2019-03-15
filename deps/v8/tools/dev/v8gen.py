@@ -38,6 +38,9 @@ v8gen.py list
 -------------------------------------------------------------------------------
 """
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import argparse
 import os
 import re
@@ -144,8 +147,8 @@ class GenerateGnArgs(object):
 
     # Check for builder/config in mb config.
     if self._options.builder not in self._mbw.masters[self._options.master]:
-      print '%s does not exist in %s for %s' % (
-          self._options.builder, CONFIG, self._options.master)
+      print('%s does not exist in %s for %s' % (
+          self._options.builder, CONFIG, self._options.master))
       return 1
 
     # TODO(machenbach): Check if the requested configurations has switched to
@@ -186,19 +189,19 @@ class GenerateGnArgs(object):
     return 0
 
   def cmd_list(self):
-    print '\n'.join(sorted(self._mbw.masters[self._options.master]))
+    print('\n'.join(sorted(self._mbw.masters[self._options.master])))
     return 0
 
   def verbose_print_1(self, text):
     if self._options.verbosity >= 1:
-      print '#' * 80
-      print text
+      print('#' * 80)
+      print(text)
 
   def verbose_print_2(self, text):
     if self._options.verbosity >= 2:
       indent = ' ' * 2
       for l in text.splitlines():
-        print indent + l
+        print(indent + l)
 
   def _call_cmd(self, args):
     self.verbose_print_1(' '.join(args))
@@ -290,9 +293,9 @@ class GenerateGnArgs(object):
     self._mbw.ReadConfigFile()
 
     if not self._options.master in self._mbw.masters:
-      print '%s not found in %s\n' % (self._options.master, CONFIG)
-      print 'Choose one of:\n%s\n' % (
-          '\n'.join(sorted(self._mbw.masters.keys())))
+      print('%s not found in %s\n' % (self._options.master, CONFIG))
+      print('Choose one of:\n%s\n' % (
+          '\n'.join(sorted(self._mbw.masters.keys()))))
       return 1
 
     return self._options.func()

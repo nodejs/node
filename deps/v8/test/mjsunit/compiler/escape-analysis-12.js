@@ -11,6 +11,7 @@ function f() {
   x.b = 1;
   0 <= y.b;
 }
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

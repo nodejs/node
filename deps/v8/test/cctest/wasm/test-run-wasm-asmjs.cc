@@ -73,8 +73,8 @@ WASM_EXEC_TEST(I32AsmjsSConvertF32) {
   BUILD(r, WASM_UNOP(kExprI32AsmjsSConvertF32, WASM_GET_LOCAL(0)));
 
   FOR_FLOAT32_INPUTS(i) {
-    int32_t expected = DoubleToInt32(*i);
-    CHECK_EQ(expected, r.Call(*i));
+    int32_t expected = DoubleToInt32(i);
+    CHECK_EQ(expected, r.Call(i));
   }
 }
 
@@ -84,8 +84,8 @@ WASM_EXEC_TEST(I32AsmjsSConvertF64) {
   BUILD(r, WASM_UNOP(kExprI32AsmjsSConvertF64, WASM_GET_LOCAL(0)));
 
   FOR_FLOAT64_INPUTS(i) {
-    int32_t expected = DoubleToInt32(*i);
-    CHECK_EQ(expected, r.Call(*i));
+    int32_t expected = DoubleToInt32(i);
+    CHECK_EQ(expected, r.Call(i));
   }
 }
 
@@ -95,8 +95,8 @@ WASM_EXEC_TEST(I32AsmjsUConvertF32) {
   BUILD(r, WASM_UNOP(kExprI32AsmjsUConvertF32, WASM_GET_LOCAL(0)));
 
   FOR_FLOAT32_INPUTS(i) {
-    uint32_t expected = DoubleToUint32(*i);
-    CHECK_EQ(expected, r.Call(*i));
+    uint32_t expected = DoubleToUint32(i);
+    CHECK_EQ(expected, r.Call(i));
   }
 }
 
@@ -106,8 +106,8 @@ WASM_EXEC_TEST(I32AsmjsUConvertF64) {
   BUILD(r, WASM_UNOP(kExprI32AsmjsUConvertF64, WASM_GET_LOCAL(0)));
 
   FOR_FLOAT64_INPUTS(i) {
-    uint32_t expected = DoubleToUint32(*i);
-    CHECK_EQ(expected, r.Call(*i));
+    uint32_t expected = DoubleToUint32(i);
+    CHECK_EQ(expected, r.Call(i));
   }
 }
 

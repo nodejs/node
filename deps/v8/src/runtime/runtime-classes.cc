@@ -771,25 +771,22 @@ namespace {
 
 MaybeHandle<Object> StoreToSuper(Isolate* isolate, Handle<JSObject> home_object,
                                  Handle<Object> receiver, Handle<Name> name,
-                                 Handle<Object> value,
-                                 LanguageMode language_mode) {
+                                 Handle<Object> value) {
   Handle<JSReceiver> holder;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, holder,
                              GetSuperHolder(isolate, receiver, home_object,
                                             SuperMode::kStore, name, 0),
                              Object);
   LookupIterator it(receiver, name, holder);
-  MAYBE_RETURN(
-      Object::SetSuperProperty(&it, value, language_mode, StoreOrigin::kNamed),
-      MaybeHandle<Object>());
+  MAYBE_RETURN(Object::SetSuperProperty(&it, value, StoreOrigin::kNamed),
+               MaybeHandle<Object>());
   return value;
 }
 
 MaybeHandle<Object> StoreElementToSuper(Isolate* isolate,
                                         Handle<JSObject> home_object,
                                         Handle<Object> receiver, uint32_t index,
-                                        Handle<Object> value,
-                                        LanguageMode language_mode) {
+                                        Handle<Object> value) {
   Handle<JSReceiver> holder;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, holder,
@@ -797,15 +794,14 @@ MaybeHandle<Object> StoreElementToSuper(Isolate* isolate,
                      MaybeHandle<Name>(), index),
       Object);
   LookupIterator it(isolate, receiver, index, holder);
-  MAYBE_RETURN(Object::SetSuperProperty(&it, value, language_mode,
-                                        StoreOrigin::kMaybeKeyed),
+  MAYBE_RETURN(Object::SetSuperProperty(&it, value, StoreOrigin::kMaybeKeyed),
                MaybeHandle<Object>());
   return value;
 }
 
 }  // anonymous namespace
 
-RUNTIME_FUNCTION(Runtime_StoreToSuper_Strict) {
+RUNTIME_FUNCTION(Runtime_StoreToSuper) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
@@ -814,47 +810,30 @@ RUNTIME_FUNCTION(Runtime_StoreToSuper_Strict) {
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 3);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, StoreToSuper(isolate, home_object, receiver, name, value,
-                            LanguageMode::kStrict));
+      isolate, StoreToSuper(isolate, home_object, receiver, name, value));
 }
 
-
-RUNTIME_FUNCTION(Runtime_StoreToSuper_Sloppy) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Name, name, 2);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 3);
-
-  RETURN_RESULT_OR_FAILURE(
-      isolate, StoreToSuper(isolate, home_object, receiver, name, value,
-                            LanguageMode::kSloppy));
-}
-
-static MaybeHandle<Object> StoreKeyedToSuper(
-    Isolate* isolate, Handle<JSObject> home_object, Handle<Object> receiver,
-    Handle<Object> key, Handle<Object> value, LanguageMode language_mode) {
+static MaybeHandle<Object> StoreKeyedToSuper(Isolate* isolate,
+                                             Handle<JSObject> home_object,
+                                             Handle<Object> receiver,
+                                             Handle<Object> key,
+                                             Handle<Object> value) {
   uint32_t index = 0;
 
   if (key->ToArrayIndex(&index)) {
-    return StoreElementToSuper(isolate, home_object, receiver, index, value,
-                               language_mode);
+    return StoreElementToSuper(isolate, home_object, receiver, index, value);
   }
   Handle<Name> name;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, name, Object::ToName(isolate, key),
                              Object);
   // TODO(verwaest): Unify using LookupIterator.
   if (name->AsArrayIndex(&index)) {
-    return StoreElementToSuper(isolate, home_object, receiver, index, value,
-                               language_mode);
+    return StoreElementToSuper(isolate, home_object, receiver, index, value);
   }
-  return StoreToSuper(isolate, home_object, receiver, name, value,
-                      language_mode);
+  return StoreToSuper(isolate, home_object, receiver, name, value);
 }
 
-
-RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper_Strict) {
+RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
@@ -863,22 +842,7 @@ RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper_Strict) {
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 3);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, StoreKeyedToSuper(isolate, home_object, receiver, key, value,
-                                 LanguageMode::kStrict));
-}
-
-
-RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper_Sloppy) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 2);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 3);
-
-  RETURN_RESULT_OR_FAILURE(
-      isolate, StoreKeyedToSuper(isolate, home_object, receiver, key, value,
-                                 LanguageMode::kSloppy));
+      isolate, StoreKeyedToSuper(isolate, home_object, receiver, key, value));
 }
 
 }  // namespace internal

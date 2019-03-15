@@ -14,6 +14,7 @@
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/property-sequences.h"
 #include "src/utils.h"
+#include "src/zone/zone-list-inl.h"
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uniset.h"
@@ -990,8 +991,12 @@ Handle<FixedArray> RegExpParser::CreateCaptureNameMap() {
 
   for (int i = 0; i < named_captures_->length(); i++) {
     RegExpCapture* capture = named_captures_->at(i);
-    MaybeHandle<String> name = factory->NewStringFromTwoByte(capture->name());
-    array->set(i * 2, *name.ToHandleChecked());
+    Vector<const uc16> capture_name(capture->name()->data(),
+                                    capture->name()->size());
+    // CSA code in ConstructNewResultFromMatchInfo requires these strings to be
+    // internalized so they can be used as property names in the 'exec' results.
+    Handle<String> name = factory->InternalizeTwoByteString(capture_name);
+    array->set(i * 2, *name);
     array->set(i * 2 + 1, Smi::FromInt(capture->index()));
   }
 

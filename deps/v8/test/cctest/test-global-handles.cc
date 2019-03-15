@@ -28,9 +28,11 @@
 #include "src/api-inl.h"
 #include "src/global-handles.h"
 #include "src/heap/factory.h"
+#include "src/heap/heap-inl.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap/heap-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -69,6 +71,14 @@ void ConstructJSObject(v8::Isolate* isolate, v8::Local<v8::Context> context,
   CHECK(!flag_and_persistent->handle.IsEmpty());
 }
 
+void ConstructJSObject(v8::Isolate* isolate, v8::Global<v8::Object>* global) {
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Object> object(v8::Object::New(isolate));
+  CHECK(!object.IsEmpty());
+  *global = v8::Global<v8::Object>(isolate, object);
+  CHECK(!global->IsEmpty());
+}
+
 void ConstructJSApiObject(v8::Isolate* isolate, v8::Local<v8::Context> context,
                           FlagAndPersistent* flag_and_persistent) {
   v8::HandleScope handle_scope(isolate);
@@ -95,12 +105,7 @@ void WeakHandleTest(v8::Isolate* isolate, ConstructFunction construct_function,
 
   FlagAndPersistent fp;
   construct_function(isolate, context, &fp);
-  {
-    v8::HandleScope scope(isolate);
-    v8::Local<v8::Object> tmp = v8::Local<v8::Object>::New(isolate, fp.handle);
-    CHECK(i::Heap::InNewSpace(*v8::Utils::OpenHandle(*tmp)));
-  }
-
+  CHECK(heap::InYoungGeneration(isolate, fp.handle));
   fp.handle.SetWeak(&fp, &ResetHandleAndSetFlag,
                     v8::WeakCallbackType::kParameter);
   fp.flag = false;
@@ -340,7 +345,16 @@ TEST(WeakHandleToActiveUnmodifiedJSApiObjectSurvivesScavenge) {
   CcTest::InitializeVM();
   WeakHandleTest(
       CcTest::isolate(), &ConstructJSApiObject,
-      [](FlagAndPersistent* fp) { fp->handle.MarkActive(); },
+      [](FlagAndPersistent* fp) {
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
+#endif
+        fp->handle.MarkActive();
+#if __clang__
+#pragma clang diagnostic pop
+#endif
+      },
       []() { InvokeScavenge(); }, SurvivalMode::kSurvives);
 }
 
@@ -348,7 +362,16 @@ TEST(WeakHandleToActiveUnmodifiedJSApiObjectDiesOnMarkCompact) {
   CcTest::InitializeVM();
   WeakHandleTest(
       CcTest::isolate(), &ConstructJSApiObject,
-      [](FlagAndPersistent* fp) { fp->handle.MarkActive(); },
+      [](FlagAndPersistent* fp) {
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
+#endif
+        fp->handle.MarkActive();
+#if __clang__
+#pragma clang diagnostic pop
+#endif
+      },
       []() { InvokeMarkSweep(); }, SurvivalMode::kDies);
 }
 
@@ -357,7 +380,14 @@ TEST(WeakHandleToActiveUnmodifiedJSApiObjectSurvivesMarkCompactWhenInHandle) {
   WeakHandleTest(
       CcTest::isolate(), &ConstructJSApiObject,
       [](FlagAndPersistent* fp) {
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
+#endif
         fp->handle.MarkActive();
+#if __clang__
+#pragma clang diagnostic pop
+#endif
         v8::Local<v8::Object> handle =
             v8::Local<v8::Object>::New(CcTest::isolate(), fp->handle);
         USE(handle);
@@ -487,12 +517,7 @@ TEST(GCFromWeakCallbacks) {
     for (int inner_gc = 0; inner_gc < kNumberOfGCTypes; inner_gc++) {
       FlagAndPersistent fp;
       ConstructJSApiObject(isolate, context, &fp);
-      {
-        v8::HandleScope scope(isolate);
-        v8::Local<v8::Object> tmp =
-            v8::Local<v8::Object>::New(isolate, fp.handle);
-        CHECK(i::Heap::InNewSpace(*v8::Utils::OpenHandle(*tmp)));
-      }
+      CHECK(heap::InYoungGeneration(isolate, fp.handle));
       fp.flag = false;
       fp.handle.SetWeak(&fp, gc_forcing_callback[inner_gc],
                         v8::WeakCallbackType::kParameter);
@@ -530,6 +555,33 @@ TEST(SecondPassPhantomCallbacks) {
   InvokeMarkSweep();
   InvokeMarkSweep();
   CHECK(fp.flag);
+}
+
+TEST(MoveStrongGlobal) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Global<v8::Object>* global = new Global<v8::Object>();
+  ConstructJSObject(isolate, global);
+  InvokeMarkSweep();
+  v8::Global<v8::Object> global2(std::move(*global));
+  delete global;
+  InvokeMarkSweep();
+}
+
+TEST(MoveWeakGlobal) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Global<v8::Object>* global = new Global<v8::Object>();
+  ConstructJSObject(isolate, global);
+  InvokeMarkSweep();
+  global->SetWeak();
+  v8::Global<v8::Object> global2(std::move(*global));
+  delete global;
+  InvokeMarkSweep();
 }
 
 }  // namespace internal

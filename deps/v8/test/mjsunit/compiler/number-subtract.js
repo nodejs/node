@@ -27,6 +27,7 @@
     return baz(42) | 0;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo());
   assertEquals(0, foo());
   %OptimizeFunctionOnNextCall(foo);

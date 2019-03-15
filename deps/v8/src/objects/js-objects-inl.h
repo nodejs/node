@@ -8,17 +8,19 @@
 #include "src/objects/js-objects.h"
 
 #include "src/feedback-vector.h"
+#include "src/field-index-inl.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/keys.h"
 #include "src/lookup-inl.h"
 #include "src/objects/embedder-data-slot-inl.h"
 #include "src/objects/feedback-cell-inl.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/property-array-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi-inl.h"
-#include "src/prototype.h"
+#include "src/prototype-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -129,7 +131,7 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject object) {
 ACCESSORS(JSReceiver, raw_properties_or_hash, Object, kPropertiesOrHashOffset)
 
 FixedArrayBase JSObject::elements() const {
-  Object array = READ_FIELD(this, kElementsOffset);
+  Object array = READ_FIELD(*this, kElementsOffset);
   return FixedArrayBase::cast(array);
 }
 
@@ -267,16 +269,8 @@ int JSObject::GetHeaderSize(const Map map) {
 
 // static
 int JSObject::GetEmbedderFieldsStartOffset(const Map map) {
-  // Embedder fields are located after the header size rounded up to the
-  // kSystemPointerSize, whereas in-object properties are at the end of the
-  // object.
-  int header_size = GetHeaderSize(map);
-  if (kTaggedSize == kSystemPointerSize) {
-    DCHECK(IsAligned(header_size, kSystemPointerSize));
-    return header_size;
-  } else {
-    return RoundUp(header_size, kSystemPointerSize);
-  }
+  // Embedder fields are located after the object header.
+  return GetHeaderSize(map);
 }
 
 int JSObject::GetEmbedderFieldsStartOffset() {
@@ -287,12 +281,13 @@ int JSObject::GetEmbedderFieldsStartOffset() {
 int JSObject::GetEmbedderFieldCount(const Map map) {
   int instance_size = map->instance_size();
   if (instance_size == kVariableSizeSentinel) return 0;
-  // Embedder fields are located after the header size rounded up to the
-  // kSystemPointerSize, whereas in-object properties are at the end of the
-  // object. We don't have to round up the header size here because division by
-  // kEmbedderDataSlotSizeInTaggedSlots will swallow potential padding in case
-  // of (kTaggedSize != kSystemPointerSize) anyway.
-  return (((instance_size - GetHeaderSize(map)) >> kTaggedSizeLog2) -
+  // Embedder fields are located after the object header, whereas in-object
+  // properties are located at the end of the object. We don't have to round up
+  // the header size here because division by kEmbedderDataSlotSizeInTaggedSlots
+  // will swallow potential padding in case of (kTaggedSize !=
+  // kSystemPointerSize) anyway.
+  return (((instance_size - GetEmbedderFieldsStartOffset(map)) >>
+           kTaggedSizeLog2) -
           map->GetInObjectProperties()) /
          kEmbedderDataSlotSizeInTaggedSlots;
 }
@@ -330,7 +325,7 @@ bool JSObject::IsUnboxedDoubleField(FieldIndex index) {
 Object JSObject::RawFastPropertyAt(FieldIndex index) {
   DCHECK(!IsUnboxedDoubleField(index));
   if (index.is_inobject()) {
-    return READ_FIELD(this, index.offset());
+    return READ_FIELD(*this, index.offset());
   } else {
     return property_array()->get(index.outobject_array_index());
   }
@@ -338,12 +333,12 @@ Object JSObject::RawFastPropertyAt(FieldIndex index) {
 
 double JSObject::RawFastDoublePropertyAt(FieldIndex index) {
   DCHECK(IsUnboxedDoubleField(index));
-  return READ_DOUBLE_FIELD(this, index.offset());
+  return READ_DOUBLE_FIELD(*this, index.offset());
 }
 
 uint64_t JSObject::RawFastDoublePropertyAsBitsAt(FieldIndex index) {
   DCHECK(IsUnboxedDoubleField(index));
-  return READ_UINT64_FIELD(this, index.offset());
+  return READ_UINT64_FIELD(*this, index.offset());
 }
 
 void JSObject::RawFastPropertyAtPut(FieldIndex index, Object value) {
@@ -430,9 +425,10 @@ Object JSObject::InObjectPropertyAtPut(int index, Object value,
 
 void JSObject::InitializeBody(Map map, int start_offset,
                               Object pre_allocated_value, Object filler_value) {
-  DCHECK(!filler_value->IsHeapObject() || !Heap::InNewSpace(filler_value));
-  DCHECK(!pre_allocated_value->IsHeapObject() ||
-         !Heap::InNewSpace(pre_allocated_value));
+  DCHECK_IMPLIES(filler_value->IsHeapObject(),
+                 !ObjectInYoungGeneration(filler_value));
+  DCHECK_IMPLIES(pre_allocated_value->IsHeapObject(),
+                 !ObjectInYoungGeneration(pre_allocated_value));
   int size = map->instance_size();
   int offset = start_offset;
   if (filler_value != pre_allocated_value) {
@@ -451,7 +447,7 @@ void JSObject::InitializeBody(Map map, int start_offset,
 }
 
 Object JSBoundFunction::raw_bound_target_function() const {
-  return READ_FIELD(this, kBoundTargetFunctionOffset);
+  return READ_FIELD(*this, kBoundTargetFunctionOffset);
 }
 
 ACCESSORS(JSBoundFunction, bound_target_function, JSReceiver,
@@ -461,7 +457,7 @@ ACCESSORS(JSBoundFunction, bound_arguments, FixedArray, kBoundArgumentsOffset)
 
 ACCESSORS(JSFunction, raw_feedback_cell, FeedbackCell, kFeedbackCellOffset)
 
-ACCESSORS(JSGlobalObject, native_context, Context, kNativeContextOffset)
+ACCESSORS(JSGlobalObject, native_context, NativeContext, kNativeContextOffset)
 ACCESSORS(JSGlobalObject, global_proxy, JSObject, kGlobalProxyOffset)
 
 ACCESSORS(JSGlobalProxy, native_context, Object, kNativeContextOffset)
@@ -545,13 +541,13 @@ Code JSFunction::code() const {
 }
 
 void JSFunction::set_code(Code value) {
-  DCHECK(!Heap::InNewSpace(value));
+  DCHECK(!ObjectInYoungGeneration(value));
   RELAXED_WRITE_FIELD(*this, kCodeOffset, value);
   MarkingBarrier(*this, RawField(kCodeOffset), value);
 }
 
 void JSFunction::set_code_no_write_barrier(Code value) {
-  DCHECK(!Heap::InNewSpace(value));
+  DCHECK(!ObjectInYoungGeneration(value));
   RELAXED_WRITE_FIELD(*this, kCodeOffset, value);
 }
 
@@ -601,7 +597,9 @@ bool JSFunction::has_context() const {
 
 JSGlobalProxy JSFunction::global_proxy() { return context()->global_proxy(); }
 
-Context JSFunction::native_context() { return context()->native_context(); }
+NativeContext JSFunction::native_context() {
+  return context()->native_context();
+}
 
 void JSFunction::set_context(Object value) {
   DCHECK(value->IsUndefined() || value->IsContext());
@@ -711,11 +709,11 @@ ACCESSORS(JSDate, min, Object, kMinOffset)
 ACCESSORS(JSDate, sec, Object, kSecOffset)
 
 MessageTemplate JSMessageObject::type() const {
-  Object value = READ_FIELD(this, kTypeOffset);
+  Object value = READ_FIELD(*this, kTypeOffset);
   return MessageTemplateFromInt(Smi::ToInt(value));
 }
 void JSMessageObject::set_type(MessageTemplate value) {
-  WRITE_FIELD(this, kTypeOffset, Smi::FromInt(static_cast<int>(value)));
+  WRITE_FIELD(*this, kTypeOffset, Smi::FromInt(static_cast<int>(value)));
 }
 ACCESSORS(JSMessageObject, argument, Object, kArgumentsOffset)
 ACCESSORS(JSMessageObject, script, Script, kScriptOffset)
@@ -728,7 +726,7 @@ ElementsKind JSObject::GetElementsKind() const {
   ElementsKind kind = map()->elements_kind();
 #if VERIFY_HEAP && DEBUG
   FixedArrayBase fixed_array =
-      FixedArrayBase::unchecked_cast(READ_FIELD(this, kElementsOffset));
+      FixedArrayBase::unchecked_cast(READ_FIELD(*this, kElementsOffset));
 
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
@@ -781,6 +779,10 @@ bool JSObject::HasFastPackedElements() {
 
 bool JSObject::HasDictionaryElements() {
   return GetElementsKind() == DICTIONARY_ELEMENTS;
+}
+
+bool JSObject::HasPackedElements() {
+  return GetElementsKind() == PACKED_ELEMENTS;
 }
 
 bool JSObject::HasFastArgumentsElements() {
@@ -846,13 +848,13 @@ NumberDictionary JSObject::element_dictionary() {
 
 void JSReceiver::initialize_properties() {
   ReadOnlyRoots roots = GetReadOnlyRoots();
-  DCHECK(!Heap::InNewSpace(roots.empty_fixed_array()));
-  DCHECK(!Heap::InNewSpace(roots.empty_property_dictionary()));
+  DCHECK(!ObjectInYoungGeneration(roots.empty_fixed_array()));
+  DCHECK(!ObjectInYoungGeneration(roots.empty_property_dictionary()));
   if (map()->is_dictionary_map()) {
-    WRITE_FIELD(this, kPropertiesOrHashOffset,
+    WRITE_FIELD(*this, kPropertiesOrHashOffset,
                 roots.empty_property_dictionary());
   } else {
-    WRITE_FIELD(this, kPropertiesOrHashOffset, roots.empty_fixed_array());
+    WRITE_FIELD(*this, kPropertiesOrHashOffset, roots.empty_fixed_array());
   }
 }
 
@@ -974,6 +976,34 @@ ACCESSORS(JSAsyncFromSyncIterator, next, Object, kNextOffset)
 
 ACCESSORS(JSStringIterator, string, String, kStringOffset)
 SMI_ACCESSORS(JSStringIterator, index, kNextIndexOffset)
+
+static inline bool ShouldConvertToSlowElements(JSObject object,
+                                               uint32_t capacity,
+                                               uint32_t index,
+                                               uint32_t* new_capacity) {
+  STATIC_ASSERT(JSObject::kMaxUncheckedOldFastElementsLength <=
+                JSObject::kMaxUncheckedFastElementsLength);
+  if (index < capacity) {
+    *new_capacity = capacity;
+    return false;
+  }
+  if (index - capacity >= JSObject::kMaxGap) return true;
+  *new_capacity = JSObject::NewElementsCapacity(index + 1);
+  DCHECK_LT(index, *new_capacity);
+  // TODO(ulan): Check if it works with young large objects.
+  if (*new_capacity <= JSObject::kMaxUncheckedOldFastElementsLength ||
+      (*new_capacity <= JSObject::kMaxUncheckedFastElementsLength &&
+       ObjectInYoungGeneration(object))) {
+    return false;
+  }
+  // If the fast-case backing storage takes up much more memory than a
+  // dictionary backing storage would, the object should have slow elements.
+  int used_elements = object->GetFastElementsUsage();
+  uint32_t size_threshold = NumberDictionary::kPreferFastElementsSizeFactor *
+                            NumberDictionary::ComputeCapacity(used_elements) *
+                            NumberDictionary::kEntrySize;
+  return size_threshold <= *new_capacity;
+}
 
 }  // namespace internal
 }  // namespace v8

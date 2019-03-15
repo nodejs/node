@@ -272,12 +272,16 @@ class WasmGraphBuilder {
 
   Node* Invert(Node* node);
 
+  Node* GetGlobal(uint32_t index);
+  Node* SetGlobal(uint32_t index, Node* val);
+  Node* GetTable(uint32_t table_index, Node* index,
+                 wasm::WasmCodePosition position);
+  Node* SetTable(uint32_t table_index, Node* index, Node* val,
+                 wasm::WasmCodePosition position);
   //-----------------------------------------------------------------------
   // Operations that concern the linear memory.
   //-----------------------------------------------------------------------
   Node* CurrentMemoryPages();
-  Node* GetGlobal(uint32_t index);
-  Node* SetGlobal(uint32_t index, Node* val);
   Node* TraceMemoryOperation(bool is_store, MachineRepresentation, Node* index,
                              uint32_t offset, wasm::WasmCodePosition);
   Node* LoadMem(wasm::ValueType type, MachineType memtype, Node* index,
@@ -320,6 +324,10 @@ class WasmGraphBuilder {
 
   void GetBaseAndOffsetForImportedMutableAnyRefGlobal(
       const wasm::WasmGlobal& global, Node** base, Node** offset);
+
+  void GetTableBaseAndOffset(uint32_t table_index, Node* index,
+                             wasm::WasmCodePosition position, Node** base_node,
+                             Node** offset_node);
 
   // Utilities to manipulate sets of instance cache nodes.
   void InitInstanceCache(WasmInstanceCacheNodes* instance_cache);
@@ -370,16 +378,15 @@ class WasmGraphBuilder {
                    Node* size, wasm::WasmCodePosition position);
   Node* MemoryCopy(Node* dst, Node* src, Node* size,
                    wasm::WasmCodePosition position);
-  Node* MemoryDrop(uint32_t data_segment_index,
-                   wasm::WasmCodePosition position);
+  Node* DataDrop(uint32_t data_segment_index, wasm::WasmCodePosition position);
   Node* MemoryFill(Node* dst, Node* fill, Node* size,
                    wasm::WasmCodePosition position);
 
   Node* TableInit(uint32_t table_index, uint32_t elem_segment_index, Node* dst,
                   Node* src, Node* size, wasm::WasmCodePosition position);
-  Node* TableDrop(uint32_t elem_segment_index, wasm::WasmCodePosition position);
-  Node* TableCopy(uint32_t table_index, Node* dst, Node* src, Node* size,
-                  wasm::WasmCodePosition position);
+  Node* ElemDrop(uint32_t elem_segment_index, wasm::WasmCodePosition position);
+  Node* TableCopy(uint32_t table_src_index, uint32_t table_dst_index, Node* dst,
+                  Node* src, Node* size, wasm::WasmCodePosition position);
 
   bool has_simd() const { return has_simd_; }
 
@@ -538,7 +545,6 @@ class WasmGraphBuilder {
   Node* BuildAsmjsLoadMem(MachineType type, Node* index);
   Node* BuildAsmjsStoreMem(MachineType type, Node* index, Node* val);
 
-  uint32_t GetExceptionEncodedSize(const wasm::WasmException* exception) const;
   void BuildEncodeException32BitValue(Node* values_array, uint32_t* index,
                                       Node* value);
   Node* BuildDecodeException32BitValue(Node* values_array, uint32_t* index);

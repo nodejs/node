@@ -1,0 +1,9 @@
+test/mjsunit/mjsunit.js:{NUMBER}: CompileError: WebAssembly.compile(): BufferSource argument is empty
+              throw concatenateErrors(stack, e);
+              ^
+Error
+    at assertPromiseResult (test/mjsunit/mjsunit.js:{NUMBER}:{NUMBER})
+    at *%(basename)s:{NUMBER}:1
+
+CompileError: WebAssembly.compile(): BufferSource argument is empty
+    at test (*%(basename)s:{NUMBER}:23)

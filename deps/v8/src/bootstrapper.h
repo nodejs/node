@@ -46,7 +46,6 @@ class SourceCodeCache final {
 class Bootstrapper final {
  public:
   static void InitializeOncePerProcess();
-  static void TearDownExtensions();
 
   // Requires: Heap::SetUp has been called.
   void Initialize(bool create_heap_objects);
@@ -58,7 +57,8 @@ class Bootstrapper final {
       MaybeHandle<JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_object_template,
       v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
-      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
+      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
+      v8::MicrotaskQueue* microtask_queue);
 
   Handle<JSGlobalProxy> NewRemoteContext(
       MaybeHandle<JSGlobalProxy> maybe_global_proxy,
@@ -108,13 +108,6 @@ class Bootstrapper final {
   friend class NativesExternalStringResource;
 
   explicit Bootstrapper(Isolate* isolate);
-
-  static v8::Extension* free_buffer_extension_;
-  static v8::Extension* gc_extension_;
-  static v8::Extension* externalize_string_extension_;
-  static v8::Extension* statistics_extension_;
-  static v8::Extension* trigger_failure_extension_;
-  static v8::Extension* ignition_statistics_extension_;
 
   DISALLOW_COPY_AND_ASSIGN(Bootstrapper);
 };

@@ -16,6 +16,7 @@
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
+#include "src/heap/heap-inl.h"  // For MemoryChunk.
 #include "src/macro-assembler.h"
 #include "src/objects/heap-number.h"
 #include "src/register-configuration.h"
@@ -3844,6 +3845,19 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
     }
   }
   Jump(static_cast<intptr_t>(code.address()), rmode, cond, rs, rt, bd);
+}
+
+void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
+                                     unsigned higher_limit,
+                                     Label* on_in_range) {
+  if (lower_limit != 0) {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    Subu(scratch, value, Operand(lower_limit));
+    Branch(on_in_range, ls, scratch, Operand(higher_limit - lower_limit));
+  } else {
+    Branch(on_in_range, ls, value, Operand(higher_limit - lower_limit));
+  }
 }
 
 // Note: To call gcc-compiled C code on mips, you must call through t9.

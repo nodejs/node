@@ -17,6 +17,17 @@
 namespace v8 {
 namespace internal {
 
+void Object::VerifyApiCallResultType() {
+#if DEBUG
+  if (IsSmi()) return;
+  DCHECK(IsHeapObject());
+  if (!(IsString() || IsSymbol() || IsJSReceiver() || IsHeapNumber() ||
+        IsBigInt() || IsUndefined() || IsTrue() || IsFalse() || IsNull())) {
+    FATAL("API call returned invalid object");
+  }
+#endif  // DEBUG
+}
+
 CustomArgumentsBase::CustomArgumentsBase(Isolate* isolate)
     : Relocatable(isolate) {}
 

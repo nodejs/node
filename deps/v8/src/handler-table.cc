@@ -14,7 +14,9 @@ namespace v8 {
 namespace internal {
 
 HandlerTable::HandlerTable(Code code)
-    : HandlerTable(code->InstructionStart(), code->handler_table_offset()) {}
+    : HandlerTable(code->InstructionStart(), code->has_handler_table()
+                                                 ? code->handler_table_offset()
+                                                 : 0) {}
 
 HandlerTable::HandlerTable(BytecodeArray bytecode_array)
     : HandlerTable(bytecode_array->handler_table()) {}
@@ -29,6 +31,11 @@ HandlerTable::HandlerTable(ByteArray byte_array)
           reinterpret_cast<Address>(byte_array->GetDataStartAddress())) {
 }
 
+// TODO(jgruber,v8:8758): This constructor should eventually take the handler
+// table size in addition to the offset. That way the {HandlerTable} class
+// remains independent of how the offset/size is encoded in the various code
+// objects. This could even allow us to change the encoding to no longer expect
+// the "number of entries" in the beginning.
 HandlerTable::HandlerTable(Address instruction_start,
                            size_t handler_table_offset)
     : number_of_entries_(0),

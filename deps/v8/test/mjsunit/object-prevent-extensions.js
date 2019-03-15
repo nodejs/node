@@ -160,3 +160,90 @@ assertFalse(Object.isExtensible(obj2));
 assertFalse(Object.isSealed(obj));
 assertFalse(Object.isSealed(obj2));
 assertTrue(%HaveSameMap(obj, obj2));
+
+// Test packed element array built-in functions with preventExtensions.
+obj = new Array(undefined, null, 1, -1, 'a', Symbol("test"));
+assertTrue(%HasPackedElements(obj));
+Object.preventExtensions(obj);
+assertFalse(Object.isSealed(obj));
+assertFalse(Object.isFrozen(obj));
+assertFalse(Object.isExtensible(obj));
+assertTrue(Array.isArray(obj));
+
+// Verify that the length can't be written by builtins.
+assertThrows(function() { obj.push(1); }, TypeError);
+assertThrows(function() { obj.unshift(1); }, TypeError);
+assertThrows(function() { obj.splice(0, 0, 1); }, TypeError);
+
+// Verify search, filter, iterator
+obj = new Array(undefined, null, 1, -1, 'a', Symbol("test"));
+assertTrue(%HasPackedElements(obj));
+Object.preventExtensions(obj);
+assertFalse(Object.isSealed(obj));
+assertFalse(Object.isFrozen(obj));
+assertFalse(Object.isExtensible(obj));
+assertTrue(Array.isArray(obj));
+assertEquals(obj.lastIndexOf(1), 2);
+assertEquals(obj.indexOf('a'), 4);
+assertFalse(obj.includes(Symbol("test")));
+assertEquals(obj.find(x => x==0), undefined);
+assertEquals(obj.findIndex(x => x=='a'), 4);
+assertTrue(obj.some(x => typeof x == 'symbol'));
+assertFalse(obj.every(x => x == -1));
+var filteredArray = obj.filter(e => typeof e == "symbol");
+assertEquals(filteredArray.length, 1);
+assertEquals(obj.map(x => x), obj);
+var countPositiveNumber = 0;
+obj.forEach(function(item, index) {
+  if (item === 1) {
+    countPositiveNumber++;
+    assertEquals(index, 2);
+  }
+});
+assertEquals(countPositiveNumber, 1);
+assertEquals(obj.length, obj.concat([]).length);
+var iterator = obj.values();
+assertEquals(iterator.next().value, undefined);
+assertEquals(iterator.next().value, null);
+var iterator = obj.keys();
+assertEquals(iterator.next().value, 0);
+assertEquals(iterator.next().value, 1);
+var iterator = obj.entries();
+assertEquals(iterator.next().value, [0, undefined]);
+assertEquals(iterator.next().value, [1, null]);
+
+// Verify that the value can be written
+var length = obj.length;
+for (var i = 0; i < length-1; i++) {
+  obj[i] = 'new';
+  assertEquals(obj[i], 'new');
+}
+
+// Verify flat, map, flatMap, join, reduce, reduceRight for sealed packed array
+var arr = ['a', 'b', 'c'];
+assertTrue(%HasPackedElements(arr));
+Object.preventExtensions(arr);
+assertFalse(Object.isSealed(obj));
+assertFalse(Object.isFrozen(obj));
+assertFalse(Object.isExtensible(obj));
+assertTrue(Array.isArray(obj));
+assertEquals(arr.map(x => [x]), [['a'], ['b'], ['c']]);
+assertEquals(arr.flatMap(x => [x]), arr);
+assertEquals(arr.flat(), arr);
+assertEquals(arr.join('-'), "a-b-c");
+const reducer = (accumulator, currentValue) => accumulator + currentValue;
+assertEquals(arr.reduce(reducer), "abc");
+assertEquals(arr.reduceRight(reducer), "cba");
+assertEquals(arr.slice(0, 1), ['a']);
+
+// Verify change content of sealed packed array
+arr.sort();
+assertEquals(arr.join(''), "abc");
+arr.reverse();
+assertEquals(arr.join(''), "cba");
+arr.copyWithin(0, 1, 2);
+assertEquals(arr.join(''),"bba");
+arr.fill('d');
+assertEquals(arr.join(''), "ddd");
+arr.pop();
+assertEquals(arr.join(''), "dd");

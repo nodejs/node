@@ -33,6 +33,7 @@ function test(x) {
   assertEquals(0.5, v);
 }
 
+%PrepareFunctionForOptimization(test);
 for (var i = 0; i < 5; ++i) test(0.5);
 %OptimizeFunctionOnNextCall(test);
 test(0.5);

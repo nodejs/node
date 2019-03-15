@@ -4,7 +4,6 @@
 
 // Flags: --wasm-shared-engine --no-wasm-disable-structured-cloning --allow-natives-syntax --experimental-wasm-threads
 
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 

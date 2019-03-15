@@ -8,16 +8,17 @@ let cleanup_called = false;
 let cleanup = function(iter) {
   assertFalse(cleanup_called);
   let result = iter.next();
-  assertEquals(result.value, wc);
+  assertEquals(result.value, holdings);
   assertFalse(result.done);
   result = iter.next();
   assertTrue(result.done);
   cleanup_called = true;
 }
 
-let wf = new WeakFactory(cleanup);
+let fg = new FinalizationGroup(cleanup);
 let o = {};
-let wc = wf.makeCell(o);
+let holdings = {'h': 55};
+fg.register(o, holdings);
 
 gc();
 assertFalse(cleanup_called);

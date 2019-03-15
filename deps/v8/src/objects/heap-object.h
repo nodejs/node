@@ -6,6 +6,7 @@
 #define V8_OBJECTS_HEAP_OBJECT_H_
 
 #include "src/globals.h"
+#include "src/roots.h"
 
 #include "src/objects.h"
 
@@ -62,7 +63,7 @@ class HeapObject : public Object {
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
 
-  V8_INLINE bool IsExternal(Isolate* isolate) const;
+  bool IsExternal(Isolate* isolate) const;
 
 // Oddball checks are faster when they are raw pointer comparisons, so the
 // isolate/read-only roots overloads should be preferred where possible.
@@ -121,7 +122,7 @@ class HeapObject : public Object {
   // Given a heap object's map pointer, returns the heap size in bytes
   // Useful when the map pointer field is used for other purposes.
   // GC internal.
-  inline int SizeFromMap(Map map) const;
+  V8_EXPORT_PRIVATE int SizeFromMap(Map map) const;
 
   // Returns the field at offset in obj, as a read/write Object reference.
   // Does no checking, and is safe to use during GC, while maps are invalid.
@@ -164,7 +165,7 @@ class HeapObject : public Object {
   // Whether the object needs rehashing. That is the case if the object's
   // content depends on FLAG_hash_seed. When the object is deserialized into
   // a heap with a different hash seed, these objects need to adapt.
-  inline bool NeedsRehashing() const;
+  bool NeedsRehashing() const;
 
   // Rehashing support is not implemented for all objects that need rehashing.
   // With objects that need rehashing but cannot be rehashed, rehashing has to
@@ -172,7 +173,7 @@ class HeapObject : public Object {
   bool CanBeRehashed() const;
 
   // Rehash the object based on the layout inferred from its map.
-  void RehashBasedOnMap(Isolate* isolate);
+  void RehashBasedOnMap(ReadOnlyRoots roots);
 
   // Layout description.
 #define HEAP_OBJECT_FIELDS(V) \

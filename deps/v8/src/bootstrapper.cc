@@ -17,9 +17,11 @@
 #include "src/extensions/ignition-statistics-extension.h"
 #include "src/extensions/statistics-extension.h"
 #include "src/extensions/trigger-failure-extension.h"
-#include "src/heap/heap.h"
+#include "src/function-kind.h"
+#include "src/heap/heap-inl.h"
 #include "src/isolate-inl.h"
 #include "src/math-random.h"
+#include "src/microtask-queue.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/arguments.h"
 #include "src/objects/builtin-function-id.h"
@@ -120,42 +122,13 @@ static const char* GCFunctionName() {
   return flag_given ? FLAG_expose_gc_as : "gc";
 }
 
-v8::Extension* Bootstrapper::free_buffer_extension_ = nullptr;
-v8::Extension* Bootstrapper::gc_extension_ = nullptr;
-v8::Extension* Bootstrapper::externalize_string_extension_ = nullptr;
-v8::Extension* Bootstrapper::statistics_extension_ = nullptr;
-v8::Extension* Bootstrapper::trigger_failure_extension_ = nullptr;
-v8::Extension* Bootstrapper::ignition_statistics_extension_ = nullptr;
-
 void Bootstrapper::InitializeOncePerProcess() {
-  free_buffer_extension_ = new FreeBufferExtension;
-  v8::RegisterExtension(free_buffer_extension_);
-  gc_extension_ = new GCExtension(GCFunctionName());
-  v8::RegisterExtension(gc_extension_);
-  externalize_string_extension_ = new ExternalizeStringExtension;
-  v8::RegisterExtension(externalize_string_extension_);
-  statistics_extension_ = new StatisticsExtension;
-  v8::RegisterExtension(statistics_extension_);
-  trigger_failure_extension_ = new TriggerFailureExtension;
-  v8::RegisterExtension(trigger_failure_extension_);
-  ignition_statistics_extension_ = new IgnitionStatisticsExtension;
-  v8::RegisterExtension(ignition_statistics_extension_);
-}
-
-
-void Bootstrapper::TearDownExtensions() {
-  delete free_buffer_extension_;
-  free_buffer_extension_ = nullptr;
-  delete gc_extension_;
-  gc_extension_ = nullptr;
-  delete externalize_string_extension_;
-  externalize_string_extension_ = nullptr;
-  delete statistics_extension_;
-  statistics_extension_ = nullptr;
-  delete trigger_failure_extension_;
-  trigger_failure_extension_ = nullptr;
-  delete ignition_statistics_extension_;
-  ignition_statistics_extension_ = nullptr;
+  v8::RegisterExtension(v8::base::make_unique<FreeBufferExtension>());
+  v8::RegisterExtension(v8::base::make_unique<GCExtension>(GCFunctionName()));
+  v8::RegisterExtension(v8::base::make_unique<ExternalizeStringExtension>());
+  v8::RegisterExtension(v8::base::make_unique<StatisticsExtension>());
+  v8::RegisterExtension(v8::base::make_unique<TriggerFailureExtension>());
+  v8::RegisterExtension(v8::base::make_unique<IgnitionStatisticsExtension>());
 }
 
 void Bootstrapper::TearDown() {
@@ -167,7 +140,8 @@ class Genesis {
   Genesis(Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
           v8::Local<v8::ObjectTemplate> global_proxy_template,
           size_t context_snapshot_index,
-          v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
+          v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
+          v8::MicrotaskQueue* microtask_queue);
   Genesis(Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
           v8::Local<v8::ObjectTemplate> global_proxy_template);
   ~Genesis() = default;
@@ -330,12 +304,14 @@ Handle<Context> Bootstrapper::CreateEnvironment(
     MaybeHandle<JSGlobalProxy> maybe_global_proxy,
     v8::Local<v8::ObjectTemplate> global_proxy_template,
     v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
-    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
+    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
+    v8::MicrotaskQueue* microtask_queue) {
   HandleScope scope(isolate_);
   Handle<Context> env;
   {
     Genesis genesis(isolate_, maybe_global_proxy, global_proxy_template,
-                    context_snapshot_index, embedder_fields_deserializer);
+                    context_snapshot_index, embedder_fields_deserializer,
+                    microtask_queue);
     env = genesis.result();
     if (env.is_null() || !InstallExtensions(env, extensions)) {
       return Handle<Context>();
@@ -381,6 +357,8 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
   if (FLAG_track_detached_contexts) {
     isolate_->AddDetachedContext(env);
   }
+
+  env->native_context()->set_microtask_queue(nullptr);
 }
 
 namespace {
@@ -1761,6 +1739,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_array_for_each_iterator(*for_each_fun);
     SimpleInstallFunction(isolate_, proto, "filter", Builtins::kArrayFilter, 1,
                           false);
+    SimpleInstallFunction(isolate_, proto, "flat",
+                          Builtins::kArrayPrototypeFlat, 0, false);
+    SimpleInstallFunction(isolate_, proto, "flatMap",
+                          Builtins::kArrayPrototypeFlatMap, 1, false);
     SimpleInstallFunction(isolate_, proto, "map", Builtins::kArrayMap, 1,
                           false);
     SimpleInstallFunction(isolate_, proto, "every", Builtins::kArrayEvery, 1,
@@ -2182,6 +2164,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallFunctionWithBuiltinId(isolate_, prototype, "valueOf",
                                  Builtins::kSymbolPrototypeValueOf, 0, true,
                                  BuiltinFunctionId::kSymbolPrototypeValueOf);
+
+    // Install the Symbol.prototype.description getter.
+    SimpleInstallGetter(isolate_, prototype,
+                        factory->InternalizeUtf8String("description"),
+                        Builtins::kSymbolPrototypeDescriptionGetter, true);
 
     // Install the @@toPrimitive function.
     InstallFunctionAtSymbol(
@@ -2628,19 +2615,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                          writable, Representation::Tagged());
     initial_map->AppendDescriptor(isolate(), &d);
 
-    {  // Internal: RegExpInternalMatch
-      Handle<JSFunction> function =
-          SimpleCreateFunction(isolate_, isolate_->factory()->empty_string(),
-                               Builtins::kRegExpInternalMatch, 2, true);
-      native_context()->set(Context::REGEXP_INTERNAL_MATCH, *function);
-    }
-
-    // Create the last match info. One for external use, and one for internal
-    // use when we don't want to modify the externally visible match info.
+    // Create the last match info.
     Handle<RegExpMatchInfo> last_match_info = factory->NewRegExpMatchInfo();
     native_context()->set_regexp_last_match_info(*last_match_info);
-    Handle<RegExpMatchInfo> internal_match_info = factory->NewRegExpMatchInfo();
-    native_context()->set_regexp_internal_match_info(*internal_match_info);
 
     // Force the RegExp constructor to fast properties, so that we can use the
     // fast paths for various things like
@@ -2874,7 +2851,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(isolate(), intl, "getCanonicalLocales",
                           Builtins::kIntlGetCanonicalLocales, 1, false);
 
-    {
+    {  // -- D a t e T i m e F o r m a t
       Handle<JSFunction> date_time_format_constructor = InstallFunction(
           isolate_, intl, "DateTimeFormat", JS_INTL_DATE_TIME_FORMAT_TYPE,
           JSDateTimeFormat::kSize, 0, factory->the_hole_value(),
@@ -2907,7 +2884,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kDateTimeFormatPrototypeFormat, false);
     }
 
-    {
+    {  // -- N u m b e r F o r m a t
       Handle<JSFunction> number_format_constructor = InstallFunction(
           isolate_, intl, "NumberFormat", JS_INTL_NUMBER_FORMAT_TYPE,
           JSNumberFormat::kSize, 0, factory->the_hole_value(),
@@ -2939,7 +2916,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kNumberFormatPrototypeFormatNumber, false);
     }
 
-    {
+    {  // -- C o l l a t o r
       Handle<JSFunction> collator_constructor = InstallFunction(
           isolate_, intl, "Collator", JS_INTL_COLLATOR_TYPE, JSCollator::kSize,
           0, factory->the_hole_value(), Builtins::kCollatorConstructor);
@@ -2965,7 +2942,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kCollatorPrototypeCompare, false);
     }
 
-    {
+    {  // -- V 8 B r e a k I t e r a t o r
       Handle<JSFunction> v8_break_iterator_constructor = InstallFunction(
           isolate_, intl, "v8BreakIterator", JS_INTL_V8_BREAK_ITERATOR_TYPE,
           JSV8BreakIterator::kSize, 0, factory->the_hole_value(),
@@ -3006,7 +2983,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kV8BreakIteratorPrototypeBreakType, false);
     }
 
-    {
+    {  // -- P l u r a l R u l e s
       Handle<JSFunction> plural_rules_constructor = InstallFunction(
           isolate_, intl, "PluralRules", JS_INTL_PLURAL_RULES_TYPE,
           JSPluralRules::kSize, 0, factory->the_hole_value(),
@@ -3028,6 +3005,63 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
       SimpleInstallFunction(isolate_, prototype, "select",
                             Builtins::kPluralRulesPrototypeSelect, 1, false);
+    }
+
+    {  // -- R e l a t i v e T i m e F o r m a t e
+      Handle<JSFunction> relative_time_format_fun = InstallFunction(
+          isolate(), intl, "RelativeTimeFormat",
+          JS_INTL_RELATIVE_TIME_FORMAT_TYPE, JSRelativeTimeFormat::kSize, 0,
+          factory->the_hole_value(), Builtins::kRelativeTimeFormatConstructor);
+      relative_time_format_fun->shared()->set_length(0);
+      relative_time_format_fun->shared()->DontAdaptArguments();
+
+      SimpleInstallFunction(
+          isolate(), relative_time_format_fun, "supportedLocalesOf",
+          Builtins::kRelativeTimeFormatSupportedLocalesOf, 1, false);
+
+      // Setup %RelativeTimeFormatPrototype%.
+      Handle<JSObject> prototype(
+          JSObject::cast(relative_time_format_fun->instance_prototype()),
+          isolate());
+
+      InstallToStringTag(isolate(), prototype, "Intl.RelativeTimeFormat");
+
+      SimpleInstallFunction(
+          isolate(), prototype, "resolvedOptions",
+          Builtins::kRelativeTimeFormatPrototypeResolvedOptions, 0, false);
+      SimpleInstallFunction(isolate(), prototype, "format",
+                            Builtins::kRelativeTimeFormatPrototypeFormat, 2,
+                            false);
+      SimpleInstallFunction(isolate(), prototype, "formatToParts",
+                            Builtins::kRelativeTimeFormatPrototypeFormatToParts,
+                            2, false);
+    }
+
+    {  // -- L i s t F o r m a t
+      Handle<JSFunction> list_format_fun = InstallFunction(
+          isolate(), intl, "ListFormat", JS_INTL_LIST_FORMAT_TYPE,
+          JSListFormat::kSize, 0, factory->the_hole_value(),
+          Builtins::kListFormatConstructor);
+      list_format_fun->shared()->set_length(0);
+      list_format_fun->shared()->DontAdaptArguments();
+
+      SimpleInstallFunction(isolate(), list_format_fun, "supportedLocalesOf",
+                            Builtins::kListFormatSupportedLocalesOf, 1, false);
+
+      // Setup %ListFormatPrototype%.
+      Handle<JSObject> prototype(
+          JSObject::cast(list_format_fun->instance_prototype()), isolate());
+
+      InstallToStringTag(isolate(), prototype, "Intl.ListFormat");
+
+      SimpleInstallFunction(isolate(), prototype, "resolvedOptions",
+                            Builtins::kListFormatPrototypeResolvedOptions, 0,
+                            false);
+      SimpleInstallFunction(isolate(), prototype, "format",
+                            Builtins::kListFormatPrototypeFormat, 1, false);
+      SimpleInstallFunction(isolate(), prototype, "formatToParts",
+                            Builtins::kListFormatPrototypeFormatToParts, 1,
+                            false);
     }
   }
 #endif  // V8_INTL_SUPPORT
@@ -4211,6 +4245,11 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_sequence)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_await_optimization)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_hashbang)
 
+#ifdef V8_INTL_SUPPORT
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_bigint)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_datetime_style)
+#endif  // V8_INTL_SUPPORT
+
 #undef EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE
 
 void Genesis::InitializeGlobal_harmony_global() {
@@ -4235,30 +4274,6 @@ void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
   JSObject::AddProperty(isolate_, global, "Atomics",
                         isolate()->atomics_object(), DONT_ENUM);
   InstallToStringTag(isolate_, isolate()->atomics_object(), "Atomics");
-}
-
-void Genesis::InitializeGlobal_harmony_array_flat() {
-  if (!FLAG_harmony_array_flat) return;
-  Handle<JSFunction> array_constructor(native_context()->array_function(),
-                                       isolate());
-  Handle<JSObject> array_prototype(
-      JSObject::cast(array_constructor->instance_prototype()), isolate());
-  SimpleInstallFunction(isolate(), array_prototype, "flat",
-                        Builtins::kArrayPrototypeFlat, 0, false);
-  SimpleInstallFunction(isolate(), array_prototype, "flatMap",
-                        Builtins::kArrayPrototypeFlatMap, 1, false);
-}
-
-void Genesis::InitializeGlobal_harmony_symbol_description() {
-  if (!FLAG_harmony_symbol_description) return;
-
-  // Symbol.prototype.description
-  Handle<JSFunction> symbol_fun(native_context()->symbol_function(), isolate());
-  Handle<JSObject> symbol_prototype(
-      JSObject::cast(symbol_fun->instance_prototype()), isolate());
-  SimpleInstallGetter(isolate(), symbol_prototype,
-                      factory()->InternalizeUtf8String("description"),
-                      Builtins::kSymbolPrototypeDescriptionGetter, true);
 }
 
 void Genesis::InitializeGlobal_harmony_string_matchall() {
@@ -4329,55 +4344,43 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
   Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
 
   {
-    // Create %WeakFactoryPrototype%
-    Handle<String> weak_factory_name = factory->WeakFactory_string();
-    Handle<JSObject> weak_factory_prototype =
+    // Create %FinalizationGroupPrototype%
+    Handle<String> finalization_group_name =
+        factory->NewStringFromStaticChars("FinalizationGroup");
+    Handle<JSObject> finalization_group_prototype =
         factory->NewJSObject(isolate()->object_function(), TENURED);
 
-    // Create %WeakFactory%
-    Handle<JSFunction> weak_factory_fun =
-        CreateFunction(isolate(), weak_factory_name, JS_WEAK_FACTORY_TYPE,
-                       JSWeakFactory::kSize, 0, weak_factory_prototype,
-                       Builtins::kWeakFactoryConstructor);
+    // Create %FinalizationGroup%
+    Handle<JSFunction> finalization_group_fun = CreateFunction(
+        isolate(), finalization_group_name, JS_FINALIZATION_GROUP_TYPE,
+        JSFinalizationGroup::kSize, 0, finalization_group_prototype,
+        Builtins::kFinalizationGroupConstructor);
 
-    weak_factory_fun->shared()->DontAdaptArguments();
-    weak_factory_fun->shared()->set_length(1);
+    finalization_group_fun->shared()->DontAdaptArguments();
+    finalization_group_fun->shared()->set_length(1);
 
     // Install the "constructor" property on the prototype.
-    JSObject::AddProperty(isolate(), weak_factory_prototype,
-                          factory->constructor_string(), weak_factory_fun,
+    JSObject::AddProperty(isolate(), finalization_group_prototype,
+                          factory->constructor_string(), finalization_group_fun,
                           DONT_ENUM);
 
-    InstallToStringTag(isolate(), weak_factory_prototype, weak_factory_name);
+    InstallToStringTag(isolate(), finalization_group_prototype,
+                       finalization_group_name);
 
-    JSObject::AddProperty(isolate(), global, weak_factory_name,
-                          weak_factory_fun, DONT_ENUM);
+    JSObject::AddProperty(isolate(), global, finalization_group_name,
+                          finalization_group_fun, DONT_ENUM);
 
-    SimpleInstallFunction(isolate(), weak_factory_prototype, "makeCell",
-                          Builtins::kWeakFactoryMakeCell, 2, false);
+    SimpleInstallFunction(isolate(), finalization_group_prototype, "register",
+                          Builtins::kFinalizationGroupRegister, 3, false);
 
-    SimpleInstallFunction(isolate(), weak_factory_prototype, "cleanupSome",
-                          Builtins::kWeakFactoryCleanupSome, 0, false);
+    SimpleInstallFunction(isolate(), finalization_group_prototype, "unregister",
+                          Builtins::kFinalizationGroupUnregister, 1, false);
+
+    SimpleInstallFunction(isolate(), finalization_group_prototype,
+                          "cleanupSome",
+                          Builtins::kFinalizationGroupCleanupSome, 0, false);
   }
   {
-    // Create %WeakCellPrototype%
-    Handle<Map> weak_cell_map =
-        factory->NewMap(JS_WEAK_CELL_TYPE, JSWeakCell::kSize);
-    native_context()->set_js_weak_cell_map(*weak_cell_map);
-
-    Handle<JSObject> weak_cell_prototype =
-        factory->NewJSObject(isolate()->object_function(), TENURED);
-    Map::SetPrototype(isolate(), weak_cell_map, weak_cell_prototype);
-
-    InstallToStringTag(isolate(), weak_cell_prototype,
-                       factory->WeakCell_string());
-
-    SimpleInstallGetter(isolate(), weak_cell_prototype,
-                        factory->InternalizeUtf8String("holdings"),
-                        Builtins::kWeakCellHoldingsGetter, false);
-    SimpleInstallFunction(isolate(), weak_cell_prototype, "clear",
-                          Builtins::kWeakCellClear, 0, false);
-
     // Create %WeakRefPrototype%
     Handle<Map> weak_ref_map =
         factory->NewMap(JS_WEAK_REF_TYPE, JSWeakRef::kSize);
@@ -4387,7 +4390,6 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
     Handle<JSObject> weak_ref_prototype =
         factory->NewJSObject(isolate()->object_function(), TENURED);
     Map::SetPrototype(isolate(), weak_ref_map, weak_ref_prototype);
-    JSObject::ForceSetPrototype(weak_ref_prototype, weak_cell_prototype);
 
     InstallToStringTag(isolate(), weak_ref_prototype,
                        factory->WeakRef_string());
@@ -4414,7 +4416,7 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
   }
 
   {
-    // Create cleanup iterator for JSWeakFactory.
+    // Create cleanup iterator for JSFinalizationGroup.
     Handle<JSObject> iterator_prototype(
         native_context()->initial_iterator_prototype(), isolate());
 
@@ -4423,55 +4425,22 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
     JSObject::ForceSetPrototype(cleanup_iterator_prototype, iterator_prototype);
 
     InstallToStringTag(isolate(), cleanup_iterator_prototype,
-                       "JSWeakFactoryCleanupIterator");
+                       "JSFinalizationGroupCleanupIterator");
 
     SimpleInstallFunction(isolate(), cleanup_iterator_prototype, "next",
-                          Builtins::kWeakFactoryCleanupIteratorNext, 0, true);
+                          Builtins::kFinalizationGroupCleanupIteratorNext, 0,
+                          true);
     Handle<Map> cleanup_iterator_map =
-        factory->NewMap(JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE,
-                        JSWeakFactoryCleanupIterator::kSize);
+        factory->NewMap(JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE,
+                        JSFinalizationGroupCleanupIterator::kSize);
     Map::SetPrototype(isolate(), cleanup_iterator_map,
                       cleanup_iterator_prototype);
-    native_context()->set_js_weak_factory_cleanup_iterator_map(
+    native_context()->set_js_finalization_group_cleanup_iterator_map(
         *cleanup_iterator_map);
   }
 }
 
 #ifdef V8_INTL_SUPPORT
-void Genesis::InitializeGlobal_harmony_intl_list_format() {
-  if (!FLAG_harmony_intl_list_format) return;
-  Handle<JSObject> intl = Handle<JSObject>::cast(
-      JSReceiver::GetProperty(
-          isolate(),
-          Handle<JSReceiver>(native_context()->global_object(), isolate()),
-          factory()->InternalizeUtf8String("Intl"))
-          .ToHandleChecked());
-
-  Handle<JSFunction> list_format_fun =
-      InstallFunction(isolate(), intl, "ListFormat", JS_INTL_LIST_FORMAT_TYPE,
-                      JSListFormat::kSize, 0, factory()->the_hole_value(),
-                      Builtins::kListFormatConstructor);
-  list_format_fun->shared()->set_length(0);
-  list_format_fun->shared()->DontAdaptArguments();
-
-  SimpleInstallFunction(isolate(), list_format_fun, "supportedLocalesOf",
-                        Builtins::kListFormatSupportedLocalesOf, 1, false);
-
-  // Setup %ListFormatPrototype%.
-  Handle<JSObject> prototype(
-      JSObject::cast(list_format_fun->instance_prototype()), isolate());
-
-  InstallToStringTag(isolate(), prototype, "Intl.ListFormat");
-
-  SimpleInstallFunction(isolate(), prototype, "resolvedOptions",
-                        Builtins::kListFormatPrototypeResolvedOptions, 0,
-                        false);
-  SimpleInstallFunction(isolate(), prototype, "format",
-                        Builtins::kListFormatPrototypeFormat, 1, false);
-  SimpleInstallFunction(isolate(), prototype, "formatToParts",
-                        Builtins::kListFormatPrototypeFormatToParts, 1, false);
-}
-
 void Genesis::InitializeGlobal_harmony_locale() {
   if (!FLAG_harmony_locale) return;
 
@@ -4534,43 +4503,6 @@ void Genesis::InitializeGlobal_harmony_locale() {
   SimpleInstallGetter(isolate(), prototype,
                       factory()->InternalizeUtf8String("numberingSystem"),
                       Builtins::kLocalePrototypeNumberingSystem, true);
-}
-
-void Genesis::InitializeGlobal_harmony_intl_relative_time_format() {
-  if (!FLAG_harmony_intl_relative_time_format) return;
-  Handle<JSObject> intl = Handle<JSObject>::cast(
-      JSReceiver::GetProperty(
-          isolate(),
-          Handle<JSReceiver>(native_context()->global_object(), isolate()),
-          factory()->InternalizeUtf8String("Intl"))
-          .ToHandleChecked());
-
-  Handle<JSFunction> relative_time_format_fun = InstallFunction(
-      isolate(), intl, "RelativeTimeFormat", JS_INTL_RELATIVE_TIME_FORMAT_TYPE,
-      JSRelativeTimeFormat::kSize, 0, factory()->the_hole_value(),
-      Builtins::kRelativeTimeFormatConstructor);
-  relative_time_format_fun->shared()->set_length(0);
-  relative_time_format_fun->shared()->DontAdaptArguments();
-
-  SimpleInstallFunction(
-      isolate(), relative_time_format_fun, "supportedLocalesOf",
-      Builtins::kRelativeTimeFormatSupportedLocalesOf, 1, false);
-
-  // Setup %RelativeTimeFormatPrototype%.
-  Handle<JSObject> prototype(
-      JSObject::cast(relative_time_format_fun->instance_prototype()),
-      isolate());
-
-  InstallToStringTag(isolate(), prototype, "Intl.RelativeTimeFormat");
-
-  SimpleInstallFunction(isolate(), prototype, "resolvedOptions",
-                        Builtins::kRelativeTimeFormatPrototypeResolvedOptions,
-                        0, false);
-  SimpleInstallFunction(isolate(), prototype, "format",
-                        Builtins::kRelativeTimeFormatPrototypeFormat, 2, false);
-  SimpleInstallFunction(isolate(), prototype, "formatToParts",
-                        Builtins::kRelativeTimeFormatPrototypeFormatToParts, 2,
-                        false);
 }
 
 void Genesis::InitializeGlobal_harmony_intl_segmenter() {
@@ -4777,8 +4709,7 @@ bool Genesis::InstallNatives() {
 
   // Set up the extras utils object as a shared container between native
   // scripts and extras. (Extras consume things added there by native scripts.)
-  Handle<JSObject> extras_utils =
-      factory()->NewJSObject(isolate()->object_function());
+  Handle<JSObject> extras_utils = factory()->NewJSObjectWithNullProto();
   native_context()->set_extras_utils_object(*extras_utils);
 
   InstallInternalPackedArray(extras_utils, "InternalPackedArray");
@@ -5156,8 +5087,7 @@ bool Genesis::InstallNatives() {
 bool Genesis::InstallExtraNatives() {
   HandleScope scope(isolate());
 
-  Handle<JSObject> extras_binding =
-      factory()->NewJSObject(isolate()->object_function());
+  Handle<JSObject> extras_binding = factory()->NewJSObjectWithNullProto();
 
   // binding.isTraceCategoryEnabled(category)
   SimpleInstallFunction(isolate(), extras_binding, "isTraceCategoryEnabled",
@@ -5221,8 +5151,7 @@ bool Bootstrapper::InstallExtensions(Handle<Context> native_context,
   // Don't install extensions into the snapshot.
   if (isolate_->serializer_enabled()) return true;
   BootstrapperActive active(this);
-  SaveContext saved_context(isolate_);
-  isolate_->set_context(*native_context);
+  SaveAndSwitchContext saved_context(isolate_, *native_context);
   return Genesis::InstallExtensions(isolate_, native_context, extensions) &&
          Genesis::InstallSpecialObjects(isolate_, native_context);
 }
@@ -5579,7 +5508,8 @@ Genesis::Genesis(
     Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
     v8::Local<v8::ObjectTemplate> global_proxy_template,
     size_t context_snapshot_index,
-    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer)
+    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
+    v8::MicrotaskQueue* microtask_queue)
     : isolate_(isolate), active_(isolate->bootstrapper()) {
   RuntimeCallTimerScope rcs_timer(isolate, RuntimeCallCounterId::kGenesis);
   result_ = Handle<Context>::null();
@@ -5675,7 +5605,9 @@ Genesis::Genesis(
     }
   }
 
-  native_context()->set_microtask_queue(isolate->default_microtask_queue());
+  native_context()->set_microtask_queue(
+      microtask_queue ? static_cast<MicrotaskQueue*>(microtask_queue)
+                      : isolate->default_microtask_queue());
 
   // Install experimental natives. Do not include them into the
   // snapshot as we should be able to turn them off at runtime. Re-installing

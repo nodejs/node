@@ -20,10 +20,10 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(JSDateTimeFormat, JSObject)
 
-ACCESSORS(JSDateTimeFormat, icu_locale, Managed<icu::Locale>, kICULocaleOffset);
+ACCESSORS(JSDateTimeFormat, icu_locale, Managed<icu::Locale>, kICULocaleOffset)
 ACCESSORS(JSDateTimeFormat, icu_simple_date_format,
           Managed<icu::SimpleDateFormat>, kICUSimpleDateFormatOffset)
-ACCESSORS(JSDateTimeFormat, bound_format, Object, kBoundFormatOffset);
+ACCESSORS(JSDateTimeFormat, bound_format, Object, kBoundFormatOffset)
 SMI_ACCESSORS(JSDateTimeFormat, flags, kFlagsOffset)
 
 inline void JSDateTimeFormat::set_hour_cycle(Intl::HourCycle hour_cycle) {
@@ -36,7 +36,29 @@ inline Intl::HourCycle JSDateTimeFormat::hour_cycle() const {
   return HourCycleBits::decode(flags());
 }
 
-CAST_ACCESSOR(JSDateTimeFormat);
+inline void JSDateTimeFormat::set_date_style(
+    JSDateTimeFormat::DateTimeStyle date_style) {
+  int hints = flags();
+  hints = DateStyleBits::update(hints, date_style);
+  set_flags(hints);
+}
+
+inline JSDateTimeFormat::DateTimeStyle JSDateTimeFormat::date_style() const {
+  return DateStyleBits::decode(flags());
+}
+
+inline void JSDateTimeFormat::set_time_style(
+    JSDateTimeFormat::DateTimeStyle time_style) {
+  int hints = flags();
+  hints = TimeStyleBits::update(hints, time_style);
+  set_flags(hints);
+}
+
+inline JSDateTimeFormat::DateTimeStyle JSDateTimeFormat::time_style() const {
+  return TimeStyleBits::decode(flags());
+}
+
+CAST_ACCESSOR(JSDateTimeFormat)
 
 }  // namespace internal
 }  // namespace v8

@@ -316,6 +316,10 @@ class Scanner {
     return LiteralContainsEscapes(current());
   }
 
+  bool next_literal_contains_escapes() const {
+    return LiteralContainsEscapes(next());
+  }
+
   const AstRawString* CurrentSymbol(AstValueFactory* ast_value_factory) const;
 
   const AstRawString* NextSymbol(AstValueFactory* ast_value_factory) const;
@@ -332,8 +336,8 @@ class Scanner {
   }
 
   template <size_t N>
-  bool NextLiteralEquals(const char (&s)[N]) {
-    DCHECK_EQ(Token::STRING, peek());
+  bool NextLiteralExactlyEquals(const char (&s)[N]) {
+    DCHECK(next().CanAccessLiteral());
     // The length of the token is used to make sure the literal equals without
     // taking escape sequences (e.g., "use \x73trict") or line continuations
     // (e.g., "use \(newline) strict") into account.
@@ -343,6 +347,16 @@ class Scanner {
     Vector<const uint8_t> next = next_literal_one_byte_string();
     const char* chars = reinterpret_cast<const char*>(next.start());
     return next.length() == N - 1 && strncmp(s, chars, N - 1) == 0;
+  }
+
+  template <size_t N>
+  bool CurrentLiteralEquals(const char (&s)[N]) {
+    DCHECK(current().CanAccessLiteral());
+    if (!is_literal_one_byte()) return false;
+
+    Vector<const uint8_t> current = literal_one_byte_string();
+    const char* chars = reinterpret_cast<const char*>(current.start());
+    return current.length() == N - 1 && strncmp(s, chars, N - 1) == 0;
   }
 
   // Returns the location of the last seen octal literal.
@@ -517,9 +531,8 @@ class Scanner {
     bool CanAccessLiteral() const {
       return token == Token::PRIVATE_NAME || token == Token::ILLEGAL ||
              token == Token::UNINITIALIZED || token == Token::REGEXP_LITERAL ||
-             token == Token::ESCAPED_KEYWORD ||
              IsInRange(token, Token::NUMBER, Token::STRING) ||
-             (Token::IsAnyIdentifier(token) && !Token::IsKeyword(token)) ||
+             Token::IsAnyIdentifier(token) || Token::IsKeyword(token) ||
              IsInRange(token, Token::TEMPLATE_SPAN, Token::TEMPLATE_TAIL);
     }
     bool CanAccessRawLiteral() const {
@@ -530,13 +543,21 @@ class Scanner {
   };
 
   enum NumberKind {
+    IMPLICIT_OCTAL,
     BINARY,
     OCTAL,
-    IMPLICIT_OCTAL,
     HEX,
     DECIMAL,
     DECIMAL_WITH_LEADING_ZERO
   };
+
+  inline bool IsValidBigIntKind(NumberKind kind) {
+    return IsInRange(kind, BINARY, DECIMAL);
+  }
+
+  inline bool IsDecimalNumberKind(NumberKind kind) {
+    return IsInRange(kind, DECIMAL, DECIMAL_WITH_LEADING_ZERO);
+  }
 
   static const int kCharacterLookaheadBufferSize = 1;
   static const int kMaxAscii = 127;

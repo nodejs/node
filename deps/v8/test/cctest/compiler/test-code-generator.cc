@@ -29,8 +29,10 @@ namespace {
 int GetSlotSizeInBytes(MachineRepresentation rep) {
   switch (rep) {
     case MachineRepresentation::kTagged:
+      // Spill slots for tagged values are always uncompressed.
+      return kSystemPointerSize;
     case MachineRepresentation::kFloat32:
-      return kPointerSize;
+      return kSystemPointerSize;
     case MachineRepresentation::kFloat64:
       return kDoubleSize;
     case MachineRepresentation::kSimd128:
@@ -382,7 +384,7 @@ class TestEnvironment : public HandleAndZoneScope {
 
   TestEnvironment()
       : blocks_(1, NewBlock(main_zone(), RpoNumber::FromInt(0)), main_zone()),
-        code_(main_isolate(), main_zone(), &blocks_),
+        instructions_(main_isolate(), main_zone(), &blocks_),
         rng_(CcTest::random_number_generator()),
         supported_reps_({MachineRepresentation::kTagged,
                          MachineRepresentation::kFloat32,
@@ -521,7 +523,7 @@ class TestEnvironment : public HandleAndZoneScope {
         // Keep a map of (MachineRepresentation . std::vector<int>) with
         // allocated slots to pick from for each representation.
         int slot = slot_parameter_n;
-        slot_parameter_n -= (GetSlotSizeInBytes(rep) / kPointerSize);
+        slot_parameter_n -= (GetSlotSizeInBytes(rep) / kSystemPointerSize);
         AddStackSlot(&test_signature, rep, slot);
         entry->second--;
       }
@@ -535,7 +537,7 @@ class TestEnvironment : public HandleAndZoneScope {
     for (int i = 0; i < kSmiConstantCount; i++) {
       intptr_t smi_value = static_cast<intptr_t>(
           Smi::FromInt(rng_->NextInt(Smi::kMaxValue)).ptr());
-      Constant constant = kPointerSize == 8
+      Constant constant = kSystemPointerSize == 8
                               ? Constant(static_cast<int64_t>(smi_value))
                               : Constant(static_cast<int32_t>(smi_value));
       AddConstant(MachineRepresentation::kTagged, AllocateConstant(constant));
@@ -573,8 +575,8 @@ class TestEnvironment : public HandleAndZoneScope {
   }
 
   int AllocateConstant(Constant constant) {
-    int virtual_register = code_.NextVirtualRegister();
-    code_.AddConstant(virtual_register, constant);
+    int virtual_register = instructions_.NextVirtualRegister();
+    instructions_.AddConstant(virtual_register, constant);
     return virtual_register;
   }
 
@@ -721,8 +723,8 @@ class TestEnvironment : public HandleAndZoneScope {
           OperandToStatePosition(AllocatedOperand::cast(move->destination()));
       InstructionOperand from = move->source();
       if (from.IsConstant()) {
-        Constant constant =
-            code_.GetConstant(ConstantOperand::cast(from).virtual_register());
+        Constant constant = instructions_.GetConstant(
+            ConstantOperand::cast(from).virtual_register());
         Handle<Object> constant_value;
         switch (constant.type()) {
           case Constant::kInt32:
@@ -924,13 +926,13 @@ class TestEnvironment : public HandleAndZoneScope {
   }
 
   v8::base::RandomNumberGenerator* rng() const { return rng_; }
-  InstructionSequence* code() { return &code_; }
+  InstructionSequence* instructions() { return &instructions_; }
   CallDescriptor* test_descriptor() { return test_descriptor_; }
   int stack_slot_count() const { return stack_slot_count_; }
 
  private:
   ZoneVector<InstructionBlock*> blocks_;
-  InstructionSequence code_;
+  InstructionSequence instructions_;
   v8::base::RandomNumberGenerator* rng_;
   // The layout describes the type of each element in the environment, in order.
   std::vector<AllocatedOperand> layout_;
@@ -995,9 +997,10 @@ class CodeGeneratorTester {
     }
 
     generator_ = new CodeGenerator(
-        environment->main_zone(), &frame_, &linkage_, environment->code(),
-        &info_, environment->main_isolate(), base::Optional<OsrHelper>(),
-        kNoSourcePosition, nullptr, PoisoningMitigationLevel::kDontPoison,
+        environment->main_zone(), &frame_, &linkage_,
+        environment->instructions(), &info_, environment->main_isolate(),
+        base::Optional<OsrHelper>(), kNoSourcePosition, nullptr,
+        PoisoningMitigationLevel::kDontPoison,
         AssemblerOptions::Default(environment->main_isolate()),
         Builtins::kNoBuiltinId);
 
@@ -1109,6 +1112,8 @@ class CodeGeneratorTester {
     generator_->FinishCode();
     generator_->safepoints()->Emit(generator_->tasm(),
                                    frame_.GetTotalFrameSlotCount());
+    generator_->MaybeEmitOutOfLineConstantPool();
+
     return generator_->FinalizeCode().ToHandleChecked();
   }
 
@@ -1121,7 +1126,7 @@ class CodeGeneratorTester {
       generator_->AssembleMove(&move.second, &move.first);
     }
 
-    InstructionSequence* sequence = generator_->code();
+    InstructionSequence* sequence = generator_->instructions();
 
     sequence->StartBlock(RpoNumber::FromInt(0));
     // The environment expects this code to tail-call to it's first parameter

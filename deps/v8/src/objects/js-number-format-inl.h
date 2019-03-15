@@ -50,7 +50,7 @@ inline JSNumberFormat::CurrencyDisplay JSNumberFormat::currency_display()
   return CurrencyDisplayBits::decode(flags());
 }
 
-CAST_ACCESSOR(JSNumberFormat);
+CAST_ACCESSOR(JSNumberFormat)
 
 }  // namespace internal
 }  // namespace v8

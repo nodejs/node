@@ -10,6 +10,7 @@
 #include "src/objects/js-regexp.h"
 #include "src/regexp/regexp-ast.h"
 #include "src/regexp/regexp-macro-assembler.h"
+#include "src/zone/zone-splay-tree.h"
 
 namespace v8 {
 namespace internal {
@@ -53,14 +54,8 @@ inline bool NeedsUnicodeCaseEquivalents(JSRegExp::Flags flags) {
 
 class RegExpImpl {
  public:
-  // Whether V8 is compiled with native regexp support or not.
-  static bool UsesNativeRegExp() {
-#ifdef V8_INTERPRETED_REGEXP
-    return false;
-#else
-    return true;
-#endif
-  }
+  // Whether the irregexp engine generates native code or interpreter bytecode.
+  static bool UsesNativeRegExp() { return !FLAG_regexp_interpret_all; }
 
   // Returns a string representation of a regular expression.
   // Implements RegExp.prototype.toString, see ECMA-262 section 15.10.6.4.

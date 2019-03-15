@@ -9,6 +9,7 @@
 #include "src/base/platform/platform.h"
 #include "src/counters.h"
 #include "src/snapshot/partial-deserializer.h"
+#include "src/snapshot/read-only-deserializer.h"
 #include "src/snapshot/startup-deserializer.h"
 #include "src/version.h"
 
@@ -44,10 +45,12 @@ bool Snapshot::Initialize(Isolate* isolate) {
   SnapshotData startup_snapshot_data(startup_data);
   Vector<const byte> read_only_data = ExtractReadOnlyData(blob);
   SnapshotData read_only_snapshot_data(read_only_data);
-  StartupDeserializer deserializer(&startup_snapshot_data,
-                                   &read_only_snapshot_data);
-  deserializer.SetRehashability(ExtractRehashability(blob));
-  bool success = isolate->Init(&deserializer);
+  StartupDeserializer startup_deserializer(&startup_snapshot_data);
+  ReadOnlyDeserializer read_only_deserializer(&read_only_snapshot_data);
+  startup_deserializer.SetRehashability(ExtractRehashability(blob));
+  read_only_deserializer.SetRehashability(ExtractRehashability(blob));
+  bool success =
+      isolate->InitWithSnapshot(&read_only_deserializer, &startup_deserializer);
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     int bytes = startup_data.length();

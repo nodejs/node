@@ -963,6 +963,12 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kTransitionElementsKind:
       LowerTransitionElementsKind(node);
       break;
+    case IrOpcode::kLoadMessage:
+      result = LowerLoadMessage(node);
+      break;
+    case IrOpcode::kStoreMessage:
+      LowerStoreMessage(node);
+      break;
     case IrOpcode::kLoadFieldByIndex:
       result = LowerLoadFieldByIndex(node);
       break;
@@ -971,6 +977,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kLoadDataViewElement:
       result = LowerLoadDataViewElement(node);
+      break;
+    case IrOpcode::kLoadStackArgument:
+      result = LowerLoadStackArgument(node);
       break;
     case IrOpcode::kStoreTypedElement:
       LowerStoreTypedElement(node);
@@ -1538,7 +1547,7 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
 }
 
 Node* EffectControlLinearizer::LowerCompareMaps(Node* node) {
-  ZoneHandleSet<Map> const& maps = CompareMapsParametersOf(node->op()).maps();
+  ZoneHandleSet<Map> const& maps = CompareMapsParametersOf(node->op());
   size_t const map_count = maps.size();
   Node* value = node->InputAt(0);
 
@@ -2055,11 +2064,30 @@ Node* EffectControlLinearizer::LowerCheckedUint32Bounds(Node* node,
                                                         Node* frame_state) {
   Node* index = node->InputAt(0);
   Node* limit = node->InputAt(1);
-  const CheckParameters& params = CheckParametersOf(node->op());
+  const CheckBoundsParameters& params = CheckBoundsParametersOf(node->op());
 
   Node* check = __ Uint32LessThan(index, limit);
-  __ DeoptimizeIfNot(DeoptimizeReason::kOutOfBounds, params.feedback(), check,
-                     frame_state, IsSafetyCheck::kCriticalSafetyCheck);
+  switch (params.mode()) {
+    case CheckBoundsParameters::kDeoptOnOutOfBounds:
+      __ DeoptimizeIfNot(DeoptimizeReason::kOutOfBounds,
+                         params.check_parameters().feedback(), check,
+                         frame_state, IsSafetyCheck::kCriticalSafetyCheck);
+      break;
+    case CheckBoundsParameters::kAbortOnOutOfBounds: {
+      auto if_abort = __ MakeDeferredLabel();
+      auto done = __ MakeLabel();
+
+      __ Branch(check, &done, &if_abort);
+
+      __ Bind(&if_abort);
+      __ Unreachable();
+      __ Goto(&done);
+
+      __ Bind(&done);
+      break;
+    }
+  }
+
   return index;
 }
 
@@ -4103,6 +4131,20 @@ void EffectControlLinearizer::LowerTransitionElementsKind(Node* node) {
   __ Bind(&done);
 }
 
+Node* EffectControlLinearizer::LowerLoadMessage(Node* node) {
+  Node* offset = node->InputAt(0);
+  Node* object_pattern =
+      __ LoadField(AccessBuilder::ForExternalIntPtr(), offset);
+  return __ BitcastWordToTagged(object_pattern);
+}
+
+void EffectControlLinearizer::LowerStoreMessage(Node* node) {
+  Node* offset = node->InputAt(0);
+  Node* object = node->InputAt(1);
+  Node* object_pattern = __ BitcastTaggedToWord(object);
+  __ StoreField(AccessBuilder::ForExternalIntPtr(), offset, object_pattern);
+}
+
 Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
   Node* object = node->InputAt(0);
   Node* index = node->InputAt(1);
@@ -4300,6 +4342,16 @@ Node* EffectControlLinearizer::LowerLoadDataViewElement(Node* node) {
   // We're done, return {result}.
   __ Bind(&done);
   return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerLoadStackArgument(Node* node) {
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+
+  Node* argument =
+      __ LoadElement(AccessBuilder::ForStackArgument(), base, index);
+
+  return __ BitcastWordToTagged(argument);
 }
 
 void EffectControlLinearizer::LowerStoreDataViewElement(Node* node) {
@@ -4559,7 +4611,7 @@ void EffectControlLinearizer::LowerTransitionAndStoreElement(Node* node) {
       Node* float_value =
           __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
       __ StoreElement(AccessBuilder::ForFixedDoubleArrayElement(), elements,
-                      index, float_value);
+                      index, __ Float64SilenceNaN(float_value));
       __ Goto(&done);
     }
   }
@@ -4625,7 +4677,7 @@ void EffectControlLinearizer::LowerTransitionAndStoreNumberElement(Node* node) {
 
   Node* elements = __ LoadField(AccessBuilder::ForJSObjectElements(), array);
   __ StoreElement(AccessBuilder::ForFixedDoubleArrayElement(), elements, index,
-                  value);
+                  __ Float64SilenceNaN(value));
 }
 
 void EffectControlLinearizer::LowerTransitionAndStoreNonNumberElement(

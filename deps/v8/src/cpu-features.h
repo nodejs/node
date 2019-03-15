@@ -104,8 +104,8 @@ class CpuFeatures : public AllStatic {
   static void PrintFeatures();
 
  private:
+  friend void V8_EXPORT_PRIVATE FlushInstructionCache(void*, size_t);
   friend class ExternalReference;
-  friend class AssemblerBase;
   // Flush instruction cache.
   static void FlushICache(void* start, size_t size);
 

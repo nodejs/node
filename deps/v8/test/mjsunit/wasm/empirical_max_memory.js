@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm
 
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 let k1MiB = 1 * 1024 * 1024;

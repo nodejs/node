@@ -515,3 +515,13 @@ test_switches(true);
   }
   assertEquals(1, i);
 })();
+
+assertThrows(function() {
+  function f(){}
+  // The f()-- unconditionally throws a ReferenceError.
+  switch(f()--) {
+    // This label is dead.
+    default:
+      break;
+  }
+}, ReferenceError);

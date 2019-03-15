@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm --experimental-wasm-eh
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 // Instantiate a throwing module.

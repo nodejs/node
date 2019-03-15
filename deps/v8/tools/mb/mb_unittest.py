@@ -284,7 +284,7 @@ class UnitTest(unittest.TestCase):
     self.assertEqual(['all', 'foo_unittests'], out['compile_targets'])
 
   def test_analyze_handles_way_too_many_results(self):
-    too_many_files = ', '.join(['"//foo:foo%d"' % i for i in xrange(4 * 1024)])
+    too_many_files = ', '.join(['"//foo:foo%d"' % i for i in range(4 * 1024)])
     files = {'/tmp/in.json': '''{\
                "files": ["foo/foo_unittest.cc"],
                "test_targets": ["foo_unittests"],

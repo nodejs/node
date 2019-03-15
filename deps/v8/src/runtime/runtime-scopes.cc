@@ -11,6 +11,7 @@
 #include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
+#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/isolate-inl.h"
 #include "src/message-template.h"
 #include "src/objects/heap-object-inl.h"
@@ -53,7 +54,7 @@ Object DeclareGlobal(
   Handle<ScriptContextTable> script_contexts(
       global->native_context()->script_context_table(), isolate);
   ScriptContextTable::LookupResult lookup;
-  if (ScriptContextTable::Lookup(isolate, script_contexts, name, &lookup) &&
+  if (ScriptContextTable::Lookup(isolate, *script_contexts, *name, &lookup) &&
       IsLexicalVariableMode(lookup.mode)) {
     // ES#sec-globaldeclarationinstantiation 6.a:
     // If envRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
@@ -634,7 +635,7 @@ static Object FindNameClash(Isolate* isolate, Handle<ScopeInfo> scope_info,
     Handle<String> name(scope_info->ContextLocalName(var), isolate);
     VariableMode mode = scope_info->ContextLocalMode(var);
     ScriptContextTable::LookupResult lookup;
-    if (ScriptContextTable::Lookup(isolate, script_context, name, &lookup)) {
+    if (ScriptContextTable::Lookup(isolate, *script_context, *name, &lookup)) {
       if (IsLexicalVariableMode(mode) || IsLexicalVariableMode(lookup.mode)) {
         // ES#sec-globaldeclarationinstantiation 5.b:
         // If envRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
@@ -948,9 +949,9 @@ MaybeHandle<Object> StoreLookupSlot(
     object = handle(context->global_object(), isolate);
   }
 
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, value,
-      Object::SetProperty(isolate, object, name, value, language_mode), Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
+                             Object::SetProperty(isolate, object, name, value),
+                             Object);
   return value;
 }
 

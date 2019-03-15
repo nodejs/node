@@ -163,6 +163,30 @@ std::ostream& operator<<(std::ostream&, CheckParameters const&);
 
 CheckParameters const& CheckParametersOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
+class CheckBoundsParameters final {
+ public:
+  enum Mode { kAbortOnOutOfBounds, kDeoptOnOutOfBounds };
+
+  CheckBoundsParameters(const VectorSlotPair& feedback, Mode mode)
+      : check_parameters_(feedback), mode_(mode) {}
+
+  Mode mode() const { return mode_; }
+  const CheckParameters& check_parameters() const { return check_parameters_; }
+
+ private:
+  CheckParameters check_parameters_;
+  Mode mode_;
+};
+
+bool operator==(CheckBoundsParameters const&, CheckBoundsParameters const&);
+
+size_t hash_value(CheckBoundsParameters const&);
+
+std::ostream& operator<<(std::ostream&, CheckBoundsParameters const&);
+
+CheckBoundsParameters const& CheckBoundsParametersOf(Operator const*)
+    V8_WARN_UNUSED_RESULT;
+
 class CheckIfParameters final {
  public:
   explicit CheckIfParameters(DeoptimizeReason reason,
@@ -303,25 +327,6 @@ DEFINE_OPERATORS_FOR_FLAGS(CheckMapsFlags)
 
 std::ostream& operator<<(std::ostream&, CheckMapsFlags);
 
-class MapsParameterInfo {
- public:
-  explicit MapsParameterInfo(ZoneHandleSet<Map> const& maps);
-
-  Maybe<InstanceType> instance_type() const { return instance_type_; }
-  ZoneHandleSet<Map> const& maps() const { return maps_; }
-
- private:
-  ZoneHandleSet<Map> const maps_;
-  Maybe<InstanceType> instance_type_;
-};
-
-std::ostream& operator<<(std::ostream&, MapsParameterInfo const&);
-
-bool operator==(MapsParameterInfo const&, MapsParameterInfo const&);
-bool operator!=(MapsParameterInfo const&, MapsParameterInfo const&);
-
-size_t hash_value(MapsParameterInfo const&);
-
 // A descriptor for map checks. The {feedback} parameter is optional.
 // If {feedback} references a valid CallIC slot and this MapCheck fails,
 // then speculation on that CallIC slot will be disabled.
@@ -329,16 +334,15 @@ class CheckMapsParameters final {
  public:
   CheckMapsParameters(CheckMapsFlags flags, ZoneHandleSet<Map> const& maps,
                       const VectorSlotPair& feedback)
-      : flags_(flags), maps_info_(maps), feedback_(feedback) {}
+      : flags_(flags), maps_(maps), feedback_(feedback) {}
 
   CheckMapsFlags flags() const { return flags_; }
-  ZoneHandleSet<Map> const& maps() const { return maps_info_.maps(); }
-  MapsParameterInfo const& maps_info() const { return maps_info_; }
+  ZoneHandleSet<Map> const& maps() const { return maps_; }
   VectorSlotPair const& feedback() const { return feedback_; }
 
  private:
   CheckMapsFlags const flags_;
-  MapsParameterInfo const maps_info_;
+  ZoneHandleSet<Map> const maps_;
   VectorSlotPair const feedback_;
 };
 
@@ -351,10 +355,10 @@ std::ostream& operator<<(std::ostream&, CheckMapsParameters const&);
 CheckMapsParameters const& CheckMapsParametersOf(Operator const*)
     V8_WARN_UNUSED_RESULT;
 
-MapsParameterInfo const& MapGuardMapsOf(Operator const*) V8_WARN_UNUSED_RESULT;
+ZoneHandleSet<Map> const& MapGuardMapsOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
 // Parameters for CompareMaps operator.
-MapsParameterInfo const& CompareMapsParametersOf(Operator const*)
+ZoneHandleSet<Map> const& CompareMapsParametersOf(Operator const*)
     V8_WARN_UNUSED_RESULT;
 
 // A descriptor for growing elements backing stores.
@@ -709,7 +713,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
                                                 const VectorSlotPair& feedback);
   const Operator* CheckedUint32Div();
   const Operator* CheckedUint32Mod();
-  const Operator* CheckedUint32Bounds(const VectorSlotPair& feedback);
+  const Operator* CheckedUint32Bounds(const VectorSlotPair& feedback,
+                                      CheckBoundsParameters::Mode mode);
   const Operator* CheckedUint32ToInt32(const VectorSlotPair& feedback);
   const Operator* CheckedUint32ToTaggedSigned(const VectorSlotPair& feedback);
   const Operator* CheckedUint64Bounds(const VectorSlotPair& feedback);
@@ -775,8 +780,14 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* LoadField(FieldAccess const&);
   const Operator* StoreField(FieldAccess const&);
 
+  const Operator* LoadMessage();
+  const Operator* StoreMessage();
+
   // load-element [base + index]
   const Operator* LoadElement(ElementAccess const&);
+
+  // load-stack-argument [base + index]
+  const Operator* LoadStackArgument();
 
   // store-element [base + index], value
   const Operator* StoreElement(ElementAccess const&);

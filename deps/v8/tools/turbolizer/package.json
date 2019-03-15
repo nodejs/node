@@ -17,7 +17,7 @@
     "d3": "^5.7.0",
     "rollup": "^0.68.2",
     "rollup-plugin-node-resolve": "^4.0.0",
-    "rollup-plugin-typescript2": "^0.18.1"
+    "rollup-plugin-typescript2": "^0.19.3"
   },
   "repository": {
     "type": "git",

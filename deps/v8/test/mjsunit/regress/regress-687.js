@@ -29,9 +29,8 @@
 // update a accessor property to a data property using Object.defineProperty.
 
 var obj = { get value() {}, set value (v) { throw "Error";} };
-assertDoesNotThrow(
-    Object.defineProperty(obj, "value",
-                          { value: 5, writable:true, configurable: true }));
+Object.defineProperty(obj, "value",
+                      { value: 5, writable:true, configurable: true });
 var desc = Object.getOwnPropertyDescriptor(obj, "value");
 assertEquals(obj.value, 5);
 assertTrue(desc.configurable);
@@ -49,7 +48,7 @@ var proto = {
 var create = Object.create(proto);
 
 assertEquals(create.value, undefined);
-assertDoesNotThrow(create.value = 4);
+create.value = 4;
 assertEquals(create.value, 4);
 
 // These tests where provided in bug 959, but are all related to the this issue.

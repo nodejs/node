@@ -8,6 +8,7 @@
 #include "src/conversions.h"
 #include "src/frames.h"
 #include "src/heap/factory.h"
+#include "src/heap/heap-inl.h"  // For MaxNumberToStringCacheSize.
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/isolate-inl.h"
 #include "src/keys.h"
@@ -290,9 +291,18 @@ static void CopyDoubleToDoubleElements(FixedArrayBase from_base,
   Address from_address = from->address() + FixedDoubleArray::kHeaderSize;
   to_address += kDoubleSize * to_start;
   from_address += kDoubleSize * from_start;
+#ifdef V8_COMPRESS_POINTERS
+  // TODO(ishell, v8:8875): we use CopyTagged() in order to avoid unaligned
+  // access to double values in the arrays. This will no longed be necessary
+  // once the allocations alignment issue is fixed.
+  int words_per_double = (kDoubleSize / kTaggedSize);
+  CopyTagged(to_address, from_address,
+             static_cast<size_t>(words_per_double * copy_size));
+#else
   int words_per_double = (kDoubleSize / kSystemPointerSize);
   CopyWords(to_address, from_address,
             static_cast<size_t>(words_per_double * copy_size));
+#endif
 }
 
 static void CopySmiToDoubleElements(FixedArrayBase from_base,
@@ -458,10 +468,13 @@ static void SortIndices(
   AtomicSlot start(indices->GetFirstElementAddress());
   std::sort(start, start + sort_size,
             [isolate](Tagged_t elementA, Tagged_t elementB) {
-              // TODO(ishell): revisit the code below
-              STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
+#ifdef V8_COMPRESS_POINTERS
+              Object a(DecompressTaggedAny(isolate->isolate_root(), elementA));
+              Object b(DecompressTaggedAny(isolate->isolate_root(), elementB));
+#else
               Object a(elementA);
               Object b(elementB);
+#endif
               if (a->IsSmi() || !a->IsUndefined(isolate)) {
                 if (!b->IsSmi() && b->IsUndefined(isolate)) {
                   return true;
@@ -1166,7 +1179,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
               isolate->factory()->Uint32ToString(i, use_cache);
           list->set(insertion_index, *index_string);
         } else {
-          list->set(insertion_index, Smi::FromInt(i), SKIP_WRITE_BARRIER);
+          list->set(insertion_index, Smi::FromInt(i));
         }
         insertion_index++;
       }
@@ -1373,7 +1386,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
                                              Handle<JSObject> object,
                                              uint32_t length) final {
     return Subclass::CreateListFromArrayLikeImpl(isolate, object, length);
-  };
+  }
 
   static Handle<FixedArray> CreateListFromArrayLikeImpl(Isolate* isolate,
                                                         Handle<JSObject> object,
@@ -2006,7 +2019,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     // has too few used values, normalize it.
     const int kMinLengthForSparsenessCheck = 64;
     if (backing_store->length() < kMinLengthForSparsenessCheck) return;
-    if (Heap::InNewSpace(*backing_store)) return;
+    // TODO(ulan): Check if it works with young large objects.
+    if (ObjectInYoungGeneration(*backing_store)) return;
     uint32_t length = 0;
     if (obj->IsJSArray()) {
       JSArray::cast(*obj)->length()->ToArrayLength(&length);
@@ -3752,7 +3766,7 @@ class SloppyArgumentsElementsAccessor
         Handle<String> index_string = isolate->factory()->Uint32ToString(i);
         list->set(insertion_index, *index_string);
       } else {
-        list->set(insertion_index, Smi::FromInt(i), SKIP_WRITE_BARRIER);
+        list->set(insertion_index, Smi::FromInt(i));
       }
       insertion_index++;
     }

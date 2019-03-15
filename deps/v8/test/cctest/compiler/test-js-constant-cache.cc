@@ -167,9 +167,9 @@ TEST(CanonicalizingNumbers) {
   JSConstantCacheTester T;
 
   FOR_FLOAT64_INPUTS(i) {
-    Node* node = T.Constant(*i);
+    Node* node = T.Constant(i);
     for (int j = 0; j < 5; j++) {
-      CHECK_EQ(node, T.Constant(*i));
+      CHECK_EQ(node, T.Constant(i));
     }
   }
 }
@@ -178,8 +178,7 @@ TEST(CanonicalizingNumbers) {
 TEST(HeapNumbers) {
   JSConstantCacheTester T;
 
-  FOR_FLOAT64_INPUTS(i) {
-    double value = *i;
+  FOR_FLOAT64_INPUTS(value) {
     Handle<Object> num = T.factory()->NewNumber(value);
     Handle<HeapNumber> heap = T.factory()->NewHeapNumber(value);
     Node* node1 = T.Constant(value);

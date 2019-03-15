@@ -5,8 +5,10 @@
 #include "src/snapshot/object-deserializer.h"
 
 #include "src/assembler-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/isolate.h"
 #include "src/objects.h"
+#include "src/objects/allocation-site-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/code-serializer.h"
 
@@ -59,8 +61,8 @@ void ObjectDeserializer::FlushICache() {
   for (Code code : new_code_objects()) {
     // Record all references to embedded objects in the new code object.
     WriteBarrierForCode(code);
-    Assembler::FlushICache(code->raw_instruction_start(),
-                           code->raw_instruction_size());
+    FlushInstructionCache(code->raw_instruction_start(),
+                          code->raw_instruction_size());
   }
 }
 

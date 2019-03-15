@@ -66,7 +66,7 @@ bytecodes: [
                 B(JumpIfNull), U8(50),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(154),
+                B(Wide), B(LdaSmi), I16(155),
                 B(Star), R(13),
                 B(LdaConstant), U8(6),
                 B(Star), R(14),
@@ -115,7 +115,7 @@ snippet: "
 "
 frame size: 16
 parameter count: 1
-bytecode array length: 266
+bytecode array length: 264
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   48 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
@@ -185,7 +185,6 @@ bytecodes: [
                 B(Star), R(14),
                 B(JumpLoop), U8(33), I8(0),
                 B(Mov), R(13), R(1),
-                B(Ldar), R(1),
                 B(LdaSmi), I8(-1),
                 B(Star), R(10),
                 B(Star), R(9),
@@ -204,7 +203,7 @@ bytecodes: [
                 B(JumpIfNull), U8(50),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(154),
+                B(Wide), B(LdaSmi), I16(155),
                 B(Star), R(14),
                 B(LdaConstant), U8(6),
                 B(Star), R(15),
@@ -242,8 +241,8 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
 ]
 handlers: [
-  [44, 174, 182],
-  [228, 241, 243],
+  [44, 172, 180],
+  [226, 239, 241],
 ]
 
 ---
@@ -328,7 +327,7 @@ bytecodes: [
                 B(JumpIfNull), U8(50),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(154),
+                B(Wide), B(LdaSmi), I16(155),
                 B(Star), R(15),
                 B(LdaConstant), U8(7),
                 B(Star), R(16),

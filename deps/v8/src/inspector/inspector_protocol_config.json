@@ -1,6 +1,6 @@
 {
     "protocol": {
-        "path": "js_protocol.json",
+        "path": "js_protocol.pdl",
         "package": "src/inspector/protocol",
         "output": "protocol",
         "namespace": ["v8_inspector", "protocol"],

@@ -63,6 +63,9 @@ class StackFrameBase {
   virtual Handle<Object> GetTypeName() = 0;
   virtual Handle<Object> GetEvalOrigin();
 
+  // Returns the script ID if one is attached, -1 otherwise.
+  int GetScriptId() const;
+
   virtual int GetPosition() const = 0;
   // Return 1-based line number, including line offset.
   virtual int GetLineNumber() = 0;
@@ -81,6 +84,9 @@ class StackFrameBase {
   virtual bool IsStrict() const = 0;
 
   virtual MaybeHandle<String> ToString() = 0;
+
+  // Used to signal that the requested field is unknown.
+  static const int kNone = -1;
 
  protected:
   StackFrameBase() = default;
@@ -158,9 +164,9 @@ class WasmStackFrame : public StackFrameBase {
 
   int GetPosition() const override;
   int GetLineNumber() override { return wasm_func_index_; }
-  int GetColumnNumber() override { return -1; }
+  int GetColumnNumber() override { return kNone; }
 
-  int GetPromiseIndex() const override { return -1; }
+  int GetPromiseIndex() const override { return kNone; }
 
   bool IsNative() override { return false; }
   bool IsToplevel() override { return false; }
@@ -222,14 +228,14 @@ class FrameArrayIterator {
 
   StackFrameBase* Frame();
 
-  bool HasNext() const;
-  void Next();
+  bool HasFrame() const;
+  void Advance();
 
  private:
   Isolate* isolate_;
 
   Handle<FrameArray> array_;
-  int next_frame_ix_;
+  int frame_ix_;
 
   WasmStackFrame wasm_frame_;
   AsmJsWasmStackFrame asm_wasm_frame_;

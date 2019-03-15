@@ -4,6 +4,7 @@
 
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
+#include "src/hash-seed-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/isolate-inl.h"
 #include "src/zone/zone.h"
@@ -17,7 +18,7 @@ class AstValueTest : public TestWithIsolateAndZone {
  protected:
   AstValueTest()
       : ast_value_factory_(zone(), i_isolate()->ast_string_constants(),
-                           i_isolate()->heap()->HashSeed()),
+                           HashSeed(i_isolate())),
         ast_node_factory_(&ast_value_factory_, zone()) {}
 
   Literal* NewBigInt(const char* str) {

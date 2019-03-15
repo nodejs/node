@@ -106,7 +106,7 @@ class Declarable {
 
 class Scope : public Declarable {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(Scope, scope);
+  DECLARE_DECLARABLE_BOILERPLATE(Scope, scope)
   explicit Scope(Declarable::Kind kind) : Declarable(kind) {}
 
   std::vector<Declarable*> LookupShallow(const QualifiedName& name) {
@@ -151,13 +151,15 @@ class Scope : public Declarable {
 
 class Namespace : public Scope {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(Namespace, namespace);
+  DECLARE_DECLARABLE_BOILERPLATE(Namespace, namespace)
   explicit Namespace(const std::string& name)
       : Scope(Declarable::kNamespace), name_(name) {}
   const std::string& name() const { return name_; }
   std::string ExternalName() const {
     return CamelifyString(name()) + "BuiltinsFromDSLAssembler";
   }
+  bool IsDefaultNamespace() const;
+  bool IsTestNamespace() const;
   std::ostream& source_stream() { return source_stream_; }
   std::ostream& header_stream() { return header_stream_; }
   std::string source() { return source_stream_.str(); }
@@ -181,8 +183,8 @@ inline Namespace* CurrentNamespace() {
 
 class Value : public Declarable {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(Value, value);
-  const std::string& name() const { return name_; }
+  DECLARE_DECLARABLE_BOILERPLATE(Value, value)
+  const Identifier* name() const { return name_; }
   virtual bool IsConst() const { return true; }
   VisitResult value() const { return *value_; }
   const Type* type() const { return type_; }
@@ -193,20 +195,19 @@ class Value : public Declarable {
   }
 
  protected:
-  Value(Kind kind, const Type* type, const std::string& name)
+  Value(Kind kind, const Type* type, Identifier* name)
       : Declarable(kind), type_(type), name_(name) {}
 
  private:
   const Type* type_;
-  std::string name_;
+  Identifier* name_;
   base::Optional<VisitResult> value_;
 };
 
 class NamespaceConstant : public Value {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(NamespaceConstant, constant);
+  DECLARE_DECLARABLE_BOILERPLATE(NamespaceConstant, constant)
 
-  const std::string& constant_name() const { return constant_name_; }
   Expression* body() { return body_; }
   std::string ExternalAssemblerName() const {
     return Namespace::cast(ParentScope())->ExternalName();
@@ -214,31 +215,29 @@ class NamespaceConstant : public Value {
 
  private:
   friend class Declarations;
-  explicit NamespaceConstant(std::string constant_name, const Type* type,
+  explicit NamespaceConstant(Identifier* constant_name, const Type* type,
                              Expression* body)
       : Value(Declarable::kNamespaceConstant, type, constant_name),
-        constant_name_(std::move(constant_name)),
         body_(body) {}
 
-  std::string constant_name_;
   Expression* body_;
 };
 
 class ExternConstant : public Value {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(ExternConstant, constant);
+  DECLARE_DECLARABLE_BOILERPLATE(ExternConstant, constant)
 
  private:
   friend class Declarations;
-  explicit ExternConstant(std::string name, const Type* type, std::string value)
-      : Value(Declarable::kExternConstant, type, std::move(name)) {
+  explicit ExternConstant(Identifier* name, const Type* type, std::string value)
+      : Value(Declarable::kExternConstant, type, name) {
     set_value(VisitResult(type, std::move(value)));
   }
 };
 
 class Callable : public Scope {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(Callable, callable);
+  DECLARE_DECLARABLE_BOILERPLATE(Callable, callable)
   const std::string& ExternalName() const { return external_name_; }
   const std::string& ReadableName() const { return readable_name_; }
   const Signature& signature() const { return signature_; }
@@ -254,7 +253,7 @@ class Callable : public Scope {
   base::Optional<Statement*> body() const { return body_; }
   bool IsExternal() const { return !body_.has_value(); }
   virtual bool ShouldBeInlined() const { return false; }
-  bool IsConstructor() const { return readable_name_ == kConstructMethodName; }
+  virtual bool ShouldGenerateExternalCode() const { return !ShouldBeInlined(); }
 
  protected:
   Callable(Declarable::Kind kind, std::string external_name,
@@ -282,7 +281,7 @@ class Callable : public Scope {
 
 class Macro : public Callable {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(Macro, macro);
+  DECLARE_DECLARABLE_BOILERPLATE(Macro, macro)
   bool ShouldBeInlined() const override {
     for (const LabelDeclaration& label : signature().labels) {
       for (const Type* type : label.types) {
@@ -323,7 +322,7 @@ class Macro : public Callable {
 
 class Method : public Macro {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(Method, Method);
+  DECLARE_DECLARABLE_BOILERPLATE(Method, Method)
   bool ShouldBeInlined() const override {
     return Macro::ShouldBeInlined() ||
            signature()
@@ -347,7 +346,7 @@ class Method : public Macro {
 class Builtin : public Callable {
  public:
   enum Kind { kStub, kFixedArgsJavaScript, kVarArgsJavaScript };
-  DECLARE_DECLARABLE_BOILERPLATE(Builtin, builtin);
+  DECLARE_DECLARABLE_BOILERPLATE(Builtin, builtin)
   Kind kind() const { return kind_; }
   bool IsStub() const { return kind_ == kStub; }
   bool IsVarArgsJavaScript() const { return kind_ == kVarArgsJavaScript; }
@@ -367,7 +366,7 @@ class Builtin : public Callable {
 
 class RuntimeFunction : public Callable {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(RuntimeFunction, runtime);
+  DECLARE_DECLARABLE_BOILERPLATE(RuntimeFunction, runtime)
 
  private:
   friend class Declarations;
@@ -379,7 +378,7 @@ class RuntimeFunction : public Callable {
 
 class Intrinsic : public Callable {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(Intrinsic, intrinsic);
+  DECLARE_DECLARABLE_BOILERPLATE(Intrinsic, intrinsic)
 
  private:
   friend class Declarations;
@@ -394,10 +393,10 @@ class Intrinsic : public Callable {
 
 class Generic : public Declarable {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(Generic, generic);
+  DECLARE_DECLARABLE_BOILERPLATE(Generic, generic)
 
   GenericDeclaration* declaration() const { return declaration_; }
-  const std::vector<std::string> generic_parameters() const {
+  const std::vector<Identifier*> generic_parameters() const {
     return declaration()->generic_parameters;
   }
   const std::string& name() const { return name_; }
@@ -438,20 +437,27 @@ struct SpecializationKey {
 
 class TypeAlias : public Declarable {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(TypeAlias, type_alias);
+  DECLARE_DECLARABLE_BOILERPLATE(TypeAlias, type_alias)
 
   const Type* type() const { return type_; }
   bool IsRedeclaration() const { return redeclaration_; }
+  SourcePosition GetDeclarationPosition() const {
+    return declaration_position_;
+  }
 
  private:
   friend class Declarations;
-  explicit TypeAlias(const Type* type, bool redeclaration)
+  explicit TypeAlias(
+      const Type* type, bool redeclaration,
+      SourcePosition declaration_position = SourcePosition::Invalid())
       : Declarable(Declarable::kTypeAlias),
         type_(type),
-        redeclaration_(redeclaration) {}
+        redeclaration_(redeclaration),
+        declaration_position_(declaration_position) {}
 
   const Type* type_;
   bool redeclaration_;
+  const SourcePosition declaration_position_;
 };
 
 std::ostream& operator<<(std::ostream& os, const Callable& m);

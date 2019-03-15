@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array {
+namespace array_splice {
   // Given {elements}, we want to create a non-zero length array of type
   // FixedArrayType. Most of this behavior is outsourced to ExtractFixedArray(),
   // but the special case of wanting to have a FixedDoubleArray when given a
@@ -39,7 +39,7 @@ namespace array {
   macro StoreHoles<FixedArrayType: type>(
       elements: FixedArrayType, holeStartIndex: Smi, holeEndIndex: Smi): void {
     for (let i: Smi = holeStartIndex; i < holeEndIndex; i++) {
-      StoreArrayHole(elements, i);
+      array::StoreArrayHole(elements, i);
     }
   }
 
@@ -57,7 +57,7 @@ namespace array {
       lengthDelta: Smi, actualStart: Smi, insertCount: Smi,
       actualDeleteCount: Smi): void labels Bailout {
     // Make sure elements are writable.
-    EnsureWriteableFastElements(a);
+    array::EnsureWriteableFastElements(a);
 
     if (insertCount != actualDeleteCount) {
       const elements: FixedArrayBase = a.elements;
@@ -197,7 +197,7 @@ namespace array {
         const fromValue: Object = GetProperty(o, from);
 
         // ii. Perform ? CreateDataPropertyOrThrow(A, ! ToString(k), fromValue).
-        CreateDataProperty(a, k, fromValue);
+        FastCreateDataProperty(a, k, fromValue);
       }
 
       // d. Increment k by 1.
@@ -398,7 +398,7 @@ namespace array {
     //    Bailout exception.
     const newLength: Number = len + insertCount - actualDeleteCount;
     if (newLength > kMaxSafeInteger) {
-      ThrowTypeError(context, kInvalidArrayLength, start);
+      ThrowTypeError(kInvalidArrayLength, start);
     }
 
     try {

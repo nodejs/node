@@ -208,7 +208,7 @@ void AllocationTracker::AllocationEvent(Address addr, int size) {
   // while we are capturing stack trace.
   heap->CreateFillerObjectAt(addr, size, ClearRecordedSlots::kNo);
 
-  Isolate* isolate = heap->isolate();
+  Isolate* isolate = Isolate::FromHeap(heap);
   int length = 0;
   JavaScriptFrameIterator it(isolate);
   while (!it.done() && length < kMaxAllocationTraceLength) {

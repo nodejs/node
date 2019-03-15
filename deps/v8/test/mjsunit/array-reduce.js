@@ -509,6 +509,13 @@ testReduce("reduce", "ArrayManipulationShort", 3,
             [1, 2, 1, [1, 2], 3],
            ], arr, manipulator, 0);
 
+var arr = [1, 2, 3, 4];
+testReduce("reduceRight", "RightArrayManipulationShort", 7,
+           [[0, 4, 3, [1, 2, 3, 4], 4],
+            [4, 2, 1, [1, 2], 6],
+            [6, 1, 0, [1], 7],
+           ], arr, manipulator, 0);
+
 var arr = [1, 2, 3, 4, 5];
 testReduce("reduce", "ArrayManipulationLonger", 10,
            [[0, 1, 0, [1, 2, 3, 4, 5], 1],

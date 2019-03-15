@@ -33,23 +33,16 @@ from testrunner.objects import testcase
 
 ENV_PATTERN = re.compile(r"//\s+Environment Variables:(.*)")
 
+
+class TestLoader(testsuite.JSTestLoader):
+  @property
+  def excluded_files(self):
+    return {"assert.js", "utils.js"}
+
+
 class TestSuite(testsuite.TestSuite):
-  def ListTests(self):
-    tests = []
-    for dirname, dirs, files in os.walk(self.root):
-      for dotted in [x for x in dirs if x.startswith('.')]:
-        dirs.remove(dotted)
-      dirs.sort()
-      files.sort()
-      for filename in files:
-        if (filename.endswith(".js") and filename != "assert.js" and
-            filename != "utils.js"):
-          fullpath = os.path.join(dirname, filename)
-          relpath = fullpath[len(self.root) + 1 : -3]
-          testname = relpath.replace(os.path.sep, "/")
-          test = self._create_test(testname)
-          tests.append(test)
-    return tests
+  def _test_loader_class(self):
+    return TestLoader
 
   def _test_class(self):
     return TestCase

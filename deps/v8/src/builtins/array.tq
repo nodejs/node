@@ -43,17 +43,8 @@ namespace array {
   }
 
   macro LoadElementOrUndefined(a: FixedArray, i: Smi): Object {
-    const e: Object = a[i];
+    const e: Object = a.objects[i];
     return e == Hole ? Undefined : e;
-  }
-
-  macro LoadElementOrUndefined(a: FixedArray, i: intptr): Object {
-    const e: Object = a[i];
-    return e == Hole ? Undefined : e;
-  }
-
-  macro LoadElementOrUndefined(a: FixedArray, i: constexpr int31): Object {
-    return LoadElementOrUndefined(a, Convert<intptr>(i));
   }
 
   macro LoadElementOrUndefined(a: FixedDoubleArray, i: Smi): NumberOrUndefined {
@@ -66,34 +57,18 @@ namespace array {
     }
   }
 
-  macro LoadElementOrUndefined(a: FixedDoubleArray, i: intptr):
-      NumberOrUndefined {
-    try {
-      const f: float64 = LoadDoubleWithHoleCheck(a, i) otherwise IfHole;
-      return AllocateHeapNumberWithValue(f);
-    }
-    label IfHole {
-      return Undefined;
-    }
-  }
-
-  macro LoadElementOrUndefined(a: FixedDoubleArray, i: constexpr int31):
-      NumberOrUndefined {
-    return LoadElementOrUndefined(a, Convert<intptr>(i));
-  }
-
   macro StoreArrayHole(elements: FixedDoubleArray, k: Smi): void {
     StoreFixedDoubleArrayHoleSmi(elements, k);
   }
 
   macro StoreArrayHole(elements: FixedArray, k: Smi): void {
-    elements[k] = Hole;
+    elements.objects[k] = Hole;
   }
 
   macro CopyArrayElement(
       elements: FixedArray, newElements: FixedArray, from: Smi, to: Smi): void {
-    const e: Object = elements[from];
-    newElements[to] = e;
+    const e: Object = elements.objects[from];
+    newElements.objects[to] = e;
   }
 
   macro CopyArrayElement(
@@ -102,7 +77,7 @@ namespace array {
     try {
       const floatValue: float64 = LoadDoubleWithHoleCheck(elements, from)
           otherwise FoundHole;
-      newElements[to] = floatValue;
+      newElements.floats[to] = floatValue;
     }
     label FoundHole {
       StoreArrayHole(newElements, to);

@@ -5,7 +5,6 @@
 let {session, contextGroup, Protocol} =
     InspectorTest.start('Tests stepping through wasm scripts with source maps');
 
-utils.load('test/mjsunit/wasm/wasm-constants.js');
 utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
 var builder = new WasmModuleBuilder();

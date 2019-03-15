@@ -199,7 +199,7 @@ bool IsInterpreterFramePc(Isolate* isolate, Address pc,
     // an InterpretedFrame,  so we do these fast checks first
     if (StackFrame::IsTypeMarker(marker) || maybe_function->IsSmi()) {
       return false;
-    } else if (!isolate->heap()->code_space()->ContainsSlow(pc)) {
+    } else if (!isolate->heap()->InSpaceSlow(pc, CODE_SPACE)) {
       return false;
     }
     interpreter_entry_trampoline =
@@ -852,6 +852,7 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
   uint32_t stack_slots;
   Code code;
   bool has_tagged_params = false;
+  uint32_t tagged_parameter_slots = 0;
   if (wasm_code != nullptr) {
     SafepointTable table(wasm_code->instruction_start(),
                          wasm_code->safepoint_table_offset(),
@@ -859,6 +860,7 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
     safepoint_entry = table.FindEntry(inner_pointer);
     stack_slots = wasm_code->stack_slots();
     has_tagged_params = wasm_code->kind() != wasm::WasmCode::kFunction;
+    tagged_parameter_slots = wasm_code->tagged_parameter_slots();
   } else {
     InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
         isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
@@ -970,6 +972,19 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
     }
   }
 
+  // Visit tagged parameters that have been passed to the function of this
+  // frame. Conceptionally these parameters belong to the parent frame. However,
+  // the exact count is only known by this frame (in the presence of tail calls,
+  // this information cannot be derived from the call site).
+  if (tagged_parameter_slots > 0) {
+    FullObjectSlot tagged_parameter_base(&Memory<Address>(caller_sp()));
+    FullObjectSlot tagged_parameter_limit =
+        tagged_parameter_base + tagged_parameter_slots;
+
+    v->VisitRootPointers(Root::kTop, nullptr, tagged_parameter_base,
+                         tagged_parameter_limit);
+  }
+
   // For the off-heap code cases, we can skip this.
   if (!code.is_null()) {
     // Visit the return address in the callee and incoming arguments.
@@ -992,11 +1007,6 @@ Code StubFrame::unchecked_code() const {
 
 Address StubFrame::GetCallerStackPointer() const {
   return fp() + ExitFrameConstants::kCallerSPOffset;
-}
-
-
-int StubFrame::GetNumberOfIncomingArguments() const {
-  return 0;
 }
 
 int StubFrame::LookupExceptionHandlerInTable(int* stack_slots) {
@@ -1033,19 +1043,13 @@ bool JavaScriptFrame::HasInlinedFrames() const {
 
 Code JavaScriptFrame::unchecked_code() const { return function()->code(); }
 
-int JavaScriptFrame::GetNumberOfIncomingArguments() const {
-  DCHECK(can_access_heap_objects() &&
-         isolate()->heap()->gc_state() == Heap::NOT_IN_GC);
-  return function()->shared()->internal_formal_parameter_count();
-}
-
-int OptimizedFrame::GetNumberOfIncomingArguments() const {
+int OptimizedFrame::ComputeParametersCount() const {
   Code code = LookupCode();
   if (code->kind() == Code::BUILTIN) {
     return static_cast<int>(
         Memory<intptr_t>(fp() + OptimizedBuiltinFrameConstants::kArgCOffset));
   } else {
-    return JavaScriptFrame::GetNumberOfIncomingArguments();
+    return JavaScriptFrame::ComputeParametersCount();
   }
 }
 
@@ -1075,9 +1079,10 @@ void JavaScriptFrame::Summarize(std::vector<FrameSummary>* functions) const {
   Code code = LookupCode();
   int offset = static_cast<int>(pc() - code->InstructionStart());
   AbstractCode abstract_code = AbstractCode::cast(code);
-  FrameSummary::JavaScriptFrameSummary summary(isolate(), receiver(),
-                                               function(), abstract_code,
-                                               offset, IsConstructor());
+  Handle<FixedArray> params = GetParameters();
+  FrameSummary::JavaScriptFrameSummary summary(
+      isolate(), receiver(), function(), abstract_code, offset, IsConstructor(),
+      *params);
   functions->push_back(summary);
 }
 
@@ -1109,7 +1114,7 @@ Script JavaScriptFrame::script() const {
 
 int JavaScriptFrame::LookupExceptionHandlerInTable(
     int* stack_depth, HandlerTable::CatchPrediction* prediction) {
-  DCHECK_EQ(0, LookupCode()->handler_table_offset());
+  DCHECK(!LookupCode()->has_handler_table());
   DCHECK(!LookupCode()->is_optimized_code());
   return -1;
 }
@@ -1201,38 +1206,28 @@ void JavaScriptFrame::CollectFunctionAndOffsetForICStats(JSFunction function,
   }
 }
 
-void JavaScriptFrame::CollectTopFrameForICStats(Isolate* isolate) {
-  // constructor calls
-  DisallowHeapAllocation no_allocation;
-  JavaScriptFrameIterator it(isolate);
-  ICInfo& ic_info = ICStats::instance()->Current();
-  while (!it.done()) {
-    if (it.frame()->is_java_script()) {
-      JavaScriptFrame* frame = it.frame();
-      if (frame->IsConstructor()) ic_info.is_constructor = true;
-      JSFunction function = frame->function();
-      int code_offset = 0;
-      if (frame->is_interpreted()) {
-        InterpretedFrame* iframe = reinterpret_cast<InterpretedFrame*>(frame);
-        code_offset = iframe->GetBytecodeOffset();
-      } else {
-        Code code = frame->unchecked_code();
-        code_offset = static_cast<int>(frame->pc() - code->InstructionStart());
-      }
-      CollectFunctionAndOffsetForICStats(function, function->abstract_code(),
-                                         code_offset);
-      return;
-    }
-    it.Advance();
-  }
-}
-
 Object JavaScriptFrame::GetParameter(int index) const {
   return Object(Memory<Address>(GetParameterSlot(index)));
 }
 
 int JavaScriptFrame::ComputeParametersCount() const {
-  return GetNumberOfIncomingArguments();
+  DCHECK(can_access_heap_objects() &&
+         isolate()->heap()->gc_state() == Heap::NOT_IN_GC);
+  return function()->shared()->internal_formal_parameter_count();
+}
+
+Handle<FixedArray> JavaScriptFrame::GetParameters() const {
+  if (V8_LIKELY(!FLAG_detailed_error_stack_trace)) {
+    return isolate()->factory()->empty_fixed_array();
+  }
+  int param_count = ComputeParametersCount();
+  Handle<FixedArray> parameters =
+      isolate()->factory()->NewFixedArray(param_count);
+  for (int i = 0; i < param_count; i++) {
+    parameters->set(i, GetParameter(i));
+  }
+
+  return parameters;
 }
 
 int JavaScriptBuiltinContinuationFrame::ComputeParametersCount() const {
@@ -1271,15 +1266,22 @@ void JavaScriptBuiltinContinuationWithCatchFrame::SetException(
 
 FrameSummary::JavaScriptFrameSummary::JavaScriptFrameSummary(
     Isolate* isolate, Object receiver, JSFunction function,
-    AbstractCode abstract_code, int code_offset, bool is_constructor)
+    AbstractCode abstract_code, int code_offset, bool is_constructor,
+    FixedArray parameters)
     : FrameSummaryBase(isolate, FrameSummary::JAVA_SCRIPT),
       receiver_(receiver, isolate),
       function_(function, isolate),
       abstract_code_(abstract_code, isolate),
       code_offset_(code_offset),
-      is_constructor_(is_constructor) {
+      is_constructor_(is_constructor),
+      parameters_(parameters, isolate) {
   DCHECK(abstract_code->IsBytecodeArray() ||
          Code::cast(abstract_code)->kind() != Code::OPTIMIZED_FUNCTION);
+  // TODO(v8:8510): Move this to the SourcePosition getter.
+  if (FLAG_enable_lazy_source_positions && abstract_code->IsBytecodeArray()) {
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(
+        isolate, handle(function->shared(), isolate));
+  }
 }
 
 bool FrameSummary::JavaScriptFrameSummary::is_subject_to_debugging() const {
@@ -1523,9 +1525,10 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
       }
 
       // Append full summary of the encountered JS frame.
-      FrameSummary::JavaScriptFrameSummary summary(isolate(), *receiver,
-                                                   *function, *abstract_code,
-                                                   code_offset, is_constructor);
+      Handle<FixedArray> params = GetParameters();
+      FrameSummary::JavaScriptFrameSummary summary(
+          isolate(), *receiver, *function, *abstract_code, code_offset,
+          is_constructor, *params);
       frames->push_back(summary);
       is_constructor = false;
     } else if (it->kind() == TranslatedFrame::kConstructStub) {
@@ -1736,13 +1739,14 @@ void InterpretedFrame::WriteInterpreterRegister(int register_index,
 void InterpretedFrame::Summarize(std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
   AbstractCode abstract_code = AbstractCode::cast(GetBytecodeArray());
+  Handle<FixedArray> params = GetParameters();
   FrameSummary::JavaScriptFrameSummary summary(
       isolate(), receiver(), function(), abstract_code, GetBytecodeOffset(),
-      IsConstructor());
+      IsConstructor(), *params);
   functions->push_back(summary);
 }
 
-int ArgumentsAdaptorFrame::GetNumberOfIncomingArguments() const {
+int ArgumentsAdaptorFrame::ComputeParametersCount() const {
   return Smi::ToInt(GetExpression(0));
 }
 
@@ -1751,7 +1755,7 @@ Code ArgumentsAdaptorFrame::unchecked_code() const {
       Builtins::kArgumentsAdaptorTrampoline);
 }
 
-int BuiltinFrame::GetNumberOfIncomingArguments() const {
+int BuiltinFrame::ComputeParametersCount() const {
   return Smi::ToInt(GetExpression(0));
 }
 

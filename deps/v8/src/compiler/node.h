@@ -60,7 +60,7 @@ class V8_EXPORT_PRIVATE Node final {
 
   int InputCount() const {
     return has_inline_inputs() ? InlineCountField::decode(bit_field_)
-                               : inputs_.outline_->count_;
+                               : outline_inputs()->count_;
   }
 
 #ifdef DEBUG
@@ -170,7 +170,9 @@ class V8_EXPORT_PRIVATE Node final {
     Node* node_;
     int count_;
     int capacity_;
-    Node* inputs_[1];
+
+    // Inputs are allocated right behind the OutOfLineInputs instance.
+    inline Node** inputs();
 
     static OutOfLineInputs* New(Zone* zone, int capacity);
     void ExtractFrom(Use* use_ptr, Node** input_ptr, int count);
@@ -189,8 +191,8 @@ class V8_EXPORT_PRIVATE Node final {
       int index = input_index();
       Use* start = this + 1 + index;
       Node** inputs = is_inline_use()
-                          ? reinterpret_cast<Node*>(start)->inputs_.inline_
-                          : reinterpret_cast<OutOfLineInputs*>(start)->inputs_;
+                          ? reinterpret_cast<Node*>(start)->inline_inputs()
+                          : reinterpret_cast<OutOfLineInputs*>(start)->inputs();
       return &inputs[index];
     }
 
@@ -239,17 +241,29 @@ class V8_EXPORT_PRIVATE Node final {
 
   Node(NodeId id, const Operator* op, int inline_count, int inline_capacity);
 
+  inline Address inputs_location() const;
+
+  Node** inline_inputs() const {
+    return reinterpret_cast<Node**>(inputs_location());
+  }
+  OutOfLineInputs* outline_inputs() const {
+    return *reinterpret_cast<OutOfLineInputs**>(inputs_location());
+  }
+  void set_outline_inputs(OutOfLineInputs* outline) {
+    *reinterpret_cast<OutOfLineInputs**>(inputs_location()) = outline;
+  }
+
   Node* const* GetInputPtrConst(int input_index) const {
-    return has_inline_inputs() ? &(inputs_.inline_[input_index])
-                               : &inputs_.outline_->inputs_[input_index];
+    return has_inline_inputs() ? &(inline_inputs()[input_index])
+                               : &(outline_inputs()->inputs()[input_index]);
   }
   Node** GetInputPtr(int input_index) {
-    return has_inline_inputs() ? &(inputs_.inline_[input_index])
-                               : &inputs_.outline_->inputs_[input_index];
+    return has_inline_inputs() ? &(inline_inputs()[input_index])
+                               : &(outline_inputs()->inputs()[input_index]);
   }
   Use* GetUsePtr(int input_index) {
     Use* ptr = has_inline_inputs() ? reinterpret_cast<Use*>(this)
-                                   : reinterpret_cast<Use*>(inputs_.outline_);
+                                   : reinterpret_cast<Use*>(outline_inputs());
     return &ptr[-1 - input_index];
   }
 
@@ -287,11 +301,6 @@ class V8_EXPORT_PRIVATE Node final {
   Mark mark_;
   uint32_t bit_field_;
   Use* first_use_;
-  union {
-    // Inline storage for inputs or out-of-line storage.
-    Node* inline_[1];
-    OutOfLineInputs* outline_;
-  } inputs_;
 
   friend class Edge;
   friend class NodeMarkerBase;
@@ -300,6 +309,14 @@ class V8_EXPORT_PRIVATE Node final {
   DISALLOW_COPY_AND_ASSIGN(Node);
 };
 
+Address Node::inputs_location() const {
+  return reinterpret_cast<Address>(this) + sizeof(Node);
+}
+
+Node** Node::OutOfLineInputs::inputs() {
+  return reinterpret_cast<Node**>(reinterpret_cast<Address>(this) +
+                                  sizeof(Node::OutOfLineInputs));
+}
 
 std::ostream& operator<<(std::ostream& os, const Node& n);
 
@@ -402,21 +419,21 @@ bool Node::IsDead() const {
 Node::InputEdges Node::input_edges() {
   int inline_count = InlineCountField::decode(bit_field_);
   if (inline_count != kOutlineMarker) {
-    return InputEdges(inputs_.inline_, reinterpret_cast<Use*>(this) - 1,
+    return InputEdges(inline_inputs(), reinterpret_cast<Use*>(this) - 1,
                       inline_count);
   } else {
-    return InputEdges(inputs_.outline_->inputs_,
-                      reinterpret_cast<Use*>(inputs_.outline_) - 1,
-                      inputs_.outline_->count_);
+    return InputEdges(outline_inputs()->inputs(),
+                      reinterpret_cast<Use*>(outline_inputs()) - 1,
+                      outline_inputs()->count_);
   }
 }
 
 Node::Inputs Node::inputs() const {
   int inline_count = InlineCountField::decode(bit_field_);
   if (inline_count != kOutlineMarker) {
-    return Inputs(inputs_.inline_, inline_count);
+    return Inputs(inline_inputs(), inline_count);
   } else {
-    return Inputs(inputs_.outline_->inputs_, inputs_.outline_->count_);
+    return Inputs(outline_inputs()->inputs(), outline_inputs()->count_);
   }
 }
 

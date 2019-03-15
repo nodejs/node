@@ -41,8 +41,9 @@
     'tests': [
       {'name': 'benchmarks', 'variant': 'default'},
       {'name': 'v8testing', 'variant': 'default', 'shards': 4},
+      {'name': 'v8testing', 'variant': 'trusted', 'shards': 4},
       {'name': 'mozilla', 'variant': 'default'},
-      {'name': 'test262_variants', 'variant': 'default', 'shards': 6},
+      {'name': 'test262_variants', 'variant': 'default', 'shards': 7},
     ],
   },
   ##############################################################################
@@ -70,6 +71,9 @@
     ],
   },
   'v8_linux_gcc_rel': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-16.04',
+    },
     'tests': [
       {'name': 'v8testing'},
     ],
@@ -103,7 +107,7 @@
   },
   'v8_linux_nosnap_rel': {
     'tests': [
-      {'name': 'v8testing', 'variant': 'default', 'shards': 4},
+      {'name': 'v8testing', 'variant': 'default', 'shards': 6},
     ],
   },
   'v8_linux_nosnap_dbg': {
@@ -202,6 +206,7 @@
       {'name': 'test262'},
       {'name': 'v8testing', 'shards': 7},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
+      {'name': 'v8testing', 'variant': 'trusted', 'shards': 2},
     ],
   },
   'v8_linux_arm_lite_rel_ng_triggered': {
@@ -215,7 +220,8 @@
       {'name': 'mozilla', 'shards': 2},
       {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 8},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
+      {'name': 'v8testing', 'variant': 'trusted', 'shards': 2},
     ],
   },
   ##############################################################################
@@ -252,6 +258,15 @@
       {'name': 'v8testing', 'shards': 3},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
       {'name': 'v8testing', 'variant': 'minor_mc', 'shards': 1},
+    ],
+  },
+  'v8_linux64_gc_stress_custom_snapshot_dbg_ng_triggered': {
+    'tests': [
+      {
+        'name': 'mjsunit',
+        'test_args': ['--gc-stress', '--no-harness'],
+        'shards': 3,
+      },
     ],
   },
   'v8_linux64_fyi_rel_ng_triggered': {
@@ -329,11 +344,6 @@
       {'name': 'v8testing', 'shards': 2},
     ],
   },
-  'v8_linux64_ubsan_vptr_rel_ng_triggered': {
-    'tests': [
-      {'name': 'v8testing', 'shards': 2},
-    ],
-  },
   'v8_linux64_verify_csa_rel_ng_triggered': {
     'tests': [
       {'name': 'v8testing', 'shards': 2},
@@ -348,6 +358,7 @@
       {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 10},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
+      {'name': 'v8testing', 'variant': 'trusted', 'shards': 3},
     ],
   },
   'v8_linux_arm64_gc_stress_dbg': {
@@ -362,6 +373,7 @@
       {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 9},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
+      {'name': 'v8testing', 'variant': 'trusted', 'shards': 3},
     ],
   },
   'v8_linux64_arm64_pointer_compression_rel_ng_triggered': {
@@ -419,6 +431,7 @@
       'os': 'Windows-7-SP1',
     },
     'tests': [
+      {'name': 'mozilla'},
       {'name': 'test262'},
       {'name': 'v8testing', 'shards': 2},
     ],
@@ -462,6 +475,7 @@
       'os': 'Windows-7-SP1',
     },
     'tests': [
+      {'name': 'mozilla'},
       {'name': 'test262'},
       {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra'},
@@ -485,7 +499,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 3},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
     ],
@@ -669,16 +683,6 @@
       },
     ],
   },
-  'V8 Linux - interpreted regexp': {
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 3600,
-      'priority': 35,
-    },
-    'tests': [
-      {'name': 'v8testing'},
-    ],
-  },
   'V8 Linux - noi18n - debug': {
     'tests': [
       {'name': 'mozilla', 'variant': 'default'},
@@ -694,7 +698,7 @@
     },
     'tests': [
       {'name': 'mozilla', 'variant': 'default'},
-      {'name': 'test262', 'variant': 'default', 'shards': 3},
+      {'name': 'test262', 'variant': 'default', 'shards': 4},
       {'name': 'v8testing', 'variant': 'default', 'shards': 3},
     ],
   },
@@ -727,7 +731,19 @@
       {'name': 'v8testing'},
     ],
   },
+  'V8 Linux gcc': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-16.04',
+    },
+    'tests': [
+      {'name': 'v8testing'},
+    ],
+  },
+  # TODO(machenbach): Remove after switching.
   'V8 Linux gcc 4.8': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-16.04',
+    },
     'tests': [
       {'name': 'v8testing'},
     ],
@@ -929,11 +945,6 @@
       {'name': 'v8testing', 'variant': 'extra'},
     ],
   },
-  'V8 Linux64 UBSanVptr': {
-    'tests': [
-      {'name': 'v8testing'},
-    ],
-  },
   'V8 Mac64': {
     'swarming_dimensions': {
       'cpu': 'x86-64',
@@ -941,7 +952,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra'},
     ],
@@ -1057,8 +1068,9 @@
     },
     'tests': [
       {'name': 'mozilla', 'variant': 'default'},
-      {'name': 'test262', 'variant': 'default', 'shards': 5},
+      {'name': 'test262', 'variant': 'default', 'shards': 6},
       {'name': 'v8testing', 'variant': 'default', 'shards': 3},
+      {'name': 'v8testing', 'variant': 'trusted', 'shards': 3},
     ],
   },
   'V8 Arm': {
@@ -1193,6 +1205,7 @@
       {'name': 'test262'},
       {'name': 'v8testing', 'shards': 4},
       {'name': 'v8testing', 'variant': 'extra'},
+      {'name': 'v8testing', 'variant': 'trusted'},
       # Armv8-a.
       {
         'name': 'mozilla',
@@ -1227,7 +1240,8 @@
       {'name': 'mozilla'},
       {'name': 'test262'},
       {'name': 'v8testing', 'shards': 8},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 4},
+      {'name': 'v8testing', 'variant': 'trusted', 'shards': 2},
       # Armv8-a.
       {
         'name': 'mozilla',
@@ -1284,6 +1298,7 @@
       {'name': 'test262'},
       {'name': 'v8testing', 'shards': 3},
       {'name': 'v8testing', 'variant': 'extra'},
+      {'name': 'v8testing', 'variant': 'trusted'},
     ],
   },
   'V8 Linux - arm64 - sim - debug': {
@@ -1297,6 +1312,7 @@
       {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 10},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
+      {'name': 'v8testing', 'variant': 'trusted', 'shards': 2},
     ],
   },
   'V8 Linux - arm64 - sim - gc stress': {

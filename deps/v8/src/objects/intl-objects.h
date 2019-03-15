@@ -132,6 +132,9 @@ class Intl {
   static Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
                                                     Handle<Object> locale_in);
 
+  static Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
+                                                    const std::string& locale);
+
   // https://tc39.github.io/ecma402/#sec-canonicalizelocalelist
   // {only_return_one_result} is an optimization for callers that only
   // care about the first result.
@@ -247,6 +250,30 @@ class Intl {
       const std::vector<std::string>& requested_locales, MatcherOption options,
       const std::set<std::string>& relevant_extension_keys);
 
+  // A helper template to implement the GetAvailableLocales
+  // Usage in src/objects/js-XXX.cc
+  //
+  // const std::set<std::string>& JSXxx::GetAvailableLocales() {
+  //   static base::LazyInstance<Intl::AvailableLocales<icu::YYY>>::type
+  //       available_locales = LAZY_INSTANCE_INITIALIZER;
+  //   return available_locales.Pointer()->Get();
+  // }
+  template <typename T>
+  class AvailableLocales {
+   public:
+    AvailableLocales() {
+      int32_t num_locales = 0;
+      const icu::Locale* icu_available_locales =
+          T::getAvailableLocales(num_locales);
+      set = Intl::BuildLocaleSet(icu_available_locales, num_locales);
+    }
+    virtual ~AvailableLocales() {}
+    const std::set<std::string>& Get() const { return set; }
+
+   private:
+    std::set<std::string> set;
+  };
+
   // Utility function to set text to BreakIterator.
   static Managed<icu::UnicodeString> SetTextToBreakIterator(
       Isolate* isolate, Handle<String> text,
@@ -264,6 +291,10 @@ class Intl {
   static const uint8_t* ToLatin1LowerTable();
 
   static String ConvertOneByteToLower(String src, String dst);
+
+  static const std::set<std::string>& GetAvailableLocalesForLocale();
+
+  static const std::set<std::string>& GetAvailableLocalesForDateFormat();
 };
 
 }  // namespace internal

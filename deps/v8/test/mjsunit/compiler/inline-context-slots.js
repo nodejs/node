@@ -43,6 +43,7 @@
     return this.max();
   }
   var f = new F();
+  %PrepareFunctionForOptimization(f.run);
   for (var i=0; i<5; i++) f.run();
   %OptimizeFunctionOnNextCall(f.run);
   assertEquals(10, f.run());

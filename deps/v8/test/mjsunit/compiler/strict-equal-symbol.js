@@ -11,6 +11,7 @@
 
   function foo() { return a === b; }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo());
   assertFalse(foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -24,6 +25,7 @@
 
   function foo(a) { return a === b; }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo(b));
   assertFalse(foo(a));
   assertTrue(foo(b));
@@ -40,6 +42,7 @@
 
   function foo(a, b) { return a === b; }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo(b, b));
   assertFalse(foo(a, b));
   assertTrue(foo(a, a));

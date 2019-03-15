@@ -20,6 +20,7 @@ function runTest(f, message, mkICTraining, deoptArg) {
     let t2 = t();
     let t3 = t();
 
+    %PrepareFunctionForOptimization(f);
     for (let a of t1) {
       f(a.arr, () => a.el);
     }
@@ -45,6 +46,7 @@ function runTest(f, message, mkICTraining, deoptArg) {
       message_optimized = message + " should have been unoptimized"
       f(a1.arr, () => a1.el);
       assertUnoptimized(f, undefined, message_unoptimized);
+      %PrepareFunctionForOptimization(f);
       %OptimizeFunctionOnNextCall(f);
       // No speculation should protect against further deopts.
       f(a2.arr, () => a2.el);

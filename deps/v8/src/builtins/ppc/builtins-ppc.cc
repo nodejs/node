@@ -11,6 +11,8 @@
 #include "src/deoptimizer.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
+// For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
+#include "src/heap/heap-inl.h"
 #include "src/macro-assembler-inl.h"
 #include "src/objects/cell.h"
 #include "src/objects/foreign.h"
@@ -45,7 +47,6 @@ void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
   //  -- lr     : return address
   //  -- sp[...]: constructor arguments
   // -----------------------------------
-  Label generic_array_code, one_or_more_arguments, two_or_more_arguments;
 
   if (FLAG_debug_code) {
     // Initial map for the builtin InternalArray functions should be maps.
@@ -92,7 +93,6 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
 namespace {
 
 void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
-  Label post_instantiation_deopt_entry;
   // ----------- S t a t e -------------
   //  -- r3     : number of arguments
   //  -- r4     : constructor function
@@ -215,8 +215,9 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
     __ LoadP(r7, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
     __ lwz(r7, FieldMemOperand(r7, SharedFunctionInfo::kFlagsOffset));
-    __ TestBitMask(r7, SharedFunctionInfo::IsDerivedConstructorBit::kMask, r0);
-    __ bne(&not_create_implicit_receiver, cr0);
+    __ DecodeField<SharedFunctionInfo::FunctionKindBits>(r7);
+    __ JumpIfIsInRange(r7, kDefaultDerivedConstructor, kDerivedConstructor,
+                       &not_create_implicit_receiver);
 
     // If not derived class constructor: Allocate the new receiver object.
     __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1,
@@ -2373,112 +2374,160 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   //  -- r6 : new target (passed through to callee)
   // -----------------------------------
 
-  Label invoke, dont_adapt_arguments, stack_overflow;
-
-  Label enough, too_few;
+  Label dont_adapt_arguments, stack_overflow, skip_adapt_arguments;
   __ cmpli(r5, Operand(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
   __ beq(&dont_adapt_arguments);
-  __ cmp(r3, r5);
-  __ blt(&too_few);
+  __ LoadP(r7, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadP(r7, FieldMemOperand(r7, SharedFunctionInfo::kFlagsOffset));
+  __ TestBitMask(r7, SharedFunctionInfo::IsSafeToSkipArgumentsAdaptorBit::kMask,
+                 r0);
+  __ bne(&skip_adapt_arguments, cr0);
 
-  {  // Enough parameters: actual >= expected
-    __ bind(&enough);
-    EnterArgumentsAdaptorFrame(masm);
-    Generate_StackOverflowCheck(masm, r5, r8, &stack_overflow);
+  // -------------------------------------------
+  // Adapt arguments.
+  // -------------------------------------------
+  {
+    Label under_application, over_application, invoke;
+    __ cmp(r3, r5);
+    __ blt(&under_application);
 
-    // Calculate copy start address into r3 and copy end address into r7.
-    // r3: actual number of arguments as a smi
-    // r4: function
-    // r5: expected number of arguments
-    // r6: new target (passed through to callee)
-    __ SmiToPtrArrayOffset(r3, r3);
-    __ add(r3, r3, fp);
-    // adjust for return address and receiver
-    __ addi(r3, r3, Operand(2 * kPointerSize));
-    __ ShiftLeftImm(r7, r5, Operand(kPointerSizeLog2));
-    __ sub(r7, r3, r7);
+    // Enough parameters: actual >= expected
+    __ bind(&over_application);
+    {
+      EnterArgumentsAdaptorFrame(masm);
+      Generate_StackOverflowCheck(masm, r5, r8, &stack_overflow);
 
-    // Copy the arguments (including the receiver) to the new stack frame.
-    // r3: copy start address
-    // r4: function
-    // r5: expected number of arguments
-    // r6: new target (passed through to callee)
-    // r7: copy end address
+      // Calculate copy start address into r3 and copy end address into r7.
+      // r3: actual number of arguments as a smi
+      // r4: function
+      // r5: expected number of arguments
+      // r6: new target (passed through to callee)
+      __ SmiToPtrArrayOffset(r3, r3);
+      __ add(r3, r3, fp);
+      // adjust for return address and receiver
+      __ addi(r3, r3, Operand(2 * kPointerSize));
+      __ ShiftLeftImm(r7, r5, Operand(kPointerSizeLog2));
+      __ sub(r7, r3, r7);
 
-    Label copy;
-    __ bind(&copy);
-    __ LoadP(r0, MemOperand(r3, 0));
-    __ push(r0);
-    __ cmp(r3, r7);  // Compare before moving to next argument.
-    __ subi(r3, r3, Operand(kPointerSize));
-    __ bne(&copy);
+      // Copy the arguments (including the receiver) to the new stack frame.
+      // r3: copy start address
+      // r4: function
+      // r5: expected number of arguments
+      // r6: new target (passed through to callee)
+      // r7: copy end address
 
-    __ b(&invoke);
+      Label copy;
+      __ bind(&copy);
+      __ LoadP(r0, MemOperand(r3, 0));
+      __ push(r0);
+      __ cmp(r3, r7);  // Compare before moving to next argument.
+      __ subi(r3, r3, Operand(kPointerSize));
+      __ bne(&copy);
+
+      __ b(&invoke);
+    }
+
+    // Too few parameters: Actual < expected
+    __ bind(&under_application);
+    {
+      EnterArgumentsAdaptorFrame(masm);
+      Generate_StackOverflowCheck(masm, r5, r8, &stack_overflow);
+
+      // Calculate copy start address into r0 and copy end address is fp.
+      // r3: actual number of arguments as a smi
+      // r4: function
+      // r5: expected number of arguments
+      // r6: new target (passed through to callee)
+      __ SmiToPtrArrayOffset(r3, r3);
+      __ add(r3, r3, fp);
+
+      // Copy the arguments (including the receiver) to the new stack frame.
+      // r3: copy start address
+      // r4: function
+      // r5: expected number of arguments
+      // r6: new target (passed through to callee)
+      Label copy;
+      __ bind(&copy);
+      // Adjust load for return address and receiver.
+      __ LoadP(r0, MemOperand(r3, 2 * kPointerSize));
+      __ push(r0);
+      __ cmp(r3, fp);  // Compare before moving to next argument.
+      __ subi(r3, r3, Operand(kPointerSize));
+      __ bne(&copy);
+
+      // Fill the remaining expected arguments with undefined.
+      // r4: function
+      // r5: expected number of arguments
+      // r6: new target (passed through to callee)
+      __ LoadRoot(r0, RootIndex::kUndefinedValue);
+      __ ShiftLeftImm(r7, r5, Operand(kPointerSizeLog2));
+      __ sub(r7, fp, r7);
+      // Adjust for frame.
+      __ subi(r7, r7,
+              Operand(ArgumentsAdaptorFrameConstants::kFixedFrameSizeFromFp +
+                      kPointerSize));
+
+      Label fill;
+      __ bind(&fill);
+      __ push(r0);
+      __ cmp(sp, r7);
+      __ bne(&fill);
+    }
+
+    // Call the entry point.
+    __ bind(&invoke);
+    __ mr(r3, r5);
+    // r3 : expected number of arguments
+    // r4 : function (passed through to callee)
+    // r6 : new target (passed through to callee)
+    static_assert(kJavaScriptCallCodeStartRegister == r5, "ABI mismatch");
+    __ LoadP(r5, FieldMemOperand(r4, JSFunction::kCodeOffset));
+    __ CallCodeObject(r5);
+
+    // Store offset of return address for deoptimizer.
+    masm->isolate()->heap()->SetArgumentsAdaptorDeoptPCOffset(
+        masm->pc_offset());
+
+    // Exit frame and return.
+    LeaveArgumentsAdaptorFrame(masm);
+    __ blr();
   }
 
-  {  // Too few parameters: Actual < expected
-    __ bind(&too_few);
+  // -------------------------------------------
+  // Skip adapt arguments.
+  // -------------------------------------------
+  __ bind(&skip_adapt_arguments);
+  {
+    // The callee cannot observe the actual arguments, so it's safe to just
+    // pass the expected arguments by massaging the stack appropriately. See
+    // http://bit.ly/v8-faster-calls-with-arguments-mismatch for details.
+    Label under_application, over_application;
+    __ cmp(r3, r5);
+    __ blt(&under_application);
 
-    EnterArgumentsAdaptorFrame(masm);
-    Generate_StackOverflowCheck(masm, r5, r8, &stack_overflow);
+    __ bind(&over_application);
+    {
+      // Remove superfluous parameters from the stack.
+      __ sub(r7, r3, r5);
+      __ mr(r3, r5);
+      __ ShiftLeftImm(r7, r7, Operand(kPointerSizeLog2));
+      __ add(sp, sp, r7);
+      __ b(&dont_adapt_arguments);
+    }
 
-    // Calculate copy start address into r0 and copy end address is fp.
-    // r3: actual number of arguments as a smi
-    // r4: function
-    // r5: expected number of arguments
-    // r6: new target (passed through to callee)
-    __ SmiToPtrArrayOffset(r3, r3);
-    __ add(r3, r3, fp);
-
-    // Copy the arguments (including the receiver) to the new stack frame.
-    // r3: copy start address
-    // r4: function
-    // r5: expected number of arguments
-    // r6: new target (passed through to callee)
-    Label copy;
-    __ bind(&copy);
-    // Adjust load for return address and receiver.
-    __ LoadP(r0, MemOperand(r3, 2 * kPointerSize));
-    __ push(r0);
-    __ cmp(r3, fp);  // Compare before moving to next argument.
-    __ subi(r3, r3, Operand(kPointerSize));
-    __ bne(&copy);
-
-    // Fill the remaining expected arguments with undefined.
-    // r4: function
-    // r5: expected number of arguments
-    // r6: new target (passed through to callee)
-    __ LoadRoot(r0, RootIndex::kUndefinedValue);
-    __ ShiftLeftImm(r7, r5, Operand(kPointerSizeLog2));
-    __ sub(r7, fp, r7);
-    // Adjust for frame.
-    __ subi(r7, r7,
-            Operand(ArgumentsAdaptorFrameConstants::kFixedFrameSizeFromFp +
-                    kPointerSize));
-
-    Label fill;
-    __ bind(&fill);
-    __ push(r0);
-    __ cmp(sp, r7);
-    __ bne(&fill);
+    __ bind(&under_application);
+    {
+      // Fill remaining expected arguments with undefined values.
+      Label fill;
+      __ LoadRoot(r7, RootIndex::kUndefinedValue);
+      __ bind(&fill);
+      __ addi(r3, r3, Operand(1));
+      __ push(r7);
+      __ cmp(r3, r5);
+      __ blt(&fill);
+      __ b(&dont_adapt_arguments);
+    }
   }
-
-  // Call the entry point.
-  __ bind(&invoke);
-  __ mr(r3, r5);
-  // r3 : expected number of arguments
-  // r4 : function (passed through to callee)
-  // r6 : new target (passed through to callee)
-  static_assert(kJavaScriptCallCodeStartRegister == r5, "ABI mismatch");
-  __ LoadP(r5, FieldMemOperand(r4, JSFunction::kCodeOffset));
-  __ CallCodeObject(r5);
-
-  // Store offset of return address for deoptimizer.
-  masm->isolate()->heap()->SetArgumentsAdaptorDeoptPCOffset(masm->pc_offset());
-
-  // Exit frame and return.
-  LeaveArgumentsAdaptorFrame(masm);
-  __ blr();
 
   // -------------------------------------------
   // Dont adapt arguments.
@@ -2823,100 +2872,6 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   __ Ret();
 }
 
-void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
-  const Register exponent = r5;
-  const DoubleRegister double_base = d1;
-  const DoubleRegister double_exponent = d2;
-  const DoubleRegister double_result = d3;
-  const DoubleRegister double_scratch = d0;
-  const Register scratch = r11;
-  const Register scratch2 = r10;
-
-  Label call_runtime, done, int_exponent;
-
-  // Detect integer exponents stored as double.
-  __ TryDoubleToInt32Exact(scratch, double_exponent, scratch2, double_scratch);
-  __ beq(&int_exponent);
-
-  __ mflr(r0);
-  __ push(r0);
-  {
-    AllowExternalCallThatCantCauseGC scope(masm);
-    __ PrepareCallCFunction(0, 2, scratch);
-    __ MovToFloatParameters(double_base, double_exponent);
-    __ CallCFunction(ExternalReference::power_double_double_function(), 0, 2);
-  }
-  __ pop(r0);
-  __ mtlr(r0);
-  __ MovFromFloatResult(double_result);
-  __ b(&done);
-
-  // Calculate power with integer exponent.
-  __ bind(&int_exponent);
-
-  // Get two copies of exponent in the registers scratch and exponent.
-  // Exponent has previously been stored into scratch as untagged integer.
-  __ mr(exponent, scratch);
-
-  __ fmr(double_scratch, double_base);  // Back up base.
-  __ li(scratch2, Operand(1));
-  __ ConvertIntToDouble(scratch2, double_result);
-
-  // Get absolute value of exponent.
-  __ cmpi(scratch, Operand::Zero());
-  if (CpuFeatures::IsSupported(ISELECT)) {
-    __ neg(scratch2, scratch);
-    __ isel(lt, scratch, scratch2, scratch);
-  } else {
-    Label positive_exponent;
-    __ bge(&positive_exponent);
-    __ neg(scratch, scratch);
-    __ bind(&positive_exponent);
-  }
-
-  Label while_true, no_carry, loop_end;
-  __ bind(&while_true);
-  __ andi(scratch2, scratch, Operand(1));
-  __ beq(&no_carry, cr0);
-  __ fmul(double_result, double_result, double_scratch);
-  __ bind(&no_carry);
-  __ ShiftRightImm(scratch, scratch, Operand(1), SetRC);
-  __ beq(&loop_end, cr0);
-  __ fmul(double_scratch, double_scratch, double_scratch);
-  __ b(&while_true);
-  __ bind(&loop_end);
-
-  __ cmpi(exponent, Operand::Zero());
-  __ bge(&done);
-
-  __ li(scratch2, Operand(1));
-  __ ConvertIntToDouble(scratch2, double_scratch);
-  __ fdiv(double_result, double_scratch, double_result);
-  // Test whether result is zero.  Bail out to check for subnormal result.
-  // Due to subnormals, x^-y == (1/x)^y does not hold in all cases.
-  __ fcmpu(double_result, kDoubleRegZero);
-  __ bne(&done);
-  // double_exponent may not containe the exponent value if the input was a
-  // smi.  We set it with exponent value before bailing out.
-  __ ConvertIntToDouble(exponent, double_exponent);
-
-  // Returning or bailing out.
-  __ mflr(r0);
-  __ push(r0);
-  {
-    AllowExternalCallThatCantCauseGC scope(masm);
-    __ PrepareCallCFunction(0, 2, scratch);
-    __ MovToFloatParameters(double_base, double_exponent);
-    __ CallCFunction(ExternalReference::power_double_double_function(), 0, 2);
-  }
-  __ pop(r0);
-  __ mtlr(r0);
-  __ MovFromFloatResult(double_result);
-
-  __ bind(&done);
-  __ Ret();
-}
-
 void Builtins::Generate_InternalArrayConstructorImpl(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r3 : argc
@@ -3098,32 +3053,23 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 
 void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- cp                  : kTargetContext
-  //  -- r4                  : kApiFunctionAddress
-  //  -- r5                  : kArgc
-  //  --
+  //  -- cp                  : context
+  //  -- r4                  : api function address
+  //  -- r5                  : arguments count (not including the receiver)
+  //  -- r6                  : call data
+  //  -- r3                  : holder
   //  -- sp[0]               : last argument
   //  -- ...
   //  -- sp[(argc - 1)* 4]   : first argument
   //  -- sp[(argc + 0) * 4]  : receiver
-  //  -- sp[(argc + 1) * 4]  : kHolder
-  //  -- sp[(argc + 2) * 4]  : kCallData
   // -----------------------------------
 
   Register api_function_address = r4;
   Register argc = r5;
+  Register call_data = r6;
+  Register holder = r3;
   Register scratch = r7;
-  Register index = r8;  // For indexing MemOperands.
-
-  DCHECK(!AreAliased(api_function_address, argc, scratch, index));
-
-  // Stack offsets (without argc).
-  static constexpr int kReceiverOffset = 0;
-  static constexpr int kHolderOffset = kReceiverOffset + 1;
-  static constexpr int kCallDataOffset = kHolderOffset + 1;
-
-  // Extra stack arguments are: the receiver, kHolder, kCallData.
-  static constexpr int kExtraStackArgumentCount = 3;
+  DCHECK(!AreAliased(api_function_address, argc, call_data, holder, scratch));
 
   typedef FunctionCallbackArguments FCA;
 
@@ -3149,26 +3095,22 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   __ subi(sp, sp, Operand(FCA::kArgsLength * kPointerSize));
 
   // kHolder.
-  __ addi(index, argc, Operand(FCA::kArgsLength + kHolderOffset));
-  __ ShiftLeftImm(ip, index, Operand(kPointerSizeLog2));
-  __ LoadPX(scratch, MemOperand(sp, ip));
-  __ StoreP(scratch, MemOperand(sp, 0 * kPointerSize));
+  __ StoreP(holder, MemOperand(sp, 0 * kPointerSize));
 
   // kIsolate.
   __ Move(scratch, ExternalReference::isolate_address(masm->isolate()));
   __ StoreP(scratch, MemOperand(sp, 1 * kPointerSize));
 
-  // kReturnValueDefaultValue, kReturnValue, and kNewTarget.
+  // kReturnValueDefaultValue and kReturnValue.
   __ LoadRoot(scratch, RootIndex::kUndefinedValue);
   __ StoreP(scratch, MemOperand(sp, 2 * kPointerSize));
   __ StoreP(scratch, MemOperand(sp, 3 * kPointerSize));
-  __ StoreP(scratch, MemOperand(sp, 5 * kPointerSize));
 
   // kData.
-  __ addi(index, argc, Operand(FCA::kArgsLength + kCallDataOffset));
-  __ ShiftLeftImm(ip, index, Operand(kPointerSizeLog2));
-  __ LoadPX(scratch, MemOperand(sp, ip));
-  __ StoreP(scratch, MemOperand(sp, 4 * kPointerSize));
+  __ StoreP(call_data, MemOperand(sp, 4 * kPointerSize));
+
+  // kNewTarget.
+  __ StoreP(scratch, MemOperand(sp, 5 * kPointerSize));
 
   // Keep a pointer to kHolder (= implicit_args) in a scratch register.
   // We use it below to set up the FunctionCallbackInfo object.
@@ -3207,7 +3149,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   // We also store the number of bytes to drop from the stack after returning
   // from the API function here.
   __ mov(scratch,
-         Operand((FCA::kArgsLength + kExtraStackArgumentCount) * kPointerSize));
+         Operand((FCA::kArgsLength + 1 /* receiver */) * kPointerSize));
   __ ShiftLeftImm(ip, argc, Operand(kPointerSizeLog2));
   __ add(scratch, scratch, ip);
   __ StoreP(scratch,

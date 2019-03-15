@@ -411,15 +411,11 @@ MaybeHandle<String> JSListFormat::FormatList(Isolate* isolate,
   return Intl::ToString(isolate, formatted);
 }
 
-std::set<std::string> JSListFormat::GetAvailableLocales() {
-  int32_t num_locales = 0;
-  // TODO(ftang): for now just use
-  // icu::Locale::getAvailableLocales(count) until we migrate to
-  // Intl::GetAvailableLocales().
+const std::set<std::string>& JSListFormat::GetAvailableLocales() {
+  // Since ListFormatter does not have a method to list all supported
+  // locales, use the one in icu::Locale per comments in
   // ICU FR at https://unicode-org.atlassian.net/browse/ICU-20015
-  const icu::Locale* icu_available_locales =
-      icu::Locale::getAvailableLocales(num_locales);
-  return Intl::BuildLocaleSet(icu_available_locales, num_locales);
+  return Intl::GetAvailableLocalesForLocale();
 }
 
 // ecma42 #sec-formatlisttoparts

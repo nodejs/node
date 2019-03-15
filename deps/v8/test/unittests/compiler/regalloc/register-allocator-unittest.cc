@@ -755,7 +755,7 @@ TEST_P(SlotConstraintTest, SlotConstraint) {
   Allocate();
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     RegisterAllocatorTest, SlotConstraintTest,
     ::testing::Combine(::testing::ValuesIn(kParameterTypes),
                        ::testing::Range(0, SlotConstraintTest::kMaxVariant)));

@@ -21,6 +21,7 @@
     return bar(x) | 0;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo(1));
   assertEquals(1, foo(2));
   assertEquals(2, foo(3));
@@ -50,6 +51,7 @@
     return bar(x) | 0;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo(1));
   assertEquals(1, foo(2));
   assertEquals(2, foo(3));
@@ -68,6 +70,7 @@
   function foo(x) { return (x | 0) / 2; }
 
   // Warmup with proper int32 divisions.
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo(2));
   assertEquals(2, foo(4));
   %OptimizeFunctionOnNextCall(foo);
@@ -79,6 +82,7 @@
   assertUnoptimized(foo);
 
   // Try again with the new feedback, and now it should stay optimized.
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(4, foo(8));
   assertOptimized(foo);
@@ -92,6 +96,7 @@
   function foo(x, y) { return x / y; }
 
   // Warmup with proper int32 divisions.
+  %PrepareFunctionForOptimization(foo);
   assertEquals(2, foo(4, 2));
   assertEquals(2, foo(8, 4));
   %OptimizeFunctionOnNextCall(foo);
@@ -103,6 +108,7 @@
   assertUnoptimized(foo);
 
   // Try again with the new feedback, and now it should stay optimized.
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(2, foo(2, 1));
   assertOptimized(foo);
@@ -116,6 +122,7 @@
   function foo(x, y) { return x / y; }
 
   // Warmup with proper int32 divisions.
+  %PrepareFunctionForOptimization(foo);
   assertEquals(2, foo(4, 2));
   assertEquals(2, foo(8, 4));
   %OptimizeFunctionOnNextCall(foo);
@@ -127,6 +134,7 @@
   assertUnoptimized(foo);
 
   // Try again with the new feedback, and now it should stay optimized.
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(2, foo(2, 1));
   assertOptimized(foo);
@@ -140,6 +148,7 @@
   function foo(x, y) { return x / y; }
 
   // Warmup with proper int32 divisions.
+  %PrepareFunctionForOptimization(foo);
   assertEquals(2, foo(4, 2));
   assertEquals(2, foo(8, 4));
   %OptimizeFunctionOnNextCall(foo);
@@ -151,6 +160,7 @@
   assertUnoptimized(foo);
 
   // Try again with the new feedback, and now it should stay optimized.
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(2, foo(2, 1));
   assertOptimized(foo);
@@ -164,6 +174,7 @@
   function foo(s) { return s.length / 2; }
 
   // Warmup with proper uint32 divisions.
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo("ab".repeat(1)));
   assertEquals(2, foo("ab".repeat(2)));
   %OptimizeFunctionOnNextCall(foo);
@@ -175,6 +186,7 @@
   assertUnoptimized(foo);
 
   // Try again with the new feedback, and now it should stay optimized.
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(4, foo("ab".repeat(4)));
   assertOptimized(foo);
@@ -188,6 +200,7 @@
   function foo(x, y) { return (x >>> 0) / (y >>> 0); }
 
   // Warmup with proper uint32 divisions.
+  %PrepareFunctionForOptimization(foo);
   assertEquals(2, foo(4, 2));
   assertEquals(2, foo(8, 4));
   %OptimizeFunctionOnNextCall(foo);
@@ -199,6 +212,7 @@
   assertUnoptimized(foo);
 
   // Try again with the new feedback, and now it should stay optimized.
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(2, foo(2, 1));
   assertOptimized(foo);

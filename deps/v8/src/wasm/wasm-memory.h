@@ -142,8 +142,14 @@ class WasmMemoryTracker {
 // Attempts to allocate an array buffer with guard regions suitable for trap
 // handling. If address space is not available, it will return a buffer with
 // mini-guards that will require bounds checks.
-MaybeHandle<JSArrayBuffer> NewArrayBuffer(
-    Isolate*, size_t size, SharedFlag shared = SharedFlag::kNotShared);
+MaybeHandle<JSArrayBuffer> NewArrayBuffer(Isolate*, size_t size);
+
+// Attempts to allocate a SharedArrayBuffer with guard regions suitable for
+// trap handling. If address space is not available, it will try to reserve
+// up to the maximum for that memory. If all else fails, it will return a
+// buffer with mini-guards of initial size.
+MaybeHandle<JSArrayBuffer> NewSharedArrayBuffer(Isolate*, size_t initial_size,
+                                                size_t max_size);
 
 Handle<JSArrayBuffer> SetupArrayBuffer(
     Isolate*, void* backing_store, size_t size, bool is_external,

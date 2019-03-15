@@ -130,11 +130,14 @@ void OptimizingCompileDispatcher::CompileNext(OptimizedCompilationJob* job) {
   CompilationJob::Status status = job->ExecuteJob();
   USE(status);  // Prevent an unused-variable error.
 
-  // The function may have already been optimized by OSR.  Simply continue.
-  // Use a mutex to make sure that functions marked for install
-  // are always also queued.
-  base::MutexGuard access_output_queue_(&output_queue_mutex_);
-  output_queue_.push(job);
+  {
+    // The function may have already been optimized by OSR.  Simply continue.
+    // Use a mutex to make sure that functions marked for install
+    // are always also queued.
+    base::MutexGuard access_output_queue_(&output_queue_mutex_);
+    output_queue_.push(job);
+  }
+
   isolate_->stack_guard()->RequestInstallCode();
 }
 

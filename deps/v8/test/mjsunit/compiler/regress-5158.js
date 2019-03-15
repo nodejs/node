@@ -9,6 +9,7 @@ function foo(x) {
   return (x > 0) ? x : 0 - x;
 }
 
+%PrepareFunctionForOptimization(foo);
 foo(1);
 foo(-1);
 foo(0);

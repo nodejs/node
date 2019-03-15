@@ -33,6 +33,8 @@ function test_empty() {
     return { value: o.value };
   }
 
+  %PrepareFunctionForOptimization(foo);
+
   function Base() {
     this.v_ = 5;
   }
@@ -62,6 +64,8 @@ function test_narrow1() {
   function foo(o) {
     return { value: o.value };
   }
+
+  %PrepareFunctionForOptimization(foo);
 
   function Base() {
     this.v_ = 5;
@@ -96,6 +100,8 @@ function test_narrow2() {
   function foo(o, flag) {
     return { value: o.value(flag) };
   }
+
+  %PrepareFunctionForOptimization(foo);
 
   function Base() {
     this.v_ = 5;

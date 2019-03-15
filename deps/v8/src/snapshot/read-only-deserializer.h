@@ -20,12 +20,6 @@ class ReadOnlyDeserializer final : public Deserializer {
 
   // Deserialize the snapshot into an empty heap.
   void DeserializeInto(Isolate* isolate);
-
- private:
-  friend class StartupDeserializer;
-
-  // Rehash after deserializing.
-  void RehashHeap();
 };
 
 }  // namespace internal

@@ -13,6 +13,7 @@ var invalidAsmFunction = (function() {
   }
 })();
 
+%PrepareFunctionForOptimization(invalidAsmFunction);
 invalidAsmFunction();
 %OptimizeFunctionOnNextCall(invalidAsmFunction);
 invalidAsmFunction();

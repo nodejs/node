@@ -188,9 +188,10 @@ class UseInfo {
   }
 
   // Possibly deoptimizing conversions.
-  static UseInfo CheckedHeapObjectAsTaggedPointer() {
+  static UseInfo CheckedHeapObjectAsTaggedPointer(
+      const VectorSlotPair& feedback) {
     return UseInfo(MachineRepresentation::kTaggedPointer, Truncation::Any(),
-                   TypeCheckKind::kHeapObject);
+                   TypeCheckKind::kHeapObject, feedback);
   }
   static UseInfo CheckedSignedSmallAsTaggedSigned(
       const VectorSlotPair& feedback,

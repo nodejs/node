@@ -106,10 +106,8 @@ TEST_P(CommonSharedOperatorTest, Properties) {
   EXPECT_EQ(sop.properties, op->properties());
 }
 
-
-INSTANTIATE_TEST_CASE_P(CommonOperatorTest, CommonSharedOperatorTest,
-                        ::testing::ValuesIn(kSharedOperators));
-
+INSTANTIATE_TEST_SUITE_P(CommonOperatorTest, CommonSharedOperatorTest,
+                         ::testing::ValuesIn(kSharedOperators));
 
 // -----------------------------------------------------------------------------
 // Other operators.

@@ -93,7 +93,7 @@ bool g_hard_abort = false;
 const char* g_gc_fake_mmap = nullptr;
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(RandomNumberGenerator,
-                                GetPlatformRandomNumberGenerator);
+                                GetPlatformRandomNumberGenerator)
 static LazyMutex rng_mutex = LAZY_MUTEX_INITIALIZER;
 
 #if !V8_OS_FUCHSIA
@@ -269,7 +269,7 @@ void* OS::GetRandomMmapAddr() {
   return reinterpret_cast<void*>(raw_addr);
 }
 
-// TODO(bbudge) Move Cygwin and Fuschia stuff into platform-specific files.
+// TODO(bbudge) Move Cygwin and Fuchsia stuff into platform-specific files.
 #if !V8_OS_CYGWIN && !V8_OS_FUCHSIA
 // static
 void* OS::Allocate(void* address, size_t size, size_t alignment,

@@ -244,9 +244,9 @@ TEST_P(RandomNumberGeneratorTest, NextSampleSlowExcludedMax2) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(RandomSeeds, RandomNumberGeneratorTest,
-                        ::testing::Values(INT_MIN, -1, 0, 1, 42, 100,
-                                          1234567890, 987654321, INT_MAX));
+INSTANTIATE_TEST_SUITE_P(RandomSeeds, RandomNumberGeneratorTest,
+                         ::testing::Values(INT_MIN, -1, 0, 1, 42, 100,
+                                           1234567890, 987654321, INT_MAX));
 
 }  // namespace base
 }  // namespace v8

@@ -16,6 +16,8 @@ function opt(a, b) {
   b[0] = 9.431092e-317;
 }
 
+%PrepareFunctionForOptimization(opt);
+
 let arr1 = new Array(1);
 arr1[0] = 'a';
 opt(arr1, [0]);

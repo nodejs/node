@@ -9,6 +9,7 @@
 #include "src/objects/hash-table.h"
 #include "src/objects/js-regexp.h"
 #include "src/objects/shared-function-info.h"
+#include "src/roots.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -33,7 +34,7 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
                                           LanguageMode language_mode,
                                           int position);
 
-  static inline uint32_t HashForObject(Isolate* isolate, Object object);
+  static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 
   static const int kPrefixSize = 0;
   static const int kEntrySize = 3;

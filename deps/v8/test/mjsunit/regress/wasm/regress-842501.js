@@ -4,7 +4,6 @@
 
 // Flags: --no-wasm-trap-handler
 
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function() {

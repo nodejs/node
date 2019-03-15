@@ -4,7 +4,6 @@
 
 // Flags: --wasm-max-code-space=1
 
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 // We only have 1 MB code space. This is enough for the code below, but for all

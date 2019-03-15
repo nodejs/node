@@ -72,7 +72,7 @@ class PropertyCallbackArguments
   static const int kShouldThrowOnErrorIndex = T::kShouldThrowOnErrorIndex;
 
   PropertyCallbackArguments(Isolate* isolate, Object data, Object self,
-                            JSObject holder, ShouldThrow should_throw);
+                            JSObject holder, Maybe<ShouldThrow> should_throw);
 
   // -------------------------------------------------------------------------
   // Accessor Callbacks

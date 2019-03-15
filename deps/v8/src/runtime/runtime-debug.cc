@@ -15,6 +15,7 @@
 #include "src/debug/liveedit.h"
 #include "src/frames-inl.h"
 #include "src/globals.h"
+#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/interpreter/bytecode-array-accessor.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
@@ -722,16 +723,16 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
 RUNTIME_FUNCTION(Runtime_DebugTogglePreciseCoverage) {
   SealHandleScope shs(isolate);
   CONVERT_BOOLEAN_ARG_CHECKED(enable, 0);
-  Coverage::SelectMode(isolate, enable ? debug::Coverage::kPreciseCount
-                                       : debug::Coverage::kBestEffort);
+  Coverage::SelectMode(isolate, enable ? debug::CoverageMode::kPreciseCount
+                                       : debug::CoverageMode::kBestEffort);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_DebugToggleBlockCoverage) {
   SealHandleScope shs(isolate);
   CONVERT_BOOLEAN_ARG_CHECKED(enable, 0);
-  Coverage::SelectMode(isolate, enable ? debug::Coverage::kBlockCount
-                                       : debug::Coverage::kBestEffort);
+  Coverage::SelectMode(isolate, enable ? debug::CoverageMode::kBlockCount
+                                       : debug::CoverageMode::kBestEffort);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

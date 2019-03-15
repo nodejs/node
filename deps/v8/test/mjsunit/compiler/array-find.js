@@ -10,6 +10,7 @@
     return a.find(x => x === o.x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(3, foo([1, 2, 3], {x:3}));
   assertEquals(undefined, foo([0, 1, 2], {x:3}));
   %OptimizeFunctionOnNextCall(foo);

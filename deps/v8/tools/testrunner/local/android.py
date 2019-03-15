@@ -9,7 +9,7 @@ Wrapper around the Android device abstraction from src/build/android.
 import logging
 import os
 import sys
-
+import re
 
 BASE_DIR = os.path.normpath(
     os.path.join(os.path.dirname(__file__), '..', '..', '..'))

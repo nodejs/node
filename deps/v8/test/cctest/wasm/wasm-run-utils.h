@@ -39,6 +39,7 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/call-tester.h"
 #include "test/cctest/compiler/graph-builder-tester.h"
+#include "test/cctest/compiler/value-helper.h"
 #include "test/common/wasm/flag-utils.h"
 
 namespace v8 {
@@ -87,7 +88,7 @@ class TestingModuleBuilder {
 
   void ChangeOriginToAsmjs() { test_module_->origin = kAsmJsOrigin; }
 
-  byte* AddMemory(uint32_t size);
+  byte* AddMemory(uint32_t size, SharedFlag shared = SharedFlag::kNotShared);
 
   size_t CodeTableLength() const { return native_module_->num_functions(); }
 
@@ -175,6 +176,7 @@ class TestingModuleBuilder {
   enum FunctionType { kImport, kWasm };
   uint32_t AddFunction(FunctionSig* sig, const char* name, FunctionType type);
 
+  // Wrap the code so it can be called as a JS function.
   Handle<JSFunction> WrapCode(uint32_t index);
 
   void AddIndirectFunctionTable(const uint16_t* function_indexes,
@@ -183,6 +185,8 @@ class TestingModuleBuilder {
   void PopulateIndirectFunctionTable();
 
   uint32_t AddBytes(Vector<const byte> bytes);
+
+  uint32_t AddException(FunctionSig* sig);
 
   WasmFunction* GetFunctionAt(int index) {
     return &test_module_->functions[index];
@@ -201,11 +205,8 @@ class TestingModuleBuilder {
   Address globals_start() const {
     return reinterpret_cast<Address>(globals_data_);
   }
-  void Link() {
-    if (linked_) return;
-    linked_ = true;
-    native_module_->SetExecutable(true);
-  }
+
+  void SetExecutable() { native_module_->SetExecutable(true); }
 
   CompilationEnv CreateCompilationEnv();
 
@@ -228,7 +229,6 @@ class TestingModuleBuilder {
   ExecutionTier execution_tier_;
   Handle<WasmInstanceObject> instance_object_;
   NativeModule* native_module_ = nullptr;
-  bool linked_ = false;
   RuntimeExceptionSupport runtime_exception_support_;
   LowerSimd lower_simd_;
 
@@ -450,7 +450,7 @@ class WasmRunner : public WasmRunnerBase {
 
     wrapper_.SetInnerCode(builder_.GetFunctionCode(0));
     wrapper_.SetInstance(builder_.instance_object());
-    builder_.Link();
+    builder_.SetExecutable();
     Handle<Code> wrapper_code = wrapper_.GetWrapperCode();
     compiler::CodeRunner<int32_t> runner(CcTest::InitIsolateOnce(),
                                          wrapper_code, wrapper_.signature());
@@ -474,7 +474,9 @@ class WasmRunner : public WasmRunnerBase {
     thread->Reset();
     std::array<WasmValue, sizeof...(p)> args{{WasmValue(p)...}};
     thread->InitFrame(function(), args.data());
-    if (thread->Run() == WasmInterpreter::FINISHED) {
+    thread->Run();
+    CHECK_GT(thread->NumInterpretedCalls(), 0);
+    if (thread->state() == WasmInterpreter::FINISHED) {
       WasmValue val = thread->GetReturnValue();
       possible_nondeterminism_ |= thread->PossibleNondeterminism();
       return val.to<ReturnType>();
@@ -488,7 +490,45 @@ class WasmRunner : public WasmRunnerBase {
     }
   }
 
+  void CheckCallViaJS(double expected, uint32_t function_index,
+                      Handle<Object>* buffer, int count) {
+    Isolate* isolate = builder_.isolate();
+    if (jsfuncs_.size() <= function_index) {
+      jsfuncs_.resize(function_index + 1);
+    }
+    if (jsfuncs_[function_index].is_null()) {
+      jsfuncs_[function_index] = builder_.WrapCode(function_index);
+    }
+    Handle<JSFunction> jsfunc = jsfuncs_[function_index];
+    Handle<Object> global(isolate->context()->global_object(), isolate);
+    MaybeHandle<Object> retval =
+        Execution::Call(isolate, jsfunc, global, count, buffer);
+
+    CHECK(!retval.is_null());
+    Handle<Object> result = retval.ToHandleChecked();
+    if (result->IsSmi()) {
+      CHECK_EQ(expected, Smi::ToInt(*result));
+    } else {
+      CHECK(result->IsHeapNumber());
+      CHECK_DOUBLE_EQ(expected, HeapNumber::cast(*result)->value());
+    }
+
+    if (builder_.interpret()) {
+      CHECK_GT(builder_.interpreter()->GetThread(0)->NumInterpretedCalls(), 0);
+    }
+  }
+
+  void CheckCallViaJS(double expected, ParamTypes... p) {
+    Isolate* isolate = builder_.isolate();
+    uint32_t function_index = function()->func_index;
+    Handle<Object> buffer[] = {isolate->factory()->NewNumber(p)...};
+    CheckCallViaJS(expected, function_index, buffer, sizeof...(p));
+  }
+
   Handle<Code> GetWrapperCode() { return wrapper_.GetWrapperCode(); }
+
+ private:
+  std::vector<Handle<JSFunction>> jsfuncs_;
 };
 
 // A macro to define tests that run in different engine configurations.

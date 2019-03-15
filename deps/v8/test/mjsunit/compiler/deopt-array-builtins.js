@@ -13,10 +13,12 @@
     function g() {
         [1,2,3].forEach(f);
     }
+    %PrepareFunctionForOptimization(g);
     g();
     g();
     %OptimizeFunctionOnNextCall(g);
     g();
+    %PrepareFunctionForOptimization(g);
     %OptimizeFunctionOnNextCall(g);
     g();
     assertOptimized(g);
@@ -31,10 +33,12 @@
     function g() {
         [1,2,3].find(f);
     }
+    %PrepareFunctionForOptimization(g);
     g();
     g();
     %OptimizeFunctionOnNextCall(g);
     g();
+    %PrepareFunctionForOptimization(g);
     %OptimizeFunctionOnNextCall(g);
     g();
     assertOptimized(g);
@@ -48,10 +52,12 @@
     function g() {
         [1,2,3].map(f);
     }
+    %PrepareFunctionForOptimization(g);
     g();
     g();
     %OptimizeFunctionOnNextCall(g);
     g();
+    %PrepareFunctionForOptimization(g);
     %OptimizeFunctionOnNextCall(g);
     g();
     assertOptimized(g);
@@ -65,10 +71,12 @@
     function g() {
         [1,2,3].filter(f);
     }
+    %PrepareFunctionForOptimization(g);
     g();
     g();
     %OptimizeFunctionOnNextCall(g);
     g();
+    %PrepareFunctionForOptimization(g);
     %OptimizeFunctionOnNextCall(g);
     g();
     assertOptimized(g);
@@ -84,10 +92,12 @@
     function g() {
         [1,2,3].forEach(f);
     }
+    %PrepareFunctionForOptimization(g);
     g();
     g();
     %OptimizeFunctionOnNextCall(g);
     g();
+    %PrepareFunctionForOptimization(g);
     %OptimizeFunctionOnNextCall(g);
     g();
     assertOptimized(g);
@@ -102,10 +112,12 @@
     function g() {
         [1,2,3].find(f);
     }
+    %PrepareFunctionForOptimization(g);
     g();
     g();
     %OptimizeFunctionOnNextCall(g);
     g();
+    %PrepareFunctionForOptimization(g);
     %OptimizeFunctionOnNextCall(g);
     g();
     assertOptimized(g);
@@ -119,10 +131,12 @@
     function g() {
         [1,2,3].map(f);
     }
+    %PrepareFunctionForOptimization(g);
     g();
     g();
     %OptimizeFunctionOnNextCall(g);
     g();
+    %PrepareFunctionForOptimization(g);
     %OptimizeFunctionOnNextCall(g);
     g();
     assertOptimized(g);
@@ -136,11 +150,13 @@
     function g() {
         [1,2,3].filter(f);
     }
+    %PrepareFunctionForOptimization(g);
     g();
     g();
     %OptimizeFunctionOnNextCall(g);
     g();
     g();
+    %PrepareFunctionForOptimization(g);
     %OptimizeFunctionOnNextCall(g);
     g();
     g();

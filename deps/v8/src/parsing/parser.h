@@ -341,8 +341,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   Statement* DeclareFunction(const AstRawString* variable_name,
                              FunctionLiteral* function, VariableMode mode,
-                             int beg_pos, int end_pos,
-                             bool is_sloppy_block_function,
+                             VariableKind kind, int beg_pos, int end_pos,
                              ZonePtrList<const AstRawString>* names);
   Variable* CreateSyntheticContextVariable(const AstRawString* synthetic_name);
   FunctionLiteral* CreateInitializerFunction(
@@ -374,6 +373,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   Scope* NewHiddenCatchScope();
 
+  bool HasCheckedSyntax() {
+    return scope()->GetDeclarationScope()->has_checked_syntax();
+  }
+
   // PatternRewriter and associated methods defined in pattern-rewriter.cc.
   friend class PatternRewriter;
   void InitializeVariables(
@@ -401,17 +404,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return object_literal;
   }
 
-  // Check if the scope has conflicting var/let declarations from different
-  // scopes. This covers for example
-  //
-  // function f() { { { var x; } let x; } }
-  // function g() { { var x; let x; } }
-  //
-  // The var declarations are hoisted to the function scope, but originate from
-  // a scope where the name has also been let bound or the var declaration is
-  // hoisted over such a scope.
-  void CheckConflictingVarDeclarations(Scope* scope);
-
   bool IsPropertyWithPrivateFieldKey(Expression* property);
 
   // Insert initializer statements for var-bindings shadowing parameter bindings
@@ -421,24 +413,28 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // Implement sloppy block-scoped functions, ES2015 Annex B 3.3
   void InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope);
 
-  VariableProxy* DeclareVariable(const AstRawString* name, VariableMode mode,
-                                 int pos);
-  VariableProxy* DeclareVariable(const AstRawString* name, VariableMode mode,
-                                 InitializationFlag init, int pos);
-  void DeclareVariable(VariableProxy* proxy, VariableKind kind,
-                       VariableMode mode, InitializationFlag init,
-                       Scope* declaration_scope, bool* added, int begin,
-                       int end = kNoSourcePosition);
-  void Declare(Declaration* declaration, VariableProxy* proxy,
+  void DeclareUnboundVariable(const AstRawString* name, VariableMode mode,
+                              InitializationFlag init, int pos);
+  V8_WARN_UNUSED_RESULT
+  VariableProxy* DeclareBoundVariable(const AstRawString* name,
+                                      VariableMode mode, int pos);
+  void DeclareAndBindVariable(VariableProxy* proxy, VariableKind kind,
+                              VariableMode mode, InitializationFlag init,
+                              Scope* declaration_scope, bool* was_added,
+                              int begin, int end = kNoSourcePosition);
+  V8_WARN_UNUSED_RESULT
+  Variable* DeclareVariable(const AstRawString* name, VariableKind kind,
+                            VariableMode mode, InitializationFlag init,
+                            Scope* declaration_scope, bool* was_added,
+                            int begin, int end = kNoSourcePosition);
+  void Declare(Declaration* declaration, const AstRawString* name,
                VariableKind kind, VariableMode mode, InitializationFlag init,
-               Scope* declaration_scope, bool* added,
+               Scope* declaration_scope, bool* was_added, int var_begin_pos,
                int var_end_pos = kNoSourcePosition);
 
   bool TargetStackContainsLabel(const AstRawString* label);
   BreakableStatement* LookupBreakTarget(const AstRawString* label);
   IterationStatement* LookupContinueTarget(const AstRawString* label);
-
-  Statement* BuildAssertIsCoercible(Variable* var, ObjectLiteral* pattern);
 
   // Factory methods.
   FunctionLiteral* DefaultConstructor(const AstRawString* name, bool call_super,
@@ -530,9 +526,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   Expression* RewriteSpreads(ArrayLiteral* lit);
 
-  friend class InitializerRewriter;
-  void RewriteParameterInitializer(Expression* expr);
-
   Expression* BuildInitialYield(int pos, FunctionKind kind);
   Assignment* BuildCreateJSGeneratorObject(int pos, FunctionKind kind);
 
@@ -541,8 +534,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                             MessageTemplate message, const AstRawString* arg,
                             int pos);
 
-  Statement* FinalizeForOfStatement(ForOfStatement* loop, Variable* completion,
-                                    IteratorType type, int pos);
   Statement* CheckCallable(Variable* var, Expression* error, int pos);
 
   void RewriteAsyncFunctionBody(ScopedPtrList<Statement>* body, Block* block,
@@ -574,8 +565,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE static bool IsThisProperty(Expression* expression) {
     DCHECK_NOT_NULL(expression);
     Property* property = expression->AsProperty();
-    return property != nullptr && property->obj()->IsVariableProxy() &&
-           property->obj()->AsVariableProxy()->is_this();
+    return property != nullptr && property->obj()->IsThisExpression();
   }
 
   // This returns true if the expression is an indentifier (wrapped
@@ -583,8 +573,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // has been converted to a variable proxy.
   V8_INLINE static bool IsIdentifier(Expression* expression) {
     VariableProxy* operand = expression->AsVariableProxy();
-    return operand != nullptr && !operand->is_this() &&
-           !operand->is_new_target();
+    return operand != nullptr && !operand->is_new_target();
   }
 
   V8_INLINE static const AstRawString* AsIdentifier(Expression* expression) {
@@ -633,11 +622,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return arg == nullptr || literal->AsRawString() == arg;
   }
 
-  V8_INLINE void GetDefaultStrings(
-      const AstRawString** default_string,
-      const AstRawString** star_default_star_string) {
+  V8_INLINE void GetDefaultStrings(const AstRawString** default_string,
+                                   const AstRawString** dot_default_string) {
     *default_string = ast_value_factory()->default_string();
-    *star_default_star_string = ast_value_factory()->star_default_star_string();
+    *dot_default_string = ast_value_factory()->dot_default_string();
   }
 
   // Functions for encapsulating the differences between parsing and preparsing;
@@ -654,7 +642,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     if (expression->IsPropertyName()) {
       fni_.PushLiteralName(expression->AsLiteral()->AsRawPropertyName());
     } else {
-      fni_.PushLiteralName(ast_value_factory()->anonymous_function_string());
+      fni_.PushLiteralName(ast_value_factory()->computed_string());
     }
   }
 
@@ -788,6 +776,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return result;
   }
 
+  V8_INLINE const AstRawString* GetIdentifier() const { return GetSymbol(); }
+
   V8_INLINE const AstRawString* GetNextSymbol() const {
     return scanner()->NextSymbol(ast_value_factory());
   }
@@ -799,9 +789,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return ast_value_factory()->GetOneByteString(string);
   }
 
-  V8_INLINE Expression* ThisExpression(int pos = kNoSourcePosition) {
-    return NewUnresolved(ast_value_factory()->this_string(), pos,
-                         THIS_VARIABLE);
+  class ThisExpression* ThisExpression() {
+    UseThis();
+    return factory()->ThisExpression();
   }
 
   Expression* NewSuperPropertyReference(int pos);
@@ -818,6 +808,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       fni_.PushVariableName(name);
     }
     return expression_scope()->NewVariable(name, start_position);
+  }
+
+  V8_INLINE void DeclareIdentifier(const AstRawString* name,
+                                   int start_position) {
+    expression_scope()->Declare(name, start_position);
   }
 
   V8_INLINE Variable* DeclareCatchVariableName(Scope* scope,

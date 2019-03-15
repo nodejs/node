@@ -37,8 +37,8 @@ class EntryFrameConstants : public AllStatic {
  public:
   // This is the offset to where JSEntry pushes the current value of
   // Isolate::c_entry_fp onto the stack.
-  static constexpr int kCallerFPOffset = -3 * kPointerSize;
-  static constexpr int kFixedFrameSize = 6 * kPointerSize;
+  static constexpr int kCallerFPOffset = -3 * kSystemPointerSize;
+  static constexpr int kFixedFrameSize = 6 * kSystemPointerSize;
 };
 
 class ExitFrameConstants : public TypedFrameConstants {
@@ -62,7 +62,7 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
   static constexpr int kFixedFrameSizeFromFp =
       // Header is padded to 16 byte (see {MacroAssembler::EnterFrame}).
       RoundUp<16>(TypedFrameConstants::kFixedFrameSizeFromFp) +
-      kNumberOfSavedGpParamRegs * kPointerSize +
+      kNumberOfSavedGpParamRegs * kSystemPointerSize +
       kNumberOfSavedFpParamRegs * kDoubleSize;
 };
 
@@ -74,7 +74,7 @@ class JavaScriptFrameConstants : public AllStatic {
 
   // There are two words on the stack (saved fp and saved lr) between fp and
   // the arguments.
-  static constexpr int kLastParameterOffset = 2 * kPointerSize;
+  static constexpr int kLastParameterOffset = 2 * kSystemPointerSize;
 
   static constexpr int kFunctionOffset =
       StandardFrameConstants::kFunctionOffset;

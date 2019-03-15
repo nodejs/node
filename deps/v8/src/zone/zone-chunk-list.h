@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdlib.h>
+#include <algorithm>
 
 #include "src/base/iterator.h"
 #include "src/globals.h"
@@ -301,7 +301,8 @@ void ZoneChunkList<T>::push_back(const T& item) {
   DCHECK_LE(back_->position_, back_->capacity_);
   if (back_->position_ == back_->capacity_) {
     if (back_->next_ == nullptr) {
-      Chunk* chunk = NewChunk(Min(back_->capacity_ << 1, kMaxChunkCapacity));
+      constexpr auto max_capacity = kMaxChunkCapacity;
+      Chunk* chunk = NewChunk(std::min(back_->capacity_ << 1, max_capacity));
       back_->next_ = chunk;
       chunk->previous_ = back_;
     }

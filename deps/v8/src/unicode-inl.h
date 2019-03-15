@@ -56,6 +56,53 @@ template <class T, int s> int Mapping<T, s>::CalculateValue(uchar c, uchar n,
   }
 }
 
+// Decodes UTF-8 bytes incrementally, allowing the decoding of bytes as they
+// stream in. This **must** be followed by a call to ValueOfIncrementalFinish
+// when the stream is complete, to ensure incomplete sequences are handled.
+uchar Utf8::ValueOfIncremental(const byte** cursor, State* state,
+                               Utf8IncrementalBuffer* buffer) {
+  DCHECK_NOT_NULL(buffer);
+  State old_state = *state;
+  byte next = **cursor;
+  *cursor += 1;
+
+  if (V8_LIKELY(next <= kMaxOneByteChar && old_state == State::kAccept)) {
+    DCHECK_EQ(0u, *buffer);
+    return static_cast<uchar>(next);
+  }
+
+  // So we're at the lead byte of a 2/3/4 sequence, or we're at a continuation
+  // char in that sequence.
+  Utf8DfaDecoder::Decode(next, state, buffer);
+
+  switch (*state) {
+    case State::kAccept: {
+      uchar t = *buffer;
+      *buffer = 0;
+      return t;
+    }
+
+    case State::kReject:
+      *state = State::kAccept;
+      *buffer = 0;
+
+      // If we hit a bad byte, we need to determine if we were trying to start
+      // a sequence or continue one. If we were trying to start a sequence,
+      // that means it's just an invalid lead byte and we need to continue to
+      // the next (which we already did above). If we were already in a
+      // sequence, we need to reprocess this same byte after resetting to the
+      // initial state.
+      if (old_state != State::kAccept) {
+        // We were trying to continue a sequence, so let's reprocess this byte
+        // next time.
+        *cursor -= 1;
+      }
+      return kBadChar;
+
+    default:
+      return kIncomplete;
+  }
+}
 
 unsigned Utf8::EncodeOneByte(char* str, uint8_t c) {
   static const int kMask = ~(1 << 6);

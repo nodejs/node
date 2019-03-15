@@ -33,6 +33,7 @@ function foo(x){
   return c.c;
 }
 
+%PrepareFunctionForOptimization(foo);
 foo(true);
 foo(false);
 foo(true);

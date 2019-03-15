@@ -64,7 +64,7 @@ class ExecutionProc(base.TestProc):
 
   def next_test(self, test):
     if self.is_stopped:
-      return
+      return False
 
     test_id = test.procid
     cmd = test.get_command()
@@ -72,6 +72,8 @@ class ExecutionProc(base.TestProc):
 
     outproc = self._outproc_factory(test)
     self._pool.add([Job(test_id, cmd, outproc, test.keep_output)])
+
+    return True
 
   def result_for(self, test, result):
     assert False, 'ExecutionProc cannot receive results'

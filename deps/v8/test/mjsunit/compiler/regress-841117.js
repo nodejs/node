@@ -6,6 +6,7 @@
 
 var v = 1e9;
 function f() { return Math.floor(v / 10); }
+%PrepareFunctionForOptimization(f);
 assertEquals(1e8, f());
 %OptimizeFunctionOnNextCall(f);
 assertEquals(1e8, f());

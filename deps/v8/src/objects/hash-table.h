@@ -37,7 +37,7 @@ namespace internal {
 //     // Returns the hash value for key.
 //     static uint32_t Hash(Isolate* isolate, Key key);
 //     // Returns the hash value for object.
-//     static uint32_t HashForObject(Isolate* isolate, Object object);
+//     static uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 //     // Convert key to an object.
 //     static inline Handle<Object> AsHandle(Isolate* isolate, Key key);
 //     // The prefix size indicates number of elements in the beginning
@@ -126,7 +126,7 @@ class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
     return (last + number) & (size - 1);
   }
 
-  OBJECT_CONSTRUCTORS(HashTableBase, FixedArray)
+  OBJECT_CONSTRUCTORS(HashTableBase, FixedArray);
 };
 
 template <typename Derived, typename Shape>
@@ -150,7 +150,7 @@ class HashTable : public HashTableBase {
   int FindEntry(Isolate* isolate, Key key);
 
   // Rehashes the table in-place.
-  void Rehash(Isolate* isolate);
+  void Rehash(ReadOnlyRoots roots);
 
   // Tells whether k is a real key.  The hole and undefined are not allowed
   // as keys and can be used to indicate missing or deleted elements.
@@ -176,13 +176,7 @@ class HashTable : public HashTableBase {
   // Don't shrink a HashTable below this capacity.
   static const int kMinShrinkCapacity = 16;
 
-  // Maximum length to create a regular HashTable (aka. non large object).
-#if V8_HOST_ARCH_PPC
-  // Reduced kMaxRegularCapacity due to reduced kMaxRegularHeapObjectSize
-  static const int kMaxRegularCapacity = 16384 / 2;
-#else
-  static const int kMaxRegularCapacity = 16384;
-#endif
+  static const int kMaxRegularCapacity = kMaxRegularHeapObjectSize / 32;
 
   // Returns the index for an entry (of the key)
   static constexpr inline int EntryToIndex(int entry) {
@@ -233,15 +227,15 @@ class HashTable : public HashTableBase {
   // Returns _expected_ if one of entries given by the first _probe_ probes is
   // equal to  _expected_. Otherwise, returns the entry given by the probe
   // number _probe_.
-  uint32_t EntryForProbe(Isolate* isolate, Object k, int probe,
+  uint32_t EntryForProbe(ReadOnlyRoots roots, Object k, int probe,
                          uint32_t expected);
 
   void Swap(uint32_t entry1, uint32_t entry2, WriteBarrierMode mode);
 
   // Rehashes this hash-table into the new table.
-  void Rehash(Isolate* isolate, Derived new_table);
+  void Rehash(ReadOnlyRoots roots, Derived new_table);
 
-  OBJECT_CONSTRUCTORS(HashTable, HashTableBase)
+  OBJECT_CONSTRUCTORS(HashTable, HashTableBase);
 };
 
 // HashTableKey is an abstract superclass for virtual key behavior.
@@ -271,7 +265,7 @@ class ObjectHashTableShape : public BaseShape<Handle<Object>> {
  public:
   static inline bool IsMatch(Handle<Object> key, Object other);
   static inline uint32_t Hash(Isolate* isolate, Handle<Object> key);
-  static inline uint32_t HashForObject(Isolate* isolate, Object object);
+  static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
   static inline Handle<Object> AsHandle(Handle<Object> key);
   static const int kPrefixSize = 0;
   static const int kEntryValueIndex = 1;
@@ -318,7 +312,7 @@ class ObjectHashTableBase : public HashTable<Derived, Shape> {
   void AddEntry(int entry, Object key, Object value);
   void RemoveEntry(int entry);
 
-  OBJECT_CONSTRUCTORS(ObjectHashTableBase, HashTable<Derived, Shape>)
+  OBJECT_CONSTRUCTORS(ObjectHashTableBase, HashTable<Derived, Shape>);
 };
 
 // ObjectHashTable maps keys that are arbitrary objects to object values by
@@ -331,7 +325,7 @@ class ObjectHashTable
 
   OBJECT_CONSTRUCTORS(
       ObjectHashTable,
-      ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape>)
+      ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape>);
 };
 
 class EphemeronHashTableShape : public ObjectHashTableShape {
@@ -354,7 +348,7 @@ class EphemeronHashTable
 
   OBJECT_CONSTRUCTORS(
       EphemeronHashTable,
-      ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>)
+      ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>);
 };
 
 class ObjectHashSetShape : public ObjectHashTableShape {
@@ -374,7 +368,7 @@ class ObjectHashSet : public HashTable<ObjectHashSet, ObjectHashSetShape> {
   DECL_CAST(ObjectHashSet)
 
   OBJECT_CONSTRUCTORS(ObjectHashSet,
-                      HashTable<ObjectHashSet, ObjectHashSetShape>)
+                      HashTable<ObjectHashSet, ObjectHashSetShape>);
 };
 
 }  // namespace internal

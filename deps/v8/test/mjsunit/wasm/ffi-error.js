@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm
 
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 function CreateDefaultBuilder() {
@@ -31,15 +30,17 @@ function checkSuccessfulInstantiation(builder, ffi, handler) {
   assertPromiseResult(builder.asyncInstantiate(ffi), handler);
 }
 
-function checkFailingInstantiation(builder, ffi, error, message) {
+function checkFailingInstantiation(
+    builder, ffi, error, message, prepend_context = true) {
   // Test synchronous instantiation.
-  assertThrows(_ => builder.instantiate(ffi), error, message);
+  assertThrows(
+      _ => builder.instantiate(ffi), error,
+      (prepend_context ? 'WebAssembly.Instance(): ' : '') + message);
 
   // Test asynchronous instantiation.
-  assertPromiseResult(builder.asyncInstantiate(ffi), assertUnreachable, e => {
-    assertInstanceof(e, error);
-    assertEquals(message, e.message);
-  });
+  assertThrowsAsync(
+      builder.asyncInstantiate(ffi), error,
+      (prepend_context ? 'WebAssembly.instantiate(): ' : '') + message);
 }
 
 (function testValidFFI() {
@@ -52,19 +53,19 @@ function checkFailingInstantiation(builder, ffi, error, message) {
   print(arguments.callee.name);
   checkFailingInstantiation(
       CreateDefaultBuilder(), 17, TypeError,
-      'WebAssembly Instantiation: Argument 1 must be an object');
+      'Argument 1 must be an object');
   checkFailingInstantiation(
       CreateDefaultBuilder(), {}, TypeError,
-      'WebAssembly Instantiation: Import #0 module="mod" error: module is not an object or function');
+      'Import #0 module="mod" error: module is not an object or function');
   checkFailingInstantiation(
       CreateDefaultBuilder(), {mod: {}}, WebAssembly.LinkError,
-      'WebAssembly Instantiation: Import #0 module="mod" function="fun" error: function import requires a callable');
+      'Import #0 module="mod" function="fun" error: function import requires a callable');
   checkFailingInstantiation(
       CreateDefaultBuilder(), {mod: {fun: {}}}, WebAssembly.LinkError,
-      'WebAssembly Instantiation: Import #0 module="mod" function="fun" error: function import requires a callable');
+      'Import #0 module="mod" function="fun" error: function import requires a callable');
   checkFailingInstantiation(
       CreateDefaultBuilder(), {mod: {fun: 0}}, WebAssembly.LinkError,
-      'WebAssembly Instantiation: Import #0 module="mod" function="fun" error: function import requires a callable');
+      'Import #0 module="mod" function="fun" error: function import requires a callable');
 })();
 
 (function testImportWithInvalidSignature() {
@@ -83,7 +84,7 @@ function checkFailingInstantiation(builder, ffi, error, message) {
   let exported = builder.instantiate().exports.exp;
   checkFailingInstantiation(
       CreateDefaultBuilder(), {mod: {fun: exported}}, WebAssembly.LinkError,
-      'WebAssembly Instantiation: Import #0 module="mod" function="fun" error: imported function does not match the expected type');
+      'Import #0 module="mod" function="fun" error: imported function does not match the expected type');
 })();
 
 (function regression870646() {
@@ -95,7 +96,8 @@ function checkFailingInstantiation(builder, ffi, error, message) {
     }
   });
 
-  checkFailingInstantiation(CreateDefaultBuilder(), ffi, Error, 'my_exception');
+  checkFailingInstantiation(
+      CreateDefaultBuilder(), ffi, Error, 'my_exception', false);
 })();
 
 // "fun" matches signature "i_dd"

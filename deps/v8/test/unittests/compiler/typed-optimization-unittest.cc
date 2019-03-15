@@ -27,7 +27,7 @@ namespace typed_optimization_unittest {
 class TypedOptimizationTest : public TypedGraphTest {
  public:
   TypedOptimizationTest()
-      : TypedGraphTest(3), simplified_(zone()), deps_(isolate(), zone()) {}
+      : TypedGraphTest(3), simplified_(zone()), deps_(broker(), zone()) {}
   ~TypedOptimizationTest() override = default;
 
  protected:

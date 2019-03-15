@@ -41,7 +41,7 @@ BUILTIN(ReflectDefineProperty) {
   }
 
   Maybe<bool> result = JSReceiver::DefineOwnProperty(
-      isolate, Handle<JSReceiver>::cast(target), name, &desc, kDontThrow);
+      isolate, Handle<JSReceiver>::cast(target), name, &desc, Just(kDontThrow));
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return *isolate->factory()->ToBoolean(result.FromJust());
 }
@@ -218,7 +218,7 @@ BUILTIN(ReflectSet) {
   LookupIterator it = LookupIterator::PropertyOrElement(
       isolate, receiver, name, Handle<JSReceiver>::cast(target));
   Maybe<bool> result = Object::SetSuperProperty(
-      &it, value, LanguageMode::kSloppy, StoreOrigin::kMaybeKeyed);
+      &it, value, StoreOrigin::kMaybeKeyed, Just(ShouldThrow::kDontThrow));
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return *isolate->factory()->ToBoolean(result.FromJust());
 }

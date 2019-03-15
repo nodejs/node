@@ -4,6 +4,7 @@
 #include <limits>
 
 #include "include/libplatform/v8-tracing.h"
+#include "src/base/platform/platform.h"
 #include "src/libplatform/default-platform.h"
 #include "src/tracing/trace-event.h"
 #include "test/cctest/cctest.h"
@@ -435,6 +436,59 @@ TEST(TracingObservers) {
 
   CHECK_EQ(1, observer.enabled_count);
   CHECK_EQ(1, observer.disabled_count);
+
+  i::V8::SetPlatformForTesting(old_platform);
+}
+
+class TraceWritingThread : public base::Thread {
+ public:
+  TraceWritingThread(
+      v8::platform::tracing::TracingController* tracing_controller)
+      : base::Thread(base::Thread::Options("TraceWritingThread")),
+        tracing_controller_(tracing_controller) {}
+
+  void Run() override {
+    for (int i = 0; i < 1000; i++) {
+      TRACE_EVENT0("v8", "v8.Test");
+      tracing_controller_->AddTraceEvent('A', nullptr, "v8", "", 1, 1, 0,
+                                         nullptr, nullptr, nullptr, nullptr, 0);
+      tracing_controller_->AddTraceEventWithTimestamp('A', nullptr, "v8", "", 1,
+                                                      1, 0, nullptr, nullptr,
+                                                      nullptr, nullptr, 0, 0);
+      base::OS::Sleep(base::TimeDelta::FromMilliseconds(1));
+    }
+  }
+
+ private:
+  v8::platform::tracing::TracingController* tracing_controller_;
+};
+
+TEST(AddTraceEventMultiThreaded) {
+  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
+  std::unique_ptr<v8::Platform> default_platform(
+      v8::platform::NewDefaultPlatform());
+  i::V8::SetPlatformForTesting(default_platform.get());
+
+  auto tracing = base::make_unique<v8::platform::tracing::TracingController>();
+  v8::platform::tracing::TracingController* tracing_controller = tracing.get();
+  static_cast<v8::platform::DefaultPlatform*>(default_platform.get())
+      ->SetTracingController(std::move(tracing));
+
+  MockTraceWriter* writer = new MockTraceWriter();
+  TraceBuffer* ring_buffer =
+      TraceBuffer::CreateTraceBufferRingBuffer(1, writer);
+  tracing_controller->Initialize(ring_buffer);
+  TraceConfig* trace_config = new TraceConfig();
+  trace_config->AddIncludedCategory("v8");
+  tracing_controller->StartTracing(trace_config);
+
+  TraceWritingThread thread(tracing_controller);
+  thread.StartSynchronously();
+
+  base::OS::Sleep(base::TimeDelta::FromMilliseconds(100));
+  tracing_controller->StopTracing();
+
+  thread.Join();
 
   i::V8::SetPlatformForTesting(old_platform);
 }

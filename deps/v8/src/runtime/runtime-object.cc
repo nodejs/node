@@ -6,6 +6,7 @@
 #include "src/bootstrapper.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
+#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/isolate-inl.h"
 #include "src/message-template.h"
 #include "src/objects/hash-table-inl.h"
@@ -50,6 +51,30 @@ MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
                     Object);
   }
   return result;
+}
+
+MaybeHandle<Object> Runtime::HasProperty(Isolate* isolate,
+                                         Handle<Object> object,
+                                         Handle<Object> key) {
+  // Check that {object} is actually a receiver.
+  if (!object->IsJSReceiver()) {
+    THROW_NEW_ERROR(
+        isolate,
+        NewTypeError(MessageTemplate::kInvalidInOperatorUse, key, object),
+        Object);
+  }
+  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
+
+  // Convert the {key} to a name.
+  Handle<Name> name;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, name, Object::ToName(isolate, key),
+                             Object);
+
+  // Lookup the {name} on {receiver}.
+  Maybe<bool> maybe = JSReceiver::HasProperty(receiver, name);
+  if (maybe.IsNothing()) return MaybeHandle<Object>();
+  return maybe.FromJust() ? ReadOnlyRoots(isolate).true_value_handle()
+                          : ReadOnlyRoots(isolate).false_value_handle();
 }
 
 namespace {
@@ -341,12 +366,10 @@ RUNTIME_FUNCTION(Runtime_ObjectCreate) {
   return *obj;
 }
 
-MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
-                                               Handle<Object> object,
-                                               Handle<Object> key,
-                                               Handle<Object> value,
-                                               LanguageMode language_mode,
-                                               StoreOrigin store_origin) {
+MaybeHandle<Object> Runtime::SetObjectProperty(
+    Isolate* isolate, Handle<Object> object, Handle<Object> key,
+    Handle<Object> value, StoreOrigin store_origin,
+    Maybe<ShouldThrow> should_throw) {
   if (object->IsNullOrUndefined(isolate)) {
     THROW_NEW_ERROR(
         isolate,
@@ -371,11 +394,10 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
   }
 
   MAYBE_RETURN_NULL(
-      Object::SetProperty(&it, value, language_mode, store_origin));
+      Object::SetProperty(&it, value, store_origin, should_throw));
 
   return value;
 }
-
 
 RUNTIME_FUNCTION(Runtime_InternalSetPrototype) {
   HandleScope scope(isolate);
@@ -549,31 +571,28 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
 
 RUNTIME_FUNCTION(Runtime_SetKeyedProperty) {
   HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
+  DCHECK_EQ(3, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 3);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate,
-      Runtime::SetObjectProperty(isolate, object, key, value, language_mode,
-                                 StoreOrigin::kMaybeKeyed));
+      isolate, Runtime::SetObjectProperty(isolate, object, key, value,
+                                          StoreOrigin::kMaybeKeyed));
 }
 
 RUNTIME_FUNCTION(Runtime_SetNamedProperty) {
   HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
+  DCHECK_EQ(3, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 3);
 
   RETURN_RESULT_OR_FAILURE(
       isolate, Runtime::SetObjectProperty(isolate, object, key, value,
-                                          language_mode, StoreOrigin::kNamed));
+                                          StoreOrigin::kNamed));
 }
 
 // Similar to DefineDataPropertyInLiteral, but does not update feedback, and
@@ -592,8 +611,8 @@ RUNTIME_FUNCTION(Runtime_StoreDataPropertyInLiteral) {
   LookupIterator it = LookupIterator::PropertyOrElement(
       isolate, object, key, &success, LookupIterator::OWN);
 
-  Maybe<bool> result =
-      JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE, kDontThrow);
+  Maybe<bool> result = JSObject::DefineOwnPropertyIgnoreAttributes(
+      &it, value, NONE, Just(kDontThrow));
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   DCHECK(result.IsJust());
   USE(result);
@@ -791,7 +810,7 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
         nexus.ConfigureMegamorphic(PROPERTY);
       }
     } else if (nexus.ic_state() == MONOMORPHIC) {
-      if (nexus.FindFirstMap() != object->map() ||
+      if (nexus.GetFirstMap() != object->map() ||
           nexus.GetFeedbackExtra() != MaybeObject::FromObject(*name)) {
         nexus.ConfigureMegamorphic(PROPERTY);
       }
@@ -823,9 +842,9 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
       isolate, object, name, object, LookupIterator::OWN);
   // Cannot fail since this should only be called when
   // creating an object literal.
-  CHECK(
-      JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, attrs, kDontThrow)
-          .IsJust());
+  CHECK(JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, attrs,
+                                                    Just(kDontThrow))
+            .IsJust());
   return *object;
 }
 
@@ -1027,7 +1046,7 @@ RUNTIME_FUNCTION(Runtime_DefineMethodsInternal) {
     }
 
     Maybe<bool> success = JSReceiver::DefineOwnProperty(
-        isolate, target, key, &descriptor, kDontThrow);
+        isolate, target, key, &descriptor, Just(kDontThrow));
     CHECK(success.FromJust());
   }
   return ReadOnlyRoots(isolate).undefined_value();
@@ -1133,7 +1152,7 @@ RUNTIME_FUNCTION(Runtime_CreateDataProperty) {
   LookupIterator it = LookupIterator::PropertyOrElement(
       isolate, o, key, &success, LookupIterator::OWN);
   if (!success) return ReadOnlyRoots(isolate).exception();
-  MAYBE_RETURN(JSReceiver::CreateDataProperty(&it, value, kThrowOnError),
+  MAYBE_RETURN(JSReceiver::CreateDataProperty(&it, value, Just(kThrowOnError)),
                ReadOnlyRoots(isolate).exception());
   return *value;
 }
@@ -1170,7 +1189,7 @@ RUNTIME_FUNCTION(Runtime_AddPrivateField) {
         isolate, NewTypeError(MessageTemplate::kVarRedeclaration, key));
   }
 
-  CHECK(Object::AddDataProperty(&it, value, NONE, kDontThrow,
+  CHECK(Object::AddDataProperty(&it, value, NONE, Just(kDontThrow),
                                 StoreOrigin::kMaybeKeyed)
             .FromJust());
   return ReadOnlyRoots(isolate).undefined_value();

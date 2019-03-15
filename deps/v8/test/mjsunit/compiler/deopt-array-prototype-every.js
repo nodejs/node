@@ -15,6 +15,7 @@
     return array.every(v => v > 0);
   }
 
+  %PrepareFunctionForOptimization(every);
   every(); every();
 
   %OptimizeFunctionOnNextCall(every);

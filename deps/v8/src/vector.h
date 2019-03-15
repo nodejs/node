@@ -313,6 +313,35 @@ inline constexpr auto VectorOf(Container&& c)
   return VectorOf(c.data(), c.size());
 }
 
+template <typename T, int kSize>
+class EmbeddedVector : public Vector<T> {
+ public:
+  EmbeddedVector() : Vector<T>(buffer_, kSize) {}
+
+  explicit EmbeddedVector(T initial_value) : Vector<T>(buffer_, kSize) {
+    for (int i = 0; i < kSize; ++i) {
+      buffer_[i] = initial_value;
+    }
+  }
+
+  // When copying, make underlying Vector to reference our buffer.
+  EmbeddedVector(const EmbeddedVector& rhs) V8_NOEXCEPT : Vector<T>(rhs) {
+    MemCopy(buffer_, rhs.buffer_, sizeof(T) * kSize);
+    this->set_start(buffer_);
+  }
+
+  EmbeddedVector& operator=(const EmbeddedVector& rhs) V8_NOEXCEPT {
+    if (this == &rhs) return *this;
+    Vector<T>::operator=(rhs);
+    MemCopy(buffer_, rhs.buffer_, sizeof(T) * kSize);
+    this->set_start(buffer_);
+    return *this;
+  }
+
+ private:
+  T buffer_[kSize];
+};
+
 }  // namespace internal
 }  // namespace v8
 

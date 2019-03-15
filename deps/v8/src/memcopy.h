@@ -25,7 +25,7 @@ void init_memcopy_functions();
 #if defined(V8_TARGET_ARCH_IA32)
 // Limit below which the extra overhead of the MemCopy function is likely
 // to outweigh the benefits of faster copying.
-const int kMinComplexMemCopy = 64;
+const size_t kMinComplexMemCopy = 64;
 
 // Copy memory area. No restrictions.
 V8_EXPORT_PRIVATE void MemMove(void* dest, const void* src, size_t size);
@@ -45,7 +45,7 @@ V8_INLINE void MemCopyUint8Wrapper(uint8_t* dest, const uint8_t* src,
   memcpy(dest, src, chars);
 }
 // For values < 16, the assembler function is slower than the inlined C code.
-const int kMinComplexMemCopy = 16;
+const size_t kMinComplexMemCopy = 16;
 V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
   (*memcopy_uint8_function)(reinterpret_cast<uint8_t*>(dest),
                             reinterpret_cast<const uint8_t*>(src), size);
@@ -75,7 +75,7 @@ V8_INLINE void MemCopyUint8Wrapper(uint8_t* dest, const uint8_t* src,
   memcpy(dest, src, chars);
 }
 // For values < 16, the assembler function is slower than the inlined C code.
-const int kMinComplexMemCopy = 16;
+const size_t kMinComplexMemCopy = 16;
 V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
   (*memcopy_uint8_function)(reinterpret_cast<uint8_t*>(dest),
                             reinterpret_cast<const uint8_t*>(src), size);
@@ -93,54 +93,49 @@ V8_EXPORT_PRIVATE V8_INLINE void MemMove(void* dest, const void* src,
                                          size_t size) {
   memmove(dest, src, size);
 }
-const int kMinComplexMemCopy = 8;
+const size_t kMinComplexMemCopy = 8;
 #endif  // V8_TARGET_ARCH_IA32
 
 // Copies words from |src| to |dst|. The data spans must not overlap.
-// |src| and |dst| must be kSystemPointerSize-aligned.
-inline void CopyWords(Address dst, const Address src, size_t num_words) {
-  constexpr int kSystemPointerSize = sizeof(void*);  // to avoid src/globals.h
-  DCHECK(IsAligned(dst, kSystemPointerSize));
-  DCHECK(IsAligned(src, kSystemPointerSize));
-  DCHECK(((src <= dst) && ((src + num_words * kSystemPointerSize) <= dst)) ||
-         ((dst <= src) && ((dst + num_words * kSystemPointerSize) <= src)));
+// |src| and |dst| must be TWord-size aligned.
+template <size_t kBlockCopyLimit, typename T>
+inline void CopyImpl(T* dst_ptr, const T* src_ptr, size_t count) {
+  constexpr int kTWordSize = sizeof(T);
+#ifdef DEBUG
+  Address dst = reinterpret_cast<Address>(dst_ptr);
+  Address src = reinterpret_cast<Address>(src_ptr);
+  DCHECK(IsAligned(dst, kTWordSize));
+  DCHECK(IsAligned(src, kTWordSize));
+  DCHECK(((src <= dst) && ((src + count * kTWordSize) <= dst)) ||
+         ((dst <= src) && ((dst + count * kTWordSize) <= src)));
+#endif
 
   // Use block copying MemCopy if the segment we're copying is
   // enough to justify the extra call/setup overhead.
-  static const size_t kBlockCopyLimit = 16;
-
-  Address* dst_ptr = reinterpret_cast<Address*>(dst);
-  Address* src_ptr = reinterpret_cast<Address*>(src);
-  if (num_words < kBlockCopyLimit) {
+  if (count < kBlockCopyLimit) {
     do {
-      num_words--;
+      count--;
       *dst_ptr++ = *src_ptr++;
-    } while (num_words > 0);
+    } while (count > 0);
   } else {
-    MemCopy(dst_ptr, src_ptr, num_words * kSystemPointerSize);
+    MemCopy(dst_ptr, src_ptr, count * kTWordSize);
   }
+}
+
+// Copies kSystemPointerSize-sized words from |src| to |dst|. The data spans
+// must not overlap. |src| and |dst| must be kSystemPointerSize-aligned.
+inline void CopyWords(Address dst, const Address src, size_t num_words) {
+  static const size_t kBlockCopyLimit = 16;
+  CopyImpl<kBlockCopyLimit>(reinterpret_cast<Address*>(dst),
+                            reinterpret_cast<const Address*>(src), num_words);
 }
 
 // Copies data from |src| to |dst|.  The data spans must not overlap.
 template <typename T>
 inline void CopyBytes(T* dst, const T* src, size_t num_bytes) {
   STATIC_ASSERT(sizeof(T) == 1);
-  DCHECK(((src <= dst) && ((src + num_bytes) <= dst)) ||
-         ((dst <= src) && ((dst + num_bytes) <= src)));
   if (num_bytes == 0) return;
-
-  // Use block copying MemCopy if the segment we're copying is
-  // enough to justify the extra call/setup overhead.
-  static const int kBlockCopyLimit = kMinComplexMemCopy;
-
-  if (num_bytes < static_cast<size_t>(kBlockCopyLimit)) {
-    do {
-      num_bytes--;
-      *dst++ = *src++;
-    } while (num_bytes > 0);
-  } else {
-    MemCopy(dst, src, num_bytes);
-  }
+  CopyImpl<kMinComplexMemCopy>(dst, src, num_bytes);
 }
 
 inline void MemsetPointer(Address* dest, Address value, size_t counter) {
@@ -236,7 +231,7 @@ template <typename sourcechar, typename sinkchar>
 void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src, size_t chars) {
   sinkchar* limit = dest + chars;
   if ((sizeof(*dest) == sizeof(*src)) &&
-      (chars >= static_cast<int>(kMinComplexMemCopy / sizeof(*dest)))) {
+      (chars >= kMinComplexMemCopy / sizeof(*dest))) {
     MemCopy(dest, src, chars * sizeof(*dest));
   } else {
     while (dest < limit) *dest++ = static_cast<sinkchar>(*src++);

@@ -53,6 +53,8 @@
 namespace v8 {
 namespace internal {
 
+class SafepointTableBuilder;
+
 // Coprocessor number
 enum Coprocessor {
   p0  = 0,
@@ -306,10 +308,17 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     pending_32_bit_constants_.clear();
   }
 
-  // GetCode emits any pending (non-emitted) code and fills the descriptor
-  // desc. GetCode() is idempotent; it returns the same result if no other
-  // Assembler functions are invoked in between GetCode() calls.
-  void GetCode(Isolate* isolate, CodeDesc* desc);
+  // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
+  static constexpr int kNoHandlerTable = 0;
+  static constexpr SafepointTableBuilder* kNoSafepointTable = nullptr;
+  void GetCode(Isolate* isolate, CodeDesc* desc,
+               SafepointTableBuilder* safepoint_table_builder,
+               int handler_table_offset);
+
+  // Convenience wrapper for code without safepoint or handler tables.
+  void GetCode(Isolate* isolate, CodeDesc* desc) {
+    GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
+  }
 
   // Label operations & relative jumps (PPUM Appendix D)
   //
@@ -1091,6 +1100,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockConstPoolScope);
   };
+
+  // Unused on this architecture.
+  void MaybeEmitOutOfLineConstantPool() {}
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.

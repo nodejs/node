@@ -109,6 +109,15 @@ class JsonStringifier {
   Result StackPush(Handle<Object> object, Handle<Object> key);
   void StackPop();
 
+  // Uses the current stack_ to provide a detailed error message of
+  // the objects involved in the circular structure.
+  Handle<String> ConstructCircularStructureErrorMessage(Handle<Object> last_key,
+                                                        size_t start_index);
+  // The prefix and postfix count do NOT include the starting and
+  // closing lines of the error message.
+  static const int kCircularErrorMessagePrefixCount = 2;
+  static const int kCircularErrorMessagePostfixCount = 1;
+
   Factory* factory() { return isolate_->factory(); }
 
   Isolate* isolate_;
@@ -373,11 +382,13 @@ JsonStringifier::Result JsonStringifier::StackPush(Handle<Object> object,
 
   {
     DisallowHeapAllocation no_allocation;
-    for (const KeyObject& key_object : stack_) {
-      if (*key_object.second == *object) {
+    for (size_t i = 0; i < stack_.size(); ++i) {
+      if (*stack_[i].second == *object) {
         AllowHeapAllocation allow_to_return_error;
-        Handle<Object> error =
-            factory()->NewTypeError(MessageTemplate::kCircularStructure);
+        Handle<String> circle_description =
+            ConstructCircularStructureErrorMessage(key, i);
+        Handle<Object> error = factory()->NewTypeError(
+            MessageTemplate::kCircularStructure, circle_description);
         isolate_->Throw(*error);
         return EXCEPTION;
       }
@@ -388,6 +399,117 @@ JsonStringifier::Result JsonStringifier::StackPush(Handle<Object> object,
 }
 
 void JsonStringifier::StackPop() { stack_.pop_back(); }
+
+class CircularStructureMessageBuilder {
+ public:
+  explicit CircularStructureMessageBuilder(Isolate* isolate)
+      : builder_(isolate) {}
+
+  void AppendStartLine(Handle<Object> start_object) {
+    builder_.AppendCString(kStartPrefix);
+    builder_.AppendCString("starting at object with constructor ");
+    AppendConstructorName(start_object);
+  }
+
+  void AppendNormalLine(Handle<Object> key, Handle<Object> object) {
+    builder_.AppendCString(kLinePrefix);
+    AppendKey(key);
+    builder_.AppendCString(" -> object with constructor ");
+    AppendConstructorName(object);
+  }
+
+  void AppendClosingLine(Handle<Object> closing_key) {
+    builder_.AppendCString(kEndPrefix);
+    AppendKey(closing_key);
+    builder_.AppendCString(" closes the circle");
+  }
+
+  void AppendEllipsis() {
+    builder_.AppendCString(kLinePrefix);
+    builder_.AppendCString("...");
+  }
+
+  MaybeHandle<String> Finish() { return builder_.Finish(); }
+
+ private:
+  void AppendConstructorName(Handle<Object> object) {
+    builder_.AppendCharacter('\'');
+    Handle<String> constructor_name =
+        JSReceiver::GetConstructorName(Handle<JSReceiver>::cast(object));
+    builder_.AppendString(constructor_name);
+    builder_.AppendCharacter('\'');
+  }
+
+  // A key can either be a string, the empty string or a Smi.
+  void AppendKey(Handle<Object> key) {
+    if (key->IsSmi()) {
+      builder_.AppendCString("index ");
+      AppendSmi(Smi::cast(*key));
+      return;
+    }
+
+    CHECK(key->IsString());
+    Handle<String> key_as_string = Handle<String>::cast(key);
+    if (key_as_string->length() == 0) {
+      builder_.AppendCString("<anonymous>");
+    } else {
+      builder_.AppendCString("property '");
+      builder_.AppendString(key_as_string);
+      builder_.AppendCharacter('\'');
+    }
+  }
+
+  void AppendSmi(Smi smi) {
+    static const int kBufferSize = 100;
+    char chars[kBufferSize];
+    Vector<char> buffer(chars, kBufferSize);
+    builder_.AppendCString(IntToCString(smi->value(), buffer));
+  }
+
+  IncrementalStringBuilder builder_;
+  static constexpr const char* kStartPrefix = "\n    --> ";
+  static constexpr const char* kEndPrefix = "\n    --- ";
+  static constexpr const char* kLinePrefix = "\n    |     ";
+};
+
+Handle<String> JsonStringifier::ConstructCircularStructureErrorMessage(
+    Handle<Object> last_key, size_t start_index) {
+  DCHECK(start_index < stack_.size());
+  CircularStructureMessageBuilder builder(isolate_);
+
+  // We track the index to be printed next for better readability.
+  size_t index = start_index;
+  const size_t stack_size = stack_.size();
+
+  builder.AppendStartLine(stack_[index++].second);
+
+  // Append a maximum of kCircularErrorMessagePrefixCount normal lines.
+  const size_t prefix_end =
+      std::min(stack_size, index + kCircularErrorMessagePrefixCount);
+  for (; index < prefix_end; ++index) {
+    builder.AppendNormalLine(stack_[index].first, stack_[index].second);
+  }
+
+  // If the circle consists of too many objects, we skip them and just
+  // print an ellipsis.
+  if (stack_size > index + kCircularErrorMessagePostfixCount) {
+    builder.AppendEllipsis();
+  }
+
+  // Since we calculate the postfix lines from the back of the stack,
+  // we have to ensure that lines are not printed twice.
+  index = std::max(index, stack_size - kCircularErrorMessagePostfixCount);
+  for (; index < stack_size; ++index) {
+    builder.AppendNormalLine(stack_[index].first, stack_[index].second);
+  }
+
+  builder.AppendClosingLine(last_key);
+
+  Handle<String> result;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, result, builder.Finish(),
+                                   factory()->empty_string());
+  return result;
+}
 
 template <bool deferred_string_key>
 JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,

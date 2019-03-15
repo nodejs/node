@@ -45,16 +45,6 @@ std::unique_ptr<v8::Platform> NewDefaultPlatform(
   return std::move(platform);
 }
 
-v8::Platform* CreateDefaultPlatform(
-    int thread_pool_size, IdleTaskSupport idle_task_support,
-    InProcessStackDumping in_process_stack_dumping,
-    v8::TracingController* tracing_controller) {
-  return NewDefaultPlatform(
-             thread_pool_size, idle_task_support, in_process_stack_dumping,
-             std::unique_ptr<v8::TracingController>(tracing_controller))
-      .release();
-}
-
 bool PumpMessageLoop(v8::Platform* platform, v8::Isolate* isolate,
                      MessageLoopBehavior behavior) {
   return static_cast<DefaultPlatform*>(platform)->PumpMessageLoop(isolate,

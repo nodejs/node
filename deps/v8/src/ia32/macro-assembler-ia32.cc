@@ -15,6 +15,7 @@
 #include "src/external-reference-table.h"
 #include "src/frame-constants.h"
 #include "src/frames-inl.h"
+#include "src/heap/heap-inl.h"  // For MemoryChunk.
 #include "src/ia32/assembler-ia32-inl.h"
 #include "src/macro-assembler.h"
 #include "src/runtime/runtime.h"
@@ -129,6 +130,19 @@ void MacroAssembler::PushRoot(RootIndex index) {
   }
 }
 
+void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
+                                     unsigned higher_limit, Register scratch,
+                                     Label* on_in_range,
+                                     Label::Distance near_jump) {
+  if (lower_limit != 0) {
+    lea(scratch, Operand(value, 0u - lower_limit));
+    cmp(scratch, Immediate(higher_limit - lower_limit));
+  } else {
+    cmp(value, Immediate(higher_limit));
+  }
+  j(below_equal, on_in_range, near_jump);
+}
+
 Operand TurboAssembler::ExternalReferenceAsOperand(ExternalReference reference,
                                                    Register scratch) {
   // TODO(jgruber): Add support for enable_root_array_delta_access.
@@ -192,8 +206,7 @@ void TurboAssembler::LoadFromConstantsTable(Register destination,
   DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kBuiltinsConstantsTable));
   LoadRoot(destination, RootIndex::kBuiltinsConstantsTable);
   mov(destination,
-      FieldOperand(destination,
-                   FixedArray::kHeaderSize + constant_index * kPointerSize));
+      FieldOperand(destination, FixedArray::OffsetOfElementAt(constant_index)));
 }
 
 void TurboAssembler::LoadRootRegisterOffset(Register destination,
@@ -234,7 +247,7 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
   for (int i = 0; i < kNumberOfSavedRegs; i++) {
     Register reg = saved_regs[i];
     if (reg != exclusion1 && reg != exclusion2 && reg != exclusion3) {
-      bytes += kPointerSize;
+      bytes += kSystemPointerSize;
     }
   }
 
@@ -256,7 +269,7 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
     Register reg = saved_regs[i];
     if (reg != exclusion1 && reg != exclusion2 && reg != exclusion3) {
       push(reg);
-      bytes += kPointerSize;
+      bytes += kSystemPointerSize;
     }
   }
 
@@ -292,7 +305,7 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
     Register reg = saved_regs[i];
     if (reg != exclusion1 && reg != exclusion2 && reg != exclusion3) {
       pop(reg);
-      bytes += kPointerSize;
+      bytes += kSystemPointerSize;
     }
   }
 
@@ -325,13 +338,13 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   }
 
   // Although the object register is tagged, the offset is relative to the start
-  // of the object, so so offset must be a multiple of kPointerSize.
-  DCHECK(IsAligned(offset, kPointerSize));
+  // of the object, so so offset must be a multiple of kTaggedSize.
+  DCHECK(IsAligned(offset, kTaggedSize));
 
   lea(dst, FieldOperand(object, offset));
   if (emit_debug_code()) {
     Label ok;
-    test_b(dst, Immediate(kPointerSize - 1));
+    test_b(dst, Immediate(kTaggedSize - 1));
     j(zero, &ok, Label::kNear);
     int3();
     bind(&ok);
@@ -791,17 +804,17 @@ void MacroAssembler::EnterExitFramePrologue(StackFrame::Type frame_type,
          frame_type == StackFrame::BUILTIN_EXIT);
 
   // Set up the frame structure on the stack.
-  DCHECK_EQ(+2 * kPointerSize, ExitFrameConstants::kCallerSPDisplacement);
-  DCHECK_EQ(+1 * kPointerSize, ExitFrameConstants::kCallerPCOffset);
-  DCHECK_EQ(0 * kPointerSize, ExitFrameConstants::kCallerFPOffset);
+  DCHECK_EQ(+2 * kSystemPointerSize, ExitFrameConstants::kCallerSPDisplacement);
+  DCHECK_EQ(+1 * kSystemPointerSize, ExitFrameConstants::kCallerPCOffset);
+  DCHECK_EQ(0 * kSystemPointerSize, ExitFrameConstants::kCallerFPOffset);
   push(ebp);
   mov(ebp, esp);
 
   // Reserve room for entry stack pointer and push the code object.
   push(Immediate(StackFrame::TypeToMarker(frame_type)));
-  DCHECK_EQ(-2 * kPointerSize, ExitFrameConstants::kSPOffset);
+  DCHECK_EQ(-2 * kSystemPointerSize, ExitFrameConstants::kSPOffset);
   push(Immediate(0));  // Saved entry sp, patched before call.
-  DCHECK_EQ(-3 * kPointerSize, ExitFrameConstants::kCodeOffset);
+  DCHECK_EQ(-3 * kSystemPointerSize, ExitFrameConstants::kCodeOffset);
   Move(scratch, CodeObject());
   push(scratch);  // Accessed from ExitFrame::code_slot.
 
@@ -826,7 +839,8 @@ void MacroAssembler::EnterExitFramePrologue(StackFrame::Type frame_type,
 void MacroAssembler::EnterExitFrameEpilogue(int argc, bool save_doubles) {
   // Optionally save all XMM registers.
   if (save_doubles) {
-    int space = XMMRegister::kNumRegisters * kDoubleSize + argc * kPointerSize;
+    int space =
+        XMMRegister::kNumRegisters * kDoubleSize + argc * kSystemPointerSize;
     sub(esp, Immediate(space));
     const int offset = -ExitFrameConstants::kFixedFrameSizeFromFp;
     for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
@@ -834,7 +848,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int argc, bool save_doubles) {
       movsd(Operand(ebp, offset - ((i + 1) * kDoubleSize)), reg);
     }
   } else {
-    sub(esp, Immediate(argc * kPointerSize));
+    sub(esp, Immediate(argc * kSystemPointerSize));
   }
 
   // Get the required frame alignment for the OS.
@@ -853,9 +867,9 @@ void MacroAssembler::EnterExitFrame(int argc, bool save_doubles,
   EnterExitFramePrologue(frame_type, edi);
 
   // Set up argc and argv in callee-saved registers.
-  int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
+  int offset = StandardFrameConstants::kCallerSPOffset - kSystemPointerSize;
   mov(edi, eax);
-  lea(esi, Operand(ebp, eax, times_4, offset));
+  lea(esi, Operand(ebp, eax, times_system_pointer_size, offset));
 
   // Reserve space for argc, argv and isolate.
   EnterExitFrameEpilogue(argc, save_doubles);
@@ -879,11 +893,11 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, bool pop_arguments) {
 
   if (pop_arguments) {
     // Get the return address from the stack and restore the frame pointer.
-    mov(ecx, Operand(ebp, 1 * kPointerSize));
-    mov(ebp, Operand(ebp, 0 * kPointerSize));
+    mov(ecx, Operand(ebp, 1 * kSystemPointerSize));
+    mov(ebp, Operand(ebp, 0 * kSystemPointerSize));
 
     // Pop the arguments and the receiver from the caller stack.
-    lea(esp, Operand(esi, 1 * kPointerSize));
+    lea(esp, Operand(esi, 1 * kSystemPointerSize));
 
     // Push the return address to get ready to return.
     push(ecx);
@@ -922,7 +936,7 @@ void MacroAssembler::LeaveApiExitFrame() {
 
 void MacroAssembler::PushStackHandler(Register scratch) {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 2 * kSystemPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
 
   push(Immediate(0));  // Padding.
@@ -941,7 +955,7 @@ void MacroAssembler::PopStackHandler(Register scratch) {
   ExternalReference handler_address =
       ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate());
   pop(ExternalReferenceAsOperand(handler_address, scratch));
-  add(esp, Immediate(StackHandlerConstants::kSize - kPointerSize));
+  add(esp, Immediate(StackHandlerConstants::kSize - kSystemPointerSize));
 }
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f,
@@ -1032,15 +1046,17 @@ void TurboAssembler::PrepareForTailCall(
   if (callee_args_count.is_reg()) {
     sub(caller_args_count_reg, callee_args_count.reg());
     lea(new_sp_reg,
-        Operand(ebp, caller_args_count_reg, times_pointer_size,
+        Operand(ebp, caller_args_count_reg, times_system_pointer_size,
                 StandardFrameConstants::kCallerPCOffset -
-                    number_of_temp_values_after_return_address * kPointerSize));
+                    number_of_temp_values_after_return_address *
+                        kSystemPointerSize));
   } else {
-    lea(new_sp_reg, Operand(ebp, caller_args_count_reg, times_pointer_size,
-                            StandardFrameConstants::kCallerPCOffset -
-                                (callee_args_count.immediate() +
-                                 number_of_temp_values_after_return_address) *
-                                    kPointerSize));
+    lea(new_sp_reg,
+        Operand(ebp, caller_args_count_reg, times_system_pointer_size,
+                StandardFrameConstants::kCallerPCOffset -
+                    (callee_args_count.immediate() +
+                     number_of_temp_values_after_return_address) *
+                        kSystemPointerSize));
   }
 
   if (FLAG_debug_code) {
@@ -1053,7 +1069,8 @@ void TurboAssembler::PrepareForTailCall(
   // place.
   Register tmp_reg = scratch1;
   mov(tmp_reg, Operand(ebp, StandardFrameConstants::kCallerPCOffset));
-  mov(Operand(esp, number_of_temp_values_after_return_address * kPointerSize),
+  mov(Operand(esp,
+              number_of_temp_values_after_return_address * kSystemPointerSize),
       tmp_reg);
 
   // Restore caller's frame pointer now as it could be overwritten by
@@ -1077,8 +1094,8 @@ void TurboAssembler::PrepareForTailCall(
   jmp(&entry, Label::kNear);
   bind(&loop);
   dec(count_reg);
-  mov(tmp_reg, Operand(esp, count_reg, times_pointer_size, 0));
-  mov(Operand(new_sp_reg, count_reg, times_pointer_size, 0), tmp_reg);
+  mov(tmp_reg, Operand(esp, count_reg, times_system_pointer_size, 0));
+  mov(Operand(new_sp_reg, count_reg, times_system_pointer_size, 0), tmp_reg);
   bind(&entry);
   cmp(count_reg, Immediate(0));
   j(not_equal, &loop, Label::kNear);
@@ -1183,9 +1200,10 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
     Push(fun);
     Operand receiver_op =
         actual.is_reg()
-            ? Operand(ebp, actual.reg(), times_pointer_size, kPointerSize * 2)
-            : Operand(ebp, actual.immediate() * times_pointer_size +
-                               kPointerSize * 2);
+            ? Operand(ebp, actual.reg(), times_system_pointer_size,
+                      kSystemPointerSize * 2)
+            : Operand(ebp, actual.immediate() * times_system_pointer_size +
+                               kSystemPointerSize * 2);
     Push(receiver_op);
     CallRuntime(Runtime::kDebugOnFunctionCall);
     Pop(fun);
@@ -1307,7 +1325,7 @@ void TurboAssembler::Push(Immediate value) {
 
 void MacroAssembler::Drop(int stack_elements) {
   if (stack_elements > 0) {
-    add(esp, Immediate(stack_elements * kPointerSize));
+    add(esp, Immediate(stack_elements * kSystemPointerSize));
   }
 }
 
@@ -1719,7 +1737,7 @@ void TurboAssembler::Check(Condition cc, AbortReason reason) {
 void TurboAssembler::CheckStackAlignment() {
   int frame_alignment = base::OS::ActivationFrameAlignment();
   int frame_alignment_mask = frame_alignment - 1;
-  if (frame_alignment > kPointerSize) {
+  if (frame_alignment > kSystemPointerSize) {
     DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     Label alignment_as_expected;
     test(esp, Immediate(frame_alignment_mask));
@@ -1774,12 +1792,12 @@ void TurboAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
     // Make stack end at alignment and make room for num_arguments words
     // and the original value of esp.
     mov(scratch, esp);
-    sub(esp, Immediate((num_arguments + 1) * kPointerSize));
+    sub(esp, Immediate((num_arguments + 1) * kSystemPointerSize));
     DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     and_(esp, -frame_alignment);
-    mov(Operand(esp, num_arguments * kPointerSize), scratch);
+    mov(Operand(esp, num_arguments * kSystemPointerSize), scratch);
   } else {
-    sub(esp, Immediate(num_arguments * kPointerSize));
+    sub(esp, Immediate(num_arguments * kSystemPointerSize));
   }
 }
 
@@ -1832,9 +1850,9 @@ void TurboAssembler::CallCFunction(Register function, int num_arguments) {
   }
 
   if (base::OS::ActivationFrameAlignment() != 0) {
-    mov(esp, Operand(esp, num_arguments * kPointerSize));
+    mov(esp, Operand(esp, num_arguments * kSystemPointerSize));
   } else {
-    add(esp, Immediate(num_arguments * kPointerSize));
+    add(esp, Immediate(num_arguments * kSystemPointerSize));
   }
 }
 
@@ -1865,10 +1883,12 @@ void TurboAssembler::CallBuiltinPointer(Register builtin_pointer) {
   STATIC_ASSERT(kSmiTag == 0);
 
   // The builtin_pointer register contains the builtin index as a Smi.
-  // Untagging is folded into the indexing operand below (we use times_2 instead
-  // of times_4 since smis are already shifted by one).
-  mov(builtin_pointer, Operand(kRootRegister, builtin_pointer, times_2,
-                               IsolateData::builtin_entry_table_offset()));
+  // Untagging is folded into the indexing operand below (we use
+  // times_half_system_pointer_size instead of times_system_pointer_size since
+  // smis are already shifted by one).
+  mov(builtin_pointer,
+      Operand(kRootRegister, builtin_pointer, times_half_system_pointer_size,
+              IsolateData::builtin_entry_table_offset()));
   call(builtin_pointer);
 }
 
@@ -1904,8 +1924,9 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
     // table.
     bind(&if_code_is_builtin);
     mov(destination, FieldOperand(code_object, Code::kBuiltinIndexOffset));
-    mov(destination, Operand(kRootRegister, destination, times_pointer_size,
-                             IsolateData::builtin_entry_table_offset()));
+    mov(destination,
+        Operand(kRootRegister, destination, times_system_pointer_size,
+                IsolateData::builtin_entry_table_offset()));
 
     bind(&out);
   } else {

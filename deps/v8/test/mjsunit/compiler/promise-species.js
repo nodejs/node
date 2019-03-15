@@ -10,6 +10,8 @@ function f() {
   return new Promise(r => 88).then(x => 88);
 }
 
+%PrepareFunctionForOptimization(f);
+
 let y;
 
 y = f();

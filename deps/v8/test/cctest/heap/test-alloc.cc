@@ -30,6 +30,7 @@
 
 #include "src/accessors.h"
 #include "src/api-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/property.h"
@@ -48,15 +49,16 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
   AlwaysAllocateScope scope(CcTest::i_isolate());
   Heap* heap = CcTest::heap();
   int size = FixedArray::SizeFor(100);
-  // New space.
-  HeapObject obj = heap->AllocateRaw(size, NEW_SPACE).ToObjectChecked();
+  // Young generation.
+  HeapObject obj =
+      heap->AllocateRaw(size, AllocationType::kYoung).ToObjectChecked();
   // In order to pass heap verification on Isolate teardown, mark the
   // allocated area as a filler.
   heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
 
-  // Old space.
+  // Old generation.
   heap::SimulateFullSpace(heap->old_space());
-  obj = heap->AllocateRaw(size, OLD_SPACE).ToObjectChecked();
+  obj = heap->AllocateRaw(size, AllocationType::kOld).ToObjectChecked();
   heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
 
   // Large object space.
@@ -67,24 +69,24 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
   CHECK_GT(kLargeObjectSpaceFillerSize,
            static_cast<size_t>(heap->old_space()->AreaSize()));
   while (heap->OldGenerationSpaceAvailable() > kLargeObjectSpaceFillerSize) {
-    obj = heap->AllocateRaw(kLargeObjectSpaceFillerSize, OLD_SPACE)
+    obj = heap->AllocateRaw(kLargeObjectSpaceFillerSize, AllocationType::kOld)
               .ToObjectChecked();
     heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
   }
-  obj = heap->AllocateRaw(kLargeObjectSpaceFillerSize, OLD_SPACE)
+  obj = heap->AllocateRaw(kLargeObjectSpaceFillerSize, AllocationType::kOld)
             .ToObjectChecked();
   heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
 
   // Map space.
   heap::SimulateFullSpace(heap->map_space());
-  obj = heap->AllocateRaw(Map::kSize, MAP_SPACE).ToObjectChecked();
+  obj = heap->AllocateRaw(Map::kSize, AllocationType::kMap).ToObjectChecked();
   heap->CreateFillerObjectAt(obj->address(), Map::kSize,
                              ClearRecordedSlots::kNo);
 
   // Code space.
   heap::SimulateFullSpace(heap->code_space());
   size = CcTest::i_isolate()->builtins()->builtin(Builtins::kIllegal)->Size();
-  obj = heap->AllocateRaw(size, CODE_SPACE).ToObjectChecked();
+  obj = heap->AllocateRaw(size, AllocationType::kCode).ToObjectChecked();
   heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
   return CcTest::i_isolate()->factory()->true_value();
 }

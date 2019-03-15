@@ -10,6 +10,7 @@
 #include "include/v8config.h"
 
 #include "src/base/bits.h"
+#include "src/base/ieee754.h"
 #include "src/memcopy.h"
 #include "src/utils.h"
 #include "src/v8memory.h"
@@ -245,7 +246,7 @@ uint32_t word32_ror_wrapper(Address data) {
 void float64_pow_wrapper(Address data) {
   double x = ReadUnalignedValue<double>(data);
   double y = ReadUnalignedValue<double>(data + sizeof(x));
-  WriteUnalignedValue<double>(data, Pow(x, y));
+  WriteUnalignedValue<double>(data, base::ieee754::pow(x, y));
 }
 
 void memory_copy_wrapper(Address dst, Address src, uint32_t size) {

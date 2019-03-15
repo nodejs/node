@@ -375,20 +375,20 @@ void ResetAllBlockCounts(SharedFunctionInfo shared) {
   }
 }
 
-bool IsBlockMode(debug::Coverage::Mode mode) {
+bool IsBlockMode(debug::CoverageMode mode) {
   switch (mode) {
-    case debug::Coverage::kBlockBinary:
-    case debug::Coverage::kBlockCount:
+    case debug::CoverageMode::kBlockBinary:
+    case debug::CoverageMode::kBlockCount:
       return true;
     default:
       return false;
   }
 }
 
-bool IsBinaryMode(debug::Coverage::Mode mode) {
+bool IsBinaryMode(debug::CoverageMode mode) {
   switch (mode) {
-    case debug::Coverage::kBlockBinary:
-    case debug::Coverage::kPreciseBinary:
+    case debug::CoverageMode::kBlockBinary:
+    case debug::CoverageMode::kPreciseBinary:
       return true;
     default:
       return false;
@@ -396,14 +396,14 @@ bool IsBinaryMode(debug::Coverage::Mode mode) {
 }
 
 void CollectBlockCoverage(CoverageFunction* function, SharedFunctionInfo info,
-                          debug::Coverage::Mode mode) {
+                          debug::CoverageMode mode) {
   DCHECK(IsBlockMode(mode));
 
   function->has_block_coverage = true;
   function->blocks = GetSortedBlockData(info);
 
   // If in binary mode, only report counts of 0/1.
-  if (mode == debug::Coverage::kBlockBinary) ClampToBinary(function);
+  if (mode == debug::CoverageMode::kBlockBinary) ClampToBinary(function);
 
   // Remove singleton ranges with the same start position as a full range and
   // throw away their counts.
@@ -456,20 +456,21 @@ std::unique_ptr<Coverage> Coverage::CollectPrecise(Isolate* isolate) {
 }
 
 std::unique_ptr<Coverage> Coverage::CollectBestEffort(Isolate* isolate) {
-  return Collect(isolate, v8::debug::Coverage::kBestEffort);
+  return Collect(isolate, v8::debug::CoverageMode::kBestEffort);
 }
 
 std::unique_ptr<Coverage> Coverage::Collect(
-    Isolate* isolate, v8::debug::Coverage::Mode collectionMode) {
+    Isolate* isolate, v8::debug::CoverageMode collectionMode) {
   SharedToCounterMap counter_map;
 
-  const bool reset_count = collectionMode != v8::debug::Coverage::kBestEffort;
+  const bool reset_count =
+      collectionMode != v8::debug::CoverageMode::kBestEffort;
 
   switch (isolate->code_coverage_mode()) {
-    case v8::debug::Coverage::kBlockBinary:
-    case v8::debug::Coverage::kBlockCount:
-    case v8::debug::Coverage::kPreciseBinary:
-    case v8::debug::Coverage::kPreciseCount: {
+    case v8::debug::CoverageMode::kBlockBinary:
+    case v8::debug::CoverageMode::kBlockCount:
+    case v8::debug::CoverageMode::kPreciseBinary:
+    case v8::debug::CoverageMode::kPreciseCount: {
       // Feedback vectors are already listed to prevent losing them to GC.
       DCHECK(isolate->factory()
                  ->feedback_vectors_for_profiling_tools()
@@ -486,11 +487,11 @@ std::unique_ptr<Coverage> Coverage::Collect(
       }
       break;
     }
-    case v8::debug::Coverage::kBestEffort: {
+    case v8::debug::CoverageMode::kBestEffort: {
       DCHECK(!isolate->factory()
                   ->feedback_vectors_for_profiling_tools()
                   ->IsArrayList());
-      DCHECK_EQ(v8::debug::Coverage::kBestEffort, collectionMode);
+      DCHECK_EQ(v8::debug::CoverageMode::kBestEffort, collectionMode);
       HeapIterator heap_iterator(isolate->heap());
       for (HeapObject current_obj = heap_iterator.next();
            !current_obj.is_null(); current_obj = heap_iterator.next()) {
@@ -544,15 +545,15 @@ std::unique_ptr<Coverage> Coverage::Collect(
       }
       if (count != 0) {
         switch (collectionMode) {
-          case v8::debug::Coverage::kBlockCount:
-          case v8::debug::Coverage::kPreciseCount:
+          case v8::debug::CoverageMode::kBlockCount:
+          case v8::debug::CoverageMode::kPreciseCount:
             break;
-          case v8::debug::Coverage::kBlockBinary:
-          case v8::debug::Coverage::kPreciseBinary:
+          case v8::debug::CoverageMode::kBlockBinary:
+          case v8::debug::CoverageMode::kPreciseBinary:
             count = info->has_reported_binary_coverage() ? 0 : 1;
             info->set_has_reported_binary_coverage(true);
             break;
-          case v8::debug::Coverage::kBestEffort:
+          case v8::debug::CoverageMode::kBestEffort:
             count = 1;
             break;
         }
@@ -583,9 +584,9 @@ std::unique_ptr<Coverage> Coverage::Collect(
   return result;
 }
 
-void Coverage::SelectMode(Isolate* isolate, debug::Coverage::Mode mode) {
+void Coverage::SelectMode(Isolate* isolate, debug::CoverageMode mode) {
   switch (mode) {
-    case debug::Coverage::kBestEffort:
+    case debug::CoverageMode::kBestEffort:
       // Note that DevTools switches back to best-effort coverage once the
       // recording is stopped. Since we delete coverage infos at that point, any
       // following coverage recording (without reloads) will be at function
@@ -596,10 +597,10 @@ void Coverage::SelectMode(Isolate* isolate, debug::Coverage::Mode mode) {
             ReadOnlyRoots(isolate).undefined_value());
       }
       break;
-    case debug::Coverage::kBlockBinary:
-    case debug::Coverage::kBlockCount:
-    case debug::Coverage::kPreciseBinary:
-    case debug::Coverage::kPreciseCount: {
+    case debug::CoverageMode::kBlockBinary:
+    case debug::CoverageMode::kBlockCount:
+    case debug::CoverageMode::kPreciseBinary:
+    case debug::CoverageMode::kPreciseCount: {
       HandleScope scope(isolate);
 
       // Remove all optimized function. Optimized and inlined functions do not

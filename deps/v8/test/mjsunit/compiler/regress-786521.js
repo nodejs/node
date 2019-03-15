@@ -17,6 +17,7 @@ inlined(true, 1);
 inlined(true, 2);
 inlined(false, 1);
 
+%PrepareFunctionForOptimization(foo);
 function foo(b) { inlined(b, "") }
 foo(false); foo(false);
 %OptimizeFunctionOnNextCall(foo);

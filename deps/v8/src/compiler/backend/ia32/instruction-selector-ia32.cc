@@ -72,10 +72,11 @@ class IA32OperandGenerator final : public OperandGenerator {
 // really have to this here, then we need to find a way to put this
 // information on the HeapConstant node already.
 #if 0
-        // Constants in new space cannot be used as immediates in V8 because
-        // the GC does not scan code objects when collecting the new generation.
+        // Constants in young generation cannot be used as immediates in V8
+        // because the GC does not scan code objects when collecting the young
+        // generation.
         Handle<HeapObject> value = HeapConstantOf(node->op());
-        return !Heap::InNewSpace(*value);
+        return !Heap::InYoungGeneration(*value);
 #else
         return false;
 #endif

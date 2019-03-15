@@ -883,7 +883,7 @@ struct CommonOperatorGlobalCache final {
 
 namespace {
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(CommonOperatorGlobalCache,
-                                GetCommonOperatorGlobalCache);
+                                GetCommonOperatorGlobalCache)
 }
 
 CommonOperatorBuilder::CommonOperatorBuilder(Zone* zone)

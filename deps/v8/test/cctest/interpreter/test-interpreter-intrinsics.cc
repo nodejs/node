@@ -5,6 +5,7 @@
 #include "src/v8.h"
 
 #include "src/api-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/objects-inl.h"
 #include "test/cctest/interpreter/interpreter-tester.h"

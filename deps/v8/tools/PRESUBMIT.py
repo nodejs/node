@@ -4,5 +4,5 @@
 
 def CheckChangeOnCommit(input_api, output_api):
   tests = input_api.canned_checks.GetUnitTestsInDirectory(
-      input_api, output_api, 'unittests')
+      input_api, output_api, 'unittests', whitelist=[r'.+_test\.py$'])
   return input_api.RunTests(tests)

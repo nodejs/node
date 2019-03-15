@@ -13,6 +13,7 @@
     return array[Symbol.iterator]().next();
   }
 
+  %PrepareFunctionForOptimization(next);
   assertEquals(next().value, undefined);
   assertEquals(next().value, undefined);
 

@@ -9,6 +9,7 @@
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/microtask-inl.h"
 #include "src/objects/promise.h"
+#include "src/objects/smi-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -33,8 +34,11 @@ class MicrotaskQueueBuiltinsAssembler : public CodeStubAssembler {
   TNode<IntPtrT> CalculateRingBufferOffset(TNode<IntPtrT> capacity,
                                            TNode<IntPtrT> start,
                                            TNode<IntPtrT> index);
+
+  void PrepareForContext(TNode<Context> microtask_context, Label* bailout);
   void RunSingleMicrotask(TNode<Context> current_context,
                           TNode<Microtask> microtask);
+  void IncrementFinishedMicrotaskCount(TNode<RawPtrT> microtask_queue);
 
   TNode<Context> GetCurrentContext();
   void SetCurrentContext(TNode<Context> context);
@@ -100,6 +104,18 @@ TNode<IntPtrT> MicrotaskQueueBuiltinsAssembler::CalculateRingBufferOffset(
       WordAnd(IntPtrAdd(start, index), IntPtrSub(capacity, IntPtrConstant(1))));
 }
 
+void MicrotaskQueueBuiltinsAssembler::PrepareForContext(
+    TNode<Context> native_context, Label* bailout) {
+  CSA_ASSERT(this, IsNativeContext(native_context));
+
+  // Skip the microtask execution if the associated context is shutdown.
+  GotoIf(WordEqual(GetMicrotaskQueue(native_context), IntPtrConstant(0)),
+         bailout);
+
+  EnterMicrotaskContext(native_context);
+  SetCurrentContext(native_context);
+}
+
 void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     TNode<Context> current_context, TNode<Microtask> microtask) {
   CSA_ASSERT(this, TaggedIsNotSmi(microtask));
@@ -114,7 +130,8 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
   Label is_callable(this), is_callback(this),
       is_promise_fulfill_reaction_job(this),
       is_promise_reject_reaction_job(this),
-      is_promise_resolve_thenable_job(this), is_weak_factory_cleanup_job(this),
+      is_promise_resolve_thenable_job(this),
+      is_finalization_group_cleanup_job(this),
       is_unreachable(this, Label::kDeferred), done(this);
 
   int32_t case_values[] = {CALLABLE_TASK_TYPE,
@@ -122,13 +139,13 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
                            PROMISE_FULFILL_REACTION_JOB_TASK_TYPE,
                            PROMISE_REJECT_REACTION_JOB_TASK_TYPE,
                            PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE,
-                           WEAK_FACTORY_CLEANUP_JOB_TASK_TYPE};
+                           FINALIZATION_GROUP_CLEANUP_JOB_TASK_TYPE};
   Label* case_labels[] = {&is_callable,
                           &is_callback,
                           &is_promise_fulfill_reaction_job,
                           &is_promise_reject_reaction_job,
                           &is_promise_resolve_thenable_job,
-                          &is_weak_factory_cleanup_job};
+                          &is_finalization_group_cleanup_job};
   static_assert(arraysize(case_values) == arraysize(case_labels), "");
   Switch(microtask_type, &is_unreachable, case_values, case_labels,
          arraysize(case_labels));
@@ -139,10 +156,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     TNode<Context> microtask_context =
         LoadObjectField<Context>(microtask, CallableTask::kContextOffset);
     TNode<Context> native_context = LoadNativeContext(microtask_context);
-
-    CSA_ASSERT(this, IsNativeContext(native_context));
-    EnterMicrotaskContext(native_context);
-    SetCurrentContext(native_context);
+    PrepareForContext(native_context, &done);
 
     TNode<JSReceiver> callable =
         LoadObjectField<JSReceiver>(microtask, CallableTask::kCallableOffset);
@@ -185,9 +199,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     TNode<Context> microtask_context = LoadObjectField<Context>(
         microtask, PromiseResolveThenableJobTask::kContextOffset);
     TNode<Context> native_context = LoadNativeContext(microtask_context);
-    CSA_ASSERT(this, IsNativeContext(native_context));
-    EnterMicrotaskContext(native_context);
-    SetCurrentContext(native_context);
+    PrepareForContext(native_context, &done);
 
     Node* const promise_to_resolve = LoadObjectField(
         microtask, PromiseResolveThenableJobTask::kPromiseToResolveOffset);
@@ -211,9 +223,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     TNode<Context> microtask_context = LoadObjectField<Context>(
         microtask, PromiseReactionJobTask::kContextOffset);
     TNode<Context> native_context = LoadNativeContext(microtask_context);
-    CSA_ASSERT(this, IsNativeContext(native_context));
-    EnterMicrotaskContext(native_context);
-    SetCurrentContext(native_context);
+    PrepareForContext(native_context, &done);
 
     Node* const argument =
         LoadObjectField(microtask, PromiseReactionJobTask::kArgumentOffset);
@@ -246,9 +256,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     TNode<Context> microtask_context = LoadObjectField<Context>(
         microtask, PromiseReactionJobTask::kContextOffset);
     TNode<Context> native_context = LoadNativeContext(microtask_context);
-    CSA_ASSERT(this, IsNativeContext(native_context));
-    EnterMicrotaskContext(native_context);
-    SetCurrentContext(native_context);
+    PrepareForContext(native_context, &done);
 
     Node* const argument =
         LoadObjectField(microtask, PromiseReactionJobTask::kArgumentOffset);
@@ -275,19 +283,19 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     Goto(&done);
   }
 
-  BIND(&is_weak_factory_cleanup_job);
+  BIND(&is_finalization_group_cleanup_job);
   {
-    // Enter the context of the {weak_factory}.
-    TNode<JSWeakFactory> weak_factory = LoadObjectField<JSWeakFactory>(
-        microtask, WeakFactoryCleanupJobTask::kFactoryOffset);
+    // Enter the context of the {finalization_group}.
+    TNode<JSFinalizationGroup> finalization_group =
+        LoadObjectField<JSFinalizationGroup>(
+            microtask,
+            FinalizationGroupCleanupJobTask::kFinalizationGroupOffset);
     TNode<Context> native_context = LoadObjectField<Context>(
-        weak_factory, JSWeakFactory::kNativeContextOffset);
-    CSA_ASSERT(this, IsNativeContext(native_context));
-    EnterMicrotaskContext(native_context);
-    SetCurrentContext(native_context);
+        finalization_group, JSFinalizationGroup::kNativeContextOffset);
+    PrepareForContext(native_context, &done);
 
-    Node* const result = CallRuntime(Runtime::kWeakFactoryCleanupJob,
-                                     native_context, weak_factory);
+    Node* const result = CallRuntime(Runtime::kFinalizationGroupCleanupJob,
+                                     native_context, finalization_group);
 
     GotoIfException(result, &if_exception, &var_exception);
     RewindEnteredContext(saved_entered_context_count);
@@ -311,17 +319,26 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
   BIND(&done);
 }
 
+void MicrotaskQueueBuiltinsAssembler::IncrementFinishedMicrotaskCount(
+    TNode<RawPtrT> microtask_queue) {
+  TNode<IntPtrT> count = UncheckedCast<IntPtrT>(
+      Load(MachineType::IntPtr(), microtask_queue,
+           IntPtrConstant(MicrotaskQueue::kFinishedMicrotaskCountOffset)));
+  TNode<IntPtrT> new_count = IntPtrAdd(count, IntPtrConstant(1));
+  StoreNoWriteBarrier(
+      MachineType::PointerRepresentation(), microtask_queue,
+      IntPtrConstant(MicrotaskQueue::kFinishedMicrotaskCountOffset), new_count);
+}
+
 TNode<Context> MicrotaskQueueBuiltinsAssembler::GetCurrentContext() {
   auto ref = ExternalReference::Create(kContextAddress, isolate());
-  return TNode<Context>::UncheckedCast(
-      Load(MachineType::AnyTagged(), ExternalConstant(ref)));
+  return TNode<Context>::UncheckedCast(LoadFullTagged(ExternalConstant(ref)));
 }
 
 void MicrotaskQueueBuiltinsAssembler::SetCurrentContext(
     TNode<Context> context) {
   auto ref = ExternalReference::Create(kContextAddress, isolate());
-  StoreNoWriteBarrier(MachineRepresentation::kTagged, ExternalConstant(ref),
-                      context);
+  StoreFullTaggedNoWriteBarrier(ExternalConstant(ref), context);
 }
 
 TNode<IntPtrT> MicrotaskQueueBuiltinsAssembler::GetEnteredContextCount() {
@@ -365,23 +382,22 @@ void MicrotaskQueueBuiltinsAssembler::EnterMicrotaskContext(
         IntPtrConstant(HandleScopeImplementer::kEnteredContextsOffset +
                        ContextStack::kDataOffset);
     Node* data = Load(MachineType::Pointer(), hsi, data_offset);
-    StoreNoWriteBarrier(MachineType::Pointer().representation(), data,
-                        TimesSystemPointerSize(size),
-                        BitcastTaggedToWord(native_context));
+    StoreFullTaggedNoWriteBarrier(data, TimesSystemPointerSize(size),
+                                  native_context);
 
     TNode<IntPtrT> new_size = IntPtrAdd(size, IntPtrConstant(1));
-    StoreNoWriteBarrier(MachineType::IntPtr().representation(), hsi,
-                        size_offset, new_size);
+    StoreNoWriteBarrier(MachineType::PointerRepresentation(), hsi, size_offset,
+                        new_size);
 
     using FlagStack = DetachableVector<int8_t>;
     TNode<IntPtrT> flag_data_offset =
         IntPtrConstant(HandleScopeImplementer::kIsMicrotaskContextOffset +
                        FlagStack::kDataOffset);
     Node* flag_data = Load(MachineType::Pointer(), hsi, flag_data_offset);
-    StoreNoWriteBarrier(MachineType::Int8().representation(), flag_data, size,
+    StoreNoWriteBarrier(MachineRepresentation::kWord8, flag_data, size,
                         BoolConstant(true));
     StoreNoWriteBarrier(
-        MachineType::IntPtr().representation(), hsi,
+        MachineType::PointerRepresentation(), hsi,
         IntPtrConstant(HandleScopeImplementer::kIsMicrotaskContextOffset +
                        FlagStack::kSizeOffset),
         new_size);
@@ -419,12 +435,12 @@ void MicrotaskQueueBuiltinsAssembler::RewindEnteredContext(
   CSA_ASSERT(this, IntPtrLessThanOrEqual(saved_entered_context_count, size));
 #endif
 
-  StoreNoWriteBarrier(MachineType::IntPtr().representation(), hsi, size_offset,
+  StoreNoWriteBarrier(MachineType::PointerRepresentation(), hsi, size_offset,
                       saved_entered_context_count);
 
   using FlagStack = DetachableVector<int8_t>;
   StoreNoWriteBarrier(
-      MachineType::IntPtr().representation(), hsi,
+      MachineType::PointerRepresentation(), hsi,
       IntPtrConstant(HandleScopeImplementer::kIsMicrotaskContextOffset +
                      FlagStack::kSizeOffset),
       saved_entered_context_count);
@@ -461,6 +477,11 @@ TF_BUILTIN(EnqueueMicrotask, MicrotaskQueueBuiltinsAssembler) {
   TNode<Context> native_context = LoadNativeContext(context);
   TNode<RawPtrT> microtask_queue = GetMicrotaskQueue(native_context);
 
+  // Do not store the microtask if MicrotaskQueue is not available, that may
+  // happen when the context shutdown.
+  Label if_shutdown(this, Label::kDeferred);
+  GotoIf(WordEqual(microtask_queue, IntPtrConstant(0)), &if_shutdown);
+
   TNode<RawPtrT> ring_buffer = GetMicrotaskRingBuffer(microtask_queue);
   TNode<IntPtrT> capacity = GetMicrotaskQueueCapacity(microtask_queue);
   TNode<IntPtrT> size = GetMicrotaskQueueSize(microtask_queue);
@@ -493,6 +514,9 @@ TF_BUILTIN(EnqueueMicrotask, MicrotaskQueueBuiltinsAssembler) {
                    isolate_constant, microtask_queue, microtask);
     Return(UndefinedConstant());
   }
+
+  Bind(&if_shutdown);
+  Return(UndefinedConstant());
 }
 
 TF_BUILTIN(RunMicrotasks, MicrotaskQueueBuiltinsAssembler) {
@@ -531,6 +555,7 @@ TF_BUILTIN(RunMicrotasks, MicrotaskQueueBuiltinsAssembler) {
   SetMicrotaskQueueStart(microtask_queue, new_start);
 
   RunSingleMicrotask(current_context, microtask);
+  IncrementFinishedMicrotaskCount(microtask_queue);
   Goto(&loop);
 
   BIND(&done);

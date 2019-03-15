@@ -982,20 +982,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIeee754Float64Log10:
       ASSEMBLE_IEEE754_UNOP(log10);
       break;
-    case kIeee754Float64Pow: {
-      // TODO(bmeurer): Improve integration of the stub.
-      if (i.InputDoubleRegister(1) != xmm2) {
-        __ movaps(xmm2, i.InputDoubleRegister(0));
-        __ movaps(xmm1, i.InputDoubleRegister(1));
-      } else {
-        __ movaps(xmm0, i.InputDoubleRegister(0));
-        __ movaps(xmm1, xmm2);
-        __ movaps(xmm2, xmm0);
-      }
-      __ Call(BUILTIN_CODE(isolate(), MathPowInternal), RelocInfo::CODE_TARGET);
-      __ movaps(i.OutputDoubleRegister(), xmm3);
+    case kIeee754Float64Pow:
+      ASSEMBLE_IEEE754_BINOP(pow);
       break;
-    }
     case kIeee754Float64Sin:
       ASSEMBLE_IEEE754_UNOP(sin);
       break;
@@ -1262,7 +1251,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ movaps(i.OutputDoubleRegister(), i.OutputDoubleRegister());
       break;
     case kSSEFloat32Max: {
-      Label compare_nan, compare_swap, done_compare;
+      Label compare_swap, done_compare;
       if (instr->InputAt(1)->IsFPRegister()) {
         __ ucomiss(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
       } else {
@@ -1288,7 +1277,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
 
     case kSSEFloat64Max: {
-      Label compare_nan, compare_swap, done_compare;
+      Label compare_swap, done_compare;
       if (instr->InputAt(1)->IsFPRegister()) {
         __ ucomisd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
       } else {
@@ -4023,7 +4012,7 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   Label* const table = AddJumpTable(cases, case_count);
   __ cmp(input, Immediate(case_count));
   __ j(above_equal, GetLabel(i.InputRpo(1)));
-  __ jmp(Operand::JumpTable(input, times_4, table));
+  __ jmp(Operand::JumpTable(input, times_system_pointer_size, table));
 }
 
 // The calling convention for JSFunctions on IA32 passes arguments on the
@@ -4197,8 +4186,8 @@ void CodeGenerator::AssembleConstructFrame() {
     }
   }
 
-  int shrink_slots = frame()->GetTotalFrameSlotCount() -
-                     call_descriptor->CalculateFixedFrameSize();
+  int required_slots = frame()->GetTotalFrameSlotCount() -
+                       call_descriptor->CalculateFixedFrameSize();
 
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
@@ -4210,13 +4199,13 @@ void CodeGenerator::AssembleConstructFrame() {
     // remaining stack slots.
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
-    shrink_slots -= osr_helper()->UnoptimizedFrameSlots();
+    required_slots -= osr_helper()->UnoptimizedFrameSlots();
   }
 
   const RegList saves = call_descriptor->CalleeSavedRegisters();
-  if (shrink_slots > 0) {
+  if (required_slots > 0) {
     DCHECK(frame_access_state()->has_frame());
-    if (info()->IsWasm() && shrink_slots > 128) {
+    if (info()->IsWasm() && required_slots > 128) {
       // For WebAssembly functions with big frames we have to do the stack
       // overflow check before we construct the frame. Otherwise we may not
       // have enough space on the stack to call the runtime for the stack
@@ -4226,22 +4215,21 @@ void CodeGenerator::AssembleConstructFrame() {
       // If the frame is bigger than the stack, we throw the stack overflow
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
-      if (shrink_slots * kSystemPointerSize < FLAG_stack_size * 1024) {
+      if (required_slots * kSystemPointerSize < FLAG_stack_size * 1024) {
         Register scratch = esi;
         __ push(scratch);
         __ mov(scratch,
                FieldOperand(kWasmInstanceRegister,
                             WasmInstanceObject::kRealStackLimitAddressOffset));
         __ mov(scratch, Operand(scratch, 0));
-        __ add(scratch, Immediate(shrink_slots * kSystemPointerSize));
+        __ add(scratch, Immediate(required_slots * kSystemPointerSize));
         __ cmp(esp, scratch);
         __ pop(scratch);
         __ j(above_equal, &done);
       }
-      __ mov(ecx, FieldOperand(kWasmInstanceRegister,
-                               WasmInstanceObject::kCEntryStubOffset));
-      __ Move(esi, Smi::zero());
-      __ CallRuntimeWithCEntry(Runtime::kThrowWasmStackOverflow, ecx);
+
+      __ wasm_call(wasm::WasmCode::kWasmStackOverflow,
+                   RelocInfo::WASM_STUB_CALL);
       ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
       RecordSafepoint(reference_map, Safepoint::kSimple,
                       Safepoint::kNoLazyDeopt);
@@ -4250,10 +4238,10 @@ void CodeGenerator::AssembleConstructFrame() {
     }
 
     // Skip callee-saved and return slots, which are created below.
-    shrink_slots -= base::bits::CountPopulation(saves);
-    shrink_slots -= frame()->GetReturnSlotCount();
-    if (shrink_slots > 0) {
-      __ sub(esp, Immediate(shrink_slots * kSystemPointerSize));
+    required_slots -= base::bits::CountPopulation(saves);
+    required_slots -= frame()->GetReturnSlotCount();
+    if (required_slots > 0) {
+      __ sub(esp, Immediate(required_slots * kSystemPointerSize));
     }
   }
 
@@ -4318,7 +4306,8 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
     Register pop_reg = g.ToRegister(pop);
     Register scratch_reg = pop_reg == ecx ? edx : ecx;
     __ pop(scratch_reg);
-    __ lea(esp, Operand(esp, pop_reg, times_4, static_cast<int>(pop_size)));
+    __ lea(esp, Operand(esp, pop_reg, times_system_pointer_size,
+                        static_cast<int>(pop_size)));
     __ jmp(scratch_reg);
   }
 }

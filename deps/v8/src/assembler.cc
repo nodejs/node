@@ -37,9 +37,9 @@
 #include "src/assembler-inl.h"
 #include "src/deoptimizer.h"
 #include "src/disassembler.h"
+#include "src/heap/heap-inl.h"  // For MemoryAllocator. TODO(jkummerow): Drop.
 #include "src/isolate.h"
 #include "src/ostreams.h"
-#include "src/simulator.h"  // For flushing instruction cache.
 #include "src/snapshot/embedded-data.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/snapshot/snapshot.h"
@@ -68,7 +68,7 @@ AssemblerOptions AssemblerOptions::Default(
   const bool serializer =
       isolate->serializer_enabled() || explicitly_support_serialization;
   const bool generating_embedded_builtin =
-      isolate->ShouldLoadConstantsFromRootList();
+      isolate->IsGeneratingEmbeddedBuiltins();
   options.record_reloc_info_for_serialization = serializer;
   options.enable_root_array_delta_access =
       !serializer && !generating_embedded_builtin;
@@ -160,17 +160,6 @@ AssemblerBase::AssemblerBase(const AssemblerOptions& options,
 }
 
 AssemblerBase::~AssemblerBase() = default;
-
-void AssemblerBase::FlushICache(void* start, size_t size) {
-  if (size == 0) return;
-
-#if defined(USE_SIMULATOR)
-  base::MutexGuard lock_guard(Simulator::i_cache_mutex());
-  Simulator::FlushICache(Simulator::i_cache(), start, size);
-#else
-  CpuFeatures::FlushICache(start, size);
-#endif  // USE_SIMULATOR
-}
 
 void AssemblerBase::Print(Isolate* isolate) {
   StdoutStream os;

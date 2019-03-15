@@ -10,6 +10,7 @@
 #include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
+#include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/macro-assembler.h"
 #include "src/optimized-compilation-info.h"
 #include "src/wasm/wasm-code-manager.h"
@@ -1636,6 +1637,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(i.OutputRegister(), i.InputRegister(0));
       __ AndP(i.InputRegister(0), kSpeculationPoisonRegister);
       break;
+    case kS390_Peek: {
+      // The incoming value is 0-based, but we need a 1-based value.
+      int reverse_slot = i.InputInt32(0) + 1;
+      int offset =
+          FrameSlotToFPOffset(frame()->GetTotalFrameSlotCount() - reverse_slot);
+      if (instr->OutputAt(0)->IsFPRegister()) {
+        LocationOperand* op = LocationOperand::cast(instr->OutputAt(0));
+        if (op->representation() == MachineRepresentation::kFloat64) {
+          __ LoadDouble(i.OutputDoubleRegister(), MemOperand(fp, offset));
+        } else {
+          DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
+          __ LoadFloat32(i.OutputFloatRegister(), MemOperand(fp, offset));
+        }
+      } else {
+        __ LoadP(i.OutputRegister(), MemOperand(fp, offset));
+      }
+      break;
+    }
     case kS390_Abs32:
       // TODO(john.yan): zero-ext
       __ lpr(i.OutputRegister(0), i.InputRegister(0));
@@ -2066,11 +2085,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIeee754Float64Log10:
       ASSEMBLE_IEEE754_UNOP(log10);
       break;
-    case kIeee754Float64Pow: {
-      __ Call(BUILTIN_CODE(isolate(), MathPowInternal), RelocInfo::CODE_TARGET);
-      __ Move(d1, d3);
+    case kIeee754Float64Pow:
+      ASSEMBLE_IEEE754_BINOP(pow);
       break;
-    }
     case kS390_Neg32:
       __ lcr(i.OutputRegister(), i.InputRegister(0));
       CHECK_AND_ZERO_EXT_OUTPUT(1);
@@ -2639,7 +2656,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
       Register output = i.OutputRegister();
-      Label two, unaligned, done;
+      Label two, done;
       __ la(r1, MemOperand(base, index));
       __ tmll(r1, Operand(3));
       __ b(Condition(2), &two);
@@ -3026,8 +3043,8 @@ void CodeGenerator::AssembleConstructFrame() {
     }
   }
 
-  int shrink_slots = frame()->GetTotalFrameSlotCount() -
-                     call_descriptor->CalculateFixedFrameSize();
+  int required_slots = frame()->GetTotalFrameSlotCount() -
+                       call_descriptor->CalculateFixedFrameSize();
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
     __ Abort(AbortReason::kShouldNotDirectlyEnterOsrFunction);
@@ -3038,15 +3055,15 @@ void CodeGenerator::AssembleConstructFrame() {
     // remaining stack slots.
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
-    shrink_slots -= osr_helper()->UnoptimizedFrameSlots();
+    required_slots -= osr_helper()->UnoptimizedFrameSlots();
     ResetSpeculationPoison();
   }
 
   const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
   const RegList saves = call_descriptor->CalleeSavedRegisters();
 
-  if (shrink_slots > 0) {
-    if (info()->IsWasm() && shrink_slots > 128) {
+  if (required_slots > 0) {
+    if (info()->IsWasm() && required_slots > 128) {
       // For WebAssembly functions with big frames we have to do the stack
       // overflow check before we construct the frame. Otherwise we may not
       // have enough space on the stack to call the runtime for the stack
@@ -3056,22 +3073,19 @@ void CodeGenerator::AssembleConstructFrame() {
       // If the frame is bigger than the stack, we throw the stack overflow
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
-      if ((shrink_slots * kSystemPointerSize) < (FLAG_stack_size * 1024)) {
+      if ((required_slots * kSystemPointerSize) < (FLAG_stack_size * 1024)) {
         Register scratch = r1;
         __ LoadP(
             scratch,
             FieldMemOperand(kWasmInstanceRegister,
                             WasmInstanceObject::kRealStackLimitAddressOffset));
         __ LoadP(scratch, MemOperand(scratch));
-        __ AddP(scratch, scratch, Operand(shrink_slots * kSystemPointerSize));
+        __ AddP(scratch, scratch, Operand(required_slots * kSystemPointerSize));
         __ CmpLogicalP(sp, scratch);
         __ bge(&done);
       }
 
-      __ LoadP(r4, FieldMemOperand(kWasmInstanceRegister,
-                                   WasmInstanceObject::kCEntryStubOffset));
-      __ Move(cp, Smi::zero());
-      __ CallRuntimeWithCEntry(Runtime::kThrowWasmStackOverflow, r4);
+      __ Call(wasm::WasmCode::kWasmStackOverflow, RelocInfo::WASM_STUB_CALL);
       // We come from WebAssembly, there are no references for the GC.
       ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
       RecordSafepoint(reference_map, Safepoint::kSimple,
@@ -3084,11 +3098,11 @@ void CodeGenerator::AssembleConstructFrame() {
     }
 
     // Skip callee-saved and return slots, which are pushed below.
-    shrink_slots -= base::bits::CountPopulation(saves);
-    shrink_slots -= frame()->GetReturnSlotCount();
-    shrink_slots -= (kDoubleSize / kSystemPointerSize) *
-                    base::bits::CountPopulation(saves_fp);
-    __ lay(sp, MemOperand(sp, -shrink_slots * kSystemPointerSize));
+    required_slots -= base::bits::CountPopulation(saves);
+    required_slots -= frame()->GetReturnSlotCount();
+    required_slots -= (kDoubleSize / kSystemPointerSize) *
+                      base::bits::CountPopulation(saves_fp);
+    __ lay(sp, MemOperand(sp, -required_slots * kSystemPointerSize));
   }
 
   // Save callee-saved Double registers.

@@ -6,12 +6,15 @@
 Dummy d8 replacement for flaky tests.
 """
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import os
 import sys
 
 PATH = os.path.dirname(os.path.abspath(__file__))
 
-print ' '.join(sys.argv[1:])
+print(' '.join(sys.argv[1:]))
 
 # Test files ending in 'flakes' should first fail then pass. We store state in
 # a file side by side with the executable. No clean-up required as all tests

@@ -12,6 +12,8 @@
 #include "src/deoptimizer.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
+// For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
+#include "src/heap/heap-inl.h"
 #include "src/macro-assembler-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/cell.h"
@@ -109,13 +111,13 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     //  --                edx: new target
     //  --                esi: pointer to last argument
     //  --                ecx: counter
-    //  -- sp[0*kPointerSize]: the hole (receiver)
-    //  -- sp[1*kPointerSize]: number of arguments (tagged)
-    //  -- sp[2*kPointerSize]: context
+    //  -- sp[0*kSystemPointerSize]: the hole (receiver)
+    //  -- sp[1*kSystemPointerSize]: number of arguments (tagged)
+    //  -- sp[2*kSystemPointerSize]: context
     // -----------------------------------
     __ jmp(&entry);
     __ bind(&loop);
-    __ push(Operand(esi, ecx, times_4, 0));
+    __ push(Operand(esi, ecx, times_system_pointer_size, 0));
     __ bind(&entry);
     __ dec(ecx);
     __ j(greater_equal, &loop);
@@ -139,7 +141,8 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   // Remove caller arguments from the stack and return.
   STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
   __ PopReturnAddressTo(ecx);
-  __ lea(esp, Operand(esp, edx, times_2, 1 * kPointerSize));  // 1 ~ receiver
+  __ lea(esp, Operand(esp, edx, times_half_system_pointer_size,
+                      1 * kSystemPointerSize));  // 1 ~ receiver
   __ PushReturnAddressFrom(ecx);
   __ ret(0);
 }
@@ -157,11 +160,11 @@ void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
   __ mov(scratch, __ ExternalReferenceAsOperand(real_stack_limit, scratch));
   __ sub(scratch, esp);
   // Add the size of the arguments.
-  static_assert(kPointerSize == 4,
-                "The next instruction assumes kPointerSize == 4");
-  __ lea(scratch, Operand(scratch, num_args, times_4, 0));
+  static_assert(kSystemPointerSize == 4,
+                "The next instruction assumes kSystemPointerSize == 4");
+  __ lea(scratch, Operand(scratch, num_args, times_system_pointer_size, 0));
   if (include_receiver) {
-    __ add(scratch, Immediate(kPointerSize));
+    __ add(scratch, Immediate(kSystemPointerSize));
   }
   // See if we overflowed, i.e. scratch is positive.
   __ cmp(scratch, Immediate(0));
@@ -195,17 +198,18 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     __ Push(edx);
 
     // ----------- S t a t e -------------
-    //  --         sp[0*kPointerSize]: new target
-    //  --         sp[1*kPointerSize]: padding
-    //  -- edi and sp[2*kPointerSize]: constructor function
-    //  --         sp[3*kPointerSize]: argument count
-    //  --         sp[4*kPointerSize]: context
+    //  --         sp[0*kSystemPointerSize]: new target
+    //  --         sp[1*kSystemPointerSize]: padding
+    //  -- edi and sp[2*kSystemPointerSize]: constructor function
+    //  --         sp[3*kSystemPointerSize]: argument count
+    //  --         sp[4*kSystemPointerSize]: context
     // -----------------------------------
 
     __ mov(eax, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-    __ test(FieldOperand(eax, SharedFunctionInfo::kFlagsOffset),
-            Immediate(SharedFunctionInfo::IsDerivedConstructorBit::kMask));
-    __ j(not_zero, &not_create_implicit_receiver);
+    __ mov(eax, FieldOperand(eax, SharedFunctionInfo::kFlagsOffset));
+    __ DecodeField<SharedFunctionInfo::FunctionKindBits>(eax);
+    __ JumpIfIsInRange(eax, kDefaultDerivedConstructor, kDerivedConstructor,
+                       ecx, &not_create_implicit_receiver, Label::kNear);
 
     // If not derived class constructor: Allocate the new receiver object.
     __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1,
@@ -220,11 +224,11 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
     // ----------- S t a t e -------------
     //  --                         eax: implicit receiver
-    //  -- Slot 4 / sp[0*kPointerSize]: new target
-    //  -- Slot 3 / sp[1*kPointerSize]: padding
-    //  -- Slot 2 / sp[2*kPointerSize]: constructor function
-    //  -- Slot 1 / sp[3*kPointerSize]: number of arguments (tagged)
-    //  -- Slot 0 / sp[4*kPointerSize]: context
+    //  -- Slot 4 / sp[0*kSystemPointerSize]: new target
+    //  -- Slot 3 / sp[1*kSystemPointerSize]: padding
+    //  -- Slot 2 / sp[2*kSystemPointerSize]: constructor function
+    //  -- Slot 1 / sp[3*kSystemPointerSize]: number of arguments (tagged)
+    //  -- Slot 0 / sp[4*kSystemPointerSize]: context
     // -----------------------------------
     // Deoptimizer enters here.
     masm->isolate()->heap()->SetConstructStubCreateDeoptPCOffset(
@@ -242,12 +246,12 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
     // ----------- S t a t e -------------
     //  --                edx: new target
-    //  -- sp[0*kPointerSize]: implicit receiver
-    //  -- sp[1*kPointerSize]: implicit receiver
-    //  -- sp[2*kPointerSize]: padding
-    //  -- sp[3*kPointerSize]: constructor function
-    //  -- sp[4*kPointerSize]: number of arguments (tagged)
-    //  -- sp[5*kPointerSize]: context
+    //  -- sp[0*kSystemPointerSize]: implicit receiver
+    //  -- sp[1*kSystemPointerSize]: implicit receiver
+    //  -- sp[2*kSystemPointerSize]: padding
+    //  -- sp[3*kSystemPointerSize]: constructor function
+    //  -- sp[4*kSystemPointerSize]: number of arguments (tagged)
+    //  -- sp[5*kSystemPointerSize]: context
     // -----------------------------------
 
     // Restore argument count.
@@ -280,16 +284,16 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     //  --                        edx: new target
     //  --                        edi: pointer to last argument
     //  --                        ecx: counter (tagged)
-    //  --         sp[0*kPointerSize]: implicit receiver
-    //  --         sp[1*kPointerSize]: implicit receiver
-    //  --         sp[2*kPointerSize]: padding
-    //  --         sp[3*kPointerSize]: constructor function
-    //  --         sp[4*kPointerSize]: number of arguments (tagged)
-    //  --         sp[5*kPointerSize]: context
+    //  --         sp[0*kSystemPointerSize]: implicit receiver
+    //  --         sp[1*kSystemPointerSize]: implicit receiver
+    //  --         sp[2*kSystemPointerSize]: padding
+    //  --         sp[3*kSystemPointerSize]: constructor function
+    //  --         sp[4*kSystemPointerSize]: number of arguments (tagged)
+    //  --         sp[5*kSystemPointerSize]: context
     // -----------------------------------
     __ jmp(&entry, Label::kNear);
     __ bind(&loop);
-    __ Push(Operand(edi, ecx, times_pointer_size, 0));
+    __ Push(Operand(edi, ecx, times_system_pointer_size, 0));
     __ bind(&entry);
     __ dec(ecx);
     __ j(greater_equal, &loop);
@@ -301,11 +305,11 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
     // ----------- S t a t e -------------
     //  --                eax: constructor result
-    //  -- sp[0*kPointerSize]: implicit receiver
-    //  -- sp[1*kPointerSize]: padding
-    //  -- sp[2*kPointerSize]: constructor function
-    //  -- sp[3*kPointerSize]: number of arguments
-    //  -- sp[4*kPointerSize]: context
+    //  -- sp[0*kSystemPointerSize]: implicit receiver
+    //  -- sp[1*kSystemPointerSize]: padding
+    //  -- sp[2*kSystemPointerSize]: constructor function
+    //  -- sp[3*kSystemPointerSize]: number of arguments
+    //  -- sp[4*kSystemPointerSize]: context
     // -----------------------------------
 
     // Store offset of return address for deoptimizer.
@@ -342,7 +346,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // Throw away the result of the constructor invocation and use the
     // on-stack receiver as the result.
     __ bind(&use_receiver);
-    __ mov(eax, Operand(esp, 0 * kPointerSize));
+    __ mov(eax, Operand(esp, 0 * kSystemPointerSize));
     __ JumpIfRoot(eax, RootIndex::kTheHoleValue, &do_throw);
 
     __ bind(&leave_frame);
@@ -353,7 +357,8 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // Remove caller arguments from the stack and return.
   STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
   __ pop(ecx);
-  __ lea(esp, Operand(esp, edx, times_2, 1 * kPointerSize));  // 1 ~ receiver
+  __ lea(esp, Operand(esp, edx, times_half_system_pointer_size,
+                      1 * kSystemPointerSize));  // 1 ~ receiver
   __ push(ecx);
   __ ret(0);
 }
@@ -395,7 +400,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     __ push(Immediate(StackFrame::TypeToMarker(type)));
     // Reserve a slot for the context. It is filled after the root register has
     // been set up.
-    __ sub(esp, Immediate(kPointerSize));
+    __ sub(esp, Immediate(kSystemPointerSize));
     // Save callee-saved registers (C calling conventions).
     __ push(edi);
     __ push(esi);
@@ -416,7 +421,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   ExternalReference context_address = ExternalReference::Create(
       IsolateAddressId::kContextAddress, masm->isolate());
   __ mov(edi, __ ExternalReferenceAsOperand(context_address, edi));
-  static constexpr int kOffsetToContextSlot = -2 * kPointerSize;
+  static constexpr int kOffsetToContextSlot = -2 * kSystemPointerSize;
   __ mov(Operand(ebp, kOffsetToContextSlot), edi);
 
   // If this is the outermost JS call, set js_entry_sp value.
@@ -476,7 +481,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ pop(ebx);
   __ pop(esi);
   __ pop(edi);
-  __ add(esp, Immediate(2 * kPointerSize));  // remove markers
+  __ add(esp, Immediate(2 * kSystemPointerSize));  // remove markers
 
   // Restore frame pointer and return.
   __ pop(ebp);
@@ -543,7 +548,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ jmp(&entry, Label::kNear);
     __ bind(&loop);
     // Push the parameter from argv.
-    __ mov(scratch2, Operand(scratch1, ecx, times_4, 0));
+    __ mov(scratch2, Operand(scratch1, ecx, times_system_pointer_size, 0));
     __ push(Operand(scratch2, 0));  // dereference handle
     __ inc(ecx);
     __ bind(&entry);
@@ -669,8 +674,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
       __ bind(&loop);
       __ cmp(edi, ecx);
       __ j(greater_equal, &done_loop);
-      __ Push(
-          FieldOperand(ebx, edi, times_pointer_size, FixedArray::kHeaderSize));
+      __ Push(FieldOperand(ebx, edi, times_system_pointer_size,
+                           FixedArray::kHeaderSize));
       __ add(edi, Immediate(1));
       __ jmp(&loop);
 
@@ -940,7 +945,8 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 #undef JUMP_IF_EQUAL
 
   // Otherwise, load the size of the current bytecode and advance the offset.
-  __ add(bytecode_offset, Operand(bytecode_size_table, bytecode, times_4, 0));
+  __ add(bytecode_offset,
+         Operand(bytecode_size_table, bytecode, times_int_size, 0));
 }
 
 // Generate code for entering a JS function with the interpreter.
@@ -1052,7 +1058,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ push(eax);
     // Continue loop if not done.
     __ bind(&loop_check);
-    __ sub(frame_size, Immediate(kPointerSize));
+    __ sub(frame_size, Immediate(kSystemPointerSize));
     __ j(greater_equal, &loop_header);
   }
 
@@ -1064,7 +1070,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
                   BytecodeArray::kIncomingNewTargetOrGeneratorRegisterOffset));
   __ test(eax, eax);
   __ j(zero, &no_incoming_new_target_or_generator_register);
-  __ mov(Operand(ebp, eax, times_pointer_size, 0), edx);
+  __ mov(Operand(ebp, eax, times_system_pointer_size, 0), edx);
   __ bind(&no_incoming_new_target_or_generator_register);
 
   // Load accumulator and bytecode offset into registers.
@@ -1081,9 +1087,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
               masm->isolate())));
   __ movzx_b(ecx, Operand(kInterpreterBytecodeArrayRegister,
                           kInterpreterBytecodeOffsetRegister, times_1, 0));
-  __ mov(
-      kJavaScriptCallCodeStartRegister,
-      Operand(kInterpreterDispatchTableRegister, ecx, times_pointer_size, 0));
+  __ mov(kJavaScriptCallCodeStartRegister,
+         Operand(kInterpreterDispatchTableRegister, ecx,
+                 times_system_pointer_size, 0));
   __ call(kJavaScriptCallCodeStartRegister);
   masm->isolate()->heap()->SetInterpreterEntryReturnPCOffset(masm->pc_offset());
 
@@ -1127,7 +1133,7 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
   __ jmp(&loop_check);
   __ bind(&loop_header);
   __ Push(Operand(start_address, 0));
-  __ sub(start_address, Immediate(kPointerSize));
+  __ sub(start_address, Immediate(kSystemPointerSize));
   __ bind(&loop_check);
   __ cmp(start_address, array_limit);
   __ j(greater, &loop_header, Label::kNear);
@@ -1169,7 +1175,7 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
   }
 
   // Find the address of the last argument.
-  __ shl(scratch, kPointerSizeLog2);
+  __ shl(scratch, kSystemPointerSizeLog2);
   __ neg(scratch);
   __ add(scratch, argv);
   Generate_InterpreterPushArgs(masm, scratch, argv);
@@ -1226,7 +1232,8 @@ void Generate_InterpreterPushZeroAndArgsAndReturnAddress(
 
   // Step 1 - Update the stack pointer.
 
-  __ lea(scratch1, Operand(num_args, times_4, kPointerSize));
+  __ lea(scratch1,
+         Operand(num_args, times_system_pointer_size, kSystemPointerSize));
   __ AllocateStackFrame(scratch1);
 
   // Step 2 move return_address and slots around it to the correct locations.
@@ -1234,16 +1241,16 @@ void Generate_InterpreterPushZeroAndArgsAndReturnAddress(
   // basically when the source and destination overlap. We at least need one
   // extra slot for receiver, so no extra checks are required to avoid copy.
   for (int i = 0; i < num_slots_to_move + 1; i++) {
-    __ mov(scratch1,
-           Operand(esp, num_args, times_pointer_size, (i + 1) * kPointerSize));
-    __ mov(Operand(esp, i * kPointerSize), scratch1);
+    __ mov(scratch1, Operand(esp, num_args, times_system_pointer_size,
+                             (i + 1) * kSystemPointerSize));
+    __ mov(Operand(esp, i * kSystemPointerSize), scratch1);
   }
 
   // Step 3 copy arguments to correct locations.
   // Slot meant for receiver contains return address. Reset it so that
   // we will not incorrectly interpret return address as an object.
-  __ mov(Operand(esp, num_args, times_pointer_size,
-                 (num_slots_to_move + 1) * kPointerSize),
+  __ mov(Operand(esp, num_args, times_system_pointer_size,
+                 (num_slots_to_move + 1) * kSystemPointerSize),
          Immediate(0));
   __ mov(scratch1, num_args);
 
@@ -1251,10 +1258,10 @@ void Generate_InterpreterPushZeroAndArgsAndReturnAddress(
   __ jmp(&loop_check);
   __ bind(&loop_header);
   __ mov(scratch2, Operand(start_addr, 0));
-  __ mov(Operand(esp, scratch1, times_pointer_size,
-                 num_slots_to_move * kPointerSize),
+  __ mov(Operand(esp, scratch1, times_system_pointer_size,
+                 num_slots_to_move * kSystemPointerSize),
          scratch2);
-  __ sub(start_addr, Immediate(kPointerSize));
+  __ sub(start_addr, Immediate(kSystemPointerSize));
   __ sub(scratch1, Immediate(1));
   __ bind(&loop_check);
   __ cmp(scratch1, Immediate(0));
@@ -1404,8 +1411,8 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ movzx_b(scratch, Operand(kInterpreterBytecodeArrayRegister,
                               kInterpreterBytecodeOffsetRegister, times_1, 0));
   __ mov(kJavaScriptCallCodeStartRegister,
-         Operand(kInterpreterDispatchTableRegister, scratch, times_pointer_size,
-                 0));
+         Operand(kInterpreterDispatchTableRegister, scratch,
+                 times_system_pointer_size, 0));
   __ jmp(kJavaScriptCallCodeStartRegister);
 }
 
@@ -1468,8 +1475,8 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
         __ j(not_equal, &over, Label::kNear);
       }
       for (int i = j - 1; i >= 0; --i) {
-        __ Push(Operand(
-            ebp, StandardFrameConstants::kCallerSPOffset + i * kPointerSize));
+        __ Push(Operand(ebp, StandardFrameConstants::kCallerSPOffset +
+                                 i * kSystemPointerSize));
       }
       for (int i = 0; i < 3 - j; ++i) {
         __ PushRoot(RootIndex::kUndefinedValue);
@@ -1493,7 +1500,7 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
 
     __ PopReturnAddressTo(edx);
     __ inc(ecx);
-    __ lea(esp, Operand(esp, ecx, times_pointer_size, 0));
+    __ lea(esp, Operand(esp, ecx, times_system_pointer_size, 0));
     __ PushReturnAddressFrom(edx);
     __ ret(0);
 
@@ -1520,9 +1527,9 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
   if (with_result) {
     // Overwrite the hole inserted by the deoptimizer with the return value from
     // the LAZY deopt point.
-    __ mov(Operand(esp,
-                   config->num_allocatable_general_registers() * kPointerSize +
-                       BuiltinContinuationFrameConstants::kFixedFrameSize),
+    __ mov(Operand(esp, config->num_allocatable_general_registers() *
+                                kSystemPointerSize +
+                            BuiltinContinuationFrameConstants::kFixedFrameSize),
            eax);
   }
   for (int i = allocatable_register_count - 1; i >= 0; --i) {
@@ -1536,9 +1543,10 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
       ebp,
       Operand(esp, BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
   const int offsetToPC =
-      BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp - kPointerSize;
+      BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp -
+      kSystemPointerSize;
   __ pop(Operand(esp, offsetToPC));
-  __ Drop(offsetToPC / kPointerSize);
+  __ Drop(offsetToPC / kSystemPointerSize);
   __ add(Operand(esp, 0), Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ ret(0);
 }
@@ -1570,8 +1578,8 @@ void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
   }
 
   DCHECK_EQ(kInterpreterAccumulatorRegister.code(), eax.code());
-  __ mov(eax, Operand(esp, 1 * kPointerSize));
-  __ ret(1 * kPointerSize);  // Remove eax.
+  __ mov(eax, Operand(esp, 1 * kSystemPointerSize));
+  __ ret(1 * kSystemPointerSize);  // Remove eax.
 }
 
 // static
@@ -1590,22 +1598,25 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   {
     Label no_arg_array, no_this_arg;
     // Spill receiver to allow the usage of edi as a scratch register.
-    __ movd(xmm0, Operand(esp, eax, times_pointer_size, kPointerSize));
+    __ movd(xmm0,
+            Operand(esp, eax, times_system_pointer_size, kSystemPointerSize));
 
     __ LoadRoot(edx, RootIndex::kUndefinedValue);
     __ mov(edi, edx);
     __ test(eax, eax);
     __ j(zero, &no_this_arg, Label::kNear);
     {
-      __ mov(edi, Operand(esp, eax, times_pointer_size, 0));
+      __ mov(edi, Operand(esp, eax, times_system_pointer_size, 0));
       __ cmp(eax, Immediate(1));
       __ j(equal, &no_arg_array, Label::kNear);
-      __ mov(edx, Operand(esp, eax, times_pointer_size, -kPointerSize));
+      __ mov(edx,
+             Operand(esp, eax, times_system_pointer_size, -kSystemPointerSize));
       __ bind(&no_arg_array);
     }
     __ bind(&no_this_arg);
     __ PopReturnAddressTo(ecx);
-    __ lea(esp, Operand(esp, eax, times_pointer_size, kPointerSize));
+    __ lea(esp,
+           Operand(esp, eax, times_system_pointer_size, kSystemPointerSize));
     __ Push(edi);
     __ PushReturnAddressFrom(ecx);
 
@@ -1667,7 +1678,7 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
   }
 
   // 2. Get the callable to call (passed as receiver) from the stack.
-  __ mov(edi, Operand(esp, eax, times_pointer_size, kPointerSize));
+  __ mov(edi, Operand(esp, eax, times_system_pointer_size, kSystemPointerSize));
 
   // 3. Shift arguments and return address one slot down on the stack
   //    (overwriting the original receiver).  Adjust argument count to make
@@ -1676,8 +1687,9 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
     Label loop;
     __ mov(ecx, eax);
     __ bind(&loop);
-    __ mov(edx, Operand(esp, ecx, times_pointer_size, 0));
-    __ mov(Operand(esp, ecx, times_pointer_size, kPointerSize), edx);
+    __ mov(edx, Operand(esp, ecx, times_system_pointer_size, 0));
+    __ mov(Operand(esp, ecx, times_system_pointer_size, kSystemPointerSize),
+           edx);
     __ dec(ecx);
     __ j(not_sign, &loop);  // While non-negative (to copy return address).
     __ pop(edx);            // Discard copy of return address.
@@ -1708,19 +1720,23 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ mov(ecx, edi);
     __ cmp(eax, Immediate(1));
     __ j(below, &done, Label::kNear);
-    __ mov(edi, Operand(esp, eax, times_pointer_size, -0 * kPointerSize));
+    __ mov(edi, Operand(esp, eax, times_system_pointer_size,
+                        -0 * kSystemPointerSize));
     __ j(equal, &done, Label::kNear);
-    __ mov(ecx, Operand(esp, eax, times_pointer_size, -1 * kPointerSize));
+    __ mov(ecx, Operand(esp, eax, times_system_pointer_size,
+                        -1 * kSystemPointerSize));
     __ cmp(eax, Immediate(3));
     __ j(below, &done, Label::kNear);
-    __ mov(edx, Operand(esp, eax, times_pointer_size, -2 * kPointerSize));
+    __ mov(edx, Operand(esp, eax, times_system_pointer_size,
+                        -2 * kSystemPointerSize));
     __ bind(&done);
 
     // Spill argumentsList to use edx as a scratch register.
     __ movd(xmm0, edx);
 
     __ PopReturnAddressTo(edx);
-    __ lea(esp, Operand(esp, eax, times_pointer_size, kPointerSize));
+    __ lea(esp,
+           Operand(esp, eax, times_system_pointer_size, kSystemPointerSize));
     __ Push(ecx);
     __ PushReturnAddressFrom(edx);
 
@@ -1765,20 +1781,24 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ mov(ecx, edi);
     __ cmp(eax, Immediate(1));
     __ j(below, &done, Label::kNear);
-    __ mov(edi, Operand(esp, eax, times_pointer_size, -0 * kPointerSize));
+    __ mov(edi, Operand(esp, eax, times_system_pointer_size,
+                        -0 * kSystemPointerSize));
     __ mov(edx, edi);
     __ j(equal, &done, Label::kNear);
-    __ mov(ecx, Operand(esp, eax, times_pointer_size, -1 * kPointerSize));
+    __ mov(ecx, Operand(esp, eax, times_system_pointer_size,
+                        -1 * kSystemPointerSize));
     __ cmp(eax, Immediate(3));
     __ j(below, &done, Label::kNear);
-    __ mov(edx, Operand(esp, eax, times_pointer_size, -2 * kPointerSize));
+    __ mov(edx, Operand(esp, eax, times_system_pointer_size,
+                        -2 * kSystemPointerSize));
     __ bind(&done);
 
     // Spill argumentsList to use ecx as a scratch register.
     __ movd(xmm0, ecx);
 
     __ PopReturnAddressTo(ecx);
-    __ lea(esp, Operand(esp, eax, times_pointer_size, kPointerSize));
+    __ lea(esp,
+           Operand(esp, eax, times_system_pointer_size, kSystemPointerSize));
     __ PushRoot(RootIndex::kUndefinedValue);
     __ PushReturnAddressFrom(ecx);
 
@@ -1813,7 +1833,6 @@ void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
   //  -- esp[0] : return address
   //  -- esp[4] : last argument
   // -----------------------------------
-  Label generic_array_code;
 
   if (FLAG_debug_code) {
     // Initial map for the builtin InternalArray function should be a map.
@@ -1863,7 +1882,8 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   // Remove caller arguments from the stack.
   STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
   __ PopReturnAddressTo(ecx);
-  __ lea(esp, Operand(esp, edi, times_2, 1 * kPointerSize));  // 1 ~ receiver
+  __ lea(esp, Operand(esp, edi, times_half_system_pointer_size,
+                      1 * kSystemPointerSize));  // 1 ~ receiver
   __ PushReturnAddressFrom(ecx);
 }
 
@@ -1926,7 +1946,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ cmp(eax, kArgumentsLength);
     __ j(equal, &done, Label::kNear);
     // Turn the hole into undefined as we go.
-    __ mov(edi, FieldOperand(kArgumentsList, eax, times_pointer_size,
+    __ mov(edi, FieldOperand(kArgumentsList, eax, times_system_pointer_size,
                              FixedArray::kHeaderSize));
     __ CompareRoot(edi, RootIndex::kTheHoleValue);
     __ j(not_equal, &push, Label::kNear);
@@ -2029,7 +2049,8 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
       __ PopReturnAddressTo(ecx);
       __ bind(&loop);
       {
-        __ Push(Operand(scratch, edx, times_pointer_size, 1 * kPointerSize));
+        __ Push(Operand(scratch, edx, times_system_pointer_size,
+                        1 * kSystemPointerSize));
         __ dec(edx);
         __ j(not_zero, &loop);
       }
@@ -2089,13 +2110,15 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
       __ LoadGlobalProxy(ecx);
     } else {
       Label convert_to_object, convert_receiver;
-      __ mov(ecx, Operand(esp, eax, times_pointer_size, kPointerSize));
+      __ mov(ecx,
+             Operand(esp, eax, times_system_pointer_size, kSystemPointerSize));
       __ JumpIfSmi(ecx, &convert_to_object, Label::kNear);
       STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
       __ CmpObjectType(ecx, FIRST_JS_RECEIVER_TYPE, ecx);  // Clobbers ecx.
       __ j(above_equal, &done_convert);
       // Reload the receiver (it was clobbered by CmpObjectType).
-      __ mov(ecx, Operand(esp, eax, times_pointer_size, kPointerSize));
+      __ mov(ecx,
+             Operand(esp, eax, times_system_pointer_size, kSystemPointerSize));
       if (mode != ConvertReceiverMode::kNotNullOrUndefined) {
         Label convert_global_proxy;
         __ JumpIfRoot(ecx, RootIndex::kUndefinedValue, &convert_global_proxy,
@@ -2131,7 +2154,8 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
       __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
       __ bind(&convert_receiver);
     }
-    __ mov(Operand(esp, eax, times_pointer_size, kPointerSize), ecx);
+    __ mov(Operand(esp, eax, times_system_pointer_size, kSystemPointerSize),
+           ecx);
   }
   __ bind(&done_convert);
 
@@ -2186,7 +2210,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     // Reserve stack space for the [[BoundArguments]].
     {
       Label done;
-      __ lea(ecx, Operand(edx, times_pointer_size, 0));
+      __ lea(ecx, Operand(edx, times_system_pointer_size, 0));
       __ sub(esp, ecx);
       // Check the stack for overflow. We are not trying to catch interruptions
       // (i.e. debug break and preemption) here, so check the "real stack
@@ -2194,7 +2218,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       __ CompareRealStackLimit(esp);
       __ j(above_equal, &done, Label::kNear);
       // Restore the stack pointer.
-      __ lea(esp, Operand(esp, edx, times_pointer_size, 0));
+      __ lea(esp, Operand(esp, edx, times_system_pointer_size, 0));
       {
         FrameScope scope(masm, StackFrame::MANUAL);
         __ EnterFrame(StackFrame::INTERNAL);
@@ -2210,10 +2234,10 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     {
       Label loop;
       __ Set(ecx, 0);
-      __ lea(edx, Operand(esp, edx, times_pointer_size, 0));
+      __ lea(edx, Operand(esp, edx, times_system_pointer_size, 0));
       __ bind(&loop);
-      __ movd(xmm1, Operand(edx, ecx, times_pointer_size, 0));
-      __ movd(Operand(esp, ecx, times_pointer_size, 0), xmm1);
+      __ movd(xmm1, Operand(edx, ecx, times_system_pointer_size, 0));
+      __ movd(Operand(esp, ecx, times_system_pointer_size, 0), xmm1);
       __ inc(ecx);
       __ cmp(ecx, eax);
       __ j(less, &loop);
@@ -2227,9 +2251,9 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       __ SmiUntag(edx);
       __ bind(&loop);
       __ dec(edx);
-      __ movd(xmm1, FieldOperand(ecx, edx, times_pointer_size,
+      __ movd(xmm1, FieldOperand(ecx, edx, times_tagged_size,
                                  FixedArray::kHeaderSize));
-      __ movd(Operand(esp, eax, times_pointer_size, 0), xmm1);
+      __ movd(Operand(esp, eax, times_system_pointer_size, 0), xmm1);
       __ lea(eax, Operand(eax, 1));
       __ j(greater, &loop);
     }
@@ -2256,7 +2280,7 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
 
   // Patch the receiver to [[BoundThis]].
   __ mov(ecx, FieldOperand(edi, JSBoundFunction::kBoundThisOffset));
-  __ mov(Operand(esp, eax, times_pointer_size, kPointerSize), ecx);
+  __ mov(Operand(esp, eax, times_system_pointer_size, kSystemPointerSize), ecx);
 
   // Push the [[BoundArguments]] onto the stack.
   Generate_PushBoundArguments(masm);
@@ -2304,7 +2328,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   // not we raise an exception).
   __ bind(&non_function);
   // Overwrite the original receiver with the (original) target.
-  __ mov(Operand(esp, eax, times_pointer_size, kPointerSize), edi);
+  __ mov(Operand(esp, eax, times_system_pointer_size, kSystemPointerSize), edi);
   // Let the "call_as_function_delegate" take care of the rest.
   __ LoadGlobalFunction(Context::CALL_AS_FUNCTION_DELEGATE_INDEX, edi);
   __ Jump(masm->isolate()->builtins()->CallFunction(
@@ -2423,7 +2447,8 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   __ bind(&non_proxy);
   {
     // Overwrite the original receiver with the (original) target.
-    __ mov(Operand(esp, eax, times_pointer_size, kPointerSize), edi);
+    __ mov(Operand(esp, eax, times_system_pointer_size, kSystemPointerSize),
+           edi);
     // Let the "call_as_constructor_delegate" take care of the rest.
     __ LoadGlobalFunction(Context::CALL_AS_CONSTRUCTOR_DELEGATE_INDEX, edi);
     __ Jump(masm->isolate()->builtins()->CallFunction(),
@@ -2464,14 +2489,14 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
     // Copy receiver and all expected arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
-    __ lea(edi, Operand(ebp, eax, times_4, offset));
+    __ lea(edi, Operand(ebp, eax, times_system_pointer_size, offset));
     __ mov(eax, -1);  // account for receiver
 
     Label copy;
     __ bind(&copy);
     __ inc(eax);
     __ push(Operand(edi, 0));
-    __ sub(edi, Immediate(kPointerSize));
+    __ sub(edi, Immediate(kSystemPointerSize));
     __ cmp(eax, kExpectedNumberOfArgumentsRegister);
     __ j(less, &copy);
     // eax now contains the expected number of arguments.
@@ -2491,7 +2516,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
     // Copy receiver and all actual arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
-    __ lea(edi, Operand(ebp, eax, times_4, offset));
+    __ lea(edi, Operand(ebp, eax, times_system_pointer_size, offset));
     // ecx = expected - actual.
     __ sub(kExpectedNumberOfArgumentsRegister, eax);
     // eax = -actual - 1
@@ -2502,7 +2527,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ bind(&copy);
     __ inc(eax);
     __ push(Operand(edi, 0));
-    __ sub(edi, Immediate(kPointerSize));
+    __ sub(edi, Immediate(kSystemPointerSize));
     __ test(eax, eax);
     __ j(not_zero, &copy);
 
@@ -2712,10 +2737,10 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ CheckStackAlignment();
   }
   // Call C function.
-  __ mov(Operand(esp, 0 * kPointerSize), edi);  // argc.
-  __ mov(Operand(esp, 1 * kPointerSize), esi);  // argv.
+  __ mov(Operand(esp, 0 * kSystemPointerSize), edi);  // argc.
+  __ mov(Operand(esp, 1 * kSystemPointerSize), esi);  // argv.
   __ Move(ecx, Immediate(ExternalReference::isolate_address(masm->isolate())));
-  __ mov(Operand(esp, 2 * kPointerSize), ecx);
+  __ mov(Operand(esp, 2 * kSystemPointerSize), ecx);
   __ call(kRuntimeCallFunctionRegister);
 
   // Result is in eax or edx:eax - do not destroy these registers!
@@ -2765,11 +2790,11 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   {
     FrameScope scope(masm, StackFrame::MANUAL);
     __ PrepareCallCFunction(3, eax);
-    __ mov(Operand(esp, 0 * kPointerSize), Immediate(0));  // argc.
-    __ mov(Operand(esp, 1 * kPointerSize), Immediate(0));  // argv.
+    __ mov(Operand(esp, 0 * kSystemPointerSize), Immediate(0));  // argc.
+    __ mov(Operand(esp, 1 * kSystemPointerSize), Immediate(0));  // argv.
     __ Move(esi,
             Immediate(ExternalReference::isolate_address(masm->isolate())));
-    __ mov(Operand(esp, 2 * kPointerSize), esi);
+    __ mov(Operand(esp, 2 * kSystemPointerSize), esi);
     __ CallCFunction(find_handler, 3);
   }
 
@@ -2797,7 +2822,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   Label check_negative, process_64_bits, done;
 
   // Account for return address and saved regs.
-  const int kArgumentOffset = 4 * kPointerSize;
+  const int kArgumentOffset = 4 * kSystemPointerSize;
 
   MemOperand mantissa_operand(MemOperand(esp, kArgumentOffset));
   MemOperand exponent_operand(
@@ -2886,137 +2911,6 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   __ ret(0);
 }
 
-void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
-  const Register exponent = eax;
-  const Register scratch = ecx;
-  const XMMRegister double_result = xmm3;
-  const XMMRegister double_base = xmm2;
-  const XMMRegister double_exponent = xmm1;
-  const XMMRegister double_scratch = xmm4;
-
-  Label call_runtime, done, exponent_not_smi, int_exponent;
-
-  // Save 1 in double_result - we need this several times later on.
-  __ mov(scratch, Immediate(1));
-  __ Cvtsi2sd(double_result, scratch);
-
-  Label fast_power, try_arithmetic_simplification;
-  __ DoubleToI(exponent, double_exponent, double_scratch,
-               &try_arithmetic_simplification, &try_arithmetic_simplification);
-  __ jmp(&int_exponent);
-
-  __ bind(&try_arithmetic_simplification);
-  // Skip to runtime if possibly NaN (indicated by the indefinite integer).
-  __ cvttsd2si(exponent, Operand(double_exponent));
-  __ cmp(exponent, Immediate(0x1));
-  __ j(overflow, &call_runtime);
-
-  // Using FPU instructions to calculate power.
-  Label fast_power_failed;
-  __ bind(&fast_power);
-  __ fnclex();  // Clear flags to catch exceptions later.
-  // Transfer (B)ase and (E)xponent onto the FPU register stack.
-  __ sub(esp, Immediate(kDoubleSize));
-  __ movsd(Operand(esp, 0), double_exponent);
-  __ fld_d(Operand(esp, 0));  // E
-  __ movsd(Operand(esp, 0), double_base);
-  __ fld_d(Operand(esp, 0));  // B, E
-
-  // Exponent is in st(1) and base is in st(0)
-  // B ^ E = (2^(E * log2(B)) - 1) + 1 = (2^X - 1) + 1 for X = E * log2(B)
-  // FYL2X calculates st(1) * log2(st(0))
-  __ fyl2x();    // X
-  __ fld(0);     // X, X
-  __ frndint();  // rnd(X), X
-  __ fsub(1);    // rnd(X), X-rnd(X)
-  __ fxch(1);    // X - rnd(X), rnd(X)
-  // F2XM1 calculates 2^st(0) - 1 for -1 < st(0) < 1
-  __ f2xm1();   // 2^(X-rnd(X)) - 1, rnd(X)
-  __ fld1();    // 1, 2^(X-rnd(X)) - 1, rnd(X)
-  __ faddp(1);  // 2^(X-rnd(X)), rnd(X)
-  // FSCALE calculates st(0) * 2^st(1)
-  __ fscale();  // 2^X, rnd(X)
-  __ fstp(1);   // 2^X
-  // Bail out to runtime in case of exceptions in the status word.
-  __ fnstsw_ax();
-  __ test_b(eax, Immediate(0x5F));  // We check for all but precision exception.
-  __ j(not_zero, &fast_power_failed, Label::kNear);
-  __ fstp_d(Operand(esp, 0));
-  __ movsd(double_result, Operand(esp, 0));
-  __ add(esp, Immediate(kDoubleSize));
-  __ jmp(&done);
-
-  __ bind(&fast_power_failed);
-  __ fninit();
-  __ add(esp, Immediate(kDoubleSize));
-  __ jmp(&call_runtime);
-
-  // Calculate power with integer exponent.
-  __ bind(&int_exponent);
-  const XMMRegister double_scratch2 = double_exponent;
-  __ mov(scratch, exponent);                 // Back up exponent.
-  __ movsd(double_scratch, double_base);     // Back up base.
-  __ movsd(double_scratch2, double_result);  // Load double_exponent with 1.
-
-  // Get absolute value of exponent.
-  Label no_neg, while_true, while_false;
-  __ test(scratch, scratch);
-  __ j(positive, &no_neg, Label::kNear);
-  __ neg(scratch);
-  __ bind(&no_neg);
-
-  __ j(zero, &while_false, Label::kNear);
-  __ shr(scratch, 1);
-  // Above condition means CF==0 && ZF==0.  This means that the
-  // bit that has been shifted out is 0 and the result is not 0.
-  __ j(above, &while_true, Label::kNear);
-  __ movsd(double_result, double_scratch);
-  __ j(zero, &while_false, Label::kNear);
-
-  __ bind(&while_true);
-  __ shr(scratch, 1);
-  __ mulsd(double_scratch, double_scratch);
-  __ j(above, &while_true, Label::kNear);
-  __ mulsd(double_result, double_scratch);
-  __ j(not_zero, &while_true);
-
-  __ bind(&while_false);
-  // scratch has the original value of the exponent - if the exponent is
-  // negative, return 1/result.
-  __ test(exponent, exponent);
-  __ j(positive, &done);
-  __ divsd(double_scratch2, double_result);
-  __ movsd(double_result, double_scratch2);
-  // Test whether result is zero.  Bail out to check for subnormal result.
-  // Due to subnormals, x^-y == (1/x)^y does not hold in all cases.
-  __ xorps(double_scratch2, double_scratch2);
-  __ ucomisd(double_scratch2, double_result);  // Result cannot be NaN.
-  // double_exponent aliased as double_scratch2 has already been overwritten
-  // and may not have contained the exponent value in the first place when the
-  // exponent is a smi.  We reset it with exponent value before bailing out.
-  __ j(not_equal, &done);
-  __ Cvtsi2sd(double_exponent, exponent);
-
-  // Returning or bailing out.
-  __ bind(&call_runtime);
-  {
-    AllowExternalCallThatCantCauseGC scope(masm);
-    __ PrepareCallCFunction(4, scratch);
-    __ movsd(Operand(esp, 0 * kDoubleSize), double_base);
-    __ movsd(Operand(esp, 1 * kDoubleSize), double_exponent);
-    __ CallCFunction(ExternalReference::power_double_double_function(), 4);
-  }
-  // Return value is in st(0) on ia32.
-  // Store it into the (fixed) result register.
-  __ sub(esp, Immediate(kDoubleSize));
-  __ fstp_d(Operand(esp, 0));
-  __ movsd(double_result, Operand(esp, 0));
-  __ add(esp, Immediate(kDoubleSize));
-
-  __ bind(&done);
-  __ ret(0);
-}
-
 void Builtins::Generate_InternalArrayConstructorImpl(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax : argc
@@ -3064,7 +2958,7 @@ namespace {
 
 // Generates an Operand for saving parameters after PrepareCallApiFunction.
 Operand ApiParameterOperand(int index) {
-  return Operand(esp, index * kPointerSize);
+  return Operand(esp, index * kSystemPointerSize);
 }
 
 // Prepares stack to put arguments (aligns and so on). Reserves
@@ -3082,7 +2976,7 @@ void PrepareCallApiFunction(MacroAssembler* masm, int argc, Register scratch) {
 // Calls an API function.  Allocates HandleScope, extracts returned value
 // from handle and propagates exceptions.  Clobbers esi, edi and
 // caller-save registers.  Restores context.  On return removes
-// stack_space * kPointerSize (GCed).
+// stack_space * kSystemPointerSize (GCed).
 void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
                               ExternalReference thunk_ref,
                               Operand thunk_last_arg, int stack_space,
@@ -3210,7 +3104,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
 
   if (stack_space_operand == nullptr) {
     DCHECK_NE(stack_space, 0);
-    __ ret(stack_space * kPointerSize);
+    __ ret(stack_space * kSystemPointerSize);
   } else {
     DCHECK_EQ(0, stack_space);
     __ pop(ecx);
@@ -3240,32 +3134,27 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
 
 void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- esi                 : kTargetContext
-  //  -- edx                 : kApiFunctionAddress
-  //  -- ecx                 : kArgc
-  //  --
+  //  -- esi                 : context
+  //  -- edx                 : api function address
+  //  -- ecx                 : arguments count (not including the receiver)
+  //  -- eax                 : call data
+  //  -- edi                 : holder
   //  -- esp[0]              : return address
   //  -- esp[4]              : last argument
   //  -- ...
   //  -- esp[argc * 4]       : first argument
   //  -- esp[(argc + 1) * 4] : receiver
-  //  -- esp[(argc + 2) * 4] : kHolder
-  //  -- esp[(argc + 3) * 4] : kCallData
   // -----------------------------------
 
   Register api_function_address = edx;
   Register argc = ecx;
-  Register scratch = eax;
+  Register call_data = eax;
+  Register holder = edi;
 
-  DCHECK(!AreAliased(api_function_address, argc, scratch));
+  // Park argc in xmm0.
+  __ movd(xmm0, argc);
 
-  // Stack offsets (without argc).
-  static constexpr int kReceiverOffset = kPointerSize;
-  static constexpr int kHolderOffset = kReceiverOffset + kPointerSize;
-  static constexpr int kCallDataOffset = kHolderOffset + kPointerSize;
-
-  // Extra stack arguments are: the receiver, kHolder, kCallData.
-  static constexpr int kExtraStackArgumentCount = 3;
+  DCHECK(!AreAliased(api_function_address, argc, holder));
 
   typedef FunctionCallbackArguments FCA;
 
@@ -3283,45 +3172,30 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   //   esp[0]: return address
   //
   // Target state:
-  //   esp[0 * kPointerSize]: return address
-  //   esp[1 * kPointerSize]: kHolder
-  //   esp[2 * kPointerSize]: kIsolate
-  //   esp[3 * kPointerSize]: undefined (kReturnValueDefaultValue)
-  //   esp[4 * kPointerSize]: undefined (kReturnValue)
-  //   esp[5 * kPointerSize]: kData
-  //   esp[6 * kPointerSize]: undefined (kNewTarget)
+  //   esp[0 * kSystemPointerSize]: return address
+  //   esp[1 * kSystemPointerSize]: kHolder
+  //   esp[2 * kSystemPointerSize]: kIsolate
+  //   esp[3 * kSystemPointerSize]: undefined (kReturnValueDefaultValue)
+  //   esp[4 * kSystemPointerSize]: undefined (kReturnValue)
+  //   esp[5 * kSystemPointerSize]: kData
+  //   esp[6 * kSystemPointerSize]: undefined (kNewTarget)
 
-  // Reserve space on the stack.
-  __ sub(esp, Immediate(FCA::kArgsLength * kPointerSize));
+  __ PopReturnAddressTo(ecx);
+  __ PushRoot(RootIndex::kUndefinedValue);
+  __ Push(call_data);
+  __ PushRoot(RootIndex::kUndefinedValue);
+  __ PushRoot(RootIndex::kUndefinedValue);
+  __ Push(Immediate(ExternalReference::isolate_address(masm->isolate())));
+  __ Push(holder);
+  __ PushReturnAddressFrom(ecx);
 
-  // Return address (the old stack location is overwritten later on).
-  __ mov(scratch, Operand(esp, FCA::kArgsLength * kPointerSize));
-  __ mov(Operand(esp, 0 * kPointerSize), scratch);
-
-  // kHolder.
-  __ mov(scratch, Operand(esp, argc, times_pointer_size,
-                          FCA::kArgsLength * kPointerSize + kHolderOffset));
-  __ mov(Operand(esp, 1 * kPointerSize), scratch);
-
-  // kIsolate.
-  __ Move(scratch,
-          Immediate(ExternalReference::isolate_address(masm->isolate())));
-  __ mov(Operand(esp, 2 * kPointerSize), scratch);
-
-  // kReturnValueDefaultValue, kReturnValue, and kNewTarget.
-  __ LoadRoot(scratch, RootIndex::kUndefinedValue);
-  __ mov(Operand(esp, 3 * kPointerSize), scratch);
-  __ mov(Operand(esp, 4 * kPointerSize), scratch);
-  __ mov(Operand(esp, 6 * kPointerSize), scratch);
-
-  // kData.
-  __ mov(scratch, Operand(esp, argc, times_pointer_size,
-                          FCA::kArgsLength * kPointerSize + kCallDataOffset));
-  __ mov(Operand(esp, 5 * kPointerSize), scratch);
+  // Reload argc from xmm0.
+  __ movd(argc, xmm0);
 
   // Keep a pointer to kHolder (= implicit_args) in a scratch register.
   // We use it below to set up the FunctionCallbackInfo object.
-  __ lea(scratch, Operand(esp, 1 * kPointerSize));
+  Register scratch = eax;
+  __ lea(scratch, Operand(esp, 1 * kSystemPointerSize));
 
   // The API function takes a reference to v8::Arguments. If the CPU profiler
   // is enabled, a wrapper function will be called and we need to pass
@@ -3340,8 +3214,8 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
 
   // FunctionCallbackInfo::values_ (points at the first varargs argument passed
   // on the stack).
-  __ lea(scratch, Operand(scratch, argc, times_pointer_size,
-                          (FCA::kArgsLength - 1) * kPointerSize));
+  __ lea(scratch, Operand(scratch, argc, times_system_pointer_size,
+                          (FCA::kArgsLength - 1) * kSystemPointerSize));
   __ mov(ApiParameterOperand(kApiArgc + 1), scratch);
 
   // FunctionCallbackInfo::length_.
@@ -3350,8 +3224,8 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   // We also store the number of bytes to drop from the stack after returning
   // from the API function here.
   __ lea(scratch,
-         Operand(argc, times_pointer_size,
-                 (FCA::kArgsLength + kExtraStackArgumentCount) * kPointerSize));
+         Operand(argc, times_system_pointer_size,
+                 (FCA::kArgsLength + 1 /* receiver */) * kSystemPointerSize));
   __ mov(ApiParameterOperand(kApiArgc + 3), scratch);
 
   // v8::InvocationCallback's argument.
@@ -3364,7 +3238,8 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   // the stored ebp (pushed by EnterApiExitFrame), and the return address.
   static constexpr int kStackSlotsAboveFCA = 2;
   Operand return_value_operand(
-      ebp, (kStackSlotsAboveFCA + FCA::kReturnValueOffset) * kPointerSize);
+      ebp,
+      (kStackSlotsAboveFCA + FCA::kReturnValueOffset) * kSystemPointerSize);
 
   static constexpr int kUseStackSpaceOperand = 0;
   Operand stack_space_operand = ApiParameterOperand(kApiArgc + 3);
@@ -3414,15 +3289,15 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   PrepareCallApiFunction(masm, kApiArgc, scratch);
 
   // Load address of v8::PropertyAccessorInfo::args_ array. The value in ebp
-  // here corresponds to esp + kPointersize before PrepareCallApiFunction.
-  __ lea(scratch, Operand(ebp, kPointerSize + 2 * kPointerSize));
+  // here corresponds to esp + kSystemPointerSize before PrepareCallApiFunction.
+  __ lea(scratch, Operand(ebp, kSystemPointerSize + 2 * kSystemPointerSize));
   // Create v8::PropertyCallbackInfo object on the stack and initialize
   // it's args_ field.
   Operand info_object = ApiParameterOperand(3);
   __ mov(info_object, scratch);
 
   // Name as handle.
-  __ sub(scratch, Immediate(kPointerSize));
+  __ sub(scratch, Immediate(kSystemPointerSize));
   __ mov(ApiParameterOperand(0), scratch);
   // Arguments pointer.
   __ lea(scratch, info_object);
@@ -3439,7 +3314,8 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
          FieldOperand(scratch, Foreign::kForeignAddressOffset));
   // +3 is to skip prolog, return address and name handle.
   Operand return_value_operand(
-      ebp, (PropertyCallbackArguments::kReturnValueOffset + 3) * kPointerSize);
+      ebp,
+      (PropertyCallbackArguments::kReturnValueOffset + 3) * kSystemPointerSize);
   Operand* const kUseStackSpaceConstant = nullptr;
   CallApiFunctionAndReturn(masm, function_address, thunk_ref, thunk_last_arg,
                            kStackUnwindSpace, kUseStackSpaceConstant,
@@ -3530,9 +3406,9 @@ void Builtins::Generate_MemMove(MacroAssembler* masm) {
   // esp[4]: First argument, destination pointer.
   // esp[0]: return address
 
-  const int kDestinationOffset = 1 * kPointerSize;
-  const int kSourceOffset = 2 * kPointerSize;
-  const int kSizeOffset = 3 * kPointerSize;
+  const int kDestinationOffset = 1 * kSystemPointerSize;
+  const int kSourceOffset = 2 * kSystemPointerSize;
+  const int kSizeOffset = 3 * kSystemPointerSize;
 
   // When copying up to this many bytes, use special "small" handlers.
   const size_t kSmallCopySize = 8;
@@ -3550,7 +3426,7 @@ void Builtins::Generate_MemMove(MacroAssembler* masm) {
   Label forward_much_overlap, small_size, medium_size, pop_and_return;
   __ push(edi);
   __ push(esi);
-  stack_offset += 2 * kPointerSize;
+  stack_offset += 2 * kSystemPointerSize;
   Register dst = edi;
   Register src = esi;
   Register count = ecx;

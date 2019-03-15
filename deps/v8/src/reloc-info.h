@@ -5,8 +5,8 @@
 #ifndef V8_RELOC_INFO_H_
 #define V8_RELOC_INFO_H_
 
+#include "src/flush-instruction-cache.h"
 #include "src/globals.h"
-#include "src/objects.h"
 #include "src/objects/code.h"
 
 namespace v8 {
@@ -41,8 +41,8 @@ class RelocInfo {
   static const char* const kFillerCommentString;
 
   // The minimum size of a comment is equal to two bytes for the extra tagged
-  // pc and kPointerSize for the actual pointer to the comment.
-  static const int kMinRelocCommentSize = 2 + kPointerSize;
+  // pc and kSystemPointerSize for the actual pointer to the comment.
+  static const int kMinRelocCommentSize = 2 + kSystemPointerSize;
 
   // The maximum size for a call instruction including pc-jump.
   static const int kMaxCallSize = 6;
@@ -278,7 +278,22 @@ class RelocInfo {
   V8_INLINE void WipeOut();
 
   template <typename ObjectVisitor>
-  inline void Visit(ObjectVisitor* v);
+  void Visit(ObjectVisitor* visitor) {
+    Mode mode = rmode();
+    if (IsEmbeddedObject(mode)) {
+      visitor->VisitEmbeddedPointer(host(), this);
+    } else if (IsCodeTargetMode(mode)) {
+      visitor->VisitCodeTarget(host(), this);
+    } else if (IsExternalReference(mode)) {
+      visitor->VisitExternalReference(host(), this);
+    } else if (IsInternalReference(mode) || IsInternalReferenceEncoded(mode)) {
+      visitor->VisitInternalReference(host(), this);
+    } else if (IsRuntimeEntry(mode)) {
+      visitor->VisitRuntimeEntry(host(), this);
+    } else if (IsOffHeapTarget(mode)) {
+      visitor->VisitOffHeapTarget(host(), this);
+    }
+  }
 
   // Check whether the given code contains relocation information that
   // either is position-relative or movable by the garbage collector.
@@ -337,7 +352,7 @@ class RelocInfoWriter {
 
   // Max size (bytes) of a written RelocInfo. Longest encoding is
   // ExtraTag, VariableLengthPCJump, ExtraTag, pc_delta, data_delta.
-  static constexpr int kMaxSize = 1 + 4 + 1 + 1 + kPointerSize;
+  static constexpr int kMaxSize = 1 + 4 + 1 + 1 + kSystemPointerSize;
 
  private:
   inline uint32_t WriteLongPCJump(uint32_t pc_delta);
@@ -379,7 +394,7 @@ class RelocIterator : public Malloced {
   explicit RelocIterator(Vector<byte> instructions,
                          Vector<const byte> reloc_info, Address const_pool,
                          int mode_mask = -1);
-  RelocIterator(RelocIterator&&) = default;
+  RelocIterator(RelocIterator&&) V8_NOEXCEPT = default;
 
   // Iteration
   bool done() const { return done_; }

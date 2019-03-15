@@ -16,12 +16,10 @@
 
 #else  // !V8_USE_ADDRESS_SANITIZER
 
-#define ASAN_POISON_MEMORY_REGION(start, size)                         \
-  static_assert(                                                       \
-      (std::is_pointer<decltype(start)>::value ||                      \
-       std::is_same<v8::internal::Address, decltype(start)>::value) && \
-          std::is_convertible<decltype(size), size_t>::value,          \
-      "static type violation")
+#define ASAN_POISON_MEMORY_REGION(start, size)                          \
+  static_assert(std::is_pointer<decltype(start)>::value &&              \
+                    std::is_convertible<decltype(size), size_t>::value, \
+                "static type violation")
 #define ASAN_UNPOISON_MEMORY_REGION(start, size) \
   ASAN_POISON_MEMORY_REGION(start, size)
 

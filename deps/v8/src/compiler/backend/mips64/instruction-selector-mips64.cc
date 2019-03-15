@@ -201,6 +201,8 @@ struct ExtendingLoadMatcher {
     DCHECK(m.IsWord64Sar());
     if (m.left().IsLoad() && m.right().Is(32) &&
         selector_->CanCover(m.node(), m.left().node())) {
+      DCHECK_EQ(selector_->GetEffectiveLevel(node),
+                selector_->GetEffectiveLevel(m.left().node()));
       MachineRepresentation rep =
           LoadRepresentationOf(m.left().node()->op()).representation();
       DCHECK_EQ(3, ElementSizeLog2Of(rep));
@@ -1367,7 +1369,8 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
   if (CanCover(node, value)) {
     switch (value->opcode()) {
       case IrOpcode::kWord64Sar: {
-        if (TryEmitExtendingLoad(this, value, node)) {
+        if (CanCoverTransitively(node, value, value->InputAt(0)) &&
+            TryEmitExtendingLoad(this, value, node)) {
           return;
         } else {
           Int64BinopMatcher m(value);

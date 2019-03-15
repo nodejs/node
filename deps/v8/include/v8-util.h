@@ -198,12 +198,9 @@ class PersistentValueMapBase {
    * Call V8::RegisterExternallyReferencedObject with the map value for given
    * key.
    */
-  void RegisterExternallyReferencedObject(K& key) {
-    assert(Contains(key));
-    V8::RegisterExternallyReferencedObject(
-        reinterpret_cast<internal::Address*>(FromVal(Traits::Get(&impl_, key))),
-        reinterpret_cast<internal::Isolate*>(GetIsolate()));
-  }
+  V8_DEPRECATE_SOON(
+      "Used TracedGlobal and EmbedderHeapTracer::RegisterEmbedderReference",
+      inline void RegisterExternallyReferencedObject(K& key));
 
   /**
    * Return value for key and remove it from the map.
@@ -355,6 +352,15 @@ class PersistentValueMapBase {
   const char* label_;
 };
 
+template <typename K, typename V, typename Traits>
+inline void
+PersistentValueMapBase<K, V, Traits>::RegisterExternallyReferencedObject(
+    K& key) {
+  assert(Contains(key));
+  V8::RegisterExternallyReferencedObject(
+      reinterpret_cast<internal::Address*>(FromVal(Traits::Get(&impl_, key))),
+      reinterpret_cast<internal::Isolate*>(GetIsolate()));
+}
 
 template <typename K, typename V, typename Traits>
 class PersistentValueMap : public PersistentValueMapBase<K, V, Traits> {

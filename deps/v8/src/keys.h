@@ -7,7 +7,7 @@
 
 #include "src/objects.h"
 #include "src/objects/hash-table.h"
-#include "src/objects/ordered-hash-table.h"
+#include "src/objects/js-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -52,6 +52,8 @@ class KeyAccumulator final {
                                        Handle<JSObject> object);
   Maybe<bool> CollectOwnPropertyNames(Handle<JSReceiver> receiver,
                                       Handle<JSObject> object);
+  void CollectPrivateNames(Handle<JSReceiver> receiver,
+                           Handle<JSObject> object);
   Maybe<bool> CollectAccessCheckInterceptorKeys(
       Handle<AccessCheckInfo> access_check_info, Handle<JSReceiver> receiver,
       Handle<JSObject> object);

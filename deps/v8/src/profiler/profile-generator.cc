@@ -493,8 +493,7 @@ void CpuProfile::AddPath(base::TimeTicks timestamp,
       top_down_.AddPathFromEnd(path, src_line, update_stats, mode_);
 
   if (record_samples_ && !timestamp.IsNull()) {
-    timestamps_.push_back(timestamp);
-    samples_.push_back(top_frame_node);
+    samples_.push_back({top_frame_node, timestamp, src_line});
   }
 
   const int kSamplesFlushCount = 100;
@@ -553,7 +552,7 @@ void CpuProfile::StreamPendingTraceEvents() {
     if (streaming_next_sample_ != samples_.size()) {
       value->BeginArray("samples");
       for (size_t i = streaming_next_sample_; i < samples_.size(); ++i) {
-        value->AppendInteger(samples_[i]->id());
+        value->AppendInteger(samples_[i].node->id());
       }
       value->EndArray();
     }
@@ -562,15 +561,24 @@ void CpuProfile::StreamPendingTraceEvents() {
   if (streaming_next_sample_ != samples_.size()) {
     value->BeginArray("timeDeltas");
     base::TimeTicks lastTimestamp =
-        streaming_next_sample_ ? timestamps_[streaming_next_sample_ - 1]
+        streaming_next_sample_ ? samples_[streaming_next_sample_ - 1].timestamp
                                : start_time();
-    for (size_t i = streaming_next_sample_; i < timestamps_.size(); ++i) {
-      value->AppendInteger(
-          static_cast<int>((timestamps_[i] - lastTimestamp).InMicroseconds()));
-      lastTimestamp = timestamps_[i];
+    for (size_t i = streaming_next_sample_; i < samples_.size(); ++i) {
+      value->AppendInteger(static_cast<int>(
+          (samples_[i].timestamp - lastTimestamp).InMicroseconds()));
+      lastTimestamp = samples_[i].timestamp;
     }
     value->EndArray();
-    DCHECK_EQ(samples_.size(), timestamps_.size());
+    bool has_non_zero_lines =
+        std::any_of(samples_.begin() + streaming_next_sample_, samples_.end(),
+                    [](const SampleInfo& sample) { return sample.line != 0; });
+    if (has_non_zero_lines) {
+      value->BeginArray("lines");
+      for (size_t i = streaming_next_sample_; i < samples_.size(); ++i) {
+        value->AppendInteger(samples_[i].line);
+      }
+      value->EndArray();
+    }
     streaming_next_sample_ = samples_.size();
   }
 

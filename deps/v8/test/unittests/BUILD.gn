@@ -150,6 +150,7 @@ v8_source_set("unittests_sources") {
     "eh-frame-iterator-unittest.cc",
     "eh-frame-writer-unittest.cc",
     "heap/barrier-unittest.cc",
+    "heap/bitmap-test-utils.h",
     "heap/bitmap-unittest.cc",
     "heap/embedder-tracing-unittest.cc",
     "heap/gc-idle-time-handler-unittest.cc",
@@ -198,7 +199,10 @@ v8_source_set("unittests_sources") {
     "test-utils.cc",
     "test-utils.h",
     "torque/earley-parser-unittest.cc",
+    "torque/ls-json-unittest.cc",
+    "torque/ls-message-unittest.cc",
     "torque/torque-unittest.cc",
+    "torque/torque-utils-unittest.cc",
     "unicode-unittest.cc",
     "utils-unittest.cc",
     "value-serializer-unittest.cc",
@@ -214,7 +218,6 @@ v8_source_set("unittests_sources") {
     "wasm/wasm-macro-gen-unittest.cc",
     "wasm/wasm-module-builder-unittest.cc",
     "wasm/wasm-opcodes-unittest.cc",
-    "zone/segmentpool-unittest.cc",
     "zone/zone-allocator-unittest.cc",
     "zone/zone-chunk-list-unittest.cc",
     "zone/zone-unittest.cc",
@@ -286,6 +289,7 @@ v8_source_set("unittests_sources") {
   ]
 
   deps = [
+    "..:common_test_headers",
     "../..:v8_for_testing",
     "../..:v8_libbase",
     "../..:v8_libplatform",

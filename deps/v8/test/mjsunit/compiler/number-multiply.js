@@ -15,6 +15,7 @@
     return Object.is(-0, bar(-1e-308));
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo());
   assertTrue(foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -27,6 +28,7 @@
     return 0 * Math.round(x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(0.1));
   assertEquals(-0, foo(-0.1));
   assertEquals(NaN, foo(NaN));
@@ -49,6 +51,7 @@
     return Math.min(x * y, 0);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(1, 0));
   assertEquals(-0, foo(1, -0));
   assertEquals(NaN, foo(NaN, -0));

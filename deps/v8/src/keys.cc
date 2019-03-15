@@ -6,6 +6,7 @@
 
 #include "src/api-arguments-inl.h"
 #include "src/elements-inl.h"
+#include "src/field-index-inl.h"
 #include "src/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/identity-map.h"
@@ -14,6 +15,7 @@
 #include "src/objects/api-callbacks.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/ordered-hash-table-inl.h"
 #include "src/property-descriptor.h"
 #include "src/prototype.h"
 
@@ -67,12 +69,17 @@ void KeyAccumulator::AddKey(Object key, AddKeyConversion convert) {
 }
 
 void KeyAccumulator::AddKey(Handle<Object> key, AddKeyConversion convert) {
-  if (key->IsSymbol()) {
+  if (filter_ == PRIVATE_NAMES_ONLY) {
+    if (!key->IsSymbol()) return;
+    if (!Symbol::cast(*key)->is_private_name()) return;
+  } else if (key->IsSymbol()) {
     if (filter_ & SKIP_SYMBOLS) return;
-    if (Handle<Symbol>::cast(key)->is_private()) return;
+
+    if (Symbol::cast(*key)->is_private()) return;
   } else if (filter_ & SKIP_STRINGS) {
     return;
   }
+
   if (IsShadowed(key)) return;
   if (keys_.is_null()) {
     keys_ = OrderedHashSet::Allocate(isolate_, 16);
@@ -489,7 +496,7 @@ void FilterForEnumerableProperties(Handle<JSReceiver> receiver,
 
     // args are invalid after args.Call(), create a new one in every iteration.
     PropertyCallbackArguments args(accumulator->isolate(), interceptor->data(),
-                                   *receiver, *object, kDontThrow);
+                                   *receiver, *object, Just(kDontThrow));
 
     Handle<Object> element = accessor->Get(result, i);
     Handle<Object> attributes;
@@ -521,7 +528,7 @@ Maybe<bool> CollectInterceptorKeysInternal(Handle<JSReceiver> receiver,
                                            IndexedOrNamed type) {
   Isolate* isolate = accumulator->isolate();
   PropertyCallbackArguments enum_args(isolate, interceptor->data(), *receiver,
-                                      *object, kDontThrow);
+                                      *object, Just(kDontThrow));
 
   Handle<JSObject> result;
   if (!interceptor->enumerator()->IsUndefined(isolate)) {
@@ -709,6 +716,23 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
   return CollectInterceptorKeys(receiver, object, this, kNamed);
 }
 
+void KeyAccumulator::CollectPrivateNames(Handle<JSReceiver> receiver,
+                                         Handle<JSObject> object) {
+  if (object->HasFastProperties()) {
+    int limit = object->map()->NumberOfOwnDescriptors();
+    Handle<DescriptorArray> descs(object->map()->instance_descriptors(),
+                                  isolate_);
+    CollectOwnPropertyNamesInternal<false>(object, this, descs, 0, limit);
+  } else if (object->IsJSGlobalObject()) {
+    GlobalDictionary::CollectKeysTo(
+        handle(JSGlobalObject::cast(*object)->global_dictionary(), isolate_),
+        this);
+  } else {
+    NameDictionary::CollectKeysTo(
+        handle(object->property_dictionary(), isolate_), this);
+  }
+}
+
 Maybe<bool> KeyAccumulator::CollectAccessCheckInterceptorKeys(
     Handle<AccessCheckInfo> access_check_info, Handle<JSReceiver> receiver,
     Handle<JSObject> object) {
@@ -763,6 +787,11 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(Handle<JSReceiver> receiver,
     }
     filter_ = static_cast<PropertyFilter>(filter_ | ONLY_ALL_CAN_READ);
   }
+  if (filter_ & PRIVATE_NAMES_ONLY) {
+    CollectPrivateNames(receiver, object);
+    return Just(true);
+  }
+
   MAYBE_RETURN(CollectOwnElementIndices(receiver, object), Nothing<bool>());
   MAYBE_RETURN(CollectOwnPropertyNames(receiver, object), Nothing<bool>());
   return Just(true);
@@ -801,11 +830,17 @@ class NameComparator {
 
 }  // namespace
 
-// ES6 9.5.12
+// ES6 #sec-proxy-object-internal-methods-and-internal-slots-ownpropertykeys
 // Returns |true| on success, |nothing| in case of exception.
 Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
                                                   Handle<JSProxy> proxy) {
   STACK_CHECK(isolate_, Nothing<bool>());
+  if (filter_ == PRIVATE_NAMES_ONLY) {
+    NameDictionary::CollectKeysTo(
+        handle(proxy->property_dictionary(), isolate_), this);
+    return Just(true);
+  }
+
   // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
   Handle<Object> handler(proxy->handler(), isolate_);
   // 2. If handler is null, throw a TypeError exception.
@@ -843,51 +878,9 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
       Object::CreateListFromArrayLike(isolate_, trap_result_array,
                                       ElementTypes::kStringAndSymbol),
       Nothing<bool>());
-  // 9. Let extensibleTarget be ? IsExtensible(target).
-  Maybe<bool> maybe_extensible = JSReceiver::IsExtensible(target);
-  MAYBE_RETURN(maybe_extensible, Nothing<bool>());
-  bool extensible_target = maybe_extensible.FromJust();
-  // 10. Let targetKeys be ? target.[[OwnPropertyKeys]]().
-  Handle<FixedArray> target_keys;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, target_keys,
-                                   JSReceiver::OwnPropertyKeys(target),
-                                   Nothing<bool>());
-  // 11. (Assert)
-  // 12. Let targetConfigurableKeys be an empty List.
-  // To save memory, we're re-using target_keys and will modify it in-place.
-  Handle<FixedArray> target_configurable_keys = target_keys;
-  // 13. Let targetNonconfigurableKeys be an empty List.
-  Handle<FixedArray> target_nonconfigurable_keys =
-      isolate_->factory()->NewFixedArray(target_keys->length());
-  int nonconfigurable_keys_length = 0;
-  // 14. Repeat, for each element key of targetKeys:
-  for (int i = 0; i < target_keys->length(); ++i) {
-    // 14a. Let desc be ? target.[[GetOwnProperty]](key).
-    PropertyDescriptor desc;
-    Maybe<bool> found = JSReceiver::GetOwnPropertyDescriptor(
-        isolate_, target, handle(target_keys->get(i), isolate_), &desc);
-    MAYBE_RETURN(found, Nothing<bool>());
-    // 14b. If desc is not undefined and desc.[[Configurable]] is false, then
-    if (found.FromJust() && !desc.configurable()) {
-      // 14b i. Append key as an element of targetNonconfigurableKeys.
-      target_nonconfigurable_keys->set(nonconfigurable_keys_length,
-                                       target_keys->get(i));
-      nonconfigurable_keys_length++;
-      // The key was moved, null it out in the original list.
-      target_keys->set(i, Smi::kZero);
-    } else {
-      // 14c. Else,
-      // 14c i. Append key as an element of targetConfigurableKeys.
-      // (No-op, just keep it in |target_keys|.)
-    }
-  }
-  // 15. If extensibleTarget is true and targetNonconfigurableKeys is empty,
-  //     then:
-  if (extensible_target && nonconfigurable_keys_length == 0) {
-    // 15a. Return trapResult.
-    return AddKeysFromJSProxy(proxy, trap_result);
-  }
-  // 16. Let uncheckedResultKeys be a new List which is a copy of trapResult.
+  // 9. If trapResult contains any duplicate entries, throw a TypeError
+  // exception. Combine with step 18
+  // 18. Let uncheckedResultKeys be a new List which is a copy of trapResult.
   Zone set_zone(isolate_->allocator(), ZONE_NAME);
   ZoneAllocationPolicy alloc(&set_zone);
   const int kPresent = 1;
@@ -903,32 +896,61 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
     if (entry->value != kPresent) {
       entry->value = kPresent;
       unchecked_result_keys_size++;
-    }
-  }
-  // 17. Repeat, for each key that is an element of targetNonconfigurableKeys:
-  for (int i = 0; i < nonconfigurable_keys_length; ++i) {
-    Object raw_key = target_nonconfigurable_keys->get(i);
-    Handle<Name> key(Name::cast(raw_key), isolate_);
-    // 17a. If key is not an element of uncheckedResultKeys, throw a
-    //      TypeError exception.
-    auto found = unchecked_result_keys.Lookup(key, key->Hash());
-    if (found == nullptr || found->value == kGone) {
+    } else {
+      // found dupes, throw exception
       isolate_->Throw(*isolate_->factory()->NewTypeError(
-          MessageTemplate::kProxyOwnKeysMissing, key));
+          MessageTemplate::kProxyOwnKeysDuplicateEntries));
       return Nothing<bool>();
     }
-    // 17b. Remove key from uncheckedResultKeys.
-    found->value = kGone;
-    unchecked_result_keys_size--;
   }
-  // 18. If extensibleTarget is true, return trapResult.
-  if (extensible_target) {
+  // 10. Let extensibleTarget be ? IsExtensible(target).
+  Maybe<bool> maybe_extensible = JSReceiver::IsExtensible(target);
+  MAYBE_RETURN(maybe_extensible, Nothing<bool>());
+  bool extensible_target = maybe_extensible.FromJust();
+  // 11. Let targetKeys be ? target.[[OwnPropertyKeys]]().
+  Handle<FixedArray> target_keys;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, target_keys,
+                                   JSReceiver::OwnPropertyKeys(target),
+                                   Nothing<bool>());
+  // 12, 13. (Assert)
+  // 14. Let targetConfigurableKeys be an empty List.
+  // To save memory, we're re-using target_keys and will modify it in-place.
+  Handle<FixedArray> target_configurable_keys = target_keys;
+  // 15. Let targetNonconfigurableKeys be an empty List.
+  Handle<FixedArray> target_nonconfigurable_keys =
+      isolate_->factory()->NewFixedArray(target_keys->length());
+  int nonconfigurable_keys_length = 0;
+  // 16. Repeat, for each element key of targetKeys:
+  for (int i = 0; i < target_keys->length(); ++i) {
+    // 16a. Let desc be ? target.[[GetOwnProperty]](key).
+    PropertyDescriptor desc;
+    Maybe<bool> found = JSReceiver::GetOwnPropertyDescriptor(
+        isolate_, target, handle(target_keys->get(i), isolate_), &desc);
+    MAYBE_RETURN(found, Nothing<bool>());
+    // 16b. If desc is not undefined and desc.[[Configurable]] is false, then
+    if (found.FromJust() && !desc.configurable()) {
+      // 16b i. Append key as an element of targetNonconfigurableKeys.
+      target_nonconfigurable_keys->set(nonconfigurable_keys_length,
+                                       target_keys->get(i));
+      nonconfigurable_keys_length++;
+      // The key was moved, null it out in the original list.
+      target_keys->set(i, Smi::kZero);
+    } else {
+      // 16c. Else,
+      // 16c i. Append key as an element of targetConfigurableKeys.
+      // (No-op, just keep it in |target_keys|.)
+    }
+  }
+  // 17. If extensibleTarget is true and targetNonconfigurableKeys is empty,
+  //     then:
+  if (extensible_target && nonconfigurable_keys_length == 0) {
+    // 17a. Return trapResult.
     return AddKeysFromJSProxy(proxy, trap_result);
   }
-  // 19. Repeat, for each key that is an element of targetConfigurableKeys:
-  for (int i = 0; i < target_configurable_keys->length(); ++i) {
-    Object raw_key = target_configurable_keys->get(i);
-    if (raw_key->IsSmi()) continue;  // Zapped entry, was nonconfigurable.
+  // 18. (Done in step 9)
+  // 19. Repeat, for each key that is an element of targetNonconfigurableKeys:
+  for (int i = 0; i < nonconfigurable_keys_length; ++i) {
+    Object raw_key = target_nonconfigurable_keys->get(i);
     Handle<Name> key(Name::cast(raw_key), isolate_);
     // 19a. If key is not an element of uncheckedResultKeys, throw a
     //      TypeError exception.
@@ -942,14 +964,35 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
     found->value = kGone;
     unchecked_result_keys_size--;
   }
-  // 20. If uncheckedResultKeys is not empty, throw a TypeError exception.
+  // 20. If extensibleTarget is true, return trapResult.
+  if (extensible_target) {
+    return AddKeysFromJSProxy(proxy, trap_result);
+  }
+  // 21. Repeat, for each key that is an element of targetConfigurableKeys:
+  for (int i = 0; i < target_configurable_keys->length(); ++i) {
+    Object raw_key = target_configurable_keys->get(i);
+    if (raw_key->IsSmi()) continue;  // Zapped entry, was nonconfigurable.
+    Handle<Name> key(Name::cast(raw_key), isolate_);
+    // 21a. If key is not an element of uncheckedResultKeys, throw a
+    //      TypeError exception.
+    auto found = unchecked_result_keys.Lookup(key, key->Hash());
+    if (found == nullptr || found->value == kGone) {
+      isolate_->Throw(*isolate_->factory()->NewTypeError(
+          MessageTemplate::kProxyOwnKeysMissing, key));
+      return Nothing<bool>();
+    }
+    // 21b. Remove key from uncheckedResultKeys.
+    found->value = kGone;
+    unchecked_result_keys_size--;
+  }
+  // 22. If uncheckedResultKeys is not empty, throw a TypeError exception.
   if (unchecked_result_keys_size != 0) {
     DCHECK_GT(unchecked_result_keys_size, 0);
     isolate_->Throw(*isolate_->factory()->NewTypeError(
         MessageTemplate::kProxyOwnKeysNonExtensible));
     return Nothing<bool>();
   }
-  // 21. Return trapResult.
+  // 23. Return trapResult.
   return AddKeysFromJSProxy(proxy, trap_result);
 }
 

@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
+
 # Copyright 2018 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can
 # be found in the LICENSE file.
@@ -22,50 +23,53 @@ will output
   [10/10] [default]              : avg  22,885.80 stddev   1,941.80 ( 17,584.00 -  24,266.00) Kps
 """
 
-import argparse
-import subprocess
-import re
-import numpy
-import time
-import sys
-import signal
+# for py2/py3 compatibility
+from __future__ import print_function
 
-parser = argparse.ArgumentParser(
+import argparse
+import math
+import re
+import signal
+import subprocess
+import sys
+
+PARSER = argparse.ArgumentParser(
     description="A script that averages numbers from another script's output",
     epilog="Example:\n\tavg.py 10 bash -c \"echo A: 100; echo B 120; sleep .1\""
 )
-parser.add_argument(
+PARSER.add_argument(
     'repetitions',
     type=int,
     help="number of times the command should be repeated")
-parser.add_argument(
+PARSER.add_argument(
     'command',
     nargs=argparse.REMAINDER,
     help="command to run (no quotes needed)")
-parser.add_argument(
+PARSER.add_argument(
     '--echo',
     '-e',
     action='store_true',
     default=False,
     help="set this flag to echo the command's output")
 
-args = vars(parser.parse_args())
+ARGS = vars(PARSER.parse_args())
 
-if (len(args['command']) == 0):
+if not ARGS['command']:
   print("No command provided.")
   exit(1)
 
 
 class FieldWidth:
 
-  def __init__(self, key=0, average=0, stddev=0, min=0, max=0):
-    self.w = dict(key=key, average=average, stddev=stddev, min=min, max=max)
+  def __init__(self, points=0, key=0, average=0, stddev=0, min_width=0, max_width=0):
+    self.widths = dict(points=points, key=key, average=average, stddev=stddev,
+                       min=min_width, max=max_width)
 
-  def max_with(self, w2):
-    self.w = {k: max(v, w2.w[k]) for k, v in self.w.items()}
+  def max_widths(self, other):
+    self.widths = {k: max(v, other.widths[k]) for k, v in self.widths.items()}
 
   def __getattr__(self, key):
-    return self.w[key]
+    return self.widths[key]
 
 
 def fmtS(string, width=0):
@@ -74,6 +78,27 @@ def fmtS(string, width=0):
 
 def fmtN(num, width=0):
   return "{0:>{1},.2f}".format(num, width)
+
+
+def fmt(num):
+  return "{0:>,.2f}".format(num)
+
+
+def format_line(points, key, average, stddev, min_value, max_value,
+                unit_string, widths):
+  return "{:>{}};  {:<{}};  {:>{}};  {:>{}};  {:>{}};  {:>{}};  {}".format(
+      points, widths.points,
+      key, widths.key,
+      average, widths.average,
+      stddev, widths.stddev,
+      min_value, widths.min,
+      max_value, widths.max,
+      unit_string)
+
+
+def fmt_reps(msrmnt):
+  rep_string = str(ARGS['repetitions'])
+  return "[{0:>{1}}/{2}]".format(msrmnt.size(), len(rep_string), rep_string)
 
 
 class Measurement:
@@ -102,14 +127,21 @@ class Measurement:
     except ValueError:
       print("Ignoring non-numeric value", value)
 
-  def status(self, w):
-    return "{}: avg {} stddev {} ({} - {}) {}".format(
-        fmtS(self.key, w.key), fmtN(self.average, w.average),
-        fmtN(self.stddev(), w.stddev), fmtN(self.min, w.min),
-        fmtN(self.max, w.max), fmtS(self.unit_string()))
+  def status(self, widths):
+    return "{} {}: avg {} stddev {} ({} - {}) {}".format(
+        fmt_reps(self),
+        fmtS(self.key, widths.key), fmtN(self.average, widths.average),
+        fmtN(self.stddev(), widths.stddev), fmtN(self.min, widths.min),
+        fmtN(self.max, widths.max), fmtS(self.unit_string()))
+
+  def result(self, widths):
+    return format_line(self.size(), self.key, fmt(self.average),
+                       fmt(self.stddev()), fmt(self.min),
+                       fmt(self.max), self.unit_string(),
+                       widths)
 
   def unit_string(self):
-    if self.unit == None:
+    if not self.unit:
       return ""
     return self.unit
 
@@ -119,21 +151,24 @@ class Measurement:
     return self.M2 / (self.count - 1)
 
   def stddev(self):
-    return numpy.sqrt(self.variance())
+    return math.sqrt(self.variance())
 
   def size(self):
     return len(self.values)
 
   def widths(self):
     return FieldWidth(
-        key=len(fmtS(self.key)),
-        average=len(fmtN(self.average)),
-        stddev=len(fmtN(self.stddev())),
-        min=len(fmtN(self.min)),
-        max=len(fmtN(self.max)))
+        points=len("{}".format(self.size())) + 2,
+        key=len(self.key),
+        average=len(fmt(self.average)),
+        stddev=len(fmt(self.stddev())),
+        min_width=len(fmt(self.min)),
+        max_width=len(fmt(self.max)))
 
 
-rep_string = str(args['repetitions'])
+def result_header(widths):
+  return format_line("#/{}".format(ARGS['repetitions']),
+                     "id", "avg", "stddev", "min", "max", "unit", widths)
 
 
 class Measurements:
@@ -141,70 +176,73 @@ class Measurements:
   def __init__(self):
     self.all = {}
     self.default_key = '[default]'
-    self.max_widths = FieldWidth()
+    self.max_widths = FieldWidth(
+        points=len("{}".format(ARGS['repetitions'])) + 2,
+        key=len("id"),
+        average=len("avg"),
+        stddev=len("stddev"),
+        min_width=len("min"),
+        max_width=len("max"))
+    self.last_status_len = 0
 
   def record(self, key, value, unit):
-    if (key == None):
+    if not key:
       key = self.default_key
     if key not in self.all:
       self.all[key] = Measurement(key, unit)
     self.all[key].addValue(value)
-    self.max_widths.max_with(self.all[key].widths())
+    self.max_widths.max_widths(self.all[key].widths())
 
   def any(self):
-    if len(self.all) >= 1:
+    if self.all:
       return next(iter(self.all.values()))
-    else:
-      return None
-
-  def format_status(self):
-    m = self.any()
-    if m == None:
-      return ""
-    return m.status(self.max_widths)
-
-  def format_num(self, m):
-    return "[{0:>{1}}/{2}]".format(m.size(), len(rep_string), rep_string)
-
-  def print_status(self):
-    if len(self.all) == 0:
-      print("No results found. Check format?")
-      return
-    print(self.format_num(self.any()), self.format_status(), sep=" ", end="")
+    return None
 
   def print_results(self):
-    for key in self.all:
-      m = self.all[key]
-      print(self.format_num(m), m.status(self.max_widths), sep=" ")
+    print("{:<{}}".format("", self.last_status_len), end="\r")
+    print(result_header(self.max_widths), sep=" ")
+    for key in sorted(self.all):
+      print(self.all[key].result(self.max_widths), sep=" ")
+
+  def print_status(self):
+    status = "No results found. Check format?"
+    measurement = MEASUREMENTS.any()
+    if measurement:
+      status = measurement.status(MEASUREMENTS.max_widths)
+    print("{:<{}}".format(status, self.last_status_len), end="\r")
+    self.last_status_len = len(status)
 
 
-measurements = Measurements()
+MEASUREMENTS = Measurements()
 
 
-def signal_handler(signal, frame):
+def signal_handler(signum, frame):
   print("", end="\r")
-  measurements.print_status()
-  print()
-  measurements.print_results()
+  MEASUREMENTS.print_results()
   sys.exit(0)
 
 
 signal.signal(signal.SIGINT, signal_handler)
 
-for x in range(0, args['repetitions']):
-  proc = subprocess.Popen(args['command'], stdout=subprocess.PIPE)
+SCORE_REGEX = (r'\A((console.timeEnd: )?'
+               r'(?P<key>[^\s:,]+)[,:]?)?'
+               r'(^\s*|\s+)'
+               r'(?P<value>[0-9]+(.[0-9]+)?)'
+               r'\ ?(?P<unit>[^\d\W]\w*)?[.\s]*\Z')
+
+for x in range(0, ARGS['repetitions']):
+  proc = subprocess.Popen(ARGS['command'], stdout=subprocess.PIPE)
   for line in proc.stdout:
-    if args['echo']:
+    if ARGS['echo']:
       print(line.decode(), end="")
-    for m in re.finditer(
-        r'\A((?P<key>.*[^\s\d:]+)[:]?)?\s*(?P<value>[0-9]+(.[0-9]+)?)\ ?(?P<unit>[^\d\W]\w*)?\s*\Z',
-        line.decode()):
-      measurements.record(m.group('key'), m.group('value'), m.group('unit'))
+    for m in re.finditer(SCORE_REGEX, line.decode()):
+      MEASUREMENTS.record(m.group('key'), m.group('value'), m.group('unit'))
   proc.wait()
   if proc.returncode != 0:
     print("Child exited with status %d" % proc.returncode)
     break
-  measurements.print_status()
-  print("", end="\r")
 
-measurements.print_results()
+  MEASUREMENTS.print_status()
+
+# Print final results
+MEASUREMENTS.print_results()

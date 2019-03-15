@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
+
 # Copyright 2018 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -6,6 +7,9 @@
 """ locs.py - Count lines of code before and after preprocessor expansion
   Consult --help for more information.
 """
+
+# for py2/py3 compatibility
+from __future__ import print_function
 
 import argparse
 import json
@@ -147,23 +151,33 @@ def GenerateCompileCommandsAndBuild(build_dir, compile_commands_file, out):
 
   return compile_commands_file
 
+def fmt_bytes(bytes):
+  if bytes > 1024*1024*1024:
+    return int(bytes / (1024*1024)), "MB"
+  elif bytes > 1024*1024:
+    return int(bytes / (1024)), "kB"
+  return int(bytes), " B"
+
 
 class CompilationData:
-  def __init__(self, loc, expanded):
+  def __init__(self, loc, in_bytes, expanded, expanded_bytes):
     self.loc = loc
+    self.in_bytes = in_bytes
     self.expanded = expanded
+    self.expanded_bytes = expanded_bytes
 
   def ratio(self):
     return self.expanded / (self.loc+1)
 
   def to_string(self):
-    return "{:>9,} to {:>12,} ({:>5.0f}x)".format(
-        self.loc, self.expanded, self.ratio())
-
+    exp_bytes, exp_unit = fmt_bytes(self.expanded_bytes)
+    in_bytes, in_unit = fmt_bytes(self.in_bytes)
+    return "{:>9,} LoC ({:>7,} {}) to {:>12,} LoC ({:>7,} {}) ({:>5.0f}x)".format(
+        self.loc, in_bytes, in_unit, self.expanded, exp_bytes, exp_unit, self.ratio())
 
 class File(CompilationData):
-  def __init__(self, file, loc, expanded):
-    super().__init__(loc, expanded)
+  def __init__(self, file, loc, in_bytes, expanded, expanded_bytes):
+    super().__init__(loc, in_bytes, expanded, expanded_bytes)
     self.file = file
 
   def to_string(self):
@@ -172,7 +186,7 @@ class File(CompilationData):
 
 class Group(CompilationData):
   def __init__(self, name, regexp_string):
-    super().__init__(0, 0)
+    super().__init__(0, 0, 0, 0)
     self.name = name
     self.count = 0
     self.regexp = re.compile(regexp_string)
@@ -180,7 +194,9 @@ class Group(CompilationData):
   def account(self, unit):
     if (self.regexp.match(unit.file)):
       self.loc += unit.loc
+      self.in_bytes += unit.in_bytes
       self.expanded += unit.expanded
+      self.expanded_bytes += unit.expanded_bytes
       self.count += 1
 
   def to_string(self, name_width):
@@ -195,7 +211,8 @@ def SetupReportGroups():
                            "third_party": '\\.\\./\\.\\./third_party',
                            "gen": 'gen'}
 
-  report_groups = {**default_report_groups, **dict(ARGS['group'])}
+  report_groups = default_report_groups.copy()
+  report_groups.update(dict(ARGS['group']))
 
   if ARGS['only']:
     for only_arg in ARGS['only']:
@@ -236,8 +253,8 @@ class Results:
         is_tracked = True
     return is_tracked
 
-  def recordFile(self, filename, loc, expanded):
-    unit = File(filename, loc, expanded)
+  def recordFile(self, filename, loc, in_bytes, expanded, expanded_bytes):
+    unit = File(filename, loc, in_bytes, expanded, expanded_bytes)
     self.units[filename] = unit
     for group in self.groups.values():
       group.account(unit)
@@ -257,9 +274,11 @@ class Results:
 class LocsEncoder(json.JSONEncoder):
   def default(self, o):
     if isinstance(o, File):
-      return {"file": o.file, "loc": o.loc, "expanded": o.expanded}
+      return {"file": o.file, "loc": o.loc, "in_bytes": o.in_bytes,
+              "expanded": o.expanded, "expanded_bytes": o.expanded_bytes}
     if isinstance(o, Group):
-      return {"name": o.name, "loc": o.loc, "expanded": o.expanded}
+      return {"name": o.name, "loc": o.loc, "in_bytes": o.in_bytes,
+              "expanded": o.expanded, "expanded_bytes": o.expanded_bytes}
     if isinstance(o, Results):
       return {"groups": o.groups, "units": o.units}
     return json.JSONEncoder.default(self, o)
@@ -317,16 +336,15 @@ def Main():
     for i, key in enumerate(data):
       if not result.track(key['file']):
         continue
-      if not ARGS['json']:
-        status.print(
-            "[{}/{}] Counting LoCs of {}".format(i, len(data), key['file']))
+      status.print("[{}/{}] Counting LoCs of {}".format(i, len(data), key['file']),
+        file=out)
       clangcmd, infilename, infile, outfile = cmd_splitter.process(key, temp)
       outfile.parent.mkdir(parents=True, exist_ok=True)
       if infile.is_file():
         clangcmd = clangcmd + " -E -P " + \
-            str(infile) + " -o /dev/stdout | sed '/^\\s*$/d' | wc -l"
+            str(infile) + " -o /dev/stdout | sed '/^\\s*$/d' | wc -lc"
         loccmd = ("cat {}  | sed '\\;^\\s*//;d' | sed '\\;^/\\*;d'"
-                  " | sed '/^\\*/d' | sed '/^\\s*$/d' | wc -l").format(
+                  " | sed '/^\\*/d' | sed '/^\\s*$/d' | wc -lc").format(
             infile)
         runcmd = " {} ; {}".format(clangcmd, loccmd)
         if ARGS['echocmd']:
@@ -339,8 +357,8 @@ def Main():
       status.print("[{}/{}] Summing up {}".format(
           i, len(processes), p['infile']), file=out)
       output, err = p['process'].communicate()
-      expanded, loc = list(map(int, output.split()))
-      result.recordFile(p['infile'], loc, expanded)
+      expanded, expanded_bytes, loc, in_bytes = list(map(int, output.split()))
+      result.recordFile(p['infile'], loc, in_bytes, expanded, expanded_bytes)
 
     end = time.time()
     if ARGS['json']:

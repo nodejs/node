@@ -67,6 +67,11 @@ UNINITIALIZED_TEST(PagePromotion_NewToOld) {
     v8::Context::New(isolate)->Enter();
     Heap* heap = i_isolate->heap();
 
+    // Ensure that the new space is empty so that the page to be promoted
+    // does not contain the age mark.
+    heap->CollectGarbage(NEW_SPACE, i::GarbageCollectionReason::kTesting);
+    heap->CollectGarbage(NEW_SPACE, i::GarbageCollectionReason::kTesting);
+
     std::vector<Handle<FixedArray>> handles;
     heap::SimulateFullSpace(heap->new_space(), &handles);
     heap->CollectGarbage(NEW_SPACE, i::GarbageCollectionReason::kTesting);

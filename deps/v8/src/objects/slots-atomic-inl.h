@@ -49,7 +49,7 @@ class AtomicSlot : public SlotBase<AtomicSlot, Tagged_t, kTaggedSize> {
     operator Tagged_t() const { return AsAtomicTagged::Relaxed_Load(address_); }
 
     void swap(Reference& other) {
-      Address tmp = value();
+      Tagged_t tmp = value();
       AsAtomicTagged::Relaxed_Store(address_, other.value());
       AsAtomicTagged::Relaxed_Store(other.address_, tmp);
     }
@@ -63,7 +63,7 @@ class AtomicSlot : public SlotBase<AtomicSlot, Tagged_t, kTaggedSize> {
     }
 
    private:
-    Address value() const { return AsAtomicTagged::Relaxed_Load(address_); }
+    Tagged_t value() const { return AsAtomicTagged::Relaxed_Load(address_); }
 
     Tagged_t* address_;
   };

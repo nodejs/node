@@ -113,8 +113,7 @@ Address Assembler::target_address_from_return_address(Address pc) {
 
 void Assembler::deserialization_set_special_target_at(
     Address instruction_payload, Code code, Address target) {
-  set_target_address_at(
-      instruction_payload - kInstructionsFor64BitConstant * kInstrSize,
+  set_target_address_at(instruction_payload,
       !code.is_null() ? code->constant_pool() : kNullAddress, target);
 }
 
@@ -234,25 +233,6 @@ void RelocInfo::WipeOut() {
     Assembler::set_target_internal_reference_encoded_at(pc_, kNullAddress);
   } else {
     Assembler::set_target_address_at(pc_, constant_pool_, kNullAddress);
-  }
-}
-
-template <typename ObjectVisitor>
-void RelocInfo::Visit(ObjectVisitor* visitor) {
-  RelocInfo::Mode mode = rmode();
-  if (mode == RelocInfo::EMBEDDED_OBJECT) {
-    visitor->VisitEmbeddedPointer(host(), this);
-  } else if (RelocInfo::IsCodeTargetMode(mode)) {
-    visitor->VisitCodeTarget(host(), this);
-  } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
-    visitor->VisitExternalReference(host(), this);
-  } else if (mode == RelocInfo::INTERNAL_REFERENCE ||
-             mode == RelocInfo::INTERNAL_REFERENCE_ENCODED) {
-    visitor->VisitInternalReference(host(), this);
-  } else if (RelocInfo::IsRuntimeEntry(mode)) {
-    visitor->VisitRuntimeEntry(host(), this);
-  } else if (RelocInfo::IsOffHeapTarget(mode)) {
-    visitor->VisitOffHeapTarget(host(), this);
   }
 }
 

@@ -234,6 +234,7 @@ void SamplerManager::DoSample(const v8::RegisterState& state) {
   SamplerList& samplers = it->second;
 
   for (Sampler* sampler : samplers) {
+    if (!sampler->ShouldRecordSample()) continue;
     Isolate* isolate = sampler->isolate();
     // We require a fully initialized and entered isolate.
     if (isolate == nullptr || !isolate->IsInUse()) continue;
@@ -542,6 +543,7 @@ void Sampler::Stop() {
 void Sampler::DoSample() {
   if (!SignalHandler::Installed()) return;
   DCHECK(IsActive());
+  SetShouldRecordSample();
   pthread_kill(platform_data()->vm_tid(), SIGPROF);
 }
 

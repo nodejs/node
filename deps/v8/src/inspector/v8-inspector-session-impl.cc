@@ -76,6 +76,8 @@ V8InspectorSessionImpl::V8InspectorSessionImpl(V8InspectorImpl* inspector,
     m_state = protocol::DictionaryValue::create();
   }
 
+  m_state->getBoolean("use_binary_protocol", &use_binary_protocol_);
+
   m_runtimeAgent.reset(new V8RuntimeAgentImpl(
       this, this, agentState(protocol::Runtime::Metainfo::domainName)));
   protocol::Runtime::Dispatcher::wire(&m_dispatcher, m_runtimeAgent.get());
@@ -137,41 +139,53 @@ namespace {
 class MessageBuffer : public StringBuffer {
  public:
   static std::unique_ptr<MessageBuffer> create(
-      std::unique_ptr<protocol::Serializable> message) {
+      std::unique_ptr<protocol::Serializable> message, bool binary) {
     return std::unique_ptr<MessageBuffer>(
-        new MessageBuffer(std::move(message)));
+        new MessageBuffer(std::move(message), binary));
   }
 
   const StringView& string() override {
     if (!m_serialized) {
-      m_serialized = StringBuffer::create(toStringView(m_message->serialize()));
+      if (m_binary) {
+        // Encode binary response as an 8bit string buffer.
+        m_serialized.reset(
+            new BinaryStringBuffer(m_message->serializeToBinary()));
+      } else {
+        m_serialized =
+            StringBuffer::create(toStringView(m_message->serializeToJSON()));
+      }
       m_message.reset(nullptr);
     }
     return m_serialized->string();
   }
 
  private:
-  explicit MessageBuffer(std::unique_ptr<protocol::Serializable> message)
-      : m_message(std::move(message)) {}
+  explicit MessageBuffer(std::unique_ptr<protocol::Serializable> message,
+                         bool binary)
+      : m_message(std::move(message)), m_binary(binary) {}
 
   std::unique_ptr<protocol::Serializable> m_message;
   std::unique_ptr<StringBuffer> m_serialized;
+  bool m_binary;
 };
 
 }  // namespace
 
 void V8InspectorSessionImpl::sendProtocolResponse(
     int callId, std::unique_ptr<protocol::Serializable> message) {
-  m_channel->sendResponse(callId, MessageBuffer::create(std::move(message)));
+  m_channel->sendResponse(
+      callId, MessageBuffer::create(std::move(message), use_binary_protocol_));
 }
 
 void V8InspectorSessionImpl::sendProtocolNotification(
     std::unique_ptr<protocol::Serializable> message) {
-  m_channel->sendNotification(MessageBuffer::create(std::move(message)));
+  m_channel->sendNotification(
+      MessageBuffer::create(std::move(message), use_binary_protocol_));
 }
 
-void V8InspectorSessionImpl::fallThrough(int callId, const String16& method,
-                                         const String16& message) {
+void V8InspectorSessionImpl::fallThrough(
+    int callId, const String16& method,
+    const protocol::ProtocolMessage& message) {
   // There's no other layer to handle the command.
   UNREACHABLE();
 }
@@ -316,19 +330,32 @@ void V8InspectorSessionImpl::reportAllContexts(V8RuntimeAgentImpl* agent) {
 
 void V8InspectorSessionImpl::dispatchProtocolMessage(
     const StringView& message) {
+  bool binary_protocol =
+      message.is8Bit() && message.length() && message.characters8()[0] == 0xD8;
+  if (binary_protocol) {
+    use_binary_protocol_ = true;
+    m_state->setBoolean("use_binary_protocol", true);
+  }
+
   int callId;
+  std::unique_ptr<protocol::Value> parsed_message;
+  if (binary_protocol) {
+    parsed_message = protocol::Value::parseBinary(
+        message.characters8(), static_cast<unsigned>(message.length()));
+  } else {
+    parsed_message = protocol::StringUtil::parseJSON(message);
+  }
   String16 method;
-  std::unique_ptr<protocol::Value> parsedMessage =
-      protocol::StringUtil::parseJSON(message);
-  if (m_dispatcher.parseCommand(parsedMessage.get(), &callId, &method)) {
+  if (m_dispatcher.parseCommand(parsed_message.get(), &callId, &method)) {
     // Pass empty string instead of the actual message to save on a conversion.
     // We're allowed to do so because fall-through is not implemented.
-    m_dispatcher.dispatch(callId, method, std::move(parsedMessage), "");
+    m_dispatcher.dispatch(callId, method, std::move(parsed_message),
+                          protocol::ProtocolMessage());
   }
 }
 
 std::unique_ptr<StringBuffer> V8InspectorSessionImpl::stateJSON() {
-  String16 json = m_state->serialize();
+  String16 json = m_state->toJSONString();
   return StringBufferImpl::adopt(json);
 }
 

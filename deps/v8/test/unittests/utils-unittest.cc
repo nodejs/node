@@ -24,7 +24,7 @@ typedef ::testing::Types<signed char, unsigned char,
                          int64_t, uint64_t>
     IntegerTypes;
 
-TYPED_TEST_CASE(UtilsTest, IntegerTypes);
+TYPED_TEST_SUITE(UtilsTest, IntegerTypes);
 
 TYPED_TEST(UtilsTest, SaturateSub) {
   TypeParam min = std::numeric_limits<TypeParam>::min();

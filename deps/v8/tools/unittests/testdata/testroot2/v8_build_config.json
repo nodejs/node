@@ -4,6 +4,7 @@
   "is_android": false,
   "is_asan": false,
   "is_cfi": false,
+  "is_clang": true,
   "is_component_build": false,
   "is_debug": false,
   "is_gcov_coverage": false,

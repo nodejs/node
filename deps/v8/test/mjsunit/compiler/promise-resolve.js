@@ -10,6 +10,7 @@ function assertFulfilledWith(expected, thenable) {
 
 (function() {
   function foo() { return Promise.resolve(); }
+  %PrepareFunctionForOptimization(foo);
   assertFulfilledWith(undefined, foo());
   assertFulfilledWith(undefined, foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -18,6 +19,7 @@ function assertFulfilledWith(expected, thenable) {
 
 (function() {
   function foo(x) { return Promise.resolve(x); }
+  %PrepareFunctionForOptimization(foo);
   assertFulfilledWith(3, foo(3));
   assertFulfilledWith(3, foo(3));
   %OptimizeFunctionOnNextCall(foo);
@@ -26,6 +28,7 @@ function assertFulfilledWith(expected, thenable) {
 
 (function() {
   function foo(x, y) { return Promise.resolve(x, y); }
+  %PrepareFunctionForOptimization(foo);
   assertFulfilledWith(1, foo(1, 0));
   assertFulfilledWith(2, foo(2, 1));
   %OptimizeFunctionOnNextCall(foo);
@@ -34,6 +37,7 @@ function assertFulfilledWith(expected, thenable) {
 
 (function() {
   function foo(x) { return Promise.resolve({x}); }
+  %PrepareFunctionForOptimization(foo);
   assertFulfilledWith({x:1}, foo(1));
   assertFulfilledWith({x:2}, foo(2));
   %OptimizeFunctionOnNextCall(foo);
@@ -42,6 +46,7 @@ function assertFulfilledWith(expected, thenable) {
 
 (function() {
   function foo(x) { return Promise.resolve(Promise.resolve(x)); }
+  %PrepareFunctionForOptimization(foo);
   assertFulfilledWith(null, foo(null));
   assertFulfilledWith('a', foo('a'));
   %OptimizeFunctionOnNextCall(foo);
@@ -55,6 +60,7 @@ function assertFulfilledWith(expected, thenable) {
     }
   };
   function foo() { return Promise.resolve(thenable); }
+  %PrepareFunctionForOptimization(foo);
   assertFulfilledWith(1, foo());
   assertFulfilledWith(1, foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -66,6 +72,7 @@ function assertFulfilledWith(expected, thenable) {
 
   (function() {
     function foo() { return MyPromise.resolve(); }
+    %PrepareFunctionForOptimization(foo);
     assertFulfilledWith(undefined, foo());
     assertFulfilledWith(undefined, foo());
     %OptimizeFunctionOnNextCall(foo);
@@ -74,6 +81,7 @@ function assertFulfilledWith(expected, thenable) {
 
   (function() {
     function foo(x) { return MyPromise.resolve(x); }
+    %PrepareFunctionForOptimization(foo);
     assertFulfilledWith(3, foo(3));
     assertFulfilledWith(3, foo(3));
     %OptimizeFunctionOnNextCall(foo);
@@ -82,6 +90,7 @@ function assertFulfilledWith(expected, thenable) {
 
   (function() {
     function foo(x, y) { return MyPromise.resolve(x, y); }
+    %PrepareFunctionForOptimization(foo);
     assertFulfilledWith(1, foo(1, 0));
     assertFulfilledWith(2, foo(2, 1));
     %OptimizeFunctionOnNextCall(foo);
@@ -90,6 +99,7 @@ function assertFulfilledWith(expected, thenable) {
 
   (function() {
     function foo(x) { return MyPromise.resolve({x}); }
+    %PrepareFunctionForOptimization(foo);
     assertFulfilledWith({x:1}, foo(1));
     assertFulfilledWith({x:2}, foo(2));
     %OptimizeFunctionOnNextCall(foo);
@@ -98,6 +108,7 @@ function assertFulfilledWith(expected, thenable) {
 
   (function() {
     function foo(x) { return MyPromise.resolve(Promise.resolve(x)); }
+    %PrepareFunctionForOptimization(foo);
     assertFulfilledWith(null, foo(null));
     assertFulfilledWith('a', foo('a'));
     %OptimizeFunctionOnNextCall(foo);
@@ -111,6 +122,7 @@ function assertFulfilledWith(expected, thenable) {
       }
     };
     function foo() { return MyPromise.resolve(thenable); }
+    %PrepareFunctionForOptimization(foo);
     assertFulfilledWith(1, foo());
     assertFulfilledWith(1, foo());
     %OptimizeFunctionOnNextCall(foo);

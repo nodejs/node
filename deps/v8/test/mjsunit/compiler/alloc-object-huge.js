@@ -36,6 +36,7 @@
 function test() {
   return new huge();
 }
+%PrepareFunctionForOptimization(test);
 test();
 test();
 %OptimizeFunctionOnNextCall(test);

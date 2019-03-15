@@ -232,18 +232,12 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   struct InlinedFunctionHolder {
     Handle<SharedFunctionInfo> shared_info;
-    Handle<BytecodeArray> bytecode_array;
-
+    Handle<BytecodeArray> bytecode_array;  // Explicit to prevent flushing.
     InliningPosition position;
 
     InlinedFunctionHolder(Handle<SharedFunctionInfo> inlined_shared_info,
                           Handle<BytecodeArray> inlined_bytecode,
-                          SourcePosition pos)
-        : shared_info(inlined_shared_info), bytecode_array(inlined_bytecode) {
-      position.position = pos;
-      // initialized when generating the deoptimization literals
-      position.inlined_function_id = DeoptimizationData::kNotInlinedIndex;
-    }
+                          SourcePosition pos);
 
     void RegisterInlinedFunctionId(size_t inlined_function_id) {
       position.inlined_function_id = static_cast<int>(inlined_function_id);

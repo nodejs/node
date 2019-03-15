@@ -13,6 +13,9 @@ BUILD.gn. Just compile to check whether there are any violations to the rule
 that each header must be includable in isolation.
 """
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import argparse
 import os
 import os.path
@@ -58,7 +61,7 @@ def parse_args():
 
 def printv(line):
   if args.verbose:
-    print line
+    print(line)
 
 
 def find_all_headers():

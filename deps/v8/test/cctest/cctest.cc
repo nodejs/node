@@ -29,8 +29,11 @@
 #include "test/cctest/cctest.h"
 
 #include "include/libplatform/libplatform.h"
+#include "src/compiler.h"
+#include "src/compiler/pipeline.h"
 #include "src/debug/debug.h"
 #include "src/objects-inl.h"
+#include "src/optimized-compilation-info.h"
 #include "src/trap-handler/trap-handler.h"
 #include "test/cctest/print-extension.h"
 #include "test/cctest/profiler-extension.h"
@@ -222,6 +225,36 @@ HandleAndZoneScope::HandleAndZoneScope()
 
 HandleAndZoneScope::~HandleAndZoneScope() = default;
 
+i::Handle<i::JSFunction> Optimize(i::Handle<i::JSFunction> function,
+                                  i::Zone* zone, i::Isolate* isolate,
+                                  uint32_t flags,
+                                  i::compiler::JSHeapBroker** out_broker) {
+  i::Handle<i::SharedFunctionInfo> shared(function->shared(), isolate);
+  i::IsCompiledScope is_compiled_scope(shared->is_compiled_scope());
+  CHECK(is_compiled_scope.is_compiled() ||
+        i::Compiler::Compile(function, i::Compiler::CLEAR_EXCEPTION,
+                             &is_compiled_scope));
+
+  CHECK_NOT_NULL(zone);
+
+  i::OptimizedCompilationInfo info(zone, isolate, shared, function);
+
+  if (flags & i::OptimizedCompilationInfo::kInliningEnabled) {
+    info.MarkAsInliningEnabled();
+  }
+
+  CHECK(info.shared_info()->HasBytecodeArray());
+  i::JSFunction::EnsureFeedbackVector(function);
+
+  i::Handle<i::Code> code =
+      i::compiler::Pipeline::GenerateCodeForTesting(&info, isolate, out_broker)
+          .ToHandleChecked();
+  info.native_context()->AddOptimizedCode(*code);
+  function->set_code(*code);
+
+  return function;
+}
+
 static void PrintTestList(CcTest* current) {
   if (current == nullptr) return;
   PrintTestList(current->prev());
@@ -282,12 +315,9 @@ int main(int argc, char* argv[]) {
   CcTest::set_array_buffer_allocator(
       v8::ArrayBuffer::Allocator::NewDefaultAllocator());
 
-  i::PrintExtension print_extension;
-  v8::RegisterExtension(&print_extension);
-  i::ProfilerExtension profiler_extension;
-  v8::RegisterExtension(&profiler_extension);
-  i::TraceExtension trace_extension;
-  v8::RegisterExtension(&trace_extension);
+  v8::RegisterExtension(v8::base::make_unique<i::PrintExtension>());
+  v8::RegisterExtension(v8::base::make_unique<i::ProfilerExtension>());
+  v8::RegisterExtension(v8::base::make_unique<i::TraceExtension>());
 
   int tests_run = 0;
   bool print_run_count = true;
@@ -337,8 +367,7 @@ int main(int argc, char* argv[]) {
   if (print_run_count && tests_run != 1)
     printf("Ran %i tests.\n", tests_run);
   CcTest::TearDown();
-  // TODO(svenpanne) See comment above.
-  // if (!disable_automatic_dispose_) v8::V8::Dispose();
+  if (!disable_automatic_dispose_) v8::V8::Dispose();
   v8::V8::ShutdownPlatform();
   return 0;
 }

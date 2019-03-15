@@ -54,6 +54,26 @@ class LocationReference {
     result.eval_function_ = "." + fieldname;
     result.assign_function_ = "." + fieldname + "=";
     result.call_arguments_ = {object};
+    result.index_field_ = base::nullopt;
+    return result;
+  }
+  static LocationReference IndexedFieldIndexedAccess(
+      const LocationReference& indexed_field, VisitResult index) {
+    LocationReference result;
+    DCHECK(indexed_field.IsIndexedFieldAccess());
+    std::string fieldname = *indexed_field.index_field_;
+    result.eval_function_ = "." + fieldname + "[]";
+    result.assign_function_ = "." + fieldname + "[]=";
+    result.call_arguments_ = indexed_field.call_arguments_;
+    result.call_arguments_.push_back(index);
+    result.index_field_ = fieldname;
+    return result;
+  }
+  static LocationReference IndexedFieldAccess(VisitResult object,
+                                              std::string fieldname) {
+    LocationReference result;
+    result.call_arguments_ = {object};
+    result.index_field_ = fieldname;
     return result;
   }
 
@@ -82,6 +102,13 @@ class LocationReference {
     return *temporary_description_;
   }
 
+  bool IsArrayField() const { return index_field_.has_value(); }
+  bool IsIndexedFieldAccess() const {
+    return IsArrayField() && !IsCallAccess();
+  }
+  bool IsIndexedFieldIndexedAccess() const {
+    return IsArrayField() && IsCallAccess();
+  }
   bool IsCallAccess() const {
     bool is_call_access = eval_function_.has_value();
     DCHECK_EQ(is_call_access, assign_function_.has_value());
@@ -107,8 +134,13 @@ class LocationReference {
   base::Optional<std::string> eval_function_;
   base::Optional<std::string> assign_function_;
   VisitResultVector call_arguments_;
+  base::Optional<std::string> index_field_;
 
   LocationReference() = default;
+};
+
+struct InitializerResults {
+  std::vector<VisitResult> results;
 };
 
 template <class T>
@@ -138,6 +170,11 @@ class Binding : public T {
         previous_binding_(this) {
     std::swap(previous_binding_, manager_->current_bindings_[name]);
   }
+  template <class... Args>
+  Binding(BindingsManager<T>* manager, const Identifier* name, Args&&... args)
+      : Binding(manager, name->value, std::forward<Args>(args)...) {
+    declaration_position_ = name->pos;
+  }
   ~Binding() { manager_->current_bindings_[name_] = previous_binding_; }
 
   const std::string& name() const { return name_; }
@@ -156,16 +193,15 @@ class BlockBindings {
  public:
   explicit BlockBindings(BindingsManager<T>* manager) : manager_(manager) {}
   void Add(std::string name, T value) {
-    for (const auto& binding : bindings_) {
-      if (binding->name() == name) {
-        ReportError(
-            "redeclaration of name \"", name,
-            "\" in the same block is illegal, previous declaration at: ",
-            binding->declaration_position());
-      }
-    }
+    ReportErrorIfAlreadyBound(name);
     bindings_.push_back(base::make_unique<Binding<T>>(manager_, std::move(name),
                                                       std::move(value)));
+  }
+
+  void Add(const Identifier* name, T value) {
+    ReportErrorIfAlreadyBound(name->value);
+    bindings_.push_back(
+        base::make_unique<Binding<T>>(manager_, name, std::move(value)));
   }
 
   std::vector<Binding<T>*> bindings() const {
@@ -178,6 +214,17 @@ class BlockBindings {
   }
 
  private:
+  void ReportErrorIfAlreadyBound(const std::string& name) {
+    for (const auto& binding : bindings_) {
+      if (binding->name() == name) {
+        ReportError(
+            "redeclaration of name \"", name,
+            "\" in the same block is illegal, previous declaration at: ",
+            binding->declaration_position());
+      }
+    }
+  }
+
   BindingsManager<T>* manager_;
   std::vector<std::unique_ptr<Binding<T>>> bindings_;
 };
@@ -201,8 +248,9 @@ struct Arguments {
   std::vector<Binding<LocalLabel>*> labels;
 };
 
+// Determine if a callable should be considered as an overload.
 bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
-                           const std::vector<Binding<LocalLabel>*>& labels);
+                           size_t label_count);
 
 class ImplementationVisitor : public FileVisitor {
  public:
@@ -211,6 +259,17 @@ class ImplementationVisitor : public FileVisitor {
 
   VisitResult Visit(Expression* expr);
   const Type* Visit(Statement* stmt);
+
+  InitializerResults VisitInitializerResults(
+      const std::vector<Expression*>& expressions);
+
+  size_t InitializeAggregateHelper(
+      const AggregateType* aggregate_type, VisitResult allocate_result,
+      const InitializerResults& initializer_results);
+
+  void InitializeAggregate(const AggregateType* aggregate_type,
+                           VisitResult allocate_result,
+                           const InitializerResults& initializer_results);
 
   VisitResult TemporaryUninitializedStruct(const StructType* struct_type,
                                            const std::string& reason);
@@ -251,8 +310,8 @@ class ImplementationVisitor : public FileVisitor {
   VisitResult Visit(CallExpression* expr, bool is_tail = false);
   VisitResult Visit(CallMethodExpression* expr);
   VisitResult Visit(IntrinsicCallExpression* intrinsic);
-  VisitResult Visit(LoadObjectFieldExpression* intrinsic);
-  VisitResult Visit(StoreObjectFieldExpression* intrinsic);
+  VisitResult Visit(LoadObjectFieldExpression* expr);
+  VisitResult Visit(StoreObjectFieldExpression* expr);
   const Type* Visit(TailCallStatement* stmt);
 
   VisitResult Visit(ConditionalExpression* expr);
@@ -290,18 +349,12 @@ class ImplementationVisitor : public FileVisitor {
 
   void GenerateImplementation(const std::string& dir, Namespace* nspace);
 
-  struct ConstructorInfo {
-    int super_calls;
-  };
-
   DECLARE_CONTEXTUAL_VARIABLE(ValueBindingsManager,
                               BindingsManager<LocalValue>);
   DECLARE_CONTEXTUAL_VARIABLE(LabelBindingsManager,
                               BindingsManager<LocalLabel>);
   DECLARE_CONTEXTUAL_VARIABLE(CurrentCallable, Callable*);
   DECLARE_CONTEXTUAL_VARIABLE(CurrentReturnValue, base::Optional<VisitResult>);
-  DECLARE_CONTEXTUAL_VARIABLE(CurrentConstructorInfo,
-                              base::Optional<ConstructorInfo>);
 
   // A BindingsManagersScope has to be active for local bindings to be created.
   // Shadowing an existing BindingsManagersScope by creating a new one hides all
@@ -413,13 +466,6 @@ class ImplementationVisitor : public FileVisitor {
                        const Arguments& arguments,
                        const TypeVector& specialization_types);
 
-  Method* LookupConstructor(LocationReference target,
-                            const Arguments& arguments,
-                            const TypeVector& specialization_types) {
-    return LookupMethod(kConstructMethodName, target, arguments,
-                        specialization_types);
-  }
-
   const Type* GetCommonType(const Type* left, const Type* right);
 
   VisitResult GenerateCopy(const VisitResult& to_copy);
@@ -478,15 +524,30 @@ class ImplementationVisitor : public FileVisitor {
   StackRange LowerParameter(const Type* type, const std::string& parameter_name,
                             Stack<std::string>* lowered_parameters);
 
+  void LowerLabelParameter(const Type* type, const std::string& parameter_name,
+                           std::vector<std::string>* lowered_parameters);
+
   std::string ExternalLabelName(const std::string& label_name);
   std::string ExternalLabelParameterName(const std::string& label_name,
                                          size_t i);
   std::string ExternalParameterName(const std::string& name);
 
-  std::ostream& source_out() { return CurrentNamespace()->source_stream(); }
-
-  std::ostream& header_out() { return CurrentNamespace()->header_stream(); }
-
+  std::ostream& source_out() {
+    Callable* callable = CurrentCallable::Get();
+    if (!callable || callable->ShouldGenerateExternalCode()) {
+      return CurrentNamespace()->source_stream();
+    } else {
+      return null_stream_;
+    }
+  }
+  std::ostream& header_out() {
+    Callable* callable = CurrentCallable::Get();
+    if (!callable || callable->ShouldGenerateExternalCode()) {
+      return CurrentNamespace()->header_stream();
+    } else {
+      return null_stream_;
+    }
+  }
   CfgAssembler& assembler() { return *assembler_; }
 
   void SetReturnValue(VisitResult return_value) {
@@ -503,6 +564,7 @@ class ImplementationVisitor : public FileVisitor {
   }
 
   base::Optional<CfgAssembler> assembler_;
+  NullOStream null_stream_;
 };
 
 }  // namespace torque

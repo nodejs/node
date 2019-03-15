@@ -22,7 +22,7 @@
 #include "src/debug/liveedit.h"
 #include "src/frames-inl.h"
 #include "src/globals.h"
-#include "src/heap/heap.h"
+#include "src/heap/heap-inl.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/log-inl.h"
@@ -40,6 +40,7 @@
 #include "src/snapshot/code-serializer.h"
 #include "src/unoptimized-compilation-info.h"
 #include "src/vm-state-inl.h"
+#include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
 
 namespace v8 {
 namespace internal {
@@ -412,6 +413,8 @@ void SetSharedFunctionFlagsFromLiteral(FunctionLiteral* literal,
   if (literal->dont_optimize_reason() != BailoutReason::kNoReason) {
     shared_info->DisableOptimization(literal->dont_optimize_reason());
   }
+  shared_info->set_is_safe_to_skip_arguments_adaptor(
+      literal->SafeToSkipArgumentsAdaptor());
 }
 
 CompilationJob::Status FinalizeUnoptimizedCompilationJob(
@@ -753,6 +756,15 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   if (isolate->debug()->needs_check_on_function_call()) {
     // Do not optimize when debugger needs to hook into every call.
     return MaybeHandle<Code>();
+  }
+
+  // If code was pending optimization for testing, delete remove the strong root
+  // that was preventing the bytecode from being flushed between marking and
+  // optimization.
+  if (isolate->heap()->pending_optimize_for_test_bytecode() ==
+      shared->GetBytecodeArray()) {
+    isolate->heap()->SetPendingOptimizeForTestBytecode(
+        ReadOnlyRoots(isolate).undefined_value());
   }
 
   Handle<Code> cached_code;
@@ -1116,6 +1128,89 @@ bool Compiler::ParseAndAnalyze(ParseInfo* parse_info,
     return false;
   }
   return Compiler::Analyze(parse_info);
+}
+
+// static
+bool Compiler::CollectSourcePositions(Isolate* isolate,
+                                      Handle<SharedFunctionInfo> shared_info) {
+  DCHECK(shared_info->is_compiled());
+  DCHECK(shared_info->HasBytecodeArray());
+  DCHECK(!shared_info->GetBytecodeArray()->HasSourcePositionTable());
+
+  // TODO(v8:8510): Push the CLEAR_EXCEPTION flag or something like it down into
+  // the parser so it aborts without setting a pending exception, which then
+  // gets thrown. This would avoid the situation where potentially we'd reparse
+  // several times (running out of stack each time) before hitting this limit.
+  if (GetCurrentStackPosition() < isolate->stack_guard()->real_climit())
+    return false;
+
+  DCHECK(AllowCompilation::IsAllowed(isolate));
+  DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
+  DCHECK(!isolate->has_pending_exception());
+  VMState<BYTECODE_COMPILER> state(isolate);
+  PostponeInterruptsScope postpone(isolate);
+  RuntimeCallTimerScope runtimeTimer(
+      isolate, RuntimeCallCounterId::kCompileCollectSourcePositions);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.CollectSourcePositions");
+  HistogramTimerScope timer(isolate->counters()->collect_source_positions());
+
+  // Set up parse info.
+  ParseInfo parse_info(isolate, shared_info);
+  parse_info.set_lazy_compile();
+  parse_info.set_collect_source_positions();
+  if (FLAG_allow_natives_syntax) parse_info.set_allow_natives_syntax();
+
+  // Parse and update ParseInfo with the results.
+  if (!parsing::ParseAny(&parse_info, shared_info, isolate)) {
+    return FailWithPendingException(
+        isolate, &parse_info, Compiler::ClearExceptionFlag::CLEAR_EXCEPTION);
+  }
+
+  // Generate the unoptimized bytecode.
+  // TODO(v8:8510): Consider forcing preparsing of inner functions to avoid
+  // wasting time fully parsing them when they won't ever be used.
+  UnoptimizedCompilationJobList inner_function_jobs;
+  std::unique_ptr<UnoptimizedCompilationJob> outer_function_job(
+      GenerateUnoptimizedCode(&parse_info, isolate->allocator(),
+                              &inner_function_jobs));
+  if (!outer_function_job) {
+    return FailWithPendingException(
+        isolate, &parse_info, Compiler::ClearExceptionFlag::CLEAR_EXCEPTION);
+  }
+
+  DCHECK(outer_function_job->compilation_info()->collect_source_positions());
+
+  // TODO(v8:8510) Avoid re-allocating bytecode array/constant pool and
+  // re-internalizeing the ast values. Maybe we could use the
+  // unoptimized_compilation_flag to signal that all we need is the source
+  // position table (and we could do the DCHECK that the bytecode array is the
+  // same in the bytecode-generator, by comparing the real bytecode array on the
+  // SFI with the off-heap bytecode array).
+
+  // Internalize ast values onto the heap.
+  parse_info.ast_value_factory()->Internalize(isolate);
+
+  {
+    // Allocate scope infos for the literal.
+    DeclarationScope::AllocateScopeInfos(&parse_info, isolate);
+    CHECK_EQ(outer_function_job->FinalizeJob(shared_info, isolate),
+             CompilationJob::SUCCEEDED);
+  }
+
+  // Update the source position table on the original bytecode.
+  Handle<BytecodeArray> bytecode =
+      handle(shared_info->GetBytecodeArray(), isolate);
+  DCHECK(bytecode->IsBytecodeEqual(
+      *outer_function_job->compilation_info()->bytecode_array()));
+  DCHECK(outer_function_job->compilation_info()->has_bytecode_array());
+  bytecode->set_source_position_table(outer_function_job->compilation_info()
+                                          ->bytecode_array()
+                                          ->SourcePositionTable());
+
+  DCHECK(!isolate->has_pending_exception());
+  DCHECK(shared_info->is_compiled_scope().is_compiled());
+  return true;
 }
 
 bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
@@ -1761,7 +1856,8 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
       Handle<SharedFunctionInfo> inner_result;
       if (CodeSerializer::Deserialize(isolate, cached_data, source,
                                       origin_options)
-              .ToHandle(&inner_result)) {
+              .ToHandle(&inner_result) &&
+          inner_result->is_compiled()) {
         // Promote to per-isolate compilation cache.
         is_compiled_scope = inner_result->is_compiled_scope();
         DCHECK(is_compiled_scope.is_compiled());

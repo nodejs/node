@@ -4,6 +4,7 @@
 
 #include <iostream>
 
+#include "src/globals.h"
 #include "src/torque/declarable.h"
 #include "src/torque/type-oracle.h"
 #include "src/torque/types.h"
@@ -74,11 +75,27 @@ bool Type::IsAbstractName(const std::string& name) const {
   return AbstractType::cast(this)->name() == name;
 }
 
-std::string AbstractType::GetGeneratedTNodeTypeName() const {
-  return generated_type_;
+std::string Type::GetGeneratedTypeName() const {
+  std::string result = GetGeneratedTypeNameImpl();
+  if (result.empty() || result == "compiler::TNode<>") {
+    ReportError("Generated type is required for type '", ToString(),
+                "'. Use 'generates' clause in definition.");
+  }
+  return result;
 }
 
-std::string ClassType::GetGeneratedTNodeTypeName() const { return generates_; }
+std::string Type::GetGeneratedTNodeTypeName() const {
+  std::string result = GetGeneratedTNodeTypeNameImpl();
+  if (result.empty()) {
+    ReportError("Generated TNode type is required for type '", ToString(),
+                "'. Use 'generates' clause in definition.");
+  }
+  return result;
+}
+
+std::string AbstractType::GetGeneratedTNodeTypeNameImpl() const {
+  return generated_type_;
+}
 
 std::string BuiltinPointerType::ToExplicitString() const {
   std::stringstream result;
@@ -125,7 +142,7 @@ std::string UnionType::MangledName() const {
   return result.str();
 }
 
-std::string UnionType::GetGeneratedTNodeTypeName() const {
+std::string UnionType::GetGeneratedTNodeTypeNameImpl() const {
   if (types_.size() <= 3) {
     std::set<std::string> members;
     for (const Type* t : types_) {
@@ -227,6 +244,18 @@ std::vector<const AggregateType*> AggregateType::GetHierarchy() {
   return hierarchy;
 }
 
+bool AggregateType::HasField(const std::string& name) const {
+  for (auto& field : fields_) {
+    if (field.name_and_type.name == name) return true;
+  }
+  if (parent() != nullptr) {
+    if (auto parent_class = ClassType::DynamicCast(parent())) {
+      return parent_class->HasField(name);
+    }
+  }
+  return false;
+}
+
 const Field& AggregateType::LookupField(const std::string& name) const {
   for (auto& field : fields_) {
     if (field.name_and_type.name == name) return field;
@@ -236,10 +265,10 @@ const Field& AggregateType::LookupField(const std::string& name) const {
       return parent_class->LookupField(name);
     }
   }
-  ReportError("no field ", name, "found");
+  ReportError("no field ", name, " found");
 }
 
-std::string StructType::GetGeneratedTypeName() const {
+std::string StructType::GetGeneratedTypeNameImpl() const {
   return nspace()->ExternalName() + "::" + name();
 }
 
@@ -250,10 +279,6 @@ std::vector<Method*> AggregateType::Methods(const std::string& name) const {
   return result;
 }
 
-std::vector<Method*> AggregateType::Constructors() const {
-  return Methods(kConstructMethodName);
-}
-
 std::string StructType::ToExplicitString() const {
   std::stringstream result;
   result << "struct " << name() << "{";
@@ -262,12 +287,55 @@ std::string StructType::ToExplicitString() const {
   return result.str();
 }
 
+ClassType::ClassType(const Type* parent, Namespace* nspace,
+                     const std::string& name, bool is_extern, bool transient,
+                     const std::string& generates)
+    : AggregateType(Kind::kClassType, parent, nspace, name),
+      is_extern_(is_extern),
+      transient_(transient),
+      size_(0),
+      has_indexed_field_(false),
+      generates_(generates) {
+  CheckForDuplicateFields();
+  if (parent) {
+    if (const ClassType* super_class = ClassType::DynamicCast(parent)) {
+      if (super_class->HasIndexedField()) {
+        has_indexed_field_ = true;
+      }
+    }
+  }
+}
+
+bool ClassType::HasIndexedField() const {
+  if (has_indexed_field_) return true;
+  const ClassType* super_class = GetSuperClass();
+  if (super_class) return super_class->HasIndexedField();
+  return false;
+}
+
+std::string ClassType::GetGeneratedTNodeTypeNameImpl() const {
+  if (!IsExtern()) return generates_;
+  std::string prefix = nspace()->IsDefaultNamespace()
+                           ? std::string{}
+                           : (nspace()->ExternalName() + "::");
+  return prefix + generates_;
+}
+
+std::string ClassType::GetGeneratedTypeNameImpl() const {
+  return IsConstexpr() ? GetGeneratedTNodeTypeName()
+                       : "compiler::TNode<" + GetGeneratedTNodeTypeName() + ">";
+}
+
 std::string ClassType::ToExplicitString() const {
   std::stringstream result;
   result << "class " << name() << "{";
   PrintCommaSeparatedList(result, fields());
   result << "}";
   return result.str();
+}
+
+bool ClassType::AllowInstantiation() const {
+  return !IsExtern() || nspace()->IsDefaultNamespace();
 }
 
 void PrintSignature(std::ostream& os, const Signature& sig, bool with_names) {
@@ -339,8 +407,8 @@ std::ostream& operator<<(std::ostream& os, const ParameterTypes& p) {
 
 bool Signature::HasSameTypesAs(const Signature& other,
                                ParameterMode mode) const {
-  auto compare_types = GetTypes();
-  auto other_compare_types = other.GetTypes();
+  auto compare_types = types();
+  auto other_compare_types = other.types();
   if (mode == ParameterMode::kIgnoreImplicit) {
     compare_types = GetExplicitTypes();
     other_compare_types = other.GetExplicitTypes();
@@ -372,8 +440,7 @@ bool operator<(const Type& a, const Type& b) {
   return a.MangledName() < b.MangledName();
 }
 
-VisitResult ProjectStructField(const StructType* original_struct,
-                               VisitResult structure,
+VisitResult ProjectStructField(VisitResult structure,
                                const std::string& fieldname) {
   BottomOffset begin = structure.stack_range().begin();
 
@@ -388,38 +455,8 @@ VisitResult ProjectStructField(const StructType* original_struct,
     begin = end;
   }
 
-  if (fields.size() > 0 &&
-      fields[0].name_and_type.name == kConstructorStructSuperFieldName) {
-    structure = ProjectStructField(original_struct, structure,
-                                   kConstructorStructSuperFieldName);
-    return ProjectStructField(original_struct, structure, fieldname);
-  } else {
-    base::Optional<const ClassType*> class_type =
-        original_struct->GetDerivedFrom();
-    if (original_struct == type) {
-      if (class_type) {
-        ReportError("class '", (*class_type)->name(),
-                    "' doesn't contain a field '", fieldname, "'");
-      } else {
-        ReportError("struct '", original_struct->name(),
-                    "' doesn't contain a field '", fieldname, "'");
-      }
-    } else {
-      DCHECK(class_type);
-      ReportError(
-          "class '", (*class_type)->name(),
-          "' or one of its derived-from classes doesn't contain a field '",
-          fieldname, "'");
-    }
-  }
-}
-
-VisitResult ProjectStructField(VisitResult structure,
-                               const std::string& fieldname) {
-  DCHECK(structure.IsOnStack());
-  DCHECK(structure.type()->IsStructType());
-  const StructType* type = StructType::cast(structure.type());
-  return ProjectStructField(type, structure, fieldname);
+  ReportError("struct '", type->name(), "' doesn't contain a field '",
+              fieldname, "'");
 }
 
 namespace {
@@ -467,6 +504,64 @@ VisitResult VisitResult::NeverResult() {
   VisitResult result;
   result.type_ = TypeOracle::GetNeverType();
   return result;
+}
+
+std::tuple<size_t, std::string, std::string> Field::GetFieldSizeInformation()
+    const {
+  std::string size_string = "#no size";
+  std::string machine_type = "#no machine type";
+  const Type* field_type = this->name_and_type.type;
+  size_t field_size = 0;
+  if (field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+    field_size = kTaggedSize;
+    size_string = "kTaggedSize";
+    machine_type = field_type->IsSubtypeOf(TypeOracle::GetSmiType())
+                       ? "MachineType::TaggedSigned()"
+                       : "MachineType::AnyTagged()";
+  } else if (field_type->IsSubtypeOf(TypeOracle::GetRawPtrType())) {
+    field_size = kSystemPointerSize;
+    size_string = "kSystemPointerSize";
+    machine_type = "MachineType::Pointer()";
+  } else if (field_type == TypeOracle::GetInt32Type()) {
+    field_size = kInt32Size;
+    size_string = "kInt32Size";
+    machine_type = "MachineType::Int32()";
+  } else if (field_type == TypeOracle::GetUint32Type()) {
+    field_size = kInt32Size;
+    size_string = "kInt32Size";
+    machine_type = "MachineType::Uint32()";
+  } else if (field_type == TypeOracle::GetInt16Type()) {
+    field_size = kUInt16Size;
+    size_string = "kUInt16Size";
+    machine_type = "MachineType::Int16()";
+  } else if (field_type == TypeOracle::GetUint16Type()) {
+    field_size = kUInt16Size;
+    size_string = "kUInt16Size";
+    machine_type = "MachineType::Uint16()";
+  } else if (field_type == TypeOracle::GetInt8Type()) {
+    field_size = kUInt8Size;
+    size_string = "kUInt8Size";
+    machine_type = "MachineType::Int8()";
+  } else if (field_type == TypeOracle::GetUint8Type()) {
+    field_size = kUInt8Size;
+    size_string = "kUInt8Size";
+    machine_type = "MachineType::Uint8()";
+  } else if (field_type == TypeOracle::GetFloat64Type()) {
+    field_size = kDoubleSize;
+    size_string = "kDoubleSize";
+    machine_type = "MachineType::Float64()";
+  } else if (field_type == TypeOracle::GetIntPtrType()) {
+    field_size = kIntptrSize;
+    size_string = "kIntptrSize";
+    machine_type = "MachineType::IntPtr()";
+  } else if (field_type == TypeOracle::GetUIntPtrType()) {
+    field_size = kIntptrSize;
+    size_string = "kIntptrSize";
+    machine_type = "MachineType::IntPtr()";
+  } else {
+    ReportError("fields of type ", *field_type, " are not (yet) supported");
+  }
+  return std::make_tuple(field_size, size_string, machine_type);
 }
 
 }  // namespace torque

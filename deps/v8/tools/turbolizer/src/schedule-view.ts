@@ -123,6 +123,7 @@ export class ScheduleView extends TextView {
     }
 
     const scheduleBlock = createElement("div", "schedule-block");
+    scheduleBlock.classList.toggle("deferred", block.isDeferred);
 
     const [start, end] = view.sourceResolver.getInstructionRangeForBlock(block.id);
     const instrMarker = createElement("div", "instr-marker com", "&#8857;");

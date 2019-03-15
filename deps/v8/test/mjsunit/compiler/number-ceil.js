@@ -10,6 +10,7 @@
     return Math.abs(Math.ceil(x * -2));
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(2, foo(1));
   assertEquals(4, foo(2));
   %OptimizeFunctionOnNextCall(foo);

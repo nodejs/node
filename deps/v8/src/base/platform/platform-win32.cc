@@ -113,7 +113,7 @@ class WindowsTimezoneCache : public TimezoneCache {
 
   ~WindowsTimezoneCache() override {}
 
-  void Clear() override { initialized_ = false; }
+  void Clear(TimeZoneDetection) override { initialized_ = false; }
 
   const char* LocalTimezone(double time) override;
 
@@ -690,7 +690,7 @@ void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
 #undef STRUNCATE
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(RandomNumberGenerator,
-                                GetPlatformRandomNumberGenerator);
+                                GetPlatformRandomNumberGenerator)
 static LazyMutex rng_mutex = LAZY_MUTEX_INITIALIZER;
 
 void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
@@ -920,6 +920,11 @@ void OS::Sleep(TimeDelta interval) {
 
 
 void OS::Abort() {
+  // Give a chance to debug the failure.
+  if (IsDebuggerPresent()) {
+    DebugBreak();
+  }
+
   // Before aborting, make sure to flush output buffers.
   fflush(stdout);
   fflush(stderr);

@@ -30,8 +30,7 @@ namespace internal {
   };
 
 // Define interface descriptors for builtins with StubCall linkage.
-#define DEFINE_TFC_INTERFACE_DESCRIPTOR(Name, InterfaceDescriptor, \
-                                        result_size)               \
+#define DEFINE_TFC_INTERFACE_DESCRIPTOR(Name, InterfaceDescriptor) \
   typedef InterfaceDescriptor##Descriptor Builtin_##Name##_InterfaceDescriptor;
 
 #define DEFINE_TFS_INTERFACE_DESCRIPTOR(Name, ...) \

@@ -9,6 +9,7 @@
 #include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
+#include "src/zone/zone-list-inl.h"
 
 namespace v8 {
 namespace internal {

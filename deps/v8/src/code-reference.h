@@ -12,7 +12,7 @@ namespace v8 {
 namespace internal {
 
 class Code;
-struct CodeDesc;
+class CodeDesc;
 
 namespace wasm {
 class WasmCode;
@@ -59,7 +59,7 @@ class CodeReference {
     Handle<Code> js_code_;
   };
 
-  DISALLOW_NEW_AND_DELETE();
+  DISALLOW_NEW_AND_DELETE()
 };
 ASSERT_TRIVIALLY_COPYABLE(CodeReference);
 

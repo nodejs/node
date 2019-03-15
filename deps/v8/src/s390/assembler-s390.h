@@ -81,6 +81,8 @@
 namespace v8 {
 namespace internal {
 
+class SafepointTableBuilder;
+
 // -----------------------------------------------------------------------------
 // Machine instruction Operands
 
@@ -226,10 +228,20 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   virtual ~Assembler() {}
 
-  // GetCode emits any pending (non-emitted) code and fills the descriptor
-  // desc. GetCode() is idempotent; it returns the same result if no other
-  // Assembler functions are invoked in between GetCode() calls.
-  void GetCode(Isolate* isolate, CodeDesc* desc);
+  // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
+  static constexpr int kNoHandlerTable = 0;
+  static constexpr SafepointTableBuilder* kNoSafepointTable = nullptr;
+  void GetCode(Isolate* isolate, CodeDesc* desc,
+               SafepointTableBuilder* safepoint_table_builder,
+               int handler_table_offset);
+
+  // Convenience wrapper for code without safepoint or handler tables.
+  void GetCode(Isolate* isolate, CodeDesc* desc) {
+    GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
+  }
+
+  // Unused on this architecture.
+  void MaybeEmitOutOfLineConstantPool() {}
 
   // Label operations & relative jumps (PPUM Appendix D)
   //
@@ -493,7 +505,7 @@ inline void rsy_format(Opcode op, int f1, int f2, int f3, int f4) {
   void name(Register r1, Register r3, const MemOperand& opnd) {            \
     name(r1, r3, opnd.getBaseRegister(), Operand(opnd.getDisplacement())); \
   }
-  S390_RSY_A_OPCODE_LIST(DECLARE_S390_RSY_A_INSTRUCTIONS);
+  S390_RSY_A_OPCODE_LIST(DECLARE_S390_RSY_A_INSTRUCTIONS)
 #undef DECLARE_S390_RSY_A_INSTRUCTIONS
 
 #define DECLARE_S390_RSY_B_INSTRUCTIONS(name, op_name, op_value)            \
@@ -503,7 +515,7 @@ inline void rsy_format(Opcode op, int f1, int f2, int f3, int f4) {
   void name(Register r1, Condition m3, const MemOperand& opnd) {            \
     name(r1, m3, opnd.getBaseRegister(), Operand(opnd.getDisplacement()));  \
   }
-  S390_RSY_B_OPCODE_LIST(DECLARE_S390_RSY_B_INSTRUCTIONS);
+  S390_RSY_B_OPCODE_LIST(DECLARE_S390_RSY_B_INSTRUCTIONS)
 #undef DECLARE_S390_RSY_B_INSTRUCTIONS
 
 
@@ -523,7 +535,7 @@ inline void rs_format(Opcode op, int f1, int f2, int f3, const int f4) {
   void name(Register r1, Register r3, const MemOperand& opnd) {             \
     name(r1, r3, opnd.getBaseRegister(), Operand(opnd.getDisplacement()));  \
   }
-  S390_RS_A_OPCODE_LIST(DECLARE_S390_RS_A_INSTRUCTIONS);
+  S390_RS_A_OPCODE_LIST(DECLARE_S390_RS_A_INSTRUCTIONS)
 #undef DECLARE_S390_RS_A_INSTRUCTIONS
 
 #define DECLARE_S390_RS_B_INSTRUCTIONS(name, op_name, op_value)             \
@@ -533,7 +545,7 @@ inline void rs_format(Opcode op, int f1, int f2, int f3, const int f4) {
   void name(Register r1, Condition m3, const MemOperand& opnd) {            \
     name(r1, m3, opnd.getBaseRegister(), Operand(opnd.getDisplacement()));  \
   }
-  S390_RS_B_OPCODE_LIST(DECLARE_S390_RS_B_INSTRUCTIONS);
+  S390_RS_B_OPCODE_LIST(DECLARE_S390_RS_B_INSTRUCTIONS)
 #undef DECLARE_S390_RS_B_INSTRUCTIONS
 
 #define DECLARE_S390_RS_SHIFT_FORMAT(name, opcode)                          \
@@ -579,7 +591,7 @@ inline void rxe_format(Opcode op, int f1, int f2, int f3, int f4, int f5 = 0) {
     name(Register::from_code(r1.code()), opnd.rx(), opnd.rb(),             \
          Operand(opnd.offset()));                                          \
   }
-  S390_RXE_OPCODE_LIST(DECLARE_S390_RXE_INSTRUCTIONS);
+  S390_RXE_OPCODE_LIST(DECLARE_S390_RXE_INSTRUCTIONS)
 #undef DECLARE_S390_RXE_INSTRUCTIONS
 
 
@@ -598,7 +610,7 @@ inline void ri_format(Opcode opcode, int f1, int f2) {
     DCHECK(is_uint16(i2.immediate()) || is_int16(i2.immediate()));         \
     ri_format(op_name, r.code(), i2.immediate());                          \
   }
-  S390_RI_A_OPCODE_LIST(DECLARE_S390_RI_A_INSTRUCTIONS);
+  S390_RI_A_OPCODE_LIST(DECLARE_S390_RI_A_INSTRUCTIONS)
 #undef DECLARE_S390_RI_A_INSTRUCTIONS
 
 #define DECLARE_S390_RI_B_INSTRUCTIONS(name, op_name, op_value)            \
@@ -609,7 +621,7 @@ inline void ri_format(Opcode opcode, int f1, int f2) {
     halfwordOp.setBits(16);                                                \
     ri_format(op_name, r1.code(), halfwordOp.immediate());                 \
   }
-  S390_RI_B_OPCODE_LIST(DECLARE_S390_RI_B_INSTRUCTIONS);
+  S390_RI_B_OPCODE_LIST(DECLARE_S390_RI_B_INSTRUCTIONS)
 #undef DECLARE_S390_RI_B_INSTRUCTIONS
 
 #define DECLARE_S390_RI_C_INSTRUCTIONS(name, op_name, op_value)            \
@@ -620,7 +632,7 @@ inline void ri_format(Opcode opcode, int f1, int f2) {
            is_int16(i2.immediate()) : is_uint16(i2.immediate()));          \
     ri_format(op_name, m, i2.immediate());                                 \
   }
-  S390_RI_C_OPCODE_LIST(DECLARE_S390_RI_C_INSTRUCTIONS);
+  S390_RI_C_OPCODE_LIST(DECLARE_S390_RI_C_INSTRUCTIONS)
 #undef DECLARE_S390_RI_C_INSTRUCTIONS
 
 
@@ -640,7 +652,7 @@ inline void rrf_format(Opcode op, int f1, int f2, int f3, int f4) {
   void name(Register r1, Register r2, Register r3) {                       \
     name(r1, Condition(0), r2, r3);                                        \
   }
-  S390_RRF_A_OPCODE_LIST(DECLARE_S390_RRF_A_INSTRUCTIONS);
+  S390_RRF_A_OPCODE_LIST(DECLARE_S390_RRF_A_INSTRUCTIONS)
 #undef DECLARE_S390_RRF_A_INSTRUCTIONS
 
 
@@ -651,7 +663,7 @@ inline void rrf_format(Opcode op, int f1, int f2, int f3, int f4) {
   void name(Register r1, Register r2, Register r3) {                       \
     name(r1, Condition(0), r2, r3);                                        \
   }
-  S390_RRF_B_OPCODE_LIST(DECLARE_S390_RRF_B_INSTRUCTIONS);
+  S390_RRF_B_OPCODE_LIST(DECLARE_S390_RRF_B_INSTRUCTIONS)
 #undef DECLARE_S390_RRF_B_INSTRUCTIONS
 
 
@@ -664,7 +676,7 @@ inline void rrf_format(Opcode op, int f1, int f2, int f3, int f4) {
   void name(Condition m3, R1 r1, R2 r2) {                                  \
     name(m3, Condition(0), r1, r2);                                        \
   }
-  S390_RRF_C_OPCODE_LIST(DECLARE_S390_RRF_C_INSTRUCTIONS);
+  S390_RRF_C_OPCODE_LIST(DECLARE_S390_RRF_C_INSTRUCTIONS)
 #undef DECLARE_S390_RRF_C_INSTRUCTIONS
 
 
@@ -677,7 +689,7 @@ inline void rrf_format(Opcode op, int f1, int f2, int f3, int f4) {
   void name(Condition m3, R1 r1, R2 r2) {                                  \
     name(m3, Condition(0), r1, r2);                                        \
   }
-  S390_RRF_D_OPCODE_LIST(DECLARE_S390_RRF_D_INSTRUCTIONS);
+  S390_RRF_D_OPCODE_LIST(DECLARE_S390_RRF_D_INSTRUCTIONS)
 #undef DECLARE_S390_RRF_D_INSTRUCTIONS
 
 
@@ -690,7 +702,7 @@ inline void rrf_format(Opcode op, int f1, int f2, int f3, int f4) {
   void name(M3 m3, R1 r1, R2 r2) {                                         \
     name(m3, Condition(0), r1, r2);                                        \
   }
-  S390_RRF_E_OPCODE_LIST(DECLARE_S390_RRF_E_INSTRUCTIONS);
+  S390_RRF_E_OPCODE_LIST(DECLARE_S390_RRF_E_INSTRUCTIONS)
 #undef DECLARE_S390_RRF_E_INSTRUCTIONS
 
 enum FIDBRA_FLAGS {
@@ -717,7 +729,7 @@ inline void rsi_format(Opcode op, int f1, int f2, int f3) {
   void name(Register r1, Register r3, const Operand& i2) {               \
     rsi_format(op_name, r1.code(), r3.code(), i2.immediate());           \
   }
-  S390_RSI_OPCODE_LIST(DECLARE_S390_RSI_INSTRUCTIONS);
+  S390_RSI_OPCODE_LIST(DECLARE_S390_RSI_INSTRUCTIONS)
 #undef DECLARE_S390_RSI_INSTRUCTIONS
 
 
@@ -739,7 +751,7 @@ inline void rsl_format(Opcode op, uint16_t f1, int f2, int f3, int f4,
     uint16_t L = static_cast<uint16_t>(l1.immediate() << 8);             \
     rsl_format(op_name, L, b1.code(), d1.immediate(), 0, 0);             \
   }
-  S390_RSL_A_OPCODE_LIST(DECLARE_S390_RSL_A_INSTRUCTIONS);
+  S390_RSL_A_OPCODE_LIST(DECLARE_S390_RSL_A_INSTRUCTIONS)
 #undef DECLARE_S390_RSL_A_INSTRUCTIONS
 
 #define DECLARE_S390_RSL_B_INSTRUCTIONS(name, op_name, op_value)         \
@@ -748,7 +760,7 @@ inline void rsl_format(Opcode op, uint16_t f1, int f2, int f3, int f4,
     uint16_t L = static_cast<uint16_t>(l2.immediate());                  \
     rsl_format(op_name, L, b2.code(), d2.immediate(), r1.code(), m3);    \
   }
-  S390_RSL_B_OPCODE_LIST(DECLARE_S390_RSL_B_INSTRUCTIONS);
+  S390_RSL_B_OPCODE_LIST(DECLARE_S390_RSL_B_INSTRUCTIONS)
 #undef DECLARE_S390_RSL_B_INSTRUCTIONS
 
 
@@ -773,7 +785,7 @@ inline void s_format(Opcode op, int f1, int f2) {
     Operand d2 = Operand(opnd.getDisplacement());                        \
     name(opnd.getBaseRegister(), d2);                                    \
   }
-  S390_S_OPCODE_LIST(DECLARE_S390_S_INSTRUCTIONS);
+  S390_S_OPCODE_LIST(DECLARE_S390_S_INSTRUCTIONS)
 #undef DECLARE_S390_S_INSTRUCTIONS
 
 
@@ -792,7 +804,7 @@ inline void si_format(Opcode op, int f1, int f2, int f3) {
   void name(const MemOperand& opnd, const Operand& i2) {                 \
     name(i2, opnd.getBaseRegister(), Operand(opnd.getDisplacement()));   \
   }
-  S390_SI_OPCODE_LIST(DECLARE_S390_SI_INSTRUCTIONS);
+  S390_SI_OPCODE_LIST(DECLARE_S390_SI_INSTRUCTIONS)
 #undef DECLARE_S390_SI_INSTRUCTIONS
 
 
@@ -816,7 +828,7 @@ inline void siy_format(Opcode op, int f1, int f2, int f3) {
   void name(const MemOperand& opnd, const Operand& i2) {                 \
     name(i2, opnd.getBaseRegister(), Operand(opnd.getDisplacement()));   \
   }
-  S390_SIY_OPCODE_LIST(DECLARE_S390_SIY_INSTRUCTIONS);
+  S390_SIY_OPCODE_LIST(DECLARE_S390_SIY_INSTRUCTIONS)
 #undef DECLARE_S390_SIY_INSTRUCTIONS
 
 
@@ -844,7 +856,7 @@ inline void rrs_format(Opcode op, int f1, int f2, int f3, int f4, int f5) {
     name(r1, r2, opnd.getBaseRegister(),                                 \
          Operand(opnd.getDisplacement()), m3);                           \
   }
-  S390_RRS_OPCODE_LIST(DECLARE_S390_RRS_INSTRUCTIONS);
+  S390_RRS_OPCODE_LIST(DECLARE_S390_RRS_INSTRUCTIONS)
 #undef DECLARE_S390_RRS_INSTRUCTIONS
 
 
@@ -873,7 +885,7 @@ inline void ris_format(Opcode op, int f1, int f2, int f3, int f4, int f5) {
     name(r1, m3, opnd.getBaseRegister(),                                 \
          Operand(opnd.getDisplacement()), i2);                           \
   }
-  S390_RIS_OPCODE_LIST(DECLARE_S390_RIS_INSTRUCTIONS);
+  S390_RIS_OPCODE_LIST(DECLARE_S390_RIS_INSTRUCTIONS)
 #undef DECLARE_S390_RIS_INSTRUCTIONS
 
 
@@ -895,7 +907,7 @@ inline void sil_format(Opcode op, int f1, int f2, int f3) {
   void name(const MemOperand& opnd, const Operand& i2) {                 \
     name(opnd.getBaseRegister(), Operand(opnd.getDisplacement()), i2);   \
   }
-  S390_SIL_OPCODE_LIST(DECLARE_S390_SIL_INSTRUCTIONS);
+  S390_SIL_OPCODE_LIST(DECLARE_S390_SIL_INSTRUCTIONS)
 #undef DECLARE_S390_SIL_INSTRUCTIONS
 
 

@@ -396,3 +396,112 @@ assertTrue(Object.isFrozen(obj));
   assertFalse(Object.getOwnPropertyDescriptor(args, "length").writable);
   assertFalse(Object.getOwnPropertyDescriptor(args, "callee").writable);
 })();
+
+// Test packed element array built-in functions with freeze.
+function testPackedFrozenArray1(obj) {
+  assertTrue(Object.isSealed(obj));
+  // Verify that the value can't be written
+  obj1 = new Array(...obj);
+  var length = obj.length;
+  for (var i = 0; i < length-1; i++) {
+    obj[i] = 'new';
+    assertEquals(obj1[i], obj[i]);
+  }
+  // for symbol we cannot compare directly
+  assertTrue(typeof obj[length-1] == 'symbol');
+
+  // Verify that the length can't be written by builtins.
+  assertTrue(Array.isArray(obj));
+  assertThrows(function() { obj.pop(); }, TypeError);
+  assertThrows(function() { obj.push(); }, TypeError);
+  assertThrows(function() { obj.unshift(); }, TypeError);
+  assertThrows(function() { obj.copyWithin(0,0); }, TypeError);
+  assertThrows(function() { obj.fill(0); }, TypeError);
+  assertThrows(function() { obj.reverse(); }, TypeError);
+  assertThrows(function() { obj.sort(); }, TypeError);
+  assertThrows(function() { obj.splice(0); }, TypeError);
+  assertTrue(Object.isFrozen(obj));
+
+  // Verify search, filter, iterator
+  assertEquals(obj.lastIndexOf(1), 2);
+  assertEquals(obj.indexOf('a'), 4);
+  assertFalse(obj.includes(Symbol("test")));
+  assertEquals(obj.find(x => x==0), undefined);
+  assertEquals(obj.findIndex(x => x=='a'), 4);
+  assertTrue(obj.some(x => typeof x == 'symbol'));
+  assertFalse(obj.every(x => x == -1));
+  var filteredArray = obj.filter(e => typeof e == "symbol");
+  assertEquals(filteredArray.length, 1);
+  assertEquals(obj.map(x => x), obj);
+  var countPositiveNumber = 0;
+  obj.forEach(function(item, index) {
+    if (item === 1) {
+      countPositiveNumber++;
+      assertEquals(index, 2);
+    }
+  });
+  assertEquals(countPositiveNumber, 1);
+  assertEquals(obj.length, obj.concat([]).length);
+  var iterator = obj.values();
+  assertEquals(iterator.next().value, undefined);
+  assertEquals(iterator.next().value, null);
+  var iterator = obj.keys();
+  assertEquals(iterator.next().value, 0);
+  assertEquals(iterator.next().value, 1);
+  var iterator = obj.entries();
+  assertEquals(iterator.next().value, [0, undefined]);
+  assertEquals(iterator.next().value, [1, null]);
+}
+
+obj = new Array(undefined, null, 1, -1, 'a', Symbol("test"));
+assertTrue(%HasPackedElements(obj));
+Object.freeze(obj);
+testPackedFrozenArray1(obj);
+
+// Verify change from sealed to frozen
+obj = new Array(undefined, null, 1, -1, 'a', Symbol("test"));
+assertTrue(%HasPackedElements(obj));
+Object.seal(obj);
+Object.freeze(obj);
+assertTrue(Object.isSealed(obj));
+testPackedFrozenArray1(obj);
+
+// Verify change from non-extensible to frozen
+obj = new Array(undefined, null, 1, -1, 'a', Symbol("test"));
+assertTrue(%HasPackedElements(obj));
+Object.preventExtensions(obj);
+Object.freeze(obj);
+assertTrue(Object.isSealed(obj));
+testPackedFrozenArray1(obj);
+
+// Verify flat, map, slice, flatMap, join, reduce, reduceRight for frozen packed array
+function testPackedFrozenArray2(arr) {
+  assertTrue(Object.isFrozen(arr));
+  assertTrue(Array.isArray(arr));
+  assertEquals(arr.map(x => [x]), [['a'], ['b'], ['c']]);
+  assertEquals(arr.flatMap(x => [x]), arr);
+  assertEquals(arr.flat(), arr);
+  assertEquals(arr.join('-'), "a-b-c");
+  const reducer = (accumulator, currentValue) => accumulator + currentValue;
+  assertEquals(arr.reduce(reducer), "abc");
+  assertEquals(arr.reduceRight(reducer), "cba");
+  assertEquals(arr.slice(0, 1), ['a']);
+}
+var arr1 = new Array('a', 'b', 'c');
+assertTrue(%HasPackedElements(arr1));
+Object.freeze(arr1);
+testPackedFrozenArray2(arr1);
+
+// Verify change from sealed to frozen
+var arr2 = new Array('a', 'b', 'c');
+assertTrue(%HasPackedElements(arr2));
+Object.seal(arr2);
+Object.freeze(arr2);
+testPackedFrozenArray2(arr2);
+
+// Verify change from non-extensible to frozen
+var arr2 = new Array('a', 'b', 'c');
+assertTrue(%HasPackedElements(arr2));
+Object.preventExtensions(arr2);
+Object.freeze(arr2);
+testPackedFrozenArray2(arr2);

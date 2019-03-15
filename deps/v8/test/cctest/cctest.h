@@ -56,6 +56,12 @@ const auto GetRegConfig = RegisterConfiguration::Default;
 class HandleScope;
 class Zone;
 
+namespace compiler {
+
+class JSHeapBroker;
+
+}  // namespace compiler
+
 }  // namespace internal
 
 }  // namespace v8
@@ -487,7 +493,13 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(
   return CompileRunWithOrigin(v8_str(source), origin_url);
 }
 
-
+// Takes a JSFunction and runs it through the test version of the optimizing
+// pipeline, allocating the temporary compilation artifacts in a given Zone.
+// For possible {flags} values, look at OptimizedCompilationInfo::Flag.
+// If passed a non-null pointer for {broker}, outputs the JSHeapBroker to it.
+i::Handle<i::JSFunction> Optimize(
+    i::Handle<i::JSFunction> function, i::Zone* zone, i::Isolate* isolate,
+    uint32_t flags, i::compiler::JSHeapBroker** out_broker = nullptr);
 
 static inline void ExpectString(const char* code, const char* expected) {
   v8::Local<v8::Value> result = CompileRun(code);

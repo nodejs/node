@@ -42,6 +42,8 @@ namespace internal {
   KEYWORD("finally", Token::FINALLY)                        \
   KEYWORD("for", Token::FOR)                                \
   KEYWORD("function", Token::FUNCTION)                      \
+  KEYWORD_GROUP('g')                                        \
+  KEYWORD("get", Token::GET)                                \
   KEYWORD_GROUP('i')                                        \
   KEYWORD("if", Token::IF)                                  \
   KEYWORD("implements", Token::FUTURE_STRICT_RESERVED_WORD) \
@@ -62,6 +64,7 @@ namespace internal {
   KEYWORD_GROUP('r')                                        \
   KEYWORD("return", Token::RETURN)                          \
   KEYWORD_GROUP('s')                                        \
+  KEYWORD("set", Token::SET)                                \
   KEYWORD("static", Token::STATIC)                          \
   KEYWORD("super", Token::SUPER)                            \
   KEYWORD("switch", Token::SWITCH)                          \
@@ -188,7 +191,8 @@ enum class ScanFlags : uint8_t {
   kCannotBeKeyword = 1 << 1,
   kCannotBeKeywordStart = 1 << 2,
   kStringTerminator = 1 << 3,
-  kNeedsSlowPath = 1 << 4,
+  kIdentifierNeedsSlowPath = 1 << 4,
+  kMultilineCommentCharacterNeedsSlowPath = 1 << 5,
 };
 constexpr uint8_t GetScanFlags(char c) {
   return
@@ -212,7 +216,14 @@ constexpr uint8_t GetScanFlags(char c) {
            ? static_cast<uint8_t>(ScanFlags::kStringTerminator)
            : 0) |
       // Escapes are processed on the slow path.
-      (c == '\\' ? static_cast<uint8_t>(ScanFlags::kNeedsSlowPath) : 0);
+      (c == '\\' ? static_cast<uint8_t>(ScanFlags::kIdentifierNeedsSlowPath)
+                 : 0) |
+      // Newlines and * are interesting characters for multiline comment
+      // scanning.
+      (c == '\n' || c == '\r' || c == '*'
+           ? static_cast<uint8_t>(
+                 ScanFlags::kMultilineCommentCharacterNeedsSlowPath)
+           : 0);
 }
 inline bool TerminatesLiteral(uint8_t scan_flags) {
   return (scan_flags & static_cast<uint8_t>(ScanFlags::kTerminatesLiteral));
@@ -220,8 +231,13 @@ inline bool TerminatesLiteral(uint8_t scan_flags) {
 inline bool CanBeKeyword(uint8_t scan_flags) {
   return !(scan_flags & static_cast<uint8_t>(ScanFlags::kCannotBeKeyword));
 }
-inline bool NeedsSlowPath(uint8_t scan_flags) {
-  return (scan_flags & static_cast<uint8_t>(ScanFlags::kNeedsSlowPath));
+inline bool IdentifierNeedsSlowPath(uint8_t scan_flags) {
+  return (scan_flags &
+          static_cast<uint8_t>(ScanFlags::kIdentifierNeedsSlowPath));
+}
+inline bool MultilineCommentCharacterNeedsSlowPath(uint8_t scan_flags) {
+  return (scan_flags & static_cast<uint8_t>(
+                           ScanFlags::kMultilineCommentCharacterNeedsSlowPath));
 }
 inline bool MayTerminateString(uint8_t scan_flags) {
   return (scan_flags & static_cast<uint8_t>(ScanFlags::kStringTerminator));
@@ -252,9 +268,9 @@ V8_INLINE Token::Value Scanner::ScanIdentifierOrKeywordInner() {
       STATIC_ASSERT(static_cast<uint8_t>(ScanFlags::kCannotBeKeywordStart) ==
                     static_cast<uint8_t>(ScanFlags::kCannotBeKeyword) << 1);
       scan_flags >>= 1;
-      // Make sure the shifting above doesn't set NeedsSlowPath. Otherwise we'll
-      // fall into the slow path after scanning the identifier.
-      DCHECK(!NeedsSlowPath(scan_flags));
+      // Make sure the shifting above doesn't set IdentifierNeedsSlowPath.
+      // Otherwise we'll fall into the slow path after scanning the identifier.
+      DCHECK(!IdentifierNeedsSlowPath(scan_flags));
       AddLiteralChar(static_cast<char>(c0_));
       AdvanceUntil([this, &scan_flags](uc32 c0) {
         if (V8_UNLIKELY(static_cast<uint32_t>(c0) > kMaxAscii)) {
@@ -262,7 +278,8 @@ V8_INLINE Token::Value Scanner::ScanIdentifierOrKeywordInner() {
           // path.
           // TODO(leszeks): This would be most efficient as a goto to the slow
           // path, check codegen and maybe use a bool instead.
-          scan_flags |= static_cast<uint8_t>(ScanFlags::kNeedsSlowPath);
+          scan_flags |=
+              static_cast<uint8_t>(ScanFlags::kIdentifierNeedsSlowPath);
           return true;
         }
         uint8_t char_flags = character_scan_flags[c0];
@@ -275,7 +292,7 @@ V8_INLINE Token::Value Scanner::ScanIdentifierOrKeywordInner() {
         }
       });
 
-      if (V8_LIKELY(!NeedsSlowPath(scan_flags))) {
+      if (V8_LIKELY(!IdentifierNeedsSlowPath(scan_flags))) {
         if (!CanBeKeyword(scan_flags)) return Token::IDENTIFIER;
         // Could be a keyword or identifier.
         Vector<const uint8_t> chars = next().literal_chars.one_byte_literal();

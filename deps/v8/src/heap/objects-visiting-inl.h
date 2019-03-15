@@ -59,6 +59,7 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map map,
       return visitor->VisitFreeSpace(map, FreeSpace::cast(object));
     case kVisitWeakArray:
       return visitor->VisitWeakArray(map, object);
+    case kDataOnlyVisitorIdCount:
     case kVisitorIdCount:
       UNREACHABLE();
   }
@@ -160,6 +161,19 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitFreeSpace(
   return static_cast<ResultType>(object->size());
 }
 
+template <typename ResultType, typename ConcreteVisitor>
+ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitWeakArray(
+    Map map, HeapObject object) {
+  ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
+  if (!visitor->ShouldVisit(object)) return ResultType();
+  int size = WeakArrayBodyDescriptor::SizeOf(map, object);
+  if (visitor->ShouldVisitMapPointer()) {
+    visitor->VisitMapPointer(object, object->map_slot());
+  }
+  WeakArrayBodyDescriptor::IterateBody(map, object, size, visitor);
+  return size;
+}
+
 template <typename ConcreteVisitor>
 int NewSpaceVisitor<ConcreteVisitor>::VisitNativeContext(Map map,
                                                          NativeContext object) {
@@ -184,23 +198,10 @@ int NewSpaceVisitor<ConcreteVisitor>::VisitSharedFunctionInfo(
 }
 
 template <typename ConcreteVisitor>
-int NewSpaceVisitor<ConcreteVisitor>::VisitJSWeakCell(Map map,
-                                                      JSWeakCell js_weak_cell) {
+int NewSpaceVisitor<ConcreteVisitor>::VisitWeakCell(Map map,
+                                                    WeakCell weak_cell) {
   UNREACHABLE();
   return 0;
-}
-
-template <typename ResultType, typename ConcreteVisitor>
-ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitWeakArray(
-    Map map, HeapObject object) {
-  ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  if (!visitor->ShouldVisit(object)) return ResultType();
-  int size = WeakArrayBodyDescriptor::SizeOf(map, object);
-  if (visitor->ShouldVisitMapPointer()) {
-    visitor->VisitMapPointer(object, object->map_slot());
-  }
-  WeakArrayBodyDescriptor::IterateBody(map, object, size, visitor);
-  return size;
 }
 
 }  // namespace internal

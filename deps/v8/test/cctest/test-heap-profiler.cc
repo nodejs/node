@@ -40,6 +40,7 @@
 #include "src/base/optional.h"
 #include "src/collector.h"
 #include "src/debug/debug.h"
+#include "src/heap/heap-inl.h"
 #include "src/objects-inl.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-profiler.h"
@@ -2693,6 +2694,9 @@ TEST(TrackHeapAllocationsWithInlining) {
   CHECK(node);
   // In lite mode, there is feedback and feedback metadata.
   unsigned int num_nodes = (i::FLAG_lite_mode) ? 6 : 8;
+  // Without forced source position collection, there is no source position
+  // table.
+  if (i::FLAG_enable_lazy_source_positions) num_nodes -= 1;
   CHECK_GE(node->allocation_count(), num_nodes);
   CHECK_GE(node->allocation_size(), 4 * node->allocation_count());
   heap_profiler->StopTrackingHeapObjects();

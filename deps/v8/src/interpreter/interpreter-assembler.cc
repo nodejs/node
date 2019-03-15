@@ -236,18 +236,19 @@ Node* InterpreterAssembler::RegisterFrameOffset(Node* index) {
 }
 
 Node* InterpreterAssembler::LoadRegister(Node* reg_index) {
-  return Load(MachineType::AnyTagged(), GetInterpretedFramePointer(),
-              RegisterFrameOffset(reg_index), LoadSensitivity::kCritical);
+  return LoadFullTagged(GetInterpretedFramePointer(),
+                        RegisterFrameOffset(reg_index),
+                        LoadSensitivity::kCritical);
 }
 
 Node* InterpreterAssembler::LoadRegister(Register reg) {
-  return Load(MachineType::AnyTagged(), GetInterpretedFramePointer(),
-              IntPtrConstant(reg.ToOperand() << kSystemPointerSizeLog2));
+  return LoadFullTagged(GetInterpretedFramePointer(),
+                        IntPtrConstant(reg.ToOperand() * kSystemPointerSize));
 }
 
 Node* InterpreterAssembler::LoadAndUntagRegister(Register reg) {
   return LoadAndUntagSmi(GetInterpretedFramePointer(),
-                         reg.ToOperand() << kSystemPointerSizeLog2);
+                         reg.ToOperand() * kSystemPointerSize);
 }
 
 Node* InterpreterAssembler::LoadRegisterAtOperandIndex(int operand_index) {
@@ -282,7 +283,7 @@ Node* InterpreterAssembler::LoadRegisterFromRegisterList(
     const RegListNodePair& reg_list, int index) {
   Node* location = RegisterLocationInRegisterList(reg_list, index);
   // Location is already poisoned on speculation, so no need to poison here.
-  return Load(MachineType::AnyTagged(), location);
+  return LoadFullTagged(location);
 }
 
 Node* InterpreterAssembler::RegisterLocationInRegisterList(
@@ -296,19 +297,18 @@ Node* InterpreterAssembler::RegisterLocationInRegisterList(
 }
 
 void InterpreterAssembler::StoreRegister(Node* value, Register reg) {
-  StoreNoWriteBarrier(
-      MachineRepresentation::kTagged, GetInterpretedFramePointer(),
-      IntPtrConstant(reg.ToOperand() << kSystemPointerSizeLog2), value);
+  StoreFullTaggedNoWriteBarrier(
+      GetInterpretedFramePointer(),
+      IntPtrConstant(reg.ToOperand() * kSystemPointerSize), value);
 }
 
 void InterpreterAssembler::StoreRegister(Node* value, Node* reg_index) {
-  StoreNoWriteBarrier(MachineRepresentation::kTagged,
-                      GetInterpretedFramePointer(),
-                      RegisterFrameOffset(reg_index), value);
+  StoreFullTaggedNoWriteBarrier(GetInterpretedFramePointer(),
+                                RegisterFrameOffset(reg_index), value);
 }
 
 void InterpreterAssembler::StoreAndTagRegister(Node* value, Register reg) {
-  int offset = reg.ToOperand() << kSystemPointerSizeLog2;
+  int offset = reg.ToOperand() * kSystemPointerSize;
   StoreAndTagSmi(GetInterpretedFramePointer(), offset, value);
 }
 
@@ -648,8 +648,8 @@ Node* InterpreterAssembler::BytecodeOperandIntrinsicId(int operand_index) {
 Node* InterpreterAssembler::LoadConstantPoolEntry(Node* index) {
   TNode<FixedArray> constant_pool = CAST(LoadObjectField(
       BytecodeArrayTaggedPointer(), BytecodeArray::kConstantPoolOffset));
-  return LoadFixedArrayElement(constant_pool, UncheckedCast<IntPtrT>(index),
-                               LoadSensitivity::kCritical);
+  return UnsafeLoadFixedArrayElement(
+      constant_pool, UncheckedCast<IntPtrT>(index), LoadSensitivity::kCritical);
 }
 
 Node* InterpreterAssembler::LoadAndUntagConstantPoolEntry(Node* index) {

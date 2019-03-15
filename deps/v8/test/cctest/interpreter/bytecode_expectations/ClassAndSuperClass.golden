@@ -74,7 +74,7 @@ bytecodes: [
                 B(LdaSmi), I8(2),
                 B(Star), R(4),
                 B(Mov), R(this), R(1),
-  /*  138 E> */ B(CallRuntime), U16(Runtime::kStoreToSuper_Strict), R(1), U8(4),
+  /*  138 E> */ B(CallRuntime), U16(Runtime::kStoreToSuper), R(1), U8(4),
   /*  143 S> */ B(LdaConstant), U8(0),
   /*  150 E> */ B(LdaKeyedProperty), R(closure), U8(2),
                 B(Star), R(2),

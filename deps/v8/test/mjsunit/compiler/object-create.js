@@ -6,6 +6,7 @@
 
 (function TestWithNullPrototype() {
   function f() { return Object.create(null); }
+  %PrepareFunctionForOptimization(f);
   f();
   %OptimizeFunctionOnNextCall(f);
   assertEquals(undefined, f().foo);
@@ -14,6 +15,7 @@
 (function TestWithCustomPrototype() {
   const x = {foo: 42};  // This must be defined here for context specialization.
   function f() { return Object.create(x); }
+  %PrepareFunctionForOptimization(f);
   f();
   %OptimizeFunctionOnNextCall(f);
   assertEquals(42, f().foo);
@@ -21,6 +23,7 @@
 
 (function TestWithObjectPrototype() {
   function f() { return Object.create(Object.prototype); }
+  %PrepareFunctionForOptimization(f);
   f();
   %OptimizeFunctionOnNextCall(f);
   assertEquals("[object Object]", f().toString());

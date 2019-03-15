@@ -142,7 +142,7 @@ class LayoutDescriptor : public ByteArray {
   V8_INLINE V8_WARN_UNUSED_RESULT LayoutDescriptor SetTagged(int field_index,
                                                              bool tagged);
 
-  OBJECT_CONSTRUCTORS(LayoutDescriptor, ByteArray)
+  OBJECT_CONSTRUCTORS(LayoutDescriptor, ByteArray);
 };
 
 

@@ -8,6 +8,7 @@
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/maybe-handles.h"
+#include "src/vector.h"
 #include "src/zone/zone-chunk-list.h"
 #include "src/zone/zone-containers.h"
 
@@ -68,20 +69,24 @@ struct PreparseByteDataConstants {
   static constexpr int kMagicValue = 0xC0DE0DE;
 
   static constexpr size_t kUint32Size = 5;
-  static constexpr size_t kVarintMinSize = 3;
-  static constexpr size_t kVarintEndMarker = 0xF1;
+  static constexpr size_t kVarint32MinSize = 3;
+  static constexpr size_t kVarint32MaxSize = 7;
+  static constexpr size_t kVarint32EndMarker = 0xF1;
   static constexpr size_t kUint8Size = 2;
   static constexpr size_t kQuarterMarker = 0xF2;
   static constexpr size_t kPlaceholderSize = kUint32Size;
 #else
   static constexpr size_t kUint32Size = 4;
-  static constexpr size_t kVarintMinSize = 1;
+  static constexpr size_t kVarint32MinSize = 1;
+  static constexpr size_t kVarint32MaxSize = 5;
   static constexpr size_t kUint8Size = 1;
   static constexpr size_t kPlaceholderSize = 0;
 #endif
 
   static const size_t kSkippableFunctionMinDataSize =
-      4 * kVarintMinSize + 1 * kUint8Size;
+      4 * kVarint32MinSize + 1 * kUint8Size;
+  static const size_t kSkippableFunctionMaxDataSize =
+      4 * kVarint32MaxSize + 1 * kUint8Size;
 };
 
 class PreparseDataBuilder : public ZoneObject,
@@ -89,7 +94,9 @@ class PreparseDataBuilder : public ZoneObject,
  public:
   // Create a PreparseDataBuilder object which will collect data as we
   // parse.
-  explicit PreparseDataBuilder(Zone* zone, PreparseDataBuilder* parent_builder);
+  explicit PreparseDataBuilder(Zone* zone, PreparseDataBuilder* parent_builder,
+                               std::vector<void*>* children_buffer);
+  ~PreparseDataBuilder() {}
 
   PreparseDataBuilder* parent() const { return parent_; }
 
@@ -104,9 +111,14 @@ class PreparseDataBuilder : public ZoneObject,
     void Start(DeclarationScope* function_scope);
     void SetSkippableFunction(DeclarationScope* function_scope,
                               int num_inner_functions);
-    ~DataGatheringScope();
+    inline ~DataGatheringScope() {
+      if (builder_ == nullptr) return;
+      Close();
+    }
 
    private:
+    void Close();
+
     PreParser* preparser_;
     PreparseDataBuilder* builder_;
 
@@ -115,7 +127,8 @@ class PreparseDataBuilder : public ZoneObject,
 
   class ByteData : public ZoneObject, public PreparseByteDataConstants {
    public:
-    ByteData() : byte_data_(nullptr), free_quarters_in_last_byte_(0) {}
+    ByteData()
+        : byte_data_(nullptr), index_(0), free_quarters_in_last_byte_(0) {}
 
     ~ByteData() {}
 
@@ -123,7 +136,11 @@ class PreparseDataBuilder : public ZoneObject,
     void Finalize(Zone* zone);
 
     Handle<PreparseData> CopyToHeap(Isolate* isolate, int children_length);
-    ZonePreparseData* CopyToZone(Zone* zone, int children_length);
+    inline ZonePreparseData* CopyToZone(Zone* zone, int children_length);
+
+    void Reserve(size_t bytes);
+    void Add(uint8_t byte);
+    int length() const;
 
     void WriteVarint32(uint32_t data);
     void WriteUint8(uint8_t data);
@@ -133,13 +150,15 @@ class PreparseDataBuilder : public ZoneObject,
     void WriteUint32(uint32_t data);
     // For overwriting previously written data at position 0.
     void SaveCurrentSizeAtFirstUint32();
-    int length() const;
 #endif
 
    private:
     union {
-      // Only used during construction (is_finalized_ == false).
-      std::vector<uint8_t>* byte_data_;
+      struct {
+        // Only used during construction (is_finalized_ == false).
+        std::vector<uint8_t>* byte_data_;
+        int index_;
+      };
       // Once the data is finalized, it lives in a Zone, this implies
       // is_finalized_ == true.
       Vector<uint8_t> zone_byte_data_;
@@ -180,7 +199,6 @@ class PreparseDataBuilder : public ZoneObject,
   bool HasDataForParent() const;
 
   static bool ScopeNeedsData(Scope* scope);
-  static bool ScopeIsSkippableFunctionScope(Scope* scope);
   void AddSkippableFunction(int start_position, int end_position,
                             int num_parameters, int num_inner_functions,
                             LanguageMode language_mode, bool has_data,
@@ -192,6 +210,9 @@ class PreparseDataBuilder : public ZoneObject,
   Handle<PreparseData> Serialize(Isolate* isolate);
   ZonePreparseData* Serialize(Zone* zone);
 
+  void FinalizeChildren(Zone* zone);
+  void AddChild(PreparseDataBuilder* child);
+
   void SaveDataForScope(Scope* scope);
   void SaveDataForVariable(Variable* var);
   void SaveDataForInnerScopes(Scope* scope);
@@ -201,7 +222,10 @@ class PreparseDataBuilder : public ZoneObject,
 
   PreparseDataBuilder* parent_;
   ByteData byte_data_;
-  ZoneChunkList<PreparseDataBuilder*> children_;
+  union {
+    ScopedPtrList<PreparseDataBuilder> children_buffer_;
+    Vector<PreparseDataBuilder*> children_;
+  };
 
   DeclarationScope* function_scope_;
   int num_inner_functions_;
@@ -210,6 +234,10 @@ class PreparseDataBuilder : public ZoneObject,
   // Whether we've given up producing the data for this function.
   bool bailed_out_ : 1;
   bool has_data_ : 1;
+
+#ifdef DEBUG
+  bool finalized_children_ = false;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(PreparseDataBuilder);
 };

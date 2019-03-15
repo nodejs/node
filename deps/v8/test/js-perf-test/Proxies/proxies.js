@@ -373,7 +373,8 @@ newBenchmark("SetStringWithTrap", {
   setup() {
     p = new Proxy(obj, {
       set: function(target, propertyKey, value, receiver) {
-        target[propertyKey] = SOME_OTHER_NUMBER
+        target[propertyKey] = SOME_OTHER_NUMBER;
+        return true;
       }
     });
   },
@@ -412,7 +413,8 @@ newBenchmark("SetIndexWithTrap", {
   setup() {
     p = new Proxy(obj, {
       set: function(target, propertyKey, value, receiver) {
-        target[propertyKey] = SOME_OTHER_NUMBER
+        target[propertyKey] = SOME_OTHER_NUMBER;
+        return true;
       }
     });
   },
@@ -450,7 +452,8 @@ newBenchmark("SetSymbolWithTrap", {
   setup() {
     p = new Proxy(obj, {
       set: function(target, propertyKey, value, receiver) {
-        target[propertyKey] = SOME_OTHER_NUMBER
+        target[propertyKey] = SOME_OTHER_NUMBER;
+        return true;
       }
     });
   },

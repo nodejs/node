@@ -6,6 +6,9 @@
 """This program either generates the parser files for Torque, generating
 the source and header files directly in V8's src directory."""
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import subprocess
 import sys
 import re
@@ -46,11 +49,11 @@ def preprocess(input):
   return input
 
 def postprocess(output):
-  output = re.sub(r'% RawObjectCast', r'%RawObjectCast', output)
-  output = re.sub(r'% RawPointerCast', r'%RawPointerCast', output)
-  output = re.sub(r'% RawConstexprCast', r'%RawConstexprCast', output)
-  output = re.sub(r'% FromConstexpr', r'%FromConstexpr', output)
-  output = re.sub(r'% Allocate', r'%Allocate', output)
+  output = re.sub(r'%\s*RawDownCast', r'%RawDownCast', output)
+  output = re.sub(r'%\s*RawConstexprCast', r'%RawConstexprCast', output)
+  output = re.sub(r'%\s*FromConstexpr', r'%FromConstexpr', output)
+  output = re.sub(r'%\s*Allocate', r'%Allocate', output)
+  output = re.sub(r'%\s*GetAllocationBaseSize', r'%GetAllocationBaseSize', output)
   output = re.sub(r'\/\*COxp\*\/', r'constexpr', output)
   output = re.sub(r'(\S+)\s*: type([,>])', r'\1: type\2', output)
   output = re.sub(r'(\n\s*)labels( [A-Z])', r'\1    labels\2', output)
@@ -86,56 +89,66 @@ def postprocess(output):
 
   return output
 
-def process(filename, only_lint, use_stdout):
+def process(filename, lint, should_format):
   with open(filename, 'r') as content_file:
     content = content_file.read()
 
   original_input = content
 
-  p = Popen(['clang-format', '-assume-filename=.ts'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+  if sys.platform.startswith('win'):
+    p = Popen(['clang-format', '-assume-filename=.ts'], stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True)
+  else:
+    p = Popen(['clang-format', '-assume-filename=.ts'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
   output, err = p.communicate(preprocess(content))
   output = postprocess(output)
   rc = p.returncode
-  if (rc <> 0):
-    print "error code " + str(rc) + " running clang-format. Exiting..."
+  if (rc != 0):
+    print("error code " + str(rc) + " running clang-format. Exiting...")
     sys.exit(rc);
 
-  if only_lint:
+  if lint:
     if (output != original_input):
-      print >>sys.stderr, filename + ' requires formatting'
-  elif use_stdout:
-    print output
-  else:
+      print(filename + ' requires formatting', file=sys.stderr)
+
+  if should_format:
     output_file = open(filename, 'w')
     output_file.write(output);
     output_file.close()
 
 def print_usage():
-  print 'format-torque -i file1[, file2[, ...]]'
-  print '    format and overwrite input files'
-  print 'format-torque -l file1[, file2[, ...]]'
-  print '    merely indicate which files need formatting'
+  print('format-torque -i file1[, file2[, ...]]')
+  print('    format and overwrite input files')
+  print('format-torque -l file1[, file2[, ...]]')
+  print('    merely indicate which files need formatting')
 
 def Main():
   if len(sys.argv) < 3:
-    print "error: at least 2 arguments required"
+    print("error: at least 2 arguments required")
     print_usage();
     sys.exit(-1)
 
-  use_stdout = True
-  lint = False
+  def is_option(arg):
+    return arg in ['-i', '-l', '-il']
 
-  if sys.argv[1] == '-i':
-    use_stdout = False
-  elif sys.argv[1] == '-l':
-    lint = True
+  should_format = lint = False
+  use_stdout = True
+
+  flag, files = sys.argv[1], sys.argv[2:]
+  if is_option(flag):
+    if '-i' == flag:
+      should_format = True
+    elif '-l' == flag:
+      lint = True
+    else:
+      lint = True
+      should_format = True
   else:
-    print "error: -i or -l must be specified as the first argument"
+    print("error: -i and/or -l flags must be specified")
     print_usage();
     sys.exit(-1);
 
-  for filename in sys.argv[2:]:
-    process(filename, lint, use_stdout)
+  for filename in files:
+    process(filename, lint, should_format)
 
   return 0
 

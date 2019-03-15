@@ -11,9 +11,7 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
-#include "src/base/optional.h"
 #include "src/cancelable-task.h"
-#include "src/counters.h"
 #include "src/globals.h"
 
 namespace v8 {
@@ -36,9 +34,6 @@ class Isolate;
 //
 // Items need to be marked as finished after processing them. Task and Item
 // ownership is transferred to the job.
-//
-// Each parallel (non-main thread) task will report the time between the job
-// being created and it being scheduled to |gc_parallel_task_latency_histogram|.
 class V8_EXPORT_PRIVATE ItemParallelJob {
  public:
   class Task;
@@ -71,7 +66,7 @@ class V8_EXPORT_PRIVATE ItemParallelJob {
   class V8_EXPORT_PRIVATE Task : public CancelableTask {
    public:
     explicit Task(Isolate* isolate);
-    ~Task() override;
+    ~Task() override = default;
 
     virtual void RunInParallel() = 0;
 
@@ -101,13 +96,9 @@ class V8_EXPORT_PRIVATE ItemParallelJob {
     // Sets up state required before invoking Run(). If
     // |start_index is >= items_.size()|, this task will not process work items
     // (some jobs have more tasks than work items in order to parallelize post-
-    // processing, e.g. scavenging). If |gc_parallel_task_latency_histogram| is
-    // provided, it will be used to report histograms on the latency between
-    // posting the task and it being scheduled.
-    void SetupInternal(
-        base::Semaphore* on_finish, std::vector<Item*>* items,
-        size_t start_index,
-        base::Optional<AsyncTimedHistogram> gc_parallel_task_latency_histogram);
+    // processing, e.g. scavenging).
+    void SetupInternal(base::Semaphore* on_finish, std::vector<Item*>* items,
+                       size_t start_index);
 
     // We don't allow overriding this method any further.
     void RunInternal() final;
@@ -116,7 +107,6 @@ class V8_EXPORT_PRIVATE ItemParallelJob {
     size_t cur_index_ = 0;
     size_t items_considered_ = 0;
     base::Semaphore* on_finish_ = nullptr;
-    base::Optional<AsyncTimedHistogram> gc_parallel_task_latency_histogram_;
 
     DISALLOW_COPY_AND_ASSIGN(Task);
   };
@@ -135,15 +125,15 @@ class V8_EXPORT_PRIVATE ItemParallelJob {
   int NumberOfItems() const { return static_cast<int>(items_.size()); }
   int NumberOfTasks() const { return static_cast<int>(tasks_.size()); }
 
-  // Runs this job. Reporting metrics in a thread-safe manner to
-  // |async_counters|.
-  void Run(const std::shared_ptr<Counters>& async_counters);
+  // Runs this job.
+  void Run();
 
  private:
   std::vector<Item*> items_;
   std::vector<std::unique_ptr<Task>> tasks_;
   CancelableTaskManager* cancelable_task_manager_;
   base::Semaphore* pending_tasks_;
+
   DISALLOW_COPY_AND_ASSIGN(ItemParallelJob);
 };
 

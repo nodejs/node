@@ -3,6 +3,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import sys
 
 
@@ -169,4 +172,4 @@ elif action == "count":
     reasons_list.append("%8d %s" % (reasons[r], r))
   reasons_list.sort(reverse=True)
   for r in reasons_list[:20]:
-    print r
+    print(r)

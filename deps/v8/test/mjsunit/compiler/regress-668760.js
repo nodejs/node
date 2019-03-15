@@ -22,6 +22,7 @@ function deopt() {
 
 this.__defineGetter__("o", deopt );
 
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

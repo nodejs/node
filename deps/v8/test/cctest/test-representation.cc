@@ -46,85 +46,16 @@ void TestPairNegative(Representation more_general,
 
 TEST(RepresentationMoreGeneralThan) {
   TestPairNegative(Representation::None(), Representation::None());
-  TestPairPositive(Representation::Integer8(), Representation::None());
-  TestPairPositive(Representation::UInteger8(), Representation::None());
-  TestPairPositive(Representation::Integer16(), Representation::None());
-  TestPairPositive(Representation::UInteger16(), Representation::None());
   TestPairPositive(Representation::Smi(), Representation::None());
-  TestPairPositive(Representation::Integer32(), Representation::None());
   TestPairPositive(Representation::HeapObject(), Representation::None());
   TestPairPositive(Representation::Double(), Representation::None());
   TestPairPositive(Representation::Tagged(), Representation::None());
 
-  TestPairNegative(Representation::None(), Representation::Integer8());
-  TestPairNegative(Representation::Integer8(), Representation::Integer8());
-  TestPairNegative(Representation::UInteger8(), Representation::Integer8());
-  TestPairPositive(Representation::Integer16(), Representation::Integer8());
-  TestPairPositive(Representation::UInteger16(), Representation::Integer8());
-  TestPairPositive(Representation::Smi(), Representation::Integer8());
-  TestPairPositive(Representation::Integer32(), Representation::Integer8());
-  TestPairNegative(Representation::HeapObject(), Representation::Integer8());
-  TestPairPositive(Representation::Double(), Representation::Integer8());
-  TestPairPositive(Representation::Tagged(), Representation::Integer8());
-
-  TestPairNegative(Representation::None(), Representation::UInteger8());
-  TestPairNegative(Representation::Integer8(), Representation::UInteger8());
-  TestPairNegative(Representation::UInteger8(), Representation::UInteger8());
-  TestPairPositive(Representation::Integer16(), Representation::UInteger8());
-  TestPairPositive(Representation::UInteger16(), Representation::UInteger8());
-  TestPairPositive(Representation::Smi(), Representation::UInteger8());
-  TestPairPositive(Representation::Integer32(), Representation::UInteger8());
-  TestPairNegative(Representation::HeapObject(), Representation::UInteger8());
-  TestPairPositive(Representation::Double(), Representation::UInteger8());
-  TestPairPositive(Representation::Tagged(), Representation::UInteger8());
-
-  TestPairNegative(Representation::None(), Representation::Integer16());
-  TestPairNegative(Representation::Integer8(), Representation::Integer16());
-  TestPairNegative(Representation::UInteger8(), Representation::Integer16());
-  TestPairNegative(Representation::Integer16(), Representation::Integer16());
-  TestPairNegative(Representation::UInteger16(), Representation::Integer16());
-  TestPairPositive(Representation::Smi(), Representation::Integer16());
-  TestPairPositive(Representation::Integer32(), Representation::Integer16());
-  TestPairNegative(Representation::HeapObject(), Representation::Integer16());
-  TestPairPositive(Representation::Double(), Representation::Integer16());
-  TestPairPositive(Representation::Tagged(), Representation::Integer16());
-
-  TestPairNegative(Representation::None(), Representation::UInteger16());
-  TestPairNegative(Representation::Integer8(), Representation::UInteger16());
-  TestPairNegative(Representation::UInteger8(), Representation::UInteger16());
-  TestPairNegative(Representation::Integer16(), Representation::UInteger16());
-  TestPairNegative(Representation::UInteger16(), Representation::UInteger16());
-  TestPairPositive(Representation::Smi(), Representation::UInteger16());
-  TestPairPositive(Representation::Integer32(), Representation::UInteger16());
-  TestPairNegative(Representation::HeapObject(), Representation::UInteger16());
-  TestPairPositive(Representation::Double(), Representation::UInteger16());
-  TestPairPositive(Representation::Tagged(), Representation::UInteger16());
-
   TestPairNegative(Representation::None(), Representation::Smi());
-  TestPairNegative(Representation::Integer8(), Representation::Smi());
-  TestPairNegative(Representation::UInteger8(), Representation::Smi());
-  TestPairNegative(Representation::Integer16(), Representation::Smi());
-  TestPairNegative(Representation::UInteger16(), Representation::Smi());
   TestPairNegative(Representation::Smi(), Representation::Smi());
-  TestPairPositive(Representation::Integer32(), Representation::Smi());
   TestPairNegative(Representation::HeapObject(), Representation::Smi());
   TestPairPositive(Representation::Double(), Representation::Smi());
   TestPairPositive(Representation::Tagged(), Representation::Smi());
-
-  TestPairNegative(Representation::None(), Representation::Integer32());
-  TestPairNegative(Representation::Integer8(), Representation::Integer32());
-  TestPairNegative(Representation::UInteger8(), Representation::Integer32());
-  TestPairNegative(Representation::Integer16(), Representation::Integer32());
-  TestPairNegative(Representation::UInteger16(), Representation::Integer32());
-  TestPairNegative(Representation::Smi(), Representation::Integer32());
-  TestPairNegative(Representation::Integer32(), Representation::Integer32());
-  TestPairNegative(Representation::HeapObject(), Representation::Integer32());
-  TestPairPositive(Representation::Double(), Representation::Integer32());
-  TestPairPositive(Representation::Tagged(), Representation::Integer32());
-
-  TestPairNegative(Representation::None(), Representation::External());
-  TestPairNegative(Representation::External(), Representation::External());
-  TestPairPositive(Representation::External(), Representation::None());
 }
 
 }  // namespace internal

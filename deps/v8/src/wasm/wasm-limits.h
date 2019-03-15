@@ -38,13 +38,16 @@ constexpr size_t kV8MaxWasmFunctionMultiReturns = 1000;
 constexpr size_t kV8MaxWasmFunctionReturns = 1;
 // Don't use this limit directly, but use the value of FLAG_wasm_max_table_size.
 constexpr size_t kV8MaxWasmTableSize = 10000000;
-constexpr size_t kV8MaxWasmTableEntries = 10000000;
+constexpr size_t kV8MaxWasmTableInitEntries = 10000000;
 constexpr size_t kV8MaxWasmTables = 1;
 constexpr size_t kV8MaxWasmMemories = 1;
 
 static_assert(kV8MaxWasmMemoryPages <= kSpecMaxWasmMemoryPages,
               "v8 should not be more permissive than the spec");
-constexpr size_t kSpecMaxWasmTableSize = 0xFFFFFFFFu;
+static_assert(kV8MaxWasmTableSize <= 4294967295,  // 2^32 - 1
+              "v8 should not exceed WebAssembly's non-web embedding limits");
+static_assert(kV8MaxWasmTableInitEntries <= kV8MaxWasmTableSize,
+              "JS-API should not exceed v8's limit");
 
 constexpr uint64_t kWasmMaxHeapOffset =
     static_cast<uint64_t>(
@@ -55,6 +58,7 @@ constexpr uint64_t kWasmMaxHeapOffset =
 // TODO(wasm): Make this size_t for wasm64. Currently the --wasm-max-mem-pages
 // flag is only uint32_t.
 uint32_t max_mem_pages();
+uint32_t max_table_init_entries();
 
 inline uint64_t max_mem_bytes() {
   return uint64_t{max_mem_pages()} * kWasmPageSize;

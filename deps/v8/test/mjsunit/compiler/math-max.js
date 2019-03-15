@@ -14,6 +14,7 @@
     return Object.is(-0, Math.max(1, x))
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo(-0));
   assertFalse(foo(-1));
   %OptimizeFunctionOnNextCall(foo);
@@ -30,6 +31,7 @@
     return Object.is(-0, Math.max(0, x))
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo(-0));
   assertFalse(foo(-1));
   %OptimizeFunctionOnNextCall(foo);

@@ -215,24 +215,6 @@ void RelocInfo::WipeOut() {
   }
 }
 
-template <typename ObjectVisitor>
-void RelocInfo::Visit(ObjectVisitor* visitor) {
-  RelocInfo::Mode mode = rmode();
-  if (mode == RelocInfo::EMBEDDED_OBJECT) {
-    visitor->VisitEmbeddedPointer(host(), this);
-  } else if (RelocInfo::IsCodeTargetMode(mode)) {
-    visitor->VisitCodeTarget(host(), this);
-  } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
-    visitor->VisitExternalReference(host(), this);
-  } else if (mode == RelocInfo::INTERNAL_REFERENCE) {
-    visitor->VisitInternalReference(host(), this);
-  } else if (IsRuntimeEntry(mode)) {
-    visitor->VisitRuntimeEntry(host(), this);
-  } else if (RelocInfo::IsOffHeapTarget(mode)) {
-    visitor->VisitOffHeapTarget(host(), this);
-  }
-}
-
 // Operand constructors
 Operand::Operand(Register rm) : rm_(rm), rmode_(RelocInfo::NONE) {}
 
@@ -315,7 +297,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
     Instruction::SetInstructionBits<SixByteInstr>(reinterpret_cast<byte*>(pc),
                                                   instr_1);
     if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-      Assembler::FlushICache(pc, 6);
+      FlushInstructionCache(pc, 6);
     }
     patched = true;
   } else {
@@ -344,7 +326,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
       Instruction::SetInstructionBits<SixByteInstr>(
           reinterpret_cast<byte*>(pc + instr1_length), instr_2);
       if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-        Assembler::FlushICache(pc, 12);
+        FlushInstructionCache(pc, 12);
       }
       patched = true;
     }
@@ -358,7 +340,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
       Instruction::SetInstructionBits<SixByteInstr>(reinterpret_cast<byte*>(pc),
                                                     instr_1);
       if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-        Assembler::FlushICache(pc, 6);
+        FlushInstructionCache(pc, 6);
       }
       patched = true;
     }

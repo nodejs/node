@@ -22,6 +22,7 @@
 #include "src/objects/data-handler.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/js-array-buffer.h"
+#include "src/objects/js-collection.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/oddball.h"
@@ -40,6 +41,7 @@ class BigInt;
 class CallInterfaceDescriptor;
 class Callable;
 class Factory;
+class FinalizationGroupCleanupJobTask;
 class InterpreterData;
 class Isolate;
 class JSAsyncFunctionObject;
@@ -56,10 +58,9 @@ class JSRelativeTimeFormat;
 class JSSegmentIterator;
 class JSSegmenter;
 class JSV8BreakIterator;
-class JSWeakCell;
 class JSWeakCollection;
-class JSWeakFactory;
-class JSWeakFactoryCleanupIterator;
+class JSFinalizationGroup;
+class JSFinalizationGroupCleanupIterator;
 class JSWeakMap;
 class JSWeakRef;
 class JSWeakSet;
@@ -70,7 +71,7 @@ class PromiseReaction;
 class PromiseReactionJobTask;
 class PromiseRejectReactionJobTask;
 class WasmDebugInfo;
-class WeakFactoryCleanupJobTask;
+class WeakCell;
 class Zone;
 
 template <typename T>
@@ -271,6 +272,16 @@ enum class ObjectType {
 };
 #undef ENUM_ELEMENT
 #undef ENUM_STRUCT_ELEMENT
+
+enum class CheckBounds { kAlways, kDebugOnly };
+inline bool NeedsBoundsCheck(CheckBounds check_bounds) {
+  switch (check_bounds) {
+    case CheckBounds::kAlways:
+      return true;
+    case CheckBounds::kDebugOnly:
+      return DEBUG_BOOL;
+  }
+}
 
 class AccessCheckNeeded;
 class BigIntWrapper;
@@ -917,6 +928,13 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* Load(MachineType rep, Node* base, Node* offset,
              LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
   Node* AtomicLoad(MachineType rep, Node* base, Node* offset);
+  // Load uncompressed tagged value from (most likely off JS heap) memory
+  // location.
+  Node* LoadFullTagged(
+      Node* base, LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
+  Node* LoadFullTagged(
+      Node* base, Node* offset,
+      LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
 
   // Load a value from the root array.
   TNode<Object> LoadRoot(RootIndex root_index);
@@ -927,6 +945,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* value);
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* offset,
                             Node* value);
+  // Stores uncompressed tagged value to (most likely off JS heap) memory
+  // location without write barrier.
+  Node* StoreFullTaggedNoWriteBarrier(Node* base, Node* tagged_value);
+  Node* StoreFullTaggedNoWriteBarrier(Node* base, Node* offset,
+                                      Node* tagged_value);
+
   // Optimized memory operations that map to Turbofan simplified nodes.
   TNode<HeapObject> OptimizedAllocate(TNode<IntPtrT> size,
                                       PretenureFlag pretenure);
@@ -1065,6 +1089,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<UintPtrT> UintPtrSub(TNode<UintPtrT> left, TNode<UintPtrT> right) {
     return Unsigned(
         IntPtrSub(static_cast<Node*>(left), static_cast<Node*>(right)));
+  }
+  TNode<RawPtrT> RawPtrAdd(TNode<RawPtrT> left, TNode<IntPtrT> right) {
+    return ReinterpretCast<RawPtrT>(IntPtrAdd(left, right));
+  }
+  TNode<RawPtrT> RawPtrAdd(TNode<IntPtrT> left, TNode<RawPtrT> right) {
+    return ReinterpretCast<RawPtrT>(IntPtrAdd(left, right));
   }
 
   TNode<WordT> WordShl(SloppyTNode<WordT> value, int shift);
@@ -1275,15 +1305,21 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   }
 
   template <class... TArgs>
-  Node* ConstructJS(Callable const& callable, Node* context, Node* new_target,
-                    TArgs... args) {
+  Node* ConstructJSWithTarget(Callable const& callable, Node* context,
+                              Node* target, Node* new_target, TArgs... args) {
     int argc = static_cast<int>(sizeof...(args));
     Node* arity = Int32Constant(argc);
     Node* receiver = LoadRoot(RootIndex::kUndefinedValue);
 
     // Construct(target, new_target, arity, receiver, arguments...)
-    return CallStub(callable, context, new_target, new_target, arity, receiver,
+    return CallStub(callable, context, target, new_target, arity, receiver,
                     args...);
+  }
+  template <class... TArgs>
+  Node* ConstructJS(Callable const& callable, Node* context, Node* new_target,
+                    TArgs... args) {
+    return ConstructJSWithTarget(callable, context, new_target, new_target,
+                                 args...);
   }
 
   Node* CallCFunctionN(Signature<MachineType>* signature, int input_count,
@@ -1553,6 +1589,10 @@ class CodeAssemblerLabel {
   std::map<CodeAssemblerVariable::Impl*, std::vector<Node*>,
            CodeAssemblerVariable::ImplComparator>
       variable_merges_;
+
+  // Cannot be copied because the destructor explicitly call the destructor of
+  // the underlying {RawMachineLabel}, hence only one pointer can point to it.
+  DISALLOW_COPY_AND_ASSIGN(CodeAssemblerLabel);
 };
 
 class CodeAssemblerParameterizedLabelBase {

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-intl-relative-time-format
-
 // The following test are not part of the comformance. Just some output in
 // English to verify the format does return something reasonable for English.
 // It may be changed when we update the CLDR data.

@@ -1,6 +1,8 @@
 // Copyright 2016 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+//
+// Flags: --harmony-class-fields
 
 let {session, contextGroup, Protocol} = InspectorTest.start("Check internal properties reported in object preview.");
 
@@ -71,6 +73,14 @@ InspectorTest.runTestSuite([
   {
     Protocol.Runtime.evaluate({ expression: "Array.prototype.__defineGetter__(\"0\",() => { throw new Error() }) "})
       .then(() => checkExpression("Promise.resolve(42)"))
+      .then(next);
+  },
+
+  function privateNames(next)
+  {
+    checkExpression("new class { #foo = 1; #bar = 2; baz = 3;}")
+      .then(() => checkExpression("new class extends class { #baz = 3; } { #foo = 1; #bar = 2; }"))
+      .then(() => checkExpression("new class extends class { constructor() { return new Proxy({}, {}); } } { #foo = 1; #bar = 2; }"))
       .then(next);
   }
 ]);

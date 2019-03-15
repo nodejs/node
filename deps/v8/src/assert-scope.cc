@@ -16,7 +16,7 @@ namespace {
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(base::Thread::LocalStorageKey,
                                 GetPerThreadAssertKey,
-                                base::Thread::CreateThreadLocalKey());
+                                base::Thread::CreateThreadLocalKey())
 
 }  // namespace
 

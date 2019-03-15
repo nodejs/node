@@ -52,11 +52,6 @@ inline char HexCharOfValue(int value) {
 
 inline int BoolToInt(bool b) { return b ? 1 : 0; }
 
-// Same as strcmp, but can handle NULL arguments.
-inline bool CStringEquals(const char* s1, const char* s2) {
-  return (s1 == s2) || (s1 != nullptr && s2 != nullptr && strcmp(s1, s2) == 0);
-}
-
 // Checks if value is in range [lower_limit, higher_limit] using a single
 // branch.
 template <typename T, typename U>
@@ -220,14 +215,6 @@ T Nabs(T a) {
   return a < 0 ? a : -a;
 }
 
-// Floor(-0.0) == 0.0
-inline double Floor(double x) {
-#if V8_CC_MSVC
-  if (x == 0) return x;  // Fix for issue 3477.
-#endif
-  return std::floor(x);
-}
-
 inline double Modulo(double x, double y) {
 #if defined(V8_OS_WIN)
   // Workaround MS fmod bugs. ECMA-262 says:
@@ -251,35 +238,6 @@ inline double Modulo(double x, double y) {
 #else
   return std::fmod(x, y);
 #endif
-}
-
-inline double Pow(double x, double y) {
-  if (y == 0.0) return 1.0;
-  if (std::isnan(y) || ((x == 1 || x == -1) && std::isinf(y))) {
-    return std::numeric_limits<double>::quiet_NaN();
-  }
-#if (defined(__MINGW64_VERSION_MAJOR) &&                              \
-     (!defined(__MINGW64_VERSION_RC) || __MINGW64_VERSION_RC < 1)) || \
-    defined(V8_OS_AIX)
-  // MinGW64 and AIX have a custom implementation for pow.  This handles certain
-  // special cases that are different.
-  if ((x == 0.0 || std::isinf(x)) && y != 0.0 && std::isfinite(y)) {
-    double f;
-    double result = ((x == 0.0) ^ (y > 0)) ? V8_INFINITY : 0;
-    /* retain sign if odd integer exponent */
-    return ((std::modf(y, &f) == 0.0) && (static_cast<int64_t>(y) & 1))
-               ? copysign(result, x)
-               : result;
-  }
-
-  if (x == 2.0) {
-    int y_int = static_cast<int>(y);
-    if (y == y_int) {
-      return std::ldexp(1.0, y_int);
-    }
-  }
-#endif
-  return std::pow(x, y);
 }
 
 template <typename T>
@@ -612,36 +570,6 @@ class SetOncePointer {
 
  private:
   T* pointer_ = nullptr;
-};
-
-
-template <typename T, int kSize>
-class EmbeddedVector : public Vector<T> {
- public:
-  EmbeddedVector() : Vector<T>(buffer_, kSize) { }
-
-  explicit EmbeddedVector(T initial_value) : Vector<T>(buffer_, kSize) {
-    for (int i = 0; i < kSize; ++i) {
-      buffer_[i] = initial_value;
-    }
-  }
-
-  // When copying, make underlying Vector to reference our buffer.
-  EmbeddedVector(const EmbeddedVector& rhs) V8_NOEXCEPT : Vector<T>(rhs) {
-    MemCopy(buffer_, rhs.buffer_, sizeof(T) * kSize);
-    this->set_start(buffer_);
-  }
-
-  EmbeddedVector& operator=(const EmbeddedVector& rhs) V8_NOEXCEPT {
-    if (this == &rhs) return *this;
-    Vector<T>::operator=(rhs);
-    MemCopy(buffer_, rhs.buffer_, sizeof(T) * kSize);
-    this->set_start(buffer_);
-    return *this;
-  }
-
- private:
-  T buffer_[kSize];
 };
 
 // Compare 8bit/16bit chars to 8bit/16bit chars.
@@ -1065,34 +993,30 @@ bool StringToArrayIndex(Stream* stream, uint32_t* index);
 // return an address significantly above the actual current stack position.
 V8_NOINLINE uintptr_t GetCurrentStackPosition();
 
-template <typename V>
-static inline V ByteReverse(V value) {
-  size_t size_of_v = sizeof(value);
-  switch (size_of_v) {
-    case 2:
+static inline uint16_t ByteReverse16(uint16_t value) {
 #if V8_HAS_BUILTIN_BSWAP16
-      return static_cast<V>(__builtin_bswap16(static_cast<uint16_t>(value)));
+      return __builtin_bswap16(value);
 #else
       return value << 8 | (value >> 8 & 0x00FF);
 #endif
-    case 4:
+}
+
+static inline uint32_t ByteReverse32(uint32_t value) {
 #if V8_HAS_BUILTIN_BSWAP32
-      return static_cast<V>(__builtin_bswap32(static_cast<uint32_t>(value)));
+      return __builtin_bswap32(value);
 #else
-    {
-      size_t bits_of_v = size_of_v * kBitsPerByte;
-      return value << (bits_of_v - 8) |
-             ((value << (bits_of_v - 24)) & 0x00FF0000) |
-             ((value >> (bits_of_v - 24)) & 0x0000FF00) |
-             ((value >> (bits_of_v - 8)) & 0x00000FF);
-    }
+      return value << 24 |
+             ((value << 8) & 0x00FF0000) |
+             ((value >> 8) & 0x0000FF00) |
+             ((value >> 24) & 0x00000FF);
 #endif
-    case 8:
+}
+
+static inline uint64_t ByteReverse64(uint64_t value) {
 #if V8_HAS_BUILTIN_BSWAP64
-      return static_cast<V>(__builtin_bswap64(static_cast<uint64_t>(value)));
+      return __builtin_bswap64(value);
 #else
-    {
-      size_t bits_of_v = size_of_v * kBitsPerByte;
+      size_t bits_of_v = sizeof(value) * kBitsPerByte;
       return value << (bits_of_v - 8) |
              ((value << (bits_of_v - 24)) & 0x00FF000000000000) |
              ((value << (bits_of_v - 40)) & 0x0000FF0000000000) |
@@ -1101,8 +1025,21 @@ static inline V ByteReverse(V value) {
              ((value >> (bits_of_v - 40)) & 0x0000000000FF0000) |
              ((value >> (bits_of_v - 24)) & 0x000000000000FF00) |
              ((value >> (bits_of_v - 8)) & 0x00000000000000FF);
-    }
 #endif
+}
+
+template <typename V>
+static inline V ByteReverse(V value) {
+  size_t size_of_v = sizeof(value);
+  switch (size_of_v) {
+    case 1:
+      return value;
+    case 2:
+      return static_cast<V>(ByteReverse16(static_cast<uint16_t>(value)));
+    case 4:
+      return static_cast<V>(ByteReverse32(static_cast<uint32_t>(value)));
+    case 8:
+      return static_cast<V>(ByteReverse64(static_cast<uint64_t>(value)));
     default:
       UNREACHABLE();
   }

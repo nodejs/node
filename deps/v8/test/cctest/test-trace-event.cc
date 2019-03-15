@@ -234,26 +234,6 @@ TEST(TestEventWithId) {
   CHECK_EQ(event_id, GET_TRACE_OBJECT(1)->id);
 }
 
-TEST(TestEventInContext) {
-  MockTracingPlatform platform;
-
-  static uint64_t isolate_id = 0x20151021;
-  {
-    TRACE_EVENT_SCOPED_CONTEXT("v8-cat", "Isolate", isolate_id);
-    TRACE_EVENT0("v8-cat", "e");
-  }
-
-  CHECK_EQ(3, GET_TRACE_OBJECTS_LIST->size());
-  CHECK_EQ(TRACE_EVENT_PHASE_ENTER_CONTEXT, GET_TRACE_OBJECT(0)->phase);
-  CHECK_EQ("Isolate", GET_TRACE_OBJECT(0)->name);
-  CHECK_EQ(isolate_id, GET_TRACE_OBJECT(0)->id);
-  CHECK_EQ(TRACE_EVENT_PHASE_COMPLETE, GET_TRACE_OBJECT(1)->phase);
-  CHECK_EQ("e", GET_TRACE_OBJECT(1)->name);
-  CHECK_EQ(TRACE_EVENT_PHASE_LEAVE_CONTEXT, GET_TRACE_OBJECT(2)->phase);
-  CHECK_EQ("Isolate", GET_TRACE_OBJECT(2)->name);
-  CHECK_EQ(isolate_id, GET_TRACE_OBJECT(2)->id);
-}
-
 TEST(TestEventWithTimestamp) {
   MockTracingPlatform platform;
 

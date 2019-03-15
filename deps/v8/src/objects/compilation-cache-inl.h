@@ -51,11 +51,12 @@ uint32_t CompilationCacheShape::StringSharedHash(String source,
   return hash;
 }
 
-uint32_t CompilationCacheShape::HashForObject(Isolate* isolate, Object object) {
+uint32_t CompilationCacheShape::HashForObject(ReadOnlyRoots roots,
+                                              Object object) {
   if (object->IsNumber()) return static_cast<uint32_t>(object->Number());
 
   FixedArray val = FixedArray::cast(object);
-  if (val->map() == val->GetReadOnlyRoots().fixed_cow_array_map()) {
+  if (val->map() == roots.fixed_cow_array_map()) {
     DCHECK_EQ(4, val->length());
     SharedFunctionInfo shared = SharedFunctionInfo::cast(val->get(0));
     String source = String::cast(val->get(1));

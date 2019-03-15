@@ -377,9 +377,9 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
         // ran out of scratch registers.
         if (temps.CanAcquire()) {
           src_op = liftoff::GetMemOp(this, &temps, src_addr, offset_reg,
-                                     offset_imm + kRegisterSize);
+                                     offset_imm + kSystemPointerSize);
         } else {
-          add(src_op.rm(), src_op.rm(), Operand(kRegisterSize));
+          add(src_op.rm(), src_op.rm(), Operand(kSystemPointerSize));
         }
         ldr(dst.high_gp(), src_op);
         break;
@@ -450,9 +450,9 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
         // ran out of scratch registers.
         if (temps.CanAcquire()) {
           dst_op = liftoff::GetMemOp(this, &temps, dst_addr, offset_reg,
-                                     offset_imm + kRegisterSize);
+                                     offset_imm + kSystemPointerSize);
         } else {
-          add(dst_op.rm(), dst_op.rm(), Operand(kRegisterSize));
+          add(dst_op.rm(), dst_op.rm(), Operand(kSystemPointerSize));
         }
         str(src.high_gp(), dst_op);
         break;
@@ -465,7 +465,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueType type) {
-  int32_t offset = (caller_slot_idx + 1) * kRegisterSize;
+  int32_t offset = (caller_slot_idx + 1) * kSystemPointerSize;
   MemOperand src(fp, offset);
   switch (type) {
     case kWasmI32:
@@ -473,7 +473,7 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
       break;
     case kWasmI64:
       ldr(dst.low_gp(), src);
-      ldr(dst.high_gp(), MemOperand(fp, offset + kRegisterSize));
+      ldr(dst.high_gp(), MemOperand(fp, offset + kSystemPointerSize));
       break;
     case kWasmF32:
       vldr(liftoff::GetFloatRegister(dst.fp()), src);
@@ -1358,7 +1358,7 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
         break;
       case kWasmI64:
         str(args->low_gp(), MemOperand(sp, arg_bytes));
-        str(args->high_gp(), MemOperand(sp, arg_bytes + kRegisterSize));
+        str(args->high_gp(), MemOperand(sp, arg_bytes + kSystemPointerSize));
         break;
       case kWasmF32:
         vstr(liftoff::GetFloatRegister(args->fp()), MemOperand(sp, arg_bytes));
@@ -1490,7 +1490,7 @@ void LiftoffStackSlots::Construct() {
             UNREACHABLE();
         }
         break;
-      case LiftoffAssembler::VarState::KIntConst: {
+      case LiftoffAssembler::VarState::kIntConst: {
         DCHECK(src.type() == kWasmI32 || src.type() == kWasmI64);
         UseScratchRegisterScope temps(asm_);
         Register scratch = temps.Acquire();

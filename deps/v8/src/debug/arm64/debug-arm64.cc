@@ -40,7 +40,8 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
   __ Mov(sp, fp);
   __ Pop(fp, lr);  // Frame, Return address.
 
-  __ Ldr(x0, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadTaggedPointerField(
+      x0, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
   __ Ldrh(x0,
           FieldMemOperand(x0, SharedFunctionInfo::kFormalParameterCountOffset));
   __ mov(x2, x0);

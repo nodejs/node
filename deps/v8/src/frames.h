@@ -446,6 +446,7 @@ class BuiltinExitFrame : public ExitFrame {
   inline Object new_target_slot_object() const;
 
   friend class StackFrameIteratorBase;
+  friend class FrameArrayBuilder;
 };
 
 class StandardFrame;
@@ -480,13 +481,15 @@ class FrameSummary {
    public:
     JavaScriptFrameSummary(Isolate* isolate, Object receiver,
                            JSFunction function, AbstractCode abstract_code,
-                           int code_offset, bool is_constructor);
+                           int code_offset, bool is_constructor,
+                           FixedArray parameters);
 
     Handle<Object> receiver() const { return receiver_; }
     Handle<JSFunction> function() const { return function_; }
     Handle<AbstractCode> abstract_code() const { return abstract_code_; }
     int code_offset() const { return code_offset_; }
     bool is_constructor() const { return is_constructor_; }
+    Handle<FixedArray> parameters() const { return parameters_; }
     bool is_subject_to_debugging() const;
     int SourcePosition() const;
     int SourceStatementPosition() const;
@@ -500,6 +503,7 @@ class FrameSummary {
     Handle<AbstractCode> abstract_code_;
     int code_offset_;
     bool is_constructor_;
+    Handle<FixedArray> parameters_;
   };
 
   class WasmFrameSummary : public FrameSummaryBase {
@@ -555,7 +559,6 @@ class FrameSummary {
     int byte_offset_;
   };
 
-#undef FRAME_SUMMARY_FIELD
 #define FRAME_SUMMARY_CONS(kind, type, field, desc) \
   FrameSummary(type summ) : field(summ) {}  // NOLINT
   FRAME_SUMMARY_VARIANTS(FRAME_SUMMARY_CONS)
@@ -600,6 +603,7 @@ class FrameSummary {
     FrameSummaryBase base_;
     FRAME_SUMMARY_VARIANTS(FRAME_SUMMARY_FIELD)
   };
+#undef FRAME_SUMMARY_FIELD
 };
 
 class StandardFrame : public StackFrame {
@@ -694,6 +698,7 @@ class JavaScriptFrame : public StandardFrame {
   inline Address GetParameterSlot(int index) const;
   Object GetParameter(int index) const override;
   int ComputeParametersCount() const override;
+  Handle<FixedArray> GetParameters() const;
 
   // Debugger access.
   void SetParameterValue(int index, Object value) const;
@@ -752,14 +757,11 @@ class JavaScriptFrame : public StandardFrame {
   static void CollectFunctionAndOffsetForICStats(JSFunction function,
                                                  AbstractCode code,
                                                  int code_offset);
-  static void CollectTopFrameForICStats(Isolate* isolate);
 
  protected:
   inline explicit JavaScriptFrame(StackFrameIteratorBase* iterator);
 
   Address GetCallerStackPointer() const override;
-
-  virtual int GetNumberOfIncomingArguments() const;
 
   virtual void PrintFrameKind(StringStream* accumulator) const {}
 
@@ -791,8 +793,6 @@ class StubFrame : public StandardFrame {
 
   Address GetCallerStackPointer() const override;
 
-  virtual int GetNumberOfIncomingArguments() const;
-
   friend class StackFrameIteratorBase;
 };
 
@@ -818,13 +818,13 @@ class OptimizedFrame : public JavaScriptFrame {
   DeoptimizationData GetDeoptimizationData(int* deopt_index) const;
 
   Object receiver() const override;
+  int ComputeParametersCount() const override;
 
   static int StackSlotOffsetRelativeToFp(int slot_index);
 
  protected:
   inline explicit OptimizedFrame(StackFrameIteratorBase* iterator);
 
-  int GetNumberOfIncomingArguments() const override;
 
  private:
   friend class StackFrameIteratorBase;
@@ -897,6 +897,8 @@ class ArgumentsAdaptorFrame: public JavaScriptFrame {
     return static_cast<ArgumentsAdaptorFrame*>(frame);
   }
 
+  int ComputeParametersCount() const override;
+
   // Printing support.
   void Print(StringStream* accumulator, PrintMode mode,
              int index) const override;
@@ -904,7 +906,6 @@ class ArgumentsAdaptorFrame: public JavaScriptFrame {
  protected:
   inline explicit ArgumentsAdaptorFrame(StackFrameIteratorBase* iterator);
 
-  int GetNumberOfIncomingArguments() const override;
 
  private:
   friend class StackFrameIteratorBase;
@@ -920,11 +921,11 @@ class BuiltinFrame final : public JavaScriptFrame {
     DCHECK(frame->is_builtin());
     return static_cast<BuiltinFrame*>(frame);
   }
+  int ComputeParametersCount() const final;
 
  protected:
   inline explicit BuiltinFrame(StackFrameIteratorBase* iterator);
 
-  int GetNumberOfIncomingArguments() const final;
   void PrintFrameKind(StringStream* accumulator) const override;
 
  private:

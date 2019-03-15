@@ -220,7 +220,11 @@ Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
           MapRef map(broker(),
                      handle(it.GetHolder<HeapObject>()->map(), isolate()));
           map.SerializeOwnDescriptors();  // TODO(neis): Remove later.
-          dependencies()->DependOnFieldType(map, it.GetFieldDescriptorIndex());
+          if (dependencies()->DependOnFieldConstness(
+                  map, it.GetFieldDescriptorIndex()) !=
+              PropertyConstness::kConst) {
+            return nullptr;
+          }
         }
         return value;
       }

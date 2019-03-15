@@ -5,10 +5,12 @@
 #ifndef V8_OBJECTS_EMBEDDER_DATA_SLOT_INL_H_
 #define V8_OBJECTS_EMBEDDER_DATA_SLOT_INL_H_
 
-#include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/embedder-data-array.h"
 #include "src/objects/embedder-data-slot.h"
-#include "src/objects/js-objects.h"
+
+#include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects-inl.h"
+#include "src/objects/embedder-data-array.h"
+#include "src/objects/js-objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

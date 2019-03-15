@@ -15,6 +15,7 @@
     return array.some(v => v > 0);
   }
 
+  %PrepareFunctionForOptimization(some);
   some(); some();
 
   %OptimizeFunctionOnNextCall(some);

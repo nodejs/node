@@ -7,9 +7,10 @@
 
 #include "src/objects/api-callbacks.h"
 
-#include "src/heap/heap-inl.h"
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/objects/foreign-inl.h"
+#include "src/objects/js-objects-inl.h"
 #include "src/objects/name.h"
 #include "src/objects/templates.h"
 
@@ -37,7 +38,7 @@ ACCESSORS(AccessorInfo, expected_receiver_type, Object,
 ACCESSORS_CHECKED2(AccessorInfo, getter, Object, kGetterOffset, true,
                    Foreign::IsNormalized(value))
 ACCESSORS_CHECKED2(AccessorInfo, setter, Object, kSetterOffset, true,
-                   Foreign::IsNormalized(value));
+                   Foreign::IsNormalized(value))
 ACCESSORS(AccessorInfo, js_getter, Object, kJsGetterOffset)
 ACCESSORS(AccessorInfo, data, Object, kDataOffset)
 

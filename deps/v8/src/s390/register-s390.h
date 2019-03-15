@@ -246,8 +246,8 @@ C_REGISTERS(DECLARE_C_REGISTER)
 #undef DECLARE_C_REGISTER
 
 // Define {RegisterName} methods for the register types.
-DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS);
-DEFINE_REGISTER_NAMES(DoubleRegister, DOUBLE_REGISTERS);
+DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS)
+DEFINE_REGISTER_NAMES(DoubleRegister, DOUBLE_REGISTERS)
 
 // Give alias names to registers for calling conventions.
 constexpr Register kReturnRegister0 = r2;

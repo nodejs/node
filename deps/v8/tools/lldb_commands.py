@@ -5,6 +5,9 @@
 # Load this file by adding this to your ~/.lldbinit:
 # command script import <this_dir>/lldb_commands.py
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import lldb
 import re
 

@@ -179,11 +179,11 @@ class V8_EXPORT_PRIVATE GCTracer {
     // after the current GC.
     size_t end_holes_size;
 
-    // Size of new space objects in constructor.
-    size_t new_space_object_size;
+    // Size of young objects in constructor.
+    size_t young_object_size;
 
-    // Size of survived new space objects in destructor.
-    size_t survived_new_space_object_size;
+    // Size of survived young objects in destructor.
+    size_t survived_young_object_size;
 
     // Bytes marked incrementally for INCREMENTAL_MARK_COMPACTOR
     size_t incremental_marking_bytes;

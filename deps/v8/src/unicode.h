@@ -163,8 +163,8 @@ class V8_EXPORT_PRIVATE Utf8 {
   static inline uchar ValueOf(const byte* str, size_t length, size_t* cursor);
 
   typedef uint32_t Utf8IncrementalBuffer;
-  static uchar ValueOfIncremental(byte next_byte, size_t* cursor, State* state,
-                                  Utf8IncrementalBuffer* buffer);
+  static inline uchar ValueOfIncremental(const byte** cursor, State* state,
+                                         Utf8IncrementalBuffer* buffer);
   static uchar ValueOfIncrementalFinish(State* state);
 
   // Excludes non-characters from the set of valid code points.

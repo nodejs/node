@@ -5,35 +5,15 @@
 #ifndef V8_HEAP_OBJECTS_VISITING_H_
 #define V8_HEAP_OBJECTS_VISITING_H_
 
-#include "src/allocation.h"
-#include "src/layout-descriptor.h"
-#include "src/objects-body-descriptors.h"
 #include "src/objects.h"
-#include "src/objects/hash-table.h"
-#include "src/objects/ordered-hash-table.h"
-#include "src/objects/string.h"
+#include "src/objects/fixed-array.h"
+#include "src/objects/map.h"
 #include "src/visitors.h"
 
 namespace v8 {
 namespace internal {
 
-class BigInt;
-class BytecodeArray;
-class DataHandler;
-class EmbedderDataArray;
-class JSArrayBuffer;
-class JSDataView;
-class JSRegExp;
-class JSTypedArray;
-class JSWeakCell;
-class JSWeakRef;
-class JSWeakCollection;
-class NativeContext;
-class UncompiledDataWithoutPreparseData;
-class UncompiledDataWithPreparseData;
-class WasmInstanceObject;
-
-#define TYPED_VISITOR_ID_LIST(V)                                          \
+#define TYPED_VISITOR_ID_LIST_CLASSES(V)                                  \
   V(AllocationSite, AllocationSite)                                       \
   V(BigInt, BigInt)                                                       \
   V(ByteArray, ByteArray)                                                 \
@@ -51,14 +31,13 @@ class WasmInstanceObject;
   V(FeedbackVector, FeedbackVector)                                       \
   V(FixedArray, FixedArray)                                               \
   V(FixedDoubleArray, FixedDoubleArray)                                   \
-  V(FixedFloat64Array, FixedFloat64Array)                                 \
   V(FixedTypedArrayBase, FixedTypedArrayBase)                             \
   V(JSArrayBuffer, JSArrayBuffer)                                         \
   V(JSDataView, JSDataView)                                               \
   V(JSFunction, JSFunction)                                               \
   V(JSObject, JSObject)                                                   \
   V(JSTypedArray, JSTypedArray)                                           \
-  V(JSWeakCell, JSWeakCell)                                               \
+  V(WeakCell, WeakCell)                                                   \
   V(JSWeakCollection, JSWeakCollection)                                   \
   V(JSWeakRef, JSWeakRef)                                                 \
   V(Map, Map)                                                             \
@@ -81,6 +60,17 @@ class WasmInstanceObject;
   V(UncompiledDataWithoutPreparseData, UncompiledDataWithoutPreparseData) \
   V(UncompiledDataWithPreparseData, UncompiledDataWithPreparseData)       \
   V(WasmInstanceObject, WasmInstanceObject)
+
+#define FORWARD_DECLARE(TypeName, Type) class Type;
+TYPED_VISITOR_ID_LIST_CLASSES(FORWARD_DECLARE)
+#undef FORWARD_DECLARE
+
+#define TYPED_VISITOR_ID_LIST_TYPEDEFS(V) \
+  V(FixedFloat64Array, FixedFloat64Array)
+
+#define TYPED_VISITOR_ID_LIST(V)   \
+  TYPED_VISITOR_ID_LIST_CLASSES(V) \
+  TYPED_VISITOR_ID_LIST_TYPEDEFS(V)
 
 // The base class for visitors that need to dispatch on object type. The default
 // behavior of all visit functions is to iterate body of the given object using
@@ -144,7 +134,7 @@ class NewSpaceVisitor : public HeapVisitor<int, ConcreteVisitor> {
   }
 
   int VisitSharedFunctionInfo(Map map, SharedFunctionInfo object);
-  int VisitJSWeakCell(Map map, JSWeakCell js_weak_cell);
+  int VisitWeakCell(Map map, WeakCell weak_cell);
 };
 
 class WeakObjectRetainer;

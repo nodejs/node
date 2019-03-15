@@ -250,8 +250,8 @@ TEST(AssemblerIa326) {
   Assembler assm(AssemblerOptions{},
                  ExternalAssemblerBuffer(buffer, sizeof buffer));
 
-  __ movsd(xmm0, Operand(esp, 1 * kPointerSize));
-  __ movsd(xmm1, Operand(esp, 3 * kPointerSize));
+  __ movsd(xmm0, Operand(esp, 1 * kSystemPointerSize));
+  __ movsd(xmm1, Operand(esp, 3 * kSystemPointerSize));
   __ addsd(xmm0, xmm1);
   __ mulsd(xmm0, xmm1);
   __ subsd(xmm0, xmm1);
@@ -522,8 +522,8 @@ TEST(AssemblerIa32SSE) {
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
-    __ movss(xmm0, Operand(esp, kPointerSize));
-    __ movss(xmm1, Operand(esp, 2 * kPointerSize));
+    __ movss(xmm0, Operand(esp, kSystemPointerSize));
+    __ movss(xmm1, Operand(esp, 2 * kSystemPointerSize));
     __ shufps(xmm0, xmm0, 0x0);
     __ shufps(xmm1, xmm1, 0x0);
     __ movaps(xmm2, xmm1);
@@ -559,8 +559,8 @@ TEST(AssemblerIa32SSE3) {
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
     CpuFeatureScope fscope(&assm, SSE3);
-    __ movss(xmm0, Operand(esp, kPointerSize));
-    __ movss(xmm1, Operand(esp, 2 * kPointerSize));
+    __ movss(xmm0, Operand(esp, kSystemPointerSize));
+    __ movss(xmm1, Operand(esp, 2 * kSystemPointerSize));
     __ shufps(xmm0, xmm0, 0x0);
     __ shufps(xmm1, xmm1, 0x0);
     __ haddps(xmm1, xmm0);
@@ -594,9 +594,9 @@ TEST(AssemblerX64FMA_sd) {
   {
     CpuFeatureScope fscope(&assm, FMA3);
     Label exit;
-    __ movsd(xmm0, Operand(esp, 1 * kPointerSize));
-    __ movsd(xmm1, Operand(esp, 3 * kPointerSize));
-    __ movsd(xmm2, Operand(esp, 5 * kPointerSize));
+    __ movsd(xmm0, Operand(esp, 1 * kSystemPointerSize));
+    __ movsd(xmm1, Operand(esp, 3 * kSystemPointerSize));
+    __ movsd(xmm2, Operand(esp, 5 * kSystemPointerSize));
     // argument in xmm0, xmm1 and xmm2
     // xmm0 * xmm1 + xmm2
     __ movaps(xmm3, xmm0);
@@ -823,9 +823,9 @@ TEST(AssemblerX64FMA_ss) {
   {
     CpuFeatureScope fscope(&assm, FMA3);
     Label exit;
-    __ movss(xmm0, Operand(esp, 1 * kPointerSize));
-    __ movss(xmm1, Operand(esp, 2 * kPointerSize));
-    __ movss(xmm2, Operand(esp, 3 * kPointerSize));
+    __ movss(xmm0, Operand(esp, 1 * kSystemPointerSize));
+    __ movss(xmm1, Operand(esp, 2 * kSystemPointerSize));
+    __ movss(xmm2, Operand(esp, 3 * kSystemPointerSize));
     // arguments in xmm0, xmm1 and xmm2
     // xmm0 * xmm1 + xmm2
     __ movaps(xmm3, xmm0);
@@ -1403,7 +1403,7 @@ TEST(AssemblerIa32JumpTables1) {
 
   Label done, table;
   __ mov(eax, Operand(esp, 4));
-  __ jmp(Operand::JumpTable(eax, times_4, &table));
+  __ jmp(Operand::JumpTable(eax, times_system_pointer_size, &table));
   __ ud2();
   __ bind(&table);
   for (int i = 0; i < kNumCases; ++i) {
@@ -1450,7 +1450,7 @@ TEST(AssemblerIa32JumpTables2) {
 
   Label done, table;
   __ mov(eax, Operand(esp, 4));
-  __ jmp(Operand::JumpTable(eax, times_4, &table));
+  __ jmp(Operand::JumpTable(eax, times_system_pointer_size, &table));
   __ ud2();
 
   for (int i = 0; i < kNumCases; ++i) {

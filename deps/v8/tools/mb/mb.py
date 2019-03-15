@@ -10,6 +10,7 @@ MB is a wrapper script for GN that can be used to generate build files
 for sets of canned configurations and analyze them.
 """
 
+# for py2/py3 compatibility
 from __future__ import print_function
 
 import argparse
@@ -35,6 +36,12 @@ CHROMIUM_SRC_DIR = os.path.dirname(os.path.dirname(os.path.dirname(
 sys.path = [os.path.join(CHROMIUM_SRC_DIR, 'build')] + sys.path
 
 import gn_helpers
+
+try:
+  cmp              # Python 2
+except NameError:  # Python 3
+  def cmp(x, y):   # pylint: disable=redefined-builtin
+    return (x > y) - (x < y)
 
 
 def main(args):
@@ -1155,7 +1162,7 @@ class MetaBuildWrapper(object):
   def MaybeMakeDirectory(self, path):
     try:
       os.makedirs(path)
-    except OSError, e:
+    except OSError as e:
       if e.errno != errno.EEXIST:
         raise
 

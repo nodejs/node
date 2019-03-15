@@ -23,11 +23,19 @@ function b() {
   %DeoptimizeFunction(a);
 }
 
+%PrepareFunctionForOptimization(f);
 f(); f();
+%OptimizeFunctionOnNextCall(f);
+f();
+%PrepareFunctionForOptimization(a);
 a(); a();
+%OptimizeFunctionOnNextCall(a);
+a();
 for(var i = 0; i < 5; i++) {
+  %PrepareFunctionForOptimization(f);
   %OptimizeFunctionOnNextCall(f);
-  %OptimizeFunctionOnNextCall(a);
   f();
+  %PrepareFunctionForOptimization(a);
+  %OptimizeFunctionOnNextCall(a);
   a();
 }

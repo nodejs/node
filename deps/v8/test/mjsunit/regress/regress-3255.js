@@ -16,4 +16,4 @@ f(str, 0);
 f(str, 0);
 
 // This is just to trigger elements validation, object already broken.
-%SetKeyedProperty(str, 1, 'y', 0);
+%SetKeyedProperty(str, 1, 'y');

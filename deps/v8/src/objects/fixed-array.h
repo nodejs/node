@@ -9,6 +9,7 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
+#include "torque-generated/class-definitions-from-dsl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -97,21 +98,17 @@ class FixedArrayBase : public HeapObject {
 #endif  // V8_HOST_ARCH_32_BIT
 
   // Layout description.
-#define FIXED_ARRAY_BASE_FIELDS(V) \
-  V(kLengthOffset, kTaggedSize)    \
-  /* Header size. */               \
-  V(kHeaderSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                FIXED_ARRAY_BASE_FIELDS)
-#undef FIXED_ARRAY_BASE_FIELDS
+                                TORQUE_GENERATED_FIXED_ARRAY_BASE_FIELDS)
+
+  static const int kHeaderSize = kSize;
 
  protected:
   // Special-purpose constructor for subclasses that have fast paths where
   // their ptr() is a Smi.
   inline FixedArrayBase(Address ptr, AllowInlineSmiStorage allow_smi);
 
-  OBJECT_CONSTRUCTORS(FixedArrayBase, HeapObject)
+  OBJECT_CONSTRUCTORS(FixedArrayBase, HeapObject);
 };
 
 // FixedArray describes fixed-sized arrays with element type Object.
@@ -583,27 +580,29 @@ class PodArray : public ByteArray {
 class FixedTypedArrayBase : public FixedArrayBase {
  public:
   // [base_pointer]: Either points to the FixedTypedArrayBase itself or nullptr.
-  DECL_ACCESSORS(base_pointer, Object);
+  DECL_ACCESSORS(base_pointer, Object)
 
   // [external_pointer]: Contains the offset between base_pointer and the start
   // of the data. If the base_pointer is a nullptr, the external_pointer
   // therefore points to the actual backing store.
-  DECL_ACCESSORS(external_pointer, void*)
+  DECL_PRIMITIVE_ACCESSORS(external_pointer, void*)
 
   // Dispatched behavior.
   DECL_CAST(FixedTypedArrayBase)
 
-#define FIXED_TYPED_ARRAY_BASE_FIELDS(V)        \
-  V(kBasePointerOffset, kTaggedSize)            \
-  V(kExternalPointerOffset, kSystemPointerSize) \
-  /* Header size. */                            \
-  V(kHeaderSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(FixedArrayBase::kHeaderSize,
-                                FIXED_TYPED_ARRAY_BASE_FIELDS)
-#undef FIXED_TYPED_ARRAY_BASE_FIELDS
+                                TORQUE_GENERATED_FIXED_TYPED_ARRAY_BASE_FIELDS)
+  static const int kHeaderSize = kSize;
 
+#ifdef V8_COMPRESS_POINTERS
+  // TODO(ishell, v8:8875): When pointer compression is enabled the kHeaderSize
+  // is only kTaggedSize aligned but we can keep using unaligned access since
+  // both x64 and arm64 architectures (where pointer compression supported)
+  // allow unaligned access to doubles.
+  STATIC_ASSERT(IsAligned(kHeaderSize, kTaggedSize));
+#else
   STATIC_ASSERT(IsAligned(kHeaderSize, kDoubleAlignment));
+#endif
 
   static const int kDataOffset = kHeaderSize;
 
@@ -631,6 +630,14 @@ class FixedTypedArrayBase : public FixedArrayBase {
   inline int DataSize() const;
 
   inline size_t ByteLength() const;
+
+  static inline intptr_t ExternalPointerValueForOnHeapArray() {
+    return FixedTypedArrayBase::kDataOffset - kHeapObjectTag;
+  }
+
+  static inline void* ExternalPointerPtrForOnHeapArray() {
+    return reinterpret_cast<void*>(ExternalPointerValueForOnHeapArray());
+  }
 
  private:
   static inline int ElementSize(InstanceType type);
@@ -680,7 +687,7 @@ class FixedTypedArray : public FixedTypedArrayBase {
    public: /* NOLINT */                                                       \
     typedef elementType ElementType;                                          \
     static const InstanceType kInstanceType = FIXED_##TYPE##_ARRAY_TYPE;      \
-    static const char* Designator() { return #type " array"; }                \
+    static const char* ArrayTypeName() { return "Fixed" #Type "Array"; }      \
     static inline Handle<Object> ToHandle(Isolate* isolate,                   \
                                           elementType scalar);                \
     static inline elementType defaultValue();                                 \

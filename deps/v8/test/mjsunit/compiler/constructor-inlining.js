@@ -77,17 +77,22 @@ function testConstructorInlining(){
   }
   assertEquals(a, new Derived(true, 5, a));
 
+  %PrepareFunctionForOptimization(Derived);
   %OptimizeFunctionOnNextCall(Derived);
   assertEquals(b, new DerivedDeoptCreate(true, a, b));
+  %PrepareFunctionForOptimization(Derived);
   %OptimizeFunctionOnNextCall(Derived);
   assertEquals(a, new DerivedDeoptCreate(true, a, undefined));
+  %PrepareFunctionForOptimization(Derived);
   %OptimizeFunctionOnNextCall(Derived);
   assertEquals(5, new DerivedDeoptCreate(false, 5, 7).x);
+  %PrepareFunctionForOptimization(Derived);
   %OptimizeFunctionOnNextCall(Derived);
   assertEquals(7, new DerivedDeoptCreate(false, 5, 7).y);
 }
 
 testConstructorInlining();
+%PrepareFunctionForOptimization(testConstructorInlining);
 %OptimizeFunctionOnNextCall(testConstructorInlining);
 testConstructorInlining();
 
@@ -95,6 +100,7 @@ var last = undefined;
 for(var i = 0; deopt_at < 0; ++i) {
   deopt_at = i;
   counter = 0;
+  %PrepareFunctionForOptimization(testConstructorInlining);
   %OptimizeFunctionOnNextCall(testConstructorInlining);
   testConstructorInlining();
   if (last !== undefined) {

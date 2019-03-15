@@ -98,6 +98,14 @@ void CallForwardVarargsDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void CallFunctionTemplateDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // r3 : function template info
+  // r4 : number of arguments (on the stack, not including receiver)
+  Register registers[] = {r3, r4};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
 void CallWithSpreadDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // r2 : number of arguments (on the stack, not including receiver)
@@ -202,9 +210,10 @@ void ArgumentsAdaptorDescriptor::InitializePlatformSpecific(
 void ApiCallbackDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
-      JavaScriptFrame::context_register(),  // kTargetContext
-      r3,                                   // kApiFunctionAddress
-      r4,                                   // kArgc
+      r3,  // kApiFunctionAddress
+      r4,  // kArgc
+      r5,  // kCallData
+      r2,  // kHolder
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }

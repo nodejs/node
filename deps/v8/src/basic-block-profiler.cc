@@ -13,7 +13,7 @@
 namespace v8 {
 namespace internal {
 
-DEFINE_LAZY_LEAKY_OBJECT_GETTER(BasicBlockProfiler, BasicBlockProfiler::Get);
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(BasicBlockProfiler, BasicBlockProfiler::Get)
 
 BasicBlockProfiler::Data::Data(size_t n_blocks)
     : n_blocks_(n_blocks),

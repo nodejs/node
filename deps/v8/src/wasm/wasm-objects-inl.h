@@ -8,12 +8,15 @@
 #include "src/wasm/wasm-objects.h"
 
 #include "src/contexts-inl.h"
-#include "src/heap/heap-inl.h"
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/foreign-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-objects-inl.h"
 #include "src/objects/managed.h"
 #include "src/objects/oddball-inl.h"
+#include "src/objects/script-inl.h"
+#include "src/roots.h"
 #include "src/v8memory.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-module.h"
@@ -62,10 +65,10 @@ CAST_ACCESSOR(AsmWasmData)
 
 #define PRIMITIVE_ACCESSORS(holder, name, type, offset) \
   type holder::name() const {                           \
-    return READ_PRIMITIVE_FIELD(this, type, offset);    \
+    return READ_PRIMITIVE_FIELD(*this, type, offset);   \
   }                                                     \
   void holder::set_##name(type value) {                 \
-    WRITE_PRIMITIVE_FIELD(this, type, offset, value);   \
+    WRITE_PRIMITIVE_FIELD(*this, type, offset, value);  \
   }
 
 // WasmModuleObject
@@ -91,7 +94,7 @@ const wasm::WasmModule* WasmModuleObject::module() const {
   return native_module()->module();
 }
 void WasmModuleObject::reset_breakpoint_infos() {
-  WRITE_FIELD(this, kBreakPointInfosOffset,
+  WRITE_FIELD(*this, kBreakPointInfosOffset,
               GetReadOnlyRoots().undefined_value());
 }
 bool WasmModuleObject::is_asm_js() {
@@ -102,7 +105,7 @@ bool WasmModuleObject::is_asm_js() {
 }
 
 // WasmTableObject
-ACCESSORS(WasmTableObject, functions, FixedArray, kFunctionsOffset)
+ACCESSORS(WasmTableObject, elements, FixedArray, kElementsOffset)
 ACCESSORS(WasmTableObject, maximum_length, Object, kMaximumLengthOffset)
 ACCESSORS(WasmTableObject, dispatch_tables, FixedArray, kDispatchTablesOffset)
 
@@ -222,6 +225,7 @@ OPTIONAL_ACCESSORS(WasmInstanceObject, debug_info, WasmDebugInfo,
                    kDebugInfoOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, table_object, WasmTableObject,
                    kTableObjectOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, tables, FixedArray, kTablesOffset)
 ACCESSORS(WasmInstanceObject, imported_function_refs, FixedArray,
           kImportedFunctionRefsOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, indirect_function_table_refs, FixedArray,
@@ -233,6 +237,8 @@ OPTIONAL_ACCESSORS(WasmInstanceObject, exceptions_table, FixedArray,
 ACCESSORS(WasmInstanceObject, undefined_value, Oddball, kUndefinedValueOffset)
 ACCESSORS(WasmInstanceObject, null_value, Oddball, kNullValueOffset)
 ACCESSORS(WasmInstanceObject, centry_stub, Code, kCEntryStubOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, wasm_exported_functions, FixedArray,
+                   kWasmExportedFunctionsOffset)
 
 inline bool WasmInstanceObject::has_indirect_function_table() {
   return indirect_function_table_sig_ids() != nullptr;
@@ -295,7 +301,7 @@ OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
 #undef WRITE_PRIMITIVE_FIELD
 #undef PRIMITIVE_ACCESSORS
 
-uint32_t WasmTableObject::current_length() { return functions()->length(); }
+uint32_t WasmTableObject::current_length() { return elements()->length(); }
 
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }
 

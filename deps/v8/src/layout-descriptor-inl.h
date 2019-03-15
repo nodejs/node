@@ -9,7 +9,7 @@
 
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
-#include "src/objects/descriptor-array.h"
+#include "src/objects/descriptor-array-inl.h"
 #include "src/objects/smi.h"
 
 // Has to be the last include (doesn't have include guards):

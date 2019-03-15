@@ -15,12 +15,12 @@
 namespace v8 {
 namespace internal {
 
-RUNTIME_FUNCTION(Runtime_WeakFactoryCleanupJob) {
+RUNTIME_FUNCTION(Runtime_FinalizationGroupCleanupJob) {
   HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSWeakFactory, weak_factory, 0);
-  weak_factory->set_scheduled_for_cleanup(false);
+  CONVERT_ARG_HANDLE_CHECKED(JSFinalizationGroup, finalization_group, 0);
+  finalization_group->set_scheduled_for_cleanup(false);
 
-  JSWeakFactory::Cleanup(weak_factory, isolate);
+  JSFinalizationGroup::Cleanup(finalization_group, isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

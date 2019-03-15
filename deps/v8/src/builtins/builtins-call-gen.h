@@ -28,6 +28,21 @@ class CallOrConstructBuiltinsAssembler : public CodeStubAssembler {
   void CallOrConstructWithSpread(TNode<Object> target, TNode<Object> new_target,
                                  TNode<Object> spread, TNode<Int32T> args_count,
                                  TNode<Context> context);
+
+  enum class CallFunctionTemplateMode : uint8_t {
+    kCheckAccess,
+    kCheckCompatibleReceiver,
+    kCheckAccessAndCompatibleReceiver,
+  };
+
+  void CallFunctionTemplate(CallFunctionTemplateMode mode,
+                            TNode<FunctionTemplateInfo> function_template_info,
+                            TNode<IntPtrT> argc, TNode<Context> context);
+
+ private:
+  TNode<JSReceiver> GetCompatibleReceiver(TNode<JSReceiver> receiver,
+                                          TNode<HeapObject> signature,
+                                          TNode<Context> context);
 };
 
 }  // namespace internal

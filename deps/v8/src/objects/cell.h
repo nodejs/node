@@ -6,6 +6,7 @@
 #define V8_OBJECTS_CELL_H_
 
 #include "src/objects/heap-object.h"
+#include "torque-generated/class-definitions-from-dsl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -28,14 +29,8 @@ class Cell : public HeapObject {
   DECL_PRINTER(Cell)
   DECL_VERIFIER(Cell)
 
-  // Layout description.
-#define CELL_FIELDS(V)         \
-  V(kValueOffset, kTaggedSize) \
-  /* Total size. */            \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CELL_FIELDS)
-#undef CELL_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_CELL_FIELDS)
 
   typedef FixedBodyDescriptor<kValueOffset, kSize, kSize> BodyDescriptor;
 

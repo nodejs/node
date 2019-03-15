@@ -1,0 +1,59 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-typed-array-gen.h'
+
+namespace typed_array_reduce {
+  const kBuiltinName: constexpr string = '%TypedArray%.prototype.reduce';
+
+  transitioning macro ReduceAllElements(implicit context: Context)(
+      array: typed_array::AttachedJSTypedArray, callbackfn: Callable,
+      initialValue: Object): Object {
+    let witness = typed_array::NewAttachedJSTypedArrayWitness(array);
+    const length: Smi = Convert<Smi>(witness.Get().length);
+    let accumulator = initialValue;
+    for (let k: Smi = 0; k < length; k++) {
+      // BUG(4895): We should throw on detached buffers rather than simply exit.
+      witness.Recheck() otherwise break;
+      const value: Object = witness.Load(k);
+      if (accumulator == Hole) {
+        accumulator = value;
+      } else {
+        accumulator = Call(
+            context, callbackfn, Undefined, accumulator, value, k,
+            witness.GetStable());
+      }
+    }
+    if (accumulator == Hole) {
+      ThrowTypeError(kReduceNoInitial, kBuiltinName);
+    }
+    return accumulator;
+  }
+
+  // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.reduce
+  transitioning javascript builtin
+  TypedArrayPrototypeReduce(implicit context: Context)(
+      receiver: Object, ...arguments): Object {
+    // arguments[0] = callback
+    // arguments[1] = initialValue.
+    try {
+      const array: JSTypedArray = Cast<JSTypedArray>(receiver)
+          otherwise NotTypedArray;
+      const uarray = typed_array::EnsureAttached(array) otherwise IsDetached;
+
+      const callbackfn = Cast<Callable>(arguments[0]) otherwise NotCallable;
+      const initialValue = arguments.length >= 2 ? arguments[1] : Hole;
+      return ReduceAllElements(uarray, callbackfn, initialValue);
+    }
+    label NotCallable deferred {
+      ThrowTypeError(kCalledNonCallable, arguments[0]);
+    }
+    label NotTypedArray deferred {
+      ThrowTypeError(kNotTypedArray, kBuiltinName);
+    }
+    label IsDetached deferred {
+      ThrowTypeError(kDetachedOperation, kBuiltinName);
+    }
+  }
+}

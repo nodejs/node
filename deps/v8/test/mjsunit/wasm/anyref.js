@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm --experimental-wasm-anyref --expose-gc
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function testAnyRefIdentityFunction() {
@@ -104,6 +103,42 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   instance.exports.main({hello: 'world'});
 })();
 
+(function testPassAnyRefWithGCWithStackParameters() {
+  print(arguments.callee.name);
+  const num_params = 15;
+  for (let index = 0; index < num_params; index++) {
+    const builder = new WasmModuleBuilder();
+    // Make a signature with {num_params} many anyref parameters.
+    const mysig = makeSig(Array(num_params).fill(kWasmAnyRef), []);
+    const main_sig = builder.addType(mysig);
+    const ref_sig = builder.addType(kSig_v_r);
+    const void_sig = builder.addType(kSig_v_v);
+    const imp_index = builder.addImport('q', 'func', ref_sig);
+    const gc_index = builder.addImport('q', 'gc', void_sig);
+    // First call the gc, then check if the object still exists.
+    builder.addFunction('main', main_sig)
+        .addBody([
+          kExprCallFunction, gc_index,                        // call gc
+          kExprGetLocal, index, kExprCallFunction, imp_index  // call import
+        ])
+        .exportFunc();
+
+    function checkFunction(value) {
+      assertEquals(index, value.hello);
+    }
+
+    const instance = builder.instantiate({q: {func: checkFunction, gc: gc}});
+
+    // Pass {num_params} many parameters to main. Note that it is important
+    // that no other references to these objects exist. They are kept alive
+    // only through references stored in the parameters slots of a stack frame.
+    instance.exports.main(
+        {hello: 0}, {hello: 1}, {hello: 2}, {hello: 3}, {hello: 4}, {hello: 5},
+        {hello: 6}, {hello: 7}, {hello: 8}, {hello: 9}, {hello: 10},
+        {hello: 11}, {hello: 12}, {hello: 13}, {hello: 14});
+  }
+})();
+
 (function testPassAnyRefWithGCInWrapper() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
@@ -180,4 +215,28 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   const instance = builder.instantiate();
 
   assertEquals(null, instance.exports.main());
+})();
+
+(function testImplicitReturnNullRefAsAnyRef() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  const sig_index = builder.addType(kSig_r_v);
+  builder.addFunction('main', sig_index)
+      .addBody([kExprRefNull])
+      .exportFunc();
+
+  const main = builder.instantiate().exports.main;
+  assertEquals(null, main());
+})();
+
+(function testExplicitReturnNullRefAsAnyRef() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  const sig_index = builder.addType(kSig_r_v);
+  builder.addFunction('main', sig_index)
+      .addBody([kExprRefNull, kExprReturn])
+      .exportFunc();
+
+  const main = builder.instantiate().exports.main;
+  assertEquals(null, main());
 })();

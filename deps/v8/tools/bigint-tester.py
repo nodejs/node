@@ -3,6 +3,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import argparse
 import math
 import multiprocessing
@@ -294,7 +297,7 @@ def WrapRunOne(args):
   return RunOne(*args)
 def RunAll(args):
   for op in args.op:
-    for r in xrange(args.runs):
+    for r in range(args.runs):
       yield (op, args.num_inputs, args.binary)
 
 def Main():

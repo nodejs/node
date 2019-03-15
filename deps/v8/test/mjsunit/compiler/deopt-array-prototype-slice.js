@@ -15,6 +15,7 @@
     return array.slice();
   }
 
+  %PrepareFunctionForOptimization(slice);
   slice(); slice();
 
   %OptimizeFunctionOnNextCall(slice);

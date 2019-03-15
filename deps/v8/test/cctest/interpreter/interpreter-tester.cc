@@ -5,6 +5,7 @@
 #include "test/cctest/interpreter/interpreter-tester.h"
 
 #include "src/api-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/objects-inl.h"
 
 namespace v8 {

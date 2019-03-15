@@ -1,0 +1,183 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace array {
+  transitioning javascript builtin
+  ArrayReduceRightPreLoopEagerDeoptContinuation(implicit context: Context)(
+      receiver: Object, callback: Object, length: Object): Object {
+    // All continuation points in the optimized every implementation are
+    // after the ToObject(O) call that ensures we are dealing with a
+    // JSReceiver.
+    //
+    // Also, this great mass of casts is necessary because the signature
+    // of Torque javascript builtins requires Object type for all parameters
+    // other than {context}.
+    const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
+    const callbackfn = Cast<Callable>(callback) otherwise unreachable;
+    const numberLength = Cast<Number>(length) otherwise unreachable;
+
+    // Simulate starting the loop at 0, but ensuring that the accumulator is
+    // the hole. The continuation stub will search for the initial non-hole
+    // element, rightly throwing an exception if not found.
+    return ArrayReduceRightLoopContinuation(
+        jsreceiver, callbackfn, Hole, jsreceiver, 0, numberLength);
+  }
+
+  transitioning javascript builtin
+  ArrayReduceRightLoopEagerDeoptContinuation(implicit context: Context)(
+      receiver: Object, callback: Object, initialK: Object, length: Object,
+      accumulator: Object): Object {
+    // All continuation points in the optimized every implementation are
+    // after the ToObject(O) call that ensures we are dealing with a
+    // JSReceiver.
+    //
+    // Also, this great mass of casts is necessary because the signature
+    // of Torque javascript builtins requires Object type for all parameters
+    // other than {context}.
+    const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
+    const callbackfn = Cast<Callable>(callback) otherwise unreachable;
+    const numberK = Cast<Number>(initialK) otherwise unreachable;
+    const numberLength = Cast<Number>(length) otherwise unreachable;
+
+    return ArrayReduceRightLoopContinuation(
+        jsreceiver, callbackfn, accumulator, jsreceiver, numberK, numberLength);
+  }
+
+  transitioning javascript builtin
+  ArrayReduceRightLoopLazyDeoptContinuation(implicit context: Context)(
+      receiver: Object, callback: Object, initialK: Object, length: Object,
+      result: Object): Object {
+    // All continuation points in the optimized every implementation are
+    // after the ToObject(O) call that ensures we are dealing with a
+    // JSReceiver.
+    const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
+    const callbackfn = Cast<Callable>(callback) otherwise unreachable;
+    let numberK = Cast<Number>(initialK) otherwise unreachable;
+    const numberLength = Cast<Number>(length) otherwise unreachable;
+
+    // The accumulator is the result from the callback call which just occured.
+    let r = ArrayReduceRightLoopContinuation(
+        jsreceiver, callbackfn, result, jsreceiver, numberK, numberLength);
+    return r;
+  }
+
+  transitioning builtin ArrayReduceRightLoopContinuation(implicit context:
+                                                             Context)(
+      receiver: JSReceiver, callbackfn: Callable, initialAccumulator: Object,
+      o: JSReceiver, initialK: Number, length: Number): Object {
+    let accumulator = initialAccumulator;
+
+    // 8b and 9. Repeat, while k >= 0
+    for (let k: Number = initialK; k >= 0; k--) {
+      // 8b i and 9a. Let Pk be ! ToString(k).
+      // k is guaranteed to be a positive integer, hence ToString is
+      // side-effect free and HasProperty/GetProperty do the conversion inline.
+
+      // 8b ii and 9b. Set kPresent to ? HasProperty(O, Pk).
+      const present: Boolean = HasProperty_Inline(o, k);
+
+      // 8b iii and 9c. If kPresent is true, then
+      if (present == True) {
+        // 8b iii and 9c i. Let kValue be ? Get(O, Pk).
+        const value: Object = GetProperty(o, k);
+
+        if (accumulator == Hole) {
+          // 8b iii 1.
+          accumulator = value;
+        } else {
+          // 9c. ii. Set accumulator to ? Call(callbackfn, undefined,
+          //         <accumulator, kValue, k, O>).
+          accumulator =
+              Call(context, callbackfn, Undefined, accumulator, value, k, o);
+        }
+      }
+
+      // 8b iv and 9d. Decrease k by 1. (done by the loop).
+    }
+
+    // 8c. if kPresent is false, throw a TypeError exception.
+    // If the accumulator is discovered with the sentinel hole value,
+    // this means kPresent is false.
+    if (accumulator == Hole) {
+      ThrowTypeError(kReduceNoInitial, 'Array.prototype.reduceRight');
+    }
+    return accumulator;
+  }
+
+  transitioning macro FastArrayReduceRight(implicit context: Context)(
+      o: JSReceiver, len: Number, callbackfn: Callable,
+      initialAccumulator: Object): Object
+      labels Bailout(Number, Object) {
+    let accumulator = initialAccumulator;
+    const smiLen = Cast<Smi>(len) otherwise goto Bailout(len - 1, accumulator);
+    let fastO =
+        Cast<FastJSArray>(o) otherwise goto Bailout(len - 1, accumulator);
+    let fastOW = NewFastJSArrayWitness(fastO);
+
+    // Build a fast loop over the array.
+    for (let k: Smi = smiLen - 1; k >= 0; k--) {
+      fastOW.Recheck() otherwise goto Bailout(k, accumulator);
+
+      // Ensure that we haven't walked beyond a possibly updated length.
+      if (k >= fastOW.Get().length) goto Bailout(k, accumulator);
+
+      const value: Object = fastOW.LoadElementNoHole(k) otherwise continue;
+      if (accumulator == Hole) {
+        accumulator = value;
+      } else {
+        accumulator = Call(
+            context, callbackfn, Undefined, accumulator, value, k,
+            fastOW.Get());
+      }
+    }
+    if (accumulator == Hole) {
+      ThrowTypeError(kReduceNoInitial, 'Array.prototype.reduceRight');
+    }
+    return accumulator;
+  }
+
+  // https://tc39.github.io/ecma262/#sec-array.prototype.reduceRight
+  transitioning javascript builtin
+  ArrayReduceRight(implicit context: Context)(receiver: Object, ...arguments):
+      Object {
+    try {
+      if (IsNullOrUndefined(receiver)) {
+        goto NullOrUndefinedError;
+      }
+
+      // 1. Let O be ? ToObject(this value).
+      const o: JSReceiver = ToObject_Inline(context, receiver);
+
+      // 2. Let len be ? ToLength(? Get(O, "length")).
+      const len: Number = GetLengthProperty(o);
+
+      // 3. If IsCallable(callbackfn) is false, throw a TypeError exception.
+      if (arguments.length == 0) {
+        goto NoCallableError;
+      }
+      const callbackfn = Cast<Callable>(arguments[0]) otherwise NoCallableError;
+
+      // 4. If len is 0 and initialValue is not present, throw a TypeError
+      // exception. (This case is handled at the end of
+      // ArrayReduceRightLoopContinuation).
+
+      const initialValue: Object = arguments.length > 1 ? arguments[1] : Hole;
+
+      try {
+        return FastArrayReduceRight(o, len, callbackfn, initialValue)
+            otherwise Bailout;
+      }
+      label Bailout(value: Number, accumulator: Object) {
+        return ArrayReduceRightLoopContinuation(
+            o, callbackfn, accumulator, o, value, len);
+      }
+    }
+    label NoCallableError deferred {
+      ThrowTypeError(kCalledNonCallable, arguments[0]);
+    }
+    label NullOrUndefinedError deferred {
+      ThrowTypeError(kCalledOnNullOrUndefined, 'Array.prototype.reduceRight');
+    }
+  }
+}

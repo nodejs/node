@@ -186,7 +186,7 @@ class SerializerReferenceMap
 
   static uint32_t Hash(uintptr_t key) { return static_cast<uint32_t>(key); }
 
-  DISALLOW_HEAP_ALLOCATION(no_allocation_);
+  DISALLOW_HEAP_ALLOCATION(no_allocation_)
   int attached_reference_index_;
   DISALLOW_COPY_AND_ASSIGN(SerializerReferenceMap);
 };

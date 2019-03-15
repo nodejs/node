@@ -174,6 +174,7 @@ function m(t, deopt) {
 
 
 function tryFunction(result, mkT, f) {
+  %PrepareFunctionForOptimization(f);
   var d = {deopt: false};
   assertEquals(result, f(mkT(), d));
   assertEquals(result, f(mkT(), d));

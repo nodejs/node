@@ -108,8 +108,6 @@ bool RegExpMacroAssembler::CheckSpecialCharacterClass(uc16 type,
   return false;
 }
 
-#ifndef V8_INTERPRETED_REGEXP  // Avoid unused code, e.g., on ARM.
-
 NativeRegExpMacroAssembler::NativeRegExpMacroAssembler(Isolate* isolate,
                                                        Zone* zone)
     : RegExpMacroAssembler(isolate, zone) {}
@@ -209,14 +207,12 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
   return return_value;
 }
 
-NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
-    Handle<Code> regexp_code,
-    Handle<String> subject,
-    int* offsets_vector,
-    int offsets_vector_length,
-    int previous_index,
-    Isolate* isolate) {
-
+// Returns a {Result} sentinel, or the number of successful matches.
+int NativeRegExpMacroAssembler::Match(Handle<Code> regexp_code,
+                                      Handle<String> subject,
+                                      int* offsets_vector,
+                                      int offsets_vector_length,
+                                      int previous_index, Isolate* isolate) {
   DCHECK(subject->IsFlat());
   DCHECK_LE(0, previous_index);
   DCHECK_LE(previous_index, subject->length());
@@ -255,18 +251,12 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
       StringCharacterPosition(subject_ptr, start_offset + slice_offset, no_gc);
   int byte_length = char_length << char_size_shift;
   const byte* input_end = input_start + byte_length;
-  Result res = Execute(*regexp_code,
-                       *subject,
-                       start_offset,
-                       input_start,
-                       input_end,
-                       offsets_vector,
-                       offsets_vector_length,
-                       isolate);
-  return res;
+  return Execute(*regexp_code, *subject, start_offset, input_start, input_end,
+                 offsets_vector, offsets_vector_length, isolate);
 }
 
-NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Execute(
+// Returns a {Result} sentinel, or the number of successful matches.
+int NativeRegExpMacroAssembler::Execute(
     Code code,
     String input,  // This needs to be the unpacked (sliced, cons) string.
     int start_offset, const byte* input_start, const byte* input_end,
@@ -296,7 +286,7 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Execute(
     AllowHeapAllocation allow_allocation;
     isolate->StackOverflow();
   }
-  return static_cast<Result>(result);
+  return result;
 }
 
 // clang-format off
@@ -360,8 +350,6 @@ Address NativeRegExpMacroAssembler::GrowStack(Address stack_pointer,
   intptr_t stack_content_size = old_stack_base - stack_pointer;
   return new_stack_base - stack_content_size;
 }
-
-#endif  // V8_INTERPRETED_REGEXP
 
 }  // namespace internal
 }  // namespace v8

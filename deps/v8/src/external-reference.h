@@ -72,7 +72,16 @@ class StatsCounter;
     "IsolateData::fast_c_call_caller_fp_address")                              \
   V(fast_c_call_caller_pc_address,                                             \
     "IsolateData::fast_c_call_caller_pc_address")                              \
-  EXTERNAL_REFERENCE_LIST_NON_INTERPRETED_REGEXP(V)
+  V(address_of_regexp_stack_limit, "RegExpStack::limit_address()")             \
+  V(address_of_regexp_stack_memory_address, "RegExpStack::memory_address()")   \
+  V(address_of_regexp_stack_memory_size, "RegExpStack::memory_size()")         \
+  V(address_of_static_offsets_vector, "OffsetsVector::static_offsets_vector")  \
+  V(re_case_insensitive_compare_uc16,                                          \
+    "NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16()")                \
+  V(re_check_stack_guard_state,                                                \
+    "RegExpMacroAssembler*::CheckStackGuardState()")                           \
+  V(re_grow_stack, "NativeRegExpMacroAssembler::GrowStack()")                  \
+  V(re_word_character_map, "NativeRegExpMacroAssembler::word_character_map")
 
 #define EXTERNAL_REFERENCE_LIST(V)                                            \
   V(abort_with_reason, "abort_with_reason")                                   \
@@ -83,6 +92,8 @@ class StatsCounter;
   V(address_of_harmony_await_optimization_flag,                               \
     "FLAG_harmony_await_optimization")                                        \
   V(address_of_min_int, "LDoubleConstant::min_int")                           \
+  V(address_of_mock_arraybuffer_allocator_flag,                               \
+    "FLAG_mock_arraybuffer_allocator")                                        \
   V(address_of_one_half, "LDoubleConstant::one_half")                         \
   V(address_of_runtime_stats_flag, "FLAG_runtime_stats")                      \
   V(address_of_the_hole_nan, "the_hole_nan")                                  \
@@ -101,7 +112,6 @@ class StatsCounter;
   V(f64_acos_wrapper_function, "f64_acos_wrapper")                            \
   V(f64_asin_wrapper_function, "f64_asin_wrapper")                            \
   V(f64_mod_wrapper_function, "f64_mod_wrapper")                              \
-  V(fixed_typed_array_base_data_offset, "fixed_typed_array_base_data_offset") \
   V(get_date_field_function, "JSDate::GetField")                              \
   V(get_or_create_hash_raw, "get_or_create_hash_raw")                         \
   V(ieee754_acos_function, "base::ieee754::acos")                             \
@@ -120,6 +130,7 @@ class StatsCounter;
   V(ieee754_log10_function, "base::ieee754::log10")                           \
   V(ieee754_log1p_function, "base::ieee754::log1p")                           \
   V(ieee754_log2_function, "base::ieee754::log2")                             \
+  V(ieee754_pow_function, "base::ieee754::pow")                               \
   V(ieee754_sin_function, "base::ieee754::sin")                               \
   V(ieee754_sinh_function, "base::ieee754::sinh")                             \
   V(ieee754_tan_function, "base::ieee754::tan")                               \
@@ -142,7 +153,6 @@ class StatsCounter;
   V(mod_two_doubles_operation, "mod_two_doubles")                             \
   V(new_deoptimizer_function, "Deoptimizer::New()")                           \
   V(orderedhashmap_gethash_raw, "orderedhashmap_gethash_raw")                 \
-  V(power_double_double_function, "power_double_double_function")             \
   V(printf_function, "printf")                                                \
   V(refill_math_random, "MathRandom::RefillCache")                            \
   V(search_string_raw_one_one, "search_string_raw_one_one")                   \
@@ -196,22 +206,6 @@ class StatsCounter;
   V(atomic_pair_compare_exchange_function,                                    \
     "atomic_pair_compare_exchange_function")                                  \
   EXTERNAL_REFERENCE_LIST_INTL(V)
-
-#ifndef V8_INTERPRETED_REGEXP
-#define EXTERNAL_REFERENCE_LIST_NON_INTERPRETED_REGEXP(V)                     \
-  V(address_of_regexp_stack_limit, "RegExpStack::limit_address()")            \
-  V(address_of_regexp_stack_memory_address, "RegExpStack::memory_address()")  \
-  V(address_of_regexp_stack_memory_size, "RegExpStack::memory_size()")        \
-  V(address_of_static_offsets_vector, "OffsetsVector::static_offsets_vector") \
-  V(re_case_insensitive_compare_uc16,                                         \
-    "NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16()")               \
-  V(re_check_stack_guard_state,                                               \
-    "RegExpMacroAssembler*::CheckStackGuardState()")                          \
-  V(re_grow_stack, "NativeRegExpMacroAssembler::GrowStack()")                 \
-  V(re_word_character_map, "NativeRegExpMacroAssembler::word_character_map")
-#else
-#define EXTERNAL_REFERENCE_LIST_NON_INTERPRETED_REGEXP(V)
-#endif  // V8_INTERPRETED_REGEXP
 
 #ifdef V8_INTL_SUPPORT
 #define EXTERNAL_REFERENCE_LIST_INTL(V)                               \
@@ -292,8 +286,6 @@ class ExternalReference {
   template <typename SubjectChar, typename PatternChar>
   static ExternalReference search_string_raw();
 
-  static ExternalReference page_flags(Page* page);
-
   static ExternalReference FromRawAddress(Address address);
 
 #define DECL_EXTERNAL_REFERENCE(name, desc) static ExternalReference name();
@@ -331,9 +323,6 @@ size_t hash_value(ExternalReference);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ExternalReference);
 
 void abort_with_reason(int reason);
-
-// Computes pow(x, y) with the special cases in the spec for Math.pow.
-double power_double_double(double x, double y);
 
 }  // namespace internal
 }  // namespace v8

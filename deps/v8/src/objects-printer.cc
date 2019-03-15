@@ -10,6 +10,8 @@
 #include "src/bootstrapper.h"
 #include "src/disasm.h"
 #include "src/disassembler.h"
+#include "src/heap/heap-inl.h"                // For InOldSpace.
+#include "src/heap/heap-write-barrier-inl.h"  // For GetIsolateFromWritableObj.
 #include "src/interpreter/bytecodes.h"
 #include "src/objects-inl.h"
 #include "src/objects/arguments-inl.h"
@@ -69,6 +71,11 @@ namespace internal {
 #ifdef OBJECT_PRINT
 
 void Object::Print() const {
+  // Output into debugger's command window if a debugger is attached.
+  DbgStdoutStream dbg_os;
+  this->Print(dbg_os);
+  dbg_os << std::flush;
+
   StdoutStream os;
   this->Print(os);
   os << std::flush;
@@ -91,8 +98,9 @@ void HeapObject::PrintHeader(std::ostream& os, const char* id) {  // NOLINT
     os << map()->instance_type();
   }
   os << "]";
-  MemoryChunk* chunk = MemoryChunk::FromAddress(ptr());
-  if (chunk->owner()->identity() == OLD_SPACE) os << " in OldSpace";
+  if (GetHeapFromWritableObject(*this)->InOldSpace(*this)) {
+    os << " in OldSpace";
+  }
   if (!IsMap()) os << "\n - map: " << Brief(map());
 }
 
@@ -288,18 +296,18 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_MAP_VALUE_ITERATOR_TYPE:
       JSMapIterator::cast(*this)->JSMapIteratorPrint(os);
       break;
-    case JS_WEAK_CELL_TYPE:
-      JSWeakCell::cast(*this)->JSWeakCellPrint(os);
+    case WEAK_CELL_TYPE:
+      WeakCell::cast(*this)->WeakCellPrint(os);
       break;
     case JS_WEAK_REF_TYPE:
       JSWeakRef::cast(*this)->JSWeakRefPrint(os);
       break;
-    case JS_WEAK_FACTORY_TYPE:
-      JSWeakFactory::cast(*this)->JSWeakFactoryPrint(os);
+    case JS_FINALIZATION_GROUP_TYPE:
+      JSFinalizationGroup::cast(*this)->JSFinalizationGroupPrint(os);
       break;
-    case JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE:
-      JSWeakFactoryCleanupIterator::cast(*this)
-          ->JSWeakFactoryCleanupIteratorPrint(os);
+    case JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE:
+      JSFinalizationGroupCleanupIterator::cast(*this)
+          ->JSFinalizationGroupCleanupIteratorPrint(os);
       break;
     case JS_WEAK_MAP_TYPE:
       JSWeakMap::cast(*this)->JSWeakMapPrint(os);
@@ -415,10 +423,8 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case EXTERNAL_INTERNALIZED_STRING_TYPE:
     case ONE_BYTE_INTERNALIZED_STRING_TYPE:
     case EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
-    case EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
     case UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE:
     case UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
-    case UNCACHED_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
     case STRING_TYPE:
     case CONS_STRING_TYPE:
     case EXTERNAL_STRING_TYPE:
@@ -429,10 +435,8 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case EXTERNAL_ONE_BYTE_STRING_TYPE:
     case SLICED_ONE_BYTE_STRING_TYPE:
     case THIN_ONE_BYTE_STRING_TYPE:
-    case EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
     case UNCACHED_EXTERNAL_STRING_TYPE:
     case UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
-    case UNCACHED_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
     case SMALL_ORDERED_HASH_MAP_TYPE:
     case SMALL_ORDERED_HASH_SET_TYPE:
     case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
@@ -454,19 +458,27 @@ void ByteArray::ByteArrayPrint(std::ostream& os) {  // NOLINT
 
 void BytecodeArray::BytecodeArrayPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "BytecodeArray");
+  os << "\n";
   Disassemble(os);
 }
 
 
 void FreeSpace::FreeSpacePrint(std::ostream& os) {  // NOLINT
-  os << "free space, size " << Size();
+  os << "free space, size " << Size() << "\n";
 }
 
 
 template <class Traits>
 void FixedTypedArray<Traits>::FixedTypedArrayPrint(
     std::ostream& os) {  // NOLINT
-  os << "fixed " << Traits::Designator();
+  PrintHeader(os, Traits::ArrayTypeName());
+  os << "\n - length: " << length() << "\n - base_pointer: ";
+  if (base_pointer().ptr() == kNullAddress) {
+    os << "<nullptr>";
+  } else {
+    os << Brief(base_pointer());
+  }
+  os << "\n - external_pointer: " << external_pointer() << "\n";
 }
 
 bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
@@ -776,16 +788,25 @@ void JSGeneratorObject::JSGeneratorObjectPrint(std::ostream& os) {  // NOLINT
     SharedFunctionInfo fun_info = function()->shared();
     if (fun_info->HasSourceCode()) {
       Script script = Script::cast(fun_info->script());
-      int lin = script->GetLineNumber(source_position()) + 1;
-      int col = script->GetColumnNumber(source_position()) + 1;
       String script_name = script->name()->IsString()
                                ? String::cast(script->name())
                                : GetReadOnlyRoots().empty_string();
-      os << "\n - source position: " << source_position();
-      os << " (";
-      script_name->PrintUC16(os);
-      os << ", lin " << lin;
-      os << ", col " << col;
+
+      os << "\n - source position: ";
+      // Can't collect source positions here if not available as that would
+      // allocate memory.
+      if (fun_info->HasBytecodeArray() &&
+          fun_info->GetBytecodeArray()->HasSourcePositionTable()) {
+        os << source_position();
+        os << " (";
+        script_name->PrintUC16(os);
+        int lin = script->GetLineNumber(source_position()) + 1;
+        int col = script->GetColumnNumber(source_position()) + 1;
+        os << ", lin " << lin;
+        os << ", col " << col;
+      } else {
+        os << "unavailable";
+      }
       os << ")";
     }
   }
@@ -940,8 +961,8 @@ void PrintContextWithHeader(std::ostream& os, Context context,
   context->PrintHeader(os, type);
   os << "\n - length: " << context->length();
   os << "\n - scope_info: " << Brief(context->scope_info());
-  os << "\n - previous: " << Brief(context->previous());
-  os << "\n - extension_object: " << Brief(context->extension_object());
+  os << "\n - previous: " << Brief(context->unchecked_previous());
+  os << "\n - extension: " << Brief(context->extension());
   os << "\n - native_context: " << Brief(context->native_context());
   PrintFixedArrayElements(os, context);
   os << "\n";
@@ -1110,22 +1131,23 @@ void FeedbackVector::FeedbackSlotPrint(std::ostream& os,
 void FeedbackNexus::Print(std::ostream& os) {  // NOLINT
   switch (kind()) {
     case FeedbackSlotKind::kCall:
-    case FeedbackSlotKind::kLoadProperty:
-    case FeedbackSlotKind::kLoadKeyed:
+    case FeedbackSlotKind::kCloneObject:
+    case FeedbackSlotKind::kHasKeyed:
+    case FeedbackSlotKind::kInstanceOf:
     case FeedbackSlotKind::kLoadGlobalInsideTypeof:
     case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
-    case FeedbackSlotKind::kStoreNamedSloppy:
-    case FeedbackSlotKind::kStoreNamedStrict:
-    case FeedbackSlotKind::kStoreOwnNamed:
+    case FeedbackSlotKind::kLoadKeyed:
+    case FeedbackSlotKind::kLoadProperty:
+    case FeedbackSlotKind::kStoreDataPropertyInLiteral:
     case FeedbackSlotKind::kStoreGlobalSloppy:
     case FeedbackSlotKind::kStoreGlobalStrict:
-    case FeedbackSlotKind::kStoreKeyedSloppy:
-    case FeedbackSlotKind::kInstanceOf:
-    case FeedbackSlotKind::kStoreDataPropertyInLiteral:
-    case FeedbackSlotKind::kStoreKeyedStrict:
     case FeedbackSlotKind::kStoreInArrayLiteral:
-    case FeedbackSlotKind::kCloneObject: {
-      os << InlineCacheState2String(StateFromFeedback());
+    case FeedbackSlotKind::kStoreKeyedSloppy:
+    case FeedbackSlotKind::kStoreKeyedStrict:
+    case FeedbackSlotKind::kStoreNamedSloppy:
+    case FeedbackSlotKind::kStoreNamedStrict:
+    case FeedbackSlotKind::kStoreOwnNamed: {
+      os << InlineCacheState2String(ic_state());
       break;
     }
     case FeedbackSlotKind::kBinaryOp: {
@@ -1170,7 +1192,7 @@ void JSMessageObject::JSMessageObjectPrint(std::ostream& os) {  // NOLINT
 
 
 void String::StringPrint(std::ostream& os) {  // NOLINT
-  if (!HasOnlyOneByteChars()) {
+  if (!IsOneByteRepresentation()) {
     os << "u";
   }
   if (StringShape(*this).IsInternalized()) {
@@ -1273,14 +1295,16 @@ void JSMapIterator::JSMapIteratorPrint(std::ostream& os) {  // NOLINT
   JSCollectionIteratorPrint(os, "JSMapIterator");
 }
 
-void JSWeakCell::JSWeakCellPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSWeakCell");
-  os << "\n - factory: " << Brief(factory());
+void WeakCell::WeakCellPrint(std::ostream& os) {
+  PrintHeader(os, "WeakCell");
+  os << "\n - finalization_group: " << Brief(finalization_group());
   os << "\n - target: " << Brief(target());
   os << "\n - holdings: " << Brief(holdings());
   os << "\n - prev: " << Brief(prev());
   os << "\n - next: " << Brief(next());
-  JSObjectPrintBody(os, *this);
+  os << "\n - key: " << Brief(key());
+  os << "\n - key_list_prev: " << Brief(key_list_prev());
+  os << "\n - key_list_next: " << Brief(key_list_next());
 }
 
 void JSWeakRef::JSWeakRefPrint(std::ostream& os) {
@@ -1289,26 +1313,27 @@ void JSWeakRef::JSWeakRefPrint(std::ostream& os) {
   JSObjectPrintBody(os, *this);
 }
 
-void JSWeakFactory::JSWeakFactoryPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSWeakFactory");
+void JSFinalizationGroup::JSFinalizationGroupPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSFinalizationGroup");
   os << "\n - native_context: " << Brief(native_context());
   os << "\n - cleanup: " << Brief(cleanup());
   os << "\n - active_cells: " << Brief(active_cells());
   os << "\n - cleared_cells: " << Brief(cleared_cells());
+  os << "\n - key_map: " << Brief(key_map());
   JSObjectPrintBody(os, *this);
 }
 
-void JSWeakFactoryCleanupIterator::JSWeakFactoryCleanupIteratorPrint(
-    std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSWeakFactoryCleanupIterator");
-  os << "\n - factory: " << Brief(factory());
+void JSFinalizationGroupCleanupIterator::
+    JSFinalizationGroupCleanupIteratorPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSFinalizationGroupCleanupIterator");
+  os << "\n - finalization_group: " << Brief(finalization_group());
   JSObjectPrintBody(os, *this);
 }
 
-void WeakFactoryCleanupJobTask::WeakFactoryCleanupJobTaskPrint(
+void FinalizationGroupCleanupJobTask::FinalizationGroupCleanupJobTaskPrint(
     std::ostream& os) {
-  PrintHeader(os, "WeakFactoryCleanupJobTask");
-  os << "\n - factory: " << Brief(factory());
+  PrintHeader(os, "FinalizationGroupCleanupJobTask");
+  os << "\n - finalization_group: " << Brief(finalization_group());
 }
 
 void JSWeakMap::JSWeakMapPrint(std::ostream& os) {  // NOLINT
@@ -1342,6 +1367,10 @@ void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {  // NOLINT
   os << "\n - byte_offset: " << byte_offset();
   os << "\n - byte_length: " << byte_length();
   os << "\n - length: " << Brief(length());
+  if (!buffer()->IsJSArrayBuffer()) {
+    os << "\n <invalid buffer>\n";
+    return;
+  }
   if (WasDetached()) os << "\n - detached";
   JSObjectPrintBody(os, *this, !WasDetached());
 }
@@ -1359,6 +1388,10 @@ void JSDataView::JSDataViewPrint(std::ostream& os) {  // NOLINT
   os << "\n - buffer =" << Brief(buffer());
   os << "\n - byte_offset: " << byte_offset();
   os << "\n - byte_length: " << byte_length();
+  if (!buffer()->IsJSArrayBuffer()) {
+    os << "\n <invalid buffer>";
+    return;
+  }
   if (WasDetached()) os << "\n - detached";
   JSObjectPrintBody(os, *this, !WasDetached());
 }
@@ -1398,6 +1431,9 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
 
   os << "\n - formal_parameter_count: "
      << shared()->internal_formal_parameter_count();
+  if (shared()->is_safe_to_skip_arguments_adaptor()) {
+    os << "\n - safe_to_skip_arguments_adaptor";
+  }
   os << "\n - kind: " << shared()->kind();
   os << "\n - context: " << Brief(context());
   os << "\n - code: " << Brief(code());
@@ -1454,6 +1490,9 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   }
   os << "\n - function_map_index: " << function_map_index();
   os << "\n - formal_parameter_count: " << internal_formal_parameter_count();
+  if (is_safe_to_skip_arguments_adaptor()) {
+    os << "\n - safe_to_skip_arguments_adaptor";
+  }
   os << "\n - expected_nof_properties: " << expected_nof_properties();
   os << "\n - language_mode: " << language_mode();
   os << "\n - data: " << Brief(function_data());
@@ -1581,7 +1620,8 @@ void CodeDataContainer::CodeDataContainerPrint(std::ostream& os) {  // NOLINT
 }
 
 void Foreign::ForeignPrint(std::ostream& os) {  // NOLINT
-  os << "foreign address : " << reinterpret_cast<void*>(foreign_address());
+  PrintHeader(os, "Foreign");
+  os << "\n - foreign address : " << reinterpret_cast<void*>(foreign_address());
   os << "\n";
 }
 
@@ -1732,6 +1772,13 @@ void Tuple3::Tuple3Print(std::ostream& os) {  // NOLINT
   os << "\n - value1: " << Brief(value1());
   os << "\n - value2: " << Brief(value2());
   os << "\n - value3: " << Brief(value3());
+  os << "\n";
+}
+
+void ClassPositions::ClassPositionsPrint(std::ostream& os) {  // NOLINT
+  PrintHeader(os, "ClassPositions");
+  os << "\n - start position: " << start();
+  os << "\n - end position: " << end();
   os << "\n";
 }
 
@@ -2191,6 +2238,12 @@ void DebugInfo::DebugInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - coverage_info: " << Brief(coverage_info());
 }
 
+void StackTraceFrame::StackTraceFramePrint(std::ostream& os) {  // NOLINT
+  PrintHeader(os, "StackTraceFrame");
+  os << "\n - frame_index: " << frame_index();
+  os << "\n - id: " << id();
+  os << "\n - frame_info: " << Brief(frame_info());
+}
 
 void StackFrameInfo::StackFrameInfoPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "StackFrame");
@@ -2415,7 +2468,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   Isolate* isolate;
   // Read-only maps can't have transitions, which is fortunate because we need
   // the isolate to iterate over the transitions.
-  if (Isolate::FromWritableHeapObject(*this, &isolate)) {
+  if (GetIsolateFromWritableObject(*this, &isolate)) {
     DisallowHeapAllocation no_gc;
     TransitionsAccessor transitions(isolate, *this, &no_gc);
     int nof_transitions = transitions.NumberOfTransitions();
@@ -2618,11 +2671,29 @@ void JSObject::PrintTransitions(std::ostream& os) {  // NOLINT
 }  // namespace internal
 }  // namespace v8
 
+namespace {
+
+inline i::Object GetObjectFromRaw(void* object) {
+  i::Address object_ptr = reinterpret_cast<i::Address>(object);
+#ifdef V8_COMPRESS_POINTERS
+  if (RoundDown<i::kPtrComprIsolateRootAlignment>(object_ptr) ==
+      i::kNullAddress) {
+    // Try to decompress pointer.
+    i::Isolate* isolate = i::Isolate::Current();
+    object_ptr = i::DecompressTaggedAny(isolate->isolate_root(),
+                                        static_cast<i::Tagged_t>(object_ptr));
+  }
+#endif
+  return i::Object(object_ptr);
+}
+
+}  // namespace
+
 //
 // The following functions are used by our gdb macros.
 //
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_Object(void* object) {
-  i::Object(reinterpret_cast<i::Address>(object))->Print();
+  GetObjectFromRaw(object)->Print();
 }
 
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
@@ -2662,7 +2733,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
 
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_LayoutDescriptor(
     void* object) {
-  i::Object o(reinterpret_cast<i::Address>(object));
+  i::Object o(GetObjectFromRaw(object));
   if (!o->IsLayoutDescriptor()) {
     printf("Please provide a layout descriptor\n");
   } else {
@@ -2676,7 +2747,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_StackTrace() {
 }
 
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_TransitionTree(void* object) {
-  i::Object o(reinterpret_cast<i::Address>(object));
+  i::Object o(GetObjectFromRaw(object));
   if (!o->IsMap()) {
     printf("Please provide a valid Map\n");
   } else {

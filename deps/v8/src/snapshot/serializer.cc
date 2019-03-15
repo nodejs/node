@@ -5,7 +5,7 @@
 #include "src/snapshot/serializer.h"
 
 #include "src/assembler-inl.h"
-#include "src/heap/heap.h"
+#include "src/heap/heap-inl.h"  // For Space::identity().
 #include "src/interpreter/interpreter.h"
 #include "src/objects/code.h"
 #include "src/objects/js-array-buffer-inl.h"
@@ -91,7 +91,7 @@ void Serializer::SerializeDeferredObjects() {
   while (!deferred_objects_.empty()) {
     HeapObject obj = deferred_objects_.back();
     deferred_objects_.pop_back();
-    ObjectSerializer obj_serializer(this, obj, &sink_, kPlain, kStartOfObject);
+    ObjectSerializer obj_serializer(this, obj, &sink_);
     obj_serializer.SerializeDeferred();
   }
   sink_.Put(kSynchronize, "Finished with deferred objects");
@@ -110,7 +110,7 @@ void Serializer::SerializeRootObject(Object object) {
   if (object->IsSmi()) {
     PutSmi(Smi::cast(object));
   } else {
-    SerializeObject(HeapObject::cast(object), kPlain, kStartOfObject, 0);
+    SerializeObject(HeapObject::cast(object));
   }
 }
 
@@ -123,21 +123,18 @@ void Serializer::PrintStack() {
 }
 #endif  // DEBUG
 
-bool Serializer::SerializeRoot(HeapObject obj, HowToCode how_to_code,
-                               WhereToPoint where_to_point, int skip) {
+bool Serializer::SerializeRoot(HeapObject obj) {
   RootIndex root_index;
   // Derived serializers are responsible for determining if the root has
   // actually been serialized before calling this.
   if (root_index_map()->Lookup(obj, &root_index)) {
-    PutRoot(root_index, obj, how_to_code, where_to_point, skip);
+    PutRoot(root_index, obj);
     return true;
   }
   return false;
 }
 
-bool Serializer::SerializeHotObject(HeapObject obj, HowToCode how_to_code,
-                                    WhereToPoint where_to_point, int skip) {
-  if (how_to_code != kPlain || where_to_point != kStartOfObject) return false;
+bool Serializer::SerializeHotObject(HeapObject obj) {
   // Encode a reference to a hot object by its index in the working set.
   int index = hot_objects_.Find(obj);
   if (index == HotObjectsList::kNotFound) return false;
@@ -147,17 +144,12 @@ bool Serializer::SerializeHotObject(HeapObject obj, HowToCode how_to_code,
     obj->ShortPrint();
     PrintF("\n");
   }
-  if (skip != 0) {
-    sink_.Put(kHotObjectWithSkip + index, "HotObjectWithSkip");
-    sink_.PutInt(skip, "HotObjectSkipDistance");
-  } else {
-    sink_.Put(kHotObject + index, "HotObject");
-  }
+  // TODO(ishell): remove kHotObjectWithSkip
+  sink_.Put(kHotObject + index, "HotObject");
   return true;
 }
 
-bool Serializer::SerializeBackReference(HeapObject obj, HowToCode how_to_code,
-                                        WhereToPoint where_to_point, int skip) {
+bool Serializer::SerializeBackReference(HeapObject obj) {
   SerializerReference reference =
       reference_map_.LookupReference(reinterpret_cast<void*>(obj.ptr()));
   if (!reference.is_valid()) return false;
@@ -166,12 +158,11 @@ bool Serializer::SerializeBackReference(HeapObject obj, HowToCode how_to_code,
   // offset fromthe start of the deserialized objects or as an offset
   // backwards from thecurrent allocation pointer.
   if (reference.is_attached_reference()) {
-    FlushSkip(skip);
     if (FLAG_trace_serializer) {
       PrintF(" Encoding attached reference %d\n",
              reference.attached_reference_index());
     }
-    PutAttachedReference(reference, how_to_code, where_to_point);
+    PutAttachedReference(reference);
   } else {
     DCHECK(reference.is_back_reference());
     if (FLAG_trace_serializer) {
@@ -182,13 +173,7 @@ bool Serializer::SerializeBackReference(HeapObject obj, HowToCode how_to_code,
 
     PutAlignmentPrefix(obj);
     AllocationSpace space = reference.space();
-    if (skip == 0) {
-      sink_.Put(kBackref + how_to_code + where_to_point + space, "BackRef");
-    } else {
-      sink_.Put(kBackrefWithSkip + how_to_code + where_to_point + space,
-                "BackRefWithSkip");
-      sink_.PutInt(skip, "BackRefSkipDistance");
-    }
+    sink_.Put(kBackref + space, "BackRef");
     PutBackReference(obj, reference);
   }
   return true;
@@ -199,10 +184,7 @@ bool Serializer::ObjectIsBytecodeHandler(HeapObject obj) const {
   return (Code::cast(obj)->kind() == Code::BYTECODE_HANDLER);
 }
 
-void Serializer::PutRoot(RootIndex root, HeapObject object,
-                         SerializerDeserializer::HowToCode how_to_code,
-                         SerializerDeserializer::WhereToPoint where_to_point,
-                         int skip) {
+void Serializer::PutRoot(RootIndex root, HeapObject object) {
   int root_index = static_cast<int>(root);
   if (FLAG_trace_serializer) {
     PrintF(" Encoding root %d:", root_index);
@@ -215,17 +197,12 @@ void Serializer::PutRoot(RootIndex root, HeapObject object,
   STATIC_ASSERT(static_cast<int>(RootIndex::kArgumentsMarker) ==
                 kNumberOfRootArrayConstants - 1);
 
-  if (how_to_code == kPlain && where_to_point == kStartOfObject &&
-      root_index < kNumberOfRootArrayConstants && !Heap::InNewSpace(object)) {
-    if (skip == 0) {
-      sink_.Put(kRootArrayConstants + root_index, "RootConstant");
-    } else {
-      sink_.Put(kRootArrayConstantsWithSkip + root_index, "RootConstant");
-      sink_.PutInt(skip, "SkipInPutRoot");
-    }
+  // TODO(ulan): Check that it works with young large objects.
+  if (root_index < kNumberOfRootArrayConstants &&
+      !Heap::InYoungGeneration(object)) {
+    sink_.Put(kRootArrayConstants + root_index, "RootConstant");
   } else {
-    FlushSkip(skip);
-    sink_.Put(kRootArray + how_to_code + where_to_point, "RootSerialization");
+    sink_.Put(kRootArray, "RootSerialization");
     sink_.PutInt(root_index, "root_index");
     hot_objects_.Add(object);
   }
@@ -260,14 +237,9 @@ void Serializer::PutBackReference(HeapObject object,
   hot_objects_.Add(object);
 }
 
-void Serializer::PutAttachedReference(SerializerReference reference,
-                                      HowToCode how_to_code,
-                                      WhereToPoint where_to_point) {
+void Serializer::PutAttachedReference(SerializerReference reference) {
   DCHECK(reference.is_attached_reference());
-  DCHECK((how_to_code == kPlain && where_to_point == kStartOfObject) ||
-         (how_to_code == kFromCode && where_to_point == kStartOfObject) ||
-         (how_to_code == kFromCode && where_to_point == kInnerPointer));
-  sink_.Put(kAttachedReference + how_to_code + where_to_point, "AttachedRef");
+  sink_.Put(kAttachedReference, "AttachedRef");
   sink_.PutInt(reference.attached_reference_index(), "AttachedRefIndex");
 }
 
@@ -285,6 +257,15 @@ int Serializer::PutAlignmentPrefix(HeapObject object) {
 void Serializer::PutNextChunk(int space) {
   sink_.Put(kNextChunk, "NextChunk");
   sink_.Put(space, "NextChunkSpace");
+}
+
+void Serializer::PutRepeat(int repeat_count) {
+  if (repeat_count <= kLastEncodableFixedRepeatCount) {
+    sink_.Put(EncodeFixedRepeat(repeat_count), "FixedRepeat");
+  } else {
+    sink_.Put(kVariableRepeat, "VariableRepeat");
+    sink_.PutInt(EncodeVariableRepeatCount(repeat_count), "repeat count");
+  }
 }
 
 void Serializer::Pad(int padding_offset) {
@@ -327,21 +308,20 @@ void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
 
   SerializerReference back_reference;
   if (space == LO_SPACE) {
-    sink_->Put(kNewObject + reference_representation_ + space,
-               "NewLargeObject");
+    sink_->Put(kNewObject + space, "NewLargeObject");
     sink_->PutInt(size >> kObjectAlignmentBits, "ObjectSizeInWords");
     CHECK(!object_->IsCode());
     back_reference = serializer_->allocator()->AllocateLargeObject(size);
   } else if (space == MAP_SPACE) {
     DCHECK_EQ(Map::kSize, size);
     back_reference = serializer_->allocator()->AllocateMap();
-    sink_->Put(kNewObject + reference_representation_ + space, "NewMap");
+    sink_->Put(kNewObject + space, "NewMap");
     // This is redundant, but we include it anyways.
     sink_->PutInt(size >> kObjectAlignmentBits, "ObjectSizeInWords");
   } else {
     int fill = serializer_->PutAlignmentPrefix(object_);
     back_reference = serializer_->allocator()->Allocate(space, size + fill);
-    sink_->Put(kNewObject + reference_representation_ + space, "NewObject");
+    sink_->Put(kNewObject + space, "NewObject");
     sink_->PutInt(size >> kObjectAlignmentBits, "ObjectSizeInWords");
   }
 
@@ -356,7 +336,7 @@ void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
                                     back_reference);
 
   // Serialize the map (first word of the object).
-  serializer_->SerializeObject(map, kPlain, kStartOfObject, 0);
+  serializer_->SerializeObject(map);
 }
 
 int32_t Serializer::ObjectSerializer::SerializeBackingStore(
@@ -501,6 +481,7 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
 
   // Output the rest of the imaginary string.
   int bytes_to_output = allocation_size - HeapObject::kHeaderSize;
+  DCHECK(IsAligned(bytes_to_output, kTaggedSize));
 
   // Output raw data header. Do not bother with common raw length cases here.
   sink_->Put(kVariableRawData, "RawDataForString");
@@ -546,7 +527,7 @@ class UnlinkWeakNextScope {
  private:
   HeapObject object_;
   Object next_;
-  DISALLOW_HEAP_ALLOCATION(no_gc_);
+  DISALLOW_HEAP_ALLOCATION(no_gc_)
 };
 
 void Serializer::ObjectSerializer::Serialize() {
@@ -652,8 +633,6 @@ void Serializer::ObjectSerializer::SerializeContent(Map map, int size) {
     OutputCode(size);
     // Then iterate references via reloc info.
     object_->IterateBody(map, size, this);
-    // Finally skip to the end.
-    serializer_->FlushSkip(SkipTo(object_->address() + size));
   } else {
     // For other objects, iterate references first.
     object_->IterateBody(map, size, this);
@@ -691,80 +670,67 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
     while (current < end &&
            (*current)->GetHeapObject(&current_contents, &reference_type)) {
       RootIndex root_index;
+      // Compute repeat count and write repeat prefix if applicable.
       // Repeats are not subject to the write barrier so we can only use
       // immortal immovable root members. They are never in new space.
-      if (current != start &&
+      MaybeObjectSlot repeat_end = current + 1;
+      if (repeat_end < end &&
           serializer_->root_index_map()->Lookup(current_contents,
                                                 &root_index) &&
           RootsTable::IsImmortalImmovable(root_index) &&
-          *current == *(current - 1)) {
+          *current == *repeat_end) {
         DCHECK_EQ(reference_type, HeapObjectReferenceType::STRONG);
-        DCHECK(!Heap::InNewSpace(current_contents));
-        int repeat_count = 1;
-        while (current + repeat_count < end - 1 &&
-               *(current + repeat_count) == *current) {
-          repeat_count++;
+        DCHECK(!Heap::InYoungGeneration(current_contents));
+        while (repeat_end < end && *repeat_end == *current) {
+          repeat_end++;
         }
-        current += repeat_count;
+        int repeat_count = static_cast<int>(repeat_end - current);
+        current = repeat_end;
         bytes_processed_so_far_ += repeat_count * kTaggedSize;
-        if (repeat_count > kNumberOfFixedRepeat) {
-          sink_->Put(kVariableRepeat, "VariableRepeat");
-          sink_->PutInt(repeat_count, "repeat count");
-        } else {
-          sink_->Put(kFixedRepeatStart + repeat_count, "FixedRepeat");
-        }
+        serializer_->PutRepeat(repeat_count);
       } else {
-        if (reference_type == HeapObjectReferenceType::WEAK) {
-          sink_->Put(kWeakPrefix, "WeakReference");
-        }
-        serializer_->SerializeObject(current_contents, kPlain, kStartOfObject,
-                                     0);
         bytes_processed_so_far_ += kTaggedSize;
         ++current;
       }
+      // Now write the object itself.
+      if (reference_type == HeapObjectReferenceType::WEAK) {
+        sink_->Put(kWeakPrefix, "WeakReference");
+      }
+      serializer_->SerializeObject(current_contents);
     }
   }
 }
 
 void Serializer::ObjectSerializer::VisitEmbeddedPointer(Code host,
                                                         RelocInfo* rinfo) {
-  int skip = SkipTo(rinfo->target_address_address());
-  HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
   Object object = rinfo->target_object();
-  serializer_->SerializeObject(HeapObject::cast(object), how_to_code,
-                               kStartOfObject, skip);
+  serializer_->SerializeObject(HeapObject::cast(object));
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
 void Serializer::ObjectSerializer::VisitExternalReference(Foreign host,
                                                           Address* p) {
-  int skip = SkipTo(reinterpret_cast<Address>(p));
   Address target = *p;
   auto encoded_reference = serializer_->EncodeExternalReference(target);
   if (encoded_reference.is_from_api()) {
     sink_->Put(kApiReference, "ApiRef");
   } else {
-    sink_->Put(kExternalReference + kPlain + kStartOfObject, "ExternalRef");
+    sink_->Put(kExternalReference, "ExternalRef");
   }
-  sink_->PutInt(skip, "SkipB4ExternalRef");
   sink_->PutInt(encoded_reference.index(), "reference index");
   bytes_processed_so_far_ += kSystemPointerSize;
 }
 
 void Serializer::ObjectSerializer::VisitExternalReference(Code host,
                                                           RelocInfo* rinfo) {
-  int skip = SkipTo(rinfo->target_address_address());
   Address target = rinfo->target_external_reference();
   auto encoded_reference = serializer_->EncodeExternalReference(target);
   if (encoded_reference.is_from_api()) {
     DCHECK(!rinfo->IsCodedSpecially());
     sink_->Put(kApiReference, "ApiRef");
   } else {
-    HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
-    sink_->Put(kExternalReference + how_to_code + kStartOfObject,
-               "ExternalRef");
+    sink_->Put(kExternalReference, "ExternalRef");
   }
-  sink_->PutInt(skip, "SkipB4ExternalRef");
   DCHECK_NE(target, kNullAddress);  // Code does not reference null.
   sink_->PutInt(encoded_reference.index(), "reference index");
   bytes_processed_so_far_ += rinfo->target_address_size();
@@ -772,38 +738,18 @@ void Serializer::ObjectSerializer::VisitExternalReference(Code host,
 
 void Serializer::ObjectSerializer::VisitInternalReference(Code host,
                                                           RelocInfo* rinfo) {
-  // We do not use skip from last patched pc to find the pc to patch, since
-  // target_address_address may not return addresses in ascending order when
-  // used for internal references. External references may be stored at the
-  // end of the code in the constant pool, whereas internal references are
-  // inline. That would cause the skip to be negative. Instead, we store the
-  // offset from code entry.
   Address entry = Code::cast(object_)->entry();
-  DCHECK_GE(rinfo->target_internal_reference_address(), entry);
-  uintptr_t pc_offset = rinfo->target_internal_reference_address() - entry;
-  DCHECK_LE(pc_offset, Code::cast(object_)->raw_instruction_size());
   DCHECK_GE(rinfo->target_internal_reference(), entry);
   uintptr_t target_offset = rinfo->target_internal_reference() - entry;
   DCHECK_LE(target_offset, Code::cast(object_)->raw_instruction_size());
-  sink_->Put(rinfo->rmode() == RelocInfo::INTERNAL_REFERENCE
-                 ? kInternalReference
-                 : kInternalReferenceEncoded,
-             "InternalRef");
-  sink_->PutInt(pc_offset, "internal ref address");
+  sink_->Put(kInternalReference, "InternalRef");
   sink_->PutInt(target_offset, "internal ref value");
 }
 
 void Serializer::ObjectSerializer::VisitRuntimeEntry(Code host,
                                                      RelocInfo* rinfo) {
-  int skip = SkipTo(rinfo->target_address_address());
-  HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
-  Address target = rinfo->target_address();
-  auto encoded_reference = serializer_->EncodeExternalReference(target);
-  DCHECK(!encoded_reference.is_from_api());
-  sink_->Put(kExternalReference + how_to_code + kStartOfObject, "ExternalRef");
-  sink_->PutInt(skip, "SkipB4ExternalRef");
-  sink_->PutInt(encoded_reference.index(), "reference index");
-  bytes_processed_so_far_ += rinfo->target_address_size();
+  // We no longer serialize code that contains runtime entries.
+  UNREACHABLE();
 }
 
 void Serializer::ObjectSerializer::VisitOffHeapTarget(Code host,
@@ -817,40 +763,9 @@ void Serializer::ObjectSerializer::VisitOffHeapTarget(Code host,
   Code target = InstructionStream::TryLookupCode(serializer_->isolate(), addr);
   CHECK(Builtins::IsIsolateIndependentBuiltin(target));
 
-  int skip = SkipTo(rinfo->target_address_address());
   sink_->Put(kOffHeapTarget, "OffHeapTarget");
-  sink_->PutInt(skip, "SkipB4OffHeapTarget");
   sink_->PutInt(target->builtin_index(), "builtin index");
   bytes_processed_so_far_ += rinfo->target_address_size();
-}
-
-namespace {
-
-class CompareRelocInfo {
- public:
-  bool operator()(RelocInfo x, RelocInfo y) {
-    // Everything that does not use target_address_address will compare equal.
-    Address x_num = 0;
-    Address y_num = 0;
-    if (x.HasTargetAddressAddress()) x_num = x.target_address_address();
-    if (y.HasTargetAddressAddress()) y_num = y.target_address_address();
-    return x_num > y_num;
-  }
-};
-
-}  // namespace
-
-void Serializer::ObjectSerializer::VisitRelocInfo(RelocIterator* it) {
-  std::priority_queue<RelocInfo, std::vector<RelocInfo>, CompareRelocInfo>
-      reloc_queue;
-  for (; !it->done(); it->next()) {
-    reloc_queue.push(*it->rinfo());
-  }
-  while (!reloc_queue.empty()) {
-    RelocInfo rinfo = reloc_queue.top();
-    reloc_queue.pop();
-    rinfo.Visit(this);
-  }
 }
 
 void Serializer::ObjectSerializer::VisitCodeTarget(Code host,
@@ -858,11 +773,35 @@ void Serializer::ObjectSerializer::VisitCodeTarget(Code host,
 #ifdef V8_TARGET_ARCH_ARM
   DCHECK(!RelocInfo::IsRelativeCodeTarget(rinfo->rmode()));
 #endif
-  int skip = SkipTo(rinfo->target_address_address());
   Code object = Code::GetCodeFromTargetAddress(rinfo->target_address());
-  serializer_->SerializeObject(object, kFromCode, kInnerPointer, skip);
+  serializer_->SerializeObject(object);
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
+
+namespace {
+
+// Similar to OutputRawData, but substitutes the given field with the given
+// value instead of reading it from the object.
+void OutputRawWithCustomField(SnapshotByteSink* sink, Address object_start,
+                              int written_so_far, int bytes_to_write,
+                              int field_offset, int field_size,
+                              const byte* field_value) {
+  int offset = field_offset - written_so_far;
+  if (0 <= offset && offset < bytes_to_write) {
+    DCHECK_GE(bytes_to_write, offset + field_size);
+    sink->PutRaw(reinterpret_cast<byte*>(object_start + written_so_far), offset,
+                 "Bytes");
+    sink->PutRaw(field_value, field_size, "Bytes");
+    written_so_far += offset + field_size;
+    bytes_to_write -= offset + field_size;
+    sink->PutRaw(reinterpret_cast<byte*>(object_start + written_so_far),
+                 bytes_to_write, "Bytes");
+  } else {
+    sink->PutRaw(reinterpret_cast<byte*>(object_start + written_so_far),
+                 bytes_to_write, "Bytes");
+  }
+}
+}  // anonymous namespace
 
 void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
   Address object_start = object_->address();
@@ -888,38 +827,26 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
         reinterpret_cast<void*>(object_start + base), bytes_to_output);
 #endif  // MEMORY_SANITIZER
     if (object_->IsBytecodeArray()) {
-      // The code age byte can be changed concurrently by GC.
-      const int bytes_to_age_byte = BytecodeArray::kBytecodeAgeOffset - base;
-      if (0 <= bytes_to_age_byte && bytes_to_age_byte < bytes_to_output) {
-        sink_->PutRaw(reinterpret_cast<byte*>(object_start + base),
-                      bytes_to_age_byte, "Bytes");
-        byte bytecode_age = BytecodeArray::kNoAgeBytecodeAge;
-        sink_->PutRaw(&bytecode_age, 1, "Bytes");
-        const int bytes_written = bytes_to_age_byte + 1;
-        sink_->PutRaw(
-            reinterpret_cast<byte*>(object_start + base + bytes_written),
-            bytes_to_output - bytes_written, "Bytes");
-      } else {
-        sink_->PutRaw(reinterpret_cast<byte*>(object_start + base),
-                      bytes_to_output, "Bytes");
-      }
+      // The bytecode age field can be changed by GC concurrently.
+      byte field_value = BytecodeArray::kNoAgeBytecodeAge;
+      OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
+                               BytecodeArray::kBytecodeAgeOffset,
+                               sizeof(field_value), &field_value);
+    } else if (object_->IsDescriptorArray()) {
+      // The number of marked descriptors field can be changed by GC
+      // concurrently.
+      byte field_value[2];
+      field_value[0] = 0;
+      field_value[1] = 0;
+      OutputRawWithCustomField(
+          sink_, object_start, base, bytes_to_output,
+          DescriptorArray::kRawNumberOfMarkedDescriptorsOffset,
+          sizeof(field_value), field_value);
     } else {
       sink_->PutRaw(reinterpret_cast<byte*>(object_start + base),
                     bytes_to_output, "Bytes");
     }
   }
-}
-
-int Serializer::ObjectSerializer::SkipTo(Address to) {
-  Address object_start = object_->address();
-  int up_to_offset = static_cast<int>(to - object_start);
-  int to_skip = up_to_offset - bytes_processed_so_far_;
-  bytes_processed_so_far_ += to_skip;
-  // This assert will fail if the reloc info gives us the target_address_address
-  // locations in a non-ascending order. We make sure this doesn't happen by
-  // sorting the relocation info.
-  DCHECK_GE(to_skip, 0);
-  return to_skip;
 }
 
 void Serializer::ObjectSerializer::OutputCode(int size) {
@@ -950,6 +877,7 @@ void Serializer::ObjectSerializer::OutputCode(int size) {
 
   Address start = off_heap_code->address() + Code::kDataStart;
   int bytes_to_output = size - Code::kDataStart;
+  DCHECK(IsAligned(bytes_to_output, kTaggedSize));
 
   sink_->Put(kVariableRawCode, "VariableRawCode");
   sink_->PutInt(bytes_to_output, "length");

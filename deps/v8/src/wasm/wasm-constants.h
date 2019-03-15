@@ -71,8 +71,8 @@ enum SectionCode : int8_t {
   kElementSectionCode = 9,     // Elements section
   kCodeSectionCode = 10,       // Function code
   kDataSectionCode = 11,       // Data segments
-  kExceptionSectionCode = 12,  // Exception section
-  kDataCountSectionCode = 13,  // Number of data segments
+  kDataCountSectionCode = 12,  // Number of data segments
+  kExceptionSectionCode = 13,  // Exception section
 
   // The following sections are custom sections, and are identified using a
   // string rather than an integer. Their enumeration values are not guaranteed
@@ -83,7 +83,7 @@ enum SectionCode : int8_t {
   // Helper values
   kFirstSectionInModule = kTypeSectionCode,
   kLastKnownModuleSection = kSourceMappingURLSectionCode,
-  kFirstUnorderedSection = kExceptionSectionCode,
+  kFirstUnorderedSection = kDataCountSectionCode,
 };
 
 // Binary encoding of name section kinds.

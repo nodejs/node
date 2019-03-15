@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-intl-list-format
-
 var locales = ["tlh", "id", "en"];
 var input = "foo and bar";
 var refBreakIterator = new Intl.v8BreakIterator(locales);

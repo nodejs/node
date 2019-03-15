@@ -6,6 +6,7 @@
 
 #include "src/utils.h"
 #include "src/v8memory.h"
+#include "src/vector.h"
 
 namespace v8 {
 namespace internal {

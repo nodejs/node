@@ -40,7 +40,8 @@ function f() {
         return 42;
       }
       return x + y + h(y);
-    }
+    };
+    %PrepareFunctionForOptimization(g);
     g(0);
     %OptimizeFunctionOnNextCall(g);
     a[i] = g(i);

@@ -24,6 +24,7 @@ const TypedArrayPrototype_toStringTag =
   function foo(o) {
     return TypedArrayPrototype_toStringTag.call(o);
   }
+  %PrepareFunctionForOptimization(foo);
   assertEquals(undefined, foo(1));
   assertEquals(undefined, foo({}));
   assertEquals(undefined, foo([]));
@@ -46,6 +47,7 @@ const TypedArrayPrototype_toStringTag =
     return TypedArrayProto_toStringTag(value) !== undefined;
   }
 
+  %PrepareFunctionForOptimization(isTypedArray);
   assertFalse(isTypedArray(1));
   assertFalse(isTypedArray({}));
   assertFalse(isTypedArray([]));
@@ -70,6 +72,7 @@ const TypedArrayPrototype_toStringTag =
     return TypedArrayProto_toStringTag(value) === 'Uint8Array';
   }
 
+  %PrepareFunctionForOptimization(isUint8Array);
   assertFalse(isUint8Array(1));
   assertFalse(isUint8Array({}));
   assertFalse(isUint8Array([]));

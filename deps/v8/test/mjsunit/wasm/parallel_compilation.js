@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm --wasm-num-compilation-tasks=10
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 function assertModule(module, memsize) {

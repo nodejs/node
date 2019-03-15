@@ -15,6 +15,7 @@
     return array.map(x => x + 1);
   }
 
+  %PrepareFunctionForOptimization(map);
   map(); map();
 
   %OptimizeFunctionOnNextCall(map);

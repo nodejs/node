@@ -9,6 +9,7 @@
 (function() {
   function foo(x, y) { return x === y; }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo(0.1, 0.1));
   assertTrue(foo(undefined, undefined));
   %OptimizeFunctionOnNextCall(foo);

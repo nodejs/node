@@ -10,6 +10,7 @@
     return a.every(x => x === o.x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo([3, 3, 3], {x:3}));
   assertFalse(foo([3, 3, 2], {x:3}));
   %OptimizeFunctionOnNextCall(foo);

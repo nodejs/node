@@ -27,8 +27,19 @@ void AddAllocationStatusSample(Isolate* isolate,
       static_cast<int>(status));
 }
 
+size_t GetAllocationLength(uint32_t size, bool require_full_guard_regions) {
+  if (require_full_guard_regions) {
+    return RoundUp(kWasmMaxHeapOffset + kNegativeGuardSize, CommitPageSize());
+  } else {
+    return RoundUp(
+        base::bits::RoundUpToPowerOfTwo32(static_cast<uint32_t>(size)),
+        kWasmPageSize);
+  }
+}
+
 void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
-                              size_t size, void** allocation_base,
+                              size_t size, size_t max_size,
+                              void** allocation_base,
                               size_t* allocation_length) {
   using AllocationStatus = WasmMemoryTracker::AllocationStatus;
 #if V8_TARGET_ARCH_64_BIT
@@ -42,6 +53,10 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
   // require two GCs because the first GC maybe incremental and may have
   // floating garbage.
   static constexpr int kAllocationRetries = 2;
+  // TODO(7881): do not use static_cast<uint32_t>() here
+  uint32_t reservation_size =
+      static_cast<uint32_t>((max_size > size) ? max_size : size);
+  // TODO(8898): Cleanup the allocation retry flow
   bool did_retry = false;
   for (int trial = 0;; ++trial) {
     // For guard regions, we always allocate the largest possible offset into
@@ -50,13 +65,8 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
     //
     // To protect against 32-bit integer overflow issues, we also protect the
     // 2GiB before the valid part of the memory buffer.
-    // TODO(7881): do not use static_cast<uint32_t>() here
     *allocation_length =
-        require_full_guard_regions
-            ? RoundUp(kWasmMaxHeapOffset + kNegativeGuardSize, CommitPageSize())
-            : RoundUp(base::bits::RoundUpToPowerOfTwo32(
-                          static_cast<uint32_t>(size)),
-                      kWasmPageSize);
+        GetAllocationLength(reservation_size, require_full_guard_regions);
     DCHECK_GE(*allocation_length, size);
     DCHECK_GE(*allocation_length, kWasmPageSize);
 
@@ -67,6 +77,11 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
     did_retry = true;
     // After first and second GC: retry.
     if (trial == kAllocationRetries) {
+      // Always reset reservation_size to initial size so that at least the
+      // initial size can be allocated if maximum size reservation is not
+      // possible.
+      reservation_size = static_cast<uint32_t>(size);
+
       // If we fail to allocate guard regions and the fallback is enabled, then
       // retry without full guard regions.
       if (require_full_guard_regions && FLAG_wasm_trap_handler_fallback) {
@@ -157,7 +172,7 @@ WasmMemoryTracker::~WasmMemoryTracker() {
 void* WasmMemoryTracker::TryAllocateBackingStoreForTesting(
     Heap* heap, size_t size, void** allocation_base,
     size_t* allocation_length) {
-  return TryAllocateBackingStore(this, heap, size, allocation_base,
+  return TryAllocateBackingStore(this, heap, size, size, allocation_base,
                                  allocation_length);
 }
 
@@ -290,8 +305,10 @@ Handle<JSArrayBuffer> SetupArrayBuffer(Isolate* isolate, void* backing_store,
   return buffer;
 }
 
-MaybeHandle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
-                                          SharedFlag shared) {
+MaybeHandle<JSArrayBuffer> AllocateAndSetupArrayBuffer(Isolate* isolate,
+                                                       size_t size,
+                                                       size_t maximum_size,
+                                                       SharedFlag shared) {
   // Enforce flag-limited maximum allocation size.
   if (size > max_mem_bytes()) return {};
 
@@ -302,7 +319,8 @@ MaybeHandle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
   size_t allocation_length = 0;
 
   void* memory = TryAllocateBackingStore(memory_tracker, isolate->heap(), size,
-                                         &allocation_base, &allocation_length);
+                                         maximum_size, &allocation_base,
+                                         &allocation_length);
   if (memory == nullptr) return {};
 
 #if DEBUG
@@ -318,6 +336,18 @@ MaybeHandle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
 
   constexpr bool is_external = false;
   return SetupArrayBuffer(isolate, memory, size, is_external, shared);
+}
+
+MaybeHandle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size) {
+  return AllocateAndSetupArrayBuffer(isolate, size, size,
+                                     SharedFlag::kNotShared);
+}
+
+MaybeHandle<JSArrayBuffer> NewSharedArrayBuffer(Isolate* isolate,
+                                                size_t initial_size,
+                                                size_t max_size) {
+  return AllocateAndSetupArrayBuffer(isolate, initial_size, max_size,
+                                     SharedFlag::kShared);
 }
 
 void DetachMemoryBuffer(Isolate* isolate, Handle<JSArrayBuffer> buffer,

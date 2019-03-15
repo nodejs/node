@@ -28,20 +28,17 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return result;
   }
 
-  static StructType* GetStructType(const std::string& name,
-                                   const std::vector<Field>& fields) {
-    StructType* result = new StructType(CurrentNamespace(), name, fields);
+  static StructType* GetStructType(const std::string& name) {
+    StructType* result = new StructType(CurrentNamespace(), name);
     Get().struct_types_.push_back(std::unique_ptr<StructType>(result));
     return result;
   }
 
   static ClassType* GetClassType(const Type* parent, const std::string& name,
-                                 bool transient, const std::string& generates,
-                                 const std::vector<Field>& fields,
-                                 StructType* this_struct, size_t size) {
-    ClassType* result =
-        new ClassType(parent, CurrentNamespace(), name, transient, generates,
-                      fields, this_struct, size);
+                                 bool is_extern, bool transient,
+                                 const std::string& generates) {
+    ClassType* result = new ClassType(parent, CurrentNamespace(), name,
+                                      is_extern, transient, generates);
     Get().struct_types_.push_back(std::unique_ptr<ClassType>(result));
     return result;
   }
@@ -99,6 +96,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(CONSTEXPR_BOOL_TYPE_STRING);
   }
 
+  static const Type* GetConstexprIntPtrType() {
+    return Get().GetBuiltinType(CONSTEXPR_INTPTR_TYPE_STRING);
+  }
+
   static const Type* GetVoidType() {
     return Get().GetBuiltinType(VOID_TYPE_STRING);
   }
@@ -107,8 +108,16 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(RAWPTR_TYPE_STRING);
   }
 
+  static const Type* GetMapType() {
+    return Get().GetBuiltinType(MAP_TYPE_STRING);
+  }
+
   static const Type* GetObjectType() {
     return Get().GetBuiltinType(OBJECT_TYPE_STRING);
+  }
+
+  static const Type* GetJSObjectType() {
+    return Get().GetBuiltinType(JSOBJECT_TYPE_STRING);
   }
 
   static const Type* GetTaggedType() {
@@ -141,6 +150,30 @@ class TypeOracle : public ContextualClass<TypeOracle> {
 
   static const Type* GetInt32Type() {
     return Get().GetBuiltinType(INT32_TYPE_STRING);
+  }
+
+  static const Type* GetUint32Type() {
+    return Get().GetBuiltinType(UINT32_TYPE_STRING);
+  }
+
+  static const Type* GetInt16Type() {
+    return Get().GetBuiltinType(INT16_TYPE_STRING);
+  }
+
+  static const Type* GetUint16Type() {
+    return Get().GetBuiltinType(UINT16_TYPE_STRING);
+  }
+
+  static const Type* GetInt8Type() {
+    return Get().GetBuiltinType(INT8_TYPE_STRING);
+  }
+
+  static const Type* GetUint8Type() {
+    return Get().GetBuiltinType(UINT8_TYPE_STRING);
+  }
+
+  static const Type* GetFloat64Type() {
+    return Get().GetBuiltinType(FLOAT64_TYPE_STRING);
   }
 
   static const Type* GetNeverType() {

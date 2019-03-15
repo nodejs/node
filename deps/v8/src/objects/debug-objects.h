@@ -139,7 +139,7 @@ class DebugInfo : public Struct {
 
   // Id assigned to the function for debugging.
   // This could also be implemented as a weak hash table.
-  DECL_INT_ACCESSORS(debugging_id);
+  DECL_INT_ACCESSORS(debugging_id)
 
 // Bit positions in |debugger_hints|.
 #define DEBUGGER_HINTS_BIT_FIELDS(V, _)       \

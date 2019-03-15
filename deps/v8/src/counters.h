@@ -723,10 +723,10 @@ class RuntimeCallTimer final {
   V(Context_New)                                           \
   V(Context_NewRemoteContext)                              \
   V(DataView_New)                                          \
-  V(Date_DateTimeConfigurationChangeNotification)          \
   V(Date_New)                                              \
   V(Date_NumberValue)                                      \
   V(Debug_Call)                                            \
+  V(debug_GetPrivateFields)                                \
   V(Error_New)                                             \
   V(External_New)                                          \
   V(Float32Array_New)                                      \
@@ -742,6 +742,8 @@ class RuntimeCallTimer final {
   V(Int16Array_New)                                        \
   V(Int32Array_New)                                        \
   V(Int8Array_New)                                         \
+  V(Isolate_DateTimeConfigurationChangeNotification)       \
+  V(Isolate_LocaleConfigurationChangeNotification)         \
   V(JSON_Parse)                                            \
   V(JSON_Stringify)                                        \
   V(Map_AsArray)                                           \
@@ -839,6 +841,7 @@ class RuntimeCallTimer final {
   V(SymbolObject_New)                                      \
   V(SymbolObject_SymbolValue)                              \
   V(SyntaxError_New)                                       \
+  V(TracedGlobal_New)                                      \
   V(TryCatch_StackTrace)                                   \
   V(TypeError_New)                                         \
   V(Uint16Array_New)                                       \
@@ -879,6 +882,7 @@ class RuntimeCallTimer final {
   V(CompileBackgroundRewriteReturnResult)      \
   V(CompileBackgroundScopeAnalysis)            \
   V(CompileBackgroundScript)                   \
+  V(CompileCollectSourcePositions)             \
   V(CompileDeserialize)                        \
   V(CompileEnqueueOnDispatcher)                \
   V(CompileEval)                               \
@@ -998,6 +1002,7 @@ class RuntimeCallTimer final {
   V(LoadIC_StringWrapperLength)                   \
   V(StoreGlobalIC_SlowStub)                       \
   V(StoreGlobalIC_StoreScriptContextField)        \
+  V(StoreGlobalIC_Premonomorphic)                 \
   V(StoreIC_HandlerCacheHit_Accessor)             \
   V(StoreIC_NonReceiver)                          \
   V(StoreIC_Premonomorphic)                       \
@@ -1192,10 +1197,10 @@ class RuntimeCallTimerScope {
   HR(scavenge_reason, V8.GCScavengeReason, 0, 21, 22)                          \
   HR(young_generation_handling, V8.GCYoungGenerationHandling, 0, 2, 3)         \
   /* Asm/Wasm. */                                                              \
-  HR(wasm_functions_per_asm_module, V8.WasmFunctionsPerModule.asm, 1, 100000,  \
+  HR(wasm_functions_per_asm_module, V8.WasmFunctionsPerModule.asm, 1, 1000000, \
      51)                                                                       \
   HR(wasm_functions_per_wasm_module, V8.WasmFunctionsPerModule.wasm, 1,        \
-     100000, 51)                                                               \
+     1000000, 51)                                                              \
   HR(array_buffer_big_allocations, V8.ArrayBufferLargeAllocations, 0, 4096,    \
      13)                                                                       \
   HR(array_buffer_new_size_failures, V8.ArrayBufferNewSizeFailures, 0, 4096,   \
@@ -1244,6 +1249,8 @@ class RuntimeCallTimerScope {
   HT(gc_low_memory_notification, V8.GCLowMemoryNotification, 10000,            \
      MILLISECOND)                                                              \
   /* Compilation times. */                                                     \
+  HT(collect_source_positions, V8.CollectSourcePositions, 1000000,             \
+     MICROSECOND)                                                              \
   HT(compile, V8.CompileMicroSeconds, 1000000, MICROSECOND)                    \
   HT(compile_eval, V8.CompileEvalMicroSeconds, 1000000, MICROSECOND)           \
   /* Serialization as part of compilation (code caching) */                    \
@@ -1323,9 +1330,7 @@ class RuntimeCallTimerScope {
   HT(compile_script_on_background,                                             \
      V8.CompileScriptMicroSeconds.BackgroundThread, 1000000, MICROSECOND)      \
   HT(compile_function_on_background,                                           \
-     V8.CompileFunctionMicroSeconds.BackgroundThread, 1000000, MICROSECOND)    \
-  HT(gc_parallel_task_latency, V8.GC.ParallelTaskLatencyMicroSeconds, 1000000, \
-     MICROSECOND)
+     V8.CompileFunctionMicroSeconds.BackgroundThread, 1000000, MICROSECOND)
 
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
   AHT(compile_lazy, V8.CompileLazyMicroSeconds)
@@ -1424,7 +1429,6 @@ class RuntimeCallTimerScope {
   SC(fast_new_closure_total, V8.FastNewClosureTotal)                           \
   SC(string_add_runtime, V8.StringAddRuntime)                                  \
   SC(string_add_native, V8.StringAddNative)                                    \
-  SC(string_add_runtime_ext_to_one_byte, V8.StringAddRuntimeExtToOneByte)      \
   SC(sub_string_runtime, V8.SubStringRuntime)                                  \
   SC(sub_string_native, V8.SubStringNative)                                    \
   SC(regexp_entry_runtime, V8.RegExpEntryRuntime)                              \

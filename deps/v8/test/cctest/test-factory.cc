@@ -4,6 +4,7 @@
 
 #include "include/v8.h"
 
+#include "src/code-desc.h"
 #include "src/handles-inl.h"
 #include "src/isolate.h"
 #include "test/cctest/cctest.h"

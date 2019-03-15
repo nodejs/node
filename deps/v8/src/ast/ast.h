@@ -11,6 +11,7 @@
 #include "src/ast/modules.h"
 #include "src/ast/variables.h"
 #include "src/bailout-reason.h"
+#include "src/base/threaded-list.h"
 #include "src/globals.h"
 #include "src/heap/factory.h"
 #include "src/isolate.h"
@@ -100,7 +101,7 @@ namespace internal {
   V(SuperCallReference)         \
   V(SuperPropertyReference)     \
   V(TemplateLiteral)            \
-  V(ThisFunction)               \
+  V(ThisExpression)             \
   V(Throw)                      \
   V(UnaryOperation)             \
   V(VariableProxy)              \
@@ -483,26 +484,14 @@ inline NestedVariableDeclaration* VariableDeclaration::AsNested() {
 class FunctionDeclaration final : public Declaration {
  public:
   FunctionLiteral* fun() const { return fun_; }
-  bool declares_sloppy_block_function() const {
-    return DeclaresSloppyBlockFunction::decode(bit_field_);
-  }
 
  private:
   friend class AstNodeFactory;
 
-  class DeclaresSloppyBlockFunction
-      : public BitField<bool, Declaration::kNextBitFieldIndex, 1> {};
-
-  FunctionDeclaration(FunctionLiteral* fun, bool declares_sloppy_block_function,
-                      int pos)
-      : Declaration(pos, kFunctionDeclaration), fun_(fun) {
-    bit_field_ = DeclaresSloppyBlockFunction::update(
-        bit_field_, declares_sloppy_block_function);
-  }
+  FunctionDeclaration(FunctionLiteral* fun, int pos)
+      : Declaration(pos, kFunctionDeclaration), fun_(fun) {}
 
   FunctionLiteral* fun_;
-
-  static const uint8_t kNextBitFieldIndex = DeclaresSloppyBlockFunction::kNext;
 };
 
 
@@ -977,14 +966,30 @@ class SloppyBlockFunctionStatement final : public Statement {
  public:
   Statement* statement() const { return statement_; }
   void set_statement(Statement* statement) { statement_ = statement; }
+  Scope* scope() const { return var_->scope(); }
+  Variable* var() const { return var_; }
+  Token::Value init() const { return TokenField::decode(bit_field_); }
+  const AstRawString* name() const { return var_->raw_name(); }
+  SloppyBlockFunctionStatement** next() { return &next_; }
 
  private:
   friend class AstNodeFactory;
 
-  SloppyBlockFunctionStatement(int pos, Statement* statement)
-      : Statement(pos, kSloppyBlockFunctionStatement), statement_(statement) {}
+  class TokenField
+      : public BitField<Token::Value, Statement::kNextBitFieldIndex, 8> {};
 
+  SloppyBlockFunctionStatement(int pos, Variable* var, Token::Value init,
+                               Statement* statement)
+      : Statement(pos, kSloppyBlockFunctionStatement),
+        var_(var),
+        statement_(statement),
+        next_(nullptr) {
+    bit_field_ = TokenField::update(bit_field_, init);
+  }
+
+  Variable* var_;
   Statement* statement_;
+  SloppyBlockFunctionStatement* next_;
 };
 
 
@@ -1495,11 +1500,15 @@ class ArrayLiteral final : public AggregateLiteral {
 
 enum class HoleCheckMode { kRequired, kElided };
 
+class ThisExpression final : public Expression {
+ private:
+  friend class AstNodeFactory;
+  ThisExpression() : Expression(kNoSourcePosition, kThisExpression) {}
+};
+
 class VariableProxy final : public Expression {
  public:
-  bool IsValidReferenceExpression() const {
-    return !is_this() && !is_new_target();
-  }
+  bool IsValidReferenceExpression() const { return !is_new_target(); }
 
   Handle<String> name() const { return raw_name()->string(); }
   const AstRawString* raw_name() const {
@@ -1519,8 +1528,6 @@ class VariableProxy final : public Expression {
   Scanner::Location location() {
     return Scanner::Location(position(), position() + raw_name()->length());
   }
-
-  bool is_this() const { return IsThisField::decode(bit_field_); }
 
   bool is_assigned() const { return IsAssignedField::decode(bit_field_); }
   void set_is_assigned() {
@@ -1594,8 +1601,8 @@ class VariableProxy final : public Expression {
       : Expression(start_position, kVariableProxy),
         raw_name_(name),
         next_unresolved_(nullptr) {
-    bit_field_ |= IsThisField::encode(variable_kind == THIS_VARIABLE) |
-                  IsAssignedField::encode(false) |
+    DCHECK_NE(THIS_VARIABLE, variable_kind);
+    bit_field_ |= IsAssignedField::encode(false) |
                   IsResolvedField::encode(false) |
                   IsRemovedFromUnresolvedField::encode(false) |
                   HoleCheckModeField::encode(HoleCheckMode::kElided);
@@ -1603,9 +1610,8 @@ class VariableProxy final : public Expression {
 
   explicit VariableProxy(const VariableProxy* copy_from);
 
-  class IsThisField : public BitField<bool, Expression::kNextBitFieldIndex, 1> {
-  };
-  class IsAssignedField : public BitField<bool, IsThisField::kNext, 1> {};
+  class IsAssignedField
+      : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
   class IsResolvedField : public BitField<bool, IsAssignedField::kNext, 1> {};
   class IsRemovedFromUnresolvedField
       : public BitField<bool, IsResolvedField::kNext, 1> {};
@@ -2190,8 +2196,6 @@ class FunctionLiteral final : public Expression {
     kWrapped,
   };
 
-  enum IdType { kIdTypeInvalid = -1, kIdTypeTopLevel = 0 };
-
   enum ParameterFlag : uint8_t {
     kNoDuplicateParameters,
     kHasDuplicateParameters
@@ -2226,7 +2230,7 @@ class FunctionLiteral final : public Expression {
   }
   bool is_oneshot_iife() const { return OneshotIIFEBit::decode(bit_field_); }
   bool is_toplevel() const {
-    return function_literal_id() == FunctionLiteral::kIdTypeTopLevel;
+    return function_literal_id() == kFunctionLiteralIdTopLevel;
   }
   bool is_wrapped() const { return function_type() == kWrapped; }
   LanguageMode language_mode() const;
@@ -2250,6 +2254,18 @@ class FunctionLiteral final : public Expression {
     }
     return false;
   }
+
+  // We can safely skip the arguments adaptor frame setup even
+  // in case of arguments mismatches for strict mode functions,
+  // as long as there's
+  //
+  //   1. no use of the arguments object (either explicitly or
+  //      potentially implicitly via a direct eval() call), and
+  //   2. rest parameters aren't being used in the function.
+  //
+  // See http://bit.ly/v8-faster-calls-with-arguments-mismatch
+  // for the details here (https://crbug.com/v8/8895).
+  bool SafeToSkipArgumentsAdaptor() const;
 
   // Returns either name or inferred name as a cstring.
   std::unique_ptr<char[]> GetDebugName() const;
@@ -2550,56 +2566,41 @@ class NativeFunctionLiteral final : public Expression {
 };
 
 
-class ThisFunction final : public Expression {
- private:
-  friend class AstNodeFactory;
-  explicit ThisFunction(int pos) : Expression(pos, kThisFunction) {}
-};
-
-
 class SuperPropertyReference final : public Expression {
  public:
-  VariableProxy* this_var() const { return this_var_; }
   Expression* home_object() const { return home_object_; }
 
  private:
   friend class AstNodeFactory;
 
-  SuperPropertyReference(VariableProxy* this_var, Expression* home_object,
-                         int pos)
-      : Expression(pos, kSuperPropertyReference),
-        this_var_(this_var),
-        home_object_(home_object) {
-    DCHECK(this_var->is_this());
+  // We take in ThisExpression* only as a proof that it was accessed.
+  SuperPropertyReference(Expression* home_object, int pos)
+      : Expression(pos, kSuperPropertyReference), home_object_(home_object) {
     DCHECK(home_object->IsProperty());
   }
 
-  VariableProxy* this_var_;
   Expression* home_object_;
 };
 
 
 class SuperCallReference final : public Expression {
  public:
-  VariableProxy* this_var() const { return this_var_; }
   VariableProxy* new_target_var() const { return new_target_var_; }
   VariableProxy* this_function_var() const { return this_function_var_; }
 
  private:
   friend class AstNodeFactory;
 
-  SuperCallReference(VariableProxy* this_var, VariableProxy* new_target_var,
+  // We take in ThisExpression* only as a proof that it was accessed.
+  SuperCallReference(VariableProxy* new_target_var,
                      VariableProxy* this_function_var, int pos)
       : Expression(pos, kSuperCallReference),
-        this_var_(this_var),
         new_target_var_(new_target_var),
         this_function_var_(this_function_var) {
-    DCHECK(this_var->is_this());
     DCHECK(new_target_var->raw_name()->IsOneByteEqualTo(".new.target"));
     DCHECK(this_function_var->raw_name()->IsOneByteEqualTo(".this_function"));
   }
 
-  VariableProxy* this_var_;
   VariableProxy* new_target_var_;
   VariableProxy* this_function_var_;
 };
@@ -2780,6 +2781,7 @@ class AstNodeFactory final {
       : zone_(zone),
         ast_value_factory_(ast_value_factory),
         empty_statement_(new (zone) class EmptyStatement()),
+        this_expression_(new (zone) class ThisExpression()),
         failure_expression_(new (zone) class FailureExpression()) {}
 
   AstNodeFactory* ast_node_factory() { return this; }
@@ -2794,10 +2796,8 @@ class AstNodeFactory final {
     return new (zone_) NestedVariableDeclaration(scope, pos);
   }
 
-  FunctionDeclaration* NewFunctionDeclaration(FunctionLiteral* fun,
-                                              bool is_sloppy_block_function,
-                                              int pos) {
-    return new (zone_) FunctionDeclaration(fun, is_sloppy_block_function, pos);
+  FunctionDeclaration* NewFunctionDeclaration(FunctionLiteral* fun, int pos) {
+    return new (zone_) FunctionDeclaration(fun, pos);
   }
 
   Block* NewBlock(int capacity, bool ignore_completion_value) {
@@ -2936,12 +2936,18 @@ class AstNodeFactory final {
     return empty_statement_;
   }
 
+  class ThisExpression* ThisExpression() {
+    return this_expression_;
+  }
+
   class FailureExpression* FailureExpression() {
     return failure_expression_;
   }
 
-  SloppyBlockFunctionStatement* NewSloppyBlockFunctionStatement(int pos) {
-    return new (zone_) SloppyBlockFunctionStatement(pos, EmptyStatement());
+  SloppyBlockFunctionStatement* NewSloppyBlockFunctionStatement(
+      int pos, Variable* var, Token::Value init) {
+    return new (zone_)
+        SloppyBlockFunctionStatement(pos, var, init, EmptyStatement());
   }
 
   CaseClause* NewCaseClause(Expression* label,
@@ -3143,6 +3149,8 @@ class AstNodeFactory final {
                             Expression* value,
                             int pos) {
     DCHECK(Token::IsAssignmentOp(op));
+    DCHECK_NOT_NULL(target);
+    DCHECK_NOT_NULL(value);
 
     if (op != Token::INIT && target->IsVariableProxy()) {
       target->AsVariableProxy()->set_is_assigned();
@@ -3206,7 +3214,7 @@ class AstNodeFactory final {
         FunctionLiteral::kAnonymousExpression,
         FunctionLiteral::kNoDuplicateParameters,
         FunctionLiteral::kShouldLazyCompile, 0, /* has_braces */ false,
-        FunctionLiteral::kIdTypeTopLevel);
+        kFunctionLiteralIdTopLevel);
   }
 
   ClassLiteral::Property* NewClassLiteralProperty(
@@ -3242,22 +3250,16 @@ class AstNodeFactory final {
     return new (zone_) DoExpression(block, result, pos);
   }
 
-  ThisFunction* NewThisFunction(int pos) {
-    return new (zone_) ThisFunction(pos);
-  }
-
-  SuperPropertyReference* NewSuperPropertyReference(VariableProxy* this_var,
-                                                    Expression* home_object,
+  SuperPropertyReference* NewSuperPropertyReference(Expression* home_object,
                                                     int pos) {
-    return new (zone_) SuperPropertyReference(this_var, home_object, pos);
+    return new (zone_) SuperPropertyReference(home_object, pos);
   }
 
-  SuperCallReference* NewSuperCallReference(VariableProxy* this_var,
-                                            VariableProxy* new_target_var,
+  SuperCallReference* NewSuperCallReference(VariableProxy* new_target_var,
                                             VariableProxy* this_function_var,
                                             int pos) {
     return new (zone_)
-        SuperCallReference(this_var, new_target_var, this_function_var, pos);
+        SuperCallReference(new_target_var, this_function_var, pos);
   }
 
   EmptyParentheses* NewEmptyParentheses(int pos) {
@@ -3295,6 +3297,7 @@ class AstNodeFactory final {
   Zone* zone_;
   AstValueFactory* ast_value_factory_;
   class EmptyStatement* empty_statement_;
+  class ThisExpression* this_expression_;
   class FailureExpression* failure_expression_;
 };
 

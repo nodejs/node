@@ -146,18 +146,8 @@ class AsyncGeneratorRequest : public Struct {
   DECL_ACCESSORS(value, Object)
   DECL_ACCESSORS(promise, Object)
 
-// Layout description.
-#define ASYNC_GENERATOR_REQUEST_FIELDS(V) \
-  V(kNextOffset, kTaggedSize)             \
-  V(kResumeModeOffset, kTaggedSize)       \
-  V(kValueOffset, kTaggedSize)            \
-  V(kPromiseOffset, kTaggedSize)          \
-  /* Total size. */                       \
-  V(kSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
-                                ASYNC_GENERATOR_REQUEST_FIELDS)
-#undef ASYNC_GENERATOR_REQUEST_FIELDS
+                                TORQUE_GENERATED_ASYNC_GENERATOR_REQUEST_FIELDS)
 
   DECL_CAST(AsyncGeneratorRequest)
   DECL_PRINTER(AsyncGeneratorRequest)

@@ -15,6 +15,7 @@
     return x instanceof Goo;
   }
 
+  %PrepareFunctionForOptimization(IsGoo);
   assertFalse(IsGoo(goo));
   assertFalse(IsGoo(goo));
   %OptimizeFunctionOnNextCall(IsGoo);
@@ -30,6 +31,7 @@
     return x instanceof Goo;
   }
 
+  %PrepareFunctionForOptimization(IsGoo);
   assertTrue(IsGoo(goo));
   assertTrue(IsGoo(goo));
   %OptimizeFunctionOnNextCall(IsGoo);
@@ -45,6 +47,7 @@
     return x instanceof Goo;
   }
 
+  %PrepareFunctionForOptimization(IsGoo);
   assertThrows(_ => IsGoo(goo), TypeError);
   assertThrows(_ => IsGoo(goo), TypeError);
   %OptimizeFunctionOnNextCall(IsGoo);
@@ -59,6 +62,7 @@
     return x instanceof Goo;
   }
 
+  %PrepareFunctionForOptimization(IsGoo);
   assertFalse(IsGoo(goo));
   assertFalse(IsGoo(goo));
   %OptimizeFunctionOnNextCall(IsGoo);
@@ -75,6 +79,7 @@
     return x instanceof Goo;
   }
 
+  %PrepareFunctionForOptimization(IsGoo);
   assertFalse(IsGoo(goo));
   assertFalse(IsGoo(goo));
   %OptimizeFunctionOnNextCall(IsGoo);
@@ -94,6 +99,7 @@
     return x instanceof Goo;
   }
 
+  %PrepareFunctionForOptimization(IsGoo);
   assertTrue(IsGoo(goo));
   assertTrue(IsGoo(goo));
   %OptimizeFunctionOnNextCall(IsGoo);
@@ -109,6 +115,7 @@
     return x instanceof Goo;
   }
 
+  %PrepareFunctionForOptimization(IsGoo);
   assertFalse(IsGoo(goo));
   assertFalse(IsGoo(goo));
   %OptimizeFunctionOnNextCall(IsGoo);
@@ -124,6 +131,7 @@
     return x instanceof Goo;
   }
 
+  %PrepareFunctionForOptimization(IsGoo);
   assertThrows(_ => IsGoo(goo), TypeError);
   assertThrows(_ => IsGoo(goo), TypeError);
   %OptimizeFunctionOnNextCall(IsGoo);
@@ -138,6 +146,7 @@
     return x instanceof Goo;
   }
 
+  %PrepareFunctionForOptimization(IsGoo);
   assertTrue(IsGoo(goo));
   assertTrue(IsGoo(goo));
   %OptimizeFunctionOnNextCall(IsGoo);
@@ -154,6 +163,7 @@
     return x instanceof Goo;
   }
 
+  %PrepareFunctionForOptimization(IsGoo);
   assertTrue(IsGoo(goo));
   assertTrue(IsGoo(goo));
   %OptimizeFunctionOnNextCall(IsGoo);
@@ -171,6 +181,7 @@
     return x instanceof Goo;
   }
 
+  %PrepareFunctionForOptimization(IsGoo);
   assertThrows(_ => IsGoo(goo), TypeError);
   assertThrows(_ => IsGoo(goo), TypeError);
   %OptimizeFunctionOnNextCall(IsGoo);
@@ -189,6 +200,7 @@
     return x instanceof Goo;
   }
 
+  %PrepareFunctionForOptimization(IsGoo);
   assertFalse(IsGoo(goo));
   assertFalse(IsGoo(goo));
   %OptimizeFunctionOnNextCall(IsGoo);
@@ -207,6 +219,7 @@
     return x instanceof Goo;
   }
 
+  %PrepareFunctionForOptimization(IsGoo);
   assertThrows(_ => IsGoo(goo), TypeError);
   assertThrows(_ => IsGoo(goo), TypeError);
   %OptimizeFunctionOnNextCall(IsGoo);
@@ -225,6 +238,7 @@
     return x instanceof Goo;
   }
 
+  %PrepareFunctionForOptimization(IsGoo);
   assertFalse(IsGoo(goo));
   assertFalse(IsGoo(goo));
   %OptimizeFunctionOnNextCall(IsGoo);

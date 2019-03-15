@@ -37,7 +37,7 @@ namespace collections {
         goto MayHaveSideEffects;
       }
       case (o: Object): deferred {
-        ThrowTypeError(context, kIteratorValueNotAnObject, o);
+        ThrowTypeError(kIteratorValueNotAnObject, o);
       }
     }
   }

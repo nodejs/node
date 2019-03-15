@@ -13,6 +13,7 @@ const undetectable = %GetUndetectable();
 
   function foo() { return a == b; }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo());
   assertFalse(foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -26,6 +27,7 @@ const undetectable = %GetUndetectable();
 
   function foo() { return a == b; }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo());
   assertTrue(foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -39,6 +41,7 @@ const undetectable = %GetUndetectable();
 
   function foo() { return a == b; }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo());
   assertTrue(foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -52,6 +55,7 @@ const undetectable = %GetUndetectable();
 
   function foo() { return a == b; }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo());
   assertTrue(foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -65,6 +69,7 @@ const undetectable = %GetUndetectable();
 
   function foo() { return a == b; }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo());
   assertTrue(foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -78,6 +83,7 @@ const undetectable = %GetUndetectable();
 
   function foo(a) { return a == b; }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo(b));
   assertFalse(foo(a));
   assertTrue(foo(b));
@@ -98,6 +104,7 @@ const undetectable = %GetUndetectable();
 
   function foo(a, b) { return a == b; }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo(b, b));
   assertFalse(foo(a, b));
   assertTrue(foo(a, a));

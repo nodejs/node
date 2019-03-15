@@ -43,5 +43,6 @@ function f() {
   return eval("200");
 }
 
+%PrepareFunctionForOptimization(f);
 %OptimizeFunctionOnNextCall(f);
 assertEquals(100, f());

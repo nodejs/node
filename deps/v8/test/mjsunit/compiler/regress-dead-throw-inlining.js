@@ -7,6 +7,7 @@
 function g() { if (false) throw 0; }
 function f() { g(); }
 
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

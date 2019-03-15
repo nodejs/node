@@ -36,7 +36,7 @@ uint32_t StringSetShape::Hash(Isolate* isolate, String key) {
   return key->Hash();
 }
 
-uint32_t StringSetShape::HashForObject(Isolate* isolate, Object object) {
+uint32_t StringSetShape::HashForObject(ReadOnlyRoots roots, Object object) {
   return String::cast(object)->Hash();
 }
 
@@ -53,7 +53,7 @@ Handle<Object> StringTableShape::AsHandle(Isolate* isolate,
   return key->AsHandle(isolate);
 }
 
-uint32_t StringTableShape::HashForObject(Isolate* isolate, Object object) {
+uint32_t StringTableShape::HashForObject(ReadOnlyRoots roots, Object object) {
   return String::cast(object)->Hash();
 }
 

@@ -27,6 +27,12 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# flake8: noqa  # https://bugs.chromium.org/p/v8/issues/detail?id=8784
+
+
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import BaseHTTPServer
 import bisect
 import cgi
@@ -69,7 +75,7 @@ DEBUG=False
 
 def DebugPrint(s):
   if not DEBUG: return
-  print s
+  print(s)
 
 
 class Descriptor(object):
@@ -120,7 +126,7 @@ class Descriptor(object):
 def FullDump(reader, heap):
   """Dump all available memory regions."""
   def dump_region(reader, start, size, location):
-    print
+    print()
     while start & 3 != 0:
       start += 1
       size -= 1
@@ -131,17 +137,17 @@ def FullDump(reader, heap):
     if is_executable is not False:
       lines = reader.GetDisasmLines(start, size)
       for line in lines:
-        print FormatDisasmLine(start, heap, line)
-      print
+        print(FormatDisasmLine(start, heap, line))
+      print()
 
     if is_ascii is not False:
       # Output in the same format as the Unix hd command
       addr = start
-      for i in xrange(0, size, 16):
+      for i in range(0, size, 16):
         slot = i + location
         hex_line = ""
         asc_line = ""
-        for i in xrange(16):
+        for i in range(16):
           if slot + i < location + size:
             byte = ctypes.c_uint8.from_buffer(reader.minidump, slot + i).value
             if byte >= 0x20 and byte < 0x7f:
@@ -153,24 +159,24 @@ def FullDump(reader, heap):
             hex_line += "   "
           if i == 7:
             hex_line += " "
-        print "%s  %s |%s|" % (reader.FormatIntPtr(addr),
+        print("%s  %s |%s|" % (reader.FormatIntPtr(addr),
                                hex_line,
-                               asc_line)
+                               asc_line))
         addr += 16
 
     if is_executable is not True and is_ascii is not True:
-      print "%s - %s" % (reader.FormatIntPtr(start),
-                         reader.FormatIntPtr(start + size))
-      print start + size + 1;
-      for i in xrange(0, size, reader.PointerSize()):
+      print("%s - %s" % (reader.FormatIntPtr(start),
+                         reader.FormatIntPtr(start + size)))
+      print(start + size + 1);
+      for i in range(0, size, reader.PointerSize()):
         slot = start + i
         maybe_address = reader.ReadUIntPtr(slot)
         heap_object = heap.FindObject(maybe_address)
-        print "%s: %s" % (reader.FormatIntPtr(slot),
-                          reader.FormatIntPtr(maybe_address))
+        print("%s: %s" % (reader.FormatIntPtr(slot),
+                          reader.FormatIntPtr(maybe_address)))
         if heap_object:
           heap_object.Print(Printer())
-          print
+          print()
 
   reader.ForEachMemoryRegion(dump_region)
 
@@ -611,11 +617,11 @@ class MinidumpReader(object):
     self.minidump = mmap.mmap(self.minidump_file.fileno(), 0, mmap.MAP_PRIVATE)
     self.header = MINIDUMP_HEADER.Read(self.minidump, 0)
     if self.header.signature != MinidumpReader._HEADER_MAGIC:
-      print >>sys.stderr, "Warning: Unsupported minidump header magic!"
+      print("Warning: Unsupported minidump header magic!", file=sys.stderr)
     DebugPrint(self.header)
     directories = []
     offset = self.header.stream_directories_rva
-    for _ in xrange(self.header.stream_count):
+    for _ in range(self.header.stream_count):
       directories.append(MINIDUMP_DIRECTORY.Read(self.minidump, offset))
       offset += MINIDUMP_DIRECTORY.size
     self.arch = None
@@ -677,7 +683,7 @@ class MinidumpReader(object):
         assert ctypes.sizeof(self.module_list) == d.location.data_size
         DebugPrint(self.module_list)
       elif d.stream_type == MD_MEMORY_LIST_STREAM:
-        print >>sys.stderr, "Warning: This is not a full minidump!"
+        print("Warning: This is not a full minidump!", file=sys.stderr)
         assert self.memory_list is None
         self.memory_list = MINIDUMP_MEMORY_LIST.Read(
           self.minidump, d.location.rva)
@@ -699,8 +705,8 @@ class MinidumpReader(object):
     else:
       objdump_bin = self._FindThirdPartyObjdump()
     if not objdump_bin or not os.path.exists(objdump_bin):
-      print "# Cannot find '%s', falling back to default objdump '%s'" % (
-          objdump_bin, DEFAULT_OBJDUMP_BIN)
+      print("# Cannot find '%s', falling back to default objdump '%s'" % (
+          objdump_bin, DEFAULT_OBJDUMP_BIN))
       objdump_bin  = DEFAULT_OBJDUMP_BIN
     global OBJDUMP_BIN
     OBJDUMP_BIN = objdump_bin
@@ -722,12 +728,12 @@ class MinidumpReader(object):
       else:
         # use default otherwise
         return None
-      print ("# Looking for platform specific (%s) objdump in "
-             "third_party directory.") % platform_filter
+      print(("# Looking for platform specific (%s) objdump in "
+             "third_party directory.") % platform_filter)
       objdumps = filter(lambda file: platform_filter in file >= 0, objdumps)
       if len(objdumps) == 0:
-        print "# Could not find platform specific objdump in third_party."
-        print "# Make sure you installed the correct SDK."
+        print("# Could not find platform specific objdump in third_party.")
+        print("# Make sure you installed the correct SDK.")
         return None
       return objdumps[0]
 
@@ -822,7 +828,7 @@ class MinidumpReader(object):
   def IsProbableASCIIRegion(self, location, length):
     ascii_bytes = 0
     non_ascii_bytes = 0
-    for i in xrange(length):
+    for i in range(length):
       loc = location + i
       byte = ctypes.c_uint8.from_buffer(self.minidump, loc).value
       if byte >= 0x7f:
@@ -844,7 +850,7 @@ class MinidumpReader(object):
   def IsProbableExecutableRegion(self, location, length):
     opcode_bytes = 0
     sixty_four = self.Is64()
-    for i in xrange(length):
+    for i in range(length):
       loc = location + i
       byte = ctypes.c_uint8.from_buffer(self.minidump, loc).value
       if (byte == 0x8b or           # mov
@@ -893,19 +899,19 @@ class MinidumpReader(object):
   def FindWord(self, word, alignment=0):
     def search_inside_region(reader, start, size, location):
       location = (location + alignment) & ~alignment
-      for i in xrange(size - self.PointerSize()):
+      for i in range(size - self.PointerSize()):
         loc = location + i
         if reader._ReadWord(loc) == word:
           slot = start + (loc - location)
-          print "%s: %s" % (reader.FormatIntPtr(slot),
-                            reader.FormatIntPtr(word))
+          print("%s: %s" % (reader.FormatIntPtr(slot),
+                            reader.FormatIntPtr(word)))
     self.ForEachMemoryRegion(search_inside_region)
 
   def FindWordList(self, word):
     aligned_res = []
     unaligned_res = []
     def search_inside_region(reader, start, size, location):
-      for i in xrange(size - self.PointerSize()):
+      for i in range(size - self.PointerSize()):
         loc = location + i
         if reader._ReadWord(loc) == word:
           slot = start + (loc - location)
@@ -1026,7 +1032,7 @@ class MinidumpReader(object):
   #    http://code.google.com/p/google-breakpad/wiki/SymbolFiles
   #
   def _LoadSymbolsFrom(self, symfile, baseaddr):
-    print "Loading symbols from %s" % (symfile)
+    print("Loading symbols from %s" % (symfile))
     funcs = []
     with open(symfile) as f:
       for line in f:
@@ -1038,7 +1044,7 @@ class MinidumpReader(object):
           name = result.group(4).rstrip()
           bisect.insort_left(self.symbols,
                              FuncSymbol(baseaddr + start, size, name))
-    print " ... done"
+    print(" ... done")
 
   def TryLoadSymbolsFor(self, modulename, module):
     try:
@@ -1048,7 +1054,7 @@ class MinidumpReader(object):
         self._LoadSymbolsFrom(symfile, module.base_of_image)
         self.modules_with_symbols.append(module)
     except Exception as e:
-      print "  ... failure (%s)" % (e)
+      print("  ... failure (%s)" % (e))
 
   # Returns true if address is covered by some module that has loaded symbols.
   def _IsInModuleWithSymbols(self, addr):
@@ -1090,11 +1096,11 @@ class Printer(object):
     self.indent -= 2
 
   def Print(self, string):
-    print "%s%s" % (self._IndentString(), string)
+    print("%s%s" % (self._IndentString(), string))
 
   def PrintLines(self, lines):
     indent = self._IndentString()
-    print "\n".join("%s%s" % (indent, line) for line in lines)
+    print("\n".join("%s%s" % (indent, line) for line in lines))
 
   def _IndentString(self):
     return self.indent * " "
@@ -1428,7 +1434,7 @@ class FixedArray(HeapObject):
     p.Indent()
     p.Print("length: %d" % self.length)
     base_offset = self.ElementsOffset()
-    for i in xrange(self.length):
+    for i in range(self.length):
       offset = base_offset + 4 * i
       try:
         p.Print("[%08d] = %s" % (i, self.ObjectField(offset)))
@@ -1498,7 +1504,7 @@ class DescriptorArray(object):
     p.Print("Descriptors(%08x, length=%d)" % (array.address, length))
     p.Print("[et] %s" % (array.Get(1)))
 
-    for di in xrange(length):
+    for di in range(length):
       i = 2 + di * 3
       p.Print("0x%x" % (array.address + array.MemberOffset(i)))
       p.Print("[%i] name:    %s" % (di, array.Get(i + 0)))
@@ -1543,7 +1549,7 @@ class TransitionArray(object):
     if prototype is not None:
       p.Print("[prototype  ] %s" % (prototype))
 
-    for di in xrange(length):
+    for di in range(length):
       i = 3 + di * 2
       p.Print("[%i] symbol: %s" % (di, array.Get(i + 0)))
       p.Print("[%i] target: %s" % (di, array.Get(i + 1)))
@@ -1941,10 +1947,10 @@ class InspectionInfo(object):
         exception_thread.stack.memory.data_size
     frame_pointer = self.reader.ExceptionFP()
     self.styles[frame_pointer] = "frame"
-    for slot in xrange(stack_top, stack_bottom, self.reader.PointerSize()):
+    for slot in range(stack_top, stack_bottom, self.reader.PointerSize()):
       # stack address
       self.styles[slot] = "sa"
-    for slot in xrange(stack_top, stack_bottom, self.reader.PointerSize()):
+    for slot in range(stack_top, stack_bottom, self.reader.PointerSize()):
       maybe_address = self.reader.ReadUIntPtr(slot)
       # stack value
       self.styles[maybe_address] = "sv"
@@ -2087,15 +2093,15 @@ class InspectionPadawan(object):
     raise NotImplementedError
 
   def PrintKnowledge(self):
-    print "  known_first_map_page = %s\n"\
+    print("  known_first_map_page = %s\n"\
           "  known_first_old_page = %s" % (
           self.reader.FormatIntPtr(self.known_first_map_page),
-          self.reader.FormatIntPtr(self.known_first_old_page))
+          self.reader.FormatIntPtr(self.known_first_old_page)))
 
   def FindFirstAsciiString(self, start, end=None, min_length=32):
     """ Walk the memory until we find a large string """
     if not end: end = start + 64
-    for slot in xrange(start, end):
+    for slot in range(start, end):
       if not self.reader.IsValidAddress(slot): break
       message = self.reader.ReadAsciiString(slot)
       if len(message) > min_length:
@@ -2113,7 +2119,7 @@ class InspectionPadawan(object):
     if not self.reader.IsValidAddress(start): return start
     end = start + ptr_size * 1024 * 4
     magic1 = None
-    for slot in xrange(start, end, ptr_size):
+    for slot in range(start, end, ptr_size):
       if not self.reader.IsValidAddress(slot + ptr_size): break
       magic1 = self.reader.ReadUIntPtr(slot)
       magic2 = self.reader.ReadUIntPtr(slot + ptr_size)
@@ -2138,23 +2144,23 @@ class InspectionPadawan(object):
     end_search = start + (32 * 1024) + (header_size * ptr_size);
     end_slot = self.FindPtr(end_marker, end_search, end_search + ptr_size * 512)
     if not end_slot: return start
-    print "Stack Message (start=%s):" % self.heap.FormatIntPtr(slot)
+    print("Stack Message (start=%s):" % self.heap.FormatIntPtr(slot))
     slot += ptr_size
     for name in ("isolate","ptr1", "ptr2", "ptr3", "ptr4", "codeObject1",
                  "codeObject2", "codeObject3", "codeObject4"):
       value = self.reader.ReadUIntPtr(slot)
-      print " %s: %s" % (name.rjust(14), self.heap.FormatIntPtr(value))
+      print(" %s: %s" % (name.rjust(14), self.heap.FormatIntPtr(value)))
       slot += ptr_size
-    print "  message start: %s" % self.heap.FormatIntPtr(slot)
+    print("  message start: %s" % self.heap.FormatIntPtr(slot))
     stack_start = end_slot + ptr_size
-    print "  stack_start:   %s" % self.heap.FormatIntPtr(stack_start)
+    print("  stack_start:   %s" % self.heap.FormatIntPtr(stack_start))
     (message_start, message) = self.FindFirstAsciiString(slot)
     self.FormatStackTrace(message, print_message)
     return stack_start
 
   def FindPtr(self, expected_value, start, end):
     ptr_size = self.reader.PointerSize()
-    for slot in xrange(start, end, ptr_size):
+    for slot in range(start, end, ptr_size):
       if not self.reader.IsValidAddress(slot): return None
       value = self.reader.ReadUIntPtr(slot)
       if value == expected_value: return slot
@@ -2167,7 +2173,7 @@ class InspectionPadawan(object):
     end_search = start + 1024 + (header_size * ptr_size);
     end_slot = self.FindPtr(end_marker, end_search, end_search + ptr_size * 512)
     if not end_slot: return start
-    print "Error Message (start=%s):" % self.heap.FormatIntPtr(slot)
+    print("Error Message (start=%s):" % self.heap.FormatIntPtr(slot))
     slot += ptr_size
     (message_start, message) = self.FindFirstAsciiString(slot)
     self.FormatStackTrace(message, print_message)
@@ -2193,27 +2199,27 @@ class InspectionPadawan(object):
     # Make sure the address is word aligned
     stack_start =  stack_start - (stack_start % ptr_size)
     if magic1 is None:
-      print "Stack Message:"
-      print "  message start: %s" % self.heap.FormatIntPtr(message_start)
-      print "  stack_start:   %s" % self.heap.FormatIntPtr(stack_start )
+      print("Stack Message:")
+      print("  message start: %s" % self.heap.FormatIntPtr(message_start))
+      print("  stack_start:   %s" % self.heap.FormatIntPtr(stack_start ))
     else:
       ptr1 = self.reader.ReadUIntPtr(slot + ptr_size * 2)
       ptr2 = self.reader.ReadUIntPtr(slot + ptr_size * 3)
-      print "Stack Message:"
-      print "  magic1:        %s" % self.heap.FormatIntPtr(magic1)
-      print "  magic2:        %s" % self.heap.FormatIntPtr(magic2)
-      print "  ptr1:          %s" % self.heap.FormatIntPtr(ptr1)
-      print "  ptr2:          %s" % self.heap.FormatIntPtr(ptr2)
-      print "  message start: %s" % self.heap.FormatIntPtr(message_start)
-      print "  stack_start:   %s" % self.heap.FormatIntPtr(stack_start )
-      print ""
+      print("Stack Message:")
+      print("  magic1:        %s" % self.heap.FormatIntPtr(magic1))
+      print("  magic2:        %s" % self.heap.FormatIntPtr(magic2))
+      print("  ptr1:          %s" % self.heap.FormatIntPtr(ptr1))
+      print("  ptr2:          %s" % self.heap.FormatIntPtr(ptr2))
+      print("  message start: %s" % self.heap.FormatIntPtr(message_start))
+      print("  stack_start:   %s" % self.heap.FormatIntPtr(stack_start ))
+      print("")
     self.FormatStackTrace(message, print_message)
     return stack_start
 
   def FormatStackTrace(self, message, print_message):
     if not print_message:
-      print "  Use `dsa` to print the message with annotated addresses."
-      print ""
+      print("  Use `dsa` to print the message with annotated addresses.")
+      print("")
       return
     ptr_size = self.reader.PointerSize()
     # Annotate all addresses in the dumped message
@@ -2224,11 +2230,11 @@ class InspectionPadawan(object):
       address = self.heap.FormatIntPtr(int(address_org, 16))
       if address_org != address:
         message = message.replace(address_org, address)
-    print "Message:"
-    print "="*80
-    print message
-    print "="*80
-    print ""
+    print("Message:")
+    print("="*80)
+    print(message)
+    print("="*80)
+    print("")
 
 
   def TryInferFramePointer(self, slot, address):
@@ -2279,9 +2285,9 @@ class InspectionPadawan(object):
     free_space_end = 0
     ptr_size = self.reader.PointerSize()
 
-    for slot in xrange(start, end, ptr_size):
+    for slot in range(start, end, ptr_size):
       if not self.reader.IsValidAddress(slot):
-        print "%s: Address is not contained within the minidump!" % slot
+        print("%s: Address is not contained within the minidump!" % slot)
         return
       maybe_address = self.reader.ReadUIntPtr(slot)
       address_info = []
@@ -2339,17 +2345,17 @@ class InspectionPadawan(object):
           frame_pointer = maybe_address
       address_type_marker = self.heap.AddressTypeMarker(maybe_address)
       string_value = self.reader.ReadAsciiPtr(slot)
-      print "%s: %s %s %s %s" % (self.reader.FormatIntPtr(slot),
+      print("%s: %s %s %s %s" % (self.reader.FormatIntPtr(slot),
                            self.reader.FormatIntPtr(maybe_address),
                            address_type_marker,
                            string_value,
-                           ' | '.join(address_info))
+                           ' | '.join(address_info)))
       if maybe_address_contents == 0xdecade01:
         in_oom_dump_area = False
       heap_object = self.heap.FindObject(maybe_address)
       if heap_object:
         heap_object.Print(Printer())
-        print ""
+        print("")
 
 WEB_HEADER = """
 <!DOCTYPE html>
@@ -2701,7 +2707,7 @@ class InspectionWebFormatter(object):
     stack_bottom = exception_thread.stack.start + \
         exception_thread.stack.memory.data_size
     stack_map = {self.reader.ExceptionIP(): -1}
-    for slot in xrange(stack_top, stack_bottom, self.reader.PointerSize()):
+    for slot in range(stack_top, stack_bottom, self.reader.PointerSize()):
       maybe_address = self.reader.ReadUIntPtr(slot)
       if not maybe_address in stack_map:
         stack_map[maybe_address] = slot
@@ -2719,7 +2725,7 @@ class InspectionWebFormatter(object):
       address = int(straddress, 0)
       self.comments.set_comment(address, comment)
     except ValueError:
-      print "Invalid address"
+      print("Invalid address")
 
   def set_page_address(self, kind, straddress):
     try:
@@ -2730,7 +2736,7 @@ class InspectionWebFormatter(object):
         self.padawan.known_first_map_page = address
       self.comments.save_page_address(kind, address)
     except ValueError:
-      print "Invalid address"
+      print("Invalid address")
 
   def td_from_address(self, f, address):
     f.write("<td %s>" % self.comments.get_style_class_string(address))
@@ -2853,7 +2859,7 @@ class InspectionWebFormatter(object):
     if details == InspectionWebFormatter.CONTEXT_FULL:
       if self.reader.exception.exception.parameter_count > 0:
         f.write("&nbsp;&nbsp; Exception parameters: ")
-        for i in xrange(0, self.reader.exception.exception.parameter_count):
+        for i in range(0, self.reader.exception.exception.parameter_count):
           f.write("%08x" % self.reader.exception.exception.information[i])
         f.write("<br><br>")
 
@@ -2929,19 +2935,19 @@ class InspectionWebFormatter(object):
     f.write('<div class="code">')
     f.write("<table class=codedump>")
 
-    for j in xrange(0, end_address - start_address, size):
+    for j in range(0, end_address - start_address, size):
       slot = start_address + j
       heap_object = ""
       maybe_address = None
       end_region = region[0] + region[1]
       if slot < region[0] or slot + size > end_region:
         straddress = "0x"
-        for i in xrange(end_region, slot + size):
+        for i in range(end_region, slot + size):
           straddress += "??"
         for i in reversed(
-            xrange(max(slot, region[0]), min(slot + size, end_region))):
+            range(max(slot, region[0]), min(slot + size, end_region))):
           straddress += "%02x" % self.reader.ReadU8(i)
-        for i in xrange(slot, region[0]):
+        for i in range(slot, region[0]):
           straddress += "??"
       else:
         maybe_address = self.reader.ReadUIntPtr(slot)
@@ -3003,7 +3009,7 @@ class InspectionWebFormatter(object):
 
     start = self.align_down(start_address, line_width)
 
-    for i in xrange(end_address - start):
+    for i in range(end_address - start):
       address = start + i
       if address % 64 == 0:
         if address != start:
@@ -3073,7 +3079,7 @@ class InspectionWebFormatter(object):
             (start_address, end_address, highlight_address, expand))
     f.write('<div class="code">')
     f.write("<table class=\"codedump\">");
-    for i in xrange(len(lines)):
+    for i in range(len(lines)):
       line = lines[i]
       next_address = count
       if i + 1 < len(lines):
@@ -3449,8 +3455,8 @@ class InspectionShell(cmd.Cmd):
 
   def do_help(self, cmd=None):
     if len(cmd) == 0:
-      print "Available commands"
-      print "=" * 79
+      print("Available commands")
+      print("=" * 79)
       prefix = "do_"
       methods = inspect.getmembers(InspectionShell, predicate=inspect.ismethod)
       for name,method in methods:
@@ -3459,8 +3465,8 @@ class InspectionShell(cmd.Cmd):
         if not doc: continue
         name = prefix.join(name.split(prefix)[1:])
         description = doc.splitlines()[0]
-        print (name + ": ").ljust(16) + description
-      print "=" * 79
+        print((name + ": ").ljust(16) + description)
+      print("=" * 79)
     else:
       return super(InspectionShell, self).do_help(cmd)
 
@@ -3488,9 +3494,9 @@ class InspectionShell(cmd.Cmd):
     address = self.ParseAddressExpr(address)
     string = self.reader.ReadAsciiString(address)
     if string == "":
-      print "Not an ASCII string at %s" % self.reader.FormatIntPtr(address)
+      print("Not an ASCII string at %s" % self.reader.FormatIntPtr(address))
     else:
-      print "%s\n" % string
+      print("%s\n" % string)
 
   def do_dsa(self, address):
     """ see display_stack_ascii"""
@@ -3501,7 +3507,7 @@ class InspectionShell(cmd.Cmd):
     Print ASCII stack error message.
     """
     if self.reader.exception is None:
-      print "Minidump has no exception info"
+      print("Minidump has no exception info")
       return
     if len(address) == 0:
       address = None
@@ -3526,7 +3532,7 @@ class InspectionShell(cmd.Cmd):
     else:
       self.dd_start += self.dd_num * self.reader.PointerSize()
     if not self.reader.IsAlignedAddress(self.dd_start):
-      print "Warning: Dumping un-aligned memory, is this what you had in mind?"
+      print("Warning: Dumping un-aligned memory, is this what you had in mind?")
     end = self.dd_start + self.reader.PointerSize() * self.dd_num
     self.padawan.InterpretMemory(self.dd_start, end)
 
@@ -3545,13 +3551,13 @@ class InspectionShell(cmd.Cmd):
     if self.reader.IsAlignedAddress(address):
       address = address + 1
     elif not self.heap.IsTaggedObjectAddress(address):
-      print "Address doesn't look like a valid pointer!"
+      print("Address doesn't look like a valid pointer!")
       return
     heap_object = self.padawan.SenseObject(address)
     if heap_object:
       heap_object.Print(Printer())
     else:
-      print "Address cannot be interpreted as object!"
+      print("Address cannot be interpreted as object!")
 
   def do_dso(self, args):
     """ see display_stack_objects """
@@ -3618,10 +3624,10 @@ class InspectionShell(cmd.Cmd):
     address = self.ParseAddressExpr(address)
     page_address = address & ~self.heap.PageAlignmentMask()
     if self.reader.IsValidAddress(page_address):
-      print "**** Not Implemented"
+      print("**** Not Implemented")
       return
     else:
-      print "Page header is not available!"
+      print("Page header is not available!")
 
   def do_k(self, arguments):
     """
@@ -3666,10 +3672,10 @@ class InspectionShell(cmd.Cmd):
      List all available memory regions.
     """
     def print_region(reader, start, size, location):
-      print "  %s - %s (%d bytes)" % (reader.FormatIntPtr(start),
+      print("  %s - %s (%d bytes)" % (reader.FormatIntPtr(start),
                                       reader.FormatIntPtr(start + size),
-                                      size)
-    print "Available memory regions:"
+                                      size))
+    print("Available memory regions:")
     self.reader.ForEachMemoryRegion(print_region)
 
   def do_lm(self, arg):
@@ -3690,7 +3696,7 @@ class InspectionShell(cmd.Cmd):
           PrintModuleDetails(self.reader, module)
       else:
         PrintModuleDetails(self.reader, module)
-    print
+    print()
 
   def do_s(self, word):
     """ see search """
@@ -3707,9 +3713,10 @@ class InspectionShell(cmd.Cmd):
     try:
       word = self.ParseAddressExpr(word)
     except ValueError:
-      print "Malformed word, prefix with '0x' to use hexadecimal format."
+      print("Malformed word, prefix with '0x' to use hexadecimal format.")
       return
-    print "Searching for word %d/0x%s:" % (word, self.reader.FormatIntPtr(word))
+    print(
+      "Searching for word %d/0x%s:" % (word, self.reader.FormatIntPtr(word)))
     self.reader.FindWord(word)
 
   def do_sh(self, none):
@@ -3719,7 +3726,7 @@ class InspectionShell(cmd.Cmd):
      You might get lucky and find this rare treasure full of invaluable
      information.
     """
-    print "**** Not Implemented"
+    print("**** Not Implemented")
 
   def do_u(self, args):
     """ see disassemble """
@@ -3742,24 +3749,24 @@ class InspectionShell(cmd.Cmd):
       skip = True
 
     if not self.reader.IsValidAddress(self.u_start):
-      print "Address %s is not contained within the minidump!" % (
-          self.reader.FormatIntPtr(self.u_start))
+      print("Address %s is not contained within the minidump!" % (
+          self.reader.FormatIntPtr(self.u_start)))
       return
     lines = self.reader.GetDisasmLines(self.u_start, self.u_size)
     if len(lines) == 0:
-      print "Address %s could not be disassembled!" % (
-          self.reader.FormatIntPtr(self.u_start))
-      print "    Could not disassemble using %s." % OBJDUMP_BIN
-      print "    Pass path to architecture specific objdump via --objdump?"
+      print("Address %s could not be disassembled!" % (
+          self.reader.FormatIntPtr(self.u_start)))
+      print("    Could not disassemble using %s." % OBJDUMP_BIN)
+      print("    Pass path to architecture specific objdump via --objdump?")
       return
     for line in lines:
       if skip:
         skip = False
         continue
-      print FormatDisasmLine(self.u_start, self.heap, line)
+      print(FormatDisasmLine(self.u_start, self.heap, line))
     # Set the next start address = last line
     self.u_start += lines[-1][0]
-    print
+    print()
 
   def do_EOF(self, none):
     raise KeyboardInterrupt
@@ -3796,18 +3803,18 @@ def GetModuleName(reader, module):
 
 
 def PrintModuleDetails(reader, module):
-  print "%s" % GetModuleName(reader, module)
+  print("%s" % GetModuleName(reader, module))
   file_version = GetVersionString(module.version_info.dwFileVersionMS,
                                   module.version_info.dwFileVersionLS);
   product_version = GetVersionString(module.version_info.dwProductVersionMS,
                                      module.version_info.dwProductVersionLS)
-  print "  base: %s" % reader.FormatIntPtr(module.base_of_image)
-  print "  end: %s" % reader.FormatIntPtr(module.base_of_image +
-                                          module.size_of_image)
-  print "  file version: %s" % file_version
-  print "  product version: %s" % product_version
+  print("  base: %s" % reader.FormatIntPtr(module.base_of_image))
+  print("  end: %s" % reader.FormatIntPtr(module.base_of_image +
+                                          module.size_of_image))
+  print("  file version: %s" % file_version)
+  print("  product version: %s" % product_version)
   time_date_stamp = datetime.datetime.fromtimestamp(module.time_date_stamp)
-  print "  timestamp: %s" % time_date_stamp
+  print("  timestamp: %s" % time_date_stamp)
 
 
 def AnalyzeMinidump(options, minidump_name):
@@ -3817,7 +3824,7 @@ def AnalyzeMinidump(options, minidump_name):
   stack_top = reader.ExceptionSP()
   stack_bottom = reader.StackBottom()
   stack_map = {reader.ExceptionIP(): -1}
-  for slot in xrange(stack_top, stack_bottom, reader.PointerSize()):
+  for slot in range(stack_top, stack_bottom, reader.PointerSize()):
     maybe_address = reader.ReadUIntPtr(slot)
     if not maybe_address in stack_map:
       stack_map[maybe_address] = slot
@@ -3827,51 +3834,51 @@ def AnalyzeMinidump(options, minidump_name):
 
   DebugPrint("========================================")
   if reader.exception is None:
-    print "Minidump has no exception info"
+    print("Minidump has no exception info")
   else:
-    print "Address markers:"
-    print "  T = valid tagged pointer in the minidump"
-    print "  S = address on the exception stack"
-    print "  C = address in loaded C/C++ module"
-    print "  * = address in the minidump"
-    print ""
-    print "Exception info:"
+    print("Address markers:")
+    print("  T = valid tagged pointer in the minidump")
+    print("  S = address on the exception stack")
+    print("  C = address in loaded C/C++ module")
+    print("  * = address in the minidump")
+    print("")
+    print("Exception info:")
     exception_thread = reader.ExceptionThread()
-    print "  thread id: %d" % exception_thread.id
-    print "  code:      %08X" % reader.exception.exception.code
-    print "  context:"
+    print("  thread id: %d" % exception_thread.id)
+    print("  code:      %08X" % reader.exception.exception.code)
+    print("  context:")
     context = CONTEXT_FOR_ARCH[reader.arch]
     maxWidth = max(map(lambda s: len(s), context))
     for r in context:
       register_value = reader.Register(r)
-      print "    %s: %s" % (r.rjust(maxWidth),
-                            heap.FormatIntPtr(register_value))
+      print("    %s: %s" % (r.rjust(maxWidth),
+                            heap.FormatIntPtr(register_value)))
     # TODO(vitalyr): decode eflags.
     if reader.arch in [MD_CPU_ARCHITECTURE_ARM, MD_CPU_ARCHITECTURE_ARM64]:
-      print "    cpsr: %s" % bin(reader.exception_context.cpsr)[2:]
+      print("    cpsr: %s" % bin(reader.exception_context.cpsr)[2:])
     else:
-      print "    eflags: %s" % bin(reader.exception_context.eflags)[2:]
+      print("    eflags: %s" % bin(reader.exception_context.eflags)[2:])
 
-    print
-    print "  modules:"
+    print()
+    print("  modules:")
     for module in reader.module_list.modules:
       name = GetModuleName(reader, module)
       if name in KNOWN_MODULES:
-        print "    %s at %08X" % (name, module.base_of_image)
+        print("    %s at %08X" % (name, module.base_of_image))
         reader.TryLoadSymbolsFor(name, module)
-    print
+    print()
 
-    print "  stack-top:    %s" % heap.FormatIntPtr(reader.StackTop())
-    print "  stack-bottom: %s" % heap.FormatIntPtr(reader.StackBottom())
-    print ""
+    print("  stack-top:    %s" % heap.FormatIntPtr(reader.StackTop()))
+    print("  stack-bottom: %s" % heap.FormatIntPtr(reader.StackBottom()))
+    print("")
 
     if options.shell:
       padawan.PrintStackTraceMessage(print_message=False)
 
-    print "Disassembly around exception.eip:"
+    print("Disassembly around exception.eip:")
     eip_symbol = reader.FindSymbol(reader.ExceptionIP())
     if eip_symbol is not None:
-      print eip_symbol
+      print(eip_symbol)
     disasm_start = reader.ExceptionIP() - EIP_PROXIMITY
     disasm_bytes = 2 * EIP_PROXIMITY
     if (options.full):
@@ -3883,12 +3890,12 @@ def AnalyzeMinidump(options, minidump_name):
     lines = reader.GetDisasmLines(disasm_start, disasm_bytes)
 
     if not lines:
-      print "Could not disassemble using %s." % OBJDUMP_BIN
-      print "Pass path to architecture specific objdump via --objdump?"
+      print("Could not disassemble using %s." % OBJDUMP_BIN)
+      print("Pass path to architecture specific objdump via --objdump?")
 
     for line in lines:
-      print FormatDisasmLine(disasm_start, heap, line)
-    print
+      print(FormatDisasmLine(disasm_start, heap, line))
+    print()
 
   if heap is None:
     heap = V8Heap(reader, None)
@@ -3903,10 +3910,10 @@ def AnalyzeMinidump(options, minidump_name):
     try:
       InspectionShell(reader, heap).cmdloop("type help to get help")
     except KeyboardInterrupt:
-      print "Kthxbye."
+      print("Kthxbye.")
   elif not options.command:
     if reader.exception is not None:
-      print "Annotated stack (from exception.esp to bottom):"
+      print("Annotated stack (from exception.esp to bottom):")
       stack_start = padawan.PrintStackTraceMessage()
       padawan.InterpretMemory(stack_start, stack_bottom)
   reader.Dispose()
@@ -3934,11 +3941,11 @@ if __name__ == "__main__":
   if options.web:
     try:
       server = InspectionWebServer(PORT_NUMBER, options, args[0])
-      print 'Started httpserver on port ' , PORT_NUMBER
+      print('Started httpserver on port ' , PORT_NUMBER)
       webbrowser.open('http://localhost:%i/summary.html' % PORT_NUMBER)
       server.serve_forever()
     except KeyboardInterrupt:
-      print '^C received, shutting down the web server'
+      print('^C received, shutting down the web server')
       server.socket.close()
   else:
     AnalyzeMinidump(options, args[0])

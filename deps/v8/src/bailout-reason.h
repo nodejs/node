@@ -50,6 +50,7 @@ namespace internal {
   V(kOperandIsNotAFunction, "Operand is not a function")                      \
   V(kOperandIsNotAGeneratorObject, "Operand is not a generator object")       \
   V(kOperandIsNotASmi, "Operand is not a smi")                                \
+  V(kPromiseAlreadySettled, "Promise already settled")                        \
   V(kReceivedInvalidReturnAddress, "Received invalid return address")         \
   V(kRegisterDidNotMatchExpectedRoot, "Register did not match expected root") \
   V(kRegisterWasClobbered, "Register was clobbered")                          \

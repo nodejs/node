@@ -113,6 +113,7 @@ class OptimizedBytecodeSourcePositionTester final {
     SaveOptimizationFlags();
     saved_flag_always_opt_ = FLAG_always_opt;
     FLAG_always_opt = false;
+    FLAG_enable_lazy_source_positions = false;
   }
 
   ~OptimizedBytecodeSourcePositionTester() {

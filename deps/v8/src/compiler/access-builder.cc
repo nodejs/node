@@ -22,10 +22,9 @@ namespace internal {
 namespace compiler {
 
 // static
-FieldAccess AccessBuilder::ForExternalTaggedValue() {
-  FieldAccess access = {kUntaggedBase,       0,
-                        MaybeHandle<Name>(), MaybeHandle<Map>(),
-                        Type::Any(),         MachineType::AnyTagged(),
+FieldAccess AccessBuilder::ForExternalIntPtr() {
+  FieldAccess access = {kUntaggedBase,      0,           MaybeHandle<Name>(),
+                        MaybeHandle<Map>(), Type::Any(), MachineType::IntPtr(),
                         kNoWriteBarrier};
   return access;
 }
@@ -911,6 +910,16 @@ ElementAccess AccessBuilder::ForFixedArrayElement(
       UNREACHABLE();
       break;
   }
+  return access;
+}
+
+// static
+ElementAccess AccessBuilder::ForStackArgument() {
+  ElementAccess access = {
+      kUntaggedBase,
+      CommonFrameConstants::kFixedFrameSizeAboveFp - kSystemPointerSize,
+      Type::NonInternal(), MachineType::Pointer(),
+      WriteBarrierKind::kNoWriteBarrier};
   return access;
 }
 

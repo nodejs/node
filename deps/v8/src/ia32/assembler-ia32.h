@@ -51,6 +51,8 @@
 namespace v8 {
 namespace internal {
 
+class SafepointTableBuilder;
+
 enum Condition {
   // any value < 0 is considered no_condition
   no_condition  = -1,
@@ -202,9 +204,11 @@ enum ScaleFactor {
   times_4 = 2,
   times_8 = 3,
   times_int_size = times_4,
-  times_half_pointer_size = times_2,
-  times_pointer_size = times_4,
-  times_twice_pointer_size = times_8
+
+  times_half_system_pointer_size = times_2,
+  times_system_pointer_size = times_4,
+
+  times_tagged_size = times_4,
 };
 
 class V8_EXPORT_PRIVATE Operand {
@@ -275,8 +279,8 @@ class V8_EXPORT_PRIVATE Operand {
   inline void set_disp8(int8_t disp);
   inline void set_dispr(int32_t disp, RelocInfo::Mode rmode) {
     DCHECK(len_ == 1 || len_ == 2);
-    int32_t* p = reinterpret_cast<int32_t*>(&buf_[len_]);
-    *p = disp;
+    Address p = reinterpret_cast<Address>(&buf_[len_]);
+    WriteUnalignedValue(p, disp);
     len_ += sizeof(int32_t);
     rmode_ = rmode;
   }
@@ -296,7 +300,7 @@ class V8_EXPORT_PRIVATE Operand {
   friend class Assembler;
 };
 ASSERT_TRIVIALLY_COPYABLE(Operand);
-static_assert(sizeof(Operand) <= 2 * kPointerSize,
+static_assert(sizeof(Operand) <= 2 * kSystemPointerSize,
               "Operand must be small enough to pass it by value");
 
 // -----------------------------------------------------------------------------
@@ -373,12 +377,22 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                      std::unique_ptr<AssemblerBuffer> = {});
   virtual ~Assembler() {}
 
-  // GetCode emits any pending (non-emitted) code and fills the descriptor
-  // desc. GetCode() is idempotent; it returns the same result if no other
-  // Assembler functions are invoked in between GetCode() calls.
-  void GetCode(Isolate* isolate, CodeDesc* desc);
+  // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
+  static constexpr int kNoHandlerTable = 0;
+  static constexpr SafepointTableBuilder* kNoSafepointTable = nullptr;
+  void GetCode(Isolate* isolate, CodeDesc* desc,
+               SafepointTableBuilder* safepoint_table_builder,
+               int handler_table_offset);
+
+  // Convenience wrapper for code without safepoint or handler tables.
+  void GetCode(Isolate* isolate, CodeDesc* desc) {
+    GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
+  }
 
   void FinalizeJumpOptimizationInfo();
+
+  // Unused on this architecture.
+  void MaybeEmitOutOfLineConstantPool() {}
 
   // Read/Modify the code target in the branch/call instruction at pc.
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
@@ -405,11 +419,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
-  static constexpr int kSpecialTargetSize = kPointerSize;
+  static constexpr int kSpecialTargetSize = kSystemPointerSize;
 
   // Distance between the address of the code target in the call instruction
   // and the return address
-  static constexpr int kCallTargetAddressOffset = kPointerSize;
+  static constexpr int kCallTargetAddressOffset = kSystemPointerSize;
 
   // One byte opcode for test al, 0xXX.
   static constexpr byte kTestAlByte = 0xA8;
@@ -887,10 +901,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }                                                  \
   void instr##ps(XMMRegister dst, Operand src) { cmpps(dst, src, imm8); }
 
-  SSE_CMP_P(cmpeq, 0x0);
-  SSE_CMP_P(cmplt, 0x1);
-  SSE_CMP_P(cmple, 0x2);
-  SSE_CMP_P(cmpneq, 0x4);
+  SSE_CMP_P(cmpeq, 0x0)
+  SSE_CMP_P(cmplt, 0x1)
+  SSE_CMP_P(cmple, 0x2)
+  SSE_CMP_P(cmpneq, 0x4)
 
 #undef SSE_CMP_P
 
@@ -1505,7 +1519,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vpd(opcode, dst, src1, src2);                                         \
   }
 
-  PACKED_OP_LIST(AVX_PACKED_OP_DECLARE);
+  PACKED_OP_LIST(AVX_PACKED_OP_DECLARE)
   void vps(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
   void vpd(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
 
@@ -1518,10 +1532,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vcmpps(dst, src1, src2, imm8);                                      \
   }
 
-  AVX_CMP_P(vcmpeq, 0x0);
-  AVX_CMP_P(vcmplt, 0x1);
-  AVX_CMP_P(vcmple, 0x2);
-  AVX_CMP_P(vcmpneq, 0x4);
+  AVX_CMP_P(vcmpeq, 0x0)
+  AVX_CMP_P(vcmplt, 0x1)
+  AVX_CMP_P(vcmple, 0x2)
+  AVX_CMP_P(vcmpneq, 0x4)
 
 #undef AVX_CMP_P
 
@@ -1650,14 +1664,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void emit_sse_operand(Register dst, XMMRegister src);
   void emit_sse_operand(XMMRegister dst, Register src);
 
-  byte* addr_at(int pos) { return buffer_start_ + pos; }
+  Address addr_at(int pos) {
+    return reinterpret_cast<Address>(buffer_start_ + pos);
+  }
 
  private:
   uint32_t long_at(int pos)  {
-    return *reinterpret_cast<uint32_t*>(addr_at(pos));
+    return ReadUnalignedValue<uint32_t>(addr_at(pos));
   }
   void long_at_put(int pos, uint32_t x)  {
-    *reinterpret_cast<uint32_t*>(addr_at(pos)) = x;
+    WriteUnalignedValue(addr_at(pos), x);
   }
 
   // code emission

@@ -6,16 +6,12 @@
 
 'use strict';
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 // Basic tests.
 
-var outOfUint32RangeValue = 1e12;
-var int32ButOob = 1073741824;
-var kMaxUint32 = (4 * 1024 * 1024 * 1024) - 1;
-var kMaxUint31 = (2 * 1024 * 1024 * 1024) - 1;
-var kV8MaxWasmTableSize = 10000000;
+const outOfUint32RangeValue = 1e12;
+const kV8MaxWasmTableSize = 10000000;
 
 function assertTableIsValid(table, length) {
   assertSame(WebAssembly.Table.prototype, table.__proto__);
@@ -87,14 +83,16 @@ function assertTableIsValid(table, length) {
   table = new WebAssembly.Table({element: "anyfunc", initial: 0, maximum: undefined});
   assertTableIsValid(table, 0);
 
-  table = new WebAssembly.Table({element: "anyfunc", initial: 0, maximum: kMaxUint31});
+  table = new WebAssembly.Table({element: "anyfunc", initial: 0, maximum: 1000000});
   assertTableIsValid(table, 0);
 
-  table = new WebAssembly.Table({element: "anyfunc", initial: 0, maximum: kMaxUint32});
+  table = new WebAssembly.Table({element: "anyfunc", initial: 0, maximum: kV8MaxWasmTableSize});
   assertTableIsValid(table, 0);
 
-  table = new WebAssembly.Table({element: "anyfunc", initial: 0, maximum: kV8MaxWasmTableSize + 1});
-  assertTableIsValid(table, 0);
+  assertThrows(
+    () => new WebAssembly.Table(
+      {element: "anyfunc", initial: 0, maximum: kV8MaxWasmTableSize + 1}),
+    RangeError, /above the upper bound/);
 })();
 
 (function TestMaximumIsReadOnce() {

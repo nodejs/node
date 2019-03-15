@@ -353,6 +353,8 @@ void AsmJsParser::ValidateModule() {
     RECURSE(ValidateFunctionTable());
   }
   RECURSE(ValidateExport());
+  RECURSE(SkipSemicolon());
+  EXPECT_TOKEN('}');
 
   // Check that all functions were eventually defined.
   for (auto& info : global_var_info_) {

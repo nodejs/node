@@ -754,7 +754,7 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
           current->Get(map_field).To(&object_map)) {
         if (object_map) {
           current->SetReplacement(LowerCompareMapsWithoutLoad(
-              object_map, CompareMapsParametersOf(op).maps(), jsgraph));
+              object_map, CompareMapsParametersOf(op), jsgraph));
           break;
         } else {
           // If the variable has no value, we have not reached the fixed-point

@@ -13,7 +13,7 @@
 //    should be as self-contained as possible to make it easy to audit the code.
 //
 // 2. Any changes must be reviewed by someone from the crash reporting
-//    or security team. Se OWNERS for suggested reviewers.
+//    or security team. See OWNERS for suggested reviewers.
 //
 // For more information, see https://goo.gl/yMeyUY.
 //
@@ -33,10 +33,10 @@
 namespace {
 size_t gNextCodeObject = 0;
 
-#ifdef DEBUG
-constexpr bool kEnableDebug = true;
+#ifdef ENABLE_SLOW_DCHECKS
+constexpr bool kEnableSlowChecks = true;
 #else
-constexpr bool kEnableDebug = false;
+constexpr bool kEnableSlowChecks = false;
 #endif
 }
 
@@ -143,7 +143,7 @@ int RegisterHandlerData(
 
   MetadataLock lock;
 
-  if (kEnableDebug) {
+  if (kEnableSlowChecks) {
     VerifyCodeRangeIsDisjoint(data);
   }
 
@@ -196,7 +196,7 @@ int RegisterHandlerData(
   if (i <= int_max) {
     gCodeObjects[i].code_info = data;
 
-    if (kEnableDebug) {
+    if (kEnableSlowChecks) {
       ValidateCodeObjects();
     }
 
@@ -224,7 +224,7 @@ void ReleaseHandlerData(int index) {
     gCodeObjects[index].next_free = gNextCodeObject;
     gNextCodeObject = index;
 
-    if (kEnableDebug) {
+    if (kEnableSlowChecks) {
       ValidateCodeObjects();
     }
   }

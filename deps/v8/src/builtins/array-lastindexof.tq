@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array {
+namespace array_lastindexof {
   macro LoadWithHoleCheck<Elements: type>(
       elements: FixedArrayBase, index: Smi): Object
       labels IfHole;
@@ -11,7 +11,7 @@ namespace array {
       elements: FixedArrayBase, index: Smi): Object
       labels IfHole {
     const elements: FixedArray = UnsafeCast<FixedArray>(elements);
-    const element: Object = elements[index];
+    const element: Object = elements.objects[index];
     if (element == Hole) goto IfHole;
     return element;
   }

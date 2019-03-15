@@ -134,12 +134,16 @@ Handle<Object> UnicodeKeywordValue(Isolate* isolate, Handle<JSLocale> locale,
   if (status == U_ILLEGAL_ARGUMENT_ERROR || value == "") {
     return isolate->factory()->undefined_value();
   }
+  if (value == "yes") {
+    value = "true";
+  }
   return isolate->factory()->NewStringFromAsciiChecked(value.c_str());
 }
 
 bool InRange(size_t value, size_t start, size_t end) {
   return (start <= value) && (value <= end);
 }
+
 bool InRange(char value, char start, char end) {
   return (start <= value) && (value <= end);
 }
@@ -163,37 +167,86 @@ bool IsDigit(const std::string& str, size_t min, size_t max) {
                       [](char c) -> bool { return InRange(c, '0', '9'); });
 }
 
-bool ValidateLanguageProduction(const std::string& value) {
-  // language      = 2*3ALPHA            ; shortest ISO 639 code
-  //                 ["-" extlang]       ; sometimes followed by
-  //                                     ; extended language subtags
-  //               / 4ALPHA              ; or reserved for future use
-  //               / 5*8ALPHA            ; or registered language subtag
-  //
-  // extlang       = 3ALPHA              ; selected ISO 639 codes
-  //                 *2("-" 3ALPHA)      ; permanently reserved
-  // TODO(ftang) not handling the [extlang] yet
-  return IsAlpha(value, 2, 8);
+bool IsAlphanum(const std::string& str, size_t min, size_t max) {
+  return IsCheckRange(str, min, max, [](char c) -> bool {
+    return InRange(c, 'a', 'z') || InRange(c, 'A', 'Z') || InRange(c, '0', '9');
+  });
 }
 
-bool ValidateScriptProduction(const std::string& value) {
-  // script        = 4ALPHA              ; ISO 15924 code
+bool IsUnicodeLanguageSubtag(const std::string& value) {
+  // unicode_language_subtag = alpha{2,3} | alpha{5,8};
+  return IsAlpha(value, 2, 3) || IsAlpha(value, 5, 8);
+}
+
+bool IsUnicodeScriptSubtag(const std::string& value) {
+  // unicode_script_subtag = alpha{4} ;
   return IsAlpha(value, 4, 4);
 }
 
-bool ValidateRegionProduction(const std::string& value) {
-  // region        = 2ALPHA              ; ISO 3166-1 code
-  //               / 3DIGIT              ; UN M.49 code
+bool IsUnicodeRegionSubtag(const std::string& value) {
+  // unicode_region_subtag = (alpha{2} | digit{3});
   return IsAlpha(value, 2, 2) || IsDigit(value, 3, 3);
 }
 
-Maybe<icu::Locale> ApplyOptionsToTag(Isolate* isolate, Handle<String> tag,
+bool IsDigitAlphanum3(const std::string& value) {
+  return value.length() == 4 && InRange(value[0], '0', '9') &&
+         IsAlphanum(value.substr(1), 3, 3);
+}
+
+bool IsUnicodeVariantSubtag(const std::string& value) {
+  // unicode_variant_subtag = (alphanum{5,8} | digit alphanum{3}) ;
+  return IsAlphanum(value, 5, 8) || IsDigitAlphanum3(value);
+}
+
+bool IsExtensionSingleton(const std::string& value) {
+  return IsAlphanum(value, 1, 1);
+}
+
+// TODO(ftang) Replace the following check w/ icu::LocaleBuilder
+// once ICU64 land in March 2019.
+bool StartsWithUnicodeLanguageId(const std::string& value) {
+  // unicode_language_id =
+  // unicode_language_subtag (sep unicode_script_subtag)?
+  //   (sep unicode_region_subtag)? (sep unicode_variant_subtag)* ;
+  std::vector<std::string> tokens;
+  std::string token;
+  std::istringstream token_stream(value);
+  while (std::getline(token_stream, token, '-')) {
+    tokens.push_back(token);
+  }
+  if (tokens.size() == 0) return false;
+
+  // length >= 1
+  if (!IsUnicodeLanguageSubtag(tokens[0])) return false;
+
+  if (tokens.size() == 1) return true;
+
+  // length >= 2
+  if (IsExtensionSingleton(tokens[1])) return true;
+
+  size_t index = 1;
+  if (IsUnicodeScriptSubtag(tokens[index])) {
+    index++;
+    if (index == tokens.size()) return true;
+  }
+  if (IsUnicodeRegionSubtag(tokens[index])) {
+    index++;
+  }
+  while (index < tokens.size()) {
+    if (IsExtensionSingleton(tokens[index])) return true;
+    if (!IsUnicodeVariantSubtag(tokens[index])) return false;
+    index++;
+  }
+  return true;
+}
+
+Maybe<std::string> ApplyOptionsToTag(Isolate* isolate, Handle<String> tag,
                                      Handle<JSReceiver> options) {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   if (tag->length() == 0) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate, NewRangeError(MessageTemplate::kLocaleNotEmpty),
-        Nothing<icu::Locale>());
+        Nothing<std::string>());
   }
 
   v8::String::Utf8Value bcp47_tag(v8_isolate, v8::Utils::ToLocal(tag));
@@ -201,13 +254,18 @@ Maybe<icu::Locale> ApplyOptionsToTag(Isolate* isolate, Handle<String> tag,
   CHECK_NOT_NULL(*bcp47_tag);
   // 2. If IsStructurallyValidLanguageTag(tag) is false, throw a RangeError
   // exception.
+  if (!StartsWithUnicodeLanguageId(*bcp47_tag)) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NewRangeError(MessageTemplate::kLocaleBadParameters),
+        Nothing<std::string>());
+  }
   UErrorCode status = U_ZERO_ERROR;
   icu::Locale icu_locale =
       icu::Locale::forLanguageTag({*bcp47_tag, bcp47_tag.length()}, status);
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate, NewRangeError(MessageTemplate::kLocaleBadParameters),
-        Nothing<icu::Locale>());
+        Nothing<std::string>());
   }
 
   // 3. Let language be ? GetOption(options, "language", "string", undefined,
@@ -217,20 +275,15 @@ Maybe<icu::Locale> ApplyOptionsToTag(Isolate* isolate, Handle<String> tag,
   Maybe<bool> maybe_language =
       Intl::GetStringOption(isolate, options, "language", empty_values,
                             "ApplyOptionsToTag", &language_str);
-  MAYBE_RETURN(maybe_language, Nothing<icu::Locale>());
+  MAYBE_RETURN(maybe_language, Nothing<std::string>());
   // 4. If language is not undefined, then
   if (maybe_language.FromJust()) {
-    // a. If language does not match the language production, throw a RangeError
-    // exception.
-    // b. If language matches the grandfathered production, throw a RangeError
-    // exception.
-    // Currently ValidateLanguageProduction only take 2*3ALPHA / 4ALPHA /
-    // 5*8ALPHA and won't take 2*3ALPHA "-" extlang so none of the grandfathered
-    // will be matched.
-    if (!ValidateLanguageProduction(language_str.get())) {
+    // a. If language does not match the unicode_language_subtag production,
+    //    throw a RangeError exception.
+    if (!IsUnicodeLanguageSubtag(language_str.get())) {
       THROW_NEW_ERROR_RETURN_VALUE(
           isolate, NewRangeError(MessageTemplate::kLocaleBadParameters),
-          Nothing<icu::Locale>());
+          Nothing<std::string>());
     }
   }
   // 5. Let script be ? GetOption(options, "script", "string", undefined,
@@ -239,15 +292,15 @@ Maybe<icu::Locale> ApplyOptionsToTag(Isolate* isolate, Handle<String> tag,
   Maybe<bool> maybe_script =
       Intl::GetStringOption(isolate, options, "script", empty_values,
                             "ApplyOptionsToTag", &script_str);
-  MAYBE_RETURN(maybe_script, Nothing<icu::Locale>());
+  MAYBE_RETURN(maybe_script, Nothing<std::string>());
   // 6. If script is not undefined, then
   if (maybe_script.FromJust()) {
-    // a. If script does not match the script production, throw a RangeError
-    // exception.
-    if (!ValidateScriptProduction(script_str.get())) {
+    // a. If script does not match the unicode_script_subtag production, throw
+    //    a RangeError exception.
+    if (!IsUnicodeScriptSubtag(script_str.get())) {
       THROW_NEW_ERROR_RETURN_VALUE(
           isolate, NewRangeError(MessageTemplate::kLocaleBadParameters),
-          Nothing<icu::Locale>());
+          Nothing<std::string>());
     }
   }
   // 7. Let region be ? GetOption(options, "region", "string", undefined,
@@ -256,79 +309,85 @@ Maybe<icu::Locale> ApplyOptionsToTag(Isolate* isolate, Handle<String> tag,
   Maybe<bool> maybe_region =
       Intl::GetStringOption(isolate, options, "region", empty_values,
                             "ApplyOptionsToTag", &region_str);
-  MAYBE_RETURN(maybe_region, Nothing<icu::Locale>());
+  MAYBE_RETURN(maybe_region, Nothing<std::string>());
   // 8. If region is not undefined, then
   if (maybe_region.FromJust()) {
     // a. If region does not match the region production, throw a RangeError
     // exception.
-    if (!ValidateRegionProduction(region_str.get())) {
+    if (!IsUnicodeRegionSubtag(region_str.get())) {
       THROW_NEW_ERROR_RETURN_VALUE(
           isolate, NewRangeError(MessageTemplate::kLocaleBadParameters),
-          Nothing<icu::Locale>());
+          Nothing<std::string>());
     }
   }
   // 9. Set tag to CanonicalizeLanguageTag(tag).
+  Maybe<std::string> maybe_canonicalized =
+      Intl::CanonicalizeLanguageTag(isolate, tag);
+  MAYBE_RETURN(maybe_canonicalized, Nothing<std::string>());
+
+  std::vector<std::string> tokens;
+  std::string token;
+  std::istringstream token_stream(maybe_canonicalized.FromJust());
+  while (std::getline(token_stream, token, '-')) {
+    tokens.push_back(token);
+  }
 
   // 10.  If language is not undefined,
   std::string locale_str;
   if (maybe_language.FromJust()) {
-    // a. Assert: tag matches the langtag production.
-    // b. Set tag to tag with the substring corresponding to the language
-    // production replaced by the string language.
-    locale_str = language_str.get();
-  } else {
-    locale_str = icu_locale.getLanguage();
+    // a. Assert: tag matches the unicode_locale_id production.
+    // b. Set tag to tag with the substring corresponding to the
+    //    unicode_language_subtag production replaced by the string language.
+    tokens[0] = language_str.get();
   }
+
   // 11. If script is not undefined, then
-  const char* script_ptr = nullptr;
   if (maybe_script.FromJust()) {
-    // a. If tag does not contain a script production, then
-    // i. Set tag to the concatenation of the language production of tag, "-",
-    // script, and the rest of tag.
-    // i. Set tag to tag with the substring corresponding to the script
-    // production replaced by the string script.
-    script_ptr = script_str.get();
-  } else {
-    script_ptr = icu_locale.getScript();
-  }
-  if (script_ptr != nullptr && strlen(script_ptr) > 0) {
-    locale_str.append("-");
-    locale_str.append(script_ptr);
+    // a. If tag does not contain a unicode_script_subtag production, then
+    if (tokens.size() < 2 || !IsUnicodeScriptSubtag(tokens[1])) {
+      // i. Set tag to the concatenation of the unicode_language_subtag
+      //    production of tag, "-", script, and the rest of tag.
+      tokens.insert(tokens.begin() + 1, script_str.get());
+      // b. Else,
+    } else {
+      // i. Set tag to tag with the substring corresponding to the
+      //    unicode_script_subtag production replaced by the string script.
+      tokens[1] = script_str.get();
+    }
   }
   // 12. If region is not undefined, then
-  const char* region_ptr = nullptr;
   if (maybe_region.FromJust()) {
-    // a. If tag does not contain a region production, then
-    //
-    // i. Set tag to the concatenation of the language production of tag, the
-    // substring corresponding to the "-" script production if present,  "-",
-    // region, and the rest of tag.
-    //
+    // a. If tag does not contain a unicode_region_subtag production, then
+    //   i. Set tag to the concatenation of the unicode_language_subtag
+    //      production of tag, the substring corresponding to the  "-"
+    //      unicode_script_subtag production if present, "-", region, and
+    //      the rest of tag.
     // b. Else,
-    //
-    // i. Set tag to tag with the substring corresponding to the region
-    // production replaced by the string region.
-    region_ptr = region_str.get();
-  } else {
-    region_ptr = icu_locale.getCountry();
+    // i. Set tag to tag with the substring corresponding to the
+    //    unicode_region_subtag production replaced by the string region.
+    if (tokens.size() > 1 && IsUnicodeRegionSubtag(tokens[1])) {
+      tokens[1] = region_str.get();
+    } else if (tokens.size() > 1 && IsUnicodeScriptSubtag(tokens[1])) {
+      if (tokens.size() > 2 && IsUnicodeRegionSubtag(tokens[2])) {
+        tokens[2] = region_str.get();
+      } else {
+        tokens.insert(tokens.begin() + 2, region_str.get());
+      }
+    } else {
+      tokens.insert(tokens.begin() + 1, region_str.get());
+    }
   }
 
-  std::string without_options(icu_locale.getName());
-
-  // replace with values from options
-  icu_locale =
-      icu::Locale(locale_str.c_str(), region_ptr, icu_locale.getVariant());
-  locale_str = icu_locale.getName();
-
-  // Append extensions from tag
-  size_t others = without_options.find("@");
-  if (others != std::string::npos) {
-    locale_str += without_options.substr(others);
+  std::string replaced;
+  for (auto it = tokens.begin(); it != tokens.end(); it++) {
+    replaced += *it;
+    if (it + 1 != tokens.end()) {
+      replaced += '-';
+    }
   }
 
   // 13.  Return CanonicalizeLanguageTag(tag).
-  icu_locale = icu::Locale::createCanonical(locale_str.c_str());
-  return Just(icu_locale);
+  return Intl::CanonicalizeLanguageTag(isolate, replaced);
 }
 
 }  // namespace
@@ -337,10 +396,17 @@ MaybeHandle<JSLocale> JSLocale::Initialize(Isolate* isolate,
                                            Handle<JSLocale> locale,
                                            Handle<String> locale_str,
                                            Handle<JSReceiver> options) {
-  Maybe<icu::Locale> maybe_locale =
+  Maybe<std::string> maybe_locale =
       ApplyOptionsToTag(isolate, locale_str, options);
   MAYBE_RETURN(maybe_locale, MaybeHandle<JSLocale>());
-  icu::Locale icu_locale = maybe_locale.FromJust();
+  UErrorCode status = U_ZERO_ERROR;
+  icu::Locale icu_locale =
+      icu::Locale::forLanguageTag(maybe_locale.FromJust().c_str(), status);
+  if (U_FAILURE(status)) {
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kLocaleBadParameters),
+                    JSLocale);
+  }
 
   Maybe<bool> error = InsertOptionsIntoLocale(isolate, options, &icu_locale);
   MAYBE_RETURN(error, MaybeHandle<JSLocale>());
@@ -364,6 +430,10 @@ Handle<String> MorphLocale(Isolate* isolate, String locale,
   UErrorCode status = U_ZERO_ERROR;
   icu::Locale icu_locale =
       icu::Locale::forLanguageTag(locale.ToCString().get(), status);
+  // TODO(ftang): Remove the following lines after ICU-8420 fixed.
+  // Due to ICU-8420 "und" is turn into "" by forLanguageTag,
+  // we have to work around to use icu::Locale("und") directly
+  if (icu_locale.getName()[0] == '\0') icu_locale = icu::Locale("und");
   CHECK(U_SUCCESS(status));
   CHECK(!icu_locale.isBogus());
   (*morph_func)(&icu_locale, &status);

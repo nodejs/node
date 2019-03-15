@@ -7,7 +7,9 @@
 
 #include "src/objects/js-array-buffer.h"
 
-#include "src/objects-inl.h"  // Needed for write barriers
+#include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects-inl.h"
+#include "src/objects/js-objects-inl.h"
 #include "src/wasm/wasm-engine.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -27,21 +29,21 @@ CAST_ACCESSOR(JSTypedArray)
 CAST_ACCESSOR(JSDataView)
 
 size_t JSArrayBuffer::byte_length() const {
-  return READ_UINTPTR_FIELD(this, kByteLengthOffset);
+  return READ_UINTPTR_FIELD(*this, kByteLengthOffset);
 }
 
 void JSArrayBuffer::set_byte_length(size_t value) {
-  WRITE_UINTPTR_FIELD(this, kByteLengthOffset, value);
+  WRITE_UINTPTR_FIELD(*this, kByteLengthOffset, value);
 }
 
 void* JSArrayBuffer::backing_store() const {
-  intptr_t ptr = READ_INTPTR_FIELD(this, kBackingStoreOffset);
+  intptr_t ptr = READ_INTPTR_FIELD(*this, kBackingStoreOffset);
   return reinterpret_cast<void*>(ptr);
 }
 
 void JSArrayBuffer::set_backing_store(void* value, WriteBarrierMode mode) {
   intptr_t ptr = reinterpret_cast<intptr_t>(value);
-  WRITE_INTPTR_FIELD(this, kBackingStoreOffset, ptr);
+  WRITE_INTPTR_FIELD(*this, kBackingStoreOffset, ptr);
 }
 
 size_t JSArrayBuffer::allocation_length() const {
@@ -95,11 +97,11 @@ void JSArrayBuffer::clear_padding() {
 }
 
 void JSArrayBuffer::set_bit_field(uint32_t bits) {
-  WRITE_UINT32_FIELD(this, kBitFieldOffset, bits);
+  WRITE_UINT32_FIELD(*this, kBitFieldOffset, bits);
 }
 
 uint32_t JSArrayBuffer::bit_field() const {
-  return READ_UINT32_FIELD(this, kBitFieldOffset);
+  return READ_UINT32_FIELD(*this, kBitFieldOffset);
 }
 
 // |bit_field| fields.
@@ -115,19 +117,19 @@ BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_growable,
                     JSArrayBuffer::IsGrowableBit)
 
 size_t JSArrayBufferView::byte_offset() const {
-  return READ_UINTPTR_FIELD(this, kByteOffsetOffset);
+  return READ_UINTPTR_FIELD(*this, kByteOffsetOffset);
 }
 
 void JSArrayBufferView::set_byte_offset(size_t value) {
-  WRITE_UINTPTR_FIELD(this, kByteOffsetOffset, value);
+  WRITE_UINTPTR_FIELD(*this, kByteOffsetOffset, value);
 }
 
 size_t JSArrayBufferView::byte_length() const {
-  return READ_UINTPTR_FIELD(this, kByteLengthOffset);
+  return READ_UINTPTR_FIELD(*this, kByteLengthOffset);
 }
 
 void JSArrayBufferView::set_byte_length(size_t value) {
-  WRITE_UINTPTR_FIELD(this, kByteLengthOffset, value);
+  WRITE_UINTPTR_FIELD(*this, kByteLengthOffset, value);
 }
 
 ACCESSORS(JSArrayBufferView, buffer, Object, kBufferOffset)
@@ -136,7 +138,7 @@ bool JSArrayBufferView::WasDetached() const {
   return JSArrayBuffer::cast(buffer())->was_detached();
 }
 
-Object JSTypedArray::length() const { return READ_FIELD(this, kLengthOffset); }
+Object JSTypedArray::length() const { return READ_FIELD(*this, kLengthOffset); }
 
 size_t JSTypedArray::length_value() const {
   double val = length()->Number();
@@ -148,7 +150,7 @@ size_t JSTypedArray::length_value() const {
 }
 
 void JSTypedArray::set_length(Object value, WriteBarrierMode mode) {
-  WRITE_FIELD(this, kLengthOffset, value);
+  WRITE_FIELD(*this, kLengthOffset, value);
   CONDITIONAL_WRITE_BARRIER(*this, kLengthOffset, value, mode);
 }
 

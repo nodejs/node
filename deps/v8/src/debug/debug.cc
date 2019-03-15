@@ -23,6 +23,7 @@
 #include "src/frames-inl.h"
 #include "src/global-handles.h"
 #include "src/globals.h"
+#include "src/heap/heap-inl.h"  // For NextDebuggingId.
 #include "src/interpreter/bytecode-array-accessor.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/interpreter.h"
@@ -35,6 +36,7 @@
 #include "src/objects/slots.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
+#include "src/v8threads.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
@@ -1335,10 +1337,10 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
 
     bool was_compiled = false;
     for (const auto& candidate : candidates) {
-      // Code that cannot be compiled lazily are internal and not debuggable.
-      DCHECK(candidate->allows_lazy_compilation());
       IsCompiledScope is_compiled_scope(candidate->is_compiled_scope());
       if (!is_compiled_scope.is_compiled()) {
+        // Code that cannot be compiled lazily are internal and not debuggable.
+        DCHECK(candidate->allows_lazy_compilation());
         if (!Compiler::Compile(candidate, Compiler::CLEAR_EXCEPTION,
                                &is_compiled_scope)) {
           return false;
@@ -1362,6 +1364,22 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
     return true;
   }
   UNREACHABLE();
+}
+
+MaybeHandle<JSArray> Debug::GetPrivateFields(Handle<JSReceiver> receiver) {
+  Factory* factory = isolate_->factory();
+
+  Handle<FixedArray> internal_fields;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate_, internal_fields,
+                             JSReceiver::GetPrivateEntries(isolate_, receiver),
+                             JSArray);
+
+  int nof_internal_fields = internal_fields->length();
+  if (nof_internal_fields == 0) {
+    return factory->NewJSArray(0);
+  }
+
+  return factory->NewJSArrayWithElements(internal_fields);
 }
 
 class SharedFunctionInfoFinder {
@@ -1501,6 +1519,8 @@ void Debug::CreateBreakInfo(Handle<SharedFunctionInfo> shared) {
   if (CanBreakAtEntry(shared)) flags |= DebugInfo::kCanBreakAtEntry;
   debug_info->set_flags(flags);
   debug_info->set_break_points(*break_points);
+
+  SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, shared);
 }
 
 Handle<DebugInfo> Debug::GetOrCreateDebugInfo(
@@ -1723,7 +1743,8 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
     Handle<JSObject> jspromise = Handle<JSObject>::cast(promise);
     // Mark the promise as already having triggered a message.
     Handle<Symbol> key = isolate_->factory()->promise_debug_marker_symbol();
-    Object::SetProperty(isolate_, jspromise, key, key, LanguageMode::kStrict)
+    Object::SetProperty(isolate_, jspromise, key, key, StoreOrigin::kMaybeKeyed,
+                        Just(ShouldThrow::kThrowOnError))
         .Assert();
     // Check whether the promise reject is considered an uncaught exception.
     uncaught = !isolate_->PromiseHasUserDefinedRejectHandler(jspromise);

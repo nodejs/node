@@ -241,8 +241,6 @@ void JSGenericLowering::LowerJSStoreNamed(Node* node) {
   Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
   if (!p.feedback().IsValid()) {
-    node->InsertInput(
-        zone(), 3, jsgraph()->SmiConstant(static_cast<int>(p.language_mode())));
     ReplaceWithRuntimeCall(node, Runtime::kSetNamedProperty);
     return;
   }

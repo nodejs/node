@@ -16,10 +16,7 @@ namespace internal {
 // Compresses full-pointer representation of a tagged value to on-heap
 // representation.
 V8_INLINE Tagged_t CompressTagged(Address tagged) {
-  // The compression is no-op while we are using checked decompression.
-  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
-  // TODO(ishell): implement once kTaggedSize is equal to kInt32Size.
-  return tagged;
+  return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
 }
 
 // Calculates isolate root value from any on-heap address.
@@ -30,38 +27,23 @@ V8_INLINE Address GetRootFromOnHeapAddress(Address addr) {
 
 // Decompresses weak or strong heap object pointer or forwarding pointer,
 // preserving both weak- and smi- tags.
-V8_INLINE Address DecompressTaggedPointerImpl(Address on_heap_addr,
-                                              int32_t value) {
+V8_INLINE Address DecompressTaggedPointer(Address on_heap_addr,
+                                          Tagged_t raw_value) {
+  static_assert(kTaggedSize == kSystemPointerSize, "has to be updated");
+  static_assert(!std::is_same<int32_t, Tagged_t>::value, "remove cast below");
+  int32_t value = static_cast<int32_t>(raw_value);
   Address root = GetRootFromOnHeapAddress(on_heap_addr);
   // Current compression scheme requires value to be sign-extended to inptr_t
   // before adding the |root|.
   return root + static_cast<Address>(static_cast<intptr_t>(value));
 }
 
-// Decompresses weak or strong heap object pointer or forwarding pointer,
-// preserving both weak- and smi- tags and checks that the result of
-// decompression matches full value stored in the field.
-// Checked decompression helps to find misuses of XxxSlots and FullXxxSlots.
-// TODO(ishell): remove in favour of DecompressTaggedPointerImpl() once
-// kTaggedSize is equal to kInt32Size.
-V8_INLINE Address DecompressTaggedPointer(Address on_heap_addr,
-                                          Tagged_t full_value) {
-  // Use only lower 32-bits of the value for decompression.
-  int32_t compressed = static_cast<int32_t>(full_value);
-  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
-  Address result = DecompressTaggedPointerImpl(on_heap_addr, compressed);
-#ifdef DEBUG
-  if (full_value != result) {
-    base::OS::DebugBreak();
-    result = DecompressTaggedPointerImpl(on_heap_addr, compressed);
-  }
-#endif
-  DCHECK_EQ(full_value, result);
-  return result;
-}
-
 // Decompresses any tagged value, preserving both weak- and smi- tags.
-V8_INLINE Address DecompressTaggedAnyImpl(Address on_heap_addr, int32_t value) {
+V8_INLINE Address DecompressTaggedAny(Address on_heap_addr,
+                                      Tagged_t raw_value) {
+  static_assert(kTaggedSize == kSystemPointerSize, "has to be updated");
+  static_assert(!std::is_same<int32_t, Tagged_t>::value, "remove cast below");
+  int32_t value = static_cast<int32_t>(raw_value);
   // |root_mask| is 0 if the |value| was a smi or -1 otherwise.
   Address root_mask = -static_cast<Address>(value & kSmiTagMask);
   Address root_or_zero = root_mask & GetRootFromOnHeapAddress(on_heap_addr);
@@ -70,26 +52,11 @@ V8_INLINE Address DecompressTaggedAnyImpl(Address on_heap_addr, int32_t value) {
   return root_or_zero + static_cast<Address>(static_cast<intptr_t>(value));
 }
 
-// Decompresses any tagged value, preserving both weak- and smi- tags and checks
-// that the result of decompression matches full value stored in the field.
-// Checked decompression helps to find misuses of XxxSlots and FullXxxSlots.
-// TODO(ishell): remove in favour of DecompressTaggedAnyImpl() once
-// kTaggedSize is equal to kInt32Size.
-V8_INLINE Address DecompressTaggedAny(Address on_heap_addr,
-                                      Tagged_t full_value) {
-  // Use only lower 32-bits of the value for decompression.
-  int32_t compressed = static_cast<int32_t>(full_value);
-  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
-  Address result = DecompressTaggedAnyImpl(on_heap_addr, compressed);
-#ifdef DEBUG
-  if (full_value != result) {
-    base::OS::DebugBreak();
-    result = DecompressTaggedAnyImpl(on_heap_addr, compressed);
-  }
-#endif
-  DCHECK_EQ(full_value, result);
-  return result;
-}
+STATIC_ASSERT(kPtrComprHeapReservationSize ==
+              Internals::kPtrComprHeapReservationSize);
+STATIC_ASSERT(kPtrComprIsolateRootBias == Internals::kPtrComprIsolateRootBias);
+STATIC_ASSERT(kPtrComprIsolateRootAlignment ==
+              Internals::kPtrComprIsolateRootAlignment);
 
 //
 // CompressedObjectSlot implementation.
@@ -141,8 +108,9 @@ Object CompressedObjectSlot::Release_CompareAndSwap(Object old,
 //
 
 bool CompressedMapWordSlot::contains_value(Address raw_value) const {
-  Tagged_t value = *location();
-  return value == static_cast<Tagged_t>(raw_value);
+  AtomicTagged_t value = AsAtomicTagged::Relaxed_Load(location());
+  return static_cast<uint32_t>(value) ==
+         static_cast<uint32_t>(static_cast<Tagged_t>(raw_value));
 }
 
 Object CompressedMapWordSlot::operator*() const {
@@ -227,12 +195,13 @@ void CompressedHeapObjectSlot::store(HeapObjectReference value) const {
 }
 
 HeapObject CompressedHeapObjectSlot::ToHeapObject() const {
-  DCHECK((*location() & kHeapObjectTagMask) == kHeapObjectTag);
-  return HeapObject::cast(Object(*location()));
+  Tagged_t value = *location();
+  DCHECK_EQ(value & kHeapObjectTagMask, kHeapObjectTag);
+  return HeapObject::cast(Object(DecompressTaggedPointer(address(), value)));
 }
 
 void CompressedHeapObjectSlot::StoreHeapObject(HeapObject value) const {
-  *location() = value->ptr();
+  *location() = CompressTagged(value->ptr());
 }
 
 }  // namespace internal

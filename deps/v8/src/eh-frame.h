@@ -14,6 +14,8 @@
 namespace v8 {
 namespace internal {
 
+class CodeDesc;
+
 class V8_EXPORT_PRIVATE EhFrameConstants final
     : public NON_EXPORTED_BASE(AllStatic) {
  public:

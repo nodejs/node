@@ -282,7 +282,8 @@ bool operator!=(PropertyAccess const& lhs, PropertyAccess const& rhs) {
 
 
 PropertyAccess const& PropertyAccessOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kJSLoadProperty ||
+  DCHECK(op->opcode() == IrOpcode::kJSHasProperty ||
+         op->opcode() == IrOpcode::kJSLoadProperty ||
          op->opcode() == IrOpcode::kJSStoreProperty);
   return OpParameter<PropertyAccess>(op);
 }
@@ -624,7 +625,6 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   V(CreateTypedArray, Operator::kNoProperties, 5, 1)                     \
   V(CreateObject, Operator::kNoProperties, 1, 1)                         \
   V(ObjectIsArray, Operator::kNoProperties, 1, 1)                        \
-  V(HasProperty, Operator::kNoProperties, 2, 1)                          \
   V(HasInPrototypeChain, Operator::kNoProperties, 2, 1)                  \
   V(OrdinaryHasInstance, Operator::kNoProperties, 2, 1)                  \
   V(ForInEnumerate, Operator::kNoProperties, 1, 1)                       \
@@ -722,8 +722,7 @@ struct JSOperatorGlobalCache final {
 };
 
 namespace {
-DEFINE_LAZY_LEAKY_OBJECT_GETTER(JSOperatorGlobalCache,
-                                GetJSOperatorGlobalCache);
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(JSOperatorGlobalCache, GetJSOperatorGlobalCache)
 }
 
 JSOperatorBuilder::JSOperatorBuilder(Zone* zone)
@@ -949,6 +948,15 @@ const Operator* JSOperatorBuilder::LoadProperty(
       "JSLoadProperty",                                    // name
       2, 1, 1, 1, 1, 2,                                    // counts
       access);                                             // parameter
+}
+
+const Operator* JSOperatorBuilder::HasProperty(VectorSlotPair const& feedback) {
+  PropertyAccess access(LanguageMode::kSloppy, feedback);
+  return new (zone()) Operator1<PropertyAccess>(          // --
+      IrOpcode::kJSHasProperty, Operator::kNoProperties,  // opcode
+      "JSHasProperty",                                    // name
+      2, 1, 1, 1, 1, 2,                                   // counts
+      access);                                            // parameter
 }
 
 const Operator* JSOperatorBuilder::InstanceOf(VectorSlotPair const& feedback) {

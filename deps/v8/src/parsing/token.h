@@ -171,6 +171,8 @@ namespace internal {
   /* BEGIN AnyIdentifier */                                        \
   /* Identifiers (not keywords or future reserved words). */       \
   T(IDENTIFIER, nullptr, 0)                                        \
+  K(GET, "get", 0)                                                 \
+  K(SET, "set", 0)                                                 \
   K(ASYNC, "async", 0)                                             \
   /* `await` is a reserved word in module code only */             \
   K(AWAIT, "await", 0)                                             \

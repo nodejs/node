@@ -15,6 +15,8 @@
     return array.pop();
   }
 
+  %PrepareFunctionForOptimization(pop);
+
   assertEquals(pop(), undefined);
   assertEquals(pop(), undefined);
 

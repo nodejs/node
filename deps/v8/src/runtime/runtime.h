@@ -85,10 +85,8 @@ namespace internal {
   F(HomeObjectSymbol, 0, 1)                 \
   F(LoadFromSuper, 3, 1)                    \
   F(LoadKeyedFromSuper, 3, 1)               \
-  F(StoreKeyedToSuper_Sloppy, 4, 1)         \
-  F(StoreKeyedToSuper_Strict, 4, 1)         \
-  F(StoreToSuper_Sloppy, 4, 1)              \
-  F(StoreToSuper_Strict, 4, 1)              \
+  F(StoreKeyedToSuper, 4, 1)                \
+  F(StoreToSuper, 4, 1)                     \
   F(ThrowConstructorNonCallableError, 1, 1) \
   F(ThrowNotSuperConstructor, 2, 1)         \
   F(ThrowStaticPrototypeError, 0, 1)        \
@@ -207,6 +205,7 @@ namespace internal {
 #endif  // V8_INTL_SUPPORT
 
 #define FOR_EACH_INTRINSIC_INTERNAL(F, I)            \
+  F(AccessCheck, 1, 1)                               \
   F(AllocateInNewSpace, 1, 1)                        \
   F(AllocateInTargetSpace, 2, 1)                     \
   F(AllocateSeqOneByteString, 1, 1)                  \
@@ -215,10 +214,10 @@ namespace internal {
   F(CheckIsBootstrapping, 0, 1)                      \
   I(CreateAsyncFromSyncIterator, 1, 1)               \
   F(CreateListFromArrayLike, 1, 1)                   \
-  F(CreateTemplateObject, 1, 1)                      \
   F(FatalProcessOutOfMemoryInAllocateRaw, 0, 1)      \
   F(FatalProcessOutOfMemoryInvalidArrayLength, 0, 1) \
   F(GetAndResetRuntimeCallStats, -1 /* <= 2 */, 1)   \
+  F(GetTemplateObject, 3, 1)                         \
   F(IncrementUseCounter, 1, 1)                       \
   F(Interrupt, 0, 1)                                 \
   F(NewReferenceError, 2, 1)                         \
@@ -244,14 +243,16 @@ namespace internal {
   F(ThrowPatternAssignmentNonCoercible, 0, 1)        \
   F(ThrowRangeError, -1 /* >= 1 */, 1)               \
   F(ThrowReferenceError, 1, 1)                       \
+  F(ThrowAccessedUninitializedVariable, 1, 1)        \
   F(ThrowStackOverflow, 0, 1)                        \
   F(ThrowSymbolAsyncIteratorInvalid, 0, 1)           \
   F(ThrowSymbolIteratorInvalid, 0, 1)                \
   F(ThrowThrowMethodMissing, 0, 1)                   \
   F(ThrowTypeError, -1 /* >= 1 */, 1)                \
+  F(ThrowTypeErrorIfStrict, -1 /* >= 1 */, 1)        \
   F(Typeof, 1, 1)                                    \
   F(UnwindAndFindExceptionHandler, 0, 1)             \
-  F(WeakFactoryCleanupJob, 1, 1)
+  F(FinalizationGroupCleanupJob, 1, 1)
 
 #define FOR_EACH_INTRINSIC_LITERALS(F, I)           \
   F(CreateArrayLiteral, 4, 1)                       \
@@ -316,8 +317,8 @@ namespace internal {
   F(OptimizeObjectForAddingMultipleProperties, 2, 1)            \
   F(PerformSideEffectCheckForObject, 1, 1)                      \
   F(SetDataProperties, 2, 1)                                    \
-  F(SetKeyedProperty, 4, 1)                                     \
-  F(SetNamedProperty, 4, 1)                                     \
+  F(SetKeyedProperty, 3, 1)                                     \
+  F(SetNamedProperty, 3, 1)                                     \
   F(StoreDataPropertyInLiteral, 3, 1)                           \
   F(ShrinkPropertyDictionary, 1, 1)                             \
   F(ToFastProperties, 1, 1)                                     \
@@ -363,14 +364,13 @@ namespace internal {
   F(IsJSProxy, 1, 1)                   \
   F(JSProxyGetHandler, 1, 1)           \
   F(JSProxyGetTarget, 1, 1)            \
-  F(SetPropertyWithReceiver, 5, 1)
+  F(SetPropertyWithReceiver, 4, 1)
 
 #define FOR_EACH_INTRINSIC_REGEXP(F, I)             \
   I(IsRegExp, 1, 1)                                 \
   F(RegExpExec, 4, 1)                               \
   F(RegExpExecMultiple, 4, 1)                       \
   F(RegExpInitializeAndCompile, 3, 1)               \
-  F(RegExpInternalReplace, 3, 1)                    \
   F(RegExpReplace, 3, 1)                            \
   F(RegExpSplit, 3, 1)                              \
   F(StringReplaceNonGlobalRegExpWithFunction, 3, 1) \
@@ -406,12 +406,11 @@ namespace internal {
   F(FlattenString, 1, 1)                  \
   F(GetSubstitution, 5, 1)                \
   F(InternalizeString, 1, 1)              \
-  F(SparseJoinWithSeparator, 3, 1)        \
   F(StringAdd, 2, 1)                      \
   F(StringBuilderConcat, 3, 1)            \
-  F(StringBuilderJoin, 3, 1)              \
   F(StringCharCodeAt, 2, 1)               \
   F(StringEqual, 2, 1)                    \
+  F(StringEscapeQuotes, 1, 1)             \
   F(StringGreaterThan, 2, 1)              \
   F(StringGreaterThanOrEqual, 2, 1)       \
   F(StringIncludes, 3, 1)                 \
@@ -422,6 +421,7 @@ namespace internal {
   F(StringLessThanOrEqual, 2, 1)          \
   F(StringMaxLength, 0, 1)                \
   F(StringReplaceOneCharWithString, 3, 1) \
+  F(StringCompareSequence, 3, 1)          \
   F(StringSubstring, 3, 1)                \
   F(StringToArray, 2, 1)                  \
   F(StringTrim, 2, 1)
@@ -433,6 +433,7 @@ namespace internal {
   F(SymbolIsPrivate, 1, 1)
 
 #define FOR_EACH_INTRINSIC_TEST(F, I)         \
+  F(ClearMegamorphicStubCache, 0, 1)          \
   F(Abort, 1, 1)                              \
   F(AbortJS, 1, 1)                            \
   F(ClearFunctionFeedback, 1, 1)              \
@@ -460,6 +461,7 @@ namespace internal {
   F(GetWasmRecoveredTrapCount, 0, 1)          \
   F(GlobalPrint, 1, 1)                        \
   F(HasDictionaryElements, 1, 1)              \
+  F(HasPackedElements, 1, 1)                  \
   F(HasDoubleElements, 1, 1)                  \
   F(HasFastElements, 1, 1)                    \
   F(HasFastProperties, 1, 1)                  \
@@ -494,6 +496,7 @@ namespace internal {
   F(NotifyContextDisposed, 0, 1)              \
   F(OptimizeFunctionOnNextCall, -1, 1)        \
   F(OptimizeOsr, -1, 1)                       \
+  F(PrepareFunctionForOptimization, 1, 1)     \
   F(PrintWithNameForAssert, 2, 1)             \
   F(RedirectToWasmInterpreter, 2, 1)          \
   F(RunningInSimulator, 0, 1)                 \
@@ -540,7 +543,7 @@ namespace internal {
   F(WasmThrowCreate, 2, 1)            \
   F(WasmThrowTypeError, 0, 1)         \
   F(WasmTableInit, 5, 1)              \
-  F(WasmTableCopy, 4, 1)              \
+  F(WasmTableCopy, 5, 1)              \
   F(WasmIsValidAnyFuncValue, 1, 1)    \
   F(WasmCompileLazy, 2, 1)
 
@@ -554,9 +557,8 @@ namespace internal {
   F(ElementsTransitionAndStoreIC_Miss, 6, 1) \
   F(KeyedLoadIC_Miss, 4, 1)                  \
   F(KeyedStoreIC_Miss, 5, 1)                 \
-  F(KeyedStoreICNoFeedback_Miss, 4, 1)       \
   F(StoreInArrayLiteralIC_Miss, 5, 1)        \
-  F(KeyedStoreIC_Slow, 5, 1)                 \
+  F(KeyedStoreIC_Slow, 3, 1)                 \
   F(LoadAccessorProperty, 4, 1)              \
   F(LoadCallbackProperty, 4, 1)              \
   F(LoadElementWithInterceptor, 2, 1)        \
@@ -564,15 +566,16 @@ namespace internal {
   F(LoadGlobalIC_Slow, 3, 1)                 \
   F(LoadIC_Miss, 4, 1)                       \
   F(LoadPropertyWithInterceptor, 5, 1)       \
-  F(StoreCallbackProperty, 6, 1)             \
+  F(StoreCallbackProperty, 5, 1)             \
   F(StoreGlobalIC_Miss, 4, 1)                \
-  F(StoreGlobalICNoFeedback_Miss, 3, 1)      \
+  F(StoreGlobalICNoFeedback_Miss, 2, 1)      \
   F(StoreGlobalIC_Slow, 5, 1)                \
   F(StoreIC_Miss, 5, 1)                      \
-  F(StoreICNoFeedback_Miss, 5, 1)            \
   F(StoreInArrayLiteralIC_Slow, 5, 1)        \
   F(StorePropertyWithInterceptor, 5, 1)      \
-  F(CloneObjectIC_Miss, 4, 1)
+  F(CloneObjectIC_Miss, 4, 1)                \
+  F(KeyedHasIC_Miss, 4, 1)                   \
+  F(HasElementWithInterceptor, 2, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_OBJECT_IMPL(F, I) \
   FOR_EACH_INTRINSIC_ARRAY(F, I)                    \
@@ -700,12 +703,15 @@ class Runtime : public AllStatic {
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> SetObjectProperty(
       Isolate* isolate, Handle<Object> object, Handle<Object> key,
-      Handle<Object> value, LanguageMode language_mode,
-      StoreOrigin store_origin);
+      Handle<Object> value, StoreOrigin store_origin,
+      Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>());
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetObjectProperty(
       Isolate* isolate, Handle<Object> object, Handle<Object> key,
       bool* is_found_out = nullptr);
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> HasProperty(
+      Isolate* isolate, Handle<Object> object, Handle<Object> key);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> GetInternalProperties(
       Isolate* isolate, Handle<Object>);

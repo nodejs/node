@@ -11,7 +11,8 @@
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
 #include "src/isolate.h"
-#include "src/lookup-cache.h"
+#include "src/lookup-cache-inl.h"
+#include "src/maybe-handles-inl.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/struct-inl.h"
@@ -28,6 +29,9 @@ OBJECT_CONSTRUCTORS_IMPL(EnumCache, Tuple2)
 
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(EnumCache)
+
+ACCESSORS(EnumCache, keys, FixedArray, kKeysOffset)
+ACCESSORS(EnumCache, indices, FixedArray, kIndicesOffset)
 
 ACCESSORS(DescriptorArray, enum_cache, EnumCache, kEnumCacheOffset)
 RELAXED_INT16_ACCESSORS(DescriptorArray, number_of_all_descriptors,
@@ -50,7 +54,7 @@ inline int16_t DescriptorArray::CompareAndSwapRawNumberOfMarkedDescriptors(
     int16_t expected, int16_t value) {
   return base::Relaxed_CompareAndSwap(
       reinterpret_cast<base::Atomic16*>(
-          FIELD_ADDR(this, kRawNumberOfMarkedDescriptorsOffset)),
+          FIELD_ADDR(*this, kRawNumberOfMarkedDescriptorsOffset)),
       expected, value);
 }
 

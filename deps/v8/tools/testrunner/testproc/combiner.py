@@ -2,13 +2,15 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 from collections import defaultdict
 import time
 
 from . import base
 from ..objects import testcase
 from ..outproc import base as outproc
-
 
 class CombinerProc(base.TestProc):
   def __init__(self, rng, min_group_size, max_group_size, count):
@@ -45,9 +47,10 @@ class CombinerProc(base.TestProc):
     group_key = self._get_group_key(test)
     if not group_key:
       # Test not suitable for combining
-      return
+      return False
 
     self._groups[test.suite.name].add_test(group_key, test)
+    return True
 
   def _get_group_key(self, test):
     combiner =  self._get_combiner(test.suite)
@@ -61,22 +64,22 @@ class CombinerProc(base.TestProc):
     self._send_next_test()
 
   def generate_initial_tests(self, num=1):
-    for _ in xrange(0, num):
+    for _ in range(0, num):
       self._send_next_test()
 
   def _send_next_test(self):
     if self.is_stopped:
-      return
+      return False
 
     if self._count and self._current_num >= self._count:
-      return
+      return False
 
     combined_test = self._create_new_test()
     if not combined_test:
       # Not enough tests
-      return
+      return False
 
-    self._send_test(combined_test)
+    return self._send_test(combined_test)
 
   def _create_new_test(self):
     suite, combiner = self._select_suite()
@@ -121,4 +124,4 @@ class TestGroups(object):
 
     group_key = rng.choice(self._keys)
     tests = self._groups[group_key]
-    return [rng.choice(tests) for _ in xrange(0, max_size)]
+    return [rng.choice(tests) for _ in range(0, max_size)]

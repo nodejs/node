@@ -22,11 +22,11 @@ void RunU64BinOp(ExecutionTier execution_tier, WasmOpcode wasm_op,
                               MachineRepresentation::kWord64));
 
   FOR_UINT64_INPUTS(i) {
-    uint64_t initial = *i;
+    uint64_t initial = i;
     FOR_UINT64_INPUTS(j) {
       r.builder().WriteMemory(&memory[0], initial);
-      CHECK_EQ(initial, r.Call(*j));
-      uint64_t expected = expected_op(*i, *j);
+      CHECK_EQ(initial, r.Call(j));
+      uint64_t expected = expected_op(i, j);
       CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
     }
   }
@@ -51,11 +51,11 @@ void RunU32BinOp(ExecutionTier execution_tier, WasmOpcode wasm_op,
                               MachineRepresentation::kWord32));
 
   FOR_UINT32_INPUTS(i) {
-    uint32_t initial = *i;
+    uint32_t initial = i;
     FOR_UINT32_INPUTS(j) {
       r.builder().WriteMemory(&memory[0], initial);
-      CHECK_EQ(initial, r.Call(*j));
-      uint32_t expected = expected_op(*i, *j);
+      CHECK_EQ(initial, r.Call(j));
+      uint32_t expected = expected_op(i, j);
       CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
     }
   }
@@ -80,11 +80,11 @@ void RunU16BinOp(ExecutionTier tier, WasmOpcode wasm_op,
                               MachineRepresentation::kWord16));
 
   FOR_UINT16_INPUTS(i) {
-    uint16_t initial = *i;
+    uint16_t initial = i;
     FOR_UINT16_INPUTS(j) {
       r.builder().WriteMemory(&memory[0], initial);
-      CHECK_EQ(initial, r.Call(*j));
-      uint16_t expected = expected_op(*i, *j);
+      CHECK_EQ(initial, r.Call(j));
+      uint16_t expected = expected_op(i, j);
       CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
     }
   }
@@ -108,11 +108,11 @@ void RunU8BinOp(ExecutionTier execution_tier, WasmOpcode wasm_op,
                               MachineRepresentation::kWord8));
 
   FOR_UINT8_INPUTS(i) {
-    uint8_t initial = *i;
+    uint8_t initial = i;
     FOR_UINT8_INPUTS(j) {
       r.builder().WriteMemory(&memory[0], initial);
-      CHECK_EQ(initial, r.Call(*j));
-      uint8_t expected = expected_op(*i, *j);
+      CHECK_EQ(initial, r.Call(j));
+      uint8_t expected = expected_op(i, j);
       CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
     }
   }
@@ -136,11 +136,11 @@ WASM_EXEC_TEST(I64AtomicCompareExchange) {
                WASM_GET_LOCAL(1), MachineRepresentation::kWord64));
 
   FOR_UINT64_INPUTS(i) {
-    uint64_t initial = *i;
+    uint64_t initial = i;
     FOR_UINT64_INPUTS(j) {
       r.builder().WriteMemory(&memory[0], initial);
-      CHECK_EQ(initial, r.Call(*i, *j));
-      uint64_t expected = CompareExchange(initial, *i, *j);
+      CHECK_EQ(initial, r.Call(i, j));
+      uint64_t expected = CompareExchange(initial, i, j);
       CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
     }
   }
@@ -158,11 +158,11 @@ WASM_EXEC_TEST(I64AtomicCompareExchange32U) {
                                    MachineRepresentation::kWord32));
 
   FOR_UINT32_INPUTS(i) {
-    uint32_t initial = *i;
+    uint32_t initial = i;
     FOR_UINT32_INPUTS(j) {
       r.builder().WriteMemory(&memory[0], initial);
-      CHECK_EQ(initial, r.Call(*i, *j));
-      uint32_t expected = CompareExchange(initial, *i, *j);
+      CHECK_EQ(initial, r.Call(i, j));
+      uint32_t expected = CompareExchange(initial, i, j);
       CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
     }
   }
@@ -180,11 +180,11 @@ WASM_EXEC_TEST(I64AtomicCompareExchange16U) {
                                    MachineRepresentation::kWord16));
 
   FOR_UINT16_INPUTS(i) {
-    uint16_t initial = *i;
+    uint16_t initial = i;
     FOR_UINT16_INPUTS(j) {
       r.builder().WriteMemory(&memory[0], initial);
-      CHECK_EQ(initial, r.Call(*i, *j));
-      uint16_t expected = CompareExchange(initial, *i, *j);
+      CHECK_EQ(initial, r.Call(i, j));
+      uint16_t expected = CompareExchange(initial, i, j);
       CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
     }
   }
@@ -200,11 +200,11 @@ WASM_EXEC_TEST(I32AtomicCompareExchange8U) {
                                 WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
                                 MachineRepresentation::kWord8));
   FOR_UINT8_INPUTS(i) {
-    uint8_t initial = *i;
+    uint8_t initial = i;
     FOR_UINT8_INPUTS(j) {
       r.builder().WriteMemory(&memory[0], initial);
-      CHECK_EQ(initial, r.Call(*i, *j));
-      uint8_t expected = CompareExchange(initial, *i, *j);
+      CHECK_EQ(initial, r.Call(i, j));
+      uint8_t expected = CompareExchange(initial, i, j);
       CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
     }
   }
@@ -220,7 +220,7 @@ WASM_EXEC_TEST(I64AtomicLoad) {
                                 MachineRepresentation::kWord64));
 
   FOR_UINT64_INPUTS(i) {
-    uint64_t expected = *i;
+    uint64_t expected = i;
     r.builder().WriteMemory(&memory[0], expected);
     CHECK_EQ(expected, r.Call());
   }
@@ -236,7 +236,7 @@ WASM_EXEC_TEST(I64AtomicLoad32U) {
                                 MachineRepresentation::kWord32));
 
   FOR_UINT32_INPUTS(i) {
-    uint32_t expected = *i;
+    uint32_t expected = i;
     r.builder().WriteMemory(&memory[0], expected);
     CHECK_EQ(expected, r.Call());
   }
@@ -252,7 +252,7 @@ WASM_EXEC_TEST(I64AtomicLoad16U) {
                                 MachineRepresentation::kWord16));
 
   FOR_UINT16_INPUTS(i) {
-    uint16_t expected = *i;
+    uint16_t expected = i;
     r.builder().WriteMemory(&memory[0], expected);
     CHECK_EQ(expected, r.Call());
   }
@@ -267,7 +267,7 @@ WASM_EXEC_TEST(I64AtomicLoad8U) {
                                 MachineRepresentation::kWord8));
 
   FOR_UINT8_INPUTS(i) {
-    uint8_t expected = *i;
+    uint8_t expected = i;
     r.builder().WriteMemory(&memory[0], expected);
     CHECK_EQ(expected, r.Call());
   }
@@ -287,8 +287,8 @@ WASM_EXEC_TEST(I64AtomicStoreLoad) {
                              MachineRepresentation::kWord64));
 
   FOR_UINT64_INPUTS(i) {
-    uint64_t expected = *i;
-    CHECK_EQ(expected, r.Call(*i));
+    uint64_t expected = i;
+    CHECK_EQ(expected, r.Call(i));
     CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
   }
 }
@@ -308,8 +308,8 @@ WASM_EXEC_TEST(I64AtomicStoreLoad32U) {
                            MachineRepresentation::kWord32));
 
   FOR_UINT32_INPUTS(i) {
-    uint32_t expected = *i;
-    CHECK_EQ(expected, r.Call(*i));
+    uint32_t expected = i;
+    CHECK_EQ(expected, r.Call(i));
     CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
   }
 }
@@ -329,8 +329,8 @@ WASM_EXEC_TEST(I64AtomicStoreLoad16U) {
                            MachineRepresentation::kWord16));
 
   FOR_UINT16_INPUTS(i) {
-    uint16_t expected = *i;
-    CHECK_EQ(expected, r.Call(*i));
+    uint16_t expected = i;
+    CHECK_EQ(expected, r.Call(i));
     CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
   }
 }
@@ -348,9 +348,9 @@ WASM_EXEC_TEST(I64AtomicStoreLoad8U) {
                              MachineRepresentation::kWord8));
 
   FOR_UINT8_INPUTS(i) {
-    uint8_t expected = *i;
-    CHECK_EQ(expected, r.Call(*i));
-    CHECK_EQ(*i, r.builder().ReadMemory(&memory[0]));
+    uint8_t expected = i;
+    CHECK_EQ(expected, r.Call(i));
+    CHECK_EQ(i, r.builder().ReadMemory(&memory[0]));
   }
 }
 

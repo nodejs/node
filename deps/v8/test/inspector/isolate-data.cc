@@ -111,6 +111,7 @@ v8::Local<v8::Context> IsolateData::GetContext(int context_group_id) {
 }
 
 void IsolateData::ResetContextGroup(int context_group_id) {
+  v8::SealHandleScope seal_handle_scope(isolate());
   inspector_->resetContextGroup(context_group_id);
 }
 
@@ -149,6 +150,7 @@ v8::MaybeLocal<v8::Module> IsolateData::ModuleResolveCallback(
 int IsolateData::ConnectSession(int context_group_id,
                                 const v8_inspector::StringView& state,
                                 v8_inspector::V8Inspector::Channel* channel) {
+  v8::SealHandleScope seal_handle_scope(isolate());
   int session_id = ++last_session_id_;
   sessions_[session_id] = inspector_->connect(context_group_id, channel, state);
   context_group_by_session_[sessions_[session_id].get()] = context_group_id;
@@ -157,6 +159,7 @@ int IsolateData::ConnectSession(int context_group_id,
 
 std::unique_ptr<v8_inspector::StringBuffer> IsolateData::DisconnectSession(
     int session_id) {
+  v8::SealHandleScope seal_handle_scope(isolate());
   auto it = sessions_.find(session_id);
   CHECK(it != sessions_.end());
   context_group_by_session_.erase(it->second.get());
@@ -167,6 +170,7 @@ std::unique_ptr<v8_inspector::StringBuffer> IsolateData::DisconnectSession(
 
 void IsolateData::SendMessage(int session_id,
                               const v8_inspector::StringView& message) {
+  v8::SealHandleScope seal_handle_scope(isolate());
   auto it = sessions_.find(session_id);
   if (it != sessions_.end()) it->second->dispatchProtocolMessage(message);
 }
@@ -174,6 +178,7 @@ void IsolateData::SendMessage(int session_id,
 void IsolateData::BreakProgram(int context_group_id,
                                const v8_inspector::StringView& reason,
                                const v8_inspector::StringView& details) {
+  v8::SealHandleScope seal_handle_scope(isolate());
   for (int session_id : GetSessionIds(context_group_id)) {
     auto it = sessions_.find(session_id);
     if (it != sessions_.end()) it->second->breakProgram(reason, details);
@@ -183,6 +188,7 @@ void IsolateData::BreakProgram(int context_group_id,
 void IsolateData::SchedulePauseOnNextStatement(
     int context_group_id, const v8_inspector::StringView& reason,
     const v8_inspector::StringView& details) {
+  v8::SealHandleScope seal_handle_scope(isolate());
   for (int session_id : GetSessionIds(context_group_id)) {
     auto it = sessions_.find(session_id);
     if (it != sessions_.end())
@@ -191,6 +197,7 @@ void IsolateData::SchedulePauseOnNextStatement(
 }
 
 void IsolateData::CancelPauseOnNextStatement(int context_group_id) {
+  v8::SealHandleScope seal_handle_scope(isolate());
   for (int session_id : GetSessionIds(context_group_id)) {
     auto it = sessions_.find(session_id);
     if (it != sessions_.end()) it->second->cancelPauseOnNextStatement();
@@ -199,34 +206,41 @@ void IsolateData::CancelPauseOnNextStatement(int context_group_id) {
 
 void IsolateData::AsyncTaskScheduled(const v8_inspector::StringView& name,
                                      void* task, bool recurring) {
+  v8::SealHandleScope seal_handle_scope(isolate());
   inspector_->asyncTaskScheduled(name, task, recurring);
 }
 
 void IsolateData::AsyncTaskStarted(void* task) {
+  v8::SealHandleScope seal_handle_scope(isolate());
   inspector_->asyncTaskStarted(task);
 }
 
 void IsolateData::AsyncTaskFinished(void* task) {
+  v8::SealHandleScope seal_handle_scope(isolate());
   inspector_->asyncTaskFinished(task);
 }
 
 v8_inspector::V8StackTraceId IsolateData::StoreCurrentStackTrace(
     const v8_inspector::StringView& description) {
+  v8::SealHandleScope seal_handle_scope(isolate());
   return inspector_->storeCurrentStackTrace(description);
 }
 
 void IsolateData::ExternalAsyncTaskStarted(
     const v8_inspector::V8StackTraceId& parent) {
+  v8::SealHandleScope seal_handle_scope(isolate());
   inspector_->externalAsyncTaskStarted(parent);
 }
 
 void IsolateData::ExternalAsyncTaskFinished(
     const v8_inspector::V8StackTraceId& parent) {
+  v8::SealHandleScope seal_handle_scope(isolate());
   inspector_->externalAsyncTaskFinished(parent);
 }
 
 void IsolateData::AddInspectedObject(int session_id,
                                      v8::Local<v8::Value> object) {
+  v8::SealHandleScope seal_handle_scope(isolate());
   auto it = sessions_.find(session_id);
   if (it == sessions_.end()) return;
   std::unique_ptr<Inspectable> inspectable(
@@ -235,10 +249,12 @@ void IsolateData::AddInspectedObject(int session_id,
 }
 
 void IsolateData::SetMaxAsyncTaskStacksForTest(int limit) {
+  v8::SealHandleScope seal_handle_scope(isolate());
   v8_inspector::SetMaxAsyncTaskStacksForTest(inspector_.get(), limit);
 }
 
 void IsolateData::DumpAsyncTaskStacksStateForTest() {
+  v8::SealHandleScope seal_handle_scope(isolate());
   v8_inspector::DumpAsyncTaskStacksStateForTest(inspector_.get());
 }
 
@@ -275,6 +291,7 @@ int IsolateData::HandleMessage(v8::Local<v8::Message> message,
   }
   v8_inspector::StringView url(url_string.start(), url_string.length());
 
+  v8::SealHandleScope seal_handle_scope(isolate);
   return inspector->exceptionThrown(
       context, message_text, exception, detailed_message, url, line_number,
       column_number, inspector->createStackTrace(stack), script_id);
@@ -303,6 +320,7 @@ void IsolateData::PromiseRejectHandler(v8::PromiseRejectMessage data) {
     if (!id->IsInt32()) return;
     v8_inspector::V8Inspector* inspector =
         IsolateData::FromContext(context)->inspector_.get();
+    v8::SealHandleScope seal_handle_scope(isolate);
     const char* reason_str = "Handler added to rejected promise";
     inspector->exceptionRevoked(
         context, id.As<v8::Int32>()->Value(),
@@ -327,10 +345,12 @@ void IsolateData::FireContextCreated(v8::Local<v8::Context> context,
   v8_inspector::V8ContextInfo info(context, context_group_id,
                                    v8_inspector::StringView());
   info.hasMemoryOnConsole = true;
+  v8::SealHandleScope seal_handle_scope(isolate());
   inspector_->contextCreated(info);
 }
 
 void IsolateData::FireContextDestroyed(v8::Local<v8::Context> context) {
+  v8::SealHandleScope seal_handle_scope(isolate());
   inspector_->contextDestroyed(context);
 }
 
@@ -406,10 +426,14 @@ v8::MaybeLocal<v8::Value> IsolateData::memoryInfo(v8::Isolate* isolate,
 }
 
 void IsolateData::runMessageLoopOnPause(int) {
+  v8::SealHandleScope seal_handle_scope(isolate());
   task_runner_->RunMessageLoop(true);
 }
 
-void IsolateData::quitMessageLoopOnPause() { task_runner_->QuitMessageLoop(); }
+void IsolateData::quitMessageLoopOnPause() {
+  v8::SealHandleScope seal_handle_scope(isolate());
+  task_runner_->QuitMessageLoop();
+}
 
 void IsolateData::consoleAPIMessage(int contextGroupId,
                                     v8::Isolate::MessageErrorLevel level,

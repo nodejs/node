@@ -121,6 +121,11 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_LoadWord64:
     case kPPC_LoadFloat32:
     case kPPC_LoadDouble:
+    case kPPC_AtomicLoadUint8:
+    case kPPC_AtomicLoadUint16:
+    case kPPC_AtomicLoadWord32:
+    case kPPC_AtomicLoadWord64:
+    case kPPC_Peek:
       return kIsLoadOperation;
 
     case kPPC_StoreWord8:
@@ -133,12 +138,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_PushFrame:
     case kPPC_StoreToStackSlot:
       return kHasSideEffect;
-
-    case kPPC_AtomicLoadUint8:
-    case kPPC_AtomicLoadUint16:
-    case kPPC_AtomicLoadWord32:
-    case kPPC_AtomicLoadWord64:
-      return kIsLoadOperation;
 
     case kPPC_AtomicStoreUint8:
     case kPPC_AtomicStoreUint16:

@@ -35,7 +35,7 @@
 }],  # variant != default
 
 ##############################################################################
-['lite_mode', {
+['lite_mode or variant == jitless', {
   # Lite mode does not allocate feedback vector.
   'type-profiler/type-profile-start-stop': [SKIP],
   'type-profiler/type-profile': [SKIP],
@@ -48,7 +48,15 @@
   'debugger/asm-js-breakpoint-before-exec': [SKIP],
   'debugger/asm-js-breakpoint-during-exec': [SKIP],
   'debugger/wasm-*': [SKIP],
-}],  # 'lite_mode'
+  'cpu-profiler/console-profile-wasm': [SKIP],
+}],  # 'lite_mode or variant == jitless'
+
+##############################################################################
+['variant == jitless', {
+  # https://crbug.com/v8/7777
+  'cpu-profiler/coverage': [SKIP],
+  'cpu-profiler/coverage-block': [SKIP],
+}], # variant == jitless
 
 ##############################################################################
 ['(arch == arm or arch == arm64) and simulator_run', {
@@ -72,5 +80,10 @@
   # https://crbug.com/v8/8521
   'debugger/pause-on-oom': [SKIP],
 }],
+
+##############################################################################
+['variant == jitless and not embedded_builtins', {
+  '*': [SKIP],
+}], # variant == jitless and not embedded_builtins
 
 ]

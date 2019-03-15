@@ -412,8 +412,12 @@ class RegExpQuantifier final : public RegExpTree {
       : body_(body),
         min_(min),
         max_(max),
-        min_match_(min * body->min_match()),
         quantifier_type_(type) {
+    if (min > 0 && body->min_match() > kInfinity / min) {
+      min_match_ = kInfinity;
+    } else {
+      min_match_ = min * body->min_match();
+    }
     if (max > 0 && body->max_match() > kInfinity / max) {
       max_match_ = kInfinity;
     } else {

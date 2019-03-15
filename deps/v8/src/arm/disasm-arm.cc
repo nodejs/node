@@ -35,6 +35,7 @@
 #include "src/base/bits.h"
 #include "src/base/platform/platform.h"
 #include "src/disasm.h"
+#include "src/vector.h"
 
 namespace v8 {
 namespace internal {

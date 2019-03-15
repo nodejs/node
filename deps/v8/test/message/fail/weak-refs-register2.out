@@ -1,0 +1,6 @@
+*%(basename)s:9: TypeError: FinalizationGroup.prototype.register: target and holdings must not be same
+fg.register(o, o);
+   ^
+TypeError: FinalizationGroup.prototype.register: target and holdings must not be same
+    at FinalizationGroup.register (<anonymous>)
+    at *%(basename)s:9:4

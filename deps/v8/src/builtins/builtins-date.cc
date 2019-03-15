@@ -14,6 +14,7 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-date-time-format.h"
 #endif
+#include "src/string-stream.h"
 
 namespace v8 {
 namespace internal {
@@ -142,12 +143,23 @@ double ParseDateTimeString(Isolate* isolate, Handle<String> str) {
 
 enum ToDateStringMode { kDateOnly, kTimeOnly, kDateAndTime };
 
+typedef base::SmallVector<char, 128> DateBuffer;
+
+template <class... Args>
+DateBuffer FormatDate(const char* format, Args... args) {
+  DateBuffer buffer;
+  SmallStringOptimizedAllocator<DateBuffer::kInlineSize> allocator(&buffer);
+  StringStream sstream(&allocator);
+  sstream.Add(format, args...);
+  buffer.resize_no_init(sstream.length());
+  return buffer;
+}
+
 // ES6 section 20.3.4.41.1 ToDateString(tv)
-void ToDateString(double time_val, Vector<char> str, DateCache* date_cache,
-                  ToDateStringMode mode = kDateAndTime) {
+DateBuffer ToDateString(double time_val, DateCache* date_cache,
+                        ToDateStringMode mode = kDateAndTime) {
   if (std::isnan(time_val)) {
-    SNPrintF(str, "Invalid Date");
-    return;
+    return FormatDate("Invalid Date");
   }
   int64_t time_ms = static_cast<int64_t>(time_val);
   int64_t local_time_ms = date_cache->ToLocal(time_ms);
@@ -160,22 +172,17 @@ void ToDateString(double time_val, Vector<char> str, DateCache* date_cache,
   const char* local_timezone = date_cache->LocalTimezone(time_ms);
   switch (mode) {
     case kDateOnly:
-      SNPrintF(str, "%s %s %02d %04d", kShortWeekDays[weekday],
-               kShortMonths[month], day, year);
-      return;
+      return FormatDate("%s %s %02d %04d", kShortWeekDays[weekday],
+                        kShortMonths[month], day, year);
     case kTimeOnly:
-      // TODO(842085): str may be silently truncated.
-      SNPrintF(str, "%02d:%02d:%02d GMT%c%02d%02d (%s)", hour, min, sec,
-               (timezone_offset < 0) ? '-' : '+', timezone_hour, timezone_min,
-               local_timezone);
-      return;
+      return FormatDate("%02d:%02d:%02d GMT%c%02d%02d (%s)", hour, min, sec,
+                        (timezone_offset < 0) ? '-' : '+', timezone_hour,
+                        timezone_min, local_timezone);
     case kDateAndTime:
-      // TODO(842085): str may be silently truncated.
-      SNPrintF(str, "%s %s %02d %04d %02d:%02d:%02d GMT%c%02d%02d (%s)",
-               kShortWeekDays[weekday], kShortMonths[month], day, year, hour,
-               min, sec, (timezone_offset < 0) ? '-' : '+', timezone_hour,
-               timezone_min, local_timezone);
-      return;
+      return FormatDate("%s %s %02d %04d %02d:%02d:%02d GMT%c%02d%02d (%s)",
+                        kShortWeekDays[weekday], kShortMonths[month], day, year,
+                        hour, min, sec, (timezone_offset < 0) ? '-' : '+',
+                        timezone_hour, timezone_min, local_timezone);
   }
   UNREACHABLE();
 }
@@ -198,10 +205,9 @@ BUILTIN(DateConstructor) {
   HandleScope scope(isolate);
   if (args.new_target()->IsUndefined(isolate)) {
     double const time_val = JSDate::CurrentTimeValue(isolate);
-    char buffer[128];
-    ToDateString(time_val, ArrayVector(buffer), isolate->date_cache());
+    DateBuffer buffer = ToDateString(time_val, isolate->date_cache());
     RETURN_RESULT_OR_FAILURE(
-        isolate, isolate->factory()->NewStringFromUtf8(CStrVector(buffer)));
+        isolate, isolate->factory()->NewStringFromUtf8(VectorOf(buffer)));
   }
   // [Construct]
   int const argc = args.length() - 1;
@@ -786,11 +792,10 @@ BUILTIN(DatePrototypeSetUTCSeconds) {
 BUILTIN(DatePrototypeToDateString) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toDateString");
-  char buffer[128];
-  ToDateString(date->value()->Number(), ArrayVector(buffer),
-               isolate->date_cache(), kDateOnly);
+  DateBuffer buffer =
+      ToDateString(date->value()->Number(), isolate->date_cache(), kDateOnly);
   RETURN_RESULT_OR_FAILURE(
-      isolate, isolate->factory()->NewStringFromUtf8(CStrVector(buffer)));
+      isolate, isolate->factory()->NewStringFromUtf8(VectorOf(buffer)));
 }
 
 // ES6 section 20.3.4.36 Date.prototype.toISOString ( )
@@ -824,22 +829,20 @@ BUILTIN(DatePrototypeToISOString) {
 BUILTIN(DatePrototypeToString) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toString");
-  char buffer[128];
-  ToDateString(date->value()->Number(), ArrayVector(buffer),
-               isolate->date_cache());
+  DateBuffer buffer =
+      ToDateString(date->value()->Number(), isolate->date_cache());
   RETURN_RESULT_OR_FAILURE(
-      isolate, isolate->factory()->NewStringFromUtf8(CStrVector(buffer)));
+      isolate, isolate->factory()->NewStringFromUtf8(VectorOf(buffer)));
 }
 
 // ES6 section 20.3.4.42 Date.prototype.toTimeString ( )
 BUILTIN(DatePrototypeToTimeString) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toTimeString");
-  char buffer[128];
-  ToDateString(date->value()->Number(), ArrayVector(buffer),
-               isolate->date_cache(), kTimeOnly);
+  DateBuffer buffer =
+      ToDateString(date->value()->Number(), isolate->date_cache(), kTimeOnly);
   RETURN_RESULT_OR_FAILURE(
-      isolate, isolate->factory()->NewStringFromUtf8(CStrVector(buffer)));
+      isolate, isolate->factory()->NewStringFromUtf8(VectorOf(buffer)));
 }
 
 #ifdef V8_INTL_SUPPORT

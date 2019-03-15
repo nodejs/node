@@ -28,6 +28,8 @@
 namespace v8 {
 namespace internal {
 
+class SafepointTableBuilder;
+
 // -----------------------------------------------------------------------------
 // Immediates.
 class Immediate {
@@ -260,9 +262,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   virtual ~Assembler();
 
-  virtual void AbortedCodeGeneration() {
-    constpool_.Clear();
-  }
+  virtual void AbortedCodeGeneration();
 
   // System functions ---------------------------------------------------------
   // Start generating code from the beginning of the buffer, discarding any code
@@ -272,13 +272,17 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // constant pool is not blocked.
   void Reset();
 
-  // GetCode emits any pending (non-emitted) code and fills the descriptor
-  // desc. GetCode() is idempotent; it returns the same result if no other
-  // Assembler functions are invoked in between GetCode() calls.
-  //
-  // The descriptor (desc) can be nullptr. In that case, the code is finalized
-  // as usual, but the descriptor is not populated.
-  void GetCode(Isolate* isolate, CodeDesc* desc);
+  // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
+  static constexpr int kNoHandlerTable = 0;
+  static constexpr SafepointTableBuilder* kNoSafepointTable = nullptr;
+  void GetCode(Isolate* isolate, CodeDesc* desc,
+               SafepointTableBuilder* safepoint_table_builder,
+               int handler_table_offset);
+
+  // Convenience wrapper for code without safepoint or handler tables.
+  void GetCode(Isolate* isolate, CodeDesc* desc) {
+    GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
+  }
 
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
@@ -2504,6 +2508,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockConstPoolScope);
   };
 
+  // Unused on this architecture.
+  void MaybeEmitOutOfLineConstantPool() {}
+
   // Check if is time to emit a constant pool.
   void CheckConstPool(bool force_emit, bool require_jump);
 
@@ -2844,7 +2851,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Functions used for testing.
   int GetConstantPoolEntriesSizeForTesting() const {
     // Do not include branch over the pool.
-    return constpool_.EntryCount() * kPointerSize;
+    return constpool_.EntryCount() * kSystemPointerSize;
   }
 
   static constexpr int GetCheckConstPoolIntervalForTesting() {

@@ -46,6 +46,9 @@
 
   # Unable to change locale on Windows:
   'default_locale': [SKIP],
+
+  # Unable to change locale and TZ on Windows:
+  'regress-7770': [SKIP],
 }],  # system == windows'
 
 ['system == android', {
@@ -56,5 +59,12 @@
   'relative-time-format/default-locale-fr-CA': [SKIP],
   'relative-time-format/default-locale-pt-BR': [SKIP],
   'default_locale': [SKIP],
+  # Unable to change locale and TZ on Android:
+  'regress-7770': [SKIP],
 }],  # 'system == android'
+
+##############################################################################
+['variant == jitless and not embedded_builtins', {
+  '*': [SKIP],
+}], # variant == jitless and not embedded_builtins
 ]

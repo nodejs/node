@@ -267,7 +267,11 @@ function foo6() { Promise.resolve().then(() => 42^) }
 Running test: arrowFunctionReturn
 #() => #239#
 #
-function foo() { function boo() { #return 239# }  #}
+function foo() { function boo() { return 239 }  #}
+#
+function foo() { function boo() { #return 239# }; #boo #}
+#
+function foo() { let boo = #function() { #return 239# }; #}
 #
 #() => { #239 #}
 #

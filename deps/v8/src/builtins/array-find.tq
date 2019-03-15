@@ -1,0 +1,158 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace array_find {
+  transitioning javascript builtin
+  ArrayFindLoopEagerDeoptContinuation(implicit context: Context)(
+      receiver: Object, callback: Object, thisArg: Object, initialK: Object,
+      length: Object): Object {
+    // All continuation points in the optimized find implementation are
+    // after the ToObject(O) call that ensures we are dealing with a
+    // JSReceiver.
+    //
+    // Also, this great mass of casts is necessary because the signature
+    // of Torque javascript builtins requires Object type for all parameters
+    // other than {context}.
+    const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
+    const callbackfn = Cast<Callable>(callback) otherwise unreachable;
+    const numberK = Cast<Number>(initialK) otherwise unreachable;
+    const numberLength = Cast<Number>(length) otherwise unreachable;
+
+    return ArrayFindLoopContinuation(
+        jsreceiver, callbackfn, thisArg, jsreceiver, numberK, numberLength);
+  }
+
+  transitioning javascript builtin
+  ArrayFindLoopLazyDeoptContinuation(implicit context: Context)(
+      receiver: Object, callback: Object, thisArg: Object, initialK: Object,
+      length: Object, result: Object): Object {
+    // This deopt continuation point is never actually called, it just
+    // exists to make stack traces correct from a ThrowTypeError if the
+    // callback was found to be non-callable.
+    unreachable;
+  }
+
+  // Continuation that is called after a lazy deoptimization from TF that
+  // happens right after the callback and it's returned value must be handled
+  // before iteration continues.
+  transitioning javascript builtin
+  ArrayFindLoopAfterCallbackLazyDeoptContinuation(implicit context: Context)(
+      receiver: Object, callback: Object, thisArg: Object, initialK: Object,
+      length: Object, foundValue: Object, isFound: Object): Object {
+    // All continuation points in the optimized find implementation are
+    // after the ToObject(O) call that ensures we are dealing with a
+    // JSReceiver.
+    const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
+    const callbackfn = Cast<Callable>(callback) otherwise unreachable;
+    let numberK = Cast<Number>(initialK) otherwise unreachable;
+    const numberLength = Cast<Number>(length) otherwise unreachable;
+
+    // This custom lazy deopt point is right after the callback. find() needs
+    // to pick up at the next step, which is returning the element if the
+    // callback value is truthy.  Otherwise, continue the search by calling the
+    // continuation.
+
+    if (ToBoolean(isFound)) {
+      return foundValue;
+    }
+
+    return ArrayFindLoopContinuation(
+        jsreceiver, callbackfn, thisArg, jsreceiver, numberK, numberLength);
+  }
+
+  transitioning builtin ArrayFindLoopContinuation(implicit context: Context)(
+      receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
+      o: JSReceiver, initialK: Number, length: Number): Object {
+    // 5. Let k be 0.
+    // 6. Repeat, while k < len
+    for (let k: Number = initialK; k < length; k++) {
+      // 6a. Let Pk be ! ToString(k).
+      // k is guaranteed to be a positive integer, hence ToString is
+      // side-effect free and HasProperty/GetProperty do the conversion inline.
+
+      // 6b. i. Let kValue be ? Get(O, Pk).
+      const value: Object = GetProperty(o, k);
+
+      // 6c. Let testResult be ToBoolean(? Call(predicate, T, <<kValue, k,
+      // O>>)).
+      const testResult: Object =
+          Call(context, callbackfn, thisArg, value, k, o);
+
+      // 6d. If testResult is true, return kValue.
+      if (ToBoolean(testResult)) {
+        return value;
+      }
+
+      // 6e. Increase k by 1. (done by the loop).
+    }
+    return Undefined;
+  }
+
+  transitioning macro FastArrayFind(implicit context: Context)(
+      o: JSReceiver, len: Number, callbackfn: Callable, thisArg: Object): Object
+      labels Bailout(Smi) {
+    let k: Smi = 0;
+    const smiLen = Cast<Smi>(len) otherwise goto Bailout(k);
+    const fastO = Cast<FastJSArray>(o) otherwise goto Bailout(k);
+    let fastOW = NewFastJSArrayWitness(fastO);
+
+    // Build a fast loop over the smi array.
+    for (; k < smiLen; k++) {
+      fastOW.Recheck() otherwise goto Bailout(k);
+
+      // Ensure that we haven't walked beyond a possibly updated length.
+      if (k >= fastOW.Get().length) goto Bailout(k);
+
+      const value: Object = fastOW.LoadElementOrUndefined(k);
+      const testResult: Object =
+          Call(context, callbackfn, thisArg, value, k, fastOW.Get());
+      if (ToBoolean(testResult)) {
+        return value;
+      }
+    }
+    return Undefined;
+  }
+
+  // https://tc39.github.io/ecma262/#sec-array.prototype.find
+  transitioning javascript builtin
+  ArrayPrototypeFind(implicit context: Context)(receiver: Object, ...arguments):
+      Object {
+    try {
+      if (IsNullOrUndefined(receiver)) {
+        goto NullOrUndefinedError;
+      }
+
+      // 1. Let O be ? ToObject(this value).
+      const o: JSReceiver = ToObject_Inline(context, receiver);
+
+      // 2. Let len be ? ToLength(? Get(O, "length")).
+      const len: Number = GetLengthProperty(o);
+
+      // 3. If IsCallable(callbackfn) is false, throw a TypeError exception.
+      if (arguments.length == 0) {
+        goto NotCallableError;
+      }
+      const callbackfn =
+          Cast<Callable>(arguments[0]) otherwise NotCallableError;
+
+      // 4. If thisArg is present, let T be thisArg; else let T be undefined.
+      const thisArg: Object = arguments.length > 1 ? arguments[1] : Undefined;
+
+      // Special cases.
+      try {
+        return FastArrayFind(o, len, callbackfn, thisArg)
+            otherwise Bailout;
+      }
+      label Bailout(k: Smi) deferred {
+        return ArrayFindLoopContinuation(o, callbackfn, thisArg, o, k, len);
+      }
+    }
+    label NotCallableError deferred {
+      ThrowTypeError(kCalledNonCallable, arguments[0]);
+    }
+    label NullOrUndefinedError deferred {
+      ThrowTypeError(kCalledOnNullOrUndefined, 'Array.prototype.find');
+    }
+  }
+}

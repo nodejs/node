@@ -34,7 +34,7 @@ struct TypeProfileScript {
 class TypeProfile : public std::vector<TypeProfileScript> {
  public:
   static std::unique_ptr<TypeProfile> Collect(Isolate* isolate);
-  static void SelectMode(Isolate* isolate, debug::TypeProfile::Mode mode);
+  static void SelectMode(Isolate* isolate, debug::TypeProfileMode mode);
 
  private:
   TypeProfile() = default;

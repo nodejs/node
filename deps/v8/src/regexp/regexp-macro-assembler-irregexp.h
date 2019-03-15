@@ -5,8 +5,6 @@
 #ifndef V8_REGEXP_REGEXP_MACRO_ASSEMBLER_IRREGEXP_H_
 #define V8_REGEXP_REGEXP_MACRO_ASSEMBLER_IRREGEXP_H_
 
-#ifdef V8_INTERPRETED_REGEXP
-
 #include "src/regexp/regexp-macro-assembler.h"
 
 namespace v8 {
@@ -20,17 +18,10 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   // relocation information starting from the end of the buffer. See CodeDesc
   // for a detailed comment on the layout (globals.h).
   //
-  // If the provided buffer is nullptr, the assembler allocates and grows its
-  // own buffer, and buffer_size determines the initial buffer size. The buffer
-  // is owned by the assembler and deallocated upon destruction of the
-  // assembler.
-  //
-  // If the provided buffer is not nullptr, the assembler uses the provided
-  // buffer for code generation and assumes its size to be buffer_size. If the
-  // buffer is too small, a fatal error occurs. No deallocation of the buffer is
-  // done upon destruction of the assembler.
-  RegExpMacroAssemblerIrregexp(Isolate* isolate, Vector<byte> buffer,
-                               Zone* zone);
+  // The assembler allocates and grows its own buffer, and buffer_size
+  // determines the initial buffer size. The buffer is owned by the assembler
+  // and deallocated upon destruction of the assembler.
+  RegExpMacroAssemblerIrregexp(Isolate* isolate, Zone* zone);
   virtual ~RegExpMacroAssemblerIrregexp();
   // The byte-code interpreter checks on each push anyway.
   virtual int stack_limit_slack() { return 1; }
@@ -128,7 +119,5 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_INTERPRETED_REGEXP
 
 #endif  // V8_REGEXP_REGEXP_MACRO_ASSEMBLER_IRREGEXP_H_

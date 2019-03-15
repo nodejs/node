@@ -6,6 +6,7 @@
 
 #include "src/base/platform/platform.h"
 #include "src/conversions.h"
+#include "src/vector.h"
 
 namespace v8 {
 namespace tracing {

@@ -18,156 +18,254 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(JSWeakCell, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(WeakCell, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(JSWeakRef, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(JSWeakFactory, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(JSWeakFactoryCleanupIterator, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(WeakFactoryCleanupJobTask, Microtask)
+OBJECT_CONSTRUCTORS_IMPL(JSFinalizationGroup, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(JSFinalizationGroupCleanupIterator, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(FinalizationGroupCleanupJobTask, Microtask)
 
-ACCESSORS(JSWeakFactory, native_context, NativeContext, kNativeContextOffset)
-ACCESSORS(JSWeakFactory, cleanup, Object, kCleanupOffset)
-ACCESSORS(JSWeakFactory, active_cells, Object, kActiveCellsOffset)
-ACCESSORS(JSWeakFactory, cleared_cells, Object, kClearedCellsOffset)
-SMI_ACCESSORS(JSWeakFactory, flags, kFlagsOffset)
-ACCESSORS(JSWeakFactory, next, Object, kNextOffset)
-CAST_ACCESSOR(JSWeakFactory)
+ACCESSORS(JSFinalizationGroup, native_context, NativeContext,
+          kNativeContextOffset)
+ACCESSORS(JSFinalizationGroup, cleanup, Object, kCleanupOffset)
+ACCESSORS(JSFinalizationGroup, active_cells, Object, kActiveCellsOffset)
+ACCESSORS(JSFinalizationGroup, cleared_cells, Object, kClearedCellsOffset)
+ACCESSORS(JSFinalizationGroup, key_map, Object, kKeyMapOffset)
+SMI_ACCESSORS(JSFinalizationGroup, flags, kFlagsOffset)
+ACCESSORS(JSFinalizationGroup, next, Object, kNextOffset)
+CAST_ACCESSOR(JSFinalizationGroup)
 
-ACCESSORS(JSWeakCell, factory, Object, kFactoryOffset)
-ACCESSORS(JSWeakCell, target, Object, kTargetOffset)
-ACCESSORS(JSWeakCell, holdings, Object, kHoldingsOffset)
-ACCESSORS(JSWeakCell, next, Object, kNextOffset)
-ACCESSORS(JSWeakCell, prev, Object, kPrevOffset)
-CAST_ACCESSOR(JSWeakCell)
+ACCESSORS(WeakCell, finalization_group, Object, kFinalizationGroupOffset)
+ACCESSORS(WeakCell, target, HeapObject, kTargetOffset)
+ACCESSORS(WeakCell, holdings, Object, kHoldingsOffset)
+ACCESSORS(WeakCell, next, Object, kNextOffset)
+ACCESSORS(WeakCell, prev, Object, kPrevOffset)
+ACCESSORS(WeakCell, key, Object, kKeyOffset)
+ACCESSORS(WeakCell, key_list_next, Object, kKeyListNextOffset)
+ACCESSORS(WeakCell, key_list_prev, Object, kKeyListPrevOffset)
+CAST_ACCESSOR(WeakCell)
 
 CAST_ACCESSOR(JSWeakRef)
-ACCESSORS(JSWeakRef, target, Object, kTargetOffset)
+ACCESSORS(JSWeakRef, target, HeapObject, kTargetOffset)
 
-ACCESSORS(JSWeakFactoryCleanupIterator, factory, JSWeakFactory, kFactoryOffset)
-CAST_ACCESSOR(JSWeakFactoryCleanupIterator)
+ACCESSORS(JSFinalizationGroupCleanupIterator, finalization_group,
+          JSFinalizationGroup, kFinalizationGroupOffset)
+CAST_ACCESSOR(JSFinalizationGroupCleanupIterator)
 
-ACCESSORS(WeakFactoryCleanupJobTask, factory, JSWeakFactory, kFactoryOffset)
-CAST_ACCESSOR(WeakFactoryCleanupJobTask)
+ACCESSORS(FinalizationGroupCleanupJobTask, finalization_group,
+          JSFinalizationGroup, kFinalizationGroupOffset)
+CAST_ACCESSOR(FinalizationGroupCleanupJobTask)
 
-void JSWeakFactory::AddWeakCell(JSWeakCell weak_cell) {
-  weak_cell->set_factory(*this);
-  weak_cell->set_next(active_cells());
-  if (active_cells()->IsJSWeakCell()) {
-    JSWeakCell::cast(active_cells())->set_prev(weak_cell);
+void JSFinalizationGroup::Register(
+    Handle<JSFinalizationGroup> finalization_group, Handle<JSReceiver> target,
+    Handle<Object> holdings, Handle<Object> key, Isolate* isolate) {
+  Handle<WeakCell> weak_cell = isolate->factory()->NewWeakCell();
+  weak_cell->set_finalization_group(*finalization_group);
+  weak_cell->set_target(*target);
+  weak_cell->set_holdings(*holdings);
+  weak_cell->set_prev(ReadOnlyRoots(isolate).undefined_value());
+  weak_cell->set_next(ReadOnlyRoots(isolate).undefined_value());
+  weak_cell->set_key(*key);
+  weak_cell->set_key_list_prev(ReadOnlyRoots(isolate).undefined_value());
+  weak_cell->set_key_list_next(ReadOnlyRoots(isolate).undefined_value());
+
+  // Add to active_cells.
+  weak_cell->set_next(finalization_group->active_cells());
+  if (finalization_group->active_cells()->IsWeakCell()) {
+    WeakCell::cast(finalization_group->active_cells())->set_prev(*weak_cell);
   }
-  set_active_cells(weak_cell);
+  finalization_group->set_active_cells(*weak_cell);
+
+  if (!key->IsUndefined(isolate)) {
+    Handle<ObjectHashTable> key_map;
+    if (finalization_group->key_map()->IsUndefined(isolate)) {
+      key_map = ObjectHashTable::New(isolate, 1);
+    } else {
+      key_map =
+          handle(ObjectHashTable::cast(finalization_group->key_map()), isolate);
+    }
+
+    Object value = key_map->Lookup(key);
+    if (value->IsWeakCell()) {
+      WeakCell existing_weak_cell = WeakCell::cast(value);
+      existing_weak_cell->set_key_list_prev(*weak_cell);
+      weak_cell->set_key_list_next(existing_weak_cell);
+    } else {
+      DCHECK(value->IsTheHole(isolate));
+    }
+    key_map = ObjectHashTable::Put(key_map, key, weak_cell);
+    finalization_group->set_key_map(*key_map);
+  }
 }
 
-bool JSWeakFactory::NeedsCleanup() const {
-  return cleared_cells()->IsJSWeakCell();
+void JSFinalizationGroup::Unregister(
+    Handle<JSFinalizationGroup> finalization_group, Handle<Object> key,
+    Isolate* isolate) {
+  // Iterate through the doubly linked list of WeakCells associated with the
+  // key. Each WeakCell will be in the "active_cells" or "cleared_cells" list of
+  // its FinalizationGroup; remove it from there.
+  if (!finalization_group->key_map()->IsUndefined(isolate)) {
+    Handle<ObjectHashTable> key_map =
+        handle(ObjectHashTable::cast(finalization_group->key_map()), isolate);
+    Object value = key_map->Lookup(key);
+    Object undefined = ReadOnlyRoots(isolate).undefined_value();
+    while (value->IsWeakCell()) {
+      WeakCell weak_cell = WeakCell::cast(value);
+      weak_cell->RemoveFromFinalizationGroupCells(isolate);
+      value = weak_cell->key_list_next();
+      weak_cell->set_key_list_prev(undefined);
+      weak_cell->set_key_list_next(undefined);
+    }
+    bool was_present;
+    key_map = ObjectHashTable::Remove(isolate, key_map, key, &was_present);
+    finalization_group->set_key_map(*key_map);
+  }
 }
 
-bool JSWeakFactory::scheduled_for_cleanup() const {
+bool JSFinalizationGroup::NeedsCleanup() const {
+  return cleared_cells()->IsWeakCell();
+}
+
+bool JSFinalizationGroup::scheduled_for_cleanup() const {
   return ScheduledForCleanupField::decode(flags());
 }
 
-void JSWeakFactory::set_scheduled_for_cleanup(bool scheduled_for_cleanup) {
+void JSFinalizationGroup::set_scheduled_for_cleanup(
+    bool scheduled_for_cleanup) {
   set_flags(ScheduledForCleanupField::update(flags(), scheduled_for_cleanup));
 }
 
-JSWeakCell JSWeakFactory::PopClearedCell(Isolate* isolate) {
-  JSWeakCell weak_cell = JSWeakCell::cast(cleared_cells());
+Object JSFinalizationGroup::PopClearedCellHoldings(
+    Handle<JSFinalizationGroup> finalization_group, Isolate* isolate) {
+  Handle<WeakCell> weak_cell =
+      handle(WeakCell::cast(finalization_group->cleared_cells()), isolate);
   DCHECK(weak_cell->prev()->IsUndefined(isolate));
-  set_cleared_cells(weak_cell->next());
+  finalization_group->set_cleared_cells(weak_cell->next());
   weak_cell->set_next(ReadOnlyRoots(isolate).undefined_value());
 
-  if (cleared_cells()->IsJSWeakCell()) {
-    JSWeakCell cleared_cells_head = JSWeakCell::cast(cleared_cells());
-    DCHECK_EQ(cleared_cells_head->prev(), weak_cell);
+  if (finalization_group->cleared_cells()->IsWeakCell()) {
+    WeakCell cleared_cells_head =
+        WeakCell::cast(finalization_group->cleared_cells());
+    DCHECK_EQ(cleared_cells_head->prev(), *weak_cell);
     cleared_cells_head->set_prev(ReadOnlyRoots(isolate).undefined_value());
   } else {
-    DCHECK(cleared_cells()->IsUndefined(isolate));
+    DCHECK(finalization_group->cleared_cells()->IsUndefined(isolate));
   }
-  return weak_cell;
+
+  // Also remove the WeakCell from the key_map (if it's there).
+  if (!weak_cell->key()->IsUndefined(isolate)) {
+    if (weak_cell->key_list_prev()->IsUndefined(isolate) &&
+        weak_cell->key_list_next()->IsUndefined(isolate)) {
+      // weak_cell is the only one associated with its key; remove the key
+      // from the hash table.
+      Handle<ObjectHashTable> key_map =
+          handle(ObjectHashTable::cast(finalization_group->key_map()), isolate);
+      Handle<Object> key = handle(weak_cell->key(), isolate);
+      bool was_present;
+      key_map = ObjectHashTable::Remove(isolate, key_map, key, &was_present);
+      DCHECK(was_present);
+      finalization_group->set_key_map(*key_map);
+    } else if (weak_cell->key_list_prev()->IsUndefined()) {
+      // weak_cell is the list head for its key; we need to change the value of
+      // the key in the hash table.
+      Handle<ObjectHashTable> key_map =
+          handle(ObjectHashTable::cast(finalization_group->key_map()), isolate);
+      Handle<Object> key = handle(weak_cell->key(), isolate);
+      Handle<WeakCell> next =
+          handle(WeakCell::cast(weak_cell->key_list_next()), isolate);
+      DCHECK_EQ(next->key_list_prev(), *weak_cell);
+      next->set_key_list_prev(ReadOnlyRoots(isolate).undefined_value());
+      weak_cell->set_key_list_next(ReadOnlyRoots(isolate).undefined_value());
+      key_map = ObjectHashTable::Put(key_map, key, next);
+      finalization_group->set_key_map(*key_map);
+    } else {
+      // weak_cell is somewhere in the middle of its key list.
+      WeakCell prev = WeakCell::cast(weak_cell->key_list_prev());
+      prev->set_key_list_next(weak_cell->key_list_next());
+      if (!weak_cell->key_list_next()->IsUndefined()) {
+        WeakCell next = WeakCell::cast(weak_cell->key_list_next());
+        next->set_key_list_prev(weak_cell->key_list_prev());
+      }
+    }
+  }
+
+  return weak_cell->holdings();
 }
 
-void JSWeakCell::Nullify(
+void WeakCell::Nullify(
     Isolate* isolate,
     std::function<void(HeapObject object, ObjectSlot slot, Object target)>
         gc_notify_updated_slot) {
+  // Remove from the WeakCell from the "active_cells" list of its
+  // JSFinalizationGroup and insert it into the "cleared_cells" list. This is
+  // only called for WeakCells which haven't been unregistered yet, so they will
+  // be in the active_cells list. (The caller must guard against calling this
+  // for unregistered WeakCells by checking that the target is not undefined.)
   DCHECK(target()->IsJSReceiver());
   set_target(ReadOnlyRoots(isolate).undefined_value());
 
-  JSWeakFactory weak_factory = JSWeakFactory::cast(factory());
-  // Remove from the JSWeakCell from the "active_cells" list of its
-  // JSWeakFactory and insert it into the "cleared" list.
-  if (prev()->IsJSWeakCell()) {
-    DCHECK_NE(weak_factory->active_cells(), *this);
-    JSWeakCell prev_cell = JSWeakCell::cast(prev());
+  JSFinalizationGroup fg = JSFinalizationGroup::cast(finalization_group());
+  if (prev()->IsWeakCell()) {
+    DCHECK_NE(fg->active_cells(), *this);
+    WeakCell prev_cell = WeakCell::cast(prev());
     prev_cell->set_next(next());
-    gc_notify_updated_slot(prev_cell,
-                           prev_cell.RawField(JSWeakCell::kNextOffset), next());
+    gc_notify_updated_slot(prev_cell, prev_cell.RawField(WeakCell::kNextOffset),
+                           next());
   } else {
-    DCHECK_EQ(weak_factory->active_cells(), *this);
-    weak_factory->set_active_cells(next());
+    DCHECK_EQ(fg->active_cells(), *this);
+    fg->set_active_cells(next());
     gc_notify_updated_slot(
-        weak_factory, weak_factory.RawField(JSWeakFactory::kActiveCellsOffset),
-        next());
+        fg, fg.RawField(JSFinalizationGroup::kActiveCellsOffset), next());
   }
-  if (next()->IsJSWeakCell()) {
-    JSWeakCell next_cell = JSWeakCell::cast(next());
+  if (next()->IsWeakCell()) {
+    WeakCell next_cell = WeakCell::cast(next());
     next_cell->set_prev(prev());
-    gc_notify_updated_slot(next_cell,
-                           next_cell.RawField(JSWeakCell::kPrevOffset), prev());
+    gc_notify_updated_slot(next_cell, next_cell.RawField(WeakCell::kPrevOffset),
+                           prev());
   }
 
   set_prev(ReadOnlyRoots(isolate).undefined_value());
-  Object cleared_head = weak_factory->cleared_cells();
-  if (cleared_head->IsJSWeakCell()) {
-    JSWeakCell cleared_head_cell = JSWeakCell::cast(cleared_head);
+  Object cleared_head = fg->cleared_cells();
+  if (cleared_head->IsWeakCell()) {
+    WeakCell cleared_head_cell = WeakCell::cast(cleared_head);
     cleared_head_cell->set_prev(*this);
     gc_notify_updated_slot(cleared_head_cell,
-                           cleared_head_cell.RawField(JSWeakCell::kPrevOffset),
+                           cleared_head_cell.RawField(WeakCell::kPrevOffset),
                            *this);
   }
-  set_next(weak_factory->cleared_cells());
-  gc_notify_updated_slot(*this, RawField(JSWeakCell::kNextOffset), next());
-  weak_factory->set_cleared_cells(*this);
+  set_next(fg->cleared_cells());
+  gc_notify_updated_slot(*this, RawField(WeakCell::kNextOffset), next());
+  fg->set_cleared_cells(*this);
   gc_notify_updated_slot(
-      weak_factory, weak_factory.RawField(JSWeakFactory::kClearedCellsOffset),
-      *this);
+      fg, fg.RawField(JSFinalizationGroup::kClearedCellsOffset), *this);
 }
 
-void JSWeakCell::Clear(Isolate* isolate) {
-  // Unlink the JSWeakCell from the list it's in (if any). The JSWeakCell can be
-  // in its JSWeakFactory's active_cells list, cleared_cells list or neither (if
-  // it has been already taken out).
+void WeakCell::RemoveFromFinalizationGroupCells(Isolate* isolate) {
+  // Remove the WeakCell from the list it's in (either "active_cells" or
+  // "cleared_cells" of its JSFinalizationGroup).
 
+  // It's important to set_target to undefined here. This guards that we won't
+  // call Nullify (which assumes that the WeakCell is in active_cells).
   DCHECK(target()->IsUndefined() || target()->IsJSReceiver());
   set_target(ReadOnlyRoots(isolate).undefined_value());
 
-  if (factory()->IsJSWeakFactory()) {
-    JSWeakFactory weak_factory = JSWeakFactory::cast(factory());
-    if (weak_factory->active_cells() == *this) {
-      DCHECK(!prev()->IsJSWeakCell());
-      weak_factory->set_active_cells(next());
-    } else if (weak_factory->cleared_cells() == *this) {
-      DCHECK(!prev()->IsJSWeakCell());
-      weak_factory->set_cleared_cells(next());
-    } else if (prev()->IsJSWeakCell()) {
-      JSWeakCell prev_cell = JSWeakCell::cast(prev());
-      prev_cell->set_next(next());
-    }
-    if (next()->IsJSWeakCell()) {
-      JSWeakCell next_cell = JSWeakCell::cast(next());
-      next_cell->set_prev(prev());
-    }
-    set_prev(ReadOnlyRoots(isolate).undefined_value());
-    set_next(ReadOnlyRoots(isolate).undefined_value());
-
-    set_holdings(ReadOnlyRoots(isolate).undefined_value());
-    set_factory(ReadOnlyRoots(isolate).undefined_value());
-  } else {
-    // Already cleared.
-    DCHECK(next()->IsUndefined(isolate));
+  JSFinalizationGroup fg = JSFinalizationGroup::cast(finalization_group());
+  if (fg->active_cells() == *this) {
     DCHECK(prev()->IsUndefined(isolate));
-    DCHECK(holdings()->IsUndefined(isolate));
-    DCHECK(factory()->IsUndefined(isolate));
+    fg->set_active_cells(next());
+  } else if (fg->cleared_cells() == *this) {
+    DCHECK(!prev()->IsWeakCell());
+    fg->set_cleared_cells(next());
+  } else {
+    DCHECK(prev()->IsWeakCell());
+    WeakCell prev_cell = WeakCell::cast(prev());
+    prev_cell->set_next(next());
   }
+  if (next()->IsWeakCell()) {
+    WeakCell next_cell = WeakCell::cast(next());
+    next_cell->set_prev(prev());
+  }
+  set_prev(ReadOnlyRoots(isolate).undefined_value());
+  set_next(ReadOnlyRoots(isolate).undefined_value());
 }
 
 }  // namespace internal

@@ -10,7 +10,7 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/objects-inl.h"
-#include "test/cctest/types-fuzz.h"
+#include "test/common/types-fuzz.h"
 #include "test/unittests/compiler/graph-unittest.h"
 
 namespace v8 {
@@ -303,7 +303,9 @@ class TyperTest : public TypedGraphTest {
 
 namespace {
 
-int32_t shift_left(int32_t x, int32_t y) { return x << (y & 0x1F); }
+int32_t shift_left(int32_t x, int32_t y) {
+  return static_cast<uint32_t>(x) << (y & 0x1F);
+}
 int32_t shift_right(int32_t x, int32_t y) { return x >> (y & 0x1F); }
 int32_t bit_or(int32_t x, int32_t y) { return x | y; }
 int32_t bit_and(int32_t x, int32_t y) { return x & y; }
@@ -506,7 +508,7 @@ TEST_MONOTONICITY(ToBoolean)
     TestBinaryMonotonicity(simplified_.name(), Type::Number(), \
                            Type::Number());                    \
   }
-SIMPLIFIED_NUMBER_BINOP_LIST(TEST_MONOTONICITY);
+SIMPLIFIED_NUMBER_BINOP_LIST(TEST_MONOTONICITY)
 #undef TEST_MONOTONICITY
 
 // SIMPLIFIED BINOPs without hint, without input restriction

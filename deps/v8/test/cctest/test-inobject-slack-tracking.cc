@@ -47,7 +47,7 @@ Handle<T> GetLexical(const char* name) {
       isolate->native_context()->script_context_table(), isolate);
 
   ScriptContextTable::LookupResult lookup_result;
-  if (ScriptContextTable::Lookup(isolate, script_contexts, str_name,
+  if (ScriptContextTable::Lookup(isolate, *script_contexts, *str_name,
                                  &lookup_result)) {
     Handle<Context> script_context = ScriptContextTable::GetContext(
         isolate, script_contexts, lookup_result.context_index);
@@ -1208,6 +1208,154 @@ TEST(SubclassPromiseBuiltin) {
 TEST(SubclassPromiseBuiltinNoInlineNew) {
   FLAG_inline_new = false;
   TestSubclassPromiseBuiltin();
+}
+
+TEST(SubclassTranspiledClassHierarchy) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  CompileRun(
+      "Object.setPrototypeOf(B, A);\n"
+      "function A() {\n"
+      "  this.a0 = 0;\n"
+      "  this.a1 = 1;\n"
+      "  this.a2 = 1;\n"
+      "  this.a3 = 1;\n"
+      "  this.a4 = 1;\n"
+      "  this.a5 = 1;\n"
+      "  this.a6 = 1;\n"
+      "  this.a7 = 1;\n"
+      "  this.a8 = 1;\n"
+      "  this.a9 = 1;\n"
+      "  this.a10 = 1;\n"
+      "  this.a11 = 1;\n"
+      "  this.a12 = 1;\n"
+      "  this.a13 = 1;\n"
+      "  this.a14 = 1;\n"
+      "  this.a15 = 1;\n"
+      "  this.a16 = 1;\n"
+      "  this.a17 = 1;\n"
+      "  this.a18 = 1;\n"
+      "  this.a19 = 1;\n"
+      "};\n"
+      "function B() {\n"
+      "  A.call(this);\n"
+      "  this.b = 1;\n"
+      "};\n");
+
+  Handle<JSFunction> func = GetGlobal<JSFunction>("B");
+
+  // Zero instances have been created so far.
+  CHECK(!func->has_initial_map());
+
+  v8::Local<v8::Script> new_script = v8_compile("new B()");
+
+  RunI<JSObject>(new_script);
+
+  CHECK(func->has_initial_map());
+  Handle<Map> initial_map(func->initial_map(), func->GetIsolate());
+
+  CHECK_EQ(JS_OBJECT_TYPE, initial_map->instance_type());
+
+  // One instance of a subclass created.
+  CHECK_EQ(Map::kSlackTrackingCounterStart - 1,
+           initial_map->construction_counter());
+  CHECK(initial_map->IsInobjectSlackTrackingInProgress());
+
+  // Create two instances in order to ensure that |obj|.o is a data field
+  // in case of Function subclassing.
+  Handle<JSObject> obj = RunI<JSObject>(new_script);
+
+  // Two instances of a subclass created.
+  CHECK_EQ(Map::kSlackTrackingCounterStart - 2,
+           initial_map->construction_counter());
+  CHECK(initial_map->IsInobjectSlackTrackingInProgress());
+  CHECK(IsObjectShrinkable(*obj));
+
+  // Create several subclass instances to complete the tracking.
+  for (int i = 2; i < Map::kGenerousAllocationCount; i++) {
+    CHECK(initial_map->IsInobjectSlackTrackingInProgress());
+    Handle<JSObject> tmp = RunI<JSObject>(new_script);
+    CHECK_EQ(initial_map->IsInobjectSlackTrackingInProgress(),
+             IsObjectShrinkable(*tmp));
+  }
+  CHECK(!initial_map->IsInobjectSlackTrackingInProgress());
+  CHECK(!IsObjectShrinkable(*obj));
+
+  // No slack left.
+  CHECK_EQ(21, obj->map()->GetInObjectProperties());
+  CHECK_EQ(JS_OBJECT_TYPE, obj->map()->instance_type());
+}
+
+TEST(Regress8853_ClassConstructor) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  // For classes without any this.prop assignments in their
+  // constructors we start out with 10 inobject properties.
+  Handle<JSObject> obj = CompileRunI<JSObject>("new (class {});\n");
+  CHECK(obj->map()->IsInobjectSlackTrackingInProgress());
+  CHECK(IsObjectShrinkable(*obj));
+  CHECK_EQ(10, obj->map()->GetInObjectProperties());
+
+  // For classes with N explicit this.prop assignments in their
+  // constructors we start out with N+8 inobject properties.
+  obj = CompileRunI<JSObject>(
+      "new (class {\n"
+      "  constructor() {\n"
+      "    this.x = 1;\n"
+      "    this.y = 2;\n"
+      "    this.z = 3;\n"
+      "  }\n"
+      "});\n");
+  CHECK(obj->map()->IsInobjectSlackTrackingInProgress());
+  CHECK(IsObjectShrinkable(*obj));
+  CHECK_EQ(3 + 8, obj->map()->GetInObjectProperties());
+}
+
+TEST(Regress8853_ClassHierarchy) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  // For class hierarchies without any this.prop assignments in their
+  // constructors we reserve 2 inobject properties per constructor plus
+  // 8 inobject properties slack on top.
+  std::string base = "(class {})";
+  for (int i = 1; i < 10; ++i) {
+    std::string script = "new " + base + ";\n";
+    Handle<JSObject> obj = CompileRunI<JSObject>(script.c_str());
+    CHECK(obj->map()->IsInobjectSlackTrackingInProgress());
+    CHECK(IsObjectShrinkable(*obj));
+    CHECK_EQ(8 + 2 * i, obj->map()->GetInObjectProperties());
+    base = "(class extends " + base + " {})";
+  }
+}
+
+TEST(Regress8853_FunctionConstructor) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  // For constructor functions without any this.prop assignments in
+  // them we start out with 10 inobject properties.
+  Handle<JSObject> obj = CompileRunI<JSObject>("new (function() {});\n");
+  CHECK(obj->map()->IsInobjectSlackTrackingInProgress());
+  CHECK(IsObjectShrinkable(*obj));
+  CHECK_EQ(10, obj->map()->GetInObjectProperties());
+
+  // For constructor functions with N explicit this.prop assignments
+  // in them we start out with N+8 inobject properties.
+  obj = CompileRunI<JSObject>(
+      "new (function() {\n"
+      "  this.a = 1;\n"
+      "  this.b = 2;\n"
+      "  this.c = 3;\n"
+      "  this.d = 3;\n"
+      "  this.c = 3;\n"
+      "  this.f = 3;\n"
+      "});\n");
+  CHECK(obj->map()->IsInobjectSlackTrackingInProgress());
+  CHECK(IsObjectShrinkable(*obj));
+  CHECK_EQ(6 + 8, obj->map()->GetInObjectProperties());
 }
 
 }  // namespace test_inobject_slack_tracking

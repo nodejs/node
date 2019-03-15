@@ -4,7 +4,6 @@
 
 // Flags: --allow-natives-syntax
 
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 // The number of locals must be greater than the constant defined here:

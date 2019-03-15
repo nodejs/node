@@ -4,6 +4,7 @@
 
 #include "src/torque/csa-generator.h"
 
+#include "src/globals.h"
 #include "src/torque/type-oracle.h"
 #include "src/torque/utils.h"
 
@@ -54,8 +55,20 @@ Stack<std::string> CSAGenerator::EmitBlock(const Block* block) {
   return stack;
 }
 
+void CSAGenerator::EmitSourcePosition(SourcePosition pos, bool always_emit) {
+  const std::string& file = SourceFileMap::GetSource(pos.source);
+  if (always_emit || !previous_position_.CompareStartIgnoreColumn(pos)) {
+    // Lines in Torque SourcePositions are zero-based, while the
+    // CodeStubAssembler and downwind systems are one-based.
+    out_ << "    ca_.SetSourcePosition(\"" << file << "\", "
+         << (pos.start.line + 1) << ");\n";
+    previous_position_ = pos;
+  }
+}
+
 void CSAGenerator::EmitInstruction(const Instruction& instruction,
                                    Stack<std::string>* stack) {
+  EmitSourcePosition(instruction->pos);
   switch (instruction.kind()) {
 #define ENUM_ITEM(T)          \
   case InstructionKind::k##T: \
@@ -119,7 +132,7 @@ void CSAGenerator::EmitInstruction(
     out_ << results[0] << " = ";
   }
   out_ << instruction.constant->ExternalAssemblerName() << "(state_)."
-       << instruction.constant->constant_name() << "()";
+       << instruction.constant->name()->value << "()";
   if (type->IsStructType()) {
     out_ << ".Flatten();\n";
   } else {
@@ -179,30 +192,19 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
     }
   }
 
-  if (instruction.intrinsic->ExternalName() == "%RawObjectCast") {
+  if (instruction.intrinsic->ExternalName() == "%RawDownCast") {
     if (parameter_types.size() != 1) {
-      ReportError("%RawObjectCast must take a single parameter");
+      ReportError("%RawDownCast must take a single parameter");
+    }
+    if (!return_type->IsSubtypeOf(parameter_types[0])) {
+      ReportError("%RawDownCast error: ", *return_type, " is not a subtype of ",
+                  *parameter_types[0]);
     }
     if (return_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
       if (return_type->GetGeneratedTNodeTypeName() !=
           parameter_types[0]->GetGeneratedTNodeTypeName()) {
         out_ << "TORQUE_CAST";
       }
-    } else {
-      std::stringstream s;
-      s << "%RawObjectCast must cast to subtype of Tagged (" << *return_type
-        << " is not)";
-      ReportError(s.str());
-    }
-  } else if (instruction.intrinsic->ExternalName() == "%RawPointerCast") {
-    if (parameter_types.size() != 1) {
-      ReportError("%RawPointerCast must take a single parameter");
-    }
-    if (!return_type->IsSubtypeOf(TypeOracle::GetRawPtrType())) {
-      std::stringstream s;
-      s << "%RawObjectCast must cast to subtype of RawPtr (" << *return_type
-        << " is not)";
-      ReportError(s.str());
     }
   } else if (instruction.intrinsic->ExternalName() == "%FromConstexpr") {
     if (parameter_types.size() != 1 || !parameter_types[0]->IsConstexpr()) {
@@ -234,9 +236,30 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
       s << "%FromConstexpr does not support return type " << *return_type;
       ReportError(s.str());
     }
+  } else if (instruction.intrinsic->ExternalName() ==
+             "%GetAllocationBaseSize") {
+    if (instruction.specialization_types.size() != 1) {
+      ReportError(
+          "incorrect number of specialization classes for "
+          "%GetAllocationBaseSize (should be one)");
+    }
+    const ClassType* class_type =
+        ClassType::cast(instruction.specialization_types[0]);
+    // Special case classes that may not always have a fixed size (e.g.
+    // JSObjects). Their size must be fetched from the map.
+    if (class_type != TypeOracle::GetJSObjectType()) {
+      out_ << "CodeStubAssembler(state_).IntPtrConstant((";
+      args[0] = std::to_string(class_type->size());
+    } else {
+      out_ << "CodeStubAssembler(state_).TimesTaggedSize(CodeStubAssembler("
+              "state_).LoadMapInstanceSizeInWords(";
+    }
   } else if (instruction.intrinsic->ExternalName() == "%Allocate") {
     out_ << "ca_.UncheckedCast<" << return_type->GetGeneratedTNodeTypeName()
          << ">(CodeStubAssembler(state_).Allocate";
+  } else if (instruction.intrinsic->ExternalName() ==
+             "%AllocateInternalClass") {
+    out_ << "CodeStubAssembler(state_).AllocateUninitializedFixedArray";
   } else {
     ReportError("no built in intrinsic with name " +
                 instruction.intrinsic->ExternalName());
@@ -245,10 +268,20 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
   out_ << "(";
   PrintCommaSeparatedList(out_, args);
   if (instruction.intrinsic->ExternalName() == "%Allocate") out_ << ")";
+  if (instruction.intrinsic->ExternalName() == "%GetAllocationBaseSize")
+    out_ << "))";
   if (return_type->IsStructType()) {
     out_ << ").Flatten();\n";
   } else {
     out_ << ");\n";
+  }
+  if (instruction.intrinsic->ExternalName() == "%Allocate") {
+    out_ << "    CodeStubAssembler(state_).InitializeFieldsWithRoot("
+         << results[0] << ", ";
+    out_ << "CodeStubAssembler(state_).IntPtrConstant("
+         << std::to_string(ClassType::cast(return_type)->size()) << "), ";
+    PrintCommaSeparatedList(out_, args);
+    out_ << ", RootIndex::kUndefinedValue);\n";
   }
 }
 
@@ -580,7 +613,7 @@ void CSAGenerator::EmitInstruction(const BranchInstruction& instruction,
 
 void CSAGenerator::EmitInstruction(
     const ConstexprBranchInstruction& instruction, Stack<std::string>* stack) {
-  out_ << "    if (" << instruction.condition << ") {\n";
+  out_ << "    if ((" << instruction.condition << ")) {\n";
   out_ << "      ca_.Goto(&" << BlockName(instruction.if_true);
   for (const std::string& value : *stack) {
     out_ << ", " << value;
@@ -647,7 +680,7 @@ void CSAGenerator::EmitInstruction(const AbortInstruction& instruction,
           StringLiteralQuote(SourceFileMap::GetSource(instruction.pos.source));
       out_ << "    CodeStubAssembler(state_).FailAssert("
            << StringLiteralQuote(instruction.message) << ", " << file << ", "
-           << instruction.pos.line + 1 << ");\n";
+           << instruction.pos.start.line + 1 << ");\n";
       break;
     }
   }
@@ -666,17 +699,28 @@ void CSAGenerator::EmitInstruction(
   const Field& field =
       instruction.class_type->LookupField(instruction.field_name);
   std::string result_name = FreshNodeName();
-  std::string type_string =
-      field.name_and_type.type->IsSubtypeOf(TypeOracle::GetSmiType())
-          ? "MachineType::TaggedSigned()"
-          : "MachineType::AnyTagged()";
-  out_ << field.name_and_type.type->GetGeneratedTypeName() << " " << result_name
-       << " = "
-       << "ca_.UncheckedCast<"
-       << field.name_and_type.type->GetGeneratedTNodeTypeName()
-       << ">(CodeStubAssembler(state_).LoadObjectField("
-       << stack->Top() + ", " + std::to_string(field.offset) + ", "
-       << type_string + "));\n";
+
+  size_t field_size;
+  std::string size_string;
+  std::string machine_type;
+  std::tie(field_size, size_string, machine_type) =
+      field.GetFieldSizeInformation();
+
+  if (instruction.class_type->IsExtern()) {
+    out_ << field.name_and_type.type->GetGeneratedTypeName() << " "
+         << result_name << " = ca_.UncheckedCast<"
+         << field.name_and_type.type->GetGeneratedTNodeTypeName()
+         << ">(CodeStubAssembler(state_).LoadObjectField(" << stack->Top()
+         << ", " << field.aggregate->GetGeneratedTNodeTypeName() << "::k"
+         << CamelifyString(field.name_and_type.name) << "Offset, "
+         << machine_type + "));\n";
+  } else {
+    out_ << field.name_and_type.type->GetGeneratedTypeName() << " "
+         << result_name << " = ca_.UncheckedCast<"
+         << field.name_and_type.type->GetGeneratedTNodeTypeName()
+         << ">(CodeStubAssembler(state_).UnsafeLoadFixedArrayElement("
+         << stack->Top() << ", " << (field.offset / kTaggedSize) << "));\n";
+  }
   stack->Poke(stack->AboveTop() - 1, result_name);
 }
 
@@ -687,12 +731,32 @@ void CSAGenerator::EmitInstruction(
   stack->Push(value);
   const Field& field =
       instruction.class_type->LookupField(instruction.field_name);
-  if (field.offset == 0) {
-    out_ << "    CodeStubAssembler(state_).StoreMap(" + object + ", " + value +
-                ");\n";
+  if (instruction.class_type->IsExtern()) {
+    if (field.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+      if (field.offset == 0) {
+        out_ << "    CodeStubAssembler(state_).StoreMap(" << object << ", "
+             << value << ");\n";
+      } else {
+        out_ << "    CodeStubAssembler(state_).StoreObjectField(" << object
+             << ", " << field.offset << ", " << value << ");\n";
+      }
+    } else {
+      size_t field_size;
+      std::string size_string;
+      std::string machine_type;
+      std::tie(field_size, size_string, machine_type) =
+          field.GetFieldSizeInformation();
+      if (field.offset == 0) {
+        ReportError("the first field in a class object must be a map");
+      }
+      out_ << "    CodeStubAssembler(state_).StoreObjectFieldNoWriteBarrier("
+           << object << ", " << field.offset << ", " << value << ", "
+           << machine_type << ".representation());\n";
+    }
   } else {
-    out_ << "    CodeStubAssembler(state_).StoreObjectField(" + object + ", " +
-                std::to_string(field.offset) + ", " + value + ");\n";
+    out_ << "    CodeStubAssembler(state_).UnsafeStoreFixedArrayElement("
+         << object << ", " << (field.offset / kTaggedSize) << ", " << value
+         << ");\n";
   }
 }
 

@@ -38,11 +38,15 @@ function Test(a0, a2, a5) {
 var a0 = [];
 var a2 = [1,2];
 var a5 = [1,2,3,4,5];
+%PrepareFunctionForOptimization(ArrayLength);
 for (var i = 0; i < 5; i++) Test(a0, a2, a5);
 %OptimizeFunctionOnNextCall(ArrayLength);
+Test(a0, a2, a5);
+%PrepareFunctionForOptimization(Test);
 %OptimizeFunctionOnNextCall(Test);
 Test(a0, a2, a5);
 assertEquals("undefined", typeof(ArrayLength(0)));
+%PrepareFunctionForOptimization(Test);
 for (var i = 0; i < 5; i++) Test(a0, a2, a5);
 %OptimizeFunctionOnNextCall(Test);
 Test(a0, a2, a5);

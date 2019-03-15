@@ -124,6 +124,7 @@ bool Runtime::NeedsExactContext(FunctionId id) {
     case Runtime::kThrowNotConstructor:
     case Runtime::kThrowRangeError:
     case Runtime::kThrowReferenceError:
+    case Runtime::kThrowAccessedUninitializedVariable:
     case Runtime::kThrowStackOverflow:
     case Runtime::kThrowStaticPrototypeError:
     case Runtime::kThrowSuperAlreadyCalledError:
@@ -163,6 +164,7 @@ bool Runtime::IsNonReturning(FunctionId id) {
     case Runtime::kThrowNotConstructor:
     case Runtime::kThrowRangeError:
     case Runtime::kThrowReferenceError:
+    case Runtime::kThrowAccessedUninitializedVariable:
     case Runtime::kThrowStackOverflow:
     case Runtime::kThrowSymbolAsyncIteratorInvalid:
     case Runtime::kThrowTypeError:

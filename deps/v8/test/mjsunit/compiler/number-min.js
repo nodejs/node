@@ -11,6 +11,7 @@
     return 1;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(1));
   assertEquals(1, foo(2));
   %OptimizeFunctionOnNextCall(foo);
@@ -29,6 +30,7 @@
     return Math.min(x - 1, x + 1);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(-Math.pow(2, 31) - 1, foo(-Math.pow(2, 31)));
   assertEquals(Math.pow(2, 31) - 2, foo(Math.pow(2, 31) - 1));
   %OptimizeFunctionOnNextCall(foo);

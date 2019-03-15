@@ -121,7 +121,7 @@ class V8_EXPORT_PRIVATE LoopBuilder final : public BreakableControlFlowBuilder {
   void ContinueIfNull() { EmitJumpIfNull(&continue_labels_); }
 
  private:
-  BytecodeLabel loop_header_;
+  BytecodeLoopHeader loop_header_;
 
   // Unbound labels that identify jumps for continue statements in the code and
   // jumps from checking the loop condition to the header for do-while loops.
@@ -188,7 +188,6 @@ class V8_EXPORT_PRIVATE TryCatchBuilder final : public ControlFlowBuilder {
  private:
   int handler_id_;
   HandlerTable::CatchPrediction catch_prediction_;
-  BytecodeLabel handler_;
   BytecodeLabel exit_;
 
   BlockCoverageBuilder* block_coverage_builder_;

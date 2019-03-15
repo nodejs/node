@@ -15,6 +15,7 @@ var a = "a".repeat(%StringMaxLength());
     }
   }
 
+  %PrepareFunctionForOptimization(foo);
   foo("a");
   foo("a");
   // Optimize with string length protector check.
@@ -22,6 +23,7 @@ var a = "a".repeat(%StringMaxLength());
   foo("a");
   assertInstanceof(foo(a), RangeError);
   // Optimize without string length protector check.
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   foo("a");
   assertInstanceof(foo(a), RangeError);

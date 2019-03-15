@@ -12,6 +12,8 @@ function f() {
 
 let y;
 
+%PrepareFunctionForOptimization(f);
+
 y = f();
 assertFalse(y instanceof Foo);
 assertInstanceof(y, Array);

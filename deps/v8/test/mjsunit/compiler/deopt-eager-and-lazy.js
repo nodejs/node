@@ -19,9 +19,12 @@ function h(o) {
   return o.x;
 }
 
+%PrepareFunctionForOptimization(g);
 g({x : 1});
 g({x : 2});
 %OptimizeFunctionOnNextCall(g);
-%OptimizeFunctionOnNextCall(h);
 g({x : 3});
+%PrepareFunctionForOptimization(h);
+%OptimizeFunctionOnNextCall(h);
+g({x : 4});
 g({y : 1, x : 3});

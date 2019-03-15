@@ -8,16 +8,26 @@ import sys
 from testrunner.local import testsuite, statusfile
 
 
-class TestSuite(testsuite.TestSuite):
-  def _test_class(self):
-    return testsuite.TestCase
+class TestLoader(testsuite.TestLoader):
+  def _list_test_filenames(self):
+    return ["fast", "slow"]
 
-  def ListTests(self):
-    fast = self._create_test("fast")
-    slow = self._create_test("slow")
+  def list_tests(self):
+    self.test_count_estimation = 2
+    fast = self._create_test("fast", self.suite)
+    slow = self._create_test("slow", self.suite)
+
     slow._statusfile_outcomes.append(statusfile.SLOW)
     yield fast
     yield slow
+
+
+class TestSuite(testsuite.TestSuite):
+  def _test_loader_class(self):
+    return TestLoader
+
+  def _test_class(self):
+    return testsuite.TestCase
 
 def GetSuite(*args, **kwargs):
   return TestSuite(*args, **kwargs)

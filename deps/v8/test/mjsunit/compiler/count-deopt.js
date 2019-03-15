@@ -42,6 +42,8 @@ assertEquals(2.1, o.x);
 // Test deopt with count operation on named property.
 function inc2(p) { p.x++ }
 
+%PrepareFunctionForOptimization(inc2);
+
 o.x = "42";
 inc2(o);
 assertEquals(43, o.x);
@@ -59,6 +61,8 @@ assertEquals(max_smi + 10, o.x);
 
 // Test deopt with count operation on keyed property.
 function inc3(a, b) { a[b]++; }
+
+%PrepareFunctionForOptimization(inc3);
 
 o = ["42"];
 inc3(o, 0);
@@ -83,18 +87,21 @@ o[0] = 0;
 for(var i = 0; i < 5; i++) {
   inc3(o, 0);
 }
+%PrepareFunctionForOptimization(inc3);
 %OptimizeFunctionOnNextCall(inc3);
 inc3(o, 0);
 inc3(o, 1);
 
 // Test bailout with count operation in a value context.
 function inc4(x,y) { return (x++) + y; }
+%PrepareFunctionForOptimization(inc4);
 for (var i = 0; i < 5; ++i) assertEquals(3, inc4(2, 1));
 %OptimizeFunctionOnNextCall(inc4);
 inc4(2, 1);
 assertEquals(3.1, inc4(2, 1.1));
 
 function inc5(x,y) { return (++x) + y; }
+%PrepareFunctionForOptimization(inc5);
 for (var i = 0; i < 5; ++i) assertEquals(4, inc5(2, 1));
 %OptimizeFunctionOnNextCall(inc5);
 assertEquals(4, inc5(2, 1));
@@ -102,6 +109,7 @@ assertEquals(4.1, inc5(2, 1.1));
 assertEquals(4.1, inc5(2.1, 1));
 
 function inc6(o,y) { return (o.x++) + y; }
+%PrepareFunctionForOptimization(inc6);
 o = {x:0};
 for (var i = 0; i < 5; ++i) {
   o.x = 42;
@@ -116,6 +124,7 @@ o.x = 42.1;
 assertEquals(43.1, inc6(o, 1));
 
 function inc7(o,y) { return (++o.x) + y; }
+%PrepareFunctionForOptimization(inc7);
 o = {x:0};
 for (var i = 0; i < 5; ++i) {
   o.x = 42;
@@ -130,6 +139,7 @@ o.x = 42.1;
 assertEquals(44.1, inc7(o, 1));
 
 function inc8(o,y) { return (o[0]++) + y; }
+%PrepareFunctionForOptimization(inc8);
 var q = [0];
 for (var i = 0; i < 5; ++i) {
   q[0] = 42;
@@ -144,6 +154,7 @@ q[0] = 42.1;
 assertEquals(43.1, inc8(q, 1));
 
 function inc9(o,y) { return (++o[0]) + y; }
+%PrepareFunctionForOptimization(inc9);
 q = [0];
 for (var i = 0; i < 5; ++i) {
   q[0] = 42;
@@ -159,6 +170,7 @@ assertEquals(44.1, inc9(q, 1));
 
 // Test deopt because of a failed map check.
 function inc10(p) { return p.x++ }
+%PrepareFunctionForOptimization(inc10);
 var g1 = {x:0};
 var g2 = {y:0, x:42}
 for (var i = 0; i < 5; ++i) {

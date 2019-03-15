@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-intl-relative-time-format
-
 let rtf = new Intl.RelativeTimeFormat();
 // Test 1.4.5 Intl.RelativeTimeFormat.prototype.resolvedOptions ()
 // The default style is 'long'

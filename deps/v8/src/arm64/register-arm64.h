@@ -61,6 +61,12 @@ namespace internal {
   V(q16) V(q17) V(q18) V(q19) V(q20) V(q21) V(q22) V(q23) \
   V(q24) V(q25) V(q26) V(q27) V(q28) V(q29) V(q30) V(q31)
 
+#define VECTOR_REGISTERS(V)                               \
+  V(v0)  V(v1)  V(v2)  V(v3)  V(v4)  V(v5)  V(v6)  V(v7)  \
+  V(v8)  V(v9)  V(v10) V(v11) V(v12) V(v13) V(v14) V(v15) \
+  V(v16) V(v17) V(v18) V(v19) V(v20) V(v21) V(v22) V(v23) \
+  V(v24) V(v25) V(v26) V(v27) V(v28) V(v29) V(v30) V(v31)
+
 // Register d29 could be allocated, but we keep an even length list here, in
 // order to make stack alignment easier for save and restore.
 #define ALLOCATABLE_DOUBLE_REGISTERS(R)                   \
@@ -710,8 +716,9 @@ class CPURegList {
 #define kCallerSaved CPURegList::GetCallerSaved()
 #define kCallerSavedV CPURegList::GetCallerSavedV()
 
-// Define a {RegisterName} method for {CPURegister}.
-DEFINE_REGISTER_NAMES(CPURegister, GENERAL_REGISTERS);
+// Define a {RegisterName} method for {Register} and {VRegister}.
+DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS)
+DEFINE_REGISTER_NAMES(VRegister, VECTOR_REGISTERS)
 
 // Give alias names to registers for calling conventions.
 constexpr Register kReturnRegister0 = x0;

@@ -8,6 +8,7 @@
 (function() {
   function foo() { return Math.imul(); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo());
   assertEquals(0, foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -18,6 +19,7 @@
 (function() {
   function foo(x) { return Math.imul(x); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(1));
   assertEquals(0, foo(2));
   %OptimizeFunctionOnNextCall(foo);
@@ -28,11 +30,13 @@
 (function() {
   function foo(x, y) { return Math.imul(x, y); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(null, 1));
   assertEquals(0, foo(2, undefined));
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(0, foo(null, 1));
   assertEquals(0, foo(2, undefined));
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(0, foo(null, 1));
   assertEquals(0, foo(2, undefined));
@@ -43,6 +47,7 @@
 (function() {
   function foo(x, y) { return Math.imul(x|0, y|0); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo(1, 1));
   assertEquals(2, foo(2, 1));
   %OptimizeFunctionOnNextCall(foo);
@@ -55,6 +60,7 @@
 (function() {
   function foo(x, y) { return Math.imul(x>>>0, y>>>0); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo(1, 1));
   assertEquals(2, foo(2, 1));
   %OptimizeFunctionOnNextCall(foo);
@@ -67,6 +73,7 @@
 (function() {
   function foo(x, y) { return Math.imul(x, y); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo(1.1, 1.1));
   assertEquals(2, foo(2.1, 1.1));
   %OptimizeFunctionOnNextCall(foo);

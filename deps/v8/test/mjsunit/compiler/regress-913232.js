@@ -10,5 +10,6 @@ function* E(b) {
   }
 }
 
+%PrepareFunctionForOptimization(E);
 %OptimizeFunctionOnNextCall(E);
 E();

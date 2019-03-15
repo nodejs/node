@@ -50,6 +50,7 @@
     assertEquals(o1, o2.a);
     assertEquals(4, o2.b);
   }
+  %PrepareFunctionForOptimization(func);
   func();
   func();
   %OptimizeFunctionOnNextCall(func);

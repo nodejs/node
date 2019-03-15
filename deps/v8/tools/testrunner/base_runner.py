@@ -2,6 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+from functools import reduce
 
 from collections import OrderedDict
 import json
@@ -10,6 +13,8 @@ import optparse
 import os
 import shlex
 import sys
+import traceback
+
 
 
 # Add testrunner to the path.
@@ -178,6 +183,7 @@ class BuildConfig(object):
     self.dcheck_always_on = build_config['dcheck_always_on']
     self.gcov_coverage = build_config['is_gcov_coverage']
     self.is_android = build_config['is_android']
+    self.is_clang = build_config['is_clang']
     self.is_debug = build_config['is_debug']
     self.msan = build_config['is_msan']
     self.no_i18n = not build_config['v8_enable_i18n_support']
@@ -247,10 +253,10 @@ class BaseTestRunner(object):
       if options.swarming:
         # Swarming doesn't print how isolated commands are called. Lets make
         # this less cryptic by printing it ourselves.
-        print ' '.join(sys.argv)
+        print(' '.join(sys.argv))
 
       self._load_build_config(options)
-      command.setup(self.target_os)
+      command.setup(self.target_os, options.device)
 
       try:
         self._process_default_options(options)
@@ -264,11 +270,20 @@ class BaseTestRunner(object):
       self._setup_env()
       print(">>> Running tests for %s.%s" % (self.build_config.arch,
                                             self.mode_name))
-      return self._do_execute(tests, args, options)
+      exit_code = self._do_execute(tests, args, options)
+      if exit_code == utils.EXIT_CODE_FAILURES and options.json_test_results:
+        print("Force exit code 0 after failures. Json test results file "
+              "generated with failure information.")
+        exit_code = utils.EXIT_CODE_PASS
+      return exit_code
     except TestRunnerError:
+      traceback.print_exc()
       return utils.EXIT_CODE_INTERNAL_ERROR
     except KeyboardInterrupt:
       return utils.EXIT_CODE_INTERRUPTED
+    except Exception:
+      traceback.print_exc()
+      return utils.EXIT_CODE_INTERNAL_ERROR
     finally:
       command.tear_down()
 
@@ -304,6 +319,9 @@ class BaseTestRunner(object):
 
     parser.add_option("-j", help="The number of parallel tasks to run",
                       default=0, type=int)
+    parser.add_option("-d", "--device",
+                      help="The device ID to run Android tests on. If not "
+                           "given it will be autodetected.")
 
     # Shard
     parser.add_option("--shard-count", default=1, type=int,
@@ -318,9 +336,6 @@ class BaseTestRunner(object):
                            "color, mono)")
     parser.add_option("--json-test-results",
                       help="Path to a file for storing json results.")
-    parser.add_option("--junitout", help="File name of the JUnit output")
-    parser.add_option("--junittestsuite", default="v8tests",
-                      help="The testsuite name in the JUnit output file")
     parser.add_option("--exit-after-n-failures", type="int", default=100,
                       help="Exit after the first N failures instead of "
                            "running all tests. Pass 0 to disable this feature.")
@@ -368,7 +383,7 @@ class BaseTestRunner(object):
 
     if any(map(lambda v: v and ',' in v,
                 [options.arch, options.mode])):  # pragma: no cover
-      print 'Multiple arch/mode are deprecated'
+      print('Multiple arch/mode are deprecated')
       raise TestRunnerError()
 
     return options, args
@@ -381,13 +396,13 @@ class BaseTestRunner(object):
         pass
 
     if not self.build_config:  # pragma: no cover
-      print 'Failed to load build config'
+      print('Failed to load build config')
       raise TestRunnerError
 
-    print 'Build found: %s' % self.outdir
+    print('Build found: %s' % self.outdir)
     if str(self.build_config):
-      print '>>> Autodetected:'
-      print self.build_config
+      print('>>> Autodetected:')
+      print(self.build_config)
 
     # Represents the OS where tests are run on. Same as host OS except for
     # Android, which is determined by build output.
@@ -464,7 +479,7 @@ class BaseTestRunner(object):
     build_config_mode = 'debug' if self.build_config.is_debug else 'release'
     if options.mode:
       if options.mode not in MODES:  # pragma: no cover
-        print '%s mode is invalid' % options.mode
+        print('%s mode is invalid' % options.mode)
         raise TestRunnerError()
       if MODES[options.mode].execution_mode != build_config_mode:
         print ('execution mode (%s) for %s is inconsistent with build config '
@@ -605,25 +620,20 @@ class BaseTestRunner(object):
     names = self._args_to_suite_names(args, options.test_root)
     test_config = self._create_test_config(options)
     variables = self._get_statusfile_variables(options)
-    slow_chain, fast_chain = [], []
+
+    # Head generator with no elements
+    test_chain = testsuite.TestGenerator(0, [], [])
     for name in names:
       if options.verbose:
-        print '>>> Loading test suite: %s' % name
+        print('>>> Loading test suite: %s' % name)
       suite = testsuite.TestSuite.Load(
           os.path.join(options.test_root, name), test_config)
 
       if self._is_testsuite_supported(suite, options):
-        slow_tests, fast_tests = suite.load_tests_from_disk(variables)
-        slow_chain.append(slow_tests)
-        fast_chain.append(fast_tests)
+        tests = suite.load_tests_from_disk(variables)
+        test_chain.merge(tests)
 
-    for tests in slow_chain:
-      for test in tests:
-        yield test
-
-    for tests in fast_chain:
-      for test in tests:
-        yield test
+    return test_chain
 
   def _is_testsuite_supported(self, suite, options):
     """A predicate that can be overridden to filter out unsupported TestSuite
@@ -653,6 +663,7 @@ class BaseTestRunner(object):
       "gc_stress": False,
       "gcov_coverage": self.build_config.gcov_coverage,
       "isolates": options.isolates,
+      "is_clang": self.build_config.is_clang,
       "mips_arch_variant": mips_arch_variant,
       "mode": self.mode_options.status_mode
               if not self.build_config.dcheck_always_on
@@ -710,7 +721,7 @@ class BaseTestRunner(object):
 
   def _prepare_procs(self, procs):
     procs = filter(None, procs)
-    for i in xrange(0, len(procs) - 1):
+    for i in range(0, len(procs) - 1):
       procs[i].connect_to(procs[i + 1])
     procs[0].setup()
 
@@ -751,22 +762,26 @@ class BaseTestRunner(object):
       # TODO(machenbach): Turn this into an assert. If that's wrong on the
       # bots, printing will be quite useless. Or refactor this code to make
       # sure we get a return code != 0 after testing if we got here.
-      print "shard-run not a valid number, should be in [1:shard-count]"
-      print "defaulting back to running all tests"
+      print("shard-run not a valid number, should be in [1:shard-count]")
+      print("defaulting back to running all tests")
       return 1, 1
 
     return shard_run, shard_count
 
-  def _create_progress_indicators(self, options):
+  def _create_progress_indicators(self, test_count, options):
     procs = [PROGRESS_INDICATORS[options.progress]()]
-    if options.junitout:
-      procs.append(progress.JUnitTestProgressIndicator(options.junitout,
-                                                       options.junittestsuite))
     if options.json_test_results:
       procs.append(progress.JsonTestProgressIndicator(
         options.json_test_results,
         self.build_config.arch,
         self.mode_options.execution_mode))
+
+    for proc in procs:
+      try:
+        proc.set_test_count(test_count)
+      except AttributeError:
+        pass
+
     return procs
 
   def _create_result_tracker(self, options):

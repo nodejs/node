@@ -155,7 +155,6 @@ class V8_EXPORT_PRIVATE NodeProperties final {
       JSHeapBroker* broker, Node* receiver, Node* effect,
       ZoneHandleSet<Map>* maps_return);
 
-  static MaybeHandle<Map> GetMapWitness(JSHeapBroker* broker, Node* node);
   static bool HasInstanceTypeWitness(JSHeapBroker* broker, Node* receiver,
                                      Node* effect, InstanceType instance_type);
 

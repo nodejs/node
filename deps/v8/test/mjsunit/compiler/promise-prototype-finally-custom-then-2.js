@@ -8,6 +8,7 @@ function foo(p) { return p.finally(x => x); }
 
 const a = Promise.resolve(1);
 
+%PrepareFunctionForOptimization(foo);
 foo(a);
 foo(a);
 %OptimizeFunctionOnNextCall(foo);

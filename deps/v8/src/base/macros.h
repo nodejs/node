@@ -146,7 +146,7 @@ V8_INLINE Dest bit_cast(Source const& source) {
 //  odr-used by the definition of the destructor of that class, [...]
 #define DISALLOW_NEW_AND_DELETE()                            \
   void* operator new(size_t) { base::OS::Abort(); }          \
-  void* operator new[](size_t) { base::OS::Abort(); };       \
+  void* operator new[](size_t) { base::OS::Abort(); }        \
   void operator delete(void*, size_t) { base::OS::Abort(); } \
   void operator delete[](void*, size_t) { base::OS::Abort(); }
 

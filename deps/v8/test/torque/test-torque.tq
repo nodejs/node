@@ -30,8 +30,8 @@ namespace test {
   }
 
   macro LabelTestHelper3(): never
-      labels Label3(String, Smi) {
-    goto Label3('foo', 7);
+      labels Label3(Oddball, Smi) {
+    goto Label3(Null, 7);
   }
 
   macro TestConstexpr1() {
@@ -74,8 +74,8 @@ namespace test {
     try {
       LabelTestHelper3() otherwise Label3;
     }
-    label Label3(str: String, smi: Smi) {
-      check(str == 'foo');
+    label Label3(o: Oddball, smi: Smi) {
+      check(o == Null);
       check(smi == 7);
       return True;
     }
@@ -156,7 +156,6 @@ namespace test {
       check(GenericMacroTest<Object>(True) == True);
       check((GenericMacroTestWithLabels<Smi>(0) otherwise Fail) == Undefined);
       check((GenericMacroTestWithLabels<Smi>(0) otherwise Fail) == Undefined);
-      check((GenericMacroTestWithLabels<Object>(smi0) otherwise Fail) == smi0);
       try {
         GenericMacroTestWithLabels<Object>(False) otherwise Expected;
       }
@@ -413,6 +412,11 @@ namespace test {
     label Exit {
       check(j == 10);
     }
+
+    // Test if we can handle uninitialized values on the stack.
+    let i: Smi;
+    for (let j: Smi = 0; j < 10; ++j) {
+    }
   }
 
   macro TestSubtyping(x: Smi) {
@@ -492,6 +496,15 @@ namespace test {
     const xObject: Object = xSmi;
     check(ExampleGenericOverload<Smi>(xSmi) == 6);
     check(UnsafeCast<Smi>(ExampleGenericOverload<Object>(xObject)) == 5);
+  }
+
+  macro TestEquality(implicit context: Context)() {
+    const notEqual: bool =
+        AllocateHeapNumberWithValue(0.5) != AllocateHeapNumberWithValue(0.5);
+    check(!notEqual);
+    const equal: bool =
+        AllocateHeapNumberWithValue(0.5) == AllocateHeapNumberWithValue(0.5);
+    check(equal);
   }
 
   macro BoolToBranch(x: bool): never
@@ -633,7 +646,7 @@ namespace test {
   macro TestCatch1(implicit context: Context)(): Smi {
     let r: Smi = 0;
     try {
-      ThrowTypeError(context, kInvalidArrayLength);
+      ThrowTypeError(kInvalidArrayLength);
     } catch (e) {
       r = 1;
       return r;
@@ -641,7 +654,7 @@ namespace test {
   }
 
   macro TestCatch2Wrapper(implicit context: Context)(): never {
-    ThrowTypeError(context, kInvalidArrayLength);
+    ThrowTypeError(kInvalidArrayLength);
   }
 
   macro TestCatch2(implicit context: Context)(): Smi {
@@ -656,7 +669,7 @@ namespace test {
 
   macro TestCatch3WrapperWithLabel(implicit context: Context)(): never
       labels Abort {
-    ThrowTypeError(context, kInvalidArrayLength);
+    ThrowTypeError(kInvalidArrayLength);
   }
 
   macro TestCatch3(implicit context: Context)(): Smi {
@@ -714,7 +727,7 @@ namespace test {
   }
 
   macro TestNew(implicit context: Context)() {
-    const f: JSArray = new JSArray{};
+    const f: JSArray = NewJSArray();
     assert(f.IsEmpty());
     f.length = 0;
   }
@@ -736,19 +749,6 @@ namespace test {
     c: int32;
   }
 
-  struct TestCustomStructConstructor {
-    constructor(x: int32, y: Smi) {
-      this.a = x;
-      this.c = x;
-      this.b = y;
-      this.d = y;
-    }
-    a: int32;
-    b: Smi;
-    c: int32;
-    d: Smi;
-  }
-
   macro TestStructConstructor(implicit context: Context)() {
     // Test default constructor
     let a: TestOuter = TestOuter{5, TestInner{6, 7}, 8};
@@ -761,11 +761,63 @@ namespace test {
     a.b.SetX(2);
     assert(a.b.x == 2);
     assert(a.b.GetX() == 2);
-    // Test custom constructor
-    let w: TestCustomStructConstructor = TestCustomStructConstructor{1, 2};
-    assert(w.a == 1);
-    assert(w.b == 2);
-    assert(w.c == 1);
-    assert(w.d == 2);
+  }
+
+  extern class TestClassWithAllTypes extends JSObject {
+    a: int8;
+    b: uint8;
+    b2: uint8;
+    b3: uint8;
+    c: int16;
+    d: uint16;
+    e: int32;
+    f: uint32;
+    g: RawPtr;
+    h: intptr;
+    i: uintptr;
+  }
+
+  macro TestClassWithAllTypesLoadsAndStores(
+      t: TestClassWithAllTypes, r: RawPtr, v1: int8, v2: uint8, v3: int16,
+      v4: uint16) {
+    t.a = v1;
+    t.b = v2;
+    t.c = v3;
+    t.d = v4;
+    t.e = 0;
+    t.f = 0;
+    t.g = r;
+    t.h = 0;
+    t.i = 0;
+    t.a = t.a;
+    t.b = t.b;
+    t.c = t.c;
+    t.d = t.d;
+    t.e = t.e;
+    t.f = t.f;
+    t.g = t.g;
+    t.h = t.h;
+    t.i = t.i;
+  }
+
+  class InternalClass {
+    Flip() labels NotASmi {
+      const tmp = Cast<Smi>(this.b) otherwise NotASmi;
+      this.b = this.a;
+      this.a = tmp;
+    }
+    a: Smi;
+    b: Number;
+  }
+
+  macro NewInternalClass(x: Smi): InternalClass {
+    return new InternalClass{x, x + 1};
+  }
+
+  macro TestInternalClass(implicit context: Context)() {
+    const o = NewInternalClass(5);
+    o.Flip() otherwise unreachable;
+    check(o.a == 6);
+    check(o.b == 5);
   }
 }

@@ -92,40 +92,6 @@ function assertKind(expected, obj, name_opt) {
 })();
 
 
-// Test: Ensure that inlined array calls in crankshaft learn from deopts
-// based on the move to a dictionary for the array.
-(function() {
-  function bar(len) {
-    return new Array(len);
-  }
-  a = bar(10);
-  a[0] = "a string";
-  a = bar(10);
-  assertKind(elements_kind.fast, a);
-  %OptimizeFunctionOnNextCall(bar);
-  a = bar(10);
-  assertKind(elements_kind.fast, a);
-  assertOptimized(bar);
-  bar(10000);
-  assertOptimized(bar);
-
-  function barn(one, two, three) {
-    return new Array(one, two, three);
-  }
-
-  a = barn(1, 2, 3);
-  a[1] = "a string";
-  a = barn(1, 2, 3);
-  assertKind(elements_kind.fast, a);
-  %OptimizeFunctionOnNextCall(barn);
-  a = barn(1, 2, 3);
-  assertKind(elements_kind.fast, a);
-  assertOptimized(barn);
-  a = barn(1, "oops", 3);
-  assertOptimized(barn);
-})();
-
-
 // Test: When a method with array constructor is crankshafted, the type
 // feedback for elements kind is baked in. Verify that transitions don't
 // change it anymore

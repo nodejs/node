@@ -45,10 +45,9 @@ class DateCache {
     tz_cache_ = nullptr;
   }
 
-
   // Clears cached timezone information and increments the cache stamp.
-  void ResetDateCache();
-
+  void ResetDateCache(
+      base::TimezoneCache::TimeZoneDetection time_zone_detection);
 
   // Computes floor(time_ms / kMsPerDay).
   static int DaysFromTime(int64_t time_ms) {

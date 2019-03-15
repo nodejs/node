@@ -69,14 +69,14 @@ class FuzzerProc(base.TestProcProducer):
 
   def _next_test(self, test):
     if self.is_stopped:
-      return
+      return False
 
     analysis_subtest = self._create_analysis_subtest(test)
     if analysis_subtest:
-      self._send_test(analysis_subtest)
-    else:
-      self._gens[test.procid] = self._create_gen(test)
-      self._try_send_next_test(test)
+      return self._send_test(analysis_subtest)
+
+    self._gens[test.procid] = self._create_gen(test)
+    return self._try_send_next_test(test)
 
   def _create_analysis_subtest(self, test):
     if self._disable_analysis:
@@ -100,6 +100,7 @@ class FuzzerProc(base.TestProcProducer):
         if result.has_unexpected_output:
           self._send_result(test, None)
           return
+
         self._gens[test.procid] = self._create_gen(test, result)
 
     self._try_send_next_test(test)
@@ -146,11 +147,11 @@ class FuzzerProc(base.TestProcProducer):
   def _try_send_next_test(self, test):
     if not self.is_stopped:
       for subtest in self._gens[test.procid]:
-        self._send_test(subtest)
-        return
+        if self._send_test(subtest):
+          return True
 
     del self._gens[test.procid]
-    self._send_result(test, None)
+    return False
 
   def _next_seed(self):
     seed = None

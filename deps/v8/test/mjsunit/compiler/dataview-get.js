@@ -54,6 +54,7 @@ function readFloat64(offset, little_endian) {
 }
 
 function warmup(f) {
+  %PrepareFunctionForOptimization(f);
   f(0);
   f(1);
   %OptimizeFunctionOnNextCall(f);

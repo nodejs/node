@@ -6,6 +6,7 @@
 #define V8_STRING_STREAM_H_
 
 #include "src/allocation.h"
+#include "src/base/small-vector.h"
 #include "src/handles.h"
 #include "src/objects/heap-object.h"
 #include "src/vector.h"
@@ -54,6 +55,34 @@ class FixedStringAllocator final : public StringAllocator {
   char* buffer_;
   unsigned length_;
   DISALLOW_COPY_AND_ASSIGN(FixedStringAllocator);
+};
+
+template <std::size_t kInlineSize>
+class SmallStringOptimizedAllocator final : public StringAllocator {
+ public:
+  typedef base::SmallVector<char, kInlineSize> SmallVector;
+
+  explicit SmallStringOptimizedAllocator(SmallVector* vector) V8_NOEXCEPT
+      : vector_(vector) {}
+
+  char* allocate(unsigned bytes) override {
+    vector_->resize_no_init(bytes);
+    return vector_->data();
+  }
+
+  char* grow(unsigned* bytes) override {
+    unsigned new_bytes = *bytes * 2;
+    // Check for overflow.
+    if (new_bytes <= *bytes) {
+      return vector_->data();
+    }
+    vector_->resize_no_init(new_bytes);
+    *bytes = new_bytes;
+    return vector_->data();
+  }
+
+ private:
+  SmallVector* vector_;
 };
 
 class StringStream final {
@@ -105,8 +134,8 @@ class StringStream final {
 
  public:
   enum ObjectPrintMode { kPrintObjectConcise, kPrintObjectVerbose };
-  StringStream(StringAllocator* allocator,
-               ObjectPrintMode object_print_mode = kPrintObjectVerbose)
+  explicit StringStream(StringAllocator* allocator,
+                        ObjectPrintMode object_print_mode = kPrintObjectVerbose)
       : allocator_(allocator),
         object_print_mode_(object_print_mode),
         capacity_(kInitialCapacity),

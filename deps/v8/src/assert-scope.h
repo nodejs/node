@@ -133,11 +133,9 @@ typedef PerThreadAssertScopeDebugOnly<HANDLE_ALLOCATION_ASSERT, true>
 typedef PerThreadAssertScopeDebugOnly<HEAP_ALLOCATION_ASSERT, false>
     DisallowHeapAllocation;
 #ifdef DEBUG
-#define DISALLOW_HEAP_ALLOCATION(name) DisallowHeapAllocation name
-#define DISALLOW_HEAP_ALLOCATION_REF(name) const DisallowHeapAllocation& name
+#define DISALLOW_HEAP_ALLOCATION(name) DisallowHeapAllocation name;
 #else
 #define DISALLOW_HEAP_ALLOCATION(name)
-#define DISALLOW_HEAP_ALLOCATION_REF(name)
 #endif
 
 // Scope to introduce an exception to DisallowHeapAllocation.
@@ -232,6 +230,35 @@ typedef PerIsolateAssertScopeDebugOnly<NO_EXCEPTION_ASSERT, false>
 // Scope to introduce an exception to DisallowExceptions.
 typedef PerIsolateAssertScopeDebugOnly<NO_EXCEPTION_ASSERT, true>
     AllowExceptions;
+
+// Explicit instantiation declarations.
+extern template class PerThreadAssertScope<HEAP_ALLOCATION_ASSERT, false>;
+extern template class PerThreadAssertScope<HEAP_ALLOCATION_ASSERT, true>;
+extern template class PerThreadAssertScope<HANDLE_ALLOCATION_ASSERT, false>;
+extern template class PerThreadAssertScope<HANDLE_ALLOCATION_ASSERT, true>;
+extern template class PerThreadAssertScope<HANDLE_DEREFERENCE_ASSERT, false>;
+extern template class PerThreadAssertScope<HANDLE_DEREFERENCE_ASSERT, true>;
+extern template class PerThreadAssertScope<DEFERRED_HANDLE_DEREFERENCE_ASSERT,
+                                           false>;
+extern template class PerThreadAssertScope<DEFERRED_HANDLE_DEREFERENCE_ASSERT,
+                                           true>;
+extern template class PerThreadAssertScope<CODE_DEPENDENCY_CHANGE_ASSERT,
+                                           false>;
+extern template class PerThreadAssertScope<CODE_DEPENDENCY_CHANGE_ASSERT, true>;
+
+extern template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, false>;
+extern template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, true>;
+extern template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, false>;
+extern template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, true>;
+extern template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_DUMP, false>;
+extern template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_DUMP, true>;
+extern template class PerIsolateAssertScope<DEOPTIMIZATION_ASSERT, false>;
+extern template class PerIsolateAssertScope<DEOPTIMIZATION_ASSERT, true>;
+extern template class PerIsolateAssertScope<COMPILATION_ASSERT, false>;
+extern template class PerIsolateAssertScope<COMPILATION_ASSERT, true>;
+extern template class PerIsolateAssertScope<NO_EXCEPTION_ASSERT, false>;
+extern template class PerIsolateAssertScope<NO_EXCEPTION_ASSERT, true>;
+
 }  // namespace internal
 }  // namespace v8
 

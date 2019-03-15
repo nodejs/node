@@ -36,10 +36,14 @@
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/ostreams.h"
+#include "src/parsing/parse-info.h"
+#include "src/parsing/parsing.h"
+#include "src/parsing/scanner-character-streams.h"
 #include "src/snapshot/natives.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils.h"
 #include "src/v8.h"
+#include "src/vm-state-inl.h"
 #include "src/wasm/wasm-engine.h"
 
 #if !defined(_WIN32) && !defined(_WIN64)
@@ -464,6 +468,27 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
                           Local<Value> name, PrintResult print_result,
                           ReportExceptions report_exceptions,
                           ProcessMessageQueue process_message_queue) {
+  if (i::FLAG_parse_only) {
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    i::VMState<PARSER> state(i_isolate);
+    i::Handle<i::String> str = Utils::OpenHandle(*(source));
+
+    // Set up ParseInfo.
+    i::ParseInfo parse_info(i_isolate);
+    parse_info.set_toplevel();
+    parse_info.set_allow_lazy_parsing();
+    parse_info.set_language_mode(
+        i::construct_language_mode(i::FLAG_use_strict));
+    parse_info.set_script(
+        parse_info.CreateScript(i_isolate, str, options.compile_options));
+
+    if (!i::parsing::ParseProgram(&parse_info, i_isolate)) {
+      fprintf(stderr, "Failed parsing\n");
+      return false;
+    }
+    return true;
+  }
+
   HandleScope handle_scope(isolate);
   TryCatch try_catch(isolate);
   try_catch.SetVerbose(true);
@@ -2285,6 +2310,7 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
 
   void Send(const v8_inspector::StringView& string) {
     v8::Isolate::AllowJavascriptExecutionScope allow_script(isolate_);
+    v8::HandleScope handle_scope(isolate_);
     int length = static_cast<int>(string.length());
     DCHECK_LT(length, v8::String::kMaxLength);
     Local<String> message =
@@ -2382,7 +2408,10 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
     std::unique_ptr<uint16_t[]> buffer(new uint16_t[length]);
     message->Write(isolate, buffer.get(), 0, length);
     v8_inspector::StringView message_view(buffer.get(), length);
-    session->dispatchProtocolMessage(message_view);
+    {
+      v8::SealHandleScope seal_handle_scope(isolate);
+      session->dispatchProtocolMessage(message_view);
+    }
     args.GetReturnValue().Set(True(isolate));
   }
 
@@ -2409,8 +2438,8 @@ bool ends_with(const char* input, const char* suffix) {
   return false;
 }
 
-void SourceGroup::Execute(Isolate* isolate) {
-  bool exception_was_thrown = false;
+bool SourceGroup::Execute(Isolate* isolate) {
+  bool success = true;
   for (int i = begin_offset_; i < end_offset_; ++i) {
     const char* arg = argv_[i];
     if (strcmp(arg, "-e") == 0 && i + 1 < end_offset_) {
@@ -2426,7 +2455,7 @@ void SourceGroup::Execute(Isolate* isolate) {
       if (!Shell::ExecuteString(isolate, source, file_name,
                                 Shell::kNoPrintResult, Shell::kReportExceptions,
                                 Shell::kNoProcessMessageQueue)) {
-        exception_was_thrown = true;
+        success = false;
         break;
       }
       ++i;
@@ -2434,7 +2463,7 @@ void SourceGroup::Execute(Isolate* isolate) {
     } else if (ends_with(arg, ".mjs")) {
       Shell::set_script_executed();
       if (!Shell::ExecuteModule(isolate, arg)) {
-        exception_was_thrown = true;
+        success = false;
         break;
       }
       continue;
@@ -2443,7 +2472,7 @@ void SourceGroup::Execute(Isolate* isolate) {
       arg = argv_[++i];
       Shell::set_script_executed();
       if (!Shell::ExecuteModule(isolate, arg)) {
-        exception_was_thrown = true;
+        success = false;
         break;
       }
       continue;
@@ -2466,13 +2495,11 @@ void SourceGroup::Execute(Isolate* isolate) {
     if (!Shell::ExecuteString(isolate, source, file_name, Shell::kNoPrintResult,
                               Shell::kReportExceptions,
                               Shell::kProcessMessageQueue)) {
-      exception_was_thrown = true;
+      success = false;
       break;
     }
   }
-  if (exception_was_thrown != Shell::options.expected_to_throw) {
-    base::OS::ExitProcess(1);
-  }
+  return success;
 }
 
 Local<String> SourceGroup::ReadFile(Isolate* isolate, const char* name) {
@@ -2929,10 +2956,11 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
   for (int i = 1; i < options.num_isolates; ++i) {
     options.isolate_sources[i].StartExecuteInThread();
   }
+  bool success = true;
   {
     SetWaitUntilDone(isolate, false);
     if (options.lcov_file) {
-      debug::Coverage::SelectMode(isolate, debug::Coverage::kBlockCount);
+      debug::Coverage::SelectMode(isolate, debug::CoverageMode::kBlockCount);
     }
     HandleScope scope(isolate);
     Local<Context> context = CreateEvaluationContext(isolate);
@@ -2945,8 +2973,8 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
       Context::Scope cscope(context);
       InspectorClient inspector_client(context, options.enable_inspector);
       PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
-      options.isolate_sources[0].Execute(isolate);
-      CompleteMessageLoop(isolate);
+      if (!options.isolate_sources[0].Execute(isolate)) success = false;
+      if (!CompleteMessageLoop(isolate)) success = false;
     }
     if (!use_existing_context) {
       DisposeModuleEmbedderData(context);
@@ -2962,7 +2990,8 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
     }
   }
   CleanupWorkers();
-  return 0;
+  // In order to finish successfully, success must be != expected_to_throw.
+  return success == Shell::options.expected_to_throw ? 1 : 0;
 }
 
 
@@ -2996,8 +3025,7 @@ bool ProcessMessages(
     const std::function<platform::MessageLoopBehavior()>& behavior) {
   while (true) {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-    i::SaveContext saved_context(i_isolate);
-    i_isolate->set_context(i::Context());
+    i::SaveAndSwitchContext saved_context(i_isolate, i::Context());
     SealHandleScope shs(isolate);
     while (v8::platform::PumpMessageLoop(g_default_platform, isolate,
                                          behavior())) {
@@ -3025,7 +3053,7 @@ bool ProcessMessages(
 }
 }  // anonymous namespace
 
-void Shell::CompleteMessageLoop(Isolate* isolate) {
+bool Shell::CompleteMessageLoop(Isolate* isolate) {
   auto get_waiting_behaviour = [isolate]() {
     base::MutexGuard guard(isolate_status_lock_.Pointer());
     DCHECK_GT(isolate_status_.count(isolate), 0);
@@ -3037,7 +3065,7 @@ void Shell::CompleteMessageLoop(Isolate* isolate) {
     return should_wait ? platform::MessageLoopBehavior::kWaitForWork
                        : platform::MessageLoopBehavior::kDoNotWait;
   };
-  ProcessMessages(isolate, get_waiting_behaviour);
+  return ProcessMessages(isolate, get_waiting_behaviour);
 }
 
 bool Shell::EmptyMessageQueues(Isolate* isolate) {
@@ -3244,10 +3272,9 @@ class Deserializer : public ValueDeserializer::Delegate {
       Isolate* isolate, uint32_t clone_id) override {
     DCHECK_NOT_NULL(data_);
     if (clone_id < data_->shared_array_buffer_contents().size()) {
-      SharedArrayBuffer::Contents contents =
+      const SharedArrayBuffer::Contents contents =
           data_->shared_array_buffer_contents().at(clone_id);
-      return SharedArrayBuffer::New(isolate_, contents.Data(),
-                                    contents.ByteLength());
+      return SharedArrayBuffer::New(isolate_, contents);
     }
     return MaybeLocal<SharedArrayBuffer>();
   }

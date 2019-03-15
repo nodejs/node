@@ -99,6 +99,10 @@ Path pieces are concatenated. D8 is always run with the suite's path as cwd.
 The test flags are passed to the js test file after '--'.
 """
 
+# for py2/py3 compatibility
+from __future__ import print_function
+from functools import reduce
+
 from collections import OrderedDict
 import json
 import logging
@@ -113,6 +117,11 @@ import traceback
 from testrunner.local import android
 from testrunner.local import command
 from testrunner.local import utils
+
+try:
+  basestring       # Python 2
+except NameError:  # Python 3
+  basestring = str
 
 ARCH_GUESS = utils.DefaultArch()
 SUPPORTED_ARCHS = ["arm",
@@ -662,7 +671,7 @@ class DesktopPlatform(Platform):
     self.command_prefix = []
 
     # Setup command class to OS specific version.
-    command.setup(utils.GuessOS())
+    command.setup(utils.GuessOS(), options.device)
 
     if options.prioritize or options.affinitize != None:
       self.command_prefix = ["schedtool"]
@@ -916,7 +925,7 @@ def Main(args):
                     help="Adapt to path structure used on buildbots and adds "
                          "timestamps/level to all logged status messages",
                     default=False, action="store_true")
-  parser.add_option("--device",
+  parser.add_option("-d", "--device",
                     help="The device ID to run Android tests on. If not given "
                          "it will be autodetected.")
   parser.add_option("--extra-flags",
@@ -1074,7 +1083,7 @@ def Main(args):
         def Runner():
           """Output generator that reruns several times."""
           total_runs = runnable.run_count * options.run_count_multiplier
-          for i in xrange(0, max(1, total_runs)):
+          for i in range(0, max(1, total_runs)):
             # TODO(machenbach): Allow timeout per arch like with run_count per
             # arch.
             try:
@@ -1092,12 +1101,12 @@ def Main(args):
     if options.json_test_results:
       results.WriteToFile(options.json_test_results)
     else:  # pragma: no cover
-      print results
+      print(results)
 
   if options.json_test_results_secondary:
     results_secondary.WriteToFile(options.json_test_results_secondary)
   else:  # pragma: no cover
-    print results_secondary
+    print(results_secondary)
 
   if results.errors or have_failed_tests[0]:
     return 1

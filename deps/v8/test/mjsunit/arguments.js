@@ -366,3 +366,14 @@ assertEquals(117, arg_set(0xFFFFFFFF));
   f7(1,2,3,4,5,6,7);
   f7(1,2,3,4,5,6,7,8);
 })();
+
+(function testArgumentsHole() {
+  function f(a) {
+    arguments[3] = 1;
+    return arguments[2];
+  };
+
+  assertEquals(undefined, f(1));
+  assertEquals(undefined, f(1));
+  assertEquals(undefined, f(1));
+})();

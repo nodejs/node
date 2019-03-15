@@ -12,6 +12,15 @@
 #include "src/runtime-profiler.h"
 #include "src/vm-state-inl.h"
 
+#define TRACE_INTERRUPT(...)                   \
+  do {                                         \
+    if (FLAG_trace_interrupts) {               \
+      if (any_interrupt_handled) PrintF(", "); \
+      PrintF(__VA_ARGS__);                     \
+      any_interrupt_handled = true;            \
+    }                                          \
+  } while (false)
+
 namespace v8 {
 namespace internal {
 
@@ -195,8 +204,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
     if ((!params.is_construct || function->IsConstructor()) &&
         function->shared()->IsApiFunction() &&
         !function->shared()->BreakAtEntry()) {
-      SaveContext save(isolate);
-      isolate->set_context(function->context());
+      SaveAndSwitchContext save(isolate, function->context());
       DCHECK(function->context()->global_object()->IsJSGlobalObject());
 
       Handle<Object> receiver = params.is_construct
@@ -628,47 +636,28 @@ Object StackGuard::HandleInterrupts() {
   }
 
   if (CheckAndClearInterrupt(GC_REQUEST)) {
-    if (FLAG_trace_interrupts) {
-      PrintF("GC_REQUEST");
-      any_interrupt_handled = true;
-    }
+    TRACE_INTERRUPT("GC_REQUEST");
     isolate_->heap()->HandleGCRequest();
   }
 
   if (CheckAndClearInterrupt(TERMINATE_EXECUTION)) {
-    if (FLAG_trace_interrupts) {
-      if (any_interrupt_handled) PrintF(", ");
-      PrintF("TERMINATE_EXECUTION");
-      any_interrupt_handled = true;
-    }
+    TRACE_INTERRUPT("TERMINATE_EXECUTION");
     return isolate_->TerminateExecution();
   }
 
   if (CheckAndClearInterrupt(DEOPT_MARKED_ALLOCATION_SITES)) {
-    if (FLAG_trace_interrupts) {
-      if (any_interrupt_handled) PrintF(", ");
-      PrintF("DEOPT_MARKED_ALLOCATION_SITES");
-      any_interrupt_handled = true;
-    }
+    TRACE_INTERRUPT("DEOPT_MARKED_ALLOCATION_SITES");
     isolate_->heap()->DeoptMarkedAllocationSites();
   }
 
   if (CheckAndClearInterrupt(INSTALL_CODE)) {
-    if (FLAG_trace_interrupts) {
-      if (any_interrupt_handled) PrintF(", ");
-      PrintF("INSTALL_CODE");
-      any_interrupt_handled = true;
-    }
+    TRACE_INTERRUPT("INSTALL_CODE");
     DCHECK(isolate_->concurrent_recompilation_enabled());
     isolate_->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
   }
 
   if (CheckAndClearInterrupt(API_INTERRUPT)) {
-    if (FLAG_trace_interrupts) {
-      if (any_interrupt_handled) PrintF(", ");
-      PrintF("API_INTERRUPT");
-      any_interrupt_handled = true;
-    }
+    TRACE_INTERRUPT("API_INTERRUPT");
     // Callbacks must be invoked outside of ExecusionAccess lock.
     isolate_->InvokeApiInterruptCallbacks();
   }
@@ -689,3 +678,5 @@ Object StackGuard::HandleInterrupts() {
 
 }  // namespace internal
 }  // namespace v8
+
+#undef TRACE_INTERRUPT

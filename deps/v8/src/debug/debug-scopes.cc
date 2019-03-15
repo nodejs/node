@@ -155,6 +155,11 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
       DCHECK(non_locals_.is_null());
       non_locals_ = info_->literal()->scope()->CollectNonLocals(
           isolate_, info_, StringSet::New(isolate_));
+      if (!closure_scope_->has_this_declaration() &&
+          closure_scope_->HasThisReference()) {
+        non_locals_ = StringSet::Add(isolate_, non_locals_,
+                                     isolate_->factory()->this_string());
+      }
     }
 
     CHECK(DeclarationScope::Analyze(info_));
@@ -304,7 +309,8 @@ ScopeIterator::ScopeType ScopeIterator::Type() const {
     switch (current_scope_->scope_type()) {
       case FUNCTION_SCOPE:
         DCHECK_IMPLIES(current_scope_->NeedsContext(),
-                       context_->IsFunctionContext());
+                       context_->IsFunctionContext() ||
+                           context_->IsDebugEvaluateContext());
         return ScopeTypeLocal;
       case MODULE_SCOPE:
         DCHECK_IMPLIES(current_scope_->NeedsContext(),
@@ -316,9 +322,8 @@ ScopeIterator::ScopeType ScopeIterator::Type() const {
             context_->IsScriptContext() || context_->IsNativeContext());
         return ScopeTypeScript;
       case WITH_SCOPE:
-        DCHECK_IMPLIES(
-            current_scope_->NeedsContext(),
-            context_->IsWithContext() || context_->IsDebugEvaluateContext());
+        DCHECK_IMPLIES(current_scope_->NeedsContext(),
+                       context_->IsWithContext());
         return ScopeTypeWith;
       case CATCH_SCOPE:
         DCHECK(context_->IsCatchContext());
@@ -340,7 +345,8 @@ ScopeIterator::ScopeType ScopeIterator::Type() const {
     // fake it.
     return seen_script_scope_ ? ScopeTypeGlobal : ScopeTypeScript;
   }
-  if (context_->IsFunctionContext() || context_->IsEvalContext()) {
+  if (context_->IsFunctionContext() || context_->IsEvalContext() ||
+      context_->IsDebugEvaluateContext()) {
     return ScopeTypeClosure;
   }
   if (context_->IsCatchContext()) {
@@ -355,7 +361,7 @@ ScopeIterator::ScopeType ScopeIterator::Type() const {
   if (context_->IsScriptContext()) {
     return ScopeTypeScript;
   }
-  DCHECK(context_->IsWithContext() || context_->IsDebugEvaluateContext());
+  DCHECK(context_->IsWithContext());
   return ScopeTypeWith;
 }
 
@@ -513,6 +519,8 @@ int ScopeIterator::GetSourcePosition() {
     return frame_inspector_->GetSourcePosition();
   } else {
     DCHECK(!generator_.is_null());
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(
+        isolate_, handle(generator_->function()->shared(), isolate_));
     return generator_->source_position();
   }
 }
@@ -577,7 +585,7 @@ void ScopeIterator::VisitModuleScope(const Visitor& visitor) const {
     {
       String raw_name;
       scope_info->ModuleVariable(i, &raw_name, &index);
-      CHECK(!ScopeInfo::VariableIsSynthetic(raw_name));
+      if (ScopeInfo::VariableIsSynthetic(raw_name)) continue;
       name = handle(raw_name, isolate_);
     }
     Handle<Object> value = Module::LoadVariable(isolate_, module, index);
@@ -605,15 +613,20 @@ bool ScopeIterator::VisitContextLocals(const Visitor& visitor,
 }
 
 bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode) const {
-  for (Variable* var : *current_scope_->locals()) {
-    if (var->is_this()) {
-      // Only collect "this" for DebugEvaluate. The debugger will manually add
-      // "this" in a different way, and if we'd add it here as well, it shows up
-      // twice.
-      if (mode == Mode::ALL) continue;
-    } else if (ScopeInfo::VariableIsSynthetic(*var->name())) {
-      continue;
+  if (mode == Mode::STACK && current_scope_->is_declaration_scope() &&
+      current_scope_->AsDeclarationScope()->has_this_declaration()) {
+    Handle<Object> receiver = frame_inspector_ == nullptr
+                                  ? handle(generator_->receiver(), isolate_)
+                                  : frame_inspector_->GetReceiver();
+    if (receiver->IsOptimizedOut(isolate_) || receiver->IsTheHole(isolate_)) {
+      receiver = isolate_->factory()->undefined_value();
     }
+    if (visitor(isolate_->factory()->this_string(), receiver)) return true;
+  }
+
+  for (Variable* var : *current_scope_->locals()) {
+    DCHECK(!var->is_this());
+    if (ScopeInfo::VariableIsSynthetic(*var->name())) continue;
 
     int index = var->index();
     Handle<Object> value;
@@ -623,30 +636,20 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode) const {
         break;
 
       case VariableLocation::UNALLOCATED:
-        if (!var->is_this()) continue;
-        // No idea why this diverges...
-        value = frame_inspector_->GetReceiver();
-        break;
+        continue;
 
       case VariableLocation::PARAMETER: {
         if (frame_inspector_ == nullptr) {
           // Get the variable from the suspended generator.
           DCHECK(!generator_.is_null());
-          if (var->is_this()) {
-            value = handle(generator_->receiver(), isolate_);
-          } else {
-            FixedArray parameters_and_registers =
-                generator_->parameters_and_registers();
-            DCHECK_LT(index, parameters_and_registers->length());
-            value = handle(parameters_and_registers->get(index), isolate_);
-          }
+          FixedArray parameters_and_registers =
+              generator_->parameters_and_registers();
+          DCHECK_LT(index, parameters_and_registers->length());
+          value = handle(parameters_and_registers->get(index), isolate_);
         } else {
-          value = var->is_this() ? frame_inspector_->GetReceiver()
-                                 : frame_inspector_->GetParameter(index);
+          value = frame_inspector_->GetParameter(index);
 
           if (value->IsOptimizedOut(isolate_)) {
-            value = isolate_->factory()->undefined_value();
-          } else if (var->is_this() && value->IsTheHole(isolate_)) {
             value = isolate_->factory()->undefined_value();
           }
         }
@@ -727,7 +730,7 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode) const {
       // but don't force |this| to be context-allocated. Otherwise we'd find the
       // wrong |this| value.
       if (!closure_scope_->has_this_declaration() &&
-          !non_locals_->Has(isolate_, isolate_->factory()->this_string())) {
+          !closure_scope_->HasThisReference()) {
         if (visitor(isolate_->factory()->this_string(),
                     isolate_->factory()->undefined_value()))
           return;
@@ -863,13 +866,13 @@ bool ScopeIterator::SetContextExtensionValue(Handle<String> variable_name,
 
 bool ScopeIterator::SetContextVariableValue(Handle<String> variable_name,
                                             Handle<Object> new_value) {
-  Handle<ScopeInfo> scope_info(context_->scope_info(), isolate_);
-
+  DisallowHeapAllocation no_gc;
   VariableMode mode;
   InitializationFlag flag;
   MaybeAssignedFlag maybe_assigned_flag;
-  int slot_index = ScopeInfo::ContextSlotIndex(scope_info, variable_name, &mode,
-                                               &flag, &maybe_assigned_flag);
+  int slot_index =
+      ScopeInfo::ContextSlotIndex(context_->scope_info(), *variable_name, &mode,
+                                  &flag, &maybe_assigned_flag);
   if (slot_index < 0) return false;
 
   context_->set(slot_index, *new_value);
@@ -878,12 +881,13 @@ bool ScopeIterator::SetContextVariableValue(Handle<String> variable_name,
 
 bool ScopeIterator::SetModuleVariableValue(Handle<String> variable_name,
                                            Handle<Object> new_value) {
+  DisallowHeapAllocation no_gc;
   int cell_index;
   VariableMode mode;
   InitializationFlag init_flag;
   MaybeAssignedFlag maybe_assigned_flag;
   cell_index = context_->scope_info()->ModuleIndex(
-      variable_name, &mode, &init_flag, &maybe_assigned_flag);
+      *variable_name, &mode, &init_flag, &maybe_assigned_flag);
 
   // Setting imports is currently not supported.
   if (ModuleDescriptor::GetCellIndexKind(cell_index) !=
@@ -902,7 +906,7 @@ bool ScopeIterator::SetScriptVariableValue(Handle<String> variable_name,
       context_->global_object()->native_context()->script_context_table(),
       isolate_);
   ScriptContextTable::LookupResult lookup_result;
-  if (ScriptContextTable::Lookup(isolate_, script_contexts, variable_name,
+  if (ScriptContextTable::Lookup(isolate_, *script_contexts, *variable_name,
                                  &lookup_result)) {
     Handle<Context> script_context = ScriptContextTable::GetContext(
         isolate_, script_contexts, lookup_result.context_index);

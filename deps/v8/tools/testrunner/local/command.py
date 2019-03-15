@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# for py2/py3 compatibility
+from __future__ import print_function
 
 import os
 import re
@@ -62,7 +64,7 @@ class BaseCommand(object):
 
   def execute(self):
     if self.verbose:
-      print '# %s' % self
+      print('# %s' % self)
 
     process = self._start_process()
 
@@ -187,7 +189,7 @@ class WindowsCommand(BaseCommand):
 
   def _kill_process(self, process):
     if self.verbose:
-      print 'Attempting to kill process %d' % process.pid
+      print('Attempting to kill process %d' % process.pid)
       sys.stdout.flush()
     tk = subprocess.Popen(
         'taskkill /T /F /PID %d' % process.pid,
@@ -196,14 +198,17 @@ class WindowsCommand(BaseCommand):
     )
     stdout, stderr = tk.communicate()
     if self.verbose:
-      print 'Taskkill results for %d' % process.pid
-      print stdout
-      print stderr
-      print 'Return code: %d' % tk.returncode
+      print('Taskkill results for %d' % process.pid)
+      print(stdout)
+      print(stderr)
+      print('Return code: %d' % tk.returncode)
       sys.stdout.flush()
 
 
 class AndroidCommand(BaseCommand):
+  # This must be initialized before creating any instances of this class.
+  driver = None
+
   def __init__(self, shell, args=None, cmd_prefix=None, timeout=60, env=None,
                verbose=False, resources_func=None):
     """Initialize the command and all files that need to be pushed to the
@@ -234,21 +239,21 @@ class AndroidCommand(BaseCommand):
     This pushes all required files to the device and then runs the command.
     """
     if self.verbose:
-      print '# %s' % self
+      print('# %s' % self)
 
-    android_driver().push_executable(self.shell_dir, 'bin', self.shell_name)
+    self.driver.push_executable(self.shell_dir, 'bin', self.shell_name)
 
     for abs_file in self.files_to_push:
       abs_dir = os.path.dirname(abs_file)
       file_name = os.path.basename(abs_file)
       rel_dir = os.path.relpath(abs_dir, BASE_DIR)
-      android_driver().push_file(abs_dir, file_name, rel_dir)
+      self.driver.push_file(abs_dir, file_name, rel_dir)
 
     start_time = time.time()
     return_code = 0
     timed_out = False
     try:
-      stdout = android_driver().run(
+      stdout = self.driver.run(
           'bin', self.shell_name, self.args, '.', self.timeout, self.env)
     except CommandFailedException as e:
       return_code = e.status
@@ -271,10 +276,11 @@ class AndroidCommand(BaseCommand):
 
 
 Command = None
-def setup(target_os):
+def setup(target_os, device):
   """Set the Command class to the OS-specific version."""
   global Command
   if target_os == 'android':
+    AndroidCommand.driver = android_driver(device)
     Command = AndroidCommand
   elif target_os == 'windows':
     Command = WindowsCommand
@@ -284,4 +290,4 @@ def setup(target_os):
 def tear_down():
   """Clean up after using commands."""
   if Command == AndroidCommand:
-    android_driver().tear_down()
+    AndroidCommand.driver.tear_down()

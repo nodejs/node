@@ -5,21 +5,27 @@
 #ifndef V8_TORQUE_UTILS_H_
 #define V8_TORQUE_UTILS_H_
 
+#include <ostream>
+#include <streambuf>
 #include <string>
 #include <unordered_set>
 #include <vector>
 
 #include "src/base/functional.h"
+#include "src/base/optional.h"
 #include "src/torque/contextual.h"
 
 namespace v8 {
 namespace internal {
 namespace torque {
 
-typedef std::vector<std::string> NameVector;
-
 std::string StringLiteralUnquote(const std::string& s);
 std::string StringLiteralQuote(const std::string& s);
+
+// Decodes "file://" URIs into file paths which can then be used
+// with the standard stream API.
+V8_EXPORT_PRIVATE base::Optional<std::string> FileUriDecode(
+    const std::string& s);
 
 class LintErrorStatus : public ContextualClass<LintErrorStatus> {
  public:
@@ -45,12 +51,19 @@ bool IsSnakeCase(const std::string& s);
 bool IsValidNamespaceConstName(const std::string& s);
 bool IsValidTypeName(const std::string& s);
 
-[[noreturn]] void ReportErrorString(const std::string& error);
+[[noreturn]] void ReportErrorString(const std::string& error,
+                                    bool print_position);
 template <class... Args>
 [[noreturn]] void ReportError(Args&&... args) {
   std::stringstream s;
   USE((s << std::forward<Args>(args))...);
-  ReportErrorString(s.str());
+  ReportErrorString(s.str(), true);
+}
+template <class... Args>
+[[noreturn]] void ReportErrorWithoutPosition(Args&&... args) {
+  std::stringstream s;
+  USE((s << std::forward<Args>(args))...);
+  ReportErrorString(s.str(), false);
 }
 
 std::string CapifyStringWithUnderscores(const std::string& camellified_string);
@@ -268,12 +281,8 @@ class ToString {
   std::stringstream s_;
 };
 
-constexpr int kTaggedSize = sizeof(void*);
-
-static const char* const kConstructMethodName = "constructor";
-static const char* const kSuperMethodName = "super";
-static const char* const kConstructorStructSuperFieldName = "_super";
-static const char* const kClassConstructorThisStructPrefix = "_ThisStruct";
+static const char* const kBaseNamespaceName = "base";
+static const char* const kTestNamespaceName = "test";
 
 // Erase elements of a container that has a constant-time erase function, like
 // std::set or std::list. Calling this on std::vector would have quadratic
@@ -288,6 +297,25 @@ void EraseIf(Container* container, F f) {
     }
   }
 }
+
+class NullStreambuf : public std::streambuf {
+ public:
+  virtual int overflow(int c) {
+    setp(buffer_, buffer_ + sizeof(buffer_));
+    return (c == traits_type::eof()) ? '\0' : c;
+  }
+
+ private:
+  char buffer_[64];
+};
+
+class NullOStream : public std::ostream {
+ public:
+  NullOStream() : std::ostream(&buffer_) {}
+
+ private:
+  NullStreambuf buffer_;
+};
 
 }  // namespace torque
 }  // namespace internal

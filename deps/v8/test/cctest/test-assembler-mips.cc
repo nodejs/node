@@ -273,7 +273,6 @@ TEST(MIPS3) {
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles t.a ... t.f.
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
-  Label L, C;
 
   // Double precision floating point instructions.
   __ Ldc1(f4, MemOperand(a0, offsetof(T, a)));
@@ -401,7 +400,6 @@ TEST(MIPS4) {
   T t;
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
-  Label L, C;
 
   __ Ldc1(f4, MemOperand(a0, offsetof(T, a)));
   __ Ldc1(f6, MemOperand(a0, offsetof(T, b)));
@@ -469,7 +467,6 @@ TEST(MIPS5) {
   T t;
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
-  Label L, C;
 
   // Load all structure elements to registers.
   __ Ldc1(f4, MemOperand(a0, offsetof(T, a)));
@@ -537,7 +534,6 @@ TEST(MIPS6) {
   T t;
 
   Assembler assm(AssemblerOptions{});
-  Label L, C;
 
   // Basic word load/store.
   __ lw(t0, MemOperand(a0, offsetof(T, ui)) );
@@ -825,7 +821,6 @@ TEST(MIPS10) {
   T t;
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
-  Label L, C;
 
   if (IsMipsArchVariant(kMips32r1) || IsMipsArchVariant(kLoongson)) return;
 
@@ -4742,7 +4737,7 @@ uint32_t run_jic(int16_t offset) {
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  Label get_program_counter, stop_execution;
+  Label stop_execution;
   __ push(ra);
   __ li(v0, 0);
   __ li(t1, 0x66);
@@ -5074,7 +5069,7 @@ uint32_t run_jialc(int16_t offset) {
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  Label main_block, get_program_counter;
+  Label main_block;
   __ push(ra);
   __ li(v0, 0);
   __ beq(v0, v0, &main_block);
@@ -5291,7 +5286,7 @@ int32_t run_balc(int32_t offset) {
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  Label continue_1, stop_execution;
+  Label continue_1;
   __ push(ra);
   __ li(v0, 0);
   __ li(t8, 0);

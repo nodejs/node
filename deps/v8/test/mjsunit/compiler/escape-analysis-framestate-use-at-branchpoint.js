@@ -13,6 +13,7 @@ function foo() {
  function bar() {i};
  return o.x;
 }
+%PrepareFunctionForOptimization(foo);
 foo();
 foo();
 %OptimizeFunctionOnNextCall(foo);

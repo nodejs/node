@@ -4,7 +4,7 @@
 
 #include "test/cctest/assembler-helper-arm.h"
 
-#include "src/assembler-inl.h"
+#include "src/macro-assembler.h"
 #include "src/isolate-inl.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
@@ -12,9 +12,9 @@
 namespace v8 {
 namespace internal {
 
-Handle<Code> AssembleCodeImpl(std::function<void(Assembler&)> assemble) {
+Handle<Code> AssembleCodeImpl(std::function<void(MacroAssembler&)> assemble) {
   Isolate* isolate = CcTest::i_isolate();
-  Assembler assm(AssemblerOptions{});
+  MacroAssembler assm(AssemblerOptions{});
 
   assemble(assm);
   assm.bx(lr);

@@ -468,9 +468,9 @@ TEST_P(TrapHandlerTest, TestCrashInOtherThread) {
   *trap_handler::GetThreadInWasmThreadLocalAddress() = 0;
 }
 
-INSTANTIATE_TEST_CASE_P(/* no prefix */, TrapHandlerTest,
-                        ::testing::Values(kDefault, kCallback),
-                        PrintTrapHandlerTestParam);
+INSTANTIATE_TEST_SUITE_P(/* no prefix */, TrapHandlerTest,
+                         ::testing::Values(kDefault, kCallback),
+                         PrintTrapHandlerTestParam);
 
 #undef __
 }  // namespace wasm

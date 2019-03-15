@@ -47,8 +47,9 @@ function makeTagInfoJSON(n) {
   return a;
 }
 
-var expr = '([' + makeTagInfoJSON(128).join(', ') + '])'
+var expr = '([' + makeTagInfoJSON(128).join(', ') + '])';
 
+%PrepareFunctionForOptimization(withEval);
 for (var n = 0; n < 5; n++) {
   withEval(expr, function(a) { return a; });
 }

@@ -297,4 +297,8 @@
 }{
   assertThrows(() => BigInt.asUintN(3, 12), TypeError);
   assertEquals(4n, BigInt.asUintN(3, "12"));
+}{
+  // crbug.com/936506
+  assertEquals(1n, BigInt.asUintN(15, 0x100000001n));
+  assertEquals(1n, BigInt.asUintN(15, 0x10000000000000001n));
 }

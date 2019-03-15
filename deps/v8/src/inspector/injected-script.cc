@@ -585,7 +585,7 @@ Response InjectedScript::resolveCallArgument(
   if (callArgument->hasValue() || callArgument->hasUnserializableValue()) {
     String16 value;
     if (callArgument->hasValue()) {
-      value = "(" + callArgument->getValue(nullptr)->serialize() + ")";
+      value = "(" + callArgument->getValue(nullptr)->toJSONString() + ")";
     } else {
       String16 unserializableValue = callArgument->getUnserializableValue("");
       // Protect against potential identifier resolution for NaN and Infinity.

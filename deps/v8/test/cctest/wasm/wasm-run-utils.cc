@@ -6,6 +6,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/code-tracer.h"
+#include "src/heap/heap-inl.h"
 #include "src/wasm/graph-builder-interface.h"
 #include "src/wasm/wasm-import-wrapper-cache-inl.h"
 #include "src/wasm/wasm-memory.h"
@@ -57,7 +58,7 @@ TestingModuleBuilder::TestingModuleBuilder(
   }
 }
 
-byte* TestingModuleBuilder::AddMemory(uint32_t size) {
+byte* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared) {
   CHECK(!test_module_->has_memory);
   CHECK_NULL(mem_start_);
   CHECK_EQ(0, mem_size_);
@@ -65,9 +66,16 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size) {
   DCHECK_IMPLIES(test_module_->origin == kWasmOrigin,
                  size % kWasmPageSize == 0);
   test_module_->has_memory = true;
+  uint32_t max_size =
+      (test_module_->maximum_pages != 0) ? test_module_->maximum_pages : size;
   uint32_t alloc_size = RoundUp(size, kWasmPageSize);
   Handle<JSArrayBuffer> new_buffer;
-  CHECK(NewArrayBuffer(isolate_, alloc_size).ToHandle(&new_buffer));
+  if (shared == SharedFlag::kShared) {
+    CHECK(NewSharedArrayBuffer(isolate_, alloc_size, max_size)
+              .ToHandle(&new_buffer));
+  } else {
+    CHECK(NewArrayBuffer(isolate_, alloc_size).ToHandle(&new_buffer));
+  }
   CHECK(!new_buffer.is_null());
   mem_start_ = reinterpret_cast<byte*>(new_buffer->backing_store());
   mem_size_ = size;
@@ -75,9 +83,8 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size) {
   memset(mem_start_, 0, size);
 
   // Create the WasmMemoryObject.
-  Handle<WasmMemoryObject> memory_object = WasmMemoryObject::New(
-      isolate_, new_buffer,
-      (test_module_->maximum_pages != 0) ? test_module_->maximum_pages : -1);
+  Handle<WasmMemoryObject> memory_object =
+      WasmMemoryObject::New(isolate_, new_buffer, max_size);
   instance_object_->set_memory_object(*memory_object);
   WasmMemoryObject::AddInstance(isolate_, memory_object, instance_object_);
   // TODO(wasm): Delete the following two lines when test-run-wasm will use a
@@ -119,8 +126,7 @@ uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name,
 }
 
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
-  // Wrap the code so it can be called as a JS function.
-  Link();
+  SetExecutable();
   FunctionSig* sig = test_module_->functions[index].sig;
   MaybeHandle<Code> maybe_ret_code =
       compiler::CompileJSToWasmWrapper(isolate_, sig, false);
@@ -140,6 +146,14 @@ Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   new_arr->set(old_arr->length(), *ret_code);
   module_object->set_export_wrappers(*new_arr);
 
+  if (interpreter_) {
+    // Patch the jump table to call the interpreter for this function. This is
+    // only needed for functions with a wrapper. Other functions never get
+    // called through the jump table.
+    wasm::WasmCode* wasm_new_code = compiler::CompileWasmInterpreterEntry(
+        isolate_->wasm_engine(), native_module_, index, sig);
+    native_module_->PublishInterpreterEntry(wasm_new_code, index);
+  }
   return ret;
 }
 
@@ -181,10 +195,24 @@ uint32_t TestingModuleBuilder::AddBytes(Vector<const byte> bytes) {
   uint32_t bytes_offset = old_size ? old_size : 1;
   size_t new_size = bytes_offset + bytes.size();
   OwnedVector<uint8_t> new_bytes = OwnedVector<uint8_t>::New(new_size);
-  memcpy(new_bytes.start(), old_bytes.start(), old_size);
+  if (old_size > 0) {
+    memcpy(new_bytes.start(), old_bytes.start(), old_size);
+  }
   memcpy(new_bytes.start() + bytes_offset, bytes.start(), bytes.length());
   native_module_->SetWireBytes(std::move(new_bytes));
   return bytes_offset;
+}
+
+uint32_t TestingModuleBuilder::AddException(FunctionSig* sig) {
+  DCHECK_EQ(0, sig->return_count());
+  uint32_t index = static_cast<uint32_t>(test_module_->exceptions.size());
+  test_module_->exceptions.push_back(WasmException{sig});
+  Handle<WasmExceptionTag> tag = WasmExceptionTag::New(isolate_, index);
+  Handle<FixedArray> table(instance_object_->exceptions_table(), isolate_);
+  table = isolate_->factory()->CopyFixedArrayAndGrow(table, 1);
+  instance_object_->set_exceptions_table(*table);
+  table->set(index, *tag);
+  return index;
 }
 
 CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
@@ -219,6 +247,7 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   native_module_->ReserveCodeTableForTesting(kMaxFunctions);
 
   auto instance = WasmInstanceObject::New(isolate_, module_object);
+  instance->set_exceptions_table(*isolate_->factory()->empty_fixed_array());
   instance->set_globals_start(globals_data_);
   return instance;
 }
@@ -393,15 +422,9 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
                      static_cast<uint32_t>(len)};
 
   if (interpreter_) {
-    // Add the code to the interpreter.
+    // Add the code to the interpreter; do not generate compiled code.
     interpreter_->SetFunctionCodeForTesting(function_, start, end);
-  }
-
-  // TODO(wasm): tests that go through JS depend on having a compiled version
-  // of each function, even if the execution tier is the interpreter. Fix.
-  auto tier = builder_->execution_tier();
-  if (tier == ExecutionTier::kInterpreter) {
-    tier = ExecutionTier::kOptimized;
+    return;
   }
 
   Vector<const uint8_t> wire_bytes = builder_->instance_object()
@@ -419,7 +442,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   NativeModule* native_module =
       builder_->instance_object()->module_object()->native_module();
   WasmCompilationUnit unit(isolate()->wasm_engine(), function_->func_index,
-                           tier);
+                           builder_->execution_tier());
   WasmFeatures unused_detected_features;
   WasmCompilationResult result = unit.ExecuteCompilation(
       &env, native_module->compilation_state()->GetWireBytesStorage(),

@@ -496,10 +496,9 @@ TEST_P(InstructionSelectorLogicalTest, ShiftByImmediate) {
   }
 }
 
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorLogicalTest,
-                        ::testing::ValuesIn(kLogicalInstructions));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorLogicalTest,
+                         ::testing::ValuesIn(kLogicalInstructions));
 
 // -----------------------------------------------------------------------------
 // Add and Sub instructions.
@@ -651,10 +650,8 @@ TEST_P(InstructionSelectorAddSubTest, SignedExtendHalfword) {
   ASSERT_EQ(1U, s[0]->OutputCount());
 }
 
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorAddSubTest,
-                        ::testing::ValuesIn(kAddSubInstructions));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest, InstructionSelectorAddSubTest,
+                         ::testing::ValuesIn(kAddSubInstructions));
 
 TEST_F(InstructionSelectorTest, AddImmediateOnLeft) {
   {
@@ -1010,11 +1007,9 @@ TEST_P(InstructionSelectorDPFlagSetTest, BranchWithParameters) {
   EXPECT_EQ(kNotEqual, s[0]->flags_condition());
 }
 
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorDPFlagSetTest,
-                        ::testing::ValuesIn(kDPFlagSetInstructions));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorDPFlagSetTest,
+                         ::testing::ValuesIn(kDPFlagSetInstructions));
 
 TEST_F(InstructionSelectorTest, Word32AndBranchWithImmediateOnRight) {
   TRACED_FOREACH(int32_t, imm, kLogical32Immediates) {
@@ -1282,9 +1277,9 @@ TEST_P(InstructionSelectorTestAndBranchTest, TestAndBranch32) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorTestAndBranchTest,
-                        ::testing::ValuesIn(kTestAndBranchMatchers32));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorTestAndBranchTest,
+                         ::testing::ValuesIn(kTestAndBranchMatchers32));
 
 TEST_F(InstructionSelectorTest, Word64AndBranchWithOneBitMaskOnRight) {
   TRACED_FORRANGE(int, bit, 0, 63) {
@@ -1761,10 +1756,9 @@ TEST_P(InstructionSelectorOvfAddSubTest, RORShift) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorOvfAddSubTest,
-                        ::testing::ValuesIn(kOvfAddSubInstructions));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorOvfAddSubTest,
+                         ::testing::ValuesIn(kOvfAddSubInstructions));
 
 TEST_F(InstructionSelectorTest, OvfFlagAddImmediateOnLeft) {
   TRACED_FOREACH(int32_t, imm, kAddSubImmediates) {
@@ -1879,10 +1873,8 @@ TEST_P(InstructionSelectorShiftTest, Immediate) {
   }
 }
 
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorShiftTest,
-                        ::testing::ValuesIn(kShiftInstructions));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest, InstructionSelectorShiftTest,
+                         ::testing::ValuesIn(kShiftInstructions));
 
 TEST_F(InstructionSelectorTest, Word64ShlWithChangeInt32ToInt64) {
   TRACED_FORRANGE(int64_t, x, 32, 63) {
@@ -1972,10 +1964,8 @@ TEST_P(InstructionSelectorMulDivTest, Parameter) {
   EXPECT_EQ(1U, s[0]->OutputCount());
 }
 
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorMulDivTest,
-                        ::testing::ValuesIn(kMulDivInstructions));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest, InstructionSelectorMulDivTest,
+                         ::testing::ValuesIn(kMulDivInstructions));
 
 namespace {
 
@@ -2080,11 +2070,9 @@ TEST_P(InstructionSelectorIntDPWithIntMulTest, NegativeMul) {
   }
 }
 
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorIntDPWithIntMulTest,
-                        ::testing::ValuesIn(kMulDPInstructions));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorIntDPWithIntMulTest,
+                         ::testing::ValuesIn(kMulDPInstructions));
 
 TEST_F(InstructionSelectorTest, Int32MulWithImmediate) {
   // x * (2^k + 1) -> x + (x << k)
@@ -2368,10 +2356,9 @@ TEST_P(InstructionSelectorFPArithTest, Parameter) {
   EXPECT_EQ(1U, s[0]->OutputCount());
 }
 
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorFPArithTest,
-                        ::testing::ValuesIn(kFPArithInstructions));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorFPArithTest,
+                         ::testing::ValuesIn(kFPArithInstructions));
 
 typedef InstructionSelectorTestWithParam<FPCmp> InstructionSelectorFPCmpTest;
 
@@ -2428,10 +2415,8 @@ TEST_P(InstructionSelectorFPCmpTest, WithImmediateZeroOnLeft) {
   EXPECT_EQ(cmp.commuted_cond, s[0]->flags_condition());
 }
 
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorFPCmpTest,
-                        ::testing::ValuesIn(kFPCmpInstructions));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest, InstructionSelectorFPCmpTest,
+                         ::testing::ValuesIn(kFPCmpInstructions));
 
 // -----------------------------------------------------------------------------
 // Conversions.
@@ -2455,10 +2440,9 @@ TEST_P(InstructionSelectorConversionTest, Parameter) {
   EXPECT_EQ(1U, s[0]->OutputCount());
 }
 
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorConversionTest,
-                        ::testing::ValuesIn(kConversionInstructions));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorConversionTest,
+                         ::testing::ValuesIn(kConversionInstructions));
 
 typedef InstructionSelectorTestWithParam<MachInst2>
     InstructionSelectorElidedChangeUint32ToUint64Test;
@@ -2477,9 +2461,9 @@ TEST_P(InstructionSelectorElidedChangeUint32ToUint64Test, Parameter) {
   EXPECT_EQ(1U, s[0]->OutputCount());
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorElidedChangeUint32ToUint64Test,
-                        ::testing::ValuesIn(kCanElideChangeUint32ToUint64));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorElidedChangeUint32ToUint64Test,
+                         ::testing::ValuesIn(kCanElideChangeUint32ToUint64));
 
 TEST_F(InstructionSelectorTest, ChangeUint32ToUint64AfterLoad) {
   // For each case, make sure the `ChangeUint32ToUint64` node turned into a
@@ -2873,10 +2857,9 @@ TEST_P(InstructionSelectorMemoryAccessTest, StoreWithShiftedIndex) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorMemoryAccessTest,
-                        ::testing::ValuesIn(kMemoryAccesses));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorMemoryAccessTest,
+                         ::testing::ValuesIn(kMemoryAccesses));
 
 // -----------------------------------------------------------------------------
 // Comparison instructions.
@@ -2943,10 +2926,9 @@ TEST_P(InstructionSelectorComparisonTest, WithImmediate) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorComparisonTest,
-                        ::testing::ValuesIn(kComparisonInstructions));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorComparisonTest,
+                         ::testing::ValuesIn(kComparisonInstructions));
 
 TEST_F(InstructionSelectorTest, Word32EqualWithZero) {
   {
@@ -3705,9 +3687,9 @@ TEST_P(InstructionSelectorFlagSettingTest, CommuteShift) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorFlagSettingTest,
-                        ::testing::ValuesIn(kFlagSettingInstructions));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorFlagSettingTest,
+                         ::testing::ValuesIn(kFlagSettingInstructions));
 
 TEST_F(InstructionSelectorTest, TstInvalidImmediate) {
   // Make sure we do not generate an invalid immediate for TST.
@@ -3841,10 +3823,9 @@ TEST_P(InstructionSelectorLogicalWithNotRHSTest, Parameter) {
   }
 }
 
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorLogicalWithNotRHSTest,
-                        ::testing::ValuesIn(kLogicalWithNotRHSs));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorLogicalWithNotRHSTest,
+                         ::testing::ValuesIn(kLogicalWithNotRHSs));
 
 TEST_F(InstructionSelectorTest, Word32BitwiseNotWithParameter) {
   StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());

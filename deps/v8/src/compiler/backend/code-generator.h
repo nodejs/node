@@ -89,7 +89,7 @@ class DeoptimizationLiteral {
 class CodeGenerator final : public GapResolver::Assembler {
  public:
   explicit CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
-                         InstructionSequence* code,
+                         InstructionSequence* instructions,
                          OptimizedCompilationInfo* info, Isolate* isolate,
                          base::Optional<OsrHelper> osr_helper,
                          int start_source_position,
@@ -108,7 +108,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   OwnedVector<trap_handler::ProtectedInstructionData>
   GetProtectedInstructions();
 
-  InstructionSequence* code() const { return code_; }
+  InstructionSequence* instructions() const { return instructions_; }
   FrameAccessState* frame_access_state() const { return frame_access_state_; }
   const Frame* frame() const { return frame_access_state_->frame(); }
   Isolate* isolate() const { return isolate_; }
@@ -134,6 +134,7 @@ class CodeGenerator final : public GapResolver::Assembler {
 
   Zone* zone() const { return zone_; }
   TurboAssembler* tasm() { return &tasm_; }
+  SafepointTableBuilder* safepoint_table_builder() { return &safepoints_; }
   size_t GetSafepointTableOffset() const { return safepoints_.GetCodeOffset(); }
   size_t GetHandlerTableOffset() const { return handler_table_offset_; }
 
@@ -308,6 +309,7 @@ class CodeGenerator final : public GapResolver::Assembler {
                                 int first_unused_stack_slot);
 
   void FinishCode();
+  void MaybeEmitOutOfLineConstantPool();
 
   // ===========================================================================
   // ============== Architecture-specific gap resolver methods. ================
@@ -400,7 +402,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   Isolate* isolate_;
   FrameAccessState* frame_access_state_;
   Linkage* const linkage_;
-  InstructionSequence* const code_;
+  InstructionSequence* const instructions_;
   UnwindingInfoWriter unwinding_info_writer_;
   OptimizedCompilationInfo* const info_;
   Label* const labels_;

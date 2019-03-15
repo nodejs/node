@@ -5,6 +5,7 @@
 #include "src/heap/item-parallel-job.h"
 
 #include "src/base/platform/semaphore.h"
+#include "src/counters.h"
 #include "src/v8.h"
 
 namespace v8 {
@@ -12,16 +13,9 @@ namespace internal {
 
 ItemParallelJob::Task::Task(Isolate* isolate) : CancelableTask(isolate) {}
 
-ItemParallelJob::Task::~Task() {
-  // The histogram is reset in RunInternal(). If it's still around it means
-  // this task was cancelled before being scheduled.
-  if (gc_parallel_task_latency_histogram_)
-    gc_parallel_task_latency_histogram_->RecordAbandon();
-}
-
-void ItemParallelJob::Task::SetupInternal(
-    base::Semaphore* on_finish, std::vector<Item*>* items, size_t start_index,
-    base::Optional<AsyncTimedHistogram> gc_parallel_task_latency_histogram) {
+void ItemParallelJob::Task::SetupInternal(base::Semaphore* on_finish,
+                                          std::vector<Item*>* items,
+                                          size_t start_index) {
   on_finish_ = on_finish;
   items_ = items;
 
@@ -30,17 +24,9 @@ void ItemParallelJob::Task::SetupInternal(
   } else {
     items_considered_ = items_->size();
   }
-
-  gc_parallel_task_latency_histogram_ =
-      std::move(gc_parallel_task_latency_histogram);
 }
 
 void ItemParallelJob::Task::RunInternal() {
-  if (gc_parallel_task_latency_histogram_) {
-    gc_parallel_task_latency_histogram_->RecordDone();
-    gc_parallel_task_latency_histogram_.reset();
-  }
-
   RunInParallel();
   on_finish_->Signal();
 }
@@ -58,7 +44,7 @@ ItemParallelJob::~ItemParallelJob() {
   }
 }
 
-void ItemParallelJob::Run(const std::shared_ptr<Counters>& async_counters) {
+void ItemParallelJob::Run() {
   DCHECK_GT(tasks_.size(), 0);
   const size_t num_items = items_.size();
   const size_t num_tasks = tasks_.size();
@@ -67,9 +53,6 @@ void ItemParallelJob::Run(const std::shared_ptr<Counters>& async_counters) {
                        "ItemParallelJob::Run", TRACE_EVENT_SCOPE_THREAD,
                        "num_tasks", static_cast<int>(num_tasks), "num_items",
                        static_cast<int>(num_items));
-
-  AsyncTimedHistogram gc_parallel_task_latency_histogram(
-      async_counters->gc_parallel_task_latency(), async_counters);
 
   // Some jobs have more tasks than items (when the items are mere coarse
   // grain tasks that generate work dynamically for a second phase which all
@@ -101,9 +84,7 @@ void ItemParallelJob::Run(const std::shared_ptr<Counters>& async_counters) {
     // assigning work items.
     DCHECK_IMPLIES(start_index >= num_items, i >= num_tasks_processing_items);
 
-    task->SetupInternal(pending_tasks_, &items_, start_index,
-                        i > 0 ? gc_parallel_task_latency_histogram
-                              : base::Optional<AsyncTimedHistogram>());
+    task->SetupInternal(pending_tasks_, &items_, start_index);
     task_ids[i] = task->id();
     if (i > 0) {
       V8::GetCurrentPlatform()->CallBlockingTaskOnWorkerThread(std::move(task));

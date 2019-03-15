@@ -74,7 +74,10 @@ namespace internal {
 #define COMPARE(ASM, EXP)                                                \
   assm->Reset();                                                         \
   assm->ASM;                                                             \
-  assm->GetCode(isolate, nullptr);                                       \
+  {                                                                      \
+    CodeDesc desc;                                                       \
+    assm->GetCode(isolate, &desc);                                       \
+  }                                                                      \
   decoder->Decode(reinterpret_cast<Instruction*>(buf));                  \
   encoding = *reinterpret_cast<uint32_t*>(buf);                          \
   if (strcmp(disasm->GetOutput(), EXP) != 0) {                           \
@@ -86,7 +89,10 @@ namespace internal {
 #define COMPARE_PREFIX(ASM, EXP)                                         \
   assm->Reset();                                                         \
   assm->ASM;                                                             \
-  assm->GetCode(isolate, nullptr);                                       \
+  {                                                                      \
+    CodeDesc desc;                                                       \
+    assm->GetCode(isolate, &desc);                                       \
+  }                                                                      \
   decoder->Decode(reinterpret_cast<Instruction*>(buf));                  \
   encoding = *reinterpret_cast<uint32_t*>(buf);                          \
   if (strncmp(disasm->GetOutput(), EXP, strlen(EXP)) != 0) {             \

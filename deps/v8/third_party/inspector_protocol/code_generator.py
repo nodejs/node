@@ -33,14 +33,14 @@ def read_config():
         def json_object_hook(object_dict):
             items = [(k, os.path.join(config_base, v) if k == "path" else v) for (k, v) in object_dict.items()]
             items = [(k, os.path.join(output_base, v) if k == "output" else v) for (k, v) in items]
-            keys, values = zip(*items)
+            keys, values = list(zip(*items))
             return collections.namedtuple('X', keys)(*values)
         return json.loads(data, object_hook=json_object_hook)
 
     def init_defaults(config_tuple, path, defaults):
         keys = list(config_tuple._fields)  # pylint: disable=E1101
         values = [getattr(config_tuple, k) for k in keys]
-        for i in xrange(len(keys)):
+        for i in range(len(keys)):
             if hasattr(values[i], "_fields"):
                 values[i] = init_defaults(values[i], path + "." + keys[i], defaults)
         for optional in defaults:
@@ -134,7 +134,7 @@ def dash_to_camelcase(word):
 
 
 def to_snake_case(name):
-    return re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", name, sys.maxint).lower()
+    return re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", name, sys.maxsize).lower()
 
 
 def to_method_case(config, name):
@@ -623,7 +623,7 @@ def main():
         lib_templates_dir = os.path.join(module_path, "lib")
         # Note these should be sorted in the right order.
         # TODO(dgozman): sort them programmatically based on commented includes.
-        lib_h_templates = [
+        protocol_h_templates = [
             "ErrorSupport_h.template",
             "Values_h.template",
             "Object_h.template",
@@ -632,21 +632,31 @@ def main():
             "Array_h.template",
             "DispatcherBase_h.template",
             "Parser_h.template",
+            "CBOR_h.template",
         ]
 
-        lib_cpp_templates = [
+        protocol_cpp_templates = [
             "Protocol_cpp.template",
             "ErrorSupport_cpp.template",
             "Values_cpp.template",
             "Object_cpp.template",
             "DispatcherBase_cpp.template",
             "Parser_cpp.template",
+            "CBOR_cpp.template",
         ]
 
         forward_h_templates = [
             "Forward_h.template",
             "Allocator_h.template",
             "FrontendChannel_h.template",
+        ]
+
+        base_string_adapter_h_templates = [
+            "base_string_adapter_h.template",
+        ]
+
+        base_string_adapter_cc_templates = [
+            "base_string_adapter_cc.template",
         ]
 
         def generate_lib_file(file_name, template_files):
@@ -658,20 +668,22 @@ def main():
             outputs[file_name] = "\n\n".join(parts)
 
         generate_lib_file(os.path.join(config.lib.output, to_file_name(config, "Forward.h")), forward_h_templates)
-        generate_lib_file(os.path.join(config.lib.output, to_file_name(config, "Protocol.h")), lib_h_templates)
-        generate_lib_file(os.path.join(config.lib.output, to_file_name(config, "Protocol.cpp")), lib_cpp_templates)
+        generate_lib_file(os.path.join(config.lib.output, to_file_name(config, "Protocol.h")), protocol_h_templates)
+        generate_lib_file(os.path.join(config.lib.output, to_file_name(config, "Protocol.cpp")), protocol_cpp_templates)
+        generate_lib_file(os.path.join(config.lib.output, to_file_name(config, "base_string_adapter.h")), base_string_adapter_h_templates)
+        generate_lib_file(os.path.join(config.lib.output, to_file_name(config, "base_string_adapter.cc")), base_string_adapter_cc_templates)
 
     # Make gyp / make generatos happy, otherwise make rebuilds world.
     inputs_ts = max(map(os.path.getmtime, inputs))
     up_to_date = True
-    for output_file in outputs.iterkeys():
+    for output_file in outputs.keys():
         if not os.path.exists(output_file) or os.path.getmtime(output_file) < inputs_ts:
             up_to_date = False
             break
     if up_to_date:
         sys.exit()
 
-    for file_name, content in outputs.iteritems():
+    for file_name, content in outputs.items():
         out_file = open(file_name, "w")
         out_file.write(content)
         out_file.close()

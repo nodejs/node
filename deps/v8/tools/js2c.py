@@ -31,6 +31,9 @@
 # char arrays. It is used for embedded JavaScript code in the V8
 # library.
 
+# for py2/py3 compatibility
+from functools import reduce
+
 import os, re
 import optparse
 import textwrap
@@ -249,7 +252,7 @@ def BuildMetadata(sources, source_bytes, native_type):
   get_script_name_cases = []
   get_script_source_cases = []
   offset = 0
-  for i in xrange(len(sources.modules)):
+  for i in range(len(sources.modules)):
     native_name = "native %s.js" % sources.names[i]
     d = {
         "i": i,
@@ -290,7 +293,7 @@ def PutInt(blob_file, value):
   value_with_length = (value << 2) | (size - 1)
 
   byte_sequence = bytearray()
-  for i in xrange(size):
+  for i in range(size):
     byte_sequence.append(value_with_length & 255)
     value_with_length >>= 8;
   blob_file.write(byte_sequence)
@@ -312,7 +315,7 @@ def WriteStartupBlob(sources, startup_blob):
   output = open(startup_blob, "wb")
 
   PutInt(output, len(sources.names))
-  for i in xrange(len(sources.names)):
+  for i in range(len(sources.names)):
     PutStr(output, sources.names[i]);
     PutStr(output, sources.modules[i]);
 

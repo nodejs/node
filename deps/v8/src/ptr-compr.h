@@ -99,6 +99,8 @@ class CompressedMaybeObjectSlot
   explicit CompressedMaybeObjectSlot(Address ptr) : SlotBase(ptr) {}
   explicit CompressedMaybeObjectSlot(Object* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
+  explicit CompressedMaybeObjectSlot(MaybeObject* ptr)
+      : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
   explicit CompressedMaybeObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)
       : SlotBase(slot.address()) {}

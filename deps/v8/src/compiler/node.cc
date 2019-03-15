@@ -25,7 +25,7 @@ void Node::OutOfLineInputs::ExtractFrom(Use* old_use_ptr, Node** old_input_ptr,
   // Extract the inputs from the old use and input pointers and copy them
   // to this out-of-line-storage.
   Use* new_use_ptr = reinterpret_cast<Use*>(this) - 1;
-  Node** new_input_ptr = inputs_;
+  Node** new_input_ptr = inputs();
   for (int current = 0; current < count; current++) {
     new_use_ptr->bit_field_ =
         Use::InputIndexField::encode(current) | Use::InlineField::encode(false);
@@ -72,20 +72,21 @@ Node* Node::New(Zone* zone, NodeId id, const Operator* op, int input_count,
         has_extensible_inputs ? input_count + kMaxInlineCapacity : input_count;
     OutOfLineInputs* outline = OutOfLineInputs::New(zone, capacity);
 
-    // Allocate node.
-    void* node_buffer = zone->New(sizeof(Node));
+    // Allocate node, with space for OutOfLineInputs pointer.
+    void* node_buffer = zone->New(sizeof(Node) + sizeof(OutOfLineInputs*));
     node = new (node_buffer) Node(id, op, kOutlineMarker, 0);
-    node->inputs_.outline_ = outline;
+    node->set_outline_inputs(outline);
 
     outline->node_ = node;
     outline->count_ = input_count;
 
-    input_ptr = outline->inputs_;
+    input_ptr = outline->inputs();
     use_ptr = reinterpret_cast<Use*>(outline);
     is_inline = false;
   } else {
-    // Allocate node with inline inputs.
-    int capacity = input_count;
+    // Allocate node with inline inputs. Capacity must be at least 1 so that
+    // an OutOfLineInputs pointer can be stored when inputs are added later.
+    int capacity = std::max(1, input_count);
     if (has_extensible_inputs) {
       const int max = kMaxInlineCapacity;
       capacity = std::min(input_count + 3, max);
@@ -97,7 +98,7 @@ Node* Node::New(Zone* zone, NodeId id, const Operator* op, int input_count,
         reinterpret_cast<void*>(raw_buffer + capacity * sizeof(Use));
 
     node = new (node_buffer) Node(id, op, input_count, capacity);
-    input_ptr = node->inputs_.inline_;
+    input_ptr = node->inline_inputs();
     use_ptr = reinterpret_cast<Use*>(node);
     is_inline = true;
   }
@@ -119,8 +120,8 @@ Node* Node::New(Zone* zone, NodeId id, const Operator* op, int input_count,
 Node* Node::Clone(Zone* zone, NodeId id, const Node* node) {
   int const input_count = node->InputCount();
   Node* const* const inputs = node->has_inline_inputs()
-                                  ? node->inputs_.inline_
-                                  : node->inputs_.outline_->inputs_;
+                                  ? node->inline_inputs()
+                                  : node->outline_inputs()->inputs();
   Node* const clone = New(zone, id, node->op(), input_count, inputs, false);
   clone->set_type(node->type());
   return clone;
@@ -158,16 +159,16 @@ void Node::AppendInput(Zone* zone, Node* new_to) {
       outline->node_ = this;
       outline->ExtractFrom(GetUsePtr(0), GetInputPtr(0), input_count);
       bit_field_ = InlineCountField::update(bit_field_, kOutlineMarker);
-      inputs_.outline_ = outline;
+      set_outline_inputs(outline);
     } else {
       // use current out of line inputs.
-      outline = inputs_.outline_;
+      outline = outline_inputs();
       if (input_count >= outline->capacity_) {
         // out of space in out-of-line inputs.
         outline = OutOfLineInputs::New(zone, input_count * 2 + 3);
         outline->node_ = this;
         outline->ExtractFrom(GetUsePtr(0), GetInputPtr(0), input_count);
-        inputs_.outline_ = outline;
+        set_outline_inputs(outline);
       }
     }
     outline->count_++;
@@ -247,7 +248,7 @@ void Node::TrimInputCount(int new_input_count) {
   if (has_inline_inputs()) {
     bit_field_ = InlineCountField::update(bit_field_, new_input_count);
   } else {
-    inputs_.outline_->count_ = new_input_count;
+    outline_inputs()->count_ = new_input_count;
   }
 }
 

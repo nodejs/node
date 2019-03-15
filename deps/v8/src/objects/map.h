@@ -18,10 +18,16 @@ namespace internal {
 
 enum InstanceType : uint16_t;
 
-#define VISITOR_ID_LIST(V)             \
+#define DATA_ONLY_VISITOR_ID_LIST(V) \
+  V(BigInt)                          \
+  V(ByteArray)                       \
+  V(DataObject)                      \
+  V(FixedDoubleArray)                \
+  V(SeqOneByteString)                \
+  V(SeqTwoByteString)
+
+#define POINTER_VISITOR_ID_LIST(V)     \
   V(AllocationSite)                    \
-  V(BigInt)                            \
-  V(ByteArray)                         \
   V(BytecodeArray)                     \
   V(Cell)                              \
   V(Code)                              \
@@ -29,14 +35,12 @@ enum InstanceType : uint16_t;
   V(ConsString)                        \
   V(Context)                           \
   V(DataHandler)                       \
-  V(DataObject)                        \
   V(DescriptorArray)                   \
   V(EmbedderDataArray)                 \
   V(EphemeronHashTable)                \
   V(FeedbackCell)                      \
   V(FeedbackVector)                    \
   V(FixedArray)                        \
-  V(FixedDoubleArray)                  \
   V(FixedFloat64Array)                 \
   V(FixedTypedArrayBase)               \
   V(FreeSpace)                         \
@@ -47,7 +51,6 @@ enum InstanceType : uint16_t;
   V(JSObject)                          \
   V(JSObjectFast)                      \
   V(JSTypedArray)                      \
-  V(JSWeakCell)                        \
   V(JSWeakRef)                         \
   V(JSWeakCollection)                  \
   V(Map)                               \
@@ -57,8 +60,6 @@ enum InstanceType : uint16_t;
   V(PropertyArray)                     \
   V(PropertyCell)                      \
   V(PrototypeInfo)                     \
-  V(SeqOneByteString)                  \
-  V(SeqTwoByteString)                  \
   V(SharedFunctionInfo)                \
   V(ShortcutCandidate)                 \
   V(SlicedString)                      \
@@ -72,22 +73,24 @@ enum InstanceType : uint16_t;
   V(UncompiledDataWithoutPreparseData) \
   V(UncompiledDataWithPreparseData)    \
   V(WasmInstanceObject)                \
-  V(WeakArray)
+  V(WeakArray)                         \
+  V(WeakCell)
 
-// For data objects, JS objects and structs along with generic visitor which
-// can visit object of any size we provide visitors specialized by
-// object size in words.
-// Ids of specialized visitors are declared in a linear order (without
-// holes) starting from the id of visitor specialized for 2 words objects
-// (base visitor id) and ending with the id of generic visitor.
-// Method GetVisitorIdForSize depends on this ordering to calculate visitor
-// id of specialized visitor from given instance size, base visitor id and
-// generic visitor's id.
+// Objects with the same visitor id are processed in the same way by
+// the heap visitors. The visitor ids for data only objects must precede
+// other visitor ids. We rely on kDataOnlyVisitorIdCount for quick check
+// of whether an object contains only data or may contain pointers.
 enum VisitorId {
 #define VISITOR_ID_ENUM_DECL(id) kVisit##id,
-  VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
+  DATA_ONLY_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL) kDataOnlyVisitorIdCount,
+  POINTER_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
 #undef VISITOR_ID_ENUM_DECL
       kVisitorIdCount
+};
+
+enum class ObjectFields {
+  kDataOnly,
+  kMaybePointers,
 };
 
 typedef std::vector<Handle<Map>> MapHandles;
@@ -271,6 +274,10 @@ class Map : public HeapObject {
   // Bit field 3.
   //
   DECL_PRIMITIVE_ACCESSORS(bit_field3, uint32_t)
+
+  // Clear uninitialized padding space. This ensures that the snapshot content
+  // is deterministic. Depending on the V8 build mode there could be no padding.
+  V8_INLINE void clear_padding();
 
 // Bit positions for |bit_field3|.
 #define MAP_BIT_FIELD3_FIELDS(V, _)                               \
@@ -501,11 +508,10 @@ class Map : public HeapObject {
                               int modify_index, PropertyConstness new_constness,
                               Representation new_representation,
                               Handle<FieldType> new_field_type);
-  // Returns true if |descriptor|'th property is a field that may be generalized
-  // by just updating current map.
-  static inline bool IsInplaceGeneralizableField(PropertyConstness constness,
-                                                 Representation representation,
-                                                 FieldType field_type);
+  // Returns true if the |field_type| is the most general one for
+  // given |representation|.
+  static inline bool IsMostGeneralFieldType(Representation representation,
+                                            FieldType field_type);
 
   // Generalizes constness, representation and field_type if objects with given
   // instance type can have fast elements that can be transitioned by stubs or
@@ -806,6 +812,12 @@ class Map : public HeapObject {
 
   DECL_PRIMITIVE_ACCESSORS(visitor_id, VisitorId)
 
+  static ObjectFields ObjectFieldsFrom(VisitorId visitor_id) {
+    return (visitor_id < kDataOnlyVisitorIdCount)
+               ? ObjectFields::kDataOnly
+               : ObjectFields::kMaybePointers;
+  }
+
   static Handle<Map> TransitionToPrototype(Isolate* isolate, Handle<Map> map,
                                            Handle<Object> prototype);
 
@@ -815,29 +827,29 @@ class Map : public HeapObject {
   static const int kMaxPreAllocatedPropertyFields = 255;
 
   // Layout description.
-#define MAP_FIELDS(V)                                                     \
-  /* Raw data fields. */                                                  \
-  V(kInstanceSizeInWordsOffset, kUInt8Size)                               \
-  V(kInObjectPropertiesStartOrConstructorFunctionIndexOffset, kUInt8Size) \
-  V(kUsedOrUnusedInstanceSizeInWordsOffset, kUInt8Size)                   \
-  V(kVisitorIdOffset, kUInt8Size)                                         \
-  V(kInstanceTypeOffset, kUInt16Size)                                     \
-  V(kBitFieldOffset, kUInt8Size)                                          \
-  V(kBitField2Offset, kUInt8Size)                                         \
-  V(kBitField3Offset, kUInt32Size)                                        \
-  V(k64BitArchPaddingOffset,                                              \
-    kSystemPointerSize == kUInt32Size ? 0 : kUInt32Size)                  \
-  /* Pointer fields. */                                                   \
-  V(kPointerFieldsBeginOffset, 0)                                         \
-  V(kPrototypeOffset, kTaggedSize)                                        \
-  V(kConstructorOrBackPointerOffset, kTaggedSize)                         \
-  V(kTransitionsOrPrototypeInfoOffset, kTaggedSize)                       \
-  V(kDescriptorsOffset, kTaggedSize)                                      \
-  V(kLayoutDescriptorOffset, FLAG_unbox_double_fields ? kTaggedSize : 0)  \
-  V(kDependentCodeOffset, kTaggedSize)                                    \
-  V(kPrototypeValidityCellOffset, kTaggedSize)                            \
-  V(kPointerFieldsEndOffset, 0)                                           \
-  /* Total size. */                                                       \
+#define MAP_FIELDS(V)                                                       \
+  /* Raw data fields. */                                                    \
+  V(kInstanceSizeInWordsOffset, kUInt8Size)                                 \
+  V(kInObjectPropertiesStartOrConstructorFunctionIndexOffset, kUInt8Size)   \
+  V(kUsedOrUnusedInstanceSizeInWordsOffset, kUInt8Size)                     \
+  V(kVisitorIdOffset, kUInt8Size)                                           \
+  V(kInstanceTypeOffset, kUInt16Size)                                       \
+  V(kBitFieldOffset, kUInt8Size)                                            \
+  V(kBitField2Offset, kUInt8Size)                                           \
+  V(kBitField3Offset, kUInt32Size)                                          \
+  /* Adds padding to make tagged fields kTaggedSize-aligned. */             \
+  V(kOptionalPaddingOffset, OBJECT_POINTER_PADDING(kOptionalPaddingOffset)) \
+  /* Pointer fields. */                                                     \
+  V(kPointerFieldsBeginOffset, 0)                                           \
+  V(kPrototypeOffset, kTaggedSize)                                          \
+  V(kConstructorOrBackPointerOffset, kTaggedSize)                           \
+  V(kTransitionsOrPrototypeInfoOffset, kTaggedSize)                         \
+  V(kDescriptorsOffset, kTaggedSize)                                        \
+  V(kLayoutDescriptorOffset, FLAG_unbox_double_fields ? kTaggedSize : 0)    \
+  V(kDependentCodeOffset, kTaggedSize)                                      \
+  V(kPrototypeValidityCellOffset, kTaggedSize)                              \
+  V(kPointerFieldsEndOffset, 0)                                             \
+  /* Total size. */                                                         \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, MAP_FIELDS)
@@ -997,12 +1009,11 @@ class NormalizedMapCache : public WeakFixedArray {
   void Set(Handle<Map> fast_map, Handle<Map> normalized_map);
 
   DECL_CAST(NormalizedMapCache)
-
-  static inline bool IsNormalizedMapCache(const HeapObject obj);
-
   DECL_VERIFIER(NormalizedMapCache)
 
  private:
+  friend bool HeapObject::IsNormalizedMapCache() const;
+
   static const int kEntries = 64;
 
   static inline int GetIndex(Handle<Map> map);
@@ -1011,7 +1022,7 @@ class NormalizedMapCache : public WeakFixedArray {
   Object get(int index);
   void set(int index, Object value);
 
-  OBJECT_CONSTRUCTORS(NormalizedMapCache, WeakFixedArray)
+  OBJECT_CONSTRUCTORS(NormalizedMapCache, WeakFixedArray);
 };
 
 }  // namespace internal

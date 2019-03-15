@@ -92,7 +92,7 @@ class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
 };
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(ArchDefaultRegisterConfiguration,
-                                GetDefaultRegisterConfiguration);
+                                GetDefaultRegisterConfiguration)
 
 // Allocatable registers with the masking register removed.
 class ArchDefaultPoisoningRegisterConfiguration : public RegisterConfiguration {
@@ -128,7 +128,7 @@ int ArchDefaultPoisoningRegisterConfiguration::allocatable_general_codes_
     [kMaxAllocatableGeneralRegisterCount - 1];
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(ArchDefaultPoisoningRegisterConfiguration,
-                                GetDefaultPoisoningRegisterConfiguration);
+                                GetDefaultPoisoningRegisterConfiguration)
 
 // RestrictedRegisterConfiguration uses the subset of allocatable general
 // registers the architecture support, which results into generating assembly

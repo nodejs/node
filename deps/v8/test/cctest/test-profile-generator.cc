@@ -491,7 +491,7 @@ TEST(SampleIds) {
   CHECK_EQ(3, profile->samples_count());
   unsigned expected_id[] = {3, 5, 7};
   for (int i = 0; i < 3; i++) {
-    CHECK_EQ(expected_id[i], profile->sample(i)->id());
+    CHECK_EQ(expected_id[i], profile->sample(i).node->id());
   }
 }
 

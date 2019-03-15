@@ -21,7 +21,6 @@
 #include "src/libsampler/sampler.h"
 #include "src/objects-inl.h"
 #include "src/profiler/heap-profiler.h"
-#include "src/reloc-info.h"
 #include "src/runtime-profiler.h"
 #include "src/simulator.h"
 #include "src/snapshot/natives.h"
@@ -48,12 +47,11 @@ bool V8::Initialize() {
 
 
 void V8::TearDown() {
+  wasm::WasmEngine::GlobalTearDown();
 #if defined(USE_SIMULATOR)
   Simulator::GlobalTearDown();
 #endif
-  wasm::WasmEngine::GlobalTearDown();
   CallDescriptors::TearDown();
-  Bootstrapper::TearDownExtensions();
   ElementsAccessor::TearDown();
   RegisteredExtension::UnregisterAll();
   FlagList::ResetAllFlags();  // Frees memory held by string arguments.
@@ -78,6 +76,20 @@ void V8::InitializeOncePerProcessImpl() {
     // Create an empty file shared by the process (e.g. the wasm engine).
     std::ofstream(Isolate::GetTurboCfgFileName(nullptr).c_str(),
                   std::ios_base::trunc);
+  }
+
+  // Do not expose wasm in jitless mode.
+  //
+  // Even in interpreter-only mode, wasm currently still creates executable
+  // memory at runtime. Unexpose wasm until this changes.
+  // The correctness fuzzers are a special case: many of their test cases are
+  // built by fetching a random property from the the global object, and thus
+  // the global object layout must not change between configs. That is why we
+  // continue exposing wasm on correctness fuzzers even in jitless mode.
+  // TODO(jgruber): Remove this once / if wasm can run without executable
+  // memory.
+  if (FLAG_jitless && !FLAG_abort_on_stack_or_string_length_overflow) {
+    FLAG_expose_wasm = false;
   }
 
   base::OS::Initialize(FLAG_hard_abort, FLAG_gc_fake_mmap);

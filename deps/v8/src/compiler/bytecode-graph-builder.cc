@@ -18,6 +18,7 @@
 #include "src/objects/js-generator.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/smi.h"
+#include "src/objects/template-objects-inl.h"
 #include "src/vector-slot-pair.h"
 
 namespace v8 {
@@ -550,6 +551,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       state_values_cache_(jsgraph),
       source_positions_(source_positions),
       start_position_(shared_info->StartPosition(), inlining_id),
+      shared_info_(shared_info),
       native_context_(native_context) {}
 
 Node* BytecodeGraphBuilder::GetFunctionClosure() {
@@ -1696,8 +1698,8 @@ void BytecodeGraphBuilder::VisitGetTemplateObject() {
     // It's not observable when the template object is created, so we
     // can just create it eagerly during graph building and bake in
     // the JSArray constant here.
-    cached_value =
-        TemplateObjectDescription::CreateTemplateObject(isolate(), description);
+    cached_value = TemplateObjectDescription::GetTemplateObject(
+        isolate(), native_context(), description, shared_info(), slot.ToInt());
     nexus.vector()->Set(slot, *cached_value);
   } else {
     cached_value =
@@ -2168,7 +2170,7 @@ void BytecodeGraphBuilder::BuildHoleCheckAndThrow(
         bytecode_iterator().current_offset()));
     Node* node;
     const Operator* op = javascript()->CallRuntime(runtime_id);
-    if (runtime_id == Runtime::kThrowReferenceError) {
+    if (runtime_id == Runtime::kThrowAccessedUninitializedVariable) {
       DCHECK_NOT_NULL(name);
       node = NewNode(op, name);
     } else {
@@ -2190,7 +2192,8 @@ void BytecodeGraphBuilder::VisitThrowReferenceErrorIfHole() {
                                  jsgraph()->TheHoleConstant());
   Node* name = jsgraph()->Constant(
       handle(bytecode_iterator().GetConstantForIndexOperand(0), isolate()));
-  BuildHoleCheckAndThrow(check_for_hole, Runtime::kThrowReferenceError, name);
+  BuildHoleCheckAndThrow(check_for_hole,
+                         Runtime::kThrowAccessedUninitializedVariable, name);
 }
 
 void BytecodeGraphBuilder::VisitThrowSuperNotCalledIfHole() {
@@ -2539,7 +2542,9 @@ void BytecodeGraphBuilder::VisitTestIn() {
   Node* object = environment()->LookupAccumulator();
   Node* key =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  Node* node = NewNode(javascript()->HasProperty(), object, key);
+  VectorSlotPair feedback =
+      CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(1));
+  Node* node = NewNode(javascript()->HasProperty(feedback), object, key);
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
@@ -2804,7 +2809,7 @@ void BytecodeGraphBuilder::VisitDebugger() {
 // We cannot create a graph from the debugger copy of the bytecode array.
 #define DEBUG_BREAK(Name, ...) \
   void BytecodeGraphBuilder::Visit##Name() { UNREACHABLE(); }
-DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK);
+DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK)
 #undef DEBUG_BREAK
 
 void BytecodeGraphBuilder::VisitIncBlockCounter() {
@@ -3481,7 +3486,9 @@ Node* BytecodeGraphBuilder::MakeNode(const Operator* op, int value_input_count,
     if (has_control) ++input_count_with_deps;
     if (has_effect) ++input_count_with_deps;
     Node** buffer = EnsureInputBufferSize(input_count_with_deps);
-    memcpy(buffer, value_inputs, kSystemPointerSize * value_input_count);
+    if (value_input_count > 0) {
+      memcpy(buffer, value_inputs, kSystemPointerSize * value_input_count);
+    }
     Node** current_input = buffer + value_input_count;
     if (has_context) {
       *current_input++ = OperatorProperties::NeedsExactContext(op)

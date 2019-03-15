@@ -47,11 +47,13 @@ function test() {
     }
   }
 
+  %PrepareFunctionForOptimization(f4);
   f4(9);
   f4(11);
   %OptimizeFunctionOnNextCall(f4);
   f4(12);
 
+  %PrepareFunctionForOptimization(f5);
   f5(9);
   f5(11);
   %OptimizeFunctionOnNextCall(f5);

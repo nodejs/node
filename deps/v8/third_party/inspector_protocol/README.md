@@ -26,3 +26,8 @@ to fetch the package (and dependencies) and build and run the tests:
     gn gen out/Release
     ninja -C out/Release json_parser_test
     out/Release/json_parser_test
+
+You'll probably also need to install g++, since Clang uses this to find the
+standard C++ headers. E.g.,
+
+    sudo apt-get install g++-8

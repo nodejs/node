@@ -7,6 +7,7 @@
 
 #include "src/allocation.h"
 #include "src/assert-scope.h"
+#include "src/utils.h"
 #include "src/v8memory.h"
 #include "src/zone/zone-chunk-list.h"
 #include "src/zone/zone.h"
@@ -143,7 +144,7 @@ class SafepointTable {
   static void PrintBits(std::ostream& os,  // NOLINT
                         uint8_t byte, int digits);
 
-  DISALLOW_HEAP_ALLOCATION(no_allocation_);
+  DISALLOW_HEAP_ALLOCATION(no_allocation_)
   Address instruction_start_;
   uint32_t stack_slots_;
   unsigned length_;

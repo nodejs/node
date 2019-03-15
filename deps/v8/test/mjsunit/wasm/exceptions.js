@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm --experimental-wasm-eh --allow-natives-syntax
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 load("test/mjsunit/wasm/exceptions-utils.js");
 

@@ -24,8 +24,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // ===========================================================================
   // Access to external values (based on external references).
 
-  // Provides access to a tagged field identified by an external reference.
-  static FieldAccess ForExternalTaggedValue();
+  // Provides access to an intptr field identified by an external reference.
+  static FieldAccess ForExternalIntPtr();
 
   // Provides access to an uint8 field identified by an external reference.
   static FieldAccess ForExternalUint8Value();
@@ -282,6 +282,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static ElementAccess ForFixedArrayElement(
       ElementsKind kind,
       LoadSensitivity load_sensitivity = LoadSensitivity::kUnsafe);
+
+  // Provides access to stack arguments
+  static ElementAccess ForStackArgument();
 
   // Provides access to FixedDoubleArray elements.
   static ElementAccess ForFixedDoubleArrayElement();

@@ -16,6 +16,7 @@
     return dv.getInt8(0);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(dv));
   assertEquals(0, foo(dv));
   %OptimizeFunctionOnNextCall(foo);
@@ -24,6 +25,7 @@
   %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv), TypeError);
   assertUnoptimized(foo);
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertThrows(() => foo(dv), TypeError);
   assertOptimized(foo);
@@ -38,6 +40,7 @@
     return dv.getUint8(0);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(dv));
   assertEquals(0, foo(dv));
   %OptimizeFunctionOnNextCall(foo);
@@ -46,6 +49,7 @@
   %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv), TypeError);
   assertUnoptimized(foo);
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertThrows(() => foo(dv), TypeError);
   assertOptimized(foo);
@@ -60,6 +64,7 @@
     return dv.getInt16(0, true);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(dv));
   assertEquals(0, foo(dv));
   %OptimizeFunctionOnNextCall(foo);
@@ -68,6 +73,7 @@
   %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv), TypeError);
   assertUnoptimized(foo);
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertThrows(() => foo(dv), TypeError);
   assertOptimized(foo);
@@ -82,6 +88,7 @@
     return dv.getUint16(0, true);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(dv));
   assertEquals(0, foo(dv));
   %OptimizeFunctionOnNextCall(foo);
@@ -90,6 +97,7 @@
   %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv), TypeError);
   assertUnoptimized(foo);
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertThrows(() => foo(dv), TypeError);
   assertOptimized(foo);
@@ -104,6 +112,7 @@
     return dv.getInt32(0, true);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(dv));
   assertEquals(0, foo(dv));
   %OptimizeFunctionOnNextCall(foo);
@@ -112,6 +121,7 @@
   %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv), TypeError);
   assertUnoptimized(foo);
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertThrows(() => foo(dv), TypeError);
   assertOptimized(foo);
@@ -126,6 +136,7 @@
     return dv.getUint32(0, true);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(dv));
   assertEquals(0, foo(dv));
   %OptimizeFunctionOnNextCall(foo);
@@ -134,6 +145,7 @@
   %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv), TypeError);
   assertUnoptimized(foo);
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertThrows(() => foo(dv), TypeError);
   assertOptimized(foo);
@@ -148,6 +160,7 @@
     return dv.getFloat32(0, true);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(dv));
   assertEquals(0, foo(dv));
   %OptimizeFunctionOnNextCall(foo);
@@ -156,6 +169,7 @@
   %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv), TypeError);
   assertUnoptimized(foo);
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertThrows(() => foo(dv), TypeError);
   assertOptimized(foo);
@@ -170,6 +184,7 @@
     return dv.getFloat64(0, true);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(dv));
   assertEquals(0, foo(dv));
   %OptimizeFunctionOnNextCall(foo);
@@ -178,6 +193,7 @@
   %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv), TypeError);
   assertUnoptimized(foo);
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertThrows(() => foo(dv), TypeError);
   assertOptimized(foo);
@@ -192,6 +208,7 @@
     return dv.setInt8(0, x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(undefined, foo(dv, 1));
   assertEquals(1, dv.getInt8(0));
   assertEquals(undefined, foo(dv, 2));
@@ -202,6 +219,7 @@
   %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv, 4), TypeError);
   assertUnoptimized(foo);
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertThrows(() => foo(dv, 5), TypeError);
   assertOptimized(foo);
@@ -216,6 +234,7 @@
     return dv.setUint8(0, x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(undefined, foo(dv, 1));
   assertEquals(1, dv.getUint8(0));
   assertEquals(undefined, foo(dv, 2));
@@ -226,6 +245,7 @@
   %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv, 4), TypeError);
   assertUnoptimized(foo);
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertThrows(() => foo(dv, 5), TypeError);
   assertOptimized(foo);
@@ -240,6 +260,7 @@
     return dv.setInt16(0, x, true);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(undefined, foo(dv, 1));
   assertEquals(1, dv.getInt16(0, true));
   assertEquals(undefined, foo(dv, 2));
@@ -250,6 +271,7 @@
   %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv, 4), TypeError);
   assertUnoptimized(foo);
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertThrows(() => foo(dv, 5), TypeError);
   assertOptimized(foo);
@@ -264,6 +286,7 @@
     return dv.setUint16(0, x, true);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(undefined, foo(dv, 1));
   assertEquals(1, dv.getUint16(0, true));
   assertEquals(undefined, foo(dv, 2));
@@ -274,6 +297,7 @@
   %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv, 4), TypeError);
   assertUnoptimized(foo);
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertThrows(() => foo(dv, 5), TypeError);
   assertOptimized(foo);
@@ -288,6 +312,7 @@
     return dv.setInt32(0, x, true);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(undefined, foo(dv, 1));
   assertEquals(1, dv.getInt32(0, true));
   assertEquals(undefined, foo(dv, 2));
@@ -298,6 +323,7 @@
   %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv, 4), TypeError);
   assertUnoptimized(foo);
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertThrows(() => foo(dv, 5), TypeError);
   assertOptimized(foo);
@@ -312,6 +338,7 @@
     return dv.setUint32(0, x, true);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(undefined, foo(dv, 1));
   assertEquals(1, dv.getUint32(0, true));
   assertEquals(undefined, foo(dv, 2));
@@ -322,6 +349,7 @@
   %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv, 4), TypeError);
   assertUnoptimized(foo);
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertThrows(() => foo(dv, 5), TypeError);
   assertOptimized(foo);
@@ -336,6 +364,7 @@
     return dv.setFloat32(0, x, true);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(undefined, foo(dv, 1));
   assertEquals(1, dv.getFloat32(0, true));
   assertEquals(undefined, foo(dv, 2));
@@ -346,6 +375,7 @@
   %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv, 4), TypeError);
   assertUnoptimized(foo);
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertThrows(() => foo(dv, 5), TypeError);
   assertOptimized(foo);
@@ -360,6 +390,7 @@
     return dv.setFloat64(0, x, true);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(undefined, foo(dv, 1));
   assertEquals(1, dv.getFloat64(0, true));
   assertEquals(undefined, foo(dv, 2));
@@ -370,6 +401,7 @@
   %ArrayBufferDetach(ab);
   assertThrows(() => foo(dv, 4), TypeError);
   assertUnoptimized(foo);
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertThrows(() => foo(dv, 5), TypeError);
   assertOptimized(foo);

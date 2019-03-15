@@ -298,7 +298,9 @@ Assembler::Assembler(const AssemblerOptions& options,
   block_buffer_growth_ = false;
 }
 
-void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
+void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
+                        SafepointTableBuilder* safepoint_table_builder,
+                        int handler_table_offset) {
   EmitForbiddenSlotInstruction();
 
   int code_comments_size = WriteCodeComments();
@@ -308,18 +310,26 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   AllocateAndInstallRequestedHeapObjects(isolate);
 
   // Set up code descriptor.
-  desc->buffer = buffer_start_;
-  desc->buffer_size = buffer_->size();
-  desc->instr_size = pc_offset();
-  desc->reloc_size = static_cast<int>((buffer_start_ + desc->buffer_size) -
-                                      reloc_info_writer.pos());
-  desc->origin = this;
-  desc->constant_pool_size = 0;
-  desc->unwinding_info_size = 0;
-  desc->unwinding_info = nullptr;
-  desc->code_comments_size = code_comments_size;
-}
+  // TODO(jgruber): Reconsider how these offsets and sizes are maintained up to
+  // this point to make CodeDesc initialization less fiddly.
 
+  static constexpr int kConstantPoolSize = 0;
+  const int instruction_size = pc_offset();
+  const int code_comments_offset = instruction_size - code_comments_size;
+  const int constant_pool_offset = code_comments_offset - kConstantPoolSize;
+  const int handler_table_offset2 = (handler_table_offset == kNoHandlerTable)
+                                        ? constant_pool_offset
+                                        : handler_table_offset;
+  const int safepoint_table_offset =
+      (safepoint_table_builder == kNoSafepointTable)
+          ? handler_table_offset2
+          : safepoint_table_builder->GetCodeOffset();
+  const int reloc_info_offset =
+      static_cast<int>(reloc_info_writer.pos() - buffer_->start());
+  CodeDesc::Initialize(desc, this, safepoint_table_offset,
+                       handler_table_offset2, constant_pool_offset,
+                       code_comments_offset, reloc_info_offset);
+}
 
 void Assembler::Align(int m) {
   DCHECK(m >= 4 && base::bits::IsPowerOfTwo(m));
@@ -4291,14 +4301,6 @@ Address Assembler::target_address_at(Address pc) {
 }
 
 
-// MIPS and ia32 use opposite encoding for qNaN and sNaN, such that ia32
-// qNaN is a MIPS sNaN, and ia32 sNaN is MIPS qNaN. If running from a heap
-// snapshot generated on ia32, the resulting MIPS sNaN must be quieted.
-// OS::nan_value() returns a qNaN.
-void Assembler::QuietNaN(HeapObject object) {
-  HeapNumber::cast(object)->set_value(std::numeric_limits<double>::quiet_NaN());
-}
-
 // On Mips64, a target address is stored in a 4-instruction sequence:
 //    0: lui(rd, (j.imm64_ >> 32) & kImm16Mask);
 //    1: ori(rd, rd, (j.imm64_ >> 16) & kImm16Mask);
@@ -4342,7 +4344,7 @@ void Assembler::set_target_value_at(Address pc, uint64_t target,
              (target & kImm16Mask);
 
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(pc, 4 * kInstrSize);
+    FlushInstructionCache(pc, 4 * kInstrSize);
   }
 }
 

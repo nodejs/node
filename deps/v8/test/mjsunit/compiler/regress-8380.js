@@ -13,6 +13,7 @@ function reduceLHS() {
   }
 }
 
+%PrepareFunctionForOptimization(reduceLHS);
 reduceLHS();
 %OptimizeFunctionOnNextCall(reduceLHS);
 reduceLHS();
@@ -27,6 +28,7 @@ function reduceRHS() {
   }
 }
 
+%PrepareFunctionForOptimization(reduceRHS);
 reduceRHS();
 %OptimizeFunctionOnNextCall(reduceRHS);
 reduceRHS();

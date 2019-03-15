@@ -157,6 +157,10 @@ class JsonParser {
   ZoneVector<Handle<Object>> properties_;
 };
 
+// Explicit instantiation declarations.
+extern template class JsonParser<true>;
+extern template class JsonParser<false>;
+
 }  // namespace internal
 }  // namespace v8
 

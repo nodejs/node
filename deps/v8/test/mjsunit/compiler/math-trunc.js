@@ -14,6 +14,7 @@
     return Object.is(-0, Math.trunc(x));
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo(1.5));
   assertTrue(foo(0.5));
   %OptimizeFunctionOnNextCall(foo);
@@ -31,6 +32,7 @@
     return Object.is(NaN, Math.trunc(x));
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo(1.5));
   assertTrue(foo(NaN));
   %OptimizeFunctionOnNextCall(foo);

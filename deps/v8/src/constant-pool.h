@@ -88,6 +88,14 @@ class ConstantPoolBuilder {
  public:
   ConstantPoolBuilder(int ptr_reach_bits, int double_reach_bits);
 
+#ifdef DEBUG
+  ~ConstantPoolBuilder() {
+    // Unused labels to prevent DCHECK failures.
+    emitted_label_.Unuse();
+    emitted_label_.UnuseNear();
+  }
+#endif
+
   // Add pointer-sized constant to the embedded constant pool
   ConstantPoolEntry::Access AddEntry(int position, intptr_t value,
                                      bool sharing_ok) {

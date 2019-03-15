@@ -15,6 +15,7 @@
     return array.filter(v => v > 0);
   }
 
+  %PrepareFunctionForOptimization(filter);
   filter(); filter();
 
   %OptimizeFunctionOnNextCall(filter);

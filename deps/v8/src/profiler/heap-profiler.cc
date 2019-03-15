@@ -40,38 +40,6 @@ void HeapProfiler::RemoveSnapshot(HeapSnapshot* snapshot) {
                    }));
 }
 
-
-void HeapProfiler::DefineWrapperClass(
-    uint16_t class_id, v8::HeapProfiler::WrapperInfoCallback callback) {
-  DCHECK_NE(class_id, v8::HeapProfiler::kPersistentHandleNoClassId);
-  if (wrapper_callbacks_.size() <= class_id) {
-    wrapper_callbacks_.insert(wrapper_callbacks_.end(),
-                              class_id - wrapper_callbacks_.size() + 1,
-                              nullptr);
-  }
-  wrapper_callbacks_[class_id] = callback;
-}
-
-v8::RetainedObjectInfo* HeapProfiler::ExecuteWrapperClassCallback(
-    uint16_t class_id, Handle<Object> wrapper) {
-  if (wrapper_callbacks_.size() <= class_id) return nullptr;
-  return wrapper_callbacks_[class_id](class_id, Utils::ToLocal(wrapper));
-}
-
-void HeapProfiler::SetGetRetainerInfosCallback(
-    v8::HeapProfiler::GetRetainerInfosCallback callback) {
-  get_retainer_infos_callback_ = callback;
-}
-
-v8::HeapProfiler::RetainerInfos HeapProfiler::GetRetainerInfos(
-    Isolate* isolate) {
-  v8::HeapProfiler::RetainerInfos infos;
-  if (get_retainer_infos_callback_ != nullptr)
-    infos =
-        get_retainer_infos_callback_(reinterpret_cast<v8::Isolate*>(isolate));
-  return infos;
-}
-
 void HeapProfiler::AddBuildEmbedderGraphCallback(
     v8::HeapProfiler::BuildEmbedderGraphCallback callback, void* data) {
   build_embedder_graph_callbacks_.push_back({callback, data});

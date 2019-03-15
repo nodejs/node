@@ -23,6 +23,9 @@ Optional flags:
   --with-patch  Also include currently staged files in the V8 checkout.
 """
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import argparse
 import os
 import shutil
@@ -57,7 +60,7 @@ FILES_TO_KEEP = [ "gypfiles" ]
 
 def RunGclient(path):
   assert os.path.isdir(path)
-  print ">> Running gclient sync"
+  print(">> Running gclient sync")
   subprocess.check_call(["gclient", "sync", "--nohooks"], cwd=path)
 
 def CommitPatch(options):
@@ -67,7 +70,7 @@ def CommitPatch(options):
   the fake git clone fetch it into node.js. We can leave the commit, as
   bot_update will ensure a clean state on each run.
   """
-  print ">> Committing patch"
+  print(">> Committing patch")
   subprocess.check_call(
       ["git", "-c", "user.name=fake", "-c", "user.email=fake@chromium.org",
        "commit", "--allow-empty", "-m", "placeholder-commit"],
@@ -77,8 +80,8 @@ def CommitPatch(options):
 def UpdateTarget(repository, options, files_to_keep):
   source = os.path.join(options.v8_path, *repository)
   target = os.path.join(options.node_path, TARGET_SUBDIR, *repository)
-  print ">> Updating target directory %s" % target
-  print ">>     from active branch at %s" % source
+  print(">> Updating target directory %s" % target)
+  print(">>     from active branch at %s" % source)
   if not os.path.exists(target):
     os.makedirs(target)
   # Remove possible remnants of previous incomplete runs.
@@ -111,17 +114,17 @@ def UpdateTarget(repository, options, files_to_keep):
 def UpdateGitIgnore(options):
   file_name = os.path.join(options.node_path, TARGET_SUBDIR, ".gitignore")
   assert os.path.isfile(file_name)
-  print ">> Updating .gitignore with lines"
+  print(">> Updating .gitignore with lines")
   with open(file_name) as gitignore:
     content = gitignore.readlines()
   content = [x.strip() for x in content]
   for x in DELETE_FROM_GITIGNORE:
     if x in content:
-      print "- %s" % x
+      print("- %s" % x)
       content.remove(x)
   for x in ADD_TO_GITIGNORE:
     if x not in content:
-      print "+ %s" % x
+      print("+ %s" % x)
       content.append(x)
   content.sort(key=lambda x: x[1:] if x.startswith("!") else x)
   with open(file_name, "w") as gitignore:
@@ -129,7 +132,7 @@ def UpdateGitIgnore(options):
       gitignore.write("%s\n" % x)
 
 def CreateCommit(options):
-  print ">> Creating commit."
+  print(">> Creating commit.")
   # Find git hash from source.
   githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"],
                                     cwd=options.v8_path).strip()

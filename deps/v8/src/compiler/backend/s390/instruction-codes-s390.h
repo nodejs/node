@@ -12,6 +12,7 @@ namespace compiler {
 // S390-specific opcodes that specify which assembly sequence to emit.
 // Most opcodes specify a single instruction.
 #define TARGET_ARCH_OPCODE_LIST(V)          \
+  V(S390_Peek)                              \
   V(S390_Abs32)                             \
   V(S390_Abs64)                             \
   V(S390_And32)                             \

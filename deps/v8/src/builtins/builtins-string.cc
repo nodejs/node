@@ -6,6 +6,7 @@
 #include "src/builtins/builtins.h"
 #include "src/conversions.h"
 #include "src/counters.h"
+#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/objects-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
@@ -118,70 +119,6 @@ BUILTIN(StringFromCodePoint) {
   return *result;
 }
 
-// ES6 section 21.1.3.6
-// String.prototype.endsWith ( searchString [ , endPosition ] )
-BUILTIN(StringPrototypeEndsWith) {
-  HandleScope handle_scope(isolate);
-  TO_THIS_STRING(str, "String.prototype.endsWith");
-
-  // Check if the search string is a regExp and fail if it is.
-  Handle<Object> search = args.atOrUndefined(isolate, 1);
-  Maybe<bool> is_reg_exp = RegExpUtils::IsRegExp(isolate, search);
-  if (is_reg_exp.IsNothing()) {
-    DCHECK(isolate->has_pending_exception());
-    return ReadOnlyRoots(isolate).exception();
-  }
-  if (is_reg_exp.FromJust()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kFirstArgumentNotRegExp,
-                              isolate->factory()->NewStringFromStaticChars(
-                                  "String.prototype.endsWith")));
-  }
-  Handle<String> search_string;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, search_string,
-                                     Object::ToString(isolate, search));
-
-  Handle<Object> position = args.atOrUndefined(isolate, 2);
-  int end;
-
-  if (position->IsUndefined(isolate)) {
-    end = str->length();
-  } else {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, position,
-                                       Object::ToInteger(isolate, position));
-    end = str->ToValidIndex(*position);
-  }
-
-  int start = end - search_string->length();
-  if (start < 0) return ReadOnlyRoots(isolate).false_value();
-
-  str = String::Flatten(isolate, str);
-  search_string = String::Flatten(isolate, search_string);
-
-  DisallowHeapAllocation no_gc;  // ensure vectors stay valid
-  String::FlatContent str_content = str->GetFlatContent(no_gc);
-  String::FlatContent search_content = search_string->GetFlatContent(no_gc);
-
-  if (str_content.IsOneByte() && search_content.IsOneByte()) {
-    Vector<const uint8_t> str_vector = str_content.ToOneByteVector();
-    Vector<const uint8_t> search_vector = search_content.ToOneByteVector();
-
-    return isolate->heap()->ToBoolean(memcmp(str_vector.start() + start,
-                                             search_vector.start(),
-                                             search_string->length()) == 0);
-  }
-
-  FlatStringReader str_reader(isolate, str);
-  FlatStringReader search_reader(isolate, search_string);
-
-  for (int i = 0; i < search_string->length(); i++) {
-    if (str_reader.Get(start + i) != search_reader.Get(i)) {
-      return ReadOnlyRoots(isolate).false_value();
-    }
-  }
-  return ReadOnlyRoots(isolate).true_value();
-}
-
 // ES6 section 21.1.3.9
 // String.prototype.lastIndexOf ( searchString [ , position ] )
 BUILTIN(StringPrototypeLastIndexOf) {
@@ -290,53 +227,6 @@ BUILTIN(StringPrototypeNormalize) {
 }
 #endif  // !V8_INTL_SUPPORT
 
-BUILTIN(StringPrototypeStartsWith) {
-  HandleScope handle_scope(isolate);
-  TO_THIS_STRING(str, "String.prototype.startsWith");
-
-  // Check if the search string is a regExp and fail if it is.
-  Handle<Object> search = args.atOrUndefined(isolate, 1);
-  Maybe<bool> is_reg_exp = RegExpUtils::IsRegExp(isolate, search);
-  if (is_reg_exp.IsNothing()) {
-    DCHECK(isolate->has_pending_exception());
-    return ReadOnlyRoots(isolate).exception();
-  }
-  if (is_reg_exp.FromJust()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kFirstArgumentNotRegExp,
-                              isolate->factory()->NewStringFromStaticChars(
-                                  "String.prototype.startsWith")));
-  }
-  Handle<String> search_string;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, search_string,
-                                     Object::ToString(isolate, search));
-
-  Handle<Object> position = args.atOrUndefined(isolate, 2);
-  int start;
-
-  if (position->IsUndefined(isolate)) {
-    start = 0;
-  } else {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, position,
-                                       Object::ToInteger(isolate, position));
-    start = str->ToValidIndex(*position);
-  }
-
-  if (start + search_string->length() > str->length()) {
-    return ReadOnlyRoots(isolate).false_value();
-  }
-
-  FlatStringReader str_reader(isolate, String::Flatten(isolate, str));
-  FlatStringReader search_reader(isolate,
-                                 String::Flatten(isolate, search_string));
-
-  for (int i = 0; i < search_string->length(); i++) {
-    if (str_reader.Get(start + i) != search_reader.Get(i)) {
-      return ReadOnlyRoots(isolate).false_value();
-    }
-  }
-  return ReadOnlyRoots(isolate).true_value();
-}
 
 #ifndef V8_INTL_SUPPORT
 namespace {

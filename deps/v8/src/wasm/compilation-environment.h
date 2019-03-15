@@ -5,6 +5,8 @@
 #ifndef V8_WASM_COMPILATION_ENVIRONMENT_H_
 #define V8_WASM_COMPILATION_ENVIRONMENT_H_
 
+#include <memory>
+
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
@@ -12,9 +14,13 @@
 
 namespace v8 {
 namespace internal {
+
+class Counters;
+
 namespace wasm {
 
 class NativeModule;
+class WasmCode;
 class WasmError;
 
 enum RuntimeExceptionSupport : bool {
@@ -97,10 +103,11 @@ enum class CompilationEvent : uint8_t {
 // This is the PIMPL interface to that private class.
 class CompilationState {
  public:
-  using callback_t = std::function<void(CompilationEvent, const WasmError*)>;
+  using callback_t = std::function<void(CompilationEvent)>;
+
   ~CompilationState();
 
-  void CancelAndWait();
+  void AbortCompilation();
 
   void SetError(uint32_t func_index, const WasmError& error);
 
@@ -112,12 +119,15 @@ class CompilationState {
 
   bool failed() const;
 
+  void OnFinishedUnit(ExecutionTier, WasmCode*);
+
  private:
   friend class NativeModule;
   friend class WasmCompilationUnit;
   CompilationState() = delete;
 
-  static std::unique_ptr<CompilationState> New(Isolate*, NativeModule*);
+  static std::unique_ptr<CompilationState> New(NativeModule*,
+                                               std::shared_ptr<Counters>);
 };
 
 }  // namespace wasm

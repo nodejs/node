@@ -35,8 +35,10 @@
 #include "src/compiler.h"
 #include "src/disasm.h"
 #include "src/heap/factory.h"
+#include "src/heap/spaces.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects-inl.h"
+#include "src/objects/allocation-site-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -55,7 +57,7 @@ static void SetGlobalProperty(const char* name, Object value) {
       isolate->factory()->InternalizeUtf8String(name);
   Handle<JSObject> global(isolate->context()->global_object(), isolate);
   Runtime::SetObjectProperty(isolate, global, internalized_name, object,
-                             LanguageMode::kSloppy, StoreOrigin::kMaybeKeyed)
+                             StoreOrigin::kMaybeKeyed, Just(kDontThrow))
       .Check();
 }
 
@@ -789,6 +791,30 @@ TEST(InvocationCount) {
   CHECK_EQ(2, foo->feedback_vector()->invocation_count());
   CompileRun("foo(); foo()");
   CHECK_EQ(4, foo->feedback_vector()->invocation_count());
+}
+
+TEST(SafeToSkipArgumentsAdaptor) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  CompileRun(
+      "function a() { \"use strict\"; }; a();"
+      "function b() { }; b();"
+      "function c() { \"use strict\"; return arguments; }; c();"
+      "function d(...args) { return args; }; d();"
+      "function e() { \"use strict\"; return eval(\"\"); }; e();"
+      "function f(x, y) { \"use strict\"; return x + y; }; f(1, 2);");
+  Handle<JSFunction> a = Handle<JSFunction>::cast(GetGlobalProperty("a"));
+  CHECK(a->shared()->is_safe_to_skip_arguments_adaptor());
+  Handle<JSFunction> b = Handle<JSFunction>::cast(GetGlobalProperty("b"));
+  CHECK(!b->shared()->is_safe_to_skip_arguments_adaptor());
+  Handle<JSFunction> c = Handle<JSFunction>::cast(GetGlobalProperty("c"));
+  CHECK(!c->shared()->is_safe_to_skip_arguments_adaptor());
+  Handle<JSFunction> d = Handle<JSFunction>::cast(GetGlobalProperty("d"));
+  CHECK(!d->shared()->is_safe_to_skip_arguments_adaptor());
+  Handle<JSFunction> e = Handle<JSFunction>::cast(GetGlobalProperty("e"));
+  CHECK(!e->shared()->is_safe_to_skip_arguments_adaptor());
+  Handle<JSFunction> f = Handle<JSFunction>::cast(GetGlobalProperty("f"));
+  CHECK(f->shared()->is_safe_to_skip_arguments_adaptor());
 }
 
 TEST(ShallowEagerCompilation) {

@@ -141,6 +141,7 @@ class CountingSampler : public Sampler {
 
   int sample_count() { return sample_count_; }
   void set_active(bool active) { SetActive(active); }
+  void set_should_record_sample() { SetShouldRecordSample(); }
 
  private:
   int sample_count_ = 0;
@@ -153,6 +154,7 @@ TEST(SamplerManager_AddRemoveSampler) {
   SamplerManager* manager = SamplerManager::instance();
   CountingSampler sampler1(isolate);
   sampler1.set_active(true);
+  sampler1.set_should_record_sample();
   CHECK_EQ(0, sampler1.sample_count());
 
   manager->AddSampler(&sampler1);
@@ -162,6 +164,7 @@ TEST(SamplerManager_AddRemoveSampler) {
   CHECK_EQ(1, sampler1.sample_count());
 
   sampler1.set_active(true);
+  sampler1.set_should_record_sample();
   manager->RemoveSampler(&sampler1);
   sampler1.set_active(false);
 
@@ -177,6 +180,7 @@ TEST(SamplerManager_DoesNotReAdd) {
   SamplerManager* manager = SamplerManager::instance();
   CountingSampler sampler1(isolate);
   sampler1.set_active(true);
+  sampler1.set_should_record_sample();
   manager->AddSampler(&sampler1);
   manager->AddSampler(&sampler1);
 

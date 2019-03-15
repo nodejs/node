@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "include/v8.h"
+#include "src/function-kind.h"
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/objects/script.h"
@@ -83,6 +84,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FLAG_ACCESSOR(kIsAsmWasmBroken, is_asm_wasm_broken, set_asm_wasm_broken)
   FLAG_ACCESSOR(kContainsAsmModule, contains_asm_module,
                 set_contains_asm_module)
+  FLAG_ACCESSOR(kCoverageEnabled, coverage_enabled, set_coverage_enabled)
   FLAG_ACCESSOR(kBlockCoverageEnabled, block_coverage_enabled,
                 set_block_coverage_enabled)
   FLAG_ACCESSOR(kOnBackgroundThread, on_background_thread,
@@ -93,28 +95,30 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FLAG_ACCESSOR(kIsDeclaration, is_declaration, set_declaration)
   FLAG_ACCESSOR(kRequiresInstanceMembersInitializer,
                 requires_instance_members_initializer,
-                set_requires_instance_members_initializer);
+                set_requires_instance_members_initializer)
   FLAG_ACCESSOR(kMightAlwaysOpt, might_always_opt, set_might_always_opt)
   FLAG_ACCESSOR(kAllowNativeSyntax, allow_natives_syntax,
                 set_allow_natives_syntax)
   FLAG_ACCESSOR(kAllowLazyCompile, allow_lazy_compile, set_allow_lazy_compile)
   FLAG_ACCESSOR(kAllowNativeSyntax, allow_native_syntax,
-                set_allow_native_syntax);
+                set_allow_native_syntax)
   FLAG_ACCESSOR(kAllowHarmonyPublicFields, allow_harmony_public_fields,
-                set_allow_harmony_public_fields);
+                set_allow_harmony_public_fields)
   FLAG_ACCESSOR(kAllowHarmonyStaticFields, allow_harmony_static_fields,
-                set_allow_harmony_static_fields);
+                set_allow_harmony_static_fields)
   FLAG_ACCESSOR(kAllowHarmonyDynamicImport, allow_harmony_dynamic_import,
-                set_allow_harmony_dynamic_import);
+                set_allow_harmony_dynamic_import)
   FLAG_ACCESSOR(kAllowHarmonyImportMeta, allow_harmony_import_meta,
-                set_allow_harmony_import_meta);
+                set_allow_harmony_import_meta)
   FLAG_ACCESSOR(kAllowHarmonyNumericSeparator, allow_harmony_numeric_separator,
-                set_allow_harmony_numeric_separator);
+                set_allow_harmony_numeric_separator)
   FLAG_ACCESSOR(kAllowHarmonyPrivateFields, allow_harmony_private_fields,
-                set_allow_harmony_private_fields);
+                set_allow_harmony_private_fields)
   FLAG_ACCESSOR(kAllowHarmonyPrivateMethods, allow_harmony_private_methods,
-                set_allow_harmony_private_methods);
-  FLAG_ACCESSOR(kIsOneshotIIFE, is_oneshot_iife, set_is_oneshot_iife);
+                set_allow_harmony_private_methods)
+  FLAG_ACCESSOR(kIsOneshotIIFE, is_oneshot_iife, set_is_oneshot_iife)
+  FLAG_ACCESSOR(kCollectSourcePositions, collect_source_positions,
+                set_collect_source_positions)
 #undef FLAG_ACCESSOR
 
   void set_parse_restriction(ParseRestriction restriction) {
@@ -293,25 +297,27 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kIsNamedExpression = 1 << 8,
     kLazyCompile = 1 << 9,
     kCollectTypeProfile = 1 << 10,
-    kBlockCoverageEnabled = 1 << 11,
-    kIsAsmWasmBroken = 1 << 12,
-    kOnBackgroundThread = 1 << 13,
-    kWrappedAsFunction = 1 << 14,  // Implicitly wrapped as function.
-    kAllowEvalCache = 1 << 15,
-    kIsDeclaration = 1 << 16,
-    kRequiresInstanceMembersInitializer = 1 << 17,
-    kContainsAsmModule = 1 << 18,
-    kMightAlwaysOpt = 1 << 19,
-    kAllowLazyCompile = 1 << 20,
-    kAllowNativeSyntax = 1 << 21,
-    kAllowHarmonyPublicFields = 1 << 22,
-    kAllowHarmonyStaticFields = 1 << 23,
-    kAllowHarmonyDynamicImport = 1 << 24,
-    kAllowHarmonyImportMeta = 1 << 25,
-    kAllowHarmonyNumericSeparator = 1 << 26,
-    kAllowHarmonyPrivateFields = 1 << 27,
-    kAllowHarmonyPrivateMethods = 1 << 28,
-    kIsOneshotIIFE = 1 << 29
+    kCoverageEnabled = 1 << 11,
+    kBlockCoverageEnabled = 1 << 12,
+    kIsAsmWasmBroken = 1 << 13,
+    kOnBackgroundThread = 1 << 14,
+    kWrappedAsFunction = 1 << 15,  // Implicitly wrapped as function.
+    kAllowEvalCache = 1 << 16,
+    kIsDeclaration = 1 << 17,
+    kRequiresInstanceMembersInitializer = 1 << 18,
+    kContainsAsmModule = 1 << 19,
+    kMightAlwaysOpt = 1 << 20,
+    kAllowLazyCompile = 1 << 21,
+    kAllowNativeSyntax = 1 << 22,
+    kAllowHarmonyPublicFields = 1 << 23,
+    kAllowHarmonyStaticFields = 1 << 24,
+    kAllowHarmonyDynamicImport = 1 << 25,
+    kAllowHarmonyImportMeta = 1 << 26,
+    kAllowHarmonyNumericSeparator = 1 << 27,
+    kAllowHarmonyPrivateFields = 1 << 28,
+    kAllowHarmonyPrivateMethods = 1 << 29,
+    kIsOneshotIIFE = 1 << 30,
+    kCollectSourcePositions = 1 << 31,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------

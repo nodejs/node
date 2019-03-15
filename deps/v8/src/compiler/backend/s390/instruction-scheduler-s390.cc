@@ -152,6 +152,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_LoadReverse16:
     case kS390_LoadReverse32:
     case kS390_LoadReverse64:
+    case kS390_Peek:
       return kIsLoadOperation;
 
     case kS390_StoreWord8:

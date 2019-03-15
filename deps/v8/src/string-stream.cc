@@ -11,6 +11,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/prototype.h"
+#include "src/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -189,17 +190,18 @@ void StringStream::PrintObject(Object o) {
   if (o->IsHeapObject() && object_print_mode_ == kPrintObjectVerbose) {
     // TODO(delphick): Consider whether we can get the isolate without using
     // TLS.
+    Isolate* isolate = Isolate::Current();
     DebugObjectCache* debug_object_cache =
-        Isolate::Current()->string_stream_debug_object_cache();
+        isolate->string_stream_debug_object_cache();
     for (size_t i = 0; i < debug_object_cache->size(); i++) {
-      if ((*debug_object_cache)[i] == o) {
+      if (*(*debug_object_cache)[i] == o) {
         Add("#%d#", static_cast<int>(i));
         return;
       }
     }
     if (debug_object_cache->size() < kMentionedObjectCacheMaxSize) {
       Add("#%d#", static_cast<int>(debug_object_cache->size()));
-      debug_object_cache->push_back(HeapObject::cast(o));
+      debug_object_cache->push_back(handle(HeapObject::cast(o), isolate));
     } else {
       Add("@%p", o);
     }
@@ -363,7 +365,7 @@ void StringStream::PrintMentionedObjectCache(Isolate* isolate) {
       isolate->string_stream_debug_object_cache();
   Add("==== Key         ============================================\n\n");
   for (size_t i = 0; i < debug_object_cache->size(); i++) {
-    HeapObject printee = (*debug_object_cache)[i];
+    HeapObject printee = *(*debug_object_cache)[i];
     Add(" #%d# %p: ", static_cast<int>(i),
         reinterpret_cast<void*>(printee->ptr()));
     printee->ShortPrint(this);

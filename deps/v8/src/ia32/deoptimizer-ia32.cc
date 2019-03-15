@@ -33,7 +33,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
     __ movsd(Operand(esp, offset), xmm_reg);
   }
 
-  STATIC_ASSERT(kFloatSize == kPointerSize);
+  STATIC_ASSERT(kFloatSize == kSystemPointerSize);
   const int kFloatRegsSize = kFloatSize * XMMRegister::kNumRegisters;
   __ sub(esp, Immediate(kFloatRegsSize));
   for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
@@ -49,15 +49,15 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
       ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate);
   __ mov(masm->ExternalReferenceAsOperand(c_entry_fp_address, esi), ebp);
 
-  const int kSavedRegistersAreaSize =
-      kNumberOfRegisters * kPointerSize + kDoubleRegsSize + kFloatRegsSize;
+  const int kSavedRegistersAreaSize = kNumberOfRegisters * kSystemPointerSize +
+                                      kDoubleRegsSize + kFloatRegsSize;
 
   // The bailout id is passed in ebx by the caller.
 
   // Get the address of the location in the code object
   // and compute the fp-to-sp delta in register edx.
   __ mov(ecx, Operand(esp, kSavedRegistersAreaSize));
-  __ lea(edx, Operand(esp, kSavedRegistersAreaSize + 1 * kPointerSize));
+  __ lea(edx, Operand(esp, kSavedRegistersAreaSize + 1 * kSystemPointerSize));
 
   __ sub(edx, ebp);
   __ neg(edx);
@@ -70,13 +70,13 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   __ JumpIfSmi(edi, &context_check);
   __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
   __ bind(&context_check);
-  __ mov(Operand(esp, 0 * kPointerSize), eax);  // Function.
-  __ mov(Operand(esp, 1 * kPointerSize),
+  __ mov(Operand(esp, 0 * kSystemPointerSize), eax);  // Function.
+  __ mov(Operand(esp, 1 * kSystemPointerSize),
          Immediate(static_cast<int>(deopt_kind)));
-  __ mov(Operand(esp, 2 * kPointerSize), ebx);  // Bailout id.
-  __ mov(Operand(esp, 3 * kPointerSize), ecx);  // Code address or 0.
-  __ mov(Operand(esp, 4 * kPointerSize), edx);  // Fp-to-sp delta.
-  __ mov(Operand(esp, 5 * kPointerSize),
+  __ mov(Operand(esp, 2 * kSystemPointerSize), ebx);  // Bailout id.
+  __ mov(Operand(esp, 3 * kSystemPointerSize), ecx);  // Code address or 0.
+  __ mov(Operand(esp, 4 * kSystemPointerSize), edx);  // Fp-to-sp delta.
+  __ mov(Operand(esp, 5 * kSystemPointerSize),
          Immediate(ExternalReference::isolate_address(isolate)));
   {
     AllowExternalCallThatCantCauseGC scope(masm);
@@ -89,7 +89,8 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
 
   // Fill in the input registers.
   for (int i = kNumberOfRegisters - 1; i >= 0; i--) {
-    int offset = (i * kPointerSize) + FrameDescription::registers_offset();
+    int offset =
+        (i * kSystemPointerSize) + FrameDescription::registers_offset();
     __ pop(Operand(esi, offset));
   }
 
@@ -116,7 +117,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   __ fnclex();
 
   // Remove the return address and the double registers.
-  __ add(esp, Immediate(kDoubleRegsSize + 1 * kPointerSize));
+  __ add(esp, Immediate(kDoubleRegsSize + 1 * kSystemPointerSize));
 
   // Compute a pointer to the unwinding limit in register ecx; that is
   // the first stack slot not part of the input frame.
@@ -140,7 +141,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   // Compute the output frame in the deoptimizer.
   __ push(eax);
   __ PrepareCallCFunction(1, esi);
-  __ mov(Operand(esp, 0 * kPointerSize), eax);
+  __ mov(Operand(esp, 0 * kSystemPointerSize), eax);
   {
     AllowExternalCallThatCantCauseGC scope(masm);
     __ CallCFunction(ExternalReference::compute_output_frames_function(), 1);
@@ -156,7 +157,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   // past the last FrameDescription**.
   __ mov(edx, Operand(eax, Deoptimizer::output_count_offset()));
   __ mov(eax, Operand(eax, Deoptimizer::output_offset()));
-  __ lea(edx, Operand(eax, edx, times_4, 0));
+  __ lea(edx, Operand(eax, edx, times_system_pointer_size, 0));
   __ jmp(&outer_loop_header);
   __ bind(&outer_push_loop);
   // Inner loop state: esi = current FrameDescription*, ecx = loop
@@ -170,7 +171,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   __ bind(&inner_loop_header);
   __ test(ecx, ecx);
   __ j(not_zero, &inner_push_loop);
-  __ add(eax, Immediate(kPointerSize));
+  __ add(eax, Immediate(kSystemPointerSize));
   __ bind(&outer_loop_header);
   __ cmp(eax, edx);
   __ j(below, &outer_push_loop);
@@ -189,7 +190,8 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
 
   // Push the registers from the last output frame.
   for (int i = 0; i < kNumberOfRegisters; i++) {
-    int offset = (i * kPointerSize) + FrameDescription::registers_offset();
+    int offset =
+        (i * kSystemPointerSize) + FrameDescription::registers_offset();
     __ push(Operand(esi, offset));
   }
 

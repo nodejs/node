@@ -40,6 +40,7 @@ enum class FeedbackSlotKind {
   kLoadGlobalNotInsideTypeof,
   kLoadGlobalInsideTypeof,
   kLoadKeyed,
+  kHasKeyed,
   kStoreGlobalStrict,
   kStoreNamedStrict,
   kStoreOwnNamed,
@@ -73,6 +74,10 @@ inline bool IsLoadGlobalICKind(FeedbackSlotKind kind) {
 
 inline bool IsKeyedLoadICKind(FeedbackSlotKind kind) {
   return kind == FeedbackSlotKind::kLoadKeyed;
+}
+
+inline bool IsKeyedHasICKind(FeedbackSlotKind kind) {
+  return kind == FeedbackSlotKind::kHasKeyed;
 }
 
 inline bool IsStoreGlobalICKind(FeedbackSlotKind kind) {
@@ -348,6 +353,10 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
     return AddSlot(FeedbackSlotKind::kLoadKeyed);
   }
 
+  FeedbackSlot AddKeyedHasICSlot() {
+    return AddSlot(FeedbackSlotKind::kHasKeyed);
+  }
+
   FeedbackSlotKind GetStoreICSlot(LanguageMode language_mode) {
     STATIC_ASSERT(LanguageModeSize == 2);
     return is_strict(language_mode) ? FeedbackSlotKind::kStoreNamedStrict
@@ -596,23 +605,22 @@ class FeedbackNexus final {
     return vector()->GetLanguageMode(slot());
   }
 
-  InlineCacheState ic_state() const { return StateFromFeedback(); }
-  bool IsUninitialized() const { return StateFromFeedback() == UNINITIALIZED; }
-  bool IsMegamorphic() const { return StateFromFeedback() == MEGAMORPHIC; }
-  bool IsGeneric() const { return StateFromFeedback() == GENERIC; }
+  InlineCacheState ic_state() const;
+  bool IsUninitialized() const { return ic_state() == UNINITIALIZED; }
+  bool IsMegamorphic() const { return ic_state() == MEGAMORPHIC; }
+  bool IsGeneric() const { return ic_state() == GENERIC; }
 
   void Print(std::ostream& os);  // NOLINT
 
   // For map-based ICs (load, keyed-load, store, keyed-store).
-  Map FindFirstMap() const;
+  Map GetFirstMap() const;
 
-  InlineCacheState StateFromFeedback() const;
   int ExtractMaps(MapHandles* maps) const;
   MaybeObjectHandle FindHandlerForMap(Handle<Map> map) const;
   bool FindHandlers(MaybeObjectHandles* code_list, int length = -1) const;
 
   bool IsCleared() const {
-    InlineCacheState state = StateFromFeedback();
+    InlineCacheState state = ic_state();
     return !FLAG_use_ic || state == UNINITIALIZED || state == PREMONOMORPHIC;
   }
 
@@ -648,7 +656,7 @@ class FeedbackNexus final {
 
   // For KeyedLoad and KeyedStore ICs.
   IcCheckType GetKeyType() const;
-  Name FindFirstName() const;
+  Name GetName() const;
 
   // For Call ICs.
   int GetCallCount();
@@ -671,8 +679,8 @@ class FeedbackNexus final {
   // For Global Load and Store ICs.
   void ConfigurePropertyCellMode(Handle<PropertyCell> cell);
   // Returns false if given combination of indices is not allowed.
-  bool ConfigureLexicalVarMode(int script_context_index,
-                               int context_slot_index);
+  bool ConfigureLexicalVarMode(int script_context_index, int context_slot_index,
+                               bool immutable);
   void ConfigureHandlerMode(const MaybeObjectHandle& handler);
 
   // For CloneObject ICs
@@ -682,7 +690,8 @@ class FeedbackNexus final {
 // Bit positions in a smi that encodes lexical environment variable access.
 #define LEXICAL_MODE_BIT_FIELDS(V, _)  \
   V(ContextIndexBits, unsigned, 12, _) \
-  V(SlotIndexBits, unsigned, 19, _)
+  V(SlotIndexBits, unsigned, 18, _)    \
+  V(ImmutabilityBit, bool, 1, _)
 
   DEFINE_BIT_FIELDS(LEXICAL_MODE_BIT_FIELDS)
 #undef LEXICAL_MODE_BIT_FIELDS

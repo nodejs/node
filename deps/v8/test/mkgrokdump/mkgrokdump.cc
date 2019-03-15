@@ -8,7 +8,7 @@
 #include "include/v8.h"
 
 #include "src/frames.h"
-#include "src/heap/heap.h"
+#include "src/heap/heap-inl.h"
 #include "src/heap/spaces.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
@@ -16,7 +16,7 @@
 namespace v8 {
 
 static const char* kHeader =
-    "# Copyright 2018 the V8 project authors. All rights reserved.\n"
+    "# Copyright 2019 the V8 project authors. All rights reserved.\n"
     "# Use of this source code is governed by a BSD-style license that can\n"
     "# be found in the LICENSE file.\n"
     "\n"

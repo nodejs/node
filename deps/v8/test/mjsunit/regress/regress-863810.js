@@ -4,7 +4,6 @@
 
 // Flags: --no-liftoff --no-wasm-tier-up --no-future --debug-code
 
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();

@@ -15,6 +15,7 @@
     return ArrayBuffer.isView({x}.x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo(Symbol()));
   assertFalse(foo("some string"));
   assertFalse(foo(new Object()));
@@ -41,6 +42,7 @@
     return ArrayBuffer.isView(x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo(1));
   assertFalse(foo(1.1));
   assertFalse(foo(Symbol()));

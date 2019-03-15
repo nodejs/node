@@ -4,7 +4,6 @@
 
 // Flags: --no-wasm-disable-structured-cloning
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestPostModule() {

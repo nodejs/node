@@ -120,6 +120,10 @@ struct WasmElemSegment {
   // Construct a passive segment, which has no table index or offset.
   WasmElemSegment() : table_index(0), active(false) {}
 
+  // Used in the {entries} vector to represent a `ref.null` entry in a passive
+  // segment.
+  static const uint32_t kNullIndex = ~0u;
+
   uint32_t table_index;
   WasmInitExpr offset;
   std::vector<uint32_t> entries;
@@ -169,6 +173,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   uint32_t tagged_globals_buffer_size = 0;
   uint32_t num_imported_mutable_globals = 0;
   uint32_t num_imported_functions = 0;
+  uint32_t num_imported_tables = 0;
   uint32_t num_declared_functions = 0;  // excluding imported
   uint32_t num_exported_functions = 0;
   uint32_t num_declared_data_segments = 0;  // From the DataCount section.

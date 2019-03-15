@@ -158,7 +158,8 @@ int UnsignedGreaterEqual(T a, T b) {
 
 template <typename T>
 T LogicalShiftLeft(T a, int shift) {
-  return a << shift;
+  using UnsignedT = typename std::make_unsigned<T>::type;
+  return static_cast<UnsignedT>(a) << shift;
 }
 
 template <typename T>
@@ -407,8 +408,8 @@ WASM_SIMD_TEST(F32x4Splat) {
         WASM_SIMD_CHECK_SPLAT_F32x4(simd, lane_val), WASM_RETURN1(WASM_ONE));
 
   FOR_FLOAT32_INPUTS(i) {
-    if (SkipFPExpectedValue(*i)) continue;
-    CHECK_EQ(1, r.Call(*i));
+    if (SkipFPExpectedValue(i)) continue;
+    CHECK_EQ(1, r.Call(i));
   }
 }
 
@@ -485,8 +486,8 @@ WASM_SIMD_COMPILED_TEST(F32x4ConvertI32x4) {
         WASM_RETURN1(WASM_ONE));
 
   FOR_INT32_INPUTS(i) {
-    CHECK_EQ(1, r.Call(*i, static_cast<float>(*i),
-                       static_cast<float>(static_cast<uint32_t>(*i))));
+    CHECK_EQ(1, r.Call(i, static_cast<float>(i),
+                       static_cast<float>(static_cast<uint32_t>(i))));
   }
 }
 
@@ -504,11 +505,11 @@ void RunF32x4UnOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
         WASM_RETURN1(WASM_ONE));
 
   FOR_FLOAT32_INPUTS(i) {
-    if (SkipFPValue(*i)) continue;
-    float expected = expected_op(*i);
+    if (SkipFPValue(i)) continue;
+    float expected = expected_op(i);
     if (SkipFPExpectedValue(expected)) continue;
     float abs_error = std::abs(expected) * error;
-    CHECK_EQ(1, r.Call(*i, expected - abs_error, expected + abs_error));
+    CHECK_EQ(1, r.Call(i, expected - abs_error, expected + abs_error));
   }
 }
 
@@ -546,12 +547,12 @@ void RunF32x4BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
         WASM_SIMD_CHECK_SPLAT_F32x4(simd1, expected), WASM_RETURN1(WASM_ONE));
 
   FOR_FLOAT32_INPUTS(i) {
-    if (SkipFPValue(*i)) continue;
+    if (SkipFPValue(i)) continue;
     FOR_FLOAT32_INPUTS(j) {
-      if (SkipFPValue(*j)) continue;
-      float expected = expected_op(*i, *j);
+      if (SkipFPValue(j)) continue;
+      float expected = expected_op(i, j);
       if (SkipFPExpectedValue(expected)) continue;
-      CHECK_EQ(1, r.Call(*i, *j, expected));
+      CHECK_EQ(1, r.Call(i, j, expected));
     }
   }
 }
@@ -587,12 +588,12 @@ void RunF32x4CompareOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
         WASM_SIMD_CHECK_SPLAT4(I32x4, simd1, I32, expected), WASM_ONE);
 
   FOR_FLOAT32_INPUTS(i) {
-    if (SkipFPValue(*i)) continue;
+    if (SkipFPValue(i)) continue;
     FOR_FLOAT32_INPUTS(j) {
-      if (SkipFPValue(*j)) continue;
-      float diff = *i - *j;
+      if (SkipFPValue(j)) continue;
+      float diff = i - j;
       if (SkipFPExpectedValue(diff)) continue;
-      CHECK_EQ(1, r.Call(*i, *j, expected_op(*i, *j)));
+      CHECK_EQ(1, r.Call(i, j, expected_op(i, j)));
     }
   }
 }
@@ -639,7 +640,7 @@ WASM_SIMD_TEST(I32x4Splat) {
         WASM_SET_LOCAL(simd, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(lane_val))),
         WASM_SIMD_CHECK_SPLAT4(I32x4, simd, I32, lane_val), WASM_ONE);
 
-  FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call(*i)); }
+  FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call(i)); }
 }
 
 WASM_SIMD_TEST(I32x4ReplaceLane) {
@@ -676,7 +677,7 @@ WASM_SIMD_TEST(I16x8Splat) {
         WASM_SET_LOCAL(simd, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(lane_val))),
         WASM_SIMD_CHECK_SPLAT8(I16x8, simd, I32, lane_val), WASM_ONE);
 
-  FOR_INT16_INPUTS(i) { CHECK_EQ(1, r.Call(*i)); }
+  FOR_INT16_INPUTS(i) { CHECK_EQ(1, r.Call(i)); }
 }
 
 WASM_SIMD_TEST(I16x8ReplaceLane) {
@@ -736,7 +737,7 @@ WASM_SIMD_TEST(I8x16Splat) {
         WASM_SET_LOCAL(simd, WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(lane_val))),
         WASM_SIMD_CHECK_SPLAT8(I8x16, simd, I32, lane_val), WASM_ONE);
 
-  FOR_INT8_INPUTS(i) { CHECK_EQ(1, r.Call(*i)); }
+  FOR_INT8_INPUTS(i) { CHECK_EQ(1, r.Call(i)); }
 }
 
 WASM_SIMD_TEST(I8x16ReplaceLane) {
@@ -874,10 +875,10 @@ WASM_SIMD_TEST(I32x4ConvertF32x4) {
         WASM_SIMD_CHECK_SPLAT4(I32x4, simd2, I32, expected_unsigned), WASM_ONE);
 
   FOR_FLOAT32_INPUTS(i) {
-    if (SkipFPValue(*i)) continue;
-    int32_t signed_value = ConvertToInt(*i, false);
-    int32_t unsigned_value = ConvertToInt(*i, true);
-    CHECK_EQ(1, r.Call(*i, signed_value, unsigned_value));
+    if (SkipFPValue(i)) continue;
+    int32_t signed_value = ConvertToInt(i, false);
+    int32_t unsigned_value = ConvertToInt(i, true);
+    CHECK_EQ(1, r.Call(i, signed_value, unsigned_value));
   }
 }
 
@@ -915,10 +916,9 @@ WASM_SIMD_TEST(I32x4ConvertI16x8) {
         WASM_ONE);
 
   FOR_INT16_INPUTS(i) {
-    int32_t unpacked_signed = static_cast<int32_t>(Widen<int16_t>(*i));
-    int32_t unpacked_unsigned =
-        static_cast<int32_t>(UnsignedWiden<int16_t>(*i));
-    CHECK_EQ(1, r.Call(*i, unpacked_signed, unpacked_unsigned, 0));
+    int32_t unpacked_signed = static_cast<int32_t>(Widen<int16_t>(i));
+    int32_t unpacked_unsigned = static_cast<int32_t>(UnsignedWiden<int16_t>(i));
+    CHECK_EQ(1, r.Call(i, unpacked_signed, unpacked_unsigned, 0));
   }
 }
 
@@ -932,7 +932,7 @@ void RunI32x4UnOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
         WASM_SET_LOCAL(simd, WASM_SIMD_UNOP(simd_op, WASM_GET_LOCAL(simd))),
         WASM_SIMD_CHECK_SPLAT4(I32x4, simd, I32, expected), WASM_ONE);
 
-  FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call(*i, expected_op(*i))); }
+  FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call(i, expected_op(i))); }
 }
 
 WASM_SIMD_TEST(I32x4Neg) {
@@ -959,7 +959,7 @@ void RunI32x4BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
         WASM_SIMD_CHECK_SPLAT4(I32x4, simd1, I32, expected), WASM_ONE);
 
   FOR_INT32_INPUTS(i) {
-    FOR_INT32_INPUTS(j) { CHECK_EQ(1, r.Call(*i, *j, expected_op(*i, *j))); }
+    FOR_INT32_INPUTS(j) { CHECK_EQ(1, r.Call(i, j, expected_op(i, j))); }
   }
 }
 
@@ -1023,7 +1023,7 @@ void RunI32x4CompareOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
         WASM_SIMD_CHECK_SPLAT4(I32x4, simd1, I32, expected), WASM_ONE);
 
   FOR_INT32_INPUTS(i) {
-    FOR_INT32_INPUTS(j) { CHECK_EQ(1, r.Call(*i, *j, expected_op(*i, *j))); }
+    FOR_INT32_INPUTS(j) { CHECK_EQ(1, r.Call(i, j, expected_op(i, j))); }
   }
 }
 
@@ -1084,7 +1084,7 @@ void RunI32x4ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
               simd, WASM_SIMD_SHIFT_OP(simd_op, shift, WASM_GET_LOCAL(simd))),
           WASM_SIMD_CHECK_SPLAT4(I32x4, simd, I32, expected), WASM_ONE);
 
-    FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call(*i, expected_op(*i, shift))); }
+    FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call(i, expected_op(i, shift))); }
   }
 }
 
@@ -1140,9 +1140,9 @@ WASM_SIMD_TEST(I16x8ConvertI8x16) {
       WASM_ONE);
 
   FOR_INT8_INPUTS(i) {
-    int32_t unpacked_signed = static_cast<int32_t>(Widen<int8_t>(*i));
-    int32_t unpacked_unsigned = static_cast<int32_t>(UnsignedWiden<int8_t>(*i));
-    CHECK_EQ(1, r.Call(*i, unpacked_signed, unpacked_unsigned, 0));
+    int32_t unpacked_signed = static_cast<int32_t>(Widen<int8_t>(i));
+    int32_t unpacked_unsigned = static_cast<int32_t>(UnsignedWiden<int8_t>(i));
+    CHECK_EQ(1, r.Call(i, unpacked_signed, unpacked_unsigned, 0));
   }
 }
 
@@ -1156,7 +1156,7 @@ void RunI16x8UnOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
         WASM_SET_LOCAL(simd, WASM_SIMD_UNOP(simd_op, WASM_GET_LOCAL(simd))),
         WASM_SIMD_CHECK_SPLAT8(I16x8, simd, I32, expected), WASM_ONE);
 
-  FOR_INT16_INPUTS(i) { CHECK_EQ(1, r.Call(*i, expected_op(*i))); }
+  FOR_INT16_INPUTS(i) { CHECK_EQ(1, r.Call(i, expected_op(i))); }
 }
 
 WASM_SIMD_TEST(I16x8Neg) {
@@ -1196,15 +1196,15 @@ WASM_SIMD_TEST(I16x8ConvertI32x4) {
   FOR_INT32_INPUTS(i) {
     FOR_INT32_INPUTS(j) {
       // packed signed values
-      int32_t ps_a = Narrow<int16_t>(*i);
-      int32_t ps_b = Narrow<int16_t>(*j);
+      int32_t ps_a = Narrow<int16_t>(i);
+      int32_t ps_b = Narrow<int16_t>(j);
       // packed unsigned values
-      int32_t pu_a = UnsignedNarrow<int16_t>(*i);
-      int32_t pu_b = UnsignedNarrow<int16_t>(*j);
+      int32_t pu_a = UnsignedNarrow<int16_t>(i);
+      int32_t pu_b = UnsignedNarrow<int16_t>(j);
       // Sign-extend here, since ExtractLane sign extends.
       if (pu_a & 0x8000) pu_a |= 0xFFFF0000;
       if (pu_b & 0x8000) pu_b |= 0xFFFF0000;
-      CHECK_EQ(1, r.Call(*i, *j, ps_a, ps_b, pu_a, pu_b));
+      CHECK_EQ(1, r.Call(i, j, ps_a, ps_b, pu_a, pu_b));
     }
   }
 }
@@ -1224,7 +1224,7 @@ void RunI16x8BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
         WASM_SIMD_CHECK_SPLAT8(I16x8, simd1, I32, expected), WASM_ONE);
 
   FOR_INT16_INPUTS(i) {
-    FOR_INT16_INPUTS(j) { CHECK_EQ(1, r.Call(*i, *j, expected_op(*i, *j))); }
+    FOR_INT16_INPUTS(j) { CHECK_EQ(1, r.Call(i, j, expected_op(i, j))); }
   }
 }
 
@@ -1296,7 +1296,7 @@ void RunI16x8CompareOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
         WASM_SIMD_CHECK_SPLAT8(I16x8, simd1, I32, expected), WASM_ONE);
 
   FOR_INT16_INPUTS(i) {
-    FOR_INT16_INPUTS(j) { CHECK_EQ(1, r.Call(*i, *j, expected_op(*i, *j))); }
+    FOR_INT16_INPUTS(j) { CHECK_EQ(1, r.Call(i, j, expected_op(i, j))); }
   }
 }
 
@@ -1357,7 +1357,7 @@ void RunI16x8ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
               simd, WASM_SIMD_SHIFT_OP(simd_op, shift, WASM_GET_LOCAL(simd))),
           WASM_SIMD_CHECK_SPLAT8(I16x8, simd, I32, expected), WASM_ONE);
 
-    FOR_INT16_INPUTS(i) { CHECK_EQ(1, r.Call(*i, expected_op(*i, shift))); }
+    FOR_INT16_INPUTS(i) { CHECK_EQ(1, r.Call(i, expected_op(i, shift))); }
   }
 }
 
@@ -1386,7 +1386,7 @@ void RunI8x16UnOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
         WASM_SET_LOCAL(simd, WASM_SIMD_UNOP(simd_op, WASM_GET_LOCAL(simd))),
         WASM_SIMD_CHECK_SPLAT16(I8x16, simd, I32, expected), WASM_ONE);
 
-  FOR_INT8_INPUTS(i) { CHECK_EQ(1, r.Call(*i, expected_op(*i))); }
+  FOR_INT8_INPUTS(i) { CHECK_EQ(1, r.Call(i, expected_op(i))); }
 }
 
 WASM_SIMD_TEST(I8x16Neg) {
@@ -1428,15 +1428,15 @@ WASM_SIMD_TEST(I8x16ConvertI16x8) {
   FOR_INT16_INPUTS(i) {
     FOR_INT16_INPUTS(j) {
       // packed signed values
-      int32_t ps_a = Narrow<int8_t>(*i);
-      int32_t ps_b = Narrow<int8_t>(*j);
+      int32_t ps_a = Narrow<int8_t>(i);
+      int32_t ps_b = Narrow<int8_t>(j);
       // packed unsigned values
-      int32_t pu_a = UnsignedNarrow<int8_t>(*i);
-      int32_t pu_b = UnsignedNarrow<int8_t>(*j);
+      int32_t pu_a = UnsignedNarrow<int8_t>(i);
+      int32_t pu_b = UnsignedNarrow<int8_t>(j);
       // Sign-extend here, since ExtractLane sign extends.
       if (pu_a & 0x80) pu_a |= 0xFFFFFF00;
       if (pu_b & 0x80) pu_b |= 0xFFFFFF00;
-      CHECK_EQ(1, r.Call(*i, *j, ps_a, ps_b, pu_a, pu_b));
+      CHECK_EQ(1, r.Call(i, j, ps_a, ps_b, pu_a, pu_b));
     }
   }
 }
@@ -1456,7 +1456,7 @@ void RunI8x16BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
         WASM_SIMD_CHECK_SPLAT16(I8x16, simd1, I32, expected), WASM_ONE);
 
   FOR_INT8_INPUTS(i) {
-    FOR_INT8_INPUTS(j) { CHECK_EQ(1, r.Call(*i, *j, expected_op(*i, *j))); }
+    FOR_INT8_INPUTS(j) { CHECK_EQ(1, r.Call(i, j, expected_op(i, j))); }
   }
 }
 
@@ -1523,7 +1523,7 @@ void RunI8x16CompareOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
         WASM_SIMD_CHECK_SPLAT16(I8x16, simd1, I32, expected), WASM_ONE);
 
   FOR_INT8_INPUTS(i) {
-    FOR_INT8_INPUTS(j) { CHECK_EQ(1, r.Call(*i, *j, expected_op(*i, *j))); }
+    FOR_INT8_INPUTS(j) { CHECK_EQ(1, r.Call(i, j, expected_op(i, j))); }
   }
 }
 
@@ -1589,7 +1589,7 @@ void RunI8x16ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
               simd, WASM_SIMD_SHIFT_OP(simd_op, shift, WASM_GET_LOCAL(simd))),
           WASM_SIMD_CHECK_SPLAT16(I8x16, simd, I32, expected), WASM_ONE);
 
-    FOR_INT8_INPUTS(i) { CHECK_EQ(1, r.Call(*i, expected_op(*i, shift))); }
+    FOR_INT8_INPUTS(i) { CHECK_EQ(1, r.Call(i, expected_op(i, shift))); }
   }
 }
 
@@ -2334,7 +2334,7 @@ WASM_SIMD_COMPILED_TEST(SimdLoadStoreLoad) {
         WASM_SIMD_I32x4_EXTRACT_LANE(0, WASM_SIMD_LOAD_MEM(WASM_I32V(4))));
 
   FOR_INT32_INPUTS(i) {
-    int32_t expected = *i;
+    int32_t expected = i;
     r.builder().WriteMemory(&memory[1], expected);
     CHECK_EQ(expected, r.Call());
   }
@@ -2356,9 +2356,9 @@ WASM_SIMD_COMPILED_TEST(SimdLoadStoreLoad) {
     DCHECK_EQ(1, r.Call(5));                                                  \
     DCHECK_EQ(0, r.Call(0));                                                  \
   }
-WASM_SIMD_ANYTRUE_TEST(32x4, 4, 0xffffffff);
-WASM_SIMD_ANYTRUE_TEST(16x8, 8, 0xffff);
-WASM_SIMD_ANYTRUE_TEST(8x16, 16, 0xff);
+WASM_SIMD_ANYTRUE_TEST(32x4, 4, 0xffffffff)
+WASM_SIMD_ANYTRUE_TEST(16x8, 8, 0xffff)
+WASM_SIMD_ANYTRUE_TEST(8x16, 16, 0xff)
 
 #define WASM_SIMD_ALLTRUE_TEST(format, lanes, max)                            \
   WASM_SIMD_TEST_TURBOFAN(S##format##AllTrue) {                               \
@@ -2372,9 +2372,9 @@ WASM_SIMD_ANYTRUE_TEST(8x16, 16, 0xff);
     DCHECK_EQ(0, r.Call(21));                                                 \
     DCHECK_EQ(0, r.Call(0));                                                  \
   }
-WASM_SIMD_ALLTRUE_TEST(32x4, 4, 0xffffffff);
-WASM_SIMD_ALLTRUE_TEST(16x8, 8, 0xffff);
-WASM_SIMD_ALLTRUE_TEST(8x16, 16, 0xff);
+WASM_SIMD_ALLTRUE_TEST(32x4, 4, 0xffffffff)
+WASM_SIMD_ALLTRUE_TEST(16x8, 8, 0xffff)
+WASM_SIMD_ALLTRUE_TEST(8x16, 16, 0xff)
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
 
 WASM_SIMD_TEST_TURBOFAN(BitSelect) {

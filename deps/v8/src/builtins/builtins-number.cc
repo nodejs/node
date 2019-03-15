@@ -225,7 +225,7 @@ BUILTIN(NumberPrototypeToString) {
 
   // Fast case where the result is a one character string.
   if ((IsUint32Double(value_number) && value_number < radix_number) ||
-      value_number == -0.0) {
+      IsMinusZero(value_number)) {
     // Character array used for conversion.
     static const char kCharTable[] = "0123456789abcdefghijklmnopqrstuvwxyz";
     return *isolate->factory()->LookupSingleCharacterStringFromCode(

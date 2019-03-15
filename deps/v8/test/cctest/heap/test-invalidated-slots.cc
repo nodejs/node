@@ -330,25 +330,16 @@ HEAP_TEST(InvalidatedSlotsFastToSlow) {
   // Start incremental marking.
   heap::SimulateIncrementalMarking(heap);
   // Set properties to point to the evacuation candidate.
-  Object::SetProperty(isolate, obj, prop_name1, evacuated,
-                      LanguageMode::kSloppy)
-      .Check();
-  Object::SetProperty(isolate, obj, prop_name2, evacuated,
-                      LanguageMode::kSloppy)
-      .Check();
-  Object::SetProperty(isolate, obj, prop_name3, evacuated,
-                      LanguageMode::kSloppy)
-      .Check();
+  Object::SetProperty(isolate, obj, prop_name1, evacuated).Check();
+  Object::SetProperty(isolate, obj, prop_name2, evacuated).Check();
+  Object::SetProperty(isolate, obj, prop_name3, evacuated).Check();
 
   {
     HandleScope scope(isolate);
     Handle<HeapObject> dead = factory->NewFixedArray(1);
-    Object::SetProperty(isolate, obj, prop_name1, dead, LanguageMode::kSloppy)
-        .Check();
-    Object::SetProperty(isolate, obj, prop_name2, dead, LanguageMode::kSloppy)
-        .Check();
-    Object::SetProperty(isolate, obj, prop_name3, dead, LanguageMode::kSloppy)
-        .Check();
+    Object::SetProperty(isolate, obj, prop_name1, dead).Check();
+    Object::SetProperty(isolate, obj, prop_name2, dead).Check();
+    Object::SetProperty(isolate, obj, prop_name3, dead).Check();
     Handle<Map> map(obj->map(), isolate);
     Handle<Map> normalized_map =
         Map::Normalize(isolate, map, CLEAR_INOBJECT_PROPERTIES, "testing");

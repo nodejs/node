@@ -10,6 +10,7 @@
     return a.some(x => x === o.x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo([1, 2, 3], {x:3}));
   assertFalse(foo([0, 1, 2], {x:3}));
   %OptimizeFunctionOnNextCall(foo);

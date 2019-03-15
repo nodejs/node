@@ -18,6 +18,7 @@
     return Promise.resolve(a);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), Promise);
   assertInstanceof(foo(), Promise);
   %OptimizeFunctionOnNextCall(foo);
@@ -46,6 +47,7 @@
     return a;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), Promise);
   assertInstanceof(foo(), Promise);
   %OptimizeFunctionOnNextCall(foo);

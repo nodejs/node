@@ -88,7 +88,7 @@ int StringBuilderConcatLength(int special_length, FixedArray fixed_array,
       String element = String::cast(elt);
       int element_length = element->length();
       increment = element_length;
-      if (*one_byte && !element->HasOnlyOneByteChars()) {
+      if (*one_byte && !element->IsOneByteRepresentation()) {
         *one_byte = false;
       }
     } else {
@@ -141,7 +141,6 @@ void FixedArrayBuilder::EnsureCapacity(Isolate* isolate, int elements) {
 
 void FixedArrayBuilder::Add(Object value) {
   DCHECK(!value->IsSmi());
-  DCHECK(length_ < capacity());
   array_->set(length_, value);
   length_++;
   has_non_smi_elements_ = true;
@@ -149,7 +148,6 @@ void FixedArrayBuilder::Add(Object value) {
 
 void FixedArrayBuilder::Add(Smi value) {
   DCHECK(value->IsSmi());
-  DCHECK(length_ < capacity());
   array_->set(length_, value);
   length_++;
 }
@@ -166,7 +164,7 @@ ReplacementStringBuilder::ReplacementStringBuilder(Heap* heap,
                                                    Handle<String> subject,
                                                    int estimated_part_count)
     : heap_(heap),
-      array_builder_(heap->isolate(), estimated_part_count),
+      array_builder_(Isolate::FromHeap(heap), estimated_part_count),
       subject_(subject),
       character_count_(0),
       is_one_byte_(subject->IsOneByteRepresentation()) {
@@ -176,13 +174,13 @@ ReplacementStringBuilder::ReplacementStringBuilder(Heap* heap,
 }
 
 void ReplacementStringBuilder::EnsureCapacity(int elements) {
-  array_builder_.EnsureCapacity(heap_->isolate(), elements);
+  array_builder_.EnsureCapacity(Isolate::FromHeap(heap_), elements);
 }
 
 void ReplacementStringBuilder::AddString(Handle<String> string) {
   int length = string->length();
   DCHECK_GT(length, 0);
-  AddElement(*string);
+  AddElement(string);
   if (!string->IsOneByteRepresentation()) {
     is_one_byte_ = false;
   }
@@ -190,7 +188,7 @@ void ReplacementStringBuilder::AddString(Handle<String> string) {
 }
 
 MaybeHandle<String> ReplacementStringBuilder::ToString() {
-  Isolate* isolate = heap_->isolate();
+  Isolate* isolate = Isolate::FromHeap(heap_);
   if (array_builder_.length() == 0) {
     return isolate->factory()->empty_string();
   }
@@ -223,10 +221,11 @@ MaybeHandle<String> ReplacementStringBuilder::ToString() {
   return joined_string;
 }
 
-void ReplacementStringBuilder::AddElement(Object element) {
+void ReplacementStringBuilder::AddElement(Handle<Object> element) {
   DCHECK(element->IsSmi() || element->IsString());
-  DCHECK(array_builder_.capacity() > array_builder_.length());
-  array_builder_.Add(element);
+  EnsureCapacity(1);
+  DisallowHeapAllocation no_gc;
+  array_builder_.Add(*element);
 }
 
 IncrementalStringBuilder::IncrementalStringBuilder(Isolate* isolate)

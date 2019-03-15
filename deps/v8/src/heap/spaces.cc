@@ -307,8 +307,7 @@ void MemoryAllocator::Unmapper::CancelAndWaitForPendingTasks() {
   }
 }
 
-void MemoryAllocator::Unmapper::PrepareForMarkCompact() {
-  CancelAndWaitForPendingTasks();
+void MemoryAllocator::Unmapper::PrepareForGC() {
   // Free non-regular chunks because they cannot be re-used.
   PerformFreeMemoryOnQueuedNonRegularChunks();
 }
@@ -670,6 +669,8 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   }
 
   DCHECK_EQ(kFlagsOffset, OFFSET_OF(MemoryChunk, flags_));
+  DCHECK_EQ(kHeapOffset, OFFSET_OF(MemoryChunk, heap_));
+  DCHECK_EQ(kOwnerOffset, OFFSET_OF(MemoryChunk, owner_));
 
   if (executable == EXECUTABLE) {
     chunk->SetFlag(IS_EXECUTABLE);
@@ -708,10 +709,7 @@ Page* PagedSpace::InitializePage(MemoryChunk* chunk, Executability executable) {
 Page* SemiSpace::InitializePage(MemoryChunk* chunk, Executability executable) {
   DCHECK_EQ(executable, Executability::NOT_EXECUTABLE);
   bool in_to_space = (id() != kFromSpace);
-  chunk->SetFlag(in_to_space ? MemoryChunk::IN_TO_SPACE
-                             : MemoryChunk::IN_FROM_SPACE);
-  DCHECK(!chunk->IsFlagSet(in_to_space ? MemoryChunk::IN_FROM_SPACE
-                                       : MemoryChunk::IN_TO_SPACE));
+  chunk->SetFlag(in_to_space ? MemoryChunk::TO_PAGE : MemoryChunk::FROM_PAGE);
   Page* page = static_cast<Page*>(chunk);
   page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   page->AllocateLocalTracker();
@@ -748,6 +746,7 @@ LargePage* LargePage::Initialize(Heap* heap, MemoryChunk* chunk,
   }
 
   LargePage* page = static_cast<LargePage*>(chunk);
+  page->SetFlag(MemoryChunk::LARGE_PAGE);
   page->list_node().Initialize();
   return page;
 }
@@ -1312,7 +1311,7 @@ void MemoryChunk::ReleaseAllocatedMemory() {
   if (young_generation_bitmap_ != nullptr) ReleaseYoungGenerationBitmap();
   if (marking_bitmap_ != nullptr) ReleaseMarkingBitmap();
 
-  if (!heap_->IsLargeMemoryChunk(this)) {
+  if (!IsLargePage()) {
     Page* page = static_cast<Page*>(this);
     page->ReleaseFreeListCategories();
   }
@@ -1465,6 +1464,12 @@ void MemoryChunk::ReleaseMarkingBitmap() {
 
 // -----------------------------------------------------------------------------
 // PagedSpace implementation
+
+void Space::CheckOffsetsAreConsistent() const {
+  static_assert(Space::kIdOffset == heap_internals::Space::kIdOffset,
+                "ID offset inconsistent");
+  DCHECK_EQ(Space::kIdOffset, OFFSET_OF(Space, id_));
+}
 
 void Space::AddAllocationObserver(AllocationObserver* observer) {
   allocation_observers_.push_back(observer);
@@ -2198,7 +2203,7 @@ bool SemiSpace::EnsureCurrentCapacity() {
       memory_chunk_list_.Remove(current_page);
       // Clear new space flags to avoid this page being treated as a new
       // space page that is potentially being swept.
-      current_page->SetFlags(0, Page::kIsInNewSpaceMask);
+      current_page->SetFlags(0, Page::kIsInYoungGenerationMask);
       heap()->memory_allocator()->Free<MemoryAllocator::kPooledAndQueue>(
           current_page);
       current_page = next_current;
@@ -2660,17 +2665,16 @@ void SemiSpace::FixPagesFlags(intptr_t flags, intptr_t mask) {
     page->set_owner(this);
     page->SetFlags(flags, mask);
     if (id_ == kToSpace) {
-      page->ClearFlag(MemoryChunk::IN_FROM_SPACE);
-      page->SetFlag(MemoryChunk::IN_TO_SPACE);
+      page->ClearFlag(MemoryChunk::FROM_PAGE);
+      page->SetFlag(MemoryChunk::TO_PAGE);
       page->ClearFlag(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
       heap()->incremental_marking()->non_atomic_marking_state()->SetLiveBytes(
           page, 0);
     } else {
-      page->SetFlag(MemoryChunk::IN_FROM_SPACE);
-      page->ClearFlag(MemoryChunk::IN_TO_SPACE);
+      page->SetFlag(MemoryChunk::FROM_PAGE);
+      page->ClearFlag(MemoryChunk::TO_PAGE);
     }
-    DCHECK(page->IsFlagSet(MemoryChunk::IN_TO_SPACE) ||
-           page->IsFlagSet(MemoryChunk::IN_FROM_SPACE));
+    DCHECK(page->InYoungGeneration());
   }
 }
 
@@ -2759,10 +2763,10 @@ void SemiSpace::Verify() {
   for (Page* page : *this) {
     CHECK_EQ(page->owner(), this);
     CHECK(page->InNewSpace());
-    CHECK(page->IsFlagSet(is_from_space ? MemoryChunk::IN_FROM_SPACE
-                                        : MemoryChunk::IN_TO_SPACE));
-    CHECK(!page->IsFlagSet(is_from_space ? MemoryChunk::IN_TO_SPACE
-                                         : MemoryChunk::IN_FROM_SPACE));
+    CHECK(page->IsFlagSet(is_from_space ? MemoryChunk::FROM_PAGE
+                                        : MemoryChunk::TO_PAGE));
+    CHECK(!page->IsFlagSet(is_from_space ? MemoryChunk::TO_PAGE
+                                         : MemoryChunk::FROM_PAGE));
     CHECK(page->IsFlagSet(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING));
     if (!is_from_space) {
       // The pointers-from-here-are-interesting flag isn't updated dynamically
@@ -2910,10 +2914,11 @@ void FreeListCategory::RepairFreeList(Heap* heap) {
     // We can't use .is_null() here because *map_location returns an
     // Object (for which "is null" is not defined, as it would be
     // indistinguishable from "is Smi(0)"). Only HeapObject has "is_null()".
-    if (*map_location == Map()) {
+    if (map_location.contains_value(kNullAddress)) {
       map_location.store(ReadOnlyRoots(heap).free_space_map());
     } else {
-      DCHECK(*map_location == ReadOnlyRoots(heap).free_space_map());
+      DCHECK(map_location.contains_value(
+          ReadOnlyRoots(heap).free_space_map().ptr()));
     }
     n = n->next();
   }
@@ -3121,8 +3126,8 @@ size_t FreeListCategory::SumFreeList() {
   while (!cur.is_null()) {
     // We can't use "cur->map()" here because both cur's map and the
     // root can be null during bootstrapping.
-    DCHECK_EQ(*cur->map_slot(),
-              page()->heap()->isolate()->root(RootIndex::kFreeSpaceMap));
+    DCHECK(cur->map_slot().contains_value(
+        page()->heap()->isolate()->root(RootIndex::kFreeSpaceMap).ptr()));
     sum += cur->relaxed_read_size();
     cur = cur->next();
   }
@@ -3299,9 +3304,6 @@ void ReadOnlyPage::MakeHeaderRelocatable() {
 }
 
 void ReadOnlySpace::SetPermissionsForPages(PageAllocator::Permission access) {
-  const size_t page_size = MemoryAllocator::GetCommitPageSize();
-  const size_t area_start_offset =
-      RoundUp(MemoryChunkLayout::ObjectStartOffsetInDataPage(), page_size);
   MemoryAllocator* memory_allocator = heap()->memory_allocator();
   for (Page* p : *this) {
     ReadOnlyPage* page = static_cast<ReadOnlyPage*>(p);
@@ -3313,8 +3315,8 @@ void ReadOnlySpace::SetPermissionsForPages(PageAllocator::Permission access) {
     // page allocator manually.
     v8::PageAllocator* page_allocator =
         memory_allocator->page_allocator(page->executable());
-    CHECK(SetPermissions(page_allocator, page->address() + area_start_offset,
-                         page->size() - area_start_offset, access));
+    CHECK(
+        SetPermissions(page_allocator, page->address(), page->size(), access));
   }
 }
 
@@ -3420,11 +3422,7 @@ LargeObjectSpace::LargeObjectSpace(Heap* heap)
     : LargeObjectSpace(heap, LO_SPACE) {}
 
 LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
-    : Space(heap, id),
-      size_(0),
-      page_count_(0),
-      objects_size_(0),
-      chunk_map_(1024) {}
+    : Space(heap, id), size_(0), page_count_(0), objects_size_(0) {}
 
 void LargeObjectSpace::TearDown() {
   while (!memory_chunk_list_.Empty()) {
@@ -3465,6 +3463,7 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
       heap()->incremental_marking()->marking_state()->IsBlack(object));
   page->InitializationMemoryFence();
   heap()->NotifyOldGenerationExpansion();
+  AllocationStep(object_size, object->address(), object_size);
   return object;
 }
 
@@ -3475,13 +3474,12 @@ LargePage* LargeObjectSpace::AllocateLargePage(int object_size,
   if (page == nullptr) return nullptr;
   DCHECK_GE(page->area_size(), static_cast<size_t>(object_size));
 
-  Register(page, object_size);
+  AddPage(page, object_size);
 
   HeapObject object = page->GetObject();
 
   heap()->CreateFillerObjectAt(object->address(), object_size,
                                ClearRecordedSlots::kNo);
-  AllocationStep(object_size, object->address(), object_size);
   return page;
 }
 
@@ -3493,28 +3491,16 @@ size_t LargeObjectSpace::CommittedPhysicalMemory() {
   return CommittedMemory();
 }
 
-
-// GC support
-Object LargeObjectSpace::FindObject(Address a) {
-  LargePage* page = FindPage(a);
-  if (page != nullptr) {
-    return page->GetObject();
-  }
-  return Smi::kZero;  // Signaling not found.
-}
-
-LargePage* LargeObjectSpace::FindPage(Address a) {
+LargePage* CodeLargeObjectSpace::FindPage(Address a) {
   const Address key = MemoryChunk::FromAddress(a)->address();
   auto it = chunk_map_.find(key);
   if (it != chunk_map_.end()) {
     LargePage* page = it->second;
-    if (page->Contains(a)) {
-      return page;
-    }
+    CHECK(page->Contains(a));
+    return page;
   }
   return nullptr;
 }
-
 
 void LargeObjectSpace::ClearMarkingStateOfLiveObjects() {
   IncrementalMarking::NonAtomicMarkingState* marking_state =
@@ -3532,10 +3518,7 @@ void LargeObjectSpace::ClearMarkingStateOfLiveObjects() {
   }
 }
 
-void LargeObjectSpace::InsertChunkMapEntries(LargePage* page) {
-  // There may be concurrent access on the chunk map. We have to take the lock
-  // here.
-  base::MutexGuard guard(&chunk_map_mutex_);
+void CodeLargeObjectSpace::InsertChunkMapEntries(LargePage* page) {
   for (Address current = reinterpret_cast<Address>(page);
        current < reinterpret_cast<Address>(page) + page->size();
        current += MemoryChunk::kPageSize) {
@@ -3543,13 +3526,8 @@ void LargeObjectSpace::InsertChunkMapEntries(LargePage* page) {
   }
 }
 
-void LargeObjectSpace::RemoveChunkMapEntries(LargePage* page) {
-  RemoveChunkMapEntries(page, page->address());
-}
-
-void LargeObjectSpace::RemoveChunkMapEntries(LargePage* page,
-                                             Address free_start) {
-  for (Address current = ::RoundUp(free_start, MemoryChunk::kPageSize);
+void CodeLargeObjectSpace::RemoveChunkMapEntries(LargePage* page) {
+  for (Address current = page->address();
        current < reinterpret_cast<Address>(page) + page->size();
        current += MemoryChunk::kPageSize) {
     chunk_map_.erase(current);
@@ -3558,35 +3536,31 @@ void LargeObjectSpace::RemoveChunkMapEntries(LargePage* page,
 
 void LargeObjectSpace::PromoteNewLargeObject(LargePage* page) {
   DCHECK_EQ(page->owner()->identity(), NEW_LO_SPACE);
-  DCHECK(page->IsFlagSet(MemoryChunk::IN_FROM_SPACE));
-  DCHECK(!page->IsFlagSet(MemoryChunk::IN_TO_SPACE));
+  DCHECK(page->IsLargePage());
+  DCHECK(page->IsFlagSet(MemoryChunk::FROM_PAGE));
+  DCHECK(!page->IsFlagSet(MemoryChunk::TO_PAGE));
   size_t object_size = static_cast<size_t>(page->GetObject()->Size());
-  reinterpret_cast<NewLargeObjectSpace*>(page->owner())
-      ->Unregister(page, object_size);
-  Register(page, object_size);
-  page->ClearFlag(MemoryChunk::IN_FROM_SPACE);
+  static_cast<LargeObjectSpace*>(page->owner())->RemovePage(page, object_size);
+  AddPage(page, object_size);
+  page->ClearFlag(MemoryChunk::FROM_PAGE);
   page->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   page->set_owner(this);
 }
 
-void LargeObjectSpace::Register(LargePage* page, size_t object_size) {
+void LargeObjectSpace::AddPage(LargePage* page, size_t object_size) {
   size_ += static_cast<int>(page->size());
   AccountCommitted(page->size());
   objects_size_ += object_size;
   page_count_++;
   memory_chunk_list_.PushBack(page);
-
-  InsertChunkMapEntries(page);
 }
 
-void LargeObjectSpace::Unregister(LargePage* page, size_t object_size) {
+void LargeObjectSpace::RemovePage(LargePage* page, size_t object_size) {
   size_ -= static_cast<int>(page->size());
   AccountUncommitted(page->size());
   objects_size_ -= object_size;
   page_count_--;
   memory_chunk_list_.Remove(page);
-
-  RemoveChunkMapEntries(page);
 }
 
 void LargeObjectSpace::FreeUnmarkedObjects() {
@@ -3595,20 +3569,19 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       heap()->incremental_marking()->non_atomic_marking_state();
   // Right-trimming does not update the objects_size_ counter. We are lazily
   // updating it after every GC.
-  objects_size_ = 0;
+  size_t surviving_object_size = 0;
   while (current) {
     LargePage* next_current = current->next_page();
     HeapObject object = current->GetObject();
     DCHECK(!marking_state->IsGrey(object));
+    size_t size = static_cast<size_t>(object->Size());
     if (marking_state->IsBlack(object)) {
       Address free_start;
-      size_t size = static_cast<size_t>(object->Size());
-      objects_size_ += size;
+      surviving_object_size += size;
       if ((free_start = current->GetAddressToShrink(object->address(), size)) !=
           0) {
         DCHECK(!current->IsFlagSet(Page::IS_EXECUTABLE));
         current->ClearOutOfLiveRangeSlots(free_start);
-        RemoveChunkMapEntries(current, free_start);
         const size_t bytes_to_free =
             current->size() - (free_start - current->address());
         heap()->memory_allocator()->PartialFreeMemory(
@@ -3618,19 +3591,13 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
         AccountUncommitted(bytes_to_free);
       }
     } else {
-      memory_chunk_list_.Remove(current);
-
-      // Free the chunk.
-      size_ -= static_cast<int>(current->size());
-      AccountUncommitted(current->size());
-      page_count_--;
-
-      RemoveChunkMapEntries(current);
+      RemovePage(current, size);
       heap()->memory_allocator()->Free<MemoryAllocator::kPreFreeAndQueue>(
           current);
     }
     current = next_current;
   }
+  objects_size_ = surviving_object_size;
 }
 
 bool LargeObjectSpace::Contains(HeapObject object) {
@@ -3638,9 +3605,16 @@ bool LargeObjectSpace::Contains(HeapObject object) {
 
   bool owned = (chunk->owner() == this);
 
-  SLOW_DCHECK(!owned || FindObject(object->address())->IsHeapObject());
+  SLOW_DCHECK(!owned || ContainsSlow(object->address()));
 
   return owned;
+}
+
+bool LargeObjectSpace::ContainsSlow(Address addr) {
+  for (LargePage* page : *this) {
+    if (page->Contains(addr)) return true;
+  }
+  return false;
 }
 
 std::unique_ptr<ObjectIterator> LargeObjectSpace::GetObjectIterator() {
@@ -3682,7 +3656,8 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
           object->IsFreeSpace() || object->IsFeedbackMetadata() ||
           object->IsContext() ||
           object->IsUncompiledDataWithoutPreparseData() ||
-          object->IsPreparseData())) {
+          object->IsPreparseData()) &&
+        !FLAG_young_generation_large_objects) {
       FATAL("Found invalid Object (instance_type=%i) in large object space.",
             object->map()->instance_type());
     }
@@ -3765,51 +3740,108 @@ void Page::Print() {
 
 #endif  // DEBUG
 
-NewLargeObjectSpace::NewLargeObjectSpace(Heap* heap)
-    : LargeObjectSpace(heap, NEW_LO_SPACE) {}
+NewLargeObjectSpace::NewLargeObjectSpace(Heap* heap, size_t capacity)
+    : LargeObjectSpace(heap, NEW_LO_SPACE),
+      pending_object_(0),
+      capacity_(capacity) {}
 
 AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
-  // TODO(hpayer): Add heap growing strategy here.
+  // Do not allocate more objects if promoting the existing object would exceed
+  // the old generation capacity.
+  if (!heap()->CanExpandOldGeneration(SizeOfObjects())) {
+    return AllocationResult::Retry(identity());
+  }
+
+  // Allocation for the first object must succeed independent from the capacity.
+  if (SizeOfObjects() > 0 && static_cast<size_t>(object_size) > Available()) {
+    return AllocationResult::Retry(identity());
+  }
+
   LargePage* page = AllocateLargePage(object_size, NOT_EXECUTABLE);
   if (page == nullptr) return AllocationResult::Retry(identity());
+
+  // The size of the first object may exceed the capacity.
+  capacity_ = Max(capacity_, SizeOfObjects());
+
+  HeapObject result = page->GetObject();
   page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
-  page->SetFlag(MemoryChunk::IN_TO_SPACE);
+  page->SetFlag(MemoryChunk::TO_PAGE);
+  pending_object_.store(result->address(), std::memory_order_relaxed);
+#ifdef ENABLE_MINOR_MC
+  if (FLAG_minor_mc) {
+    page->AllocateYoungGenerationBitmap();
+    heap()
+        ->minor_mark_compact_collector()
+        ->non_atomic_marking_state()
+        ->ClearLiveness(page);
+  }
+#endif  // ENABLE_MINOR_MC
   page->InitializationMemoryFence();
-  return page->GetObject();
+  DCHECK(page->IsLargePage());
+  DCHECK_EQ(page->owner()->identity(), NEW_LO_SPACE);
+  AllocationStep(object_size, result->address(), object_size);
+  return result;
 }
 
-size_t NewLargeObjectSpace::Available() {
-  // TODO(hpayer): Update as soon as we have a growing strategy.
-  return 0;
-}
+size_t NewLargeObjectSpace::Available() { return capacity_ - SizeOfObjects(); }
 
 void NewLargeObjectSpace::Flip() {
   for (LargePage* chunk = first_page(); chunk != nullptr;
        chunk = chunk->next_page()) {
-    chunk->SetFlag(MemoryChunk::IN_FROM_SPACE);
-    chunk->ClearFlag(MemoryChunk::IN_TO_SPACE);
+    chunk->SetFlag(MemoryChunk::FROM_PAGE);
+    chunk->ClearFlag(MemoryChunk::TO_PAGE);
   }
 }
 
-void NewLargeObjectSpace::FreeAllObjects() {
-  LargePage* current = first_page();
-  while (current) {
-    LargePage* next_current = current->next_page();
-    Unregister(current, static_cast<size_t>(current->GetObject()->Size()));
-    heap()->memory_allocator()->Free<MemoryAllocator::kPreFreeAndQueue>(
-        current);
-    current = next_current;
+void NewLargeObjectSpace::FreeDeadObjects(
+    const std::function<bool(HeapObject)>& is_dead) {
+  bool is_marking = heap()->incremental_marking()->IsMarking();
+  size_t surviving_object_size = 0;
+  bool freed_pages = false;
+  for (auto it = begin(); it != end();) {
+    LargePage* page = *it;
+    it++;
+    HeapObject object = page->GetObject();
+    size_t size = static_cast<size_t>(object->Size());
+    if (is_dead(object)) {
+      freed_pages = true;
+      RemovePage(page, size);
+      heap()->memory_allocator()->Free<MemoryAllocator::kPreFreeAndQueue>(page);
+      if (FLAG_concurrent_marking && is_marking) {
+        heap()->concurrent_marking()->ClearMemoryChunkData(page);
+      }
+    } else {
+      surviving_object_size += size;
+    }
   }
   // Right-trimming does not update the objects_size_ counter. We are lazily
   // updating it after every GC.
-  objects_size_ = 0;
+  objects_size_ = surviving_object_size;
+  if (freed_pages) {
+    heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
+  }
+}
+
+void NewLargeObjectSpace::SetCapacity(size_t capacity) {
+  capacity_ = Max(capacity, SizeOfObjects());
 }
 
 CodeLargeObjectSpace::CodeLargeObjectSpace(Heap* heap)
-    : LargeObjectSpace(heap, CODE_LO_SPACE) {}
+    : LargeObjectSpace(heap, CODE_LO_SPACE),
+      chunk_map_(kInitialChunkMapCapacity) {}
 
 AllocationResult CodeLargeObjectSpace::AllocateRaw(int object_size) {
   return LargeObjectSpace::AllocateRaw(object_size, EXECUTABLE);
+}
+
+void CodeLargeObjectSpace::AddPage(LargePage* page, size_t object_size) {
+  LargeObjectSpace::AddPage(page, object_size);
+  InsertChunkMapEntries(page);
+}
+
+void CodeLargeObjectSpace::RemovePage(LargePage* page, size_t object_size) {
+  RemoveChunkMapEntries(page);
+  LargeObjectSpace::RemovePage(page, object_size);
 }
 
 }  // namespace internal

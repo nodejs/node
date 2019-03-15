@@ -11,6 +11,7 @@ function f(x) {
   return x + 1;
 }
 
+%PrepareFunctionForOptimization(f);
 f(1);
 %OptimizeFunctionOnNextCall(f);
 
@@ -32,6 +33,7 @@ assertUnoptimized(f, undefined, undefined, false);
 
 // stress_deopt_count == 6
 
+%PrepareFunctionForOptimization(f);
 %OptimizeFunctionOnNextCall(f);
 f(1);
 assertOptimized(f, undefined, undefined, false);

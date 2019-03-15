@@ -7,8 +7,8 @@
 
 #include "src/conversions-inl.h"
 #include "src/heap/array-buffer-tracker.h"
-#include "src/heap/heap.h"
-#include "src/heap/spaces.h"
+#include "src/heap/heap-inl.h"
+#include "src/heap/spaces-inl.h"
 #include "src/objects.h"
 #include "src/objects/js-array-buffer-inl.h"
 
@@ -17,6 +17,9 @@ namespace internal {
 
 void ArrayBufferTracker::RegisterNew(Heap* heap, JSArrayBuffer buffer) {
   if (buffer->backing_store() == nullptr) return;
+
+  // ArrayBuffer tracking works only for small objects.
+  DCHECK(!heap->IsLargeObject(buffer));
 
   const size_t length = buffer->byte_length();
   Page* page = Page::FromHeapObject(buffer);

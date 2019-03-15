@@ -16,6 +16,7 @@ function readUint8(offset) {
 }
 
 function warmupRead(f) {
+  %PrepareFunctionForOptimization(f);
   f(0);
   f(1);
   %OptimizeFunctionOnNextCall(f);
@@ -40,6 +41,7 @@ function writeUint8(offset, value) {
 }
 
 function warmupWrite(f) {
+  %PrepareFunctionForOptimization(f);
   f(0, 0);
   f(0, 1);
   %OptimizeFunctionOnNextCall(f);

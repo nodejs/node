@@ -21,7 +21,7 @@ namespace compiler {
 class JSCallReducerTest : public TypedGraphTest {
  public:
   JSCallReducerTest()
-      : TypedGraphTest(3), javascript_(zone()), deps_(isolate(), zone()) {
+      : TypedGraphTest(3), javascript_(zone()), deps_(broker(), zone()) {
     broker()->SerializeStandardObjects();
   }
   ~JSCallReducerTest() override = default;

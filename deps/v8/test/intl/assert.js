@@ -200,15 +200,68 @@ function assertInstanceof(obj, type) {
   }
 }
 
-
 /**
  * Split a BCP 47 language tag into locale and extension.
  */
 function splitLanguageTag(tag) {
-  var extRe = /(-[0-9A-Za-z](-[0-9A-Za-z]{2,8})+)+$/;
-  var match = %regexp_internal_match(extRe, tag);
-  if (match) {
-    return { locale: tag.slice(0, match.index), extension: match[0] };
+  // Search for the beginning of one or more extension tags, each of which
+  // contains a singleton tag followed by one or more subtags. The equivalent
+  // regexp is: /(-[0-9A-Za-z](-[0-9A-Za-z]{2,8})+)+$/. For example, in
+  // 'de-DE-u-co-phonebk' the matched extension tags are '-u-co-phonebk'.
+  //
+  // The below is a mini-parser that reads backwards from the end of the string.
+
+  function charCode(char) { return char.charCodeAt(0); }
+  function isAlphaNumeric(code) {
+    return (charCode("0") <= code && code <= charCode("9")) ||
+           (charCode("A") <= code && code <= charCode("Z")) ||
+           (charCode("a") <= code && code <= charCode("z"));
+  }
+
+  const MATCH_SUBTAG = 0;
+  const MATCH_SINGLETON_OR_SUBTAG = 1;
+  let state = MATCH_SUBTAG;
+
+  const MINIMUM_TAG_LENGTH = 2;
+  const MAXIMUM_TAG_LENGTH = 8;
+  let currentTagLength = 0;
+
+  // -1 signifies failure, a non-negative integer is the start index of the
+  // extension tag.
+  let extensionTagStartIndex = -1;
+
+  for (let i = tag.length - 1; i >= 0; i--) {
+    const currentCharCode = tag.charCodeAt(i);
+    if (currentCharCode == charCode("-")) {
+      if (state == MATCH_SINGLETON_OR_SUBTAG && currentTagLength == 1) {
+        // Found the singleton tag, the match succeeded.
+        // Save the matched index, and reset the state. After this point, we
+        // definitely have a match, but we may still find another extension tag
+        // sequence.
+        extensionTagStartIndex = i;
+        state = MATCH_SUBTAG;
+        currentTagLength = 0;
+      } else if (MINIMUM_TAG_LENGTH <= currentTagLength &&
+                currentTagLength <= MAXIMUM_TAG_LENGTH) {
+        // Found a valid subtag.
+        state = MATCH_SINGLETON_OR_SUBTAG;
+        currentTagLength = 0;
+      } else {
+        // Invalid subtag (too short or too long).
+        break;
+      }
+    } else if (isAlphaNumeric(currentCharCode)) {
+      // An alphanumeric character is potentially part of a tag.
+      currentTagLength++;
+    } else {
+      // Any other character is invalid.
+      break;
+    }
+  }
+
+  if (extensionTagStartIndex != -1) {
+    return { locale: tag.substring(0, extensionTagStartIndex),
+             extension: tag.substring(extensionTagStartIndex) };
   }
 
   return { locale: tag, extension: '' };

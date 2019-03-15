@@ -28,7 +28,7 @@ namespace arguments {
 
     const shared: SharedFunctionInfo = f.shared_function_info;
     const formalParameterCount: bint =
-        Convert<bint>(shared.formal_parameter_count);
+        Convert<bint>(Convert<int32>(shared.formal_parameter_count));
     let argumentCount: bint = formalParameterCount;
 
     const adaptor: ArgumentsAdaptorFrame =

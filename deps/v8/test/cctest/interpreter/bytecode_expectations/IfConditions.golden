@@ -147,7 +147,7 @@ snippet: "
 "
 frame size: 0
 parameter count: 2
-bytecode array length: 19
+bytecode array length: 17
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   18 S> */ B(LdaZero),
@@ -157,8 +157,6 @@ bytecodes: [
   /*   47 S> */ B(Return),
   /*   63 S> */ B(Wide), B(LdaSmi), I16(-200),
   /*   75 S> */ B(Return),
-                B(LdaUndefined),
-  /*   80 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -171,11 +169,11 @@ snippet: "
 "
 frame size: 0
 parameter count: 3
-bytecode array length: 14
+bytecode array length: 15
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   19 S> */ B(Ldar), R(arg1),
-  /*   25 E> */ B(TestIn), R(arg0),
+  /*   25 E> */ B(TestIn), R(arg0), U8(0),
                 B(JumpIfFalse), U8(7),
   /*   33 S> */ B(Wide), B(LdaSmi), I16(200),
   /*   44 S> */ B(Return),
@@ -258,7 +256,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 2
-bytecode array length: 29
+bytecode array length: 27
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   24 S> */ B(LdaZero),
@@ -273,8 +271,6 @@ bytecodes: [
   /* 1092 S> */ B(Return),
   /* 1102 S> */ B(Wide), B(LdaSmi), I16(-200),
   /* 1114 S> */ B(Return),
-                B(LdaUndefined),
-  /* 1117 S> */ B(Return),
 ]
 constant pool: [
   HEAP_NUMBER_TYPE [0.01],
@@ -357,7 +353,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 26
+bytecode array length: 24
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   25 S> */ B(LdaZero),
@@ -371,8 +367,6 @@ bytecodes: [
   /* 1087 S> */ B(Return),
   /* 1097 S> */ B(Wide), B(LdaSmi), I16(-200),
   /* 1109 S> */ B(Return),
-                B(LdaUndefined),
-  /* 1112 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -396,7 +390,7 @@ snippet: "
 "
 frame size: 0
 parameter count: 3
-bytecode array length: 82
+bytecode array length: 83
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   21 S> */ B(Ldar), R(arg1),
@@ -430,12 +424,12 @@ bytecodes: [
   /*  174 S> */ B(LdaSmi), I8(1),
   /*  183 S> */ B(Return),
   /*  188 S> */ B(Ldar), R(arg1),
-  /*  194 E> */ B(TestIn), R(arg0),
+  /*  194 E> */ B(TestIn), R(arg0), U8(6),
                 B(JumpIfFalse), U8(5),
   /*  202 S> */ B(LdaSmi), I8(1),
   /*  211 S> */ B(Return),
   /*  216 S> */ B(Ldar), R(arg1),
-  /*  222 E> */ B(TestInstanceOf), R(arg0), U8(6),
+  /*  222 E> */ B(TestInstanceOf), R(arg0), U8(8),
                 B(JumpIfFalse), U8(5),
   /*  238 S> */ B(LdaSmi), I8(1),
   /*  247 S> */ B(Return),
@@ -461,7 +455,7 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 14
+bytecode array length: 12
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   25 S> */ B(LdaZero),
@@ -471,8 +465,6 @@ bytecodes: [
   /*   53 S> */ B(Return),
   /*   69 S> */ B(LdaSmi), I8(-20),
   /*   80 S> */ B(Return),
-                B(LdaUndefined),
-  /*   85 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -494,7 +486,7 @@ snippet: "
 "
 frame size: 0
 parameter count: 3
-bytecode array length: 36
+bytecode array length: 34
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   21 S> */ B(Ldar), R(arg1),
@@ -515,8 +507,6 @@ bytecodes: [
   /*  102 S> */ B(Return),
   /*  118 S> */ B(LdaSmi), I8(-1),
   /*  128 S> */ B(Return),
-                B(LdaUndefined),
-  /*  133 S> */ B(Return),
 ]
 constant pool: [
 ]

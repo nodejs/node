@@ -5,8 +5,6 @@
 #ifndef V8_REGEXP_REGEXP_MACRO_ASSEMBLER_IRREGEXP_INL_H_
 #define V8_REGEXP_REGEXP_MACRO_ASSEMBLER_IRREGEXP_INL_H_
 
-#ifdef V8_INTERPRETED_REGEXP
-
 #include "src/regexp/regexp-macro-assembler-irregexp.h"
 
 #include "src/ast/ast.h"
@@ -58,7 +56,5 @@ void RegExpMacroAssemblerIrregexp::Emit32(uint32_t word) {
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_INTERPRETED_REGEXP
 
 #endif  // V8_REGEXP_REGEXP_MACRO_ASSEMBLER_IRREGEXP_INL_H_

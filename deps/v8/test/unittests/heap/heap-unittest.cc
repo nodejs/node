@@ -6,13 +6,10 @@
 #include <iostream>
 #include <limits>
 
-#include "src/objects.h"
-#include "src/objects-inl.h"
-
-#include "src/handles.h"
 #include "src/handles-inl.h"
-
 #include "src/heap/heap.h"
+#include "src/heap/spaces-inl.h"
+#include "src/objects-inl.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -23,14 +20,13 @@ typedef TestWithIsolate HeapTest;
 typedef TestWithIsolateAndPointerCompression HeapWithPointerCompressionTest;
 
 TEST(Heap, SemiSpaceSize) {
-  const size_t KB = static_cast<size_t>(i::KB);
   const size_t MB = static_cast<size_t>(i::MB);
   const size_t pm = i::Heap::kPointerMultiplier;
-  ASSERT_EQ(1u * pm * MB / 2, i::Heap::ComputeMaxSemiSpaceSize(0u) * KB);
-  ASSERT_EQ(1u * pm * MB / 2, i::Heap::ComputeMaxSemiSpaceSize(512u * MB) * KB);
-  ASSERT_EQ(2u * pm * MB, i::Heap::ComputeMaxSemiSpaceSize(1024u * MB) * KB);
-  ASSERT_EQ(5u * pm * MB, i::Heap::ComputeMaxSemiSpaceSize(2024u * MB) * KB);
-  ASSERT_EQ(8u * pm * MB, i::Heap::ComputeMaxSemiSpaceSize(4095u * MB) * KB);
+  ASSERT_EQ(512u * pm, i::Heap::ComputeMaxSemiSpaceSize(0u));
+  ASSERT_EQ(512u * pm, i::Heap::ComputeMaxSemiSpaceSize(512u * MB));
+  ASSERT_EQ(2048u * pm, i::Heap::ComputeMaxSemiSpaceSize(1024u * MB));
+  ASSERT_EQ(5120u * pm, i::Heap::ComputeMaxSemiSpaceSize(2024u * MB));
+  ASSERT_EQ(8192u * pm, i::Heap::ComputeMaxSemiSpaceSize(4095u * MB));
 }
 
 TEST_F(HeapTest, ASLR) {

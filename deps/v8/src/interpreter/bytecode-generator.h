@@ -7,6 +7,7 @@
 
 #include "src/ast/ast.h"
 #include "src/feedback-vector.h"
+#include "src/function-kind.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-register.h"
@@ -202,6 +203,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                            AccumulatorPreservingMode::kNone);
   void BuildAssignment(const AssignmentLhsData& data, Token::Value op,
                        LookupHoistingMode lookup_hoisting_mode);
+
+  void BuildThisVariableLoad();
 
   Expression* GetDestructuringDefaultValue(Expression** target);
   void BuildDestructuringArrayAssignment(

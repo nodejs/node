@@ -12,6 +12,7 @@ function foo(o) {
 }
 
 var o = {};
+%PrepareFunctionForOptimization(foo);
 assertEquals("", foo(o));
 assertEquals("", foo(o));
 %OptimizeFunctionOnNextCall(foo);

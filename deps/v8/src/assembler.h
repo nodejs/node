@@ -247,6 +247,10 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   int pc_offset() const { return static_cast<int>(pc_ - buffer_start_); }
 
+  byte* buffer_start() const { return buffer_->start(); }
+  int buffer_size() const { return buffer_->size(); }
+  int instruction_size() const { return pc_offset(); }
+
   // This function is called when code generation is aborted, so that
   // the assembler could clean up internal data structures.
   virtual void AbortedCodeGeneration() { }
@@ -263,11 +267,6 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   }
 
   static const int kMinimalBufferSize = 4*KB;
-
-  static void FlushICache(void* start, size_t size);
-  static void FlushICache(Address start, size_t size) {
-    return FlushICache(reinterpret_cast<void*>(start), size);
-  }
 
  protected:
   // Add 'target' to the {code_targets_} vector, if necessary, and return the

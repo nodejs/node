@@ -12,6 +12,7 @@
 #include "src/globals.h"
 #include "src/objects-inl.h"
 #include "src/string-builder-inl.h"
+#include "src/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -500,8 +501,7 @@ void CallPrinter::VisitImportCallExpression(ImportCallExpression* node) {
   Print(")");
 }
 
-void CallPrinter::VisitThisFunction(ThisFunction* node) {}
-
+void CallPrinter::VisitThisExpression(ThisExpression* node) { Print("this"); }
 
 void CallPrinter::VisitSuperPropertyReference(SuperPropertyReference* node) {}
 
@@ -1391,10 +1391,9 @@ void AstPrinter::VisitImportCallExpression(ImportCallExpression* node) {
   Visit(node->argument());
 }
 
-void AstPrinter::VisitThisFunction(ThisFunction* node) {
-  IndentedScope indent(this, "THIS-FUNCTION", node->position());
+void AstPrinter::VisitThisExpression(ThisExpression* node) {
+  IndentedScope indent(this, "THIS-EXPRESSION", node->position());
 }
-
 
 void AstPrinter::VisitSuperPropertyReference(SuperPropertyReference* node) {
   IndentedScope indent(this, "SUPER-PROPERTY-REFERENCE", node->position());

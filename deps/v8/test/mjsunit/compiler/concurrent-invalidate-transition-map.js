@@ -47,6 +47,7 @@ function add_field(obj) {
   obj.c = 0;
   obj.c = 3;
 }
+%PrepareFunctionForOptimization(add_field);
 var obj1 = new_object();
 var obj2 = new_object();
 add_field(obj1);

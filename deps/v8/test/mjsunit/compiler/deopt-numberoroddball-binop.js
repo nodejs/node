@@ -7,6 +7,7 @@
 (function() {
   function foo(x, y) { return x << y; }
 
+  %PrepareFunctionForOptimization(foo);
   foo(1.1, 0.1);
   foo(0.1, 1.1);
   foo(true, false);
@@ -32,6 +33,7 @@
 (function() {
   function foo(x, y) { return x >> y; }
 
+  %PrepareFunctionForOptimization(foo);
   foo(1.1, 0.1);
   foo(0.1, 1.1);
   foo(true, false);
@@ -57,6 +59,7 @@
 (function() {
   function foo(x, y) { return x >>> y; }
 
+  %PrepareFunctionForOptimization(foo);
   foo(1.1, 0.1);
   foo(0.1, 1.1);
   foo(true, false);
@@ -82,6 +85,7 @@
 (function() {
   function foo(x, y) { return x ^ y; }
 
+  %PrepareFunctionForOptimization(foo);
   foo(1.1, 0.1);
   foo(0.1, 1.1);
   foo(true, false);
@@ -107,6 +111,7 @@
 (function() {
   function foo(x, y) { return x | y; }
 
+  %PrepareFunctionForOptimization(foo);
   foo(1.1, 0.1);
   foo(0.1, 1.1);
   foo(true, false);
@@ -132,6 +137,7 @@
 (function() {
   function foo(x, y) { return x & y; }
 
+  %PrepareFunctionForOptimization(foo);
   foo(1.1, 0.1);
   foo(0.1, 1.1);
   foo(true, false);

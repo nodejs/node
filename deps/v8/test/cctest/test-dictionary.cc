@@ -36,6 +36,7 @@
 #include "src/heap/spaces.h"
 #include "src/objects-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/roots.h"
 #include "test/cctest/heap/heap-utils.h"
 
 namespace v8 {
@@ -218,7 +219,7 @@ TEST(HashTableRehash) {
     for (int i = 0; i < capacity - 1; i++) {
       t->insert(i, i * i, i);
     }
-    t->Rehash(isolate);
+    t->Rehash(ReadOnlyRoots(isolate));
     for (int i = 0; i < capacity - 1; i++) {
       CHECK_EQ(i, t->lookup(i * i));
     }
@@ -231,7 +232,7 @@ TEST(HashTableRehash) {
     for (int i = 0; i < capacity / 2; i++) {
       t->insert(i, i * i, i);
     }
-    t->Rehash(isolate);
+    t->Rehash(ReadOnlyRoots(isolate));
     for (int i = 0; i < capacity / 2; i++) {
       CHECK_EQ(i, t->lookup(i * i));
     }

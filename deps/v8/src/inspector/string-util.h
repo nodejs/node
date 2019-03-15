@@ -22,6 +22,10 @@ class Value;
 
 using String = v8_inspector::String16;
 using StringBuilder = v8_inspector::String16Builder;
+struct ProtocolMessage {
+  String json;
+  std::vector<uint8_t> binary;
+};
 
 class StringUtil {
  public:
@@ -59,6 +63,25 @@ class StringUtil {
   }
   static std::unique_ptr<protocol::Value> parseJSON(const String16& json);
   static std::unique_ptr<protocol::Value> parseJSON(const StringView& json);
+  static std::unique_ptr<protocol::Value> parseProtocolMessage(
+      const ProtocolMessage&);
+  static ProtocolMessage jsonToMessage(String message);
+  static ProtocolMessage binaryToMessage(std::vector<uint8_t> message);
+
+  static String fromUTF8(const uint8_t* data, size_t length) {
+    return String16::fromUTF8(reinterpret_cast<const char*>(data), length);
+  }
+
+  static String fromUTF16(const uint16_t* data, size_t length) {
+    return String16(data, length);
+  }
+
+  static const uint8_t* CharactersLatin1(const String& s) { return nullptr; }
+  static const uint8_t* CharactersUTF8(const String& s) { return nullptr; }
+  static const uint16_t* CharactersUTF16(const String& s) {
+    return s.characters16();
+  }
+  static size_t CharacterCount(const String& s) { return s.length(); }
 };
 
 // A read-only sequence of uninterpreted bytes with reference-counted storage.
@@ -73,6 +96,7 @@ class Binary {
   static Binary fromBase64(const String& base64, bool* success) {
     UNIMPLEMENTED();
   }
+  static Binary fromSpan(const uint8_t* data, size_t size) { UNIMPLEMENTED(); }
 };
 }  // namespace protocol
 
@@ -99,6 +123,19 @@ class StringBufferImpl : public StringBuffer {
   StringView m_string;
 
   DISALLOW_COPY_AND_ASSIGN(StringBufferImpl);
+};
+
+class BinaryStringBuffer : public StringBuffer {
+ public:
+  explicit BinaryStringBuffer(std::vector<uint8_t> data)
+      : m_data(std::move(data)), m_string(m_data.data(), m_data.size()) {}
+  const StringView& string() override { return m_string; }
+
+ private:
+  std::vector<uint8_t> m_data;
+  StringView m_string;
+
+  DISALLOW_COPY_AND_ASSIGN(BinaryStringBuffer);
 };
 
 String16 debuggerIdToString(const std::pair<int64_t, int64_t>& debuggerId);

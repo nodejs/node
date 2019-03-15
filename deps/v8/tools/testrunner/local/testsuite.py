@@ -28,6 +28,7 @@
 
 import fnmatch
 import imp
+import itertools
 import os
 from contextlib import contextmanager
 
@@ -78,6 +79,156 @@ class TestCombiner(object):
   def _combined_test_class(self):
     raise NotImplementedError()
 
+
+class TestLoader(object):
+  """Base class for loading TestSuite tests after applying test suite
+  transformations."""
+
+  def __init__(self, suite, test_class, test_config, test_root):
+    self.suite = suite
+    self.test_class = test_class
+    self.test_config = test_config
+    self.test_root = test_root
+    self.test_count_estimation = len(list(self._list_test_filenames()))
+
+  def _list_test_filenames(self):
+    """Implemented by the subclassed TestLoaders to list filenames.
+
+    Filenames are expected to be sorted and are deterministic."""
+    raise NotImplementedError
+
+  def _should_filter_by_name(self, name):
+    return False
+
+  def _should_filter_by_test(self, test):
+    return False
+
+  def _filename_to_testname(self, filename):
+    """Hook for subclasses to write their own filename transformation
+    logic before the test creation."""
+    return filename
+
+  # TODO: not needed for every TestLoader, extract it into a subclass.
+  def _path_to_name(self, path):
+    if utils.IsWindows():
+      return path.replace(os.path.sep, "/")
+
+    return path
+
+  def _create_test(self, path, suite, **kwargs):
+    """Converts paths into test objects using the given options"""
+    return self.test_class(
+      suite, path, self._path_to_name(path), self.test_config, **kwargs)
+
+  def list_tests(self):
+    """Loads and returns the test objects for a TestSuite"""
+    # TODO: detect duplicate tests.
+    for filename in self._list_test_filenames():
+      if self._should_filter_by_name(filename):
+        continue
+
+      testname = self._filename_to_testname(filename)
+      case = self._create_test(testname, self.suite)
+      if self._should_filter_by_test(case):
+        continue
+
+      yield case
+
+
+class GenericTestLoader(TestLoader):
+  """Generic TestLoader implementing the logic for listing filenames"""
+  @property
+  def excluded_files(self):
+    return set()
+
+  @property
+  def excluded_dirs(self):
+    return set()
+
+  @property
+  def excluded_suffixes(self):
+    return set()
+
+  @property
+  def test_dirs(self):
+    return [self.test_root]
+
+  @property
+  def extension(self):
+    return ""
+
+  def _should_filter_by_name(self, filename):
+    if not filename.endswith(self.extension):
+      return True
+
+    for suffix in self.excluded_suffixes:
+      if filename.endswith(suffix):
+        return True
+
+    if os.path.basename(filename) in self.excluded_files:
+      return True
+
+    return False
+
+  def _filename_to_testname(self, filename):
+    if not self.extension:
+      return filename
+
+    return filename[:-len(self.extension)]
+
+  def _to_relpath(self, abspath, test_root):
+    return os.path.relpath(abspath, test_root)
+
+  def _list_test_filenames(self):
+    for test_dir in sorted(self.test_dirs):
+      test_root = os.path.join(self.test_root, test_dir)
+      for dirname, dirs, files in os.walk(test_root, followlinks=True):
+        dirs.sort()
+        for dir in dirs:
+          if dir in self.excluded_dirs or dir.startswith('.'):
+            dirs.remove(dir)
+
+        files.sort()
+        for filename in files:
+          abspath = os.path.join(dirname, filename)
+
+          yield self._to_relpath(abspath, test_root)
+
+
+class JSTestLoader(GenericTestLoader):
+  @property
+  def extension(self):
+    return ".js"
+
+
+class TestGenerator(object):
+  def __init__(self, test_count_estimate, slow_tests, fast_tests):
+    self.test_count_estimate = test_count_estimate
+    self.slow_tests = slow_tests
+    self.fast_tests = fast_tests
+    self._rebuild_iterator()
+
+  def _rebuild_iterator(self):
+    self._iterator = itertools.chain(self.slow_tests, self.fast_tests)
+
+  def __iter__(self):
+    return self
+
+  def __next__(self):
+    return self.next()
+
+  def next(self):
+    return next(self._iterator)
+
+  def merge(self, test_generator):
+    self.test_count_estimate += test_generator.test_count_estimate
+    self.slow_tests = itertools.chain(
+      self.slow_tests, test_generator.slow_tests)
+    self.fast_tests = itertools.chain(
+      self.fast_tests, test_generator.fast_tests)
+    self._rebuild_iterator()
+
+
 @contextmanager
 def _load_testsuite_module(name, root):
   f = None
@@ -102,20 +253,35 @@ class TestSuite(object):
     self.tests = None  # list of TestCase objects
     self.statusfile = None
 
+    self._test_loader = self._test_loader_class()(
+      self, self._test_class(), self.test_config, self.root)
+
   def status_file(self):
     return "%s/%s.status" % (self.root, self.name)
 
-  def ListTests(self):
+  @property
+  def _test_loader_class(self):
     raise NotImplementedError
+
+  def ListTests(self):
+    return self._test_loader.list_tests()
+
+  def __initialize_test_count_estimation(self):
+    # Retrieves a single test to initialize the test generator.
+    next(iter(self.ListTests()), None)
+
+  def __calculate_test_count(self):
+    self.__initialize_test_count_estimation()
+    return self._test_loader.test_count_estimation
 
   def load_tests_from_disk(self, statusfile_variables):
     self.statusfile = statusfile.StatusFile(
       self.status_file(), statusfile_variables)
 
+    test_count = self.__calculate_test_count()
     slow_tests = (test for test in self.ListTests() if test.is_slow)
     fast_tests = (test for test in self.ListTests() if not test.is_slow)
-
-    return slow_tests, fast_tests
+    return TestGenerator(test_count, slow_tests, fast_tests)
 
   def get_variants_gen(self, variants):
     return self._variants_gen_class()(variants)
@@ -138,15 +304,5 @@ class TestSuite(object):
     """
     return None
 
-  def _create_test(self, path, **kwargs):
-    test_class = self._test_class()
-    return test_class(self, path, self._path_to_name(path), self.test_config,
-                      **kwargs)
-
   def _test_class(self):
     raise NotImplementedError
-
-  def _path_to_name(self, path):
-    if utils.IsWindows():
-      return path.replace("\\", "/")
-    return path

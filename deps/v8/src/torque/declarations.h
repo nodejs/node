@@ -54,6 +54,7 @@ class Declarations {
 
   static std::vector<Declarable*> LookupGlobalScope(const std::string& name);
 
+  static const TypeAlias* LookupTypeAlias(const QualifiedName& name);
   static const Type* LookupType(const QualifiedName& name);
   static const Type* LookupType(std::string name);
   static const Type* LookupGlobalType(const std::string& name);
@@ -74,19 +75,18 @@ class Declarations {
   static Namespace* DeclareNamespace(const std::string& name);
 
   static const AbstractType* DeclareAbstractType(
-      const std::string& name, bool transient, const std::string& generated,
+      const Identifier* name, bool transient, std::string generated,
       base::Optional<const AbstractType*> non_constexpr_version,
       const base::Optional<std::string>& parent = {});
 
-  static void DeclareType(const std::string& name, const Type* type,
+  static void DeclareType(const Identifier* name, const Type* type,
                           bool redeclaration);
 
-  static StructType* DeclareStruct(const std::string& name,
-                                   const std::vector<Field>& fields);
+  static StructType* DeclareStruct(const Identifier* name);
 
-  static ClassType* DeclareClass(const Type* super, const std::string& name,
-                                 bool transient, const std::string& generates,
-                                 std::vector<Field> fields, size_t size);
+  static ClassType* DeclareClass(const Type* super, const Identifier* name,
+                                 bool is_extern, bool transient,
+                                 const std::string& generates);
 
   static Macro* CreateMacro(std::string external_name,
                             std::string readable_name,
@@ -121,9 +121,9 @@ class Declarations {
                                                  const Signature& signature,
                                                  bool transitioning);
 
-  static void DeclareExternConstant(const std::string& name, const Type* type,
+  static void DeclareExternConstant(Identifier* name, const Type* type,
                                     std::string value);
-  static NamespaceConstant* DeclareNamespaceConstant(const std::string& name,
+  static NamespaceConstant* DeclareNamespaceConstant(Identifier* name,
                                                      const Type* type,
                                                      Expression* body);
 

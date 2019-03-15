@@ -951,6 +951,18 @@ Node* CodeAssembler::Load(MachineType rep, Node* base, Node* offset,
   return raw_assembler()->Load(rep, base, offset, needs_poisoning);
 }
 
+Node* CodeAssembler::LoadFullTagged(Node* base,
+                                    LoadSensitivity needs_poisoning) {
+  return BitcastWordToTagged(
+      Load(MachineType::Pointer(), base, needs_poisoning));
+}
+
+Node* CodeAssembler::LoadFullTagged(Node* base, Node* offset,
+                                    LoadSensitivity needs_poisoning) {
+  return BitcastWordToTagged(
+      Load(MachineType::Pointer(), base, offset, needs_poisoning));
+}
+
 Node* CodeAssembler::AtomicLoad(MachineType rep, Node* base, Node* offset) {
   return raw_assembler()->AtomicLoad(rep, base, offset);
 }
@@ -972,7 +984,7 @@ TNode<Object> CodeAssembler::LoadRoot(RootIndex root_index) {
       ExternalConstant(ExternalReference::isolate_root(isolate()));
   int offset = IsolateData::root_slot_offset(root_index);
   return UncheckedCast<Object>(
-      Load(MachineType::AnyTagged(), isolate_root, IntPtrConstant(offset)));
+      LoadFullTagged(isolate_root, IntPtrConstant(offset)));
 }
 
 Node* CodeAssembler::Store(Node* base, Node* value) {
@@ -1007,6 +1019,18 @@ Node* CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
   return raw_assembler()->Store(rep, base, offset, value, kNoWriteBarrier);
 }
 
+Node* CodeAssembler::StoreFullTaggedNoWriteBarrier(Node* base,
+                                                   Node* tagged_value) {
+  return StoreNoWriteBarrier(MachineType::PointerRepresentation(), base,
+                             BitcastTaggedToWord(tagged_value));
+}
+
+Node* CodeAssembler::StoreFullTaggedNoWriteBarrier(Node* base, Node* offset,
+                                                   Node* tagged_value) {
+  return StoreNoWriteBarrier(MachineType::PointerRepresentation(), base, offset,
+                             BitcastTaggedToWord(tagged_value));
+}
+
 Node* CodeAssembler::AtomicStore(MachineRepresentation rep, Node* base,
                                  Node* offset, Node* value, Node* value_high) {
   return raw_assembler()->AtomicStore(rep, base, offset, value, value_high);
@@ -1019,12 +1043,12 @@ Node* CodeAssembler::AtomicStore(MachineRepresentation rep, Node* base,
     return raw_assembler()->Atomic##name(type, base, offset, value, \
                                          value_high);               \
   }
-ATOMIC_FUNCTION(Exchange);
-ATOMIC_FUNCTION(Add);
-ATOMIC_FUNCTION(Sub);
-ATOMIC_FUNCTION(And);
-ATOMIC_FUNCTION(Or);
-ATOMIC_FUNCTION(Xor);
+ATOMIC_FUNCTION(Exchange)
+ATOMIC_FUNCTION(Add)
+ATOMIC_FUNCTION(Sub)
+ATOMIC_FUNCTION(And)
+ATOMIC_FUNCTION(Or)
+ATOMIC_FUNCTION(Xor)
 #undef ATOMIC_FUNCTION
 
 Node* CodeAssembler::AtomicCompareExchange(MachineType type, Node* base,
@@ -1041,8 +1065,8 @@ Node* CodeAssembler::StoreRoot(RootIndex root_index, Node* value) {
   Node* isolate_root =
       ExternalConstant(ExternalReference::isolate_root(isolate()));
   int offset = IsolateData::root_slot_offset(root_index);
-  return StoreNoWriteBarrier(MachineRepresentation::kTagged, isolate_root,
-                             IntPtrConstant(offset), value);
+  return StoreFullTaggedNoWriteBarrier(isolate_root, IntPtrConstant(offset),
+                                       value);
 }
 
 Node* CodeAssembler::Retain(Node* value) {
@@ -1738,7 +1762,9 @@ void CodeAssemblerLabel::Bind(AssemblerDebugInfo debug_info) {
         << "\n#    previous: " << *label_->block();
     FATAL("%s", str.str().c_str());
   }
-  state_->raw_assembler_->SetSourcePosition(debug_info.file, debug_info.line);
+  if (FLAG_enable_source_at_csa_bind) {
+    state_->raw_assembler_->SetSourcePosition(debug_info.file, debug_info.line);
+  }
   state_->raw_assembler_->Bind(label_, debug_info);
   UpdateVariablesAfterBind();
 }
@@ -1820,6 +1846,8 @@ void CodeAssemblerParameterizedLabelBase::AddInputs(std::vector<Node*> inputs) {
   if (!phi_nodes_.empty()) {
     DCHECK_EQ(inputs.size(), phi_nodes_.size());
     for (size_t i = 0; i < inputs.size(); ++i) {
+      // We use {nullptr} as a sentinel for an uninitialized value.
+      if (phi_nodes_[i] == nullptr) continue;
       state_->raw_assembler_->AppendPhiInput(phi_nodes_[i], inputs[i]);
     }
   } else {

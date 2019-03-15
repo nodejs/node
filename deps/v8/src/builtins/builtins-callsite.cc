@@ -5,6 +5,7 @@
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/counters.h"
+#include "src/heap/heap-inl.h"  // For ToBoolean.
 #include "src/objects-inl.h"
 #include "src/objects/frame-array-inl.h"
 

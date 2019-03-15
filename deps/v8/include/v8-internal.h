@@ -31,7 +31,7 @@ static const Address kNullAddress = 0;
 const int kApiSystemPointerSize = sizeof(void*);
 const int kApiTaggedSize = kApiSystemPointerSize;
 const int kApiDoubleSize = sizeof(double);
-const int kApiIntSize = sizeof(int);
+const int kApiInt32Size = sizeof(int32_t);
 const int kApiInt64Size = sizeof(int64_t);
 
 // Tag information for HeapObject.
@@ -88,16 +88,16 @@ struct SmiTagging<8> {
   }
 };
 
-#if defined(V8_COMPRESS_POINTERS)
+#ifdef V8_COMPRESS_POINTERS
 static_assert(
     kApiSystemPointerSize == kApiInt64Size,
     "Pointer compression can be enabled only for 64-bit architectures");
 #endif
 
-#if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
-typedef SmiTagging<kApiIntSize> PlatformSmiTagging;
+#ifdef V8_31BIT_SMIS_ON_64BIT_ARCH
+typedef SmiTagging<kApiInt32Size> PlatformSmiTagging;
 #else
-typedef SmiTagging<kApiSystemPointerSize> PlatformSmiTagging;
+typedef SmiTagging<kApiTaggedSize> PlatformSmiTagging;
 #endif
 
 const int kSmiShiftSize = PlatformSmiTagging::kSmiShiftSize;
@@ -122,15 +122,13 @@ class Internals {
   // These values match non-compiler-dependent values defined within
   // the implementation of v8.
   static const int kHeapObjectMapOffset = 0;
-  static const int kMapInstanceTypeOffset = 1 * kApiTaggedSize + kApiIntSize;
-  static const int kStringResourceOffset = 1 * kApiTaggedSize + 2 * kApiIntSize;
+  static const int kMapInstanceTypeOffset = 1 * kApiTaggedSize + kApiInt32Size;
+  static const int kStringResourceOffset =
+      1 * kApiTaggedSize + 2 * kApiInt32Size;
 
   static const int kOddballKindOffset = 4 * kApiTaggedSize + kApiDoubleSize;
   static const int kForeignAddressOffset = kApiTaggedSize;
   static const int kJSObjectHeaderSize = 3 * kApiTaggedSize;
-  static const int kJSObjectHeaderSizeForEmbedderFields =
-      (kJSObjectHeaderSize + kApiSystemPointerSize - 1) &
-      -kApiSystemPointerSize;
   static const int kFixedArrayHeaderSize = 2 * kApiTaggedSize;
   static const int kEmbedderDataArrayHeaderSize = 2 * kApiTaggedSize;
   static const int kEmbedderDataSlotSize =
@@ -148,7 +146,7 @@ class Internals {
 
   static const int kIsolateEmbedderDataOffset = 0;
   static const int kExternalMemoryOffset =
-      kNumIsolateDataSlots * kApiTaggedSize;
+      kNumIsolateDataSlots * kApiSystemPointerSize;
   static const int kExternalMemoryLimitOffset =
       kExternalMemoryOffset + kApiInt64Size;
   static const int kExternalMemoryAtLastMarkCompactOffset =
@@ -163,8 +161,8 @@ class Internals {
   static const int kFalseValueRootIndex = 8;
   static const int kEmptyStringRootIndex = 9;
 
-  static const int kNodeClassIdOffset = 1 * kApiTaggedSize;
-  static const int kNodeFlagsOffset = 1 * kApiTaggedSize + 3;
+  static const int kNodeClassIdOffset = 1 * kApiSystemPointerSize;
+  static const int kNodeFlagsOffset = 1 * kApiSystemPointerSize + 3;
   static const int kNodeStateMask = 0x7;
   static const int kNodeStateIsWeakValue = 2;
   static const int kNodeStateIsPendingValue = 3;
@@ -172,15 +170,21 @@ class Internals {
   static const int kNodeIsIndependentShift = 3;
   static const int kNodeIsActiveShift = 4;
 
-  static const int kFirstNonstringType = 0x80;
-  static const int kOddballType = 0x83;
-  static const int kForeignType = 0x87;
+  static const int kFirstNonstringType = 0x40;
+  static const int kOddballType = 0x43;
+  static const int kForeignType = 0x47;
   static const int kJSSpecialApiObjectType = 0x410;
   static const int kJSApiObjectType = 0x420;
   static const int kJSObjectType = 0x421;
 
   static const int kUndefinedOddballKind = 5;
   static const int kNullOddballKind = 3;
+
+  // Constants used by PropertyCallbackInfo to check if we should throw when an
+  // error occurs.
+  static const int kThrowOnError = 0;
+  static const int kDontThrow = 1;
+  static const int kInferShouldThrowMode = 2;
 
   // Soft limit for AdjustAmountofExternalAllocatedMemory. Trigger an
   // incremental GC once the external memory reaches this limit.
@@ -366,6 +370,11 @@ V8_INLINE void PerformCastCheck(T* data) {
 // {obj} must be the raw tagged pointer representation of a HeapObject
 // that's guaranteed to never be in ReadOnlySpace.
 V8_EXPORT internal::Isolate* IsolateFromNeverReadOnlySpaceObject(Address obj);
+
+// Returns if we need to throw when an error occurs. This infers the language
+// mode based on the current context and the closure. This returns true if the
+// language mode is strict.
+V8_EXPORT bool ShouldThrowOnError(v8::internal::Isolate* isolate);
 
 }  // namespace internal
 }  // namespace v8

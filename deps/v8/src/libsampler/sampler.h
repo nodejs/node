@@ -49,6 +49,12 @@ class Sampler {
   // Whether the sampler is running (start has been called).
   bool IsActive() const { return active_.load(std::memory_order_relaxed); }
 
+  // Returns true and consumes the pending sample bit if a sample should be
+  // dispatched to this sampler.
+  bool ShouldRecordSample() {
+    return record_sample_.exchange(false, std::memory_order_relaxed);
+  }
+
   void DoSample();
 
   // Used in tests to make sure that stack sampling is performed.
@@ -73,8 +79,13 @@ class Sampler {
     active_.store(value, std::memory_order_relaxed);
   }
 
+  void SetShouldRecordSample() {
+    record_sample_.store(true, std::memory_order_relaxed);
+  }
+
   Isolate* isolate_;
   std::atomic_bool active_{false};
+  std::atomic_bool record_sample_{false};
   std::unique_ptr<PlatformData> data_;  // Platform specific data.
   DISALLOW_IMPLICIT_CONSTRUCTORS(Sampler);
 };

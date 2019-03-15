@@ -522,16 +522,16 @@ class Instruction {
   inline Condition ConditionField() const {
     return static_cast<Condition>(BitField(31, 28));
   }
-  DECLARE_STATIC_TYPED_ACCESSOR(int, ConditionValue);
-  DECLARE_STATIC_TYPED_ACCESSOR(Condition, ConditionField);
+  DECLARE_STATIC_TYPED_ACCESSOR(int, ConditionValue)
+  DECLARE_STATIC_TYPED_ACCESSOR(Condition, ConditionField)
 
   inline int TypeValue() const { return Bits(27, 25); }
   inline int SpecialValue() const { return Bits(27, 23); }
 
   inline int RnValue() const { return Bits(19, 16); }
-  DECLARE_STATIC_ACCESSOR(RnValue);
+  DECLARE_STATIC_ACCESSOR(RnValue)
   inline int RdValue() const { return Bits(15, 12); }
-  DECLARE_STATIC_ACCESSOR(RdValue);
+  DECLARE_STATIC_ACCESSOR(RdValue)
 
   inline int CoprocessorValue() const { return Bits(11, 8); }
   // Support for VFP.
@@ -573,7 +573,7 @@ class Instruction {
   inline int SValue() const { return Bit(20); }
     // with register
   inline int RmValue() const { return Bits(3, 0); }
-  DECLARE_STATIC_ACCESSOR(RmValue);
+  DECLARE_STATIC_ACCESSOR(RmValue)
   inline int ShiftValue() const { return static_cast<ShiftOp>(Bits(6, 5)); }
   inline ShiftOp ShiftField() const {
     return static_cast<ShiftOp>(BitField(6, 5));
@@ -583,13 +583,13 @@ class Instruction {
   inline int ShiftAmountValue() const { return Bits(11, 7); }
     // with immediate
   inline int RotateValue() const { return Bits(11, 8); }
-  DECLARE_STATIC_ACCESSOR(RotateValue);
+  DECLARE_STATIC_ACCESSOR(RotateValue)
   inline int Immed8Value() const { return Bits(7, 0); }
-  DECLARE_STATIC_ACCESSOR(Immed8Value);
+  DECLARE_STATIC_ACCESSOR(Immed8Value)
   inline int Immed4Value() const { return Bits(19, 16); }
   inline int ImmedMovwMovtValue() const {
       return Immed4Value() << 12 | Offset12Value(); }
-  DECLARE_STATIC_ACCESSOR(ImmedMovwMovtValue);
+  DECLARE_STATIC_ACCESSOR(ImmedMovwMovtValue)
 
   // Fields used in Load/Store instructions
   inline int PUValue() const { return Bits(24, 23); }

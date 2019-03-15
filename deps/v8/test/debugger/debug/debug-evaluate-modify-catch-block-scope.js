@@ -33,6 +33,8 @@ Debug.setListener(listener);
       a *= 2;
       e *= 2;
     }
+    // Make sure bar is 'used' so that it is visible to the debugger.
+    bar;
     debugger;
     assertEquals(5, a);
     assertEquals(7, e);

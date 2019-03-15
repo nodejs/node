@@ -24,27 +24,17 @@ bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(SSE4_1); }
 
 
 void Assembler::emitl(uint32_t x) {
-  Memory<uint32_t>(pc_) = x;
+  WriteUnalignedValue(reinterpret_cast<Address>(pc_), x);
   pc_ += sizeof(uint32_t);
 }
 
-void Assembler::emitp(Address x, RelocInfo::Mode rmode) {
-  Memory<uintptr_t>(pc_) = x;
-  if (!RelocInfo::IsNone(rmode)) {
-    RecordRelocInfo(rmode, x);
-  }
-  pc_ += sizeof(uintptr_t);
-}
-
-
 void Assembler::emitq(uint64_t x) {
-  Memory<uint64_t>(pc_) = x;
+  WriteUnalignedValue(reinterpret_cast<Address>(pc_), x);
   pc_ += sizeof(uint64_t);
 }
 
-
 void Assembler::emitw(uint16_t x) {
-  Memory<uint16_t>(pc_) = x;
+  WriteUnalignedValue(reinterpret_cast<Address>(pc_), x);
   pc_ += sizeof(uint16_t);
 }
 
@@ -61,15 +51,20 @@ void Assembler::emit(Immediate x) {
   emitl(x.value_);
 }
 
+void Assembler::emit(Immediate64 x) {
+  if (!RelocInfo::IsNone(x.rmode_)) {
+    RecordRelocInfo(x.rmode_);
+  }
+  emitq(static_cast<uint64_t>(x.value_));
+}
+
 void Assembler::emit_rex_64(Register reg, Register rm_reg) {
   emit(0x48 | reg.high_bit() << 2 | rm_reg.high_bit());
 }
 
-
 void Assembler::emit_rex_64(XMMRegister reg, Register rm_reg) {
   emit(0x48 | (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3);
 }
-
 
 void Assembler::emit_rex_64(Register reg, XMMRegister rm_reg) {
   emit(0x48 | (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3);
@@ -160,14 +155,14 @@ void Assembler::emit_optional_rex_32(Operand op) {
 // byte 1 of 3-byte VEX
 void Assembler::emit_vex3_byte1(XMMRegister reg, XMMRegister rm,
                                 LeadingOpcode m) {
-  byte rxb = ~((reg.high_bit() << 2) | rm.high_bit()) << 5;
+  byte rxb = static_cast<byte>(~((reg.high_bit() << 2) | rm.high_bit())) << 5;
   emit(rxb | m);
 }
 
 
 // byte 1 of 3-byte VEX
 void Assembler::emit_vex3_byte1(XMMRegister reg, Operand rm, LeadingOpcode m) {
-  byte rxb = ~((reg.high_bit() << 2) | rm.data().rex) << 5;
+  byte rxb = static_cast<byte>(~((reg.high_bit() << 2) | rm.data().rex)) << 5;
   emit(rxb | m);
 }
 
@@ -175,7 +170,7 @@ void Assembler::emit_vex3_byte1(XMMRegister reg, Operand rm, LeadingOpcode m) {
 // byte 1 of 2-byte VEX
 void Assembler::emit_vex2_byte1(XMMRegister reg, XMMRegister v, VectorLength l,
                                 SIMDPrefix pp) {
-  byte rv = ~((reg.high_bit() << 4) | v.code()) << 3;
+  byte rv = static_cast<byte>(~((reg.high_bit() << 4) | v.code())) << 3;
   emit(rv | l | pp);
 }
 
@@ -233,21 +228,21 @@ void Assembler::emit_vex_prefix(Register reg, Register vreg, Operand rm,
 
 
 Address Assembler::target_address_at(Address pc, Address constant_pool) {
-  return Memory<int32_t>(pc) + pc + 4;
+  return ReadUnalignedValue<int32_t>(pc) + pc + 4;
 }
 
 void Assembler::set_target_address_at(Address pc, Address constant_pool,
                                       Address target,
                                       ICacheFlushMode icache_flush_mode) {
-  Memory<int32_t>(pc) = static_cast<int32_t>(target - pc - 4);
+  WriteUnalignedValue(pc, static_cast<int32_t>(target - pc - 4));
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(pc, sizeof(int32_t));
+    FlushInstructionCache(pc, sizeof(int32_t));
   }
 }
 
 void Assembler::deserialization_set_target_internal_reference_at(
     Address pc, Address target, RelocInfo::Mode mode) {
-  Memory<Address>(pc) = target;
+  WriteUnalignedValue(pc, target);
 }
 
 
@@ -268,11 +263,11 @@ int Assembler::deserialization_special_target_size(
 }
 
 Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
-  return GetCodeTarget(Memory<int32_t>(pc));
+  return GetCodeTarget(ReadUnalignedValue<int32_t>(pc));
 }
 
 Address Assembler::runtime_entry_at(Address pc) {
-  return Memory<int32_t>(pc) + options().code_range_start;
+  return ReadUnalignedValue<int32_t>(pc) + options().code_range_start;
 }
 
 // -----------------------------------------------------------------------------
@@ -281,10 +276,11 @@ Address Assembler::runtime_entry_at(Address pc) {
 // The modes possibly affected by apply must be in kApplyMask.
 void RelocInfo::apply(intptr_t delta) {
   if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)) {
-    Memory<int32_t>(pc_) -= static_cast<int32_t>(delta);
+    WriteUnalignedValue(
+        pc_, ReadUnalignedValue<int32_t>(pc_) - static_cast<int32_t>(delta));
   } else if (IsInternalReference(rmode_)) {
-    // absolute code pointer inside code object moves with the code object.
-    Memory<Address>(pc_) += delta;
+    // Absolute code pointer inside code object moves with the code object.
+    WriteUnalignedValue(pc_, ReadUnalignedValue<Address>(pc_) + delta);
   }
 }
 
@@ -317,13 +313,13 @@ int RelocInfo::target_address_size() {
 
 HeapObject RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return HeapObject::cast(Object(Memory<Address>(pc_)));
+  return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   if (rmode_ == EMBEDDED_OBJECT) {
-    return Handle<HeapObject>::cast(Memory<Handle<Object>>(pc_));
+    return Handle<HeapObject>::cast(ReadUnalignedValue<Handle<Object>>(pc_));
   } else {
     return origin->code_target_object_handle_at(pc_);
   }
@@ -331,21 +327,21 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
 
 Address RelocInfo::target_external_reference() {
   DCHECK(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
-  return Memory<Address>(pc_);
+  return ReadUnalignedValue<Address>(pc_);
 }
 
 void RelocInfo::set_target_external_reference(
     Address target, ICacheFlushMode icache_flush_mode) {
   DCHECK(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
-  Memory<Address>(pc_) = target;
+  WriteUnalignedValue(pc_, target);
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(pc_, sizeof(Address));
+    FlushInstructionCache(pc_, sizeof(Address));
   }
 }
 
 Address RelocInfo::target_internal_reference() {
   DCHECK(rmode_ == INTERNAL_REFERENCE);
-  return Memory<Address>(pc_);
+  return ReadUnalignedValue<Address>(pc_);
 }
 
 
@@ -358,9 +354,9 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  Memory<Address>(pc_) = target->ptr();
+  WriteUnalignedValue(pc_, target->ptr());
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(pc_, sizeof(Address));
+    FlushInstructionCache(pc_, sizeof(Address));
   }
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null()) {
     WriteBarrierForCode(host(), this, target);
@@ -383,38 +379,19 @@ void RelocInfo::set_target_runtime_entry(Address target,
 
 Address RelocInfo::target_off_heap_target() {
   DCHECK(IsOffHeapTarget(rmode_));
-  return Memory<Address>(pc_);
+  return ReadUnalignedValue<Address>(pc_);
 }
 
 void RelocInfo::WipeOut() {
   if (IsEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
       IsInternalReference(rmode_) || IsOffHeapTarget(rmode_)) {
-    Memory<Address>(pc_) = kNullAddress;
+    WriteUnalignedValue(pc_, kNullAddress);
   } else if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)) {
     // Effectively write zero into the relocation.
     Assembler::set_target_address_at(pc_, constant_pool_,
                                      pc_ + sizeof(int32_t));
   } else {
     UNREACHABLE();
-  }
-}
-
-template <typename ObjectVisitor>
-void RelocInfo::Visit(ObjectVisitor* visitor) {
-  RelocInfo::Mode mode = rmode();
-  if (mode == RelocInfo::EMBEDDED_OBJECT) {
-    visitor->VisitEmbeddedPointer(host(), this);
-    Assembler::FlushICache(pc_, sizeof(Address));
-  } else if (RelocInfo::IsCodeTargetMode(mode)) {
-    visitor->VisitCodeTarget(host(), this);
-  } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
-    visitor->VisitExternalReference(host(), this);
-  } else if (mode == RelocInfo::INTERNAL_REFERENCE) {
-    visitor->VisitInternalReference(host(), this);
-  } else if (RelocInfo::IsRuntimeEntry(mode)) {
-    visitor->VisitRuntimeEntry(host(), this);
-  } else if (RelocInfo::IsOffHeapTarget(mode)) {
-    visitor->VisitOffHeapTarget(host(), this);
   }
 }
 

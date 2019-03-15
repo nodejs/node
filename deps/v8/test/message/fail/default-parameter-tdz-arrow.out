@@ -1,6 +1,6 @@
-*%(basename)s:7: ReferenceError: a is not defined
+*%(basename)s:7: ReferenceError: Cannot access 'a' before initialization
 ((a=-a) => { })();
      ^
-ReferenceError: a is not defined
+ReferenceError: Cannot access 'a' before initialization
     at *%(basename)s:7:6
     at *%(basename)s:7:16

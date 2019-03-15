@@ -4,6 +4,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import json
 import multiprocessing
 import optparse
@@ -376,29 +379,29 @@ def main():
     options.build_folder = DetectBuildFolder()
 
   if not CheckClangTidy():
-    print 'Could not find clang-tidy'
+    print('Could not find clang-tidy')
   elif options.build_folder is None or not os.path.isdir(options.build_folder):
-    print 'Please provide a build folder with -b'
+    print('Please provide a build folder with -b')
   elif options.gen_compdb:
     GenerateCompileCommands(options.build_folder)
   elif not CheckCompDB(options.build_folder):
-    print 'Could not find compilation database, ' \
-      'please generate it with --gen-compdb'
+    print('Could not find compilation database, ' \
+      'please generate it with --gen-compdb')
   else:
-    print 'Using build folder:', options.build_folder
+    print('Using build folder:', options.build_folder)
     if options.full:
-      print 'Running clang-tidy - full'
+      print('Running clang-tidy - full')
       ClangTidyRunFull(options.build_folder,
                        options.no_output_filter,
                        options.checks,
                        options.auto_fix)
     elif options.aggregate:
-      print 'Running clang-tidy - aggregating warnings'
+      print('Running clang-tidy - aggregating warnings')
       if options.auto_fix:
-        print 'Auto fix not working in aggregate mode, running without.'
+        print('Auto fix not working in aggregate mode, running without.')
       ClangTidyRunAggregate(options.build_folder, options.show_loc)
     elif options.single:
-      print 'Running clang-tidy - single on ' + options.file_name
+      print('Running clang-tidy - single on ' + options.file_name)
       if options.file_name is not None:
         line_ranges = []
         for match in re.findall(r'(\[.*?\])', options.line_ranges):
@@ -409,9 +412,9 @@ def main():
                                options.auto_fix,
                                line_ranges)
       else:
-        print 'Filename provided, please specify a filename with --file'
+        print('Filename provided, please specify a filename with --file')
     else:
-      print 'Running clang-tidy'
+      print('Running clang-tidy')
       ClangTidyRunDiff(options.build_folder,
                        options.diff_branch,
                        options.auto_fix)

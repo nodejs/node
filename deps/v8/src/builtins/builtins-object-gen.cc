@@ -390,9 +390,7 @@ ObjectEntriesValuesBuiltinsAssembler::FinalizeValuesOrEntriesJSArray(
   CSA_ASSERT(this, IsJSArrayMap(array_map));
 
   GotoIf(IntPtrEqual(size, IntPtrConstant(0)), if_empty);
-  Node* array = AllocateUninitializedJSArrayWithoutElements(
-      array_map, SmiTag(size), nullptr);
-  StoreObjectField(array, JSArray::kElementsOffset, result);
+  Node* array = AllocateJSArray(array_map, result, SmiTag(size));
   return TNode<JSArray>::UncheckedCast(array);
 }
 
@@ -556,14 +554,14 @@ void ObjectBuiltinsAssembler::ObjectAssignFast(TNode<Context> context,
   GotoIfNot(IsJSObjectInstanceType(from_instance_type), slow);
   GotoIfNot(IsEmptyFixedArray(LoadElements(CAST(from))), slow);
 
-  ForEachEnumerableOwnProperty(context, from_map, CAST(from),
-                               [=](TNode<Name> key, TNode<Object> value) {
-                                 KeyedStoreGenericGenerator::SetProperty(
-                                     state(), context, to,
-                                     to_is_simple_receiver, key, value,
-                                     LanguageMode::kStrict);
-                               },
-                               slow);
+  ForEachEnumerableOwnProperty(
+      context, from_map, CAST(from), kEnumerationOrder,
+      [=](TNode<Name> key, TNode<Object> value) {
+        KeyedStoreGenericGenerator::SetProperty(state(), context, to,
+                                                to_is_simple_receiver, key,
+                                                value, LanguageMode::kStrict);
+      },
+      slow);
 
   Goto(&done);
   BIND(&done);
@@ -647,10 +645,8 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
     Node* native_context = LoadNativeContext(context);
     TNode<Map> array_map =
         LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
-    TNode<JSArray> array = AllocateUninitializedJSArrayWithoutElements(
-        array_map, CAST(var_length.value()), nullptr);
-    StoreObjectFieldNoWriteBarrier(array, JSArray::kElementsOffset,
-                                   var_elements.value());
+    TNode<JSArray> array = AllocateJSArray(
+        array_map, CAST(var_elements.value()), CAST(var_length.value()));
     Return(array);
   }
 }
@@ -751,10 +747,8 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
     Node* native_context = LoadNativeContext(context);
     TNode<Map> array_map =
         LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
-    TNode<JSArray> array = AllocateUninitializedJSArrayWithoutElements(
-        array_map, CAST(var_length.value()), nullptr);
-    StoreObjectFieldNoWriteBarrier(array, JSArray::kElementsOffset,
-                                   var_elements.value());
+    TNode<JSArray> array = AllocateJSArray(
+        array_map, CAST(var_elements.value()), CAST(var_length.value()));
     Return(array);
   }
 }

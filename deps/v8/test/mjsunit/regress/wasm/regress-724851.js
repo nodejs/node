@@ -4,7 +4,6 @@
 
 // Flags: --wasm-lazy-compilation
 
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 let builder = new WasmModuleBuilder();

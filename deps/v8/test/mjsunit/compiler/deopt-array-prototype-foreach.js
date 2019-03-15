@@ -15,6 +15,7 @@
   function forEach() {
     array.forEach(increment);
   }
+  %PrepareFunctionForOptimization(forEach);
   forEach(); forEach();
 
   %OptimizeFunctionOnNextCall(forEach);

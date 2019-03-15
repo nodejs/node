@@ -22,27 +22,19 @@ TEST(CompareWrapper) {
   CompareWrapper wUint32LessThan(IrOpcode::kUint32LessThan);
   CompareWrapper wUint32LessThanOrEqual(IrOpcode::kUint32LessThanOrEqual);
 
-  {
-    FOR_INT32_INPUTS(pl) {
-      FOR_INT32_INPUTS(pr) {
-        int32_t a = *pl;
-        int32_t b = *pr;
-        CHECK_EQ(a == b, wWord32Equal.Int32Compare(a, b));
-        CHECK_EQ(a < b, wInt32LessThan.Int32Compare(a, b));
-        CHECK_EQ(a <= b, wInt32LessThanOrEqual.Int32Compare(a, b));
-      }
+  FOR_INT32_INPUTS(a) {
+    FOR_INT32_INPUTS(b) {
+      CHECK_EQ(a == b, wWord32Equal.Int32Compare(a, b));
+      CHECK_EQ(a < b, wInt32LessThan.Int32Compare(a, b));
+      CHECK_EQ(a <= b, wInt32LessThanOrEqual.Int32Compare(a, b));
     }
   }
 
-  {
-    FOR_UINT32_INPUTS(pl) {
-      FOR_UINT32_INPUTS(pr) {
-        uint32_t a = *pl;
-        uint32_t b = *pr;
-        CHECK_EQ(a == b, wWord32Equal.Int32Compare(a, b));
-        CHECK_EQ(a < b, wUint32LessThan.Int32Compare(a, b));
-        CHECK_EQ(a <= b, wUint32LessThanOrEqual.Int32Compare(a, b));
-      }
+  FOR_UINT32_INPUTS(a) {
+    FOR_UINT32_INPUTS(b) {
+      CHECK_EQ(a == b, wWord32Equal.Int32Compare(a, b));
+      CHECK_EQ(a < b, wUint32LessThan.Int32Compare(a, b));
+      CHECK_EQ(a <= b, wUint32LessThanOrEqual.Int32Compare(a, b));
     }
   }
 
@@ -338,8 +330,8 @@ void Int32BinopInputShapeTester::TestAllInputShapes() {
 void Int32BinopInputShapeTester::Run(RawMachineAssemblerTester<int32_t>* m) {
   FOR_INT32_INPUTS(pl) {
     FOR_INT32_INPUTS(pr) {
-      input_a = *pl;
-      input_b = *pr;
+      input_a = pl;
+      input_b = pr;
       int32_t expect = gen->expected(input_a, input_b);
       CHECK_EQ(expect, m->Call(input_a, input_b));
     }
@@ -350,7 +342,7 @@ void Int32BinopInputShapeTester::Run(RawMachineAssemblerTester<int32_t>* m) {
 void Int32BinopInputShapeTester::RunLeft(
     RawMachineAssemblerTester<int32_t>* m) {
   FOR_UINT32_INPUTS(i) {
-    input_a = *i;
+    input_a = i;
     int32_t expect = gen->expected(input_a, input_b);
     CHECK_EQ(expect, m->Call(input_a, input_b));
   }
@@ -360,7 +352,7 @@ void Int32BinopInputShapeTester::RunLeft(
 void Int32BinopInputShapeTester::RunRight(
     RawMachineAssemblerTester<int32_t>* m) {
   FOR_UINT32_INPUTS(i) {
-    input_b = *i;
+    input_b = i;
     int32_t expect = gen->expected(input_a, input_b);
     CHECK_EQ(expect, m->Call(input_a, input_b));
   }
@@ -414,8 +406,8 @@ TEST(RunEmpty) {
 TEST(RunInt32Constants) {
   FOR_INT32_INPUTS(i) {
     RawMachineAssemblerTester<int32_t> m;
-    m.Return(m.Int32Constant(*i));
-    CHECK_EQ(*i, m.Call());
+    m.Return(m.Int32Constant(i));
+    CHECK_EQ(i, m.Call());
   }
 }
 
@@ -435,17 +427,12 @@ TEST(RunSmiConstants) {
   RunSmiConstant(Smi::kMinValue);
   RunSmiConstant(Smi::kMinValue + 1);
 
-  FOR_INT32_INPUTS(i) { RunSmiConstant(*i); }
+  FOR_INT32_INPUTS(i) { RunSmiConstant(i); }
 }
 
-
 TEST(RunNumberConstants) {
-  {
-    FOR_FLOAT64_INPUTS(i) { RunNumberConstant(*i); }
-  }
-  {
-    FOR_INT32_INPUTS(i) { RunNumberConstant(*i); }
-  }
+  FOR_FLOAT64_INPUTS(i) { RunNumberConstant(i); }
+  FOR_INT32_INPUTS(i) { RunNumberConstant(i); }
 
   for (int32_t i = 1; i < Smi::kMaxValue && i != 0;
        i = base::ShlWithWraparound(i, 1)) {
@@ -459,7 +446,6 @@ TEST(RunNumberConstants) {
   RunNumberConstant(Smi::kMinValue);
   RunNumberConstant(Smi::kMinValue + 1);
 }
-
 
 TEST(RunEmptyString) {
   RawMachineAssemblerTester<Object> m;
@@ -490,8 +476,8 @@ TEST(RunParam1) {
   m.Return(m.Parameter(0));
 
   FOR_INT32_INPUTS(i) {
-    int32_t result = m.Call(*i);
-    CHECK_EQ(*i, result);
+    int32_t result = m.Call(i);
+    CHECK_EQ(i, result);
   }
 }
 
@@ -505,8 +491,8 @@ TEST(RunParam2_1) {
   USE(p1);
 
   FOR_INT32_INPUTS(i) {
-    int32_t result = m.Call(*i, -9999);
-    CHECK_EQ(*i, result);
+    int32_t result = m.Call(i, -9999);
+    CHECK_EQ(i, result);
   }
 }
 
@@ -520,8 +506,8 @@ TEST(RunParam2_2) {
   USE(p0);
 
   FOR_INT32_INPUTS(i) {
-    int32_t result = m.Call(-7777, *i);
-    CHECK_EQ(*i, result);
+    int32_t result = m.Call(-7777, i);
+    CHECK_EQ(i, result);
   }
 }
 
@@ -535,9 +521,9 @@ TEST(RunParam3) {
 
     int p[] = {-99, -77, -88};
     FOR_INT32_INPUTS(j) {
-      p[i] = *j;
+      p[i] = j;
       int32_t result = m.Call(p[0], p[1], p[2]);
-      CHECK_EQ(*j, result);
+      CHECK_EQ(j, result);
     }
   }
 }
@@ -549,7 +535,7 @@ TEST(RunBinopTester) {
     Int32BinopTester bt(&m);
     bt.AddReturn(bt.param0);
 
-    FOR_INT32_INPUTS(i) { CHECK_EQ(*i, bt.call(*i, 777)); }
+    FOR_INT32_INPUTS(i) { CHECK_EQ(i, bt.call(i, 777)); }
   }
 
   {
@@ -557,7 +543,7 @@ TEST(RunBinopTester) {
     Int32BinopTester bt(&m);
     bt.AddReturn(bt.param1);
 
-    FOR_INT32_INPUTS(i) { CHECK_EQ(*i, bt.call(666, *i)); }
+    FOR_INT32_INPUTS(i) { CHECK_EQ(i, bt.call(666, i)); }
   }
 
   {
@@ -565,7 +551,7 @@ TEST(RunBinopTester) {
     Float64BinopTester bt(&m);
     bt.AddReturn(bt.param0);
 
-    FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(*i, bt.call(*i, 9.0)); }
+    FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(i, bt.call(i, 9.0)); }
   }
 
   {
@@ -573,7 +559,7 @@ TEST(RunBinopTester) {
     Float64BinopTester bt(&m);
     bt.AddReturn(bt.param1);
 
-    FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(*i, bt.call(-11.25, *i)); }
+    FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(i, bt.call(-11.25, i)); }
   }
 }
 
@@ -603,7 +589,7 @@ TEST(RunBufferedRawMachineAssemblerTesterTester) {
   {
     BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
     m.Return(m.Parameter(0));
-    FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(*i, m.Call(*i)); }
+    FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(i, m.Call(i)); }
   }
   {
     BufferedRawMachineAssemblerTester<int64_t> m(MachineType::Int64(),
@@ -611,8 +597,8 @@ TEST(RunBufferedRawMachineAssemblerTesterTester) {
     m.Return(m.Int64Add(m.Parameter(0), m.Parameter(1)));
     FOR_INT64_INPUTS(i) {
       FOR_INT64_INPUTS(j) {
-        CHECK_EQ(base::AddWithWraparound(*i, *j), m.Call(*i, *j));
-        CHECK_EQ(base::AddWithWraparound(*j, *i), m.Call(*j, *i));
+        CHECK_EQ(base::AddWithWraparound(i, j), m.Call(i, j));
+        CHECK_EQ(base::AddWithWraparound(j, i), m.Call(j, i));
       }
     }
   }
@@ -623,9 +609,9 @@ TEST(RunBufferedRawMachineAssemblerTesterTester) {
         m.Int64Add(m.Int64Add(m.Parameter(0), m.Parameter(1)), m.Parameter(2)));
     FOR_INT64_INPUTS(i) {
       FOR_INT64_INPUTS(j) {
-        CHECK_EQ(Add3(*i, *i, *j), m.Call(*i, *i, *j));
-        CHECK_EQ(Add3(*i, *j, *i), m.Call(*i, *j, *i));
-        CHECK_EQ(Add3(*j, *i, *i), m.Call(*j, *i, *i));
+        CHECK_EQ(Add3(i, i, j), m.Call(i, i, j));
+        CHECK_EQ(Add3(i, j, i), m.Call(i, j, i));
+        CHECK_EQ(Add3(j, i, i), m.Call(j, i, i));
       }
     }
   }
@@ -638,10 +624,10 @@ TEST(RunBufferedRawMachineAssemblerTesterTester) {
         m.Parameter(3)));
     FOR_INT64_INPUTS(i) {
       FOR_INT64_INPUTS(j) {
-        CHECK_EQ(Add4(*i, *i, *i, *j), m.Call(*i, *i, *i, *j));
-        CHECK_EQ(Add4(*i, *i, *j, *i), m.Call(*i, *i, *j, *i));
-        CHECK_EQ(Add4(*i, *j, *i, *i), m.Call(*i, *j, *i, *i));
-        CHECK_EQ(Add4(*j, *i, *i, *i), m.Call(*j, *i, *i, *i));
+        CHECK_EQ(Add4(i, i, i, j), m.Call(i, i, i, j));
+        CHECK_EQ(Add4(i, i, j, i), m.Call(i, i, j, i));
+        CHECK_EQ(Add4(i, j, i, i), m.Call(i, j, i, i));
+        CHECK_EQ(Add4(j, i, i, i), m.Call(j, i, i, i));
       }
     }
   }
@@ -662,8 +648,8 @@ TEST(RunBufferedRawMachineAssemblerTesterTester) {
             m.PointerConstant(&result), m.Parameter(0), kNoWriteBarrier);
     m.Return(m.Int32Constant(0));
     FOR_FLOAT64_INPUTS(i) {
-      m.Call(*i);
-      CHECK_DOUBLE_EQ(*i, result);
+      m.Call(i);
+      CHECK_DOUBLE_EQ(i, result);
     }
   }
   {
@@ -676,11 +662,11 @@ TEST(RunBufferedRawMachineAssemblerTesterTester) {
     m.Return(m.Int32Constant(0));
     FOR_INT64_INPUTS(i) {
       FOR_INT64_INPUTS(j) {
-        m.Call(*i, *j);
-        CHECK_EQ(base::AddWithWraparound(*i, *j), result);
+        m.Call(i, j);
+        CHECK_EQ(base::AddWithWraparound(i, j), result);
 
-        m.Call(*j, *i);
-        CHECK_EQ(base::AddWithWraparound(*j, *i), result);
+        m.Call(j, i);
+        CHECK_EQ(base::AddWithWraparound(j, i), result);
       }
     }
   }
@@ -695,14 +681,14 @@ TEST(RunBufferedRawMachineAssemblerTesterTester) {
     m.Return(m.Int32Constant(0));
     FOR_INT64_INPUTS(i) {
       FOR_INT64_INPUTS(j) {
-        m.Call(*i, *i, *j);
-        CHECK_EQ(Add3(*i, *i, *j), result);
+        m.Call(i, i, j);
+        CHECK_EQ(Add3(i, i, j), result);
 
-        m.Call(*i, *j, *i);
-        CHECK_EQ(Add3(*i, *j, *i), result);
+        m.Call(i, j, i);
+        CHECK_EQ(Add3(i, j, i), result);
 
-        m.Call(*j, *i, *i);
-        CHECK_EQ(Add3(*j, *i, *i), result);
+        m.Call(j, i, i);
+        CHECK_EQ(Add3(j, i, i), result);
       }
     }
   }
@@ -720,17 +706,17 @@ TEST(RunBufferedRawMachineAssemblerTesterTester) {
     m.Return(m.Int32Constant(0));
     FOR_INT64_INPUTS(i) {
       FOR_INT64_INPUTS(j) {
-        m.Call(*i, *i, *i, *j);
-        CHECK_EQ(Add4(*i, *i, *i, *j), result);
+        m.Call(i, i, i, j);
+        CHECK_EQ(Add4(i, i, i, j), result);
 
-        m.Call(*i, *i, *j, *i);
-        CHECK_EQ(Add4(*i, *i, *j, *i), result);
+        m.Call(i, i, j, i);
+        CHECK_EQ(Add4(i, i, j, i), result);
 
-        m.Call(*i, *j, *i, *i);
-        CHECK_EQ(Add4(*i, *j, *i, *i), result);
+        m.Call(i, j, i, i);
+        CHECK_EQ(Add4(i, j, i, i), result);
 
-        m.Call(*j, *i, *i, *i);
-        CHECK_EQ(Add4(*j, *i, *i, *i), result);
+        m.Call(j, i, i, i);
+        CHECK_EQ(Add4(j, i, i, i), result);
       }
     }
   }

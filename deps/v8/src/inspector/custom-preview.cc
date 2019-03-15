@@ -120,7 +120,7 @@ bool substituteObjectTags(int sessionId, const String16& groupName,
       return false;
     }
     v8::Local<v8::Value> jsonWrapper;
-    String16 serialized = wrapper->serialize();
+    String16 serialized = wrapper->toJSON();
     if (!v8::JSON::Parse(context, toV8String(isolate, serialized))
              .ToLocal(&jsonWrapper)) {
       reportError(context, tryCatch, "cannot wrap value");

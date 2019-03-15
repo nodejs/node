@@ -11,6 +11,7 @@
     return a[i];
   }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals("first", f(0));
   assertEquals("first", f(0));
   %OptimizeFunctionOnNextCall(f);
@@ -24,6 +25,7 @@
     return a[i];
   }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals("first", f(0));
   assertEquals("second", f(1));
   %OptimizeFunctionOnNextCall(f);

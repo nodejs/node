@@ -20,6 +20,7 @@
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
 #include "src/v8.h"
+#include "src/zone/zone-list-inl.h"
 #include "test/unittests/test-helpers.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -292,7 +293,7 @@ class MockPlatform : public v8::Platform {
     void PostDelayedTask(std::unique_ptr<Task> task,
                          double delay_in_seconds) override {
       UNREACHABLE();
-    };
+    }
 
     void PostIdleTask(std::unique_ptr<IdleTask> task) override {
       DCHECK(IdleTasksEnabled());
@@ -301,7 +302,7 @@ class MockPlatform : public v8::Platform {
       platform_->idle_task_ = task.release();
     }
 
-    bool IdleTasksEnabled() override { return true; };
+    bool IdleTasksEnabled() override { return true; }
 
    private:
     MockPlatform* platform_;

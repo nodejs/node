@@ -42,6 +42,7 @@
     }
     assertEquals(expected, object.a);
   }
+  %PrepareFunctionForOptimization(join);
   join(true, 1); join(true, 1);
   join(false, 2); join(false, 2);
   %OptimizeFunctionOnNextCall(join);
@@ -65,6 +66,7 @@
     assertEquals(45, object.a);
     assertEquals(23, object.b);
   }
+  %PrepareFunctionForOptimization(loop);
   loop(); loop();
   %OptimizeFunctionOnNextCall(loop);
   loop(); loop();
@@ -99,6 +101,7 @@
     assertEquals(54, object.b);
     assertEquals(23, object.c);
   }
+  %PrepareFunctionForOptimization(nested);
   nested(); nested();
   %OptimizeFunctionOnNextCall(nested);
   nested(); nested();
@@ -126,6 +129,7 @@
     assertEquals(3.0, o2.d.c);
     assertEquals(4.5, o2.e);
   }
+  %PrepareFunctionForOptimization(func);
   func(); func();
   %OptimizeFunctionOnNextCall(func);
   func(); func();
@@ -167,6 +171,7 @@
     assertEquals(5.9, o.e);
     assertEquals(6.7, o.g);
   }
+  %PrepareFunctionForOptimization(func);
   func(); func();
   %OptimizeFunctionOnNextCall(func);
   func(); func();
@@ -193,6 +198,7 @@
     x: { get:getter, set:setter },
     y: { get:getter, set:setter }
   });
+  %PrepareFunctionForOptimization(check);
   check(23, 42); check(23, 42);
   %OptimizeFunctionOnNextCall(check);
   check(23, 42); check(23, 42);
@@ -261,6 +267,7 @@
       return o.z;
     }
   }
+  %PrepareFunctionForOptimization(oob);
   assertEquals(3, oob(cons1, false));
   assertEquals(3, oob(cons1, false));
   assertEquals(7, oob(cons2, true));
@@ -295,6 +302,7 @@
     assertEquals(99, o1.x);
     assertEquals(99, o2.b.x);
   }
+  %PrepareFunctionForOptimization(deep);
   deep(); deep();
   %OptimizeFunctionOnNextCall(deep);
   deep(); deep();
@@ -333,6 +341,7 @@
     o3.b.x = 1;
     assertEquals(1, o1.x);
   }
+  %PrepareFunctionForOptimization(deep);
   deep(false); deep(false);
   %OptimizeFunctionOnNextCall(deep);
   deep(false); deep(false);
@@ -358,6 +367,7 @@
     assertEquals(3, r.x.y);
   }
 
+  %PrepareFunctionForOptimization(f);
   f(); f(); f();
   %OptimizeFunctionOnNextCall(f);
   f();
@@ -374,6 +384,7 @@
     assertEquals(111, l2.x.y);
   }
 
+  %PrepareFunctionForOptimization(f);
   f(); f(); f();
   %OptimizeFunctionOnNextCall(f);
   f();
@@ -392,6 +403,7 @@
     assertEquals(0, dummy.d);
   }
 
+  %PrepareFunctionForOptimization(f);
   f(); f(); f();
   %OptimizeFunctionOnNextCall(f);
   f();
@@ -410,6 +422,7 @@
     deopt.deopt
     assertEquals(x, o.x);
   }
+  %PrepareFunctionForOptimization(field);
   field(1); field(2);
   %OptimizeFunctionOnNextCall(field);
   field(3); field(4);
@@ -430,6 +443,7 @@
     deopt.deopt
     assertEquals(x, o.x);
   }
+  %PrepareFunctionForOptimization(field);
   field({}); field({});
   %OptimizeFunctionOnNextCall(field);
   field({}); field({});

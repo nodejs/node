@@ -192,9 +192,6 @@ class RegExpMacroAssembler {
   Zone* zone_;
 };
 
-
-#ifndef V8_INTERPRETED_REGEXP  // Avoid compiling unused code.
-
 class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
  public:
   // Type of input string to generate code for.
@@ -215,12 +212,10 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
   ~NativeRegExpMacroAssembler() override;
   bool CanReadUnaligned() override;
 
-  static Result Match(Handle<Code> regexp,
-                      Handle<String> subject,
-                      int* offsets_vector,
-                      int offsets_vector_length,
-                      int previous_index,
-                      Isolate* isolate);
+  // Returns a {Result} sentinel, or the number of successful matches.
+  static int Match(Handle<Code> regexp, Handle<String> subject,
+                   int* offsets_vector, int offsets_vector_length,
+                   int previous_index, Isolate* isolate);
 
   // Called from RegExp if the backtrack stack limit is hit.
   // Tries to expand the stack. Returns the new stack-pointer if
@@ -248,12 +243,11 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
     return reinterpret_cast<Address>(&word_character_map[0]);
   }
 
-  static Result Execute(Code code, String input, int start_offset,
-                        const byte* input_start, const byte* input_end,
-                        int* output, int output_size, Isolate* isolate);
+  // Returns a {Result} sentinel, or the number of successful matches.
+  static int Execute(Code code, String input, int start_offset,
+                     const byte* input_start, const byte* input_end,
+                     int* output, int output_size, Isolate* isolate);
 };
-
-#endif  // V8_INTERPRETED_REGEXP
 
 }  // namespace internal
 }  // namespace v8

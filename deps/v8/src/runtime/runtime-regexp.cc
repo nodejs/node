@@ -7,11 +7,11 @@
 #include "src/arguments-inl.h"
 #include "src/conversions-inl.h"
 #include "src/counters.h"
+#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/isolate-inl.h"
 #include "src/message-template.h"
 #include "src/objects/js-array-inl.h"
 #include "src/regexp/jsregexp-inl.h"
-#include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-utils.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/string-builder-inl.h"
@@ -628,7 +628,8 @@ V8_WARN_UNUSED_RESULT static Object StringReplaceGlobalRegExpWithString(
 
   // Shortcut for simple non-regexp global replacements
   if (typeTag == JSRegExp::ATOM && simple_replace) {
-    if (subject->HasOnlyOneByteChars() && replacement->HasOnlyOneByteChars()) {
+    if (subject->IsOneByteRepresentation() &&
+        replacement->IsOneByteRepresentation()) {
       return StringReplaceGlobalAtomRegExpWithString<SeqOneByteString>(
           isolate, subject, regexp, replacement, last_match_info);
     } else {
@@ -652,16 +653,9 @@ V8_WARN_UNUSED_RESULT static Object StringReplaceGlobalRegExpWithString(
   int expected_parts = (compiled_replacement.parts() + 1) * 4 + 1;
   ReplacementStringBuilder builder(isolate->heap(), subject, expected_parts);
 
-  // Number of parts added by compiled replacement plus preceding
-  // string and possibly suffix after last match.  It is possible for
-  // all components to use two elements when encoded as two smis.
-  const int parts_added_per_loop = 2 * (compiled_replacement.parts() + 2);
-
   int prev = 0;
 
   do {
-    builder.EnsureCapacity(parts_added_per_loop);
-
     int start = current_match[0];
     int end = current_match[1];
 
@@ -682,7 +676,6 @@ V8_WARN_UNUSED_RESULT static Object StringReplaceGlobalRegExpWithString(
   if (global_cache.HasException()) return ReadOnlyRoots(isolate).exception();
 
   if (prev < subject_length) {
-    builder.EnsureCapacity(2);
     builder.AddSubjectSlice(prev, subject_length);
   }
 
@@ -791,33 +784,6 @@ V8_WARN_UNUSED_RESULT static Object StringReplaceGlobalRegExpWithEmptyString(
   return *answer;
 }
 
-namespace {
-
-Object StringReplaceGlobalRegExpWithStringHelper(
-    Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
-    Handle<String> replacement, Handle<RegExpMatchInfo> last_match_info) {
-  CHECK(regexp->GetFlags() & JSRegExp::kGlobal);
-
-  subject = String::Flatten(isolate, subject);
-
-  if (replacement->length() == 0) {
-    if (subject->HasOnlyOneByteChars()) {
-      return StringReplaceGlobalRegExpWithEmptyString<SeqOneByteString>(
-          isolate, subject, regexp, last_match_info);
-    } else {
-      return StringReplaceGlobalRegExpWithEmptyString<SeqTwoByteString>(
-          isolate, subject, regexp, last_match_info);
-    }
-  }
-
-  replacement = String::Flatten(isolate, replacement);
-
-  return StringReplaceGlobalRegExpWithString(isolate, subject, regexp,
-                                             replacement, last_match_info);
-}
-
-}  // namespace
-
 RUNTIME_FUNCTION(Runtime_StringSplit) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(3, args.length());
@@ -913,20 +879,6 @@ RUNTIME_FUNCTION(Runtime_RegExpExec) {
   isolate->counters()->regexp_entry_runtime()->Increment();
   RETURN_RESULT_OR_FAILURE(isolate, RegExpImpl::Exec(isolate, regexp, subject,
                                                      index, last_match_info));
-}
-
-RUNTIME_FUNCTION(Runtime_RegExpInternalReplace) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, replacement, 2);
-
-  Handle<RegExpMatchInfo> internal_match_info =
-      isolate->regexp_internal_match_info();
-
-  return StringReplaceGlobalRegExpWithStringHelper(
-      isolate, regexp, subject, replacement, internal_match_info);
 }
 
 namespace {
@@ -1375,7 +1327,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
                         String);
 
     if (replace->length() == 0) {
-      if (string->HasOnlyOneByteChars()) {
+      if (string->IsOneByteRepresentation()) {
         Object result =
             StringReplaceGlobalRegExpWithEmptyString<SeqOneByteString>(
                 isolate, string, regexp, last_match_info);

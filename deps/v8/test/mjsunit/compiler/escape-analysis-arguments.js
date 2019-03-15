@@ -52,6 +52,7 @@
     assertEquals(5, r.y.z);
   }
 
+  %PrepareFunctionForOptimization(f);
   f(); f(); f();
   %OptimizeFunctionOnNextCall(f);
   f();
@@ -81,6 +82,7 @@
     assertEquals(3, r.i.y.z);
   }
 
+  %PrepareFunctionForOptimization(f);
   f(); f(); f();
   %OptimizeFunctionOnNextCall(f);
   f();
@@ -113,9 +115,12 @@
     assertEquals(3, l.y.z)
   }
 
+  %PrepareFunctionForOptimization(f);
   f(); f(); f();
   %OptimizeFunctionOnNextCall(f);
-  f(); f();
+  f();
+  %PrepareFunctionForOptimization(f);
+  f();
   %OptimizeFunctionOnNextCall(f);
   f(); f();
 })();
@@ -147,10 +152,13 @@
     assertEquals(3, l.y.z)
   }
 
+  %PrepareFunctionForOptimization(f);
   %NeverOptimizeFunction(i);
   f(); f(); f();
   %OptimizeFunctionOnNextCall(f);
-  f(); f();
+  f();
+  %PrepareFunctionForOptimization(f);
+  f();
   %OptimizeFunctionOnNextCall(f);
   f(); f();
 })();
@@ -179,9 +187,12 @@
     assertEquals(7, k.t.u)
   }
 
+  %PrepareFunctionForOptimization(f);
   f(); f(); f();
   %OptimizeFunctionOnNextCall(f);
-  f(); f();
+  f();
+  %PrepareFunctionForOptimization(f);
+  f();
   %OptimizeFunctionOnNextCall(f);
   f(); f();
 })();
@@ -206,6 +217,7 @@
     return a + b + c;
   }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals(4, f(1, 2));
   assertEquals(5, f(2, 1));
   %OptimizeFunctionOnNextCall(f);
@@ -232,6 +244,7 @@
     return a + b + c;
   }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals(4, f(1, 2));
   assertEquals(5, f(2, 1));
   %OptimizeFunctionOnNextCall(f);

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef V8_INTERPRETED_REGEXP
-
 #include "src/regexp/regexp-macro-assembler-irregexp.h"
 
 #include "src/ast/ast.h"
@@ -16,15 +14,13 @@ namespace v8 {
 namespace internal {
 
 RegExpMacroAssemblerIrregexp::RegExpMacroAssemblerIrregexp(Isolate* isolate,
-                                                           Vector<byte> buffer,
                                                            Zone* zone)
     : RegExpMacroAssembler(isolate, zone),
-      buffer_(buffer),
+      buffer_(Vector<byte>::New(1024)),
       pc_(0),
-      own_buffer_(false),
+      own_buffer_(true),
       advance_current_end_(kInvalidPC),
       isolate_(isolate) {}
-
 
 RegExpMacroAssemblerIrregexp::~RegExpMacroAssemblerIrregexp() {
   if (backtrack_.is_linked()) backtrack_.Unuse();
@@ -457,5 +453,3 @@ void RegExpMacroAssemblerIrregexp::Expand() {
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_INTERPRETED_REGEXP

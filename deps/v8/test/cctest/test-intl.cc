@@ -132,7 +132,8 @@ TEST(GetStringOption) {
   Handle<String> key = isolate->factory()->NewStringFromAsciiChecked("foo");
   v8::internal::LookupIterator it(isolate, options, key);
   CHECK(Object::SetProperty(&it, Handle<Smi>(Smi::FromInt(42), isolate),
-                            LanguageMode::kStrict, StoreOrigin::kMaybeKeyed)
+                            StoreOrigin::kMaybeKeyed,
+                            Just(ShouldThrow::kThrowOnError))
             .FromJust());
 
   {
@@ -191,7 +192,8 @@ TEST(GetBoolOption) {
     Handle<Object> false_value =
         handle(i::ReadOnlyRoots(isolate).false_value(), isolate);
     Object::SetProperty(isolate, options, key, false_value,
-                        LanguageMode::kStrict)
+                        StoreOrigin::kMaybeKeyed,
+                        Just(ShouldThrow::kThrowOnError))
         .Assert();
     bool result = false;
     Maybe<bool> found =
@@ -205,7 +207,8 @@ TEST(GetBoolOption) {
     Handle<Object> true_value =
         handle(i::ReadOnlyRoots(isolate).true_value(), isolate);
     Object::SetProperty(isolate, options, key, true_value,
-                        LanguageMode::kStrict)
+                        StoreOrigin::kMaybeKeyed,
+                        Just(ShouldThrow::kThrowOnError))
         .Assert();
     bool result = false;
     Maybe<bool> found =

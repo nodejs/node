@@ -536,12 +536,16 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
       // JSAdd("", x:primitive) => JSToString(x)
       NodeProperties::ReplaceValueInputs(node, r.right());
       NodeProperties::ChangeOp(node, javascript()->ToString());
+      NodeProperties::SetType(
+          node, Type::Intersect(r.type(), Type::String(), graph()->zone()));
       Reduction const reduction = ReduceJSToString(node);
       return reduction.Changed() ? reduction : Changed(node);
     } else if (r.RightInputIs(empty_string_type_)) {
       // JSAdd(x:primitive, "") => JSToString(x)
       NodeProperties::ReplaceValueInputs(node, r.left());
       NodeProperties::ChangeOp(node, javascript()->ToString());
+      NodeProperties::SetType(
+          node, Type::Intersect(r.type(), Type::String(), graph()->zone()));
       Reduction const reduction = ReduceJSToString(node);
       return reduction.Changed() ? reduction : Changed(node);
     }
@@ -959,8 +963,9 @@ Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
   }
   if (input_type.IsHeapConstant()) {
     HeapObjectRef input_value = input_type.AsHeapConstant()->Ref();
-    if (input_value.map().oddball_type() != OddballType::kNone) {
-      return Replace(jsgraph()->Constant(input_value.OddballToNumber()));
+    double value;
+    if (input_value.OddballToNumber().To(&value)) {
+      return Replace(jsgraph()->Constant(value));
     }
   }
   if (input_type.Is(Type::Number())) {
@@ -1611,7 +1616,7 @@ Reduction JSTypedLowering::ReduceJSCallForwardVarargs(Node* node) {
 Reduction JSTypedLowering::ReduceJSCall(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
-  int const arity = static_cast<int>(p.arity() - 2);
+  int arity = static_cast<int>(p.arity() - 2);
   ConvertReceiverMode convert_mode = p.convert_mode();
   Node* target = NodeProperties::GetValueInput(node, 0);
   Type target_type = NodeProperties::GetType(target);
@@ -1669,21 +1674,52 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     // Compute flags for the call.
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     Node* new_target = jsgraph()->UndefinedConstant();
-    Node* argument_count = jsgraph()->Constant(arity);
 
     if (NeedsArgumentAdaptorFrame(shared, arity)) {
-      // Patch {node} to an indirect call via the ArgumentsAdaptorTrampoline.
-      Callable callable = CodeFactory::ArgumentAdaptor(isolate());
-      node->InsertInput(graph()->zone(), 0,
-                        jsgraph()->HeapConstant(callable.code()));
-      node->InsertInput(graph()->zone(), 2, new_target);
-      node->InsertInput(graph()->zone(), 3, argument_count);
-      node->InsertInput(
-          graph()->zone(), 4,
-          jsgraph()->Constant(shared.internal_formal_parameter_count()));
-      NodeProperties::ChangeOp(
-          node, common()->Call(Linkage::GetStubCallDescriptor(
-                    graph()->zone(), callable.descriptor(), 1 + arity, flags)));
+      // Check if it's safe to skip the arguments adaptor for {shared},
+      // that is whether the target function anyways cannot observe the
+      // actual arguments. Details can be found in this document at
+      // https://bit.ly/v8-faster-calls-with-arguments-mismatch and
+      // on the tracking bug at https://crbug.com/v8/8895
+      if (shared.is_safe_to_skip_arguments_adaptor()) {
+        // Currently we only support skipping arguments adaptor frames
+        // for strict mode functions, since there's Function.arguments
+        // legacy accessor, which is still available in sloppy mode.
+        DCHECK_EQ(LanguageMode::kStrict, shared.language_mode());
+
+        // Massage the arguments to match the expected number of arguments.
+        int expected_argument_count = shared.internal_formal_parameter_count();
+        for (; arity > expected_argument_count; --arity) {
+          node->RemoveInput(arity + 1);
+        }
+        for (; arity < expected_argument_count; ++arity) {
+          node->InsertInput(graph()->zone(), arity + 2,
+                            jsgraph()->UndefinedConstant());
+        }
+
+        // Patch {node} to a direct call.
+        node->InsertInput(graph()->zone(), arity + 2, new_target);
+        node->InsertInput(graph()->zone(), arity + 3,
+                          jsgraph()->Constant(arity));
+        NodeProperties::ChangeOp(node,
+                                 common()->Call(Linkage::GetJSCallDescriptor(
+                                     graph()->zone(), false, 1 + arity,
+                                     flags | CallDescriptor::kCanUseRoots)));
+      } else {
+        // Patch {node} to an indirect call via the ArgumentsAdaptorTrampoline.
+        Callable callable = CodeFactory::ArgumentAdaptor(isolate());
+        node->InsertInput(graph()->zone(), 0,
+                          jsgraph()->HeapConstant(callable.code()));
+        node->InsertInput(graph()->zone(), 2, new_target);
+        node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
+        node->InsertInput(
+            graph()->zone(), 4,
+            jsgraph()->Constant(shared.internal_formal_parameter_count()));
+        NodeProperties::ChangeOp(
+            node,
+            common()->Call(Linkage::GetStubCallDescriptor(
+                graph()->zone(), callable.descriptor(), 1 + arity, flags)));
+      }
     } else if (shared.HasBuiltinId() &&
                Builtins::HasCppImplementation(shared.builtin_id())) {
       // Patch {node} to a direct CEntry call.
@@ -1701,12 +1737,12 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       Node* stub_code = jsgraph()->HeapConstant(callable.code());
       node->InsertInput(graph()->zone(), 0, stub_code);  // Code object.
       node->InsertInput(graph()->zone(), 2, new_target);
-      node->InsertInput(graph()->zone(), 3, argument_count);
+      node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
       NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
     } else {
       // Patch {node} to a direct call.
       node->InsertInput(graph()->zone(), arity + 2, new_target);
-      node->InsertInput(graph()->zone(), arity + 3, argument_count);
+      node->InsertInput(graph()->zone(), arity + 3, jsgraph()->Constant(arity));
       NodeProperties::ChangeOp(node,
                                common()->Call(Linkage::GetJSCallDescriptor(
                                    graph()->zone(), false, 1 + arity,
@@ -1986,8 +2022,7 @@ Reduction JSTypedLowering::ReduceJSLoadMessage(Node* node) {
   ExternalReference const ref =
       ExternalReference::address_of_pending_message_obj(isolate());
   node->ReplaceInput(0, jsgraph()->ExternalConstant(ref));
-  NodeProperties::ChangeOp(
-      node, simplified()->LoadField(AccessBuilder::ForExternalTaggedValue()));
+  NodeProperties::ChangeOp(node, simplified()->LoadMessage());
   return Changed(node);
 }
 
@@ -1998,8 +2033,7 @@ Reduction JSTypedLowering::ReduceJSStoreMessage(Node* node) {
   Node* value = NodeProperties::GetValueInput(node, 0);
   node->ReplaceInput(0, jsgraph()->ExternalConstant(ref));
   node->ReplaceInput(1, value);
-  NodeProperties::ChangeOp(
-      node, simplified()->StoreField(AccessBuilder::ForExternalTaggedValue()));
+  NodeProperties::ChangeOp(node, simplified()->StoreMessage());
   return Changed(node);
 }
 

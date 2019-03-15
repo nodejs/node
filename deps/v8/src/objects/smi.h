@@ -54,7 +54,14 @@ class Smi : public Object {
   static inline Smi FromIntptr(intptr_t value) {
     DCHECK(Smi::IsValid(value));
     int smi_shift_bits = kSmiTagSize + kSmiShiftSize;
-    return Smi((value << smi_shift_bits) | kSmiTag);
+    return Smi((static_cast<Address>(value) << smi_shift_bits) | kSmiTag);
+  }
+
+  // Given {value} in [0, 2^31-1], force it into Smi range by changing at most
+  // the MSB (leaving the lower 31 bit unchanged).
+  static inline Smi From31BitPattern(int value) {
+    return Smi::FromInt((value << (32 - kSmiValueSize)) >>
+                        (32 - kSmiValueSize));
   }
 
   template <typename E,

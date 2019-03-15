@@ -68,14 +68,8 @@ class JSPromise : public JSObject {
   DECL_PRINTER(JSPromise)
   DECL_VERIFIER(JSPromise)
 
-#define JS_PROMISE_FIELDS(V)               \
-  V(kReactionsOrResultOffset, kTaggedSize) \
-  V(kFlagsOffset, kTaggedSize)             \
-  /* Header size. */                       \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_PROMISE_FIELDS)
-#undef JS_PROMISE_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSPROMISE_FIELDS)
 
   static const int kSizeWithEmbedderFields =
       kSize + v8::Promise::kEmbedderFieldCount * kEmbedderDataSlotSize;
@@ -100,7 +94,7 @@ class JSPromise : public JSObject {
                                                 Handle<Object> argument,
                                                 PromiseReaction::Type type);
 
-  OBJECT_CONSTRUCTORS(JSPromise, JSObject)
+  OBJECT_CONSTRUCTORS(JSPromise, JSObject);
 };
 
 }  // namespace internal

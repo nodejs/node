@@ -223,40 +223,6 @@ std::ostream& operator<<(std::ostream& os, CheckMapsFlags flags) {
   return os;
 }
 
-MapsParameterInfo::MapsParameterInfo(ZoneHandleSet<Map> const& maps)
-    : maps_(maps), instance_type_(Nothing<InstanceType>()) {
-  DCHECK_LT(0, maps.size());
-  instance_type_ = Just(maps.at(0)->instance_type());
-  for (size_t i = 1; i < maps.size(); ++i) {
-    if (instance_type_.FromJust() != maps.at(i)->instance_type()) {
-      instance_type_ = Nothing<InstanceType>();
-      break;
-    }
-  }
-}
-
-std::ostream& operator<<(std::ostream& os, MapsParameterInfo const& p) {
-  ZoneHandleSet<Map> const& maps = p.maps();
-  InstanceType instance_type;
-  if (p.instance_type().To(&instance_type)) {
-    os << ", " << instance_type;
-  }
-  for (size_t i = 0; i < maps.size(); ++i) {
-    os << ", " << Brief(*maps[i]);
-  }
-  return os;
-}
-
-bool operator==(MapsParameterInfo const& lhs, MapsParameterInfo const& rhs) {
-  return lhs.maps() == rhs.maps();
-}
-
-bool operator!=(MapsParameterInfo const& lhs, MapsParameterInfo const& rhs) {
-  return !(lhs == rhs);
-}
-
-size_t hash_value(MapsParameterInfo const& p) { return hash_value(p.maps()); }
-
 bool operator==(CheckMapsParameters const& lhs,
                 CheckMapsParameters const& rhs) {
   return lhs.flags() == rhs.flags() && lhs.maps() == rhs.maps() &&
@@ -268,7 +234,7 @@ size_t hash_value(CheckMapsParameters const& p) {
 }
 
 std::ostream& operator<<(std::ostream& os, CheckMapsParameters const& p) {
-  os << p.flags() << p.maps_info();
+  os << p.flags() << p.maps();
   if (p.feedback().IsValid()) {
     os << "; " << p.feedback();
   }
@@ -280,14 +246,14 @@ CheckMapsParameters const& CheckMapsParametersOf(Operator const* op) {
   return OpParameter<CheckMapsParameters>(op);
 }
 
-MapsParameterInfo const& CompareMapsParametersOf(Operator const* op) {
+ZoneHandleSet<Map> const& CompareMapsParametersOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kCompareMaps, op->opcode());
-  return OpParameter<MapsParameterInfo>(op);
+  return OpParameter<ZoneHandleSet<Map>>(op);
 }
 
-MapsParameterInfo const& MapGuardMapsOf(Operator const* op) {
+ZoneHandleSet<Map> const& MapGuardMapsOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kMapGuard, op->opcode());
-  return OpParameter<MapsParameterInfo>(op);
+  return OpParameter<ZoneHandleSet<Map>>(op);
 }
 
 size_t hash_value(CheckTaggedInputMode mode) {
@@ -812,12 +778,13 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(CheckedTaggedSignedToInt32, 1, 1)    \
   V(CheckedTaggedToTaggedPointer, 1, 1)  \
   V(CheckedTaggedToTaggedSigned, 1, 1)   \
-  V(CheckedUint32Bounds, 2, 1)           \
   V(CheckedUint32ToInt32, 1, 1)          \
   V(CheckedUint32ToTaggedSigned, 1, 1)   \
   V(CheckedUint64Bounds, 2, 1)           \
   V(CheckedUint64ToInt32, 1, 1)          \
   V(CheckedUint64ToTaggedSigned, 1, 1)
+
+#define CHECKED_BOUNDS_OP_LIST(V) V(CheckedUint32Bounds)
 
 struct SimplifiedOperatorGlobalCache final {
 #define PURE(Name, properties, value_input_count, control_input_count)     \
@@ -866,6 +833,21 @@ struct SimplifiedOperatorGlobalCache final {
   Name##Operator k##Name;
   CHECKED_WITH_FEEDBACK_OP_LIST(CHECKED_WITH_FEEDBACK)
 #undef CHECKED_WITH_FEEDBACK
+
+#define CHECKED_BOUNDS(Name)                                                  \
+  struct Name##Operator final : public Operator1<CheckBoundsParameters> {     \
+    Name##Operator(VectorSlotPair feedback, CheckBoundsParameters::Mode mode) \
+        : Operator1<CheckBoundsParameters>(                                   \
+              IrOpcode::k##Name, Operator::kFoldable | Operator::kNoThrow,    \
+              #Name, 2, 1, 1, 1, 1, 0,                                        \
+              CheckBoundsParameters(feedback, mode)) {}                       \
+  };                                                                          \
+  Name##Operator k##Name##Deopting = {                                        \
+      VectorSlotPair(), CheckBoundsParameters::kDeoptOnOutOfBounds};          \
+  Name##Operator k##Name##Aborting = {                                        \
+      VectorSlotPair(), CheckBoundsParameters::kAbortOnOutOfBounds};
+  CHECKED_BOUNDS_OP_LIST(CHECKED_BOUNDS)
+#undef CHECKED_BOUNDS
 
   template <DeoptimizeReason kDeoptimizeReason>
   struct CheckIfOperator final : public Operator1<CheckIfParameters> {
@@ -1112,6 +1094,39 @@ struct SimplifiedOperatorGlobalCache final {
   };
   LoadFieldByIndexOperator kLoadFieldByIndex;
 
+  struct LoadStackArgumentOperator final : public Operator {
+    LoadStackArgumentOperator()
+        : Operator(                          // --
+              IrOpcode::kLoadStackArgument,  // opcode
+              Operator::kNoDeopt | Operator::kNoThrow |
+                  Operator::kNoWrite,  // flags
+              "LoadStackArgument",     // name
+              2, 1, 1, 1, 1, 0) {}     // counts
+  };
+  LoadStackArgumentOperator kLoadStackArgument;
+
+  struct LoadMessageOperator final : public Operator {
+    LoadMessageOperator()
+        : Operator(                    // --
+              IrOpcode::kLoadMessage,  // opcode
+              Operator::kNoDeopt | Operator::kNoThrow |
+                  Operator::kNoWrite,  // flags
+              "LoadMessage",           // name
+              1, 1, 1, 1, 1, 0) {}     // counts
+  };
+  LoadMessageOperator kLoadMessage;
+
+  struct StoreMessageOperator final : public Operator {
+    StoreMessageOperator()
+        : Operator(                     // --
+              IrOpcode::kStoreMessage,  // opcode
+              Operator::kNoDeopt | Operator::kNoThrow |
+                  Operator::kNoRead,  // flags
+              "StoreMessage",         // name
+              2, 1, 1, 0, 1, 0) {}    // counts
+  };
+  StoreMessageOperator kStoreMessage;
+
 #define SPECULATIVE_NUMBER_BINOP(Name)                                      \
   template <NumberOperationHint kHint>                                      \
   struct Name##Operator final : public Operator1<NumberOperationHint> {     \
@@ -1153,7 +1168,7 @@ struct SimplifiedOperatorGlobalCache final {
 
 namespace {
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(SimplifiedOperatorGlobalCache,
-                                GetSimplifiedOperatorGlobalCache);
+                                GetSimplifiedOperatorGlobalCache)
 }
 
 SimplifiedOperatorBuilder::SimplifiedOperatorBuilder(Zone* zone)
@@ -1183,6 +1198,23 @@ GET_FROM_CACHE(LoadFieldByIndex)
         CheckParameters(feedback));                                         \
   }
 CHECKED_WITH_FEEDBACK_OP_LIST(GET_FROM_CACHE_WITH_FEEDBACK)
+#undef GET_FROM_CACHE_WITH_FEEDBACK
+
+#define GET_FROM_CACHE_WITH_FEEDBACK(Name)                                \
+  const Operator* SimplifiedOperatorBuilder::Name(                        \
+      const VectorSlotPair& feedback, CheckBoundsParameters::Mode mode) { \
+    if (!feedback.IsValid()) {                                            \
+      switch (mode) {                                                     \
+        case CheckBoundsParameters::kDeoptOnOutOfBounds:                  \
+          return &cache_.k##Name##Deopting;                               \
+        case CheckBoundsParameters::kAbortOnOutOfBounds:                  \
+          return &cache_.k##Name##Aborting;                               \
+      }                                                                   \
+    }                                                                     \
+    return new (zone())                                                   \
+        SimplifiedOperatorGlobalCache::Name##Operator(feedback, mode);    \
+  }
+CHECKED_BOUNDS_OP_LIST(GET_FROM_CACHE_WITH_FEEDBACK)
 #undef GET_FROM_CACHE_WITH_FEEDBACK
 
 bool IsCheckedWithFeedback(const Operator* op) {
@@ -1351,21 +1383,23 @@ const Operator* SimplifiedOperatorBuilder::CheckMaps(
 }
 
 const Operator* SimplifiedOperatorBuilder::MapGuard(ZoneHandleSet<Map> maps) {
-  return new (zone()) Operator1<MapsParameterInfo>(  // --
-      IrOpcode::kMapGuard, Operator::kEliminatable,  // opcode
-      "MapGuard",                                    // name
-      1, 1, 1, 0, 1, 0,                              // counts
-      MapsParameterInfo(maps));                      // parameter
+  DCHECK_LT(0, maps.size());
+  return new (zone()) Operator1<ZoneHandleSet<Map>>(  // --
+      IrOpcode::kMapGuard, Operator::kEliminatable,   // opcode
+      "MapGuard",                                     // name
+      1, 1, 1, 0, 1, 0,                               // counts
+      maps);                                          // parameter
 }
 
 const Operator* SimplifiedOperatorBuilder::CompareMaps(
     ZoneHandleSet<Map> maps) {
-  return new (zone()) Operator1<MapsParameterInfo>(  // --
-      IrOpcode::kCompareMaps,                        // opcode
-      Operator::kEliminatable,                       // flags
-      "CompareMaps",                                 // name
-      1, 1, 1, 1, 1, 0,                              // counts
-      MapsParameterInfo(maps));                      // parameter
+  DCHECK_LT(0, maps.size());
+  return new (zone()) Operator1<ZoneHandleSet<Map>>(  // --
+      IrOpcode::kCompareMaps,                         // opcode
+      Operator::kEliminatable,                        // flags
+      "CompareMaps",                                  // name
+      1, 1, 1, 1, 1, 0,                               // counts
+      maps);                                          // parameter
 }
 
 const Operator* SimplifiedOperatorBuilder::ConvertReceiver(
@@ -1509,10 +1543,41 @@ std::ostream& operator<<(std::ostream& os, CheckParameters const& p) {
 }
 
 CheckParameters const& CheckParametersOf(Operator const* op) {
+  if (op->opcode() == IrOpcode::kCheckedUint32Bounds) {
+    return OpParameter<CheckBoundsParameters>(op).check_parameters();
+  }
 #define MAKE_OR(name, arg2, arg3) op->opcode() == IrOpcode::k##name ||
   CHECK((CHECKED_WITH_FEEDBACK_OP_LIST(MAKE_OR) false));
 #undef MAKE_OR
   return OpParameter<CheckParameters>(op);
+}
+
+bool operator==(CheckBoundsParameters const& lhs,
+                CheckBoundsParameters const& rhs) {
+  return lhs.check_parameters() == rhs.check_parameters() &&
+         lhs.mode() == rhs.mode();
+}
+
+size_t hash_value(CheckBoundsParameters const& p) {
+  return base::hash_combine(hash_value(p.check_parameters()), p.mode());
+}
+
+std::ostream& operator<<(std::ostream& os, CheckBoundsParameters const& p) {
+  os << p.check_parameters() << ",";
+  switch (p.mode()) {
+    case CheckBoundsParameters::kDeoptOnOutOfBounds:
+      os << "deopt";
+      break;
+    case CheckBoundsParameters::kAbortOnOutOfBounds:
+      os << "abort";
+      break;
+  }
+  return os;
+}
+
+CheckBoundsParameters const& CheckBoundsParametersOf(Operator const* op) {
+  CHECK_EQ(op->opcode(), IrOpcode::kCheckedUint32Bounds);
+  return OpParameter<CheckBoundsParameters>(op);
 }
 
 bool operator==(CheckIfParameters const& lhs, CheckIfParameters const& rhs) {
@@ -1647,6 +1712,18 @@ SPECULATIVE_NUMBER_BINOP_LIST(SPECULATIVE_NUMBER_BINOP)
 ACCESS_OP_LIST(ACCESS)
 #undef ACCESS
 
+const Operator* SimplifiedOperatorBuilder::LoadMessage() {
+  return &cache_.kLoadMessage;
+}
+
+const Operator* SimplifiedOperatorBuilder::StoreMessage() {
+  return &cache_.kStoreMessage;
+}
+
+const Operator* SimplifiedOperatorBuilder::LoadStackArgument() {
+  return &cache_.kLoadStackArgument;
+}
+
 const Operator* SimplifiedOperatorBuilder::TransitionAndStoreElement(
     Handle<Map> double_map, Handle<Map> fast_map) {
   TransitionAndStoreElementParameters parameters(double_map, fast_map);
@@ -1684,6 +1761,7 @@ const Operator* SimplifiedOperatorBuilder::TransitionAndStoreNonNumberElement(
 #undef EFFECT_DEPENDENT_OP_LIST
 #undef SPECULATIVE_NUMBER_BINOP_LIST
 #undef CHECKED_WITH_FEEDBACK_OP_LIST
+#undef CHECKED_BOUNDS_OP_LIST
 #undef CHECKED_OP_LIST
 #undef ACCESS_OP_LIST
 

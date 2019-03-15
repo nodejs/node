@@ -14,6 +14,7 @@ function g(b, x) {
   return f(b, 'abc', x);
 }
 
+%PrepareFunctionForOptimization(g);
 f(false, 0, 0);
 g(true, 0);
 %OptimizeFunctionOnNextCall(g);

@@ -13,6 +13,7 @@
     return 1 / Math.abs(x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(Infinity, foo(-0));
   assertEquals(Infinity, foo(-0));
   %OptimizeFunctionOnNextCall(foo);
@@ -26,6 +27,7 @@
     return Math.abs(x * -2);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(2, foo(-1));
   assertEquals(4, foo(-2));
   %OptimizeFunctionOnNextCall(foo);
@@ -45,6 +47,7 @@
     return Math.abs(Math.max(x * -2, 0));
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(2, foo(-1));
   assertEquals(4, foo(-2));
   %OptimizeFunctionOnNextCall(foo);
@@ -64,6 +67,7 @@
     return Math.abs(Math.min(x * -2, 2 ** 32));
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(2, foo(-1));
   assertEquals(4, foo(-2));
   %OptimizeFunctionOnNextCall(foo);

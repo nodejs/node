@@ -18,6 +18,7 @@ var a = "a".repeat(%StringMaxLength());
     }
   }
 
+  %PrepareFunctionForOptimization(foo);
   foo("a");
   foo("a");
   %OptimizeFunctionOnNextCall(foo);
@@ -34,6 +35,7 @@ var a = "a".repeat(%StringMaxLength());
     }
   }
 
+  %PrepareFunctionForOptimization(foo);
   foo("a");
   foo("a");
   %OptimizeFunctionOnNextCall(foo);
@@ -50,6 +52,7 @@ var a = "a".repeat(%StringMaxLength());
     }
   }
 
+  %PrepareFunctionForOptimization(foo);
   foo("a");
   foo("a");
   %OptimizeFunctionOnNextCall(foo);
@@ -72,6 +75,7 @@ var obj = {
     }
   }
 
+  %PrepareFunctionForOptimization(foo);
   foo("a");
   foo("a");
   %OptimizeFunctionOnNextCall(foo);
@@ -88,6 +92,7 @@ var obj = {
     }
   }
 
+  %PrepareFunctionForOptimization(foo);
   foo("a");
   foo("a");
   %OptimizeFunctionOnNextCall(foo);

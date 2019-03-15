@@ -11,5 +11,6 @@ var foo = (function(stdlib) {
   return foo;
 })(this);
 
+%PrepareFunctionForOptimization(foo);
 %OptimizeFunctionOnNextCall(foo);
 foo();

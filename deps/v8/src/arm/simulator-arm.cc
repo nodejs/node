@@ -19,13 +19,14 @@
 #include "src/objects-inl.h"
 #include "src/ostreams.h"
 #include "src/runtime/runtime-utils.h"
+#include "src/vector.h"
 
 // Only build the simulator if not compiling for real ARM hardware.
 namespace v8 {
 namespace internal {
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(Simulator::GlobalMonitor,
-                                Simulator::GlobalMonitor::Get);
+                                Simulator::GlobalMonitor::Get)
 
 // This macro provides a platform independent use of sscanf. The reason for
 // SScanF not being implemented in a platform independent way through

@@ -9,7 +9,7 @@
 
 #include "src/feedback-vector-inl.h"
 #include "src/handles-inl.h"
-#include "src/heap/heap-inl.h"
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/templates.h"
@@ -60,7 +60,7 @@ void PreparseData::set(int index, byte value) {
 void PreparseData::copy_in(int index, const byte* buffer, int length) {
   DCHECK(index >= 0 && length >= 0 && length <= kMaxInt - index &&
          index + length <= this->data_length());
-  Address dst_addr = FIELD_ADDR(this, kDataStartOffset + index * kByteSize);
+  Address dst_addr = FIELD_ADDR(*this, kDataStartOffset + index * kByteSize);
   memcpy(reinterpret_cast<void*>(dst_addr), buffer, length);
 }
 
@@ -106,6 +106,11 @@ CAST_ACCESSOR(UncompiledDataWithPreparseData)
 ACCESSORS(UncompiledDataWithPreparseData, preparse_data, PreparseData,
           kPreparseDataOffset)
 
+bool HeapObject::IsUncompiledData() const {
+  return IsUncompiledDataWithoutPreparseData() ||
+         IsUncompiledDataWithPreparseData();
+}
+
 OBJECT_CONSTRUCTORS_IMPL(InterpreterData, Struct)
 
 CAST_ACCESSOR(InterpreterData)
@@ -123,15 +128,13 @@ ACCESSORS(SharedFunctionInfo, name_or_scope_info, Object,
 ACCESSORS(SharedFunctionInfo, script_or_debug_info, Object,
           kScriptOrDebugInfoOffset)
 
-#if V8_SFI_HAS_UNIQUE_ID
-INT_ACCESSORS(SharedFunctionInfo, unique_id, kUniqueIdOffset)
-#endif
 UINT16_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
 UINT16_ACCESSORS(SharedFunctionInfo, internal_formal_parameter_count,
                  kFormalParameterCountOffset)
 UINT8_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
                 kExpectedNofPropertiesOffset)
-UINT8_ACCESSORS(SharedFunctionInfo, raw_builtin_function_id, kBuiltinFunctionId)
+UINT8_ACCESSORS(SharedFunctionInfo, raw_builtin_function_id,
+                kBuiltinFunctionIdOffset)
 UINT16_ACCESSORS(SharedFunctionInfo, raw_function_token_offset,
                  kFunctionTokenOffsetOffset)
 RELAXED_INT32_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
@@ -177,11 +180,11 @@ AbstractCode SharedFunctionInfo::abstract_code() {
 }
 
 Object SharedFunctionInfo::function_data() const {
-  return RELAXED_READ_FIELD(*this, kFunctionDataOffset);
+  return ACQUIRE_READ_FIELD(*this, kFunctionDataOffset);
 }
 
 void SharedFunctionInfo::set_function_data(Object data, WriteBarrierMode mode) {
-  RELAXED_WRITE_FIELD(*this, kFunctionDataOffset, data);
+  RELEASE_WRITE_FIELD(*this, kFunctionDataOffset, data);
   CONDITIONAL_WRITE_BARRIER(*this, kFunctionDataOffset, data, mode);
 }
 
@@ -224,6 +227,9 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_toplevel,
                     SharedFunctionInfo::IsTopLevelBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_oneshot_iife,
                     SharedFunctionInfo::IsOneshotIIFEBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
+                    is_safe_to_skip_arguments_adaptor,
+                    SharedFunctionInfo::IsSafeToSkipArgumentsAdaptorBit)
 
 bool SharedFunctionInfo::optimization_disabled() const {
   return disable_optimization_reason() != BailoutReason::kNoReason;
@@ -257,7 +263,6 @@ void SharedFunctionInfo::set_kind(FunctionKind kind) {
   int hints = flags();
   hints = FunctionKindBits::update(hints, kind);
   hints = IsClassConstructorBit::update(hints, IsClassConstructor(kind));
-  hints = IsDerivedConstructorBit::update(hints, IsDerivedConstructor(kind));
   set_flags(hints);
   UpdateFunctionMapIndex();
 }
@@ -317,7 +322,7 @@ void SharedFunctionInfo::clear_padding() {
 
 void SharedFunctionInfo::UpdateFunctionMapIndex() {
   int map_index = Context::FunctionMapIndex(
-      language_mode(), kind(), true, HasSharedName(), needs_home_object());
+      language_mode(), kind(), HasSharedName(), needs_home_object());
   set_function_map_index(map_index);
 }
 
@@ -494,10 +499,8 @@ void SharedFunctionInfo::set_bytecode_array(BytecodeArray bytecode) {
 bool SharedFunctionInfo::ShouldFlushBytecode() {
   if (!FLAG_flush_bytecode) return false;
 
-  // TODO(rmcilroy): Enable bytecode flushing for resumable functions amd class
-  // member initializers.
-  if (IsResumableFunction(kind()) ||
-      IsClassMembersInitializerFunction(kind()) || !allows_lazy_compilation()) {
+  // TODO(rmcilroy): Enable bytecode flushing for resumable functions.
+  if (IsResumableFunction(kind()) || !allows_lazy_compilation()) {
     return false;
   }
 
@@ -609,7 +612,7 @@ void SharedFunctionInfo::ClearPreparseData() {
   // Trim off the pre-parsed scope data from the uncompiled data by swapping the
   // map, leaving only an uncompiled data without pre-parsed scope.
   DisallowHeapAllocation no_gc;
-  Heap* heap = Heap::FromWritableHeapObject(data);
+  Heap* heap = GetHeapFromWritableObject(data);
 
   // Swap the map.
   heap->NotifyObjectLayoutChange(data, UncompiledDataWithPreparseData::kSize,
@@ -631,6 +634,10 @@ void SharedFunctionInfo::ClearPreparseData() {
   // Ensure that the clear was successful.
   DCHECK(HasUncompiledDataWithoutPreparseData());
 }
+
+OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfoWithID, SharedFunctionInfo)
+CAST_ACCESSOR(SharedFunctionInfoWithID)
+INT_ACCESSORS(SharedFunctionInfoWithID, unique_id, kUniqueIdOffset)
 
 // static
 void UncompiledData::Initialize(
@@ -659,6 +666,10 @@ void UncompiledDataWithPreparseData::Initialize(
   gc_notify_updated_slot(
       data, data->RawField(UncompiledDataWithPreparseData::kPreparseDataOffset),
       scope_data);
+}
+
+bool UncompiledData::has_function_literal_id() {
+  return function_literal_id() != kFunctionLiteralIdInvalid;
 }
 
 bool SharedFunctionInfo::HasWasmExportedFunctionData() const {

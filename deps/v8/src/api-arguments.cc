@@ -9,17 +9,19 @@
 namespace v8 {
 namespace internal {
 
-PropertyCallbackArguments::PropertyCallbackArguments(Isolate* isolate,
-                                                     Object data, Object self,
-                                                     JSObject holder,
-                                                     ShouldThrow should_throw)
+PropertyCallbackArguments::PropertyCallbackArguments(
+    Isolate* isolate, Object data, Object self, JSObject holder,
+    Maybe<ShouldThrow> should_throw)
     : Super(isolate) {
   slot_at(T::kThisIndex).store(self);
   slot_at(T::kHolderIndex).store(holder);
   slot_at(T::kDataIndex).store(data);
   slot_at(T::kIsolateIndex).store(Object(reinterpret_cast<Address>(isolate)));
-  slot_at(T::kShouldThrowOnErrorIndex)
-      .store(Smi::FromInt(should_throw == kThrowOnError ? 1 : 0));
+  int value = Internals::kInferShouldThrowMode;
+  if (should_throw.IsJust()) {
+    value = should_throw.FromJust();
+  }
+  slot_at(T::kShouldThrowOnErrorIndex).store(Smi::FromInt(value));
 
   // Here the hole is set as default value.
   // It cannot escape into js as it's removed in Call below.

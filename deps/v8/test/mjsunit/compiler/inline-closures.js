@@ -42,6 +42,7 @@ object.f = mkClosure('g');
 object.g = mkClosure('h');
 object.h = mkClosure('x');
 
+%PrepareFunctionForOptimization(object.f);
 assertSame(1, object.f({value:1}));
 assertSame(2, object.f({value:2}));
 %OptimizeFunctionOnNextCall(object.f);

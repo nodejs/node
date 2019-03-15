@@ -26,7 +26,8 @@ let locales = [
 ];
 
 invalid_hc.forEach(function(hc) {
-  let df = new Intl.DateTimeFormat(["en-u-hc-" + hc + "-fo-obar"]);
+  let df = new Intl.DateTimeFormat(
+      ["en-u-hc-" + hc + "-fo-obar"], {hour: "2-digit"});
   assertEquals("en", df.resolvedOptions().locale);
 }
 );
@@ -34,7 +35,8 @@ invalid_hc.forEach(function(hc) {
 valid_hc.forEach(function(hc) {
   locales.forEach(function(base) {
     let l = base + "-u-hc-" + hc;
-    let df = new Intl.DateTimeFormat([l + "-fo-obar"]);
+    let df = new Intl.DateTimeFormat(
+        [l + "-fo-obar"], {hour: "2-digit"});
     assertEquals(l, df.resolvedOptions().locale);
   });
 }

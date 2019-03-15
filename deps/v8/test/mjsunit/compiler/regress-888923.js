@@ -11,6 +11,7 @@
     return o.y.a;
   }
 
+  %PrepareFunctionForOptimization(f);
   f({ x : 0, y : { a : 1 } });
   f({ x : 0, y : { a : 2 } });
   %OptimizeFunctionOnNextCall(f);
@@ -24,6 +25,7 @@
     return o.x + a;
   }
 
+  %PrepareFunctionForOptimization(f);
   f({ x : 42, y : 21 });
   f({ x : 42, y : 21 });
   %OptimizeFunctionOnNextCall(f);

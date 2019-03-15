@@ -5,14 +5,6 @@
 #include 'src/builtins/builtins-data-view-gen.h'
 
 namespace data_view {
-  extern operator '.buffer'
-      macro LoadJSArrayBufferViewBuffer(JSArrayBufferView): JSArrayBuffer;
-  extern operator '.byte_length'
-      macro LoadJSArrayBufferViewByteLength(JSArrayBufferView): uintptr;
-  extern operator '.byte_offset'
-      macro LoadJSArrayBufferViewByteOffset(JSArrayBufferView): uintptr;
-  extern operator '.backing_store'
-      macro LoadJSArrayBufferBackingStore(JSArrayBuffer): RawPtr;
 
   macro MakeDataViewGetterNameString(kind: constexpr ElementsKind): String {
     if constexpr (kind == UINT8_ELEMENTS) {
@@ -76,7 +68,7 @@ namespace data_view {
       return Cast<JSDataView>(o) otherwise CastError;
     }
     label CastError {
-      ThrowTypeError(context, kIncompatibleMethodReceiver, method);
+      ThrowTypeError(kIncompatibleMethodReceiver, method);
     }
   }
 
@@ -401,15 +393,14 @@ namespace data_view {
       getIndex = ToIndex(offset, context) otherwise RangeError;
     }
     label RangeError {
-      ThrowRangeError(context, kInvalidDataViewAccessorOffset);
+      ThrowRangeError(kInvalidDataViewAccessorOffset);
     }
 
     let littleEndian: bool = ToBoolean(requestedLittleEndian);
     let buffer: JSArrayBuffer = dataView.buffer;
 
     if (IsDetachedBuffer(buffer)) {
-      ThrowTypeError(
-          context, kDetachedOperation, MakeDataViewGetterNameString(kind));
+      ThrowTypeError(kDetachedOperation, MakeDataViewGetterNameString(kind));
     }
 
     let getIndexFloat: float64 = Convert<float64>(getIndex);
@@ -420,7 +411,7 @@ namespace data_view {
     let elementSizeFloat: float64 = DataViewElementSize(kind);
 
     if (getIndexFloat + elementSizeFloat > viewSizeFloat) {
-      ThrowRangeError(context, kInvalidDataViewAccessorOffset);
+      ThrowRangeError(kInvalidDataViewAccessorOffset);
     }
 
     let bufferIndex: uintptr = getIndexWord + viewOffsetWord;
@@ -679,7 +670,7 @@ namespace data_view {
       getIndex = ToIndex(offset, context) otherwise RangeError;
     }
     label RangeError {
-      ThrowRangeError(context, kInvalidDataViewAccessorOffset);
+      ThrowRangeError(kInvalidDataViewAccessorOffset);
     }
 
     let littleEndian: bool = ToBoolean(requestedLittleEndian);
@@ -691,8 +682,7 @@ namespace data_view {
       let bigIntValue: BigInt = ToBigInt(context, value);
 
       if (IsDetachedBuffer(buffer)) {
-        ThrowTypeError(
-            context, kDetachedOperation, MakeDataViewSetterNameString(kind));
+        ThrowTypeError(kDetachedOperation, MakeDataViewSetterNameString(kind));
       }
 
       let getIndexFloat: float64 = Convert<float64>(getIndex);
@@ -703,7 +693,7 @@ namespace data_view {
       let elementSizeFloat: float64 = DataViewElementSize(kind);
 
       if (getIndexFloat + elementSizeFloat > viewSizeFloat) {
-        ThrowRangeError(context, kInvalidDataViewAccessorOffset);
+        ThrowRangeError(kInvalidDataViewAccessorOffset);
       }
 
       let bufferIndex: uintptr = getIndexWord + viewOffsetWord;
@@ -712,8 +702,7 @@ namespace data_view {
       let numValue: Number = ToNumber(context, value);
 
       if (IsDetachedBuffer(buffer)) {
-        ThrowTypeError(
-            context, kDetachedOperation, MakeDataViewSetterNameString(kind));
+        ThrowTypeError(kDetachedOperation, MakeDataViewSetterNameString(kind));
       }
 
       let getIndexFloat: float64 = Convert<float64>(getIndex);
@@ -724,7 +713,7 @@ namespace data_view {
       let elementSizeFloat: float64 = DataViewElementSize(kind);
 
       if (getIndexFloat + elementSizeFloat > viewSizeFloat) {
-        ThrowRangeError(context, kInvalidDataViewAccessorOffset);
+        ThrowRangeError(kInvalidDataViewAccessorOffset);
       }
 
       let bufferIndex: uintptr = getIndexWord + viewOffsetWord;

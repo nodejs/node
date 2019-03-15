@@ -9,6 +9,7 @@
 #include "src/flags.h"
 #include "src/globals.h"
 #include "src/utils.h"
+#include "src/vector.h"
 
 namespace v8 {
 namespace internal {

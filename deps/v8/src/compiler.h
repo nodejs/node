@@ -64,6 +64,12 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                       IsCompiledScope* is_compiled_scope);
   static bool CompileOptimized(Handle<JSFunction> function, ConcurrencyMode);
 
+  // Collect source positions for a function that has already been compiled to
+  // bytecode, but for which source positions were not collected (e.g. because
+  // they were not immediately needed).
+  static bool CollectSourcePositions(Isolate* isolate,
+                                     Handle<SharedFunctionInfo> shared);
+
   V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo>
   CompileForLiveEdit(ParseInfo* parse_info, Isolate* isolate);
 

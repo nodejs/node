@@ -46,10 +46,12 @@ class Label {
 #endif
 #endif
 
+#ifdef DEBUG
   V8_INLINE ~Label() {
     DCHECK(!is_linked());
     DCHECK(!is_near_linked());
   }
+#endif
 
   V8_INLINE void Unuse() { pos_ = 0; }
   V8_INLINE void UnuseNear() { near_link_pos_ = 0; }

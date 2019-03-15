@@ -40,7 +40,7 @@ class JSPluralRules : public JSObject {
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ResolvePlural(
       Isolate* isolate, Handle<JSPluralRules> plural_rules, double number);
 
-  static std::set<std::string> GetAvailableLocales();
+  static const std::set<std::string>& GetAvailableLocales();
 
   // [[Type]] is one of the values "cardinal" or "ordinal",
   // identifying the plural rules used.

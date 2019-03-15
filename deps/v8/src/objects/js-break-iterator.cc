@@ -186,11 +186,10 @@ String JSV8BreakIterator::BreakType(Isolate* isolate,
   return ReadOnlyRoots(isolate).unknown_string();
 }
 
-std::set<std::string> JSV8BreakIterator::GetAvailableLocales() {
-  int32_t num_locales = 0;
-  const icu::Locale* icu_available_locales =
-      icu::BreakIterator::getAvailableLocales(num_locales);
-  return Intl::BuildLocaleSet(icu_available_locales, num_locales);
+const std::set<std::string>& JSV8BreakIterator::GetAvailableLocales() {
+  static base::LazyInstance<Intl::AvailableLocales<icu::BreakIterator>>::type
+      available_locales = LAZY_INSTANCE_INITIALIZER;
+  return available_locales.Pointer()->Get();
 }
 
 }  // namespace internal

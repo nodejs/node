@@ -26,7 +26,8 @@ CAST_ACCESSOR(AliasedArgumentsEntry)
 CAST_ACCESSOR(SloppyArgumentsElements)
 CAST_ACCESSOR(JSArgumentsObject)
 
-SMI_ACCESSORS(AliasedArgumentsEntry, aliased_context_slot, kAliasedContextSlot)
+SMI_ACCESSORS(AliasedArgumentsEntry, aliased_context_slot,
+              kAliasedContextSlotOffset)
 
 Context SloppyArgumentsElements::context() {
   return Context::cast(get(kContextIndex));

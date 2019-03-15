@@ -514,23 +514,38 @@ bool Utf8ExternalStreamingStream::SkipToPosition(size_t position) {
   unibrow::Utf8::State state = chunk.start.state;
   uint32_t incomplete_char = chunk.start.incomplete_char;
   size_t it = current_.pos.bytes - chunk.start.bytes;
-  size_t chars = chunk.start.chars;
-  while (it < chunk.length && chars < position) {
-    unibrow::uchar t = unibrow::Utf8::ValueOfIncremental(
-        chunk.data[it], &it, &state, &incomplete_char);
-    if (t == kUtf8Bom && current_.pos.chars == 0) {
-      // BOM detected at beginning of the stream. Don't copy it.
-    } else if (t != unibrow::Utf8::kIncomplete) {
+  const uint8_t* cursor = &chunk.data[it];
+  const uint8_t* end = &chunk.data[chunk.length];
+
+  size_t chars = current_.pos.chars;
+
+  if (V8_UNLIKELY(current_.pos.bytes < 3 && chars == 0)) {
+    while (cursor < end) {
+      unibrow::uchar t =
+          unibrow::Utf8::ValueOfIncremental(&cursor, &state, &incomplete_char);
+      if (t == unibrow::Utf8::kIncomplete) continue;
+      if (t != kUtf8Bom) {
+        chars++;
+        if (t > unibrow::Utf16::kMaxNonSurrogateCharCode) chars++;
+      }
+      break;
+    }
+  }
+
+  while (cursor < end && chars < position) {
+    unibrow::uchar t =
+        unibrow::Utf8::ValueOfIncremental(&cursor, &state, &incomplete_char);
+    if (t != unibrow::Utf8::kIncomplete) {
       chars++;
       if (t > unibrow::Utf16::kMaxNonSurrogateCharCode) chars++;
     }
   }
 
-  current_.pos.bytes += it;
+  current_.pos.bytes = chunk.start.bytes + (cursor - chunk.data);
   current_.pos.chars = chars;
   current_.pos.incomplete_char = incomplete_char;
   current_.pos.state = state;
-  current_.chunk_no += (it == chunk.length);
+  current_.chunk_no += (cursor == end);
 
   return current_.pos.chars == position;
 }
@@ -544,8 +559,8 @@ void Utf8ExternalStreamingStream::FillBufferFromCurrentChunk() {
 
   // The buffer_ is writable, but buffer_*_ members are const. So we get a
   // non-const pointer into buffer that points to the same char as buffer_end_.
-  uint16_t* cursor = buffer_ + (buffer_end_ - buffer_start_);
-  DCHECK_EQ(cursor, buffer_end_);
+  uint16_t* output_cursor = buffer_ + (buffer_end_ - buffer_start_);
+  DCHECK_EQ(output_cursor, buffer_end_);
 
   unibrow::Utf8::State state = current_.pos.state;
   uint32_t incomplete_char = current_.pos.incomplete_char;
@@ -556,7 +571,7 @@ void Utf8ExternalStreamingStream::FillBufferFromCurrentChunk() {
     unibrow::uchar t = unibrow::Utf8::ValueOfIncrementalFinish(&state);
     if (t != unibrow::Utf8::kBufferEmpty) {
       DCHECK_EQ(t, unibrow::Utf8::kBadChar);
-      *cursor = static_cast<uc16>(t);
+      *output_cursor = static_cast<uc16>(t);
       buffer_end_++;
       current_.pos.chars++;
       current_.pos.incomplete_char = 0;
@@ -566,30 +581,50 @@ void Utf8ExternalStreamingStream::FillBufferFromCurrentChunk() {
   }
 
   size_t it = current_.pos.bytes - chunk.start.bytes;
-  while (it < chunk.length && cursor + 1 < buffer_start_ + kBufferSize) {
-    unibrow::uchar t = unibrow::Utf8::ValueOfIncremental(
-        chunk.data[it], &it, &state, &incomplete_char);
-    if (V8_LIKELY(t < kUtf8Bom)) {
-      *(cursor++) = static_cast<uc16>(t);  // The by most frequent case.
-    } else if (t == unibrow::Utf8::kIncomplete) {
-      continue;
-    } else if (t == kUtf8Bom && current_.pos.bytes + it == 3) {
-      // BOM detected at beginning of the stream. Don't copy it.
-    } else if (t <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
-      *(cursor++) = static_cast<uc16>(t);
-    } else {
-      *(cursor++) = unibrow::Utf16::LeadSurrogate(t);
-      *(cursor++) = unibrow::Utf16::TrailSurrogate(t);
+  const uint8_t* cursor = chunk.data + it;
+  const uint8_t* end = chunk.data + chunk.length;
+
+  // Deal with possible BOM.
+  if (V8_UNLIKELY(current_.pos.bytes < 3 && current_.pos.chars == 0)) {
+    while (cursor < end) {
+      unibrow::uchar t =
+          unibrow::Utf8::ValueOfIncremental(&cursor, &state, &incomplete_char);
+      if (V8_LIKELY(t < kUtf8Bom)) {
+        *(output_cursor++) = static_cast<uc16>(t);  // The most frequent case.
+      } else if (t == unibrow::Utf8::kIncomplete) {
+        continue;
+      } else if (t == kUtf8Bom) {
+        // BOM detected at beginning of the stream. Don't copy it.
+      } else if (t <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
+        *(output_cursor++) = static_cast<uc16>(t);
+      } else {
+        *(output_cursor++) = unibrow::Utf16::LeadSurrogate(t);
+        *(output_cursor++) = unibrow::Utf16::TrailSurrogate(t);
+      }
+      break;
     }
   }
 
-  current_.pos.bytes = chunk.start.bytes + it;
-  current_.pos.chars += (cursor - buffer_end_);
+  while (cursor < end && output_cursor + 1 < buffer_start_ + kBufferSize) {
+    unibrow::uchar t =
+        unibrow::Utf8::ValueOfIncremental(&cursor, &state, &incomplete_char);
+    if (V8_LIKELY(t <= unibrow::Utf16::kMaxNonSurrogateCharCode)) {
+      *(output_cursor++) = static_cast<uc16>(t);  // The most frequent case.
+    } else if (t == unibrow::Utf8::kIncomplete) {
+      continue;
+    } else {
+      *(output_cursor++) = unibrow::Utf16::LeadSurrogate(t);
+      *(output_cursor++) = unibrow::Utf16::TrailSurrogate(t);
+    }
+  }
+
+  current_.pos.bytes = chunk.start.bytes + (cursor - chunk.data);
+  current_.pos.chars += (output_cursor - buffer_end_);
   current_.pos.incomplete_char = incomplete_char;
   current_.pos.state = state;
-  current_.chunk_no += (it == chunk.length);
+  current_.chunk_no += (cursor == end);
 
-  buffer_end_ = cursor;
+  buffer_end_ = output_cursor;
 }
 
 bool Utf8ExternalStreamingStream::FetchChunk() {

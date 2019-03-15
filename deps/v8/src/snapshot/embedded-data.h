@@ -71,9 +71,13 @@ class EmbeddedData final {
     return (size == 0) ? 0 : PadAndAlign(size);
   }
 
-  size_t CreateHash() const;
-  size_t Hash() const {
-    return *reinterpret_cast<const size_t*>(data_ + HashOffset());
+  size_t CreateEmbeddedBlobHash() const;
+  size_t EmbeddedBlobHash() const {
+    return *reinterpret_cast<const size_t*>(data_ + EmbeddedBlobHashOffset());
+  }
+
+  size_t IsolateHash() const {
+    return *reinterpret_cast<const size_t*>(data_ + IsolateHashOffset());
   }
 
   struct Metadata {
@@ -88,15 +92,20 @@ class EmbeddedData final {
   // The layout of the blob is as follows:
   //
   // [0] hash of the remaining blob
-  // [1] metadata of instruction stream 0
+  // [1] hash of embedded-blob-relevant heap objects
+  // [2] metadata of instruction stream 0
   // ... metadata
   // ... instruction streams
 
   static constexpr uint32_t kTableSize = Builtins::builtin_count;
-  static constexpr uint32_t HashOffset() { return 0; }
-  static constexpr uint32_t HashSize() { return kSizetSize; }
+  static constexpr uint32_t EmbeddedBlobHashOffset() { return 0; }
+  static constexpr uint32_t EmbeddedBlobHashSize() { return kSizetSize; }
+  static constexpr uint32_t IsolateHashOffset() {
+    return EmbeddedBlobHashOffset() + EmbeddedBlobHashSize();
+  }
+  static constexpr uint32_t IsolateHashSize() { return kSizetSize; }
   static constexpr uint32_t MetadataOffset() {
-    return HashOffset() + HashSize();
+    return IsolateHashOffset() + IsolateHashSize();
   }
   static constexpr uint32_t MetadataSize() {
     return sizeof(struct Metadata) * kTableSize;

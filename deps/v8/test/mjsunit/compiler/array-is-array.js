@@ -11,6 +11,7 @@
     return Array.isArray([]);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo());
   assertTrue(foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -24,6 +25,7 @@
     return Array.isArray(new Proxy([], {}));
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo());
   assertTrue(foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -37,6 +39,7 @@
     return Array.isArray({});
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo());
   assertFalse(foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -50,6 +53,7 @@
     return Array.isArray(new Proxy({}, {}));
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo());
   assertFalse(foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -63,6 +67,7 @@
     return Array.isArray(x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo({}));
   assertFalse(foo(new Proxy({}, {})));
   assertTrue(foo([]));
@@ -97,6 +102,7 @@
     }
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo([]), TypeError);
   assertInstanceof(foo({}), TypeError);
   %OptimizeFunctionOnNextCall(foo);

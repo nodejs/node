@@ -44,10 +44,10 @@ class V8_EXPORT_PRIVATE SourcePositionTableBuilder {
   Handle<ByteArray> ToSourcePositionTable(Isolate* isolate);
   OwnedVector<byte> ToSourcePositionTableVector();
 
+  inline bool Omit() const { return mode_ == OMIT_SOURCE_POSITIONS; }
+
  private:
   void AddEntry(const PositionTableEntry& entry);
-
-  inline bool Omit() const { return mode_ == OMIT_SOURCE_POSITIONS; }
 
   RecordingMode mode_;
   std::vector<byte> bytes_;
@@ -119,7 +119,7 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
   int index_ = 0;
   PositionTableEntry current_;
   IterationFilter filter_;
-  DISALLOW_HEAP_ALLOCATION(no_gc);
+  DISALLOW_HEAP_ALLOCATION(no_gc)
 };
 
 }  // namespace internal

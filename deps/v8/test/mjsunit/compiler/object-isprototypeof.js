@@ -8,6 +8,7 @@
 (function() {
   function foo(x, y) { return Object.prototype.isPrototypeOf.call(x, y); }
 
+  %PrepareFunctionForOptimization(foo);
   assertThrows(() => foo(null, {}));
   assertThrows(() => foo(undefined, {}));
   assertThrows(() => foo(null, []));
@@ -43,6 +44,7 @@
 
   function foo(x) { return A.prototype.isPrototypeOf(x); }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo(0));
   assertFalse(foo(""));
   assertFalse(foo(null));
@@ -74,6 +76,7 @@
 
   function foo() { return A.prototype.isPrototypeOf(0); }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo());
   assertFalse(foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -86,6 +89,7 @@
 
   function foo() { return A.prototype.isPrototypeOf(null); }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo());
   assertFalse(foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -98,6 +102,7 @@
 
   function foo() { return A.prototype.isPrototypeOf(undefined); }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo());
   assertFalse(foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -112,6 +117,7 @@
 
   function foo() { return A.prototype.isPrototypeOf(a); }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo());
   assertTrue(foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -124,6 +130,7 @@
 
   function foo() { return A.prototype.isPrototypeOf(a); }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo());
   assertFalse(foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -136,6 +143,7 @@
 
   function foo() { return Array.prototype.isPrototypeOf(a); }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo());
   assertTrue(foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -146,6 +154,7 @@
 
   function foo() { return Object.prototype.isPrototypeOf(a); }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo());
   assertTrue(foo());
   %OptimizeFunctionOnNextCall(foo);

@@ -37,7 +37,7 @@ inline JSSegmenter::Granularity JSSegmenter::granularity() const {
   return GranularityBits::decode(flags());
 }
 
-CAST_ACCESSOR(JSSegmenter);
+CAST_ACCESSOR(JSSegmenter)
 
 }  // namespace internal
 }  // namespace v8

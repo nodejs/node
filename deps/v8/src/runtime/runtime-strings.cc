@@ -5,6 +5,7 @@
 #include "src/arguments-inl.h"
 #include "src/conversions.h"
 #include "src/counters.h"
+#include "src/heap/heap-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/slots.h"
@@ -297,7 +298,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   }
 
   int length;
-  bool one_byte = special->HasOnlyOneByteChars();
+  bool one_byte = special->IsOneByteRepresentation();
 
   {
     DisallowHeapAllocation no_gc;
@@ -344,234 +345,6 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   }
 }
 
-// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
-RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
-  int32_t array_length;
-  if (!args[1]->ToInt32(&array_length)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewInvalidStringLengthError());
-  }
-  CONVERT_ARG_HANDLE_CHECKED(String, separator, 2);
-  CHECK(array->HasObjectElements());
-  CHECK_GE(array_length, 0);
-
-  Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()), isolate);
-  if (fixed_array->length() < array_length) {
-    array_length = fixed_array->length();
-  }
-
-  if (array_length == 0) {
-    return ReadOnlyRoots(isolate).empty_string();
-  } else if (array_length == 1) {
-    Object first = fixed_array->get(0);
-    CHECK(first->IsString());
-    return first;
-  }
-
-  int separator_length = separator->length();
-  CHECK_GT(separator_length, 0);
-  int max_nof_separators =
-      (String::kMaxLength + separator_length - 1) / separator_length;
-  if (max_nof_separators < (array_length - 1)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewInvalidStringLengthError());
-  }
-  int length = (array_length - 1) * separator_length;
-  for (int i = 0; i < array_length; i++) {
-    Object element_obj = fixed_array->get(i);
-    CHECK(element_obj->IsString());
-    String element = String::cast(element_obj);
-    int increment = element->length();
-    if (increment > String::kMaxLength - length) {
-      STATIC_ASSERT(String::kMaxLength < kMaxInt);
-      length = kMaxInt;  // Provoke exception;
-      break;
-    }
-    length += increment;
-  }
-
-  Handle<SeqTwoByteString> answer;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, answer, isolate->factory()->NewRawTwoByteString(length));
-
-  DisallowHeapAllocation no_gc;
-
-  uc16* sink = answer->GetChars(no_gc);
-#ifdef DEBUG
-  uc16* end = sink + length;
-#endif
-
-  CHECK(fixed_array->get(0)->IsString());
-  String first = String::cast(fixed_array->get(0));
-  String separator_raw = *separator;
-
-  int first_length = first->length();
-  String::WriteToFlat(first, sink, 0, first_length);
-  sink += first_length;
-
-  for (int i = 1; i < array_length; i++) {
-    DCHECK(sink + separator_length <= end);
-    String::WriteToFlat(separator_raw, sink, 0, separator_length);
-    sink += separator_length;
-
-    CHECK(fixed_array->get(i)->IsString());
-    String element = String::cast(fixed_array->get(i));
-    int element_length = element->length();
-    DCHECK(sink + element_length <= end);
-    String::WriteToFlat(element, sink, 0, element_length);
-    sink += element_length;
-  }
-  DCHECK(sink == end);
-
-  // Use %_FastOneByteArrayJoin instead.
-  DCHECK(!answer->IsOneByteRepresentation());
-  return *answer;
-}
-
-template <typename sinkchar>
-static void WriteRepeatToFlat(String src, Vector<sinkchar> buffer, int cursor,
-                              int repeat, int length) {
-  if (repeat == 0) return;
-
-  sinkchar* start = &buffer[cursor];
-  String::WriteToFlat<sinkchar>(src, start, 0, length);
-
-  int done = 1;
-  sinkchar* next = start + length;
-
-  while (done < repeat) {
-    int block = Min(done, repeat - done);
-    int block_chars = block * length;
-    CopyChars(next, start, block_chars);
-    next += block_chars;
-    done += block;
-  }
-}
-
-// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
-template <typename Char>
-static void JoinSparseArrayWithSeparator(FixedArray elements,
-                                         int elements_length,
-                                         uint32_t array_length,
-                                         String separator,
-                                         Vector<Char> buffer) {
-  DisallowHeapAllocation no_gc;
-  int previous_separator_position = 0;
-  int separator_length = separator->length();
-  DCHECK_LT(0, separator_length);
-  int cursor = 0;
-  for (int i = 0; i < elements_length; i += 2) {
-    int position = NumberToInt32(elements->get(i));
-    String string = String::cast(elements->get(i + 1));
-    int string_length = string->length();
-    if (string->length() > 0) {
-      int repeat = position - previous_separator_position;
-      WriteRepeatToFlat<Char>(separator, buffer, cursor, repeat,
-                              separator_length);
-      cursor += repeat * separator_length;
-      previous_separator_position = position;
-      String::WriteToFlat<Char>(string, &buffer[cursor], 0, string_length);
-      cursor += string->length();
-    }
-  }
-
-  int last_array_index = static_cast<int>(array_length - 1);
-  // Array length must be representable as a signed 32-bit number,
-  // otherwise the total string length would have been too large.
-  DCHECK_LE(array_length, 0x7FFFFFFF);  // Is int32_t.
-  int repeat = last_array_index - previous_separator_position;
-  WriteRepeatToFlat<Char>(separator, buffer, cursor, repeat, separator_length);
-  cursor += repeat * separator_length;
-  DCHECK(cursor <= buffer.length());
-}
-
-// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
-RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, elements_array, 0);
-  CONVERT_NUMBER_CHECKED(uint32_t, array_length, Uint32, args[1]);
-  CONVERT_ARG_HANDLE_CHECKED(String, separator, 2);
-  // elements_array is fast-mode JSarray of alternating positions
-  // (increasing order) and strings.
-  CHECK(elements_array->HasSmiOrObjectElements());
-  // array_length is length of original array (used to add separators);
-  // separator is string to put between elements. Assumed to be non-empty.
-  CHECK_GT(array_length, 0);
-
-  // Find total length of join result.
-  int string_length = 0;
-  bool is_one_byte = separator->IsOneByteRepresentation();
-  bool overflow = false;
-  CONVERT_NUMBER_CHECKED(int, elements_length, Int32, elements_array->length());
-  CHECK(elements_length <= elements_array->elements()->length());
-  CHECK_EQ(elements_length & 1, 0);  // Even length.
-  FixedArray elements = FixedArray::cast(elements_array->elements());
-  {
-    DisallowHeapAllocation no_gc;
-    for (int i = 0; i < elements_length; i += 2) {
-      String string = String::cast(elements->get(i + 1));
-      int length = string->length();
-      if (is_one_byte && !string->IsOneByteRepresentation()) {
-        is_one_byte = false;
-      }
-      if (length > String::kMaxLength ||
-          String::kMaxLength - length < string_length) {
-        overflow = true;
-        break;
-      }
-      string_length += length;
-    }
-  }
-
-  int separator_length = separator->length();
-  if (!overflow && separator_length > 0) {
-    if (array_length <= 0x7FFFFFFFu) {
-      int separator_count = static_cast<int>(array_length) - 1;
-      int remaining_length = String::kMaxLength - string_length;
-      if ((remaining_length / separator_length) >= separator_count) {
-        string_length += separator_length * (array_length - 1);
-      } else {
-        // Not room for the separators within the maximal string length.
-        overflow = true;
-      }
-    } else {
-      // Nonempty separator and at least 2^31-1 separators necessary
-      // means that the string is too large to create.
-      STATIC_ASSERT(String::kMaxLength < 0x7FFFFFFF);
-      overflow = true;
-    }
-  }
-  if (overflow) {
-    // Throw an exception if the resulting string is too large. See
-    // https://code.google.com/p/chromium/issues/detail?id=336820
-    // for details.
-    THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewInvalidStringLengthError());
-  }
-
-  if (is_one_byte) {
-    Handle<SeqOneByteString> result = isolate->factory()
-                                          ->NewRawOneByteString(string_length)
-                                          .ToHandleChecked();
-    DisallowHeapAllocation no_gc;
-    JoinSparseArrayWithSeparator<uint8_t>(
-        FixedArray::cast(elements_array->elements()), elements_length,
-        array_length, *separator,
-        Vector<uint8_t>(result->GetChars(no_gc), string_length));
-    return *result;
-  } else {
-    Handle<SeqTwoByteString> result = isolate->factory()
-                                          ->NewRawTwoByteString(string_length)
-                                          .ToHandleChecked();
-    DisallowHeapAllocation no_gc;
-    JoinSparseArrayWithSeparator<uc16>(
-        FixedArray::cast(elements_array->elements()), elements_length,
-        array_length, *separator,
-        Vector<uc16>(result->GetChars(no_gc), string_length));
-    return *result;
-  }
-}
 
 // Copies Latin1 characters to the given fixed array looking up
 // one-char strings in the cache. Gives up on the first char that is
@@ -711,6 +484,79 @@ RUNTIME_FUNCTION(Runtime_FlattenString) {
 RUNTIME_FUNCTION(Runtime_StringMaxLength) {
   SealHandleScope shs(isolate);
   return Smi::FromInt(String::kMaxLength);
+}
+
+RUNTIME_FUNCTION(Runtime_StringCompareSequence) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, string, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, search_string, 1);
+  CONVERT_NUMBER_CHECKED(int, start, Int32, args[2]);
+
+  // Check if start + searchLength is in bounds.
+  DCHECK_LE(start + search_string->length(), string->length());
+
+  FlatStringReader string_reader(isolate, String::Flatten(isolate, string));
+  FlatStringReader search_reader(isolate,
+                                 String::Flatten(isolate, search_string));
+
+  for (int i = 0; i < search_string->length(); i++) {
+    if (string_reader.Get(start + i) != search_reader.Get(i)) {
+      return ReadOnlyRoots(isolate).false_value();
+    }
+  }
+
+  return ReadOnlyRoots(isolate).true_value();
+}
+
+RUNTIME_FUNCTION(Runtime_StringEscapeQuotes) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, string, 0);
+
+  // Equivalent to global replacement `string.replace(/"/g, "&quot")`, but this
+  // does not modify any global state (e.g. the regexp match info).
+
+  const int string_length = string->length();
+  Handle<String> quotes =
+      isolate->factory()->LookupSingleCharacterStringFromCode('"');
+
+  int index = String::IndexOf(isolate, string, quotes, 0);
+
+  // No quotes, nothing to do.
+  if (index == -1) return *string;
+
+  // Find all quotes.
+  std::vector<int> indices = {index};
+  while (index + 1 < string_length) {
+    index = String::IndexOf(isolate, string, quotes, index + 1);
+    if (index == -1) break;
+    indices.emplace_back(index);
+  }
+
+  // Build the replacement string.
+  Handle<String> replacement =
+      isolate->factory()->NewStringFromAsciiChecked("&quot;");
+  const int estimated_part_count = static_cast<int>(indices.size()) * 2 + 1;
+  ReplacementStringBuilder builder(isolate->heap(), string,
+                                   estimated_part_count);
+
+  int prev_index = -1;  // Start at -1 to avoid special-casing the first match.
+  for (int index : indices) {
+    const int slice_start = prev_index + 1;
+    const int slice_end = index;
+    if (slice_end > slice_start) {
+      builder.AddSubjectSlice(slice_start, slice_end);
+    }
+    builder.AddString(replacement);
+    prev_index = index;
+  }
+
+  if (prev_index < string_length - 1) {
+    builder.AddSubjectSlice(prev_index + 1, string_length);
+  }
+
+  return *builder.ToString().ToHandleChecked();
 }
 
 }  // namespace internal

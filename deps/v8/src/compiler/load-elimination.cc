@@ -4,6 +4,7 @@
 
 #include "src/compiler/load-elimination.h"
 
+#include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
@@ -112,9 +113,13 @@ Reduction LoadElimination::Reduce(Node* node) {
     case IrOpcode::kTransitionElementsKind:
       return ReduceTransitionElementsKind(node);
     case IrOpcode::kLoadField:
-      return ReduceLoadField(node);
+      return ReduceLoadField(node, FieldAccessOf(node->op()));
     case IrOpcode::kStoreField:
-      return ReduceStoreField(node);
+      return ReduceStoreField(node, FieldAccessOf(node->op()));
+    case IrOpcode::kStoreMessage:
+      return ReduceStoreField(node, AccessBuilder::ForExternalIntPtr());
+    case IrOpcode::kLoadMessage:
+      return ReduceLoadField(node, AccessBuilder::ForExternalIntPtr());
     case IrOpcode::kLoadElement:
       return ReduceLoadElement(node);
     case IrOpcode::kStoreElement:
@@ -622,7 +627,7 @@ void LoadElimination::AbstractStateForEffectNodes::Set(
 }
 
 Reduction LoadElimination::ReduceMapGuard(Node* node) {
-  ZoneHandleSet<Map> const maps = MapGuardMapsOf(node->op()).maps();
+  ZoneHandleSet<Map> const& maps = MapGuardMapsOf(node->op());
   Node* const object = NodeProperties::GetValueInput(node, 0);
   Node* const effect = NodeProperties::GetEffectInput(node);
   AbstractState const* state = node_states_.Get(effect);
@@ -637,7 +642,7 @@ Reduction LoadElimination::ReduceMapGuard(Node* node) {
 }
 
 Reduction LoadElimination::ReduceCheckMaps(Node* node) {
-  ZoneHandleSet<Map> const maps = CheckMapsParametersOf(node->op()).maps();
+  ZoneHandleSet<Map> const& maps = CheckMapsParametersOf(node->op()).maps();
   Node* const object = NodeProperties::GetValueInput(node, 0);
   Node* const effect = NodeProperties::GetEffectInput(node);
   AbstractState const* state = node_states_.Get(effect);
@@ -652,7 +657,7 @@ Reduction LoadElimination::ReduceCheckMaps(Node* node) {
 }
 
 Reduction LoadElimination::ReduceCompareMaps(Node* node) {
-  ZoneHandleSet<Map> const maps = CompareMapsParametersOf(node->op()).maps();
+  ZoneHandleSet<Map> const& maps = CompareMapsParametersOf(node->op());
   Node* const object = NodeProperties::GetValueInput(node, 0);
   Node* const effect = NodeProperties::GetEffectInput(node);
   AbstractState const* state = node_states_.Get(effect);
@@ -675,7 +680,7 @@ Reduction LoadElimination::ReduceEnsureWritableFastElements(Node* node) {
   Node* const effect = NodeProperties::GetEffectInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
-    // Check if the {elements} already have the fixed array map.
+  // Check if the {elements} already have the fixed array map.
   ZoneHandleSet<Map> elements_maps;
   ZoneHandleSet<Map> fixed_array_maps(factory()->fixed_array_map());
   if (state->LookupMaps(elements, &elements_maps) &&
@@ -784,8 +789,8 @@ Reduction LoadElimination::ReduceTransitionAndStoreElement(Node* node) {
   return UpdateState(node, state);
 }
 
-Reduction LoadElimination::ReduceLoadField(Node* node) {
-  FieldAccess const& access = FieldAccessOf(node->op());
+Reduction LoadElimination::ReduceLoadField(Node* node,
+                                           FieldAccess const& access) {
   Node* object = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -833,8 +838,8 @@ Reduction LoadElimination::ReduceLoadField(Node* node) {
   return UpdateState(node, state);
 }
 
-Reduction LoadElimination::ReduceStoreField(Node* node) {
-  FieldAccess const& access = FieldAccessOf(node->op());
+Reduction LoadElimination::ReduceStoreField(Node* node,
+                                            FieldAccess const& access) {
   Node* const object = NodeProperties::GetValueInput(node, 0);
   Node* const new_value = NodeProperties::GetValueInput(node, 1);
   Node* const effect = NodeProperties::GetEffectInput(node);
@@ -1070,6 +1075,25 @@ Reduction LoadElimination::UpdateState(Node* node, AbstractState const* state) {
   return NoChange();
 }
 
+LoadElimination::AbstractState const*
+LoadElimination::ComputeLoopStateForStoreField(
+    Node* current, LoadElimination::AbstractState const* state,
+    FieldAccess const& access) const {
+  Node* const object = NodeProperties::GetValueInput(current, 0);
+  if (access.offset == HeapObject::kMapOffset) {
+    // Invalidate what we know about the {object}s map.
+    state = state->KillMaps(object, zone());
+  } else {
+    int field_index = FieldIndexOf(access);
+    if (field_index < 0) {
+      state = state->KillFields(object, access.name, zone());
+    } else {
+      state = state->KillField(object, field_index, access.name, zone());
+    }
+  }
+  return state;
+}
+
 LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
     Node* node, AbstractState const* state) const {
   Node* const control = NodeProperties::GetControlInput(node);
@@ -1126,23 +1150,14 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
                                      MaybeHandle<Name>(), zone());
             break;
           }
-          case IrOpcode::kStoreField: {
-            FieldAccess const& access = FieldAccessOf(current->op());
-            Node* const object = NodeProperties::GetValueInput(current, 0);
-            if (access.offset == HeapObject::kMapOffset) {
-              // Invalidate what we know about the {object}s map.
-              state = state->KillMaps(object, zone());
-            } else {
-              int field_index = FieldIndexOf(access);
-              if (field_index < 0) {
-                state = state->KillFields(object, access.name, zone());
-              } else {
-                state =
-                    state->KillField(object, field_index, access.name, zone());
-              }
-            }
+          case IrOpcode::kStoreField:
+            state = ComputeLoopStateForStoreField(current, state,
+                                                  FieldAccessOf(current->op()));
             break;
-          }
+          case IrOpcode::kStoreMessage:
+            state = ComputeLoopStateForStoreField(
+                current, state, AccessBuilder::ForExternalIntPtr());
+            break;
           case IrOpcode::kStoreElement: {
             Node* const object = NodeProperties::GetValueInput(current, 0);
             Node* const index = NodeProperties::GetValueInput(current, 1);

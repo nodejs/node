@@ -4,7 +4,6 @@
 
 // Flags: --wasm-max-mem-pages=32768
 
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 const k1MiB = 1 * 1024 * 1024;

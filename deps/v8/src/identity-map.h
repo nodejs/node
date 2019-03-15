@@ -94,7 +94,7 @@ class IdentityMap : public IdentityMapBase {
   explicit IdentityMap(Heap* heap,
                        AllocationPolicy allocator = AllocationPolicy())
       : IdentityMapBase(heap), allocator_(allocator) {}
-  ~IdentityMap() override { Clear(); };
+  ~IdentityMap() override { Clear(); }
 
   // Searches this map for the given key using the object's address
   // as the identity, returning:

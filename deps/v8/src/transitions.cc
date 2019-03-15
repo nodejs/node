@@ -690,5 +690,23 @@ void TransitionArray::Sort() {
   DCHECK(IsSortedNoDuplicates());
 }
 
+bool TransitionsAccessor::HasIntegrityLevelTransitionTo(
+    Map to, Symbol* out_symbol, PropertyAttributes* out_integrity_level) {
+  ReadOnlyRoots roots(isolate_);
+  if (SearchSpecial(roots.frozen_symbol()) == to) {
+    if (out_integrity_level) *out_integrity_level = FROZEN;
+    if (out_symbol) *out_symbol = roots.frozen_symbol();
+  } else if (SearchSpecial(roots.sealed_symbol()) == to) {
+    if (out_integrity_level) *out_integrity_level = SEALED;
+    if (out_symbol) *out_symbol = roots.sealed_symbol();
+  } else if (SearchSpecial(roots.nonextensible_symbol()) == to) {
+    if (out_integrity_level) *out_integrity_level = NONE;
+    if (out_symbol) *out_symbol = roots.nonextensible_symbol();
+  } else {
+    return false;
+  }
+  return true;
+}
+
 }  // namespace internal
 }  // namespace v8

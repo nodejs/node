@@ -427,61 +427,6 @@ TEST(AbsentInPrototype) {
 
 
 
-class ExistsInHiddenPrototypeContext: public DeclarationContext {
- public:
-  ExistsInHiddenPrototypeContext() {
-    hidden_proto_ = FunctionTemplate::New(CcTest::isolate());
-    hidden_proto_->SetHiddenPrototype(true);
-  }
-
- protected:
-  v8::Local<Integer> Query(Local<Name> key) override {
-    // Let it seem that the property exists in the hidden prototype object.
-    return Integer::New(isolate(), v8::None);
-  }
-
-  // Install the hidden prototype after the global object has been created.
-  void PostInitializeContext(Local<Context> context) override {
-    Local<Object> global_object = context->Global();
-    Local<Object> hidden_proto = hidden_proto_->GetFunction(context)
-                                     .ToLocalChecked()
-                                     ->NewInstance(context)
-                                     .ToLocalChecked();
-    Local<Object> inner_global =
-        Local<Object>::Cast(global_object->GetPrototype());
-    inner_global->SetPrototype(context, hidden_proto).FromJust();
-  }
-
-  // Use the hidden prototype as the holder for the interceptors.
-  Local<ObjectTemplate> GetHolder(Local<FunctionTemplate> function) override {
-    return hidden_proto_->InstanceTemplate();
-  }
-
- private:
-  Local<FunctionTemplate> hidden_proto_;
-};
-
-
-TEST(ExistsInHiddenPrototype) {
-  HandleScope scope(CcTest::isolate());
-
-  { ExistsInHiddenPrototypeContext context;
-    context.Check("var x; x", 0, 0, 0, EXPECT_RESULT,
-                  Undefined(CcTest::isolate()));
-  }
-
-  { ExistsInHiddenPrototypeContext context;
-    context.Check("var x = 0; x", 0, 0, 0, EXPECT_RESULT,
-                  Number::New(CcTest::isolate(), 0));
-  }
-
-  { ExistsInHiddenPrototypeContext context;
-    context.Check("function x() { }; x", 0, 1, 1, EXPECT_RESULT);
-  }
-}
-
-
-
 class SimpleContext {
  public:
   SimpleContext()

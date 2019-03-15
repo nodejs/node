@@ -99,7 +99,8 @@ TEST(AccountingAllocatorOOM) {
   AllocationPlatform platform;
   v8::internal::AccountingAllocator allocator;
   CHECK(!platform.oom_callback_called);
-  v8::internal::Segment* result = allocator.GetSegment(GetHugeMemoryAmount());
+  v8::internal::Segment* result =
+      allocator.AllocateSegment(GetHugeMemoryAmount());
   // On a few systems, allocation somehow succeeds.
   CHECK_EQ(result == nullptr, platform.oom_callback_called);
 }

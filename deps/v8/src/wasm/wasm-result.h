@@ -9,7 +9,8 @@
 #include <memory>
 
 #include "src/base/compiler-specific.h"
-#include "src/utils.h"
+#include "src/base/macros.h"
+#include "src/base/platform/platform.h"
 
 #include "src/globals.h"
 
@@ -122,12 +123,6 @@ class V8_EXPORT_PRIVATE ErrorThrower {
   PRINTF_FORMAT(2, 3) void LinkError(const char* fmt, ...);
   PRINTF_FORMAT(2, 3) void RuntimeError(const char* fmt, ...);
 
-  void CompileFailed(const char* context, const WasmError& error) {
-    DCHECK(error.has_error());
-    CompileError("%s: %s @+%u", context, error.message().c_str(),
-                 error.offset());
-  }
-
   void CompileFailed(const WasmError& error) {
     DCHECK(error.has_error());
     CompileError("%s @+%u", error.message().c_str(), error.offset());
@@ -169,7 +164,7 @@ class V8_EXPORT_PRIVATE ErrorThrower {
 
   // ErrorThrower should always be stack-allocated, since it constitutes a scope
   // (things happen in the destructor).
-  DISALLOW_NEW_AND_DELETE();
+  DISALLOW_NEW_AND_DELETE()
   DISALLOW_COPY_AND_ASSIGN(ErrorThrower);
 };
 

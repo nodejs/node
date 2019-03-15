@@ -153,7 +153,6 @@ arr[0] = 'foo';
 // We should be able to overwrite the existing value.
 assertEquals('foo', arr[0]);
 
-
 // Test that isSealed returns the correct value even if configurable
 // has been set to false on all properties manually and the extensible
 // flag has also been set to false manually.
@@ -393,3 +392,104 @@ assertTrue((new Sealed()).prototypeExists);
 obj = new Int32Array(10)
 Object.seal(obj);
 assertTrue(Object.isSealed(obj));
+
+// Test packed element array built-in functions with seal.
+function testPackedSealedArray1(obj) {
+  assertTrue(Object.isSealed(obj));
+  assertFalse(Object.isFrozen(obj));
+  assertTrue(Array.isArray(obj));
+
+  // Verify that the length can't be written by builtins.
+  assertThrows(function() { obj.pop(); }, TypeError);
+  assertThrows(function() { obj.push(1); }, TypeError);
+  assertThrows(function() { obj.unshift(1); }, TypeError);
+  assertThrows(function() { obj.splice(0); }, TypeError);
+
+  // Verify search, filter, iterator
+  obj = new Array(undefined, null, 1, -1, 'a', Symbol("test"));
+  assertTrue(%HasPackedElements(obj));
+  Object.seal(obj);
+  assertTrue(Object.isSealed(obj));
+  assertFalse(Object.isFrozen(obj));
+  assertTrue(Array.isArray(obj));
+  assertEquals(obj.lastIndexOf(1), 2);
+  assertEquals(obj.indexOf('a'), 4);
+  assertFalse(obj.includes(Symbol("test")));
+  assertEquals(obj.find(x => x==0), undefined);
+  assertEquals(obj.findIndex(x => x=='a'), 4);
+  assertTrue(obj.some(x => typeof x == 'symbol'));
+  assertFalse(obj.every(x => x == -1));
+  var filteredArray = obj.filter(e => typeof e == "symbol");
+  assertEquals(filteredArray.length, 1);
+  assertEquals(obj.map(x => x), obj);
+  var countPositiveNumber = 0;
+  obj.forEach(function(item, index) {
+    if (item === 1) {
+      countPositiveNumber++;
+      assertEquals(index, 2);
+    }
+  });
+  assertEquals(countPositiveNumber, 1);
+  assertEquals(obj.length, obj.concat([]).length);
+  var iterator = obj.values();
+  assertEquals(iterator.next().value, undefined);
+  assertEquals(iterator.next().value, null);
+  var iterator = obj.keys();
+  assertEquals(iterator.next().value, 0);
+  assertEquals(iterator.next().value, 1);
+  var iterator = obj.entries();
+  assertEquals(iterator.next().value, [0, undefined]);
+  assertEquals(iterator.next().value, [1, null]);
+
+  // Verify that the value can be written
+  var length = obj.length;
+  for (var i = 0; i < length-1; i++) {
+    obj[i] = 'new';
+    assertEquals(obj[i], 'new');
+  }
+};
+obj = new Array(undefined, null, 1, -1, 'a', Symbol("test"));
+assertTrue(%HasPackedElements(obj));
+Object.seal(obj);
+testPackedSealedArray1(obj);
+
+// Verify after transition from preventExtensions
+obj = new Array(undefined, null, 1, -1, 'a', Symbol("test"));
+assertTrue(%HasPackedElements(obj));
+Object.preventExtensions(obj);
+Object.seal(obj);
+testPackedSealedArray1(obj);
+
+// Verify flat, map, slice, flatMap, join, reduce, reduceRight for sealed packed array
+function testPackedSealedArray2(arr) {
+  assertTrue(Object.isSealed(arr));
+  assertFalse(Object.isFrozen(arr));
+  assertEquals(arr.map(x => [x]), [['a'], ['b'], ['c']]);
+  assertEquals(arr.flatMap(x => [x]), arr);
+  assertEquals(arr.flat(), arr);
+  assertEquals(arr.join('-'), "a-b-c");
+  const reducer = (accumulator, currentValue) => accumulator + currentValue;
+  assertEquals(arr.reduce(reducer), "abc");
+  assertEquals(arr.reduceRight(reducer), "cba");
+  assertEquals(arr.slice(0, 1), ['a']);
+  // Verify change content of sealed packed array
+  arr.sort();
+  assertEquals(arr.join(''), "abc");
+  arr.reverse();
+  assertEquals(arr.join(''), "cba");
+  arr.copyWithin(0, 1, 2);
+  assertEquals(arr.join(''),"bba");
+  arr.fill('d');
+  assertEquals(arr.join(''), "ddd");
+}
+
+var arr1 = new Array('a', 'b', 'c');
+assertTrue(%HasPackedElements(arr1));
+Object.seal(arr1);
+testPackedSealedArray2(arr1);
+
+var arr2 = new Array('a', 'b', 'c');
+assertTrue(%HasPackedElements(arr2));
+Object.preventExtensions(arr2);
+Object.seal(arr2);
+testPackedSealedArray2(arr2);

@@ -19,6 +19,7 @@
         return y;
     }
 
+    %PrepareFunctionForOptimization(forgetAboutMinus0);
     forgetAboutMinus0(1);
     assertEquals(Infinity, forgetAboutMinus0(1));
     %OptimizeFunctionOnNextCall(forgetAboutMinus0);
@@ -43,6 +44,7 @@
         return NumberAdd(f(x), 0);
     }
 
+    %PrepareFunctionForOptimization(forgetAboutNaN);
     forgetAboutNaN(false);
     assertEquals(2, forgetAboutNaN(false));
     %OptimizeFunctionOnNextCall(forgetAboutNaN);

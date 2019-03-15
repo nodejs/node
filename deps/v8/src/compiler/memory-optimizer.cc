@@ -97,6 +97,8 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
       return VisitStoreElement(node, state);
     case IrOpcode::kStoreField:
       return VisitStoreField(node, state);
+    case IrOpcode::kStore:
+      return VisitStore(node, state);
     case IrOpcode::kBitcastTaggedToWord:
     case IrOpcode::kBitcastWordToTagged:
     case IrOpcode::kComment:
@@ -110,7 +112,6 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
     case IrOpcode::kProtectedLoad:
     case IrOpcode::kProtectedStore:
     case IrOpcode::kRetain:
-    case IrOpcode::kStore:
     case IrOpcode::kTaggedPoisonOnSpeculation:
     case IrOpcode::kUnalignedLoad:
     case IrOpcode::kUnalignedStore:
@@ -455,6 +456,20 @@ void MemoryOptimizer::VisitStoreField(Node* node,
   NodeProperties::ChangeOp(
       node, machine()->Store(StoreRepresentation(
                 access.machine_type.representation(), write_barrier_kind)));
+  EnqueueUses(node, state);
+}
+
+void MemoryOptimizer::VisitStore(Node* node, AllocationState const* state) {
+  DCHECK_EQ(IrOpcode::kStore, node->opcode());
+  StoreRepresentation representation = StoreRepresentationOf(node->op());
+  Node* object = node->InputAt(0);
+  WriteBarrierKind write_barrier_kind = ComputeWriteBarrierKind(
+      object, state, representation.write_barrier_kind());
+  if (write_barrier_kind != representation.write_barrier_kind()) {
+    NodeProperties::ChangeOp(
+        node, machine()->Store(StoreRepresentation(
+                  representation.representation(), write_barrier_kind)));
+  }
   EnqueueUses(node, state);
 }
 

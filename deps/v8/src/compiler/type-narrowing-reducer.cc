@@ -5,7 +5,6 @@
 #include "src/compiler/type-narrowing-reducer.h"
 
 #include "src/compiler/js-graph.h"
-#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -249,6 +249,7 @@ void V8Debugger::stepOutOfFunction(int targetContextGroupId) {
 
 bool V8Debugger::asyncStepOutOfFunction(int targetContextGroupId,
                                         bool onlyAtReturn) {
+  v8::HandleScope handleScope(m_isolate);
   auto iterator = v8::debug::StackTraceIterator::Create(m_isolate);
   DCHECK(!iterator->Done());
   bool atReturn = !iterator->GetReturnValue().IsEmpty();
@@ -1014,6 +1015,7 @@ std::unique_ptr<V8StackTraceImpl> V8Debugger::captureStackTrace(
 
 int V8Debugger::currentContextGroupId() {
   if (!m_isolate->InContext()) return 0;
+  v8::HandleScope handleScope(m_isolate);
   return m_inspector->contextGroupId(m_isolate->GetCurrentContext());
 }
 

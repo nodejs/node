@@ -8,6 +8,7 @@
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
 #include "src/builtins/builtins.h"
+#include "src/function-kind.h"
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/heap/heap.h"
@@ -15,7 +16,6 @@
 #include "src/messages.h"
 #include "src/objects/code.h"
 #include "src/objects/dictionary.h"
-#include "src/objects/hash-table.h"
 #include "src/objects/js-array.h"
 #include "src/objects/js-regexp.h"
 #include "src/objects/ordered-hash-table.h"
@@ -38,6 +38,7 @@ class ArrayBoilerplateDescription;
 class CoverageInfo;
 class DebugInfo;
 class EnumCache;
+class FinalizationGroupCleanupJobTask;
 class FreshlyAllocatedBigInt;
 class Isolate;
 class JSDataView;
@@ -60,12 +61,13 @@ class PromiseResolveThenableJobTask;
 class RegExpMatchInfo;
 class ScriptContextTable;
 class StackFrameInfo;
+class StackTraceFrame;
 class StoreHandler;
 class TemplateObjectDescription;
 class UncompiledDataWithoutPreparseData;
 class UncompiledDataWithPreparseData;
 class WasmExportedFunctionData;
-class WeakFactoryCleanupJobTask;
+class WeakCell;
 struct SourceRange;
 template <typename T>
 class ZoneVector;
@@ -437,7 +439,11 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<BreakPointInfo> NewBreakPointInfo(int source_position);
   Handle<BreakPoint> NewBreakPoint(int id, Handle<String> condition);
+  Handle<StackTraceFrame> NewStackTraceFrame(Handle<FrameArray> frame_array,
+                                             int index);
   Handle<StackFrameInfo> NewStackFrameInfo();
+  Handle<StackFrameInfo> NewStackFrameInfo(Handle<FrameArray> frame_array,
+                                           int index);
   Handle<SourcePositionTableWithFrameCache>
   NewSourcePositionTableWithFrameCache(
       Handle<ByteArray> source_position_table,
@@ -451,8 +457,8 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<PromiseResolveThenableJobTask> NewPromiseResolveThenableJobTask(
       Handle<JSPromise> promise_to_resolve, Handle<JSReceiver> then,
       Handle<JSReceiver> thenable, Handle<Context> context);
-  Handle<WeakFactoryCleanupJobTask> NewWeakFactoryCleanupJobTask(
-      Handle<JSWeakFactory> weak_factory);
+  Handle<FinalizationGroupCleanupJobTask> NewFinalizationGroupCleanupJobTask(
+      Handle<JSFinalizationGroup> finalization_group);
 
   // Foreign objects are pretenured when allocated by the bootstrapper.
   Handle<Foreign> NewForeign(Address addr,
@@ -485,7 +491,7 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<DescriptorArray> NewDescriptorArray(
       int number_of_entries, int slack = 0,
-      PretenureFlag pretenure = NOT_TENURED);
+      AllocationType type = AllocationType::kYoung);
   Handle<TransitionArray> NewTransitionArray(int number_of_transitions,
                                              int slack = 0);
 
@@ -507,6 +513,8 @@ class V8_EXPORT_PRIVATE Factory {
                                      AllocationSpace space);
 
   Handle<JSObject> NewFunctionPrototype(Handle<JSFunction> function);
+
+  Handle<WeakCell> NewWeakCell();
 
   // Returns a deep copy of the JavaScript object.
   // Properties and elements are copied too.
@@ -781,9 +789,7 @@ class V8_EXPORT_PRIVATE Factory {
                        MaybeHandle<DeoptimizationData> maybe_deopt_data =
                            MaybeHandle<DeoptimizationData>(),
                        Movability movability = kMovable,
-                       bool is_turbofanned = false, int stack_slots = 0,
-                       int safepoint_table_offset = 0,
-                       int handler_table_offset = 0);
+                       bool is_turbofanned = false, int stack_slots = 0);
 
   // Like NewCode, this function allocates a new code object (fully
   // initialized). It may return an empty handle if the allocation does not
@@ -796,8 +802,7 @@ class V8_EXPORT_PRIVATE Factory {
       MaybeHandle<DeoptimizationData> maybe_deopt_data =
           MaybeHandle<DeoptimizationData>(),
       Movability movability = kMovable, bool is_turbofanned = false,
-      int stack_slots = 0, int safepoint_table_offset = 0,
-      int handler_table_offset = 0);
+      int stack_slots = 0);
 
   // Allocates a new code object and initializes it as the trampoline to the
   // given off-heap entry point.
@@ -888,6 +893,7 @@ class V8_EXPORT_PRIVATE Factory {
       MessageTemplate message, Handle<Object> argument, int start_position,
       int end_position, Handle<Script> script, Handle<Object> stack_frames);
 
+  Handle<ClassPositions> NewClassPositions(int start, int end);
   Handle<DebugInfo> NewDebugInfo(Handle<SharedFunctionInfo> shared);
 
   Handle<CoverageInfo> NewCoverageInfo(const ZoneVector<SourceRange>& slots);

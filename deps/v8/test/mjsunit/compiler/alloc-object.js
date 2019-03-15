@@ -37,6 +37,7 @@ function test_helper(construct, a, b) {
 
 function test(construct) {
   %DeoptimizeFunction(test);
+  %PrepareFunctionForOptimization(test_helper);
   test_helper(construct, 0, 0);
   test_helper(construct, 0, 0);
   %OptimizeFunctionOnNextCall(test_helper);

@@ -115,9 +115,8 @@ TEST_P(SimplifiedPureOperatorTest, Properties) {
   EXPECT_EQ(pop.properties, op->properties() & pop.properties);
 }
 
-INSTANTIATE_TEST_CASE_P(SimplifiedOperatorTest, SimplifiedPureOperatorTest,
-                        ::testing::ValuesIn(kPureOperators));
-
+INSTANTIATE_TEST_SUITE_P(SimplifiedOperatorTest, SimplifiedPureOperatorTest,
+                         ::testing::ValuesIn(kPureOperators));
 
 // -----------------------------------------------------------------------------
 
@@ -213,10 +212,9 @@ TEST_P(SimplifiedElementAccessOperatorTest, StoreElement) {
   EXPECT_EQ(0, op->ControlOutputCount());
 }
 
-
-INSTANTIATE_TEST_CASE_P(SimplifiedOperatorTest,
-                        SimplifiedElementAccessOperatorTest,
-                        ::testing::ValuesIn(kElementAccesses));
+INSTANTIATE_TEST_SUITE_P(SimplifiedOperatorTest,
+                         SimplifiedElementAccessOperatorTest,
+                         ::testing::ValuesIn(kElementAccesses));
 
 }  // namespace simplified_operator_unittest
 }  // namespace compiler

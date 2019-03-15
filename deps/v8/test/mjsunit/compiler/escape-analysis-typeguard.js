@@ -15,6 +15,7 @@ function foo(){
   assertEquals(7, z.a);
 }
 
+%PrepareFunctionForOptimization(foo);
 foo();
 foo();
 foo();

@@ -747,8 +747,9 @@ Reduction TypedOptimization::ReduceJSToNumberInput(Node* input) {
   }
   if (input_type.IsHeapConstant()) {
     HeapObjectRef input_value = input_type.AsHeapConstant()->Ref();
-    if (input_value.map().oddball_type() != OddballType::kNone) {
-      return Replace(jsgraph()->Constant(input_value.OddballToNumber()));
+    double value;
+    if (input_value.OddballToNumber().To(&value)) {
+      return Replace(jsgraph()->Constant(value));
     }
   }
   if (input_type.Is(Type::Number())) {

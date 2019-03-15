@@ -4,7 +4,6 @@
 
 // Flags: --allow-natives-syntax --wasm-trap-handler-fallback
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 // Make sure we can get at least one guard region if the trap handler is enabled.

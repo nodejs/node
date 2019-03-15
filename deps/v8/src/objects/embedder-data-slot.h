@@ -37,10 +37,12 @@ class EmbedderDataSlot
   V8_INLINE EmbedderDataSlot(JSObject object, int embedder_field_index);
 
   // TODO(ishell): these offsets are currently little-endian specific.
+  // The less significant part contains tagged value and the other part
+  // contains the raw value.
+  static constexpr int kTaggedPayloadOffset = 0;
 #ifdef V8_COMPRESS_POINTERS
   static constexpr int kRawPayloadOffset = kTaggedSize;
 #endif
-  static constexpr int kTaggedPayloadOffset = 0;
   static constexpr int kRequiredPtrAlignment = kSmiTagSize;
 
   // Opaque type used for storing raw embedder data.

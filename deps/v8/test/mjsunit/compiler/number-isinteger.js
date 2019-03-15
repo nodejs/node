@@ -27,6 +27,7 @@ function f(x) {
   return Number.isInteger(+x);
 }
 
+%PrepareFunctionForOptimization(f);
 test(f);
 test(f);
 %OptimizeFunctionOnNextCall(f);
@@ -56,6 +57,7 @@ function f2(x) {
   return Number.isInteger(x);
 }
 
+%PrepareFunctionForOptimization(f2);
 test2(f2);
 test2(f2);
 %OptimizeFunctionOnNextCall(f2);

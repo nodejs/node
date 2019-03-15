@@ -72,7 +72,10 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
   size_t param_count = signature->parameter_count();
   std::unique_ptr<WasmValue[]> arguments(new WasmValue[param_count]);
 
-  memcpy(arguments.get(), args, std::min(param_count, argc));
+  size_t arg_count = std::min(param_count, argc);
+  if (arg_count > 0) {
+    memcpy(arguments.get(), args, arg_count);
+  }
 
   // Fill the parameters up with default values.
   for (size_t i = argc; i < param_count; ++i) {

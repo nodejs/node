@@ -14,15 +14,16 @@
 #include "src/parsing/preparser.h"
 #include "src/unicode.h"
 #include "src/utils.h"
+#include "src/zone/zone-list-inl.h"
 
 namespace v8 {
 namespace internal {
 
 namespace {
 
-PreParserIdentifier GetSymbolHelper(Scanner* scanner,
-                                    const AstRawString* string,
-                                    AstValueFactory* avf) {
+PreParserIdentifier GetIdentifierHelper(Scanner* scanner,
+                                        const AstRawString* string,
+                                        AstValueFactory* avf) {
   // These symbols require slightly different treatement:
   // - regular keywords (async, await, etc.; treated in 1st switch.)
   // - 'contextual' keywords (and may contain escaped; treated in 2nd switch.)
@@ -57,10 +58,10 @@ PreParserIdentifier GetSymbolHelper(Scanner* scanner,
 
 }  // unnamed namespace
 
-PreParserIdentifier PreParser::GetSymbol() const {
+PreParserIdentifier PreParser::GetIdentifier() const {
   const AstRawString* result = scanner()->CurrentSymbol(ast_value_factory());
   PreParserIdentifier symbol =
-      GetSymbolHelper(scanner(), result, ast_value_factory());
+      GetIdentifierHelper(scanner(), result, ast_value_factory());
   DCHECK_NOT_NULL(result);
   symbol.string_ = result;
   return symbol;
@@ -89,6 +90,7 @@ PreParser::PreParseResult PreParser::PreParseProgram() {
   int start_position = peek_position();
   PreParserScopedStatementList body(pointer_buffer());
   ParseStatementList(&body, Token::EOS);
+  CheckConflictingVarDeclarations(scope);
   original_scope_ = nullptr;
   if (stack_overflow()) return kPreParseStackOverflow;
   if (is_strict(language_mode())) {
@@ -173,25 +175,29 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   }
 
   bool allow_duplicate_parameters = false;
+  CheckConflictingVarDeclarations(inner_scope);
 
-  if (formals.is_simple) {
-    if (is_sloppy(function_scope->language_mode())) {
-      function_scope->HoistSloppyBlockFunctions(nullptr);
-    }
+  if (!has_error()) {
+    if (formals.is_simple) {
+      if (is_sloppy(function_scope->language_mode())) {
+        function_scope->HoistSloppyBlockFunctions(nullptr);
+      }
 
-    allow_duplicate_parameters =
-        is_sloppy(function_scope->language_mode()) && !IsConciseMethod(kind);
-  } else {
-    if (is_sloppy(inner_scope->language_mode())) {
-      inner_scope->HoistSloppyBlockFunctions(nullptr);
-    }
+      allow_duplicate_parameters =
+          is_sloppy(function_scope->language_mode()) && !IsConciseMethod(kind);
+    } else {
+      if (is_sloppy(inner_scope->language_mode())) {
+        inner_scope->HoistSloppyBlockFunctions(nullptr);
+      }
 
-    SetLanguageMode(function_scope, inner_scope->language_mode());
-    inner_scope->set_end_position(scanner()->peek_location().end_pos);
-    if (inner_scope->FinalizeBlockScope() != nullptr) {
-      const AstRawString* conflict = inner_scope->FindVariableDeclaredIn(
-          function_scope, VariableMode::kLastLexicalVariableMode);
-      if (conflict != nullptr) ReportVarRedeclarationIn(conflict, inner_scope);
+      SetLanguageMode(function_scope, inner_scope->language_mode());
+      inner_scope->set_end_position(scanner()->peek_location().end_pos);
+      if (inner_scope->FinalizeBlockScope() != nullptr) {
+        const AstRawString* conflict = inner_scope->FindVariableDeclaredIn(
+            function_scope, VariableMode::kLastLexicalVariableMode);
+        if (conflict != nullptr)
+          ReportVarRedeclarationIn(conflict, inner_scope);
+      }
     }
   }
 

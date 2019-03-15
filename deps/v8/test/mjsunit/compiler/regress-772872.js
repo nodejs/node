@@ -7,6 +7,7 @@
 function f() {
   for (var x = 10; x > 5; x -= 16) {}
 }
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

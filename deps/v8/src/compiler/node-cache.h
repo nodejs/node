@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_NODE_CACHE_H_
 #define V8_COMPILER_NODE_CACHE_H_
 
+#include "src/base/export-template.h"
 #include "src/base/functional.h"
 #include "src/base/macros.h"
 
@@ -27,7 +28,7 @@ class Node;
 // nodes such as constants, parameters, etc.
 template <typename Key, typename Hash = base::hash<Key>,
           typename Pred = std::equal_to<Key> >
-class V8_EXPORT_PRIVATE NodeCache final {
+class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) NodeCache final {
  public:
   explicit NodeCache(unsigned max = 256)
       : entries_(nullptr), size_(0), max_(max) {}
@@ -76,6 +77,17 @@ typedef Int32NodeCache IntPtrNodeCache;
 #else
 typedef Int64NodeCache IntPtrNodeCache;
 #endif
+
+// Explicit instantiation declarations.
+extern template class EXPORT_TEMPLATE_DECLARE(
+    V8_EXPORT_PRIVATE) NodeCache<int32_t>;
+extern template class EXPORT_TEMPLATE_DECLARE(
+    V8_EXPORT_PRIVATE) NodeCache<int64_t>;
+
+extern template class EXPORT_TEMPLATE_DECLARE(
+    V8_EXPORT_PRIVATE) NodeCache<RelocInt32Key>;
+extern template class EXPORT_TEMPLATE_DECLARE(
+    V8_EXPORT_PRIVATE) NodeCache<RelocInt64Key>;
 
 }  // namespace compiler
 }  // namespace internal

@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/heap/heap-controller.h"
+
+#include "src/heap/spaces.h"
 #include "src/isolate-inl.h"
 
 namespace v8 {
@@ -73,7 +75,7 @@ size_t MemoryController::CalculateAllocationLimit(
   double factor = GrowingFactor(gc_speed, mutator_speed, max_factor);
 
   if (FLAG_trace_gc_verbose) {
-    heap_->isolate()->PrintWithTimestamp(
+    Isolate::FromHeap(heap_)->PrintWithTimestamp(
         "%s factor %.1f based on mu=%.3f, speed_ratio=%.f "
         "(gc=%.f, mutator=%.f)\n",
         ControllerName(), factor, target_mutator_utilization_,
@@ -104,7 +106,7 @@ size_t MemoryController::CalculateAllocationLimit(
   size_t result = static_cast<size_t>(Min(limit, halfway_to_the_max));
 
   if (FLAG_trace_gc_verbose) {
-    heap_->isolate()->PrintWithTimestamp(
+    Isolate::FromHeap(heap_)->PrintWithTimestamp(
         "%s Limit: old size: %" PRIuS " KB, new limit: %" PRIuS " KB (%.1f)\n",
         ControllerName(), curr_size / KB, result / KB, factor);
   }

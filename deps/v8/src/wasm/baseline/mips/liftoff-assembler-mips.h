@@ -1245,7 +1245,7 @@ inline FPUCondition ConditionToConditionCmpFPU(bool& predicate,
   UNREACHABLE();
 }
 
-};  // namespace liftoff
+}  // namespace liftoff
 
 void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
                                          DoubleRegister lhs,
@@ -1473,7 +1473,7 @@ void LiftoffStackSlots::Construct() {
           liftoff::push(asm_, src.reg(), src.type());
         }
         break;
-      case LiftoffAssembler::VarState::KIntConst: {
+      case LiftoffAssembler::VarState::kIntConst: {
         // The high word is the sign extension of the low word.
         asm_->li(kScratchReg,
                  Operand(slot.half_ == kLowWord ? src.i32_const()

@@ -12,6 +12,7 @@
 #include <string>
 
 #include "src/base/platform/platform.h"
+#include "src/base/v8-fallthrough.h"
 #include "src/conversions.h"
 
 namespace v8_inspector {
@@ -550,35 +551,33 @@ std::string String16::utf8() const {
   //    have a good chance of being able to write the string into the
   //    buffer without reallocing (say, 1.5 x length).
   if (length > std::numeric_limits<unsigned>::max() / 3) return std::string();
-  std::vector<char> bufferVector(length * 3);
-  char* buffer = bufferVector.data();
+
+  std::string output(length * 3, '\0');
   const UChar* characters = m_impl.data();
-
-  ConversionResult result =
-      convertUTF16ToUTF8(&characters, characters + length, &buffer,
-                         buffer + bufferVector.size(), false);
-  DCHECK(
-      result !=
-      targetExhausted);  // (length * 3) should be sufficient for any conversion
-
-  // Only produced from strict conversion.
-  DCHECK(result != sourceIllegal);
-
-  // Check for an unconverted high surrogate.
-  if (result == sourceExhausted) {
-    // This should be one unpaired high surrogate. Treat it the same
-    // was as an unpaired high surrogate would have been handled in
-    // the middle of a string with non-strict conversion - which is
-    // to say, simply encode it to UTF-8.
-    DCHECK((characters + 1) == (m_impl.data() + length));
-    DCHECK((*characters >= 0xD800) && (*characters <= 0xDBFF));
-    // There should be room left, since one UChar hasn't been
-    // converted.
-    DCHECK((buffer + 3) <= (buffer + bufferVector.size()));
-    putUTF8Triple(buffer, *characters);
+  const UChar* characters_end = characters + length;
+  char* buffer = &*output.begin();
+  char* buffer_end = &*output.end();
+  while (characters < characters_end) {
+    // Use strict conversion to detect unpaired surrogates.
+    ConversionResult result = convertUTF16ToUTF8(
+        &characters, characters_end, &buffer, buffer_end, /* strict= */ true);
+    DCHECK_NE(result, targetExhausted);
+    // Conversion fails when there is an unpaired surrogate.  Put
+    // replacement character (U+FFFD) instead of the unpaired
+    // surrogate.
+    if (result != conversionOK) {
+      DCHECK_LE(0xD800, *characters);
+      DCHECK_LE(*characters, 0xDFFF);
+      // There should be room left, since one UChar hasn't been
+      // converted.
+      DCHECK_LE(buffer + 3, buffer_end);
+      putUTF8Triple(buffer, replacementCharacter);
+      ++characters;
+    }
   }
 
-  return std::string(bufferVector.data(), buffer - bufferVector.data());
+  output.resize(buffer - output.data());
+  return output;
 }
 
 }  // namespace v8_inspector

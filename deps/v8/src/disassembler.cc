@@ -21,6 +21,7 @@
 #include "src/snapshot/embedded-data.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/string-stream.h"
+#include "src/vector.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 
@@ -242,9 +243,10 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
     }
   } else if (RelocInfo::IsWasmStubCall(rmode) && host.is_wasm_code()) {
     // Host is isolate-independent, try wasm native module instead.
-    wasm::WasmCode* code = host.as_wasm_code()->native_module()->Lookup(
-        relocinfo->wasm_stub_call_address());
-    out->AddFormatted("    ;; wasm stub: %s", code->GetRuntimeStubName());
+    const char* runtime_stub_name =
+        host.as_wasm_code()->native_module()->GetRuntimeStubName(
+            relocinfo->wasm_stub_call_address());
+    out->AddFormatted("    ;; wasm stub: %s", runtime_stub_name);
   } else if (RelocInfo::IsRuntimeEntry(rmode) && isolate &&
              isolate->deoptimizer_data() != nullptr) {
     // A runtime entry relocinfo might be a deoptimization bailout.

@@ -14,6 +14,7 @@
 #include "src/disasm.h"
 #include "src/frames-inl.h"
 #include "src/global-handles.h"
+#include "src/heap/heap-inl.h"
 #include "src/interpreter/interpreter.h"
 #include "src/log.h"
 #include "src/macro-assembler.h"
@@ -23,6 +24,7 @@
 #include "src/register-configuration.h"
 #include "src/tracing/trace-event.h"
 #include "src/v8.h"
+#include "src/v8threads.h"
 
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"
@@ -275,7 +277,7 @@ class ActivationsFinder : public ThreadVisitor {
 void Deoptimizer::DeoptimizeMarkedCodeForContext(Context context) {
   DisallowHeapAllocation no_allocation;
 
-  Isolate* isolate = context->GetHeap()->isolate();
+  Isolate* isolate = context->GetIsolate();
   Code topmost_optimized_code;
   bool safe_to_deopt_topmost_optimized_code = false;
 #ifdef DEBUG
@@ -2642,7 +2644,11 @@ int TranslatedValue::GetChildrenCount() const {
 }
 
 uint64_t TranslatedState::GetUInt64Slot(Address fp, int slot_offset) {
+#if V8_TARGET_ARCH_32_BIT
+  return ReadUnalignedValue<uint64_t>(fp + slot_offset);
+#else
   return Memory<uint64_t>(fp + slot_offset);
+#endif
 }
 
 uint32_t TranslatedState::GetUInt32Slot(Address fp, int slot_offset) {

@@ -117,6 +117,7 @@ class MemoryOptimizer final {
   void VisitLoadField(Node*, AllocationState const*);
   void VisitStoreElement(Node*, AllocationState const*);
   void VisitStoreField(Node*, AllocationState const*);
+  void VisitStore(Node*, AllocationState const*);
   void VisitOtherEffect(Node*, AllocationState const*);
 
   Node* ComputeIndex(ElementAccess const&, Node*);

@@ -108,8 +108,8 @@ PASS 'use strict'; var VarA = class A { constructor() {} }; var VarB = class B e
 Class statement binding in other circumstances
 PASS var result = A; result threw exception ReferenceError: A is not defined.
 PASS 'use strict'; var result = A; result threw exception ReferenceError: A is not defined.
-PASS var result = A; class A {}; result threw exception ReferenceError: A is not defined.
-PASS 'use strict'; var result = A; class A {}; result threw exception ReferenceError: A is not defined.
+PASS var result = A; class A {}; result threw exception ReferenceError: Cannot access 'A' before initialization.
+PASS 'use strict'; var result = A; class A {}; result threw exception ReferenceError: Cannot access 'A' before initialization.
 PASS class A { constructor() { A = 1; } }; new A threw exception TypeError: Assignment to constant variable..
 PASS 'use strict'; class A { constructor() { A = 1; } }; new A threw exception TypeError: Assignment to constant variable..
 PASS class A { constructor() { } }; A = 1; A is 1

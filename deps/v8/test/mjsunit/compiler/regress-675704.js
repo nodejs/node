@@ -20,6 +20,7 @@ function g(x) {
   }
 }
 
+%PrepareFunctionForOptimization(g);
 g(false);
 g(false);
 %OptimizeFunctionOnNextCall(g);

@@ -5,8 +5,8 @@
 #ifndef V8_CONTEXTS_H_
 #define V8_CONTEXTS_H_
 
+#include "src/function-kind.h"
 #include "src/objects/fixed-array.h"
-
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
@@ -54,7 +54,6 @@ enum ContextLookupFlags {
   V(OBJECT_IS_FROZEN, JSFunction, object_is_frozen)                     \
   V(OBJECT_IS_SEALED, JSFunction, object_is_sealed)                     \
   V(OBJECT_KEYS, JSFunction, object_keys)                               \
-  V(REGEXP_INTERNAL_MATCH, JSFunction, regexp_internal_match)           \
   V(REFLECT_APPLY_INDEX, JSFunction, reflect_apply)                     \
   V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)             \
   V(REFLECT_DEFINE_PROPERTY_INDEX, JSFunction, reflect_define_property) \
@@ -189,9 +188,9 @@ enum ContextLookupFlags {
   V(JS_MODULE_NAMESPACE_MAP, Map, js_module_namespace_map)                     \
   V(JS_SET_FUN_INDEX, JSFunction, js_set_fun)                                  \
   V(JS_SET_MAP_INDEX, Map, js_set_map)                                         \
-  V(JS_WEAK_CELL_MAP_INDEX, Map, js_weak_cell_map)                             \
-  V(JS_WEAK_FACTORY_CLEANUP_ITERATOR_MAP_INDEX, Map,                           \
-    js_weak_factory_cleanup_iterator_map)                                      \
+  V(WEAK_CELL_MAP_INDEX, Map, weak_cell_map)                                   \
+  V(JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_MAP_INDEX, Map,                     \
+    js_finalization_group_cleanup_iterator_map)                                \
   V(JS_WEAK_MAP_FUN_INDEX, JSFunction, js_weak_map_fun)                        \
   V(JS_WEAK_REF_MAP_INDEX, Map, js_weak_ref_map)                               \
   V(JS_WEAK_SET_FUN_INDEX, JSFunction, js_weak_set_fun)                        \
@@ -234,8 +233,6 @@ enum ContextLookupFlags {
   V(REGEXP_EXEC_FUNCTION_INDEX, JSFunction, regexp_exec_function)              \
   V(REGEXP_FUNCTION_INDEX, JSFunction, regexp_function)                        \
   V(REGEXP_LAST_MATCH_INFO_INDEX, RegExpMatchInfo, regexp_last_match_info)     \
-  V(REGEXP_INTERNAL_MATCH_INFO_INDEX, RegExpMatchInfo,                         \
-    regexp_internal_match_info)                                                \
   V(REGEXP_PROTOTYPE_MAP_INDEX, Map, regexp_prototype_map)                     \
   V(INITIAL_REGEXP_STRING_ITERATOR_PROTOTYPE_MAP_INDEX, Map,                   \
     initial_regexp_string_iterator_prototype_map)                              \
@@ -305,6 +302,7 @@ enum ContextLookupFlags {
   V(WASM_MEMORY_CONSTRUCTOR_INDEX, JSFunction, wasm_memory_constructor)        \
   V(WASM_MODULE_CONSTRUCTOR_INDEX, JSFunction, wasm_module_constructor)        \
   V(WASM_TABLE_CONSTRUCTOR_INDEX, JSFunction, wasm_table_constructor)          \
+  V(TEMPLATE_WEAKMAP_INDEX, HeapObject, template_weakmap)                      \
   V(TYPED_ARRAY_FUN_INDEX, JSFunction, typed_array_function)                   \
   V(TYPED_ARRAY_PROTOTYPE_INDEX, JSObject, typed_array_prototype)              \
   V(UINT16_ARRAY_FUN_INDEX, JSFunction, uint16_array_fun)                      \
@@ -370,14 +368,15 @@ class ScriptContextTable : public FixedArray {
   static inline Handle<Context> GetContext(Isolate* isolate,
                                            Handle<ScriptContextTable> table,
                                            int i);
+  inline Context get_context(int i) const;
 
   // Lookup a variable `name` in a ScriptContextTable.
   // If it returns true, the variable is found and `result` contains
   // valid information about its location.
   // If it returns false, `result` is untouched.
   V8_WARN_UNUSED_RESULT
-  static bool Lookup(Isolate* isolate, Handle<ScriptContextTable> table,
-                     Handle<String> name, LookupResult* result);
+  static bool Lookup(Isolate* isolate, ScriptContextTable table, String name,
+                     LookupResult* result);
 
   V8_WARN_UNUSED_RESULT
   static Handle<ScriptContextTable> Extend(Handle<ScriptContextTable> table,
@@ -540,6 +539,8 @@ class Context : public HeapObject {
 
   // Direct slot access.
   inline void set_scope_info(ScopeInfo scope_info);
+
+  inline Object unchecked_previous();
   inline Context previous();
   inline void set_previous(Context context);
 
@@ -641,8 +642,7 @@ class Context : public HeapObject {
                                bool* is_sloppy_function_name = nullptr);
 
   static inline int FunctionMapIndex(LanguageMode language_mode,
-                                     FunctionKind kind, bool has_prototype_slot,
-                                     bool has_shared_name,
+                                     FunctionKind kind, bool has_shared_name,
                                      bool needs_home_object);
 
   static int ArrayMapIndex(ElementsKind elements_kind) {
@@ -668,7 +668,7 @@ class Context : public HeapObject {
   static bool IsBootstrappingOrValidParentContext(Object object, Context kid);
 #endif
 
-  OBJECT_CONSTRUCTORS(Context, HeapObject)
+  OBJECT_CONSTRUCTORS(Context, HeapObject);
 };
 
 class NativeContext : public Context {

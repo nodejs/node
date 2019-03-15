@@ -202,7 +202,7 @@ TEST_F(ItemParallelJobTest, SimpleTaskWithNoItemsRuns) {
                       parallel_job_semaphore());
   job.AddTask(new SimpleTask(i_isolate(), &did_run));
 
-  job.Run(i_isolate()->async_counters());
+  job.Run();
   EXPECT_TRUE(did_run);
 }
 
@@ -214,7 +214,7 @@ TEST_F(ItemParallelJobTest, SimpleTaskWithSimpleItemRuns) {
 
   job.AddItem(new ItemParallelJob::Item);
 
-  job.Run(i_isolate()->async_counters());
+  job.Run();
   EXPECT_TRUE(did_run);
 }
 
@@ -244,7 +244,7 @@ TEST_F(ItemParallelJobTest, MoreTasksThanItems) {
     job.AddItem(new SimpleItem);
   }
 
-  job.Run(i_isolate()->async_counters());
+  job.Run();
 
   for (int i = 0; i < kNumTasks; i++) {
     // Only the first kNumItems tasks should have been assigned a work item.
@@ -261,7 +261,7 @@ TEST_F(ItemParallelJobTest, SingleThreadProcessing) {
   for (int i = 0; i < kItems; i++) {
     job.AddItem(new SimpleItem(&was_processed[i]));
   }
-  job.Run(i_isolate()->async_counters());
+  job.Run();
   for (int i = 0; i < kItems; i++) {
     EXPECT_TRUE(was_processed[i]);
   }
@@ -282,7 +282,7 @@ TEST_F(ItemParallelJobTest, DistributeItemsMultipleTasks) {
     job.AddTask(
         new TaskProcessingOneItem(i_isolate(), &barrier, wait_when_done));
   }
-  job.Run(i_isolate()->async_counters());
+  job.Run();
   for (int i = 0; i < kItemsAndTasks; i++) {
     EXPECT_TRUE(was_processed[i]);
   }
@@ -296,7 +296,7 @@ TEST_F(ItemParallelJobTest, DifferentItems) {
   job.AddItem(new ItemA());
   job.AddItem(new ItemB());
   job.AddTask(new TaskForDifferentItems(i_isolate(), &item_a, &item_b));
-  job.Run(i_isolate()->async_counters());
+  job.Run();
   EXPECT_TRUE(item_a);
   EXPECT_TRUE(item_b);
 }

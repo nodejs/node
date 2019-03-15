@@ -230,25 +230,6 @@ void RelocInfo::WipeOut() {
   }
 }
 
-template <typename ObjectVisitor>
-void RelocInfo::Visit(ObjectVisitor* visitor) {
-  RelocInfo::Mode mode = rmode();
-  if (mode == RelocInfo::EMBEDDED_OBJECT) {
-    visitor->VisitEmbeddedPointer(host(), this);
-  } else if (RelocInfo::IsCodeTargetMode(mode)) {
-    visitor->VisitCodeTarget(host(), this);
-  } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
-    visitor->VisitExternalReference(host(), this);
-  } else if (mode == RelocInfo::INTERNAL_REFERENCE ||
-             mode == RelocInfo::INTERNAL_REFERENCE_ENCODED) {
-    visitor->VisitInternalReference(host(), this);
-  } else if (IsRuntimeEntry(mode)) {
-    visitor->VisitRuntimeEntry(host(), this);
-  } else if (RelocInfo::IsOffHeapTarget(mode)) {
-    visitor->VisitOffHeapTarget(host(), this);
-  }
-}
-
 Operand::Operand(Register rm) : rm_(rm), rmode_(RelocInfo::NONE) {}
 
 void Assembler::UntrackBranch() {
@@ -488,7 +469,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
     *(p + 3) = instr4;
     *(p + 4) = instr5;
     if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-      Assembler::FlushICache(p, 5 * kInstrSize);
+      FlushInstructionCache(p, 5 * kInstrSize);
     }
 #else
     uint32_t* p = reinterpret_cast<uint32_t*>(pc);
@@ -503,7 +484,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
     *p = instr1;
     *(p + 1) = instr2;
     if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-      Assembler::FlushICache(p, 2 * kInstrSize);
+      FlushInstructionCache(p, 2 * kInstrSize);
     }
 #endif
     return;

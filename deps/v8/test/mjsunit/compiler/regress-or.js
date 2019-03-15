@@ -38,6 +38,7 @@ function f1(x) {
 
 function g1() { try { return 1; } finally {} }
 
+%PrepareFunctionForOptimization(f1);
 for (var i = 0; i < 5; i++) f1(42);
 %OptimizeFunctionOnNextCall(f1);
 
@@ -55,6 +56,7 @@ function f2(x) {
 
 function g2() { try { return 0; } finally {} }
 
+%PrepareFunctionForOptimization(f2);
 for (var i = 0; i < 5; i++) f2(42);
 %OptimizeFunctionOnNextCall(f2);
 

@@ -61,7 +61,7 @@ namespace internal {
   T(CannotFreezeArrayBufferView,                                               \
     "Cannot freeze array buffer views with elements")                          \
   T(CannotSeal, "Cannot seal")                                                 \
-  T(CircularStructure, "Converting circular structure to JSON")                \
+  T(CircularStructure, "Converting circular structure to JSON%")               \
   T(ConstructAbstractClass, "Abstract class % not directly constructable")     \
   T(ConstAssign, "Assignment to constant variable.")                           \
   T(ConstructorClassField, "Classes may not have a field named 'constructor'") \
@@ -228,6 +228,8 @@ namespace internal {
   T(ProxyOwnKeysNonExtensible,                                                 \
     "'ownKeys' on proxy: trap returned extra keys but proxy target is "        \
     "non-extensible")                                                          \
+  T(ProxyOwnKeysDuplicateEntries,                                              \
+    "'ownKeys' on proxy: trap returned duplicate entries")                     \
   T(ProxyPreventExtensionsExtensible,                                          \
     "'preventExtensions' on proxy: trap returned truish but the proxy target " \
     "is extensible")                                                           \
@@ -290,6 +292,7 @@ namespace internal {
   /* ReferenceError */                                                         \
   T(NotDefined, "% is not defined")                                            \
   T(SuperAlreadyCalled, "Super constructor may only be called once")           \
+  T(AccessedUninitializedVariable, "Cannot access '%' before initialization")  \
   T(UnsupportedSuper, "Unsupported reference to 'super'")                      \
   /* RangeError */                                                             \
   T(BigIntDivZero, "Division by zero")                                         \
@@ -475,6 +478,7 @@ namespace internal {
   T(TypedArrayTooShort,                                                        \
     "Derived TypedArray constructor created an array which was too small")     \
   T(UnexpectedEOS, "Unexpected end of input")                                  \
+  T(UnexpectedPrivateField, "Unexpected private field")                        \
   T(UnexpectedReserved, "Unexpected reserved word")                            \
   T(UnexpectedStrictReserved, "Unexpected strict mode reserved word")          \
   T(UnexpectedSuper, "'super' keyword unexpected here")                        \
@@ -547,15 +551,15 @@ namespace internal {
   T(TraceEventPhaseError, "Trace event phase must be a number.")               \
   T(TraceEventIDError, "Trace event id must be a number.")                     \
   /* Weak refs */                                                              \
-  T(WeakRefsCleanupMustBeCallable, "WeakFactory: cleanup must be callable")    \
-  T(WeakRefsMakeCellTargetMustBeObject,                                        \
-    "WeakFactory.prototype.makeCell: target must be an object")                \
-  T(WeakRefsMakeCellTargetAndHoldingsMustNotBeSame,                            \
-    "WeakFactory.prototype.makeCell: target and holdings must not be same")    \
+  T(WeakRefsCleanupMustBeCallable,                                             \
+    "FinalizationGroup: cleanup must be callable")                             \
+  T(WeakRefsRegisterTargetMustBeObject,                                        \
+    "FinalizationGroup.prototype.register: target must be an object")          \
+  T(WeakRefsRegisterTargetAndHoldingsMustNotBeSame,                            \
+    "FinalizationGroup.prototype.register: target and holdings must not be "   \
+    "same")                                                                    \
   T(WeakRefsWeakRefConstructorTargetMustBeObject,                              \
-    "WeakRef: target must be an object")                                       \
-  T(WeakRefsMakeRefTargetAndHoldingsMustNotBeSame,                             \
-    "WeakFactory.prototype.makeRef: target and holdings must not be same")
+    "WeakRef: target must be an object")
 
 enum class MessageTemplate {
 #define TEMPLATE(NAME, STRING) k##NAME,

@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_SCOPE_INFO_H_
 #define V8_OBJECTS_SCOPE_INFO_H_
 
+#include "src/function-kind.h"
 #include "src/globals.h"
 #include "src/objects.h"
 #include "src/objects/fixed-array.h"
@@ -132,14 +133,14 @@ class ScopeInfo : public FixedArray {
   // returns a value < 0. The name must be an internalized string.
   // If the slot is present and mode != nullptr, sets *mode to the corresponding
   // mode for that variable.
-  static int ContextSlotIndex(Handle<ScopeInfo> scope_info, Handle<String> name,
+  static int ContextSlotIndex(ScopeInfo scope_info, String name,
                               VariableMode* mode, InitializationFlag* init_flag,
                               MaybeAssignedFlag* maybe_assigned_flag);
 
   // Lookup metadata of a MODULE-allocated variable.  Return 0 if there is no
   // module variable with the given name (the index value of a MODULE variable
   // is never 0).
-  int ModuleIndex(Handle<String> name, VariableMode* mode,
+  int ModuleIndex(String name, VariableMode* mode,
                   InitializationFlag* init_flag,
                   MaybeAssignedFlag* maybe_assigned_flag);
 
@@ -320,7 +321,7 @@ class ScopeInfo : public FixedArray {
   friend std::ostream& operator<<(std::ostream& os,
                                   ScopeInfo::VariableAllocationInfo var);
 
-  OBJECT_CONSTRUCTORS(ScopeInfo, FixedArray)
+  OBJECT_CONSTRUCTORS(ScopeInfo, FixedArray);
 };
 
 std::ostream& operator<<(std::ostream& os,

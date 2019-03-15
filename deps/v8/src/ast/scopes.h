@@ -8,6 +8,8 @@
 #include "src/ast/ast.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/hashmap.h"
+#include "src/base/threaded-list.h"
+#include "src/function-kind.h"
 #include "src/globals.h"
 #include "src/objects.h"
 #include "src/pointer-with-payload.h"
@@ -41,37 +43,6 @@ class VariableMap: public ZoneHashMap {
   Variable* Lookup(const AstRawString* name);
   void Remove(Variable* var);
   void Add(Zone* zone, Variable* var);
-};
-
-
-// Sloppy block-scoped function declarations to var-bind
-class SloppyBlockFunctionMap : public ZoneHashMap {
- public:
-  class Delegate : public ZoneObject {
-   public:
-    Delegate(Scope* scope, SloppyBlockFunctionStatement* statement, int index)
-        : scope_(scope), statement_(statement), next_(nullptr), index_(index) {}
-    void set_statement(Statement* statement);
-
-    void set_next(Delegate* next) { next_ = next; }
-    Delegate* next() const { return next_; }
-    Scope* scope() const { return scope_; }
-    int index() const { return index_; }
-    int position() const { return statement_->position(); }
-
-   private:
-    Scope* scope_;
-    SloppyBlockFunctionStatement* statement_;
-    Delegate* next_;
-    int index_;
-  };
-
-  explicit SloppyBlockFunctionMap(Zone* zone);
-  void Declare(Zone* zone, const AstRawString* name, Scope* scope,
-               SloppyBlockFunctionStatement* statement);
-
- private:
-  int count_;
 };
 
 class Scope;
@@ -110,9 +81,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   typedef base::ThreadedList<VariableProxy, VariableProxy::UnresolvedNext>
       UnresolvedList;
-
-  // TODO(verwaest): Is this needed on Scope?
-  int num_parameters() const;
 
   DeclarationScope* AsDeclarationScope();
   const DeclarationScope* AsDeclarationScope() const;
@@ -225,8 +193,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
                          VariableKind kind, bool* was_added,
                          InitializationFlag init_flag = kCreatedInitialized);
 
-  Variable* DeclareVariable(Declaration* declaration, VariableProxy* proxy,
-                            VariableMode mode, VariableKind kind,
+  Variable* DeclareVariable(Declaration* declaration, const AstRawString* name,
+                            int pos, VariableMode mode, VariableKind kind,
                             InitializationFlag init, bool* was_added,
                             bool* sloppy_mode_block_scope_function_redefinition,
                             bool* ok);
@@ -279,14 +247,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // names.
   // TODO(verwaest): Move to DeclarationScope?
   Variable* NewTemporary(const AstRawString* name);
-
-  // ---------------------------------------------------------------------------
-  // Illegal redeclaration support.
-
-  // Check if the scope has conflicting var
-  // declarations, i.e. a var declaration that has been hoisted from a nested
-  // scope over a let binding of the same name.
-  Declaration* CheckConflictingVarDeclarations();
 
   // Find variable with (variable->mode() <= |mode_limit|) that was declared in
   // |scope|. This is used to catch patterns like `try{}catch(e){let e;}` and
@@ -421,6 +381,33 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     return num_heap_slots() > 0;
   }
 
+  // Use Scope::ForEach for depth first traversal of scopes.
+  // Before:
+  // void Scope::VisitRecursively() {
+  //   DoSomething();
+  //   for (Scope* s = inner_scope_; s != nullptr; s = s->sibling_) {
+  //     if (s->ShouldContinue()) continue;
+  //     s->VisitRecursively();
+  //   }
+  // }
+  //
+  // After:
+  // void Scope::VisitIteratively() {
+  //   this->ForEach([](Scope* s) {
+  //      s->DoSomething();
+  //      return s->ShouldContinue() ? kContinue : kDescend;
+  //   });
+  // }
+  template <typename FunctionType>
+  V8_INLINE void ForEach(FunctionType callback);
+  enum Iteration {
+    // Continue the iteration on the same level, do not recurse/descent into
+    // inner scopes.
+    kContinue,
+    // Recurse/descend into inner scopes.
+    kDescend
+  };
+
   // ---------------------------------------------------------------------------
   // Accessors.
 
@@ -488,6 +475,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Find the innermost outer scope that needs a context.
   Scope* GetOuterScopeWithContext();
 
+  bool HasThisReference() const;
+
   // Analyze() must have been called once to create the ScopeInfo.
   Handle<ScopeInfo> scope_info() const {
     DCHECK(!scope_info_.is_null());
@@ -513,6 +502,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool HasSimpleParameters();
   void set_is_debug_evaluate_scope() { is_debug_evaluate_scope_ = true; }
   bool is_debug_evaluate_scope() const { return is_debug_evaluate_scope_; }
+  bool IsSkippableFunctionScope();
 
   bool RemoveInnerScope(Scope* inner_scope) {
     DCHECK_NOT_NULL(inner_scope);
@@ -599,6 +589,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   static Variable* LookupSloppyEval(VariableProxy* proxy, Scope* scope,
                                     Scope* outer_scope_end, Scope* entry_point,
                                     bool force_context_allocation);
+  static bool ResolvePreparsedVariable(VariableProxy* proxy, Scope* scope,
+                                       Scope* end);
   void ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var);
   V8_WARN_UNUSED_RESULT bool ResolveVariable(ParseInfo* info,
                                              VariableProxy* proxy);
@@ -618,14 +610,15 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Variable allocation.
   void AllocateStackSlot(Variable* var);
-  void AllocateHeapSlot(Variable* var);
+  V8_INLINE void AllocateHeapSlot(Variable* var);
   void AllocateNonParameterLocal(Variable* var);
   void AllocateDeclaredGlobal(Variable* var);
-  void AllocateNonParameterLocalsAndDeclaredGlobals();
+  V8_INLINE void AllocateNonParameterLocalsAndDeclaredGlobals();
   void AllocateVariablesRecursively();
 
   void AllocateScopeInfosRecursively(Isolate* isolate,
                                      MaybeHandle<ScopeInfo> outer_scope);
+
   void AllocateDebuggerScopeInfos(Isolate* isolate,
                                   MaybeHandle<ScopeInfo> outer_scope);
 
@@ -766,6 +759,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     return var;
   }
 
+  void DeserializeReceiver(AstValueFactory* ast_value_factory);
+
 #ifdef DEBUG
   void set_is_being_lazily_parsed(bool is_being_lazily_parsed) {
     is_being_lazily_parsed_ = is_being_lazily_parsed;
@@ -779,7 +774,23 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     zone_ = zone;
   }
 
-  bool ShouldEagerCompile() const;
+  // ---------------------------------------------------------------------------
+  // Illegal redeclaration support.
+
+  // Check if the scope has conflicting var
+  // declarations, i.e. a var declaration that has been hoisted from a nested
+  // scope over a let binding of the same name.
+  Declaration* CheckConflictingVarDeclarations();
+
+  void set_has_checked_syntax(bool has_checked_syntax) {
+    has_checked_syntax_ = has_checked_syntax;
+  }
+  bool has_checked_syntax() const { return has_checked_syntax_; }
+
+  bool ShouldEagerCompile() const {
+    return force_eager_compilation_ || should_eager_compile_;
+  }
+
   void set_should_eager_compile();
 
   void SetScriptScopeInfo(Handle<ScopeInfo> scope_info) {
@@ -833,17 +844,12 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   // The variable corresponding to the 'this' value.
   Variable* receiver() {
-    DCHECK(has_this_declaration());
+    DCHECK(has_this_declaration() || is_script_scope());
     DCHECK_NOT_NULL(receiver_);
     return receiver_;
   }
 
-  // TODO(wingo): Add a GLOBAL_SCOPE scope type which will lexically allocate
-  // "this" (and no other variable) on the native context.  Script scopes then
-  // will not have a "this" declaration.
-  bool has_this_declaration() const {
-    return (is_function_scope() && !is_arrow_scope()) || is_module_scope();
-  }
+  bool has_this_declaration() const { return has_this_declaration_; }
 
   // The variable corresponding to the 'new.target' value.
   Variable* new_target_var() { return new_target_; }
@@ -935,16 +941,11 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   void AddLocal(Variable* var);
 
   void DeclareSloppyBlockFunction(
-      const AstRawString* name, Scope* scope,
-      SloppyBlockFunctionStatement* statement = nullptr);
+      SloppyBlockFunctionStatement* sloppy_block_function);
 
-  // Go through sloppy_block_function_map_ and hoist those (into this scope)
+  // Go through sloppy_block_functions_ and hoist those (into this scope)
   // which should be hoisted.
   void HoistSloppyBlockFunctions(AstNodeFactory* factory);
-
-  SloppyBlockFunctionMap* sloppy_block_function_map() {
-    return sloppy_block_function_map_;
-  }
 
   // Compute top scope and allocate variables. For lazy compilation the top
   // scope only contains the single lazily compiled function, so this
@@ -988,9 +989,9 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   void PrintParameters();
 #endif
 
-  void AllocateLocals();
-  void AllocateParameterLocals();
-  void AllocateReceiver();
+  V8_INLINE void AllocateLocals();
+  V8_INLINE void AllocateParameterLocals();
+  V8_INLINE void AllocateReceiver();
 
   void ResetAfterPreparsing(AstValueFactory* ast_value_factory, bool aborted);
 
@@ -1020,8 +1021,15 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     return preparse_data_builder_;
   }
 
+  void set_has_this_reference() { has_this_reference_ = true; }
+  bool has_this_reference() const { return has_this_reference_; }
+  void UsesThis() {
+    set_has_this_reference();
+    GetReceiverScope()->receiver()->ForceContextAllocation();
+  }
+
  private:
-  void AllocateParameter(Variable* var, int index);
+  V8_INLINE void AllocateParameter(Variable* var, int index);
 
   // Resolve and fill in the allocation information for all variables
   // in this scopes. Must be called *after* all scopes have been
@@ -1055,16 +1063,19 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 #endif
   bool is_skipped_function_ : 1;
   bool has_inferred_function_name_ : 1;
-
-  int num_parameters_ = 0;
+  bool has_checked_syntax_ : 1;
+  bool has_this_reference_ : 1;
+  bool has_this_declaration_ : 1;
 
   // If the scope is a function scope, this is the function kind.
   const FunctionKind function_kind_;
 
+  int num_parameters_ = 0;
+
   // Parameter list in source order.
   ZonePtrList<Variable> params_;
   // Map of function names to lists of functions defined in sloppy blocks
-  SloppyBlockFunctionMap* sloppy_block_function_map_;
+  base::ThreadedList<SloppyBlockFunctionStatement> sloppy_block_functions_;
   // Convenience variable.
   Variable* receiver_;
   // Function variable, if any; function scopes only.
@@ -1128,27 +1139,21 @@ Scope::Snapshot::Snapshot(Scope* scope)
 
 class ModuleScope final : public DeclarationScope {
  public:
-  ModuleScope(DeclarationScope* script_scope,
-              AstValueFactory* ast_value_factory);
+  ModuleScope(DeclarationScope* script_scope, AstValueFactory* avfactory);
 
-  // Deserialization.
-  // The generated ModuleDescriptor does not preserve all information.  In
-  // particular, its module_requests map will be empty because we no longer need
-  // the map after parsing.
+  // Deserialization. Does not restore the module descriptor.
   ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
-              AstValueFactory* ast_value_factory);
+              AstValueFactory* avfactory);
 
-  ModuleDescriptor* module() const {
-    DCHECK_NOT_NULL(module_descriptor_);
-    return module_descriptor_;
-  }
+  // Returns nullptr in a deserialized scope.
+  ModuleDescriptor* module() const { return module_descriptor_; }
 
   // Set MODULE as VariableLocation for all variables that will live in a
   // module's export table.
   void AllocateModuleVariables();
 
  private:
-  ModuleDescriptor* module_descriptor_;
+  ModuleDescriptor* const module_descriptor_;
 };
 
 }  // namespace internal

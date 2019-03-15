@@ -6,6 +6,7 @@
 #include "src/builtins/builtins.h"
 #include "src/conversions.h"
 #include "src/counters.h"
+#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/maybe-handles-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-array-buffer-inl.h"

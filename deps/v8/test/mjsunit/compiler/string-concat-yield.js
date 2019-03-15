@@ -9,6 +9,7 @@ function* foo() {
   return f;
 }
 
+%PrepareFunctionForOptimization(foo);
 %OptimizeFunctionOnNextCall(foo);
 var gen = foo();
 assertEquals('yielded', gen.next('unused').value);

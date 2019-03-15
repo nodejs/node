@@ -8,6 +8,9 @@
 #include "src/objects/stack-frame-info.h"
 
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects-inl.h"
+#include "src/objects/frame-array-inl.h"
+#include "src/objects/struct-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -21,18 +24,27 @@ NEVER_READ_ONLY_SPACE_IMPL(StackFrameInfo)
 
 CAST_ACCESSOR(StackFrameInfo)
 
-SMI_ACCESSORS(StackFrameInfo, line_number, kLineNumberIndex)
-SMI_ACCESSORS(StackFrameInfo, column_number, kColumnNumberIndex)
-SMI_ACCESSORS(StackFrameInfo, script_id, kScriptIdIndex)
-ACCESSORS(StackFrameInfo, script_name, Object, kScriptNameIndex)
+SMI_ACCESSORS(StackFrameInfo, line_number, kLineNumberOffset)
+SMI_ACCESSORS(StackFrameInfo, column_number, kColumnNumberOffset)
+SMI_ACCESSORS(StackFrameInfo, script_id, kScriptIdOffset)
+ACCESSORS(StackFrameInfo, script_name, Object, kScriptNameOffset)
 ACCESSORS(StackFrameInfo, script_name_or_source_url, Object,
-          kScriptNameOrSourceUrlIndex)
-ACCESSORS(StackFrameInfo, function_name, Object, kFunctionNameIndex)
-SMI_ACCESSORS(StackFrameInfo, flag, kFlagIndex)
+          kScriptNameOrSourceUrlOffset)
+ACCESSORS(StackFrameInfo, function_name, Object, kFunctionNameOffset)
+SMI_ACCESSORS(StackFrameInfo, flag, kFlagOffset)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_eval, kIsEvalBit)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_constructor, kIsConstructorBit)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_wasm, kIsWasmBit)
-SMI_ACCESSORS(StackFrameInfo, id, kIdIndex)
+SMI_ACCESSORS(StackFrameInfo, id, kIdOffset)
+
+OBJECT_CONSTRUCTORS_IMPL(StackTraceFrame, Struct)
+NEVER_READ_ONLY_SPACE_IMPL(StackTraceFrame)
+CAST_ACCESSOR(StackTraceFrame)
+
+ACCESSORS(StackTraceFrame, frame_array, Object, kFrameArrayOffset)
+SMI_ACCESSORS(StackTraceFrame, frame_index, kFrameIndexOffset)
+ACCESSORS(StackTraceFrame, frame_info, Object, kFrameInfoOffset)
+SMI_ACCESSORS(StackTraceFrame, id, kIdOffset)
 
 }  // namespace internal
 }  // namespace v8

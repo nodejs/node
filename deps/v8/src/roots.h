@@ -124,6 +124,7 @@ class RootVisitor;
   V(Map, weak_array_list_map, WeakArrayListMap)                                \
   V(Map, ephemeron_hash_table_map, EphemeronHashTableMap)                      \
   V(Map, embedder_data_array_map, EmbedderDataArrayMap)                        \
+  V(Map, weak_cell_map, WeakCellMap)                                           \
   /* String maps */                                                            \
   V(Map, native_source_string_map, NativeSourceStringMap)                      \
   V(Map, string_map, StringMap)                                                \
@@ -134,22 +135,14 @@ class RootVisitor;
   V(Map, sliced_string_map, SlicedStringMap)                                   \
   V(Map, sliced_one_byte_string_map, SlicedOneByteStringMap)                   \
   V(Map, external_string_map, ExternalStringMap)                               \
-  V(Map, external_string_with_one_byte_data_map,                               \
-    ExternalStringWithOneByteDataMap)                                          \
   V(Map, external_one_byte_string_map, ExternalOneByteStringMap)               \
   V(Map, uncached_external_string_map, UncachedExternalStringMap)              \
-  V(Map, uncached_external_string_with_one_byte_data_map,                      \
-    UncachedExternalStringWithOneByteDataMap)                                  \
   V(Map, internalized_string_map, InternalizedStringMap)                       \
   V(Map, external_internalized_string_map, ExternalInternalizedStringMap)      \
-  V(Map, external_internalized_string_with_one_byte_data_map,                  \
-    ExternalInternalizedStringWithOneByteDataMap)                              \
   V(Map, external_one_byte_internalized_string_map,                            \
     ExternalOneByteInternalizedStringMap)                                      \
   V(Map, uncached_external_internalized_string_map,                            \
     UncachedExternalInternalizedStringMap)                                     \
-  V(Map, uncached_external_internalized_string_with_one_byte_data_map,         \
-    UncachedExternalInternalizedStringWithOneByteDataMap)                      \
   V(Map, uncached_external_one_byte_internalized_string_map,                   \
     UncachedExternalOneByteInternalizedStringMap)                              \
   V(Map, uncached_external_one_byte_string_map,                                \
@@ -284,12 +277,13 @@ class RootVisitor;
   V(TemplateList, message_listeners, MessageListeners)                     \
   /* Support for async stack traces */                                     \
   V(HeapObject, current_microtask, CurrentMicrotask)                       \
-  /* JSWeakFactory objects which need cleanup */                           \
-  V(Object, dirty_js_weak_factories, DirtyJSWeakFactories)                 \
+  /* JSFinalizationGroup objects which need cleanup */                     \
+  V(Object, dirty_js_finalization_groups, DirtyJSFinalizationGroups)       \
   /* KeepDuringJob set for JS WeakRefs */                                  \
   V(HeapObject, weak_refs_keep_during_job, WeakRefsKeepDuringJob)          \
   V(HeapObject, interpreter_entry_trampoline_for_profiling,                \
-    InterpreterEntryTrampolineForProfiling)
+    InterpreterEntryTrampolineForProfiling)                                \
+  V(Object, pending_optimize_for_test_bytecode, PendingOptimizeForTestBytecode)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                       \
@@ -523,12 +517,17 @@ class ReadOnlyRoots {
 
   V8_INLINE Map MapForFixedTypedArray(ExternalArrayType array_type);
   V8_INLINE Map MapForFixedTypedArray(ElementsKind elements_kind);
-  V8_INLINE FixedTypedArrayBase EmptyFixedTypedArrayForMap(const Map map);
+  V8_INLINE FixedTypedArrayBase
+  EmptyFixedTypedArrayForTypedArray(ElementsKind elements_kind);
 
   // Iterate over all the read-only roots. This is not necessary for garbage
   // collection and is usually only performed as part of (de)serialization or
   // heap verification.
   void Iterate(RootVisitor* visitor);
+
+#ifdef DEBUG
+  V8_EXPORT_PRIVATE bool CheckType(RootIndex index) const;
+#endif
 
  private:
   RootsTable& roots_table_;

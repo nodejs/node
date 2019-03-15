@@ -47,8 +47,9 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
                                               Node* then, Node* thenable,
                                               Node* context);
 
-  std::pair<Node*, Node*> CreatePromiseResolvingFunctions(
-      Node* promise, Node* native_context, Node* promise_context);
+  std::pair<Node*, Node*> CreatePromiseResolvingFunctions(Node* promise,
+                                                          Node* debug_event,
+                                                          Node* native_context);
 
   Node* PromiseHasHandler(Node* promise);
 
@@ -67,8 +68,8 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* CreatePromiseResolvingFunctionsContext(Node* promise, Node* debug_event,
                                                Node* native_context);
 
-  Node* CreatePromiseGetCapabilitiesExecutorContext(Node* native_context,
-                                                    Node* promise_capability);
+  Node* CreatePromiseGetCapabilitiesExecutorContext(Node* promise_capability,
+                                                    Node* native_context);
 
  protected:
   void PromiseInit(Node* promise);
@@ -153,6 +154,8 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   void PromiseSetStatus(Node* promise, v8::Promise::PromiseState status);
 
   Node* AllocateJSPromise(Node* context);
+
+  void ExtractHandlerContext(Node* handler, Variable* var_context);
 };
 
 }  // namespace internal

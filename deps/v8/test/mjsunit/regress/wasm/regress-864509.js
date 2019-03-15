@@ -4,7 +4,6 @@
 
 // Flags: --liftoff --no-wasm-tier-up --no-future --wasm-tier-mask-for-testing=2
 
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();

@@ -14,5 +14,6 @@ function f() {
   foo(undefined == 0);
 }
 
+%PrepareFunctionForOptimization(f);
 %OptimizeFunctionOnNextCall(f);
 f();

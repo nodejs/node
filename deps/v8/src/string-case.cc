@@ -12,6 +12,11 @@
 namespace v8 {
 namespace internal {
 
+// FastAsciiConvert tries to do character processing on a word_t basis if
+// source and destination strings are properly aligned. Natural alignment of
+// string data depends on kTaggedSize so we define word_t via Tagged_t.
+using word_t = std::make_unsigned<Tagged_t>::type;
+
 #ifdef DEBUG
 bool CheckFastAsciiConvert(char* dst, const char* src, int length, bool changed,
                            bool is_to_lower) {
@@ -31,8 +36,8 @@ bool CheckFastAsciiConvert(char* dst, const char* src, int length, bool changed,
 }
 #endif
 
-const uintptr_t kOneInEveryByte = kUintptrAllBitsSet / 0xFF;
-const uintptr_t kAsciiMask = kOneInEveryByte << 7;
+const word_t kOneInEveryByte = static_cast<word_t>(kUintptrAllBitsSet) / 0xFF;
+const word_t kAsciiMask = kOneInEveryByte << 7;
 
 // Given a word and two range boundaries returns a word with high bit
 // set in every byte iff the corresponding input byte was strictly in
@@ -41,14 +46,14 @@ const uintptr_t kAsciiMask = kOneInEveryByte << 7;
 // boundaries are statically known.
 // Requires: all bytes in the input word and the boundaries must be
 // ASCII (less than 0x7F).
-static inline uintptr_t AsciiRangeMask(uintptr_t w, char m, char n) {
+static inline word_t AsciiRangeMask(word_t w, char m, char n) {
   // Use strict inequalities since in edge cases the function could be
   // further simplified.
   DCHECK(0 < m && m < n);
   // Has high bit set in every w byte less than n.
-  uintptr_t tmp1 = kOneInEveryByte * (0x7F + n) - w;
+  word_t tmp1 = kOneInEveryByte * (0x7F + n) - w;
   // Has high bit set in every w byte greater than m.
-  uintptr_t tmp2 = w + kOneInEveryByte * (0x7F - m);
+  word_t tmp2 = w + kOneInEveryByte * (0x7F - m);
   return (tmp1 & tmp2 & (kOneInEveryByte * 0x80));
 }
 
@@ -70,34 +75,34 @@ int FastAsciiConvert(char* dst, const char* src, int length,
   const char* const limit = src + length;
 
   // dst is newly allocated and always aligned.
-  DCHECK(IsAligned(reinterpret_cast<intptr_t>(dst), sizeof(uintptr_t)));
+  DCHECK(IsAligned(reinterpret_cast<Address>(dst), sizeof(word_t)));
   // Only attempt processing one word at a time if src is also aligned.
-  if (IsAligned(reinterpret_cast<intptr_t>(src), sizeof(uintptr_t))) {
+  if (IsAligned(reinterpret_cast<Address>(src), sizeof(word_t))) {
     // Process the prefix of the input that requires no conversion one aligned
     // (machine) word at a time.
-    while (src <= limit - sizeof(uintptr_t)) {
-      const uintptr_t w = *reinterpret_cast<const uintptr_t*>(src);
+    while (src <= limit - sizeof(word_t)) {
+      const word_t w = *reinterpret_cast<const word_t*>(src);
       if ((w & kAsciiMask) != 0) return static_cast<int>(src - saved_src);
       if (AsciiRangeMask(w, lo, hi) != 0) {
         changed = true;
         break;
       }
-      *reinterpret_cast<uintptr_t*>(dst) = w;
-      src += sizeof(uintptr_t);
-      dst += sizeof(uintptr_t);
+      *reinterpret_cast<word_t*>(dst) = w;
+      src += sizeof(word_t);
+      dst += sizeof(word_t);
     }
     // Process the remainder of the input performing conversion when
     // required one word at a time.
-    while (src <= limit - sizeof(uintptr_t)) {
-      const uintptr_t w = *reinterpret_cast<const uintptr_t*>(src);
+    while (src <= limit - sizeof(word_t)) {
+      const word_t w = *reinterpret_cast<const word_t*>(src);
       if ((w & kAsciiMask) != 0) return static_cast<int>(src - saved_src);
-      uintptr_t m = AsciiRangeMask(w, lo, hi);
+      word_t m = AsciiRangeMask(w, lo, hi);
       // The mask has high (7th) bit set in every byte that needs
       // conversion and we know that the distance between cases is
       // 1 << 5.
-      *reinterpret_cast<uintptr_t*>(dst) = w ^ (m >> 2);
-      src += sizeof(uintptr_t);
-      dst += sizeof(uintptr_t);
+      *reinterpret_cast<word_t*>(dst) = w ^ (m >> 2);
+      src += sizeof(word_t);
+      dst += sizeof(word_t);
     }
   }
   // Process the last few bytes of the input (or the whole input if

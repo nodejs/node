@@ -26,6 +26,7 @@
 #include "src/optimized-compilation-info.h"
 #include "src/ostreams.h"
 #include "src/source-position.h"
+#include "src/vector.h"
 
 namespace v8 {
 namespace internal {

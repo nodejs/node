@@ -7,7 +7,7 @@
 
 #include "src/objects/embedder-data-array.h"
 
-//#include "src/objects-inl.h"  // Needed for write barriers
+#include "src/objects/instance-type-inl.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/slots.h"
 
@@ -24,11 +24,11 @@ SMI_ACCESSORS(EmbedderDataArray, length, kLengthOffset)
 OBJECT_CONSTRUCTORS_IMPL(EmbedderDataArray, HeapObject)
 
 Address EmbedderDataArray::slots_start() {
-  return FIELD_ADDR(this, OffsetOfElementAt(0));
+  return FIELD_ADDR(*this, OffsetOfElementAt(0));
 }
 
 Address EmbedderDataArray::slots_end() {
-  return FIELD_ADDR(this, OffsetOfElementAt(length()));
+  return FIELD_ADDR(*this, OffsetOfElementAt(length()));
 }
 
 }  // namespace internal

@@ -704,6 +704,7 @@ Response V8DebuggerAgentImpl::continueToLocation(
   InspectedContext* inspected = m_inspector->getContext(contextId);
   if (!inspected)
     return Response::Error("Cannot continue to specified location");
+  v8::HandleScope handleScope(m_isolate);
   v8::Context::Scope contextScope(inspected->context());
   return m_debugger->continueToLocation(
       m_session->contextGroupId(), script, std::move(location),
@@ -1124,6 +1125,7 @@ Response V8DebuggerAgentImpl::setReturnValue(
     std::unique_ptr<protocol::Runtime::CallArgument> protocolNewValue) {
   if (!enabled()) return Response::Error(kDebuggerNotEnabled);
   if (!isPaused()) return Response::Error(kDebuggerNotPaused);
+  v8::HandleScope handleScope(m_isolate);
   auto iterator = v8::debug::StackTraceIterator::Create(m_isolate);
   if (iterator->Done()) {
     return Response::Error("Could not find top call frame");

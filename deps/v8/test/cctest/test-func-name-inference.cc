@@ -453,8 +453,8 @@ TEST(FactoryHashmapVariable) {
               "  return obj;\n"
               "}");
   // Can't infer function names statically.
-  CheckFunctionName(script, "return 1", "obj.(anonymous function)");
-  CheckFunctionName(script, "return 2", "obj.(anonymous function)");
+  CheckFunctionName(script, "return 1", "obj.<computed>");
+  CheckFunctionName(script, "return 2", "obj.<computed>");
 }
 
 
@@ -470,7 +470,7 @@ TEST(FactoryHashmapConditional) {
       "  return obj;\n"
       "}");
   // Can't infer the function name statically.
-  CheckFunctionName(script, "return 1", "obj.(anonymous function)");
+  CheckFunctionName(script, "return 1", "obj.<computed>");
 }
 
 

@@ -213,6 +213,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Remove if not needed.
   void Move(Register dst, Smi src);
 
+  // Move src0 to dst0 and src1 to dst1, handling possible overlaps.
+  void MovePair(Register dst0, Register src0, Register dst1, Register src1);
+
   // Register swap. Note that the register operands should be distinct.
   void Swap(Register lhs, Register rhs);
   void Swap(VRegister lhs, VRegister rhs);
@@ -1175,6 +1178,32 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void ResetSpeculationPoisonRegister();
 
+  // ---------------------------------------------------------------------------
+  // Pointer compression Support
+
+  // Loads a field containing a HeapObject and decompresses it if pointer
+  // compression is enabled.
+  void LoadTaggedPointerField(const Register& destination,
+                              const MemOperand& field_operand);
+
+  // Loads a field containing any tagged value and decompresses it if necessary.
+  void LoadAnyTaggedField(const Register& destination,
+                          const MemOperand& field_operand);
+
+  // Loads a field containing smi value and untags it.
+  void SmiUntagField(Register dst, const MemOperand& src);
+
+  // Compresses and stores tagged value to given on-heap location.
+  void StoreTaggedField(const Register& value,
+                        const MemOperand& dst_field_operand);
+
+  void DecompressTaggedSigned(const Register& destination,
+                              const MemOperand& field_operand);
+  void DecompressTaggedPointer(const Register& destination,
+                               const MemOperand& field_operand);
+  void DecompressAnyTagged(const Register& destination,
+                           const MemOperand& field_operand);
+
  protected:
   // The actual Push and Pop implementations. These don't generate any code
   // other than that required for the push or pop. This allows
@@ -1811,6 +1840,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Compare the object in a register to a value and jump if they are not equal.
   void JumpIfNotRoot(const Register& obj, RootIndex index, Label* if_not_equal);
 
+  // Checks if value is in range [lower_limit, higher_limit] using a single
+  // comparison.
+  void JumpIfIsInRange(const Register& value, unsigned lower_limit,
+                       unsigned higher_limit, Label* on_in_range);
+
   // Compare the contents of a register with an operand, and branch to true,
   // false or fall through, depending on condition.
   void CompareAndSplit(const Register& lhs,
@@ -1962,11 +1996,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                         const CPURegister& arg3 = NoCPUReg);
 
  private:
-  // Helper for implementing JumpIfNotInNewSpace and JumpIfInNewSpace.
-  void InNewSpace(Register object,
-                  Condition cond,  // eq for new space, ne otherwise.
-                  Label* branch);
-
   // Try to represent a double as an int so that integer fast-paths may be
   // used. Not every valid integer value is guaranteed to be caught.
   // It supports both 32-bit and 64-bit integers depending whether 'as_int'

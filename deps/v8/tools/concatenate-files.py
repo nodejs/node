@@ -35,6 +35,9 @@
 # on all supported build platforms, but Python is, and hence this provides
 # us with an easy and uniform way of doing this on all platforms.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import optparse
 
 
@@ -49,7 +52,7 @@ def Concatenate(filenames):
     True, if the operation was successful.
   """
   if len(filenames) < 2:
-    print "An error occurred generating %s:\nNothing to do." % filenames[-1]
+    print("An error occurred generating %s:\nNothing to do." % filenames[-1])
     return False
 
   try:
@@ -59,7 +62,7 @@ def Concatenate(filenames):
           target.write(current.read())
     return True
   except IOError as e:
-    print "An error occurred when writing %s:\n%s" % (filenames[-1], e)
+    print("An error occurred when writing %s:\n%s" % (filenames[-1], e))
     return False
 
 

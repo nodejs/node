@@ -23,6 +23,7 @@
     return a + b + c;
   }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals(4, f(1, 2));
   assertEquals(5, f(2, 1));
   %OptimizeFunctionOnNextCall(f);

@@ -165,6 +165,7 @@ Handle<Object> Module::LoadVariable(Isolate* isolate, Handle<Module> module,
 
 void Module::StoreVariable(Handle<Module> module, int cell_index,
                            Handle<Object> value) {
+  DisallowHeapAllocation no_gc;
   DCHECK_EQ(ModuleDescriptor::GetCellIndexKind(cell_index),
             ModuleDescriptor::kExport);
   module->GetCell(cell_index)->set_value(*value);

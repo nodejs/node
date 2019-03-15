@@ -75,6 +75,8 @@ class ProfilerListener : public CodeEventListener {
     return function_and_resource_names_.GetConsName(prefix, name);
   }
 
+  void set_observer(CodeEventObserver* observer) { observer_ = observer; }
+
  private:
   void AttachDeoptInlinedFrames(Code code, CodeDeoptEventRecord* rec);
   Name InferScriptName(Name name, SharedFunctionInfo info);

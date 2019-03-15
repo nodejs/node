@@ -71,10 +71,13 @@ class JSDateTimeFormat : public JSObject {
       Isolate* isolate, Handle<Object> date, Handle<Object> locales,
       Handle<Object> options, RequiredOption required, DefaultsOption defaults);
 
-  static std::set<std::string> GetAvailableLocales();
+  static const std::set<std::string>& GetAvailableLocales();
 
   Handle<String> HourCycleAsString() const;
   DECL_CAST(JSDateTimeFormat)
+
+  // ecma-402/#sec-properties-of-intl-datetimeformat-instances
+  enum class DateTimeStyle { kUndefined, kFull, kLong, kMedium, kShort };
 
 // Layout description.
 #define JS_DATE_TIME_FORMAT_FIELDS(V)        \
@@ -92,8 +95,17 @@ class JSDateTimeFormat : public JSObject {
   inline void set_hour_cycle(Intl::HourCycle hour_cycle);
   inline Intl::HourCycle hour_cycle() const;
 
+  inline void set_date_style(DateTimeStyle date_style);
+  inline DateTimeStyle date_style() const;
+
+  inline void set_time_style(DateTimeStyle time_style);
+  inline DateTimeStyle time_style() const;
+
 // Bit positions in |flags|.
-#define FLAGS_BIT_FIELDS(V, _) V(HourCycleBits, Intl::HourCycle, 3, _)
+#define FLAGS_BIT_FIELDS(V, _)            \
+  V(HourCycleBits, Intl::HourCycle, 3, _) \
+  V(DateStyleBits, DateTimeStyle, 3, _)   \
+  V(TimeStyleBits, DateTimeStyle, 3, _)
 
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS
@@ -103,6 +115,18 @@ class JSDateTimeFormat : public JSObject {
   STATIC_ASSERT(Intl::HourCycle::kH12 <= HourCycleBits::kMax);
   STATIC_ASSERT(Intl::HourCycle::kH23 <= HourCycleBits::kMax);
   STATIC_ASSERT(Intl::HourCycle::kH24 <= HourCycleBits::kMax);
+
+  STATIC_ASSERT(DateTimeStyle::kUndefined <= DateStyleBits::kMax);
+  STATIC_ASSERT(DateTimeStyle::kFull <= DateStyleBits::kMax);
+  STATIC_ASSERT(DateTimeStyle::kLong <= DateStyleBits::kMax);
+  STATIC_ASSERT(DateTimeStyle::kMedium <= DateStyleBits::kMax);
+  STATIC_ASSERT(DateTimeStyle::kShort <= DateStyleBits::kMax);
+
+  STATIC_ASSERT(DateTimeStyle::kUndefined <= TimeStyleBits::kMax);
+  STATIC_ASSERT(DateTimeStyle::kFull <= TimeStyleBits::kMax);
+  STATIC_ASSERT(DateTimeStyle::kLong <= TimeStyleBits::kMax);
+  STATIC_ASSERT(DateTimeStyle::kMedium <= TimeStyleBits::kMax);
+  STATIC_ASSERT(DateTimeStyle::kShort <= TimeStyleBits::kMax);
 
   DECL_ACCESSORS(icu_locale, Managed<icu::Locale>)
   DECL_ACCESSORS(icu_simple_date_format, Managed<icu::SimpleDateFormat>)

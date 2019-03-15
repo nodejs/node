@@ -23,6 +23,7 @@ function test() {
   assertFalse(Number.isInteger(Number.EPSILON));
 }
 
+%PrepareFunctionForOptimization(test);
 test();
 test();
 %OptimizeFunctionOnNextCall(test);
@@ -48,6 +49,7 @@ function test2() {
   assertFalse(Number.isInteger(Number.EPSILON));
 }
 
+%PrepareFunctionForOptimization(test2);
 test2();
 test2();
 %OptimizeFunctionOnNextCall(test2);

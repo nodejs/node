@@ -6,8 +6,6 @@
 #ifndef V8_REGEXP_BYTECODES_IRREGEXP_H_
 #define V8_REGEXP_BYTECODES_IRREGEXP_H_
 
-#ifdef V8_INTERPRETED_REGEXP
-
 namespace v8 {
 namespace internal {
 
@@ -85,7 +83,5 @@ BYTECODE_ITERATOR(DECLARE_BYTECODE_LENGTH)
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_INTERPRETED_REGEXP
 
 #endif  // V8_REGEXP_BYTECODES_IRREGEXP_H_

@@ -79,8 +79,18 @@ void JSRegExp::SetDataAt(int index, Object value) {
 }
 
 bool JSRegExp::HasCompiledCode() const {
-  return TypeTag() == IRREGEXP && (DataAt(kIrregexpLatin1CodeIndex)->IsCode() ||
-                                   DataAt(kIrregexpUC16CodeIndex)->IsCode());
+  if (TypeTag() != IRREGEXP) return false;
+#ifdef DEBUG
+  DCHECK(DataAt(kIrregexpLatin1CodeIndex)->IsCode() ||
+         DataAt(kIrregexpLatin1CodeIndex)->IsByteArray() ||
+         DataAt(kIrregexpLatin1CodeIndex) == Smi::FromInt(kUninitializedValue));
+  DCHECK(DataAt(kIrregexpUC16CodeIndex)->IsCode() ||
+         DataAt(kIrregexpUC16CodeIndex)->IsByteArray() ||
+         DataAt(kIrregexpUC16CodeIndex) == Smi::FromInt(kUninitializedValue));
+#endif  // DEBUG
+  Smi uninitialized = Smi::FromInt(kUninitializedValue);
+  return (DataAt(kIrregexpLatin1CodeIndex) != uninitialized ||
+          DataAt(kIrregexpUC16CodeIndex) != uninitialized);
 }
 
 void JSRegExp::DiscardCompiledCodeForSerialization() {

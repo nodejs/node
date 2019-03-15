@@ -5,10 +5,54 @@
 #include 'src/builtins/builtins-typed-array-gen.h'
 
 namespace typed_array {
+  struct TypedArrayElementsInfo {
+    // Calculates the number of bytes required for specified number of elements.
+    CalculateByteLength(lengthSmi: PositiveSmi): uintptr labels IfInvalid {
+      const length = Convert<uintptr>(lengthSmi);
+      const byteLength = length << this.sizeLog2;
+      // If an overflow ocurred, the byte length exceeds
+      // JSArrayBuffer::kMaxByteLength and is invalid.
+      if (byteLength >>> this.sizeLog2 != length) goto IfInvalid;
+      return byteLength;
+    }
+
+    // Calculates the maximum number of elements supported by a specified number
+    // of bytes.
+    CalculateLength(byteLength: uintptr): PositiveSmi labels IfInvalid {
+      return TryUintPtrToPositiveSmi(byteLength >>> this.sizeLog2)
+          otherwise IfInvalid;
+    }
+
+    // Determines if `bytes` (byte offset or length) cannot be evenly divided by
+    // element size.
+    IsUnaligned(bytes: uintptr): bool {
+      // Exploits the fact the element size is a power of 2. Determining whether
+      // there is remainder (not aligned) can be achieved efficiently with bit
+      // masking. Shift is safe as sizeLog2 can be 3 at most (see
+      // ElementsKindToShiftSize).
+      return (bytes & ((1 << this.sizeLog2) - 1)) != 0;
+    }
+
+    sizeLog2: uintptr;
+    map: Map;
+    kind: ElementsKind;
+  }
   extern runtime TypedArraySortFast(Context, Object): JSTypedArray;
   extern macro TypedArrayBuiltinsAssembler::ValidateTypedArray(
       Context, Object, constexpr string): JSTypedArray;
 
+  extern macro TypedArrayBuiltinsAssembler::CallCMemcpy(
+      RawPtr, RawPtr, uintptr): void;
+  extern macro TypedArrayBuiltinsAssembler::CallCMemmove(
+      RawPtr, RawPtr, uintptr): void;
+  extern macro TypedArrayBuiltinsAssembler::CallCMemset(
+      RawPtr, intptr, uintptr): void;
+  extern macro TypedArrayBuiltinsAssembler::GetBuffer(
+      implicit context: Context)(JSTypedArray): JSArrayBuffer;
+  extern macro TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(
+      JSTypedArray): TypedArrayElementsInfo;
+  extern macro TypedArrayBuiltinsAssembler::IsBigInt64ElementsKind(
+      ElementsKind): bool;
   extern macro LoadFixedTypedArrayElementAsTagged(
       RawPtr, Smi, constexpr ElementsKind, constexpr ParameterMode): Object;
   extern macro StoreFixedTypedArrayElementFromTagged(
@@ -24,10 +68,87 @@ namespace typed_array {
   // would try to check this through an assert(Is<>), so the test
   // is bypassed in this specialization.
   UnsafeCast<LoadFn>(implicit context: Context)(o: Object): LoadFn {
-    return %RawObjectCast<LoadFn>(o);
+    return %RawDownCast<LoadFn>(o);
   }
   UnsafeCast<StoreFn>(implicit context: Context)(o: Object): StoreFn {
-    return %RawObjectCast<StoreFn>(o);
+    return %RawDownCast<StoreFn>(o);
+  }
+
+  // AttachedJSTypedArray guards that the array's buffer is not detached.
+  transient type AttachedJSTypedArray extends JSTypedArray;
+
+  macro EnsureAttached(array: JSTypedArray): AttachedJSTypedArray
+      labels Detached {
+    if (IsDetachedBuffer(array.buffer)) goto Detached;
+    return %RawDownCast<AttachedJSTypedArray>(array);
+  }
+
+  struct AttachedJSTypedArrayWitness {
+    Get(): AttachedJSTypedArray {
+      return this.unstable;
+    }
+
+    GetStable(): JSTypedArray {
+      return this.stable;
+    }
+
+    Recheck() labels Detached {
+      if (IsDetachedBuffer(this.stable.buffer)) goto Detached;
+      this.unstable = %RawDownCast<AttachedJSTypedArray>(this.stable);
+    }
+
+    Load(implicit context: Context)(k: Smi): Object {
+      const lf: LoadFn = this.loadfn;
+      return lf(context, this.unstable, k);
+    }
+
+    stable: JSTypedArray;
+    unstable: AttachedJSTypedArray;
+    loadfn: LoadFn;
+  }
+
+  macro NewAttachedJSTypedArrayWitness(array: AttachedJSTypedArray):
+      AttachedJSTypedArrayWitness {
+    const kind = array.elements_kind;
+    return AttachedJSTypedArrayWitness{
+      array,
+      array,
+      GetLoadFnForElementsKind(kind)
+    };
+  }
+
+  macro GetLoadFnForElementsKind(elementsKind: ElementsKind): LoadFn {
+    if (IsElementsKindGreaterThan(elementsKind, UINT32_ELEMENTS)) {
+      if (elementsKind == INT32_ELEMENTS) {
+        return LoadFixedElement<FixedInt32Array>;
+      } else if (elementsKind == FLOAT32_ELEMENTS) {
+        return LoadFixedElement<FixedFloat32Array>;
+      } else if (elementsKind == FLOAT64_ELEMENTS) {
+        return LoadFixedElement<FixedFloat64Array>;
+      } else if (elementsKind == UINT8_CLAMPED_ELEMENTS) {
+        return LoadFixedElement<FixedUint8ClampedArray>;
+      } else if (elementsKind == BIGUINT64_ELEMENTS) {
+        return LoadFixedElement<FixedBigUint64Array>;
+      } else if (elementsKind == BIGINT64_ELEMENTS) {
+        return LoadFixedElement<FixedBigInt64Array>;
+      } else {
+        unreachable;
+      }
+    } else {
+      if (elementsKind == UINT8_ELEMENTS) {
+        return LoadFixedElement<FixedUint8Array>;
+      } else if (elementsKind == INT8_ELEMENTS) {
+        return LoadFixedElement<FixedInt8Array>;
+      } else if (elementsKind == UINT16_ELEMENTS) {
+        return LoadFixedElement<FixedUint16Array>;
+      } else if (elementsKind == INT16_ELEMENTS) {
+        return LoadFixedElement<FixedInt16Array>;
+      } else if (elementsKind == UINT32_ELEMENTS) {
+        return LoadFixedElement<FixedUint32Array>;
+      } else {
+        unreachable;
+      }
+    }
   }
 
   macro KindForArrayType<T: type>(): constexpr ElementsKind;
@@ -81,16 +202,17 @@ namespace typed_array {
     return Undefined;
   }
 
-  transitioning macro CallCompareWithDetachedCheck(
-      context: Context, array: JSTypedArray, comparefn: Callable, a: Object,
-      b: Object): Number
-      labels Detached {
+  transitioning macro CallCompare(
+      implicit context: Context, array: JSTypedArray,
+      comparefn: Callable)(a: Object, b: Object): Number {
     // a. Let v be ? ToNumber(? Call(comparefn, undefined, x, y)).
     const v: Number =
         ToNumber_Inline(context, Call(context, comparefn, Undefined, a, b));
 
     // b. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
-    if (IsDetachedBuffer(array.buffer)) goto Detached;
+    if (IsDetachedBuffer(array.buffer)) {
+      ThrowTypeError(kDetachedOperation, '%TypedArray%.prototype.sort');
+    }
 
     // c. If v is NaN, return +0.
     if (NumberIsNaN(v)) return 0;
@@ -99,174 +221,56 @@ namespace typed_array {
     return v;
   }
 
-  // InsertionSort is used for smaller arrays.
-  transitioning macro TypedArrayInsertionSort(
-      context: Context, array: JSTypedArray, fromArg: Smi, toArg: Smi,
-      comparefn: Callable, load: LoadFn, store: StoreFn)
-      labels Detached {
-    let from: Smi = fromArg;
-    let to: Smi = toArg;
+  // Merges two sorted runs [from, middle) and [middle, to)
+  // from "source" into "target".
+  transitioning macro
+  TypedArrayMerge(
+      implicit context: Context, array: JSTypedArray, comparefn: Callable)(
+      source: FixedArray, from: Smi, middle: Smi, to: Smi, target: FixedArray) {
+    let left: Smi = from;
+    let right: Smi = middle;
 
-    if (IsDetachedBuffer(array.buffer)) goto Detached;
-
-    for (let i: Smi = from + 1; i < to; ++i) {
-      const element: Object = load(context, array, i);
-      let j: Smi = i - 1;
-      for (; j >= from; --j) {
-        const tmp: Object = load(context, array, j);
-        const order: Number = CallCompareWithDetachedCheck(
-            context, array, comparefn, tmp, element) otherwise Detached;
-        if (order > 0) {
-          store(context, array, j + 1, tmp);
+    for (let targetIndex: Smi = from; targetIndex < to; ++targetIndex) {
+      if (left < middle && right >= to) {
+        // If the left run has elements, but the right does not, we take
+        // from the left.
+        target.objects[targetIndex] = source.objects[left++];
+      } else if (left < middle) {
+        // If both have elements, we need to compare.
+        const leftElement: Object = source.objects[left];
+        const rightElement: Object = source.objects[right];
+        if (CallCompare(leftElement, rightElement) <= 0) {
+          target.objects[targetIndex] = leftElement;
+          left++;
         } else {
-          break;
+          target.objects[targetIndex] = rightElement;
+          right++;
         }
-      }
-      store(context, array, j + 1, element);
-    }
-  }
-
-  transitioning macro TypedArrayQuickSortImpl(
-      context: Context, array: JSTypedArray, fromArg: Smi, toArg: Smi,
-      comparefn: Callable, load: LoadFn, store: StoreFn)
-      labels Detached {
-    let from: Smi = fromArg;
-    let to: Smi = toArg;
-
-    while (to - from > 1) {
-      if (to - from <= 10) {
-        // TODO(szuend): Investigate InsertionSort removal.
-        //               Currently it does not make any difference when the
-        //               benchmarks are run locally.
-        TypedArrayInsertionSort(
-            context, array, from, to, comparefn, load, store)
-            otherwise Detached;
-        break;
-      }
-
-      // TODO(szuend): Check if a more involved thirdIndex calculation is
-      //               worth it for very large arrays.
-      const thirdIndex: Smi = from + ((to - from) >> 1);
-
-      if (IsDetachedBuffer(array.buffer)) goto Detached;
-
-      // Find a pivot as the median of first, last and middle element.
-      let v0: Object = load(context, array, from);
-      let v1: Object = load(context, array, to - 1);
-      let v2: Object = load(context, array, thirdIndex);
-
-      const c01: Number = CallCompareWithDetachedCheck(
-          context, array, comparefn, v0, v1) otherwise Detached;
-      if (c01 > 0) {
-        // v1 < v0, so swap them.
-        let tmp: Object = v0;
-        v0 = v1;
-        v1 = tmp;
-      }
-      // v0 <= v1.
-      const c02: Number = CallCompareWithDetachedCheck(
-          context, array, comparefn, v0, v2) otherwise Detached;
-      if (c02 >= 0) {
-        // v2 <= v0 <= v1.
-        const tmp: Object = v0;
-        v0 = v2;
-        v2 = v1;
-        v1 = tmp;
       } else {
-        // v0 <= v1 && v0 < v2.
-        const c12: Number = CallCompareWithDetachedCheck(
-            context, array, comparefn, v1, v2) otherwise Detached;
-        if (c12 > 0) {
-          // v0 <= v2 < v1.
-          const tmp: Object = v1;
-          v1 = v2;
-          v2 = tmp;
-        }
-      }
-
-      // v0 <= v1 <= v2.
-      store(context, array, from, v0);
-      store(context, array, to - 1, v2);
-
-      const pivot: Object = v1;
-      let lowEnd: Smi = from + 1;   // Upper bound of elems lower than pivot.
-      let highStart: Smi = to - 1;  // Lower bound of elems greater than pivot.
-
-      let lowEndValue: Object = load(context, array, lowEnd);
-      store(context, array, thirdIndex, lowEndValue);
-      store(context, array, lowEnd, pivot);
-
-      // From lowEnd to idx are elements equal to pivot.
-      // From idx to highStart are elements that haven"t been compared yet.
-      for (let idx: Smi = lowEnd + 1; idx < highStart; idx++) {
-        let element: Object = load(context, array, idx);
-        let order: Number = CallCompareWithDetachedCheck(
-            context, array, comparefn, element, pivot) otherwise Detached;
-
-        if (order < 0) {
-          lowEndValue = load(context, array, lowEnd);
-          store(context, array, idx, lowEndValue);
-          store(context, array, lowEnd, element);
-          lowEnd++;
-        } else if (order > 0) {
-          let breakFor: bool = false;
-
-          while (order > 0) {
-            highStart--;
-            if (highStart == idx) {
-              breakFor = true;
-              break;
-            }
-
-            const topElement: Object = load(context, array, highStart);
-            order = CallCompareWithDetachedCheck(
-                context, array, comparefn, topElement, pivot)
-                otherwise Detached;
-          }
-
-          if (breakFor) {
-            break;
-          }
-
-          const highStartValue: Object = load(context, array, highStart);
-          store(context, array, idx, highStartValue);
-          store(context, array, highStart, element);
-
-          if (order < 0) {
-            element = load(context, array, idx);
-
-            lowEndValue = load(context, array, lowEnd);
-            store(context, array, idx, lowEndValue);
-            store(context, array, lowEnd, element);
-            lowEnd++;
-          }
-        }
-      }
-
-      if ((to - highStart) < (lowEnd - from)) {
-        TypedArrayQuickSort(
-            context, array, highStart, to, comparefn, load, store);
-        to = lowEnd;
-      } else {
-        TypedArrayQuickSort(
-            context, array, from, lowEnd, comparefn, load, store);
-        from = highStart;
+        // No elements on the left, but the right does, so we take
+        // from the right.
+        assert(left == middle);
+        target.objects[targetIndex] = source.objects[right++];
       }
     }
   }
 
-  transitioning builtin TypedArrayQuickSort(
-      context: Context, array: JSTypedArray, from: Smi, to: Smi,
-      comparefn: Callable, load: LoadFn, store: StoreFn): JSTypedArray {
-    try {
-      TypedArrayQuickSortImpl(context, array, from, to, comparefn, load, store)
-          otherwise Detached;
-    }
-    label Detached {
-      ThrowTypeError(
-          context, kDetachedOperation, '%TypedArray%.prototype.sort');
-    }
-    return array;
+  transitioning builtin
+  TypedArrayMergeSort(
+      implicit context: Context, array: JSTypedArray, comparefn: Callable)(
+      source: FixedArray, from: Smi, to: Smi, target: FixedArray): Object {
+    assert(to - from > 1);
+    const middle: Smi = from + ((to - from) >> 1);
+
+    // On the next recursion step source becomes target and vice versa.
+    // This saves the copy of the relevant range from the original
+    // array into a work array on each recursion step.
+    if (middle - from > 1) TypedArrayMergeSort(target, from, middle, source);
+    if (to - middle > 1) TypedArrayMergeSort(target, middle, to, source);
+
+    TypedArrayMerge(source, from, middle, to, target);
+
+    return Undefined;
   }
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.sort
@@ -277,7 +281,7 @@ namespace typed_array {
     const comparefnObj: Object =
         arguments.length > 0 ? arguments[0] : Undefined;
     if (comparefnObj != Undefined && !TaggedIsCallable(comparefnObj)) {
-      ThrowTypeError(context, kBadSortComparisonFunction, comparefnObj);
+      ThrowTypeError(kBadSortComparisonFunction, comparefnObj);
     }
 
     // 2. Let obj be the this value.
@@ -296,62 +300,77 @@ namespace typed_array {
     // 4. Let len be obj.[[ArrayLength]].
     const len: Smi = array.length;
 
-    try {
-      const comparefn: Callable =
-          Cast<Callable>(comparefnObj) otherwise CastError;
-      let loadfn: LoadFn;
-      let storefn: StoreFn;
+    // Arrays of length 1 or less are considered sorted.
+    if (len < 2) return array;
 
-      let elementsKind: ElementsKind = array.elements_kind;
+    const comparefn: Callable =
+        Cast<Callable>(comparefnObj) otherwise unreachable;
+    let loadfn: LoadFn;
+    let storefn: StoreFn;
 
-      if (IsElementsKindGreaterThan(elementsKind, UINT32_ELEMENTS)) {
-        if (elementsKind == INT32_ELEMENTS) {
-          loadfn = LoadFixedElement<FixedInt32Array>;
-          storefn = StoreFixedElement<FixedInt32Array>;
-        } else if (elementsKind == FLOAT32_ELEMENTS) {
-          loadfn = LoadFixedElement<FixedFloat32Array>;
-          storefn = StoreFixedElement<FixedFloat32Array>;
-        } else if (elementsKind == FLOAT64_ELEMENTS) {
-          loadfn = LoadFixedElement<FixedFloat64Array>;
-          storefn = StoreFixedElement<FixedFloat64Array>;
-        } else if (elementsKind == UINT8_CLAMPED_ELEMENTS) {
-          loadfn = LoadFixedElement<FixedUint8ClampedArray>;
-          storefn = StoreFixedElement<FixedUint8ClampedArray>;
-        } else if (elementsKind == BIGUINT64_ELEMENTS) {
-          loadfn = LoadFixedElement<FixedBigUint64Array>;
-          storefn = StoreFixedElement<FixedBigUint64Array>;
-        } else if (elementsKind == BIGINT64_ELEMENTS) {
-          loadfn = LoadFixedElement<FixedBigInt64Array>;
-          storefn = StoreFixedElement<FixedBigInt64Array>;
-        } else {
-          unreachable;
-        }
+    let elementsKind: ElementsKind = array.elements_kind;
+
+    if (IsElementsKindGreaterThan(elementsKind, UINT32_ELEMENTS)) {
+      if (elementsKind == INT32_ELEMENTS) {
+        loadfn = LoadFixedElement<FixedInt32Array>;
+        storefn = StoreFixedElement<FixedInt32Array>;
+      } else if (elementsKind == FLOAT32_ELEMENTS) {
+        loadfn = LoadFixedElement<FixedFloat32Array>;
+        storefn = StoreFixedElement<FixedFloat32Array>;
+      } else if (elementsKind == FLOAT64_ELEMENTS) {
+        loadfn = LoadFixedElement<FixedFloat64Array>;
+        storefn = StoreFixedElement<FixedFloat64Array>;
+      } else if (elementsKind == UINT8_CLAMPED_ELEMENTS) {
+        loadfn = LoadFixedElement<FixedUint8ClampedArray>;
+        storefn = StoreFixedElement<FixedUint8ClampedArray>;
+      } else if (elementsKind == BIGUINT64_ELEMENTS) {
+        loadfn = LoadFixedElement<FixedBigUint64Array>;
+        storefn = StoreFixedElement<FixedBigUint64Array>;
+      } else if (elementsKind == BIGINT64_ELEMENTS) {
+        loadfn = LoadFixedElement<FixedBigInt64Array>;
+        storefn = StoreFixedElement<FixedBigInt64Array>;
       } else {
-        if (elementsKind == UINT8_ELEMENTS) {
-          loadfn = LoadFixedElement<FixedUint8Array>;
-          storefn = StoreFixedElement<FixedUint8Array>;
-        } else if (elementsKind == INT8_ELEMENTS) {
-          loadfn = LoadFixedElement<FixedInt8Array>;
-          storefn = StoreFixedElement<FixedInt8Array>;
-        } else if (elementsKind == UINT16_ELEMENTS) {
-          loadfn = LoadFixedElement<FixedUint16Array>;
-          storefn = StoreFixedElement<FixedUint16Array>;
-        } else if (elementsKind == INT16_ELEMENTS) {
-          loadfn = LoadFixedElement<FixedInt16Array>;
-          storefn = StoreFixedElement<FixedInt16Array>;
-        } else if (elementsKind == UINT32_ELEMENTS) {
-          loadfn = LoadFixedElement<FixedUint32Array>;
-          storefn = StoreFixedElement<FixedUint32Array>;
-        } else {
-          unreachable;
-        }
+        unreachable;
       }
+    } else {
+      if (elementsKind == UINT8_ELEMENTS) {
+        loadfn = LoadFixedElement<FixedUint8Array>;
+        storefn = StoreFixedElement<FixedUint8Array>;
+      } else if (elementsKind == INT8_ELEMENTS) {
+        loadfn = LoadFixedElement<FixedInt8Array>;
+        storefn = StoreFixedElement<FixedInt8Array>;
+      } else if (elementsKind == UINT16_ELEMENTS) {
+        loadfn = LoadFixedElement<FixedUint16Array>;
+        storefn = StoreFixedElement<FixedUint16Array>;
+      } else if (elementsKind == INT16_ELEMENTS) {
+        loadfn = LoadFixedElement<FixedInt16Array>;
+        storefn = StoreFixedElement<FixedInt16Array>;
+      } else if (elementsKind == UINT32_ELEMENTS) {
+        loadfn = LoadFixedElement<FixedUint32Array>;
+        storefn = StoreFixedElement<FixedUint32Array>;
+      } else {
+        unreachable;
+      }
+    }
 
-      TypedArrayQuickSort(context, array, 0, len, comparefn, loadfn, storefn);
+    // Prepare the two work arrays. All numbers are converted to tagged
+    // objects first, and merge sorted between the two FixedArrays.
+    // The result is then written back into the JSTypedArray.
+    const work1: FixedArray = AllocateZeroedFixedArray(Convert<intptr>(len));
+    const work2: FixedArray = AllocateZeroedFixedArray(Convert<intptr>(len));
+
+    for (let i: Smi = 0; i < len; ++i) {
+      const element: Object = loadfn(context, array, i);
+      work1.objects[i] = element;
+      work2.objects[i] = element;
     }
-    label CastError {
-      unreachable;
-    }
+
+    TypedArrayMergeSort(work2, 0, len, work1);
+
+    // work1 contains the sorted numbers. Write them back.
+    for (let i: Smi = 0; i < len; ++i)
+      storefn(context, array, i, work1.objects[i]);
+
     return array;
   }
 }

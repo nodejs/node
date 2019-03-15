@@ -41,15 +41,6 @@ V8_PLATFORM_EXPORT std::unique_ptr<v8::Platform> NewDefaultPlatform(
         InProcessStackDumping::kDisabled,
     std::unique_ptr<v8::TracingController> tracing_controller = {});
 
-V8_PLATFORM_EXPORT V8_DEPRECATED(
-    "Use NewDefaultPlatform instead",
-    v8::Platform* CreateDefaultPlatform(
-        int thread_pool_size = 0,
-        IdleTaskSupport idle_task_support = IdleTaskSupport::kDisabled,
-        InProcessStackDumping in_process_stack_dumping =
-            InProcessStackDumping::kDisabled,
-        v8::TracingController* tracing_controller = nullptr));
-
 /**
  * Pumps the message loop for the given isolate.
  *

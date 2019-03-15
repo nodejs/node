@@ -4,7 +4,6 @@
 
 // Flags: --wasm-interpret-all --allow-natives-syntax --expose-gc
 
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 // The stack trace contains file path, only keep "interpreter.js".

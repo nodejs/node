@@ -317,14 +317,9 @@ class ValueHelper {
   }
 };
 
-// Helper macros that can be used in FOR_INT32_INPUTS(i) { ... *i ... }
-// Watch out, these macros aren't hygenic; they pollute your scope. Thanks STL.
-#define FOR_INPUTS(ctype, itype, var)                             \
-  Vector<const ctype> var##_vec =                                 \
-      ::v8::internal::compiler::ValueHelper::itype##_vector();    \
-  for (Vector<const ctype>::iterator var = var##_vec.begin(),     \
-                                     var##_end = var##_vec.end(); \
-       var != var##_end; ++var)
+// Helper macros that can be used in FOR_INT32_INPUTS(i) { ... i ... }
+#define FOR_INPUTS(ctype, itype, var) \
+  for (ctype var : ::v8::internal::compiler::ValueHelper::itype##_vector())
 
 #define FOR_INT32_INPUTS(var) FOR_INPUTS(int32_t, int32, var)
 #define FOR_UINT32_INPUTS(var) FOR_INPUTS(uint32_t, uint32, var)

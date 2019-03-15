@@ -5,6 +5,7 @@
 #include "src/heap/code-stats.h"
 
 #include "src/code-comments.h"
+#include "src/heap/spaces-inl.h"  // For HeapObjectIterator.
 #include "src/objects-inl.h"
 #include "src/reloc-info.h"
 

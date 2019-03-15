@@ -40,7 +40,7 @@ class LiftoffAssembler : public TurboAssembler {
 
   class VarState {
    public:
-    enum Location : uint8_t { kStack, kRegister, KIntConst };
+    enum Location : uint8_t { kStack, kRegister, kIntConst };
 
     explicit VarState(ValueType type) : loc_(kStack), type_(type) {}
     explicit VarState(ValueType type, LiftoffRegister r)
@@ -48,7 +48,7 @@ class LiftoffAssembler : public TurboAssembler {
       DCHECK_EQ(r.reg_class(), reg_class_for(type));
     }
     explicit VarState(ValueType type, int32_t i32_const)
-        : loc_(KIntConst), type_(type), i32_const_(i32_const) {
+        : loc_(kIntConst), type_(type), i32_const_(i32_const) {
       DCHECK(type_ == kWasmI32 || type_ == kWasmI64);
     }
 
@@ -60,7 +60,7 @@ class LiftoffAssembler : public TurboAssembler {
           return true;
         case kRegister:
           return reg_ == other.reg_;
-        case KIntConst:
+        case kIntConst:
           return i32_const_ == other.i32_const_;
       }
       UNREACHABLE();
@@ -70,19 +70,19 @@ class LiftoffAssembler : public TurboAssembler {
     bool is_gp_reg() const { return loc_ == kRegister && reg_.is_gp(); }
     bool is_fp_reg() const { return loc_ == kRegister && reg_.is_fp(); }
     bool is_reg() const { return loc_ == kRegister; }
-    bool is_const() const { return loc_ == KIntConst; }
+    bool is_const() const { return loc_ == kIntConst; }
 
     ValueType type() const { return type_; }
 
     Location loc() const { return loc_; }
 
     int32_t i32_const() const {
-      DCHECK_EQ(loc_, KIntConst);
+      DCHECK_EQ(loc_, kIntConst);
       return i32_const_;
     }
     WasmValue constant() const {
       DCHECK(type_ == kWasmI32 || type_ == kWasmI64);
-      DCHECK_EQ(loc_, KIntConst);
+      DCHECK_EQ(loc_, kIntConst);
       return type_ == kWasmI32 ? WasmValue(i32_const_)
                                : WasmValue(int64_t{i32_const_});
     }
@@ -105,7 +105,7 @@ class LiftoffAssembler : public TurboAssembler {
 
     union {
       LiftoffRegister reg_;  // used if loc_ == kRegister
-      int32_t i32_const_;    // used if loc_ == KIntConst
+      int32_t i32_const_;    // used if loc_ == kIntConst
     };
   };
 

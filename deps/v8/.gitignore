@@ -23,6 +23,7 @@
 *~
 .#*
 .*.sw?
+.ccls-cache
 .cpplint-cache
 .cproject
 .d8_history

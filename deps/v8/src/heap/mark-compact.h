@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_MARK_COMPACT_H_
 #define V8_HEAP_MARK_COMPACT_H_
 
+#include <atomic>
 #include <vector>
 
 #include "src/heap/concurrent-marking.h"
@@ -14,7 +15,7 @@
 #include "src/heap/sweeper.h"
 #include "src/heap/worklist.h"
 #include "src/objects/heap-object.h"   // For Worklist<HeapObject, ...>
-#include "src/objects/js-weak-refs.h"  // For Worklist<JSWeakCell, ...>
+#include "src/objects/js-weak-refs.h"  // For Worklist<WeakCell, ...>
 
 namespace v8 {
 namespace internal {
@@ -184,7 +185,9 @@ class LiveObjectRange {
       : chunk_(chunk),
         bitmap_(bitmap),
         start_(chunk_->area_start()),
-        end_(chunk->area_end()) {}
+        end_(chunk->area_end()) {
+    DCHECK(!chunk->IsLargePage());
+  }
 
   inline iterator begin();
   inline iterator end();
@@ -297,8 +300,8 @@ class MarkCompactCollectorBase {
 class MinorMarkingState final
     : public MarkingStateBase<MinorMarkingState, AccessMode::ATOMIC> {
  public:
-  Bitmap* bitmap(const MemoryChunk* chunk) const {
-    return chunk->young_generation_bitmap_;
+  ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(const MemoryChunk* chunk) const {
+    return chunk->young_generation_bitmap<AccessMode::ATOMIC>();
   }
 
   void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
@@ -318,20 +321,24 @@ class MinorNonAtomicMarkingState final
     : public MarkingStateBase<MinorNonAtomicMarkingState,
                               AccessMode::NON_ATOMIC> {
  public:
-  Bitmap* bitmap(const MemoryChunk* chunk) const {
-    return chunk->young_generation_bitmap_;
+  ConcurrentBitmap<AccessMode::NON_ATOMIC>* bitmap(
+      const MemoryChunk* chunk) const {
+    return chunk->young_generation_bitmap<AccessMode::NON_ATOMIC>();
   }
 
   void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-    chunk->young_generation_live_byte_count_ += by;
+    chunk->young_generation_live_byte_count_.fetch_add(
+        by, std::memory_order_relaxed);
   }
 
   intptr_t live_bytes(MemoryChunk* chunk) const {
-    return chunk->young_generation_live_byte_count_;
+    return chunk->young_generation_live_byte_count_.load(
+        std::memory_order_relaxed);
   }
 
   void SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
-    chunk->young_generation_live_byte_count_ = value;
+    chunk->young_generation_live_byte_count_.store(value,
+                                                   std::memory_order_relaxed);
   }
 };
 
@@ -339,14 +346,15 @@ class MinorNonAtomicMarkingState final
 class IncrementalMarkingState final
     : public MarkingStateBase<IncrementalMarkingState, AccessMode::ATOMIC> {
  public:
-  Bitmap* bitmap(const MemoryChunk* chunk) const {
+  ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(const MemoryChunk* chunk) const {
     DCHECK_EQ(reinterpret_cast<intptr_t>(&chunk->marking_bitmap_) -
                   reinterpret_cast<intptr_t>(chunk),
               MemoryChunk::kMarkBitmapOffset);
-    return chunk->marking_bitmap_;
+    return chunk->marking_bitmap<AccessMode::ATOMIC>();
   }
 
-  // Concurrent marking uses local live bytes.
+  // Concurrent marking uses local live bytes so we may do these accesses
+  // non-atomically.
   void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
     chunk->live_byte_count_ += by;
   }
@@ -363,23 +371,16 @@ class IncrementalMarkingState final
 class MajorAtomicMarkingState final
     : public MarkingStateBase<MajorAtomicMarkingState, AccessMode::ATOMIC> {
  public:
-  Bitmap* bitmap(const MemoryChunk* chunk) const {
+  ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(const MemoryChunk* chunk) const {
     DCHECK_EQ(reinterpret_cast<intptr_t>(&chunk->marking_bitmap_) -
                   reinterpret_cast<intptr_t>(chunk),
               MemoryChunk::kMarkBitmapOffset);
-    return chunk->marking_bitmap_;
+    return chunk->marking_bitmap<AccessMode::ATOMIC>();
   }
 
   void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-    chunk->live_byte_count_ += by;
-  }
-
-  intptr_t live_bytes(MemoryChunk* chunk) const {
-    return chunk->live_byte_count_;
-  }
-
-  void SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
-    chunk->live_byte_count_ = value;
+    std::atomic_fetch_add(
+        reinterpret_cast<std::atomic<intptr_t>*>(&chunk->live_byte_count_), by);
   }
 };
 
@@ -387,11 +388,12 @@ class MajorNonAtomicMarkingState final
     : public MarkingStateBase<MajorNonAtomicMarkingState,
                               AccessMode::NON_ATOMIC> {
  public:
-  Bitmap* bitmap(const MemoryChunk* chunk) const {
+  ConcurrentBitmap<AccessMode::NON_ATOMIC>* bitmap(
+      const MemoryChunk* chunk) const {
     DCHECK_EQ(reinterpret_cast<intptr_t>(&chunk->marking_bitmap_) -
                   reinterpret_cast<intptr_t>(chunk),
               MemoryChunk::kMarkBitmapOffset);
-    return chunk->marking_bitmap_;
+    return chunk->marking_bitmap<AccessMode::NON_ATOMIC>();
   }
 
   void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
@@ -446,7 +448,7 @@ struct WeakObjects {
   Worklist<std::pair<HeapObject, Code>, 64> weak_objects_in_code;
 
   Worklist<JSWeakRef, 64> js_weak_refs;
-  Worklist<JSWeakCell, 64> js_weak_cells;
+  Worklist<WeakCell, 64> weak_cells;
 
   Worklist<SharedFunctionInfo, 64> bytecode_flushing_candidates;
   Worklist<JSFunction, 64> flushed_js_functions;
@@ -526,6 +528,12 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
       shared_.Update(callback);
       on_hold_.Update(callback);
       embedder_.Update(callback);
+    }
+
+    void ShareWorkIfGlobalPoolIsEmpty() {
+      if (!shared_.IsLocalEmpty(kMainThread) && shared_.IsGlobalPoolEmpty()) {
+        shared_.FlushToGlobal(kMainThread);
+      }
     }
 
     ConcurrentMarkingWorklist* shared() { return &shared_; }
@@ -658,8 +666,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     weak_objects_.js_weak_refs.Push(kMainThread, weak_ref);
   }
 
-  void AddWeakCell(JSWeakCell weak_cell) {
-    weak_objects_.js_weak_cells.Push(kMainThread, weak_cell);
+  void AddWeakCell(WeakCell weak_cell) {
+    weak_objects_.weak_cells.Push(kMainThread, weak_cell);
   }
 
   inline void AddBytecodeFlushingCandidate(SharedFunctionInfo flush_candidate);
@@ -701,10 +709,13 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   unsigned epoch() const { return epoch_; }
 
- private:
   explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector() override;
 
+  // Used by wrapper tracing.
+  V8_INLINE void MarkExternallyReferencedObject(HeapObject obj);
+
+ private:
   void ComputeEvacuationHeuristics(size_t area_size,
                                    int* target_fragmentation_percent,
                                    size_t* max_evacuated_bytes);
@@ -723,9 +734,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Marks the object black and adds it to the marking work list.
   // This is for non-incremental marking only.
   V8_INLINE void MarkRootObject(Root root, HeapObject obj);
-
-  // Used by wrapper tracing.
-  V8_INLINE void MarkExternallyReferencedObject(HeapObject obj);
 
   // Mark the heap roots and all objects reachable from them.
   void MarkRoots(RootVisitor* root_visitor,
@@ -817,9 +825,9 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // transition.
   void ClearWeakReferences();
 
-  // Goes through the list of encountered JSWeakCells and clears those with dead
-  // values.
-  void ClearJSWeakCells();
+  // Goes through the list of encountered JSWeakRefs and WeakCells and clears
+  // those with dead values.
+  void ClearJSWeakRefs();
 
   void AbortWeakObjects();
 
@@ -904,9 +912,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // used, so it is okay if this counter overflows and wraps around.
   unsigned epoch_ = 0;
 
-  friend class EphemeronHashTableMarkingTask;
   friend class FullEvacuator;
-  friend class Heap;
   friend class RecordMigratedSlotVisitor;
 };
 
@@ -938,7 +944,7 @@ class MarkingVisitor final
   V8_INLINE int VisitMap(Map map, Map object);
   V8_INLINE int VisitSharedFunctionInfo(Map map, SharedFunctionInfo object);
   V8_INLINE int VisitTransitionArray(Map map, TransitionArray object);
-  V8_INLINE int VisitJSWeakCell(Map map, JSWeakCell object);
+  V8_INLINE int VisitWeakCell(Map map, WeakCell object);
   V8_INLINE int VisitJSWeakRef(Map map, JSWeakRef object);
 
   // ObjectVisitor implementation.

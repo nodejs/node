@@ -7,89 +7,9 @@
 namespace v8 {
 namespace internal {
 
-void Bitmap::Clear() {
-  base::Atomic32* cell_base = reinterpret_cast<base::Atomic32*>(cells());
-  for (int i = 0; i < CellsCount(); i++) {
-    base::Relaxed_Store(cell_base + i, 0);
-  }
-  // This fence prevents re-ordering of publishing stores with the mark-bit
-  // clearing stores.
-  base::SeqCst_MemoryFence();
-}
-
-void Bitmap::MarkAllBits() {
-  base::Atomic32* cell_base = reinterpret_cast<base::Atomic32*>(cells());
-  for (int i = 0; i < CellsCount(); i++) {
-    base::Relaxed_Store(cell_base + i, 0xffffffff);
-  }
-  // This fence prevents re-ordering of publishing stores with the mark-bit
-  // clearing stores.
-  base::SeqCst_MemoryFence();
-}
-
-void Bitmap::SetRange(uint32_t start_index, uint32_t end_index) {
-  if (start_index >= end_index) return;
-  end_index--;
-
-  unsigned int start_cell_index = start_index >> Bitmap::kBitsPerCellLog2;
-  MarkBit::CellType start_index_mask = 1u << Bitmap::IndexInCell(start_index);
-  unsigned int end_cell_index = end_index >> Bitmap::kBitsPerCellLog2;
-  MarkBit::CellType end_index_mask = 1u << Bitmap::IndexInCell(end_index);
-  if (start_cell_index != end_cell_index) {
-    // Firstly, fill all bits from the start address to the end of the first
-    // cell with 1s.
-    SetBitsInCell<AccessMode::ATOMIC>(start_cell_index,
-                                      ~(start_index_mask - 1));
-    // Then fill all in between cells with 1s.
-    base::Atomic32* cell_base = reinterpret_cast<base::Atomic32*>(cells());
-    for (unsigned int i = start_cell_index + 1; i < end_cell_index; i++) {
-      base::Relaxed_Store(cell_base + i, ~0u);
-    }
-    // Finally, fill all bits until the end address in the last cell with 1s.
-    SetBitsInCell<AccessMode::ATOMIC>(end_cell_index,
-                                      end_index_mask | (end_index_mask - 1));
-  } else {
-    SetBitsInCell<AccessMode::ATOMIC>(
-        start_cell_index, end_index_mask | (end_index_mask - start_index_mask));
-  }
-  // This fence prevents re-ordering of publishing stores with the mark-
-  // bit setting stores.
-  base::SeqCst_MemoryFence();
-}
-
-void Bitmap::ClearRange(uint32_t start_index, uint32_t end_index) {
-  if (start_index >= end_index) return;
-  end_index--;
-
-  unsigned int start_cell_index = start_index >> Bitmap::kBitsPerCellLog2;
-  MarkBit::CellType start_index_mask = 1u << Bitmap::IndexInCell(start_index);
-
-  unsigned int end_cell_index = end_index >> Bitmap::kBitsPerCellLog2;
-  MarkBit::CellType end_index_mask = 1u << Bitmap::IndexInCell(end_index);
-
-  if (start_cell_index != end_cell_index) {
-    // Firstly, fill all bits from the start address to the end of the first
-    // cell with 0s.
-    ClearBitsInCell<AccessMode::ATOMIC>(start_cell_index,
-                                        ~(start_index_mask - 1));
-    // Then fill all in between cells with 0s.
-    base::Atomic32* cell_base = reinterpret_cast<base::Atomic32*>(cells());
-    for (unsigned int i = start_cell_index + 1; i < end_cell_index; i++) {
-      base::Relaxed_Store(cell_base + i, 0);
-    }
-    // Finally, set all bits until the end address in the last cell with 0s.
-    ClearBitsInCell<AccessMode::ATOMIC>(end_cell_index,
-                                        end_index_mask | (end_index_mask - 1));
-  } else {
-    ClearBitsInCell<AccessMode::ATOMIC>(
-        start_cell_index, end_index_mask | (end_index_mask - start_index_mask));
-  }
-  // This fence prevents re-ordering of publishing stores with the mark-
-  // bit clearing stores.
-  base::SeqCst_MemoryFence();
-}
-
-bool Bitmap::AllBitsSetInRange(uint32_t start_index, uint32_t end_index) {
+template <>
+bool ConcurrentBitmap<AccessMode::NON_ATOMIC>::AllBitsSetInRange(
+    uint32_t start_index, uint32_t end_index) {
   if (start_index >= end_index) return false;
   end_index--;
 
@@ -116,7 +36,9 @@ bool Bitmap::AllBitsSetInRange(uint32_t start_index, uint32_t end_index) {
   }
 }
 
-bool Bitmap::AllBitsClearInRange(uint32_t start_index, uint32_t end_index) {
+template <>
+bool ConcurrentBitmap<AccessMode::NON_ATOMIC>::AllBitsClearInRange(
+    uint32_t start_index, uint32_t end_index) {
   if (start_index >= end_index) return true;
   end_index--;
 
@@ -193,7 +115,8 @@ class CellPrinter {
 
 }  // anonymous namespace
 
-void Bitmap::Print() {
+template <>
+void ConcurrentBitmap<AccessMode::NON_ATOMIC>::Print() {
   CellPrinter printer;
   for (int i = 0; i < CellsCount(); i++) {
     printer.Print(i, cells()[i]);
@@ -202,7 +125,8 @@ void Bitmap::Print() {
   PrintF("\n");
 }
 
-bool Bitmap::IsClean() {
+template <>
+bool ConcurrentBitmap<AccessMode::NON_ATOMIC>::IsClean() {
   for (int i = 0; i < CellsCount(); i++) {
     if (cells()[i] != 0) {
       return false;

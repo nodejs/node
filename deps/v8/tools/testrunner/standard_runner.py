@@ -4,6 +4,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+from functools import reduce
 
 import os
 import re
@@ -29,7 +32,7 @@ ARCH_GUESS = utils.DefaultArch()
 VARIANTS = ["default"]
 
 MORE_VARIANTS = [
-  "nooptimization",
+  "jitless",
   "stress",
   "stress_background_compile",
   "stress_incremental_marking",
@@ -43,7 +46,7 @@ VARIANT_ALIASES = {
   # Shortcut for the two above ("more" first - it has the longer running tests).
   "exhaustive": MORE_VARIANTS + VARIANTS,
   # Additional variants, run on a subset of bots.
-  "extra": ["future", "no_liftoff", "no_wasm_traps", "trusted"],
+  "extra": ["nooptimization", "future", "no_liftoff", "no_wasm_traps"],
 }
 
 GC_STRESS_FLAGS = ["--gc-interval=500", "--stress-compaction",
@@ -217,7 +220,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
       def CheckTestMode(name, option):  # pragma: no cover
         if not option in ["run", "skip", "dontcare"]:
-          print "Unknown %s mode %s" % (name, option)
+          print("Unknown %s mode %s" % (name, option))
           raise base_runner.TestRunnerError()
       CheckTestMode("slow test", options.slow_tests)
       CheckTestMode("pass|fail test", options.pass_fail_tests)
@@ -240,7 +243,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
       for v in user_variants:
         if v not in ALL_VARIANTS:
-          print 'Unknown variant: %s' % v
+          print('Unknown variant: %s' % v)
           raise base_runner.TestRunnerError()
       assert False, 'Unreachable'
 
@@ -280,10 +283,11 @@ class StandardTestRunner(base_runner.BaseTestRunner):
     def _do_execute(self, tests, args, options):
       jobs = options.j
 
-      print '>>> Running with test processors'
-      loader = LoadProc()
+      print('>>> Running with test processors')
+      loader = LoadProc(tests)
       results = self._create_result_tracker(options)
-      indicators = self._create_progress_indicators(options)
+      indicators = self._create_progress_indicators(
+          tests.test_count_estimate, options)
 
       outproc_factory = None
       if self.build_config.predictable:
@@ -295,10 +299,10 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         loader,
         NameFilterProc(args) if args else None,
         StatusFileFilterProc(options.slow_tests, options.pass_fail_tests),
-        self._create_shard_proc(options),
         VariantProc(self._variants),
         StatusFileFilterProc(options.slow_tests, options.pass_fail_tests),
         self._create_predictable_filter(),
+        self._create_shard_proc(options),
         self._create_seed_proc(options),
         sigproc,
       ] + indicators + [
@@ -310,7 +314,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
       self._prepare_procs(procs)
 
-      loader.load_tests(tests)
+      loader.load_initial_tests(initial_batch_size=options.j*2)
 
       # This starts up worker processes and blocks until all tests are
       # processed.
@@ -319,7 +323,17 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       for indicator in indicators:
         indicator.finished()
 
-      print '>>> %d tests ran' % (results.total - results.remaining)
+
+      if tests.test_count_estimate:
+        percentage = float(results.total) / tests.test_count_estimate * 100
+      else:
+        percentage = 0
+
+      print (('>>> %d base tests produced %d (%d%s)'
+             ' non-filtered tests') % (
+          tests.test_count_estimate, results.total, percentage, '%'))
+
+      print('>>> %d tests ran' % (results.total - results.remaining))
 
       exit_code = utils.EXIT_CODE_PASS
       if results.failed:
@@ -328,13 +342,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         exit_code = utils.EXIT_CODE_NO_TESTS
 
       # Indicate if a SIGINT or SIGTERM happened.
-      exit_code = max(exit_code, sigproc.exit_code)
-
-      if exit_code == utils.EXIT_CODE_FAILURES and options.json_test_results:
-        print("Force exit code 0 after failures. Json test results file "
-              "generated with failure information.")
-        exit_code = utils.EXIT_CODE_PASS
-      return exit_code
+      return max(exit_code, sigproc.exit_code)
 
     def _create_predictable_filter(self):
       if not self.build_config.predictable:

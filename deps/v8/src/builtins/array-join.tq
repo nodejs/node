@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array {
+namespace array_join {
   type LoadJoinElementFn = builtin(Context, JSReceiver, Number) => Object;
 
   // Fast C call to write a fixed array (see Buffer.fixedArray) to a single
@@ -16,7 +16,7 @@ namespace array {
     return GetProperty(receiver, k);
   }
 
-  LoadJoinElement<DictionaryElements>(
+  LoadJoinElement<array::DictionaryElements>(
       context: Context, receiver: JSReceiver, k: Number): Object {
     const array: JSArray = UnsafeCast<JSArray>(receiver);
     const dict: NumberDictionary = UnsafeCast<NumberDictionary>(array.elements);
@@ -32,27 +32,22 @@ namespace array {
     }
   }
 
-  LoadJoinElement<FastSmiOrObjectElements>(
+  LoadJoinElement<array::FastSmiOrObjectElements>(
       context: Context, receiver: JSReceiver, k: Number): Object {
     const array: JSArray = UnsafeCast<JSArray>(receiver);
     const fixedArray: FixedArray = UnsafeCast<FixedArray>(array.elements);
-    const element: Object = fixedArray[UnsafeCast<Smi>(k)];
+    const element: Object = fixedArray.objects[UnsafeCast<Smi>(k)];
     return element == Hole ? kEmptyString : element;
   }
 
-  LoadJoinElement<FastDoubleElements>(
+  LoadJoinElement<array::FastDoubleElements>(
       context: Context, receiver: JSReceiver, k: Number): Object {
     const array: JSArray = UnsafeCast<JSArray>(receiver);
     const fixedDoubleArray: FixedDoubleArray =
         UnsafeCast<FixedDoubleArray>(array.elements);
-    try {
-      const element: float64 = LoadDoubleWithHoleCheck(
-          fixedDoubleArray, UnsafeCast<Smi>(k)) otherwise IfHole;
-      return AllocateHeapNumberWithValue(element);
-    }
-    label IfHole {
-      return kEmptyString;
-    }
+    const element: float64 = LoadDoubleWithHoleCheck(
+        fixedDoubleArray, UnsafeCast<Smi>(k)) otherwise return kEmptyString;
+    return AllocateHeapNumberWithValue(element);
   }
 
   builtin LoadJoinTypedElement<T: type>(
@@ -83,7 +78,7 @@ namespace array {
       return ToString_Inline(context, result);
     }
     label TypeError {
-      ThrowTypeError(context, kCalledNonCallable, prop);
+      ThrowTypeError(kCalledNonCallable, prop);
     }
   }
 
@@ -98,7 +93,7 @@ namespace array {
       loadFn: LoadJoinElementFn, receiver: JSReceiver, originalMap: Map,
       originalLen: Number): never
       labels Cannot, Can {
-    if (loadFn == LoadJoinElement<GenericElementsAccessor>) goto Can;
+    if (loadFn == LoadJoinElement<array::GenericElementsAccessor>) goto Can;
 
     const array: JSArray = UnsafeCast<JSArray>(receiver);
     if (originalMap != array.map) goto Cannot;
@@ -139,7 +134,7 @@ namespace array {
     const length: intptr = fixedArray.length_intptr;
     assert(index <= length);
     if (index < length) {
-      fixedArray[index] = element;
+      fixedArray.objects[index] = element;
       return fixedArray;
     } else
       deferred {
@@ -147,16 +142,49 @@ namespace array {
         assert(index < newLength);
         const newfixedArray: FixedArray =
             ExtractFixedArray(fixedArray, 0, length, newLength, kFixedArrays);
-        newfixedArray[index] = element;
+        newfixedArray.objects[index] = element;
         return newfixedArray;
       }
   }
 
   // Contains the information necessary to create a single, separator delimited,
   // flattened one or two byte string.
-  // The buffer is maintained and updated by BufferInit(), BufferAdd(),
-  // BufferAddSeparators().
+  // The buffer is maintained and updated by Buffer.constructor, Buffer.Add(),
+  // Buffer.AddSeparators().
   struct Buffer {
+    Add(implicit context: Context)(
+        str: String, nofSeparators: intptr, separatorLength: intptr) {
+      // Add separators if necessary (at the beginning or more than one)
+      const writeSeparators: bool = this.index == 0 | nofSeparators > 1;
+      this.AddSeparators(nofSeparators, separatorLength, writeSeparators);
+
+      this.totalStringLength =
+          AddStringLength(this.totalStringLength, str.length);
+      this.fixedArray =
+          StoreAndGrowFixedArray(this.fixedArray, this.index++, str);
+      this.isOneByte =
+          IsOneByteStringInstanceType(str.instanceType) & this.isOneByte;
+    }
+
+    AddSeparators(implicit context: Context)(
+        nofSeparators: intptr, separatorLength: intptr, write: bool) {
+      if (nofSeparators == 0 || separatorLength == 0) return;
+
+      const nofSeparatorsInt: intptr = nofSeparators;
+      const sepsLen: intptr = separatorLength * nofSeparatorsInt;
+      // Detect integer overflow
+      // TODO(tebbi): Replace with overflow-checked multiplication.
+      if (sepsLen / separatorLength != nofSeparatorsInt) deferred {
+          ThrowInvalidStringLength(context);
+        }
+
+      this.totalStringLength = AddStringLength(this.totalStringLength, sepsLen);
+      if (write) deferred {
+          this.fixedArray = StoreAndGrowFixedArray(
+              this.fixedArray, this.index++, Convert<Smi>(nofSeparatorsInt));
+        }
+    }
+
     // Fixed array holding elements that are either:
     //   1) String result of `ToString(next)`.
     //   2) Smi representing the number of consecutive separators.
@@ -185,57 +213,17 @@ namespace array {
     isOneByte: bool;
   }
 
-  macro BufferInit(len: uintptr, sep: String): Buffer {
+  macro NewBuffer(len: uintptr, sep: String): Buffer {
     const cappedBufferSize: intptr = len > kMaxNewSpaceFixedArrayElements ?
         kMaxNewSpaceFixedArrayElements :
         Signed(len);
     assert(cappedBufferSize > 0);
-    const fixedArray: FixedArray = AllocateZeroedFixedArray(cappedBufferSize);
-    const isOneByte: bool = HasOnlyOneByteChars(sep.instanceType);
-    return Buffer{fixedArray, 0, 0, isOneByte};
-  }
-
-  macro BufferAdd(implicit context: Context)(
-      initialBuffer: Buffer, str: String, nofSeparators: intptr,
-      separatorLength: intptr): Buffer {
-    let buffer: Buffer = initialBuffer;
-    // Add separators if necessary (at the beginning or more than one)
-    const writeSeparators: bool = buffer.index == 0 | nofSeparators > 1;
-    buffer = BufferAddSeparators(
-        buffer, nofSeparators, separatorLength, writeSeparators);
-
-    const totalStringLength: intptr =
-        AddStringLength(buffer.totalStringLength, str.length);
-    let index: intptr = buffer.index;
-    const fixedArray: FixedArray =
-        StoreAndGrowFixedArray(buffer.fixedArray, index++, str);
-    const isOneByte: bool =
-        HasOnlyOneByteChars(str.instanceType) & buffer.isOneByte;
-    return Buffer{fixedArray, index, totalStringLength, isOneByte};
-  }
-
-  macro BufferAddSeparators(implicit context: Context)(
-      buffer: Buffer, nofSeparators: intptr, separatorLength: intptr,
-      write: bool): Buffer {
-    if (nofSeparators == 0 || separatorLength == 0) return buffer;
-
-    const nofSeparatorsInt: intptr = nofSeparators;
-    const sepsLen: intptr = separatorLength * nofSeparatorsInt;
-    // Detect integer overflow
-    // TODO(tebbi): Replace with overflow-checked multiplication.
-    if (sepsLen / separatorLength != nofSeparatorsInt) deferred {
-        ThrowInvalidStringLength(context);
-      }
-
-    const totalStringLength: intptr =
-        AddStringLength(buffer.totalStringLength, sepsLen);
-    let index: intptr = buffer.index;
-    let fixedArray: FixedArray = buffer.fixedArray;
-    if (write) deferred {
-        fixedArray = StoreAndGrowFixedArray(
-            buffer.fixedArray, index++, Convert<Smi>(nofSeparatorsInt));
-      }
-    return Buffer{fixedArray, index, totalStringLength, buffer.isOneByte};
+    return Buffer{
+      AllocateZeroedFixedArray(cappedBufferSize),
+      0,
+      0,
+      IsOneByteStringInstanceType(sep.instanceType)
+    };
   }
 
   macro BufferJoin(implicit context: Context)(buffer: Buffer, sep: String):
@@ -246,7 +234,7 @@ namespace array {
     // Fast path when there's only one buffer element.
     if (buffer.index == 1) {
       const fixedArray: FixedArray = buffer.fixedArray;
-      typeswitch (fixedArray[0]) {
+      typeswitch (fixedArray.objects[0]) {
         // When the element is a string, just return it and completely avoid
         // allocating another string.
         case (str: String): {
@@ -280,7 +268,7 @@ namespace array {
     const separatorLength: intptr = sep.length;
     let nofSeparators: intptr = 0;
     let loadFn: LoadJoinElementFn = initialLoadFn;
-    let buffer: Buffer = BufferInit(len, sep);
+    let buffer: Buffer = NewBuffer(len, sep);
 
     // 6. Let k be 0.
     let k: uintptr = 0;
@@ -290,7 +278,7 @@ namespace array {
       if (CannotUseSameArrayAccessor<T>(
               loadFn, receiver, initialMap, lengthNumber))
         deferred {
-          loadFn = LoadJoinElement<GenericElementsAccessor>;
+          loadFn = LoadJoinElement<array::GenericElementsAccessor>;
         }
 
       if (k > 0) {
@@ -324,12 +312,12 @@ namespace array {
       }
 
       // d. Set R to the string-concatenation of R and next.
-      buffer = BufferAdd(buffer, next, nofSeparators, separatorLength);
+      buffer.Add(next, nofSeparators, separatorLength);
       nofSeparators = 0;
     }
 
     // Add any separators at the end.
-    buffer = BufferAddSeparators(buffer, nofSeparators, separatorLength, true);
+    buffer.AddSeparators(nofSeparators, separatorLength, true);
 
     // 8. Return R.
     return BufferJoin(buffer, sep);
@@ -353,9 +341,9 @@ namespace array {
       if (IsNoElementsProtectorCellInvalid()) goto IfSlowPath;
 
       if (IsElementsKindLessThanOrEqual(kind, HOLEY_ELEMENTS)) {
-        loadFn = LoadJoinElement<FastSmiOrObjectElements>;
+        loadFn = LoadJoinElement<array::FastSmiOrObjectElements>;
       } else if (IsElementsKindLessThanOrEqual(kind, HOLEY_DOUBLE_ELEMENTS)) {
-        loadFn = LoadJoinElement<FastDoubleElements>;
+        loadFn = LoadJoinElement<array::FastDoubleElements>;
       } else if (kind == DICTIONARY_ELEMENTS)
         deferred {
           const dict: NumberDictionary =
@@ -372,7 +360,7 @@ namespace array {
               ThrowInvalidStringLength(context);
             }
           } else {
-            loadFn = LoadJoinElement<DictionaryElements>;
+            loadFn = LoadJoinElement<array::DictionaryElements>;
           }
         }
       else {
@@ -380,7 +368,7 @@ namespace array {
       }
     }
     label IfSlowPath {
-      loadFn = LoadJoinElement<GenericElementsAccessor>;
+      loadFn = LoadJoinElement<array::GenericElementsAccessor>;
     }
     return ArrayJoinImpl<JSArray>(
         receiver, sep, lenNumber, useToLocaleString, locales, options, loadFn);
@@ -457,11 +445,11 @@ namespace array {
       stack: FixedArray, receiver: JSReceiver): Boolean {
     const capacity: intptr = stack.length_intptr;
     for (let i: intptr = 0; i < capacity; i++) {
-      const previouslyVisited: Object = stack[i];
+      const previouslyVisited: Object = stack.objects[i];
 
       // Add `receiver` to the first open slot
       if (previouslyVisited == Hole) {
-        stack[i] = receiver;
+        stack.objects[i] = receiver;
         return True;
       }
 
@@ -485,8 +473,8 @@ namespace array {
     try {
       const stack: FixedArray = LoadJoinStack()
           otherwise IfUninitialized;
-      if (stack[0] == Hole) {
-        stack[0] = receiver;
+      if (stack.objects[0] == Hole) {
+        stack.objects[0] = receiver;
       } else if (JoinStackPush(stack, receiver) == False)
         deferred {
           goto ReceiverNotAdded;
@@ -495,7 +483,7 @@ namespace array {
     label IfUninitialized {
       const stack: FixedArray =
           AllocateFixedArrayWithHoles(kMinJoinStackSize, kNone);
-      stack[0] = receiver;
+      stack.objects[0] = receiver;
       SetJoinStack(stack);
     }
     goto ReceiverAdded;
@@ -507,7 +495,7 @@ namespace array {
       stack: FixedArray, receiver: JSReceiver): Object {
     const len: intptr = stack.length_intptr;
     for (let i: intptr = 0; i < len; i++) {
-      if (stack[i] == receiver) {
+      if (stack.objects[i] == receiver) {
         // Shrink the Join Stack if the stack will be empty and is larger than
         // the minimum size.
         if (i == 0 && len > kMinJoinStackSize) deferred {
@@ -516,7 +504,7 @@ namespace array {
             SetJoinStack(newStack);
           }
         else {
-          stack[i] = Hole;
+          stack.objects[i] = Hole;
         }
         return Undefined;
       }
@@ -532,7 +520,7 @@ namespace array {
 
     // Builtin call was not nested (receiver is the first entry) and
     // did not contain other nested arrays that expanded the stack.
-    if (stack[0] == receiver && len == kMinJoinStackSize) {
+    if (stack.objects[0] == receiver && len == kMinJoinStackSize) {
       StoreFixedArrayElement(stack, 0, Hole, SKIP_WRITE_BARRIER);
     } else
       deferred {
@@ -580,7 +568,7 @@ namespace array {
 
     // Only handle valid array lengths. Although the spec allows larger values,
     // this matches historical V8 behavior.
-    if (len > kMaxArrayIndex + 1) ThrowTypeError(context, kInvalidArrayLength);
+    if (len > kMaxArrayIndex + 1) ThrowTypeError(kInvalidArrayLength);
 
     return CycleProtectedArrayJoin<JSArray>(
         false, o, len, separator, Undefined, Undefined);
@@ -600,7 +588,7 @@ namespace array {
 
     // Only handle valid array lengths. Although the spec allows larger values,
     // this matches historical V8 behavior.
-    if (len > kMaxArrayIndex + 1) ThrowTypeError(context, kInvalidArrayLength);
+    if (len > kMaxArrayIndex + 1) ThrowTypeError(kInvalidArrayLength);
 
     return CycleProtectedArrayJoin<JSArray>(
         true, o, len, ',', locales, options);

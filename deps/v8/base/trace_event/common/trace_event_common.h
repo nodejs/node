@@ -984,8 +984,6 @@
   INTERNAL_TRACE_EVENT_ADD_WITH_ID(                                   \
       TRACE_EVENT_PHASE_LEAVE_CONTEXT, category_group, name, context, \
       TRACE_EVENT_FLAG_NONE)
-#define TRACE_EVENT_SCOPED_CONTEXT(category_group, name, context) \
-  INTERNAL_TRACE_EVENT_SCOPED_CONTEXT(category_group, name, context)
 
 // Macro to specify that two trace IDs are identical. For example,
 // TRACE_LINK_IDS(

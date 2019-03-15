@@ -12,10 +12,10 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-DEFINE_CONTEXTUAL_VARIABLE(CurrentAst);
+DEFINE_CONTEXTUAL_VARIABLE(CurrentAst)
 
 using TypeList = std::vector<TypeExpression*>;
-using GenericParameters = std::vector<std::string>;
+using GenericParameters = std::vector<Identifier*>;
 
 struct ExpressionWithSource {
   Expression* expression;
@@ -27,43 +27,6 @@ struct TypeswitchCase {
   base::Optional<std::string> name;
   TypeExpression* type;
   Statement* block;
-};
-
-enum class ParseResultHolderBase::TypeId {
-  kStdString,
-  kBool,
-  kStdVectorOfString,
-  kExpressionPtr,
-  kLocationExpressionPtr,
-  kStatementPtr,
-  kDeclarationPtr,
-  kTypeExpressionPtr,
-  kLabelBlockPtr,
-  kOptionalLabelBlockPtr,
-  kNameAndTypeExpression,
-  kClassFieldExpression,
-  kStructFieldExpression,
-  kStdVectorOfNameAndTypeExpression,
-  kStdVectorOfClassFieldExpression,
-  kStdVectorOfStructFieldExpression,
-  kIncrementDecrementOperator,
-  kOptionalStdString,
-  kStdVectorOfStatementPtr,
-  kStdVectorOfDeclarationPtr,
-  kStdVectorOfExpressionPtr,
-  kExpressionWithSource,
-  kParameterList,
-  kRangeExpression,
-  kOptionalRangeExpression,
-  kTypeList,
-  kOptionalTypeList,
-  kLabelAndTypes,
-  kStdVectorOfLabelAndTypes,
-  kStdVectorOfLabelBlockPtr,
-  kOptionalStatementPtr,
-  kOptionalExpressionPtr,
-  kTypeswitchCase,
-  kStdVectorOfTypeswitchCase
 };
 
 template <>
@@ -84,6 +47,10 @@ V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<TypeExpression*>::id =
         ParseResultTypeId::kTypeExpressionPtr;
 template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<base::Optional<TypeExpression*>>::id =
+        ParseResultTypeId::kOptionalTypeExpressionPtr;
+template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<LabelBlock*>::id =
     ParseResultTypeId::kLabelBlockPtr;
 template <>
@@ -93,6 +60,9 @@ V8_EXPORT_PRIVATE const ParseResultTypeId
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<Expression*>::id =
     ParseResultTypeId::kExpressionPtr;
+template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<Identifier*>::id =
+    ParseResultTypeId::kIdentifierPtr;
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<LocationExpression*>::id =
@@ -192,6 +162,10 @@ template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<std::vector<TypeswitchCase>>::id =
         ParseResultTypeId::kStdVectorOfTypeswitchCase;
+template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<std::vector<Identifier*>>::id =
+        ParseResultTypeId::kStdVectorOfIdentifierPtr;
 
 namespace {
 
@@ -203,9 +177,10 @@ base::Optional<ParseResult> AddGlobalDeclaration(
 }
 
 void LintGenericParameters(const GenericParameters& parameters) {
-  for (const std::string& parameter : parameters) {
-    if (!IsUpperCamelCase(parameter)) {
-      NamingConventionError("Generic parameter", parameter, "UpperCamelCase");
+  for (const Identifier* parameter : parameters) {
+    if (!IsUpperCamelCase(parameter->value)) {
+      NamingConventionError("Generic parameter", parameter->value,
+                            "UpperCamelCase");
     }
   }
 }
@@ -238,7 +213,7 @@ Expression* MakeCall(IdentifierExpression* callee,
         if (id->generic_arguments.size() != 0) {
           ReportError("An otherwise label cannot have generic parameters");
         }
-        labels.push_back(id->name);
+        labels.push_back(id->name->value);
         continue;
       }
     }
@@ -268,7 +243,8 @@ Expression* MakeCall(const std::string& callee,
                      const std::vector<TypeExpression*>& generic_arguments,
                      const std::vector<Expression*>& arguments,
                      const std::vector<Statement*>& otherwise) {
-  return MakeCall(MakeNode<IdentifierExpression>(callee, generic_arguments),
+  return MakeCall(MakeNode<IdentifierExpression>(MakeNode<Identifier>(callee),
+                                                 generic_arguments),
                   base::nullopt, arguments, otherwise);
 }
 
@@ -277,18 +253,7 @@ base::Optional<ParseResult> MakeCall(ParseResultIterator* child_results) {
   auto args = child_results->NextAs<std::vector<Expression*>>();
   auto otherwise = child_results->NextAs<std::vector<Statement*>>();
   IdentifierExpression* target = IdentifierExpression::cast(callee);
-  if (target->name == kSuperMethodName) {
-    if (target->namespace_qualification.size() != 0) {
-      ReportError(
-          "\"super\" invocation cannot be used with namespace qualification");
-    }
-    target = MakeNode<IdentifierExpression>(kSuperMethodName);
-    return ParseResult{
-        MakeCall(target, MakeNode<IdentifierExpression>(kThisParameterName),
-                 args, otherwise)};
-  } else {
     return ParseResult{MakeCall(target, base::nullopt, args, otherwise)};
-  }
 }
 
 base::Optional<ParseResult> MakeMethodCall(ParseResultIterator* child_results) {
@@ -296,8 +261,9 @@ base::Optional<ParseResult> MakeMethodCall(ParseResultIterator* child_results) {
   auto callee = child_results->NextAs<std::string>();
   auto args = child_results->NextAs<std::vector<Expression*>>();
   auto otherwise = child_results->NextAs<std::vector<Statement*>>();
-  return ParseResult{MakeCall(MakeNode<IdentifierExpression>(callee), this_arg,
-                              args, otherwise)};
+  return ParseResult{
+      MakeCall(MakeNode<IdentifierExpression>(MakeNode<Identifier>(callee)),
+               this_arg, args, otherwise)};
 }
 
 base::Optional<ParseResult> MakeNew(ParseResultIterator* child_results) {
@@ -346,8 +312,9 @@ base::Optional<ParseResult> MakeParameterListFromTypes(
   result.has_varargs = has_varargs;
   result.implicit_count = implicit_params.size();
   for (NameAndTypeExpression& implicit_param : implicit_params) {
-    if (!IsLowerCamelCase(implicit_param.name)) {
-      NamingConventionError("Parameter", implicit_param.name, "lowerCamelCase");
+    if (!IsLowerCamelCase(implicit_param.name->value)) {
+      NamingConventionError("Parameter", implicit_param.name->value,
+                            "lowerCamelCase");
     }
     result.names.push_back(implicit_param.name);
     result.types.push_back(implicit_param.type);
@@ -371,19 +338,19 @@ base::Optional<ParseResult> MakeParameterListFromNameAndTypeList(
   }
   ParameterList result;
   for (NameAndTypeExpression& pair : implicit_params) {
-    if (!IsLowerCamelCase(pair.name)) {
-      NamingConventionError("Parameter", pair.name, "lowerCamelCase");
+    if (!IsLowerCamelCase(pair.name->value)) {
+      NamingConventionError("Parameter", pair.name->value, "lowerCamelCase");
     }
 
     result.names.push_back(std::move(pair.name));
     result.types.push_back(pair.type);
   }
   for (NameAndTypeExpression& pair : explicit_params) {
-    if (!IsLowerCamelCase(pair.name)) {
-      NamingConventionError("Parameter", pair.name, "lowerCamelCase");
+    if (!IsLowerCamelCase(pair.name->value)) {
+      NamingConventionError("Parameter", pair.name->value, "lowerCamelCase");
     }
 
-    result.names.push_back(std::move(pair.name));
+    result.names.push_back(pair.name);
     result.types.push_back(pair.type);
   }
   result.implicit_count = implicit_params.size();
@@ -518,49 +485,48 @@ base::Optional<ParseResult> MakeTorqueBuiltinDeclaration(
 
 base::Optional<ParseResult> MakeConstDeclaration(
     ParseResultIterator* child_results) {
-  auto name = child_results->NextAs<std::string>();
-  if (!IsValidNamespaceConstName(name)) {
-    NamingConventionError("Constant", name, "kUpperCamelCase");
+  auto name = child_results->NextAs<Identifier*>();
+  if (!IsValidNamespaceConstName(name->value)) {
+    NamingConventionError("Constant", name->value, "kUpperCamelCase");
   }
 
   auto type = child_results->NextAs<TypeExpression*>();
   auto expression = child_results->NextAs<Expression*>();
-  Declaration* result =
-      MakeNode<ConstDeclaration>(std::move(name), type, expression);
+  Declaration* result = MakeNode<ConstDeclaration>(name, type, expression);
   return ParseResult{result};
 }
 
 base::Optional<ParseResult> MakeExternConstDeclaration(
     ParseResultIterator* child_results) {
-  auto name = child_results->NextAs<std::string>();
+  auto name = child_results->NextAs<Identifier*>();
   auto type = child_results->NextAs<TypeExpression*>();
   auto literal = child_results->NextAs<std::string>();
-  Declaration* result = MakeNode<ExternConstDeclaration>(std::move(name), type,
-                                                         std::move(literal));
+  Declaration* result =
+      MakeNode<ExternConstDeclaration>(name, type, std::move(literal));
   return ParseResult{result};
 }
 
 base::Optional<ParseResult> MakeTypeAliasDeclaration(
     ParseResultIterator* child_results) {
-  auto name = child_results->NextAs<std::string>();
+  auto name = child_results->NextAs<Identifier*>();
   auto type = child_results->NextAs<TypeExpression*>();
-  Declaration* result = MakeNode<TypeAliasDeclaration>(std::move(name), type);
+  Declaration* result = MakeNode<TypeAliasDeclaration>(name, type);
   return ParseResult{result};
 }
 
 base::Optional<ParseResult> MakeTypeDeclaration(
     ParseResultIterator* child_results) {
   auto transient = child_results->NextAs<bool>();
-  auto name = child_results->NextAs<std::string>();
-  if (!IsValidTypeName(name)) {
-    NamingConventionError("Type", name, "UpperCamelCase");
+  auto name = child_results->NextAs<Identifier*>();
+  if (!IsValidTypeName(name->value)) {
+    NamingConventionError("Type", name->value, "UpperCamelCase");
   }
   auto extends = child_results->NextAs<base::Optional<std::string>>();
   auto generates = child_results->NextAs<base::Optional<std::string>>();
   auto constexpr_generates =
       child_results->NextAs<base::Optional<std::string>>();
   Declaration* result = MakeNode<TypeDeclaration>(
-      std::move(name), transient, std::move(extends), std::move(generates),
+      name, transient, std::move(extends), std::move(generates),
       std::move(constexpr_generates));
   return ParseResult{result};
 }
@@ -570,7 +536,7 @@ base::Optional<ParseResult> MakeMethodDeclaration(
   auto transitioning = child_results->NextAs<bool>();
   auto operator_name = child_results->NextAs<base::Optional<std::string>>();
   auto name = child_results->NextAs<std::string>();
-  if (name != kConstructMethodName && !IsUpperCamelCase(name)) {
+  if (!IsUpperCamelCase(name)) {
     NamingConventionError("Method", name, "UpperCamelCase");
   }
 
@@ -586,17 +552,18 @@ base::Optional<ParseResult> MakeMethodDeclaration(
 
 base::Optional<ParseResult> MakeClassDeclaration(
     ParseResultIterator* child_results) {
+  auto is_extern = child_results->NextAs<bool>();
   auto transient = child_results->NextAs<bool>();
-  auto name = child_results->NextAs<std::string>();
-  if (!IsValidTypeName(name)) {
-    NamingConventionError("Type", name, "UpperCamelCase");
+  auto name = child_results->NextAs<Identifier*>();
+  if (!IsValidTypeName(name->value)) {
+    NamingConventionError("Type", name->value, "UpperCamelCase");
   }
-  auto extends = child_results->NextAs<std::string>();
+  auto extends = child_results->NextAs<base::Optional<std::string>>();
   auto generates = child_results->NextAs<base::Optional<std::string>>();
   auto methods = child_results->NextAs<std::vector<Declaration*>>();
   auto fields = child_results->NextAs<std::vector<ClassFieldExpression>>();
   Declaration* result = MakeNode<ClassDeclaration>(
-      std::move(name), transient, std::move(extends), std::move(generates),
+      name, is_extern, transient, std::move(extends), std::move(generates),
       std::move(methods), fields);
   return ParseResult{result};
 }
@@ -631,11 +598,11 @@ base::Optional<ParseResult> MakeSpecializationDeclaration(
 
 base::Optional<ParseResult> MakeStructDeclaration(
     ParseResultIterator* child_results) {
-  auto name = child_results->NextAs<std::string>();
+  auto name = child_results->NextAs<Identifier*>();
   auto methods = child_results->NextAs<std::vector<Declaration*>>();
   auto fields = child_results->NextAs<std::vector<StructFieldExpression>>();
-  Declaration* result = MakeNode<StructDeclaration>(
-      std::move(name), std::move(methods), std::move(fields));
+  Declaration* result =
+      MakeNode<StructDeclaration>(name, std::move(methods), std::move(fields));
   return ParseResult{result};
 }
 
@@ -782,13 +749,14 @@ base::Optional<ParseResult> MakeTypeswitchStatement(
   {
     CurrentSourcePosition::Scope current_source_position(expression->pos);
     current_block->statements.push_back(MakeNode<VarDeclarationStatement>(
-        true, "_value", base::nullopt, expression));
+        true, MakeNode<Identifier>("_value"), base::nullopt, expression));
   }
 
   TypeExpression* accumulated_types;
   for (size_t i = 0; i < cases.size(); ++i) {
     CurrentSourcePosition::Scope current_source_position(cases[i].pos);
-    Expression* value = MakeNode<IdentifierExpression>("_value");
+    Expression* value =
+        MakeNode<IdentifierExpression>(MakeNode<Identifier>("_value"));
     if (i >= 1) {
       value =
           MakeNode<AssumeTypeImpossibleExpression>(accumulated_types, value);
@@ -798,15 +766,16 @@ base::Optional<ParseResult> MakeTypeswitchStatement(
       value = MakeCall("Cast", std::vector<TypeExpression*>{cases[i].type},
                        std::vector<Expression*>{value},
                        std::vector<Statement*>{MakeNode<ExpressionStatement>(
-                           MakeNode<IdentifierExpression>("_NextCase"))});
+                           MakeNode<IdentifierExpression>(
+                               MakeNode<Identifier>("_NextCase")))});
       case_block = MakeNode<BlockStatement>();
     } else {
       case_block = current_block;
     }
     std::string name = "_case_value";
     if (cases[i].name) name = *cases[i].name;
-    case_block->statements.push_back(
-        MakeNode<VarDeclarationStatement>(true, name, cases[i].type, value));
+    case_block->statements.push_back(MakeNode<VarDeclarationStatement>(
+        true, MakeNode<Identifier>(name), cases[i].type, value));
     case_block->statements.push_back(cases[i].block);
     if (i < cases.size() - 1) {
       BlockStatement* next_block = MakeNode<BlockStatement>();
@@ -861,17 +830,20 @@ base::Optional<ParseResult> MakeVarDeclarationStatement(
   auto kind = child_results->NextAs<std::string>();
   bool const_qualified = kind == "const";
   if (!const_qualified) DCHECK_EQ("let", kind);
-  auto name = child_results->NextAs<std::string>();
-  if (!IsLowerCamelCase(name)) {
-    NamingConventionError("Variable", name, "lowerCamelCase");
+  auto name = child_results->NextAs<Identifier*>();
+  if (!IsLowerCamelCase(name->value)) {
+    NamingConventionError("Variable", name->value, "lowerCamelCase");
   }
 
-  auto type = child_results->NextAs<TypeExpression*>();
+  auto type = child_results->NextAs<base::Optional<TypeExpression*>>();
   base::Optional<Expression*> initializer;
   if (child_results->HasNext())
     initializer = child_results->NextAs<Expression*>();
-  Statement* result = MakeNode<VarDeclarationStatement>(
-      const_qualified, std::move(name), type, initializer);
+  if (!initializer && !type) {
+    ReportError("Declaration is missing a type.");
+  }
+  Statement* result = MakeNode<VarDeclarationStatement>(const_qualified, name,
+                                                        type, initializer);
   return ParseResult{result};
 }
 
@@ -971,7 +943,7 @@ base::Optional<ParseResult> MakeCatchBlock(ParseResultIterator* child_results) {
     NamingConventionError("Exception", variable, "lowerCamelCase");
   }
   ParameterList parameters;
-  parameters.names.push_back(variable);
+  parameters.names.push_back(MakeNode<Identifier>(variable));
   parameters.types.push_back(MakeNode<BasicTypeExpression>(
       std::vector<std::string>{}, false, "Object"));
   parameters.has_varargs = false;
@@ -995,16 +967,21 @@ base::Optional<ParseResult> MakeExpressionWithSource(
       ExpressionWithSource{e, child_results->matched_input().ToString()}};
 }
 
+base::Optional<ParseResult> MakeIdentifier(ParseResultIterator* child_results) {
+  auto name = child_results->NextAs<std::string>();
+  Identifier* result = MakeNode<Identifier>(std::move(name));
+  return ParseResult{result};
+}
+
 base::Optional<ParseResult> MakeIdentifierExpression(
     ParseResultIterator* child_results) {
   auto namespace_qualification =
       child_results->NextAs<std::vector<std::string>>();
-  auto name = child_results->NextAs<std::string>();
+  auto name = child_results->NextAs<Identifier*>();
   auto generic_arguments =
       child_results->NextAs<std::vector<TypeExpression*>>();
   LocationExpression* result = MakeNode<IdentifierExpression>(
-      std::move(namespace_qualification), std::move(name),
-      std::move(generic_arguments));
+      std::move(namespace_qualification), name, std::move(generic_arguments));
   return ParseResult{result};
 }
 
@@ -1117,23 +1094,24 @@ base::Optional<ParseResult> MakeLabelAndTypes(
 
 base::Optional<ParseResult> MakeNameAndType(
     ParseResultIterator* child_results) {
-  auto name = child_results->NextAs<std::string>();
+  auto name = child_results->NextAs<Identifier*>();
   auto type = child_results->NextAs<TypeExpression*>();
-  return ParseResult{NameAndTypeExpression{std::move(name), type}};
+  return ParseResult{NameAndTypeExpression{name, type}};
 }
 
 base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
   auto weak = child_results->NextAs<bool>();
-  auto name = child_results->NextAs<std::string>();
+  auto name = child_results->NextAs<Identifier*>();
+  auto index = child_results->NextAs<base::Optional<std::string>>();
   auto type = child_results->NextAs<TypeExpression*>();
-  return ParseResult{ClassFieldExpression{{std::move(name), type}, weak}};
+  return ParseResult{ClassFieldExpression{{name, type}, index, weak}};
 }
 
 base::Optional<ParseResult> MakeStructField(
     ParseResultIterator* child_results) {
-  auto name = child_results->NextAs<std::string>();
+  auto name = child_results->NextAs<Identifier*>();
   auto type = child_results->NextAs<TypeExpression*>();
-  return ParseResult{StructFieldExpression{{std::move(name), type}}};
+  return ParseResult{StructFieldExpression{{name, type}}};
 }
 
 base::Optional<ParseResult> ExtractAssignmentOperator(
@@ -1236,6 +1214,9 @@ struct TorqueGrammar : Grammar {
   // Result: std::string
   Symbol identifier = {Rule({Pattern(MatchIdentifier)}, YieldMatchedInput)};
 
+  // Result: Identifier*
+  Symbol name = {Rule({&identifier}, MakeIdentifier)};
+
   // Result: std::string
   Symbol intrinsicName = {
       Rule({Pattern(MatchIntrinsicName)}, YieldMatchedInput)};
@@ -1272,8 +1253,8 @@ struct TorqueGrammar : Grammar {
   // Result: GenericParameters
   Symbol genericParameters = {
       Rule({Token("<"),
-            List<std::string>(
-                Sequence({&identifier, Token(":"), Token("type")}), Token(",")),
+            List<Identifier*>(Sequence({&name, Token(":"), Token("type")}),
+                              Token(",")),
             Token(">")})};
 
   // Result: TypeList
@@ -1319,15 +1300,18 @@ struct TorqueGrammar : Grammar {
                 NonemptyList<Statement*>(&atomarStatement, Token(","))}))};
 
   // Result: NameAndTypeExpression
-  Symbol nameAndType = {
-      Rule({&identifier, Token(":"), &type}, MakeNameAndType)};
+  Symbol nameAndType = {Rule({&name, Token(":"), &type}, MakeNameAndType)};
+
+  Symbol* optionalArraySpecifier = {
+      Optional<std::string>(Sequence({Token("["), &identifier, Token("]")}))};
 
   Symbol classField = {
-      Rule({CheckIf(Token("weak")), &identifier, Token(":"), &type, Token(";")},
+      Rule({CheckIf(Token("weak")), &name, optionalArraySpecifier, Token(":"),
+            &type, Token(";")},
            MakeClassField)};
 
   Symbol structField = {
-      Rule({&identifier, Token(":"), &type, Token(";")}, MakeStructField)};
+      Rule({&name, Token(":"), &type, Token(";")}, MakeStructField)};
 
   // Result: ParameterList
   Symbol parameterListNoVararg = {
@@ -1374,10 +1358,9 @@ struct TorqueGrammar : Grammar {
 
   // Result: LocationExpression*
   Symbol identifierExpression = {
-      Rule(
-          {List<std::string>(Sequence({&identifier, Token("::")})), &identifier,
-           TryOrDefault<TypeList>(&genericSpecializationTypeList)},
-          MakeIdentifierExpression),
+      Rule({List<std::string>(Sequence({&identifier, Token("::")})), &name,
+            TryOrDefault<TypeList>(&genericSpecializationTypeList)},
+           MakeIdentifierExpression),
   };
 
   // Result: LocationExpression*
@@ -1522,14 +1505,17 @@ struct TorqueGrammar : Grammar {
             Optional<Expression*>(expression), Token("]")},
            MakeRangeExpression)};
 
+  Symbol* optionalTypeSpecifier =
+      Optional<TypeExpression*>(Sequence({Token(":"), &type}));
+
   // Result: Statement*
   Symbol varDeclaration = {
-      Rule({OneOf({"let", "const"}), &identifier, Token(":"), &type},
+      Rule({OneOf({"let", "const"}), &name, optionalTypeSpecifier},
            MakeVarDeclarationStatement)};
 
   // Result: Statement*
   Symbol varDeclarationWithInitialization = {
-      Rule({OneOf({"let", "const"}), &identifier, Token(":"), &type, Token("="),
+      Rule({OneOf({"let", "const"}), &name, optionalTypeSpecifier, Token("="),
             expression},
            MakeVarDeclarationStatement)};
 
@@ -1602,24 +1588,24 @@ struct TorqueGrammar : Grammar {
 
   // Result: Declaration*
   Symbol declaration = {
-      Rule({Token("const"), &identifier, Token(":"), &type, Token("="),
-            expression, Token(";")},
+      Rule({Token("const"), &name, Token(":"), &type, Token("="), expression,
+            Token(";")},
            MakeConstDeclaration),
-      Rule({Token("const"), &identifier, Token(":"), &type, Token("generates"),
+      Rule({Token("const"), &name, Token(":"), &type, Token("generates"),
             &externalString, Token(";")},
            MakeExternConstDeclaration),
-      Rule({CheckIf(Token("transient")), Token("class"), &identifier,
-            Sequence({Token("extends"), &identifier}),
+      Rule({CheckIf(Token("extern")), CheckIf(Token("transient")),
+            Token("class"), &name,
+            Optional<std::string>(Sequence({Token("extends"), &identifier})),
             Optional<std::string>(
                 Sequence({Token("generates"), &externalString})),
             Token("{"), List<Declaration*>(&method),
             List<ClassFieldExpression>(&classField), Token("}")},
            MakeClassDeclaration),
-      Rule({Token("struct"), &identifier, Token("{"),
-            List<Declaration*>(&method),
+      Rule({Token("struct"), &name, Token("{"), List<Declaration*>(&method),
             List<StructFieldExpression>(&structField), Token("}")},
            MakeStructDeclaration),
-      Rule({CheckIf(Token("transient")), Token("type"), &identifier,
+      Rule({CheckIf(Token("transient")), Token("type"), &name,
             Optional<std::string>(Sequence({Token("extends"), &identifier})),
             Optional<std::string>(
                 Sequence({Token("generates"), &externalString})),
@@ -1627,7 +1613,7 @@ struct TorqueGrammar : Grammar {
                 Sequence({Token("constexpr"), &externalString})),
             Token(";")},
            MakeTypeDeclaration),
-      Rule({Token("type"), &identifier, Token("="), &type, Token(";")},
+      Rule({Token("type"), &name, Token("="), &type, Token(";")},
            MakeTypeAliasDeclaration),
       Rule({Token("intrinsic"), &intrinsicName,
             TryOrDefault<GenericParameters>(&genericParameters),

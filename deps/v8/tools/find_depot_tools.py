@@ -4,6 +4,9 @@
 """Small utility function to find depot_tools and add it to the python path.
 """
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import os
 import sys
 
@@ -36,5 +39,5 @@ def add_depot_tools_to_path():
       return i
     previous_dir = root_dir
     root_dir = os.path.dirname(root_dir)
-  print >> sys.stderr, 'Failed to find depot_tools'
+  print('Failed to find depot_tools', file=sys.stderr)
   return None

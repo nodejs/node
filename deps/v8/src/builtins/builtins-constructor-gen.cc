@@ -297,6 +297,8 @@ Node* ConstructorBuiltinsAssembler::EmitCreateRegExpLiteral(
     Node* context) {
   Label call_runtime(this, Label::kDeferred), end(this);
 
+  GotoIf(IsUndefined(feedback_vector), &call_runtime);
+
   VARIABLE(result, MachineRepresentation::kTagged);
   TNode<Object> literal_site =
       CAST(LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));

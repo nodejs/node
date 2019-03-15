@@ -243,20 +243,25 @@ class V8_EXPORT_PRIVATE LoadElimination final
   Reduction ReduceEnsureWritableFastElements(Node* node);
   Reduction ReduceMaybeGrowFastElements(Node* node);
   Reduction ReduceTransitionElementsKind(Node* node);
-  Reduction ReduceLoadField(Node* node);
-  Reduction ReduceStoreField(Node* node);
+  Reduction ReduceLoadField(Node* node, FieldAccess const& access);
+  Reduction ReduceStoreField(Node* node, FieldAccess const& access);
   Reduction ReduceLoadElement(Node* node);
   Reduction ReduceStoreElement(Node* node);
   Reduction ReduceTransitionAndStoreElement(Node* node);
   Reduction ReduceStoreTypedElement(Node* node);
   Reduction ReduceEffectPhi(Node* node);
   Reduction ReduceStart(Node* node);
+  Reduction ReduceStoreMessage(Node* node);
+  Reduction ReduceLoadMessage(Node* node);
   Reduction ReduceOtherNode(Node* node);
 
   Reduction UpdateState(Node* node, AbstractState const* state);
 
   AbstractState const* ComputeLoopState(Node* node,
                                         AbstractState const* state) const;
+  AbstractState const* ComputeLoopStateForStoreField(
+      Node* current, LoadElimination::AbstractState const* state,
+      FieldAccess const& access) const;
   AbstractState const* UpdateStateForPhi(AbstractState const* state,
                                          Node* effect_phi, Node* phi);
 

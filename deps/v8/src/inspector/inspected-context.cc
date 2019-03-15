@@ -64,6 +64,7 @@ InspectedContext::InspectedContext(V8InspectorImpl* inspector,
                     v8::WeakCallbackType::kParameter);
   if (!info.hasMemoryOnConsole) return;
   v8::Context::Scope contextScope(info.context);
+  v8::HandleScope handleScope(info.context->GetIsolate());
   v8::Local<v8::Object> global = info.context->Global();
   v8::Local<v8::Value> console;
   if (global->Get(info.context, toV8String(m_inspector->isolate(), "console"))

@@ -11,6 +11,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/dictionary-inl.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/objects/js-objects-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
@@ -35,9 +36,12 @@ void ScriptContextTable::set_used(int used) {
 Handle<Context> ScriptContextTable::GetContext(Isolate* isolate,
                                                Handle<ScriptContextTable> table,
                                                int i) {
-  DCHECK(i < table->used());
-  return Handle<Context>::cast(
-      FixedArray::get(*table, i + kFirstContextSlotIndex, isolate));
+  return handle(table->get_context(i), isolate);
+}
+
+Context ScriptContextTable::get_context(int i) const {
+  DCHECK_LT(i, used());
+  return Context::cast(this->get(i + kFirstContextSlotIndex));
 }
 
 OBJECT_CONSTRUCTORS_IMPL(Context, HeapObject)
@@ -72,6 +76,8 @@ void Context::set(int index, Object value, WriteBarrierMode mode) {
 void Context::set_scope_info(ScopeInfo scope_info) {
   set(SCOPE_INFO_INDEX, scope_info);
 }
+
+Object Context::unchecked_previous() { return get(PREVIOUS_INDEX); }
 
 Context Context::previous() {
   Object result = get(PREVIOUS_INDEX);
@@ -162,8 +168,7 @@ NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSORS)
   CHECK_FOLLOWS2(v3, v4)
 
 int Context::FunctionMapIndex(LanguageMode language_mode, FunctionKind kind,
-                              bool has_prototype_slot, bool has_shared_name,
-                              bool needs_home_object) {
+                              bool has_shared_name, bool needs_home_object) {
   if (IsClassConstructor(kind)) {
     // Like the strict function map, but with no 'name' accessor. 'name'
     // needs to be the last property and it is added during instantiation,
@@ -193,8 +198,7 @@ int Context::FunctionMapIndex(LanguageMode language_mode, FunctionKind kind,
 
     base = ASYNC_FUNCTION_MAP_INDEX;
 
-  } else if (IsArrowFunction(kind) || IsConciseMethod(kind) ||
-             IsAccessorFunction(kind)) {
+  } else if (IsStrictFunctionWithoutPrototype(kind)) {
     DCHECK_IMPLIES(IsArrowFunction(kind), !needs_home_object);
     CHECK_FOLLOWS4(STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
                    METHOD_WITH_NAME_MAP_INDEX,
@@ -234,11 +238,11 @@ Map Context::GetInitialJSArrayMap(ElementsKind kind) const {
 
 MicrotaskQueue* NativeContext::microtask_queue() const {
   return reinterpret_cast<MicrotaskQueue*>(
-      READ_INTPTR_FIELD(this, kMicrotaskQueueOffset));
+      READ_INTPTR_FIELD(*this, kMicrotaskQueueOffset));
 }
 
 void NativeContext::set_microtask_queue(MicrotaskQueue* microtask_queue) {
-  WRITE_INTPTR_FIELD(this, kMicrotaskQueueOffset,
+  WRITE_INTPTR_FIELD(*this, kMicrotaskQueueOffset,
                      reinterpret_cast<intptr_t>(microtask_queue));
 }
 

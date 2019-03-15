@@ -55,7 +55,7 @@ static const char customObjectFormatterEnabled[] =
     "customObjectFormatterEnabled";
 static const char runtimeEnabled[] = "runtimeEnabled";
 static const char bindings[] = "bindings";
-};
+}  // namespace V8RuntimeAgentImplState
 
 using protocol::Runtime::RemoteObject;
 

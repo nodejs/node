@@ -18,6 +18,7 @@ function test() {
   assertEquals(1, o[q] = 1);
 }
 
+%PrepareFunctionForOptimization(test);
 test();
 test();
 %OptimizeFunctionOnNextCall(test);

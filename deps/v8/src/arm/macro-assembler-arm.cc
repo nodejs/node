@@ -18,6 +18,7 @@
 #include "src/double.h"
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
+#include "src/heap/heap-inl.h"  // For MemoryChunk.
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/register-configuration.h"
@@ -475,6 +476,22 @@ void TurboAssembler::Move(QwNeonRegister dst, QwNeonRegister src) {
   }
 }
 
+void TurboAssembler::MovePair(Register dst0, Register src0, Register dst1,
+                              Register src1) {
+  DCHECK_NE(dst0, dst1);
+  if (dst0 != src1) {
+    Move(dst0, src0);
+    Move(dst1, src1);
+  } else if (dst1 != src0) {
+    // Swap the order of the moves to resolve the overlap.
+    Move(dst1, src1);
+    Move(dst0, src0);
+  } else {
+    // Worse case scenario, this is a swap.
+    Swap(dst0, src0);
+  }
+}
+
 void TurboAssembler::Swap(Register srcdst0, Register srcdst1) {
   DCHECK(srcdst0 != srcdst1);
   UseScratchRegisterScope temps(this);
@@ -585,41 +602,6 @@ void TurboAssembler::Bfc(Register dst, Register src, int lsb, int width,
     CpuFeatureScope scope(this, ARMv7);
     Move(dst, src, cond);
     bfc(dst, lsb, width, cond);
-  }
-}
-
-void MacroAssembler::Load(Register dst,
-                          const MemOperand& src,
-                          Representation r) {
-  DCHECK(!r.IsDouble());
-  if (r.IsInteger8()) {
-    ldrsb(dst, src);
-  } else if (r.IsUInteger8()) {
-    ldrb(dst, src);
-  } else if (r.IsInteger16()) {
-    ldrsh(dst, src);
-  } else if (r.IsUInteger16()) {
-    ldrh(dst, src);
-  } else {
-    ldr(dst, src);
-  }
-}
-
-void MacroAssembler::Store(Register src,
-                           const MemOperand& dst,
-                           Representation r) {
-  DCHECK(!r.IsDouble());
-  if (r.IsInteger8() || r.IsUInteger8()) {
-    strb(src, dst);
-  } else if (r.IsInteger16() || r.IsUInteger16()) {
-    strh(src, dst);
-  } else {
-    if (r.IsHeapObject()) {
-      AssertNotSmi(src);
-    } else if (r.IsSmi()) {
-      AssertSmi(src);
-    }
-    str(src, dst);
   }
 }
 
@@ -735,11 +717,7 @@ void TurboAssembler::CallRecordWriteStub(
   Register fp_mode_parameter(
       descriptor.GetRegisterParameter(RecordWriteDescriptor::kFPMode));
 
-  Push(object);
-  Push(address);
-
-  Pop(slot_parameter);
-  Pop(object_parameter);
+  MovePair(object_parameter, object, slot_parameter, address);
 
   Move(remembered_set_parameter, Smi::FromEnum(remembered_set_action));
   Move(fp_mode_parameter, Smi::FromEnum(fp_mode));
@@ -1173,8 +1151,7 @@ void TurboAssembler::LslPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
                              uint32_t shift) {
   DCHECK(!AreAliased(dst_high, src_low));
-  Label less_than_32;
-  Label done;
+
   if (shift == 0) {
     Move(dst_high, src_high);
     Move(dst_low, src_low);
@@ -1222,8 +1199,7 @@ void TurboAssembler::LsrPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
                              uint32_t shift) {
   DCHECK(!AreAliased(dst_low, src_high));
-  Label less_than_32;
-  Label done;
+
   if (shift == 32) {
     mov(dst_low, src_high);
     mov(dst_high, Operand(0));
@@ -1270,8 +1246,7 @@ void TurboAssembler::AsrPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
                              uint32_t shift) {
   DCHECK(!AreAliased(dst_low, src_high));
-  Label less_than_32;
-  Label done;
+
   if (shift == 32) {
     mov(dst_low, src_high);
     asr(dst_high, src_high, Operand(31));
@@ -1763,6 +1738,20 @@ void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
   DCHECK(obj != scratch);
   LoadRoot(scratch, index);
   cmp(obj, scratch);
+}
+
+void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
+                                     unsigned higher_limit,
+                                     Label* on_in_range) {
+  if (lower_limit != 0) {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    sub(scratch, value, Operand(lower_limit));
+    cmp(scratch, Operand(higher_limit - lower_limit));
+  } else {
+    cmp(value, Operand(higher_limit));
+  }
+  b(ls, on_in_range);
 }
 
 void MacroAssembler::TryDoubleToInt32Exact(Register result,

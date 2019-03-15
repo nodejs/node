@@ -8,6 +8,7 @@
 #include "src/objects/ordered-hash-table.h"
 
 #include "src/heap/heap.h"
+#include "src/objects-inl.h"
 #include "src/objects/fixed-array-inl.h"
 
 // Has to be the last include (doesn't have include guards):

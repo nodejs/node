@@ -4,7 +4,6 @@
 
 // Flags: --experimental-wasm-bulk-memory
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestPassiveDataSegment() {
@@ -47,8 +46,8 @@ function getMemoryInit(mem, segment_data) {
         kExprGetLocal, 1,  // Source.
         kExprGetLocal, 2,  // Size in bytes.
         kNumericPrefix, kExprMemoryInit,
-        0,  // Memory index.
         0,  // Data segment index.
+        0,  // Memory index.
       ])
       .exportAs('init');
   return builder.instantiate({'': {mem}}).exports.init;
@@ -116,8 +115,8 @@ function getMemoryInit(mem, segment_data) {
         kExprI32Const, 0,  // Source.
         kExprI32Const, 0,  // Size in bytes.
         kNumericPrefix, kExprMemoryInit,
-        0,  // Memory index.
         1,  // Data segment index.
+        0,  // Memory index.
       ])
       .exportAs('init');
 
@@ -138,13 +137,13 @@ function getMemoryInit(mem, segment_data) {
         kExprI32Const, 0,  // Source.
         kExprI32Const, 0,  // Size in bytes.
         kNumericPrefix, kExprMemoryInit,
-        0,  // Memory index.
         0,  // Data segment index.
+        0,  // Memory index.
       ])
       .exportAs('init');
   builder.addFunction('drop', kSig_v_v)
       .addBody([
-        kNumericPrefix, kExprMemoryDrop,
+        kNumericPrefix, kExprDataDrop,
         0,  // Data segment index.
       ])
       .exportAs('drop');
@@ -163,14 +162,14 @@ function getMemoryInit(mem, segment_data) {
   assertTraps(kTrapDataSegmentDropped, () => instance.exports.drop());
 })();
 
-(function TestMemoryDropOnActiveSegment() {
+(function TestDataDropOnActiveSegment() {
   const builder = new WasmModuleBuilder();
   builder.addMemory(1);
   builder.addPassiveDataSegment([1, 2, 3]);
   builder.addDataSegment(0, [4, 5, 6]);
   builder.addFunction('drop', kSig_v_v)
       .addBody([
-        kNumericPrefix, kExprMemoryDrop,
+        kNumericPrefix, kExprDataDrop,
         1,  // Data segment index.
       ])
       .exportAs('drop');
@@ -186,7 +185,7 @@ function getMemoryCopy(mem) {
     kExprGetLocal, 0,  // Dest.
     kExprGetLocal, 1,  // Source.
     kExprGetLocal, 2,  // Size in bytes.
-    kNumericPrefix, kExprMemoryCopy, 0,
+    kNumericPrefix, kExprMemoryCopy, 0, 0,
   ]).exportAs("copy");
   return builder.instantiate({'': {mem}}).exports.copy;
 }
@@ -321,35 +320,13 @@ function getMemoryFill(mem) {
       kTrapMemOutOfBounds, () => memoryFill(kPageSize + 1, v, kPageSize));
 })();
 
-(function TestTableInit0() {
-  let builder = new WasmModuleBuilder();
-  let sig_v_iii = builder.addType(kSig_v_iii);
-
-  builder.setTableBounds(5, 5);
-  builder.addElementSegment(0, false, []);
-  builder.addElementSegment(0, false, []);
-
-  builder.addFunction("init0", sig_v_iii)
-    .addBody([
-      kExprGetLocal, 0,
-      kExprGetLocal, 1,
-      kExprGetLocal, 2,
-      kNumericPrefix, kExprTableInit, kTableZero, kSegmentZero])
-    .exportAs("init0");
-
-  let instance = builder.instantiate();
-  let init = instance.exports.init0;
-  // TODO(titzer): we only check that a function containing TableInit can be compiled.
-  //  init(1, 2, 3);
-})();
-
-(function TestTableDropActive() {
+(function TestElemDropActive() {
   const builder = new WasmModuleBuilder();
   builder.setTableBounds(5, 5);
   builder.addElementSegment(0, false, [0, 0, 0]);
   builder.addFunction('drop', kSig_v_v)
       .addBody([
-        kNumericPrefix, kExprTableDrop,
+        kNumericPrefix, kExprElemDrop,
         0,  // Element segment index.
       ])
       .exportAs('drop');
@@ -358,13 +335,13 @@ function getMemoryFill(mem) {
   assertTraps(kTrapElemSegmentDropped, () => instance.exports.drop());
 })();
 
-(function TestTableDropTwice() {
+(function TestElemDropTwice() {
   const builder = new WasmModuleBuilder();
   builder.setTableBounds(5, 5);
   builder.addPassiveElementSegment([0, 0, 0]);
   builder.addFunction('drop', kSig_v_v)
       .addBody([
-        kNumericPrefix, kExprTableDrop,
+        kNumericPrefix, kExprElemDrop,
         0,  // Element segment index.
       ])
       .exportAs('drop');

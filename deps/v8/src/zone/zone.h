@@ -5,14 +5,13 @@
 #ifndef V8_ZONE_ZONE_H_
 #define V8_ZONE_ZONE_H_
 
+#include <algorithm>
 #include <limits>
+#include <vector>
 
 #include "src/base/hashmap.h"
 #include "src/base/logging.h"
-#include "src/base/threaded-list.h"
 #include "src/globals.h"
-#include "src/splay-tree.h"
-#include "src/utils.h"
 #include "src/zone/accounting-allocator.h"
 
 #ifndef ZONE_NAME
@@ -226,7 +225,7 @@ class ZoneList final {
 
   Vector<T> ToVector() const { return Vector<T>(data_, length_); }
   Vector<T> ToVector(int start, int length) const {
-    return Vector<T>(data_ + start, Min(length_ - start, length));
+    return Vector<T>(data_ + start, std::min(length_ - start, length));
   }
 
   Vector<const T> ToConstVector() const {
@@ -364,6 +363,15 @@ class ScopedPtrList final {
     target->AddAll(Vector<T*>(data, length()), zone);
   }
 
+  Vector<T*> CopyTo(Zone* zone) {
+    DCHECK_LE(end_, buffer_.size());
+    T** data = zone->NewArray<T*>(length());
+    if (length() != 0) {
+      MemCopy(data, &buffer_[start_], length() * sizeof(T*));
+    }
+    return Vector<T*>(data, length());
+  }
+
   void Add(T* value) {
     DCHECK_EQ(buffer_.size(), end_);
     buffer_.push_back(value);
@@ -383,32 +391,6 @@ class ScopedPtrList final {
   std::vector<void*>& buffer_;
   size_t start_;
   size_t end_;
-};
-
-// ZoneThreadedList is a special variant of the ThreadedList that can be put
-// into a Zone.
-template <typename T, typename TLTraits = base::ThreadedListTraits<T>>
-using ZoneThreadedList = base::ThreadedListBase<T, ZoneObject, TLTraits>;
-
-// A zone splay tree.  The config type parameter encapsulates the
-// different configurations of a concrete splay tree (see splay-tree.h).
-// The tree itself and all its elements are allocated in the Zone.
-template <typename Config>
-class ZoneSplayTree final : public SplayTree<Config, ZoneAllocationPolicy> {
- public:
-  explicit ZoneSplayTree(Zone* zone)
-      : SplayTree<Config, ZoneAllocationPolicy>(ZoneAllocationPolicy(zone)) {}
-  ~ZoneSplayTree() {
-    // Reset the root to avoid unneeded iteration over all tree nodes
-    // in the destructor.  For a zone-allocated tree, nodes will be
-    // freed by the Zone.
-    SplayTree<Config, ZoneAllocationPolicy>::ResetRoot();
-  }
-
-  void* operator new(size_t size, Zone* zone) { return zone->New(size); }
-
-  void operator delete(void* pointer) { UNREACHABLE(); }
-  void operator delete(void* pointer, Zone* zone) { UNREACHABLE(); }
 };
 
 typedef base::PointerTemplateHashMapImpl<ZoneAllocationPolicy> ZoneHashMap;

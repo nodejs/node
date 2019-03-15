@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-array-flat --allow-natives-syntax
+// Flags: --allow-natives-syntax
 
 assertEquals(Array.prototype.flatMap.length, 1);
 assertEquals(Array.prototype.flatMap.name, 'flatMap');

@@ -12,8 +12,6 @@
 namespace v8 {
 namespace internal {
 
-
-#ifndef V8_INTERPRETED_REGEXP
 class RegExpMacroAssemblerARM64: public NativeRegExpMacroAssembler {
  public:
   RegExpMacroAssemblerARM64(Isolate* isolate, Zone* zone, Mode mode,
@@ -107,19 +105,20 @@ class RegExpMacroAssemblerARM64: public NativeRegExpMacroAssembler {
   static const int kCalleeSavedRegisters = 0;
   // Return address.
   // It is placed above the 11 callee-saved registers.
-  static const int kReturnAddress = kCalleeSavedRegisters + 11 * kPointerSize;
+  static const int kReturnAddress =
+      kCalleeSavedRegisters + 11 * kSystemPointerSize;
   // Stack parameter placed by caller.
-  static const int kIsolate = kReturnAddress + kPointerSize;
+  static const int kIsolate = kReturnAddress + kSystemPointerSize;
 
   // Below the frame pointer.
   // Register parameters stored by setup code.
-  static const int kDirectCall = kCalleeSavedRegisters - kPointerSize;
-  static const int kStackBase = kDirectCall - kPointerSize;
-  static const int kOutputSize = kStackBase - kPointerSize;
-  static const int kInput = kOutputSize - kPointerSize;
+  static const int kDirectCall = kCalleeSavedRegisters - kSystemPointerSize;
+  static const int kStackBase = kDirectCall - kSystemPointerSize;
+  static const int kOutputSize = kStackBase - kSystemPointerSize;
+  static const int kInput = kOutputSize - kSystemPointerSize;
   // When adding local variables remember to push space for them in
   // the frame in GetCode.
-  static const int kSuccessCounter = kInput - kPointerSize;
+  static const int kSuccessCounter = kInput - kSystemPointerSize;
   // First position register address on the stack. Following positions are
   // below it. A position is a 32 bit value.
   static const int kFirstRegisterOnStack = kSuccessCounter - kWRegSize;
@@ -284,9 +283,6 @@ class RegExpMacroAssemblerARM64: public NativeRegExpMacroAssembler {
   Label check_preempt_label_;
   Label stack_overflow_label_;
 };
-
-#endif  // V8_INTERPRETED_REGEXP
-
 
 }  // namespace internal
 }  // namespace v8

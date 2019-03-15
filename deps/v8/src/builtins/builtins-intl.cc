@@ -45,6 +45,7 @@ BUILTIN(StringPrototypeToUpperCaseIntl) {
 
 BUILTIN(StringPrototypeNormalizeIntl) {
   HandleScope handle_scope(isolate);
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kStringNormalize);
   TO_THIS_STRING(string, "String.prototype.normalize");
 
   Handle<Object> form_input = args.atOrUndefined(isolate, 1);
@@ -82,14 +83,19 @@ BUILTIN(NumberFormatPrototypeFormatToParts) {
 
   Handle<Object> x;
   if (args.length() >= 2) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x,
-                                       Object::ToNumber(isolate, args.at(1)));
+    if (FLAG_harmony_intl_bigint) {
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, x, Object::ToNumeric(isolate, args.at(1)));
+    } else {
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x,
+                                         Object::ToNumber(isolate, args.at(1)));
+    }
   } else {
     x = isolate->factory()->nan_value();
   }
 
-  RETURN_RESULT_OR_FAILURE(isolate, JSNumberFormat::FormatToParts(
-                                        isolate, number_format, x->Number()));
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSNumberFormat::FormatToParts(isolate, number_format, x));
 }
 
 BUILTIN(DateTimeFormatPrototypeResolvedOptions) {
@@ -248,7 +254,7 @@ Object LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
     desc.set_configurable(false);
     Maybe<bool> success = JSReceiver::DefineOwnProperty(
         isolate, rec, isolate->factory()->intl_fallback_symbol(), &desc,
-        kThrowOnError);
+        Just(kThrowOnError));
     MAYBE_RETURN(success, ReadOnlyRoots(isolate).exception());
     CHECK(success.FromJust());
     // b. b. Return this.
@@ -400,19 +406,23 @@ BUILTIN(NumberFormatInternalFormatNumber) {
   // 3. If value is not provided, let value be undefined.
   Handle<Object> value = args.atOrUndefined(isolate, 1);
 
-  // 4. Let x be ? ToNumber(value).
-  Handle<Object> number_obj;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_obj,
-                                     Object::ToNumber(isolate, value));
+  // 4. Let x be ? ToNumeric(value).
+  Handle<Object> numeric_obj;
+  if (FLAG_harmony_intl_bigint) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, numeric_obj,
+                                       Object::ToNumeric(isolate, value));
+  } else {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, numeric_obj,
+                                       Object::ToNumber(isolate, value));
+  }
 
-  double number = number_obj->Number();
   icu::NumberFormat* icu_number_format =
       number_format->icu_number_format()->raw();
   CHECK_NOT_NULL(icu_number_format);
 
-  // Return FormatNumber(nf, x).
-  RETURN_RESULT_OR_FAILURE(isolate, JSNumberFormat::FormatNumber(
-                                        isolate, *icu_number_format, number));
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      JSNumberFormat::FormatNumeric(isolate, *icu_number_format, numeric_obj));
 }
 
 BUILTIN(DateTimeFormatConstructor) {

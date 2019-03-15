@@ -483,6 +483,20 @@
           ]
         },
         {
+          "name": "StringNormalize",
+          "main": "run.js",
+          "resources": [ "string-normalize.js" ],
+          "test_flags": [ "string-normalize" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "StringNormalize"},
+            {"name": "StringNormalizeNFD"},
+            {"name": "StringNormalizeNFKC"},
+            {"name": "StringNormalizeNFKD"}
+          ]
+        },
+        {
           "name": "StringLocaleCompare",
           "main": "run.js",
           "resources": [ "string-localeCompare.js" ],
@@ -491,6 +505,20 @@
           "run_count": 1,
           "tests": [
             {"name": "StringLocaleCompare"}
+          ]
+        },
+        {
+          "name": "StringToLocaleCase",
+          "main": "run.js",
+          "resources": [ "string-toLocaleCase.js" ],
+          "test_flags": [ "string-toLocaleCase" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "StringToLocaleLowerCase"},
+            {"name": "StringToLocaleUpperCase"},
+            {"name": "StringToLocaleLowerCaseTR"},
+            {"name": "StringToLocaleUpperCaseTR"}
           ]
         },
         {
@@ -760,6 +788,20 @@
           "test_flags": ["construct-all-typedarrays"]
         },
         {
+          "name": "FilterNoSpecies",
+          "main": "run.js",
+          "resources": ["filter-nospecies.js"],
+          "test_flags": ["filter-nospecies"],
+          "results_regexp": "^TypedArrays\\-%s\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "Uint8Array"},
+            {"name": "Uint16Array"},
+            {"name": "Uint32Array"},
+            {"name": "Float32Array"},
+            {"name": "Float64Array"}
+          ]
+        },
+        {
           "name": "JoinBigIntTypes",
           "main": "run.js",
           "resources": ["base.js", "join.js", "join-bigint.js"],
@@ -991,6 +1033,27 @@
         {"name": "for loop"},
         {"name": "Array#indexOf"},
         {"name": "Array#includes"}
+      ]
+    },
+    {
+      "name": "ArrayInOperator",
+      "path": ["ArrayInOperator"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayInOperator\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "PackedSMI"},
+        {"name": "PackedDouble"},
+        {"name": "PackedElements"},
+        {"name": "HoleySMI"},
+        {"name": "HoleyDouble"},
+        {"name": "HoleyElements"},
+        {"name": "SparseSMI"},
+        {"name": "SparseDouble"},
+        {"name": "SparseElements"},
+        {"name": "TypedUint8"},
+        {"name": "TypedInt32"},
+        {"name": "TypedFloat64"}
       ]
     },
     {
@@ -1305,6 +1368,22 @@
       ]
     },
     {
+      "name": "Intl",
+      "path": ["Intl"],
+      "main": "run.js",
+      "resources": [ "constructor.js" ],
+      "flags": [],
+      "results_regexp": "^%s\\-Intl\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "NewIntlCollator"},
+        {"name": "NewIntlDateTimeFormat"},
+        {"name": "NewIntlNumberFormat"},
+        {"name": "NewIntlPluralRules"},
+        {"name": "NewIntlListFormat"},
+        {"name": "NewIntlRelativeTimeFormat"}
+      ]
+    },
+    {
       "name": "Inspector",
       "path": ["Inspector"],
       "main": "run.js",
@@ -1355,6 +1434,20 @@
         {"name": "UnaryPlus"},
         {"name": "ParseFloat"},
         {"name": "toLocaleString"}
+      ]
+    },
+    {
+      "name": "ObjectFreeze",
+      "path": ["ObjectFreeze"],
+      "main": "run.js",
+      "flags": [],
+      "resources": [
+	      "tagged-template.js"
+      ],
+      "results_regexp": "^%s\\-Numbers\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "TaggedTemplate"},
+        {"name": "TaggedTemplateLoose"}
       ]
     },
     {

@@ -8,6 +8,7 @@
 #include "src/prototype.h"
 
 #include "src/handles-inl.h"
+#include "src/objects/js-proxy.h"
 #include "src/objects/map-inl.h"
 
 namespace v8 {

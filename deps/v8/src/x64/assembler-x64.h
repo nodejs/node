@@ -51,6 +51,8 @@
 namespace v8 {
 namespace internal {
 
+class SafepointTableBuilder;
+
 // Utility functions
 
 enum Condition {
@@ -129,6 +131,21 @@ ASSERT_TRIVIALLY_COPYABLE(Immediate);
 static_assert(sizeof(Immediate) <= kSystemPointerSize,
               "Immediate must be small enough to pass it by value");
 
+class Immediate64 {
+ public:
+  explicit constexpr Immediate64(int64_t value) : value_(value) {}
+  explicit constexpr Immediate64(int64_t value, RelocInfo::Mode rmode)
+      : value_(value), rmode_(rmode) {}
+  explicit constexpr Immediate64(Address value, RelocInfo::Mode rmode)
+      : value_(static_cast<int64_t>(value)), rmode_(rmode) {}
+
+ private:
+  const int64_t value_;
+  const RelocInfo::Mode rmode_ = RelocInfo::NONE;
+
+  friend class Assembler;
+};
+
 // -----------------------------------------------------------------------------
 // Machine instruction Operands
 
@@ -138,7 +155,7 @@ enum ScaleFactor : int8_t {
   times_4 = 2,
   times_8 = 3,
   times_int_size = times_4,
-  times_pointer_size = (kSystemPointerSize == 8) ? times_8 : times_4,
+  times_system_pointer_size = (kSystemPointerSize == 8) ? times_8 : times_4,
   times_tagged_size = (kTaggedSize == 8) ? times_8 : times_4,
 };
 
@@ -219,8 +236,7 @@ static_assert(sizeof(Operand) <= 2 * kSystemPointerSize,
   V(xchg)                             \
   V(xor)
 
-// Shift instructions on operands/registers with kSystemPointerSize, kInt32Size
-// and kInt64Size.
+// Shift instructions on operands/registers with kInt32Size and kInt64Size.
 #define SHIFT_INSTRUCTION_LIST(V) \
   V(rol, 0x0)                     \
   V(ror, 0x1)                     \
@@ -268,7 +284,7 @@ class ConstPool {
   bool AddSharedEntry(uint64_t data, int offset);
 
   // Check if the instruction is a rip-relative move.
-  bool IsMoveRipRelative(byte* instr);
+  bool IsMoveRipRelative(Address instr);
 
   Assembler* assm_;
 
@@ -316,12 +332,22 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                      std::unique_ptr<AssemblerBuffer> = {});
   ~Assembler() override = default;
 
-  // GetCode emits any pending (non-emitted) code and fills the descriptor
-  // desc. GetCode() is idempotent; it returns the same result if no other
-  // Assembler functions are invoked in between GetCode() calls.
-  void GetCode(Isolate* isolate, CodeDesc* desc);
+  // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
+  static constexpr int kNoHandlerTable = 0;
+  static constexpr SafepointTableBuilder* kNoSafepointTable = nullptr;
+  void GetCode(Isolate* isolate, CodeDesc* desc,
+               SafepointTableBuilder* safepoint_table_builder,
+               int handler_table_offset);
+
+  // Convenience wrapper for code without safepoint or handler tables.
+  void GetCode(Isolate* isolate, CodeDesc* desc) {
+    GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
+  }
 
   void FinalizeJumpOptimizationInfo();
+
+  // Unused on this architecture.
+  void MaybeEmitOutOfLineConstantPool() {}
 
   // Read/Modify the code target in the relative branch/call instruction at pc.
   // On the x64 architecture, we use relative jumps with a 32-bit displacement
@@ -400,15 +426,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // - Instructions on 64-bit (quadword) operands/registers use 'q'.
   // - Instructions on operands/registers with pointer size use 'p'.
 
-  STATIC_ASSERT(kSystemPointerSize == kInt64Size ||
-                kSystemPointerSize == kInt32Size);
-
 #define DECLARE_INSTRUCTION(instruction)                                       \
-  template <class P1>                                                          \
-  void instruction##p(P1 p1) {                                                 \
-    emit_##instruction(p1, kSystemPointerSize);                                \
-  }                                                                            \
-                                                                               \
   template <class P1>                                                          \
   void instruction##_tagged(P1 p1) {                                           \
     STATIC_ASSERT(kTaggedSize == kSystemPointerSize);                          \
@@ -427,11 +445,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }                                                                            \
                                                                                \
   template <class P1, class P2>                                                \
-  void instruction##p(P1 p1, P2 p2) {                                          \
-    emit_##instruction(p1, p2, kSystemPointerSize);                            \
-  }                                                                            \
-                                                                               \
-  template <class P1, class P2>                                                \
   void instruction##_tagged(P1 p1, P2 p2) {                                    \
     STATIC_ASSERT(kTaggedSize == kSystemPointerSize);                          \
     /* TODO(ishell): change to kTaggedSize */                                  \
@@ -447,19 +460,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   template <class P1, class P2>                                                \
   void instruction##q(P1 p1, P2 p2) {                                          \
     emit_##instruction(p1, p2, kInt64Size);                                    \
-  }                                                                            \
-                                                                               \
-  template <class P1, class P2, class P3>                                      \
-  void instruction##p(P1 p1, P2 p2, P3 p3) {                                   \
-    emit_##instruction(p1, p2, p3, kSystemPointerSize);                        \
-  }                                                                            \
-                                                                               \
-  template <class P1, class P2, class P3>                                      \
-  void instruction##_tagged(P1 p1, P2 p2, P3 p3) {                             \
-    STATIC_ASSERT(kTaggedSize == kSystemPointerSize);                          \
-    /* TODO(ishell): change to kTaggedSize */                                  \
-    emit_##instruction(p1, p2, p3,                                             \
-                       COMPRESS_POINTERS_BOOL ? kInt32Size : kTaggedSize);     \
   }                                                                            \
                                                                                \
   template <class P1, class P2, class P3>                                      \
@@ -518,9 +518,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // position (after the move) to the destination.
   void movl(Operand dst, Label* src);
 
-  // Loads a pointer into a register with a relocation mode.
-  void movp(Register dst, Address ptr, RelocInfo::Mode rmode);
-
   // Load a heap number into a register.
   // The heap number will not be allocated and embedded into the code right
   // away. Instead, we emit the load of a dummy object. Later, when calling
@@ -528,15 +525,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // patched by replacing the dummy with the actual object. The RelocInfo for
   // the embedded object gets already recorded correctly when emitting the dummy
   // move.
-  void movp_heap_number(Register dst, double value);
+  void movq_heap_number(Register dst, double value);
 
-  void movp_string(Register dst, const StringConstantBase* str);
+  void movq_string(Register dst, const StringConstantBase* str);
 
   // Loads a 64-bit immediate into a register.
-  void movq(Register dst, int64_t value,
-            RelocInfo::Mode rmode = RelocInfo::NONE);
-  void movq(Register dst, uint64_t value,
-            RelocInfo::Mode rmode = RelocInfo::NONE);
+  void movq(Register dst, int64_t value) { movq(dst, Immediate64(value)); }
+  void movq(Register dst, uint64_t value) {
+    movq(dst, Immediate64(static_cast<int64_t>(value)));
+  }
 
   void movsxbl(Register dst, Register src);
   void movsxbl(Register dst, Operand src);
@@ -553,7 +550,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void repmovsb();
   void repmovsw();
-  void repmovsp() { emit_repmovs(kSystemPointerSize); }
   void repmovsl() { emit_repmovs(kInt32Size); }
   void repmovsq() { emit_repmovs(kInt64Size); }
 
@@ -633,20 +629,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void mulq(Register src);
 
 #define DECLARE_SHIFT_INSTRUCTION(instruction, subcode)                     \
-  void instruction##p(Register dst, Immediate imm8) {                       \
-    shift(dst, imm8, subcode, kSystemPointerSize);                          \
-  }                                                                         \
-                                                                            \
   void instruction##l(Register dst, Immediate imm8) {                       \
     shift(dst, imm8, subcode, kInt32Size);                                  \
   }                                                                         \
                                                                             \
   void instruction##q(Register dst, Immediate imm8) {                       \
     shift(dst, imm8, subcode, kInt64Size);                                  \
-  }                                                                         \
-                                                                            \
-  void instruction##p(Operand dst, Immediate imm8) {                        \
-    shift(dst, imm8, subcode, kSystemPointerSize);                          \
   }                                                                         \
                                                                             \
   void instruction##l(Operand dst, Immediate imm8) {                        \
@@ -657,17 +645,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     shift(dst, imm8, subcode, kInt64Size);                                  \
   }                                                                         \
                                                                             \
-  void instruction##p_cl(Register dst) {                                    \
-    shift(dst, subcode, kSystemPointerSize);                                \
-  }                                                                         \
-                                                                            \
   void instruction##l_cl(Register dst) { shift(dst, subcode, kInt32Size); } \
                                                                             \
   void instruction##q_cl(Register dst) { shift(dst, subcode, kInt64Size); } \
-                                                                            \
-  void instruction##p_cl(Operand dst) {                                     \
-    shift(dst, subcode, kSystemPointerSize);                                \
-  }                                                                         \
                                                                             \
   void instruction##l_cl(Operand dst) { shift(dst, subcode, kInt32Size); }  \
                                                                             \
@@ -1120,12 +1100,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void instr##pd(XMMRegister dst, XMMRegister src) { cmppd(dst, src, imm8); } \
   void instr##pd(XMMRegister dst, Operand src) { cmppd(dst, src, imm8); }
 
-  SSE_CMP_P(cmpeq, 0x0);
-  SSE_CMP_P(cmplt, 0x1);
-  SSE_CMP_P(cmple, 0x2);
-  SSE_CMP_P(cmpneq, 0x4);
-  SSE_CMP_P(cmpnlt, 0x5);
-  SSE_CMP_P(cmpnle, 0x6);
+  SSE_CMP_P(cmpeq, 0x0)
+  SSE_CMP_P(cmplt, 0x1)
+  SSE_CMP_P(cmple, 0x2)
+  SSE_CMP_P(cmpneq, 0x4)
+  SSE_CMP_P(cmpnlt, 0x5)
+  SSE_CMP_P(cmpnle, 0x6)
 
 #undef SSE_CMP_P
 
@@ -1336,18 +1316,18 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     impl(opcode, dst, src1, src2);                                  \
   }
 
-  AVX_SP_3(vsqrt, 0x51);
-  AVX_SP_3(vadd, 0x58);
-  AVX_SP_3(vsub, 0x5c);
-  AVX_SP_3(vmul, 0x59);
-  AVX_SP_3(vdiv, 0x5e);
-  AVX_SP_3(vmin, 0x5d);
-  AVX_SP_3(vmax, 0x5f);
-  AVX_P_3(vand, 0x54);
-  AVX_P_3(vor, 0x56);
-  AVX_P_3(vxor, 0x57);
-  AVX_3(vcvtsd2ss, 0x5a, vsd);
-  AVX_3(vhaddps, 0x7c, vsd);
+  AVX_SP_3(vsqrt, 0x51)
+  AVX_SP_3(vadd, 0x58)
+  AVX_SP_3(vsub, 0x5c)
+  AVX_SP_3(vmul, 0x59)
+  AVX_SP_3(vdiv, 0x5e)
+  AVX_SP_3(vmin, 0x5d)
+  AVX_SP_3(vmax, 0x5f)
+  AVX_P_3(vand, 0x54)
+  AVX_P_3(vor, 0x56)
+  AVX_P_3(vxor, 0x57)
+  AVX_3(vcvtsd2ss, 0x5a, vsd)
+  AVX_3(vhaddps, 0x7c, vsd)
 
 #undef AVX_3
 #undef AVX_S_3
@@ -1512,12 +1492,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vcmppd(dst, src1, src2, imm8);                                      \
   }
 
-  AVX_CMP_P(vcmpeq, 0x0);
-  AVX_CMP_P(vcmplt, 0x1);
-  AVX_CMP_P(vcmple, 0x2);
-  AVX_CMP_P(vcmpneq, 0x4);
-  AVX_CMP_P(vcmpnlt, 0x5);
-  AVX_CMP_P(vcmpnle, 0x6);
+  AVX_CMP_P(vcmpeq, 0x0)
+  AVX_CMP_P(vcmplt, 0x1)
+  AVX_CMP_P(vcmple, 0x2)
+  AVX_CMP_P(vcmpneq, 0x4)
+  AVX_CMP_P(vcmpnlt, 0x5)
+  AVX_CMP_P(vcmpnle, 0x6)
 
 #undef AVX_CMP_P
 
@@ -1806,12 +1786,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void call(Operand operand);
 
  private:
-  byte* addr_at(int pos) { return buffer_start_ + pos; }
-  uint32_t long_at(int pos)  {
-    return *reinterpret_cast<uint32_t*>(addr_at(pos));
+  Address addr_at(int pos) {
+    return reinterpret_cast<Address>(buffer_start_ + pos);
+  }
+  uint32_t long_at(int pos) {
+    return ReadUnalignedValue<uint32_t>(addr_at(pos));
   }
   void long_at_put(int pos, uint32_t x)  {
-    *reinterpret_cast<uint32_t*>(addr_at(pos)) = x;
+    WriteUnalignedValue(addr_at(pos), x);
   }
 
   // code emission
@@ -1819,11 +1801,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void emit(byte x) { *pc_++ = x; }
   inline void emitl(uint32_t x);
-  inline void emitp(Address x, RelocInfo::Mode rmode);
   inline void emitq(uint64_t x);
   inline void emitw(uint16_t x);
   inline void emit_runtime_entry(Address entry, RelocInfo::Mode rmode);
   inline void emit(Immediate x);
+  inline void emit(Immediate64 x);
 
   // Emits a REX prefix that encodes a 64-bit operand size and
   // the top bit of both register codes.
@@ -2135,6 +2117,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void emit_mov(Operand dst, Register src, int size);
   void emit_mov(Register dst, Immediate value, int size);
   void emit_mov(Operand dst, Immediate value, int size);
+  void emit_mov(Register dst, Immediate64 value, int size);
 
   void emit_movzxb(Register dst, Operand src, int size);
   void emit_movzxb(Register dst, Register src, int size);

@@ -184,24 +184,6 @@ Handle<Code> Assembler::relative_code_target_object_handle_at(
   return GetCodeTarget(code_target_index);
 }
 
-template <typename ObjectVisitor>
-void RelocInfo::Visit(ObjectVisitor* visitor) {
-  RelocInfo::Mode mode = rmode();
-  if (mode == RelocInfo::EMBEDDED_OBJECT) {
-    visitor->VisitEmbeddedPointer(host(), this);
-  } else if (RelocInfo::IsCodeTargetMode(mode)) {
-    visitor->VisitCodeTarget(host(), this);
-  } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
-    visitor->VisitExternalReference(host(), this);
-  } else if (mode == RelocInfo::INTERNAL_REFERENCE) {
-    visitor->VisitInternalReference(host(), this);
-  } else if (RelocInfo::IsRuntimeEntry(mode)) {
-    visitor->VisitRuntimeEntry(host(), this);
-  } else if (RelocInfo::IsOffHeapTarget(mode)) {
-    visitor->VisitOffHeapTarget(host(), this);
-  }
-}
-
 Operand::Operand(int32_t immediate, RelocInfo::Mode rmode) : rmode_(rmode) {
   value_.immediate = immediate;
 }
@@ -366,7 +348,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
     Memory<Address>(constant_pool_entry_address(pc, constant_pool)) = target;
     // Intuitively, we would think it is necessary to always flush the
     // instruction cache after patching a target address in the code as follows:
-    //   Assembler::FlushICache(pc, sizeof(target));
+    //   FlushInstructionCache(pc, sizeof(target));
     // However, on ARM, no instruction is actually patched in the case
     // of embedded constants of the form:
     // ldr   ip, [pp, #...]
@@ -384,7 +366,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
     DCHECK(IsMovW(Memory<int32_t>(pc)));
     DCHECK(IsMovT(Memory<int32_t>(pc + kInstrSize)));
     if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-      Assembler::FlushICache(pc, 2 * kInstrSize);
+      FlushInstructionCache(pc, 2 * kInstrSize);
     }
   } else if (IsMovImmed(Memory<int32_t>(pc))) {
     // This is an mov / orr immediate load. Patch the immediate embedded in
@@ -404,14 +386,14 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
            IsOrrImmed(Memory<int32_t>(pc + 2 * kInstrSize)) &&
            IsOrrImmed(Memory<int32_t>(pc + 3 * kInstrSize)));
     if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-      Assembler::FlushICache(pc, 4 * kInstrSize);
+      FlushInstructionCache(pc, 4 * kInstrSize);
     }
   } else {
     intptr_t branch_offset = target - pc - Instruction::kPcLoadDelta;
     Instruction* branch = Instruction::At(pc);
     branch->SetBranchOffset(branch_offset);
     if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-      Assembler::FlushICache(pc, kInstrSize);
+      FlushInstructionCache(pc, kInstrSize);
     }
   }
 }

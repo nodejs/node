@@ -9,6 +9,7 @@
   "use strict";
   function foo() { return Reflect.has(); }
 
+  %PrepareFunctionForOptimization(foo);
   assertThrows(foo);
   assertThrows(foo);
   %OptimizeFunctionOnNextCall(foo);
@@ -18,6 +19,7 @@
   "use strict";
   function foo(o) { return Reflect.has(o); }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo({}));
   assertFalse(foo({}));
   %OptimizeFunctionOnNextCall(foo);
@@ -27,6 +29,7 @@
   "use strict";
   function foo(o) { return Reflect.has(o); }
 
+  %PrepareFunctionForOptimization(foo);
   assertThrows(foo.bind(undefined, 1));
   assertThrows(foo.bind(undefined, undefined));
   %OptimizeFunctionOnNextCall(foo);
@@ -44,6 +47,7 @@
     }
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo());
   assertEquals(1, foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -60,6 +64,7 @@
     }
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo({[Symbol.toPrimitive]() { throw new Error(); }}));
   assertEquals(1, foo({[Symbol.toPrimitive]() { throw new Error(); }}));
   %OptimizeFunctionOnNextCall(foo);

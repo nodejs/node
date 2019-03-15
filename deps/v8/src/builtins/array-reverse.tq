@@ -2,55 +2,54 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array {
+namespace array_reverse {
   macro LoadElement<ElementsAccessor: type, T: type>(
       elements: FixedArrayBase, index: Smi): T;
 
-  LoadElement<FastPackedSmiElements, Smi>(implicit context: Context)(
+  LoadElement<array::FastPackedSmiElements, Smi>(implicit context: Context)(
       elements: FixedArrayBase, index: Smi): Smi {
-    const elems: FixedArray = UnsafeCast<FixedArray>(elements);
-    return UnsafeCast<Smi>(elems[index]);
+    const elements: FixedArray = UnsafeCast<FixedArray>(elements);
+    return UnsafeCast<Smi>(elements.objects[index]);
   }
 
-  LoadElement<FastPackedObjectElements, Object>(implicit context: Context)(
-      elements: FixedArrayBase, index: Smi): Object {
-    const elems: FixedArray = UnsafeCast<FixedArray>(elements);
-    return elems[index];
+  LoadElement<array::FastPackedObjectElements, Object>(
+      implicit context: Context)(elements: FixedArrayBase, index: Smi): Object {
+    const elements: FixedArray = UnsafeCast<FixedArray>(elements);
+    return elements.objects[index];
   }
 
-  LoadElement<FastPackedDoubleElements, float64>(implicit context: Context)(
-      elements: FixedArrayBase, index: Smi): float64 {
-    try {
-      const elems: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
-      return LoadDoubleWithHoleCheck(elems, index) otherwise Hole;
-    }
-    label Hole {
-      // This macro is only used for PACKED_DOUBLE, loading the hole should
-      // be impossible.
-      unreachable;
-    }
+  LoadElement<array::FastPackedDoubleElements, float64>(
+      implicit context: Context)(elements: FixedArrayBase, index: Smi):
+      float64 {
+    const elements: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
+    // This macro is only used for PACKED_DOUBLE, loading the hole should
+    // be impossible.
+    return LoadDoubleWithHoleCheck(elements, index)
+        otherwise unreachable;
   }
 
   macro StoreElement<ElementsAccessor: type, T: type>(
       implicit context:
           Context)(elements: FixedArrayBase, index: Smi, value: T);
 
-  StoreElement<FastPackedSmiElements, Smi>(implicit context: Context)(
+  StoreElement<array::FastPackedSmiElements, Smi>(implicit context: Context)(
       elements: FixedArrayBase, index: Smi, value: Smi) {
     const elems: FixedArray = UnsafeCast<FixedArray>(elements);
     StoreFixedArrayElementSmi(elems, index, value, SKIP_WRITE_BARRIER);
   }
 
-  StoreElement<FastPackedObjectElements, Object>(implicit context: Context)(
-      elements: FixedArrayBase, index: Smi, value: Object) {
-    const elems: FixedArray = UnsafeCast<FixedArray>(elements);
-    elems[index] = value;
+  StoreElement<array::FastPackedObjectElements, Object>(
+      implicit context:
+          Context)(elements: FixedArrayBase, index: Smi, value: Object) {
+    const elements: FixedArray = UnsafeCast<FixedArray>(elements);
+    elements.objects[index] = value;
   }
 
-  StoreElement<FastPackedDoubleElements, float64>(implicit context: Context)(
-      elements: FixedArrayBase, index: Smi, value: float64) {
+  StoreElement<array::FastPackedDoubleElements, float64>(
+      implicit context:
+          Context)(elements: FixedArrayBase, index: Smi, value: float64) {
     const elems: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
-    StoreFixedDoubleArrayElementWithSmiIndex(elems, index, value);
+    StoreFixedDoubleArrayElementSmi(elems, index, value);
   }
 
   // Fast-path for all PACKED_* elements kinds. These do not need to check
@@ -149,15 +148,15 @@ namespace array {
 
     const kind: ElementsKind = array.map.elements_kind;
     if (kind == PACKED_SMI_ELEMENTS) {
-      EnsureWriteableFastElements(array);
-      FastPackedArrayReverse<FastPackedSmiElements, Smi>(
+      array::EnsureWriteableFastElements(array);
+      FastPackedArrayReverse<array::FastPackedSmiElements, Smi>(
           array.elements, array.length);
     } else if (kind == PACKED_ELEMENTS) {
-      EnsureWriteableFastElements(array);
-      FastPackedArrayReverse<FastPackedObjectElements, Object>(
+      array::EnsureWriteableFastElements(array);
+      FastPackedArrayReverse<array::FastPackedObjectElements, Object>(
           array.elements, array.length);
     } else if (kind == PACKED_DOUBLE_ELEMENTS) {
-      FastPackedArrayReverse<FastPackedDoubleElements, float64>(
+      FastPackedArrayReverse<array::FastPackedDoubleElements, float64>(
           array.elements, array.length);
     } else {
       goto Slow;

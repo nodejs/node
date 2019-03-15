@@ -39,7 +39,7 @@ class StringTableShape : public BaseShape<StringTableKey*> {
 
   static inline uint32_t Hash(Isolate* isolate, Key key) { return key->Hash(); }
 
-  static inline uint32_t HashForObject(Isolate* isolate, Object object);
+  static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 
   static inline Handle<Object> AsHandle(Isolate* isolate, Key key);
 
@@ -93,14 +93,14 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
   template <bool seq_one_byte>
   friend class JsonParser;
 
-  OBJECT_CONSTRUCTORS(StringTable, HashTable<StringTable, StringTableShape>)
+  OBJECT_CONSTRUCTORS(StringTable, HashTable<StringTable, StringTableShape>);
 };
 
 class StringSetShape : public BaseShape<String> {
  public:
   static inline bool IsMatch(String key, Object value);
   static inline uint32_t Hash(Isolate* isolate, String key);
-  static inline uint32_t HashForObject(Isolate* isolate, Object object);
+  static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 
   static const int kPrefixSize = 0;
   static const int kEntrySize = 1;
@@ -114,7 +114,7 @@ class StringSet : public HashTable<StringSet, StringSetShape> {
   bool Has(Isolate* isolate, Handle<String> name);
 
   DECL_CAST(StringSet)
-  OBJECT_CONSTRUCTORS(StringSet, HashTable<StringSet, StringSetShape>)
+  OBJECT_CONSTRUCTORS(StringSet, HashTable<StringSet, StringSetShape>);
 };
 
 }  // namespace internal

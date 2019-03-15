@@ -15,6 +15,7 @@
     return array.lastIndexOf(val);
   }
 
+  %PrepareFunctionForOptimization(lastIndexOf);
   lastIndexOf(6); lastIndexOf(6);
 
   %OptimizeFunctionOnNextCall(lastIndexOf);

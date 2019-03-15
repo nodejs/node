@@ -2949,8 +2949,8 @@ TEST(NoBreakWhenBootstrapping) {
   {
     // Create a context with an extension to make sure that some JavaScript
     // code is executed during bootstrapping.
-    v8::RegisterExtension(new v8::Extension("simpletest",
-                                            kSimpleExtensionSource));
+    v8::RegisterExtension(v8::base::make_unique<v8::Extension>(
+        "simpletest", kSimpleExtensionSource));
     const char* extension_names[] = { "simpletest" };
     v8::ExtensionConfiguration extensions(1, extension_names);
     v8::HandleScope handle_scope(isolate);
@@ -4022,7 +4022,7 @@ UNINITIALIZED_TEST(DebugSetOutOfMemoryListener) {
     CHECK(!near_heap_limit_callback_called);
     // The following allocation fails unless the out-of-memory callback
     // increases the heap limit.
-    int length = 10 * i::MB / i::kPointerSize;
+    int length = 10 * i::MB / i::kTaggedSize;
     i_isolate->factory()->NewFixedArray(length, i::TENURED);
     CHECK(near_heap_limit_callback_called);
     isolate->RemoveNearHeapLimitCallback(NearHeapLimitCallback, 0);
@@ -4037,7 +4037,8 @@ TEST(DebugCoverage) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-  v8::debug::Coverage::SelectMode(isolate, v8::debug::Coverage::kPreciseCount);
+  v8::debug::Coverage::SelectMode(isolate,
+                                  v8::debug::CoverageMode::kPreciseCount);
   v8::Local<v8::String> source = v8_str(
       "function f() {\n"
       "}\n"
@@ -4092,7 +4093,8 @@ TEST(DebugCoverageWithCoverageOutOfScope) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-  v8::debug::Coverage::SelectMode(isolate, v8::debug::Coverage::kPreciseCount);
+  v8::debug::Coverage::SelectMode(isolate,
+                                  v8::debug::CoverageMode::kPreciseCount);
   v8::Local<v8::String> source = v8_str(
       "function f() {\n"
       "}\n"
@@ -4163,7 +4165,8 @@ TEST(DebugCoverageWithScriptDataOutOfScope) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-  v8::debug::Coverage::SelectMode(isolate, v8::debug::Coverage::kPreciseCount);
+  v8::debug::Coverage::SelectMode(isolate,
+                                  v8::debug::CoverageMode::kPreciseCount);
   v8::Local<v8::String> source = v8_str(
       "function f() {\n"
       "}\n"
@@ -4499,4 +4502,100 @@ TEST(Regress517592) {
   CompileRun(v8_str("foo()"));
   CHECK_EQ(delegate.break_count(), 1);
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
+}
+
+TEST(GetPrivateFields) {
+  LocalContext env;
+  v8::Isolate* v8_isolate = CcTest::isolate();
+  v8::internal::Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope scope(v8_isolate);
+  v8::Local<v8::Context> context = env.local();
+  v8::internal::FLAG_harmony_class_fields = true;
+  v8::internal::FLAG_harmony_private_fields = true;
+  v8::Local<v8::String> source = v8_str(
+      "var X = class {\n"
+      "  #foo = 1;\n"
+      "  #bar = function() {};\n"
+      "}\n"
+      "var x = new X()");
+  CompileRun(source);
+  v8::Local<v8::Object> object = v8::Local<v8::Object>::Cast(
+      env->Global()
+          ->Get(context, v8_str(env->GetIsolate(), "x"))
+          .ToLocalChecked());
+  v8::Local<v8::Array> private_names =
+      v8::debug::GetPrivateFields(context, object).ToLocalChecked();
+
+  for (int i = 0; i < 4; i = i + 2) {
+    Handle<v8::internal::JSReceiver> private_name =
+        v8::Utils::OpenHandle(*private_names->Get(context, i)
+                                   .ToLocalChecked()
+                                   ->ToObject(context)
+                                   .ToLocalChecked());
+    Handle<v8::internal::JSValue> private_value =
+        Handle<v8::internal::JSValue>::cast(private_name);
+    Handle<v8::internal::Symbol> priv_symbol(
+        v8::internal::Symbol::cast(private_value->value()), isolate);
+    CHECK(priv_symbol->is_private_name());
+  }
+
+  source = v8_str(
+      "var Y = class {\n"
+      "  #baz = 2;\n"
+      "}\n"
+      "var X = class extends Y{\n"
+      "  #foo = 1;\n"
+      "  #bar = function() {};\n"
+      "}\n"
+      "var x = new X()");
+  CompileRun(source);
+  object = v8::Local<v8::Object>::Cast(
+      env->Global()
+          ->Get(context, v8_str(env->GetIsolate(), "x"))
+          .ToLocalChecked());
+  private_names = v8::debug::GetPrivateFields(context, object).ToLocalChecked();
+
+  for (int i = 0; i < 6; i = i + 2) {
+    Handle<v8::internal::JSReceiver> private_name =
+        v8::Utils::OpenHandle(*private_names->Get(context, i)
+                                   .ToLocalChecked()
+                                   ->ToObject(context)
+                                   .ToLocalChecked());
+    Handle<v8::internal::JSValue> private_value =
+        Handle<v8::internal::JSValue>::cast(private_name);
+    Handle<v8::internal::Symbol> priv_symbol(
+        v8::internal::Symbol::cast(private_value->value()), isolate);
+    CHECK(priv_symbol->is_private_name());
+  }
+
+  source = v8_str(
+      "var Y = class {\n"
+      "  constructor() {"
+      "    return new Proxy({}, {});"
+      "  }"
+      "}\n"
+      "var X = class extends Y{\n"
+      "  #foo = 1;\n"
+      "  #bar = function() {};\n"
+      "}\n"
+      "var x = new X()");
+  CompileRun(source);
+  object = v8::Local<v8::Object>::Cast(
+      env->Global()
+          ->Get(context, v8_str(env->GetIsolate(), "x"))
+          .ToLocalChecked());
+  private_names = v8::debug::GetPrivateFields(context, object).ToLocalChecked();
+
+  for (int i = 0; i < 4; i = i + 2) {
+    Handle<v8::internal::JSReceiver> private_name =
+        v8::Utils::OpenHandle(*private_names->Get(context, i)
+                                   .ToLocalChecked()
+                                   ->ToObject(context)
+                                   .ToLocalChecked());
+    Handle<v8::internal::JSValue> private_value =
+        Handle<v8::internal::JSValue>::cast(private_name);
+    Handle<v8::internal::Symbol> priv_symbol(
+        v8::internal::Symbol::cast(private_value->value()), isolate);
+    CHECK(priv_symbol->is_private_name());
+  }
 }

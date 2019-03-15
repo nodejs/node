@@ -5,7 +5,6 @@
 // Flags: --no-stress-opt --trace-wasm-memory --no-liftoff --no-future
 // Flags: --no-wasm-tier-up
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 var builder = new WasmModuleBuilder();

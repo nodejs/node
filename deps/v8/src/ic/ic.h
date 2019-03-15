@@ -31,10 +31,6 @@ class IC {
 
   static constexpr int kMaxKeyedPolymorphism = 4;
 
-  // A polymorphic IC can handle at most 4 distinct maps before transitioning
-  // to megamorphic state.
-  static constexpr int kMaxPolymorphicMapCount = 4;
-
   // Construct the IC structure with the given number of extra
   // JavaScript frames on the stack.
   IC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot,
@@ -54,6 +50,7 @@ class IC {
     state_ = RECOMPUTE_HANDLER;
   }
 
+  bool IsAnyHas() const { return IsKeyedHasIC(); }
   bool IsAnyLoad() const {
     return IsLoadIC() || IsLoadGlobalIC() || IsKeyedLoadIC();
   }
@@ -134,9 +131,10 @@ class IC {
   bool IsStoreIC() const { return IsStoreICKind(kind_); }
   bool IsStoreOwnIC() const { return IsStoreOwnICKind(kind_); }
   bool IsKeyedStoreIC() const { return IsKeyedStoreICKind(kind_); }
+  bool IsKeyedHasIC() const { return IsKeyedHasICKind(kind_); }
   bool is_keyed() const {
     return IsKeyedLoadIC() || IsKeyedStoreIC() ||
-           IsStoreInArrayLiteralICKind(kind_);
+           IsStoreInArrayLiteralICKind(kind_) || IsKeyedHasIC();
   }
   bool ShouldRecomputeHandler(Handle<String> name);
 
@@ -204,13 +202,12 @@ class IC {
   DISALLOW_IMPLICIT_CONSTRUCTORS(IC);
 };
 
-
 class LoadIC : public IC {
  public:
   LoadIC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot,
          FeedbackSlotKind kind)
       : IC(isolate, vector, slot, kind) {
-    DCHECK(IsAnyLoad());
+    DCHECK(IsAnyLoad() || IsAnyHas());
   }
 
   static bool ShouldThrowReferenceError(FeedbackSlotKind kind) {
@@ -226,7 +223,8 @@ class LoadIC : public IC {
 
  protected:
   virtual Handle<Code> slow_stub() const {
-    return BUILTIN_CODE(isolate(), LoadIC_Slow);
+    return IsAnyHas() ? BUILTIN_CODE(isolate(), HasIC_Slow)
+                      : BUILTIN_CODE(isolate(), LoadIC_Slow);
   }
 
   // Update the inline cache and the global stub cache based on the
@@ -264,6 +262,9 @@ class KeyedLoadIC : public LoadIC {
                                                  Handle<Object> key);
 
  protected:
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> RuntimeLoad(Handle<Object> object,
+                                                        Handle<Object> key);
+
   // receiver is HeapObject because it could be a String or a JSObject
   void UpdateLoadElement(Handle<HeapObject> receiver,
                          KeyedAccessLoadMode load_mode);
@@ -284,16 +285,13 @@ class KeyedLoadIC : public LoadIC {
   bool CanChangeToAllowOutOfBounds(Handle<Map> receiver_map);
 };
 
-
 class StoreIC : public IC {
  public:
   StoreIC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot,
-          FeedbackSlotKind kind, LanguageMode language_mode)
-      : IC(isolate, vector, slot, kind), language_mode_(language_mode) {
+          FeedbackSlotKind kind)
+      : IC(isolate, vector, slot, kind) {
     DCHECK(IsAnyStore());
   }
-
-  LanguageMode language_mode() const { return language_mode_; }
 
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(
       Handle<Object> object, Handle<Name> name, Handle<Object> value,
@@ -314,11 +312,6 @@ class StoreIC : public IC {
   void UpdateCaches(LookupIterator* lookup, Handle<Object> value,
                     StoreOrigin store_origin);
 
-  // TODO(v8:8580): Instead of storing the language mode, compute it lazily
-  // from the closure and context when needed. We only need it when throwing
-  // exceptions, so it is OK to be slow.
-  LanguageMode language_mode_;
-
  private:
   MaybeObjectHandle ComputeHandler(LookupIterator* lookup);
 
@@ -328,9 +321,8 @@ class StoreIC : public IC {
 class StoreGlobalIC : public StoreIC {
  public:
   StoreGlobalIC(Isolate* isolate, Handle<FeedbackVector> vector,
-                FeedbackSlot slot, FeedbackSlotKind kind,
-                LanguageMode language_mode)
-      : StoreIC(isolate, vector, slot, kind, language_mode) {}
+                FeedbackSlot slot, FeedbackSlotKind kind)
+      : StoreIC(isolate, vector, slot, kind) {}
 
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(Handle<Name> name,
                                                   Handle<Object> value);
@@ -343,9 +335,7 @@ class StoreGlobalIC : public StoreIC {
 
 enum KeyedStoreCheckMap { kDontCheckMap, kCheckMap };
 
-
 enum KeyedStoreIncrementLength { kDontIncrementLength, kIncrementLength };
-
 
 class KeyedStoreIC : public StoreIC {
  public:
@@ -354,9 +344,8 @@ class KeyedStoreIC : public StoreIC {
   }
 
   KeyedStoreIC(Isolate* isolate, Handle<FeedbackVector> vector,
-               FeedbackSlot slot, FeedbackSlotKind kind,
-               LanguageMode language_mode)
-      : StoreIC(isolate, vector, slot, kind, language_mode) {}
+               FeedbackSlot slot, FeedbackSlotKind kind)
+      : StoreIC(isolate, vector, slot, kind) {}
 
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(Handle<Object> object,
                                                   Handle<Object> name,
@@ -390,8 +379,7 @@ class StoreInArrayLiteralIC : public KeyedStoreIC {
   StoreInArrayLiteralIC(Isolate* isolate, Handle<FeedbackVector> vector,
                         FeedbackSlot slot)
       : KeyedStoreIC(isolate, vector, slot,
-                     FeedbackSlotKind::kStoreInArrayLiteral,
-                     LanguageMode::kStrict) {
+                     FeedbackSlotKind::kStoreInArrayLiteral) {
     DCHECK(IsStoreInArrayLiteralICKind(kind()));
   }
 

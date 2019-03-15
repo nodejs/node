@@ -7,7 +7,11 @@
 
 #include "src/objects/js-collection.h"
 
-#include "src/objects-inl.h"  // Needed for write barriers
+#include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects-inl.h"
+#include "src/objects/heap-object-inl.h"
+#include "src/objects/ordered-hash-table-inl.h"
+#include "src/roots-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

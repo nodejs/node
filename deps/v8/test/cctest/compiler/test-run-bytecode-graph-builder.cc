@@ -2891,7 +2891,7 @@ TEST(BytecodeGraphBuilderIllegalConstDeclaration) {
 
   ExpectedSnippet<0, const char*> illegal_const_decl[] = {
       {"const x = x = 10 + 3; return x;",
-       {"Uncaught ReferenceError: x is not defined"}},
+       {"Uncaught ReferenceError: Cannot access 'x' before initialization"}},
       {"const x = 10; x = 20; return x;",
        {"Uncaught TypeError: Assignment to constant variable."}},
       {"const x = 10; { x = 20; } return x;",
@@ -2899,7 +2899,7 @@ TEST(BytecodeGraphBuilderIllegalConstDeclaration) {
       {"const x = 10; eval('x = 20;'); return x;",
        {"Uncaught TypeError: Assignment to constant variable."}},
       {"let x = x + 10; return x;",
-       {"Uncaught ReferenceError: x is not defined"}},
+       {"Uncaught ReferenceError: Cannot access 'x' before initialization"}},
       {"'use strict'; (function f1() { f1 = 123; })() ",
        {"Uncaught TypeError: Assignment to constant variable."}},
   };

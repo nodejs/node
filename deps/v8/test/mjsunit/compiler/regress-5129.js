@@ -11,5 +11,6 @@ function foo($a,$b) {
  return ($sub|0) < 0;
 }
 
+%PrepareFunctionForOptimization(foo);
 %OptimizeFunctionOnNextCall(foo);
 assertTrue(foo(0x7fffffff,-1));

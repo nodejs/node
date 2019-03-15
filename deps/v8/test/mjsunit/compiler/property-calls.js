@@ -30,6 +30,7 @@
 function f(o) { return o.g(); }
 function g() { return 42; }
 
+%PrepareFunctionForOptimization(f);
 var object = { };
 object.g = g;
 for (var i = 0; i < 5; i++) f(object);

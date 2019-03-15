@@ -563,8 +563,6 @@ void LowLevelLogger::LogCodeInfo() {
   const char arch[] = "ia32";
 #elif V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_64_BIT
   const char arch[] = "x64";
-#elif V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
-  const char arch[] = "x32";
 #elif V8_TARGET_ARCH_ARM
   const char arch[] = "arm";
 #elif V8_TARGET_ARCH_PPC
@@ -1625,7 +1623,7 @@ void Logger::ICEvent(const char* type, bool keyed, Map map, Object key,
   Address pc = isolate_->GetAbstractPC(&line, &column);
   msg << type << kNext << reinterpret_cast<void*>(pc) << kNext << line << kNext
       << column << kNext << old_state << kNext << new_state << kNext
-      << reinterpret_cast<void*>(map.ptr()) << kNext;
+      << AsHex::Address(map.ptr()) << kNext;
   if (key->IsSmi()) {
     msg << Smi::ToInt(key);
   } else if (key->IsNumber()) {
@@ -1654,10 +1652,9 @@ void Logger::MapEvent(const char* type, Map from, Map to, const char* reason,
   }
   Log::MessageBuilder msg(log_);
   msg << "map" << kNext << type << kNext << timer_.Elapsed().InMicroseconds()
-      << kNext << reinterpret_cast<void*>(from.ptr()) << kNext
-      << reinterpret_cast<void*>(to.ptr()) << kNext
-      << reinterpret_cast<void*>(pc) << kNext << line << kNext << column
-      << kNext << reason << kNext;
+      << kNext << AsHex::Address(from.ptr()) << kNext
+      << AsHex::Address(to.ptr()) << kNext << AsHex::Address(pc) << kNext
+      << line << kNext << column << kNext << reason << kNext;
 
   if (!name_or_sfi.is_null()) {
     if (name_or_sfi->IsName()) {
@@ -1666,7 +1663,7 @@ void Logger::MapEvent(const char* type, Map from, Map to, const char* reason,
       SharedFunctionInfo sfi = SharedFunctionInfo::cast(name_or_sfi);
       msg << sfi->DebugName();
 #if V8_SFI_HAS_UNIQUE_ID
-      msg << " " << sfi->unique_id();
+      msg << " " << SharedFunctionInfoWithID::cast(sfi)->unique_id();
 #endif  // V8_SFI_HAS_UNIQUE_ID
     }
   }
@@ -1678,7 +1675,7 @@ void Logger::MapCreate(Map map) {
   DisallowHeapAllocation no_gc;
   Log::MessageBuilder msg(log_);
   msg << "map-create" << kNext << timer_.Elapsed().InMicroseconds() << kNext
-      << reinterpret_cast<void*>(map.ptr());
+      << AsHex::Address(map.ptr());
   msg.WriteToLogFile();
 }
 
@@ -1687,7 +1684,7 @@ void Logger::MapDetails(Map map) {
   DisallowHeapAllocation no_gc;
   Log::MessageBuilder msg(log_);
   msg << "map-details" << kNext << timer_.Elapsed().InMicroseconds() << kNext
-      << reinterpret_cast<void*>(map.ptr()) << kNext;
+      << AsHex::Address(map.ptr()) << kNext;
   if (FLAG_trace_maps_details) {
     std::ostringstream buffer;
     map->PrintMapDetails(buffer);
@@ -1761,7 +1758,8 @@ static int EnumerateWasmModuleObjects(
     if (obj->IsWasmModuleObject()) {
       WasmModuleObject module = WasmModuleObject::cast(obj);
       if (module_objects != nullptr) {
-        module_objects[module_objects_count] = handle(module, heap->isolate());
+        module_objects[module_objects_count] =
+            handle(module, Isolate::FromHeap(heap));
       }
       module_objects_count++;
     }
@@ -1932,6 +1930,7 @@ void Logger::SetCodeEventHandler(uint32_t options,
   }
 
   if (event_handler) {
+    isolate_->wasm_engine()->EnableCodeLogging(isolate_);
     jit_logger_.reset(new JitLogger(isolate_, event_handler));
     AddCodeEventListener(jit_logger_.get());
     if (options & kJitCodeEventEnumExisting) {

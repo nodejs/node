@@ -22,6 +22,7 @@ function foo(arg) {
   return value * undefined;
 }
 
+%PrepareFunctionForOptimization(foo);
 foo(3);
 foo(3);
 %OptimizeFunctionOnNextCall(foo);

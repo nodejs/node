@@ -13,12 +13,12 @@ function copy() {
 }
 
 echo -n "Deploying..."
-copy *.jpg $DEST/
 copy *.png $DEST/
 copy *.css $DEST/
 copy index.html $DEST/
 copy info-view.html $DEST/
 copy -R build $DEST/
+copy -R img $DEST/
 echo "done!"
 
 echo "Deployed to $DEST/."

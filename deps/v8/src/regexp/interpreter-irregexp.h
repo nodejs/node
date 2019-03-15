@@ -7,8 +7,6 @@
 #ifndef V8_REGEXP_INTERPRETER_IRREGEXP_H_
 #define V8_REGEXP_INTERPRETER_IRREGEXP_H_
 
-#ifdef V8_INTERPRETED_REGEXP
-
 #include "src/regexp/jsregexp.h"
 
 namespace v8 {
@@ -26,7 +24,5 @@ class IrregexpInterpreter {
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_INTERPRETED_REGEXP
 
 #endif  // V8_REGEXP_INTERPRETER_IRREGEXP_H_

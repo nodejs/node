@@ -51,9 +51,9 @@ MaybeHandle<Object> RegExpUtils::SetLastIndex(Isolate* isolate,
     JSRegExp::cast(*recv)->set_last_index(*value_as_object, SKIP_WRITE_BARRIER);
     return recv;
   } else {
-    return Object::SetProperty(isolate, recv,
-                               isolate->factory()->lastIndex_string(),
-                               value_as_object, LanguageMode::kStrict);
+    return Object::SetProperty(
+        isolate, recv, isolate->factory()->lastIndex_string(), value_as_object,
+        StoreOrigin::kMaybeKeyed, Just(kThrowOnError));
   }
 }
 

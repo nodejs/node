@@ -7,6 +7,7 @@
 #include "src/api.h"
 #include "src/code-tracer.h"
 #include "src/global-handles.h"
+#include "src/heap/heap-inl.h"  // For InReadOnlySpace.
 #include "src/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/startup-serializer.h"
@@ -24,26 +25,20 @@ ReadOnlySerializer::~ReadOnlySerializer() {
   OutputStatistics("ReadOnlySerializer");
 }
 
-void ReadOnlySerializer::SerializeObject(HeapObject obj, HowToCode how_to_code,
-                                         WhereToPoint where_to_point,
-                                         int skip) {
-  CHECK(isolate()->heap()->read_only_space()->Contains(obj));
+void ReadOnlySerializer::SerializeObject(HeapObject obj) {
+  CHECK(isolate()->heap()->InReadOnlySpace(obj));
   CHECK_IMPLIES(obj->IsString(), obj->IsInternalizedString());
 
-  if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
-  if (IsRootAndHasBeenSerialized(obj) &&
-      SerializeRoot(obj, how_to_code, where_to_point, skip)) {
+  if (SerializeHotObject(obj)) return;
+  if (IsRootAndHasBeenSerialized(obj) && SerializeRoot(obj)) {
     return;
   }
-  if (SerializeBackReference(obj, how_to_code, where_to_point, skip)) return;
-
-  FlushSkip(skip);
+  if (SerializeBackReference(obj)) return;
 
   CheckRehashability(obj);
 
   // Object has not yet been serialized.  Serialize it here.
-  ObjectSerializer object_serializer(this, obj, &sink_, how_to_code,
-                                     where_to_point);
+  ObjectSerializer object_serializer(this, obj, &sink_);
   object_serializer.Serialize();
 }
 
@@ -84,18 +79,15 @@ bool ReadOnlySerializer::MustBeDeferred(HeapObject object) {
 }
 
 bool ReadOnlySerializer::SerializeUsingReadOnlyObjectCache(
-    SnapshotByteSink* sink, HeapObject obj, HowToCode how_to_code,
-    WhereToPoint where_to_point, int skip) {
-  if (!isolate()->heap()->read_only_space()->Contains(obj)) return false;
+    SnapshotByteSink* sink, HeapObject obj) {
+  if (!isolate()->heap()->InReadOnlySpace(obj)) return false;
 
   // Get the cache index and serialize it into the read-only snapshot if
   // necessary.
   int cache_index = SerializeInObjectCache(obj);
 
   // Writing out the cache entry into the calling serializer's sink.
-  FlushSkip(sink, skip);
-  sink->Put(kReadOnlyObjectCache + how_to_code + where_to_point,
-            "ReadOnlyObjectCache");
+  sink->Put(kReadOnlyObjectCache, "ReadOnlyObjectCache");
   sink->PutInt(cache_index, "read_only_object_cache_index");
 
   return true;

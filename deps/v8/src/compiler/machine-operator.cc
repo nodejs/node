@@ -818,7 +818,7 @@ struct CommentOperator : public Operator1<const char*> {
 
 namespace {
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(MachineOperatorGlobalCache,
-                                GetMachineOperatorGlobalCache);
+                                GetMachineOperatorGlobalCache)
 }
 
 MachineOperatorBuilder::MachineOperatorBuilder(

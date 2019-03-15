@@ -39,6 +39,51 @@ class ParseResultHolderBase {
   const TypeId type_id_;
 };
 
+enum class ParseResultHolderBase::TypeId {
+  kStdString,
+  kBool,
+  kStdVectorOfString,
+  kExpressionPtr,
+  kIdentifierPtr,
+  kLocationExpressionPtr,
+  kStatementPtr,
+  kDeclarationPtr,
+  kTypeExpressionPtr,
+  kOptionalTypeExpressionPtr,
+  kLabelBlockPtr,
+  kOptionalLabelBlockPtr,
+  kNameAndTypeExpression,
+  kClassFieldExpression,
+  kStructFieldExpression,
+  kStdVectorOfNameAndTypeExpression,
+  kStdVectorOfClassFieldExpression,
+  kStdVectorOfStructFieldExpression,
+  kIncrementDecrementOperator,
+  kOptionalStdString,
+  kStdVectorOfStatementPtr,
+  kStdVectorOfDeclarationPtr,
+  kStdVectorOfExpressionPtr,
+  kExpressionWithSource,
+  kParameterList,
+  kRangeExpression,
+  kOptionalRangeExpression,
+  kTypeList,
+  kOptionalTypeList,
+  kLabelAndTypes,
+  kStdVectorOfLabelAndTypes,
+  kStdVectorOfLabelBlockPtr,
+  kOptionalStatementPtr,
+  kOptionalExpressionPtr,
+  kTypeswitchCase,
+  kStdVectorOfTypeswitchCase,
+  kStdVectorOfIdentifierPtr,
+
+  kJsonValue,
+  kJsonMember,
+  kStdVectorOfJsonValue,
+  kStdVectorOfJsonMember,
+};
+
 using ParseResultTypeId = ParseResultHolderBase::TypeId;
 
 template <class T>
@@ -71,12 +116,16 @@ class ParseResult {
   explicit ParseResult(T x) : value_(new ParseResultHolder<T>(std::move(x))) {}
 
   template <class T>
-  const T& Cast() const {
+  const T& Cast() const& {
     return value_->Cast<T>();
   }
   template <class T>
-  T& Cast() {
+  T& Cast() & {
     return value_->Cast<T>();
+  }
+  template <class T>
+  T&& Cast() && {
+    return std::move(value_->Cast<T>());
   }
 
  private:

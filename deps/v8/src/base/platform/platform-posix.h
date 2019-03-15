@@ -14,7 +14,7 @@ namespace base {
 class PosixTimezoneCache : public TimezoneCache {
  public:
   double DaylightSavingsOffset(double time_ms) override;
-  void Clear() override {}
+  void Clear(TimeZoneDetection) override {}
   ~PosixTimezoneCache() override = default;
 
  protected:

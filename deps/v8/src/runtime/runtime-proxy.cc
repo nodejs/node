@@ -8,6 +8,7 @@
 #include "src/counters.h"
 #include "src/elements.h"
 #include "src/heap/factory.h"
+#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/isolate-inl.h"
 #include "src/objects-inl.h"
 
@@ -64,12 +65,11 @@ RUNTIME_FUNCTION(Runtime_GetPropertyWithReceiver) {
 RUNTIME_FUNCTION(Runtime_SetPropertyWithReceiver) {
   HandleScope scope(isolate);
 
-  DCHECK_EQ(5, args.length());
+  DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 3);
-  CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 4);
 
   bool success = false;
   LookupIterator it = LookupIterator::PropertyOrElement(isolate, receiver, key,
@@ -78,8 +78,8 @@ RUNTIME_FUNCTION(Runtime_SetPropertyWithReceiver) {
     DCHECK(isolate->has_pending_exception());
     return ReadOnlyRoots(isolate).exception();
   }
-  Maybe<bool> result = Object::SetSuperProperty(&it, value, language_mode,
-                                                StoreOrigin::kMaybeKeyed);
+  Maybe<bool> result =
+      Object::SetSuperProperty(&it, value, StoreOrigin::kMaybeKeyed);
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return *isolate->factory()->ToBoolean(result.FromJust());
 }

@@ -13,7 +13,7 @@
 #include "src/global-handles.h"
 #include "src/heap/factory.h"
 #include "src/objects-inl.h"
-#include "src/transitions.h"
+#include "src/transitions-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-transitions.h"
 

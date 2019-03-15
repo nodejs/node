@@ -159,28 +159,28 @@ class Scavenger {
   RememberedSetEntryNeeded(CopyAndForwardResult result);
 
   template <typename THeapObjectSlot>
-  V8_INLINE CopyAndForwardResult SemiSpaceCopyObject(Map map,
-                                                     THeapObjectSlot slot,
-                                                     HeapObject object,
-                                                     int object_size);
+  V8_INLINE CopyAndForwardResult
+  SemiSpaceCopyObject(Map map, THeapObjectSlot slot, HeapObject object,
+                      int object_size, ObjectFields object_fields);
 
   template <typename THeapObjectSlot>
   V8_INLINE CopyAndForwardResult PromoteObject(Map map, THeapObjectSlot slot,
                                                HeapObject object,
-                                               int object_size);
+                                               int object_size,
+                                               ObjectFields object_fields);
 
   template <typename THeapObjectSlot>
   V8_INLINE SlotCallbackResult EvacuateObject(THeapObjectSlot slot, Map map,
                                               HeapObject source);
 
-  V8_INLINE bool HandleLargeObject(Map map, HeapObject object, int object_size);
+  V8_INLINE bool HandleLargeObject(Map map, HeapObject object, int object_size,
+                                   ObjectFields object_fields);
 
   // Different cases for object evacuation.
   template <typename THeapObjectSlot>
-  V8_INLINE SlotCallbackResult EvacuateObjectDefault(Map map,
-                                                     THeapObjectSlot slot,
-                                                     HeapObject object,
-                                                     int object_size);
+  V8_INLINE SlotCallbackResult
+  EvacuateObjectDefault(Map map, THeapObjectSlot slot, HeapObject object,
+                        int object_size, ObjectFields object_fields);
 
   template <typename THeapObjectSlot>
   inline SlotCallbackResult EvacuateThinString(Map map, THeapObjectSlot slot,
@@ -194,8 +194,6 @@ class Scavenger {
                                                       int object_size);
 
   void IterateAndScavengePromotedObject(HeapObject target, Map map, int size);
-
-  static inline bool ContainsOnlyData(VisitorId visitor_id);
 
   ScavengerCollector* const collector_;
   Heap* const heap_;

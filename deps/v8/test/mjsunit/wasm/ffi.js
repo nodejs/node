@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm --allow-natives-syntax
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 function testCallFFI(func, check) {

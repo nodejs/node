@@ -33,7 +33,7 @@ namespace interpreter {
 
 #define U8(i) static_cast<uint8_t>(i)
 #define REG_OPERAND(i) \
-  (InterpreterFrameConstants::kRegisterFileFromFp / kPointerSize - (i))
+  (InterpreterFrameConstants::kRegisterFileFromFp / kSystemPointerSize - (i))
 #define R8(i) static_cast<uint8_t>(REG_OPERAND(i))
 #define R16(i) U16(REG_OPERAND(i))
 #define R32(i) U32(REG_OPERAND(i))

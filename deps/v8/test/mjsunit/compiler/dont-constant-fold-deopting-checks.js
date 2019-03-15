@@ -6,5 +6,6 @@
 
 function bar(a) { a[0](true); }
 function foo(a) { return bar(1); }
+%PrepareFunctionForOptimization(foo);
 %OptimizeFunctionOnNextCall(foo);
 assertThrows(function() {bar([foo])}, TypeError);

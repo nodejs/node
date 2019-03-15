@@ -22,6 +22,7 @@ function f() {
   }
 }
 
+%PrepareFunctionForOptimization(f);
 assertEquals(f(), 43);
 assertEquals(f(), 43);
 %OptimizeFunctionOnNextCall(f);

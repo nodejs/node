@@ -203,60 +203,15 @@ uchar Utf8::CalculateValue(const byte* str, size_t max_length, size_t* cursor) {
   Utf8IncrementalBuffer buffer = 0;
   uchar t;
 
-  size_t i = 0;
+  const byte* start = str;
+  const byte* end = str + max_length;
+
   do {
-    t = ValueOfIncremental(str[i], &i, &state, &buffer);
-  } while (i < max_length && t == kIncomplete);
+    t = ValueOfIncremental(&str, &state, &buffer);
+  } while (str < end && t == kIncomplete);
 
-  *cursor += i;
+  *cursor += str - start;
   return (state == State::kAccept) ? t : kBadChar;
-}
-
-// Decodes UTF-8 bytes incrementally, allowing the decoding of bytes as they
-// stream in. This **must** be followed by a call to ValueOfIncrementalFinish
-// when the stream is complete, to ensure incomplete sequences are handled.
-uchar Utf8::ValueOfIncremental(byte next, size_t* cursor, State* state,
-                               Utf8IncrementalBuffer* buffer) {
-  DCHECK_NOT_NULL(buffer);
-  State old_state = *state;
-  *cursor += 1;
-
-  if (V8_LIKELY(next <= kMaxOneByteChar && old_state == State::kAccept)) {
-    DCHECK_EQ(0u, *buffer);
-    return static_cast<uchar>(next);
-  }
-
-  // So we're at the lead byte of a 2/3/4 sequence, or we're at a continuation
-  // char in that sequence.
-  Utf8DfaDecoder::Decode(next, state, buffer);
-
-  switch (*state) {
-    case State::kAccept: {
-      uchar t = *buffer;
-      *buffer = 0;
-      return t;
-    }
-
-    case State::kReject:
-      *state = State::kAccept;
-      *buffer = 0;
-
-      // If we hit a bad byte, we need to determine if we were trying to start
-      // a sequence or continue one. If we were trying to start a sequence,
-      // that means it's just an invalid lead byte and we need to continue to
-      // the next (which we already did above). If we were already in a
-      // sequence, we need to reprocess this same byte after resetting to the
-      // initial state.
-      if (old_state != State::kAccept) {
-        // We were trying to continue a sequence, so let's reprocess this byte
-        // next time.
-        *cursor -= 1;
-      }
-      return kBadChar;
-
-    default:
-      return kIncomplete;
-  }
 }
 
 // Finishes the incremental decoding, ensuring that if an unfinished sequence

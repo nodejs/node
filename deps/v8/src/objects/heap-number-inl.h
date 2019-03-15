@@ -7,7 +7,8 @@
 
 #include "src/objects/heap-number.h"
 
-#include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects-inl.h"
+#include "src/objects/heap-object-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -23,29 +24,29 @@ CAST_ACCESSOR(HeapNumber)
 CAST_ACCESSOR(MutableHeapNumber)
 
 double HeapNumberBase::value() const {
-  return READ_DOUBLE_FIELD(this, kValueOffset);
+  return READ_DOUBLE_FIELD(*this, kValueOffset);
 }
 
 void HeapNumberBase::set_value(double value) {
-  WRITE_DOUBLE_FIELD(this, kValueOffset, value);
+  WRITE_DOUBLE_FIELD(*this, kValueOffset, value);
 }
 
 uint64_t HeapNumberBase::value_as_bits() const {
-  return READ_UINT64_FIELD(this, kValueOffset);
+  return READ_UINT64_FIELD(*this, kValueOffset);
 }
 
 void HeapNumberBase::set_value_as_bits(uint64_t bits) {
-  WRITE_UINT64_FIELD(this, kValueOffset, bits);
+  WRITE_UINT64_FIELD(*this, kValueOffset, bits);
 }
 
 int HeapNumberBase::get_exponent() {
-  return ((READ_INT_FIELD(this, kExponentOffset) & kExponentMask) >>
+  return ((READ_INT_FIELD(*this, kExponentOffset) & kExponentMask) >>
           kExponentShift) -
          kExponentBias;
 }
 
 int HeapNumberBase::get_sign() {
-  return READ_INT_FIELD(this, kExponentOffset) & kSignMask;
+  return READ_INT_FIELD(*this, kExponentOffset) & kSignMask;
 }
 
 }  // namespace internal

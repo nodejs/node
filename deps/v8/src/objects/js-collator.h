@@ -40,7 +40,7 @@ class JSCollator : public JSObject {
   static Handle<JSObject> ResolvedOptions(Isolate* isolate,
                                           Handle<JSCollator> collator);
 
-  static std::set<std::string> GetAvailableLocales();
+  static const std::set<std::string>& GetAvailableLocales();
 
   DECL_CAST(JSCollator)
   DECL_PRINTER(JSCollator)
@@ -57,7 +57,7 @@ class JSCollator : public JSObject {
 #undef JS_COLLATOR_FIELDS
 
   DECL_ACCESSORS(icu_collator, Managed<icu::Collator>)
-  DECL_ACCESSORS(bound_compare, Object);
+  DECL_ACCESSORS(bound_compare, Object)
 
   OBJECT_CONSTRUCTORS(JSCollator, JSObject);
 };

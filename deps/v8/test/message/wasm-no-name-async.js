@@ -5,7 +5,6 @@
 // Flags: --expose-wasm --no-stress-opt
 
 load('test/mjsunit/mjsunit.js');
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 var builder = new WasmModuleBuilder();

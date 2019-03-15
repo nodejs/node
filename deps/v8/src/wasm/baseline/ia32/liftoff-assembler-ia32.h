@@ -1780,7 +1780,7 @@ void LiftoffStackSlots::Construct() {
           liftoff::push(asm_, src.reg(), src.type());
         }
         break;
-      case LiftoffAssembler::VarState::KIntConst:
+      case LiftoffAssembler::VarState::kIntConst:
         // The high word is the sign extension of the low word.
         asm_->push(Immediate(slot.half_ == kLowWord ? src.i32_const()
                                                     : src.i32_const() >> 31));

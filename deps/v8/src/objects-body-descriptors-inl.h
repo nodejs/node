@@ -8,6 +8,7 @@
 #include "src/feedback-vector.h"
 #include "src/objects-body-descriptors.h"
 #include "src/objects/cell.h"
+#include "src/objects/data-handler.h"
 #include "src/objects/foreign-inl.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/js-collection.h"
@@ -82,11 +83,8 @@ void BodyDescriptorBase::IterateJSObjectBodyImpl(Map map, HeapObject obj,
     // There are embedder fields.
     IteratePointers(obj, start_offset, header_size, v);
     // Iterate only tagged payload of the embedder slots and skip raw payload.
-    int embedder_fields_offset = RoundUp(header_size, kSystemPointerSize);
-    DCHECK_EQ(embedder_fields_offset,
-              JSObject::GetEmbedderFieldsStartOffset(map));
-    for (int offset =
-             embedder_fields_offset + EmbedderDataSlot::kTaggedPayloadOffset;
+    DCHECK_EQ(header_size, JSObject::GetEmbedderFieldsStartOffset(map));
+    for (int offset = header_size + EmbedderDataSlot::kTaggedPayloadOffset;
          offset < inobject_fields_offset; offset += kEmbedderDataSlotSize) {
       IteratePointer(obj, offset, v);
     }
@@ -197,7 +195,26 @@ class JSObject::FastBodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class JSWeakCell::BodyDescriptor final : public BodyDescriptorBase {
+class WeakCell::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
+    return offset >= HeapObject::kHeaderSize;
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject obj, int object_size,
+                                 ObjectVisitor* v) {
+    IteratePointers(obj, HeapObject::kHeaderSize, kTargetOffset, v);
+    IterateCustomWeakPointer(obj, kTargetOffset, v);
+    IteratePointers(obj, kTargetOffset + kTaggedSize, object_size, v);
+  }
+
+  static inline int SizeOf(Map map, HeapObject object) {
+    return map->instance_size();
+  }
+};
+
+class JSWeakRef::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
     return IsValidJSObjectSlotImpl(map, obj, offset);
@@ -217,25 +234,6 @@ class JSWeakCell::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class JSWeakRef::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    return JSObject::BodyDescriptor::IsValidSlot(map, obj, offset);
-  }
-
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Map map, HeapObject obj, int object_size,
-                                 ObjectVisitor* v) {
-    IteratePointers(obj, JSReceiver::kPropertiesOrHashOffset, kTargetOffset, v);
-    IterateCustomWeakPointer(obj, kTargetOffset, v);
-    IteratePointers(obj, kTargetOffset + kPointerSize, object_size, v);
-  }
-
-  static inline int SizeOf(Map map, HeapObject object) {
-    return map->instance_size();
-  }
-};
-
 class SharedFunctionInfo::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
@@ -248,8 +246,7 @@ class SharedFunctionInfo::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
     IterateCustomWeakPointer(obj, kFunctionDataOffset, v);
-    IteratePointers(obj,
-                    SharedFunctionInfo::kStartOfAlwaysStrongPointerFieldsOffset,
+    IteratePointers(obj, SharedFunctionInfo::kStartOfStrongFieldsOffset,
                     SharedFunctionInfo::kEndOfTaggedFieldsOffset, v);
   }
 
@@ -591,22 +588,22 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
     return true;
   }
 
+  static constexpr int kRelocModeMask =
+      RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+      RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |
+      RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+      RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
+      RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
+      RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
+      RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
+      RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
+
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, ObjectVisitor* v) {
-    static constexpr int kModeMask =
-        RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-        RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |
-        RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-        RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
-        RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
-        RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
-        RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
-        RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
-
     // GC does not visit data/code in the header and in the body directly.
     IteratePointers(obj, kRelocationInfoOffset, kDataStart, v);
 
-    RelocIterator it(Code::cast(obj), kModeMask);
+    RelocIterator it(Code::cast(obj), kRelocModeMask);
     v->VisitRelocInfo(&it);
   }
 
@@ -757,7 +754,7 @@ class EmbedderDataArray::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
 #ifdef V8_COMPRESS_POINTERS
-    STATIC_ASSERT(kEmbedderDataSlotSize == 2 * kSystemPointerSize);
+    STATIC_ASSERT(kEmbedderDataSlotSize == 2 * kTaggedSize);
     STATIC_ASSERT(base::bits::IsPowerOfTwo(kEmbedderDataSlotSize));
     return (offset < EmbedderDataArray::kHeaderSize) ||
            (((offset - EmbedderDataArray::kHeaderSize) &
@@ -775,7 +772,7 @@ class EmbedderDataArray::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
 #ifdef V8_COMPRESS_POINTERS
-    STATIC_ASSERT(kEmbedderDataSlotSize == 2 * kSystemPointerSize);
+    STATIC_ASSERT(kEmbedderDataSlotSize == 2 * kTaggedSize);
     // Iterate only tagged payload of the embedder slots and skip raw payload.
     for (int offset = EmbedderDataArray::OffsetOfElementAt(0) +
                       EmbedderDataSlot::kTaggedPayloadOffset;
@@ -902,8 +899,8 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_BOUND_FUNCTION_TYPE:
-    case JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE:
-    case JS_WEAK_FACTORY_TYPE:
+    case JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE:
+    case JS_FINALIZATION_GROUP_TYPE:
 #ifdef V8_INTL_SUPPORT
     case JS_INTL_V8_BREAK_ITERATOR_TYPE:
     case JS_INTL_COLLATOR_TYPE:
@@ -937,8 +934,8 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
       return Op::template apply<JSTypedArray::BodyDescriptor>(p1, p2, p3, p4);
     case JS_FUNCTION_TYPE:
       return Op::template apply<JSFunction::BodyDescriptor>(p1, p2, p3, p4);
-    case JS_WEAK_CELL_TYPE:
-      return Op::template apply<JSWeakCell::BodyDescriptor>(p1, p2, p3, p4);
+    case WEAK_CELL_TYPE:
+      return Op::template apply<WeakCell::BodyDescriptor>(p1, p2, p3, p4);
     case JS_WEAK_REF_TYPE:
       return Op::template apply<JSWeakRef::BodyDescriptor>(p1, p2, p3, p4);
     case ODDBALL_TYPE:

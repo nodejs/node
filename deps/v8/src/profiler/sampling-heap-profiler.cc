@@ -53,14 +53,14 @@ v8::AllocationProfile::Allocation SamplingHeapProfiler::ScaleSample(
 SamplingHeapProfiler::SamplingHeapProfiler(
     Heap* heap, StringsStorage* names, uint64_t rate, int stack_depth,
     v8::HeapProfiler::SamplingFlags flags)
-    : isolate_(heap->isolate()),
+    : isolate_(Isolate::FromHeap(heap)),
       heap_(heap),
       new_space_observer_(new SamplingAllocationObserver(
           heap_, static_cast<intptr_t>(rate), rate, this,
-          heap->isolate()->random_number_generator())),
+          isolate_->random_number_generator())),
       other_spaces_observer_(new SamplingAllocationObserver(
           heap_, static_cast<intptr_t>(rate), rate, this,
-          heap->isolate()->random_number_generator())),
+          isolate_->random_number_generator())),
       names_(names),
       profile_root_(nullptr, "(root)", v8::UnboundScript::kNoScriptId, 0,
                     next_node_id()),

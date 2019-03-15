@@ -61,16 +61,6 @@ class HeapProfiler : public HeapObjectAllocationTracker {
 
   void UpdateObjectSizeEvent(Address addr, int size) override;
 
-  void DefineWrapperClass(
-      uint16_t class_id, v8::HeapProfiler::WrapperInfoCallback callback);
-
-  v8::RetainedObjectInfo* ExecuteWrapperClassCallback(uint16_t class_id,
-                                                      Handle<Object> wrapper);
-
-  void SetGetRetainerInfosCallback(
-      v8::HeapProfiler::GetRetainerInfosCallback callback);
-  v8::HeapProfiler::RetainerInfos GetRetainerInfos(Isolate* isolate);
-
   void AddBuildEmbedderGraphCallback(
       v8::HeapProfiler::BuildEmbedderGraphCallback callback, void* data);
   void RemoveBuildEmbedderGraphCallback(
@@ -100,13 +90,10 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   std::unique_ptr<HeapObjectsMap> ids_;
   std::vector<std::unique_ptr<HeapSnapshot>> snapshots_;
   std::unique_ptr<StringsStorage> names_;
-  std::vector<v8::HeapProfiler::WrapperInfoCallback> wrapper_callbacks_;
   std::unique_ptr<AllocationTracker> allocation_tracker_;
   bool is_tracking_object_moves_;
   base::Mutex profiler_mutex_;
   std::unique_ptr<SamplingHeapProfiler> sampling_heap_profiler_;
-  v8::HeapProfiler::GetRetainerInfosCallback get_retainer_infos_callback_ =
-      nullptr;
   std::vector<std::pair<v8::HeapProfiler::BuildEmbedderGraphCallback, void*>>
       build_embedder_graph_callbacks_;
 

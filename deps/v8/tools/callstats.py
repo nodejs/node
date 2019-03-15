@@ -17,6 +17,9 @@ Commands:
 For each command, you can try ./runtime-call-stats.py help command.
 '''
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import argparse
 import json
 import os
@@ -46,7 +49,7 @@ def print_command(cmd_args):
     elif ' ' in arg:
       arg = "'{}'".format(arg)
     return arg
-  print " ".join(map(fix_for_printing, cmd_args))
+  print(" ".join(map(fix_for_printing, cmd_args)))
 
 
 def start_replay_server(args, sites, discard_output=True):
@@ -66,15 +69,15 @@ def start_replay_server(args, sites, discard_output=True):
       "--inject_scripts=deterministic.js,{}".format(injection),
       args.replay_wpr,
   ]
-  print "=" * 80
+  print("=" * 80)
   print_command(cmd_args)
   if discard_output:
     with open(os.devnull, 'w') as null:
       server = subprocess.Popen(cmd_args, stdout=null, stderr=null)
   else:
       server = subprocess.Popen(cmd_args)
-  print "RUNNING REPLAY SERVER: %s with PID=%s" % (args.replay_bin, server.pid)
-  print "=" * 80
+  print("RUNNING REPLAY SERVER: %s with PID=%s" % (args.replay_bin, server.pid))
+  print("=" * 80)
   return {'process': server, 'injection': injection}
 
 
@@ -85,7 +88,7 @@ def stop_replay_server(server):
 
 
 def generate_injection(f, sites, refreshes=0):
-  print >> f, """\
+  print("""\
 (function() {
   var s = window.sessionStorage.getItem("refreshCounter");
   var refreshTotal = """, refreshes, """;
@@ -127,7 +130,7 @@ def generate_injection(f, sites, refreshes=0):
   var sites =
     """, json.dumps(sites), """;
   onLoad(window.location.href);
-})();"""
+})();""", file=f)
 
 def get_chrome_flags(js_flags, user_data_dir, arg_delimiter=""):
   return [
@@ -161,9 +164,9 @@ def get_chrome_replay_flags(args, arg_delimiter=""):
     ]
 
 def run_site(site, domain, args, timeout=None):
-  print "="*80
-  print "RUNNING DOMAIN %s" % domain
-  print "="*80
+  print("="*80)
+  print("RUNNING DOMAIN %s" % domain)
+  print("="*80)
   result_template = "{domain}#{count}.txt" if args.repeat else "{domain}.txt"
   count = 0
   if timeout is None: timeout = args.timeout
@@ -196,9 +199,9 @@ def run_site(site, domain, args, timeout=None):
             "timeout", str(timeout),
             args.with_chrome
         ] + chrome_flags + [ site ]
-        print "- " * 40
+        print("- " * 40)
         print_command(cmd_args)
-        print "- " * 40
+        print("- " * 40)
         with open(result, "wt") as f:
           with open(args.log_stderr or os.devnull, 'at') as err:
             status = subprocess.call(cmd_args, stdout=f, stderr=err)
@@ -212,8 +215,8 @@ def run_site(site, domain, args, timeout=None):
         if os.path.isfile(result) and os.path.getsize(result) > 0:
           if args.print_url:
             with open(result, "at") as f:
-              print >> f
-              print >> f, "URL: {}".format(site)
+              print(file=f)
+              print("URL: {}".format(site), file=f)
           retries_since_good_run = 0
           break
         if retries_since_good_run > MAX_NOF_RETRIES:
@@ -294,7 +297,7 @@ def do_run(args):
     # Run them.
     for site, domain, count, timeout in L:
       if count is not None: domain = "{}%{}".format(domain, count)
-      print(site, domain, timeout)
+      print((site, domain, timeout))
       run_site(site, domain, args, timeout)
   finally:
     if replay_server:
@@ -459,11 +462,11 @@ def print_stats(S, args):
     def stats(s, units=""):
       conf = "{:0.1f}({:0.2f}%)".format(s['ci']['abs'], s['ci']['perc'])
       return "{:8.1f}{} +/- {:15s}".format(s['average'], units, conf)
-    print "{:>50s}  {}  {}".format(
+    print("{:>50s}  {}  {}".format(
       key,
       stats(value['time_stat'], units="ms"),
       stats(value['count_stat'])
-    )
+    ))
   # Print and calculate partial sums, if necessary.
   for i in range(low, high):
     print_entry(*L[i])
@@ -479,7 +482,7 @@ def print_stats(S, args):
         partial['count_list'][j] += v
   # Print totals, if necessary.
   if args.totals:
-    print '-' * 80
+    print('-' * 80)
     if args.limit != 0 and not args.aggregate:
       partial['time_stat'] = statistics(partial['time_list'])
       partial['count_stat'] = statistics(partial['count_list'])
@@ -500,9 +503,9 @@ def do_stats(args):
     create_total_page_stats(domains, args)
   for i, domain in enumerate(sorted(domains)):
     if len(domains) > 1:
-      if i > 0: print
-      print "{}:".format(domain)
-      print '=' * 80
+      if i > 0: print()
+      print("{}:".format(domain))
+      print('=' * 80)
     domain_stats = domains[domain]
     for key in domain_stats:
       domain_stats[key]['time_stat'] = \
@@ -575,7 +578,7 @@ def do_json(args):
           entry.append(round(s['ci']['perc'], 2))
         stats.append(entry)
       domains[domain] = stats
-  print json.dumps(versions, separators=(',', ':'))
+  print(json.dumps(versions, separators=(',', ':')))
 
 
 # Help.

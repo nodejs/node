@@ -15,15 +15,15 @@ namespace v8 {
 namespace internal {
 
 // We use the full 16 bits of the instance_type field to encode heap object
-// instance types. All the high-order bits (bit 7-15) are cleared if the object
+// instance types. All the high-order bits (bit 6-15) are cleared if the object
 // is a string, and contain set bits if it is not a string.
-const uint32_t kIsNotStringMask = 0xff80;
+const uint32_t kIsNotStringMask = 0xffc0;
 const uint32_t kStringTag = 0x0;
 
-// Bit 6 indicates that the object is an internalized string (if set) or not.
-// Bit 7 has to be clear as well.
-const uint32_t kIsNotInternalizedMask = 0x40;
-const uint32_t kNotInternalizedTag = 0x40;
+// Bit 5 indicates that the object is an internalized string (if not set) or
+// not (if set). Bit 7 has to be clear as well.
+const uint32_t kIsNotInternalizedMask = 0x20;
+const uint32_t kNotInternalizedTag = 0x20;
 const uint32_t kInternalizedTag = 0x0;
 
 // If bit 7 is clear then bit 3 indicates whether the string consists of
@@ -52,15 +52,10 @@ STATIC_ASSERT((kSlicedStringTag & kIsIndirectStringMask) ==
               kIsIndirectStringTag);  // NOLINT
 STATIC_ASSERT((kThinStringTag & kIsIndirectStringMask) == kIsIndirectStringTag);
 
-// If bit 7 is clear, then bit 4 indicates whether this two-byte
-// string actually contains one byte data.
-const uint32_t kOneByteDataHintMask = 0x10;
-const uint32_t kOneByteDataHintTag = 0x10;
-
-// If bit 7 is clear and string representation indicates an external string,
+// If bit 6 is clear and string representation indicates an external string,
 // then bit 5 indicates whether the data pointer is cached.
-const uint32_t kUncachedExternalStringMask = 0x20;
-const uint32_t kUncachedExternalStringTag = 0x20;
+const uint32_t kUncachedExternalStringMask = 0x10;
+const uint32_t kUncachedExternalStringTag = 0x10;
 
 // A ConsString with an empty string as the right side is a candidate
 // for being shortcut by the garbage collector. We don't allocate any
@@ -86,18 +81,12 @@ enum InstanceType : uint16_t {
       kTwoByteStringTag | kExternalStringTag | kInternalizedTag,
   EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE =
       kOneByteStringTag | kExternalStringTag | kInternalizedTag,
-  EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE =
-      EXTERNAL_INTERNALIZED_STRING_TYPE | kOneByteDataHintTag |
-      kInternalizedTag,
   UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE =
       EXTERNAL_INTERNALIZED_STRING_TYPE | kUncachedExternalStringTag |
       kInternalizedTag,
   UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE =
       EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE | kUncachedExternalStringTag |
       kInternalizedTag,
-  UNCACHED_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE =
-      EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE |
-      kUncachedExternalStringTag | kInternalizedTag,
   STRING_TYPE = INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
   ONE_BYTE_STRING_TYPE =
       ONE_BYTE_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
@@ -112,16 +101,10 @@ enum InstanceType : uint16_t {
       EXTERNAL_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
   EXTERNAL_ONE_BYTE_STRING_TYPE =
       EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
-  EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE =
-      EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE |
-      kNotInternalizedTag,
   UNCACHED_EXTERNAL_STRING_TYPE =
       UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
   UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE =
       UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
-  UNCACHED_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE =
-      UNCACHED_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE |
-      kNotInternalizedTag,
   THIN_STRING_TYPE = kTwoByteStringTag | kThinStringTag | kNotInternalizedTag,
   THIN_ONE_BYTE_STRING_TYPE =
       kOneByteStringTag | kThinStringTag | kNotInternalizedTag,
@@ -129,7 +112,7 @@ enum InstanceType : uint16_t {
   // Non-string names
   SYMBOL_TYPE =
       1 + (kIsNotInternalizedMask | kUncachedExternalStringMask |
-           kOneByteDataHintMask | kStringEncodingMask |
+           kStringEncodingMask |
            kStringRepresentationMask),  // FIRST_NONSTRING_TYPE, LAST_NAME_TYPE
 
   // Other primitives (cannot contain non-map-word pointers to heap objects).
@@ -171,6 +154,7 @@ enum InstanceType : uint16_t {
   ALLOCATION_MEMENTO_TYPE,
   ASM_WASM_DATA_TYPE,
   ASYNC_GENERATOR_REQUEST_TYPE,
+  CLASS_POSITIONS_TYPE,
   DEBUG_INFO_TYPE,
   FUNCTION_TEMPLATE_INFO_TYPE,
   FUNCTION_TEMPLATE_RARE_DATA_TYPE,
@@ -184,6 +168,7 @@ enum InstanceType : uint16_t {
   PROTOTYPE_INFO_TYPE,
   SCRIPT_TYPE,
   STACK_FRAME_INFO_TYPE,
+  STACK_TRACE_FRAME_TYPE,
   TUPLE2_TYPE,
   TUPLE3_TYPE,
   ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
@@ -196,7 +181,7 @@ enum InstanceType : uint16_t {
   PROMISE_FULFILL_REACTION_JOB_TASK_TYPE,
   PROMISE_REJECT_REACTION_JOB_TASK_TYPE,
   PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE,
-  WEAK_FACTORY_CLEANUP_JOB_TASK_TYPE,  // LAST_MICROTASK_TYPE
+  FINALIZATION_GROUP_CLEANUP_JOB_TASK_TYPE,  // LAST_MICROTASK_TYPE
 
   ALLOCATION_SITE_TYPE,
   EMBEDDER_DATA_ARRAY_TYPE,
@@ -250,6 +235,7 @@ enum InstanceType : uint16_t {
   UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE,
   UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE,
   WEAK_ARRAY_LIST_TYPE,
+  WEAK_CELL_TYPE,
 
   // All the following types are subtypes of JSReceiver, which corresponds to
   // objects in the JS sense. The first and the last type in this range are
@@ -292,10 +278,9 @@ enum InstanceType : uint16_t {
   JS_SET_KEY_VALUE_ITERATOR_TYPE,
   JS_SET_VALUE_ITERATOR_TYPE,
   JS_STRING_ITERATOR_TYPE,
-  JS_WEAK_CELL_TYPE,
   JS_WEAK_REF_TYPE,
-  JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE,
-  JS_WEAK_FACTORY_TYPE,
+  JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE,
+  JS_FINALIZATION_GROUP_TYPE,
   JS_WEAK_MAP_TYPE,
   JS_WEAK_SET_TYPE,
 
@@ -354,7 +339,7 @@ enum InstanceType : uint16_t {
   LAST_CONTEXT_TYPE = WITH_CONTEXT_TYPE,
   // Boundaries for testing if given HeapObject is a subclass of Microtask.
   FIRST_MICROTASK_TYPE = CALLABLE_TASK_TYPE,
-  LAST_MICROTASK_TYPE = WEAK_FACTORY_CLEANUP_JOB_TASK_TYPE,
+  LAST_MICROTASK_TYPE = FINALIZATION_GROUP_CLEANUP_JOB_TASK_TYPE,
   // Boundaries for testing for a fixed typed array.
   FIRST_FIXED_TYPED_ARRAY_TYPE = FIXED_INT8_ARRAY_TYPE,
   LAST_FIXED_TYPED_ARRAY_TYPE = FIXED_BIGUINT64_ARRAY_TYPE,
@@ -413,6 +398,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(CallHandlerInfo, CALL_HANDLER_INFO_TYPE)                                 \
   V(Cell, CELL_TYPE)                                                         \
   V(Code, CODE_TYPE)                                                         \
+  V(CachedTemplateObject, TUPLE3_TYPE)                                       \
   V(CodeDataContainer, CODE_DATA_CONTAINER_TYPE)                             \
   V(CoverageInfo, FIXED_ARRAY_TYPE)                                          \
   V(DescriptorArray, DESCRIPTOR_ARRAY_TYPE)                                  \
@@ -455,9 +441,9 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(JSStringIterator, JS_STRING_ITERATOR_TYPE)                               \
   V(JSTypedArray, JS_TYPED_ARRAY_TYPE)                                       \
   V(JSValue, JS_VALUE_TYPE)                                                  \
-  V(JSWeakFactory, JS_WEAK_FACTORY_TYPE)                                     \
-  V(JSWeakFactoryCleanupIterator, JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE)     \
-  V(JSWeakCell, JS_WEAK_CELL_TYPE)                                           \
+  V(JSFinalizationGroup, JS_FINALIZATION_GROUP_TYPE)                         \
+  V(JSFinalizationGroupCleanupIterator,                                      \
+    JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE)                             \
   V(JSWeakMap, JS_WEAK_MAP_TYPE)                                             \
   V(JSWeakRef, JS_WEAK_REF_TYPE)                                             \
   V(JSWeakSet, JS_WEAK_SET_TYPE)                                             \
@@ -497,7 +483,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(WasmMemoryObject, WASM_MEMORY_TYPE)                                      \
   V(WasmModuleObject, WASM_MODULE_TYPE)                                      \
   V(WasmTableObject, WASM_TABLE_TYPE)                                        \
-  V(WeakArrayList, WEAK_ARRAY_LIST_TYPE)
+  V(WeakArrayList, WEAK_ARRAY_LIST_TYPE)                                     \
+  V(WeakCell, WEAK_CELL_TYPE)
 #ifdef V8_INTL_SUPPORT
 
 #define INSTANCE_TYPE_CHECKERS_SINGLE(V)                     \

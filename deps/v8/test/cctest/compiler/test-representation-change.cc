@@ -261,12 +261,12 @@ TEST(ToInt32_constant) {
   RepresentationChangerTester r;
   {
     FOR_INT32_INPUTS(i) {
-      Node* n = r.jsgraph()->Constant(*i);
+      Node* n = r.jsgraph()->Constant(i);
       Node* use = r.Return(n);
       Node* c = r.changer()->GetRepresentationFor(
           n, MachineRepresentation::kTagged, Type::Signed32(), use,
           UseInfo(MachineRepresentation::kWord32, Truncation::None()));
-      r.CheckInt32Constant(c, *i);
+      r.CheckInt32Constant(c, i);
     }
   }
 }
@@ -274,24 +274,24 @@ TEST(ToInt32_constant) {
 TEST(ToUint32_constant) {
   RepresentationChangerTester r;
   FOR_UINT32_INPUTS(i) {
-    Node* n = r.jsgraph()->Constant(static_cast<double>(*i));
+    Node* n = r.jsgraph()->Constant(static_cast<double>(i));
     Node* use = r.Return(n);
     Node* c = r.changer()->GetRepresentationFor(
         n, MachineRepresentation::kTagged, Type::Unsigned32(), use,
         UseInfo(MachineRepresentation::kWord32, Truncation::None()));
-    r.CheckUint32Constant(c, *i);
+    r.CheckUint32Constant(c, i);
   }
 }
 
 TEST(ToInt64_constant) {
   RepresentationChangerTester r;
   FOR_INT32_INPUTS(i) {
-    Node* n = r.jsgraph()->Constant(*i);
+    Node* n = r.jsgraph()->Constant(i);
     Node* use = r.Return(n);
     Node* c = r.changer()->GetRepresentationFor(
         n, MachineRepresentation::kTagged, TypeCache::Get()->kSafeInteger, use,
         UseInfo(MachineRepresentation::kWord64, Truncation::None()));
-    r.CheckInt64Constant(c, *i);
+    r.CheckInt64Constant(c, i);
   }
 }
 
@@ -692,8 +692,6 @@ TEST(Nops) {
              MachineRepresentation::kWord16);
   r.CheckNop(MachineRepresentation::kBit, Type::Boolean(),
              MachineRepresentation::kWord32);
-  r.CheckNop(MachineRepresentation::kBit, Type::Boolean(),
-             MachineRepresentation::kWord64);
 }
 
 

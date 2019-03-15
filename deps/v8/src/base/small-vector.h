@@ -15,7 +15,7 @@ namespace base {
 
 // Minimal SmallVector implementation. Uses inline storage first, switches to
 // malloc when it overflows.
-template <typename T, size_t kInlineSize>
+template <typename T, size_t kSize>
 class SmallVector {
   // Currently only support trivially copyable and trivially destructible data
   // types, as it uses memcpy to copy elements and never calls destructors.
@@ -23,6 +23,8 @@ class SmallVector {
   STATIC_ASSERT(std::is_trivially_destructible<T>::value);
 
  public:
+  static constexpr size_t kInlineSize = kSize;
+
   SmallVector() = default;
   SmallVector(const SmallVector& other) V8_NOEXCEPT { *this = other; }
   SmallVector(SmallVector&& other) V8_NOEXCEPT { *this = std::move(other); }
@@ -62,9 +64,15 @@ class SmallVector {
     return *this;
   }
 
-  T* data() const { return begin_; }
-  T* begin() const { return begin_; }
-  T* end() const { return end_; }
+  T* data() { return begin_; }
+  const T* data() const { return begin_; }
+
+  T* begin() { return begin_; }
+  const T* begin() const { return begin_; }
+
+  T* end() { return end_; }
+  const T* end() const { return end_; }
+
   size_t size() const { return end_ - begin_; }
   bool empty() const { return end_ == begin_; }
   size_t capacity() const { return end_of_storage_ - begin_; }

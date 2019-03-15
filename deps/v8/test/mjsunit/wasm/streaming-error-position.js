@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-test-streaming --expose-wasm --allow-natives-syntax
+// Flags: --wasm-test-streaming --expose-wasm
 
 'use strict';
 
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 function module(bytes) {
@@ -33,14 +32,9 @@ function toBuffer(binary) {
 }
 
 function testErrorPosition(bytes, pos, test_name) {
-  assertPromiseResult(
-      WebAssembly.compile(toBuffer(bytes)), assertUnreachable, e => {
-        print(test_name);
-        assertInstanceof(e, WebAssembly.CompileError);
-        let regex = new RegExp('@\\+' + pos);
-        print(e.message);
-        assertMatches(regex, e.message, 'Error Position');
-      });
+  assertThrowsAsync(
+      WebAssembly.compile(toBuffer(bytes)), WebAssembly.CompileError,
+      new RegExp('@\\+' + pos));
 }
 
 (function testInvalidMagic() {

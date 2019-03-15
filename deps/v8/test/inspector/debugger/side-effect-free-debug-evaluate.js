@@ -10,6 +10,7 @@ function testFunction()
   var o = 0;
   function f() { return 1; }
   function g() { o = 2; return o; }
+  f,g;
   debugger;
 }
 //# sourceURL=foo.js`);

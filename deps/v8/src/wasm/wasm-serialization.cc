@@ -9,6 +9,7 @@
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/ostreams.h"
+#include "src/runtime/runtime.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/utils.h"
@@ -135,12 +136,12 @@ void WriteVersion(Writer* writer) {
 void SetWasmCalleeTag(RelocInfo* rinfo, uint32_t tag) {
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
   DCHECK(rinfo->HasTargetAddressAddress());
-  *(reinterpret_cast<uint32_t*>(rinfo->target_address_address())) = tag;
+  WriteUnalignedValue(rinfo->target_address_address(), tag);
 #elif V8_TARGET_ARCH_ARM64
   Instruction* instr = reinterpret_cast<Instruction*>(rinfo->pc());
   if (instr->IsLdrLiteralX()) {
-    Memory<Address>(rinfo->constant_pool_entry_address()) =
-        static_cast<Address>(tag);
+    WriteUnalignedValue(rinfo->constant_pool_entry_address(),
+                        static_cast<Address>(tag));
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
     instr->SetBranchImmTarget(
@@ -160,12 +161,11 @@ void SetWasmCalleeTag(RelocInfo* rinfo, uint32_t tag) {
 
 uint32_t GetWasmCalleeTag(RelocInfo* rinfo) {
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
-  return *(reinterpret_cast<uint32_t*>(rinfo->target_address_address()));
+  return ReadUnalignedValue<uint32_t>(rinfo->target_address_address());
 #elif V8_TARGET_ARCH_ARM64
   Instruction* instr = reinterpret_cast<Instruction*>(rinfo->pc());
   if (instr->IsLdrLiteralX()) {
-    return static_cast<uint32_t>(
-        Memory<Address>(rinfo->constant_pool_entry_address()));
+    return ReadUnalignedValue<uint32_t>(rinfo->constant_pool_entry_address());
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
     return static_cast<uint32_t>(instr->ImmPCOffset() / kInstrSize);
@@ -195,6 +195,7 @@ constexpr size_t kCodeHeaderSize =
     sizeof(size_t) +         // offset of code comments
     sizeof(size_t) +         // unpadded binary size
     sizeof(uint32_t) +       // stack slots
+    sizeof(uint32_t) +       // tagged parameter slots
     sizeof(size_t) +         // code size
     sizeof(size_t) +         // reloc size
     sizeof(size_t) +         // source positions size
@@ -241,15 +242,24 @@ class ExternalReferenceList {
               std::end(tags_ordered_by_address_), addr_by_tag_less_than);
   }
 
-#define COUNT_EXTERNAL_REFERENCE(name, desc) +1
-  static constexpr uint32_t kNumExternalReferences =
+#define COUNT_EXTERNAL_REFERENCE(name, ...) +1
+  static constexpr uint32_t kNumExternalReferencesList =
       EXTERNAL_REFERENCE_LIST(COUNT_EXTERNAL_REFERENCE);
+  static constexpr uint32_t kNumExternalReferencesIntrinsics =
+      FOR_EACH_INTRINSIC(COUNT_EXTERNAL_REFERENCE);
+  static constexpr uint32_t kNumExternalReferences =
+      kNumExternalReferencesList + kNumExternalReferencesIntrinsics;
 #undef COUNT_EXTERNAL_REFERENCE
 
-#define EXT_REF_ADDR(name, desc) ExternalReference::name().address(),
   Address external_reference_by_tag_[kNumExternalReferences] = {
-      EXTERNAL_REFERENCE_LIST(EXT_REF_ADDR)};
+#define EXT_REF_ADDR(name, desc) ExternalReference::name().address(),
+      EXTERNAL_REFERENCE_LIST(EXT_REF_ADDR)
 #undef EXT_REF_ADDR
+#define RUNTIME_ADDR(name, ...) \
+  ExternalReference::Create(Runtime::k##name).address(),
+          FOR_EACH_INTRINSIC(RUNTIME_ADDR)
+#undef RUNTIME_ADDR
+  };
   uint32_t tags_ordered_by_address_[kNumExternalReferences];
   DISALLOW_COPY_AND_ASSIGN(ExternalReferenceList);
 };
@@ -289,9 +299,8 @@ NativeModuleSerializer::NativeModuleSerializer(
   // TODO(mtrofin): persist the export wrappers. Ideally, we'd only persist
   // the unique ones, i.e. the cache.
   for (uint32_t i = 0; i < WasmCode::kRuntimeStubCount; ++i) {
-    Address addr =
-        native_module_->runtime_stub(static_cast<WasmCode::RuntimeStubId>(i))
-            ->instruction_start();
+    Address addr = native_module_->runtime_stub_entry(
+        static_cast<WasmCode::RuntimeStubId>(i));
     wasm_stub_targets_lookup_.insert(std::make_pair(addr, i));
   }
 }
@@ -335,6 +344,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   writer->Write(code->code_comments_offset());
   writer->Write(code->unpadded_binary_size());
   writer->Write(code->stack_slots());
+  writer->Write(code->tagged_parameter_slots());
   writer->Write(code->instructions().size());
   writer->Write(code->reloc_info().size());
   writer->Write(code->source_positions().size());
@@ -350,7 +360,8 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   writer->WriteVector(code->reloc_info());
   writer->WriteVector(code->source_positions());
   writer->WriteVector(Vector<byte>::cast(code->protected_instructions()));
-#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM || \
+    V8_TARGET_ARCH_PPC
   // On platforms that don't support misaligned word stores, copy to an aligned
   // buffer if necessary so we can relocate the serialized code.
   std::unique_ptr<byte[]> aligned_buffer;
@@ -495,6 +506,7 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
   size_t code_comment_offset = reader->Read<size_t>();
   size_t unpadded_binary_size = reader->Read<size_t>();
   uint32_t stack_slot_count = reader->Read<uint32_t>();
+  uint32_t tagged_parameter_slots = reader->Read<uint32_t>();
   size_t code_size = reader->Read<size_t>();
   size_t reloc_size = reader->Read<size_t>();
   size_t source_position_size = reader->Read<size_t>();
@@ -514,10 +526,11 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
   reader->ReadVector(Vector<byte>::cast(protected_instructions.as_vector()));
 
   WasmCode* code = native_module_->AddDeserializedCode(
-      fn_index, code_buffer, stack_slot_count, safepoint_table_offset,
-      handler_table_offset, constant_pool_offset, code_comment_offset,
-      unpadded_binary_size, std::move(protected_instructions),
-      std::move(reloc_info), std::move(source_pos), tier);
+      fn_index, code_buffer, stack_slot_count, tagged_parameter_slots,
+      safepoint_table_offset, handler_table_offset, constant_pool_offset,
+      code_comment_offset, unpadded_binary_size,
+      std::move(protected_instructions), std::move(reloc_info),
+      std::move(source_pos), tier);
 
   // Relocate the code.
   int mask = RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
@@ -539,10 +552,8 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
       case RelocInfo::WASM_STUB_CALL: {
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());
         DCHECK_LT(tag, WasmCode::kRuntimeStubCount);
-        Address target =
-            native_module_
-                ->runtime_stub(static_cast<WasmCode::RuntimeStubId>(tag))
-                ->instruction_start();
+        Address target = native_module_->runtime_stub_entry(
+            static_cast<WasmCode::RuntimeStubId>(tag));
         iter.rinfo()->set_wasm_stub_call_address(target, SKIP_ICACHE_FLUSH);
         break;
       }
@@ -569,8 +580,8 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
   code->Validate();
 
   // Finally, flush the icache for that code.
-  Assembler::FlushICache(code->instructions().start(),
-                         code->instructions().size());
+  FlushInstructionCache(code->instructions().start(),
+                        code->instructions().size());
 
   return true;
 }

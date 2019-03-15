@@ -4,8 +4,6 @@
 
 // A simple interpreter for the Irregexp byte code.
 
-#ifdef V8_INTERPRETED_REGEXP
-
 #include "src/regexp/interpreter-irregexp.h"
 
 #include "src/ast/ast.h"
@@ -623,5 +621,3 @@ RegExpImpl::IrregexpResult IrregexpInterpreter::Match(
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_INTERPRETED_REGEXP

@@ -9,6 +9,7 @@
     return a + b - c;
   }
 
+  %PrepareFunctionForOptimization(f0);
   assertEquals(4, f0(3, 2, 1));
   assertEquals(4, f0(3, 2, 1));
   %OptimizeFunctionOnNextCall(f0);
@@ -20,6 +21,7 @@
     return a + b - c;
   }
 
+  %PrepareFunctionForOptimization(f1);
   assertEquals(4.5, f1(3.5, 2.5, 1.5));
   assertEquals(4.5, f1(3.5, 2.5, 1.5));
   %OptimizeFunctionOnNextCall(f1);
@@ -34,6 +36,7 @@
     return (a >>> 0) + 1;
   }
 
+  %PrepareFunctionForOptimization(f2);
   assertEquals(1, f2(0));
   assertEquals(1, f2(0));
   %OptimizeFunctionOnNextCall(f2);
@@ -50,6 +53,7 @@
     return x + b;
   }
 
+  %PrepareFunctionForOptimization(f3);
   assertEquals(1, f3(0, 1));
   assertEquals(1, f3(0, 1));
   %OptimizeFunctionOnNextCall(f3);
@@ -62,6 +66,7 @@
     return a << b;
   }
 
+  %PrepareFunctionForOptimization(f4);
   assertEquals(24, f4(3, 3));
   assertEquals(40, f4(5, 3));
   %OptimizeFunctionOnNextCall(f4);
@@ -73,6 +78,7 @@
     return a << b;
   }
 
+  %PrepareFunctionForOptimization(f5);
   assertEquals(24, f5(3.3, 3.4));
   assertEquals(40, f5(5.1, 3.9));
   %OptimizeFunctionOnNextCall(f5);
@@ -84,6 +90,7 @@
     return a >> b;
   }
 
+  %PrepareFunctionForOptimization(f6);
   assertEquals(1, f6(8.3, 3.4));
   assertEquals(-2, f6(-16.1, 3.9));
   %OptimizeFunctionOnNextCall(f6);
@@ -95,6 +102,7 @@
     return a >>> b;
   }
 
+  %PrepareFunctionForOptimization(f7);
   assertEquals(1, f7(8.3, 3.4));
   assertEquals(536870910, f7(-16.1, 3.9));
   %OptimizeFunctionOnNextCall(f7);

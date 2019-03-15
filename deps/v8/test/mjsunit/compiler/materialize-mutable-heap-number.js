@@ -16,6 +16,7 @@ function f() {
   return o.x + 0.25;
 }
 
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

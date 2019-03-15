@@ -45,7 +45,7 @@ void CreateDataPropertyForOptions(Isolate* isolate, Handle<JSObject> options,
   // This is a brand new JSObject that shouldn't already have the same
   // key so this shouldn't fail.
   CHECK(JSReceiver::CreateDataProperty(isolate, options, key, value_str,
-                                       kDontThrow)
+                                       Just(kDontThrow))
             .FromJust());
 }
 
@@ -56,7 +56,7 @@ void CreateDataPropertyForOptions(Isolate* isolate, Handle<JSObject> options,
   // This is a brand new JSObject that shouldn't already have the same
   // key so this shouldn't fail.
   CHECK(JSReceiver::CreateDataProperty(isolate, options, key, value_obj,
-                                       kDontThrow)
+                                       Just(kDontThrow))
             .FromJust());
 }
 
@@ -484,11 +484,10 @@ MaybeHandle<JSCollator> JSCollator::Initialize(Isolate* isolate,
   return collator;
 }
 
-std::set<std::string> JSCollator::GetAvailableLocales() {
-  int32_t num_locales = 0;
-  const icu::Locale* icu_available_locales =
-      icu::Collator::getAvailableLocales(num_locales);
-  return Intl::BuildLocaleSet(icu_available_locales, num_locales);
+const std::set<std::string>& JSCollator::GetAvailableLocales() {
+  static base::LazyInstance<Intl::AvailableLocales<icu::Collator>>::type
+      available_locales = LAZY_INSTANCE_INITIALIZER;
+  return available_locales.Pointer()->Get();
 }
 
 }  // namespace internal

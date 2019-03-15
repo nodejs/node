@@ -16,6 +16,7 @@
     array.reduce(accumulate);
   }
 
+  %PrepareFunctionForOptimization(reduce);
   reduce(); reduce();
 
   %OptimizeFunctionOnNextCall(reduce);

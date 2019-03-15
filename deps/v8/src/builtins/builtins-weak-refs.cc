@@ -9,7 +9,7 @@
 namespace v8 {
 namespace internal {
 
-BUILTIN(WeakFactoryConstructor) {
+BUILTIN(FinalizationGroupConstructor) {
   HandleScope scope(isolate);
   Handle<JSFunction> target = args.target();
   if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
@@ -31,91 +31,92 @@ BUILTIN(WeakFactoryConstructor) {
       isolate, result,
       JSObject::New(target, new_target, Handle<AllocationSite>::null()));
 
-  Handle<JSWeakFactory> weak_factory = Handle<JSWeakFactory>::cast(result);
-  weak_factory->set_native_context(*isolate->native_context());
-  weak_factory->set_cleanup(*cleanup);
-  weak_factory->set_flags(
-      JSWeakFactory::ScheduledForCleanupField::encode(false));
-  return *weak_factory;
+  Handle<JSFinalizationGroup> finalization_group =
+      Handle<JSFinalizationGroup>::cast(result);
+  finalization_group->set_native_context(*isolate->native_context());
+  finalization_group->set_cleanup(*cleanup);
+  finalization_group->set_flags(
+      JSFinalizationGroup::ScheduledForCleanupField::encode(false));
+
+  DCHECK(finalization_group->active_cells()->IsUndefined(isolate));
+  DCHECK(finalization_group->cleared_cells()->IsUndefined(isolate));
+  DCHECK(finalization_group->key_map()->IsUndefined(isolate));
+  return *finalization_group;
 }
 
-BUILTIN(WeakFactoryMakeCell) {
+BUILTIN(FinalizationGroupRegister) {
   HandleScope scope(isolate);
-  const char* method_name = "WeakFactory.prototype.makeCell";
+  const char* method_name = "FinalizationGroup.prototype.register";
 
-  CHECK_RECEIVER(JSWeakFactory, weak_factory, method_name);
+  CHECK_RECEIVER(JSFinalizationGroup, finalization_group, method_name);
 
   Handle<Object> target = args.atOrUndefined(isolate, 1);
   if (!target->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
-        NewTypeError(MessageTemplate::kWeakRefsMakeCellTargetMustBeObject));
+        NewTypeError(MessageTemplate::kWeakRefsRegisterTargetMustBeObject));
   }
-  Handle<JSReceiver> target_receiver = Handle<JSReceiver>::cast(target);
   Handle<Object> holdings = args.atOrUndefined(isolate, 2);
   if (target->SameValue(*holdings)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(
-            MessageTemplate::kWeakRefsMakeCellTargetAndHoldingsMustNotBeSame));
+            MessageTemplate::kWeakRefsRegisterTargetAndHoldingsMustNotBeSame));
   }
+
+  Handle<Object> key = args.atOrUndefined(isolate, 3);
+  // TODO(marja, gsathya): Restrictions on "key" (e.g., does it need to be an
+  // object).
 
   // TODO(marja): Realms.
 
-  Handle<Map> weak_cell_map(isolate->native_context()->js_weak_cell_map(),
-                            isolate);
-
-  // Allocate the JSWeakCell object in the old space, because 1) JSWeakCell
-  // weakness handling is only implemented in the old space 2) they're
-  // supposedly long-living. TODO(marja): Support JSWeakCells in Scavenger.
-  Handle<JSWeakCell> weak_cell =
-      Handle<JSWeakCell>::cast(isolate->factory()->NewJSObjectFromMap(
-          weak_cell_map, TENURED, Handle<AllocationSite>::null()));
-  weak_cell->set_target(*target_receiver);
-  weak_cell->set_holdings(*holdings);
-  weak_factory->AddWeakCell(*weak_cell);
-  return *weak_cell;
+  JSFinalizationGroup::Register(finalization_group,
+                                Handle<JSReceiver>::cast(target), holdings, key,
+                                isolate);
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
-BUILTIN(WeakFactoryCleanupSome) {
+BUILTIN(FinalizationGroupUnregister) {
   HandleScope scope(isolate);
-  const char* method_name = "WeakFactory.prototype.cleanupSome";
+  const char* method_name = "FinalizationGroup.prototype.unregister";
 
-  CHECK_RECEIVER(JSWeakFactory, weak_factory, method_name);
+  CHECK_RECEIVER(JSFinalizationGroup, finalization_group, method_name);
+
+  Handle<Object> key = args.atOrUndefined(isolate, 1);
+  JSFinalizationGroup::Unregister(finalization_group, key, isolate);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+BUILTIN(FinalizationGroupCleanupSome) {
+  HandleScope scope(isolate);
+  const char* method_name = "FinalizationGroup.prototype.cleanupSome";
+
+  CHECK_RECEIVER(JSFinalizationGroup, finalization_group, method_name);
+
+  // TODO(marja, gsathya): Add missing "cleanup" callback.
 
   // Don't do set_scheduled_for_cleanup(false); we still have the microtask
   // scheduled and don't want to schedule another one in case the user never
   // executes microtasks.
-  JSWeakFactory::Cleanup(weak_factory, isolate);
+  JSFinalizationGroup::Cleanup(finalization_group, isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-BUILTIN(WeakFactoryCleanupIteratorNext) {
+BUILTIN(FinalizationGroupCleanupIteratorNext) {
   HandleScope scope(isolate);
-  CHECK_RECEIVER(JSWeakFactoryCleanupIterator, iterator, "next");
+  CHECK_RECEIVER(JSFinalizationGroupCleanupIterator, iterator, "next");
 
-  Handle<JSWeakFactory> weak_factory(iterator->factory(), isolate);
-  if (!weak_factory->NeedsCleanup()) {
+  Handle<JSFinalizationGroup> finalization_group(iterator->finalization_group(),
+                                                 isolate);
+  if (!finalization_group->NeedsCleanup()) {
     return *isolate->factory()->NewJSIteratorResult(
         handle(ReadOnlyRoots(isolate).undefined_value(), isolate), true);
   }
-  Handle<JSWeakCell> weak_cell_object =
-      handle(weak_factory->PopClearedCell(isolate), isolate);
+  Handle<Object> holdings = handle(
+      JSFinalizationGroup::PopClearedCellHoldings(finalization_group, isolate),
+      isolate);
 
-  return *isolate->factory()->NewJSIteratorResult(weak_cell_object, false);
-}
-
-BUILTIN(WeakCellHoldingsGetter) {
-  HandleScope scope(isolate);
-  CHECK_RECEIVER(JSWeakCell, weak_cell, "get WeakCell.holdings");
-  return weak_cell->holdings();
-}
-
-BUILTIN(WeakCellClear) {
-  HandleScope scope(isolate);
-  CHECK_RECEIVER(JSWeakCell, weak_cell, "WeakCell.prototype.clear");
-  weak_cell->Clear(isolate);
-  return ReadOnlyRoots(isolate).undefined_value();
+  return *isolate->factory()->NewJSIteratorResult(holdings, false);
 }
 
 BUILTIN(WeakRefConstructor) {
@@ -135,8 +136,9 @@ BUILTIN(WeakRefConstructor) {
         NewTypeError(
             MessageTemplate::kWeakRefsWeakRefConstructorTargetMustBeObject));
   }
-  isolate->heap()->AddKeepDuringJobTarget(
-      Handle<JSReceiver>::cast(target_object));
+  Handle<JSReceiver> target_receiver =
+      handle(JSReceiver::cast(*target_object), isolate);
+  isolate->heap()->AddKeepDuringJobTarget(target_receiver);
 
   // TODO(marja): Realms.
 
@@ -146,7 +148,7 @@ BUILTIN(WeakRefConstructor) {
       JSObject::New(target, new_target, Handle<AllocationSite>::null()));
 
   Handle<JSWeakRef> weak_ref = Handle<JSWeakRef>::cast(result);
-  weak_ref->set_target(*target_object);
+  weak_ref->set_target(*target_receiver);
   return *weak_ref;
 }
 

@@ -7,6 +7,7 @@
 
 #include "src/objects.h"
 #include "src/objects/heap-object.h"
+#include "torque-generated/class-definitions-from-dsl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -23,7 +24,7 @@ class Struct : public HeapObject {
   DECL_CAST(Struct)
   void BriefPrintDetails(std::ostream& os);
 
-  OBJECT_CONSTRUCTORS(Struct, HeapObject)
+  OBJECT_CONSTRUCTORS(Struct, HeapObject);
 };
 
 class Tuple2 : public Struct {
@@ -38,15 +39,8 @@ class Tuple2 : public Struct {
   DECL_VERIFIER(Tuple2)
   void BriefPrintDetails(std::ostream& os);
 
-// Layout description.
-#define TUPLE2_FIELDS(V)        \
-  V(kValue1Offset, kTaggedSize) \
-  V(kValue2Offset, kTaggedSize) \
-  /* Total size. */             \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, TUPLE2_FIELDS)
-#undef TUPLE2_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_TUPLE2_FIELDS)
 
   OBJECT_CONSTRUCTORS(Tuple2, Struct);
 };
@@ -62,14 +56,7 @@ class Tuple3 : public Tuple2 {
   DECL_VERIFIER(Tuple3)
   void BriefPrintDetails(std::ostream& os);
 
-// Layout description.
-#define TUPLE3_FIELDS(V)        \
-  V(kValue3Offset, kTaggedSize) \
-  /* Total size. */             \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(Tuple2::kSize, TUPLE3_FIELDS)
-#undef TUPLE3_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(Tuple2::kSize, TORQUE_GENERATED_TUPLE3_FIELDS)
 
   OBJECT_CONSTRUCTORS(Tuple3, Tuple2);
 };
@@ -117,6 +104,24 @@ class AccessorPair : public Struct {
 #undef ACCESSOR_PAIR_FIELDS
 
   OBJECT_CONSTRUCTORS(AccessorPair, Struct);
+};
+
+class ClassPositions : public Struct {
+ public:
+  DECL_INT_ACCESSORS(start)
+  DECL_INT_ACCESSORS(end)
+
+  DECL_CAST(ClassPositions)
+
+  // Dispatched behavior.
+  DECL_PRINTER(ClassPositions)
+  DECL_VERIFIER(ClassPositions)
+  void BriefPrintDetails(std::ostream& os);
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_CLASS_POSITIONS_FIELDS)
+
+  OBJECT_CONSTRUCTORS(ClassPositions, Struct);
 };
 
 }  // namespace internal

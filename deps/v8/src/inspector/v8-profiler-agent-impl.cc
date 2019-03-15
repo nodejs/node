@@ -8,7 +8,6 @@
 
 #include "src/base/atomicops.h"
 #include "src/debug/debug-interface.h"
-#include "src/flags.h"  // TODO(jgruber): Remove include and DEPS entry.
 #include "src/inspector/protocol/Protocol.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-debugger.h"
@@ -305,9 +304,10 @@ Response V8ProfilerAgentImpl::startPreciseCoverage(Maybe<bool> callCount,
   // each function recompiled after the BlockCount mode has been set); and
   // function-granularity coverage data otherwise.
   typedef v8::debug::Coverage C;
-  C::Mode mode = callCountValue
-                     ? (detailedValue ? C::kBlockCount : C::kPreciseCount)
-                     : (detailedValue ? C::kBlockBinary : C::kPreciseBinary);
+  typedef v8::debug::CoverageMode Mode;
+  Mode mode = callCountValue
+                  ? (detailedValue ? Mode::kBlockCount : Mode::kPreciseCount)
+                  : (detailedValue ? Mode::kBlockBinary : Mode::kPreciseBinary);
   C::SelectMode(m_isolate, mode);
   return Response::OK();
 }
@@ -317,7 +317,8 @@ Response V8ProfilerAgentImpl::stopPreciseCoverage() {
   m_state->setBoolean(ProfilerAgentState::preciseCoverageStarted, false);
   m_state->setBoolean(ProfilerAgentState::preciseCoverageCallCount, false);
   m_state->setBoolean(ProfilerAgentState::preciseCoverageDetailed, false);
-  v8::debug::Coverage::SelectMode(m_isolate, v8::debug::Coverage::kBestEffort);
+  v8::debug::Coverage::SelectMode(m_isolate,
+                                  v8::debug::CoverageMode::kBestEffort);
   return Response::OK();
 }
 
@@ -462,13 +463,14 @@ typeProfileToProtocol(V8InspectorImpl* inspector,
 Response V8ProfilerAgentImpl::startTypeProfile() {
   m_state->setBoolean(ProfilerAgentState::typeProfileStarted, true);
   v8::debug::TypeProfile::SelectMode(m_isolate,
-                                     v8::debug::TypeProfile::kCollect);
+                                     v8::debug::TypeProfileMode::kCollect);
   return Response::OK();
 }
 
 Response V8ProfilerAgentImpl::stopTypeProfile() {
   m_state->setBoolean(ProfilerAgentState::typeProfileStarted, false);
-  v8::debug::TypeProfile::SelectMode(m_isolate, v8::debug::TypeProfile::kNone);
+  v8::debug::TypeProfile::SelectMode(m_isolate,
+                                     v8::debug::TypeProfileMode::kNone);
   return Response::OK();
 }
 

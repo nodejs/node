@@ -135,6 +135,8 @@ function foo6() { Promise.resolve().then(() => 42) }
 
     checkSource('() => 239\n', { lineNumber: 0, columnNumber: 0 })
       .then(() => checkSource('function foo() { function boo() { return 239 }  }\n', { lineNumber: 0, columnNumber: 0 }))
+      .then(() => checkSource('function foo() { function boo() { return 239 }; boo }\n', { lineNumber: 0, columnNumber: 0 }))
+      .then(() => checkSource('function foo() { let boo = function() { return 239 }; }\n', { lineNumber: 0, columnNumber: 0 }))
       .then(() => checkSource('() => { 239 }\n', { lineNumber: 0, columnNumber: 0 }))
       .then(() => checkSource('function foo() { 239 }\n', { lineNumber: 0, columnNumber: 0 }))
       // TODO(kozyatinskiy): lineNumber for return position should be only 9, not 8.

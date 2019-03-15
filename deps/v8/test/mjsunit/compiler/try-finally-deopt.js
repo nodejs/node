@@ -17,6 +17,7 @@
     return global + a;
   }
 
+  %PrepareFunctionForOptimization(f);
   f();
   f();
   %OptimizeFunctionOnNextCall(f);
@@ -36,6 +37,7 @@
     return 1;
   }
 
+  %PrepareFunctionForOptimization(f);
   f();
   f();
   %OptimizeFunctionOnNextCall(f);
@@ -59,6 +61,8 @@
     return 1;
   }
 
+
+  %PrepareFunctionForOptimization(f);
   f();
   f();
   %OptimizeFunctionOnNextCall(f);
@@ -83,6 +87,8 @@
     return 1;
   }
 
+
+  %PrepareFunctionForOptimization(f);
   f();
   f();
   %OptimizeFunctionOnNextCall(f);
@@ -106,6 +112,7 @@
     return 1;
   }
 
+  %PrepareFunctionForOptimization(f);
   try { f(); } catch(e) {}
   try { f(); } catch(e) {}
   %OptimizeFunctionOnNextCall(f);
@@ -133,6 +140,7 @@
     return 1;
   }
 
+  %PrepareFunctionForOptimization(f);
   try { f(); } catch(e) {}
   try { f(); } catch(e) {}
   %OptimizeFunctionOnNextCall(f);
@@ -157,6 +165,7 @@
     return 1;
   }
 
+  %PrepareFunctionForOptimization(f);
   f();
   f();
   %OptimizeFunctionOnNextCall(f);
@@ -186,6 +195,7 @@
     return 1;
   }
 
+  %PrepareFunctionForOptimization(f);
   f();
   f();
   %OptimizeFunctionOnNextCall(f);
@@ -211,6 +221,7 @@
     return 1;
   }
 
+  %PrepareFunctionForOptimization(f);
   f();
   f();
   %OptimizeFunctionOnNextCall(f);
@@ -241,6 +252,7 @@
     return 1;
   }
 
+  %PrepareFunctionForOptimization(f);
   f();
   f();
   %OptimizeFunctionOnNextCall(f);

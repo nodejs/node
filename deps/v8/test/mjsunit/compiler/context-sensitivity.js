@@ -17,6 +17,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     return bar(y => y + x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo(0));
   assertEquals(2, foo(object1));
   assertThrows(() => foo(thrower));
@@ -36,6 +37,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     return bar(y => y - x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo(0));
   assertEquals(0, foo(object1));
   assertThrows(() => foo(thrower));
@@ -55,6 +57,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     return bar(y => y * x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo(1));
   assertEquals(1, foo(object1));
   assertThrows(() => foo(thrower));
@@ -74,6 +77,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     return bar(y => y / x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo(1));
   assertEquals(1, foo(object1));
   assertThrows(() => foo(thrower));
@@ -93,6 +97,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     return bar(y => y % x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(1));
   assertEquals(0, foo(object1));
   assertThrows(() => foo(thrower));
@@ -112,6 +117,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     return bar(y => y ** x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo(1));
   assertEquals(1, foo(object1));
   assertThrows(() => foo(thrower));
@@ -131,6 +137,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     return bar(y => y | x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo(1));
   assertEquals(1, foo(object1));
   assertThrows(() => foo(thrower));
@@ -150,6 +157,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     return bar(y => y & x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo(1));
   assertEquals(1, foo(object1));
   assertThrows(() => foo(thrower));
@@ -169,6 +177,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     return bar(y => y ^ x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(1));
   assertEquals(0, foo(object1));
   assertThrows(() => foo(thrower));
@@ -188,6 +197,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     return bar(y => y << x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(2, foo(1));
   assertEquals(2, foo(object1));
   assertThrows(() => foo(thrower));
@@ -207,6 +217,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     return bar(y => y >> x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(1));
   assertEquals(0, foo(object1));
   assertThrows(() => foo(thrower));
@@ -226,6 +237,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     return bar(y => y >>> x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(1));
   assertEquals(0, foo(object1));
   assertThrows(() => foo(thrower));
@@ -245,6 +257,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     return bar(y => y == x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo(0));
   assertTrue(foo(object1));
   assertThrows(() => foo(thrower));
@@ -264,6 +277,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     return bar(y => y < x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo(0));
   assertFalse(foo(object1));
   assertThrows(() => foo(thrower));
@@ -283,6 +297,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     return bar(y => x > y);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo(0));
   assertFalse(foo(object1));
   assertThrows(() => foo(thrower));
@@ -302,6 +317,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     return bar(y => y <= x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo(0));
   assertTrue(foo(object1));
   assertThrows(() => foo(thrower));
@@ -321,6 +337,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     return bar(y => x >= y);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo(0));
   assertTrue(foo(object1));
   assertThrows(() => foo(thrower));
@@ -340,6 +357,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     return bar(o => o instanceof c);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo(Object));
   assertFalse(foo(Array));
   assertThrows(() => foo({[Symbol.hasInstance]() { throw new Error(); }}));
@@ -359,6 +377,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     return bar(() => ~x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(-1));
   assertEquals(~1, foo(object1));
   assertThrows(() => foo(thrower));
@@ -378,6 +397,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     return bar(() => -x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo(-1));
   assertEquals(-1, foo(object1));
   assertThrows(() => foo(thrower));
@@ -397,6 +417,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     return bar(() => ++x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo(0));
   assertEquals(2, foo(object1));
   assertThrows(() => foo(thrower));
@@ -416,6 +437,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     return bar(() => --x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo(2));
   assertEquals(0, foo(object1));
   assertThrows(() => foo(thrower));
@@ -436,6 +458,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     return bar(() => arguments)[0];
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(0, 1));
   assertEquals(1, foo(1, 2));
   assertEquals(undefined, foo());
@@ -455,6 +478,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     return bar(() => args)[0];
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(0, 1));
   assertEquals(1, foo(1, 2));
   assertEquals(undefined, foo());
@@ -491,6 +515,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     });
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals('Some value', foo('Another value'));
   assertEquals('Another value', actualValue);
   assertEquals('Another value', foo('Some value'));
@@ -516,6 +541,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     });
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals('abc', foo({a: 1, b: 2, c: 3}));
   assertEquals('ab', foo(Object.create({a: 1, b: 2})));
   %OptimizeFunctionOnNextCall(foo);
@@ -542,6 +568,7 @@ const thrower = {[Symbol.toPrimitive]() { throw new Error(); }};
     });
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(6, foo(1, 2, 3));
   assertEquals("abc", foo("a", "b", "c"));
   %OptimizeFunctionOnNextCall(foo);

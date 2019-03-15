@@ -314,8 +314,8 @@ class Clock final {
 };
 
 namespace {
-DEFINE_LAZY_LEAKY_OBJECT_GETTER(Clock, GetClock);
-};
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(Clock, GetClock)
+}
 
 Time Time::Now() { return GetClock()->Now(); }
 

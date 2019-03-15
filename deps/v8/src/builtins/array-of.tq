@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array {
+namespace array_of {
   // https://tc39.github.io/ecma262/#sec-array.of
   transitioning javascript builtin
   ArrayOf(implicit context: Context)(receiver: Object, ...arguments): Object {
@@ -39,14 +39,14 @@ namespace array {
 
       // b. Let Pk be ! ToString(k).
       // c. Perform ? CreateDataPropertyOrThrow(A, Pk, kValue).
-      CreateDataProperty(a, k, kValue);
+      FastCreateDataProperty(a, k, kValue);
 
       // d. Increase k by 1.
       k++;
     }
 
     // 8. Perform ? Set(A, "length", len, true).
-    SetPropertyLength(a, len);
+    array::SetPropertyLength(a, len);
 
     // 9. Return A.
     return a;

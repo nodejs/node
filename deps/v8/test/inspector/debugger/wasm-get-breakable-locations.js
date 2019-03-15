@@ -6,7 +6,6 @@
 
 let {session, contextGroup, Protocol} = InspectorTest.start('Tests breakable locations in wasm');
 
-utils.load('test/mjsunit/wasm/wasm-constants.js');
 utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
 var builder = new WasmModuleBuilder();

@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm --gc-interval=500 --stress-compaction --expose-gc
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 function run(f) {

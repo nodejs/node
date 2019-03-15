@@ -44,6 +44,7 @@ function writeFloat64(offset, value, little_endian) {
 }
 
 function warmup(f) {
+  %PrepareFunctionForOptimization(f);
   f(0, 0);
   f(0, 1);
   %OptimizeFunctionOnNextCall(f);

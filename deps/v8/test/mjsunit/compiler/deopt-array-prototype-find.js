@@ -15,6 +15,7 @@
     return array.find(v => v > 0);
   }
 
+  %PrepareFunctionForOptimization(find);
   find(); find();
 
   %OptimizeFunctionOnNextCall(find);

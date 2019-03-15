@@ -58,7 +58,7 @@ TEXT_COLOUR clr_debug_message  = FLAG_log_colour ? COLOUR(YELLOW)       : "";
 TEXT_COLOUR clr_printf         = FLAG_log_colour ? COLOUR(GREEN)        : "";
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(Simulator::GlobalMonitor,
-                                Simulator::GlobalMonitor::Get);
+                                Simulator::GlobalMonitor::Get)
 
 // This is basically the same as PrintF, with a guard for FLAG_trace_sim.
 void Simulator::TraceSim(const char* format, ...) {
@@ -252,9 +252,9 @@ uintptr_t Simulator::PushAddress(uintptr_t address) {
   intptr_t new_sp = sp() - 2 * kXRegSize;
   uintptr_t* alignment_slot =
     reinterpret_cast<uintptr_t*>(new_sp + kXRegSize);
-  memcpy(alignment_slot, &kSlotsZapValue, kPointerSize);
+  memcpy(alignment_slot, &kSlotsZapValue, kSystemPointerSize);
   uintptr_t* stack_slot = reinterpret_cast<uintptr_t*>(new_sp);
-  memcpy(stack_slot, &address, kPointerSize);
+  memcpy(stack_slot, &address, kSystemPointerSize);
   set_sp(new_sp);
   return new_sp;
 }
@@ -2278,7 +2278,8 @@ void Simulator::VisitMoveWideImmediate(Instruction* instr) {
         unsigned reg_code = instr->Rd();
         int64_t prev_xn_val = is_64_bits ? xreg(reg_code)
                                          : wreg(reg_code);
-        new_xn_val = (prev_xn_val & ~(0xFFFFL << shift)) | shifted_imm16;
+        new_xn_val =
+            (prev_xn_val & ~(INT64_C(0xFFFF) << shift)) | shifted_imm16;
         break;
     }
     case MOVZ_w:

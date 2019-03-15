@@ -30,6 +30,7 @@ function warmUp(f) {
 }
 
 function resetOptAndAssertResultEquals(expected, f) {
+  %PrepareFunctionForOptimization(f);
   warmUp(f);
   resetState();
   // %DebugPrint(f);
@@ -39,6 +40,7 @@ function resetOptAndAssertResultEquals(expected, f) {
 }
 
 function resetOptAndAssertThrowsWith(expected, f) {
+  %PrepareFunctionForOptimization(f);
   warmUp(f);
   resetState();
   // %DebugPrint(f);

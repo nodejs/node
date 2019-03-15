@@ -44,6 +44,7 @@ Array.prototype.f = function() {
     return g([].f.call({}), deopt + 1, called);
   }
 
+  %PrepareFunctionForOptimization(f);
   called = f(0, called);
   called = f(0, called);
   %OptimizeFunctionOnNextCall(f);
@@ -65,6 +66,7 @@ Array.prototype.f = function() {
     return [].pop.call(a1) + b.value;
   }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals(7, f(obj));
   assertEquals(6, f(obj));
   %OptimizeFunctionOnNextCall(f);
@@ -84,6 +86,7 @@ Array.prototype.f = function() {
     return [].shift.call(a2) + b.value;
   }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals(4, f(obj));
   assertEquals(5, f(obj));
   %OptimizeFunctionOnNextCall(f);
@@ -102,6 +105,7 @@ Array.prototype.f = function() {
     return [].push.call(a3, b.value);
   }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals(5, f(obj));
   assertEquals(6, f(obj));
   %OptimizeFunctionOnNextCall(f);
@@ -121,6 +125,7 @@ Array.prototype.f = function() {
     return [].indexOf.call(a4, b.value);
   }
 
+  %PrepareFunctionForOptimization(f);
   f(obj);
   f(obj);
   %OptimizeFunctionOnNextCall(f);
@@ -141,6 +146,7 @@ Array.prototype.f = function() {
     return [].lastIndexOf.call(a5, b.value);
   }
 
+  %PrepareFunctionForOptimization(f);
   f(obj);
   f(obj);
   %OptimizeFunctionOnNextCall(f);

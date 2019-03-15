@@ -14,6 +14,8 @@ function f(o, x) {
   o.f = x;
 }
 
+%PrepareFunctionForOptimization(f);
+
 f(o, g);
 f(o, g);
 f(o, g);

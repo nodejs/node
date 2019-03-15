@@ -7,7 +7,8 @@
 
 #include "src/objects/templates.h"
 
-#include "src/heap/heap-inl.h"
+#include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/oddball.h"
 #include "src/objects/shared-function-info-inl.h"
 
 // Has to be the last include (doesn't have include guards):

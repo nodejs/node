@@ -23,6 +23,7 @@
 #include "src/property-details.h"
 #include "src/property.h"
 #include "src/string-stream.h"
+#include "src/zone/zone-list-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -155,8 +156,8 @@ VariableProxy::VariableProxy(Variable* var, int start_position)
     : Expression(start_position, kVariableProxy),
       raw_name_(var->raw_name()),
       next_unresolved_(nullptr) {
-  bit_field_ |= IsThisField::encode(var->is_this()) |
-                IsAssignedField::encode(false) |
+  DCHECK(!var->is_this());
+  bit_field_ |= IsAssignedField::encode(false) |
                 IsResolvedField::encode(false) |
                 HoleCheckModeField::encode(HoleCheckMode::kElided);
   BindTo(var);
@@ -171,7 +172,7 @@ VariableProxy::VariableProxy(const VariableProxy* copy_from)
 }
 
 void VariableProxy::BindTo(Variable* var) {
-  DCHECK((is_this() && var->is_this()) || raw_name() == var->raw_name());
+  DCHECK_EQ(raw_name(), var->raw_name());
   set_var(var);
   set_is_resolved();
   var->set_is_used();
@@ -211,6 +212,18 @@ void FunctionLiteral::SetShouldEagerCompile() {
 
 bool FunctionLiteral::AllowsLazyCompilation() {
   return scope()->AllowsLazyCompilation();
+}
+
+bool FunctionLiteral::SafeToSkipArgumentsAdaptor() const {
+  // TODO(bmeurer,verwaest): The --fast_calls_with_arguments_mismatches
+  // is mostly here for checking the real-world impact of the calling
+  // convention. There's not really a point in turning off this flag
+  // otherwise, so we should remove it at some point, when we're done
+  // with the experiments (https://crbug.com/v8/8895).
+  return FLAG_fast_calls_with_arguments_mismatches &&
+         language_mode() == LanguageMode::kStrict &&
+         scope()->arguments() == nullptr &&
+         scope()->rest_parameter() == nullptr;
 }
 
 Handle<String> FunctionLiteral::name(Isolate* isolate) const {
@@ -457,15 +470,10 @@ void ObjectLiteral::BuildBoilerplateDescription(Isolate* isolate) {
       has_seen_proto = true;
       continue;
     }
-    if (property->is_computed_name()) {
-      continue;
-    }
+    if (property->is_computed_name()) continue;
 
     Literal* key = property->key()->AsLiteral();
-
-    if (!key->IsPropertyName()) {
-      index_keys++;
-    }
+    if (!key->IsPropertyName()) index_keys++;
   }
 
   Handle<ObjectBoilerplateDescription> boilerplate_description =

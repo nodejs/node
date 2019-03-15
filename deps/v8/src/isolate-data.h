@@ -9,6 +9,7 @@
 #include "src/constants-arch.h"
 #include "src/external-reference-table.h"
 #include "src/roots.h"
+#include "src/thread-local-top.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -91,6 +92,9 @@ class IsolateData final {
     return (address - start) < sizeof(*this);
   }
 
+  ThreadLocalTop& thread_local_top() { return thread_local_top_; }
+  ThreadLocalTop const& thread_local_top() const { return thread_local_top_; }
+
   RootsTable& roots() { return roots_; }
   const RootsTable& roots() const { return roots_; }
 
@@ -110,6 +114,7 @@ class IsolateData final {
   V(kExternalMemoryAtLastMarkCompactOffset, kInt64Size)                       \
   V(kRootsTableOffset, RootsTable::kEntriesCount* kSystemPointerSize)         \
   V(kExternalReferenceTableOffset, ExternalReferenceTable::kSizeInBytes)      \
+  V(kThreadLocalTopOffset, ThreadLocalTop::kSizeInBytes)                      \
   V(kBuiltinEntryTableOffset, Builtins::builtin_count* kSystemPointerSize)    \
   V(kBuiltinsTableOffset, Builtins::builtin_count* kSystemPointerSize)        \
   V(kVirtualCallTargetRegisterOffset, kSystemPointerSize)                     \
@@ -144,6 +149,8 @@ class IsolateData final {
   RootsTable roots_;
 
   ExternalReferenceTable external_reference_table_;
+
+  ThreadLocalTop thread_local_top_;
 
   // The entry points for all builtins. This corresponds to
   // Code::InstructionStart() for each Code object in the builtins table below.
@@ -190,11 +197,14 @@ class IsolateData final {
 // actual V8 code.
 void IsolateData::AssertPredictableLayout() {
   STATIC_ASSERT(std::is_standard_layout<RootsTable>::value);
+  STATIC_ASSERT(std::is_standard_layout<ThreadLocalTop>::value);
   STATIC_ASSERT(std::is_standard_layout<ExternalReferenceTable>::value);
   STATIC_ASSERT(std::is_standard_layout<IsolateData>::value);
   STATIC_ASSERT(offsetof(IsolateData, roots_) == kRootsTableOffset);
   STATIC_ASSERT(offsetof(IsolateData, external_reference_table_) ==
                 kExternalReferenceTableOffset);
+  STATIC_ASSERT(offsetof(IsolateData, thread_local_top_) ==
+                kThreadLocalTopOffset);
   STATIC_ASSERT(offsetof(IsolateData, builtins_) == kBuiltinsTableOffset);
   STATIC_ASSERT(offsetof(IsolateData, virtual_call_target_register_) ==
                 kVirtualCallTargetRegisterOffset);

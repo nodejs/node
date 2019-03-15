@@ -169,7 +169,6 @@ TEST(3) {
   T t;
 
   Assembler assm(AssemblerOptions{});
-  Label L, C;
 
 // build a frame
 #if V8_TARGET_ARCH_PPC64

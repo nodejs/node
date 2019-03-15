@@ -7,6 +7,9 @@
 V8 correctness fuzzer launcher script.
 """
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import argparse
 import hashlib
 import itertools
@@ -51,6 +54,9 @@ CONFIGS = dict(
     '--no-lazy',
     '--no-lazy-inner-functions',
   ],
+  jitless=[
+    '--jitless',
+  ],
   slow_path=[
     '--force-slow-path',
   ],
@@ -75,6 +81,11 @@ ADDITIONAL_FLAGS = [
   (0.1, '--stress-compaction-random'),
   (0.1, '--random-gc-interval=2000'),
   (0.2, '--noanalyze-environment-liveness'),
+  (0.1, '--stress-delay-tasks'),
+  (0.01, '--thread-pool-size=1'),
+  (0.01, '--thread-pool-size=2'),
+  (0.01, '--thread-pool-size=4'),
+  (0.01, '--thread-pool-size=8'),
 ]
 
 # Timeout in seconds for one d8 run.
@@ -90,6 +101,7 @@ PREAMBLE = [
   os.path.join(BASE_PATH, 'v8_suppressions.js'),
 ]
 ARCH_MOCKS = os.path.join(BASE_PATH, 'v8_mock_archs.js')
+SANITY_CHECKS = os.path.join(BASE_PATH, 'v8_sanity_checks.js')
 
 FLAGS = ['--abort_on_stack_or_string_length_overflow', '--expose-gc',
          '--allow-natives-syntax', '--invoke-weak-callbacks', '--omit-quit',
@@ -118,10 +130,7 @@ FAILURE_TEMPLATE = FAILURE_HEADER_TEMPLATE + """#
 %(second_config_flags)s
 #
 # Difference:
-%(difference)s
-#
-# Source file:
-%(source)s
+%(difference)s%(source_file_text)s
 #
 ### Start of configuration %(first_config_label)s:
 %(first_config_output)s
@@ -131,6 +140,12 @@ FAILURE_TEMPLATE = FAILURE_HEADER_TEMPLATE + """#
 %(second_config_output)s
 ### End of configuration %(second_config_label)s
 """
+
+SOURCE_FILE_TEMPLATE = """
+#
+# Source file:
+%s"""
+
 
 FUZZ_TEST_RE = re.compile(r'.*fuzz(-\d+\.js)')
 SOURCE_RE = re.compile(r'print\("v8-foozzie source: (.*)"\);')
@@ -168,6 +183,9 @@ def parse_args():
   parser.add_argument(
       '--second-d8',
       help='optional path to second d8 executable, default: same as first')
+  parser.add_argument(
+      '--skip-sanity-checks', default=False, action='store_true',
+      help='skip sanity checks for testing purposes')
   parser.add_argument('testcase', help='path to test case')
   options = parser.parse_args()
 
@@ -219,8 +237,8 @@ def content_bailout(content, ignore_fun):
   """Print failure state and return if ignore_fun matches content."""
   bug = (ignore_fun(content) or '').strip()
   if bug:
-    print FAILURE_HEADER_TEMPLATE % dict(
-        configs='', source_key='', suppression=bug)
+    print(FAILURE_HEADER_TEMPLATE % dict(
+        configs='', source_key='', suppression=bug))
     return True
   return False
 
@@ -230,10 +248,10 @@ def pass_bailout(output, step_number):
   if output.HasTimedOut():
     # Dashed output, so that no other clusterfuzz tools can match the
     # words timeout or crash.
-    print '# V8 correctness - T-I-M-E-O-U-T %d' % step_number
+    print('# V8 correctness - T-I-M-E-O-U-T %d' % step_number)
     return True
   if output.HasCrashed():
-    print '# V8 correctness - C-R-A-S-H %d' % step_number
+    print('# V8 correctness - C-R-A-S-H %d' % step_number)
     return True
   return False
 
@@ -242,10 +260,36 @@ def fail_bailout(output, ignore_by_output_fun):
   """Print failure state and return if ignore_by_output_fun matches output."""
   bug = (ignore_by_output_fun(output.stdout) or '').strip()
   if bug:
-    print FAILURE_HEADER_TEMPLATE % dict(
-        configs='', source_key='', suppression=bug)
+    print(FAILURE_HEADER_TEMPLATE % dict(
+        configs='', source_key='', suppression=bug))
     return True
   return False
+
+
+def print_difference(
+    options, source_key, first_config_flags, second_config_flags,
+    first_config_output, second_config_output, difference, source=None):
+  # The first three entries will be parsed by clusterfuzz. Format changes
+  # will require changes on the clusterfuzz side.
+  first_config_label = '%s,%s' % (options.first_arch, options.first_config)
+  second_config_label = '%s,%s' % (options.second_arch, options.second_config)
+  source_file_text = SOURCE_FILE_TEMPLATE % source if source else ''
+  print((FAILURE_TEMPLATE % dict(
+      configs='%s:%s' % (first_config_label, second_config_label),
+      source_file_text=source_file_text,
+      source_key=source_key,
+      suppression='', # We can't tie bugs to differences.
+      first_config_label=first_config_label,
+      second_config_label=second_config_label,
+      first_config_flags=' '.join(first_config_flags),
+      second_config_flags=' '.join(second_config_flags),
+      first_config_output=
+          first_config_output.stdout.decode('utf-8', 'replace'),
+      second_config_output=
+          second_config_output.stdout.decode('utf-8', 'replace'),
+      source=source,
+      difference=difference.decode('utf-8', 'replace'),
+  )).encode('utf-8', 'replace'))
 
 
 def main():
@@ -276,28 +320,49 @@ def main():
     if rng.random() < p:
       second_config_flags.append(flag)
 
-  def run_d8(d8, config_flags):
+  def run_d8(d8, config_flags, config_label=None, testcase=options.testcase):
     preamble = PREAMBLE[:]
     if options.first_arch != options.second_arch:
       preamble.append(ARCH_MOCKS)
-    args = [d8] + config_flags + preamble + [options.testcase]
-    print " ".join(args)
+    args = [d8] + config_flags + preamble + [testcase]
+    if config_label:
+      print('# Command line for %s comparison:' % config_label)
+      print(' '.join(args))
     if d8.endswith('.py'):
       # Wrap with python in tests.
       args = [sys.executable] + args
     return v8_commands.Execute(
         args,
-        cwd=os.path.dirname(os.path.abspath(options.testcase)),
+        cwd=os.path.dirname(os.path.abspath(testcase)),
         timeout=TIMEOUT,
     )
 
-  first_config_output = run_d8(options.first_d8, first_config_flags)
+  # Sanity checks. Run both configurations with the sanity-checks file only and
+  # bail out early if different.
+  if not options.skip_sanity_checks:
+    first_config_output = run_d8(
+        options.first_d8, first_config_flags, testcase=SANITY_CHECKS)
+    second_config_output = run_d8(
+        options.second_d8, second_config_flags, testcase=SANITY_CHECKS)
+    difference, _ = suppress.diff(
+        first_config_output.stdout, second_config_output.stdout)
+    if difference:
+      # Special source key for sanity checks so that clusterfuzz dedupes all
+      # cases on this in case it's hit.
+      source_key = 'sanity check failed'
+      print_difference(
+          options, source_key, first_config_flags, second_config_flags,
+          first_config_output, second_config_output, difference)
+      return RETURN_FAIL
+
+  first_config_output = run_d8(options.first_d8, first_config_flags, 'first')
 
   # Early bailout based on first run's output.
   if pass_bailout(first_config_output, 1):
     return RETURN_PASS
 
-  second_config_output = run_d8(options.second_d8, second_config_flags)
+  second_config_output = run_d8(
+      options.second_d8, second_config_flags, 'second')
 
   # Bailout based on second run's output.
   if pass_bailout(second_config_output, 2):
@@ -309,7 +374,6 @@ def main():
   if source:
     source_key = hashlib.sha1(source).hexdigest()[:ORIGINAL_SOURCE_HASH_LENGTH]
   else:
-    source = ORIGINAL_SOURCE_DEFAULT
     source_key = ORIGINAL_SOURCE_DEFAULT
 
   if difference:
@@ -321,32 +385,16 @@ def main():
     if fail_bailout(second_config_output, suppress.ignore_by_output2):
       return RETURN_FAIL
 
-    # The first three entries will be parsed by clusterfuzz. Format changes
-    # will require changes on the clusterfuzz side.
-    first_config_label = '%s,%s' % (options.first_arch, options.first_config)
-    second_config_label = '%s,%s' % (options.second_arch, options.second_config)
-    print (FAILURE_TEMPLATE % dict(
-        configs='%s:%s' % (first_config_label, second_config_label),
-        source_key=source_key,
-        suppression='', # We can't tie bugs to differences.
-        first_config_label=first_config_label,
-        second_config_label=second_config_label,
-        first_config_flags=' '.join(first_config_flags),
-        second_config_flags=' '.join(second_config_flags),
-        first_config_output=
-            first_config_output.stdout.decode('utf-8', 'replace'),
-        second_config_output=
-            second_config_output.stdout.decode('utf-8', 'replace'),
-        source=source,
-        difference=difference.decode('utf-8', 'replace'),
-    )).encode('utf-8', 'replace')
+    print_difference(
+        options, source_key, first_config_flags, second_config_flags,
+        first_config_output, second_config_output, difference, source)
     return RETURN_FAIL
 
   # TODO(machenbach): Figure out if we could also return a bug in case there's
   # no difference, but one of the line suppressions has matched - and without
   # the match there would be a difference.
 
-  print '# V8 correctness - pass'
+  print('# V8 correctness - pass')
   return RETURN_PASS
 
 
@@ -356,17 +404,17 @@ if __name__ == "__main__":
   except SystemExit:
     # Make sure clusterfuzz reports internal errors and wrong usage.
     # Use one label for all internal and usage errors.
-    print FAILURE_HEADER_TEMPLATE % dict(
-        configs='', source_key='', suppression='wrong_usage')
+    print(FAILURE_HEADER_TEMPLATE % dict(
+        configs='', source_key='', suppression='wrong_usage'))
     result = RETURN_FAIL
   except MemoryError:
     # Running out of memory happens occasionally but is not actionable.
-    print '# V8 correctness - pass'
+    print('# V8 correctness - pass')
     result = RETURN_PASS
   except Exception as e:
-    print FAILURE_HEADER_TEMPLATE % dict(
-        configs='', source_key='', suppression='internal_error')
-    print '# Internal error: %s' % e
+    print(FAILURE_HEADER_TEMPLATE % dict(
+        configs='', source_key='', suppression='internal_error'))
+    print('# Internal error: %s' % e)
     traceback.print_exc(file=sys.stdout)
     result = RETURN_FAIL
 

@@ -13,26 +13,61 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
+struct SourcePosition;
+
 class SourceId {
+ public:
+  static SourceId Invalid() { return SourceId(-1); }
+  bool IsValid() const { return id_ != -1; }
+  int operator==(const SourceId& s) const { return id_ == s.id_; }
+  bool operator<(const SourceId& s) const { return id_ < s.id_; }
+
  private:
   explicit SourceId(int id) : id_(id) {}
   int id_;
+  friend struct SourcePosition;
   friend class SourceFileMap;
+};
+
+struct LineAndColumn {
+  int line;
+  int column;
+
+  static LineAndColumn Invalid() { return {-1, -1}; }
 };
 
 struct SourcePosition {
   SourceId source;
-  int line;
-  int column;
+  LineAndColumn start;
+  LineAndColumn end;
+
+  static SourcePosition Invalid() {
+    SourcePosition pos{SourceId::Invalid(), LineAndColumn::Invalid(),
+                       LineAndColumn::Invalid()};
+    return pos;
+  }
+
+  bool CompareStartIgnoreColumn(const SourcePosition& pos) const {
+    return start.line == pos.start.line && source == pos.source;
+  }
+
+  bool Contains(LineAndColumn pos) const {
+    if (pos.line < start.line || pos.line > end.line) return false;
+
+    if (pos.line == start.line && pos.column < start.column) return false;
+    if (pos.line == end.line && pos.column >= end.column) return false;
+    return true;
+  }
 };
 
-DECLARE_CONTEXTUAL_VARIABLE(CurrentSourceFile, SourceId)
-DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition)
+DECLARE_CONTEXTUAL_VARIABLE(CurrentSourceFile, SourceId);
+DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition);
 
 class SourceFileMap : public ContextualClass<SourceFileMap> {
  public:
   SourceFileMap() = default;
   static const std::string& GetSource(SourceId source) {
+    CHECK(source.IsValid());
     return Get().sources_[source.id_];
   }
 
@@ -41,13 +76,23 @@ class SourceFileMap : public ContextualClass<SourceFileMap> {
     return SourceId(static_cast<int>(Get().sources_.size()) - 1);
   }
 
+  static SourceId GetSourceId(const std::string& path) {
+    for (size_t i = 0; i < Get().sources_.size(); ++i) {
+      if (Get().sources_[i] == path) {
+        return SourceId(static_cast<int>(i));
+      }
+    }
+    return SourceId::Invalid();
+  }
+
  private:
   std::vector<std::string> sources_;
 };
 
 inline std::string PositionAsString(SourcePosition pos) {
   return SourceFileMap::GetSource(pos.source) + ":" +
-         std::to_string(pos.line + 1) + ":" + std::to_string(pos.column + 1);
+         std::to_string(pos.start.line + 1) + ":" +
+         std::to_string(pos.start.column + 1);
 }
 
 inline std::ostream& operator<<(std::ostream& out, SourcePosition pos) {

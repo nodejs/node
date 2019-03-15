@@ -32,6 +32,7 @@ namespace compiler {
 class CallDescriptor;
 class Graph;
 class InstructionSequence;
+class JSHeapBroker;
 class MachineGraph;
 class NodeOriginTable;
 class Schedule;
@@ -80,8 +81,11 @@ class Pipeline : public AllStatic {
   // ---------------------------------------------------------------------------
 
   // Run the pipeline on JavaScript bytecode and generate code.
+  // If requested, hands out the heap broker, which is allocated
+  // in {info}'s zone.
   static MaybeHandle<Code> GenerateCodeForTesting(
-      OptimizedCompilationInfo* info, Isolate* isolate);
+      OptimizedCompilationInfo* info, Isolate* isolate,
+      JSHeapBroker** out_broker = nullptr);
 
   // Run the pipeline on a machine graph and generate code. If {schedule} is
   // {nullptr}, then compute a new schedule for code generation.

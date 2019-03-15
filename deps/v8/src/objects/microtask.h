@@ -34,15 +34,8 @@ class CallbackTask : public Microtask {
   DECL_ACCESSORS(callback, Foreign)
   DECL_ACCESSORS(data, Foreign)
 
-// Layout description.
-#define CALLBACK_TASK_FIELDS(V)   \
-  V(kCallbackOffset, kTaggedSize) \
-  V(kDataOffset, kTaggedSize)     \
-  /* Total size. */               \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(Microtask::kHeaderSize, CALLBACK_TASK_FIELDS)
-#undef CALLBACK_TASK_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(Microtask::kHeaderSize,
+                                TORQUE_GENERATED_CALLBACK_TASK_FIELDS)
 
   // Dispatched behavior.
   DECL_CAST(CallbackTask)
@@ -60,15 +53,8 @@ class CallableTask : public Microtask {
   DECL_ACCESSORS(callable, JSReceiver)
   DECL_ACCESSORS(context, Context)
 
-// Layout description.
-#define CALLABLE_TASK_FIELDS(V)   \
-  V(kCallableOffset, kTaggedSize) \
-  V(kContextOffset, kTaggedSize)  \
-  /* Total size. */               \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(Microtask::kHeaderSize, CALLABLE_TASK_FIELDS)
-#undef CALLABLE_TASK_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(Microtask::kHeaderSize,
+                                TORQUE_GENERATED_CALLABLE_TASK_FIELDS)
 
   // Dispatched behavior.
   DECL_CAST(CallableTask)

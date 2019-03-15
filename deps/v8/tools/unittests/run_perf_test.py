@@ -3,6 +3,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 from collections import namedtuple
 import coverage
 import json
@@ -103,8 +106,8 @@ class PerfTest(unittest.TestCase):
   @classmethod
   def tearDownClass(cls):
     cls._cov.stop()
-    print ""
-    print cls._cov.report()
+    print("")
+    print(cls._cov.report())
 
   def setUp(self):
     self.maxDiff = None

@@ -281,8 +281,8 @@ class Config(object):
       match = csa_trap.search(output)
       extra_opt = match.group(1) if match else ""
       cmdline = re.compile("python ../../tools/run.py ./mksnapshot (.*)")
-      match = cmdline.search(output)
-      cmdline = PrepareMksnapshotCmdline(match.group(1), path) + extra_opt
+      orig_cmdline = cmdline.search(output).group(1).strip()
+      cmdline = PrepareMksnapshotCmdline(orig_cmdline, path) + extra_opt
       _Notify("V8 build requires your attention",
               "Detected mksnapshot failure, re-running in GDB...")
       _Call(cmdline)
@@ -294,8 +294,9 @@ class Config(object):
       tests = ""
     else:
       tests = " ".join(self.tests)
-    return _Call("tools/run-tests.py --outdir=%s %s" %
-                   (GetPath(self.arch, self.mode), tests))
+    return _Call('"%s" ' % sys.executable +
+                 os.path.join("tools", "run-tests.py") +
+                 " --outdir=%s %s" % (GetPath(self.arch, self.mode), tests))
 
 def GetTestBinary(argstring):
   for suite in TESTSUITES_TARGETS:

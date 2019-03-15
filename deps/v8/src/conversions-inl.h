@@ -59,10 +59,10 @@ inline unsigned int FastD2UI(double x) {
 
 
 inline float DoubleToFloat32(double x) {
-  // TODO(yangguo): This static_cast is implementation-defined behaviour in C++,
-  // so we may need to do the conversion manually instead to match the spec.
-  volatile float f = static_cast<float>(x);
-  return f;
+  typedef std::numeric_limits<float> limits;
+  if (x > limits::max()) return limits::infinity();
+  if (x < limits::lowest()) return -limits::infinity();
+  return static_cast<float>(x);
 }
 
 

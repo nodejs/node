@@ -14,6 +14,7 @@
   function foo(a) {
     return Object(a.bar)();
   }
+  %PrepareFunctionForOptimization(foo);
   assertEquals(undefined, foo(new A));
   assertEquals(undefined, foo(new A));
   %OptimizeFunctionOnNextCall(foo);
@@ -25,6 +26,7 @@
   function foo() {
     return Object("a");
   }
+  %PrepareFunctionForOptimization(foo);
   assertEquals('object', typeof foo());
   assertEquals('object', typeof foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -41,6 +43,7 @@
   function foo() {
     return new A(1, 2, 3);
   }
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), A);
   assertInstanceof(foo(), Object);
   assertInstanceof(foo(), A);
