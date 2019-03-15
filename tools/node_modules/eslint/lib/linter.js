@@ -747,10 +747,15 @@ function runRules(sourceCode, configuredRules, ruleMapper, parserOptions, parser
     nodeQueue.forEach(traversalInfo => {
         currentNode = traversalInfo.node;
 
-        if (traversalInfo.isEntering) {
-            eventGenerator.enterNode(currentNode);
-        } else {
-            eventGenerator.leaveNode(currentNode);
+        try {
+            if (traversalInfo.isEntering) {
+                eventGenerator.enterNode(currentNode);
+            } else {
+                eventGenerator.leaveNode(currentNode);
+            }
+        } catch (err) {
+            err.currentNode = currentNode;
+            throw err;
         }
     });
 
@@ -901,8 +906,15 @@ module.exports = class Linter {
                 options.filename
             );
         } catch (err) {
+            err.message += `\nOccurred while linting ${options.filename}`;
             debug("An error occurred while traversing");
             debug("Filename:", options.filename);
+            if (err.currentNode) {
+                const { line } = err.currentNode.loc.start;
+
+                debug("Line:", line);
+                err.message += `:${line}`;
+            }
             debug("Parser Options:", parserOptions);
             debug("Parser Path:", parserName);
             debug("Settings:", settings);

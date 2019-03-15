@@ -6,8 +6,7 @@
 
 const {
     isArrowToken,
-    isParenthesised,
-    isOpeningParenToken
+    isParenthesised
 } = require("../util/ast-utils");
 
 //------------------------------------------------------------------------------
@@ -57,8 +56,7 @@ module.exports = {
          * @param {Integer} column The column number of the first token
          * @returns {string} A string of comment text joined by line breaks
          */
-        function formatComments(comments, column) {
-            const whiteSpaces = " ".repeat(column);
+        function formatComments(comments) {
 
             return `${comments.map(comment => {
 
@@ -67,12 +65,12 @@ module.exports = {
                 }
 
                 return `/*${comment.value}*/`;
-            }).join(`\n${whiteSpaces}`)}\n${whiteSpaces}`;
+            }).join("\n")}\n`;
         }
 
         /**
          * Finds the first token to prepend comments to depending on the parent type
-         * @param {Node} node The validated node
+         * @param {ASTNode} node The validated node
          * @returns {Token|Node} The node to prepend comments to
          */
         function findFirstToken(node) {
@@ -109,24 +107,19 @@ module.exports = {
             let followingBody = arrowBody;
             let currentArrow = arrow;
 
-            while (currentArrow) {
+            while (currentArrow && followingBody.type !== "BlockStatement") {
                 if (!isParenthesised(sourceCode, followingBody)) {
                     parenthesesFixes.push(
                         fixer.insertTextAfter(currentArrow, " (")
                     );
 
-                    const paramsToken = sourceCode.getTokenBefore(currentArrow, token =>
-                        isOpeningParenToken(token) || token.type === "Identifier");
-
-                    const whiteSpaces = " ".repeat(paramsToken.loc.start.column);
-
-                    closingParentheses = `\n${whiteSpaces})${closingParentheses}`;
+                    closingParentheses = `\n)${closingParentheses}`;
                 }
 
                 currentArrow = sourceCode.getTokenAfter(currentArrow, isArrowToken);
 
                 if (currentArrow) {
-                    followingBody = sourceCode.getTokenAfter(currentArrow, token => !isOpeningParenToken(token));
+                    followingBody = followingBody.body;
                 }
             }
 
@@ -137,10 +130,10 @@ module.exports = {
 
         /**
          * Autofixes the function body to collapse onto the same line as the arrow.
-         * If comments exist, prepends the comments before the arrow function.
-         * If the function body contains arrow functions, appends the function bodies with parentheses.
+         * If comments exist, checks if the function body contains arrow functions, and appends the body with parentheses.
+         * Otherwise, prepends the comments before the arrow function.
          * @param {Token} arrowToken The arrow token.
-         * @param {ASTNode} arrowBody the function body
+         * @param {ASTNode|Token} arrowBody the function body
          * @param {ASTNode} node The evaluated node
          * @returns {Function} autofixer -- validates the node to adhere to besides
          */
@@ -161,23 +154,18 @@ module.exports = {
                     ) {
 
                         // If any arrow functions follow, return the necessary parens fixes.
-                        if (sourceCode.getTokenAfter(arrowToken, isArrowToken) && arrowBody.parent.parent.type !== "VariableDeclarator") {
+                        if (node.body.type === "ArrowFunctionExpression" &&
+                            arrowBody.parent.parent.type !== "VariableDeclarator"
+                        ) {
                             return addParentheses(fixer, arrowToken, arrowBody);
-                        }
-
-                        // If any arrow functions precede, the necessary fixes have already been returned, so return null.
-                        if (sourceCode.getTokenBefore(arrowToken, isArrowToken) && arrowBody.parent.parent.type !== "VariableDeclarator") {
-                            return null;
                         }
                     }
 
                     const firstToken = findFirstToken(node);
 
-                    const commentText = formatComments(comments, firstToken.loc.start.column);
-
                     const commentBeforeExpression = fixer.insertTextBeforeRange(
                         firstToken.range,
-                        commentText
+                        formatComments(comments)
                     );
 
                     return [placeBesides, commentBeforeExpression];
