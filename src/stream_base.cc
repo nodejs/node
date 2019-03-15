@@ -18,12 +18,15 @@ namespace node {
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::Context;
+using v8::DontDelete;
+using v8::DontEnum;
 using v8::External;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
+using v8::ReadOnly;
 using v8::String;
 using v8::Value;
 
@@ -347,8 +350,8 @@ void StreamBase::AddMethod(Environment* env,
 void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   HandleScope scope(env->isolate());
 
-  enum PropertyAttribute attributes = static_cast<PropertyAttribute>(
-      v8::ReadOnly | v8::DontDelete | v8::DontEnum);
+  enum PropertyAttribute attributes =
+      static_cast<PropertyAttribute>(ReadOnly | DontDelete | DontEnum);
   Local<Signature> sig = Signature::New(env->isolate(), t);
 
   AddMethod(env, sig, attributes, t, GetFD, env->fd_string());

@@ -30,6 +30,7 @@ namespace node {
 
 using v8::Array;
 using v8::Context;
+using v8::DontDelete;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -38,6 +39,7 @@ using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
 using v8::PropertyAttribute;
+using v8::ReadOnly;
 using v8::Signature;
 using v8::String;
 using v8::Uint32;
@@ -98,7 +100,7 @@ void UDPWrap::Initialize(Local<Object> target,
   t->SetClassName(udpString);
 
   enum PropertyAttribute attributes =
-      static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
+      static_cast<PropertyAttribute>(ReadOnly | DontDelete);
 
   Local<Signature> signature = Signature::New(env->isolate(), t);
 
