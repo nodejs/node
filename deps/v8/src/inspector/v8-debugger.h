@@ -144,6 +144,8 @@ class V8Debugger : public v8::debug::DebugDelegate,
   static size_t nearHeapLimitCallback(void* data, size_t current_heap_limit,
                                       size_t initial_heap_limit);
   static void terminateExecutionCompletedCallback(v8::Isolate* isolate);
+  static void terminateExecutionCompletedCallbackIgnoringData(
+      v8::Isolate* isolate, void*);
   void handleProgramBreak(
       v8::Local<v8::Context> pausedContext, v8::Local<v8::Value> exception,
       const std::vector<v8::debug::BreakpointId>& hitBreakpoints,

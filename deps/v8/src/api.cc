@@ -8574,7 +8574,7 @@ MicrotasksPolicy Isolate::GetMicrotasksPolicy() const {
 namespace {
 
 void MicrotasksCompletedCallbackAdapter(v8::Isolate* isolate, void* data) {
-  auto callback = reinterpret_cast<MicrotasksCompletedCallback>(data);
+  auto callback = reinterpret_cast<void (*)(v8::Isolate*)>(data);
   callback(isolate);
 }
 
@@ -8588,6 +8588,13 @@ void Isolate::AddMicrotasksCompletedCallback(
       &MicrotasksCompletedCallbackAdapter, reinterpret_cast<void*>(callback));
 }
 
+void Isolate::AddMicrotasksCompletedCallback(
+    MicrotasksCompletedCallbackWithData callback, void* data) {
+  DCHECK(callback);
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->default_microtask_queue()->AddMicrotasksCompletedCallback(callback,
+                                                                     data);
+}
 
 void Isolate::RemoveMicrotasksCompletedCallback(
     MicrotasksCompletedCallback callback) {
@@ -8596,6 +8603,12 @@ void Isolate::RemoveMicrotasksCompletedCallback(
       &MicrotasksCompletedCallbackAdapter, reinterpret_cast<void*>(callback));
 }
 
+void Isolate::RemoveMicrotasksCompletedCallback(
+    MicrotasksCompletedCallbackWithData callback, void* data) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->default_microtask_queue()->RemoveMicrotasksCompletedCallback(
+      callback, data);
+}
 
 void Isolate::SetUseCounterCallback(UseCounterCallback callback) {
   reinterpret_cast<i::Isolate*>(this)->SetUseCounterCallback(callback);

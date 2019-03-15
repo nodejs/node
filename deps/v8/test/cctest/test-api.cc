@@ -21680,11 +21680,9 @@ TEST(RunMicrotasksIgnoresThrownExceptionsFromApi) {
 
 uint8_t microtasks_completed_callback_count = 0;
 
-
-static void MicrotasksCompletedCallback(v8::Isolate* isolate) {
+static void MicrotasksCompletedCallback(v8::Isolate* isolate, void*) {
   ++microtasks_completed_callback_count;
 }
-
 
 TEST(SetAutorunMicrotasks) {
   LocalContext env;

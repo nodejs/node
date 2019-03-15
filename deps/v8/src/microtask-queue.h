@@ -87,8 +87,6 @@ class V8_EXPORT_PRIVATE MicrotaskQueue final : public v8::MicrotaskQueue {
   }
   v8::MicrotasksPolicy microtasks_policy() const { return microtasks_policy_; }
 
-  void AddMicrotasksCompletedCallback(MicrotasksCompletedCallback callback);
-  void RemoveMicrotasksCompletedCallback(MicrotasksCompletedCallback callback);
   void FireMicrotasksCompletedCallback(Isolate* isolate) const;
 
   intptr_t capacity() const { return capacity_; }

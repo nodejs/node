@@ -59,6 +59,7 @@ class MatchPrototypePredicate : public v8::debug::QueryObjectPredicate {
   v8::Local<v8::Context> m_context;
   v8::Local<v8::Value> m_prototype;
 };
+
 }  // namespace
 
 V8Debugger::V8Debugger(v8::Isolate* isolate, V8InspectorImpl* inspector)
@@ -76,7 +77,7 @@ V8Debugger::~V8Debugger() {
   m_isolate->RemoveCallCompletedCallback(
       &V8Debugger::terminateExecutionCompletedCallback);
   m_isolate->RemoveMicrotasksCompletedCallback(
-      &V8Debugger::terminateExecutionCompletedCallback);
+      &V8Debugger::terminateExecutionCompletedCallbackIgnoringData);
 }
 
 void V8Debugger::enable() {
@@ -302,7 +303,7 @@ void V8Debugger::terminateExecution(
   m_isolate->AddCallCompletedCallback(
       &V8Debugger::terminateExecutionCompletedCallback);
   m_isolate->AddMicrotasksCompletedCallback(
-      &V8Debugger::terminateExecutionCompletedCallback);
+      &V8Debugger::terminateExecutionCompletedCallbackIgnoringData);
   m_isolate->TerminateExecution();
 }
 
@@ -311,7 +312,7 @@ void V8Debugger::reportTermination() {
   m_isolate->RemoveCallCompletedCallback(
       &V8Debugger::terminateExecutionCompletedCallback);
   m_isolate->RemoveMicrotasksCompletedCallback(
-      &V8Debugger::terminateExecutionCompletedCallback);
+      &V8Debugger::terminateExecutionCompletedCallbackIgnoringData);
   m_isolate->CancelTerminateExecution();
   m_terminateExecutionCallback->sendSuccess();
   m_terminateExecutionCallback.reset();
@@ -322,6 +323,11 @@ void V8Debugger::terminateExecutionCompletedCallback(v8::Isolate* isolate) {
       static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
   V8Debugger* debugger = inspector->debugger();
   debugger->reportTermination();
+}
+
+void V8Debugger::terminateExecutionCompletedCallbackIgnoringData(
+    v8::Isolate* isolate, void*) {
+  terminateExecutionCompletedCallback(isolate);
 }
 
 Response V8Debugger::continueToLocation(
