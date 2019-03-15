@@ -6717,11 +6717,8 @@ enum PromiseRejectEvent {
 class PromiseRejectMessage {
  public:
   PromiseRejectMessage(Local<Promise> promise, PromiseRejectEvent event,
-                       Local<Value> value, Local<StackTrace> stack_trace)
-      : promise_(promise),
-        event_(event),
-        value_(value),
-        stack_trace_(stack_trace) {}
+                       Local<Value> value)
+      : promise_(promise), event_(event), value_(value) {}
 
   V8_INLINE Local<Promise> GetPromise() const { return promise_; }
   V8_INLINE PromiseRejectEvent GetEvent() const { return event_; }
@@ -6731,7 +6728,6 @@ class PromiseRejectMessage {
   Local<Promise> promise_;
   PromiseRejectEvent event_;
   Local<Value> value_;
-  Local<StackTrace> stack_trace_;
 };
 
 typedef void (*PromiseRejectCallback)(PromiseRejectMessage message);
