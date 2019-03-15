@@ -118,13 +118,14 @@ inline void CopyTagged(Address dst, const Address src, size_t num_tagged) {
 
 // Sets |counter| number of kTaggedSize-sized values starting at |start| slot.
 inline void MemsetTagged(ObjectSlot start, Object value, size_t counter) {
-  // TODO(ishell): revisit this implementation, maybe use "rep stosl"
-  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
-  Address raw_value = value.ptr();
 #ifdef V8_COMPRESS_POINTERS
-  raw_value = CompressTagged(raw_value);
-#endif
+  Tagged_t raw_value = CompressTagged(value.ptr());
+  STATIC_ASSERT(kTaggedSize == kInt32Size);
+  MemsetInt32(start.location(), raw_value, counter);
+#else
+  Address raw_value = value.ptr();
   MemsetPointer(start.location(), raw_value, counter);
+#endif
 }
 
 // Sets |counter| number of kSystemPointerSize-sized values starting at |start|

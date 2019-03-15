@@ -269,7 +269,6 @@ void TurboAssembler::StoreTaggedField(Operand dst_field_operand,
 #ifdef V8_COMPRESS_POINTERS
   RecordComment("[ StoreTagged");
   movl(dst_field_operand, value);
-  movl(Operand(dst_field_operand, 4), Immediate(0));
   RecordComment("]");
 #else
   movq(dst_field_operand, value);
@@ -281,7 +280,6 @@ void TurboAssembler::StoreTaggedField(Operand dst_field_operand,
 #ifdef V8_COMPRESS_POINTERS
   RecordComment("[ StoreTagged");
   movl(dst_field_operand, value);
-  movl(Operand(dst_field_operand, 4), Immediate(0));
   RecordComment("]");
 #else
   movq(dst_field_operand, value);
@@ -1124,7 +1122,11 @@ void TurboAssembler::SmiUntag(Register dst, Operand src) {
     movsxlq(dst, dst);
   } else {
     DCHECK(SmiValuesAre31Bits());
+#ifdef V8_COMPRESS_POINTERS
+    movsxlq(dst, src);
+#else
     movq(dst, src);
+#endif
     sarq(dst, Immediate(kSmiShift));
   }
 }
@@ -1132,7 +1134,7 @@ void TurboAssembler::SmiUntag(Register dst, Operand src) {
 void MacroAssembler::SmiCompare(Register smi1, Register smi2) {
   AssertSmi(smi1);
   AssertSmi(smi2);
-  cmpq(smi1, smi2);
+  cmp_tagged(smi1, smi2);
 }
 
 void MacroAssembler::SmiCompare(Register dst, Smi src) {

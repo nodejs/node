@@ -138,6 +138,32 @@ inline void CopyBytes(T* dst, const T* src, size_t num_bytes) {
   CopyImpl<kMinComplexMemCopy>(dst, src, num_bytes);
 }
 
+inline void MemsetInt32(int32_t* dest, int32_t value, size_t counter) {
+#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+#define STOS "stosl"
+#endif
+
+#if defined(MEMORY_SANITIZER)
+  // MemorySanitizer does not understand inline assembly.
+#undef STOS
+#endif
+
+#if defined(__GNUC__) && defined(STOS)
+  asm volatile(
+      "cld;"
+      "rep ; " STOS
+      : "+&c"(counter), "+&D"(dest)
+      : "a"(value)
+      : "memory", "cc");
+#else
+  for (size_t i = 0; i < counter; i++) {
+    dest[i] = value;
+  }
+#endif
+
+#undef STOS
+}
+
 inline void MemsetPointer(Address* dest, Address value, size_t counter) {
 #if V8_HOST_ARCH_IA32
 #define STOS "stosl"

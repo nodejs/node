@@ -200,28 +200,47 @@ constexpr size_t kReservedCodeRangePages = 0;
 
 STATIC_ASSERT(kSystemPointerSize == (1 << kSystemPointerSizeLog2));
 
+#ifdef V8_COMPRESS_POINTERS
+static_assert(
+    kSystemPointerSize == kInt64Size,
+    "Pointer compression can be enabled only for 64-bit architectures");
+
+constexpr int kTaggedSize = kInt32Size;
+constexpr int kTaggedSizeLog2 = 2;
+
+// These types define raw and atomic storage types for tagged values stored
+// on V8 heap.
+using Tagged_t = int32_t;
+using AtomicTagged_t = base::Atomic32;
+
+#else
+
 constexpr int kTaggedSize = kSystemPointerSize;
 constexpr int kTaggedSizeLog2 = kSystemPointerSizeLog2;
-STATIC_ASSERT(kTaggedSize == (1 << kTaggedSizeLog2));
 
 // These types define raw and atomic storage types for tagged values stored
 // on V8 heap.
 using Tagged_t = Address;
 using AtomicTagged_t = base::AtomicWord;
+
+#endif  // V8_COMPRESS_POINTERS
+
+STATIC_ASSERT(kTaggedSize == (1 << kTaggedSizeLog2));
+
 using AsAtomicTagged = base::AsAtomicPointerImpl<AtomicTagged_t>;
 STATIC_ASSERT(sizeof(Tagged_t) == kTaggedSize);
 STATIC_ASSERT(sizeof(AtomicTagged_t) == kTaggedSize);
 
+STATIC_ASSERT(kTaggedSize == kApiTaggedSize);
+
 // TODO(ishell): use kTaggedSize or kSystemPointerSize instead.
+#ifndef V8_COMPRESS_POINTERS
 constexpr int kPointerSize = kSystemPointerSize;
 constexpr int kPointerSizeLog2 = kSystemPointerSizeLog2;
 STATIC_ASSERT(kPointerSize == (1 << kPointerSizeLog2));
-
-constexpr int kEmbedderDataSlotSize =
-#ifdef V8_COMPRESS_POINTERS
-    kTaggedSize +
 #endif
-    kTaggedSize;
+
+constexpr int kEmbedderDataSlotSize = kSystemPointerSize;
 
 constexpr int kEmbedderDataSlotSizeInTaggedSlots =
     kEmbedderDataSlotSize / kTaggedSize;
@@ -870,24 +889,24 @@ constexpr int kIeeeDoubleExponentWordOffset = 0;
     ::i::kHeapObjectTag))
 
 // OBJECT_POINTER_ALIGN returns the value aligned as a HeapObject pointer
-#define OBJECT_POINTER_ALIGN(value)                             \
-  (((value) + kObjectAlignmentMask) & ~kObjectAlignmentMask)
+#define OBJECT_POINTER_ALIGN(value) \
+  (((value) + ::i::kObjectAlignmentMask) & ~::i::kObjectAlignmentMask)
 
 // OBJECT_POINTER_PADDING returns the padding size required to align value
 // as a HeapObject pointer
 #define OBJECT_POINTER_PADDING(value) (OBJECT_POINTER_ALIGN(value) - (value))
 
 // POINTER_SIZE_ALIGN returns the value aligned as a system pointer.
-#define POINTER_SIZE_ALIGN(value)                               \
-  (((value) + kPointerAlignmentMask) & ~kPointerAlignmentMask)
+#define POINTER_SIZE_ALIGN(value) \
+  (((value) + ::i::kPointerAlignmentMask) & ~::i::kPointerAlignmentMask)
 
 // POINTER_SIZE_PADDING returns the padding size required to align value
 // as a system pointer.
 #define POINTER_SIZE_PADDING(value) (POINTER_SIZE_ALIGN(value) - (value))
 
 // CODE_POINTER_ALIGN returns the value aligned as a generated code segment.
-#define CODE_POINTER_ALIGN(value)                               \
-  (((value) + kCodeAlignmentMask) & ~kCodeAlignmentMask)
+#define CODE_POINTER_ALIGN(value) \
+  (((value) + ::i::kCodeAlignmentMask) & ~::i::kCodeAlignmentMask)
 
 // CODE_POINTER_PADDING returns the padding size required to align value
 // as a generated code segment.
@@ -895,8 +914,7 @@ constexpr int kIeeeDoubleExponentWordOffset = 0;
 
 // DOUBLE_POINTER_ALIGN returns the value algined for double pointers.
 #define DOUBLE_POINTER_ALIGN(value) \
-  (((value) + kDoubleAlignmentMask) & ~kDoubleAlignmentMask)
-
+  (((value) + ::i::kDoubleAlignmentMask) & ~::i::kDoubleAlignmentMask)
 
 // Defines hints about receiver values based on structural knowledge.
 enum class ConvertReceiverMode : unsigned {

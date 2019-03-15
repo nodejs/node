@@ -13,6 +13,7 @@
 namespace v8 {
 namespace internal {
 
+// See v8:7703 for details about how pointer compression works.
 constexpr size_t kPtrComprHeapReservationSize = size_t{4} * GB;
 constexpr size_t kPtrComprIsolateRootBias = kPtrComprHeapReservationSize / 2;
 constexpr size_t kPtrComprIsolateRootAlignment = size_t{4} * GB;
@@ -21,8 +22,7 @@ constexpr size_t kPtrComprIsolateRootAlignment = size_t{4} * GB;
 // holding a compressed tagged pointer (smi or heap object).
 // Its address() is the address of the slot.
 // The slot's contents can be read and written using operator* and store().
-class CompressedObjectSlot
-    : public SlotBase<CompressedObjectSlot, Tagged_t, kTaggedSize> {
+class CompressedObjectSlot : public SlotBase<CompressedObjectSlot, Tagged_t> {
  public:
   using TObject = Object;
   using THeapObjectSlot = CompressedHeapObjectSlot;
@@ -37,7 +37,7 @@ class CompressedObjectSlot
   explicit CompressedObjectSlot(Object const* const* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
-  explicit CompressedObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)
+  explicit CompressedObjectSlot(SlotBase<T, TData, kSlotDataAlignment> slot)
       : SlotBase(slot.address()) {}
 
   inline Object operator*() const;
@@ -57,8 +57,7 @@ class CompressedObjectSlot
 // forwarding pointer is different.
 // Its address() is the address of the slot.
 // The slot's contents can be read and written using operator* and store().
-class CompressedMapWordSlot
-    : public SlotBase<CompressedMapWordSlot, Tagged_t, kTaggedSize> {
+class CompressedMapWordSlot : public SlotBase<CompressedMapWordSlot, Tagged_t> {
  public:
   using TObject = Object;
 
@@ -88,7 +87,7 @@ class CompressedMapWordSlot
 // Its address() is the address of the slot.
 // The slot's contents can be read and written using operator* and store().
 class CompressedMaybeObjectSlot
-    : public SlotBase<CompressedMaybeObjectSlot, Tagged_t, kTaggedSize> {
+    : public SlotBase<CompressedMaybeObjectSlot, Tagged_t> {
  public:
   using TObject = MaybeObject;
   using THeapObjectSlot = CompressedHeapObjectSlot;
@@ -102,7 +101,8 @@ class CompressedMaybeObjectSlot
   explicit CompressedMaybeObjectSlot(MaybeObject* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
-  explicit CompressedMaybeObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)
+  explicit CompressedMaybeObjectSlot(
+      SlotBase<T, TData, kSlotDataAlignment> slot)
       : SlotBase(slot.address()) {}
 
   inline MaybeObject operator*() const;
@@ -121,14 +121,14 @@ class CompressedMaybeObjectSlot
 // In case it is known that that slot contains a strong heap object pointer,
 // ToHeapObject() can be used to retrieve that heap object.
 class CompressedHeapObjectSlot
-    : public SlotBase<CompressedHeapObjectSlot, Tagged_t, kTaggedSize> {
+    : public SlotBase<CompressedHeapObjectSlot, Tagged_t> {
  public:
   CompressedHeapObjectSlot() : SlotBase(kNullAddress) {}
   explicit CompressedHeapObjectSlot(Address ptr) : SlotBase(ptr) {}
   explicit CompressedHeapObjectSlot(Object* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
-  explicit CompressedHeapObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)
+  explicit CompressedHeapObjectSlot(SlotBase<T, TData, kSlotDataAlignment> slot)
       : SlotBase(slot.address()) {}
 
   inline HeapObjectReference operator*() const;

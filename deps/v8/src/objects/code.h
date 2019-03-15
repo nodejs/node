@@ -402,11 +402,11 @@ class Code : public HeapObject {
   // This documents the amount of free space we have in each Code object header
   // due to padding for code alignment.
 #if V8_TARGET_ARCH_ARM64
-  static constexpr int kHeaderPaddingSize = 0;
+  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 20 : 0;
 #elif V8_TARGET_ARCH_MIPS64
   static constexpr int kHeaderPaddingSize = 0;
 #elif V8_TARGET_ARCH_X64
-  static constexpr int kHeaderPaddingSize = 0;
+  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 20 : 0;
 #elif V8_TARGET_ARCH_ARM
   static constexpr int kHeaderPaddingSize = 20;
 #elif V8_TARGET_ARCH_IA32

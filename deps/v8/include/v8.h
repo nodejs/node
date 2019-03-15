@@ -10322,7 +10322,7 @@ AccessorSignature* AccessorSignature::Cast(Data* data) {
 }
 
 Local<Value> Object::GetInternalField(int index) {
-#if !defined(V8_ENABLE_CHECKS) && !defined(V8_COMPRESS_POINTERS)
+#ifndef V8_ENABLE_CHECKS
   typedef internal::Address A;
   typedef internal::Internals I;
   A obj = *reinterpret_cast<A*>(this);
@@ -10333,7 +10333,12 @@ Local<Value> Object::GetInternalField(int index) {
       instance_type == I::kJSApiObjectType ||
       instance_type == I::kJSSpecialApiObjectType) {
     int offset = I::kJSObjectHeaderSize + (I::kEmbedderDataSlotSize * index);
-    A value = I::ReadTaggedAnyField(obj, offset);
+    A value = I::ReadRawField<A>(obj, offset);
+#ifdef V8_COMPRESS_POINTERS
+    // We read the full pointer value and then decompress it in order to avoid
+    // dealing with potential endiannes issues.
+    value = I::DecompressTaggedAnyField(obj, static_cast<int32_t>(value));
+#endif
     internal::Isolate* isolate =
         internal::IsolateFromNeverReadOnlySpaceObject(obj);
     A* result = HandleScope::CreateHandle(isolate, value);
@@ -10345,7 +10350,7 @@ Local<Value> Object::GetInternalField(int index) {
 
 
 void* Object::GetAlignedPointerFromInternalField(int index) {
-#if !defined(V8_ENABLE_CHECKS) && !defined(V8_COMPRESS_POINTERS)
+#ifndef V8_ENABLE_CHECKS
   typedef internal::Address A;
   typedef internal::Internals I;
   A obj = *reinterpret_cast<A*>(this);
@@ -10956,13 +10961,24 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
 }
 
 Local<Value> Context::GetEmbedderData(int index) {
-#if !defined(V8_ENABLE_CHECKS) && !defined(V8_COMPRESS_POINTERS)
+#ifndef V8_ENABLE_CHECKS
   typedef internal::Address A;
   typedef internal::Internals I;
+  A ctx = *reinterpret_cast<const A*>(this);
+  A embedder_data =
+      I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
+  int value_offset =
+      I::kEmbedderDataArrayHeaderSize + (I::kEmbedderDataSlotSize * index);
+  A value = I::ReadRawField<A>(embedder_data, value_offset);
+#ifdef V8_COMPRESS_POINTERS
+  // We read the full pointer value and then decompress it in order to avoid
+  // dealing with potential endiannes issues.
+  value =
+      I::DecompressTaggedAnyField(embedder_data, static_cast<int32_t>(value));
+#endif
   internal::Isolate* isolate = internal::IsolateFromNeverReadOnlySpaceObject(
       *reinterpret_cast<A*>(this));
-  A* result =
-      HandleScope::CreateHandle(isolate, I::ReadEmbedderData<A>(this, index));
+  A* result = HandleScope::CreateHandle(isolate, value);
   return Local<Value>(reinterpret_cast<Value*>(result));
 #else
   return SlowGetEmbedderData(index);
@@ -10971,9 +10987,15 @@ Local<Value> Context::GetEmbedderData(int index) {
 
 
 void* Context::GetAlignedPointerFromEmbedderData(int index) {
-#if !defined(V8_ENABLE_CHECKS) && !defined(V8_COMPRESS_POINTERS)
+#ifndef V8_ENABLE_CHECKS
+  typedef internal::Address A;
   typedef internal::Internals I;
-  return I::ReadEmbedderData<void*>(this, index);
+  A ctx = *reinterpret_cast<const A*>(this);
+  A embedder_data =
+      I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
+  int value_offset =
+      I::kEmbedderDataArrayHeaderSize + (I::kEmbedderDataSlotSize * index);
+  return I::ReadRawField<void*>(embedder_data, value_offset);
 #else
   return SlowGetAlignedPointerFromEmbedderData(index);
 #endif

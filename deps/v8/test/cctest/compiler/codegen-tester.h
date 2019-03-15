@@ -131,9 +131,18 @@ class BufferedRawMachineAssemblerTester
   // Store node is provided as a parameter. By storing the return value in
   // memory it is possible to return 64 bit values.
   void Return(Node* input) {
-    Store(MachineTypeForC<ReturnType>().representation(),
-          RawMachineAssembler::Parameter(return_parameter_index_), input,
-          kNoWriteBarrier);
+    if (COMPRESS_POINTERS_BOOL && MachineTypeForC<ReturnType>().IsTagged()) {
+      // Since we are returning values via storing to off-heap location
+      // generate full-word store here.
+      Store(MachineType::PointerRepresentation(),
+            RawMachineAssembler::Parameter(return_parameter_index_),
+            BitcastTaggedToWord(input), kNoWriteBarrier);
+
+    } else {
+      Store(MachineTypeForC<ReturnType>().representation(),
+            RawMachineAssembler::Parameter(return_parameter_index_), input,
+            kNoWriteBarrier);
+    }
     RawMachineAssembler::Return(Int32Constant(1234));
   }
 

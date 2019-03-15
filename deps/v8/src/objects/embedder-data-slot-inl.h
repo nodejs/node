@@ -33,6 +33,7 @@ Object EmbedderDataSlot::load_tagged() const {
 void EmbedderDataSlot::store_smi(Smi value) {
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(value);
 #ifdef V8_COMPRESS_POINTERS
+  // See gc_safe_store() for the reasons behind two stores.
   ObjectSlot(address() + kRawPayloadOffset).Relaxed_Store(Smi::kZero);
 #endif
 }
@@ -43,8 +44,9 @@ void EmbedderDataSlot::store_tagged(EmbedderDataArray array, int entry_index,
   int slot_offset = EmbedderDataArray::OffsetOfElementAt(entry_index);
   ObjectSlot(FIELD_ADDR(array, slot_offset + kTaggedPayloadOffset))
       .Relaxed_Store(value);
-  WRITE_BARRIER(array, slot_offset, value);
+  WRITE_BARRIER(array, slot_offset + kTaggedPayloadOffset, value);
 #ifdef V8_COMPRESS_POINTERS
+  // See gc_safe_store() for the reasons behind two stores.
   ObjectSlot(FIELD_ADDR(array, slot_offset + kRawPayloadOffset))
       .Relaxed_Store(Smi::kZero);
 #endif
@@ -56,68 +58,64 @@ void EmbedderDataSlot::store_tagged(JSObject object, int embedder_field_index,
   int slot_offset = object->GetEmbedderFieldOffset(embedder_field_index);
   ObjectSlot(FIELD_ADDR(object, slot_offset + kTaggedPayloadOffset))
       .Relaxed_Store(value);
-  WRITE_BARRIER(object, slot_offset, value);
+  WRITE_BARRIER(object, slot_offset + kTaggedPayloadOffset, value);
 #ifdef V8_COMPRESS_POINTERS
+  // See gc_safe_store() for the reasons behind two stores.
   ObjectSlot(FIELD_ADDR(object, slot_offset + kRawPayloadOffset))
       .Relaxed_Store(Smi::kZero);
 #endif
 }
 
 bool EmbedderDataSlot::ToAlignedPointer(void** out_pointer) const {
-  Object tagged_value =
-      ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Load();
-  if (!tagged_value->IsSmi()) return false;
-#ifdef V8_COMPRESS_POINTERS
-  STATIC_ASSERT(kSmiShiftSize == 0);
-  STATIC_ASSERT(SmiValuesAre31Bits());
-  Address value_lo = static_cast<uint32_t>(tagged_value->ptr());
-  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
-  Address value_hi =
-      FullObjectSlot(address() + kRawPayloadOffset).Relaxed_Load()->ptr();
-  Address value = value_lo | (value_hi << 32);
-  *out_pointer = reinterpret_cast<void*>(value);
-#else
-  *out_pointer = reinterpret_cast<void*>(tagged_value->ptr());
-#endif
-  return true;
+  // We don't care about atomicity of access here because embedder slots
+  // are accessed this way only from the main thread via API during "mutator"
+  // phase which is propely synched with GC (concurrent marker may still look
+  // at the tagged part of the embedder slot but read-only access is ok).
+  Address raw_value = *location();
+  *out_pointer = reinterpret_cast<void*>(raw_value);
+  return HAS_SMI_TAG(raw_value);
 }
 
 bool EmbedderDataSlot::store_aligned_pointer(void* ptr) {
   Address value = reinterpret_cast<Address>(ptr);
   if (!HAS_SMI_TAG(value)) return false;
+  gc_safe_store(value);
+  return true;
+}
+
+EmbedderDataSlot::RawData EmbedderDataSlot::load_raw(
+    const DisallowHeapAllocation& no_gc) const {
+  // We don't care about atomicity of access here because embedder slots
+  // are accessed this way only by serializer from the main thread when
+  // GC is not active (concurrent marker may still look at the tagged part
+  // of the embedder slot but read-only access is ok).
+  return *location();
+}
+
+void EmbedderDataSlot::store_raw(EmbedderDataSlot::RawData data,
+                                 const DisallowHeapAllocation& no_gc) {
+  gc_safe_store(data);
+}
+
+void EmbedderDataSlot::gc_safe_store(Address value) {
 #ifdef V8_COMPRESS_POINTERS
   STATIC_ASSERT(kSmiShiftSize == 0);
   STATIC_ASSERT(SmiValuesAre31Bits());
-  // Sign-extend lower 32-bits in order to form a proper Smi value.
-  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
+  STATIC_ASSERT(kTaggedSize == kInt32Size);
+  // We have to do two 32-bit stores here because
+  // 1) tagged part modifications must be atomic to be properly synchronized
+  //    with the concurrent marker.
+  // 2) atomicity of full pointer store is not guaranteed for embedder slots
+  //    since the address of the slot may not be kSystemPointerSize aligned
+  //    (only kTaggedSize alignment is guaranteed).
+  // TODO(ishell, v8:8875): revisit this once the allocation alignment
+  // inconsistency is fixed.
   Address lo = static_cast<intptr_t>(static_cast<int32_t>(value));
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi(lo));
   Address hi = value >> 32;
   ObjectSlot(address() + kRawPayloadOffset).Relaxed_Store(Object(hi));
 #else
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi(value));
-#endif
-  return true;
-}
-
-EmbedderDataSlot::RawData EmbedderDataSlot::load_raw(
-    const DisallowHeapAllocation& no_gc) const {
-  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
-  return RawData{
-      ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Load()->ptr(),
-#ifdef V8_COMPRESS_POINTERS
-      FullObjectSlot(address() + kRawPayloadOffset).Relaxed_Load()->ptr()
-#endif
-  };
-}
-
-void EmbedderDataSlot::store_raw(const EmbedderDataSlot::RawData& data,
-                                 const DisallowHeapAllocation& no_gc) {
-  ObjectSlot(address() + kTaggedPayloadOffset)
-      .Relaxed_Store(Object(data.data_[0]));
-#ifdef V8_COMPRESS_POINTERS
-  ObjectSlot(address() + kRawPayloadOffset)
-      .Relaxed_Store(Object(data.data_[1]));
 #endif
 }
 

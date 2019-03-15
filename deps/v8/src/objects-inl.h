@@ -614,33 +614,18 @@ HeapObject MapWord::ToForwardingAddress() {
 #ifdef VERIFY_HEAP
 void HeapObject::VerifyObjectField(Isolate* isolate, int offset) {
   VerifyPointer(isolate, READ_FIELD(*this, offset));
-#ifdef V8_COMPRESS_POINTERS
-  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
-  // Ensure upper 32-bits are zeros.
-  Address value = *(FullObjectSlot(FIELD_ADDR(*this, offset)).location());
-  CHECK_EQ(kNullAddress, RoundDown<kPtrComprIsolateRootAlignment>(value));
-#endif
+  STATIC_ASSERT(!COMPRESS_POINTERS_BOOL || kTaggedSize == kInt32Size);
 }
 
 void HeapObject::VerifyMaybeObjectField(Isolate* isolate, int offset) {
   MaybeObject::VerifyMaybeObjectPointer(isolate,
                                         READ_WEAK_FIELD(*this, offset));
-#ifdef V8_COMPRESS_POINTERS
-  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
-  // Ensure upper 32-bits are zeros.
-  Address value = *(FullObjectSlot(FIELD_ADDR(*this, offset)).location());
-  CHECK_EQ(kNullAddress, RoundDown<kPtrComprIsolateRootAlignment>(value));
-#endif
+  STATIC_ASSERT(!COMPRESS_POINTERS_BOOL || kTaggedSize == kInt32Size);
 }
 
 void HeapObject::VerifySmiField(int offset) {
   CHECK(READ_FIELD(*this, offset)->IsSmi());
-#ifdef V8_COMPRESS_POINTERS
-  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
-  // Ensure upper 32-bits are zeros.
-  Address value = *(FullObjectSlot(FIELD_ADDR(*this, offset)).location());
-  CHECK_EQ(kNullAddress, RoundDown<kPtrComprIsolateRootAlignment>(value));
-#endif
+  STATIC_ASSERT(!COMPRESS_POINTERS_BOOL || kTaggedSize == kInt32Size);
 }
 
 #endif

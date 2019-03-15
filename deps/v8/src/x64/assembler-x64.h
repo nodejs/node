@@ -426,50 +426,45 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // - Instructions on 64-bit (quadword) operands/registers use 'q'.
   // - Instructions on operands/registers with pointer size use 'p'.
 
-#define DECLARE_INSTRUCTION(instruction)                                       \
-  template <class P1>                                                          \
-  void instruction##_tagged(P1 p1) {                                           \
-    STATIC_ASSERT(kTaggedSize == kSystemPointerSize);                          \
-    /* TODO(ishell): change to kTaggedSize */                                  \
-    emit_##instruction(p1, COMPRESS_POINTERS_BOOL ? kInt32Size : kTaggedSize); \
-  }                                                                            \
-                                                                               \
-  template <class P1>                                                          \
-  void instruction##l(P1 p1) {                                                 \
-    emit_##instruction(p1, kInt32Size);                                        \
-  }                                                                            \
-                                                                               \
-  template <class P1>                                                          \
-  void instruction##q(P1 p1) {                                                 \
-    emit_##instruction(p1, kInt64Size);                                        \
-  }                                                                            \
-                                                                               \
-  template <class P1, class P2>                                                \
-  void instruction##_tagged(P1 p1, P2 p2) {                                    \
-    STATIC_ASSERT(kTaggedSize == kSystemPointerSize);                          \
-    /* TODO(ishell): change to kTaggedSize */                                  \
-    emit_##instruction(p1, p2,                                                 \
-                       COMPRESS_POINTERS_BOOL ? kInt32Size : kTaggedSize);     \
-  }                                                                            \
-                                                                               \
-  template <class P1, class P2>                                                \
-  void instruction##l(P1 p1, P2 p2) {                                          \
-    emit_##instruction(p1, p2, kInt32Size);                                    \
-  }                                                                            \
-                                                                               \
-  template <class P1, class P2>                                                \
-  void instruction##q(P1 p1, P2 p2) {                                          \
-    emit_##instruction(p1, p2, kInt64Size);                                    \
-  }                                                                            \
-                                                                               \
-  template <class P1, class P2, class P3>                                      \
-  void instruction##l(P1 p1, P2 p2, P3 p3) {                                   \
-    emit_##instruction(p1, p2, p3, kInt32Size);                                \
-  }                                                                            \
-                                                                               \
-  template <class P1, class P2, class P3>                                      \
-  void instruction##q(P1 p1, P2 p2, P3 p3) {                                   \
-    emit_##instruction(p1, p2, p3, kInt64Size);                                \
+#define DECLARE_INSTRUCTION(instruction)        \
+  template <class P1>                           \
+  void instruction##_tagged(P1 p1) {            \
+    emit_##instruction(p1, kTaggedSize);        \
+  }                                             \
+                                                \
+  template <class P1>                           \
+  void instruction##l(P1 p1) {                  \
+    emit_##instruction(p1, kInt32Size);         \
+  }                                             \
+                                                \
+  template <class P1>                           \
+  void instruction##q(P1 p1) {                  \
+    emit_##instruction(p1, kInt64Size);         \
+  }                                             \
+                                                \
+  template <class P1, class P2>                 \
+  void instruction##_tagged(P1 p1, P2 p2) {     \
+    emit_##instruction(p1, p2, kTaggedSize);    \
+  }                                             \
+                                                \
+  template <class P1, class P2>                 \
+  void instruction##l(P1 p1, P2 p2) {           \
+    emit_##instruction(p1, p2, kInt32Size);     \
+  }                                             \
+                                                \
+  template <class P1, class P2>                 \
+  void instruction##q(P1 p1, P2 p2) {           \
+    emit_##instruction(p1, p2, kInt64Size);     \
+  }                                             \
+                                                \
+  template <class P1, class P2, class P3>       \
+  void instruction##l(P1 p1, P2 p2, P3 p3) {    \
+    emit_##instruction(p1, p2, p3, kInt32Size); \
+  }                                             \
+                                                \
+  template <class P1, class P2, class P3>       \
+  void instruction##q(P1 p1, P2 p2, P3 p3) {    \
+    emit_##instruction(p1, p2, p3, kInt64Size); \
   }
   ASSEMBLER_INSTRUCTION_LIST(DECLARE_INSTRUCTION)
 #undef DECLARE_INSTRUCTION

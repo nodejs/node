@@ -182,7 +182,7 @@ bool PartialSerializer::SerializeJSObjectWithEmbedderFields(Object obj) {
   //    with embedder callbacks.
   for (int i = 0; i < embedder_fields_count; i++) {
     if (!DataIsEmpty(serialized_data[i])) {
-      EmbedderDataSlot(js_obj, i).store_raw({kNullAddress}, no_gc);
+      EmbedderDataSlot(js_obj, i).store_raw(kNullAddress, no_gc);
     }
   }
 

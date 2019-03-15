@@ -29,8 +29,6 @@ V8_INLINE Address GetRootFromOnHeapAddress(Address addr) {
 // preserving both weak- and smi- tags.
 V8_INLINE Address DecompressTaggedPointer(Address on_heap_addr,
                                           Tagged_t raw_value) {
-  static_assert(kTaggedSize == kSystemPointerSize, "has to be updated");
-  static_assert(!std::is_same<int32_t, Tagged_t>::value, "remove cast below");
   int32_t value = static_cast<int32_t>(raw_value);
   Address root = GetRootFromOnHeapAddress(on_heap_addr);
   // Current compression scheme requires value to be sign-extended to inptr_t
@@ -41,8 +39,6 @@ V8_INLINE Address DecompressTaggedPointer(Address on_heap_addr,
 // Decompresses any tagged value, preserving both weak- and smi- tags.
 V8_INLINE Address DecompressTaggedAny(Address on_heap_addr,
                                       Tagged_t raw_value) {
-  static_assert(kTaggedSize == kSystemPointerSize, "has to be updated");
-  static_assert(!std::is_same<int32_t, Tagged_t>::value, "remove cast below");
   int32_t value = static_cast<int32_t>(raw_value);
   // |root_mask| is 0 if the |value| was a smi or -1 otherwise.
   Address root_mask = -static_cast<Address>(value & kSmiTagMask);

@@ -12,14 +12,14 @@ namespace internal {
 
 class Object;
 
-template <typename Subclass, typename Data, size_t SlotDataSize>
+template <typename Subclass, typename Data,
+          size_t SlotDataAlignment = sizeof(Data)>
 class SlotBase {
  public:
   using TData = Data;
 
-  // TODO(ishell): This should eventually become just sizeof(TData) once
-  // pointer compression is implemented.
-  static constexpr size_t kSlotDataSize = SlotDataSize;
+  static constexpr size_t kSlotDataSize = sizeof(Data);
+  static constexpr size_t kSlotDataAlignment = SlotDataAlignment;
 
   Subclass& operator++() {  // Prefix increment.
     ptr_ += kSlotDataSize;
@@ -72,9 +72,8 @@ class SlotBase {
   TData* location() const { return reinterpret_cast<TData*>(ptr_); }
 
  protected:
-  STATIC_ASSERT(IsAligned(kSlotDataSize, kTaggedSize));
   explicit SlotBase(Address ptr) : ptr_(ptr) {
-    DCHECK(IsAligned(ptr, kTaggedSize));
+    DCHECK(IsAligned(ptr, kSlotDataAlignment));
   }
 
  private:
@@ -88,8 +87,7 @@ class SlotBase {
 // ("slot") holding a tagged pointer (smi or strong heap object).
 // Its address() is the address of the slot.
 // The slot's contents can be read and written using operator* and store().
-class FullObjectSlot
-    : public SlotBase<FullObjectSlot, Address, kSystemPointerSize> {
+class FullObjectSlot : public SlotBase<FullObjectSlot, Address> {
  public:
   using TObject = Object;
   using THeapObjectSlot = FullHeapObjectSlot;
@@ -103,7 +101,7 @@ class FullObjectSlot
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   inline explicit FullObjectSlot(Object* object);
   template <typename T>
-  explicit FullObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)
+  explicit FullObjectSlot(SlotBase<T, TData, kSlotDataAlignment> slot)
       : SlotBase(slot.address()) {}
 
   // Compares memory representation of a value stored in the slot with given
@@ -140,7 +138,7 @@ class FullMaybeObjectSlot
   explicit FullMaybeObjectSlot(MaybeObject* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
-  explicit FullMaybeObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)
+  explicit FullMaybeObjectSlot(SlotBase<T, TData, kSlotDataAlignment> slot)
       : SlotBase(slot.address()) {}
 
   inline const MaybeObject operator*() const;
@@ -158,15 +156,14 @@ class FullMaybeObjectSlot
 // The slot's contents can be read and written using operator* and store().
 // In case it is known that that slot contains a strong heap object pointer,
 // ToHeapObject() can be used to retrieve that heap object.
-class FullHeapObjectSlot
-    : public SlotBase<FullHeapObjectSlot, Address, kSystemPointerSize> {
+class FullHeapObjectSlot : public SlotBase<FullHeapObjectSlot, Address> {
  public:
   FullHeapObjectSlot() : SlotBase(kNullAddress) {}
   explicit FullHeapObjectSlot(Address ptr) : SlotBase(ptr) {}
   explicit FullHeapObjectSlot(Object* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
-  explicit FullHeapObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)
+  explicit FullHeapObjectSlot(SlotBase<T, TData, kSlotDataAlignment> slot)
       : SlotBase(slot.address()) {}
 
   inline const HeapObjectReference operator*() const;
