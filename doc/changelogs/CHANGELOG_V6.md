@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#6.17.1">6.17.1</a><br/>
 <a href="#6.17.0">6.17.0</a><br/>
 <a href="#6.16.0">6.16.0</a><br/>
 <a href="#6.15.1">6.15.1</a><br/>
@@ -76,6 +77,26 @@
 *Note*: Node.js v6 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2018 and maintained until April 2019.
+
+<a id="6.17.1"></a>
+## 2019-04-03, Version 6.17.1 'Boron' (LTS), @BethGriggs
+
+Node 6 is due to go End-of-Life on 2019-04-30.
+
+### Notable Changes
+
+* **http**:
+  - fix error check in `Execute()` (Brian White) [#25939](https://github.com/nodejs/node/pull/25939)
+
+### Commits
+
+* [[`c9d21a0c10`](https://github.com/nodejs/node/commit/c9d21a0c10)] - **build**: set `-blibpath:` for AIX (Richard Lau) [#25447](https://github.com/nodejs/node/pull/25447)
+* [[`9ba5fd6bad`](https://github.com/nodejs/node/commit/9ba5fd6bad)] - **build**: only check REPLACEME & DEP...X for releases (Rod Vagg) [#24575](https://github.com/nodejs/node/pull/24575)
+* [[`1371a6f88b`](https://github.com/nodejs/node/commit/1371a6f88b)] - **doc**: simplify CODE\_OF\_CONDUCT.md (Rich Trott) [#23989](https://github.com/nodejs/node/pull/23989)
+* [[`ad62971573`](https://github.com/nodejs/node/commit/ad62971573)] - **doc**: document that addMembership must be called once in a cluster (James M Snell) [#23746](https://github.com/nodejs/node/pull/23746)
+* [[`8080a9bf40`](https://github.com/nodejs/node/commit/8080a9bf40)] - **http**: fix error check in `Execute()` (Brian White) [#25939](https://github.com/nodejs/node/pull/25939)
+* [[`aedc7120ea`](https://github.com/nodejs/node/commit/aedc7120ea)] - **src**: fix bootstrap\_node on bsd (sylkat) [#22663](https://github.com/nodejs/node/pull/22663)
+* [[`b5d464955a`](https://github.com/nodejs/node/commit/b5d464955a)] - **test**: fix test-repl-envvars (Anna Henningsen) [#25226](https://github.com/nodejs/node/pull/25226)
 
 <a id="6.17.0"></a>
 ## 2019-02-28, Version 6.17.0 'Boron' (LTS), @rvagg
