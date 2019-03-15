@@ -2071,7 +2071,11 @@ void ScriptCompiler::ExternalSourceStream::ResetToBookmark() { UNREACHABLE(); }
 
 ScriptCompiler::StreamedSource::StreamedSource(ExternalSourceStream* stream,
                                                Encoding encoding)
-    : impl_(new i::ScriptStreamingData(stream, encoding)) {}
+    : StreamedSource(std::unique_ptr<ExternalSourceStream>(stream), encoding) {}
+
+ScriptCompiler::StreamedSource::StreamedSource(
+    std::unique_ptr<ExternalSourceStream> stream, Encoding encoding)
+    : impl_(new i::ScriptStreamingData(std::move(stream), encoding)) {}
 
 ScriptCompiler::StreamedSource::~StreamedSource() = default;
 

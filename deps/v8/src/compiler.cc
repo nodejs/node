@@ -2173,9 +2173,9 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
 // Implementation of ScriptStreamingData
 
 ScriptStreamingData::ScriptStreamingData(
-    ScriptCompiler::ExternalSourceStream* source_stream,
+    std::unique_ptr<ScriptCompiler::ExternalSourceStream> source_stream,
     ScriptCompiler::StreamedSource::Encoding encoding)
-    : source_stream(source_stream), encoding(encoding) {}
+    : source_stream(std::move(source_stream)), encoding(encoding) {}
 
 ScriptStreamingData::~ScriptStreamingData() = default;
 

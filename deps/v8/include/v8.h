@@ -1535,7 +1535,12 @@ class V8_EXPORT ScriptCompiler {
    public:
     enum Encoding { ONE_BYTE, TWO_BYTE, UTF8 };
 
-    StreamedSource(ExternalSourceStream* source_stream, Encoding encoding);
+    V8_DEPRECATE_SOON(
+        "This class takes ownership of source_stream, so use the constructor "
+        "taking a unique_ptr to make these semantics clearer",
+        StreamedSource(ExternalSourceStream* source_stream, Encoding encoding));
+    StreamedSource(std::unique_ptr<ExternalSourceStream> source_stream,
+                   Encoding encoding);
     ~StreamedSource();
 
     internal::ScriptStreamingData* impl() const { return impl_.get(); }

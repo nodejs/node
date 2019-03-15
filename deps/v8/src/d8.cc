@@ -413,7 +413,7 @@ class BackgroundCompileThread : public base::Thread {
   BackgroundCompileThread(Isolate* isolate, Local<String> source)
       : base::Thread(GetThreadOptions("BackgroundCompileThread")),
         source_(source),
-        streamed_source_(new DummySourceStream(source, isolate),
+        streamed_source_(base::make_unique<DummySourceStream>(source, isolate),
                          v8::ScriptCompiler::StreamedSource::UTF8),
         task_(v8::ScriptCompiler::StartStreamingScript(isolate,
                                                        &streamed_source_)) {}

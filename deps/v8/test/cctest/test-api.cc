@@ -24799,8 +24799,8 @@ void RunStreamingTest(const char** chunks,
   v8::HandleScope scope(isolate);
   v8::TryCatch try_catch(isolate);
 
-  v8::ScriptCompiler::StreamedSource source(new TestSourceStream(chunks),
-                                            encoding);
+  v8::ScriptCompiler::StreamedSource source(
+      v8::base::make_unique<TestSourceStream>(chunks), encoding);
   v8::ScriptCompiler::ScriptStreamingTask* task =
       v8::ScriptCompiler::StartStreamingScript(isolate, &source);
 
@@ -25071,7 +25071,7 @@ TEST(StreamingWithDebuggingEnabledLate) {
   v8::TryCatch try_catch(isolate);
 
   v8::ScriptCompiler::StreamedSource source(
-      new TestSourceStream(chunks),
+      v8::base::make_unique<TestSourceStream>(chunks),
       v8::ScriptCompiler::StreamedSource::ONE_BYTE);
   v8::ScriptCompiler::ScriptStreamingTask* task =
       v8::ScriptCompiler::StartStreamingScript(isolate, &source);
@@ -25179,7 +25179,7 @@ TEST(StreamingWithHarmonyScopes) {
 
   v8::TryCatch try_catch(isolate);
   v8::ScriptCompiler::StreamedSource source(
-      new TestSourceStream(chunks),
+      v8::base::make_unique<TestSourceStream>(chunks),
       v8::ScriptCompiler::StreamedSource::ONE_BYTE);
   v8::ScriptCompiler::ScriptStreamingTask* task =
       v8::ScriptCompiler::StartStreamingScript(isolate, &source);
