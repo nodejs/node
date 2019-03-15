@@ -6497,10 +6497,6 @@ class V8_EXPORT Extension {  // NOLINT
   bool auto_enable_;
 };
 
-V8_DEPRECATED(
-    "Use unique_ptr version or stop using extension (http://crbug.com/334679).",
-    void V8_EXPORT RegisterExtension(Extension* extension));
-
 void V8_EXPORT RegisterExtension(std::unique_ptr<Extension>);
 
 // --- Statics ---

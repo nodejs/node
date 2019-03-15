@@ -898,18 +898,8 @@ void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
 
 RegisteredExtension* RegisteredExtension::first_extension_ = nullptr;
 
-RegisteredExtension::RegisteredExtension(Extension* extension)
-    : legacy_unowned_extension_(extension) {}
-
 RegisteredExtension::RegisteredExtension(std::unique_ptr<Extension> extension)
     : extension_(std::move(extension)) {}
-
-// static
-void RegisteredExtension::Register(Extension* extension) {
-  RegisteredExtension* new_extension = new RegisteredExtension(extension);
-  new_extension->next_ = first_extension_;
-  first_extension_ = new_extension;
-}
 
 // static
 void RegisteredExtension::Register(std::unique_ptr<Extension> extension) {
@@ -945,8 +935,6 @@ class ExtensionResource : public String::ExternalOneByteStringResource {
   size_t length_;
 };
 }  // anonymous namespace
-
-void RegisterExtension(Extension* that) { RegisteredExtension::Register(that); }
 
 void RegisterExtension(std::unique_ptr<Extension> extension) {
   RegisteredExtension::Register(std::move(extension));
