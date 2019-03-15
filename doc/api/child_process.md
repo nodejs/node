@@ -868,8 +868,10 @@ changes:
   * `output` {Array} Array of results from stdio output.
   * `stdout` {Buffer|string} The contents of `output[1]`.
   * `stderr` {Buffer|string} The contents of `output[2]`.
-  * `status` {number} The exit code of the child process.
-  * `signal` {string} The signal used to kill the child process.
+  * `status` {number|null} The exit code of the subprocess, or `null` if the
+    subprocess terminated due to a signal.
+  * `signal` {string|null} The signal used to kill the subprocess, or `null` if
+    the subprocess did not terminate due to a signal.
   * `error` {Error} The error object if the child process failed or timed out.
 
 The `child_process.spawnSync()` method is generally identical to
