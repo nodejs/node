@@ -539,6 +539,7 @@ bool ELDHistogram::RecordDelta() {
 bool ELDHistogram::Enable() {
   if (enabled_) return false;
   enabled_ = true;
+  prev_ = 0;
   uv_timer_start(timer_,
                  ELDHistogramDelayInterval,
                  resolution_,
