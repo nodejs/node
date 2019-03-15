@@ -70,6 +70,10 @@ function processPath(options) {
      * @private
      */
     return function(pathname) {
+        if (pathname === "") {
+            return "";
+        }
+
         let newPath = pathname;
         const resolvedPath = path.resolve(cwd, pathname);
 
@@ -201,6 +205,13 @@ function listFilesToProcess(globPatterns, providedOptions) {
 
     debug("Creating list of files to process.");
     const resolvedPathsByGlobPattern = resolvedGlobPatterns.map(pattern => {
+        if (pattern === "") {
+            return [{
+                filename: "",
+                behavior: SILENTLY_IGNORE
+            }];
+        }
+
         const file = path.resolve(cwd, pattern);
 
         if (options.globInputPaths === false || (fs.existsSync(file) && fs.statSync(file).isFile())) {
@@ -240,7 +251,7 @@ function listFilesToProcess(globPatterns, providedOptions) {
     });
 
     const allPathDescriptors = resolvedPathsByGlobPattern.reduce((pathsForAllGlobs, pathsForCurrentGlob, index) => {
-        if (pathsForCurrentGlob.every(pathDescriptor => pathDescriptor.behavior === SILENTLY_IGNORE)) {
+        if (pathsForCurrentGlob.every(pathDescriptor => pathDescriptor.behavior === SILENTLY_IGNORE && pathDescriptor.filename !== "")) {
             throw new (pathsForCurrentGlob.length ? AllFilesIgnoredError : NoFilesFoundError)(globPatterns[index]);
         }
 

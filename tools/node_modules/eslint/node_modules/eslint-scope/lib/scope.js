@@ -49,11 +49,6 @@ function isStrictScope(scope, block, isMethodDefinition, useDirective) {
         return true;
     }
 
-    // ArrowFunctionExpression's scope is always strict scope.
-    if (block.type === Syntax.ArrowFunctionExpression) {
-        return true;
-    }
-
     if (isMethodDefinition) {
         return true;
     }
@@ -67,6 +62,10 @@ function isStrictScope(scope, block, isMethodDefinition, useDirective) {
     }
 
     if (scope.type === "function") {
+        if (block.type === Syntax.ArrowFunctionExpression && block.body.type !== Syntax.BlockStatement) {
+            return false;
+        }
+
         if (block.type === Syntax.Program) {
             body = block;
         } else {

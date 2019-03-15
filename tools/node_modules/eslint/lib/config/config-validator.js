@@ -116,7 +116,7 @@ function validateRuleSchema(rule, localOptions) {
  * no source is prepended to the message.
  * @returns {void}
  */
-function validateRuleOptions(rule, ruleId, options, source) {
+function validateRuleOptions(rule, ruleId, options, source = null) {
     if (!rule) {
         return;
     }
@@ -140,11 +140,11 @@ function validateRuleOptions(rule, ruleId, options, source) {
 /**
  * Validates an environment object
  * @param {Object} environment The environment config object to validate.
- * @param {string} source The name of the configuration source to report in any errors.
  * @param {Environments} envContext Env context
+ * @param {string} source The name of the configuration source to report in any errors.
  * @returns {void}
  */
-function validateEnvironment(environment, source, envContext) {
+function validateEnvironment(environment, envContext, source = null) {
 
     // not having an environment is ok
     if (!environment) {
@@ -163,11 +163,11 @@ function validateEnvironment(environment, source, envContext) {
 /**
  * Validates a rules config object
  * @param {Object} rulesConfig The rules config object to validate.
- * @param {string} source The name of the configuration source to report in any errors.
  * @param {function(string): {create: Function}} ruleMapper A mapper function from strings to loaded rules
+ * @param {string} source The name of the configuration source to report in any errors.
  * @returns {void}
  */
-function validateRules(rulesConfig, source, ruleMapper) {
+function validateRules(rulesConfig, ruleMapper, source = null) {
     if (!rulesConfig) {
         return;
     }
@@ -228,7 +228,7 @@ const emitDeprecationWarning = lodash.memoize((source, errorCode) => {
  * @param {string} source The name of the configuration source to report in any errors.
  * @returns {void}
  */
-function validateConfigSchema(config, source) {
+function validateConfigSchema(config, source = null) {
     validateSchema = validateSchema || ajv.compile(configSchema);
 
     if (!validateSchema(config)) {
@@ -252,19 +252,19 @@ function validateConfigSchema(config, source) {
 /**
  * Validates an entire config object.
  * @param {Object} config The config object to validate.
- * @param {string} source The name of the configuration source to report in any errors.
  * @param {function(string): {create: Function}} ruleMapper A mapper function from rule IDs to defined rules
  * @param {Environments} envContext The env context
+ * @param {string} source The name of the configuration source to report in any errors.
  * @returns {void}
  */
-function validate(config, source, ruleMapper, envContext) {
+function validate(config, ruleMapper, envContext, source = null) {
     validateConfigSchema(config, source);
-    validateRules(config.rules, source, ruleMapper);
-    validateEnvironment(config.env, source, envContext);
+    validateRules(config.rules, ruleMapper, source);
+    validateEnvironment(config.env, envContext, source);
 
     for (const override of config.overrides || []) {
-        validateRules(override.rules, source, ruleMapper);
-        validateEnvironment(override.env, source, envContext);
+        validateRules(override.rules, ruleMapper, source);
+        validateEnvironment(override.env, envContext, source);
     }
 }
 
