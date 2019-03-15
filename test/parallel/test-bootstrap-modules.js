@@ -71,13 +71,8 @@ if (common.isMainThread) {
   expectedModules.add('NativeModule internal/process/main_thread_only');
   expectedModules.add('NativeModule internal/process/stdio');
 } else {
-  expectedModules.add('Internal Binding heap_utils');
   expectedModules.add('Internal Binding messaging');
-  expectedModules.add('Internal Binding serdes');
-  expectedModules.add('Internal Binding stream_wrap');
   expectedModules.add('Internal Binding symbols');
-  expectedModules.add('Internal Binding uv');
-  expectedModules.add('Internal Binding v8');
   expectedModules.add('Internal Binding worker');
   expectedModules.add('NativeModule _stream_duplex');
   expectedModules.add('NativeModule _stream_passthrough');
@@ -86,7 +81,6 @@ if (common.isMainThread) {
   expectedModules.add('NativeModule _stream_writable');
   expectedModules.add('NativeModule internal/error-serdes');
   expectedModules.add('NativeModule internal/process/worker_thread_only');
-  expectedModules.add('NativeModule internal/stream_base_commons');
   expectedModules.add('NativeModule internal/streams/buffer_list');
   expectedModules.add('NativeModule internal/streams/destroy');
   expectedModules.add('NativeModule internal/streams/end-of-stream');
@@ -97,7 +91,6 @@ if (common.isMainThread) {
   expectedModules.add('NativeModule internal/worker/io');
   expectedModules.add('NativeModule module');
   expectedModules.add('NativeModule stream');
-  expectedModules.add('NativeModule v8');
   expectedModules.add('NativeModule worker_threads');
 }
 
