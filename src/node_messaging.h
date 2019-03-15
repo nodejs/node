@@ -49,7 +49,7 @@ class Message : public MemoryRetainer {
   void AddMessagePort(std::unique_ptr<MessagePortData>&& data);
   // Internal method of Message that is called when a new WebAssembly.Module
   // object is encountered in the incoming value's structure.
-  uint32_t AddWASMModule(v8::WasmCompiledModule::TransferrableModule&& mod);
+  uint32_t AddWASMModule(v8::WasmModuleObject::TransferrableModule&& mod);
 
   // The MessagePorts that will be transferred, as recorded by Serialize().
   // Used for warning user about posting the target MessagePort to itself,
@@ -68,7 +68,7 @@ class Message : public MemoryRetainer {
   std::vector<MallocedBuffer<char>> array_buffer_contents_;
   std::vector<SharedArrayBufferMetadataReference> shared_array_buffers_;
   std::vector<std::unique_ptr<MessagePortData>> message_ports_;
-  std::vector<v8::WasmCompiledModule::TransferrableModule> wasm_modules_;
+  std::vector<v8::WasmModuleObject::TransferrableModule> wasm_modules_;
 
   friend class MessagePort;
 };
