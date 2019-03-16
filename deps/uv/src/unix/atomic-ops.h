@@ -49,7 +49,7 @@ UV_UNUSED(static int cmpxchgi(int* ptr, int oldval, int newval)) {
   else
     return op4;
 #elif defined(__SUNPRO_C) || defined(__SUNPRO_CC)
-  return atomic_cas_uint(ptr, oldval, newval);
+  return atomic_cas_uint((uint_t *)ptr, (uint_t)oldval, (uint_t)newval);
 #else
   return __sync_val_compare_and_swap(ptr, oldval, newval);
 #endif
@@ -85,7 +85,7 @@ UV_UNUSED(static long cmpxchgl(long* ptr, long oldval, long newval)) {
   else
     return op4;
 #elif defined(__SUNPRO_C) || defined(__SUNPRO_CC)
-  return atomic_cas_ulong(ptr, oldval, newval);
+  return atomic_cas_ulong((ulong_t *)ptr, (ulong_t)oldval, (ulong_t)newval);
 #else
   return __sync_val_compare_and_swap(ptr, oldval, newval);
 #endif

@@ -61,13 +61,13 @@ Threads
 
     ::
 
-        typedef struct uv_process_options_s {
+        typedef struct uv_thread_options_s {
           enum {
             UV_THREAD_NO_FLAGS = 0x00,
             UV_THREAD_HAS_STACK_SIZE = 0x01
           } flags;
           size_t stack_size;
-        } uv_process_options_t;
+        } uv_thread_options_t;
 
     More fields may be added to this struct at any time, so its exact
     layout and size should not be relied upon.

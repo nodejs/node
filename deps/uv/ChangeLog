@@ -1,3 +1,62 @@
+2019.03.17, Version 1.27.0 (Stable), a4fc9a66cc35256dbc4dcd67c910174f05b6daa6
+
+Changes since version 1.26.0:
+
+* doc: describe unix signal handling better (Vladimír Čunát)
+
+* linux: use statx() to obtain file birth time (Ben Noordhuis)
+
+* src: fill sockaddr_in6.sin6_len when it's defined (Santiago Gimeno)
+
+* test: relax uv_hrtime() test assumptions (Ben Noordhuis)
+
+* build: make cmake install LICENSE only once (Thomas Karl Pietrowski)
+
+* bsd: plug uv_fs_event_start() error path fd leak (Ben Noordhuis)
+
+* unix: fix __FreeBSD_kernel__ typo (cjihrig)
+
+* doc: add note about uv_run() not being reentrant (Ben Noordhuis)
+
+* unix, win: make fs-poll close wait for resource cleanup (Anna Henningsen)
+
+* doc: fix typo in uv_thread_options_t definition (Ryan Liptak)
+
+* win: skip winsock initialization in safe mode (evgley)
+
+* unix: refactor getsockname/getpeername methods (Santiago Gimeno)
+
+* win,udp: allow to use uv_udp_open on bound sockets (Santiago Gimeno)
+
+* udp: add support for UDP connected sockets (Santiago Gimeno)
+
+* build: fix uv_test shared uv Windows cmake build (ptlomholt)
+
+* build: add android-configure scripts to EXTRA_DIST (Ben Noordhuis)
+
+* build: add missing header (cjihrig)
+
+* sunos: add perror() output prior to abort() (Andrew Paprocki)
+
+* test,sunos: disable UV_DISCONNECT handling (Andrew Paprocki)
+
+* sunos: disable __attribute__((unused)) (Andrew Paprocki)
+
+* test,sunos: use unistd.h code branch (Andrew Paprocki)
+
+* build,sunos: better handling of non-GCC compiler (Andrew Paprocki)
+
+* test,sunos: fix statement not reached warnings (Andrew Paprocki)
+
+* sunos: fix argument/prototype mismatch in atomics (Andrew Paprocki)
+
+* test,sunos: test-ipc.c lacks newline at EOF (Andrew Paprocki)
+
+* test: change spawn_stdin_stdout return to void (Andrew Paprocki)
+
+* test: remove call to floor() in test driver (Andrew Paprocki)
+
+
 2019.02.11, Version 1.26.0 (Stable), 8669d8d3e93cddb62611b267ef62a3ddb5ba3ca0
 
 Changes since version 1.25.0:

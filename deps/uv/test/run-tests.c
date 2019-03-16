@@ -44,7 +44,7 @@ int ipc_send_recv_helper(void);
 int ipc_helper_bind_twice(void);
 int ipc_helper_send_zero(void);
 int stdio_over_pipes_helper(void);
-int spawn_stdin_stdout(void);
+void spawn_stdin_stdout(void);
 int spawn_tcp_server_helper(void);
 
 static int maybe_run_test(int argc, char **argv);
@@ -67,7 +67,9 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
+#ifndef __SUNPRO_C
   return EXIT_SUCCESS;
+#endif
 }
 
 
@@ -209,7 +211,8 @@ static int maybe_run_test(int argc, char **argv) {
 
   if (strcmp(argv[1], "spawn_helper9") == 0) {
     notify_parent_process();
-    return spawn_stdin_stdout();
+    spawn_stdin_stdout();
+    return 1;
   }
 
 #ifndef _WIN32

@@ -630,7 +630,11 @@ UV_EXTERN int uv_udp_open(uv_udp_t* handle, uv_os_sock_t sock);
 UV_EXTERN int uv_udp_bind(uv_udp_t* handle,
                           const struct sockaddr* addr,
                           unsigned int flags);
+UV_EXTERN int uv_udp_connect(uv_udp_t* handle, const struct sockaddr* addr);
 
+UV_EXTERN int uv_udp_getpeername(const uv_udp_t* handle,
+                                 struct sockaddr* name,
+                                 int* namelen);
 UV_EXTERN int uv_udp_getsockname(const uv_udp_t* handle,
                                  struct sockaddr* name,
                                  int* namelen);
