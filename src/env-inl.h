@@ -883,9 +883,7 @@ inline void Environment::SetMethod(v8::Local<v8::Object> that,
   v8::Local<v8::Context> context = isolate()->GetCurrentContext();
   v8::Local<v8::Function> function =
       NewFunctionTemplate(callback, v8::Local<v8::Signature>(),
-                          // TODO(TimothyGu): Investigate if SetMethod is ever
-                          // used for constructors.
-                          v8::ConstructorBehavior::kAllow,
+                          v8::ConstructorBehavior::kThrow,
                           v8::SideEffectType::kHasSideEffect)
           ->GetFunction(context)
           .ToLocalChecked();
@@ -903,9 +901,7 @@ inline void Environment::SetMethodNoSideEffect(v8::Local<v8::Object> that,
   v8::Local<v8::Context> context = isolate()->GetCurrentContext();
   v8::Local<v8::Function> function =
       NewFunctionTemplate(callback, v8::Local<v8::Signature>(),
-                          // TODO(TimothyGu): Investigate if SetMethod is ever
-                          // used for constructors.
-                          v8::ConstructorBehavior::kAllow,
+                          v8::ConstructorBehavior::kThrow,
                           v8::SideEffectType::kHasNoSideEffect)
           ->GetFunction(context)
           .ToLocalChecked();
