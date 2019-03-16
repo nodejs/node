@@ -96,8 +96,7 @@ void GapResolver::Resolve(ParallelMove* moves) {
   for (auto it = moves->begin(); it != moves->end();) {
     MoveOperands* move = *it;
     if (move->IsRedundant()) {
-      *it = moves->back();
-      moves->pop_back();
+      it = moves->erase(it);
       continue;
     }
     source_kinds.Add(GetKind(move->source()));
