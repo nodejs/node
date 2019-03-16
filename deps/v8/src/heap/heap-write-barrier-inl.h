@@ -15,6 +15,7 @@
 // elsewhere.
 #include "src/isolate.h"
 #include "src/objects/code.h"
+#include "src/objects/compressed-slots-inl.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/maybe-object-inl.h"

@@ -7,6 +7,7 @@
 
 #include "src/globals.h"
 #include "src/objects/code.h"
+#include "src/objects/compressed-slots.h"
 #include "src/objects/foreign.h"
 #include "src/objects/slots.h"
 

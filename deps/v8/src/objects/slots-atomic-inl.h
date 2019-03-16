@@ -6,6 +6,7 @@
 #define V8_OBJECTS_SLOTS_ATOMIC_INL_H_
 
 #include "src/base/atomic-utils.h"
+#include "src/objects/compressed-slots.h"
 #include "src/objects/slots.h"
 
 namespace v8 {

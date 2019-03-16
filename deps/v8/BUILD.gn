@@ -2276,6 +2276,8 @@ v8_source_set("v8_base") {
     "src/objects/code.h",
     "src/objects/compilation-cache-inl.h",
     "src/objects/compilation-cache.h",
+    "src/objects/compressed-slots-inl.h",
+    "src/objects/compressed-slots.h",
     "src/objects/data-handler.h",
     "src/objects/debug-objects-inl.h",
     "src/objects/debug-objects.cc",

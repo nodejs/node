@@ -1060,7 +1060,11 @@ void TurboAssembler::SmiUntag(Register dst, const MemOperand& src) {
     }
   } else {
     DCHECK(SmiValuesAre31Bits());
+#ifdef V8_COMPRESS_POINTERS
+    Ldrsw(dst, src);
+#else
     Ldr(dst, src);
+#endif
     SmiUntag(dst);
   }
 }

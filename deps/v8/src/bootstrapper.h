@@ -8,7 +8,6 @@
 #include "src/heap/factory.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/shared-function-info.h"
-#include "src/objects/slots.h"
 #include "src/snapshot/natives.h"
 #include "src/visitors.h"
 

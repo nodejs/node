@@ -318,7 +318,7 @@ V8_INLINE A implicit_cast(A x) {
 #define V8PRIdPTR V8_PTR_PREFIX "d"
 #define V8PRIuPTR V8_PTR_PREFIX "u"
 
-#ifdef V8_TARGET_ARCH_64_BIT
+#if V8_TARGET_ARCH_64_BIT
 #define V8_PTR_HEX_DIGITS 12
 #define V8PRIxPTR_FMT "0x%012" V8PRIxPTR
 #else

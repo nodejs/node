@@ -345,6 +345,7 @@ class EphemeronHashTable
 
  protected:
   friend class MarkCompactCollector;
+  friend class ScavengerCollector;
 
   OBJECT_CONSTRUCTORS(
       EphemeronHashTable,

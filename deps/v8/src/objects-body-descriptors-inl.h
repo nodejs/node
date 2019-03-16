@@ -14,7 +14,6 @@
 #include "src/objects/js-collection.h"
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/oddball.h"
-#include "src/objects/slots.h"
 #include "src/reloc-info.h"
 #include "src/transitions.h"
 #include "src/wasm/wasm-objects-inl.h"

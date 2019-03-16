@@ -2555,7 +2555,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
         __ SlotAddress(copy_to, argc);
         __ Add(argc, argc,
                bound_argc);  // Update argc to include bound arguments.
-        __ Lsl(counter, bound_argc, kSystemPointerSizeLog2);
+        __ Lsl(counter, bound_argc, kTaggedSizeLog2);
         __ Bind(&loop);
         __ Sub(counter, counter, kTaggedSize);
         __ LoadAnyTaggedField(scratch, MemOperand(bound_argv, counter));

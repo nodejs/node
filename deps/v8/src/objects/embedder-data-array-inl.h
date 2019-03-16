@@ -9,7 +9,6 @@
 
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/maybe-object-inl.h"
-#include "src/objects/slots.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

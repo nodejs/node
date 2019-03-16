@@ -403,11 +403,7 @@ class SmallOrderedHashTable : public HeapObject {
 
   int NumberOfBuckets() const { return getByte(NumberOfBucketsOffset(), 0); }
 
-  Object KeyAt(int entry) const {
-    DCHECK_LT(entry, Capacity());
-    Offset entry_offset = GetDataEntryOffset(entry, Derived::kKeyIndex);
-    return READ_FIELD(*this, entry_offset);
-  }
+  V8_INLINE Object KeyAt(int entry) const;
 
   DECL_VERIFIER(SmallOrderedHashTable)
 
@@ -487,12 +483,7 @@ class SmallOrderedHashTable : public HeapObject {
     return getByte(GetChainTableOffset(), entry);
   }
 
-  Object GetDataEntry(int entry, int relative_index) {
-    DCHECK_LT(entry, Capacity());
-    DCHECK_LE(static_cast<unsigned>(relative_index), Derived::kEntrySize);
-    Offset entry_offset = GetDataEntryOffset(entry, relative_index);
-    return READ_FIELD(*this, entry_offset);
-  }
+  V8_INLINE Object GetDataEntry(int entry, int relative_index);
 
   int HashToBucket(int hash) const { return hash & (NumberOfBuckets() - 1); }
 

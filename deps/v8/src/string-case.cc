@@ -17,6 +17,10 @@ namespace internal {
 // string data depends on kTaggedSize so we define word_t via Tagged_t.
 using word_t = std::make_unsigned<Tagged_t>::type;
 
+const word_t kWordTAllBitsSet = std::numeric_limits<word_t>::max();
+const word_t kOneInEveryByte = kWordTAllBitsSet / 0xFF;
+const word_t kAsciiMask = kOneInEveryByte << 7;
+
 #ifdef DEBUG
 bool CheckFastAsciiConvert(char* dst, const char* src, int length, bool changed,
                            bool is_to_lower) {
@@ -35,9 +39,6 @@ bool CheckFastAsciiConvert(char* dst, const char* src, int length, bool changed,
   return (expected_changed == changed);
 }
 #endif
-
-const word_t kOneInEveryByte = static_cast<word_t>(kUintptrAllBitsSet) / 0xFF;
-const word_t kAsciiMask = kOneInEveryByte << 7;
 
 // Given a word and two range boundaries returns a word with high bit
 // set in every byte iff the corresponding input byte was strictly in

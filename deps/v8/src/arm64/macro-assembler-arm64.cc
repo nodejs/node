@@ -2813,11 +2813,7 @@ void TurboAssembler::StoreTaggedField(const Register& value,
                                       const MemOperand& dst_field_operand) {
 #ifdef V8_COMPRESS_POINTERS
   RecordComment("[ StoreTagged");
-  // Use temporary register to zero out and don't trash value register
-  UseScratchRegisterScope temps(this);
-  Register compressed_value = temps.AcquireX();
-  Uxtw(compressed_value, value);
-  Str(compressed_value, dst_field_operand);
+  Str(value.W(), dst_field_operand);
   RecordComment("]");
 #else
   Str(value, dst_field_operand);
@@ -2827,18 +2823,15 @@ void TurboAssembler::StoreTaggedField(const Register& value,
 void TurboAssembler::DecompressTaggedSigned(const Register& destination,
                                             const MemOperand& field_operand) {
   RecordComment("[ DecompressTaggedSigned");
-  // TODO(solanes): use Ldrsw instead of Ldr,SXTW once kTaggedSize is shrinked
-  Ldr(destination, field_operand);
-  Sxtw(destination, destination);
+  Ldrsw(destination, field_operand);
   RecordComment("]");
 }
 
 void TurboAssembler::DecompressTaggedPointer(const Register& destination,
                                              const MemOperand& field_operand) {
   RecordComment("[ DecompressTaggedPointer");
-  // TODO(solanes): use Ldrsw instead of Ldr,SXTW once kTaggedSize is shrinked
-  Ldr(destination, field_operand);
-  Add(destination, kRootRegister, Operand(destination, SXTW));
+  Ldrsw(destination, field_operand);
+  Add(destination, kRootRegister, destination);
   RecordComment("]");
 }
 
@@ -2846,8 +2839,7 @@ void TurboAssembler::DecompressAnyTagged(const Register& destination,
                                          const MemOperand& field_operand) {
   RecordComment("[ DecompressAnyTagged");
   UseScratchRegisterScope temps(this);
-  // TODO(solanes): use Ldrsw instead of Ldr,SXTW once kTaggedSize is shrinked
-  Ldr(destination, field_operand);
+  Ldrsw(destination, field_operand);
   // Branchlessly compute |masked_root|:
   // masked_root = HAS_SMI_TAG(destination) ? 0 : kRootRegister;
   STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag == 0));
@@ -2857,7 +2849,7 @@ void TurboAssembler::DecompressAnyTagged(const Register& destination,
   And(masked_root, masked_root, kRootRegister);
   // Now this add operation will either leave the value unchanged if it is a smi
   // or add the isolate root if it is a heap object.
-  Add(destination, masked_root, Operand(destination, SXTW));
+  Add(destination, masked_root, destination);
   RecordComment("]");
 }
 

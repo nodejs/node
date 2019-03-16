@@ -12,10 +12,7 @@
 #include "src/objects.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/maybe-object.h"
-
-#ifdef V8_COMPRESS_POINTERS
 #include "src/ptr-compr-inl.h"
-#endif
 
 namespace v8 {
 namespace internal {

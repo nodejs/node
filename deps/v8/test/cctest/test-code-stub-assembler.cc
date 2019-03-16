@@ -255,7 +255,7 @@ TEST(IsValidPositiveSmi) {
   typedef std::numeric_limits<int32_t> int32_limits;
   IsValidPositiveSmiCase(isolate, int32_limits::max());
   IsValidPositiveSmiCase(isolate, int32_limits::min());
-#ifdef V8_TARGET_ARCH_64_BIT
+#if V8_TARGET_ARCH_64_BIT
   IsValidPositiveSmiCase(isolate,
                          static_cast<intptr_t>(int32_limits::max()) + 1);
   IsValidPositiveSmiCase(isolate,
