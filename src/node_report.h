@@ -30,10 +30,8 @@
 namespace report {
 
 #ifdef _WIN32
-typedef SYSTEMTIME TIME_TYPE;
 #define PATHSEP "\\"
 #else  // UNIX, OSX
-typedef struct tm TIME_TYPE;
 #define PATHSEP "/"
 #endif
 
