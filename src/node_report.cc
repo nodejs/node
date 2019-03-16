@@ -33,6 +33,7 @@ using node::Environment;
 using node::Mutex;
 using node::NativeSymbolDebuggingContext;
 using node::PerIsolateOptions;
+using node::TIME_TYPE;
 using v8::HeapSpaceStatistics;
 using v8::HeapStatistics;
 using v8::Isolate;
