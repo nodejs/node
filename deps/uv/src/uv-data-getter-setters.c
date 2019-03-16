@@ -36,7 +36,7 @@ const char* uv_req_type_name(uv_req_type type) {
   case UV_REQ_TYPE_MAX:
   case UV_UNKNOWN_REQ:
   default: /* UV_REQ_TYPE_PRIVATE */
-     return NULL;
+    break;
   }
   return NULL;
 }

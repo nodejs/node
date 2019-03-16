@@ -95,8 +95,7 @@ int uv__pthread_sigmask(int how, const sigset_t* set, sigset_t* oset);
  */
 #if defined(__clang__) ||                                                     \
     defined(__GNUC__) ||                                                      \
-    defined(__INTEL_COMPILER) ||                                              \
-    defined(__SUNPRO_C)
+    defined(__INTEL_COMPILER)
 # define UV_DESTRUCTOR(declaration) __attribute__((destructor)) declaration
 # define UV_UNUSED(declaration)     __attribute__((unused)) declaration
 #else
@@ -305,5 +304,12 @@ UV_UNUSED(static char* uv__basename_r(const char* path)) {
 #if defined(__linux__)
 int uv__inotify_fork(uv_loop_t* loop, void* old_watchers);
 #endif
+
+typedef int (*uv__peersockfunc)(int, struct sockaddr*, socklen_t*);
+
+int uv__getsockpeername(const uv_handle_t* handle,
+                        uv__peersockfunc func,
+                        struct sockaddr* name,
+                        int* namelen);
 
 #endif /* UV_UNIX_INTERNAL_H_ */

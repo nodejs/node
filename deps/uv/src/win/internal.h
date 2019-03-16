@@ -272,6 +272,14 @@ int uv__getpwuid_r(uv_passwd_t* pwd);
 int uv__convert_utf16_to_utf8(const WCHAR* utf16, int utf16len, char** utf8);
 int uv__convert_utf8_to_utf16(const char* utf8, int utf8len, WCHAR** utf16);
 
+typedef int (WINAPI *uv__peersockfunc)(SOCKET, struct sockaddr*, int*);
+
+int uv__getsockpeername(const uv_handle_t* handle,
+                        uv__peersockfunc func,
+                        struct sockaddr* name,
+                        int* namelen,
+                        int delayed_error);
+
 
 /*
  * Process stdio handles.

@@ -801,7 +801,9 @@ int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex, uint64_t timeout) {
     return UV_ETIMEDOUT;
 
   abort();
+#ifndef __SUNPRO_C
   return UV_EINVAL;  /* Satisfy the compiler. */
+#endif
 }
 
 

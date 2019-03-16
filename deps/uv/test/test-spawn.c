@@ -1838,7 +1838,7 @@ TEST_IMPL(spawn_quoted_path) {
 
 /* Helper for child process of spawn_inherit_streams */
 #ifndef _WIN32
-int spawn_stdin_stdout(void) {
+void spawn_stdin_stdout(void) {
   char buf[1024];
   char* pbuf;
   for (;;) {
@@ -1847,7 +1847,7 @@ int spawn_stdin_stdout(void) {
       r = read(0, buf, sizeof buf);
     } while (r == -1 && errno == EINTR);
     if (r == 0) {
-      return 1;
+      return;
     }
     ASSERT(r > 0);
     c = r;
@@ -1861,10 +1861,9 @@ int spawn_stdin_stdout(void) {
       c = c - w;
     }
   }
-  return 2;
 }
 #else
-int spawn_stdin_stdout(void) {
+void spawn_stdin_stdout(void) {
   char buf[1024];
   char* pbuf;
   HANDLE h_stdin = GetStdHandle(STD_INPUT_HANDLE);
@@ -1877,7 +1876,7 @@ int spawn_stdin_stdout(void) {
     DWORD to_write;
     if (!ReadFile(h_stdin, buf, sizeof buf, &n_read, NULL)) {
       ASSERT(GetLastError() == ERROR_BROKEN_PIPE);
-      return 1;
+      return;
     }
     to_write = n_read;
     pbuf = buf;
@@ -1887,6 +1886,5 @@ int spawn_stdin_stdout(void) {
       pbuf += n_written;
     }
   }
-  return 2;
 }
 #endif /* !_WIN32 */
