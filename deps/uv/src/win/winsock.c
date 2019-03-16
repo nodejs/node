@@ -87,12 +87,6 @@ void uv_winsock_init(void) {
   WSAPROTOCOL_INFOW protocol_info;
   int opt_len;
 
-  /* Initialize winsock */
-  errorno = WSAStartup(MAKEWORD(2, 2), &wsa_data);
-  if (errorno != 0) {
-    uv_fatal_error(errorno, "WSAStartup");
-  }
-
   /* Set implicit binding address used by connectEx */
   if (uv_ip4_addr("0.0.0.0", 0, &uv_addr_ip4_any_)) {
     abort();
@@ -100,6 +94,15 @@ void uv_winsock_init(void) {
 
   if (uv_ip6_addr("::", 0, &uv_addr_ip6_any_)) {
     abort();
+  }
+
+  /* Skip initialization in safe mode without network support */
+  if (1 == GetSystemMetrics(SM_CLEANBOOT)) return;
+
+  /* Initialize winsock */
+  errorno = WSAStartup(MAKEWORD(2, 2), &wsa_data);
+  if (errorno != 0) {
+    uv_fatal_error(errorno, "WSAStartup");
   }
 
   /* Detect non-IFS LSPs */

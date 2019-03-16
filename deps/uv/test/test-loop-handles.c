@@ -320,7 +320,7 @@ TEST_IMPL(loop_handles) {
   ASSERT(prepare_1_cb_called == ITERATIONS);
   ASSERT(prepare_1_close_cb_called == 1);
 
-  ASSERT(prepare_2_cb_called == floor(ITERATIONS / 2.0));
+  ASSERT(prepare_2_cb_called == ITERATIONS / 2);
   ASSERT(prepare_2_close_cb_called == 1);
 
   ASSERT(check_cb_called == ITERATIONS);

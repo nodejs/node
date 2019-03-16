@@ -233,9 +233,6 @@ out:
 }
 
 
-typedef int (*uv__peersockfunc)(int, struct sockaddr*, socklen_t*);
-
-
 static int uv__pipe_getsockpeername(const uv_pipe_t* handle,
                                     uv__peersockfunc func,
                                     char* buffer,
@@ -246,10 +243,13 @@ static int uv__pipe_getsockpeername(const uv_pipe_t* handle,
 
   addrlen = sizeof(sa);
   memset(&sa, 0, addrlen);
-  err = func(uv__stream_fd(handle), (struct sockaddr*) &sa, &addrlen);
+  err = uv__getsockpeername((const uv_handle_t*) handle,
+                            func,
+                            (struct sockaddr*) &sa,
+                            (int*) &addrlen);
   if (err < 0) {
     *size = 0;
-    return UV__ERR(errno);
+    return err;
   }
 
 #if defined(__linux__)

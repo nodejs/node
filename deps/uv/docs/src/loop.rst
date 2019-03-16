@@ -107,6 +107,8 @@ API
       or requests left), or non-zero if more callbacks are expected (meaning
       you should run the event loop again sometime in the future).
 
+    :c:func:`uv_run` is not reentrant. It must not be called from a callback.
+
 .. c:function:: int uv_loop_alive(const uv_loop_t* loop)
 
     Returns non-zero if there are referenced active handles, active

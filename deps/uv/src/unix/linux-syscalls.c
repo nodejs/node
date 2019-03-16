@@ -187,6 +187,21 @@
 # endif
 #endif /* __NR_pwritev */
 
+#ifndef __NR_statx
+# if defined(__x86_64__)
+#  define __NR_statx 332
+# elif defined(__i386__)
+#  define __NR_statx 383
+# elif defined(__aarch64__)
+#  define __NR_statx 397
+# elif defined(__arm__)
+#  define __NR_statx (UV_SYSCALL_BASE + 397)
+# elif defined(__ppc__)
+#  define __NR_statx 383
+# elif defined(__s390__)
+#  define __NR_statx 379
+# endif
+#endif /* __NR_statx */
 
 int uv__accept4(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags) {
 #if defined(__i386__)
@@ -332,6 +347,19 @@ ssize_t uv__pwritev(int fd, const struct iovec *iov, int iovcnt, int64_t offset)
 int uv__dup3(int oldfd, int newfd, int flags) {
 #if defined(__NR_dup3)
   return syscall(__NR_dup3, oldfd, newfd, flags);
+#else
+  return errno = ENOSYS, -1;
+#endif
+}
+
+
+int uv__statx(int dirfd,
+              const char* path,
+              int flags,
+              unsigned int mask,
+              struct uv__statx* statxbuf) {
+#if defined(__NR_statx)
+  return syscall(__NR_statx, dirfd, path, flags, mask, statxbuf);
 #else
   return errno = ENOSYS, -1;
 #endif

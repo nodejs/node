@@ -135,8 +135,10 @@ int uv__io_check_fd(uv_loop_t* loop, int fd) {
   if (port_associate(loop->backend_fd, PORT_SOURCE_FD, fd, POLLIN, 0))
     return UV__ERR(errno);
 
-  if (port_dissociate(loop->backend_fd, PORT_SOURCE_FD, fd))
+  if (port_dissociate(loop->backend_fd, PORT_SOURCE_FD, fd)) {
+    perror("(libuv) port_dissociate()");
     abort();
+  }
 
   return 0;
 }
@@ -174,8 +176,14 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     w = QUEUE_DATA(q, uv__io_t, watcher_queue);
     assert(w->pevents != 0);
 
-    if (port_associate(loop->backend_fd, PORT_SOURCE_FD, w->fd, w->pevents, 0))
+    if (port_associate(loop->backend_fd,
+                       PORT_SOURCE_FD,
+                       w->fd,
+                       w->pevents,
+                       0)) {
+      perror("(libuv) port_associate()");
       abort();
+    }
 
     w->events = w->pevents;
   }
@@ -219,10 +227,12 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       /* Work around another kernel bug: port_getn() may return events even
        * on error.
        */
-      if (errno == EINTR || errno == ETIME)
+      if (errno == EINTR || errno == ETIME) {
         saved_errno = errno;
-      else
+      } else {
+        perror("(libuv) port_getn()");
         abort();
+      }
     }
 
     /* Update loop->time unconditionally. It's tempting to skip the update when
