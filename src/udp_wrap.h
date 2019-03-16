@@ -45,9 +45,12 @@ class UDPWrap: public HandleWrap {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Bind(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Connect(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Send(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Bind6(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Connect6(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Send6(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Disconnect(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RecvStart(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RecvStop(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddMembership(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -78,6 +81,8 @@ class UDPWrap: public HandleWrap {
   UDPWrap(Environment* env, v8::Local<v8::Object> object);
 
   static void DoBind(const v8::FunctionCallbackInfo<v8::Value>& args,
+                     int family);
+  static void DoConnect(const v8::FunctionCallbackInfo<v8::Value>& args,
                      int family);
   static void DoSend(const v8::FunctionCallbackInfo<v8::Value>& args,
                      int family);
