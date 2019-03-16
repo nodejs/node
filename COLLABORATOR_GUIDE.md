@@ -624,13 +624,11 @@ git push upstream master
 * Ping a TSC member.
 * `#node-dev` on freenode
 * With `git`, there's a way to override remote trees by force pushing
-(`git push -f`). This should generally be seen as forbidden (since
-you're rewriting history on a repository other people are working
-against) but is allowed for simpler slip-ups such as typos in commit
-messages. However, you are only allowed to force push to any Node.js
-branch within 10 minutes from your original push. If someone else
-pushes to the branch or the 10 minute period passes, consider the
-commit final.
+  (`git push -f`). This is generally forbidden as it creates conflicts in other
+  people's forks. It is permissible for simpler slip-ups such as typos in commit
+  messages. You are only allowed to force push to any Node.js branch within 10
+  minutes from your original push. If someone else pushes to the branch or the
+  10-minute period passes, consider the commit final.
   * Use `--force-with-lease` to minimize the chance of overwriting
   someone else's change.
   * Post to `#node-dev` (IRC) if you force push.
