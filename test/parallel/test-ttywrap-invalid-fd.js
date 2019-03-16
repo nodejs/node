@@ -14,7 +14,7 @@ assert.throws(
   () => new tty.WriteStream(-1),
   {
     code: 'ERR_INVALID_FD',
-    name: 'RangeError [ERR_INVALID_FD]',
+    name: 'RangeError',
     message: '"fd" must be a positive integer: -1'
   }
 );
@@ -38,7 +38,7 @@ assert.throws(
       });
     }, {
       code: 'ERR_TTY_INIT_FAILED',
-      name: 'SystemError [ERR_TTY_INIT_FAILED]',
+      name: 'SystemError',
       message,
       info
     }
@@ -51,7 +51,7 @@ assert.throws(
       });
     }, {
       code: 'ERR_TTY_INIT_FAILED',
-      name: 'SystemError [ERR_TTY_INIT_FAILED]',
+      name: 'SystemError',
       message,
       info
     });
@@ -61,7 +61,7 @@ assert.throws(
   () => new tty.ReadStream(-1),
   {
     code: 'ERR_INVALID_FD',
-    name: 'RangeError [ERR_INVALID_FD]',
+    name: 'RangeError',
     message: '"fd" must be a positive integer: -1'
   }
 );

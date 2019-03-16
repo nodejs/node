@@ -56,15 +56,13 @@ for (const test of failureTests) {
   assert.throws(
     () => new URL(test.input, test.base),
     (error) => {
-      if (!expectedError(error))
-        return false;
+      expectedError(error);
 
       // The input could be processed, so we don't do strict matching here
-      const match = (`${error}`).match(/Invalid URL: (.*)$/);
-      if (!match) {
-        return false;
-      }
-      return error.input === match[1];
+      let match;
+      assert(match = (`${error}`).match(/Invalid URL: (.*)$/));
+      assert.strictEqual(error.input, match[1]);
+      return true;
     });
 }
 

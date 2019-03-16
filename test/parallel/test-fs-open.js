@@ -102,7 +102,7 @@ for (const extra of [[], ['r'], ['r', 0], ['r', 0, 'bad callback']]) {
     fs.promises.open(i, 'r'),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError [ERR_INVALID_ARG_TYPE]'
+      name: 'TypeError'
     }
   );
 });

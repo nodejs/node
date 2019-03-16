@@ -19,7 +19,7 @@ const promiseResolver = new dns.promises.Resolver();
   ].forEach((val) => {
     const errObj = {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+      name: 'TypeError',
       message: 'The "servers" argument must be of type Array. Received type ' +
       typeof val
     };
@@ -59,7 +59,7 @@ const promiseResolver = new dns.promises.Resolver();
   ].forEach((val) => {
     const errObj = {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+      name: 'TypeError',
       message: 'The "servers[0]" argument must be of type string. ' +
                `Received type ${typeof val[0]}`
     };

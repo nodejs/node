@@ -18,7 +18,7 @@ const assert = require('assert');
         () => buffer[`read${fn}`](o),
         {
           code: 'ERR_INVALID_ARG_TYPE',
-          name: 'TypeError [ERR_INVALID_ARG_TYPE]'
+          name: 'TypeError'
         });
     });
 
@@ -27,7 +27,7 @@ const assert = require('assert');
         () => buffer[`read${fn}`](offset),
         {
           code: 'ERR_OUT_OF_RANGE',
-          name: 'RangeError [ERR_OUT_OF_RANGE]'
+          name: 'RangeError'
         });
     });
 
@@ -36,7 +36,7 @@ const assert = require('assert');
         () => buffer[`read${fn}`](offset),
         {
           code: 'ERR_OUT_OF_RANGE',
-          name: 'RangeError [ERR_OUT_OF_RANGE]',
+          name: 'RangeError',
           message: 'The value of "offset" is out of range. ' +
                    `It must be an integer. Received ${offset}`
         });
@@ -152,7 +152,7 @@ const assert = require('assert');
         () => buffer[fn](0, byteLength),
         {
           code: 'ERR_OUT_OF_RANGE',
-          name: 'RangeError [ERR_OUT_OF_RANGE]',
+          name: 'RangeError',
           message: 'The value of "byteLength" is out of range. ' +
                    `It must be an integer. Received ${byteLength}`
         });
@@ -167,7 +167,7 @@ const assert = require('assert');
           () => buffer[fn](o, i),
           {
             code: 'ERR_INVALID_ARG_TYPE',
-            name: 'TypeError [ERR_INVALID_ARG_TYPE]'
+            name: 'TypeError'
           });
       });
 
@@ -176,7 +176,7 @@ const assert = require('assert');
           () => buffer[fn](offset, i),
           {
             code: 'ERR_OUT_OF_RANGE',
-            name: 'RangeError [ERR_OUT_OF_RANGE]',
+            name: 'RangeError',
             message: 'The value of "offset" is out of range. ' +
                      `It must be >= 0 and <= ${8 - i}. Received ${offset}`
           });
@@ -187,7 +187,7 @@ const assert = require('assert');
           () => buffer[fn](offset, i),
           {
             code: 'ERR_OUT_OF_RANGE',
-            name: 'RangeError [ERR_OUT_OF_RANGE]',
+            name: 'RangeError',
             message: 'The value of "offset" is out of range. ' +
                      `It must be an integer. Received ${offset}`
           });

@@ -6,7 +6,7 @@ const socket = dgram.createSocket('udp4');
 
 const errObj = {
   code: 'ERR_INVALID_ARG_TYPE',
-  name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+  name: 'TypeError',
   message: 'The "offset" argument must be of type number. Received type ' +
            'undefined'
 };

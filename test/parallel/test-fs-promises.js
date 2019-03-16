@@ -164,7 +164,7 @@ async function getHandle(dest) {
         },
         {
           code: 'ERR_OUT_OF_RANGE',
-          name: 'RangeError [ERR_OUT_OF_RANGE]',
+          name: 'RangeError',
           message: 'The value of "gid" is out of range. ' +
                   'It must be >= 0 && < 4294967296. Received -1'
         });
@@ -175,7 +175,7 @@ async function getHandle(dest) {
         },
         {
           code: 'ERR_OUT_OF_RANGE',
-          name: 'RangeError [ERR_OUT_OF_RANGE]',
+          name: 'RangeError',
           message: 'The value of "gid" is out of range. ' +
                     'It must be >= 0 && < 4294967296. Received -1'
         });
@@ -336,7 +336,7 @@ async function getHandle(dest) {
           async () => mkdir(dir, { recursive }),
           {
             code: 'ERR_INVALID_ARG_TYPE',
-            name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+            name: 'TypeError',
             message: 'The "recursive" argument must be of type boolean. ' +
               `Received type ${typeof recursive}`
           }
@@ -352,7 +352,7 @@ async function getHandle(dest) {
         async () => mkdtemp(1),
         {
           code: 'ERR_INVALID_ARG_TYPE',
-          name: 'TypeError [ERR_INVALID_ARG_TYPE]'
+          name: 'TypeError'
         }
       );
     }

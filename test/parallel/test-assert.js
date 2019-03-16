@@ -73,7 +73,7 @@ assert.throws(
   () => a.notStrictEqual(2, 2),
   {
     message: 'Expected "actual" to be strictly unequal to: 2',
-    name: 'AssertionError [ERR_ASSERTION]'
+    name: 'AssertionError'
   }
 );
 
@@ -82,7 +82,7 @@ assert.throws(
   {
     message: 'Expected "actual" to be strictly unequal to: ' +
              `'${'a '.repeat(30)}'`,
-    name: 'AssertionError [ERR_ASSERTION]'
+    name: 'AssertionError'
   }
 );
 
@@ -141,7 +141,7 @@ assert.throws(() => thrower(TypeError));
 assert.throws(
   () => a.doesNotThrow(() => thrower(Error), 'user message'),
   {
-    name: 'AssertionError [ERR_ASSERTION]',
+    name: 'AssertionError',
     code: 'ERR_ASSERTION',
     operator: 'doesNotThrow',
     message: 'Got unwanted exception: user message\n' +
@@ -400,7 +400,7 @@ assert.throws(() => {
       () => new assert.AssertionError(input),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+        name: 'TypeError',
         message: 'The "options" argument must be of type Object. ' +
                  `Received type ${typeof input}`
       });
@@ -411,7 +411,7 @@ assert.throws(
   () => assert.strictEqual(new Error('foo'), new Error('foobar')),
   {
     code: 'ERR_ASSERTION',
-    name: 'AssertionError [ERR_ASSERTION]',
+    name: 'AssertionError',
     message: 'Expected "actual" to be reference-equal to "expected":\n' +
              '+ actual - expected\n\n' +
              '+ [Error: foo]\n- [Error: foobar]'
@@ -438,7 +438,7 @@ assert.throws(
     () => assert(...[]),
     {
       message: 'No value argument passed to `assert.ok()`',
-      name: 'AssertionError [ERR_ASSERTION]',
+      name: 'AssertionError',
       generatedMessage: true
     }
   );
@@ -446,7 +446,7 @@ assert.throws(
     () => a(),
     {
       message: 'No value argument passed to `assert.ok()`',
-      name: 'AssertionError [ERR_ASSERTION]'
+      name: 'AssertionError'
     }
   );
 
@@ -886,7 +886,7 @@ common.expectsError(
     () => assert.throws(errFn, errObj),
     {
       code: 'ERR_ASSERTION',
-      name: 'AssertionError [ERR_ASSERTION]',
+      name: 'AssertionError',
       message: `${start}\n${actExp}\n\n` +
                '  Comparison {\n' +
                '    code: 404,\n' +
@@ -903,7 +903,7 @@ common.expectsError(
     () => assert.throws(errFn, errObj),
     {
       code: 'ERR_ASSERTION',
-      name: 'AssertionError [ERR_ASSERTION]',
+      name: 'AssertionError',
       message: `${start}\n${actExp}\n\n` +
                '  Comparison {\n' +
                '+   code: 404,\n' +
@@ -938,7 +938,7 @@ common.expectsError(
   assert.throws(
     () => assert.throws(() => { throw new TypeError('e'); }, new Error('e')),
     {
-      name: 'AssertionError [ERR_ASSERTION]',
+      name: 'AssertionError',
       code: 'ERR_ASSERTION',
       message: `${start}\n${actExp}\n\n` +
                '  Comparison {\n' +
@@ -951,7 +951,7 @@ common.expectsError(
   assert.throws(
     () => assert.throws(() => { throw new Error('foo'); }, new Error('')),
     {
-      name: 'AssertionError [ERR_ASSERTION]',
+      name: 'AssertionError',
       code: 'ERR_ASSERTION',
       generatedMessage: true,
       message: `${start}\n${actExp}\n\n` +
@@ -969,7 +969,7 @@ common.expectsError(
     // eslint-disable-next-line no-throw-literal
     () => a.doesNotThrow(() => { throw undefined; }),
     {
-      name: 'AssertionError [ERR_ASSERTION]',
+      name: 'AssertionError',
       code: 'ERR_ASSERTION',
       message: 'Got unwanted exception.\nActual message: "undefined"'
     }
@@ -1102,7 +1102,7 @@ assert.throws(
   () => assert.strictEqual('test test', 'test foobar'),
   {
     code: 'ERR_ASSERTION',
-    name: 'AssertionError [ERR_ASSERTION]',
+    name: 'AssertionError',
     message: strictEqualMessageStart +
              '+ actual - expected\n\n' +
              "+ 'test test'\n" +
@@ -1119,7 +1119,7 @@ assert.throws(
   },
   {
     code: 'ERR_ASSERTION',
-    name: 'AssertionError [ERR_ASSERTION]',
+    name: 'AssertionError',
     message: 'Expected "actual" not to be reference-equal to "expected": {}'
   }
 );
@@ -1131,7 +1131,7 @@ assert.throws(
   },
   {
     code: 'ERR_ASSERTION',
-    name: 'AssertionError [ERR_ASSERTION]',
+    name: 'AssertionError',
     message: 'Expected "actual" not to be reference-equal to "expected":\n\n' +
              '{\n  a: true\n}\n'
   }

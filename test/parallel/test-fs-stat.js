@@ -134,7 +134,7 @@ fs.stat(__filename, common.mustCall(function(err, s) {
       () => fs[fnName](input),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+        name: 'TypeError',
         message: 'The "fd" argument must be of type number. ' +
                  `Received type ${typeof input}`
       }
@@ -147,28 +147,28 @@ fs.stat(__filename, common.mustCall(function(err, s) {
     () => fs.lstat(input, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError [ERR_INVALID_ARG_TYPE]'
+      name: 'TypeError'
     }
   );
   assert.throws(
     () => fs.lstatSync(input),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError [ERR_INVALID_ARG_TYPE]'
+      name: 'TypeError'
     }
   );
   assert.throws(
     () => fs.stat(input, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError [ERR_INVALID_ARG_TYPE]'
+      name: 'TypeError'
     }
   );
   assert.throws(
     () => fs.statSync(input),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError [ERR_INVALID_ARG_TYPE]'
+      name: 'TypeError'
     }
   );
 });

@@ -17,7 +17,7 @@ if (!common.isMainThread)
     },
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+      name: 'TypeError',
       message:
         'The "user" argument must be ' +
         'one of type number or string. ' +
@@ -33,7 +33,7 @@ if (!common.isMainThread)
     },
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+      name: 'TypeError',
       message:
         'The "extraGroup" argument must be ' +
         'one of type number or string. ' +

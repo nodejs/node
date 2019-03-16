@@ -205,7 +205,7 @@ const errorOutOfBounds = common.expectsError({
         () => data[fn](42, 0, byteLength),
         {
           code: 'ERR_OUT_OF_RANGE',
-          name: 'RangeError [ERR_OUT_OF_RANGE]',
+          name: 'RangeError',
           message: 'The value of "byteLength" is out of range. ' +
                    `It must be an integer. Received ${byteLength}`
         });
@@ -223,7 +223,7 @@ const errorOutOfBounds = common.expectsError({
           data[fn](val, 0, i);
         }, {
           code: 'ERR_OUT_OF_RANGE',
-          name: 'RangeError [ERR_OUT_OF_RANGE]',
+          name: 'RangeError',
           message: 'The value of "value" is out of range. ' +
                    `It must be >= ${min} and <= ${max}. Received ${val}`
         });
@@ -234,7 +234,7 @@ const errorOutOfBounds = common.expectsError({
           () => data[fn](min, o, i),
           {
             code: 'ERR_INVALID_ARG_TYPE',
-            name: 'TypeError [ERR_INVALID_ARG_TYPE]'
+            name: 'TypeError'
           });
       });
 
@@ -243,7 +243,7 @@ const errorOutOfBounds = common.expectsError({
           () => data[fn](min, offset, i),
           {
             code: 'ERR_OUT_OF_RANGE',
-            name: 'RangeError [ERR_OUT_OF_RANGE]',
+            name: 'RangeError',
             message: 'The value of "offset" is out of range. ' +
                      `It must be >= 0 and <= ${8 - i}. Received ${offset}`
           });
@@ -254,7 +254,7 @@ const errorOutOfBounds = common.expectsError({
           () => data[fn](max, offset, i),
           {
             code: 'ERR_OUT_OF_RANGE',
-            name: 'RangeError [ERR_OUT_OF_RANGE]',
+            name: 'RangeError',
             message: 'The value of "offset" is out of range. ' +
                      `It must be an integer. Received ${offset}`
           });

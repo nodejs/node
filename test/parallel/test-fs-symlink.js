@@ -61,7 +61,7 @@ fs.symlink(linkData, linkPath, common.mustCall(function(err) {
 [false, 1, {}, [], null, undefined].forEach((input) => {
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+    name: 'TypeError',
     message: 'The "target" argument must be one of type string, Buffer, or ' +
              `URL. Received type ${typeof input}`
   };
@@ -75,7 +75,7 @@ fs.symlink(linkData, linkPath, common.mustCall(function(err) {
 
 const errObj = {
   code: 'ERR_FS_INVALID_SYMLINK_TYPE',
-  name: 'Error [ERR_FS_INVALID_SYMLINK_TYPE]',
+  name: 'Error',
   message:
     'Symlink type must be one of "dir", "file", or "junction". Received "🍏"'
 };

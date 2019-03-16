@@ -54,12 +54,12 @@ read(buf, 'readUIntLE', [2, 2], 0xea48);
 // Error name and message
 const OOR_ERROR =
 {
-  name: 'RangeError [ERR_OUT_OF_RANGE]'
+  name: 'RangeError'
 };
 
 const OOB_ERROR =
 {
-  name: 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]',
+  name: 'RangeError',
   message: 'Attempt to write outside buffer bounds'
 };
 

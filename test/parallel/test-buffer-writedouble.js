@@ -98,7 +98,7 @@ assert.ok(Number.isNaN(buffer.readDoubleLE(8)));
       () => small[fn](11.11, 0),
       {
         code: 'ERR_BUFFER_OUT_OF_BOUNDS',
-        name: 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]',
+        name: 'RangeError',
         message: 'Attempt to write outside buffer bounds'
       });
 
@@ -113,7 +113,7 @@ assert.ok(Number.isNaN(buffer.readDoubleLE(8)));
         () => buffer[fn](23, offset),
         {
           code: 'ERR_OUT_OF_RANGE',
-          name: 'RangeError [ERR_OUT_OF_RANGE]',
+          name: 'RangeError',
           message: 'The value of "offset" is out of range. ' +
                      `It must be >= 0 and <= 8. Received ${offset}`
         });
@@ -124,7 +124,7 @@ assert.ok(Number.isNaN(buffer.readDoubleLE(8)));
         () => buffer[fn](42, offset),
         {
           code: 'ERR_OUT_OF_RANGE',
-          name: 'RangeError [ERR_OUT_OF_RANGE]',
+          name: 'RangeError',
           message: 'The value of "offset" is out of range. ' +
                    `It must be an integer. Received ${offset}`
         });

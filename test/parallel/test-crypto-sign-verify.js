@@ -323,7 +323,7 @@ common.expectsError(
     const type = typeof input;
     const errObj = {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+      name: 'TypeError',
       message: 'The "algorithm" argument must be of type string. ' +
                `Received type ${type}`
     };
@@ -350,7 +350,7 @@ common.expectsError(
     const type = typeof input;
     const errObj = {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+      name: 'TypeError',
       message: 'The "key" argument must be one of type string, Buffer, ' +
                `TypedArray, DataView, or KeyObject. Received type ${type}`
     };

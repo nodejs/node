@@ -183,7 +183,7 @@ function testFtruncate(cb) {
       () => fs.truncate(file5, input, common.mustNotCall()),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+        name: 'TypeError',
         message: 'The "len" argument must be of type number. ' +
                  `Received type ${typeof input}`
       }
@@ -193,7 +193,7 @@ function testFtruncate(cb) {
       () => fs.ftruncate(fd, input),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+        name: 'TypeError',
         message: 'The "len" argument must be of type number. ' +
                  `Received type ${typeof input}`
       }
@@ -205,7 +205,7 @@ function testFtruncate(cb) {
       () => fs.truncate(file5, input),
       {
         code: 'ERR_OUT_OF_RANGE',
-        name: 'RangeError [ERR_OUT_OF_RANGE]',
+        name: 'RangeError',
         message: 'The value of "len" is out of range. It must be ' +
                   `an integer. Received ${input}`
       }
@@ -215,7 +215,7 @@ function testFtruncate(cb) {
       () => fs.ftruncate(fd, input),
       {
         code: 'ERR_OUT_OF_RANGE',
-        name: 'RangeError [ERR_OUT_OF_RANGE]',
+        name: 'RangeError',
         message: 'The value of "len" is out of range. It must be ' +
                   `an integer. Received ${input}`
       }
@@ -267,7 +267,7 @@ function testFtruncate(cb) {
     () => fs.truncate('/foo/bar', input),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+      name: 'TypeError',
       message: 'The "len" argument must be of type number. ' +
                `Received type ${typeof input}`
     }
@@ -280,7 +280,7 @@ function testFtruncate(cb) {
       () => fs[fnName](input),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+        name: 'TypeError',
         message: 'The "fd" argument must be of type number. ' +
                  `Received type ${typeof input}`
       }
