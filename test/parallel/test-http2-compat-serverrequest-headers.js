@@ -49,7 +49,7 @@ server.listen(0, common.mustCall(function() {
       () => request.method = '   ',
       {
         code: 'ERR_INVALID_ARG_VALUE',
-        name: 'TypeError [ERR_INVALID_ARG_VALUE]',
+        name: 'TypeError',
         message: "The argument 'method' is invalid. Received '   '"
       }
     );
@@ -57,7 +57,7 @@ server.listen(0, common.mustCall(function() {
       () => request.method = true,
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+        name: 'TypeError',
         message: 'The "method" argument must be of type string. ' +
                  'Received type boolean'
       }

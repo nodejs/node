@@ -46,7 +46,7 @@ const ca = readKey('fake-startcom-root-cert.pem', 'binary');
         () => session.origin(input),
         {
           code: 'ERR_INVALID_ARG_TYPE',
-          name: 'TypeError [ERR_INVALID_ARG_TYPE]'
+          name: 'TypeError'
         }
       );
     });
@@ -56,7 +56,7 @@ const ca = readKey('fake-startcom-root-cert.pem', 'binary');
         () => session.origin(input),
         {
           code: 'ERR_HTTP2_INVALID_ORIGIN',
-          name: 'TypeError [ERR_HTTP2_INVALID_ORIGIN]'
+          name: 'TypeError'
         }
       );
     });
@@ -66,7 +66,7 @@ const ca = readKey('fake-startcom-root-cert.pem', 'binary');
         () => session.origin(input),
         {
           code: 'ERR_INVALID_URL',
-          name: 'TypeError [ERR_INVALID_URL]'
+          name: 'TypeError'
         }
       );
     });
@@ -75,7 +75,7 @@ const ca = readKey('fake-startcom-root-cert.pem', 'binary');
       () => session.origin(longInput),
       {
         code: 'ERR_HTTP2_ORIGIN_LENGTH',
-        name: 'TypeError [ERR_HTTP2_ORIGIN_LENGTH]'
+        name: 'TypeError'
       }
     );
   }));

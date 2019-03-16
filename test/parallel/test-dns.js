@@ -81,7 +81,7 @@ assert(existing.length > 0);
         dns.setServers([serv]);
       },
       {
-        name: 'TypeError [ERR_INVALID_IP_ADDRESS]',
+        name: 'TypeError',
         code: 'ERR_INVALID_IP_ADDRESS'
       }
     );

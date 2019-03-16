@@ -150,7 +150,7 @@ if (fs.lchmod) {
 [false, 1, {}, [], null, undefined].forEach((input) => {
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+    name: 'TypeError',
     message: 'The "path" argument must be one of type string, Buffer, or URL.' +
              ` Received type ${typeof input}`
   };

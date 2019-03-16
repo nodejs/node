@@ -26,7 +26,7 @@ assert.strictEqual(
       () => url.format(myURL, value),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+        name: 'TypeError',
         message: 'The "options" argument must be of type Object. ' +
                  `Received type ${typeof value}`
       }

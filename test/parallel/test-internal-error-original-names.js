@@ -17,7 +17,7 @@ errors.E('TEST_ERROR_1', 'Error for testing purposes: %s',
 {
   const err = new errors.codes.TEST_ERROR_1('test');
   assert(err instanceof Error);
-  assert.strictEqual(err.name, 'Error [TEST_ERROR_1]');
+  assert.strictEqual(err.name, 'Error');
 }
 
 {
@@ -31,5 +31,5 @@ errors.E('TEST_ERROR_1', 'Error for testing purposes: %s',
   errors.useOriginalName = false;
   const err = new errors.codes.TEST_ERROR_1('test');
   assert(err instanceof Error);
-  assert.strictEqual(err.name, 'Error [TEST_ERROR_1]');
+  assert.strictEqual(err.name, 'Error');
 }

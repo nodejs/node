@@ -36,7 +36,7 @@ const genericTests = Object.getOwnPropertyNames(constants)
     error: {
       code: 'ERR_HTTP2_ERROR',
       type: NghttpError,
-      name: 'Error [ERR_HTTP2_ERROR]',
+      name: 'Error',
       message: nghttp2ErrorString(constants[key])
     },
     type: 'stream'

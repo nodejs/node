@@ -13,7 +13,7 @@ const promises = [];
   const rejectingFn = async () => assert.fail();
   const errObj = {
     code: 'ERR_ASSERTION',
-    name: 'AssertionError [ERR_ASSERTION]',
+    name: 'AssertionError',
     message: 'Failed'
   };
   // `assert.rejects` accepts a function or a promise as first argument.
@@ -38,7 +38,7 @@ const promises = [];
 
   promise = assert.rejects(() => {}, common.mustNotCall());
   promises.push(assert.rejects(promise, {
-    name: 'TypeError [ERR_INVALID_RETURN_VALUE]',
+    name: 'TypeError',
     code: 'ERR_INVALID_RETURN_VALUE',
     message: 'Expected instance of Promise to be returned ' +
              'from the "promiseFn" function but got type undefined.'
@@ -75,7 +75,7 @@ promises.push(assert.rejects(
     message: 'Expected instance of Promise to be returned ' +
              'from the "promiseFn" function but got instance of Map.',
     code: 'ERR_INVALID_RETURN_VALUE',
-    name: 'TypeError [ERR_INVALID_RETURN_VALUE]'
+    name: 'TypeError'
   }));
   promises.push(assert.doesNotReject(async () => {}));
   promises.push(assert.doesNotReject(Promise.resolve()));

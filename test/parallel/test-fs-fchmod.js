@@ -11,7 +11,7 @@ const fs = require('fs');
 [false, null, undefined, {}, [], ''].forEach((input) => {
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+    name: 'TypeError',
     message: 'The "fd" argument must be of type number. Received type ' +
              typeof input
   };
@@ -23,7 +23,7 @@ const fs = require('fs');
 [false, null, undefined, {}, [], '', '123x'].forEach((input) => {
   const errObj = {
     code: 'ERR_INVALID_ARG_VALUE',
-    name: 'TypeError [ERR_INVALID_ARG_VALUE]',
+    name: 'TypeError',
     message: 'The argument \'mode\' must be a 32-bit unsigned integer or an ' +
              `octal string. Received ${util.inspect(input)}`
   };
@@ -34,7 +34,7 @@ const fs = require('fs');
 [-1, 2 ** 32].forEach((input) => {
   const errObj = {
     code: 'ERR_OUT_OF_RANGE',
-    name: 'RangeError [ERR_OUT_OF_RANGE]',
+    name: 'RangeError',
     message: 'The value of "fd" is out of range. It must be >= 0 && <= ' +
              `2147483647. Received ${input}`
   };
@@ -45,7 +45,7 @@ const fs = require('fs');
 [-1, 2 ** 32].forEach((input) => {
   const errObj = {
     code: 'ERR_OUT_OF_RANGE',
-    name: 'RangeError [ERR_OUT_OF_RANGE]',
+    name: 'RangeError',
     message: 'The value of "mode" is out of range. It must be >= 0 && <= ' +
              `4294967295. Received ${input}`
   };
@@ -57,7 +57,7 @@ const fs = require('fs');
 [NaN, Infinity].forEach((input) => {
   const errObj = {
     code: 'ERR_OUT_OF_RANGE',
-    name: 'RangeError [ERR_OUT_OF_RANGE]',
+    name: 'RangeError',
     message: 'The value of "fd" is out of range. It must be an integer. ' +
              `Received ${input}`
   };
@@ -71,7 +71,7 @@ const fs = require('fs');
 [1.5].forEach((input) => {
   const errObj = {
     code: 'ERR_OUT_OF_RANGE',
-    name: 'RangeError [ERR_OUT_OF_RANGE]',
+    name: 'RangeError',
     message: 'The value of "fd" is out of range. It must be an integer. ' +
              `Received ${input}`
   };

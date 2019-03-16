@@ -41,6 +41,6 @@ assert.strictEqual(cycle(Function), '[Function: Function]');
 {
   const err = new ERR_INVALID_ARG_TYPE('object', 'Object', 42);
   assert(/^TypeError \[ERR_INVALID_ARG_TYPE\]:/.test(err));
-  assert.strictEqual(err.name, 'TypeError [ERR_INVALID_ARG_TYPE]');
+  assert.strictEqual(err.name, 'TypeError');
   assert.strictEqual(err.code, 'ERR_INVALID_ARG_TYPE');
 }

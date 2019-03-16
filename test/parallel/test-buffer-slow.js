@@ -42,7 +42,7 @@ try {
 // Should throw with invalid length type
 const bufferInvalidTypeMsg = {
   code: 'ERR_INVALID_ARG_TYPE',
-  name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+  name: 'TypeError',
   message: /^The "size" argument must be of type number/,
 };
 assert.throws(() => SlowBuffer(), bufferInvalidTypeMsg);
@@ -53,7 +53,7 @@ assert.throws(() => SlowBuffer(true), bufferInvalidTypeMsg);
 // Should throw with invalid length value
 const bufferMaxSizeMsg = {
   code: 'ERR_INVALID_OPT_VALUE',
-  name: 'RangeError [ERR_INVALID_OPT_VALUE]',
+  name: 'RangeError',
   message: /^The value "[^"]*" is invalid for option "size"$/
 };
 assert.throws(() => SlowBuffer(NaN), bufferMaxSizeMsg);

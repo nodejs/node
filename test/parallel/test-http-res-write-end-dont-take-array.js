@@ -37,7 +37,7 @@ server.once('request', common.mustCall((req, res) => {
 
   const expectedError = {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+    name: 'TypeError',
   };
 
   // Write should not accept an Array

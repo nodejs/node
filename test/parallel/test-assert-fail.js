@@ -8,7 +8,7 @@ assert.throws(
   () => { assert.fail(); },
   {
     code: 'ERR_ASSERTION',
-    name: 'AssertionError [ERR_ASSERTION]',
+    name: 'AssertionError',
     message: 'Failed',
     operator: 'fail',
     actual: undefined,
@@ -22,7 +22,7 @@ assert.throws(() => {
   assert.fail('custom message');
 }, {
   code: 'ERR_ASSERTION',
-  name: 'AssertionError [ERR_ASSERTION]',
+  name: 'AssertionError',
   message: 'custom message',
   operator: 'fail',
   actual: undefined,

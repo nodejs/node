@@ -79,7 +79,7 @@ assert.strictEqual(buffer.readFloatLE(0), -Infinity);
       () => buffer[fn](offset),
       {
         code: 'ERR_OUT_OF_RANGE',
-        name: 'RangeError [ERR_OUT_OF_RANGE]',
+        name: 'RangeError',
         message: 'The value of "offset" is out of range. ' +
                  `It must be >= 0 and <= 0. Received ${offset}`
       });
@@ -89,7 +89,7 @@ assert.strictEqual(buffer.readFloatLE(0), -Infinity);
     () => Buffer.alloc(1)[fn](1),
     {
       code: 'ERR_BUFFER_OUT_OF_BOUNDS',
-      name: 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]',
+      name: 'RangeError',
       message: 'Attempt to write outside buffer bounds'
     });
 
@@ -98,7 +98,7 @@ assert.strictEqual(buffer.readFloatLE(0), -Infinity);
       () => buffer[fn](offset),
       {
         code: 'ERR_OUT_OF_RANGE',
-        name: 'RangeError [ERR_OUT_OF_RANGE]',
+        name: 'RangeError',
         message: 'The value of "offset" is out of range. ' +
                  `It must be an integer. Received ${offset}`
       });

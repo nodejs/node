@@ -87,7 +87,7 @@ const caArrDataView = toDataView(caCert);
     https.createServer({ key, cert });
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+    name: 'TypeError',
     message: 'The "options.key" property must be one of type string, Buffer, ' +
              `TypedArray, or DataView. Received type ${type}`
   });
@@ -112,7 +112,7 @@ const caArrDataView = toDataView(caCert);
     https.createServer({ key, cert });
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+    name: 'TypeError',
     message: 'The "options.cert" property must be one of type string, Buffer,' +
              ` TypedArray, or DataView. Received type ${type}`
   });
@@ -146,7 +146,7 @@ const caArrDataView = toDataView(caCert);
     https.createServer({ key, cert, ca });
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+    name: 'TypeError',
     message: 'The "options.ca" property must be one of type string, Buffer, ' +
              `TypedArray, or DataView. Received type ${type}`
   });

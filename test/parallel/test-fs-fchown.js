@@ -18,7 +18,7 @@ function test(input, errObj) {
 ['', false, null, undefined, {}, []].forEach((input) => {
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+    name: 'TypeError',
     message: 'The "fd" argument must be of type number. Received type ' +
              typeof input
   };
@@ -28,7 +28,7 @@ function test(input, errObj) {
 [Infinity, NaN].forEach((input) => {
   const errObj = {
     code: 'ERR_OUT_OF_RANGE',
-    name: 'RangeError [ERR_OUT_OF_RANGE]',
+    name: 'RangeError',
     message: 'The value of "fd" is out of range. It must be an integer. ' +
              `Received ${input}`
   };
@@ -38,7 +38,7 @@ function test(input, errObj) {
 [-1, 2 ** 32].forEach((input) => {
   const errObj = {
     code: 'ERR_OUT_OF_RANGE',
-    name: 'RangeError [ERR_OUT_OF_RANGE]',
+    name: 'RangeError',
     message: 'The value of "fd" is out of range. It must be ' +
              `>= 0 && < 4294967296. Received ${input}`
   };
