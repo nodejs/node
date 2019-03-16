@@ -8,6 +8,8 @@ const assert = require('assert');
 const {
   createCipheriv,
   createDecipheriv,
+  createSign,
+  createVerify,
   createSecretKey,
   createPublicKey,
   createPrivateKey,
@@ -178,13 +180,6 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   });
 }
 
-{
-  // This should not cause a crash: https://github.com/nodejs/node/pull/26786
-  const pem = fixtures.readSync('test_unknown_privkey.pem', 'ascii');
-  const key = createPrivateKey(pem);
-  assert.strictEqual(key.asymmetricKeyType, undefined);
-}
-
 [
   { private: fixtures.readSync('test_ed25519_privkey.pem', 'ascii'),
     public: fixtures.readSync('test_ed25519_pubkey.pem', 'ascii'),
@@ -264,6 +259,146 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.strictEqual(privateKey.type, 'private');
   assert.strictEqual(privateKey.asymmetricKeyType, 'dsa');
   assert.strictEqual(privateKey.symmetricKeySize, undefined);
+
+}
+
+{
+  // Test RSA-PSS.
+  {
+    // This key pair does not restrict the message digest algorithm or salt
+    // length.
+    const publicPem = fixtures.readKey('rsa_pss_public_2048.pem');
+    const privatePem = fixtures.readKey('rsa_pss_private_2048.pem');
+
+    const publicKey = createPublicKey(publicPem);
+    const privateKey = createPrivateKey(privatePem);
+
+    assert.strictEqual(publicKey.type, 'public');
+    assert.strictEqual(publicKey.asymmetricKeyType, 'rsa-pss');
+
+    assert.strictEqual(privateKey.type, 'private');
+    assert.strictEqual(privateKey.asymmetricKeyType, 'rsa-pss');
+
+    for (const key of [privatePem, privateKey]) {
+      // Any algorithm should work.
+      for (const algo of ['sha1', 'sha256']) {
+        // Any salt length should work.
+        for (const saltLength of [undefined, 8, 10, 12, 16, 18, 20]) {
+          const signature = createSign(algo)
+                            .update('foo')
+                            .sign({ key, saltLength });
+
+          for (const pkey of [key, publicKey, publicPem]) {
+            const okay = createVerify(algo)
+                         .update('foo')
+                         .verify({ key: pkey, saltLength }, signature);
+
+            assert.ok(okay);
+          }
+        }
+      }
+    }
+
+    // Exporting the key using PKCS#1 should not work since this would discard
+    // any algorithm restrictions.
+    common.expectsError(() => {
+      publicKey.export({ format: 'pem', type: 'pkcs1' });
+    }, {
+      code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS'
+    });
+  }
+
+  {
+    // This key pair enforces sha256 as the message digest and the MGF1
+    // message digest and a salt length of at least 16 bytes.
+    const publicPem =
+      fixtures.readKey('rsa_pss_public_2048_sha256_sha256_16.pem');
+    const privatePem =
+      fixtures.readKey('rsa_pss_private_2048_sha256_sha256_16.pem');
+
+    const publicKey = createPublicKey(publicPem);
+    const privateKey = createPrivateKey(privatePem);
+
+    assert.strictEqual(publicKey.type, 'public');
+    assert.strictEqual(publicKey.asymmetricKeyType, 'rsa-pss');
+
+    assert.strictEqual(privateKey.type, 'private');
+    assert.strictEqual(privateKey.asymmetricKeyType, 'rsa-pss');
+
+    for (const key of [privatePem, privateKey]) {
+      // Signing with anything other than sha256 should fail.
+      assert.throws(() => {
+        createSign('sha1').sign(key);
+      }, /digest not allowed/);
+
+      // Signing with salt lengths less than 16 bytes should fail.
+      for (const saltLength of [8, 10, 12]) {
+        assert.throws(() => {
+          createSign('sha1').sign({ key, saltLength });
+        }, /pss saltlen too small/);
+      }
+
+      // Signing with sha256 and appropriate salt lengths should work.
+      for (const saltLength of [undefined, 16, 18, 20]) {
+        const signature = createSign('sha256')
+                          .update('foo')
+                          .sign({ key, saltLength });
+
+        for (const pkey of [key, publicKey, publicPem]) {
+          const okay = createVerify('sha256')
+                       .update('foo')
+                       .verify({ key: pkey, saltLength }, signature);
+
+          assert.ok(okay);
+        }
+      }
+    }
+  }
+
+  {
+    // This key enforces sha512 as the message digest and sha256 as the MGF1
+    // message digest.
+    const publicPem =
+      fixtures.readKey('rsa_pss_public_2048_sha512_sha256_20.pem');
+    const privatePem =
+      fixtures.readKey('rsa_pss_private_2048_sha512_sha256_20.pem');
+
+    const publicKey = createPublicKey(publicPem);
+    const privateKey = createPrivateKey(privatePem);
+
+    assert.strictEqual(publicKey.type, 'public');
+    assert.strictEqual(publicKey.asymmetricKeyType, 'rsa-pss');
+
+    assert.strictEqual(privateKey.type, 'private');
+    assert.strictEqual(privateKey.asymmetricKeyType, 'rsa-pss');
+
+    // Node.js usually uses the same hash function for the message and for MGF1.
+    // However, when a different MGF1 message digest algorithm has been
+    // specified as part of the key, it should automatically switch to that.
+    // This behavior is required by sections 3.1 and 3.3 of RFC4055.
+    for (const key of [privatePem, privateKey]) {
+      // sha256 matches the MGF1 hash function and should be used internally,
+      // but it should not be permitted as the main message digest algorithm.
+      for (const algo of ['sha1', 'sha256']) {
+        assert.throws(() => {
+          createSign(algo).sign(key);
+        }, /digest not allowed/);
+      }
+
+      // sha512 should produce a valid signature.
+      const signature = createSign('sha512')
+                        .update('foo')
+                        .sign(key);
+
+      for (const pkey of [key, publicKey, publicPem]) {
+        const okay = createVerify('sha512')
+                     .update('foo')
+                     .verify(pkey, signature);
+
+        assert.ok(okay);
+      }
+    }
+  }
 }
 
 {

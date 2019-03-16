@@ -3690,6 +3690,8 @@ Local<Value> KeyObject::GetAsymmetricKeyType() const {
   switch (EVP_PKEY_id(this->asymmetric_key_.get())) {
   case EVP_PKEY_RSA:
     return env()->crypto_rsa_string();
+  case EVP_PKEY_RSA_PSS:
+    return env()->crypto_rsa_pss_string();
   case EVP_PKEY_DSA:
     return env()->crypto_dsa_string();
   case EVP_PKEY_EC:
@@ -4684,13 +4686,14 @@ void SignBase::CheckThrow(SignBase::Error error) {
 static bool ApplyRSAOptions(const ManagedEVPPKey& pkey,
                             EVP_PKEY_CTX* pkctx,
                             int padding,
-                            int salt_len) {
+                            const Maybe<int>& salt_len) {
   if (EVP_PKEY_id(pkey.get()) == EVP_PKEY_RSA ||
-      EVP_PKEY_id(pkey.get()) == EVP_PKEY_RSA2) {
+      EVP_PKEY_id(pkey.get()) == EVP_PKEY_RSA2 ||
+      EVP_PKEY_id(pkey.get()) == EVP_PKEY_RSA_PSS) {
     if (EVP_PKEY_CTX_set_rsa_padding(pkctx, padding) <= 0)
       return false;
-    if (padding == RSA_PKCS1_PSS_PADDING) {
-      if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkctx, salt_len) <= 0)
+    if (padding == RSA_PKCS1_PSS_PADDING && salt_len.IsJust()) {
+      if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkctx, salt_len.FromJust()) <= 0)
         return false;
     }
   }
@@ -4741,11 +4744,16 @@ void Sign::SignUpdate(const FunctionCallbackInfo<Value>& args) {
   sign->CheckThrow(err);
 }
 
+static int GetDefaultSignPadding(const ManagedEVPPKey& key) {
+  return EVP_PKEY_id(key.get()) == EVP_PKEY_RSA_PSS ? RSA_PKCS1_PSS_PADDING :
+                                                      RSA_PKCS1_PADDING;
+}
+
 static AllocatedBuffer Node_SignFinal(Environment* env,
                                       EVPMDPointer&& mdctx,
                                       const ManagedEVPPKey& pkey,
                                       int padding,
-                                      int pss_salt_len) {
+                                      Maybe<int> pss_salt_len) {
   unsigned char m[EVP_MAX_MD_SIZE];
   unsigned int m_len;
 
@@ -4778,7 +4786,7 @@ static AllocatedBuffer Node_SignFinal(Environment* env,
 Sign::SignResult Sign::SignFinal(
     const ManagedEVPPKey& pkey,
     int padding,
-    int salt_len) {
+    const Maybe<int>& salt_len) {
   if (!mdctx_)
     return SignResult(kSignNotInitialised);
 
@@ -4829,11 +4837,17 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   if (!key)
     return;
 
-  CHECK(args[offset]->IsInt32());
-  int padding = args[offset].As<Int32>()->Value();
+  int padding = GetDefaultSignPadding(key);
+  if (!args[offset]->IsUndefined()) {
+    CHECK(args[offset]->IsInt32());
+    padding = args[offset].As<Int32>()->Value();
+  }
 
-  CHECK(args[offset + 1]->IsInt32());
-  int salt_len = args[offset + 1].As<Int32>()->Value();
+  Maybe<int> salt_len = Nothing<int>();
+  if (!args[offset + 1]->IsUndefined()) {
+    CHECK(args[offset + 1]->IsInt32());
+    salt_len = Just<int>(args[offset + 1].As<Int32>()->Value());
+  }
 
   SignResult ret = sign->SignFinal(
       key,
@@ -4894,11 +4908,17 @@ void SignOneShot(const FunctionCallbackInfo<Value>& args) {
       return CheckThrow(env, SignBase::Error::kSignUnknownDigest);
   }
 
-  CHECK(args[offset + 2]->IsInt32());
-  int rsa_padding = args[offset + 2].As<Int32>()->Value();
+  int rsa_padding = GetDefaultSignPadding(key);
+  if (!args[offset + 2]->IsUndefined()) {
+    CHECK(args[offset + 2]->IsInt32());
+    rsa_padding = args[offset + 2].As<Int32>()->Value();
+  }
 
-  CHECK(args[offset + 3]->IsInt32());
-  int rsa_salt_len = args[offset + 3].As<Int32>()->Value();
+  Maybe<int> rsa_salt_len = Nothing<int>();
+  if (!args[offset + 3]->IsUndefined()) {
+    CHECK(args[offset + 3]->IsInt32());
+    rsa_salt_len = Just<int>(args[offset + 3].As<Int32>()->Value());
+  }
 
   EVP_PKEY_CTX* pkctx = nullptr;
   EVPMDPointer mdctx(EVP_MD_CTX_new());
@@ -4976,7 +4996,7 @@ SignBase::Error Verify::VerifyFinal(const ManagedEVPPKey& pkey,
                                     const char* sig,
                                     int siglen,
                                     int padding,
-                                    int saltlen,
+                                    const Maybe<int>& saltlen,
                                     bool* verify_result) {
   if (!mdctx_)
     return kSignNotInitialised;
@@ -5020,11 +5040,17 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
 
   ArrayBufferViewContents<char> hbuf(args[offset]);
 
-  CHECK(args[offset + 1]->IsInt32());
-  int padding = args[offset + 1].As<Int32>()->Value();
+  int padding = GetDefaultSignPadding(pkey);
+  if (!args[offset + 1]->IsUndefined()) {
+    CHECK(args[offset + 1]->IsInt32());
+    padding = args[offset + 1].As<Int32>()->Value();
+  }
 
-  CHECK(args[offset + 2]->IsInt32());
-  int salt_len = args[offset + 2].As<Int32>()->Value();
+  Maybe<int> salt_len = Nothing<int>();
+  if (!args[offset + 2]->IsUndefined()) {
+    CHECK(args[offset + 2]->IsInt32());
+    salt_len = Just<int>(args[offset + 2].As<Int32>()->Value());
+  }
 
   bool verify_result;
   Error err = verify->VerifyFinal(pkey, hbuf.data(), hbuf.length(), padding,
@@ -5057,11 +5083,17 @@ void VerifyOneShot(const FunctionCallbackInfo<Value>& args) {
       return CheckThrow(env, SignBase::Error::kSignUnknownDigest);
   }
 
-  CHECK(args[offset + 3]->IsInt32());
-  int rsa_padding = args[offset + 3].As<Int32>()->Value();
+  int rsa_padding = GetDefaultSignPadding(key);
+  if (!args[offset + 3]->IsUndefined()) {
+    CHECK(args[offset + 3]->IsInt32());
+    rsa_padding = args[offset + 3].As<Int32>()->Value();
+  }
 
-  CHECK(args[offset + 4]->IsInt32());
-  int rsa_salt_len = args[offset + 4].As<Int32>()->Value();
+  Maybe<int> rsa_salt_len = Nothing<int>();
+  if (!args[offset + 4]->IsUndefined()) {
+    CHECK(args[offset + 4]->IsInt32());
+    rsa_salt_len = Just<int>(args[offset + 4].As<Int32>()->Value());
+  }
 
   EVP_PKEY_CTX* pkctx = nullptr;
   EVPMDPointer mdctx(EVP_MD_CTX_new());
@@ -6064,6 +6096,48 @@ class RSAKeyPairGenerationConfig : public KeyPairGenerationConfig {
   const unsigned int exponent_;
 };
 
+class RSAPSSKeyPairGenerationConfig : public RSAKeyPairGenerationConfig {
+ public:
+  RSAPSSKeyPairGenerationConfig(unsigned int modulus_bits,
+                                unsigned int exponent,
+                                const EVP_MD* md,
+                                const EVP_MD* mgf1_md,
+                                int saltlen)
+    : RSAKeyPairGenerationConfig(modulus_bits, exponent),
+      md_(md), mgf1_md_(mgf1_md), saltlen_(saltlen) {}
+
+  EVPKeyCtxPointer Setup() override {
+    return EVPKeyCtxPointer(EVP_PKEY_CTX_new_id(EVP_PKEY_RSA_PSS, nullptr));
+  }
+
+  bool Configure(const EVPKeyCtxPointer& ctx) override {
+    if (!RSAKeyPairGenerationConfig::Configure(ctx))
+      return false;
+
+    if (md_ != nullptr) {
+      if (EVP_PKEY_CTX_set_rsa_pss_keygen_md(ctx.get(), md_) <= 0)
+        return false;
+    }
+
+    if (mgf1_md_ != nullptr) {
+     if (EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md(ctx.get(), mgf1_md_) <= 0)
+       return false;
+    }
+
+    if (saltlen_ >= 0) {
+      if (EVP_PKEY_CTX_set_rsa_pss_keygen_saltlen(ctx.get(), saltlen_) <= 0)
+        return false;
+    }
+
+    return true;
+  }
+
+ private:
+  const EVP_MD* md_;
+  const EVP_MD* mgf1_md_;
+  const int saltlen_;
+};
+
 class DSAKeyPairGenerationConfig : public KeyPairGenerationConfig {
  public:
   DSAKeyPairGenerationConfig(unsigned int modulus_bits, int divisor_bits)
@@ -6291,6 +6365,44 @@ void GenerateKeyPairRSA(const FunctionCallbackInfo<Value>& args) {
   std::unique_ptr<KeyPairGenerationConfig> config(
       new RSAKeyPairGenerationConfig(modulus_bits, exponent));
   GenerateKeyPair(args, 2, std::move(config));
+}
+
+void GenerateKeyPairRSAPSS(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK(args[0]->IsUint32());
+  const uint32_t modulus_bits = args[0].As<Uint32>()->Value();
+  CHECK(args[1]->IsUint32());
+  const uint32_t exponent = args[1].As<Uint32>()->Value();
+
+  const EVP_MD* md = nullptr;
+  if (!args[2]->IsUndefined()) {
+    CHECK(args[2]->IsString());
+    String::Utf8Value md_name(env->isolate(), args[2].As<String>());
+    md = EVP_get_digestbyname(*md_name);
+    if (md == nullptr)
+      return env->ThrowTypeError("Digest method not supported");
+  }
+
+  const EVP_MD* mgf1_md = nullptr;
+  if (!args[3]->IsUndefined()) {
+    CHECK(args[3]->IsString());
+    String::Utf8Value mgf1_md_name(env->isolate(), args[3].As<String>());
+    mgf1_md = EVP_get_digestbyname(*mgf1_md_name);
+    if (mgf1_md == nullptr)
+      return env->ThrowTypeError("Digest method not supported");
+  }
+
+  int saltlen = -1;
+  if (!args[4]->IsUndefined()) {
+    CHECK(args[4]->IsInt32());
+    saltlen = args[4].As<Int32>()->Value();
+  }
+
+  std::unique_ptr<KeyPairGenerationConfig> config(
+      new RSAPSSKeyPairGenerationConfig(modulus_bits, exponent,
+                                        md, mgf1_md, saltlen));
+  GenerateKeyPair(args, 5, std::move(config));
 }
 
 void GenerateKeyPairDSA(const FunctionCallbackInfo<Value>& args) {
@@ -6748,6 +6860,7 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "pbkdf2", PBKDF2);
   env->SetMethod(target, "generateKeyPairRSA", GenerateKeyPairRSA);
+  env->SetMethod(target, "generateKeyPairRSAPSS", GenerateKeyPairRSAPSS);
   env->SetMethod(target, "generateKeyPairDSA", GenerateKeyPairDSA);
   env->SetMethod(target, "generateKeyPairEC", GenerateKeyPairEC);
   env->SetMethod(target, "generateKeyPairNid", GenerateKeyPairNid);

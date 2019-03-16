@@ -1130,6 +1130,9 @@ passing keys as strings or `Buffer`s due to improved security features.
 added: v11.6.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/26960
+    description: Added support for `'rsa-pss'`
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/26786
     description: This property now returns `undefined` for KeyObject
                  instances of unrecognized type instead of aborting.
@@ -1142,8 +1145,18 @@ changes:
 -->
 * {string}
 
-For asymmetric keys, this property represents the type of the embedded key
-(`'rsa'`, `'dsa'`, `'ec'`, `'ed25519'`, `'ed448'`, `'x25519'` or `'x448'`).
+For asymmetric keys, this property represents the type of the key. Supported key
+types are:
+
+* `'rsa'` (OID 1.2.840.113549.1.1.1)
+* `'rsa-pss'` (OID 1.2.840.113549.1.1.10)
+* `'dsa'` (OID 1.2.840.10040.4.1)
+* `'ec'` (OID 1.2.840.10045.2.1)
+* `'x25519'` (OID 1.3.101.110)
+* `'x448'` (OID 1.3.101.111)
+* `'ed25519'` (OID 1.3.101.112)
+* `'ed448'` (OID 1.3.101.113)
+
 This property is `undefined` for unrecognized `KeyObject` types and symmetric
 keys.
 
@@ -1271,6 +1284,9 @@ console.log(verify.verify(publicKey, signature));
 <!-- YAML
 added: v0.1.92
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/26960
+    description: This function now supports RSA-PSS keys.
   - version: v11.6.0
     pr-url: https://github.com/nodejs/node/pull/24234
     description: This function now supports key objects.
@@ -1296,7 +1312,9 @@ object, the following additional properties can be passed:
   * `crypto.constants.RSA_PKCS1_PSS_PADDING`
 
   Note that `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
-  used to sign the message as specified in section 3.1 of [RFC 4055][].
+  used to sign the message as specified in section 3.1 of [RFC 4055][], unless
+  an MGF1 hash function has been specified as part of the key in compliance with
+  section 3.3 of [RFC 4055][].
 * `saltLength`: {integer} - salt length for when padding is
   `RSA_PKCS1_PSS_PADDING`. The special value
   `crypto.constants.RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest
@@ -1369,6 +1387,9 @@ This can be called many times with new data as it is streamed.
 <!-- YAML
 added: v0.1.92
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/26960
+    description: This function now supports RSA-PSS keys.
   - version: v11.7.0
     pr-url: https://github.com/nodejs/node/pull/25217
     description: The key can now be a private key.
@@ -1395,7 +1416,9 @@ object, the following additional properties can be passed:
   * `crypto.constants.RSA_PKCS1_PSS_PADDING`
 
   Note that `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
-  used to verify the message as specified in section 3.1 of [RFC 4055][].
+  used to verify the message as specified in section 3.1 of [RFC 4055][], unless
+  an MGF1 hash function has been specified as part of the key in compliance with
+  section 3.3 of [RFC 4055][].
 * `saltLength`: {integer} - salt length for when padding is
   `RSA_PKCS1_PSS_PADDING`. The special value
   `crypto.constants.RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest

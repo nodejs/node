@@ -670,7 +670,7 @@ class Sign : public SignBase {
   SignResult SignFinal(
       const ManagedEVPPKey& pkey,
       int padding,
-      int saltlen);
+      const v8::Maybe<int>& saltlen);
 
  protected:
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -691,7 +691,7 @@ class Verify : public SignBase {
                     const char* sig,
                     int siglen,
                     int padding,
-                    int saltlen,
+                    const v8::Maybe<int>& saltlen,
                     bool* verify_result);
 
  protected:
