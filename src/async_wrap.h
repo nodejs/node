@@ -112,6 +112,8 @@ class AsyncWrap : public BaseObject {
 
   ~AsyncWrap() override;
 
+  AsyncWrap() = delete;
+
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
 
@@ -200,7 +202,6 @@ class AsyncWrap : public BaseObject {
             ProviderType provider,
             double execution_async_id,
             bool silent);
-  inline AsyncWrap();
   const ProviderType provider_type_;
   // Because the values may be Reset(), cannot be made const.
   double async_id_ = -1;
