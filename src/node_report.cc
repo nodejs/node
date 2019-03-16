@@ -1,26 +1,11 @@
 
 #include "node_report.h"
-#include "ares.h"
 #include "debug_utils.h"
-#include "http_parser.h"
-#include "nghttp2/nghttp2ver.h"
 #include "node_internals.h"
 #include "node_metadata.h"
-#include "zlib.h"
-
-#ifdef __APPLE__
-#include <mach-o/dyld.h>
-#endif
-
-#include <fcntl.h>
 
 #ifdef _WIN32
-#include <Lm.h>
 #include <Windows.h>
-#include <dbghelp.h>
-#include <process.h>
-#include <psapi.h>
-#include <tchar.h>
 #else  // !_WIN32
 #include <sys/resource.h>
 #include <cxxabi.h>
