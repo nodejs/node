@@ -628,7 +628,7 @@ git push upstream master
   people's forks. It is permissible for simpler slip-ups such as typos in commit
   messages. You are only allowed to force push to any Node.js branch within 10
   minutes from your original push. If someone else pushes to the branch or the
-  10 minute period passes, consider the commit final.
+  10-minute period passes, consider the commit final.
   * Use `--force-with-lease` to minimize the chance of overwriting
   someone else's change.
   * Post to `#node-dev` (IRC) if you force push.
