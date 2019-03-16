@@ -55,10 +55,6 @@ enum nghttp2_session_type {
   NGHTTP2_SESSION_CLIENT
 };
 
-enum nghttp2_shutdown_flags {
-  NGHTTP2_SHUTDOWN_FLAG_GRACEFUL
-};
-
 enum nghttp2_stream_flags {
   NGHTTP2_STREAM_FLAG_NONE = 0x0,
   // Writable side has ended
