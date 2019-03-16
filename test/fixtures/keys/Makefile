@@ -37,6 +37,12 @@ all: \
   rsa_public_1024.pem \
   rsa_public_2048.pem \
   rsa_public_4096.pem \
+  rsa_pss_private_2048.pem \
+  rsa_pss_private_2048_sha256_sha256_16.pem \
+  rsa_pss_private_2048_sha512_sha256_20.pem \
+  rsa_pss_public_2048.pem \
+  rsa_pss_public_2048_sha256_sha256_16.pem \
+  rsa_pss_public_2048_sha512_sha256_20.pem \
 
 #
 # Create Certificate Authority: ca1
@@ -573,6 +579,24 @@ rsa_public_2048.pem: rsa_private_2048.pem
 
 rsa_public_4096.pem: rsa_private_4096.pem
 	openssl rsa -in rsa_private_4096.pem -pubout -out rsa_public_4096.pem
+
+rsa_pss_private_2048.pem:
+	openssl genpkey -algorithm RSA-PSS -pkeyopt rsa_keygen_bits:2048 -pkeyopt rsa_keygen_pubexp:65537 -out rsa_pss_private_2048.pem
+
+rsa_pss_private_2048_sha256_sha256_16.pem:
+	openssl genpkey -algorithm RSA-PSS -pkeyopt rsa_keygen_bits:2048 -pkeyopt rsa_keygen_pubexp:65537 -pkeyopt rsa_pss_keygen_md:sha256 -pkeyopt rsa_pss_keygen_mgf1_md:sha256 -pkeyopt rsa_pss_keygen_saltlen:16 -out rsa_pss_private_2048_sha256_sha256_16.pem
+
+rsa_pss_private_2048_sha512_sha256_20.pem:
+	openssl genpkey -algorithm RSA-PSS -pkeyopt rsa_keygen_bits:2048 -pkeyopt rsa_keygen_pubexp:65537 -pkeyopt rsa_pss_keygen_md:sha512 -pkeyopt rsa_pss_keygen_mgf1_md:sha256 -pkeyopt rsa_pss_keygen_saltlen:20 -out rsa_pss_private_2048_sha512_sha256_20.pem
+
+rsa_pss_public_2048.pem: rsa_pss_private_2048.pem
+	openssl pkey -in rsa_pss_private_2048.pem -pubout -out rsa_pss_public_2048.pem
+
+rsa_pss_public_2048_sha256_sha256_16.pem: rsa_pss_private_2048_sha256_sha256_16.pem
+	openssl pkey -in rsa_pss_private_2048_sha256_sha256_16.pem -pubout -out rsa_pss_public_2048_sha256_sha256_16.pem
+
+rsa_pss_public_2048_sha512_sha256_20.pem: rsa_pss_private_2048_sha512_sha256_20.pem
+	openssl pkey -in rsa_pss_private_2048_sha512_sha256_20.pem -pubout -out rsa_pss_public_2048_sha512_sha256_20.pem
 
 clean:
 	rm -f *.pfx *.pem *.srl ca2-database.txt ca2-serial fake-startcom-root-serial *.print *.old fake-startcom-root-issued-certs/*.pem
