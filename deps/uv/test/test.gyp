@@ -137,6 +137,7 @@
         'test-tty.c',
         'test-udp-alloc-cb-fail.c',
         'test-udp-bind.c',
+        'test-udp-connect.c',
         'test-udp-create-socket-early.c',
         'test-udp-dgram-too-big.c',
         'test-udp-ipv6.c',

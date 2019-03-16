@@ -47,7 +47,7 @@
 
 #if defined(__DragonFly__)        ||                                      \
     defined(__FreeBSD__)          ||                                      \
-    defined(__FreeBSD_kernel_)    ||                                      \
+    defined(__FreeBSD_kernel__)   ||                                      \
     defined(__OpenBSD__)          ||                                      \
     defined(__NetBSD__)
 # define HAVE_PREADV 1
@@ -1053,9 +1053,81 @@ static void uv__to_stat(struct stat* src, uv_stat_t* dst) {
 }
 
 
+static int uv__fs_statx(int fd,
+                        const char* path,
+                        int is_fstat,
+                        int is_lstat,
+                        uv_stat_t* buf) {
+  STATIC_ASSERT(UV_ENOSYS != -1);
+#ifdef __linux__
+  static int no_statx;
+  struct uv__statx statxbuf;
+  int dirfd;
+  int flags;
+  int mode;
+  int rc;
+
+  if (no_statx)
+    return UV_ENOSYS;
+
+  dirfd = AT_FDCWD;
+  flags = 0; /* AT_STATX_SYNC_AS_STAT */
+  mode = 0xFFF; /* STATX_BASIC_STATS + STATX_BTIME */
+
+  if (is_fstat) {
+    dirfd = fd;
+    flags |= 0x1000; /* AT_EMPTY_PATH */
+  }
+
+  if (is_lstat)
+    flags |= AT_SYMLINK_NOFOLLOW;
+
+  rc = uv__statx(dirfd, path, flags, mode, &statxbuf);
+
+  if (rc == -1) {
+    /* EPERM happens when a seccomp filter rejects the system call.
+     * Has been observed with libseccomp < 2.3.3 and docker < 18.04.
+     */
+    if (errno != EINVAL && errno != EPERM && errno != ENOSYS)
+      return -1;
+
+    no_statx = 1;
+    return UV_ENOSYS;
+  }
+
+  buf->st_dev = 256 * statxbuf.stx_dev_major + statxbuf.stx_dev_minor;
+  buf->st_mode = statxbuf.stx_mode;
+  buf->st_nlink = statxbuf.stx_nlink;
+  buf->st_uid = statxbuf.stx_uid;
+  buf->st_gid = statxbuf.stx_gid;
+  buf->st_rdev = statxbuf.stx_rdev_major;
+  buf->st_ino = statxbuf.stx_ino;
+  buf->st_size = statxbuf.stx_size;
+  buf->st_blksize = statxbuf.stx_blksize;
+  buf->st_blocks = statxbuf.stx_blocks;
+  buf->st_atim.tv_sec = statxbuf.stx_atime.tv_sec;
+  buf->st_atim.tv_nsec = statxbuf.stx_atime.tv_nsec;
+  buf->st_mtim.tv_sec = statxbuf.stx_mtime.tv_sec;
+  buf->st_mtim.tv_nsec = statxbuf.stx_mtime.tv_nsec;
+  buf->st_ctim.tv_sec = statxbuf.stx_ctime.tv_sec;
+  buf->st_ctim.tv_nsec = statxbuf.stx_ctime.tv_nsec;
+  buf->st_birthtim.tv_sec = statxbuf.stx_btime.tv_sec;
+  buf->st_birthtim.tv_nsec = statxbuf.stx_btime.tv_nsec;
+
+  return 0;
+#else
+  return UV_ENOSYS;
+#endif /* __linux__ */
+}
+
+
 static int uv__fs_stat(const char *path, uv_stat_t *buf) {
   struct stat pbuf;
   int ret;
+
+  ret = uv__fs_statx(-1, path, /* is_fstat */ 0, /* is_lstat */ 0, buf);
+  if (ret != UV_ENOSYS)
+    return ret;
 
   ret = stat(path, &pbuf);
   if (ret == 0)
@@ -1069,6 +1141,10 @@ static int uv__fs_lstat(const char *path, uv_stat_t *buf) {
   struct stat pbuf;
   int ret;
 
+  ret = uv__fs_statx(-1, path, /* is_fstat */ 0, /* is_lstat */ 1, buf);
+  if (ret != UV_ENOSYS)
+    return ret;
+
   ret = lstat(path, &pbuf);
   if (ret == 0)
     uv__to_stat(&pbuf, buf);
@@ -1080,6 +1156,10 @@ static int uv__fs_lstat(const char *path, uv_stat_t *buf) {
 static int uv__fs_fstat(int fd, uv_stat_t *buf) {
   struct stat pbuf;
   int ret;
+
+  ret = uv__fs_statx(fd, "", /* is_fstat */ 1, /* is_lstat */ 0, buf);
+  if (ret != UV_ENOSYS)
+    return ret;
 
   ret = fstat(fd, &pbuf);
   if (ret == 0)

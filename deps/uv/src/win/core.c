@@ -623,3 +623,30 @@ int uv__socket_sockopt(uv_handle_t* handle, int optname, int* value) {
 
   return 0;
 }
+
+int uv_cpumask_size(void) {
+  return (int)(sizeof(DWORD_PTR) * 8);
+}
+
+int uv__getsockpeername(const uv_handle_t* handle,
+                        uv__peersockfunc func,
+                        struct sockaddr* name,
+                        int* namelen,
+                        int delayed_error) {
+
+  int result;
+  uv_os_fd_t fd;
+
+  result = uv_fileno(handle, &fd);
+  if (result != 0)
+    return result;
+
+  if (delayed_error)
+    return uv_translate_sys_error(delayed_error);
+
+  result = func((SOCKET) fd, name, namelen);
+  if (result != 0)
+    return uv_translate_sys_error(WSAGetLastError());
+
+  return 0;
+}

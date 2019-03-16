@@ -139,7 +139,6 @@ void uv_close(uv_handle_t* handle, uv_close_cb cb) {
     case UV_FS_POLL:
       uv__fs_poll_close((uv_fs_poll_t*) handle);
       uv__handle_closing(handle);
-      uv_want_endgame(loop, handle);
       return;
 
     default:

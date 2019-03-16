@@ -185,3 +185,77 @@ TEST_IMPL(fs_poll_getpath) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
+
+
+TEST_IMPL(fs_poll_close_request) {
+  uv_loop_t loop;
+  uv_fs_poll_t poll_handle;
+
+  remove(FIXTURE);
+
+  ASSERT(0 == uv_loop_init(&loop));
+
+  ASSERT(0 == uv_fs_poll_init(&loop, &poll_handle));
+  ASSERT(0 == uv_fs_poll_start(&poll_handle, poll_cb_fail, FIXTURE, 100));
+  uv_close((uv_handle_t*) &poll_handle, close_cb);
+  while (close_cb_called == 0)
+    uv_run(&loop, UV_RUN_ONCE);
+  ASSERT(close_cb_called == 1);
+
+  ASSERT(0 == uv_loop_close(&loop));
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+TEST_IMPL(fs_poll_close_request_multi_start_stop) {
+  uv_loop_t loop;
+  uv_fs_poll_t poll_handle;
+  int i;
+
+  remove(FIXTURE);
+
+  ASSERT(0 == uv_loop_init(&loop));
+
+  ASSERT(0 == uv_fs_poll_init(&loop, &poll_handle));
+
+  for (i = 0; i < 10; ++i) {
+    ASSERT(0 == uv_fs_poll_start(&poll_handle, poll_cb_fail, FIXTURE, 100));
+    ASSERT(0 == uv_fs_poll_stop(&poll_handle));
+  }
+  uv_close((uv_handle_t*) &poll_handle, close_cb);
+  while (close_cb_called == 0)
+    uv_run(&loop, UV_RUN_ONCE);
+  ASSERT(close_cb_called == 1);
+
+  ASSERT(0 == uv_loop_close(&loop));
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+TEST_IMPL(fs_poll_close_request_multi_stop_start) {
+  uv_loop_t loop;
+  uv_fs_poll_t poll_handle;
+  int i;
+
+  remove(FIXTURE);
+
+  ASSERT(0 == uv_loop_init(&loop));
+
+  ASSERT(0 == uv_fs_poll_init(&loop, &poll_handle));
+
+  for (i = 0; i < 10; ++i) {
+    ASSERT(0 == uv_fs_poll_stop(&poll_handle));
+    ASSERT(0 == uv_fs_poll_start(&poll_handle, poll_cb_fail, FIXTURE, 100));
+  }
+  uv_close((uv_handle_t*) &poll_handle, close_cb);
+  while (close_cb_called == 0)
+    uv_run(&loop, UV_RUN_ONCE);
+  ASSERT(close_cb_called == 1);
+
+  ASSERT(0 == uv_loop_close(&loop));
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
