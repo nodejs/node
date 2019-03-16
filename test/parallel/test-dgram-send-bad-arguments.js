@@ -28,40 +28,77 @@ const buf = Buffer.from('test');
 const host = '127.0.0.1';
 const sock = dgram.createSocket('udp4');
 
-// First argument should be a buffer.
-common.expectsError(
-  () => { sock.send(); },
-  {
-    code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "buffer" argument must be one of type ' +
-    'Buffer, Uint8Array, or string. Received type undefined'
-  }
-);
+function checkArgs(connected) {
+  // First argument should be a buffer.
+  common.expectsError(
+    () => { sock.send(); },
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "buffer" argument must be one of type ' +
+      'Buffer, Uint8Array, or string. Received type undefined'
+    }
+  );
 
-// send(buf, offset, length, port, host)
-assert.throws(() => { sock.send(buf, 1, 1, -1, host); }, RangeError);
-assert.throws(() => { sock.send(buf, 1, 1, 0, host); }, RangeError);
-assert.throws(() => { sock.send(buf, 1, 1, 65536, host); }, RangeError);
+  // send(buf, offset, length, port, host)
+  if (connected) {
+    common.expectsError(
+      () => { sock.send(buf, 1, 1, -1, host); },
+      {
+        code: 'ERR_SOCKET_DGRAM_IS_CONNECTED',
+        type: Error,
+        message: 'Already connected'
+      }
+    );
 
-// send(buf, port, host)
-common.expectsError(
-  () => { sock.send(23, 12345, host); },
-  {
-    code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "buffer" argument must be one of type ' +
-    'Buffer, Uint8Array, or string. Received type number'
-  }
-);
+    common.expectsError(
+      () => { sock.send(buf, 1, 1, 0, host); },
+      {
+        code: 'ERR_SOCKET_DGRAM_IS_CONNECTED',
+        type: Error,
+        message: 'Already connected'
+      }
+    );
 
-// send([buf1, ..], port, host)
-common.expectsError(
-  () => { sock.send([buf, 23], 12345, host); },
-  {
-    code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "buffer list arguments" argument must be one of type ' +
-    'Buffer or string. Received type object'
+    common.expectsError(
+      () => { sock.send(buf, 1, 1, 65536, host); },
+      {
+        code: 'ERR_SOCKET_DGRAM_IS_CONNECTED',
+        type: Error,
+        message: 'Already connected'
+      }
+    );
+  } else {
+    assert.throws(() => { sock.send(buf, 1, 1, -1, host); }, RangeError);
+    assert.throws(() => { sock.send(buf, 1, 1, 0, host); }, RangeError);
+    assert.throws(() => { sock.send(buf, 1, 1, 65536, host); }, RangeError);
   }
-);
+
+  // send(buf, port, host)
+  common.expectsError(
+    () => { sock.send(23, 12345, host); },
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "buffer" argument must be one of type ' +
+      'Buffer, Uint8Array, or string. Received type number'
+    }
+  );
+
+  // send([buf1, ..], port, host)
+  common.expectsError(
+    () => { sock.send([buf, 23], 12345, host); },
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "buffer list arguments" argument must be one of type ' +
+      'Buffer or string. Received type object'
+    }
+  );
+}
+
+checkArgs();
+sock.connect(12345, common.mustCall(() => {
+  checkArgs(true);
+  sock.close();
+}));

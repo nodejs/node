@@ -1571,6 +1571,17 @@ Data could be sent on a socket.
 
 An attempt was made to operate on an already closed socket.
 
+<a id="ERR_SOCKET_DGRAM_IS_CONNECTED"></a>
+### ERR_SOCKET_DGRAM_IS_CONNECTED
+
+A [`dgram.connect()`][] call was made on an already connected socket.
+
+<a id="ERR_SOCKET_DGRAM_NOT_CONNECTED"></a>
+### ERR_SOCKET_DGRAM_NOT_CONNECTED
+
+A [`dgram.disconnect()`][] or [`dgram.remoteAddress()`][] call was made on a
+disconnected socket.
+
 <a id="ERR_SOCKET_DGRAM_NOT_RUNNING"></a>
 ### ERR_SOCKET_DGRAM_NOT_RUNNING
 
@@ -2140,7 +2151,10 @@ size.
 [`crypto.scrypt()`]: crypto.html#crypto_crypto_scrypt_password_salt_keylen_options_callback
 [`crypto.scryptSync()`]: crypto.html#crypto_crypto_scryptsync_password_salt_keylen_options
 [`crypto.timingSafeEqual()`]: crypto.html#crypto_crypto_timingsafeequal_a_b
+[`dgram.connect()`]: dgram.html#dgram_socket_connect_port_address_callback
 [`dgram.createSocket()`]: dgram.html#dgram_dgram_createsocket_options_callback
+[`dgram.disconnect()`]: dgram.html#dgram_socket_disconnect
+[`dgram.remoteAddress()`]: dgram.html#dgram_socket_remoteaddress
 [`errno`(3) man page]: http://man7.org/linux/man-pages/man3/errno.3.html
 [`fs.readFileSync`]: fs.html#fs_fs_readfilesync_path_options
 [`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
