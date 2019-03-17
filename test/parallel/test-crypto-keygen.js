@@ -6,6 +6,8 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const {
+  createPrivateKey,
+  createPublicKey,
   createSign,
   createVerify,
   generateKeyPair,
@@ -275,6 +277,15 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     assertApproximateSize(publicKey, 440);
     assertApproximateSize(privateKeyDER, 336);
 
+    assert.strictEqual(createPublicKey(publicKey).asymmetricKeyTypeOid,
+                       '1.2.840.10040.4.1');
+    assert.strictEqual(createPrivateKey({
+                         key: privateKeyDER,
+                         ...privateKeyEncoding,
+                         passphrase: 'secret'
+                       }).asymmetricKeyTypeOid,
+                       '1.2.840.10040.4.1');
+
     // Since the private key is encrypted, signing shouldn't work anymore.
     assert.throws(() => {
       testSignVerify(publicKey, {
@@ -313,6 +324,11 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     assert(spkiExp.test(publicKey));
     assert.strictEqual(typeof privateKey, 'string');
     assert(sec1Exp.test(privateKey));
+
+    assert.strictEqual(createPublicKey(publicKey).asymmetricKeyTypeOid,
+                       '1.2.840.10045.2.1');
+    assert.strictEqual(createPrivateKey(privateKey).asymmetricKeyTypeOid,
+                       '1.2.840.10045.2.1');
 
     testSignVerify(publicKey, privateKey);
   }));
