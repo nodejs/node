@@ -1,6 +1,7 @@
 language: cpp
 cache: ccache
 os: linux
+dist: xenial
 matrix:
   include:
     - name: "First commit message adheres to guidelines at <a href=\"https://goo.gl/p2fr5Q\">https://goo.gl/p2fr5Q</a>"
@@ -24,9 +25,9 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - g++-4.9
+            - g++-6
       install:
-        - export CC='ccache gcc-4.9' CXX='ccache g++-4.9' JOBS=2
+        - export CC='ccache gcc-6' CXX='ccache g++-6' JOBS=2
         - ./configure
         - make -j2 V=
       script:
