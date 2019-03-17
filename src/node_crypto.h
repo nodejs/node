@@ -171,6 +171,7 @@ class SecureContext : public BaseObject {
 
   template <bool primary>
   static void GetCertificate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetCertificateObject(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static int TicketKeyCallback(SSL* ssl,
                                unsigned char* name,

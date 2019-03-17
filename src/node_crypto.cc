@@ -151,6 +151,7 @@ template int SSLWrap<TLSWrap>::SelectALPNCallback(
     const unsigned char* in,
     unsigned int inlen,
     void* arg);
+static Local<Object> X509ToObject(Environment* env, X509* cert);
 
 
 static int PasswordCallback(char* buf, int size, int rwflag, void* u) {
@@ -355,6 +356,7 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "setFreeListLength", SetFreeListLength);
   env->SetProtoMethod(t, "enableTicketKeyCallback", EnableTicketKeyCallback);
   env->SetProtoMethodNoSideEffect(t, "getCertificate", GetCertificate<true>);
+  env->SetProtoMethodNoSideEffect(t, "getCertificateObject", GetCertificateObject);
   env->SetProtoMethodNoSideEffect(t, "getIssuer", GetCertificate<false>);
 
 #define SET_INTEGER_CONSTANTS(name, value)                                     \
@@ -1448,6 +1450,21 @@ void SecureContext::GetCertificate(const FunctionCallbackInfo<Value>& args) {
   i2d_X509(cert, &serialized);
 
   args.GetReturnValue().Set(buff);
+}
+
+
+void SecureContext::GetCertificateObject(const FunctionCallbackInfo<Value>& args) {
+  SecureContext* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  Environment* env = wrap->env();
+  X509* cert = wrap->cert_.get();
+
+  ClearErrorOnReturn clear_error_on_return;
+
+  if (cert == nullptr)
+    args.GetReturnValue().SetNull();
+  else
+    args.GetReturnValue().Set(X509ToObject(env, cert));
 }
 
 
