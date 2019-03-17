@@ -367,7 +367,7 @@ Here is an example of the `ret` object passed to the callback:
     minttl: 60 } ]
 ```
 
-Note that the operator of a DNS server might choose not to respond to `ANY`
+DNS server operators may choose not to respond to `ANY`
 queries. It may be better to call individual methods like [`dns.resolve4()`][],
 [`dns.resolveMx()`][], and so on. For more details, see [RFC 8482][].
 
