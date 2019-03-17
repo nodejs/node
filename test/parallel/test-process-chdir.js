@@ -46,7 +46,4 @@ common.expectsError(function() { process.chdir(); }, err);
 // Check that our built-in methods do not have a prototype/constructor behaviour
 // if they don't need to. This could be tested for any of our C++ methods.
 assert.strictEqual(process.cwd.prototype, undefined);
-assert.throws(() => new process.cwd(), /not a constructor/);
-// Make sure that the above checks verify the right thing, i.e. that we're
-// actually looking at a directly exposed C++ binding method.
-assert.strictEqual(process.cwd.toString(), 'function cwd() { [native code] }');
+assert.throws(() => new process.cwd(), TypeError);
