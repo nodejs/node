@@ -740,10 +740,8 @@ def check_compiler(o):
   ok, is_clang, clang_version, gcc_version = try_check_compiler(CXX, 'c++')
   if not ok:
     warn('failed to autodetect C++ compiler version (CXX=%s)' % CXX)
-  elif sys.platform.startswith('aix') and gcc_version < (6, 3, 0):
-    warn('C++ compiler too old, need g++ 6.3.0 (CXX=%s)' % CXX)
-  elif clang_version < (3, 4, 2) if is_clang else gcc_version < (4, 9, 4):
-    warn('C++ compiler too old, need g++ 4.9.4 or clang++ 3.4.2 (CXX=%s)' % CXX)
+  elif clang_version < (8, 0, 0) if is_clang else gcc_version < (6, 3, 0):
+    warn('C++ compiler too old, need g++ 6.3.0 or clang++ 8.0.0 (CXX=%s)' % CXX)
 
   ok, is_clang, clang_version, gcc_version = try_check_compiler(CC, 'c')
   if not ok:
