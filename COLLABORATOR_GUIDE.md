@@ -637,10 +637,8 @@ git push upstream master
 
 #### What is LTS?
 
-Long Term Support (often referred to as *LTS*) guarantees application developers
-a 30-month support cycle with specific versions of Node.js.
-
-You can find more information
+Long Term Support (LTS) guarantees 30-month support cycles for specific Node.js
+versions. You can find more information
 [in the full release plan](https://github.com/nodejs/Release#release-plan).
 
 #### How does LTS work?
