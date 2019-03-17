@@ -2361,6 +2361,15 @@ changes:
     description: Runtime deprecation.
 -->
 
+<a id="DEP0126"></a>
+### DEP0126: writing to process[Symbol.toStringTag]
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/26715
+    description: Runtime deprecation.
+-->
+
 Type: Runtime
 
 The `_stream_wrap` module is deprecated.
