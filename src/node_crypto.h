@@ -470,6 +470,10 @@ class KeyObject : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   v8::Local<v8::String> GetAsymmetricKeyType() const;
 
+  static void GetAsymmetricKeyTypeOid(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  v8::Local<v8::String> GetAsymmetricKeyTypeOid() const;
+
   static void GetSymmetricKeySize(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 

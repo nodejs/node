@@ -39,6 +39,7 @@ const privatePem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
   assert.strictEqual(key.type, 'secret');
   assert.strictEqual(key.symmetricKeySize, 32);
   assert.strictEqual(key.asymmetricKeyType, undefined);
+  assert.strictEqual(key.asymmetricKeyTypeOid, undefined);
 
   const exportedKey = key.export();
   assert(keybuf.equals(exportedKey));
@@ -91,17 +92,20 @@ const privatePem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
   const publicKey = createPublicKey(publicPem);
   assert.strictEqual(publicKey.type, 'public');
   assert.strictEqual(publicKey.asymmetricKeyType, 'rsa');
+  assert.strictEqual(publicKey.asymmetricKeyTypeOid, '1.2.840.113549.1.1.1');
   assert.strictEqual(publicKey.symmetricKeySize, undefined);
 
   const privateKey = createPrivateKey(privatePem);
   assert.strictEqual(privateKey.type, 'private');
   assert.strictEqual(privateKey.asymmetricKeyType, 'rsa');
+  assert.strictEqual(publicKey.asymmetricKeyTypeOid, '1.2.840.113549.1.1.1');
   assert.strictEqual(privateKey.symmetricKeySize, undefined);
 
   // It should be possible to derive a public key from a private key.
   const derivedPublicKey = createPublicKey(privateKey);
   assert.strictEqual(derivedPublicKey.type, 'public');
   assert.strictEqual(derivedPublicKey.asymmetricKeyType, 'rsa');
+  assert.strictEqual(publicKey.asymmetricKeyTypeOid, '1.2.840.113549.1.1.1');
   assert.strictEqual(derivedPublicKey.symmetricKeySize, undefined);
 
   // Test exporting with an invalid options object, this should throw.
@@ -171,10 +175,12 @@ const privatePem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
 [
   { private: fixtures.readSync('test_ed25519_privkey.pem', 'ascii'),
     public: fixtures.readSync('test_ed25519_pubkey.pem', 'ascii'),
-    keyType: 'ed25519' },
+    keyType: 'ed25519',
+    oid: '1.3.101.112' },
   { private: fixtures.readSync('test_ed448_privkey.pem', 'ascii'),
     public: fixtures.readSync('test_ed448_pubkey.pem', 'ascii'),
-    keyType: 'ed448' }
+    keyType: 'ed448',
+    oid: '1.3.101.113' }
 ].forEach((info) => {
   const keyType = info.keyType;
 
@@ -183,6 +189,7 @@ const privatePem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
     const key = createPrivateKey(info.private);
     assert.strictEqual(key.type, 'private');
     assert.strictEqual(key.asymmetricKeyType, keyType);
+    assert.strictEqual(key.asymmetricKeyTypeOid, info.oid);
     assert.strictEqual(key.symmetricKeySize, undefined);
     assert.strictEqual(key.export(exportOptions), info.private);
   }
@@ -193,6 +200,7 @@ const privatePem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
       const key = createPublicKey(pem);
       assert.strictEqual(key.type, 'public');
       assert.strictEqual(key.asymmetricKeyType, keyType);
+      assert.strictEqual(key.asymmetricKeyTypeOid, info.oid);
       assert.strictEqual(key.symmetricKeySize, undefined);
       assert.strictEqual(key.export(exportOptions), info.public);
     });

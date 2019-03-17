@@ -1135,6 +1135,16 @@ For asymmetric keys, this property represents the type of the embedded key
 (`'rsa'`, `'dsa'`, `'ec'`, `'ed25519'`, or `'ed448'`).
 This property is `undefined` for symmetric keys.
 
+### keyObject.asymmetricKeyTypeOid
+<!-- YAML
+added: REPLACEME
+-->
+* {string}
+
+For asymmetric keys, this property represents the numerical representation of
+the OID of the type of the embedded key, e.g., `'1.3.101.113'` for `'ed448'`.
+This property is `undefined` for symmetric keys.
+
 ### keyObject.export([options])
 <!-- YAML
 added: v11.6.0

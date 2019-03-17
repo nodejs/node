@@ -3333,6 +3333,8 @@ Local<Function> KeyObject::Initialize(Environment* env, Local<Object> target) {
                                   GetSymmetricKeySize);
   env->SetProtoMethodNoSideEffect(t, "getAsymmetricKeyType",
                                   GetAsymmetricKeyType);
+  env->SetProtoMethodNoSideEffect(t, "getAsymmetricKeyTypeOid",
+                                  GetAsymmetricKeyTypeOid);
   env->SetProtoMethod(t, "export", Export);
 
   auto function = t->GetFunction(env->context()).ToLocalChecked();
@@ -3475,6 +3477,24 @@ void KeyObject::GetAsymmetricKeyType(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
 
   args.GetReturnValue().Set(key->GetAsymmetricKeyType());
+}
+
+void KeyObject::GetAsymmetricKeyTypeOid(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  KeyObject* key;
+  ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
+  args.GetReturnValue().Set(key->GetAsymmetricKeyTypeOid());
+}
+
+v8::Local<v8::String> KeyObject::GetAsymmetricKeyTypeOid() const {
+  CHECK_NE(this->key_type_, kKeyTypeSecret);
+
+  int id = EVP_PKEY_id(asymmetric_key_.get());
+  ASN1_OBJECT* obj = OBJ_nid2obj(id);
+  char buf[1024];
+  CHECK(OBJ_obj2txt(buf, sizeof(buf), obj, true));
+  return String::NewFromUtf8(env()->isolate(), buf, NewStringType::kNormal)
+         .ToLocalChecked();
 }
 
 void KeyObject::GetSymmetricKeySize(const FunctionCallbackInfo<Value>& args) {
