@@ -639,20 +639,9 @@ git push upstream master
 
 Long Term Support (LTS) guarantees 30-month support cycles for specific Node.js
 versions. You can find more information
-[in the full release plan](https://github.com/nodejs/Release#release-plan).
-
-#### How does LTS work?
-
-Once a Current branch enters LTS, changes in that branch are limited to bug
-fixes, security updates, possible npm updates, documentation updates, and
-certain performance improvements that can be demonstrated to not break existing
-applications. Semver-minor changes are only permitted if required for bug fixes
-and then only on a case-by-case basis with LTS WG and possibly Technical
-Steering Committee (TSC) review. Semver-major changes are permitted only if
-required for security-related fixes.
-
-Once a Current branch moves into Maintenance mode, only **critical** bugs,
-**critical** security fixes, and documentation updates will be permitted.
+[in the full release plan](https://github.com/nodejs/Release#release-plan). Once
+a branch enters LTS, the release plan limits the types of changes permitted in
+the branch.
 
 #### Landing semver-minor commits in LTS
 
