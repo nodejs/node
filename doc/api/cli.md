@@ -169,6 +169,14 @@ added: v9.6.0
 
 Enable experimental ES Module support in the `vm` module.
 
+### `--expose-gc`
+<!-- YAML
+added: v9.6.0
+-->
+
+Force node to run garbage collection, can then call `global.gc()` or `gc()`.   
+Attention: all other execution within your node app is paused until GC completes, influence on performance.
+
 ### `--force-fips`
 <!-- YAML
 added: v6.0.0
@@ -705,6 +713,7 @@ Node.js options that are allowed are:
 - `--experimental-repl-await`
 - `--experimental-report`
 - `--experimental-vm-modules`
+- `--expose-gc`
 - `--force-fips`
 - `--frozen-intrinsics`
 - `--icu-data-dir`
