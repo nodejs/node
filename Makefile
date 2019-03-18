@@ -54,10 +54,9 @@ BUILD_DOWNLOAD_FLAGS ?= --download=all
 BUILD_INTL_FLAGS ?= --with-intl=small-icu
 BUILD_RELEASE_FLAGS ?= $(BUILD_DOWNLOAD_FLAGS) $(BUILD_INTL_FLAGS)
 
-# Default to verbose builds.
-# To do quiet/pretty builds, run `make V=` to set V to an empty string,
-# or set the V environment variable to an empty string.
-V ?= 1
+# Default to quiet/pretty builds.
+# To do verbose builds, run `make V=1` or set the V environment variable.
+V ?= 0
 
 # Use -e to double check in case it's a broken link
 # Use $(PWD) so we can cd to anywhere before calling this
