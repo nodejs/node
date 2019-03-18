@@ -488,6 +488,8 @@ For information about the governance of the Node.js project, see
 **Yorkie Liu** &lt;yorkiefixer@gmail.com&gt;
 * [yosuke-furukawa](https://github.com/yosuke-furukawa) -
 **Yosuke Furukawa** &lt;yosuke.furukawa@gmail.com&gt;
+* [ZYSzys](https://github.com/ZYSzys) -
+**Yongsheng Zhang** &lt;zyszys98@gmail.com&gt; (he/him)
 
 ### Collaborator Emeriti
 
