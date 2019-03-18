@@ -287,11 +287,6 @@ class WPTRunner {
   // TODO(joyeecheung): work with the upstream to port more tests in .html
   // to .js.
   runJsTests() {
-    // TODO(joyeecheung): it's still under discussion whether we should leave
-    // err.name alone. See https://github.com/nodejs/node/issues/20253
-    const internalErrors = require('internal/errors');
-    internalErrors.useOriginalName = true;
-
     let queue = [];
 
     // If the tests are run as `node test/wpt/test-something.js subset.any.js`,
