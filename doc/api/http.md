@@ -2082,7 +2082,7 @@ There are a few special headers that should be noted.
 
 * Sending an 'Expect' header will immediately send the request headers.
   Usually, when sending 'Expect: 100-continue', both a timeout and a listener
-  for the `'continue'` event should be set. See RFC2616 Section 8.2.3 for more
+  for the `'continue'` event should be set. See RFC 2616 Section 8.2.3 for more
   information.
 
 * Sending an Authorization header will override using the `auth` option
