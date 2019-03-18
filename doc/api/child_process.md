@@ -871,7 +871,7 @@ changes:
   * `status` {number|null} The exit code of the subprocess, or `null` if the
     subprocess terminated due to a signal.
   * `signal` {string|null} The signal used to kill the subprocess, or `null` if
-    the subprocess did not end due to a signal.
+    the subprocess did not terminate due to a signal.
   * `error` {Error} The error object if the child process failed or timed out.
 
 The `child_process.spawnSync()` method is generally identical to
