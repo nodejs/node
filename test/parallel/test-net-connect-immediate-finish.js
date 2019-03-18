@@ -26,7 +26,6 @@
 // 'connect' and defer the handling until the 'connect' event is handled.
 
 const common = require('../common');
-const assert = require('assert');
 const net = require('net');
 
 const { addresses } = require('../common/internet');
@@ -42,13 +41,14 @@ const client = net.connect({
   lookup: common.mustCall(errorLookupMock())
 }, common.mustNotCall());
 
-client.once('error', common.mustCall((err) => {
-  assert(err);
-  assert.strictEqual(err.code, err.errno);
-  assert.strictEqual(err.code, mockedErrorCode);
-  assert.strictEqual(err.host, err.hostname);
-  assert.strictEqual(err.host, addresses.INVALID_HOST);
-  assert.strictEqual(err.syscall, mockedSysCall);
+client.once('error', common.expectsError({
+  code: mockedErrorCode,
+  errno: mockedErrorCode,
+  syscall: mockedSysCall,
+  hostname: addresses.INVALID_HOST,
+  message: 'getaddrinfo ENOTFOUND something.invalid',
+  port: undefined,
+  host: undefined
 }));
 
 client.end();
