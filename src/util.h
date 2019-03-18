@@ -184,6 +184,11 @@ void DumpBacktrace(FILE* fp);
 #define UNREACHABLE(...)                                                      \
   ERROR_AND_ABORT("Unreachable code reached" __VA_OPT__(": ") __VA_ARGS__)
 
+// ECMA262 20.1.2.6 Number.MAX_SAFE_INTEGER (2^53-1)
+constexpr int64_t kMaxSafeJsInteger = 9007199254740991;
+
+inline bool IsSafeJsInt(v8::Local<v8::Value> v);
+
 // TAILQ-style intrusive list node.
 template <typename T>
 class ListNode;

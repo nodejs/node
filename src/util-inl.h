@@ -24,6 +24,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <cmath>
 #include <cstring>
 #include "util.h"
 
@@ -519,6 +520,17 @@ void ArrayBufferViewContents<T, S>::Read(v8::Local<v8::ArrayBufferView> abv) {
     abv->CopyContents(stack_storage_, sizeof(stack_storage_));
     data_ = stack_storage_;
   }
+}
+
+// ECMA262 20.1.2.5
+inline bool IsSafeJsInt(v8::Local<v8::Value> v) {
+  if (!v->IsNumber()) return false;
+  double v_d = v.As<v8::Number>()->Value();
+  if (std::isnan(v_d)) return false;
+  if (std::isinf(v_d)) return false;
+  if (std::trunc(v_d) != v_d) return false;  // not int
+  if (std::abs(v_d) <= static_cast<double>(kMaxSafeJsInteger)) return true;
+  return false;
 }
 
 }  // namespace node

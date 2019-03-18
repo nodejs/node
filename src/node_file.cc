@@ -1851,7 +1851,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
  *
  * 0 fd        int32. file descriptor
  * 1 buffer    instance of Buffer
- * 2 offset    int32. offset to start reading into inside buffer
+ * 2 offset    int64. offset to start reading into inside buffer
  * 3 length    int32. length to read
  * 4 position  int64. file position - -1 for current position
  */
@@ -1869,15 +1869,17 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
   char* buffer_data = Buffer::Data(buffer_obj);
   size_t buffer_length = Buffer::Length(buffer_obj);
 
-  CHECK(args[2]->IsInt32());
-  const size_t off = static_cast<size_t>(args[2].As<Int32>()->Value());
-  CHECK_LT(off, buffer_length);
+  CHECK(IsSafeJsInt(args[2]));
+  const int64_t off_64 = args[2].As<Integer>()->Value();
+  CHECK_GE(off_64, 0);
+  CHECK_LT(static_cast<uint64_t>(off_64), buffer_length);
+  const size_t off = static_cast<size_t>(off_64);
 
   CHECK(args[3]->IsInt32());
   const size_t len = static_cast<size_t>(args[3].As<Int32>()->Value());
   CHECK(Buffer::IsWithinBounds(off, len, buffer_length));
 
-  CHECK(args[4]->IsNumber());
+  CHECK(IsSafeJsInt(args[4]));
   const int64_t pos = args[4].As<Integer>()->Value();
 
   char* buf = buffer_data + off;

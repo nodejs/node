@@ -53,6 +53,20 @@ assert.throws(() => {
 assert.throws(() => {
   fs.read(fd,
           Buffer.allocUnsafe(expected.length),
+          NaN,
+          expected.length,
+          0,
+          common.mustNotCall());
+}, {
+  code: 'ERR_OUT_OF_RANGE',
+  name: 'RangeError',
+  message: 'The value of "offset" is out of range. It must be an integer. ' +
+           'Received NaN'
+});
+
+assert.throws(() => {
+  fs.read(fd,
+          Buffer.allocUnsafe(expected.length),
           0,
           -1,
           0,
@@ -101,6 +115,19 @@ assert.throws(() => {
   name: 'RangeError',
   message: 'The value of "offset" is out of range. ' +
            'It must be >= 0 && <= 4. Received -1'
+});
+
+assert.throws(() => {
+  fs.readSync(fd,
+              Buffer.allocUnsafe(expected.length),
+              NaN,
+              expected.length,
+              0);
+}, {
+  code: 'ERR_OUT_OF_RANGE',
+  name: 'RangeError',
+  message: 'The value of "offset" is out of range. It must be an integer. ' +
+           'Received NaN'
 });
 
 assert.throws(() => {
