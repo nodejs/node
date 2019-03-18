@@ -188,7 +188,7 @@ void SetIsolateUpForNode(v8::Isolate* isolate) {
       Isolate::MessageErrorLevel::kMessageError |
           Isolate::MessageErrorLevel::kMessageWarning);
   isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
-  isolate->SetMicrotasksPolicy(MicrotasksPolicy::kExplicit);
+  isolate->SetMicrotasksPolicy(MicrotasksPolicy::kAuto);
   isolate->SetFatalErrorHandler(OnFatalError);
   isolate->SetAllowWasmCodeGenerationCallback(AllowWasmCodeGenerationCallback);
   isolate->SetPromiseRejectCallback(task_queue::PromiseRejectCallback);
