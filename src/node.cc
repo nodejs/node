@@ -296,8 +296,6 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
       env->process_string(),
       FIXED_ONE_BYTE_STRING(isolate, "getLinkedBinding"),
       FIXED_ONE_BYTE_STRING(isolate, "getInternalBinding"),
-      // --expose-internals
-      FIXED_ONE_BYTE_STRING(isolate, "exposeInternals"),
       env->primordials_string()};
   std::vector<Local<Value>> loaders_args = {
       process,
@@ -307,7 +305,6 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
       env->NewFunctionTemplate(binding::GetInternalBinding)
           ->GetFunction(context)
           .ToLocalChecked(),
-      Boolean::New(isolate, env->options()->expose_internals),
       env->primordials()};
 
   // Bootstrap internal loaders
