@@ -2267,6 +2267,38 @@ undocumented `COUNTER_NET_SERVER_CONNECTION()`,
 `COUNTER_HTTP_CLIENT_RESPONSE()` functions have been deprecated.
 
 
+<a id="DEP0126"></a>
+### DEP0126: timers.active()
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/26760
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+The previously undocumented `timers.active()` is deprecated.
+Please use the publicly documented [`timeout.refresh()`][] instead.
+If re-referencing the timeout is necessary, [`timeout.ref()`][] can be used
+with no performance impact since Node.js 10.
+
+<a id="DEP0127"></a>
+### DEP0127: timers._unrefActive()
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/26760
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+The previously undocumented and "private" `timers._unrefActive()` is deprecated.
+Please use the publicly documented [`timeout.refresh()`][] instead.
+If unreferencing the timeout is necessary, [`timeout.unref()`][] can be used
+with no performance impact since Node.js 10.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
@@ -2322,6 +2354,9 @@ undocumented `COUNTER_NET_SERVER_CONNECTION()`,
 [`script.createCachedData()`]: vm.html#vm_script_createcacheddata
 [`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
 [`setTimeout()`]: timers.html#timers_settimeout_callback_delay_args
+[`timeout.ref()`]: timers.html#timers_timeout_ref
+[`timeout.refresh()`]: timers.html#timers_timeout_refresh
+[`timeout.unref()`]: timers.html#timers_timeout_unref
 [`tls.CryptoStream`]: tls.html#tls_class_cryptostream
 [`tls.SecureContext`]: tls.html#tls_tls_createsecurecontext_options
 [`tls.SecurePair`]: tls.html#tls_class_securepair
