@@ -6,7 +6,6 @@
 
 const common = require('../common');
 const net = require('net');
-const assert = require('assert');
 
 const { addresses } = require('../common/internet');
 const {
@@ -23,8 +22,9 @@ const c = net.createConnection({
 
 c.on('connect', common.mustNotCall());
 
-c.on('error', common.mustCall(function(e) {
-  assert.strictEqual(e.code, mockedErrorCode);
-  assert.strictEqual(e.port, 0);
-  assert.strictEqual(e.hostname, addresses.INVALID_HOST);
+c.on('error', common.expectsError({
+  code: mockedErrorCode,
+  hostname: addresses.INVALID_HOST,
+  port: undefined,
+  host: undefined
 }));
