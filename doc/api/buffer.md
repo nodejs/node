@@ -178,10 +178,10 @@ The character encodings currently supported by Node.js include:
 
 * `'base64'` - Base64 encoding. When creating a `Buffer` from a string,
   this encoding will also correctly accept "URL and Filename Safe Alphabet" as
-  specified in [RFC4648, Section 5].
+  specified in [RFC 4648, Section 5].
 
 * `'latin1'` - A way of encoding the `Buffer` into a one-byte encoded string
-  (as defined by the IANA in [RFC1345],
+  (as defined by the IANA in [RFC 1345],
   page 63, to be the Latin-1 supplement block and C0/C1 control codes).
 
 * `'binary'` - Alias for `'latin1'`.
@@ -2644,8 +2644,8 @@ in UTF-16 code units.
 
 This value may depend on the JS engine that is being used.
 
-[RFC1345]: https://tools.ietf.org/html/rfc1345
-[RFC4648, Section 5]: https://tools.ietf.org/html/rfc4648#section-5
+[RFC 1345]: https://tools.ietf.org/html/rfc1345
+[RFC 4648, Section 5]: https://tools.ietf.org/html/rfc4648#section-5
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
 [`ArrayBuffer#slice()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/slice
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
