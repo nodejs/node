@@ -19,7 +19,7 @@ process.on('warning', common.mustCall((warning) => {
   assert.strictEqual(lines[0], `${OVERFLOW} does not fit into a 32-bit signed` +
                                ' integer.');
   assert.strictEqual(lines.length, 2);
-}, 5));
+}, 6));
 
 
 {
