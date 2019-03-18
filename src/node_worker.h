@@ -70,7 +70,7 @@ class Worker : public AsyncWrap {
   bool thread_joined_ = true;
   int exit_code_ = 0;
   uint64_t thread_id_ = -1;
-  uintptr_t stack_base_;
+  uintptr_t stack_base_ = 0;
 
   // Full size of the thread's stack.
   static constexpr size_t kStackSize = 4 * 1024 * 1024;
