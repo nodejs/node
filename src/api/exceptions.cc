@@ -213,16 +213,22 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
   }
 
   Local<Object> obj = e.As<Object>();
-  obj->Set(env->errno_string(), Integer::New(isolate, errorno));
+  obj->Set(env->context(), env->errno_string(), Integer::New(isolate, errorno))
+      .FromJust();
 
   if (path != nullptr) {
-    obj->Set(env->path_string(),
+    obj->Set(env->context(),
+             env->path_string(),
              String::NewFromUtf8(isolate, path, NewStringType::kNormal)
-                 .ToLocalChecked());
+                 .ToLocalChecked())
+        .FromJust();
   }
 
   if (syscall != nullptr) {
-    obj->Set(env->syscall_string(), OneByteString(isolate, syscall));
+    obj->Set(env->context(),
+             env->syscall_string(),
+             OneByteString(isolate, syscall))
+        .FromJust();
   }
 
   if (must_free)
