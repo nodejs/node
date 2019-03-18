@@ -38,5 +38,10 @@ function connectDoesNotThrow(input) {
     cb(null, '127.0.0.1', 100);
   });
 
-  s.on('error', common.expectsError({ code: 'ERR_INVALID_ADDRESS_FAMILY' }));
+  s.on('error', common.expectsError({
+    code: 'ERR_INVALID_ADDRESS_FAMILY',
+    host: 'localhost',
+    port: 0,
+    message: 'Invalid address family: 100 localhost:0'
+  }));
 }
