@@ -40,7 +40,8 @@ deepStrictEqual(
   [{ valueOf() { return null; } }, 'object'],
   [{ valueOf() { return undefined; } }, 'object'],
   [{ valueOf: null }, 'object'],
-  [Object.create(null), 'object']
+  [Object.create(null), 'object'],
+  [() => {}, 'function']
 ].forEach(([input, actualType]) => {
   const err = common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
