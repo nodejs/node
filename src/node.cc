@@ -360,14 +360,9 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
 
   // Make sure that no request or handle is created during bootstrap -
   // if necessary those should be done in pre-exeuction.
-  // TODO(joyeecheung): print requests before aborting
-  if (env->event_loop()->active_handles > 0) {
-    PrintLibuvHandleInformation(env->event_loop(), stderr);
-    CHECK_EQ(env->event_loop()->active_handles, 0);
-  }
+  // TODO(joyeecheung): print handles/requests before aborting
   CHECK(env->req_wrap_queue()->IsEmpty());
   CHECK(env->handle_wrap_queue()->IsEmpty());
-  CHECK_EQ(env->event_loop()->active_reqs.count, 0);
 
   env->set_has_run_bootstrapping_code(true);
 
