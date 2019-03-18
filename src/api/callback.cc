@@ -79,7 +79,6 @@ InternalCallbackScope::~InternalCallbackScope() {
 void InternalCallbackScope::Close() {
   if (closed_) return;
   closed_ = true;
-  HandleScope handle_scope(env_->isolate());
 
   if (!env_->can_call_into_js()) return;
   if (failed_ && !env_->is_main_thread() && env_->is_stopping()) {
@@ -117,6 +116,7 @@ void InternalCallbackScope::Close() {
     return;
   }
 
+  HandleScope handle_scope(env_->isolate());
   Local<Object> process = env_->process_object();
 
   if (!env_->can_call_into_js()) return;
