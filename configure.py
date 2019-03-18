@@ -121,9 +121,10 @@ parser.add_option("--fully-static",
     help="Generate an executable without external dynamic libraries. This "
          "will not work on OSX when using the default compilation environment")
 
-parser.add_option("--partly-static",
-    action="store_true",
+parser.add_option("--not-partly-static",
+    action="store_false",
     dest="partly_static",
+    default='True',
     help="Generate an executable with libgcc and libstdc++ libraries. This "
          "will not work on OSX when using the default compilation environment")
 
