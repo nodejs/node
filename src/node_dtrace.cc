@@ -248,15 +248,19 @@ void DTRACE_HTTP_CLIENT_RESPONSE(const FunctionCallbackInfo<Value>& args) {
   NODE_HTTP_CLIENT_RESPONSE(&conn, conn.remote, conn.port, conn.fd);
 }
 
-
-void dtrace_gc_start(Isolate* isolate, GCType type, GCCallbackFlags flags) {
+void dtrace_gc_start(Isolate* isolate,
+                     GCType type,
+                     GCCallbackFlags flags,
+                     void* data) {
   // Previous versions of this probe point only logged type and flags.
   // That's why for reasons of backwards compatibility the isolate goes last.
   NODE_GC_START(type, flags, isolate);
 }
 
-
-void dtrace_gc_done(Isolate* isolate, GCType type, GCCallbackFlags flags) {
+void dtrace_gc_done(Isolate* isolate,
+                    GCType type,
+                    GCCallbackFlags flags,
+                    void* data) {
   // Previous versions of this probe point only logged type and flags.
   // That's why for reasons of backwards compatibility the isolate goes last.
   NODE_GC_DONE(type, flags, isolate);
@@ -272,8 +276,16 @@ void InitDTrace(Environment* env) {
   }
 #endif
 
-  env->isolate()->AddGCPrologueCallback(dtrace_gc_start);
-  env->isolate()->AddGCEpilogueCallback(dtrace_gc_done);
+  // We need to use the variant of GC callbacks that takes data to
+  // avoid running into DCHECKs when multiple Environments try to add
+  // the same callback to the same isolate multiple times.
+  env->isolate()->AddGCPrologueCallback(dtrace_gc_start, env);
+  env->isolate()->AddGCEpilogueCallback(dtrace_gc_done, env);
+  env->AddCleanupHook([](void* data) {
+    Environment* env = static_cast<Environment*>(data);
+    env->isolate()->RemoveGCPrologueCallback(dtrace_gc_start, env);
+    env->isolate()->RemoveGCEpilogueCallback(dtrace_gc_done, env);
+  }, env);
 }
 
 void InitializeDTrace(Local<Object> target,
