@@ -1906,7 +1906,7 @@ should start using the `async_context` variant of `MakeCallback` or
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url:
+    pr-url: https://github.com/nodejs/node/pull/26530
     description: End-of-Life
   - version:
     - v8.12.0
