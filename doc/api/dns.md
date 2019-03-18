@@ -112,7 +112,7 @@ added: v0.11.3
 
 * Returns: {string[]}
 
-Returns an array of IP address strings, formatted according to [rfc5952][],
+Returns an array of IP address strings, formatted according to [RFC 5952][],
 that are currently configured for DNS resolution. A string will include a port
 section if a custom port is used.
 
@@ -555,10 +555,10 @@ one of the [DNS error codes][].
 <!-- YAML
 added: v0.11.3
 -->
-* `servers` {string[]} array of [rfc5952][] formatted addresses
+* `servers` {string[]} array of [RFC 5952][] formatted addresses
 
 Sets the IP address and port of servers to be used when performing DNS
-resolution. The `servers` argument is an array of [rfc5952][] formatted
+resolution. The `servers` argument is an array of [RFC 5952][] formatted
 addresses. If the port is the IANA default DNS port (53) it can be omitted.
 
 ```js
@@ -647,7 +647,7 @@ added: v10.6.0
 
 * Returns: {string[]}
 
-Returns an array of IP address strings, formatted according to [rfc5952][],
+Returns an array of IP address strings, formatted according to [RFC 5952][],
 that are currently configured for DNS resolution. A string will include a port
 section if a custom port is used.
 
@@ -1008,10 +1008,10 @@ is one of the [DNS error codes](#dns_error_codes).
 <!-- YAML
 added: v10.6.0
 -->
-* `servers` {string[]} array of [rfc5952][] formatted addresses
+* `servers` {string[]} array of [RFC 5952][] formatted addresses
 
 Sets the IP address and port of servers to be used when performing DNS
-resolution. The `servers` argument is an array of [rfc5952][] formatted
+resolution. The `servers` argument is an array of [RFC 5952][] formatted
 addresses. If the port is the IANA default DNS port (53) it can be omitted.
 
 ```js
@@ -1147,5 +1147,5 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [DNS error codes]: #dns_error_codes
 [Implementation considerations section]: #dns_implementation_considerations
 [RFC 8482]: https://tools.ietf.org/html/rfc8482
-[rfc5952]: https://tools.ietf.org/html/rfc5952#section-6
+[RFC 5952]: https://tools.ietf.org/html/rfc5952#section-6
 [supported `getaddrinfo` flags]: #dns_supported_getaddrinfo_flags
