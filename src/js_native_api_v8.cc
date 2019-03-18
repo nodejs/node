@@ -1532,33 +1532,6 @@ static inline napi_status set_error_code(napi_env env,
     RETURN_STATUS_IF_FALSE(env,
                            set_maybe.FromMaybe(false),
                            napi_generic_failure);
-
-    // now update the name to be "name [code]" where name is the
-    // original name and code is the code associated with the Error
-    v8::Local<v8::String> name_string;
-    CHECK_NEW_FROM_UTF8(env, name_string, "");
-    v8::Local<v8::Name> name_key;
-    CHECK_NEW_FROM_UTF8(env, name_key, "name");
-
-    auto maybe_name = err_object->Get(context, name_key);
-    if (!maybe_name.IsEmpty()) {
-      v8::Local<v8::Value> name = maybe_name.ToLocalChecked();
-      if (name->IsString()) {
-        name_string =
-            v8::String::Concat(isolate, name_string, name.As<v8::String>());
-      }
-    }
-    name_string = v8::String::Concat(
-        isolate, name_string, NAPI_FIXED_ONE_BYTE_STRING(isolate, " ["));
-    name_string =
-        v8::String::Concat(isolate, name_string, code_value.As<v8::String>());
-    name_string = v8::String::Concat(
-        isolate, name_string, NAPI_FIXED_ONE_BYTE_STRING(isolate, "]"));
-
-    set_maybe = err_object->Set(context, name_key, name_string);
-    RETURN_STATUS_IF_FALSE(env,
-                           set_maybe.FromMaybe(false),
-                           napi_generic_failure);
   }
   return napi_ok;
 }
