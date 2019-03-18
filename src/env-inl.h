@@ -759,8 +759,10 @@ inline AllocatedBuffer::AllocatedBuffer(Environment* env, uv_buf_t buf)
     : env_(env), buffer_(buf) {}
 
 inline void AllocatedBuffer::Resize(size_t len) {
-  char* new_data = env_->Reallocate(buffer_.base, buffer_.len, len);
-  CHECK_IMPLIES(len > 0, new_data != nullptr);
+  // The `len` check is to make sure we don't end up with `nullptr` as our base.
+  char* new_data = env_->Reallocate(buffer_.base, buffer_.len,
+                                    len > 0 ? len : 1);
+  CHECK_NOT_NULL(new_data);
   buffer_ = uv_buf_init(new_data, len);
 }
 
