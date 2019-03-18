@@ -4,6 +4,9 @@ const common = require('../common');
 const { spawn } = require('child_process');
 const net = require('net');
 
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
+
 const server = net.createServer((conn) => {
   conn.on('close', common.mustCall());
 
