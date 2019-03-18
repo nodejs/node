@@ -104,7 +104,7 @@ Worker::Worker(Environment* env,
 bool Worker::is_stopped() const {
   Mutex::ScopedLock lock(mutex_);
   if (env_ != nullptr)
-    return env_->GetAsyncRequest()->IsStopped();
+    return env_->is_stopping();
   return stopped_;
 }
 
@@ -222,7 +222,7 @@ void Worker::Run() {
           stopped_ = true;
           this->env_ = nullptr;
         }
-        env_->GetAsyncRequest()->SetStopped(true);
+        env_->thread_stopper()->set_stopped(true);
         env_->stop_sub_worker_contexts();
         env_->RunCleanup();
         RunAtExit(env_.get());
@@ -381,7 +381,8 @@ void Worker::OnThreadStopped() {
 Worker::~Worker() {
   Mutex::ScopedLock lock(mutex_);
 
-  CHECK(stopped_ || env_ == nullptr || env_->GetAsyncRequest()->IsStopped());
+  CHECK(stopped_);
+  CHECK_NULL(env_);
   CHECK(thread_joined_);
 
   Debug(this, "Worker %llu destroyed", thread_id_);

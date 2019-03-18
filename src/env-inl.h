@@ -717,7 +717,7 @@ inline void Environment::remove_sub_worker_context(worker::Worker* context) {
 }
 
 inline bool Environment::is_stopping() const {
-  return thread_stopper_.IsStopped();
+  return thread_stopper_.is_stopped();
 }
 
 inline performance::performance_state* Environment::performance_state() {
@@ -981,6 +981,14 @@ void Environment::ForEachBaseObject(T&& iterator) {
     if (obj != nullptr)
       iterator(obj);
   }
+}
+
+bool AsyncRequest::is_stopped() const {
+  return stopped_.load();
+}
+
+void AsyncRequest::set_stopped(bool flag) {
+  stopped_.store(flag);
 }
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)

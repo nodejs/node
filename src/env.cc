@@ -319,13 +319,13 @@ void Environment::InitializeLibuv(bool start_profiler_idle_notifier) {
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
 
-  GetAsyncRequest()->Install(
+  thread_stopper()->Install(
     this, static_cast<void*>(this), [](uv_async_t* handle) {
       Environment* env = static_cast<Environment*>(handle->data);
       uv_stop(env->event_loop());
     });
-  GetAsyncRequest()->SetStopped(false);
-  uv_unref(reinterpret_cast<uv_handle_t*>(GetAsyncRequest()->GetHandle()));
+  thread_stopper()->set_stopped(false);
+  uv_unref(reinterpret_cast<uv_handle_t*>(thread_stopper()->GetHandle()));
 
   // Register clean-up cb to be called to clean up the handles
   // when the environment is freed, note that they are not cleaned in
@@ -344,7 +344,7 @@ void Environment::InitializeLibuv(bool start_profiler_idle_notifier) {
 
 void Environment::ExitEnv() {
   set_can_call_into_js(false);
-  GetAsyncRequest()->Stop();
+  thread_stopper()->Stop();
   isolate_->TerminateExecution();
 }
 
@@ -512,7 +512,7 @@ void Environment::RunCleanup() {
   started_cleanup_ = true;
   TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
                               "RunCleanup", this);
-  GetAsyncRequest()->Uninstall();
+  thread_stopper()->Uninstall();
   CleanupHandles();
 
   while (!cleanup_hooks_.empty()) {
@@ -877,7 +877,7 @@ char* Environment::Reallocate(char* data, size_t old_size, size_t size) {
 }
 
 void AsyncRequest::Install(Environment* env, void* data, uv_async_cb target) {
-  Mutex::ScopedLock lock(mutex_);
+  CHECK_NULL(async_);
   env_ = env;
   async_ = new uv_async_t;
   async_->data = data;
@@ -885,7 +885,6 @@ void AsyncRequest::Install(Environment* env, void* data, uv_async_cb target) {
 }
 
 void AsyncRequest::Uninstall() {
-  Mutex::ScopedLock lock(mutex_);
   if (async_ != nullptr) {
     env_->CloseHandle(async_, [](uv_async_t* async) { delete async; });
     async_ = nullptr;
@@ -893,33 +892,19 @@ void AsyncRequest::Uninstall() {
 }
 
 void AsyncRequest::Stop() {
-  Mutex::ScopedLock lock(mutex_);
-  stop_ = true;
+  set_stopped(true);
   if (async_ != nullptr) uv_async_send(async_);
 }
 
-void AsyncRequest::SetStopped(bool flag) {
-  Mutex::ScopedLock lock(mutex_);
-  stop_ = flag;
-}
-
-bool AsyncRequest::IsStopped() const {
-  Mutex::ScopedLock lock(mutex_);
-  return stop_;
-}
-
 uv_async_t* AsyncRequest::GetHandle() {
-  Mutex::ScopedLock lock(mutex_);
   return async_;
 }
 
 void AsyncRequest::MemoryInfo(MemoryTracker* tracker) const {
-  Mutex::ScopedLock lock(mutex_);
   if (async_ != nullptr) tracker->TrackField("async_request", *async_);
 }
 
 AsyncRequest::~AsyncRequest() {
-  Mutex::ScopedLock lock(mutex_);
   CHECK_NULL(async_);
 }
 

@@ -838,14 +838,14 @@ inline int StartNodeWithIsolate(Isolate* isolate,
       per_process::v8_platform.DrainVMTasks(isolate);
 
       more = uv_loop_alive(env.event_loop());
-      if (more && !env.GetAsyncRequest()->IsStopped()) continue;
+      if (more && !env.is_stopping()) continue;
 
       RunBeforeExit(&env);
 
       // Emit `beforeExit` if the loop became alive either after emitting
       // event, or after running some callbacks.
       more = uv_loop_alive(env.event_loop());
-    } while (more == true && !env.GetAsyncRequest()->IsStopped());
+    } while (more == true && !env.is_stopping());
     env.performance_state()->Mark(
         node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_EXIT);
   }

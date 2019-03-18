@@ -38,6 +38,7 @@
 #include "uv.h"
 #include "v8.h"
 
+#include <atomic>
 #include <cstdint>
 #include <functional>
 #include <list>
@@ -518,18 +519,19 @@ class AsyncRequest : public MemoryRetainer {
   void Install(Environment* env, void* data, uv_async_cb target);
   void Uninstall();
   void Stop();
-  void SetStopped(bool flag);
-  bool IsStopped() const;
+  inline void set_stopped(bool flag);
+  inline bool is_stopped() const;
   uv_async_t* GetHandle();
   void MemoryInfo(MemoryTracker* tracker) const override;
+
+
   SET_MEMORY_INFO_NAME(AsyncRequest)
   SET_SELF_SIZE(AsyncRequest)
 
  private:
   Environment* env_;
   uv_async_t* async_ = nullptr;
-  mutable Mutex mutex_;
-  bool stop_ = true;
+  std::atomic_bool stopped_ {true};
 };
 
 class Environment {
@@ -1049,7 +1051,7 @@ class Environment {
   inline ExecutionMode execution_mode() { return execution_mode_; }
 
   inline void set_execution_mode(ExecutionMode mode) { execution_mode_ = mode; }
-  inline AsyncRequest* GetAsyncRequest() { return &thread_stopper_; }
+  inline AsyncRequest* thread_stopper() { return &thread_stopper_; }
 
  private:
   inline void CreateImmediate(native_immediate_callback cb,
