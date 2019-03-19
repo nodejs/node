@@ -1272,3 +1272,26 @@ const crlfDelay = Infinity;
     }), delay);
   }
 });
+
+// Ensure that the _wordLeft method works even for large input
+{
+  const input = new Readable({
+    read() {
+      this.push('\x1B[1;5D'); // CTRL + Left
+      this.push(null);
+    },
+  });
+  const output = new Writable({
+    write: common.mustCall((data, encoding, cb) => {
+      assert.strictEqual(rl.cursor, rl.line.length - 1);
+      cb();
+    }),
+  });
+  const rl = new readline.createInterface({
+    input: input,
+    output: output,
+    terminal: true,
+  });
+  rl.line = `a${' '.repeat(1e6)}a`;
+  rl.cursor = rl.line.length;
+}
