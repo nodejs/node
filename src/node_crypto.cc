@@ -3533,6 +3533,10 @@ Local<String> KeyObject::GetAsymmetricKeyType() const {
     return env()->crypto_ed25519_string();
   case EVP_PKEY_ED448:
     return env()->crypto_ed448_string();
+  case EVP_PKEY_X25519:
+    return env()->crypto_x25519_string();
+  case EVP_PKEY_X448:
+    return env()->crypto_x448_string();
   default:
     CHECK(false);
   }
@@ -6436,6 +6440,8 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "generateKeyPairEdDSA", GenerateKeyPairEdDSA);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ED25519);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ED448);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_X25519);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_X448);
   NODE_DEFINE_CONSTANT(target, OPENSSL_EC_NAMED_CURVE);
   NODE_DEFINE_CONSTANT(target, OPENSSL_EC_EXPLICIT_CURVE);
   NODE_DEFINE_CONSTANT(target, kKeyEncodingPKCS1);

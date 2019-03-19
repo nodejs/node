@@ -1130,13 +1130,16 @@ passing keys as strings or `Buffer`s due to improved security features.
 added: v11.6.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/26774
+    description: Added support for `'x25519'` and `'x448'`
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/26319
     description: Added support for `'ed25519'` and `'ed448'`
 -->
 * {string}
 
 For asymmetric keys, this property represents the type of the embedded key
-(`'rsa'`, `'dsa'`, `'ec'`, `'ed25519'`, or `'ed448'`).
+(`'rsa'`, `'dsa'`, `'ec'`, `'ed25519'`, `'ed448'`, `'x25519'` or `'x448'`).
 This property is `undefined` for symmetric keys.
 
 ### keyObject.export([options])
@@ -1904,6 +1907,9 @@ algorithm names.
 added: v10.12.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/26774
+    description: Add ability to generate X25519 and X448 key pairs.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/26554
     description: Add ability to generate Ed25519 and Ed448 key pairs.
   - version: v11.6.0
@@ -1911,7 +1917,8 @@ changes:
     description: The `generateKeyPair` and `generateKeyPairSync` functions now
                  produce key objects if no encoding was specified.
 -->
-* `type`: {string} Must be `'rsa'`, `'dsa'`, `'ec'`, `'ed25519'`, or `'ed448'`.
+* `type`: {string} Must be `'rsa'`, `'dsa'`, `'ec'`, `'ed25519'`, `'ed448'`,
+  `'x25519'`, or `'x448'`.
 * `options`: {Object}
   - `modulusLength`: {number} Key size in bits (RSA, DSA).
   - `publicExponent`: {number} Public exponent (RSA). **Default:** `0x10001`.

@@ -147,6 +147,8 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(crypto_ec_string, "ec")                                                    \
   V(crypto_ed25519_string, "ed25519")                                          \
   V(crypto_ed448_string, "ed448")                                              \
+  V(crypto_x25519_string, "x25519")                                            \
+  V(crypto_x448_string, "x448")                                                \
   V(crypto_rsa_string, "rsa")                                                  \
   V(cwd_string, "cwd")                                                         \
   V(data_string, "data")                                                       \
