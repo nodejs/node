@@ -13,6 +13,8 @@
 #endif
 
 namespace node {
+using errors::TryCatchScope;
+using v8::Array;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Function;
@@ -43,6 +45,41 @@ static bool ShouldAbortOnUncaughtException(Isolate* isolate) {
          (env->is_main_thread() || !env->is_stopping()) &&
          env->should_abort_on_uncaught_toggle()[0] &&
          !env->inside_should_not_abort_on_uncaught_scope();
+}
+
+static MaybeLocal<Value> PrepareStackTraceCallback(Local<Context> context,
+                                      Local<Value> exception,
+                                      Local<Array> trace) {
+  Environment* env = Environment::GetCurrent(context);
+  if (env == nullptr) {
+    MaybeLocal<String> s = exception->ToString(context);
+    return s.IsEmpty() ?
+      MaybeLocal<Value>() :
+      MaybeLocal<Value>(s.ToLocalChecked());
+  }
+  Local<Function> prepare = env->prepare_stack_trace_callback();
+  if (prepare.IsEmpty()) {
+    MaybeLocal<String> s = exception->ToString(context);
+    return s.IsEmpty() ?
+      MaybeLocal<Value>() :
+      MaybeLocal<Value>(s.ToLocalChecked());
+  }
+  Local<Value> args[] = {
+      context->Global(),
+      exception,
+      trace,
+  };
+  // This TryCatch + Rethrow is required by V8 due to details around exception
+  // handling there. For C++ callbacks, V8 expects a scheduled exception (which
+  // is what ReThrow gives us). Just returning the empty MaybeLocal would leave
+  // us with a pending exception.
+  TryCatchScope try_catch(env);
+  MaybeLocal<Value> result = prepare->Call(
+      context, Undefined(env->isolate()), arraysize(args), args);
+  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+    try_catch.ReThrow();
+  }
+  return result;
 }
 
 void* NodeArrayBufferAllocator::Allocate(size_t size) {
@@ -166,6 +203,7 @@ void SetIsolateUpForNode(v8::Isolate* isolate, IsolateSettingCategories cat) {
       isolate->SetAbortOnUncaughtExceptionCallback(
           ShouldAbortOnUncaughtException);
       isolate->SetFatalErrorHandler(OnFatalError);
+      isolate->SetPrepareStackTraceCallback(PrepareStackTraceCallback);
       break;
     case IsolateSettingCategories::kMisc:
       isolate->SetMicrotasksPolicy(MicrotasksPolicy::kExplicit);

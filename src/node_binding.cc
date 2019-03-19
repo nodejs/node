@@ -48,6 +48,7 @@
   V(contextify)                                                                \
   V(credentials)                                                               \
   V(domain)                                                                    \
+  V(errors)                                                                    \
   V(fs)                                                                        \
   V(fs_event_wrap)                                                             \
   V(heap_utils)                                                                \

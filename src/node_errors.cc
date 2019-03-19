@@ -17,6 +17,7 @@ using v8::Boolean;
 using v8::Context;
 using v8::Exception;
 using v8::Function;
+using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Int32;
 using v8::Isolate;
@@ -767,6 +768,21 @@ void PerIsolateMessageListener(Local<Message> message, Local<Value> error) {
   }
 }
 
+void SetPrepareStackTraceCallback(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsFunction());
+  env->set_prepare_stack_trace_callback(args[0].As<Function>());
+}
+
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context,
+                void* priv) {
+  Environment* env = Environment::GetCurrent(context);
+  env->SetMethod(
+      target, "setPrepareStackTraceCallback", SetPrepareStackTraceCallback);
+}
+
 }  // namespace errors
 
 void DecorateErrorStack(Environment* env,
@@ -880,3 +896,5 @@ void FatalException(Isolate* isolate,
 }
 
 }  // namespace node
+
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(errors, node::errors::Initialize)
