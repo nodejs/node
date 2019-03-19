@@ -43,7 +43,7 @@ function Benchmark(fn, configs, options) {
     this.extra_options = parsed_args.extra;
     // The configuration list as a queue of jobs
     this.queue = this._queue(this.options);
-  }
+  };
 
   if (byGroup) {
     if (process.env.NODEJS_BENCHMARK_BYPASS_GROUP) {

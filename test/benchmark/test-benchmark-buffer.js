@@ -26,4 +26,7 @@ runBenchmark('buffers',
                'value=0',
                'withTotalLength=0'
              ],
-             { NODEJS_BENCHMARK_ZERO_ALLOWED: 1, NODEJS_BENCHMARK_BYPASS_GROUP: 1 });
+             {
+               NODEJS_BENCHMARK_ZERO_ALLOWED: 1,
+               NODEJS_BENCHMARK_BYPASS_GROUP: 1
+             });
