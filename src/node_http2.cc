@@ -3012,7 +3012,7 @@ void Initialize(Local<Object> target,
   stream->Inherit(AsyncWrap::GetConstructorTemplate(env));
   StreamBase::AddMethods(env, stream);
   Local<ObjectTemplate> streamt = stream->InstanceTemplate();
-  streamt->SetInternalFieldCount(StreamBase::kStreamBaseField + 1);
+  streamt->SetInternalFieldCount(StreamBase::kStreamBaseFieldCount);
   env->set_http2stream_constructor_template(streamt);
   target->Set(context,
               FIXED_ONE_BYTE_STRING(env->isolate(), "Http2Stream"),

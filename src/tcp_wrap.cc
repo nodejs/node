@@ -80,13 +80,12 @@ void TCPWrap::Initialize(Local<Object> target,
   Local<String> tcpString = FIXED_ONE_BYTE_STRING(env->isolate(), "TCP");
   t->SetClassName(tcpString);
   t->InstanceTemplate()
-    ->SetInternalFieldCount(StreamBase::kStreamBaseField + 1);
+    ->SetInternalFieldCount(StreamBase::kStreamBaseFieldCount);
 
   // Init properties
   t->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "reading"),
                              Boolean::New(env->isolate(), false));
   t->InstanceTemplate()->Set(env->owner_symbol(), Null(env->isolate()));
-  t->InstanceTemplate()->Set(env->onread_string(), Null(env->isolate()));
   t->InstanceTemplate()->Set(env->onconnection_string(), Null(env->isolate()));
 
   t->Inherit(LibuvStreamWrap::GetConstructorTemplate(env));
