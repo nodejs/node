@@ -1,0 +1,10 @@
+Trace: foo
+    at Object.trace (*)
+    at Object.<anonymous> (*console.js:*:*)
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
