@@ -28,6 +28,7 @@
     'library_files': [
       'lib/internal/bootstrap/primordials.js',
       'lib/internal/bootstrap/cache.js',
+      'lib/internal/bootstrap/environment.js',
       'lib/internal/bootstrap/loaders.js',
       'lib/internal/bootstrap/node.js',
       'lib/internal/bootstrap/pre_execution.js',

@@ -311,6 +311,8 @@ NODE_EXTERN void FreeIsolateData(IsolateData* isolate_data);
 
 // TODO(addaleax): Add an official variant using STL containers, and move
 // per-Environment options parsing here.
+// Returns nullptr when the Environment cannot be created e.g. there are
+// pending JavaScript exceptions.
 NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
                                            v8::Local<v8::Context> context,
                                            int argc,
