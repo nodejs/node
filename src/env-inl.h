@@ -980,11 +980,11 @@ void Environment::ForEachBaseObject(T&& iterator) {
 }
 
 bool AsyncRequest::is_stopped() const {
-  return stopped_.load(std::memory_order_relaxed);
+  return stopped_.load();
 }
 
 void AsyncRequest::set_stopped(bool flag) {
-  stopped_.store(flag, std::memory_order_relaxed);
+  stopped_.store(flag);
 }
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
