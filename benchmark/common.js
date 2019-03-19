@@ -16,9 +16,10 @@ function Benchmark(fn, configs, options) {
   const byGroup = (options && options.byGroup) || false;
 
   const enqueueConfigsInFirstGroup = (configs) => {
-    const firstConfigKey = Object.keys(configs)[0];
-    const firstConfig = configs[firstConfigKey];
-    const parsed_args = this._parseArgs(process.argv.slice(2), firstConfig);
+    const firstGroupKey = Object.keys(configs)[0];
+    const configsInFirstGroup = configs[firstGroupKey];
+    const parsed_args =
+      this._parseArgs(process.argv.slice(2), configsInFirstGroup);
     this.options = parsed_args.cli;
     this.extra_options = parsed_args.extra;
     this.queue = this._queue(this.options);
