@@ -73,6 +73,15 @@ class BaseObject : public MemoryRetainer {
   static inline v8::Local<v8::FunctionTemplate> MakeLazilyInitializedJSTemplate(
       Environment* env);
 
+  // Setter/Getter pair for internal fields that can be passed to SetAccessor.
+  template <int kField>
+  static void InternalFieldGet(v8::Local<v8::String> property,
+                               const v8::PropertyCallbackInfo<v8::Value>& info);
+  template <int kField, bool (v8::Value::* typecheck)() const = nullptr>
+  static void InternalFieldSet(v8::Local<v8::String> property,
+                               v8::Local<v8::Value> value,
+                               const v8::PropertyCallbackInfo<void>& info);
+
  private:
   BaseObject();
 

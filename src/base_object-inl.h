@@ -123,6 +123,22 @@ BaseObject::MakeLazilyInitializedJSTemplate(Environment* env) {
   return t;
 }
 
+template <int kField>
+void BaseObject::InternalFieldGet(
+    v8::Local<v8::String> property,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(info.This()->GetInternalField(kField));
+}
+
+template <int kField, bool (v8::Value::* typecheck)() const>
+void BaseObject::InternalFieldSet(v8::Local<v8::String> property,
+                                  v8::Local<v8::Value> value,
+                                  const v8::PropertyCallbackInfo<void>& info) {
+  // This could be e.g. value->IsFunction().
+  CHECK_IMPLIES(typecheck != nullptr, ((*value)->*typecheck)());
+  info.This()->SetInternalField(kField, value);
+}
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
