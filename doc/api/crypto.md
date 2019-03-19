@@ -1130,7 +1130,7 @@ passing keys as strings or `Buffer`s due to improved security features.
 added: v11.6.0
 changes:
   - version: REPLACEME
-    pr-url: TODO
+    pr-url: https://github.com/nodejs/node/pull/26786
     description: This property now returns `'unknown'` for KeyObject
                  instances of unknown type instead of C++ assertion
                  crash
