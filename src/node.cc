@@ -402,47 +402,44 @@ MaybeLocal<Value> StartMainThreadExecution(Environment* env) {
     return StartExecution(env, "internal/main/run_third_party_main");
   }
 
-  if (env->execution_mode() == Environment::ExecutionMode::kInspect ||
-      env->execution_mode() == Environment::ExecutionMode::kDebug) {
+  std::string first_argv;
+  if (env->argv().size() > 1) {
+    first_argv = env->argv()[1];
+  }
+
+  if (first_argv == "inspect" || first_argv == "debug") {
     return StartExecution(env, "internal/main/inspect");
   }
 
   if (per_process::cli_options->print_help) {
-    env->set_execution_mode(Environment::ExecutionMode::kPrintHelp);
     return StartExecution(env, "internal/main/print_help");
   }
 
   if (per_process::cli_options->print_bash_completion) {
-    env->set_execution_mode(Environment::ExecutionMode::kPrintBashCompletion);
     return StartExecution(env, "internal/main/print_bash_completion");
   }
 
   if (env->options()->prof_process) {
-    env->set_execution_mode(Environment::ExecutionMode::kProfProcess);
     return StartExecution(env, "internal/main/prof_process");
   }
 
   // -e/--eval without -i/--interactive
   if (env->options()->has_eval_string && !env->options()->force_repl) {
-    env->set_execution_mode(Environment::ExecutionMode::kEvalString);
     return StartExecution(env, "internal/main/eval_string");
   }
 
   if (env->options()->syntax_check_only) {
-    env->set_execution_mode(Environment::ExecutionMode::kCheckSyntax);
     return StartExecution(env, "internal/main/check_syntax");
   }
 
-  if (env->execution_mode() == Environment::ExecutionMode::kRunMainModule) {
+  if (!first_argv.empty() && first_argv != "-") {
     return StartExecution(env, "internal/main/run_main_module");
   }
 
   if (env->options()->force_repl || uv_guess_handle(STDIN_FILENO) == UV_TTY) {
-    env->set_execution_mode(Environment::ExecutionMode::kRepl);
     return StartExecution(env, "internal/main/repl");
   }
 
-  env->set_execution_mode(Environment::ExecutionMode::kEvalStdin);
   return StartExecution(env, "internal/main/eval_stdin");
 }
 

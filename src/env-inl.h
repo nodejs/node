@@ -630,6 +630,10 @@ inline std::shared_ptr<EnvironmentOptions> Environment::options() {
   return options_;
 }
 
+inline const std::vector<std::string>& Environment::argv() {
+  return argv_;
+}
+
 inline const std::vector<std::string>& Environment::exec_argv() {
   return exec_argv_;
 }
