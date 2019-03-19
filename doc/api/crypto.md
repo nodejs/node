@@ -1918,7 +1918,7 @@ changes:
                  produce key objects if no encoding was specified.
 -->
 * `type`: {string} Must be `'rsa'`, `'dsa'`, `'ec'`, `'ed25519'`, `'ed448'`,
-  `'x25519'`, or `'x448'.
+  `'x25519'`, or `'x448'`.
 * `options`: {Object}
   - `modulusLength`: {number} Key size in bits (RSA, DSA).
   - `publicExponent`: {number} Public exponent (RSA). **Default:** `0x10001`.
