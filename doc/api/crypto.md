@@ -1145,8 +1145,8 @@ changes:
 
 For asymmetric keys, this property represents the type of the embedded key
 (`'rsa'`, `'dsa'`, `'ec'`, `'ed25519'`, `'ed448'`, `'x25519'` or `'x448'`).
-This property is `undefined` for symmetric keys and `'unknown'` for `KeyObject`
-objects that aren
+This property is `undefined` for symmetric keys and `'unknown'` for
+unrecognized `KeyObject` types.
 
 ### keyObject.export([options])
 <!-- YAML
