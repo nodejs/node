@@ -36,7 +36,7 @@ function Benchmark(fn, configs, options) {
     }
   };
 
-  const enqueuConfigs = (configs) => {
+  const enqueueConfigs = (configs) => {
     // Parse job-specific configuration from the command line arguments
     const parsed_args = this._parseArgs(process.argv.slice(2), configs);
     this.options = parsed_args.cli;
@@ -52,7 +52,7 @@ function Benchmark(fn, configs, options) {
       enqueueConfigsInGroups(configs);
     }
   } else {
-    enqueuConfigs(configs);
+    enqueueConfigs(configs);
   }
 
   // The configuration of the current job, head of the queue
