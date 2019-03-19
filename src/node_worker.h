@@ -58,6 +58,8 @@ class Worker : public AsyncWrap {
 
   std::shared_ptr<PerIsolateOptions> per_isolate_opts_;
   std::vector<std::string> exec_argv_;
+  std::vector<std::string> argv_;
+
   MultiIsolatePlatform* platform_;
   v8::Isolate* isolate_ = nullptr;
   bool profiler_idle_notifier_started_;

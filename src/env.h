@@ -761,6 +761,7 @@ class Environment {
       const std::vector<std::string>& args,
       const std::vector<std::string>& exec_args);
   inline const std::vector<std::string>& exec_argv();
+  inline const std::vector<std::string>& argv();
 
   typedef void (*HandleCleanupCb)(Environment* env,
                                   uv_handle_t* handle,
@@ -1057,23 +1058,6 @@ class Environment {
   inline std::shared_ptr<EnvironmentOptions> options();
   inline std::shared_ptr<HostPort> inspector_host_port();
 
-  enum class ExecutionMode {
-    kDefault,
-    kInspect,              // node inspect
-    kDebug,                // node debug
-    kPrintHelp,            // node --help
-    kPrintBashCompletion,  // node --completion-bash
-    kProfProcess,          // node --prof-process
-    kEvalString,           // node --eval without --interactive
-    kCheckSyntax,          // node --check (incompatible with --eval)
-    kRepl,
-    kEvalStdin,
-    kRunMainModule
-  };
-
-  inline ExecutionMode execution_mode() { return execution_mode_; }
-
-  inline void set_execution_mode(ExecutionMode mode) { execution_mode_ = mode; }
   inline AsyncRequest* thread_stopper() { return &thread_stopper_; }
 
  private:
@@ -1085,7 +1069,6 @@ class Environment {
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
 
-  ExecutionMode execution_mode_ = ExecutionMode::kDefault;
   std::list<binding::DLib> loaded_addons_;
   v8::Isolate* const isolate_;
   IsolateData* const isolate_data_;
@@ -1117,6 +1100,7 @@ class Environment {
   // used.
   std::shared_ptr<HostPort> inspector_host_port_;
   std::vector<std::string> exec_argv_;
+  std::vector<std::string> argv_;
 
   uint32_t module_id_counter_ = 0;
   uint32_t script_id_counter_ = 0;
