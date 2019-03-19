@@ -1130,7 +1130,7 @@ passing keys as strings or `Buffer`s due to improved security features.
 added: v11.6.0
 changes:
   - version: REPLACEME
-    pr-url: TODO
+    pr-url: https://github.com/nodejs/node/pull/26774
     description: Added support for `'x25519'` and `'x448'`
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/26319
@@ -1907,7 +1907,7 @@ algorithm names.
 added: v10.12.0
 changes:
   - version: REPLACEME
-    pr-url: TODO
+    pr-url: https://github.com/nodejs/node/pull/26774
     description: Add ability to generate X25519 and X448 key pairs.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/26554
