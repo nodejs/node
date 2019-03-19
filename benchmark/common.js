@@ -15,7 +15,16 @@ function Benchmark(fn, configs, options) {
   this.queue = [];
   const byGroup = (options && options.byGroup) || false;
 
-  if (byGroup) {
+  const enqueueConfigsInFirstGroup = (configs) => {
+    const firstConfigKey = Object.keys(configs)[0];
+    const firstConfig = configs[firstConfigKey];
+    const parsed_args = this._parseArgs(process.argv.slice(2), firstConfig);
+    this.options = parsed_args.cli;
+    this.extra_options = parsed_args.extra;
+    this.queue = this._queue(this.options);
+  };
+
+  const enqueueConfigsInGroups = (configs) => {
     for (const groupKey of Object.keys(configs)) {
       const config = configs[groupKey];
       const parsed_args = this._parseArgs(process.argv.slice(2), config);
@@ -25,13 +34,25 @@ function Benchmark(fn, configs, options) {
       // items with the new items to return a new array
       this.queue = [ ...this.queue, ...this._queue(this.options) ];
     }
-  } else {
+  };
+
+  const enqueuConfigs = (configs) => {
     // Parse job-specific configuration from the command line arguments
     const parsed_args = this._parseArgs(process.argv.slice(2), configs);
     this.options = parsed_args.cli;
     this.extra_options = parsed_args.extra;
     // The configuration list as a queue of jobs
     this.queue = this._queue(this.options);
+  }
+
+  if (byGroup) {
+    if (process.env.NODEJS_BENCHMARK_BYPASS_GROUP) {
+      enqueueConfigsInFirstGroup(configs);
+    } else {
+      enqueueConfigsInGroups(configs);
+    }
+  } else {
+    enqueuConfigs(configs);
   }
 
   // The configuration of the current job, head of the queue
