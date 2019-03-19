@@ -174,7 +174,13 @@ const privatePem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
     keyType: 'ed25519' },
   { private: fixtures.readSync('test_ed448_privkey.pem', 'ascii'),
     public: fixtures.readSync('test_ed448_pubkey.pem', 'ascii'),
-    keyType: 'ed448' }
+    keyType: 'ed448' },
+  { private: fixtures.readSync('test_x25519_privkey.pem', 'ascii'),
+    public: fixtures.readSync('test_x25519_pubkey.pem', 'ascii'),
+    keyType: 'x25519' },
+  { private: fixtures.readSync('test_x448_privkey.pem', 'ascii'),
+    public: fixtures.readSync('test_x448_pubkey.pem', 'ascii'),
+    keyType: 'x448' }
 ].forEach((info) => {
   const keyType = info.keyType;
 
