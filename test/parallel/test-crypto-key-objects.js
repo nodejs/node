@@ -178,6 +178,13 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   });
 }
 
+{
+  // This should not cause a crash: https://github.com/nodejs/node/pull/26786
+  const pem = fixtures.readSync('test_unknown_privkey.pem', 'ascii');
+  const key = createPrivateKey(pem);
+  assert.strictEqual(key.asymmetricKeyType, undefined);
+}
+
 [
   { private: fixtures.readSync('test_ed25519_privkey.pem', 'ascii'),
     public: fixtures.readSync('test_ed25519_pubkey.pem', 'ascii'),

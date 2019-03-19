@@ -3690,7 +3690,7 @@ void KeyObject::InitPrivate(const ManagedEVPPKey& pkey) {
   this->asymmetric_key_ = pkey;
 }
 
-Local<String> KeyObject::GetAsymmetricKeyType() const {
+Local<Value> KeyObject::GetAsymmetricKeyType() const {
   CHECK_NE(this->key_type_, kKeyTypeSecret);
   switch (EVP_PKEY_id(this->asymmetric_key_.get())) {
   case EVP_PKEY_RSA:
@@ -3708,7 +3708,7 @@ Local<String> KeyObject::GetAsymmetricKeyType() const {
   case EVP_PKEY_X448:
     return env()->crypto_x448_string();
   default:
-    CHECK(false);
+    return Undefined(env()->isolate());
   }
 }
 
