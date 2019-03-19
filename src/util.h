@@ -182,7 +182,7 @@ void DumpBacktrace(FILE* fp);
 
 
 #define UNREACHABLE(expr)                                                     \
-  ERROR_AND_ABORT("Unreachable code reached:" expr)
+  ERROR_AND_ABORT("Unreachable code reached: " expr)
 
 // TAILQ-style intrusive list node.
 template <typename T>
