@@ -425,7 +425,8 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     type: TypeError,
     code: 'ERR_INVALID_ARG_VALUE',
     message: "The argument 'type' must be one of " +
-             "'rsa', 'dsa', 'ec', 'ed25519', 'ed448'. Received 'rsa2'"
+             "'rsa', 'dsa', 'ec', 'ed25519', 'ed448'," +
+             " 'x25519', 'x448'. Received 'rsa2'"
   });
 }
 
@@ -786,7 +787,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
 // Test EdDSA key generation.
 {
   if (!/^1\.1\.0/.test(process.versions.openssl)) {
-    ['ed25519', 'ed448'].forEach((keyType) => {
+    ['ed25519', 'ed448', 'x25519', 'x448'].forEach((keyType) => {
       generateKeyPair(keyType, common.mustCall((err, publicKey, privateKey) => {
         assert.ifError(err);
 
