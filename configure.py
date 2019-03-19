@@ -3,7 +3,7 @@ from __future__ import print_function
 import json
 import sys
 import errno
-import optparse
+import argparse
 import os
 import pipes
 import pprint
@@ -41,7 +41,7 @@ sys.path.insert(0, os.path.join('deps', 'v8', 'tools', 'node'))
 from fetch_deps import FetchDeps
 
 # parse our options
-parser = optparse.OptionParser()
+parser = argparse.ArgumentParser()
 
 valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux',
             'android', 'aix', 'cloudabi')
@@ -54,530 +54,412 @@ with open ('tools/icu/icu_versions.json') as f:
   icu_versions = json.load(f)
 
 # create option groups
-shared_optgroup = optparse.OptionGroup(parser, "Shared libraries",
-    "Flags that allows you to control whether you want to build against "
-    "built-in dependencies or its shared representations. If necessary, "
-    "provide multiple libraries with comma.")
-intl_optgroup = optparse.OptionGroup(parser, "Internationalization",
-    "Flags that lets you enable i18n features in Node.js as well as which "
-    "library you want to build against.")
-http2_optgroup = optparse.OptionGroup(parser, "HTTP2",
-    "Flags that allows you to control HTTP2 features in Node.js")
+shared_optgroup = parser.add_argument_group(
+  "Shared libraries",
+  "Flags that allows you to control whether you want to build against built-in dependencies"
+  " or its shared representations. If necessary, provide multiple libraries with comma."
+)
+intl_optgroup = parser.add_argument_group(
+  "Internationalization",
+  "Flags that lets you enable i18n features in Node.js as well as which library you want to build against."
+)
+http2_optgroup = parser.add_argument_group(
+  "HTTP2",
+  "Flags that allows you to control HTTP2 features in Node.js"
+)
 
 # Options should be in alphabetical order but keep --prefix at the top,
 # that's arguably the one people will be looking for most.
-parser.add_option('--prefix',
-    action='store',
-    dest='prefix',
-    default='/usr/local',
-    help='select the install prefix [default: %default]')
-
-parser.add_option('--coverage',
-    action='store_true',
-    dest='coverage',
-    help='Build node with code coverage enabled')
-
-parser.add_option('--debug',
-    action='store_true',
-    dest='debug',
-    help='also build debug build')
-
-parser.add_option('--dest-cpu',
-    action='store',
-    dest='dest_cpu',
-    choices=valid_arch,
-    help='CPU architecture to build for ({0})'.format(', '.join(valid_arch)))
-
-parser.add_option('--cross-compiling',
-    action='store_true',
-    dest='cross_compiling',
-    default=None,
-    help='force build to be considered as cross compiled')
-parser.add_option('--no-cross-compiling',
-    action='store_false',
-    dest='cross_compiling',
-    default=None,
-    help='force build to be considered as NOT cross compiled')
-
-parser.add_option('--dest-os',
-    action='store',
-    dest='dest_os',
-    choices=valid_os,
-    help='operating system to build for ({0})'.format(', '.join(valid_os)))
-
-parser.add_option('--gdb',
-    action='store_true',
-    dest='gdb',
-    help='add gdb support')
-
-parser.add_option('--no-ifaddrs',
-    action='store_true',
-    dest='no_ifaddrs',
-    help='use on deprecated SunOS systems that do not support ifaddrs.h')
-
-parser.add_option("--fully-static",
-    action="store_true",
-    dest="fully_static",
-    help="Generate an executable without external dynamic libraries. This "
-         "will not work on OSX when using the default compilation environment")
-
-parser.add_option("--partly-static",
-    action="store_true",
-    dest="partly_static",
-    help="Generate an executable with libgcc and libstdc++ libraries. This "
-         "will not work on OSX when using the default compilation environment")
-
-parser.add_option("--enable-vtune-profiling",
-    action="store_true",
-    dest="enable_vtune_profiling",
-    help="Enable profiling support for Intel VTune profiler to profile "
-         "JavaScript code executed in nodejs. This feature is only available "
-         "for x32, x86, and x64 architectures.")
-
-parser.add_option("--enable-pgo-generate",
-    action="store_true",
-    dest="enable_pgo_generate",
-    help="Enable profiling with pgo of a binary. This feature is only available "
-         "on linux with gcc and g++ 5.4.1 or newer.")
-
-parser.add_option("--enable-pgo-use",
-    action="store_true",
-    dest="enable_pgo_use",
-    help="Enable use of the profile generated with --enable-pgo-generate. This "
-         "feature is only available on linux with gcc and g++ 5.4.1 or newer.")
-
-parser.add_option("--enable-lto",
-    action="store_true",
-    dest="enable_lto",
-    help="Enable compiling with lto of a binary. This feature is only available "
-         "on linux with gcc and g++ 5.4.1 or newer.")
-
-parser.add_option("--link-module",
-    action="append",
-    dest="linked_module",
-    help="Path to a JS file to be bundled in the binary as a builtin. "
-         "This module will be referenced by path without extension; "
-         "e.g. /root/x/y.js will be referenced via require('root/x/y'). "
-         "Can be used multiple times")
-
-parser.add_option("--openssl-no-asm",
-    action="store_true",
-    dest="openssl_no_asm",
-    help="Do not build optimized assembly for OpenSSL")
-
-parser.add_option('--openssl-fips',
-    action='store',
-    dest='openssl_fips',
-    help='Build OpenSSL using FIPS canister .o file in supplied folder')
-
-parser.add_option('--openssl-is-fips',
-    action='store_true',
-    dest='openssl_is_fips',
-    help='specifies that the OpenSSL library is FIPS compatible')
-
-parser.add_option('--openssl-use-def-ca-store',
-    action='store_true',
-    dest='use_openssl_ca_store',
-    help='Use OpenSSL supplied CA store instead of compiled-in Mozilla CA copy.')
-
-parser.add_option('--openssl-system-ca-path',
-    action='store',
-    dest='openssl_system_ca_path',
-    help='Use the specified path to system CA (PEM format) in addition to '
-         'the OpenSSL supplied CA store or compiled-in Mozilla CA copy.')
-
-parser.add_option('--experimental-http-parser',
-    action='store_true',
-    dest='experimental_http_parser',
-    help='(no-op)')
-
-shared_optgroup.add_option('--shared-http-parser',
-    action='store_true',
-    dest='shared_http_parser',
-    help='link to a shared http_parser DLL instead of static linking')
-
-shared_optgroup.add_option('--shared-http-parser-includes',
-    action='store',
-    dest='shared_http_parser_includes',
-    help='directory containing http_parser header files')
-
-shared_optgroup.add_option('--shared-http-parser-libname',
-    action='store',
-    dest='shared_http_parser_libname',
-    default='http_parser',
-    help='alternative lib name to link to [default: %default]')
-
-shared_optgroup.add_option('--shared-http-parser-libpath',
-    action='store',
-    dest='shared_http_parser_libpath',
-    help='a directory to search for the shared http_parser DLL')
-
-shared_optgroup.add_option('--shared-libuv',
-    action='store_true',
-    dest='shared_libuv',
-    help='link to a shared libuv DLL instead of static linking')
-
-shared_optgroup.add_option('--shared-libuv-includes',
-    action='store',
-    dest='shared_libuv_includes',
-    help='directory containing libuv header files')
-
-shared_optgroup.add_option('--shared-libuv-libname',
-    action='store',
-    dest='shared_libuv_libname',
-    default='uv',
-    help='alternative lib name to link to [default: %default]')
-
-shared_optgroup.add_option('--shared-libuv-libpath',
-    action='store',
-    dest='shared_libuv_libpath',
-    help='a directory to search for the shared libuv DLL')
-
-shared_optgroup.add_option('--shared-nghttp2',
-    action='store_true',
-    dest='shared_nghttp2',
-    help='link to a shared nghttp2 DLL instead of static linking')
-
-shared_optgroup.add_option('--shared-nghttp2-includes',
-    action='store',
-    dest='shared_nghttp2_includes',
-    help='directory containing nghttp2 header files')
-
-shared_optgroup.add_option('--shared-nghttp2-libname',
-    action='store',
-    dest='shared_nghttp2_libname',
-    default='nghttp2',
-    help='alternative lib name to link to [default: %default]')
-
-shared_optgroup.add_option('--shared-nghttp2-libpath',
-    action='store',
-    dest='shared_nghttp2_libpath',
-    help='a directory to search for the shared nghttp2 DLLs')
-
-shared_optgroup.add_option('--shared-openssl',
-    action='store_true',
-    dest='shared_openssl',
-    help='link to a shared OpenSSl DLL instead of static linking')
-
-shared_optgroup.add_option('--shared-openssl-includes',
-    action='store',
-    dest='shared_openssl_includes',
-    help='directory containing OpenSSL header files')
-
-shared_optgroup.add_option('--shared-openssl-libname',
-    action='store',
-    dest='shared_openssl_libname',
-    default='crypto,ssl',
-    help='alternative lib name to link to [default: %default]')
-
-shared_optgroup.add_option('--shared-openssl-libpath',
-    action='store',
-    dest='shared_openssl_libpath',
-    help='a directory to search for the shared OpenSSL DLLs')
-
-shared_optgroup.add_option('--shared-zlib',
-    action='store_true',
-    dest='shared_zlib',
-    help='link to a shared zlib DLL instead of static linking')
-
-shared_optgroup.add_option('--shared-zlib-includes',
-    action='store',
-    dest='shared_zlib_includes',
-    help='directory containing zlib header files')
-
-shared_optgroup.add_option('--shared-zlib-libname',
-    action='store',
-    dest='shared_zlib_libname',
-    default='z',
-    help='alternative lib name to link to [default: %default]')
-
-shared_optgroup.add_option('--shared-zlib-libpath',
-    action='store',
-    dest='shared_zlib_libpath',
-    help='a directory to search for the shared zlib DLL')
-
-shared_optgroup.add_option('--shared-cares',
-    action='store_true',
-    dest='shared_libcares',
-    help='link to a shared cares DLL instead of static linking')
-
-shared_optgroup.add_option('--shared-cares-includes',
-    action='store',
-    dest='shared_libcares_includes',
-    help='directory containing cares header files')
-
-shared_optgroup.add_option('--shared-cares-libname',
-    action='store',
-    dest='shared_libcares_libname',
-    default='cares',
-    help='alternative lib name to link to [default: %default]')
-
-shared_optgroup.add_option('--shared-cares-libpath',
-    action='store',
-    dest='shared_libcares_libpath',
-    help='a directory to search for the shared cares DLL')
-
-parser.add_option_group(shared_optgroup)
-
-parser.add_option('--systemtap-includes',
-    action='store',
-    dest='systemtap_includes',
-    help='directory containing systemtap header files')
-
-parser.add_option('--tag',
-    action='store',
-    dest='tag',
-    help='custom build tag')
-
-parser.add_option('--release-urlbase',
-    action='store',
-    dest='release_urlbase',
-    help='Provide a custom URL prefix for the `process.release` properties '
-         '`sourceUrl` and `headersUrl`. When compiling a release build, this '
-         'will default to https://nodejs.org/download/release/')
-
-parser.add_option('--enable-d8',
-    action='store_true',
-    dest='enable_d8',
-    help=optparse.SUPPRESS_HELP)  # Unsupported, undocumented.
-
-parser.add_option('--enable-trace-maps',
-    action='store_true',
-    dest='trace_maps',
-    help='Enable the --trace-maps flag in V8 (use at your own risk)')
-
-parser.add_option('--v8-options',
-    action='store',
-    dest='v8_options',
-    help='v8 options to pass, see `node --v8-options` for examples.')
-
-parser.add_option('--with-arm-float-abi',
-    action='store',
-    dest='arm_float_abi',
-    choices=valid_arm_float_abi,
-    help='specifies which floating-point ABI to use ({0}).'.format(
-        ', '.join(valid_arm_float_abi)))
-
-parser.add_option('--with-arm-fpu',
-    action='store',
-    dest='arm_fpu',
-    choices=valid_arm_fpu,
-    help='ARM FPU mode ({0}) [default: %default]'.format(
-        ', '.join(valid_arm_fpu)))
-
-parser.add_option('--with-dtrace',
-    action='store_true',
-    dest='with_dtrace',
-    help='build with DTrace (default is true on sunos and darwin)')
-
-parser.add_option('--with-etw',
-    action='store_true',
-    dest='with_etw',
-    help='build with ETW (default is true on Windows)')
-
-parser.add_option('--use-largepages',
-    action='store_true',
-    dest='node_use_large_pages',
-    help='build with Large Pages support. This feature is supported only on Linux kernel' +
-         '>= 2.6.38 with Transparent Huge pages enabled')
-
-intl_optgroup.add_option('--with-intl',
-    action='store',
-    dest='with_intl',
-    default='small-icu',
-    choices=valid_intl_modes,
-    help='Intl mode (valid choices: {0}) [default: %default]'.format(
-        ', '.join(valid_intl_modes)))
-
-intl_optgroup.add_option('--without-intl',
-    action='store_const',
-    dest='with_intl',
-    const='none',
-    help='Disable Intl, same as --with-intl=none (disables inspector)')
-
-intl_optgroup.add_option('--with-icu-path',
-    action='store',
-    dest='with_icu_path',
-    help='Path to icu.gyp (ICU i18n, Chromium version only.)')
-
-icu_default_locales='root,en'
-
-intl_optgroup.add_option('--with-icu-locales',
-    action='store',
-    dest='with_icu_locales',
-    default=icu_default_locales,
-    help='Comma-separated list of locales for "small-icu". "root" is assumed. '
-        '[default: %default]')
-
-intl_optgroup.add_option('--with-icu-source',
-    action='store',
-    dest='with_icu_source',
-    help='Intl mode: optional local path to icu/ dir, or path/URL of '
-        'the icu4c source archive. '
-        'v%d.x or later recommended.' % icu_versions['minimum_icu'])
-
-parser.add_option('--with-ltcg',
-    action='store_true',
-    dest='with_ltcg',
-    help='Use Link Time Code Generation. This feature is only available on Windows.')
-
-parser.add_option('--with-node-snapshot',
-    action='store_true',
-    dest='with_node_snapshot',
-    help='Turn on V8 snapshot integration. Currently experimental.')
-
-intl_optgroup.add_option('--download',
-    action='store',
-    dest='download_list',
-    help=nodedownload.help())
-
-intl_optgroup.add_option('--download-path',
-    action='store',
-    dest='download_path',
-    default='deps',
-    help='Download directory [default: %default]')
-
-parser.add_option_group(intl_optgroup)
-
-parser.add_option('--debug-lib',
-    action='store_true',
-    dest='node_debug_lib',
-    help='build lib with DCHECK macros')
-
-http2_optgroup.add_option('--debug-nghttp2',
-    action='store_true',
-    dest='debug_nghttp2',
-    help='build nghttp2 with DEBUGBUILD (default is false)')
-
-parser.add_option_group(http2_optgroup)
-
-parser.add_option('--without-dtrace',
-    action='store_true',
-    dest='without_dtrace',
-    help='build without DTrace')
-
-parser.add_option('--without-etw',
-    action='store_true',
-    dest='without_etw',
-    help='build without ETW')
-
-parser.add_option('--without-npm',
-    action='store_true',
-    dest='without_npm',
-    help='do not install the bundled npm (package manager)')
-
-parser.add_option('--without-report',
-    action='store_true',
-    dest='without_report',
-    help='build without report')
+parser.add_argument('--prefix',
+                    default='/usr/local',
+                    help='select the install prefix [default: %(default)s]')
+
+parser.add_argument('--coverage',
+                    action='store_true',
+                    help='Build node with code coverage enabled')
+
+parser.add_argument('--debug',
+                    action='store_true',
+                    help='also build debug build')
+
+parser.add_argument('--dest-cpu',
+                    choices=('arm', 'arm64', 'ia32', 'ppc', 'ppc64', 'x32', 'x64', 'x86', 'x86_64', 's390', 's390x'),
+                    default='x64',
+                    help='CPU architecture to build for (%(choices)r)')
+
+parser.add_argument('--cross-compiling',
+                    action='store_true',
+                    help='force build to be considered as cross compiled')
+parser.add_argument('--no-cross-compiling',
+                    action='store_false',
+                    dest='cross_compiling',
+                    help='force build to be considered as NOT cross compiled')
+
+parser.add_argument('--dest-os',
+                    choices=('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux', 'android', 'aix', 'cloudabi'),
+                    help='operating system to build for (%(choices)r)')
+
+parser.add_argument('--gdb',
+                    action='store_true',
+                    help='add gdb support')
+
+parser.add_argument('--no-ifaddrs',
+                    action='store_true',
+                    help='use on deprecated SunOS systems that do not support ifaddrs.h')
+
+parser.add_argument("--fully-static",
+                    action="store_true",
+                    help="Generate an executable without external dynamic libraries. This "
+                         "will not work on OSX when using the default compilation environment")
+
+parser.add_argument("--partly-static",
+                    action="store_true",
+                    help="Generate an executable with libgcc and libstdc++ libraries. This "
+                         "will not work on OSX when using the default compilation environment")
+
+parser.add_argument("--enable-vtune-profiling",
+                    action="store_true",
+                    help="Enable profiling support for Intel VTune profiler to profile "
+                         "JavaScript code executed in nodejs. This feature is only available "
+                         "for x32, x86, and x64 architectures.")
+
+parser.add_argument("--enable-pgo-generate",
+                    action="store_true",
+                    help="Enable profiling with pgo of a binary. This feature is only available "
+                         "on linux with gcc and g++ 5.4.1 or newer.")
+
+parser.add_argument("--enable-pgo-use",
+                    action="store_true",
+                    help="Enable use of the profile generated with --enable-pgo-generate. This "
+                         "feature is only available on linux with gcc and g++ 5.4.1 or newer.")
+
+parser.add_argument("--enable-lto",
+                    action="store_true",
+                    help="Enable compiling with lto of a binary. This feature is only available "
+                         "on linux with gcc and g++ 5.4.1 or newer.")
+
+parser.add_argument("--link-module",
+                    action="append",
+                    help="Path to a JS file to be bundled in the binary as a builtin. "
+                         "This module will be referenced by path without extension; "
+                         "e.g. /root/x/y.js will be referenced via require('root/x/y'). "
+                         "Can be used multiple times")
+
+parser.add_argument("--openssl-no-asm",
+                    action="store_true",
+                    help="Do not build optimized assembly for OpenSSL")
+
+parser.add_argument('--openssl-fips',
+                    help='Build OpenSSL using FIPS canister .o file in supplied folder')
+
+parser.add_argument('--openssl-is-fips',
+                    action='store_true',
+                    help='specifies that the OpenSSL library is FIPS compatible')
+
+parser.add_argument('--openssl-use-def-ca-store',
+                    action='store_true',
+                    help='Use OpenSSL supplied CA store instead of compiled-in Mozilla CA copy.')
+
+parser.add_argument('--openssl-system-ca-path',
+                    help='Use the specified path to system CA (PEM format) in addition to '
+                         'the OpenSSL supplied CA store or compiled-in Mozilla CA copy.')
+
+parser.add_argument('--experimental-http-parser',
+                    action='store_true',
+                    help='(no-op)')
+
+shared_optgroup.add_argument('--shared-http-parser',
+                             action='store_true',
+                             help='link to a shared http_parser DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-http-parser-includes',
+                             help='directory containing http_parser header files')
+
+shared_optgroup.add_argument('--shared-http-parser-libname',
+                             default='http_parser',
+                             help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-http-parser-libpath',
+                             help='a directory to search for the shared http_parser DLL')
+
+shared_optgroup.add_argument('--shared-libuv',
+                             action='store_true',
+                             help='link to a shared libuv DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-libuv-includes',
+                             help='directory containing libuv header files')
+
+shared_optgroup.add_argument('--shared-libuv-libname',
+                             default='uv',
+                             help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-libuv-libpath',
+                             help='a directory to search for the shared libuv DLL')
+
+shared_optgroup.add_argument('--shared-nghttp2',
+                             action='store_true',
+                             help='link to a shared nghttp2 DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-nghttp2-includes',
+                             help='directory containing nghttp2 header files')
+
+shared_optgroup.add_argument('--shared-nghttp2-libname',
+                             default='nghttp2',
+                             help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-nghttp2-libpath',
+                             help='a directory to search for the shared nghttp2 DLLs')
+
+shared_optgroup.add_argument('--shared-openssl',
+                             action='store_true',
+                             help='link to a shared OpenSSl DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-openssl-includes',
+                             help='directory containing OpenSSL header files')
+
+shared_optgroup.add_argument('--shared-openssl-libname',
+                             default='crypto,ssl',
+                             help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-openssl-libpath',
+                             help='a directory to search for the shared OpenSSL DLLs')
+
+shared_optgroup.add_argument('--shared-zlib',
+                             action='store_true',
+                             help='link to a shared zlib DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-zlib-includes',
+                             help='directory containing zlib header files')
+
+shared_optgroup.add_argument('--shared-zlib-libname',
+                             default='z',
+                             help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-zlib-libpath',
+                             help='a directory to search for the shared zlib DLL')
+
+shared_optgroup.add_argument('--shared-cares',
+                             action='store_true',
+                             dest='shared_libcares',
+                             help='link to a shared cares DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-cares-includes',
+                             dest='shared_libcares_includes',
+                             help='directory containing cares header files')
+
+shared_optgroup.add_argument('--shared-cares-libname',
+                             dest='shared_libcares_libname',
+                             default='cares',
+                             help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-cares-libpath',
+                             dest='shared_libcares_libpath',
+                             help='a directory to search for the shared cares DLL')
+
+parser.add_argument('--systemtap-includes',
+                    help='directory containing systemtap header files')
+
+parser.add_argument('--tag', help='custom build tag')
+
+parser.add_argument('--release-urlbase',
+                    help='Provide a custom URL prefix for the `process.release` properties '
+                         '`sourceUrl` and `headersUrl`. When compiling a release build, this '
+                         'will default to https://nodejs.org/download/release/')
+
+parser.add_argument('--enable-d8',
+                    action='store_true',
+                    help=argparse.SUPPRESS)  # Unsupported, undocumented.
+
+parser.add_argument('--enable-trace-maps',
+                    action='store_true',
+                    help='Enable the --trace-maps flag in V8 (use at your own risk)')
+
+parser.add_argument('--v8-options',
+                    help='v8 options to pass, see `node --v8-options` for examples.')
+
+parser.add_argument('--with-arm-float-abi',
+                    dest='arm_float_abi',
+                    choices=('soft', 'softfp', 'hard'),
+                    help='specifies which floating-point ABI to use (%(choices)r)')
+
+parser.add_argument('--with-arm-fpu',
+                    dest='arm_fpu',
+                    choices=('vfp', 'vfpv3', 'vfpv3-d16', 'neon'),
+                    help='ARM FPU mode (%(choices)r) [default: %(default)s]')
+
+parser.add_argument('--with-dtrace',
+                    action='store_true',
+                    help='build with DTrace (default is true on sunos and darwin)')
+
+parser.add_argument('--with-etw',
+                    action='store_true',
+                    help='build with ETW (default is true on Windows)')
+
+parser.add_argument('--use-largepages',
+                    action='store_true',
+                    dest='node_use_large_pages',
+                    help='build with Large Pages support. This feature is supported only on Linux kernel' +
+                         '>= 2.6.38 with Transparent Huge pages enabled')
+
+intl_optgroup.add_argument('--with-intl',
+                           default='small-icu',
+                           choices=('none', 'small-icu', 'full-icu', 'system-icu'),
+                           help='Intl mode (%(choices)r) [default: %(default)s]')
+
+intl_optgroup.add_argument('--without-intl',
+                           action='store_const',
+                           dest='with_intl',
+                           const='none',
+                           help='Disable Intl, same as --with-intl=none (disables inspector)')
+
+intl_optgroup.add_argument('--with-icu-path',
+                           help='Path to icu.gyp (ICU i18n, Chromium version only.)')
+
+icu_default_locales = 'root,en'
+
+intl_optgroup.add_argument('--with-icu-locales',
+                           default=icu_default_locales,
+                           help='Comma-separated list of locales for "small-icu". "root" is assumed. '
+                                '[default: %(default)s]')
+
+intl_optgroup.add_argument('--with-icu-source',
+                           help='Intl mode: optional local path to icu/ dir, or path/URL of '
+                                'the icu4c source archive. '
+                                'v%d.x or later recommended.' % icu_versions['minimum_icu'])
+
+parser.add_argument('--with-ltcg',
+                    action='store_true',
+                    help='Use Link Time Code Generation. This feature is only available on Windows.')
+
+parser.add_argument('--with-node-snapshot',
+                    action='store_true',
+                    help='Turn on V8 snapshot integration. Currently experimental.')
+
+intl_optgroup.add_argument('--download',
+                           dest='download_list',
+                           help=nodedownload.help())
+
+intl_optgroup.add_argument('--download-path',
+                           default='deps',
+                           help='Download directory [default: %(default)s]')
+
+parser.add_argument('--debug-lib',
+                    action='store_true',
+                    dest='node_debug_lib',
+                    help='build lib with DCHECK macros')
+
+http2_optgroup.add_argument('--debug-nghttp2',
+                            action='store_true',
+                            help='build nghttp2 with DEBUGBUILD (default is false)')
+
+parser.add_argument('--without-dtrace',
+                    action='store_true',
+                    help='build without DTrace')
+
+parser.add_argument('--without-etw',
+                    action='store_true',
+                    help='build without ETW')
+
+parser.add_argument('--without-npm',
+                    action='store_true',
+                    help='do not install the bundled npm (package manager)')
+
+parser.add_argument('--without-report',
+                    action='store_true',
+                    help='build without report')
 
 # Dummy option for backwards compatibility
-parser.add_option('--with-snapshot',
-    action='store_true',
-    dest='unused_with_snapshot',
-    help=optparse.SUPPRESS_HELP)
-
-parser.add_option('--without-snapshot',
-    action='store_true',
-    dest='without_snapshot',
-    help=optparse.SUPPRESS_HELP)
-
-parser.add_option('--without-siphash',
-    action='store_true',
-    dest='without_siphash',
-    help=optparse.SUPPRESS_HELP)
-
-parser.add_option('--code-cache-path',
-    action='store',
-    dest='code_cache_path',
-    help='optparse.SUPPRESS_HELP')
+parser.add_argument('--with-snapshot',
+                    action='store_true',
+                    dest='unused_with_snapshot',
+                    help=argparse.SUPPRESS)
+parser.add_argument('--without-snapshot',
+                    action='store_true',
+                    help=argparse.SUPPRESS)
+parser.add_argument('--without-siphash',
+                    action='store_true',
+                    help=argparse.SUPPRESS)
+parser.add_argument('--code-cache-path',
+                    help='optparse.SUPPRESS_HELP')
 
 # End dummy list.
 
-parser.add_option('--without-ssl',
-    action='store_true',
-    dest='without_ssl',
-    help='build without SSL (disables crypto, https, inspector, etc.)')
+parser.add_argument('--without-ssl',
+                    action='store_true',
+                    help='build without SSL (disables crypto, https, inspector, etc.)')
 
-parser.add_option('--without-node-options',
-    action='store_true',
-    dest='without_node_options',
-    help='build without NODE_OPTIONS support')
+parser.add_argument('--without-node-options',
+                    action='store_true',
+                    help='build without NODE_OPTIONS support')
 
-parser.add_option('--ninja',
-    action='store_true',
-    dest='use_ninja',
-    help='generate build files for use with Ninja')
+parser.add_argument('--ninja',
+                    action='store_true',
+                    dest='use_ninja',
+                    help='generate build files for use with Ninja')
 
-parser.add_option('--enable-asan',
-    action='store_true',
-    dest='enable_asan',
-    help='build with asan')
+parser.add_argument('--enable-asan',
+                    action='store_true',
+                    help='build with asan')
 
-parser.add_option('--enable-static',
-    action='store_true',
-    dest='enable_static',
-    help='build as static library')
+parser.add_argument('--enable-static',
+                    action='store_true',
+                    help='build as static library')
 
-parser.add_option('--no-browser-globals',
-    action='store_true',
-    dest='no_browser_globals',
-    help='do not export browser globals like setTimeout, console, etc. ' +
-         '(This mode is not officially supported for regular applications)')
+parser.add_argument('--no-browser-globals',
+                    action='store_true',
+                    help='do not export browser globals like setTimeout, console, etc. ' +
+                         '(This mode is not officially supported for regular applications)')
 
-parser.add_option('--without-inspector',
-    action='store_true',
-    dest='without_inspector',
-    help='disable the V8 inspector protocol')
+parser.add_argument('--without-inspector',
+                    action='store_true',
+                    help='disable the V8 inspector protocol')
 
-parser.add_option('--shared',
-    action='store_true',
-    dest='shared',
-    help='compile shared library for embedding node in another project. ' +
-         '(This mode is not officially supported for regular applications)')
+parser.add_argument('--shared',
+                    action='store_true',
+                    help='compile shared library for embedding node in another project. ' +
+                         '(This mode is not officially supported for regular applications)')
 
-parser.add_option('--without-v8-platform',
-    action='store_true',
-    dest='without_v8_platform',
-    default=False,
-    help='do not initialize v8 platform during node.js startup. ' +
-         '(This mode is not officially supported for regular applications)')
+parser.add_argument('--without-v8-platform',
+                    action='store_true',
+                    default=False,
+                    help='do not initialize v8 platform during node.js startup. ' +
+                         '(This mode is not officially supported for regular applications)')
 
-parser.add_option('--without-bundled-v8',
-    action='store_true',
-    dest='without_bundled_v8',
-    default=False,
-    help='do not use V8 includes from the bundled deps folder. ' +
-         '(This mode is not officially supported for regular applications)')
+parser.add_argument('--without-bundled-v8',
+                    action='store_true',
+                    default=False,
+                    help='do not use V8 includes from the bundled deps folder. ' +
+                         '(This mode is not officially supported for regular applications)')
 
-parser.add_option('--build-v8-with-gn',
+parser.add_argument('--build-v8-with-gn',
     action='store_true',
-    dest='build_v8_with_gn',
     default=False,
     help='build V8 using GN instead of gyp')
+parser.add_argument('--verbose',
+                    action='store_true',
+                    default=False,
+                    help='get more output from this script')
 
-parser.add_option('--verbose',
-    action='store_true',
-    dest='verbose',
-    default=False,
-    help='get more output from this script')
+parser.add_argument('--v8-non-optimized-debug',
+                    action='store_true',
+                    default=False,
+                    help='compile V8 with minimal optimizations and with runtime checks')
 
-parser.add_option('--v8-non-optimized-debug',
-    action='store_true',
-    dest='v8_non_optimized_debug',
-    default=False,
-    help='compile V8 with minimal optimizations and with runtime checks')
+parser.add_argument('extra_gyp_args',
+                    metavar='GYP options',
+                    nargs='*',
+                    help='extra arguments passed to GYP')
 
 # Create compile_commands.json in out/Debug and out/Release.
-parser.add_option('-C',
-    action='store_true',
-    dest='compile_commands_json',
-    help=optparse.SUPPRESS_HELP)
+parser.add_argument('-C',
+                    action='store_true',
+                    dest='compile_commands_json',
+                    help=argparse.SUPPRESS)
 
-(options, args) = parser.parse_args()
+options = parser.parse_args()
 
 # Expand ~ in the install prefix now, it gets written to multiple files.
-options.prefix = os.path.expanduser(options.prefix or '')
+options.prefix = os.path.expanduser(options.prefix)
 
 # set up auto-download list
 auto_downloads = nodedownload.parse(options.download_list)
@@ -1080,8 +962,8 @@ def configure_node(o):
   o['variables']['node_module_version'] = int(node_module_version)
   o['variables']['shlib_suffix'] = shlib_suffix
 
-  if options.linked_module:
-    o['variables']['library_files'] = options.linked_module
+  if options.link_module:
+    o['variables']['library_files'] = options.link_module
 
   o['variables']['asan'] = int(options.enable_asan or 0)
 
@@ -1140,7 +1022,7 @@ def configure_v8(o):
   o['variables']['v8_promise_internal_field_count'] = 1 # Add internal field to promises for async hooks.
   o['variables']['v8_use_siphash'] = 0 if options.without_siphash else 1
   o['variables']['v8_use_snapshot'] = 0 if options.without_snapshot else 1
-  o['variables']['v8_trace_maps'] = 1 if options.trace_maps else 0
+  o['variables']['v8_trace_maps'] = 1 if options.enable_trace_maps else 0
   o['variables']['node_use_v8_platform'] = b(not options.without_v8_platform)
   o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
   o['variables']['force_dynamic_crt'] = 1 if options.shared else 0
@@ -1180,7 +1062,7 @@ def configure_openssl(o):
       without_ssl_error('--openssl-fips')
     return
 
-  if options.use_openssl_ca_store:
+  if options.openssl_use_def_ca_store:
     o['defines'] += ['NODE_OPENSSL_CERT_STORE']
   if options.openssl_system_ca_path:
     variables['openssl_system_ca_path'] = options.openssl_system_ca_path
@@ -1670,7 +1552,7 @@ if options.compile_commands_json:
   gyp_args += ['-f', 'compile_commands_json']
 
 # pass the leftover positional arguments to GYP
-gyp_args += args
+gyp_args += options.extra_gyp_args
 
 if warn.warned and not options.verbose:
   warn('warnings were emitted in the configure phase')
