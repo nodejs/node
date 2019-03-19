@@ -1130,17 +1130,23 @@ passing keys as strings or `Buffer`s due to improved security features.
 added: v11.6.0
 changes:
   - version: REPLACEME
+    pr-url: TODO
+    description: This property now returns `'unknown'` for KeyObject
+                 instances of unknown type instead of C++ assertion
+                 crash
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/26774
     description: Added support for `'x25519'` and `'x448'`
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/26319
-    description: Added support for `'ed25519'` and `'ed448'`
+    description: Added support for `'ed25519'` and `'ed448'`.
 -->
 * {string}
 
 For asymmetric keys, this property represents the type of the embedded key
 (`'rsa'`, `'dsa'`, `'ec'`, `'ed25519'`, `'ed448'`, `'x25519'` or `'x448'`).
-This property is `undefined` for symmetric keys.
+This property is `undefined` for symmetric keys and `'unknown'` for `KeyObject`
+objects that aren
 
 ### keyObject.export([options])
 <!-- YAML

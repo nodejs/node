@@ -3661,7 +3661,7 @@ Local<String> KeyObject::GetAsymmetricKeyType() const {
   case EVP_PKEY_X448:
     return env()->crypto_x448_string();
   default:
-    CHECK(false);
+    return env()->crypto_unknown_string();
   }
 }
 
