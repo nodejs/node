@@ -131,8 +131,6 @@ class EnvironmentTestFixture : public NodeTestFixture {
                                              1, *argv,
                                              argv.nr_args(), *argv);
       CHECK_NE(nullptr, environment_);
-      // TODO(addaleax): Make this a public API.
-      CHECK(!RunBootstrapping(environment_).IsEmpty());
     }
 
     ~Env() {
