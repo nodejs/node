@@ -52,7 +52,7 @@ void TTYWrap::Initialize(Local<Object> target,
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->SetClassName(ttyString);
   t->InstanceTemplate()
-    ->SetInternalFieldCount(StreamBase::kStreamBaseField + 1);
+    ->SetInternalFieldCount(StreamBase::kStreamBaseFieldCount);
   t->Inherit(LibuvStreamWrap::GetConstructorTemplate(env));
 
   env->SetProtoMethodNoSideEffect(t, "getWindowSize", TTYWrap::GetWindowSize);

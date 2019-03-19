@@ -241,7 +241,6 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(onmessage_string, "onmessage")                                             \
   V(onnewsession_string, "onnewsession")                                       \
   V(onocspresponse_string, "onocspresponse")                                   \
-  V(onread_string, "onread")                                                   \
   V(onreadstart_string, "onreadstart")                                         \
   V(onreadstop_string, "onreadstop")                                           \
   V(onshutdown_string, "onshutdown")                                           \

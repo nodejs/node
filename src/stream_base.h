@@ -260,7 +260,11 @@ class StreamResource {
 
 class StreamBase : public StreamResource {
  public:
+  // 0 is reserved for the BaseObject pointer.
   static constexpr int kStreamBaseField = 1;
+  static constexpr int kOnReadFunctionField = 2;
+  static constexpr int kStreamBaseFieldCount = 3;
+
   static void AddMethods(Environment* env,
                          v8::Local<v8::FunctionTemplate> target);
 

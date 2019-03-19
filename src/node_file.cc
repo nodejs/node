@@ -2231,7 +2231,7 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(fd, "close", FileHandle::Close);
   env->SetProtoMethod(fd, "releaseFD", FileHandle::ReleaseFD);
   Local<ObjectTemplate> fdt = fd->InstanceTemplate();
-  fdt->SetInternalFieldCount(StreamBase::kStreamBaseField + 1);
+  fdt->SetInternalFieldCount(StreamBase::kStreamBaseFieldCount);
   Local<String> handleString =
        FIXED_ONE_BYTE_STRING(isolate, "FileHandle");
   fd->SetClassName(handleString);

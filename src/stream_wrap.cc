@@ -136,7 +136,7 @@ Local<FunctionTemplate> LibuvStreamWrap::GetConstructorTemplate(
         FIXED_ONE_BYTE_STRING(env->isolate(), "LibuvStreamWrap"));
     tmpl->Inherit(HandleWrap::GetConstructorTemplate(env));
     tmpl->InstanceTemplate()->SetInternalFieldCount(
-        StreamBase::kStreamBaseField + 1);
+        StreamBase::kStreamBaseFieldCount);
     Local<FunctionTemplate> get_write_queue_size =
         FunctionTemplate::New(env->isolate(),
                               GetWriteQueueSize,
