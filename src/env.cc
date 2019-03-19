@@ -350,16 +350,8 @@ void Environment::ExitEnv() {
 MaybeLocal<Object> Environment::ProcessCliArgs(
     const std::vector<std::string>& args,
     const std::vector<std::string>& exec_args) {
-  if (args.size() > 1) {
-    std::string first_arg = args[1];
-    if (first_arg == "inspect") {
-      execution_mode_ = ExecutionMode::kInspect;
-    } else if (first_arg == "debug") {
-      execution_mode_ = ExecutionMode::kDebug;
-    } else if (first_arg != "-") {
-      execution_mode_ = ExecutionMode::kRunMainModule;
-    }
-  }
+  argv_ = args;
+  exec_argv_ = exec_args;
 
   if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
           TRACING_CATEGORY_NODE1(environment)) != 0) {
@@ -377,7 +369,6 @@ MaybeLocal<Object> Environment::ProcessCliArgs(
                                       std::move(traced_value));
   }
 
-  exec_argv_ = exec_args;
   Local<Object> process_object =
       node::CreateProcessObject(this, args, exec_args)
           .FromMaybe(Local<Object>());

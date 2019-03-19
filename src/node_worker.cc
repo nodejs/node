@@ -96,6 +96,7 @@ Worker::Worker(Environment* env,
       env->inspector_agent()->GetParentHandle(thread_id_, url);
 #endif
 
+  argv_ = std::vector<std::string>{env->argv()[0]};
   // Mark this Worker object as weak until we actually start the thread.
   MakeWeak();
 
@@ -260,8 +261,7 @@ void Worker::Run() {
         env_->set_worker_context(this);
 
         env_->InitializeLibuv(profiler_idle_notifier_started_);
-        env_->ProcessCliArgs(std::vector<std::string>{},
-                             std::move(exec_argv_));
+        env_->ProcessCliArgs(std::move(argv_), std::move(exec_argv_));
       }
       {
         Mutex::ScopedLock lock(mutex_);
