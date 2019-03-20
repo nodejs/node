@@ -719,7 +719,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
     compile_options = ScriptCompiler::kConsumeCodeCache;
 
   TryCatchScope try_catch(env);
-  Environment::ShouldNotAbortOnUncaughtScope no_abort_scope(env);
+  ShouldNotAbortOnUncaughtScope no_abort_scope(env);
   Context::Scope scope(parsing_context);
 
   MaybeLocal<UnboundScript> v8_script = ScriptCompiler::CompileUnboundScript(

@@ -136,7 +136,7 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
     column_offset = Integer::New(isolate, 0);
   }
 
-  Environment::ShouldNotAbortOnUncaughtScope no_abort_scope(env);
+  ShouldNotAbortOnUncaughtScope no_abort_scope(env);
   TryCatchScope try_catch(env);
   Local<Module> module;
 
@@ -280,7 +280,7 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsBoolean());
   bool break_on_sigint = args[1]->IsTrue();
 
-  Environment::ShouldNotAbortOnUncaughtScope no_abort_scope(env);
+  ShouldNotAbortOnUncaughtScope no_abort_scope(env);
   TryCatchScope try_catch(env);
 
   bool timed_out = false;
