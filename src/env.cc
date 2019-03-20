@@ -8,7 +8,6 @@
 #include "node_internals.h"
 #include "node_native_module.h"
 #include "node_options-inl.h"
-#include "node_platform.h"
 #include "node_process.h"
 #include "node_v8_platform-inl.h"
 #include "node_worker.h"
