@@ -47,8 +47,6 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-using AsyncHooks = Environment::AsyncHooks;
-
 MaybeLocal<Object> PipeWrap::Instantiate(Environment* env,
                                          AsyncWrap* parent,
                                          PipeWrap::SocketType type) {

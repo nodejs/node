@@ -48,15 +48,13 @@ inline double AsyncWrap::get_trigger_async_id() const {
 inline AsyncWrap::AsyncScope::AsyncScope(AsyncWrap* wrap)
     : wrap_(wrap) {
   Environment* env = wrap->env();
-  if (env->async_hooks()->fields()[Environment::AsyncHooks::kBefore] == 0)
-    return;
+  if (env->async_hooks()->fields()[AsyncHooks::kBefore] == 0) return;
   EmitBefore(env, wrap->get_async_id());
 }
 
 inline AsyncWrap::AsyncScope::~AsyncScope() {
   Environment* env = wrap_->env();
-  if (env->async_hooks()->fields()[Environment::AsyncHooks::kAfter] == 0)
-    return;
+  if (env->async_hooks()->fields()[AsyncHooks::kAfter] == 0) return;
   EmitAfter(env, wrap_->get_async_id());
 }
 
@@ -94,8 +92,8 @@ inline v8::MaybeLocal<v8::Value> AsyncWrap::MakeCallback(
 
 
 // Defined here to avoid a circular dependency with env-inl.h.
-inline Environment::AsyncHooks::DefaultTriggerAsyncIdScope
-  ::DefaultTriggerAsyncIdScope(AsyncWrap* async_wrap)
+inline AsyncHooks::DefaultTriggerAsyncIdScope ::DefaultTriggerAsyncIdScope(
+    AsyncWrap* async_wrap)
     : DefaultTriggerAsyncIdScope(async_wrap->env(),
                                  async_wrap->get_async_id()) {}
 

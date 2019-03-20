@@ -22,8 +22,6 @@ using v8::PropertyCallbackInfo;
 using v8::String;
 using v8::Value;
 
-using AsyncHooks = Environment::AsyncHooks;
-
 inline void StreamReq::AttachToObject(v8::Local<v8::Object> req_wrap_obj) {
   CHECK_EQ(req_wrap_obj->GetAlignedPointerFromInternalField(kStreamReqField),
            nullptr);
