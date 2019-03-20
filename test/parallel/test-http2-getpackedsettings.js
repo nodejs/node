@@ -88,8 +88,10 @@ http2.getPackedSettings({ enablePush: false });
 
 // Check for not passing settings.
 {
-  const packed = http2.getPackedSettings();
-  assert.strictEqual(packed.length, 0);
+  assert.throws(
+    () => http2.getPackedSettings(),
+    { code: 'ERR_INVALID_ARG_TYPE' }
+  );
 }
 
 {
