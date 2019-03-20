@@ -487,24 +487,32 @@ inline uint32_t Environment::get_next_function_id() {
   return function_id_counter_++;
 }
 
-Environment::ShouldNotAbortOnUncaughtScope::ShouldNotAbortOnUncaughtScope(
+ShouldNotAbortOnUncaughtScope::ShouldNotAbortOnUncaughtScope(
     Environment* env)
     : env_(env) {
-  env_->should_not_abort_scope_counter_++;
+  env_->PushShouldNotAbortOnUncaughtScope();
 }
 
-Environment::ShouldNotAbortOnUncaughtScope::~ShouldNotAbortOnUncaughtScope() {
+ShouldNotAbortOnUncaughtScope::~ShouldNotAbortOnUncaughtScope() {
   Close();
 }
 
-void Environment::ShouldNotAbortOnUncaughtScope::Close() {
+void ShouldNotAbortOnUncaughtScope::Close() {
   if (env_ != nullptr) {
-    env_->should_not_abort_scope_counter_--;
+    env_->PopShouldNotAbortOnUncaughtScope();
     env_ = nullptr;
   }
 }
 
-bool Environment::inside_should_not_abort_on_uncaught_scope() const {
+inline void Environment::PushShouldNotAbortOnUncaughtScope() {
+  should_not_abort_scope_counter_++;
+}
+
+inline void Environment::PopShouldNotAbortOnUncaughtScope() {
+  should_not_abort_scope_counter_--;
+}
+
+inline bool Environment::inside_should_not_abort_on_uncaught_scope() const {
   return should_not_abort_scope_counter_ > 0;
 }
 

@@ -684,6 +684,16 @@ class TrackingTraceStateObserver :
   Environment* env_;
 };
 
+class ShouldNotAbortOnUncaughtScope {
+ public:
+  explicit inline ShouldNotAbortOnUncaughtScope(Environment* env);
+  inline void Close();
+  inline ~ShouldNotAbortOnUncaughtScope();
+
+ private:
+  Environment* env_;
+};
+
 class Environment {
  public:
   Environment(const Environment&) = delete;
@@ -998,16 +1008,8 @@ class Environment {
   // This needs to be available for the JS-land setImmediate().
   void ToggleImmediateRef(bool ref);
 
-  class ShouldNotAbortOnUncaughtScope {
-   public:
-    explicit inline ShouldNotAbortOnUncaughtScope(Environment* env);
-    inline void Close();
-    inline ~ShouldNotAbortOnUncaughtScope();
-
-   private:
-    Environment* env_;
-  };
-
+  inline void PushShouldNotAbortOnUncaughtScope();
+  inline void PopShouldNotAbortOnUncaughtScope();
   inline bool inside_should_not_abort_on_uncaught_scope() const;
 
   static inline Environment* ForAsyncHooks(AsyncHooks* hooks);
