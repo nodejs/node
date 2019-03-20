@@ -29,6 +29,8 @@ const path = require('path');
 
 const backslash = /\\/g;
 
+process.on('warning', common.mustNotCall());
+
 console.error('load test-module-loading.js');
 
 assert.strictEqual(require.main.id, '.');
@@ -105,6 +107,15 @@ assert.strictEqual(require('../fixtures/packages/index').ok, 'ok');
 assert.strictEqual(require('../fixtures/packages/main').ok, 'ok');
 assert.strictEqual(require('../fixtures/packages/main-index').ok, 'ok');
 assert.strictEqual(require('../fixtures/packages/missing-main').ok, 'ok');
+assert.throws(
+  () => require('../fixtures/packages/missing-main-no-index'),
+  {
+    code: 'MODULE_NOT_FOUND',
+    message: /packages[/\\]missing-main-no-index[/\\]doesnotexist\.js'\. Please.+package\.json.+valid "main"/,
+    path: /fixtures[/\\]packages[/\\]missing-main-no-index[/\\]package\.json/,
+    requestPath: /^\.\.[/\\]fixtures[/\\]packages[/\\]missing-main-no-index$/
+  }
+);
 
 assert.throws(
   function() { require('../fixtures/packages/unparseable'); },

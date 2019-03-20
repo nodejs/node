@@ -26,31 +26,28 @@ const fs = require('fs');
 const fixtures = require('../common/fixtures');
 
 // A module with an error in it should throw
-assert.throws(function() {
+assert.throws(() => {
   require(fixtures.path('/throws_error'));
 }, /^Error: blah$/);
 
 // Requiring the same module again should throw as well
-assert.throws(function() {
+assert.throws(() => {
   require(fixtures.path('/throws_error'));
 }, /^Error: blah$/);
 
 // Requiring a module that does not exist should throw an
 // error with its `code` set to MODULE_NOT_FOUND
-assertModuleNotFound('/DOES_NOT_EXIST');
+assert.throws(
+  () => require('/DOES_NOT_EXIST'),
+  { code: 'MODULE_NOT_FOUND' }
+);
 
 assertExists('/module-require/not-found/trailingSlash.js');
 assertExists('/module-require/not-found/node_modules/module1/package.json');
-assertModuleNotFound('/module-require/not-found/trailingSlash');
-
-function assertModuleNotFound(path) {
-  assert.throws(function() {
-    require(fixtures.path(path));
-  }, function(e) {
-    assert.strictEqual(e.code, 'MODULE_NOT_FOUND');
-    return true;
-  });
-}
+assert.throws(
+  () => require('/module-require/not-found/trailingSlash'),
+  { code: 'MODULE_NOT_FOUND' }
+);
 
 function assertExists(fixture) {
   assert(fs.existsSync(fixtures.path(fixture)));

@@ -494,7 +494,11 @@ function _expectWarning(name, expected, code) {
   return mustCall((warning) => {
     const [ message, code ] = expected.shift();
     assert.strictEqual(warning.name, name);
-    assert.strictEqual(warning.message, message);
+    if (typeof message === 'string') {
+      assert.strictEqual(warning.message, message);
+    } else {
+      assert(message.test(warning.message));
+    }
     assert.strictEqual(warning.code, code);
   }, expected.length);
 }
