@@ -169,9 +169,12 @@ LOAD_INDEX(X)
 LOAD_AS_DIRECTORY(X)
 1. If X/package.json is a file,
    a. Parse X/package.json, and look for "main" field.
-   b. let M = X + (json main field)
-   c. LOAD_AS_FILE(M)
-   d. LOAD_INDEX(M)
+   b. If "main" is a falsy value, GOTO 2.
+   c. let M = X + (json main field)
+   d. LOAD_AS_FILE(M)
+   e. LOAD_INDEX(M)
+   f. LOAD_INDEX(X) DEPRECATED
+   g. THROW "not found"
 2. LOAD_INDEX(X)
 
 LOAD_NODE_MODULES(X, START)
