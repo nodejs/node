@@ -119,7 +119,7 @@ void InitThreadLocalOnce() {
   CHECK_EQ(0, uv_key_create(&Environment::thread_local_env));
 }
 
-void Environment::TrackingTraceStateObserver::UpdateTraceCategoryState() {
+void TrackingTraceStateObserver::UpdateTraceCategoryState() {
   if (!env_->owns_process_state()) {
     // Ideally, we’d have a consistent story that treats all threads/Environment
     // instances equally here. However, tracing is essentially global, and this

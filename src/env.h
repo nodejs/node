@@ -665,6 +665,25 @@ class TickInfo {
   AliasedBuffer<uint8_t, v8::Uint8Array> fields_;
 };
 
+class TrackingTraceStateObserver :
+    public v8::TracingController::TraceStateObserver {
+ public:
+  explicit TrackingTraceStateObserver(Environment* env) : env_(env) {}
+
+  void OnTraceEnabled() override {
+    UpdateTraceCategoryState();
+  }
+
+  void OnTraceDisabled() override {
+    UpdateTraceCategoryState();
+  }
+
+ private:
+  void UpdateTraceCategoryState();
+
+  Environment* env_;
+};
+
 class Environment {
  public:
   Environment(const Environment&) = delete;
@@ -978,25 +997,6 @@ class Environment {
                                     v8::Local<v8::Object>());
   // This needs to be available for the JS-land setImmediate().
   void ToggleImmediateRef(bool ref);
-
-  class TrackingTraceStateObserver :
-      public v8::TracingController::TraceStateObserver {
-   public:
-    explicit TrackingTraceStateObserver(Environment* env) : env_(env) {}
-
-    void OnTraceEnabled() override {
-      UpdateTraceCategoryState();
-    }
-
-    void OnTraceDisabled() override {
-      UpdateTraceCategoryState();
-    }
-
-   private:
-    void UpdateTraceCategoryState();
-
-    Environment* env_;
-  };
 
   class ShouldNotAbortOnUncaughtScope {
    public:
