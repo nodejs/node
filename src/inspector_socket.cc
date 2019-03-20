@@ -158,10 +158,10 @@ static void generate_accept_string(const std::string& client_key,
 }
 
 static std::string TrimPort(const std::string& host) {
-  size_t last_colon_pos = host.rfind(":");
+  size_t last_colon_pos = host.rfind(':');
   if (last_colon_pos == std::string::npos)
     return host;
-  size_t bracket = host.rfind("]");
+  size_t bracket = host.rfind(']');
   if (bracket == std::string::npos || last_colon_pos > bracket)
     return host.substr(0, last_colon_pos);
   return host;

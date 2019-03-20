@@ -507,7 +507,7 @@ static void PrintSystemInformation(JSONWriter* writer) {
       WideCharToMultiByte(
           CP_UTF8, 0, lpszVariable, -1, str, size, nullptr, nullptr);
       std::string env(str);
-      int sep = env.rfind("=");
+      int sep = env.rfind('=');
       std::string key = env.substr(0, sep);
       std::string value = env.substr(sep + 1);
       writer->json_keyvalue(key, value);
