@@ -647,6 +647,24 @@ class ImmediateInfo {
   AliasedBuffer<uint32_t, v8::Uint32Array> fields_;
 };
 
+class TickInfo {
+ public:
+  inline AliasedBuffer<uint8_t, v8::Uint8Array>& fields();
+  inline bool has_tick_scheduled() const;
+  inline bool has_rejection_to_warn() const;
+
+  TickInfo(const TickInfo&) = delete;
+  TickInfo& operator=(const TickInfo&) = delete;
+
+ private:
+  friend class Environment;  // So we can call the constructor.
+  inline explicit TickInfo(v8::Isolate* isolate);
+
+  enum Fields { kHasTickScheduled = 0, kHasRejectionToWarn, kFieldsCount };
+
+  AliasedBuffer<uint8_t, v8::Uint8Array> fields_;
+};
+
 class Environment {
  public:
   Environment(const Environment&) = delete;
@@ -655,28 +673,6 @@ class Environment {
   inline size_t async_callback_scope_depth() const;
   inline void PushAsyncCallbackScope();
   inline void PopAsyncCallbackScope();
-
-  class TickInfo {
-   public:
-    inline AliasedBuffer<uint8_t, v8::Uint8Array>& fields();
-    inline bool has_tick_scheduled() const;
-    inline bool has_rejection_to_warn() const;
-
-    TickInfo(const TickInfo&) = delete;
-    TickInfo& operator=(const TickInfo&) = delete;
-
-   private:
-    friend class Environment;  // So we can call the constructor.
-    inline explicit TickInfo(v8::Isolate* isolate);
-
-    enum Fields {
-      kHasTickScheduled = 0,
-      kHasRejectionToWarn,
-      kFieldsCount
-    };
-
-    AliasedBuffer<uint8_t, v8::Uint8Array> fields_;
-  };
 
   enum Flags {
     kNoFlags = 0,

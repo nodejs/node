@@ -96,7 +96,7 @@ void InternalCallbackScope::Close() {
     return;
   }
 
-  Environment::TickInfo* tick_info = env_->tick_info();
+  TickInfo* tick_info = env_->tick_info();
 
   if (!env_->can_call_into_js()) return;
   if (!tick_info->has_tick_scheduled()) {
