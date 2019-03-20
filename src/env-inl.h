@@ -268,18 +268,18 @@ inline void ImmediateInfo::ref_count_dec(uint32_t decrement) {
   fields_[kRefCount] -= decrement;
 }
 
-inline Environment::TickInfo::TickInfo(v8::Isolate* isolate)
+inline TickInfo::TickInfo(v8::Isolate* isolate)
     : fields_(isolate, kFieldsCount) {}
 
-inline AliasedBuffer<uint8_t, v8::Uint8Array>& Environment::TickInfo::fields() {
+inline AliasedBuffer<uint8_t, v8::Uint8Array>& TickInfo::fields() {
   return fields_;
 }
 
-inline bool Environment::TickInfo::has_tick_scheduled() const {
+inline bool TickInfo::has_tick_scheduled() const {
   return fields_[kHasTickScheduled] == 1;
 }
 
-inline bool Environment::TickInfo::has_rejection_to_warn() const {
+inline bool TickInfo::has_rejection_to_warn() const {
   return fields_[kHasRejectionToWarn] == 1;
 }
 
@@ -439,7 +439,7 @@ inline ImmediateInfo* Environment::immediate_info() {
   return &immediate_info_;
 }
 
-inline Environment::TickInfo* Environment::tick_info() {
+inline TickInfo* Environment::tick_info() {
   return &tick_info_;
 }
 
