@@ -40,6 +40,8 @@ class BaseObject : public MemoryRetainer {
   inline BaseObject(Environment* env, v8::Local<v8::Object> object);
   inline ~BaseObject() override;
 
+  BaseObject() = delete;
+
   // Returns the wrapped object.  Returns an empty handle when
   // persistent.IsEmpty() is true.
   inline v8::Local<v8::Object> object() const;
@@ -83,8 +85,6 @@ class BaseObject : public MemoryRetainer {
                                const v8::PropertyCallbackInfo<void>& info);
 
  private:
-  BaseObject();
-
   v8::Local<v8::Object> WrappedObject() const override;
   bool IsRootNode() const override;
   static void DeleteMe(void* data);
