@@ -5,8 +5,8 @@
 
 The `process` object is a `global` that provides information about, and control
 over, the current Node.js process. As a global, it is always available to
-Node.js applications without using `require()`. It can also be
-explicitly accessed using `require()`:
+Node.js applications without using `require()`. It can also be explicitly
+accessed using `require()`:
 
 ```js
 const process = require('process');
