@@ -4,17 +4,15 @@
 const common = require('../common');
 
 const { Writable } = require('stream');
-const { Console } = require('console');
 
 const streamToNowhere = new Writable({ write: common.mustCall() });
 const anotherStreamToNowhere = new Writable({ write: common.mustCall() });
-const myConsole = new Console(process.stdout);
 
-// Overriding the _stdout and _stderr properties this way is what we are
-// testing. Don't change this to be done via arguments passed to the constructor
-// above.
-myConsole._stdout = streamToNowhere;
-myConsole._stderr = anotherStreamToNowhere;
+// Overriding the lazy-loaded _stdout and _stderr properties this way is what we
+// are testing. Don't change this to be a Console instance from calling a
+// constructor. It has to be the global `console` object.
+console._stdout = streamToNowhere;
+console._stderr = anotherStreamToNowhere;
 
-myConsole.log('fhqwhgads');
-myConsole.error('fhqwhgads');
+console.log('fhqwhgads');
+console.error('fhqwhgads');
