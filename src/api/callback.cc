@@ -92,7 +92,7 @@ void InternalCallbackScope::Close() {
     AsyncWrap::EmitAfter(env_, async_context_.async_id);
   }
 
-  if (env_->makecallback_depth() > 1) {
+  if (env_->async_callback_scope_depth() > 1) {
     return;
   }
 
@@ -217,7 +217,7 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
   Context::Scope context_scope(env->context());
   MaybeLocal<Value> ret =
       InternalMakeCallback(env, recv, callback, argc, argv, asyncContext);
-  if (ret.IsEmpty() && env->makecallback_depth() == 0) {
+  if (ret.IsEmpty() && env->async_callback_scope_depth() == 0) {
     // This is only for legacy compatibility and we may want to look into
     // removing/adjusting it.
     return Undefined(env->isolate());
