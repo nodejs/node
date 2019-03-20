@@ -280,7 +280,6 @@ class HeapSnapshotStream : public AsyncWrap,
 
   int DoShutdown(ShutdownWrap* req_wrap) override {
     UNREACHABLE();
-    return 0;
   }
 
   int DoWrite(WriteWrap* w,
@@ -288,7 +287,6 @@ class HeapSnapshotStream : public AsyncWrap,
               size_t count,
               uv_stream_t* send_handle) override {
     UNREACHABLE();
-    return 0;
   }
 
   bool IsAlive() override { return snapshot_ != nullptr; }
