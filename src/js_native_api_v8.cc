@@ -395,9 +395,7 @@ struct CallbackBundle {
     // This will be called when the v8::External containing `this` pointer
     // is being GC-ed.
     CallbackBundle* bundle = info.GetParameter();
-    if (bundle != nullptr) {
-      delete bundle;
-    }
+    delete bundle;
   }
 };
 
