@@ -271,8 +271,6 @@ void Initialize(Local<Object> target, Local<Value> unused,
                 Local<Context> context, void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
-  Agent* agent = env->inspector_agent();
-
   v8::Local<v8::Function> consoleCallFunc =
       env->NewFunctionTemplate(InspectorConsoleCall, v8::Local<v8::Signature>(),
                                v8::ConstructorBehavior::kThrow,
@@ -285,8 +283,7 @@ void Initialize(Local<Object> target, Local<Value> unused,
 
   env->SetMethod(
       target, "setConsoleExtensionInstaller", SetConsoleExtensionInstaller);
-  if (agent->WillWaitForConnect())
-    env->SetMethod(target, "callAndPauseOnStart", CallAndPauseOnStart);
+  env->SetMethod(target, "callAndPauseOnStart", CallAndPauseOnStart);
   env->SetMethod(target, "open", Open);
   env->SetMethodNoSideEffect(target, "url", Url);
 
