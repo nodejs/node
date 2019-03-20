@@ -166,6 +166,9 @@ console.assert(false, '%s should', 'console.assert', 'not throw');
 assert.strictEqual(errStrings[errStrings.length - 1],
                    'Assertion failed: console.assert should not throw\n');
 
+console.assert(false);
+assert.strictEqual(errStrings[errStrings.length - 1], 'Assertion failed\n');
+
 console.assert(true, 'this should not throw');
 
 console.assert(true);
