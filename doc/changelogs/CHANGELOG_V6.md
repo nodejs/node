@@ -78,7 +78,7 @@
 will be supported actively until April 2018 and maintained until April 2019.
 
 <a id="6.17.0"></a>
-## 2018-02-28, Version 6.17.0 'Boron' (LTS), @rvagg
+## 2019-02-28, Version 6.17.0 'Boron' (LTS), @rvagg
 
 This is a security release. All Node.js users should consult the security release summary at:
 
