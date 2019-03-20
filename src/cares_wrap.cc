@@ -296,11 +296,6 @@ void node_ares_task::MemoryInfo(MemoryTracker* tracker) const {
 node_ares_task* ares_task_create(ChannelWrap* channel, ares_socket_t sock) {
   auto task = new node_ares_task();
 
-  if (task == nullptr) {
-    /* Out of memory. */
-    return nullptr;
-  }
-
   task->channel = channel;
   task->sock = sock;
 
