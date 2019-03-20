@@ -18,19 +18,19 @@ function Benchmark(fn, configs, options) {
   const enqueueConfigsInFirstGroup = (configs) => {
     const firstGroupKey = Object.keys(configs)[0];
     const configsInFirstGroup = configs[firstGroupKey];
-    const parsed_args =
+    const parsedArgs =
       this._parseArgs(process.argv.slice(2), configsInFirstGroup);
-    this.options = parsed_args.cli;
-    this.extra_options = parsed_args.extra;
+    this.options = parsedArgs.cli;
+    this.extra_options = parsedArgs.extra;
     this.queue = this._queue(this.options);
   };
 
   const enqueueConfigsInGroups = (configs) => {
     for (const groupKey of Object.keys(configs)) {
       const config = configs[groupKey];
-      const parsed_args = this._parseArgs(process.argv.slice(2), config);
-      this.options = parsed_args.cli;
-      this.extra_options = parsed_args.extra;
+      const parsedArgs = this._parseArgs(process.argv.slice(2), config);
+      this.options = parsedArgs.cli;
+      this.extra_options = parsedArgs.extra;
       // The configuration list as a queue of jobs by merging the existing
       // items with the new items to return a new array
       this.queue = [ ...this.queue, ...this._queue(this.options) ];
@@ -39,9 +39,9 @@ function Benchmark(fn, configs, options) {
 
   const enqueueConfigs = (configs) => {
     // Parse job-specific configuration from the command line arguments
-    const parsed_args = this._parseArgs(process.argv.slice(2), configs);
-    this.options = parsed_args.cli;
-    this.extra_options = parsed_args.extra;
+    const parsedArgs = this._parseArgs(process.argv.slice(2), configs);
+    this.options = parsedArgs.cli;
+    this.extra_options = parsedArgs.extra;
     // The configuration list as a queue of jobs
     this.queue = this._queue(this.options);
   };
