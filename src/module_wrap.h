@@ -36,7 +36,6 @@ v8::Maybe<url::URL> Resolve(Environment* env,
 
 class ModuleWrap : public BaseObject {
  public:
-  static const std::string EXTENSIONS[];
   static void Initialize(v8::Local<v8::Object> target,
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context,
