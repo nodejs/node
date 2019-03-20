@@ -612,24 +612,26 @@ class AsyncHooks {
   void grow_async_ids_stack();
 };
 
+class AsyncCallbackScope {
+ public:
+  AsyncCallbackScope() = delete;
+  explicit AsyncCallbackScope(Environment* env);
+  ~AsyncCallbackScope();
+  AsyncCallbackScope(const AsyncCallbackScope&) = delete;
+  AsyncCallbackScope& operator=(const AsyncCallbackScope&) = delete;
+
+ private:
+  Environment* env_;
+};
+
 class Environment {
  public:
   Environment(const Environment&) = delete;
   Environment& operator=(const Environment&) = delete;
 
-  class AsyncCallbackScope {
-   public:
-    AsyncCallbackScope() = delete;
-    explicit AsyncCallbackScope(Environment* env);
-    ~AsyncCallbackScope();
-    AsyncCallbackScope(const AsyncCallbackScope&) = delete;
-    AsyncCallbackScope& operator=(const AsyncCallbackScope&) = delete;
-
-   private:
-    Environment* env_;
-  };
-
-  inline size_t makecallback_depth() const;
+  inline size_t async_callback_scope_depth() const;
+  inline void PushAsyncCallbackScope();
+  inline void PopAsyncCallbackScope();
 
   class ImmediateInfo {
    public:
@@ -1082,7 +1084,7 @@ class Environment {
   bool printed_error_ = false;
   bool emit_env_nonstring_warning_ = true;
   bool emit_err_name_warning_ = true;
-  size_t makecallback_cntr_ = 0;
+  size_t async_callback_scope_depth_ = 0;
   std::vector<double> destroy_async_id_list_;
 
   std::shared_ptr<EnvironmentOptions> options_;

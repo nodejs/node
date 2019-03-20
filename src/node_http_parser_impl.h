@@ -323,7 +323,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
     argv[A_UPGRADE] = Boolean::New(env()->isolate(), parser_.upgrade);
 
-    Environment::AsyncCallbackScope callback_scope(env());
+    AsyncCallbackScope callback_scope(env());
 
     MaybeLocal<Value> head_response =
         MakeCallback(cb.As<Function>(), arraysize(argv), argv);
@@ -394,7 +394,7 @@ class Parser : public AsyncWrap, public StreamListener {
     if (!cb->IsFunction())
       return 0;
 
-    Environment::AsyncCallbackScope callback_scope(env());
+    AsyncCallbackScope callback_scope(env());
 
     MaybeLocal<Value> r = MakeCallback(cb.As<Function>(), 0, nullptr);
 

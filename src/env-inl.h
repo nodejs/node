@@ -212,18 +212,24 @@ Environment* Environment::ForAsyncHooks(AsyncHooks* hooks) {
   return ContainerOf(&Environment::async_hooks_, hooks);
 }
 
-
-inline Environment::AsyncCallbackScope::AsyncCallbackScope(Environment* env)
-    : env_(env) {
-  env_->makecallback_cntr_++;
+inline AsyncCallbackScope::AsyncCallbackScope(Environment* env) : env_(env) {
+  env_->PushAsyncCallbackScope();
 }
 
-inline Environment::AsyncCallbackScope::~AsyncCallbackScope() {
-  env_->makecallback_cntr_--;
+inline AsyncCallbackScope::~AsyncCallbackScope() {
+  env_->PopAsyncCallbackScope();
 }
 
-inline size_t Environment::makecallback_depth() const {
-  return makecallback_cntr_;
+inline size_t Environment::async_callback_scope_depth() const {
+  return async_callback_scope_depth_;
+}
+
+inline void Environment::PushAsyncCallbackScope() {
+  async_callback_scope_depth_++;
+}
+
+inline void Environment::PopAsyncCallbackScope() {
+  async_callback_scope_depth_--;
 }
 
 inline Environment::ImmediateInfo::ImmediateInfo(v8::Isolate* isolate)
