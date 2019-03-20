@@ -277,7 +277,7 @@ void Worker::Run() {
         inspector_started = true;
 
         HandleScope handle_scope(isolate_);
-        Environment::AsyncCallbackScope callback_scope(env_.get());
+        AsyncCallbackScope callback_scope(env_.get());
         env_->async_hooks()->push_async_ids(1, 0);
         if (!RunBootstrapping(env_.get()).IsEmpty()) {
           CreateEnvMessagePort(env_.get());

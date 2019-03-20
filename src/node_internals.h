@@ -213,7 +213,7 @@ class InternalCallbackScope {
   Environment* env_;
   async_context async_context_;
   v8::Local<v8::Object> object_;
-  Environment::AsyncCallbackScope callback_scope_;
+  AsyncCallbackScope callback_scope_;
   bool failed_ = false;
   bool pushed_ids_ = false;
   bool closed_ = false;
