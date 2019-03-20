@@ -52,8 +52,6 @@ using v8::String;
 using v8::Uint32;
 using v8::Value;
 
-using AsyncHooks = Environment::AsyncHooks;
-
 MaybeLocal<Object> TCPWrap::Instantiate(Environment* env,
                                         AsyncWrap* parent,
                                         TCPWrap::SocketType type) {

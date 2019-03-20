@@ -537,86 +537,85 @@ class AsyncRequest : public MemoryRetainer {
   std::atomic_bool stopped_ {true};
 };
 
+class AsyncHooks {
+ public:
+  // Reason for both UidFields and Fields are that one is stored as a double*
+  // and the other as a uint32_t*.
+  enum Fields {
+    kInit,
+    kBefore,
+    kAfter,
+    kDestroy,
+    kPromiseResolve,
+    kTotals,
+    kCheck,
+    kStackLength,
+    kFieldsCount,
+  };
+
+  enum UidFields {
+    kExecutionAsyncId,
+    kTriggerAsyncId,
+    kAsyncIdCounter,
+    kDefaultTriggerAsyncId,
+    kUidFieldsCount,
+  };
+
+  inline AliasedBuffer<uint32_t, v8::Uint32Array>& fields();
+  inline AliasedBuffer<double, v8::Float64Array>& async_id_fields();
+  inline AliasedBuffer<double, v8::Float64Array>& async_ids_stack();
+
+  inline v8::Local<v8::String> provider_string(int idx);
+
+  inline void no_force_checks();
+  inline Environment* env();
+
+  inline void push_async_ids(double async_id, double trigger_async_id);
+  inline bool pop_async_id(double async_id);
+  inline void clear_async_id_stack();  // Used in fatal exceptions.
+
+  AsyncHooks(const AsyncHooks&) = delete;
+  AsyncHooks& operator=(const AsyncHooks&) = delete;
+
+  // Used to set the kDefaultTriggerAsyncId in a scope. This is instead of
+  // passing the trigger_async_id along with other constructor arguments.
+  class DefaultTriggerAsyncIdScope {
+   public:
+    DefaultTriggerAsyncIdScope() = delete;
+    explicit DefaultTriggerAsyncIdScope(Environment* env,
+                                        double init_trigger_async_id);
+    explicit DefaultTriggerAsyncIdScope(AsyncWrap* async_wrap);
+    ~DefaultTriggerAsyncIdScope();
+
+    DefaultTriggerAsyncIdScope(const DefaultTriggerAsyncIdScope&) = delete;
+    DefaultTriggerAsyncIdScope& operator=(const DefaultTriggerAsyncIdScope&) =
+        delete;
+
+   private:
+    AsyncHooks* async_hooks_;
+    double old_default_trigger_async_id_;
+  };
+
+ private:
+  friend class Environment;  // So we can call the constructor.
+  inline AsyncHooks();
+  // Keep a list of all Persistent strings used for Provider types.
+  v8::Eternal<v8::String> providers_[AsyncWrap::PROVIDERS_LENGTH];
+  // Stores the ids of the current execution context stack.
+  AliasedBuffer<double, v8::Float64Array> async_ids_stack_;
+  // Attached to a Uint32Array that tracks the number of active hooks for
+  // each type.
+  AliasedBuffer<uint32_t, v8::Uint32Array> fields_;
+  // Attached to a Float64Array that tracks the state of async resources.
+  AliasedBuffer<double, v8::Float64Array> async_id_fields_;
+
+  void grow_async_ids_stack();
+};
+
 class Environment {
  public:
   Environment(const Environment&) = delete;
   Environment& operator=(const Environment&) = delete;
-
-  class AsyncHooks {
-   public:
-    // Reason for both UidFields and Fields are that one is stored as a double*
-    // and the other as a uint32_t*.
-    enum Fields {
-      kInit,
-      kBefore,
-      kAfter,
-      kDestroy,
-      kPromiseResolve,
-      kTotals,
-      kCheck,
-      kStackLength,
-      kFieldsCount,
-    };
-
-    enum UidFields {
-      kExecutionAsyncId,
-      kTriggerAsyncId,
-      kAsyncIdCounter,
-      kDefaultTriggerAsyncId,
-      kUidFieldsCount,
-    };
-
-    inline AliasedBuffer<uint32_t, v8::Uint32Array>& fields();
-    inline AliasedBuffer<double, v8::Float64Array>& async_id_fields();
-    inline AliasedBuffer<double, v8::Float64Array>& async_ids_stack();
-
-    inline v8::Local<v8::String> provider_string(int idx);
-
-    inline void no_force_checks();
-    inline Environment* env();
-
-    inline void push_async_ids(double async_id, double trigger_async_id);
-    inline bool pop_async_id(double async_id);
-    inline void clear_async_id_stack();  // Used in fatal exceptions.
-
-    AsyncHooks(const AsyncHooks&) = delete;
-    AsyncHooks& operator=(const AsyncHooks&) = delete;
-
-    // Used to set the kDefaultTriggerAsyncId in a scope. This is instead of
-    // passing the trigger_async_id along with other constructor arguments.
-    class DefaultTriggerAsyncIdScope {
-     public:
-      DefaultTriggerAsyncIdScope() = delete;
-      explicit DefaultTriggerAsyncIdScope(Environment* env,
-                                          double init_trigger_async_id);
-      explicit DefaultTriggerAsyncIdScope(AsyncWrap* async_wrap);
-      ~DefaultTriggerAsyncIdScope();
-
-      DefaultTriggerAsyncIdScope(const DefaultTriggerAsyncIdScope&) = delete;
-      DefaultTriggerAsyncIdScope& operator=(const DefaultTriggerAsyncIdScope&) =
-          delete;
-
-     private:
-      AsyncHooks* async_hooks_;
-      double old_default_trigger_async_id_;
-    };
-
-
-   private:
-    friend class Environment;  // So we can call the constructor.
-    inline AsyncHooks();
-    // Keep a list of all Persistent strings used for Provider types.
-    v8::Eternal<v8::String> providers_[AsyncWrap::PROVIDERS_LENGTH];
-    // Stores the ids of the current execution context stack.
-    AliasedBuffer<double, v8::Float64Array> async_ids_stack_;
-    // Attached to a Uint32Array that tracks the number of active hooks for
-    // each type.
-    AliasedBuffer<uint32_t, v8::Uint32Array> fields_;
-    // Attached to a Float64Array that tracks the state of async resources.
-    AliasedBuffer<double, v8::Float64Array> async_id_fields_;
-
-    void grow_async_ids_stack();
-  };
 
   class AsyncCallbackScope {
    public:

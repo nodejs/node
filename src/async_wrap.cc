@@ -56,7 +56,6 @@ using v8::Value;
 using v8::WeakCallbackInfo;
 using v8::WeakCallbackType;
 
-using AsyncHooks = node::Environment::AsyncHooks;
 using TryCatchScope = node::errors::TryCatchScope;
 
 namespace node {

@@ -46,9 +46,6 @@ using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
 
-using AsyncHooks = Environment::AsyncHooks;
-
-
 class SendWrap : public ReqWrap<uv_udp_send_t> {
  public:
   SendWrap(Environment* env, Local<Object> req_wrap_obj, bool have_callback);
