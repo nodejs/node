@@ -64,7 +64,7 @@ inline MultiIsolatePlatform* IsolateData::platform() const {
   return platform_;
 }
 
-inline Environment::AsyncHooks::AsyncHooks()
+inline AsyncHooks::AsyncHooks()
     : async_ids_stack_(env()->isolate(), 16 * 2),
       fields_(env()->isolate(), kFieldsCount),
       async_id_fields_(env()->isolate(), kUidFieldsCount) {
@@ -102,36 +102,33 @@ inline Environment::AsyncHooks::AsyncHooks()
 #undef V
 }
 
-inline AliasedBuffer<uint32_t, v8::Uint32Array>&
-Environment::AsyncHooks::fields() {
+inline AliasedBuffer<uint32_t, v8::Uint32Array>& AsyncHooks::fields() {
   return fields_;
 }
 
-inline AliasedBuffer<double, v8::Float64Array>&
-Environment::AsyncHooks::async_id_fields() {
+inline AliasedBuffer<double, v8::Float64Array>& AsyncHooks::async_id_fields() {
   return async_id_fields_;
 }
 
-inline AliasedBuffer<double, v8::Float64Array>&
-Environment::AsyncHooks::async_ids_stack() {
+inline AliasedBuffer<double, v8::Float64Array>& AsyncHooks::async_ids_stack() {
   return async_ids_stack_;
 }
 
-inline v8::Local<v8::String> Environment::AsyncHooks::provider_string(int idx) {
+inline v8::Local<v8::String> AsyncHooks::provider_string(int idx) {
   return providers_[idx].Get(env()->isolate());
 }
 
-inline void Environment::AsyncHooks::no_force_checks() {
+inline void AsyncHooks::no_force_checks() {
   fields_[kCheck] -= 1;
 }
 
-inline Environment* Environment::AsyncHooks::env() {
+inline Environment* AsyncHooks::env() {
   return Environment::ForAsyncHooks(this);
 }
 
 // Remember to keep this code aligned with pushAsyncIds() in JS.
-inline void Environment::AsyncHooks::push_async_ids(double async_id,
-                                                    double trigger_async_id) {
+inline void AsyncHooks::push_async_ids(double async_id,
+                                       double trigger_async_id) {
   // Since async_hooks is experimental, do only perform the check
   // when async_hooks is enabled.
   if (fields_[kCheck] > 0) {
@@ -150,7 +147,7 @@ inline void Environment::AsyncHooks::push_async_ids(double async_id,
 }
 
 // Remember to keep this code aligned with popAsyncIds() in JS.
-inline bool Environment::AsyncHooks::pop_async_id(double async_id) {
+inline bool AsyncHooks::pop_async_id(double async_id) {
   // In case of an exception then this may have already been reset, if the
   // stack was multiple MakeCallback()'s deep.
   if (fields_[kStackLength] == 0) return false;
@@ -183,7 +180,7 @@ inline bool Environment::AsyncHooks::pop_async_id(double async_id) {
 }
 
 // Keep in sync with clearAsyncIdStack in lib/internal/async_hooks.js.
-inline void Environment::AsyncHooks::clear_async_id_stack() {
+inline void AsyncHooks::clear_async_id_stack() {
   async_id_fields_[kExecutionAsyncId] = 0;
   async_id_fields_[kTriggerAsyncId] = 0;
   fields_[kStackLength] = 0;
@@ -192,9 +189,8 @@ inline void Environment::AsyncHooks::clear_async_id_stack() {
 // The DefaultTriggerAsyncIdScope(AsyncWrap*) constructor is defined in
 // async_wrap-inl.h to avoid a circular dependency.
 
-inline Environment::AsyncHooks::DefaultTriggerAsyncIdScope
-  ::DefaultTriggerAsyncIdScope(Environment* env,
-                               double default_trigger_async_id)
+inline AsyncHooks::DefaultTriggerAsyncIdScope ::DefaultTriggerAsyncIdScope(
+    Environment* env, double default_trigger_async_id)
     : async_hooks_(env->async_hooks()) {
   if (env->async_hooks()->fields()[AsyncHooks::kCheck] > 0) {
     CHECK_GE(default_trigger_async_id, 0);
@@ -206,8 +202,7 @@ inline Environment::AsyncHooks::DefaultTriggerAsyncIdScope
     default_trigger_async_id;
 }
 
-inline Environment::AsyncHooks::DefaultTriggerAsyncIdScope
-  ::~DefaultTriggerAsyncIdScope() {
+inline AsyncHooks::DefaultTriggerAsyncIdScope ::~DefaultTriggerAsyncIdScope() {
   async_hooks_->async_id_fields()[AsyncHooks::kDefaultTriggerAsyncId] =
     old_default_trigger_async_id_;
 }
@@ -430,7 +425,7 @@ inline void Environment::set_is_in_inspector_console_call(bool value) {
 }
 #endif
 
-inline Environment::AsyncHooks* Environment::async_hooks() {
+inline AsyncHooks* Environment::async_hooks() {
   return &async_hooks_;
 }
 
