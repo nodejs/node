@@ -1131,8 +1131,8 @@ added: v11.6.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/26786
-    description: This property now returns `'unknown'` for KeyObject
-                 instances of unknown type instead of aborting.
+    description: This property now returns `'unsupported'` for KeyObject
+                 instances of unsupported type instead of aborting.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/26774
     description: Added support for `'x25519'` and `'x448'`
@@ -1144,7 +1144,7 @@ changes:
 
 For asymmetric keys, this property represents the type of the embedded key
 (`'rsa'`, `'dsa'`, `'ec'`, `'ed25519'`, `'ed448'`, `'x25519'` or `'x448'`).
-This property is `undefined` for symmetric keys and `'unknown'` for
+This property is `undefined` for symmetric keys and `'unsupported'` for
 unrecognized `KeyObject` types.
 
 ### keyObject.export([options])
