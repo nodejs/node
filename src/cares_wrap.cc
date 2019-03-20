@@ -307,7 +307,7 @@ node_ares_task* ares_task_create(ChannelWrap* channel, ares_socket_t sock) {
   if (uv_poll_init_socket(channel->env()->event_loop(),
                           &task->poll_watcher, sock) < 0) {
     /* This should never happen. */
-    free(task);
+    delete task;
     return nullptr;
   }
 
