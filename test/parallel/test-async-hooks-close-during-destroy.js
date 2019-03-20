@@ -11,7 +11,7 @@ let destroyResCallCount = 0;
 let res2;
 
 async_hooks.createHook({
-  init: common.mustCallAtLeast((id, provider, triggerAsyncId) => {
+  init: common.mustCallAtLeast((id, provider) => {
     if (provider === 'foobar')
       initCalls.add(id);
   }, 2),
