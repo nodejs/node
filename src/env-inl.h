@@ -232,39 +232,39 @@ inline void Environment::PopAsyncCallbackScope() {
   async_callback_scope_depth_--;
 }
 
-inline Environment::ImmediateInfo::ImmediateInfo(v8::Isolate* isolate)
+inline ImmediateInfo::ImmediateInfo(v8::Isolate* isolate)
     : fields_(isolate, kFieldsCount) {}
 
 inline AliasedBuffer<uint32_t, v8::Uint32Array>&
-    Environment::ImmediateInfo::fields() {
+    ImmediateInfo::fields() {
   return fields_;
 }
 
-inline uint32_t Environment::ImmediateInfo::count() const {
+inline uint32_t ImmediateInfo::count() const {
   return fields_[kCount];
 }
 
-inline uint32_t Environment::ImmediateInfo::ref_count() const {
+inline uint32_t ImmediateInfo::ref_count() const {
   return fields_[kRefCount];
 }
 
-inline bool Environment::ImmediateInfo::has_outstanding() const {
+inline bool ImmediateInfo::has_outstanding() const {
   return fields_[kHasOutstanding] == 1;
 }
 
-inline void Environment::ImmediateInfo::count_inc(uint32_t increment) {
+inline void ImmediateInfo::count_inc(uint32_t increment) {
   fields_[kCount] += increment;
 }
 
-inline void Environment::ImmediateInfo::count_dec(uint32_t decrement) {
+inline void ImmediateInfo::count_dec(uint32_t decrement) {
   fields_[kCount] -= decrement;
 }
 
-inline void Environment::ImmediateInfo::ref_count_inc(uint32_t increment) {
+inline void ImmediateInfo::ref_count_inc(uint32_t increment) {
   fields_[kRefCount] += increment;
 }
 
-inline void Environment::ImmediateInfo::ref_count_dec(uint32_t decrement) {
+inline void ImmediateInfo::ref_count_dec(uint32_t decrement) {
   fields_[kRefCount] -= decrement;
 }
 
@@ -435,7 +435,7 @@ inline AsyncHooks* Environment::async_hooks() {
   return &async_hooks_;
 }
 
-inline Environment::ImmediateInfo* Environment::immediate_info() {
+inline ImmediateInfo* Environment::immediate_info() {
   return &immediate_info_;
 }
 
