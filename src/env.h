@@ -624,6 +624,29 @@ class AsyncCallbackScope {
   Environment* env_;
 };
 
+class ImmediateInfo {
+ public:
+  inline AliasedBuffer<uint32_t, v8::Uint32Array>& fields();
+  inline uint32_t count() const;
+  inline uint32_t ref_count() const;
+  inline bool has_outstanding() const;
+  inline void count_inc(uint32_t increment);
+  inline void count_dec(uint32_t decrement);
+  inline void ref_count_inc(uint32_t increment);
+  inline void ref_count_dec(uint32_t decrement);
+
+  ImmediateInfo(const ImmediateInfo&) = delete;
+  ImmediateInfo& operator=(const ImmediateInfo&) = delete;
+
+ private:
+  friend class Environment;  // So we can call the constructor.
+  inline explicit ImmediateInfo(v8::Isolate* isolate);
+
+  enum Fields { kCount, kRefCount, kHasOutstanding, kFieldsCount };
+
+  AliasedBuffer<uint32_t, v8::Uint32Array> fields_;
+};
+
 class Environment {
  public:
   Environment(const Environment&) = delete;
@@ -632,36 +655,6 @@ class Environment {
   inline size_t async_callback_scope_depth() const;
   inline void PushAsyncCallbackScope();
   inline void PopAsyncCallbackScope();
-
-  class ImmediateInfo {
-   public:
-    inline AliasedBuffer<uint32_t, v8::Uint32Array>& fields();
-    inline uint32_t count() const;
-    inline uint32_t ref_count() const;
-    inline bool has_outstanding() const;
-
-    inline void count_inc(uint32_t increment);
-    inline void count_dec(uint32_t decrement);
-
-    inline void ref_count_inc(uint32_t increment);
-    inline void ref_count_dec(uint32_t decrement);
-
-    ImmediateInfo(const ImmediateInfo&) = delete;
-    ImmediateInfo& operator=(const ImmediateInfo&) = delete;
-
-   private:
-    friend class Environment;  // So we can call the constructor.
-    inline explicit ImmediateInfo(v8::Isolate* isolate);
-
-    enum Fields {
-      kCount,
-      kRefCount,
-      kHasOutstanding,
-      kFieldsCount
-    };
-
-    AliasedBuffer<uint32_t, v8::Uint32Array> fields_;
-  };
 
   class TickInfo {
    public:
