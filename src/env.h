@@ -193,11 +193,13 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(get_data_clone_error_string, "_getDataCloneError")                         \
   V(get_shared_array_buffer_id_string, "_getSharedArrayBufferId")              \
   V(gid_string, "gid")                                                         \
+  V(h2_string, "h2")                                                           \
   V(handle_string, "handle")                                                   \
   V(help_text_string, "helpText")                                              \
   V(homedir_string, "homedir")                                                 \
   V(host_string, "host")                                                       \
   V(hostmaster_string, "hostmaster")                                           \
+  V(http_1_1_string, "http/1.1")                                               \
   V(ignore_string, "ignore")                                                   \
   V(infoaccess_string, "infoAccess")                                           \
   V(inherit_string, "inherit")                                                 \
