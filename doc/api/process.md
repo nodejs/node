@@ -131,7 +131,7 @@ process.on('multipleResolves', (type, promise, reason) => {
 
 async function main() {
   try {
-    return await new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       resolve('First call');
       resolve('Swallowed resolve');
       reject(new Error('Swallowed reject'));
