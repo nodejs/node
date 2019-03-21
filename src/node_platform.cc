@@ -158,9 +158,9 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
   }
 
   uv_sem_t ready_;
-  TaskQueue<v8::Task>* pending_worker_tasks_;
+  TaskQueue<Task>* pending_worker_tasks_;
 
-  TaskQueue<v8::Task> tasks_;
+  TaskQueue<Task> tasks_;
   uv_loop_t loop_;
   uv_async_t flush_tasks_;
   std::unordered_set<uv_timer_t*> timers_;
@@ -201,7 +201,7 @@ void WorkerThreadsTaskRunner::PostTask(std::unique_ptr<Task> task) {
   pending_worker_tasks_.Push(std::move(task));
 }
 
-void WorkerThreadsTaskRunner::PostDelayedTask(std::unique_ptr<v8::Task> task,
+void WorkerThreadsTaskRunner::PostDelayedTask(std::unique_ptr<Task> task,
                                               double delay_in_seconds) {
   delayed_task_scheduler_->PostDelayedTask(std::move(task), delay_in_seconds);
 }
@@ -417,11 +417,11 @@ bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
   return did_work;
 }
 
-void NodePlatform::CallOnWorkerThread(std::unique_ptr<v8::Task> task) {
+void NodePlatform::CallOnWorkerThread(std::unique_ptr<Task> task) {
   worker_thread_task_runner_->PostTask(std::move(task));
 }
 
-void NodePlatform::CallDelayedOnWorkerThread(std::unique_ptr<v8::Task> task,
+void NodePlatform::CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
                                              double delay_in_seconds) {
   worker_thread_task_runner_->PostDelayedTask(std::move(task),
                                               delay_in_seconds);
