@@ -32,6 +32,7 @@ namespace node {
 
 using v8::Array;
 using v8::Context;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Integer;
@@ -39,7 +40,6 @@ using v8::Local;
 using v8::Object;
 using v8::String;
 using v8::Value;
-
 
 void TTYWrap::Initialize(Local<Object> target,
                          Local<Value> unused,
@@ -61,10 +61,11 @@ void TTYWrap::Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "isTTY", IsTTY);
   env->SetMethodNoSideEffect(target, "guessHandleType", GuessHandleType);
 
-  target->Set(env->context(),
-              ttyString,
-              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
-  env->set_tty_constructor_template(t);
+  Local<Value> func;
+  if (t->GetFunction(env->context()).ToLocal(&func) &&
+      target->Set(env->context(), ttyString, func).IsJust()) {
+    env->set_tty_constructor_template(t);
+  }
 }
 
 
