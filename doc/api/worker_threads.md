@@ -375,7 +375,7 @@ Notable differences inside a Worker environment are:
 - The [`process.stdin`][], [`process.stdout`][] and [`process.stderr`][]
   may be redirected by the parent thread.
 - The [`require('worker_threads').isMainThread`][] property is set to `false`.
-- The [`require('worker_threads').parentPort`][] message port is available,
+- The [`require('worker_threads').parentPort`][] message port is available.
 - [`process.exit()`][] does not stop the whole program, just the single thread,
   and [`process.abort()`][] is not available.
 - [`process.chdir()`][] and `process` methods that set group or user ids
