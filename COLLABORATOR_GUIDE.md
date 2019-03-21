@@ -629,8 +629,8 @@ git push upstream master
   messages. You are only allowed to force push to any Node.js branch within 10
   minutes from your original push. If someone else pushes to the branch or the
   10-minute period passes, consider the commit final.
-  * Use `--force-with-lease` to minimize the chance of overwriting
-  someone else's change.
+  * Use `--force-with-lease` to reduce the chance of overwriting someone else's
+    change.
   * Post to `#node-dev` (IRC) if you force push.
 
 ### Long Term Support
@@ -643,35 +643,19 @@ versions. You can find more information
 a branch enters LTS, the release plan limits the types of changes permitted in
 the branch.
 
-#### Landing semver-minor commits in LTS
-
-The default policy is to not land semver-minor or higher commits in any LTS
-branch. However, the LTS WG or TSC can evaluate any individual semver-minor
-commit and decide whether a special exception ought to be made. It is
-expected that such exceptions would be evaluated, in part, on the scope
-and impact of the changes on the code, the risk to ecosystem stability
-incurred by accepting the change, and the expected benefit that landing the
-commit will have for the ecosystem.
-
-Any Collaborator who feels a semver-minor commit should be landed in an LTS
-branch should attach the `lts-agenda` label to the pull request. The LTS WG
-will discuss the issue and, if necessary, will escalate the issue up to the
-TSC for further discussion.
-
 #### How are LTS Branches Managed?
 
-There are multiple LTS branches, e.g. `v10.x` and `v8.x`. Each of these is
-paired with a staging branch: `v10.x-staging` and `v8.x-staging`.
+Each LTS release has a corresponding branch (v10.x, v8.x, etc.). Each also has a
+corresponding staging branch (v10.x-staging, v8.x-staging, etc.).
 
-As commits land on the master branch, they are cherry-picked back to each
-staging branch as appropriate. If the commit applies only to the LTS branch, the
-PR must be opened against the *staging* branch. Commits are selectively
-pulled from the staging branch into the LTS branch only when a release is
-being prepared and may be pulled into the LTS branch in a different order
-than they were landed in staging.
+Commits that land on master are cherry-picked to each staging branch as
+appropriate. If a change applies only to the LTS branch, open the PR against the
+*staging* branch. Commits from the staging branch land on the LTS branch only
+when a release is being prepared. They may land on the LTS branch in a different
+order than they were in staging.
 
-Only the members of the @nodejs/backporters team should land commits onto
-LTS staging branches.
+Only members of @nodejs/backporters should land commits onto LTS staging
+branches.
 
 #### How can I help?
 
