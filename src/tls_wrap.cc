@@ -21,6 +21,7 @@
 
 #include "tls_wrap.h"
 #include "async_wrap-inl.h"
+#include "debug_utils.h"
 #include "node_buffer.h"  // Buffer
 #include "node_crypto.h"  // SecureContext
 #include "node_crypto_bio.h"  // NodeBIO
@@ -74,15 +75,18 @@ TLSWrap::TLSWrap(Environment* env,
   stream->PushStreamListener(this);
 
   InitSSL();
+  Debug(this, "Created new TLSWrap");
 }
 
 
 TLSWrap::~TLSWrap() {
+  Debug(this, "~TLSWrap()");
   sc_ = nullptr;
 }
 
 
 bool TLSWrap::InvokeQueued(int status, const char* error_str) {
+  Debug(this, "InvokeQueued(%d, %s)", status, error_str);
   if (!write_callback_scheduled_)
     return false;
 
@@ -97,6 +101,7 @@ bool TLSWrap::InvokeQueued(int status, const char* error_str) {
 
 
 void TLSWrap::NewSessionDoneCb() {
+  Debug(this, "NewSessionDoneCb()");
   Cycle();
 }
 
@@ -174,6 +179,7 @@ void TLSWrap::Receive(const FunctionCallbackInfo<Value>& args) {
   CHECK(Buffer::HasInstance(args[0]));
   char* data = Buffer::Data(args[0]);
   size_t len = Buffer::Length(args[0]);
+  Debug(wrap, "Receiving %zu bytes injected from JS", len);
 
   // Copy given buffer entirely or partiall if handle becomes closed
   while (len > 0 && wrap->IsAlive() && !wrap->IsClosing()) {
@@ -221,6 +227,9 @@ void TLSWrap::SSLInfoCallback(const SSL* ssl_, int where, int ret) {
   Local<Object> object = c->object();
 
   if (where & SSL_CB_HANDSHAKE_START) {
+    Debug(c, "SSLInfoCallback(SSL_CB_HANDSHAKE_START);");
+    // Start is tracked to limit number and frequency of renegotiation attempts,
+    // since excessive renegotiation may be an attack.
     Local<Value> callback;
 
     if (object->Get(env->context(), env->onhandshakestart_string())
@@ -234,6 +243,7 @@ void TLSWrap::SSLInfoCallback(const SSL* ssl_, int where, int ret) {
   // sending HelloRequest in OpenSSL-1.1.1.
   // We need to check whether this is in a renegotiation state or not.
   if (where & SSL_CB_HANDSHAKE_DONE && !SSL_renegotiate_pending(ssl)) {
+    Debug(c, "SSLInfoCallback(SSL_CB_HANDSHAKE_DONE);");
     Local<Value> callback;
 
     c->established_ = true;
@@ -247,27 +257,40 @@ void TLSWrap::SSLInfoCallback(const SSL* ssl_, int where, int ret) {
 
 
 void TLSWrap::EncOut() {
+  Debug(this, "Trying to write encrypted output");
+
   // Ignore cycling data if ClientHello wasn't yet parsed
-  if (!hello_parser_.IsEnded())
+  if (!hello_parser_.IsEnded()) {
+    Debug(this, "Returning from EncOut(), hello_parser_ active");
     return;
+  }
 
   // Write in progress
-  if (write_size_ != 0)
+  if (write_size_ != 0) {
+    Debug(this, "Returning from EncOut(), write currently in progress");
     return;
+  }
 
   // Wait for `newSession` callback to be invoked
-  if (is_awaiting_new_session())
+  if (is_awaiting_new_session()) {
+    Debug(this, "Returning from EncOut(), awaiting new session");
     return;
+  }
 
   // Split-off queue
-  if (established_ && current_write_ != nullptr)
+  if (established_ && current_write_ != nullptr) {
+    Debug(this, "EncOut() setting write_callback_scheduled_");
     write_callback_scheduled_ = true;
+  }
 
-  if (ssl_ == nullptr)
+  if (ssl_ == nullptr) {
+    Debug(this, "Returning from EncOut(), ssl_ == nullptr");
     return;
+  }
 
   // No encrypted output ready to write to the underlying stream.
   if (BIO_pending(enc_out_) == 0) {
+    Debug(this, "No pending encrypted output");
     if (pending_cleartext_input_.empty())
       InvokeQueued(0);
     return;
@@ -286,6 +309,7 @@ void TLSWrap::EncOut() {
   for (size_t i = 0; i < count; i++)
     buf[i] = uv_buf_init(data[i], size[i]);
 
+  Debug(this, "Writing %zu buffers to the underlying stream", count);
   StreamWriteResult res = underlying_stream()->Write(bufs, count);
   if (res.err != 0) {
     InvokeQueued(res.err);
@@ -295,6 +319,7 @@ void TLSWrap::EncOut() {
   NODE_COUNT_NET_BYTES_SENT(write_size_);
 
   if (!res.async) {
+    Debug(this, "Write finished synchronously");
     HandleScope handle_scope(env()->isolate());
 
     // Simulate asynchronous finishing, TLS cannot handle this at the moment.
@@ -306,21 +331,26 @@ void TLSWrap::EncOut() {
 
 
 void TLSWrap::OnStreamAfterWrite(WriteWrap* req_wrap, int status) {
+  Debug(this, "OnStreamAfterWrite(status = %d)", status);
   if (current_empty_write_ != nullptr) {
+    Debug(this, "Had empty write");
     WriteWrap* finishing = current_empty_write_;
     current_empty_write_ = nullptr;
     finishing->Done(status);
     return;
   }
 
-  if (ssl_ == nullptr)
+  if (ssl_ == nullptr) {
+    Debug(this, "ssl_ == nullptr, marking as cancelled");
     status = UV_ECANCELED;
+  }
 
   // Handle error
   if (status) {
-    // Ignore errors after shutdown
-    if (shutdown_)
+    if (shutdown_) {
+      Debug(this, "Ignoring error after shutdown");
       return;
+    }
 
     // Notify about error
     InvokeQueued(status);
@@ -383,16 +413,23 @@ Local<Value> TLSWrap::GetSSLError(int status, int* err, std::string* msg) {
 
 
 void TLSWrap::ClearOut() {
+  Debug(this, "Trying to read cleartext output");
   // Ignore cycling data if ClientHello wasn't yet parsed
-  if (!hello_parser_.IsEnded())
+  if (!hello_parser_.IsEnded()) {
+    Debug(this, "Returning from ClearOut(), hello_parser_ active");
     return;
+  }
 
   // No reads after EOF
-  if (eof_)
+  if (eof_) {
+    Debug(this, "Returning from ClearOut(), EOF reached");
     return;
+  }
 
-  if (ssl_ == nullptr)
+  if (ssl_ == nullptr) {
+    Debug(this, "Returning from ClearOut(), ssl_ == nullptr");
     return;
+  }
 
   crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
 
@@ -400,6 +437,7 @@ void TLSWrap::ClearOut() {
   int read;
   for (;;) {
     read = SSL_read(ssl_.get(), out, sizeof(out));
+    Debug(this, "Read %d bytes of cleartext output", read);
 
     if (read <= 0)
       break;
@@ -417,8 +455,10 @@ void TLSWrap::ClearOut() {
       // Caveat emptor: OnRead() calls into JS land which can result in
       // the SSL context object being destroyed.  We have to carefully
       // check that ssl_ != nullptr afterwards.
-      if (ssl_ == nullptr)
+      if (ssl_ == nullptr) {
+        Debug(this, "Returning from read loop, ssl_ == nullptr");
         return;
+      }
 
       read -= avail;
       current += avail;
@@ -444,6 +484,7 @@ void TLSWrap::ClearOut() {
       return;
 
     if (!arg.IsEmpty()) {
+      Debug(this, "Got SSL error (%d), calling onerror", err);
       // When TLS Alert are stored in wbio,
       // it should be flushed to socket before destroyed.
       if (BIO_pending(enc_out_) != 0)
@@ -456,12 +497,17 @@ void TLSWrap::ClearOut() {
 
 
 void TLSWrap::ClearIn() {
+  Debug(this, "Trying to write cleartext input");
   // Ignore cycling data if ClientHello wasn't yet parsed
-  if (!hello_parser_.IsEnded())
+  if (!hello_parser_.IsEnded()) {
+    Debug(this, "Returning from ClearIn(), hello_parser_ active");
     return;
+  }
 
-  if (ssl_ == nullptr)
+  if (ssl_ == nullptr) {
+    Debug(this, "Returning from ClearIn(), ssl_ == nullptr");
     return;
+  }
 
   std::vector<uv_buf_t> buffers;
   buffers.swap(pending_cleartext_input_);
@@ -474,6 +520,7 @@ void TLSWrap::ClearIn() {
     size_t avail = buffers[i].len;
     char* data = buffers[i].base;
     written = SSL_write(ssl_.get(), data, avail);
+    Debug(this, "Writing %zu bytes, written = %d", avail, written);
     CHECK(written == -1 || written == static_cast<int>(avail));
     if (written == -1)
       break;
@@ -481,6 +528,7 @@ void TLSWrap::ClearIn() {
 
   // All written
   if (i == buffers.size()) {
+    Debug(this, "Successfully wrote all data to SSL");
     // We wrote all the buffers, so no writes failed (written < 0 on failure).
     CHECK_GE(written, 0);
     return;
@@ -494,11 +542,13 @@ void TLSWrap::ClearIn() {
   std::string error_str;
   Local<Value> arg = GetSSLError(written, &err, &error_str);
   if (!arg.IsEmpty()) {
+    Debug(this, "Got SSL error (%d)", err);
     write_callback_scheduled_ = true;
     // XXX(sam) Should forward an error object with .code/.function/.etc, if
     // possible.
     InvokeQueued(UV_EPROTO, error_str.c_str());
   } else {
+    Debug(this, "Pushing back %zu buffers", buffers.size() - i);
     // Push back the not-yet-written pending buffers into their queue.
     // This can be skipped in the error case because no further writes
     // would succeed anyway.
@@ -508,6 +558,17 @@ void TLSWrap::ClearIn() {
   }
 
   return;
+}
+
+
+std::string TLSWrap::diagnostic_name() const {
+  std::string name = "TLSWrap ";
+  if (is_server())
+    name += "server (";
+  else
+    name += "client (";
+  name += std::to_string(static_cast<int64_t>(get_async_id())) + ")";
+  return name;
 }
 
 
@@ -540,6 +601,7 @@ bool TLSWrap::IsClosing() {
 
 
 int TLSWrap::ReadStart() {
+  Debug(this, "ReadStart()");
   if (stream_ != nullptr)
     return stream_->ReadStart();
   return 0;
@@ -547,6 +609,7 @@ int TLSWrap::ReadStart() {
 
 
 int TLSWrap::ReadStop() {
+  Debug(this, "ReadStop()");
   if (stream_ != nullptr)
     return stream_->ReadStop();
   return 0;
@@ -569,6 +632,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
                      size_t count,
                      uv_stream_t* send_handle) {
   CHECK_NULL(send_handle);
+  Debug(this, "DoWrite()");
 
   if (ssl_ == nullptr) {
     ClearError();
@@ -596,8 +660,10 @@ int TLSWrap::DoWrite(WriteWrap* w,
   // onto the socket, we just want the side-effects. After, make sure the
   // WriteWrap was accepted by the stream, or that we call Done() on it.
   if (empty) {
+    Debug(this, "Empty write");
     ClearOut();
     if (BIO_pending(enc_out_) == 0) {
+      Debug(this, "No pending encrypted output, writing to underlying stream");
       CHECK_NULL(current_empty_write_);
       current_empty_write_ = w;
       StreamWriteResult res =
@@ -628,6 +694,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
   for (i = 0; i < count; i++) {
     written = SSL_write(ssl_.get(), bufs[i].base, bufs[i].len);
     CHECK(written == -1 || written == static_cast<int>(bufs[i].len));
+    Debug(this, "Writing %zu bytes, written = %d", bufs[i].len, written);
     if (written == -1)
       break;
   }
@@ -638,10 +705,12 @@ int TLSWrap::DoWrite(WriteWrap* w,
 
     // If we stopped writing because of an error, it's fatal, discard the data.
     if (!arg.IsEmpty()) {
+      Debug(this, "Got SSL error (%d), returning UV_EPROTO", err);
       current_write_ = nullptr;
       return UV_EPROTO;
     }
 
+    Debug(this, "Saving %zu buffers for later write", count - i);
     // Otherwise, save unwritten data so it can be written later by ClearIn().
     pending_cleartext_input_.insert(pending_cleartext_input_.end(),
                                     &bufs[i],
@@ -665,6 +734,7 @@ uv_buf_t TLSWrap::OnStreamAlloc(size_t suggested_size) {
 
 
 void TLSWrap::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
+  Debug(this, "Read %zd bytes from underlying stream", nread);
   if (nread < 0)  {
     // Error should be emitted only after all data was read
     ClearOut();
@@ -698,6 +768,7 @@ void TLSWrap::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
     size_t avail = 0;
     uint8_t* data = reinterpret_cast<uint8_t*>(enc_in->Peek(&avail));
     CHECK_IMPLIES(data == nullptr, avail == 0);
+    Debug(this, "Passing %zu bytes to the hello parser", avail);
     return hello_parser_.Parse(data, avail);
   }
 
@@ -712,6 +783,7 @@ ShutdownWrap* TLSWrap::CreateShutdownWrap(Local<Object> req_wrap_object) {
 
 
 int TLSWrap::DoShutdown(ShutdownWrap* req_wrap) {
+  Debug(this, "DoShutdown()");
   crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
 
   if (ssl_ && SSL_shutdown(ssl_.get()) == 0)
@@ -770,6 +842,7 @@ void TLSWrap::EnableSessionCallbacks(
 void TLSWrap::DestroySSL(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  Debug(wrap, "DestroySSL()");
 
   // If there is a write happening, mark it as finished.
   wrap->write_callback_scheduled_ = true;
@@ -784,6 +857,7 @@ void TLSWrap::DestroySSL(const FunctionCallbackInfo<Value>& args) {
 
   if (wrap->stream_ != nullptr)
     wrap->stream_->RemoveStreamListener(wrap);
+  Debug(wrap, "DestroySSL() finished");
 }
 
 
@@ -796,6 +870,7 @@ void TLSWrap::EnableCertCb(const FunctionCallbackInfo<Value>& args) {
 
 void TLSWrap::OnClientHelloParseEnd(void* arg) {
   TLSWrap* c = static_cast<TLSWrap*>(arg);
+  Debug(c, "OnClientHelloParseEnd()");
   c->Cycle();
 }
 

@@ -83,6 +83,8 @@ class TLSWrap : public AsyncWrap,
   SET_MEMORY_INFO_NAME(TLSWrap)
   SET_SELF_SIZE(TLSWrap)
 
+  std::string diagnostic_name() const override;
+
  protected:
   inline StreamBase* underlying_stream() {
     return static_cast<StreamBase*>(stream_);
