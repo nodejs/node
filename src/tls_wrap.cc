@@ -73,8 +73,7 @@ TLSWrap::TLSWrap(Environment* env,
   stream->PushStreamListener(this);
 
   InitSSL();
-  Debug(this, "Created new TLSWrap (%s)",
-        kind == kClient ? "client" : "server");
+  Debug(this, "Created new TLSWrap");
 }
 
 
@@ -272,19 +271,19 @@ void TLSWrap::EncOut() {
 
   // Ignore cycling data if ClientHello wasn't yet parsed
   if (!hello_parser_.IsEnded()) {
-    Debug(this, "Bailing out of EncOut(), hello_parser_ active");
+    Debug(this, "Returning from EncOut(), hello_parser_ active");
     return;
   }
 
   // Write in progress
   if (write_size_ != 0) {
-    Debug(this, "Bailing out of EncOut(), write currently in progress");
+    Debug(this, "Returning from EncOut(), write currently in progress");
     return;
   }
 
   // Wait for `newSession` callback to be invoked
   if (is_awaiting_new_session()) {
-    Debug(this, "Bailing out of EncOut(), awaiting new session");
+    Debug(this, "Returning from EncOut(), awaiting new session");
     return;
   }
 
@@ -295,7 +294,7 @@ void TLSWrap::EncOut() {
   }
 
   if (ssl_ == nullptr) {
-    Debug(this, "Bailing out of EncOut(), ssl_ == nullptr");
+    Debug(this, "Returning from EncOut(), ssl_ == nullptr");
     return;
   }
 
@@ -480,18 +479,18 @@ void TLSWrap::ClearOut() {
   Debug(this, "Trying to read cleartext output");
   // Ignore cycling data if ClientHello wasn't yet parsed
   if (!hello_parser_.IsEnded()) {
-    Debug(this, "Bailing out of ClearOut(), hello_parser_ active");
+    Debug(this, "Returning from ClearOut(), hello_parser_ active");
     return;
   }
 
   // No reads after EOF
   if (eof_) {
-    Debug(this, "Bailing out of ClearOut(), EOF reached");
+    Debug(this, "Returning from ClearOut(), EOF reached");
     return;
   }
 
   if (ssl_ == nullptr) {
-    Debug(this, "Bailing out of ClearOut(), ssl_ == nullptr");
+    Debug(this, "Returning from ClearOut(), ssl_ == nullptr");
     return;
   }
 
@@ -520,7 +519,7 @@ void TLSWrap::ClearOut() {
       // the SSL context object being destroyed.  We have to carefully
       // check that ssl_ != nullptr afterwards.
       if (ssl_ == nullptr) {
-        Debug(this, "Bailing out of read loop, ssl_ == nullptr");
+        Debug(this, "Returning from read loop, ssl_ == nullptr");
         return;
       }
 
@@ -564,12 +563,12 @@ void TLSWrap::ClearIn() {
   Debug(this, "Trying to write cleartext input");
   // Ignore cycling data if ClientHello wasn't yet parsed
   if (!hello_parser_.IsEnded()) {
-    Debug(this, "Bailing out of ClearIn(), hello_parser_ active");
+    Debug(this, "Returning from ClearIn(), hello_parser_ active");
     return;
   }
 
   if (ssl_ == nullptr) {
-    Debug(this, "Bailing out of ClearIn(), ssl_ == nullptr");
+    Debug(this, "Returning from ClearIn(), ssl_ == nullptr");
     return;
   }
 
@@ -622,6 +621,17 @@ void TLSWrap::ClearIn() {
   }
 
   return;
+}
+
+
+std::string TLSWrap::diagnostic_name() const {
+  std::string name = "TLSWrap ";
+  if (is_server())
+    name += "server (";
+  else
+    name += "client (";
+  name += std::to_string(static_cast<int64_t>(get_async_id())) + ")";
+  return name;
 }
 
 

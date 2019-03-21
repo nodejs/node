@@ -89,6 +89,8 @@ class TLSWrap : public AsyncWrap,
   SET_MEMORY_INFO_NAME(TLSWrap)
   SET_SELF_SIZE(TLSWrap)
 
+  std::string diagnostic_name() const override;
+
  protected:
   // Alternative to StreamListener::stream(), that returns a StreamBase instead
   // of a StreamResource.
