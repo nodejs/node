@@ -680,10 +680,10 @@ void TLSWrap::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
     return;
   }
 
-  if (ssl_ == nullptr) {
-    EmitRead(UV_EPROTO);
-    return;
-  }
+  // DestroySSL() is the only thing that un-sets ssl_, but that also removes
+  // this TLSWrap as a stream listener, so we should not receive OnStreamRead()
+  // calls anymore.
+  CHECK(ssl_);
 
   // Commit the amount of data actually read into the peeked/allocated buffer
   // from the underlying stream.
