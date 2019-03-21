@@ -65,6 +65,7 @@ using v8::DontDelete;
 using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::External;
+using v8::False;
 using v8::Function;
 using v8::FunctionCallback;
 using v8::FunctionCallbackInfo;
@@ -2503,11 +2504,20 @@ void SSLWrap<Base>::GetALPNNegotiatedProto(
 
   SSL_get0_alpn_selected(w->ssl_.get(), &alpn_proto, &alpn_proto_len);
 
-  if (!alpn_proto)
-    return args.GetReturnValue().Set(false);
+  Local<Value> result;
+  if (alpn_proto_len == 0) {
+    result = False(args.GetIsolate());
+  } else if (alpn_proto_len == sizeof("h2") - 1 &&
+             0 == memcmp(alpn_proto, "h2", sizeof("h2") - 1)) {
+    result = w->env()->h2_string();
+  } else if (alpn_proto_len == sizeof("http/1.1") - 1 &&
+             0 == memcmp(alpn_proto, "http/1.1", sizeof("http/1.1") - 1)) {
+    result = w->env()->http_1_1_string();
+  } else {
+    result = OneByteString(args.GetIsolate(), alpn_proto, alpn_proto_len);
+  }
 
-  args.GetReturnValue().Set(
-      OneByteString(args.GetIsolate(), alpn_proto, alpn_proto_len));
+  args.GetReturnValue().Set(result);
 }
 
 
