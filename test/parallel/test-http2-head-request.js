@@ -49,7 +49,7 @@ server.listen(0, () => {
 
   req.on('response', common.mustCall((headers, flags) => {
     assert.strictEqual(headers[HTTP2_HEADER_STATUS], 200);
-    assert.strictEqual(flags, 5); // the end of stream flag is set
+    assert.strictEqual(flags, 5); // The end of stream flag is set
   }));
   req.on('data', common.mustNotCall());
   req.on('end', common.mustCall(() => {

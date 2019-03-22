@@ -64,7 +64,7 @@ function bufferListFromArray(arr) {
   ret = fromList(2, { buffer: list, length: 8 });
   assert.strictEqual(ret.toString(), 'ba');
 
-  // read more than we have.
+  // Read more than we have.
   ret = fromList(100, { buffer: list, length: 6 });
   assert.strictEqual(ret.toString(), 'zykuel');
 
@@ -92,7 +92,7 @@ function bufferListFromArray(arr) {
   ret = fromList(2, { buffer: list, length: 8, decoder: true });
   assert.strictEqual(ret, 'ba');
 
-  // read more than we have.
+  // Read more than we have.
   ret = fromList(100, { buffer: list, length: 6, decoder: true });
   assert.strictEqual(ret, 'zykuel');
 

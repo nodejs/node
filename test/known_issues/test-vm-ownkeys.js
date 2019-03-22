@@ -24,5 +24,5 @@ const ctx = vm.createContext(sandbox);
 const nativeKeys = vm.runInNewContext('Reflect.ownKeys(this);');
 const ownKeys = vm.runInContext('Reflect.ownKeys(this);', ctx);
 const restKeys = ownKeys.filter((key) => !nativeKeys.includes(key));
-// this should not fail
+// This should not fail
 assert.deepStrictEqual(Array.from(restKeys), ['a', 'b', sym1, sym2]);

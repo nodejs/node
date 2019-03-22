@@ -1787,7 +1787,7 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   assert.strictEqual(util.inspect(date),
                      '{ CustomDate 2010-02-14T11:48:40.000Z foo: \'bar\' }');
 
-  // check for null prototype
+  // Check for null prototype
   Object.setPrototypeOf(date, null);
   assert.strictEqual(util.inspect(date),
                      '{ [Date: null prototype] 2010-02-14T11:48:40.000Z' +
@@ -1812,7 +1812,7 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   assert.strictEqual(util.inspect(date),
                      '{ CustomDate Invalid Date foo: \'bar\' }');
 
-  // check for null prototype
+  // Check for null prototype
   Object.setPrototypeOf(date, null);
   assert.strictEqual(util.inspect(date),
                      '{ [Date: null prototype] Invalid Date foo: \'bar\' }');

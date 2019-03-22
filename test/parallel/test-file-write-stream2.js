@@ -106,7 +106,7 @@ for (let i = 0; i < 11; i++) {
   const ret = file.write(String(i));
   console.error(`${i} ${ret}`);
 
-  // return false when i hits 10
+  // Return false when i hits 10
   assert.strictEqual(ret, i !== 10);
 }
 cb_occurred += 'write ';

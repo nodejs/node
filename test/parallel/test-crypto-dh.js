@@ -230,7 +230,7 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
   assert(firstByte === 2 || firstByte === 3);
   firstByte = ecdh1.getPublicKey('buffer', 'hybrid')[0];
   assert(firstByte === 6 || firstByte === 7);
-  // format value should be string
+  // Format value should be string
 
   common.expectsError(
     () => ecdh1.getPublicKey('buffer', 10),

@@ -27,7 +27,7 @@ const url = require('url');
 
 let testURL;
 
-// make sure the basics work
+// Make sure the basics work
 function check(request) {
   // Default method should still be 'GET'
   assert.strictEqual(request.method, 'GET');
@@ -39,7 +39,7 @@ function check(request) {
 }
 
 const server = http.createServer(function(request, response) {
-  // run the check function
+  // Run the check function
   check(request);
   response.writeHead(200, {});
   response.end('ok');

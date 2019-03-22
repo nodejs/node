@@ -22,7 +22,7 @@ assert.strictEqual(settings.maxFrameSize, 16384);
 assert.strictEqual(binding.nghttp2ErrorString(-517),
                    'GOAWAY has already been sent');
 
-// assert constants are present
+// Assert constants are present
 assert(binding.constants);
 assert.strictEqual(typeof binding.constants, 'object');
 const constants = binding.constants;

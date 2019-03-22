@@ -10,7 +10,7 @@ const tls = require('tls');
 
 const dftProtocol = {};
 
-// test for immutable `opts`
+// Test for immutable `opts`
 {
   const opts = { foo: 'bar', ALPNProtocols: [ 'http/1.1' ] };
   const server = https.createServer(opts);

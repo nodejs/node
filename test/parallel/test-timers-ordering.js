@@ -44,7 +44,7 @@ function f(i) {
            `current ts ${now} < prev ts ${last_ts} + 1`);
     last_ts = now;
 
-    // schedule next iteration
+    // Schedule next iteration
     setTimeout(f, 1, i + 1);
   }
 }

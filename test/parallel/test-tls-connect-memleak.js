@@ -50,7 +50,7 @@ const gcListener = { ongc() { collected = true; } };
     server.address().port,
     { rejectUnauthorized: false },
     common.mustCall(() => {
-      assert.strictEqual(gcObject, gcObject); // keep reference alive
+      assert.strictEqual(gcObject, gcObject); // Keep reference alive
       assert.strictEqual(collected, false);
       setImmediate(done, sock);
     }));

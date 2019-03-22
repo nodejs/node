@@ -38,7 +38,7 @@ function testTerminalMode() {
   });
 
   process.nextTick(function() {
-    // manually fire a ^D keypress
+    // Manually fire a ^D keypress
     stream.emit('data', '\u0004');
   });
 

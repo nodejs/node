@@ -16,7 +16,7 @@ function CLI(usage, settings) {
   if (!(this instanceof CLI)) return new CLI(usage, settings);
 
   if (process.argv.length < 3) {
-    this.abort(usage); // abort will exit the process
+    this.abort(usage); // Abort will exit the process
   }
 
   this.usage = usage;

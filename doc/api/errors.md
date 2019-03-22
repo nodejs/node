@@ -407,7 +407,7 @@ program.
 try {
   require('vm').runInThisContext('binary ! isNotOk');
 } catch (err) {
-  // err will be a SyntaxError
+  // 'err' will be a SyntaxError.
 }
 ```
 
@@ -422,7 +422,7 @@ string would be considered a `TypeError`.
 
 ```js
 require('url').parse(() => { });
-// throws TypeError, since it expected a string
+// Throws TypeError, since it expected a string.
 ```
 
 Node.js will generate and throw `TypeError` instances *immediately* as a form

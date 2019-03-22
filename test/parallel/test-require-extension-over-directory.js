@@ -1,5 +1,5 @@
 'use strict';
-// fixes regression from v4
+// Fixes regression from v4
 require('../common');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');

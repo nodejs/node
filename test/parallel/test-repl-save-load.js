@@ -99,7 +99,7 @@ let loadFile = join(tmpdir.path, 'file.does.not.exist');
 putIn.write = function(data) {
   // Make sure I get a failed to load message and not some crazy error
   assert.strictEqual(data, `Failed to load:${loadFile}\n`);
-  // eat me to avoid work
+  // Eat me to avoid work
   putIn.write = () => {};
 };
 putIn.run([`.load ${loadFile}`]);

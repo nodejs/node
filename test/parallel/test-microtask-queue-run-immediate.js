@@ -33,7 +33,7 @@ process.on('exit', function() {
   assert.strictEqual(done, 2);
 });
 
-// no nextTick, microtask
+// No nextTick, microtask
 setImmediate(function() {
   enqueueMicrotask(function() {
     done++;

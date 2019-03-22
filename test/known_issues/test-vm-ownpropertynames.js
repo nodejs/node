@@ -24,5 +24,5 @@ const ctx = vm.createContext(sandbox);
 const nativeNames = vm.runInNewContext('Object.getOwnPropertyNames(this);');
 const ownNames = vm.runInContext('Object.getOwnPropertyNames(this);', ctx);
 const restNames = ownNames.filter((name) => !nativeNames.includes(name));
-// this should not fail
+// This should not fail
 assert.deepStrictEqual(Array.from(restNames), ['a', 'b']);

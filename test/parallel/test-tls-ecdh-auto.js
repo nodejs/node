@@ -26,7 +26,7 @@ const options = {
   ecdhCurve: 'auto'
 };
 
-const reply = 'I AM THE WALRUS'; // something recognizable
+const reply = 'I AM THE WALRUS'; // Something recognizable
 
 const server = tls.createServer(options, function(conn) {
   conn.end(reply);

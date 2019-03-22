@@ -8,7 +8,7 @@ const http2 = require('http2');
 // Check that writeHead, write and end do not crash in compatibility mode
 
 const server = http2.createServer(common.mustCall((req, res) => {
-  // destroy the stream first
+  // Destroy the stream first
   req.stream.destroy();
 
   res.writeHead(200);

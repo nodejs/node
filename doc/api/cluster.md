@@ -315,7 +315,7 @@ if (cluster.isMaster) {
 } else if (cluster.isWorker) {
   const net = require('net');
   const server = net.createServer((socket) => {
-    // connections never end
+    // Connections never end
   });
 
   server.listen(8000);

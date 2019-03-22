@@ -30,9 +30,9 @@ server.once('request', common.mustCall((req, res) => {
   server.on('request', common.mustCall((req, res) => {
     res.end(Buffer.from('asdf'));
   }));
-  // write should accept string
+  // `res.write()` should accept `string`.
   res.write('string');
-  // write should accept buffer
+  // `res.write()` should accept `buffer`.
   res.write(Buffer.from('asdf'));
 
   const expectedError = {
@@ -40,7 +40,7 @@ server.once('request', common.mustCall((req, res) => {
     name: 'TypeError',
   };
 
-  // Write should not accept an Array
+  // `res.write()` should not accept an Array.
   assert.throws(
     () => {
       res.write(['array']);
@@ -48,7 +48,7 @@ server.once('request', common.mustCall((req, res) => {
     expectedError
   );
 
-  // End should not accept an Array
+  // `res.end()` should not accept an Array.
   assert.throws(
     () => {
       res.end(['moo']);
@@ -56,12 +56,12 @@ server.once('request', common.mustCall((req, res) => {
     expectedError
   );
 
-  // end should accept string
+  // `res.end()` should accept `string`.
   res.end('string');
 }));
 
 server.listen(0, function() {
-  // Just make a request, other tests handle responses
+  // Just make a request, other tests handle responses.
   http.get({ port: this.address().port }, (res) => {
     res.resume();
     // Do it again to test .end(Buffer);

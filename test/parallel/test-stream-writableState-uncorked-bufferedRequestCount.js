@@ -24,11 +24,11 @@ assert.strictEqual(writable._writableState.bufferedRequestCount, 0);
 writable.cork();
 assert.strictEqual(writable._writableState.corked, 2);
 
-// the first chunk is buffered
+// The first chunk is buffered
 writable.write('first chunk');
 assert.strictEqual(writable._writableState.bufferedRequestCount, 1);
 
-// first uncork does nothing
+// First uncork does nothing
 writable.uncork();
 assert.strictEqual(writable._writableState.corked, 1);
 assert.strictEqual(writable._writableState.bufferedRequestCount, 1);

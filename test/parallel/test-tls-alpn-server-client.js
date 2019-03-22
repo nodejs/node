@@ -80,7 +80,7 @@ function Test1() {
     checkResults(results[1],
                  { server: { ALPN: 'b' },
                    client: { ALPN: 'b' } });
-    // nothing is selected by ALPN
+    // Nothing is selected by ALPN
     checkResults(results[2],
                  { server: { ALPN: false },
                    client: { ALPN: false } });
@@ -98,15 +98,15 @@ function Test2() {
   const clientsOptions = [{}, {}, {}];
 
   runTest(clientsOptions, serverOptions, function(results) {
-    // nothing is selected by ALPN
+    // Nothing is selected by ALPN
     checkResults(results[0],
                  { server: { ALPN: false },
                    client: { ALPN: false } });
-    // nothing is selected by ALPN
+    // Nothing is selected by ALPN
     checkResults(results[1],
                  { server: { ALPN: false },
                    client: { ALPN: false } });
-    // nothing is selected by ALPN
+    // Nothing is selected by ALPN
     checkResults(results[2],
                  { server: { ALPN: false },
                    client: { ALPN: false } });

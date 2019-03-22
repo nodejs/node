@@ -39,5 +39,5 @@ common.expectWarning({
   UnhandledPromiseRejectionWarning: expectedPromiseWarning,
 });
 
-// ensure this doesn't crash
+// Ensure this doesn't crash
 Promise.reject(thorny);

@@ -11,7 +11,7 @@ const node = process.execPath;
 // depending on the JavaScript engine.
 const syntaxErrorRE = /^SyntaxError: \b/m;
 
-// should work with -r flags
+// Should work with -r flags
 ['-c', '--check'].forEach(function(checkFlag) {
   ['-r', '--require'].forEach(function(requireFlag) {
     const preloadFile = fixtures.path('no-wrapper.js');
@@ -23,7 +23,7 @@ const syntaxErrorRE = /^SyntaxError: \b/m;
       assert.strictEqual(err.code, 1,
                          `code ${err.code} !== 1 for error:\n\n${err}`);
 
-      // no stdout should be produced
+      // No stdout should be produced
       assert.strictEqual(stdout, '');
 
       // stderr should have a syntax error message

@@ -89,7 +89,7 @@ const values = [
       }
     }));
 
-    // test a Promise factory
+    // Test a Promise factory
     function promiseFn() {
       return Promise.reject(value);
     }

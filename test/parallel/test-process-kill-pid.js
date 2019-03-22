@@ -23,7 +23,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-// test variants of pid
+// Test variants of pid
 //
 // null: TypeError
 // undefined: TypeError

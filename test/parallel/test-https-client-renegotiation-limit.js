@@ -35,7 +35,7 @@ const fixtures = require('../common/fixtures');
 // Renegotiation as a protocol feature was dropped after TLS1.2.
 tls.DEFAULT_MAX_VERSION = 'TLSv1.2';
 
-// renegotiation limits to test
+// Renegotiation limits to test
 const LIMITS = [0, 1, 2, 3, 5, 10, 16];
 
 {
@@ -96,7 +96,7 @@ function test(next) {
 
       spam();
 
-      // simulate renegotiation attack
+      // Simulate renegotiation attack
       function spam() {
         client.renegotiate({}, (err) => {
           assert.ifError(err);

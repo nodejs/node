@@ -295,8 +295,8 @@ process.on('unhandledRejection', (reason, p) => {
 });
 
 somePromise.then((res) => {
-  return reportToUser(JSON.pasre(res)); // note the typo (`pasre`)
-}); // no `.catch()` or `.then()`
+  return reportToUser(JSON.pasre(res)); // Note the typo (`pasre`)
+}); // No `.catch()` or `.then()`
 ```
 
 The following will also trigger the `'unhandledRejection'` event to be

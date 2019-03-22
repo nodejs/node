@@ -358,7 +358,7 @@ const proxy = http.createServer((req, res) => {
   res.end('okay');
 });
 proxy.on('connect', (req, cltSocket, head) => {
-  // connect to an origin server
+  // Connect to an origin server
   const srvUrl = url.parse(`http://${req.url}`);
   const srvSocket = net.connect(srvUrl.port, srvUrl.hostname, () => {
     cltSocket.write('HTTP/1.1 200 Connection Established\r\n' +
@@ -370,7 +370,7 @@ proxy.on('connect', (req, cltSocket, head) => {
   });
 });
 
-// now that proxy is running
+// Now that proxy is running
 proxy.listen(1337, '127.0.0.1', () => {
 
   // Make a request to a tunneling proxy
@@ -504,7 +504,7 @@ srv.on('upgrade', (req, socket, head) => {
   socket.pipe(socket); // echo back
 });
 
-// now that server is running
+// Now that server is running
 srv.listen(1337, '127.0.0.1', () => {
 
   // make a request
@@ -626,11 +626,11 @@ request.setHeader('content-type', 'text/html');
 request.setHeader('Content-Length', Buffer.byteLength(body));
 request.setHeader('Cookie', ['type=ninja', 'language=javascript']);
 const contentType = request.getHeader('Content-Type');
-// contentType is 'text/html'
+// 'contentType' is 'text/html'
 const contentLength = request.getHeader('Content-Length');
-// contentLength is of type number
+// 'contentLength' is of type number
 const cookie = request.getHeader('Cookie');
-// cookie is of type string[]
+// 'cookie' is of type string[]
 ```
 
 ### request.maxHeadersCount
@@ -745,7 +745,7 @@ req.once('response', (res) => {
   const ip = req.socket.localAddress;
   const port = req.socket.localPort;
   console.log(`Your IP address is ${ip} and your source port is ${port}.`);
-  // consume response object
+  // Consume response object
 });
 ```
 
@@ -2065,7 +2065,7 @@ req.on('error', (e) => {
   console.error(`problem with request: ${e.message}`);
 });
 
-// write data to request body
+// Write data to request body
 req.write(postData);
 req.end();
 ```

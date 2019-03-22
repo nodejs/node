@@ -190,7 +190,7 @@ function re(literals, ...values) {
   );
 }
 
-// link nonexistent file
+// Link nonexistent file
 {
   const validateError = (err) => {
     assert.strictEqual(nonexistentFile, err.path);
@@ -308,7 +308,7 @@ function re(literals, ...values) {
   );
 }
 
-// rename non-empty directory
+// Rename non-empty directory
 {
   const validateError = (err) => {
     assert.strictEqual(existingDir, err.path);

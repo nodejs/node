@@ -124,7 +124,7 @@ if (process.argv[2] === 'child') {
         }
 
       } else if (msg.what === 'connection') {
-        // child got connection
+        // Child got connection
         connections.done();
       } else if (msg.what === 'close') {
         child.removeListener('message', messageHandlers);

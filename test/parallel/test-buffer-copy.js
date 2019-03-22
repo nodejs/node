@@ -128,7 +128,7 @@ common.expectsError(
   }
 }
 
-// throw with negative sourceEnd
+// Throw with negative sourceEnd
 common.expectsError(
   () => b.copy(c, 0, -1), errorProperty);
 

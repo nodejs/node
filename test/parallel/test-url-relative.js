@@ -4,7 +4,7 @@ const assert = require('assert');
 const inspect = require('util').inspect;
 const url = require('url');
 
-// when source is false
+// When source is false
 assert.strictEqual(url.resolveObject('', 'foo'), 'foo');
 
 /*
@@ -105,11 +105,11 @@ const relativeTests2 = [
   ['g/', bases[0], 'http://a/b/c/g/'],
   ['/g', bases[0], 'http://a/g'],
   ['//g', bases[0], 'http://g/'],
-  // changed with RFC 2396bis
+  // Changed with RFC 2396bis
   // ('?y', bases[0], 'http://a/b/c/d;p?y'],
   ['?y', bases[0], 'http://a/b/c/d;p?y'],
   ['g?y', bases[0], 'http://a/b/c/g?y'],
-  // changed with RFC 2396bis
+  // Changed with RFC 2396bis
   // ('#s', bases[0], CURRENT_DOC_URI + '#s'],
   ['#s', bases[0], 'http://a/b/c/d;p?q#s'],
   ['g#s', bases[0], 'http://a/b/c/g#s'],
@@ -117,7 +117,7 @@ const relativeTests2 = [
   [';x', bases[0], 'http://a/b/c/;x'],
   ['g;x', bases[0], 'http://a/b/c/g;x'],
   ['g;x?y#s', bases[0], 'http://a/b/c/g;x?y#s'],
-  // changed with RFC 2396bis
+  // Changed with RFC 2396bis
   // ('', bases[0], CURRENT_DOC_URI],
   ['', bases[0], 'http://a/b/c/d;p?q'],
   ['.', bases[0], 'http://a/b/c/'],
@@ -130,10 +130,10 @@ const relativeTests2 = [
   ['../../g', bases[0], 'http://a/g'],
   ['../../../g', bases[0], ('http://a/../g', 'http://a/g')],
   ['../../../../g', bases[0], ('http://a/../../g', 'http://a/g')],
-  // changed with RFC 2396bis
+  // Changed with RFC 2396bis
   // ('/./g', bases[0], 'http://a/./g'],
   ['/./g', bases[0], 'http://a/g'],
-  // changed with RFC 2396bis
+  // Changed with RFC 2396bis
   // ('/../g', bases[0], 'http://a/../g'],
   ['/../g', bases[0], 'http://a/g'],
   ['g.', bases[0], 'http://a/b/c/g.'],
@@ -162,7 +162,7 @@ const relativeTests2 = [
   ['g/', bases[1], 'http://a/b/c/g/'],
   ['/g', bases[1], 'http://a/g'],
   ['//g', bases[1], 'http://g/'],
-  // changed in RFC 2396bis
+  // Changed in RFC 2396bis
   // ('?y', bases[1], 'http://a/b/c/?y'],
   ['?y', bases[1], 'http://a/b/c/d;p?y'],
   ['g?y', bases[1], 'http://a/b/c/g?y'],
@@ -200,9 +200,9 @@ const relativeTests2 = [
   ['g', bases[3], 'fred:///s//a/b/g'],
   ['./g', bases[3], 'fred:///s//a/b/g'],
   ['g/', bases[3], 'fred:///s//a/b/g/'],
-  ['/g', bases[3], 'fred:///g'],  // may change to fred:///s//a/g
-  ['//g', bases[3], 'fred://g'],   // may change to fred:///s//g
-  ['//g/x', bases[3], 'fred://g/x'], // may change to fred:///s//g/x
+  ['/g', bases[3], 'fred:///g'],  // May change to fred:///s//a/g
+  ['//g', bases[3], 'fred://g'],   // May change to fred:///s//g
+  ['//g/x', bases[3], 'fred://g/x'], // May change to fred:///s//g/x
   ['///g', bases[3], 'fred:///g'],
   ['./', bases[3], 'fred:///s//a/b/'],
   ['../', bases[3], 'fred:///s//a/'],
@@ -220,9 +220,9 @@ const relativeTests2 = [
   ['g', bases[4], 'http:///s//a/b/g'],
   ['./g', bases[4], 'http:///s//a/b/g'],
   ['g/', bases[4], 'http:///s//a/b/g/'],
-  ['/g', bases[4], 'http:///g'],  // may change to http:///s//a/g
-  ['//g', bases[4], 'http://g/'],   // may change to http:///s//g
-  ['//g/x', bases[4], 'http://g/x'], // may change to http:///s//g/x
+  ['/g', bases[4], 'http:///g'],  // May change to http:///s//a/g
+  ['//g', bases[4], 'http://g/'],   // May change to http:///s//g
+  ['//g/x', bases[4], 'http://g/x'], // May change to http:///s//g/x
   ['///g', bases[4], 'http:///g'],
   ['./', bases[4], 'http:///s//a/b/'],
   ['../', bases[4], 'http:///s//a/'],

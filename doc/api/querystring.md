@@ -126,7 +126,7 @@ querystring.stringify({ foo: 'bar', baz: ['qux', 'quux'], corge: '' });
 // Returns 'foo=bar&baz=qux&baz=quux&corge='
 
 querystring.stringify({ foo: 'bar', baz: 'qux' }, ';', ':');
-// returns 'foo:bar;baz:qux'
+// Returns 'foo:bar;baz:qux'
 ```
 
 By default, characters requiring percent-encoding within the query string will

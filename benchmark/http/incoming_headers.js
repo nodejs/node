@@ -3,7 +3,7 @@ const common = require('../common.js');
 const http = require('http');
 
 const bench = common.createBenchmark(main, {
-  // unicode confuses ab on os x.
+  // Unicode confuses ab on os x.
   c: [50, 500],
   n: [0, 5, 20]
 });

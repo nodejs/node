@@ -2437,7 +2437,7 @@ const client = http2.connect('http://localhost');
 
 client.on('stream', (pushedStream, requestHeaders) => {
   pushedStream.on('push', (responseHeaders) => {
-    // process response headers
+    // Process response headers
   });
   pushedStream.on('data', (chunk) => { /* handle pushed data */ });
 });

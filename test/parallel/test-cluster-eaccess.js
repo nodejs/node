@@ -66,7 +66,7 @@ if (cluster.isMaster && process.argv.length !== 3) {
     server.on('error', function(err) {
       // Message to child process tells it to exit
       cp.send('end');
-      // propagate error to parent
+      // Propagate error to parent
       process.send(err);
     });
   }));

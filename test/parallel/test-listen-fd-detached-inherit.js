@@ -105,7 +105,7 @@ function parent() {
 
 // Run as a child of the parent() mode.
 function child() {
-  // start a server on fd=3
+  // Start a server on fd=3
   http.createServer(function(req, res) {
     console.error('request on child');
     console.error('%s %s', req.method, req.url, req.headers);

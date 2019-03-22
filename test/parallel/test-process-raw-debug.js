@@ -58,7 +58,7 @@ function parent() {
 }
 
 function child() {
-  // even when all hope is lost...
+  // Even when all hope is lost...
 
   process.nextTick = function() {
     throw new Error('No ticking!');

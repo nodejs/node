@@ -36,12 +36,12 @@ const httpsOptions = {
 };
 
 function check(request) {
-  // assert that I'm https
+  // Assert that I'm https
   assert.ok(request.socket._secureEstablished);
 }
 
 const server = https.createServer(httpsOptions, function(request, response) {
-  // run the check function
+  // Run the check function
   check(request);
   response.writeHead(200, {});
   response.end('ok');

@@ -80,7 +80,7 @@ if (process.argv[2] === 'child') {
   // The process should also self terminate without using signals
   child.on('exit', common.mustCall());
 
-  // when child is listening
+  // When child is listening
   child.on('message', function(obj) {
     if (obj && obj.msg === 'ready') {
 
@@ -90,7 +90,7 @@ if (process.argv[2] === 'child') {
       socket.on('data', function(data) {
         data = data.toString();
 
-        // ready to be disconnected
+        // Ready to be disconnected
         if (data === 'ready') {
           child.disconnect();
           assert.throws(
@@ -101,7 +101,7 @@ if (process.argv[2] === 'child') {
           return;
         }
 
-        // disconnect is emitted
+        // 'disconnect' is emitted
         childFlag = (data === 'true');
       });
 

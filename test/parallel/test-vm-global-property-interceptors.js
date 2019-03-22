@@ -60,7 +60,7 @@ assert.deepEqual(result, {
   g: undefined
 });
 
-// define new properties
+// Define new properties
 vm.runInContext(`
 Object.defineProperty(this, 'h', {value: 'h'});
 Object.defineProperty(this, 'i', {});

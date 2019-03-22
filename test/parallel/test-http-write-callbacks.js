@@ -51,7 +51,7 @@ server.on('checkContinue', (req, res) => {
   server.close();
   assert.strictEqual(req.method, 'PUT');
   res.writeContinue(() => {
-    // continue has been written
+    // Continue has been written
     req.on('end', () => {
       res.write('asdf', (er) => {
         assert.ifError(er);

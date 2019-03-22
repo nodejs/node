@@ -59,7 +59,7 @@ server.on('listening', function() {
     });
   });
 
-  // two set-cookie headers
+  // Two set-cookie headers
 
   http.get({ port: this.address().port, path: '/two' }, function(res) {
     assert.deepStrictEqual(res.headers['set-cookie'], ['A', 'B']);

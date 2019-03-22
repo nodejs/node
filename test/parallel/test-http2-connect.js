@@ -55,7 +55,7 @@ const { connect: netConnect } = require('net');
   }));
 }
 
-// check for https as protocol
+// Check for https as protocol
 {
   const authority = 'https://localhost';
   // A socket error may or may not be reported, keep this as a non-op

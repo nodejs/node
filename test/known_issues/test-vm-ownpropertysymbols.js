@@ -24,5 +24,5 @@ const ctx = vm.createContext(sandbox);
 const nativeSym = vm.runInNewContext('Object.getOwnPropertySymbols(this);');
 const ownSym = vm.runInContext('Object.getOwnPropertySymbols(this);', ctx);
 const restSym = ownSym.filter((sym) => !nativeSym.includes(sym));
-// this should not fail
+// This should not fail
 assert.deepStrictEqual(Array.from(restSym), [sym1, sym2]);

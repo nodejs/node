@@ -53,7 +53,7 @@ function child0() {
   console.error('baz');
 }
 
-// using process.stderr
+// Using process.stderr
 function child1() {
   process.stderr.write('child 1\n');
   process.stderr.write('foo\n');

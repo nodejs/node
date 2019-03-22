@@ -24,7 +24,7 @@ const common = require('../common');
 const assert = require('assert');
 const errorMsg = 'BAM!';
 
-// the first timer throws...
+// The first timer throws...
 setTimeout(common.mustCall(function() {
   throw new Error(errorMsg);
 }), 1);

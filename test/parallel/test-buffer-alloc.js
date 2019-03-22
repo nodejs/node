@@ -537,7 +537,7 @@ assert.strictEqual(Buffer.from('A', 'base64').length, 0);
 
 
 {
-  // test an invalid slice end.
+  // Test an invalid slice end.
   const b = Buffer.from([1, 2, 3, 4, 5]);
   const b2 = b.toString('hex', 1, 10000);
   const b3 = b.toString('hex', 1, 5);
@@ -737,7 +737,7 @@ assert.strictEqual(x.inspect(), '<Buffer 81 a3 66 6f 6f a3 62 61 72>');
 }
 
 {
-  // test for buffer overrun
+  // Test for buffer overrun
   const buf = Buffer.from([0, 0, 0, 0, 0]); // length: 5
   const sub = buf.slice(0, 4);         // length: 4
   assert.strictEqual(sub.write('12345', 'latin1'), 4);
@@ -747,7 +747,7 @@ assert.strictEqual(x.inspect(), '<Buffer 81 a3 66 6f 6f a3 62 61 72>');
 }
 
 {
-  // test alloc with fill option
+  // Test alloc with fill option
   const buf = Buffer.alloc(5, '800A', 'hex');
   assert.strictEqual(buf[0], 128);
   assert.strictEqual(buf[1], 10);

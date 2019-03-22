@@ -115,14 +115,14 @@ if (!common.hasIntl) {
   const collOpts = { sensitivity: 'base', ignorePunctuation: true };
   const coll = new Intl.Collator(['en'], collOpts);
 
-  // ignore punctuation
+  // Ignore punctuation
   assert.strictEqual(coll.compare('blackbird', 'black-bird'), 0);
-  // compare less
+  // Compare less
   assert.strictEqual(coll.compare('blackbird', 'red-bird'), -1);
-  // compare greater
+  // Compare greater
   assert.strictEqual(coll.compare('bluebird', 'blackbird'), 1);
-  // ignore case
+  // Ignore case
   assert.strictEqual(coll.compare('Bluebird', 'bluebird'), 0);
-  // ffi ligature (contraction)
+  // `ffi` ligature (contraction)
   assert.strictEqual(coll.compare('\ufb03', 'ffi'), 0);
 }

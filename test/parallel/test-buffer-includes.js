@@ -88,7 +88,7 @@ assert.strictEqual(
   true
 );
 
-// test base64 encoding
+// Test base64 encoding
 assert.strictEqual(
   Buffer.from(b.toString('base64'), 'base64')
     .includes('ZA==', 0, 'base64'),
@@ -112,7 +112,7 @@ assert.strictEqual(
   true
 );
 
-// test latin1 encoding
+// Test latin1 encoding
 assert.strictEqual(
   Buffer.from(b.toString('latin1'), 'latin1')
     .includes('d', 0, 'latin1'),
@@ -124,7 +124,7 @@ assert.strictEqual(
   true
 );
 
-// test binary encoding
+// Test binary encoding
 assert.strictEqual(
   Buffer.from(b.toString('binary'), 'binary')
     .includes('d', 0, 'binary'),

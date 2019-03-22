@@ -5,7 +5,7 @@ const PORT = common.PORT;
 const cluster = require('cluster');
 if (cluster.isMaster) {
   var bench = common.createBenchmark(main, {
-    // unicode confuses ab on os x.
+    // Unicode confuses ab on os x.
     type: ['bytes', 'buffer'],
     len: [4, 1024, 102400],
     c: [50, 500]

@@ -38,7 +38,7 @@ function main({ dur, len, type }) {
   const reader = new Reader();
   const writer = new Writer();
 
-  // the actual benchmark.
+  // The actual benchmark.
   const fakeSocket = new JSStreamWrap(new PassThrough());
   bench.start();
   reader.pipe(fakeSocket);

@@ -38,7 +38,7 @@ const tlsServer = tls.createServer({ cert, key }, (socket) => {
 let netSocket;
 // plain tcp server
 const netServer = net.createServer((socket) => {
-  // if client wants to use tls
+  // If client wants to use tls
   tlsServer.emit('connection', socket);
 
   netSocket = socket;

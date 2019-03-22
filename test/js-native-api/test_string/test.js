@@ -2,7 +2,7 @@
 const common = require('../../common');
 const assert = require('assert');
 
-// testing api calls for string
+// Testing api calls for string
 const test_string = require(`./build/${common.buildType}/test_string`);
 
 const empty = '';

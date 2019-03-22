@@ -22,6 +22,6 @@
 'use strict';
 require('../common');
 
-// custom error throwing
+// Custom error throwing
 // eslint-disable-next-line no-throw-literal
 throw ({ foo: 'bar' });

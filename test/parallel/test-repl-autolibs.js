@@ -55,7 +55,7 @@ function test2() {
   putIn.write = function(data) {
     gotWrite = true;
     if (data.length) {
-      // repl response error message
+      // REPL response error message
       assert.strictEqual(data, '{}\n');
       // Original value wasn't overwritten
       assert.strictEqual(val, global.url);

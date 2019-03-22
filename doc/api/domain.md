@@ -135,7 +135,7 @@ if (cluster.isMaster) {
         // But don't keep the process open just for that!
         killtimer.unref();
 
-        // stop taking new requests.
+        // Stop taking new requests.
         server.close();
 
         // Let the master know we're dead. This will trigger a
@@ -316,14 +316,13 @@ const d = domain.create();
 
 function readSomeFile(filename, cb) {
   fs.readFile(filename, 'utf8', d.bind((er, data) => {
-    // If this throws, it will also be passed to the domain
+    // If this throws, it will also be passed to the domain.
     return cb(er, data ? JSON.parse(data) : null);
   }));
 }
 
 d.on('error', (er) => {
-  // an error occurred somewhere.
-  // if we throw it now, it will crash the program
+  // An error occurred somewhere. If we throw it now, it will crash the program
   // with the normal line number and stack message.
 });
 ```
@@ -377,7 +376,7 @@ function readSomeFile(filename, cb) {
     // callback since it is assumed to be the 'Error' argument
     // and thus intercepted by the domain.
 
-    // if this throws, it will also be passed to the domain
+    // If this throws, it will also be passed to the domain
     // so the error-handling logic can be moved to the 'error'
     // event on the domain instead of being repeated throughout
     // the program.
@@ -386,8 +385,7 @@ function readSomeFile(filename, cb) {
 }
 
 d.on('error', (er) => {
-  // an error occurred somewhere.
-  // if we throw it now, it will crash the program
+  // An error occurred somewhere. If we throw it now, it will crash the program
   // with the normal line number and stack message.
 });
 ```

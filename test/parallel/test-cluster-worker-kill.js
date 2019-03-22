@@ -103,7 +103,7 @@ if (cluster.isWorker) {
   });
 }
 
-// some helper functions ...
+// Some helper functions ...
 
 function checkResults(expected_results, results) {
   for (const k in expected_results) {

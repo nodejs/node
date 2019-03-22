@@ -13,7 +13,7 @@ const { exec } = require('child_process');
 const hooks = initHooks();
 
 hooks.enable();
-const interval = setInterval(() => {}, 9999); // keep event loop open
+const interval = setInterval(() => {}, 9999); // Keep event loop open
 process.on('SIGUSR2', common.mustCall(onsigusr2, 2));
 
 let count = 0;
@@ -35,7 +35,7 @@ function onsigusr2() {
 }
 
 function onsigusr2Again() {
-  clearInterval(interval); // let the event loop close
+  clearInterval(interval); // Let the event loop close
 }
 
 process.on('exit', onexit);

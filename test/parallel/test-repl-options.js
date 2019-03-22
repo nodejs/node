@@ -52,7 +52,7 @@ assert.strictEqual(r1.ignoreUndefined, false);
 assert.strictEqual(r1.replMode, repl.REPL_MODE_SLOPPY);
 assert.strictEqual(r1.historySize, 30);
 
-// test r1 for backwards compact
+// Test r1 for backwards compact
 assert.strictEqual(r1.rli.input, stream);
 assert.strictEqual(r1.rli.output, stream);
 assert.strictEqual(r1.rli.input, r1.inputStream);
@@ -87,7 +87,7 @@ assert.strictEqual(r2.writer, writer);
 assert.strictEqual(r2.replMode, repl.REPL_MODE_STRICT);
 assert.strictEqual(r2.historySize, 50);
 
-// test r2 for backwards compact
+// Test r2 for backwards compact
 assert.strictEqual(r2.rli.input, stream);
 assert.strictEqual(r2.rli.output, stream);
 assert.strictEqual(r2.rli.input, r2.inputStream);

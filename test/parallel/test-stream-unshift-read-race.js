@@ -46,7 +46,7 @@ let pushedNull = false;
 r._read = function(n) {
   assert(!pushedNull, '_read after null push');
 
-  // every third chunk is fast
+  // Every third chunk is fast
   push(!(chunks % 3));
 
   function push(fast) {

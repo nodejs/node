@@ -758,7 +758,7 @@ option properties directly is also supported.
 const util = require('util');
 const arr = Array(101).fill(0);
 
-console.log(arr); // logs the truncated array
+console.log(arr); // Logs the truncated array
 util.inspect.defaultOptions.maxArrayLength = null;
 console.log(arr); // logs the full array
 ```

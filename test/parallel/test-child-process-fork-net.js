@@ -48,7 +48,7 @@ if (process.argv[2] === 'child') {
       console.error(`[${id}] socket.end ${m}`);
     });
 
-    // store the unfinished socket
+    // Store the unfinished socket
     if (m === 'write') {
       needEnd.push(socket);
     }

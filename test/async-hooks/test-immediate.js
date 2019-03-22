@@ -9,7 +9,7 @@ const { checkInvocations } = require('./hook-checks');
 const hooks = initHooks();
 hooks.enable();
 
-// install first immediate
+// Install first immediate
 setImmediate(common.mustCall(onimmediate));
 
 const as = hooks.activitiesOfTypes('Immediate');
@@ -29,7 +29,7 @@ function onimmediate() {
   checkInvocations(imd1, { init: 1, before: 1 },
                    'imd1: when first set immediate triggered');
 
-  // install second immediate
+  // Install second immediate
   setImmediate(common.mustCall(onimmediateTwo));
   as = hooks.activitiesOfTypes('Immediate');
   assert.strictEqual(as.length, 2);

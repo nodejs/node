@@ -18,12 +18,12 @@ class ExtendedClass extends BaseClass {
 const baseObject = new BaseClass();
 const extendedObject = new ExtendedClass();
 
-// test napi_strict_equals
+// Test napi_strict_equals
 assert.ok(test_general.testStrictEquals(val1, val1));
 assert.strictEqual(test_general.testStrictEquals(val1, val2), false);
 assert.ok(test_general.testStrictEquals(val2, val3));
 
-// test napi_get_prototype
+// Test napi_get_prototype
 assert.strictEqual(test_general.testGetPrototype(baseObject),
                    Object.getPrototypeOf(baseObject));
 assert.strictEqual(test_general.testGetPrototype(extendedObject),

@@ -69,7 +69,7 @@ See [Memory Usage Tuning][] for more information on the speed/memory/compression
 tradeoffs involved in `zlib` usage.
 
 ```js
-// client request example
+// Client request example
 const zlib = require('zlib');
 const http = require('http');
 const fs = require('fs');

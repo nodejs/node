@@ -73,7 +73,7 @@ function typeName(value) {
   });
 }
 
-// test that we can call spawn
+// Test that we can call spawn
 const child = new ChildProcess();
 child.spawn({
   file: process.execPath,

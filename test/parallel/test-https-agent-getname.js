@@ -15,7 +15,7 @@ assert.strictEqual(
   'localhost:::::::::::::::::::'
 );
 
-// pass all options arguments
+// Pass all options arguments
 const options = {
   host: '0.0.0.0',
   port: 443,

@@ -606,7 +606,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     });
   }
 
-  // cipher of invalid type.
+  // Cipher of invalid type.
   for (const cipher of [0, true, {}]) {
     common.expectsError(() => generateKeyPairSync('rsa', {
       modulusLength: 4096,

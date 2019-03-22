@@ -30,7 +30,7 @@ const nodePath = path.dirname(process.execPath);
 
 function spawnCopyDeepSync(source, destination) {
   if (common.isWindows) {
-    mkdirSync(destination); // prevent interactive prompt
+    mkdirSync(destination); // Prevent interactive prompt
     return spawnSync('xcopy.exe', ['/E', source, destination]);
   } else {
     return spawnSync('cp', ['-r', `${source}/`, destination]);

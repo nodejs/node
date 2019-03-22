@@ -10,14 +10,14 @@ const warn = 'OutgoingMessage.prototype._headers is deprecated';
 common.expectWarning('DeprecationWarning', warn, 'DEP0066');
 
 {
-  // tests for _headers get method
+  // Tests for _headers get method
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage.getHeaders = common.mustCall();
   outgoingMessage._headers;
 }
 
 {
-  // tests for _headers set method
+  // Tests for _headers set method
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage._headers = {
     host: 'risingstack.com',

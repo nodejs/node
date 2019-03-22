@@ -23,5 +23,5 @@ common.expectWarning({
   ],
 });
 
-// ensure this doesn't crash
+// Ensure this doesn't crash
 Promise.reject(Symbol());

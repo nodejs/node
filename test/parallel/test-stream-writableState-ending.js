@@ -32,6 +32,6 @@ const result = writable.end('testing function end()', () => {
 // End returns the writable instance
 assert.strictEqual(result, writable);
 
-// ending, ended = true.
+// Ending, ended = true.
 // finished = false.
 testStates(true, false, true);

@@ -143,7 +143,7 @@ async function getHandle(dest) {
       assert.deepStrictEqual((await readFile(dest)).toString(), 'hello');
     }
 
-    // invalid change of ownership
+    // Invalid change of ownership
     {
       const handle = await getHandle(dest);
 
@@ -181,7 +181,7 @@ async function getHandle(dest) {
         });
     }
 
-    // set modification times
+    // Set modification times
     {
       const handle = await getHandle(dest);
 
@@ -271,7 +271,7 @@ async function getHandle(dest) {
       await unlink(newFile);
     }
 
-    // mkdir when options is number.
+    // `mkdir` when options is number.
     {
       const dir = path.join(tmpDir, nextdir());
       await mkdir(dir, 777);
@@ -279,7 +279,7 @@ async function getHandle(dest) {
       assert(stats.isDirectory());
     }
 
-    // mkdir when options is string.
+    // `mkdir` when options is string.
     {
       const dir = path.join(tmpDir, nextdir());
       await mkdir(dir, '777');
@@ -295,7 +295,7 @@ async function getHandle(dest) {
       assert(stats.isDirectory());
     }
 
-    // mkdirp when path is a file.
+    // `mkdirp` when path is a file.
     {
       const dir = path.join(tmpDir, nextdir(), nextdir());
       await mkdir(path.dirname(dir));
