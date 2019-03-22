@@ -28,7 +28,14 @@
 #include "uv.h"
 
 #ifdef _WIN32
+#include <io.h>  // _S_IREAD _S_IWRITE
 #include <time.h>
+#ifndef S_IRUSR
+#define S_IRUSR _S_IREAD
+#endif  // S_IRUSR
+#ifndef S_IWUSR
+#define S_IWUSR _S_IWRITE
+#endif  // S_IWUSR
 #else
 #include <sys/time.h>
 #include <sys/types.h>
@@ -39,6 +46,9 @@
 #include <sstream>
 
 namespace node {
+
+// Microseconds in a second, as a float.
+#define MICROS_PER_SEC 1e6
 
 using v8::ArrayBufferView;
 using v8::Isolate;
@@ -150,6 +160,55 @@ std::vector<std::string> SplitString(const std::string& in, char delim) {
 
 void ThrowErrStringTooLong(Isolate* isolate) {
   isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
+}
+
+double GetCurrentTimeInMicroseconds() {
+#ifdef _WIN32
+// The difference between the Unix Epoch and the Windows Epoch in 100-ns ticks.
+#define TICKS_TO_UNIX_EPOCH 116444736000000000LL
+  FILETIME ft;
+  GetSystemTimeAsFileTime(&ft);
+  uint64_t filetime_int =
+      static_cast<uint64_t>(ft.dwHighDateTime) << 32 | ft.dwLowDateTime;
+  // FILETIME is measured in terms of 100 ns. Convert that to 1 us (1000 ns).
+  return (filetime_int - TICKS_TO_UNIX_EPOCH) / 10.;
+#else
+  struct timeval tp;
+  gettimeofday(&tp, nullptr);
+  return MICROS_PER_SEC * tp.tv_sec + tp.tv_usec;
+#endif
+}
+
+int WriteFileSync(const char* path, uv_buf_t buf) {
+  uv_fs_t req;
+  int fd = uv_fs_open(nullptr,
+                      &req,
+                      path,
+                      O_WRONLY | O_CREAT | O_TRUNC,
+                      S_IWUSR | S_IRUSR,
+                      nullptr);
+  uv_fs_req_cleanup(&req);
+  if (fd < 0) {
+    return fd;
+  }
+
+  int err = uv_fs_write(nullptr, &req, fd, &buf, 1, 0, nullptr);
+  uv_fs_req_cleanup(&req);
+  if (err < 0) {
+    return err;
+  }
+
+  err = uv_fs_close(nullptr, &req, fd, nullptr);
+  uv_fs_req_cleanup(&req);
+  return err;
+}
+
+int WriteFileSync(v8::Isolate* isolate,
+                  const char* path,
+                  v8::Local<v8::String> string) {
+  node::Utf8Value utf8(isolate, string);
+  uv_buf_t buf = uv_buf_init(utf8.out(), utf8.length());
+  return WriteFileSync(path, buf);
 }
 
 void DiagnosticFilename::LocalTime(TIME_TYPE* tm_struct) {

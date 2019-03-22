@@ -170,6 +170,8 @@ static const unsigned kMaxSignal = 32;
 
 void WaitForInspectorDisconnect(Environment* env) {
 #if HAVE_INSPECTOR
+  profiler::EndStartedProfilers(env);
+
   if (env->inspector_agent()->IsActive()) {
     // Restore signal dispositions, the app is done and is no longer
     // capable of handling signals.
@@ -240,13 +242,13 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
 
-  std::string coverage;
-  bool rc = credentials::SafeGetenv("NODE_V8_COVERAGE", &coverage);
-  if (rc && !coverage.empty()) {
+  Local<String> coverage_str = env->env_vars()->Get(
+      isolate, FIXED_ONE_BYTE_STRING(isolate, "NODE_V8_COVERAGE"));
+  if (!coverage_str.IsEmpty() && coverage_str->Length() > 0) {
 #if HAVE_INSPECTOR
     profiler::StartCoverageCollection(env);
 #else
-    fprintf(stderr, "NODE_V8_COVERAGE cannot be used without inspector");
+    fprintf(stderr, "NODE_V8_COVERAGE cannot be used without inspector\n");
 #endif  // HAVE_INSPECTOR
   }
 

@@ -25,8 +25,6 @@ using v8::Value;
 
 extern const uint64_t timeOrigin;
 
-double GetCurrentTimeInMicroseconds();
-
 static inline const char* GetPerformanceMilestoneName(
     enum PerformanceMilestone milestone) {
   switch (milestone) {

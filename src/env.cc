@@ -715,7 +715,6 @@ Local<Value> Environment::GetNow() {
     return Number::New(isolate(), static_cast<double>(now));
 }
 
-
 void Environment::set_debug_categories(const std::string& cats, bool enabled) {
   std::string debug_categories = cats;
   while (!debug_categories.empty()) {

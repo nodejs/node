@@ -106,7 +106,7 @@ if (process.features.inspector) {
 }
 
 if (process.env.NODE_V8_COVERAGE) {
-  expectedModules.add('NativeModule internal/profiler');
+  expectedModules.add('Internal Binding profiler');
 }
 
 const difference = (setA, setB) => {

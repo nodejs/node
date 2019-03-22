@@ -6,10 +6,6 @@
 
 #include <cinttypes>
 
-#ifdef __POSIX__
-#include <sys/time.h>  // gettimeofday
-#endif
-
 namespace node {
 namespace performance {
 
@@ -37,8 +33,6 @@ using v8::String;
 using v8::Uint32Array;
 using v8::Value;
 
-// Microseconds in a second, as a float.
-#define MICROS_PER_SEC 1e6
 // Microseconds in a millisecond, as a float.
 #define MICROS_PER_MILLIS 1e3
 
@@ -55,23 +49,6 @@ void performance_state::Mark(enum PerformanceMilestone milestone,
       TRACING_CATEGORY_NODE1(bootstrap),
       GetPerformanceMilestoneName(milestone),
       TRACE_EVENT_SCOPE_THREAD, ts / 1000);
-}
-
-double GetCurrentTimeInMicroseconds() {
-#ifdef _WIN32
-// The difference between the Unix Epoch and the Windows Epoch in 100-ns ticks.
-#define TICKS_TO_UNIX_EPOCH 116444736000000000LL
-  FILETIME ft;
-  GetSystemTimeAsFileTime(&ft);
-  uint64_t filetime_int = static_cast<uint64_t>(ft.dwHighDateTime) << 32 |
-                          ft.dwLowDateTime;
-  // FILETIME is measured in terms of 100 ns. Convert that to 1 us (1000 ns).
-  return (filetime_int - TICKS_TO_UNIX_EPOCH) / 10.;
-#else
-  struct timeval tp;
-  gettimeofday(&tp, nullptr);
-  return MICROS_PER_SEC * tp.tv_sec + tp.tv_usec;
-#endif
 }
 
 // Initialize the performance entry object properties

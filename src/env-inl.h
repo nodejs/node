@@ -638,6 +638,26 @@ inline const std::vector<std::string>& Environment::exec_argv() {
   return exec_argv_;
 }
 
+#if HAVE_INSPECTOR
+inline void Environment::set_coverage_directory(const char* dir) {
+  coverage_directory_ = std::string(dir);
+}
+
+inline void Environment::set_coverage_connection(
+    std::unique_ptr<profiler::V8CoverageConnection> connection) {
+  CHECK_NULL(coverage_connection_);
+  std::swap(coverage_connection_, connection);
+}
+
+inline profiler::V8CoverageConnection* Environment::coverage_connection() {
+  return coverage_connection_.get();
+}
+
+inline const std::string& Environment::coverage_directory() const {
+  return coverage_directory_;
+}
+#endif  // HAVE_INSPECTOR
+
 inline std::shared_ptr<HostPort> Environment::inspector_host_port() {
   return inspector_host_port_;
 }
