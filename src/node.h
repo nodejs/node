@@ -758,69 +758,41 @@ v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
 /* Helper class users can optionally inherit from. If
  * `AsyncResource::MakeCallback()` is used, then all four callbacks will be
  * called automatically. */
-class AsyncResource {
+class NODE_EXTERN AsyncResource {
  public:
   AsyncResource(v8::Isolate* isolate,
                 v8::Local<v8::Object> resource,
                 const char* name,
-                async_id trigger_async_id = -1)
-      : isolate_(isolate),
-        resource_(isolate, resource) {
-    async_context_ = EmitAsyncInit(isolate, resource, name,
-                                   trigger_async_id);
-  }
+                async_id trigger_async_id = -1);
 
-  virtual ~AsyncResource() {
-    EmitAsyncDestroy(isolate_, async_context_);
-    resource_.Reset();
-  }
+  virtual ~AsyncResource();
+
+  AsyncResource(const AsyncResource&) = delete;
+  void operator=(const AsyncResource&) = delete;
 
   v8::MaybeLocal<v8::Value> MakeCallback(
       v8::Local<v8::Function> callback,
       int argc,
-      v8::Local<v8::Value>* argv) {
-    return node::MakeCallback(isolate_, get_resource(),
-                              callback, argc, argv,
-                              async_context_);
-  }
+      v8::Local<v8::Value>* argv);
 
   v8::MaybeLocal<v8::Value> MakeCallback(
       const char* method,
       int argc,
-      v8::Local<v8::Value>* argv) {
-    return node::MakeCallback(isolate_, get_resource(),
-                              method, argc, argv,
-                              async_context_);
-  }
+      v8::Local<v8::Value>* argv);
 
   v8::MaybeLocal<v8::Value> MakeCallback(
       v8::Local<v8::String> symbol,
       int argc,
-      v8::Local<v8::Value>* argv) {
-    return node::MakeCallback(isolate_, get_resource(),
-                              symbol, argc, argv,
-                              async_context_);
-  }
+      v8::Local<v8::Value>* argv);
 
-  v8::Local<v8::Object> get_resource() {
-    return resource_.Get(isolate_);
-  }
-
-  async_id get_async_id() const {
-    return async_context_.async_id;
-  }
-
-  async_id get_trigger_async_id() const {
-    return async_context_.trigger_async_id;
-  }
+  v8::Local<v8::Object> get_resource();
+  async_id get_async_id() const;
+  async_id get_trigger_async_id() const;
 
  protected:
-  class CallbackScope : public node::CallbackScope {
+  class NODE_EXTERN CallbackScope : public node::CallbackScope {
    public:
-    explicit CallbackScope(AsyncResource* res)
-      : node::CallbackScope(res->isolate_,
-                            res->resource_.Get(res->isolate_),
-                            res->async_context_) {}
+    explicit CallbackScope(AsyncResource* res);
   };
 
  private:
