@@ -753,7 +753,7 @@ socket has been destroyed, `null` will be returned.
 <!-- YAML
 added: v0.11.4
 changes:
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26625
     description: Return the minimum cipher version, instead of a fixed string
       (`'TLSv1/SSLv3'`).
@@ -1264,7 +1264,7 @@ argument.
 <!-- YAML
 added: v0.11.13
 changes:
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26209
     description: TLSv1.3 support added.
   - version: v11.5.0

@@ -1129,17 +1129,17 @@ passing keys as strings or `Buffer`s due to improved security features.
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26960
     description: Added support for `'rsa-pss'`
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26786
     description: This property now returns `undefined` for KeyObject
                  instances of unrecognized type instead of aborting.
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26774
     description: Added support for `'x25519'` and `'x448'`
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26319
     description: Added support for `'ed25519'` and `'ed448'`.
 -->
@@ -1284,7 +1284,7 @@ console.log(verify.verify(publicKey, signature));
 <!-- YAML
 added: v0.1.92
 changes:
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26960
     description: This function now supports RSA-PSS keys.
   - version: v11.6.0
@@ -1387,7 +1387,7 @@ This can be called many times with new data as it is streamed.
 <!-- YAML
 added: v0.1.92
 changes:
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26960
     description: This function now supports RSA-PSS keys.
   - version: v11.7.0
@@ -1937,10 +1937,10 @@ algorithm names.
 <!-- YAML
 added: v10.12.0
 changes:
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26774
     description: Add ability to generate X25519 and X448 key pairs.
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26554
     description: Add ability to generate Ed25519 and Ed448 key pairs.
   - version: v11.6.0
@@ -2001,7 +2001,7 @@ a `Promise` for an `Object` with `publicKey` and `privateKey` properties.
 <!-- YAML
 added: v10.12.0
 changes:
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26554
     description: Add ability to generate Ed25519 and Ed448 key pairs.
   - version: v11.6.0
@@ -2692,7 +2692,7 @@ Throws an error if FIPS mode is not available.
 
 ### crypto.sign(algorithm, data, key)
 <!-- YAML
-added: REPLACEME
+added: v12.0.0
 -->
 * `algorithm` {string | null | undefined}
 * `data` {Buffer | TypedArray | DataView}
@@ -2742,7 +2742,7 @@ not introduce timing vulnerabilities.
 
 ### crypto.verify(algorithm, data, key, signature)
 <!-- YAML
-added: REPLACEME
+added: v12.0.0
 -->
 * `algorithm` {string | null | undefined}
 * `data` {Buffer | TypedArray | DataView}

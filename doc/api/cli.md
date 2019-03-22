@@ -77,7 +77,7 @@ $ source node_bash_completion
 
 ### `--cpu-prof`
 <!-- YAML
-added: REPLACEME
+added: v12.0.0
 -->
 
 > Stability: 1 - Experimental
@@ -99,7 +99,7 @@ CPU.20190409.202950.15293.0.0.cpuprofile
 
 ### `--cpu-prof-dir`
 <!-- YAML
-added: REPLACEME
+added: v12.0.0
 -->
 
 > Stability: 1 - Experimental
@@ -109,7 +109,7 @@ be placed.
 
 ### `--cpu-prof-name`
 <!-- YAML
-added: REPLACEME
+added: v12.0.0
 -->
 
 > Stability: 1 - Experimental
@@ -126,7 +126,7 @@ Enable FIPS-compliant crypto at startup. (Requires Node.js to be built with
 
 ### `--es-module-specifier-resolution=mode`
 <!-- YAML
-added: REPLACEME
+added: v12.0.0
 -->
 
 To be used in conjunction with `--experimental-modules`. Sets the resolution
@@ -140,7 +140,7 @@ Please see [customizing esm specifier resolution][] for example usage.
 
 ### `--experimental-json-modules`
 <!-- YAML
-added: REPLACEME
+added: v12.0.0
 -->
 
 Enable experimental JSON support for the ES Module loader.
@@ -209,7 +209,7 @@ Both of the above may change in future updates, which will be breaking changes.
 
 ### `--heapsnapshot-signal=signal`
 <!-- YAML
-added: REPLACEME
+added: v12.0.0
 -->
 
 Generates a heap snapshot each time the process receives the specified signal.
@@ -240,7 +240,7 @@ Specify ICU data load path. (Overrides `NODE_ICU_DATA`.)
 
 ### `--input-type=type`
 <!-- YAML
-added: REPLACEME
+added: v12.0.0
 -->
 
 Used with `--experimental-modules`, this configures Node.js to interpret string
@@ -455,7 +455,7 @@ warning will be written to stderr instead.
 <!-- YAML
 added: v11.8.0
 changes:
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27312
     description: Changed from `--diagnostic-report-directory` to
                  `--report-directory`
@@ -467,7 +467,7 @@ Location at which the report will be generated.
 <!-- YAML
 added: v11.8.0
 changes:
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27312
     description: changed from `--diagnostic-report-filename` to
                  `--report-filename`
@@ -479,7 +479,7 @@ Name of the file to which the report will be written.
 <!-- YAML
 added: v11.8.0
 changes:
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27312
     description: changed from `--diagnostic-report-on-fatalerror` to
                  `--report-on-fatalerror`
@@ -495,7 +495,7 @@ consumption etc. to reason about the fatal error.
 <!-- YAML
 added: v11.8.0
 changes:
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27312
     description: changed from `--diagnostic-report-on-signal` to
                  `--report-on-signal`
@@ -509,7 +509,7 @@ The signal to trigger the report is specified through `--report-signal`.
 <!-- YAML
 added: v11.8.0
 changes:
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27312
     description: changed from `--diagnostic-report-signal` to
                  `--report-signal`
@@ -522,7 +522,7 @@ Default signal is `SIGUSR2`.
 <!-- YAML
 added: v11.8.0
 changes:
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27312
     description: changed from `--diagnostic-report-uncaught-exception` to
                  `--report-uncaught-exception`
@@ -556,7 +556,7 @@ with crypto support (default).
 
 ### `--tls-max-v1.2`
 <!-- YAML
-added: REPLACEME
+added: v12.0.0
 -->
 
 Set [`tls.DEFAULT_MAX_VERSION`][] to 'TLSv1.2'. Use to disable support for
@@ -564,7 +564,7 @@ TLSv1.3.
 
 ### `--tls-max-v1.3`
 <!-- YAML
-added: REPLACEME
+added: v12.0.0
 -->
 
 Set default [`tls.DEFAULT_MAX_VERSION`][] to 'TLSv1.3'. Use to enable support
@@ -572,7 +572,7 @@ for TLSv1.3.
 
 ### `--tls-min-v1.0`
 <!-- YAML
-added: REPLACEME
+added: v12.0.0
 -->
 
 Set default [`tls.DEFAULT_MIN_VERSION`][] to 'TLSv1'. Use for compatibility with
@@ -580,7 +580,7 @@ old TLS clients or servers.
 
 ### `--tls-min-v1.1`
 <!-- YAML
-added: REPLACEME
+added: v12.0.0
 -->
 
 Set default [`tls.DEFAULT_MIN_VERSION`][] to 'TLSv1.1'. Use for compatibility
@@ -588,7 +588,7 @@ with old TLS clients or servers.
 
 ### `--tls-min-v1.3`
 <!-- YAML
-added: REPLACEME
+added: v12.0.0
 -->
 
 Set default [`tls.DEFAULT_MIN_VERSION`][] to 'TLSv1.3'. Use to disable support
@@ -648,7 +648,7 @@ Track heap object allocations for heap snapshots.
 
 ### `--unhandled-rejections=mode`
 <!-- YAML
-added: REPLACEME
+added: v12.0.0
 -->
 
 By default all unhandled rejections trigger a warning plus a deprecation warning
