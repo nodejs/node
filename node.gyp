@@ -169,7 +169,6 @@
       'lib/internal/process/worker_thread_only.js',
       'lib/internal/process/report.js',
       'lib/internal/process/task_queues.js',
-      'lib/internal/profiler.js',
       'lib/internal/querystring.js',
       'lib/internal/readline.js',
       'lib/internal/repl.js',

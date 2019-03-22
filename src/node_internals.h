@@ -308,14 +308,25 @@ v8::MaybeLocal<v8::Value> ExecuteBootstrapper(
     std::vector<v8::Local<v8::String>>* parameters,
     std::vector<v8::Local<v8::Value>>* arguments);
 void MarkBootstrapComplete(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+#if HAVE_INSPECTOR
 namespace profiler {
 void StartCoverageCollection(Environment* env);
+void EndStartedProfilers(Environment* env);
 }
+#endif  // HAVE_INSPECTOR
+
 #ifdef _WIN32
 typedef SYSTEMTIME TIME_TYPE;
 #else  // UNIX, OSX
 typedef struct tm TIME_TYPE;
 #endif
+
+double GetCurrentTimeInMicroseconds();
+int WriteFileSync(const char* path, uv_buf_t buf);
+int WriteFileSync(v8::Isolate* isolate,
+                  const char* path,
+                  v8::Local<v8::String> string);
 
 class DiagnosticFilename {
  public:

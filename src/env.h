@@ -27,6 +27,7 @@
 #include "aliased_buffer.h"
 #if HAVE_INSPECTOR
 #include "inspector_agent.h"
+#include "inspector_profiler.h"
 #endif
 #include "handle_wrap.h"
 #include "node.h"
@@ -66,6 +67,12 @@ class performance_state;
 namespace tracing {
 class AgentWriterHandle;
 }
+
+#if HAVE_INSPECTOR
+namespace profiler {
+class V8CoverageConnection;
+}  // namespace profiler
+#endif  // HAVE_INSPECTOR
 
 namespace worker {
 class Worker;
@@ -366,7 +373,6 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(async_hooks_init_function, v8::Function)                                   \
   V(async_hooks_promise_resolve_function, v8::Function)                        \
   V(buffer_prototype_object, v8::Object)                                       \
-  V(coverage_connection, v8::Object)                                           \
   V(crypto_key_object_constructor, v8::Function)                               \
   V(domain_callback, v8::Function)                                             \
   V(domexception_function, v8::Function)                                       \
@@ -390,7 +396,6 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(inspector_console_extension_installer, v8::Function)                       \
   V(message_port, v8::Object)                                                  \
   V(native_module_require, v8::Function)                                       \
-  V(on_coverage_message_function, v8::Function)                                \
   V(performance_entry_callback, v8::Function)                                  \
   V(performance_entry_template, v8::Function)                                  \
   V(process_object, v8::Object)                                                \
@@ -1116,6 +1121,15 @@ class Environment : public MemoryRetainer {
 
   inline AsyncRequest* thread_stopper() { return &thread_stopper_; }
 
+#if HAVE_INSPECTOR
+  void set_coverage_connection(
+      std::unique_ptr<profiler::V8CoverageConnection> connection);
+  profiler::V8CoverageConnection* coverage_connection();
+
+  inline void set_coverage_directory(const char* directory);
+  inline const std::string& coverage_directory() const;
+#endif  // HAVE_INSPECTOR
+
  private:
   inline void CreateImmediate(native_immediate_callback cb,
                               void* data,
@@ -1145,6 +1159,11 @@ class Environment : public MemoryRetainer {
   bool emit_err_name_warning_ = true;
   size_t async_callback_scope_depth_ = 0;
   std::vector<double> destroy_async_id_list_;
+
+#if HAVE_INSPECTOR
+  std::unique_ptr<profiler::V8CoverageConnection> coverage_connection_;
+  std::string coverage_directory_;
+#endif  // HAVE_INSPECTOR
 
   std::shared_ptr<EnvironmentOptions> options_;
   // options_ contains debug options parsed from CLI arguments,

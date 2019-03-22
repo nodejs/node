@@ -467,6 +467,11 @@ class FileHandle : public AsyncWrap, public StreamBase {
   std::unique_ptr<FileHandleReadWrap> current_read_ = nullptr;
 };
 
+int MKDirpSync(uv_loop_t* loop,
+               uv_fs_t* req,
+               const std::string& path,
+               int mode,
+               uv_fs_cb cb = nullptr);
 }  // namespace fs
 
 }  // namespace node

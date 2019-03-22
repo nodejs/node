@@ -171,6 +171,12 @@ static void Kill(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->Int32Value(context).To(&pid)) return;
   int sig;
   if (!args[1]->Int32Value(context).To(&sig)) return;
+    // TODO(joyeecheung): white list the signals?
+
+#if HAVE_INSPECTOR
+  profiler::EndStartedProfilers(env);
+#endif
+
   int err = uv_kill(pid, sig);
   args.GetReturnValue().Set(err);
 }
