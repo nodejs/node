@@ -92,13 +92,13 @@ if (process.argv[2] !== 'child') {
           return;
         }
 
-        assert.notStrictEqual(signal, null);
-
         dead += 1;
         console.error('[PARENT] Worker %d died. %d dead of %d',
                       worker.pid,
                       dead,
                       listeners);
+
+        assert.notStrictEqual(signal, null);
 
         if (dead === listeners) {
           console.error('[PARENT] All workers have died.');
