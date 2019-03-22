@@ -46,7 +46,7 @@ class RandomReadStream extends Stream {
     // base block size.
     opt.block = opt.block || 256 * 1024;
 
-    // total number of bytes to emit
+    // Total number of bytes to emit
     opt.total = opt.total || 256 * 1024 * 1024;
     this._remaining = opt.total;
 

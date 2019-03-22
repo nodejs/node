@@ -22,7 +22,7 @@ const hooks = initHooks();
 hooks.enable();
 
 function onchange() {}
-// install first file watcher
+// Install first file watcher
 const w1 = fs.watchFile(file1, { interval: 10 }, onchange);
 
 let as = hooks.activitiesOfTypes('STATWATCHER');
@@ -35,7 +35,7 @@ assert.strictEqual(statwatcher1.triggerAsyncId, 1);
 checkInvocations(statwatcher1, { init: 1 },
                  'watcher1: when started to watch file');
 
-// install second file watcher
+// Install second file watcher
 const w2 = fs.watchFile(file2, { interval: 10 }, onchange);
 as = hooks.activitiesOfTypes('STATWATCHER');
 assert.strictEqual(as.length, 2);

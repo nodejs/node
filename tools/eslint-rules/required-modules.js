@@ -11,7 +11,7 @@ const path = require('path');
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
-  // trim required module names
+  // Trim required module names
   const requiredModules = context.options;
   const isESM = context.parserOptions.sourceType === 'module';
 

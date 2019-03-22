@@ -29,7 +29,7 @@ function nextdir() {
   assert.strictEqual(output.stderr.toString(), '');
   const fixtureCoverage = getFixtureCoverage('basic.js', coverageDirectory);
   assert.ok(fixtureCoverage);
-  // first branch executed.
+  // First branch executed.
   assert.strictEqual(fixtureCoverage.functions[0].ranges[0].count, 1);
   // Second branch did not execute.
   assert.strictEqual(fixtureCoverage.functions[0].ranges[1].count, 0);
@@ -48,7 +48,7 @@ function nextdir() {
   assert.strictEqual(output.stderr.toString(), '');
   const fixtureCoverage = getFixtureCoverage('exit-1.js', coverageDirectory);
   assert.ok(fixtureCoverage, 'coverage not found for file');
-  // first branch executed.
+  // First branch executed.
   assert.strictEqual(fixtureCoverage.functions[0].ranges[0].count, 1);
   // Second branch did not execute.
   assert.strictEqual(fixtureCoverage.functions[0].ranges[1].count, 0);
@@ -69,7 +69,7 @@ function nextdir() {
   assert.strictEqual(output.stderr.toString(), '');
   const fixtureCoverage = getFixtureCoverage('sigint.js', coverageDirectory);
   assert.ok(fixtureCoverage);
-  // first branch executed.
+  // First branch executed.
   assert.strictEqual(fixtureCoverage.functions[0].ranges[0].count, 1);
   // Second branch did not execute.
   assert.strictEqual(fixtureCoverage.functions[0].ranges[1].count, 0);
@@ -89,13 +89,13 @@ function nextdir() {
   const fixtureCoverage = getFixtureCoverage('subprocess.js',
                                              coverageDirectory);
   assert.ok(fixtureCoverage);
-  // first branch executed.
+  // First branch executed.
   assert.strictEqual(fixtureCoverage.functions[1].ranges[0].count, 1);
   // Second branch did not execute.
   assert.strictEqual(fixtureCoverage.functions[1].ranges[1].count, 0);
 }
 
-// outputs coverage from worker.
+// Outputs coverage from worker.
 {
   const coverageDirectory = path.join(tmpdir.path, nextdir());
   const output = spawnSync(process.execPath, [
@@ -109,7 +109,7 @@ function nextdir() {
   const fixtureCoverage = getFixtureCoverage('subprocess.js',
                                              coverageDirectory);
   assert.ok(fixtureCoverage);
-  // first branch executed.
+  // First branch executed.
   assert.strictEqual(fixtureCoverage.functions[1].ranges[0].count, 1);
   // Second branch did not execute.
   assert.strictEqual(fixtureCoverage.functions[1].ranges[1].count, 0);
@@ -145,7 +145,7 @@ function nextdir() {
   const fixtureCoverage = getFixtureCoverage('async-hooks.js',
                                              coverageDirectory);
   assert.ok(fixtureCoverage);
-  // first branch executed.
+  // First branch executed.
   assert.strictEqual(fixtureCoverage.functions[0].ranges[0].count, 1);
 }
 
@@ -167,7 +167,7 @@ function nextdir() {
   const fixtureCoverage = getFixtureCoverage('basic.js',
                                              absoluteCoverageDirectory);
   assert.ok(fixtureCoverage);
-  // first branch executed.
+  // First branch executed.
   assert.strictEqual(fixtureCoverage.functions[0].ranges[0].count, 1);
   // Second branch did not execute.
   assert.strictEqual(fixtureCoverage.functions[0].ranges[1].count, 0);

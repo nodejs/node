@@ -104,7 +104,7 @@ const { promisify } = require('util');
   }));
 
   rs.push(null);
-  rs.emit('close'); // should not trigger an error
+  rs.emit('close'); // Should not trigger an error
   rs.resume();
 }
 
@@ -115,7 +115,7 @@ const { promisify } = require('util');
     assert(err, 'premature close error');
   }));
 
-  rs.emit('close'); // should trigger error
+  rs.emit('close'); // Should trigger error
   rs.push(null);
   rs.resume();
 }

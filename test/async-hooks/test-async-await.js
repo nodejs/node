@@ -12,7 +12,7 @@ const initHooks = require('./init-hooks');
 const util = require('util');
 
 const sleep = util.promisify(setTimeout);
-// either 'inited' or 'resolved'
+// Either 'inited' or 'resolved'
 const promisesInitState = new Map();
 // Either 'before' or 'after' AND asyncId must be present in the other map
 const promisesExecutionState = new Map();

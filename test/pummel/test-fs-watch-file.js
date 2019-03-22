@@ -41,7 +41,7 @@ const filenameTwo = 'hasOwnProperty';
 const filepathTwo = filenameTwo;
 const filepathTwoAbs = path.join(testDir, filenameTwo);
 
-const filenameThree = 'charm'; // because the third time is
+const filenameThree = 'charm'; // Because the third time is
 
 const filenameFour = 'get';
 

@@ -6,7 +6,7 @@ const buffer = Buffer.from([1, 2, 3, 4, 5]);
 let arr;
 let b;
 
-// buffers should be iterable
+// Buffers should be iterable
 
 arr = [];
 

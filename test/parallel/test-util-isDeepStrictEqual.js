@@ -221,7 +221,7 @@ notUtilIsDeepStrict(
   new Map([['1', 5], [0, 5], ['0', 5]])
 );
 
-// undefined value in Map
+// Undefined value in Map
 utilIsDeepStrict(
   new Map([[1, undefined]]),
   new Map([[1, undefined]])

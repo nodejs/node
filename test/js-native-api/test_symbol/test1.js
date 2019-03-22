@@ -2,7 +2,7 @@
 const common = require('../../common');
 const assert = require('assert');
 
-// testing api calls for symbol
+// Testing api calls for symbol
 const test_symbol = require(`./build/${common.buildType}/test_symbol`);
 
 const sym = test_symbol.New('test');

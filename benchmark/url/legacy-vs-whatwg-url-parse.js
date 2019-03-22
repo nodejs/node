@@ -13,7 +13,7 @@ const bench = common.createBenchmark(main, {
 
 function useLegacy(data) {
   const len = data.length;
-  var result = url.parse(data[0]);  // avoid dead code elimination
+  var result = url.parse(data[0]);  // Avoid dead code elimination
   bench.start();
   for (var i = 0; i < len; ++i) {
     result = url.parse(data[i]);
@@ -24,7 +24,7 @@ function useLegacy(data) {
 
 function useWHATWGWithBase(data) {
   const len = data.length;
-  var result = new URL(data[0][0], data[0][1]);  // avoid dead code elimination
+  var result = new URL(data[0][0], data[0][1]);  // Avoid dead code elimination
   bench.start();
   for (var i = 0; i < len; ++i) {
     const item = data[i];
@@ -36,7 +36,7 @@ function useWHATWGWithBase(data) {
 
 function useWHATWGWithoutBase(data) {
   const len = data.length;
-  var result = new URL(data[0]);  // avoid dead code elimination
+  var result = new URL(data[0]);  // Avoid dead code elimination
   bench.start();
   for (var i = 0; i < len; ++i) {
     result = new URL(data[i]);

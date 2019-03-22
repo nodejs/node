@@ -9,7 +9,7 @@ const tmpdir = require('../common/tmpdir');
 
 const agent = new http.Agent();
 
-// default to localhost
+// Default to localhost
 assert.strictEqual(
   agent.getName({
     port: 80,

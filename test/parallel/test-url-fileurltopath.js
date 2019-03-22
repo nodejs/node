@@ -53,9 +53,9 @@ assert.throws(() => url.fileURLToPath('https://a/b/c'), {
   let testCases;
   if (isWindows) {
     testCases = [
-      // lowercase ascii alpha
+      // Lowercase ascii alpha
       { path: 'C:\\foo', fileURL: 'file:///C:/foo' },
-      // uppercase ascii alpha
+      // Uppercase ascii alpha
       { path: 'C:\\FOO', fileURL: 'file:///C:/FOO' },
       // dir
       { path: 'C:\\dir\\foo', fileURL: 'file:///C:/dir/foo' },
@@ -91,16 +91,16 @@ assert.throws(() => url.fileURLToPath('https://a/b/c'), {
       { path: 'C:\\foo\rbar', fileURL: 'file:///C:/foo%0Dbar' },
       // latin1
       { path: 'C:\\fóóbàr', fileURL: 'file:///C:/f%C3%B3%C3%B3b%C3%A0r' },
-      // euro sign (BMP code point)
+      // Euro sign (BMP code point)
       { path: 'C:\\€', fileURL: 'file:///C:/%E2%82%AC' },
       // Rocket emoji (non-BMP code point)
       { path: 'C:\\🚀', fileURL: 'file:///C:/%F0%9F%9A%80' }
     ];
   } else {
     testCases = [
-      // lowercase ascii alpha
+      // Lowercase ascii alpha
       { path: '/foo', fileURL: 'file:///foo' },
-      // uppercase ascii alpha
+      // Uppercase ascii alpha
       { path: '/FOO', fileURL: 'file:///FOO' },
       // dir
       { path: '/dir/foo', fileURL: 'file:///dir/foo' },
@@ -136,7 +136,7 @@ assert.throws(() => url.fileURLToPath('https://a/b/c'), {
       { path: '/foo\rbar', fileURL: 'file:///foo%0Dbar' },
       // latin1
       { path: '/fóóbàr', fileURL: 'file:///f%C3%B3%C3%B3b%C3%A0r' },
-      // euro sign (BMP code point)
+      // Euro sign (BMP code point)
       { path: '/€', fileURL: 'file:///%E2%82%AC' },
       // Rocket emoji (non-BMP code point)
       { path: '/🚀', fileURL: 'file:///%F0%9F%9A%80' },

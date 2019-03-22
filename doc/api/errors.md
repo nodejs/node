@@ -407,7 +407,7 @@ program.
 try {
   require('vm').runInThisContext('binary ! isNotOk');
 } catch (err) {
-  // err will be a SyntaxError
+  // Err will be a SyntaxError
 }
 ```
 

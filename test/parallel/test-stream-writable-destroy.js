@@ -205,7 +205,7 @@ const assert = require('assert');
 }
 
 {
-  // destroy and destroy callback
+  // Destroy and destroy callback
   const write = new Writable({
     write(chunk, enc, cb) { cb(); }
   });

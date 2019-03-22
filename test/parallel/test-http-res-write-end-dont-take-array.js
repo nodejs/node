@@ -30,9 +30,9 @@ server.once('request', common.mustCall((req, res) => {
   server.on('request', common.mustCall((req, res) => {
     res.end(Buffer.from('asdf'));
   }));
-  // write should accept string
+  // Write should accept string
   res.write('string');
-  // write should accept buffer
+  // Write should accept buffer
   res.write(Buffer.from('asdf'));
 
   const expectedError = {
@@ -56,7 +56,7 @@ server.once('request', common.mustCall((req, res) => {
     expectedError
   );
 
-  // end should accept string
+  // End should accept string
   res.end('string');
 }));
 

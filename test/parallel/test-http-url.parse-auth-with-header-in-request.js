@@ -31,7 +31,7 @@ function check(request) {
 }
 
 const server = http.createServer(function(request, response) {
-  // run the check function
+  // Run the check function
   check(request);
   response.writeHead(200, {});
   response.end('ok');

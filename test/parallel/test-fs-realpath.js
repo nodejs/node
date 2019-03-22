@@ -41,7 +41,7 @@ tmpdir.refresh();
 let root = '/';
 let assertEqualPath = assert.strictEqual;
 if (common.isWindows) {
-  // something like "C:\\"
+  // Something like "C:\\"
   root = process.cwd().substr(0, 3);
   assertEqualPath = function(path_left, path_right, message) {
     assert

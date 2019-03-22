@@ -12,7 +12,7 @@ const spawnSync = require('child_process').spawnSync;
 
 let result;
 
-// create a subst drive
+// Create a subst drive
 const driveLetters = 'ABCDEFGHIJKLMNOPQRSTUWXYZ';
 let drive;
 let i;

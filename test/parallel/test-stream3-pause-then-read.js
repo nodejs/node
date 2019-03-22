@@ -56,7 +56,7 @@ function push() {
 
 read100();
 
-// first we read 100 bytes
+// First we read 100 bytes
 function read100() {
   readn(100, onData);
 }
@@ -89,7 +89,7 @@ function onData() {
       r.removeListener('data', od);
       r.pause();
       if (seen > 100) {
-        // oh no, seen too much!
+        // Oh no, seen too much!
         // put the extra back.
         const diff = seen - 100;
         r.unshift(c.slice(c.length - diff));
@@ -130,7 +130,7 @@ function pipeLittle() {
   r.pipe(w);
 }
 
-// now read 1234 more bytes
+// Now read 1234 more bytes
 function read1234() {
   readn(1234, resumePause);
 }

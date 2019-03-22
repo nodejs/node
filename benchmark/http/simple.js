@@ -2,7 +2,7 @@
 const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
-  // unicode confuses ab on os x.
+  // Unicode confuses ab on os x.
   type: ['bytes', 'buffer'],
   len: [4, 1024, 102400],
   chunks: [1, 4],

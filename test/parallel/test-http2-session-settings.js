@@ -101,7 +101,7 @@ server.listen(
         );
       });
 
-      // error checks for enablePush
+      // Error checks for enablePush
       [1, {}, 'test', [], null, Infinity, NaN].forEach((i) => {
         common.expectsError(
           () => client.settings({ enablePush: i }),

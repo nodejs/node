@@ -4,7 +4,7 @@ const assert = require('assert');
 const test_number = require(`./build/${common.buildType}/test_number`);
 
 
-// testing api calls for number
+// Testing api calls for number
 function testNumber(num) {
   assert.strictEqual(num, test_number.Test(num));
 }

@@ -37,7 +37,7 @@ if (cluster.isWorker) {
   const servers = 2;
   const serverPorts = new Set();
 
-  // test a single TCP server
+  // Test a single TCP server
   const testConnection = (port, cb) => {
     const socket = net.connect(port, '127.0.0.1', () => {
       // buffer result

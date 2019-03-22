@@ -135,7 +135,7 @@ if (cluster.isMaster) {
         // But don't keep the process open just for that!
         killtimer.unref();
 
-        // stop taking new requests.
+        // Stop taking new requests.
         server.close();
 
         // Let the master know we're dead. This will trigger a
@@ -322,7 +322,7 @@ function readSomeFile(filename, cb) {
 }
 
 d.on('error', (er) => {
-  // an error occurred somewhere.
+  // An error occurred somewhere.
   // if we throw it now, it will crash the program
   // with the normal line number and stack message.
 });
@@ -386,7 +386,7 @@ function readSomeFile(filename, cb) {
 }
 
 d.on('error', (er) => {
-  // an error occurred somewhere.
+  // An error occurred somewhere.
   // if we throw it now, it will crash the program
   // with the normal line number and stack message.
 });

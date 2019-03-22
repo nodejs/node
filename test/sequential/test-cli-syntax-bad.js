@@ -35,7 +35,7 @@ const syntaxErrorRE = /^SyntaxError: \b/m;
       assert.strictEqual(err.code, 1,
                          `code ${err.code} !== 1 for error:\n\n${err}`);
 
-      // no stdout should be produced
+      // No stdout should be produced
       assert.strictEqual(stdout, '');
 
       // Stderr should have a syntax error message

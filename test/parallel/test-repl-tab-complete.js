@@ -528,7 +528,7 @@ testCustomCompleterAsyncMode.complete('a', common.mustCall((error, data) => {
   ]);
 }));
 
-// tab completion in editor mode
+// Tab completion in editor mode
 const editorStream = new ArrayStream();
 const editor = repl.start({
   stream: editorStream,

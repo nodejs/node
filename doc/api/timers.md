@@ -163,7 +163,7 @@ setImmediatePromise('foobar').then((value) => {
   // This is executed after all I/O callbacks.
 });
 
-// or with async function
+// Or with async function
 async function timerExample() {
   console.log('Before I/O callbacks');
   await setImmediatePromise();

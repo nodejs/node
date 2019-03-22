@@ -34,7 +34,7 @@ const buf = Buffer.alloc(1024, 42);
 let socket = dgram.createSocket('udp4');
 const { handle } = socket[kStateSymbol];
 
-// get a random port for send
+// Get a random port for send
 const portGetter = dgram.createSocket('udp4')
   .bind(0, 'localhost', common.mustCall(() => {
     socket.send(buf, 0, buf.length,

@@ -161,7 +161,7 @@ function makeReq(path, port, error, host, ca) {
 }
 
 function allListening() {
-  // ok, ready to start the tests!
+  // Ok, ready to start the tests!
   const port1 = server1.address().port;
   const port2 = server2.address().port;
   const port3 = server3.address().port;

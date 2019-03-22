@@ -223,7 +223,7 @@ qsNoMungeTestCases.forEach((testCase) => {
   assert.deepStrictEqual(qs.stringify(testCase[1], '&', '='), testCase[0]);
 });
 
-// test the nested qs-in-qs case
+// Test the nested qs-in-qs case
 {
   const f = qs.parse('a=b&q=x%3Dy%26y%3Dz');
   check(f, createWithNoPrototype([
@@ -254,7 +254,7 @@ qsNoMungeTestCases.forEach((testCase) => {
   check(f.q, expectedInternal);
 }
 
-// now test stringifying
+// Now test stringifying
 
 // basic
 qsTestCases.forEach((testCase) => {
@@ -279,7 +279,7 @@ common.expectsError(
   }
 );
 
-// coerce numbers to string
+// Coerce numbers to string
 assert.strictEqual(qs.stringify({ foo: 0 }), 'foo=0');
 assert.strictEqual(qs.stringify({ foo: -0 }), 'foo=0');
 assert.strictEqual(qs.stringify({ foo: 3 }), 'foo=3');
@@ -434,7 +434,7 @@ qsUnescapeTestCases.forEach((testCase) => {
   assert.strictEqual(qs.unescapeBuffer(testCase[0]).toString(), testCase[1]);
 });
 
-// test overriding .unescape
+// Test overriding .unescape
 {
   const prevUnescape = qs.unescape;
   qs.unescape = (str) => {

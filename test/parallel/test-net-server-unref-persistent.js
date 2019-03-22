@@ -3,7 +3,7 @@ const common = require('../common');
 const net = require('net');
 const server = net.createServer();
 
-// unref before listening
+// Unref before listening
 server.unref();
 server.listen();
 

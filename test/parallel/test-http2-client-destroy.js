@@ -100,7 +100,7 @@ const Countdown = require('../common/countdown');
   }));
 }
 
-// test destroy before goaway
+// Test destroy before goaway
 {
   const server = h2.createServer();
   server.on('stream', common.mustCall((stream) => {
@@ -120,7 +120,7 @@ const Countdown = require('../common/countdown');
   }));
 }
 
-// test destroy before connect
+// Test destroy before connect
 {
   const server = h2.createServer();
   server.on('stream', common.mustNotCall());
@@ -138,7 +138,7 @@ const Countdown = require('../common/countdown');
   }));
 }
 
-// test close before connect
+// Test close before connect
 {
   const server = h2.createServer();
 
@@ -151,7 +151,7 @@ const Countdown = require('../common/countdown');
     }));
 
     const req = client.request();
-    // should throw goaway error
+    // Should throw goaway error
     req.on('error', common.expectsError({
       code: 'ERR_HTTP2_GOAWAY_SESSION',
       type: Error,

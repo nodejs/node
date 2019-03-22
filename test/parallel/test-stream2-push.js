@@ -97,7 +97,7 @@ writer._write = function(chunk, encoding, cb) {
 writer.on('finish', finish);
 
 
-// now emit some chunks.
+// Now emit some chunks.
 
 const chunk = 'asdfg';
 

@@ -86,7 +86,7 @@ function testEncoding(encoding) {
 }
 
 function testBuf(encoding, buf) {
-  // write one byte at a time.
+  // Write one byte at a time.
   let s = new SD(encoding);
   let res1 = '';
   for (let i = 0; i < buf.length; i++) {

@@ -178,7 +178,7 @@ const Transform = require('_stream_transform');
   // Verify asymmetric transform (expand)
   const pt = new Transform();
 
-  // emit each chunk 2 times.
+  // Emit each chunk 2 times.
   pt._transform = function(chunk, encoding, cb) {
     setTimeout(function() {
       pt.push(chunk);
@@ -229,7 +229,7 @@ const Transform = require('_stream_transform');
   };
 
   pt._flush = function(cb) {
-    // just output whatever we have.
+    // Just output whatever we have.
     pt.push(Buffer.from(this.state));
     this.state = '';
     cb();

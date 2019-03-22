@@ -9,7 +9,7 @@ const { internalBinding } = require('internal/test/binding');
 const icu = internalBinding('icu');
 const assert = require('assert');
 
-// test hasConverter method
+// Test hasConverter method
 assert(icu.hasConverter('utf-8'),
        'hasConverter should report coverter exists for utf-8');
 assert(!icu.hasConverter('x'),

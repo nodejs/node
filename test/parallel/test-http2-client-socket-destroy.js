@@ -19,7 +19,7 @@ server.on('stream', common.mustCall((stream) => {
   stream.on('close', common.mustCall());
   stream.respond();
   stream.write(body);
-  // purposefully do not end()
+  // Purposefully do not end()
 }));
 
 server.listen(0, common.mustCall(function() {
@@ -27,7 +27,7 @@ server.listen(0, common.mustCall(function() {
   const req = client.request();
 
   req.on('response', common.mustCall(() => {
-    // send a premature socket close
+    // Send a premature socket close
     client[kSocket].destroy();
   }));
 

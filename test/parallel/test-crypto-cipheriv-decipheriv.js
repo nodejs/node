@@ -23,7 +23,7 @@ function testCipher1(key, iv) {
   assert.strictEqual(txt, plaintext,
                      `encryption/decryption with key ${key} and iv ${iv}`);
 
-  // streaming cipher interface
+  // Streaming cipher interface
   // NB: In real life, it's not guaranteed that you can get all of it
   // in a single read() like this.  But in this case, we know it's
   // quite small, so there's no harm.

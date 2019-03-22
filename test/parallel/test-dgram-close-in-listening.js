@@ -13,7 +13,7 @@ socket.on('listening', function() {
   socket.close();
 });
 
-// get a random port for send
+// Get a random port for send
 const portGetter = dgram.createSocket('udp4')
   .bind(0, 'localhost', common.mustCall(() => {
     // Adds a listener to 'listening' to send the data when

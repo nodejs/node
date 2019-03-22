@@ -157,7 +157,7 @@ const parseTests = {
     path: '/Y'
   },
 
-  // whitespace in the front
+  // Whitespace in the front
   ' http://www.example.com/': {
     href: 'http://www.example.com/',
     protocol: 'http:',
@@ -861,7 +861,7 @@ const parseTests = {
     href: 'http://a%0D%22%20%09%0A%3C\'b:b@c/%0D%0Ad/e?f'
   },
 
-  // git urls used by npm
+  // Git urls used by npm
   'git+ssh://git@github.com:npm/npm': {
     protocol: 'git+ssh:',
     slashes: true,

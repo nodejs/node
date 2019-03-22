@@ -41,7 +41,7 @@ const options = {
   ecdhCurve: 'prime256v1'
 };
 
-const reply = 'I AM THE WALRUS'; // something recognizable
+const reply = 'I AM THE WALRUS'; // Something recognizable
 
 const server = tls.createServer(options, common.mustCall(function(conn) {
   conn.end(reply);

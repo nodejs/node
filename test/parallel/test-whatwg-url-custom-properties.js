@@ -9,7 +9,7 @@ const assert = require('assert');
 const urlToOptions = require('internal/url').urlToOptions;
 
 const url = new URL('http://user:pass@foo.bar.com:21/aaa/zzz?l=24#test');
-const oldParams = url.searchParams;  // for test of [SameObject]
+const oldParams = url.searchParams;  // For test of [SameObject]
 
 // To retrieve enumerable but not necessarily own properties,
 // we need to use the for-in loop.

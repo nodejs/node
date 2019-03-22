@@ -10,7 +10,7 @@ const TIMEOUT = common.platformTimeout(100);
 const hooks = initHooks();
 hooks.enable();
 
-// install first timeout
+// Install first timeout
 setTimeout(common.mustCall(ontimeout), TIMEOUT);
 const as = hooks.activitiesOfTypes('Timeout');
 assert.strictEqual(as.length, 1);

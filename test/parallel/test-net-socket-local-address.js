@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-// skip test in FreeBSD jails
+// Skip test in FreeBSD jails
 if (common.inFreeBSDJail)
   common.skip('In a FreeBSD jail');
 

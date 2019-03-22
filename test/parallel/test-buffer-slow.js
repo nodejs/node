@@ -7,7 +7,7 @@ const SlowBuffer = buffer.SlowBuffer;
 
 const ones = [1, 1, 1, 1];
 
-// should create a Buffer
+// Should create a Buffer
 let sb = SlowBuffer(4);
 assert(sb instanceof Buffer);
 assert.strictEqual(sb.length, 4);
@@ -19,7 +19,7 @@ for (const [key, value] of sb.entries()) {
 // underlying ArrayBuffer should have the same length
 assert.strictEqual(sb.buffer.byteLength, 4);
 
-// should work without new
+// Should work without new
 sb = SlowBuffer(4);
 assert(sb instanceof Buffer);
 assert.strictEqual(sb.length, 4);
@@ -28,7 +28,7 @@ for (const [key, value] of sb.entries()) {
   assert.deepStrictEqual(value, ones[key]);
 }
 
-// should work with edge cases
+// Should work with edge cases
 assert.strictEqual(SlowBuffer(0).length, 0);
 try {
   assert.strictEqual(

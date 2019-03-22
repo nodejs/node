@@ -119,7 +119,7 @@ function remoteError() {
 
 server.listen(0, common.mustCall(() => {
   name = `localhost:${server.address().port}:`;
-  // request first, and keep alive
+  // Request first, and keep alive
   get('/first', common.mustCall((res) => {
     assert.strictEqual(res.statusCode, 200);
     res.on('data', checkDataAndSockets);

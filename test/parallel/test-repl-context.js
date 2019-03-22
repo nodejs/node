@@ -58,7 +58,7 @@ const stream = new ArrayStream();
   assert.strictEqual(server.lines[0], '_ = 500;');
   assert.strictEqual(server.last, 500);
 
-  // reset the server context
+  // Reset the server context
   server.resetContext();
   assert.ok(!server.underscoreAssigned);
   assert.strictEqual(server.lines.length, 0);

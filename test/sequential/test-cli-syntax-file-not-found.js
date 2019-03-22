@@ -27,7 +27,7 @@ const notFoundRE = /^Error: Cannot find module/m;
     const _args = args.concat(file);
     const cmd = [node, ..._args].join(' ');
     exec(cmd, common.mustCall((err, stdout, stderr) => {
-      // no stdout should be produced
+      // No stdout should be produced
       assert.strictEqual(stdout, '');
 
       // `stderr` should have a module not found error message.

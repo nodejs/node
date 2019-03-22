@@ -48,7 +48,7 @@ assert.strictEqual(a.compare(b, 0, 7, 4, 6), -1);
 // zero length target
 assert.strictEqual(a.compare(b, 0, null), 1);
 
-// coerces to targetEnd == 5
+// Coerces to targetEnd == 5
 assert.strictEqual(a.compare(b, 0, { valueOf: () => 5 }), -1);
 
 // zero length target

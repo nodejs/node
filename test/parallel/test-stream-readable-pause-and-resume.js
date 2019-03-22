@@ -34,7 +34,7 @@ function readAndPause() {
       readAndPause();
       rs.resume();
     });
-  }, 1); // only call ondata once
+  }, 1); // Only call ondata once
 
   rs.on('data', ondata);
 }

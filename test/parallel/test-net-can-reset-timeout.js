@@ -33,7 +33,7 @@ const server = net.createServer(common.mustCall(function(stream) {
 
   stream.once('timeout', common.mustCall(function() {
     console.log('timeout');
-    // try to reset the timeout.
+    // Try to reset the timeout.
     stream.write('WHAT.');
   }));
 

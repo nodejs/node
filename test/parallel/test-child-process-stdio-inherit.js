@@ -51,6 +51,6 @@ function grandparent() {
 }
 
 function parent() {
-  // should not immediately exit.
+  // Should not immediately exit.
   spawn('cat', [], { stdio: 'inherit' });
 }

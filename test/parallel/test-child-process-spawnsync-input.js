@@ -29,7 +29,7 @@ const spawnSync = require('child_process').spawnSync;
 const msgOut = 'this is stdout';
 const msgErr = 'this is stderr';
 
-// this is actually not os.EOL?
+// This is actually not os.EOL?
 const msgOutBuf = Buffer.from(`${msgOut}\n`);
 const msgErrBuf = Buffer.from(`${msgErr}\n`);
 

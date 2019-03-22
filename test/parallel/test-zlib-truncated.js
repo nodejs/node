@@ -38,12 +38,12 @@ const errMessage = /unexpected end of file/;
       assert.strictEqual(toUTF8(result), inputString);
     });
 
-    // sync truncated input test
+    // Sync truncated input test
     assert.throws(function() {
       zlib[methods.decompSync](truncated);
     }, errMessage);
 
-    // async truncated input test
+    // Async truncated input test
     zlib[methods.decomp](truncated, function(err, result) {
       assert(errMessage.test(err.message));
     });

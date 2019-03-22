@@ -64,7 +64,7 @@ proc.on('error', common.mustCall(function(err) {
 
 proc.on('exit', common.mustNotCall('"exit" event should not be emitted'));
 
-// close one fd for LSan
+// Close one fd for LSan
 if (openFds.length >= 1) {
   fs.closeSync(openFds.pop());
 }

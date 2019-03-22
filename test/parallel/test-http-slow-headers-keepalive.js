@@ -33,7 +33,7 @@ server.once('timeout', common.mustCall((socket) => {
 server.listen(0, () => {
   const client = net.connect(server.address().port);
   client.write(headers);
-  // finish the first request
+  // Finish the first request
   client.write('\r\n');
   // second request
   client.write(headers);

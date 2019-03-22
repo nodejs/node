@@ -35,7 +35,7 @@ const relativeTests = [
     ]
   ],
   [ path.posix.relative,
-    // arguments          result
+    // Arguments          result
     [['/var/lib', '/var', '..'],
      ['/var/lib', '/bin', '../../bin'],
      ['/var/lib', '/var/lib', ''],

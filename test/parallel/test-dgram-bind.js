@@ -40,4 +40,4 @@ socket.on('listening', common.mustCall(() => {
 
 const result = socket.bind(); // should not throw
 
-assert.strictEqual(result, socket); // should have returned itself
+assert.strictEqual(result, socket); // Should have returned itself

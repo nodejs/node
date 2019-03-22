@@ -118,7 +118,7 @@ const Readable = require('stream').Readable;
   // #20923
   const r = new Readable();
   r._read = function() {
-    // actually doing thing here
+    // Actually doing thing here
   };
   r.on('data', function() {});
 

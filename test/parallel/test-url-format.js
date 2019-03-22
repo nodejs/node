@@ -203,7 +203,7 @@ const formatTests = {
     pathname: '/fooA100%mBr',
   },
 
-  // multiple `#` in search
+  // Multiple `#` in search
   'http://example.com/?foo=bar%231%232%233&abc=%234%23%235#frag': {
     href: 'http://example.com/?foo=bar%231%232%233&abc=%234%23%235#frag',
     protocol: 'http:',

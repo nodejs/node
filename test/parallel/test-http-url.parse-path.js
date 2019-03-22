@@ -26,12 +26,12 @@ const http = require('http');
 const url = require('url');
 
 function check(request) {
-  // a path should come over
+  // A path should come over
   assert.strictEqual(request.url, '/asdf');
 }
 
 const server = http.createServer(function(request, response) {
-  // run the check function
+  // Run the check function
   check(request);
   response.writeHead(200, {});
   response.end('ok');

@@ -6,7 +6,7 @@ const spawn = require('child_process').spawn;
 
 let buffer = '';
 
-// connect to debug agent
+// Connect to debug agent
 const interfacer = spawn(process.execPath, ['debug', '-p', '655555']);
 
 interfacer.stdout.setEncoding('utf-8');

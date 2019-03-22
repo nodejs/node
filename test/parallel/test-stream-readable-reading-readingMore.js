@@ -40,10 +40,10 @@ const Readable = require('stream').Readable;
     // If the stream has ended, we shouldn't be reading
     assert.strictEqual(state.ended, !state.reading);
 
-    // consume all the data
+    // Consume all the data
     while (readable.read() !== null) {}
 
-    if (expectedReadingMore.length === 0) // reached end of stream
+    if (expectedReadingMore.length === 0) // Reached end of stream
       process.nextTick(common.mustCall(onStreamEnd, 1));
   }, 3));
 
@@ -94,7 +94,7 @@ const Readable = require('stream').Readable;
   readable.on('end', common.mustCall(onStreamEnd));
   readable.push('pushed');
 
-  // stop emitting 'data' events
+  // Stop emitting 'data' events
   assert.strictEqual(state.flowing, true);
   readable.pause();
 
@@ -152,7 +152,7 @@ const Readable = require('stream').Readable;
   process.nextTick(function() {
     readable.resume();
 
-    // stop emitting 'data' events
+    // Stop emitting 'data' events
     assert.strictEqual(state.flowing, true);
     readable.pause();
 

@@ -97,9 +97,9 @@ const good = [
 const bad = [
   { N: 1, p: 1, r: 1 },         // N < 2
   { N: 3, p: 1, r: 1 },         // Not power of 2.
-  { N: 1, cost: 1 },            // both N and cost
-  { p: 1, parallelization: 1 }, // both p and parallelization
-  { r: 1, blockSize: 1 }        // both r and blocksize
+  { N: 1, cost: 1 },            // Both N and cost
+  { p: 1, parallelization: 1 }, // Both p and parallelization
+  { r: 1, blockSize: 1 }        // Both r and blocksize
 ];
 
 // Test vectors where 128*N*r exceeds maxmem.

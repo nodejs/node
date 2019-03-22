@@ -73,7 +73,7 @@ function isWarned(emitter) {
 }
 
 {
-  // set crlfDelay to 5000ms
+  // Set crlfDelay to 5000ms
   const fi = new FakeInput();
   const rli = new readline.Interface({
     input: fi,
@@ -98,7 +98,7 @@ function isWarned(emitter) {
     rli.close();
   }
 
-  // default history size 30
+  // Default history size 30
   {
     const fi = new FakeInput();
     const rli = new readline.Interface(
@@ -126,7 +126,7 @@ function isWarned(emitter) {
     assert.ok(called);
   }
 
-  // sending a blank line
+  // Sending a blank line
   {
     const fi = new FakeInput();
     const rli = new readline.Interface(
@@ -531,7 +531,7 @@ function isWarned(emitter) {
     rli.close();
   }
 
-  // calling the question callback
+  // Calling the question callback
   {
     let called = false;
     const fi = new FakeInput();
@@ -576,7 +576,7 @@ function isWarned(emitter) {
       rli.close();
     }
 
-    // sending a multi-line question
+    // Sending a multi-line question
     {
       const fi = new FakeInput();
       const rli = new readline.Interface(

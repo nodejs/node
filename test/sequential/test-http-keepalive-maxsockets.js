@@ -47,7 +47,7 @@ server.listen(0, function() {
     assert.strictEqual(count(agent.sockets), 0);
     assert.strictEqual(serverSockets.length, 5);
 
-    // now make 10 more reqs.
+    // Now make 10 more reqs.
     // should use the 2 free reqs from the pool first.
     makeReqs(10, function(er) {
       assert.ifError(er);

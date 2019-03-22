@@ -22,7 +22,7 @@ common.expectsError(
   }
 );
 
-// using toString for objects
+// Using toString for objects
 assert.strictEqual(
   qs.escape({ test: 5, toString: () => 'test', valueOf: () => 10 }),
   'test'

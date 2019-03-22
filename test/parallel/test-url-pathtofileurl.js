@@ -27,9 +27,9 @@ const url = require('url');
   let testCases;
   if (isWindows) {
     testCases = [
-      // lowercase ascii alpha
+      // Lowercase ascii alpha
       { path: 'C:\\foo', expected: 'file:///C:/foo' },
-      // uppercase ascii alpha
+      // Uppercase ascii alpha
       { path: 'C:\\FOO', expected: 'file:///C:/FOO' },
       // dir
       { path: 'C:\\dir\\foo', expected: 'file:///C:/dir/foo' },
@@ -65,16 +65,16 @@ const url = require('url');
       { path: 'C:\\foo\rbar', expected: 'file:///C:/foo%0Dbar' },
       // latin1
       { path: 'C:\\fóóbàr', expected: 'file:///C:/f%C3%B3%C3%B3b%C3%A0r' },
-      // euro sign (BMP code point)
+      // Euro sign (BMP code point)
       { path: 'C:\\€', expected: 'file:///C:/%E2%82%AC' },
       // Rocket emoji (non-BMP code point)
       { path: 'C:\\🚀', expected: 'file:///C:/%F0%9F%9A%80' }
     ];
   } else {
     testCases = [
-      // lowercase ascii alpha
+      // Lowercase ascii alpha
       { path: '/foo', expected: 'file:///foo' },
-      // uppercase ascii alpha
+      // Uppercase ascii alpha
       { path: '/FOO', expected: 'file:///FOO' },
       // dir
       { path: '/dir/foo', expected: 'file:///dir/foo' },
@@ -110,7 +110,7 @@ const url = require('url');
       { path: '/foo\rbar', expected: 'file:///foo%0Dbar' },
       // latin1
       { path: '/fóóbàr', expected: 'file:///f%C3%B3%C3%B3b%C3%A0r' },
-      // euro sign (BMP code point)
+      // Euro sign (BMP code point)
       { path: '/€', expected: 'file:///%E2%82%AC' },
       // Rocket emoji (non-BMP code point)
       { path: '/🚀', expected: 'file:///%F0%9F%9A%80' },

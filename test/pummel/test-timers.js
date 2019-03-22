@@ -43,7 +43,7 @@ setTimeout(common.mustCall(function() {
   assert.strictEqual(1000 - WINDOW < diff && diff < 1000 + WINDOW, true);
 }), 1000);
 
-// this timer shouldn't execute
+// This timer shouldn't execute
 const id = setTimeout(function() { assert.strictEqual(true, false); }, 500);
 clearTimeout(id);
 

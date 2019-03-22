@@ -34,7 +34,7 @@ function main({ dur, len, type }) {
   const reader = new Reader();
   const writer = new Writer();
 
-  // the actual benchmark.
+  // The actual benchmark.
   const server = net.createServer((socket) => {
     socket.pipe(socket);
   });

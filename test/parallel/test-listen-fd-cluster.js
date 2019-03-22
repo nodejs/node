@@ -136,7 +136,7 @@ function master() {
 
 function worker() {
   console.error('worker, about to create server and listen on fd=3');
-  // start a server on fd=3
+  // Start a server on fd=3
   http.createServer(function(req, res) {
     console.error('request on worker');
     console.error('%s %s', req.method, req.url, req.headers);

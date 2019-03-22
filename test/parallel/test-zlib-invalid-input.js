@@ -54,6 +54,6 @@ unzips.forEach(common.mustCall((uz, i) => {
   uz.on('error', common.mustCall());
   uz.on('end', common.mustNotCall);
 
-  // this will trigger error event
+  // This will trigger error event
   uz.write('this is not valid compressed data.');
 }, unzips.length));
