@@ -60,9 +60,9 @@ module.exports = {
     'brace-style': ['error', '1tbs', { allowSingleLine: true }],
     'capitalized-comments': ['error', 'always', {
       line: {
-        // Ignore all lines that have less characters than 30 and all lines that
+        // Ignore all lines that have less characters than 20 and all lines that
         // start with something that looks like a variable name or code.
-        ignorePattern: '^.{0,30}$|^ [a-z]+ ?[0-9A-Z_.(/=:[#-]|^ std',
+        ignorePattern: '.{0,20}$|[a-z]+ ?[0-9A-Z_.(/=:[#-]|std',
         ignoreInlineComments: true,
         ignoreConsecutiveComments: true,
       },
