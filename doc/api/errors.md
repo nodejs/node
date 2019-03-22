@@ -35,7 +35,7 @@ are handled using the [`try…catch` construct][try-catch] provided by the
 JavaScript language.
 
 ```js
-// Throws with a ReferenceError because z is undefined
+// Throws with a ReferenceError because z is not defined.
 try {
   const m = 1;
   const n = m + z;
