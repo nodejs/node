@@ -21,12 +21,16 @@ release.
 <!--lint disable maximum-line-length-->
 <table>
 <tr>
+  <th title="Current"><a href="doc/changelogs/CHANGELOG_V12.md">12</a><sup>Current</sup></th>
   <th title="Current"><a href="doc/changelogs/CHANGELOG_V11.md">11</a><sup>Current</sup></th>
   <th title="LTS Until 2021-04"><a href="doc/changelogs/CHANGELOG_V10.md">10</a><sup>LTS</sup></th>
   <th title="LTS Until 2019-12"><a href="doc/changelogs/CHANGELOG_V8.md">8</a><sup>LTS</sup></th>
   <th title="LTS Until 2019-04"><a href="doc/changelogs/CHANGELOG_V6.md">6</a><sup>LTS</sup></th>
 </tr>
 <tr>
+    <td valign="top">
+<b><a href="doc/changelogs/CHANGELOG_V12.md#12.0.0">12.0.0</a></b><br/>
+    </td>
     <td valign="top">
 <b><a href="doc/changelogs/CHANGELOG_V11.md#11.14.0">11.14.0</a></b><br/>
 <a href="doc/changelogs/CHANGELOG_V11.md#11.13.0">11.13.0</a><br/>
