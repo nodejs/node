@@ -312,6 +312,7 @@ void MarkBootstrapComplete(const v8::FunctionCallbackInfo<v8::Value>& args);
 #if HAVE_INSPECTOR
 namespace profiler {
 void StartCoverageCollection(Environment* env);
+void StartCpuProfiling(Environment* env, const std::string& profile_name);
 void EndStartedProfilers(Environment* env);
 }
 #endif  // HAVE_INSPECTOR

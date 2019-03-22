@@ -71,6 +71,7 @@ class AgentWriterHandle;
 #if HAVE_INSPECTOR
 namespace profiler {
 class V8CoverageConnection;
+class V8CpuProfilerConnection;
 }  // namespace profiler
 #endif  // HAVE_INSPECTOR
 
@@ -1129,6 +1130,13 @@ class Environment : public MemoryRetainer {
 
   inline void set_coverage_directory(const char* directory);
   inline const std::string& coverage_directory() const;
+
+  void set_cpu_profiler_connection(
+      std::unique_ptr<profiler::V8CpuProfilerConnection> connection);
+  profiler::V8CpuProfilerConnection* cpu_profiler_connection();
+
+  inline void set_cpu_profile_path(const std::string& path);
+  inline const std::string& cpu_profile_path() const;
 #endif  // HAVE_INSPECTOR
 
  private:
@@ -1163,7 +1171,9 @@ class Environment : public MemoryRetainer {
 
 #if HAVE_INSPECTOR
   std::unique_ptr<profiler::V8CoverageConnection> coverage_connection_;
+  std::unique_ptr<profiler::V8CpuProfilerConnection> cpu_profiler_connection_;
   std::string coverage_directory_;
+  std::string cpu_profile_path_;
 #endif  // HAVE_INSPECTOR
 
   std::shared_ptr<EnvironmentOptions> options_;
