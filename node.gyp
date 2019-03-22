@@ -405,6 +405,7 @@
       'dependencies': [ 'deps/histogram/histogram.gyp:histogram' ],
 
       'sources': [
+        'src/api/async_resource.cc',
         'src/api/callback.cc',
         'src/api/encoding.cc',
         'src/api/environment.cc',
