@@ -839,11 +839,12 @@ void Agent::ToggleAsyncHook(Isolate* isolate,
   HandleScope handle_scope(isolate);
   CHECK(!fn.IsEmpty());
   auto context = parent_env_->context();
-  auto result = fn.Get(isolate)->Call(context, Undefined(isolate), 0, nullptr);
-  if (result.IsEmpty()) {
-    FatalError(
-        "node::inspector::Agent::ToggleAsyncHook",
-        "Cannot toggle Inspector's AsyncHook, please report this.");
+  v8::TryCatch try_catch(isolate);
+  USE(fn.Get(isolate)->Call(context, Undefined(isolate), 0, nullptr));
+  if (try_catch.HasCaught()) {
+    PrintCaughtException(isolate, context, try_catch);
+    FatalError("\nnode::inspector::Agent::ToggleAsyncHook",
+               "Cannot toggle Inspector's AsyncHook, please report this.");
   }
 }
 
