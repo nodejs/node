@@ -29,6 +29,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 doTest();
 
@@ -56,7 +57,8 @@ function doTest() {
     key: key,
     cert: cert,
     ca: [cert],
-    sessionTimeout: SESSION_TIMEOUT
+    sessionTimeout: SESSION_TIMEOUT,
+    maxVersion: 'TLSv1.2',
   };
 
   // We need to store a sample session ticket in the fixtures directory because
@@ -79,17 +81,17 @@ function doTest() {
       's_client',
       '-connect', `localhost:${common.PORT}`,
       '-sess_in', sessionFileName,
-      '-sess_out', sessionFileName
+      '-sess_out', sessionFileName,
     ];
     const client = spawn(common.opensslCli, flags, {
       stdio: ['ignore', 'pipe', 'ignore']
     });
 
     let clientOutput = '';
-    client.stdout.on('data', function(data) {
+    client.stdout.on('data', (data) => {
       clientOutput += data.toString();
     });
-    client.on('exit', function(code) {
+    client.on('exit', (code) => {
       let connectionType;
       const grepConnectionType = (line) => {
         const matches = line.match(/(New|Reused), /);
@@ -102,25 +104,26 @@ function doTest() {
       if (!lines.some(grepConnectionType)) {
         throw new Error('unexpected output from openssl client');
       }
+      assert.strictEqual(code, 0);
       cb(connectionType);
     });
   }
 
-  const server = tls.createServer(options, function(cleartext) {
-    cleartext.on('error', function(er) {
+  const server = tls.createServer(options, (cleartext) => {
+    cleartext.on('error', (er) => {
       if (er.code !== 'ECONNRESET')
         throw er;
     });
     cleartext.end();
   });
 
-  server.listen(common.PORT, function() {
-    Client(function(connectionType) {
+  server.listen(common.PORT, () => {
+    Client((connectionType) => {
       assert.strictEqual(connectionType, 'New');
-      Client(function(connectionType) {
+      Client((connectionType) => {
         assert.strictEqual(connectionType, 'Reused');
-        setTimeout(function() {
-          Client(function(connectionType) {
+        setTimeout(() => {
+          Client((connectionType) => {
             assert.strictEqual(connectionType, 'New');
             server.close();
           });
