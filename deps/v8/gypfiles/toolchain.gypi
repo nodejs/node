@@ -161,6 +161,10 @@
     }],
   ],
   'target_defaults': {
+    'include_dirs': [
+      '..',
+      '../include',
+    ],
     'conditions': [
       ['v8_target_arch=="arm"', {
         'defines': [
@@ -1399,6 +1403,8 @@
       4245,  # Conversion with signed/unsigned mismatch.
       4267,  # Conversion with possible loss of data.
       4324,  # Padding structure due to alignment.
+      4351,
+      4355,
       4701,  # Potentially uninitialized local variable.
       4702,  # Unreachable code.
       4703,  # Potentially uninitialized local pointer variable.

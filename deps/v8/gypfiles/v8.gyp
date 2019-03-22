@@ -1,18 +1,16 @@
 # Copyright 2012 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-
 {
   'variables': {
     'v8_code': 1,
     'v8_random_seed%': 314159265,
     'v8_vector_stores%': 0,
     'v8_embed_script%': "",
-    # Placeholder. For upstream V8, this includes test files that Node.js does not need.
-    'v8_extra_library_files%': [],
     'mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
     'v8_os_page_size%': 0,
-    'generate_bytecode_builtins_list_output' : '<(SHARED_INTERMEDIATE_DIR)/builtins-generated/bytecodes-builtins-list.h',
+    'generate_bytecode_output_root': '<(SHARED_INTERMEDIATE_DIR)/generate-bytecode-output-root',
+    'generate_bytecode_builtins_list_output' : '<(generate_bytecode_output_root)/builtins-generated/bytecodes-builtins-list.h',
     'torque_files': [
       "../src/builtins/base.tq",
       "../src/builtins/growable-fixed-array.tq",
@@ -57,7 +55,6 @@
       "arguments",
       "array",
       "array-copywithin",
-      "array-every",
       "array-filter",
       "array-find",
       "array-findindex",
@@ -87,80 +84,82 @@
       "typed-array-slice",
       "typed-array-subarray",
     ],
-    # Since there is no foreach in GYP we manualy unroll the following:
+    'torque_output_root': '<(SHARED_INTERMEDIATE_DIR)/torque-output-root',
+    # Since there is no foreach in GYP we use `ForEachFormat` to unroll the following:
     # foreach(namespace, torque_namespaces) {
     #   outputs += [
     #     "$target_gen_dir/torque-generated/builtins-$namespace-from-dsl-gen.cc",
     #     "$target_gen_dir/torque-generated/builtins-$namespace-from-dsl-gen.h",
     #   ]
     # }
+    'torque_output_root': '<(SHARED_INTERMEDIATE_DIR)/torque-output-root',
     'torque_outputs': [
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-arguments-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-arguments-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-copywithin-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-copywithin-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-filter-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-filter-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-find-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-find-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-findindex-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-findindex-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-foreach-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-foreach-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-join-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-join-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-map-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-map-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-of-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-of-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-reverse-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-reverse-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-slice-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-slice-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-splice-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-splice-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-unshift-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-unshift-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-lastindexof-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-lastindexof-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-base-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-base-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-collections-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-collections-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-data-view-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-data-view-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-extras-utils-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-extras-utils-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-growable-fixed-array-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-growable-fixed-array-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-iterator-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-iterator-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-object-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-object-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-string-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-string-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-createtypedarray-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-createtypedarray-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-filter-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-filter-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-foreach-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-foreach-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-reduce-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-reduce-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-reduceright-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-reduceright-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-slice-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-slice-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-subarray-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-subarray-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-arguments-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-arguments-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-array-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-array-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-array-copywithin-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-array-copywithin-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-array-filter-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-array-filter-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-array-find-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-array-find-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-array-findindex-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-array-findindex-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-array-foreach-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-array-foreach-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-array-join-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-array-join-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-array-map-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-array-map-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-array-of-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-array-of-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-array-reverse-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-array-reverse-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-array-slice-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-array-slice-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-array-splice-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-array-splice-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-array-unshift-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-array-unshift-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-array-lastindexof-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-array-lastindexof-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-base-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-base-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-collections-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-collections-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-data-view-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-data-view-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-extras-utils-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-extras-utils-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-growable-fixed-array-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-growable-fixed-array-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-iterator-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-iterator-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-object-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-object-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-string-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-string-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-typed-array-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-typed-array-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-typed-array-createtypedarray-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-typed-array-createtypedarray-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-typed-array-filter-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-typed-array-filter-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-typed-array-foreach-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-typed-array-foreach-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-typed-array-reduce-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-typed-array-reduce-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-typed-array-reduceright-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-typed-array-reduceright-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-typed-array-slice-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-typed-array-slice-from-dsl-gen.h',
+      '<(torque_output_root)/torque-generated/builtins-typed-array-subarray-from-dsl-gen.cc',
+      '<(torque_output_root)/torque-generated/builtins-typed-array-subarray-from-dsl-gen.h',
     ],
     'torque_generated_pure_headers': [
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtin-definitions-from-dsl.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-definitions-from-dsl.h',
+      '<(torque_output_root)/torque-generated/builtin-definitions-from-dsl.h',
+      '<(torque_output_root)/torque-generated/class-definitions-from-dsl.h',
     ],
   },
   'includes': ['toolchain.gypi', 'features.gypi', 'v8_external_snapshot.gypi'],
@@ -168,21 +167,14 @@
     {
       'target_name': 'v8',
       'dependencies': [ 'v8_maybe_snapshot' ],
+      'toolsets': ['target'],
       'conditions': [
-        ['want_separate_host_toolset==1', {
-          'toolsets': ['host', 'target'],
-        }, {
-          'toolsets': ['target'],
-        }],
         ['component=="shared_library"', {
           'type': '<(component)',
           'sources': [
             # Note: on non-Windows we still build this file so that gyp
             # has some sources to link into the component.
             '../src/v8dll-main.cc',
-          ],
-          'include_dirs': [
-            '..',
           ],
           'defines': [
             'BUILDING_V8_SHARED',
@@ -208,7 +200,9 @@
         }],
       ],
       'direct_dependent_settings': {
-        'include_dirs': [ '../include/', ],
+        'include_dirs': [
+          '../include',
+        ],
       },
       'actions': [
         {
@@ -270,6 +264,7 @@
       # The intention is to make the 'calling' rules a bit simpler.
       'target_name': 'v8_maybe_snapshot',
       'type': 'none',
+      'toolsets': ['target'],
       'conditions': [
         ['v8_use_snapshot!=1', {
           # The dependency on v8_base should come from a transitive
@@ -289,11 +284,6 @@
         ['v8_use_snapshot==1 and v8_use_external_startup_data==1 and want_separate_host_toolset==1', {
           'dependencies': ['v8_base', 'v8_external_snapshot'],
         }],
-        ['want_separate_host_toolset==1', {
-          'toolsets': ['host', 'target'],
-        }, {
-          'toolsets': ['target'],
-        }],
       ]
     }, # v8_maybe_snapshot
     {
@@ -303,15 +293,6 @@
         'v8_initializers',
         # We need this transitive dependency, since it also does codegen.
         'v8_base',
-      ],
-      'variables': {
-        'optimize': 'max',
-      },
-      'include_dirs': [
-        '..',
-        '../include/',
-        # This is for `gen/builtins-generated`
-        '<(SHARED_INTERMEDIATE_DIR)',
       ],
       'sources': [
         '../src/setup-isolate-full.cc',
@@ -337,13 +318,6 @@
       'type': 'static_library',
       'dependencies': [
         'v8_base',
-      ],
-      'variables': {
-        'optimize': 'max',
-      },
-      'include_dirs': [
-        '..',
-        '../include/',
       ],
       'sources': [
         '../src/builtins/builtins-arguments-gen.cc',
@@ -498,32 +472,23 @@
     {
       'target_name': 'v8_snapshot',
       'type': 'static_library',
+      'toolsets': ['target'],
+      'dependencies': [
+        'v8_base',
+      ],
+      'sources': [
+        '../src/setup-isolate-deserialize.cc',
+        './extras-libraries.cc',
+      ],
       'conditions': [
         ['want_separate_host_toolset==1', {
-          'toolsets': ['host', 'target'],
           'dependencies': [
-            'mksnapshot#host',
-            'js2c_extras#host',   # TODO(refack) get rid of this.
-                                  # This has effectively become a noop for Node.js,
-                                  # but the V8 code still tried to acess the code this generates.
-                                  # Refs: https://github.com/nodejs/node/blob/169b7f1f3b3751289f24678930e6a5731464ebc9/deps/v8/src/bootstrapper.cc#L5172-L5174
+            'generate_snapshot#target',
           ],
         }, {
-          'toolsets': ['target'],
           'dependencies': [
-            'mksnapshot',
-            'js2c_extras',
+            'generate_snapshot',
           ],
-        }],
-        ['component=="shared_library"', {
-          'defines': [
-            'BUILDING_V8_SHARED',
-          ],
-          'direct_dependent_settings': {
-            'defines': [
-              'USING_V8_SHARED',
-            ],
-          },
         }],
         ['v8_enable_i18n_support==1', {
           'dependencies': [
@@ -533,104 +498,119 @@
         }],
 
       ],
-      'dependencies': [
-        'v8_base',
-      ],
+    }, # v8_snapshot
+    {
+      'target_name': 'generate_snapshot',
+      'type': 'static_library',
+      'toolsets': ['target'],
       'include_dirs': [
-        '..',
-        '<(DEPTH)',
+        '<(generate_bytecode_output_root)',
+        '<(torque_output_root)',
       ],
-      'sources': [
-        '<(SHARED_INTERMEDIATE_DIR)/extras-libraries.cc',
-        '../src/setup-isolate-deserialize.cc',
+      'xcode_settings': {
+        # V8 7.4 over macOS10.11 compatibility
+        # Refs: https://github.com/nodejs/node/pull/26685
+        'GCC_GENERATE_DEBUGGING_SYMBOLS': 'NO',
+      },
+      'conditions': [
+        ['want_separate_host_toolset==1', {
+          'dependencies': [
+            'mksnapshot#host',
+          ],
+        }, {
+          'dependencies': [
+            'mksnapshot',
+          ],
+        }],
+        ['v8_enable_i18n_support==1', {
+          'dependencies': [
+            '<(icu_gyp_path):icui18n',
+            '<(icu_gyp_path):icuuc',
+          ],
+        }],
       ],
       'actions': [
         {
           'action_name': 'run_mksnapshot',
           'message': 'generating: >@(_outputs)',
           'variables': {
-            'mksnapshot_flags': [ '--turbo_instruction_scheduling', ],
+            'mksnapshot_flags': ['--turbo_instruction_scheduling', ],
           },
+          'inputs': [
+            '<(mksnapshot_exec)',
+          ],
+          'process_outputs_as_sources': '1',
           'conditions': [
             ['v8_enable_embedded_builtins == 1', {
               # In this case we use `embedded_variant "Default"`
               # and `suffix = ''` for the template `embedded${suffix}.S`.
               'outputs': [ '<(INTERMEDIATE_DIR)/embedded.S' ],
               'variables': {
-                'mksnapshot_flags':  [
-                  '--embedded_src', '<(INTERMEDIATE_DIR)/embedded.S',
+                'mksnapshot_flags': [
                   '--embedded_variant', 'Default',
+                  '--embedded_src', '<(INTERMEDIATE_DIR)/embedded.S',
                 ],
               },
             }, {
-               'outputs': [ '../src/snapshot/embedded-empty.cc' ]
-            }],
+               'outputs': ['../src/snapshot/embedded-empty.cc']
+             }],
             ['v8_random_seed != 0', {
               'variables': {
-                'mksnapshot_flags': [ '--random-seed', '<(v8_random_seed)' ],
+                'mksnapshot_flags': ['--random-seed', '<(v8_random_seed)'],
               },
             }],
             ['v8_os_page_size != 0', {
               'variables': {
-                'mksnapshot_flags': [ '--v8_os_page_size', '<(v8_os_page_size)' ],
+                'mksnapshot_flags': ['--v8_os_page_size', '<(v8_os_page_size)'],
               },
             }],
-            ['v8_use_external_startup_data !=0 ', {
-              'outputs': [ '<(INTERMEDIATE_DIR)/snapshot_blob.bin', ],
+            ['v8_use_external_startup_data != 0', {
+              'outputs': ['<(INTERMEDIATE_DIR)/snapshot_blob.bin', ],
               'variables': {
-                'mksnapshot_flags': [ '--startup_blob', '<(INTERMEDIATE_DIR)/snapshot_blob.bin', ],
+                'mksnapshot_flags': ['--startup_blob', '<(INTERMEDIATE_DIR)/snapshot_blob.bin', ],
               },
             }, {
-               'outputs': [ "<(INTERMEDIATE_DIR)/snapshot.cc" ],
+               'outputs': ["<(INTERMEDIATE_DIR)/snapshot.cc"],
                'variables': {
-                 'mksnapshot_flags': [ '--startup_src', '<(INTERMEDIATE_DIR)/snapshot.cc', ],
+                 'mksnapshot_flags': ['--startup_src', '<(INTERMEDIATE_DIR)/snapshot.cc', ],
                },
-            }],
+             }],
             ['v8_embed_script != ""', {
-              'inputs': [ '<(v8_embed_script)' ],
+              'inputs': ['<(v8_embed_script)'],
               'variables': {
-                'mksnapshot_flags': [ '<(v8_embed_script)' ],
+                'mksnapshot_flags': ['<(v8_embed_script)'],
               },
             }],
             ['v8_enable_snapshot_code_comments == 1', {
               'variables': {
-                'mksnapshot_flags': [ '--code-comments' ],
+                'mksnapshot_flags': ['--code-comments'],
               },
             }],
           ],
-          'inputs': [
-            '<(mksnapshot_exec)',
-          ],
-          'process_outputs_as_sources': 1,
           'action': [
             '>@(_inputs)',
             '>@(mksnapshot_flags)',
           ],
         },
       ],
-    }, # v8_snapshot
+    },  # generate_snapshot
     {
       'target_name': 'v8_nosnapshot',
       'type': 'static_library',
       'dependencies': [
         'v8_base',
       ],
-      'include_dirs': [
-        '..',
-        '<(DEPTH)',
-      ],
       'sources': [
-        '<(SHARED_INTERMEDIATE_DIR)/extras-libraries.cc',
+        './extras-libraries.cc',
         '../src/snapshot/embedded-empty.cc',
         '../src/snapshot/snapshot-empty.cc',
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {
+          # This is the top target that needs both targets for
           'toolsets': ['host', 'target'],
-          'dependencies': [ 'js2c_extras#host', ],
         }, {
           'toolsets': ['target'],
-          'dependencies': [ 'js2c_extras', ],
         }],
         ['component=="shared_library"', {
           'defines': [
@@ -655,38 +635,35 @@
       'dependencies': [
         'v8_libbase',
         'v8_libsampler',
-        # Code generators
+        # Code generators that only need to be build for the host.
         'torque#host',
         'generate_bytecode_builtins_list#host',
       ],
-      'direct_dependent_settings': {
-        'include_dirs': ['<(SHARED_INTERMEDIATE_DIR)'],
-      },
-      'objs': ['foo.o'],
-      'variables': {
-        'optimize': 'max',
-      },
       'include_dirs': [
-        '..',
-        '<(DEPTH)',
-        '<(SHARED_INTERMEDIATE_DIR)'
+        '<(generate_bytecode_output_root)',
+        '<(torque_output_root)',
       ],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(generate_bytecode_output_root)',
+          '<(torque_output_root)',
+        ],
+      },
       'sources': [
-        '<@(inspector_all_sources)',
-        '../include//v8-inspector-protocol.h',
-        '../include//v8-inspector.h',
-        '../include//v8-internal.h',
-        '../include//v8-platform.h',
-        '../include//v8-profiler.h',
-        '../include//v8-testing.h',
-        '../include//v8-util.h',
-        '../include//v8-value-serializer-version.h',
-        '../include//v8-version-string.h',
-        '../include//v8-version.h',
-        '../include//v8-wasm-trap-handler-posix.h',
-        '../include//v8-wasm-trap-handler-win.h',
-        '../include//v8.h',
-        '../include//v8config.h',
+        '../include/v8-inspector-protocol.h',
+        '../include/v8-inspector.h',
+        '../include/v8-internal.h',
+        '../include/v8-platform.h',
+        '../include/v8-profiler.h',
+        '../include/v8-testing.h',
+        '../include/v8-util.h',
+        '../include/v8-value-serializer-version.h',
+        '../include/v8-version-string.h',
+        '../include/v8-version.h',
+        '../include/v8-wasm-trap-handler-posix.h',
+        '../include/v8-wasm-trap-handler-win.h',
+        '../include/v8.h',
+        '../include/v8config.h',
         '../src/accessors.cc',
         '../src/accessors.h',
         '../src/address-map.cc',
@@ -1845,6 +1822,7 @@
         '../src/zone/zone.h',
         '<(generate_bytecode_builtins_list_output)',
         '<@(torque_generated_pure_headers)',
+        '<@(inspector_all_sources)',
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {
@@ -2110,9 +2088,8 @@
           ],
         }],
         ['OS=="win"', {
-          'msvs_disabled_warnings': [4351, 4355, 4800],
-              'msvs_precompiled_header': '../../../tools/msvs/pch/v8_pch.h',
-              'msvs_precompiled_source': '../../../tools/msvs/pch/v8_pch.cc',
+          'msvs_precompiled_header': '../../../tools/msvs/pch/v8_pch.h',
+          'msvs_precompiled_source': '../../../tools/msvs/pch/v8_pch.cc',
           'sources': [
             '<(_msvs_precompiled_header)',
             '<(_msvs_precompiled_source)',
@@ -2212,7 +2189,7 @@
           ],
           'action': [
             '<@(_inputs)',
-            '-o', '<(SHARED_INTERMEDIATE_DIR)/torque-generated'
+            '-o', '<(torque_output_root)/torque-generated'
           ],
         },
       ],
@@ -2221,15 +2198,6 @@
       'target_name': 'v8_libbase',
       'type': '<(component)',
       'toolsets': ['host', 'target'],
-      'variables': {
-        'optimize': 'max',
-      },
-      'include_dirs': [
-        '..',
-      ],
-      'direct_dependent_settings': {
-        'include_dirs': ['..'],
-      },
       'sources': [
         '../src/base/adapters.h',
         '../src/base/address-region.h',
@@ -2315,16 +2283,6 @@
         }],
       ],
       'conditions': [
-        ['component=="shared_library"', {
-          'defines': [
-            'BUILDING_V8_BASE_SHARED',
-          ],
-          'direct_dependent_settings': {
-            'defines': [
-              'USING_V8_BASE_SHARED',
-            ],
-          },
-        }],
         ['OS=="linux"', {
             'link_settings': {
               'libraries': [
@@ -2419,7 +2377,6 @@
             '../src/base/platform/platform-win32.cc',
             '../src/base/win32-headers.h',
           ],
-          'msvs_disabled_warnings': [4351, 4355, 4800],
           'link_settings':  {
             'libraries': [
               '-ldbghelp.lib',
@@ -2534,16 +2491,8 @@
     {
       'target_name': 'v8_libplatform',
       'type': '<(component)',
-      'variables': {
-        'optimize': 'max',
-      },
       'dependencies': [
         'v8_libbase',
-      ],
-      'include_dirs': [
-        '..',
-        '<(DEPTH)',
-        '../include/',
       ],
       'sources': [
         '../include/libplatform/libplatform-export.h',
@@ -2582,22 +2531,15 @@
       ],
       'direct_dependent_settings': {
         'include_dirs': [
-          '../include/',
+          '../include',
         ],
       },
     }, # v8_libplatform
     {
       'target_name': 'v8_libsampler',
       'type': 'static_library',
-      'variables': {
-        'optimize': 'max',
-      },
       'dependencies': [
         'v8_libbase',
-      ],
-      'include_dirs': [
-        '..',
-        '../include/',
       ],
       'sources': [
         '../src/libsampler/sampler.cc',
@@ -2610,38 +2552,7 @@
           'toolsets': ['target'],
         }],
       ],
-      'direct_dependent_settings': {
-        'include_dirs': [
-          '../include/',
-        ],
-      },
     }, # v8_libsampler
-    {
-      'target_name': 'js2c_extras',
-      'type': 'none',
-      'conditions': [
-        ['want_separate_host_toolset==1', {
-          'toolsets': ['host'],
-        }, {
-          'toolsets': ['target'],
-        }],
-      ],
-      'actions': [
-       {
-          'action_name': 'js2c_extras',
-          'inputs': [
-            '../tools/js2c.py',
-            '<@(v8_extra_library_files)',
-          ],
-          'outputs': ['<(SHARED_INTERMEDIATE_DIR)/extras-libraries.cc'],
-          'action': [
-            'python',
-            '../tools/js2c.py', '<@(_outputs)',
-            'EXTRAS', '<@(v8_extra_library_files)',
-          ],
-        },
-      ],
-    }, # js2c_extras
     {
       'target_name': 'torque_base',
       'type': '<(component)',
@@ -2711,7 +2622,6 @@
           'ExceptionHandling': 1,
         },
       },
-      'include_dirs': ['..'],
       'sources': [
         "../src/torque/torque.cc",
       ],
@@ -2803,10 +2713,6 @@
         'v8_libplatform',
         'v8_nosnapshot',
       ],
-      'include_dirs': [
-        '..',
-        '<(DEPTH)',
-      ],
       'sources': [
         '../src/snapshot/embedded-file-writer.cc',
         '../src/snapshot/embedded-file-writer.h',
@@ -2833,7 +2739,6 @@
       'dependencies': [
         "v8_libbase#host"
       ],
-      'include_dirs': [".."],
       'sources': [
         "../src/builtins/generate-bytecodes-builtins-list.cc",
         "../src/interpreter/bytecode-operands.cc",
