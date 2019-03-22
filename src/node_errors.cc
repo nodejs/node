@@ -21,10 +21,11 @@ using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Message;
-using v8::NewStringType;
 using v8::Number;
 using v8::Object;
 using v8::ScriptOrigin;
+using v8::StackFrame;
+using v8::StackTrace;
 using v8::String;
 using v8::Undefined;
 using v8::Value;
@@ -44,30 +45,20 @@ namespace per_process {
 static Mutex tty_mutex;
 }  // namespace per_process
 
-void AppendExceptionLine(Environment* env,
-                         Local<Value> er,
-                         Local<Message> message,
-                         enum ErrorHandlingMode mode) {
-  if (message.IsEmpty()) return;
+static const int kMaxErrorSourceLength = 1024;
 
-  HandleScope scope(env->isolate());
-  Local<Object> err_obj;
-  if (!er.IsEmpty() && er->IsObject()) {
-    err_obj = er.As<Object>();
+static std::string GetErrorSource(Isolate* isolate,
+                                  Local<Context> context,
+                                  Local<Message> message,
+                                  bool* added_exception_line) {
+  MaybeLocal<String> source_line_maybe = message->GetSourceLine(context);
+  node::Utf8Value encoded_source(isolate, source_line_maybe.ToLocalChecked());
+  std::string sourceline(*encoded_source, encoded_source.length());
+
+  if (sourceline.find("node-do-not-add-exception-line") != std::string::npos) {
+    *added_exception_line = false;
+    return sourceline;
   }
-
-  // Print (filename):(line number): (message).
-  ScriptOrigin origin = message->GetScriptOrigin();
-  node::Utf8Value filename(env->isolate(), message->GetScriptResourceName());
-  const char* filename_string = *filename;
-  int linenum = message->GetLineNumber(env->context()).FromJust();
-  // Print line of source code.
-  MaybeLocal<String> source_line_maybe = message->GetSourceLine(env->context());
-  node::Utf8Value sourceline(env->isolate(),
-                             source_line_maybe.ToLocalChecked());
-  const char* sourceline_string = *sourceline;
-  if (strstr(sourceline_string, "node-do-not-add-exception-line") != nullptr)
-    return;
 
   // Because of how node modules work, all scripts are wrapped with a
   // "function (module, exports, __filename, ...) {"
@@ -90,26 +81,32 @@ void AppendExceptionLine(Environment* env,
   // sourceline to 78 characters, and we end up not providing very much
   // useful debugging info to the user if we remove 62 characters.
 
+  // Print (filename):(line number): (message).
+  ScriptOrigin origin = message->GetScriptOrigin();
+  node::Utf8Value filename(isolate, message->GetScriptResourceName());
+  const char* filename_string = *filename;
+  int linenum = message->GetLineNumber(context).FromJust();
+
   int script_start = (linenum - origin.ResourceLineOffset()->Value()) == 1
                          ? origin.ResourceColumnOffset()->Value()
                          : 0;
-  int start = message->GetStartColumn(env->context()).FromMaybe(0);
-  int end = message->GetEndColumn(env->context()).FromMaybe(0);
+  int start = message->GetStartColumn(context).FromMaybe(0);
+  int end = message->GetEndColumn(context).FromMaybe(0);
   if (start >= script_start) {
     CHECK_GE(end, start);
     start -= script_start;
     end -= script_start;
   }
 
-  char arrow[1024];
-  int max_off = sizeof(arrow) - 2;
+  int max_off = kMaxErrorSourceLength - 2;
 
-  int off = snprintf(arrow,
-                     sizeof(arrow),
+  char buf[kMaxErrorSourceLength];
+  int off = snprintf(buf,
+                     kMaxErrorSourceLength,
                      "%s:%i\n%s\n",
                      filename_string,
                      linenum,
-                     sourceline_string);
+                     sourceline.c_str());
   CHECK_GE(off, 0);
   if (off > max_off) {
     off = max_off;
@@ -117,26 +114,98 @@ void AppendExceptionLine(Environment* env,
 
   // Print wavy underline (GetUnderline is deprecated).
   for (int i = 0; i < start; i++) {
-    if (sourceline_string[i] == '\0' || off >= max_off) {
+    if (sourceline[i] == '\0' || off >= max_off) {
       break;
     }
     CHECK_LT(off, max_off);
-    arrow[off++] = (sourceline_string[i] == '\t') ? '\t' : ' ';
+    buf[off++] = (sourceline[i] == '\t') ? '\t' : ' ';
   }
   for (int i = start; i < end; i++) {
-    if (sourceline_string[i] == '\0' || off >= max_off) {
+    if (sourceline[i] == '\0' || off >= max_off) {
       break;
     }
     CHECK_LT(off, max_off);
-    arrow[off++] = '^';
+    buf[off++] = '^';
   }
   CHECK_LE(off, max_off);
-  arrow[off] = '\n';
-  arrow[off + 1] = '\0';
+  buf[off] = '\n';
+  buf[off + 1] = '\0';
 
-  Local<String> arrow_str =
-      String::NewFromUtf8(env->isolate(), arrow, NewStringType::kNormal)
-          .ToLocalChecked();
+  *added_exception_line = true;
+  return std::string(buf);
+}
+
+void PrintStackTrace(Isolate* isolate, Local<StackTrace> stack) {
+  for (int i = 0; i < stack->GetFrameCount() - 1; i++) {
+    Local<StackFrame> stack_frame = stack->GetFrame(isolate, i);
+    node::Utf8Value fn_name_s(isolate, stack_frame->GetFunctionName());
+    node::Utf8Value script_name(isolate, stack_frame->GetScriptName());
+    const int line_number = stack_frame->GetLineNumber();
+    const int column = stack_frame->GetColumn();
+
+    if (stack_frame->IsEval()) {
+      if (stack_frame->GetScriptId() == Message::kNoScriptIdInfo) {
+        fprintf(stderr, "    at [eval]:%i:%i\n", line_number, column);
+      } else {
+        fprintf(stderr,
+                "    at [eval] (%s:%i:%i)\n",
+                *script_name,
+                line_number,
+                column);
+      }
+      break;
+    }
+
+    if (fn_name_s.length() == 0) {
+      fprintf(stderr, "    at %s:%i:%i\n", *script_name, line_number, column);
+    } else {
+      fprintf(stderr,
+              "    at %s (%s:%i:%i)\n",
+              *fn_name_s,
+              *script_name,
+              line_number,
+              column);
+    }
+  }
+  fflush(stderr);
+}
+
+void PrintCaughtException(Isolate* isolate,
+                          Local<Context> context,
+                          const v8::TryCatch& try_catch) {
+  CHECK(try_catch.HasCaught());
+  Local<Value> err = try_catch.Exception();
+  Local<Message> message = try_catch.Message();
+  Local<v8::StackTrace> stack = message->GetStackTrace();
+  node::Utf8Value reason(isolate,
+                         err->ToDetailString(context).ToLocalChecked());
+  bool added_exception_line = false;
+  std::string source =
+      GetErrorSource(isolate, context, message, &added_exception_line);
+  fprintf(stderr, "%s\n", source.c_str());
+  fprintf(stderr, "%s\n", *reason);
+  PrintStackTrace(isolate, stack);
+}
+
+void AppendExceptionLine(Environment* env,
+                         Local<Value> er,
+                         Local<Message> message,
+                         enum ErrorHandlingMode mode) {
+  if (message.IsEmpty()) return;
+
+  HandleScope scope(env->isolate());
+  Local<Object> err_obj;
+  if (!er.IsEmpty() && er->IsObject()) {
+    err_obj = er.As<Object>();
+  }
+
+  bool added_exception_line = false;
+  std::string source = GetErrorSource(
+      env->isolate(), env->context(), message, &added_exception_line);
+  if (!added_exception_line) {
+    return;
+  }
+  MaybeLocal<Value> arrow_str = ToV8Value(env->context(), source);
 
   const bool can_set_arrow = !arrow_str.IsEmpty() && !err_obj.IsEmpty();
   // If allocating arrow_str failed, print it out. There's not much else to do.
@@ -150,13 +219,14 @@ void AppendExceptionLine(Environment* env,
     env->set_printed_error(true);
 
     uv_tty_reset_mode();
-    PrintErrorString("\n%s", arrow);
+    PrintErrorString("\n%s", source.c_str());
     return;
   }
 
   CHECK(err_obj
-            ->SetPrivate(
-                env->context(), env->arrow_message_private_symbol(), arrow_str)
+            ->SetPrivate(env->context(),
+                         env->arrow_message_private_symbol(),
+                         arrow_str.ToLocalChecked())
             .FromMaybe(false));
 }
 
