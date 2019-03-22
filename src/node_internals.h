@@ -86,6 +86,11 @@ void GetSockOrPeerName(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
+void PrintStackTrace(v8::Isolate* isolate, v8::Local<v8::StackTrace> stack);
+void PrintCaughtException(v8::Isolate* isolate,
+                          v8::Local<v8::Context> context,
+                          const v8::TryCatch& try_catch);
+
 void WaitForInspectorDisconnect(Environment* env);
 void SignalExit(int signo);
 #ifdef __POSIX__
