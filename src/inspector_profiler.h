@@ -68,6 +68,24 @@ class V8CoverageConnection : public V8ProfilerConnection {
   bool ending_ = false;
 };
 
+class V8CpuProfilerConnection : public V8ProfilerConnection {
+ public:
+  explicit V8CpuProfilerConnection(Environment* env)
+      : V8ProfilerConnection(env) {}
+
+  void Start() override;
+  void End() override;
+  void OnMessage(const v8_inspector::StringView& message) override;
+  bool ending() const override { return ending_; }
+
+ private:
+  void WriteCpuProfile(v8::Local<v8::String> message);
+  v8::MaybeLocal<v8::String> GetResult(v8::Local<v8::String> message);
+
+  std::unique_ptr<inspector::InspectorSession> session_;
+  bool ending_ = false;
+};
+
 }  // namespace profiler
 }  // namespace node
 

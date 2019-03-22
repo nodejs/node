@@ -109,6 +109,10 @@ class EnvironmentOptions : public Options {
   bool preserve_symlinks = false;
   bool preserve_symlinks_main = false;
   bool prof_process = false;
+#if HAVE_INSPECTOR
+  std::string cpu_prof_path;
+  bool cpu_prof = false;
+#endif  // HAVE_INSPECTOR
   std::string redirect_warnings;
   bool throw_deprecation = false;
   bool trace_deprecation = false;

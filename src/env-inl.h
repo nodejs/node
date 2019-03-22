@@ -659,6 +659,25 @@ inline profiler::V8CoverageConnection* Environment::coverage_connection() {
 inline const std::string& Environment::coverage_directory() const {
   return coverage_directory_;
 }
+
+inline void Environment::set_cpu_profiler_connection(
+    std::unique_ptr<profiler::V8CpuProfilerConnection> connection) {
+  CHECK_NULL(cpu_profiler_connection_);
+  std::swap(cpu_profiler_connection_, connection);
+}
+
+inline profiler::V8CpuProfilerConnection*
+Environment::cpu_profiler_connection() {
+  return cpu_profiler_connection_.get();
+}
+
+inline void Environment::set_cpu_profile_path(const std::string& path) {
+  cpu_profile_path_ = path;
+}
+
+inline const std::string& Environment::cpu_profile_path() const {
+  return cpu_profile_path_;
+}
 #endif  // HAVE_INSPECTOR
 
 inline std::shared_ptr<HostPort> Environment::inspector_host_port() {

@@ -237,6 +237,12 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
 #endif  // HAVE_INSPECTOR
   }
 
+#if HAVE_INSPECTOR
+  if (env->options()->cpu_prof) {
+    profiler::StartCpuProfiling(env, env->options()->cpu_prof_path);
+  }
+#endif  // HAVE_INSPECTOR
+
   // Add a reference to the global object
   Local<Object> global = context->Global();
 

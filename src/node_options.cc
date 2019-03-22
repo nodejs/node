@@ -332,6 +332,18 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::prof_process);
   // Options after --prof-process are passed through to the prof processor.
   AddAlias("--prof-process", { "--prof-process", "--" });
+#if HAVE_INSPECTOR
+  AddOption("--cpu-prof",
+            "Start the V8 CPU profiler on start up, and write the CPU profile "
+            "to disk before exit. If --cpu-prof-path is not specified, write "
+            "the profile to the current working directory.",
+            &EnvironmentOptions::cpu_prof);
+  AddOption("--cpu-prof-path",
+            "Path the V8 CPU profile generated with --cpu-prof will be "
+            "written to.",
+            &EnvironmentOptions::cpu_prof_path);
+  Implies("--cpu-prof-path", "--cpu-prof");
+#endif  // HAVE_INSPECTOR
   AddOption("--redirect-warnings",
             "write warnings to file instead of stderr",
             &EnvironmentOptions::redirect_warnings,

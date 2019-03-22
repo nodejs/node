@@ -78,6 +78,18 @@ Aborting instead of exiting causes a core file to be generated for analysis.
 .It Fl -completion-bash
 Print source-able bash completion script for Node.js.
 .
+.It Fl -cpu-prof
+Start the V8 CPU profiler on start up, and write the CPU profile to disk
+before exit. If
+.Fl -cpu-prof-path
+is not specified, the profile will be written to the current working directory.
+.
+.It Fl -cpu-prof-path
+Path the V8 CPU profile generated with
+.Fl -cpu-prof
+will be written to. When used alone, it implies
+.Fl -cpu-prof
+.
 .It Fl -diagnostic-report-directory
 Location at which the
 .Sy diagnostic report
