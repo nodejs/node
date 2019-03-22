@@ -680,7 +680,7 @@ class TrackingTraceStateObserver :
 };
 
 class ShouldNotAbortOnUncaughtScope {
-  public:
+ public:
   explicit inline ShouldNotAbortOnUncaughtScope(Environment* env);
   inline void Close();
   inline ~ShouldNotAbortOnUncaughtScope();
