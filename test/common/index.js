@@ -80,7 +80,18 @@ if (process.argv.length === 2 &&
           // If the binary is build without `intl` the inspect option is
           // invalid. The test itself should handle this case.
           (process.features.inspector || !flag.startsWith('--inspect'))) {
-        throw new Error(`Test has to be started with the flag: '${flag}'`);
+        console.log(
+          'NOTE: The test started as a child_process using these flags:',
+          util.inspect(flags)
+        );
+        const args = [...flags, ...process.execArgv, ...process.argv.slice(1)];
+        const options = { encoding: 'utf8', stdio: 'inherit' };
+        const result = spawnSync(process.execPath, args, options);
+        if (result.signal) {
+          process.kill(0, result.signal);
+        } else {
+          process.exit(result.status);
+        }
       }
     }
   }
