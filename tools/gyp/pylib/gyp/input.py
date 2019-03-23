@@ -881,6 +881,7 @@ def ExpandVariables(input, phase, variables, build_file):
           oldwd = os.getcwd()  # Python doesn't like os.open('.'): no fchdir.
           if build_file_dir:  # build_file_dir may be None (see above).
             os.chdir(build_file_dir)
+          sys.path.append(os.getcwd())
           try:
 
             parsed_contents = shlex.split(contents)
@@ -891,6 +892,7 @@ def ExpandVariables(input, phase, variables, build_file):
                              "module (%s): %s" % (parsed_contents[0], e))
             replacement = str(py_module.DoMain(parsed_contents[1:])).rstrip()
           finally:
+            sys.path.pop()
             os.chdir(oldwd)
           assert replacement != None
         elif command_string:
