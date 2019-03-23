@@ -9,21 +9,23 @@ const https = require('https');
 const assert = require('assert');
 
 {
-  https.createServer({
+  const server = https.createServer({
     cert: fixtures.readKey('agent1-cert.pem'),
     key: fixtures.readKey('agent1-key.pem'),
-  }, common.mustCall(function(req, res) {
-    this.close();
+  }, common.mustCall((req, res) => {
+    server.close();
     res.end();
-  })).listen(0, 'localhost', common.mustCall(function() {
-    const port = this.address().port;
+  }));
+
+  server.listen(0, 'localhost', common.mustCall(() => {
+    const port = server.address().port;
     const req = https.get({
       host: 'localhost',
       pathname: '/',
       port,
       family: 4,
       localPort: common.PORT,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, common.mustCall(() => {
       assert.strictEqual(req.socket.localPort, common.PORT);
       assert.strictEqual(req.socket.remotePort, port);
