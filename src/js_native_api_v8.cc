@@ -1513,7 +1513,6 @@ static inline napi_status set_error_code(napi_env env,
                                          napi_value code,
                                          const char* code_cstring) {
   if ((code != nullptr) || (code_cstring != nullptr)) {
-    v8::Isolate* isolate = env->isolate;
     v8::Local<v8::Context> context = env->context();
     v8::Local<v8::Object> err_object = error.As<v8::Object>();
 
