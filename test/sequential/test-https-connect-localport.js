@@ -15,10 +15,10 @@ const assert = require('assert');
   }, common.mustCall(function(req, res) {
     this.close();
     res.end();
-  })).listen(0, common.localhostIPv4, common.mustCall(function() {
+  })).listen(0, 'localhost', common.mustCall(function() {
     const port = this.address().port;
     const req = https.get({
-      host: common.localhostIPv4,
+      host: 'localhost',
       pathname: '/',
       port,
       family: 4,
