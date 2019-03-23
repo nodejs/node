@@ -22,10 +22,10 @@ const assert = require('assert');
       pathname: '/',
       port,
       family: 4,
-      localPort: 34567,
+      localPort: common.PORT,
       rejectUnauthorized: false
     }, common.mustCall(() => {
-      assert.strictEqual(req.socket.localPort, 34567);
+      assert.strictEqual(req.socket.localPort, common.PORT);
       assert.strictEqual(req.socket.remotePort, port);
     }));
   }));
