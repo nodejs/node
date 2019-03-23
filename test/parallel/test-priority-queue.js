@@ -4,7 +4,7 @@
 require('../common');
 
 const assert = require('assert');
-const PriorityQueue = require('internal/priority_queue');
+const PriorityQueue = require('internal/timers/priority_queue');
 
 {
   // Checks that the queue is fundamentally correct.
