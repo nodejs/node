@@ -62,7 +62,7 @@ module.exports = {
       line: {
         // Ignore all lines that have less characters than 20 and all lines that
         // start with something that looks like a variable name or code.
-        ignorePattern: '.{0,20}$|[a-z]+ ?[0-9A-Z_.(/=:[#-]|std|npm',
+        ignorePattern: '.{0,20}$|[a-z]+ ?[0-9A-Z_.(/=:[#-]|std',
         ignoreInlineComments: true,
         ignoreConsecutiveComments: true,
       },
