@@ -5,6 +5,7 @@
 #include "debug_utils.h"
 #include "util.h"
 #include <algorithm>
+#include <cmath>
 #include <memory>
 
 namespace node {
@@ -126,8 +127,7 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
         delay_in_seconds_(delay_in_seconds) {}
 
     void Run() override {
-      uint64_t delay_millis =
-          static_cast<uint64_t>(delay_in_seconds_ + 0.5) * 1000;
+      uint64_t delay_millis = llround(delay_in_seconds_ * 1000);
       std::unique_ptr<uv_timer_t> timer(new uv_timer_t());
       CHECK_EQ(0, uv_timer_init(&scheduler_->loop_, timer.get()));
       timer->data = task_.release();
@@ -387,8 +387,8 @@ bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
   while (std::unique_ptr<DelayedTask> delayed =
       foreground_delayed_tasks_.Pop()) {
     did_work = true;
-    uint64_t delay_millis =
-        static_cast<uint64_t>(delayed->timeout + 0.5) * 1000;
+    uint64_t delay_millis = llround(delayed->timeout * 1000);
+
     delayed->timer.data = static_cast<void*>(delayed.get());
     uv_timer_init(loop_, &delayed->timer);
     // Timers may not guarantee queue ordering of events with the same delay if
