@@ -83,9 +83,7 @@ if (process.argv.length === 2 &&
         const args = [...flags, ...process.execArgv, ...process.argv.slice(1)];
         const options = { encoding: 'utf8', stdio: 'inherit' };
         const result = spawnSync(process.execPath, args, options);
-        assert.ifError(result.error);
-        process.exit(result.status);
-        return;
+        process.exit(result.signal || result.status);
       }
     }
   }
