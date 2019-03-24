@@ -51,7 +51,7 @@ deepStrictEqual(
 ].forEach(([input, actualType]) => {
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+    name: 'TypeError',
     message: 'The first argument must be one of type string, Buffer, ' +
              'ArrayBuffer, Array, or Array-like Object. Received ' +
              `type ${actualType}`
