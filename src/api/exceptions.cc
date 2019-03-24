@@ -162,15 +162,21 @@ static const char* winapi_strerror(const int errorno, bool* must_free) {
   char* errmsg = nullptr;
 
   FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
-      FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, errorno,
-      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&errmsg, 0, nullptr);
+                    FORMAT_MESSAGE_IGNORE_INSERTS,
+                nullptr,
+                errorno,
+                MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                reinterpret_cast<LPTSTR>(&errmsg),
+                0,
+                nullptr);
 
   if (errmsg) {
     *must_free = true;
 
     // Remove trailing newlines
     for (int i = strlen(errmsg) - 1;
-        i >= 0 && (errmsg[i] == '\n' || errmsg[i] == '\r'); i--) {
+         i >= 0 && (errmsg[i] == '\n' || errmsg[i] == '\r');
+         i--) {
       errmsg[i] = '\0';
     }
 
@@ -181,7 +187,6 @@ static const char* winapi_strerror(const int errorno, bool* must_free) {
     return "Unknown error";
   }
 }
-
 
 Local<Value> WinapiErrnoException(Isolate* isolate,
                                   int errorno,
@@ -231,8 +236,9 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
         .FromJust();
   }
 
-  if (must_free)
-    LocalFree((HLOCAL)msg);
+  if (must_free) {
+    LocalFree(const_cast<char*>(msg));
+  }
 
   return e;
 }
