@@ -74,6 +74,7 @@ const values = [
     }
 
     const cbAsyncFn = callbackify(asyncFn);
+    assert.strictEqual(cbAsyncFn.length, 1);
     cbAsyncFn(common.mustCall((err, ret) => {
       assert.strictEqual(ret, undefined);
       if (err instanceof Error) {
@@ -146,6 +147,7 @@ const values = [
     }
 
     const cbAsyncFn = callbackify(asyncFn);
+    assert.strictEqual(cbAsyncFn.length, 2);
     cbAsyncFn(value, common.mustCall((err, ret) => {
       assert.ifError(err);
       assert.strictEqual(ret, value);
@@ -155,8 +157,16 @@ const values = [
       assert.strictEqual(arg, value);
       return Promise.resolve(arg);
     }
+    const obj = {};
+    Object.defineProperty(promiseFn, 'length', {
+      value: obj,
+      writable: false,
+      enumerable: false,
+      configurable: true
+    });
 
     const cbPromiseFn = callbackify(promiseFn);
+    assert.strictEqual(promiseFn.length, obj);
     cbPromiseFn(value, common.mustCall((err, ret) => {
       assert.ifError(err);
       assert.strictEqual(ret, value);
