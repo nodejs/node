@@ -103,7 +103,7 @@ function createServer() {
   }));
 }
 
-// options is null
+// `options` is null
 {
   const server = createServer();
   server.listen(0, common.mustCall(() => {
@@ -118,7 +118,7 @@ function createServer() {
   }));
 }
 
-// Options is undefined
+// `options` is undefined
 {
   const server = createServer();
   server.listen(0, common.mustCall(() => {

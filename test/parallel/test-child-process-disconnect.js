@@ -101,7 +101,7 @@ if (process.argv[2] === 'child') {
           return;
         }
 
-        // Disconnect is emitted
+        // 'disconnect' is emitted
         childFlag = (data === 'true');
       });
 
