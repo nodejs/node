@@ -157,6 +157,11 @@ const values = [
 
     const cbAsyncFn = callbackify(asyncFn);
     assert.strictEqual(cbAsyncFn.length, 2);
+    assert.notStrictEqual(
+      Object.getPrototypeOf(cbAsyncFn),
+      Object.getPrototypeOf(asyncFn)
+    );
+    assert.strictEqual(Object.getPrototypeOf(cbAsyncFn), Function.prototype);
     cbAsyncFn(value, common.mustCall((err, ret) => {
       assert.ifError(err);
       assert.strictEqual(ret, value);
