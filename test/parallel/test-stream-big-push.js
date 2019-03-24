@@ -52,7 +52,7 @@ r._read = common.mustCall(_read, 3);
 r.on('end', common.mustCall());
 
 // Push some data in to start.
-// we've never gotten any read event at this point.
+// We've never gotten any read event at this point.
 const ret = r.push(str);
 // Should be false.  > hwm
 assert(!ret);
