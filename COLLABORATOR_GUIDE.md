@@ -659,33 +659,27 @@ branches.
 
 #### How can I help?
 
-When you send your pull request, please include information about whether your
-change is breaking. If you think your patch can be backported, please include
-that information in the PR thread or your PR description. For more information
-on backporting, please see the [backporting guide][].
+When you send your pull request, please state if your change is breaking. Also
+state if you think your patch is a good candidate for backporting. For more
+information on backporting, please see the [backporting guide][].
 
-Several LTS related issue and PR labels have been provided:
+There are several LTS-related labels:
 
-* `lts-watch-v10.x` - tells the LTS WG that the issue/PR needs to be
-  considered for landing in the `v10.x-staging` branch.
-* `lts-watch-v8.x` - tells the LTS WG that the issue/PR needs to be
-  considered for landing in the `v8.x-staging` branch.
-* `lts-watch-v6.x` - tells the LTS WG that the issue/PR needs to be
-  considered for landing in the `v6.x-staging` branch.
-* `land-on-v10.x` - tells the release team that the commit should be landed
-  in a future v10.x release.
-* `land-on-v8.x` - tells the release team that the commit should be landed
-  in a future v8.x release.
-* `land-on-v6.x` - tells the release team that the commit should be landed
-  in a future v6.x release.
+* `lts-watch-` labels are for pull requests to consider for landing in staging
+  branches. For example, `lts-watch-v10.x` would be for a change
+  to consider for the `v10.x-staging` branch.
 
-Any Collaborator can attach these labels to any PR/issue. As commits are
-landed into the staging branches, the `lts-watch-` label will be removed.
-Likewise, as commits are landed in a LTS release, the `land-on-` label will
-be removed.
+* `land-on-` are for pull requests that should land in a future v*.x
+  release. For example, `land-on-v10.x` would be for a change to land in Node.js
+  10.x.
 
-Collaborators are encouraged to help the LTS WG by attaching the appropriate
-`lts-watch-` label to any PR that may impact an LTS release.
+Any Collaborator can attach these labels to any pull request/issue. As commits
+land on the staging branches, the backporter removes the `lts-watch-` label.
+Likewise, as commits land in an LTS release, the releaser removes the `land-on-`
+label.
+
+Attach the appropriate `lts-watch-` label to any PR that may impact an LTS
+release.
 
 #### How is an LTS release cut?
 
