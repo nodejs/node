@@ -1400,7 +1400,9 @@ to `true`, other APIs that create secure contexts leave it unset.
 from `process.argv` as the default value of the `sessionIdContext` option, other
 APIs that create secure contexts have no default value.
 
-The `tls.createSecureContext()` method creates a credentials object.
+The `tls.createSecureContext()` method creates a `SecureContext` object. It is
+usable as an argument to several `tls` APIs, such as [`tls.createServer()`][]
+and [`server.addContext()`][], but has no public methods.
 
 A key is *required* for ciphers that make use of certificates. Either `key` or
 `pfx` can be used to provide it.
@@ -1681,6 +1683,7 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [`net.Server.address()`]: net.html#net_server_address
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
+[`server.addContext()`]: #tls_server_addcontext_hostname_context
 [`server.getConnections()`]: net.html#net_server_getconnections_callback
 [`server.getTicketKeys()`]: #tls_server_getticketkeys
 [`server.listen()`]: net.html#net_server_listen
