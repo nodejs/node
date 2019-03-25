@@ -22,6 +22,7 @@ const dsaKeyPem = fixtures.readSync('test_dsa_privkey.pem', 'ascii');
 const dsaKeyPemEncrypted = fixtures.readSync('test_dsa_privkey_encrypted.pem',
                                              'ascii');
 const rsaPkcs8KeyPem = fixtures.readSync('test_rsa_pkcs8_privkey.pem');
+const dsaPkcs8KeyPem = fixtures.readSync('test_dsa_pkcs8_privkey.pem');
 
 const decryptError =
   /^Error: error:06065064:digital envelope routines:EVP_DecryptFinal_ex:bad decrypt$/;
@@ -250,6 +251,35 @@ assert.throws(() => {
   const sign2 = crypto.createSign('DSS1');
   sign2.update(input);
   const signature2 = sign2.sign(dsaKeyPem, 'hex');
+
+  const verify2 = crypto.createVerify('DSS1');
+  verify2.update(input);
+
+  assert.strictEqual(verify2.verify(dsaPubPem, signature2, 'hex'), true);
+}
+
+
+//
+// Test DSA signing and verification with PKCS#8 private key
+//
+{
+  const input = 'I AM THE WALRUS';
+
+  // DSA signatures vary across runs so there is no static string to verify
+  // against
+  const sign = crypto.createSign('SHA1');
+  sign.update(input);
+  const signature = sign.sign(dsaPkcs8KeyPem, 'hex');
+
+  const verify = crypto.createVerify('SHA1');
+  verify.update(input);
+
+  assert.strictEqual(verify.verify(dsaPubPem, signature, 'hex'), true);
+
+  // Test the legacy 'DSS1' name.
+  const sign2 = crypto.createSign('DSS1');
+  sign2.update(input);
+  const signature2 = sign2.sign(dsaPkcs8KeyPem, 'hex');
 
   const verify2 = crypto.createVerify('DSS1');
   verify2.update(input);
