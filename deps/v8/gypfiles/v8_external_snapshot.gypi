@@ -35,15 +35,11 @@
           'dependencies': [
             'v8_base',
           ],
-          'include_dirs': [
-            '..',
-            '<(DEPTH)',
-          ],
           'sources': [
-            '../src/setup-isolate-deserialize.cc',
-            '../src/snapshot/embedded-empty.cc',
-            '../src/snapshot/natives-external.cc',
-            '../src/snapshot/snapshot-external.cc',
+            '<(V8_ROOT)/src/setup-isolate-deserialize.cc',
+            '<(V8_ROOT)/src/snapshot/embedded-empty.cc',
+            '<(V8_ROOT)/src/snapshot/natives-external.cc',
+            '<(V8_ROOT)/src/snapshot/snapshot-external.cc',
             '<(embedded_builtins_snapshot_src)',
           ],
           'actions': [
@@ -148,13 +144,13 @@
             {
               'action_name': 'js2c_extras_bin',
               'inputs': [
-                '../tools/js2c.py',
+                '<(V8_ROOT)/tools/js2c.py',
                 '<@(v8_extra_library_files)',
               ],
               'outputs': ['<(SHARED_INTERMEDIATE_DIR)/libraries-extras.bin'],
               'action': [
                 'python',
-                '../tools/js2c.py',
+                '<(V8_ROOT)/tools/js2c.py',
                 '<(SHARED_INTERMEDIATE_DIR)/extras-libraries.cc',
                 'EXTRAS',
                 '<@(v8_extra_library_files)',
@@ -165,7 +161,7 @@
             {
               'action_name': 'concatenate_natives_blob',
               'inputs': [
-                '../tools/concatenate-files.py',
+                '<(V8_ROOT)/tools/concatenate-files.py',
                 '<(SHARED_INTERMEDIATE_DIR)/libraries-extras.bin',
               ],
               'conditions': [
