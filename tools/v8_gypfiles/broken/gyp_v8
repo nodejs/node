@@ -32,14 +32,15 @@
 
 import argparse
 import glob
-import gyp_environment
 import os
 import platform
 import shlex
-import subprocess
 import sys
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, script_dir)
+import gyp_environment
+
 v8_root = os.path.abspath(os.path.join(script_dir, os.pardir))
 
 sys.path.insert(0, os.path.join(v8_root, 'tools', 'gyp', 'pylib'))

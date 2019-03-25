@@ -8,6 +8,7 @@
 !.editorconfig
 !.eslintignore
 !.eslintrc.js
+!.flake8
 !.gitattributes
 !.github
 !.gitignore
@@ -123,8 +124,6 @@ deps/uv/docs/src/guide/
 # do not override V8's .gitignore
 !deps/v8/**
 # ignore VS compiler output unhandled by V8's .gitignore
-deps/v8/gypfiles/Debug/
-deps/v8/gypfiles/Release/
 deps/v8/third_party/eu-strip/
 
 .DS_Store

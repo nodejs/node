@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 {
   'variables': {
+    'V8_ROOT': '../../deps/v8',
     'v8_code': 1,
     'v8_random_seed%': 314159265,
     'v8_vector_stores%': 0,
@@ -397,8 +398,8 @@
           },
         ],
         ['OS=="win"', {
-          'msvs_precompiled_header': '<(V8_ROOT)/<(V8_ROOT)/<(V8_ROOT)/tools/msvs/pch/v8_pch.h',
-          'msvs_precompiled_source': '<(V8_ROOT)/<(V8_ROOT)/<(V8_ROOT)/tools/msvs/pch/v8_pch.cc',
+          'msvs_precompiled_header': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.h',
+          'msvs_precompiled_source': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.cc',
           'sources': [
             '<(_msvs_precompiled_header)',
             '<(_msvs_precompiled_source)',
@@ -2025,8 +2026,8 @@
           ],
         }],
         ['OS=="win"', {
-          'msvs_precompiled_header': '<(V8_ROOT)/<(V8_ROOT)/<(V8_ROOT)/tools/msvs/pch/v8_pch.h',
-          'msvs_precompiled_source': '<(V8_ROOT)/<(V8_ROOT)/<(V8_ROOT)/tools/msvs/pch/v8_pch.cc',
+          'msvs_precompiled_header': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.h',
+          'msvs_precompiled_source': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.cc',
           'sources': [
             '<(_msvs_precompiled_header)',
             '<(_msvs_precompiled_source)',

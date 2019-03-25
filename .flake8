@@ -1,0 +1,3 @@
+[flake8]
+exclude=.git,deps,lib,src,test/fixtures,tools/*_macros.py,tools/gyp,tools/inspector_protocol,tools/jinja2,tools/markupsafe,tools/pip,tools/v8_gypfiles/broken
+select=E901,E999,F821,F822,F823

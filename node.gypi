@@ -85,15 +85,9 @@
       'dependencies': [ 'deps/v8/gypfiles/d8.gyp:d8' ],
     }],
     [ 'node_use_bundled_v8=="true"', {
-      'conditions': [
-        [ 'build_v8_with_gn=="true"', {
-          'dependencies': ['deps/v8/gypfiles/v8-monolithic.gyp:v8_monolith'],
-        }, {
-          'dependencies': [
-            'deps/v8/gypfiles/v8.gyp:v8',
-            'deps/v8/gypfiles/v8.gyp:v8_libplatform',
-          ],
-        }],
+      'dependencies': [
+        'tools/v8_gypfiles/v8.gyp:v8',
+        'tools/v8_gypfiles/v8.gyp:v8_libplatform',
       ],
     }],
     [ 'node_use_v8_platform=="true"', {
@@ -132,7 +126,7 @@
        target_arch=="ia32" or target_arch=="x32")', {
       'defines': [ 'NODE_ENABLE_VTUNE_PROFILING' ],
       'dependencies': [
-        'deps/v8/gypfiles/v8vtune.gyp:v8_vtune'
+        'tools/v8_gypfiles/v8vtune.gyp:v8_vtune'
       ],
     }],
     [ 'node_no_browser_globals=="true"', {

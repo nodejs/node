@@ -3,6 +3,9 @@
 # found in the LICENSE file.
 
 {
+  'includes': [
+    '../../deps/v8/third_party/inspector_protocol/inspector_protocol.gypi',
+  ],
   'variables': {
     'inspector_protocol_path': '<(V8_ROOT)/third_party/inspector_protocol',
     'inspector_path': '<(V8_ROOT)/src/inspector',
@@ -83,48 +86,45 @@
       '<(V8_ROOT)/src/inspector/wasm-translation.h',
     ]
   },
-    'includes': [
-    '<(V8_ROOT)/third_party/inspector_protocol/inspector_protocol.gypi',
-    ],
-    'include_dirs': [
-      '<(inspector_generated_output_root)',
-    ],
-    'actions': [
-      {
-        'action_name': 'protocol_compatibility',
-        'inputs': [
-          '<(inspector_path)/js_protocol.pdl',
-        ],
-        'outputs': [
-          '<@(inspector_generated_output_root)/src/js_protocol.stamp',
-        ],
-        'action': [
-          'python',
-          '<(inspector_protocol_path)/check_protocol_compatibility.py',
-          '--stamp', '<@(_outputs)',
-          '<@(_inputs)',
-        ],
-        'message': 'Checking inspector protocol compatibility',
-      },
-      {
-        'action_name': 'protocol_generated_sources',
-        'inputs': [
-          '<(inspector_path)/js_protocol.pdl',
-          '<(inspector_path)/inspector_protocol_config.json',
-          '<@(inspector_protocol_files)',
-        ],
-        'outputs': [
-          '<@(inspector_generated_sources)',
-        ],
-        'process_outputs_as_sources': 1,
-        'action': [
-          'python',
-          '<(inspector_protocol_path)/code_generator.py',
-          '--jinja_dir', '<(V8_ROOT)/third_party',
-          '--output_base', '<(inspector_generated_output_root)/src/inspector',
-          '--config', '<(inspector_path)/inspector_protocol_config.json',
-        ],
-        'message': 'Generating inspector protocol sources from protocol json',
-      },
-    ],
+  'include_dirs': [
+    '<(inspector_generated_output_root)',
+  ],
+  'actions': [
+    {
+      'action_name': 'protocol_compatibility',
+      'inputs': [
+        '<(inspector_path)/js_protocol.pdl',
+      ],
+      'outputs': [
+        '<@(inspector_generated_output_root)/src/js_protocol.stamp',
+      ],
+      'action': [
+        'python',
+        '<(inspector_protocol_path)/check_protocol_compatibility.py',
+        '--stamp', '<@(_outputs)',
+        '<@(_inputs)',
+      ],
+      'message': 'Checking inspector protocol compatibility',
+    },
+    {
+      'action_name': 'protocol_generated_sources',
+      'inputs': [
+        '<(inspector_path)/js_protocol.pdl',
+        '<(inspector_path)/inspector_protocol_config.json',
+        '<@(inspector_protocol_files)',
+      ],
+      'outputs': [
+        '<@(inspector_generated_sources)',
+      ],
+      'process_outputs_as_sources': 1,
+      'action': [
+        'python',
+        '<(inspector_protocol_path)/code_generator.py',
+        '--jinja_dir', '<(V8_ROOT)/third_party',
+        '--output_base', '<(inspector_generated_output_root)/src/inspector',
+        '--config', '<(inspector_path)/inspector_protocol_config.json',
+      ],
+      'message': 'Generating inspector protocol sources from protocol json',
+    },
+  ],
 }

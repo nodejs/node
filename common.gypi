@@ -80,16 +80,10 @@
       }],
       ['GENERATOR=="ninja"', {
         'obj_dir': '<(PRODUCT_DIR)/obj',
-        'conditions': [
-          [ 'build_v8_with_gn=="true"', {
-            'v8_base': '<(PRODUCT_DIR)/obj/deps/v8/gypfiles/v8_monolith.gen/gn/obj/libv8_monolith.a',
-          }, {
-            'v8_base': '<(PRODUCT_DIR)/obj/deps/v8/gypfiles/libv8_base.a',
-          }],
-        ]
+        'v8_base': '<(PRODUCT_DIR)/obj/tools/v8_gypfiles/libv8_base.a',
        }, {
         'obj_dir%': '<(PRODUCT_DIR)/obj.target',
-        'v8_base': '<(PRODUCT_DIR)/obj.target/deps/v8/gypfiles/libv8_base.a',
+        'v8_base': '<(PRODUCT_DIR)/obj.target/tools/v8_gypfiles/libv8_base.a',
       }],
       ['OS == "win"', {
         'os_posix': 0,
@@ -103,15 +97,6 @@
       ['OS == "mac"', {
         'obj_dir%': '<(PRODUCT_DIR)/obj.target',
         'v8_base': '<(PRODUCT_DIR)/libv8_base.a',
-      }],
-      ['build_v8_with_gn == "true"', {
-        'conditions': [
-          ['GENERATOR == "ninja"', {
-            'v8_base': '<(PRODUCT_DIR)/obj/deps/v8/gypfiles/v8_monolith.gen/gn/obj/libv8_monolith.a',
-          }, {
-            'v8_base': '<(PRODUCT_DIR)/obj.target/v8_monolith/geni/gn/obj/libv8_monolith.a',
-          }],
-        ],
       }],
       ['openssl_fips != ""', {
         'openssl_product': '<(STATIC_LIB_PREFIX)crypto<(STATIC_LIB_SUFFIX)',
