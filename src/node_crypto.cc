@@ -5835,9 +5835,9 @@ class ECKeyPairGenerationConfig : public KeyPairGenerationConfig {
   const int param_encoding_;
 };
 
-class EdDSAKeyPairGenerationConfig : public KeyPairGenerationConfig {
+class NidKeyPairGenerationConfig : public KeyPairGenerationConfig {
  public:
-  explicit EdDSAKeyPairGenerationConfig(int id) : id_(id) {}
+  explicit NidKeyPairGenerationConfig(int id) : id_(id) {}
 
   EVPKeyCtxPointer Setup() override {
     return EVPKeyCtxPointer(EVP_PKEY_CTX_new_id(id_, nullptr));
@@ -6020,11 +6020,11 @@ void GenerateKeyPairEC(const FunctionCallbackInfo<Value>& args) {
   GenerateKeyPair(args, 2, std::move(config));
 }
 
-void GenerateKeyPairEdDSA(const FunctionCallbackInfo<Value>& args) {
+void GenerateKeyPairNid(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsInt32());
   const int id = args[0].As<Int32>()->Value();
   std::unique_ptr<KeyPairGenerationConfig> config(
-      new EdDSAKeyPairGenerationConfig(id));
+      new NidKeyPairGenerationConfig(id));
   GenerateKeyPair(args, 1, std::move(config));
 }
 
@@ -6447,7 +6447,7 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "generateKeyPairRSA", GenerateKeyPairRSA);
   env->SetMethod(target, "generateKeyPairDSA", GenerateKeyPairDSA);
   env->SetMethod(target, "generateKeyPairEC", GenerateKeyPairEC);
-  env->SetMethod(target, "generateKeyPairEdDSA", GenerateKeyPairEdDSA);
+  env->SetMethod(target, "generateKeyPairNid", GenerateKeyPairNid);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ED25519);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ED448);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X25519);
