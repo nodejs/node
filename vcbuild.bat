@@ -243,7 +243,7 @@ if defined msi (
     goto msbuild-not-found
   )
   if not exist "%VCINSTALLDIR%\..\MSBuild\Microsoft\WiX" (
-    echo Failed to find the Wix Toolset Visual Studio 2017 Extension
+    echo Failed to find the WiX Toolset Visual Studio 2017 Extension
     goto msbuild-not-found
   )
 )
@@ -269,10 +269,6 @@ echo Failed to find a suitable Visual Studio installation.
 echo Try to run in a "Developer Command Prompt" or consult
 echo https://github.com/nodejs/node/blob/master/BUILDING.md#windows-1
 goto exit
-
-:wix-not-found
-echo Build skipped. To generate installer, you need to install Wix.
-goto install-doctools
 
 :msbuild-found
 
