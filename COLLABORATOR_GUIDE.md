@@ -675,7 +675,7 @@ There are several LTS-related labels:
 
 Any Collaborator can attach these labels to any pull request/issue. As commits
 land on the staging branches, the backporter removes the `lts-watch-` label.
-Likewise, as commits land in an LTS release, the releaser removes `land-on-`
+Likewise, as commits land in an LTS release, the releaser removes the `land-on-`
 label.
 
 Attach the appropriate `lts-watch-` label to any PR that may impact an LTS
