@@ -1,3 +1,5 @@
+# we assume no responsibility
+
 # Internal documentation of Node.js
 
 ## CLI
