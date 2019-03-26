@@ -237,7 +237,7 @@ assert.throws(() => {
   const input = 'I AM THE WALRUS';
 
   // DSA signatures vary across runs so there is no static string to verify
-  // against
+  // against.
   const sign = crypto.createSign('SHA1');
   sign.update(input);
   const signature = sign.sign(dsaKeyPem, 'hex');
@@ -266,7 +266,7 @@ assert.throws(() => {
   const input = 'I AM THE WALRUS';
 
   // DSA signatures vary across runs so there is no static string to verify
-  // against
+  // against.
   const sign = crypto.createSign('SHA1');
   sign.update(input);
   const signature = sign.sign(dsaPkcs8KeyPem, 'hex');
@@ -293,7 +293,7 @@ const input = 'I AM THE WALRUS';
 
 {
   // DSA signatures vary across runs so there is no static string to verify
-  // against
+  // against.
   const sign = crypto.createSign('SHA1');
   sign.update(input);
   const signOptions = { key: dsaKeyPemEncrypted, passphrase: 'password' };
