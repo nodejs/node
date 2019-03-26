@@ -220,15 +220,17 @@ as a `printf`-like format string which can contain zero or more format
 specifiers. Each specifier is replaced with the converted value from the
 corresponding argument. Supported specifiers are:
 
-* `%s` - `String`.
-* `%d` - `Number` (integer or floating point value) or `BigInt`.
-* `%i` - Integer or `BigInt`.
-* `%f` - Floating point value.
-* `%j` - JSON. Replaced with the string `'[Circular]'` if the argument
-contains circular references.
-* `%o` - `Object`. A string representation of an object
-  with generic JavaScript object formatting.
-  Similar to `util.inspect()` with options
+* `%s` - `String` will be used to convert all values except `BigInt` and
+  `Object`. `BigInt` values will be represented with an `n` and Objects are
+  inspected using `util.inspect()` with options
+  `{ depth: 0, colors: false, compact: 3 }`.
+* `%d` - `Number` will be used to convert all values except `BigInt`.
+* `%i` - `parseInt(value, 10)` is used for all values except `BigInt`.
+* `%f` - `parseFloat(value)` is used for all values.
+* `%j` - JSON. Replaced with the string `'[Circular]'` if the argument contains
+  circular references.
+* `%o` - `Object`. A string representation of an object with generic JavaScript
+  object formatting. Similar to `util.inspect()` with options
   `{ showHidden: true, showProxy: true }`. This will show the full object
   including non-enumerable properties and proxies.
 * `%O` - `Object`. A string representation of an object with generic JavaScript
