@@ -14,7 +14,6 @@ const tls = require('tls');
 
 function main({ dur, type, size }) {
   var encoding;
-  var server;
   var chunk;
   switch (type) {
     case 'buf':
@@ -39,7 +38,7 @@ function main({ dur, type, size }) {
     ciphers: 'AES256-GCM-SHA384'
   };
 
-  server = tls.createServer(options, onConnection);
+  const server = tls.createServer(options, onConnection);
   var conn;
   server.listen(common.PORT, () => {
     const opt = { port: common.PORT, rejectUnauthorized: false };

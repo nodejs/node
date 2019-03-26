@@ -29,7 +29,7 @@ function main(conf) {
   fs.writeFileSync(filename, data);
   data = null;
 
-  var zipData = Buffer.alloc(1024, 'a');
+  const zipData = Buffer.alloc(1024, 'a');
 
   var reads = 0;
   var zips = 0;

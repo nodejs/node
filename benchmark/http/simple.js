@@ -11,7 +11,7 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ type, len, chunks, c, chunkedEnc, res }) {
-  var server = require('../fixtures/simple-http-server.js')
+  const server = require('../fixtures/simple-http-server.js')
   .listen(common.PORT)
   .on('listening', () => {
     const path = `/${type}/${len}/${chunks}/normal/${chunkedEnc}`;
