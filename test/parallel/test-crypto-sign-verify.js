@@ -32,23 +32,23 @@ const modSize = 1024;
 common.expectsError(
   () => crypto.createVerify('SHA256').verify({
     key: certPem,
-    padding: undefined,
+    padding: null,
   }, ''),
   {
     code: 'ERR_INVALID_OPT_VALUE',
     type: TypeError,
-    message: 'The value "undefined" is invalid for option "padding"'
+    message: 'The value "null" is invalid for option "padding"'
   });
 
 common.expectsError(
   () => crypto.createVerify('SHA256').verify({
     key: certPem,
-    saltLength: undefined,
+    saltLength: null,
   }, ''),
   {
     code: 'ERR_INVALID_OPT_VALUE',
     type: TypeError,
-    message: 'The value "undefined" is invalid for option "saltLength"'
+    message: 'The value "null" is invalid for option "saltLength"'
   });
 
 // Test signing and verifying
@@ -233,7 +233,7 @@ common.expectsError(
 
 // Test exceptions for invalid `padding` and `saltLength` values
 {
-  [null, undefined, NaN, 'boom', {}, [], true, false]
+  [null, NaN, 'boom', {}, [], true, false]
     .forEach((invalidValue) => {
       common.expectsError(() => {
         crypto.createSign('SHA256')
