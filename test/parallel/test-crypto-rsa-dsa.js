@@ -161,7 +161,7 @@ assert.strictEqual(rsaSignature, expectedSignature);
 rsaVerify.update(rsaPubPem);
 assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), true);
 
-// Test RSA pkcs8 key signing/verification
+// Test RSA PKCS#8 key signing/verification
 rsaSign = crypto.createSign('SHA1');
 rsaSign.update(rsaPubPem);
 rsaSignature = rsaSign.sign(rsaPkcs8KeyPem, 'hex');
