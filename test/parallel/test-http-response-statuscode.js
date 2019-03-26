@@ -29,7 +29,7 @@ const server = http.Server(common.mustCall(function(req, res) {
       test(res, NaN, 'NaN');
       break;
     case 3:
-      test(res, {}, '[object Object]');
+      test(res, {}, '{}');
       break;
     case 4:
       test(res, 99, '99');
@@ -47,7 +47,7 @@ const server = http.Server(common.mustCall(function(req, res) {
       test(res, true, 'true');
       break;
     case 9:
-      test(res, [], '');
+      test(res, [], '[]');
       break;
     case 10:
       test(res, 'this is not valid', 'this is not valid');

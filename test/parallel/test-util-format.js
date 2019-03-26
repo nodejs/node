@@ -123,11 +123,17 @@ assert.strictEqual(util.format('%f %f', 42), '42 %f');
 // String format specifier
 assert.strictEqual(util.format('%s'), '%s');
 assert.strictEqual(util.format('%s', undefined), 'undefined');
+assert.strictEqual(util.format('%s', null), 'null');
 assert.strictEqual(util.format('%s', 'foo'), 'foo');
 assert.strictEqual(util.format('%s', 42), '42');
 assert.strictEqual(util.format('%s', '42'), '42');
 assert.strictEqual(util.format('%s %s', 42, 43), '42 43');
 assert.strictEqual(util.format('%s %s', 42), '42 %s');
+assert.strictEqual(util.format('%s', 42n), '42n');
+assert.strictEqual(util.format('%s', Symbol('foo')), 'Symbol(foo)');
+assert.strictEqual(util.format('%s', true), 'true');
+assert.strictEqual(util.format('%s', { a: [1, 2, 3] }), '{ a: [Array] }');
+assert.strictEqual(util.format('%s', () => 5), '() => 5');
 
 // JSON format specifier
 assert.strictEqual(util.format('%j'), '%j');
@@ -345,4 +351,12 @@ assert.strictEqual(
 assert.strictEqual(
   util.format(new SharedArrayBuffer(4)),
   'SharedArrayBuffer { [Uint8Contents]: <00 00 00 00>, byteLength: 4 }'
+);
+
+assert.strictEqual(
+  util.formatWithOptions(
+    { colors: true, compact: 3 },
+    '%s', [ 1, { a: true }]
+  ),
+  '[ 1, [Object] ]'
 );
