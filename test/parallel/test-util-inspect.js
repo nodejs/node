@@ -1815,7 +1815,9 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   [RegExp, ['foobar', 'g'], '/foobar/g'],
   [WeakSet, [[{}]], '{ <items unknown> }'],
   [WeakMap, [[[{}, {}]]], '{ <items unknown> }'],
-  [BigInt64Array, [10], '[ 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n ]']
+  [BigInt64Array, [10], '[ 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n ]'],
+  [Date, ['Sun, 14 Feb 2010 11:48:40 GMT'], '2010-02-14T11:48:40.000Z'],
+  [Date, ['invalid_date'], 'Invalid Date']
 ].forEach(([base, input, rawExpected]) => {
   class Foo extends base {}
   const value = new Foo(...input);
@@ -1840,50 +1842,6 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   assert.notStrictEqual(res, expectedWithoutProto);
   assert(/\[Symbol\(foo\)]: 'yeah'/.test(res), res);
 });
-
-// Date null prototype checks
-{
-  class CustomDate extends Date {
-  }
-
-  const date = new CustomDate('Sun, 14 Feb 2010 11:48:40 GMT');
-  assert.strictEqual(util.inspect(date), 'CustomDate 2010-02-14T11:48:40.000Z');
-
-  // add properties
-  date.foo = 'bar';
-  assert.strictEqual(util.inspect(date),
-                     '{ CustomDate 2010-02-14T11:48:40.000Z foo: \'bar\' }');
-
-  // Check for null prototype
-  Object.setPrototypeOf(date, null);
-  assert.strictEqual(util.inspect(date),
-                     '{ [Date: null prototype] 2010-02-14T11:48:40.000Z' +
-                     ' foo: \'bar\' }');
-
-  const anotherDate = new CustomDate('Sun, 14 Feb 2010 11:48:40 GMT');
-  Object.setPrototypeOf(anotherDate, null);
-  assert.strictEqual(util.inspect(anotherDate),
-                     '[Date: null prototype] 2010-02-14T11:48:40.000Z');
-}
-
-// Check for invalid dates and null prototype
-{
-  class CustomDate extends Date {
-  }
-
-  const date = new CustomDate('invalid_date');
-  assert.strictEqual(util.inspect(date), 'CustomDate Invalid Date');
-
-  // add properties
-  date.foo = 'bar';
-  assert.strictEqual(util.inspect(date),
-                     '{ CustomDate Invalid Date foo: \'bar\' }');
-
-  // Check for null prototype
-  Object.setPrototypeOf(date, null);
-  assert.strictEqual(util.inspect(date),
-                     '{ [Date: null prototype] Invalid Date foo: \'bar\' }');
-}
 
 assert.strictEqual(inspect(1n), '1n');
 assert.strictEqual(inspect(Object(-1n)), '[BigInt: -1n]');
