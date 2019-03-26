@@ -51,6 +51,7 @@ const winPaths = [
 ];
 
 const winSpecialCaseParseTests = [
+  ['t', { base: 't', name: 't', root: '', dir: '', ext: '' }],
   ['/foo/bar', { root: '/', dir: '/foo', base: 'bar', ext: '', name: 'bar' }],
 ];
 
