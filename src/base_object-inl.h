@@ -135,7 +135,7 @@ void BaseObject::InternalFieldSet(v8::Local<v8::String> property,
                                   v8::Local<v8::Value> value,
                                   const v8::PropertyCallbackInfo<void>& info) {
   // This could be e.g. value->IsFunction().
-  CHECK_IMPLIES(typecheck != nullptr, ((*value)->*typecheck)());
+  CHECK(((*value)->*typecheck)());
   info.This()->SetInternalField(Field, value);
 }
 
