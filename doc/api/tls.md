@@ -1406,9 +1406,9 @@ to `true`, other APIs that create secure contexts leave it unset.
 from `process.argv` as the default value of the `sessionIdContext` option, other
 APIs that create secure contexts have no default value.
 
-The `tls.createSecureContext()` method creates a `SecureContext` object. The
-object has no public methods, but is accepted as an argument to several `tls`
-APIs, such as [`tls.createServer()`][] and [`server.addContext()`][].
+The `tls.createSecureContext()` method creates a `SecureContext` object. It is
+usable as an argument to several `tls` APIs, such as [`tls.createServer()`][]
+and [`server.addContext()`][], but has no public methods.
 
 A key is *required* for ciphers that make use of certificates. Either `key` or
 `pfx` can be used to provide it.
