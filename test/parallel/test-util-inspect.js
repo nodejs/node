@@ -1017,7 +1017,10 @@ if (typeof Symbol !== 'undefined') {
 
 // Test Set iterators.
 {
-  const aSet = new Set([1, 3]);
+  const aSet = new Set([1]);
+  assert.strictEqual(util.inspect(aSet.entries(), { compact: false }),
+                     '[Set Entries] {\n  [\n    1,\n    1\n  ]\n}');
+  aSet.add(3);
   assert.strictEqual(util.inspect(aSet.keys()), '[Set Iterator] { 1, 3 }');
   assert.strictEqual(util.inspect(aSet.values()), '[Set Iterator] { 1, 3 }');
   const setEntries = aSet.entries();
