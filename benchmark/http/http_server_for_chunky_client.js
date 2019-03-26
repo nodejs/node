@@ -10,9 +10,7 @@ process.env.PIPE_NAME = PIPE;
 
 tmpdir.refresh();
 
-var server;
-
-server = http.createServer((req, res) => {
+const server = http.createServer((req, res) => {
   const headers = {
     'content-type': 'text/plain',
     'content-length': '2'

@@ -17,7 +17,7 @@ const c = 50;
 // setHeaderWH: setHeader(...), writeHead(status, ...)
 function main({ res }) {
   process.env.PORT = PORT;
-  var server = require('../fixtures/simple-http-server.js')
+  const server = require('../fixtures/simple-http-server.js')
   .listen(PORT)
   .on('listening', () => {
     const path = `/${type}/${len}/${chunks}/normal/${chunkedEnc}`;

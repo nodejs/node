@@ -54,7 +54,7 @@ function main({ len, n }) {
   const add = 11;
   var count = 0;
   const PIPE = process.env.PIPE_NAME;
-  var socket = net.connect(PIPE, () => {
+  const socket = net.connect(PIPE, () => {
     bench.start();
     WriteHTTPHeaders(socket, 1, len);
     socket.setEncoding('utf8');
