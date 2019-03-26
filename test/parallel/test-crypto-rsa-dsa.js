@@ -275,16 +275,6 @@ assert.throws(() => {
   verify.update(input);
 
   assert.strictEqual(verify.verify(dsaPubPem, signature, 'hex'), true);
-
-  // Test the legacy 'DSS1' name.
-  const sign2 = crypto.createSign('DSS1');
-  sign2.update(input);
-  const signature2 = sign2.sign(dsaPkcs8KeyPem, 'hex');
-
-  const verify2 = crypto.createVerify('DSS1');
-  verify2.update(input);
-
-  assert.strictEqual(verify2.verify(dsaPubPem, signature2, 'hex'), true);
 }
 
 
