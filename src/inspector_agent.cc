@@ -835,6 +835,7 @@ void Agent::DisableAsyncHook() {
 
 void Agent::ToggleAsyncHook(Isolate* isolate,
                             const node::Persistent<Function>& fn) {
+  CHECK(parent_env_->has_run_bootstrapping_code());
   HandleScope handle_scope(isolate);
   CHECK(!fn.IsEmpty());
   auto context = parent_env_->context();
