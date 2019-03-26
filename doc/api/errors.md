@@ -1173,9 +1173,9 @@ A call was made and the UDP subsystem was not running.
 ### ERR_STDERR_CLOSE
 
 <!-- YAML
-removed: REPLACEME
+removed: v8.16.0
 changes:
-  - version: REPLACEME
+  - version: v8.16.0
     pr-url: https://github.com/nodejs/node/pull/23053
     description: Rather than emitting an error, `process.stderr.end()` now
                  only closes the stream side but not the underlying resource,
@@ -1189,9 +1189,9 @@ does not allow `stdout` or `stderr` streams to be closed by user code.
 ### ERR_STDOUT_CLOSE
 
 <!-- YAML
-removed: REPLACEME
+removed: v8.16.0
 changes:
-  - version: REPLACEME
+  - version: v8.16.0
     pr-url: https://github.com/nodejs/node/pull/23053
     description: Rather than emitting an error, `process.stderr.end()` now
                  only closes the stream side but not the underlying resource,
