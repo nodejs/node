@@ -38,7 +38,7 @@ function main({ dur, encodingType, size }) {
   var started = false;
   var ended = false;
 
-  var f = fs.createWriteStream(filename);
+  const f = fs.createWriteStream(filename);
   f.on('drain', write);
   f.on('open', write);
   f.on('close', done);
