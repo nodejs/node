@@ -1663,6 +1663,70 @@ assert.strictEqual(util.inspect('"\''), '`"\'`');
 // eslint-disable-next-line no-template-curly-in-string
 assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
 
+// Errors should visualize as much information as possible.
+// If the name is not included in the stack, visualize it as well.
+[
+  [class Foo extends TypeError {}, 'test'],
+  [class Foo extends TypeError {}, undefined],
+  [class BarError extends Error {}, 'test'],
+  [class BazError extends Error {
+    get name() {
+      return 'BazError';
+    }
+  }, undefined]
+].forEach(([Class, message, messages], i) => {
+  console.log('Test %i', i);
+  const foo = new Class(message);
+  const name = foo.name;
+  const extra = Class.name.includes('Error') ? '' : ` [${foo.name}]`;
+  assert(
+    util.inspect(foo).startsWith(
+      `${Class.name}${extra}${message ? `: ${message}` : '\n'}`),
+    util.inspect(foo)
+  );
+  Object.defineProperty(foo, Symbol.toStringTag, {
+    value: 'WOW',
+    writable: true,
+    configurable: true
+  });
+  const stack = foo.stack;
+  foo.stack = 'This is a stack';
+  assert.strictEqual(
+    util.inspect(foo),
+    '[This is a stack]'
+  );
+  foo.stack = stack;
+  assert(
+    util.inspect(foo).startsWith(
+      `${Class.name} [WOW]${extra}${message ? `: ${message}` : '\n'}`),
+    util.inspect(foo)
+  );
+  Object.setPrototypeOf(foo, null);
+  assert(
+    util.inspect(foo).startsWith(
+      `[${name}: null prototype] [WOW]${message ? `: ${message}` : '\n'}`
+    ),
+    util.inspect(foo)
+  );
+  foo.bar = true;
+  delete foo[Symbol.toStringTag];
+  assert(
+    util.inspect(foo).startsWith(
+      `{ [${name}: null prototype]${message ? `: ${message}` : '\n'}`),
+    util.inspect(foo)
+  );
+  foo.stack = 'This is a stack';
+  assert.strictEqual(
+    util.inspect(foo),
+    '{ [[Error: null prototype]: This is a stack] bar: true }'
+  );
+  foo.stack = stack.split('\n')[0];
+  assert.strictEqual(
+    util.inspect(foo),
+    `{ [[${name}: null prototype]${message ? `: ${message}` : ''}] bar: true }`
+  );
+});
+
 // Verify that throwing in valueOf and toString still produces nice results.
 [
   [new String(55), "[String: '55']"],
