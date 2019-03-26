@@ -855,7 +855,7 @@ certificate.
    alternative to the `subject` names.
 * `infoAccess` {Array} (Optional) An array describing the AuthorityInfoAccess,
    used with OCSP.
-* `issuerCert` {Object} (Optional) The issuer certificate object. For
+* `issuerCertificate` {Object} (Optional) The issuer certificate object. For
    self-signed certificates, this may be a circular reference.
 
 The certificate may contain information about the public key, depending on
