@@ -685,7 +685,7 @@ class ShouldNotAbortOnUncaughtScope {
   inline void Close();
   inline ~ShouldNotAbortOnUncaughtScope();
 
-  private:
+ private:
   Environment* env_;
 };
 
