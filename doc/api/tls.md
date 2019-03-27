@@ -1046,9 +1046,10 @@ added: v0.11.8
     `true`.
   * `requestCert`
 * `callback` {Function} If `renegotiate()` returned `true`, callback is
-   attached once to the `'secure'` event. If it returned `false`, it will be
-   called in the next tick with `ERR_TLS_RENEGOTIATE`, unless the `tlsSocket`
-   has been destroyed, in which case it will not be called at all.
+   attached once to the `'secure'` event. If `renegotiate()` returned `false`,
+   `callback` will be called in the next tick with an error, unless the
+   `tlsSocket` has been destroyed, in which case `callback` will not be called
+   at all.
 
 * Returns: {boolean} `true` if renegotiation was initiated, `false` otherwise.
 

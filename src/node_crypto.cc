@@ -2339,9 +2339,9 @@ void SSLWrap<Base>::Renegotiate(const FunctionCallbackInfo<Value>& args) {
 
   ClearErrorOnReturn clear_error_on_return;
 
-  // TODO(@sam-github) Return/throw an error, don't discard the SSL error info.
-  bool yes = SSL_renegotiate(w->ssl_.get()) == 1;
-  args.GetReturnValue().Set(yes);
+  if (SSL_renegotiate(w->ssl_.get()) != 1) {
+    return ThrowCryptoError(w->ssl_env(), ERR_get_error());
+  }
 }
 
 
