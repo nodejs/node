@@ -682,6 +682,90 @@ never be called.
 * Returns: {number} The same `triggerAsyncId` that is passed to the
 `AsyncResource` constructor.
 
+## Class: AsyncLocal
+<!-- YAML
+added: REPLACEME
+-->
+
+This class can be used to set a value which follows asynchronous control flow.
+An `AsyncLocal` instance is a key into a continuation local storage.
+The value set on an `AsyncLocal` instance is propagated to any async
+continuation triggered within this flow. Modification of the value are done via
+"copy on write", therefore already created continuations are not effected by
+setting a new value, only continuations created afterwards.
+
+The implementation relys on async hooks to follow the execution flow. Therefore
+if some library is not interacting well with async hooks (e.g. it does user
+space queuing) it will result in the same problems with `AsyncLocal`. To
+correct this such modules should use the `AsyncResource` class.
+
+### Example
+
+```js
+const http = require('http');
+const wait = require('util').promisify(setTimeout);
+
+const asyncLocal = new AsyncLocal();
+
+function print(...args) {
+  console.log(`${asyncLocal.value || '-'}:`, ...args);
+}
+
+http.createServer(async (req, res) => {
+  asyncLocal.value = `${req.method}:${req.url}`;
+  print('start');
+
+  setImmediate(async () => {
+    print('next');
+    asyncLocal.value = `${asyncLocal.value}:split`;
+    await wait(10);
+    print('branched');
+  });
+
+  await wait(100);
+
+  print('done');
+  res.end();
+}).listen(8181);
+http.get('http://localhost:8181/first');
+http.get('http://localhost:8181/second');
+// Prints:
+//   GET:/first: start
+//   GET:/second: start
+//   GET:/second: next
+//   GET:/first: next
+//   GET:/second:split: branched
+//   GET:/first:split: branched
+//   GET:/first: done
+//   GET:/second: done
+```
+
+### new AsyncLocal([options])
+
+* `options` {Object}
+  * `onChangedCb` {Function} Optional callback invoked whenever a value of an
+    `AsyncLocal` changes.
+
+Creates a new instance of an `AsyncLocal`. Once a value is set it's propagated
+to async continuations until it is cleared.
+
+The optional `onChangedCb` callback
+signals changes of the value referenced by the `AsyncLocal` instance. The first
+argument is the previous value, the second argument holds the current value and
+the third argument is a boolean set to `true` if change is caused by a change
+of the execution context and `false` if a new value was assinged to
+`AsyncLocal.value`.
+
+### asyncLocal.value
+
+Reading this value returns the current value associated with this execution
+path execution context (async id).
+
+The value written stored in a persistent storage for the current asychronous
+execution path. Writting `null` or `undefined` clears the value and stops
+further tracking on this execution path.
+
+
 [`after` callback]: #async_hooks_after_asyncid
 [`before` callback]: #async_hooks_before_asyncid
 [`destroy` callback]: #async_hooks_destroy_asyncid
