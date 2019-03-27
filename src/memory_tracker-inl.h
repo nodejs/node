@@ -177,6 +177,13 @@ void MemoryTracker::TrackField(const char* edge_name,
   TrackFieldWithSize(edge_name, value.size() * sizeof(T), "std::basic_string");
 }
 
+template <typename T>
+void MemoryTracker::TrackField(const char* edge_name,
+                               const v8::Eternal<T>& value,
+                               const char* node_name) {
+  TrackField(edge_name, value.Get(isolate_));
+}
+
 template <typename T, typename Traits>
 void MemoryTracker::TrackField(const char* edge_name,
                                const v8::Persistent<T, Traits>& value,

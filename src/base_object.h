@@ -86,7 +86,6 @@ class BaseObject : public MemoryRetainer {
 
  private:
   v8::Local<v8::Object> WrappedObject() const override;
-  bool IsRootNode() const override;
   static void DeleteMe(void* data);
 
   // persistent_handle_ needs to be at a fixed offset from the start of the
@@ -95,7 +94,7 @@ class BaseObject : public MemoryRetainer {
   // position of members in memory are predictable. For more information please
   // refer to `doc/guides/node-postmortem-support.md`
   friend int GenDebugSymbols();
-  friend class Environment;
+  friend class CleanupHookCallback;
 
   Persistent<v8::Object> persistent_handle_;
   Environment* env_;

@@ -980,17 +980,17 @@ void Environment::RemoveCleanupHook(void (*fn)(void*), void* arg) {
   cleanup_hooks_.erase(search);
 }
 
-size_t Environment::CleanupHookCallback::Hash::operator()(
+size_t CleanupHookCallback::Hash::operator()(
     const CleanupHookCallback& cb) const {
   return std::hash<void*>()(cb.arg_);
 }
 
-bool Environment::CleanupHookCallback::Equal::operator()(
+bool CleanupHookCallback::Equal::operator()(
     const CleanupHookCallback& a, const CleanupHookCallback& b) const {
   return a.fn_ == b.fn_ && a.arg_ == b.arg_;
 }
 
-BaseObject* Environment::CleanupHookCallback::GetBaseObject() const {
+BaseObject* CleanupHookCallback::GetBaseObject() const {
   if (fn_ == BaseObject::DeleteMe)
     return static_cast<BaseObject*>(arg_);
   else
@@ -1054,6 +1054,7 @@ void AsyncRequest::set_stopped(bool flag) {
     PropertyName ## _.Reset(isolate(), value);                                \
   }
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
+  ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
 #undef V
 
 }  // namespace node

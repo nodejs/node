@@ -112,6 +112,29 @@ IsolateData::IsolateData(Isolate* isolate,
 #undef V
 }
 
+void IsolateData::MemoryInfo(MemoryTracker* tracker) const {
+#define V(PropertyName, StringValue)                                           \
+  tracker->TrackField(#PropertyName, PropertyName(isolate()));
+  PER_ISOLATE_SYMBOL_PROPERTIES(V)
+#undef V
+
+#define V(PropertyName, StringValue)                                           \
+  tracker->TrackField(#PropertyName, PropertyName(isolate()));
+  PER_ISOLATE_STRING_PROPERTIES(V)
+#undef V
+
+  if (node_allocator_ != nullptr) {
+    tracker->TrackFieldWithSize(
+        "node_allocator", sizeof(*node_allocator_), "NodeArrayBufferAllocator");
+  } else {
+    tracker->TrackFieldWithSize(
+        "allocator", sizeof(*allocator_), "v8::ArrayBuffer::Allocator");
+  }
+  tracker->TrackFieldWithSize(
+      "platform", sizeof(*platform_), "MultiIsolatePlatform");
+  // TODO(joyeecheung): implement MemoryRetainer in the option classes.
+}
+
 void InitThreadLocalOnce() {
   CHECK_EQ(0, uv_key_create(&Environment::thread_local_env));
 }
@@ -707,6 +730,7 @@ void Environment::set_debug_categories(const std::string& cats, bool enabled) {
     }
 
     DEBUG_CATEGORY_NAMES(V)
+#undef V
 
     if (comma_pos == std::string::npos)
       break;
@@ -775,6 +799,21 @@ void Environment::CollectUVExceptionInfo(Local<Value> object,
                              syscall, message, path, dest);
 }
 
+void ImmediateInfo::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("fields", fields_);
+}
+
+void TickInfo::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("fields", fields_);
+}
+
+void AsyncHooks::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("providers", providers_);
+  tracker->TrackField("async_ids_stack", async_ids_stack_);
+  tracker->TrackField("fields", fields_);
+  tracker->TrackField("async_id_fields", async_id_fields_);
+}
+
 void AsyncHooks::grow_async_ids_stack() {
   async_ids_stack_.reserve(async_ids_stack_.Length() * 3);
 
@@ -805,13 +844,83 @@ void Environment::stop_sub_worker_contexts() {
   }
 }
 
+void MemoryTracker::TrackField(const char* edge_name,
+                               const CleanupHookCallback& value,
+                               const char* node_name) {
+  v8::HandleScope handle_scope(isolate_);
+  // Here, we utilize the fact that CleanupHookCallback instances
+  // are all unique and won't be tracked twice in one BuildEmbedderGraph
+  // callback.
+  MemoryRetainerNode* n =
+      PushNode("CleanupHookCallback", sizeof(value), edge_name);
+  // TODO(joyeecheung): at the moment only arguments of type BaseObject will be
+  // identified and tracked here (based on their deleters),
+  // but we may convert and track other known types here.
+  BaseObject* obj = value.GetBaseObject();
+  if (obj != nullptr) {
+    this->TrackField("arg", obj);
+  }
+  CHECK_EQ(CurrentNode(), n);
+  CHECK_NE(n->size_, 0);
+  PopNode();
+}
+
 void Environment::BuildEmbedderGraph(Isolate* isolate,
                                      EmbedderGraph* graph,
                                      void* data) {
   MemoryTracker tracker(isolate, graph);
-  static_cast<Environment*>(data)->ForEachBaseObject([&](BaseObject* obj) {
-    tracker.Track(obj);
-  });
+  Environment* env = static_cast<Environment*>(data);
+  tracker.Track(env);
+}
+
+inline size_t Environment::SelfSize() const {
+  size_t size = sizeof(*this);
+  // Remove non pointer fields that will be tracked in MemoryInfo()
+  // TODO(joyeecheung): refactor the MemoryTracker interface so
+  // this can be done for common types within the Track* calls automatically
+  // if a certain scope is entered.
+  size -= sizeof(thread_stopper_);
+  size -= sizeof(async_hooks_);
+  size -= sizeof(tick_info_);
+  size -= sizeof(immediate_info_);
+  return size;
+}
+
+void Environment::MemoryInfo(MemoryTracker* tracker) const {
+  // Iteratable STLs have their own sizes subtracted from the parent
+  // by default.
+  tracker->TrackField("isolate_data", isolate_data_);
+  tracker->TrackField("native_modules_with_cache", native_modules_with_cache);
+  tracker->TrackField("native_modules_without_cache",
+                      native_modules_without_cache);
+  tracker->TrackField("destroy_async_id_list", destroy_async_id_list_);
+  tracker->TrackField("exec_argv", exec_argv_);
+  tracker->TrackField("should_abort_on_uncaught_toggle",
+                      should_abort_on_uncaught_toggle_);
+  tracker->TrackField("stream_base_state", stream_base_state_);
+  tracker->TrackField("fs_stats_field_array", fs_stats_field_array_);
+  tracker->TrackField("fs_stats_field_bigint_array",
+                      fs_stats_field_bigint_array_);
+  tracker->TrackField("thread_stopper", thread_stopper_);
+  tracker->TrackField("cleanup_hooks", cleanup_hooks_);
+  tracker->TrackField("async_hooks", async_hooks_);
+  tracker->TrackField("immediate_info", immediate_info_);
+  tracker->TrackField("tick_info", tick_info_);
+
+#define V(PropertyName, TypeName)                                              \
+  tracker->TrackField(#PropertyName, PropertyName());
+  ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
+#undef V
+
+  // FIXME(joyeecheung): track other fields in Environment.
+  // Currently MemoryTracker is unable to track these
+  // correctly:
+  // - Internal types that do not implement MemoryRetainer yet
+  // - STL containers with MemoryRetainer* inside
+  // - STL containers with numeric types inside that should not have their
+  //   nodes elided e.g. numeric keys in maps.
+  // We also need to make sure that when we add a non-pointer field as its own
+  // node, we shift its sizeof() size out of the Environment node.
 }
 
 char* Environment::Reallocate(char* data, size_t old_size, size_t size) {
@@ -873,10 +982,6 @@ void BaseObject::DeleteMe(void* data) {
 
 Local<Object> BaseObject::WrappedObject() const {
   return object();
-}
-
-bool BaseObject::IsRootNode() const {
-  return !persistent_handle_.IsWeak();
 }
 
 }  // namespace node

@@ -38,6 +38,7 @@
 #include "uv.h"
 #include "v8.h"
 
+#include <array>
 #include <atomic>
 #include <cstdint>
 #include <functional>
@@ -330,31 +331,48 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(zero_return_string, "ZERO_RETURN")
 
 #define ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)                            \
-  V(as_callback_data, v8::Object)                                              \
   V(as_callback_data_template, v8::FunctionTemplate)                           \
+  V(async_wrap_ctor_template, v8::FunctionTemplate)                            \
+  V(async_wrap_object_ctor_template, v8::FunctionTemplate)                     \
+  V(context, v8::Context)                                                      \
+  V(fd_constructor_template, v8::ObjectTemplate)                               \
+  V(fdclose_constructor_template, v8::ObjectTemplate)                          \
+  V(filehandlereadwrap_template, v8::ObjectTemplate)                           \
+  V(fsreqpromise_constructor_template, v8::ObjectTemplate)                     \
+  V(handle_wrap_ctor_template, v8::FunctionTemplate)                           \
+  V(http2settings_constructor_template, v8::ObjectTemplate)                    \
+  V(http2stream_constructor_template, v8::ObjectTemplate)                      \
+  V(http2ping_constructor_template, v8::ObjectTemplate)                        \
+  V(libuv_stream_wrap_ctor_template, v8::FunctionTemplate)                     \
+  V(message_event_object_template, v8::ObjectTemplate)                         \
+  V(message_port_constructor_template, v8::FunctionTemplate)                   \
+  V(pipe_constructor_template, v8::FunctionTemplate)                           \
+  V(promise_wrap_template, v8::ObjectTemplate)                                 \
+  V(sab_lifetimepartner_constructor_template, v8::FunctionTemplate)            \
+  V(script_context_constructor_template, v8::FunctionTemplate)                 \
+  V(secure_context_constructor_template, v8::FunctionTemplate)                 \
+  V(shutdown_wrap_template, v8::ObjectTemplate)                                \
+  V(streambaseoutputstream_constructor_template, v8::ObjectTemplate)           \
+  V(tcp_constructor_template, v8::FunctionTemplate)                            \
+  V(tty_constructor_template, v8::FunctionTemplate)                            \
+  V(write_wrap_template, v8::ObjectTemplate)
+
+#define ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)                                \
+  V(as_callback_data, v8::Object)                                              \
   V(async_hooks_after_function, v8::Function)                                  \
   V(async_hooks_before_function, v8::Function)                                 \
   V(async_hooks_binding, v8::Object)                                           \
   V(async_hooks_destroy_function, v8::Function)                                \
   V(async_hooks_init_function, v8::Function)                                   \
   V(async_hooks_promise_resolve_function, v8::Function)                        \
-  V(async_wrap_ctor_template, v8::FunctionTemplate)                            \
-  V(async_wrap_object_ctor_template, v8::FunctionTemplate)                     \
   V(buffer_prototype_object, v8::Object)                                       \
   V(coverage_connection, v8::Object)                                           \
-  V(context, v8::Context)                                                      \
   V(crypto_key_object_constructor, v8::Function)                               \
   V(domain_callback, v8::Function)                                             \
   V(domexception_function, v8::Function)                                       \
-  V(fd_constructor_template, v8::ObjectTemplate)                               \
-  V(fdclose_constructor_template, v8::ObjectTemplate)                          \
-  V(filehandlereadwrap_template, v8::ObjectTemplate)                           \
   V(fs_use_promises_symbol, v8::Symbol)                                        \
-  V(fsreqpromise_constructor_template, v8::ObjectTemplate)                     \
-  V(handle_wrap_ctor_template, v8::FunctionTemplate)                           \
   V(host_import_module_dynamically_callback, v8::Function)                     \
   V(host_initialize_import_meta_object_callback, v8::Function)                 \
-  V(http2ping_constructor_template, v8::ObjectTemplate)                        \
   V(http2session_on_altsvc_function, v8::Function)                             \
   V(http2session_on_error_function, v8::Function)                              \
   V(http2session_on_frame_error_function, v8::Function)                        \
@@ -367,48 +385,37 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(http2session_on_settings_function, v8::Function)                           \
   V(http2session_on_stream_close_function, v8::Function)                       \
   V(http2session_on_stream_trailers_function, v8::Function)                    \
-  V(http2settings_constructor_template, v8::ObjectTemplate)                    \
-  V(http2stream_constructor_template, v8::ObjectTemplate)                      \
   V(internal_binding_loader, v8::Function)                                     \
   V(immediate_callback_function, v8::Function)                                 \
   V(inspector_console_extension_installer, v8::Function)                       \
-  V(libuv_stream_wrap_ctor_template, v8::FunctionTemplate)                     \
   V(message_port, v8::Object)                                                  \
-  V(message_event_object_template, v8::ObjectTemplate)                         \
-  V(message_port_constructor_template, v8::FunctionTemplate)                   \
   V(native_module_require, v8::Function)                                       \
   V(on_coverage_message_function, v8::Function)                                \
   V(performance_entry_callback, v8::Function)                                  \
   V(performance_entry_template, v8::Function)                                  \
-  V(pipe_constructor_template, v8::FunctionTemplate)                           \
   V(process_object, v8::Object)                                                \
   V(primordials, v8::Object)                                                   \
   V(promise_reject_callback, v8::Function)                                     \
-  V(promise_wrap_template, v8::ObjectTemplate)                                 \
-  V(sab_lifetimepartner_constructor_template, v8::FunctionTemplate)            \
-  V(script_context_constructor_template, v8::FunctionTemplate)                 \
   V(script_data_constructor_function, v8::Function)                            \
-  V(secure_context_constructor_template, v8::FunctionTemplate)                 \
-  V(shutdown_wrap_template, v8::ObjectTemplate)                                \
-  V(streambaseoutputstream_constructor_template, v8::ObjectTemplate)           \
-  V(tcp_constructor_template, v8::FunctionTemplate)                            \
   V(tick_callback_function, v8::Function)                                      \
   V(timers_callback_function, v8::Function)                                    \
   V(tls_wrap_constructor_function, v8::Function)                               \
   V(trace_category_state_function, v8::Function)                               \
-  V(tty_constructor_template, v8::FunctionTemplate)                            \
   V(udp_constructor_function, v8::Function)                                    \
-  V(url_constructor_function, v8::Function)                                    \
-  V(write_wrap_template, v8::ObjectTemplate)
+  V(url_constructor_function, v8::Function)
 
 class Environment;
 
-class IsolateData {
+class IsolateData : public MemoryRetainer {
  public:
   IsolateData(v8::Isolate* isolate,
               uv_loop_t* event_loop,
               MultiIsolatePlatform* platform = nullptr,
               ArrayBufferAllocator* node_allocator = nullptr);
+  SET_MEMORY_INFO_NAME(IsolateData);
+  SET_SELF_SIZE(IsolateData);
+  void MemoryInfo(MemoryTracker* tracker) const override;
+
   inline uv_loop_t* event_loop() const;
   inline MultiIsolatePlatform* platform() const;
   inline std::shared_ptr<PerIsolateOptions> options();
@@ -563,8 +570,12 @@ namespace per_process {
 extern std::shared_ptr<KVStore> system_environment;
 }
 
-class AsyncHooks {
+class AsyncHooks : public MemoryRetainer {
  public:
+  SET_MEMORY_INFO_NAME(AsyncHooks);
+  SET_SELF_SIZE(AsyncHooks);
+  void MemoryInfo(MemoryTracker* tracker) const override;
+
   // Reason for both UidFields and Fields are that one is stored as a double*
   // and the other as a uint32_t*.
   enum Fields {
@@ -626,7 +637,7 @@ class AsyncHooks {
   friend class Environment;  // So we can call the constructor.
   inline AsyncHooks();
   // Keep a list of all Persistent strings used for Provider types.
-  v8::Eternal<v8::String> providers_[AsyncWrap::PROVIDERS_LENGTH];
+  std::array<v8::Eternal<v8::String>, AsyncWrap::PROVIDERS_LENGTH> providers_;
   // Stores the ids of the current execution context stack.
   AliasedBuffer<double, v8::Float64Array> async_ids_stack_;
   // Attached to a Uint32Array that tracks the number of active hooks for
@@ -650,7 +661,7 @@ class AsyncCallbackScope {
   Environment* env_;
 };
 
-class ImmediateInfo {
+class ImmediateInfo : public MemoryRetainer {
  public:
   inline AliasedBuffer<uint32_t, v8::Uint32Array>& fields();
   inline uint32_t count() const;
@@ -664,6 +675,10 @@ class ImmediateInfo {
   ImmediateInfo(const ImmediateInfo&) = delete;
   ImmediateInfo& operator=(const ImmediateInfo&) = delete;
 
+  SET_MEMORY_INFO_NAME(ImmediateInfo);
+  SET_SELF_SIZE(ImmediateInfo);
+  void MemoryInfo(MemoryTracker* tracker) const override;
+
  private:
   friend class Environment;  // So we can call the constructor.
   inline explicit ImmediateInfo(v8::Isolate* isolate);
@@ -673,11 +688,15 @@ class ImmediateInfo {
   AliasedBuffer<uint32_t, v8::Uint32Array> fields_;
 };
 
-class TickInfo {
+class TickInfo : public MemoryRetainer {
  public:
   inline AliasedBuffer<uint8_t, v8::Uint8Array>& fields();
   inline bool has_tick_scheduled() const;
   inline bool has_rejection_to_warn() const;
+
+  SET_MEMORY_INFO_NAME(TickInfo);
+  SET_SELF_SIZE(TickInfo);
+  void MemoryInfo(MemoryTracker* tracker) const override;
 
   TickInfo(const TickInfo&) = delete;
   TickInfo& operator=(const TickInfo&) = delete;
@@ -720,10 +739,46 @@ class ShouldNotAbortOnUncaughtScope {
   Environment* env_;
 };
 
-class Environment {
+class CleanupHookCallback {
+ public:
+  CleanupHookCallback(void (*fn)(void*),
+                      void* arg,
+                      uint64_t insertion_order_counter)
+      : fn_(fn), arg_(arg), insertion_order_counter_(insertion_order_counter) {}
+
+  // Only hashes `arg_`, since that is usually enough to identify the hook.
+  struct Hash {
+    inline size_t operator()(const CleanupHookCallback& cb) const;
+  };
+
+  // Compares by `fn_` and `arg_` being equal.
+  struct Equal {
+    inline bool operator()(const CleanupHookCallback& a,
+                           const CleanupHookCallback& b) const;
+  };
+
+  inline BaseObject* GetBaseObject() const;
+
+ private:
+  friend class Environment;
+  void (*fn_)(void*);
+  void* arg_;
+
+  // We keep track of the insertion order for these objects, so that we can
+  // call the callbacks in reverse order when we are cleaning up.
+  uint64_t insertion_order_counter_;
+};
+
+class Environment : public MemoryRetainer {
  public:
   Environment(const Environment&) = delete;
   Environment& operator=(const Environment&) = delete;
+
+  SET_MEMORY_INFO_NAME(Environment);
+
+  inline size_t SelfSize() const override;
+  bool IsRootNode() const override { return true; }
+  void MemoryInfo(MemoryTracker* tracker) const override;
 
   inline size_t async_callback_scope_depth() const;
   inline void PushAsyncCallbackScope();
@@ -994,6 +1049,7 @@ class Environment {
 #define V(PropertyName, TypeName)                                             \
   inline v8::Local<TypeName> PropertyName() const;                            \
   inline void set_ ## PropertyName(v8::Local<TypeName> value);
+  ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V
 
@@ -1182,28 +1238,6 @@ class Environment {
   void RunAndClearNativeImmediates();
   static void CheckImmediate(uv_check_t* handle);
 
-  struct CleanupHookCallback {
-    void (*fn_)(void*);
-    void* arg_;
-
-    // We keep track of the insertion order for these objects, so that we can
-    // call the callbacks in reverse order when we are cleaning up.
-    uint64_t insertion_order_counter_;
-
-    // Only hashes `arg_`, since that is usually enough to identify the hook.
-    struct Hash {
-      inline size_t operator()(const CleanupHookCallback& cb) const;
-    };
-
-    // Compares by `fn_` and `arg_` being equal.
-    struct Equal {
-      inline bool operator()(const CleanupHookCallback& a,
-                             const CleanupHookCallback& b) const;
-    };
-
-    inline BaseObject* GetBaseObject() const;
-  };
-
   // Use an unordered_set, so that we have efficient insertion and removal.
   std::unordered_set<CleanupHookCallback,
                      CleanupHookCallback::Hash,
@@ -1219,6 +1253,7 @@ class Environment {
   void ForEachBaseObject(T&& iterator);
 
 #define V(PropertyName, TypeName) Persistent<TypeName> PropertyName ## _;
+  ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V
 };

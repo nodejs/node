@@ -35,6 +35,8 @@ namespace crypto {
 class NodeBIO;
 }
 
+class CleanupHookCallback;
+
 /* Example:
  *
  * class ExampleRetainer : public MemoryRetainer {
@@ -179,6 +181,10 @@ class MemoryTracker {
   inline void TrackField(const char* edge_name,
                          const T& value,
                          const char* node_name = nullptr);
+  template <typename T>
+  void TrackField(const char* edge_name,
+                  const v8::Eternal<T>& value,
+                  const char* node_name);
   template <typename T, typename Traits>
   inline void TrackField(const char* edge_name,
                          const v8::Persistent<T, Traits>& value,
@@ -191,6 +197,13 @@ class MemoryTracker {
   inline void TrackField(const char* edge_name,
                          const MallocedBuffer<T>& value,
                          const char* node_name = nullptr);
+  // We do not implement CleanupHookCallback as MemoryRetainer
+  // but instead specialize the method here to avoid the cost of
+  // virtual pointers.
+  // TODO(joyeecheung): do this for BaseObject and remove WrappedObject()
+  void TrackField(const char* edge_name,
+                  const CleanupHookCallback& value,
+                  const char* node_name = nullptr);
   inline void TrackField(const char* edge_name,
                          const uv_buf_t& value,
                          const char* node_name = nullptr);
