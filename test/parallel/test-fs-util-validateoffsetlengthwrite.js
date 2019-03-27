@@ -22,22 +22,6 @@ const { kMaxLength } = require('buffer');
   );
 }
 
-// RangeError when byteLength > kMaxLength, and length > kMaxLength - offset .
-{
-  const offset = kMaxLength;
-  const length = 100;
-  const byteLength = kMaxLength + 1;
-  common.expectsError(
-    () => validateOffsetLengthWrite(offset, length, byteLength),
-    {
-      code: 'ERR_OUT_OF_RANGE',
-      type: RangeError,
-      message: 'The value of "length" is out of range. ' +
-               `It must be <= ${kMaxLength - offset}. Received ${length}`
-    }
-  );
-}
-
 // RangeError when byteLength < kMaxLength, and length > byteLength - offset .
 {
   const offset = kMaxLength - 150;
