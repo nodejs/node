@@ -1771,11 +1771,6 @@ Valid TLS protocol versions are `'TLSv1'`, `'TLSv1.1'`, or `'TLSv1.2'`.
 Attempting to set a TLS protocol `minVersion` or `maxVersion` conflicts with an
 attempt to set the `secureProtocol` explicitly. Use one mechanism or the other.
 
-<a id="ERR_TLS_RENEGOTIATE"></a>
-### ERR_TLS_RENEGOTIATE
-
-An attempt to renegotiate the TLS session failed.
-
 <a id="ERR_TLS_RENEGOTIATION_DISABLED"></a>
 ### ERR_TLS_RENEGOTIATION_DISABLED
 

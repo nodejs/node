@@ -28,8 +28,12 @@ connect({
   assert.strictEqual(client.getProtocol(), 'TLSv1.3');
 
   const ok = client.renegotiate({}, common.mustCall((err) => {
-    assert(err.code, 'ERR_TLS_RENEGOTIATE');
-    assert(err.message, 'Attempt to renegotiate TLS session failed');
+    assert.throws(() => { throw err; }, {
+      message: 'error:1420410A:SSL routines:SSL_renegotiate:wrong ssl version',
+      code: 'ERR_SSL_WRONG_SSL_VERSION',
+      library: 'SSL routines',
+      reason: 'wrong ssl version',
+    });
     cleanup();
   }));
 
