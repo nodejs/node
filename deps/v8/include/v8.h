@@ -4640,8 +4640,7 @@ class V8_EXPORT WasmModuleObject : public Object {
    * An opaque, native heap object for transferring wasm modules. It
    * supports move semantics, and does not support copy semantics.
    */
-  using TransferrableModule V8_DEPRECATED("Use CompiledWasmModule directly") =
-      CompiledWasmModule;
+  using TransferrableModule = CompiledWasmModule;
 
   /**
    * Get an in-memory, non-persistable, and context-independent (meaning,
@@ -7055,7 +7054,6 @@ class PromiseRejectMessage {
 typedef void (*PromiseRejectCallback)(PromiseRejectMessage message);
 
 // --- Microtasks Callbacks ---
-V8_DEPRECATE_SOON("Use *WithData version.")
 typedef void (*MicrotasksCompletedCallback)(Isolate*);
 typedef void (*MicrotasksCompletedCallbackWithData)(Isolate*, void*);
 typedef void (*MicrotaskCallback)(void* data);
