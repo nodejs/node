@@ -7,18 +7,24 @@ prefix known_issues
 [true] # This section applies to all platforms
 
 [$system==win32]
+test-fs-copyfile-respect-permissions: SKIP
 
 [$system==linux]
 test-vm-timeout-escape-promise: PASS,FLAKY
+test-fs-copyfile-respect-permissions: SKIP
 
 [$system==macos]
 
 [$system==solaris]
+test-fs-copyfile-respect-permissions: SKIP
 
 [$system==freebsd]
+test-fs-copyfile-respect-permissions: SKIP
 
 [$system==aix]
+test-fs-copyfile-respect-permissions: SKIP
 
 [$arch==arm]
 # https://github.com/nodejs/node/issues/24120
 test-vm-timeout-escape-nexttick: PASS,FLAKY
+test-fs-copyfile-respect-permissions: SKIP
