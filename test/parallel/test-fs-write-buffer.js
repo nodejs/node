@@ -148,3 +148,27 @@ tmpdir.refresh();
     fs.write(fd, Uint8Array.from(expected), cb);
   }));
 }
+
+// fs.write with invalid offset type
+{
+  const filename = path.join(tmpdir.path, 'write7.txt');
+  fs.open(filename, 'w', 0o644, common.mustCall((err, fd) => {
+    assert.ifError(err);
+
+    assert.throws(() => {
+      fs.write(fd,
+               Buffer.from('abcd'),
+               NaN,
+               expected.length,
+               0,
+               common.mustNotCall());
+    }, {
+      code: 'ERR_OUT_OF_RANGE',
+      name: 'RangeError',
+      message: 'The value of "offset" is out of range. ' +
+               'It must be an integer. Received NaN'
+    });
+
+    fs.closeSync(fd);
+  }));
+}
