@@ -30,6 +30,39 @@ static napi_value Get(napi_env env, napi_callback_info info) {
   return output;
 }
 
+static napi_value GetNamed(napi_env env, napi_callback_info info) {
+  size_t argc = 2;
+  napi_value args[2];
+  char key[256] = "";
+  size_t key_length;
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+
+  NAPI_ASSERT(env, argc >= 2, "Wrong number of arguments");
+
+  napi_valuetype value_type0;
+  NAPI_CALL(env, napi_typeof(env, args[0], &value_type0));
+
+  NAPI_ASSERT(env, value_type0 == napi_object,
+      "Wrong type of arguments. Expects an object as first argument.");
+
+  napi_valuetype value_type1;
+  NAPI_CALL(env, napi_typeof(env, args[1], &value_type1));
+
+  NAPI_ASSERT(env, value_type1 == napi_string,
+      "Wrong type of arguments. Expects a string as second.");
+
+  napi_value object = args[0];
+  NAPI_CALL(env,
+      napi_get_value_string_utf8(env, args[1], key, 255, &key_length));
+  key[255] = 0;
+  NAPI_ASSERT(env, key_length <= 255,
+      "Cannot accommodate keys longer than 255 bytes");
+  napi_value output;
+  NAPI_CALL(env, napi_get_named_property(env, object, key, &output));
+
+  return output;
+}
+
 static napi_value Set(napi_env env, napi_callback_info info) {
   size_t argc = 3;
   napi_value args[3];
@@ -57,6 +90,41 @@ static napi_value Set(napi_env env, napi_callback_info info) {
   return valuetrue;
 }
 
+static napi_value SetNamed(napi_env env, napi_callback_info info) {
+  size_t argc = 3;
+  napi_value args[3];
+  char key[256] = "";
+  size_t key_length;
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+
+  NAPI_ASSERT(env, argc >= 3, "Wrong number of arguments");
+
+  napi_valuetype value_type0;
+  NAPI_CALL(env, napi_typeof(env, args[0], &value_type0));
+
+  NAPI_ASSERT(env, value_type0 == napi_object,
+      "Wrong type of arguments. Expects an object as first argument.");
+
+  napi_valuetype value_type1;
+  NAPI_CALL(env, napi_typeof(env, args[1], &value_type1));
+
+  NAPI_ASSERT(env, value_type1 == napi_string,
+      "Wrong type of arguments. Expects a string as second.");
+
+  NAPI_CALL(env,
+      napi_get_value_string_utf8(env, args[1], key, 255, &key_length));
+  key[255] = 0;
+  NAPI_ASSERT(env, key_length <= 255,
+      "Cannot accommodate keys longer than 255 bytes");
+
+  NAPI_CALL(env, napi_set_named_property(env, args[0], key, args[2]));
+
+  napi_value value_true;
+  NAPI_CALL(env, napi_get_boolean(env, true, &value_true));
+
+  return value_true;
+}
+
 static napi_value Has(napi_env env, napi_callback_info info) {
   size_t argc = 2;
   napi_value args[2];
@@ -78,6 +146,42 @@ static napi_value Has(napi_env env, napi_callback_info info) {
 
   bool has_property;
   NAPI_CALL(env, napi_has_property(env, args[0], args[1], &has_property));
+
+  napi_value ret;
+  NAPI_CALL(env, napi_get_boolean(env, has_property, &ret));
+
+  return ret;
+}
+
+static napi_value HasNamed(napi_env env, napi_callback_info info) {
+  size_t argc = 2;
+  napi_value args[2];
+  char key[256] = "";
+  size_t key_length;
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+
+  NAPI_ASSERT(env, argc >= 2, "Wrong number of arguments");
+
+  napi_valuetype value_type0;
+  NAPI_CALL(env, napi_typeof(env, args[0], &value_type0));
+
+  NAPI_ASSERT(env, value_type0 == napi_object,
+      "Wrong type of arguments. Expects an object as first argument.");
+
+  napi_valuetype value_type1;
+  NAPI_CALL(env, napi_typeof(env, args[1], &value_type1));
+
+  NAPI_ASSERT(env, value_type1 == napi_string || value_type1 == napi_symbol,
+      "Wrong type of arguments. Expects a string as second.");
+
+  NAPI_CALL(env,
+      napi_get_value_string_utf8(env, args[1], key, 255, &key_length));
+  key[255] = 0;
+  NAPI_ASSERT(env, key_length <= 255,
+      "Cannot accommodate keys longer than 255 bytes");
+
+  bool has_property;
+  NAPI_CALL(env, napi_has_named_property(env, args[0], key, &has_property));
 
   napi_value ret;
   NAPI_CALL(env, napi_get_boolean(env, has_property, &ret));
@@ -220,8 +324,11 @@ EXTERN_C_START
 napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("Get", Get),
+    DECLARE_NAPI_PROPERTY("GetNamed", GetNamed),
     DECLARE_NAPI_PROPERTY("Set", Set),
+    DECLARE_NAPI_PROPERTY("SetNamed", SetNamed),
     DECLARE_NAPI_PROPERTY("Has", Has),
+    DECLARE_NAPI_PROPERTY("HasNamed", HasNamed),
     DECLARE_NAPI_PROPERTY("HasOwn", HasOwn),
     DECLARE_NAPI_PROPERTY("Delete", Delete),
     DECLARE_NAPI_PROPERTY("New", New),
