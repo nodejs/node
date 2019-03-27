@@ -923,6 +923,26 @@ const parseTests = {
     pathname: "alert(1);a='@white-listed.com'",
     path: "alert(1);a='@white-listed.com'",
     href: "javascript:alert(1);a='@white-listed.com'"
+  },
+
+  'ws://www.example.com': {
+    protocol: 'ws:',
+    slashes: true,
+    hostname: 'www.example.com',
+    host: 'www.example.com',
+    pathname: '/',
+    path: '/',
+    href: 'ws://www.example.com/'
+  },
+
+  'wss://www.example.com': {
+    protocol: 'wss:',
+    slashes: true,
+    hostname: 'www.example.com',
+    host: 'www.example.com',
+    pathname: '/',
+    path: '/',
+    href: 'wss://www.example.com/'
   }
 };
 
