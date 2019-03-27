@@ -179,6 +179,10 @@ class MemoryTracker {
   inline void TrackField(const char* edge_name,
                          const T& value,
                          const char* node_name = nullptr);
+  template <typename T>
+  void TrackField(const char* edge_name,
+                  const v8::Eternal<T>& value,
+                  const char* node_name);
   template <typename T, typename Traits>
   inline void TrackField(const char* edge_name,
                          const v8::Persistent<T, Traits>& value,

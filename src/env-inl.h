@@ -1049,7 +1049,8 @@ void AsyncRequest::set_stopped(bool flag) {
   inline void Environment::set_ ## PropertyName(v8::Local<TypeName> value) {  \
     PropertyName ## _.Reset(isolate(), value);                                \
   }
-  ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
+  ENVIRONMENT_STRONG_PERSISTENT_DATA(V)
+  ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
 #undef V
 
 }  // namespace node
