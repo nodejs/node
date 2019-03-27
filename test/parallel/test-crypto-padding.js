@@ -82,7 +82,12 @@ assert.strictEqual(enc(EVEN_LENGTH_PLAIN, true), EVEN_LENGTH_ENCRYPTED);
 assert.throws(function() {
   // Input must have block length %.
   enc(ODD_LENGTH_PLAIN, false);
-}, /data not multiple of block length/);
+}, {
+  message: 'error:0607F08A:digital envelope routines:EVP_EncryptFinal_ex:' +
+    'data not multiple of block length',
+  code: 'ERR_OSSL_EVP_DATA_NOT_MULTIPLE_OF_BLOCK_LENGTH',
+  reason: 'data not multiple of block length',
+});
 
 assert.strictEqual(
   enc(EVEN_LENGTH_PLAIN, false), EVEN_LENGTH_ENCRYPTED_NOPAD
@@ -99,7 +104,12 @@ assert.strictEqual(dec(EVEN_LENGTH_ENCRYPTED, false).length, 48);
 assert.throws(function() {
   // Must have at least 1 byte of padding (PKCS):
   assert.strictEqual(dec(EVEN_LENGTH_ENCRYPTED_NOPAD, true), EVEN_LENGTH_PLAIN);
-}, /bad decrypt/);
+}, {
+  message: 'error:06065064:digital envelope routines:EVP_DecryptFinal_ex:' +
+    'bad decrypt',
+  reason: 'bad decrypt',
+  code: 'ERR_OSSL_EVP_BAD_DECRYPT',
+});
 
 // No-pad encrypted string should return the same:
 assert.strictEqual(

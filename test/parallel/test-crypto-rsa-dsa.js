@@ -24,8 +24,14 @@ const dsaKeyPemEncrypted = fixtures.readSync('test_dsa_privkey_encrypted.pem',
 const rsaPkcs8KeyPem = fixtures.readSync('test_rsa_pkcs8_privkey.pem');
 const dsaPkcs8KeyPem = fixtures.readSync('test_dsa_pkcs8_privkey.pem');
 
-const decryptError =
-  /^Error: error:06065064:digital envelope routines:EVP_DecryptFinal_ex:bad decrypt$/;
+const decryptError = {
+  message: 'error:06065064:digital envelope routines:EVP_DecryptFinal_ex:' +
+    'bad decrypt',
+  code: 'ERR_OSSL_EVP_BAD_DECRYPT',
+  reason: 'bad decrypt',
+  function: 'EVP_DecryptFinal_ex',
+  library: 'digital envelope routines',
+};
 
 // Test RSA encryption/decryption
 {

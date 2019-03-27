@@ -453,7 +453,7 @@ Local<Value> TLSWrap::GetSSLError(int status, int* err, std::string* msg) {
             if (c == ' ')
               c = '_';
             else
-              c = ::toupper(c);
+              c = ToUpper(c);
           }
           obj->Set(context, env()->code_string(),
                    OneByteString(isolate, ("ERR_SSL_" + code).c_str()))

@@ -165,7 +165,13 @@ const privatePem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
   // This should not cause a crash: https://github.com/nodejs/node/issues/25247
   assert.throws(() => {
     createPrivateKey({ key: '' });
-  }, /null/);
+  }, {
+    message: 'error:2007E073:BIO routines:BIO_new_mem_buf:null parameter',
+    code: 'ERR_OSSL_BIO_NULL_PARAMETER',
+    reason: 'null parameter',
+    library: 'BIO routines',
+    function: 'BIO_new_mem_buf',
+  });
 }
 
 [

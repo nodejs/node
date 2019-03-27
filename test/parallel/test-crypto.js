@@ -238,15 +238,19 @@ assert.throws(function() {
   // This would inject errors onto OpenSSL's error stack
   crypto.createSign('sha1').sign(sha1_privateKey);
 }, (err) => {
+  // Do the standard checks, but then do some custom checks afterwards.
+  assert.throws(() => { throw err; }, {
+    message: 'error:0D0680A8:asn1 encoding routines:asn1_check_tlen:wrong tag',
+    library: 'asn1 encoding routines',
+    function: 'asn1_check_tlen',
+    reason: 'wrong tag',
+    code: 'ERR_OSSL_ASN1_WRONG_TAG',
+  });
   // Throws crypto error, so there is an opensslErrorStack property.
   // The openSSL stack should have content.
-  if ((err instanceof Error) &&
-      /asn1 encoding routines:[^:]*:wrong tag/.test(err) &&
-      err.opensslErrorStack !== undefined &&
-      Array.isArray(err.opensslErrorStack) &&
-      err.opensslErrorStack.length > 0) {
-    return true;
-  }
+  assert(Array.isArray(err.opensslErrorStack));
+  assert(err.opensslErrorStack.length > 0);
+  return true;
 });
 
 // Make sure memory isn't released before being returned

@@ -91,8 +91,13 @@ const secret4 = dh4.computeSecret(key2, 'hex', 'base64');
 
 assert.strictEqual(secret1, secret4);
 
-const wrongBlockLength =
-  /^Error: error:0606506D:digital envelope routines:EVP_DecryptFinal_ex:wrong final block length$/;
+const wrongBlockLength = {
+  message: 'error:0606506D:digital envelope' +
+    ' routines:EVP_DecryptFinal_ex:wrong final block length',
+  code: 'ERR_OSSL_EVP_WRONG_FINAL_BLOCK_LENGTH',
+  library: 'digital envelope routines',
+  reason: 'wrong final block length'
+};
 
 // Run this one twice to make sure that the dh3 clears its error properly
 {
@@ -111,7 +116,7 @@ const wrongBlockLength =
 
 assert.throws(() => {
   dh3.computeSecret('');
-}, /^Error: Supplied key is too small$/);
+}, { message: 'Supplied key is too small' });
 
 // Create a shared using a DH group.
 const alice = crypto.createDiffieHellmanGroup('modp5');
@@ -260,7 +265,7 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
 
   assert.throws(() => {
     ecdh4.setPublicKey(ecdh3.getPublicKey());
-  }, /^Error: Failed to convert Buffer to EC_POINT$/);
+  }, { message: 'Failed to convert Buffer to EC_POINT' });
 
   // Verify that we can use ECDH without having to use newly generated keys.
   const ecdh5 = crypto.createECDH('secp256k1');
