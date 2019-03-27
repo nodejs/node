@@ -17,12 +17,14 @@ const object = {
 };
 
 assert.strictEqual(test_object.Get(object, 'hello'), 'world');
+assert.strictEqual(test_object.GetNamed(object, 'hello'), 'world');
 assert.deepStrictEqual(test_object.Get(object, 'array'),
                        [ 1, 94, 'str', 12.321, { test: 'obj in arr' } ]);
 assert.deepStrictEqual(test_object.Get(object, 'newObject'),
                        { test: 'obj in obj' });
 
 assert(test_object.Has(object, 'hello'));
+assert(test_object.HasNamed(object, 'hello'));
 assert(test_object.Has(object, 'array'));
 assert(test_object.Has(object, 'newObject'));
 
@@ -113,8 +115,10 @@ assert.strictEqual(newObject.test_string, 'test string');
   assert.strictEqual(test_object.Get(object2, sym1), '@@iterator');
   assert.strictEqual(test_object.Get(object2, sym2), sym3);
   assert(test_object.Set(object2, 'string', 'value'));
+  assert(test_object.SetNamed(object2, 'named_string', 'value'));
   assert(test_object.Set(object2, sym4, 123));
   assert(test_object.Has(object2, 'string'));
+  assert(test_object.HasNamed(object2, 'named_string'));
   assert(test_object.Has(object2, sym4));
   assert.strictEqual(test_object.Get(object2, 'string'), 'value');
   assert.strictEqual(test_object.Get(object2, sym4), 123);
