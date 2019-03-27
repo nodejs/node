@@ -284,6 +284,10 @@ inline void SwapBytes64(char* data, size_t nbytes);
 inline char ToLower(char c);
 inline std::string ToLower(const std::string& in);
 
+// toupper() is locale-sensitive.  Use ToUpper() instead.
+inline char ToUpper(char c);
+inline std::string ToUpper(const std::string& in);
+
 // strcasecmp() is locale-sensitive.  Use StringEqualNoCase() instead.
 inline bool StringEqualNoCase(const char* a, const char* b);
 

@@ -212,6 +212,113 @@ static int NoPasswordCallback(char* buf, int size, int rwflag, void* u) {
 }
 
 
+// namespace node::crypto::error
+namespace error {
+void Decorate(Environment* env, Local<Object> obj,
+              unsigned long err) {  // NOLINT(runtime/int)
+  if (err == 0) return;  // No decoration possible.
+
+  const char* ls = ERR_lib_error_string(err);
+  const char* fs = ERR_func_error_string(err);
+  const char* rs = ERR_reason_error_string(err);
+
+  Isolate* isolate = env->isolate();
+  Local<Context> context = isolate->GetCurrentContext();
+
+  if (ls != nullptr) {
+    if (obj->Set(context, env->library_string(),
+                 OneByteString(isolate, ls)).IsNothing()) {
+      return;
+    }
+  }
+  if (fs != nullptr) {
+    if (obj->Set(context, env->function_string(),
+                 OneByteString(isolate, fs)).IsNothing()) {
+      return;
+    }
+  }
+  if (rs != nullptr) {
+    if (obj->Set(context, env->reason_string(),
+                 OneByteString(isolate, rs)).IsNothing()) {
+      return;
+    }
+
+    // SSL has no API to recover the error name from the number, so we
+    // transform reason strings like "this error" to "ERR_SSL_THIS_ERROR",
+    // which ends up being close to the original error macro name.
+    std::string reason(rs);
+
+    for (auto& c : reason) {
+      if (c == ' ')
+        c = '_';
+      else
+        c = ToUpper(c);
+    }
+
+#define OSSL_ERROR_CODES_MAP(V)                                               \
+    V(SYS)                                                                    \
+    V(BN)                                                                     \
+    V(RSA)                                                                    \
+    V(DH)                                                                     \
+    V(EVP)                                                                    \
+    V(BUF)                                                                    \
+    V(OBJ)                                                                    \
+    V(PEM)                                                                    \
+    V(DSA)                                                                    \
+    V(X509)                                                                   \
+    V(ASN1)                                                                   \
+    V(CONF)                                                                   \
+    V(CRYPTO)                                                                 \
+    V(EC)                                                                     \
+    V(SSL)                                                                    \
+    V(BIO)                                                                    \
+    V(PKCS7)                                                                  \
+    V(X509V3)                                                                 \
+    V(PKCS12)                                                                 \
+    V(RAND)                                                                   \
+    V(DSO)                                                                    \
+    V(ENGINE)                                                                 \
+    V(OCSP)                                                                   \
+    V(UI)                                                                     \
+    V(COMP)                                                                   \
+    V(ECDSA)                                                                  \
+    V(ECDH)                                                                   \
+    V(OSSL_STORE)                                                             \
+    V(FIPS)                                                                   \
+    V(CMS)                                                                    \
+    V(TS)                                                                     \
+    V(HMAC)                                                                   \
+    V(CT)                                                                     \
+    V(ASYNC)                                                                  \
+    V(KDF)                                                                    \
+    V(SM2)                                                                    \
+    V(USER)                                                                   \
+
+#define V(name) case ERR_LIB_##name: lib = #name "_"; break;
+    const char* lib = "";
+    const char* prefix = "OSSL_";
+    switch (ERR_GET_LIB(err)) { OSSL_ERROR_CODES_MAP(V) }
+#undef V
+#undef OSSL_ERROR_CODES_MAP
+    // Don't generate codes like "ERR_OSSL_SSL_".
+    if (lib && strcmp(lib, "SSL_") == 0)
+      prefix = "";
+
+    // All OpenSSL reason strings fit in a single 80-column macro definition,
+    // all prefix lengths are <= 10, and ERR_OSSL_ is 9, so 128 is more than
+    // sufficient.
+    char code[128];
+    snprintf(code, sizeof(code), "ERR_%s%s%s", prefix, lib, reason.c_str());
+
+    if (obj->Set(env->isolate()->GetCurrentContext(),
+             env->code_string(),
+             OneByteString(env->isolate(), code)).IsNothing())
+      return;
+  }
+}
+}  // namespace error
+
+
 struct CryptoErrorVector : public std::vector<std::string> {
   inline void Capture() {
     clear();
@@ -258,6 +365,8 @@ struct CryptoErrorVector : public std::vector<std::string> {
 
 void ThrowCryptoError(Environment* env,
                       unsigned long err,  // NOLINT(runtime/int)
+                      // Default, only used if there is no SSL `err` which can
+                      // be used to create a long-style message string.
                       const char* message = nullptr) {
   char message_buffer[128] = {0};
   if (err != 0 || message == nullptr) {
@@ -270,7 +379,11 @@ void ThrowCryptoError(Environment* env,
       .ToLocalChecked();
   CryptoErrorVector errors;
   errors.Capture();
-  auto exception = errors.ToException(env, exception_string);
+  Local<Value> exception = errors.ToException(env, exception_string);
+  Local<Object> obj;
+  if (!exception->ToObject(env->context()).ToLocal(&obj))
+    return;
+  error::Decorate(env, obj, err);
   env->isolate()->ThrowException(exception);
 }
 

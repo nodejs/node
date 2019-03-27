@@ -274,6 +274,17 @@ std::string ToLower(const std::string& in) {
   return out;
 }
 
+char ToUpper(char c) {
+  return c >= 'a' && c <= 'z' ? (c - 'a') + 'A' : c;
+}
+
+std::string ToUpper(const std::string& in) {
+  std::string out(in.size(), 0);
+  for (size_t i = 0; i < in.size(); ++i)
+    out[i] = ToUpper(in[i]);
+  return out;
+}
+
 bool StringEqualNoCase(const char* a, const char* b) {
   do {
     if (*a == '\0')
