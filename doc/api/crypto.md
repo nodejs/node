@@ -1110,7 +1110,7 @@ This can be called many times with new data as it is streamed.
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version: v11.13.0
     pr-url: https://github.com/nodejs/node/pull/26438
     description: This class is now exported.
 -->
@@ -1825,7 +1825,7 @@ must be an object with the properties described above.
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version: v11.13.0
     pr-url: https://github.com/nodejs/node/pull/26278
     description: The `key` argument can now be a `KeyObject` with type
                  `private`.
