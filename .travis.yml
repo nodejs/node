@@ -1,14 +1,9 @@
-language: cpp
-cache: ccache
 os: linux
 dist: xenial
-stages:
-  - check
-  - test
-matrix:
+jobs:
   include:
-    - name: "First commit message adheres to guidelines at <a href=\"https://goo.gl/p2fr5Q\">https://goo.gl/p2fr5Q</a>"
-      stage: check
+    - stage: "Lint and Compile"
+      name: "First commit message adheres to guidelines at <a href=\"https://goo.gl/p2fr5Q\">https://goo.gl/p2fr5Q</a>"
       if: type = pull_request
       language: node_js
       node_js: "node"
@@ -16,14 +11,47 @@ matrix:
         - if [ "${TRAVIS_PULL_REQUEST}" != "false" ]; then
             bash -x tools/lint-pr-commit-message.sh ${TRAVIS_PULL_REQUEST};
           fi
+
     - name: "Linter"
-      stage: check
       language: node_js
       node_js: "node"
+      install:
+        - make lint-py-build || true
       script:
-        - NODE=$(which node) make lint
-    - name: "Prepare ccache"
-      stage: check
+        - NODE=$(which node) make lint-ci
+
+    - name: "Compile V8"
+      language: cpp
+      cache: ccache
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-6
+      install:
+        - CC='ccache gcc-6' CXX='ccache g++-6' ./configure
+      script:
+        - CC='ccache gcc-6' CXX='ccache g++-6' make -j2 -C out V=1 v8
+
+    - name: "Compile Node.js"
+      language: cpp
+      cache: ccache
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-6
+      install:
+        - CC='ccache gcc-6' CXX='ccache g++-6' ./configure
+      script:
+        - CC='ccache gcc-6' CXX='ccache g++-6' make -j2 V=1
+
+    - stage: "Tests"
+      name: "Test Suite"
+      language: cpp
+      cache: ccache
       addons:
         apt:
           sources:
@@ -33,20 +61,8 @@ matrix:
       install:
         - export CC='ccache gcc-6' CXX='ccache g++-6' JOBS=2
         - ./configure
-        - make -j2 V=
+        # We already have a compile log in the above job
+        - make -j2 > /dev/null
+        - make -j1 build-addons build-js-native-api-tests build-node-api-tests > /dev/null
       script:
-        - true
-    - name: "Test Suite"
-      stage: test
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-6
-      install:
-        - export CC='ccache gcc-6' CXX='ccache g++-6' JOBS=2
-        - ./configure
-        - make -j2 V=
-      script:
-        - CI_JS_SUITES='--flaky-tests=skip default' make -j1 test
+        - JOBS=2 FLAKY_TESTS=skip make -s -j1 V= test-ci | grep -F -e "---" -e "..." -v
