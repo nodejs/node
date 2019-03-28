@@ -494,7 +494,7 @@ inline Maybe<uv_file> OpenDescriptor(const std::string& path) {
 
 inline void CloseDescriptor(uv_file fd) {
   uv_fs_t fs_req;
-  uv_fs_close(nullptr, &fs_req, fd, nullptr);
+  CHECK_EQ(0, uv_fs_close(nullptr, &fs_req, fd, nullptr));
   uv_fs_req_cleanup(&fs_req);
 }
 
