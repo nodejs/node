@@ -681,13 +681,6 @@ label.
 Attach the appropriate `lts-watch-` label to any PR that may impact an LTS
 release.
 
-#### How is an LTS release cut?
-
-When the LTS working group determines that a new LTS release is required,
-selected commits will be picked from the staging branch to be included in the
-release. This process of making a release will be a collaboration between the
-LTS working group and the Release team.
-
 ## Who to CC in the issue tracker
 
 | Subsystem                                | Maintainers                                                           |
