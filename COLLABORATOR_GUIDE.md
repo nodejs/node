@@ -30,8 +30,6 @@
   - [I Made a Mistake](#i-made-a-mistake)
   - [Long Term Support](#long-term-support)
     - [What is LTS?](#what-is-lts)
-    - [How does LTS work?](#how-does-lts-work)
-    - [Landing semver-minor commits in LTS](#landing-semver-minor-commits-in-lts)
     - [How are LTS Branches Managed?](#how-are-lts-branches-managed)
     - [How can I help?](#how-can-i-help)
 * [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker)
