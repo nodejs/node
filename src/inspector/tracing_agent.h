@@ -28,8 +28,6 @@ class TracingAgent : public NodeTracing::Backend {
       std::unique_ptr<protocol::Array<String>>* categories) override;
 
  private:
-  void DisconnectTraceClient();
-
   Environment* env_;
   std::shared_ptr<MainThreadHandle> main_thread_;
   tracing::AgentWriterHandle trace_writer_;
