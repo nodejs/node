@@ -49,4 +49,4 @@ matrix:
         - ./configure
         - make -j2 V=
       script:
-        - PARALLEL_ARGS='--flaky-tests=skip' make -j1 test
+        - CI_JS_SUITES='--flaky-tests=skip default' make -j1 test
