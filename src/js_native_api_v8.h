@@ -1,7 +1,8 @@
 #ifndef SRC_JS_NATIVE_API_V8_H_
 #define SRC_JS_NATIVE_API_V8_H_
 
-#include <string.h>
+// This file needs to be compatible with C compilers.
+#include <string.h>  // NOLINT(modernize-deprecated-headers)
 #include "js_native_api_types.h"
 #include "js_native_api_v8_internals.h"
 

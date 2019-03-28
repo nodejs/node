@@ -1,8 +1,9 @@
 #ifndef SRC_JS_NATIVE_API_H_
 #define SRC_JS_NATIVE_API_H_
 
-#include <stddef.h>
-#include <stdbool.h>
+// This file needs to be compatible with C compilers.
+#include <stddef.h>   // NOLINT(modernize-deprecated-headers)
+#include <stdbool.h>  // NOLINT(modernize-deprecated-headers)
 #include "js_native_api_types.h"
 
 // Use INT_MAX, this should only be consumed by the pre-processor anyway.

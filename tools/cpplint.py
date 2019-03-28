@@ -361,6 +361,7 @@ _DEFAULT_FILTERS = [
     '-build/include_subdir',
     '-build/include_what_you_use',
     '-legal/copyright',
+    '-readability/nolint',
     ]
 
 # The default list of categories suppressed for C (not C++) files.
