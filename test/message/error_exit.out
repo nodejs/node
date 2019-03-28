@@ -11,7 +11,6 @@ AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
     at Module._compile (internal/modules/cjs/loader.js:*:*)
     at Object.Module._extensions..js (internal/modules/cjs/loader.js:*:*)
     at Module.load (internal/modules/cjs/loader.js:*:*)
-    at tryModuleLoad (internal/modules/cjs/loader.js:*:*)
     at Function.Module._load (internal/modules/cjs/loader.js:*:*)
     at Function.Module.runMain (internal/modules/cjs/loader.js:*:*)
     at internal/main/run_main_module.js:*:*
