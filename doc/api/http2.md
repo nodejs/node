@@ -524,6 +524,33 @@ Used to set a callback function that is called when there is no activity on
 the `Http2Session` after `msecs` milliseconds. The given `callback` is
 registered as a listener on the `'timeout'` event.
 
+#### http2session.setConnectionWindowSize(windowSize)
+<!-- YAML
+added: v12.0.0
+-->
+
+* `windowSize` {number}
+* Returns: 0 
+In case of allocation error, a new `ERR_OUT_OF_RANGE`
+error will be thrown.
+
+Used to set the local window size (local endpoints's window size).
+The window_size is an absolute value of window size to set, rather
+than the delta.
+
+```js
+clientSession.on('connect', (session) => sendSettings(session, (s) => cb(s)));
+
+function sendSettings(session, cb) {
+    session.setConnectionWindowSize(1024*1024);
+
+    const settings = http2.getDefaultSettings();
+    settings.initialWindowSize = WINDOW_SIZE;
+    settings.maxFrameSize = FRAME_SIZE;
+}
+
+```
+
 #### http2session.socket
 <!-- YAML
 added: v8.4.0
@@ -2221,6 +2248,7 @@ added: v8.4.0
 | `0x0a` | Connect Error       | `http2.constants.NGHTTP2_CONNECT_ERROR`       |
 | `0x0b` | Enhance Your Calm   | `http2.constants.NGHTTP2_ENHANCE_YOUR_CALM`   |
 | `0x0c` | Inadequate Security | `http2.constants.NGHTTP2_INADEQUATE_SECURITY` |
+| `0x0d` | HTTP/1.1 Required   | `http2.constants.NGHTTP2_HTTP_1_1_REQUIRED`   |
 | `0x0d` | HTTP/1.1 Required   | `http2.constants.NGHTTP2_HTTP_1_1_REQUIRED`   |
 
 The `'timeout'` event is emitted when there is no activity on the Server for
