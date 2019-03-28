@@ -19,6 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include "base_object-inl.h"
 #include "node_crypto_bio.h"
 #include "openssl/bio.h"
 #include "util-inl.h"

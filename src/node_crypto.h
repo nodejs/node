@@ -24,34 +24,17 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node.h"
 // ClientHelloParser
 #include "node_crypto_clienthello.h"
 
-#include "node_buffer.h"
-
 #include "env.h"
-#include "async_wrap-inl.h"
-#include "base_object-inl.h"
+#include "base_object.h"
+#include "util.h"
 
 #include "v8.h"
 
-#include <openssl/ssl.h>
-#include <openssl/ec.h>
-#include <openssl/ecdh.h>
-#ifndef OPENSSL_NO_ENGINE
-# include <openssl/engine.h>
-#endif  // !OPENSSL_NO_ENGINE
 #include <openssl/err.h>
-#include <openssl/evp.h>
-// TODO(shigeki) Remove this after upgrading to 1.1.1
-#include <openssl/obj_mac.h>
-#include <openssl/pem.h>
-#include <openssl/x509.h>
-#include <openssl/x509v3.h>
-#include <openssl/hmac.h>
-#include <openssl/rand.h>
-#include <openssl/pkcs12.h>
+#include <openssl/ssl.h>
 
 namespace node {
 namespace crypto {

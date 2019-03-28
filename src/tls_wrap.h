@@ -24,7 +24,6 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node.h"
 #include "node_crypto.h"  // SSLWrap
 
 #include "async_wrap.h"
