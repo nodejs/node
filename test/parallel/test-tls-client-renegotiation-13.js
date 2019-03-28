@@ -1,3 +1,4 @@
+// Flags: --tls-max-v1.3
 'use strict';
 
 const common = require('../common');
