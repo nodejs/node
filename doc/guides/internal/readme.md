@@ -4,7 +4,7 @@
 
 ## CLI
 
-### Node.js options:
+### Flags
 
 #### `--inspect-brk-node[=[host:]port]`
 
