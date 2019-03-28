@@ -34,7 +34,6 @@
     - [Landing semver-minor commits in LTS](#landing-semver-minor-commits-in-lts)
     - [How are LTS Branches Managed?](#how-are-lts-branches-managed)
     - [How can I help?](#how-can-i-help)
-    - [How is an LTS release cut?](#how-is-an-lts-release-cut)
 * [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker)
 
 This document explains how Collaborators manage the Node.js project.
