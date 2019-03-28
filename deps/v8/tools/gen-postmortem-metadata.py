@@ -85,6 +85,10 @@ consts_misc = [
     { 'name': 'SmiTagMask',             'value': 'kSmiTagMask' },
     { 'name': 'SmiValueShift',          'value': 'kSmiTagSize' },
     { 'name': 'SmiShiftSize',           'value': 'kSmiShiftSize' },
+    { 'name': 'SystemPointerSize',      'value': 'kSystemPointerSize' },
+    { 'name': 'SystemPointerSizeLog2',  'value': 'kSystemPointerSizeLog2' },
+    { 'name': 'TaggedSize',             'value': 'kTaggedSize' },
+    { 'name': 'TaggedSizeLog2',         'value': 'kTaggedSizeLog2' },
 
     { 'name': 'OddballFalse',           'value': 'Oddball::kFalse' },
     { 'name': 'OddballTrue',            'value': 'Oddball::kTrue' },
@@ -161,6 +165,8 @@ consts_misc = [
         'value': 'Map::NumberOfOwnDescriptorsBits::kMask' },
     { 'name': 'bit_field3_number_of_own_descriptors_shift',
         'value': 'Map::NumberOfOwnDescriptorsBits::kShift' },
+    { 'name': 'class_Map__instance_descriptors_offset',
+       'value': 'Map::kInstanceDescriptorsOffset' },
 
     { 'name': 'off_fp_context_or_frame_type',
         'value': 'CommonFrameConstants::kContextOrFrameTypeOffset'},
@@ -223,6 +229,15 @@ consts_misc = [
 
     { 'name': 'class_SharedFunctionInfo__function_data__Object',
         'value': 'SharedFunctionInfo::kFunctionDataOffset' },
+
+    { 'name': 'class_ConsString__first_offset__int',
+        'value': 'ConsString::kFirstOffset' },
+    { 'name': 'class_ConsString__second_offset__int',
+        'value': 'ConsString::kSecondOffset' },
+    { 'name': 'class_SlicedString__offset_offset__int',
+        'value': 'SlicedString::kOffsetOffset' },
+    { 'name': 'class_ThinString__actual_offset__int',
+        'value': 'ThinString::kActualOffset' },
 ];
 
 #
@@ -244,6 +259,7 @@ extras_accessors = [
     'JSArrayBuffer, byte_length, size_t, kByteLengthOffset',
     'JSArrayBufferView, byte_length, size_t, kByteLengthOffset',
     'JSArrayBufferView, byte_offset, size_t, kByteOffsetOffset',
+    'JSTypedArray, external_pointer, uintptr_t, kExternalPointerOffset',
     'JSTypedArray, length, Object, kLengthOffset',
     'Map, instance_size_in_words, char, kInstanceSizeInWordsOffset',
     'Map, inobject_properties_start_or_constructor_function_index, char, kInObjectPropertiesStartOrConstructorFunctionIndexOffset',
