@@ -789,6 +789,7 @@ class Http2Session : public AsyncWrap, public StreamListener {
   static void Settings(const FunctionCallbackInfo<Value>& args);
   static void Request(const FunctionCallbackInfo<Value>& args);
   static void SetNextStreamID(const FunctionCallbackInfo<Value>& args);
+  static void SetConnectionWindowSize(const FunctionCallbackInfo<Value>& args);
   static void Goaway(const FunctionCallbackInfo<Value>& args);
   static void UpdateChunksSent(const FunctionCallbackInfo<Value>& args);
   static void RefreshState(const FunctionCallbackInfo<Value>& args);

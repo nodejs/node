@@ -2366,6 +2366,25 @@ void Http2Session::SetNextStreamID(const FunctionCallbackInfo<Value>& args) {
   Debug(session, "set next stream id to %d", id);
 }
 
+// Set local window size (local endpoints's window size) to the given window_size for the stream denoted by 0.
+// If successful, returns 0.
+void Http2Session::SetConnectionWindowSize(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Http2Session* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+
+  int32_t window_size = args[0]->Int32Value(env->context()).ToChecked();
+
+  int result = nghttp2_session_set_local_window_size(
+      session->session(), NGHTTP2_FLAG_NONE, 0, window_size);
+
+  args.GetReturnValue().Set(result);
+
+  Debug(session, "set connection  window size to %d", window_size);
+}
+
+
 // A TypedArray instance is shared between C++ and JS land to contain the
 // SETTINGS (either remote or local). RefreshSettings updates the current
 // values established for each of the settings so those can be read in JS land.
@@ -3032,6 +3051,8 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(session, "request", Http2Session::Request);
   env->SetProtoMethod(session, "setNextStreamID",
                       Http2Session::SetNextStreamID);
+  env->SetProtoMethod(session, "setConnectionWindowSize",
+                      Http2Session::SetConnectionWindowSize);
   env->SetProtoMethod(session, "updateChunksSent",
                       Http2Session::UpdateChunksSent);
   env->SetProtoMethod(session, "refreshState", Http2Session::RefreshState);
@@ -3092,6 +3113,7 @@ void Initialize(Local<Object> target,
   NODE_DEFINE_HIDDEN_CONSTANT(constants, NGHTTP2_ERR_STREAM_ID_NOT_AVAILABLE);
   NODE_DEFINE_HIDDEN_CONSTANT(constants, NGHTTP2_ERR_INVALID_ARGUMENT);
   NODE_DEFINE_HIDDEN_CONSTANT(constants, NGHTTP2_ERR_STREAM_CLOSED);
+  NODE_DEFINE_HIDDEN_CONSTANT(constants, NGHTTP2_ERR_NOMEM);
   NODE_DEFINE_CONSTANT(constants, NGHTTP2_ERR_FRAME_SIZE_ERROR);
 
   NODE_DEFINE_HIDDEN_CONSTANT(constants, STREAM_OPTION_EMPTY_PAYLOAD);
