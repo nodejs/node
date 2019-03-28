@@ -81,7 +81,7 @@ if (process.argv.length === 2 &&
           // invalid. The test itself should handle this case.
           (process.features.inspector || !flag.startsWith('--inspect'))) {
         console.log(
-          'NOTE: The test started as child_process using these flags:',
+          'NOTE: The test started as a child_process using these flags:',
           util.inspect(flags)
         );
         const args = [...flags, ...process.execArgv, ...process.argv.slice(1)];
