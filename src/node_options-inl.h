@@ -416,7 +416,7 @@ void OptionsParser<Options>::Parse(
         *Lookup<int64_t>(info.field, options) = std::atoll(value.c_str());
         break;
       case kUInteger:
-        *Lookup<uint64_t>(info.field, options) = std::stoull(value.c_str());
+        *Lookup<uint64_t>(info.field, options) = std::stoull(value);
         break;
       case kString:
         *Lookup<std::string>(info.field, options) = value;
