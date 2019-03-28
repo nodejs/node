@@ -1351,7 +1351,7 @@ changes:
   * `maxVersion` {string} Optionally set the maximum TLS version to allow. One
     of `TLSv1.3`, `TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified
     along with the `secureProtocol` option, use one or the other.
-    **Default:** `'TLSv1.3'`, unless changed using CLI options. Using
+    **Default:** `'TLSv1.2'`, unless changed using CLI options. Using
     `--tls-max-v1.2` sets the default to `'TLSv1.2`'. Using `--tls-max-v1.3`
     sets the default to `'TLSv1.3'`. If multiple of the options are provided,
     the highest maximum is used.
@@ -1360,7 +1360,7 @@ changes:
     along with the `secureProtocol` option, use one or the other. It is not
     recommended to use less than TLSv1.2, but it may be required for
     interoperability.
-    **Default:** `'TLSv1.2'`, unless changed using CLI options. Using
+    **Default:** `'TLSv1'`, unless changed using CLI options. Using
     `--tls-min-v1.0` sets the default to `'TLSv1'`. Using `--tls-min-v1.1` sets
     the default to `'TLSv1.1'`. Using `--tls-min-v1.3` sets the default to
     `'TLSv1.3'`. If multiple of the options are provided, the lowest minimum is

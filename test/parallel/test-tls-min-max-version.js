@@ -68,8 +68,13 @@ function test(cmin, cmax, cprot, smin, smax, sprot, proto, cerr, serr) {
 
 const U = undefined;
 
-// Default protocol is the max version.
-test(U, U, U, U, U, U, DEFAULT_MAX_VERSION);
+if (DEFAULT_MAX_VERSION === 'TLSv1.2' && DEFAULT_MIN_VERSION === 'TLSv1.3') {
+  // No connections are possible by default.
+  test(U, U, U, U, U, U, U, 'ERR_SSL_NO_PROTOCOLS_AVAILABLE', U);
+} else {
+  // Default protocol is the max version.
+  test(U, U, U, U, U, U, DEFAULT_MAX_VERSION);
+}
 
 // Insecure or invalid protocols cannot be enabled.
 test(U, U, U, U, U, 'SSLv2_method',

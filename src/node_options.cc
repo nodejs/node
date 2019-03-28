@@ -341,7 +341,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::tls_min_v1_3,
             kAllowedInEnvironment);
   AddOption("--tls-max-v1.2",
-            "set default TLS maximum to TLSv1.2 (default: TLSv1.3)",
+            "set default TLS maximum to TLSv1.2 (default: TLSv1.2)",
             &EnvironmentOptions::tls_max_v1_2,
             kAllowedInEnvironment);
   // Current plan is:
@@ -349,7 +349,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   // - 12.x: TLS1.3 is opt-out with --tls-max-v1.2
   // In either case, support both options they are uniformly available.
   AddOption("--tls-max-v1.3",
-            "set default TLS maximum to TLSv1.3 (default: TLSv1.3)",
+            "set default TLS maximum to TLSv1.3 (default: TLSv1.2)",
             &EnvironmentOptions::tls_max_v1_3,
             kAllowedInEnvironment);
 }

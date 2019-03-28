@@ -6,9 +6,13 @@ const fixtures = require('../common/fixtures');
 // Test cipher: option for TLS.
 
 const {
-  assert, connect, keys
+  assert, connect, keys, tls
 } = require(fixtures.path('tls-connect'));
 
+const tls13 = !!require('constants').TLS1_3_VERSION;
+
+if (tls13)
+  tls.DEFAULT_MAX_VERSION = 'TLSv1.3';
 
 function test(cciphers, sciphers, cipher, cerr, serr) {
   assert(cipher || cerr || serr, 'test missing any expectations');
