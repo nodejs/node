@@ -1,21 +1,27 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const { builtinModules } = require('module');
 const common = require('../common.js');
 
 const tmpdir = require('../../test/common/tmpdir');
-const benchmarkDirectory = path.join(tmpdir.path, 'nodejs-benchmark-module');
+let benchmarkDirectory = path.join(tmpdir.path, 'nodejs-benchmark-module');
+
+// Filter all irregular modules.
+const otherModules = builtinModules.filter((name) => !/\/|^_|^sys/.test(name));
 
 const bench = common.createBenchmark(main, {
-  n: [5e4],
-  fullPath: ['true', 'false'],
-  useCache: ['true', 'false']
+  name: ['', '/', '/index.js'],
+  dir: ['rel', 'abs'],
+  files: [5e2],
+  n: [1, 1e3],
+  cache: ['true', 'false']
 });
 
-function main({ n, fullPath, useCache }) {
+function main({ n, name, cache, files, dir }) {
   tmpdir.refresh();
-  try { fs.mkdirSync(benchmarkDirectory); } catch {}
-  for (var i = 0; i <= n; i++) {
+  fs.mkdirSync(benchmarkDirectory);
+  for (var i = 0; i <= files; i++) {
     fs.mkdirSync(`${benchmarkDirectory}${i}`);
     fs.writeFileSync(
       `${benchmarkDirectory}${i}/package.json`,
@@ -27,38 +33,28 @@ function main({ n, fullPath, useCache }) {
     );
   }
 
-  if (fullPath === 'true')
-    measureFull(n, useCache === 'true');
-  else
-    measureDir(n, useCache === 'true');
+  if (dir === 'rel')
+    benchmarkDirectory = path.relative(__dirname, benchmarkDirectory);
+
+  measureDir(n, cache === 'true', files, name);
 
   tmpdir.refresh();
 }
 
-function measureFull(n, useCache) {
+function measureDir(n, cache, files, name) {
   var i;
-  if (useCache) {
-    for (i = 0; i <= n; i++) {
-      require(`${benchmarkDirectory}${i}/index.js`);
+  if (cache) {
+    for (i = 0; i <= files; i++) {
+      require(`${benchmarkDirectory}${i}${name}`);
     }
   }
   bench.start();
-  for (i = 0; i <= n; i++) {
-    require(`${benchmarkDirectory}${i}/index.js`);
+  for (i = 0; i <= files; i++) {
+    for (var j = 0; j < n; j++)
+      require(`${benchmarkDirectory}${i}${name}`);
+    // Pretend mixed input (otherwise the results are less representative due to
+    // highly specialized code).
+    require(otherModules[i % otherModules.length]);
   }
-  bench.end(n);
-}
-
-function measureDir(n, useCache) {
-  var i;
-  if (useCache) {
-    for (i = 0; i <= n; i++) {
-      require(`${benchmarkDirectory}${i}`);
-    }
-  }
-  bench.start();
-  for (i = 0; i <= n; i++) {
-    require(`${benchmarkDirectory}${i}`);
-  }
-  bench.end(n);
+  bench.end(n * files);
 }
