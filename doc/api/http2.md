@@ -535,6 +535,21 @@ In case of allocation error, a new `ERR_OUT_OF_RANGE`
 error will be thrown.
 
 Used to set the local window size (local endpoints's window size).
+The window_size is an absolute value of window size to set, rather
+than the delta.
+
+```js
+clientSession.on('connect', (session) => sendSettings(session, (s) => cb(s)));
+
+function sendSettings(session, cb) {
+    session.setConnectionWindowSize(1024*1024);
+
+    const settings = http2.getDefaultSettings();
+    settings.initialWindowSize = WINDOW_SIZE;
+    settings.maxFrameSize = FRAME_SIZE;
+}
+
+```
 
 #### http2session.socket
 <!-- YAML
