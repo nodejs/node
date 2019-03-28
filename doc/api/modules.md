@@ -196,28 +196,26 @@ NODE_MODULES_PATHS(START)
 
 <!--type=misc-->
 
-Modules are cached after the first time they are loaded. This means
-(among other things) that every call to `require('foo')` will get
-exactly the same object returned, if it would resolve to the same file.
+Modules are cached after the first time they are loaded. This means (among other
+things) that every call to `require('foo')` will get exactly the same object
+returned, if it would resolve to the same file.
 
-Provided `require.cache` is not modified, multiple calls to
-`require('foo')` will not cause the module code to be executed multiple times.
-This is an important feature. With it, "partially done" objects can be returned,
-thus allowing transitive dependencies to be loaded even when they would cause
-cycles.
+Provided `require.cache` is not modified, multiple calls to `require('foo')`
+will not cause the module code to be executed multiple times. This is an
+important feature. With it, "partially done" objects can be returned, thus
+allowing transitive dependencies to be loaded even when they would cause cycles.
 
-To have a module execute code multiple times, export a function, and call
-that function.
+To have a module execute code multiple times, export a function, and call that
+function.
 
 ### Module Caching Caveats
 
 <!--type=misc-->
 
-Modules are cached based on their resolved filename. Since modules may
-resolve to a different filename based on the location of the calling
-module (loading from `node_modules` folders), it is not a *guarantee*
-that `require('foo')` will always return the exact same object, if it
-would resolve to different files.
+Modules are cached based on their resolved filename. Since modules may resolve
+to a different filename based on the location of the calling module (loading
+from `node_modules` folders), it is not a *guarantee* that `require('foo')` will
+always return the exact same object, if it would resolve to different files.
 
 Additionally, on case-insensitive file systems or operating systems, different
 resolved filenames can point to the same file, but the cache will still treat
@@ -412,7 +410,7 @@ are not found elsewhere.
 On Windows, `NODE_PATH` is delimited by semicolons (`;`) instead of colons.
 
 `NODE_PATH` was originally created to support loading modules from
-varying paths before the current [module resolution][] algorithm was frozen.
+varying paths before the current [module resolution][] algorithm was defined.
 
 `NODE_PATH` is still supported, but is less necessary now that the Node.js
 ecosystem has settled on a convention for locating dependent modules.
@@ -585,6 +583,11 @@ value from this object, the next `require` will reload the module. Note that
 this does not apply to [native addons][], for which reloading will result in an
 error.
 
+Adding or replacing entries is also possible. This cache is checked before
+native modules and if a name matching a native module is added to the cache,
+no require call is
+going to receive the native module anymore. Use with care!
+
 #### require.extensions
 <!-- YAML
 added: v0.3.0
@@ -603,22 +606,13 @@ Process files with the extension `.sjs` as `.js`:
 require.extensions['.sjs'] = require.extensions['.js'];
 ```
 
-**Deprecated.** In the past, this list has been used to load
-non-JavaScript modules into Node.js by compiling them on-demand.
-However, in practice, there are much better ways to do this, such as
-loading modules via some other Node.js program, or compiling them to
-JavaScript ahead of time.
+**Deprecated.** In the past, this list has been used to load non-JavaScript
+modules into Node.js by compiling them on-demand. However, in practice, there
+are much better ways to do this, such as loading modules via some other Node.js
+program, or compiling them to JavaScript ahead of time.
 
-Since the module system is locked, this feature will probably never go
-away. However, it may have subtle bugs and complexities that are best
-left untouched.
-
-Note that the number of file system operations that the module system
-has to perform in order to resolve a `require(...)` statement to a
-filename scales linearly with the number of registered extensions.
-
-In other words, adding extensions slows down the module loader and
-should be discouraged.
+Avoid using `require.extensions`. Use could cause subtle bugs and resolving the
+extensions gets slower with each registered extension.
 
 #### require.main
 <!-- YAML
