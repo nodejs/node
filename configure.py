@@ -615,6 +615,13 @@ def b(value):
   else:
     return 'false'
 
+def B(value):
+  """Returns 1 if value is truthy, 0 otherwise."""
+  if value:
+    return 1
+  else:
+    return 0
+
 
 def pkg_config(pkg):
   """Run pkg-config on the specified package
@@ -1594,6 +1601,7 @@ configure_inspector(output)
 # move everything else to target_defaults
 variables = output['variables']
 del output['variables']
+variables['is_debug'] = B(options.debug)
 
 # make_global_settings for special FIPS linking
 # should not be used to compile modules in node-gyp
