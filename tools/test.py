@@ -355,7 +355,7 @@ class TapProgressIndicator(SimpleProgressIndicator):
     logger.info('  ---')
     logger.info('  duration_ms: %d.%d' %
       (total_seconds, duration.microseconds / 1000))
-    if self.severity is not 'ok' or self.traceback is not '':
+    if self.severity != 'ok' or self.traceback != '':
       if output.HasTimedOut():
         self.traceback = 'timeout\n' + output.output.stdout + output.output.stderr
       self._printDiagnostic()
@@ -1641,7 +1641,7 @@ def Main():
           continue
         archEngineContext = Execute([vm, "-p", "process.arch"], context)
         vmArch = archEngineContext.stdout.rstrip()
-        if archEngineContext.exit_code is not 0 or vmArch == "undefined":
+        if archEngineContext.exit_code != 0 or vmArch == "undefined":
           print("Can't determine the arch of: '%s'" % vm)
           print(archEngineContext.stderr.rstrip())
           continue
