@@ -148,9 +148,9 @@ struct nghttp2_stream {
   /* Received body so far */
   int64_t recv_content_length;
   /* Base last_cycle for direct descendent streams. */
-  uint32_t descendant_last_cycle;
+  uint64_t descendant_last_cycle;
   /* Next scheduled time to sent item */
-  uint32_t cycle;
+  uint64_t cycle;
   /* Next seq used for direct descendant streams */
   uint64_t descendant_next_seq;
   /* Secondary key for prioritization to break a tie for cycle.  This
