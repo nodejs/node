@@ -431,6 +431,10 @@ does not depend on garbage collection, then this will not be an issue.
 
 ##### promiseResolve(asyncId)
 
+<!-- YAML
+added: v8.6.0
+-->
+
 * `asyncId` {number}
 
 Called when the `resolve` function passed to the `Promise` constructor is
