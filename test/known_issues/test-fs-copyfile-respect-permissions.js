@@ -12,17 +12,39 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-const source = path.join(tmpdir.path, 'source');
-const dest = path.join(tmpdir.path, 'dest');
+let n = 0;
 
-fs.writeFileSync(source, 'source');
-fs.writeFileSync(dest, 'dest');
-fs.chmodSync(dest, '444');
+function beforeEach() {
+  n++;
+  const source = path.join(tmpdir.path, `source${n}`);
+  const dest = path.join(tmpdir.path, `dest${n}`);
+  fs.writeFileSync(source, 'source');
+  fs.writeFileSync(dest, 'dest');
+  fs.chmodSync(dest, '444');
 
-assert.throws(() => { fs.copyFileSync(source, dest); },
-              { code: 'EACCESS' });
+  const check = (err) => {
+    assert.strictEqual(err.code, 'EACCESS');
+    assert.strictEqual(fs.readFileSync(dest, 'utf8'), 'dest');
+  };
 
-fs.copyFile(source, dest, common.mustCall((err) => {
-  assert.strictEqual(err.code, 'EACCESS');
-  assert.strictEqual(fs.readFileSync(dest, 'utf8'), 'dest');
-}));
+  return { source, dest, check };
+}
+
+// Test synchronous API.
+{
+  const { source, dest, check } = beforeEach();
+  assert.throws(() => { fs.copyFileSync(source, dest); }, check);
+}
+
+// Test promises API.
+{
+  const { source, dest, check } = beforeEach();
+  assert.throws(async () => { await fs.promises.copyFile(source, dest); },
+                check);
+}
+
+// Test callback API.
+{
+  const { source, dest, check } = beforeEach();
+  fs.copyFile(source, dest, common.mustCall(check));
+}
