@@ -578,7 +578,7 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
   );
   assert.strictEqual(
     util.inspect(err2, { compact: true }),
-    '{ [Error: foo\nbar] bar: true }'
+    '{ [Error: foo\nbar]\n  bar: true }'
   );
   assert.strictEqual(
     util.inspect(err, { compact: true, breakLength: 5 }),

@@ -48,12 +48,12 @@ const tests = [
   {
     command: '(() => { const err = Error(\'Whoops!\'); ' +
              'err.foo = \'bar\'; throw err; })()',
-    expected: 'Thrown:\n{ Error: Whoops!\n    at repl:1:22 foo: \'bar\' }\n',
+    expected: 'Thrown:\n{ Error: Whoops!\n    at repl:1:22\n  foo: \'bar\' }\n',
   },
   {
     command: '(() => { const err = Error(\'Whoops!\'); ' +
              'err.foo = \'bar\'; throw err; })()',
-    expected: 'Thrown:\n{ Error: Whoops!\n    at repl:1:22 foo: ' +
+    expected: 'Thrown:\n{ Error: Whoops!\n    at repl:1:22\n  foo: ' +
               "\u001b[32m'bar'\u001b[39m }\n",
     useColors: true
   },

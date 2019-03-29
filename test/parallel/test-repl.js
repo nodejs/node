@@ -540,7 +540,9 @@ const errorTests = [
       /^    at .*/,
       /^    at .*/,
       /^    at .*/,
-      /^    at .*/
+      /^    at .*/,
+      "  code: 'MODULE_NOT_FOUND',",
+      "  requireStack: [ '<repl>' ] }"
     ]
   },
   // REPL should handle quotes within regexp literal in multiline mode
