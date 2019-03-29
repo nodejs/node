@@ -2299,6 +2299,21 @@ Please use the publicly documented [`timeout.refresh()`][] instead.
 If unreferencing the timeout is necessary, [`timeout.unref()`][] can be used
 with no performance impact since Node.js 10.
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: ChildProcess._channel
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/26982
+    description: Documentation-only.
+-->
+
+Type: Documentation-only
+
+The `_channel` property of child process objects returned by `spawn()` and
+similar functions is not intended for public use. Use `ChildProcess.channel`
+instead.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
