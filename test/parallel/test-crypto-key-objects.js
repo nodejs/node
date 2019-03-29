@@ -223,6 +223,17 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     message: 'Passphrase required for encrypted key'
   });
 
+  // Reading an encrypted key with a passphrase that exceeds OpenSSL's buffer
+  // size limit should fail with an appropriate error code.
+  common.expectsError(() => createPrivateKey({
+    key: privateDsa,
+    format: 'pem',
+    passphrase: Buffer.alloc(16 * 1024, 'a')
+  }), {
+    code: 'ERR_OSSL_PEM_BAD_PASSWORD_READ',
+    type: Error
+  });
+
   const publicKey = createPublicKey(publicDsa);
   assert.strictEqual(publicKey.type, 'public');
   assert.strictEqual(publicKey.asymmetricKeyType, 'dsa');
