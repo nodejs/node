@@ -56,6 +56,9 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
   }));
 }));
 
+if (!require('constants').TLS1_3_VERSION)
+  return console.log('cannot test TLSv1.3 against 1.3-incapable shared lib');
+
 tls.createServer({
   key: fixtures.readKey('agent2-key.pem'),
   cert: fixtures.readKey('agent2-cert.pem'),

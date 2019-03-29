@@ -411,7 +411,12 @@ void SecureContext::New(const FunctionCallbackInfo<Value>& args) {
 
 // A maxVersion of 0 means "any", but OpenSSL may support TLS versions that
 // Node.js doesn't, so pin the max to what we do support.
-const int MAX_SUPPORTED_VERSION = TLS1_3_VERSION;
+const int MAX_SUPPORTED_VERSION =
+#ifdef TLS1_3_VERSION
+  TLS1_3_VERSION;
+#else
+  TLS1_2_VERSION;
+#endif
 
 void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
@@ -947,7 +952,7 @@ void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::SetCipherSuites(const FunctionCallbackInfo<Value>& args) {
   // BoringSSL doesn't allow API config of TLS1.3 cipher suites.
-#ifndef OPENSSL_IS_BORINGSSL
+#if defined(TLS1_3_VERSION) && !defined(OPENSSL_IS_BORINGSSL)
   SecureContext* sc;
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
   Environment* env = sc->env();

@@ -15,6 +15,10 @@ if (tls13)
   tls.DEFAULT_MAX_VERSION = 'TLSv1.3';
 
 function test(cciphers, sciphers, cipher, cerr, serr) {
+  if (!tls13 && (/TLS_/.test(cciphers) || /TLS_/.test(sciphers))) {
+    // Test relies on TLS1.3, skip it.
+    return;
+  }
   assert(cipher || cerr || serr, 'test missing any expectations');
   const where = (new Error()).stack.split('\n')[2].replace(/[^(]*/, '');
   connect({

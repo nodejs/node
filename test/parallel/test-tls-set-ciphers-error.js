@@ -4,6 +4,9 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+if (!require('constants').TLS1_3_VERSION)
+  return common.skip('openssl before TLS1.3 does not check for failure');
+
 const assert = require('assert');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');

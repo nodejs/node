@@ -4,6 +4,9 @@
 const common = require('../common');
 const fixtures = require('../common/fixtures');
 
+if (!require('constants').TLS1_3_VERSION)
+  common.skip(`openssl ${process.versions.openssl} does not support TLSv1.3`);
+
 // Confirm that for TLSv1.3, renegotiate() is disallowed.
 
 const {
