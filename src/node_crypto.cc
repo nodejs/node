@@ -3320,7 +3320,8 @@ static inline ManagedEVPPKey GetParsedKey(Environment* env,
       CHECK(pkey);
       break;
     case ParseKeyResult::kParseKeyNeedPassphrase:
-      THROW_ERR_CRYPTO_READ_KEY(env, "Passphrase required for encrypted key");
+      THROW_ERR_MISSING_PASSPHRASE(env,
+                                   "Passphrase required for encrypted key");
       break;
     default:
       ThrowCryptoError(env, ERR_get_error(), default_msg);

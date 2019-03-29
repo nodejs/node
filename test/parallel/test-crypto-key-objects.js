@@ -219,7 +219,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   // Reading an encrypted key without a passphrase should fail.
   common.expectsError(() => createPrivateKey(privateDsa), {
     type: TypeError,
-    code: 'ERR_CRYPTO_READ_KEY',
+    code: 'ERR_MISSING_PASSPHRASE',
     message: 'Passphrase required for encrypted key'
   });
 

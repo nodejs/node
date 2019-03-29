@@ -168,7 +168,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     const publicKey = { key: publicKeyDER, ...publicKeyEncoding };
     common.expectsError(() => testSignVerify(publicKey, privateKey), {
       type: TypeError,
-      code: 'ERR_CRYPTO_READ_KEY',
+      code: 'ERR_MISSING_PASSPHRASE',
       message: 'Passphrase required for encrypted key'
     });
 
@@ -206,7 +206,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       });
     }, {
       type: TypeError,
-      code: 'ERR_CRYPTO_READ_KEY',
+      code: 'ERR_MISSING_PASSPHRASE',
       message: 'Passphrase required for encrypted key'
     });
 
@@ -289,7 +289,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       });
     }, {
       type: TypeError,
-      code: 'ERR_CRYPTO_READ_KEY',
+      code: 'ERR_MISSING_PASSPHRASE',
       message: 'Passphrase required for encrypted key'
     });
 
@@ -352,7 +352,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     // Since the private key is encrypted, signing shouldn't work anymore.
     common.expectsError(() => testSignVerify(publicKey, privateKey), {
       type: TypeError,
-      code: 'ERR_CRYPTO_READ_KEY',
+      code: 'ERR_MISSING_PASSPHRASE',
       message: 'Passphrase required for encrypted key'
     });
 
@@ -387,7 +387,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     // Since the private key is encrypted, signing shouldn't work anymore.
     common.expectsError(() => testSignVerify(publicKey, privateKey), {
       type: TypeError,
-      code: 'ERR_CRYPTO_READ_KEY',
+      code: 'ERR_MISSING_PASSPHRASE',
       message: 'Passphrase required for encrypted key'
     });
 

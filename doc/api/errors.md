@@ -807,12 +807,6 @@ instance, calling [`cipher.getAuthTag()`][] before calling `cipher.final()`.
 The PBKDF2 algorithm failed for unspecified reasons. OpenSSL does not provide
 more details and therefore neither does Node.js.
 
-<a id="ERR_CRYPTO_READ_KEY"></a>
-### ERR_CRYPTO_READ_KEY
-
-An error occurred while parsing a cryptographic key, e.g., the key is encrypted
-but no decryption passphrase was specified.
-
 <a id="ERR_CRYPTO_SCRYPT_INVALID_PARAMETER"></a>
 ### ERR_CRYPTO_SCRYPT_INVALID_PARAMETER
 
@@ -1491,6 +1485,11 @@ a `dynamicInstantiate` hook.
 
 A `MessagePort` was found in the object passed to a `postMessage()` call,
 but not provided in the `transferList` for that call.
+
+<a id="ERR_MISSING_PASSPHRASE"></a>
+### ERR_MISSING_PASSPHRASE
+
+An attempt was made to read an encrypted key without specifying a passphrase.
 
 <a id="ERR_MISSING_PLATFORM_FOR_WORKER"></a>
 ### ERR_MISSING_PLATFORM_FOR_WORKER
