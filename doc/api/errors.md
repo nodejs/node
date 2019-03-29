@@ -351,9 +351,6 @@ The number of frames captured by the stack trace is bounded by the smaller of
 `Error.stackTraceLimit` or the number of available frames on the current event
 loop tick.
 
-System-level errors are generated as augmented `Error` instances, which are
-detailed [here](#errors_system_errors).
-
 ## Class: AssertionError
 
 A subclass of `Error` that indicates the failure of an assertion. For details,
@@ -438,19 +435,12 @@ Some exceptions are *unrecoverable* at the JavaScript layer. Such exceptions
 will *always* cause the Node.js process to crash. Examples include `assert()`
 checks or `abort()` calls in the C++ layer.
 
-## System Errors
+## Class: SystemError
 
 Node.js generates system errors when exceptions occur within its runtime
 environment. These usually occur when an application violates an operating
 system constraint. For example, a system error will occur if an application
 attempts to read a file that does not exist.
-
-System errors are usually generated at the syscall level. For a comprehensive
-list, see the [`errno`(3) man page][].
-
-In Node.js, system errors are `Error` objects with extra properties.
-
-### Class: SystemError
 
 * `address` {string} If present, the address to which a network connection
   failed
@@ -464,27 +454,27 @@ In Node.js, system errors are `Error` objects with extra properties.
 * `port` {number} If present, the network connection port that is not available
 * `syscall` {string} The name of the system call that triggered the error
 
-#### error.address
+### error.address
 
 * {string}
 
 If present, `error.address` is a string describing the address to which a
 network connection failed.
 
-#### error.code
+### error.code
 
 * {string}
 
 The `error.code` property is a string representing the error code.
 
-#### error.dest
+### error.dest
 
 * {string}
 
 If present, `error.dest` is the file path destination when reporting a file
 system error.
 
-#### error.errno
+### error.errno
 
 * {string|number}
 
@@ -494,31 +484,31 @@ negative value which corresponds to the error code defined in
 (`deps/uv/include/uv/errno.h` in the Node.js source tree) for details. In case
 of a string, it is the same as `error.code`.
 
-#### error.info
+### error.info
 
 * {Object}
 
 If present, `error.info` is an object with details about the error condition.
 
-#### error.message
+### error.message
 
 * {string}
 
 `error.message` is a system-provided human-readable description of the error.
 
-#### error.path
+### error.path
 
 * {string}
 
 If present, `error.path` is a string containing a relevant invalid pathname.
 
-#### error.port
+### error.port
 
 * {number}
 
 If present, `error.port` is the network connection port that is not available.
 
-#### error.syscall
+### error.syscall
 
 * {string}
 
