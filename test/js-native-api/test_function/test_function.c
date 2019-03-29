@@ -1,6 +1,85 @@
 #include <js_native_api.h>
 #include "../common.h"
 
+static napi_value TestCreateFunctionParameters(napi_env env,
+                                               napi_callback_info info) {
+  napi_status ret[4];
+  napi_value result, return_value, prop_value;
+
+
+  ret[0] = napi_create_function(NULL,
+                                "TrackedFunction",
+                                NAPI_AUTO_LENGTH,
+                                TestCreateFunctionParameters,
+                                NULL,
+                                &result);
+
+  ret[1] = napi_create_function(env,
+                                NULL,
+                                NAPI_AUTO_LENGTH,
+                                TestCreateFunctionParameters,
+                                NULL,
+                                &result);
+
+  ret[2] = napi_create_function(env,
+                                "TrackedFunction",
+                                NAPI_AUTO_LENGTH,
+                                NULL,
+                                NULL,
+                                &result);
+
+  ret[3] = napi_create_function(env,
+                                "TrackedFunction",
+                                NAPI_AUTO_LENGTH,
+                                TestCreateFunctionParameters,
+                                NULL,
+                                NULL);
+
+  NAPI_CALL(env, napi_create_object(env, &return_value));
+
+  NAPI_CALL(env, napi_create_string_utf8(env,
+                                         (ret[0] == napi_invalid_arg ?
+                                             "pass" : "fail"),
+                                         NAPI_AUTO_LENGTH,
+                                         &prop_value));
+  NAPI_CALL(env, napi_set_named_property(env,
+                                         return_value,
+                                         "envIsNull",
+                                         prop_value));
+
+  NAPI_CALL(env, napi_create_string_utf8(env,
+                                         (ret[1] == napi_ok ?
+                                             "pass" : "fail"),
+                                         NAPI_AUTO_LENGTH,
+                                         &prop_value));
+  NAPI_CALL(env, napi_set_named_property(env,
+                                         return_value,
+                                         "nameIsNull",
+                                         prop_value));
+
+  NAPI_CALL(env, napi_create_string_utf8(env,
+                                         (ret[2] == napi_invalid_arg ?
+                                             "pass" : "fail"),
+                                         NAPI_AUTO_LENGTH,
+                                         &prop_value));
+  NAPI_CALL(env, napi_set_named_property(env,
+                                         return_value,
+                                         "cbIsNull",
+                                         prop_value));
+
+  NAPI_CALL(env, napi_create_string_utf8(env,
+                                         (ret[3] == napi_invalid_arg ?
+                                             "pass" : "fail"),
+                                         NAPI_AUTO_LENGTH,
+                                         &prop_value));
+  NAPI_CALL(env, napi_set_named_property(env,
+                                         return_value,
+                                         "resultIsNull",
+                                         prop_value));
+
+  return return_value;
+}
+
 static napi_value TestCallFunction(napi_env env, napi_callback_info info) {
   size_t argc = 10;
   napi_value args[10];
@@ -124,6 +203,14 @@ napi_value Init(napi_env env, napi_value exports) {
                                       NULL,
                                       &fn4));
 
+  napi_value fn5;
+  NAPI_CALL(env, napi_create_function(env,
+                                      "TestCreateFunctionParameters",
+                                      NAPI_AUTO_LENGTH,
+                                      TestCreateFunctionParameters,
+                                      NULL,
+                                      &fn5));
+
   NAPI_CALL(env, napi_set_named_property(env, exports, "TestCall", fn1));
   NAPI_CALL(env, napi_set_named_property(env, exports, "TestName", fn2));
   NAPI_CALL(env, napi_set_named_property(env, exports, "TestNameShort", fn3));
@@ -131,6 +218,11 @@ napi_value Init(napi_env env, napi_value exports) {
                                          exports,
                                          "MakeTrackedFunction",
                                          fn4));
+
+  NAPI_CALL(env, napi_set_named_property(env,
+                                         exports,
+                                         "TestCreateFunctionParameters",
+                                         fn5));
 
   return exports;
 }
