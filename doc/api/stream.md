@@ -1275,9 +1275,13 @@ myReader.on('readable', () => {
 ##### readable\[Symbol.asyncIterator\]()
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/26989
+    description: Symbol.asyncIterator support is no longer experimental.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 * Returns: {AsyncIterator} to fully consume the stream.
 
