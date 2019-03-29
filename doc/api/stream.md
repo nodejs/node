@@ -799,6 +799,14 @@ to push an invalid chunk of data.
 
 The listener callback will be passed a single `Error` object.
 
+##### Event: 'pause'
+<!-- YAML
+added: v0.9.4
+-->
+
+The `'pause'` event is emitted when [`stream.pause()`][stream-pause] is called
+and `readableFlowing` is not `false`.
+
 ##### Event: 'readable'
 <!-- YAML
 added: v0.9.4
@@ -867,6 +875,14 @@ only when [`stream.read()`][stream-read] is called. The
 If there are `'data'` listeners when `'readable'` is removed, the stream
 will start flowing, i.e. `'data'` events will be emitted without calling
 `.resume()`.
+
+##### Event: 'resume'
+<!-- YAML
+added: v0.9.4
+-->
+
+The `'resume'` event is emitted when [`stream.resume()`][stream-resume] is
+called and `readableFlowing` is not `true`.
 
 ##### readable.destroy([error])
 <!-- YAML
