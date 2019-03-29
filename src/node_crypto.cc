@@ -3309,8 +3309,6 @@ static PublicKeyEncodingConfig GetPublicKeyEncodingFromJs(
   return result;
 }
 
-#define READ_FAILURE_MSG(type) ("Failed to read " type " key")
-
 static inline ManagedEVPPKey GetParsedKey(Environment* env,
                                           EVPKeyPointer&& pkey,
                                           ParseKeyResult ret,
@@ -3389,7 +3387,8 @@ static ManagedEVPPKey GetPrivateKeyFromJs(
     EVPKeyPointer pkey;
     ParseKeyResult ret =
         ParsePrivateKey(&pkey, config.Release(), key.get(), key.size());
-    return GetParsedKey(env, std::move(pkey), ret, READ_FAILURE_MSG("private"));
+    return GetParsedKey(env, std::move(pkey), ret,
+                        "Failed to read private key");
   } else {
     CHECK(args[*offset]->IsObject() && allow_key_object);
     KeyObject* key;
@@ -3449,7 +3448,7 @@ static ManagedEVPPKey GetPublicOrPrivateKeyFromJs(
     }
 
     return GetParsedKey(env, std::move(pkey), ret,
-                        READ_FAILURE_MSG("asymmetric"));
+                        "Failed to read asymmetric key");
   } else {
     CHECK(args[*offset]->IsObject());
     KeyObject* key = Unwrap<KeyObject>(args[*offset].As<Object>());
