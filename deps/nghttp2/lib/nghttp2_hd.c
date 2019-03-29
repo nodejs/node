@@ -1390,7 +1390,7 @@ static int deflate_nv(nghttp2_hd_deflater *deflater, nghttp2_bufs *bufs,
   if (indexing_mode == NGHTTP2_HD_WITH_INDEXING) {
     nghttp2_hd_nv hd_nv;
 
-    if (idx != -1 && idx < (ssize_t)NGHTTP2_STATIC_TABLE_LENGTH) {
+    if (idx != -1) {
       hd_nv.name = nghttp2_hd_table_get(&deflater->ctx, (size_t)idx).name;
       nghttp2_rcbuf_incref(hd_nv.name);
     } else {
