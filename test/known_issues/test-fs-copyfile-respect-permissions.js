@@ -3,7 +3,7 @@
 // Test that fs.copyFile() respects file permissions.
 // Ref: https://github.com/nodejs/node/issues/26936
 
-require('../common');
+const common = require('../common');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -19,7 +19,10 @@ fs.writeFileSync(source, 'source');
 fs.writeFileSync(dest, 'dest');
 fs.chmodSync(dest, '444');
 
-fs.copyFile(source, dest, (err) => {
+assert.throws(() => { fs.copyFileSync(source, dest); },
+              { code: 'EACCESS' });
+
+fs.copyFile(source, dest, common.mustCall((err) => {
   assert.strictEqual(err.code, 'EACCESS');
   assert.strictEqual(fs.readFileSync(dest, 'utf8'), 'dest');
-});
+}));
