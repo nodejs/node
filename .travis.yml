@@ -31,4 +31,4 @@ matrix:
         - ./configure
         - make -j2 V=
       script:
-        - PARALLEL_ARGS='--flaky-tests=skip' make -j1 test
+        - travis_wait 5 PARALLEL_ARGS='--flaky-tests=skip' make -j1 test
