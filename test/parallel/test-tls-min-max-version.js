@@ -9,6 +9,13 @@ const {
 } = require(fixtures.path('tls-connect'));
 const DEFAULT_MIN_VERSION = tls.DEFAULT_MIN_VERSION;
 const DEFAULT_MAX_VERSION = tls.DEFAULT_MAX_VERSION;
+const tls13 = !!require('constants').TLS1_3_VERSION;
+
+if (!tls13 && (
+  DEFAULT_MAX_VERSION === 'TLSv1.3' ||
+  DEFAULT_MIN_VERSION === 'TLSv1.3')) {
+  return common.skip('cannot test TLSv1.3 against 1.3-incapable shared lib');
+}
 
 function test(cmin, cmax, cprot, smin, smax, sprot, proto, cerr, serr) {
   assert(proto || cerr || serr, 'test missing any expectations');
@@ -16,6 +23,11 @@ function test(cmin, cmax, cprot, smin, smax, sprot, proto, cerr, serr) {
   //     at Object.<anonymous> (file:line)
   // from the stack location, we only want the file:line part.
   const where = (new Error()).stack.split('\n')[2].replace(/[^(]*/, '');
+  if (Array.prototype.includes.call(arguments, 'TLSv1.3')) {
+    console.log('test: skip because TLSv1.3 is not supported');
+    console.log('  ', where);
+    return;
+  }
   connect({
     client: {
       checkServerIdentity: (servername, cert) => { },
