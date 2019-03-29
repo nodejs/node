@@ -1840,6 +1840,11 @@ If Node.js was not spawned with an IPC channel, `process.send()` will be
 The message goes through serialization and parsing. The resulting message might
 not be the same as what is originally sent.
 
+`process.send()` will return `false` if the channel has closed or when the
+backlog of unsent messages exceeds a threshold that makes it unwise to send
+more. Otherwise, the method returns `true`. The `callback` function can be
+used to implement flow control.
+
 ## process.setegid(id)
 <!-- YAML
 added: v2.0.0

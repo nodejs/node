@@ -459,6 +459,11 @@ if (cluster.isMaster) {
 }
 ```
 
+`worker.send()` will return `false` if the channel has closed or when the
+backlog of unsent messages exceeds a threshold that makes it unwise to send
+more. Otherwise, the method returns `true`. The `callback` function can be
+used to implement flow control.
+
 ## Event: 'disconnect'
 <!-- YAML
 added: v0.7.9
