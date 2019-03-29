@@ -35,3 +35,10 @@ let tracked_function = test_function.MakeTrackedFunction(common.mustCall());
 assert(!!tracked_function);
 tracked_function = null;
 global.gc();
+
+assert.deepStrictEqual(test_function.TestCreateFunctionParameters(), {
+  envIsNull: 'pass',
+  nameIsNull: 'pass',
+  cbIsNull: 'pass',
+  resultIsNull: 'pass'
+});
