@@ -189,7 +189,8 @@ static int PasswordCallback(char* buf, int size, int rwflag, void* u) {
   if (passphrase != nullptr) {
     size_t buflen = static_cast<size_t>(size);
     size_t len = strlen(passphrase);
-    len = len > buflen ? buflen : len;
+    if (buflen < len)
+      return -1;
     memcpy(buf, passphrase, len);
     return len;
   }
