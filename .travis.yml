@@ -15,10 +15,21 @@ matrix:
     - name: "Linter"
       language: node_js
       node_js: "node"
-      env:
-        - NODE=$(which node)
       script:
-        - make lint
+        - NODE=$(which node) make lint
+    - name: "Documentation"
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-6
+      install:
+        - export CC='ccache gcc-6' CXX='ccache g++-6' JOBS=2
+        - ./configure
+        - make -j2 V=
+      script:
+        - make test-doc
     - name: "Test Suite"
       addons:
         apt:
@@ -31,4 +42,4 @@ matrix:
         - ./configure
         - make -j2 V=
       script:
-        - PARALLEL_ARGS='--flaky-tests=skip' make -j1 test
+        - PARALLEL_ARGS='--flaky-tests=skip' make -j1 test-only
