@@ -6,7 +6,10 @@ if (process.config.variables.node_without_node_options)
 // Test options specified by env variable.
 
 const assert = require('assert');
-const exec = require('child_process').execFile;
+// Don't change this to execFile(). This test launches too many processes for
+// underpowered machines in CI with limited PID space to launch them in parallel
+// without causing failures.
+const { execFileSync } = require('child_process');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -56,7 +59,7 @@ if (common.hasCrypto) {
 expect('--abort_on-uncaught_exception', 'B\n');
 expect('--max-old-space-size=0', 'B\n');
 expect('--stack-trace-limit=100',
-       /(\s*at f \(\[eval\]:1:\d*\)\r?\n){100}/,
+       /(\s*at f \(\[eval\]:1:\d+\)\r?\n){100}/,
        '(function f() { f(); })();',
        true);
 
@@ -66,18 +69,23 @@ function expect(opt, want, command = 'console.log("B")', wantsError = false) {
     cwd: tmpdir.path,
     env: Object.assign({}, process.env, { NODE_OPTIONS: opt }),
     maxBuffer: 1e6,
+    stdio: 'pipe',
   };
+
   if (typeof want === 'string')
     want = new RegExp(want);
-  exec(process.execPath, argv, opts, common.mustCall((err, stdout, stderr) => {
-    if (wantsError) {
-      stdout = stderr;
-    } else {
-      assert.ifError(err);
-    }
-    if (want.test(stdout)) return;
 
-    const o = JSON.stringify(opt);
-    assert.fail(`For ${o}, failed to find ${want} in: <\n${stdout}\n>`);
-  }));
+  let stdout;
+  try {
+    stdout = execFileSync(process.execPath, argv, opts);
+  } catch (e) {
+    if (!wantsError)
+      throw e;
+    stdout = e.output[2].toString();
+  }
+
+  if (want.test(stdout)) return;
+
+  const o = JSON.stringify(opt);
+  assert.fail(`For ${o}, failed to find ${want} in: <\n${stdout}\n>`);
 }
