@@ -2121,6 +2121,30 @@ assert.strictEqual(
 
   assert.strictEqual(out, expected);
 
+  obj = [
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 123456789
+  ];
+
+  out = util.inspect(obj, { compact: 3 });
+
+  expected = [
+    '[',
+    '  1,         1,         1,',
+    '  1,         1,         1,',
+    '  1,         1,         1,',
+    '  1,         1,         1,',
+    '  1,         1,         1,',
+    '  1,         1,         1,',
+    '  1,         1,         1,',
+    '  1,         1,         1,',
+    '  1,         1, 123456789',
+    ']'
+  ].join('\n');
+
+  assert.strictEqual(out, expected);
+
   // Verify that array grouping and line consolidation does not happen together.
   obj = {
     a: {
