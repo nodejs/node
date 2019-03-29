@@ -2214,22 +2214,23 @@ console.log(process.versions);
 
 Will generate an object similar to:
 
-<!-- eslint-skip -->
-```js
-{ http_parser: '2.7.0',
-  node: '8.9.0',
-  v8: '6.3.292.48-node.6',
-  uv: '1.18.0',
+```console
+{ node: '11.13.0',
+  v8: '7.0.276.38-node.18',
+  uv: '1.27.0',
   zlib: '1.2.11',
-  ares: '1.13.0',
-  modules: '60',
-  nghttp2: '1.29.0',
-  napi: '2',
-  openssl: '1.0.2n',
-  icu: '60.1',
-  unicode: '10.0',
-  cldr: '32.0',
-  tz: '2016b' }
+  brotli: '1.0.7',
+  ares: '1.15.0',
+  modules: '67',
+  nghttp2: '1.34.0',
+  napi: '4',
+  llhttp: '1.1.1',
+  http_parser: '2.8.0',
+  openssl: '1.1.1b',
+  cldr: '34.0',
+  icu: '63.1',
+  tz: '2018e',
+  unicode: '11.0' }
 ```
 
 ## Exit Codes
