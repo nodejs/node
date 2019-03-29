@@ -79,8 +79,7 @@ void HandleWrap::Close(Local<Value> close_callback) {
   if (!close_callback.IsEmpty() && close_callback->IsFunction()) {
     object()->Set(env()->context(),
                   env()->handle_onclose_symbol(),
-                  close_callback)
-        .FromMaybe(false);
+                  close_callback).Check();
   }
 }
 
