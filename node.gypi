@@ -70,7 +70,7 @@
     }],
     [ 'node_use_bundled_v8=="true"', {
       'dependencies': [
-        'tools/v8_gypfiles/v8.gyp:v8',
+        'tools/v8_gypfiles/v8.gyp:v8_snapshot',
         'tools/v8_gypfiles/v8.gyp:v8_libplatform',
       ],
     }],
@@ -116,21 +116,13 @@
     [ 'node_no_browser_globals=="true"', {
       'defines': [ 'NODE_NO_BROWSER_GLOBALS' ],
     } ],
-    [ 'node_use_bundled_v8=="true" and v8_postmortem_support==1 and force_load=="true"', {
-      'xcode_settings': {
-        'OTHER_LDFLAGS': [
-          '-Wl,-force_load,<(v8_base)',
-        ],
-      },
-    }],
     [ 'node_shared_zlib=="false"', {
       'dependencies': [ 'deps/zlib/zlib.gyp:zlib' ],
       'conditions': [
         [ 'force_load=="true"', {
           'xcode_settings': {
             'OTHER_LDFLAGS': [
-              '-Wl,-force_load,<(PRODUCT_DIR)/<(STATIC_LIB_PREFIX)'
-                  'zlib<(STATIC_LIB_SUFFIX)',
+              '-Wl,-force_load,<(PRODUCT_DIR)/<(STATIC_LIB_PREFIX)zlib<(STATIC_LIB_SUFFIX)',
             ],
           },
           'msvs_settings': {
@@ -143,7 +135,7 @@
           'conditions': [
             ['OS!="aix" and node_shared=="false"', {
               'ldflags': [
-                '-Wl,--whole-archive,'
+                '-Wl,--whole-archive',
                 '<(obj_dir)/deps/zlib/<(STATIC_LIB_PREFIX)zlib<(STATIC_LIB_SUFFIX)',
                 '-Wl,--no-whole-archive',
               ],
@@ -170,8 +162,7 @@
         [ 'force_load=="true"', {
           'xcode_settings': {
             'OTHER_LDFLAGS': [
-              '-Wl,-force_load,<(PRODUCT_DIR)/<(STATIC_LIB_PREFIX)'
-                  'uv<(STATIC_LIB_SUFFIX)',
+              '-Wl,-force_load,<(PRODUCT_DIR)/libuv<(STATIC_LIB_SUFFIX)',
             ],
           },
           'msvs_settings': {
@@ -184,7 +175,7 @@
           'conditions': [
             ['OS!="aix" and node_shared=="false"', {
               'ldflags': [
-                '-Wl,--whole-archive,'
+                '-Wl,--whole-archive',
                 '<(obj_dir)/deps/uv/<(STATIC_LIB_PREFIX)uv<(STATIC_LIB_SUFFIX)',
                 '-Wl,--no-whole-archive',
               ],
@@ -269,9 +260,18 @@
     }],
     [ '(OS=="freebsd" or OS=="linux") and node_shared=="false"'
         ' and force_load=="true"', {
-      'ldflags': [ '-Wl,-z,noexecstack',
-                   '-Wl,--whole-archive <(v8_base)',
-                   '-Wl,--no-whole-archive' ]
+      'ldflags': [
+        '-Wl,-z,noexecstack',
+        '-Wl,--whole-archive <(v8_base)',
+        '-Wl,--no-whole-archive',
+      ]
+    }],
+    [ 'node_use_bundled_v8=="true" and v8_postmortem_support==1 and force_load=="true"', {
+      'xcode_settings': {
+        'OTHER_LDFLAGS': [
+          '-Wl,-force_load,<(v8_base)',
+        ],
+      },
     }],
     [ 'coverage=="true" and node_shared=="false" and OS in "mac freebsd linux"', {
       'cflags!': [ '-O3' ],

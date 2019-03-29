@@ -135,6 +135,8 @@
     # Indicates if gcmole tools are downloaded by a hook.
     'gcmole%': 0,
   },
+
+  # [GYP] this needs to be outside of the top level 'variables'
   'conditions': [
     ['host_arch=="ia32" or host_arch=="x64" or \
       host_arch=="ppc" or host_arch=="ppc64" or \
@@ -166,6 +168,12 @@
       '<(V8_ROOT)/include',
     ],
     'conditions': [
+      ['clang', {
+        'cflags': [ '-Werror', '-Wno-unknown-pragmas' ],
+      },{
+        'cflags!': [ '-Wall', '-Wextra' ],
+        'cflags': [ '-Wno-return-type' ],
+      }],
       ['v8_target_arch=="arm"', {
         'defines': [
           'V8_TARGET_ARCH_ARM',
@@ -1089,7 +1097,7 @@
               }],
              ],
            }],
-           ['_toolset=="target"', {
+          ['_toolset=="target"', {
              'conditions': [
                ['target_cxx_is_biarch==1', {
                  'cflags': [ '-m64' ],
@@ -1398,24 +1406,20 @@
         ],  # conditions
       },  # Release
     },  # configurations
-    'cflags!': [ '-Wall', '-Wextra' ],
     'msvs_disabled_warnings': [
       4129,  # unrecognized character escape sequence (torque-generated)
       4245,  # Conversion with signed/unsigned mismatch.
       4267,  # Conversion with possible loss of data.
       4324,  # Padding structure due to alignment.
-      4351,
-      4355,
+      # 4351, # [refack] Old issue with array init.
+      4355,  # 'this' used in base member initializer list
+      4661,  # no suitable definition provided for explicit template instantiation request
       4701,  # Potentially uninitialized local variable.
       4702,  # Unreachable code.
       4703,  # Potentially uninitialized local pointer variable.
       4709,  # Comma operator within array index expr (bugged).
-      4714,  # Function marked forceinline not inlined.
-
-      # MSVC assumes that control can get past an exhaustive switch and then
-      # warns if there's no return there (see https://crbug.com/v8/7658)
-      4715,  # Not all control paths return a value.
-
+      # 4714,  # Function marked forceinline not inlined.
+      4715,  # Not all control paths return a value. (see https://crbug.com/v8/7658)
       4718,  # Recursive call has no side-effect.
       4723,  # https://crbug.com/v8/7771
       4724,  # https://crbug.com/v8/7771
