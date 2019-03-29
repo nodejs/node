@@ -209,9 +209,6 @@ struct nghttp2_session {
   nghttp2_session_callbacks callbacks;
   /* Memory allocator */
   nghttp2_mem mem;
-  /* Base value when we schedule next DATA frame write.  This is
-     updated when one frame was written. */
-  uint64_t last_cycle;
   void *user_data;
   /* Points to the latest incoming closed stream.  NULL if there is no
      closed stream.  Only used when session is initialized as
