@@ -2239,18 +2239,21 @@ use the [WHATWG URL API][] instead.
 ### DEP0117: Native crypto handles
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/27011
+    description: End-of-Life.
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22747
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Previous versions of Node.js exposed handles to internal native objects through
 the `_handle` property of the `Cipher`, `Decipher`, `DiffieHellman`,
 `DiffieHellmanGroup`, `ECDH`, `Hash`, `Hmac`, `Sign`, and `Verify` classes.
-Using the `_handle` property to access the native object is deprecated because
-improper use of the native object can lead to crashing the application.
+The `_handle` property has been removed because improper use of the native
+object can lead to crashing the application.
 
 <a id="DEP0118"></a>
 ### DEP0118: dns.lookup() support for a falsy hostname
