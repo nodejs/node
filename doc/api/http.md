@@ -416,8 +416,11 @@ the client should send the request body.
 added: v10.0.0
 -->
 
-Emitted when the server sends a 1xx response (excluding 101 Upgrade). This
-event is emitted with a callback containing an object with a status code.
+* `info` {Object}
+  * `statusCode` {integer}
+
+Emitted when the server sends a 1xx response (excluding 101 Upgrade). The
+listeners of this event will receive an object containing the status code.
 
 ```js
 const http = require('http');
@@ -432,8 +435,8 @@ const options = {
 const req = http.request(options);
 req.end();
 
-req.on('information', (res) => {
-  console.log(`Got information prior to main response: ${res.statusCode}`);
+req.on('information', (info) => {
+  console.log(`Got information prior to main response: ${info.statusCode}`);
 });
 ```
 
