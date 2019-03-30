@@ -530,7 +530,7 @@ console.log(buf);
 // Prints: <Buffer 00 00 00 00 00>
 ```
 
-Allocates a new `Buffer` of `size` bytes. If `size` is larger than
+If `size` is larger than
 [`buffer.constants.MAX_LENGTH`] or smaller than 0, [`ERR_INVALID_OPT_VALUE`] is
 thrown. A zero-length `Buffer` is created if `size` is 0.
 
