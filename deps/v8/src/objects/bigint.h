@@ -87,8 +87,7 @@ class BigIntBase : public HeapObject {
 
   inline digit_t digit(int n) const {
     SLOW_DCHECK(0 <= n && n < length());
-    Address address = FIELD_ADDR(*this, kDigitsOffset + n * kDigitSize);
-    return *reinterpret_cast<digit_t*>(address);
+    return READ_UINTPTR_FIELD(*this, kDigitsOffset + n * kDigitSize);
   }
 
   bool is_zero() const { return length() == 0; }

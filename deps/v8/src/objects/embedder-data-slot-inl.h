@@ -11,6 +11,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/embedder-data-array.h"
 #include "src/objects/js-objects-inl.h"
+#include "src/v8memory.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -71,7 +72,15 @@ bool EmbedderDataSlot::ToAlignedPointer(void** out_pointer) const {
   // are accessed this way only from the main thread via API during "mutator"
   // phase which is propely synched with GC (concurrent marker may still look
   // at the tagged part of the embedder slot but read-only access is ok).
+#ifdef V8_COMPRESS_POINTERS
+  // TODO(ishell, v8:8875): When pointer compression is enabled 8-byte size
+  // fields (external pointers, doubles and BigInt data) are only kTaggedSize
+  // aligned so we have to use unaligned pointer friendly way of accessing them
+  // in order to avoid undefined behavior in C++ code.
+  Address raw_value = ReadUnalignedValue<Address>(address());
+#else
   Address raw_value = *location();
+#endif
   *out_pointer = reinterpret_cast<void*>(raw_value);
   return HAS_SMI_TAG(raw_value);
 }
@@ -89,7 +98,15 @@ EmbedderDataSlot::RawData EmbedderDataSlot::load_raw(
   // are accessed this way only by serializer from the main thread when
   // GC is not active (concurrent marker may still look at the tagged part
   // of the embedder slot but read-only access is ok).
+#ifdef V8_COMPRESS_POINTERS
+  // TODO(ishell, v8:8875): When pointer compression is enabled 8-byte size
+  // fields (external pointers, doubles and BigInt data) are only kTaggedSize
+  // aligned so we have to use unaligned pointer friendly way of accessing them
+  // in order to avoid undefined behavior in C++ code.
+  return ReadUnalignedValue<Address>(address());
+#else
   return *location();
+#endif
 }
 
 void EmbedderDataSlot::store_raw(EmbedderDataSlot::RawData data,

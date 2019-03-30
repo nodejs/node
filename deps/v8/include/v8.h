@@ -118,6 +118,7 @@ class Arguments;
 class DeferredHandles;
 class Heap;
 class HeapObject;
+class ExternalString;
 class Isolate;
 class LocalEmbedderHeapTracer;
 class MicrotaskQueue;
@@ -2797,7 +2798,7 @@ class V8_EXPORT String : public Name {
     void operator=(const ExternalStringResourceBase&) = delete;
 
    private:
-    friend class internal::Heap;
+    friend class internal::ExternalString;
     friend class v8::String;
     friend class internal::ScopedExternalStringLock;
   };

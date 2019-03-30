@@ -736,6 +736,9 @@ class ExternalString : public String {
   inline uint32_t resource_as_uint32();
   inline void set_uint32_as_resource(uint32_t value);
 
+  // Disposes string's resource object if it has not already been disposed.
+  inline void DisposeResource();
+
   STATIC_ASSERT(kResourceOffset == Internals::kStringResourceOffset);
 
   OBJECT_CONSTRUCTORS(ExternalString, String);

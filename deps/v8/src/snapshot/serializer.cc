@@ -710,8 +710,8 @@ void Serializer::ObjectSerializer::VisitEmbeddedPointer(Code host,
 
 void Serializer::ObjectSerializer::VisitExternalReference(Foreign host,
                                                           Address* p) {
-  Address target = *p;
-  auto encoded_reference = serializer_->EncodeExternalReference(target);
+  auto encoded_reference =
+      serializer_->EncodeExternalReference(host->foreign_address());
   if (encoded_reference.is_from_api()) {
     sink_->Put(kApiReference, "ApiRef");
   } else {

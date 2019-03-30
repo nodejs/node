@@ -300,15 +300,7 @@ void Heap::FinalizeExternalString(String string) {
       ExternalBackingStoreType::kExternalString,
       ext_string->ExternalPayloadSize());
 
-  v8::String::ExternalStringResourceBase** resource_addr =
-      reinterpret_cast<v8::String::ExternalStringResourceBase**>(
-          string->address() + ExternalString::kResourceOffset);
-
-  // Dispose of the C++ object if it has not already been disposed.
-  if (*resource_addr != nullptr) {
-    (*resource_addr)->Dispose();
-    *resource_addr = nullptr;
-  }
+  ext_string->DisposeResource();
 }
 
 Address Heap::NewSpaceTop() { return new_space_->top(); }

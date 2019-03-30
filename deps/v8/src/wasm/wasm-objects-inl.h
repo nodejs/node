@@ -57,18 +57,30 @@ CAST_ACCESSOR(AsmWasmData)
   }                                                    \
   ACCESSORS(holder, name, type, offset)
 
-#define READ_PRIMITIVE_FIELD(p, type, offset) \
-  (*reinterpret_cast<type const*>(FIELD_ADDR(p, offset)))
-
-#define WRITE_PRIMITIVE_FIELD(p, type, offset, value) \
-  (*reinterpret_cast<type*>(FIELD_ADDR(p, offset)) = value)
-
-#define PRIMITIVE_ACCESSORS(holder, name, type, offset) \
-  type holder::name() const {                           \
-    return READ_PRIMITIVE_FIELD(*this, type, offset);   \
-  }                                                     \
-  void holder::set_##name(type value) {                 \
-    WRITE_PRIMITIVE_FIELD(*this, type, offset, value);  \
+#define PRIMITIVE_ACCESSORS(holder, name, type, offset)                       \
+  type holder::name() const {                                                 \
+    if (COMPRESS_POINTERS_BOOL && alignof(type) > kTaggedSize) {              \
+      /* TODO(ishell, v8:8875): When pointer compression is enabled 8-byte */ \
+      /* size fields (external pointers, doubles and BigInt data) are only */ \
+      /* kTaggedSize aligned so we have to use unaligned pointer friendly  */ \
+      /* way of accessing them in order to avoid undefined behavior in C++ */ \
+      /* code. */                                                             \
+      return ReadUnalignedValue<type>(FIELD_ADDR(*this, offset));             \
+    } else {                                                                  \
+      return *reinterpret_cast<type const*>(FIELD_ADDR(*this, offset));       \
+    }                                                                         \
+  }                                                                           \
+  void holder::set_##name(type value) {                                       \
+    if (COMPRESS_POINTERS_BOOL && alignof(type) > kTaggedSize) {              \
+      /* TODO(ishell, v8:8875): When pointer compression is enabled 8-byte */ \
+      /* size fields (external pointers, doubles and BigInt data) are only */ \
+      /* kTaggedSize aligned so we have to use unaligned pointer friendly  */ \
+      /* way of accessing them in order to avoid undefined behavior in C++ */ \
+      /* code. */                                                             \
+      WriteUnalignedValue<type>(FIELD_ADDR(*this, offset), value);            \
+    } else {                                                                  \
+      *reinterpret_cast<type*>(FIELD_ADDR(*this, offset)) = value;            \
+    }                                                                         \
   }
 
 // WasmModuleObject

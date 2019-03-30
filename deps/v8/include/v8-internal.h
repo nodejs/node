@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 #include <type_traits>
 
 #include "v8-version.h"  // NOLINT(build/include)
@@ -274,6 +275,17 @@ class Internals {
   V8_INLINE static T ReadRawField(internal::Address heap_object_ptr,
                                   int offset) {
     internal::Address addr = heap_object_ptr + offset - kHeapObjectTag;
+#ifdef V8_COMPRESS_POINTERS
+    if (sizeof(T) > kApiTaggedSize) {
+      // TODO(ishell, v8:8875): When pointer compression is enabled 8-byte size
+      // fields (external pointers, doubles and BigInt data) are only
+      // kTaggedSize aligned so we have to use unaligned pointer friendly way of
+      // accessing them in order to avoid undefined behavior in C++ code.
+      T r;
+      memcpy(&r, reinterpret_cast<void*>(addr), sizeof(T));
+      return r;
+    }
+#endif
     return *reinterpret_cast<const T*>(addr);
   }
 

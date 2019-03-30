@@ -553,11 +553,11 @@ bool ExternalString::is_uncached() const {
 }
 
 Address ExternalString::resource_as_address() {
-  return *reinterpret_cast<Address*>(FIELD_ADDR(*this, kResourceOffset));
+  return READ_UINTPTR_FIELD(*this, kResourceOffset);
 }
 
 void ExternalString::set_address_as_resource(Address address) {
-  *reinterpret_cast<Address*>(FIELD_ADDR(*this, kResourceOffset)) = address;
+  WRITE_UINTPTR_FIELD(*this, kResourceOffset, address);
   if (IsExternalOneByteString()) {
     ExternalOneByteString::cast(*this)->update_data_cache();
   } else {
@@ -566,27 +566,36 @@ void ExternalString::set_address_as_resource(Address address) {
 }
 
 uint32_t ExternalString::resource_as_uint32() {
-  return static_cast<uint32_t>(
-      *reinterpret_cast<uintptr_t*>(FIELD_ADDR(*this, kResourceOffset)));
+  return static_cast<uint32_t>(READ_UINTPTR_FIELD(*this, kResourceOffset));
 }
 
 void ExternalString::set_uint32_as_resource(uint32_t value) {
-  *reinterpret_cast<uintptr_t*>(FIELD_ADDR(*this, kResourceOffset)) = value;
+  WRITE_UINTPTR_FIELD(*this, kResourceOffset, value);
   if (is_uncached()) return;
-  const char** data_field =
-      reinterpret_cast<const char**>(FIELD_ADDR(*this, kResourceDataOffset));
-  *data_field = nullptr;
+  WRITE_UINTPTR_FIELD(*this, kResourceDataOffset, kNullAddress);
+}
+
+void ExternalString::DisposeResource() {
+  v8::String::ExternalStringResourceBase* resource =
+      reinterpret_cast<v8::String::ExternalStringResourceBase*>(
+          READ_UINTPTR_FIELD(*this, ExternalString::kResourceOffset));
+
+  // Dispose of the C++ object if it has not already been disposed.
+  if (resource != nullptr) {
+    resource->Dispose();
+    WRITE_UINTPTR_FIELD(*this, ExternalString::kResourceOffset, kNullAddress);
+  }
 }
 
 const ExternalOneByteString::Resource* ExternalOneByteString::resource() {
-  return *reinterpret_cast<Resource**>(FIELD_ADDR(*this, kResourceOffset));
+  return reinterpret_cast<Resource*>(
+      READ_UINTPTR_FIELD(*this, kResourceOffset));
 }
 
 void ExternalOneByteString::update_data_cache() {
   if (is_uncached()) return;
-  const char** data_field =
-      reinterpret_cast<const char**>(FIELD_ADDR(*this, kResourceDataOffset));
-  *data_field = resource()->data();
+  WRITE_UINTPTR_FIELD(*this, kResourceDataOffset,
+                      reinterpret_cast<Address>(resource()->data()));
 }
 
 void ExternalOneByteString::SetResource(
@@ -600,8 +609,8 @@ void ExternalOneByteString::SetResource(
 
 void ExternalOneByteString::set_resource(
     const ExternalOneByteString::Resource* resource) {
-  *reinterpret_cast<const Resource**>(FIELD_ADDR(*this, kResourceOffset)) =
-      resource;
+  WRITE_UINTPTR_FIELD(*this, kResourceOffset,
+                      reinterpret_cast<Address>(resource));
   if (resource != nullptr) update_data_cache();
 }
 
@@ -615,14 +624,14 @@ uint16_t ExternalOneByteString::ExternalOneByteStringGet(int index) {
 }
 
 const ExternalTwoByteString::Resource* ExternalTwoByteString::resource() {
-  return *reinterpret_cast<Resource**>(FIELD_ADDR(*this, kResourceOffset));
+  return reinterpret_cast<Resource*>(
+      READ_UINTPTR_FIELD(*this, kResourceOffset));
 }
 
 void ExternalTwoByteString::update_data_cache() {
   if (is_uncached()) return;
-  const uint16_t** data_field = reinterpret_cast<const uint16_t**>(
-      FIELD_ADDR(*this, kResourceDataOffset));
-  *data_field = resource()->data();
+  WRITE_UINTPTR_FIELD(*this, kResourceDataOffset,
+                      reinterpret_cast<Address>(resource()->data()));
 }
 
 void ExternalTwoByteString::SetResource(
@@ -636,8 +645,8 @@ void ExternalTwoByteString::SetResource(
 
 void ExternalTwoByteString::set_resource(
     const ExternalTwoByteString::Resource* resource) {
-  *reinterpret_cast<const Resource**>(FIELD_ADDR(*this, kResourceOffset)) =
-      resource;
+  WRITE_UINTPTR_FIELD(*this, kResourceOffset,
+                      reinterpret_cast<Address>(resource));
   if (resource != nullptr) update_data_cache();
 }
 
