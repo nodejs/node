@@ -16,6 +16,10 @@ module.exports = filepath => {
 	for (const stack of stacks) {
 		const parentFilepath = stack.getFileName();
 
+		if (typeof parentFilepath !== 'string') {
+			continue;
+		}
+
 		if (parentFilepath === filepath) {
 			seenVal = true;
 			continue;

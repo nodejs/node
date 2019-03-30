@@ -81,15 +81,23 @@ function translateOptions(cliOptions) {
  */
 function printResults(engine, results, format, outputFile) {
     let formatter;
+    let rules;
 
     try {
         formatter = engine.getFormatter(format);
+        rules = engine.getRules();
     } catch (e) {
         log.error(e.message);
         return false;
     }
 
-    const output = formatter(results);
+    const rulesMeta = {};
+
+    rules.forEach((rule, ruleId) => {
+        rulesMeta[ruleId] = rule.meta;
+    });
+
+    const output = formatter(results, { rulesMeta });
 
     if (output) {
         if (outputFile) {

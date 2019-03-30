@@ -62,9 +62,10 @@ function renderColor(totalErrors, totalWarnings) {
  * Get HTML (table rows) describing the messages.
  * @param {Array} messages Messages.
  * @param {int} parentIndex Index of the parent HTML row.
+ * @param {Object} rulesMeta Dictionary containing metadata for each rule executed by the analysis.
  * @returns {string} HTML (table rows) describing the messages.
  */
-function renderMessages(messages, parentIndex) {
+function renderMessages(messages, parentIndex, rulesMeta) {
 
     /**
      * Get HTML (table row) describing a message.
@@ -74,6 +75,13 @@ function renderMessages(messages, parentIndex) {
     return lodash.map(messages, message => {
         const lineNumber = message.line || 0;
         const columnNumber = message.column || 0;
+        let ruleUrl;
+
+        if (rulesMeta) {
+            const meta = rulesMeta[message.ruleId];
+
+            ruleUrl = lodash.get(meta, "docs.url", null);
+        }
 
         return messageTemplate({
             parentIndex,
@@ -82,32 +90,36 @@ function renderMessages(messages, parentIndex) {
             severityNumber: message.severity,
             severityName: message.severity === 1 ? "Warning" : "Error",
             message: message.message,
-            ruleId: message.ruleId
+            ruleId: message.ruleId,
+            ruleUrl
         });
     }).join("\n");
 }
 
 /**
  * @param {Array} results Test results.
+ * @param {Object} rulesMeta Dictionary containing metadata for each rule executed by the analysis.
  * @returns {string} HTML string describing the results.
  */
-function renderResults(results) {
+function renderResults(results, rulesMeta) {
     return lodash.map(results, (result, index) => resultTemplate({
         index,
         color: renderColor(result.errorCount, result.warningCount),
         filePath: result.filePath,
         summary: renderSummary(result.errorCount, result.warningCount)
 
-    }) + renderMessages(result.messages, index)).join("\n");
+    }) + renderMessages(result.messages, index, rulesMeta)).join("\n");
 }
 
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
 
-module.exports = function(results) {
+module.exports = function(results, data) {
     let totalErrors,
         totalWarnings;
+
+    const metaData = data ? data.rulesMeta : {};
 
     totalErrors = 0;
     totalWarnings = 0;
@@ -122,6 +134,6 @@ module.exports = function(results) {
         date: new Date(),
         reportColor: renderColor(totalErrors, totalWarnings),
         reportSummary: renderSummary(totalErrors, totalWarnings),
-        results: renderResults(results)
+        results: renderResults(results, metaData)
     });
 };
