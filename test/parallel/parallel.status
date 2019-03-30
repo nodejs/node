@@ -7,8 +7,6 @@ prefix parallel
 [true] # This section applies to all platforms
 # https://github.com/nodejs/node/issues/23207
 test-net-connect-options-port: PASS,FLAKY
-# https://github.com/nodejs/node/issues/24305
-test-trace-events-api-worker-disabled: PASS,FLAKY
 # https://github.com/nodejs/node/issues/26401
 test-worker-prof: PASS,FLAKY
 
