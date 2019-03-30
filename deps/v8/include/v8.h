@@ -549,7 +549,7 @@ template <class T> class PersistentBase {
    * is alive. Only allowed when the embedder is asked to trace its heap by
    * EmbedderHeapTracer.
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Used TracedGlobal and EmbedderHeapTracer::RegisterEmbedderReference",
       V8_INLINE void RegisterExternalReference(Isolate* isolate) const);
 
@@ -572,7 +572,7 @@ template <class T> class PersistentBase {
    *
    * This bit is cleared after the each garbage collection pass.
    */
-  V8_DEPRECATE_SOON("Use TracedGlobal.", V8_INLINE void MarkActive());
+  V8_DEPRECATED("Use TracedGlobal.", V8_INLINE void MarkActive());
 
   V8_DEPRECATED("See MarkIndependent.", V8_INLINE bool IsIndependent() const);
 
