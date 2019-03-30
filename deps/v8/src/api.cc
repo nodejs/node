@@ -8876,15 +8876,6 @@ void Isolate::VisitHandlesWithClassIds(PersistentHandleVisitor* visitor) {
   isolate->global_handles()->IterateAllRootsWithClassIds(visitor);
 }
 
-
-void Isolate::VisitHandlesForPartialDependence(
-    PersistentHandleVisitor* visitor) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  i::DisallowHeapAllocation no_allocation;
-  isolate->global_handles()->IterateAllYoungRootsWithClassIds(visitor);
-}
-
-
 void Isolate::VisitWeakHandles(PersistentHandleVisitor* visitor) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   i::DisallowHeapAllocation no_allocation;

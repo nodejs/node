@@ -576,10 +576,6 @@ template <class T> class PersistentBase {
 
   V8_DEPRECATED("See MarkIndependent.", V8_INLINE bool IsIndependent() const);
 
-  /** Checks if the handle holds the only reference to an object. */
-  V8_DEPRECATED("Garbage collection internal state should not be relied on.",
-                V8_INLINE bool IsNearDeath() const);
-
   /** Returns true if the handle's reference is weak.  */
   V8_INLINE bool IsWeak() const;
 
@@ -8521,17 +8517,6 @@ class V8_EXPORT Isolate {
 
   /**
    * Iterates through all the persistent handles in the current isolate's heap
-   * that have class_ids and are candidates to be marked as partially dependent
-   * handles. This will visit handles to young objects created since the last
-   * garbage collection but is free to visit an arbitrary superset of these
-   * objects.
-   */
-  V8_DEPRECATED(
-      "Use VisitHandlesWithClassIds",
-      void VisitHandlesForPartialDependence(PersistentHandleVisitor* visitor));
-
-  /**
-   * Iterates through all the persistent handles in the current isolate's heap
    * that have class_ids and are weak to be marked as inactive if there is no
    * pending activity for the handle.
    */
@@ -9782,17 +9767,6 @@ bool PersistentBase<T>::IsIndependent() const {
   return I::GetNodeFlag(reinterpret_cast<internal::Address*>(this->val_),
                         I::kNodeIsIndependentShift);
 }
-
-template <class T>
-bool PersistentBase<T>::IsNearDeath() const {
-  typedef internal::Internals I;
-  if (this->IsEmpty()) return false;
-  uint8_t node_state =
-      I::GetNodeState(reinterpret_cast<internal::Address*>(this->val_));
-  return node_state == I::kNodeStateIsNearDeathValue ||
-      node_state == I::kNodeStateIsPendingValue;
-}
-
 
 template <class T>
 bool PersistentBase<T>::IsWeak() const {

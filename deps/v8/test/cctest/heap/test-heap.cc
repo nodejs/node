@@ -531,14 +531,9 @@ TEST(WeakGlobalHandlesScavenge) {
 
   // Scavenge treats weak pointers as normal roots.
   CcTest::CollectGarbage(NEW_SPACE);
-
   CHECK((*h1)->IsString());
   CHECK((*h2)->IsHeapNumber());
-
   CHECK(!WeakPointerCleared);
-  CHECK(!global_handles->IsNearDeath(h2.location()));
-  CHECK(!global_handles->IsNearDeath(h1.location()));
-
   GlobalHandles::Destroy(h1.location());
   GlobalHandles::Destroy(h2.location());
 }
@@ -576,11 +571,8 @@ TEST(WeakGlobalUnmodifiedApiHandlesScavenge) {
       &TestWeakGlobalHandleCallback, v8::WeakCallbackType::kParameter);
 
   CcTest::CollectGarbage(NEW_SPACE);
-
   CHECK((*h1)->IsHeapNumber());
   CHECK(WeakPointerCleared);
-  CHECK(!global_handles->IsNearDeath(h1.location()));
-
   GlobalHandles::Destroy(h1.location());
 }
 
@@ -617,10 +609,7 @@ TEST(WeakGlobalApiHandleModifiedMapScavenge) {
       &TestWeakGlobalHandleCallback, v8::WeakCallbackType::kParameter);
 
   CcTest::CollectGarbage(NEW_SPACE);
-
   CHECK(!WeakPointerCleared);
-  CHECK(!global_handles->IsNearDeath(h1.location()));
-
   GlobalHandles::Destroy(h1.location());
 }
 
@@ -661,10 +650,7 @@ TEST(WeakGlobalApiHandleWithElementsScavenge) {
       &TestWeakGlobalHandleCallback, v8::WeakCallbackType::kParameter);
 
   CcTest::CollectGarbage(NEW_SPACE);
-
   CHECK(!WeakPointerCleared);
-  CHECK(!global_handles->IsNearDeath(h1.location()));
-
   GlobalHandles::Destroy(h1.location());
 }
 
@@ -699,17 +685,11 @@ TEST(WeakGlobalHandlesMark) {
   GlobalHandles::MakeWeak(
       h2.location(), reinterpret_cast<void*>(&handle_and_id),
       &TestWeakGlobalHandleCallback, v8::WeakCallbackType::kParameter);
-  CHECK(!GlobalHandles::IsNearDeath(h1.location()));
-  CHECK(!GlobalHandles::IsNearDeath(h2.location()));
 
   // Incremental marking potentially marked handles before they turned weak.
   CcTest::CollectAllGarbage();
-
   CHECK((*h1)->IsString());
-
   CHECK(WeakPointerCleared);
-  CHECK(!GlobalHandles::IsNearDeath(h1.location()));
-
   GlobalHandles::Destroy(h1.location());
 }
 
