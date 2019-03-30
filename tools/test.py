@@ -1511,7 +1511,7 @@ def FormatTime(d):
 
 
 def FormatTimedelta(td):
-  if hasattr(td.total, 'total_seconds'):
+  if hasattr(td, 'total_seconds'):
     d = td.total_seconds()
   else: # python2.6 compat
     d =  td.seconds + (td.microseconds / 10.0**6)
