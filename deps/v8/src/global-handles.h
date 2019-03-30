@@ -73,9 +73,6 @@ class GlobalHandles final {
   // Clear the weakness of a global handle.
   static void* ClearWeakness(Address* location);
 
-  // Tells whether global handle is near death.
-  static bool IsNearDeath(Address* location);
-
   // Tells whether global handle is weak.
   static bool IsWeak(Address* location);
 

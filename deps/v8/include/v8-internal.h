@@ -164,7 +164,6 @@ class Internals {
   static const int kNodeStateMask = 0x7;
   static const int kNodeStateIsWeakValue = 2;
   static const int kNodeStateIsPendingValue = 3;
-  static const int kNodeStateIsNearDeathValue = 4;
   static const int kNodeIsIndependentShift = 3;
   static const int kNodeIsActiveShift = 4;
 

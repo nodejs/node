@@ -20545,43 +20545,6 @@ TEST(WrapperClassId) {
   object.Reset();
 }
 
-
-TEST(PersistentHandleInNewSpaceVisitor) {
-  LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
-  v8::HandleScope scope(isolate);
-  v8::Persistent<v8::Object> object1(isolate, v8::Object::New(isolate));
-  CHECK_EQ(0, object1.WrapperClassId());
-  object1.SetWrapperClassId(42);
-  CHECK_EQ(42, object1.WrapperClassId());
-
-  CcTest::CollectAllGarbage();
-  CcTest::CollectAllGarbage();
-
-  v8::Persistent<v8::Object> object2(isolate, v8::Object::New(isolate));
-  CHECK_EQ(0, object2.WrapperClassId());
-  object2.SetWrapperClassId(42);
-  CHECK_EQ(42, object2.WrapperClassId());
-
-  Visitor42 visitor(&object2);
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated"
-#endif
-  // VisitHandlesForPartialDependence is marked deprecated. This test will be
-  // removed with the API method.
-  isolate->VisitHandlesForPartialDependence(&visitor);
-#if __clang__
-#pragma clang diagnostic pop
-#endif
-
-  CHECK_EQ(1, visitor.counter_);
-
-  object1.Reset();
-  object2.Reset();
-}
-
-
 TEST(RegExp) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());

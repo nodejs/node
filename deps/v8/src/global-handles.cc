@@ -379,7 +379,6 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
                   Internals::kNodeStateMask);
     STATIC_ASSERT(WEAK == Internals::kNodeStateIsWeakValue);
     STATIC_ASSERT(PENDING == Internals::kNodeStateIsPendingValue);
-    STATIC_ASSERT(NEAR_DEATH == Internals::kNodeStateIsNearDeathValue);
     STATIC_ASSERT(static_cast<int>(IsIndependent::kShift) ==
                   Internals::kNodeIsIndependentShift);
     STATIC_ASSERT(static_cast<int>(IsActive::kShift) ==
@@ -425,11 +424,6 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
   }
   void set_weakness_type(WeaknessType weakness_type) {
     flags_ = NodeWeaknessType::update(flags_, weakness_type);
-  }
-
-  bool IsNearDeath() const {
-    // Check for PENDING to ensure correct answer when processing callbacks.
-    return state() == PENDING || state() == NEAR_DEATH;
   }
 
   bool IsWeak() const { return state() == WEAK; }
@@ -817,10 +811,6 @@ void* GlobalHandles::ClearWeakness(Address* location) {
 void GlobalHandles::AnnotateStrongRetainer(Address* location,
                                            const char* label) {
   Node::FromLocation(location)->AnnotateStrongRetainer(label);
-}
-
-bool GlobalHandles::IsNearDeath(Address* location) {
-  return Node::FromLocation(location)->IsNearDeath();
 }
 
 bool GlobalHandles::IsWeak(Address* location) {
