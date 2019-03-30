@@ -14,7 +14,9 @@ function main({ len, n }) {
     'Transfer-Encoding': 'chunked',
   };
 
-  const Is = [ ...Array(n / len).keys() ];
+  // TODO(BridgeAR): Change this benchmark to use grouped arguments when
+  // implemented. https://github.com/nodejs/node/issues/26425
+  const Is = [ ...Array(Math.max(n / len, 1)).keys() ];
   const Js = [ ...Array(len).keys() ];
   for (const i of Is) {
     headers[`foo${i}`] = Js.map(() => `some header value ${i}`);
