@@ -2,9 +2,13 @@ language: cpp
 cache: ccache
 os: linux
 dist: xenial
+stages:
+  - check
+  - test
 matrix:
   include:
     - name: "First commit message adheres to guidelines at <a href=\"https://goo.gl/p2fr5Q\">https://goo.gl/p2fr5Q</a>"
+      stage: check
       if: type = pull_request
       language: node_js
       node_js: "node"
@@ -13,11 +17,13 @@ matrix:
             bash -x tools/lint-pr-commit-message.sh ${TRAVIS_PULL_REQUEST};
           fi
     - name: "Linter"
+      stage: check
       language: node_js
       node_js: "node"
       script:
         - NODE=$(which node) make lint
     - name: "Documentation"
+      stage: check
       addons:
         apt:
           sources:
@@ -31,6 +37,7 @@ matrix:
       script:
         - make test-doc
     - name: "Test Suite"
+      stage: test
       addons:
         apt:
           sources:
