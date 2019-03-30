@@ -29,6 +29,9 @@ const path = require('path');
 
 const backslash = /\\/g;
 
+if (!process.env.NODE_PENDING_DEPRECATION)
+  process.on('warning', common.mustNotCall());
+
 console.error('load test-module-loading.js');
 
 assert.strictEqual(require.main.id, '.');
