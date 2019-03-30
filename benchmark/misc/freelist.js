@@ -9,7 +9,9 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ n }) {
-  const { FreeList } = require('internal/freelist');
+  let FreeList = require('internal/freelist');
+  if (FreeList.FreeList)
+    FreeList = FreeList.FreeList;
   const poolSize = 1000;
   const list = new FreeList('test', poolSize, Object);
   var j;
