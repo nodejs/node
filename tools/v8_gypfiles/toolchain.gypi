@@ -1400,6 +1400,7 @@
     },  # configurations
     'cflags!': [ '-Wall', '-Wextra' ],
     'msvs_disabled_warnings': [
+      4129,  # unrecognized character escape sequence (torque-generated)
       4245,  # Conversion with signed/unsigned mismatch.
       4267,  # Conversion with possible loss of data.
       4324,  # Padding structure due to alignment.
