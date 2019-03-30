@@ -19,11 +19,16 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// Flags: --pending-deprecation
 'use strict';
 const common = require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const path = require('path');
+
+common.expectWarning('DeprecationWarning', 'path._makeLong is deprecated.',
+                     'DEP0080');
+assert.strictEqual(path.posix._makeLong('/foo/bar'), '/foo/bar');
 
 if (common.isWindows) {
   const file = fixtures.path('a.js');

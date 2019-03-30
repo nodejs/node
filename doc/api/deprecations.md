@@ -1625,12 +1625,15 @@ may be specified.
 ### DEP0080: path.\_makeLong()
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: ???
+    description: Added support for `--pending-deprecation`.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/14956
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Documentation-only (supports [`--pending-deprecation`][])
 
 The internal `path._makeLong()` was not intended for public use. However,
 userland modules have found it useful. The internal API is deprecated
