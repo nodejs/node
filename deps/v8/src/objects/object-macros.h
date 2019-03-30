@@ -323,39 +323,9 @@
 #define WRITE_INT_FIELD(p, offset, value) \
   (*reinterpret_cast<int*>(FIELD_ADDR(p, offset)) = value)
 
-#define ACQUIRE_READ_INTPTR_FIELD(p, offset) \
-  static_cast<intptr_t>(base::Acquire_Load(  \
-      reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR(p, offset))))
-
 #define ACQUIRE_READ_INT32_FIELD(p, offset) \
   static_cast<int32_t>(base::Acquire_Load(  \
       reinterpret_cast<const base::Atomic32*>(FIELD_ADDR(p, offset))))
-
-#define RELAXED_READ_INTPTR_FIELD(p, offset) \
-  static_cast<intptr_t>(base::Relaxed_Load(  \
-      reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR(p, offset))))
-
-#define READ_INTPTR_FIELD(p, offset) \
-  (*reinterpret_cast<const intptr_t*>(FIELD_ADDR(p, offset)))
-
-#define RELEASE_WRITE_INTPTR_FIELD(p, offset, value)              \
-  base::Release_Store(                                            \
-      reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
-      static_cast<base::AtomicWord>(value));
-
-#define RELAXED_WRITE_INTPTR_FIELD(p, offset, value)              \
-  base::Relaxed_Store(                                            \
-      reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
-      static_cast<base::AtomicWord>(value));
-
-#define WRITE_INTPTR_FIELD(p, offset, value) \
-  (*reinterpret_cast<intptr_t*>(FIELD_ADDR(p, offset)) = value)
-
-#define READ_UINTPTR_FIELD(p, offset) \
-  (*reinterpret_cast<const uintptr_t*>(FIELD_ADDR(p, offset)))
-
-#define WRITE_UINTPTR_FIELD(p, offset, value) \
-  (*reinterpret_cast<uintptr_t*>(FIELD_ADDR(p, offset)) = value)
 
 #define READ_UINT8_FIELD(p, offset) \
   (*reinterpret_cast<const uint8_t*>(FIELD_ADDR(p, offset)))
@@ -439,17 +409,51 @@
 #define WRITE_FLOAT_FIELD(p, offset, value) \
   (*reinterpret_cast<float*>(FIELD_ADDR(p, offset)) = value)
 
+// TODO(ishell, v8:8875): When pointer compression is enabled 8-byte size fields
+// (external pointers, doubles and BigInt data) are only kTaggedSize aligned so
+// we have to use unaligned pointer friendly way of accessing them in order to
+// avoid undefined behavior in C++ code.
+#ifdef V8_COMPRESS_POINTERS
+
+#define READ_INTPTR_FIELD(p, offset) \
+  ReadUnalignedValue<intptr_t>(FIELD_ADDR(p, offset))
+
+#define WRITE_INTPTR_FIELD(p, offset, value) \
+  WriteUnalignedValue<intptr_t>(FIELD_ADDR(p, offset), value)
+
+#define READ_UINTPTR_FIELD(p, offset) \
+  ReadUnalignedValue<uintptr_t>(FIELD_ADDR(p, offset))
+
+#define WRITE_UINTPTR_FIELD(p, offset, value) \
+  WriteUnalignedValue<uintptr_t>(FIELD_ADDR(p, offset), value)
+
+#define READ_UINT64_FIELD(p, offset) \
+  ReadUnalignedValue<uint64_t>(FIELD_ADDR(p, offset))
+
+#define WRITE_UINT64_FIELD(p, offset, value) \
+  WriteUnalignedValue<uint64_t>(FIELD_ADDR(p, offset), value)
+
+#else  // V8_COMPRESS_POINTERS
+
+#define READ_INTPTR_FIELD(p, offset) \
+  (*reinterpret_cast<const intptr_t*>(FIELD_ADDR(p, offset)))
+
+#define WRITE_INTPTR_FIELD(p, offset, value) \
+  (*reinterpret_cast<intptr_t*>(FIELD_ADDR(p, offset)) = value)
+
+#define READ_UINTPTR_FIELD(p, offset) \
+  (*reinterpret_cast<const uintptr_t*>(FIELD_ADDR(p, offset)))
+
+#define WRITE_UINTPTR_FIELD(p, offset, value) \
+  (*reinterpret_cast<uintptr_t*>(FIELD_ADDR(p, offset)) = value)
+
 #define READ_UINT64_FIELD(p, offset) \
   (*reinterpret_cast<const uint64_t*>(FIELD_ADDR(p, offset)))
 
 #define WRITE_UINT64_FIELD(p, offset, value) \
   (*reinterpret_cast<uint64_t*>(FIELD_ADDR(p, offset)) = value)
 
-#define READ_INT64_FIELD(p, offset) \
-  (*reinterpret_cast<const int64_t*>(FIELD_ADDR(p, offset)))
-
-#define WRITE_INT64_FIELD(p, offset, value) \
-  (*reinterpret_cast<int64_t*>(FIELD_ADDR(p, offset)) = value)
+#endif  // V8_COMPRESS_POINTERS
 
 #define READ_BYTE_FIELD(p, offset) \
   (*reinterpret_cast<const byte*>(FIELD_ADDR(p, offset)))

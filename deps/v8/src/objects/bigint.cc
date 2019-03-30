@@ -205,8 +205,7 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
   }
   inline void set_digit(int n, digit_t value) {
     SLOW_DCHECK(0 <= n && n < length());
-    Address address = FIELD_ADDR(*this, kDigitsOffset + n * kDigitSize);
-    (*reinterpret_cast<digit_t*>(address)) = value;
+    WRITE_UINTPTR_FIELD(*this, kDigitsOffset + n * kDigitSize, value);
   }
 
   void set_64_bits(uint64_t bits);
