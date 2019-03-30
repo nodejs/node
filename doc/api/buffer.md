@@ -787,7 +787,8 @@ Allocates a new `Buffer` using an `array` of octets.
 const buf = Buffer.from([0x62, 0x75, 0x66, 0x66, 0x65, 0x72]);
 ```
 
-A `TypeError` will be thrown if `array` is not an `Array`.
+A `TypeError` will be thrown if `array` is not an `Array` or other type
+appropriate for `Buffer.from()` variants.
 
 ### Class Method: Buffer.from(arrayBuffer[, byteOffset[, length]])
 <!-- YAML
@@ -836,7 +837,7 @@ console.log(buf.length);
 ```
 
 A `TypeError` will be thrown if `arrayBuffer` is not an [`ArrayBuffer`] or a
-[`SharedArrayBuffer`].
+[`SharedArrayBuffer`] or other type appropriate for `Buffer.from()` variants.
 
 ### Class Method: Buffer.from(buffer)
 <!-- YAML
@@ -860,7 +861,8 @@ console.log(buf2.toString());
 // Prints: buffer
 ```
 
-A `TypeError` will be thrown if `buffer` is not a `Buffer`.
+A `TypeError` will be thrown if `buffer` is not a `Buffer` or other type
+appropriate for `Buffer.from()` variants.
 
 ### Class Method: Buffer.from(object[, offsetOrEncoding[, length]])
 <!-- YAML
@@ -896,6 +898,9 @@ const buf = Buffer.from(new Foo(), 'utf8');
 // Prints: <Buffer 74 68 69 73 20 69 73 20 61 20 74 65 73 74>
 ```
 
+A `TypeError` will be thrown if `object` has not mentioned methods or is not of
+other type appropriate for `Buffer.from()` variants.
+
 ### Class Method: Buffer.from(string[, encoding])
 <!-- YAML
 added: v5.10.0
@@ -919,7 +924,8 @@ console.log(buf1.toString('ascii'));
 // Prints: this is a tC)st
 ```
 
-A `TypeError` will be thrown if `string` is not a string.
+A `TypeError` will be thrown if `string` is not a string or other type
+appropriate for `Buffer.from()` variants.
 
 ### Class Method: Buffer.isBuffer(obj)
 <!-- YAML
