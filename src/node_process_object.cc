@@ -193,6 +193,7 @@ MaybeLocal<Object> CreateProcessObject(
       CHECK_NOT_NULL(req.ptr);
       exec_path = std::string(static_cast<char*>(req.ptr));
     }
+    uv_fs_req_cleanup(&req);
 #endif
     process
         ->Set(env->context(),
