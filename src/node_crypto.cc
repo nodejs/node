@@ -164,28 +164,8 @@ template int SSLWrap<TLSWrap>::SelectALPNCallback(
     unsigned int inlen,
     void* arg);
 
-class PasswordCallbackInfo {
- public:
-  explicit PasswordCallbackInfo(const char* passphrase)
-      : passphrase_(passphrase) {}
-
-  inline const char* GetPassword() {
-    needs_passphrase_ = true;
-    return passphrase_;
-  }
-
-  inline bool CalledButEmpty() {
-    return needs_passphrase_ && passphrase_ == nullptr;
-  }
-
- private:
-  const char* passphrase_;
-  bool needs_passphrase_ = false;
-};
-
 static int PasswordCallback(char* buf, int size, int rwflag, void* u) {
-  PasswordCallbackInfo* info = static_cast<PasswordCallbackInfo*>(u);
-  const char* passphrase = info->GetPassword();
+  const char* passphrase = static_cast<char*>(u);
   if (passphrase != nullptr) {
     size_t buflen = static_cast<size_t>(size);
     size_t len = strlen(passphrase);
@@ -195,7 +175,7 @@ static int PasswordCallback(char* buf, int size, int rwflag, void* u) {
     return len;
   }
 
-  return 0;
+  return -1;
 }
 
 // Loads OpenSSL engine by engine id and returns it. The loaded engine
@@ -730,12 +710,11 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
 
   node::Utf8Value passphrase(env->isolate(), args[1]);
 
-  PasswordCallbackInfo cb_info(len == 1 ? nullptr : *passphrase);
   EVPKeyPointer key(
       PEM_read_bio_PrivateKey(bio.get(),
                               nullptr,
                               PasswordCallback,
-                              &cb_info));
+                              *passphrase));
 
   if (!key) {
     unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
@@ -3136,7 +3115,8 @@ static ParseKeyResult ParsePrivateKey(EVPKeyPointer* pkey,
                                       const PrivateKeyEncodingConfig& config,
                                       const char* key,
                                       size_t key_len) {
-  PasswordCallbackInfo pc_info(config.passphrase_.get());
+  // OpenSSL needs a non-const pointer, that's why the const_cast is required.
+  char* const passphrase = const_cast<char*>(config.passphrase_.get());
 
   if (config.format_ == kKeyFormatPEM) {
     BIOPointer bio(BIO_new_mem_buf(key, key_len));
@@ -3146,7 +3126,7 @@ static ParseKeyResult ParsePrivateKey(EVPKeyPointer* pkey,
     pkey->reset(PEM_read_bio_PrivateKey(bio.get(),
                                         nullptr,
                                         PasswordCallback,
-                                        &pc_info));
+                                        passphrase));
   } else {
     CHECK_EQ(config.format_, kKeyFormatDER);
 
@@ -3163,7 +3143,7 @@ static ParseKeyResult ParsePrivateKey(EVPKeyPointer* pkey,
         pkey->reset(d2i_PKCS8PrivateKey_bio(bio.get(),
                                             nullptr,
                                             PasswordCallback,
-                                            &pc_info));
+                                            passphrase));
       } else {
         PKCS8Pointer p8inf(d2i_PKCS8_PRIV_KEY_INFO_bio(bio.get(), nullptr));
         if (p8inf)
@@ -3177,13 +3157,17 @@ static ParseKeyResult ParsePrivateKey(EVPKeyPointer* pkey,
   }
 
   // OpenSSL can fail to parse the key but still return a non-null pointer.
-  if (ERR_peek_error() != 0)
+  unsigned long err = ERR_peek_error();  // NOLINT(runtime/int)
+  if (err != 0)
     pkey->reset();
 
   if (*pkey)
     return ParseKeyResult::kParseKeyOk;
-  if (pc_info.CalledButEmpty())
-    return ParseKeyResult::kParseKeyNeedPassphrase;
+  if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
+      ERR_GET_REASON(err) == PEM_R_BAD_PASSWORD_READ) {
+    if (config.passphrase_.get() == nullptr)
+      return ParseKeyResult::kParseKeyNeedPassphrase;
+  }
   return ParseKeyResult::kParseKeyFailed;
 }
 
