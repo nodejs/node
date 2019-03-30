@@ -230,9 +230,9 @@ const arr = new Uint16Array(2);
 arr[0] = 5000;
 arr[1] = 4000;
 
-// Copies the contents of `arr`
+// Copies the contents of `arr`.
 const buf1 = Buffer.from(arr);
-// Shares memory with `arr`
+// Shares memory with `arr`.
 const buf2 = Buffer.from(arr.buffer);
 
 console.log(buf1);
@@ -322,7 +322,7 @@ changes:
 Allocates a new `Buffer` using an `array` of octets.
 
 ```js
-// Creates a new Buffer containing the UTF-8 bytes of the string 'buffer'
+// Creates a new Buffer containing the UTF-8 bytes of the string 'buffer'.
 const buf = new Buffer([0x62, 0x75, 0x66, 0x66, 0x65, 0x72]);
 ```
 
@@ -370,13 +370,13 @@ const arr = new Uint16Array(2);
 arr[0] = 5000;
 arr[1] = 4000;
 
-// Shares memory with `arr`
+// Shares memory with `arr`.
 const buf = new Buffer(arr.buffer);
 
 console.log(buf);
 // Prints: <Buffer 88 13 a0 0f>
 
-// Changing the original Uint16Array changes the Buffer also
+// Changing the original Uint16Array changes the Buffer also.
 arr[1] = 6000;
 
 console.log(buf);
@@ -585,7 +585,7 @@ initialized*. The contents of the newly created `Buffer` are unknown and
 const buf = Buffer.allocUnsafe(10);
 
 console.log(buf);
-// Prints: (contents may vary): <Buffer a0 8b 28 3f 01 00 00 00 50 32>
+// Prints (contents may vary): <Buffer a0 8b 28 3f 01 00 00 00 50 32>
 
 buf.fill(0);
 
@@ -638,16 +638,16 @@ to create an un-pooled `Buffer` instance using `Buffer.allocUnsafeSlow()` and
 then copying out the relevant bits.
 
 ```js
-// Need to keep around a few small chunks of memory
+// Need to keep around a few small chunks of memory.
 const store = [];
 
 socket.on('readable', () => {
   let data;
   while (null !== (data = readable.read())) {
-    // Allocate for retained data
+    // Allocate for retained data.
     const sb = Buffer.allocUnsafeSlow(10);
 
-    // Copy the data into the new allocation
+    // Copy the data into the new allocation.
     data.copy(sb, 0, 0, 10);
 
     store.push(sb);
@@ -722,7 +722,7 @@ const arr = [buf1, buf2];
 
 console.log(arr.sort(Buffer.compare));
 // Prints: [ <Buffer 30 31 32 33>, <Buffer 31 32 33 34> ]
-// (This result is equal to: [buf2, buf1])
+// (This result is equal to: [buf2, buf1].)
 ```
 
 ### Class Method: Buffer.concat(list[, totalLength])
@@ -784,7 +784,7 @@ added: v5.10.0
 Allocates a new `Buffer` using an `array` of octets.
 
 ```js
-// Creates a new Buffer containing UTF-8 bytes of the string 'buffer'
+// Creates a new Buffer containing UTF-8 bytes of the string 'buffer'.
 const buf = Buffer.from([0x62, 0x75, 0x66, 0x66, 0x65, 0x72]);
 ```
 
@@ -813,13 +813,13 @@ const arr = new Uint16Array(2);
 arr[0] = 5000;
 arr[1] = 4000;
 
-// Shares memory with `arr`
+// Shares memory with `arr`.
 const buf = Buffer.from(arr.buffer);
 
 console.log(buf);
 // Prints: <Buffer 88 13 a0 0f>
 
-// Changing the original Uint16Array changes the Buffer also
+// Changing the original Uint16Array changes the Buffer also.
 arr[1] = 6000;
 
 console.log(buf);
@@ -1076,7 +1076,7 @@ console.log(buf2.compare(buf3));
 // Prints: 1
 console.log([buf1, buf2, buf3].sort(Buffer.compare));
 // Prints: [ <Buffer 41 42 43>, <Buffer 41 42 43 44>, <Buffer 42 43 44> ]
-// (This result is equal to: [buf1, buf3, buf2])
+// (This result is equal to: [buf1, buf3, buf2].)
 ```
 
 The optional `targetStart`, `targetEnd`, `sourceStart`, and `sourceEnd`
@@ -1121,11 +1121,11 @@ const buf1 = Buffer.allocUnsafe(26);
 const buf2 = Buffer.allocUnsafe(26).fill('!');
 
 for (let i = 0; i < 26; i++) {
-  // 97 is the decimal ASCII value for 'a'
+  // 97 is the decimal ASCII value for 'a'.
   buf1[i] = i + 97;
 }
 
-// Copy `buf1` bytes 16 through 19 into `buf2` starting at byte 8 of `buf2`
+// Copy `buf1` bytes 16 through 19 into `buf2` starting at byte 8 of `buf2`.
 buf1.copy(buf2, 8, 16, 20);
 
 console.log(buf2.toString('ascii', 0, 25));
@@ -1139,7 +1139,7 @@ console.log(buf2.toString('ascii', 0, 25));
 const buf = Buffer.allocUnsafe(26);
 
 for (let i = 0; i < 26; i++) {
-  // 97 is the decimal ASCII value for 'a'
+  // 97 is the decimal ASCII value for 'a'.
   buf[i] = i + 97;
 }
 
@@ -1374,13 +1374,13 @@ behavior matches [`String#indexOf()`].
 ```js
 const b = Buffer.from('abcdef');
 
-// Passing a value that's a number, but not a valid byte
-// Prints: 2, equivalent to searching for 99 or 'c'
+// Passing a value that's a number, but not a valid byte.
+// Prints: 2, equivalent to searching for 99 or 'c'.
 console.log(b.indexOf(99.9));
 console.log(b.indexOf(256 + 99));
 
-// Passing a byteOffset that coerces to NaN or 0
-// Prints: 1, searching the whole buffer
+// Passing a byteOffset that coerces to NaN or 0.
+// Prints: 1, searching the whole buffer.
 console.log(b.indexOf('b', undefined));
 console.log(b.indexOf('b', {}));
 console.log(b.indexOf('b', null));
@@ -1474,18 +1474,18 @@ This behavior matches [`String#lastIndexOf()`].
 ```js
 const b = Buffer.from('abcdef');
 
-// Passing a value that's a number, but not a valid byte
-// Prints: 2, equivalent to searching for 99 or 'c'
+// Passing a value that's a number, but not a valid byte.
+// Prints: 2, equivalent to searching for 99 or 'c'.
 console.log(b.lastIndexOf(99.9));
 console.log(b.lastIndexOf(256 + 99));
 
-// Passing a byteOffset that coerces to NaN
-// Prints: 1, searching the whole buffer
+// Passing a byteOffset that coerces to NaN.
+// Prints: 1, searching the whole buffer.
 console.log(b.lastIndexOf('b', undefined));
 console.log(b.lastIndexOf('b', {}));
 
-// Passing a byteOffset that coerces to 0
-// Prints: -1, equivalent to passing 0
+// Passing a byteOffset that coerces to 0.
+// Prints: -1, equivalent to passing 0.
 console.log(b.lastIndexOf('b', null));
 console.log(b.lastIndexOf('b', []));
 ```
@@ -1571,7 +1571,7 @@ console.log(buf.readDoubleBE(0));
 console.log(buf.readDoubleLE(0));
 // Prints: 5.447603722011605e-270
 console.log(buf.readDoubleLE(1));
-// Throws ERR_OUT_OF_RANGE
+// Throws ERR_OUT_OF_RANGE.
 ```
 
 ### buf.readFloatBE([offset])
@@ -1601,7 +1601,7 @@ console.log(buf.readFloatBE(0));
 console.log(buf.readFloatLE(0));
 // Prints: 1.539989614439558e-36
 console.log(buf.readFloatLE(1));
-// Throws ERR_OUT_OF_RANGE
+// Throws ERR_OUT_OF_RANGE.
 ```
 
 ### buf.readInt8([offset])
@@ -1630,7 +1630,7 @@ console.log(buf.readInt8(0));
 console.log(buf.readInt8(1));
 // Prints: 5
 console.log(buf.readInt8(2));
-// Throws ERR_OUT_OF_RANGE
+// Throws ERR_OUT_OF_RANGE.
 ```
 
 ### buf.readInt16BE([offset])
@@ -1662,7 +1662,7 @@ console.log(buf.readInt16BE(0));
 console.log(buf.readInt16LE(0));
 // Prints: 1280
 console.log(buf.readInt16LE(1));
-// Throws ERR_OUT_OF_RANGE
+// Throws ERR_OUT_OF_RANGE.
 ```
 
 ### buf.readInt32BE([offset])
@@ -1694,7 +1694,7 @@ console.log(buf.readInt32BE(0));
 console.log(buf.readInt32LE(0));
 // Prints: 83886080
 console.log(buf.readInt32LE(1));
-// Throws ERR_OUT_OF_RANGE
+// Throws ERR_OUT_OF_RANGE.
 ```
 
 ### buf.readIntBE(offset, byteLength)
@@ -1726,9 +1726,9 @@ console.log(buf.readIntLE(0, 6).toString(16));
 console.log(buf.readIntBE(0, 6).toString(16));
 // Prints: 1234567890ab
 console.log(buf.readIntBE(1, 6).toString(16));
-// Throws ERR_OUT_OF_RANGE
+// Throws ERR_OUT_OF_RANGE.
 console.log(buf.readIntBE(1, 0).toString(16));
-// Throws ERR_OUT_OF_RANGE
+// Throws ERR_OUT_OF_RANGE.
 ```
 
 ### buf.readUInt8([offset])
@@ -1755,7 +1755,7 @@ console.log(buf.readUInt8(0));
 console.log(buf.readUInt8(1));
 // Prints: 254
 console.log(buf.readUInt8(2));
-// Throws ERR_OUT_OF_RANGE
+// Throws ERR_OUT_OF_RANGE.
 ```
 
 ### buf.readUInt16BE([offset])
@@ -1789,7 +1789,7 @@ console.log(buf.readUInt16BE(1).toString(16));
 console.log(buf.readUInt16LE(1).toString(16));
 // Prints: 5634
 console.log(buf.readUInt16LE(2).toString(16));
-// Throws ERR_OUT_OF_RANGE
+// Throws ERR_OUT_OF_RANGE.
 ```
 
 ### buf.readUInt32BE([offset])
@@ -1819,7 +1819,7 @@ console.log(buf.readUInt32BE(0).toString(16));
 console.log(buf.readUInt32LE(0).toString(16));
 // Prints: 78563412
 console.log(buf.readUInt32LE(1).toString(16));
-// Throws ERR_OUT_OF_RANGE
+// Throws ERR_OUT_OF_RANGE.
 ```
 
 ### buf.readUIntBE(offset, byteLength)
@@ -1851,7 +1851,7 @@ console.log(buf.readUIntBE(0, 6).toString(16));
 console.log(buf.readUIntLE(0, 6).toString(16));
 // Prints: ab9078563412
 console.log(buf.readUIntBE(1, 6).toString(16));
-// Throws ERR_OUT_OF_RANGE
+// Throws ERR_OUT_OF_RANGE.
 ```
 
 ### buf.slice([start[, end]])
@@ -1889,7 +1889,7 @@ because the allocated memory of the two objects overlap.
 const buf1 = Buffer.allocUnsafe(26);
 
 for (let i = 0; i < 26; i++) {
-  // 97 is the decimal ASCII value for 'a'
+  // 97 is the decimal ASCII value for 'a'.
   buf1[i] = i + 97;
 }
 
@@ -1912,15 +1912,15 @@ const buf = Buffer.from('buffer');
 
 console.log(buf.slice(-6, -1).toString());
 // Prints: buffe
-// (Equivalent to buf.slice(0, 5))
+// (Equivalent to buf.slice(0, 5).)
 
 console.log(buf.slice(-6, -2).toString());
 // Prints: buff
-// (Equivalent to buf.slice(0, 4))
+// (Equivalent to buf.slice(0, 4).)
 
 console.log(buf.slice(-5, -2).toString());
 // Prints: uff
-// (Equivalent to buf.slice(1, 4))
+// (Equivalent to buf.slice(1, 4).)
 ```
 
 ### buf.swap16()
@@ -1948,7 +1948,7 @@ console.log(buf1);
 const buf2 = Buffer.from([0x1, 0x2, 0x3]);
 
 buf2.swap16();
-// Throws ERR_INVALID_BUFFER_SIZE
+// Throws ERR_INVALID_BUFFER_SIZE.
 ```
 
 One convenient use of `buf.swap16()` is to perform a fast in-place conversion
@@ -1984,7 +1984,7 @@ console.log(buf1);
 const buf2 = Buffer.from([0x1, 0x2, 0x3]);
 
 buf2.swap32();
-// Throws ERR_INVALID_BUFFER_SIZE
+// Throws ERR_INVALID_BUFFER_SIZE.
 ```
 
 ### buf.swap64()
@@ -2011,7 +2011,7 @@ console.log(buf1);
 const buf2 = Buffer.from([0x1, 0x2, 0x3]);
 
 buf2.swap64();
-// Throws ERR_INVALID_BUFFER_SIZE
+// Throws ERR_INVALID_BUFFER_SIZE.
 ```
 
 Note that JavaScript cannot encode 64-bit integers. This method is intended
@@ -2065,7 +2065,7 @@ as [`buffer.constants.MAX_STRING_LENGTH`][].
 const buf1 = Buffer.allocUnsafe(26);
 
 for (let i = 0; i < 26; i++) {
-  // 97 is the decimal ASCII value for 'a'
+  // 97 is the decimal ASCII value for 'a'.
   buf1[i] = i + 97;
 }
 
@@ -2573,16 +2573,16 @@ pool for an indeterminate amount of time, it may be appropriate to create an
 un-pooled `Buffer` instance using `SlowBuffer` then copy out the relevant bits.
 
 ```js
-// Need to keep around a few small chunks of memory
+// Need to keep around a few small chunks of memory.
 const store = [];
 
 socket.on('readable', () => {
   let data;
   while (null !== (data = readable.read())) {
-    // Allocate for retained data
+    // Allocate for retained data.
     const sb = SlowBuffer(10);
 
-    // Copy the data into the new allocation
+    // Copy the data into the new allocation.
     data.copy(sb, 0, 0, 10);
 
     store.push(sb);
