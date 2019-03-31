@@ -1,7 +1,6 @@
 {
   'variables': {
     'protocol_tool_path': '../../tools/inspector_protocol',
-    'node_inspector_path': '../../src/inspector',
     'node_inspector_generated_sources': [
       '<(SHARED_INTERMEDIATE_DIR)/src/node/inspector/protocol/Forward.h',
       '<(SHARED_INTERMEDIATE_DIR)/src/node/inspector/protocol/Protocol.cpp',
@@ -67,23 +66,14 @@
     '<(SHARED_INTERMEDIATE_DIR)',
     '<(SHARED_INTERMEDIATE_DIR)/src', # for inspector
   ],
-  'copies': [
-    {
-      'files': [
-        '<(node_inspector_path)/node_protocol_config.json',
-        '<(node_inspector_path)/node_protocol.pdl'
-      ],
-      'destination': '<(SHARED_INTERMEDIATE_DIR)',
-    }
-  ],
   'actions': [
     {
       'action_name': 'convert_node_protocol_to_json',
       'inputs': [
-        '<(SHARED_INTERMEDIATE_DIR)/node_protocol.pdl',
+        'node_protocol.pdl',
       ],
       'outputs': [
-        '<(SHARED_INTERMEDIATE_DIR)/node_protocol.json',
+        '<(SHARED_INTERMEDIATE_DIR)/src/node_protocol.json',
       ],
       'action': [
         'python',
@@ -95,8 +85,8 @@
     {
       'action_name': 'node_protocol_generated_sources',
       'inputs': [
-        '<(SHARED_INTERMEDIATE_DIR)/node_protocol_config.json',
-        '<(SHARED_INTERMEDIATE_DIR)/node_protocol.json',
+        'node_protocol_config.json',
+        '<(SHARED_INTERMEDIATE_DIR)/src/node_protocol.json',
         '<@(node_protocol_files)',
       ],
       'outputs': [
@@ -108,7 +98,7 @@
         'tools/inspector_protocol/code_generator.py',
         '--jinja_dir', '<@(protocol_tool_path)/..',
         '--output_base', '<(SHARED_INTERMEDIATE_DIR)/src/',
-        '--config', '<(SHARED_INTERMEDIATE_DIR)/node_protocol_config.json',
+        '--config', 'src/inspector/node_protocol_config.json',
       ],
       'message': 'Generating node protocol sources from protocol json',
     },
@@ -116,7 +106,7 @@
       'action_name': 'concatenate_protocols',
       'inputs': [
         '../../deps/v8/src/inspector/js_protocol.pdl',
-        '<(SHARED_INTERMEDIATE_DIR)/node_protocol.json',
+        '<(SHARED_INTERMEDIATE_DIR)/src/node_protocol.json',
       ],
       'outputs': [
         '<(SHARED_INTERMEDIATE_DIR)/concatenated_protocol.json',
