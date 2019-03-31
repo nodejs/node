@@ -867,11 +867,11 @@ A `TypeError` will be thrown if `buffer` is not a `Buffer`.
 added: v8.2.0
 -->
 
-* `object` {Object} An object supporting `Symbol.toPrimitive` or `valueOf()`
-* `offsetOrEncoding` {number|string} A byte-offset or encoding, depending on
+* `object` {Object} An object supporting `Symbol.toPrimitive` or `valueOf()`.
+* `offsetOrEncoding` {integer|string} A byte-offset or encoding, depending on
   the value returned either by `object.valueOf()` or
   `object[Symbol.toPrimitive]()`.
-* `length` {number} A length, depending on the value returned either by
+* `length` {integer} A length, depending on the value returned either by
   `object.valueOf()` or `object[Symbol.toPrimitive]()`.
 
 For objects whose `valueOf()` function returns a value not strictly equal to
