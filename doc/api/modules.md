@@ -614,7 +614,7 @@ are much better ways to do this, such as loading modules via some other Node.js
 program, or compiling them to JavaScript ahead of time.
 
 Avoid using `require.extensions`. Use could cause subtle bugs and resolving the
-extensions is becoming slower the more extensions you add.
+extensions gets slower with each registered extension.
 
 #### require.main
 <!-- YAML
