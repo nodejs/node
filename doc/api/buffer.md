@@ -12,7 +12,8 @@ streams in TCP streams, file system operations, and other contexts.
 With [`TypedArray`] now available, the `Buffer` class implements the
 [`Uint8Array`] API in a manner that is more optimized and suitable for Node.js.
 
-Instances of the `Buffer` class are similar to arrays of integers but
+Instances of the `Buffer` class are similar to arrays of integers from `0` to
+`255` (other integers are coerced to this range by `& 255` operation) but
 correspond to fixed-sized, raw memory allocations outside the V8 heap.
 The size of the `Buffer` is established when it is created and cannot be
 changed.
