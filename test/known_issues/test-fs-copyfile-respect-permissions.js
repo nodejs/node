@@ -23,8 +23,9 @@ function beforeEach() {
   fs.chmodSync(dest, '444');
 
   const check = (err) => {
-    assert.strictEqual(err.code, 'EACCESS');
+    assert.strictEqual(err.code, 'EACCES');
     assert.strictEqual(fs.readFileSync(dest, 'utf8'), 'dest');
+    return true;
   };
 
   return { source, dest, check };
@@ -39,8 +40,9 @@ function beforeEach() {
 // Test promises API.
 {
   const { source, dest, check } = beforeEach();
-  assert.throws(async () => { await fs.promises.copyFile(source, dest); },
-                check);
+  (async () => {
+    await assert.rejects(fs.promises.copyFile(source, dest), check);
+  })();
 }
 
 // Test callback API.
