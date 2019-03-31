@@ -398,8 +398,8 @@
           },
         ],
         ['OS=="win"', {
-          'msvs_precompiled_header': 'pch/v8_base_pch.h',
-          'msvs_precompiled_source': 'pch/v8_base_pch.cc',
+          'msvs_precompiled_header': 'pch/v8_initializers_pch.h',
+          'msvs_precompiled_source': 'pch/v8_initializers_pch.cc',
           'sources': [
             '<(_msvs_precompiled_header)',
             '<(_msvs_precompiled_source)',
