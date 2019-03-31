@@ -1,6 +1,7 @@
 rules:
   prefer-object-spread: error
   no-buffer-constructor: error
+  no-restricted-globals: ["error", "JSON", "Math", "Reflect"]
   no-restricted-syntax:
     # Config copied from .eslintrc.js
     - error
