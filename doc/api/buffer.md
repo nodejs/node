@@ -1281,7 +1281,8 @@ added: v5.3.0
 -->
 
 * `value` {string|Buffer|Uint8Array|integer} What to search for.
-* `byteOffset` {integer} Where to begin searching in `buf`. **Default:** `0`.
+* `byteOffset` {integer} Where to begin searching in `buf`. If negative, then
+  offset is calculated from the end of `buf`. **Default:** `0`.
 * `encoding` {string} If `value` is a string, this is its encoding.
   **Default:** `'utf8'`.
 * Returns: {boolean} `true` if `value` was found in `buf`, `false` otherwise.
@@ -1321,7 +1322,8 @@ changes:
 -->
 
 * `value` {string|Buffer|Uint8Array|integer} What to search for.
-* `byteOffset` {integer} Where to begin searching in `buf`. **Default:** `0`.
+* `byteOffset` {integer} Where to begin searching in `buf`. If negative, then
+  offset is calculated from the end of `buf`. **Default:** `0`.
 * `encoding` {string} If `value` is a string, this is the encoding used to
   determine the binary representation of the string that will be searched for in
   `buf`. **Default:** `'utf8'`.
@@ -1423,8 +1425,9 @@ changes:
 -->
 
 * `value` {string|Buffer|Uint8Array|integer} What to search for.
-* `byteOffset` {integer} Where to begin searching in `buf`.
-  **Default:** [`buf.length`]` - 1`.
+* `byteOffset` {integer} Where to begin searching in `buf`. If negative, then
+  offset is calculated from the end of `buf`. **Default:**
+  [`buf.length`]` - 1`.
 * `encoding` {string} If `value` is a string, this is the encoding used to
   determine the binary representation of the string that will be searched for in
   `buf`. **Default:** `'utf8'`.
