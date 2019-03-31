@@ -398,8 +398,8 @@
           },
         ],
         ['OS=="win"', {
-          'msvs_precompiled_header': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.h',
-          'msvs_precompiled_source': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.cc',
+          'msvs_precompiled_header': 'pch/v8_base_pch.h',
+          'msvs_precompiled_source': 'pch/v8_base_pch.cc',
           'sources': [
             '<(_msvs_precompiled_header)',
             '<(_msvs_precompiled_source)',
@@ -2026,8 +2026,8 @@
           ],
         }],
         ['OS=="win"', {
-          'msvs_precompiled_header': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.h',
-          'msvs_precompiled_source': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.cc',
+          'msvs_precompiled_header': 'pch/v8_base_pch.h',
+          'msvs_precompiled_source': 'pch/v8_base_pch.cc',
           'sources': [
             '<(_msvs_precompiled_header)',
             '<(_msvs_precompiled_source)',
