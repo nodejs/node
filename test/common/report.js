@@ -63,7 +63,7 @@ function _validateContent(data) {
                         'nodejsVersion', 'wordSize', 'arch', 'platform',
                         'componentVersions', 'release', 'osName', 'osRelease',
                         'osVersion', 'osMachine', 'host', 'glibcVersionRuntime',
-                        'glibcVersionCompiler'];
+                        'glibcVersionCompiler', 'cwd'];
   checkForUnknownFields(header, headerFields);
   assert.strictEqual(typeof header.event, 'string');
   assert.strictEqual(typeof header.trigger, 'string');
@@ -76,6 +76,7 @@ function _validateContent(data) {
     assert(String(+header.dumpEventTimeStamp), header.dumpEventTimeStamp);
 
   assert(Number.isSafeInteger(header.processId));
+  assert.strictEqual(typeof header.cwd, 'string');
   assert(Array.isArray(header.commandLine));
   header.commandLine.forEach((arg) => {
     assert.strictEqual(typeof arg, 'string');
