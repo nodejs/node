@@ -94,7 +94,7 @@ class BaseObject : public MemoryRetainer {
   // position of members in memory are predictable. For more information please
   // refer to `doc/guides/node-postmortem-support.md`
   friend int GenDebugSymbols();
-  friend class Environment;
+  friend class CleanupHookCallback;
 
   Persistent<v8::Object> persistent_handle_;
   Environment* env_;

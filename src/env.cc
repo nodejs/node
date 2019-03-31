@@ -123,11 +123,12 @@ void IsolateData::MemoryInfo(MemoryTracker* tracker) const {
   PER_ISOLATE_STRING_PROPERTIES(V)
 #undef V
 
-  tracker->TrackFieldWithSize(
-      "allocator", sizeof(*allocator_), "v8::ArrayBuffer::Allocator");
   if (node_allocator_ != nullptr) {
     tracker->TrackFieldWithSize(
         "node_allocator", sizeof(*node_allocator_), "NodeArrayBufferAllocator");
+  } else {
+    tracker->TrackFieldWithSize(
+        "allocator", sizeof(*allocator_), "v8::ArrayBuffer::Allocator");
   }
   tracker->TrackFieldWithSize(
       "platform", sizeof(*platform_), "MultiIsolatePlatform");
@@ -852,15 +853,25 @@ void Environment::stop_sub_worker_contexts() {
   }
 }
 
-void Environment::CleanupHookCallback::MemoryInfo(
-    MemoryTracker* tracker) const {
+void MemoryTracker::TrackField(const char* edge_name,
+                               const CleanupHookCallback& value,
+                               const char* node_name) {
+  v8::HandleScope handle_scope(isolate_);
+  // Here, we utilize the fact that CleanupHookCallback instances
+  // are all unique and won't be tracked twice in one BuildEmbedderGraph
+  // callback.
+  MemoryRetainerNode* n =
+      PushNode("CleanupHookCallback", sizeof(value), edge_name);
   // TODO(joyeecheung): at the moment only arguments of type BaseObject will be
   // identified and tracked here (based on their deleters),
   // but we may convert and track other known types here.
-  BaseObject* obj = GetBaseObject();
+  BaseObject* obj = value.GetBaseObject();
   if (obj != nullptr) {
-    tracker->TrackField("arg", obj);
+    this->TrackField("arg", obj);
   }
+  CHECK_EQ(CurrentNode(), n);
+  CHECK_NE(n->size_, 0);
+  PopNode();
 }
 
 void Environment::BuildEmbedderGraph(Isolate* isolate,

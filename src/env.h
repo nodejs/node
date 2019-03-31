@@ -739,6 +739,36 @@ class ShouldNotAbortOnUncaughtScope {
   Environment* env_;
 };
 
+class CleanupHookCallback {
+ public:
+  CleanupHookCallback(void (*fn)(void*),
+                      void* arg,
+                      uint64_t insertion_order_counter)
+      : fn_(fn), arg_(arg), insertion_order_counter_(insertion_order_counter) {}
+
+  // Only hashes `arg_`, since that is usually enough to identify the hook.
+  struct Hash {
+    inline size_t operator()(const CleanupHookCallback& cb) const;
+  };
+
+  // Compares by `fn_` and `arg_` being equal.
+  struct Equal {
+    inline bool operator()(const CleanupHookCallback& a,
+                           const CleanupHookCallback& b) const;
+  };
+
+  inline BaseObject* GetBaseObject() const;
+
+ private:
+  friend class Environment;
+  void (*fn_)(void*);
+  void* arg_;
+
+  // We keep track of the insertion order for these objects, so that we can
+  // call the callbacks in reverse order when we are cleaning up.
+  uint64_t insertion_order_counter_;
+};
+
 class Environment : public MemoryRetainer {
  public:
   Environment(const Environment&) = delete;
@@ -1223,42 +1253,6 @@ class Environment : public MemoryRetainer {
   std::vector<NativeImmediateCallback> native_immediate_callbacks_;
   void RunAndClearNativeImmediates();
   static void CheckImmediate(uv_check_t* handle);
-
-  class CleanupHookCallback : public MemoryRetainer {
-   public:
-    CleanupHookCallback(void (*fn)(void*),
-                        void* arg,
-                        uint64_t insertion_order_counter)
-        : fn_(fn),
-          arg_(arg),
-          insertion_order_counter_(insertion_order_counter) {}
-
-    // Only hashes `arg_`, since that is usually enough to identify the hook.
-    struct Hash {
-      inline size_t operator()(const CleanupHookCallback& cb) const;
-    };
-
-    // Compares by `fn_` and `arg_` being equal.
-    struct Equal {
-      inline bool operator()(const CleanupHookCallback& a,
-                             const CleanupHookCallback& b) const;
-    };
-
-    SET_MEMORY_INFO_NAME(CleanupHookCallback);
-    SET_SELF_SIZE(CleanupHookCallback);
-    void MemoryInfo(MemoryTracker* tracker) const override;
-
-    inline BaseObject* GetBaseObject() const;
-
-   private:
-    friend class Environment;
-    void (*fn_)(void*);
-    void* arg_;
-
-    // We keep track of the insertion order for these objects, so that we can
-    // call the callbacks in reverse order when we are cleaning up.
-    uint64_t insertion_order_counter_;
-  };
 
   // Use an unordered_set, so that we have efficient insertion and removal.
   std::unordered_set<CleanupHookCallback,
