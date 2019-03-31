@@ -28,6 +28,7 @@ is provided below for reference.
     "dumpEventTime": "2018-12-21T00:50:11Z",
     "dumpEventTimeStamp": "1545371411331",
     "processId": 8974,
+    "cwd": "/home/nodeuser/project/node",
     "commandLine": [
       "/home/nodeuser/project/node/out/Release/node",
       "--experimental-report",

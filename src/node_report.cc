@@ -18,6 +18,14 @@
 #include <atomic>
 #include <fstream>
 #include <iomanip>
+#include <climits>  // PATH_MAX
+
+#ifdef _WIN32
+/* MAX_PATH is in characters, not bytes. Make sure we have enough headroom. */
+#define PATH_MAX_BYTES (MAX_PATH * 4)
+#else
+#define PATH_MAX_BYTES (PATH_MAX)
+#endif
 
 #ifndef _WIN32
 extern char** environ;
@@ -212,6 +220,14 @@ static void WriteNodeReport(Isolate* isolate,
 #endif
   // Report native process ID
   writer.json_keyvalue("processId", pid);
+
+  {
+    // Report the process cwd.
+    char buf[PATH_MAX_BYTES];
+    size_t cwd_size = sizeof(buf);
+    if (uv_cwd(buf, &cwd_size) == 0)
+      writer.json_keyvalue("cwd", buf);
+  }
 
   // Report out the command line.
   if (!node::per_process::cli_options->cmdline.empty()) {
