@@ -1822,7 +1822,7 @@ string or `Buffer`, `format` is assumed to be `'pem'`; otherwise, `key`
 must be an object with the properties described above.
 
 If the private key is encrypted, a `passphrase` must be specified. The length
-of the passphrase is limited.
+of the passphrase is limited to 1024 bytes.
 
 ### crypto.createPublicKey(key)
 <!-- YAML
