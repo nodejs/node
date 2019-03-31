@@ -1034,7 +1034,7 @@ changes:
   compare `buf`.
 * `targetStart` {integer} The offset within `target` at which to begin
   comparison. **Default:** `0`.
-* `targetEnd` {integer} The offset with `target` at which to end comparison
+* `targetEnd` {integer} The offset within `target` at which to end comparison
   (not inclusive). **Default:** `target.length`.
 * `sourceStart` {integer} The offset within `buf` at which to begin comparison.
   **Default:** `0`.
