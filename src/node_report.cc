@@ -209,11 +209,14 @@ static void WriteNodeReport(Isolate* isolate,
            tm_struct.tm_min,
            tm_struct.tm_sec);
   writer.json_keyvalue("dumpEventTime", timebuf);
-  struct timeval ts;
-  gettimeofday(&ts, nullptr);
-  writer.json_keyvalue("dumpEventTimeStamp",
-                       std::to_string(ts.tv_sec * 1000 + ts.tv_usec / 1000));
 #endif
+
+  uv_timeval64_t ts;
+  if (uv_gettimeofday(&ts) == 0) {
+    writer.json_keyvalue("dumpEventTimeStamp",
+                         std::to_string(ts.tv_sec * 1000 + ts.tv_usec / 1000));
+  }
+
   // Report native process ID
   writer.json_keyvalue("processId", pid);
 

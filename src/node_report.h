@@ -5,10 +5,7 @@
 #include "uv.h"
 #include "v8.h"
 
-#ifdef _WIN32
-#include <time.h>
-#else
-#include <sys/time.h>
+#ifndef _WIN32
 #include <sys/types.h>
 #include <unistd.h>
 #endif
