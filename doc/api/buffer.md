@@ -1541,8 +1541,8 @@ deprecated: v8.0.0
 
 The `buf.parent` property is a deprecated alias for `buf.buffer`.
 
-### buf.readDoubleBE(offset)
-### buf.readDoubleLE(offset)
+### buf.readDoubleBE([offset])
+### buf.readDoubleLE([offset])
 <!-- YAML
 added: v0.11.15
 changes:
@@ -1553,7 +1553,7 @@ changes:
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
-  satisfy `0 <= offset <= buf.length - 8`.
+  satisfy `0 <= offset <= buf.length - 8`. **Default:** `0`.
 * Returns: {number}
 
 Reads a 64-bit double from `buf` at the specified `offset` with specified
@@ -1571,8 +1571,8 @@ console.log(buf.readDoubleLE(1));
 // Throws ERR_OUT_OF_RANGE
 ```
 
-### buf.readFloatBE(offset)
-### buf.readFloatLE(offset)
+### buf.readFloatBE([offset])
+### buf.readFloatLE([offset])
 <!-- YAML
 added: v0.11.15
 changes:
@@ -1583,7 +1583,7 @@ changes:
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
-  satisfy `0 <= offset <= buf.length - 4`.
+  satisfy `0 <= offset <= buf.length - 4`. **Default:** `0`.
 * Returns: {number}
 
 Reads a 32-bit float from `buf` at the specified `offset` with specified
@@ -1601,7 +1601,7 @@ console.log(buf.readFloatLE(1));
 // Throws ERR_OUT_OF_RANGE
 ```
 
-### buf.readInt8(offset)
+### buf.readInt8([offset])
 <!-- YAML
 added: v0.5.0
 changes:
@@ -1612,7 +1612,7 @@ changes:
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
-  satisfy `0 <= offset <= buf.length - 1`.
+  satisfy `0 <= offset <= buf.length - 1`. **Default:** `0`.
 * Returns: {integer}
 
 Reads a signed 8-bit integer from `buf` at the specified `offset`.
@@ -1630,8 +1630,8 @@ console.log(buf.readInt8(2));
 // Throws ERR_OUT_OF_RANGE
 ```
 
-### buf.readInt16BE(offset)
-### buf.readInt16LE(offset)
+### buf.readInt16BE([offset])
+### buf.readInt16LE([offset])
 <!-- YAML
 added: v0.5.5
 changes:
@@ -1642,7 +1642,7 @@ changes:
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
-  satisfy `0 <= offset <= buf.length - 2`.
+  satisfy `0 <= offset <= buf.length - 2`. **Default:** `0`.
 * Returns: {integer}
 
 Reads a signed 16-bit integer from `buf` at the specified `offset` with
@@ -1662,8 +1662,8 @@ console.log(buf.readInt16LE(1));
 // Throws ERR_OUT_OF_RANGE
 ```
 
-### buf.readInt32BE(offset)
-### buf.readInt32LE(offset)
+### buf.readInt32BE([offset])
+### buf.readInt32LE([offset])
 <!-- YAML
 added: v0.5.5
 changes:
@@ -1674,7 +1674,7 @@ changes:
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
-  satisfy `0 <= offset <= buf.length - 4`.
+  satisfy `0 <= offset <= buf.length - 4`. **Default:** `0`.
 * Returns: {integer}
 
 Reads a signed 32-bit integer from `buf` at the specified `offset` with
@@ -1728,7 +1728,7 @@ console.log(buf.readIntBE(1, 0).toString(16));
 // Throws ERR_OUT_OF_RANGE
 ```
 
-### buf.readUInt8(offset)
+### buf.readUInt8([offset])
 <!-- YAML
 added: v0.5.0
 changes:
@@ -1739,7 +1739,7 @@ changes:
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
-  satisfy `0 <= offset <= buf.length - 1`.
+  satisfy `0 <= offset <= buf.length - 1`. **Default:** `0`.
 * Returns: {integer}
 
 Reads an unsigned 8-bit integer from `buf` at the specified `offset`.
@@ -1755,8 +1755,8 @@ console.log(buf.readUInt8(2));
 // Throws ERR_OUT_OF_RANGE
 ```
 
-### buf.readUInt16BE(offset)
-### buf.readUInt16LE(offset)
+### buf.readUInt16BE([offset])
+### buf.readUInt16LE([offset])
 <!-- YAML
 added: v0.5.5
 changes:
@@ -1767,7 +1767,7 @@ changes:
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
-  satisfy `0 <= offset <= buf.length - 2`.
+  satisfy `0 <= offset <= buf.length - 2`. **Default:** `0`.
 * Returns: {integer}
 
 Reads an unsigned 16-bit integer from `buf` at the specified `offset` with
@@ -1789,8 +1789,8 @@ console.log(buf.readUInt16LE(2).toString(16));
 // Throws ERR_OUT_OF_RANGE
 ```
 
-### buf.readUInt32BE(offset)
-### buf.readUInt32LE(offset)
+### buf.readUInt32BE([offset])
+### buf.readUInt32LE([offset])
 <!-- YAML
 added: v0.5.5
 changes:
@@ -1801,7 +1801,7 @@ changes:
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
-  satisfy `0 <= offset <= buf.length - 4`.
+  satisfy `0 <= offset <= buf.length - 4`. **Default:** `0`.
 * Returns: {integer}
 
 Reads an unsigned 32-bit integer from `buf` at the specified `offset` with
@@ -2144,8 +2144,8 @@ console.log(`${len} bytes: ${buf.toString('utf8', 0, len)}`);
 // Prints: 12 bytes: ½ + ¼ = ¾
 ```
 
-### buf.writeDoubleBE(value, offset)
-### buf.writeDoubleLE(value, offset)
+### buf.writeDoubleBE(value[, offset])
+### buf.writeDoubleLE(value[, offset])
 <!-- YAML
 added: v0.11.15
 changes:
@@ -2157,7 +2157,7 @@ changes:
 
 * `value` {number} Number to be written to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write. Must
-  satisfy `0 <= offset <= buf.length - 8`.
+  satisfy `0 <= offset <= buf.length - 8`. **Default:** `0`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` with specified endian
@@ -2179,8 +2179,8 @@ console.log(buf);
 // Prints: <Buffer 77 be 9f 1a 2f dd 5e 40>
 ```
 
-### buf.writeFloatBE(value, offset)
-### buf.writeFloatLE(value, offset)
+### buf.writeFloatBE(value[, offset])
+### buf.writeFloatLE(value[, offset])
 <!-- YAML
 added: v0.11.15
 changes:
@@ -2192,7 +2192,7 @@ changes:
 
 * `value` {number} Number to be written to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write. Must
-  satisfy `0 <= offset <= buf.length - 4`.
+  satisfy `0 <= offset <= buf.length - 4`. **Default:** `0`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` with specified endian
@@ -2214,7 +2214,7 @@ console.log(buf);
 // Prints: <Buffer bb fe 4a 4f>
 ```
 
-### buf.writeInt8(value, offset)
+### buf.writeInt8(value[, offset])
 <!-- YAML
 added: v0.5.0
 changes:
@@ -2226,7 +2226,7 @@ changes:
 
 * `value` {integer} Number to be written to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write. Must
-  satisfy `0 <= offset <= buf.length - 1`.
+  satisfy `0 <= offset <= buf.length - 1`. **Default:** `0`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset`. `value` *should* be a valid
@@ -2245,8 +2245,8 @@ console.log(buf);
 // Prints: <Buffer 02 fe>
 ```
 
-### buf.writeInt16BE(value, offset)
-### buf.writeInt16LE(value, offset)
+### buf.writeInt16BE(value[, offset])
+### buf.writeInt16LE(value[, offset])
 <!-- YAML
 added: v0.5.5
 changes:
@@ -2258,7 +2258,7 @@ changes:
 
 * `value` {integer} Number to be written to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write. Must
-  satisfy `0 <= offset <= buf.length - 2`.
+  satisfy `0 <= offset <= buf.length - 2`. **Default:** `0`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` with specified endian
@@ -2278,8 +2278,8 @@ console.log(buf);
 // Prints: <Buffer 01 02 04 03>
 ```
 
-### buf.writeInt32BE(value, offset)
-### buf.writeInt32LE(value, offset)
+### buf.writeInt32BE(value[, offset])
+### buf.writeInt32LE(value[, offset])
 <!-- YAML
 added: v0.5.5
 changes:
@@ -2291,7 +2291,7 @@ changes:
 
 * `value` {integer} Number to be written to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write. Must
-  satisfy `0 <= offset <= buf.length - 4`.
+  satisfy `0 <= offset <= buf.length - 4`. **Default:** `0`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` with specified endian
@@ -2347,7 +2347,7 @@ console.log(buf);
 // Prints: <Buffer ab 90 78 56 34 12>
 ```
 
-### buf.writeUInt8(value, offset)
+### buf.writeUInt8(value[, offset])
 <!-- YAML
 added: v0.5.0
 changes:
@@ -2359,7 +2359,7 @@ changes:
 
 * `value` {integer} Number to be written to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write. Must
-  satisfy `0 <= offset <= buf.length - 1`.
+  satisfy `0 <= offset <= buf.length - 1`. **Default:** `0`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset`. `value` *should* be a
@@ -2378,8 +2378,8 @@ console.log(buf);
 // Prints: <Buffer 03 04 23 42>
 ```
 
-### buf.writeUInt16BE(value, offset)
-### buf.writeUInt16LE(value, offset)
+### buf.writeUInt16BE(value[, offset])
+### buf.writeUInt16LE(value[, offset])
 <!-- YAML
 added: v0.5.5
 changes:
@@ -2391,7 +2391,7 @@ changes:
 
 * `value` {integer} Number to be written to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write. Must
-  satisfy `0 <= offset <= buf.length - 2`.
+  satisfy `0 <= offset <= buf.length - 2`. **Default:** `0`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` with specified endian
@@ -2415,8 +2415,8 @@ console.log(buf);
 // Prints: <Buffer ad de ef be>
 ```
 
-### buf.writeUInt32BE(value, offset)
-### buf.writeUInt32LE(value, offset)
+### buf.writeUInt32BE(value[, offset])
+### buf.writeUInt32LE(value[, offset])
 <!-- YAML
 added: v0.5.5
 changes:
@@ -2428,7 +2428,7 @@ changes:
 
 * `value` {integer} Number to be written to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write. Must
-  satisfy `0 <= offset <= buf.length - 4`.
+  satisfy `0 <= offset <= buf.length - 4`. **Default:** `0`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` with specified endian
