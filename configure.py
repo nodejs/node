@@ -1253,13 +1253,14 @@ def configure_intl(o):
     if not os.access(options.download_path, os.W_OK):
       error('''Cannot write to desired download path.
         Either create it or verify permissions.''')
+    attemptdownload = nodedownload.candownload(auto_downloads, "icu")
     for icu in icus:
       url = icu['url']
       md5 = icu['md5']
       local = url.split('/')[-1]
       targetfile = os.path.join(options.download_path, local)
       if not os.path.isfile(targetfile):
-        if nodedownload.candownload(auto_downloads, "icu"):
+        if attemptdownload:
           nodedownload.retrievefile(url, targetfile)
       else:
         print('Re-using existing %s' % targetfile)
