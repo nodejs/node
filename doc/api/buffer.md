@@ -515,8 +515,8 @@ changes:
 -->
 
 * `size` {integer} The desired length of the new `Buffer`.
-* `fill` {string|Buffer|integer} A value to pre-fill the new `Buffer` with.
-  **Default:** `0`.
+* `fill` {string|Buffer|Uint8Array|integer} A value to pre-fill the new `Buffer`
+  with. **Default:** `0`.
 * `encoding` {string} If `fill` is a string, this is its encoding.
   **Default:** `'utf8'`.
 
@@ -958,6 +958,8 @@ type: property
 name: [index]
 -->
 
+* `index` {integer}
+
 The index operator `[index]` can be used to get and set the octet at position
 `index` in `buf`. The values refer to individual bytes, so the legal value
 range is between `0x00` and `0xFF` (hex) or `0` and `255` (decimal).
@@ -1176,8 +1178,8 @@ changes:
     description: The arguments can now be `Uint8Array`s.
 -->
 
-* `otherBuffer` {Buffer} A `Buffer` or [`Uint8Array`] with which to compare
-  `buf`.
+* `otherBuffer` {Buffer|Uint8Array} A `Buffer` or [`Uint8Array`] with which to
+  compare `buf`.
 * Returns: {boolean}
 
 Returns `true` if both `buf` and `otherBuffer` have exactly the same bytes,
@@ -1217,7 +1219,7 @@ changes:
     description: The `encoding` parameter is supported now.
 -->
 
-* `value` {string|Buffer|integer} The value with which to fill `buf`.
+* `value` {string|Buffer|Uint8Array|integer} The value with which to fill `buf`.
 * `offset` {integer} Number of bytes to skip before starting to fill `buf`.
   **Default:** `0`.
 * `end` {integer} Where to stop filling `buf` (not inclusive). **Default:**
@@ -1271,7 +1273,7 @@ console.log(buf.fill('zz', 'hex'));
 added: v5.3.0
 -->
 
-* `value` {string|Buffer|integer} What to search for.
+* `value` {string|Buffer|Uint8Array|integer} What to search for.
 * `byteOffset` {integer} Where to begin searching in `buf`. **Default:** `0`.
 * `encoding` {string} If `value` is a string, this is its encoding.
   **Default:** `'utf8'`.
@@ -2515,6 +2517,7 @@ changes:
 * `source` {Buffer|Uint8Array} A `Buffer` or `Uint8Array` instance.
 * `fromEnc` {string} The current encoding.
 * `toEnc` {string} To target encoding.
+* Returns: {Buffer}
 
 Re-encodes the given `Buffer` or `Uint8Array` instance from one character
 encoding to another. Returns a new `Buffer` instance.
