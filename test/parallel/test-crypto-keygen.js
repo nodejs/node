@@ -12,7 +12,9 @@ const {
   generateKeyPair,
   generateKeyPairSync,
   publicEncrypt,
-  privateDecrypt
+  privateDecrypt,
+  sign,
+  verify
 } = require('crypto');
 const { promisify } = require('util');
 
@@ -41,13 +43,24 @@ function testEncryptDecrypt(publicKey, privateKey) {
 
 // Tests that a key pair can be used for signing / verification.
 function testSignVerify(publicKey, privateKey) {
-  const message = 'Hello Node.js world!';
-  const signature = createSign('SHA256').update(message)
-                                        .sign(privateKey, 'hex');
-  for (const key of [publicKey, privateKey]) {
-    const okay = createVerify('SHA256').update(message)
-                                       .verify(key, signature, 'hex');
-    assert(okay);
+  const message = Buffer.from('Hello Node.js world!');
+
+  function oldSign(algo, data, key) {
+    return createSign(algo).update(data).sign(key);
+  }
+
+  function oldVerify(algo, data, key, signature) {
+    return createVerify(algo).update(data).verify(key, signature);
+  }
+
+  for (const signFn of [sign, oldSign]) {
+    const signature = signFn('SHA256', message, privateKey);
+    for (const verifyFn of [verify, oldVerify]) {
+      for (const key of [publicKey, privateKey]) {
+        const okay = verifyFn('SHA256', message, key, signature);
+        assert(okay);
+      }
+    }
   }
 }
 
