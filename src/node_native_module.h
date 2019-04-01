@@ -54,6 +54,9 @@ class NativeModuleLoader {
       Environment* optional_env);
 
  private:
+  static void GetModuleCategories(
+      v8::Local<v8::Name> property,
+      const v8::PropertyCallbackInfo<v8::Value>& info);
   static void GetCacheUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
   // Passing ids of builtin module source code into JS land as
   // internalBinding('native_module').moduleIds
@@ -83,6 +86,15 @@ class NativeModuleLoader {
   // NativeModule.p.require in JS land.
   static v8::MaybeLocal<v8::Function> CompileAsModule(Environment* env,
                                                       const char* id);
+
+  void InitializeModuleCategories();
+  struct ModuleCategories {
+    bool is_initialized = false;
+    std::set<std::string> can_be_required;
+    std::set<std::string> cannot_be_required;
+  };
+
+  ModuleCategories module_categories_;
 
   NativeModuleRecordMap source_;
   NativeModuleCacheMap code_cache_;

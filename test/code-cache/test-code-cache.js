@@ -8,21 +8,14 @@
 const { isMainThread } = require('../common');
 const assert = require('assert');
 const {
-  cachableBuiltins,
-  cannotBeRequired
-} = require('internal/bootstrap/cache');
-
-const {
   internalBinding
 } = require('internal/test/binding');
 const {
-  getCacheUsage
+  getCacheUsage,
+  moduleCategories: { canBeRequired, cannotBeRequired }
 } = internalBinding('native_module');
 
-for (const key of cachableBuiltins) {
-  if (!isMainThread && key === 'trace_events') {
-    continue;  // Cannot load trace_events in workers
-  }
+for (const key of canBeRequired) {
   require(key);
 }
 
@@ -60,7 +53,7 @@ if (process.config.variables.node_code_cache_path === undefined) {
   );
 
   for (const key of loadedModules) {
-    if (cannotBeRequired.includes(key)) {
+    if (cannotBeRequired.has(key)) {
       assert(compiledWithoutCache.has(key),
              `"${key}" should've been compiled without code cache`);
     } else {

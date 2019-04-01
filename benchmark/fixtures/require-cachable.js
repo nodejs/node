@@ -1,13 +1,10 @@
 'use strict';
 
-const list = require('internal/bootstrap/cache');
+const { internalBinding } = require('internal/test/binding');
 const {
-  isMainThread
-} = require('worker_threads');
+  moduleCategories: { canBeRequired }
+} = internalBinding('native_module');
 
-for (const key of list.cachableBuiltins) {
-  if (!isMainThread && key === 'trace_events') {
-    continue;
-  }
+for (const key of canBeRequired) {
   require(key);
 }
