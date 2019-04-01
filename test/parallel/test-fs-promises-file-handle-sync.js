@@ -7,11 +7,22 @@ const tmpdir = require('../common/tmpdir');
 const { access, copyFile, open } = require('fs').promises;
 const path = require('path');
 
-async function validateSync() {
+async function validate() {
   tmpdir.refresh();
   const dest = path.resolve(tmpdir.path, 'baz.js');
+  await assert.rejects(
+    copyFile(fixtures.path('baz.js'), dest, 'r'),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /mode.*integer.*string/
+    }
+  );
   await copyFile(fixtures.path('baz.js'), dest);
-  await access(dest, 'r');
+  await assert.rejects(
+    access(dest, 'r'),
+    { code: 'ERR_INVALID_ARG_TYPE', message: /mode/ }
+  );
+  await access(dest);
   const handle = await open(dest, 'r+');
   await handle.datasync();
   await handle.sync();
@@ -23,4 +34,4 @@ async function validateSync() {
   await handle.close();
 }
 
-validateSync();
+validate();

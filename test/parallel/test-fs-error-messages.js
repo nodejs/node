@@ -663,21 +663,17 @@ if (!common.isAIX) {
   );
 }
 
-// Check copyFile with invalid flags.
+// Check copyFile with invalid modes.
 {
   const validateError = {
-    // TODO: Make sure the error message always also contains the src.
-    message: `EINVAL: invalid argument, copyfile -> '${nonexistentFile}'`,
-    errno: UV_EINVAL,
-    code: 'EINVAL',
-    syscall: 'copyfile'
+    message: /"mode".+must be an integer >= 0 && <= 7\. Received -1/,
+    code: 'ERR_OUT_OF_RANGE'
   };
 
-  fs.copyFile(existingFile, nonexistentFile, -1,
-              common.expectsError(validateError));
-
-  validateError.message = 'EINVAL: invalid argument, copyfile ' +
-                          `'${existingFile}' -> '${nonexistentFile}'`;
+  assert.throws(
+    () => fs.copyFile(existingFile, nonexistentFile, -1, () => {}),
+    validateError
+  );
   assert.throws(
     () => fs.copyFileSync(existingFile, nonexistentFile, -1),
     validateError
