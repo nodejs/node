@@ -59,8 +59,7 @@ assert.throws(() => b.write('test string', 0, 5, 'invalid'),
               /Unknown encoding: invalid/);
 // Unsupported arguments for Buffer.write
 assert.throws(() => b.write('test', 'utf8', 0),
-              /is no longer supported/);
-
+              { code: 'ERR_INVALID_ARG_TYPE' });
 
 // Try to create 0-length buffers. Should not throw.
 Buffer.from('');
@@ -110,8 +109,12 @@ b.copy(Buffer.alloc(1), 0, 2048, 2048);
 {
   const writeTest = Buffer.from('abcdes');
   writeTest.write('n', 'ascii');
-  writeTest.write('o', '1', 'ascii');
-  writeTest.write('d', '2', 'ascii');
+  assert.throws(
+    () => writeTest.write('o', '1', 'ascii'),
+    { code: 'ERR_INVALID_ARG_TYPE' }
+  );
+  writeTest.write('o', 1, 'ascii');
+  writeTest.write('d', 2, 'ascii');
   writeTest.write('e', 3, 'ascii');
   writeTest.write('j', 4, 'ascii');
   assert.strictEqual(writeTest.toString(), 'nodejs');
