@@ -27,7 +27,6 @@
     'node_intermediate_lib_type%': 'static_library',
     'library_files': [
       'lib/internal/bootstrap/primordials.js',
-      'lib/internal/bootstrap/cache.js',
       'lib/internal/bootstrap/environment.js',
       'lib/internal/bootstrap/loaders.js',
       'lib/internal/bootstrap/node.js',

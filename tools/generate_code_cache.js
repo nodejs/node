@@ -7,11 +7,12 @@
 // compiled into the binary using the `--code-cache-path` option
 // of `configure`.
 
+const { internalBinding } = require('internal/test/binding');
 const {
+  moduleCategories: { canBeRequired },
   getCodeCache,
   compileFunction,
-  cachableBuiltins
-} = require('internal/bootstrap/cache');
+} = internalBinding('native_module');
 
 const {
   types: {
@@ -85,7 +86,9 @@ function lexical(a, b) {
   return 0;
 }
 
-for (const key of cachableBuiltins.sort(lexical)) {
+// TODO(joyeecheung): support non-modules that require different
+// parameters in the wrapper.
+for (const key of [...canBeRequired].sort(lexical)) {
   compileFunction(key);  // compile it
   const cachedData = getCodeCache(key);
   if (!isUint8Array(cachedData)) {

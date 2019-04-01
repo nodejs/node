@@ -36,6 +36,75 @@ using v8::String;
 using v8::Uint8Array;
 using v8::Value;
 
+void NativeModuleLoader::InitializeModuleCategories() {
+  if (module_categories_.is_initialized) {
+    DCHECK(!module_categories_.can_be_required.empty());
+    return;
+  }
+
+  std::vector<std::string> prefixes = {
+#if !HAVE_OPENSSL
+    "internal/crypto/",
+#endif  // !HAVE_OPENSSL
+
+    "internal/bootstrap/",
+    "internal/per_context/",
+    "internal/deps/",
+    "internal/main/"
+  };
+
+  module_categories_.cannot_be_required = std::set<std::string> {
+#if !HAVE_INSPECTOR
+      "inspector",
+      "internal/util/inspector",
+#endif  // !HAVE_INSPECTOR
+
+#if !NODE_USE_V8_PLATFORM || !defined(NODE_HAVE_I18N_SUPPORT)
+      "trace_events",
+#endif  // !NODE_USE_V8_PLATFORM
+
+#if !HAVE_OPENSSL
+      "crypto",
+      "https",
+      "http2",
+      "tls",
+      "_tls_common",
+      "_tls_wrap",
+      "internal/http2/core",
+      "internal/http2/compat",
+      "internal/policy/manifest",
+      "internal/process/policy",
+      "internal/streams/lazy_transform",
+#endif  // !HAVE_OPENSSL
+
+      "sys",  // Deprecated.
+      "internal/test/binding",
+      "internal/v8_prof_polyfill",
+      "internal/v8_prof_processor",
+  };
+
+  for (auto const& x : source_) {
+    const std::string& id = x.first;
+    for (auto const& prefix : prefixes) {
+      if (prefix.length() > id.length()) {
+        continue;
+      }
+      if (id.find(prefix) == 0) {
+        module_categories_.cannot_be_required.emplace(id);
+      }
+    }
+  }
+
+  for (auto const& x : source_) {
+    const std::string& id = x.first;
+    if (0 == module_categories_.cannot_be_required.count(id)) {
+      module_categories_.can_be_required.emplace(id);
+    }
+  }
+
+  module_categories_.is_initialized = true;
+}
+
 // TODO(joyeecheung): make these more general and put them into util.h
 Local<Object> MapToObject(Local<Context> context,
                           const NativeModuleRecordMap& in) {
@@ -61,6 +130,39 @@ Local<Set> ToJsSet(Local<Context> context,
 
 bool NativeModuleLoader::Exists(const char* id) {
   return source_.find(id) != source_.end();
+}
+
+void NativeModuleLoader::GetModuleCategories(
+    Local<Name> property, const PropertyCallbackInfo<Value>& info) {
+  per_process::native_module_loader.InitializeModuleCategories();
+
+  Environment* env = Environment::GetCurrent(info);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  Local<Object> result = Object::New(isolate);
+
+  // Copy from the per-process categories
+  std::set<std::string> cannot_be_required =
+      per_process::native_module_loader.module_categories_.cannot_be_required;
+  std::set<std::string> can_be_required =
+      per_process::native_module_loader.module_categories_.can_be_required;
+
+  if (!env->owns_process_state()) {
+    can_be_required.erase("trace_events");
+    cannot_be_required.insert("trace_events");
+  }
+
+  result
+      ->Set(context,
+            OneByteString(isolate, "cannotBeRequired"),
+            ToJsSet(context, cannot_be_required))
+      .FromJust();
+  result
+      ->Set(context,
+            OneByteString(isolate, "canBeRequired"),
+            ToJsSet(context, can_be_required))
+      .FromJust();
+  info.GetReturnValue().Set(result);
 }
 
 void NativeModuleLoader::GetCacheUsage(
@@ -296,6 +398,18 @@ void NativeModuleLoader::Initialize(Local<Object> target,
                           DEFAULT,
                           None,
                           SideEffectType::kHasNoSideEffect)
+            .FromJust());
+
+  CHECK(target
+            ->SetAccessor(
+                env->context(),
+                FIXED_ONE_BYTE_STRING(env->isolate(), "moduleCategories"),
+                GetModuleCategories,
+                nullptr,
+                env->as_callback_data(),
+                DEFAULT,
+                None,
+                SideEffectType::kHasNoSideEffect)
             .FromJust());
 
   env->SetMethod(
