@@ -244,3 +244,17 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.strictEqual(privateKey.asymmetricKeyType, 'dsa');
   assert.strictEqual(privateKey.symmetricKeySize, undefined);
 }
+
+{
+  // Exporting an encrypted private key requires a cipher
+  const privateKey = createPrivateKey(privatePem);
+  common.expectsError(() => {
+    privateKey.export({
+      format: 'pem', type: 'pkcs8', passphrase: 'super-secret'
+    });
+  }, {
+    type: TypeError,
+    code: 'ERR_INVALID_OPT_VALUE',
+    message: 'The value "undefined" is invalid for option "cipher"'
+  });
+}
