@@ -1564,12 +1564,6 @@ OpenSSL crypto support.
 An attempt was made to use features that require [ICU][], but Node.js was not
 compiled with ICU support.
 
-<a id="ERR_NO_LONGER_SUPPORTED"></a>
-### ERR_NO_LONGER_SUPPORTED
-
-A Node.js API was called in an unsupported manner, such as
-`Buffer.write(string, encoding, offset[, length])`.
-
 <a id="ERR_OUT_OF_RANGE"></a>
 ### ERR_OUT_OF_RANGE
 
@@ -2095,6 +2089,12 @@ removed: v10.0.0
 -->
 
 Used by the `N-API` when `Constructor.prototype` is not an object.
+
+<a id="ERR_NO_LONGER_SUPPORTED"></a>
+### ERR_NO_LONGER_SUPPORTED
+
+A Node.js API was called in an unsupported manner, such as
+`Buffer.write(string, encoding, offset[, length])`.
 
 <a id="ERR_OUTOFMEMORY"></a>
 ### ERR_OUTOFMEMORY
