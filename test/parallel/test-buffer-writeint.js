@@ -9,7 +9,7 @@ const errorOutOfBounds = common.expectsError({
   type: RangeError,
   message: new RegExp('^The value of "value" is out of range\\. ' +
                       'It must be >= -\\d+ and <= \\d+\\. Received .+$')
-}, 10);
+}, 14);
 
 // Test 8 bit
 {
@@ -175,6 +175,109 @@ const errorOutOfBounds = common.expectsError({
   assert.ok(buffer.equals(new Uint8Array([
     0xab, 0x90, 0x78, 0x56, 0x34, 0x12
   ])));
+}
+
+// Test 64 bit
+{
+  const buffer = Buffer.alloc(16);
+
+  buffer.writeInt64BE(0x23n, 0);
+  buffer.writeInt64LE(0x23n, 8);
+  assert.ok(buffer.equals(new Uint8Array([
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x23,
+    0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+  ])));
+
+  buffer.writeInt64BE(0x23n, 0);
+  buffer.writeInt64LE(0x23n, 8);
+  assert.ok(buffer.equals(new Uint8Array([
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x23,
+    0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+  ])));
+
+  buffer.writeInt64BE(-5n, 0);
+  buffer.writeInt64LE(-5n, 8);
+  assert.ok(buffer.equals(new Uint8Array([
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfb,
+    0xfb, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+  ])));
+
+  buffer.writeInt64BE(-805306713n, 0);
+  buffer.writeInt64LE(-805306713n, 8);
+  assert.ok(buffer.equals(new Uint8Array([
+    0xff, 0xff, 0xff, 0xff, 0xcf, 0xff, 0xfe, 0xa7,
+    0xa7, 0xfe, 0xff, 0xcf, 0xff, 0xff, 0xff, 0xff
+  ])));
+
+  buffer.writeInt64BE(-9187201950435737472n, 0);
+  buffer.writeInt64LE(-9187201950435737472n, 8);
+  assert.ok(buffer.equals(new Uint8Array([
+    0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
+    0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80
+  ])));
+
+  /* Make sure we handle min/max correctly */
+  buffer.writeInt64BE(0x7fffffffffffffffn, 0);
+  buffer.writeInt64BE(-0x8000000000000000n, 8);
+  assert.ok(buffer.equals(new Uint8Array([
+    0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+  ])));
+
+  buffer.writeInt64LE(0x7fffffffffffffffn, 0);
+  buffer.writeInt64LE(-0x8000000000000000n, 8);
+  assert.ok(buffer.equals(new Uint8Array([
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80
+  ])));
+
+  // Can also write normal numbers as 64-bit int
+  buffer.writeInt64BE(0x23, 0);
+  buffer.writeInt64LE(0x23, 8);
+  assert.ok(buffer.equals(new Uint8Array([
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x23,
+    0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+  ])));
+
+  buffer.writeInt64BE(-5, 0);
+  buffer.writeInt64LE(-5, 8);
+  assert.ok(buffer.equals(new Uint8Array([
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfb,
+    0xfb, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+  ])));
+
+  buffer.writeInt64BE(-805306713, 0);
+  buffer.writeInt64LE(-805306713, 8);
+  assert.ok(buffer.equals(new Uint8Array([
+    0xff, 0xff, 0xff, 0xff, 0xcf, 0xff, 0xfe, 0xa7,
+    0xa7, 0xfe, 0xff, 0xcf, 0xff, 0xff, 0xff, 0xff
+  ])));
+
+  ['writeInt64BE', 'writeInt64LE'].forEach((fn) => {
+
+    // Verify that default offset works fine.
+    buffer[fn](23, undefined);
+    buffer[fn](23);
+
+    assert.throws(() => {
+      buffer[fn](0x7fffffffffffffffn + 1n, 0);
+    }, errorOutOfBounds);
+    assert.throws(() => {
+      buffer[fn](-0x8000000000000000n - 1n, 0);
+    }, errorOutOfBounds);
+
+    ['', '0', null, {}, [], () => {}, true, false].forEach((off) => {
+      assert.throws(
+        () => buffer[fn](23, off),
+        { code: 'ERR_INVALID_ARG_TYPE' });
+    });
+
+    [NaN, Infinity, -1, 1.01].forEach((off) => {
+      assert.throws(
+        () => buffer[fn](23, off),
+        { code: 'ERR_OUT_OF_RANGE' });
+    });
+  });
 }
 
 // Test Int

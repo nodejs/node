@@ -5,9 +5,10 @@ const assert = require('assert');
 
 // Test OOB
 {
-  const buffer = Buffer.alloc(4);
+  const buffer = Buffer.alloc(8);
 
-  ['UInt8', 'UInt16BE', 'UInt16LE', 'UInt32BE', 'UInt32LE'].forEach((fn) => {
+  ['UInt8', 'UInt16BE', 'UInt16LE', 'UInt32BE', 'UInt32LE',
+   'UInt64BE', 'UInt64LE'].forEach((fn) => {
 
     // Verify that default offset works fine.
     buffer[`read${fn}`](undefined);
@@ -78,6 +79,23 @@ const assert = require('assert');
   assert.strictEqual(data.readUInt32LE(0), 0x56426532);
   assert.strictEqual(data.readUInt32LE(1), 0x23564265);
   assert.strictEqual(data.readUInt32LE(2), 0xff235642);
+}
+
+// Test 64 bit unsigned integers
+{
+  const data = Buffer.from([
+    0x32, 0x65, 0x42, 0x56, 0x23, 0xff, 0xab, 0xfe, 0x90, 0x76, 0x88, 0x12
+  ]);
+  assert.strictEqual(data.readUInt64BE(0), 0x3265425623ffabfen);
+  assert.strictEqual(data.readUInt64BE(1), 0x65425623ffabfe90n);
+  assert.strictEqual(data.readUInt64BE(2), 0x425623ffabfe9076n);
+  assert.strictEqual(data.readUInt64BE(3), 0x5623ffabfe907688n);
+  assert.strictEqual(data.readUInt64BE(4), 0x23ffabfe90768812n);
+  assert.strictEqual(data.readUInt64LE(0), 0xfeabff2356426532n);
+  assert.strictEqual(data.readUInt64LE(1), 0x90feabff23564265n);
+  assert.strictEqual(data.readUInt64LE(2), 0x7690feabff235642n);
+  assert.strictEqual(data.readUInt64LE(3), 0x887690feabff2356n);
+  assert.strictEqual(data.readUInt64LE(4), 0x12887690feabff23n);
 }
 
 // Test UInt

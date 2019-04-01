@@ -5,9 +5,10 @@ const assert = require('assert');
 
 // Test OOB
 {
-  const buffer = Buffer.alloc(4);
+  const buffer = Buffer.alloc(8);
 
-  ['Int8', 'Int16BE', 'Int16LE', 'Int32BE', 'Int32LE'].forEach((fn) => {
+  ['Int8', 'Int16BE', 'Int16LE', 'Int32BE', 'Int32LE',
+   'Int64BE', 'Int64LE'].forEach((fn) => {
 
     // Verify that default offset works fine.
     buffer[`read${fn}`](undefined);
@@ -110,6 +111,89 @@ const assert = require('assert');
   assert.strictEqual(buffer.readInt32LE(0), -1449802942);
   assert.strictEqual(buffer.readInt32LE(1), 917083587);
   assert.strictEqual(buffer.readInt32LE(2), 389458325);
+}
+
+// Test 64 bit integers
+{
+  const buffer = Buffer.from([
+    0x43, 0x53, 0x16, 0x79, 0x36, 0x17,
+    0xab, 0xfe, 0xba, 0x1a, 0x21, 0x21
+  ]);
+
+  assert.strictEqual(
+    buffer.readInt64BE(0),
+    BigInt.asIntN(64, 0x435316793617abfen)
+  );
+  assert.strictEqual(
+    buffer.readInt64LE(0),
+    BigInt.asIntN(64, 0xfeab173679165343n)
+  );
+
+  buffer[0] = 0xff;
+  buffer[1] = 0xfe;
+  buffer[2] = 0xef;
+  buffer[3] = 0xfa;
+  buffer[4] = 0x42;
+  buffer[5] = 0xc3;
+  buffer[6] = 0x95;
+  buffer[7] = 0xa9;
+  assert.strictEqual(
+    buffer.readInt64BE(0),
+    BigInt.asIntN(64, 0xfffeeffa42c395a9n)
+  );
+  assert.strictEqual(
+    buffer.readInt64LE(0),
+    BigInt.asIntN(64, 0xa995c342faeffeffn)
+  );
+
+  buffer[0] = 0x42;
+  buffer[1] = 0xc3;
+  buffer[2] = 0x95;
+  buffer[3] = 0xa9;
+  buffer[4] = 0xff;
+  buffer[5] = 0xfe;
+  buffer[6] = 0xef;
+  buffer[7] = 0xfa;
+  assert.strictEqual(
+    buffer.readInt64BE(0),
+    BigInt.asIntN(64, 0x42c395a9fffeeffan)
+  );
+  assert.strictEqual(
+    buffer.readInt64BE(1),
+    BigInt.asIntN(64, 0xc395a9fffeeffaban)
+  );
+  assert.strictEqual(
+    buffer.readInt64BE(2),
+    BigInt.asIntN(64, 0x95a9fffeeffaba1an)
+  );
+  assert.strictEqual(
+    buffer.readInt64BE(3),
+    BigInt.asIntN(64, 0xa9fffeeffaba1a21n)
+  );
+  assert.strictEqual(
+    buffer.readInt64BE(4),
+    BigInt.asIntN(64, 0xfffeeffaba1a2121n)
+  );
+  assert.strictEqual(
+    buffer.readInt64LE(0),
+    BigInt.asIntN(64, 0xfaeffeffa995c342n)
+  );
+  assert.strictEqual(
+    buffer.readInt64LE(1),
+    BigInt.asIntN(64, 0xbafaeffeffa995c3n)
+  );
+  assert.strictEqual(
+    buffer.readInt64LE(2),
+    BigInt.asIntN(64, 0x1abafaeffeffa995n)
+  );
+  assert.strictEqual(
+    buffer.readInt64LE(3),
+    BigInt.asIntN(64, 0x211abafaeffeffa9n)
+  );
+  assert.strictEqual(
+    buffer.readInt64LE(4),
+    BigInt.asIntN(64, 0x21211abafaeffeffn)
+  );
 }
 
 // Test Int
