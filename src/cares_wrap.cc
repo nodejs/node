@@ -1969,7 +1969,7 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
                                                        args[4]->IsTrue());
 
   struct addrinfo hints;
-  memset(&hints, 0, sizeof(struct addrinfo));
+  memset(&hints, 0, sizeof(hints));
   hints.ai_family = family;
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = flags;
