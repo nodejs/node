@@ -158,6 +158,55 @@ fs.accessSync(__filename);
 const mode = fs.F_OK | fs.R_OK | fs.W_OK;
 fs.accessSync(readWriteFile, mode);
 
+// Invalid modes should throw.
+[
+  false,
+  1n,
+  { [Symbol.toPrimitive]() { return fs.R_OK; } },
+  [1],
+  'r'
+].forEach((mode, i) => {
+  console.log(mode, i);
+  assert.throws(
+    () => fs.access(readWriteFile, mode, common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /"mode" argument.+integer/
+    }
+  );
+  assert.throws(
+    () => fs.accessSync(readWriteFile, mode),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /"mode" argument.+integer/
+    }
+  );
+});
+
+// Out of range modes should throw
+[
+  -1,
+  8,
+  Infinity,
+  NaN
+].forEach((mode, i) => {
+  console.log(mode, i);
+  assert.throws(
+    () => fs.access(readWriteFile, mode, common.mustNotCall()),
+    {
+      code: 'ERR_OUT_OF_RANGE',
+      message: /"mode".+It must be an integer >= 0 && <= 7/
+    }
+  );
+  assert.throws(
+    () => fs.accessSync(readWriteFile, mode),
+    {
+      code: 'ERR_OUT_OF_RANGE',
+      message: /"mode".+It must be an integer >= 0 && <= 7/
+    }
+  );
+});
+
 assert.throws(
   () => { fs.accessSync(doesNotExist); },
   (err) => {

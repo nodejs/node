@@ -5493,8 +5493,8 @@ On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
 
-Modifying a file rather than replacing it may require a flags mode of `'r+'`
-rather than the default mode `'w'`.
+Modifying a file rather than replacing it may require the `flag` option to be
+set to `'r+'` rather than the default `'w'`.
 
 The behavior of some flags are platform-specific. As such, opening a directory
 on macOS and Linux with the `'a+'` flag, as in the example below, will return an
