@@ -167,3 +167,17 @@ const privatePem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
     createPrivateKey({ key: '' });
   }, /null/);
 }
+
+{
+  // Exporting an encrypted private key requires a cipher
+  const privateKey = createPrivateKey(privatePem);
+  common.expectsError(() => {
+    privateKey.export({
+      format: 'pem', type: 'pkcs8', passphrase: 'super-secret'
+    });
+  }, {
+    type: TypeError,
+    code: 'ERR_INVALID_OPT_VALUE',
+    message: 'The value "undefined" is invalid for option "cipher"'
+  });
+}
