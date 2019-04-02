@@ -1685,6 +1685,31 @@ console.log(buf.readInt32LE(1));
 // Throws ERR_OUT_OF_RANGE
 ```
 
+### buf.readInt64BE(offset)
+### buf.readInt64LE(offset)
+<!-- YAML
+added: vX.X.X
+-->
+
+* `offset` {integer} Number of bytes to skip before starting to read. Must
+  satisfy `0 <= offset <= buf.length - 8`.
+* Returns: {bigint}
+
+Reads an signed 64-bit integer, as `BigInt`, from `buf` at the specified
+`offset` with specified endian format (`readInt64BE()` returns big endian,
+`readInt64LE()` returns little endian).
+
+```js
+const buf = Buffer.from([0xff, 0xff, 0xff, 0xff, 0xcf, 0xff, 0xfe, 0xa7]);
+
+console.log(buf.readInt64BE(0));
+// Prints: -805306713n
+console.log(buf.readInt64LE(0));
+// Prints: -6341349956472799233n
+console.log(buf.readInt64LE(1));
+// Throws ERR_OUT_OF_RANGE
+```
+
 ### buf.readIntBE(offset, byteLength)
 ### buf.readIntLE(offset, byteLength)
 <!-- YAML
@@ -1807,6 +1832,31 @@ console.log(buf.readUInt32BE(0).toString(16));
 console.log(buf.readUInt32LE(0).toString(16));
 // Prints: 78563412
 console.log(buf.readUInt32LE(1).toString(16));
+// Throws ERR_OUT_OF_RANGE
+```
+
+### buf.readUInt64BE(offset)
+### buf.readUInt64LE(offset)
+<!-- YAML
+added: vX.X.X
+-->
+
+* `offset` {integer} Number of bytes to skip before starting to read. Must
+  satisfy `0 <= offset <= buf.length - 8`.
+* Returns: {bigint}
+
+Reads an unsigned 64-bit integer, as `BigInt`, from `buf` at the specified
+`offset` with specified endian format (`readUInt64BE()` returns big endian,
+`readUInt64LE()` returns little endian).
+
+```js
+const buf = Buffer.from([0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef]);
+
+console.log(buf.readUInt64BE(0).toString(16));
+// Prints: 1234567890abcdef
+console.log(buf.readUInt64LE(0).toString(16));
+// Prints: efcdab9078563412
+console.log(buf.readUInt64LE(1).toString(16));
 // Throws ERR_OUT_OF_RANGE
 ```
 
@@ -2302,6 +2352,48 @@ console.log(buf);
 // Prints: <Buffer 01 02 03 04 08 07 06 05>
 ```
 
+### buf.writeInt64BE(value, offset)
+### buf.writeInt64LE(value, offset)
+<!-- YAML
+added: vX.X.X
+-->
+
+* `value` {bigint|integer} Number to be written to `buf`.
+* `offset` {integer} Number of bytes to skip before starting to write. Must
+  satisfy `0 <= offset <= buf.length - 8`.
+* Returns: {integer} `offset` plus the number of bytes written.
+
+Writes `value` to `buf` at the specified `offset` with specified endian
+format (`writeInt64BE()` writes big endian, `writeInt64LE()` writes little
+endian). `value` should be a valid signed 64-bit integer. Behavior is
+undefined when `value` is anything other than an signed 64-bit integer.
+
+`value` is interpreted and written as a two's complement signed integer.
+
+```js
+const buf = Buffer.allocUnsafe(8);
+
+buf.writeUInt32BE(0x435316793617abfen, 0);
+
+console.log(buf);
+// Prints: <Buffer 43 53 16 79 36 17 ab fe>
+
+buf.writeUInt32LE(0x435316793617abfen, 0);
+
+console.log(buf);
+// Prints: <Buffer fe ab 17 36 79 16 53 43>
+
+buf.writeUInt32BE(23, 0);
+
+console.log(buf);
+// Prints: <Buffer 00 00 00 00 00 00 00 23>
+
+buf.writeUInt32LE(23, 0);
+
+console.log(buf);
+// Prints: <Buffer 23 00 00 00 00 00 00 00>
+```
+
 ### buf.writeIntBE(value, offset, byteLength)
 ### buf.writeIntLE(value, offset, byteLength)
 <!-- YAML
@@ -2439,6 +2531,46 @@ buf.writeUInt32LE(0xfeedface, 0);
 
 console.log(buf);
 // Prints: <Buffer ce fa ed fe>
+```
+
+### buf.writeUInt64BE(value, offset)
+### buf.writeUInt64LE(value, offset)
+<!-- YAML
+added: vX.X.X
+-->
+
+* `value` {bigint|integer} Number to be written to `buf`.
+* `offset` {integer} Number of bytes to skip before starting to write. Must
+  satisfy `0 <= offset <= buf.length - 8`.
+* Returns: {integer} `offset` plus the number of bytes written.
+
+Writes `value` to `buf` at the specified `offset` with specified endian
+format (`writeUInt64BE()` writes big endian, `writeUInt64LE()` writes little
+endian). `value` should be a valid unsigned 64-bit integer. Behavior is
+undefined when `value` is anything other than an unsigned 64-bit integer.
+
+```js
+const buf = Buffer.allocUnsafe(8);
+
+buf.writeUInt32BE(0x435316793617abfen, 0);
+
+console.log(buf);
+// Prints: <Buffer 43 53 16 79 36 17 ab fe>
+
+buf.writeUInt32LE(0x435316793617abfen, 0);
+
+console.log(buf);
+// Prints: <Buffer fe ab 17 36 79 16 53 43>
+
+buf.writeUInt32BE(23, 0);
+
+console.log(buf);
+// Prints: <Buffer 00 00 00 00 00 00 00 23>
+
+buf.writeUInt32LE(23, 0);
+
+console.log(buf);
+// Prints: <Buffer 23 00 00 00 00 00 00 00>
 ```
 
 ### buf.writeUIntBE(value, offset, byteLength)
