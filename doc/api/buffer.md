@@ -1688,14 +1688,14 @@ console.log(buf.readInt32LE(1));
 ### buf.readInt64BE(offset)
 ### buf.readInt64LE(offset)
 <!-- YAML
-added: vX.X.X
+added: REPLACEME
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
   satisfy `0 <= offset <= buf.length - 8`.
 * Returns: {bigint}
 
-Reads an signed 64-bit integer, as `BigInt`, from `buf` at the specified
+Reads a signed 64-bit integer, as `BigInt`, from `buf` at the specified
 `offset` with specified endian format (`readInt64BE()` returns big endian,
 `readInt64LE()` returns little endian).
 
@@ -1838,7 +1838,7 @@ console.log(buf.readUInt32LE(1).toString(16));
 ### buf.readUInt64BE(offset)
 ### buf.readUInt64LE(offset)
 <!-- YAML
-added: vX.X.X
+added: REPLACEME
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -2355,7 +2355,7 @@ console.log(buf);
 ### buf.writeInt64BE(value, offset)
 ### buf.writeInt64LE(value, offset)
 <!-- YAML
-added: vX.X.X
+added: REPLACEME
 -->
 
 * `value` {bigint|integer} Number to be written to `buf`.
@@ -2366,29 +2366,29 @@ added: vX.X.X
 Writes `value` to `buf` at the specified `offset` with specified endian
 format (`writeInt64BE()` writes big endian, `writeInt64LE()` writes little
 endian). `value` should be a valid signed 64-bit integer. Behavior is
-undefined when `value` is anything other than an signed 64-bit integer.
+undefined when `value` is anything other than a signed 64-bit integer.
 
 `value` is interpreted and written as a two's complement signed integer.
 
 ```js
 const buf = Buffer.allocUnsafe(8);
 
-buf.writeUInt32BE(0x435316793617abfen, 0);
+buf.writeUInt64BE(0x435316793617abfen, 0);
 
 console.log(buf);
 // Prints: <Buffer 43 53 16 79 36 17 ab fe>
 
-buf.writeUInt32LE(0x435316793617abfen, 0);
+buf.writeUInt64LE(0x435316793617abfen, 0);
 
 console.log(buf);
 // Prints: <Buffer fe ab 17 36 79 16 53 43>
 
-buf.writeUInt32BE(23, 0);
+buf.writeUInt64BE(23, 0);
 
 console.log(buf);
 // Prints: <Buffer 00 00 00 00 00 00 00 23>
 
-buf.writeUInt32LE(23, 0);
+buf.writeUInt64LE(23, 0);
 
 console.log(buf);
 // Prints: <Buffer 23 00 00 00 00 00 00 00>
@@ -2536,7 +2536,7 @@ console.log(buf);
 ### buf.writeUInt64BE(value, offset)
 ### buf.writeUInt64LE(value, offset)
 <!-- YAML
-added: vX.X.X
+added: REPLACEME
 -->
 
 * `value` {bigint|integer} Number to be written to `buf`.
@@ -2552,22 +2552,22 @@ undefined when `value` is anything other than an unsigned 64-bit integer.
 ```js
 const buf = Buffer.allocUnsafe(8);
 
-buf.writeUInt32BE(0x435316793617abfen, 0);
+buf.writeUInt64BE(0x435316793617abfen, 0);
 
 console.log(buf);
 // Prints: <Buffer 43 53 16 79 36 17 ab fe>
 
-buf.writeUInt32LE(0x435316793617abfen, 0);
+buf.writeUInt64LE(0x435316793617abfen, 0);
 
 console.log(buf);
 // Prints: <Buffer fe ab 17 36 79 16 53 43>
 
-buf.writeUInt32BE(23, 0);
+buf.writeUInt64BE(23, 0);
 
 console.log(buf);
 // Prints: <Buffer 00 00 00 00 00 00 00 23>
 
-buf.writeUInt32LE(23, 0);
+buf.writeUInt64LE(23, 0);
 
 console.log(buf);
 // Prints: <Buffer 23 00 00 00 00 00 00 00>
