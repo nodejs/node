@@ -18,7 +18,7 @@ jobs:
       install:
         - make lint-py-build || true
       script:
-        - NODE=$(which node) make lint-ci
+        - NODE=$(which node) make lint lint-py
 
     - name: "Compile V8"
       language: cpp
