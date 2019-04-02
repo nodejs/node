@@ -769,8 +769,14 @@ Buffer.allocUnsafe(3.3).fill().toString();
 // Throws bad argument error in commit 43cb4ec
 Buffer.alloc(3.3).fill().toString();
 assert.strictEqual(Buffer.allocUnsafe(3.3).length, 3);
-assert.strictEqual(Buffer.from({ length: 3.3 }).length, 3);
-assert.strictEqual(Buffer.from({ length: 'BAM' }).length, 0);
+assert.throws(
+  () => Buffer.from({ length: 3.3 }),
+  { code: 'ERR_INVALID_ARG_TYPE' }
+);
+assert.throws(
+  () => Buffer.from({ length: 'BAM' }),
+  { code: 'ERR_INVALID_ARG_TYPE' }
+);
 
 // Make sure that strings are not coerced to numbers.
 assert.strictEqual(Buffer.from('99').length, 2);
@@ -993,10 +999,10 @@ assert.strictEqual(SlowBuffer.prototype.offset, undefined);
   // Test that large negative Buffer length inputs don't affect the pool offset.
   // Use the fromArrayLike() variant here because it's more lenient
   // about its input and passes the length directly to allocate().
-  assert.deepStrictEqual(Buffer.from({ length: -Buffer.poolSize }),
-                         Buffer.from(''));
-  assert.deepStrictEqual(Buffer.from({ length: -100 }),
-                         Buffer.from(''));
+  assert.throws(
+    () => Buffer.from({ length: -Buffer.poolSize }),
+    { code: 'ERR_INVALID_ARG_TYPE' }
+  );
 
   // Check pool offset after that by trying to write string into the pool.
   Buffer.from('abc');
