@@ -2311,3 +2311,43 @@ assert.strictEqual(
 
   assert.strictEqual(out, expected);
 }
+
+{
+  // Use a fake stack to verify the expected colored outcome.
+  const stack = [
+    'TypedError: Wonderful message!',
+    '    at A.<anonymous> (/test/node_modules/foo/node_modules/bar/baz.js:2:7)',
+    '    at Module._compile (internal/modules/cjs/loader.js:827:30)',
+    '    at Fancy (vm.js:697:32)',
+    // This file is not an actual Node.js core file.
+    '    at tryModuleLoad (internal/modules/cjs/foo.js:629:12)',
+    '    at Function.Module._load (internal/modules/cjs/loader.js:621:3)',
+    // This file is not an actual Node.js core file.
+    '    at Module.require [as weird/name] (internal/aaaaaa/loader.js:735:19)',
+    '    at require (internal/modules/cjs/helpers.js:14:16)',
+    '    at /test/test-util-inspect.js:2239:9',
+    '    at getActual (assert.js:592:5)'
+  ];
+  const isNodeCoreFile = [
+    false, false, true, true, false, true, false, true, false, true
+  ];
+  const err = new TypeError('Wonderful message!');
+  err.stack = stack.join('\n');
+  util.inspect(err, { colors: true }).split('\n').forEach((line, i) => {
+    let actual = stack[i].replace(/node_modules\/([a-z]+)/g, (a, m) => {
+      return `node_modules/\u001b[4m${m}\u001b[24m`;
+    });
+    if (isNodeCoreFile[i]) {
+      actual = `\u001b[90m${actual}\u001b[39m`;
+    }
+    assert.strictEqual(actual, line);
+  });
+}
+
+{
+  // Cross platform checks.
+  const err = new Error('foo');
+  util.inspect(err, { colors: true }).split('\n').forEach((line, i) => {
+    assert(i < 2 || line.startsWith('\u001b[90m'));
+  });
+}

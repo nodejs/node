@@ -638,15 +638,16 @@ via the `util.inspect.styles` and `util.inspect.colors` properties.
 
 The default styles and associated colors are:
 
- * `number` - `yellow`
- * `boolean` - `yellow`
- * `string` - `green`
- * `date` - `magenta`
- * `regexp` - `red`
- * `null` - `bold`
- * `undefined` - `grey`
- * `special` - `cyan` (only applied to functions at this time)
- * `name` - (no styling)
+* `number` - `yellow`
+* `boolean` - `yellow`
+* `string` - `green`
+* `date` - `magenta`
+* `module` - `underline`
+* `regexp` - `red`
+* `null` - `bold`
+* `undefined` - `grey`
+* `special` - `cyan` (only applied to functions at this time)
+* `name` - (no styling)
 
 The predefined color codes are: `white`, `grey`, `black`, `blue`, `cyan`,
 `green`, `magenta`, `red` and `yellow`. There are also `bold`, `italic`,
