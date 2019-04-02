@@ -6,23 +6,23 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const http2 = require('http2');
+const { inspect } = require('util');
 
 // Verify that setTimeout callback verifications work correctly
 const verifyCallbacks = (server) => {
   const testTimeout = 10;
-  const notFunctions = [true, 1, {}, [], null, 'test'];
-  const invalidCallBackError = {
-    type: TypeError,
-    code: 'ERR_INVALID_CALLBACK',
-    message: 'Callback must be a function'
-  };
 
-  notFunctions.forEach((notFunction) =>
+  [true, 1, {}, [], null, 'test'].forEach((notFunction) => {
     common.expectsError(
       () => server.setTimeout(testTimeout, notFunction),
-      invalidCallBackError
-    )
-  );
+      {
+        type: TypeError,
+        code: 'ERR_INVALID_CALLBACK',
+        message: 'Callback must be a function. ' +
+                 `Received ${inspect(notFunction)}`
+      }
+    );
+  });
 
   // No callback
   const returnedVal = server.setTimeout(testTimeout);

@@ -4,6 +4,7 @@
 const common = require('../common');
 const Countdown = require('../common/countdown');
 const assert = require('assert');
+const { inspect } = require('util');
 const { internalBinding } = require('internal/test/binding');
 const {
   observerCounts: counts
@@ -30,12 +31,14 @@ assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION], 0);
 
 {
   [1, null, undefined, {}, [], Infinity].forEach((i) => {
-    common.expectsError(() => new PerformanceObserver(i),
-                        {
-                          code: 'ERR_INVALID_CALLBACK',
-                          type: TypeError,
-                          message: 'Callback must be a function'
-                        });
+    common.expectsError(
+      () => new PerformanceObserver(i),
+      {
+        code: 'ERR_INVALID_CALLBACK',
+        type: TypeError,
+        message: `Callback must be a function. Received ${inspect(i)}`
+      }
+    );
   });
   const observer = new PerformanceObserver(common.mustNotCall());
 

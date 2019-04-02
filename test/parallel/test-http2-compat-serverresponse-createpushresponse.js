@@ -24,7 +24,7 @@ const server = h2.createServer((request, response) => {
     {
       code: 'ERR_INVALID_CALLBACK',
       type: TypeError,
-      message: 'Callback must be a function'
+      message: 'Callback must be a function. Received undefined'
     }
   );
 

@@ -71,7 +71,7 @@ test(new Uint8Array(expected.length),
 assert.throws(
   () => fs.read(fd, Buffer.alloc(1), 0, 1, 0),
   {
-    message: 'Callback must be a function',
+    message: 'Callback must be a function. Received undefined',
     code: 'ERR_INVALID_CALLBACK',
   }
 );

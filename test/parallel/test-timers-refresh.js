@@ -6,6 +6,7 @@ const common = require('../common');
 
 const { strictEqual } = require('assert');
 const { setUnrefTimeout } = require('internal/timers');
+const { inspect } = require('util');
 
 // Schedule the unrefed cases first so that the later case keeps the event loop
 // active.
@@ -32,14 +33,14 @@ const { setUnrefTimeout } = require('internal/timers');
 
 // Should throw with non-functions
 {
-  const expectedError = {
-    code: 'ERR_INVALID_CALLBACK',
-    message: 'Callback must be a function'
-  };
-
   [null, true, false, 0, 1, NaN, '', 'foo', {}, Symbol()].forEach((cb) => {
-    common.expectsError(() => setUnrefTimeout(cb),
-                        expectedError);
+    common.expectsError(
+      () => setUnrefTimeout(cb),
+      {
+        code: 'ERR_INVALID_CALLBACK',
+        message: `Callback must be a function. Received ${inspect(cb)}`
+      }
+    );
   });
 }
 

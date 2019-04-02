@@ -23,6 +23,7 @@
 const common = require('../common');
 const net = require('net');
 const assert = require('assert');
+const { inspect } = require('util');
 
 // Verify that invalid delays throw
 const s = new net.Socket();
@@ -59,7 +60,8 @@ for (let i = 0; i < invalidCallbacks.length; i++) {
       {
         code: 'ERR_INVALID_CALLBACK',
         type: TypeError,
-        message: 'Callback must be a function'
+        message: 'Callback must be a function. ' +
+                 `Received ${inspect(invalidCallbacks[i])}`
       }
     )
   );
