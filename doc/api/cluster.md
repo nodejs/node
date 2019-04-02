@@ -459,7 +459,16 @@ if (cluster.isMaster) {
 }
 ```
 
-`worker.send()` will return `false` if the channel has closed or when the
+The optional `callback` is a function that is invoked after the message is
+sent but before the worker or master may have received it. The function is called with a
+single argument: `null` on success, or an [`Error`][] object on failure.
+
+If no `callback` function is provided and the message cannot be sent, an
+`'error'` event will be emitted by the [`Worker`][] object. This can
+happen, for instance, when the worker has already exited.
+
+
+`worker.send()` will throw an error if the channel has closed or when the
 backlog of unsent messages exceeds a threshold that makes it unwise to send
 more. Otherwise, the method returns `true`. The `callback` function can be
 used to implement flow control.
@@ -845,7 +854,8 @@ socket.on('data', (id) => {
   const worker = cluster.workers[id];
 });
 ```
-
+[`Worker`]: #cluster_class_worker
+[`Error`]: errors.html#errors_class_error
 [`ChildProcess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
 [`child_process.fork()`]: child_process.html#child_process_child_process_fork_modulepath_args_options
 [`child_process` event: `'exit'`]: child_process.html#child_process_event_exit

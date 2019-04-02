@@ -1840,7 +1840,16 @@ If Node.js was not spawned with an IPC channel, `process.send()` will be
 The message goes through serialization and parsing. The resulting message might
 not be the same as what is originally sent.
 
-`process.send()` will return `false` if the channel has closed or when the
+The optional `callback` is a function that is invoked after the message is
+sent but before the parent process may have received it. The function is called with a
+single argument: `null` on success, or an [`Error`][] object on failure.
+
+If no `callback` function is provided and the message cannot be sent, an
+`'error'` event will be emitted by the [`Process`][] object. This can
+happen, for instance, when the process has already exited.
+
+
+`process.send()` will return false if the channel has closed or when the
 backlog of unsent messages exceeds a threshold that makes it unwise to send
 more. Otherwise, the method returns `true`. The `callback` function can be
 used to implement flow control.
@@ -2340,3 +2349,4 @@ cases:
 [process_emit_warning]: #process_process_emitwarning_warning_type_code_ctor
 [process_warning]: #process_event_warning
 [report documentation]: report.html
+[`Process`]: #process_process
