@@ -638,23 +638,25 @@ via the `util.inspect.styles` and `util.inspect.colors` properties.
 
 The default styles and associated colors are:
 
-* `number` - `yellow`
+* `bigint` - `yellow`
 * `boolean` - `yellow`
-* `string` - `green`
 * `date` - `magenta`
 * `module` - `underline`
-* `regexp` - `red`
-* `null` - `bold`
-* `undefined` - `grey`
-* `special` - `cyan` (only applied to functions at this time)
 * `name` - (no styling)
+* `null` - `bold`
+* `number` - `yellow`
+* `regexp` - `red`
+* `special` - `cyan` (e.g., `Proxies`)
+* `string` - `green`
+* `symbol` - `green`
+* `undefined` - `grey`
 
 The predefined color codes are: `white`, `grey`, `black`, `blue`, `cyan`,
 `green`, `magenta`, `red` and `yellow`. There are also `bold`, `italic`,
 `underline` and `inverse` codes.
 
 Color styling uses ANSI control codes that may not be supported on all
-terminals.
+terminals. To verify color support use [`tty.hasColors()`][].
 
 ### Custom inspection functions on Objects
 
@@ -2191,6 +2193,7 @@ util.log('Timestamped message.');
 [`assert.deepStrictEqual()`]: assert.html#assert_assert_deepstrictequal_actual_expected_message
 [`console.error()`]: console.html#console_console_error_data_args
 [`target` and `handler`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#Terminology
+[`tty.hasColors()`]: tty.html#tty_writestream_hascolors_count_env
 [`util.format()`]: #util_util_format_format_args
 [`util.inspect()`]: #util_util_inspect_object_options
 [`util.promisify()`]: #util_util_promisify_original
