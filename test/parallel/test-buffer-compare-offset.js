@@ -73,13 +73,16 @@ assert.throws(
   () => a.compare(b, '0xff'),
   { code: 'ERR_INVALID_ARG_TYPE' }
 );
+assert.throws(
+  () => a.compare(b, 0, '0xff'),
+  { code: 'ERR_INVALID_ARG_TYPE' }
+);
 
 const oor = { code: 'ERR_OUT_OF_RANGE' };
 
 assert.throws(() => a.compare(b, 0, 100, 0), oor);
 assert.throws(() => a.compare(b, 0, 1, 0, 100), oor);
 assert.throws(() => a.compare(b, -1), oor);
-assert.throws(() => a.compare(b, 0, '0xff'), oor);
 assert.throws(() => a.compare(b, 0, Infinity), oor);
 assert.throws(() => a.compare(b, 0, 1, -1), oor);
 assert.throws(() => a.compare(b, -Infinity, Infinity), oor);

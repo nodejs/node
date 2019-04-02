@@ -5,6 +5,12 @@ const vm = require('vm');
 
 const SlowBuffer = require('buffer').SlowBuffer;
 
+// Verify the maximum Uint8Array size. There is no concrete limit by spec. The
+// internal limits should be updated if this fails.
+assert.throws(
+  () => new Uint8Array(2 ** 31),
+  { message: 'Invalid typed array length: 2147483648' }
+);
 
 const b = Buffer.allocUnsafe(1024);
 assert.strictEqual(b.length, 1024);
@@ -73,27 +79,22 @@ new Buffer('', 'latin1');
 new Buffer('', 'binary');
 Buffer(0);
 
-const outOfBoundsError = {
-  code: 'ERR_BUFFER_OUT_OF_BOUNDS',
-  type: RangeError
-};
-
 const outOfRangeError = {
   code: 'ERR_OUT_OF_RANGE',
   type: RangeError
 };
 
 // Try to write a 0-length string beyond the end of b
-common.expectsError(() => b.write('', 2048), outOfBoundsError);
+common.expectsError(() => b.write('', 2048), outOfRangeError);
 
 // Throw when writing to negative offset
-common.expectsError(() => b.write('a', -1), outOfBoundsError);
+common.expectsError(() => b.write('a', -1), outOfRangeError);
 
 // Throw when writing past bounds from the pool
-common.expectsError(() => b.write('a', 2048), outOfBoundsError);
+common.expectsError(() => b.write('a', 2048), outOfRangeError);
 
 // Throw when writing to negative offset
-common.expectsError(() => b.write('a', -1), outOfBoundsError);
+common.expectsError(() => b.write('a', -1), outOfRangeError);
 
 // Try to copy 0 bytes worth of data into an empty buffer
 b.copy(Buffer.alloc(0), 0, 0, 0);
