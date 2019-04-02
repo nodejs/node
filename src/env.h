@@ -330,7 +330,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(x_forwarded_string, "x-forwarded-for")                                     \
   V(zero_return_string, "ZERO_RETURN")
 
-#define ENVIRONMENT_STRONG_PERSISTENT_DATA(V)                                  \
+#define ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)                            \
   V(as_callback_data_template, v8::FunctionTemplate)                           \
   V(async_wrap_ctor_template, v8::FunctionTemplate)                            \
   V(async_wrap_object_ctor_template, v8::FunctionTemplate)                     \
@@ -1049,7 +1049,7 @@ class Environment : public MemoryRetainer {
   inline v8::Local<TypeName> PropertyName() const;                            \
   inline void set_ ## PropertyName(v8::Local<TypeName> value);
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
-  ENVIRONMENT_STRONG_PERSISTENT_DATA(V)
+  ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V
 
 #if HAVE_INSPECTOR
@@ -1270,7 +1270,7 @@ class Environment : public MemoryRetainer {
 
 #define V(PropertyName, TypeName) Persistent<TypeName> PropertyName ## _;
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
-  ENVIRONMENT_STRONG_PERSISTENT_DATA(V)
+  ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V
 };
 

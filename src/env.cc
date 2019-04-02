@@ -889,6 +889,9 @@ inline size_t Environment::SelfSize() const {
   // this can be done for common types within the Track* calls automatically
   // if a certain scope is entered.
   size -= sizeof(thread_stopper_);
+  size -= sizeof(async_hooks_);
+  size -= sizeof(tick_info_);
+  size -= sizeof(immediate_info_);
   return size;
 }
 
