@@ -107,11 +107,12 @@ assert.throws(function() {
 {
   // If byteOffset is not numeric, it defaults to 0.
   const ab = new ArrayBuffer(10);
-  const expected = Buffer.from(ab, 0);
-  assert.deepStrictEqual(Buffer.from(ab, 'fhqwhgads'), expected);
-  assert.deepStrictEqual(Buffer.from(ab, NaN), expected);
-  assert.deepStrictEqual(Buffer.from(ab, {}), expected);
-  assert.deepStrictEqual(Buffer.from(ab, []), expected);
+  ['fhqwhgads', NaN, {}].forEach((invalidByteOffset) => {
+    assert.throws(
+      () => Buffer.from(ab, invalidByteOffset),
+      { code: 'ERR_INVALID_ARG_VALUE' }
+    );
+  });
 
   // If byteOffset can be converted to a number, it will be.
   assert.deepStrictEqual(Buffer.from(ab, [1]), Buffer.from(ab, 1));
