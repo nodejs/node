@@ -29,6 +29,7 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 const { kMaxLength } = require('buffer');
+const { inspect } = require('util');
 
 const kMaxUint32 = Math.pow(2, 32) - 1;
 const kMaxPossibleLength = Math.min(kMaxLength, kMaxUint32);
@@ -292,7 +293,7 @@ assert.throws(
     {
       code: 'ERR_INVALID_CALLBACK',
       type: TypeError,
-      message: 'Callback must be a function',
+      message: `Callback must be a function. Received ${inspect(i)}`
     });
 });
 
@@ -302,7 +303,7 @@ assert.throws(
     {
       code: 'ERR_INVALID_CALLBACK',
       type: TypeError,
-      message: 'Callback must be a function',
+      message: `Callback must be a function. Received ${inspect(i)}`
     }
   );
 });

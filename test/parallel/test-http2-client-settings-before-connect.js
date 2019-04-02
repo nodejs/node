@@ -4,6 +4,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 const h2 = require('http2');
+const { inspect } = require('util');
 
 const server = h2.createServer();
 
@@ -51,7 +52,8 @@ server.listen(0, common.mustCall(() => {
       {
         type: TypeError,
         code: 'ERR_INVALID_CALLBACK',
-        message: 'Callback must be a function'
+        message:
+          `Callback must be a function. Received ${inspect(invalidCallback)}`
       }
     )
   );

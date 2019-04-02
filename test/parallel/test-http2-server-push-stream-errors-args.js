@@ -22,7 +22,7 @@ server.on('stream', common.mustCall((stream, headers) => {
     }, {}, 'callback'),
     {
       code: 'ERR_INVALID_CALLBACK',
-      message: 'Callback must be a function'
+      message: "Callback must be a function. Received 'callback'"
     }
   );
 

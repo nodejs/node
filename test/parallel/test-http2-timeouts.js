@@ -29,7 +29,7 @@ server.on('stream', common.mustCall((stream) => {
     {
       code: 'ERR_INVALID_CALLBACK',
       type: TypeError,
-      message: 'Callback must be a function'
+      message: 'Callback must be a function. Received Symbol(test)'
     }
   );
   common.expectsError(
@@ -37,7 +37,7 @@ server.on('stream', common.mustCall((stream) => {
     {
       code: 'ERR_INVALID_CALLBACK',
       type: TypeError,
-      message: 'Callback must be a function'
+      message: 'Callback must be a function. Received {}'
     }
   );
 }));

@@ -5,6 +5,7 @@ const common = require('../common');
 common.skipIfInspectorDisabled();
 
 const { Session } = require('inspector');
+const { inspect } = require('util');
 
 const session = new Session();
 
@@ -52,7 +53,7 @@ session.post('Runtime.evaluate', { expression: '2 + 2' });
     {
       code: 'ERR_INVALID_CALLBACK',
       type: TypeError,
-      message: 'Callback must be a function'
+      message: `Callback must be a function. Received ${inspect(i)}`
     }
   );
 });
