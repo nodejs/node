@@ -37,10 +37,10 @@ client.connect(PORT, common.mustCall(() => {
   });
 
   client.connect(PORT, addresses.INVALID_HOST, common.mustCall((err) => {
-    assert.strictEqual(err.code, 'ENOTFOUND');
+    assert.ok(err.code === 'ENOTFOUND' || err.code === 'EAI_AGAIN');
 
     client.once('error', common.mustCall((err) => {
-      assert.strictEqual(err.code, 'ENOTFOUND');
+      assert.ok(err.code === 'ENOTFOUND' || err.code === 'EAI_AGAIN');
       client.once('connect', common.mustCall(() => client.close()));
       client.connect(PORT);
     }));
