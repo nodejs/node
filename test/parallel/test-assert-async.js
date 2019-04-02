@@ -96,6 +96,7 @@ promises.push(assert.rejects(
     assert.strictEqual(err.message,
                        'Got unwanted rejection.\nActual message: "Failed"');
     assert.strictEqual(err.operator, 'doesNotReject');
+    assert.ok(err.stack);
     assert.ok(!err.stack.includes('at Function.doesNotReject'));
     return true;
   };
@@ -120,6 +121,30 @@ promises.push(assert.rejects(
              'Function or Promise. Received type number'
   }
 ));
+
+{
+  const handler = (generated, actual, err) => {
+    assert.strictEqual(err.generatedMessage, generated);
+    assert.strictEqual(err.code, 'ERR_ASSERTION');
+    assert.strictEqual(err.actual, actual);
+    assert.strictEqual(err.operator, 'rejects');
+    assert(/rejects/.test(err.stack));
+    return true;
+  };
+  const err = new Error();
+  promises.push(assert.rejects(
+    assert.rejects(Promise.reject(null), { code: 'FOO' }),
+    handler.bind(null, true, null)
+  ));
+  promises.push(assert.rejects(
+    assert.rejects(Promise.reject(5), { code: 'FOO' }, 'AAAAA'),
+    handler.bind(null, false, 5)
+  ));
+  promises.push(assert.rejects(
+    assert.rejects(Promise.reject(err), { code: 'FOO' }, 'AAAAA'),
+    handler.bind(null, false, err)
+  ));
+}
 
 // Make sure all async code gets properly executed.
 Promise.all(promises).then(common.mustCall());
