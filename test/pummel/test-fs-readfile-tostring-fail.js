@@ -21,6 +21,8 @@ const stream = fs.createWriteStream(file, {
   flags: 'a'
 });
 
+stream.on('error', (err) => { throw err; });
+
 const size = kStringMaxLength / 200;
 const a = Buffer.alloc(size, 'a');
 
