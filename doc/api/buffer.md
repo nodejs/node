@@ -2373,22 +2373,22 @@ undefined when `value` is anything other than a signed 64-bit integer.
 ```js
 const buf = Buffer.allocUnsafe(8);
 
-buf.writeUInt64BE(0x435316793617abfen, 0);
+buf.writeInt64BE(0x435316793617abfen, 0);
 
 console.log(buf);
 // Prints: <Buffer 43 53 16 79 36 17 ab fe>
 
-buf.writeUInt64LE(0x435316793617abfen, 0);
+buf.writeInt64LE(0x435316793617abfen, 0);
 
 console.log(buf);
 // Prints: <Buffer fe ab 17 36 79 16 53 43>
 
-buf.writeUInt64BE(23, 0);
+buf.writeInt64BE(23, 0);
 
 console.log(buf);
 // Prints: <Buffer 00 00 00 00 00 00 00 23>
 
-buf.writeUInt64LE(23, 0);
+buf.writeInt64LE(23, 0);
 
 console.log(buf);
 // Prints: <Buffer 23 00 00 00 00 00 00 00>
