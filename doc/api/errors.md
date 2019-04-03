@@ -1822,16 +1822,6 @@ cannot be serialized.
 This can only happen when native addons create `SharedArrayBuffer`s in
 "externalized" mode, or put existing `SharedArrayBuffer` into externalized mode.
 
-<a id="ERR_TRANSFORM_ALREADY_TRANSFORMING"></a>
-### ERR_TRANSFORM_ALREADY_TRANSFORMING
-
-A `Transform` stream finished while it was still transforming.
-
-<a id="ERR_TRANSFORM_WITH_LENGTH_0"></a>
-### ERR_TRANSFORM_WITH_LENGTH_0
-
-A `Transform` stream finished with data still in the write buffer.
-
 <a id="ERR_TTY_INIT_FAILED"></a>
 ### ERR_TTY_INIT_FAILED
 
@@ -2164,6 +2154,24 @@ removed: v10.0.0
 -->
 
 Used when a TLS renegotiation request has failed in a non-specific way.
+
+<a id="ERR_TRANSFORM_ALREADY_TRANSFORMING"></a>
+### ERR_TRANSFORM_ALREADY_TRANSFORMING
+<!-- YAML
+added: v8.0.0
+removed: REPLACEME
+-->
+
+A `Transform` stream finished while it was still transforming.
+
+<a id="ERR_TRANSFORM_WITH_LENGTH_0"></a>
+### ERR_TRANSFORM_WITH_LENGTH_0
+<!-- YAML
+added: v8.0.0
+removed: REPLACEME
+-->
+
+A `Transform` stream finished with data still in the write buffer.
 
 <a id="ERR_UNKNOWN_BUILTIN_MODULE"></a>
 ### ERR_UNKNOWN_BUILTIN_MODULE
