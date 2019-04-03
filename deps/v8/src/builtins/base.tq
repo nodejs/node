@@ -1464,8 +1464,6 @@ operator '[]=' macro StoreFixedArrayDirect(a: FixedArray, i: Smi, v: Object) {
 
 extern operator '.instance_type' macro LoadMapInstanceType(Map): int32;
 
-extern macro Float64SilenceNaN(float64): float64;
-
 extern macro GetNumberDictionaryNumberOfElements(NumberDictionary): Smi;
 extern macro GetIteratorMethod(implicit context: Context)(HeapObject): Object
     labels IfIteratorUndefined;

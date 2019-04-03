@@ -127,7 +127,7 @@ namespace array_map {
         for (let i: Smi = 0; i < validLength; i++) {
           typeswitch (this.fixedArray.objects[i]) {
             case (n: Number): {
-              elements.floats[i] = Float64SilenceNaN(Convert<float64>(n));
+              elements.floats[i] = Convert<float64>(n);
             }
             case (h: HeapObject): {
               assert(h == Hole);

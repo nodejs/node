@@ -275,8 +275,7 @@ namespace array {
     const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedDoubleArray>(object.elements);
     const heapVal = UnsafeCast<HeapNumber>(value);
-    // Make sure we do not store signalling NaNs into double arrays.
-    const val = Float64SilenceNaN(Convert<float64>(heapVal));
+    const val = Convert<float64>(heapVal);
     StoreFixedDoubleArrayElementSmi(elements, index, val);
     return kSuccess;
   }

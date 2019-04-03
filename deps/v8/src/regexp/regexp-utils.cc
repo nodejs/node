@@ -36,7 +36,7 @@ Handle<String> RegExpUtils::GenericCaptureGetter(
 
 namespace {
 
-V8_INLINE bool HasInitialRegExpMap(Isolate* isolate, Handle<JSReceiver> recv) {
+V8_INLINE bool HasInitialRegExpMap(Isolate* isolate, JSReceiver recv) {
   return recv->map() == isolate->regexp_function()->initial_map();
 }
 
@@ -47,7 +47,7 @@ MaybeHandle<Object> RegExpUtils::SetLastIndex(Isolate* isolate,
                                               uint64_t value) {
   Handle<Object> value_as_object =
       isolate->factory()->NewNumberFromInt64(value);
-  if (HasInitialRegExpMap(isolate, recv)) {
+  if (HasInitialRegExpMap(isolate, *recv)) {
     JSRegExp::cast(*recv)->set_last_index(*value_as_object, SKIP_WRITE_BARRIER);
     return recv;
   } else {
@@ -59,7 +59,7 @@ MaybeHandle<Object> RegExpUtils::SetLastIndex(Isolate* isolate,
 
 MaybeHandle<Object> RegExpUtils::GetLastIndex(Isolate* isolate,
                                               Handle<JSReceiver> recv) {
-  if (HasInitialRegExpMap(isolate, recv)) {
+  if (HasInitialRegExpMap(isolate, *recv)) {
     return handle(JSRegExp::cast(*recv)->last_index(), isolate);
   } else {
     return Object::GetProperty(isolate, recv,
@@ -155,9 +155,7 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
 
   JSReceiver recv = JSReceiver::cast(*obj);
 
-  // Check the receiver's map.
-  Handle<JSFunction> regexp_function = isolate->regexp_function();
-  if (recv->map() != regexp_function->initial_map()) return false;
+  if (!HasInitialRegExpMap(isolate, recv)) return false;
 
   // Check the receiver's prototype's map.
   Object proto = recv->map()->prototype();

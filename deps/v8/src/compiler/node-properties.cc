@@ -412,7 +412,8 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
               mnewtarget.Ref(broker).IsJSFunction()) {
             JSFunctionRef original_constructor =
                 mnewtarget.Ref(broker).AsJSFunction();
-            if (original_constructor.has_initial_map()) {
+            if (original_constructor.map().has_prototype_slot() &&
+                original_constructor.has_initial_map()) {
               original_constructor.Serialize();
               MapRef initial_map = original_constructor.initial_map();
               if (initial_map.GetConstructor().equals(mtarget.Ref(broker))) {
