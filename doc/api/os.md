@@ -1315,6 +1315,7 @@ The following process scheduling constants are exported by
   </tr>
 </table>
 
+[`SystemError`]: errors.html#errors_class_systemerror
 [`process.arch`]: process.html#process_process_arch
 [`process.platform`]: process.html#process_process_platform
 [Android building]: https://github.com/nodejs/node/blob/master/BUILDING.md#androidandroid-based-devices-eg-firefox-os

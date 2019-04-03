@@ -407,34 +407,6 @@ try {
 `SyntaxError` instances are unrecoverable in the context that created them –
 they may only be caught by other contexts.
 
-## Class: TypeError
-
-A subclass of `Error` that indicates that a provided argument is not an
-allowable type. For example, passing a function to a parameter which expects a
-string would be considered a `TypeError`.
-
-```js
-require('url').parse(() => { });
-// Throws TypeError, since it expected a string.
-```
-
-Node.js will generate and throw `TypeError` instances *immediately* as a form
-of argument validation.
-
-## Exceptions vs. Errors
-
-<!--type=misc-->
-
-A JavaScript exception is a value that is thrown as a result of an invalid
-operation or as the target of a `throw` statement. While it is not required
-that these values are instances of `Error` or classes which inherit from
-`Error`, all exceptions thrown by Node.js or the JavaScript runtime *will* be
-instances of `Error`.
-
-Some exceptions are *unrecoverable* at the JavaScript layer. Such exceptions
-will *always* cause the Node.js process to crash. Examples include `assert()`
-checks or `abort()` calls in the C++ layer.
-
 ## Class: SystemError
 
 Node.js generates system errors when exceptions occur within its runtime
@@ -574,6 +546,34 @@ program. For a comprehensive list, see the [`errno`(3) man page][].
   the connected party did not properly respond after a period of time. Usually
   encountered by [`http`][] or [`net`][] — often a sign that a `socket.end()`
   was not properly called.
+
+## Class: TypeError
+
+A subclass of `Error` that indicates that a provided argument is not an
+allowable type. For example, passing a function to a parameter which expects a
+string would be considered a `TypeError`.
+
+```js
+require('url').parse(() => { });
+// Throws TypeError, since it expected a string.
+```
+
+Node.js will generate and throw `TypeError` instances *immediately* as a form
+of argument validation.
+
+## Exceptions vs. Errors
+
+<!--type=misc-->
+
+A JavaScript exception is a value that is thrown as a result of an invalid
+operation or as the target of a `throw` statement. While it is not required
+that these values are instances of `Error` or classes which inherit from
+`Error`, all exceptions thrown by Node.js or the JavaScript runtime *will* be
+instances of `Error`.
+
+Some exceptions are *unrecoverable* at the JavaScript layer. Such exceptions
+will *always* cause the Node.js process to crash. Examples include `assert()`
+checks or `abort()` calls in the C++ layer.
 
 ## OpenSSL Errors
 
