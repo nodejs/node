@@ -14,13 +14,9 @@
 
 ## Collaborators
 
-The [nodejs/node][] GitHub repository is maintained by Node.js Core
-Collaborators. Upon becoming Collaborators, they:
-
-* Become members of the @nodejs/collaborators team
-* Gain individual membership of the Node.js foundation
-
-Their privileges include but are not limited to:
+Node.js Core Collaborators maintain the [nodejs/node][] GitHub repository.
+The GitHub team for Node.js Core Collaborators is @nodejs/collaborators. Their
+privileges include but are not limited to:
 
 * Commit access to the [nodejs/node][] repository
 * Access to the Node.js continuous integration (CI) jobs
