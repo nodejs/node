@@ -66,11 +66,17 @@ static void ReportEndpoints(uv_handle_t* h, JSONWriter* writer) {
   }
   ReportEndpoint(h, rc == 0 ? addr : nullptr,  "localEndpoint", writer);
 
-  if (h->type == UV_TCP) {
-    // Get the remote end of the connection.
-    rc = uv_tcp_getpeername(&handle->tcp, addr, &addr_size);
-    ReportEndpoint(h, rc == 0 ? addr : nullptr, "remoteEndpoint", writer);
+  switch (h->type) {
+    case UV_UDP:
+      rc = uv_udp_getpeername(&handle->udp, addr, &addr_size);
+      break;
+    case UV_TCP:
+      rc = uv_tcp_getpeername(&handle->tcp, addr, &addr_size);
+      break;
+    default:
+      break;
   }
+  ReportEndpoint(h, rc == 0 ? addr : nullptr, "remoteEndpoint", writer);
 }
 
 // Utility function to format libuv path information.
