@@ -113,7 +113,7 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
                         "--experimental-modules to be enabled");
     }
     if (module_type != "commonjs" && module_type != "module") {
-      errors->push_back("--entry-type must \"module\" or \"commonjs\"");
+      errors->push_back("--entry-type must be \"module\" or \"commonjs\"");
     }
   }
 
