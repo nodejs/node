@@ -42,11 +42,12 @@ void NativeModuleLoader::InitializeModuleCategories() {
     return;
   }
 
-  std::set<std::string> prefixes = {
+  std::vector<std::string> prefixes = {
 #if !HAVE_OPENSSL
     "internal/crypto/",
 #endif  // !HAVE_OPENSSL
 
+    "internal/bootstrap/",
     "internal/per_context/",
     "internal/deps/",
     "internal/main/"
@@ -80,9 +81,6 @@ void NativeModuleLoader::InitializeModuleCategories() {
       "internal/test/binding",
       "internal/v8_prof_polyfill",
       "internal/v8_prof_processor",
-      "internal/bootstrap/loaders",
-      "internal/bootstrap/node",
-      "internal/bootstrap/primordials"
   };
 
   for (auto const& x : source_) {
@@ -99,8 +97,7 @@ void NativeModuleLoader::InitializeModuleCategories() {
 
   for (auto const& x : source_) {
     const std::string& id = x.first;
-    if (module_categories_.cannot_be_required.find(id) ==
-        module_categories_.cannot_be_required.end()) {
+    if (0 == module_categories_.cannot_be_required.count(id)) {
       module_categories_.can_be_required.emplace(id);
     }
   }
