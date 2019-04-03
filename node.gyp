@@ -1103,6 +1103,59 @@
         }],
       ],
     }, # cctest
+    # TODO(joyeecheung): do not depend on node_lib,
+    # instead create a smaller static library node_lib_base that does
+    # just enough for node_native_module.cc and the cache builder to
+    # compile without compiling the generated code cache C++ file.
+    # So generate_code_cache -> mkcodecache -> node_lib_base,
+    #    node_lib -> node_lib_base & generate_code_cache
+    {
+      'target_name': 'mkcodecache',
+      'type': 'executable',
+
+      'dependencies': [
+        '<(node_lib_target_name)',
+        'deps/histogram/histogram.gyp:histogram',
+      ],
+
+      'includes': [
+        'node.gypi'
+      ],
+
+      'include_dirs': [
+        'src',
+        'tools/msvs/genfiles',
+        'deps/v8/include',
+        'deps/cares/include',
+        'deps/uv/include',
+      ],
+
+      'defines': [ 'NODE_WANT_INTERNALS=1' ],
+
+      'sources': [
+        'tools/code_cache/mkcodecache.cc',
+        'tools/code_cache/cache_builder.cc'
+      ],
+
+      'conditions': [
+        [ 'node_report=="true"', {
+          'conditions': [
+            ['OS=="win"', {
+              'libraries': [
+                'dbghelp.lib',
+                'PsApi.lib',
+                'Ws2_32.lib',
+              ],
+              'dll_files': [
+                'dbghelp.dll',
+                'PsApi.dll',
+                'Ws2_32.dll',
+              ],
+            }],
+          ],
+        }],
+      ],
+    }, # cache_builder
   ], # end targets
 
   'conditions': [

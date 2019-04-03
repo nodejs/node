@@ -115,7 +115,7 @@ with-code-cache:
 	$(PYTHON) ./configure $(CONFIG_FLAGS)
 	$(MAKE)
 	mkdir -p $(CODE_CACHE_DIR)
-	out/$(BUILDTYPE)/$(NODE_EXE) --expose-internals tools/generate_code_cache.js $(CODE_CACHE_FILE)
+	out/$(BUILDTYPE)/mkcodecache $(CODE_CACHE_FILE)
 	$(PYTHON) ./configure --code-cache-path $(CODE_CACHE_FILE) $(CONFIG_FLAGS)
 	$(MAKE)
 
@@ -1232,6 +1232,8 @@ LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 	test/node-api/*/*.h \
 	tools/icu/*.cc \
 	tools/icu/*.h \
+	tools/code_cache/*.cc \
+	tools/code_cache/*.h \
 	))
 
 # Code blocks don't have newline at the end,
