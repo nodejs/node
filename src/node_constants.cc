@@ -1063,9 +1063,6 @@ void DefineCryptoConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, TLS1_3_VERSION);
 #endif
 
-  // Unused by node, but removing it is semver-major.
-  NODE_DEFINE_CONSTANT(target, INT_MAX);
-
 #if HAVE_OPENSSL
   // NOTE: These are not defines
   NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_COMPRESSED);
