@@ -451,9 +451,9 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   req_wrap->msg_size = msg_size;
 
   int err = 0;
+  struct sockaddr_storage addr_storage;
   sockaddr* addr = nullptr;
   if (sendto) {
-    struct sockaddr_storage addr_storage;
     const unsigned short port = args[3].As<Uint32>()->Value();
     node::Utf8Value address(env->isolate(), args[4]);
     err = sockaddr_for_family(family, address.out(), port, &addr_storage);
