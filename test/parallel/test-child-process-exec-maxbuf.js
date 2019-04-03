@@ -23,8 +23,8 @@ function runChecks(err, stdio, streamName, expected) {
 
 // default value
 {
-  // eslint-disable-next-line max-len
-  const cmd = `${process.execPath} -e "console.log('a'.repeat(200 * 1024 - 1))"`;
+  const cmd =
+    `${process.execPath} -e "console.log('a'.repeat(200 * 1024 - 1))"`;
 
   cp.exec(cmd, common.mustCall((err, stdout, stderr) => {
     assert.ifError(err);

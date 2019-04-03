@@ -15,7 +15,7 @@ function checkFactory(streamName) {
 {
   execFile(
     process.execPath,
-    ['-e', "console.log('a'.repeat(200 * 1024))"],
+    ['-e', `console.log('a'.repeat(200 * 1024))`],
     checkFactory('stdout')
   );
 }
@@ -24,7 +24,7 @@ function checkFactory(streamName) {
 {
   execFile(
     process.execPath,
-    ['-e', "console.log('a'.repeat(200 * 1024 - 1))"],
+    ['-e', `console.log('a'.repeat(200 * 1024 - 1))`],
     common.mustCall((err, stdout, stderr) => {
       assert.ifError(err);
       assert.strictEqual(stdout.trim(), 'a'.repeat(200 * 1024 - 1));
@@ -38,7 +38,7 @@ function checkFactory(streamName) {
 
   execFile(
     process.execPath,
-    ['-e', "console.log('hello world');"],
+    ['-e', `console.log('hello world');`],
     options,
     common.mustCall((err, stdout, stderr) => {
       assert.ifError(err);
@@ -65,7 +65,7 @@ const unicode = '中文测试'; // length = 4, byte length = 12
 {
   execFile(
     process.execPath,
-    ['-e', `console.error('${unicode}');"`],
+    ['-e', `console.error('${unicode}');`],
     { maxBuffer: 10 },
     checkFactory('stderr')
   );
