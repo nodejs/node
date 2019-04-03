@@ -795,7 +795,7 @@ void DefinePriorityConstants(Local<Object> target) {
 #endif
 }
 
-void DefineOpenSSLConstants(Local<Object> target) {
+void DefineCryptoConstants(Local<Object> target) {
 #ifdef OPENSSL_VERSION_NUMBER
     NODE_DEFINE_CONSTANT(target, OPENSSL_VERSION_NUMBER);
 #endif
@@ -1041,6 +1041,31 @@ void DefineOpenSSLConstants(Local<Object> target) {
     NODE_DEFINE_CONSTANT(target, RSA_PSS_SALTLEN_AUTO);
 #endif
 
+#ifdef DEFAULT_CIPHER_LIST_CORE
+  NODE_DEFINE_STRING_CONSTANT(target,
+                              "defaultCoreCipherList",
+                              DEFAULT_CIPHER_LIST_CORE);
+#endif
+
+#ifdef TLS1_VERSION
+  NODE_DEFINE_CONSTANT(target, TLS1_VERSION);
+#endif
+
+#ifdef TLS1_1_VERSION
+  NODE_DEFINE_CONSTANT(target, TLS1_1_VERSION);
+#endif
+
+#ifdef TLS1_2_VERSION
+  NODE_DEFINE_CONSTANT(target, TLS1_2_VERSION);
+#endif
+
+#ifdef TLS1_3_VERSION
+  NODE_DEFINE_CONSTANT(target, TLS1_3_VERSION);
+#endif
+
+  // Unused by node, but removing it is semver-major.
+  NODE_DEFINE_CONSTANT(target, INT_MAX);
+
 #if HAVE_OPENSSL
   // NOTE: These are not defines
   NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_COMPRESSED);
@@ -1048,6 +1073,12 @@ void DefineOpenSSLConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_UNCOMPRESSED);
 
   NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_HYBRID);
+
+  NODE_DEFINE_STRING_CONSTANT(
+      target,
+      "defaultCipherList",
+      per_process::cli_options->tls_cipher_list.c_str());
+
 #endif
 }
 
@@ -1232,24 +1263,6 @@ void DefineSystemConstants(Local<Object> target) {
 #endif
 }
 
-void DefineCryptoConstants(Local<Object> target) {
-#if HAVE_OPENSSL
-  NODE_DEFINE_STRING_CONSTANT(target,
-                              "defaultCoreCipherList",
-                              DEFAULT_CIPHER_LIST_CORE);
-  NODE_DEFINE_STRING_CONSTANT(
-      target,
-      "defaultCipherList",
-      per_process::cli_options->tls_cipher_list.c_str());
-
-  NODE_DEFINE_CONSTANT(target, TLS1_VERSION);
-  NODE_DEFINE_CONSTANT(target, TLS1_1_VERSION);
-  NODE_DEFINE_CONSTANT(target, TLS1_2_VERSION);
-  NODE_DEFINE_CONSTANT(target, TLS1_3_VERSION);
-#endif
-  NODE_DEFINE_CONSTANT(target, INT_MAX);
-}
-
 void DefineDLOpenConstants(Local<Object> target) {
 #ifdef RTLD_LAZY
   NODE_DEFINE_CONSTANT(target, RTLD_LAZY);
@@ -1347,7 +1360,6 @@ void DefineConstants(v8::Isolate* isolate, Local<Object> target) {
   DefineSignalConstants(sig_constants);
   DefinePriorityConstants(priority_constants);
   DefineSystemConstants(fs_constants);
-  DefineOpenSSLConstants(crypto_constants);
   DefineCryptoConstants(crypto_constants);
   DefineZlibConstants(zlib_constants);
   DefineDLOpenConstants(dlopen_constants);
