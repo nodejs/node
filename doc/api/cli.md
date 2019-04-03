@@ -131,6 +131,9 @@ conjunction with native stack and other runtime environment data.
 added: v6.0.0
 -->
 
+Enable FIPS-compliant crypto at startup. (Requires Node.js to be built with
+`./configure --openssl-fips`.)
+
 ### `--entry-type=type`
 <!-- YAML
 added: REPLACEME
@@ -143,9 +146,6 @@ Valid values are `"commonjs"` and `"module"`. The default is to infer from
 the file extension and the `"type"` field in the nearest parent `package.json`.
 
 Works for executing a file as well as `--eval`, `--print`, `STDIN`.
-
-Enable FIPS-compliant crypto at startup. (Requires Node.js to be built with
-`./configure --openssl-fips`.)
 
 ### `--es-module-specifier-resolution=mode`
 <!-- YAML
