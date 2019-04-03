@@ -193,8 +193,6 @@ For information about the governance of the Node.js project, see
 **Michael Dawson** &lt;michael_dawson@ca.ibm.com&gt; (he/him)
 * [MylesBorins](https://github.com/MylesBorins) -
 **Myles Borins** &lt;myles.borins@gmail.com&gt; (he/him)
-* [ofrobots](https://github.com/ofrobots) -
-**Ali Ijaz Sheikh** &lt;ofrobots@google.com&gt; (he/him)
 * [rvagg](https://github.com/rvagg) -
 **Rod Vagg** &lt;rod@vagg.org&gt;
 * [targos](https://github.com/targos) -
@@ -226,6 +224,8 @@ For information about the governance of the Node.js project, see
 **Brian White** &lt;mscdex@mscdex.net&gt;
 * [nebrius](https://github.com/nebrius) -
 **Bryan Hughes** &lt;bryan@nebri.us&gt;
+* [ofrobots](https://github.com/ofrobots) -
+**Ali Ijaz Sheikh** &lt;ofrobots@google.com&gt; (he/him)
 * [orangemocha](https://github.com/orangemocha) -
 **Alexis Campailla** &lt;orangemocha@nodejs.org&gt;
 * [piscisaureus](https://github.com/piscisaureus) -
