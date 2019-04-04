@@ -4864,8 +4864,10 @@ class RSAKeyPairGenerationConfig : public KeyPairGenerationConfig {
       BignumPointer bn(BN_new());
       CHECK_NOT_NULL(bn.get());
       CHECK(BN_set_word(bn.get(), exponent_));
+      // EVP_CTX acceps ownership of bn on success.
       if (EVP_PKEY_CTX_set_rsa_keygen_pubexp(ctx.get(), bn.get()) <= 0)
         return false;
+      bn.release();
     }
 
     return true;
