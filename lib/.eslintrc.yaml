@@ -4,7 +4,14 @@ env:
 rules:
   prefer-object-spread: error
   no-buffer-constructor: error
-  no-restricted-globals: ["error", "JSON", "Math", "Reflect"]
+  no-restricted-globals:
+    - error
+    - name: JSON
+      message: "Use `const { JSON } = primordials;` instead of the global."
+    - name: Math
+      message: "Use `const { Math } = primordials;` instead of the global."
+    - name: Reflect
+      message: "Use `const { Reflect } = primordials;` instead of the global."
   no-restricted-syntax:
     # Config copied from .eslintrc.js
     - error
