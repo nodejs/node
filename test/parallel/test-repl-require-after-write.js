@@ -7,7 +7,7 @@ const spawn = require('child_process').spawn;
 
 tmpdir.refresh();
 
-const requirePath = tmpdir.path + 'non-existent.json';
+const requirePath = tmpdir.path + '/non-existent.json';
 
 // Use -i to force node into interactive mode, despite stdout not being a TTY
 const child = spawn(process.execPath, ['-i']);
