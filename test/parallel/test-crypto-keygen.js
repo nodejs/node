@@ -87,7 +87,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   // To make the test faster, we will only test sync key generation once and
   // with a relatively small key.
   const ret = generateKeyPairSync('rsa', {
-    publicExponent: 0x10001,
+    publicExponent: 3,
     modulusLength: 512,
     publicKeyEncoding: {
       type: 'pkcs1',
@@ -160,7 +160,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
 
   // Now do the same with an encrypted private key.
   generateKeyPair('rsa', {
-    publicExponent: 0x10001,
+    publicExponent: 0x1001,
     modulusLength: 512,
     publicKeyEncoding,
     privateKeyEncoding: {
