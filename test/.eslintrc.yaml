@@ -1,5 +1,9 @@
 ## Test-specific linter rules
 
+env:
+  node: true
+  es6: true
+
 rules:
   # ECMAScript 6
   # http://eslint.org/docs/rules/#ecmascript-6
