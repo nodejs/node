@@ -227,10 +227,11 @@ class Reference : private Finalizer {
   // from one of Unwrap or napi_delete_reference.
   //
   // When it is called from Unwrap or napi_delete_reference we only
-  // want to do the delete if the finalizer has already run,
+  // want to do the delete if the finalizer has already run or
+  // cannot have been queued to run (ie the reference count is > 0),
   // otherwise we may crash when the finalizer does run.
-  // If the finalizer has not already run delay the delete until
-  // the finalizer runs by not doing the delete
+  // If the finalizer may have been queued and has not already run
+  // delay the delete until the finalizer runs by not doing the delete
   // and setting _delete_self to true so that the finalizer will
   // delete it when it runs.
   //
@@ -238,13 +239,14 @@ class Reference : private Finalizer {
   // the finalizer and _delete_self is set. In this case we
   // know we need to do the deletion so just do it.
   static void Delete(Reference* reference) {
-    if ((reference->_delete_self) || (reference->_finalize_ran)) {
+    if ((reference->RefCount() != 0) ||
+        (reference->_delete_self) ||
+        (reference->_finalize_ran)) {
       delete reference;
     } else {
-      // reduce the reference count to 0 and defer until
-      // finalizer runs
+      // defer until finalizer runs as
+      // it may alread be queued
       reference->_delete_self = true;
-      while (reference->Unref() != 0) {}
     }
   }
 
