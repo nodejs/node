@@ -1,16 +1,22 @@
 'use strict';
 
 const common = require('../common');
+const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
-
 const spawn = require('child_process').spawn;
+const path = require('path');
+
+tmpdir.refresh();
+
+const requirePath = JSON.stringify(path.join(tmpdir.path, 'non-existent.json'));
+
 // Use -i to force node into interactive mode, despite stdout not being a TTY
 const child = spawn(process.execPath, ['-i']);
 
 let out = '';
-const input = "try { require('./non-existent.json'); } catch {} " +
-              "require('fs').writeFileSync('./non-existent.json', '1');" +
-              "require('./non-existent.json');";
+const input = `try { require(${requirePath}); } catch {} ` +
+              `require('fs').writeFileSync(${requirePath}, '1');` +
+              `require(${requirePath});`;
 
 child.stderr.on('data', common.mustNotCall());
 
