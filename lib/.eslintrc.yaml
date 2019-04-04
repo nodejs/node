@@ -4,11 +4,11 @@ rules:
   no-restricted-globals:
     - error
     - name: JSON
-      message: "Use `const { JSON } = primordials;` instead of the global"
+      message: "Use `const { JSON } = primordials;` instead of the global."
     - name: Math
-      message: "Use `const { Math } = primordials;` instead of the global"
+      message: "Use `const { Math } = primordials;` instead of the global."
     - name: Reflect
-      message: "Use `const { Reflect } = primordials;` instead of the global"
+      message: "Use `const { Reflect } = primordials;` instead of the global."
   no-restricted-syntax:
     # Config copied from .eslintrc.js
     - error
