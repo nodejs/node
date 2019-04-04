@@ -1,3 +1,6 @@
+env:
+  es6: true
+
 rules:
   prefer-object-spread: error
   no-buffer-constructor: error
@@ -19,10 +22,11 @@ rules:
     - selector: "CallExpression[callee.object.name='Error'][callee.property.name='captureStackTrace']"
       message: "Please use `require('internal/errors').hideStackFrames()` instead."
   # Custom rules in tools/eslint-rules
-  node-core/require-globals: error
   node-core/lowercase-name-for-primitive: error
   node-core/non-ascii-character: error
 globals:
+  Intl: false
+  # Assertions
   CHECK: false
   CHECK_EQ: false
   CHECK_GE: false
@@ -37,5 +41,21 @@ globals:
   DCHECK_LE: false
   DCHECK_LT: false
   DCHECK_NE: false
+  # Parameters passed to internal modules
+  global: false
+  require: false
+  process: false
+  exports: false
+  module: false
   internalBinding: false
   primordials: false
+  # Globals
+  # TODO(joyeecheung): if possible, get these in native modules
+  # through `require` instead of grabbing them from the global proxy.
+  clearTimeout: false
+  setTimeout: false
+  clearInterval: false
+  setInterval: false
+  setImmediate: false
+  clearImmediate: false
+  console: false
