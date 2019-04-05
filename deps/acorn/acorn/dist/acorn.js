@@ -362,7 +362,7 @@ var defaultOptions = {
   // cause Acorn to call that function with object in the same
   // format as tokens returned from `tokenizer().getToken()`. Note
   // that you are not allowed to call the parser from the
-  // callback—that will corrupt its internal state.
+  // callback-that will corrupt its internal state.
   onToken: null,
   // A function can be passed as `onComment` option, which will
   // cause Acorn to call that function with `(block, text, start,
@@ -373,7 +373,7 @@ var defaultOptions = {
   // When the `locations` option is on, two more parameters are
   // passed, the full `{line, column}` locations of the start and
   // end of the comments. Note that you are not allowed to call the
-  // parser from the callback—that will corrupt its internal state.
+  // parser from the callback-that will corrupt its internal state.
   onComment: null,
   // Nodes have their start and end characters offsets recorded in
   // `start` and `end` properties (directly on the node, rather than
@@ -1810,7 +1810,7 @@ pp$2.parseMaybeDefault = function(startPos, startLoc, left) {
   return this.finishNode(node, "AssignmentPattern")
 };
 
-// Verify that a node is an lval — something that can be assigned
+// Verify that a node is an lval - something that can be assigned
 // to.
 // bindingType can be either:
 // 'var' indicating that the lval creates a 'var' binding
@@ -1882,7 +1882,7 @@ pp$2.checkLVal = function(expr, bindingType, checkClashes) {
 // of constructs (for example, the fact that `!x[1]` means `!(x[1])`
 // instead of `(!x)[1]` is handled by the fact that the parser
 // function that parses unary prefix operators is called first, and
-// in turn calls the function that parses `[]` subscripts — that
+// in turn calls the function that parses `[]` subscripts - that
 // way, it'll receive the node for `x[1]` already parsed, and wraps
 // *that* in the unary operator node.
 //
@@ -1897,8 +1897,8 @@ pp$2.checkLVal = function(expr, bindingType, checkClashes) {
 var pp$3 = Parser.prototype;
 
 // Check if property name clashes with already added.
-// Object/class getters and setters are not allowed to clash —
-// either with each other or with an init property — and in
+// Object/class getters and setters are not allowed to clash -
+// either with each other or with an init property - and in
 // strict mode, init properties are also not allowed to be repeated.
 
 pp$3.checkPropClash = function(prop, propHash, refDestructuringErrors) {
@@ -2188,7 +2188,7 @@ pp$3.parseSubscript = function(base, startPos, startLoc, noCalls, maybeAsyncArro
   return base
 };
 
-// Parse an atomic expression — either a single token that is an
+// Parse an atomic expression - either a single token that is an
 // expression, an expression started by a keyword like `function` or
 // `new`, or an expression wrapped in punctuation like `()`, `[]`,
 // or `{}`.
@@ -2381,7 +2381,7 @@ pp$3.parseParenArrowList = function(startPos, startLoc, exprList) {
 };
 
 // New's precedence is slightly tricky. It must allow its argument to
-// be a `[]` or dot subscript expression, but not a call — at least,
+// be a `[]` or dot subscript expression, but not a call - at least,
 // not without wrapping it in parentheses. Thus, it uses the noCalls
 // argument to parseSubscripts to prevent it from consuming the
 // argument list.

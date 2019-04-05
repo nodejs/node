@@ -359,7 +359,7 @@ function createRepl(inspector) {
 
     [util.inspect.custom](depth, { stylize }) {
       const { startTime, endTime } = this.data;
-      return stylize(`[Profile ${endTime - startTime}μs]`, 'special');
+      return stylize(`[Profile ${endTime - startTime}\u3bcss]`, 'special');
     }
 
     save(filename = 'node.cpuprofile') {
