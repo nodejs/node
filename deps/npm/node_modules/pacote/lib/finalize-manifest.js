@@ -13,6 +13,7 @@ const path = require('path')
 const pipe = BB.promisify(require('mississippi').pipe)
 const ssri = require('ssri')
 const tar = require('tar')
+const readJson = require('./util/read-json')
 
 // `finalizeManifest` takes as input the various kinds of manifests that
 // manifest handlers ('lib/fetchers/*.js#manifest()') return, and makes sure
@@ -212,7 +213,7 @@ function jsonFromStream (filename, dataStream) {
         entry.on('error', cb)
         finished(entry).then(() => {
           try {
-            cb(null, JSON.parse(data))
+            cb(null, readJson(data))
           } catch (err) {
             cb(err)
           }

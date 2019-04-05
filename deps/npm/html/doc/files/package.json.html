@@ -277,7 +277,13 @@ shortcut syntax you use for <code>npm install</code>:</p>
 
 &quot;repository&quot;: &quot;bitbucket:user/repo&quot;
 
-&quot;repository&quot;: &quot;gitlab:user/repo&quot;</code></pre><h2 id="scripts">scripts</h2>
+&quot;repository&quot;: &quot;gitlab:user/repo&quot;</code></pre><p>If the <code>package.json</code> for your package is not in the root directory (for example
+if it is part of a monorepo), you can specify the directory in which it lives:</p>
+<pre><code>&quot;repository&quot;: {
+  &quot;type&quot; : &quot;git&quot;,
+  &quot;url&quot; : &quot;https://github.com/facebook/react.git&quot;,
+  &quot;directory&quot;: &quot;packages/react-dom&quot;
+}</code></pre><h2 id="scripts">scripts</h2>
 <p>The &quot;scripts&quot; property is a dictionary containing script commands that are run
 at various times in the lifecycle of your package.  The key is the lifecycle
 event, and the value is the command to run at that point.</p>
@@ -574,5 +580,5 @@ ignored.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">package.json &mdash; npm@6.7.0</p>
+<p id="footer">package.json &mdash; npm@6.9.0</p>
 

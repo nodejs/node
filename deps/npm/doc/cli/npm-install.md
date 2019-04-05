@@ -14,7 +14,7 @@ npm-install(1) -- Install a package
     npm install <tarball url>
     npm install <folder>
 
-    alias: npm i
+    aliases: npm i, npm add
     common options: [-P|--save-prod|-D|--save-dev|-O|--save-optional] [-E|--save-exact] [-B|--save-bundle] [--no-save] [--dry-run]
 
 ## DESCRIPTION

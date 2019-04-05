@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "January 2019" "" ""
+.TH "PACKAGE\.JSON" "5" "April 2019" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SH DESCRIPTION
@@ -477,6 +477,19 @@ shortcut syntax you use for \fBnpm install\fP:
 "repository": "bitbucket:user/repo"
 
 "repository": "gitlab:user/repo"
+.fi
+.RE
+.P
+If the \fBpackage\.json\fP for your package is not in the root directory (for example
+if it is part of a monorepo), you can specify the directory in which it lives:
+.P
+.RS 2
+.nf
+"repository": {
+  "type" : "git",
+  "url" : "https://github\.com/facebook/react\.git",
+  "directory": "packages/react\-dom"
+}
 .fi
 .RE
 .SH scripts

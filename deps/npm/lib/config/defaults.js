@@ -113,6 +113,7 @@ Object.defineProperty(exports, 'defaults', {get: function () {
     'audit-level': 'low',
     'auth-type': 'legacy',
 
+    'before': null,
     'bin-links': true,
     browser: null,
 
@@ -260,6 +261,7 @@ exports.types = {
   audit: Boolean,
   'audit-level': ['low', 'moderate', 'high', 'critical'],
   'auth-type': ['legacy', 'sso', 'saml', 'oauth'],
+  'before': [null, Date],
   'bin-links': Boolean,
   browser: [null, String],
   ca: [null, String, Array],
@@ -394,6 +396,7 @@ function getLocalAddresses () {
 }
 
 exports.shorthands = {
+  before: ['--enjoy-by'],
   s: ['--loglevel', 'silent'],
   d: ['--loglevel', 'info'],
   dd: ['--loglevel', 'verbose'],

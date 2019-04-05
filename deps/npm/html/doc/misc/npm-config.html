@@ -150,6 +150,20 @@ a non-zero exit code.</p>
 <li>Type: <code>&#39;legacy&#39;</code>, <code>&#39;sso&#39;</code>, <code>&#39;saml&#39;</code>, <code>&#39;oauth&#39;</code></li>
 </ul>
 <p>What authentication strategy to use with <code>adduser</code>/<code>login</code>.</p>
+<h3 id="before">before</h3>
+<ul>
+<li>Alias: enjoy-by</li>
+<li>Default: null</li>
+<li>Type: Date</li>
+</ul>
+<p>If passed to <code>npm install</code>, will rebuild the npm tree such that only versions
+that were available <strong>on or before</strong> the <code>--before</code> time get installed.
+If there&#39;s no versions available for the current set of direct dependencies, the
+command will error.</p>
+<p>If the requested version is a <code>dist-tag</code> and the given tag does not pass the
+<code>--before</code> filter, the most recent version less than or equal to that tag will
+be used. For example, <code>foo@latest</code> might install <code>foo@1.2</code> even though <code>latest</code>
+is <code>2.0</code>.</p>
 <h3 id="bin-links">bin-links</h3>
 <ul>
 <li>Default: <code>true</code></li>
@@ -1064,5 +1078,5 @@ exit successfully.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-config &mdash; npm@6.7.0</p>
+<p id="footer">npm-config &mdash; npm@6.9.0</p>
 

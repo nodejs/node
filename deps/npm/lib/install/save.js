@@ -44,7 +44,7 @@ exports.saveShrinkwrap = saveShrinkwrap
 
 function saveShrinkwrap (tree, next) {
   validate('OF', arguments)
-  if (!npm.config.get('shrinkwrap') || !npm.config.get('package-lock')) {
+  if (!npm.config.get('package-lock-only') && (!npm.config.get('shrinkwrap') || !npm.config.get('package-lock'))) {
     return next()
   }
   require('../shrinkwrap.js').createShrinkwrap(tree, {silent: false}, next)

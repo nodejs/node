@@ -231,7 +231,7 @@ even though npm itself does.
 
 ##### <a name="opts-enjoy-by"></a> `opts.enjoy-by`
 
-* Alias: `opts.enjoyBy`
+* Alias: `opts.enjoyBy`, `opts.before`
 * Type: Date-able
 * Default: undefined
 

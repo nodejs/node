@@ -36,9 +36,17 @@ function lockVerify(check) {
         if (spec.registry) {
           // Can't match tags to package-lock w/o network
           if (spec.type === 'tag') return
-          if (!semver.satisfies(lock.version, spec.fetchSpec)) {
-            errors.push("Invalid: lock file's " + name + '@' + lock.version + ' does not satisfy ' + name + '@' + spec.fetchSpec)
-            return
+          if (spec.type === 'alias') {
+            const lockSpec = npa.resolve(name, lock.version)
+            if (!semver.satisfies(lockSpec.subSpec.fetchSpec, spec.subSpec.fetchSpec)) {
+              errors.push("Invalid: lock file's " + name + '@' + lock.version + ' does not satisfy ' + name + '@' + spec.rawSpec)
+              return
+            }
+          } else {
+            if (!semver.satisfies(lock.version, spec.fetchSpec)) {
+              errors.push("Invalid: lock file's " + name + '@' + lock.version + ' does not satisfy ' + name + '@' + spec.fetchSpec)
+              return
+            }
           }
         } else if (spec.type === 'git') {
           // can't verify git w/o network

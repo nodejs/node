@@ -136,7 +136,7 @@ function run (pkg, wd, cmd, args, cb) {
       'prestart', 'start', 'poststart'
     ]
   } else {
-    if (!pkg.scripts[cmd]) {
+    if (pkg.scripts[cmd] == null) {
       if (cmd === 'test') {
         pkg.scripts.test = 'echo \'Error: no test specified\''
       } else if (cmd === 'env') {
