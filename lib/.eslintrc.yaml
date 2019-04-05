@@ -58,13 +58,3 @@ globals:
   module: false
   internalBinding: false
   primordials: false
-  # Globals
-  # TODO(joyeecheung): if possible, get these in native modules
-  # through `require` instead of grabbing them from the global proxy.
-  clearTimeout: false
-  setTimeout: false
-  clearInterval: false
-  setInterval: false
-  setImmediate: false
-  clearImmediate: false
-  console: false
