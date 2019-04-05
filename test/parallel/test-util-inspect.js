@@ -1674,7 +1674,7 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
       return 'BazError';
     }
   }, undefined]
-].forEach(([Class, message, messages], i) => {
+].forEach(([Class, message], i) => {
   console.log('Test %i', i);
   const foo = new Class(message);
   const name = foo.name;
