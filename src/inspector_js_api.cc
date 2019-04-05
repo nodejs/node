@@ -61,25 +61,34 @@ class JSBindingsConnection : public AsyncWrap {
     JSBindingsConnection* connection_;
   };
 
-  JSBindingsConnection(Environment* env,
+  JSBindingsConnection(bool is_sync,
+                       Environment* env,
                        Local<Object> wrap,
                        Local<Function> callback)
-                       : AsyncWrap(env, wrap, PROVIDER_INSPECTORJSBINDING),
-                         callback_(env->isolate(), callback) {
+      : AsyncWrap(env, wrap, PROVIDER_INSPECTORJSBINDING),
+        callback_(env->isolate(), callback) {
     Agent* inspector = env->inspector_agent();
     session_ = inspector->Connect(std::make_unique<JSBindingsSessionDelegate>(
         env, this), false);
   }
 
   void OnMessage(Local<Value> value) {
-    MakeCallback(callback_.Get(env()->isolate()), 1, &value);
+    if (is_sync) {
+      // The callback in JS land would store the result synchronously
+      // to return to user later.
+      USE(callback_.Get(env()->isolate())
+              ->Call(env()->context(), v8::Null(env()->isolate()), 1, &value));
+    } else {
+      MakeCallback(callback_.Get(env()->isolate()), 1, &value);
+    }
   }
 
   static void New(const FunctionCallbackInfo<Value>& info) {
     Environment* env = Environment::GetCurrent(info);
     CHECK(info[0]->IsFunction());
     Local<Function> callback = info[0].As<Function>();
-    new JSBindingsConnection(env, info.This(), callback);
+    bool is_sync = info[1]->IsTrue();
+    new JSBindingsConnection(is_sync, env, info.This(), callback);
   }
 
   void Disconnect() {
@@ -117,6 +126,7 @@ class JSBindingsConnection : public AsyncWrap {
  private:
   std::unique_ptr<InspectorSession> session_;
   Persistent<Function> callback_;
+  bool is_sync = false;
 };
 
 static bool InspectorEnabled(Environment* env) {
