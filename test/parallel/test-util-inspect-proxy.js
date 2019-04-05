@@ -51,7 +51,8 @@ assert.strictEqual(
   util.inspect(proxyObj, opts),
   'Proxy [\n' +
   '  [ 1, 2, 3 ],\n' +
-  '  { getPrototypeOf: [Function: getPrototypeOf],\n' +
+  '  {\n' +
+  '    getPrototypeOf: [Function: getPrototypeOf],\n' +
   '    setPrototypeOf: [Function: setPrototypeOf],\n' +
   '    isExtensible: [Function: isExtensible],\n' +
   '    preventExtensions: [Function: preventExtensions],\n' +
@@ -63,7 +64,9 @@ assert.strictEqual(
   '    deleteProperty: [Function: deleteProperty],\n' +
   '    ownKeys: [Function: ownKeys],\n' +
   '    apply: [Function: apply],\n' +
-  '    construct: [Function: construct] } ]'
+  '    construct: [Function: construct]\n' +
+  '  }\n' +
+  ']'
 );
 
 // Using getProxyDetails with non-proxy returns undefined
@@ -89,14 +92,18 @@ const expected3 = 'Proxy [ Proxy [ Proxy [ {}, {} ], {} ], Proxy [ {}, {} ] ]';
 const expected4 = 'Proxy [ Proxy [ {}, {} ], Proxy [ Proxy [ {}, {} ], {} ] ]';
 const expected5 = 'Proxy [\n  ' +
                   'Proxy [ Proxy [ Proxy [Array], {} ], Proxy [ {}, {} ] ],\n' +
-                  '  Proxy [ Proxy [ {}, {} ], Proxy [ Proxy [Array], {} ] ] ]';
+                  '  Proxy [ Proxy [ {}, {} ], Proxy [ Proxy [Array], {} ] ]' +
+                  '\n]';
 const expected6 = 'Proxy [\n' +
                   '  Proxy [\n' +
                   '    Proxy [ Proxy [Array], Proxy [Array] ],\n' +
-                  '    Proxy [ Proxy [Array], Proxy [Array] ] ],\n' +
+                  '    Proxy [ Proxy [Array], Proxy [Array] ]\n' +
+                  '  ],\n' +
                   '  Proxy [\n' +
                   '    Proxy [ Proxy [Array], Proxy [Array] ],\n' +
-                  '    Proxy [ Proxy [Array], Proxy [Array] ] ] ]';
+                  '    Proxy [ Proxy [Array], Proxy [Array] ]\n' +
+                  '  ]\n' +
+                  ']';
 assert.strictEqual(
   util.inspect(proxy1, { showProxy: true, depth: null }),
   expected1);

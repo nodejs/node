@@ -11,7 +11,7 @@ const server = http2.createServer();
 server.on('stream', common.mustCall((stream) => {
   assert.strictEqual(stream.aborted, false);
   const insp = util.inspect(stream);
-  assert.ok(/Http2Stream { id/.test(insp));
+  assert.ok(/Http2Stream {/.test(insp));
   assert.ok(/  state:/.test(insp));
   assert.ok(/  readableState:/.test(insp));
   assert.ok(/  writableState:/.test(insp));

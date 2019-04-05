@@ -122,11 +122,13 @@ function teardown() {
   const expectedOut = 'not indented\n' +
                       '  indented\n' +
                       '  also indented\n' +
-                      "  { also: 'a',\n" +
+                      '  {\n' +
+                      "    also: 'a',\n" +
                       "    multiline: 'object',\n" +
                       "    should: 'be',\n" +
                       "    indented: 'properly',\n" +
-                      "    kthx: 'bai' }\n";
+                      "    kthx: 'bai'\n" +
+                      '  }\n';
   const expectedErr = '';
 
   c.log('not indented');
