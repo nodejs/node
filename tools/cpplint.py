@@ -6285,7 +6285,7 @@ def ProcessConfigOverrides(filename):
     if not base_name:
       break  # Reached the root directory.
 
-    cfg_file = os.path.join(abs_path, "CPPLINT.cfg")
+    cfg_file = os.path.join(abs_path, ".cpplint")
     abs_filename = abs_path
     if not os.path.isfile(cfg_file):
       continue
