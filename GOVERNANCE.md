@@ -21,26 +21,21 @@ privileges include but are not limited to:
 * Commit access to the [nodejs/node][] repository
 * Access to the Node.js continuous integration (CI) jobs
 
-Modifications of the contents of the nodejs/node repository are made on
-a collaborative basis. Anybody with a GitHub account may propose a
-modification via pull request and it will be considered by the project
-Collaborators.
+Both Collaborators and non-Collaborators may propose changes to the Node.js
+source code. The mechanism to propose such a change is a GitHub pull request.
+Collaborators are responsible for reviewing and merging (_landing_)
+pull requests.
 
 At least two Collaborators must approve a pull request before the pull request
-lands. (One Collaborator approval is enough if the pull request has been open
+can land. (One Collaborator approval is enough if the pull request has been open
 for more than 7 days.) Approving a pull request indicates that the Collaborator
 accepts responsibility for the change. Approval must be from Collaborators who
 are not authors of the change.
 
-If one or more Collaborators oppose a proposed change, then the change cannot
-be accepted unless:
-
-* Discussions and/or additional changes result in no Collaborators objecting to
-  the change. Previously-objecting Collaborators do not necessarily have to
-  sign off on the change, but they should not be opposed to it.
-* The change is escalated to the TSC and the TSC votes to approve the change.
-  This should only happen if disagreements between Collaborators cannot be
-  resolved through discussion.
+If a Collaborator opposes a proposed change, then the change cannot land. The
+exception is if the TSC votes to approve the change despite the opposition.
+Usually, involving the TSC is unnecessary. Often, discussions or further changes
+result in Collaborators removing their opposition.
 
 See:
 
