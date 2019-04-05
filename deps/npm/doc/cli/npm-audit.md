@@ -65,7 +65,8 @@ $ npm audit --parseable | awk -F $'\t' '{print $1,$4}'
 The audit command submits a description of the dependencies configured in
 your project to your default registry and asks for a report of known
 vulnerabilities. The report returned includes instructions on how to act on
-this information.
+this information. The command will exit with a 0 exit code if no
+vulnerabilities were found.
 
 You can also have npm automatically fix the vulnerabilities by running `npm
 audit fix`. Note that some vulnerabilities cannot be fixed automatically and
@@ -98,6 +99,13 @@ the following dependency types:
 The non-reversible identifiers are a sha256 of a session-specific UUID and the
 value being replaced, ensuring a consistent value within the payload that is
 different between runs.
+
+## EXIT CODE
+
+The `npm audit` command will exit with a 0 exit code if no vulnerabilities were found.
+
+If vulnerabilities were found the exit code will depend on the `audit-level`
+configuration setting.
 
 ## SEE ALSO
 

@@ -2,6 +2,7 @@
 module.exports = isOptional
 
 const isOptDep = require('./is-opt-dep.js')
+const moduleName = require('../utils/module-name.js')
 
 function isOptional (node, seen) {
   if (!seen) seen = new Set()
@@ -15,6 +16,6 @@ function isOptional (node, seen) {
   const swOptional = node.fromShrinkwrap && node.package._optional
   return node.requiredBy.every(function (req) {
     if (req.fakeChild && swOptional) return true
-    return isOptDep(req, node.package.name) || isOptional(req, seen)
+    return isOptDep(req, moduleName(node)) || isOptional(req, seen)
   })
 }

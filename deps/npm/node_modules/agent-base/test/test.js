@@ -398,6 +398,30 @@ describe('"http" module', function() {
     });
   });
 
+  it('should free sockets after use', function(done) {
+    var agent = new Agent(function(req, opts, fn) {
+      var socket = net.connect(opts);
+      fn(null, socket);
+    });
+
+    // add HTTP server "request" listener
+    var gotReq = false;
+    server.once('request', function(req, res) {
+      gotReq = true;
+      res.end();
+    });
+
+    var info = url.parse('http://127.0.0.1:' + port + '/foo');
+    info.agent = agent;
+    http.get(info, function(res) {
+      res.socket.emit('free');
+      assert.equal(true, res.socket.destroyed);
+      assert(gotReq);
+      done();
+    });
+  });
+
+
   describe('PassthroughAgent', function() {
     it('should pass through to `http.globalAgent`', function(done) {
       // add HTTP server "request" listener

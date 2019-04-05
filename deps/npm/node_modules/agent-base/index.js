@@ -94,6 +94,7 @@ Agent.prototype.addRequest = function addRequest(req, _opts) {
   let timeout;
   let timedOut = false;
   const timeoutMs = this.timeout;
+  const freeSocket = this.freeSocket;
 
   function onerror(err) {
     if (req._hadError) return;
@@ -133,10 +134,14 @@ Agent.prototype.addRequest = function addRequest(req, _opts) {
       // responsibility for this `req` to the Agent from here on
       socket.addRequest(req, opts);
     } else if (socket) {
+      function onfree() {
+        freeSocket(socket, opts);
+      }
+      socket.on('free', onfree);
       req.onSocket(socket);
     } else {
       const err = new Error(
-        `no Duplex stream was returned to agent-base for \`${req.method} ${req.path}\``
+        'no Duplex stream was returned to agent-base for `' + req.method + ' ' + req.path + '`'
       );
       onerror(err);
     }
@@ -157,4 +162,9 @@ Agent.prototype.addRequest = function addRequest(req, _opts) {
   } catch (err) {
     Promise.reject(err).catch(callbackError);
   }
+};
+
+Agent.prototype.freeSocket = function freeSocket(socket, opts) {
+  // TODO reuse sockets
+  socket.destroy();
 };

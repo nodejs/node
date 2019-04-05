@@ -5,6 +5,7 @@ const BB = require('bluebird')
 const Fetcher = require('../fetch')
 const glob = BB.promisify(require('glob'))
 const packDir = require('../util/pack-dir')
+const readJson = require('../util/read-json')
 const path = require('path')
 const pipe = BB.promisify(require('mississippi').pipe)
 const through = require('mississippi').through
@@ -34,11 +35,11 @@ Fetcher.impl(fetchDirectory, {
     const pkgPath = path.join(spec.fetchSpec, 'package.json')
     const srPath = path.join(spec.fetchSpec, 'npm-shrinkwrap.json')
     return BB.join(
-      readFileAsync(pkgPath).then(JSON.parse).catch({ code: 'ENOENT' }, err => {
+      readFileAsync(pkgPath).then(readJson).catch({ code: 'ENOENT' }, err => {
         err.code = 'ENOPACKAGEJSON'
         throw err
       }),
-      readFileAsync(srPath).then(JSON.parse).catch({ code: 'ENOENT' }, () => null),
+      readFileAsync(srPath).then(readJson).catch({ code: 'ENOENT' }, () => null),
       (pkg, sr) => {
         pkg._shrinkwrap = sr
         pkg._hasShrinkwrap = !!sr

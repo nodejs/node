@@ -243,7 +243,7 @@ function prettyView (packument, manifest, opts) {
         name: color.yellow(manifest._npmUser.name),
         email: color.cyan(manifest._npmUser.email)
       }),
-      modified: color.yellow(relativeDate(packument.time[packument.version])),
+      modified: packument.time ? color.yellow(relativeDate(packument.time[packument.version])) : undefined,
       maintainers: (packument.maintainers || []).map((u) => unparsePerson({
         name: color.yellow(u.name),
         email: color.cyan(u.email)

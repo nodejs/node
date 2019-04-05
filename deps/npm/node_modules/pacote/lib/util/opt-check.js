@@ -13,6 +13,7 @@ module.exports = figgyPudding({
   dmode: {},
   'enjoy-by': 'enjoyBy',
   enjoyBy: {},
+  before: 'enjoyBy',
   fmode: {},
   'fetch-retries': { default: 2 },
   'fetch-retry-factor': { default: 10 },

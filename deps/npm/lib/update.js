@@ -46,7 +46,7 @@ function update_ (args) {
           "because it's currently at the maximum version that matches its specified semver range"
         )
       }
-      return ww.current !== ww.wanted && ww.latest !== 'linked'
+      return ww.current !== ww.wanted
     })
     if (wanted.length === 0) return
 

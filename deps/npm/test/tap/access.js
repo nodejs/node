@@ -469,6 +469,34 @@ test('npm access ls-collaborators on package', function (t) {
   )
 })
 
+test('npm access ls-collaborators on unscoped', function (t) {
+  var serverCollaborators = {
+    'myorg:myteam': 'write',
+    'myorg:anotherteam': 'read'
+  }
+  var clientCollaborators = {
+    'myorg:myteam': 'read-write',
+    'myorg:anotherteam': 'read-only'
+  }
+  server.get(
+    '/-/package/pkg/collaborators?format=cli'
+  ).reply(200, serverCollaborators)
+  common.npm(
+    [
+      'access',
+      'ls-collaborators',
+      'pkg',
+      '--registry', common.registry
+    ],
+    { cwd: pkg },
+    function (er, code, stdout, stderr) {
+      t.ifError(er, 'npm access ls-collaborators')
+      t.same(JSON.parse(stdout), clientCollaborators)
+      t.end()
+    }
+  )
+})
+
 test('npm access ls-collaborators on current w/user filter', function (t) {
   var serverCollaborators = {
     'myorg:myteam': 'write',
