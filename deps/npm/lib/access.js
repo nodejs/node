@@ -154,7 +154,7 @@ access['ls-packages'] = access.lsPackages = ([owner], opts) => {
 }
 
 access['ls-collaborators'] = access.lsCollaborators = ([pkg, usr], opts) => {
-  return getPackage(pkg).then(pkgName =>
+  return getPackage(pkg, false).then(pkgName =>
     libaccess.lsCollaborators(pkgName, usr, opts)
   ).then(collabs => {
     // TODO - print these out nicely (breaking change)

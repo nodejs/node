@@ -1,4 +1,4 @@
-.TH "NPM\-CONFIG" "7" "January 2019" "" ""
+.TH "NPM\-CONFIG" "7" "April 2019" "" ""
 .SH "NAME"
 \fBnpm-config\fR \- More than you probably want to know about npm configuration
 .SH DESCRIPTION
@@ -244,6 +244,25 @@ Type: \fB\|'legacy'\fP, \fB\|'sso'\fP, \fB\|'saml'\fP, \fB\|'oauth'\fP
 .RE
 .P
 What authentication strategy to use with \fBadduser\fP/\fBlogin\fP\|\.
+.SS before
+.RS 0
+.IP \(bu 2
+Alias: enjoy\-by
+.IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: Date
+
+.RE
+.P
+If passed to \fBnpm install\fP, will rebuild the npm tree such that only versions
+that were available \fBon or before\fR the \fB\-\-before\fP time get installed\.
+If there's no versions available for the current set of direct dependencies, the
+command will error\.
+.P
+If the requested version is a \fBdist\-tag\fP and the given tag does not pass the
+\fB\-\-before\fP filter, the most recent version less than or equal to that tag will
+be used\. For example, \fBfoo@latest\fP might install \fBeven though\fPlatest\fBis\fP2\.0`\.
 .SS bin\-links
 .RS 0
 .IP \(bu 2

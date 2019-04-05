@@ -1,4 +1,4 @@
-.TH "NPM\-AUDIT" "1" "January 2019" "" ""
+.TH "NPM\-AUDIT" "1" "April 2019" "" ""
 .SH "NAME"
 \fBnpm-audit\fR \- Run a security audit
 .SH SYNOPSIS
@@ -94,7 +94,8 @@ $ npm audit \-\-parseable | awk \-F $'\\t' '{print $1,$4}'
 The audit command submits a description of the dependencies configured in
 your project to your default registry and asks for a report of known
 vulnerabilities\. The report returned includes instructions on how to act on
-this information\.
+this information\. The command will exit with a 0 exit code if no
+vulnerabilities were found\.
 .P
 You can also have npm automatically fix the vulnerabilities by running \fBnpm
 audit fix\fP\|\. Note that some vulnerabilities cannot be fixed automatically and
@@ -138,6 +139,12 @@ All local directory and tarball dependencies have their names and specifiers scr
 The non\-reversible identifiers are a sha256 of a session\-specific UUID and the
 value being replaced, ensuring a consistent value within the payload that is
 different between runs\.
+.SH EXIT CODE
+.P
+The \fBnpm audit\fP command will exit with a 0 exit code if no vulnerabilities were found\.
+.P
+If vulnerabilities were found the exit code will depend on the \fBaudit\-level\fP
+configuration setting\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

@@ -43,6 +43,18 @@ class BundleWalker extends EE {
     this.bundle = null
   }
 
+  addListener (ev, fn) {
+    return this.on(ev, fn)
+  }
+
+  on (ev, fn) {
+    const ret = super.on(ev, fn)
+    if (ev === 'done' && this.didDone) {
+      this.emit('done', this.result)
+    }
+    return ret
+  }
+
   done () {
     if (!this.didDone) {
       this.didDone = true
@@ -57,7 +69,7 @@ class BundleWalker extends EE {
   }
 
   start () {
-    const pj = this.path + '/package.json'
+    const pj = path.resolve(this.path, 'package.json')
     if (this.packageJsonCache.has(pj))
       this.onPackage(this.packageJsonCache.get(pj))
     else

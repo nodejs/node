@@ -25,7 +25,6 @@
 
   unsupported.checkForUnsupportedNode()
 
-  var path = require('path')
   var npm = require('../lib/npm.js')
   var npmconf = require('../lib/config/core.js')
   var errorHandler = require('../lib/utils/error-handler.js')
@@ -37,7 +36,7 @@
 
   // if npm is called as "npmg" or "npm_g", then
   // run in global mode.
-  if (path.basename(process.argv[1]).slice(-1) === 'g') {
+  if (process.argv[1][process.argv[1].length - 1] === 'g') {
     process.argv.splice(1, 1, 'npm', '-g')
   }
 

@@ -33,7 +33,8 @@ some of the columns printed:</p>
 <p>The audit command submits a description of the dependencies configured in
 your project to your default registry and asks for a report of known
 vulnerabilities. The report returned includes instructions on how to act on
-this information.</p>
+this information. The command will exit with a 0 exit code if no
+vulnerabilities were found.</p>
 <p>You can also have npm automatically fix the vulnerabilities by running <code>npm
 audit fix</code>. Note that some vulnerabilities cannot be fixed automatically and
 will require manual intervention or review. Also note that since <code>npm audit fix</code>
@@ -63,6 +64,10 @@ registry has its name scrubbed.  (That is, a scope you did a <code>npm login --s
 <p>The non-reversible identifiers are a sha256 of a session-specific UUID and the
 value being replaced, ensuring a consistent value within the payload that is
 different between runs.</p>
+<h2 id="exit-code">EXIT CODE</h2>
+<p>The <code>npm audit</code> command will exit with a 0 exit code if no vulnerabilities were found.</p>
+<p>If vulnerabilities were found the exit code will depend on the <code>audit-level</code>
+configuration setting.</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="../cli/npm-install.html">npm-install(1)</a></li>
@@ -81,4 +86,4 @@ different between runs.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-audit &mdash; npm@6.7.0</p>
+<p id="footer">npm-audit &mdash; npm@6.9.0</p>

@@ -20,30 +20,30 @@ outdated.usage = 'npm outdated [[<@scope>/]<pkg> ...]'
 
 outdated.completion = require('./utils/completion/installed-deep.js')
 
-var os = require('os')
-var url = require('url')
-var path = require('path')
-var readPackageTree = require('read-package-tree')
-var asyncMap = require('slide').asyncMap
-var color = require('ansicolors')
-var styles = require('ansistyles')
-var table = require('text-table')
-var semver = require('semver')
-var npa = require('libnpm/parse-arg')
-var pickManifest = require('npm-pick-manifest')
-var fetchPackageMetadata = require('./fetch-package-metadata.js')
-var mutateIntoLogicalTree = require('./install/mutate-into-logical-tree.js')
-var npm = require('./npm.js')
+const os = require('os')
+const url = require('url')
+const path = require('path')
+const readPackageTree = require('read-package-tree')
+const asyncMap = require('slide').asyncMap
+const color = require('ansicolors')
+const styles = require('ansistyles')
+const table = require('text-table')
+const semver = require('semver')
+const npa = require('libnpm/parse-arg')
+const pickManifest = require('npm-pick-manifest')
+const fetchPackageMetadata = require('./fetch-package-metadata.js')
+const mutateIntoLogicalTree = require('./install/mutate-into-logical-tree.js')
+const npm = require('./npm.js')
 const npmConfig = require('./config/figgy-config.js')
 const figgyPudding = require('figgy-pudding')
 const packument = require('libnpm/packument')
-var long = npm.config.get('long')
-var isExtraneous = require('./install/is-extraneous.js')
-var computeMetadata = require('./install/deps.js').computeMetadata
-var computeVersionSpec = require('./install/deps.js').computeVersionSpec
-var moduleName = require('./utils/module-name.js')
-var output = require('./utils/output.js')
-var ansiTrim = require('./utils/ansi-trim')
+const long = npm.config.get('long')
+const isExtraneous = require('./install/is-extraneous.js')
+const computeMetadata = require('./install/deps.js').computeMetadata
+const computeVersionSpec = require('./install/deps.js').computeVersionSpec
+const moduleName = require('./utils/module-name.js')
+const output = require('./utils/output.js')
+const ansiTrim = require('./utils/ansi-trim')
 
 const OutdatedConfig = figgyPudding({
   also: {},
@@ -157,7 +157,7 @@ function makePretty (p, opts) {
   }
 
   if (opts.color) {
-    columns[0] = color[has === want || want === 'linked' ? 'yellow' : 'red'](columns[0]) // dep
+    columns[0] = color[has === want ? 'yellow' : 'red'](columns[0]) // dep
     columns[2] = color.green(columns[2]) // want
     columns[3] = color.magenta(columns[3]) // latest
   }
@@ -215,8 +215,8 @@ function makeJSON (list, opts) {
 
 function outdated_ (args, path, tree, parentHas, depth, opts, cb) {
   if (!tree.package) tree.package = {}
-  if (path && tree.package.name) path += ' > ' + tree.package.name
-  if (!path && tree.package.name) path = tree.package.name
+  if (path && moduleName(tree)) path += ' > ' + tree.package.name
+  if (!path && moduleName(tree)) path = tree.package.name
   if (depth > opts.depth) {
     return cb(null, [])
   }
@@ -298,10 +298,10 @@ function outdated_ (args, path, tree, parentHas, depth, opts, cb) {
 
   var has = Object.create(parentHas)
   tree.children.forEach(function (child) {
-    if (child.package.name && child.package.private) {
+    if (moduleName(child) && child.package.private) {
       deps = deps.filter(function (dep) { return dep !== child })
     }
-    has[child.package.name] = {
+    has[moduleName(child)] = {
       version: child.isLink ? 'linked' : child.package.version,
       from: child.isLink ? 'file:' + child.path : child.package._from
     }
@@ -349,13 +349,6 @@ function shouldUpdate (args, tree, dep, has, req, depth, pkgpath, opts, cb, type
       cb)
   }
 
-  function doIt (wanted, latest) {
-    if (!long) {
-      return cb(null, [[tree, dep, curr && curr.version, wanted, latest, req, null, pkgpath]])
-    }
-    cb(null, [[tree, dep, curr && curr.version, wanted, latest, req, type, pkgpath]])
-  }
-
   if (args.length && args.indexOf(dep) === -1) return skip()
 
   if (tree.isLink && req == null) return skip()
@@ -374,9 +367,20 @@ function shouldUpdate (args, tree, dep, has, req, depth, pkgpath, opts, cb, type
   } else if (parsed.type === 'file') {
     return updateLocalDeps()
   } else {
-    return packument(dep, opts.concat({
+    return packument(parsed, opts.concat({
       'prefer-online': true
     })).nodeify(updateDeps)
+  }
+
+  function doIt (wanted, latest) {
+    let c = curr && curr.version
+    if (parsed.type === 'alias') {
+      c = `npm:${parsed.subSpec.name}@${c}`
+    }
+    if (!long) {
+      return cb(null, [[tree, dep, c, wanted, latest, req, null, pkgpath]])
+    }
+    cb(null, [[tree, dep, c, wanted, latest, req, type, pkgpath]])
   }
 
   function updateLocalDeps (latestRegistryVersion) {
@@ -405,6 +409,9 @@ function shouldUpdate (args, tree, dep, has, req, depth, pkgpath, opts, cb, type
   function updateDeps (er, d) {
     if (er) return cb(er)
 
+    if (parsed.type === 'alias') {
+      req = parsed.subSpec.rawSpec
+    }
     try {
       var l = pickManifest(d, 'latest')
       var m = pickManifest(d, req)
@@ -421,11 +428,20 @@ function shouldUpdate (args, tree, dep, has, req, depth, pkgpath, opts, cb, type
     var dFromUrl = m._from && url.parse(m._from).protocol
     var cFromUrl = curr && curr.from && url.parse(curr.from).protocol
 
-    if (!curr ||
-        (dFromUrl && cFromUrl && m._from !== curr.from) ||
-        m.version !== curr.version ||
-        m.version !== l.version) {
-      doIt(m.version, l.version)
+    if (
+      !curr ||
+      (dFromUrl && cFromUrl && m._from !== curr.from) ||
+      m.version !== curr.version ||
+      m.version !== l.version
+    ) {
+      if (parsed.type === 'alias') {
+        doIt(
+          `npm:${parsed.subSpec.name}@${m.version}`,
+          `npm:${parsed.subSpec.name}@${l.version}`
+        )
+      } else {
+        doIt(m.version, l.version)
+      }
     } else {
       skip()
     }

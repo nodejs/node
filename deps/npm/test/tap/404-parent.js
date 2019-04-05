@@ -14,7 +14,7 @@ test('404-parent: if parent exists, specify parent in error message', function (
   rimraf.sync(path.resolve(pkg, 'node_modules'))
   performInstall(function (err) {
     t.ok(err instanceof Error, 'error was returned')
-    t.ok(err.parent === '404-parent-test', "error's parent set")
+    t.equal(err.parent, '404-parent', "error's parent set")
     t.end()
   })
 })

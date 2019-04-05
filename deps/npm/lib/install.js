@@ -401,7 +401,7 @@ Installer.prototype.normalizeCurrentTree = function (cb) {
   if (this.currentTree.error) {
     for (let child of this.currentTree.children) {
       if (!child.fakeChild && isExtraneous(child)) {
-        this.currentTree.package.dependencies[child.package.name] = computeVersionSpec(this.currentTree, child)
+        this.currentTree.package.dependencies[moduleName(child)] = computeVersionSpec(this.currentTree, child)
       }
     }
   }
@@ -703,8 +703,25 @@ Installer.prototype.cloneCurrentTreeToIdealTree = function (cb) {
   validate('F', arguments)
   log.silly('install', 'cloneCurrentTreeToIdealTree')
 
-  this.idealTree = copyTree(this.currentTree)
-  this.idealTree.warnings = []
+  if (npm.config.get('before')) {
+    this.idealTree = {
+      package: this.currentTree.package,
+      path: this.currentTree.path,
+      realpath: this.currentTree.realpath,
+      children: [],
+      requires: [],
+      missingDeps: {},
+      missingDevDeps: {},
+      requiredBy: [],
+      error: this.currentTree.error,
+      warnings: [],
+      isTop: true
+    }
+  } else {
+    this.idealTree = copyTree(this.currentTree)
+    this.idealTree.warnings = []
+  }
+
   cb()
 }
 
@@ -825,7 +842,11 @@ Installer.prototype.printInstalledForHuman = function (diffs, auditResult) {
   var report = ''
   if (this.args.length && (added || updated)) {
     report += this.args.map((p) => {
-      return `+ ${p.name}@${p.version}`
+      return `+ ${p.name}@${p.version}${
+        !p._requested.name || p._requested.name === p.name
+          ? ''
+          : ` (as ${p._requested.name})`
+      }`
     }).join('\n') + '\n'
   }
   var actions = []
@@ -922,10 +943,14 @@ Installer.prototype.printInstalledForJSON = function (diffs, auditResult) {
   function recordAction (action) {
     var mutation = action[0]
     var child = action[1]
+    const isAlias = child.package && child.package._requested && child.package._requested.type === 'alias'
+    const name = isAlias
+      ? child.package._requested.name
+      : child.package && child.package.name
     var result = {
       action: mutation,
-      name: moduleName(child),
-      version: child.package && child.package.version,
+      name,
+      version: child.package && `${isAlias ? `npm:${child.package.name}@` : ''}${child.package.version}`,
       path: child.path
     }
     if (mutation === 'move') {
@@ -947,10 +972,16 @@ Installer.prototype.printInstalledForParseable = function (diffs) {
     } else if (mutation === 'update') {
       var previousVersion = child.oldPkg.package && child.oldPkg.package.version
     }
+    const isAlias = child.package._requested && child.package._requested.type === 'alias'
+    const version = child.package && isAlias
+      ? `npm:${child.package.name}@${child.package.version}`
+      : child.package
+        ? child.package.version
+        : ''
     output(
       mutation + '\t' +
       moduleName(child) + '\t' +
-      (child.package ? child.package.version : '') + '\t' +
+      version + '\t' +
       (child.path ? path.relative(self.where, child.path) : '') + '\t' +
       (previousVersion || '') + '\t' +
       (previousPath || ''))

@@ -25,6 +25,12 @@ function getAuth (registry, opts) {
   if (AUTH.password) {
     AUTH.password = Buffer.from(AUTH.password, 'base64').toString('utf8')
   }
+  if (AUTH._auth && !(AUTH.username && AUTH.password)) {
+    let auth = Buffer.from(AUTH._auth, 'base64').toString()
+    auth = auth.split(':')
+    AUTH.username = auth.shift()
+    AUTH.password = auth.join(':')
+  }
   AUTH.alwaysAuth = AUTH.alwaysAuth === 'false' ? false : !!AUTH.alwaysAuth
   return AUTH
 }

@@ -1,7 +1,7 @@
 fetch-package-metadata
 ----------------------
 
-    var fetchPackageMetadata = require("npm/lib/fetch-package-metadata")
+    const fetchPackageMetadata = require("npm/lib/fetch-package-metadata")
     fetchPackageMetadata(spec, contextdir, callback)
 
 This will get package metadata (and if possible, ONLY package metadata) for
