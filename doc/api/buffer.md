@@ -1553,7 +1553,7 @@ added: REPLACEME
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
-  satisfy: `0 <= offset <= buf.length - 8`.
+  satisfy: `0 <= offset <= buf.length - 8`. **Default:** `0`.
 * Returns: {bigint}
 
 Reads a signed 64-bit integer from `buf` at the specified `offset` with
@@ -1569,7 +1569,7 @@ added: REPLACEME
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
-  satisfy: `0 <= offset <= buf.length - 8`.
+  satisfy: `0 <= offset <= buf.length - 8`. **Default:** `0`.
 * Returns: {bigint}
 
 Reads an unsigned 64-bit integer from `buf` at the specified `offset` with
@@ -2197,7 +2197,7 @@ added: REPLACEME
 
 * `value` {bigint} Number to be written to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write. Must
-  satisfy: `0 <= offset <= buf.length - 8`.
+  satisfy: `0 <= offset <= buf.length - 8`. **Default:** `0`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` with specified endian
@@ -2223,7 +2223,7 @@ added: REPLACEME
 
 * `value` {bigint} Number to be written to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write. Must
-  satisfy: `0 <= offset <= buf.length - 8`.
+  satisfy: `0 <= offset <= buf.length - 8`. **Default:** `0`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` with specified endian
