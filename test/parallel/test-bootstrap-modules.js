@@ -26,7 +26,6 @@ const expectedModules = new Set([
   'Internal Binding trace_events',
   'Internal Binding types',
   'Internal Binding url',
-  'Internal Binding util',
   'NativeModule buffer',
   'NativeModule events',
   'NativeModule fs',
