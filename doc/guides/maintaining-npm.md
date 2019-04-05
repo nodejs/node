@@ -25,13 +25,14 @@ or if you already have npm cloned make sure the repo is up to date
 
 ```console
 $ git remote update -p
-$ git reset --hard origin latest
+$ git reset --hard origin/latest
 ```
 
 ## Step 2: Build release
 
 ```console
 $ git checkout vX.Y.Z
+$ make
 $ make release
 ```
 
