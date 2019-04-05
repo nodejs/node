@@ -20,8 +20,7 @@ var shrinkwrap = {
       version: 'file:' + unixFormatPath(path.join('mods', 'mod2')),
       dependencies: {
         mod1: {
-          version: 'file:' + unixFormatPath(path.join('mods', 'mod1')),
-          bundled: true
+          version: 'file:' + unixFormatPath(path.join('mods', 'mod1'))
         }
       }
     }

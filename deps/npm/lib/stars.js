@@ -27,7 +27,7 @@ function stars ([user], cb) {
     })
   }).catch(err => {
     if (err.code === 'ENEEDAUTH') {
-      throw Object.assign(new Error("'npm starts' on your own user account requires auth"), {
+      throw Object.assign(new Error("'npm stars' on your own user account requires auth"), {
         code: 'ENEEDAUTH'
       })
     } else {

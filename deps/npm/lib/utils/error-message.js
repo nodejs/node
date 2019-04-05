@@ -154,10 +154,12 @@ function errorMessage (er) {
       var msg = er.message.replace(/^404\s+/, '')
       short.push(['404', msg])
       if (er.pkgid && er.pkgid !== '-') {
+        var pkg = er.pkgid.replace(/(?!^)@.*$/, '')
+
         detail.push(['404', ''])
         detail.push(['404', '', "'" + er.pkgid + "' is not in the npm registry."])
 
-        var valResult = nameValidator(er.pkgid)
+        var valResult = nameValidator(pkg)
 
         if (valResult.validForNewPackages) {
           detail.push(['404', 'You should bug the author to publish it (or use the name yourself!)'])

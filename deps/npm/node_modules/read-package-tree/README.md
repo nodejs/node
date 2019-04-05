@@ -1,5 +1,7 @@
 # read-package-tree
 
+[![Build Status](https://travis-ci.org/npm/read-package-tree.svg?branch=master)](https://travis-ci.org/npm/read-package-tree)
+
 Read the contents of node_modules.
 
 ## USAGE

@@ -410,8 +410,12 @@ class Promise {
     let promise = this;
     let constructor = promise.constructor;
 
-    return promise.then(value => constructor.resolve(callback()).then(() => value),
-                       reason => constructor.resolve(callback()).then(() => { throw reason; }));
+    if ( isFunction(callback) ) {
+      return promise.then(value => constructor.resolve(callback()).then(() => value),
+                         reason => constructor.resolve(callback()).then(() => { throw reason; }));
+    }
+
+    return promise.then(callback, callback);
   }
 }
 
