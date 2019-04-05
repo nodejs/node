@@ -32,6 +32,7 @@ $ git reset --hard origin latest
 
 ```console
 $ git checkout vX.Y.Z
+$ make
 $ make release
 ```
 
