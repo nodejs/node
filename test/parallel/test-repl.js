@@ -534,7 +534,7 @@ const errorTests = [
     send: 'require("internal/repl")',
     expect: [
       'Thrown:',
-      /^{ Error: Cannot find module 'internal\/repl'/,
+      /^Error: Cannot find module 'internal\/repl'/,
       /^Require stack:/,
       /^- <repl>/,
       /^    at .*/,
@@ -542,7 +542,8 @@ const errorTests = [
       /^    at .*/,
       /^    at .*/,
       "  code: 'MODULE_NOT_FOUND',",
-      "  requireStack: [ '<repl>' ] }"
+      "  requireStack: [ '<repl>' ]",
+      '}'
     ]
   },
   // REPL should handle quotes within regexp literal in multiline mode

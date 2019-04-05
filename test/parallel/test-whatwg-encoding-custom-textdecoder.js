@@ -108,7 +108,7 @@ if (common.hasIntl) {
     assert.strictEqual(
       util.inspect(dec, { showHidden: true }),
       'TextDecoder {\n  encoding: \'utf-8\',\n  fatal: false,\n  ' +
-      'ignoreBOM: true,\n  [Symbol(flags)]: 4,\n  [Symbol(handle)]: {} }'
+      'ignoreBOM: true,\n  [Symbol(flags)]: 4,\n  [Symbol(handle)]: {}\n}'
     );
   } else {
     assert.strictEqual(

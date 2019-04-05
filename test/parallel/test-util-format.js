@@ -165,59 +165,74 @@ assert.strictEqual(util.format('%o', 42), '42');
 assert.strictEqual(util.format('%o', 'foo'), '\'foo\'');
 assert.strictEqual(
   util.format('%o', obj),
-  '{ foo: \'bar\',\n' +
+  '{\n' +
+  '  foo: \'bar\',\n' +
   '  foobar: 1,\n' +
-  '  func:\n' +
-  '   { [Function: func]\n' +
-  '     [length]: 0,\n' +
-  '     [name]: \'func\',\n' +
-  '     [prototype]: func { [constructor]: [Circular] } } }');
+  '  func: [Function: func] {\n' +
+  '    [length]: 0,\n' +
+  '    [name]: \'func\',\n' +
+  '    [prototype]: func { [constructor]: [Circular] }\n' +
+  '  }\n' +
+  '}');
 assert.strictEqual(
   util.format('%o', nestedObj2),
-  '{ foo: \'bar\',\n' +
+  '{\n' +
+  '  foo: \'bar\',\n' +
   '  foobar: 1,\n' +
-  '  func:\n' +
-  '   [ { a:\n' +
-  '        { [Function: a]\n' +
-  '          [length]: 0,\n' +
-  '          [name]: \'a\',\n' +
-  '          [prototype]: a { [constructor]: [Circular] } } },\n' +
-  '     [length]: 1 ] }');
+  '  func: [\n' +
+  '    {\n' +
+  '      a: [Function: a] {\n' +
+  '        [length]: 0,\n' +
+  '        [name]: \'a\',\n' +
+  '        [prototype]: a { [constructor]: [Circular] }\n' +
+  '      }\n' +
+  '    },\n' +
+  '    [length]: 1\n' +
+  '  ]\n' +
+  '}');
 assert.strictEqual(
   util.format('%o', nestedObj),
-  '{ foo: \'bar\',\n' +
-  '  foobar:\n' +
-  '   { foo: \'bar\',\n' +
-  '     func:\n' +
-  '      { [Function: func]\n' +
-  '        [length]: 0,\n' +
-  '        [name]: \'func\',\n' +
-  '        [prototype]: func { [constructor]: [Circular] } } } }');
+  '{\n' +
+  '  foo: \'bar\',\n' +
+  '  foobar: {\n' +
+  '    foo: \'bar\',\n' +
+  '    func: [Function: func] {\n' +
+  '      [length]: 0,\n' +
+  '      [name]: \'func\',\n' +
+  '      [prototype]: func { [constructor]: [Circular] }\n' +
+  '    }\n' +
+  '  }\n' +
+  '}');
 assert.strictEqual(
   util.format('%o %o', obj, obj),
-  '{ foo: \'bar\',\n' +
+  '{\n' +
+  '  foo: \'bar\',\n' +
   '  foobar: 1,\n' +
-  '  func:\n' +
-  '   { [Function: func]\n' +
-  '     [length]: 0,\n' +
-  '     [name]: \'func\',\n' +
-  '     [prototype]: func { [constructor]: [Circular] } } }' +
-  ' { foo: \'bar\',\n' +
+  '  func: [Function: func] {\n' +
+  '    [length]: 0,\n' +
+  '    [name]: \'func\',\n' +
+  '    [prototype]: func { [constructor]: [Circular] }\n' +
+  '  }\n' +
+  '} {\n' +
+  '  foo: \'bar\',\n' +
   '  foobar: 1,\n' +
-  '  func:\n' +
-  '   { [Function: func]\n' +
-  '     [length]: 0,\n' +
-  '     [name]: \'func\',\n' +
-  '     [prototype]: func { [constructor]: [Circular] } } }');
+  '  func: [Function: func] {\n' +
+  '    [length]: 0,\n' +
+  '    [name]: \'func\',\n' +
+  '    [prototype]: func { [constructor]: [Circular] }\n' +
+  '  }\n' +
+  '}');
 assert.strictEqual(
   util.format('%o %o', obj),
-  '{ foo: \'bar\',\n' +
+  '{\n' +
+  '  foo: \'bar\',\n' +
   '  foobar: 1,\n' +
-  '  func:\n' +
-  '   { [Function: func]\n' +
-  '     [length]: 0,\n' +
-  '     [name]: \'func\',\n' +
-  '     [prototype]: func { [constructor]: [Circular] } } } %o');
+  '  func: [Function: func] {\n' +
+  '    [length]: 0,\n' +
+  '    [name]: \'func\',\n' +
+  '    [prototype]: func { [constructor]: [Circular] }\n' +
+  '  }\n' +
+  '} %o');
 
 assert.strictEqual(util.format('%O'), '%O');
 assert.strictEqual(util.format('%O', 42), '42');
