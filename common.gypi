@@ -1,5 +1,6 @@
 {
   'variables': {
+    'configuring_node%': 0,
     'asan%': 0,
     'werror': '',                     # Turn off -Werror in V8 build.
     'visibility%': 'hidden',          # V8's visibility setting
@@ -280,6 +281,12 @@
     'msvs_cygwin_shell': 0, # prevent actions from trying to use cygwin
 
     'conditions': [
+      [ 'configuring_node', {
+        'msvs_configuration_attributes': {
+          'OutputDirectory': '<(DEPTH)/out/$(Configuration)/',
+          'IntermediateDirectory': '$(OutDir)obj/$(ProjectName)/'
+        },
+      }],
       [ 'target_arch=="x64"', {
         'msvs_configuration_platform': 'x64',
       }],

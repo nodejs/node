@@ -251,6 +251,31 @@
     ],
   },
 
+  'target_defaults': {
+    # Putting these explicitly here so not to depend on `common.gypi`.
+    # `common.gypi` need to be more general because it is used to build userland native addons.
+    # Refs: https://github.com/nodejs/node-gyp/issues/1118
+    'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', ],
+    'xcode_settings': {
+      'WARNING_CFLAGS': [
+        '-Wall',
+        '-Wendif-labels',
+        '-W',
+        '-Wno-unused-parameter',
+        '-Werror=undefined-inline',
+      ],
+    },
+
+    # Relevant only for x86.
+    # Refs: https://github.com/nodejs/node/pull/25852
+    # Refs: https://docs.microsoft.com/en-us/cpp/build/reference/safeseh-image-has-safe-exception-handlers
+    'msvs_settings': {
+      'VCLinkerTool': {
+        'ImageHasSafeExceptionHandlers': 'false',
+      },
+    },
+  },
+
   'targets': [
     {
       'target_name': '<(node_core_target_name)',

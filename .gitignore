@@ -41,23 +41,19 @@ coverage/
 
 /out
 
-# various stuff that VC++ produces/uses
-Debug/
-!**/node_modules/debug/
-Release/
-!**/node_modules/**/release
+# various stuff that VC++ produces/uses and is not in /out
+/Debug/
+/Release/
 !doc/blog/**
 *.sln
 !nodemsi.sln
 *.suo
-*.vcproj
 *.vcxproj
 !custom_actions.vcxproj
 *.vcxproj.user
 *.vcxproj.filters
 UpgradeLog*.XML
 _UpgradeReport_Files/
-ipch/
 *.sdf
 *.opensdf
 *.VC.db

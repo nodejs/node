@@ -211,7 +211,7 @@ if not "%target%"=="Clean" goto skip-clean
 rmdir /Q /S "%~dp0%config%\%TARGET_NAME%" > nul 2> nul
 :skip-clean
 
-if defined noprojgen if defined nobuild if not defined sign if not defined msi goto licensertf
+if defined noprojgen if defined nobuild goto :after-build
 
 @rem Set environment for msbuild
 
@@ -301,7 +301,7 @@ where /R . /T *.gyp? >> .gyp_configure_stamp
 
 :msbuild
 @rem Skip build if requested.
-if defined nobuild goto sign
+if defined nobuild goto :after-build
 
 @rem Build the sln with msbuild.
 set "msbcpu=/m:2"
@@ -319,9 +319,12 @@ if defined msbuild_args set "extra_msbuild_args=%extra_msbuild_args% %msbuild_ar
 msbuild node.sln %msbcpu% /t:%target% /p:Configuration=%config% /p:Platform=%msbplatform% /clp:NoItemAndPropertyList;Verbosity=minimal /nologo %extra_msbuild_args%
 if errorlevel 1 (
   if not defined project_generated echo Building Node with reused solution failed. To regenerate project files use "vcbuild projgen"
-  goto exit
+  exit /B 1
 )
 if "%target%" == "Clean" goto exit
+
+:after-build
+if EXIST out\%config% mklink /D %config% out\%config%
 
 :sign
 @rem Skip signing unless the `sign` option was specified.
@@ -334,7 +337,7 @@ if errorlevel 1 echo Failed to sign exe&goto exit
 @rem Skip license.rtf generation if not requested.
 if not defined licensertf goto stage_package
 
-%config%\node.exe tools\license2rtf.js < LICENSE > %config%\license.rtf
+%node_exe% tools\license2rtf.js < LICENSE > %config%\license.rtf
 if errorlevel 1 echo Failed to generate license.rtf&goto exit
 
 :stage_package
@@ -553,7 +556,7 @@ goto node-tests
 
 :node-test-inspect
 set USE_EMBEDDED_NODE_INSPECT=1
-%config%\node tools\test-npm-package.js --install deps\node-inspect test
+%node_exe% tools\test-npm-package.js --install deps\node-inspect test
 goto node-tests
 
 :node-tests
@@ -635,12 +638,12 @@ if defined lint_js_ci goto lint-js-ci
 if not defined lint_js goto lint-md-build
 if not exist tools\node_modules\eslint goto no-lint
 echo running lint-js
-%config%\node tools\node_modules\eslint\bin\eslint.js --cache --report-unused-disable-directives --rule "linebreak-style: 0" --ext=.js,.mjs,.md .eslintrc.js benchmark doc lib test tools
+%node_exe% tools\node_modules\eslint\bin\eslint.js --cache --report-unused-disable-directives --rule "linebreak-style: 0" --ext=.js,.mjs,.md .eslintrc.js benchmark doc lib test tools
 goto lint-md-build
 
 :lint-js-ci
 echo running lint-js-ci
-%config%\node tools\lint-js.js -J -f tap -o test-eslint.tap benchmark doc lib test tools
+%node_exe% tools\lint-js.js -J -f tap -o test-eslint.tap benchmark doc lib test tools
 goto lint-md-build
 
 :no-lint
@@ -663,7 +666,7 @@ for /D %%D IN (doc\*) do (
     set "lint_md_files="%%F" !lint_md_files!"
   )
 )
-%config%\node tools\lint-md.js -q -f %lint_md_files%
+%node_exe% tools\lint-md.js -q -f %lint_md_files%
 ENDLOCAL
 goto exit
 

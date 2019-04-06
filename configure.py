@@ -1625,7 +1625,7 @@ if bin_override:
 
 write('config.mk', do_not_edit + config)
 
-gyp_args = ['--no-parallel']
+gyp_args = ['--no-parallel', '-Dconfiguring_node=1']
 
 if options.use_ninja:
   gyp_args += ['-f', 'ninja']
