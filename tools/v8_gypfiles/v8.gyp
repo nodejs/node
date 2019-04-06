@@ -86,6 +86,7 @@
       "typed-array-subarray",
     ],
     'torque_output_root': '<(SHARED_INTERMEDIATE_DIR)/torque-output-root',
+    'torque_output_dir': '<(torque_output_root)/torque-generated',
     # Since there is no foreach in GYP we use `ForEachFormat` to unroll the following:
     # foreach(namespace, torque_namespaces) {
     #   outputs += [
@@ -93,14 +94,17 @@
     #     "$target_gen_dir/torque-generated/builtins-$namespace-from-dsl-gen.h",
     #   ]
     # }
-    'torque_outputs': [ '<!@pymod_do_main(ForEachFormat "<(torque_output_root)/torque-generated/builtins-%s-from-dsl-gen.cc" <@(torque_namespaces))' ],
-    'torque_outputs+': [ '<!@pymod_do_main(ForEachFormat "<(torque_output_root)/torque-generated/builtins-%s-from-dsl-gen.h" <@(torque_namespaces))' ],
+    'torque_outputs': [ '<!@pymod_do_main(ForEachFormat "<(torque_output_dir)/builtins-%s-from-dsl-gen.cc" <@(torque_namespaces))' ],
+    'torque_outputs+': [ '<!@pymod_do_main(ForEachFormat "<(torque_output_dir)/builtins-%s-from-dsl-gen.h" <@(torque_namespaces))' ],
     'torque_generated_pure_headers': [
-      '<(torque_output_root)/torque-generated/builtin-definitions-from-dsl.h',
-      '<(torque_output_root)/torque-generated/class-definitions-from-dsl.h',
+      '<(torque_output_dir)/builtin-definitions-from-dsl.h',
+      '<(torque_output_dir)/class-definitions-from-dsl.h',
     ],
   },
-  'includes': ['toolchain.gypi', 'features.gypi', 'v8_external_snapshot.gypi'],
+  'includes': [
+    'toolchain.gypi',
+    'features.gypi',
+  ],
   'targets': [
     {
       'target_name': 'v8',
@@ -550,7 +554,7 @@
           ],
         },
       ],
-    },  # generate_snapshot
+    }, # generate_snapshot
     {
       'target_name': 'v8_nosnapshot',
       'type': 'static_library',
@@ -588,12 +592,11 @@
       # Since this target is a static-library, but as a side effect it generates
       # header files, it needs to be a hard dependency.
       'hard_dependency': 1,
-      'includes': [ 'inspector.gypi' ],
       'dependencies': [
         'v8_libbase',
         'v8_libsampler',
         # Code generators that only need to be build for the host.
-        'torque#host',
+        'generate-code#host',
         'generate_bytecode_builtins_list#host',
       ],
       'include_dirs': [
@@ -607,8 +610,6 @@
         ],
       },
       'sources': [
-        '<(V8_ROOT)/include/v8-inspector-protocol.h',
-        '<(V8_ROOT)/include/v8-inspector.h',
         '<(V8_ROOT)/include/v8-internal.h',
         '<(V8_ROOT)/include/v8-platform.h',
         '<(V8_ROOT)/include/v8-profiler.h',
@@ -1779,7 +1780,6 @@
         '<(V8_ROOT)/src/zone/zone.h',
         '<(generate_bytecode_builtins_list_output)',
         '<@(torque_generated_pure_headers)',
-        '<@(inspector_all_sources)',
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {
@@ -2137,21 +2137,6 @@
         }],
       ],
       'actions': [
-        {
-          'action_name': 'run_torque_action',
-          'inputs': [  # Order matters.
-            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)torque<(EXECUTABLE_SUFFIX)',
-            '<@(torque_files)',
-          ],
-          'outputs': [
-            '<@(torque_outputs)',
-            '<@(torque_generated_pure_headers)',
-          ],
-          'action': [
-            '<@(_inputs)',
-            '-o', '<(torque_output_root)/torque-generated'
-          ],
-        },
       ],
     }, # v8_base
     {
@@ -2732,5 +2717,171 @@
         },
       ],
     }, # generate_bytecode_builtins_list
+    {
+      'target_name': 'generate-code',
+      'type': 'none',
+      'toolsets': [ 'host' ],
+      'dependencies': [
+        # Code generators that only need to be build for the host.
+        'torque#host',
+      ],
+
+      'variables': {
+        'inspector_protocol_path': '<(V8_ROOT)/third_party/inspector_protocol',
+        'v8_inspector_src_dir': '<(V8_ROOT)/src/inspector',
+        # This list comes from deps/v8/third_party/inspector_protocol/inspector_protocol.gni
+        'inspector_protocol_templates': [
+          '<(inspector_protocol_path)/lib/base_string_adapter_cc.template',
+          '<(inspector_protocol_path)/lib/base_string_adapter_h.template',
+          '<(inspector_protocol_path)/lib/Allocator_h.template',
+          '<(inspector_protocol_path)/lib/Array_h.template',
+          '<(inspector_protocol_path)/lib/CBOR_h.template',
+          '<(inspector_protocol_path)/lib/CBOR_cpp.template',
+          '<(inspector_protocol_path)/lib/DispatcherBase_cpp.template',
+          '<(inspector_protocol_path)/lib/DispatcherBase_h.template',
+          '<(inspector_protocol_path)/lib/ErrorSupport_cpp.template',
+          '<(inspector_protocol_path)/lib/ErrorSupport_h.template',
+          '<(inspector_protocol_path)/lib/Forward_h.template',
+          '<(inspector_protocol_path)/lib/FrontendChannel_h.template',
+          '<(inspector_protocol_path)/lib/Maybe_h.template',
+          '<(inspector_protocol_path)/lib/Object_cpp.template',
+          '<(inspector_protocol_path)/lib/Object_h.template',
+          '<(inspector_protocol_path)/lib/Parser_cpp.template',
+          '<(inspector_protocol_path)/lib/Parser_h.template',
+          '<(inspector_protocol_path)/lib/Protocol_cpp.template',
+          '<(inspector_protocol_path)/lib/ValueConversions_h.template',
+          '<(inspector_protocol_path)/lib/Values_cpp.template',
+          '<(inspector_protocol_path)/lib/Values_h.template',
+          '<(inspector_protocol_path)/templates/Exported_h.template',
+          '<(inspector_protocol_path)/templates/Imported_h.template',
+          '<(inspector_protocol_path)/templates/TypeBuilder_cpp.template',
+          '<(inspector_protocol_path)/templates/TypeBuilder_h.template',
+        ],
+        'inspector_generated_output_root': '<(SHARED_INTERMEDIATE_DIR)/inspector-generated-output-root',
+        'inspector_generated_output_dir': '<(inspector_generated_output_root)/src/inspector',
+        'inspector_generated_output_dir_include': '<(inspector_generated_output_root)/include/',
+        # This list comes from deps/v8/src/inspector/BUILD.gn
+        'inspector_generated_sources': [
+          '<(inspector_generated_output_dir)/protocol/Forward.h',
+          '<(inspector_generated_output_dir)/protocol/Protocol.cpp',
+          '<(inspector_generated_output_dir)/protocol/Protocol.h',
+          '<(inspector_generated_output_dir)/protocol/Console.cpp',
+          '<(inspector_generated_output_dir)/protocol/Console.h',
+          '<(inspector_generated_output_dir)/protocol/Debugger.cpp',
+          '<(inspector_generated_output_dir)/protocol/Debugger.h',
+          '<(inspector_generated_output_dir)/protocol/HeapProfiler.cpp',
+          '<(inspector_generated_output_dir)/protocol/HeapProfiler.h',
+          '<(inspector_generated_output_dir)/protocol/Profiler.cpp',
+          '<(inspector_generated_output_dir)/protocol/Profiler.h',
+          '<(inspector_generated_output_dir)/protocol/Runtime.cpp',
+          '<(inspector_generated_output_dir)/protocol/Runtime.h',
+          '<(inspector_generated_output_dir)/protocol/Schema.cpp',
+          '<(inspector_generated_output_dir)/protocol/Schema.h',
+          '<(inspector_generated_output_dir_include)/inspector/Debugger.h',
+          '<(inspector_generated_output_dir_include)/inspector/Runtime.h',
+          '<(inspector_generated_output_dir_include)/inspector/Schema.h',
+        ],
+        'inspector_all_sources': [
+          '<(V8_ROOT)/include/v8-inspector.h',
+          '<(V8_ROOT)/include/v8-inspector-protocol.h',
+          '<(V8_ROOT)/src/inspector/custom-preview.cc',
+          '<(V8_ROOT)/src/inspector/custom-preview.h',
+          '<(V8_ROOT)/src/inspector/injected-script.cc',
+          '<(V8_ROOT)/src/inspector/injected-script.h',
+          '<(V8_ROOT)/src/inspector/inspected-context.cc',
+          '<(V8_ROOT)/src/inspector/inspected-context.h',
+          '<(V8_ROOT)/src/inspector/remote-object-id.cc',
+          '<(V8_ROOT)/src/inspector/remote-object-id.h',
+          '<(V8_ROOT)/src/inspector/search-util.cc',
+          '<(V8_ROOT)/src/inspector/search-util.h',
+          '<(V8_ROOT)/src/inspector/string-16.cc',
+          '<(V8_ROOT)/src/inspector/string-16.h',
+          '<(V8_ROOT)/src/inspector/string-util.cc',
+          '<(V8_ROOT)/src/inspector/string-util.h',
+          '<(V8_ROOT)/src/inspector/test-interface.cc',
+          '<(V8_ROOT)/src/inspector/test-interface.h',
+          '<(V8_ROOT)/src/inspector/v8-console.cc',
+          '<(V8_ROOT)/src/inspector/v8-console.h',
+          '<(V8_ROOT)/src/inspector/v8-console-agent-impl.cc',
+          '<(V8_ROOT)/src/inspector/v8-console-agent-impl.h',
+          '<(V8_ROOT)/src/inspector/v8-console-message.cc',
+          '<(V8_ROOT)/src/inspector/v8-console-message.h',
+          '<(V8_ROOT)/src/inspector/v8-debugger.cc',
+          '<(V8_ROOT)/src/inspector/v8-debugger.h',
+          '<(V8_ROOT)/src/inspector/v8-debugger-agent-impl.cc',
+          '<(V8_ROOT)/src/inspector/v8-debugger-agent-impl.h',
+          '<(V8_ROOT)/src/inspector/v8-debugger-script.cc',
+          '<(V8_ROOT)/src/inspector/v8-debugger-script.h',
+          '<(V8_ROOT)/src/inspector/v8-heap-profiler-agent-impl.cc',
+          '<(V8_ROOT)/src/inspector/v8-heap-profiler-agent-impl.h',
+          '<(V8_ROOT)/src/inspector/v8-inspector-impl.cc',
+          '<(V8_ROOT)/src/inspector/v8-inspector-impl.h',
+          '<(V8_ROOT)/src/inspector/v8-inspector-session-impl.cc',
+          '<(V8_ROOT)/src/inspector/v8-inspector-session-impl.h',
+          '<(V8_ROOT)/src/inspector/v8-profiler-agent-impl.cc',
+          '<(V8_ROOT)/src/inspector/v8-profiler-agent-impl.h',
+          '<(V8_ROOT)/src/inspector/v8-regex.cc',
+          '<(V8_ROOT)/src/inspector/v8-regex.h',
+          '<(V8_ROOT)/src/inspector/v8-runtime-agent-impl.cc',
+          '<(V8_ROOT)/src/inspector/v8-runtime-agent-impl.h',
+          '<(V8_ROOT)/src/inspector/v8-schema-agent-impl.cc',
+          '<(V8_ROOT)/src/inspector/v8-schema-agent-impl.h',
+          '<(V8_ROOT)/src/inspector/v8-stack-trace-impl.cc',
+          '<(V8_ROOT)/src/inspector/v8-stack-trace-impl.h',
+          '<(V8_ROOT)/src/inspector/v8-value-utils.cc',
+          '<(V8_ROOT)/src/inspector/v8-value-utils.h',
+          '<(V8_ROOT)/src/inspector/value-mirror.cc',
+          '<(V8_ROOT)/src/inspector/value-mirror.h',
+          '<(V8_ROOT)/src/inspector/wasm-translation.cc',
+          '<(V8_ROOT)/src/inspector/wasm-translation.h',
+        ]
+      },
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(inspector_generated_output_root)',
+        ],
+        'sources': [
+          '<@(inspector_all_sources)',
+          '<@(inspector_generated_sources)',
+        ],
+      },
+      'actions': [
+        {
+          'action_name': 'generate_inspector_protocol_code',
+          'message': 'Generating inspector protocol sources',
+          'inputs': [
+            '<(inspector_protocol_path)/code_generator.py',
+            '<(v8_inspector_src_dir)/inspector_protocol_config.json',
+            '<@(inspector_protocol_templates)',
+          ],
+          'outputs': [
+            '<@(inspector_generated_sources)',
+          ],
+          'action': [
+            'python', '<(inspector_protocol_path)/code_generator.py',
+            '--config', '<(v8_inspector_src_dir)/inspector_protocol_config.json',
+            '--jinja_dir', '<(V8_ROOT)/third_party',
+            '--output_base', '<(inspector_generated_output_dir)',
+          ],
+        },
+        {
+          'action_name': 'run_torque_action',
+          'message': 'Running torque',
+          'inputs': [
+            # Order matters, since this list is used as arguments for invoking the action
+            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)torque<(EXECUTABLE_SUFFIX)',
+            '<@(torque_files)',
+          ],
+          'outputs': [
+            '<@(torque_outputs)',
+            '<@(torque_generated_pure_headers)',
+          ],
+          'action': [
+            '<@(_inputs)',
+            '-o', '<(torque_output_dir)',
+          ],
+        },
+      ],
+    }, # generate-code
   ],
 }
