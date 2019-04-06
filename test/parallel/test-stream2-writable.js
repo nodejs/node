@@ -322,13 +322,14 @@ for (let i = 0; i < chunks.length; i++) {
     assert.strictEqual(this.writing, undefined);
     wrote = true;
     this.writing = true;
-    setTimeout(function() {
+    setTimeout(() => {
       this.writing = false;
       cb();
     }, 1);
   };
   w.on('finish', common.mustCall(function() {
     assert.strictEqual(wrote, true);
+    assert.strictEqual(this.writing, false);
   }));
   w.write(Buffer.alloc(0));
   w.end();
