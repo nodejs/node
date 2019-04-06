@@ -8,15 +8,15 @@ const path = require('path');
 
 tmpdir.refresh();
 
-const requirePath = path.join(tmpdir.path, 'non-existent.json');
+const requirePath = JSON.stringify(path.join(tmpdir.path, 'non-existent.json'));
 
 // Use -i to force node into interactive mode, despite stdout not being a TTY
 const child = spawn(process.execPath, ['-i']);
 
 let out = '';
-const input = `try { require('${requirePath}'); } catch {} ` +
-              `require('fs').writeFileSync('${requirePath}', '1');` +
-              `require('${requirePath}');`;
+const input = `try { require(${requirePath}); } catch {} ` +
+              `require('fs').writeFileSync(${requirePath}, '1');` +
+              `require(${requirePath});`;
 
 child.stderr.on('data', common.mustNotCall());
 
