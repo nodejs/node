@@ -52,6 +52,9 @@ function executeRequest(cb) {
            `"${__filename}"`,
            'shasum' ].join(' '),
           (err, stdout, stderr) => {
+            if (stderr.trim() !== '') {
+              console.log(stderr);
+            }
             assert.ifError(err);
             assert.strictEqual(stdout.slice(0, 40),
                                '8c206a1a87599f532ce68675536f0b1546900d7a');
