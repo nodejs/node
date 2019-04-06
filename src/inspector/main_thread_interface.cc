@@ -269,13 +269,7 @@ void MainThreadInterface::DispatchMessages() {
       std::swap(dispatching_message_queue_.front(), task);
       dispatching_message_queue_.pop_front();
 
-      // TODO(addaleax): The V8 inspector code currently sometimes allocates
-      // handles that leak to the outside scope, rendering a HandleScope here
-      // necessary. This handle scope can be removed/turned into a
-      // SealHandleScope once/if
-      // https://chromium-review.googlesource.com/c/v8/v8/+/1484304 makes it
-      // into our copy of V8, maybe guarded with #ifdef DEBUG if we want.
-      v8::HandleScope handle_scope(isolate_);
+      v8::SealHandleScope seal_handle_scope(isolate_);
       task->Call(this);
     }
   } while (had_messages);
