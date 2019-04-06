@@ -3115,7 +3115,8 @@ static ParseKeyResult ParsePrivateKey(EVPKeyPointer* pkey,
                                       const PrivateKeyEncodingConfig& config,
                                       const char* key,
                                       size_t key_len) {
-  char* passphrase = const_cast<char*>(config.passphrase_.get());
+  // OpenSSL needs a non-const pointer, that's why the const_cast is required.
+  char* const passphrase = const_cast<char*>(config.passphrase_.get());
 
   if (config.format_ == kKeyFormatPEM) {
     BIOPointer bio(BIO_new_mem_buf(key, key_len));
