@@ -103,25 +103,17 @@ $(NODE_G_EXE): config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Debug V=$(V)
 	if [ ! -r $@ -o ! -L $@ ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
 
-CODE_CACHE_DIR ?= out/$(BUILDTYPE)/obj/gen
-CODE_CACHE_FILE ?= $(CODE_CACHE_DIR)/node_code_cache.cc
-
 ifeq ($(BUILDTYPE),Debug)
 CONFIG_FLAGS += --debug
 endif
+
 .PHONY: with-code-cache
 with-code-cache:
-	@echo $(CONFIG_FLAGS)
-	$(PYTHON) ./configure $(CONFIG_FLAGS)
-	$(MAKE)
-	mkdir -p $(CODE_CACHE_DIR)
-	out/$(BUILDTYPE)/mkcodecache $(CODE_CACHE_FILE)
-	$(PYTHON) ./configure --code-cache-path $(CODE_CACHE_FILE) $(CONFIG_FLAGS)
-	$(MAKE)
+	echo "'with-code-cache' target is a noop"
 
 .PHONY: test-code-cache
 test-code-cache: with-code-cache
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) code-cache
+	echo "'test-code-cache' target is a noop"
 
 out/Makefile: config.gypi common.gypi node.gyp \
   deps/uv/uv.gyp deps/http_parser/http_parser.gyp deps/zlib/zlib.gyp \

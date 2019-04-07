@@ -143,8 +143,8 @@
           'conditions': [
             ['OS!="aix" and node_shared=="false"', {
               'ldflags': [
-                '-Wl,--whole-archive,<(obj_dir)/deps/zlib/<(STATIC_LIB_PREFIX)'
-                    'zlib<(STATIC_LIB_SUFFIX)',
+                '-Wl,--whole-archive,'
+                '<(obj_dir)/deps/zlib/<(STATIC_LIB_PREFIX)zlib<(STATIC_LIB_SUFFIX)',
                 '-Wl,--no-whole-archive',
               ],
             }],
@@ -184,8 +184,8 @@
           'conditions': [
             ['OS!="aix" and node_shared=="false"', {
               'ldflags': [
-                '-Wl,--whole-archive,<(obj_dir)/deps/uv/<(STATIC_LIB_PREFIX)'
-                    'uv<(STATIC_LIB_SUFFIX)',
+                '-Wl,--whole-archive,'
+                '<(obj_dir)/deps/uv/<(STATIC_LIB_PREFIX)uv<(STATIC_LIB_SUFFIX)',
                 '-Wl,--no-whole-archive',
               ],
             }],
@@ -223,27 +223,33 @@
     [ 'OS=="aix"', {
       'defines': [
         '_LINUX_SOURCE_COMPAT',
-        '__STDC_FORMAT_MACROS'
+        '__STDC_FORMAT_MACROS',
       ],
       'conditions': [
         [ 'force_load=="true"', {
-
+          'variables': {
+            'exp_filename': '<(PRODUCT_DIR)/<(_target_name).exp',
+          },
           'actions': [
             {
               'action_name': 'expfile',
               'inputs': [
-                '<(obj_dir)'
+                '<(obj_dir)',
               ],
               'outputs': [
-                '<(PRODUCT_DIR)/node.exp'
+                '<(exp_filename)',
               ],
               'action': [
                 'sh', 'tools/create_expfile.sh',
-                      '<@(_inputs)', '<@(_outputs)'
+                '<@(_inputs)',
+                '<@(_outputs)',
               ],
             }
           ],
-          'ldflags': ['-Wl,-bE:<(PRODUCT_DIR)/node.exp', '-Wl,-brtl'],
+          'ldflags': [
+            '-Wl,-bE:<(exp_filename)',
+            '-Wl,-brtl',
+          ],
         }],
       ],
     }],

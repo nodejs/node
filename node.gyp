@@ -6,7 +6,6 @@
     'node_use_dtrace%': 'false',
     'node_use_etw%': 'false',
     'node_no_browser_globals%': 'false',
-    'node_code_cache_path%': '',
     'node_use_v8_platform%': 'true',
     'node_use_bundled_v8%': 'true',
     'node_shared%': 'false',
@@ -224,6 +223,7 @@
       'deps/acorn/acorn/dist/acorn.js',
       'deps/acorn/acorn-walk/dist/walk.js',
     ],
+    'mkcodecache_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mkcodecache<(EXECUTABLE_SUFFIX)',
     'conditions': [
       [ 'node_shared=="true"', {
         'node_target_type%': 'shared_library',
@@ -280,16 +280,24 @@
     {
       'target_name': '<(node_core_target_name)',
       'type': 'executable',
-      'sources': [
-        'src/node_main.cc'
+
+      'defines': [
+        'NODE_WANT_INTERNALS=1',
       ],
+
       'includes': [
         'node.gypi'
       ],
+
       'include_dirs': [
         'src',
         'deps/v8/include'
       ],
+
+      'sources': [
+        'src/node_main.cc'
+      ],
+
       'dependencies': [ 'deps/histogram/histogram.gyp:histogram' ],
 
       'msvs_settings': {
@@ -402,7 +410,32 @@
               'LinkIncremental': 2                 # enable incremental linking
             },
           },
-        }]
+         }],
+        ['want_separate_host_toolset==0', {
+          'dependencies': [
+            'mkcodecache',
+          ],
+          'actions': [
+            {
+              'action_name': 'run_mkcodecache',
+              'process_outputs_as_sources': 1,
+              'inputs': [
+                '<(mkcodecache_exec)',
+              ],
+              'outputs': [
+                '<(SHARED_INTERMEDIATE_DIR)/node_code_cache.cc',
+              ],
+              'action': [
+                '<@(_inputs)',
+                '<@(_outputs)',
+              ],
+            },
+          ],
+        }, {
+          'sources': [
+            'src/node_code_cache_stub.cc'
+          ],
+        }],
       ],
     }, # node_core_target_name
     {
@@ -615,11 +648,6 @@
       'msvs_disabled_warnings!': [4244],
 
       'conditions': [
-        [ 'node_code_cache_path!=""', {
-          'sources': [ '<(node_code_cache_path)' ]
-        }, {
-          'sources': [ 'src/node_code_cache_stub.cc' ]
-        }],
         [ 'node_shared=="true" and node_module_version!="" and OS!="win"', {
           'product_extension': '<(shlib_suffix)',
           'xcode_settings': {
@@ -1047,6 +1075,7 @@
       'defines': [ 'NODE_WANT_INTERNALS=1' ],
 
       'sources': [
+        'src/node_code_cache_stub.cc',
         'test/cctest/node_test_fixture.cc',
         'test/cctest/test_aliased_buffer.cc',
         'test/cctest/test_base64.cc',
@@ -1075,7 +1104,9 @@
             'HAVE_INSPECTOR=1',
           ],
         }, {
-          'defines': [ 'HAVE_INSPECTOR=0' ]
+           'defines': [
+             'HAVE_INSPECTOR=0',
+           ]
         }],
         ['OS=="solaris"', {
           'ldflags': [ '-I<(SHARED_INTERMEDIATE_DIR)' ]
@@ -1130,11 +1161,14 @@
         'deps/uv/include',
       ],
 
-      'defines': [ 'NODE_WANT_INTERNALS=1' ],
-
+      'defines': [
+        'NODE_WANT_INTERNALS=1'
+      ],
       'sources': [
+        'src/node_code_cache_stub.cc',
         'tools/code_cache/mkcodecache.cc',
-        'tools/code_cache/cache_builder.cc'
+        'tools/code_cache/cache_builder.cc',
+        'tools/code_cache/cache_builder.h',
       ],
 
       'conditions': [
@@ -1155,22 +1189,22 @@
           ],
         }],
       ],
-    }, # cache_builder
-  ], # end targets
+    }, # mkcodecache
+  ],  # end targets
 
   'conditions': [
-    [ 'OS=="aix" and node_shared=="true"', {
+    ['OS=="aix" and node_shared=="true"', {
       'targets': [
         {
           'target_name': 'node_aix_shared',
           'type': 'shared_library',
           'product_name': '<(node_core_target_name)',
-          'ldflags': [ '--shared' ],
+          'ldflags': ['--shared'],
           'product_extension': '<(shlib_suffix)',
           'includes': [
             'node.gypi'
           ],
-          'dependencies': [ '<(node_lib_target_name)' ],
+          'dependencies': ['<(node_lib_target_name)'],
           'include_dirs': [
             'src',
             'deps/v8/include',

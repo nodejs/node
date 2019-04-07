@@ -1,6 +1,6 @@
+// Flags: --expose-internals
 'use strict';
 
-// Flags: --expose-internals
 // This test verifies that if the binary is compiled with code cache,
 // and the cache is used when built in modules are compiled.
 // Otherwise, verifies that no cache is used when compiling builtins.
@@ -29,9 +29,9 @@ const loadedModules = process.moduleLoadList
   .filter((m) => m.startsWith('NativeModule'))
   .map((m) => m.replace('NativeModule ', ''));
 
-// The binary is not configured with code cache, verifies that the builtins
+// Cross-compiled binaries do not have code cache, verifies that the builtins
 // are all compiled without cache and we are doing the bookkeeping right.
-if (process.config.variables.node_code_cache_path === undefined) {
+if (process.config.variables.want_separate_host_toolset === 1) {
   console.log('The binary is not configured with code cache');
   if (isMainThread) {
     assert.deepStrictEqual(compiledWithCache, new Set());
@@ -45,20 +45,27 @@ if (process.config.variables.node_code_cache_path === undefined) {
     // cache are hit
     assert.notDeepStrictEqual(compiledWithCache, new Set());
   }
-} else {
-  console.log('The binary is configured with code cache');
+} else {  // Native compiled
   assert.strictEqual(
-    typeof process.config.variables.node_code_cache_path,
-    'string'
+    process.config.variables.node_code_cache_path,
+    'yes'
   );
 
-  for (const key of loadedModules) {
-    if (cannotBeRequired.has(key)) {
-      assert(compiledWithoutCache.has(key),
-             `"${key}" should've been compiled without code cache`);
-    } else {
-      assert(compiledWithCache.has(key),
-             `"${key}" should've been compiled with code cache`);
+  if (!isMainThread) {
+    for (const key of [ 'internal/bootstrap/pre_execution' ]) {
+      canBeRequired.add(key);
+      cannotBeRequired.delete(key);
     }
   }
+
+  const wrong = [];
+  for (const key of loadedModules) {
+    if (cannotBeRequired.has(key) && !compiledWithoutCache.has(key)) {
+      wrong.push(`"${key}" should've been compiled **without** code cache`);
+    }
+    if (canBeRequired.has(key) && !compiledWithCache.has(key)) {
+      wrong.push(`"${key}" should've been compiled **with** code cache`);
+    }
+  }
+  assert.strictEqual(wrong.length, 0, wrong.join('\n'));
 }
