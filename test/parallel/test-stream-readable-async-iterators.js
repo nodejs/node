@@ -353,11 +353,13 @@ async function tests() {
       assert.strictEqual(e, err);
     }));
     readable.destroy(err);
-    try {
-      await readable[Symbol.asyncIterator]().next();
-    } catch (e) {
-      assert.strictEqual(e, err);
-    }
+    await assert.rejects(
+      readable[Symbol.asyncIterator]().next(),
+      (e) => {
+        assert.strictEqual(e, err);
+        return true;
+      }
+    );
   }
 
   {
