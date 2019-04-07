@@ -469,7 +469,7 @@ changes:
     negative to show no elements. **Default:** `100`.
   * `breakLength` {integer} The length at which input values are split across
     multiple lines. Set to `Infinity` to format the input as a single line
-    (in combination with `compact` set to `true` or any number besides `0`).
+    (in combination with `compact` set to `true` or any number >= `1`).
     **Default:** `80`.
   * `compact` {boolean|integer} Setting this to `false` causes each object key
     to be displayed on a new line. It will also add new lines to text that is
