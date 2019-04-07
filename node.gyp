@@ -826,20 +826,28 @@
         'deps/uv/include',
       ],
 
-      'defines': [ 'NODE_WANT_INTERNALS=1' ],
+      'defines': [
+        'NODE_WANT_INTERNALS=1',
+        'GTEST_LANG_CXX11=1',
+        'GTEST_HAS_TR1_TUPLE=0',
+      ],
 
       'sources': [
         'test/cctest/node_test_fixture.cc',
         'test/cctest/test_aliased_buffer.cc',
         'test/cctest/test_base64.cc',
-        'test/cctest/test_node_postmortem_metadata.cc',
         'test/cctest/test_environment.cc',
+        # Listed here for completeness. Actual inclusion is conditional.
+        # 'test/cctest/test_inspector_socket.cc',
+        # 'test/cctest/test_inspector_socket_server.cc',
         'test/cctest/test_linked_binding.cc',
+        'test/cctest/test_node_postmortem_metadata.cc',
         'test/cctest/test_platform.cc',
         'test/cctest/test_report_util.cc',
         'test/cctest/test_traced_value.cc',
+        'test/cctest/test_url.cc',
         'test/cctest/test_util.cc',
-        'test/cctest/test_url.cc'
+        'test/cctest/node_test_fixture.h',
       ],
 
       'conditions': [
