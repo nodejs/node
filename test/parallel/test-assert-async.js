@@ -93,7 +93,6 @@ promises.push(assert.rejects(
     assert(err instanceof assert.AssertionError,
            `${err.name} is not instance of AssertionError`);
     assert.strictEqual(err.code, 'ERR_ASSERTION');
-    assert.strictEqual(err.operator, 'doesNotReject');
     assert.strictEqual(err.message,
                        'Got unwanted rejection.\nActual message: "Failed"');
     assert.strictEqual(err.operator, 'doesNotReject');
@@ -125,7 +124,6 @@ promises.push(assert.rejects(
 
 {
   const handler = (generated, actual, err) => {
-    assert.strictEqual(err.operator, 'rejects');
     assert.strictEqual(err.generatedMessage, generated);
     assert.strictEqual(err.code, 'ERR_ASSERTION');
     assert.strictEqual(err.actual, actual);
