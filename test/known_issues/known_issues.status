@@ -5,6 +5,7 @@ prefix known_issues
 # sample-test                        : SKIP
 
 [true] # This section applies to all platforms
+test-repl-uncaught-exception-error: SKIP
 
 [$system==win32]
 test-fs-copyfile-respect-permissions: SKIP
