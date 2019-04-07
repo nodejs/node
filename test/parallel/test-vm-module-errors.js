@@ -8,26 +8,6 @@ const assert = require('assert');
 
 const { SourceTextModule, createContext } = require('vm');
 
-async function expectsRejection(fn, settings) {
-  const validateError = common.expectsError(settings);
-  // Retain async context.
-  const storedError = new Error('Thrown from:');
-  try {
-    await fn();
-  } catch (err) {
-    try {
-      validateError(err);
-    } catch (validationError) {
-      console.error(validationError);
-      console.error('Original error:');
-      console.error(err);
-      throw storedError;
-    }
-    return;
-  }
-  assert.fail('Missing expected exception');
-}
-
 async function createEmptyLinkedModule() {
   const m = new SourceTextModule('');
   await m.link(common.mustNotCall());
@@ -57,19 +37,19 @@ async function checkArgType() {
   for (const invalidLinker of [
     0, 1, undefined, null, true, 'str', {}, Symbol.iterator
   ]) {
-    await expectsRejection(async () => {
+    await assert.rejects(async () => {
       const m = new SourceTextModule('');
       await m.link(invalidLinker);
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     });
   }
 }
 
 // Check methods/properties can only be used under a specific state.
 async function checkModuleState() {
-  await expectsRejection(async () => {
+  await assert.rejects(async () => {
     const m = new SourceTextModule('');
     await m.link(common.mustNotCall());
     assert.strictEqual(m.linkingStatus, 'linked');
@@ -78,7 +58,7 @@ async function checkModuleState() {
     code: 'ERR_VM_MODULE_ALREADY_LINKED'
   });
 
-  await expectsRejection(async () => {
+  await assert.rejects(async () => {
     const m = new SourceTextModule('');
     m.link(common.mustNotCall());
     assert.strictEqual(m.linkingStatus, 'linking');
@@ -94,7 +74,7 @@ async function checkModuleState() {
     code: 'ERR_VM_MODULE_NOT_LINKED'
   });
 
-  await expectsRejection(async () => {
+  await assert.rejects(async () => {
     const m = new SourceTextModule('import "foo";');
     try {
       await m.link(common.mustCall(() => ({})));
@@ -102,7 +82,6 @@ async function checkModuleState() {
       assert.strictEqual(m.linkingStatus, 'errored');
       m.instantiate();
     }
-    assert.fail('Unreachable');
   }, {
     code: 'ERR_VM_MODULE_NOT_LINKED'
   });
@@ -124,7 +103,7 @@ async function checkModuleState() {
     await m.evaluate();
   }
 
-  await expectsRejection(async () => {
+  await assert.rejects(async () => {
     const m = new SourceTextModule('');
     await m.evaluate();
   }, {
@@ -132,7 +111,7 @@ async function checkModuleState() {
     message: 'Module status must be one of instantiated, evaluated, and errored'
   });
 
-  await expectsRejection(async () => {
+  await assert.rejects(async () => {
     const m = new SourceTextModule('');
     await m.evaluate(false);
   }, {
@@ -141,7 +120,7 @@ async function checkModuleState() {
              'Received type boolean'
   });
 
-  await expectsRejection(async () => {
+  await assert.rejects(async () => {
     const m = await createEmptyLinkedModule();
     await m.evaluate();
   }, {
@@ -157,7 +136,7 @@ async function checkModuleState() {
     message: 'Module status must be errored'
   });
 
-  await expectsRejection(async () => {
+  await assert.rejects(async () => {
     const m = await createEmptyLinkedModule();
     m.instantiate();
     await m.evaluate();
@@ -175,7 +154,7 @@ async function checkModuleState() {
     message: 'Module status must not be uninstantiated or instantiating'
   });
 
-  await expectsRejection(async () => {
+  await assert.rejects(async () => {
     const m = await createEmptyLinkedModule();
     m.namespace;
   }, {
@@ -186,7 +165,7 @@ async function checkModuleState() {
 
 // Check link() fails when the returned module is not valid.
 async function checkLinking() {
-  await expectsRejection(async () => {
+  await assert.rejects(async () => {
     const m = new SourceTextModule('import "foo";');
     try {
       await m.link(common.mustCall(() => ({})));
@@ -194,12 +173,11 @@ async function checkLinking() {
       assert.strictEqual(m.linkingStatus, 'errored');
       throw err;
     }
-    assert.fail('Unreachable');
   }, {
     code: 'ERR_VM_MODULE_NOT_MODULE'
   });
 
-  await expectsRejection(async () => {
+  await assert.rejects(async () => {
     const c = createContext({ a: 1 });
     const foo = new SourceTextModule('', { context: c });
     await foo.link(common.mustNotCall());
@@ -210,12 +188,11 @@ async function checkLinking() {
       assert.strictEqual(bar.linkingStatus, 'errored');
       throw err;
     }
-    assert.fail('Unreachable');
   }, {
     code: 'ERR_VM_MODULE_DIFFERENT_CONTEXT'
   });
 
-  await expectsRejection(async () => {
+  await assert.rejects(async () => {
     const erroredModule = new SourceTextModule('import "foo";');
     try {
       await erroredModule.link(common.mustCall(() => ({})));
