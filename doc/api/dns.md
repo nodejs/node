@@ -527,7 +527,7 @@ added: v0.1.27
 * `hostname` {string}
 * `callback` {Function}
   - `err` {Error}
-  - `records` {string[][]}
+  - `records` <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type" class="type">&lt;string[][]&gt;</a>
 
 Uses the DNS protocol to resolve text queries (`TXT` records) for the
 `hostname`. The `records` argument passed to the `callback` function is a
@@ -576,7 +576,7 @@ The `dns.setServers()` method must not be called while a DNS query is in
 progress.
 
 The [`dns.setServers()`][] method affects only [`dns.resolve()`][],
-[`dns.resolve*()`][] and [`dns.reverse()`][] (and specifically *not*
+`dns.resolve*()` and [`dns.reverse()`][] (and specifically *not*
 [`dns.lookup()`][]).
 
 Note that this method works much like
