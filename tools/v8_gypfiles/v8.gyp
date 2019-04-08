@@ -409,6 +409,22 @@
           ],
         }],
       ],
+      'configurations': {
+        'Debug': {
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'AdditionalOptions': [ '-d2SSAOptimizer-' ], # Workaround VS2019 bug https://developercommunity.visualstudio.com/content/problem/512352/compiler-doesnt-finish-142027508.html
+            },
+          },
+        },
+        'Release': {
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'AdditionalOptions': [ '-d2SSAOptimizer-' ], # Workaround VS2019 bug https://developercommunity.visualstudio.com/content/problem/512352/compiler-doesnt-finish-142027508.html
+            },
+          },
+        },
+      },
     }, # v8_initializers
     {
       'target_name': 'v8_snapshot',
