@@ -293,7 +293,7 @@
         'defines': [
           'V8_TARGET_ARCH_ARM64',
         ],
-      }],
+      }],  # v8_target_arch=="arm64"
       ['v8_target_arch=="s390" or v8_target_arch=="s390x"', {
         'defines': [
           'V8_TARGET_ARCH_S390',
@@ -312,7 +312,7 @@
             'cflags': [ '-march=z196' ],
           }],
           ],
-      }],  # s390
+      }],  # v8_target_arch=="s390*"
       ['v8_target_arch=="ppc" or v8_target_arch=="ppc64"', {
         'defines': [
           'V8_TARGET_ARCH_PPC',
@@ -344,7 +344,7 @@
             ],
           }],
         ],
-      }],  # ppc
+      }],  # v8_target_arch=="ppc**"
       ['v8_target_arch=="ia32"', {
         'defines': [
           'V8_TARGET_ARCH_IA32',
@@ -392,7 +392,7 @@
             ],
           }],  #'_toolset=="host"
         ],
-      }],
+      }],  # v8_target_arch=="mips***"
       ['v8_target_arch=="mips"', {
         'defines': [
           'V8_TARGET_ARCH_MIPS',
@@ -982,12 +982,12 @@
         # selection.
         # gcc -- http://gcc.gnu.org/onlinedocs/gcc-4.8.0/gcc/Optimize-Options.html
         'ldflags': [ '-fuse-ld=gold', ],
-      }],
+      }],  # linux_use_gold_flags==1
       ['linux_use_bundled_binutils==1', {
         'cflags': [
           '-B<!(cd <(DEPTH) && pwd -P)/<(binutils_dir)',
         ],
-      }],
+      }],  # linux_use_bundled_binutils==1
       ['linux_use_bundled_gold==1', {
         # Put our binutils, which contains gold in the search path. We pass
         # the path to gold to the compiler. gyp leaves unspecified what the
@@ -996,19 +996,13 @@
         'ldflags': [
           '-B<!(cd <(DEPTH) && pwd -P)/<(binutils_dir)',
         ],
-      }],
+      }],  # linux_use_bundled_gold==1
       ['OS=="win"', {
         'defines': [
           'WIN32',
           'NOMINMAX',  # Refs: https://chromium-review.googlesource.com/c/v8/v8/+/1456620
         ],
-        # 4351: VS 2005 and later are warning us that they've fixed a bug
-        #       present in VS 2003 and earlier.
-        'msvs_disabled_warnings': [4351],
-        'msvs_configuration_attributes': {
-          'CharacterSet': '1',
-        },
-      }],
+      }],  # OS=="win"
       ['OS=="win" and v8_target_arch=="ia32"', {
         'msvs_settings': {
           'VCCLCompilerTool': {
@@ -1016,14 +1010,14 @@
             'AdditionalOptions': ['/arch:SSE2'],
           },
         },
-      }],
+      }],  # OS=="win" and v8_target_arch=="ia32"
       ['OS=="win" and v8_enable_prof==1', {
         'msvs_settings': {
           'VCLinkerTool': {
             'GenerateMapFile': 'true',
           },
         },
-      }],
+      }],  # OS=="win" and v8_enable_prof==1
       ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
          or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
         v8_target_arch=="ia32"', {
@@ -1032,7 +1026,7 @@
           '-mfpmath=sse',
           '-mmmx',  # Allows mmintrin.h for MMX intrinsics.
         ],
-      }],
+      }],  # OS==POSIXish and v8_target_arch=="ia32"
       ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
          or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
         (v8_target_arch=="arm" or v8_target_arch=="ia32" or \
@@ -1076,7 +1070,7 @@
             },
           }],
         ],
-      }],
+      }],  # OS==POSIXish and v8_target_arch==32bit-ish
       ['(OS=="linux" or OS=="android") and \
         (v8_target_arch=="x64" or v8_target_arch=="arm64" or \
          v8_target_arch=="ppc64" or v8_target_arch=="s390x")', {
@@ -1098,12 +1092,12 @@
              ]
            }],
          ],
-      }],
+      }],  # (OS=="linux" or OS=="android") v8_target_arch==54bit-ish
       ['OS=="android" and v8_android_log_stdout==1', {
         'defines': [
           'V8_ANDROID_LOG_STDOUT',
         ],
-      }],
+      }],  # OS=="android" and v8_android_log_stdout==1
       ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
          or OS=="netbsd" or OS=="qnx" or OS=="aix"', {
         'conditions': [
@@ -1111,16 +1105,16 @@
             'cflags': [ '-fno-strict-aliasing' ],
           }],
         ],  # conditions
-      }],
+      }],  # OS==POSIXish
       ['OS=="solaris"', {
         'defines': [ '__C99FEATURES__=1' ],  # isinf() etc.
-      }],
+      }],  # OS=="solaris"
       ['OS=="freebsd" or OS=="openbsd"', {
         'cflags': [ '-I/usr/local/include' ],
-      }],
+      }],  # OS=="freebsd" or OS=="openbsd"
       ['OS=="netbsd"', {
         'cflags': [ '-I/usr/pkg/include' ],
-      }],
+      }],  # OS=="netbsd"
       ['OS=="aix"', {
         'defines': [
           # Support for malloc(0)
@@ -1136,7 +1130,7 @@
             'ldflags': [ '-maix64 -Wl,-bbigtoc' ],
           }],
         ],
-      }],
+      }],  # OS=="aix"
     ],  # conditions
     'configurations': {
       'Debug': {
@@ -1151,27 +1145,21 @@
           'V8_ENABLE_FORCE_SLOW_PATH',
         ],
         'conditions': [
-          ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
-            OS=="qnx" or OS=="aix"', {
+          ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or OS=="qnx" or OS=="aix"', {
             'cflags': [ '-Woverloaded-virtual', '<(wno_array_bounds)', ],
-          }],
+          }],  # OS==POSIXish
           ['OS=="linux" and v8_enable_backtrace==1', {
             # Support for backtrace_symbols.
             'ldflags': [ '-rdynamic' ],
-          }],
+          }],  # OS=="linux" and v8_enable_backtrace==1
           ['OS=="linux" and disable_glibcxx_debug==0', {
-            # Enable libstdc++ debugging facilities to help catch problems
-            # early, see http://crbug.com/65151 .
+            # Enable libstdc++ debugging facilities to help catch problems early, see http://crbug.com/65151 .
             'defines': ['_GLIBCXX_DEBUG=1',],
-          }],
+          }],  # OS=="linux" and disable_glibcxx_debug==0
           ['OS=="aix"', {
             'ldflags': [ '-Wl,-bbigtoc' ],
-            'conditions': [
-              ['v8_target_arch=="ppc64"', {
-                'cflags': [ '-maix64 -mcmodel=large' ],
-              }],
-            ],
-          }],
+            'cflags': [ '-maix64 -mcmodel=large' ],
+          }],  # OS=="aix"
           ['OS=="android"', {
             'variables': {
               'android_full_debug%': 1,
@@ -1186,22 +1174,20 @@
                 ],
               }],
             ],
-          }],
+          }],  # OS=="android"
           ['linux_use_gold_flags==1', {
             'target_conditions': [
               ['_toolset=="target"', {
                 'ldflags': [
-                  # Experimentation found that using four linking threads
-                  # saved ~20% of link time.
+                  # Experimentation found that using four linking threads saved ~20% of link time.
                   # https://groups.google.com/a/chromium.org/group/chromium-dev/browse_thread/thread/281527606915bb36
-                  # Only apply this to the target linker, since the host
-                  # linker might not be gold, but isn't used much anyway.
+                  # Only apply this to the target linker, since the host linker might not be gold, but isn't used much anyway.
                   '-Wl,--threads',
                   '-Wl,--thread-count=4',
                 ],
               }],
             ],
-          }],
+          }],  # linux_use_gold_flags==1
           ['v8_optimized_debug==0', {
             'msvs_settings': {
               'VCCLCompilerTool': {
@@ -1210,20 +1196,22 @@
                   ['component=="shared_library" or force_dynamic_crt==1', {
                     'RuntimeLibrary': '3',  # /MDd
                   }, {
-                     'RuntimeLibrary': '1',  # /MTd
-                   }],
+                    'RuntimeLibrary': '1',  # /MTd
+                  }],
                 ],
               },
               'VCLinkerTool': {
                 'LinkIncremental': '2',
               },
             },
+            'xcode_settings': {
+              'GCC_OPTIMIZATION_LEVEL': '0',  # -O0
+            },
             'variables': {
               'v8_enable_slow_dchecks%': 1,
             },
             'conditions': [
-              ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
-            OS=="qnx" or OS=="aix"', {
+              ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or OS=="qnx" or OS=="aix"', {
                 'cflags!': [
                   '-O3',
                   '-O2',
@@ -1235,11 +1223,6 @@
                   '-ffunction-sections',
                 ],
               }],
-              ['OS=="mac"', {
-                'xcode_settings': {
-                  'GCC_OPTIMIZATION_LEVEL': '0',  # -O0
-                },
-              }],
               ['v8_enable_slow_dchecks==1', {
                 'defines': [
                   'ENABLE_SLOW_DCHECKS',
@@ -1250,7 +1233,7 @@
             'msvs_settings': {
               'VCCLCompilerTool': {
                 'Optimization': '2',
-                'InlineFunctionExpansion': '2',
+                'InlineFunctionExpansion': '0',
                 'EnableIntrinsicFunctions': 'true',
                 'FavorSizeOrSpeed': '0',
                 'StringPooling': 'true',
@@ -1269,12 +1252,15 @@
                 'EnableCOMDATFolding': '2',
               },
             },
+            'xcode_settings': {
+              'GCC_OPTIMIZATION_LEVEL': '3',  # -O3
+              'GCC_STRICT_ALIASING': 'YES',
+            },
             'variables': {
               'v8_enable_slow_dchecks%': 0,
             },
             'conditions': [
-              ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
-            OS=="qnx" or OS=="aix"', {
+              ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or OS=="qnx" or OS=="aix"', {
                 'cflags!': [
                   '-O0',
                   '-O1',
@@ -1285,22 +1271,15 @@
                   '-ffunction-sections',
                 ],
                 'conditions': [
-                  # Don't use -O3 with sanitizers.
-                  ['asan==0 and msan==0 and lsan==0 \
-                and tsan==0 and ubsan==0 and ubsan_vptr==0', {
-                    'cflags': ['-O3'],
+                  # Use -O3 only when no sanitizers.
+                  ['asan==0 and msan==0 and lsan==0 and tsan==0 and ubsan==0 and ubsan_vptr==0', {
                     'cflags!': ['-O2'],
+                    'cflags': ['-O3'],
                   }, {
-                     'cflags': ['-O2'],
-                     'cflags!': ['-O3'],
-                   }],
+                    'cflags!': ['-O3'],
+                    'cflags': ['-O2'],
+                  }],
                 ],
-              }],
-              ['OS=="mac"', {
-                'xcode_settings': {
-                  'GCC_OPTIMIZATION_LEVEL': '3',  # -O3
-                  'GCC_STRICT_ALIASING': 'YES',
-                },
               }],
               ['v8_enable_slow_dchecks==1', {
                 'defines': [
@@ -1308,11 +1287,10 @@
                 ],
               }],
             ],
-          }],
-          # Temporary refs: https://github.com/nodejs/node/pull/23801
+          }],  # v8_optimized_debug==0
           ['v8_enable_handle_zapping==1', {
             'defines': ['ENABLE_HANDLE_ZAPPING',],
-          }],
+          }],  # v8_enable_handle_zapping==1
         ],
 
       },  # DebugBaseCommon
@@ -1322,9 +1300,38 @@
         },
          # Temporary refs: https://github.com/nodejs/node/pull/23801
         'defines!': ['ENABLE_HANDLE_ZAPPING',],
+        'msvs_settings': {
+          'VCCLCompilerTool': {
+            'Optimization': '2',
+            'InlineFunctionExpansion': '2',
+            'EnableIntrinsicFunctions': 'true',
+            'FavorSizeOrSpeed': '0',
+            'StringPooling': 'true',
+            'conditions': [
+              ['component=="shared_library" or force_dynamic_crt==1', {
+                'RuntimeLibrary': '2',  #/MD
+              }, {
+                'RuntimeLibrary': '0',  #/MT
+              }],
+            ],
+          },
+          'VCLinkerTool': {
+            'LinkIncremental': '1',
+            'OptimizeReferences': '2',
+            'EnableCOMDATFolding': '2',
+          },
+        },
+        'xcode_settings': {
+          'GCC_OPTIMIZATION_LEVEL': '3',  # -O3
+
+          # -fstrict-aliasing.  Mainline gcc
+          # enables this at -O2 and above,
+          # but Apple gcc does not unless it
+          # is specified explicitly.
+          'GCC_STRICT_ALIASING': 'YES',
+        },
         'conditions': [
-          ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" \
-            or OS=="aix"', {
+          ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or OS=="aix"', {
             'cflags!': [
               '-Os',
             ],
@@ -1335,13 +1342,12 @@
             ],
             'conditions': [
               # Don't use -O3 with sanitizers.
-              ['asan==0 and msan==0 and lsan==0 \
-                and tsan==0 and ubsan==0 and ubsan_vptr==0', {
-                'cflags': ['-O3'],
+              ['asan==0 and msan==0 and lsan==0 and tsan==0 and ubsan==0 and ubsan_vptr==0', {
                 'cflags!': ['-O2'],
+                'cflags': ['-O3'],
               }, {
-                'cflags': ['-O2'],
                 'cflags!': ['-O3'],
+                'cflags': ['-O2'],
               }],
             ],
           }],
@@ -1356,40 +1362,6 @@
               '-O2',
             ],
           }],
-          ['OS=="mac"', {
-            'xcode_settings': {
-              'GCC_OPTIMIZATION_LEVEL': '3',  # -O3
-
-              # -fstrict-aliasing.  Mainline gcc
-              # enables this at -O2 and above,
-              # but Apple gcc does not unless it
-              # is specified explicitly.
-              'GCC_STRICT_ALIASING': 'YES',
-            },
-          }],  # OS=="mac"
-          ['OS=="win"', {
-            'msvs_settings': {
-              'VCCLCompilerTool': {
-                'Optimization': '2',
-                'InlineFunctionExpansion': '2',
-                'EnableIntrinsicFunctions': 'true',
-                'FavorSizeOrSpeed': '0',
-                'StringPooling': 'true',
-                'conditions': [
-                  ['component=="shared_library" or force_dynamic_crt==1', {
-                    'RuntimeLibrary': '2',  #/MD
-                  }, {
-                    'RuntimeLibrary': '0',  #/MT
-                  }],
-                ],
-              },
-              'VCLinkerTool': {
-                'LinkIncremental': '1',
-                'OptimizeReferences': '2',
-                'EnableCOMDATFolding': '2',
-              },
-            },
-          }],  # OS=="win"
           ['v8_enable_slow_dchecks==1', {
             'defines': [
               'ENABLE_SLOW_DCHECKS',
@@ -1399,23 +1371,22 @@
       },  # Release
     },  # configurations
     'cflags!': [ '-Wall', '-Wextra' ],
+    'msvs_configuration_attributes': {
+      'CharacterSet': '1',
+    },
     'msvs_disabled_warnings': [
       4129,  # unrecognized character escape sequence (torque-generated)
       4245,  # Conversion with signed/unsigned mismatch.
       4267,  # Conversion with possible loss of data.
       4324,  # Padding structure due to alignment.
-      4351,
-      4355,
+      4351,  # VS 2005 and later are warning us that they've fixed a bug present in VS 2003 and earlier.
+      4355,  # 'this' : used in base member initializer list
       4701,  # Potentially uninitialized local variable.
       4702,  # Unreachable code.
       4703,  # Potentially uninitialized local pointer variable.
       4709,  # Comma operator within array index expr (bugged).
       4714,  # Function marked forceinline not inlined.
-
-      # MSVC assumes that control can get past an exhaustive switch and then
-      # warns if there's no return there (see https://crbug.com/v8/7658)
-      4715,  # Not all control paths return a value.
-
+      4715,  # Not all control paths return a value. MSVC assumes that control can get past an exhaustive switch (see https://crbug.com/v8/7658)
       4718,  # Recursive call has no side-effect.
       4723,  # https://crbug.com/v8/7771
       4724,  # https://crbug.com/v8/7771
