@@ -481,7 +481,7 @@ added: v11.4.0
 
 * {boolean}
 
-Is `true` if it is safe to call [`writable.write()`][].
+Is `true` if it is safe to call [`writable.write()`][stream-write].
 
 ##### writable.writableHighWaterMark
 <!-- YAML
@@ -1066,7 +1066,7 @@ added: v11.4.0
 
 * {boolean}
 
-Is `true` if it is safe to call [`readable.read()`][].
+Is `true` if it is safe to call [`readable.read()`][stream-read].
 
 ##### readable.readableHighWaterMark
 <!-- YAML
