@@ -311,11 +311,11 @@ set "msbplatform=Win32"
 if "%target_arch%"=="x64" set "msbplatform=x64"
 if "%target_arch%"=="arm64" set "msbplatform=ARM64"
 if "%target%"=="Build" (
-  if defined no_cctest set target=rename_node_bin_win
-  if "%test_args%"=="" set target=rename_node_bin_win
+  if defined no_cctest set target=node
+  if "%test_args%"=="" set target=node
   if defined cctest set target="Build"
 )
-if "%target%"=="rename_node_bin_win" if exist "%config%\cctest.exe" del "%config%\cctest.exe"
+if "%target%"=="node" if exist "%config%\cctest.exe" del "%config%\cctest.exe"
 if defined msbuild_args set "extra_msbuild_args=%extra_msbuild_args% %msbuild_args%"
 msbuild node.sln %msbcpu% /t:%target% /p:Configuration=%config% /p:Platform=%msbplatform% /clp:NoItemAndPropertyList;Verbosity=minimal /nologo %extra_msbuild_args%
 if errorlevel 1 (

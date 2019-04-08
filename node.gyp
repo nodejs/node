@@ -22,7 +22,7 @@
     'node_v8_options%': '',
     'node_enable_v8_vtunejit%': 'false',
     'node_core_target_name%': 'node',
-    'node_lib_target_name%': 'node_lib',
+    'node_lib_target_name%': 'libnode',
     'node_intermediate_lib_type%': 'static_library',
     'library_files': [
       'lib/internal/bootstrap/environment.js',
@@ -335,7 +335,7 @@
           'msvs_settings': {
             'VCLinkerTool': {
               'AdditionalOptions': [
-                '/WHOLEARCHIVE:<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
+                '/WHOLEARCHIVE:<(node_lib_target_name)<(STATIC_LIB_SUFFIX)',
               ],
             },
           },
@@ -363,12 +363,6 @@
           'xcode_settings': {
             'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', ],
           },
-        }],
-        [ 'node_intermediate_lib_type=="shared_library" and OS=="win"', {
-          # On Windows, having the same name for both executable and shared
-          # lib causes filename collision. Need a different PRODUCT_NAME for
-          # the executable and rename it back to node.exe later
-          'product_name': '<(node_core_target_name)-win',
         }],
         [ 'node_report=="true"', {
           'defines': [
@@ -441,9 +435,8 @@
     {
       'target_name': '<(node_lib_target_name)',
       'type': '<(node_intermediate_lib_type)',
-      'product_name': '<(node_core_target_name)',
       'includes': [
-        'node.gypi'
+        'node.gypi',
       ],
 
       'include_dirs': [
@@ -1018,40 +1011,11 @@
       ]
     }, # specialize_node_d
     {
-      # When using shared lib to build executable in Windows, in order to avoid
-      # filename collision, the executable name is node-win.exe. Need to rename
-      # it back to node.exe
-      'target_name': 'rename_node_bin_win',
-      'type': 'none',
-      'dependencies': [
-        '<(node_core_target_name)',
-      ],
-      'conditions': [
-        [ 'OS=="win" and node_intermediate_lib_type=="shared_library"', {
-          'actions': [
-            {
-              'action_name': 'rename_node_bin_win',
-              'inputs': [
-                '<(PRODUCT_DIR)/<(node_core_target_name)-win.exe'
-              ],
-              'outputs': [
-                '<(PRODUCT_DIR)/<(node_core_target_name).exe',
-              ],
-              'action': [
-                'move', '<@(_inputs)', '<@(_outputs)',
-              ],
-            },
-          ],
-        } ],
-      ]
-    }, # rename_node_bin_win
-    {
       'target_name': 'cctest',
       'type': 'executable',
 
       'dependencies': [
         '<(node_lib_target_name)',
-        'rename_node_bin_win',
         'deps/gtest/gtest.gyp:gtest',
         'deps/histogram/histogram.gyp:histogram',
         'node_dtrace_header',
