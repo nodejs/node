@@ -273,6 +273,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental frozen intrinsics support",
             &EnvironmentOptions::frozen_intrinsics,
             kAllowedInEnvironment);
+  AddOption("--heapsnapshot-signal",
+            "Generate heap snapshot on specified signal",
+            &EnvironmentOptions::heap_snapshot_signal,
+            kAllowedInEnvironment);
   AddOption("--http-parser",
             "Select which HTTP parser to use; either 'legacy' or 'llhttp' "
             "(default: llhttp).",

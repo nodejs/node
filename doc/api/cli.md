@@ -230,6 +230,14 @@ https://github.com/tc39/ecma262/pull/1320.
 
 Both of the above may change in future updates, which will be breaking changes.
 
+### `--heapsnapshot-signal=signal`
+<!-- YAML
+added: REPLACEME
+-->
+
+Generates a heap snapshot each time the process receives the specified signal.
+`signal` must be a valid signal name. Disabled by default.
+
 ### `--http-parser=library`
 <!-- YAML
 added: v11.4.0
@@ -765,6 +773,7 @@ Node.js options that are allowed are:
 - `--experimental-vm-modules`
 - `--force-fips`
 - `--frozen-intrinsics`
+- `--heapsnapshot-signal`
 - `--icu-data-dir`
 - `--inspect`
 - `--inspect-brk`
