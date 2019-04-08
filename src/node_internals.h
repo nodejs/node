@@ -334,15 +334,13 @@ class DiagnosticFilename {
 
   DiagnosticFilename(Environment* env,
                      const char* prefix,
-                     const char* ext,
-                     int seq = -1) :
-      filename_(MakeFilename(env->thread_id(), prefix, ext, seq)) {}
+                     const char* ext) :
+      filename_(MakeFilename(env->thread_id(), prefix, ext)) {}
 
   DiagnosticFilename(uint64_t thread_id,
                      const char* prefix,
-                     const char* ext,
-                     int seq = -1) :
-      filename_(MakeFilename(thread_id, prefix, ext, seq)) {}
+                     const char* ext) :
+      filename_(MakeFilename(thread_id, prefix, ext)) {}
 
   const char* operator*() const { return filename_.c_str(); }
 
@@ -350,8 +348,7 @@ class DiagnosticFilename {
   static std::string MakeFilename(
       uint64_t thread_id,
       const char* prefix,
-      const char* ext,
-      int seq = -1);
+      const char* ext);
 
   std::string filename_;
 };

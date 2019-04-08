@@ -15,7 +15,6 @@
 #include <cstring>
 #include <ctime>
 #include <cwctype>
-#include <atomic>
 #include <fstream>
 #include <iomanip>
 #include <climits>  // PATH_MAX
@@ -73,9 +72,6 @@ static void PrintLoadedLibraries(JSONWriter* writer);
 static void PrintComponentVersions(JSONWriter* writer);
 static void PrintRelease(JSONWriter* writer);
 
-// Global variables
-static std::atomic_int seq = {0};  // sequence number for report filenames
-
 // External function to trigger a report, writing to file.
 // The 'name' parameter is in/out: an input filename is used
 // if supplied, and the actual filename is returned.
@@ -99,7 +95,7 @@ std::string TriggerNodeReport(Isolate* isolate,
     filename = options->report_filename;
   } else {
     filename = *DiagnosticFilename(env != nullptr ? env->thread_id() : 0,
-                                   "report", "json", seq++);
+                                   "report", "json");
   }
 
   // Open the report file stream for writing. Supports stdout/err,

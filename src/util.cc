@@ -41,9 +41,12 @@
 #include <sys/types.h>
 #endif
 
+#include <atomic>
 #include <cstdio>
 #include <iomanip>
 #include <sstream>
+
+static std::atomic_int seq = {0};  // Sequence number for diagnostic filenames.
 
 namespace node {
 
@@ -225,8 +228,7 @@ void DiagnosticFilename::LocalTime(TIME_TYPE* tm_struct) {
 std::string DiagnosticFilename::MakeFilename(
     uint64_t thread_id,
     const char* prefix,
-    const char* ext,
-    int seq) {
+    const char* ext) {
   std::ostringstream oss;
   TIME_TYPE tm_struct;
   LocalTime(&tm_struct);
@@ -262,8 +264,7 @@ std::string DiagnosticFilename::MakeFilename(
 #endif
   oss << "." << uv_os_getpid();
   oss << "." << thread_id;
-  if (seq >= 0)
-    oss << "." << std::setfill('0') << std::setw(3) << ++seq;
+  oss << "." << std::setfill('0') << std::setw(3) << ++seq;
   oss << "." << ext;
   return oss.str();
 }
