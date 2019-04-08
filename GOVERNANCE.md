@@ -52,9 +52,8 @@ Typical activities of a Collaborator include:
 * Participation in working groups
 * Merging pull requests
 
-The TSC periodically reviews the Collaborator list to identify inactive
-Collaborators. Past Collaborators are typically given _Emeritus_ status. Emeriti
-may request that the TSC restore them to active status.
+The TSC can remove inactive Collaborators or provide them with _Emeritus_
+status. Emeriti may request that the TSC restore them to active status.
 
 ## Technical Steering Committee
 
