@@ -345,16 +345,7 @@
           ],
           'conditions': [
             ['OS=="win"', {
-              'libraries': [
-                'dbghelp.lib',
-                'PsApi.lib',
-                'Ws2_32.lib',
-              ],
-              'dll_files': [
-                'dbghelp.dll',
-                'PsApi.dll',
-                'Ws2_32.dll',
-              ],
+              'libraries': [ 'Ws2_32' ],
             }],
           ],
         }],
@@ -623,7 +614,10 @@
               ],
             }],
           ],
-          'libraries': [ '-lpsapi.lib' ]
+          'libraries': [
+            'Dbghelp',
+            'Psapi',
+          ],
         }],
         [ 'node_use_etw=="true"', {
           'defines': [ 'HAVE_ETW=1' ],
@@ -718,16 +712,7 @@
           ],
           'conditions': [
             ['OS=="win"', {
-              'libraries': [
-                'dbghelp.lib',
-                'PsApi.lib',
-                'Ws2_32.lib',
-              ],
-              'dll_files': [
-                'dbghelp.dll',
-                'PsApi.dll',
-                'Ws2_32.dll',
-              ],
+              'libraries': [ 'Ws2_32' ],
             }],
           ],
         }],
@@ -1083,16 +1068,7 @@
           ],
           'conditions': [
             ['OS=="win"', {
-              'libraries': [
-                'dbghelp.lib',
-                'PsApi.lib',
-                'Ws2_32.lib',
-              ],
-              'dll_files': [
-                'dbghelp.dll',
-                'PsApi.dll',
-                'Ws2_32.dll',
-              ],
+              'libraries': [ 'Ws2_32' ],
             }],
           ],
         }],
