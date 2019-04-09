@@ -30,7 +30,8 @@ typedef int mode_t;
 
 typedef std::vector<uv_handle_t*> libuv_handle_array;
 unsigned int _libuv_handles_each_count[UV_HANDLE_TYPE_MAX];
-unsigned int _libuv_handles_each_count_size = sizeof(unsigned int) * UV_HANDLE_TYPE_MAX;
+unsigned int _libuv_handles_each_count_size =
+    sizeof(unsigned int) * UV_HANDLE_TYPE_MAX;
 
 namespace node {
 
@@ -403,9 +404,8 @@ static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
   env->Exit(code);
 }
 
-void uv_handle_count_walk(uv_handle_t* handle, void* arg)
-{
-    libuv_handle_array* array = (libuv_handle_array*)arg;
+void uv_handle_count_walk(uv_handle_t* handle, void* arg) {
+    libuv_handle_array* array = reinterpret_cast<libuv_handle_array*>arg;
     array->push_back(handle);
 }
 
@@ -415,12 +415,15 @@ static void LibuvCount(const FunctionCallbackInfo<Value>& args) {
 
   uv_handle_type temp_type;
   libuv_handle_array handles;
-  uv_walk(env->event_loop(), uv_handle_count_walk, (void*)&handles);
+  uv_walk(
+      env->event_loop(),
+      uv_handle_count_walk,
+      reinterpret_cast<void*>&handles);
 
   memset(_libuv_handles_each_count, 0, _libuv_handles_each_count_size);
   for (unsigned int i = 0; i < handles.size(); i++) {
     temp_type = handles[i]->type;
-    if(temp_type >= UV_HANDLE_TYPE_MAX || temp_type < 0) {
+    if (temp_type >= UV_HANDLE_TYPE_MAX || temp_type < 0) {
       temp_type = UV_UNKNOWN_HANDLE;
     }
     _libuv_handles_each_count[(unsigned int)temp_type]++;

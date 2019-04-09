@@ -1410,7 +1410,7 @@ Get [libuv handles][] count for current tick.
 
 The returned object contains two fileds:
 
-```js
+```json
 {
   total: <TOTAL_COUNT>,
   each: [ <TYPE_1_COUNT>, <TYPE_2_COUNT>, ... ]
@@ -1421,7 +1421,7 @@ You may get type enum via `process.LIBUV_HANDLE_TYPES`. e.g.
 
 ```js
 const result = process.libuvHandlesCount();
-result.each[process.LIBUV_HANDLE_TYPES.ASYNC]; // count of `uv_async_t`
+result.each[process.LIBUV_HANDLE_TYPES.ASYNC]; // Count of `uv_async_t`
 ```
 
 ## process.mainModule
