@@ -233,7 +233,7 @@ std::string EscapeJsonChars(const std::string& str) {
       "\\u001a", "\\u001b", "\\u001c", "\\u001d", "\\u001e", "\\u001f"
   };
 
-  std::string ret = "";
+  std::string ret;
   size_t last_pos = 0;
   size_t pos = 0;
   for (; pos < str.size(); ++pos) {
