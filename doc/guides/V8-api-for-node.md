@@ -3,29 +3,50 @@
 v8 docs, not particularly useful:
 - https://v8.dev/docs
 
+v8 docs, generated from master:
+- https://v8.paulfryzel.com/docs/master/
+
+v8 code search:
+- https://cs.chromium.org/chromium/src/v8/include/v8.h
+
 Some API info at https://v8.dev/docs/embed
 
 - An isolate is a VM instance with its own heap.
-  Node has one isolate.
-  Can get from `Local<Object>->GetIsolate()`, `context->GetIsolate()`
+  Node has one isolate per Worker.
+  Can get from `Local<Object>->GetIsolate()` (but this is slow and discouraged
+  by the V8 people), `Local<Context>->GetIsolate()`, or more typically from
+  `(node::Environment*env)->isolate()` or `FunctionCallbackInfo<Value>
+  args.GetIsolate()`.
 
 - `Local<...>`: A local handle is a pointer to an object. All V8 objects are
   accessed using handles, they are necessary because of the way the V8 garbage
   collector works.  Local handles can only be allocated on the stack, in a
   scope, not with new, and will be deleted as stack unwinds, usually with a
   scope.
-  - XXX don't see us create scopes much in node, why?
-  - XXX locals go into a HandleScope, for auto-dispose? Always, or by default?
+  - We don't explicitly create HandleScopes very often, because all functions
+    that take `FunctionCallbackInfo` (or similar) already come with one
+    built-in.
+  - Allocating a `Local<>` outside of a scope can lead to difficult to track
+    down memory leaks, so the top-level event loop instantiates a
+    `SealHandleScope`. Basically, the idea is to make sure that the code inside
+    the SealHandleScope always needs to explicitly open a HandleScope if it does
+    use handles, so that they will be deleted when the stack unwinds.
 - Persistent handles last past C++ functions.
   - PersistentBase::SetWeak trigger a callback from the garbage collector when
     the only references to an object are from weak persistent handles.
-  - A UniquePersistent<SomeType> handle relies on C++ constructors and
-    destructors to manage the lifetime of the underlying object.
+  - A `v8::Global<>` (alias of a `UniquePersistent<>`) handle relies on C++
+    constructors and destructors to manage the lifetime of the underlying
+    object. We don’t use `UniquePersistent` in Node.js.
   - A Persistent<SomeType> can be constructed with its constructor, but must be
-    explicitly cleared with Persistent::Reset.
+    explicitly cleared with Persistent::Reset. This is a good example of how
+    usage is shifting – we introduced `node::Persistent<>`, which automatically
+    resets in the destructor, but which becomes unnecessary through
+    `v8::Global<>`, which also does that and additionally supports move
+    semantics.
 - Eternal is a persistent handle for JavaScript objects that are expected to
-  never be deleted. It is cheaper to use because it relieves the garbage
-  collector from determining the liveness of that object.
+  never be deleted for the lifetime of the isolate. It is cheaper to use because
+  it relieves the garbage collector from determining the liveness of that
+  object.
 - A handle scope can be thought of as a container for any number of handles.
   When you've finished with your handles, instead of deleting each one
   individually you can simply delete their scope.
@@ -39,24 +60,32 @@ https://groups.google.com/forum/#!topic/v8-users/gQVpp1HmbqM
 
 - MaybeLocal may be "empty", basically not contain a pointer of its type.  See
   `class MaybeLocal`, has some useful notes on why, but basically its returned
-  by anything that might fail to have a value.
+  when there is an exception pending in V8.
 - If you know that the MaybeLocal has a value, then call ToLocalChecked() and
-  node will abort with CHECK() if you are wrong.
+  Node.js will abort in `node_errors.cc:OnFatalError()`.
 - Otherwise, you have to call `bool ToLocal(Local<S>* out)`, and check the
   return value to see if there was a value. Or call IsEmpty() to check.
 
 - Maybe is similar, but doesn't hold a Local, just a value of T. "Just" means it
   "just has a value", a bizarrely named Haskellism :-(. It has a To() and
   ToChecked() similar to MaybeLocal.
-- A common node idiom is to make a seemingly side-effect free call to
-  `.FromJust()` after `->Set()`, which will crash node if the Set failed.
+- A common Node.js idiom is to make a seemingly side-effect free call to
+  `.FromJust()` after `->Set()`, which will crash Node.js if the Set failed.
   FromJust is also() commonly called  after getting a Maybe<> of a concrete data
   type from a Local<Value>. It will crash if the conversion fails!
 
-        int32_t v = (Local<Value>)->In32Value(env->context()).FromJust()
+        int32_t v = (Local<Value>)->Int32Value(env->context()).FromJust()
 
-- As<T> always returns a value, though probably not one that is useful, its
-  usually best to check the type:
+- `Maybe::Check()` is is an equivalent short-hand to FromJust() which V8
+  describes (in header comments) as to be used where the actual value of the
+  Maybe is not needed like Object::Set. It returns void and the name makes it
+  clearer that it can fail.
+
+        target->Set(env->context(), class_name, function).Check();
+
+- As<T> always returns a value, though it does not perform typechecking on its
+  own, so the type should be checked. It is basically an unchecked
+  reinterpret_cast in release builds (it typechecks and aborts in debug builds).
   - Boolean becomes 1/0 as int, "true"/"false" as strings, etc.
   - Numbers become false as Boolean (for any value), -3 casts to String "-3"
   - Functions become numerically zero, and "function () { const hello=0; }" as a
@@ -69,24 +98,23 @@ https://groups.google.com/forum/#!topic/v8-users/gQVpp1HmbqM
         const node::Utf8Value v(env->isolate(), args[0]); const char* s = *s;
 
 - To<T> will convert values in fairly typical js way:
-   ... never seems to be used by node?
+   ... never seems to be used by Node.js?
    AFAICT, is identical to the As<> route, except for Boolean, which is always
    false with As<T>(), but is "expected" with ToT().
 
 - FunctionCallbackInfo
   - can GetIsolate()
   - can get Environment: Environment* env = Environment::GetCurrent(args);
-  - can get args using 0-based index
-  - returns Local<Value>
+  - can get args using 0-based index, which returns Local<Value>
   - has a .Length(), access past length returns a Local<Value> where value is
-    Undefined
-  - has a number of Is*() predicates which check exact type of Value, and
-    (mostly) do NOT consider possible conversions:
+    Undefined (as in JavaScript).
+  - The argument values have a number of Is*() predicates which check exact type
+    of Value, and (mostly) do NOT consider possible conversions:
     - {then: ()=>{}} is not considered a Promise,
     - `1` is not considered `true`,
     - `null` is not an `Object` (!),
     - new String() is a StringObject (not a String),
-    - 3 is a Int32 and also a Uint32, -3 is only a Int32
+    - 3 is a Int32 and also a Uint32, -3 is only a Int32, both are a Number
     - etc.
 
 Conventions on arg checking: two patterns are common:
@@ -130,8 +158,9 @@ XXX Function vs FunctionTemplate ... wth?
   Commonly used convenience methods:
   - ThrowError/TypeError/RangeError/ErrnoException/...
   XXX why are some called Error and others called Exception?
-  - SetMethod/SetMethodNoSideEffect/SetProtoMethod/SetTemplateMethod
-  XXX difference?
+  - SetMethod/SetMethodNoSideEffect/SetProtoMethod
+    NoSideEffect means it's safe for the debugger to eagerly evaluate,
+    SetProtoMethod() sets on obj.__proto__ rather than obj
   - SetImmediate
   - EnvironmentOptions* options(): "some" options...
   XXX how to reach PerIsolateOptions, PerProcessOptions
@@ -147,8 +176,8 @@ See: https://nodejs.org/api/addons.html#addons_context_aware_addons
 
 Called with:
 - `Local<Object> exports`: where to put exported properties, conventionally
-  called `target` in node
-- `Local<Value> module`: conventionally unused in node
+  called `target` in Node.js
+- `Local<Value> module`: conventionally unused in Node.js
 XXX what is this for? addon docs don't mention or use it
 - `Local<Context> context`:
 - void* priv: not commonly used
@@ -207,4 +236,6 @@ Handle is base, from that are Local (go in HandleScope), and Persistent
 (manually managed scope). Constructors (String::New) seem to return Locals.
 
 `return Local<Array>();` ... seems to do exactly what you are not supposed
-to do... whats up?
+to do, but it's because the handle is empty. Its OK to return empty
+handles, just not handles that point to something without going through
+`EscapableHandleScope::Escape()`.
