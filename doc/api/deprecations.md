@@ -2421,8 +2421,8 @@ also have an `index.js` file in the top level directory will resolve the
 `index.js` file. That is deprecated and is going to throw an error in future
 Node.js versions.
 
-<a id="DEP0XXX"></a>
-### DEP0XXX: ChildProcess._channel
+<a id="DEP0129"></a>
+### DEP0129: ChildProcess._channel
 <!-- YAML
 changes:
   - version: REPLACEME
