@@ -192,14 +192,16 @@ void WalkHandle(uv_handle_t* h, void* arg) {
     if (rc == 0) {
       writer->json_keyvalue("fd", static_cast<int>(fd_v));
       switch (fd_v) {
-        case 0:
+        case STDIN_FILENO:
           writer->json_keyvalue("stdio", "stdin");
           break;
-        case 1:
+        case STDOUT_FILENO:
           writer->json_keyvalue("stdio", "stdout");
           break;
-        case 2:
+        case STDERR_FILENO:
           writer->json_keyvalue("stdio", "stderr");
+          break;
+        default:
           break;
       }
     }
