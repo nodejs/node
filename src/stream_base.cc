@@ -276,7 +276,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
     // collected before `AfterWrite` is called.
     req_wrap_obj->Set(env->context(),
                       env->handle_string(),
-                      send_handle_obj).FromJust();
+                      send_handle_obj).Check();
   }
 
   StreamWriteResult res = Write(&buf, 1, send_handle, req_wrap_obj);

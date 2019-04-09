@@ -374,7 +374,7 @@ NODE_DEPRECATED("Use v8::Date::ValueOf() directly",
     (target)->DefineOwnProperty(context,                                      \
                                 constant_name,                                \
                                 constant_value,                               \
-                                constant_attributes).FromJust();              \
+                                constant_attributes).Check();                 \
   }                                                                           \
   while (0)
 
@@ -395,7 +395,7 @@ NODE_DEPRECATED("Use v8::Date::ValueOf() directly",
     (target)->DefineOwnProperty(context,                                      \
                                 constant_name,                                \
                                 constant_value,                               \
-                                constant_attributes).FromJust();              \
+                                constant_attributes).Check();                 \
   }                                                                           \
   while (0)
 
@@ -426,7 +426,7 @@ inline void NODE_SET_METHOD(v8::Local<v8::Object> recv,
   v8::Local<v8::String> fn_name = v8::String::NewFromUtf8(isolate, name,
       v8::NewStringType::kInternalized).ToLocalChecked();
   fn->SetName(fn_name);
-  recv->Set(context, fn_name, fn).FromJust();
+  recv->Set(context, fn_name, fn).Check();
 }
 #define NODE_SET_METHOD node::NODE_SET_METHOD
 

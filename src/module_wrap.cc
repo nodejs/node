@@ -239,7 +239,7 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
     Local<Promise> resolve_promise = resolve_return_value.As<Promise>();
     obj->resolve_cache_[specifier_std].Reset(env->isolate(), resolve_promise);
 
-    promises->Set(mod_context, i, resolve_promise).FromJust();
+    promises->Set(mod_context, i, resolve_promise).Check();
   }
 
   args.GetReturnValue().Set(promises);
@@ -374,7 +374,7 @@ void ModuleWrap::GetStaticDependencySpecifiers(
   Local<Array> specifiers = Array::New(env->isolate(), count);
 
   for (int i = 0; i < count; i++)
-    specifiers->Set(env->context(), i, module->GetModuleRequest(i)).FromJust();
+    specifiers->Set(env->context(), i, module->GetModuleRequest(i)).Check();
 
   args.GetReturnValue().Set(specifiers);
 }
@@ -1064,7 +1064,7 @@ void ModuleWrap::Initialize(Local<Object> target,
                                   GetStaticDependencySpecifiers);
 
   target->Set(env->context(), FIXED_ONE_BYTE_STRING(isolate, "ModuleWrap"),
-              tpl->GetFunction(context).ToLocalChecked()).FromJust();
+              tpl->GetFunction(context).ToLocalChecked()).Check();
   env->SetMethod(target, "resolve", Resolve);
   env->SetMethod(target, "getPackageType", GetPackageType);
   env->SetMethod(target,

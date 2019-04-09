@@ -122,7 +122,7 @@ void FSEventWrap::Initialize(Local<Object> target,
 
   target->Set(env->context(),
               fsevent_string,
-              t->GetFunction(context).ToLocalChecked()).FromJust();
+              t->GetFunction(context).ToLocalChecked()).Check();
 }
 
 

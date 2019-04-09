@@ -748,33 +748,33 @@ void CollectExceptionInfo(Environment* env,
                           const char* dest) {
   obj->Set(env->context(),
            env->errno_string(),
-           Integer::New(env->isolate(), errorno)).FromJust();
+           Integer::New(env->isolate(), errorno)).Check();
 
   obj->Set(env->context(), env->code_string(),
-           OneByteString(env->isolate(), err_string)).FromJust();
+           OneByteString(env->isolate(), err_string)).Check();
 
   if (message != nullptr) {
     obj->Set(env->context(), env->message_string(),
-             OneByteString(env->isolate(), message)).FromJust();
+             OneByteString(env->isolate(), message)).Check();
   }
 
   Local<Value> path_buffer;
   if (path != nullptr) {
     path_buffer =
       Buffer::Copy(env->isolate(), path, strlen(path)).ToLocalChecked();
-    obj->Set(env->context(), env->path_string(), path_buffer).FromJust();
+    obj->Set(env->context(), env->path_string(), path_buffer).Check();
   }
 
   Local<Value> dest_buffer;
   if (dest != nullptr) {
     dest_buffer =
       Buffer::Copy(env->isolate(), dest, strlen(dest)).ToLocalChecked();
-    obj->Set(env->context(), env->dest_string(), dest_buffer).FromJust();
+    obj->Set(env->context(), env->dest_string(), dest_buffer).Check();
   }
 
   if (syscall != nullptr) {
     obj->Set(env->context(), env->syscall_string(),
-             OneByteString(env->isolate(), syscall)).FromJust();
+             OneByteString(env->isolate(), syscall)).Check();
   }
 }
 
@@ -819,7 +819,7 @@ void AsyncHooks::grow_async_ids_stack() {
   env()->async_hooks_binding()->Set(
       env()->context(),
       env()->async_ids_stack_string(),
-      async_ids_stack_.GetJSArray()).FromJust();
+      async_ids_stack_.GetJSArray()).Check();
 }
 
 uv_key_t Environment::thread_local_env = {};

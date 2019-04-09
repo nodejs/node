@@ -90,7 +90,7 @@ void PipeWrap::Initialize(Local<Object> target,
 
   target->Set(env->context(),
               pipeString,
-              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
+              t->GetFunction(env->context()).ToLocalChecked()).Check();
   env->set_pipe_constructor_template(t);
 
   // Create FunctionTemplate for PipeConnectWrap.
@@ -101,7 +101,7 @@ void PipeWrap::Initialize(Local<Object> target,
   cwt->SetClassName(wrapString);
   target->Set(env->context(),
               wrapString,
-              cwt->GetFunction(env->context()).ToLocalChecked()).FromJust();
+              cwt->GetFunction(env->context()).ToLocalChecked()).Check();
 
   // Define constants
   Local<Object> constants = Object::New(env->isolate());
@@ -112,7 +112,7 @@ void PipeWrap::Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(constants, UV_WRITABLE);
   target->Set(context,
               env->constants_string(),
-              constants).FromJust();
+              constants).Check();
 }
 
 

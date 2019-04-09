@@ -403,7 +403,7 @@ void NotifyClusterWorkersDebugEnabled(Environment* env) {
   // Send message to enable debug in cluster workers
   Local<Object> message = Object::New(isolate);
   message->Set(context, FIXED_ONE_BYTE_STRING(isolate, "cmd"),
-               FIXED_ONE_BYTE_STRING(isolate, "NODE_DEBUG_ENABLED")).FromJust();
+               FIXED_ONE_BYTE_STRING(isolate, "NODE_DEBUG_ENABLED")).Check();
   ProcessEmit(env, "internalMessage", message);
 }
 

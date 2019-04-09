@@ -847,9 +847,9 @@ static void MessageChannel(const FunctionCallbackInfo<Value>& args) {
   MessagePort::Entangle(port1, port2);
 
   args.This()->Set(context, env->port1_string(), port1->object())
-      .FromJust();
+      .Check();
   args.This()->Set(context, env->port2_string(), port2->object())
-      .FromJust();
+      .Check();
 }
 
 static void InitMessaging(Local<Object> target,
@@ -865,13 +865,13 @@ static void InitMessaging(Local<Object> target,
     templ->SetClassName(message_channel_string);
     target->Set(context,
                 message_channel_string,
-                templ->GetFunction(context).ToLocalChecked()).FromJust();
+                templ->GetFunction(context).ToLocalChecked()).Check();
   }
 
   target->Set(context,
               env->message_port_constructor_string(),
               GetMessagePortConstructor(env, context).ToLocalChecked())
-                  .FromJust();
+                  .Check();
 
   // These are not methods on the MessagePort prototype, because
   // the browser equivalents do not provide them.

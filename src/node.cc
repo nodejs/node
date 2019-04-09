@@ -130,7 +130,6 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
-using v8::Just;
 using v8::Local;
 using v8::Locker;
 using v8::Maybe;
@@ -266,7 +265,7 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
   // Expose the global object as a property on itself
   // (Allows you to set stuff on `global` from anywhere in JavaScript.)
   global->Set(context, FIXED_ONE_BYTE_STRING(env->isolate(), "global"), global)
-      .FromJust();
+      .Check();
 
   // Store primordials
   env->set_primordials(Object::New(isolate));

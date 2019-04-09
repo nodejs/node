@@ -131,7 +131,7 @@ static void Initialize(Local<Object> target,
   env->SetMethod(target, "runMicrotasks", RunMicrotasks);
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(isolate, "tickInfo"),
-              env->tick_info()->fields().GetJSArray()).FromJust();
+              env->tick_info()->fields().GetJSArray()).Check();
 
   Local<Object> events = Object::New(isolate);
   NODE_DEFINE_CONSTANT(events, kPromiseRejectWithNoHandler);
@@ -141,7 +141,7 @@ static void Initialize(Local<Object> target,
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(isolate, "promiseRejectEvents"),
-              events).FromJust();
+              events).Check();
   env->SetMethod(target,
                  "setPromiseRejectCallback",
                  SetPromiseRejectCallback);

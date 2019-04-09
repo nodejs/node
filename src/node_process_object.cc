@@ -157,13 +157,13 @@ void PatchProcessObject(const FunctionCallbackInfo<Value>& args) {
   // process.argv
   process->Set(context,
                FIXED_ONE_BYTE_STRING(isolate, "argv"),
-               ToV8Value(context, env->argv()).ToLocalChecked()).FromJust();
+               ToV8Value(context, env->argv()).ToLocalChecked()).Check();
 
   // process.execArgv
   process->Set(context,
                FIXED_ONE_BYTE_STRING(isolate, "execArgv"),
                ToV8Value(context, env->exec_argv())
-                   .ToLocalChecked()).FromJust();
+                   .ToLocalChecked()).Check();
 
   READONLY_PROPERTY(process, "pid",
                     Integer::New(isolate, uv_os_getpid()));
@@ -212,7 +212,7 @@ void PatchProcessObject(const FunctionCallbackInfo<Value>& args) {
                                   NewStringType::kInternalized,
                                   exec_path.size())
                   .ToLocalChecked())
-        .FromJust();
+        .Check();
   }
 
   // process.debugPort

@@ -755,7 +755,7 @@ void Initialize(Local<Object> target,
   target
       ->Set(
           context, FIXED_ONE_BYTE_STRING(isolate, "envSettings"), env_settings)
-      .FromJust();
+      .Check();
 
   Local<Object> types = Object::New(isolate);
   NODE_DEFINE_CONSTANT(types, kNoOp);
@@ -767,7 +767,7 @@ void Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(types, kHostPort);
   NODE_DEFINE_CONSTANT(types, kStringList);
   target->Set(context, FIXED_ONE_BYTE_STRING(isolate, "types"), types)
-      .FromJust();
+      .Check();
 }
 
 }  // namespace options_parser

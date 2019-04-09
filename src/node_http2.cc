@@ -2530,7 +2530,7 @@ void Http2Session::UpdateChunksSent(const FunctionCallbackInfo<Value>& args) {
 
   session->object()->Set(env->context(),
                          env->chunks_sent_since_last_write_string(),
-                         Integer::NewFromUnsigned(isolate, length)).FromJust();
+                         Integer::NewFromUnsigned(isolate, length)).Check();
 
   args.GetReturnValue().Set(length);
 }
@@ -3015,7 +3015,7 @@ void Initialize(Local<Object> target,
   env->set_http2stream_constructor_template(streamt);
   target->Set(context,
               FIXED_ONE_BYTE_STRING(env->isolate(), "Http2Stream"),
-              stream->GetFunction(env->context()).ToLocalChecked()).FromJust();
+              stream->GetFunction(env->context()).ToLocalChecked()).Check();
 
   Local<FunctionTemplate> session =
       env->NewFunctionTemplate(Http2Session::New);
@@ -3043,7 +3043,7 @@ void Initialize(Local<Object> target,
       Http2Session::RefreshSettings<nghttp2_session_get_remote_settings>);
   target->Set(context,
               http2SessionClassName,
-              session->GetFunction(env->context()).ToLocalChecked()).FromJust();
+              session->GetFunction(env->context()).ToLocalChecked()).Check();
 
   Local<Object> constants = Object::New(isolate);
   Local<Array> name_for_error_code = Array::New(isolate);
@@ -3078,7 +3078,7 @@ void Initialize(Local<Object> target,
   name_for_error_code->Set(env->context(),                              \
                            static_cast<int>(name),                      \
                            FIXED_ONE_BYTE_STRING(isolate,               \
-                                                 #name)).FromJust();
+                                                 #name)).Check();
   NODE_NGHTTP2_ERROR_CODES(V)
 #undef V
 
@@ -3146,10 +3146,10 @@ HTTP_STATUS_CODES(V)
 
   target->Set(context,
               env->constants_string(),
-              constants).FromJust();
+              constants).Check();
   target->Set(context,
               FIXED_ONE_BYTE_STRING(isolate, "nameForErrorCode"),
-              name_for_error_code).FromJust();
+              name_for_error_code).Check();
 }
 }  // namespace http2
 }  // namespace node

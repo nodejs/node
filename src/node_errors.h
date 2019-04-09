@@ -70,7 +70,7 @@ void FatalException(v8::Isolate* isolate,
         v8::Exception::type(js_msg)->ToObject(                                \
             isolate->GetCurrentContext()).ToLocalChecked();                   \
     e->Set(isolate->GetCurrentContext(), OneByteString(isolate, "code"),      \
-           js_code).FromJust();                                               \
+           js_code).Check();                                                  \
     return e;                                                                 \
   }                                                                           \
   inline void THROW_ ## code(v8::Isolate* isolate, const char* message) {     \

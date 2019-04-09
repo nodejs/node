@@ -64,7 +64,7 @@ class ProcessWrap : public HandleWrap {
 
     target->Set(env->context(),
                 processString,
-                constructor->GetFunction(context).ToLocalChecked()).FromJust();
+                constructor->GetFunction(context).ToLocalChecked()).Check();
   }
 
   SET_NO_MEMORY_INFO()
@@ -261,7 +261,7 @@ class ProcessWrap : public HandleWrap {
       CHECK_EQ(wrap->process_.data, wrap);
       wrap->object()->Set(context, env->pid_string(),
                           Integer::New(env->isolate(),
-                                       wrap->process_.pid)).FromJust();
+                                       wrap->process_.pid)).Check();
     }
 
     if (options.args) {

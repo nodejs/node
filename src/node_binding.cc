@@ -633,7 +633,7 @@ void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
   Local<String> exports_prop =
       String::NewFromUtf8(env->isolate(), "exports", NewStringType::kNormal)
           .ToLocalChecked();
-  module->Set(env->context(), exports_prop, exports).FromJust();
+  module->Set(env->context(), exports_prop, exports).Check();
 
   if (mod->nm_context_register_func != nullptr) {
     mod->nm_context_register_func(

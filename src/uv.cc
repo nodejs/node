@@ -111,7 +111,7 @@ void Initialize(Local<Object> target,
               FIXED_ONE_BYTE_STRING(isolate, "errname"),
               env->NewFunctionTemplate(ErrName)
                   ->GetFunction(env->context())
-                  .ToLocalChecked()).FromJust();
+                  .ToLocalChecked()).Check();
 
   // TODO(joyeecheung): This should be deprecated in user land in favor of
   // `util.getSystemErrorName(err)`.
@@ -124,7 +124,7 @@ void Initialize(Local<Object> target,
     const std::string prefixed_name = prefix + error.name;
     Local<String> name = OneByteString(isolate, prefixed_name.c_str());
     Local<Integer> value = Integer::New(isolate, error.value);
-    target->DefineOwnProperty(context, name, value, attributes).FromJust();
+    target->DefineOwnProperty(context, name, value, attributes).Check();
   }
 
   env->SetMethod(target, "getErrorMap", GetErrMap);

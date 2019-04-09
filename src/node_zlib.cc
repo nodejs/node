@@ -1225,7 +1225,7 @@ struct MakeClass {
     z->SetClassName(zlibString);
     target->Set(env->context(),
                 zlibString,
-                z->GetFunction(env->context()).ToLocalChecked()).FromJust();
+                z->GetFunction(env->context()).ToLocalChecked()).Check();
   }
 };
 
@@ -1241,7 +1241,7 @@ void Initialize(Local<Object> target,
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "ZLIB_VERSION"),
-              FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION)).FromJust();
+              FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION)).Check();
 }
 
 }  // anonymous namespace

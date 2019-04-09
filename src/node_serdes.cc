@@ -284,7 +284,7 @@ DeserializerContext::DeserializerContext(Environment* env,
     data_(reinterpret_cast<const uint8_t*>(Buffer::Data(buffer))),
     length_(Buffer::Length(buffer)),
     deserializer_(env->isolate(), data_, length_, this) {
-  object()->Set(env->context(), env->buffer_string(), buffer).FromJust();
+  object()->Set(env->context(), env->buffer_string(), buffer).Check();
   deserializer_.SetExpectInlineWasm(true);
 
   MakeWeak();
@@ -471,7 +471,7 @@ void Initialize(Local<Object> target,
   ser->SetClassName(serializerString);
   target->Set(env->context(),
               serializerString,
-              ser->GetFunction(env->context()).ToLocalChecked()).FromJust();
+              ser->GetFunction(env->context()).ToLocalChecked()).Check();
 
   Local<FunctionTemplate> des =
       env->NewFunctionTemplate(DeserializerContext::New);
@@ -496,7 +496,7 @@ void Initialize(Local<Object> target,
   des->SetClassName(deserializerString);
   target->Set(env->context(),
               deserializerString,
-              des->GetFunction(env->context()).ToLocalChecked()).FromJust();
+              des->GetFunction(env->context()).ToLocalChecked()).Check();
 }
 
 }  // anonymous namespace

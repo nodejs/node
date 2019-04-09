@@ -57,7 +57,7 @@ void Initialize(Local<Object> target,
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "immediateInfo"),
-              env->immediate_info()->fields().GetJSArray()).FromJust();
+              env->immediate_info()->fields().GetJSArray()).Check();
 }
 
 

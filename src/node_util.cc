@@ -220,7 +220,7 @@ void Initialize(Local<Object> target,
 #define V(name, _)                                                            \
   target->Set(context,                                                        \
               FIXED_ONE_BYTE_STRING(env->isolate(), #name),                   \
-              Integer::NewFromUnsigned(env->isolate(), index++)).FromJust();
+              Integer::NewFromUnsigned(env->isolate(), index++)).Check();
   {
     uint32_t index = 0;
     PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
@@ -261,7 +261,7 @@ void Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(constants, SKIP_SYMBOLS);
   target->Set(context,
               FIXED_ONE_BYTE_STRING(env->isolate(), "propertyFilter"),
-              constants).FromJust();
+              constants).Check();
 
   Local<String> should_abort_on_uncaught_toggle =
       FIXED_ONE_BYTE_STRING(env->isolate(), "shouldAbortOnUncaughtToggle");
@@ -279,7 +279,7 @@ void Initialize(Local<Object> target,
   weak_ref->SetClassName(weak_ref_string);
   env->SetProtoMethod(weak_ref, "get", WeakReference::Get);
   target->Set(context, weak_ref_string,
-              weak_ref->GetFunction(context).ToLocalChecked()).FromJust();
+              weak_ref->GetFunction(context).ToLocalChecked()).Check();
 }
 
 }  // namespace util

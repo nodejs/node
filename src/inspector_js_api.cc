@@ -280,7 +280,7 @@ void Initialize(Local<Object> target, Local<Value> unused,
           ->GetFunction(context)
           .ToLocalChecked();
   auto name_string = FIXED_ONE_BYTE_STRING(env->isolate(), "consoleCall");
-  target->Set(context, name_string, consoleCallFunc).FromJust();
+  target->Set(context, name_string, consoleCallFunc).Check();
   consoleCallFunc->SetName(name_string);
 
   env->SetMethod(

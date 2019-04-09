@@ -112,7 +112,7 @@ Local<Object> MapToObject(Local<Context> context,
   Local<Object> out = Object::New(isolate);
   for (auto const& x : in) {
     Local<String> key = OneByteString(isolate, x.first.c_str(), x.first.size());
-    out->Set(context, key, x.second.ToStringChecked(isolate)).FromJust();
+    out->Set(context, key, x.second.ToStringChecked(isolate)).Check();
   }
   return out;
 }
@@ -156,12 +156,12 @@ void NativeModuleLoader::GetModuleCategories(
       ->Set(context,
             OneByteString(isolate, "cannotBeRequired"),
             ToJsSet(context, cannot_be_required))
-      .FromJust();
+      .Check();
   result
       ->Set(context,
             OneByteString(isolate, "canBeRequired"),
             ToJsSet(context, can_be_required))
-      .FromJust();
+      .Check();
   info.GetReturnValue().Set(result);
 }
 
@@ -175,12 +175,12 @@ void NativeModuleLoader::GetCacheUsage(
       ->Set(env->context(),
             OneByteString(isolate, "compiledWithCache"),
             ToJsSet(context, env->native_modules_with_cache))
-      .FromJust();
+      .Check();
   result
       ->Set(env->context(),
             OneByteString(isolate, "compiledWithoutCache"),
             ToJsSet(context, env->native_modules_without_cache))
-      .FromJust();
+      .Check();
   args.GetReturnValue().Set(result);
 }
 
@@ -418,7 +418,7 @@ void NativeModuleLoader::Initialize(Local<Object> target,
       target, "compileFunction", NativeModuleLoader::CompileFunction);
   env->SetMethod(target, "getCodeCache", NativeModuleLoader::GetCodeCache);
   // internalBinding('native_module') should be frozen
-  target->SetIntegrityLevel(context, IntegrityLevel::kFrozen).FromJust();
+  target->SetIntegrityLevel(context, IntegrityLevel::kFrozen).Check();
 }
 
 }  // namespace native_module

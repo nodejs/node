@@ -487,11 +487,11 @@ void AsyncWrap::Initialize(Local<Object> target,
 
   target->Set(context,
               env->async_ids_stack_string(),
-              env->async_hooks()->async_ids_stack().GetJSArray()).FromJust();
+              env->async_hooks()->async_ids_stack().GetJSArray()).Check();
 
   target->Set(context,
               FIXED_ONE_BYTE_STRING(env->isolate(), "owner_symbol"),
-              env->owner_symbol()).FromJust();
+              env->owner_symbol()).Check();
 
   Local<Object> constants = Object::New(isolate);
 #define SET_HOOKS_CONSTANT(name)                                              \
@@ -542,7 +542,7 @@ void AsyncWrap::Initialize(Local<Object> target,
     instance_template->SetInternalFieldCount(1);
     auto function =
         function_template->GetFunction(env->context()).ToLocalChecked();
-    target->Set(env->context(), class_name, function).FromJust();
+    target->Set(env->context(), class_name, function).Check();
     env->set_async_wrap_object_ctor_template(function_template);
   }
 }

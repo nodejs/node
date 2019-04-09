@@ -139,12 +139,12 @@ void Initialize(Local<Object> target,
                                     "heapStatisticsArrayBuffer"),
               ArrayBuffer::New(env->isolate(),
                                env->heap_statistics_buffer(),
-                               heap_statistics_buffer_byte_length)).FromJust();
+                               heap_statistics_buffer_byte_length)).Check();
 
 #define V(i, _, name)                                                         \
   target->Set(env->context(),                                                 \
               FIXED_ONE_BYTE_STRING(env->isolate(), #name),                   \
-              Uint32::NewFromUnsigned(env->isolate(), i)).FromJust();
+              Uint32::NewFromUnsigned(env->isolate(), i)).Check();
 
   HEAP_STATISTICS_PROPERTIES(V)
 #undef V
@@ -154,7 +154,7 @@ void Initialize(Local<Object> target,
                                     "kHeapSpaceStatisticsPropertiesCount"),
               Uint32::NewFromUnsigned(env->isolate(),
                                       kHeapSpaceStatisticsPropertiesCount))
-              .FromJust();
+              .Check();
 
   size_t number_of_heap_spaces = env->isolate()->NumberOfHeapSpaces();
 
@@ -169,11 +169,11 @@ void Initialize(Local<Object> target,
                                                         s.space_name(),
                                                         NewStringType::kNormal)
                                         .ToLocalChecked();
-    heap_spaces->Set(env->context(), i, heap_space_name).FromJust();
+    heap_spaces->Set(env->context(), i, heap_space_name).Check();
   }
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "kHeapSpaces"),
-              heap_spaces).FromJust();
+              heap_spaces).Check();
 
   env->SetMethod(target,
                  "updateHeapSpaceStatisticsArrayBuffer",
@@ -193,12 +193,12 @@ void Initialize(Local<Object> target,
               ArrayBuffer::New(env->isolate(),
                                env->heap_space_statistics_buffer(),
                                heap_space_statistics_buffer_byte_length))
-              .FromJust();
+              .Check();
 
 #define V(i, _, name)                                                         \
   target->Set(env->context(),                                                 \
               FIXED_ONE_BYTE_STRING(env->isolate(), #name),                   \
-              Uint32::NewFromUnsigned(env->isolate(), i)).FromJust();
+              Uint32::NewFromUnsigned(env->isolate(), i)).Check();
 
   HEAP_SPACE_STATISTICS_PROPERTIES(V)
 #undef V

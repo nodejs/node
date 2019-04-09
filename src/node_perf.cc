@@ -65,7 +65,7 @@ inline void InitObject(const PerformanceEntry& entry, Local<Object> obj) {
                                              NewStringType::kNormal)
                              .ToLocalChecked(),
                          attr)
-      .FromJust();
+      .Check();
   obj->DefineOwnProperty(context,
                          env->entry_type_string(),
                          String::NewFromUtf8(isolate,
@@ -73,15 +73,15 @@ inline void InitObject(const PerformanceEntry& entry, Local<Object> obj) {
                                              NewStringType::kNormal)
                              .ToLocalChecked(),
                          attr)
-      .FromJust();
+      .Check();
   obj->DefineOwnProperty(context,
                          env->start_time_string(),
                          Number::New(isolate, entry.startTime()),
-                         attr).FromJust();
+                         attr).Check();
   obj->DefineOwnProperty(context,
                          env->duration_string(),
                          Number::New(isolate, entry.duration()),
-                         attr).FromJust();
+                         attr).Check();
 }
 
 // Create a new PerformanceEntry object
@@ -245,7 +245,7 @@ void PerformanceGCCallback(Environment* env, void* ptr) {
     obj->DefineOwnProperty(context,
                            env->kind_string(),
                            Integer::New(env->isolate(), entry->gckind()),
-                           attr).FromJust();
+                           attr).Check();
     PerformanceEntry::Notify(env, entry->kind(), obj);
   }
 }
@@ -351,7 +351,7 @@ void TimerFunctionCall(const FunctionCallbackInfo<Value>& args) {
   Local<Object> obj;
   if (!entry.ToObject().ToLocal(&obj)) return;
   for (idx = 0; idx < count; idx++)
-    obj->Set(context, idx, args[idx]).FromJust();
+    obj->Set(context, idx, args[idx]).Check();
   PerformanceEntry::Notify(env, entry.kind(), obj);
 }
 
@@ -542,10 +542,10 @@ void Initialize(Local<Object> target,
 
   target->Set(context,
               FIXED_ONE_BYTE_STRING(isolate, "observerCounts"),
-              state->observers.GetJSArray()).FromJust();
+              state->observers.GetJSArray()).Check();
   target->Set(context,
               FIXED_ONE_BYTE_STRING(isolate, "milestones"),
-              state->milestones.GetJSArray()).FromJust();
+              state->milestones.GetJSArray()).Check();
 
   Local<String> performanceEntryString =
       FIXED_ONE_BYTE_STRING(isolate, "PerformanceEntry");
@@ -553,7 +553,7 @@ void Initialize(Local<Object> target,
   Local<FunctionTemplate> pe = FunctionTemplate::New(isolate);
   pe->SetClassName(performanceEntryString);
   Local<Function> fn = pe->GetFunction(context).ToLocalChecked();
-  target->Set(context, performanceEntryString, fn).FromJust();
+  target->Set(context, performanceEntryString, fn).Check();
   env->set_performance_entry_template(fn);
 
   env->SetMethod(target, "clearMark", ClearMark);
@@ -617,7 +617,7 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(eldh, "disable", ELDHistogramDisable);
   env->SetProtoMethod(eldh, "reset", ELDHistogramReset);
   target->Set(context, eldh_classname,
-              eldh->GetFunction(env->context()).ToLocalChecked()).FromJust();
+              eldh->GetFunction(env->context()).ToLocalChecked()).Check();
 }
 
 }  // namespace performance
