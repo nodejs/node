@@ -1400,6 +1400,30 @@ process.kill(process.pid, 'SIGHUP');
 When `SIGUSR1` is received by a Node.js process, Node.js will start the
 debugger. See [Signal Events][].
 
+## process.LIBUV\_HANDLE\_TYPES
+
+This object indicates type enums for [libuv handles][] types.
+
+## process.libuvHandlesCount()
+
+Get [libuv handles][] count for current tick.
+
+The returned object contains two fileds:
+
+```js
+{
+  total: <TOTAL_COUNT>,
+  each: [ <TYPE_1_COUNT>, <TYPE_2_COUNT>, ... ]
+}
+```
+
+You may get type enum via `process.LIBUV_HANDLE_TYPES`. e.g.
+
+```js
+const result = process.libuvHandlesCount();
+result.each[process.LIBUV_HANDLE_TYPES.ASYNC]; // count of `uv_async_t`
+```
+
 ## process.mainModule
 <!-- YAML
 added: v0.1.17
@@ -2328,3 +2352,4 @@ cases:
 [process_emit_warning]: #process_process_emitwarning_warning_type_code_ctor
 [process_warning]: #process_event_warning
 [report documentation]: report.html
+[libuv handles]: http://docs.libuv.org/en/v1.x/handle.html

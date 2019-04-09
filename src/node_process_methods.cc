@@ -28,6 +28,10 @@ typedef int mode_t;
 #include <termios.h>  // tcgetattr, tcsetattr
 #endif
 
+typedef std::vector<uv_handle_t*> libuv_handle_array;
+unsigned int _libuv_handles_each_count[UV_HANDLE_TYPE_MAX];
+unsigned int _libuv_handles_each_count_size = sizeof(unsigned int) * UV_HANDLE_TYPE_MAX;
+
 namespace node {
 
 using v8::Array;
@@ -399,6 +403,37 @@ static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
   env->Exit(code);
 }
 
+void uv_handle_count_walk(uv_handle_t* handle, void* arg)
+{
+    libuv_handle_array* array = (libuv_handle_array*)arg;
+    array->push_back(handle);
+}
+
+static void LibuvCount(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  uv_handle_type temp_type;
+  libuv_handle_array handles;
+  uv_walk(env->event_loop(), uv_handle_count_walk, (void*)&handles);
+
+  memset(_libuv_handles_each_count, 0, _libuv_handles_each_count_size);
+  for (unsigned int i = 0; i < handles.size(); i++) {
+    temp_type = handles[i]->type;
+    if(temp_type >= UV_HANDLE_TYPE_MAX || temp_type < 0) {
+      temp_type = UV_UNKNOWN_HANDLE;
+    }
+    _libuv_handles_each_count[(unsigned int)temp_type]++;
+  }
+
+  std::vector<Local<Value>> result(UV_HANDLE_TYPE_MAX);
+  for (unsigned int i = 0; i < UV_HANDLE_TYPE_MAX; i++) {
+    result[i] = Number::New(isolate, _libuv_handles_each_count[i]);
+  }
+
+  args.GetReturnValue().Set(Array::New(isolate, result.data(), result.size()));
+}
+
 static void InitializeProcessMethods(Local<Object> target,
                                      Local<Value> unused,
                                      Local<Context> context,
@@ -428,6 +463,7 @@ static void InitializeProcessMethods(Local<Object> target,
   env->SetMethod(target, "_getActiveHandles", GetActiveHandles);
   env->SetMethod(target, "_kill", Kill);
 
+  env->SetMethod(target, "libuvHandlesCount", LibuvCount);
   env->SetMethodNoSideEffect(target, "cwd", Cwd);
   env->SetMethod(target, "dlopen", binding::DLOpen);
   env->SetMethod(target, "reallyExit", ReallyExit);
