@@ -31,13 +31,13 @@ StreamPipe::StreamPipe(StreamBase* source,
   // if that applies to the given streams (for example, Http2Streams use
   // weak references).
   obj->Set(env()->context(), env()->source_string(), source->GetObject())
-      .FromJust();
+      .Check();
   source->GetObject()->Set(env()->context(), env()->pipe_target_string(), obj)
-      .FromJust();
+      .Check();
   obj->Set(env()->context(), env()->sink_string(), sink->GetObject())
-      .FromJust();
+      .Check();
   sink->GetObject()->Set(env()->context(), env()->pipe_source_string(), obj)
-      .FromJust();
+      .Check();
 }
 
 StreamPipe::~StreamPipe() {
@@ -267,7 +267,7 @@ void InitializeStreamPipe(Local<Object> target,
   target
       ->Set(context, stream_pipe_string,
             pipe->GetFunction(context).ToLocalChecked())
-      .FromJust();
+      .Check();
 }
 
 }  // anonymous namespace

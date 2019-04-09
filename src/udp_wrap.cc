@@ -139,7 +139,7 @@ void UDPWrap::Initialize(Local<Object> target,
 
   target->Set(env->context(),
               udpString,
-              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
+              t->GetFunction(env->context()).ToLocalChecked()).Check();
   env->set_udp_constructor_function(
       t->GetFunction(env->context()).ToLocalChecked());
 
@@ -152,13 +152,13 @@ void UDPWrap::Initialize(Local<Object> target,
   swt->SetClassName(sendWrapString);
   target->Set(env->context(),
               sendWrapString,
-              swt->GetFunction(env->context()).ToLocalChecked()).FromJust();
+              swt->GetFunction(env->context()).ToLocalChecked()).Check();
 
   Local<Object> constants = Object::New(env->isolate());
   NODE_DEFINE_CONSTANT(constants, UV_UDP_IPV6ONLY);
   target->Set(context,
               env->constants_string(),
-              constants).FromJust();
+              constants).Check();
 }
 
 

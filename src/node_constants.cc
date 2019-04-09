@@ -1367,31 +1367,31 @@ void DefineConstants(v8::Isolate* isolate, Local<Object> target) {
 
   os_constants->Set(env->context(),
                     OneByteString(isolate, "dlopen"),
-                    dlopen_constants).FromJust();
+                    dlopen_constants).Check();
   os_constants->Set(env->context(),
                     OneByteString(isolate, "errno"),
-                    err_constants).FromJust();
+                    err_constants).Check();
   os_constants->Set(env->context(),
                     OneByteString(isolate, "signals"),
-                    sig_constants).FromJust();
+                    sig_constants).Check();
   os_constants->Set(env->context(),
                     OneByteString(isolate, "priority"),
-                    priority_constants).FromJust();
+                    priority_constants).Check();
   target->Set(env->context(),
               OneByteString(isolate, "os"),
-              os_constants).FromJust();
+              os_constants).Check();
   target->Set(env->context(),
               OneByteString(isolate, "fs"),
-              fs_constants).FromJust();
+              fs_constants).Check();
   target->Set(env->context(),
               OneByteString(isolate, "crypto"),
-              crypto_constants).FromJust();
+              crypto_constants).Check();
   target->Set(env->context(),
               OneByteString(isolate, "zlib"),
-              zlib_constants).FromJust();
+              zlib_constants).Check();
   target->Set(env->context(),
               OneByteString(isolate, "trace"),
-              trace_constants).FromJust();
+              trace_constants).Check();
 }
 
 }  // namespace node

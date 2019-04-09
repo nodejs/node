@@ -206,7 +206,7 @@ void FileHandle::CloseReq::Resolve() {
   InternalCallbackScope callback_scope(this);
   Local<Promise> promise = promise_.Get(isolate);
   Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();
-  resolver->Resolve(env()->context(), Undefined(isolate)).FromJust();
+  resolver->Resolve(env()->context(), Undefined(isolate)).Check();
 }
 
 void FileHandle::CloseReq::Reject(Local<Value> reason) {
@@ -215,7 +215,7 @@ void FileHandle::CloseReq::Reject(Local<Value> reason) {
   InternalCallbackScope callback_scope(this);
   Local<Promise> promise = promise_.Get(isolate);
   Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();
-  resolver->Reject(env()->context(), reason).FromJust();
+  resolver->Reject(env()->context(), reason).Check();
 }
 
 FileHandle* FileHandle::CloseReq::file_handle() {
@@ -269,7 +269,7 @@ inline MaybeLocal<Promise> FileHandle::ClosePromise() {
   } else {
     // Already closed. Just reject the promise immediately
     resolver->Reject(context, UVException(isolate, UV_EBADF, "close"))
-        .FromJust();
+        .Check();
   }
   return scope.Escape(promise);
 }
@@ -668,11 +668,11 @@ void AfterScanDirWithTypes(uv_fs_t* req) {
   result->Set(env->context(),
               0,
               Array::New(isolate, name_v.data(),
-              name_v.size())).FromJust();
+              name_v.size())).Check();
   result->Set(env->context(),
               1,
               Array::New(isolate, type_v.data(),
-              type_v.size())).FromJust();
+              type_v.size())).Check();
   req_wrap->Resolve(result);
 }
 
@@ -739,10 +739,10 @@ inline int SyncCall(Environment* env, Local<Value> ctx, FSReqWrapSync* req_wrap,
     Isolate* isolate = env->isolate();
     ctx_obj->Set(context,
              env->errno_string(),
-             Integer::New(isolate, err)).FromJust();
+             Integer::New(isolate, err)).Check();
     ctx_obj->Set(context,
              env->syscall_string(),
-             OneByteString(isolate, syscall)).FromJust();
+             OneByteString(isolate, syscall)).Check();
   }
   return err;
 }
@@ -1085,7 +1085,7 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
                                                &error);
     if (rc.IsEmpty()) {
       Local<Object> ctx = args[3].As<Object>();
-      ctx->Set(env->context(), env->error_string(), error).FromJust();
+      ctx->Set(env->context(), env->error_string(), error).Check();
       return;
     }
 
@@ -1434,7 +1434,7 @@ static void RealPath(const FunctionCallbackInfo<Value>& args) {
                                                &error);
     if (rc.IsEmpty()) {
       Local<Object> ctx = args[3].As<Object>();
-      ctx->Set(env->context(), env->error_string(), error).FromJust();
+      ctx->Set(env->context(), env->error_string(), error).Check();
       return;
     }
 
@@ -1490,9 +1490,9 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
       if (r != 0) {
         Local<Object> ctx = args[4].As<Object>();
         ctx->Set(env->context(), env->errno_string(),
-                 Integer::New(isolate, r)).FromJust();
+                 Integer::New(isolate, r)).Check();
         ctx->Set(env->context(), env->syscall_string(),
-                 OneByteString(isolate, "readdir")).FromJust();
+                 OneByteString(isolate, "readdir")).Check();
         return;
       }
 
@@ -1504,7 +1504,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
 
       if (filename.IsEmpty()) {
         Local<Object> ctx = args[4].As<Object>();
-        ctx->Set(env->context(), env->error_string(), error).FromJust();
+        ctx->Set(env->context(), env->error_string(), error).Check();
         return;
       }
 
@@ -1519,11 +1519,11 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
     Local<Array> names = Array::New(isolate, name_v.data(), name_v.size());
     if (with_types) {
       Local<Array> result = Array::New(isolate, 2);
-      result->Set(env->context(), 0, names).FromJust();
+      result->Set(env->context(), 0, names).Check();
       result->Set(env->context(),
                   1,
                   Array::New(isolate, type_v.data(),
-                             type_v.size())).FromJust();
+                             type_v.size())).Check();
       args.GetReturnValue().Set(result);
     } else {
       args.GetReturnValue().Set(names);
@@ -2126,7 +2126,7 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
         StringBytes::Encode(isolate, path, encoding, &error);
     if (rc.IsEmpty()) {
       Local<Object> ctx = args[3].As<Object>();
-      ctx->Set(env->context(), env->error_string(), error).FromJust();
+      ctx->Set(env->context(), env->error_string(), error).Check();
       return;
     }
     args.GetReturnValue().Set(rc.ToLocalChecked());
@@ -2183,15 +2183,15 @@ void Initialize(Local<Object> target,
   target->Set(context,
               FIXED_ONE_BYTE_STRING(isolate, "kFsStatsFieldsNumber"),
               Integer::New(isolate, kFsStatsFieldsNumber))
-        .FromJust();
+        .Check();
 
   target->Set(context,
               FIXED_ONE_BYTE_STRING(isolate, "statValues"),
-              env->fs_stats_field_array()->GetJSArray()).FromJust();
+              env->fs_stats_field_array()->GetJSArray()).Check();
 
   target->Set(context,
               FIXED_ONE_BYTE_STRING(isolate, "bigintStatValues"),
-              env->fs_stats_field_bigint_array()->GetJSArray()).FromJust();
+              env->fs_stats_field_bigint_array()->GetJSArray()).Check();
 
   StatWatcher::Initialize(env, target);
 
@@ -2205,7 +2205,7 @@ void Initialize(Local<Object> target,
   target
       ->Set(context, wrapString,
             fst->GetFunction(env->context()).ToLocalChecked())
-      .FromJust();
+      .Check();
 
   // Create FunctionTemplate for FileHandleReadWrap. There’s no need
   // to do anything in the constructor, so we only store the instance template.
@@ -2242,7 +2242,7 @@ void Initialize(Local<Object> target,
   target
       ->Set(context, handleString,
             fd->GetFunction(env->context()).ToLocalChecked())
-      .FromJust();
+      .Check();
   env->set_fd_constructor_template(fdt);
 
   // Create FunctionTemplate for FileHandle::CloseReq
@@ -2260,7 +2260,7 @@ void Initialize(Local<Object> target,
   env->set_fs_use_promises_symbol(use_promises_symbol);
   target->Set(context,
               FIXED_ONE_BYTE_STRING(isolate, "kUsePromises"),
-              use_promises_symbol).FromJust();
+              use_promises_symbol).Check();
 }
 
 }  // namespace fs

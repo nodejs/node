@@ -49,7 +49,7 @@ int EmitExit(Environment* env) {
       ->Set(env->context(),
             FIXED_ONE_BYTE_STRING(env->isolate(), "_exiting"),
             True(env->isolate()))
-      .FromJust();
+      .Check();
 
   Local<String> exit_code = env->exit_code_string();
   int code = process_object->Get(env->context(), exit_code)

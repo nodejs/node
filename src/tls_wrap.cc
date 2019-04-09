@@ -436,13 +436,13 @@ Local<Value> TLSWrap::GetSSLError(int status, int* err, std::string* msg) {
 
         if (ls != nullptr)
           obj->Set(context, env()->library_string(),
-                   OneByteString(isolate, ls)).FromJust();
+                   OneByteString(isolate, ls)).Check();
         if (fs != nullptr)
           obj->Set(context, env()->function_string(),
-                   OneByteString(isolate, fs)).FromJust();
+                   OneByteString(isolate, fs)).Check();
         if (rs != nullptr) {
           obj->Set(context, env()->reason_string(),
-                   OneByteString(isolate, rs)).FromJust();
+                   OneByteString(isolate, rs)).Check();
 
           // SSL has no API to recover the error name from the number, so we
           // transform reason strings like "this error" to "ERR_SSL_THIS_ERROR",
@@ -457,7 +457,7 @@ Local<Value> TLSWrap::GetSSLError(int status, int* err, std::string* msg) {
           }
           obj->Set(context, env()->code_string(),
                    OneByteString(isolate, ("ERR_SSL_" + code).c_str()))
-                     .FromJust();
+                     .Check();
         }
 
         if (msg != nullptr)
@@ -1094,7 +1094,7 @@ void TLSWrap::Initialize(Local<Object> target,
 
   target->Set(env->context(),
               tlsWrapString,
-              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
+              t->GetFunction(env->context()).ToLocalChecked()).Check();
 }
 
 }  // namespace node

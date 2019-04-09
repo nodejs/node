@@ -79,7 +79,7 @@ using v8::Value;
   *valp = obj->Get(env->context(),                                             \
                    OneByteString(env->isolate(), #member)).ToLocalChecked()    \
               ->Int32Value(env->context())                                     \
-              .FromJust();
+              .Check();
 
 #define SLURP_OBJECT(obj, member, valp)                                    \
   if (!(obj)->IsObject()) {                                                \

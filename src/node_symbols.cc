@@ -18,7 +18,7 @@ static void Initialize(Local<Object> target,
 #define V(PropertyName, StringValue)                                           \
   target                                                                       \
       ->Set(env->context(), env->PropertyName()->Name(), env->PropertyName())  \
-      .FromJust();
+      .Check();
   PER_ISOLATE_SYMBOL_PROPERTIES(V)
 #undef V
 }

@@ -58,17 +58,17 @@ Local<Value> ErrnoException(Isolate* isolate,
   Local<Object> obj = e.As<Object>();
   obj->Set(env->context(),
            env->errno_string(),
-           Integer::New(isolate, errorno)).FromJust();
-  obj->Set(env->context(), env->code_string(), estring).FromJust();
+           Integer::New(isolate, errorno)).Check();
+  obj->Set(env->context(), env->code_string(), estring).Check();
 
   if (path_string.IsEmpty() == false) {
-    obj->Set(env->context(), env->path_string(), path_string).FromJust();
+    obj->Set(env->context(), env->path_string(), path_string).Check();
   }
 
   if (syscall != nullptr) {
     obj->Set(env->context(),
              env->syscall_string(),
-             OneByteString(isolate, syscall)).FromJust();
+             OneByteString(isolate, syscall)).Check();
   }
 
   return e;
@@ -144,13 +144,13 @@ Local<Value> UVException(Isolate* isolate,
 
   e->Set(env->context(),
          env->errno_string(),
-         Integer::New(isolate, errorno)).FromJust();
-  e->Set(env->context(), env->code_string(), js_code).FromJust();
-  e->Set(env->context(), env->syscall_string(), js_syscall).FromJust();
+         Integer::New(isolate, errorno)).Check();
+  e->Set(env->context(), env->code_string(), js_code).Check();
+  e->Set(env->context(), env->syscall_string(), js_syscall).Check();
   if (!js_path.IsEmpty())
-    e->Set(env->context(), env->path_string(), js_path).FromJust();
+    e->Set(env->context(), env->path_string(), js_path).Check();
   if (!js_dest.IsEmpty())
-    e->Set(env->context(), env->dest_string(), js_dest).FromJust();
+    e->Set(env->context(), env->dest_string(), js_dest).Check();
 
   return e;
 }
@@ -219,21 +219,21 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
 
   Local<Object> obj = e.As<Object>();
   obj->Set(env->context(), env->errno_string(), Integer::New(isolate, errorno))
-      .FromJust();
+      .Check();
 
   if (path != nullptr) {
     obj->Set(env->context(),
              env->path_string(),
              String::NewFromUtf8(isolate, path, NewStringType::kNormal)
                  .ToLocalChecked())
-        .FromJust();
+        .Check();
   }
 
   if (syscall != nullptr) {
     obj->Set(env->context(),
              env->syscall_string(),
              OneByteString(isolate, syscall))
-        .FromJust();
+        .Check();
   }
 
   if (must_free) {

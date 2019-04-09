@@ -733,7 +733,7 @@ class Parser : public AsyncWrap, public StreamListener {
         .ToLocalChecked();
       obj->Set(env()->context(),
                env()->bytes_parsed_string(),
-               nread_obj).FromJust();
+               nread_obj).Check();
 #ifdef NODE_EXPERIMENTAL_HTTP
       const char* errno_reason = llhttp_get_error_reason(&parser_);
 
@@ -750,13 +750,13 @@ class Parser : public AsyncWrap, public StreamListener {
         reason = OneByteString(env()->isolate(), errno_reason);
       }
 
-      obj->Set(env()->context(), env()->code_string(), code).FromJust();
-      obj->Set(env()->context(), env()->reason_string(), reason).FromJust();
+      obj->Set(env()->context(), env()->code_string(), code).Check();
+      obj->Set(env()->context(), env()->reason_string(), reason).Check();
 #else  /* !NODE_EXPERIMENTAL_HTTP */
       obj->Set(env()->context(),
                env()->code_string(),
                OneByteString(env()->isolate(),
-                             http_errno_name(err))).FromJust();
+                             http_errno_name(err))).Check();
 #endif  /* NODE_EXPERIMENTAL_HTTP */
       return scope.Escape(e);
     }
@@ -946,12 +946,12 @@ void InitializeHttpParser(Local<Object> target,
   Local<Array> methods = Array::New(env->isolate());
 #define V(num, name, string)                                                  \
     methods->Set(env->context(),                                              \
-        num, FIXED_ONE_BYTE_STRING(env->isolate(), #string)).FromJust();
+        num, FIXED_ONE_BYTE_STRING(env->isolate(), #string)).Check();
   HTTP_METHOD_MAP(V)
 #undef V
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "methods"),
-              methods).FromJust();
+              methods).Check();
 
   t->Inherit(AsyncWrap::GetConstructorTemplate(env));
   env->SetProtoMethod(t, "close", Parser::Close);
@@ -967,7 +967,7 @@ void InitializeHttpParser(Local<Object> target,
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "HTTPParser"),
-              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
+              t->GetFunction(env->context()).ToLocalChecked()).Check();
 
 #ifndef NODE_EXPERIMENTAL_HTTP
   static uv_once_t init_once = UV_ONCE_INIT;

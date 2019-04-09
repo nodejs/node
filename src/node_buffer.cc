@@ -1085,11 +1085,11 @@ void Initialize(Local<Object> target,
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxLength"),
-              Integer::NewFromUnsigned(env->isolate(), kMaxLength)).FromJust();
+              Integer::NewFromUnsigned(env->isolate(), kMaxLength)).Check();
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "kStringMaxLength"),
-              Integer::New(env->isolate(), String::kMaxLength)).FromJust();
+              Integer::New(env->isolate(), String::kMaxLength)).Check();
 
   env->SetMethodNoSideEffect(target, "asciiSlice", StringSlice<ASCII>);
   env->SetMethodNoSideEffect(target, "base64Slice", StringSlice<BASE64>);

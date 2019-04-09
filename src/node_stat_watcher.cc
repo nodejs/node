@@ -55,7 +55,7 @@ void StatWatcher::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "start", StatWatcher::Start);
 
   target->Set(env->context(), statWatcherString,
-              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
+              t->GetFunction(env->context()).ToLocalChecked()).Check();
 }
 
 

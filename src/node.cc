@@ -266,7 +266,7 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
   // Expose the global object as a property on itself
   // (Allows you to set stuff on `global` from anywhere in JavaScript.)
   global->Set(context, FIXED_ONE_BYTE_STRING(env->isolate(), "global"), global)
-      .FromJust();
+      .Check();
 
   // Store primordials
   env->set_primordials(Object::New(isolate));

@@ -84,12 +84,12 @@ Worker::Worker(Environment* env,
 
   object()->Set(env->context(),
                 env->message_port_string(),
-                parent_port_->object()).FromJust();
+                parent_port_->object()).Check();
 
   object()->Set(env->context(),
                 env->thread_id_string(),
                 Number::New(env->isolate(), static_cast<double>(thread_id_)))
-      .FromJust();
+      .Check();
 
 #if NODE_USE_V8_PLATFORM && HAVE_INSPECTOR
   inspector_parent_handle_ =
@@ -372,7 +372,7 @@ void Worker::OnThreadStopped() {
     // Reset the parent port as we're closing it now anyway.
     object()->Set(env()->context(),
                   env()->message_port_string(),
-                  Undefined(env()->isolate())).FromJust();
+                  Undefined(env()->isolate())).Check();
 
     Local<Value> code = Integer::New(env()->isolate(), exit_code_);
     MakeCallback(env()->onexit_string(), 1, &code);
@@ -602,7 +602,7 @@ void InitWorker(Local<Object> target,
     w->SetClassName(workerString);
     target->Set(env->context(),
                 workerString,
-                w->GetFunction(env->context()).ToLocalChecked()).FromJust();
+                w->GetFunction(env->context()).ToLocalChecked()).Check();
   }
 
   env->SetMethod(target, "getEnvMessagePort", GetEnvMessagePort);
@@ -611,19 +611,19 @@ void InitWorker(Local<Object> target,
       ->Set(env->context(),
             env->thread_id_string(),
             Number::New(env->isolate(), static_cast<double>(env->thread_id())))
-      .FromJust();
+      .Check();
 
   target
       ->Set(env->context(),
             FIXED_ONE_BYTE_STRING(env->isolate(), "isMainThread"),
             Boolean::New(env->isolate(), env->is_main_thread()))
-      .FromJust();
+      .Check();
 
   target
       ->Set(env->context(),
             FIXED_ONE_BYTE_STRING(env->isolate(), "ownsProcessState"),
             Boolean::New(env->isolate(), env->owns_process_state()))
-      .FromJust();
+      .Check();
 }
 
 }  // anonymous namespace

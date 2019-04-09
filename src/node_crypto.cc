@@ -367,7 +367,7 @@ struct CryptoErrorVector : public std::vector<std::string> {
       exception->Set(env->context(),
                      env->openssl_error_stack(),
                      ToV8Value(env->context(), *this).ToLocalChecked())
-          .FromJust();
+          .Check();
     }
 
     return exception_v;
@@ -513,7 +513,7 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
       static_cast<PropertyAttribute>(ReadOnly | DontDelete));
 
   target->Set(env->context(), secureContextString,
-              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
+              t->GetFunction(env->context()).ToLocalChecked()).Check();
   env->set_secure_context_constructor_template(t);
 }
 
@@ -1756,20 +1756,20 @@ void SSLWrap<Base>::OnClientHello(void* arg,
       env,
       reinterpret_cast<const char*>(hello.session_id()),
       hello.session_size()).ToLocalChecked();
-  hello_obj->Set(context, env->session_id_string(), buff).FromJust();
+  hello_obj->Set(context, env->session_id_string(), buff).Check();
   if (hello.servername() == nullptr) {
     hello_obj->Set(context,
                    env->servername_string(),
-                   String::Empty(env->isolate())).FromJust();
+                   String::Empty(env->isolate())).Check();
   } else {
     Local<String> servername = OneByteString(env->isolate(),
                                              hello.servername(),
                                              hello.servername_size());
-    hello_obj->Set(context, env->servername_string(), servername).FromJust();
+    hello_obj->Set(context, env->servername_string(), servername).Check();
   }
   hello_obj->Set(context,
                  env->tls_ticket_string(),
-                 Boolean::New(env->isolate(), hello.has_ticket())).FromJust();
+                 Boolean::New(env->isolate(), hello.has_ticket())).Check();
 
   Local<Value> argv[] = { hello_obj };
   w->MakeCallback(env->onclienthello_string(), arraysize(argv), argv);
@@ -1872,7 +1872,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     info->Set(context, env->subject_string(),
               String::NewFromUtf8(env->isolate(), mem->data,
                                   NewStringType::kNormal,
-                                  mem->length).ToLocalChecked()).FromJust();
+                                  mem->length).ToLocalChecked()).Check();
   }
   USE(BIO_reset(bio.get()));
 
@@ -1882,7 +1882,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     info->Set(context, env->issuer_string(),
               String::NewFromUtf8(env->isolate(), mem->data,
                                   NewStringType::kNormal,
-                                  mem->length).ToLocalChecked()).FromJust();
+                                  mem->length).ToLocalChecked()).Check();
   }
   USE(BIO_reset(bio.get()));
 
@@ -1906,7 +1906,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     info->Set(context, keys[i],
               String::NewFromUtf8(env->isolate(), mem->data,
                                   NewStringType::kNormal,
-                                  mem->length).ToLocalChecked()).FromJust();
+                                  mem->length).ToLocalChecked()).Check();
 
     USE(BIO_reset(bio.get()));
   }
@@ -1934,12 +1934,12 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     info->Set(context, env->modulus_string(),
               String::NewFromUtf8(env->isolate(), mem->data,
                                   NewStringType::kNormal,
-                                  mem->length).ToLocalChecked()).FromJust();
+                                  mem->length).ToLocalChecked()).Check();
     USE(BIO_reset(bio.get()));
 
     int bits = BN_num_bits(n);
     info->Set(context, env->bits_string(),
-              Integer::New(env->isolate(), bits)).FromJust();
+              Integer::New(env->isolate(), bits)).Check();
 
     uint64_t exponent_word = static_cast<uint64_t>(BN_get_word(e));
     uint32_t lo = static_cast<uint32_t>(exponent_word);
@@ -1953,7 +1953,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     info->Set(context, env->exponent_string(),
               String::NewFromUtf8(env->isolate(), mem->data,
                                   NewStringType::kNormal,
-                                  mem->length).ToLocalChecked()).FromJust();
+                                  mem->length).ToLocalChecked()).Check();
     USE(BIO_reset(bio.get()));
 
     int size = i2d_RSA_PUBKEY(rsa.get(), nullptr);
@@ -1962,14 +1962,14 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     unsigned char* pubserialized =
         reinterpret_cast<unsigned char*>(Buffer::Data(pubbuff));
     i2d_RSA_PUBKEY(rsa.get(), &pubserialized);
-    info->Set(env->context(), env->pubkey_string(), pubbuff).FromJust();
+    info->Set(env->context(), env->pubkey_string(), pubbuff).Check();
   } else if (ec) {
     const EC_GROUP* group = EC_KEY_get0_group(ec.get());
     if (group != nullptr) {
       int bits = EC_GROUP_order_bits(group);
       if (bits > 0) {
         info->Set(context, env->bits_string(),
-                  Integer::New(env->isolate(), bits)).FromJust();
+                  Integer::New(env->isolate(), bits)).Check();
       }
     }
 
@@ -1979,7 +1979,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
         ECPointToBuffer(
             env, group, pubkey, EC_KEY_get_conv_form(ec.get()), nullptr)
             .ToLocal(&buf)) {
-      info->Set(context, env->pubkey_string(), buf).FromJust();
+      info->Set(context, env->pubkey_string(), buf).Check();
     }
 
     const int nid = EC_GROUP_get_curve_name(group);
@@ -1988,12 +1988,12 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
 
       if (const char* sn = OBJ_nid2sn(nid)) {
         info->Set(context, env->asn1curve_string(),
-                  OneByteString(env->isolate(), sn)).FromJust();
+                  OneByteString(env->isolate(), sn)).Check();
       }
 
       if (const char* nist = EC_curve_nid2nist(nid)) {
         info->Set(context, env->nistcurve_string(),
-                  OneByteString(env->isolate(), nist)).FromJust();
+                  OneByteString(env->isolate(), nist)).Check();
       }
     } else {
       // Unnamed curves can be described by their mathematical properties,
@@ -2010,7 +2010,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
   info->Set(context, env->valid_from_string(),
             String::NewFromUtf8(env->isolate(), mem->data,
                                 NewStringType::kNormal,
-                                mem->length).ToLocalChecked()).FromJust();
+                                mem->length).ToLocalChecked()).Check();
   USE(BIO_reset(bio.get()));
 
   ASN1_TIME_print(bio.get(), X509_get_notAfter(cert));
@@ -2018,7 +2018,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
   info->Set(context, env->valid_to_string(),
             String::NewFromUtf8(env->isolate(), mem->data,
                                 NewStringType::kNormal,
-                                mem->length).ToLocalChecked()).FromJust();
+                                mem->length).ToLocalChecked()).Check();
   bio.reset();
 
   unsigned char md[EVP_MAX_MD_SIZE];
@@ -2027,12 +2027,12 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
   if (X509_digest(cert, EVP_sha1(), md, &md_size)) {
       AddFingerprintDigest(md, md_size, &fingerprint);
       info->Set(context, env->fingerprint_string(),
-                OneByteString(env->isolate(), fingerprint)).FromJust();
+                OneByteString(env->isolate(), fingerprint)).Check();
   }
   if (X509_digest(cert, EVP_sha256(), md, &md_size)) {
       AddFingerprintDigest(md, md_size, &fingerprint);
       info->Set(context, env->fingerprint256_string(),
-                OneByteString(env->isolate(), fingerprint)).FromJust();
+                OneByteString(env->isolate(), fingerprint)).Check();
   }
 
   StackOfASN1 eku(static_cast<STACK_OF(ASN1_OBJECT)*>(
@@ -2048,12 +2048,12 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
                       sk_ASN1_OBJECT_value(eku.get(), i), 1) >= 0) {
         ext_key_usage->Set(context,
                            j++,
-                           OneByteString(env->isolate(), buf)).FromJust();
+                           OneByteString(env->isolate(), buf)).Check();
       }
     }
 
     eku.reset();
-    info->Set(context, env->ext_key_usage_string(), ext_key_usage).FromJust();
+    info->Set(context, env->ext_key_usage_string(), ext_key_usage).Check();
   }
 
   if (ASN1_INTEGER* serial_number = X509_get_serialNumber(cert)) {
@@ -2062,7 +2062,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
       OpenSSLBuffer buf(BN_bn2hex(bn.get()));
       if (buf) {
         info->Set(context, env->serial_number_string(),
-                  OneByteString(env->isolate(), buf.get())).FromJust();
+                  OneByteString(env->isolate(), buf.get())).Check();
       }
     }
   }
@@ -2073,7 +2073,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
   unsigned char* serialized = reinterpret_cast<unsigned char*>(
       Buffer::Data(buff));
   i2d_X509(cert, &serialized);
-  info->Set(context, env->raw_string(), buff).FromJust();
+  info->Set(context, env->raw_string(), buff).Check();
 
   return scope.Escape(info);
 }
@@ -2093,7 +2093,7 @@ static Local<Object> AddIssuerChainToObject(X509Pointer* cert,
         continue;
 
       Local<Object> ca_info = X509ToObject(env, ca);
-      object->Set(context, env->issuercert_string(), ca_info).FromJust();
+      object->Set(context, env->issuercert_string(), ca_info).Check();
       object = ca_info;
 
       // NOTE: Intentionally freeing cert that is not used anymore.
@@ -2137,7 +2137,7 @@ static Local<Object> GetLastIssuedCert(X509Pointer* cert,
       break;
 
     Local<Object> ca_info = X509ToObject(env, ca);
-    issuer_chain->Set(context, env->issuercert_string(), ca_info).FromJust();
+    issuer_chain->Set(context, env->issuercert_string(), ca_info).Check();
     issuer_chain = ca_info;
 
     // Delete previous cert and continue aggregating issuers.
@@ -2187,7 +2187,7 @@ void SSLWrap<Base>::GetPeerCertificate(
     if (X509_check_issued(cert.get(), cert.get()) == X509_V_OK)
       issuer_chain->Set(env->context(),
                         env->issuercert_string(),
-                        issuer_chain).FromJust();
+                        issuer_chain).Check();
   }
 
  done:
@@ -2437,10 +2437,10 @@ void SSLWrap<Base>::GetEphemeralKeyInfo(
     switch (kid) {
       case EVP_PKEY_DH:
         info->Set(context, env->type_string(),
-                  FIXED_ONE_BYTE_STRING(env->isolate(), "DH")).FromJust();
+                  FIXED_ONE_BYTE_STRING(env->isolate(), "DH")).Check();
         info->Set(context, env->size_string(),
                   Integer::New(env->isolate(), EVP_PKEY_bits(key.get())))
-            .FromJust();
+            .Check();
         break;
       case EVP_PKEY_EC:
       case EVP_PKEY_X25519:
@@ -2456,13 +2456,13 @@ void SSLWrap<Base>::GetEphemeralKeyInfo(
             curve_name = OBJ_nid2sn(kid);
           }
           info->Set(context, env->type_string(),
-                    FIXED_ONE_BYTE_STRING(env->isolate(), "ECDH")).FromJust();
+                    FIXED_ONE_BYTE_STRING(env->isolate(), "ECDH")).Check();
           info->Set(context, env->name_string(),
                     OneByteString(args.GetIsolate(),
-                                  curve_name)).FromJust();
+                                  curve_name)).Check();
           info->Set(context, env->size_string(),
                     Integer::New(env->isolate(),
-                                 EVP_PKEY_bits(key.get()))).FromJust();
+                                 EVP_PKEY_bits(key.get()))).Check();
         }
         break;
       default:
@@ -2551,7 +2551,7 @@ void SSLWrap<Base>::VerifyError(const FunctionCallbackInfo<Value>& args) {
   Local<Object> exception_object =
     exception_value->ToObject(isolate->GetCurrentContext()).ToLocalChecked();
   exception_object->Set(w->env()->context(), w->env()->code_string(),
-                        OneByteString(isolate, code)).FromJust();
+                        OneByteString(isolate, code)).Check();
   args.GetReturnValue().Set(exception_object);
 }
 
@@ -2570,10 +2570,10 @@ void SSLWrap<Base>::GetCipher(const FunctionCallbackInfo<Value>& args) {
   Local<Object> info = Object::New(env->isolate());
   const char* cipher_name = SSL_CIPHER_get_name(c);
   info->Set(context, env->name_string(),
-            OneByteString(args.GetIsolate(), cipher_name)).FromJust();
+            OneByteString(args.GetIsolate(), cipher_name)).Check();
   const char* cipher_version = SSL_CIPHER_get_version(c);
   info->Set(context, env->version_string(),
-            OneByteString(args.GetIsolate(), cipher_version)).FromJust();
+            OneByteString(args.GetIsolate(), cipher_version)).Check();
   args.GetReturnValue().Set(info);
 }
 
@@ -2754,16 +2754,16 @@ int SSLWrap<Base>::SSLCertCallback(SSL* s, void* arg) {
   if (servername == nullptr) {
     info->Set(context,
               env->servername_string(),
-              String::Empty(env->isolate())).FromJust();
+              String::Empty(env->isolate())).Check();
   } else {
     Local<String> str = OneByteString(env->isolate(), servername,
                                       strlen(servername));
-    info->Set(context, env->servername_string(), str).FromJust();
+    info->Set(context, env->servername_string(), str).Check();
   }
 
   const bool ocsp = (SSL_get_tlsext_status_type(s) == TLSEXT_STATUSTYPE_ocsp);
   info->Set(context, env->ocsp_request_string(),
-            Boolean::New(env->isolate(), ocsp)).FromJust();
+            Boolean::New(env->isolate(), ocsp)).Check();
 
   Local<Value> argv[] = { info };
   w->MakeCallback(env->oncertcb_string(), arraysize(argv), argv);
@@ -3570,7 +3570,7 @@ Local<Function> KeyObject::Initialize(Environment* env, Local<Object> target) {
   auto function = t->GetFunction(env->context()).ToLocalChecked();
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "KeyObject"),
-              function).FromJust();
+              function).Check();
 
   return function;
 }
@@ -3782,7 +3782,7 @@ void CipherBase::Initialize(Environment* env, Local<Object> target) {
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "CipherBase"),
-              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
+              t->GetFunction(env->context()).ToLocalChecked()).Check();
 }
 
 
@@ -4398,7 +4398,7 @@ void Hmac::Initialize(Environment* env, Local<Object> target) {
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "Hmac"),
-              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
+              t->GetFunction(env->context()).ToLocalChecked()).Check();
 }
 
 
@@ -4516,7 +4516,7 @@ void Hash::Initialize(Environment* env, Local<Object> target) {
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "Hash"),
-              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
+              t->GetFunction(env->context()).ToLocalChecked()).Check();
 }
 
 
@@ -4714,7 +4714,7 @@ void Sign::Initialize(Environment* env, Local<Object> target) {
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "Sign"),
-              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
+              t->GetFunction(env->context()).ToLocalChecked()).Check();
 }
 
 
@@ -4961,7 +4961,7 @@ void Verify::Initialize(Environment* env, Local<Object> target) {
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "Verify"),
-              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
+              t->GetFunction(env->context()).ToLocalChecked()).Check();
 }
 
 
@@ -5233,7 +5233,7 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
 
     target->Set(env->context(),
                 name,
-                t->GetFunction(env->context()).ToLocalChecked()).FromJust();
+                t->GetFunction(env->context()).ToLocalChecked()).Check();
   };
 
   make(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellman"), New);
@@ -5567,7 +5567,7 @@ void ECDH::Initialize(Environment* env, Local<Object> target) {
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "ECDH"),
-              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
+              t->GetFunction(env->context()).ToLocalChecked()).Check();
 }
 
 
@@ -6464,7 +6464,7 @@ void GetSSLCiphers(const FunctionCallbackInfo<Value>& args) {
     arr->Set(env->context(),
              i,
              OneByteString(args.GetIsolate(),
-                           SSL_CIPHER_get_name(cipher))).FromJust();
+                           SSL_CIPHER_get_name(cipher))).Check();
   }
 
   // TLSv1.3 ciphers aren't listed by EVP. There are only 5, we could just
@@ -6482,7 +6482,7 @@ void GetSSLCiphers(const FunctionCallbackInfo<Value>& args) {
   for (unsigned i = 0; i < arraysize(TLS13_CIPHERS); ++i) {
     const char* name = TLS13_CIPHERS[i];
     arr->Set(env->context(),
-             arr->Length(), OneByteString(args.GetIsolate(), name)).FromJust();
+             arr->Length(), OneByteString(args.GetIsolate(), name)).Check();
   }
 
   args.GetReturnValue().Set(arr);
@@ -6513,7 +6513,7 @@ static void array_push_back(const TypeName* md,
   CipherPushContext* ctx = static_cast<CipherPushContext*>(arg);
   ctx->arr->Set(ctx->env()->context(),
                 ctx->arr->Length(),
-                OneByteString(ctx->env()->isolate(), from)).FromJust();
+                OneByteString(ctx->env()->isolate(), from)).Check();
 }
 
 
@@ -6546,7 +6546,7 @@ void GetCurves(const FunctionCallbackInfo<Value>& args) {
         arr->Set(env->context(),
                  i,
                  OneByteString(env->isolate(),
-                               OBJ_nid2sn(curves[i].nid))).FromJust();
+                               OBJ_nid2sn(curves[i].nid))).Check();
       }
     }
   }

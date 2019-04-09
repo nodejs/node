@@ -59,7 +59,7 @@ class SignalWrap : public HandleWrap {
 
     target->Set(env->context(), signalString,
                 constructor->GetFunction(env->context()).ToLocalChecked())
-                .FromJust();
+                .Check();
   }
 
   SET_NO_MEMORY_INFO()
