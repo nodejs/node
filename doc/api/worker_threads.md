@@ -127,7 +127,7 @@ if (isMainThread) {
 
 ## worker.SHARE_ENV
 <!-- YAML
-added: REPLACEME
+added: v11.14.0
 -->
 
 * {symbol}

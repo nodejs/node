@@ -2271,7 +2271,7 @@ undocumented `COUNTER_NET_SERVER_CONNECTION()`,
 ### DEP0126: timers.active()
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v11.14.0
     pr-url: https://github.com/nodejs/node/pull/26760
     description: Runtime deprecation.
 -->
@@ -2287,7 +2287,7 @@ with no performance impact since Node.js 10.
 ### DEP0127: timers._unrefActive()
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v11.14.0
     pr-url: https://github.com/nodejs/node/pull/26760
     description: Runtime deprecation.
 -->
@@ -2303,7 +2303,7 @@ with no performance impact since Node.js 10.
 ### DEP0129: ChildProcess._channel
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v11.14.0
     pr-url: https://github.com/nodejs/node/pull/26982
     description: Documentation-only.
 -->
