@@ -3,7 +3,7 @@
 #include "node_context_data.h"
 #include "node_errors.h"
 #include "node_internals.h"
-#include "node_native_module.h"
+#include "node_native_module_env.h"
 #include "node_platform.h"
 #include "node_process.h"
 #include "node_v8_platform-inl.h"
@@ -351,7 +351,7 @@ Local<Context> NewContext(Isolate* isolate,
       };
       Local<Value> arguments[] = {context->Global(), exports};
       MaybeLocal<Function> maybe_fn =
-          per_process::native_module_loader.LookupAndCompile(
+          native_module::NativeModuleEnv::LookupAndCompile(
               context, *module, &parameters, nullptr);
       if (maybe_fn.IsEmpty()) {
         return Local<Context>();
