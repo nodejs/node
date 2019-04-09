@@ -79,7 +79,7 @@ class V8CpuProfilerConnection : public V8ProfilerConnection {
   bool ending() const override { return ending_; }
 
  private:
-  bool WriteCpuProfile(v8::Local<v8::String> message);
+  void WriteCpuProfile(v8::Local<v8::String> message);
   v8::MaybeLocal<v8::String> GetResult(v8::Local<v8::String> message);
 
   std::unique_ptr<inspector::InspectorSession> session_;

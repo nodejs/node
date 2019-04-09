@@ -194,8 +194,8 @@ void V8CpuProfilerConnection::OnMessage(
     return;
   }
   Isolate* isolate = env()->isolate();
-  Local<Context> context = env()->context();
   HandleScope handle_scope(isolate);
+  Local<Context> context = env()->context();
   Context::Scope context_scope(context);
   Local<String> result;
   if (!String::NewFromTwoByte(isolate,
@@ -203,12 +203,12 @@ void V8CpuProfilerConnection::OnMessage(
                               NewStringType::kNormal,
                               message.length())
            .ToLocal(&result)) {
-    fprintf(stderr, "Failed to covert profiling message\n");
+    fprintf(stderr, "Failed to convert profiling message\n");
   }
   WriteCpuProfile(result);
 }
 
-bool V8CpuProfilerConnection::WriteCpuProfile(Local<String> message) {
+void V8CpuProfilerConnection::WriteCpuProfile(Local<String> message) {
   const std::string& path = env()->cpu_profile_path();
   CHECK(!path.empty());
   std::string directory = path.substr(0, path.find_last_of(kPathSeparator));
@@ -223,14 +223,13 @@ bool V8CpuProfilerConnection::WriteCpuProfile(Local<String> message) {
               "%s: Failed to create cpu profile directory %s\n",
               err_buf,
               directory.c_str());
-      return false;
+      return;
     }
   }
   MaybeLocal<String> result = GetResult(message);
-  if (result.IsEmpty()) {
-    return false;
+  if (!result.IsEmpty()) {
+    WriteResult(path.c_str(), result.ToLocalChecked());
   }
-  return WriteResult(path.c_str(), result.ToLocalChecked());
 }
 
 MaybeLocal<String> V8CpuProfilerConnection::GetResult(Local<String> message) {
