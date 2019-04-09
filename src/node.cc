@@ -381,12 +381,14 @@ MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
       env->process_string(),
       env->require_string(),
       env->internal_binding_string(),
+      env->primordials_string(),
       FIXED_ONE_BYTE_STRING(env->isolate(), "markBootstrapComplete")};
 
   std::vector<Local<Value>> arguments = {
       env->process_object(),
       env->native_module_require(),
       env->internal_binding_loader(),
+      env->primordials(),
       env->NewFunctionTemplate(MarkBootstrapComplete)
           ->GetFunction(env->context())
           .ToLocalChecked()};
