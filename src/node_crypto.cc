@@ -226,9 +226,9 @@ static int NoPasswordCallback(char* buf, int size, int rwflag, void* u) {
 
 // namespace node::crypto::error
 namespace error {
-void Decorate(Environment* env, Local<Object> obj,
+Maybe<bool> Decorate(Environment* env, Local<Object> obj,
               unsigned long err) {  // NOLINT(runtime/int)
-  if (err == 0) return;  // No decoration possible.
+  if (err == 0) return Just(true);  // No decoration necessary.
 
   const char* ls = ERR_lib_error_string(err);
   const char* fs = ERR_func_error_string(err);
@@ -240,19 +240,19 @@ void Decorate(Environment* env, Local<Object> obj,
   if (ls != nullptr) {
     if (obj->Set(context, env->library_string(),
                  OneByteString(isolate, ls)).IsNothing()) {
-      return;
+      return Nothing<bool>();
     }
   }
   if (fs != nullptr) {
     if (obj->Set(context, env->function_string(),
                  OneByteString(isolate, fs)).IsNothing()) {
-      return;
+      return Nothing<bool>();
     }
   }
   if (rs != nullptr) {
     if (obj->Set(context, env->reason_string(),
                  OneByteString(isolate, rs)).IsNothing()) {
-      return;
+      return Nothing<bool>();
     }
 
     // SSL has no API to recover the error name from the number, so we
@@ -325,8 +325,10 @@ void Decorate(Environment* env, Local<Object> obj,
     if (obj->Set(env->isolate()->GetCurrentContext(),
              env->code_string(),
              OneByteString(env->isolate(), code)).IsNothing())
-      return;
+      return Nothing<bool>();
   }
+
+  return Just(true);
 }
 }  // namespace error
 
@@ -342,7 +344,7 @@ struct CryptoErrorVector : public std::vector<std::string> {
     std::reverse(begin(), end());
   }
 
-  inline Local<Value> ToException(
+  inline MaybeLocal<Value> ToException(
       Environment* env,
       Local<String> exception_string = Local<String>()) const {
     if (exception_string.IsEmpty()) {
@@ -364,10 +366,11 @@ struct CryptoErrorVector : public std::vector<std::string> {
     if (!empty()) {
       CHECK(exception_v->IsObject());
       Local<Object> exception = exception_v.As<Object>();
-      exception->Set(env->context(),
+      Maybe<bool> ok = exception->Set(env->context(),
                      env->openssl_error_stack(),
-                     ToV8Value(env->context(), *this).ToLocalChecked())
-          .Check();
+                     ToV8Value(env->context(), *this).ToLocalChecked());
+      if (ok.IsNothing())
+        return MaybeLocal<Value>();
     }
 
     return exception_v;
@@ -386,16 +389,19 @@ void ThrowCryptoError(Environment* env,
     message = message_buffer;
   }
   HandleScope scope(env->isolate());
-  auto exception_string =
+  Local<String> exception_string =
       String::NewFromUtf8(env->isolate(), message, NewStringType::kNormal)
       .ToLocalChecked();
   CryptoErrorVector errors;
   errors.Capture();
-  Local<Value> exception = errors.ToException(env, exception_string);
+  Local<Value> exception;
+  if (!errors.ToException(env, exception_string).ToLocal(&exception))
+    return;
   Local<Object> obj;
   if (!exception->ToObject(env->context()).ToLocal(&obj))
     return;
-  error::Decorate(env, obj, err);
+  if (error::Decorate(env, obj, err).IsNothing())
+    return;
   env->isolate()->ThrowException(exception);
 }
 
@@ -5872,7 +5878,7 @@ struct RandomBytesJob : public CryptoJob {
 
   inline Local<Value> ToResult() const {
     if (errors.empty()) return Undefined(env->isolate());
-    return errors.ToException(env);
+    return errors.ToException(env).ToLocalChecked();
   }
 };
 
@@ -6009,7 +6015,7 @@ struct ScryptJob : public CryptoJob {
 
   inline Local<Value> ToResult() const {
     if (errors.empty()) return Undefined(env->isolate());
-    return errors.ToException(env);
+    return errors.ToException(env).ToLocalChecked();
   }
 
   inline void Cleanse() {
@@ -6285,7 +6291,7 @@ class GenerateKeyPairJob : public CryptoJob {
       if (errors_.empty())
         errors_.Capture();
       CHECK(!errors_.empty());
-      *err = errors_.ToException(env);
+      *err = errors_.ToException(env).ToLocalChecked();
       *pubkey = Undefined(env->isolate());
       *privkey = Undefined(env->isolate());
     }
