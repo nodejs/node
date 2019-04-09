@@ -82,9 +82,9 @@ HTTP request open for a long time without keeping it in the agent, something
 like the following may be done:
 
 ```js
-http.get(options, (res) => {
+http.get(options, res => {
   // Do stuff
-}).on('socket', (socket) => {
+}).on('socket', socket => {
   socket.emit('agentRemove');
 });
 ```
@@ -102,7 +102,7 @@ http.get({
   port: 80,
   path: '/',
   agent: false  // Create a new agent just for this one request
-}, (res) => {
+}, res => {
   // Do stuff with response
 });
 ```
@@ -357,6 +357,7 @@ const proxy = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('okay');
 });
+
 proxy.on('connect', (req, cltSocket, head) => {
   // Connect to an origin server
   const srvUrl = url.parse(`http://${req.url}`);
@@ -392,7 +393,7 @@ proxy.listen(1337, '127.0.0.1', () => {
                  'Host: www.google.com:80\r\n' +
                  'Connection: close\r\n' +
                  '\r\n');
-    socket.on('data', (chunk) => {
+    socket.on('data', chunk => {
       console.log(chunk.toString());
     });
     socket.on('end', () => {
@@ -435,7 +436,7 @@ const options = {
 const req = http.request(options);
 req.end();
 
-req.on('information', (info) => {
+req.on('information', info => {
   console.log(`Got information prior to main response: ${info.statusCode}`);
 });
 ```
@@ -744,7 +745,7 @@ const options = {
 };
 const req = http.get(options);
 req.end();
-req.once('response', (res) => {
+req.once('response', res => {
   const ip = req.socket.localAddress;
   const port = req.socket.localPort;
   console.log(`Your IP address is ${ip} and your source port is ${port}.`);
@@ -1591,7 +1592,7 @@ const req = http.request({
   host: '127.0.0.1',
   port: 8080,
   method: 'POST'
-}, (res) => {
+}, res => {
   res.resume();
   res.on('end', () => {
     if (!res.complete)
@@ -1907,7 +1908,7 @@ The `callback` is invoked with a single argument that is an instance of
 JSON fetching example:
 
 ```js
-http.get('http://nodejs.org/dist/index.json', (res) => {
+http.get('http://nodejs.org/dist/index.json', res => {
   const { statusCode } = res;
   const contentType = res.headers['content-type'];
 
@@ -1928,7 +1929,7 @@ http.get('http://nodejs.org/dist/index.json', (res) => {
 
   res.setEncoding('utf8');
   let rawData = '';
-  res.on('data', (chunk) => { rawData += chunk; });
+  res.on('data', chunk => { rawData += chunk; });
   res.on('end', () => {
     try {
       const parsedData = JSON.parse(rawData);
@@ -1937,7 +1938,7 @@ http.get('http://nodejs.org/dist/index.json', (res) => {
       console.error(e.message);
     }
   });
-}).on('error', (e) => {
+}).on('error', e => {
   console.error(`Got error: ${e.message}`);
 });
 ```
@@ -2052,11 +2053,11 @@ const options = {
   }
 };
 
-const req = http.request(options, (res) => {
+const req = http.request(options, res => {
   console.log(`STATUS: ${res.statusCode}`);
   console.log(`HEADERS: ${JSON.stringify(res.headers)}`);
   res.setEncoding('utf8');
-  res.on('data', (chunk) => {
+  res.on('data', chunk => {
     console.log(`BODY: ${chunk}`);
   });
   res.on('end', () => {
@@ -2064,7 +2065,7 @@ const req = http.request(options, (res) => {
   });
 });
 
-req.on('error', (e) => {
+req.on('error', e => {
   console.error(`problem with request: ${e.message}`);
 });
 
@@ -2102,7 +2103,7 @@ Example using a [`URL`][] as `options`:
 ```js
 const options = new URL('http://abc:xyz@example.com');
 
-const req = http.request(options, (res) => {
+const req = http.request(options, res => {
   // ...
 });
 ```
