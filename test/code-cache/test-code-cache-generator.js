@@ -30,9 +30,9 @@ if (child.status !== 0) {
 }
 
 // Verifies that:
-// - node::LoadCodeCache()
+// - NativeModuleEnv::InitializeCodeCache()
 // are defined in the generated code.
-// See src/node_native_module.h for explanations.
+// See src/node_native_module_env.h for explanations.
 
 const rl = readline.createInterface({
   input: fs.createReadStream(dest),
@@ -42,7 +42,7 @@ const rl = readline.createInterface({
 let hasCacheDef = false;
 
 rl.on('line', common.mustCallAtLeast((line) => {
-  if (line.includes('LoadCodeCache(')) {
+  if (line.includes('InitializeCodeCache(')) {
     hasCacheDef = true;
   }
 }, 2));

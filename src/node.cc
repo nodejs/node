@@ -31,7 +31,7 @@
 #include "node_errors.h"
 #include "node_internals.h"
 #include "node_metadata.h"
-#include "node_native_module.h"
+#include "node_native_module_env.h"
 #include "node_options-inl.h"
 #include "node_perf.h"
 #include "node_platform.h"
@@ -118,8 +118,10 @@
 
 namespace node {
 
+using native_module::NativeModuleEnv;
 using options_parser::kAllowedInEnvironment;
 using options_parser::kDisallowedInEnvironment;
+
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
@@ -207,8 +209,7 @@ MaybeLocal<Value> ExecuteBootstrapper(Environment* env,
                                       std::vector<Local<Value>>* arguments) {
   EscapableHandleScope scope(env->isolate());
   MaybeLocal<Function> maybe_fn =
-      per_process::native_module_loader.LookupAndCompile(
-          env->context(), id, parameters, env);
+      NativeModuleEnv::LookupAndCompile(env->context(), id, parameters, env);
 
   if (maybe_fn.IsEmpty()) {
     return MaybeLocal<Value>();
@@ -401,7 +402,7 @@ MaybeLocal<Value> StartMainThreadExecution(Environment* env) {
   // To allow people to extend Node in different ways, this hook allows
   // one to drop a file lib/_third_party_main.js into the build
   // directory which will be executed instead of Node's normal loading.
-  if (per_process::native_module_loader.Exists("_third_party_main")) {
+  if (NativeModuleEnv::Exists("_third_party_main")) {
     return StartExecution(env, "internal/main/run_third_party_main");
   }
 
@@ -723,6 +724,8 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
   }
   per_process::metadata.versions.InitializeIntlVersions();
 #endif
+
+  NativeModuleEnv::InitializeCodeCache();
 
   // We should set node_is_initialized here instead of in node::Start,
   // otherwise embedders using node::Init to initialize everything will not be

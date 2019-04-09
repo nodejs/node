@@ -1,8 +1,8 @@
 #include "node_binding.h"
-#include "env-inl.h"
-#include "node_native_module.h"
-#include "util.h"
 #include <atomic>
+#include "env-inl.h"
+#include "node_native_module_env.h"
+#include "util.h"
 
 #if HAVE_OPENSSL
 #define NODE_BUILTIN_OPENSSL_MODULES(V) V(crypto) V(tls_wrap)
@@ -593,13 +593,13 @@ void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
         exports->SetPrototype(env->context(), Null(env->isolate())).FromJust());
     DefineConstants(env->isolate(), exports);
   } else if (!strcmp(*module_v, "natives")) {
-    exports = per_process::native_module_loader.GetSourceObject(env->context());
+    exports = native_module::NativeModuleEnv::GetSourceObject(env->context());
     // Legacy feature: process.binding('natives').config contains stringified
     // config.gypi
     CHECK(exports
               ->Set(env->context(),
                     env->config_string(),
-                    per_process::native_module_loader.GetConfigString(
+                    native_module::NativeModuleEnv::GetConfigString(
                         env->isolate()))
               .FromJust());
   } else {
