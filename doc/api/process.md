@@ -954,7 +954,7 @@ emitMyWarning();
 <!-- YAML
 added: v0.1.27
 changes:
-  - version: REPLACEME
+  - version: v11.14.0
     pr-url: https://github.com/nodejs/node/pull/26544
     description: Worker threads will now use a copy of the parent thread’s
                  `process.env` by default, configurable through the `env`
