@@ -26,11 +26,11 @@
     'node_lib_target_name%': 'node_lib',
     'node_intermediate_lib_type%': 'static_library',
     'library_files': [
-      'lib/internal/bootstrap/primordials.js',
       'lib/internal/bootstrap/environment.js',
       'lib/internal/bootstrap/loaders.js',
       'lib/internal/bootstrap/node.js',
       'lib/internal/bootstrap/pre_execution.js',
+      'lib/internal/per_context/primordials.js',
       'lib/internal/per_context/setup.js',
       'lib/internal/per_context/domexception.js',
       'lib/async_hooks.js',
