@@ -795,10 +795,39 @@ void DefinePriorityConstants(Local<Object> target) {
 #endif
 }
 
+// Convert nid's to the string representation of their OID. Non-reentrant, and
+// will abort if called with invalid nids (so only pass values from OpenSSL's
+// headers).
+static const char* OBJ_nid2oid(int nid, char (*buf)[128]) {
+  ASN1_OBJECT* obj = OBJ_nid2obj(nid);
+  CHECK_NOT_NULL(obj);
+  CHECK_EQ(sizeof(*buf), 128);
+  CHECK_LE(OBJ_obj2txt(*buf, 128, obj, 1), 128);
+  return *buf;
+}
+
 void DefineCryptoConstants(Local<Object> target) {
 #ifdef OPENSSL_VERSION_NUMBER
     NODE_DEFINE_CONSTANT(target, OPENSSL_VERSION_NUMBER);
 #endif
+
+#define NID2OID(nid) do {                                                      \
+  char buf[128];                                                               \
+  NODE_DEFINE_STRING_CONSTANT(target, #nid, OBJ_nid2oid(nid, &buf));           \
+} while (false)
+
+  NID2OID(EVP_PKEY_RSA);
+  NID2OID(EVP_PKEY_RSA_PSS);
+  NID2OID(EVP_PKEY_DSA);
+  NID2OID(EVP_PKEY_DH);
+  NID2OID(EVP_PKEY_EC);
+  // Note for backporters: following are new in openssl 1.1.1.
+  NID2OID(EVP_PKEY_ED25519);
+  NID2OID(EVP_PKEY_ED448);
+  NID2OID(EVP_PKEY_X25519);
+  NID2OID(EVP_PKEY_X448);
+
+#undef NID2OID
 
 #ifdef SSL_OP_ALL
     NODE_DEFINE_CONSTANT(target, SSL_OP_ALL);
