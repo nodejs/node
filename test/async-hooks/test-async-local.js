@@ -171,3 +171,48 @@ const { AsyncLocal, AsyncResource } = require('async_hooks');
     }));
   }));
 }
+
+{
+  const exp = [
+    [ undefined, 'A', false ],
+    [ 'A', 'B', false ],
+    [ 'B', 'A', true ],
+    [ 'A', 'B', true ],
+    [ 'B', 'A', true ],
+  ];
+
+  const act = [];
+  const asyncLocal = new AsyncLocal({
+    onChangedCb: (p, c, t) => act.push([p, c, t])
+  });
+
+  asyncLocal.value = 'A';
+  const asyncRes1 = new AsyncResource('Resource1');
+  const asyncRes2 = new AsyncResource('Resource2');
+  assert.strictEqual(act.length, 1);
+
+  asyncRes1.runInAsyncScope(common.mustCall(() => {
+    assert.strictEqual(asyncLocal.value, 'A');
+    asyncRes1.runInAsyncScope(common.mustCall(() => {
+      assert.strictEqual(asyncLocal.value, 'A');
+      asyncRes2.runInAsyncScope(common.mustCall(() => {
+        assert.strictEqual(asyncLocal.value, 'A');
+        asyncLocal.value = 'B';
+        assert.strictEqual(act.length, 2);
+        asyncRes1.runInAsyncScope(common.mustCall(() => {
+          assert.strictEqual(asyncLocal.value, 'A');
+          assert.strictEqual(act.length, 3);
+        }));
+        assert.strictEqual(act.length, 4);
+        assert.strictEqual(asyncLocal.value, 'B');
+      }));
+      assert.strictEqual(act.length, 5);
+      assert.strictEqual(asyncLocal.value, 'A');
+    }));
+    assert.strictEqual(asyncLocal.value, 'A');
+  }));
+
+  assert.strictEqual(act.length, 5);
+
+  assert.deepStrictEqual(act, exp);
+}
