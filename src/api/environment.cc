@@ -139,7 +139,11 @@ void DebuggingArrayBufferAllocator::UnregisterPointerInternal(void* data,
   if (data == nullptr) return;
   auto it = allocations_.find(data);
   CHECK_NE(it, allocations_.end());
-  CHECK_EQ(it->second, size);
+  if (size > 0) {
+    // We allow allocations with size 1 for 0-length buffers to avoid having
+    // to deal with nullptr values.
+    CHECK_EQ(it->second, size);
+  }
   allocations_.erase(it);
 }
 

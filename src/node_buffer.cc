@@ -420,7 +420,7 @@ MaybeLocal<Object> New(Environment* env,
   }
 
   if (uses_malloc) {
-    if (env->isolate_data()->uses_node_allocator()) {
+    if (!env->isolate_data()->uses_node_allocator()) {
       // We don't know for sure that the allocator is malloc()-based, so we need
       // to fall back to the FreeCallback variant.
       auto free_callback = [](char* data, void* hint) { free(data); };
