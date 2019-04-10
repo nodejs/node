@@ -1,5 +1,12 @@
+x-ccache-setup-steps: &ccache-setup-steps
+  - export CCACHE_NOSTATS=1
+  - export CCACHE_SLOPPINESS="file_macro,include_file_mtime,include_file_ctime,time_macros,file_stat_matches"
+  - export CC='ccache gcc-6'
+  - export CXX='ccache g++-6'
+
 os: linux
 dist: xenial
+language: cpp
 jobs:
   include:
     - stage: "Lint and Compile"
@@ -21,7 +28,6 @@ jobs:
         - NODE=$(which node) make lint lint-py
 
     - name: "Compile V8"
-      language: cpp
       cache: ccache
       addons:
         apt:
@@ -29,13 +35,12 @@ jobs:
             - ubuntu-toolchain-r-test
           packages:
             - g++-6
-      install:
-        - CC='ccache gcc-6' CXX='ccache g++-6' ./configure
+      install: *ccache-setup-steps
       script:
-        - CC='ccache gcc-6' CXX='ccache g++-6' make -j2 -C out V=1 v8
+        - ./configure
+        - make -j2 -C out V=1 v8
 
     - name: "Compile Node.js"
-      language: cpp
       cache: ccache
       addons:
         apt:
@@ -43,27 +48,35 @@ jobs:
             - ubuntu-toolchain-r-test
           packages:
             - g++-6
-      install:
-        - CC='ccache gcc-6' CXX='ccache g++-6' ./configure
+      install: *ccache-setup-steps
       script:
-        - CC='ccache gcc-6' CXX='ccache g++-6' make -j2 V=1
+        - ./configure
+        - make -j2 V=1
+        - cp out/Release/node /home/travis/.ccache
+        - cp out/Release/cctest /home/travis/.ccache
 
     - stage: "Tests"
-      name: "Test Suite"
-      language: cpp
+      name: "Test JS Suites"
       cache: ccache
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-6
       install:
-        - export CC='ccache gcc-6' CXX='ccache g++-6' JOBS=2
-        - ./configure
-        # We already have a compile log in the above job
-        - make -j2 > /dev/null
-        - make -j1 build-addons build-js-native-api-tests build-node-api-tests > /dev/null
+        - mkdir -p out/Release
+        - cp /home/travis/.ccache/node out/Release/node
       script:
-        - set -o pipefail
-        - JOBS=2 FLAKY_TESTS=dontcare make -s -j1 V= test-ci | grep -F -e "---" -e "..." -v
+        - python tools/test.py -j 2 -p dots --report --mode=release --flaky-tests=dontcare default
+
+    - name: "Test C++ Suites"
+      cache: ccache
+      install:
+        - export CCACHE_NOSTATS=1
+        - export CCACHE_SLOPPINESS="file_macro,include_file_mtime,include_file_ctime,time_macros,file_stat_matches"
+        - export CC='ccache gcc'
+        - export CXX='ccache g++'
+        - mkdir -p out/Release
+        - cp /home/travis/.ccache/node out/Release/node
+        - ln -fs out/Release/node node
+        - cp /home/travis/.ccache/cctest out/Release/cctest
+        - touch config.gypi
+      script:
+        - out/Release/cctest
+        - make -j1 V=1 test/addons/.buildstamp test/js-native-api/.buildstamp test/node-api/.buildstamp
+        - python tools/test.py -j 2 -p dots --report --mode=release --flaky-tests=dontcare addons js-native-api node-api
