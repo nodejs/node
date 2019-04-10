@@ -268,14 +268,16 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
   global->Set(context, FIXED_ONE_BYTE_STRING(env->isolate(), "global"), global)
       .Check();
 
-  // Store primordials
-  env->set_primordials(Object::New(isolate));
-  std::vector<Local<String>> primordials_params = {
-    env->primordials_string()
-  };
-  std::vector<Local<Value>> primordials_args = {
-    env->primordials()
-  };
+  // Store primordials setup by the per-context script in the environment.
+  Local<Object> per_context_bindings;
+  Local<Value> primordials;
+  if (!GetPerContextExports(context).ToLocal(&per_context_bindings) ||
+      !per_context_bindings->Get(context, env->primordials_string())
+           .ToLocal(&primordials) ||
+      !primordials->IsObject()) {
+    return MaybeLocal<Value>();
+  }
+  env->set_primordials(primordials.As<Object>());
 
 #if HAVE_INSPECTOR
   if (env->options()->debug_options().break_node_first_line) {
@@ -283,14 +285,6 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
         "Break at bootstrap");
   }
 #endif  // HAVE_INSPECTOR
-  MaybeLocal<Value> primordials_ret =
-      ExecuteBootstrapper(env,
-                          "internal/bootstrap/primordials",
-                          &primordials_params,
-                          &primordials_args);
-  if (primordials_ret.IsEmpty()) {
-    return MaybeLocal<Value>();
-  }
 
   // Create binding loaders
   std::vector<Local<String>> loaders_params = {

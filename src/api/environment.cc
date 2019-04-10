@@ -23,6 +23,7 @@ using v8::Local;
 using v8::MaybeLocal;
 using v8::Message;
 using v8::MicrotasksPolicy;
+using v8::Null;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Private;
@@ -332,24 +333,29 @@ Local<Context> NewContext(Isolate* isolate,
     // Run per-context JS files.
     Context::Scope context_scope(context);
     Local<Object> exports;
-    if (!GetPerContextExports(context).ToLocal(&exports))
-      return Local<Context>();
 
+    Local<String> primordials_string =
+        FIXED_ONE_BYTE_STRING(isolate, "primordials");
     Local<String> global_string = FIXED_ONE_BYTE_STRING(isolate, "global");
     Local<String> exports_string = FIXED_ONE_BYTE_STRING(isolate, "exports");
 
-    static const char* context_files[] = {
-      "internal/per_context/setup",
-      "internal/per_context/domexception",
-      nullptr
-    };
+    // Create primordials first and make it available to per-context scripts.
+    Local<Object> primordials = Object::New(isolate);
+    if (!primordials->SetPrototype(context, Null(isolate)).FromJust() ||
+        !GetPerContextExports(context).ToLocal(&exports) ||
+        !exports->Set(context, primordials_string, primordials).FromJust()) {
+      return Local<Context>();
+    }
+
+    static const char* context_files[] = {"internal/per_context/primordials",
+                                          "internal/per_context/setup",
+                                          "internal/per_context/domexception",
+                                          nullptr};
 
     for (const char** module = context_files; *module != nullptr; module++) {
       std::vector<Local<String>> parameters = {
-        global_string,
-        exports_string
-      };
-      Local<Value> arguments[] = {context->Global(), exports};
+          global_string, exports_string, primordials_string};
+      Local<Value> arguments[] = {context->Global(), exports, primordials};
       MaybeLocal<Function> maybe_fn =
           native_module::NativeModuleEnv::LookupAndCompile(
               context, *module, &parameters, nullptr);
