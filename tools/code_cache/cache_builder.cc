@@ -1,12 +1,12 @@
 #include "cache_builder.h"
+#include "node_native_module.h"
+#include "util.h"
+
 #include <iostream>
 #include <map>
 #include <sstream>
 #include <vector>
 #include <cstdlib>
-#include "util.h"
-
-#include "node_native_module.h"
 
 namespace node {
 namespace native_module {
@@ -55,25 +55,19 @@ static std::string GetDefinition(const std::string& id,
   return ss.str();
 }
 
-static std::string GetInitializer(const std::string& id) {
+static void GetInitializer(const std::string& id, std::stringstream& ss) {
   std::string def_name = GetDefName(id);
-  char buf[256] = {0};
-  snprintf(buf,
-           sizeof(buf),
-           "code_cache->emplace(\n"
-           "  \"%s\",\n"
-           "  std::make_unique<v8::ScriptCompiler::CachedData>"
-           "(%s, static_cast<int>(arraysize(%s)), policy)\n"
-           ");",
-           id.c_str(),
-           def_name.c_str(),
-           def_name.c_str());
-  return buf;
+  ss << "  code_cache.emplace(\n";
+  ss << "    \"" << id << "\",\n";
+  ss << "    std::make_unique<v8::ScriptCompiler::CachedData>(\n";
+  ss << "      " << def_name << ",\n";
+  ss << "      static_cast<int>(arraysize(" << def_name << ")), policy\n";
+  ss << "    )\n";
+  ss << "  );";
 }
 
 static std::string GenerateCodeCache(
-    std::map<std::string, ScriptCompiler::CachedData*> data,
-    std::vector<std::string> ids,
+    const std::map<std::string, ScriptCompiler::CachedData*>& data,
     bool log_progress) {
   std::stringstream ss;
   ss << R"(#include <cinttypes>
@@ -101,20 +95,19 @@ namespace native_module {
   }
 
   ss << R"(void NativeModuleEnv::InitializeCodeCache() {
-  NativeModuleCacheMap* code_cache =
-      NativeModuleLoader::GetInstance()->code_cache();
-  if (!code_cache->empty()) {
-    return;
-  }
+  NativeModuleCacheMap& code_cache =
+      *NativeModuleLoader::GetInstance()->code_cache();
+  CHECK(code_cache.empty());
   auto policy = v8::ScriptCompiler::CachedData::BufferPolicy::BufferNotOwned;
 )";
 
   for (const auto& x : data) {
-    const std::string& id = x.first;
-    ss << GetInitializer(id) << "\n\n";
+    GetInitializer(x.first, ss);
+    ss << "\n\n";
   }
 
-  ss << R"(}
+  ss << R"(
+}
 
 }  // namespace native_module
 }  // namespace node
@@ -126,19 +119,15 @@ std::string CodeCacheBuilder::Generate(Local<Context> context) {
   NativeModuleLoader* loader = NativeModuleLoader::GetInstance();
   std::vector<std::string> ids = loader->GetModuleIds();
 
-  std::vector<std::string> modules;
-  modules.reserve(ids.size());
-
   std::map<std::string, ScriptCompiler::CachedData*> data;
 
-  NativeModuleLoader::Result result;
   for (const auto& id : ids) {
     // TODO(joyeecheung): we can only compile the modules that can be
     // required here because the parameters for other types of builtins
     // are still very flexible. We should look into auto-generating
     // the paramters from the source somehow.
     if (loader->CanBeRequired(id.c_str())) {
-      modules.push_back(id);
+      NativeModuleLoader::Result result;
       USE(loader->CompileAsModule(context, id.c_str(), &result));
       ScriptCompiler::CachedData* cached_data =
           loader->GetCodeCache(id.c_str());
@@ -158,7 +147,7 @@ std::string CodeCacheBuilder::Generate(Local<Context> context) {
   if (ret == 0 && strcmp(env_buf, "mkcodecache") == 0) {
     log_progress = true;
   }
-  return GenerateCodeCache(data, modules, log_progress);
+  return GenerateCodeCache(data, log_progress);
 }
 
 }  // namespace native_module
