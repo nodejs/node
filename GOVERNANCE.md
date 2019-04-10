@@ -65,13 +65,13 @@ The TSC has final authority over this project, including:
 * Contribution policy
 * GitHub repository hosting
 * Conduct guidelines
-* Maintaining the list of additional Collaborators
+* Maintaining the list of Collaborators
 
-The current list of TSC members can be found in
+The current list of TSC members is in
 [the project README](./README.md#current-project-team-members).
 
-The operations of the TSC are governed by the [TSC Charter][] as approved by
-the Node.js Foundation Board of Directors.
+The [TSC Charter][] governs the operations of the TSC. All changes to the
+Charter need approval by the Node.js Board of Directors.
 
 ### TSC Meetings
 
