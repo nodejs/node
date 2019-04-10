@@ -65,4 +65,5 @@ jobs:
         - make -j2 > /dev/null
         - make -j1 build-addons build-js-native-api-tests build-node-api-tests > /dev/null
       script:
+        - set -o pipefail
         - JOBS=2 FLAKY_TESTS=dontcare make -s -j1 V= test-ci | grep -F -e "---" -e "..." -v
