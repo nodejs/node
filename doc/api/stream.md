@@ -1195,7 +1195,7 @@ setTimeout(() => {
 }, 1000);
 ```
 
-##### readable.unshift(chunk)
+##### readable.unshift(chunk[, encoding])
 <!-- YAML
 added: v0.9.11
 changes:
@@ -1208,6 +1208,8 @@ changes:
   read queue. For streams not operating in object mode, `chunk` must be a
   string, `Buffer` or `Uint8Array`. For object mode streams, `chunk` may be
   any JavaScript value other than `null`.
+* `encoding` {string} Encoding of string chunks. Must be a valid
+  `Buffer` encoding, such as `'utf8'` or `'ascii'`.
 
 The `readable.unshift()` method pushes a chunk of data back into the internal
 buffer. This is useful in certain situations where a stream is being consumed by

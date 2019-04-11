@@ -2349,7 +2349,7 @@ such as `process.stdout.on('data')`.
 [`sign.sign()`]: crypto.html#crypto_sign_sign_privatekey_outputencoding
 [`stream.pipe()`]: stream.html#stream_readable_pipe_destination_options
 [`stream.push()`]: stream.html#stream_readable_push_chunk_encoding
-[`stream.unshift()`]: stream.html#stream_readable_unshift_chunk
+[`stream.unshift()`]: stream.html#stream_readable_unshift_chunk_encoding
 [`stream.write()`]: stream.html#stream_writable_write_chunk_encoding_callback
 [`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal
 [`subprocess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
