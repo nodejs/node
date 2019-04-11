@@ -4,7 +4,7 @@
 require('../common');
 const assert = require('assert');
 const { types } = require('util');
-const { isError } = require('internal/util');
+const { isError } = require('internal/util/isError').isError;
 const vm = require('vm');
 
 // Special cased errors. Test the internal function which is used in
