@@ -74,6 +74,42 @@ const decryptError = {
   }, encryptedBuffer);
   assert.strictEqual(decryptedBufferWithPassword.toString(), input);
 
+  // Now with explicit RSA_PKCS1_PADDING.
+  encryptedBuffer = crypto.privateEncrypt({
+    padding: crypto.constants.RSA_PKCS1_PADDING,
+    key: rsaKeyPemEncrypted,
+    passphrase: Buffer.from('password')
+  }, bufferToEncrypt);
+
+  decryptedBufferWithPassword = crypto.publicDecrypt({
+    padding: crypto.constants.RSA_PKCS1_PADDING,
+    key: rsaKeyPemEncrypted,
+    passphrase: Buffer.from('password')
+  }, encryptedBuffer);
+  assert.strictEqual(decryptedBufferWithPassword.toString(), input);
+
+  // Omitting padding should be okay because RSA_PKCS1_PADDING is the default.
+  decryptedBufferWithPassword = crypto.publicDecrypt({
+    key: rsaKeyPemEncrypted,
+    passphrase: Buffer.from('password')
+  }, encryptedBuffer);
+  assert.strictEqual(decryptedBufferWithPassword.toString(), input);
+
+  // Now with RSA_NO_PADDING. Plaintext needs to match key size.
+  const plaintext = 'x'.repeat(128);
+  encryptedBuffer = crypto.privateEncrypt({
+    padding: crypto.constants.RSA_NO_PADDING,
+    key: rsaKeyPemEncrypted,
+    passphrase: Buffer.from('password')
+  }, Buffer.from(plaintext));
+
+  decryptedBufferWithPassword = crypto.publicDecrypt({
+    padding: crypto.constants.RSA_NO_PADDING,
+    key: rsaKeyPemEncrypted,
+    passphrase: Buffer.from('password')
+  }, encryptedBuffer);
+  assert.strictEqual(decryptedBufferWithPassword.toString(), plaintext);
+
   encryptedBuffer = crypto.publicEncrypt(certPem, bufferToEncrypt);
 
   decryptedBuffer = crypto.privateDecrypt(keyPem, encryptedBuffer);
