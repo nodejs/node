@@ -805,20 +805,20 @@
           'inputs': [
             '<@(library_files)',
             'config.gypi',
-            'tools/check_macros.py'
+            'tools/js2c_macros/check_macros.py'
           ],
           'outputs': [
             '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
           ],
           'conditions': [
             [ 'node_use_dtrace=="false" and node_use_etw=="false"', {
-              'inputs': [ 'src/notrace_macros.py' ]
+              'inputs': [ 'tools/js2c_macros/notrace_macros.py' ]
             }],
             [ 'node_debug_lib=="false"', {
-              'inputs': [ 'tools/nodcheck_macros.py' ]
+              'inputs': [ 'tools/js2c_macros/nodcheck_macros.py' ]
             }],
             [ 'node_debug_lib=="true"', {
-              'inputs': [ 'tools/dcheck_macros.py' ]
+              'inputs': [ 'tools/js2c_macros/dcheck_macros.py' ]
             }]
           ],
           'action': [
