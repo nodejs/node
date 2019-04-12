@@ -1324,6 +1324,10 @@ void EVP_PKEY_asn1_set_security_bits(EVP_PKEY_ASN1_METHOD *ameth,
  */
 # define EVP_PKEY_FLAG_SIGCTX_CUSTOM     4
 
+/* Used by Chromium/QUIC */
+# define X25519_PRIVATE_KEY_LEN          32
+# define X25519_PUBLIC_VALUE_LEN         32
+
 const EVP_PKEY_METHOD *EVP_PKEY_meth_find(int type);
 EVP_PKEY_METHOD *EVP_PKEY_meth_new(int id, int flags);
 void EVP_PKEY_meth_get0_info(int *ppkey_id, int *pflags,
