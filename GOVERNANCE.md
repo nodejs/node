@@ -75,46 +75,37 @@ Charter need approval by the Node.js Board of Directors.
 
 ### TSC Meetings
 
-The TSC meets regularly in a voice conference call. The meeting is run by a
-designated meeting chair approved by the TSC. Each meeting is streamed on
-YouTube.
+The TSC meets in a voice conference call. Each year, the TSC elects a chair to
+run the meetings. The TSC streams its meetings for public viewing on YouTube or
+a similar service.
 
-Items are added to the TSC agenda which are considered contentious or
-are modifications of governance, contribution policy, TSC membership,
-or release process.
+The TSC agenda includes issues that are at an impasse. The intention of the
+agenda is not to review or approve all patches. Collaborators review and approve
+patches on GitHub.
 
-The intention of the agenda is not to approve or review all patches.
-That should happen continuously on GitHub and be handled by the larger
-group of Collaborators.
+Any community member can create a GitHub issue asking that the TSC review
+something. If consensus-seeking fails for an issue, a Collaborator may apply the
+`tsc-agenda` label. That will add it to the TSC meeting agenda.
 
-Any community member or contributor can ask that something be reviewed by the
-TSC by logging a GitHub issue. If consensus-seeking among TSC members fails for
-a particular issue, it may be added to the TSC meeting agenda by adding the
-`tsc-agenda` label.
+Before each TSC meeting, the meeting chair will share the agenda with members of
+the TSC. TSC members can also add items to the agenda at the beginning of each
+meeting. The meeting chair and the TSC cannot veto or remove items.
 
-Prior to each TSC meeting, the meeting chair will share the agenda with
-members of the TSC. TSC members can also add items to the agenda at the
-beginning of each meeting. The meeting chair and the TSC cannot veto or remove
-items.
+The TSC may invite people to take part in a non-voting capacity.
 
-The TSC may invite additional persons to participate in a non-voting capacity.
+During the meeting, the TSC chair ensures that someone takes minutes. After the
+meeting, the TSC chair ensures that someone opens a pull request with the
+minutes.
 
-The meeting chair is responsible for ensuring that minutes are taken and that a
-pull request with the minutes is submitted after the meeting.
-
-Due to the challenges of scheduling a global meeting with participants in
-several time zones, the TSC will seek to resolve as many agenda items as
-possible outside of meetings using
+The TSC seeks to resolve as many issues as possible outside meetings using
 [the TSC issue tracker](https://github.com/nodejs/TSC/issues). The process in
 the issue tracker is:
 
 * A TSC member opens an issue explaining the proposal/issue and @-mentions
   @nodejs/tsc.
-* After 72 hours, if there are two or more `LGTM`s from other TSC members and no
-  explicit opposition from other TSC members, then the proposal is approved.
-* If there are any TSC members objecting, then a conversation ensues until
-  either the proposal is dropped or the objecting members are persuaded. If
-  there is an extended impasse, a motion for a vote may be made.
+* The proposal passes if, after 72 hours, there are two or more TSC approvals
+  and no TSC opposition.
+* If there is an extended impasse, a TSC member may make a motion for a vote.
 
 ## Collaborator Nominations
 
