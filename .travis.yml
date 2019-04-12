@@ -9,26 +9,8 @@ dist: xenial
 language: cpp
 jobs:
   include:
-    - stage: "Lint and Compile"
-      name: "First commit message adheres to guidelines at <a href=\"https://goo.gl/p2fr5Q\">https://goo.gl/p2fr5Q</a>"
-      if: type = pull_request
-      language: node_js
-      node_js: "node"
-      script:
-        - if [ "${TRAVIS_PULL_REQUEST}" != "false" ]; then
-            bash -x tools/lint-pr-commit-message.sh ${TRAVIS_PULL_REQUEST};
-          fi
-
-    - name: "Linter"
-      language: node_js
-      node_js: "node"
-      install:
-        - pyenv global 2.7.15
-        - make lint-py-build || true
-      script:
-        - NODE=$(which node) make lint lint-py
-
-    - name: "Compile V8"
+    - stage: "Compile"
+      name: "Compile V8"
       cache: ccache
       addons:
         apt:
@@ -58,6 +40,7 @@ jobs:
         - cp out/Release/node /home/travis/.ccache
         - cp out/Release/cctest /home/travis/.ccache
 
+        - pyenv global 2.7.15
     - stage: "Tests"
       name: "Test JS Suites"
       cache: ccache
@@ -85,3 +68,21 @@ jobs:
         - out/Release/cctest
         - make -j1 V=1 test/addons/.buildstamp test/js-native-api/.buildstamp test/node-api/.buildstamp
         - python tools/test.py -j 2 -p dots --report --mode=release --flaky-tests=dontcare addons js-native-api node-api
+
+    - name: "Linter"
+      language: node_js
+      node_js: "node"
+      install:
+        - pyenv global 2.7.15
+        - make lint-py-build || true
+      script:
+        - NODE=$(which node) make lint lint-py
+
+    - name: "First commit message adheres to guidelines at <a href=\"https://goo.gl/p2fr5Q\">https://goo.gl/p2fr5Q</a>"
+      if: type = pull_request
+      language: node_js
+      node_js: "node"
+      script:
+        - if [ "${TRAVIS_PULL_REQUEST}" != "false" ]; then
+            bash -x tools/lint-pr-commit-message.sh ${TRAVIS_PULL_REQUEST};
+          fi
