@@ -404,6 +404,9 @@
             '<(_msvs_precompiled_header)',
             '<(_msvs_precompiled_source)',
            ],
+          'include_dirs': [
+            'pch',
+          ],
         }],
       ],
     }, # v8_initializers
@@ -2031,6 +2034,9 @@
           'sources': [
             '<(_msvs_precompiled_header)',
             '<(_msvs_precompiled_source)',
+          ],
+          'include_dirs': [
+            'pch',
           ],
           # This will prevent V8's .cc files conflicting with the inspector's
           # .cpp files in the same shard.
