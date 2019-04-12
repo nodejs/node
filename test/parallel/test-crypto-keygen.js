@@ -467,7 +467,8 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }), {
     type: TypeError,
     code: 'ERR_INVALID_OPT_VALUE',
-    message: 'The value "otherEncoding" is invalid for option "paramEncoding"'
+    message: 'The value "otherEncoding" is invalid for ' +
+    'option "paramEncoding"'
   });
 }
 
