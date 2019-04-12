@@ -79,9 +79,9 @@ The TSC meets in a voice conference call. Each year, the TSC elects a chair to
 run the meetings. The TSC streams its meetings for public viewing on YouTube or
 a similar service.
 
-The TSC agenda consists only of issues that are at an impasse. The intention of
-the agenda is not to review or approve all patches. Collaborators review and
-approve patches on GitHub.
+The TSC agenda includes issues that are at an impasse. The intention of the
+agenda is not to review or approve all patches. Collaborators review and approve
+patches on GitHub.
 
 Any community member can create a GitHub issue asking that the TSC review
 something. If consensus-seeking fails for an issue, a Collaborator may apply the
