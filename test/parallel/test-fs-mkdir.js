@@ -132,6 +132,24 @@ function nextdir() {
   }
 }
 
+// mkdirpSync when part of the path is a file.
+{
+  const filename = path.join(tmpdir.path, nextdir(), nextdir());
+  const pathname = path.join(filename, nextdir(), nextdir());
+
+  fs.mkdirSync(path.dirname(filename));
+  fs.writeFileSync(filename, '', 'utf8');
+
+  try {
+    fs.mkdirSync(pathname, { recursive: true });
+    throw new Error('unreachable');
+  } catch (err) {
+    assert.notStrictEqual(err.message, 'unreachable');
+    assert.strictEqual(err.code, 'ENOTDIR');
+    assert.strictEqual(err.syscall, 'mkdir');
+  }
+}
+
 // `mkdirp` when folder does not yet exist.
 {
   const pathname = path.join(tmpdir.path, nextdir(), nextdir());
@@ -149,11 +167,25 @@ function nextdir() {
 
   fs.mkdirSync(path.dirname(pathname));
   fs.writeFileSync(pathname, '', 'utf8');
-  fs.mkdir(pathname, { recursive: true }, (err) => {
+  fs.mkdir(pathname, { recursive: true }, common.mustCall((err) => {
     assert.strictEqual(err.code, 'EEXIST');
     assert.strictEqual(err.syscall, 'mkdir');
     assert.strictEqual(fs.statSync(pathname).isDirectory(), false);
-  });
+  }));
+}
+
+// `mkdirp` when part of the path is a file.
+{
+  const filename = path.join(tmpdir.path, nextdir(), nextdir());
+  const pathname = path.join(filename, nextdir(), nextdir());
+
+  fs.mkdirSync(path.dirname(filename));
+  fs.writeFileSync(filename, '', 'utf8');
+  fs.mkdir(pathname, { recursive: true }, common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ENOTDIR');
+    assert.strictEqual(err.syscall, 'mkdir');
+    assert.strictEqual(fs.existsSync(pathname), false);
+  }));
 }
 
 // mkdirpSync dirname loop

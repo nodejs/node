@@ -309,6 +309,22 @@ async function getHandle(dest) {
       }
     }
 
+    // `mkdirp` when part of the path is a file.
+    {
+      const file = path.join(tmpDir, nextdir(), nextdir());
+      const dir = path.join(file, nextdir(), nextdir());
+      await mkdir(path.dirname(file));
+      await writeFile(file);
+      try {
+        await mkdir(dir, { recursive: true });
+        throw new Error('unreachable');
+      } catch (err) {
+        assert.notStrictEqual(err.message, 'unreachable');
+        assert.strictEqual(err.code, 'ENOTDIR');
+        assert.strictEqual(err.syscall, 'mkdir');
+      }
+    }
+
     // mkdirp ./
     {
       const dir = path.resolve(tmpDir, `${nextdir()}/./${nextdir()}`);
