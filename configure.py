@@ -1110,7 +1110,7 @@ def configure_library(lib, output):
       output['libraries'] += [pkg_libpath]
 
     default_libs = getattr(options, shared_lib + '_libname')
-    default_libs = ['-l{0}'.format(lib) for lib in default_libs.split(',')]
+    default_libs = ['-l{0}'.format(l) for l in default_libs.split(',')]
 
     if default_libs:
       output['libraries'] += default_libs

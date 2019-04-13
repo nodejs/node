@@ -52,21 +52,7 @@ try:
 except ImportError:
     from Queue import Queue, Empty  # Python 2
 
-try:
-    cmp             # Python 2
-except NameError:
-    def cmp(x, y):  # Python 3
-        return (x > y) - (x < y)
-
-try:
-  reduce            # Python 2
-except NameError:   # Python 3
-  from functools import reduce
-
-try:
-  xrange            # Python 2
-except NameError:
-  xrange = range    # Python 3
+from functools import reduce
 
 try:
   from urllib.parse import unquote    # Python 3
@@ -135,9 +121,9 @@ class ProgressIndicator(object):
       for thread in threads:
         # Use a timeout so that signals (ctrl-c) will be processed.
         thread.join(timeout=10000000)
-    except (KeyboardInterrupt, SystemExit) as e:
+    except (KeyboardInterrupt, SystemExit):
       self.shutdown_event.set()
-    except Exception as e:
+    except Exception:
       # If there's an exception we schedule an interruption for any
       # remaining threads.
       self.shutdown_event.set()
@@ -174,7 +160,7 @@ class ProgressIndicator(object):
             output = case.Run()
             output.diagnostic.append('ECONNREFUSED received, test retried')
         case.duration = (datetime.now() - start)
-      except IOError as e:
+      except IOError:
         return
       if self.shutdown_event.is_set():
         return
@@ -383,9 +369,10 @@ class DeoptsCheckProgressIndicator(SimpleProgressIndicator):
     stdout = output.output.stdout.strip()
     printed_file = False
     for line in stdout.splitlines():
-      if (line.startswith("[aborted optimiz") or \
-          line.startswith("[disabled optimiz")) and \
-         ("because:" in line or "reason:" in line):
+      if (
+        (line.startswith("[aborted optimiz") or line.startswith("[disabled optimiz")) and
+        ("because:" in line or "reason:" in line)
+      ):
         if not printed_file:
           printed_file = True
           print('==== %s ====' % command)
@@ -522,9 +509,6 @@ class TestCase(object):
   def IsNegative(self):
     return self.context.expect_fail
 
-  def CompareTime(self, other):
-    return cmp(other.duration, self.duration)
-
   def DidFail(self, output):
     if output.failed is None:
       output.failed = self.IsFailureOutput(output)
@@ -597,7 +581,7 @@ class TestOutput(object):
       return self.output.exit_code < 0
 
   def HasTimedOut(self):
-    return self.output.timed_out;
+    return self.output.timed_out
 
   def HasFailed(self):
     execution_failed = self.test.DidFail(self.output)
@@ -731,7 +715,9 @@ def CheckedUnlink(name):
       PrintError("os.unlink() " + str(e))
     break
 
-def Execute(args, context, timeout=None, env={}, faketty=False, disable_core_files=False, input=None):
+def Execute(args, context, timeout=None, env=None, faketty=False, disable_core_files=False, input=None):
+  if env is None:
+    env = {}
   if faketty:
     import pty
     (out_master, fd_out) = pty.openpty()
@@ -897,7 +883,7 @@ class LiteralTestSuite(TestSuite):
       if not name or name.match(test_name):
         full_path = current_path + [test_name]
         test.AddTestsToList(result, full_path, path, context, arch, mode)
-    result.sort(cmp=lambda a, b: cmp(a.GetName(), b.GetName()))
+    result.sort(key=lambda x: x.GetName())
     return result
 
   def GetTestStatus(self, context, sections, defs):
@@ -1283,7 +1269,7 @@ class Rule(object):
 HEADER_PATTERN = re.compile(r'\[([^]]+)\]')
 RULE_PATTERN = re.compile(r'\s*([^: ]*)\s*:(.*)')
 DEF_PATTERN = re.compile(r'^def\s*(\w+)\s*=(.*)$')
-PREFIX_PATTERN = re.compile(r'^\s*prefix\s+([\w\_\.\-\/]+)$')
+PREFIX_PATTERN = re.compile(r'^\s*prefix\s+([\w_.\-/]+)$')
 
 
 def ReadConfigurationInto(path, sections, defs):
@@ -1470,9 +1456,9 @@ class Pattern(object):
     return self.pattern
 
 
-def SplitPath(s):
-  stripped = [ c.strip() for c in s.split('/') ]
-  return [ Pattern(s) for s in stripped if len(s) > 0 ]
+def SplitPath(path_arg):
+  stripped = [c.strip() for c in path_arg.split('/')]
+  return [Pattern(s) for s in stripped if len(s) > 0]
 
 def NormalizePath(path, prefix='test/'):
   # strip the extra path information of the specified test
@@ -1753,7 +1739,7 @@ def Main():
     print()
     sys.stderr.write("--- Total time: %s ---\n" % FormatTime(duration))
     timed_tests = [ t for t in cases_to_run if not t.duration is None ]
-    timed_tests.sort(lambda a, b: a.CompareTime(b))
+    timed_tests.sort(key=lambda x: x.duration)
     for i, entry in enumerate(timed_tests[:20], start=1):
       t = FormatTimedelta(entry.duration)
       sys.stderr.write("%4i (%s) %s\n" % (i, t, entry.GetLabel()))
