@@ -449,6 +449,29 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }));
 }
 
+// Test invalid parameter encoding.
+{
+  common.expectsError(() => generateKeyPairSync('ec', {
+    namedCurve: 'P-256',
+    paramEncoding: 'otherEncoding',
+    publicKeyEncoding: {
+      type: 'spki',
+      format: 'pem'
+    },
+    privateKeyEncoding: {
+      type: 'pkcs8',
+      format: 'pem',
+      cipher: 'aes-128-cbc',
+      passphrase: 'top secret'
+    }
+  }), {
+    type: TypeError,
+    code: 'ERR_INVALID_OPT_VALUE',
+    message: 'The value "otherEncoding" is invalid for ' +
+    'option "paramEncoding"'
+  });
+}
+
 {
   // Test the util.promisified API with async RSA key generation.
   promisify(generateKeyPair)('rsa', {
