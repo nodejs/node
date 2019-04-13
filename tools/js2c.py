@@ -149,7 +149,8 @@ def ReadMacros(lines):
     hash = line.find('#')
     if hash != -1: line = line[:hash]
     line = line.strip()
-    if len(line) is 0: continue
+    if len(line) == 0:
+      continue
     const_match = CONST_PATTERN.match(line)
     if const_match:
       name = const_match.group(1)

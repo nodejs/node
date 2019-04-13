@@ -107,7 +107,7 @@ def parse(opt):
     if not anOpt or anOpt == "":
       # ignore stray commas, etc.
       continue
-    elif anOpt is 'all':
+    elif anOpt == 'all':
       # all on
       theRet = dict((key, True) for (key) in download_types)
     else:

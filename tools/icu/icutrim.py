@@ -110,7 +110,7 @@ if options.endian not in ("big","little","host"):
     print("Unknown endianness: %s" % options.endian)
     sys.exit(1)
 
-if options.endian is "host":
+if options.endian == "host":
     options.endian = endian
 
 if not os.path.isdir(options.tmpdir):
@@ -153,7 +153,7 @@ def runcmd(tool, cmd, doContinue=False):
         print("# " + cmd)
 
     rc = os.system(cmd)
-    if rc is not 0 and not doContinue:
+    if rc != 0 and not doContinue:
         print("FAILED: %s" % cmd)
         sys.exit(1)
     return rc
@@ -320,7 +320,7 @@ def removeList(count=0):
             print(i, file=fi)
         fi.close()
         rc = runcmd("icupkg","-r %s %s 2> %s" %  (removefile,outfile,hackerrfile),True)
-        if rc is not 0:
+        if rc != 0:
             if(options.verbose>5):
                 print("## Damage control, trying to parse stderr from icupkg..")
             fi = open(hackerrfile, 'rb')
