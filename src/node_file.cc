@@ -1289,8 +1289,15 @@ int MKDirpSync(uv_loop_t* loop, uv_fs_t* req, const std::string& path, int mode,
         }
         default:
           uv_fs_req_cleanup(req);
+          int orig_err = err;
           err = uv_fs_stat(loop, req, next_path.c_str(), nullptr);
-          if (err == 0 && !S_ISDIR(req->statbuf.st_mode)) return UV_EEXIST;
+          if (err == 0 && !S_ISDIR(req->statbuf.st_mode)) {
+            uv_fs_req_cleanup(req);
+            if (orig_err == UV_EEXIST && continuation_data.paths.size() > 0) {
+              return UV_ENOTDIR;
+            }
+            return UV_EEXIST;
+          }
           if (err < 0) return err;
           break;
       }
@@ -1357,23 +1364,32 @@ int MKDirpAsync(uv_loop_t* loop,
           break;
         }
         default:
-          if (err == UV_EEXIST &&
-              req_wrap->continuation_data->paths.size() > 0) {
-            uv_fs_req_cleanup(req);
-            MKDirpAsync(loop, req, path.c_str(),
-                        req_wrap->continuation_data->mode, nullptr);
-          } else {
+          uv_fs_req_cleanup(req);
+          // Stash err for use in the callback.
+          req->data = reinterpret_cast<void*>(static_cast<intptr_t>(err));
+          int err = uv_fs_stat(loop, req, path.c_str(),
+                               uv_fs_callback_t{[](uv_fs_t* req) {
+            FSReqBase* req_wrap = FSReqBase::from_req(req);
+            int err = req->result;
+            if (reinterpret_cast<intptr_t>(req->data) == UV_EEXIST &&
+                  req_wrap->continuation_data->paths.size() > 0) {
+              if (err == 0 && S_ISDIR(req->statbuf.st_mode)) {
+                Environment* env = req_wrap->env();
+                uv_loop_t* loop = env->event_loop();
+                std::string path = req->path;
+                uv_fs_req_cleanup(req);
+                MKDirpAsync(loop, req, path.c_str(),
+                            req_wrap->continuation_data->mode, nullptr);
+                return;
+              }
+              err = UV_ENOTDIR;
+            }
             // verify that the path pointed to is actually a directory.
+            if (err == 0 && !S_ISDIR(req->statbuf.st_mode)) err = UV_EEXIST;
             uv_fs_req_cleanup(req);
-            int err = uv_fs_stat(loop, req, path.c_str(),
-                                 uv_fs_callback_t{[](uv_fs_t* req) {
-              FSReqBase* req_wrap = FSReqBase::from_req(req);
-              int err = req->result;
-              if (err == 0 && !S_ISDIR(req->statbuf.st_mode)) err = UV_EEXIST;
-              req_wrap->continuation_data->Done(err);
-            }});
-            if (err < 0) req_wrap->continuation_data->Done(err);
-          }
+            req_wrap->continuation_data->Done(err);
+          }});
+          if (err < 0) req_wrap->continuation_data->Done(err);
           break;
       }
       break;
