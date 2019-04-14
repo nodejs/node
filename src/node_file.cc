@@ -1241,7 +1241,7 @@ int MKDirpSync(uv_loop_t* loop,
                int mode,
                uv_fs_cb cb) {
   FSContinuationData continuation_data(req, mode, cb);
-  continuation_data.PushPath(std::move(path));
+  continuation_data.PushPath(path);
 
   while (continuation_data.paths.size() > 0) {
     std::string next_path = continuation_data.PopPath();
@@ -1257,8 +1257,8 @@ int MKDirpSync(uv_loop_t* loop,
           std::string dirname = next_path.substr(0,
                                         next_path.find_last_of(kPathSeparator));
           if (dirname != next_path) {
-            continuation_data.PushPath(std::move(next_path));
-            continuation_data.PushPath(std::move(dirname));
+            continuation_data.PushPath(next_path);
+            continuation_data.PushPath(dirname);
           } else if (continuation_data.paths.size() == 0) {
             err = UV_EEXIST;
             continue;
@@ -1293,7 +1293,7 @@ int MKDirpAsync(uv_loop_t* loop,
   if (req_wrap->continuation_data == nullptr) {
     req_wrap->continuation_data =
         std::make_unique<FSContinuationData>(req, mode, cb);
-    req_wrap->continuation_data->PushPath(std::move(path));
+    req_wrap->continuation_data->PushPath(path);
   }
 
   // on each iteration of algorithm, mkdir directory on top of stack.
@@ -1322,8 +1322,8 @@ int MKDirpAsync(uv_loop_t* loop,
           std::string dirname = path.substr(0,
                                             path.find_last_of(kPathSeparator));
           if (dirname != path) {
-            req_wrap->continuation_data->PushPath(std::move(path));
-            req_wrap->continuation_data->PushPath(std::move(dirname));
+            req_wrap->continuation_data->PushPath(path);
+            req_wrap->continuation_data->PushPath(dirname);
           } else if (req_wrap->continuation_data->paths.size() == 0) {
             err = UV_EEXIST;
             continue;

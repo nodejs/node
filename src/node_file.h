@@ -37,7 +37,7 @@ class FSContinuationData : public MemoryRetainer {
   }
 
   void PushPath(const std::string& path) {
-    paths.push_back(path);
+    paths.push_back(std::move(path));
   }
 
   std::string PopPath() {
