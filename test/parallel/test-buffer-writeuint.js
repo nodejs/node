@@ -171,6 +171,8 @@ const assert = require('assert');
 
   // Test 1 to 6 bytes.
   for (let i = 1; i < 6; i++) {
+    const range = i < 5 ? `= ${val - 1}` : ` 2 ** ${i * 8}`;
+    const received = i > 4 ? val.toLocaleString() : val;
     ['writeUIntBE', 'writeUIntLE'].forEach((fn) => {
       assert.throws(() => {
         data[fn](val, 0, i);
@@ -178,7 +180,7 @@ const assert = require('assert');
         code: 'ERR_OUT_OF_RANGE',
         name: 'RangeError',
         message: 'The value of "value" is out of range. ' +
-                 `It must be >= 0 and <= ${val - 1}. Received ${val}`
+                 `It must be >= 0 and <${range}. Received ${received}`
       });
 
       ['', '0', null, {}, [], () => {}, true, false].forEach((o) => {

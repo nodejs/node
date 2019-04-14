@@ -199,8 +199,8 @@ const run_test_5 = common.mustCall(function() {
   };
   const err = {
     code: 'ERR_OUT_OF_RANGE',
-    message: 'The value of "start" is out of range. ' +
-             'It must be >= 0 and <= 2 ** 53 - 1. Received 9007199254740992',
+    message: 'The value of "start" is out of range. It must be ' +
+             '>= 0 and <= 2 ** 53 - 1. Received 9,007,199,254,740,992',
     type: RangeError
   };
   common.expectsError(fn, err);
