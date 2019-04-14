@@ -76,6 +76,8 @@ IsolateData::IsolateData(Isolate* isolate,
   // One byte because our strings are ASCII and we can safely skip V8's UTF-8
   // decoding step.
 
+  HandleScope handle_scope(isolate);
+
 #define V(PropertyName, StringValue)                                        \
     PropertyName ## _.Set(                                                  \
         isolate,                                                            \
