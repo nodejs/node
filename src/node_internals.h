@@ -311,6 +311,15 @@ v8::MaybeLocal<v8::Value> ExecuteBootstrapper(
     std::vector<v8::Local<v8::Value>>* arguments);
 void MarkBootstrapComplete(const v8::FunctionCallbackInfo<v8::Value>& args);
 
+struct InitializationResult {
+  int exit_code = 0;
+  std::vector<std::string> args;
+  std::vector<std::string> exec_args;
+  bool early_return = false;
+};
+InitializationResult InitializeOncePerProcess(int argc, char** argv);
+void TearDownOncePerProcess();
+
 #if HAVE_INSPECTOR
 namespace profiler {
 void StartCoverageCollection(Environment* env);

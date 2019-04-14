@@ -796,7 +796,7 @@ void Init(int* argc,
     argv[i] = strdup(argv_[i].c_str());
 }
 
-int Start(int argc, char** argv) {
+InitializationResult InitializeOncePerProcess(int argc, char** argv) {
   atexit([] () { uv_tty_reset_mode(); });
   PlatformInit();
   per_process::node_start_time = uv_hrtime();
@@ -814,20 +814,27 @@ int Start(int argc, char** argv) {
   // Hack around with the argv pointer. Used for process.title = "blah".
   argv = uv_setup_args(argc, argv);
 
-  std::vector<std::string> args(argv, argv + argc);
-  std::vector<std::string> exec_args;
+  InitializationResult result;
+  result.args = std::vector<std::string>(argv, argv + argc);
   std::vector<std::string> errors;
+
   // This needs to run *before* V8::Initialize().
   {
-    const int exit_code = InitializeNodeWithArgs(&args, &exec_args, &errors);
+    result.exit_code =
+        InitializeNodeWithArgs(&(result.args), &(result.exec_args), &errors);
     for (const std::string& error : errors)
-      fprintf(stderr, "%s: %s\n", args.at(0).c_str(), error.c_str());
-    if (exit_code != 0) return exit_code;
+      fprintf(stderr, "%s: %s\n", result.args.at(0).c_str(), error.c_str());
+    if (result.exit_code != 0) {
+      result.early_return = true;
+      return result;
+    }
   }
 
   if (per_process::cli_options->print_version) {
     printf("%s\n", NODE_VERSION);
-    return 0;
+    result.exit_code = 0;
+    result.early_return = true;
+    return result;
   }
 
   if (per_process::cli_options->print_v8_help) {
@@ -855,13 +862,10 @@ int Start(int argc, char** argv) {
   V8::Initialize();
   performance::performance_v8_start = PERFORMANCE_NOW();
   per_process::v8_initialized = true;
+  return result;
+}
 
-  int exit_code = 0;
-  {
-    NodeMainInstance main_instance(uv_default_loop(), args, exec_args);
-    exit_code = main_instance.Run();
-  }
-
+void TearDownOncePerProcess() {
   per_process::v8_initialized = false;
   V8::Dispose();
 
@@ -872,8 +876,22 @@ int Start(int argc, char** argv) {
   // Since uv_run cannot be called, uv_async handles held by the platform
   // will never be fully cleaned up.
   per_process::v8_platform.Dispose();
+}
 
-  return exit_code;
+int Start(int argc, char** argv) {
+  InitializationResult result = InitializeOncePerProcess(argc, argv);
+  if (result.early_return) {
+    return result.exit_code;
+  }
+
+  {
+    NodeMainInstance main_instance(
+        uv_default_loop(), result.args, result.exec_args);
+    result.exit_code = main_instance.Run();
+  }
+
+  TearDownOncePerProcess();
+  return result.exit_code;
 }
 
 int Stop(Environment* env) {
