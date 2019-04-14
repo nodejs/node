@@ -42,8 +42,3 @@ const err = {
 };
 common.expectsError(function() { process.chdir({}); }, err);
 common.expectsError(function() { process.chdir(); }, err);
-
-// Check that our built-in methods do not have a prototype/constructor behaviour
-// if they don't need to. This could be tested for any of our C++ methods.
-assert.strictEqual(process.cwd.prototype, undefined);
-assert.throws(() => new process.cwd(), TypeError);
