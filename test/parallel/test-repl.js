@@ -308,7 +308,7 @@ const errorTests = [
   // Functions should not evaluate twice (#2773)
   {
     send: 'var I = [1,2,3,function() {}]; I.pop()',
-    expect: '[Function]'
+    expect: '[Function (anonymous)]'
   },
   // Multiline object
   {
