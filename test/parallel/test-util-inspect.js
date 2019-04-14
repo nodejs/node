@@ -96,7 +96,7 @@ assert.strictEqual(
     Object.assign(new String('hello'), { [Symbol('foo')]: 123 }),
     { showHidden: true }
   ),
-  "[String: 'hello'] { [length]: 5, [Symbol(foo)]: 123 }"
+  "Object('hello') { [length]: 5, [Symbol(foo)]: 123 }"
 );
 
 assert.strictEqual(util.inspect((new JSStream())._externalStream),
@@ -847,39 +847,39 @@ assert.strictEqual(
 }
 
 // Test boxed primitives output the correct values.
-assert.strictEqual(util.inspect(new String('test')), "[String: 'test']");
+assert.strictEqual(util.inspect(new String('test')), "Object('test')");
 assert.strictEqual(
   util.inspect(Object(Symbol('test'))),
-  '[Symbol: Symbol(test)]'
+  'Object(Symbol(test))'
 );
-assert.strictEqual(util.inspect(new Boolean(false)), '[Boolean: false]');
-assert.strictEqual(util.inspect(new Boolean(true)), '[Boolean: true]');
-assert.strictEqual(util.inspect(new Number(0)), '[Number: 0]');
-assert.strictEqual(util.inspect(new Number(-0)), '[Number: -0]');
-assert.strictEqual(util.inspect(new Number(-1.1)), '[Number: -1.1]');
-assert.strictEqual(util.inspect(new Number(13.37)), '[Number: 13.37]');
+assert.strictEqual(util.inspect(new Boolean(false)), 'Object(false)');
+assert.strictEqual(util.inspect(new Boolean(true)), 'Object(true)');
+assert.strictEqual(util.inspect(new Number(0)), 'Object(0)');
+assert.strictEqual(util.inspect(new Number(-0)), 'Object(-0)');
+assert.strictEqual(util.inspect(new Number(-1.1)), 'Object(-1.1)');
+assert.strictEqual(util.inspect(new Number(13.37)), 'Object(13.37)');
 
 // Test boxed primitives with own properties.
 {
   const str = new String('baz');
   str.foo = 'bar';
-  assert.strictEqual(util.inspect(str), "[String: 'baz'] { foo: 'bar' }");
+  assert.strictEqual(util.inspect(str), "Object('baz') { foo: 'bar' }");
 
   const bool = new Boolean(true);
   bool.foo = 'bar';
-  assert.strictEqual(util.inspect(bool), "[Boolean: true] { foo: 'bar' }");
+  assert.strictEqual(util.inspect(bool), "Object(true) { foo: 'bar' }");
 
   const num = new Number(13.37);
   num.foo = 'bar';
-  assert.strictEqual(util.inspect(num), "[Number: 13.37] { foo: 'bar' }");
+  assert.strictEqual(util.inspect(num), "Object(13.37) { foo: 'bar' }");
 
   const sym = Object(Symbol('foo'));
   sym.foo = 'bar';
-  assert.strictEqual(util.inspect(sym), "[Symbol: Symbol(foo)] { foo: 'bar' }");
+  assert.strictEqual(util.inspect(sym), "Object(Symbol(foo)) { foo: 'bar' }");
 
   const big = Object(BigInt(55));
   big.foo = 'bar';
-  assert.strictEqual(util.inspect(big), "[BigInt: 55n] { foo: 'bar' }");
+  assert.strictEqual(util.inspect(big), "Object(55n) { foo: 'bar' }");
 }
 
 // Test es6 Symbol.
@@ -1415,7 +1415,7 @@ util.inspect(process);
   expect = [
     '{',
     '  a: [Function],',
-    '  b: [Number: 3]',
+    '  b: Object(3)',
     '}'
   ].join('\n');
   assert.strictEqual(out, expect);
@@ -1427,7 +1427,7 @@ util.inspect(process);
     '    [length]: 0,',
     "    [name]: ''",
     '  },',
-    '  b: [Number: 3]',
+    '  b: Object(3)',
     '}'
   ].join('\n');
   assert.strictEqual(out, expect);
@@ -1733,11 +1733,11 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
 
 // Verify that throwing in valueOf and toString still produces nice results.
 [
-  [new String(55), "[String: '55']"],
-  [new Boolean(true), '[Boolean: true]'],
-  [new Number(55), '[Number: 55]'],
-  [Object(BigInt(55)), '[BigInt: 55n]'],
-  [Object(Symbol('foo')), '[Symbol: Symbol(foo)]'],
+  [new String(55), "Object('55')"],
+  [new Boolean(true), 'Object(true)'],
+  [new Number(55), 'Object(55)'],
+  [Object(BigInt(55)), 'Object(55n)'],
+  [Object(Symbol('foo')), 'Object(Symbol(foo))'],
   [function() {}, '[Function]'],
   [() => {}, '[Function]'],
   [[1, 2], '[ 1, 2 ]'],
@@ -1850,8 +1850,8 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
 });
 
 assert.strictEqual(inspect(1n), '1n');
-assert.strictEqual(inspect(Object(-1n)), '[BigInt: -1n]');
-assert.strictEqual(inspect(Object(13n)), '[BigInt: 13n]');
+assert.strictEqual(inspect(Object(-1n)), 'Object(-1n)');
+assert.strictEqual(inspect(Object(13n)), 'Object(13n)');
 assert.strictEqual(inspect(new BigInt64Array([0n])), 'BigInt64Array [ 0n ]');
 assert.strictEqual(inspect(new BigUint64Array([0n])), 'BigUint64Array [ 0n ]');
 
