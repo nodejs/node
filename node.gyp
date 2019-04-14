@@ -1016,7 +1016,6 @@
 
       'dependencies': [
         '<(node_lib_target_name)',
-        'deps/gtest/gtest.gyp:gtest',
         'deps/histogram/histogram.gyp:histogram',
         'node_dtrace_header',
         'node_dtrace_ustack',
@@ -1033,14 +1032,17 @@
         'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
-        '<(SHARED_INTERMEDIATE_DIR)', # for node_natives.h
+        'test/cctest',
       ],
 
       'defines': [ 'NODE_WANT_INTERNALS=1' ],
 
       'sources': [
         'src/node_code_cache_stub.cc',
+        'test/cctest/gtest/gtest-all.cc',
+        'test/cctest/gtest/gtest_main.cc',
         'test/cctest/node_test_fixture.cc',
+        'test/cctest/node_test_fixture.h',
         'test/cctest/test_aliased_buffer.cc',
         'test/cctest/test_base64.cc',
         'test/cctest/test_node_postmortem_metadata.cc',
@@ -1050,7 +1052,7 @@
         'test/cctest/test_report_util.cc',
         'test/cctest/test_traced_value.cc',
         'test/cctest/test_util.cc',
-        'test/cctest/test_url.cc'
+        'test/cctest/test_url.cc',
       ],
 
       'conditions': [

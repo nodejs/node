@@ -108,6 +108,7 @@ tools/clang-format/node_modules
 # test artifacts
 icu_config.gypi
 *.tap
+/*.xml
 
 # Xcode workspaces and project folders
 *.xcodeproj
