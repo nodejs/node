@@ -32,7 +32,7 @@ test(undefined, 'undefined\n');
 test(false, 'false\n');
 test('hi', 'hi\n');
 test(Symbol(), 'Symbol()\n');
-test(function() {}, '[Function]\n');
+test(function() {}, '[Function (anonymous)]\n');
 
 test([1, 2, 3], `
 ┌─────────┬────────┐

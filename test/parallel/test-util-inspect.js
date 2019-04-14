@@ -33,11 +33,51 @@ assert.strictEqual(util.inspect(1), '1');
 assert.strictEqual(util.inspect(false), 'false');
 assert.strictEqual(util.inspect(''), "''");
 assert.strictEqual(util.inspect('hello'), "'hello'");
-assert.strictEqual(util.inspect(function() {}), '[Function]');
-assert.strictEqual(util.inspect(() => {}), '[Function]');
-assert.strictEqual(util.inspect(async function() {}), '[AsyncFunction]');
-assert.strictEqual(util.inspect(async () => {}), '[AsyncFunction]');
-assert.strictEqual(util.inspect(function*() {}), '[GeneratorFunction]');
+assert.strictEqual(util.inspect(function abc() {}), '[Function: abc]');
+assert.strictEqual(util.inspect(() => {}), '[Function (anonymous)]');
+assert.strictEqual(
+  util.inspect(async function() {}),
+  '[AsyncFunction (anonymous)]'
+);
+assert.strictEqual(util.inspect(async () => {}), '[AsyncFunction (anonymous)]');
+
+// Special function inspection.
+{
+  const fn = (() => function*() {})();
+  assert.strictEqual(
+    util.inspect(fn),
+    '[GeneratorFunction (anonymous)]'
+  );
+  Object.setPrototypeOf(fn, Object.getPrototypeOf(async () => {}));
+  assert.strictEqual(
+    util.inspect(fn),
+    '[GeneratorFunction (anonymous)] AsyncFunction'
+  );
+  Object.defineProperty(fn, 'name', { value: 5, configurable: true });
+  assert.strictEqual(
+    util.inspect(fn),
+    '[GeneratorFunction: 5] AsyncFunction'
+  );
+  Object.defineProperty(fn, Symbol.toStringTag, {
+    value: 'Foobar',
+    configurable: true
+  });
+  assert.strictEqual(
+    util.inspect({ ['5']: fn }),
+    "{ '5': [GeneratorFunction: 5] AsyncFunction [Foobar] }"
+  );
+  Object.defineProperty(fn, 'name', { value: '5', configurable: true });
+  Object.setPrototypeOf(fn, null);
+  assert.strictEqual(
+    util.inspect(fn),
+    '[GeneratorFunction (null prototype): 5] [Foobar]'
+  );
+  assert.strictEqual(
+    util.inspect({ ['5']: fn }),
+    "{ '5': [GeneratorFunction (null prototype): 5] [Foobar] }"
+  );
+}
+
 assert.strictEqual(util.inspect(undefined), 'undefined');
 assert.strictEqual(util.inspect(null), 'null');
 assert.strictEqual(util.inspect(/foo(bar\n)?/gi), '/foo(bar\\n)?/gi');
@@ -59,8 +99,9 @@ assert.strictEqual(util.inspect({}), '{}');
 assert.strictEqual(util.inspect({ a: 1 }), '{ a: 1 }');
 assert.strictEqual(util.inspect({ a: function() {} }), '{ a: [Function: a] }');
 assert.strictEqual(util.inspect({ a: () => {} }), '{ a: [Function: a] }');
-assert.strictEqual(util.inspect({ a: async function() {} }),
-                   '{ a: [AsyncFunction: a] }');
+// eslint-disable-next-line func-name-matching
+assert.strictEqual(util.inspect({ a: async function abc() {} }),
+                   '{ a: [AsyncFunction: abc] }');
 assert.strictEqual(util.inspect({ a: async () => {} }),
                    '{ a: [AsyncFunction: a] }');
 assert.strictEqual(util.inspect({ a: function*() {} }),
@@ -411,7 +452,10 @@ assert.strictEqual(
 {
   const value = (() => function() {})();
   value.aprop = 42;
-  assert.strictEqual(util.inspect(value), '[Function] { aprop: 42 }');
+  assert.strictEqual(
+    util.inspect(value),
+    '[Function (anonymous)] { aprop: 42 }'
+  );
 }
 
 // Regular expressions with properties.
@@ -1441,7 +1485,7 @@ util.inspect(process);
   out = util.inspect(o, { compact: false, breakLength: 3 });
   expect = [
     '{',
-    '  a: [Function],',
+    '  a: [Function (anonymous)],',
     '  b: [Number: 3]',
     '}'
   ].join('\n');
@@ -1450,7 +1494,7 @@ util.inspect(process);
   out = util.inspect(o, { compact: false, breakLength: 3, showHidden: true });
   expect = [
     '{',
-    '  a: [Function] {',
+    '  a: [Function (anonymous)] {',
     '    [length]: 0,',
     "    [name]: ''",
     '  },',
@@ -1767,8 +1811,8 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   [new Number(55), '[Number: 55]'],
   [Object(BigInt(55)), '[BigInt: 55n]'],
   [Object(Symbol('foo')), '[Symbol: Symbol(foo)]'],
-  [function() {}, '[Function]'],
-  [() => {}, '[Function]'],
+  [function() {}, '[Function (anonymous)]'],
+  [() => {}, '[Function (anonymous)]'],
   [[1, 2], '[ 1, 2 ]'],
   [[, , 5, , , , ], '[ <2 empty items>, 5, <3 empty items> ]'],
   [{ a: 5 }, '{ a: 5 }'],
@@ -1957,10 +2001,14 @@ assert.strictEqual(
   let value = (function() { return function() {}; })();
   Object.setPrototypeOf(value, null);
   Object.setPrototypeOf(obj, value);
-  assert.strictEqual(util.inspect(obj), '<[Function]> { a: true }');
+  assert.strictEqual(
+    util.inspect(obj),
+    '<[Function (null prototype) (anonymous)]> { a: true }'
+  );
   assert.strictEqual(
     util.inspect(obj, { colors: true }),
-    '<\u001b[36m[Function]\u001b[39m> { a: \u001b[33mtrue\u001b[39m }'
+    '<\u001b[36m[Function (null prototype) (anonymous)]\u001b[39m> ' +
+      '{ a: \u001b[33mtrue\u001b[39m }'
   );
 
   obj = { a: true };

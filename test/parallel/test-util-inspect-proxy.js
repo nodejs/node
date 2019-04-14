@@ -144,7 +144,7 @@ const proxy11 = new Proxy(() => {}, {
     return proxy11;
   }
 });
-const expected10 = '[Function]';
-const expected11 = '[Function]';
+const expected10 = '[Function (anonymous)]';
+const expected11 = '[Function (anonymous)]';
 assert.strictEqual(util.inspect(proxy10), expected10);
 assert.strictEqual(util.inspect(proxy11), expected11);
