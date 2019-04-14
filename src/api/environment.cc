@@ -169,11 +169,7 @@ void FreeArrayBufferAllocator(ArrayBufferAllocator* allocator) {
   delete allocator;
 }
 
-void SetIsolateCreateParams(Isolate::CreateParams* params,
-                            ArrayBufferAllocator* allocator) {
-  if (allocator != nullptr)
-    params->array_buffer_allocator = allocator;
-
+void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
   const uint64_t total_memory = uv_get_total_memory();
   if (total_memory > 0) {
     // V8 defaults to 700MB or 1.4GB on 32 and 64 bit platforms respectively.
@@ -204,23 +200,31 @@ Isolate* NewIsolate(ArrayBufferAllocator* allocator, uv_loop_t* event_loop) {
   return NewIsolate(allocator, event_loop, GetMainThreadMultiIsolatePlatform());
 }
 
-Isolate* NewIsolate(ArrayBufferAllocator* allocator,
+// TODO(joyeecheung): we may want to expose this, but then we need to be
+// careful about what we override in the params.
+Isolate* NewIsolate(Isolate::CreateParams* params,
                     uv_loop_t* event_loop,
                     MultiIsolatePlatform* platform) {
-  Isolate::CreateParams params;
-  SetIsolateCreateParams(&params, allocator);
-
   Isolate* isolate = Isolate::Allocate();
   if (isolate == nullptr) return nullptr;
 
   // Register the isolate on the platform before the isolate gets initialized,
   // so that the isolate can access the platform during initialization.
   platform->RegisterIsolate(isolate, event_loop);
-  Isolate::Initialize(isolate, params);
 
+  SetIsolateCreateParamsForNode(params);
+  Isolate::Initialize(isolate, *params);
   SetIsolateUpForNode(isolate);
 
   return isolate;
+}
+
+Isolate* NewIsolate(ArrayBufferAllocator* allocator,
+                    uv_loop_t* event_loop,
+                    MultiIsolatePlatform* platform) {
+  Isolate::CreateParams params;
+  if (allocator != nullptr) params.array_buffer_allocator = allocator;
+  return NewIsolate(&params, event_loop, platform);
 }
 
 IsolateData* CreateIsolateData(Isolate* isolate,

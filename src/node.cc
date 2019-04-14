@@ -25,16 +25,12 @@
 
 #include "debug_utils.h"
 #include "node_binding.h"
-#include "node_buffer.h"
-#include "node_constants.h"
-#include "node_context_data.h"
-#include "node_errors.h"
 #include "node_internals.h"
+#include "node_main_instance.h"
 #include "node_metadata.h"
 #include "node_native_module_env.h"
 #include "node_options-inl.h"
 #include "node_perf.h"
-#include "node_platform.h"
 #include "node_process.h"
 #include "node_revert.h"
 #include "node_v8_platform-inl.h"
@@ -56,13 +52,6 @@
 #include "node_dtrace.h"
 #endif
 
-#include "async_wrap-inl.h"
-#include "env-inl.h"
-#include "handle_wrap.h"
-#include "req_wrap-inl.h"
-#include "string_bytes.h"
-#include "util.h"
-#include "uv.h"
 #if NODE_USE_V8_PLATFORM
 #include "libplatform/libplatform.h"
 #endif  // NODE_USE_V8_PLATFORM
@@ -122,10 +111,8 @@ using native_module::NativeModuleEnv;
 using options_parser::kAllowedInEnvironment;
 using options_parser::kDisallowedInEnvironment;
 
-using v8::Array;
 using v8::Boolean;
 using v8::Context;
-using v8::DEFAULT;
 using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::Function;
@@ -133,12 +120,10 @@ using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
-using v8::Locker;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Object;
 using v8::Script;
-using v8::SealHandleScope;
 using v8::String;
 using v8::Undefined;
 using v8::V8;
@@ -767,161 +752,6 @@ void Init(int* argc,
     argv[i] = strdup(argv_[i].c_str());
 }
 
-void RunBeforeExit(Environment* env) {
-  env->RunBeforeExitCallbacks();
-
-  if (!uv_loop_alive(env->event_loop()))
-    EmitBeforeExit(env);
-}
-
-// TODO(joyeecheung): align this with the CreateEnvironment exposed in node.h
-// and the environment creation routine in workers somehow.
-inline std::unique_ptr<Environment> CreateMainEnvironment(
-    IsolateData* isolate_data,
-    const std::vector<std::string>& args,
-    const std::vector<std::string>& exec_args,
-    int* exit_code) {
-  Isolate* isolate = isolate_data->isolate();
-  HandleScope handle_scope(isolate);
-
-  // TODO(addaleax): This should load a real per-Isolate option, currently
-  // this is still effectively per-process.
-  if (isolate_data->options()->track_heap_objects) {
-    isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
-  }
-
-  Local<Context> context = NewContext(isolate);
-  Context::Scope context_scope(context);
-
-  std::unique_ptr<Environment> env = std::make_unique<Environment>(
-      isolate_data,
-      context,
-      static_cast<Environment::Flags>(Environment::kIsMainThread |
-                                      Environment::kOwnsProcessState |
-                                      Environment::kOwnsInspector));
-  env->InitializeLibuv(per_process::v8_is_profiling);
-  env->ProcessCliArgs(args, exec_args);
-
-#if HAVE_INSPECTOR && NODE_USE_V8_PLATFORM
-  CHECK(!env->inspector_agent()->IsListening());
-  // Inspector agent can't fail to start, but if it was configured to listen
-  // right away on the websocket port and fails to bind/etc, this will return
-  // false.
-  env->inspector_agent()->Start(args.size() > 1 ? args[1].c_str() : "",
-                                env->options()->debug_options(),
-                                env->inspector_host_port(),
-                                true);
-  if (env->options()->debug_options().inspector_enabled &&
-      !env->inspector_agent()->IsListening()) {
-    *exit_code = 12;  // Signal internal error.
-    return env;
-  }
-#else
-  // inspector_enabled can't be true if !HAVE_INSPECTOR or !NODE_USE_V8_PLATFORM
-  // - the option parser should not allow that.
-  CHECK(!env->options()->debug_options().inspector_enabled);
-#endif  // HAVE_INSPECTOR && NODE_USE_V8_PLATFORM
-
-  if (RunBootstrapping(env.get()).IsEmpty()) {
-    *exit_code = 1;
-  }
-
-  return env;
-}
-
-inline int StartNodeWithIsolate(Isolate* isolate,
-                                IsolateData* isolate_data,
-                                const std::vector<std::string>& args,
-                                const std::vector<std::string>& exec_args) {
-  int exit_code = 0;
-  std::unique_ptr<Environment> env =
-      CreateMainEnvironment(isolate_data, args, exec_args, &exit_code);
-  CHECK_NOT_NULL(env);
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
-
-  if (exit_code == 0) {
-    {
-      AsyncCallbackScope callback_scope(env.get());
-      env->async_hooks()->push_async_ids(1, 0);
-      LoadEnvironment(env.get());
-      env->async_hooks()->pop_async_id(1);
-    }
-
-    {
-      SealHandleScope seal(isolate);
-      bool more;
-      env->performance_state()->Mark(
-          node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_START);
-      do {
-        uv_run(env->event_loop(), UV_RUN_DEFAULT);
-
-        per_process::v8_platform.DrainVMTasks(isolate);
-
-        more = uv_loop_alive(env->event_loop());
-        if (more && !env->is_stopping()) continue;
-
-        RunBeforeExit(env.get());
-
-        // Emit `beforeExit` if the loop became alive either after emitting
-        // event, or after running some callbacks.
-        more = uv_loop_alive(env->event_loop());
-      } while (more == true && !env->is_stopping());
-      env->performance_state()->Mark(
-          node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_EXIT);
-    }
-
-    env->set_trace_sync_io(false);
-    exit_code = EmitExit(env.get());
-    WaitForInspectorDisconnect(env.get());
-  }
-
-  env->set_can_call_into_js(false);
-  env->stop_sub_worker_contexts();
-  uv_tty_reset_mode();
-  env->RunCleanup();
-  RunAtExit(env.get());
-
-  per_process::v8_platform.DrainVMTasks(isolate);
-  per_process::v8_platform.CancelVMTasks(isolate);
-
-#if defined(LEAK_SANITIZER)
-  __lsan_do_leak_check();
-#endif
-
-  return exit_code;
-}
-
-inline int StartNodeWithLoopAndArgs(uv_loop_t* event_loop,
-                                    const std::vector<std::string>& args,
-                                    const std::vector<std::string>& exec_args) {
-  std::unique_ptr<ArrayBufferAllocator, decltype(&FreeArrayBufferAllocator)>
-      allocator(CreateArrayBufferAllocator(), &FreeArrayBufferAllocator);
-  Isolate* const isolate = NewIsolate(allocator.get(), event_loop);
-  if (isolate == nullptr)
-    return 12;  // Signal internal error.
-
-  int exit_code;
-  {
-    Locker locker(isolate);
-    Isolate::Scope isolate_scope(isolate);
-    HandleScope handle_scope(isolate);
-    std::unique_ptr<IsolateData, decltype(&FreeIsolateData)> isolate_data(
-        CreateIsolateData(isolate,
-                          event_loop,
-                          per_process::v8_platform.Platform(),
-                          allocator.get()),
-        &FreeIsolateData);
-    exit_code =
-        StartNodeWithIsolate(isolate, isolate_data.get(), args, exec_args);
-  }
-
-  isolate->Dispose();
-  per_process::v8_platform.Platform()->UnregisterIsolate(isolate);
-
-  return exit_code;
-}
-
 int Start(int argc, char** argv) {
   atexit([] () { uv_tty_reset_mode(); });
   PlatformInit();
@@ -981,8 +811,13 @@ int Start(int argc, char** argv) {
   V8::Initialize();
   performance::performance_v8_start = PERFORMANCE_NOW();
   per_process::v8_initialized = true;
-  const int exit_code =
-      StartNodeWithLoopAndArgs(uv_default_loop(), args, exec_args);
+
+  int exit_code = 0;
+  {
+    NodeMainInstance main_instance(uv_default_loop(), args, exec_args);
+    exit_code = main_instance.Run();
+  }
+
   per_process::v8_initialized = false;
   V8::Dispose();
 
