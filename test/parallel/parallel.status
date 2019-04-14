@@ -23,6 +23,12 @@ test-http2-client-upload-reject: PASS,FLAKY
 [$system==linux]
 
 [$system==macos]
+# https://github.com/nodejs/node/issues/26910
+test-tls-sni-option: PASS,FLAKY
+# https://github.com/nodejs/node/issues/27219
+test-tls-sni-server-client: PASS,FLAKY
+# https://github.com/nodejs/node/issues/26938
+test-tls-js-stream: PASS,FLAKY
 
 [$arch==arm || $arch==arm64]
 # https://github.com/nodejs/node/issues/26610
@@ -31,5 +37,7 @@ test-async-hooks-http-parser-destroy: PASS,FLAKY
 [$system==solaris] # Also applies to SmartOS
 
 [$system==freebsd]
+# https://github.com/nodejs/node/issues/23089
+test-gc-http-client-onerror: PASS,FLAKY
 
 [$system==aix]
