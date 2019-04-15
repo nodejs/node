@@ -172,21 +172,29 @@ static gid_t gid_by_name(Isolate* isolate, Local<Value> value) {
 }
 
 static void GetUid(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(env->has_run_bootstrapping_code());
   // uid_t is an uint32_t on all supported platforms.
   args.GetReturnValue().Set(static_cast<uint32_t>(getuid()));
 }
 
 static void GetGid(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(env->has_run_bootstrapping_code());
   // gid_t is an uint32_t on all supported platforms.
   args.GetReturnValue().Set(static_cast<uint32_t>(getgid()));
 }
 
 static void GetEUid(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(env->has_run_bootstrapping_code());
   // uid_t is an uint32_t on all supported platforms.
   args.GetReturnValue().Set(static_cast<uint32_t>(geteuid()));
 }
 
 static void GetEGid(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(env->has_run_bootstrapping_code());
   // gid_t is an uint32_t on all supported platforms.
   args.GetReturnValue().Set(static_cast<uint32_t>(getegid()));
 }
@@ -269,6 +277,7 @@ static void SetEUid(const FunctionCallbackInfo<Value>& args) {
 
 static void GetGroups(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  CHECK(env->has_run_bootstrapping_code());
 
   int ngroups = getgroups(0, nullptr);
   if (ngroups == -1) return env->ThrowErrnoException(errno, "getgroups");
