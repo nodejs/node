@@ -134,19 +134,6 @@ added: v6.0.0
 Enable FIPS-compliant crypto at startup. (Requires Node.js to be built with
 `./configure --openssl-fips`.)
 
-### `--entry-type=type`
-<!-- YAML
-added: REPLACEME
--->
-
-Used with `--experimental-modules`, this configures Node.js to interpret the
-initial entry point as CommonJS or as an ES module.
-
-Valid values are `"commonjs"` and `"module"`. The default is to infer from
-the file extension and the `"type"` field in the nearest parent `package.json`.
-
-Works for executing a file as well as `--eval`, `--print`, `STDIN`.
-
 ### `--es-module-specifier-resolution=mode`
 <!-- YAML
 added: REPLACEME
@@ -260,6 +247,17 @@ added: v0.11.15
 -->
 
 Specify ICU data load path. (Overrides `NODE_ICU_DATA`.)
+
+### `--input-type=type`
+<!-- YAML
+added: REPLACEME
+-->
+
+Used with `--experimental-modules`, this configures Node.js to interpret string
+input as CommonJS or as an ES module. String input is input via `--eval`,
+`--print`, or `STDIN`.
+
+Valid values are `"commonjs"` and `"module"`. The default is `"commonjs"`.
 
 ### `--inspect-brk[=[host:]port]`
 <!-- YAML

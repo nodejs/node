@@ -119,9 +119,6 @@ Enable FIPS-compliant crypto at startup.
 Requires Node.js to be built with
 .Sy ./configure --openssl-fips .
 .
-.It Fl -entry-type Ns = Ns Ar type
-Set the top-level module resolution type.
-.
 .It Fl -es-module-specifier-resolution
 Select extension resolution algorithm for ES Modules; either 'explicit' (default) or 'node'
 .
@@ -169,6 +166,9 @@ or
 Specify ICU data load path.
 Overrides
 .Ev NODE_ICU_DATA .
+.
+.It Fl -input-type Ns = Ns Ar type
+Set the module resolution type for input via --eval, --print or STDIN.
 .
 .It Fl -inspect-brk Ns = Ns Ar [host:]port
 Activate inspector on

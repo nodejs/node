@@ -1,4 +1,4 @@
-// Flags: --experimental-modules --entry-type=module
+// Flags: --experimental-modules
 /* eslint-disable node-core/required-modules */
 import cjs from '../fixtures/baz.js';
 import '../common/index.mjs';
