@@ -23,7 +23,8 @@ function beforeEach() {
   fs.chmodSync(dest, '444');
 
   const check = (err) => {
-    assert.strictEqual(err.code, 'EACCES');
+    const expected = ['EACCES', 'EPERM'];
+    assert(expected.includes(err.code), `${err.code} not in ${expected}`);
     assert.strictEqual(fs.readFileSync(dest, 'utf8'), 'dest');
     return true;
   };
