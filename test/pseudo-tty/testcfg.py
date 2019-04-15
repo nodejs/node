@@ -66,7 +66,7 @@ class TTYTestCase(test.TestCase):
       patterns.append(pattern)
     # Compare actual output with the expected
     raw_lines = (output.stdout + output.stderr).split('\n')
-    outlines = [ s.strip() for s in raw_lines if not self.IgnoreLine(s) ]
+    outlines = [ s.rstrip() for s in raw_lines if not self.IgnoreLine(s) ]
     if len(outlines) != len(patterns):
       print("length differs.")
       print("expect=%d" % len(patterns))
