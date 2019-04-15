@@ -27,6 +27,8 @@
 
 #ifndef _WIN32
 # include <unistd.h>
+# include <sys/socket.h>
+# include <sys/un.h>
 #endif
 
 static int send_cb_called = 0;
@@ -296,3 +298,53 @@ TEST_IMPL(udp_open_connect) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
+
+#ifndef _WIN32
+TEST_IMPL(udp_send_unix) {
+  /* Test that "uv_udp_send()" supports sending over
+     a "sockaddr_un" address. */
+  struct sockaddr_un addr;
+  uv_udp_t handle;
+  uv_udp_send_t req;
+  uv_loop_t* loop;
+  uv_buf_t buf = uv_buf_init("PING", 4);
+  int fd;
+  int r;
+
+  loop = uv_default_loop();
+
+  memset(&addr, 0, sizeof addr);
+  addr.sun_family = AF_UNIX;
+  ASSERT(strlen(TEST_PIPENAME) < sizeof(addr.sun_path));
+  memcpy(addr.sun_path, TEST_PIPENAME, strlen(TEST_PIPENAME));
+
+  fd = socket(AF_UNIX, SOCK_STREAM, 0);
+  ASSERT(fd >= 0);
+
+  unlink(TEST_PIPENAME);
+  ASSERT(0 == bind(fd, (const struct sockaddr*)&addr, sizeof addr));
+  ASSERT(0 == listen(fd, 1));
+
+  r = uv_udp_init(loop, &handle);
+  ASSERT(r == 0);
+  r = uv_udp_open(&handle, fd);
+  ASSERT(r == 0);
+  uv_run(loop, UV_RUN_DEFAULT);
+
+  r = uv_udp_send(&req,
+                  &handle,
+                  &buf,
+                  1,
+                  (const struct sockaddr*) &addr,
+                  NULL);
+  ASSERT(r == 0);
+
+  uv_close((uv_handle_t*)&handle, NULL);
+  uv_run(loop, UV_RUN_DEFAULT);
+  close(fd);
+  unlink(TEST_PIPENAME);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+#endif

@@ -193,6 +193,8 @@ size_t uv__count_bufs(const uv_buf_t bufs[], unsigned int nbufs);
 int uv__socket_sockopt(uv_handle_t* handle, int optname, int* value);
 
 void uv__fs_scandir_cleanup(uv_fs_t* req);
+void uv__fs_readdir_cleanup(uv_fs_t* req);
+uv_dirent_type_t uv__fs_get_dirent_type(uv__dirent_t* dent);
 
 int uv__next_timeout(const uv_loop_t* loop);
 void uv__run_timers(uv_loop_t* loop);

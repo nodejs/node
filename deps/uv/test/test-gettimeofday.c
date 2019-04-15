@@ -1,4 +1,4 @@
-/* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+/* Copyright libuv project contributors. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -19,25 +19,21 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef UV_VERSION_H
-#define UV_VERSION_H
+#include "uv.h"
+#include "task.h"
 
- /*
- * Versions with the same major number are ABI stable. API is allowed to
- * evolve between minor releases, but only in a backwards compatible way.
- * Make sure you update the -soname directives in configure.ac
- * and uv.gyp whenever you bump UV_VERSION_MAJOR or UV_VERSION_MINOR (but
- * not UV_VERSION_PATCH.)
- */
+TEST_IMPL(gettimeofday) {
+  uv_timeval64_t tv;
+  int r;
 
-#define UV_VERSION_MAJOR 1
-#define UV_VERSION_MINOR 28
-#define UV_VERSION_PATCH 0
-#define UV_VERSION_IS_RELEASE 1
-#define UV_VERSION_SUFFIX ""
+  tv.tv_sec = 0;
+  r = uv_gettimeofday(&tv);
+  ASSERT(r == 0);
+  ASSERT(tv.tv_sec != 0);
 
-#define UV_VERSION_HEX  ((UV_VERSION_MAJOR << 16) | \
-                         (UV_VERSION_MINOR <<  8) | \
-                         (UV_VERSION_PATCH))
+  /* Test invalid input. */
+  r = uv_gettimeofday(NULL);
+  ASSERT(r == UV_EINVAL);
 
-#endif /* UV_VERSION_H */
+  return 0;
+}
