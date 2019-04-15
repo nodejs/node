@@ -279,33 +279,35 @@ if (global.gc) {
   knownGlobals.push(global.gc);
 }
 
-if (process.env.NODE_TEST_KNOWN_GLOBALS) {
-  const knownFromEnv = process.env.NODE_TEST_KNOWN_GLOBALS.split(',');
-  allowGlobals(...knownFromEnv);
-}
-
 function allowGlobals(...whitelist) {
   knownGlobals = knownGlobals.concat(whitelist);
 }
 
-function leakedGlobals() {
-  const leaked = [];
+if (process.env.NODE_TEST_KNOWN_GLOBALS !== '0') {
+  if (process.env.NODE_TEST_KNOWN_GLOBALS) {
+    const knownFromEnv = process.env.NODE_TEST_KNOWN_GLOBALS.split(',');
+    allowGlobals(...knownFromEnv);
+  }
 
-  for (const val in global) {
-    if (!knownGlobals.includes(global[val])) {
-      leaked.push(val);
+  function leakedGlobals() {
+    const leaked = [];
+
+    for (const val in global) {
+      if (!knownGlobals.includes(global[val])) {
+        leaked.push(val);
+      }
     }
+
+    return leaked;
   }
 
-  return leaked;
+  process.on('exit', function() {
+    const leaked = leakedGlobals();
+    if (leaked.length > 0) {
+      assert.fail(`Unexpected global(s) found: ${leaked.join(', ')}`);
+    }
+  });
 }
-
-process.on('exit', function() {
-  const leaked = leakedGlobals();
-  if (leaked.length > 0) {
-    assert.fail(`Unexpected global(s) found: ${leaked.join(', ')}`);
-  }
-});
 
 const mustCallChecks = [];
 
