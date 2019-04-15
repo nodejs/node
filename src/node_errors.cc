@@ -184,11 +184,7 @@ void PrintException(Isolate* isolate,
   fprintf(stderr, "%s\n", *reason);
 
   Local<v8::StackTrace> stack = message->GetStackTrace();
-  if (stack.IsEmpty()) {
-    return;
-  } else {
-    PrintStackTrace(isolate, stack);
-  }
+  if (!stack.IsEmpty()) PrintStackTrace(isolate, stack);
 }
 
 void PrintCaughtException(Isolate* isolate,
@@ -790,14 +786,14 @@ void FatalException(Isolate* isolate,
   Local<Context> context = isolate->GetCurrentContext();
   Environment* env = Environment::GetCurrent(context);
   if (env == nullptr) {
-    // This could happen before Environment is assigned to the context.
+    // This means that the exception happens before Environment is assigned
+    // to the context e.g. when there is a SyntaxError in a per-context
+    // script - which usually indicates that there is a bug because no JS
+    // error is supposed to be thrown at this point.
+    // Since we don't have access to Environment here, there is not
+    // much we can do, so we just print whatever useful and crash.
     PrintException(isolate, context, error, message);
-    // XXX(joyeecheung): this could also happen to a worker, but since
-    // we don't have access to Environment yet, there is not much
-    // we can do at this point but to exit directly.
-    isolate->TerminateExecution();
-    DisposePlatform();
-    exit(6);
+    Abort();
   }
 
   Local<Object> process_object = env->process_object();
