@@ -166,6 +166,9 @@ typedef uid_t uv_uid_t;
 
 typedef struct dirent uv__dirent_t;
 
+#define UV_DIR_PRIVATE_FIELDS \
+  DIR* dir;
+
 #if defined(DT_UNKNOWN)
 # define HAVE_DIRENT_TYPES
 # if defined(DT_REG)
