@@ -109,8 +109,8 @@ the issue tracker is:
 
 ## Collaborator Nominations
 
-Existing Collaborators can nominate someone to become a new Collaborator.
-Nominees should have significant and valuable contributions across the Node.js
+Existing Collaborators can nominate someone to become a Collaborator. Nominees
+should have significant and valuable contributions across the Node.js
 organization.
 
 To nominate a new Collaborator, open an issue in the [nodejs/node][] repository.
