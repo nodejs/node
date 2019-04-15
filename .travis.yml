@@ -40,7 +40,6 @@ jobs:
         - cp out/Release/node /home/travis/.ccache
         - cp out/Release/cctest /home/travis/.ccache
 
-        - pyenv global 2.7.15
     - stage: "Tests"
       name: "Test JS Suites"
       cache: ccache
