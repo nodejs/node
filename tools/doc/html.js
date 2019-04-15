@@ -142,11 +142,11 @@ function linkManPages(text) {
                 `${number}/${name}">${displayAs}</a>`;
       } else if (HAXX_ONLY_SYSCALLS.has(name)) {
         return `${beginning}<a href="https://${name}.haxx.se/docs/manpage.html">${displayAs}</a>`;
-      } else {
-        return `${beginning}<a href="http://man7.org/linux/man-pages/man${number}` +
-          `/${name}.${number}${optionalCharacter}.html">${displayAs}</a>`;
-      }
-    });
+      } 
+      
+      return `${beginning}<a href="http://man7.org/linux/man-pages/man${number}` +
+        `/${name}.${number}${optionalCharacter}.html">${displayAs}</a>`;
+  });
 }
 
 const TYPE_SIGNATURE = /\{[^}]+\}/g;
