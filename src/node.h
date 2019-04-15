@@ -66,6 +66,10 @@
 
 #include <memory>
 
+#ifdef __POSIX__
+#include <signal.h>
+#endif  // __POSIX__
+
 #define NODE_MAKE_VERSION(major, minor, patch)                                \
   ((major) * 0x1000 + (minor) * 0x100 + (patch))
 
@@ -815,6 +819,17 @@ class NODE_EXTERN AsyncResource {
   v8::Persistent<v8::Object> resource_;
   async_context async_context_;
 };
+
+#ifdef __POSIX__
+// Register a signal handler without interrupting
+// any handlers that node itself needs.
+NODE_EXTERN
+void RegisterSignalHandler(int signal,
+                           void (*handler)(int signal,
+                                           siginfo_t* info,
+                                           void* ucontext),
+                           bool reset_handler = false);
+#endif  // __POSIX__
 
 }  // namespace node
 

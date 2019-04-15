@@ -91,11 +91,8 @@ void PrintCaughtException(v8::Isolate* isolate,
                           const v8::TryCatch& try_catch);
 
 void WaitForInspectorDisconnect(Environment* env);
-void SignalExit(int signo);
 #ifdef __POSIX__
-void RegisterSignalHandler(int signal,
-                           void (*handler)(int signal),
-                           bool reset_handler = false);
+void SignalExit(int signal, siginfo_t* info, void* ucontext);
 #endif
 
 std::string GetHumanReadableProcessName();
