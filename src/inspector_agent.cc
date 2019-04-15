@@ -88,7 +88,7 @@ void StartIoInterrupt(Isolate* isolate, void* agent) {
 
 
 #ifdef __POSIX__
-static void StartIoThreadWakeup(int signo) {
+static void StartIoThreadWakeup(int signo, siginfo_t* info, void* ucontext) {
   uv_sem_post(&start_io_thread_semaphore);
 }
 

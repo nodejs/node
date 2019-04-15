@@ -99,7 +99,7 @@ class SigintWatchdogHelper {
   bool stopping_;
 
   static void* RunSigintWatchdog(void* arg);
-  static void HandleSignal(int signum);
+  static void HandleSignal(int signum, siginfo_t* info, void* ucontext);
 #else
   bool watchdog_disabled_;
   static BOOL WINAPI WinCtrlCHandlerRoutine(DWORD dwCtrlType);
