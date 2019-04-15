@@ -40,8 +40,11 @@ function nextdir() {
   return `test${++dirc}`;
 }
 
-// fs.promises should not enumerable.
-assert.strictEqual(Object.keys(fs).includes('promises'), true);
+// fs.promises should be enumerable.
+assert.strictEqual(
+  Object.prototype.propertyIsEnumerable.call(fs, 'promises'),
+  true
+);
 
 {
   access(__filename, 'r')
