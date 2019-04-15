@@ -6,6 +6,7 @@
 #ifdef NODE_REPORT
 #include "node_report.h"
 #endif
+#include "node_v8_platform-inl.h"
 
 namespace node {
 
@@ -170,13 +171,10 @@ void PrintStackTrace(Isolate* isolate, Local<StackTrace> stack) {
   fflush(stderr);
 }
 
-void PrintCaughtException(Isolate* isolate,
-                          Local<Context> context,
-                          const v8::TryCatch& try_catch) {
-  CHECK(try_catch.HasCaught());
-  Local<Value> err = try_catch.Exception();
-  Local<Message> message = try_catch.Message();
-  Local<v8::StackTrace> stack = message->GetStackTrace();
+void PrintException(Isolate* isolate,
+                    Local<Context> context,
+                    Local<Value> err,
+                    Local<Message> message) {
   node::Utf8Value reason(isolate,
                          err->ToDetailString(context).ToLocalChecked());
   bool added_exception_line = false;
@@ -184,7 +182,20 @@ void PrintCaughtException(Isolate* isolate,
       GetErrorSource(isolate, context, message, &added_exception_line);
   fprintf(stderr, "%s\n", source.c_str());
   fprintf(stderr, "%s\n", *reason);
-  PrintStackTrace(isolate, stack);
+
+  Local<v8::StackTrace> stack = message->GetStackTrace();
+  if (stack.IsEmpty()) {
+    return;
+  } else {
+    PrintStackTrace(isolate, stack);
+  }
+}
+
+void PrintCaughtException(Isolate* isolate,
+                          Local<Context> context,
+                          const v8::TryCatch& try_catch) {
+  CHECK(try_catch.HasCaught());
+  PrintException(isolate, context, try_catch.Exception(), try_catch.Message());
 }
 
 void AppendExceptionLine(Environment* env,
@@ -775,8 +786,20 @@ void FatalException(Isolate* isolate,
   CHECK(!error.IsEmpty());
   HandleScope scope(isolate);
 
-  Environment* env = Environment::GetCurrent(isolate);
-  CHECK_NOT_NULL(env);  // TODO(addaleax): Handle nullptr here.
+  CHECK(isolate->InContext());
+  Local<Context> context = isolate->GetCurrentContext();
+  Environment* env = Environment::GetCurrent(context);
+  if (env == nullptr) {
+    // This could happen before Environment is assigned to the context.
+    PrintException(isolate, context, error, message);
+    // XXX(joyeecheung): this could also happen to a worker, but since
+    // we don't have access to Environment yet, there is not much
+    // we can do at this point but to exit directly.
+    isolate->TerminateExecution();
+    DisposePlatform();
+    exit(6);
+  }
+
   Local<Object> process_object = env->process_object();
   Local<String> fatal_exception_string = env->fatal_exception_string();
   Local<Value> fatal_exception_function =

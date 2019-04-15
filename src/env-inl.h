@@ -303,11 +303,11 @@ inline Environment* Environment::GetCurrent(v8::Isolate* isolate) {
 
 inline Environment* Environment::GetCurrent(v8::Local<v8::Context> context) {
   if (UNLIKELY(context.IsEmpty() ||
-      context->GetNumberOfEmbedderDataFields() <
-          ContextEmbedderIndex::kContextTag ||
-      context->GetAlignedPointerFromEmbedderData(
-          ContextEmbedderIndex::kContextTag) !=
-          Environment::kNodeContextTagPtr)) {
+               context->GetNumberOfEmbedderDataFields() <=
+                   ContextEmbedderIndex::kContextTag ||
+               context->GetAlignedPointerFromEmbedderData(
+                   ContextEmbedderIndex::kContextTag) !=
+                   Environment::kNodeContextTagPtr)) {
     return nullptr;
   }
 
