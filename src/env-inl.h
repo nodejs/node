@@ -302,15 +302,18 @@ inline Environment* Environment::GetCurrent(v8::Isolate* isolate) {
 }
 
 inline Environment* Environment::GetCurrent(v8::Local<v8::Context> context) {
-  if (UNLIKELY(context.IsEmpty() ||
-      context->GetNumberOfEmbedderDataFields() <
-          ContextEmbedderIndex::kContextTag ||
-      context->GetAlignedPointerFromEmbedderData(
-          ContextEmbedderIndex::kContextTag) !=
-          Environment::kNodeContextTagPtr)) {
+  if (UNLIKELY(context.IsEmpty())) {
     return nullptr;
   }
-
+  if (UNLIKELY(context->GetNumberOfEmbedderDataFields() <=
+               ContextEmbedderIndex::kContextTag)) {
+    return nullptr;
+  }
+  if (UNLIKELY(context->GetAlignedPointerFromEmbedderData(
+                   ContextEmbedderIndex::kContextTag) !=
+               Environment::kNodeContextTagPtr)) {
+    return nullptr;
+  }
   return static_cast<Environment*>(
       context->GetAlignedPointerFromEmbedderData(
           ContextEmbedderIndex::kEnvironment));
