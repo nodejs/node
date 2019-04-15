@@ -77,5 +77,5 @@ errExec('throws_error6.js', common.mustCall((err, stdout, stderr) => {
 
 // Object that throws in toString() doesn't print garbage
 errExec('throws_error7.js', common.mustCall((err, stdout, stderr) => {
-  assert.ok(/<toString\(\) threw exception/.test(stderr));
+  assert.ok(/throw {\r?\n\^\r?\n{ toString: \[Function: toString] }\r?\n$/.test(stderr));
 }));
