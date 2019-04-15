@@ -118,6 +118,7 @@ static void CPUUsage(const FunctionCallbackInfo<Value>& args) {
 
 static void Cwd(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  CHECK(env->has_run_bootstrapping_code());
   char buf[CHDIR_BUFSIZE];
   size_t cwd_len = sizeof(buf);
   int err = uv_cwd(buf, &cwd_len);
@@ -226,12 +227,13 @@ static void StopProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void Umask(const FunctionCallbackInfo<Value>& args) {
-  uint32_t old;
-
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(env->has_run_bootstrapping_code());
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsUndefined() || args[0]->IsUint32());
   Mutex::ScopedLock scoped_lock(per_process::umask_mutex);
 
+  uint32_t old;
   if (args[0]->IsUndefined()) {
     old = umask(0);
     umask(static_cast<mode_t>(old));
