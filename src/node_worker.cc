@@ -459,13 +459,17 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     // The first argument is program name.
     invalid_args.erase(invalid_args.begin());
     if (errors.size() > 0 || invalid_args.size() > 0) {
-      v8::Local<v8::Value> error =
-          ToV8Value(env->context(),
-                    errors.size() > 0 ? errors : invalid_args)
-              .ToLocalChecked();
+      v8::Local<v8::Value> error;
+      if (!ToV8Value(env->context(),
+                     errors.size() > 0 ? errors : invalid_args)
+                         .ToLocal(&error)) {
+        return;
+      }
       Local<String> key =
           FIXED_ONE_BYTE_STRING(env->isolate(), "invalidExecArgv");
-      USE(args.This()->Set(env->context(), key, error).FromJust());
+      // Ignore the return value of Set() because exceptions bubble up to JS
+      // when we return anyway.
+      USE(args.This()->Set(env->context(), key, error));
       return;
     }
   }
