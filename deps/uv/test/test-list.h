@@ -155,6 +155,9 @@ TEST_DECLARE   (udp_open)
 TEST_DECLARE   (udp_open_twice)
 TEST_DECLARE   (udp_open_bound)
 TEST_DECLARE   (udp_open_connect)
+#ifndef _WIN32
+TEST_DECLARE   (udp_send_unix)
+#endif
 TEST_DECLARE   (udp_try_send)
 TEST_DECLARE   (pipe_bind_error_addrinuse)
 TEST_DECLARE   (pipe_bind_error_addrnotavail)
@@ -252,6 +255,7 @@ TEST_DECLARE   (getnameinfo_basic_ip4_sync)
 TEST_DECLARE   (getnameinfo_basic_ip6)
 TEST_DECLARE   (getsockname_tcp)
 TEST_DECLARE   (getsockname_udp)
+TEST_DECLARE   (gettimeofday)
 TEST_DECLARE   (fail_always)
 TEST_DECLARE   (pass_always)
 TEST_DECLARE   (socket_buffer_size)
@@ -345,6 +349,10 @@ TEST_DECLARE   (fs_scandir_empty_dir)
 TEST_DECLARE   (fs_scandir_non_existent_dir)
 TEST_DECLARE   (fs_scandir_file)
 TEST_DECLARE   (fs_open_dir)
+TEST_DECLARE   (fs_readdir_empty_dir)
+TEST_DECLARE   (fs_readdir_file)
+TEST_DECLARE   (fs_readdir_non_empty_dir)
+TEST_DECLARE   (fs_readdir_non_existing_dir)
 TEST_DECLARE   (fs_rename_to_existing_file)
 TEST_DECLARE   (fs_write_multiple_bufs)
 TEST_DECLARE   (fs_read_write_null_arguments)
@@ -652,6 +660,9 @@ TASK_LIST_START
   TEST_ENTRY  (udp_open_bound)
   TEST_ENTRY  (udp_open_connect)
   TEST_HELPER (udp_open_connect, udp4_echo_server)
+#ifndef _WIN32
+  TEST_ENTRY  (udp_send_unix)
+#endif
 
   TEST_ENTRY  (pipe_bind_error_addrinuse)
   TEST_ENTRY  (pipe_bind_error_addrnotavail)
@@ -780,6 +791,8 @@ TASK_LIST_START
 
   TEST_ENTRY  (getsockname_tcp)
   TEST_ENTRY  (getsockname_udp)
+
+  TEST_ENTRY  (gettimeofday)
 
   TEST_ENTRY  (poll_duplex)
   TEST_ENTRY  (poll_unidirectional)
@@ -921,6 +934,10 @@ TASK_LIST_START
   TEST_ENTRY  (fs_scandir_non_existent_dir)
   TEST_ENTRY  (fs_scandir_file)
   TEST_ENTRY  (fs_open_dir)
+  TEST_ENTRY  (fs_readdir_empty_dir)
+  TEST_ENTRY  (fs_readdir_file)
+  TEST_ENTRY  (fs_readdir_non_empty_dir)
+  TEST_ENTRY  (fs_readdir_non_existing_dir)
   TEST_ENTRY  (fs_rename_to_existing_file)
   TEST_ENTRY  (fs_write_multiple_bufs)
   TEST_ENTRY  (fs_write_alotof_bufs)

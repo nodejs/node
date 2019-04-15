@@ -41,6 +41,7 @@
 #include <sys/resource.h> /* getrusage */
 #include <pwd.h>
 #include <sys/utsname.h>
+#include <sys/time.h>
 
 #ifdef __sun
 # include <sys/filio.h>
@@ -1427,5 +1428,19 @@ int uv__getsockpeername(const uv_handle_t* handle,
     return UV__ERR(errno);
 
   *namelen = (int) socklen;
+  return 0;
+}
+
+int uv_gettimeofday(uv_timeval64_t* tv) {
+  struct timeval time;
+
+  if (tv == NULL)
+    return UV_EINVAL;
+
+  if (gettimeofday(&time, NULL) != 0)
+    return UV__ERR(errno);
+
+  tv->tv_sec = (int64_t) time.tv_sec;
+  tv->tv_usec = (int32_t) time.tv_usec;
   return 0;
 }

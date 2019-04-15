@@ -13,7 +13,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 AC_PREREQ(2.57)
-AC_INIT([libuv], [1.27.0], [https://github.com/libuv/libuv/issues])
+AC_INIT([libuv], [1.28.0], [https://github.com/libuv/libuv/issues])
 AC_CONFIG_MACRO_DIR([m4])
 m4_include([m4/libuv-extra-automake-flags.m4])
 m4_include([m4/as_case.m4])
@@ -24,18 +24,16 @@ AC_ENABLE_SHARED
 AC_ENABLE_STATIC
 AC_PROG_CC
 AM_PROG_CC_C_O
+AS_IF([AS_CASE([$host_os],[openedition*],  [false], [true])], [
+  CC_CHECK_CFLAGS_APPEND([-pedantic])
+])
 CC_FLAG_VISIBILITY #[-fvisibility=hidden]
 CC_CHECK_CFLAGS_APPEND([-g])
-AS_IF([test "x$GCC" = xyes], [
-  AS_IF([AS_CASE([$host_os], [openedition*], [false], [true])], [
-    CC_CHECK_CFLAGS_APPEND([-pedantic])
-  ])
-  CC_CHECK_CFLAGS_APPEND([-std=gnu89])
-  CC_CHECK_CFLAGS_APPEND([-Wall])
-  CC_CHECK_CFLAGS_APPEND([-Wextra])
-  CC_CHECK_CFLAGS_APPEND([-Wno-unused-parameter])
-  CC_CHECK_CFLAGS_APPEND([-Wstrict-prototypes])
-])
+CC_CHECK_CFLAGS_APPEND([-std=gnu89])
+CC_CHECK_CFLAGS_APPEND([-Wall])
+CC_CHECK_CFLAGS_APPEND([-Wextra])
+CC_CHECK_CFLAGS_APPEND([-Wno-unused-parameter])
+CC_CHECK_CFLAGS_APPEND([-Wstrict-prototypes])
 # AM_PROG_AR is not available in automake v0.11 but it's essential in v0.12.
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 # autoconf complains if AC_PROG_LIBTOOL precedes AM_PROG_AR.
@@ -52,7 +50,6 @@ AC_CHECK_LIB([rt], [clock_gettime])
 AC_CHECK_LIB([sendfile], [sendfile])
 AC_CHECK_LIB([socket], [socket])
 AC_SYS_LARGEFILE
-AM_CONDITIONAL([GCC],      [AS_IF([test "x$GCC" = xyes],        [true], [false])])
 AM_CONDITIONAL([AIX],      [AS_CASE([$host_os],[aix*],          [true], [false])])
 AM_CONDITIONAL([ANDROID],  [AS_CASE([$host_os],[linux-android*],[true], [false])])
 AM_CONDITIONAL([CYGWIN],   [AS_CASE([$host_os],[cygwin*],       [true], [false])])

@@ -860,7 +860,8 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     return 0;
   }
 
-  *addresses = uv__malloc(*count * sizeof(**addresses));
+  /* Make sure the memory is initiallized to zero using calloc() */
+  *addresses = uv__calloc(*count, sizeof(**addresses));
   if (!(*addresses)) {
     freeifaddrs(addrs);
     return UV_ENOMEM;
@@ -902,8 +903,6 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
       if (strcmp(address->name, ent->ifa_name) == 0) {
         sll = (struct sockaddr_ll*)ent->ifa_addr;
         memcpy(address->phys_addr, sll->sll_addr, sizeof(address->phys_addr));
-      } else {
-        memset(address->phys_addr, 0, sizeof(address->phys_addr));
       }
       address++;
     }

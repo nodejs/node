@@ -122,6 +122,21 @@ Data types
             uv_dirent_type_t type;
         } uv_dirent_t;
 
+.. c:type:: uv_dir_t
+
+    Data type used for streaming directory iteration.
+    Used by :c:func:`uv_fs_opendir()`, :c:func:`uv_fs_readdir()`, and
+    :c:func:`uv_fs_closedir()`. `dirents` represents a user provided array of
+    `uv_dirent_t`s used to hold results. `nentries` is the user provided maximum
+    array size of `dirents`.
+
+    ::
+
+        typedef struct uv_dir_s {
+            uv_dirent_t* dirents;
+            size_t nentries;
+        } uv_dir_t;
+
 
 Public members
 ^^^^^^^^^^^^^^
@@ -207,6 +222,49 @@ API
 .. c:function:: int uv_fs_rmdir(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb)
 
     Equivalent to :man:`rmdir(2)`.
+
+.. c:function:: int uv_fs_opendir(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb)
+
+    Opens `path` as a directory stream. On success, a `uv_dir_t` is allocated
+    and returned via `req->ptr`. This memory is not freed by
+    `uv_fs_req_cleanup()`, although `req->ptr` is set to `NULL`. The allocated
+    memory must be freed by calling `uv_fs_closedir()`. On failure, no memory
+    is allocated.
+
+    The contents of the directory can be iterated over by passing the resulting
+    `uv_dir_t` to `uv_fs_readdir()`.
+
+    .. versionadded:: 1.28.0
+
+.. c:function:: int uv_fs_closedir(uv_loop_t* loop, uv_fs_t* req, uv_dir_t* dir, uv_fs_cb cb)
+
+    Closes the directory stream represented by `dir` and frees the memory
+    allocated by `uv_fs_opendir()`.
+
+    .. versionadded:: 1.28.0
+
+.. c:function:: int uv_fs_readdir(uv_loop_t* loop, uv_fs_t* req, uv_dir_t* dir, uv_fs_cb cb)
+
+    Iterates over the directory stream, `dir`, returned by a successful
+    `uv_fs_opendir()` call. Prior to invoking `uv_fs_readdir()`, the caller
+    must set `dir->dirents` and `dir->nentries`, representing the array of
+    :c:type:`uv_dirent_t` elements used to hold the read directory entries and
+    its size.
+
+    On success, the result is an integer >= 0 representing the number of entries
+    read from the stream.
+
+    .. versionadded:: 1.28.0
+
+    .. warning::
+        `uv_fs_readdir()` is not thread safe.
+
+    .. note::
+        This function does not return the "." and ".." entries.
+
+    .. note::
+        On success this function allocates memory that must be freed using
+        `uv_fs_req_cleanup()`.
 
 .. c:function:: int uv_fs_scandir(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags, uv_fs_cb cb)
 .. c:function:: int uv_fs_scandir_next(uv_fs_t* req, uv_dirent_t* ent)
