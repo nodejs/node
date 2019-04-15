@@ -854,18 +854,6 @@ provided.
 Encoding provided to `TextDecoder()` API was not one of the
 [WHATWG Supported Encodings][].
 
-<a id="ERR_ENTRY_TYPE_MISMATCH"></a>
-#### ERR_ENTRY_TYPE_MISMATCH
-
-> Stability: 1 - Experimental
-
-The `--entry-type=commonjs` flag was used to attempt to execute an `.mjs` file
-or a `.js` file where the nearest parent `package.json` contains
-`"type": "module"`; or
-the `--entry-type=module` flag was used to attempt to execute a `.cjs` file or
-a `.js` file where the nearest parent `package.json` either lacks a `"type"`
-field or contains `"type": "commonjs"`.
-
 <a id="ERR_FALSY_VALUE_REJECTION"></a>
 ### ERR_FALSY_VALUE_REJECTION
 
@@ -1165,6 +1153,14 @@ is set for the `Http2Stream`.
 
 An option pair is incompatible with each other and can not be used at the same
 time.
+
+<a id="ERR_INPUT_TYPE_NOT_ALLOWED"></a>
+### ERR_INPUT_TYPE_NOT_ALLOWED
+
+> Stability: 1 - Experimental
+
+The `--input-type` flag was used to attempt to execute a file. This flag can
+only be used with input via `--eval`, `--print` or `STDIN`.
 
 <a id="ERR_INSPECTOR_ALREADY_CONNECTED"></a>
 ### ERR_INSPECTOR_ALREADY_CONNECTED
@@ -2222,6 +2218,18 @@ closed.
 
 These errors have never been released, but had been present on master between
 releases.
+
+<a id="ERR_ENTRY_TYPE_MISMATCH"></a>
+#### ERR_ENTRY_TYPE_MISMATCH
+
+> Stability: 1 - Experimental
+
+The `--entry-type=commonjs` flag was used to attempt to execute an `.mjs` file
+or a `.js` file where the nearest parent `package.json` contains
+`"type": "module"`; or
+the `--entry-type=module` flag was used to attempt to execute a `.cjs` file or
+a `.js` file where the nearest parent `package.json` either lacks a `"type"`
+field or contains `"type": "commonjs"`.
 
 <a id="ERR_FS_WATCHER_ALREADY_STARTED"></a>
 #### ERR_FS_WATCHER_ALREADY_STARTED

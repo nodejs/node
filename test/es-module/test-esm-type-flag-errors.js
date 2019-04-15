@@ -19,17 +19,9 @@ expect('', packageTypeModuleMain, 'package-type-module');
 expect('', packageTypeCommonJsMain, 'package-type-commonjs');
 expect('', packageWithoutTypeMain, 'package-without-type');
 
-// Check that running with --entry-type and no package.json "type" works
-expect('--entry-type=commonjs', packageWithoutTypeMain, 'package-without-type');
-expect('--entry-type=module', packageWithoutTypeMain, 'package-without-type');
-
-// Check that running with conflicting --entry-type flags throws errors
-expect('--entry-type=commonjs', mjsFile, 'ERR_ENTRY_TYPE_MISMATCH', true);
-expect('--entry-type=module', cjsFile, 'ERR_ENTRY_TYPE_MISMATCH', true);
-expect('--entry-type=commonjs', packageTypeModuleMain,
-       'ERR_ENTRY_TYPE_MISMATCH', true);
-expect('--entry-type=module', packageTypeCommonJsMain,
-       'ERR_ENTRY_TYPE_MISMATCH', true);
+// Check that --input-type isn't allowed for files
+expect('--input-type=module', packageTypeModuleMain,
+       'ERR_INPUT_TYPE_NOT_ALLOWED', true);
 
 function expect(opt = '', inputFile, want, wantsError = false) {
   // TODO: Remove when --experimental-modules is unflagged
