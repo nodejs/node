@@ -122,14 +122,15 @@ function nextdir() {
   fs.mkdirSync(path.dirname(pathname));
   fs.writeFileSync(pathname, '', 'utf8');
 
-  try {
-    fs.mkdirSync(pathname, { recursive: true });
-    throw new Error('unreachable');
-  } catch (err) {
-    assert.notStrictEqual(err.message, 'unreachable');
-    assert.strictEqual(err.code, 'EEXIST');
-    assert.strictEqual(err.syscall, 'mkdir');
-  }
+  assert.throws(
+    () => { fs.mkdirSync(pathname, { recursive: true }); },
+    {
+      code: 'EEXIST',
+      message: /EEXIST: .*mkdir/,
+      name: 'Error',
+      syscall: 'mkdir',
+    }
+  );
 }
 
 // mkdirpSync when part of the path is a file.
@@ -140,14 +141,15 @@ function nextdir() {
   fs.mkdirSync(path.dirname(filename));
   fs.writeFileSync(filename, '', 'utf8');
 
-  try {
-    fs.mkdirSync(pathname, { recursive: true });
-    throw new Error('unreachable');
-  } catch (err) {
-    assert.notStrictEqual(err.message, 'unreachable');
-    assert.strictEqual(err.code, 'ENOTDIR');
-    assert.strictEqual(err.syscall, 'mkdir');
-  }
+  assert.throws(
+    () => { fs.mkdirSync(pathname, { recursive: true }); },
+    {
+      code: 'ENOTDIR',
+      message: /ENOTDIR: .*mkdir/,
+      name: 'Error',
+      syscall: 'mkdir',
+    }
+  );
 }
 
 // `mkdirp` when folder does not yet exist.
@@ -195,14 +197,15 @@ if (common.isMainThread && (common.isLinux || common.isOSX)) {
   fs.mkdirSync(pathname);
   process.chdir(pathname);
   fs.rmdirSync(pathname);
-  try {
-    fs.mkdirSync('X', { recursive: true });
-    throw new Error('unreachable');
-  } catch (err) {
-    assert.notStrictEqual(err.message, 'unreachable');
-    assert.strictEqual(err.code, 'ENOENT');
-    assert.strictEqual(err.syscall, 'mkdir');
-  }
+  assert.throws(
+    () => { fs.mkdirSync('X', { recursive: true }); },
+    {
+      code: 'ENOENT',
+      message: /ENOENT: .*mkdir/,
+      name: 'Error',
+      syscall: 'mkdir',
+    }
+  );
   fs.mkdir('X', { recursive: true }, (err) => {
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.syscall, 'mkdir');
