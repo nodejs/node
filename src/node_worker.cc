@@ -467,6 +467,8 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
       }
       Local<String> key =
           FIXED_ONE_BYTE_STRING(env->isolate(), "invalidExecArgv");
+      // Ignore the return value of Set() because exceptions bubble up to JS
+      // when we return anyway.
       USE(args.This()->Set(env->context(), key, error));
       return;
     }
