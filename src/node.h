@@ -248,7 +248,7 @@ NODE_EXTERN void FreeArrayBufferAllocator(ArrayBufferAllocator* allocator);
 
 class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
  public:
-  ~MultiIsolatePlatform() override { }
+  ~MultiIsolatePlatform() override = default;
   // Returns true if work was dispatched or executed. New tasks that are
   // posted during flushing of the queue are postponed until the next
   // flushing.

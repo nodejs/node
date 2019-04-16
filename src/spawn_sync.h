@@ -41,7 +41,7 @@ class SyncProcessOutputBuffer {
   static const unsigned int kBufferSize = 65536;
 
  public:
-  inline SyncProcessOutputBuffer();
+  inline SyncProcessOutputBuffer() = default;
 
   inline void OnAlloc(size_t suggested_size, uv_buf_t* buf) const;
   inline void OnRead(const uv_buf_t* buf, size_t nread);

@@ -841,7 +841,7 @@ class Work : public node::AsyncResource, public node::ThreadPoolWork {
       _complete(complete) {
   }
 
-  ~Work() override { }
+  ~Work() override = default;
 
  public:
   static Work* New(node_napi_env env,

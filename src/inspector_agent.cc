@@ -354,7 +354,7 @@ class InspectorTimer {
     // Unique_ptr goes out of scope here and pointer is deleted.
   }
 
-  ~InspectorTimer() {}
+  ~InspectorTimer() = default;
 
   Environment* env_;
   uv_timer_t timer_;

@@ -427,7 +427,7 @@ class MaybeStackBuffer {
 template <typename T, size_t kStackStorageSize = 64>
 class ArrayBufferViewContents {
  public:
-  ArrayBufferViewContents() {}
+  ArrayBufferViewContents() = default;
 
   explicit inline ArrayBufferViewContents(v8::Local<v8::Value> value);
   explicit inline ArrayBufferViewContents(v8::Local<v8::ArrayBufferView> abv);

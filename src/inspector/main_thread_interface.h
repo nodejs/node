@@ -26,12 +26,12 @@ class MainThreadInterface;
 class Request {
  public:
   virtual void Call(MainThreadInterface*) = 0;
-  virtual ~Request() {}
+  virtual ~Request() = default;
 };
 
 class Deletable {
  public:
-  virtual ~Deletable() {}
+  virtual ~Deletable() = default;
 };
 
 std::unique_ptr<v8_inspector::StringBuffer> Utf8ToStringView(

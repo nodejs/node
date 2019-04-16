@@ -30,7 +30,7 @@ class WorkerManager;
 
 class InspectorSession {
  public:
-  virtual ~InspectorSession() {}
+  virtual ~InspectorSession() = default;
   virtual void Dispatch(const v8_inspector::StringView& message) = 0;
 };
 

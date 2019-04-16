@@ -109,7 +109,7 @@ class CleanupHookCallback;
  */
 class MemoryRetainer {
  public:
-  virtual ~MemoryRetainer() {}
+  virtual ~MemoryRetainer() = default;
 
   // Subclasses should implement these methods to provide information
   // for the V8 heap snapshot generator.
