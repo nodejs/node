@@ -632,10 +632,11 @@ napi_status napi_async_destroy(napi_env env,
   CHECK_ENV(env);
   CHECK_ARG(env, async_context);
 
-  v8::Isolate* isolate = env->isolate;
   node::async_context* node_async_context =
       reinterpret_cast<node::async_context*>(async_context);
-  node::EmitAsyncDestroy(isolate, *node_async_context);
+  node::EmitAsyncDestroy(
+      reinterpret_cast<node_napi_env>(env)->node_env(),
+      *node_async_context);
 
   delete node_async_context;
 
