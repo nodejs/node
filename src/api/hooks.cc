@@ -130,8 +130,11 @@ async_context EmitAsyncInit(Isolate* isolate,
 }
 
 void EmitAsyncDestroy(Isolate* isolate, async_context asyncContext) {
-  AsyncWrap::EmitDestroy(
-      Environment::GetCurrent(isolate), asyncContext.async_id);
+  EmitAsyncDestroy(Environment::GetCurrent(isolate), asyncContext);
+}
+
+void EmitAsyncDestroy(Environment* env, async_context asyncContext) {
+  AsyncWrap::EmitDestroy(env, asyncContext.async_id);
 }
 
 }  // namespace node
