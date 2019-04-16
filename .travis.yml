@@ -77,6 +77,16 @@ jobs:
       script:
         - NODE=$(which node) make lint lint-py
 
+    - name: "Docs"
+      language: node_js
+      node_js: "node"
+      install:
+        - pyenv global 2.7.15
+        - make doc-only
+        - npm install -g linkinator
+      script:
+        - linkinator out/doc/api -r
+
     - name: "First commit message adheres to guidelines at <a href=\"https://goo.gl/p2fr5Q\">https://goo.gl/p2fr5Q</a>"
       if: type = pull_request
       language: node_js
