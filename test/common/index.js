@@ -83,7 +83,8 @@ if (process.argv.length === 2 &&
           (process.features.inspector || !flag.startsWith('--inspect'))) {
         console.log(
           'NOTE: The test started as a child_process using these flags:',
-          util.inspect(flags)
+          util.inspect(flags),
+          'Use NODE_SKIP_FLAG_CHECK to run the test with the original flags.'
         );
         const args = [...flags, ...process.execArgv, ...process.argv.slice(1)];
         const options = { encoding: 'utf8', stdio: 'inherit' };
