@@ -117,7 +117,7 @@ class WorkerThreadData {
  public:
   explicit WorkerThreadData(Worker* w)
     : w_(w),
-      array_buffer_allocator_(CreateArrayBufferAllocator()) {
+      array_buffer_allocator_(ArrayBufferAllocator::Create()) {
     CHECK_EQ(uv_loop_init(&loop_), 0);
 
     Isolate* isolate = NewIsolate(array_buffer_allocator_.get(), &loop_);
@@ -174,8 +174,7 @@ class WorkerThreadData {
  private:
   Worker* const w_;
   uv_loop_t loop_;
-  DeleteFnPtr<ArrayBufferAllocator, FreeArrayBufferAllocator>
-    array_buffer_allocator_;
+  std::unique_ptr<ArrayBufferAllocator> array_buffer_allocator_;
   DeleteFnPtr<IsolateData, FreeIsolateData> isolate_data_;
 
   friend class Worker;
