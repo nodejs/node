@@ -340,7 +340,7 @@ static void PrintJavaScriptStack(JSONWriter* writer,
     String::Utf8Value sv(isolate, stackstr);
     ss = std::string(*sv, sv.length());
   }
-  int line = ss.find("\n");
+  int line = ss.find('\n');
   if (line == -1) {
     writer->json_keyvalue("message", ss);
     writer->json_objectend();
@@ -349,7 +349,7 @@ static void PrintJavaScriptStack(JSONWriter* writer,
     writer->json_keyvalue("message", l);
     writer->json_arraystart("stack");
     ss = ss.substr(line + 1);
-    line = ss.find("\n");
+    line = ss.find('\n');
     while (line != -1) {
       l = ss.substr(0, line);
       l.erase(l.begin(), std::find_if(l.begin(), l.end(), [](int ch) {
@@ -357,7 +357,7 @@ static void PrintJavaScriptStack(JSONWriter* writer,
               }));
       writer->json_element(l);
       ss = ss.substr(line + 1);
-      line = ss.find("\n");
+      line = ss.find('\n');
     }
   }
   writer->json_arrayend();
