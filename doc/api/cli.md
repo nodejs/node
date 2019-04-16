@@ -776,7 +776,8 @@ that is not allowed in the environment is used, such as `-p` or a script file.
 
 In case an option value happens to contain a space (for example a path listed in
 `--require`), it must be escaped using double quotes. For example:
-```
+
+```bash
 --require "./my path/file.js"
 ```
 
