@@ -64,6 +64,13 @@ class PerIsolatePlatformData :
                        double delay_in_seconds) override;
   bool IdleTasksEnabled() override { return false; }
 
+  // Non-nestable tasks are treated like regular tasks.
+  bool NonNestableTasksEnabled() const override { return true; }
+  bool NonNestableDelayedTasksEnabled() const override { return true; }
+  void PostNonNestableTask(std::unique_ptr<v8::Task> task) override;
+  void PostNonNestableDelayedTask(std::unique_ptr<v8::Task> task,
+                                  double delay_in_seconds) override;
+
   void AddShutdownCallback(void (*callback)(void*), void* data);
   void Shutdown();
 
