@@ -129,7 +129,8 @@ class CompilationStateImpl {
   void SetNumberOfFunctionsToCompile(int num_functions);
 
   // Add the callback function to be called on compilation events. Needs to be
-  // set before {AddCompilationUnits} is run.
+  // set before {AddCompilationUnits} is run to ensure that it receives all
+  // events. The callback object must support being deleted from any thread.
   void AddCallback(CompilationState::callback_t);
 
   // Inserts new functions to compile and kicks off compilation.
@@ -153,7 +154,7 @@ class CompilationStateImpl {
   }
 
   bool baseline_compilation_finished() const {
-    base::MutexGuard guard(&mutex_);
+    base::MutexGuard guard(&callbacks_mutex_);
     return outstanding_baseline_units_ == 0 ||
            (compile_mode_ == CompileMode::kTiering &&
             outstanding_tiering_units_ == 0);
@@ -203,8 +204,6 @@ class CompilationStateImpl {
         : func_index(func_index), error(std::move(error)) {}
   };
 
-  void NotifyOnEvent(CompilationEvent event);
-
   NativeModule* const native_module_;
   const std::shared_ptr<BackgroundCompileToken> background_compile_token_;
   const CompileMode compile_mode_;
@@ -236,15 +235,25 @@ class CompilationStateImpl {
   // compiling.
   std::shared_ptr<WireBytesStorage> wire_bytes_storage_;
 
-  int outstanding_baseline_units_ = 0;
-  int outstanding_tiering_units_ = 0;
-
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
-  // Callback functions to be called on compilation events. Only accessible from
-  // the foreground thread.
+  // This mutex protects the callbacks vector, and the counters used to
+  // determine which callbacks to call. The counters plus the callbacks
+  // themselves need to be synchronized to ensure correct order of events.
+  mutable base::Mutex callbacks_mutex_;
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Protected by {callbacks_mutex_}:
+
+  // Callback functions to be called on compilation events.
   std::vector<CompilationState::callback_t> callbacks_;
+
+  int outstanding_baseline_units_ = 0;
+  int outstanding_tiering_units_ = 0;
+
+  // End of fields protected by {callbacks_mutex_}.
+  //////////////////////////////////////////////////////////////////////////////
 
   const int max_background_tasks_ = 0;
 };
@@ -852,6 +861,7 @@ std::shared_ptr<StreamingDecoder> AsyncCompileJob::CreateStreamingDecoder() {
 }
 
 AsyncCompileJob::~AsyncCompileJob() {
+  // Note: This destructor always runs on the foreground thread of the isolate.
   background_task_manager_.CancelAndWait();
   // If the runtime objects were not created yet, then initial compilation did
   // not finish yet. In this case we can abort compilation.
@@ -1473,12 +1483,13 @@ CompilationStateImpl::~CompilationStateImpl() {
 void CompilationStateImpl::AbortCompilation() {
   background_compile_token_->Cancel();
   // No more callbacks after abort.
+  base::MutexGuard callbacks_guard(&callbacks_mutex_);
   callbacks_.clear();
 }
 
 void CompilationStateImpl::SetNumberOfFunctionsToCompile(int num_functions) {
   DCHECK(!failed());
-  base::MutexGuard guard(&mutex_);
+  base::MutexGuard guard(&callbacks_mutex_);
   outstanding_baseline_units_ = num_functions;
 
   if (compile_mode_ == CompileMode::kTiering) {
@@ -1487,6 +1498,7 @@ void CompilationStateImpl::SetNumberOfFunctionsToCompile(int num_functions) {
 }
 
 void CompilationStateImpl::AddCallback(CompilationState::callback_t callback) {
+  base::MutexGuard callbacks_guard(&callbacks_mutex_);
   callbacks_.emplace_back(std::move(callback));
 }
 
@@ -1536,7 +1548,7 @@ CompilationStateImpl::GetNextCompilationUnit() {
 
 void CompilationStateImpl::OnFinishedUnit(ExecutionTier tier, WasmCode* code) {
   // This mutex guarantees that events happen in the right order.
-  base::MutexGuard guard(&mutex_);
+  base::MutexGuard guard(&callbacks_mutex_);
 
   // If we are *not* compiling in tiering mode, then all units are counted as
   // baseline units.
@@ -1547,28 +1559,36 @@ void CompilationStateImpl::OnFinishedUnit(ExecutionTier tier, WasmCode* code) {
   // tiering units.
   DCHECK_IMPLIES(!is_tiering_mode, outstanding_tiering_units_ == 0);
 
+  bool baseline_finished = false;
+  bool tiering_finished = false;
   if (is_tiering_unit) {
     DCHECK_LT(0, outstanding_tiering_units_);
     --outstanding_tiering_units_;
-    if (outstanding_tiering_units_ == 0) {
-      // If baseline compilation has not finished yet, then also trigger
-      // {kFinishedBaselineCompilation}.
-      if (outstanding_baseline_units_ > 0) {
-        NotifyOnEvent(CompilationEvent::kFinishedBaselineCompilation);
-      }
-      NotifyOnEvent(CompilationEvent::kFinishedTopTierCompilation);
-    }
+    tiering_finished = outstanding_tiering_units_ == 0;
+    // If baseline compilation has not finished yet, then also trigger
+    // {kFinishedBaselineCompilation}.
+    baseline_finished = tiering_finished && outstanding_baseline_units_ > 0;
   } else {
     DCHECK_LT(0, outstanding_baseline_units_);
     --outstanding_baseline_units_;
-    if (outstanding_baseline_units_ == 0) {
-      NotifyOnEvent(CompilationEvent::kFinishedBaselineCompilation);
-      // If we are not tiering, then we also trigger the "top tier finished"
-      // event when baseline compilation is finished.
-      if (!is_tiering_mode) {
-        NotifyOnEvent(CompilationEvent::kFinishedTopTierCompilation);
-      }
-    }
+    // If we are in tiering mode and tiering finished before, then do not
+    // trigger baseline finished.
+    baseline_finished = outstanding_baseline_units_ == 0 &&
+                        (!is_tiering_mode || outstanding_tiering_units_ > 0);
+    // If we are not tiering, then we also trigger the "top tier finished"
+    // event when baseline compilation is finished.
+    tiering_finished = baseline_finished && !is_tiering_mode;
+  }
+
+  if (baseline_finished) {
+    for (auto& callback : callbacks_)
+      callback(CompilationEvent::kFinishedBaselineCompilation);
+  }
+  if (tiering_finished) {
+    for (auto& callback : callbacks_)
+      callback(CompilationEvent::kFinishedTopTierCompilation);
+    // Clear the callbacks because no more events will be delivered.
+    callbacks_.clear();
   }
 
   if (code != nullptr) native_module_->engine()->LogCode(code);
@@ -1648,17 +1668,12 @@ void CompilationStateImpl::SetError(uint32_t func_index,
   if (!set) return;
   // If set successfully, give up ownership.
   compile_error.release();
-  // Schedule a foreground task to call the callback and notify users about the
-  // compile error.
-  NotifyOnEvent(CompilationEvent::kFailedCompilation);
-}
-
-void CompilationStateImpl::NotifyOnEvent(CompilationEvent event) {
-  for (auto& callback : callbacks_) callback(event);
-  // If no more events are expected after this one, clear the callbacks to free
-  // memory. We can safely do this here, as this method is only called from
-  // foreground tasks.
-  if (event >= CompilationEvent::kFirstFinalEvent) callbacks_.clear();
+  base::MutexGuard callbacks_guard(&callbacks_mutex_);
+  for (auto& callback : callbacks_) {
+    callback(CompilationEvent::kFailedCompilation);
+  }
+  // No more callbacks after an error.
+  callbacks_.clear();
 }
 
 void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
