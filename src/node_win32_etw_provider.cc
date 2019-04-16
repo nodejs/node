@@ -107,7 +107,7 @@ void CodeAddressNotification(const JitCodeEvent* jevent) {
       }
       break;
     case JitCodeEvent::CODE_REMOVED:
-      NODE_V8SYMBOL_REMOVE(jevent->code_start, 0);
+      NODE_V8SYMBOL_REMOVE(jevent->code_start, nullptr);
       break;
     case JitCodeEvent::CODE_MOVED:
       NODE_V8SYMBOL_MOVE(jevent->code_start, jevent->new_code_start);
