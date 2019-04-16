@@ -36,7 +36,13 @@ if (!tmpdirURL.pathname.endsWith('/')) {
   tmpdirURL.pathname += '/';
 }
 
-function test({ shouldFail = false, entry, resources = {} }) {
+function test({ shouldFail, integrity }) {
+  const resources = {
+    [depURL]: {
+      body: depBody,
+      integrity
+    }
+  };
   const manifest = {
     resources: {},
   };
@@ -50,7 +56,7 @@ function test({ shouldFail = false, entry, resources = {} }) {
   const { status } = spawnSync(process.execPath, [
     '--experimental-policy',
     policyFilepath,
-    entry,
+    depFilepath
   ]);
   if (shouldFail) {
     assert.notStrictEqual(status, 0);
@@ -61,44 +67,20 @@ function test({ shouldFail = false, entry, resources = {} }) {
 
 test({
   shouldFail: false,
-  entry: depFilepath,
-  resources: {
-    [depURL]: {
-      body: depBody,
-      integrity: `sha256-${hash('sha256', depBody)}`,
-    },
-  },
+  integrity: `sha256-${hash('sha256', depBody)}`,
 });
 test({
   shouldFail: true,
-  entry: depFilepath,
-  resources: {
-    [depURL]: {
-      body: depBody,
-      integrity: `1sha256-${hash('sha256', depBody)}`,
-    },
-  },
+  integrity: `1sha256-${hash('sha256', depBody)}`,
 });
 test({
   shouldFail: true,
-  entry: depFilepath,
-  resources: {
-    [depURL]: {
-      body: depBody,
-      integrity: 'hoge',
-    },
-  },
+  integrity: 'hoge',
 });
 test({
   shouldFail: true,
-  entry: depFilepath,
-  resources: {
-    [depURL]: {
-      body: depBody,
-      integrity: `sha256-${hash('sha256', depBody)}sha256-${hash(
-        'sha256',
-        depBody
-      )}`,
-    },
-  },
+  integrity: `sha256-${hash('sha256', depBody)}sha256-${hash(
+    'sha256',
+    depBody
+  )}`,
 });
