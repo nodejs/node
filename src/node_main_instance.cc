@@ -109,6 +109,8 @@ int NodeMainInstance::Run() {
 // and the environment creation routine in workers somehow.
 std::unique_ptr<Environment> NodeMainInstance::CreateMainEnvironment(
     int* exit_code) {
+  *exit_code = 0;  // Reset the exit code to 0
+
   HandleScope handle_scope(isolate_);
 
   // TODO(addaleax): This should load a real per-Isolate option, currently
