@@ -30,7 +30,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.18',
+    'v8_embedder_string': '-node.19',
 
     # Turn on SipHash for hash seed generation, addresses HashWick
     'v8_use_siphash': 'true',
