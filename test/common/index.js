@@ -51,6 +51,7 @@ const hasCrypto = Boolean(process.versions.openssl);
 // If the binary was built without-ssl then the crypto flags are
 // invalid (bad option). The test itself should handle this case.
 if (process.argv.length === 2 &&
+    !process.env.NODE_SKIP_FLAG_CHECK &&
     isMainThread &&
     hasCrypto &&
     module.parent &&
