@@ -48,6 +48,8 @@ static napi_value MakeCallback(napi_env env, napi_callback_info info) {
 
 static void AsyncDestroyCb(napi_env env, void* data, void* hint) {
   napi_status status = napi_async_destroy(env, (napi_async_context)data);
+  // We cannot use NAPI_ASSERT_RETURN_VOID because we need to have a JS stack
+  // below in order to use exceptions.
   assert(status == napi_ok);
 }
 
