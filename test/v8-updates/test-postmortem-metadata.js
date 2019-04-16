@@ -21,7 +21,7 @@ if (common.isAIX)
 if (common.isOpenBSD)
   common.skip('no v8 debug symbols on OpenBSD');
 
-const nm = spawnSync('nm', args);
+const nm = spawnSync('nm', args, { maxBuffer: Infinity });
 
 if (nm.error && nm.error.errno === 'ENOENT')
   common.skip('nm not found on system');
