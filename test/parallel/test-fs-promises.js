@@ -299,14 +299,15 @@ async function getHandle(dest) {
       const dir = path.join(tmpDir, nextdir(), nextdir());
       await mkdir(path.dirname(dir));
       await writeFile(dir);
-      try {
-        await mkdir(dir, { recursive: true });
-        throw new Error('unreachable');
-      } catch (err) {
-        assert.notStrictEqual(err.message, 'unreachable');
-        assert.strictEqual(err.code, 'EEXIST');
-        assert.strictEqual(err.syscall, 'mkdir');
-      }
+      assert.rejects(
+        mkdir(dir, { recursive: true }),
+        {
+          code: 'EEXIST',
+          message: /EEXIST: .*mkdir/,
+          name: 'Error',
+          syscall: 'mkdir',
+        }
+      );
     }
 
     // `mkdirp` when part of the path is a file.
@@ -315,14 +316,15 @@ async function getHandle(dest) {
       const dir = path.join(file, nextdir(), nextdir());
       await mkdir(path.dirname(file));
       await writeFile(file);
-      try {
-        await mkdir(dir, { recursive: true });
-        throw new Error('unreachable');
-      } catch (err) {
-        assert.notStrictEqual(err.message, 'unreachable');
-        assert.strictEqual(err.code, 'ENOTDIR');
-        assert.strictEqual(err.syscall, 'mkdir');
-      }
+      assert.rejects(
+        mkdir(dir, { recursive: true }),
+        {
+          code: 'ENOTDIR',
+          message: /ENOTDIR: .*mkdir/,
+          name: 'Error',
+          syscall: 'mkdir',
+        }
+      );
     }
 
     // mkdirp ./
