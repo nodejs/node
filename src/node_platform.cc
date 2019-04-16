@@ -257,6 +257,16 @@ void PerIsolatePlatformData::PostDelayedTask(
   uv_async_send(flush_tasks_);
 }
 
+void PerIsolatePlatformData::PostNonNestableTask(std::unique_ptr<Task> task) {
+  PostTask(std::move(task));
+}
+
+void PerIsolatePlatformData::PostNonNestableDelayedTask(
+    std::unique_ptr<Task> task,
+    double delay_in_seconds) {
+  PostDelayedTask(std::move(task), delay_in_seconds);
+}
+
 PerIsolatePlatformData::~PerIsolatePlatformData() {
   Shutdown();
 }
