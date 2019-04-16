@@ -487,8 +487,8 @@ TEST(CompileFunctionInContextArgs) {
   v8::Local<v8::Object> ext[1];
   ext[0] = v8::Local<v8::Object>::Cast(
       env->Global()->Get(env.local(), v8_str("a")).ToLocalChecked());
-  v8::ScriptCompiler::Source script_source(v8_str("result = x + b"));
-  v8::Local<v8::String> arg = v8_str("b");
+  v8::ScriptCompiler::Source script_source(v8_str("result = x + abc"));
+  v8::Local<v8::String> arg = v8_str("abc");
   v8::Local<v8::Function> fun =
       v8::ScriptCompiler::CompileFunctionInContext(env.local(), &script_source,
                                                    1, &arg, 1, ext)
@@ -498,8 +498,8 @@ TEST(CompileFunctionInContextArgs) {
                   ->ToInt32(env.local())
                   .ToLocalChecked()
                   ->Value());
-  v8::Local<v8::Value> b_value = v8::Number::New(CcTest::isolate(), 42.0);
-  fun->Call(env.local(), env->Global(), 1, &b_value).ToLocalChecked();
+  v8::Local<v8::Value> arg_value = v8::Number::New(CcTest::isolate(), 42.0);
+  fun->Call(env.local(), env->Global(), 1, &arg_value).ToLocalChecked();
   CHECK(env->Global()->Has(env.local(), v8_str("result")).FromJust());
   v8::Local<v8::Value> result =
       env->Global()->Get(env.local(), v8_str("result")).ToLocalChecked();
@@ -516,16 +516,17 @@ TEST(CompileFunctionInContextComments) {
   v8::Local<v8::Object> ext[1];
   ext[0] = v8::Local<v8::Object>::Cast(
       env->Global()->Get(env.local(), v8_str("a")).ToLocalChecked());
-  v8::ScriptCompiler::Source script_source(
-      v8_str("result = /* y + */ x + b // + z"));
-  v8::Local<v8::String> arg = v8_str("b");
+  v8::Local<v8::String> source =
+      CompileRun("'result = /* y + */ x + a\\u4e00 // + z'").As<v8::String>();
+  v8::ScriptCompiler::Source script_source(source);
+  v8::Local<v8::String> arg = CompileRun("'a\\u4e00'").As<v8::String>();
   v8::Local<v8::Function> fun =
       v8::ScriptCompiler::CompileFunctionInContext(env.local(), &script_source,
                                                    1, &arg, 1, ext)
           .ToLocalChecked();
   CHECK(!fun.IsEmpty());
-  v8::Local<v8::Value> b_value = v8::Number::New(CcTest::isolate(), 42.0);
-  fun->Call(env.local(), env->Global(), 1, &b_value).ToLocalChecked();
+  v8::Local<v8::Value> arg_value = v8::Number::New(CcTest::isolate(), 42.0);
+  fun->Call(env.local(), env->Global(), 1, &arg_value).ToLocalChecked();
   CHECK(env->Global()->Has(env.local(), v8_str("result")).FromJust());
   v8::Local<v8::Value> result =
       env->Global()->Get(env.local(), v8_str("result")).ToLocalChecked();
