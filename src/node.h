@@ -685,8 +685,15 @@ NODE_EXTERN async_context EmitAsyncInit(v8::Isolate* isolate,
                                         v8::Local<v8::String> name,
                                         async_id trigger_async_id = -1);
 
-/* Emit the destroy() callback. */
+/* Emit the destroy() callback. The overload taking an `Environment*` argument
+ * should be used when the Isolate’s current Context is not associated with
+ * a Node.js Environment, or when there is no current Context, for example
+ * when calling this function during garbage collection. In that case, the
+ * `Environment*` value should have been acquired previously, e.g. through
+ * `GetCurrentEnvironment()`. */
 NODE_EXTERN void EmitAsyncDestroy(v8::Isolate* isolate,
+                                  async_context asyncContext);
+NODE_EXTERN void EmitAsyncDestroy(Environment* env,
                                   async_context asyncContext);
 
 class InternalCallbackScope;
