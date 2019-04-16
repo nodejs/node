@@ -19,9 +19,9 @@ class NodeMainInstance {
   NodeMainInstance(NodeMainInstance&&) = delete;
   NodeMainInstance& operator=(NodeMainInstance&&) = delete;
 
-  explicit NodeMainInstance(uv_loop_t* event_loop,
-                            const std::vector<std::string>& args,
-                            const std::vector<std::string>& exec_args);
+  NodeMainInstance(uv_loop_t* event_loop,
+                   const std::vector<std::string>& args,
+                   const std::vector<std::string>& exec_args);
   ~NodeMainInstance();
 
   // Start running the Node.js instances, return the exit code when finished.
@@ -34,10 +34,9 @@ class NodeMainInstance {
 
   std::vector<std::string> args_;
   std::vector<std::string> exec_args_;
-  DeleteFnPtr<ArrayBufferAllocator, FreeArrayBufferAllocator>
-      array_buffer_allocator_;
+  std::unique_ptr<ArrayBufferAllocator> array_buffer_allocator_;
   v8::Isolate* isolate_;
-  DeleteFnPtr<IsolateData, FreeIsolateData> isolate_data_;
+  std::unique_ptr<IsolateData> isolate_data_;
 };
 
 }  // namespace node

@@ -17,7 +17,7 @@ NodeMainInstance::NodeMainInstance(uv_loop_t* event_loop,
                                    const std::vector<std::string>& exec_args)
     : args_(args),
       exec_args_(exec_args),
-      array_buffer_allocator_(CreateArrayBufferAllocator()),
+      array_buffer_allocator_(ArrayBufferAllocator::Create()),
       isolate_(nullptr),
       isolate_data_(nullptr) {
   // TODO(joyeecheung): when we implement snapshot integration this needs to
