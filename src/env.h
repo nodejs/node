@@ -540,7 +540,7 @@ struct AllocatedBuffer {
 
 class AsyncRequest : public MemoryRetainer {
  public:
-  AsyncRequest() {}
+  AsyncRequest() = default;
   ~AsyncRequest();
   void Install(Environment* env, void* data, uv_async_cb target);
   void Uninstall();

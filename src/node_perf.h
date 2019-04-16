@@ -71,7 +71,7 @@ class PerformanceEntry {
                                        startTime_(startTime),
                                        endTime_(endTime) { }
 
-  virtual ~PerformanceEntry() { }
+  virtual ~PerformanceEntry() = default;
 
   virtual v8::MaybeLocal<Object> ToObject() const;
 

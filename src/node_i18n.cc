@@ -152,7 +152,7 @@ class ConverterObject : public BaseObject, Converter {
     CONVERTER_FLAGS_IGNORE_BOM = 0x4
   };
 
-  ~ConverterObject() override {}
+  ~ConverterObject() override = default;
 
   static void Has(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);

@@ -36,7 +36,7 @@ class StreamReq {
     AttachToObject(req_wrap_obj);
   }
 
-  virtual ~StreamReq() {}
+  virtual ~StreamReq() = default;
   virtual AsyncWrap* GetAsyncWrap() = 0;
   v8::Local<v8::Object> object();
 

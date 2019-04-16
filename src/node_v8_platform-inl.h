@@ -72,7 +72,7 @@ class NodeTraceStateObserver
 
   explicit NodeTraceStateObserver(v8::TracingController* controller)
       : controller_(controller) {}
-  ~NodeTraceStateObserver() override {}
+  ~NodeTraceStateObserver() override = default;
 
  private:
   v8::TracingController* controller_;

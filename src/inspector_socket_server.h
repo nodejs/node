@@ -31,7 +31,7 @@ class SocketServerDelegate {
   virtual std::vector<std::string> GetTargetIds() = 0;
   virtual std::string GetTargetTitle(const std::string& id) = 0;
   virtual std::string GetTargetUrl(const std::string& id) = 0;
-  virtual ~SocketServerDelegate() {}
+  virtual ~SocketServerDelegate() = default;
 };
 
 // HTTP Server, writes messages requested as TransportActions, and responds

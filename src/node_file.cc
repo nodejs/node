@@ -681,7 +681,7 @@ void AfterScanDirWithTypes(uv_fs_t* req) {
 // For async calls FSReqCallback is used.
 class FSReqWrapSync {
  public:
-  FSReqWrapSync() {}
+  FSReqWrapSync() = default;
   ~FSReqWrapSync() { uv_fs_req_cleanup(&req); }
   uv_fs_t req;
 

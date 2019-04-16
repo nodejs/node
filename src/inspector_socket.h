@@ -25,7 +25,7 @@ class InspectorSocket {
                                  const std::string& path,
                                  const std::string& accept_key) = 0;
     virtual void OnWsFrame(const std::vector<char>& frame) = 0;
-    virtual ~Delegate() {}
+    virtual ~Delegate() = default;
   };
 
   using DelegatePointer = std::unique_ptr<Delegate>;

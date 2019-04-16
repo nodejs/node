@@ -24,7 +24,7 @@ template <class T>
 class TaskQueue {
  public:
   TaskQueue();
-  ~TaskQueue() {}
+  ~TaskQueue() = default;
 
   void Push(std::unique_ptr<T> task);
   std::unique_ptr<T> Pop();
@@ -134,7 +134,7 @@ class NodePlatform : public MultiIsolatePlatform {
  public:
   NodePlatform(int thread_pool_size,
                node::tracing::TracingController* tracing_controller);
-  ~NodePlatform() override {}
+  ~NodePlatform() override = default;
 
   void DrainTasks(v8::Isolate* isolate) override;
   void CancelPendingDelayedTasks(v8::Isolate* isolate) override;

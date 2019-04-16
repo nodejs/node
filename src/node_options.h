@@ -47,7 +47,7 @@ class HostPort {
 class Options {
  public:
   virtual void CheckOptions(std::vector<std::string>* errors) {}
-  virtual ~Options() {}
+  virtual ~Options() = default;
 };
 
 // These options are currently essentially per-Environment, but it can be nice
@@ -240,7 +240,7 @@ enum OptionType {
 template <typename Options>
 class OptionsParser {
  public:
-  virtual ~OptionsParser() {}
+  virtual ~OptionsParser() = default;
 
   typedef Options TargetType;
 
@@ -338,7 +338,7 @@ class OptionsParser {
   // Represents a field within `Options`.
   class BaseOptionField {
    public:
-    virtual ~BaseOptionField() {}
+    virtual ~BaseOptionField() = default;
     virtual void* LookupImpl(Options* options) const = 0;
 
     template <typename T>

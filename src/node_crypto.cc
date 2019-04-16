@@ -6069,7 +6069,7 @@ class KeyPairGenerationConfig {
   virtual bool Configure(const EVPKeyCtxPointer& ctx) {
     return true;
   }
-  virtual ~KeyPairGenerationConfig() {}
+  virtual ~KeyPairGenerationConfig() = default;
 };
 
 class RSAKeyPairGenerationConfig : public KeyPairGenerationConfig {
