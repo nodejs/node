@@ -332,7 +332,7 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
 
   if (options().isolate_independent_code) {
     DCHECK(root_array_available());
-    Label if_code_is_builtin, out;
+    Label if_code_is_off_heap, out;
 
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
@@ -340,23 +340,22 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
     DCHECK(!AreAliased(destination, scratch));
     DCHECK(!AreAliased(code_object, scratch));
 
-    // Check whether the Code object is a builtin. If so, call its (off-heap)
-    // entry point directly without going through the (on-heap) trampoline.
-    // Otherwise, just call the Code object as always.
+    // Check whether the Code object is an off-heap trampoline. If so, call its
+    // (off-heap) entry point directly without going through the (on-heap)
+    // trampoline.  Otherwise, just call the Code object as always.
+    ldr(scratch, FieldMemOperand(code_object, Code::kFlagsOffset));
+    tst(scratch, Operand(Code::IsOffHeapTrampoline::kMask));
+    b(ne, &if_code_is_off_heap);
 
-    ldr(scratch, FieldMemOperand(code_object, Code::kBuiltinIndexOffset));
-    cmp(scratch, Operand(Builtins::kNoBuiltinId));
-    b(ne, &if_code_is_builtin);
-
-    // A non-builtin Code object, the entry point is at
+    // Not an off-heap trampoline, the entry point is at
     // Code::raw_instruction_start().
     add(destination, code_object, Operand(Code::kHeaderSize - kHeapObjectTag));
     jmp(&out);
 
-    // A builtin Code object, the entry point is loaded from the builtin entry
+    // An off-heap trampoline, the entry point is loaded from the builtin entry
     // table.
-    // The builtin index is loaded in scratch.
-    bind(&if_code_is_builtin);
+    bind(&if_code_is_off_heap);
+    ldr(scratch, FieldMemOperand(code_object, Code::kBuiltinIndexOffset));
     lsl(destination, scratch, Operand(kSystemPointerSizeLog2));
     add(destination, destination, kRootRegister);
     ldr(destination,

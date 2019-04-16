@@ -615,6 +615,10 @@
   'test-run-wasm-exceptions/RunWasmTurbofan_TryCatchThrow': [SKIP],
   'test-run-wasm-exceptions/RunWasmTurbofan_TryCatchTrapTypeError': [SKIP],
 
+  # --interpreted-frames-native-stack tests
+  'test-log/ExternalCodeEventListenerWithInterpretedFramesNativeStack': [SKIP],
+  'test-log/LogInterpretedFramesNativeStack': [SKIP],
+
   # Crashes on native arm.
   'test-macro-assembler-arm/ExtractLane': [PASS, ['arch == arm and not simulator_run', SKIP]],
   'test-macro-assembler-arm/LoadAndStoreWithRepresentation': [PASS, ['arch == arm and not simulator_run', SKIP]],
