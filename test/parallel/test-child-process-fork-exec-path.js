@@ -59,7 +59,6 @@ if (process.env.FORK) {
     assert.deepStrictEqual(msg, recv);
   }));
   child.on('exit', common.mustCall(function(code) {
-    fs.unlinkSync(copyPath);
     assert.strictEqual(code, 0);
   }));
 }
