@@ -13,6 +13,7 @@ using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Global;
 using v8::IndexFilter;
 using v8::Integer;
 using v8::Isolate;
@@ -189,7 +190,7 @@ class WeakReference : public BaseObject {
   SET_NO_MEMORY_INFO()
 
  private:
-  Persistent<Object> target_;
+  Global<Object> target_;
 };
 
 static void GuessHandleType(const FunctionCallbackInfo<Value>& args) {

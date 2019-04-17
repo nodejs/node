@@ -8,6 +8,7 @@ using v8::EmbedderGraph;
 using v8::EscapableHandleScope;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Global;
 using v8::HandleScope;
 using v8::HeapSnapshot;
 using v8::Isolate;
@@ -56,7 +57,7 @@ class JSGraphJSNode : public EmbedderGraph::Node {
   };
 
  private:
-  Persistent<Value> persistent_;
+  Global<Value> persistent_;
 };
 
 class JSGraph : public EmbedderGraph {

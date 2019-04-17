@@ -100,7 +100,7 @@ class ContextifyContext {
       uint32_t index,
       const v8::PropertyCallbackInfo<v8::Boolean>& args);
   Environment* const env_;
-  Persistent<v8::Context> context_;
+  v8::Global<v8::Context> context_;
 };
 
 class ContextifyScript : public BaseObject {
@@ -129,7 +129,7 @@ class ContextifyScript : public BaseObject {
   inline uint32_t id() { return id_; }
 
  private:
-  node::Persistent<v8::UnboundScript> script_;
+  v8::Global<v8::UnboundScript> script_;
   uint32_t id_;
 };
 
