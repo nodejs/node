@@ -607,8 +607,8 @@ void AfterScanDir(uv_fs_t* req) {
     if (r == UV_EOF)
       break;
     if (r != 0) {
-      return req_wrap->Reject(
-          UVException(r, nullptr, req_wrap->syscall(), req->path));
+      return req_wrap->Reject(UVException(
+          env->isolate(), r, nullptr, req_wrap->syscall(), req->path));
     }
 
     MaybeLocal<Value> filename =
@@ -649,7 +649,7 @@ void AfterScanDirWithTypes(uv_fs_t* req) {
       break;
     if (r != 0) {
       return req_wrap->Reject(
-          UVException(r, nullptr, req_wrap->syscall(), req->path));
+          UVException(isolate, r, nullptr, req_wrap->syscall(), req->path));
     }
 
     MaybeLocal<Value> filename =
