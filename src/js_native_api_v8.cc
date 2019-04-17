@@ -1,4 +1,4 @@
-#include <limits.h>  // INT_MAX
+#include <climits>  // INT_MAX
 #include <cmath>
 #include <algorithm>
 #define NAPI_EXPERIMENTAL
