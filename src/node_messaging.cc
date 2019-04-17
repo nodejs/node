@@ -588,9 +588,9 @@ void MessagePort::OnMessage() {
       Mutex::ScopedLock lock(data_->mutex_);
 
       Debug(this, "MessagePort has message, receiving = %d",
-            static_cast<int>(data_->receiving_messages_));
+            static_cast<int>(receiving_messages_));
 
-      if (!data_->receiving_messages_)
+      if (!receiving_messages_)
         break;
       if (data_->incoming_messages_.empty())
         break;
@@ -722,17 +722,16 @@ void MessagePort::PostMessage(const FunctionCallbackInfo<Value>& args) {
 }
 
 void MessagePort::Start() {
-  Mutex::ScopedLock lock(data_->mutex_);
   Debug(this, "Start receiving messages");
-  data_->receiving_messages_ = true;
+  receiving_messages_ = true;
+  Mutex::ScopedLock lock(data_->mutex_);
   if (!data_->incoming_messages_.empty())
     TriggerAsync();
 }
 
 void MessagePort::Stop() {
-  Mutex::ScopedLock lock(data_->mutex_);
   Debug(this, "Stop receiving messages");
-  data_->receiving_messages_ = false;
+  receiving_messages_ = false;
 }
 
 void MessagePort::Start(const FunctionCallbackInfo<Value>& args) {
