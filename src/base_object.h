@@ -24,7 +24,6 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node_persistent.h"
 #include "memory_tracker-inl.h"
 #include "v8.h"
 #include <type_traits>  // std::remove_reference
@@ -50,7 +49,7 @@ class BaseObject : public MemoryRetainer {
   // is associated with the passed Isolate in debug mode.
   inline v8::Local<v8::Object> object(v8::Isolate* isolate) const;
 
-  inline Persistent<v8::Object>& persistent();
+  inline v8::Global<v8::Object>& persistent();
 
   inline Environment* env() const;
 
@@ -62,7 +61,7 @@ class BaseObject : public MemoryRetainer {
   template <typename T>
   static inline T* FromJSObject(v8::Local<v8::Object> object);
 
-  // Make the `Persistent` a weak reference and, `delete` this object once
+  // Make the `v8::Global` a weak reference and, `delete` this object once
   // the JS object has been garbage collected.
   inline void MakeWeak();
 
@@ -96,7 +95,7 @@ class BaseObject : public MemoryRetainer {
   friend int GenDebugSymbols();
   friend class CleanupHookCallback;
 
-  Persistent<v8::Object> persistent_handle_;
+  v8::Global<v8::Object> persistent_handle_;
   Environment* env_;
 };
 

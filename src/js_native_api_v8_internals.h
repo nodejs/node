@@ -29,7 +29,7 @@
 namespace v8impl {
 
 template <typename T>
-using Persistent = node::Persistent<T>;
+using Persistent = v8::Global<T>;
 
 using PersistentToLocal = node::PersistentToLocal;
 

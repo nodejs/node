@@ -28,7 +28,6 @@
 #include "node.h"
 #include "node_binding.h"
 #include "node_mutex.h"
-#include "node_persistent.h"
 #include "tracing/trace_event.h"
 #include "util-inl.h"
 #include "uv.h"

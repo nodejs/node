@@ -90,9 +90,9 @@ class CleanupHookCallback;
  *     NonPointerRetainerClass non_pointer_retainer;
  *     InternalClass internal_member_;
  *     std::vector<uv_async_t> vector_;
- *     node::Persistent<Object> target_;
+ *     v8::Global<Object> target_;
  *
- *     node::Persistent<Object> wrapped_;
+ *     v8::Global<Object> wrapped_;
  * }
  *
  * This creates the following graph:
@@ -185,9 +185,9 @@ class MemoryTracker {
   void TrackField(const char* edge_name,
                   const v8::Eternal<T>& value,
                   const char* node_name);
-  template <typename T, typename Traits>
+  template <typename T>
   inline void TrackField(const char* edge_name,
-                         const v8::Persistent<T, Traits>& value,
+                         const v8::PersistentBase<T>& value,
                          const char* node_name = nullptr);
   template <typename T>
   inline void TrackField(const char* edge_name,

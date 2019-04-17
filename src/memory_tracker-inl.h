@@ -184,9 +184,9 @@ void MemoryTracker::TrackField(const char* edge_name,
   TrackField(edge_name, value.Get(isolate_));
 }
 
-template <typename T, typename Traits>
+template <typename T>
 void MemoryTracker::TrackField(const char* edge_name,
-                               const v8::Persistent<T, Traits>& value,
+                               const v8::PersistentBase<T>& value,
                                const char* node_name) {
   TrackField(edge_name, value.Get(isolate_));
 }

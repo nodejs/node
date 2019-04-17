@@ -26,6 +26,7 @@
 
 #include "base_object.h"
 #include "env-inl.h"
+#include "node_persistent.h"
 #include "util-inl.h"
 #include "v8.h"
 
@@ -56,7 +57,7 @@ BaseObject::~BaseObject() {
 }
 
 
-Persistent<v8::Object>& BaseObject::persistent() {
+v8::Global<v8::Object>& BaseObject::persistent() {
   return persistent_handle_;
 }
 
