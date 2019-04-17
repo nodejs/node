@@ -1,14 +1,8 @@
-// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const { internalBinding } = require('internal/test/binding');
-const cares = internalBinding('cares_wrap');
 const dns = require('dns');
 const dnsPromises = dns.promises;
-
-// Stub `getaddrinfo` to *always* error.
-cares.getaddrinfo = () => internalBinding('uv').UV_ENOENT;
 
 {
   const err = {
@@ -21,12 +15,7 @@ cares.getaddrinfo = () => internalBinding('uv').UV_ENOENT;
   common.expectsError(() => dnsPromises.lookup(1, {}), err);
 }
 
-// This also verifies different expectWarning notations.
 common.expectWarning({
-  // For 'internal/test/binding' module.
-  'internal/test/binding': [
-    'These APIs are for internal testing only. Do not use them.'
-  ],
   // For calling `dns.lookup` with falsy `hostname`.
   'DeprecationWarning': {
     DEP0118: 'The provided hostname "false" is not a valid ' +
@@ -141,18 +130,3 @@ dns.lookup('127.0.0.1', {
   assert.deepStrictEqual(result, '127.0.0.1');
   assert.strictEqual(addressType, 4);
 }));
-
-let tickValue = 0;
-
-dns.lookup('example.com', common.mustCall((error, result, addressType) => {
-  assert(error);
-  assert.strictEqual(tickValue, 1);
-  assert.strictEqual(error.code, 'ENOENT');
-  const descriptor = Object.getOwnPropertyDescriptor(error, 'message');
-  // The error message should be non-enumerable.
-  assert.strictEqual(descriptor.enumerable, false);
-}));
-
-// Make sure that the error callback is called
-// on next tick.
-tickValue = 1;
