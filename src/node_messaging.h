@@ -116,7 +116,6 @@ class MessagePortData : public MemoryRetainer {
   // This mutex protects all fields below it, with the exception of
   // sibling_.
   mutable Mutex mutex_;
-  bool receiving_messages_ = false;
   std::list<Message> incoming_messages_;
   MessagePort* owner_ = nullptr;
   // This mutex protects the sibling_ field and is shared between two entangled
@@ -205,6 +204,7 @@ class MessagePort : public HandleWrap {
   void TriggerAsync();
 
   std::unique_ptr<MessagePortData> data_ = nullptr;
+  bool receiving_messages_ = false;
   uv_async_t async_;
 
   friend class MessagePortData;
