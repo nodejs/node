@@ -130,6 +130,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
 // for the sake of convenience.
 #define PER_ISOLATE_SYMBOL_PROPERTIES(V)                                      \
   V(handle_onclose_symbol, "handle_onclose")                                  \
+  V(no_message_symbol, "no_message_symbol")                                   \
   V(oninit_symbol, "oninit")                                                  \
   V(owner_symbol, "owner")                                                    \
 
