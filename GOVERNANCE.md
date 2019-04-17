@@ -117,24 +117,20 @@ To nominate a new Collaborator, open an issue in the [nodejs/node][] repository.
 Provide a summary of the nominee's contributions. For example:
 
 * Commits in the [nodejs/node][] repository.
-  * Can be shown using the link
-    `https://github.com/nodejs/node/commits?author=${GITHUB_ID}`
-    (replace `${GITHUB_ID}` with the nominee's GitHub ID).
+  * Use the link `https://github.com/nodejs/node/commits?author=GITHUB_ID`
 * Pull requests and issues opened in the [nodejs/node][] repository.
-  * Can be shown using the link
-    `https://github.com/nodejs/node/pulls?q=author%3A${GITHUB_ID}+`
-* Comments and reviews on issues and pull requests in the
-  [nodejs/node][] repository
-  * Can be shown using the links
-    `https://github.com/nodejs/node/pulls?q=reviewed-by%3A${GITHUB_ID}+`
-    and `https://github.com/nodejs/node/pulls?q=commenter%3A${GITHUB_ID}+`
-* Assistance provided to end users and novice contributors
-* Participation in other projects, teams, and working groups of the
-  Node.js organization
-  * Can be shown using the links
-  `https://github.com/search?q=author%3A${GITHUB_ID}++org%3Anodejs&type=Issues`
-    and
-`https://github.com/search?q=commenter%3A${GITHUB_ID}++org%3Anodejs&type=Issues`
+  * Use the link `https://github.com/nodejs/node/issues?q=author:GITHUB_ID`
+* Comments on pull requests and issues in the [nodejs/node][] repository
+  * Use the link `https://github.com/nodejs/node/issues?q=commenter:GITHUB_ID`
+* Reviews on pull requests in the [nodejs/node][] repository
+  * Use the link `https://github.com/nodejs/node/pulls?q=reviewed-by:GITHUB_ID`
+* Help provided to end users and novice contributors
+* Pull requests and issues opened throughout the Node.js organization
+  * Use the link  `https://github.com/search?q=author:GITHUB_ID+org:nodejs`
+* Comments on pull requests and issues throughout the Node.js organization
+  * Use the link `https://github.com/search?q=commenter:GITHUB_ID+org:nodejs`
+* Participation in other projects, teams, and working groups of the Node.js
+  organization
 * Other participation in the wider Node.js community
 
 Mention @nodejs/collaborators in the issue to notify other Collaborators about
