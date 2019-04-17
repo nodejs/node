@@ -321,8 +321,8 @@ class SSLWrap {
 
   ClientHelloParser hello_parser_;
 
-  Persistent<v8::ArrayBufferView> ocsp_response_;
-  Persistent<v8::Value> sni_context_;
+  v8::Global<v8::ArrayBufferView> ocsp_response_;
+  v8::Global<v8::Value> sni_context_;
 
   friend class SecureContext;
 };

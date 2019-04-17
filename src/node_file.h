@@ -451,8 +451,8 @@ class FileHandle : public AsyncWrap, public StreamBase {
     CloseReq& operator=(const CloseReq&&) = delete;
 
    private:
-    Persistent<Promise> promise_{};
-    Persistent<Value> ref_{};
+    v8::Global<Promise> promise_{};
+    v8::Global<Value> ref_{};
   };
 
   // Asynchronous close

@@ -56,7 +56,7 @@ BaseObject::~BaseObject() {
 }
 
 
-Persistent<v8::Object>& BaseObject::persistent() {
+v8::Global<v8::Object>& BaseObject::persistent() {
   return persistent_handle_;
 }
 

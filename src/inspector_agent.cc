@@ -34,6 +34,7 @@ using node::FatalError;
 
 using v8::Context;
 using v8::Function;
+using v8::Global;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -834,7 +835,7 @@ void Agent::DisableAsyncHook() {
 }
 
 void Agent::ToggleAsyncHook(Isolate* isolate,
-                            const node::Persistent<Function>& fn) {
+                            const Global<Function>& fn) {
   CHECK(parent_env_->has_run_bootstrapping_code());
   HandleScope handle_scope(isolate);
   CHECK(!fn.IsEmpty());

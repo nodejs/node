@@ -929,7 +929,7 @@ class Environment : public MemoryRetainer {
   std::unordered_map<uint32_t, contextify::ContextifyScript*>
       id_to_script_map;
   std::unordered_set<CompileFnEntry*> compile_fn_entries;
-  std::unordered_map<uint32_t, Persistent<v8::Function>> id_to_function_map;
+  std::unordered_map<uint32_t, v8::Global<v8::Function>> id_to_function_map;
 
   inline uint32_t get_next_module_id();
   inline uint32_t get_next_script_id();
@@ -1292,7 +1292,7 @@ class Environment : public MemoryRetainer {
   template <typename T>
   void ForEachBaseObject(T&& iterator);
 
-#define V(PropertyName, TypeName) Persistent<TypeName> PropertyName ## _;
+#define V(PropertyName, TypeName) v8::Global<TypeName> PropertyName ## _;
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V

@@ -606,7 +606,6 @@
         'src/node_options-inl.h',
         'src/node_perf.h',
         'src/node_perf_common.h',
-        'src/node_persistent.h',
         'src/node_platform.h',
         'src/node_process.h',
         'src/node_revert.h',

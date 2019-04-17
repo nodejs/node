@@ -7,7 +7,6 @@
 #endif
 
 #include "node_options-inl.h"
-#include "node_persistent.h"
 #include "v8.h"
 
 #include <cstddef>
@@ -114,7 +113,7 @@ class Agent {
 
  private:
   void ToggleAsyncHook(v8::Isolate* isolate,
-                       const node::Persistent<v8::Function>& fn);
+                       const v8::Global<v8::Function>& fn);
 
   node::Environment* parent_env_;
   // Encapsulates majority of the Inspector functionality
@@ -133,8 +132,8 @@ class Agent {
 
   bool pending_enable_async_hook_ = false;
   bool pending_disable_async_hook_ = false;
-  node::Persistent<v8::Function> enable_async_hook_function_;
-  node::Persistent<v8::Function> disable_async_hook_function_;
+  v8::Global<v8::Function> enable_async_hook_function_;
+  v8::Global<v8::Function> disable_async_hook_function_;
 };
 
 }  // namespace inspector
