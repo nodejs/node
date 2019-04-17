@@ -163,6 +163,7 @@ class MessagePort : public HandleWrap {
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Drain(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ReceiveMessage(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   /* static */
   static void MoveToContext(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -200,6 +201,8 @@ class MessagePort : public HandleWrap {
   void OnClose() override;
   void OnMessage();
   void TriggerAsync();
+  v8::MaybeLocal<v8::Value> ReceiveMessage(v8::Local<v8::Context> context,
+                                           bool only_if_receiving);
 
   std::unique_ptr<MessagePortData> data_ = nullptr;
   bool receiving_messages_ = false;
