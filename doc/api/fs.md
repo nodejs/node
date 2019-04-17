@@ -3592,8 +3592,12 @@ changes:
 * `callback` {Function}
   * `err` {Error}
 
-Asynchronously writes data to a file, replacing the file if it already exists.
-`data` can be a string or a buffer.
+When `file` is a filename, asynchronously writes data to the file, replacing the
+file if it already exists.  `data` can be a string or a buffer.
+
+When `file` is a file descriptor, the behavior is similar to calling
+`fs.write()` directly (which is recommended). See the notes below on using
+a file descriptor.
 
 The `encoding` option is ignored if `data` is a buffer.
 
@@ -3615,15 +3619,30 @@ It is unsafe to use `fs.writeFile()` multiple times on the same file without
 waiting for the callback. For this scenario, [`fs.createWriteStream()`][] is
 recommended.
 
-### File Descriptors
-1. Any specified file descriptor has to support writing.
-2. If a file descriptor is specified as the `file`, it will not be closed
-automatically.
-3. The writing will begin at the current position. For example, if the string
-`'Hello'` is written to the file descriptor, and if `', World'` is written with
-`fs.writeFile()` to the same file descriptor, the contents of the file would
-become `'Hello, World'`, instead of just `', World'`.
+### Using `fs.writeFile()` with File Descriptors
 
+When `file` is a file descriptor, the behavior is almost identical to directly
+calling `fs.write()` like:
+```javascript
+fs.write(fd, Buffer.from(data, options.encoding), callback);
+```
+
+The difference from directly calling `fs.write()` is that under some unusual
+conditions, `fs.write()` may write only part of the buffer and will need to be
+retried to write the remaining data, whereas `fs.writeFile()` will retry until
+the data is entirely written (or an error occurs).
+
+Since the implications of this are a common source of confusion, note that in
+the file descriptor case the file is not replaced! The data is not necessarily
+written to the beginning of the file, and the file's original data may remain
+before and/or after the newly written data.
+
+For example, if `fs.writeFile()` is called twice in a row, first to write the
+string `'Hello'`, then to write the string `', World'`, the file would contain
+`'Hello, World'`, and might contain some of the file's original data (depending
+on the size of the original file, and the position of the file descriptor).  If
+a file name had been used instead of a descriptor, the file would be guaranteed
+to contain only `', World'`.
 
 ## fs.writeFileSync(file, data[, options])
 <!-- YAML
