@@ -23,7 +23,7 @@
 #define SRC_NODE_OBJECT_WRAP_H_
 
 #include "v8.h"
-#include <assert.h>
+#include <cassert>
 
 
 namespace node {
