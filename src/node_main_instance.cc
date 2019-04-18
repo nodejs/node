@@ -23,7 +23,8 @@ NodeMainInstance::NodeMainInstance(Isolate* isolate,
       isolate_(isolate),
       platform_(platform),
       isolate_data_(nullptr),
-      owns_isolate_(false) {
+      owns_isolate_(false),
+      deserialize_mode_(false) {
   isolate_data_.reset(new IsolateData(isolate_, event_loop, platform, nullptr));
   SetIsolateUpForNode(isolate_, IsolateSettingCategories::kMisc);
 }
@@ -41,7 +42,8 @@ NodeMainInstance::NodeMainInstance(Isolate::CreateParams* params,
                                    uv_loop_t* event_loop,
                                    MultiIsolatePlatform* platform,
                                    const std::vector<std::string>& args,
-                                   const std::vector<std::string>& exec_args)
+                                   const std::vector<std::string>& exec_args,
+                                   const IndexArray* per_isolate_data_indexes)
     : args_(args),
       exec_args_(exec_args),
       array_buffer_allocator_(ArrayBufferAllocator::Create()),
@@ -58,10 +60,20 @@ NodeMainInstance::NodeMainInstance(Isolate::CreateParams* params,
   SetIsolateCreateParamsForNode(params);
   Isolate::Initialize(isolate_, *params);
 
-  isolate_data_.reset(new IsolateData(
-      isolate_, event_loop, platform, array_buffer_allocator_.get()));
+  deserialize_mode_ = per_isolate_data_indexes != nullptr;
+  // If the indexes are not nullptr, we are not deserializing
+  CHECK_IMPLIES(deserialize_mode_, params->external_references != nullptr);
+  isolate_data_.reset(new IsolateData(isolate_,
+                                      event_loop,
+                                      platform,
+                                      array_buffer_allocator_.get(),
+                                      per_isolate_data_indexes));
   SetIsolateUpForNode(isolate_, IsolateSettingCategories::kMisc);
-  SetIsolateUpForNode(isolate_, IsolateSettingCategories::kErrorHandlers);
+  if (!deserialize_mode_) {
+    // If in deserialize mode, delay until after the deserialization is
+    // complete.
+    SetIsolateUpForNode(isolate_, IsolateSettingCategories::kErrorHandlers);
+  }
 }
 
 void NodeMainInstance::Dispose() {
@@ -160,6 +172,9 @@ std::unique_ptr<Environment> NodeMainInstance::CreateMainEnvironment(
   }
 
   Local<Context> context = NewContext(isolate_);
+  if (deserialize_mode_) {
+    SetIsolateUpForNode(isolate_, IsolateSettingCategories::kErrorHandlers);
+  }
   CHECK(!context.IsEmpty());
   Context::Scope context_scope(context);
 
