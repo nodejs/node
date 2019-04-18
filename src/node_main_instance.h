@@ -70,6 +70,11 @@ class NodeMainInstance {
   // and the environment creation routine in workers somehow.
   std::unique_ptr<Environment> CreateMainEnvironment(int* exit_code);
 
+  // If nullptr is returned, the binary is not built with embedded
+  // snapshot.
+  static const IndexArray* GetIsolateDataIndexes();
+  static v8::StartupData* GetEmbeddedSnapshotBlob();
+
  private:
   NodeMainInstance(const NodeMainInstance&) = delete;
   NodeMainInstance& operator=(const NodeMainInstance&) = delete;

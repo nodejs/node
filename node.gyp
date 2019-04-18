@@ -223,6 +223,7 @@
       'deps/acorn/acorn/dist/acorn.js',
       'deps/acorn/acorn-walk/dist/walk.js',
     ],
+    'node_mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_mksnapshot<(EXECUTABLE_SUFFIX)',
     'mkcodecache_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mkcodecache<(EXECUTABLE_SUFFIX)',
     'conditions': [
       [ 'node_shared=="true"', {
@@ -428,6 +429,31 @@
         }, {
           'sources': [
             'src/node_code_cache_stub.cc'
+          ],
+        }],
+        ['want_separate_host_toolset==0', {
+          'dependencies': [
+            'node_mksnapshot',
+          ],
+          'actions': [
+            {
+              'action_name': 'node_mksnapshot',
+              'process_outputs_as_sources': 1,
+              'inputs': [
+                '<(node_mksnapshot_exec)',
+              ],
+              'outputs': [
+                '<(SHARED_INTERMEDIATE_DIR)/node_snapshot.cc',
+              ],
+              'action': [
+                '<@(_inputs)',
+                '<@(_outputs)',
+              ],
+            },
+          ],
+        }, {
+          'sources': [
+            'src/node_snapshot_stub.cc'
           ],
         }],
       ],
@@ -1039,6 +1065,7 @@
       'defines': [ 'NODE_WANT_INTERNALS=1' ],
 
       'sources': [
+        'src/node_snapshot_stub.cc',
         'src/node_code_cache_stub.cc',
         'test/cctest/node_test_fixture.cc',
         'test/cctest/test_aliased_buffer.cc',
@@ -1129,6 +1156,7 @@
         'NODE_WANT_INTERNALS=1'
       ],
       'sources': [
+        'src/node_snapshot_stub.cc',
         'src/node_code_cache_stub.cc',
         'tools/code_cache/mkcodecache.cc',
         'tools/code_cache/cache_builder.cc',
@@ -1178,6 +1206,7 @@
       'defines': [ 'NODE_WANT_INTERNALS=1' ],
 
       'sources': [
+        'src/node_snapshot_stub.cc',
         'src/node_code_cache_stub.cc',
         'tools/snapshot/node_mksnapshot.cc',
         'tools/snapshot/snapshot_builder.cc',

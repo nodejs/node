@@ -175,6 +175,7 @@ std::unique_ptr<Environment> NodeMainInstance::CreateMainEnvironment(
   if (deserialize_mode_) {
     SetIsolateUpForNode(isolate_, IsolateSettingCategories::kErrorHandlers);
   }
+
   CHECK(!context.IsEmpty());
   Context::Scope context_scope(context);
 
