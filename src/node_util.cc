@@ -211,6 +211,41 @@ class WeakReference : public BaseObject {
   Persistent<Object> target_;
 };
 
+static void GuessHandleType(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  int fd;
+  if (!args[0]->Int32Value(env->context()).To(&fd)) return;
+  CHECK_GE(fd, 0);
+
+  uv_handle_type t = uv_guess_handle(fd);
+  const char* type = nullptr;
+
+  switch (t) {
+    case UV_TCP:
+      type = "TCP";
+      break;
+    case UV_TTY:
+      type = "TTY";
+      break;
+    case UV_UDP:
+      type = "UDP";
+      break;
+    case UV_FILE:
+      type = "FILE";
+      break;
+    case UV_NAMED_PIPE:
+      type = "PIPE";
+      break;
+    case UV_UNKNOWN_HANDLE:
+      type = "UNKNOWN";
+      break;
+    default:
+      ABORT();
+  }
+
+  args.GetReturnValue().Set(OneByteString(env->isolate(), type));
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -280,6 +315,8 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(weak_ref, "get", WeakReference::Get);
   target->Set(context, weak_ref_string,
               weak_ref->GetFunction(context).ToLocalChecked()).Check();
+
+  env->SetMethod(target, "guessHandleType", GuessHandleType);
 }
 
 }  // namespace util
