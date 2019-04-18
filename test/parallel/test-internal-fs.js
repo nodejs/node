@@ -46,7 +46,7 @@ common.expectsError(
   if (process.platform === 'win32') {
     // There should not be any forward slashes
     assert.strictEqual(
-      /^\//.test(preprocessSymlinkDestination), false);
+      /\//.test(preprocessSymlinkDestination), false);
   } else {
     assert.strictEqual(preprocessSymlinkDestination, pathString);
   }
