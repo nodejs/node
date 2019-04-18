@@ -15,8 +15,9 @@
  **/
 namespace node {
 
-#define SECURITY_REVERSIONS(XX)
-//  XX(CVE_2016_PEND, "CVE-2016-PEND", "Vulnerability Title")
+#define SECURITY_REVERSIONS(XX) \
+  XX(CVE_2018_7166, "CVE-2018-7166", \
+      "Buffer constructor exposes uninitialized memory")
 
 enum reversion {
 #define V(code, ...) SECURITY_REVERT_##code,

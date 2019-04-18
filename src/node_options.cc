@@ -513,7 +513,8 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             &PerProcessOptions::debug_arraybuffer_allocations,
             kAllowedInEnvironment);
 
-  AddOption("--security-reverts", "", &PerProcessOptions::security_reverts);
+  AddOption("--security-reverts", "", &PerProcessOptions::security_reverts,
+      kAllowedInEnvironment);
   AddOption("--completion-bash",
             "print source-able bash completion script",
             &PerProcessOptions::print_bash_completion);

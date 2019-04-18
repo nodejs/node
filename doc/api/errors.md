@@ -660,6 +660,16 @@ instance is to create a normal `Uint8Array`, which only differs in the
 prototype of the resulting object. `Uint8Array`s are generally accepted in all
 Node.js core APIs where `Buffer`s are; they are available in all Contexts.
 
+<a id="ERR_BUFFER_NEW_NOT_SUPPORTED"></a>
+### ERR_BUFFER_NEW_NOT_SUPPORTED
+
+Use of `new Buffer` is not supported. It has been deprecated since 10.x,
+and now throws an error. The deprecation can be reverted, if absolutely
+necessary, by using `--security-revert=`.
+
+See [DEP0005](deprecations.html#deprecations_dep0005_buffer_constructor) for
+more information.
+
 <a id="ERR_BUFFER_OUT_OF_BOUNDS"></a>
 ### ERR_BUFFER_OUT_OF_BOUNDS
 
