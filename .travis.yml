@@ -78,6 +78,7 @@ jobs:
         - NODE=$(which node) make lint lint-py
 
     - name: "Docs"
+      if: type = pull_request
       language: node_js
       node_js: "node"
       install:
@@ -85,7 +86,12 @@ jobs:
         - make doc-only
         - npm install -g linkinator
       script:
-        - linkinator out/doc/api -r
+        - if [ "${TRAVIS_PULL_REQUEST}" != "false" ]; then
+            DOC_FILES=`curl -sL https://github.com/nodejs/node/pull/${TRAVIS_PULL_REQUEST}.patch | grep -o '\bdoc/api/.*\.md\b'`
+            if [ -n "${DOC_FILES}" ]; then
+              linkinator out/doc/api -r;
+            fi
+          fi
 
     - name: "First commit message adheres to guidelines at <a href=\"https://goo.gl/p2fr5Q\">https://goo.gl/p2fr5Q</a>"
       if: type = pull_request
