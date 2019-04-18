@@ -37,6 +37,7 @@ using v8::NewStringType;
 using v8::Number;
 using v8::Object;
 using v8::Private;
+using v8::SnapshotCreator;
 using v8::StackTrace;
 using v8::String;
 using v8::Symbol;
@@ -49,22 +50,58 @@ int const Environment::kNodeContextTag = 0x6e6f64;
 void* const Environment::kNodeContextTagPtr = const_cast<void*>(
     static_cast<const void*>(&Environment::kNodeContextTag));
 
-IsolateData::IsolateData(Isolate* isolate,
-                         uv_loop_t* event_loop,
-                         MultiIsolatePlatform* platform,
-                         ArrayBufferAllocator* node_allocator)
-    : isolate_(isolate),
-      event_loop_(event_loop),
-      allocator_(isolate->GetArrayBufferAllocator()),
-      node_allocator_(node_allocator == nullptr ?
-          nullptr : node_allocator->GetImpl()),
-      uses_node_allocator_(allocator_ == node_allocator_),
-      platform_(platform) {
-  CHECK_NOT_NULL(allocator_);
+std::vector<size_t> IsolateData::Serialize(SnapshotCreator* creator) {
+  Isolate* isolate = creator->GetIsolate();
+  std::vector<size_t> indexes;
+  HandleScope handle_scope(isolate);
+  // XXX(joyeecheung): technically speaking, the indexes here should be
+  // consecutive and we could just return a range instead of an array,
+  // but that's not part of the V8 API contract so we use an array
+  // just to be safe.
 
-  options_.reset(
-      new PerIsolateOptions(*(per_process::cli_options->per_isolate)));
+#define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
+#define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
+#define VS(PropertyName, StringValue) V(v8::String, PropertyName)
+#define V(TypeName, PropertyName)                                              \
+  indexes.push_back(creator->AddData(PropertyName##_.Get(isolate)));
+  PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
+  PER_ISOLATE_SYMBOL_PROPERTIES(VY)
+  PER_ISOLATE_STRING_PROPERTIES(VS)
+#undef V
+#undef VY
+#undef VS
+#undef VP
 
+  return indexes;
+}
+
+void IsolateData::DeserializeProperties(
+    const NodeMainInstance::IndexArray* indexes) {
+  size_t i = 0;
+  HandleScope handle_scope(isolate_);
+
+#define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
+#define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
+#define VS(PropertyName, StringValue) V(v8::String, PropertyName)
+#define V(TypeName, PropertyName)                                              \
+  do {                                                                         \
+    MaybeLocal<TypeName> field =                                               \
+        isolate_->GetDataFromSnapshotOnce<TypeName>(indexes->Get(i++));        \
+    if (field.IsEmpty()) {                                                     \
+      fprintf(stderr, "Failed to deserialize " #PropertyName "\n");            \
+    }                                                                          \
+    PropertyName##_.Set(isolate_, field.ToLocalChecked());                     \
+  } while (0);
+  PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
+  PER_ISOLATE_SYMBOL_PROPERTIES(VY)
+  PER_ISOLATE_STRING_PROPERTIES(VS)
+#undef V
+#undef VY
+#undef VS
+#undef VP
+}
+
+void IsolateData::CreateProperties() {
   // Create string and private symbol properties as internalized one byte
   // strings after the platform is properly initialized.
   //
@@ -76,42 +113,66 @@ IsolateData::IsolateData(Isolate* isolate,
   // One byte because our strings are ASCII and we can safely skip V8's UTF-8
   // decoding step.
 
-  HandleScope handle_scope(isolate);
+  HandleScope handle_scope(isolate_);
 
-#define V(PropertyName, StringValue)                                        \
-    PropertyName ## _.Set(                                                  \
-        isolate,                                                            \
-        Private::New(                                                       \
-            isolate,                                                        \
-            String::NewFromOneByte(                                         \
-                isolate,                                                    \
-                reinterpret_cast<const uint8_t*>(StringValue),              \
-                NewStringType::kInternalized,                               \
-                sizeof(StringValue) - 1).ToLocalChecked()));
+#define V(PropertyName, StringValue)                                           \
+  PropertyName##_.Set(                                                         \
+      isolate_,                                                                \
+      Private::New(isolate_,                                                   \
+                   String::NewFromOneByte(                                     \
+                       isolate_,                                               \
+                       reinterpret_cast<const uint8_t*>(StringValue),          \
+                       NewStringType::kInternalized,                           \
+                       sizeof(StringValue) - 1)                                \
+                       .ToLocalChecked()));
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
 #undef V
-#define V(PropertyName, StringValue)                                        \
-    PropertyName ## _.Set(                                                  \
-        isolate,                                                            \
-        Symbol::New(                                                        \
-            isolate,                                                        \
-            String::NewFromOneByte(                                         \
-                isolate,                                                    \
-                reinterpret_cast<const uint8_t*>(StringValue),              \
-                NewStringType::kInternalized,                               \
-                sizeof(StringValue) - 1).ToLocalChecked()));
+#define V(PropertyName, StringValue)                                           \
+  PropertyName##_.Set(                                                         \
+      isolate_,                                                                \
+      Symbol::New(isolate_,                                                    \
+                  String::NewFromOneByte(                                      \
+                      isolate_,                                                \
+                      reinterpret_cast<const uint8_t*>(StringValue),           \
+                      NewStringType::kInternalized,                            \
+                      sizeof(StringValue) - 1)                                 \
+                      .ToLocalChecked()));
   PER_ISOLATE_SYMBOL_PROPERTIES(V)
 #undef V
-#define V(PropertyName, StringValue)                                        \
-    PropertyName ## _.Set(                                                  \
-        isolate,                                                            \
-        String::NewFromOneByte(                                             \
-            isolate,                                                        \
-            reinterpret_cast<const uint8_t*>(StringValue),                  \
-            NewStringType::kInternalized,                                   \
-            sizeof(StringValue) - 1).ToLocalChecked());
+#define V(PropertyName, StringValue)                                           \
+  PropertyName##_.Set(                                                         \
+      isolate_,                                                                \
+      String::NewFromOneByte(isolate_,                                         \
+                             reinterpret_cast<const uint8_t*>(StringValue),    \
+                             NewStringType::kInternalized,                     \
+                             sizeof(StringValue) - 1)                          \
+          .ToLocalChecked());
   PER_ISOLATE_STRING_PROPERTIES(V)
 #undef V
+}
+
+IsolateData::IsolateData(Isolate* isolate,
+                         uv_loop_t* event_loop,
+                         MultiIsolatePlatform* platform,
+                         ArrayBufferAllocator* node_allocator,
+                         const NodeMainInstance::IndexArray* indexes)
+    : isolate_(isolate),
+      event_loop_(event_loop),
+      allocator_(isolate->GetArrayBufferAllocator()),
+      node_allocator_(node_allocator == nullptr ? nullptr
+                                                : node_allocator->GetImpl()),
+      uses_node_allocator_(allocator_ == node_allocator_),
+      platform_(platform) {
+  CHECK_NOT_NULL(allocator_);
+
+  options_.reset(
+      new PerIsolateOptions(*(per_process::cli_options->per_isolate)));
+
+  if (indexes == nullptr) {
+    CreateProperties();
+  } else {
+    DeserializeProperties(indexes);
+  }
 }
 
 void IsolateData::MemoryInfo(MemoryTracker* tracker) const {

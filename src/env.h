@@ -33,6 +33,7 @@
 #include "node.h"
 #include "node_binding.h"
 #include "node_http2_state.h"
+#include "node_main_instance.h"
 #include "node_options.h"
 #include "req_wrap.h"
 #include "util.h"
@@ -418,10 +419,12 @@ class IsolateData : public MemoryRetainer {
   IsolateData(v8::Isolate* isolate,
               uv_loop_t* event_loop,
               MultiIsolatePlatform* platform = nullptr,
-              ArrayBufferAllocator* node_allocator = nullptr);
+              ArrayBufferAllocator* node_allocator = nullptr,
+              const NodeMainInstance::IndexArray* indexes = nullptr);
   SET_MEMORY_INFO_NAME(IsolateData);
   SET_SELF_SIZE(IsolateData);
   void MemoryInfo(MemoryTracker* tracker) const override;
+  std::vector<size_t> Serialize(v8::SnapshotCreator* creator);
 
   inline uv_loop_t* event_loop() const;
   inline MultiIsolatePlatform* platform() const;
@@ -451,6 +454,9 @@ class IsolateData : public MemoryRetainer {
   IsolateData& operator=(const IsolateData&) = delete;
 
  private:
+  void DeserializeProperties(const NodeMainInstance::IndexArray* indexes);
+  void CreateProperties();
+
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
