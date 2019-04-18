@@ -59,37 +59,12 @@ void TTYWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "setRawMode", SetRawMode);
 
   env->SetMethodNoSideEffect(target, "isTTY", IsTTY);
-  env->SetMethodNoSideEffect(target, "guessHandleType", GuessHandleType);
 
   Local<Value> func;
   if (t->GetFunction(env->context()).ToLocal(&func) &&
       target->Set(env->context(), ttyString, func).IsJust()) {
     env->set_tty_constructor_template(t);
   }
-}
-
-
-void TTYWrap::GuessHandleType(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  int fd;
-  if (!args[0]->Int32Value(env->context()).To(&fd)) return;
-  CHECK_GE(fd, 0);
-
-  uv_handle_type t = uv_guess_handle(fd);
-  const char* type = nullptr;
-
-  switch (t) {
-  case UV_TCP: type = "TCP"; break;
-  case UV_TTY: type = "TTY"; break;
-  case UV_UDP: type = "UDP"; break;
-  case UV_FILE: type = "FILE"; break;
-  case UV_NAMED_PIPE: type = "PIPE"; break;
-  case UV_UNKNOWN_HANDLE: type = "UNKNOWN"; break;
-  default:
-    ABORT();
-  }
-
-  args.GetReturnValue().Set(OneByteString(env->isolate(), type));
 }
 
 
