@@ -1156,7 +1156,47 @@
         }],
       ],
     }, # mkcodecache
-  ],  # end targets
+    {
+      'target_name': 'node_mksnapshot',
+      'type': 'executable',
+
+      'dependencies': [
+        '<(node_lib_target_name)',
+        'deps/histogram/histogram.gyp:histogram',
+      ],
+
+      'includes': [
+        'node.gypi'
+      ],
+
+      'include_dirs': [
+        'src',
+        'tools/msvs/genfiles',
+        'deps/v8/include',
+        'deps/cares/include',
+        'deps/uv/include',
+      ],
+
+      'defines': [ 'NODE_WANT_INTERNALS=1' ],
+
+      'sources': [
+        'src/node_code_cache_stub.cc',
+        'tools/snapshot/node_mksnapshot.cc',
+        'tools/snapshot/snapshot_builder.cc',
+        'tools/snapshot/snapshot_builder.h',
+      ],
+
+      'conditions': [
+        [ 'node_report=="true"', {
+          'conditions': [
+            ['OS=="win"', {
+              'libraries': [ 'Ws2_32' ],
+            }],
+          ],
+        }],
+      ],
+    }, # node_mksnapshot
+  ], # end targets
 
   'conditions': [
     ['OS=="aix" and node_shared=="true"', {

@@ -1226,6 +1226,8 @@ LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 	tools/icu/*.h \
 	tools/code_cache/*.cc \
 	tools/code_cache/*.h \
+	tools/snapshot/*.cc \
+	tools/snapshot/*.h \
 	))
 
 # Code blocks don't have newline at the end,
