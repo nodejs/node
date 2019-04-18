@@ -87,7 +87,7 @@ jobs:
         - npm install -g linkinator
       script:
         - if [ "${TRAVIS_PULL_REQUEST}" != "false" ]; then
-            DOC_FILES=`curl -sL https://github.com/nodejs/node/pull/${TRAVIS_PULL_REQUEST}.patch | grep -o '\bdoc/api/.*\.md\b'`
+            DOC_FILES=`curl -sL https://github.com/nodejs/node/pull/${TRAVIS_PULL_REQUEST}.patch | grep -o '\bdoc/api/.*\.md\b'`;
             if [ -n "${DOC_FILES}" ]; then
               linkinator out/doc/api -r;
             fi;
