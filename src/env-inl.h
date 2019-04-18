@@ -31,7 +31,6 @@
 #include "uv.h"
 #include "v8.h"
 #include "node_perf_common.h"
-#include "node_persistent.h"
 #include "node_context_data.h"
 
 #include <cstddef>

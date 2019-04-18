@@ -26,7 +26,6 @@
 
 #include "base_object.h"
 #include "env-inl.h"
-#include "node_persistent.h"
 #include "util-inl.h"
 #include "v8.h"
 
