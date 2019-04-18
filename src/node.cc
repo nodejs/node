@@ -887,11 +887,24 @@ int Start(int argc, char** argv) {
 
   {
     Isolate::CreateParams params;
+    // TODO(joyeecheung): collect external references and set it in
+    // params.external_references.
+    std::vector<intptr_t> external_references = {
+        reinterpret_cast<intptr_t>(nullptr)};
+    v8::StartupData* blob = NodeMainInstance::GetEmbeddedSnapshotBlob();
+    const NodeMainInstance::IndexArray* indexes =
+        NodeMainInstance::GetIsolateDataIndexes();
+    if (blob != nullptr) {
+      params.external_references = external_references.data();
+      params.snapshot_blob = blob;
+    }
+
     NodeMainInstance main_instance(&params,
                                    uv_default_loop(),
                                    per_process::v8_platform.Platform(),
                                    result.args,
-                                   result.exec_args);
+                                   result.exec_args,
+                                   indexes);
     result.exit_code = main_instance.Run();
   }
 
