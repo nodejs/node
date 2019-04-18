@@ -8,7 +8,7 @@ if (common.isWindows) {
 
 const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');
-const binding = internalBinding('util');
+const binding = internalBinding('contextify');
 
 [(next) => {
   // Test with no signal observed.

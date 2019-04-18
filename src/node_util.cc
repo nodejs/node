@@ -1,5 +1,4 @@
 #include "node_errors.h"
-#include "node_watchdog.h"
 #include "util.h"
 #include "base_object-inl.h"
 
@@ -157,24 +156,6 @@ static void SetHiddenValue(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(maybe_value.FromJust());
 }
 
-
-void StartSigintWatchdog(const FunctionCallbackInfo<Value>& args) {
-  int ret = SigintWatchdogHelper::GetInstance()->Start();
-  args.GetReturnValue().Set(ret == 0);
-}
-
-
-void StopSigintWatchdog(const FunctionCallbackInfo<Value>& args) {
-  bool had_pending_signals = SigintWatchdogHelper::GetInstance()->Stop();
-  args.GetReturnValue().Set(had_pending_signals);
-}
-
-
-void WatchdogHasPendingSigint(const FunctionCallbackInfo<Value>& args) {
-  bool ret = SigintWatchdogHelper::GetInstance()->HasPendingSignal();
-  args.GetReturnValue().Set(ret);
-}
-
 void ArrayBufferViewHasBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsArrayBufferView());
   args.GetReturnValue().Set(args[0].As<ArrayBufferView>()->HasBuffer());
@@ -280,11 +261,6 @@ void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "previewEntries", PreviewEntries);
   env->SetMethodNoSideEffect(target, "getOwnNonIndexProperties",
                                      GetOwnNonIndexProperties);
-
-  env->SetMethod(target, "startSigintWatchdog", StartSigintWatchdog);
-  env->SetMethod(target, "stopSigintWatchdog", StopSigintWatchdog);
-  env->SetMethodNoSideEffect(target, "watchdogHasPendingSigint",
-                             WatchdogHasPendingSigint);
 
   env->SetMethod(target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
   Local<Object> constants = Object::New(env->isolate());
