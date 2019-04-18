@@ -912,6 +912,29 @@ by the [module wrapper][]. To access it, require the `Module` module:
 const builtin = require('module').builtinModules;
 ```
 
+### module.containsModuleSyntax(source)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {string} JavaScript source code
+* Returns: {boolean}
+
+Detect whether input JavaScript source code contains [ECMAScript Module][]
+syntax, defined as `import` or `export` statements. Returns `true` as soon as
+the first `import` or `export` statement is encountered, or `false` if none are
+found. Note that dynamic `import()` is not an `import` statement.
+
+```js
+const { containsModuleSyntax } = require('module');
+
+containsModuleSyntax('import { fn } from "pkg"'); // true
+containsModuleSyntax('console.log(process.version)'); // false
+
+containsModuleSyntax('import "./file.mjs"'); // true
+containsModuleSyntax('import("./file.mjs")'); // false
+```
+
 ### module.createRequire(filename)
 <!-- YAML
 added: v12.2.0
@@ -957,6 +980,7 @@ requireUtil('./some-tool');
 [`createRequire()`]: #modules_module_createrequire_filename
 [`module` object]: #modules_the_module_object
 [`path.dirname()`]: path.html#path_path_dirname_path
+[ECMAScript Module]: esm.html
 [ECMAScript Modules]: esm.html
 [an error]: errors.html#errors_err_require_esm
 [exports shortcut]: #modules_exports_shortcut
