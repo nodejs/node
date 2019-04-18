@@ -162,5 +162,8 @@ tickValue = 1;
 // Should fail due to stub.
 dnsPromises.lookup('example.com').then(
   common.mustNotCall(),
-  common.mustCall((error) => { assert.strictEqual(error.code, 'ENOMEM'); })
+  common.mustCall((error) => {
+    assert.strictEqual(error.code, 'ENOMEM');
+    assert.strictEqual(error.hostname, 'example.com');
+  })
 );
