@@ -4,11 +4,13 @@ const common = require('../common');
 const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');
 const cares = internalBinding('cares_wrap');
+
+// Stub `getaddrinfo` to *always* error. This has to be done before we load the
+// `dns` module to guarantee that the `dns` module uses the stub.
+cares.getaddrinfo = () => internalBinding('uv').UV_ENOMEM;
+
 const dns = require('dns');
 const dnsPromises = dns.promises;
-
-// Stub `getaddrinfo` to *always* error.
-cares.getaddrinfo = () => internalBinding('uv').UV_ENOENT;
 
 {
   const err = {
@@ -144,15 +146,19 @@ dns.lookup('127.0.0.1', {
 
 let tickValue = 0;
 
+// Should fail due to stub.
 dns.lookup('example.com', common.mustCall((error, result, addressType) => {
   assert(error);
   assert.strictEqual(tickValue, 1);
-  assert.strictEqual(error.code, 'ENOENT');
+  assert.strictEqual(error.code, 'ENOMEM');
   const descriptor = Object.getOwnPropertyDescriptor(error, 'message');
   // The error message should be non-enumerable.
   assert.strictEqual(descriptor.enumerable, false);
 }));
 
-// Make sure that the error callback is called
-// on next tick.
+// Make sure that the error callback is called on next tick.
 tickValue = 1;
+
+// Should fail due to stub.
+assert.rejects(dnsPromises.lookup('example.com'),
+               { code: 'ENOMEM', hostname: 'example.com' });
