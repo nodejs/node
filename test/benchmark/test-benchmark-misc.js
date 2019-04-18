@@ -10,6 +10,7 @@ runBenchmark('misc', [
   'method=',
   'n=1',
   'type=',
+  'code=1',
   'val=magyarország.icom.museum',
   'script=test/fixtures/semicolon',
   'mode=worker'
