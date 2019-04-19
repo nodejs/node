@@ -6,6 +6,7 @@
 #ifdef NODE_REPORT
 #include "node_report.h"
 #endif
+#include "node_process.h"
 #include "node_v8_platform-inl.h"
 
 namespace node {
@@ -736,6 +737,32 @@ const char* errno_string(int errorno) {
 
     default:
       return "";
+  }
+}
+
+void PerIsolateMessageListener(Local<Message> message, Local<Value> error) {
+  Isolate* isolate = message->GetIsolate();
+  switch (message->ErrorLevel()) {
+    case Isolate::MessageErrorLevel::kMessageWarning: {
+      Environment* env = Environment::GetCurrent(isolate);
+      if (!env) {
+        break;
+      }
+      Utf8Value filename(isolate, message->GetScriptOrigin().ResourceName());
+      // (filename):(line) (message)
+      std::stringstream warning;
+      warning << *filename;
+      warning << ":";
+      warning << message->GetLineNumber(env->context()).FromMaybe(-1);
+      warning << " ";
+      v8::String::Utf8Value msg(isolate, message->Get());
+      warning << *msg;
+      USE(ProcessEmitWarningGeneric(env, warning.str().c_str(), "V8"));
+      break;
+    }
+    case Isolate::MessageErrorLevel::kMessageError:
+      FatalException(isolate, error, message);
+      break;
   }
 }
 
