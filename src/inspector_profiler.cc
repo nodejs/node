@@ -319,7 +319,7 @@ void StartCoverageCollection(Environment* env) {
 }
 
 void StartCpuProfiling(Environment* env, const std::string& profile_name) {
-  std::string path = env->node_prof_dir() + std::string(kPathSeparator);
+  std::string path = env->cpu_prof_dir() + std::string(kPathSeparator);
   if (profile_name.empty()) {
     DiagnosticFilename filename(env, "CPU", "cpuprofile");
     path += *filename;

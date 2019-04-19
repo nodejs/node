@@ -849,7 +849,7 @@ void Environment::stop_sub_worker_contexts() {
 
 void Environment::InitializeNodeProfDir(const std::string& dir) {
   if (!dir.empty()) {
-    node_prof_dir_ = dir;
+    cpu_prof_dir_ = dir;
     return;
   }
   char cwd[CWD_BUFSIZE];
@@ -858,7 +858,7 @@ void Environment::InitializeNodeProfDir(const std::string& dir) {
   // TODO(joyeecheung): fallback to exec path / argv[0]
   CHECK_EQ(err, 0);
   CHECK_GT(size, 0);
-  node_prof_dir_ = cwd;
+  cpu_prof_dir_ = cwd;
 }
 
 #endif  // HAVE_INSPECTOR

@@ -1,6 +1,6 @@
 'use strict';
 
-// This tests that --cpu-prof, --node-prof-dir and --cpu-prof-name works.
+// This tests that --cpu-prof, --cpu-prof-dir and --cpu-prof-name works.
 
 const common = require('../common');
 if (process.features.debug &&
@@ -162,11 +162,11 @@ const env = {
     `${process.execPath}: --cpu-prof-name must be used with --cpu-prof`);
 }
 
-// --node-prof-dir without --cpu-prof
+// --cpu-prof-dir without --cpu-prof
 {
   tmpdir.refresh();
   const output = spawnSync(process.execPath, [
-    '--node-prof-dir',
+    '--cpu-prof-dir',
     'prof',
     fixtures.path('workload', 'fibonacci.js'),
   ], {
@@ -180,7 +180,7 @@ const env = {
   assert.strictEqual(output.status, 9);
   assert.strictEqual(
     stderr,
-    `${process.execPath}: --node-prof-dir must be used with --cpu-prof`);
+    `${process.execPath}: --cpu-prof-dir must be used with --cpu-prof`);
 }
 
 // --cpu-prof-name
@@ -205,12 +205,12 @@ const env = {
   verifyFrames(output, file, 'fibonacci.js');
 }
 
-// relative --node-prof-dir
+// relative --cpu-prof-dir
 {
   tmpdir.refresh();
   const output = spawnSync(process.execPath, [
     '--cpu-prof',
-    '--node-prof-dir',
+    '--cpu-prof-dir',
     'prof',
     fixtures.path('workload', 'fibonacci.js'),
   ], {
@@ -228,13 +228,13 @@ const env = {
   verifyFrames(output, profiles[0], 'fibonacci.js');
 }
 
-// absolute --node-prof-dir
+// absolute --cpu-prof-dir
 {
   tmpdir.refresh();
   const dir = path.join(tmpdir.path, 'prof');
   const output = spawnSync(process.execPath, [
     '--cpu-prof',
-    '--node-prof-dir',
+    '--cpu-prof-dir',
     dir,
     fixtures.path('workload', 'fibonacci.js'),
   ], {
@@ -251,7 +251,7 @@ const env = {
   verifyFrames(output, profiles[0], 'fibonacci.js');
 }
 
-// --node-prof-dir and --cpu-prof-name
+// --cpu-prof-dir and --cpu-prof-name
 {
   tmpdir.refresh();
   const dir = path.join(tmpdir.path, 'prof');
@@ -260,7 +260,7 @@ const env = {
     '--cpu-prof',
     '--cpu-prof-name',
     'test.cpuprofile',
-    '--node-prof-dir',
+    '--cpu-prof-dir',
     dir,
     fixtures.path('workload', 'fibonacci.js'),
   ], {
@@ -277,11 +277,11 @@ const env = {
   verifyFrames(output, file, 'fibonacci.js');
 }
 
-// --node-prof-dir with worker
+// --cpu-prof-dir with worker
 {
   tmpdir.refresh();
   const output = spawnSync(process.execPath, [
-    '--node-prof-dir',
+    '--cpu-prof-dir',
     'prof',
     '--cpu-prof',
     fixtures.path('workload', 'fibonacci-worker.js'),

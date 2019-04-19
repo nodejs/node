@@ -239,7 +239,7 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
 
 #if HAVE_INSPECTOR
   if (env->options()->cpu_prof) {
-    env->InitializeNodeProfDir(env->options()->node_prof_dir);
+    env->InitializeNodeProfDir(env->options()->cpu_prof_dir);
     profiler::StartCpuProfiling(env, env->options()->cpu_prof_name);
   }
 #endif  // HAVE_INSPECTOR

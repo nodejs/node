@@ -687,12 +687,12 @@ inline const std::string& Environment::cpu_profile_path() const {
   return cpu_profile_path_;
 }
 
-inline void Environment::set_node_prof_dir(const std::string& path) {
-  node_prof_dir_ = path;
+inline void Environment::set_cpu_prof_dir(const std::string& path) {
+  cpu_prof_dir_ = path;
 }
 
-inline const std::string& Environment::node_prof_dir() const {
-  return node_prof_dir_;
+inline const std::string& Environment::cpu_prof_dir() const {
+  return cpu_prof_dir_;
 }
 
 #endif  // HAVE_INSPECTOR

@@ -110,7 +110,7 @@ class EnvironmentOptions : public Options {
   bool preserve_symlinks_main = false;
   bool prof_process = false;
 #if HAVE_INSPECTOR
-  std::string node_prof_dir;
+  std::string cpu_prof_dir;
   std::string cpu_prof_name;
   bool cpu_prof = false;
 #endif  // HAVE_INSPECTOR
