@@ -1256,7 +1256,7 @@ argument.
 <!-- YAML
 added: v0.11.13
 changes:
-  - version: REPLACEME
+  - version: v11.15.0
     pr-url: https://github.com/nodejs/node/pull/26209
     description: TLSv1.3 support added.
   - version: v11.5.0

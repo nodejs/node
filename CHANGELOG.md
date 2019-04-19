@@ -28,7 +28,8 @@ release.
 </tr>
 <tr>
     <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V11.md#11.14.0">11.14.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V11.md#11.15.0">11.15.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V11.md#11.14.0">11.14.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V11.md#11.13.0">11.13.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V11.md#11.12.0">11.12.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V11.md#11.11.0">11.11.0</a><br/>

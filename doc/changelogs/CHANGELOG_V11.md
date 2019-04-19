@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#11.15.0">11.15.0</a><br/>
 <a href="#11.14.0">11.14.0</a><br/>
 <a href="#11.13.0">11.13.0</a><br/>
 <a href="#11.12.0">11.12.0</a><br/>
@@ -41,6 +42,38 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="11.15.0"></a>
+## 2019-04-30, Version 11.15.0 (Current), @codebytere
+
+### Notable changes
+
+* **deps**: add s390 asm rules for OpenSSL-1.1.1 (Shigeki Ohtsu) [#19794](https://github.com/nodejs/node/pull/19794)
+* **src**: add .code and SSL specific error properties (Sam Roberts) [#25093](https://github.com/nodejs/node/pull/25093)
+* **tls**:
+  * add --tls-min-v1.2 CLI switch (Sam Roberts) [#26951](https://github.com/nodejs/node/pull/26951)
+  * supported shared openssl 1.1.0 (Sam Roberts) [#26951](https://github.com/nodejs/node/pull/26951)
+  * revert default max toTLSv1.2 (Sam Roberts) [#26951](https://github.com/nodejs/node/pull/26951)
+  * revert change to invalid protocol error type (Sam Roberts) [#26951](https://github.com/nodejs/node/pull/26951)
+  * support TLSv1.3 (Sam Roberts) [#26209](https://github.com/nodejs/node/pull/26209)
+  * add code for ERR\_TLS\_INVALID\_PROTOCOL\_METHOD (Sam Roberts) [#24729](https://github.com/nodejs/node/pull/24729)
+
+### Commits
+
+* [[`7da23dcbfa`](https://github.com/nodejs/node/commit/7da23dcbfa)] - **deps**: V8: backport 61f4c22 (Anna Henningsen) [#27259](https://github.com/nodejs/node/pull/27259)
+* [[`8db791d0fe`](https://github.com/nodejs/node/commit/8db791d0fe)] - **deps**: update archs files for OpenSSL-1.1.1b (Sam Roberts) [#26327](https://github.com/nodejs/node/pull/26327)
+* [[`1c98b720b1`](https://github.com/nodejs/node/commit/1c98b720b1)] - **(SEMVER-MINOR)** **deps**: add s390 asm rules for OpenSSL-1.1.1 (Shigeki Ohtsu) [#19794](https://github.com/nodejs/node/pull/19794)
+* [[`d8cc478ae9`](https://github.com/nodejs/node/commit/d8cc478ae9)] - **deps**: upgrade openssl sources to 1.1.1b (Sam Roberts) [#26327](https://github.com/nodejs/node/pull/26327)
+* [[`fa6f0f1644`](https://github.com/nodejs/node/commit/fa6f0f1644)] - **doc**: describe tls.DEFAULT\_MIN\_VERSION/\_MAX\_VERSION (Sam Roberts) [#26821](https://github.com/nodejs/node/pull/26821)
+* [[`8b5d350a35`](https://github.com/nodejs/node/commit/8b5d350a35)] - **(SEMVER-MINOR)** **src**: add .code and SSL specific error properties (Sam Roberts) [#25093](https://github.com/nodejs/node/pull/25093)
+* [[`bf2c283555`](https://github.com/nodejs/node/commit/bf2c283555)] - **(SEMVER-MINOR)** **tls**: add --tls-min-v1.2 CLI switch (Sam Roberts) [#26951](https://github.com/nodejs/node/pull/26951)
+* [[`7aeca270f6`](https://github.com/nodejs/node/commit/7aeca270f6)] - **(SEMVER-MINOR)** **tls**: supported shared openssl 1.1.0 (Sam Roberts) [#26951](https://github.com/nodejs/node/pull/26951)
+* [[`d2666e6ded`](https://github.com/nodejs/node/commit/d2666e6ded)] - **tls**: add debugging to native TLS code (Anna Henningsen) [#26843](https://github.com/nodejs/node/pull/26843)
+* [[`225417b849`](https://github.com/nodejs/node/commit/225417b849)] - **tls**: add CHECK for impossible condition (AnnaHenningsen) [#26843](https://github.com/nodejs/node/pull/26843)
+* [[`109c097797`](https://github.com/nodejs/node/commit/109c097797)] - **(SEMVER-MINOR)** **tls**: revert default max toTLSv1.2 (Sam Roberts) [#26951](https://github.com/nodejs/node/pull/26951)
+* [[`7393e37af1`](https://github.com/nodejs/node/commit/7393e37af1)] - **(SEMVER-MINOR)** **tls**: support TLSv1.3 (Sam Roberts) [#26209](https://github.com/nodejs/node/pull/26209)
+* [[`8e14859459`](https://github.com/nodejs/node/commit/8e14859459)] - **(SEMVER-MINOR)** **tls**: revert change to invalid protocol error type (Sam Roberts) [#26951](https://github.com/nodejs/node/pull/26951)
+* [[`00688b6042`](https://github.com/nodejs/node/commit/00688b6042)] - **(SEMVER-MINOR)** **tls**: add code for ERR\_TLS\_INVALID\_PROTOCOL\_METHOD (Sam Roberts) [#24729](https://github.com/nodejs/node/pull/24729)
 
 <a id="11.14.0"></a>
 ## 2019-04-11, Version 11.14.0 (Current), @BethGriggs
