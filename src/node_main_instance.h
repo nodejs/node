@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <cstddef>
 #include "node.h"
 #include "util.h"
 #include "uv.h"
@@ -14,12 +15,35 @@ namespace node {
 // We may be able to create an abstract class to reuse some of the routines.
 class NodeMainInstance {
  public:
-  NodeMainInstance(const NodeMainInstance&) = delete;
-  NodeMainInstance& operator=(const NodeMainInstance&) = delete;
-  NodeMainInstance(NodeMainInstance&&) = delete;
-  NodeMainInstance& operator=(NodeMainInstance&&) = delete;
+  // To create a main instance that does not own the isoalte,
+  // The caller needs to do:
+  //
+  //   Isolate* isolate = Isolate::Allocate();
+  //   platform->RegisterIsolate(isolate, loop);
+  //   isolate->Initialize(...);
+  //   isolate->Enter();
+  //   NodeMainInstance* main_instance =
+  //       NodeMainInstance::Create(isolate, loop, args, exec_args);
+  //
+  // When tearing it down:
+  //
+  //   main_instance->Cleanup();  // While the isolate is entered
+  //   isolate->Exit();
+  //   isolate->Dispose();
+  //   platform->UnregisterIsolate(isolate);
+  //
+  // After calling Dispose() the main_instance is no longer accessible.
+  static NodeMainInstance* Create(v8::Isolate* isolate,
+                                  uv_loop_t* event_loop,
+                                  MultiIsolatePlatform* platform,
+                                  const std::vector<std::string>& args,
+                                  const std::vector<std::string>& exec_args);
+  void Dispose();
 
-  NodeMainInstance(uv_loop_t* event_loop,
+  // Create a main instance that owns the isolate
+  NodeMainInstance(v8::Isolate::CreateParams* params,
+                   uv_loop_t* event_loop,
+                   MultiIsolatePlatform* platform,
                    const std::vector<std::string>& args,
                    const std::vector<std::string>& exec_args);
   ~NodeMainInstance();
@@ -27,16 +51,28 @@ class NodeMainInstance {
   // Start running the Node.js instances, return the exit code when finished.
   int Run();
 
- private:
   // TODO(joyeecheung): align this with the CreateEnvironment exposed in node.h
   // and the environment creation routine in workers somehow.
   std::unique_ptr<Environment> CreateMainEnvironment(int* exit_code);
 
+ private:
+  NodeMainInstance(const NodeMainInstance&) = delete;
+  NodeMainInstance& operator=(const NodeMainInstance&) = delete;
+  NodeMainInstance(NodeMainInstance&&) = delete;
+  NodeMainInstance& operator=(NodeMainInstance&&) = delete;
+
+  NodeMainInstance(v8::Isolate* isolate,
+                   uv_loop_t* event_loop,
+                   MultiIsolatePlatform* platform,
+                   const std::vector<std::string>& args,
+                   const std::vector<std::string>& exec_args);
   std::vector<std::string> args_;
   std::vector<std::string> exec_args_;
   std::unique_ptr<ArrayBufferAllocator> array_buffer_allocator_;
   v8::Isolate* isolate_;
+  MultiIsolatePlatform* platform_;
   std::unique_ptr<IsolateData> isolate_data_;
+  bool owns_isolate_ = false;
 };
 
 }  // namespace node
