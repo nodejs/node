@@ -85,19 +85,19 @@ Local<String> RealEnvStore::Get(Isolate* isolate,
 
   node::Utf8Value key(isolate, property);
   char* val = nullptr;
-  size_t initSz = 256;
+  size_t init_sz = 256;
 
   // Allocate 256 bytes initially, if not enough reallocate.
-  val = Malloc(sizeof(char) * initSz);
+  val = Malloc(init_sz);
 
-  int ret = uv_os_getenv(*key, val, &initSz);
+  int ret = uv_os_getenv(*key, val, &init_sz);
 
   if (UV_ENOBUFS == ret) {
-    // Buffer is not large enough, reallocate to the updated initSz
+    // Buffer is not large enough, reallocate to the updated init_sz
     // and fetch env value again.
-    val = Realloc(val, sizeof(char) * initSz);
+    val = Realloc(val, init_sz);
 
-    ret = uv_os_getenv(*key, val, &initSz);
+    ret = uv_os_getenv(*key, val, &init_sz);
 
     // Still failed to fetch env value return emptry string.
     if (UV_ENOBUFS == ret || UV_ENOENT == ret) {
@@ -107,13 +107,17 @@ Local<String> RealEnvStore::Get(Isolate* isolate,
     return Local<String>();
   }
 
-  Local<String> valueString =
-      String::NewFromUtf8(isolate, val, NewStringType::kNormal)
-          .ToLocalChecked();
+  MaybeLocal<String> value_string =
+      String::NewFromUtf8(isolate, val, NewStringType::kNormal);
+
+  if (value_string.IsEmpty()) {
+       isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
+       return Local<String>();
+  }
 
   if (nullptr != val) free(val);
 
-  return valueString;
+  return value_string.ToLocalChecked();
 }
 
 void RealEnvStore::Set(Isolate* isolate,
