@@ -25,8 +25,6 @@ test-http2-client-upload-reject: PASS,FLAKY
 [$system==macos]
 
 [$arch==arm || $arch==arm64]
-# https://github.com/nodejs/node/issues/25028
-test-cli-node-options: PASS,FLAKY
 # https://github.com/nodejs/node/issues/26610
 test-async-hooks-http-parser-destroy: PASS,FLAKY
 
