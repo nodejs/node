@@ -7,7 +7,7 @@ if (process.features.debug &&
   process.config.variables.node_code_cache_path === 'yes') {
   // FIXME(joyeecheung): the profiler crashes when code cache
   // is enabled in debug builds.
-  common.skip('--prof does not work in debug builds with code cache');
+  common.skip('--cpu-prof does not work in debug builds with code cache');
 }
 
 const fixtures = require('../common/fixtures');
