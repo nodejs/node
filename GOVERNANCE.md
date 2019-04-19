@@ -136,12 +136,8 @@ Provide a summary of the nominee's contributions. For example:
 Mention @nodejs/collaborators in the issue to notify other Collaborators about
 the nomination.
 
-If there are no objections raised by any Collaborators one week after
-the issue is opened, the nomination will be considered as accepted.
-Should there be any objections against the nomination, the TSC is responsible
-for working with the individuals involved and finding a resolution.
-The nomination must be approved by the TSC, which is assumed when there are no
-objections from any TSC members.
+The nomination passes if no Collaborators oppose it after one week. Otherwise,
+the nomination fails.
 
 Prior to the public nomination, the Collaborator initiating it can seek
 feedback from other Collaborators in private using
