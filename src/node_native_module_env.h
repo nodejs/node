@@ -10,6 +10,8 @@ class Environment;
 
 namespace native_module {
 
+extern const bool has_code_cache;
+
 class NativeModuleEnv {
  public:
   static void Initialize(v8::Local<v8::Object> target,

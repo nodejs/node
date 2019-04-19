@@ -78,6 +78,9 @@ static std::string GenerateCodeCache(
 
 namespace node {
 namespace native_module {
+
+const bool has_code_cache = true;
+
 )";
 
   size_t total = 0;

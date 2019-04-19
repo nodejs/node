@@ -31,7 +31,7 @@ const loadedModules = process.moduleLoadList
 
 // Cross-compiled binaries do not have code cache, verifies that the builtins
 // are all compiled without cache and we are doing the bookkeeping right.
-if (process.config.variables.want_separate_host_toolset === 1) {
+if (!process.features.cached_builtins) {
   console.log('The binary is not configured with code cache');
   if (isMainThread) {
     assert.deepStrictEqual(compiledWithCache, new Set());
