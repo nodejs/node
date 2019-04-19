@@ -1,4 +1,4 @@
-// Flags: --experimental-report --diagnostic-report-uncaught-exception
+// Flags: --experimental-report --report-uncaught-exception
 'use strict';
 // Test producing a report on uncaught exception.
 const common = require('../common');

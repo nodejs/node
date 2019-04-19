@@ -90,42 +90,6 @@ Path the V8 CPU profile generated with
 will be written to. When used alone, it implies
 .Fl -cpu-prof
 .
-.It Fl -diagnostic-report-directory
-Location at which the
-.Sy diagnostic report
-will be generated.
-.
-.It Fl -diagnostic-report-filename
-Name of the file to which the
-.Sy diagnostic report
-will be written.
-.
-.It Fl -diagnostic-report-on-fatalerror
-Enables the
-.Sy diagnostic report
-to be triggered on fatal errors (internal errors within the Node.js runtime such as out of memory) that leads to termination of the application, if
-.Sy --experimental-report
-is enabled. Useful to inspect various diagnostic data elements such as heap, stack, event loop state, resource consumption etc. to reason about the fatal error.
-.
-.It Fl -diagnostic-report-on-signal
-Enables
-.Sy diagnostic report
-to be generated upon receiving the specified (or predefined) signal to the running Node.js process, if
-.Sy --experimental-report
-is enabled. Default signal is SIGUSR2.
-.
-.It Fl -diagnostic-report-signal
-Sets or resets the signal for
-.Sy diagnostic report
-generation (not supported on Windows). Default signal is SIGUSR2.
-.
-.It Fl -diagnostic-report-uncaught-exception
-Enables
-.Sy diagnostic report
-to be generated on un-caught exceptions, if
-.Sy --experimental-report
-is enabled. Useful when inspecting JavaScript stack in conjunction with native stack and other runtime environment data.
-.
 .It Fl -enable-fips
 Enable FIPS-compliant crypto at startup.
 Requires Node.js to be built with
@@ -249,6 +213,42 @@ Process V8 profiler output generated using the V8 option
 Write process warnings to the given
 .Ar file
 instead of printing to stderr.
+.
+.It Fl -report-directory
+Location at which the
+.Sy diagnostic report
+will be generated.
+.
+.It Fl -report-filename
+Name of the file to which the
+.Sy diagnostic report
+will be written.
+.
+.It Fl -report-on-fatalerror
+Enables the
+.Sy diagnostic report
+to be triggered on fatal errors (internal errors within the Node.js runtime such as out of memory) that leads to termination of the application, if
+.Sy --experimental-report
+is enabled. Useful to inspect various diagnostic data elements such as heap, stack, event loop state, resource consumption etc. to reason about the fatal error.
+.
+.It Fl -report-on-signal
+Enables
+.Sy diagnostic report
+to be generated upon receiving the specified (or predefined) signal to the running Node.js process, if
+.Sy --experimental-report
+is enabled. Default signal is SIGUSR2.
+.
+.It Fl -report-signal
+Sets or resets the signal for
+.Sy diagnostic report
+generation (not supported on Windows). Default signal is SIGUSR2.
+.
+.It Fl -report-uncaught-exception
+Enables
+.Sy diagnostic report
+to be generated on un-caught exceptions, if
+.Sy --experimental-report
+is enabled. Useful when inspecting JavaScript stack in conjunction with native stack and other runtime environment data.
 .
 .It Fl -throw-deprecation
 Throw errors for deprecations.

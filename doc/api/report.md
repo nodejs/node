@@ -32,7 +32,7 @@ is provided below for reference.
     "commandLine": [
       "/home/nodeuser/project/node/out/Release/node",
       "--experimental-report",
-      "--diagnostic-report-uncaught-exception",
+      "--report-uncaught-exception",
       "/home/nodeuser/project/node/test/report/test-exception.js",
       "child"
     ],
@@ -361,19 +361,19 @@ is provided below for reference.
 ## Usage
 
 ```bash
-node --experimental-report --diagnostic-report-uncaught-exception \
-  --diagnostic-report-on-signal --diagnostic-report-on-fatalerror app.js
+node --experimental-report --report-uncaught-exception \
+  --report-on-signal --report-on-fatalerror app.js
 ```
 
 * `--experimental-report` Enables the diagnostic report feature.
  In the absence of this flag, use of all other related options will result in
  an error.
 
-* `--diagnostic-report-uncaught-exception` Enables report to be generated on
+* `--report-uncaught-exception` Enables report to be generated on
 un-caught exceptions. Useful when inspecting JavaScript stack in conjunction
 with native stack and other runtime environment data.
 
-* `--diagnostic-report-on-signal` Enables report to be generated upon receiving
+* `--report-on-signal` Enables report to be generated upon receiving
 the specified (or predefined) signal to the running Node.js process. (See below
 on how to modify the signal that triggers the report.) Default signal is `SIGUSR2`.
 Useful when a report needs to be triggered from another program.
@@ -387,19 +387,19 @@ signal. However, if `SIGUSR2` is already used for other purposes, then this
 flag helps to change the signal for report generation and preserve the original
 meaning of `SIGUSR2` for the said purposes.
 
-* `--diagnostic-report-on-fatalerror` Enables the report to be triggered on
+* `--report-on-fatalerror` Enables the report to be triggered on
 fatal errors (internal errors within the Node.js runtime, such as out of memory)
 that leads to termination of the application. Useful to inspect various
 diagnostic data elements such as heap, stack, event loop state, resource
 consumption etc. to reason about the fatal error.
 
-* `--diagnostic-report-directory` Location at which the report will be
+* `--report-directory` Location at which the report will be
 generated.
 
-* `--diagnostic-report-filename` Name of the file to which the report will be
+* `--report-filename` Name of the file to which the report will be
 written.
 
-* `--diagnostic-report-signal` Sets or resets the signal for report generation
+* `--report-signal` Sets or resets the signal for report generation
 (not supported on Windows). Default signal is `SIGUSR2`.
 
 A report can also be triggered via an API call from a JavaScript application:
@@ -534,10 +534,10 @@ Configuration on module initialization is also available via
 environment variables:
 
 ```bash
-NODE_OPTIONS="--experimental-report --diagnostic-report-uncaught-exception \
-  --diagnostic-report-on-fatalerror --diagnostic-report-on-signal \
-  --diagnostic-report-signal=SIGUSR2  --diagnostic-report-filename=./report.json \
-  --diagnostic-report-directory=/home/nodeuser"
+NODE_OPTIONS="--experimental-report --report-uncaught-exception \
+  --report-on-fatalerror --report-on-signal \
+  --report-signal=SIGUSR2  --report-filename=./report.json \
+  --report-directory=/home/nodeuser"
 ```
 
 Specific API documentation can be found under

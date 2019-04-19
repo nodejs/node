@@ -69,34 +69,34 @@ void PerIsolateOptions::CheckOptions(std::vector<std::string>* errors) {
   }
 
   if (!report_directory.empty()) {
-    errors->push_back("--diagnostic-report-directory option is valid only when "
+    errors->push_back("--report-directory option is valid only when "
                       "--experimental-report is set");
   }
 
   if (!report_filename.empty()) {
-    errors->push_back("--diagnostic-report-filename option is valid only when "
+    errors->push_back("--report-filename option is valid only when "
                       "--experimental-report is set");
   }
 
   if (!report_signal.empty()) {
-    errors->push_back("--diagnostic-report-signal option is valid only when "
+    errors->push_back("--report-signal option is valid only when "
                       "--experimental-report is set");
   }
 
   if (report_on_fatalerror) {
     errors->push_back(
-        "--diagnostic-report-on-fatalerror option is valid only when "
+        "--report-on-fatalerror option is valid only when "
         "--experimental-report is set");
   }
 
   if (report_on_signal) {
-    errors->push_back("--diagnostic-report-on-signal option is valid only when "
+    errors->push_back("--report-on-signal option is valid only when "
                       "--experimental-report is set");
   }
 
   if (report_uncaught_exception) {
     errors->push_back(
-        "--diagnostic-report-uncaught-exception option is valid only when "
+        "--report-uncaught-exception option is valid only when "
         "--experimental-report is set");
   }
 #endif  // NODE_REPORT
@@ -457,30 +457,30 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
   AddOption("--stack-trace-limit", "", V8Option{}, kAllowedInEnvironment);
 
 #ifdef NODE_REPORT
-  AddOption("--diagnostic-report-uncaught-exception",
+  AddOption("--report-uncaught-exception",
             "generate diagnostic report on uncaught exceptions",
             &PerIsolateOptions::report_uncaught_exception,
             kAllowedInEnvironment);
-  AddOption("--diagnostic-report-on-signal",
+  AddOption("--report-on-signal",
             "generate diagnostic report upon receiving signals",
             &PerIsolateOptions::report_on_signal,
             kAllowedInEnvironment);
-  AddOption("--diagnostic-report-on-fatalerror",
+  AddOption("--report-on-fatalerror",
             "generate diagnostic report on fatal (internal) errors",
             &PerIsolateOptions::report_on_fatalerror,
             kAllowedInEnvironment);
-  AddOption("--diagnostic-report-signal",
+  AddOption("--report-signal",
             "causes diagnostic report to be produced on provided signal,"
             " unsupported in Windows. (default: SIGUSR2)",
             &PerIsolateOptions::report_signal,
             kAllowedInEnvironment);
-  Implies("--diagnostic-report-signal", "--diagnostic-report-on-signal");
-  AddOption("--diagnostic-report-filename",
+  Implies("--report-signal", "--report-on-signal");
+  AddOption("--report-filename",
             "define custom report file name."
             " (default: YYYYMMDD.HHMMSS.PID.SEQUENCE#.txt)",
             &PerIsolateOptions::report_filename,
             kAllowedInEnvironment);
-  AddOption("--diagnostic-report-directory",
+  AddOption("--report-directory",
             "define custom report pathname."
             " (default: current working directory of Node.js process)",
             &PerIsolateOptions::report_directory,
