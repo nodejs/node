@@ -88,14 +88,14 @@ Local<String> RealEnvStore::Get(Isolate* isolate,
   size_t initSz = 256;
 
   // Allocate 256 bytes initially, if not enough reallocate.
-  val = static_cast<char*>(malloc(sizeof(char) * initSz));
+  val = Malloc(sizeof(char) * initSz);
 
   int ret = uv_os_getenv(*key, val, &initSz);
 
   if (UV_ENOBUFS == ret) {
     // Buffer is not large enough, reallocate to the updated initSz
     // and fetch env value again.
-    val = static_cast<char*>(realloc(val, sizeof(char) * initSz));
+    val = Realloc(val, sizeof(char) * initSz);
 
     ret = uv_os_getenv(*key, val, &initSz);
 
@@ -120,55 +120,35 @@ void RealEnvStore::Set(Isolate* isolate,
                        Local<String> property,
                        Local<String> value) {
   Mutex::ScopedLock lock(per_process::env_var_mutex);
-#ifdef __POSIX__
+
   node::Utf8Value key(isolate, property);
   node::Utf8Value val(isolate, value);
-  setenv(*key, *val, 1);
-#else  // _WIN32
-  node::TwoByteValue key(isolate, property);
-  node::TwoByteValue val(isolate, value);
-  WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
-  // Environment variables that start with '=' are read-only.
-  if (key_ptr[0] != L'=') {
-    SetEnvironmentVariableW(key_ptr, reinterpret_cast<WCHAR*>(*val));
-  }
-#endif
+  uv_os_setenv(*key, *val);
   DateTimeConfigurationChangeNotification(isolate, key);
 }
 
 int32_t RealEnvStore::Query(Isolate* isolate, Local<String> property) const {
   Mutex::ScopedLock lock(per_process::env_var_mutex);
-#ifdef __POSIX__
+
   node::Utf8Value key(isolate, property);
-  if (getenv(*key)) return 0;
-#else  // _WIN32
-  node::TwoByteValue key(isolate, property);
-  WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
-  SetLastError(ERROR_SUCCESS);
-  if (GetEnvironmentVariableW(key_ptr, nullptr, 0) > 0 ||
-      GetLastError() == ERROR_SUCCESS) {
-    if (key_ptr[0] == L'=') {
-      // Environment variables that start with '=' are hidden and read-only.
-      return static_cast<int32_t>(v8::ReadOnly) |
-             static_cast<int32_t>(v8::DontDelete) |
-             static_cast<int32_t>(v8::DontEnum);
-    }
-    return 0;
+
+  char val[2];
+  size_t init_sz = sizeof(val);
+
+  int ret = uv_os_getenv(*key, val, &init_sz);
+
+  if (UV_ENOENT == ret) {
+    return -1;
   }
-#endif
-  return -1;
+
+  return 0;
 }
 
 void RealEnvStore::Delete(Isolate* isolate, Local<String> property) {
   Mutex::ScopedLock lock(per_process::env_var_mutex);
-#ifdef __POSIX__
+
   node::Utf8Value key(isolate, property);
-  unsetenv(*key);
-#else
-  node::TwoByteValue key(isolate, property);
-  WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
-  SetEnvironmentVariableW(key_ptr, nullptr);
-#endif
+  uv_os_unsetenv(*key);
   DateTimeConfigurationChangeNotification(isolate, key);
 }
 
