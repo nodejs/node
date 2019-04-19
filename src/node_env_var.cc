@@ -111,8 +111,8 @@ Local<String> RealEnvStore::Get(Isolate* isolate,
       String::NewFromUtf8(isolate, val, NewStringType::kNormal);
 
   if (value_string.IsEmpty()) {
-       isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
-       return Local<String>();
+    isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
+    return Local<String>();
   }
 
   if (nullptr != val) free(val);
