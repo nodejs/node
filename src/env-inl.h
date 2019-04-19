@@ -38,6 +38,14 @@
 
 #include <utility>
 
+#ifdef _WIN32
+/* MAX_PATH is in characters, not bytes. Make sure we have enough headroom. */
+#define CWD_BUFSIZE (MAX_PATH * 4)
+#else
+#include <climits>  // PATH_MAX on Solaris.
+#define CWD_BUFSIZE (PATH_MAX)
+#endif
+
 namespace node {
 
 inline v8::Isolate* IsolateData::isolate() const {
@@ -678,6 +686,29 @@ inline void Environment::set_cpu_profile_path(const std::string& path) {
 inline const std::string& Environment::cpu_profile_path() const {
   return cpu_profile_path_;
 }
+
+inline void Environment::set_prof_dir(const std::string& path) {
+  prof_dir_ = path;
+}
+
+inline const std::string& Environment::prof_dir() const {
+  return prof_dir_;
+}
+
+inline void Environment::InitializeProfDir(const std::string& dir) {
+  if (!dir.empty()) {
+    prof_dir_ = dir;
+    return;
+  }
+  char cwd[CWD_BUFSIZE];
+  size_t size = CWD_BUFSIZE;
+  int err = uv_cwd(cwd, &size);
+  // TODO(joyeecheung): fallback to exec path / argv[0]
+  CHECK_EQ(err, 0);
+  CHECK_GT(size, 0);
+  prof_dir_ = cwd;
+}
+
 #endif  // HAVE_INSPECTOR
 
 inline std::shared_ptr<HostPort> Environment::inspector_host_port() {
