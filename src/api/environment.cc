@@ -5,7 +5,6 @@
 #include "node_internals.h"
 #include "node_native_module_env.h"
 #include "node_platform.h"
-#include "node_process.h"
 #include "node_v8_platform-inl.h"
 #include "uv.h"
 
@@ -44,32 +43,6 @@ static bool ShouldAbortOnUncaughtException(Isolate* isolate) {
          (env->is_main_thread() || !env->is_stopping()) &&
          env->should_abort_on_uncaught_toggle()[0] &&
          !env->inside_should_not_abort_on_uncaught_scope();
-}
-
-static void OnMessage(Local<Message> message, Local<Value> error) {
-  Isolate* isolate = message->GetIsolate();
-  switch (message->ErrorLevel()) {
-    case Isolate::MessageErrorLevel::kMessageWarning: {
-      Environment* env = Environment::GetCurrent(isolate);
-      if (!env) {
-        break;
-      }
-      Utf8Value filename(isolate, message->GetScriptOrigin().ResourceName());
-      // (filename):(line) (message)
-      std::stringstream warning;
-      warning << *filename;
-      warning << ":";
-      warning << message->GetLineNumber(env->context()).FromMaybe(-1);
-      warning << " ";
-      v8::String::Utf8Value msg(isolate, message->Get());
-      warning << *msg;
-      USE(ProcessEmitWarningGeneric(env, warning.str().c_str(), "V8"));
-      break;
-    }
-    case Isolate::MessageErrorLevel::kMessageError:
-      FatalException(isolate, error, message);
-      break;
-  }
 }
 
 void* NodeArrayBufferAllocator::Allocate(size_t size) {
@@ -187,7 +160,7 @@ void SetIsolateUpForNode(v8::Isolate* isolate, IsolateSettingCategories cat) {
   switch (cat) {
     case IsolateSettingCategories::kErrorHandlers:
       isolate->AddMessageListenerWithErrorLevel(
-          OnMessage,
+          errors::PerIsolateMessageListener,
           Isolate::MessageErrorLevel::kMessageError |
               Isolate::MessageErrorLevel::kMessageWarning);
       isolate->SetAbortOnUncaughtExceptionCallback(
