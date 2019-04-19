@@ -183,17 +183,33 @@ void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
 #endif
 }
 
+void SetIsolateUpForNode(v8::Isolate* isolate, IsolateSettingCategories cat) {
+  switch (cat) {
+    case IsolateSettingCategories::kErrorHandlers:
+      isolate->AddMessageListenerWithErrorLevel(
+          OnMessage,
+          Isolate::MessageErrorLevel::kMessageError |
+              Isolate::MessageErrorLevel::kMessageWarning);
+      isolate->SetAbortOnUncaughtExceptionCallback(
+          ShouldAbortOnUncaughtException);
+      isolate->SetFatalErrorHandler(OnFatalError);
+      break;
+    case IsolateSettingCategories::kMisc:
+      isolate->SetMicrotasksPolicy(MicrotasksPolicy::kExplicit);
+      isolate->SetAllowWasmCodeGenerationCallback(
+          AllowWasmCodeGenerationCallback);
+      isolate->SetPromiseRejectCallback(task_queue::PromiseRejectCallback);
+      v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+}
+
 void SetIsolateUpForNode(v8::Isolate* isolate) {
-  isolate->AddMessageListenerWithErrorLevel(
-      OnMessage,
-      Isolate::MessageErrorLevel::kMessageError |
-          Isolate::MessageErrorLevel::kMessageWarning);
-  isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
-  isolate->SetMicrotasksPolicy(MicrotasksPolicy::kExplicit);
-  isolate->SetFatalErrorHandler(OnFatalError);
-  isolate->SetAllowWasmCodeGenerationCallback(AllowWasmCodeGenerationCallback);
-  isolate->SetPromiseRejectCallback(task_queue::PromiseRejectCallback);
-  v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
+  SetIsolateUpForNode(isolate, IsolateSettingCategories::kErrorHandlers);
+  SetIsolateUpForNode(isolate, IsolateSettingCategories::kMisc);
 }
 
 Isolate* NewIsolate(ArrayBufferAllocator* allocator, uv_loop_t* event_loop) {
