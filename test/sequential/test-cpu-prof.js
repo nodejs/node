@@ -3,6 +3,13 @@
 // This tests that --cpu-prof and --cpu-prof-path works.
 
 const common = require('../common');
+if (process.features.debug &&
+  process.config.variables.node_code_cache_path === 'yes') {
+  // FIXME(joyeecheung): the profiler crashes when code cache
+  // is enabled in debug builds.
+  common.skip('--cpu-prof does not work in debug builds with code cache');
+}
+
 const fixtures = require('../common/fixtures');
 common.skipIfInspectorDisabled();
 
