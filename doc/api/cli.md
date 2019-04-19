@@ -106,57 +106,6 @@ should be written to. When used alone, it implies `--cpu-prof`.
 $ node --cpu-prof-path /tmp/test.cpuprofile index.js
 ```
 
-### `--report-directory=directory`
-<!-- YAML
-added: v11.8.0
--->
-
-Location at which the report will be generated.
-
-### `--report-filename=filename`
-<!-- YAML
-added: v11.8.0
--->
-
-Name of the file to which the report will be written.
-
-### `--report-on-fatalerror`
-<!-- YAML
-added: v11.8.0
--->
-
-Enables the report to be triggered on fatal errors (internal errors within
-the Node.js runtime such as out of memory) that lead to termination of the
-application, if `--experimental-report` is enabled. Useful to inspect various
-diagnostic data elements such as heap, stack, event loop state, resource
-consumption etc. to reason about the fatal error.
-
-### `--report-on-signal`
-<!-- YAML
-added: v11.8.0
--->
-
-Enables report to be generated upon receiving the specified (or predefined)
-signal to the running Node.js process, if `--experimental-report` is enabled.
-The signal to trigger the report is specified through `--report-signal`.
-
-### `--report-signal=signal`
-<!-- YAML
-added: v11.8.0
--->
-
-Sets or resets the signal for report generation (not supported on Windows).
-Default signal is `SIGUSR2`.
-
-### `--report-uncaught-exception`
-<!-- YAML
-added: v11.8.0
--->
-
-Enables report to be generated on un-caught exceptions, if
-`--experimental-report` is enabled. Useful when inspecting JavaScript stack in
-conjunction with native stack and other runtime environment data.
-
 ### `--enable-fips`
 <!-- YAML
 added: v6.0.0
@@ -491,6 +440,87 @@ Write process warnings to the given file instead of printing to stderr. The
 file will be created if it does not exist, and will be appended to if it does.
 If an error occurs while attempting to write the warning to the file, the
 warning will be written to stderr instead.
+
+### `--report-directory=directory`
+<!-- YAML
+added: v11.8.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/27312
+    description: changed from `--diagnostic-report-directory` to
+                 `--report-directory`
+-->
+
+Location at which the report will be generated.
+
+### `--report-filename=filename`
+<!-- YAML
+added: v11.8.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/27312
+    description: changed from `--diagnostic-report-filename` to
+                 `--report-filename`
+-->
+
+Name of the file to which the report will be written.
+
+### `--report-on-fatalerror`
+<!-- YAML
+added: v11.8.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/27312
+    description: changed from `--diagnostic-report-on-fatalerror` to
+                 `--report-on-fatalerror`
+-->
+
+Enables the report to be triggered on fatal errors (internal errors within
+the Node.js runtime such as out of memory) that lead to termination of the
+application, if `--experimental-report` is enabled. Useful to inspect various
+diagnostic data elements such as heap, stack, event loop state, resource
+consumption etc. to reason about the fatal error.
+
+### `--report-on-signal`
+<!-- YAML
+added: v11.8.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/27312
+    description: changed from `--diagnostic-report-on-signal` to
+                 `--report-on-signal`
+-->
+
+Enables report to be generated upon receiving the specified (or predefined)
+signal to the running Node.js process, if `--experimental-report` is enabled.
+The signal to trigger the report is specified through `--report-signal`.
+
+### `--report-signal=signal`
+<!-- YAML
+added: v11.8.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/27312
+    description: changed from `--diagnostic-report-signal` to
+                 `--report-signal`
+-->
+
+Sets or resets the signal for report generation (not supported on Windows).
+Default signal is `SIGUSR2`.
+
+### `--report-uncaught-exception`
+<!-- YAML
+added: v11.8.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/27312
+    description: changed from `--diagnostic-uncaught-exception` to
+                 `--uncaught-exception`
+-->
+
+Enables report to be generated on un-caught exceptions, if
+`--experimental-report` is enabled. Useful when inspecting JavaScript stack in
+conjunction with native stack and other runtime environment data.
 
 ### `--throw-deprecation`
 <!-- YAML
