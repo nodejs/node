@@ -111,7 +111,7 @@ function validate() {
   // Test the case where the report file cannot be opened.
   const reportDir = path.join(tmpdir.path, 'does', 'not', 'exist');
   const args = ['--experimental-report',
-                `--diagnostic-report-directory=${reportDir}`,
+                `--report-directory=${reportDir}`,
                 '-e',
                 'process.report.writeReport()'];
   const child = spawnSync(process.execPath, args, { cwd: tmpdir.path });

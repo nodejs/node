@@ -23,7 +23,7 @@ if (process.argv[2] === 'child') {
   tmpdir.refresh();
   const spawn = require('child_process').spawn;
   const args = ['--experimental-report',
-                '--diagnostic-report-on-fatalerror',
+                '--report-on-fatalerror',
                 '--max-old-space-size=20',
                 __filename,
                 'child'];

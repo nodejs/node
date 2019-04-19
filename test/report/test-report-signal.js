@@ -1,4 +1,4 @@
-// Flags: --experimental-report --diagnostic-report-on-signal
+// Flags: --experimental-report --report-on-signal
 'use strict';
 // Test producing a report via signal.
 const common = require('../common');

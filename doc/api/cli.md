@@ -106,21 +106,21 @@ should be written to. When used alone, it implies `--cpu-prof`.
 $ node --cpu-prof-path /tmp/test.cpuprofile index.js
 ```
 
-### `--diagnostic-report-directory=directory`
+### `--report-directory=directory`
 <!-- YAML
 added: v11.8.0
 -->
 
 Location at which the report will be generated.
 
-### `--diagnostic-report-filename=filename`
+### `--report-filename=filename`
 <!-- YAML
 added: v11.8.0
 -->
 
 Name of the file to which the report will be written.
 
-### `--diagnostic-report-on-fatalerror`
+### `--report-on-fatalerror`
 <!-- YAML
 added: v11.8.0
 -->
@@ -131,16 +131,16 @@ application, if `--experimental-report` is enabled. Useful to inspect various
 diagnostic data elements such as heap, stack, event loop state, resource
 consumption etc. to reason about the fatal error.
 
-### `--diagnostic-report-on-signal`
+### `--report-on-signal`
 <!-- YAML
 added: v11.8.0
 -->
 
 Enables report to be generated upon receiving the specified (or predefined)
 signal to the running Node.js process, if `--experimental-report` is enabled.
-The signal to trigger the report is specified through `--diagnostic-report-signal`.
+The signal to trigger the report is specified through `--report-signal`.
 
-### `--diagnostic-report-signal=signal`
+### `--report-signal=signal`
 <!-- YAML
 added: v11.8.0
 -->
@@ -148,7 +148,7 @@ added: v11.8.0
 Sets or resets the signal for report generation (not supported on Windows).
 Default signal is `SIGUSR2`.
 
-### `--diagnostic-report-uncaught-exception`
+### `--report-uncaught-exception`
 <!-- YAML
 added: v11.8.0
 -->
@@ -813,12 +813,12 @@ In case an option value happens to contain a space (for example a path listed in
 ```
 
 Node.js options that are allowed are:
-- `--diagnostic-report-directory`
-- `--diagnostic-report-filename`
-- `--diagnostic-report-on-fatalerror`
-- `--diagnostic-report-on-signal`
-- `--diagnostic-report-signal`
-- `--diagnostic-report-uncaught-exception`
+- `--report-directory`
+- `--report-filename`
+- `--report-on-fatalerror`
+- `--report-on-signal`
+- `--report-signal`
+- `--report-uncaught-exception`
 - `--enable-fips`
 - `--experimental-modules`
 - `--experimental-repl-await`
