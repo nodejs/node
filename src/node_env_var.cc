@@ -82,35 +82,38 @@ void DateTimeConfigurationChangeNotification(Isolate* isolate, const T& key) {
 Local<String> RealEnvStore::Get(Isolate* isolate,
                                 Local<String> property) const {
   Mutex::ScopedLock lock(per_process::env_var_mutex);
-#ifdef __POSIX__
+
   node::Utf8Value key(isolate, property);
-  const char* val = getenv(*key);
-  if (val) {
-    return String::NewFromUtf8(isolate, val, NewStringType::kNormal)
-        .ToLocalChecked();
-  }
-#else  // _WIN32
-  node::TwoByteValue key(isolate, property);
-  WCHAR buffer[32767];  // The maximum size allowed for environment variables.
-  SetLastError(ERROR_SUCCESS);
-  DWORD result = GetEnvironmentVariableW(
-      reinterpret_cast<WCHAR*>(*key), buffer, arraysize(buffer));
-  // If result >= sizeof buffer the buffer was too small. That should never
-  // happen. If result == 0 and result != ERROR_SUCCESS the variable was not
-  // found.
-  if ((result > 0 || GetLastError() == ERROR_SUCCESS) &&
-      result < arraysize(buffer)) {
-    const uint16_t* two_byte_buffer = reinterpret_cast<const uint16_t*>(buffer);
-    v8::MaybeLocal<String> rc = String::NewFromTwoByte(
-        isolate, two_byte_buffer, NewStringType::kNormal);
-    if (rc.IsEmpty()) {
-      isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
+  char* val = nullptr;
+  size_t initSz = 256;
+
+  // Allocate 256 bytes initially, if not enough reallocate.
+  val = static_cast<char*>(malloc(sizeof(char) * initSz));
+
+  int ret = uv_os_getenv(*key, val, &initSz);
+
+  if (UV_ENOBUFS == ret) {
+    // Buffer is not large enough, reallocate to the updated initSz
+    // and fetch env value again.
+    val = static_cast<char*>(realloc(val, sizeof(char) * initSz));
+
+    ret = uv_os_getenv(*key, val, &initSz);
+
+    // Still failed to fetch env value return emptry string.
+    if (UV_ENOBUFS == ret || UV_ENOENT == ret) {
       return Local<String>();
     }
-    return rc.ToLocalChecked();
+  } else if (UV_ENOENT == ret) {
+    return Local<String>();
   }
-#endif
-  return Local<String>();
+
+  Local<String> valueString =
+      String::NewFromUtf8(isolate, val, NewStringType::kNormal)
+          .ToLocalChecked();
+
+  if (nullptr != val) free(val);
+
+  return valueString;
 }
 
 void RealEnvStore::Set(Isolate* isolate,
