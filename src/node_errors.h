@@ -191,6 +191,8 @@ class TryCatchScope : public v8::TryCatch {
 };
 
 const char* errno_string(int errorno);
+void PerIsolateMessageListener(v8::Local<v8::Message> message,
+                               v8::Local<v8::Value> error);
 
 }  // namespace errors
 
