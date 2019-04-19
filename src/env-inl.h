@@ -687,26 +687,12 @@ inline const std::string& Environment::cpu_profile_path() const {
   return cpu_profile_path_;
 }
 
-inline void Environment::set_prof_dir(const std::string& path) {
-  prof_dir_ = path;
+inline void Environment::set_node_prof_dir(const std::string& path) {
+  node_prof_dir_ = path;
 }
 
-inline const std::string& Environment::prof_dir() const {
-  return prof_dir_;
-}
-
-inline void Environment::InitializeProfDir(const std::string& dir) {
-  if (!dir.empty()) {
-    prof_dir_ = dir;
-    return;
-  }
-  char cwd[CWD_BUFSIZE];
-  size_t size = CWD_BUFSIZE;
-  int err = uv_cwd(cwd, &size);
-  // TODO(joyeecheung): fallback to exec path / argv[0]
-  CHECK_EQ(err, 0);
-  CHECK_GT(size, 0);
-  prof_dir_ = cwd;
+inline const std::string& Environment::node_prof_dir() const {
+  return node_prof_dir_;
 }
 
 #endif  // HAVE_INSPECTOR
