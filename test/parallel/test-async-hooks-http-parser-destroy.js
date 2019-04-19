@@ -19,9 +19,11 @@ async_hooks.createHook({
     if (type === 'HTTPINCOMINGMESSAGE' || type === 'HTTPCLIENTREQUEST') {
       createdIds.push(asyncId);
     }
-  }, N),
+  }),
   destroy: (asyncId) => {
-    destroyedIds.push(asyncId);
+    if (createdIds.includes(asyncId)) {
+      destroyedIds.push(asyncId);
+    }
   }
 }).enable();
 
@@ -35,16 +37,7 @@ const keepAliveAgent = new http.Agent({
 });
 
 const countdown = new Countdown(N, () => {
-  server.close(() => {
-    // Give the server sockets time to close (which will also free their
-    // associated parser objects) after the server has been closed.
-    setTimeout(() => {
-      assert.strictEqual(createdIds.length, 2 * N);
-      createdIds.forEach((createdAsyncId) => {
-        assert.ok(destroyedIds.indexOf(createdAsyncId) >= 0);
-      });
-    }, KEEP_ALIVE * 2);
-  });
+  server.close();
 });
 
 server.listen(0, function() {
@@ -60,3 +53,12 @@ server.listen(0, function() {
     })();
   }
 });
+
+function checkOnExit() {
+  assert.deepStrictEqual(destroyedIds.sort(), createdIds.sort());
+  // There should be at least one ID for each request.
+  assert.ok(createdIds.length >= N, `${createdIds.length} < ${N}`);
+}
+
+// Ordinary exit.
+process.on('exit', checkOnExit);
