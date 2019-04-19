@@ -29,6 +29,10 @@ An [`Agent`][] object for HTTPS similar to [`http.Agent`][]. See
   Can have the same fields as for [`http.Agent(options)`][], and
   * `maxCachedSessions` {number} maximum number of TLS cached sessions.
     Use `0` to disable TLS session caching. **Default:** `100`.
+  * `servername` {string} the value of
+    [Server Name Indication extension][sni wiki] to be sent to the server. Use
+    empty string `''` to disable sending the extension.
+    **Default:** hostname or IP address of the target server.
 
     See [`Session Resumption`][] for infomation about TLS session reuse.
 
@@ -406,3 +410,4 @@ headers: max-age=0; pin-sha256="WoiWRyIOVNa9ihaBciRSC7XHjliYS9VwUGOIud4PB18="; p
 [`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
 [`Session Resumption`]: tls.html#tls_session_resumption
+[sni wiki]: https://en.wikipedia.org/wiki/Server_Name_Indication
