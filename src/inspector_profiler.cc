@@ -318,19 +318,13 @@ void StartCoverageCollection(Environment* env) {
   env->coverage_connection()->Start();
 }
 
-void StartCpuProfiling(Environment* env, const std::string& profile_path) {
-  std::string path;
-  if (profile_path.empty()) {
-    char cwd[CWD_BUFSIZE];
-    size_t size = CWD_BUFSIZE;
-    int err = uv_cwd(cwd, &size);
-    // TODO(joyeecheung): fallback to exec path / argv[0]
-    CHECK_EQ(err, 0);
-    CHECK_GT(size, 0);
+void StartCpuProfiling(Environment* env, const std::string& profile_name) {
+  std::string path = env->cpu_prof_dir() + std::string(kPathSeparator);
+  if (profile_name.empty()) {
     DiagnosticFilename filename(env, "CPU", "cpuprofile");
-    path = cwd + std::string(kPathSeparator) + (*filename);
+    path += *filename;
   } else {
-    path = profile_path;
+    path += profile_name;
   }
   env->set_cpu_profile_path(std::move(path));
   env->set_cpu_profiler_connection(

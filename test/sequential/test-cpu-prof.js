@@ -1,6 +1,6 @@
 'use strict';
 
-// This tests that --cpu-prof and --cpu-prof-path works.
+// This tests that --cpu-prof, --cpu-prof-dir and --cpu-prof-name works.
 
 const common = require('../common');
 if (process.features.debug &&
@@ -27,17 +27,22 @@ function getCpuProfiles(dir) {
     .map((file) => path.join(dir, file));
 }
 
-function verifyFrames(output, file, suffix) {
+function getFrames(output, file, suffix) {
   const data = fs.readFileSync(file, 'utf8');
   const profile = JSON.parse(data);
   const frames = profile.nodes.filter((i) => {
     const frame = i.callFrame;
     return frame.url.endsWith(suffix);
   });
+  return { frames, nodes: profile.nodes };
+}
+
+function verifyFrames(output, file, suffix) {
+  const { frames, nodes } = getFrames(output, file, suffix);
   if (frames.length === 0) {
     // Show native debug output and the profile for debugging.
     console.log(output.stderr.toString());
-    console.log(profile.nodes);
+    console.log(nodes);
   }
   assert.notDeepStrictEqual(frames, []);
 }
@@ -118,11 +123,11 @@ const env = {
   verifyFrames(output, profiles[0], 'fibonacci-sigint.js');
 }
 
-// Outputs CPU profile from worker.
+// Outputs CPU profile from worker when execArgv is set.
 {
   tmpdir.refresh();
   const output = spawnSync(process.execPath, [
-    fixtures.path('workload', 'fibonacci-worker.js'),
+    fixtures.path('workload', 'fibonacci-worker-argv.js'),
   ], {
     cwd: tmpdir.path,
     env
@@ -136,56 +141,55 @@ const env = {
   verifyFrames(output, profiles[0], 'fibonacci.js');
 }
 
-// Output to specified --cpu-prof-path without --cpu-prof
+// --cpu-prof-name without --cpu-prof
 {
   tmpdir.refresh();
-  const file = path.join(tmpdir.path, 'test.cpuprofile');
   const output = spawnSync(process.execPath, [
-    '--cpu-prof-path',
-    file,
+    '--cpu-prof-name',
+    'test.cpuprofile',
     fixtures.path('workload', 'fibonacci.js'),
   ], {
     cwd: tmpdir.path,
     env
   });
-  if (output.status !== 0) {
-    console.log(output.stderr.toString());
+  const stderr = output.stderr.toString().trim();
+  if (output.status !== 9) {
+    console.log(stderr);
   }
-  assert.strictEqual(output.status, 0);
-  const profiles = getCpuProfiles(tmpdir.path);
-  assert.deepStrictEqual(profiles, [file]);
-  verifyFrames(output, file, 'fibonacci.js');
+  assert.strictEqual(output.status, 9);
+  assert.strictEqual(
+    stderr,
+    `${process.execPath}: --cpu-prof-name must be used with --cpu-prof`);
 }
 
-// Output to specified --cpu-prof-path with --cpu-prof
+// --cpu-prof-dir without --cpu-prof
 {
   tmpdir.refresh();
-  const file = path.join(tmpdir.path, 'test.cpuprofile');
   const output = spawnSync(process.execPath, [
-    '--cpu-prof',
-    '--cpu-prof-path',
-    file,
+    '--cpu-prof-dir',
+    'prof',
     fixtures.path('workload', 'fibonacci.js'),
   ], {
     cwd: tmpdir.path,
     env
   });
-  if (output.status !== 0) {
-    console.log(output.stderr.toString());
+  const stderr = output.stderr.toString().trim();
+  if (output.status !== 9) {
+    console.log(stderr);
   }
-  assert.strictEqual(output.status, 0);
-  const profiles = getCpuProfiles(tmpdir.path);
-  assert.deepStrictEqual(profiles, [file]);
-  verifyFrames(output, file, 'fibonacci.js');
+  assert.strictEqual(output.status, 9);
+  assert.strictEqual(
+    stderr,
+    `${process.execPath}: --cpu-prof-dir must be used with --cpu-prof`);
 }
 
-// Output to specified --cpu-prof-path when it's not absolute
+// --cpu-prof-name
 {
   tmpdir.refresh();
   const file = path.join(tmpdir.path, 'test.cpuprofile');
   const output = spawnSync(process.execPath, [
     '--cpu-prof',
-    '--cpu-prof-path',
+    '--cpu-prof-name',
     'test.cpuprofile',
     fixtures.path('workload', 'fibonacci.js'),
   ], {
@@ -199,4 +203,109 @@ const env = {
   const profiles = getCpuProfiles(tmpdir.path);
   assert.deepStrictEqual(profiles, [file]);
   verifyFrames(output, file, 'fibonacci.js');
+}
+
+// relative --cpu-prof-dir
+{
+  tmpdir.refresh();
+  const output = spawnSync(process.execPath, [
+    '--cpu-prof',
+    '--cpu-prof-dir',
+    'prof',
+    fixtures.path('workload', 'fibonacci.js'),
+  ], {
+    cwd: tmpdir.path,
+    env
+  });
+  if (output.status !== 0) {
+    console.log(output.stderr.toString());
+  }
+  assert.strictEqual(output.status, 0);
+  const dir = path.join(tmpdir.path, 'prof');
+  assert(fs.existsSync(dir));
+  const profiles = getCpuProfiles(dir);
+  assert.strictEqual(profiles.length, 1);
+  verifyFrames(output, profiles[0], 'fibonacci.js');
+}
+
+// absolute --cpu-prof-dir
+{
+  tmpdir.refresh();
+  const dir = path.join(tmpdir.path, 'prof');
+  const output = spawnSync(process.execPath, [
+    '--cpu-prof',
+    '--cpu-prof-dir',
+    dir,
+    fixtures.path('workload', 'fibonacci.js'),
+  ], {
+    cwd: tmpdir.path,
+    env
+  });
+  if (output.status !== 0) {
+    console.log(output.stderr.toString());
+  }
+  assert.strictEqual(output.status, 0);
+  assert(fs.existsSync(dir));
+  const profiles = getCpuProfiles(dir);
+  assert.strictEqual(profiles.length, 1);
+  verifyFrames(output, profiles[0], 'fibonacci.js');
+}
+
+// --cpu-prof-dir and --cpu-prof-name
+{
+  tmpdir.refresh();
+  const dir = path.join(tmpdir.path, 'prof');
+  const file = path.join(dir, 'test.cpuprofile');
+  const output = spawnSync(process.execPath, [
+    '--cpu-prof',
+    '--cpu-prof-name',
+    'test.cpuprofile',
+    '--cpu-prof-dir',
+    dir,
+    fixtures.path('workload', 'fibonacci.js'),
+  ], {
+    cwd: tmpdir.path,
+    env
+  });
+  if (output.status !== 0) {
+    console.log(output.stderr.toString());
+  }
+  assert.strictEqual(output.status, 0);
+  assert(fs.existsSync(dir));
+  const profiles = getCpuProfiles(dir);
+  assert.deepStrictEqual(profiles, [file]);
+  verifyFrames(output, file, 'fibonacci.js');
+}
+
+// --cpu-prof-dir with worker
+{
+  tmpdir.refresh();
+  const output = spawnSync(process.execPath, [
+    '--cpu-prof-dir',
+    'prof',
+    '--cpu-prof',
+    fixtures.path('workload', 'fibonacci-worker.js'),
+  ], {
+    cwd: tmpdir.path,
+    env
+  });
+  if (output.status !== 0) {
+    console.log(output.stderr.toString());
+  }
+  assert.strictEqual(output.status, 0);
+  const dir = path.join(tmpdir.path, 'prof');
+  assert(fs.existsSync(dir));
+  const profiles = getCpuProfiles(dir);
+  assert.strictEqual(profiles.length, 2);
+  const profile1 = getFrames(output, profiles[0], 'fibonacci.js');
+  const profile2 = getFrames(output, profiles[1], 'fibonacci.js');
+  if (profile1.frames.length === 0 && profile2.frames.length === 0) {
+    // Show native debug output and the profile for debugging.
+    console.log(output.stderr.toString());
+    console.log('CPU path: ', profiles[0]);
+    console.log(profile1.nodes);
+    console.log('CPU path: ', profiles[1]);
+    console.log(profile2.nodes);
+  }
+  assert(profile1.frames.length > 0 || profile2.frames.length > 0);
 }
