@@ -637,6 +637,11 @@ A special type of error that can be triggered whenever Node.js detects an
 exceptional logic violation that should never occur. These are raised typically
 by the `assert` module.
 
+<a id="ERR_ASYNCLOCAL_NO_RECURSION"></a>
+### ERR_ASYNCLOCAL_NO_RECURSION
+
+An attempt was made to set an `AsyncLocal` value from `onChanged` callback.
+
 <a id="ERR_ASYNC_CALLBACK"></a>
 ### ERR_ASYNC_CALLBACK
 

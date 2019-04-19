@@ -683,6 +683,7 @@ never be called.
 `AsyncResource` constructor.
 
 ## Class: AsyncLocal
+
 <!-- YAML
 added: REPLACEME
 -->
@@ -749,22 +750,37 @@ http.get('http://localhost:8181/second');
 Creates a new instance of an `AsyncLocal`. Once a value is set it's propagated
 to async continuations until it is cleared.
 
-The optional `onChangedCb` callback
-signals changes of the value referenced by the `AsyncLocal` instance. The first
-argument is the previous value, the second argument holds the current value and
-the third argument is a boolean set to `true` if change is caused by a change
-of the execution context and `false` if a new value was assinged to
-`AsyncLocal.value`.
+The optional `onChangedCb` callback signals changes of the value referenced by
+the `AsyncLocal` instance. The first argument is the previous value, the
+second argument holds the current value and the third argument is a `true`
+if this change is caused by a change of the execution context or `false` if a
+new value has been assinged to `AsyncLocal.value`.
+
+The `onChanged` callback may be invoked frequently therefore the processing
+inside the callback should be limited. In special it should be avoided to
+create new asynchronous operations within the callback as this may in turn
+result in followup `onChanged` invocations.
+
+It's not allowed to set a new `AsyncLocal.value` from the callback.
+
+If the `onChanged` callback called for execution context changes throws the
+error handling is like in [error handling][]. For invokations caused by
+setting a new value the exception goes down to the caller of the setter.
 
 ### asyncLocal.value
 
 Reading this value returns the current value associated with this execution
-path execution context (async id).
+context (execution async id).
 
-The value written stored in a persistent storage for the current asychronous
-execution path. Writting `null` or `undefined` clears the value and stops
-further tracking on this execution path.
+The value written is stored in a persistent storage and propagated for the
+current asychronous execution path. Writting `null` or `undefined` clears the
+value and stops further propagation on this execution path. Writing a new
+value effects only the current execution context and new async operations
+created afterwards. To avoid this copy on write semantic simply store an
+`Object` or `Map` and update this.
 
+Setting a new value directly from `onChanged` callback is not allowed an will
+throw an Error.
 
 [`after` callback]: #async_hooks_after_asyncid
 [`before` callback]: #async_hooks_before_asyncid
@@ -775,3 +791,4 @@ further tracking on this execution path.
 [PromiseHooks]: https://docs.google.com/document/d/1rda3yKGHimKIhg5YeoAmCOtyURgsbTH_qaYR79FELlk/edit
 [`Worker`]: worker_threads.html#worker_threads_class_worker
 [promise execution tracking]: #async_hooks_promise_execution_tracking
+[error handling]: #async_hooks_error_handling

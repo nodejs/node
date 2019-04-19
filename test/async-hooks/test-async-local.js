@@ -216,3 +216,25 @@ const { AsyncLocal, AsyncResource } = require('async_hooks');
 
   assert.deepStrictEqual(act, exp);
 }
+
+{
+  let asyncLocal;
+
+  function onChangedCb() {
+    common.expectsError(
+      () => asyncLocal.value = 'bar',
+      {
+        code: 'ERR_ASYNCLOCAL_NO_RECURSION',
+        type: Error,
+        message: 'Setting value from onChanged callback is not allowed'
+      }
+    );
+  }
+
+  asyncLocal = new AsyncLocal({
+    onChangedCb: common.mustCall(onChangedCb, 2)
+  });
+
+  asyncLocal.value = 'foo';
+  asyncLocal.value = undefined;
+}
