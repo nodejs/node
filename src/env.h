@@ -610,8 +610,8 @@ class KVStore {
   KVStore(KVStore&&) = delete;
   KVStore& operator=(KVStore&&) = delete;
 
-  virtual v8::Local<v8::String> Get(v8::Isolate* isolate,
-                                    v8::Local<v8::String> key) const = 0;
+  virtual v8::MaybeLocal<v8::String> Get(v8::Isolate* isolate,
+                                         v8::Local<v8::String> key) const = 0;
   virtual void Set(v8::Isolate* isolate,
                    v8::Local<v8::String> key,
                    v8::Local<v8::String> value) = 0;
