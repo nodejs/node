@@ -14,6 +14,10 @@ const server = http.createServer(function(req, res) {
     received += data;
   });
 
+  assert.strictEqual(req.socket.on, req.socket.addListener);
+  assert.strictEqual(req.socket.prependListener,
+                     net.Socket.prototype.prependListener);
+
   server.close();
 }).listen(0, function() {
   const socket = net.connect(this.address().port, function() {
