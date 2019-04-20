@@ -27,8 +27,6 @@
   #endif
 #endif
 
-#define NAPI_AUTO_LENGTH SIZE_MAX
-
 #ifdef __cplusplus
 #define EXTERN_C_START extern "C" {
 #define EXTERN_C_END }
@@ -38,6 +36,8 @@
 #endif
 
 EXTERN_C_START
+
+static const size_t NAPI_AUTO_LENGTH = SIZE_MAX;
 
 NAPI_EXTERN napi_status
 napi_get_last_error_info(napi_env env,
