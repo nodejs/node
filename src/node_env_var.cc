@@ -84,40 +84,34 @@ Local<String> RealEnvStore::Get(Isolate* isolate,
   Mutex::ScopedLock lock(per_process::env_var_mutex);
 
   node::Utf8Value key(isolate, property);
-  char* val = nullptr;
   size_t init_sz = 256;
+  MaybeStackBuffer<char, 256> val;
+  int ret = uv_os_getenv(*key, *val, &init_sz);
 
-  // Allocate 256 bytes initially, if not enough reallocate.
-  val = Malloc(init_sz);
-
-  int ret = uv_os_getenv(*key, val, &init_sz);
-
-  if (UV_ENOBUFS == ret) {
+  if (ret == UV_ENOBUFS) {
     // Buffer is not large enough, reallocate to the updated init_sz
     // and fetch env value again.
-    val = Realloc(val, init_sz);
+    val.AllocateSufficientStorage(init_sz);
+    ret = uv_os_getenv(*key, *val, &init_sz);
+  }
 
-    ret = uv_os_getenv(*key, val, &init_sz);
+  if (ret >= 0) {  // Env key value fetch success.
+    MaybeLocal<String> value_string =
+        String::NewFromUtf8(isolate, *val, NewStringType::kNormal, init_sz);
 
-    // Still failed to fetch env value return emptry string.
-    if (UV_ENOBUFS == ret || UV_ENOENT == ret) {
+    // If fetched value is empty, raise exception
+    // and return empty handle.
+    if (value_string.IsEmpty()) {
+      //Environment::GetCurrent(isolate)->ThrowUVException(ret, "getenv");
       return Local<String>();
     }
-  } else if (UV_ENOENT == ret) {
-    return Local<String>();
+
+    return value_string.ToLocalChecked();
   }
 
-  MaybeLocal<String> value_string =
-      String::NewFromUtf8(isolate, val, NewStringType::kNormal);
-
-  if (value_string.IsEmpty()) {
-    isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
-    return Local<String>();
-  }
-
-  if (nullptr != val) free(val);
-
-  return value_string.ToLocalChecked();
+  // Failed to fetch env value, raise exception and return empty handle.
+  //Environment::GetCurrent(isolate)->ThrowUVException(ret, "getenv");
+  return Local<String>();
 }
 
 void RealEnvStore::Set(Isolate* isolate,
@@ -135,13 +129,10 @@ int32_t RealEnvStore::Query(Isolate* isolate, Local<String> property) const {
   Mutex::ScopedLock lock(per_process::env_var_mutex);
 
   node::Utf8Value key(isolate, property);
-
   char val[2];
   size_t init_sz = sizeof(val);
-
   int ret = uv_os_getenv(*key, val, &init_sz);
-
-  if (UV_ENOENT == ret) {
+  if (ret == UV_ENOENT) {
     return -1;
   }
 
