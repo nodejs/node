@@ -28,11 +28,11 @@ An [`Agent`][] object for HTTPS similar to [`http.Agent`][]. See
 * `options` {Object} Set of configurable options to set on the agent.
   Can have the same fields as for [`http.Agent(options)`][], and
   * `maxCachedSessions` {number} maximum number of TLS cached sessions.
-    Use `0` to disable TLS session caching. **Default:** `100`
+    Use `0` to disable TLS session caching. **Default:** `100`.
   * `servername` {string | boolean} the value of
     [Server Name Indication extension](https://en.wikipedia.org/wiki/Server_Name_Indication)
     to be sent to the server. Use `false` to disable sending the extension.
-    **Default:** hostname or ip address of the target server
+    **Default:** hostname or IP address of the target server.
 
     See [`Session Resumption`][] for infomation about TLS session reuse.
 

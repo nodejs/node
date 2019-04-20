@@ -32,7 +32,7 @@ server.listen(0, function() {
     return common.mustCall(function(res) {
       res.resume();
       assert.strictEqual(res.headers['x-sni'],
-        id === false ? undefined : `sni.${id}`);
+                         id === false ? undefined : `sni.${id}`);
     });
   }
 
