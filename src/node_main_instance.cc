@@ -12,6 +12,8 @@ using v8::Local;
 using v8::Locker;
 using v8::SealHandleScope;
 
+const size_t NodeMainInstance::kNodeContextIndex = 0;
+
 NodeMainInstance::NodeMainInstance(Isolate* isolate,
                                    uv_loop_t* event_loop,
                                    MultiIsolatePlatform* platform,
@@ -171,9 +173,13 @@ std::unique_ptr<Environment> NodeMainInstance::CreateMainEnvironment(
     isolate_->GetHeapProfiler()->StartTrackingHeapObjects(true);
   }
 
-  Local<Context> context = NewContext(isolate_);
+  Local<Context> context;
   if (deserialize_mode_) {
+    context =
+        Context::FromSnapshot(isolate_, kNodeContextIndex).ToLocalChecked();
     SetIsolateUpForNode(isolate_, IsolateSettingCategories::kErrorHandlers);
+  } else {
+    context = NewContext(isolate_);
   }
 
   CHECK(!context.IsEmpty());
