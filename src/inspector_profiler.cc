@@ -340,7 +340,8 @@ std::string GetCwd(Environment* env) {
 void StartProfilers(Environment* env) {
   Isolate* isolate = env->isolate();
   Local<String> coverage_str = env->env_vars()->Get(
-      isolate, FIXED_ONE_BYTE_STRING(isolate, "NODE_V8_COVERAGE"));
+      isolate, FIXED_ONE_BYTE_STRING(isolate, "NODE_V8_COVERAGE"))
+      .FromMaybe(Local<String>());
   if (!coverage_str.IsEmpty() && coverage_str->Length() > 0) {
     CHECK_NULL(env->coverage_connection());
     env->set_coverage_connection(std::make_unique<V8CoverageConnection>(env));

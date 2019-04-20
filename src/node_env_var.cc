@@ -36,7 +36,7 @@ using v8::Value;
 
 class RealEnvStore final : public KVStore {
  public:
-  Local<String> Get(Isolate* isolate, Local<String> key) const override;
+  MaybeLocal<String> Get(Isolate* isolate, Local<String> key) const override;
   void Set(Isolate* isolate, Local<String> key, Local<String> value) override;
   int32_t Query(Isolate* isolate, Local<String> key) const override;
   void Delete(Isolate* isolate, Local<String> key) override;
@@ -45,7 +45,7 @@ class RealEnvStore final : public KVStore {
 
 class MapKVStore final : public KVStore {
  public:
-  Local<String> Get(Isolate* isolate, Local<String> key) const override;
+  MaybeLocal<String> Get(Isolate* isolate, Local<String> key) const override;
   void Set(Isolate* isolate, Local<String> key, Local<String> value) override;
   int32_t Query(Isolate* isolate, Local<String> key) const override;
   void Delete(Isolate* isolate, Local<String> key) override;
@@ -79,8 +79,8 @@ void DateTimeConfigurationChangeNotification(Isolate* isolate, const T& key) {
   }
 }
 
-Local<String> RealEnvStore::Get(Isolate* isolate,
-                                Local<String> property) const {
+MaybeLocal<String> RealEnvStore::Get(Isolate* isolate,
+                                     Local<String> property) const {
   Mutex::ScopedLock lock(per_process::env_var_mutex);
 
   node::Utf8Value key(isolate, property);
@@ -102,16 +102,16 @@ Local<String> RealEnvStore::Get(Isolate* isolate,
     // If fetched value is empty, raise exception
     // and return empty handle.
     if (value_string.IsEmpty()) {
-      //Environment::GetCurrent(isolate)->ThrowUVException(ret, "getenv");
-      return Local<String>();
+      Environment::GetCurrent(isolate)->ThrowUVException(ret, "getenv");
+      return MaybeLocal<String>();
     }
 
-    return value_string.ToLocalChecked();
+    return value_string;
   }
 
   // Failed to fetch env value, raise exception and return empty handle.
-  //Environment::GetCurrent(isolate)->ThrowUVException(ret, "getenv");
-  return Local<String>();
+  Environment::GetCurrent(isolate)->ThrowUVException(ret, "getenv");
+  return MaybeLocal<String>();
 }
 
 void RealEnvStore::Set(Isolate* isolate,
@@ -209,19 +209,19 @@ std::shared_ptr<KVStore> KVStore::Clone(v8::Isolate* isolate) const {
   for (uint32_t i = 0; i < keys_length; i++) {
     Local<Value> key = keys->Get(context, i).ToLocalChecked();
     CHECK(key->IsString());
-    copy->Set(isolate, key.As<String>(), Get(isolate, key.As<String>()));
+    copy->Set(isolate, key.As<String>(), Get(isolate, key.As<String>())
+        .FromMaybe(Local<String>()));
   }
   return copy;
 }
 
-Local<String> MapKVStore::Get(Isolate* isolate, Local<String> key) const {
+MaybeLocal<String> MapKVStore::Get(Isolate* isolate, Local<String> key) const {
   Mutex::ScopedLock lock(mutex_);
   Utf8Value str(isolate, key);
   auto it = map_.find(std::string(*str, str.length()));
   if (it == map_.end()) return Local<String>();
   return String::NewFromUtf8(isolate, it->second.data(),
-                             NewStringType::kNormal, it->second.size())
-      .ToLocalChecked();
+                             NewStringType::kNormal, it->second.size());
 }
 
 void MapKVStore::Set(Isolate* isolate, Local<String> key, Local<String> value) {
@@ -301,8 +301,12 @@ static void EnvGetter(Local<Name> property,
     return info.GetReturnValue().SetUndefined();
   }
   CHECK(property->IsString());
-  info.GetReturnValue().Set(
-      env->env_vars()->Get(env->isolate(), property.As<String>()));
+  MaybeLocal<String> value_string =
+      env->env_vars()->Get(env->isolate(), property.As<String>());
+  if (value_string.IsEmpty()) {
+    return;
+  }
+  info.GetReturnValue().Set(value_string.FromMaybe(Local<String>()));
 }
 
 static void EnvSetter(Local<Name> property,
