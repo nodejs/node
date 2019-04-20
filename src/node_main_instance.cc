@@ -171,9 +171,13 @@ std::unique_ptr<Environment> NodeMainInstance::CreateMainEnvironment(
     isolate_->GetHeapProfiler()->StartTrackingHeapObjects(true);
   }
 
-  Local<Context> context = NewContext(isolate_);
+  Local<Context> context;
   if (deserialize_mode_) {
+    context =
+        Context::FromSnapshot(isolate_, kNodeContextIndex).ToLocalChecked();
     SetIsolateUpForNode(isolate_, IsolateSettingCategories::kErrorHandlers);
+  } else {
+    context = NewContext(isolate_);
   }
 
   CHECK(!context.IsEmpty());

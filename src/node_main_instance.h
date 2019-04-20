@@ -75,6 +75,8 @@ class NodeMainInstance {
   static const IndexArray* GetIsolateDataIndexes();
   static v8::StartupData* GetEmbeddedSnapshotBlob();
 
+  static const size_t kNodeContextIndex = 0;
+
  private:
   NodeMainInstance(const NodeMainInstance&) = delete;
   NodeMainInstance& operator=(const NodeMainInstance&) = delete;
