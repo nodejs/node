@@ -98,14 +98,6 @@ MaybeLocal<String> RealEnvStore::Get(Isolate* isolate,
   if (ret >= 0) {  // Env key value fetch success.
     MaybeLocal<String> value_string =
         String::NewFromUtf8(isolate, *val, NewStringType::kNormal, init_sz);
-
-    // If fetched value is empty, raise exception
-    // and return empty handle.
-    if (value_string.IsEmpty()) {
-      Environment::GetCurrent(isolate)->ThrowUVException(ret, "getenv");
-      return MaybeLocal<String>();
-    }
-
     return value_string;
   }
 
