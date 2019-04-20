@@ -30,19 +30,19 @@ const child = spawn(process.execPath, args);
 const input = '(function(){"use strict"; const y=1;y=2})()\n';
 // This message will vary based on JavaScript engine, so don't check the message
 // contents beyond confirming that the `Error` is a `TypeError`.
-const expectOut = /^> Thrown:\nTypeError: /;
+const expectOut = /> Thrown:\nTypeError: /;
 
 child.stderr.setEncoding('utf8');
-child.stderr.on('data', function(c) {
+child.stderr.on('data', (d) => {
   throw new Error('child.stderr be silent');
 });
 
 child.stdout.setEncoding('utf8');
 let out = '';
-child.stdout.on('data', function(c) {
-  out += c;
+child.stdout.on('data', (d) => {
+  out += d;
 });
-child.stdout.on('end', function() {
+child.stdout.on('end', () => {
   assert(expectOut.test(out));
   console.log('ok');
 });

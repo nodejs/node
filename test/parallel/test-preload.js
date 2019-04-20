@@ -86,7 +86,7 @@ const replProc = childProcess.spawn(
 );
 replProc.stdin.end('.exit\n');
 let replStdout = '';
-replProc.stdout.on('data', function(d) {
+replProc.stdout.on('data', (d) => {
   replStdout += d;
 });
 replProc.on('close', function(code) {
@@ -94,8 +94,9 @@ replProc.on('close', function(code) {
   const output = [
     'A',
     '> '
-  ].join('\n');
-  assert.strictEqual(replStdout, output);
+  ];
+  assert.ok(replStdout.startsWith(output[0]));
+  assert.ok(replStdout.endsWith(output[1]));
 });
 
 // Test that preload placement at other points in the cmdline
@@ -114,7 +115,7 @@ const interactive = childProcess.exec(
   `"${nodeBinary}" ${preloadOption([fixtureD])}-i`,
   common.mustCall(function(err, stdout, stderr) {
     assert.ifError(err);
-    assert.strictEqual(stdout, "> 'test'\n> ");
+    assert.ok(stdout.endsWith("> 'test'\n> "));
   })
 );
 
