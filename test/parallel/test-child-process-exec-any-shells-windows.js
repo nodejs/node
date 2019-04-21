@@ -38,6 +38,7 @@ test('cmd');
 testCopy('cmd.exe', `${system32}\\cmd.exe`);
 test('cmd.exe');
 test('CMD');
+test(['cmd', '/d', '/s', '/c']);
 
 // Test PowerShell
 test('powershell');

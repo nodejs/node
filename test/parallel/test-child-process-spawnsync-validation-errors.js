@@ -98,7 +98,7 @@ if (!common.isWindows) {
   pass('shell', false);
   fail('shell', 0, invalidArgTypeError);
   fail('shell', 1, invalidArgTypeError);
-  fail('shell', [], invalidArgTypeError);
+  fail('shell', [], { code: 'ERR_INVALID_ARG_VALUE', name: 'TypeError' });
   fail('shell', {}, invalidArgTypeError);
   fail('shell', common.mustNotCall(), invalidArgTypeError);
 }

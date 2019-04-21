@@ -152,9 +152,11 @@ changes:
     **Default:** `null`.
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
   * `encoding` {string} **Default:** `'utf8'`
-  * `shell` {string} Shell to execute the command with. See
-    [Shell Requirements][] and [Default Windows Shell][]. **Default:**
-    `'/bin/sh'` on Unix, `process.env.ComSpec` on Windows.
+  * `shell` {boolean|string|Array} If `true`, runs `command` inside of a shell.
+    Uses `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
+    shell can be specified as a string. Or specify a shell with arguments.
+    See [Shell Requirements][] and [Default Windows Shell][].
+    **Default:** `false` (no shell).
   * `timeout` {number} **Default:** `0`
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
     stderr. If exceeded, the child process is terminated and any output is
@@ -241,6 +243,20 @@ async function lsExample() {
 lsExample();
 ```
 
+If `shell` is an `Array`, shell will be spawned with argument followed.
+
+```js
+const assert = require('assert');
+const { exec } = require('child_process');
+// https://docs.microsoft.com/windows-server/administration/windows-commands/cmd
+// exec cmd with no argument will displays
+// the version and copyright information of the operating system.
+exec('echo foo bar', { shell: ['cmd'] }, (error, stdout) => {
+  assert(error == null);
+  assert(!stdout.includes('foo') && !stdout.includes('bar'));
+});
+```
+
 ### `child_process.execFile(file[, args][, options][, callback])`
 <!-- YAML
 added: v0.1.91
@@ -268,10 +284,11 @@ changes:
     normally be created on Windows systems. **Default:** `false`.
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. **Default:** `false`.
-  * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
-    `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
-    shell can be specified as a string. See [Shell Requirements][] and
-    [Default Windows Shell][]. **Default:** `false` (no shell).
+  * `shell` {boolean|string|Array} If `true`, runs `command` inside of a shell.
+    Uses `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
+    shell can be specified as a string. Or specify a shell with arguments.
+    See [Shell Requirements][] and [Default Windows Shell][].
+    **Default:** `false` (no shell).
 * `callback` {Function} Called with the output when process terminates.
   * `error` {Error}
   * `stdout` {string|Buffer}
@@ -431,10 +448,11 @@ changes:
   * `serialization` {string} Specify the kind of serialization used for sending
     messages between processes. Possible values are `'json'` and `'advanced'`.
     See [Advanced Serialization][] for more details. **Default:** `'json'`.
-  * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
-    `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
-    shell can be specified as a string. See [Shell Requirements][] and
-    [Default Windows Shell][]. **Default:** `false` (no shell).
+  * `shell` {boolean|string|Array} If `true`, runs `command` inside of a shell.
+    Uses `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
+    shell can be specified as a string. Or specify a shell with arguments.
+    See [Shell Requirements][] and [Default Windows Shell][].
+    **Default:** `false` (no shell).
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. This is set to `true` automatically
     when `shell` is specified and is CMD. **Default:** `false`.
@@ -749,10 +767,11 @@ changes:
     **Default:** `'buffer'`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
-  * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
-    `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
-    shell can be specified as a string. See [Shell Requirements][] and
-    [Default Windows Shell][]. **Default:** `false` (no shell).
+  * `shell` {boolean|string|Array} If `true`, runs `command` inside of a shell.
+    Uses `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
+    shell can be specified as a string. Or specify a shell with arguments.
+    See [Shell Requirements][] and [Default Windows Shell][].
+    **Default:** `false` (no shell).
 * Returns: {Buffer|string} The stdout from the command.
 
 The `child_process.execFileSync()` method is generally identical to
@@ -799,7 +818,8 @@ changes:
     be output to the parent process' stderr unless `stdio` is specified.
     **Default:** `'pipe'`.
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
-  * `shell` {string} Shell to execute the command with. See
+  * `shell` {string|Array} Shell to execute the command with.
+    Or specify a shell with arguments. See
     [Shell Requirements][] and [Default Windows Shell][]. **Default:**
     `'/bin/sh'` on Unix, `process.env.ComSpec` on Windows.
   * `uid` {number} Sets the user identity of the process. (See setuid(2)).
@@ -878,10 +898,11 @@ changes:
     **Default:** `1024 * 1024`.
   * `encoding` {string} The encoding used for all stdio inputs and outputs.
     **Default:** `'buffer'`.
-  * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
-    `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
-    shell can be specified as a string. See [Shell Requirements][] and
-    [Default Windows Shell][]. **Default:** `false` (no shell).
+  * `shell` {boolean|string|Array} If `true`, runs `command` inside of a shell.
+    Uses `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
+    shell can be specified as a string. Or specify a shell with arguments.
+    See [Shell Requirements][] and [Default Windows Shell][].
+    **Default:** `false` (no shell).
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. This is set to `true` automatically
     when `shell` is specified and is CMD. **Default:** `false`.
