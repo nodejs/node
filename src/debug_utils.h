@@ -46,7 +46,8 @@ void FWrite(FILE* file, const std::string& str);
   V(INSPECTOR_PROFILER)                                                        \
   V(CODE_CACHE)                                                                \
   V(NGTCP2_DEBUG)                                                              \
-  V(WASI)
+  V(WASI)                                                                      \
+  V(MKSNAPSHOT)
 
 enum class DebugCategory {
 #define V(name) name,

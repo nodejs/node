@@ -1060,20 +1060,15 @@ int Start(int argc, char** argv) {
   {
     Isolate::CreateParams params;
     const std::vector<size_t>* indexes = nullptr;
-    std::vector<intptr_t> external_references;
-
+    const EnvSerializeInfo* env_info = nullptr;
     bool force_no_snapshot =
         per_process::cli_options->per_isolate->no_node_snapshot;
     if (!force_no_snapshot) {
       v8::StartupData* blob = NodeMainInstance::GetEmbeddedSnapshotBlob();
       if (blob != nullptr) {
-        // TODO(joyeecheung): collect external references and set it in
-        // params.external_references.
-        external_references = NodeMainInstance::CollectExternalReferences();
-        external_references.push_back(reinterpret_cast<intptr_t>(nullptr));
-        params.external_references = external_references.data();
         params.snapshot_blob = blob;
         indexes = NodeMainInstance::GetIsolateDataIndexes();
+        env_info = NodeMainInstance::GetEnvSerializeInfo();
       }
     }
 
@@ -1083,7 +1078,7 @@ int Start(int argc, char** argv) {
                                    result.args,
                                    result.exec_args,
                                    indexes);
-    result.exit_code = main_instance.Run();
+    result.exit_code = main_instance.Run(env_info);
   }
 
   TearDownOncePerProcess();

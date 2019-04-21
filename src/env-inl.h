@@ -70,29 +70,6 @@ inline v8::Local<v8::String> IsolateData::async_wrap_provider(int index) const {
   return async_wrap_providers_[index].Get(isolate_);
 }
 
-inline AsyncHooks::AsyncHooks()
-    : async_ids_stack_(env()->isolate(), 16 * 2),
-      fields_(env()->isolate(), kFieldsCount),
-      async_id_fields_(env()->isolate(), kUidFieldsCount) {
-  clear_async_id_stack();
-
-  // Always perform async_hooks checks, not just when async_hooks is enabled.
-  // TODO(AndreasMadsen): Consider removing this for LTS releases.
-  // See discussion in https://github.com/nodejs/node/pull/15454
-  // When removing this, do it by reverting the commit. Otherwise the test
-  // and flag changes won't be included.
-  fields_[kCheck] = 1;
-
-  // kDefaultTriggerAsyncId should be -1, this indicates that there is no
-  // specified default value and it should fallback to the executionAsyncId.
-  // 0 is not used as the magic value, because that indicates a missing context
-  // which is different from a default context.
-  async_id_fields_[AsyncHooks::kDefaultTriggerAsyncId] = -1;
-
-  // kAsyncIdCounter should start at 1 because that'll be the id the execution
-  // context during bootstrap (code that runs before entering uv_run()).
-  async_id_fields_[AsyncHooks::kAsyncIdCounter] = 1;
-}
 inline AliasedUint32Array& AsyncHooks::fields() {
   return fields_;
 }
@@ -277,9 +254,6 @@ inline void Environment::PopAsyncCallbackScope() {
   async_callback_scope_depth_--;
 }
 
-inline ImmediateInfo::ImmediateInfo(v8::Isolate* isolate)
-    : fields_(isolate, kFieldsCount) {}
-
 inline AliasedUint32Array& ImmediateInfo::fields() {
   return fields_;
 }
@@ -303,9 +277,6 @@ inline void ImmediateInfo::ref_count_inc(uint32_t increment) {
 inline void ImmediateInfo::ref_count_dec(uint32_t decrement) {
   fields_[kRefCount] -= decrement;
 }
-
-inline TickInfo::TickInfo(v8::Isolate* isolate)
-    : fields_(isolate, kFieldsCount) {}
 
 inline AliasedUint8Array& TickInfo::fields() {
   return fields_;
