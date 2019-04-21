@@ -22,5 +22,7 @@ let error;
     await import(file);
   } catch (e) {
     assert.strictEqual(error, e);
+    return;
   }
+  assert.fail('Missing expected exception');
 })();

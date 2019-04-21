@@ -14,11 +14,14 @@ function expectsError(fn, type) {
     fn();
     assert.fail('expected fn to error');
   } catch (err) {
-    if (typeof type === 'string')
+    if (typeof type === 'string') {
       assert.strictEqual(err.name, type);
-    else
+    } else {
       assert(err instanceof type);
+    }
+    return;
   }
+  assert.fail('Missing expected exception');
 }
 
 {

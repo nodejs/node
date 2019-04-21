@@ -296,23 +296,33 @@ testAssertionMessage({ a: undefined, b: null },
 testAssertionMessage({ a: NaN, b: Infinity, c: -Infinity },
                      '{\n+   a: NaN,\n+   b: Infinity,\n+   c: -Infinity\n+ }');
 
-// https://github.com/nodejs/node-v0.x-archive/issues/5292
-try {
-  assert.strictEqual(1, 2);
-} catch (e) {
-  assert.strictEqual(
-    e.message,
-    `${strictEqualMessageStart}\n1 !== 2\n`
-  );
-  assert.ok(e.generatedMessage, 'Message not marked as generated');
+{
+  let threw = false;
+  // https://github.com/nodejs/node-v0.x-archive/issues/5292
+  try {
+    assert.strictEqual(1, 2);
+  } catch (e) {
+    assert.strictEqual(
+      e.message,
+      `${strictEqualMessageStart}\n1 !== 2\n`
+    );
+    assert.ok(e.generatedMessage, 'Message not marked as generated');
+    threw = true;
+  }
+  assert.ok(threw, 'Missing expected exception');
 }
 
-try {
-  assert.strictEqual(1, 2, 'oh no');
-} catch (e) {
-  assert.strictEqual(e.message, 'oh no');
-  // Message should not be marked as generated.
-  assert.strictEqual(e.generatedMessage, false);
+{
+  let threw = false;
+  try {
+    assert.strictEqual(1, 2, 'oh no');
+  } catch (e) {
+    assert.strictEqual(e.message, 'oh no');
+    // Message should not be marked as generated.
+    assert.strictEqual(e.generatedMessage, false);
+    threw = true;
+  }
+  assert.ok(threw, 'Missing expected exception');
 }
 
 {

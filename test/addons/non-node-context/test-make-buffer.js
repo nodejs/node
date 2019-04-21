@@ -19,4 +19,6 @@ try {
   assert.strictEqual(exception.code, 'ERR_BUFFER_CONTEXT_NOT_AVAILABLE');
   assert.strictEqual(exception.message,
                      'Buffer is not available for the current Context');
+  return;
 }
+assert.fail('Missing expected exception');
