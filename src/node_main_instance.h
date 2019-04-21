@@ -15,18 +15,6 @@ namespace node {
 // We may be able to create an abstract class to reuse some of the routines.
 class NodeMainInstance {
  public:
-  // An array of indexes that can be used to deserialize data from a V8
-  // snapshot.
-  struct IndexArray {
-    const size_t* data;
-    size_t length;
-
-    size_t Get(size_t index) const {
-      DCHECK_LT(index, length);
-      return data[index];
-    }
-  };
-
   // To create a main instance that does not own the isoalte,
   // The caller needs to do:
   //
@@ -53,12 +41,13 @@ class NodeMainInstance {
   void Dispose();
 
   // Create a main instance that owns the isolate
-  NodeMainInstance(v8::Isolate::CreateParams* params,
-                   uv_loop_t* event_loop,
-                   MultiIsolatePlatform* platform,
-                   const std::vector<std::string>& args,
-                   const std::vector<std::string>& exec_args,
-                   const IndexArray* per_isolate_data_indexes = nullptr);
+  NodeMainInstance(
+      v8::Isolate::CreateParams* params,
+      uv_loop_t* event_loop,
+      MultiIsolatePlatform* platform,
+      const std::vector<std::string>& args,
+      const std::vector<std::string>& exec_args,
+      const std::vector<size_t>* per_isolate_data_indexes = nullptr);
   ~NodeMainInstance();
 
   // Start running the Node.js instances, return the exit code when finished.
@@ -72,7 +61,7 @@ class NodeMainInstance {
 
   // If nullptr is returned, the binary is not built with embedded
   // snapshot.
-  static const IndexArray* GetIsolateDataIndexes();
+  static const std::vector<size_t>* GetIsolateDataIndexes();
   static v8::StartupData* GetEmbeddedSnapshotBlob();
 
   static const size_t kNodeContextIndex = 0;

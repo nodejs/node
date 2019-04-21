@@ -16,10 +16,16 @@ using v8::Locker;
 using v8::SnapshotCreator;
 using v8::StartupData;
 
+template <typename T>
+void WriteVector(std::stringstream* ss, const T* vec, size_t size) {
+  for (size_t i = 0; i < size; i++) {
+    *ss << std::to_string(vec[i]) << (i == size - 1 ? '\n' : ',');
+  }
+}
+
 std::string FormatBlob(v8::StartupData* blob,
                        const std::vector<size_t>& isolate_data_indexes) {
   std::stringstream ss;
-  size_t isolate_data_indexes_size = isolate_data_indexes.size();
 
   ss << R"(#include <cstddef>
 #include "node_main_instance.h"
@@ -29,47 +35,26 @@ std::string FormatBlob(v8::StartupData* blob,
 
 namespace node {
 
-static const uint8_t blob_data[] = {
+static const char blob_data[] = {
 )";
-
-  for (int i = 0; i < blob->raw_size; i++) {
-    uint8_t ch = blob->data[i];
-    ss << std::to_string(ch) << ((i == blob->raw_size - 1) ? '\n' : ',');
-  }
-
+  WriteVector(&ss, blob->data, blob->raw_size);
   ss << R"(};
 
 static const int blob_size = )"
      << blob->raw_size << R"(;
-static v8::StartupData blob = {
-  reinterpret_cast<const char*>(blob_data),
-  blob_size
-};
+static v8::StartupData blob = { blob_data, blob_size };
 )";
 
-  ss << R"(v8::StartupData*
-NodeMainInstance::GetEmbeddedSnapshotBlob() {
+  ss << R"(v8::StartupData* NodeMainInstance::GetEmbeddedSnapshotBlob() {
   return &blob;
 }
 
-static const size_t isolate_data_indexes_raw[] = {
+static const std::vector<size_t> isolate_data_indexes {
 )";
-  for (size_t i = 0; i < isolate_data_indexes_size; i++) {
-    ss << std::to_string(isolate_data_indexes[i])
-       << ((i == isolate_data_indexes_size - 1) ? '\n' : ',');
-  }
-  ss << "};\n\n";
+  WriteVector(&ss, isolate_data_indexes.data(), isolate_data_indexes.size());
+  ss << R"(};
 
-  ss << "static const size_t isolate_data_indexes_size = "
-     << isolate_data_indexes_size << R"(;
-
-NodeMainInstance::IndexArray isolate_data_indexes {
-    isolate_data_indexes_raw,
-    isolate_data_indexes_size
-};
-
-const NodeMainInstance::IndexArray*
-NodeMainInstance::GetIsolateDataIndexes() {
+const std::vector<size_t>* NodeMainInstance::GetIsolateDataIndexes() {
   return &isolate_data_indexes;
 }
 }  // namespace node

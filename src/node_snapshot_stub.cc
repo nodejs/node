@@ -6,7 +6,7 @@ v8::StartupData* NodeMainInstance::GetEmbeddedSnapshotBlob() {
   return nullptr;
 }
 
-const NodeMainInstance::IndexArray* NodeMainInstance::GetIsolateDataIndexes() {
+const std::vector<size_t>* NodeMainInstance::GetIsolateDataIndexes() {
   return nullptr;
 }
 
