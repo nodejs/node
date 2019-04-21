@@ -128,14 +128,14 @@ class Http2State {
       root_buffer) {
   }
 
-  AliasedBuffer<uint8_t, v8::Uint8Array> root_buffer;
-  AliasedBuffer<double, v8::Float64Array> session_state_buffer;
-  AliasedBuffer<double, v8::Float64Array> stream_state_buffer;
-  AliasedBuffer<double, v8::Float64Array> stream_stats_buffer;
-  AliasedBuffer<double, v8::Float64Array> session_stats_buffer;
-  AliasedBuffer<uint32_t, v8::Uint32Array> padding_buffer;
-  AliasedBuffer<uint32_t, v8::Uint32Array> options_buffer;
-  AliasedBuffer<uint32_t, v8::Uint32Array> settings_buffer;
+  AliasedUint8Array root_buffer;
+  AliasedFloat64Array session_state_buffer;
+  AliasedFloat64Array stream_state_buffer;
+  AliasedFloat64Array stream_stats_buffer;
+  AliasedFloat64Array session_stats_buffer;
+  AliasedUint32Array padding_buffer;
+  AliasedUint32Array options_buffer;
+  AliasedUint32Array settings_buffer;
 
  private:
   struct http2_state_internal {

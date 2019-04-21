@@ -192,8 +192,9 @@ constexpr uint64_t ToNative(uv_timespec_t ts) {
 #undef constexpr  // end N3652 bug workaround
 
 template <typename NativeT, typename V8T>
-constexpr void FillStatsArray(AliasedBuffer<NativeT, V8T>* fields,
-                              const uv_stat_t* s, const size_t offset = 0) {
+constexpr void FillStatsArray(AliasedBufferBase<NativeT, V8T>* fields,
+                              const uv_stat_t* s,
+                              const size_t offset = 0) {
   fields->SetValue(offset + 0, static_cast<NativeT>(s->st_dev));
   fields->SetValue(offset + 1, static_cast<NativeT>(s->st_mode));
   fields->SetValue(offset + 2, static_cast<NativeT>(s->st_nlink));
@@ -227,7 +228,7 @@ inline Local<Value> FillGlobalStatsArray(Environment* env,
   }
 }
 
-template <typename NativeT = double, typename V8T = v8::Float64Array>
+template <typename AliasedBufferT>
 class FSReqPromise : public FSReqBase {
  public:
   static FSReqPromise* New(Environment* env, bool use_bigint) {
@@ -304,7 +305,7 @@ class FSReqPromise : public FSReqBase {
         stats_field_array_(env->isolate(), kFsStatsFieldsNumber) {}
 
   bool finished_ = false;
-  AliasedBuffer<NativeT, V8T> stats_field_array_;
+  AliasedBufferT stats_field_array_;
 };
 
 class FSReqAfterScope {

@@ -756,9 +756,9 @@ inline FSReqBase* GetReqWrap(Environment* env, Local<Value> value,
     return Unwrap<FSReqBase>(value.As<Object>());
   } else if (value->StrictEquals(env->fs_use_promises_symbol())) {
     if (use_bigint) {
-      return FSReqPromise<uint64_t, BigUint64Array>::New(env, use_bigint);
+      return FSReqPromise<AliasedBigUint64Array>::New(env, use_bigint);
     } else {
-      return FSReqPromise<double, Float64Array>::New(env, use_bigint);
+      return FSReqPromise<AliasedFloat64Array>::New(env, use_bigint);
     }
   }
   return nullptr;

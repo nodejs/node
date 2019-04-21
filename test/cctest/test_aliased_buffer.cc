@@ -3,7 +3,7 @@
 #include "aliased_buffer.h"
 #include "node_test_fixture.h"
 
-using node::AliasedBuffer;
+using node::AliasedBufferBase;
 
 class AliasBufferTest : public NodeTestFixture {};
 
@@ -15,7 +15,7 @@ void CreateOracleValues(std::vector<NativeT>* buf) {
 }
 
 template <class NativeT, class V8T>
-void WriteViaOperator(AliasedBuffer<NativeT, V8T>* aliasedBuffer,
+void WriteViaOperator(AliasedBufferBase<NativeT, V8T>* aliasedBuffer,
                       const std::vector<NativeT>& oracle) {
   // write through the API
   for (size_t i = 0; i < oracle.size(); i++) {
@@ -24,7 +24,7 @@ void WriteViaOperator(AliasedBuffer<NativeT, V8T>* aliasedBuffer,
 }
 
 template <class NativeT, class V8T>
-void WriteViaSetValue(AliasedBuffer<NativeT, V8T>* aliasedBuffer,
+void WriteViaSetValue(AliasedBufferBase<NativeT, V8T>* aliasedBuffer,
                       const std::vector<NativeT>& oracle) {
   // write through the API
   for (size_t i = 0; i < oracle.size(); i++) {
@@ -35,7 +35,7 @@ void WriteViaSetValue(AliasedBuffer<NativeT, V8T>* aliasedBuffer,
 template <class NativeT, class V8T>
 void ReadAndValidate(v8::Isolate* isolate,
                      v8::Local<v8::Context> context,
-                     AliasedBuffer<NativeT, V8T>* aliasedBuffer,
+                     AliasedBufferBase<NativeT, V8T>* aliasedBuffer,
                      const std::vector<NativeT>& oracle) {
   // read through the API
   for (size_t i = 0; i < oracle.size(); i++) {
@@ -76,7 +76,7 @@ void ReadWriteTest(v8::Isolate* isolate) {
   v8::Context::Scope context_scope(context);
 
   const size_t size = 100;
-  AliasedBuffer<NativeT, V8T> ab(isolate, size);
+  AliasedBufferBase<NativeT, V8T> ab(isolate, size);
   std::vector<NativeT> oracle(size);
   CreateOracleValues(&oracle);
   WriteViaOperator(&ab, oracle);
@@ -86,7 +86,7 @@ void ReadWriteTest(v8::Isolate* isolate) {
 
   // validate copy constructor
   {
-    AliasedBuffer<NativeT, V8T> ab2(ab);
+    AliasedBufferBase<NativeT, V8T> ab2(ab);
     ReadAndValidate(isolate, context, &ab2, oracle);
   }
   ReadAndValidate(isolate, context, &ab, oracle);
@@ -110,13 +110,12 @@ void SharedBufferTest(
   size_t sizeInBytes_B = count_B * sizeof(NativeT_B);
   size_t sizeInBytes_C = count_C * sizeof(NativeT_C);
 
-  AliasedBuffer<uint8_t, v8::Uint8Array> rootBuffer(
+  AliasedBufferBase<uint8_t, v8::Uint8Array> rootBuffer(
       isolate, sizeInBytes_A + sizeInBytes_B + sizeInBytes_C);
-  AliasedBuffer<NativeT_A, V8T_A> ab_A(
-      isolate, 0, count_A, rootBuffer);
-  AliasedBuffer<NativeT_B, V8T_B> ab_B(
+  AliasedBufferBase<NativeT_A, V8T_A> ab_A(isolate, 0, count_A, rootBuffer);
+  AliasedBufferBase<NativeT_B, V8T_B> ab_B(
       isolate, sizeInBytes_A, count_B, rootBuffer);
-  AliasedBuffer<NativeT_C, V8T_C> ab_C(
+  AliasedBufferBase<NativeT_C, V8T_C> ab_C(
       isolate, sizeInBytes_A + sizeInBytes_B, count_C, rootBuffer);
 
   std::vector<NativeT_A> oracle_A(count_A);
@@ -209,7 +208,7 @@ TEST_F(AliasBufferTest, OperatorOverloads) {
   v8::Local<v8::Context> context = v8::Context::New(isolate_);
   v8::Context::Scope context_scope(context);
   const size_t size = 10;
-  AliasedBuffer<uint32_t, v8::Uint32Array> ab{isolate_, size};
+  AliasedBufferBase<uint32_t, v8::Uint32Array> ab{isolate_, size};
 
   EXPECT_EQ(static_cast<uint32_t>(1), ab[0] = 1);
   EXPECT_EQ(static_cast<uint32_t>(4), ab[0] += 3);
@@ -222,8 +221,8 @@ TEST_F(AliasBufferTest, OperatorOverloadsRefs) {
   v8::HandleScope handle_scope(isolate_);
   v8::Local<v8::Context> context = v8::Context::New(isolate_);
   v8::Context::Scope context_scope(context);
-  AliasedBuffer<uint32_t, v8::Uint32Array> ab{isolate_, 2};
-  using Reference = AliasedBuffer<uint32_t, v8::Uint32Array>::Reference;
+  AliasedBufferBase<uint32_t, v8::Uint32Array> ab{isolate_, 2};
+  using Reference = AliasedBufferBase<uint32_t, v8::Uint32Array>::Reference;
   Reference ref = ab[0];
   Reference ref_value = ab[1] = 2;
 

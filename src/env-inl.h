@@ -109,16 +109,15 @@ inline AsyncHooks::AsyncHooks()
   NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
 }
-
-inline AliasedBuffer<uint32_t, v8::Uint32Array>& AsyncHooks::fields() {
+inline AliasedUint32Array& AsyncHooks::fields() {
   return fields_;
 }
 
-inline AliasedBuffer<double, v8::Float64Array>& AsyncHooks::async_id_fields() {
+inline AliasedFloat64Array& AsyncHooks::async_id_fields() {
   return async_id_fields_;
 }
 
-inline AliasedBuffer<double, v8::Float64Array>& AsyncHooks::async_ids_stack() {
+inline AliasedFloat64Array& AsyncHooks::async_ids_stack() {
   return async_ids_stack_;
 }
 
@@ -243,8 +242,7 @@ inline void Environment::PopAsyncCallbackScope() {
 inline ImmediateInfo::ImmediateInfo(v8::Isolate* isolate)
     : fields_(isolate, kFieldsCount) {}
 
-inline AliasedBuffer<uint32_t, v8::Uint32Array>&
-    ImmediateInfo::fields() {
+inline AliasedUint32Array& ImmediateInfo::fields() {
   return fields_;
 }
 
@@ -279,7 +277,7 @@ inline void ImmediateInfo::ref_count_dec(uint32_t decrement) {
 inline TickInfo::TickInfo(v8::Isolate* isolate)
     : fields_(isolate, kFieldsCount) {}
 
-inline AliasedBuffer<uint8_t, v8::Uint8Array>& TickInfo::fields() {
+inline AliasedUint8Array& TickInfo::fields() {
   return fields_;
 }
 
@@ -486,13 +484,11 @@ inline void Environment::set_abort_on_uncaught_exception(bool value) {
   options_->abort_on_uncaught_exception = value;
 }
 
-inline AliasedBuffer<uint32_t, v8::Uint32Array>&
-Environment::should_abort_on_uncaught_toggle() {
+inline AliasedUint32Array& Environment::should_abort_on_uncaught_toggle() {
   return should_abort_on_uncaught_toggle_;
 }
 
-inline AliasedBuffer<int32_t, v8::Int32Array>&
-Environment::stream_base_state() {
+inline AliasedInt32Array& Environment::stream_base_state() {
   return stream_base_state_;
 }
 
@@ -622,13 +618,11 @@ void Environment::set_debug_enabled(DebugCategory category, bool enabled) {
   debug_enabled_[static_cast<int>(category)] = enabled;
 }
 
-inline AliasedBuffer<double, v8::Float64Array>*
-Environment::fs_stats_field_array() {
+inline AliasedFloat64Array* Environment::fs_stats_field_array() {
   return &fs_stats_field_array_;
 }
 
-inline AliasedBuffer<uint64_t, v8::BigUint64Array>*
-Environment::fs_stats_field_bigint_array() {
+inline AliasedBigUint64Array* Environment::fs_stats_field_bigint_array() {
   return &fs_stats_field_bigint_array_;
 }
 

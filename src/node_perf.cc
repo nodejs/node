@@ -114,8 +114,7 @@ void PerformanceEntry::Notify(Environment* env,
                               PerformanceEntryType type,
                               Local<Value> object) {
   Context::Scope scope(env->context());
-  AliasedBuffer<uint32_t, Uint32Array>& observers =
-      env->performance_state()->observers;
+  AliasedUint32Array& observers = env->performance_state()->observers;
   if (type != NODE_PERFORMANCE_ENTRY_TYPE_INVALID &&
       observers[type]) {
     node::MakeCallback(env->isolate(),
@@ -173,8 +172,7 @@ void Measure(const FunctionCallbackInfo<Value>& args) {
   Utf8Value startMark(env->isolate(), args[1]);
   Utf8Value endMark(env->isolate(), args[2]);
 
-  AliasedBuffer<double, v8::Float64Array>& milestones =
-      env->performance_state()->milestones;
+  AliasedFloat64Array& milestones = env->performance_state()->milestones;
 
   uint64_t startTimestamp = timeOrigin;
   uint64_t start = GetPerformanceMark(env, *startMark);
@@ -235,8 +233,7 @@ void PerformanceGCCallback(Environment* env, void* ptr) {
   HandleScope scope(env->isolate());
   Local<Context> context = env->context();
 
-  AliasedBuffer<uint32_t, Uint32Array>& observers =
-      env->performance_state()->observers;
+  AliasedUint32Array& observers = env->performance_state()->observers;
   if (observers[NODE_PERFORMANCE_ENTRY_TYPE_GC]) {
     Local<Object> obj;
     if (!entry->ToObject().ToLocal(&obj)) return;
@@ -342,8 +339,7 @@ void TimerFunctionCall(const FunctionCallbackInfo<Value>& args) {
     return;
   args.GetReturnValue().Set(ret.ToLocalChecked());
 
-  AliasedBuffer<uint32_t, Uint32Array>& observers =
-      env->performance_state()->observers;
+  AliasedUint32Array& observers = env->performance_state()->observers;
   if (!observers[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION])
     return;
 

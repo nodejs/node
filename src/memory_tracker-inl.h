@@ -226,7 +226,7 @@ void MemoryTracker::TrackField(const char* name,
 
 template <class NativeT, class V8T>
 void MemoryTracker::TrackField(const char* name,
-                               const AliasedBuffer<NativeT, V8T>& value,
+                               const AliasedBufferBase<NativeT, V8T>& value,
                                const char* node_name) {
   TrackField(name, value.GetJSArray(), "AliasedBuffer");
 }
