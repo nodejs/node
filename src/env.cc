@@ -75,8 +75,7 @@ std::vector<size_t> IsolateData::Serialize(SnapshotCreator* creator) {
   return indexes;
 }
 
-void IsolateData::DeserializeProperties(
-    const NodeMainInstance::IndexArray* indexes) {
+void IsolateData::DeserializeProperties(const std::vector<size_t>* indexes) {
   size_t i = 0;
   HandleScope handle_scope(isolate_);
 
@@ -86,7 +85,7 @@ void IsolateData::DeserializeProperties(
 #define V(TypeName, PropertyName)                                              \
   do {                                                                         \
     MaybeLocal<TypeName> field =                                               \
-        isolate_->GetDataFromSnapshotOnce<TypeName>(indexes->Get(i++));        \
+        isolate_->GetDataFromSnapshotOnce<TypeName>((*indexes)[i++]);          \
     if (field.IsEmpty()) {                                                     \
       fprintf(stderr, "Failed to deserialize " #PropertyName "\n");            \
     }                                                                          \
@@ -155,7 +154,7 @@ IsolateData::IsolateData(Isolate* isolate,
                          uv_loop_t* event_loop,
                          MultiIsolatePlatform* platform,
                          ArrayBufferAllocator* node_allocator,
-                         const NodeMainInstance::IndexArray* indexes)
+                         const std::vector<size_t>* indexes)
     : isolate_(isolate),
       event_loop_(event_loop),
       allocator_(isolate->GetArrayBufferAllocator()),

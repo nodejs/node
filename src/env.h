@@ -420,7 +420,7 @@ class IsolateData : public MemoryRetainer {
               uv_loop_t* event_loop,
               MultiIsolatePlatform* platform = nullptr,
               ArrayBufferAllocator* node_allocator = nullptr,
-              const NodeMainInstance::IndexArray* indexes = nullptr);
+              const std::vector<size_t>* indexes = nullptr);
   SET_MEMORY_INFO_NAME(IsolateData);
   SET_SELF_SIZE(IsolateData);
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -454,7 +454,7 @@ class IsolateData : public MemoryRetainer {
   IsolateData& operator=(const IsolateData&) = delete;
 
  private:
-  void DeserializeProperties(const NodeMainInstance::IndexArray* indexes);
+  void DeserializeProperties(const std::vector<size_t>* indexes);
   void CreateProperties();
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
