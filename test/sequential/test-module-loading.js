@@ -201,39 +201,33 @@ assert.throws(
 
   assert.strictEqual(require(`${loadOrder}file1`).file1, 'file1');
   assert.strictEqual(require(`${loadOrder}file2`).file2, 'file2.js');
-  {
-    let threw = false;
-    try {
-      require(`${loadOrder}file3`);
-    } catch (e) {
+  assert.throws(
+    () => require(`${loadOrder}file3`),
+    (e) => {
       // Not a real .node module, but we know we require'd the right thing.
       if (common.isOpenBSD) { // OpenBSD errors with non-ELF object error
         assert.ok(/File not an ELF object/.test(e.message.replace(backslash, '/')));
       } else {
         assert.ok(/file3\.node/.test(e.message.replace(backslash, '/')));
       }
-      threw = true;
+      return true;
     }
-    assert.ok(threw, 'Missing expected exception');
-  }
+  );
 
   assert.strictEqual(require(`${loadOrder}file4`).file4, 'file4.reg');
   assert.strictEqual(require(`${loadOrder}file5`).file5, 'file5.reg2');
   assert.strictEqual(require(`${loadOrder}file6`).file6, 'file6/index.js');
-  {
-    let threw = false;
-    try {
-      require(`${loadOrder}file7`);
-    } catch (e) {
+  assert.throws(
+    () => require(`${loadOrder}file7`),
+    (e) => {
       if (common.isOpenBSD) {
         assert.ok(/File not an ELF object/.test(e.message.replace(backslash, '/')));
       } else {
         assert.ok(/file7\/index\.node/.test(e.message.replace(backslash, '/')));
       }
-      threw = true;
+      return true;
     }
-    assert.ok(threw, 'Missing expected exception');
-  }
+  );
 
   assert.strictEqual(require(`${loadOrder}file8`).file8, 'file8/index.reg');
   assert.strictEqual(require(`${loadOrder}file9`).file9, 'file9/index.reg2');

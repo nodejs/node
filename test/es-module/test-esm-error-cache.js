@@ -18,11 +18,11 @@ let error;
 
   assert(error);
 
-  try {
-    await import(file);
-  } catch (e) {
-    assert.strictEqual(error, e);
-    return;
-  }
-  assert.fail('Missing expected exception');
+  await assert.rejects(
+    () => import(file),
+    (e) => {
+      assert.strictEqual(error, e);
+      return true;
+    }
+  );
 })();

@@ -538,14 +538,13 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
   ].forEach((err) => {
     assert.strictEqual(util.inspect(err), err.stack);
   });
-  let threw = false;
-  try {
-    undef(); // eslint-disable-line no-undef
-  } catch (e) {
-    assert.strictEqual(util.inspect(e), e.stack);
-    threw = true;
-  }
-  assert.ok(threw, 'Missing expected exception');
+  assert.throws(
+    () => undef(), // eslint-disable-line no-undef
+    (e) => {
+      assert.strictEqual(util.inspect(e), e.stack);
+      return true;
+    }
+  );
 
   const ex = util.inspect(new Error('FAIL'), true);
   assert(ex.includes('Error: FAIL'));

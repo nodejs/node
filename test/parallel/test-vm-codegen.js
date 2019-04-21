@@ -10,18 +10,20 @@ const WASM_BYTES = Buffer.from(
 
 
 function expectsError(fn, type) {
-  try {
-    fn();
-    assert.fail('expected fn to error');
-  } catch (err) {
-    if (typeof type === 'string') {
-      assert.strictEqual(err.name, type);
-    } else {
-      assert(err instanceof type);
+  assert.throws(
+    () => {
+      fn();
+      assert.fail('expected fn to error');
+    },
+    (err) => {
+      if (typeof type === 'string') {
+        assert.strictEqual(err.name, type);
+      } else {
+        assert(err instanceof type);
+      }
+      return true;
     }
-    return;
-  }
-  assert.fail('Missing expected exception');
+  );
 }
 
 {
