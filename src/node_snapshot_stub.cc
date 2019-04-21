@@ -14,4 +14,8 @@ const std::vector<size_t>* NodeMainInstance::GetIsolateDataIndexes() {
   return nullptr;
 }
 
+const EnvSerializeInfo* NodeMainInstance::GetEnvSerializeInfo() {
+  return nullptr;
+}
+
 }  // namespace node

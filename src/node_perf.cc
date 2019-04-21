@@ -40,6 +40,52 @@ const uint64_t timeOrigin = PERFORMANCE_NOW();
 const double timeOriginTimestamp = GetCurrentTimeInMicroseconds();
 uint64_t performance_v8_start;
 
+PerformanceState::PerformanceState(Isolate* isolate,
+                                   const PerformanceState::SerializeInfo* info)
+    : root(isolate,
+           sizeof(performance_state_internal),
+           MAYBE_FIELD_PTR(info, root)),
+      milestones(isolate,
+                 offsetof(performance_state_internal, milestones),
+                 NODE_PERFORMANCE_MILESTONE_INVALID,
+                 root,
+                 MAYBE_FIELD_PTR(info, milestones)),
+      observers(isolate,
+                offsetof(performance_state_internal, observers),
+                NODE_PERFORMANCE_ENTRY_TYPE_INVALID,
+                root,
+                MAYBE_FIELD_PTR(info, observers)) {
+  if (info == nullptr) {
+    for (size_t i = 0; i < milestones.Length(); i++) milestones[i] = -1.;
+  }
+}
+
+PerformanceState::SerializeInfo PerformanceState::Serialize(
+    v8::Local<v8::Context> context, v8::SnapshotCreator* creator) {
+  SerializeInfo info{root.Serialize(context, creator),
+                     milestones.Serialize(context, creator),
+                     observers.Serialize(context, creator)};
+  return info;
+}
+
+void PerformanceState::Deserialize(v8::Local<v8::Context> context) {
+  root.Deserialize(context);
+  // This is just done to set up the pointers, we will actually reset
+  // all the milestones after deserialization.
+  milestones.Deserialize(context);
+  observers.Deserialize(context);
+}
+
+std::ostream& operator<<(std::ostream& o,
+                         const PerformanceState::SerializeInfo& i) {
+  o << "{\n"
+    << "  " << i.root << ",  // root\n"
+    << "  " << i.milestones << ",  // milestones\n"
+    << "  " << i.observers << ",  // observers\n"
+    << "}";
+  return o;
+}
+
 void PerformanceState::Mark(enum PerformanceMilestone milestone,
                              uint64_t ts) {
   this->milestones[milestone] = ts;
@@ -111,8 +157,8 @@ void PerformanceEntry::Notify(Environment* env,
                               Local<Value> object) {
   Context::Scope scope(env->context());
   AliasedUint32Array& observers = env->performance_state()->observers;
-  if (type != NODE_PERFORMANCE_ENTRY_TYPE_INVALID &&
-      observers[type]) {
+  if (!env->performance_entry_callback().IsEmpty() &&
+      type != NODE_PERFORMANCE_ENTRY_TYPE_INVALID && observers[type]) {
     node::MakeCallback(env->isolate(),
                        object.As<Object>(),
                        env->performance_entry_callback(),
