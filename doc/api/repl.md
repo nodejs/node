@@ -480,7 +480,7 @@ with REPL instances programmatically.
 added: v0.1.91
 changes:
   - version: v12.0.0
-    pr-url: https://github.com/nodejs/node/pull/v12.0.0
+    pr-url: https://github.com/nodejs/node/pull/26518
     description: The `terminal` option now follows the default description in
                  all cases and `useColors` checks `hasColors()` if available.
   - version: v10.0.0
