@@ -892,7 +892,7 @@ int Start(int argc, char** argv) {
     std::vector<intptr_t> external_references = {
         reinterpret_cast<intptr_t>(nullptr)};
     v8::StartupData* blob = NodeMainInstance::GetEmbeddedSnapshotBlob();
-    const NodeMainInstance::IndexArray* indexes =
+    const std::vector<size_t>* indexes =
         NodeMainInstance::GetIsolateDataIndexes();
     if (blob != nullptr) {
       params.external_references = external_references.data();

@@ -38,12 +38,13 @@ NodeMainInstance* NodeMainInstance::Create(
   return new NodeMainInstance(isolate, event_loop, platform, args, exec_args);
 }
 
-NodeMainInstance::NodeMainInstance(Isolate::CreateParams* params,
-                                   uv_loop_t* event_loop,
-                                   MultiIsolatePlatform* platform,
-                                   const std::vector<std::string>& args,
-                                   const std::vector<std::string>& exec_args,
-                                   const IndexArray* per_isolate_data_indexes)
+NodeMainInstance::NodeMainInstance(
+    Isolate::CreateParams* params,
+    uv_loop_t* event_loop,
+    MultiIsolatePlatform* platform,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args,
+    const std::vector<size_t>* per_isolate_data_indexes)
     : args_(args),
       exec_args_(exec_args),
       array_buffer_allocator_(ArrayBufferAllocator::Create()),
