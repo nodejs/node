@@ -1,7 +1,8 @@
 #include "env-inl.h"
+#include "node_external_reference.h"
 #include "node_internals.h"
-#include "node_options-inl.h"
 #include "node_metadata.h"
+#include "node_options-inl.h"
 #include "node_process.h"
 #include "node_revert.h"
 #include "util-inl.h"
@@ -200,4 +201,11 @@ void PatchProcessObject(const FunctionCallbackInfo<Value>& args) {
             .FromJust());
 }
 
+void RegisterProcessExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(RawDebug);
+}
+
 }  // namespace node
+
+NODE_MODULE_EXTERNAL_REFERENCE(process_object,
+                               node::RegisterProcessExternalReferences)

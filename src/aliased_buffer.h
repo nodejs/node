@@ -4,10 +4,13 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <cinttypes>
+#include <iostream>
 #include "util-inl.h"
 #include "v8.h"
 
 namespace node {
+
+typedef size_t AliasedBufferInfo;
 
 /**
  * Do not use this class directly when creating instances of it - use the
@@ -32,9 +35,15 @@ template <class NativeT,
           typename = std::enable_if_t<std::is_scalar<NativeT>::value>>
 class AliasedBufferBase {
  public:
-  AliasedBufferBase(v8::Isolate* isolate, const size_t count)
-      : isolate_(isolate), count_(count), byte_offset_(0) {
+  AliasedBufferBase(v8::Isolate* isolate,
+                    const size_t count,
+                    const AliasedBufferInfo* info = nullptr)
+      : isolate_(isolate), count_(count), byte_offset_(0), info_(info) {
     CHECK_GT(count, 0);
+    if (info != nullptr) {
+      // Will be deserialized later.
+      return;
+    }
     const v8::HandleScope handle_scope(isolate_);
     const size_t size_in_bytes =
         MultiplyWithOverflowCheck(sizeof(NativeT), count);
@@ -62,10 +71,17 @@ class AliasedBufferBase {
       v8::Isolate* isolate,
       const size_t byte_offset,
       const size_t count,
-      const AliasedBufferBase<uint8_t, v8::Uint8Array>& backing_buffer)
-      : isolate_(isolate), count_(count), byte_offset_(byte_offset) {
+      const AliasedBufferBase<uint8_t, v8::Uint8Array>& backing_buffer,
+      const AliasedBufferInfo* info = nullptr)
+      : isolate_(isolate),
+        count_(count),
+        byte_offset_(byte_offset),
+        info_(info) {
+    if (info != nullptr) {
+      // Will be deserialized later.
+      return;
+    }
     const v8::HandleScope handle_scope(isolate_);
-
     v8::Local<v8::ArrayBuffer> ab = backing_buffer.GetArrayBuffer();
 
     // validate that the byte_offset is aligned with sizeof(NativeT)
@@ -86,10 +102,33 @@ class AliasedBufferBase {
         count_(that.count_),
         byte_offset_(that.byte_offset_),
         buffer_(that.buffer_) {
+    DCHECK_NULL(info_);
     js_array_ = v8::Global<V8T>(that.isolate_, that.GetJSArray());
   }
 
+  AliasedBufferInfo Serialize(v8::Local<v8::Context> context,
+                              v8::SnapshotCreator* creator) {
+    DCHECK_NULL(info_);
+    return creator->AddData(context, GetJSArray());
+  }
+
+  inline void Deserialize(v8::Local<v8::Context> context) {
+    DCHECK_NOT_NULL(info_);
+    v8::Local<V8T> arr =
+        context->GetDataFromSnapshotOnce<V8T>(*info_).ToLocalChecked();
+    // These may not hold true for AliasedBuffers that have grown, so should
+    // be removed when we expand the snapshot support.
+    DCHECK_EQ(count_, arr->Length());
+    DCHECK_EQ(byte_offset_, arr->ByteOffset());
+    uint8_t* raw =
+        static_cast<uint8_t*>(arr->Buffer()->GetBackingStore()->Data());
+    buffer_ = reinterpret_cast<NativeT*>(raw + byte_offset_);
+    js_array_.Reset(isolate_, arr);
+    info_ = nullptr;
+  }
+
   AliasedBufferBase& operator=(AliasedBufferBase&& that) noexcept {
+    DCHECK_NULL(info_);
     this->~AliasedBufferBase();
     isolate_ = that.isolate_;
     count_ = that.count_;
@@ -155,6 +194,7 @@ class AliasedBufferBase {
    *  Get the underlying v8 TypedArray overlayed on top of the native buffer
    */
   v8::Local<V8T> GetJSArray() const {
+    DCHECK_NULL(info_);
     return js_array_.Get(isolate_);
   }
 
@@ -171,6 +211,7 @@ class AliasedBufferBase {
    *  through the GetValue/SetValue/operator[] methods
    */
   inline const NativeT* GetNativeBuffer() const {
+    DCHECK_NULL(info_);
     return buffer_;
   }
 
@@ -186,6 +227,7 @@ class AliasedBufferBase {
    */
   inline void SetValue(const size_t index, NativeT value) {
     DCHECK_LT(index, count_);
+    DCHECK_NULL(info_);
     buffer_[index] = value;
   }
 
@@ -193,6 +235,7 @@ class AliasedBufferBase {
    *  Get value at position index
    */
   inline const NativeT GetValue(const size_t index) const {
+    DCHECK_NULL(info_);
     DCHECK_LT(index, count_);
     return buffer_[index];
   }
@@ -201,6 +244,7 @@ class AliasedBufferBase {
    *  Effectively, a synonym for GetValue/SetValue
    */
   Reference operator[](size_t index) {
+    DCHECK_NULL(info_);
     return Reference(this, index);
   }
 
@@ -216,6 +260,7 @@ class AliasedBufferBase {
   // Should only be used on an owning array, not one created as a sub array of
   // an owning `AliasedBufferBase`.
   void reserve(size_t new_capacity) {
+    DCHECK_NULL(info_);
     DCHECK_GE(new_capacity, count_);
     DCHECK_EQ(byte_offset_, 0);
     const v8::HandleScope handle_scope(isolate_);
@@ -244,11 +289,14 @@ class AliasedBufferBase {
   }
 
  private:
-  v8::Isolate* isolate_;
-  size_t count_;
-  size_t byte_offset_;
-  NativeT* buffer_;
+  v8::Isolate* isolate_ = nullptr;
+  size_t count_ = 0;
+  size_t byte_offset_ = 0;
+  NativeT* buffer_ = nullptr;
   v8::Global<V8T> js_array_;
+
+  // Deserialize data
+  const AliasedBufferInfo* info_ = nullptr;
 };
 
 typedef AliasedBufferBase<int32_t, v8::Int32Array> AliasedInt32Array;
