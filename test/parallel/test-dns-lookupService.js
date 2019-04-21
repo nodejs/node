@@ -18,3 +18,12 @@ assert.throws(
     syscall: 'getnameinfo'
   }
 );
+
+assert.rejects(
+  dns.promises.lookupService('127.0.0.1', 80),
+  {
+    code: 'ENOENT',
+    message: 'getnameinfo ENOENT 127.0.0.1',
+    syscall: 'getnameinfo'
+  }
+);
