@@ -152,14 +152,13 @@ struct StringPtr {
   size_t size_;
 };
 
-constexpr AsyncWrap::ProviderType DEFAULT_PROVIDER = \
-          AsyncWrap::PROVIDER_HTTPINCOMINGMESSAGE;
-
 class Parser : public AsyncWrap, public StreamListener {
  public:
-  Parser(Environment* env, Local<Object> wrap, parser_type_t type,
-         AsyncWrap::ProviderType provider = DEFAULT_PROVIDER)
-      : AsyncWrap(env, wrap, provider),
+  Parser(Environment* env, Local<Object> wrap, parser_type_t type)
+      : AsyncWrap(env, wrap,
+                  type == HTTP_REQUEST ?
+                      AsyncWrap::PROVIDER_HTTPINCOMINGMESSAGE :
+                      AsyncWrap::PROVIDER_HTTPCLIENTREQUEST),
         current_buffer_len_(0),
         current_buffer_data_(nullptr) {
     Init(type);
@@ -409,10 +408,6 @@ class Parser : public AsyncWrap, public StreamListener {
     return 0;
   }
 
-  AsyncWrap::ProviderType set_provider_type(AsyncWrap::ProviderType provider) {
-    return AsyncWrap::set_provider_type(provider);
-  }
-
 #ifdef NODE_EXPERIMENTAL_HTTP
   // Reset nread for the next chunk
   int on_chunk_header() {
@@ -435,12 +430,7 @@ class Parser : public AsyncWrap, public StreamListener {
     parser_type_t type =
         static_cast<parser_type_t>(args[0].As<Int32>()->Value());
     CHECK(type == HTTP_REQUEST || type == HTTP_RESPONSE);
-    AsyncWrap::ProviderType provider =
-        (type == HTTP_REQUEST ?
-            AsyncWrap::PROVIDER_HTTPINCOMINGMESSAGE
-            : AsyncWrap::PROVIDER_HTTPCLIENTREQUEST);
-
-    new Parser(env, args.This(), type, provider);
+    new Parser(env, args.This(), type);
   }
 
 
