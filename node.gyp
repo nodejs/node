@@ -1210,22 +1210,14 @@
         'src/node_code_cache_stub.cc',
         'tools/snapshot/node_mksnapshot.cc',
         'tools/snapshot/snapshot_builder.cc',
+        'tools/snapshot/snapshot_builder.h',
       ],
 
       'conditions': [
         [ 'node_report=="true"', {
           'conditions': [
             ['OS=="win"', {
-              'libraries': [
-                'dbghelp.lib',
-                'PsApi.lib',
-                'Ws2_32.lib',
-              ],
-              'dll_files': [
-                'dbghelp.dll',
-                'PsApi.dll',
-                'Ws2_32.dll',
-              ],
+              'libraries': [ 'Ws2_32' ],
             }],
           ],
         }],
