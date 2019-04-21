@@ -538,11 +538,14 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
   ].forEach((err) => {
     assert.strictEqual(util.inspect(err), err.stack);
   });
-  try {
-    undef(); // eslint-disable-line no-undef
-  } catch (e) {
-    assert.strictEqual(util.inspect(e), e.stack);
-  }
+  assert.throws(
+    () => undef(), // eslint-disable-line no-undef
+    (e) => {
+      assert.strictEqual(util.inspect(e), e.stack);
+      return true;
+    }
+  );
+
   const ex = util.inspect(new Error('FAIL'), true);
   assert(ex.includes('Error: FAIL'));
   assert(ex.includes('[stack]'));
