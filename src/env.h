@@ -611,9 +611,9 @@ class AsyncHooks : public MemoryRetainer {
     kUidFieldsCount,
   };
 
-  inline AliasedBuffer<uint32_t, v8::Uint32Array>& fields();
-  inline AliasedBuffer<double, v8::Float64Array>& async_id_fields();
-  inline AliasedBuffer<double, v8::Float64Array>& async_ids_stack();
+  inline AliasedUint32Array& fields();
+  inline AliasedFloat64Array& async_id_fields();
+  inline AliasedFloat64Array& async_ids_stack();
 
   inline v8::Local<v8::String> provider_string(int idx);
 
@@ -652,12 +652,12 @@ class AsyncHooks : public MemoryRetainer {
   // Keep a list of all Persistent strings used for Provider types.
   std::array<v8::Eternal<v8::String>, AsyncWrap::PROVIDERS_LENGTH> providers_;
   // Stores the ids of the current execution context stack.
-  AliasedBuffer<double, v8::Float64Array> async_ids_stack_;
+  AliasedFloat64Array async_ids_stack_;
   // Attached to a Uint32Array that tracks the number of active hooks for
   // each type.
-  AliasedBuffer<uint32_t, v8::Uint32Array> fields_;
+  AliasedUint32Array fields_;
   // Attached to a Float64Array that tracks the state of async resources.
-  AliasedBuffer<double, v8::Float64Array> async_id_fields_;
+  AliasedFloat64Array async_id_fields_;
 
   void grow_async_ids_stack();
 };
@@ -676,7 +676,7 @@ class AsyncCallbackScope {
 
 class ImmediateInfo : public MemoryRetainer {
  public:
-  inline AliasedBuffer<uint32_t, v8::Uint32Array>& fields();
+  inline AliasedUint32Array& fields();
   inline uint32_t count() const;
   inline uint32_t ref_count() const;
   inline bool has_outstanding() const;
@@ -698,12 +698,12 @@ class ImmediateInfo : public MemoryRetainer {
 
   enum Fields { kCount, kRefCount, kHasOutstanding, kFieldsCount };
 
-  AliasedBuffer<uint32_t, v8::Uint32Array> fields_;
+  AliasedUint32Array fields_;
 };
 
 class TickInfo : public MemoryRetainer {
  public:
-  inline AliasedBuffer<uint8_t, v8::Uint8Array>& fields();
+  inline AliasedUint8Array& fields();
   inline bool has_tick_scheduled() const;
   inline bool has_rejection_to_warn() const;
 
@@ -720,7 +720,7 @@ class TickInfo : public MemoryRetainer {
 
   enum Fields { kHasTickScheduled = 0, kHasRejectionToWarn, kFieldsCount };
 
-  AliasedBuffer<uint8_t, v8::Uint8Array> fields_;
+  AliasedUint8Array fields_;
 };
 
 class TrackingTraceStateObserver :
@@ -908,10 +908,9 @@ class Environment : public MemoryRetainer {
   // This is a pseudo-boolean that keeps track of whether an uncaught exception
   // should abort the process or not if --abort-on-uncaught-exception was
   // passed to Node. If the flag was not passed, it is ignored.
-  inline AliasedBuffer<uint32_t, v8::Uint32Array>&
-  should_abort_on_uncaught_toggle();
+  inline AliasedUint32Array& should_abort_on_uncaught_toggle();
 
-  inline AliasedBuffer<int32_t, v8::Int32Array>& stream_base_state();
+  inline AliasedInt32Array& stream_base_state();
 
   // The necessary API for async_hooks.
   inline double new_async_id();
@@ -957,9 +956,8 @@ class Environment : public MemoryRetainer {
   inline void set_debug_enabled(DebugCategory category, bool enabled);
   void set_debug_categories(const std::string& cats, bool enabled);
 
-  inline AliasedBuffer<double, v8::Float64Array>* fs_stats_field_array();
-  inline AliasedBuffer<uint64_t, v8::BigUint64Array>*
-      fs_stats_field_bigint_array();
+  inline AliasedFloat64Array* fs_stats_field_array();
+  inline AliasedBigUint64Array* fs_stats_field_bigint_array();
 
   inline std::vector<std::unique_ptr<fs::FileHandleReadWrap>>&
       file_handle_read_wrap_freelist();
@@ -1204,12 +1202,12 @@ class Environment : public MemoryRetainer {
   uint32_t script_id_counter_ = 0;
   uint32_t function_id_counter_ = 0;
 
-  AliasedBuffer<uint32_t, v8::Uint32Array> should_abort_on_uncaught_toggle_;
+  AliasedUint32Array should_abort_on_uncaught_toggle_;
   int should_not_abort_scope_counter_ = 0;
 
   std::unique_ptr<TrackingTraceStateObserver> trace_state_observer_;
 
-  AliasedBuffer<int32_t, v8::Int32Array> stream_base_state_;
+  AliasedInt32Array stream_base_state_;
 
   std::unique_ptr<performance::performance_state> performance_state_;
   std::unordered_map<std::string, uint64_t> performance_marks_;
@@ -1252,8 +1250,8 @@ class Environment : public MemoryRetainer {
 
   bool debug_enabled_[static_cast<int>(DebugCategory::CATEGORY_COUNT)] = {0};
 
-  AliasedBuffer<double, v8::Float64Array> fs_stats_field_array_;
-  AliasedBuffer<uint64_t, v8::BigUint64Array> fs_stats_field_bigint_array_;
+  AliasedFloat64Array fs_stats_field_array_;
+  AliasedBigUint64Array fs_stats_field_bigint_array_;
 
   std::vector<std::unique_ptr<fs::FileHandleReadWrap>>
       file_handle_read_wrap_freelist_;
