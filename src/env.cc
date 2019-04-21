@@ -847,7 +847,7 @@ void Environment::stop_sub_worker_contexts() {
 
 #if HAVE_INSPECTOR
 
-void Environment::InitializeNodeProfDir(const std::string& dir) {
+void Environment::InitializeCPUProfDir(const std::string& dir) {
   if (!dir.empty()) {
     cpu_prof_dir_ = dir;
     return;

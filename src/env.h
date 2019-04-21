@@ -1141,7 +1141,7 @@ class Environment : public MemoryRetainer {
   inline void set_cpu_prof_dir(const std::string& path);
   inline const std::string& cpu_prof_dir() const;
 
-  void InitializeNodeProfDir(const std::string& dir);
+  void InitializeCPUProfDir(const std::string& dir);
 #endif  // HAVE_INSPECTOR
 
  private:
