@@ -136,9 +136,8 @@ Provide a summary of the nominee's contributions. For example:
 Mention @nodejs/collaborators in the issue to notify other Collaborators about
 the nomination.
 
-The nomination passes if no Collaborators oppose it after one week. If a
-Collaborator opposes the nomination, the TSC may still choose to approve it.
-Otherwise, the nomination fails.
+The nomination passes if no Collaborators oppose it after one week. Otherwise,
+the nomination fails.
 
 Prior to the public nomination, the Collaborator initiating it can seek
 feedback from other Collaborators in private using
