@@ -58,5 +58,6 @@ int main(int argc, char* argv[]) {
     out.close();
   }
 
+  v8::V8::ShutdownPlatform();
   return 0;
 }
