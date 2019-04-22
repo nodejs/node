@@ -1267,8 +1267,20 @@ util.inspect(process);
 
 {
   // @@toStringTag
-  assert.strictEqual(util.inspect({ [Symbol.toStringTag]: 'a' }),
-                     "Object [a] { [Symbol(Symbol.toStringTag)]: 'a' }");
+  const obj = { [Symbol.toStringTag]: 'a' };
+  assert.strictEqual(
+    util.inspect(obj),
+    "{ [Symbol(Symbol.toStringTag)]: 'a' }"
+  );
+  Object.defineProperty(obj, Symbol.toStringTag, {
+    value: 'a',
+    enumerable: false
+  });
+  assert.strictEqual(util.inspect(obj), 'Object [a] {}');
+  assert.strictEqual(
+    util.inspect(obj, { showHidden: true }),
+    "{ [Symbol(Symbol.toStringTag)]: 'a' }"
+  );
 
   class Foo {
     constructor() {
