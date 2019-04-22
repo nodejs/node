@@ -447,7 +447,7 @@ added: v11.8.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/27312
-    description: changed from `--diagnostic-report-directory` to
+    description: Changed from `--diagnostic-report-directory` to
                  `--report-directory`
 -->
 
@@ -514,8 +514,8 @@ added: v11.8.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/27312
-    description: changed from `--diagnostic-uncaught-exception` to
-                 `--uncaught-exception`
+    description: changed from `--diagnostic-report-uncaught-exception` to
+                 `--report-uncaught-exception`
 -->
 
 Enables report to be generated on un-caught exceptions, if
