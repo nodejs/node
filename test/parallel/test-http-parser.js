@@ -38,7 +38,8 @@ const kOnMessageComplete = HTTPParser.kOnMessageComplete | 0;
 
 
 function newParser(type) {
-  const parser = new HTTPParser(type);
+  const parser = new HTTPParser();
+  parser.initialize(type, {});
 
   parser.headers = [];
   parser.url = '';
@@ -95,7 +96,7 @@ function expectBody(expected) {
     throw new Error('hello world');
   };
 
-  parser.initialize(HTTPParser.REQUEST, request);
+  parser.initialize(REQUEST, {});
 
   assert.throws(
     () => { parser.execute(request, 0, request.length); },

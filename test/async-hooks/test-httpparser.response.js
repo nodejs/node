@@ -25,7 +25,8 @@ const request = Buffer.from(
   'pong'
 );
 
-const parser = new HTTPParser(RESPONSE);
+const parser = new HTTPParser();
+parser.initialize(RESPONSE, {});
 const as = hooks.activitiesOfTypes('HTTPCLIENTREQUEST');
 const httpparser = as[0];
 
