@@ -12,8 +12,6 @@ using v8::Local;
 using v8::Locker;
 using v8::SealHandleScope;
 
-const size_t NodeMainInstance::kNodeContextIndex = 0;
-
 NodeMainInstance::NodeMainInstance(Isolate* isolate,
                                    uv_loop_t* event_loop,
                                    MultiIsolatePlatform* platform,

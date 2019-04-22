@@ -64,7 +64,7 @@ class NodeMainInstance {
   static const std::vector<size_t>* GetIsolateDataIndexes();
   static v8::StartupData* GetEmbeddedSnapshotBlob();
 
-  static const size_t kNodeContextIndex;
+  static const size_t kNodeContextIndex = 0;
 
  private:
   NodeMainInstance(const NodeMainInstance&) = delete;
