@@ -9,7 +9,8 @@ Showing which kind of async resource is covered by which test:
 | FSREQCALLBACK        | test-fsreqcallback-{access,readFile}.js    |
 | GETADDRINFOREQWRAP   | test-getaddrinforeqwrap.js                 |
 | GETNAMEINFOREQWRAP   | test-getnameinforeqwrap.js                 |
-| HTTPPARSER           | test-httpparser.{request,response}.js      |
+| HTTPINCOMINGMESSAGE  | test-httpparser.request.js                 |
+| HTTPCLIENTREQUEST    | test-httpparser.response.js                |
 | Immediate            | test-immediate.js                          |
 | JSSTREAM             | TODO (crashes when accessing directly)     |
 | PBKDF2REQUEST        | test-crypto-pbkdf2.js                      |

@@ -154,14 +154,10 @@ struct StringPtr {
 
 class Parser : public AsyncWrap, public StreamListener {
  public:
-  Parser(Environment* env, Local<Object> wrap, parser_type_t type)
-      : AsyncWrap(env, wrap,
-                  type == HTTP_REQUEST ?
-                      AsyncWrap::PROVIDER_HTTPINCOMINGMESSAGE :
-                      AsyncWrap::PROVIDER_HTTPCLIENTREQUEST),
+  Parser(Environment* env, Local<Object> wrap)
+      : AsyncWrap(env, wrap),
         current_buffer_len_(0),
         current_buffer_data_(nullptr) {
-    Init(type);
   }
 
 
@@ -426,11 +422,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
   static void New(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
-    CHECK(args[0]->IsInt32());
-    parser_type_t type =
-        static_cast<parser_type_t>(args[0].As<Int32>()->Value());
-    CHECK(type == HTTP_REQUEST || type == HTTP_RESPONSE);
-    new Parser(env, args.This(), type);
+    new Parser(env, args.This());
   }
 
 
@@ -443,14 +435,13 @@ class Parser : public AsyncWrap, public StreamListener {
 
 
   static void Free(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args);
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
 
     // Since the Parser destructor isn't going to run the destroy() callbacks
     // it needs to be triggered manually.
     parser->EmitTraceEventDestroy();
-    parser->EmitDestroy(env, parser->get_async_id());
+    parser->EmitDestroy();
   }
 
 
@@ -526,6 +517,7 @@ class Parser : public AsyncWrap, public StreamListener {
             : AsyncWrap::PROVIDER_HTTPCLIENTREQUEST);
 
     parser->set_provider_type(provider);
+    parser->AsyncReset(args[1].As<Object>());
     parser->Init(type);
   }
 
