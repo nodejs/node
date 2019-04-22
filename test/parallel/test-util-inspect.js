@@ -856,9 +856,21 @@ assert.strictEqual(
   '[Symbol: Symbol(test)]'
 );
 assert.strictEqual(util.inspect(new Boolean(false)), '[Boolean: false]');
-assert.strictEqual(util.inspect(new Boolean(true)), '[Boolean: true]');
+assert.strictEqual(
+  util.inspect(Object.setPrototypeOf(new Boolean(true), null)),
+  '[Boolean (null prototype): true]'
+);
 assert.strictEqual(util.inspect(new Number(0)), '[Number: 0]');
-assert.strictEqual(util.inspect(new Number(-0)), '[Number: -0]');
+assert.strictEqual(
+  util.inspect(
+    Object.defineProperty(
+      Object.setPrototypeOf(new Number(-0), Array.prototype),
+      Symbol.toStringTag,
+      { value: 'Foobar' }
+    )
+  ),
+  '[Number (Array): -0] [Foobar]'
+);
 assert.strictEqual(util.inspect(new Number(-1.1)), '[Number: -1.1]');
 assert.strictEqual(util.inspect(new Number(13.37)), '[Number: 13.37]');
 
