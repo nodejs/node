@@ -101,8 +101,6 @@ MaybeLocal<String> RealEnvStore::Get(Isolate* isolate,
     return value_string;
   }
 
-  // Failed to fetch env value, raise exception and return empty handle.
-  Environment::GetCurrent(isolate)->ThrowUVException(ret, "getenv");
   return MaybeLocal<String>();
 }
 
@@ -202,7 +200,7 @@ std::shared_ptr<KVStore> KVStore::Clone(v8::Isolate* isolate) const {
     Local<Value> key = keys->Get(context, i).ToLocalChecked();
     CHECK(key->IsString());
     copy->Set(isolate, key.As<String>(), Get(isolate, key.As<String>())
-        .FromMaybe(Local<String>()));
+        .ToLocalChecked());
   }
   return copy;
 }
@@ -296,9 +294,10 @@ static void EnvGetter(Local<Name> property,
   MaybeLocal<String> value_string =
       env->env_vars()->Get(env->isolate(), property.As<String>());
   if (value_string.IsEmpty()) {
+    info.GetReturnValue().Set(value_string.FromMaybe(Local<String>()));
     return;
   }
-  info.GetReturnValue().Set(value_string.FromMaybe(Local<String>()));
+  info.GetReturnValue().Set(value_string.ToLocalChecked());
 }
 
 static void EnvSetter(Local<Name> property,
