@@ -139,12 +139,10 @@ the nomination.
 The nomination passes if no Collaborators oppose it after one week. Otherwise,
 the nomination fails.
 
-Prior to the public nomination, the Collaborator initiating it can seek
-feedback from other Collaborators in private using
-[the GitHub discussion page][collaborators-discussions] of the
-Collaborators team, and work with the nominee to improve the nominee's
-contribution profile, in order to make the nomination as frictionless
-as possible.
+There are steps a nominator can take in advance to make a nomination as
+frictionless as possible. Use the [Collaborators discussion page][] to request
+feedback from other Collaborators in private. A nominator may also work with the
+nominee to improve their contribution profile.
 
 If individuals making valuable contributions do not believe they have been
 considered for a nomination, they may log an issue or contact a Collaborator
@@ -162,7 +160,7 @@ completed within a month after the nomination is accepted.
 The TSC follows a [Consensus Seeking][] decision-making model as described by
 the [TSC Charter][].
 
-[collaborators-discussions]: https://github.com/orgs/nodejs/teams/collaborators/discussions
+[Collaborators discussion page]: https://github.com/orgs/nodejs/teams/collaborators/discussions
 [Consensus Seeking]: https://en.wikipedia.org/wiki/Consensus-seeking_decision-making
 [TSC Charter]: https://github.com/nodejs/TSC/blob/master/TSC-Charter.md
 [nodejs/node]: https://github.com/nodejs/node
