@@ -1127,17 +1127,48 @@ automatically until the internal buffer is fully drained.
 
 ```js
 const readable = getReadableStreamSomehow();
+
+// 'readable' may be triggered multiple times as data is buffered in
 readable.on('readable', () => {
   let chunk;
+  console.log('Stream is readable (new data received in buffer)');
+  // Use a loop to make sure we read all currently available data
   while (null !== (chunk = readable.read())) {
-    console.log(`Received ${chunk.length} bytes of data.`);
+    console.log(`Read ${chunk.length} bytes of data...`);
   }
+});
+
+// 'end' will be triggered once when there is no more data available
+readable.on('end', () => {
+  console.log('Reached end of stream.');
 });
 ```
 
-The `while` loop is necessary when processing data with
-`readable.read()`. Only after `readable.read()` returns `null`,
-[`'readable'`][] will be emitted.
+Each call to `readable.read()` returns a chunk of data, or `null`. The chunks
+are not concatenated. A `while` loop is necessary to consume all data
+currently in the buffer. When reading a large file `.read()` may return `null`,
+having consumed all buffered content so far, but there is still more data to
+come not yet buffered. In this case a new `'readable'` event will be emitted
+when there is more data in the buffer. Finally the `'end'` event will be
+emitted when there is no more data to come.
+
+Therefore to read a file's whole contents from a `readable`, it is necessary
+to collect chunks across multiple `'readable'` events:
+
+```js
+const chunks = [];
+
+readable.on('readable', () => {
+  let chunk;
+  while (null !== (chunk = readable.read())) {
+    chunks.push(chunk);
+  }
+});
+
+readable.on('end', () => {
+  const content = chunks.join('');
+});
+```
 
 A `Readable` stream in object mode will always return a single item from
 a call to [`readable.read(size)`][stream-read], regardless of the value of the
