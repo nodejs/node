@@ -1,11 +1,14 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const path = require('path');
 const { Worker } = require('worker_threads');
 
-const worker = new Worker('./does-not-exist.js', {
-  execArgv: ['--experimental-modules'],
-});
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
+const missing = path.join(tmpdir.path, 'does-not-exist.js');
+
+const worker = new Worker(missing, { execArgv: ['--experimental-modules'] });
 
 worker.on('error', common.mustCall((err) => {
   // eslint-disable-next-line node-core/no-unescaped-regexp-dot
