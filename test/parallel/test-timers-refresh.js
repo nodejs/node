@@ -72,6 +72,20 @@ const { inspect } = require('util');
   strictEqual(timer.refresh(), timer);
 }
 
+// regular timer
+{
+  let called = false;
+  const timer = setTimeout(common.mustCall(() => {
+    if (!called) {
+      called = true;
+      process.nextTick(common.mustCall(() => {
+        timer.refresh();
+        strictEqual(timer.hasRef(), true);
+      }));
+    }
+  }, 2), 1);
+}
+
 // interval
 {
   let called = 0;
