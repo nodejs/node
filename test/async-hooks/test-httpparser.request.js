@@ -21,6 +21,7 @@ const request = Buffer.from(
 );
 
 const parser = new HTTPParser(REQUEST);
+parser.initialize(REQUEST, {});
 const as = hooks.activitiesOfTypes('HTTPINCOMINGMESSAGE');
 const httpparser = as[0];
 

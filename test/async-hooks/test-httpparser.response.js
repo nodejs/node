@@ -26,6 +26,7 @@ const request = Buffer.from(
 );
 
 const parser = new HTTPParser(RESPONSE);
+parser.initialize(RESPONSE, {});
 const as = hooks.activitiesOfTypes('HTTPCLIENTREQUEST');
 const httpparser = as[0];
 
