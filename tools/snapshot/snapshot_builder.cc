@@ -27,8 +27,7 @@ std::string FormatBlob(v8::StartupData* blob,
                        const std::vector<size_t>& isolate_data_indexes) {
   std::stringstream ss;
 
-  ss << R"(#include <cinttypes>
-#include <array>
+  ss << R"(#include <cstddef>
 #include "node_main_instance.h"
 #include "v8.h"
 

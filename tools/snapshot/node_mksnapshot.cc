@@ -11,8 +11,6 @@
 #include "v8.h"
 
 #ifdef _WIN32
-#include <VersionHelpers.h>
-#include <WinError.h>
 #include <windows.h>
 
 int wmain(int argc, wchar_t* argv[]) {
@@ -33,8 +31,8 @@ int main(int argc, char* argv[]) {
   }
 
   int node_argc = 1;
-  char argv0[5] = "node";
-  char* node_argv[] = {argv0};
+  char argv0[] = "node";
+  char* node_argv[] = {argv0, nullptr};
 
   node::InitializationResult result =
       node::InitializeOncePerProcess(node_argc, node_argv);
