@@ -7,6 +7,12 @@
 The `assert` module provides a simple set of assertion tests that can be used to
 test invariants.
 
+It can be accessed using:
+
+```js
+const assert = require('assert');
+```
+
 A `strict` and a `legacy` mode exist, while it is recommended to only use
 [`strict mode`][].
 
