@@ -107,6 +107,26 @@ class V8CpuProfilerConnection : public V8ProfilerConnection {
   bool ending_ = false;
 };
 
+class V8HeapProfilerConnection : public V8ProfilerConnection {
+ public:
+  explicit V8HeapProfilerConnection(Environment* env)
+      : V8ProfilerConnection(env) {}
+
+  void Start() override;
+  void End() override;
+
+  const char* type() const override { return "heap"; }
+  bool ending() const override { return ending_; }
+
+  std::string GetDirectory() const override;
+  std::string GetFilename() const override;
+  v8::MaybeLocal<v8::Object> GetProfile(v8::Local<v8::Object> result) override;
+
+ private:
+  std::unique_ptr<inspector::InspectorSession> session_;
+  bool ending_ = false;
+};
+
 }  // namespace profiler
 }  // namespace node
 

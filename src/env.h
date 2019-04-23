@@ -73,6 +73,7 @@ class AgentWriterHandle;
 namespace profiler {
 class V8CoverageConnection;
 class V8CpuProfilerConnection;
+class V8HeapProfilerConnection;
 }  // namespace profiler
 #endif  // HAVE_INSPECTOR
 
@@ -1151,6 +1152,20 @@ class Environment : public MemoryRetainer {
 
   inline void set_cpu_prof_dir(const std::string& dir);
   inline const std::string& cpu_prof_dir() const;
+
+  void set_heap_profiler_connection(
+      std::unique_ptr<profiler::V8HeapProfilerConnection> connection);
+  profiler::V8HeapProfilerConnection* heap_profiler_connection();
+
+  inline void set_heap_prof_name(const std::string& name);
+  inline const std::string& heap_prof_name() const;
+
+  inline void set_heap_prof_dir(const std::string& dir);
+  inline const std::string& heap_prof_dir() const;
+
+  inline void set_heap_prof_interval(uint64_t interval);
+  inline uint64_t heap_prof_interval() const;
+
 #endif  // HAVE_INSPECTOR
 
  private:
@@ -1190,6 +1205,10 @@ class Environment : public MemoryRetainer {
   std::string cpu_prof_dir_;
   std::string cpu_prof_name_;
   uint64_t cpu_prof_interval_;
+  std::unique_ptr<profiler::V8HeapProfilerConnection> heap_profiler_connection_;
+  std::string heap_prof_dir_;
+  std::string heap_prof_name_;
+  uint64_t heap_prof_interval_;
 #endif  // HAVE_INSPECTOR
 
   std::shared_ptr<EnvironmentOptions> options_;
