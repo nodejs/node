@@ -376,8 +376,8 @@ void ResourceBundle::getVersion(UVersionInfo versionInfo) const {
     ures_getVersion(fResource, versionInfo);
 }
 
-static UMutex gLocaleLock = U_MUTEX_INITIALIZER;
 const Locale &ResourceBundle::getLocale(void) const {
+    static UMutex gLocaleLock = U_MUTEX_INITIALIZER;
     Mutex lock(&gLocaleLock);
     if (fLocale != NULL) {
         return *fLocale;

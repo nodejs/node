@@ -14,6 +14,7 @@
 #include "number_decimalquantity.h"
 #include "number_formatimpl.h"
 #include "number_stringbuilder.h"
+#include "formattedval_impl.h"
 
 U_NAMESPACE_BEGIN namespace number {
 namespace impl {
@@ -24,20 +25,18 @@ namespace impl {
  *
  * Has incomplete magic number logic that will need to be finished
  * if this is to be exposed as C API in the future.
+ *
+ * Possible magic number: 0x46445200
+ * Reads in ASCII as "FDR" (FormatteDnumberRange with room at the end)
  */
-struct UFormattedNumberRangeData : public UMemory {
-    // The magic number to identify incoming objects.
-    // Reads in ASCII as "FDR" (FormatteDnumberRange with room at the end)
-    static constexpr int32_t kMagic = 0x46445200;
+class UFormattedNumberRangeData : public FormattedValueNumberStringBuilderImpl {
+public:
+    UFormattedNumberRangeData() : FormattedValueNumberStringBuilderImpl(0) {}
+    virtual ~UFormattedNumberRangeData();
 
-    // Data members:
-    int32_t fMagic = kMagic;
     DecimalQuantity quantity1;
     DecimalQuantity quantity2;
-    NumberStringBuilder string;
     UNumberRangeIdentityResult identityResult = UNUM_IDENTITY_RESULT_COUNT;
-
-    // No C conversion methods (no C API yet)
 };
 
 

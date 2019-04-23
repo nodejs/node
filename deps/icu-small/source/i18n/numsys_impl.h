@@ -26,18 +26,16 @@ U_NAMESPACE_BEGIN
 
 class NumsysNameEnumeration : public StringEnumeration {
 public:
-    // NumsysNameEnumeration instance adopts numsysNames
-    NumsysNameEnumeration(UVector *numsysNames, UErrorCode& status);
+    NumsysNameEnumeration(UErrorCode& status);
 
     virtual ~NumsysNameEnumeration();
     static UClassID U_EXPORT2 getStaticClassID(void);
-    virtual UClassID getDynamicClassID(void) const;
-    virtual const UnicodeString* snext(UErrorCode& status);
-    virtual void reset(UErrorCode& status);
-    virtual int32_t count(UErrorCode& status) const;
+    virtual UClassID getDynamicClassID(void) const override;
+    virtual const UnicodeString* snext(UErrorCode& status) override;
+    virtual void reset(UErrorCode& status) override;
+    virtual int32_t count(UErrorCode& status) const override;
 private:
     int32_t pos;
-    UVector *fNumsysNames = nullptr;
 };
 
 U_NAMESPACE_END

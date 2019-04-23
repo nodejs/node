@@ -204,7 +204,7 @@ typedef size_t uintptr_t;
 
 /**
  * \def U_HAVE_STD_ATOMICS
- * Defines whether to use the standard C++11 <atomic> functions
+ * Defines whether to use the C++11 std::atomic functions.
  * If false, ICU will fall back to compiler or platform specific alternatives.
  * Note: support for these fall back options for atomics will be removed in a future version
  *       of ICU, and the use of C++ 11 atomics will be required.
@@ -230,6 +230,22 @@ typedef size_t uintptr_t;
 #    define U_HAVE_CLANG_ATOMICS 1
 #else
 #    define U_HAVE_CLANG_ATOMICS 0
+#endif
+
+
+/**
+ * \def U_HAVE_STD_MUTEX
+ * Defines whether to use the C++11 std::mutex functions.
+ * If false, ICU will fall back to compiler or platform specific alternatives.
+ * std::mutex is preferred, and used by default unless this setting is overridden.
+ * Note: support for other options for mutexes will be removed in a future version
+ *       of ICU, and the use of std::mutex will be required.
+ * @internal
+ */
+#ifdef U_HAVE_STD_MUTEX
+    /* Use the predefined value. */
+#else
+#    define U_HAVE_STD_MUTEX 1
 #endif
 
 /*===========================================================================*/

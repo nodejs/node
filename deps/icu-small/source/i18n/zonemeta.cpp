@@ -30,7 +30,10 @@
 #include "olsontz.h"
 #include "uinvchar.h"
 
-static UMutex gZoneMetaLock = U_MUTEX_INITIALIZER;
+static icu::UMutex *gZoneMetaLock() {
+    static icu::UMutex m = U_MUTEX_INITIALIZER;
+    return &m;
+}
 
 // CLDR Canonical ID mapping table
 static UHashtable *gCanonicalIDCache = NULL;
@@ -263,11 +266,11 @@ ZoneMeta::getCanonicalCLDRID(const UnicodeString &tzid, UErrorCode& status) {
     }
 
     // Check if it was already cached
-    umtx_lock(&gZoneMetaLock);
+    umtx_lock(gZoneMetaLock());
     {
         canonicalID = (const UChar *)uhash_get(gCanonicalIDCache, utzid);
     }
-    umtx_unlock(&gZoneMetaLock);
+    umtx_unlock(gZoneMetaLock());
 
     if (canonicalID != NULL) {
         return canonicalID;
@@ -348,7 +351,7 @@ ZoneMeta::getCanonicalCLDRID(const UnicodeString &tzid, UErrorCode& status) {
         U_ASSERT(canonicalID != NULL);  // canocanilD must be non-NULL here
 
         // Put the resolved canonical ID to the cache
-        umtx_lock(&gZoneMetaLock);
+        umtx_lock(gZoneMetaLock());
         {
             const UChar* idInCache = (const UChar *)uhash_get(gCanonicalIDCache, utzid);
             if (idInCache == NULL) {
@@ -368,7 +371,7 @@ ZoneMeta::getCanonicalCLDRID(const UnicodeString &tzid, UErrorCode& status) {
                 }
             }
         }
-        umtx_unlock(&gZoneMetaLock);
+        umtx_unlock(gZoneMetaLock());
     }
 
     return canonicalID;
@@ -446,14 +449,14 @@ ZoneMeta::getCanonicalCountry(const UnicodeString &tzid, UnicodeString &country,
         // Check if it was already cached
         UBool cached = FALSE;
         UBool singleZone = FALSE;
-        umtx_lock(&gZoneMetaLock);
+        umtx_lock(gZoneMetaLock());
         {
             singleZone = cached = gSingleZoneCountries->contains((void*)region);
             if (!cached) {
                 cached = gMultiZonesCountries->contains((void*)region);
             }
         }
-        umtx_unlock(&gZoneMetaLock);
+        umtx_unlock(gZoneMetaLock());
 
         if (!cached) {
             // We need to go through all zones associated with the region.
@@ -472,7 +475,7 @@ ZoneMeta::getCanonicalCountry(const UnicodeString &tzid, UnicodeString &country,
             delete ids;
 
             // Cache the result
-            umtx_lock(&gZoneMetaLock);
+            umtx_lock(gZoneMetaLock());
             {
                 UErrorCode ec = U_ZERO_ERROR;
                 if (singleZone) {
@@ -485,7 +488,7 @@ ZoneMeta::getCanonicalCountry(const UnicodeString &tzid, UnicodeString &country,
                     }
                 }
             }
-            umtx_unlock(&gZoneMetaLock);
+            umtx_unlock(gZoneMetaLock());
         }
 
         if (singleZone) {
@@ -572,11 +575,11 @@ ZoneMeta::getMetazoneMappings(const UnicodeString &tzid) {
     // get the mapping from cache
     const UVector *result = NULL;
 
-    umtx_lock(&gZoneMetaLock);
+    umtx_lock(gZoneMetaLock());
     {
         result = (UVector*) uhash_get(gOlsonToMeta, tzidUChars);
     }
-    umtx_unlock(&gZoneMetaLock);
+    umtx_unlock(gZoneMetaLock());
 
     if (result != NULL) {
         return result;
@@ -590,7 +593,7 @@ ZoneMeta::getMetazoneMappings(const UnicodeString &tzid) {
     }
 
     // put the new one into the cache
-    umtx_lock(&gZoneMetaLock);
+    umtx_lock(gZoneMetaLock());
     {
         // make sure it's already created
         result = (UVector*) uhash_get(gOlsonToMeta, tzidUChars);
@@ -618,7 +621,7 @@ ZoneMeta::getMetazoneMappings(const UnicodeString &tzid) {
             delete tmpResult;
         }
     }
-    umtx_unlock(&gZoneMetaLock);
+    umtx_unlock(gZoneMetaLock());
 
     return result;
 }
@@ -784,14 +787,13 @@ static void U_CALLCONV initAvailableMetaZoneIDs () {
 
     UResourceBundle *rb = ures_openDirect(NULL, gMetaZones, &status);
     UResourceBundle *bundle = ures_getByKey(rb, gMapTimezonesTag, NULL, &status);
-    UResourceBundle res;
-    ures_initStackObject(&res);
+    StackUResourceBundle res;
     while (U_SUCCESS(status) && ures_hasNext(bundle)) {
-        ures_getNextResource(bundle, &res, &status);
+        ures_getNextResource(bundle, res.getAlias(), &status);
         if (U_FAILURE(status)) {
             break;
         }
-        const char *mzID = ures_getKey(&res);
+        const char *mzID = ures_getKey(res.getAlias());
         int32_t len = static_cast<int32_t>(uprv_strlen(mzID));
         UChar *uMzID = (UChar*)uprv_malloc(sizeof(UChar) * (len + 1));
         if (uMzID == NULL) {
@@ -809,7 +811,6 @@ static void U_CALLCONV initAvailableMetaZoneIDs () {
             delete usMzID;
         }
     }
-    ures_close(&res);
     ures_close(bundle);
     ures_close(rb);
 
