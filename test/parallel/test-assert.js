@@ -299,23 +299,17 @@ testAssertionMessage({ a: NaN, b: Infinity, c: -Infinity },
 // https://github.com/nodejs/node-v0.x-archive/issues/5292
 assert.throws(
   () => assert.strictEqual(1, 2),
-  (e) => {
-    assert.strictEqual(
-      e.message,
-      `${strictEqualMessageStart}\n1 !== 2\n`
-    );
-    assert.ok(e.generatedMessage, 'Message not marked as generated');
-    return true;
+  {
+    message: `${strictEqualMessageStart}\n1 !== 2\n`,
+    generatedMessage: true
   }
 );
 
 assert.throws(
   () => assert.strictEqual(1, 2, 'oh no'),
-  (e) => {
-    assert.strictEqual(e.message, 'oh no');
-    // Message should not be marked as generated.
-    assert.strictEqual(e.generatedMessage, false);
-    return true;
+  {
+    message: 'oh no',
+    generatedMessage: false
   }
 );
 
