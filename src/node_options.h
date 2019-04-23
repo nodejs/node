@@ -115,6 +115,11 @@ class EnvironmentOptions : public Options {
   uint64_t cpu_prof_interval = kDefaultCpuProfInterval;
   std::string cpu_prof_name;
   bool cpu_prof = false;
+  std::string heap_prof_dir;
+  std::string heap_prof_name;
+  static const uint64_t kDefaultHeapProfInterval = 512 * 1024;
+  uint64_t heap_prof_interval = kDefaultHeapProfInterval;
+  bool heap_prof = false;
 #endif  // HAVE_INSPECTOR
   std::string redirect_warnings;
   bool throw_deprecation = false;
