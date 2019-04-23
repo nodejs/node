@@ -173,7 +173,7 @@ const assert = require('assert');
   for (let i = 1; i < 6; i++) {
     const range = i < 5 ? `= ${val - 1}` : ` 2 ** ${i * 8}`;
     const received = i > 4 ?
-      String(val).replace(/(\d)(?=(\d\d\d)+(?!\d))/g, '$1,') :
+      String(val).replace(/(\d)(?=(\d\d\d)+(?!\d))/g, '$1_') :
       val;
     ['writeUIntBE', 'writeUIntLE'].forEach((fn) => {
       assert.throws(() => {

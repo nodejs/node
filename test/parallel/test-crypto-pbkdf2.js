@@ -112,7 +112,7 @@ assert.throws(
       code: 'ERR_OUT_OF_RANGE',
       name: 'RangeError',
       message: 'The value of "keylen" is out of range. It must be >= 0 && < ' +
-               `4294967296. Received ${input === -1 ? '-1' : '4,294,967,297'}`
+               `4294967296. Received ${input === -1 ? '-1' : '4_294_967_297'}`
     });
 });
 
