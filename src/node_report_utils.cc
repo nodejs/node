@@ -126,6 +126,11 @@ void WalkHandle(uv_handle_t* h, void* arg) {
   uv_any_handle* handle = reinterpret_cast<uv_any_handle*>(h);
 
   writer->json_start();
+  writer->json_keyvalue("type", type);
+  writer->json_keyvalue("is_active", static_cast<bool>(uv_is_active(h)));
+  writer->json_keyvalue("is_referenced", static_cast<bool>(uv_has_ref(h)));
+  writer->json_keyvalue("address",
+                        ValueToHexString(reinterpret_cast<uint64_t>(h)));
 
   switch (h->type) {
     case UV_FS_EVENT:
@@ -216,11 +221,6 @@ void WalkHandle(uv_handle_t* h, void* arg) {
                           static_cast<bool>(uv_is_writable(&handle->stream)));
   }
 
-  writer->json_keyvalue("type", type);
-  writer->json_keyvalue("is_active", static_cast<bool>(uv_is_active(h)));
-  writer->json_keyvalue("is_referenced", static_cast<bool>(uv_has_ref(h)));
-  writer->json_keyvalue("address",
-                        ValueToHexString(reinterpret_cast<uint64_t>(h)));
   writer->json_end();
 }
 
