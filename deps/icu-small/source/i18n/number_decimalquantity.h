@@ -53,22 +53,28 @@ class U_I18N_API DecimalQuantity : public IFixedDecimal, public UMemory {
     DecimalQuantity &operator=(DecimalQuantity&& src) U_NOEXCEPT;
 
     /**
-     * Sets the minimum and maximum integer digits that this {@link DecimalQuantity} should generate.
+     * Sets the minimum integer digits that this {@link DecimalQuantity} should generate.
      * This method does not perform rounding.
      *
      * @param minInt The minimum number of integer digits.
-     * @param maxInt The maximum number of integer digits.
      */
-    void setIntegerLength(int32_t minInt, int32_t maxInt);
+    void setMinInteger(int32_t minInt);
 
     /**
-     * Sets the minimum and maximum fraction digits that this {@link DecimalQuantity} should generate.
+     * Sets the minimum fraction digits that this {@link DecimalQuantity} should generate.
      * This method does not perform rounding.
      *
      * @param minFrac The minimum number of fraction digits.
-     * @param maxFrac The maximum number of fraction digits.
      */
-    void setFractionLength(int32_t minFrac, int32_t maxFrac);
+    void setMinFraction(int32_t minFrac);
+
+    /**
+     * Truncates digits from the upper magnitude of the number in order to satisfy the
+     * specified maximum number of integer digits.
+     *
+     * @param maxInt The maximum number of integer digits.
+     */
+    void applyMaxInteger(int32_t maxInt);
 
     /**
      * Rounds the number to a specified interval, such as 0.05.
@@ -76,20 +82,29 @@ class U_I18N_API DecimalQuantity : public IFixedDecimal, public UMemory {
      * <p>If rounding to a power of ten, use the more efficient {@link #roundToMagnitude} instead.
      *
      * @param roundingIncrement The increment to which to round.
-     * @param mathContext The {@link RoundingMode} to use if rounding is necessary.
+     * @param roundingMode The {@link RoundingMode} to use if rounding is necessary.
      */
     void roundToIncrement(double roundingIncrement, RoundingMode roundingMode,
-                          int32_t maxFrac, UErrorCode& status);
+                          UErrorCode& status);
 
     /** Removes all fraction digits. */
     void truncate();
+
+    /**
+     * Rounds the number to the nearest multiple of 5 at the specified magnitude.
+     * For example, when magnitude == -2, this performs rounding to the nearest 0.05.
+     *
+     * @param magnitude The magnitude at which the digit should become either 0 or 5.
+     * @param roundingMode Rounding strategy.
+     */
+    void roundToNickel(int32_t magnitude, RoundingMode roundingMode, UErrorCode& status);
 
     /**
      * Rounds the number to a specified magnitude (power of ten).
      *
      * @param roundingMagnitude The power of ten to which to round. For example, a value of -2 will
      *     round to 2 decimal places.
-     * @param mathContext The {@link RoundingMode} to use if rounding is necessary.
+     * @param roundingMode The {@link RoundingMode} to use if rounding is necessary.
      */
     void roundToMagnitude(int32_t magnitude, RoundingMode roundingMode, UErrorCode& status);
 
@@ -260,7 +275,7 @@ class U_I18N_API DecimalQuantity : public IFixedDecimal, public UMemory {
     inline bool isUsingBytes() { return usingBytes; }
 
     /** Visible for testing */
-    inline bool isExplicitExactDouble() { return explicitExactDouble; };
+    inline bool isExplicitExactDouble() { return explicitExactDouble; }
 
     bool operator==(const DecimalQuantity& other) const;
 
@@ -327,36 +342,11 @@ class U_I18N_API DecimalQuantity : public IFixedDecimal, public UMemory {
      */
     int32_t origDelta;
 
-    // Four positions: left optional '(', left required '[', right required ']', right optional ')'.
-    // These four positions determine which digits are displayed in the output string.  They do NOT
-    // affect rounding.  These positions are internal-only and can be specified only by the public
-    // endpoints like setFractionLength, setIntegerLength, and setSignificantDigits, among others.
-    //
-    //   * Digits between lReqPos and rReqPos are in the "required zone" and are always displayed.
-    //   * Digits between lOptPos and rOptPos but outside the required zone are in the "optional zone"
-    //     and are displayed unless they are trailing off the left or right edge of the number and
-    //     have a numerical value of zero.  In order to be "trailing", the digits need to be beyond
-    //     the decimal point in their respective directions.
-    //   * Digits outside of the "optional zone" are never displayed.
-    //
-    // See the table below for illustrative examples.
-    //
-    // +---------+---------+---------+---------+------------+------------------------+--------------+
-    // | lOptPos | lReqPos | rReqPos | rOptPos |   number   |        positions       | en-US string |
-    // +---------+---------+---------+---------+------------+------------------------+--------------+
-    // |    5    |    2    |   -1    |   -5    |   1234.567 |     ( 12[34.5]67  )    |   1,234.567  |
-    // |    3    |    2    |   -1    |   -5    |   1234.567 |      1(2[34.5]67  )    |     234.567  |
-    // |    3    |    2    |   -1    |   -2    |   1234.567 |      1(2[34.5]6)7      |     234.56   |
-    // |    6    |    4    |    2    |   -5    | 123456789. |  123(45[67]89.     )   | 456,789.     |
-    // |    6    |    4    |    2    |    1    | 123456789. |     123(45[67]8)9.     | 456,780.     |
-    // |   -1    |   -1    |   -3    |   -4    | 0.123456   |     0.1([23]4)56       |        .0234 |
-    // |    6    |    4    |   -2    |   -2    |     12.3   |     (  [  12.3 ])      |    0012.30   |
-    // +---------+---------+---------+---------+------------+------------------------+--------------+
-    //
-    int32_t lOptPos = INT32_MAX;
+    // Positions to keep track of leading and trailing zeros.
+    // lReqPos is the magnitude of the first required leading zero.
+    // rReqPos is the magnitude of the last required trailing zero.
     int32_t lReqPos = 0;
     int32_t rReqPos = 0;
-    int32_t rOptPos = INT32_MIN;
 
     /**
      * The BCD of the 16 digits of the number represented by this object. Every 4 bits of the long map
@@ -381,6 +371,8 @@ class U_I18N_API DecimalQuantity : public IFixedDecimal, public UMemory {
      * Used for testing.
      */
     bool explicitExactDouble = false;
+
+    void roundToMagnitude(int32_t magnitude, RoundingMode roundingMode, bool nickel, UErrorCode& status);
 
     /**
      * Returns a single digit from the BCD list. No internal state is changed by calling this method.
@@ -410,7 +402,21 @@ class U_I18N_API DecimalQuantity : public IFixedDecimal, public UMemory {
      */
     void shiftLeft(int32_t numDigits);
 
+    /**
+     * Directly removes digits from the end of the BCD list.
+     * Updates the scale and precision.
+     *
+     * CAUTION: it is the caller's responsibility to call {@link #compact} after this method.
+     */
     void shiftRight(int32_t numDigits);
+
+    /**
+     * Directly removes digits from the front of the BCD list.
+     * Updates precision.
+     *
+     * CAUTION: it is the caller's responsibility to call {@link #compact} after this method.
+     */
+    void popFromLeft(int32_t numDigits);
 
     /**
      * Sets the internal representation to zero. Clears any values stored in scale, precision,

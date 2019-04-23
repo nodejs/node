@@ -1,7 +1,17 @@
 // © 2018 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 
+// This file contains utilities to deal with static-allocated UnicodeSets.
+//
+// Common use case: you write a "private static final" UnicodeSet in Java, and
+// want something similarly easy in C++.  Originally written for number
+// parsing, but this header can be used for other applications.
+//
+// Main entrypoint: `unisets::get(unisets::MY_SET_ID_HERE)`
+//
 // This file is in common instead of i18n because it is needed by ucurr.cpp.
+//
+// Author: sffc
 
 #include "unicode/utypes.h"
 
@@ -35,6 +45,7 @@ enum Key {
     PERIOD,
     STRICT_COMMA,
     STRICT_PERIOD,
+    APOSTROPHE_SIGN,
     OTHER_GROUPING_SEPARATORS,
     ALL_SEPARATORS,
     STRICT_ALL_SEPARATORS,
@@ -44,13 +55,14 @@ enum Key {
     PLUS_SIGN,
     PERCENT_SIGN,
     PERMILLE_SIGN,
-    INFINITY_KEY, // INFINITY is defined in cmath
+    INFINITY_SIGN,
 
     // Currency Symbols
     DOLLAR_SIGN,
     POUND_SIGN,
     RUPEE_SIGN,
-    YEN_SIGN, // not in CLDR data, but Currency.java wants it
+    YEN_SIGN,
+    WON_SIGN,
 
     // Other
     DIGITS,
@@ -60,7 +72,7 @@ enum Key {
     DIGITS_OR_STRICT_ALL_SEPARATORS,
 
     // The number of elements in the enum.
-    COUNT
+    UNISETS_KEY_COUNT
 };
 
 /**
@@ -68,6 +80,13 @@ enum Key {
  * pointer will be deleted during u_cleanup(); the caller should NOT delete it.
  *
  * Exported as U_COMMON_API for ucurr.cpp
+ *
+ * This method is always safe and OK to chain: in the case of a memory or other
+ * error, it returns an empty set from static memory.
+ *
+ * Example:
+ *
+ *     UBool hasIgnorables = unisets::get(unisets::DEFAULT_IGNORABLES)->contains(...);
  *
  * @param key The desired UnicodeSet according to the enum in this file.
  * @return The requested UnicodeSet. Guaranteed to be frozen and non-null, but
@@ -99,6 +118,7 @@ U_COMMON_API Key chooseFrom(UnicodeString str, Key key1);
  */
 U_COMMON_API Key chooseFrom(UnicodeString str, Key key1, Key key2);
 
+// TODO: Load these from data: ICU-20108
 // Unused in C++:
 // Key chooseCurrency(UnicodeString str);
 // Used instead:
@@ -108,8 +128,9 @@ static const struct {
 } kCurrencyEntries[] = {
     {DOLLAR_SIGN, u'$'},
     {POUND_SIGN, u'£'},
-    {RUPEE_SIGN, u'₨'},
+    {RUPEE_SIGN, u'₹'},
     {YEN_SIGN, u'¥'},
+    {WON_SIGN, u'₩'},
 };
 
 } // namespace unisets

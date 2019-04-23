@@ -142,19 +142,19 @@ public:
 
     UBool equals(const UVector &other) const;
 
-    void* firstElement(void) const;
+    inline void* firstElement(void) const;
 
-    void* lastElement(void) const;
+    inline void* lastElement(void) const;
 
-    int32_t lastElementi(void) const;
+    inline int32_t lastElementi(void) const;
 
     int32_t indexOf(void* obj, int32_t startIndex = 0) const;
 
     int32_t indexOf(int32_t obj, int32_t startIndex = 0) const;
 
-    UBool contains(void* obj) const;
+    inline UBool contains(void* obj) const;
 
-    UBool contains(int32_t obj) const;
+    inline UBool contains(int32_t obj) const;
 
     UBool containsAll(const UVector& other) const;
 
@@ -168,9 +168,9 @@ public:
 
     void removeAllElements();
 
-    int32_t size(void) const;
+    inline int32_t size(void) const;
 
-    UBool isEmpty(void) const;
+    inline UBool isEmpty(void) const;
 
     UBool ensureCapacity(int32_t minimumCapacity, UErrorCode &status);
 
@@ -195,7 +195,7 @@ public:
 
     UElementsAreEqual *setComparer(UElementsAreEqual *c);
 
-    void* operator[](int32_t index) const;
+    inline void* operator[](int32_t index) const;
 
     /**
      * Removes the element at the given index from this vector and
@@ -309,19 +309,19 @@ public:
     // It's okay not to have a virtual destructor (in UVector)
     // because UStack has no special cleanup to do.
 
-    UBool empty(void) const;
+    inline UBool empty(void) const;
 
-    void* peek(void) const;
+    inline void* peek(void) const;
 
-    int32_t peeki(void) const;
+    inline int32_t peeki(void) const;
 
     void* pop(void);
 
     int32_t popi(void);
 
-    void* push(void* obj, UErrorCode &status);
+    inline void* push(void* obj, UErrorCode &status);
 
-    int32_t push(int32_t i, UErrorCode &status);
+    inline int32_t push(int32_t i, UErrorCode &status);
 
     /*
     If the object o occurs as an item in this stack,

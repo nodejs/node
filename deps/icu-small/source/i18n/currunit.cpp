@@ -18,8 +18,10 @@
 #include "unicode/ustring.h"
 #include "cstring.h"
 #include "uinvchar.h"
+#include "charstr.h"
 
 static constexpr char16_t kDefaultCurrency[] = u"XXX";
+static constexpr char kDefaultCurrency8[] = "XXX";
 
 U_NAMESPACE_BEGIN
 
@@ -48,6 +50,30 @@ CurrencyUnit::CurrencyUnit(ConstChar16Ptr _isoCode, UErrorCode& ec) {
     char simpleIsoCode[4];
     u_UCharsToChars(isoCode, simpleIsoCode, 4);
     initCurrency(simpleIsoCode);
+}
+
+CurrencyUnit::CurrencyUnit(StringPiece _isoCode, UErrorCode& ec) {
+    // Note: unlike the old constructor, reject empty arguments with an error.
+    char isoCodeBuffer[4];
+    const char* isoCodeToUse;
+    // uprv_memchr checks that the string contains no internal NULs
+    if (_isoCode.length() != 3 || uprv_memchr(_isoCode.data(), 0, 3) != nullptr) {
+        isoCodeToUse = kDefaultCurrency8;
+        ec = U_ILLEGAL_ARGUMENT_ERROR;
+    } else if (!uprv_isInvariantString(_isoCode.data(), 3)) {
+        // TODO: Perform a more strict ASCII check like in ICU4J isAlpha3Code?
+        isoCodeToUse = kDefaultCurrency8;
+        ec = U_INVARIANT_CONVERSION_ERROR;
+    } else {
+        // Have to use isoCodeBuffer to ensure the string is NUL-terminated
+        uprv_strncpy(isoCodeBuffer, _isoCode.data(), 3);
+        isoCodeBuffer[3] = 0;
+        isoCodeToUse = isoCodeBuffer;
+    }
+    // TODO: Perform uppercasing here like in ICU4J Currency.getInstance()?
+    u_charsToUChars(isoCodeToUse, isoCode, 3);
+    isoCode[3] = 0;
+    initCurrency(isoCodeToUse);
 }
 
 CurrencyUnit::CurrencyUnit(const CurrencyUnit& other) : MeasureUnit(other) {

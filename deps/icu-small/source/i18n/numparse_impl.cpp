@@ -72,7 +72,7 @@ NumberParserImpl::createSimpleParser(const Locale& locale, const UnicodeString& 
     parser->addMatcher(parser->fLocalMatchers.padding = {u"@"});
     parser->addMatcher(parser->fLocalMatchers.scientific = {symbols, grouper});
     parser->addMatcher(parser->fLocalMatchers.currency = {currencySymbols, symbols, parseFlags, status});
-//    parser.addMatcher(new RequireNumberMatcher());
+    parser->addMatcher(parser->fLocalValidators.number = {});
 
     parser->freeze();
     return parser.orphan();
@@ -252,9 +252,13 @@ void NumberParserImpl::parse(const UnicodeString& input, int32_t start, bool gre
     StringSegment segment(input, 0 != (fParseFlags & PARSE_FLAG_IGNORE_CASE));
     segment.adjustOffset(start);
     if (greedy) {
-        parseGreedyRecursive(segment, result, status);
+        parseGreedy(segment, result, status);
+    } else if (0 != (fParseFlags & PARSE_FLAG_ALLOW_INFINITE_RECURSION)) {
+        // Start at 1 so that recursionLevels never gets to 0
+        parseLongestRecursive(segment, result, 1, status);
     } else {
-        parseLongestRecursive(segment, result, status);
+        // Arbitrary recursion safety limit: 100 levels.
+        parseLongestRecursive(segment, result, -100, status);
     }
     for (int32_t i = 0; i < fNumMatchers; i++) {
         fMatchers[i]->postProcess(result);
@@ -262,41 +266,50 @@ void NumberParserImpl::parse(const UnicodeString& input, int32_t start, bool gre
     result.postProcess();
 }
 
-void NumberParserImpl::parseGreedyRecursive(StringSegment& segment, ParsedNumber& result,
+void NumberParserImpl::parseGreedy(StringSegment& segment, ParsedNumber& result,
                                             UErrorCode& status) const {
-    // Base Case
-    if (segment.length() == 0) {
-        return;
-    }
-
-    int initialOffset = segment.getOffset();
-    for (int32_t i = 0; i < fNumMatchers; i++) {
+    // Note: this method is not recursive in order to avoid stack overflow.
+    for (int i = 0; i <fNumMatchers;) {
+        // Base Case
+        if (segment.length() == 0) {
+            return;
+        }
         const NumberParseMatcher* matcher = fMatchers[i];
         if (!matcher->smokeTest(segment)) {
+            // Matcher failed smoke test: try the next one
+            i++;
             continue;
         }
+        int32_t initialOffset = segment.getOffset();
         matcher->match(segment, result, status);
         if (U_FAILURE(status)) {
             return;
         }
         if (segment.getOffset() != initialOffset) {
-            // In a greedy parse, recurse on only the first match.
-            parseGreedyRecursive(segment, result, status);
-            // The following line resets the offset so that the StringSegment says the same across
-            // the function
-            // call boundary. Since we recurse only once, this line is not strictly necessary.
-            segment.setOffset(initialOffset);
-            return;
+            // Greedy heuristic: accept the match and loop back
+            i = 0;
+            continue;
+        } else {
+            // Matcher did not match: try the next one
+            i++;
+            continue;
         }
+        UPRV_UNREACHABLE;
     }
 
     // NOTE: If we get here, the greedy parse completed without consuming the entire string.
 }
 
 void NumberParserImpl::parseLongestRecursive(StringSegment& segment, ParsedNumber& result,
+                                             int32_t recursionLevels,
                                              UErrorCode& status) const {
     // Base Case
     if (segment.length() == 0) {
+        return;
+    }
+
+    // Safety against stack overflow
+    if (recursionLevels == 0) {
         return;
     }
 
@@ -326,7 +339,7 @@ void NumberParserImpl::parseLongestRecursive(StringSegment& segment, ParsedNumbe
 
             // If the entire segment was consumed, recurse.
             if (segment.getOffset() - initialOffset == charsToConsume) {
-                parseLongestRecursive(segment, candidate, status);
+                parseLongestRecursive(segment, candidate, recursionLevels + 1, status);
                 if (U_FAILURE(status)) {
                     return;
                 }

@@ -34,8 +34,11 @@
 #include "unicode/utypes.h"
 #if !UCONFIG_NO_FORMATTING
 
-#include <limits.h>
-#include <math.h>
+// ICU PATCH: Do not include std::locale.
+
+#include <climits>
+//#include <locale>
+#include <cmath>
 
 // ICU PATCH: Customize header file paths for ICU.
 // The file fixed-dtoa.h is not needed.
@@ -432,21 +435,60 @@ void DoubleToStringConverter::DoubleToAscii(double v,
 }
 
 
-// Consumes the given substring from the iterator.
-// Returns false, if the substring does not match.
-template <class Iterator>
-static bool ConsumeSubString(Iterator* current,
-                             Iterator end,
-                             const char* substring) {
-  ASSERT(**current == *substring);
+namespace {
+
+inline char ToLower(char ch) {
+#if 0  // do not include std::locale in ICU
+  static const std::ctype<char>& cType =
+      std::use_facet<std::ctype<char> >(std::locale::classic());
+  return cType.tolower(ch);
+#else
+  (void)ch;
+  UNREACHABLE();
+#endif
+}
+
+inline char Pass(char ch) {
+  return ch;
+}
+
+template <class Iterator, class Converter>
+static inline bool ConsumeSubStringImpl(Iterator* current,
+                                        Iterator end,
+                                        const char* substring,
+                                        Converter converter) {
+  ASSERT(converter(**current) == *substring);
   for (substring++; *substring != '\0'; substring++) {
     ++*current;
-    if (*current == end || **current != *substring) return false;
+    if (*current == end || converter(**current) != *substring) {
+      return false;
+    }
   }
   ++*current;
   return true;
 }
 
+// Consumes the given substring from the iterator.
+// Returns false, if the substring does not match.
+template <class Iterator>
+static bool ConsumeSubString(Iterator* current,
+                             Iterator end,
+                             const char* substring,
+                             bool allow_case_insensibility) {
+  if (allow_case_insensibility) {
+    return ConsumeSubStringImpl(current, end, substring, ToLower);
+  } else {
+    return ConsumeSubStringImpl(current, end, substring, Pass);
+  }
+}
+
+// Consumes first character of the str is equal to ch
+inline bool ConsumeFirstCharacter(char ch,
+                                         const char* str,
+                                         bool case_insensibility) {
+  return case_insensibility ? ToLower(ch) == str[0] : ch == str[0];
+}
+}  // namespace
 
 // Maximum number of significant digits in decimal representation.
 // The longest possible double in decimal representation is
@@ -513,7 +555,7 @@ static double SignedZero(bool sign) {
 // because it constant-propagated the radix and concluded that the last
 // condition was always true. By moving it into a separate function the
 // compiler wouldn't warn anymore.
-#if _MSC_VER
+#ifdef _MSC_VER
 #pragma optimize("",off)
 static bool IsDecimalDigitForRadix(int c, int radix) {
   return '0' <= c && c <= '9' && (c - '0') < radix;
@@ -521,7 +563,7 @@ static bool IsDecimalDigitForRadix(int c, int radix) {
 #pragma optimize("",on)
 #else
 static bool inline IsDecimalDigitForRadix(int c, int radix) {
-	return '0' <= c && c <= '9' && (c - '0') < radix;
+  return '0' <= c && c <= '9' && (c - '0') < radix;
 }
 #endif
 // Returns true if 'c' is a character digit that is valid for the given radix.
@@ -535,17 +577,86 @@ static bool IsCharacterDigitForRadix(int c, int radix, char a_character) {
   return radix > 10 && c >= a_character && c < a_character + radix - 10;
 }
 
+// Returns true, when the iterator is equal to end.
+template<class Iterator>
+static bool Advance (Iterator* it, uc16 separator, int base, Iterator& end) {
+  if (separator == StringToDoubleConverter::kNoSeparator) {
+    ++(*it);
+    return *it == end;
+  }
+  if (!isDigit(**it, base)) {
+    ++(*it);
+    return *it == end;
+  }
+  ++(*it);
+  if (*it == end) return true;
+  if (*it + 1 == end) return false;
+  if (**it == separator && isDigit(*(*it + 1), base)) {
+    ++(*it);
+  }
+  return *it == end;
+}
+
+// Checks whether the string in the range start-end is a hex-float string.
+// This function assumes that the leading '0x'/'0X' is already consumed.
+//
+// Hex float strings are of one of the following forms:
+//   - hex_digits+ 'p' ('+'|'-')? exponent_digits+
+//   - hex_digits* '.' hex_digits+ 'p' ('+'|'-')? exponent_digits+
+//   - hex_digits+ '.' 'p' ('+'|'-')? exponent_digits+
+template<class Iterator>
+static bool IsHexFloatString(Iterator start,
+                             Iterator end,
+                             uc16 separator,
+                             bool allow_trailing_junk) {
+  ASSERT(start != end);
+
+  Iterator current = start;
+
+  bool saw_digit = false;
+  while (isDigit(*current, 16)) {
+    saw_digit = true;
+    if (Advance(&current, separator, 16, end)) return false;
+  }
+  if (*current == '.') {
+    if (Advance(&current, separator, 16, end)) return false;
+    while (isDigit(*current, 16)) {
+      saw_digit = true;
+      if (Advance(&current, separator, 16, end)) return false;
+    }
+    if (!saw_digit) return false;  // Only the '.', but no digits.
+  }
+  if (*current != 'p' && *current != 'P') return false;
+  if (Advance(&current, separator, 16, end)) return false;
+  if (*current == '+' || *current == '-') {
+    if (Advance(&current, separator, 16, end)) return false;
+  }
+  if (!isDigit(*current, 10)) return false;
+  if (Advance(&current, separator, 16, end)) return true;
+  while (isDigit(*current, 10)) {
+    if (Advance(&current, separator, 16, end)) return true;
+  }
+  return allow_trailing_junk || !AdvanceToNonspace(&current, end);
+}
+
 
 // Parsing integers with radix 2, 4, 8, 16, 32. Assumes current != end.
+//
+// If parse_as_hex_float is true, then the string must be a valid
+// hex-float.
 template <int radix_log_2, class Iterator>
 static double RadixStringToIeee(Iterator* current,
                                 Iterator end,
                                 bool sign,
+                                uc16 separator,
+                                bool parse_as_hex_float,
                                 bool allow_trailing_junk,
                                 double junk_string_value,
                                 bool read_as_double,
                                 bool* result_is_junk) {
   ASSERT(*current != end);
+  ASSERT(!parse_as_hex_float ||
+      IsHexFloatString(*current, end, separator, allow_trailing_junk));
 
   const int kDoubleSize = Double::kSignificandSize;
   const int kSingleSize = Single::kSignificandSize;
@@ -553,27 +664,39 @@ static double RadixStringToIeee(Iterator* current,
 
   *result_is_junk = true;
 
+  int64_t number = 0;
+  int exponent = 0;
+  const int radix = (1 << radix_log_2);
+  // Whether we have encountered a '.' and are parsing the decimal digits.
+  // Only relevant if parse_as_hex_float is true.
+  bool post_decimal = false;
+
   // Skip leading 0s.
   while (**current == '0') {
-    ++(*current);
-    if (*current == end) {
+    if (Advance(current, separator, radix, end)) {
       *result_is_junk = false;
       return SignedZero(sign);
     }
   }
 
-  int64_t number = 0;
-  int exponent = 0;
-  const int radix = (1 << radix_log_2);
-
-  do {
+  while (true) {
     int digit;
     if (IsDecimalDigitForRadix(**current, radix)) {
       digit = static_cast<char>(**current) - '0';
+      if (post_decimal) exponent -= radix_log_2;
     } else if (IsCharacterDigitForRadix(**current, radix, 'a')) {
       digit = static_cast<char>(**current) - 'a' + 10;
+      if (post_decimal) exponent -= radix_log_2;
     } else if (IsCharacterDigitForRadix(**current, radix, 'A')) {
       digit = static_cast<char>(**current) - 'A' + 10;
+      if (post_decimal) exponent -= radix_log_2;
+    } else if (parse_as_hex_float && **current == '.') {
+      post_decimal = true;
+      Advance(current, separator, radix, end);
+      ASSERT(*current != end);
+      continue;
+    } else if (parse_as_hex_float && (**current == 'p' || **current == 'P')) {
+      break;
     } else {
       if (allow_trailing_junk || !AdvanceToNonspace(current, end)) {
         break;
@@ -596,17 +719,26 @@ static double RadixStringToIeee(Iterator* current,
       int dropped_bits_mask = ((1 << overflow_bits_count) - 1);
       int dropped_bits = static_cast<int>(number) & dropped_bits_mask;
       number >>= overflow_bits_count;
-      exponent = overflow_bits_count;
+      exponent += overflow_bits_count;
 
       bool zero_tail = true;
       for (;;) {
-        ++(*current);
-        if (*current == end || !isDigit(**current, radix)) break;
+        if (Advance(current, separator, radix, end)) break;
+        if (parse_as_hex_float && **current == '.') {
+          // Just run over the '.'. We are just trying to see whether there is
+          // a non-zero digit somewhere.
+          Advance(current, separator, radix, end);
+          ASSERT(*current != end);
+          post_decimal = true;
+        }
+        if (!isDigit(**current, radix)) break;
         zero_tail = zero_tail && **current == '0';
-        exponent += radix_log_2;
+        if (!post_decimal) exponent += radix_log_2;
       }
 
-      if (!allow_trailing_junk && AdvanceToNonspace(current, end)) {
+      if (!parse_as_hex_float &&
+          !allow_trailing_junk &&
+          AdvanceToNonspace(current, end)) {
         return junk_string_value;
       }
 
@@ -628,15 +760,37 @@ static double RadixStringToIeee(Iterator* current,
       }
       break;
     }
-    ++(*current);
-  } while (*current != end);
+    if (Advance(current, separator, radix, end)) break;
+  }
 
   ASSERT(number < ((int64_t)1 << kSignificandSize));
   ASSERT(static_cast<int64_t>(static_cast<double>(number)) == number);
 
   *result_is_junk = false;
 
-  if (exponent == 0) {
+  if (parse_as_hex_float) {
+    ASSERT(**current == 'p' || **current == 'P');
+    Advance(current, separator, radix, end);
+    ASSERT(*current != end);
+    bool is_negative = false;
+    if (**current == '+') {
+      Advance(current, separator, radix, end);
+      ASSERT(*current != end);
+    } else if (**current == '-') {
+      is_negative = true;
+      Advance(current, separator, radix, end);
+      ASSERT(*current != end);
+    }
+    int written_exponent = 0;
+    while (IsDecimalDigitForRadix(**current, 10)) {
+      written_exponent = 10 * written_exponent + **current - '0';
+      if (Advance(current, separator, radix, end)) break;
+    }
+    if (is_negative) written_exponent = -written_exponent;
+    exponent += written_exponent;
+  }
+
+  if (exponent == 0 || number == 0) {
     if (sign) {
       if (number == 0) return -0.0;
       number = -number;
@@ -645,7 +799,8 @@ static double RadixStringToIeee(Iterator* current,
   }
 
   ASSERT(number != 0);
-  return Double(DiyFp(number, exponent)).value();
+  double result = Double(DiyFp(number, exponent)).value();
+  return sign ? -result : result;
 }
 
 template <class Iterator>
@@ -663,6 +818,7 @@ double StringToDoubleConverter::StringToIeee(
   const bool allow_leading_spaces = (flags_ & ALLOW_LEADING_SPACES) != 0;
   const bool allow_trailing_spaces = (flags_ & ALLOW_TRAILING_SPACES) != 0;
   const bool allow_spaces_after_sign = (flags_ & ALLOW_SPACES_AFTER_SIGN) != 0;
+  const bool allow_case_insensibility = (flags_ & ALLOW_CASE_INSENSIBILITY) != 0;
 
   // To make sure that iterator dereferencing is valid the following
   // convention is used:
@@ -712,8 +868,8 @@ double StringToDoubleConverter::StringToIeee(
   }
 
   if (infinity_symbol_ != NULL) {
-    if (*current == infinity_symbol_[0]) {
-      if (!ConsumeSubString(&current, end, infinity_symbol_)) {
+    if (ConsumeFirstCharacter(*current, infinity_symbol_, allow_case_insensibility)) {
+      if (!ConsumeSubString(&current, end, infinity_symbol_, allow_case_insensibility)) {
         return junk_string_value_;
       }
 
@@ -731,8 +887,8 @@ double StringToDoubleConverter::StringToIeee(
   }
 
   if (nan_symbol_ != NULL) {
-    if (*current == nan_symbol_[0]) {
-      if (!ConsumeSubString(&current, end, nan_symbol_)) {
+    if (ConsumeFirstCharacter(*current, nan_symbol_, allow_case_insensibility)) {
+      if (!ConsumeSubString(&current, end, nan_symbol_, allow_case_insensibility)) {
         return junk_string_value_;
       }
 
@@ -751,8 +907,7 @@ double StringToDoubleConverter::StringToIeee(
 
   bool leading_zero = false;
   if (*current == '0') {
-    ++current;
-    if (current == end) {
+    if (Advance(&current, separator_, 10, end)) {
       *processed_characters_count = static_cast<int>(current - input);
       return SignedZero(sign);
     }
@@ -760,16 +915,24 @@ double StringToDoubleConverter::StringToIeee(
     leading_zero = true;
 
     // It could be hexadecimal value.
-    if ((flags_ & ALLOW_HEX) && (*current == 'x' || *current == 'X')) {
+    if (((flags_ & ALLOW_HEX) || (flags_ & ALLOW_HEX_FLOATS)) &&
+        (*current == 'x' || *current == 'X')) {
       ++current;
-      if (current == end || !isDigit(*current, 16)) {
-        return junk_string_value_;  // "0x".
+
+      bool parse_as_hex_float = (flags_ & ALLOW_HEX_FLOATS) &&
+                IsHexFloatString(current, end, separator_, allow_trailing_junk);
+
+      if (current == end) return junk_string_value_;  // "0x"
+      if (!parse_as_hex_float && !isDigit(*current, 16)) {
+        return junk_string_value_;
       }
 
       bool result_is_junk;
       double result = RadixStringToIeee<4>(&current,
                                            end,
                                            sign,
+                                           separator_,
+                                           parse_as_hex_float,
                                            allow_trailing_junk,
                                            junk_string_value_,
                                            read_as_double,
@@ -783,8 +946,7 @@ double StringToDoubleConverter::StringToIeee(
 
     // Ignore leading zeros in the integer part.
     while (*current == '0') {
-      ++current;
-      if (current == end) {
+      if (Advance(&current, separator_, 10, end)) {
         *processed_characters_count = static_cast<int>(current - input);
         return SignedZero(sign);
       }
@@ -805,8 +967,7 @@ double StringToDoubleConverter::StringToIeee(
       nonzero_digit_dropped = nonzero_digit_dropped || *current != '0';
     }
     octal = octal && *current < '8';
-    ++current;
-    if (current == end) goto parsing_done;
+    if (Advance(&current, separator_, 10, end)) goto parsing_done;
   }
 
   if (significant_digits == 0) {
@@ -817,8 +978,7 @@ double StringToDoubleConverter::StringToIeee(
     if (octal && !allow_trailing_junk) return junk_string_value_;
     if (octal) goto parsing_done;
 
-    ++current;
-    if (current == end) {
+    if (Advance(&current, separator_, 10, end)) {
       if (significant_digits == 0 && !leading_zero) {
         return junk_string_value_;
       } else {
@@ -831,8 +991,7 @@ double StringToDoubleConverter::StringToIeee(
       // Integer part consists of 0 or is absent. Significant digits start after
       // leading zeros (if any).
       while (*current == '0') {
-        ++current;
-        if (current == end) {
+        if (Advance(&current, separator_, 10, end)) {
           *processed_characters_count = static_cast<int>(current - input);
           return SignedZero(sign);
         }
@@ -852,8 +1011,7 @@ double StringToDoubleConverter::StringToIeee(
         // Ignore insignificant digits in the fractional part.
         nonzero_digit_dropped = nonzero_digit_dropped || *current != '0';
       }
-      ++current;
-      if (current == end) goto parsing_done;
+      if (Advance(&current, separator_, 10, end)) goto parsing_done;
     }
   }
 
@@ -869,9 +1027,11 @@ double StringToDoubleConverter::StringToIeee(
   if (*current == 'e' || *current == 'E') {
     if (octal && !allow_trailing_junk) return junk_string_value_;
     if (octal) goto parsing_done;
+    Iterator junk_begin = current;
     ++current;
     if (current == end) {
       if (allow_trailing_junk) {
+        current = junk_begin;
         goto parsing_done;
       } else {
         return junk_string_value_;
@@ -883,6 +1043,7 @@ double StringToDoubleConverter::StringToIeee(
       ++current;
       if (current == end) {
         if (allow_trailing_junk) {
+          current = junk_begin;
           goto parsing_done;
         } else {
           return junk_string_value_;
@@ -892,6 +1053,7 @@ double StringToDoubleConverter::StringToIeee(
 
     if (current == end || *current < '0' || *current > '9') {
       if (allow_trailing_junk) {
+        current = junk_begin;
         goto parsing_done;
       } else {
         return junk_string_value_;
@@ -936,6 +1098,8 @@ double StringToDoubleConverter::StringToIeee(
     result = RadixStringToIeee<3>(&start,
                                   buffer + buffer_pos,
                                   sign,
+                                  separator_,
+                                  false, // Don't parse as hex_float.
                                   allow_trailing_junk,
                                   junk_string_value_,
                                   read_as_double,

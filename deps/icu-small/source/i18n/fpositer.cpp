@@ -65,10 +65,10 @@ void FieldPositionIterator::setData(UVector32 *adopt, UErrorCode& status) {
       if (adopt->size() == 0) {
         delete adopt;
         adopt = NULL;
-      } else if ((adopt->size() % 3) != 0) {
+      } else if ((adopt->size() % 4) != 0) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
       } else {
-        for (int i = 1; i < adopt->size(); i += 3) {
+        for (int i = 2; i < adopt->size(); i += 4) {
           if (adopt->elementAti(i) >= adopt->elementAti(i+1)) {
             status = U_ILLEGAL_ARGUMENT_ERROR;
             break;
@@ -95,6 +95,8 @@ UBool FieldPositionIterator::next(FieldPosition& fp) {
     return FALSE;
   }
 
+  // Ignore the first element of the tetrad: used for field category
+  pos++;
   fp.setField(data->elementAti(pos++));
   fp.setBeginIndex(data->elementAti(pos++));
   fp.setEndIndex(data->elementAti(pos++));

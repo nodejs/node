@@ -230,7 +230,10 @@ static const int32_t gFieldRangeBias[] = {
 static const int32_t HEBREW_CAL_CUR_MILLENIUM_START_YEAR = 5000;
 static const int32_t HEBREW_CAL_CUR_MILLENIUM_END_YEAR = 6000;
 
-static UMutex LOCK = U_MUTEX_INITIALIZER;
+static UMutex *LOCK() {
+    static UMutex m = U_MUTEX_INITIALIZER;
+    return &m;
+}
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(SimpleDateFormat)
 
@@ -856,6 +859,17 @@ SimpleDateFormat::initialize(const Locale& locale,
 {
     if (U_FAILURE(status)) return;
 
+    parsePattern(); // Need this before initNumberFormatters(), to set fHasHanYearChar
+
+    // Simple-minded hack to force Gannen year numbering for ja@calendar=japanese
+    // if format is non-numeric (includes 年) and fDateOverride is not already specified.
+    // Now this does get updated if applyPattern subsequently changes the pattern type.
+    if (fDateOverride.isBogus() && fHasHanYearChar &&
+            fCalendar != nullptr && uprv_strcmp(fCalendar->getType(),"japanese") == 0 &&
+            uprv_strcmp(fLocale.getLanguage(),"ja") == 0) {
+        fDateOverride.setTo(u"y=jpanyear", -1);
+    }
+
     // We don't need to check that the row count is >= 1, since all 2d arrays have at
     // least one row
     fNumberFormat = NumberFormat::createInstance(locale, status);
@@ -872,8 +886,6 @@ SimpleDateFormat::initialize(const Locale& locale,
     {
         status = U_MISSING_RESOURCE_ERROR;
     }
-
-    parsePattern();
 }
 
 /* Initialize the fields we use to disambiguate ambiguous years. Separate
@@ -1254,14 +1266,14 @@ SimpleDateFormat::initNumberFormatters(const Locale &locale,UErrorCode &status) 
     if ( fDateOverride.isBogus() && fTimeOverride.isBogus() ) {
         return;
     }
-    umtx_lock(&LOCK);
+    umtx_lock(LOCK());
     if (fSharedNumberFormatters == NULL) {
         fSharedNumberFormatters = allocSharedNumberFormatters();
         if (fSharedNumberFormatters == NULL) {
             status = U_MEMORY_ALLOCATION_ERROR;
         }
     }
-    umtx_unlock(&LOCK);
+    umtx_unlock(LOCK());
 
     if (U_FAILURE(status)) {
         return;
@@ -1778,7 +1790,7 @@ SimpleDateFormat::subFormat(UnicodeString &appendTo,
                     }
                 }
                 else {
-                    U_ASSERT(FALSE);
+                    UPRV_UNREACHABLE;
                 }
             }
             appendTo += zoneString;
@@ -1950,7 +1962,8 @@ SimpleDateFormat::subFormat(UnicodeString &appendTo,
     }
 #if !UCONFIG_NO_BREAK_ITERATION
     // if first field, check to see whether we need to and are able to titlecase it
-    if (fieldNum == 0 && u_islower(appendTo.char32At(beginOffset)) && fCapitalizationBrkIter != NULL) {
+    if (fieldNum == 0 && fCapitalizationBrkIter != NULL && appendTo.length() > beginOffset &&
+            u_islower(appendTo.char32At(beginOffset))) {
         UBool titlecase = FALSE;
         switch (capitalizationContext) {
             case UDISPCTX_CAPITALIZATION_FOR_BEGINNING_OF_SENTENCE:
@@ -2079,7 +2092,7 @@ SimpleDateFormat::zeroPaddingNumber(
         if (U_FAILURE(localStatus)) {
             return;
         }
-        appendTo.append(result.string.toTempUnicodeString());
+        appendTo.append(result.getStringRef().toTempUnicodeString());
         return;
     }
 
@@ -3872,6 +3885,42 @@ SimpleDateFormat::applyPattern(const UnicodeString& pattern)
 {
     fPattern = pattern;
     parsePattern();
+
+    // Hack to update use of Gannen year numbering for ja@calendar=japanese -
+    // use only if format is non-numeric (includes 年) and no other fDateOverride.
+    if (fCalendar != nullptr && uprv_strcmp(fCalendar->getType(),"japanese") == 0 &&
+            uprv_strcmp(fLocale.getLanguage(),"ja") == 0) {
+        if (fDateOverride==UnicodeString(u"y=jpanyear") && !fHasHanYearChar) {
+            // Gannen numbering is set but new pattern should not use it, unset;
+            // use procedure from adoptNumberFormat to clear overrides
+            if (fSharedNumberFormatters) {
+                freeSharedNumberFormatters(fSharedNumberFormatters);
+                fSharedNumberFormatters = NULL;
+            }
+            fDateOverride.setToBogus(); // record status
+        } else if (fDateOverride.isBogus() && fHasHanYearChar) {
+            // No current override (=> no Gannen numbering) but new pattern needs it;
+            // use procedures from initNUmberFormatters / adoptNumberFormat
+            umtx_lock(LOCK());
+            if (fSharedNumberFormatters == NULL) {
+                fSharedNumberFormatters = allocSharedNumberFormatters();
+            }
+            umtx_unlock(LOCK());
+            if (fSharedNumberFormatters != NULL) {
+                Locale ovrLoc(fLocale.getLanguage(),fLocale.getCountry(),fLocale.getVariant(),"numbers=jpanyear");
+                UErrorCode status = U_ZERO_ERROR;
+                const SharedNumberFormat *snf = createSharedNumberFormat(ovrLoc, status);
+                if (U_SUCCESS(status)) {
+                    // Now that we have an appropriate number formatter, fill in the
+                    // appropriate slot in the number formatters table.
+                    UDateFormatField patternCharIndex = DateFormatSymbols::getPatternCharIndex(u'y');
+                    SharedObject::copyPtr(snf, fSharedNumberFormatters[patternCharIndex]);
+                    snf->deleteIfZeroRefCount();
+                    fDateOverride.setTo(u"y=jpanyear", -1); // record status
+                }
+            }
+        }
+    }
 }
 
 //----------------------------------------------------------------------
@@ -4188,7 +4237,7 @@ SimpleDateFormat::skipUWhiteSpace(const UnicodeString& text, int32_t pos) const 
 TimeZoneFormat *
 SimpleDateFormat::tzFormat(UErrorCode &status) const {
     if (fTimeZoneFormat == NULL) {
-        umtx_lock(&LOCK);
+        umtx_lock(LOCK());
         {
             if (fTimeZoneFormat == NULL) {
                 TimeZoneFormat *tzfmt = TimeZoneFormat::createInstance(fLocale, status);
@@ -4199,7 +4248,7 @@ SimpleDateFormat::tzFormat(UErrorCode &status) const {
                 const_cast<SimpleDateFormat *>(this)->fTimeZoneFormat = tzfmt;
             }
         }
-        umtx_unlock(&LOCK);
+        umtx_unlock(LOCK());
     }
     return fTimeZoneFormat;
 }
@@ -4207,6 +4256,7 @@ SimpleDateFormat::tzFormat(UErrorCode &status) const {
 void SimpleDateFormat::parsePattern() {
     fHasMinute = FALSE;
     fHasSecond = FALSE;
+    fHasHanYearChar = FALSE;
 
     int len = fPattern.length();
     UBool inQuote = FALSE;
@@ -4214,6 +4264,9 @@ void SimpleDateFormat::parsePattern() {
         UChar ch = fPattern[i];
         if (ch == QUOTE) {
             inQuote = !inQuote;
+        }
+        if (ch == 0x5E74) { // don't care whether this is inside quotes
+            fHasHanYearChar = TRUE;
         }
         if (!inQuote) {
             if (ch == 0x6D) {  // 0x6D == 'm'

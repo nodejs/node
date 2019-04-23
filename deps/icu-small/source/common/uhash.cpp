@@ -376,8 +376,7 @@ _uhash_find(const UHashtable *hash, UHashTok key,
          * WILL NEVER HAPPEN as long as uhash_put() makes sure that
          * count is always < length.
          */
-        U_ASSERT(FALSE);
-        return NULL; /* Never happens if uhash_put() behaves */
+        UPRV_UNREACHABLE;
     }
     return &(elements[theIndex]);
 }

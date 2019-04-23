@@ -23,11 +23,14 @@
 
 #include "unicode/unistr.h"
 #include "unicode/locid.h"
+#include "unicode/formattedvalue.h"
 
 U_NAMESPACE_BEGIN
 
 class FieldPositionIterator;
 class FieldPositionHandler;
+class FormattedListData;
+class ListFormatter;
 
 /** @internal */
 class Hashtable;
@@ -56,6 +59,81 @@ struct ListFormatData : public UMemory {
  * \file
  * \brief C++ API: API for formatting a list.
  */
+
+
+#if !UCONFIG_NO_FORMATTING
+#ifndef U_HIDE_DRAFT_API
+/**
+ * An immutable class containing the result of a list formatting operation.
+ *
+ * Instances of this class are immutable and thread-safe.
+ *
+ * When calling nextPosition():
+ * The fields are returned from start to end. The special field category
+ * UFIELD_CATEGORY_LIST_SPAN is used to indicate which argument
+ * was inserted at the given position. The span category will
+ * always occur before the corresponding instance of UFIELD_CATEGORY_LIST
+ * in the nextPosition() iterator.
+ *
+ * Not intended for public subclassing.
+ *
+ * @draft ICU 64
+ */
+class U_I18N_API FormattedList : public UMemory, public FormattedValue {
+  public:
+    /**
+     * Default constructor; makes an empty FormattedList.
+     * @draft ICU 64
+     */
+    FormattedList() : fData(nullptr), fErrorCode(U_INVALID_STATE_ERROR) {}
+
+    /**
+     * Move constructor: Leaves the source FormattedList in an undefined state.
+     * @draft ICU 64
+     */
+    FormattedList(FormattedList&& src) U_NOEXCEPT;
+
+    /**
+     * Destruct an instance of FormattedList.
+     * @draft ICU 64
+     */
+    virtual ~FormattedList() U_OVERRIDE;
+
+    /** Copying not supported; use move constructor instead. */
+    FormattedList(const FormattedList&) = delete;
+
+    /** Copying not supported; use move assignment instead. */
+    FormattedList& operator=(const FormattedList&) = delete;
+
+    /**
+     * Move assignment: Leaves the source FormattedList in an undefined state.
+     * @draft ICU 64
+     */
+    FormattedList& operator=(FormattedList&& src) U_NOEXCEPT;
+
+    /** @copydoc FormattedValue::toString() */
+    UnicodeString toString(UErrorCode& status) const U_OVERRIDE;
+
+    /** @copydoc FormattedValue::toTempString() */
+    UnicodeString toTempString(UErrorCode& status) const U_OVERRIDE;
+
+    /** @copydoc FormattedValue::appendTo() */
+    Appendable &appendTo(Appendable& appendable, UErrorCode& status) const U_OVERRIDE;
+
+    /** @copydoc FormattedValue::nextPosition() */
+    UBool nextPosition(ConstrainedFieldPosition& cfpos, UErrorCode& status) const U_OVERRIDE;
+
+  private:
+    FormattedListData *fData;
+    UErrorCode fErrorCode;
+    explicit FormattedList(FormattedListData *results)
+        : fData(results), fErrorCode(U_ZERO_ERROR) {}
+    explicit FormattedList(UErrorCode errorCode)
+        : fData(nullptr), fErrorCode(errorCode) {}
+    friend class ListFormatter;
+};
+#endif /* U_HIDE_DRAFT_API */
+#endif // !UCONFIG_NO_FORMATTING
 
 
 /**
@@ -110,7 +188,7 @@ class U_I18N_API ListFormatter : public UObject{
      * Creates a ListFormatter appropriate for a locale and style.
      *
      * @param locale The locale.
-     * @param style the style, either "standard", "duration", or "duration-short"
+     * @param style the style, either "standard", "or", "unit", "unit-narrow", or "unit-short"
      * @param errorCode ICU error code, set if no data available for the given locale.
      * @return A ListFormatter object created from internal data derived from
      *     CLDR data.
@@ -161,6 +239,26 @@ class U_I18N_API ListFormatter : public UObject{
         UErrorCode& errorCode) const;
 #endif  /* U_HIDE_DRAFT_API */
 
+#if !UCONFIG_NO_FORMATTING
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Formats a list of strings to a FormattedList, which exposes field
+     * position information. The FormattedList contains more information than
+     * a FieldPositionIterator.
+     *
+     * @param items     An array of strings to be combined and formatted.
+     * @param n_items   Length of the array items.
+     * @param errorCode ICU error code returned here.
+     * @return          A FormattedList containing field information.
+     * @draft ICU 64
+     */
+    FormattedList formatStringsToValue(
+        const UnicodeString items[],
+        int32_t n_items,
+        UErrorCode& errorCode) const;
+#endif  /* U_HIDE_DRAFT_API */
+#endif // !UCONFIG_NO_FORMATTING
+
 #ifndef U_HIDE_INTERNAL_API
     /**
       @internal for MeasureFormat
@@ -200,4 +298,4 @@ class U_I18N_API ListFormatter : public UObject{
 
 U_NAMESPACE_END
 
-#endif
+#endif // __LISTFORMATTER_H__

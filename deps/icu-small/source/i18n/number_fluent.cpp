@@ -151,7 +151,7 @@ Derived NumberFormatterSettings<Derived>::roundingMode(UNumberFormatRoundingMode
 }
 
 template<typename Derived>
-Derived NumberFormatterSettings<Derived>::grouping(UGroupingStrategy strategy) const& {
+Derived NumberFormatterSettings<Derived>::grouping(UNumberGroupingStrategy strategy) const& {
     Derived copy(*this);
     // NOTE: This is slightly different than how the setting is stored in Java
     // because we want to put it on the stack.
@@ -160,7 +160,7 @@ Derived NumberFormatterSettings<Derived>::grouping(UGroupingStrategy strategy) c
 }
 
 template<typename Derived>
-Derived NumberFormatterSettings<Derived>::grouping(UGroupingStrategy strategy)&& {
+Derived NumberFormatterSettings<Derived>::grouping(UNumberGroupingStrategy strategy)&& {
     Derived move(std::move(*this));
     move.fMacros.grouper = Grouper::forStrategy(strategy);
     return move;
@@ -322,10 +322,23 @@ Derived NumberFormatterSettings<Derived>::macros(impl::MacroProps&& macros)&& {
 
 template<typename Derived>
 UnicodeString NumberFormatterSettings<Derived>::toSkeleton(UErrorCode& status) const {
+    if (U_FAILURE(status)) {
+        return ICU_Utility::makeBogusString();
+    }
     if (fMacros.copyErrorTo(status)) {
         return ICU_Utility::makeBogusString();
     }
     return skeleton::generate(fMacros, status);
+}
+
+template<typename Derived>
+LocalPointer<Derived> NumberFormatterSettings<Derived>::clone() const & {
+    return LocalPointer<Derived>(new Derived(*this));
+}
+
+template<typename Derived>
+LocalPointer<Derived> NumberFormatterSettings<Derived>::clone() && {
+    return LocalPointer<Derived>(new Derived(std::move(*this)));
 }
 
 // Declare all classes that implement NumberFormatterSettings
@@ -347,7 +360,12 @@ LocalizedNumberFormatter NumberFormatter::withLocale(const Locale& locale) {
 
 UnlocalizedNumberFormatter
 NumberFormatter::forSkeleton(const UnicodeString& skeleton, UErrorCode& status) {
-    return skeleton::create(skeleton, status);
+    return skeleton::create(skeleton, nullptr, status);
+}
+
+UnlocalizedNumberFormatter
+NumberFormatter::forSkeleton(const UnicodeString& skeleton, UParseError& perror, UErrorCode& status) {
+    return skeleton::create(skeleton, &perror, status);
 }
 
 
@@ -666,10 +684,14 @@ LocalizedNumberFormatter::formatDecimalQuantity(const DecimalQuantity& dq, UErro
 
 void LocalizedNumberFormatter::formatImpl(impl::UFormattedNumberData* results, UErrorCode& status) const {
     if (computeCompiled(status)) {
-        fCompiled->format(results->quantity, results->string, status);
+        fCompiled->format(results->quantity, results->getStringRef(), status);
     } else {
-        NumberFormatterImpl::formatStatic(fMacros, results->quantity, results->string, status);
+        NumberFormatterImpl::formatStatic(fMacros, results->quantity, results->getStringRef(), status);
     }
+    if (U_FAILURE(status)) {
+        return;
+    }
+    results->getStringRef().writeTerminator(status);
 }
 
 void LocalizedNumberFormatter::getAffixImpl(bool isPrefix, bool isNegative, UnicodeString& result,
@@ -745,122 +767,13 @@ int32_t LocalizedNumberFormatter::getCallCount() const {
 }
 
 Format* LocalizedNumberFormatter::toFormat(UErrorCode& status) const {
+    if (U_FAILURE(status)) {
+        return nullptr;
+    }
     LocalPointer<LocalizedNumberFormatterAsFormat> retval(
             new LocalizedNumberFormatterAsFormat(*this, fMacros.locale), status);
     return retval.orphan();
 }
 
-
-FormattedNumber::FormattedNumber(FormattedNumber&& src) U_NOEXCEPT
-        : fResults(src.fResults), fErrorCode(src.fErrorCode) {
-    // Disown src.fResults to prevent double-deletion
-    src.fResults = nullptr;
-    src.fErrorCode = U_INVALID_STATE_ERROR;
-}
-
-FormattedNumber& FormattedNumber::operator=(FormattedNumber&& src) U_NOEXCEPT {
-    delete fResults;
-    fResults = src.fResults;
-    fErrorCode = src.fErrorCode;
-    // Disown src.fResults to prevent double-deletion
-    src.fResults = nullptr;
-    src.fErrorCode = U_INVALID_STATE_ERROR;
-    return *this;
-}
-
-UnicodeString FormattedNumber::toString() const {
-    UErrorCode localStatus = U_ZERO_ERROR;
-    return toString(localStatus);
-}
-
-UnicodeString FormattedNumber::toString(UErrorCode& status) const {
-    if (U_FAILURE(status)) {
-        return ICU_Utility::makeBogusString();
-    }
-    if (fResults == nullptr) {
-        status = fErrorCode;
-        return ICU_Utility::makeBogusString();
-    }
-    return fResults->string.toUnicodeString();
-}
-
-Appendable& FormattedNumber::appendTo(Appendable& appendable) {
-    UErrorCode localStatus = U_ZERO_ERROR;
-    return appendTo(appendable, localStatus);
-}
-
-Appendable& FormattedNumber::appendTo(Appendable& appendable, UErrorCode& status) const {
-    if (U_FAILURE(status)) {
-        return appendable;
-    }
-    if (fResults == nullptr) {
-        status = fErrorCode;
-        return appendable;
-    }
-    appendable.appendString(fResults->string.chars(), fResults->string.length());
-    return appendable;
-}
-
-void FormattedNumber::populateFieldPosition(FieldPosition& fieldPosition, UErrorCode& status) {
-    if (U_FAILURE(status)) {
-        return;
-    }
-    if (fResults == nullptr) {
-        status = fErrorCode;
-        return;
-    }
-    // in case any users were depending on the old behavior:
-    fieldPosition.setBeginIndex(0);
-    fieldPosition.setEndIndex(0);
-    fResults->string.nextFieldPosition(fieldPosition, status);
-}
-
-UBool FormattedNumber::nextFieldPosition(FieldPosition& fieldPosition, UErrorCode& status) const {
-    if (U_FAILURE(status)) {
-        return FALSE;
-    }
-    if (fResults == nullptr) {
-        status = fErrorCode;
-        return FALSE;
-    }
-    // NOTE: MSVC sometimes complains when implicitly converting between bool and UBool
-    return fResults->string.nextFieldPosition(fieldPosition, status) ? TRUE : FALSE;
-}
-
-void FormattedNumber::populateFieldPositionIterator(FieldPositionIterator& iterator, UErrorCode& status) {
-    getAllFieldPositions(iterator, status);
-}
-
-void FormattedNumber::getAllFieldPositions(FieldPositionIterator& iterator, UErrorCode& status) const {
-    FieldPositionIteratorHandler fpih(&iterator, status);
-    getAllFieldPositionsImpl(fpih, status);
-}
-
-void FormattedNumber::getAllFieldPositionsImpl(FieldPositionIteratorHandler& fpih,
-                                               UErrorCode& status) const {
-    if (U_FAILURE(status)) {
-        return;
-    }
-    if (fResults == nullptr) {
-        status = fErrorCode;
-        return;
-    }
-    fResults->string.getAllFieldPositions(fpih, status);
-}
-
-void FormattedNumber::getDecimalQuantity(DecimalQuantity& output, UErrorCode& status) const {
-    if (U_FAILURE(status)) {
-        return;
-    }
-    if (fResults == nullptr) {
-        status = fErrorCode;
-        return;
-    }
-    output = fResults->quantity;
-}
-
-FormattedNumber::~FormattedNumber() {
-    delete fResults;
-}
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
