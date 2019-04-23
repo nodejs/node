@@ -6,6 +6,7 @@
     'node_use_dtrace%': 'false',
     'node_use_etw%': 'false',
     'node_no_browser_globals%': 'false',
+    'node_use_node_snapshot%': 'false',
     'node_use_v8_platform%': 'true',
     'node_use_bundled_v8%': 'true',
     'node_shared%': 'false',
@@ -431,7 +432,7 @@
             'src/node_code_cache_stub.cc'
           ],
         }],
-        ['want_separate_host_toolset==0', {
+        ['node_use_node_snapshot=="true"', {
           'dependencies': [
             'node_mksnapshot',
           ],
