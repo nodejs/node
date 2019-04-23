@@ -190,13 +190,13 @@ is provided below for reference.
       "details": ""
     },
     {
-      "repeat": 0,
-      "firesInMsFromNow": 94403548320796,
-      "expired": true,
       "type": "timer",
       "is_active": false,
       "is_referenced": false,
-      "address": "0x00007fff5fbfeab0"
+      "address": "0x00007fff5fbfeab0",
+      "repeat": 0,
+      "firesInMsFromNow": 94403548320796,
+      "expired": true
     },
     {
       "type": "check",
@@ -229,36 +229,36 @@ is provided below for reference.
       "address": "0x000000010188f2e0"
     },
     {
+      "type": "tty",
+      "is_active": false,
+      "is_referenced": true,
+      "address": "0x000055b581db0e18",
       "width": 204,
       "height": 55,
       "fd": 17,
       "writeQueueSize": 0,
       "readable": true,
-      "writable": true,
-      "type": "tty",
-      "is_active": false,
-      "is_referenced": true,
-      "address": "0x000055b581db0e18"
+      "writable": true
     },
     {
-      "signum": 28,
-      "signal": "SIGWINCH",
       "type": "signal",
       "is_active": true,
       "is_referenced": false,
-      "address": "0x000055b581d80010"
+      "address": "0x000055b581d80010",
+      "signum": 28,
+      "signal": "SIGWINCH"
     },
     {
+      "type": "tty",
+      "is_active": true,
+      "is_referenced": true,
+      "address": "0x000055b581df59f8",
       "width": 204,
       "height": 55,
       "fd": 19,
       "writeQueueSize": 0,
       "readable": true,
-      "writable": true,
-      "type": "tty",
-      "is_active": true,
-      "is_referenced": true,
-      "address": "0x000055b581df59f8"
+      "writable": true
     },
     {
       "type": "loop",
