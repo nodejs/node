@@ -2893,7 +2893,7 @@ bn_powerx5:
 .align	32
 bn_sqrx8x_internal:
 __bn_sqrx8x_internal:
-.cfi_startproc
+.cfi_startproc	
 
 
 
@@ -3505,7 +3505,7 @@ __bn_sqrx8x_reduction:
 	cmpq	8+8(%rsp),%r8
 	jb	.Lsqrx8x_reduction_loop
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	bn_sqrx8x_internal,.-bn_sqrx8x_internal
 .align	32
 __bn_postx4x_internal:

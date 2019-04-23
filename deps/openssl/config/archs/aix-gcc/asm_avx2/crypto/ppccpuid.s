@@ -99,7 +99,7 @@ Ladd:	lwarx	5,0,3
 .align	4
 .OPENSSL_rdtsc_mftb:
 	mftb	3
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -281,7 +281,7 @@ Loop3:	mfspr	6,268
 	bc	16,0,Loop3
 
 	mr	3,4
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,2,0
 .long	0
@@ -333,7 +333,8 @@ Loop4:
 Ldone4:
 	srwi	4,4,2
 	sub	3,0,4
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,3,0
 .long	0
+
