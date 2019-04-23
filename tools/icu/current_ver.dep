@@ -1,14 +1,6 @@
 [
   {
-    "url": "https://github.com/unicode-org/icu/releases/download/release-63-1/icu4c-63_1-src.zip",
-    "md5": "d25bc38089db64668fd86f34b4aa9b93"
-  },
-  {
-    "url": "https://sourceforge.net/projects/icu/files/ICU4C/63.1/icu4c-63_1-src.zip",
-    "md5": "d25bc38089db64668fd86f34b4aa9b93"
-  },
-  {
-    "url": "https://download.icu-project.org/files/icu4c/63.1/icu4c-63_1-src.zip",
-    "md5": "d25bc38089db64668fd86f34b4aa9b93"
+    "url": "https://github.com/unicode-org/icu/releases/download/release-64-2/icu4c-64_2-src.tgz",
+    "md5": "a3d18213beec454e3cdec9a3116d6b05"
   }
 ]
