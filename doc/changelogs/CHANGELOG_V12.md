@@ -28,7 +28,7 @@
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
 
-<a id="11.0.0"></a>
+<a id="12.0.0"></a>
 ## 2019-04-23, Version 12.0.0 (Current), @BethGriggs
 
 ### Notable Changes
