@@ -33,6 +33,10 @@ const MB = KB * KB;
   grep = spawn('grep', ['x'], { stdio: [cat.stdout, 'pipe', 'pipe'] });
   wc = spawn('wc', ['-c'], { stdio: [grep.stdout, 'pipe', 'pipe'] });
 
+  // Extra checks: We never try to start reading data ourselves.
+  cat.stdout._handle.readStart = common.mustNotCall();
+  grep.stdout._handle.readStart = common.mustNotCall();
+
   [cat, grep, wc].forEach((child, index) => {
     child.stderr.on('data', (d) => {
       // Don't want to assert here, as we might miss error code info.
