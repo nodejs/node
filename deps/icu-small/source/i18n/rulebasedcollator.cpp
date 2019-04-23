@@ -1554,11 +1554,7 @@ RuleBasedCollator::internalGetShortDefinitionString(const char *locale,
                                                   "collation", locale,
                                                   NULL, &errorCode);
     if(U_FAILURE(errorCode)) { return 0; }
-    if(length == 0) {
-        uprv_strcpy(resultLocale, "root");
-    } else {
-        resultLocale[length] = 0;
-    }
+    resultLocale[length] = 0;
 
     // Append items in alphabetic order of their short definition letters.
     CharString result;
@@ -1585,7 +1581,11 @@ RuleBasedCollator::internalGetShortDefinitionString(const char *locale,
     length = uloc_getKeywordValue(resultLocale, "collation", subtag, UPRV_LENGTHOF(subtag), &errorCode);
     appendSubtag(result, 'K', subtag, length, errorCode);
     length = uloc_getLanguage(resultLocale, subtag, UPRV_LENGTHOF(subtag), &errorCode);
-    appendSubtag(result, 'L', subtag, length, errorCode);
+    if (length == 0) {
+        appendSubtag(result, 'L', "root", 4, errorCode);
+    } else {
+        appendSubtag(result, 'L', subtag, length, errorCode);
+    }
     if(attributeHasBeenSetExplicitly(UCOL_NORMALIZATION_MODE)) {
         appendAttribute(result, 'N', getAttribute(UCOL_NORMALIZATION_MODE, errorCode), errorCode);
     }

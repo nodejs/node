@@ -651,7 +651,7 @@ private:
      /**
       *   No assignment.
       */
-     AlphabeticIndex &operator =(const AlphabeticIndex & /*other*/) { return *this;};
+     AlphabeticIndex &operator =(const AlphabeticIndex & /*other*/) { return *this;}
 
     /**
      * No Equality operators.

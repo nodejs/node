@@ -50,6 +50,10 @@ class PluralKeywordEnumeration;
 class AndConstraint;
 class SharedPluralRules;
 
+namespace number {
+class FormattedNumber;
+}
+
 /**
  * Defines rules for mapping non-negative numeric values onto a small set of
  * keywords. Rules are constructed from a text description, consisting
@@ -323,9 +327,9 @@ public:
 #endif  /* U_HIDE_INTERNAL_API */
 
     /**
-     * Given a number, returns the keyword of the first rule that applies to
-     * the number.  This function can be used with isKeyword* functions to
-     * determine the keyword for default plural rules.
+     * Given an integer, returns the keyword of the first rule
+     * that applies to  the number.  This function can be used with
+     * isKeyword* functions to determine the keyword for default plural rules.
      *
      * @param number  The number for which the rule has to be determined.
      * @return        The keyword of the selected rule.
@@ -334,15 +338,34 @@ public:
     UnicodeString select(int32_t number) const;
 
     /**
-     * Given a number, returns the keyword of the first rule that applies to
-     * the number.  This function can be used with isKeyword* functions to
-     * determine the keyword for default plural rules.
+     * Given a floating-point number, returns the keyword of the first rule
+     * that applies to  the number.  This function can be used with
+     * isKeyword* functions to determine the keyword for default plural rules.
      *
      * @param number  The number for which the rule has to be determined.
      * @return        The keyword of the selected rule.
      * @stable ICU 4.0
      */
     UnicodeString select(double number) const;
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Given a formatted number, returns the keyword of the first rule
+     * that applies to  the number.  This function can be used with
+     * isKeyword* functions to determine the keyword for default plural rules.
+     *
+     * A FormattedNumber allows you to specify an exponent or trailing zeros,
+     * which can affect the plural category. To get a FormattedNumber, see
+     * NumberFormatter.
+     *
+     * @param number  The number for which the rule has to be determined.
+     * @param status  Set if an error occurs while selecting plural keyword.
+     *                This could happen if the FormattedNumber is invalid.
+     * @return        The keyword of the selected rule.
+     * @draft ICU 64
+     */
+    UnicodeString select(const number::FormattedNumber& number, UErrorCode& status) const;
+#endif  /* U_HIDE_DRAFT_API */
 
 #ifndef U_HIDE_INTERNAL_API
     /**

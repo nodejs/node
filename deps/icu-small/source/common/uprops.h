@@ -95,8 +95,15 @@ enum {
      * denominator: den = 20<<(frac20>>2)
      */
     UPROPS_NTV_FRACTION20_START=UPROPS_NTV_BASE60_START+36,  // 0x300+9*4=0x324
+    /**
+     * Fraction-32 values:
+     * frac32 = ntv-0x34c = 0..15 -> 1|3|5|7 / 32|64|128|256
+     * numerator: num = 2*(frac32&3)+1
+     * denominator: den = 32<<(frac32>>2)
+     */
+    UPROPS_NTV_FRACTION32_START=UPROPS_NTV_FRACTION20_START+24,  // 0x324+6*4=0x34c
     /** No numeric value (yet). */
-    UPROPS_NTV_RESERVED_START=UPROPS_NTV_FRACTION20_START+24,  // 0x324+6*4=0x34c
+    UPROPS_NTV_RESERVED_START=UPROPS_NTV_FRACTION32_START+16,  // 0x34c+4*4=0x35c
 
     UPROPS_NTV_MAX_SMALL_INT=UPROPS_NTV_FRACTION_START-UPROPS_NTV_NUMERIC_START-1
 };
@@ -462,7 +469,6 @@ class UnicodeSet;
 class CharacterProperties {
 public:
     CharacterProperties() = delete;
-    static void U_CALLCONV initInclusion(UPropertySource src, UErrorCode &errorCode);
     static const UnicodeSet *getInclusionsForProperty(UProperty prop, UErrorCode &errorCode);
 };
 

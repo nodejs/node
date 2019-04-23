@@ -1465,7 +1465,7 @@ UBool RegexCompile::doParseActions(int32_t action)
             case 0x78: /* 'x' */   bit = UREGEX_COMMENTS;         break;
             case 0x2d: /* '-' */   fSetModeFlag = FALSE;          break;
             default:
-                U_ASSERT(FALSE);   // Should never happen.  Other chars are filtered out
+                UPRV_UNREACHABLE;   // Should never happen.  Other chars are filtered out
                                    // by the scanner.
             }
             if (fSetModeFlag) {
@@ -1840,9 +1840,7 @@ UBool RegexCompile::doParseActions(int32_t action)
         }
 
     default:
-        U_ASSERT(FALSE);
-        error(U_REGEX_INTERNAL_ERROR);
-        break;
+        UPRV_UNREACHABLE;
     }
 
     if (U_FAILURE(*fStatus)) {
@@ -1949,25 +1947,17 @@ int32_t RegexCompile::buildOp(int32_t type, int32_t val) {
         return 0;
     }
     if (type < 0 || type > 255) {
-        U_ASSERT(FALSE);
-        error(U_REGEX_INTERNAL_ERROR);
-        type = URX_RESERVED_OP;
+        UPRV_UNREACHABLE;
     }
     if (val > 0x00ffffff) {
-        U_ASSERT(FALSE);
-        error(U_REGEX_INTERNAL_ERROR);
-        val = 0;
+        UPRV_UNREACHABLE;
     }
     if (val < 0) {
         if (!(type == URX_RESERVED_OP_N || type == URX_RESERVED_OP)) {
-            U_ASSERT(FALSE);
-            error(U_REGEX_INTERNAL_ERROR);
-            return -1;
+            UPRV_UNREACHABLE;
         }
         if (URX_TYPE(val) != 0xff) {
-            U_ASSERT(FALSE);
-            error(U_REGEX_INTERNAL_ERROR);
-            return -1;
+            UPRV_UNREACHABLE;
         }
         type = URX_RESERVED_OP_N;
     }
@@ -2295,6 +2285,13 @@ void  RegexCompile::handleCloseParen() {
                 error(U_REGEX_LOOK_BEHIND_LIMIT);
                 break;
             }
+            if (minML == INT32_MAX && maxML == 0) {
+                // This condition happens when no match is possible, such as with a
+                // [set] expression containing no elements.
+                // In principle, the generated code to evaluate the expression could be deleted,
+                // but it's probably not worth the complication.
+                minML = 0;
+            }
             U_ASSERT(minML <= maxML);
 
             // Insert the min and max match len bounds into the URX_LB_CONT op that
@@ -2331,6 +2328,14 @@ void  RegexCompile::handleCloseParen() {
                 error(U_REGEX_LOOK_BEHIND_LIMIT);
                 break;
             }
+            if (minML == INT32_MAX && maxML == 0) {
+                // This condition happens when no match is possible, such as with a
+                // [set] expression containing no elements.
+                // In principle, the generated code to evaluate the expression could be deleted,
+                // but it's probably not worth the complication.
+                minML = 0;
+            }
+
             U_ASSERT(minML <= maxML);
 
             // Insert the min and max match len bounds into the URX_LB_CONT op that
@@ -2348,7 +2353,7 @@ void  RegexCompile::handleCloseParen() {
 
 
     default:
-        U_ASSERT(FALSE);
+        UPRV_UNREACHABLE;
     }
 
     // remember the next location in the compiled pattern.
@@ -2608,8 +2613,7 @@ void  RegexCompile::findCaseInsensitiveStarters(UChar32 c, UnicodeSet *starterCh
 
     if (c < UCHAR_MIN_VALUE || c > UCHAR_MAX_VALUE) {
         // This function should never be called with an invalid input character.
-        U_ASSERT(FALSE);
-        starterChars->clear();
+        UPRV_UNREACHABLE;
     } else if (u_hasBinaryProperty(c, UCHAR_CASE_SENSITIVE)) {
         UChar32 caseFoldedC  = u_foldCase(c, U_FOLD_CASE_DEFAULT);
         starterChars->set(caseFoldedC, caseFoldedC);
@@ -3103,13 +3107,10 @@ void   RegexCompile::matchStartType() {
         case URX_LB_END:
         case URX_LBN_CONT:
         case URX_LBN_END:
-            U_ASSERT(FALSE);     // Shouldn't get here.  These ops should be
+            UPRV_UNREACHABLE;     // Shouldn't get here.  These ops should be
                                  //  consumed by the scan in URX_LA_START and LB_START
-
-            break;
-
         default:
-            U_ASSERT(FALSE);
+            UPRV_UNREACHABLE;
             }
 
         }
@@ -3429,7 +3430,7 @@ int32_t   RegexCompile::minMatchLength(int32_t start, int32_t end) {
             break;
 
         default:
-            U_ASSERT(FALSE);
+            UPRV_UNREACHABLE;
             }
 
         }
@@ -3673,8 +3674,7 @@ int32_t   RegexCompile::maxMatchLength(int32_t start, int32_t end) {
         case URX_CTR_LOOP_NG:
             // These opcodes will be skipped over by code for URX_CRT_INIT.
             // We shouldn't encounter them here.
-            U_ASSERT(FALSE);
-            break;
+            UPRV_UNREACHABLE;
 
         case URX_LOOP_SR_I:
         case URX_LOOP_DOT_I:
@@ -3694,8 +3694,7 @@ int32_t   RegexCompile::maxMatchLength(int32_t start, int32_t end) {
 
             // End of look-ahead ops should always be consumed by the processing at
             //  the URX_LA_START op.
-            // U_ASSERT(FALSE);
-            // break;
+            // UPRV_UNREACHABLE;
 
         case URX_LB_START:
             {
@@ -3720,7 +3719,7 @@ int32_t   RegexCompile::maxMatchLength(int32_t start, int32_t end) {
             break;
 
         default:
-            U_ASSERT(FALSE);
+            UPRV_UNREACHABLE;
         }
 
 
@@ -3875,8 +3874,7 @@ void RegexCompile::stripNOPs() {
 
         default:
             // Some op is unaccounted for.
-            U_ASSERT(FALSE);
-            error(U_REGEX_INTERNAL_ERROR);
+            UPRV_UNREACHABLE;
         }
     }
 
@@ -4012,7 +4010,7 @@ UChar32  RegexCompile::peekCharLL() {
 //
 //------------------------------------------------------------------------------
 void RegexCompile::nextChar(RegexPatternChar &c) {
-
+  tailRecursion:
     fScanIndex = UTEXT_GETNATIVEINDEX(fRXPat->fPattern);
     c.fChar    = nextCharLL();
     c.fQuoted  = FALSE;
@@ -4023,7 +4021,9 @@ void RegexCompile::nextChar(RegexPatternChar &c) {
             c.fChar == (UChar32)-1) {
             fQuoteMode = FALSE;  //  Exit quote mode,
             nextCharLL();        // discard the E
-            nextChar(c);         // recurse to get the real next char
+            // nextChar(c);      // recurse to get the real next char
+            goto tailRecursion;  // Note: fuzz testing produced testcases that
+                                 //       resulted in stack overflow here.
         }
     }
     else if (fInBackslashQuote) {
@@ -4141,8 +4141,10 @@ void RegexCompile::nextChar(RegexPatternChar &c) {
             else if (peekCharLL() == chQ) {
                 //  "\Q"  enter quote mode, which will continue until "\E"
                 fQuoteMode = TRUE;
-                nextCharLL();       // discard the 'Q'.
-                nextChar(c);        // recurse to get the real next char.
+                nextCharLL();        // discard the 'Q'.
+                // nextChar(c);      // recurse to get the real next char.
+                goto tailRecursion;  // Note: fuzz testing produced test cases that
+                //                            resulted in stack overflow here.
             }
             else
             {
@@ -4622,8 +4624,7 @@ void RegexCompile::setEval(int32_t nextOp) {
                 delete rightOperand;
                 break;
             default:
-                U_ASSERT(FALSE);
-                break;
+                UPRV_UNREACHABLE;
             }
         }
     }

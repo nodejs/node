@@ -21,8 +21,14 @@
 #include "umutex.h"
 
 static icu::UnifiedCache *gCache = NULL;
-static UMutex gCacheMutex = U_MUTEX_INITIALIZER;
-static UConditionVar gInProgressValueAddedCond = U_CONDITION_INITIALIZER;
+static icu::UMutex *gCacheMutex() {
+    static icu::UMutex m = U_MUTEX_INITIALIZER;
+    return &m;
+}
+static icu::UConditionVar *gInProgressValueAddedCond() {
+    static icu::UConditionVar cv = U_CONDITION_INITIALIZER;
+    return &cv;
+}
 static icu::UInitOnce gCacheInitOnce = U_INITONCE_INITIALIZER;
 
 static const int32_t MAX_EVICT_ITERATIONS = 10;
@@ -132,28 +138,28 @@ void UnifiedCache::setEvictionPolicy(
         status = U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
-    Mutex lock(&gCacheMutex);
+    Mutex lock(gCacheMutex());
     fMaxUnused = count;
     fMaxPercentageOfInUse = percentageOfInUseItems;
 }
 
 int32_t UnifiedCache::unusedCount() const {
-    Mutex lock(&gCacheMutex);
+    Mutex lock(gCacheMutex());
     return uhash_count(fHashtable) - fNumValuesInUse;
 }
 
 int64_t UnifiedCache::autoEvictedCount() const {
-    Mutex lock(&gCacheMutex);
+    Mutex lock(gCacheMutex());
     return fAutoEvictedCount;
 }
 
 int32_t UnifiedCache::keyCount() const {
-    Mutex lock(&gCacheMutex);
+    Mutex lock(gCacheMutex());
     return uhash_count(fHashtable);
 }
 
 void UnifiedCache::flush() const {
-    Mutex lock(&gCacheMutex);
+    Mutex lock(gCacheMutex());
 
     // Use a loop in case cache items that are flushed held hard references to
     // other cache items making those additional cache items eligible for
@@ -162,7 +168,7 @@ void UnifiedCache::flush() const {
 }
 
 void UnifiedCache::handleUnreferencedObject() const {
-    Mutex lock(&gCacheMutex);
+    Mutex lock(gCacheMutex());
     --fNumValuesInUse;
     _runEvictionSlice();
 }
@@ -181,7 +187,7 @@ void UnifiedCache::dump() {
 }
 
 void UnifiedCache::dumpContents() const {
-    Mutex lock(&gCacheMutex);
+    Mutex lock(gCacheMutex());
     _dumpContents();
 }
 
@@ -221,7 +227,7 @@ UnifiedCache::~UnifiedCache() {
         // Now all that should be left in the cache are entries that refer to
         // each other and entries with hard references from outside the cache.
         // Nothing we can do about these so proceed to wipe out the cache.
-        Mutex lock(&gCacheMutex);
+        Mutex lock(gCacheMutex());
         _flush(TRUE);
     }
     uhash_close(fHashtable);
@@ -322,7 +328,7 @@ void UnifiedCache::_putIfAbsentAndGet(
         const CacheKeyBase &key,
         const SharedObject *&value,
         UErrorCode &status) const {
-    Mutex lock(&gCacheMutex);
+    Mutex lock(gCacheMutex());
     const UHashElement *element = uhash_find(fHashtable, &key);
     if (element != NULL && !_inProgress(element)) {
         _fetch(element, value, status);
@@ -347,14 +353,14 @@ UBool UnifiedCache::_poll(
         UErrorCode &status) const {
     U_ASSERT(value == NULL);
     U_ASSERT(status == U_ZERO_ERROR);
-    Mutex lock(&gCacheMutex);
+    Mutex lock(gCacheMutex());
     const UHashElement *element = uhash_find(fHashtable, &key);
 
     // If the hash table contains an inProgress placeholder entry for this key,
     // this means that another thread is currently constructing the value object.
     // Loop, waiting for that construction to complete.
      while (element != NULL && _inProgress(element)) {
-        umtx_condWait(&gInProgressValueAddedCond, &gCacheMutex);
+        umtx_condWait(gInProgressValueAddedCond(), gCacheMutex());
         element = uhash_find(fHashtable, &key);
     }
 
@@ -427,7 +433,7 @@ void UnifiedCache::_put(
 
     // Tell waiting threads that we replace in-progress status with
     // an error.
-    umtx_condBroadcast(&gInProgressValueAddedCond);
+    umtx_condBroadcast(gInProgressValueAddedCond());
 }
 
 void UnifiedCache::_fetch(

@@ -504,7 +504,6 @@ main(int argc, char* argv[]) {
     if (o.files != NULL) {
         pkg_deleteList(o.files);
     }
-
     return result;
 }
 
@@ -544,6 +543,7 @@ normal_command_mode:
     int result = system(cmd);
     if (result != 0) {
         fprintf(stderr, "-- return status = %d\n", result);
+        result = 1; // system() result code is platform specific.
     }
 
     if (cmd != cmdBuffer && cmd != command) {
@@ -1350,8 +1350,8 @@ static int32_t pkg_generateLibraryFile(const char *targetDir, const char mode, c
 
     if (IN_STATIC_MODE(mode)) {
         if (cmd == NULL) {
-            length = uprv_strlen(pkgDataFlags[AR]) + uprv_strlen(pkgDataFlags[ARFLAGS]) + uprv_strlen(targetDir) +
-                     uprv_strlen(libFileNames[LIB_FILE_VERSION]) + uprv_strlen(objectFile) + uprv_strlen(pkgDataFlags[RANLIB]) + BUFFER_PADDING_SIZE;
+            length = static_cast<int32_t>(uprv_strlen(pkgDataFlags[AR]) + uprv_strlen(pkgDataFlags[ARFLAGS]) + uprv_strlen(targetDir) +
+                     uprv_strlen(libFileNames[LIB_FILE_VERSION]) + uprv_strlen(objectFile) + uprv_strlen(pkgDataFlags[RANLIB]) + BUFFER_PADDING_SIZE);
             if ((cmd = (char *)uprv_malloc(sizeof(char) * length)) == NULL) {
                 fprintf(stderr, "Unable to allocate memory for command.\n");
                 return -1;
@@ -1376,15 +1376,15 @@ static int32_t pkg_generateLibraryFile(const char *targetDir, const char mode, c
         }
     } else /* if (IN_DLL_MODE(mode)) */ {
         if (cmd == NULL) {
-            length = uprv_strlen(pkgDataFlags[GENLIB]) + uprv_strlen(pkgDataFlags[LDICUDTFLAGS]) +
+            length = static_cast<int32_t>(uprv_strlen(pkgDataFlags[GENLIB]) + uprv_strlen(pkgDataFlags[LDICUDTFLAGS]) +
                      ((uprv_strlen(targetDir) + uprv_strlen(libFileNames[LIB_FILE_VERSION_TMP])) * 2) +
                      uprv_strlen(objectFile) + uprv_strlen(pkgDataFlags[LD_SONAME]) +
                      uprv_strlen(pkgDataFlags[LD_SONAME][0] == 0 ? "" : libFileNames[LIB_FILE_VERSION_MAJOR]) +
-                     uprv_strlen(pkgDataFlags[RPATH_FLAGS]) + uprv_strlen(pkgDataFlags[BIR_FLAGS]) + BUFFER_PADDING_SIZE;
+                     uprv_strlen(pkgDataFlags[RPATH_FLAGS]) + uprv_strlen(pkgDataFlags[BIR_FLAGS]) + BUFFER_PADDING_SIZE);
 #if U_PLATFORM == U_PF_CYGWIN
-            length += uprv_strlen(targetDir) + uprv_strlen(libFileNames[LIB_FILE_CYGWIN_VERSION]);
+            length += static_cast<int32_t>(uprv_strlen(targetDir) + uprv_strlen(libFileNames[LIB_FILE_CYGWIN_VERSION]));
 #elif U_PLATFORM == U_PF_MINGW
-            length += uprv_strlen(targetDir) + uprv_strlen(libFileNames[LIB_FILE_MINGW]);
+            length += static_cast<int32_t>(uprv_strlen(targetDir) + uprv_strlen(libFileNames[LIB_FILE_MINGW]));
 #endif
             if ((cmd = (char *)uprv_malloc(sizeof(char) * length)) == NULL) {
                 fprintf(stderr, "Unable to allocate memory for command.\n");
@@ -1516,8 +1516,8 @@ static int32_t pkg_createWithAssemblyCode(const char *targetDir, const char mode
     uprv_strcpy(tempObjectFile, gencFilePath);
     tempObjectFile[uprv_strlen(tempObjectFile)-1] = 'o';
 
-    length = uprv_strlen(pkgDataFlags[COMPILER]) + uprv_strlen(pkgDataFlags[LIBFLAGS])
-                    + uprv_strlen(tempObjectFile) + uprv_strlen(gencFilePath) + BUFFER_PADDING_SIZE;
+    length = static_cast<int32_t>(uprv_strlen(pkgDataFlags[COMPILER]) + uprv_strlen(pkgDataFlags[LIBFLAGS])
+             + uprv_strlen(tempObjectFile) + uprv_strlen(gencFilePath) + BUFFER_PADDING_SIZE);
 
     cmd = (char *)uprv_malloc(sizeof(char) * length);
     if (cmd == NULL) {
@@ -1905,7 +1905,7 @@ static UPKGOptions *pkg_checkFlag(UPKGOptions *o) {
         char *tmpGenlibFlagBuffer = NULL;
         int32_t i, offset;
 
-        length = uprv_strlen(flag) + 1;
+        length = static_cast<int32_t>(uprv_strlen(flag) + 1);
         tmpGenlibFlagBuffer = (char *)uprv_malloc(length);
         if (tmpGenlibFlagBuffer == NULL) {
             /* Memory allocation error */
@@ -1915,7 +1915,7 @@ static UPKGOptions *pkg_checkFlag(UPKGOptions *o) {
 
         uprv_strcpy(tmpGenlibFlagBuffer, flag);
 
-        offset = uprv_strlen(rm_cmd);
+        offset = static_cast<int32_t>(uprv_strlen(rm_cmd));
 
         for (i = 0; i < (length - offset); i++) {
             flag[i] = tmpGenlibFlagBuffer[offset + i];
@@ -1928,7 +1928,7 @@ static UPKGOptions *pkg_checkFlag(UPKGOptions *o) {
     }
 
     flag = pkgDataFlags[BIR_FLAGS];
-    length = uprv_strlen(pkgDataFlags[BIR_FLAGS]);
+    length = static_cast<int32_t>(uprv_strlen(pkgDataFlags[BIR_FLAGS]));
 
     for (int32_t i = 0; i < length; i++) {
         if (flag[i] == MAP_FILE_EXT[count]) {
@@ -1988,7 +1988,7 @@ static UPKGOptions *pkg_checkFlag(UPKGOptions *o) {
     int32_t length = 0;
 
     flag = pkgDataFlags[GENLIB];
-    length = uprv_strlen(pkgDataFlags[GENLIB]);
+    length = static_cast<int32_t>(uprv_strlen(pkgDataFlags[GENLIB]));
 
     int32_t position = length - 1;
 
@@ -2006,7 +2006,7 @@ static UPKGOptions *pkg_checkFlag(UPKGOptions *o) {
     int32_t length = 0;
 
     flag = pkgDataFlags[GENLIB];
-    length = uprv_strlen(pkgDataFlags[GENLIB]);
+    length = static_cast<int32_t>(uprv_strlen(pkgDataFlags[GENLIB]));
 
     int32_t position = length - 1;
 
@@ -2117,8 +2117,8 @@ static void loadLists(UPKGOptions *o, UErrorCode *status)
                     fprintf(stderr, "pkgdata: Error: absolute path encountered. Old style paths are not supported. Use relative paths such as 'fur.res' or 'translit%cfur.res'.\n\tBad path: '%s'\n", U_FILE_SEP_CHAR, s);
                     exit(U_ILLEGAL_ARGUMENT_ERROR);
                 }
-                tmpLength = uprv_strlen(o->srcDir) +
-                            uprv_strlen(s) + 5; /* 5 is to add a little extra space for, among other things, PKGDATA_FILE_SEP_STRING */
+                /* The +5 is to add a little extra space for, among other things, PKGDATA_FILE_SEP_STRING */
+                tmpLength = static_cast<int32_t>(uprv_strlen(o->srcDir) + uprv_strlen(s) + 5);
                 if((tmp = (char *)uprv_malloc(tmpLength)) == NULL) {
                     fprintf(stderr, "pkgdata: Error: Unable to allocate tmp buffer size: %d\n", tmpLength);
                     exit(U_MEMORY_ALLOCATION_ERROR);

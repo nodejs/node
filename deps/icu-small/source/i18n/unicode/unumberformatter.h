@@ -7,8 +7,10 @@
 #ifndef __UNUMBERFORMATTER_H__
 #define __UNUMBERFORMATTER_H__
 
+#include "unicode/parseerr.h"
 #include "unicode/ufieldpositer.h"
 #include "unicode/umisc.h"
+#include "unicode/uformattedvalue.h"
 
 
 /**
@@ -267,13 +269,6 @@ typedef enum UNumberGroupingStrategy {
 
 } UNumberGroupingStrategy;
 
-#ifndef U_HIDE_DEPRECATED_API
-/**
- * Old name for compatibility: will be removed in ICU 64.
- * @deprecated ICU 63
- */
-typedef UNumberGroupingStrategy UGroupingStrategy;
-#endif  /* U_HIDE_DEPRECATED_API */
 
 #endif  /* U_HIDE_DRAFT_API */
 
@@ -382,6 +377,8 @@ typedef enum UNumberSignDisplay {
  * <li>UNUM_DECIMAL_SEPARATOR_AUTO: "1", "1.1"
  * <li>UNUM_DECIMAL_SEPARATOR_ALWAYS: "1.", "1.1"
  * </ul>
+ *
+ * @draft ICU 60
  */
 typedef enum UNumberDecimalSeparatorDisplay {
     /**
@@ -408,15 +405,13 @@ typedef enum UNumberDecimalSeparatorDisplay {
 } UNumberDecimalSeparatorDisplay;
 #endif  /* U_HIDE_DRAFT_API */
 
-#ifndef U_HIDE_DRAFT_API
-
 struct UNumberFormatter;
 /**
  * C-compatible version of icu::number::LocalizedNumberFormatter.
  *
  * NOTE: This is a C-compatible API; C++ users should build against numberformatter.h instead.
  *
- * @draft ICU 62
+ * @stable ICU 62
  */
 typedef struct UNumberFormatter UNumberFormatter;
 
@@ -426,7 +421,7 @@ struct UFormattedNumber;
  *
  * NOTE: This is a C-compatible API; C++ users should build against numberformatter.h instead.
  *
- * @draft ICU 62
+ * @stable ICU 62
  */
 typedef struct UFormattedNumber UFormattedNumber;
 
@@ -446,24 +441,41 @@ typedef struct UFormattedNumber UFormattedNumber;
  * @param skeletonLen The number of UChars in the skeleton string, or -1 it it is NUL-terminated.
  * @param locale The NUL-terminated locale ID.
  * @param ec Set if an error occurs.
- * @draft ICU 62
+ * @stable ICU 62
  */
-U_DRAFT UNumberFormatter* U_EXPORT2
+U_STABLE UNumberFormatter* U_EXPORT2
 unumf_openForSkeletonAndLocale(const UChar* skeleton, int32_t skeletonLen, const char* locale,
                                UErrorCode* ec);
 
 
+#ifndef U_HIDE_DRAFT_API
 /**
- * Creates a new UFormattedNumber for holding the result of a number formatting operation.
+ * Like unumf_openForSkeletonAndLocale, but accepts a UParseError, which will be populated with the
+ * location of a skeleton syntax error if such a syntax error exists.
  *
- * Objects of type UFormattedNumber are not guaranteed to be threadsafe.
- *
- * NOTE: This is a C-compatible API; C++ users should build against numberformatter.h instead.
+ * @param skeleton The skeleton string, like u"percent precision-integer"
+ * @param skeletonLen The number of UChars in the skeleton string, or -1 it it is NUL-terminated.
+ * @param locale The NUL-terminated locale ID.
+ * @param perror A parse error struct populated if an error occurs when parsing. Can be NULL.
+ *               If no error occurs, perror->offset will be set to -1.
+ * @param ec Set if an error occurs.
+ * @draft ICU 64
+ */
+U_DRAFT UNumberFormatter* U_EXPORT2
+unumf_openForSkeletonAndLocaleWithError(
+       const UChar* skeleton, int32_t skeletonLen, const char* locale, UParseError* perror, UErrorCode* ec);
+#endif  // U_HIDE_DRAFT_API
+
+
+/**
+ * Creates an object to hold the result of a UNumberFormatter
+ * operation. The object can be used repeatedly; it is cleared whenever
+ * passed to a format function.
  *
  * @param ec Set if an error occurs.
- * @draft ICU 62
+ * @stable ICU 62
  */
-U_DRAFT UFormattedNumber* U_EXPORT2
+U_STABLE UFormattedNumber* U_EXPORT2
 unumf_openResult(UErrorCode* ec);
 
 
@@ -480,9 +492,9 @@ unumf_openResult(UErrorCode* ec);
  * @param value The number to be formatted.
  * @param uresult The object that will be mutated to store the result; see unumf_openResult.
  * @param ec Set if an error occurs.
- * @draft ICU 62
+ * @stable ICU 62
  */
-U_DRAFT void U_EXPORT2
+U_STABLE void U_EXPORT2
 unumf_formatInt(const UNumberFormatter* uformatter, int64_t value, UFormattedNumber* uresult,
                 UErrorCode* ec);
 
@@ -500,9 +512,9 @@ unumf_formatInt(const UNumberFormatter* uformatter, int64_t value, UFormattedNum
  * @param value The number to be formatted.
  * @param uresult The object that will be mutated to store the result; see unumf_openResult.
  * @param ec Set if an error occurs.
- * @draft ICU 62
+ * @stable ICU 62
  */
-U_DRAFT void U_EXPORT2
+U_STABLE void U_EXPORT2
 unumf_formatDouble(const UNumberFormatter* uformatter, double value, UFormattedNumber* uresult,
                    UErrorCode* ec);
 
@@ -524,17 +536,41 @@ unumf_formatDouble(const UNumberFormatter* uformatter, double value, UFormattedN
  * @param valueLen The length of the numeric string, or -1 if it is NUL-terminated.
  * @param uresult The object that will be mutated to store the result; see unumf_openResult.
  * @param ec Set if an error occurs.
- * @draft ICU 62
+ * @stable ICU 62
  */
-U_DRAFT void U_EXPORT2
+U_STABLE void U_EXPORT2
 unumf_formatDecimal(const UNumberFormatter* uformatter, const char* value, int32_t valueLen,
                     UFormattedNumber* uresult, UErrorCode* ec);
+
+#ifndef U_HIDE_DRAFT_API
+/**
+ * Returns a representation of a UFormattedNumber as a UFormattedValue,
+ * which can be subsequently passed to any API requiring that type.
+ *
+ * The returned object is owned by the UFormattedNumber and is valid
+ * only as long as the UFormattedNumber is present and unchanged in memory.
+ *
+ * You can think of this method as a cast between types.
+ *
+ * @param uresult The object containing the formatted string.
+ * @param ec Set if an error occurs.
+ * @return A UFormattedValue owned by the input object.
+ * @draft ICU 64
+ */
+U_DRAFT const UFormattedValue* U_EXPORT2
+unumf_resultAsValue(const UFormattedNumber* uresult, UErrorCode* ec);
+#endif  /* U_HIDE_DRAFT_API */
 
 
 /**
  * Extracts the result number string out of a UFormattedNumber to a UChar buffer if possible.
  * If bufferCapacity is greater than the required length, a terminating NUL is written.
  * If bufferCapacity is less than the required length, an error code is set.
+ *
+ * Also see ufmtval_getString, which returns a NUL-terminated string:
+ *
+ *     int32_t len;
+ *     const UChar* str = ufmtval_getString(unumf_resultAsValue(uresult, &ec), &len, &ec);
  *
  * NOTE: This is a C-compatible API; C++ users should build against numberformatter.h instead.
  *
@@ -543,9 +579,9 @@ unumf_formatDecimal(const UNumberFormatter* uformatter, const char* value, int32
  * @param bufferCapacity The number of UChars available in the buffer.
  * @param ec Set if an error occurs.
  * @return The required length.
- * @draft ICU 62
+ * @stable ICU 62
  */
-U_DRAFT int32_t U_EXPORT2
+U_STABLE int32_t U_EXPORT2
 unumf_resultToString(const UFormattedNumber* uresult, UChar* buffer, int32_t bufferCapacity,
                      UErrorCode* ec);
 
@@ -554,6 +590,8 @@ unumf_resultToString(const UFormattedNumber* uresult, UChar* buffer, int32_t buf
  * Determines the start and end indices of the next occurrence of the given <em>field</em> in the
  * output string. This allows you to determine the locations of, for example, the integer part,
  * fraction part, or symbols.
+ *
+ * This is a simpler but less powerful alternative to {@link ufmtval_nextPosition}.
  *
  * If a field occurs just once, calling this method will find that occurrence and return it. If a
  * field occurs multiple times, this method may be called repeatedly with the following pattern:
@@ -579,9 +617,9 @@ unumf_resultToString(const UFormattedNumber* uresult, UChar* buffer, int32_t buf
  *            (exclusive index). If a field position is not found, the FieldPosition is not changed and
  *            the method returns FALSE.
  * @param ec Set if an error occurs.
- * @draft ICU 62
+ * @stable ICU 62
  */
-U_DRAFT UBool U_EXPORT2
+U_STABLE UBool U_EXPORT2
 unumf_resultNextFieldPosition(const UFormattedNumber* uresult, UFieldPosition* ufpos, UErrorCode* ec);
 
 
@@ -589,7 +627,10 @@ unumf_resultNextFieldPosition(const UFormattedNumber* uresult, UFieldPosition* u
  * Populates the given iterator with all fields in the formatted output string. This allows you to
  * determine the locations of the integer part, fraction part, and sign.
  *
- * If you need information on only one field, use unumf_resultNextFieldPosition().
+ * This is an alternative to the more powerful {@link ufmtval_nextPosition} API.
+ *
+ * If you need information on only one field, use {@link ufmtval_nextPosition} or
+ * {@link unumf_resultNextFieldPosition}.
  *
  * @param uresult The object containing the formatted number.
  * @param ufpositer
@@ -601,9 +642,9 @@ unumf_resultNextFieldPosition(const UFormattedNumber* uresult, UFieldPosition* u
  *         overlap, but they may nest. For example, 1234 could format as "1,234" which might consist of a
  *         grouping separator field for ',' and an integer field encompassing the entire string.
  * @param ec Set if an error occurs.
- * @draft ICU 62
+ * @stable ICU 62
  */
-U_DRAFT void U_EXPORT2
+U_STABLE void U_EXPORT2
 unumf_resultGetAllFieldPositions(const UFormattedNumber* uresult, UFieldPositionIterator* ufpositer,
                                  UErrorCode* ec);
 
@@ -611,24 +652,20 @@ unumf_resultGetAllFieldPositions(const UFormattedNumber* uresult, UFieldPosition
 /**
  * Releases the UNumberFormatter created by unumf_openForSkeletonAndLocale().
  *
- * NOTE: This is a C-compatible API; C++ users should build against numberformatter.h instead.
- *
  * @param uformatter An object created by unumf_openForSkeletonAndLocale().
- * @draft ICU 62
+ * @stable ICU 62
  */
-U_DRAFT void U_EXPORT2
+U_STABLE void U_EXPORT2
 unumf_close(UNumberFormatter* uformatter);
 
 
 /**
  * Releases the UFormattedNumber created by unumf_openResult().
  *
- * NOTE: This is a C-compatible API; C++ users should build against numberformatter.h instead.
- *
  * @param uresult An object created by unumf_openResult().
- * @draft ICU 62
+ * @stable ICU 62
  */
-U_DRAFT void U_EXPORT2
+U_STABLE void U_EXPORT2
 unumf_closeResult(UFormattedNumber* uresult);
 
 
@@ -648,12 +685,12 @@ U_NAMESPACE_BEGIN
  *
  * @see LocalPointerBase
  * @see LocalPointer
- * @draft ICU 62
+ * @stable ICU 62
  */
 U_DEFINE_LOCAL_OPEN_POINTER(LocalUNumberFormatterPointer, UNumberFormatter, unumf_close);
 
 /**
- * \class LocalUNumberFormatterPointer
+ * \class LocalUFormattedNumberPointer
  * "Smart pointer" class; closes a UFormattedNumber via unumf_closeResult().
  * For most methods see the LocalPointerBase base class.
  *
@@ -665,14 +702,12 @@ U_DEFINE_LOCAL_OPEN_POINTER(LocalUNumberFormatterPointer, UNumberFormatter, unum
  *
  * @see LocalPointerBase
  * @see LocalPointer
- * @draft ICU 62
+ * @stable ICU 62
  */
 U_DEFINE_LOCAL_OPEN_POINTER(LocalUFormattedNumberPointer, UFormattedNumber, unumf_closeResult);
 
 U_NAMESPACE_END
 #endif // U_SHOW_CPLUSPLUS_API
-
-#endif  /* U_HIDE_DRAFT_API */
 
 #endif //__UNUMBERFORMATTER_H__
 #endif /* #if !UCONFIG_NO_FORMATTING */

@@ -3544,9 +3544,7 @@ const CEI *CEIBuffer::get(int32_t index) {
     //   Verify that it is the next one in sequence, which is all
     //   that is allowed.
     if (index != limitIx) {
-        U_ASSERT(FALSE);
-
-        return NULL;
+        UPRV_UNREACHABLE;
     }
 
     // Manage the circular CE buffer indexing
@@ -3583,9 +3581,7 @@ const CEI *CEIBuffer::getPrevious(int32_t index) {
     //   Verify that it is the next one in sequence, which is all
     //   that is allowed.
     if (index != limitIx) {
-        U_ASSERT(FALSE);
-
-        return NULL;
+        UPRV_UNREACHABLE;
     }
 
     // Manage the circular CE buffer indexing

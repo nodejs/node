@@ -310,12 +310,17 @@ class DoubleToStringConverter {
   // should be at least kBase10MaximalLength + 1 characters long.
   static const int kBase10MaximalLength = 17;
 
-  // Converts the given double 'v' to ascii. 'v' must not be NaN, +Infinity, or
-  // -Infinity. In SHORTEST_SINGLE-mode this restriction also applies to 'v'
-  // after it has been casted to a single-precision float. That is, in this
-  // mode static_cast<float>(v) must not be NaN, +Infinity or -Infinity.
+  // Converts the given double 'v' to digit characters. 'v' must not be NaN,
+  // +Infinity, or -Infinity. In SHORTEST_SINGLE-mode this restriction also
+  // applies to 'v' after it has been casted to a single-precision float. That
+  // is, in this mode static_cast<float>(v) must not be NaN, +Infinity or
+  // -Infinity.
   //
   // The result should be interpreted as buffer * 10^(point-length).
+  //
+  // The digits are written to the buffer in the platform's charset, which is
+  // often UTF-8 (with ASCII-range digits) but may be another charset, such
+  // as EBCDIC.
   //
   // The output depends on the given mode:
   //  - SHORTEST: produce the least amount of digits for which the internal
@@ -393,7 +398,7 @@ class DoubleToStringConverter {
   const int max_trailing_padding_zeroes_in_precision_mode_;
 #endif // not needed for ICU
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(DoubleToStringConverter);
+  DC_DISALLOW_IMPLICIT_CONSTRUCTORS(DoubleToStringConverter);
 };
 
 
@@ -408,8 +413,12 @@ class StringToDoubleConverter {
     ALLOW_TRAILING_JUNK = 4,
     ALLOW_LEADING_SPACES = 8,
     ALLOW_TRAILING_SPACES = 16,
-    ALLOW_SPACES_AFTER_SIGN = 32
+    ALLOW_SPACES_AFTER_SIGN = 32,
+    ALLOW_CASE_INSENSIBILITY = 64,
+    ALLOW_HEX_FLOATS = 128,
   };
+
+  static const uc16 kNoSeparator = '\0';
 
   // Flags should be a bit-or combination of the possible Flags-enum.
   //  - NO_FLAGS: no special flags.
@@ -440,6 +449,13 @@ class StringToDoubleConverter {
   //  - ALLOW_SPACES_AFTER_SIGN: ignore whitespace after the sign.
   //       Ex: StringToDouble("-   123.2") -> -123.2.
   //           StringToDouble("+   123.2") -> 123.2
+  //  - ALLOW_CASE_INSENSIBILITY: ignore case of characters for special values:
+  //      infinity and nan.
+  //  - ALLOW_HEX_FLOATS: allows hexadecimal float literals.
+  //      This *must* start with "0x" and separate the exponent with "p".
+  //      Examples: 0x1.2p3 == 9.0
+  //                0x10.1p0 == 16.0625
+  //      ALLOW_HEX and ALLOW_HEX_FLOATS are indendent.
   //
   // empty_string_value is returned when an empty string is given as input.
   // If ALLOW_LEADING_SPACES or ALLOW_TRAILING_SPACES are set, then a string
@@ -463,6 +479,12 @@ class StringToDoubleConverter {
   //  - they must not start with signs ('+', or '-'),
   //  - they must not have the same first character.
   //  - they must not start with digits.
+  //
+  // If the separator character is not kNoSeparator, then that specific
+  // character is ignored when in between two valid digits of the significant.
+  // It is not allowed to appear in the exponent.
+  // It is not allowed to lead or trail the number.
+  // It is not allowed to appear twice next to each other.
   //
   // Examples:
   //  flags = ALLOW_HEX | ALLOW_TRAILING_JUNK,
@@ -503,16 +525,26 @@ class StringToDoubleConverter {
   //    StringToDouble("01239E45") -> 1239e45.
   //    StringToDouble("-infinity") -> NaN  // junk_string_value.
   //    StringToDouble("NaN") -> NaN  // junk_string_value.
+  //
+  //  flags = NO_FLAGS,
+  //  separator = ' ':
+  //    StringToDouble("1 2 3 4") -> 1234.0
+  //    StringToDouble("1  2") -> NaN // junk_string_value
+  //    StringToDouble("1 000 000.0") -> 1000000.0
+  //    StringToDouble("1.000 000") -> 1.0
+  //    StringToDouble("1.0e1 000") -> NaN // junk_string_value
   StringToDoubleConverter(int flags,
                           double empty_string_value,
                           double junk_string_value,
                           const char* infinity_symbol,
-                          const char* nan_symbol)
+                          const char* nan_symbol,
+                          uc16 separator = kNoSeparator)
       : flags_(flags),
         empty_string_value_(empty_string_value),
         junk_string_value_(junk_string_value),
         infinity_symbol_(infinity_symbol),
-        nan_symbol_(nan_symbol) {
+        nan_symbol_(nan_symbol),
+        separator_(separator) {
   }
 
   // Performs the conversion.
@@ -547,6 +579,7 @@ class StringToDoubleConverter {
   const double junk_string_value_;
   const char* const infinity_symbol_;
   const char* const nan_symbol_;
+  const uc16 separator_;
 
   template <class Iterator>
   double StringToIeee(Iterator start_pointer,
@@ -554,7 +587,7 @@ class StringToDoubleConverter {
                       bool read_as_double,
                       int* processed_characters_count) const;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(StringToDoubleConverter);
+  DC_DISALLOW_IMPLICIT_CONSTRUCTORS(StringToDoubleConverter);
 };
 
 }  // namespace double_conversion

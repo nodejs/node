@@ -29,7 +29,10 @@
 U_NAMESPACE_BEGIN
 
 // TimeZoneNames object cache handling
-static UMutex gTimeZoneNamesLock = U_MUTEX_INITIALIZER;
+static UMutex *gTimeZoneNamesLock() {
+    static UMutex m = U_MUTEX_INITIALIZER;
+    return &m;
+}
 static UHashtable *gTimeZoneNamesCache = NULL;
 static UBool gTimeZoneNamesCacheInitialized = FALSE;
 
@@ -105,7 +108,7 @@ public:
     virtual ~TimeZoneNamesDelegate();
 
     virtual UBool operator==(const TimeZoneNames& other) const;
-    virtual UBool operator!=(const TimeZoneNames& other) const {return !operator==(other);};
+    virtual UBool operator!=(const TimeZoneNames& other) const {return !operator==(other);}
     virtual TimeZoneNames* clone() const;
 
     StringEnumeration* getAvailableMetaZoneIDs(UErrorCode& status) const;
@@ -132,7 +135,7 @@ TimeZoneNamesDelegate::TimeZoneNamesDelegate()
 }
 
 TimeZoneNamesDelegate::TimeZoneNamesDelegate(const Locale& locale, UErrorCode& status) {
-    Mutex lock(&gTimeZoneNamesLock);
+    Mutex lock(gTimeZoneNamesLock());
     if (!gTimeZoneNamesCacheInitialized) {
         // Create empty hashtable if it is not already initialized.
         gTimeZoneNamesCache = uhash_open(uhash_hashChars, uhash_compareChars, NULL, &status);
@@ -208,7 +211,7 @@ TimeZoneNamesDelegate::TimeZoneNamesDelegate(const Locale& locale, UErrorCode& s
 }
 
 TimeZoneNamesDelegate::~TimeZoneNamesDelegate() {
-    umtx_lock(&gTimeZoneNamesLock);
+    umtx_lock(gTimeZoneNamesLock());
     {
         if (fTZnamesCacheEntry) {
             U_ASSERT(fTZnamesCacheEntry->refCount > 0);
@@ -216,7 +219,7 @@ TimeZoneNamesDelegate::~TimeZoneNamesDelegate() {
             fTZnamesCacheEntry->refCount--;
         }
     }
-    umtx_unlock(&gTimeZoneNamesLock);
+    umtx_unlock(gTimeZoneNamesLock());
 }
 
 UBool
@@ -237,13 +240,13 @@ TimeZoneNames*
 TimeZoneNamesDelegate::clone() const {
     TimeZoneNamesDelegate* other = new TimeZoneNamesDelegate();
     if (other != NULL) {
-        umtx_lock(&gTimeZoneNamesLock);
+        umtx_lock(gTimeZoneNamesLock());
         {
             // Just increment the reference count
             fTZnamesCacheEntry->refCount++;
             other->fTZnamesCacheEntry = fTZnamesCacheEntry;
         }
-        umtx_unlock(&gTimeZoneNamesLock);
+        umtx_unlock(gTimeZoneNamesLock());
     }
     return other;
 }

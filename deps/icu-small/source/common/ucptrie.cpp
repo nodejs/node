@@ -280,7 +280,7 @@ UChar32 getRange(const void *t, UChar32 start,
     int32_t prevI3Block = -1;
     int32_t prevBlock = -1;
     UChar32 c = start;
-    uint32_t value;
+    uint32_t trieValue, value;
     bool haveValue = false;
     do {
         int32_t i3Block;
@@ -319,6 +319,7 @@ UChar32 getRange(const void *t, UChar32 start,
                         return c - 1;
                     }
                 } else {
+                    trieValue = trie->nullValue;
                     value = nullValue;
                     if (pValue != nullptr) { *pValue = nullValue; }
                     haveValue = true;
@@ -357,6 +358,7 @@ UChar32 getRange(const void *t, UChar32 start,
                             return c - 1;
                         }
                     } else {
+                        trieValue = trie->nullValue;
                         value = nullValue;
                         if (pValue != nullptr) { *pValue = nullValue; }
                         haveValue = true;
@@ -364,23 +366,32 @@ UChar32 getRange(const void *t, UChar32 start,
                     c = (c + dataBlockLength) & ~dataMask;
                 } else {
                     int32_t di = block + (c & dataMask);
-                    uint32_t value2 = getValue(trie->data, valueWidth, di);
-                    value2 = maybeFilterValue(value2, trie->nullValue, nullValue,
-                                              filter, context);
+                    uint32_t trieValue2 = getValue(trie->data, valueWidth, di);
                     if (haveValue) {
-                        if (value2 != value) {
-                            return c - 1;
+                        if (trieValue2 != trieValue) {
+                            if (filter == nullptr ||
+                                    maybeFilterValue(trieValue2, trie->nullValue, nullValue,
+                                                     filter, context) != value) {
+                                return c - 1;
+                            }
+                            trieValue = trieValue2;  // may or may not help
                         }
                     } else {
-                        value = value2;
+                        trieValue = trieValue2;
+                        value = maybeFilterValue(trieValue2, trie->nullValue, nullValue,
+                                                 filter, context);
                         if (pValue != nullptr) { *pValue = value; }
                         haveValue = true;
                     }
                     while ((++c & dataMask) != 0) {
-                        if (maybeFilterValue(getValue(trie->data, valueWidth, ++di),
-                                             trie->nullValue, nullValue,
-                                             filter, context) != value) {
-                            return c - 1;
+                        trieValue2 = getValue(trie->data, valueWidth, ++di);
+                        if (trieValue2 != trieValue) {
+                            if (filter == nullptr ||
+                                    maybeFilterValue(trieValue2, trie->nullValue, nullValue,
+                                                     filter, context) != value) {
+                                return c - 1;
+                            }
+                            trieValue = trieValue2;  // may or may not help
                         }
                     }
                 }

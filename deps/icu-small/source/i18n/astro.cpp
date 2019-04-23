@@ -65,7 +65,10 @@ static inline UBool isINVALID(double d) {
   return(uprv_isNaN(d));
 }
 
-static UMutex ccLock = U_MUTEX_INITIALIZER;
+static icu::UMutex *ccLock() {
+    static icu::UMutex m = U_MUTEX_INITIALIZER;
+    return &m;
+}
 
 U_CDECL_BEGIN
 static UBool calendar_astro_cleanup(void) {
@@ -1549,12 +1552,12 @@ int32_t CalendarCache::get(CalendarCache** cache, int32_t key, UErrorCode &statu
     if(U_FAILURE(status)) {
         return 0;
     }
-    umtx_lock(&ccLock);
+    umtx_lock(ccLock());
 
     if(*cache == NULL) {
         createCache(cache, status);
         if(U_FAILURE(status)) {
-            umtx_unlock(&ccLock);
+            umtx_unlock(ccLock());
             return 0;
         }
     }
@@ -1562,7 +1565,7 @@ int32_t CalendarCache::get(CalendarCache** cache, int32_t key, UErrorCode &statu
     res = uhash_igeti((*cache)->fTable, key);
     U_DEBUG_ASTRO_MSG(("%p: GET: [%d] == %d\n", (*cache)->fTable, key, res));
 
-    umtx_unlock(&ccLock);
+    umtx_unlock(ccLock());
     return res;
 }
 
@@ -1570,12 +1573,12 @@ void CalendarCache::put(CalendarCache** cache, int32_t key, int32_t value, UErro
     if(U_FAILURE(status)) {
         return;
     }
-    umtx_lock(&ccLock);
+    umtx_lock(ccLock());
 
     if(*cache == NULL) {
         createCache(cache, status);
         if(U_FAILURE(status)) {
-            umtx_unlock(&ccLock);
+            umtx_unlock(ccLock());
             return;
         }
     }
@@ -1583,7 +1586,7 @@ void CalendarCache::put(CalendarCache** cache, int32_t key, int32_t value, UErro
     uhash_iputi((*cache)->fTable, key, value, &status);
     U_DEBUG_ASTRO_MSG(("%p: PUT: [%d] := %d\n", (*cache)->fTable, key, value));
 
-    umtx_unlock(&ccLock);
+    umtx_unlock(ccLock());
 }
 
 CalendarCache::CalendarCache(int32_t size, UErrorCode &status) {
