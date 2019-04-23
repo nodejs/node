@@ -8,7 +8,7 @@ const { spawn } = require('child_process');
 // We simulate that using cat | (head -n1; ...)
 
 const p1 = spawn('cat', { stdio: ['pipe', 'pipe', 'inherit'] });
-const p2 = spawn('head', [ '-n1'], { stdio: [p1.stdout, 'pipe', 'inherit'] });
+const p2 = spawn('head', ['-n1'], { stdio: [p1.stdout, 'pipe', 'inherit'] });
 
 // First, write the line that gets passed through p2, making 'head' exit.
 p1.stdin.write('hello\n');
@@ -23,4 +23,5 @@ p2.on('exit', common.mustCall(() => {
   p1.stdout.on('data', common.mustCall((chunk) => {
     assert.strictEqual(chunk, 'world\n');
   }));
+  p1.stdout.resume();
 }));
