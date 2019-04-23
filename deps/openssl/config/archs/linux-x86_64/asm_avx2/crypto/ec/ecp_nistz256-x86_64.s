@@ -3959,7 +3959,7 @@ ecp_nistz256_mul_mont:
 .type	__ecp_nistz256_mul_montq,@function
 .align	32
 __ecp_nistz256_mul_montq:
-.cfi_startproc
+.cfi_startproc	
 
 
 	movq	%rax,%rbp
@@ -4171,7 +4171,7 @@ __ecp_nistz256_mul_montq:
 	movq	%r9,24(%rdi)
 
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	__ecp_nistz256_mul_montq,.-__ecp_nistz256_mul_montq
 
 
@@ -4249,7 +4249,7 @@ ecp_nistz256_sqr_mont:
 .type	__ecp_nistz256_sqr_montq,@function
 .align	32
 __ecp_nistz256_sqr_montq:
-.cfi_startproc
+.cfi_startproc	
 	movq	%rax,%r13
 	mulq	%r14
 	movq	%rax,%r9
@@ -4407,12 +4407,12 @@ __ecp_nistz256_sqr_montq:
 	movq	%r15,24(%rdi)
 
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	__ecp_nistz256_sqr_montq,.-__ecp_nistz256_sqr_montq
 .type	__ecp_nistz256_mul_montx,@function
 .align	32
 __ecp_nistz256_mul_montx:
-.cfi_startproc
+.cfi_startproc	
 
 
 	mulxq	%r9,%r8,%r9
@@ -4575,13 +4575,13 @@ __ecp_nistz256_mul_montx:
 	movq	%r9,24(%rdi)
 
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	__ecp_nistz256_mul_montx,.-__ecp_nistz256_mul_montx
 
 .type	__ecp_nistz256_sqr_montx,@function
 .align	32
 __ecp_nistz256_sqr_montx:
-.cfi_startproc
+.cfi_startproc	
 	mulxq	%r14,%r9,%r10
 	mulxq	%r15,%rcx,%r11
 	xorl	%eax,%eax
@@ -4705,7 +4705,7 @@ __ecp_nistz256_sqr_montx:
 	movq	%r15,24(%rdi)
 
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	__ecp_nistz256_sqr_montx,.-__ecp_nistz256_sqr_montx
 
 
@@ -4845,7 +4845,7 @@ ecp_nistz256_scatter_w5:
 .type	ecp_nistz256_gather_w5,@function
 .align	32
 ecp_nistz256_gather_w5:
-.cfi_startproc
+.cfi_startproc	
 	movl	OPENSSL_ia32cap_P+8(%rip),%eax
 	testl	$32,%eax
 	jnz	.Lavx2_gather_w5
@@ -4900,7 +4900,7 @@ ecp_nistz256_gather_w5:
 	movdqu	%xmm6,64(%rdi)
 	movdqu	%xmm7,80(%rdi)
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .LSEH_end_ecp_nistz256_gather_w5:
 .size	ecp_nistz256_gather_w5,.-ecp_nistz256_gather_w5
 
@@ -4929,7 +4929,7 @@ ecp_nistz256_scatter_w7:
 .type	ecp_nistz256_gather_w7,@function
 .align	32
 ecp_nistz256_gather_w7:
-.cfi_startproc
+.cfi_startproc	
 	movl	OPENSSL_ia32cap_P+8(%rip),%eax
 	testl	$32,%eax
 	jnz	.Lavx2_gather_w7
@@ -4973,7 +4973,7 @@ ecp_nistz256_gather_w7:
 	movdqu	%xmm4,32(%rdi)
 	movdqu	%xmm5,48(%rdi)
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .LSEH_end_ecp_nistz256_gather_w7:
 .size	ecp_nistz256_gather_w7,.-ecp_nistz256_gather_w7
 
@@ -4981,7 +4981,7 @@ ecp_nistz256_gather_w7:
 .type	ecp_nistz256_avx2_gather_w5,@function
 .align	32
 ecp_nistz256_avx2_gather_w5:
-.cfi_startproc
+.cfi_startproc	
 .Lavx2_gather_w5:
 	vzeroupper
 	vmovdqa	.LTwo(%rip),%ymm0
@@ -5036,7 +5036,7 @@ ecp_nistz256_avx2_gather_w5:
 	vmovdqu	%ymm4,64(%rdi)
 	vzeroupper
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .LSEH_end_ecp_nistz256_avx2_gather_w5:
 .size	ecp_nistz256_avx2_gather_w5,.-ecp_nistz256_avx2_gather_w5
 
@@ -5046,7 +5046,7 @@ ecp_nistz256_avx2_gather_w5:
 .type	ecp_nistz256_avx2_gather_w7,@function
 .align	32
 ecp_nistz256_avx2_gather_w7:
-.cfi_startproc
+.cfi_startproc	
 .Lavx2_gather_w7:
 	vzeroupper
 	vmovdqa	.LThree(%rip),%ymm0
@@ -5116,13 +5116,13 @@ ecp_nistz256_avx2_gather_w7:
 	vmovdqu	%ymm3,32(%rdi)
 	vzeroupper
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .LSEH_end_ecp_nistz256_avx2_gather_w7:
 .size	ecp_nistz256_avx2_gather_w7,.-ecp_nistz256_avx2_gather_w7
 .type	__ecp_nistz256_add_toq,@function
 .align	32
 __ecp_nistz256_add_toq:
-.cfi_startproc
+.cfi_startproc	
 	xorq	%r11,%r11
 	addq	0(%rbx),%r12
 	adcq	8(%rbx),%r13
@@ -5150,13 +5150,13 @@ __ecp_nistz256_add_toq:
 	movq	%r9,24(%rdi)
 
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	__ecp_nistz256_add_toq,.-__ecp_nistz256_add_toq
 
 .type	__ecp_nistz256_sub_fromq,@function
 .align	32
 __ecp_nistz256_sub_fromq:
-.cfi_startproc
+.cfi_startproc	
 	subq	0(%rbx),%r12
 	sbbq	8(%rbx),%r13
 	movq	%r12,%rax
@@ -5183,13 +5183,13 @@ __ecp_nistz256_sub_fromq:
 	movq	%r9,24(%rdi)
 
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	__ecp_nistz256_sub_fromq,.-__ecp_nistz256_sub_fromq
 
 .type	__ecp_nistz256_subq,@function
 .align	32
 __ecp_nistz256_subq:
-.cfi_startproc
+.cfi_startproc	
 	subq	%r12,%rax
 	sbbq	%r13,%rbp
 	movq	%rax,%r12
@@ -5212,13 +5212,13 @@ __ecp_nistz256_subq:
 	cmovnzq	%r10,%r9
 
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	__ecp_nistz256_subq,.-__ecp_nistz256_subq
 
 .type	__ecp_nistz256_mul_by_2q,@function
 .align	32
 __ecp_nistz256_mul_by_2q:
-.cfi_startproc
+.cfi_startproc	
 	xorq	%r11,%r11
 	addq	%r12,%r12
 	adcq	%r13,%r13
@@ -5246,7 +5246,7 @@ __ecp_nistz256_mul_by_2q:
 	movq	%r9,24(%rdi)
 
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	__ecp_nistz256_mul_by_2q,.-__ecp_nistz256_mul_by_2q
 .globl	ecp_nistz256_point_double
 .type	ecp_nistz256_point_double,@function
@@ -6243,7 +6243,7 @@ ecp_nistz256_point_add_affine:
 .type	__ecp_nistz256_add_tox,@function
 .align	32
 __ecp_nistz256_add_tox:
-.cfi_startproc
+.cfi_startproc	
 	xorq	%r11,%r11
 	adcq	0(%rbx),%r12
 	adcq	8(%rbx),%r13
@@ -6272,13 +6272,13 @@ __ecp_nistz256_add_tox:
 	movq	%r9,24(%rdi)
 
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	__ecp_nistz256_add_tox,.-__ecp_nistz256_add_tox
 
 .type	__ecp_nistz256_sub_fromx,@function
 .align	32
 __ecp_nistz256_sub_fromx:
-.cfi_startproc
+.cfi_startproc	
 	xorq	%r11,%r11
 	sbbq	0(%rbx),%r12
 	sbbq	8(%rbx),%r13
@@ -6307,13 +6307,13 @@ __ecp_nistz256_sub_fromx:
 	movq	%r9,24(%rdi)
 
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	__ecp_nistz256_sub_fromx,.-__ecp_nistz256_sub_fromx
 
 .type	__ecp_nistz256_subx,@function
 .align	32
 __ecp_nistz256_subx:
-.cfi_startproc
+.cfi_startproc	
 	xorq	%r11,%r11
 	sbbq	%r12,%rax
 	sbbq	%r13,%rbp
@@ -6338,13 +6338,13 @@ __ecp_nistz256_subx:
 	cmovcq	%r10,%r9
 
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	__ecp_nistz256_subx,.-__ecp_nistz256_subx
 
 .type	__ecp_nistz256_mul_by_2x,@function
 .align	32
 __ecp_nistz256_mul_by_2x:
-.cfi_startproc
+.cfi_startproc	
 	xorq	%r11,%r11
 	adcq	%r12,%r12
 	adcq	%r13,%r13
@@ -6373,7 +6373,7 @@ __ecp_nistz256_mul_by_2x:
 	movq	%r9,24(%rdi)
 
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	__ecp_nistz256_mul_by_2x,.-__ecp_nistz256_mul_by_2x
 .type	ecp_nistz256_point_doublex,@function
 .align	32

@@ -705,7 +705,7 @@ gcm_ghash_4bit:
 .type	gcm_init_clmul,@function
 .align	16
 gcm_init_clmul:
-.cfi_startproc
+.cfi_startproc	
 .L_init_clmul:
 	movdqu	(%rsi),%xmm2
 	pshufd	$78,%xmm2,%xmm2
@@ -857,13 +857,13 @@ gcm_init_clmul:
 .byte	102,15,58,15,227,8
 	movdqu	%xmm4,80(%rdi)
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	gcm_init_clmul,.-gcm_init_clmul
 .globl	gcm_gmult_clmul
 .type	gcm_gmult_clmul,@function
 .align	16
 gcm_gmult_clmul:
-.cfi_startproc
+.cfi_startproc	
 .L_gmult_clmul:
 	movdqu	(%rdi),%xmm0
 	movdqa	.Lbswap_mask(%rip),%xmm5
@@ -910,13 +910,13 @@ gcm_gmult_clmul:
 .byte	102,15,56,0,197
 	movdqu	%xmm0,(%rdi)
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	gcm_gmult_clmul,.-gcm_gmult_clmul
 .globl	gcm_ghash_clmul
 .type	gcm_ghash_clmul,@function
 .align	32
 gcm_ghash_clmul:
-.cfi_startproc
+.cfi_startproc	
 .L_ghash_clmul:
 	movdqa	.Lbswap_mask(%rip),%xmm10
 
@@ -1295,13 +1295,13 @@ gcm_ghash_clmul:
 .byte	102,65,15,56,0,194
 	movdqu	%xmm0,(%rdi)
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	gcm_ghash_clmul,.-gcm_ghash_clmul
 .globl	gcm_init_avx
 .type	gcm_init_avx,@function
 .align	32
 gcm_init_avx:
-.cfi_startproc
+.cfi_startproc	
 	vzeroupper
 
 	vmovdqu	(%rsi),%xmm2
@@ -1404,21 +1404,21 @@ gcm_init_avx:
 
 	vzeroupper
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	gcm_init_avx,.-gcm_init_avx
 .globl	gcm_gmult_avx
 .type	gcm_gmult_avx,@function
 .align	32
 gcm_gmult_avx:
-.cfi_startproc
+.cfi_startproc	
 	jmp	.L_gmult_clmul
-.cfi_endproc
+.cfi_endproc	
 .size	gcm_gmult_avx,.-gcm_gmult_avx
 .globl	gcm_ghash_avx
 .type	gcm_ghash_avx,@function
 .align	32
 gcm_ghash_avx:
-.cfi_startproc
+.cfi_startproc	
 	vzeroupper
 
 	vmovdqu	(%rdi),%xmm10
@@ -1790,7 +1790,7 @@ gcm_ghash_avx:
 	vmovdqu	%xmm10,(%rdi)
 	vzeroupper
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	gcm_ghash_avx,.-gcm_ghash_avx
 .align	64
 .Lbswap_mask:

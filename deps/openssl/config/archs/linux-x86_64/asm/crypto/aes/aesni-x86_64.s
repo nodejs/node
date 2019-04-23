@@ -4,7 +4,7 @@
 .type	aesni_encrypt,@function
 .align	16
 aesni_encrypt:
-.cfi_startproc
+.cfi_startproc	
 	movups	(%rdi),%xmm2
 	movl	240(%rdx),%eax
 	movups	(%rdx),%xmm0
@@ -23,14 +23,14 @@ aesni_encrypt:
 	movups	%xmm2,(%rsi)
 	pxor	%xmm2,%xmm2
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	aesni_encrypt,.-aesni_encrypt
 
 .globl	aesni_decrypt
 .type	aesni_decrypt,@function
 .align	16
 aesni_decrypt:
-.cfi_startproc
+.cfi_startproc	
 	movups	(%rdi),%xmm2
 	movl	240(%rdx),%eax
 	movups	(%rdx),%xmm0
@@ -49,12 +49,12 @@ aesni_decrypt:
 	movups	%xmm2,(%rsi)
 	pxor	%xmm2,%xmm2
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	aesni_decrypt, .-aesni_decrypt
 .type	_aesni_encrypt2,@function
 .align	16
 _aesni_encrypt2:
-.cfi_startproc
+.cfi_startproc	
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -80,12 +80,12 @@ _aesni_encrypt2:
 .byte	102,15,56,221,208
 .byte	102,15,56,221,216
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	_aesni_encrypt2,.-_aesni_encrypt2
 .type	_aesni_decrypt2,@function
 .align	16
 _aesni_decrypt2:
-.cfi_startproc
+.cfi_startproc	
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -111,12 +111,12 @@ _aesni_decrypt2:
 .byte	102,15,56,223,208
 .byte	102,15,56,223,216
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	_aesni_decrypt2,.-_aesni_decrypt2
 .type	_aesni_encrypt3,@function
 .align	16
 _aesni_encrypt3:
-.cfi_startproc
+.cfi_startproc	
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -147,12 +147,12 @@ _aesni_encrypt3:
 .byte	102,15,56,221,216
 .byte	102,15,56,221,224
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	_aesni_encrypt3,.-_aesni_encrypt3
 .type	_aesni_decrypt3,@function
 .align	16
 _aesni_decrypt3:
-.cfi_startproc
+.cfi_startproc	
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -183,12 +183,12 @@ _aesni_decrypt3:
 .byte	102,15,56,223,216
 .byte	102,15,56,223,224
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	_aesni_decrypt3,.-_aesni_decrypt3
 .type	_aesni_encrypt4,@function
 .align	16
 _aesni_encrypt4:
-.cfi_startproc
+.cfi_startproc	
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -225,12 +225,12 @@ _aesni_encrypt4:
 .byte	102,15,56,221,224
 .byte	102,15,56,221,232
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	_aesni_encrypt4,.-_aesni_encrypt4
 .type	_aesni_decrypt4,@function
 .align	16
 _aesni_decrypt4:
-.cfi_startproc
+.cfi_startproc	
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -267,12 +267,12 @@ _aesni_decrypt4:
 .byte	102,15,56,223,224
 .byte	102,15,56,223,232
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	_aesni_decrypt4,.-_aesni_decrypt4
 .type	_aesni_encrypt6,@function
 .align	16
 _aesni_encrypt6:
-.cfi_startproc
+.cfi_startproc	
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -323,12 +323,12 @@ _aesni_encrypt6:
 .byte	102,15,56,221,240
 .byte	102,15,56,221,248
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	_aesni_encrypt6,.-_aesni_encrypt6
 .type	_aesni_decrypt6,@function
 .align	16
 _aesni_decrypt6:
-.cfi_startproc
+.cfi_startproc	
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -379,12 +379,12 @@ _aesni_decrypt6:
 .byte	102,15,56,223,240
 .byte	102,15,56,223,248
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	_aesni_decrypt6,.-_aesni_decrypt6
 .type	_aesni_encrypt8,@function
 .align	16
 _aesni_encrypt8:
-.cfi_startproc
+.cfi_startproc	
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -445,12 +445,12 @@ _aesni_encrypt8:
 .byte	102,68,15,56,221,192
 .byte	102,68,15,56,221,200
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	_aesni_encrypt8,.-_aesni_encrypt8
 .type	_aesni_decrypt8,@function
 .align	16
 _aesni_decrypt8:
-.cfi_startproc
+.cfi_startproc	
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -511,13 +511,13 @@ _aesni_decrypt8:
 .byte	102,68,15,56,223,192
 .byte	102,68,15,56,223,200
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	_aesni_decrypt8,.-_aesni_decrypt8
 .globl	aesni_ecb_encrypt
 .type	aesni_ecb_encrypt,@function
 .align	16
 aesni_ecb_encrypt:
-.cfi_startproc
+.cfi_startproc	
 	andq	$-16,%rdx
 	jz	.Lecb_ret
 
@@ -855,7 +855,7 @@ aesni_ecb_encrypt:
 	xorps	%xmm0,%xmm0
 	pxor	%xmm1,%xmm1
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	aesni_ecb_encrypt,.-aesni_ecb_encrypt
 .globl	aesni_ccm64_encrypt_blocks
 .type	aesni_ccm64_encrypt_blocks,@function
