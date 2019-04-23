@@ -16,7 +16,7 @@ const createdIds = [];
 const destroyedIds = [];
 async_hooks.createHook({
   init: common.mustCallAtLeast((asyncId, type) => {
-    if (type === 'HTTPPARSER') {
+    if (type === 'HTTPINCOMINGMESSAGE' || type === 'HTTPCLIENTREQUEST') {
       createdIds.push(asyncId);
     }
   }, N),
@@ -25,7 +25,7 @@ async_hooks.createHook({
   }
 }).enable();
 
-const server = http.createServer(function(req, res) {
+const server = http.createServer((req, res) => {
   res.end('Hello');
 });
 
@@ -35,6 +35,7 @@ const keepAliveAgent = new http.Agent({
 });
 
 const countdown = new Countdown(N, () => {
+  assert.ok(createdIds.length >= N);
   server.close(() => {
     // Give the server sockets time to close (which will also free their
     // associated parser objects) after the server has been closed.
