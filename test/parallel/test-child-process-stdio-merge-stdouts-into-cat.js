@@ -6,9 +6,9 @@ const { spawn } = require('child_process');
 // Regression test for https://github.com/nodejs/node/issues/27097.
 // Check that (cat [p1] ; cat [p2]) | cat [p3] works.
 
-const p3 = spawn('cat', { stdio: ['pipe', 'pipe', process.stderr] });
-const p1 = spawn('cat', { stdio: ['pipe', p3.stdin, process.stderr] });
-const p2 = spawn('cat', { stdio: ['pipe', p3.stdin, process.stderr] });
+const p3 = spawn('cat', { stdio: ['pipe', 'pipe', 'inherit'] });
+const p1 = spawn('cat', { stdio: ['pipe', p3.stdin, 'inherit'] });
+const p2 = spawn('cat', { stdio: ['pipe', p3.stdin, 'inherit'] });
 p3.stdout.setEncoding('utf8');
 
 // Write three different chunks:
