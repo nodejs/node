@@ -249,7 +249,7 @@ module.exports = {
     'no-unused-labels': 'error',
     'no-unused-vars': ['error', { args: 'none', caughtErrors: 'all' }],
     'no-use-before-define': ['error', {
-      classes: true,
+      classes: false,
       functions: false,
       variables: false,
     }],
