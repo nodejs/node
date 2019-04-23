@@ -1212,7 +1212,7 @@ rsaz_1024_mul_avx2:
 .type	rsaz_1024_red2norm_avx2,@function
 .align	32
 rsaz_1024_red2norm_avx2:
-.cfi_startproc
+.cfi_startproc	
 	subq	$-128,%rsi
 	xorq	%rax,%rax
 	movq	-128(%rsi),%r8
@@ -1404,14 +1404,14 @@ rsaz_1024_red2norm_avx2:
 	movq	%rax,120(%rdi)
 	movq	%r11,%rax
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	rsaz_1024_red2norm_avx2,.-rsaz_1024_red2norm_avx2
 
 .globl	rsaz_1024_norm2red_avx2
 .type	rsaz_1024_norm2red_avx2,@function
 .align	32
 rsaz_1024_norm2red_avx2:
-.cfi_startproc
+.cfi_startproc	
 	subq	$-128,%rdi
 	movq	(%rsi),%r8
 	movl	$0x1fffffff,%eax
@@ -1564,13 +1564,13 @@ rsaz_1024_norm2red_avx2:
 	movq	%r8,176(%rdi)
 	movq	%r8,184(%rdi)
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	rsaz_1024_norm2red_avx2,.-rsaz_1024_norm2red_avx2
 .globl	rsaz_1024_scatter5_avx2
 .type	rsaz_1024_scatter5_avx2,@function
 .align	32
 rsaz_1024_scatter5_avx2:
-.cfi_startproc
+.cfi_startproc	
 	vzeroupper
 	vmovdqu	.Lscatter_permd(%rip),%ymm5
 	shll	$4,%edx
@@ -1590,7 +1590,7 @@ rsaz_1024_scatter5_avx2:
 
 	vzeroupper
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	rsaz_1024_scatter5_avx2,.-rsaz_1024_scatter5_avx2
 
 .globl	rsaz_1024_gather5_avx2
